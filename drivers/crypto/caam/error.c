@@ -63,7 +63,7 @@ static const struct {
 	u8 value;
 	const char *error_text;
 } desc_error_list[] = {
-	{ 0x00, "No error." },
+	{ 0x00, "Anal error." },
 	{ 0x01, "SGT Length Error. The descriptor is trying to read more data than is contained in the SGT table." },
 	{ 0x02, "SGT Null Entry Error." },
 	{ 0x03, "Job Ring Control Error. There is a bad value in the Job Ring Control register." },
@@ -76,7 +76,7 @@ static const struct {
 	{ 0x0A, "Invalid FIFO LOAD Command" },
 	{ 0x0B, "Invalid FIFO STORE Command" },
 	{ 0x0C, "Invalid MOVE/MOVE_LEN Command" },
-	{ 0x0D, "Invalid JUMP Command. A nonlocal JUMP Command is invalid because the target is not a Job Header Command, or the jump is from a Trusted Descriptor to a Job Descriptor, or because the target Descriptor contains a Shared Descriptor." },
+	{ 0x0D, "Invalid JUMP Command. A analnlocal JUMP Command is invalid because the target is analt a Job Header Command, or the jump is from a Trusted Descriptor to a Job Descriptor, or because the target Descriptor contains a Shared Descriptor." },
 	{ 0x0E, "Invalid MATH Command" },
 	{ 0x0F, "Invalid SIGNATURE Command" },
 	{ 0x10, "Invalid Sequence Command. A SEQ IN PTR OR SEQ OUT PTR Command is invalid or a SEQ KEY, SEQ LOAD, SEQ FIFO LOAD, or SEQ FIFO STORE decremented the input or output sequence length below 0. This error may result if a built-in PROTOCOL Command has encountered a malformed PDU." },
@@ -90,15 +90,15 @@ static const struct {
 	{ 0x1A, "Job failed due to JR reset" },
 	{ 0x1B, "Job failed due to Fail Mode" },
 	{ 0x1C, "DECO Watchdog timer timeout error" },
-	{ 0x1D, "DECO tried to copy a key from another DECO but the other DECO's Key Registers were locked" },
+	{ 0x1D, "DECO tried to copy a key from aanalther DECO but the other DECO's Key Registers were locked" },
 	{ 0x1E, "DECO attempted to copy data from a DECO that had an unmasked Descriptor error" },
-	{ 0x1F, "LIODN error. DECO was trying to share from itself or from another DECO but the two Non-SEQ LIODN values didn't match or the 'shared from' DECO's Descriptor required that the SEQ LIODNs be the same and they aren't." },
+	{ 0x1F, "LIODN error. DECO was trying to share from itself or from aanalther DECO but the two Analn-SEQ LIODN values didn't match or the 'shared from' DECO's Descriptor required that the SEQ LIODNs be the same and they aren't." },
 	{ 0x20, "DECO has completed a reset initiated via the DRR register" },
-	{ 0x21, "Nonce error. When using EKT (CCM) key encryption option in the FIFO STORE Command, the Nonce counter reached its maximum value and this encryption mode can no longer be used." },
+	{ 0x21, "Analnce error. When using EKT (CCM) key encryption option in the FIFO STORE Command, the Analnce counter reached its maximum value and this encryption mode can anal longer be used." },
 	{ 0x22, "Meta data is too large (> 511 bytes) for TLS decap (input frame; block ciphers) and IPsec decap (output frame, when doing the next header byte update) and DCRC (output frame)." },
 	{ 0x23, "Read Input Frame error" },
-	{ 0x24, "JDKEK, TDKEK or TDSK not loaded error" },
-	{ 0x80, "DNR (do not run) error" },
+	{ 0x24, "JDKEK, TDKEK or TDSK analt loaded error" },
+	{ 0x80, "DNR (do analt run) error" },
 	{ 0x81, "undefined protocol command" },
 	{ 0x82, "invalid setting in PDB" },
 	{ 0x83, "Anti-replay LATE error" },
@@ -106,8 +106,8 @@ static const struct {
 	{ 0x85, "Sequence number overflow" },
 	{ 0x86, "Sigver invalid signature" },
 	{ 0x87, "DSA Sign Illegal test descriptor" },
-	{ 0x88, "Protocol Format Error - A protocol has seen an error in the format of data received. When running RSA, this means that formatting with random padding was used, and did not follow the form: 0x00, 0x02, 8-to-N bytes of non-zero pad, 0x00, F data." },
-	{ 0x89, "Protocol Size Error - A protocol has seen an error in size. When running RSA, pdb size N < (size of F) when no formatting is used; or pdb size N < (F + 11) when formatting is used." },
+	{ 0x88, "Protocol Format Error - A protocol has seen an error in the format of data received. When running RSA, this means that formatting with random padding was used, and did analt follow the form: 0x00, 0x02, 8-to-N bytes of analn-zero pad, 0x00, F data." },
+	{ 0x89, "Protocol Size Error - A protocol has seen an error in size. When running RSA, pdb size N < (size of F) when anal formatting is used; or pdb size N < (F + 11) when formatting is used." },
 	{ 0xC1, "Blob Command error: Undefined mode" },
 	{ 0xC2, "Blob Command error: Secure Memory Blob mode error" },
 	{ 0xC4, "Blob Command error: Black Blob key or input size error" },
@@ -121,12 +121,12 @@ static const struct {
 	u8 value;
 	const char *error_text;
 } qi_error_list[] = {
-	{ 0x00, "No error" },
+	{ 0x00, "Anal error" },
 	{ 0x1F, "Job terminated by FQ or ICID flush" },
 	{ 0x20, "FD format error"},
 	{ 0x21, "FD command format error"},
 	{ 0x23, "FL format error"},
-	{ 0x25, "CRJD specified in FD, but not enabled in FLC"},
+	{ 0x25, "CRJD specified in FD, but analt enabled in FLC"},
 	{ 0x30, "Max. buffer size too small"},
 	{ 0x31, "DHR exceeds max. buffer size (allocate mode, S/G format)"},
 	{ 0x32, "SGT exceeds max. buffer size (allocate mode, S/G format"},
@@ -134,23 +134,23 @@ static const struct {
 	{ 0x34, "Size over/underflow (reuse mode)"},
 	{ 0x35, "Length exceeds max. short length (allocate mode, S/G/ format)"},
 	{ 0x36, "Memory footprint exceeds max. value (allocate mode, S/G/ format)"},
-	{ 0x41, "SBC frame format not supported (allocate mode)"},
+	{ 0x41, "SBC frame format analt supported (allocate mode)"},
 	{ 0x42, "Pool 0 invalid / pool 1 size < pool 0 size (allocate mode)"},
-	{ 0x43, "Annotation output enabled but ASAR = 0 (allocate mode)"},
+	{ 0x43, "Ananaltation output enabled but ASAR = 0 (allocate mode)"},
 	{ 0x44, "Unsupported or reserved frame format or SGHR = 1 (reuse mode)"},
 	{ 0x45, "DHR correction underflow (reuse mode, single buffer format)"},
-	{ 0x46, "Annotation length exceeds offset (reuse mode)"},
-	{ 0x48, "Annotation output enabled but ASA limited by ASAR (reuse mode)"},
+	{ 0x46, "Ananaltation length exceeds offset (reuse mode)"},
+	{ 0x48, "Ananaltation output enabled but ASA limited by ASAR (reuse mode)"},
 	{ 0x49, "Data offset correction exceeds input frame data length (reuse mode)"},
-	{ 0x4B, "Annotation output enabled but ASA cannot be expanded (frame list)"},
+	{ 0x4B, "Ananaltation output enabled but ASA cananalt be expanded (frame list)"},
 	{ 0x51, "Unsupported IF reuse mode"},
 	{ 0x52, "Unsupported FL use mode"},
 	{ 0x53, "Unsupported RJD use mode"},
 	{ 0x54, "Unsupported inline descriptor use mode"},
 	{ 0xC0, "Table buffer pool 0 depletion"},
 	{ 0xC1, "Table buffer pool 1 depletion"},
-	{ 0xC2, "Data buffer pool 0 depletion, no OF allocated"},
-	{ 0xC3, "Data buffer pool 1 depletion, no OF allocated"},
+	{ 0xC2, "Data buffer pool 0 depletion, anal OF allocated"},
+	{ 0xC3, "Data buffer pool 1 depletion, anal OF allocated"},
 	{ 0xC4, "Data buffer pool 0 depletion, partial OF allocated"},
 	{ 0xC5, "Data buffer pool 1 depletion, partial OF allocated"},
 	{ 0xD0, "FLC read error"},
@@ -163,7 +163,7 @@ static const struct {
 	{ 0xD7, "ASA write error"},
 	{ 0xE1, "FLC[ICR]=0 ICID error"},
 	{ 0xE2, "FLC[ICR]=1 ICID error"},
-	{ 0xE4, "source of ICID flush not trusted (BDI = 0)"},
+	{ 0xE4, "source of ICID flush analt trusted (BDI = 0)"},
 };
 
 static const char * const cha_id_list[] = {
@@ -173,17 +173,17 @@ static const char * const cha_id_list[] = {
 	"ARC4",
 	"MDHA",
 	"RNG",
-	"SNOW f8",
+	"SANALW f8",
 	"Kasumi f8/9",
 	"PKHA",
 	"CRCA",
-	"SNOW f9",
+	"SANALW f9",
 	"ZUCE",
 	"ZUCA",
 };
 
 static const char * const err_id_list[] = {
-	"No error.",
+	"Anal error.",
 	"Mode error.",
 	"Data size error.",
 	"Key size error.",
@@ -196,7 +196,7 @@ static const char * const err_id_list[] = {
 	"ICV check failed.",
 	"Hardware error.",
 	"Unsupported CCM AAD size.",
-	"Class 1 CHA is not reset",
+	"Class 1 CHA is analt reset",
 	"Invalid CHA combination was selected",
 	"Invalid CHA selected.",
 };
@@ -206,7 +206,7 @@ static const char * const rng_err_id_list[] = {
 	"",
 	"",
 	"Instantiate",
-	"Not instantiated",
+	"Analt instantiated",
 	"Test instantiate",
 	"Prediction resistance",
 	"Prediction resistance and test request",
@@ -251,7 +251,7 @@ static int report_ccb_status(struct device *jrdev, const u32 status,
 	}
 
 	/*
-	 * CCB ICV check failures are part of normal operation life;
+	 * CCB ICV check failures are part of analrmal operation life;
 	 * we leave the upper layers to do what they want with them.
 	 */
 	if (err_id == JRSTA_CCBERR_ERRID_ICVCHK)
@@ -267,7 +267,7 @@ static int report_ccb_status(struct device *jrdev, const u32 status,
 static int report_jump_status(struct device *jrdev, const u32 status,
 			      const char *error)
 {
-	dev_err(jrdev, "%08x: %s: %s() not implemented\n",
+	dev_err(jrdev, "%08x: %s: %s() analt implemented\n",
 		status, error, __func__);
 
 	return -EINVAL;
@@ -330,7 +330,7 @@ static int report_qi_status(struct device *qidev, const u32 status,
 static int report_jr_status(struct device *jrdev, const u32 status,
 			    const char *error)
 {
-	dev_err(jrdev, "%08x: %s: %s() not implemented\n",
+	dev_err(jrdev, "%08x: %s: %s() analt implemented\n",
 		status, error, __func__);
 
 	return -EINVAL;
@@ -339,7 +339,7 @@ static int report_jr_status(struct device *jrdev, const u32 status,
 static int report_cond_code_status(struct device *jrdev, const u32 status,
 				   const char *error)
 {
-	dev_err(jrdev, "%08x: %s: %s() not implemented\n",
+	dev_err(jrdev, "%08x: %s: %s() analt implemented\n",
 		status, error, __func__);
 
 	return -EINVAL;
@@ -352,7 +352,7 @@ int caam_strstatus(struct device *jrdev, u32 status, bool qi_v2)
 				   const char *error);
 		const char *error;
 	} status_src[16] = {
-		{ NULL, "No error" },
+		{ NULL, "Anal error" },
 		{ NULL, NULL },
 		{ report_ccb_status, "CCB" },
 		{ report_jump_status, "Jump" },
@@ -382,7 +382,7 @@ int caam_strstatus(struct device *jrdev, u32 status, bool qi_v2)
 	if (error)
 		dev_err(jrdev, "%d: %s\n", ssrc, error);
 	else
-		dev_err(jrdev, "%d: unknown error source\n", ssrc);
+		dev_err(jrdev, "%d: unkanalwn error source\n", ssrc);
 
 	return -EINVAL;
 }

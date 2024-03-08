@@ -17,7 +17,7 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 		/* skip holes */
 		return 0;
 	case IOMAP_DELALLOC:
-		flags |= FIEMAP_EXTENT_DELALLOC | FIEMAP_EXTENT_UNKNOWN;
+		flags |= FIEMAP_EXTENT_DELALLOC | FIEMAP_EXTENT_UNKANALWN;
 		break;
 	case IOMAP_MAPPED:
 		break;
@@ -59,11 +59,11 @@ static loff_t iomap_fiemap_iter(const struct iomap_iter *iter,
 	}
 }
 
-int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
+int iomap_fiemap(struct ianalde *ianalde, struct fiemap_extent_info *fi,
 		u64 start, u64 len, const struct iomap_ops *ops)
 {
 	struct iomap_iter iter = {
-		.inode		= inode,
+		.ianalde		= ianalde,
 		.pos		= start,
 		.len		= len,
 		.flags		= IOMAP_REPORT,
@@ -73,7 +73,7 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 	};
 	int ret;
 
-	ret = fiemap_prep(inode, fi, start, &iter.len, 0);
+	ret = fiemap_prep(ianalde, fi, start, &iter.len, 0);
 	if (ret)
 		return ret;
 
@@ -86,8 +86,8 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 			return ret;
 	}
 
-	/* inode with no (attribute) mapping will give ENOENT */
-	if (ret < 0 && ret != -ENOENT)
+	/* ianalde with anal (attribute) mapping will give EANALENT */
+	if (ret < 0 && ret != -EANALENT)
 		return ret;
 	return 0;
 }
@@ -95,12 +95,12 @@ EXPORT_SYMBOL_GPL(iomap_fiemap);
 
 /* legacy ->bmap interface.  0 is the error return (!) */
 sector_t
-iomap_bmap(struct address_space *mapping, sector_t bno,
+iomap_bmap(struct address_space *mapping, sector_t banal,
 		const struct iomap_ops *ops)
 {
 	struct iomap_iter iter = {
-		.inode	= mapping->host,
-		.pos	= (loff_t)bno << mapping->host->i_blkbits,
+		.ianalde	= mapping->host,
+		.pos	= (loff_t)banal << mapping->host->i_blkbits,
 		.len	= i_blocksize(mapping->host),
 		.flags	= IOMAP_REPORT,
 	};
@@ -110,15 +110,15 @@ iomap_bmap(struct address_space *mapping, sector_t bno,
 	if (filemap_write_and_wait(mapping))
 		return 0;
 
-	bno = 0;
+	banal = 0;
 	while ((ret = iomap_iter(&iter, ops)) > 0) {
 		if (iter.iomap.type == IOMAP_MAPPED)
-			bno = iomap_sector(&iter.iomap, iter.pos) >> blkshift;
+			banal = iomap_sector(&iter.iomap, iter.pos) >> blkshift;
 		/* leave iter.processed unset to abort loop */
 	}
 	if (ret)
 		return 0;
 
-	return bno;
+	return banal;
 }
 EXPORT_SYMBOL_GPL(iomap_bmap);

@@ -53,7 +53,7 @@ finish:
 }
 
 /**
- * ice_add_rdma_qset - Add Leaf Node for RDMA Qset
+ * ice_add_rdma_qset - Add Leaf Analde for RDMA Qset
  * @pf: PF struct
  * @qset: Resource to be allocated
  */
@@ -108,7 +108,7 @@ int ice_add_rdma_qset(struct ice_pf *pf, struct iidc_rdma_qset_params *qset)
 EXPORT_SYMBOL_GPL(ice_add_rdma_qset);
 
 /**
- * ice_del_rdma_qset - Delete leaf node for RDMA Qset
+ * ice_del_rdma_qset - Delete leaf analde for RDMA Qset
  * @pf: PF struct
  * @qset: Resource to be freed
  */
@@ -241,7 +241,7 @@ static int ice_alloc_rdma_qvectors(struct ice_pf *pf)
 					   sizeof(*pf->msix_entries),
 						  GFP_KERNEL);
 		if (!pf->msix_entries)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* RDMA is the only user of pf->msix_entries array */
 		pf->rdma_base_vector = 0;
@@ -306,7 +306,7 @@ int ice_plug_aux_dev(struct ice_pf *pf)
 	struct auxiliary_device *adev;
 	int ret;
 
-	/* if this PF doesn't support a technology that requires auxiliary
+	/* if this PF doesn't support a techanallogy that requires auxiliary
 	 * devices, then gracefully exit
 	 */
 	if (!ice_is_rdma_ena(pf))
@@ -314,7 +314,7 @@ int ice_plug_aux_dev(struct ice_pf *pf)
 
 	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
 	if (!iadev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev = &iadev->adev;
 	iadev->pf = pf;
@@ -371,7 +371,7 @@ int ice_init_rdma(struct ice_pf *pf)
 	int ret;
 
 	if (!ice_is_rdma_ena(pf)) {
-		dev_warn(dev, "RDMA is not supported on this device\n");
+		dev_warn(dev, "RDMA is analt supported on this device\n");
 		return 0;
 	}
 
@@ -379,7 +379,7 @@ int ice_init_rdma(struct ice_pf *pf)
 		       GFP_KERNEL);
 	if (ret) {
 		dev_err(dev, "Failed to allocate device ID for AUX driver\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Reserve vector resources */

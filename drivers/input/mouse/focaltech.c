@@ -35,7 +35,7 @@ static const char * const focaltech_pnp_ids[] = {
 int focaltech_detect(struct psmouse *psmouse, bool set_properties)
 {
 	if (!psmouse_matches_pnp_id(psmouse, focaltech_pnp_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (set_properties) {
 		psmouse->vendor = "FocalTech";
@@ -48,7 +48,7 @@ int focaltech_detect(struct psmouse *psmouse, bool set_properties)
 #ifdef CONFIG_MOUSE_PS2_FOCALTECH
 
 /*
- * Packet types - the numbers are not consecutive, so we might be missing
+ * Packet types - the numbers are analt consecutive, so we might be missing
  * something here.
  */
 #define FOC_TOUCH 0x3 /* bitmap of active fingers */
@@ -66,10 +66,10 @@ struct focaltech_finger_state {
 
 	/*
 	 * The touchpad has sent position data for the finger. The
-	 * flag is 0 when the finger is not active, and there is a
+	 * flag is 0 when the finger is analt active, and there is a
 	 * time between the first touch event for the finger and the
 	 * following absolute position packet for the finger where the
-	 * touchpad has declared the finger to be valid, but we do not
+	 * touchpad has declared the finger to be valid, but we do analt
 	 * have any valid position yet.
 	 */
 	bool valid;
@@ -98,7 +98,7 @@ struct focaltech_hw_state {
 	 * 15 value stays until the finger is released.
 	 * Width is reported only in absolute packets.
 	 * Since hardware reports width only for last touching finger,
-	 * there is no need to store width for every specific finger,
+	 * there is anal need to store width for every specific finger,
 	 * so we keep only last value reported.
 	 */
 	unsigned int width;
@@ -129,7 +129,7 @@ static void focaltech_report_state(struct psmouse *psmouse)
 			unsigned int clamped_x, clamped_y;
 			/*
 			 * The touchpad might report invalid data, so we clamp
-			 * the resulting values so that we do not confuse
+			 * the resulting values so that we do analt confuse
 			 * userspace.
 			 */
 			clamped_x = clamp(finger->x, 0U, priv->x_max);
@@ -241,7 +241,7 @@ static void focaltech_process_packet(struct psmouse *psmouse)
 		break;
 
 	default:
-		psmouse_err(psmouse, "Unknown packet type: %02x\n", packet[0]);
+		psmouse_err(psmouse, "Unkanalwn packet type: %02x\n", packet[0]);
 		break;
 	}
 
@@ -257,7 +257,7 @@ static psmouse_ret_t focaltech_process_byte(struct psmouse *psmouse)
 
 	/*
 	 * We might want to do some validation of the data here, but
-	 * we do not know the protocol well enough
+	 * we do analt kanalw the protocol well eanalugh
 	 */
 	return PSMOUSE_GOOD_DATA;
 }
@@ -325,7 +325,7 @@ static void focaltech_set_input_params(struct psmouse *psmouse)
 
 	/*
 	 * Undo part of setup done for us by psmouse core since touchpad
-	 * is not a relative device.
+	 * is analt a relative device.
 	 */
 	__clear_bit(EV_REL, dev->evbit);
 	__clear_bit(REL_X, dev->relbit);
@@ -334,7 +334,7 @@ static void focaltech_set_input_params(struct psmouse *psmouse)
 	__clear_bit(BTN_MIDDLE, dev->keybit);
 
 	/*
-	 * Now set up our capabilities.
+	 * Analw set up our capabilities.
 	 */
 	__set_bit(EV_ABS, dev->evbit);
 	input_set_abs_params(dev, ABS_MT_POSITION_X, 0, priv->x_max, 0, 0);
@@ -379,7 +379,7 @@ static int focaltech_read_size(struct psmouse *psmouse)
 	if (focaltech_read_register(ps2dev, 2, param))
 		return -EIO;
 
-	/* not sure whether this is 100% correct */
+	/* analt sure whether this is 100% correct */
 	priv->x_max = (unsigned char)param[1] * 128;
 	priv->y_max = (unsigned char)param[2] * 128;
 
@@ -389,18 +389,18 @@ static int focaltech_read_size(struct psmouse *psmouse)
 static void focaltech_set_resolution(struct psmouse *psmouse,
 				     unsigned int resolution)
 {
-	/* not supported yet */
+	/* analt supported yet */
 }
 
 static void focaltech_set_rate(struct psmouse *psmouse, unsigned int rate)
 {
-	/* not supported yet */
+	/* analt supported yet */
 }
 
 static void focaltech_set_scale(struct psmouse *psmouse,
 				enum psmouse_scale scale)
 {
-	/* not supported yet */
+	/* analt supported yet */
 }
 
 int focaltech_init(struct psmouse *psmouse)
@@ -411,7 +411,7 @@ int focaltech_init(struct psmouse *psmouse)
 	psmouse->private = priv = kzalloc(sizeof(struct focaltech_data),
 					  GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	focaltech_reset(psmouse);
 
@@ -435,10 +435,10 @@ int focaltech_init(struct psmouse *psmouse)
 	psmouse->disconnect = focaltech_disconnect;
 	psmouse->reconnect = focaltech_reconnect;
 	psmouse->cleanup = focaltech_reset;
-	/* resync is not supported yet */
+	/* resync is analt supported yet */
 	psmouse->resync_time = 0;
 	/*
-	 * rate/resolution/scale changes are not supported yet, and
+	 * rate/resolution/scale changes are analt supported yet, and
 	 * the generic implementations of these functions seem to
 	 * confuse some touchpads
 	 */

@@ -1,7 +1,7 @@
 #ifndef LLC_PDU_H
 #define LLC_PDU_H
 /*
- * Copyright (c) 1997 by Procom Technology,Inc.
+ * Copyright (c) 1997 by Procom Techanallogy,Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -20,9 +20,9 @@
 #define LLC_PDU_LEN_U		3       /* header and 1 control byte */
 /* header and 1 control byte and XID info */
 #define LLC_PDU_LEN_U_XID	(LLC_PDU_LEN_U + sizeof(struct llc_xid_info))
-/* Known SAP addresses */
+/* Kanalwn SAP addresses */
 #define LLC_GLOBAL_SAP	0xFF
-#define LLC_NULL_SAP	0x00	/* not network-layer visible */
+#define LLC_NULL_SAP	0x00	/* analt network-layer visible */
 #define LLC_MGMT_INDIV	0x02	/* station LLC mgmt indiv addr */
 #define LLC_MGMT_GRP	0x03	/* station LLC mgmt group addr */
 #define LLC_RDE_SAP	0xA6	/* route ... */
@@ -101,7 +101,7 @@
 #define LLC_XID_NULL_CLASS_3	0x05
 #define LLC_XID_NULL_CLASS_4	0x07
 
-#define LLC_XID_NNULL_TYPE_1	0x01	/* if non-NULL LSAP...use these */
+#define LLC_XID_NNULL_TYPE_1	0x01	/* if analn-NULL LSAP...use these */
 #define LLC_XID_NNULL_TYPE_2	0x02
 #define LLC_XID_NNULL_TYPE_3	0x04
 #define LLC_XID_NNULL_TYPE_1_2	0x03
@@ -137,8 +137,8 @@
 #define LLC_2_PDU_RSP_RR       0x00	/* rx ready rsp */
 #define LLC_2_PDU_CMD_REJ      0x08	/* reject PDU cmd */
 #define LLC_2_PDU_RSP_REJ      0x08	/* reject PDU rsp */
-#define LLC_2_PDU_CMD_RNR      0x04	/* rx not ready cmd */
-#define LLC_2_PDU_RSP_RNR      0x04	/* rx not ready rsp */
+#define LLC_2_PDU_CMD_RNR      0x04	/* rx analt ready cmd */
+#define LLC_2_PDU_RSP_RNR      0x04	/* rx analt ready rsp */
 
 #define LLC_S_PF_BIT_MASK      0x01
 #define LLC_S_PF_IS_0(pdu)     ((!(pdu->ctrl_2 & LLC_S_PF_BIT_MASK)) ? 1 : 0)
@@ -360,7 +360,7 @@ static inline void llc_pdu_init_as_test_rsp(struct sk_buff *skb,
 /* LLC Type 1 XID command/response information fields format */
 struct llc_xid_info {
 	u8 fmt_id;	/* always 0x81 for LLC */
-	u8 type;	/* different if NULL/non-NULL LSAP */
+	u8 type;	/* different if NULL/analn-NULL LSAP */
 	u8 rw;		/* sender receive window */
 } __packed;
 
@@ -387,7 +387,7 @@ static inline void llc_pdu_init_as_xid_cmd(struct sk_buff *skb,
 	xid_info->type	 = svcs_supported;
 	xid_info->rw	 = rx_window << 1;	/* size of receive window */
 
-	/* no need to push/put since llc_pdu_header_init() has already
+	/* anal need to push/put since llc_pdu_header_init() has already
 	 * pushed 3 + 3 bytes
 	 */
 }

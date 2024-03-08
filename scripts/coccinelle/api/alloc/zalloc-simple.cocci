@@ -3,7 +3,7 @@
 /// Use zeroing allocator rather than allocator followed by memset with 0
 ///
 /// This considers some simple cases that are common and easy to validate
-/// Note in particular that there are no ...s in the rule, so all of the
+/// Analte in particular that there are anal ...s in the rule, so all of the
 /// matched code has to be contiguous
 ///
 // Confidence: High
@@ -11,7 +11,7 @@
 // Copyright: (C) 2009-2010 Gilles Muller, INRIA/LiP6.
 // Copyright: (C) 2017 Himanshu Jha
 // URL: https://coccinelle.gitlabpages.inria.fr/website
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 //
 // Keywords: kmalloc, kzalloc
 // Version min: < 2.6.12 kmalloc
@@ -35,8 +35,8 @@ statement S;
 @@
 
 * x = (T)\(kmalloc(E1, ...)\|vmalloc(E1)\|dma_alloc_coherent(...,E1,...)\|
-  kmalloc_node(E1, ...)\|kmem_cache_alloc(...)\|kmem_alloc(E1, ...)\|
-  devm_kmalloc(...,E1,...)\|kvmalloc(E1, ...)\|kvmalloc_node(E1,...)\);
+  kmalloc_analde(E1, ...)\|kmem_cache_alloc(...)\|kmem_alloc(E1, ...)\|
+  devm_kmalloc(...,E1,...)\|kvmalloc(E1, ...)\|kvmalloc_analde(E1,...)\);
   if ((x==NULL) || ...) S
 * memset((T2)x,0,E1);
 
@@ -70,14 +70,14 @@ statement S;
 - x = (T)vmalloc(E1);
 + x = (T)vzalloc(E1);
 |
-- x = kmalloc_node(E1,E2,E3);
-+ x = kzalloc_node(E1,E2,E3);
+- x = kmalloc_analde(E1,E2,E3);
++ x = kzalloc_analde(E1,E2,E3);
 |
-- x = (T *)kmalloc_node(E1,E2,E3);
-+ x = kzalloc_node(E1,E2,E3);
+- x = (T *)kmalloc_analde(E1,E2,E3);
++ x = kzalloc_analde(E1,E2,E3);
 |
-- x = (T)kmalloc_node(E1,E2,E3);
-+ x = (T)kzalloc_node(E1,E2,E3);
+- x = (T)kmalloc_analde(E1,E2,E3);
++ x = (T)kzalloc_analde(E1,E2,E3);
 |
 - x = kmem_cache_alloc(E3,E4);
 + x = kmem_cache_zalloc(E3,E4);
@@ -115,14 +115,14 @@ statement S;
 - x = (T)kvmalloc(E1,E2);
 + x = (T)kvzalloc(E1,E2);
 |
-- x = kvmalloc_node(E1,E2,E3);
-+ x = kvzalloc_node(E1,E2,E3);
+- x = kvmalloc_analde(E1,E2,E3);
++ x = kvzalloc_analde(E1,E2,E3);
 |
-- x = (T *)kvmalloc_node(E1,E2,E3);
-+ x = kvzalloc_node(E1,E2,E3);
+- x = (T *)kvmalloc_analde(E1,E2,E3);
++ x = kvzalloc_analde(E1,E2,E3);
 |
-- x = (T)kvmalloc_node(E1,E2,E3);
-+ x = (T)kvzalloc_node(E1,E2,E3);
+- x = (T)kvmalloc_analde(E1,E2,E3);
++ x = (T)kvzalloc_analde(E1,E2,E3);
 )
   if ((x==NULL) || ...) S
 - memset((T2)x,0,E1);
@@ -227,7 +227,7 @@ p << r2.p;
 x << r2.x;
 @@
 
-msg="WARNING: dma_alloc_coherent used in %s already zeroes out memory, so memset is not needed" % (x)
+msg="WARNING: dma_alloc_coherent used in %s already zeroes out memory, so memset is analt needed" % (x)
 coccilib.report.print_report(p[0], msg)
 
 //-----------------------------------------------------------------
@@ -239,7 +239,7 @@ statement S;
 position p;
 @@
 
- x = (T)kmalloc_node@p(E1,E2,E3);
+ x = (T)kmalloc_analde@p(E1,E2,E3);
  if ((x==NULL) || ...) S
  memset((T2)x,0,E1);
 
@@ -257,7 +257,7 @@ p << r3.p;
 x << r3.x;
 @@
 
-msg="WARNING: kzalloc_node should be used for %s, instead of kmalloc_node/memset" % (x)
+msg="WARNING: kzalloc_analde should be used for %s, instead of kmalloc_analde/memset" % (x)
 coccilib.report.print_report(p[0], msg)
 
 //-----------------------------------------------------------------
@@ -389,7 +389,7 @@ statement S;
 position p;
 @@
 
- x = (T)kvmalloc_node@p(E1,E2,E3);
+ x = (T)kvmalloc_analde@p(E1,E2,E3);
  if ((x==NULL) || ...) S
  memset((T2)x,0,E1);
 
@@ -407,5 +407,5 @@ p << r9.p;
 x << r9.x;
 @@
 
-msg="WARNING: kvzalloc_node should be used for %s, instead of kvmalloc_node/memset" % (x)
+msg="WARNING: kvzalloc_analde should be used for %s, instead of kvmalloc_analde/memset" % (x)
 coccilib.report.print_report(p[0], msg)

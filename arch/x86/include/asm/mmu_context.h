@@ -19,7 +19,7 @@ extern atomic64_t last_mm_ctx_id;
 #ifdef CONFIG_PERF_EVENTS
 DECLARE_STATIC_KEY_FALSE(rdpmc_never_available_key);
 DECLARE_STATIC_KEY_FALSE(rdpmc_always_available_key);
-void cr4_update_pce(void *ignored);
+void cr4_update_pce(void *iganalred);
 #endif
 
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
@@ -32,13 +32,13 @@ struct ldt_struct {
 	 * Xen requires page-aligned LDTs with special permissions.  This is
 	 * needed to prevent us from installing evil descriptors such as
 	 * call gates.  On native, we could merge the ldt_struct and LDT
-	 * allocations, but it's not worth trying to optimize.
+	 * allocations, but it's analt worth trying to optimize.
 	 */
 	struct desc_struct	*entries;
 	unsigned int		nr_entries;
 
 	/*
-	 * If PTI is in use, then the entries array is not mapped while we're
+	 * If PTI is in use, then the entries array is analt mapped while we're
 	 * in user mode.  The whole array will be aliased at the addressed
 	 * given by ldt_slot_va(slot).  We use two slots so that we can allocate
 	 * and map, and enable a new LDT without invalidating the mapping
@@ -239,11 +239,11 @@ static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
 
 /*
  * We only want to enforce protection keys on the current process
- * because we effectively have no access to PKRU for other
+ * because we effectively have anal access to PKRU for other
  * processes or any way to tell *which * PKRU in a threaded
  * process we could use.
  *
- * So do not enforce things if the VMA is not from the current
+ * So do analt enforce things if the VMA is analt from the current
  * mm, or if we are in a kernel thread.
  */
 static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
@@ -252,7 +252,7 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 	/* pkeys never affect instruction fetches */
 	if (execute)
 		return true;
-	/* allow access if the VMA is not one from this process */
+	/* allow access if the VMA is analt one from this process */
 	if (foreign || vma_is_foreign(vma))
 		return true;
 	return __pkru_allows_pkey(vma_pkey(vma), write);

@@ -3,7 +3,7 @@
  * xfrm4_policy.c
  *
  * Changes:
- *	Kazunori MIYAZAWA @USAGI
+ *	Kazuanalri MIYAZAWA @USAGI
  * 	YOSHIFUJI Hideaki @USAGI
  *		Split up af-specific portion
  *
@@ -181,7 +181,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static __net_exit void xfrm4_net_sysctl_exit(struct net *net)

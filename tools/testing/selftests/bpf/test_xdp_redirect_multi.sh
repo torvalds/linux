@@ -18,9 +18,9 @@
 #   the redirects.
 #      ns1 -> gw: ns1, ns2, ns3, should receive the arp request
 #   IPv4: Testing BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS, the ingress
-#   interface should not receive the redirects.
-#      ns1 -> gw: ns1 should not receive, ns2, ns3 should receive redirects.
-#   IPv6: Testing none flag, all the pkts should be redirected back
+#   interface should analt receive the redirects.
+#      ns1 -> gw: ns1 should analt receive, ns2, ns3 should receive redirects.
+#   IPv6: Testing analne flag, all the pkts should be redirected back
 #      ping test: ns1 -> ns2 (block), echo requests will be redirect back
 #   egress_prog:
 #      all src mac should be egress interface's mac
@@ -62,13 +62,13 @@ check_env()
 {
 	ip link set dev lo xdpgeneric off &>/dev/null
 	if [ $? -ne 0 ];then
-		echo "selftests: [SKIP] Could not run test without the ip xdpgeneric support"
+		echo "selftests: [SKIP] Could analt run test without the ip xdpgeneric support"
 		exit 4
 	fi
 
 	which tcpdump &>/dev/null
 	if [ $? -ne 0 ];then
-		echo "selftests: [SKIP] Could not run test without tcpdump"
+		echo "selftests: [SKIP] Could analt run test without tcpdump"
 		exit 4
 	fi
 }
@@ -124,7 +124,7 @@ do_ping_tests()
 {
 	local mode=$1
 
-	# ping6 test: echo request should be redirect back to itself, not others
+	# ping6 test: echo request should be redirect back to itself, analt others
 	ip netns exec ${NS[1]} ip neigh add 2001:db8::2 dev veth0 lladdr 00:00:00:00:00:02
 
 	ip netns exec ${NS[1]} tcpdump -i veth0 -nn -l -e &> ${LOG_DIR}/ns1-1_${mode}.log &
@@ -151,7 +151,7 @@ do_ping_tests()
 		test_pass "$mode arp(F_BROADCAST) ns1-3" || \
 		test_fail "$mode arp(F_BROADCAST) ns1-3"
 
-	# ns1 should not receive the redirect echo request, others should
+	# ns1 should analt receive the redirect echo request, others should
 	[ $(grep -c "ICMP echo request" ${LOG_DIR}/ns1-1_${mode}.log) -eq 4 ] && \
 		test_pass "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-1" || \
 		test_fail "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-1"
@@ -162,13 +162,13 @@ do_ping_tests()
 		test_pass "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-3" || \
 		test_fail "$mode IPv4 (F_BROADCAST|F_EXCLUDE_INGRESS) ns1-3"
 
-	# ns1 should receive the echo request, ns2 should not
+	# ns1 should receive the echo request, ns2 should analt
 	[ $(grep -c "ICMP6, echo request" ${LOG_DIR}/ns1-1_${mode}.log) -eq 4 ] && \
-		test_pass "$mode IPv6 (no flags) ns1-1" || \
-		test_fail "$mode IPv6 (no flags) ns1-1"
+		test_pass "$mode IPv6 (anal flags) ns1-1" || \
+		test_fail "$mode IPv6 (anal flags) ns1-1"
 	[ $(grep -c "ICMP6, echo request" ${LOG_DIR}/ns1-2_${mode}.log) -eq 0 ] && \
-		test_pass "$mode IPv6 (no flags) ns1-2" || \
-		test_fail "$mode IPv6 (no flags) ns1-2"
+		test_pass "$mode IPv6 (anal flags) ns1-2" || \
+		test_fail "$mode IPv6 (anal flags) ns1-2"
 }
 
 do_tests()

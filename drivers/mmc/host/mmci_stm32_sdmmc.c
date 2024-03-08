@@ -88,7 +88,7 @@ static int sdmmc_idma_validate_data(struct mmci_host *host,
 
 	/*
 	 * idma has constraints on idmabase & idmasize for each element
-	 * excepted the last element which has no constraint on idmasize
+	 * excepted the last element which has anal constraint on idmasize
 	 */
 	idma->use_bounce_buffer = false;
 	for_each_sg(data->sg, sg, data->sg_len - 1, i) {
@@ -119,7 +119,7 @@ use_bounce_buffer:
 						       GFP_KERNEL);
 		if (!idma->bounce_buf) {
 			dev_err(dev, "Unable to map allocate DMA bounce buffer.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -192,7 +192,7 @@ static int sdmmc_idma_setup(struct mmci_host *host)
 
 	idma = devm_kzalloc(dev, sizeof(*idma), GFP_KERNEL);
 	if (!idma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->dma_priv = idma;
 
@@ -201,7 +201,7 @@ static int sdmmc_idma_setup(struct mmci_host *host)
 						   &idma->sg_dma, GFP_KERNEL);
 		if (!idma->sg_cpu) {
 			dev_err(dev, "Failed to alloc IDMA descriptor\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		host->mmc->max_segs = SDMMC_LLI_BUF_LEN /
 			sizeof(struct sdmmc_lli_desc);
@@ -251,7 +251,7 @@ static int sdmmc_idma_start(struct mmci_host *host, unsigned int *datactrl)
 		desc[i].idmasize = sg_dma_len(sg);
 	}
 
-	/* notice the end of link list */
+	/* analtice the end of link list */
 	desc[data->sg_len - 1].idmalar &= ~MMCI_STM32_ULA;
 
 	dma_wmb();
@@ -305,7 +305,7 @@ static void mmci_sdmmc_set_clkreg(struct mmci_host *host, unsigned int desired)
 	/*
 	 * cclk = mclk / (2 * clkdiv)
 	 * clkdiv 0 => bypass
-	 * in ddr mode bypass is not possible
+	 * in ddr mode bypass is analt possible
 	 */
 	if (desired) {
 		if (desired >= host->mclk && !ddr) {
@@ -452,7 +452,7 @@ static bool sdmmc_busy_complete(struct mmci_host *host, struct mmc_command *cmd,
 	/*
 	 * On response the busy signaling is reflected in the BUSYD0 flag.
 	 * if busy_d0 is in-progress we must activate busyd0end interrupt
-	 * to wait this completion. Else this request has no busy step.
+	 * to wait this completion. Else this request has anal busy step.
 	 */
 	if (busy_d0) {
 		if (!host->busy_status) {
@@ -598,7 +598,7 @@ static int sdmmc_dlyb_phase_tuning(struct mmci_host *host, u32 opcode)
 	}
 
 	if (!max_len) {
-		dev_err(mmc_dev(host->mmc), "no tuning point found\n");
+		dev_err(mmc_dev(host->mmc), "anal tuning point found\n");
 		return -EINVAL;
 	}
 
@@ -722,7 +722,7 @@ static struct sdmmc_tuning_ops dlyb_tuning_mp25_ops = {
 
 void sdmmc_variant_init(struct mmci_host *host)
 {
-	struct device_node *np = host->mmc->parent->of_node;
+	struct device_analde *np = host->mmc->parent->of_analde;
 	void __iomem *base_dlyb;
 	struct sdmmc_dlyb *dlyb;
 

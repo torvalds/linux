@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techanallogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
@@ -24,7 +24,7 @@ mt76x0_rf_csr_wr(struct mt76x02_dev *dev, u32 offset, u8 value)
 	u8 bank, reg;
 
 	if (test_bit(MT76_REMOVED, &dev->mphy.state))
-		return -ENODEV;
+		return -EANALDEV;
 
 	bank = MT_RF_BANK(offset);
 	reg = MT_RF_REG(offset);
@@ -63,7 +63,7 @@ static int mt76x0_rf_csr_rr(struct mt76x02_dev *dev, u32 offset)
 	u8 bank, reg;
 
 	if (test_bit(MT76_REMOVED, &dev->mphy.state))
-		return -ENODEV;
+		return -EANALDEV;
 
 	bank = MT_RF_BANK(offset);
 	reg = MT_RF_REG(offset);
@@ -194,7 +194,7 @@ int mt76x0_phy_wait_bbp_ready(struct mt76x02_dev *dev)
 	} while (--i);
 
 	if (!i) {
-		dev_err(dev->mt76.dev, "Error: BBP is not ready\n");
+		dev_err(dev->mt76.dev, "Error: BBP is analt ready\n");
 		return -EIO;
 	}
 
@@ -266,7 +266,7 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel,
 			mt76x0_rf_rmw(dev, MT_RF(0, 32), 0xe0,
 				      freq_item->pllR32_b7b5);
 
-			/* R32<4:0> pll_den: (Denomina - 8) */
+			/* R32<4:0> pll_den: (Deanalmina - 8) */
 			mt76x0_rf_rmw(dev, MT_RF(0, 32), MT_RF_PLL_DEN_MASK,
 				      freq_item->pllR32_b4b0);
 
@@ -274,7 +274,7 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel,
 			mt76x0_rf_rmw(dev, MT_RF(0, 31), 0xe0,
 				      freq_item->pllR31_b7b5);
 
-			/* R31<4:0> pll_k(Nominator) */
+			/* R31<4:0> pll_k(Analminator) */
 			mt76x0_rf_rmw(dev, MT_RF(0, 31), MT_RF_PLL_K_MASK,
 				      freq_item->pllR31_b4b0);
 
@@ -477,7 +477,7 @@ mt76x0_phy_bbp_set_bw(struct mt76x02_dev *dev, enum nl80211_chan_width width)
 
 	switch (width) {
 	default:
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_20:
 		bw = BW_20;
 		break;

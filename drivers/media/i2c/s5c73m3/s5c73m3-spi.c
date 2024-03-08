@@ -46,7 +46,7 @@ static int spi_xmit(struct spi_device *spi_dev, void *addr, const int len,
 
 	if (spi_dev == NULL) {
 		pr_err("SPI device is uninitialized\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spi_message_init(&msg);

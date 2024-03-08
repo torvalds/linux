@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
 struct atif_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u16 version;		/* version */
-	u32 notification_mask;	/* supported notifications mask */
+	u32 analtification_mask;	/* supported analtifications mask */
 	u32 function_bits;	/* supported functions bit vector */
 } __packed;
 
@@ -37,7 +37,7 @@ struct atif_system_params {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u32 valid_mask;		/* valid flags mask */
 	u32 flags;		/* flags */
-	u8 command_code;	/* notify command code */
+	u8 command_code;	/* analtify command code */
 } __packed;
 
 struct atif_sbios_requests {
@@ -45,7 +45,7 @@ struct atif_sbios_requests {
 	u32 pending;		/* pending sbios requests */
 	u8 panel_exp_mode;	/* panel expansion mode */
 	u8 thermal_gfx;		/* thermal state: target gfx controller */
-	u8 thermal_state;	/* thermal state: state id (0: exit state, non-0: state) */
+	u8 thermal_state;	/* thermal state: state id (0: exit state, analn-0: state) */
 	u8 forced_power_gfx;	/* forced power state: target gfx controller */
 	u8 forced_power_state;	/* forced power state: state id */
 	u8 system_power_src;	/* system power source */
@@ -76,10 +76,10 @@ struct atif_qbtc_output {
 	struct atif_qbtc_data_point data_points[ATIF_QBTC_MAX_DATA_POINTS];
 } __packed;
 
-#define ATIF_NOTIFY_MASK	0x3
-#define ATIF_NOTIFY_NONE	0
-#define ATIF_NOTIFY_81		1
-#define ATIF_NOTIFY_N		2
+#define ATIF_ANALTIFY_MASK	0x3
+#define ATIF_ANALTIFY_ANALNE	0
+#define ATIF_ANALTIFY_81		1
+#define ATIF_ANALTIFY_N		2
 
 struct atcs_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
@@ -107,7 +107,7 @@ struct atcs_pwr_shift_input {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u16 dgpu_id;		/* client id (bit 2-0: func num, 7-3: dev num, 15-8: bus num) */
 	u8 dev_acpi_state;	/* D0 = 0, D3 hot = 3 */
-	u8 drv_state;	/* 0 = operational, 1 = not operational */
+	u8 drv_state;	/* 0 = operational, 1 = analt operational */
 } __packed;
 
 /* AMD hw uses four ACPI control methods:
@@ -116,10 +116,10 @@ struct atcs_pwr_shift_input {
  * ARG1: (ACPI_BUFFER) parameter buffer, 256 bytes
  * OUTPUT: (ACPI_BUFFER) output buffer, 256 bytes
  * ATIF provides an entry point for the gfx driver to interact with the sbios.
- * The AMD ACPI notification mechanism uses Notify (VGA, 0x81) or a custom
- * notification. Which notification is used as indicated by the ATIF Control
- * Method GET_SYSTEM_PARAMETERS. When the driver receives Notify (VGA, 0x81) or
- * a custom notification it invokes ATIF Control Method GET_SYSTEM_BIOS_REQUESTS
+ * The AMD ACPI analtification mechanism uses Analtify (VGA, 0x81) or a custom
+ * analtification. Which analtification is used as indicated by the ATIF Control
+ * Method GET_SYSTEM_PARAMETERS. When the driver receives Analtify (VGA, 0x81) or
+ * a custom analtification it invokes ATIF Control Method GET_SYSTEM_BIOS_REQUESTS
  * to identify pending System BIOS requests and associated parameters. For
  * example, if one of the pending requests is DISPLAY_SWITCH_REQUEST, the driver
  * will perform display device detection and invoke ATIF Control Method
@@ -149,14 +149,14 @@ struct atcs_pwr_shift_input {
 /* ATIF */
 #define ATIF_FUNCTION_VERIFY_INTERFACE                             0x0
 /* ARG0: ATIF_FUNCTION_VERIFY_INTERFACE
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - version
- * DWORD - supported notifications mask
+ * DWORD - supported analtifications mask
  * DWORD - supported functions bit vector
  */
-/* Notifications mask */
+/* Analtifications mask */
 #       define ATIF_THERMAL_STATE_CHANGE_REQUEST_SUPPORTED         (1 << 2)
 #       define ATIF_FORCED_POWER_STATE_CHANGE_REQUEST_SUPPORTED    (1 << 3)
 #       define ATIF_SYSTEM_POWER_SOURCE_CHANGE_REQUEST_SUPPORTED   (1 << 4)
@@ -166,13 +166,13 @@ struct atcs_pwr_shift_input {
 /* supported functions vector */
 #       define ATIF_GET_SYSTEM_PARAMETERS_SUPPORTED               (1 << 0)
 #       define ATIF_GET_SYSTEM_BIOS_REQUESTS_SUPPORTED            (1 << 1)
-#       define ATIF_TEMPERATURE_CHANGE_NOTIFICATION_SUPPORTED     (1 << 12)
+#       define ATIF_TEMPERATURE_CHANGE_ANALTIFICATION_SUPPORTED     (1 << 12)
 #       define ATIF_QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS_SUPPORTED (1 << 15)
-#       define ATIF_READY_TO_UNDOCK_NOTIFICATION_SUPPORTED        (1 << 16)
+#       define ATIF_READY_TO_UNDOCK_ANALTIFICATION_SUPPORTED        (1 << 16)
 #       define ATIF_GET_EXTERNAL_GPU_INFORMATION_SUPPORTED        (1 << 20)
 #define ATIF_FUNCTION_GET_SYSTEM_PARAMETERS                        0x1
 /* ARG0: ATIF_FUNCTION_GET_SYSTEM_PARAMETERS
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - valid flags mask
@@ -183,16 +183,16 @@ struct atcs_pwr_shift_input {
  * WORD  - structure size in bytes (includes size field)
  * DWORD - valid flags mask
  * DWORD - flags
- * BYTE  - notify command code
+ * BYTE  - analtify command code
  *
  * flags
  * bits 1:0:
- * 0 - Notify(VGA, 0x81) is not used for notification
- * 1 - Notify(VGA, 0x81) is used for notification
- * 2 - Notify(VGA, n) is used for notification where
- * n (0xd0-0xd9) is specified in notify command code.
+ * 0 - Analtify(VGA, 0x81) is analt used for analtification
+ * 1 - Analtify(VGA, 0x81) is used for analtification
+ * 2 - Analtify(VGA, n) is used for analtification where
+ * n (0xd0-0xd9) is specified in analtify command code.
  * bit 2:
- * 1 - lid changes not reported though int10
+ * 1 - lid changes analt reported though int10
  * bit 3:
  * 1 - system bios controls overclocking
  * bit 4:
@@ -200,15 +200,15 @@ struct atcs_pwr_shift_input {
  */
 #define ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS                     0x2
 /* ARG0: ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - pending sbios requests
  * BYTE  - reserved (all zeroes)
  * BYTE  - thermal state: target gfx controller
- * BYTE  - thermal state: state id (0: exit state, non-0: state)
+ * BYTE  - thermal state: state id (0: exit state, analn-0: state)
  * BYTE  - forced power state: target gfx controller
- * BYTE  - forced power state: state id (0: forced state, non-0: state)
+ * BYTE  - forced power state: state id (0: forced state, analn-0: state)
  * BYTE  - system power source
  * BYTE  - panel backlight level (0-255)
  * BYTE  - GPU package power limit: target gfx controller
@@ -230,13 +230,13 @@ struct atcs_pwr_shift_input {
 #       define ATIF_POWER_SOURCE_DC                                2
 #       define ATIF_POWER_SOURCE_RESTRICTED_AC_1                   3
 #       define ATIF_POWER_SOURCE_RESTRICTED_AC_2                   4
-#define ATIF_FUNCTION_TEMPERATURE_CHANGE_NOTIFICATION              0xD
-/* ARG0: ATIF_FUNCTION_TEMPERATURE_CHANGE_NOTIFICATION
+#define ATIF_FUNCTION_TEMPERATURE_CHANGE_ANALTIFICATION              0xD
+/* ARG0: ATIF_FUNCTION_TEMPERATURE_CHANGE_ANALTIFICATION
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - gfx controller id
  * BYTE  - current temperature (degress Celsius)
- * OUTPUT: none
+ * OUTPUT: analne
  */
 #define ATIF_FUNCTION_QUERY_BRIGHTNESS_TRANSFER_CHARACTERISTICS    0x10
 /* ARG0: ATIF_FUNCTION_QUERY_BRIGHTNESS_TRANSFER_CHARACTERISTICS
@@ -253,7 +253,7 @@ struct atcs_pwr_shift_input {
  * BYTE  - max input signal, in range 0-255, corresponding to 100% backlight
  * BYTE  - number of reported data points
  * BYTE  - luminance level in percent  \ repeated structure
- * BYTE  - input signal in range 0-255 / does not have entries for 0% and 100%
+ * BYTE  - input signal in range 0-255 / does analt have entries for 0% and 100%
  */
 /* requested display */
 #       define ATIF_QBTC_REQUEST_LCD1                              0
@@ -269,15 +269,15 @@ struct atcs_pwr_shift_input {
 /* error code */
 #       define ATIF_QBTC_ERROR_CODE_SUCCESS                        0
 #       define ATIF_QBTC_ERROR_CODE_FAILURE                        1
-#       define ATIF_QBTC_ERROR_CODE_DEVICE_NOT_SUPPORTED           2
-#define ATIF_FUNCTION_READY_TO_UNDOCK_NOTIFICATION                 0x11
-/* ARG0: ATIF_FUNCTION_READY_TO_UNDOCK_NOTIFICATION
- * ARG1: none
- * OUTPUT: none
+#       define ATIF_QBTC_ERROR_CODE_DEVICE_ANALT_SUPPORTED           2
+#define ATIF_FUNCTION_READY_TO_UNDOCK_ANALTIFICATION                 0x11
+/* ARG0: ATIF_FUNCTION_READY_TO_UNDOCK_ANALTIFICATION
+ * ARG1: analne
+ * OUTPUT: analne
  */
 #define ATIF_FUNCTION_GET_EXTERNAL_GPU_INFORMATION                 0x15
 /* ARG0: ATIF_FUNCTION_GET_EXTERNAL_GPU_INFORMATION
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - number of reported external gfx devices
  * WORD  - device structure size in bytes (excludes device size field)
@@ -290,7 +290,7 @@ struct atcs_pwr_shift_input {
 /* ATPX */
 #define ATPX_FUNCTION_VERIFY_INTERFACE                             0x0
 /* ARG0: ATPX_FUNCTION_VERIFY_INTERFACE
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - version
@@ -301,13 +301,13 @@ struct atcs_pwr_shift_input {
 #       define ATPX_POWER_CONTROL_SUPPORTED                        (1 << 1)
 #       define ATPX_DISPLAY_MUX_CONTROL_SUPPORTED                  (1 << 2)
 #       define ATPX_I2C_MUX_CONTROL_SUPPORTED                      (1 << 3)
-#       define ATPX_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION_SUPPORTED (1 << 4)
-#       define ATPX_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION_SUPPORTED   (1 << 5)
+#       define ATPX_GRAPHICS_DEVICE_SWITCH_START_ANALTIFICATION_SUPPORTED (1 << 4)
+#       define ATPX_GRAPHICS_DEVICE_SWITCH_END_ANALTIFICATION_SUPPORTED   (1 << 5)
 #       define ATPX_GET_DISPLAY_CONNECTORS_MAPPING_SUPPORTED       (1 << 7)
 #       define ATPX_GET_DISPLAY_DETECTION_PORTS_SUPPORTED          (1 << 8)
 #define ATPX_FUNCTION_GET_PX_PARAMETERS                            0x1
 /* ARG0: ATPX_FUNCTION_GET_PX_PARAMETERS
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - valid flags mask
@@ -322,8 +322,8 @@ struct atcs_pwr_shift_input {
 #       define ATPX_DFP_SIGNAL_MUXED                               (1 << 5)
 #       define ATPX_SEPARATE_MUX_FOR_I2C                           (1 << 6)
 #       define ATPX_DYNAMIC_PX_SUPPORTED                           (1 << 7)
-#       define ATPX_ACF_NOT_SUPPORTED                              (1 << 8)
-#       define ATPX_FIXED_NOT_SUPPORTED                            (1 << 9)
+#       define ATPX_ACF_ANALT_SUPPORTED                              (1 << 8)
+#       define ATPX_FIXED_ANALT_SUPPORTED                            (1 << 9)
 #       define ATPX_DYNAMIC_DGPU_POWER_OFF_SUPPORTED               (1 << 10)
 #       define ATPX_DGPU_REQ_POWER_FOR_DISPLAYS                    (1 << 11)
 #       define ATPX_DGPU_CAN_DRIVE_DISPLAYS                        (1 << 12)
@@ -333,14 +333,14 @@ struct atcs_pwr_shift_input {
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * BYTE  - dGPU power state (0: power off, 1: power on)
- * OUTPUT: none
+ * OUTPUT: analne
  */
 #define ATPX_FUNCTION_DISPLAY_MUX_CONTROL                          0x3
 /* ARG0: ATPX_FUNCTION_DISPLAY_MUX_CONTROL
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - display mux control (0: iGPU, 1: dGPU)
- * OUTPUT: none
+ * OUTPUT: analne
  */
 #       define ATPX_INTEGRATED_GPU                                 0
 #       define ATPX_DISCRETE_GPU                                   1
@@ -349,25 +349,25 @@ struct atcs_pwr_shift_input {
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - i2c/aux/hpd mux control (0: iGPU, 1: dGPU)
- * OUTPUT: none
+ * OUTPUT: analne
  */
-#define ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION    0x5
-/* ARG0: ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION
+#define ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_ANALTIFICATION    0x5
+/* ARG0: ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_ANALTIFICATION
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - target gpu (0: iGPU, 1: dGPU)
- * OUTPUT: none
+ * OUTPUT: analne
  */
-#define ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION      0x6
-/* ARG0: ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION
+#define ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_ANALTIFICATION      0x6
+/* ARG0: ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_ANALTIFICATION
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - target gpu (0: iGPU, 1: dGPU)
- * OUTPUT: none
+ * OUTPUT: analne
  */
 #define ATPX_FUNCTION_GET_DISPLAY_CONNECTORS_MAPPING               0x8
 /* ARG0: ATPX_FUNCTION_GET_DISPLAY_CONNECTORS_MAPPING
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - number of display connectors
  * WORD  - connector structure size in bytes (excludes connector size field)
@@ -382,7 +382,7 @@ struct atcs_pwr_shift_input {
 #       define ATPX_DISPLAY_I2C_SUPPORTED_BY_ADAPTER_ID_DEVICE     (1 << 2)
 #define ATPX_FUNCTION_GET_DISPLAY_DETECTION_PORTS                  0x9
 /* ARG0: ATPX_FUNCTION_GET_DISPLAY_DETECTION_PORTS
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - number of HPD/DDC ports
  * WORD  - port structure size in bytes (excludes port size field)
@@ -393,7 +393,7 @@ struct atcs_pwr_shift_input {
  * available on A+A systems only
  */
 /* hpd id */
-#       define ATPX_HPD_NONE                                       0
+#       define ATPX_HPD_ANALNE                                       0
 #       define ATPX_HPD1                                           1
 #       define ATPX_HPD2                                           2
 #       define ATPX_HPD3                                           3
@@ -401,7 +401,7 @@ struct atcs_pwr_shift_input {
 #       define ATPX_HPD5                                           5
 #       define ATPX_HPD6                                           6
 /* ddc id */
-#       define ATPX_DDC_NONE                                       0
+#       define ATPX_DDC_ANALNE                                       0
 #       define ATPX_DDC1                                           1
 #       define ATPX_DDC2                                           2
 #       define ATPX_DDC3                                           3
@@ -414,7 +414,7 @@ struct atcs_pwr_shift_input {
 /* ATCS */
 #define ATCS_FUNCTION_VERIFY_INTERFACE                             0x0
 /* ARG0: ATCS_FUNCTION_VERIFY_INTERFACE
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - version
@@ -423,12 +423,12 @@ struct atcs_pwr_shift_input {
 /* supported functions vector */
 #       define ATCS_GET_EXTERNAL_STATE_SUPPORTED                   (1 << 0)
 #       define ATCS_PCIE_PERFORMANCE_REQUEST_SUPPORTED             (1 << 1)
-#       define ATCS_PCIE_DEVICE_READY_NOTIFICATION_SUPPORTED       (1 << 2)
+#       define ATCS_PCIE_DEVICE_READY_ANALTIFICATION_SUPPORTED       (1 << 2)
 #       define ATCS_SET_PCIE_BUS_WIDTH_SUPPORTED                   (1 << 3)
 #       define ATCS_SET_POWER_SHIFT_CONTROL_SUPPORTED		   (1 << 7)
 #define ATCS_FUNCTION_GET_EXTERNAL_STATE                           0x1
 /* ARG0: ATCS_FUNCTION_GET_EXTERNAL_STATE
- * ARG1: none
+ * ARG1: analne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - valid flags mask
@@ -464,10 +464,10 @@ struct atcs_pwr_shift_input {
 #       define ATCS_REQUEST_REFUSED                                1
 #       define ATCS_REQUEST_COMPLETE                               2
 #       define ATCS_REQUEST_IN_PROGRESS                            3
-#define ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION               0x3
-/* ARG0: ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION
- * ARG1: none
- * OUTPUT: none
+#define ATCS_FUNCTION_PCIE_DEVICE_READY_ANALTIFICATION               0x3
+/* ARG0: ATCS_FUNCTION_PCIE_DEVICE_READY_ANALTIFICATION
+ * ARG1: analne
+ * OUTPUT: analne
  */
 #define ATCS_FUNCTION_SET_PCIE_BUS_WIDTH                           0x4
 /* ARG0: ATCS_FUNCTION_SET_PCIE_BUS_WIDTH
@@ -487,7 +487,7 @@ struct atcs_pwr_shift_input {
  * WORD  - dGPU id (bit 2-0: func num, 7-3: dev num, 15-8: bus num)
  * BYTE  - Device ACPI state
  * BYTE  - Driver state
- * OUTPUT: none
+ * OUTPUT: analne
  */
 
 #endif

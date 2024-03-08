@@ -80,7 +80,7 @@ struct ath10k_htc_hdr {
 		u8 control_byte0;
 	} __packed;
 	union {
-		u8 seq_no; /* for tx */
+		u8 seq_anal; /* for tx */
 		u8 control_byte1;
 	} __packed;
 	union {
@@ -123,10 +123,10 @@ enum ath10k_htc_conn_flags {
 
 enum ath10k_htc_conn_svc_status {
 	ATH10K_HTC_CONN_SVC_STATUS_SUCCESS      = 0,
-	ATH10K_HTC_CONN_SVC_STATUS_NOT_FOUND    = 1,
+	ATH10K_HTC_CONN_SVC_STATUS_ANALT_FOUND    = 1,
 	ATH10K_HTC_CONN_SVC_STATUS_FAILED       = 2,
-	ATH10K_HTC_CONN_SVC_STATUS_NO_RESOURCES = 3,
-	ATH10K_HTC_CONN_SVC_STATUS_NO_MORE_EP   = 4
+	ATH10K_HTC_CONN_SVC_STATUS_ANAL_RESOURCES = 3,
+	ATH10K_HTC_CONN_SVC_STATUS_ANAL_MORE_EP   = 4
 };
 
 #define ATH10K_MAX_MSG_PER_HTC_TX_BUNDLE        32
@@ -141,7 +141,7 @@ struct ath10k_ath10k_htc_msg_hdr {
 	__le16 message_id; /* @enum htc_message_id */
 } __packed;
 
-struct ath10k_htc_unknown {
+struct ath10k_htc_unkanalwn {
 	u8 pad0;
 	u8 pad1;
 } __packed;
@@ -198,7 +198,7 @@ struct ath10k_htc_msg {
 		struct ath10k_htc_conn_svc connect_service;
 		struct ath10k_htc_ready ready;
 		struct ath10k_htc_ready_extended ready_ext;
-		struct ath10k_htc_unknown unknown;
+		struct ath10k_htc_unkanalwn unkanalwn;
 		struct ath10k_htc_setup_complete_extended setup_complete_ext;
 
 		/* target-to-host */
@@ -271,7 +271,7 @@ enum ath10k_htc_svc_gid {
 	(int)(((int)(group) << 8) | (int)(idx))
 
 enum ath10k_htc_svc_id {
-	/* NOTE: service ID of 0x0000 is reserved and should never be used */
+	/* ANALTE: service ID of 0x0000 is reserved and should never be used */
 	ATH10K_HTC_SVC_ID_RESERVED	= 0x0000,
 	ATH10K_HTC_SVC_ID_UNUSED	= ATH10K_HTC_SVC_ID_RESERVED,
 
@@ -355,7 +355,7 @@ struct ath10k_htc_ep {
 	u8 ul_pipe_id;
 	u8 dl_pipe_id;
 
-	u8 seq_no; /* for debugging */
+	u8 seq_anal; /* for debugging */
 	int tx_credits;
 	int tx_credit_size;
 	bool tx_credit_flow_enabled;
@@ -409,7 +409,7 @@ int ath10k_htc_send_hl(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
 struct sk_buff *ath10k_htc_alloc_skb(struct ath10k *ar, int size);
 void ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
-void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
+void ath10k_htc_analtify_tx_completion(struct ath10k_htc_ep *ep,
 				     struct sk_buff *skb);
 int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 			       u8 *buffer,

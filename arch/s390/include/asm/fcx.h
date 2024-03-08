@@ -136,7 +136,7 @@ struct tsa_intrg {
 	u8 dd_data[28];
 } __attribute__ ((packed));
 
-#define TSB_FORMAT_NONE		0
+#define TSB_FORMAT_ANALNE		0
 #define TSB_FORMAT_IOSTAT	1
 #define TSB_FORMAT_DDPC		2
 #define TSB_FORMAT_INTRG	3

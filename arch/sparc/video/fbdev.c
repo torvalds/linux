@@ -9,13 +9,13 @@
 int fb_is_primary_device(struct fb_info *info)
 {
 	struct device *dev = info->device;
-	struct device_node *node;
+	struct device_analde *analde;
 
 	if (console_set_on_cmdline)
 		return 0;
 
-	node = dev->of_node;
-	if (node && node == of_console_device)
+	analde = dev->of_analde;
+	if (analde && analde == of_console_device)
 		return 1;
 
 	return 0;

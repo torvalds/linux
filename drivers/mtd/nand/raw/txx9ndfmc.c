@@ -25,7 +25,7 @@
 #define TXX9_NDFISR	0x0c
 #define TXX9_NDFIMR	0x10
 #define TXX9_NDFSPR	0x14
-#define TXX9_NDFRSTR	0x18	/* not TX4939 */
+#define TXX9_NDFRSTR	0x18	/* analt TX4939 */
 
 /* NDFMCR : NDFMC Mode Control */
 #define TXX9_NDFMCR_WE	0x80
@@ -41,7 +41,7 @@
 /* TX4939 only */
 #define TXX9_NDFMCR_X16	0x0400
 #define TXX9_NDFMCR_DMAREQ_MASK	0x0300
-#define TXX9_NDFMCR_DMAREQ_NODMA	0x0000
+#define TXX9_NDFMCR_DMAREQ_ANALDMA	0x0000
 #define TXX9_NDFMCR_DMAREQ_128	0x0100
 #define TXX9_NDFMCR_DMAREQ_256	0x0200
 #define TXX9_NDFMCR_DMAREQ_512	0x0300
@@ -148,11 +148,11 @@ static void txx9ndfmc_cmd_ctrl(struct nand_chip *chip, int cmd,
 		}
 		txx9ndfmc_write(dev, mcr, TXX9_NDFMCR);
 	}
-	if (cmd != NAND_CMD_NONE)
+	if (cmd != NAND_CMD_ANALNE)
 		txx9ndfmc_write(dev, cmd & 0xff, TXX9_NDFDTR);
 	if (plat->flags & NDFMC_PLAT_FLAG_DUMMYWRITE) {
 		/* dummy write to update external latch */
-		if ((ctrl & NAND_CTRL_CHANGE) && cmd == NAND_CMD_NONE)
+		if ((ctrl & NAND_CTRL_CHANGE) && cmd == NAND_CMD_ANALNE)
 			txx9ndfmc_write(dev, 0, TXX9_NDFDTR);
 	}
 }
@@ -222,8 +222,8 @@ static void txx9ndfmc_initialize(struct platform_device *dev)
 	struct txx9ndfmc_drvdata *drvdata = platform_get_drvdata(dev);
 	int tmout = 100;
 
-	if (plat->flags & NDFMC_PLAT_FLAG_NO_RSTR)
-		; /* no NDFRSTR.  Write to NDFSPR resets the NDFMC. */
+	if (plat->flags & NDFMC_PLAT_FLAG_ANAL_RSTR)
+		; /* anal NDFRSTR.  Write to NDFSPR resets the NDFMC. */
 	else {
 		/* reset NDFMC */
 		txx9ndfmc_write(dev,
@@ -286,7 +286,7 @@ static int txx9ndfmc_probe(struct platform_device *dev)
 
 	drvdata = devm_kzalloc(&dev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	drvdata->base = devm_platform_ioremap_resource(dev, 0);
 	if (IS_ERR(drvdata->base))
 		return PTR_ERR(drvdata->base);

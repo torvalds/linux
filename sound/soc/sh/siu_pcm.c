@@ -3,7 +3,7 @@
 // siu_pcm.c - ALSA driver for Renesas SH7343, SH7722 SIU peripheral.
 //
 // Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
-// Copyright (C) 2006 Carlos Munoz <carlos@kenati.com>
+// Copyright (C) 2006 Carlos Muanalz <carlos@kenati.com>
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -95,7 +95,7 @@ static void siu_dma_tx_complete(void *arg)
 
 	queue_work(system_highpri_wq, &siu_stream->work);
 
-	/* Notify alsa: a period is done */
+	/* Analtify alsa: a period is done */
 	snd_pcm_period_elapsed(siu_stream->substream);
 }
 
@@ -122,7 +122,7 @@ static int siu_pcm_wr_set(struct siu_port *port_info,
 		&sg, 1, DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(dev, "Failed to allocate a dma descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	desc->callback = siu_dma_tx_complete;
@@ -172,7 +172,7 @@ static int siu_pcm_rd_set(struct siu_port *port_info,
 		&sg, 1, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(dev, "Failed to allocate dma descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	desc->callback = siu_dma_tx_complete;
@@ -378,7 +378,7 @@ static int siu_pcm_prepare(struct snd_soc_component *component,
 
 	/* We only support buffers that are multiples of the period */
 	if (siu_stream->buf_bytes % siu_stream->period_bytes) {
-		dev_err(dev, "%s() - buffer=%d not multiple of period=%d\n",
+		dev_err(dev, "%s() - buffer=%d analt multiple of period=%d\n",
 		       __func__, siu_stream->buf_bytes,
 		       siu_stream->period_bytes);
 		return -EINVAL;

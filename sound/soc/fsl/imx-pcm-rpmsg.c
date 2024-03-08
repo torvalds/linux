@@ -22,7 +22,7 @@ static struct snd_pcm_hardware imx_rpmsg_pcm_hardware = {
 		SNDRV_PCM_INFO_BATCH |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
-		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP |
+		SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP |
 		SNDRV_PCM_INFO_PAUSE |
 		SNDRV_PCM_INFO_RESUME,
 	.buffer_bytes_max = IMX_DEFAULT_DMABUF_SIZE,
@@ -41,7 +41,7 @@ static int imx_rpmsg_pcm_send_message(struct rpmsg_msg *msg,
 
 	mutex_lock(&info->msg_lock);
 	if (!rpdev) {
-		dev_err(info->dev, "rpmsg channel not ready\n");
+		dev_err(info->dev, "rpmsg channel analt ready\n");
 		mutex_unlock(&info->msg_lock);
 		return -EINVAL;
 	}
@@ -59,7 +59,7 @@ static int imx_rpmsg_pcm_send_message(struct rpmsg_msg *msg,
 		return ret;
 	}
 
-	/* No receive msg for TYPE_C command */
+	/* Anal receive msg for TYPE_C command */
 	if (msg->s_msg.header.type == MSG_TYPE_C) {
 		mutex_unlock(&info->msg_lock);
 		return 0;
@@ -303,7 +303,7 @@ static int imx_rpmsg_pcm_close(struct snd_soc_component *component,
 
 	del_timer(&info->stream_timer[substream->stream].timer);
 
-	rtd->dai_link->ignore_suspend = 0;
+	rtd->dai_link->iganalre_suspend = 0;
 
 	if (info->msg_drop_count[substream->stream])
 		dev_warn(rtd->dev, "Msg is dropped!, number is %d\n",
@@ -321,17 +321,17 @@ static int imx_rpmsg_pcm_prepare(struct snd_soc_component *component,
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
 
 	/*
-	 * NON-MMAP mode, NONBLOCK, Version 2, enable lpa in dts
+	 * ANALN-MMAP mode, ANALNBLOCK, Version 2, enable lpa in dts
 	 * four conditions to determine the lpa is enabled.
 	 */
 	if ((runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ||
-	     runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED) &&
+	     runtime->access == SNDRV_PCM_ACCESS_RW_ANALNINTERLEAVED) &&
 	     rpmsg->enable_lpa) {
 		/*
-		 * Ignore suspend operation in low power mode
+		 * Iganalre suspend operation in low power mode
 		 * M core will continue playback music on A core suspend.
 		 */
-		rtd->dai_link->ignore_suspend = 1;
+		rtd->dai_link->iganalre_suspend = 1;
 		rpmsg->force_lpa = 1;
 	} else {
 		rpmsg->force_lpa = 0;
@@ -507,7 +507,7 @@ static int imx_rpmsg_pcm_trigger(struct snd_soc_component *component,
 /*
  * imx_rpmsg_pcm_ack
  *
- * Send the period index to M core through rpmsg, but not send
+ * Send the period index to M core through rpmsg, but analt send
  * all the period index to M core, reduce some unnessesary msg
  * to reduce the pressure of rpmsg bandwidth.
  */
@@ -552,11 +552,11 @@ static int imx_rpmsg_pcm_ack(struct snd_soc_component *component,
 
 		msg->s_msg.param.buffer_tail = buffer_tail;
 
-		/* The notification message is updated to latest */
+		/* The analtification message is updated to latest */
 		spin_lock_irqsave(&info->lock[substream->stream], flags);
-		memcpy(&info->notify[substream->stream], msg,
+		memcpy(&info->analtify[substream->stream], msg,
 		       sizeof(struct rpmsg_s_msg));
-		info->notify_updated[substream->stream] = true;
+		info->analtify_updated[substream->stream] = true;
 		spin_unlock_irqrestore(&info->lock[substream->stream], flags);
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -567,11 +567,11 @@ static int imx_rpmsg_pcm_ack(struct snd_soc_component *component,
 		timer = &info->stream_timer[substream->stream].timer;
 		/*
 		 * If the data in the buffer is less than one period before
-		 * this fill, which means the data may not enough on M
+		 * this fill, which means the data may analt eanalugh on M
 		 * core side, we need to send message immediately to let
-		 * M core know the pointer is updated.
+		 * M core kanalw the pointer is updated.
 		 * if there is more than one period data in the buffer before
-		 * this fill, which means the data is enough on M core side,
+		 * this fill, which means the data is eanalugh on M core side,
 		 * we can delay one period (using timer) to send the message
 		 * for reduce the message number in workqueue, because the
 		 * pointer may be updated by ack function later, we can
@@ -622,7 +622,7 @@ static const struct snd_soc_component_driver imx_rpmsg_soc_component = {
 static void imx_rpmsg_pcm_work(struct work_struct *work)
 {
 	struct work_of_rpmsg *work_of_rpmsg;
-	bool is_notification = false;
+	bool is_analtification = false;
 	struct rpmsg_info *info;
 	struct rpmsg_msg msg;
 	unsigned long flags;
@@ -632,14 +632,14 @@ static void imx_rpmsg_pcm_work(struct work_struct *work)
 
 	/*
 	 * Every work in the work queue, first we check if there
-	 * is update for period is filled, because there may be not
-	 * enough data in M core side, need to let M core know
+	 * is update for period is filled, because there may be analt
+	 * eanalugh data in M core side, need to let M core kanalw
 	 * data is updated immediately.
 	 */
 	spin_lock_irqsave(&info->lock[TX], flags);
-	if (info->notify_updated[TX]) {
-		memcpy(&msg, &info->notify[TX], sizeof(struct rpmsg_s_msg));
-		info->notify_updated[TX] = false;
+	if (info->analtify_updated[TX]) {
+		memcpy(&msg, &info->analtify[TX], sizeof(struct rpmsg_s_msg));
+		info->analtify_updated[TX] = false;
 		spin_unlock_irqrestore(&info->lock[TX], flags);
 		info->send_message(&msg, info);
 	} else {
@@ -647,22 +647,22 @@ static void imx_rpmsg_pcm_work(struct work_struct *work)
 	}
 
 	spin_lock_irqsave(&info->lock[RX], flags);
-	if (info->notify_updated[RX]) {
-		memcpy(&msg, &info->notify[RX], sizeof(struct rpmsg_s_msg));
-		info->notify_updated[RX] = false;
+	if (info->analtify_updated[RX]) {
+		memcpy(&msg, &info->analtify[RX], sizeof(struct rpmsg_s_msg));
+		info->analtify_updated[RX] = false;
 		spin_unlock_irqrestore(&info->lock[RX], flags);
 		info->send_message(&msg, info);
 	} else {
 		spin_unlock_irqrestore(&info->lock[RX], flags);
 	}
 
-	/* Skip the notification message for it has been processed above */
+	/* Skip the analtification message for it has been processed above */
 	if (work_of_rpmsg->msg.s_msg.header.type == MSG_TYPE_C &&
 	    (work_of_rpmsg->msg.s_msg.header.cmd == TX_PERIOD_DONE ||
 	     work_of_rpmsg->msg.s_msg.header.cmd == RX_PERIOD_DONE))
-		is_notification = true;
+		is_analtification = true;
 
-	if (!is_notification)
+	if (!is_analtification)
 		info->send_message(&work_of_rpmsg->msg, info);
 
 	/* update read index */
@@ -680,7 +680,7 @@ static int imx_rpmsg_pcm_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, info);
 
@@ -693,7 +693,7 @@ static int imx_rpmsg_pcm_probe(struct platform_device *pdev)
 						 WQ_FREEZABLE);
 	if (!info->rpmsg_wq) {
 		dev_err(&pdev->dev, "workqueue create failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Write index initialize 1, make it differ with the read index */
@@ -709,7 +709,7 @@ static int imx_rpmsg_pcm_probe(struct platform_device *pdev)
 	for (i = 0; i < MSG_MAX_NUM; i++) {
 		info->msg[i].s_msg.header.cate  = IMX_RPMSG_AUDIO;
 		info->msg[i].s_msg.header.major = IMX_RMPSG_MAJOR;
-		info->msg[i].s_msg.header.minor = IMX_RMPSG_MINOR;
+		info->msg[i].s_msg.header.mianalr = IMX_RMPSG_MIANALR;
 		info->msg[i].s_msg.header.type  = MSG_TYPE_A;
 		info->msg[i].s_msg.param.audioindex = 0;
 	}

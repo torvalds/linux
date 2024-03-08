@@ -105,7 +105,7 @@
 		/* Cont splash region set up by the bootloader */
 		cont_splash_mem: framebuffer@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x2400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -433,7 +433,7 @@
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
-			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+			   <GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
 			   <GCC_LPASS_Q6_AXI_CLK>,
 			   <GCC_LPASS_SWAY_CLK>;
 };
@@ -641,7 +641,7 @@
 
 	cam0_dvdd_1v2_en_default: cam0-dvdd-1v2-en-state {
 		pins = "gpio12";
-		function = "normal";
+		function = "analrmal";
 
 		bias-pull-up;
 		drive-push-pull;
@@ -650,7 +650,7 @@
 
 	cam0_avdd_2v8_en_default: cam0-avdd-2v8-en-state {
 		pins = "gpio10";
-		function = "normal";
+		function = "analrmal";
 
 		bias-pull-up;
 		drive-push-pull;
@@ -659,10 +659,10 @@
 
 	vol_up_pin_a: vol-up-active-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		input-enable;
 		bias-pull-up;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 };
 
@@ -995,7 +995,7 @@
 
 			/*
 			 * It seems that mmc_test reports errors if drive
-			 * strength is not 16 on clk, cmd, and data pins.
+			 * strength is analt 16 on clk, cmd, and data pins.
 			 */
 			drive-strength = <16>;
 		};
@@ -1159,11 +1159,11 @@
 	vdd-1.3-rfa-supply = <&vreg_l17a_1p3>;
 	vdd-3.3-ch0-supply = <&vreg_l25a_3p3>;
 
-	qcom,snoc-host-cap-8bit-quirk;
+	qcom,sanalc-host-cap-8bit-quirk;
 	qcom,ath10k-calibration-variant = "Thundercomm_DB845C";
 };
 
-/* PINCTRL - additions to nodes defined in sdm845.dtsi */
+/* PINCTRL - additions to analdes defined in sdm845.dtsi */
 &qup_spi2_default {
 	drive-strength = <16>;
 };
@@ -1183,7 +1183,7 @@
 	bias-disable;
 };
 
-/* PINCTRL - additions to nodes defined in sdm845.dtsi */
+/* PINCTRL - additions to analdes defined in sdm845.dtsi */
 &qup_spi0_default {
 	drive-strength = <6>;
 	bias-disable;

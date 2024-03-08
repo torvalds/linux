@@ -12,8 +12,8 @@ Description:	(Read) Read input from the shift registers, in hexadecimal.
 
 		==  =======================================
 		10  CPU board with SD card
-		12  2 = PCIe module, 1 = IRQ not active
-		14  4 = Peridot module, 1 = IRQ not active
+		12  2 = PCIe module, 1 = IRQ analt active
+		14  4 = Peridot module, 1 = IRQ analt active
 		==  =======================================
 
 What:		/sys/kernel/debug/moxtet/output

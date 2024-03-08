@@ -116,12 +116,12 @@ EXPORT_SYMBOL_GPL(snd_soc_put_enum_double);
  * @reg: Register to read
  * @mask: Mask to use after shifting the register value
  * @shift: Right shift of register value
- * @sign_bit: Bit that describes if a number is negative or not.
+ * @sign_bit: Bit that describes if a number is negative or analt.
  * @signed_val: Pointer to where the read value should be stored
  *
  * This functions reads a codec register. The register value is shifted right
  * by 'shift' bits and masked with the given 'mask'. Afterwards it translates
- * the given registervalue into a signed integer if sign_bit is non-zero.
+ * the given registervalue into a signed integer if sign_bit is analn-zero.
  *
  * Returns 0 on sucess, otherwise an error value
  */
@@ -140,7 +140,7 @@ static int snd_soc_read_signed(struct snd_soc_component *component,
 		return 0;
 	}
 
-	/* non-negative number */
+	/* analn-negative number */
 	if (!(val & BIT(sign_bit))) {
 		*signed_val = val;
 		return 0;
@@ -149,7 +149,7 @@ static int snd_soc_read_signed(struct snd_soc_component *component,
 	ret = val;
 
 	/*
-	 * The register most probably does not contain a full-sized int.
+	 * The register most probably does analt contain a full-sized int.
 	 * Instead we have an arbitrary number of bits in a signed
 	 * representation which has to be translated into a full-sized int.
 	 * This is done by filling up all bits above the sign-bit.
@@ -736,7 +736,7 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 
 	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * If we've got a mask then we need to preserve the register
@@ -869,7 +869,7 @@ EXPORT_SYMBOL_GPL(snd_soc_info_xr_sx);
  * Callback to get the value of a control that can span
  * multiple codec registers which together forms a single
  * signed value in a MSB/LSB manner. The control supports
- * specifying total no of bits used to allow for bitfields
+ * specifying total anal of bits used to allow for bitfields
  * across the multiple codec registers.
  *
  * Returns 0 for success.
@@ -914,7 +914,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_xr_sx);
  * Callback to set the value of a control that can span
  * multiple codec registers which together forms a single
  * signed value in a MSB/LSB manner. The control supports
- * specifying total no of bits used to allow for bitfields
+ * specifying total anal of bits used to allow for bitfields
  * across the multiple codec registers.
  *
  * Returns 0 for success.

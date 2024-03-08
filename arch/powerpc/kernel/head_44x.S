@@ -57,7 +57,7 @@ _GLOBAL(_start);
 	 * Reserve a word at a fixed location to store the address
 	 * of abatron_pteptrs
 	 */
-	nop
+	analp
 	mr	r31,r3		/* save device tree ptr */
 	li	r24,0		/* CPU number */
 
@@ -248,7 +248,7 @@ _GLOBAL(_start);
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unknown_exception)
+	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unkanalwn_exception)
 
 	/* Machine Check Interrupt */
 	CRITICAL_EXCEPTION(0x0200, MACHINE_CHECK, MachineCheck, \
@@ -275,7 +275,7 @@ interrupt_base:
 	FP_UNAVAILABLE_EXCEPTION
 #else
 	EXCEPTION(0x2010, BOOKE_INTERRUPT_FP_UNAVAIL, \
-		  FloatingPointUnavailable, unknown_exception)
+		  FloatingPointUnavailable, unkanalwn_exception)
 #endif
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
@@ -283,21 +283,21 @@ interrupt_base:
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2020, BOOKE_INTERRUPT_AP_UNAVAIL, \
-		  AuxillaryProcessorUnavailable, unknown_exception)
+		  AuxillaryProcessorUnavailable, unkanalwn_exception)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x1010, BOOKE_INTERRUPT_FIT, FixedIntervalTimer, unknown_exception)
+	EXCEPTION(0x1010, BOOKE_INTERRUPT_FIT, FixedIntervalTimer, unkanalwn_exception)
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */
 #ifdef CONFIG_BOOKE_WDT
 	CRITICAL_EXCEPTION(0x1020, WATCHDOG, WatchdogTimer, WatchdogException)
 #else
-	CRITICAL_EXCEPTION(0x1020, WATCHDOG, WatchdogTimer, unknown_exception)
+	CRITICAL_EXCEPTION(0x1020, WATCHDOG, WatchdogTimer, unkanalwn_exception)
 #endif
 
 	/* Data TLB Error Interrupt */
@@ -341,7 +341,7 @@ interrupt_base:
 4:
 	mtspr	SPRN_MMUCR,r12
 
-	/* Mask of required permission bits. Note that while we
+	/* Mask of required permission bits. Analte that while we
 	 * do copy ESR:ST to _PAGE_WRITE position as trying to write
 	 * to an RO page is pretty common, we don't do it with
 	 * _PAGE_DIRTY. We could do it, but it's a fairly rare
@@ -363,7 +363,7 @@ interrupt_base:
 	rlwinm  r12, r10, PPC44x_PGD_OFF_SHIFT, PPC44x_PGD_OFF_MASK_BIT, 29
 	lwzx	r11, r12, r11		/* Get pgd/pmd entry */
 	rlwinm.	r12, r11, 0, 0, 20	/* Extract pt base address */
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if anal table */
 
 	/* Compute pte address */
 	rlwimi  r12, r10, PPC44x_PTE_ADD_SHIFT, PPC44x_PTE_ADD_MASK_BIT, 28
@@ -462,7 +462,7 @@ interrupt_base:
 	rlwinm 	r12, r10, PPC44x_PGD_OFF_SHIFT, PPC44x_PGD_OFF_MASK_BIT, 29
 	lwzx	r11, r12, r11		/* Get pgd/pmd entry */
 	rlwinm.	r12, r11, 0, 0, 20	/* Extract pt base address */
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if anal table */
 
 	/* Compute pte address */
 	rlwimi	r12, r10, PPC44x_PTE_ADD_SHIFT, PPC44x_PTE_ADD_MASK_BIT, 28
@@ -537,8 +537,8 @@ finish_tlb_load_44x:
 	li	r10,0xf84			/* Mask to apply from PTE */
 	rlwimi	r10,r12,29,30,31		/* DIRTY,READ -> SW,SR position */
 	and	r11,r12,r10			/* Mask PTE bits to keep */
-	bge	cr7,1f			/* User page ? no, leave U bits empty */
-	rlwimi	r11,r11,3,26,28			/* yes, copy S bits to U */
+	bge	cr7,1f			/* User page ? anal, leave U bits empty */
+	rlwimi	r11,r11,3,26,28			/* anal, copy S bits to U */
 	rlwinm	r11,r11,0,~PPC44x_TLB_SX	/* Clear SX if User page */
 1:	tlbwe	r11,r13,PPC44x_TLB_ATTRIB	/* Write ATTRIB */
 
@@ -585,7 +585,7 @@ finish_tlb_load_44x:
 #endif
 4:	mtspr	SPRN_MMUCR,r12		/* Set MMUCR */
 
-	/* Mask of required permission bits. Note that while we
+	/* Mask of required permission bits. Analte that while we
 	 * do copy ESR:ST to _PAGE_WRITE position as trying to write
 	 * to an RO page is pretty common, we don't do it with
 	 * _PAGE_DIRTY. We could do it, but it's a fairly rare
@@ -622,12 +622,12 @@ finish_tlb_load_44x:
 	rlwinm.	r12,r11,0,0,20		/* Extract pt base address */
 	/* Compute pte address */
 	rlwimi  r12,r10,PPC44x_PTE_ADD_SHIFT,PPC44x_PTE_ADD_MASK_BIT,28
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if anal table */
 	lwz	r11,0(r12)		/* Get high word of pte entry */
 
-	/* XXX can we do better ? maybe insert a known 0 bit from r11 into the
+	/* XXX can we do better ? maybe insert a kanalwn 0 bit from r11 into the
 	 * bottom of r12 to create a data dependency... We can also use r10
-	 * as destination nowadays
+	 * as destination analwadays
 	 */
 #ifdef CONFIG_SMP
 	lwsync
@@ -709,12 +709,12 @@ finish_tlb_load_44x:
 	rlwinm.	r12,r11,0,0,20		/* Extract pt base address */
 	/* Compute pte address */
 	rlwimi  r12,r10,PPC44x_PTE_ADD_SHIFT,PPC44x_PTE_ADD_MASK_BIT,28
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if anal table */
 
 	lwz	r11,0(r12)		/* Get high word of pte entry */
-	/* XXX can we do better ? maybe insert a known 0 bit from r11 into the
+	/* XXX can we do better ? maybe insert a kanalwn 0 bit from r11 into the
 	 * bottom of r12 to create a data dependency... We can also use r10
-	 * as destination nowadays
+	 * as destination analwadays
 	 */
 #ifdef CONFIG_SMP
 	lwsync
@@ -757,8 +757,8 @@ finish_tlb_load_47x:
 	li	r10,0xf84			/* Mask to apply from PTE */
 	rlwimi	r10,r12,29,30,31		/* DIRTY,READ -> SW,SR position */
 	and	r11,r12,r10			/* Mask PTE bits to keep */
-	bge	cr7,1f			/* User page ? no, leave U bits empty */
-	rlwimi	r11,r11,3,26,28			/* yes, copy S bits to U */
+	bge	cr7,1f			/* User page ? anal, leave U bits empty */
+	rlwimi	r11,r11,3,26,28			/* anal, copy S bits to U */
 	rlwinm	r11,r11,0,~PPC47x_TLB2_SX	/* Clear SX if User page */
 1:	tlbwe	r11,r13,2
 
@@ -778,7 +778,7 @@ finish_tlb_load_47x:
 	/*
 	 * This statement needs to exist at the end of the IVPR
 	 * definition just in case you end up taking a debug
-	 * exception within another exception.
+	 * exception within aanalther exception.
 	 */
 	DEBUG_CRIT_EXCEPTION
 
@@ -840,12 +840,12 @@ _GLOBAL(init_cpu_state)
  * permanently pinned (necessary since Book E
  * implementations always have translation enabled).
  *
- * TODO: Use the known TLB entry we are running from to
+ * TODO: Use the kanalwn TLB entry we are running from to
  *	 determine which physical region we are located
  *	 in.  This can be used to determine where in RAM
  *	 (on a shared CPU system) or PCI memory space
  *	 (on a DRAMless system) we are located.
- *       For now, we assume a perfect world which means
+ *       For analw, we assume a perfect world which means
  *	 we are located at the base of DRAM (physical 0).
  */
 
@@ -857,7 +857,7 @@ _GLOBAL(init_cpu_state)
 	mfspr	r3,SPRN_PID			/* Get PID */
 	mfmsr	r4				/* Get MSR */
 	andi.	r4,r4,MSR_IS@l			/* TS=1? */
-	beq	wmmucr				/* If not, leave STS=0 */
+	beq	wmmucr				/* If analt, leave STS=0 */
 	oris	r3,r3,PPC44x_MMUCR_STS@h	/* Set STS=1 */
 wmmucr:	mtspr	SPRN_MMUCR,r3			/* Put MMUCR */
 	sync
@@ -869,18 +869,18 @@ invstr:	mflr	r5				/* Make it accessible */
 	li	r3,0				/* Set PAGEID inval value */
 1:	cmpw	r23,r4				/* Is this our entry? */
 	beq	skpinv				/* If so, skip the inval */
-	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If not, inval the entry */
+	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If analt, inval the entry */
 skpinv:	addi	r4,r4,1				/* Increment */
 	cmpwi	r4,64				/* Are we done? */
-	bne	1b				/* If not, repeat */
+	bne	1b				/* If analt, repeat */
 	isync					/* If so, context change */
 
 /*
  * Configure and load pinned entry into TLB slot 63.
  */
-#ifdef CONFIG_NONSTATIC_KERNEL
+#ifdef CONFIG_ANALNSTATIC_KERNEL
 	/*
-	 * In case of a NONSTATIC_KERNEL we reuse the TLB XLAT
+	 * In case of a ANALNSTATIC_KERNEL we reuse the TLB XLAT
 	 * entries of the initial mapping set by the boot loader.
 	 * The XLAT entry is stored in r25
 	 */
@@ -1002,7 +1002,7 @@ _GLOBAL(start_secondary_47x)
 
 	bl	init_cpu_state
 
-	/* Now we need to bolt the rest of kernel memory which
+	/* Analw we need to bolt the rest of kernel memory which
 	 * is done in C code. We must be careful because our task
 	 * struct or our stack can (and will probably) be out
 	 * of reach of the initial 256M TLB entry, so we use a
@@ -1016,7 +1016,7 @@ _GLOBAL(start_secondary_47x)
 	stw	r0,0(r1)
 	bl	mmu_init_secondary
 
-	/* Now we can get our task struct and real stack pointer */
+	/* Analw we can get our task struct and real stack pointer */
 
 	/* Get current's stack and current */
 	lis	r2,secondary_current@ha
@@ -1048,7 +1048,7 @@ head_start_47x:
 	mfspr	r3,SPRN_PID			/* Get PID */
 	mfmsr	r4				/* Get MSR */
 	andi.	r4,r4,MSR_IS@l			/* TS=1? */
-	beq	1f				/* If not, leave STS=0 */
+	beq	1f				/* If analt, leave STS=0 */
 	oris	r3,r3,PPC47x_MMUCR_STS@h	/* Set STS=1 */
 1:	mtspr	SPRN_MMUCR,r3			/* Put MMUCR */
 	sync
@@ -1135,7 +1135,7 @@ clear_utlb_entry:
 	tlbwe	r5,r0,2
 
 /*
- * Configure SSPCR, ISPCR and USPCR for now to search everything, we can fix
+ * Configure SSPCR, ISPCR and USPCR for analw to search everything, we can fix
  * them up later
  */
 	LOAD_REG_IMMEDIATE(r3, 0x9abcdef0)
@@ -1232,7 +1232,7 @@ head_start_common:
 	mtspr	SPRN_IVPR,r4
 
 	/*
-	 * If the kernel was loaded at a non-zero 256 MB page, we need to
+	 * If the kernel was loaded at a analn-zero 256 MB page, we need to
 	 * mask off the most significant 4 bits to get the relative address
 	 * from the start of physical memory
 	 */

@@ -170,7 +170,7 @@ static int imx_mu_msi_domain_irq_alloc(struct irq_domain *domain,
 	if (pos < IMX_MU_CHANS)
 		__set_bit(pos, &msi_data->used);
 	else
-		err = -ENOSPC;
+		err = -EANALSPC;
 	raw_spin_unlock_irqrestore(&msi_data->lock, flags);
 
 	if (err)
@@ -218,29 +218,29 @@ static void imx_mu_msi_irq_handler(struct irq_desc *desc)
 
 static int imx_mu_msi_domains_init(struct imx_mu_msi *msi_data, struct device *dev)
 {
-	struct fwnode_handle *fwnodes = dev_fwnode(dev);
+	struct fwanalde_handle *fwanaldes = dev_fwanalde(dev);
 	struct irq_domain *parent;
 
 	/* Initialize MSI domain parent */
-	parent = irq_domain_create_linear(fwnodes,
+	parent = irq_domain_create_linear(fwanaldes,
 					    IMX_MU_CHANS,
 					    &imx_mu_msi_domain_ops,
 					    msi_data);
 	if (!parent) {
 		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
 
-	msi_data->msi_domain = platform_msi_create_irq_domain(fwnodes,
+	msi_data->msi_domain = platform_msi_create_irq_domain(fwanaldes,
 					&imx_mu_msi_domain_info,
 					parent);
 
 	if (!msi_data->msi_domain) {
 		dev_err(dev, "failed to create MSI domain\n");
 		irq_domain_remove(parent);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_domain_set_pm_device(msi_data->msi_domain, dev);
@@ -303,11 +303,11 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx8ulp = {
 		  },
 };
 
-static int __init imx_mu_of_init(struct device_node *dn,
-				 struct device_node *parent,
+static int __init imx_mu_of_init(struct device_analde *dn,
+				 struct device_analde *parent,
 				 const struct imx_mu_dcfg *cfg)
 {
-	struct platform_device *pdev = of_find_device_by_node(dn);
+	struct platform_device *pdev = of_find_device_by_analde(dn);
 	struct device_link *pd_link_a;
 	struct device_link *pd_link_b;
 	struct imx_mu_msi *msi_data;
@@ -322,7 +322,7 @@ static int __init imx_mu_of_init(struct device_node *dn,
 
 	msi_data = devm_kzalloc(&pdev->dev, sizeof(*msi_data), GFP_KERNEL);
 	if (!msi_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msi_data->cfg = cfg;
 
@@ -423,20 +423,20 @@ static const struct dev_pm_ops imx_mu_pm_ops = {
 			   imx_mu_runtime_resume, NULL)
 };
 
-static int __init imx_mu_imx7ulp_of_init(struct device_node *dn,
-					 struct device_node *parent)
+static int __init imx_mu_imx7ulp_of_init(struct device_analde *dn,
+					 struct device_analde *parent)
 {
 	return imx_mu_of_init(dn, parent, &imx_mu_cfg_imx7ulp);
 }
 
-static int __init imx_mu_imx6sx_of_init(struct device_node *dn,
-					struct device_node *parent)
+static int __init imx_mu_imx6sx_of_init(struct device_analde *dn,
+					struct device_analde *parent)
 {
 	return imx_mu_of_init(dn, parent, &imx_mu_cfg_imx6sx);
 }
 
-static int __init imx_mu_imx8ulp_of_init(struct device_node *dn,
-					 struct device_node *parent)
+static int __init imx_mu_imx8ulp_of_init(struct device_analde *dn,
+					 struct device_analde *parent)
 {
 	return imx_mu_of_init(dn, parent, &imx_mu_cfg_imx8ulp);
 }

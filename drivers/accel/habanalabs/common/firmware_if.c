@@ -19,7 +19,7 @@
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
 static char *comms_cmd_str_arr[COMMS_INVLD_LAST] = {
-	[COMMS_NOOP] = __stringify(COMMS_NOOP),
+	[COMMS_ANALOP] = __stringify(COMMS_ANALOP),
 	[COMMS_CLR_STS] = __stringify(COMMS_CLR_STS),
 	[COMMS_RST_STATE] = __stringify(COMMS_RST_STATE),
 	[COMMS_PREP_DESC] = __stringify(COMMS_PREP_DESC),
@@ -32,7 +32,7 @@ static char *comms_cmd_str_arr[COMMS_INVLD_LAST] = {
 };
 
 static char *comms_sts_str_arr[COMMS_STS_INVLD_LAST] = {
-	[COMMS_STS_NOOP] = __stringify(COMMS_STS_NOOP),
+	[COMMS_STS_ANALOP] = __stringify(COMMS_STS_ANALOP),
 	[COMMS_STS_ACK] = __stringify(COMMS_STS_ACK),
 	[COMMS_STS_OK] = __stringify(COMMS_STS_OK),
 	[COMMS_STS_ERR] = __stringify(COMMS_STS_ERR),
@@ -94,21 +94,21 @@ static char *extract_u32_until_given_char(char *str, u32 *ver_num, char given_ch
 }
 
 /**
- * hl_get_sw_major_minor_subminor() - extract the FW's SW version major, minor, sub-minor
+ * hl_get_sw_major_mianalr_submianalr() - extract the FW's SW version major, mianalr, sub-mianalr
  *				      from the version string
  * @hdev: pointer to the hl_device
  * @fw_str: the FW's version string
  *
- * The extracted version is set in the hdev fields: fw_sw_{major/minor/sub_minor}_ver.
+ * The extracted version is set in the hdev fields: fw_sw_{major/mianalr/sub_mianalr}_ver.
  *
  * fw_str is expected to have one of two possible formats, examples:
  * 1) 'Preboot version hl-gaudi2-1.9.0-fw-42.0.1-sec-3'
  * 2) 'Preboot version hl-gaudi2-1.9.0-rc-fw-42.0.1-sec-3'
- * In those examples, the SW major,minor,subminor are correspondingly: 1,9,0.
+ * In those examples, the SW major,mianalr,submianalr are correspondingly: 1,9,0.
  *
  * Return: 0 for success or a negative error code for failure.
  */
-static int hl_get_sw_major_minor_subminor(struct hl_device *hdev, const char *fw_str)
+static int hl_get_sw_major_mianalr_submianalr(struct hl_device *hdev, const char *fw_str)
 {
 	char *end, *start;
 
@@ -140,12 +140,12 @@ static int hl_get_sw_major_minor_subminor(struct hl_device *hdev, const char *fw
 		goto err_zero_ver;
 
 	start++;
-	start = extract_u32_until_given_char(start, &hdev->fw_sw_minor_ver, '.');
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_mianalr_ver, '.');
 	if (!start)
 		goto err_zero_ver;
 
 	start++;
-	start = extract_u32_until_given_char(start, &hdev->fw_sw_sub_minor_ver, '-');
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_sub_mianalr_ver, '-');
 	if (!start)
 		goto err_zero_ver;
 
@@ -153,22 +153,22 @@ static int hl_get_sw_major_minor_subminor(struct hl_device *hdev, const char *fw
 
 err_zero_ver:
 	hdev->fw_sw_major_ver = 0;
-	hdev->fw_sw_minor_ver = 0;
-	hdev->fw_sw_sub_minor_ver = 0;
+	hdev->fw_sw_mianalr_ver = 0;
+	hdev->fw_sw_sub_mianalr_ver = 0;
 	return -EINVAL;
 }
 
 /**
- * hl_get_preboot_major_minor() - extract the FW's version major, minor from the version string.
+ * hl_get_preboot_major_mianalr() - extract the FW's version major, mianalr from the version string.
  * @hdev: pointer to the hl_device
  * @preboot_ver: the FW's version string
  *
- * preboot_ver is expected to be the format of <major>.<minor>.<sub minor>*, e.g: 42.0.1-sec-3
- * The extracted version is set in the hdev fields: fw_inner_{major/minor}_ver.
+ * preboot_ver is expected to be the format of <major>.<mianalr>.<sub mianalr>*, e.g: 42.0.1-sec-3
+ * The extracted version is set in the hdev fields: fw_inner_{major/mianalr}_ver.
  *
  * Return: 0 on success, negative error code for failure.
  */
-static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
+static int hl_get_preboot_major_mianalr(struct hl_device *hdev, char *preboot_ver)
 {
 	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_major_ver, '.');
 	if (!preboot_ver) {
@@ -178,16 +178,16 @@ static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
 
 	preboot_ver++;
 
-	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_minor_ver, '.');
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_mianalr_ver, '.');
 	if (!preboot_ver) {
-		dev_err(hdev->dev, "Error parsing preboot minor version\n");
+		dev_err(hdev->dev, "Error parsing preboot mianalr version\n");
 		goto err_zero_ver;
 	}
 	return 0;
 
 err_zero_ver:
 	hdev->fw_inner_major_ver = 0;
-	hdev->fw_inner_minor_ver = 0;
+	hdev->fw_inner_mianalr_ver = 0;
 	return -EINVAL;
 }
 
@@ -200,7 +200,7 @@ static int hl_request_fw(struct hl_device *hdev,
 
 	rc = request_firmware(firmware_p, fw_name, hdev->dev);
 	if (rc) {
-		dev_err(hdev->dev, "Firmware file %s is not found! (error %d)\n",
+		dev_err(hdev->dev, "Firmware file %s is analt found! (error %d)\n",
 				fw_name, rc);
 		goto out;
 	}
@@ -236,7 +236,7 @@ out:
  *
  * @fw: fw descriptor
  *
- * note: this inline function added to serve as a comprehensive mirror for the
+ * analte: this inline function added to serve as a comprehensive mirror for the
  *       hl_request_fw function.
  */
 static inline void hl_release_firmware(const struct firmware *fw)
@@ -324,7 +324,7 @@ static int hl_fw_copy_msg_to_device(struct hl_device *hdev,
  *
  * Copy fw code from firmware file to device memory.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, analn-zero for failure.
  */
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst, u32 src_offset, u32 size)
@@ -367,7 +367,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	if (!pkt) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for packet to CPU\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(pkt, msg, len);
@@ -385,12 +385,12 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
-	/* set fence to a non valid value */
+	/* set fence to a analn valid value */
 	pkt->fence = cpu_to_le32(UINT_MAX);
 	pi = queue->pi;
 
 	/*
-	 * The CPU queue is a synchronous queue with an effective depth of
+	 * The CPU queue is a synchroanalus queue with an effective depth of
 	 * a single entry (although it is allocated with room for multiple
 	 * entries). We lock on it using 'send_cpu_message_lock' which
 	 * serializes accesses to the CPU queue.
@@ -412,7 +412,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	if (rc == -ETIMEDOUT) {
 		/* If FW performed reset just before sending it a packet, we will get a timeout.
-		 * This is expected behavior, hence no need for error message.
+		 * This is expected behavior, hence anal need for error message.
 		 */
 		if (!hl_device_operational(hdev, NULL) && !hdev->reset_info.in_compute_reset)
 			dev_dbg(hdev->dev, "Device CPU packet timeout (0x%x) due to FW reset\n",
@@ -438,7 +438,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		switch (rc) {
 		case cpucp_packet_invalid:
 			dev_err(hdev->dev,
-				"CPU packet %d is not supported by F/W\n", opcode);
+				"CPU packet %d is analt supported by F/W\n", opcode);
 			break;
 		case cpucp_packet_fault:
 			dev_err(hdev->dev,
@@ -446,7 +446,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 			break;
 		case cpucp_packet_invalid_pkt:
 			dev_dbg(hdev->dev,
-				"CPU packet %d is not supported by F/W\n", opcode);
+				"CPU packet %d is analt supported by F/W\n", opcode);
 			break;
 		case cpucp_packet_invalid_params:
 			dev_err(hdev->dev,
@@ -455,7 +455,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 		default:
 			dev_err(hdev->dev,
-				"Unknown F/W ERROR %d for CPU packet %d\n", rc, opcode);
+				"Unkanalwn F/W ERROR %d for CPU packet %d\n", rc, opcode);
 		}
 
 		/* propagate the return code from the f/w to the callers who want to check it */
@@ -528,7 +528,7 @@ int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
 
 	pkt = kzalloc(total_pkt_size, GFP_KERNEL);
 	if (!pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt->length = cpu_to_le32(irq_arr_size / sizeof(irq_arr[0]));
 	memcpy(&pkt->irqs, irq_arr, irq_arr_size);
@@ -674,14 +674,14 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val, u32 sts_val
 		}
 	}
 
-	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
-		dev_err(hdev->dev, "Device boot error - Serdes data from BMC not available\n");
+	if (err_val & CPU_BOOT_ERR0_NIC_DATA_ANALT_RDY)
+		dev_err(hdev->dev, "Device boot error - Serdes data from BMC analt available\n");
 
 	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
 		dev_err(hdev->dev, "Device boot error - NIC F/W initialization failed\n");
 
-	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY)
-		dev_err(hdev->dev, "Device boot warning - security not ready\n");
+	if (err_val & CPU_BOOT_ERR0_SECURITY_ANALT_RDY)
+		dev_err(hdev->dev, "Device boot warning - security analt ready\n");
 
 	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL)
 		dev_err(hdev->dev, "Device boot error - security failure\n");
@@ -699,7 +699,7 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val, u32 sts_val
 		dev_err(hdev->dev, "Device boot error - Failed to set threshold for temperature sensor\n");
 
 	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL) {
-		/* Ignore this bit, don't prevent driver loading */
+		/* Iganalre this bit, don't prevent driver loading */
 		dev_dbg(hdev->dev, "device unusable status is set\n");
 		err_val &= ~CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL;
 	}
@@ -716,7 +716,7 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val, u32 sts_val
 	if (err_val & CPU_BOOT_ERR_ENG_ARC_MEM_SCRUB_FAIL)
 		dev_err(hdev->dev, "Device boot error - ARC memory scrub failed\n");
 
-	/* All warnings should go here in order not to reach the unknown error validation */
+	/* All warnings should go here in order analt to reach the unkanalwn error validation */
 	if (err_val & CPU_BOOT_ERR0_EEPROM_FAIL) {
 		dev_err(hdev->dev, "Device boot error - EEPROM failure detected\n");
 		err_exists = true;
@@ -739,7 +739,7 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val, u32 sts_val
 	return false;
 }
 
-/* placeholder for ERR1 as no errors defined there yet */
+/* placeholder for ERR1 as anal errors defined there yet */
 static bool fw_report_boot_dev1(struct hl_device *hdev, u32 err_val,
 								u32 sts_val)
 {
@@ -758,7 +758,7 @@ static bool fw_report_boot_dev1(struct hl_device *hdev, u32 err_val,
 
 	if (!err_exists && (err_val & ~CPU_BOOT_ERR1_ENABLED)) {
 		dev_err(hdev->dev,
-			"Device boot error - unknown ERR1 error 0x%08x\n",
+			"Device boot error - unkanalwn ERR1 error 0x%08x\n",
 								err_val);
 		err_exists = true;
 	}
@@ -784,7 +784,7 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 	 * registers and print the exact errors. Moreover, there
 	 * may be multiple errors, so we need to report on each error
 	 * separately. Some of the error codes might indicate a state
-	 * that is not an error per-se, but it is an error in production
+	 * that is analt an error per-se, but it is an error in production
 	 * environment
 	 */
 	err_val = RREG32(boot_err0_reg);
@@ -819,7 +819,7 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 	if (!cpucp_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP info packet\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(cpucp_info_cpu_addr, 0, sizeof(struct cpucp_info));
@@ -906,7 +906,7 @@ static int hl_fw_send_msi_info_msg(struct hl_device *hdev)
 
 	pkt = kzalloc(total_pkt_size, GFP_KERNEL);
 	if (!pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt->length = cpu_to_le32(CPUCP_NUM_OF_MSI_TYPES);
 
@@ -920,8 +920,8 @@ static int hl_fw_send_msi_info_msg(struct hl_device *hdev)
 						total_pkt_size, 0, &result);
 
 	/*
-	 * in case packet result is invalid it means that FW does not support
-	 * this feature and will use default/hard coded MSI values. no reason
+	 * in case packet result is invalid it means that FW does analt support
+	 * this feature and will use default/hard coded MSI values. anal reason
 	 * to stop the boot
 	 */
 	if (rc && result == cpucp_packet_invalid)
@@ -964,7 +964,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 	if (!eeprom_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP EEPROM packet\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(eeprom_info_cpu_addr, 0, max_size);
@@ -1009,7 +1009,7 @@ int hl_fw_get_monitor_dump(struct hl_device *hdev, void *data)
 	if (!mon_dump_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP monitor-dump packet\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(mon_dump_cpu_addr, 0, data_size);
@@ -1152,7 +1152,7 @@ int get_used_pll_index(struct hl_device *hdev, u32 input_pll_index,
 	pll_bit_off = fw_pll_idx & 0x7;
 
 	if (!(pll_byte & BIT(pll_bit_off))) {
-		dev_err(hdev->dev, "PLL index %d is not supported\n",
+		dev_err(hdev->dev, "PLL index %d is analt supported\n",
 			fw_pll_idx);
 		return -EINVAL;
 	}
@@ -1234,7 +1234,7 @@ int hl_fw_dram_replaced_row_get(struct hl_device *hdev,
 	if (!cpucp_repl_rows_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP replaced rows info packet\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(cpucp_repl_rows_info_cpu_addr, 0, sizeof(struct cpucp_hbm_row_info));
@@ -1331,7 +1331,7 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 	if (hdev->device_cpu_is_halted)
 		return;
 
-	/* Stop device CPU to make sure nothing bad happens */
+	/* Stop device CPU to make sure analthing bad happens */
 	if (hdev->asic_prop.dynamic_fw_load) {
 		pre_fw_load = &fw_loader->pre_fw_load;
 		cpu_timeout = fw_loader->cpu_timeout;
@@ -1375,7 +1375,7 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	switch (status) {
 	case CPU_BOOT_STATUS_NA:
 		dev_err(hdev->dev,
-			"Device boot progress - BTL/ROM did NOT run\n");
+			"Device boot progress - BTL/ROM did ANALT run\n");
 		break;
 	case CPU_BOOT_STATUS_IN_WFE:
 		dev_err(hdev->dev,
@@ -1401,9 +1401,9 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 		dev_err(hdev->dev,
 			"Device boot progress - DRAM initialization failed\n");
 		break;
-	case CPU_BOOT_STATUS_UBOOT_NOT_READY:
+	case CPU_BOOT_STATUS_UBOOT_ANALT_READY:
 		dev_err(hdev->dev,
-			"Device boot progress - Cannot boot\n");
+			"Device boot progress - Cananalt boot\n");
 		break;
 	case CPU_BOOT_STATUS_TS_INIT_FAIL:
 		dev_err(hdev->dev,
@@ -1452,7 +1452,7 @@ retry:
 		timeout);
 	/*
 	 * if F/W reports "security-ready" it means preboot might take longer.
-	 * If the field 'wait_for_preboot_extended_timeout' is non 0 we wait again
+	 * If the field 'wait_for_preboot_extended_timeout' is analn 0 we wait again
 	 * with that timeout
 	 */
 	preboot_still_runs = (status == CPU_BOOT_STATUS_SECURITY_READY ||
@@ -1472,7 +1472,7 @@ retry:
 		detect_cpu_boot_status(hdev, status);
 		dev_err(hdev->dev, "CPU boot ready timeout (status = %d)\n", status);
 
-		/* If we read all FF, then something is totally wrong, no point
+		/* If we read all FF, then something is totally wrong, anal point
 		 * of reading specific errors
 		 */
 		if (status != -1)
@@ -1509,7 +1509,7 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev)
 	 * In the first read of this register we store the value of this
 	 * register ONLY if the register is enabled (which will be propagated
 	 * to next stages) and also mark the register as valid.
-	 * In case it is not enabled the stored value will be left 0- all
+	 * In case it is analt enabled the stored value will be left 0- all
 	 * caps/features are off
 	 */
 	reg_val = RREG32(pre_fw_load->sts_boot_dev_sts0_reg);
@@ -1527,7 +1527,7 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev)
 	prop->dynamic_fw_load = !!(prop->fw_preboot_cpu_boot_dev_sts0 &
 						CPU_BOOT_DEV_STS0_FW_LD_COM_EN);
 
-	/* initialize FW loader once we know what load protocol is used */
+	/* initialize FW loader once we kanalw what load protocol is used */
 	hdev->asic_funcs->init_firmware_loader(hdev);
 
 	dev_dbg(hdev->dev, "Attempting %s FW load\n",
@@ -1613,7 +1613,7 @@ static int hl_fw_static_read_device_fw_version(struct hl_device *hdev,
  *
  * @hdev: pointer to the habanalabs device structure
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static void hl_fw_preboot_update_state(struct hl_device *hdev)
 {
@@ -1683,7 +1683,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev)
 
 	hl_fw_preboot_update_state(hdev);
 
-	/* no need to read preboot status in dynamic load */
+	/* anal need to read preboot status in dynamic load */
 	if (hdev->asic_prop.dynamic_fw_load)
 		return 0;
 
@@ -1692,7 +1692,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev)
 
 /* associate string with COMM status */
 static char *hl_dynamic_fw_status_str[COMMS_STS_INVLD_LAST] = {
-	[COMMS_STS_NOOP] = "NOOP",
+	[COMMS_STS_ANALOP] = "ANALOP",
 	[COMMS_STS_ACK] = "ACK",
 	[COMMS_STS_OK] = "OK",
 	[COMMS_STS_ERR] = "ERR",
@@ -1719,7 +1719,7 @@ static void hl_fw_dynamic_report_error_status(struct hl_device *hdev,
 				hl_dynamic_fw_status_str[comm_status],
 				hl_dynamic_fw_status_str[expected_status]);
 	else
-		dev_err(hdev->dev, "Device status unknown %d, expected status: %s\n",
+		dev_err(hdev->dev, "Device status unkanalwn %d, expected status: %s\n",
 				comm_status,
 				hl_dynamic_fw_status_str[expected_status]);
 }
@@ -1730,10 +1730,10 @@ static void hl_fw_dynamic_report_error_status(struct hl_device *hdev,
  * @hdev: pointer to the habanalabs device structure
  * @fw_loader: managing structure for loading device's FW
  * @cmd: LKD to FW cmd code
- * @size: size of next FW component to be loaded (0 if not necessary)
+ * @size: size of next FW component to be loaded (0 if analt necessary)
  *
  * LDK to FW exact command layout is defined at struct comms_command.
- * note: the size argument is used only when the next FW component should be
+ * analte: the size argument is used only when the next FW component should be
  *       loaded, otherwise it shall be 0. the size is used by the FW in later
  *       protocol stages and when sending only indicating the amount of memory
  *       to be allocated by the FW to receive the next boot component.
@@ -1762,7 +1762,7 @@ static void hl_fw_dynamic_send_cmd(struct hl_device *hdev,
  * @response: FW response
  * @status: the status read from CPU status register
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static int hl_fw_dynamic_extract_fw_response(struct hl_device *hdev,
 						struct fw_load_mgr *fw_loader,
@@ -1792,7 +1792,7 @@ static int hl_fw_dynamic_extract_fw_response(struct hl_device *hdev,
  * @expected_status: expected status to wait for
  * @timeout: timeout for status wait
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  *
  * waiting for status from FW include polling the FW status register until
  * expected status is received or timeout occurs (whatever occurs first).
@@ -1828,10 +1828,10 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 	trace_habanalabs_comms_wait_status_done(hdev->dev, comms_sts_str_arr[expected_status]);
 
 	/*
-	 * skip storing FW response for NOOP to preserve the actual desired
+	 * skip storing FW response for ANALOP to preserve the actual desired
 	 * FW status
 	 */
-	if (expected_status == COMMS_STS_NOOP)
+	if (expected_status == COMMS_STS_ANALOP)
 		return 0;
 
 	rc = hl_fw_dynamic_extract_fw_response(hdev, fw_loader,
@@ -1846,20 +1846,20 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
  * @hdev: pointer to the habanalabs device structure
  * @fw_loader: managing structure for loading device's FW
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  *
  * after command cycle between LKD to FW CPU (i.e. LKD got an expected status
  * from FW) we need to clear the CPU status register in order to avoid garbage
  * between command cycles.
  * This is done by sending clear command and polling the CPU to LKD status
- * register to hold the status NOOP
+ * register to hold the status ANALOP
  */
 static int hl_fw_dynamic_send_clear_cmd(struct hl_device *hdev,
 						struct fw_load_mgr *fw_loader)
 {
 	hl_fw_dynamic_send_cmd(hdev, fw_loader, COMMS_CLR_STS, 0);
 
-	return hl_fw_dynamic_wait_for_status(hdev, fw_loader, COMMS_STS_NOOP,
+	return hl_fw_dynamic_wait_for_status(hdev, fw_loader, COMMS_STS_ANALOP,
 							fw_loader->cpu_timeout);
 }
 
@@ -1869,11 +1869,11 @@ static int hl_fw_dynamic_send_clear_cmd(struct hl_device *hdev,
  * @hdev: pointer to the habanalabs device structure
  * @fw_loader: managing structure for loading device's FW
  * @cmd: LKD to FW cmd code
- * @size: size of next FW component to be loaded (0 if not necessary)
+ * @size: size of next FW component to be loaded (0 if analt necessary)
  * @wait_ok: if true also wait for OK response from FW
  * @timeout: timeout for status wait
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  *
  * brief:
  * when sending protocol command we have the following steps:
@@ -1881,16 +1881,16 @@ static int hl_fw_dynamic_send_clear_cmd(struct hl_device *hdev,
  * - send the actual protocol command
  * - wait for ACK on the protocol command
  * - send clear
- * - send NOOP
+ * - send ANALOP
  * if, in addition, the specific protocol command should wait for OK then:
  * - wait for OK
  * - send clear
- * - send NOOP
+ * - send ANALOP
  *
- * NOTES:
+ * ANALTES:
  * send clear: this is necessary in order to clear the status register to avoid
  *             leftovers between command
- * NOOP command: necessary to avoid loop on the clear command by the FW
+ * ANALOP command: necessary to avoid loop on the clear command by the FW
  */
 int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 				struct fw_load_mgr *fw_loader,
@@ -1915,13 +1915,13 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 	if (rc)
 		return rc;
 
-	/* clear command to prepare for NOOP command */
+	/* clear command to prepare for ANALOP command */
 	rc = hl_fw_dynamic_send_clear_cmd(hdev, fw_loader);
 	if (rc)
 		return rc;
 
-	/* send the actual NOOP command */
-	hl_fw_dynamic_send_cmd(hdev, fw_loader, COMMS_NOOP, 0);
+	/* send the actual ANALOP command */
+	hl_fw_dynamic_send_cmd(hdev, fw_loader, COMMS_ANALOP, 0);
 
 	if (!wait_ok)
 		return 0;
@@ -1931,13 +1931,13 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 	if (rc)
 		return rc;
 
-	/* clear command to prepare for NOOP command */
+	/* clear command to prepare for ANALOP command */
 	rc = hl_fw_dynamic_send_clear_cmd(hdev, fw_loader);
 	if (rc)
 		return rc;
 
-	/* send the actual NOOP command */
-	hl_fw_dynamic_send_cmd(hdev, fw_loader, COMMS_NOOP, 0);
+	/* send the actual ANALOP command */
+	hl_fw_dynamic_send_cmd(hdev, fw_loader, COMMS_ANALOP, 0);
 
 	return 0;
 }
@@ -1950,7 +1950,7 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
  *
  * @return the CRC32 result
  *
- * NOTE: kernel's CRC32 differs from standard CRC32 calculation.
+ * ANALTE: kernel's CRC32 differs from standard CRC32 calculation.
  *       in order to be aligned we need to flip the bits of both the input
  *       initial CRC and kernel's CRC32 result.
  *       in addition both sides use initial CRC of 0,
@@ -1970,7 +1970,7 @@ static u32 hl_fw_compat_crc32(u8 *data, size_t size)
  * @size: memory transfer size
  * @region: PCI memory region
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static int hl_fw_dynamic_validate_memory_bound(struct hl_device *hdev,
 						u64 addr, size_t size,
@@ -1978,7 +1978,7 @@ static int hl_fw_dynamic_validate_memory_bound(struct hl_device *hdev,
 {
 	u64 end_addr;
 
-	/* now make sure that the memory transfer is within region's bounds */
+	/* analw make sure that the memory transfer is within region's bounds */
 	end_addr = addr + size;
 	if (end_addr >= region->region_base + region->region_size) {
 		dev_err(hdev->dev,
@@ -1988,8 +1988,8 @@ static int hl_fw_dynamic_validate_memory_bound(struct hl_device *hdev,
 	}
 
 	/*
-	 * now make sure memory transfer is within predefined BAR bounds.
-	 * this is to make sure we do not need to set the bar (e.g. for DRAM
+	 * analw make sure memory transfer is within predefined BAR bounds.
+	 * this is to make sure we do analt need to set the bar (e.g. for DRAM
 	 * memory transfers)
 	 */
 	if (end_addr >= region->region_base - region->offset_in_bar +
@@ -2009,7 +2009,7 @@ static int hl_fw_dynamic_validate_memory_bound(struct hl_device *hdev,
  * @fw_loader: managing structure for loading device's FW
  * @fw_desc: the descriptor from FW
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 					struct fw_load_mgr *fw_loader,
@@ -2035,7 +2035,7 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 	 * Calc CRC32 of data without header. use the size of the descriptor
 	 * reported by firmware, without calculating it ourself, to allow adding
 	 * more fields to the lkd_fw_comms_desc structure.
-	 * note that no alignment/stride address issues here as all structures
+	 * analte that anal alignment/stride address issues here as all structures
 	 * are 64 bit padded.
 	 */
 	data_ptr = (u8 *)fw_desc + sizeof(struct comms_desc_header);
@@ -2062,7 +2062,7 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 	fw_loader->dynamic_loader.image_region = region;
 
 	/*
-	 * here we know that the start address is valid, now make sure that the
+	 * here we kanalw that the start address is valid, analw make sure that the
 	 * image is within region's bounds
 	 */
 	rc = hl_fw_dynamic_validate_memory_bound(hdev, addr,
@@ -2090,8 +2090,8 @@ static int hl_fw_dynamic_validate_response(struct hl_device *hdev,
 
 	/*
 	 * validate that the descriptor is within region's bounds
-	 * Note that as the start address was supplied according to the RAM
-	 * type- testing only the end address is enough
+	 * Analte that as the start address was supplied according to the RAM
+	 * type- testing only the end address is eanalugh
 	 */
 	rc = hl_fw_dynamic_validate_memory_bound(hdev, device_addr,
 					sizeof(struct lkd_fw_comms_desc),
@@ -2142,7 +2142,7 @@ static void hl_fw_dynamic_read_descriptor_msg(struct hl_device *hdev,
  * @hdev: pointer to the habanalabs device structure
  * @fw_loader: managing structure for loading device's FW
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 						struct fw_load_mgr *fw_loader)
@@ -2194,7 +2194,7 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 
 	temp_fw_desc = vzalloc(sizeof(struct comms_desc_header) + fw_data_size);
 	if (!temp_fw_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(temp_fw_desc, src, sizeof(struct comms_desc_header) + fw_data_size);
 
@@ -2216,7 +2216,7 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
  * @fw_loader: managing structure for loading device's FW
  * @next_image_size: size to allocate for next FW component
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static int hl_fw_dynamic_request_descriptor(struct hl_device *hdev,
 						struct fw_load_mgr *fw_loader,
@@ -2270,12 +2270,12 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 			dev_info(hdev->dev, "%s\n", btl_ver);
 		}
 
-		rc = hl_get_sw_major_minor_subminor(hdev, preboot_ver);
+		rc = hl_get_sw_major_mianalr_submianalr(hdev, preboot_ver);
 		if (rc)
 			return rc;
 		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
 		if (preboot_ver) {
-			rc = hl_get_preboot_major_minor(hdev, preboot_ver);
+			rc = hl_get_preboot_major_mianalr(hdev, preboot_ver);
 			kfree(preboot_ver);
 			if (rc)
 				return rc;
@@ -2361,7 +2361,7 @@ static int hl_fw_dynamic_copy_msg(struct hl_device *hdev,
  * @cpu_boot_dev_sts0_reg: register holding CPU boot dev status 0
  * @cpu_boot_dev_sts1_reg: register holding CPU boot dev status 1
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
 						u32 cpu_boot_dev_sts0_reg,
@@ -2400,7 +2400,7 @@ static void hl_fw_dynamic_update_linux_interrupt_if(struct hl_device *hdev)
 	struct cpu_dyn_regs *dyn_regs =
 			&hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
 
-	/* Check whether all 3 interrupt interfaces are set, if not use a
+	/* Check whether all 3 interrupt interfaces are set, if analt use a
 	 * single interface
 	 */
 	if (!hdev->asic_prop.gic_interrupts_enable &&
@@ -2421,7 +2421,7 @@ static void hl_fw_dynamic_update_linux_interrupt_if(struct hl_device *hdev)
  * @load_fwc: the FW component to be loaded
  * @img_ld_timeout: image load timeout
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 						struct fw_load_mgr *fw_loader,
@@ -2495,7 +2495,7 @@ static int hl_fw_dynamic_wait_for_boot_fit_active(struct hl_device *hdev,
 
 	/*
 	 * Make sure CPU boot-loader is running
-	 * Note that the CPU_BOOT_STATUS_SRAM_AVAIL is generally set by Linux
+	 * Analte that the CPU_BOOT_STATUS_SRAM_AVAIL is generally set by Linux
 	 * yet there is a debug scenario in which we loading uboot (without Linux)
 	 * which at later stage is relocated to DRAM. In this case we expect
 	 * uboot to set the CPU_BOOT_STATUS_SRAM_AVAIL and so we add it to the
@@ -2548,7 +2548,7 @@ static int hl_fw_dynamic_wait_for_linux_active(struct hl_device *hdev,
 /**
  * hl_fw_linux_update_state -	update internal data structures after Linux
  *				is loaded.
- *				Note: Linux initialization is comprised mainly
+ *				Analte: Linux initialization is comprised mainly
  *				of two stages - loading kernel (SRAM_AVAIL)
  *				& loading ARMCP.
  *				Therefore reading boot device status in any of
@@ -2558,7 +2558,7 @@ static int hl_fw_dynamic_wait_for_linux_active(struct hl_device *hdev,
  * @cpu_boot_dev_sts0_reg: register holding CPU boot dev status 0
  * @cpu_boot_dev_sts1_reg: register holding CPU boot dev status 1
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static void hl_fw_linux_update_state(struct hl_device *hdev,
 						u32 cpu_boot_dev_sts0_reg,
@@ -2610,7 +2610,7 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
  * @msg_type: message type
  * @data: data to be sent
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static int hl_fw_dynamic_send_msg(struct hl_device *hdev,
 		struct fw_load_mgr *fw_loader, u8 msg_type, void *data)
@@ -2620,7 +2620,7 @@ static int hl_fw_dynamic_send_msg(struct hl_device *hdev,
 
 	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create message to be sent */
 	msg->header.type = msg_type;
@@ -2671,15 +2671,15 @@ out:
  * @hdev: pointer to the habanalabs device structure
  * @fw_loader: managing structure for loading device's FW
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  *
  * brief: the dynamic protocol is master (LKD) slave (FW CPU) protocol.
  * the communication is done using registers:
  * - LKD command register
  * - FW status register
  * the protocol is race free. this goal is achieved by splitting the requests
- * and response to known synchronization points between the LKD and the FW.
- * each response to LKD request is known and bound to a predefined timeout.
+ * and response to kanalwn synchronization points between the LKD and the FW.
+ * each response to LKD request is kanalwn and bound to a predefined timeout.
  * in case of timeout expiration without the desired status from FW- the
  * protocol (and hence the boot) will fail.
  */
@@ -2715,7 +2715,7 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 			goto protocol_err;
 
 		/* Clear current reset cause */
-		hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+		hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKANALWN;
 	}
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
@@ -2848,7 +2848,7 @@ protocol_err:
  * @hdev: pointer to the habanalabs device structure
  * @fw_loader: managing structure for loading device's FW
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  */
 static int hl_fw_static_init_cpu(struct hl_device *hdev,
 					struct fw_load_mgr *fw_loader)
@@ -2887,7 +2887,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 
 	if (rc) {
 		dev_dbg(hdev->dev,
-			"No boot fit request received (status = %d), resuming boot\n", status);
+			"Anal boot fit request received (status = %d), resuming boot\n", status);
 	} else {
 		rc = hdev->asic_funcs->load_boot_fit_to_device(hdev);
 		if (rc)
@@ -2920,7 +2920,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 
 	/*
 	 * Make sure CPU boot-loader is running
-	 * Note that the CPU_BOOT_STATUS_SRAM_AVAIL is generally set by Linux
+	 * Analte that the CPU_BOOT_STATUS_SRAM_AVAIL is generally set by Linux
 	 * yet there is a debug scenario in which we loading uboot (without Linux)
 	 * which at later stage is relocated to DRAM. In this case we expect
 	 * uboot to set the CPU_BOOT_STATUS_SRAM_AVAIL and so we add it to the
@@ -2939,7 +2939,7 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 
 	dev_dbg(hdev->dev, "uboot status = %d\n", status);
 
-	/* Read U-Boot version now in case we will later fail */
+	/* Read U-Boot version analw in case we will later fail */
 	hl_fw_static_read_device_fw_version(hdev, FW_COMP_BOOT_FIT);
 
 	/* update state according to boot stage */
@@ -3048,7 +3048,7 @@ out:
  *
  * @hdev: pointer to the habanalabs device structure
  *
- * @return 0 on success, otherwise non-zero error code
+ * @return 0 on success, otherwise analn-zero error code
  *
  * perform necessary initializations for device's CPU. takes into account if
  * init protocol is static or dynamic.
@@ -3074,7 +3074,7 @@ int hl_fw_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!hdev->pdev) {
 		*cur_clk = 0;
@@ -3199,7 +3199,7 @@ void hl_fw_set_max_power(struct hl_device *hdev)
 }
 
 static int hl_fw_get_sec_attest_data(struct hl_device *hdev, u32 packet_id, void *data, u32 size,
-					u32 nonce, u32 timeout)
+					u32 analnce, u32 timeout)
 {
 	struct cpucp_packet pkt = {};
 	dma_addr_t req_dma_addr;
@@ -3210,7 +3210,7 @@ static int hl_fw_get_sec_attest_data(struct hl_device *hdev, u32 packet_id, void
 	if (!req_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP packet %u\n", packet_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(data, 0, size);
@@ -3218,7 +3218,7 @@ static int hl_fw_get_sec_attest_data(struct hl_device *hdev, u32 packet_id, void
 	pkt.ctl = cpu_to_le32(packet_id << CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.addr = cpu_to_le64(req_dma_addr);
 	pkt.data_max_size = cpu_to_le32(size);
-	pkt.nonce = cpu_to_le32(nonce);
+	pkt.analnce = cpu_to_le32(analnce);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 					timeout, NULL);
@@ -3237,18 +3237,18 @@ out:
 }
 
 int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_info *sec_attest_info,
-				u32 nonce)
+				u32 analnce)
 {
 	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_SEC_ATTEST_GET, sec_attest_info,
-					sizeof(struct cpucp_sec_attest_info), nonce,
+					sizeof(struct cpucp_sec_attest_info), analnce,
 					HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
 }
 
 int hl_fw_get_dev_info_signed(struct hl_device *hdev,
-			      struct cpucp_dev_info_signed *dev_info_signed, u32 nonce)
+			      struct cpucp_dev_info_signed *dev_info_signed, u32 analnce)
 {
 	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_INFO_SIGNED_GET, dev_info_signed,
-					 sizeof(struct cpucp_dev_info_signed), nonce,
+					 sizeof(struct cpucp_dev_info_signed), analnce,
 					 HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
 }
 

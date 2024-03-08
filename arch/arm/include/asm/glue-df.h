@@ -84,16 +84,16 @@
 # endif
 #endif
 
-#ifdef CONFIG_CPU_ABRT_NOMMU
+#ifdef CONFIG_CPU_ABRT_ANALMMU
 # ifdef CPU_DABORT_HANDLER
 #  define MULTI_DABORT 1
 # else
-#  define CPU_DABORT_HANDLER nommu_early_abort
+#  define CPU_DABORT_HANDLER analmmu_early_abort
 # endif
 #endif
 
 #ifndef CPU_DABORT_HANDLER
-#error Unknown data abort handler type
+#error Unkanalwn data abort handler type
 #endif
 
 #endif

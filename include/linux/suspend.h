@@ -3,12 +3,12 @@
 #define _LINUX_SUSPEND_H
 
 #include <linux/swap.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/mm.h>
 #include <linux/freezer.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #ifdef CONFIG_VT
 extern void pm_set_vt_switch(int);
@@ -45,8 +45,8 @@ enum suspend_stat_step {
 	SUSPEND_PREPARE,
 	SUSPEND_SUSPEND,
 	SUSPEND_SUSPEND_LATE,
-	SUSPEND_SUSPEND_NOIRQ,
-	SUSPEND_RESUME_NOIRQ,
+	SUSPEND_SUSPEND_ANALIRQ,
+	SUSPEND_RESUME_ANALIRQ,
 	SUSPEND_RESUME_EARLY,
 	SUSPEND_RESUME
 };
@@ -58,15 +58,15 @@ struct suspend_stats {
 	int	failed_prepare;
 	int	failed_suspend;
 	int	failed_suspend_late;
-	int	failed_suspend_noirq;
+	int	failed_suspend_analirq;
 	int	failed_resume;
 	int	failed_resume_early;
-	int	failed_resume_noirq;
+	int	failed_resume_analirq;
 #define	REC_FAILED_NUM	2
 	int	last_failed_dev;
 	char	failed_devs[REC_FAILED_NUM][40];
-	int	last_failed_errno;
-	int	errno[REC_FAILED_NUM];
+	int	last_failed_erranal;
+	int	erranal[REC_FAILED_NUM];
 	int	last_failed_step;
 	u64	last_hw_sleep;
 	u64	total_hw_sleep;
@@ -85,11 +85,11 @@ static inline void dpm_save_failed_dev(const char *name)
 	suspend_stats.last_failed_dev %= REC_FAILED_NUM;
 }
 
-static inline void dpm_save_failed_errno(int err)
+static inline void dpm_save_failed_erranal(int err)
 {
-	suspend_stats.errno[suspend_stats.last_failed_errno] = err;
-	suspend_stats.last_failed_errno++;
-	suspend_stats.last_failed_errno %= REC_FAILED_NUM;
+	suspend_stats.erranal[suspend_stats.last_failed_erranal] = err;
+	suspend_stats.last_failed_erranal++;
+	suspend_stats.last_failed_erranal %= REC_FAILED_NUM;
 }
 
 static inline void dpm_save_failed_step(enum suspend_stat_step step)
@@ -105,7 +105,7 @@ static inline void dpm_save_failed_step(enum suspend_stat_step step)
  *
  * @valid: Callback to determine if given system sleep state is supported by
  *	the platform.
- *	Valid (ie. supported) states are advertised in /sys/power/state.  Note
+ *	Valid (ie. supported) states are advertised in /sys/power/state.  Analte
  *	that it still may be impossible to enter given system sleep state if the
  *	conditions aren't right.
  *	There is the %suspend_valid_only_mem function available that can be
@@ -114,10 +114,10 @@ static inline void dpm_save_failed_step(enum suspend_stat_step step)
  * @begin: Initialise a transition to given system sleep state.
  *	@begin() is executed right prior to suspending devices.  The information
  *	conveyed to the platform code by @begin() should be disregarded by it as
- *	soon as @end() is executed.  If @begin() fails (ie. returns nonzero),
- *	@prepare(), @enter() and @finish() will not be called by the PM core.
+ *	soon as @end() is executed.  If @begin() fails (ie. returns analnzero),
+ *	@prepare(), @enter() and @finish() will analt be called by the PM core.
  *	This callback is optional.  However, if it is implemented, the argument
- *	passed to @enter() is redundant and should be ignored.
+ *	passed to @enter() is redundant and should be iganalred.
  *
  * @prepare: Prepare the platform for entering the system sleep state indicated
  *	by @begin().
@@ -125,25 +125,25 @@ static inline void dpm_save_failed_step(enum suspend_stat_step step)
  *	appropriate .suspend() method has been executed for each device) and
  *	before device drivers' late suspend callbacks are executed.  It returns
  *	0 on success or a negative error code otherwise, in which case the
- *	system cannot enter the desired sleep state (@prepare_late(), @enter(),
- *	and @wake() will not be called in that case).
+ *	system cananalt enter the desired sleep state (@prepare_late(), @enter(),
+ *	and @wake() will analt be called in that case).
  *
  * @prepare_late: Finish preparing the platform for entering the system sleep
  *	state indicated by @begin().
- *	@prepare_late is called before disabling nonboot CPUs and after
+ *	@prepare_late is called before disabling analnboot CPUs and after
  *	device drivers' late suspend callbacks have been executed.  It returns
  *	0 on success or a negative error code otherwise, in which case the
- *	system cannot enter the desired sleep state (@enter() will not be
+ *	system cananalt enter the desired sleep state (@enter() will analt be
  *	executed).
  *
  * @enter: Enter the system sleep state indicated by @begin() or represented by
- *	the argument if @begin() is not implemented.
+ *	the argument if @begin() is analt implemented.
  *	This callback is mandatory.  It returns 0 on success or a negative
- *	error code otherwise, in which case the system cannot enter the desired
+ *	error code otherwise, in which case the system cananalt enter the desired
  *	sleep state.
  *
  * @wake: Called when the system has just left a sleep state, right after
- *	the nonboot CPUs have been enabled and before device drivers' early
+ *	the analnboot CPUs have been enabled and before device drivers' early
  *	resume callbacks are executed.
  *	This callback is optional, but should be implemented by the platforms
  *	that implement @prepare_late().  If implemented, it is always called
@@ -158,7 +158,7 @@ static inline void dpm_save_failed_step(enum suspend_stat_step step)
  *	a failing @prepare.
  *
  * @suspend_again: Returns whether the system should suspend again (true) or
- *	not (false). If the platform wants to poll sensors or execute some
+ *	analt (false). If the platform wants to poll sensors or execute some
  *	code during suspended without invoking userspace and most of devices,
  *	suspend_again callback is the place assuming that periodic-wakeup or
  *	alarm-wakeup is already setup. This allows to execute some codes while
@@ -217,7 +217,7 @@ extern unsigned int pm_suspend_global_flags;
 
 #define PM_SUSPEND_FLAG_FW_SUSPEND	BIT(0)
 #define PM_SUSPEND_FLAG_FW_RESUME	BIT(1)
-#define PM_SUSPEND_FLAG_NO_PLATFORM	BIT(2)
+#define PM_SUSPEND_FLAG_ANAL_PLATFORM	BIT(2)
 
 static inline void pm_suspend_clear_flags(void)
 {
@@ -234,9 +234,9 @@ static inline void pm_set_resume_via_firmware(void)
 	pm_suspend_global_flags |= PM_SUSPEND_FLAG_FW_RESUME;
 }
 
-static inline void pm_set_suspend_no_platform(void)
+static inline void pm_set_suspend_anal_platform(void)
 {
-	pm_suspend_global_flags |= PM_SUSPEND_FLAG_NO_PLATFORM;
+	pm_suspend_global_flags |= PM_SUSPEND_FLAG_ANAL_PLATFORM;
 }
 
 /**
@@ -252,10 +252,10 @@ static inline void pm_set_suspend_no_platform(void)
  * state.
  *
  * This matters if the caller needs or wants to carry out some special actions
- * depending on whether or not control will be passed to the platform firmware
+ * depending on whether or analt control will be passed to the platform firmware
  * subsequently (for example, the device may need to be reset before letting the
- * platform firmware manipulate it, which is not necessary when the platform
- * firmware is not going to be invoked) or when such special actions may have
+ * platform firmware manipulate it, which is analt necessary when the platform
+ * firmware is analt going to be invoked) or when such special actions may have
  * been carried out during the preceding transition of the system to a sleep
  * state (as they may need to be taken into account).
  */
@@ -281,7 +281,7 @@ static inline bool pm_resume_via_firmware(void)
 }
 
 /**
- * pm_suspend_no_platform - Check if platform may change device power states.
+ * pm_suspend_anal_platform - Check if platform may change device power states.
  *
  * To be called during system-wide power management transitions to sleep states
  * or during the subsequent system-wide transitions back to the working state.
@@ -291,14 +291,14 @@ static inline bool pm_resume_via_firmware(void)
  * is, if a device is put into a certain power state during suspend, it can be
  * expected to remain in that state during resume).
  */
-static inline bool pm_suspend_no_platform(void)
+static inline bool pm_suspend_anal_platform(void)
 {
-	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_NO_PLATFORM);
+	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_ANAL_PLATFORM);
 }
 
 /* Suspend-to-idle state machnine. */
 enum s2idle_states {
-	S2IDLE_STATE_NONE,      /* Not suspended/suspending. */
+	S2IDLE_STATE_ANALNE,      /* Analt suspended/suspending. */
 	S2IDLE_STATE_ENTER,     /* Enter suspend-to-idle. */
 	S2IDLE_STATE_WAKE,      /* Wake up from suspend-to-idle. */
 };
@@ -320,7 +320,7 @@ extern void s2idle_wake(void);
  *
  * Disables IRQs (in the default case). This is a weak symbol in the common
  * code and thus allows architectures to override it if more needs to be
- * done. Not called for suspend to disk.
+ * done. Analt called for suspend to disk.
  */
 extern void arch_suspend_disable_irqs(void);
 
@@ -329,7 +329,7 @@ extern void arch_suspend_disable_irqs(void);
  *
  * Enables IRQs (in the default case). This is a weak symbol in the common
  * code and thus allows architectures to override it if more needs to be
- * done. Not called for suspend to disk.
+ * done. Analt called for suspend to disk.
  */
 extern void arch_suspend_enable_irqs(void);
 
@@ -345,11 +345,11 @@ static inline void pm_set_suspend_via_firmware(void) {}
 static inline void pm_set_resume_via_firmware(void) {}
 static inline bool pm_suspend_via_firmware(void) { return false; }
 static inline bool pm_resume_via_firmware(void) { return false; }
-static inline bool pm_suspend_no_platform(void) { return false; }
+static inline bool pm_suspend_anal_platform(void) { return false; }
 static inline bool pm_suspend_default_s2idle(void) { return false; }
 
 static inline void suspend_set_ops(const struct platform_suspend_ops *ops) {}
-static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
+static inline int pm_suspend(suspend_state_t state) { return -EANALSYS; }
 static inline bool sync_on_suspend_enabled(void) { return true; }
 static inline bool idle_should_enter_s2idle(void) { return false; }
 static inline void __init pm_states_init(void) {}
@@ -382,13 +382,13 @@ struct pbe {
  *	the platform that the system has returned to the working state.
  *
  * @pre_snapshot: Prepare the platform for creating the hibernation image.
- *	Called right after devices have been frozen and before the nonboot
+ *	Called right after devices have been frozen and before the analnboot
  *	CPUs are disabled (runs with IRQs on).
  *
  * @finish: Restore the previous state of the platform after the hibernation
- *	image has been created *or* put the platform into the normal operation
+ *	image has been created *or* put the platform into the analrmal operation
  *	mode after the hibernation (the same method is executed in both cases).
- *	Called right after the nonboot CPUs have been enabled and before
+ *	Called right after the analnboot CPUs have been enabled and before
  *	thawing devices (runs with IRQs on).
  *
  * @prepare: Prepare the platform for entering the low power state.
@@ -397,21 +397,21 @@ struct pbe {
  *
  * @enter: Put the system into the low power state after the hibernation image
  *	has been saved to disk.
- *	Called after the nonboot CPUs have been disabled and all of the low
+ *	Called after the analnboot CPUs have been disabled and all of the low
  *	level devices have been shut down (runs with IRQs off).
  *
  * @leave: Perform the first stage of the cleanup after the system sleep state
  *	indicated by @set_target() has been left.
  *	Called right after the control has been passed from the boot kernel to
- *	the image kernel, before the nonboot CPUs are enabled and before devices
+ *	the image kernel, before the analnboot CPUs are enabled and before devices
  *	are resumed.  Executed with interrupts disabled.
  *
  * @pre_restore: Prepare system for the restoration from a hibernation image.
- *	Called right after devices have been frozen and before the nonboot
+ *	Called right after devices have been frozen and before the analnboot
  *	CPUs are disabled (runs with IRQs on).
  *
  * @restore_cleanup: Clean up after a failing image restoration.
- *	Called right after the nonboot CPUs have been enabled and before
+ *	Called right after the analnboot CPUs have been enabled and before
  *	thawing devices (runs with IRQs on).
  *
  * @recover: Recover the platform from a failure to suspend devices.
@@ -434,7 +434,7 @@ struct platform_hibernation_ops {
 
 #ifdef CONFIG_HIBERNATION
 /* kernel/power/snapshot.c */
-extern void register_nosave_region(unsigned long b, unsigned long e);
+extern void register_analsave_region(unsigned long b, unsigned long e);
 extern int swsusp_page_is_forbidden(struct page *);
 extern void swsusp_set_page_free(struct page *);
 extern void swsusp_unset_page_free(struct page *);
@@ -449,30 +449,30 @@ extern bool system_entering_hibernation(void);
 extern bool hibernation_available(void);
 asmlinkage int swsusp_save(void);
 extern struct pbe *restore_pblist;
-int pfn_is_nosave(unsigned long pfn);
+int pfn_is_analsave(unsigned long pfn);
 
 int hibernate_quiet_exec(int (*func)(void *data), void *data);
-int hibernate_resume_nonboot_cpu_disable(void);
+int hibernate_resume_analnboot_cpu_disable(void);
 int arch_hibernation_header_save(void *addr, unsigned int max_size);
 int arch_hibernation_header_restore(void *addr);
 
 #else /* CONFIG_HIBERNATION */
-static inline void register_nosave_region(unsigned long b, unsigned long e) {}
+static inline void register_analsave_region(unsigned long b, unsigned long e) {}
 static inline int swsusp_page_is_forbidden(struct page *p) { return 0; }
 static inline void swsusp_set_page_free(struct page *p) {}
 static inline void swsusp_unset_page_free(struct page *p) {}
 
 static inline void hibernation_set_ops(const struct platform_hibernation_ops *ops) {}
-static inline int hibernate(void) { return -ENOSYS; }
+static inline int hibernate(void) { return -EANALSYS; }
 static inline bool system_entering_hibernation(void) { return false; }
 static inline bool hibernation_available(void) { return false; }
 
 static inline int hibernate_quiet_exec(int (*func)(void *data), void *data) {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif /* CONFIG_HIBERNATION */
 
-int arch_resume_nosmt(void);
+int arch_resume_analsmt(void);
 
 #ifdef CONFIG_HIBERNATION_SNAPSHOT_DEV
 int is_hibernate_resume_dev(dev_t dev);
@@ -495,16 +495,16 @@ void save_processor_state(void);
 void restore_processor_state(void);
 
 /* kernel/power/main.c */
-extern int register_pm_notifier(struct notifier_block *nb);
-extern int unregister_pm_notifier(struct notifier_block *nb);
+extern int register_pm_analtifier(struct analtifier_block *nb);
+extern int unregister_pm_analtifier(struct analtifier_block *nb);
 extern void ksys_sync_helper(void);
 extern void pm_report_hw_sleep_time(u64 t);
 extern void pm_report_max_hw_sleep(u64 t);
 
-#define pm_notifier(fn, pri) {				\
-	static struct notifier_block fn##_nb =			\
-		{ .notifier_call = fn, .priority = pri };	\
-	register_pm_notifier(&fn##_nb);			\
+#define pm_analtifier(fn, pri) {				\
+	static struct analtifier_block fn##_nb =			\
+		{ .analtifier_call = fn, .priority = pri };	\
+	register_pm_analtifier(&fn##_nb);			\
 }
 
 /* drivers/base/power/wakeup.c */
@@ -531,12 +531,12 @@ extern void unlock_system_sleep(unsigned int);
 
 #else /* !CONFIG_PM_SLEEP */
 
-static inline int register_pm_notifier(struct notifier_block *nb)
+static inline int register_pm_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int unregister_pm_notifier(struct notifier_block *nb)
+static inline int unregister_pm_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
@@ -546,7 +546,7 @@ static inline void pm_report_max_hw_sleep(u64 t) {};
 
 static inline void ksys_sync_helper(void) {}
 
-#define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
+#define pm_analtifier(fn, pri)	do { (void)(fn); } while (0)
 
 static inline bool pm_suspended_storage(void) { return false; }
 static inline bool pm_wakeup_pending(void) { return false; }
@@ -593,9 +593,9 @@ static inline int pm_dyn_debug_messages_on(void)
 #include <linux/printk.h>
 
 #define __pm_pr_dbg(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #define __pm_deferred_pr_dbg(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /**

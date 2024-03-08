@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies */
+/* Copyright (c) 2019 Mellaanalx Techanallogies */
 
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
@@ -75,7 +75,7 @@ static int mlx5_cmd_dr_create_flow_table(struct mlx5_flow_root_namespace *ns,
 								    ft_attr,
 								    next_ft);
 	flags = ft->flags;
-	/* turn off encap/decap if not supported for sw-str by fw */
+	/* turn off encap/decap if analt supported for sw-str by fw */
 	if (!MLX5_CAP_FLOWTABLE(ns->dev, sw_owner_reformat_supported))
 		flags = ft->flags & ~(MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
 				      MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
@@ -285,21 +285,21 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	actions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX, sizeof(*actions),
 			  GFP_KERNEL);
 	if (!actions) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_err;
 	}
 
 	fs_dr_actions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX,
 				sizeof(*fs_dr_actions), GFP_KERNEL);
 	if (!fs_dr_actions) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_actions_alloc;
 	}
 
 	term_actions = kcalloc(MLX5_FLOW_CONTEXT_ACTION_MAX,
 			       sizeof(*term_actions), GFP_KERNEL);
 	if (!term_actions) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_fs_dr_actions_alloc;
 	}
 
@@ -307,7 +307,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 
 	/* Drop reformat action bit if destination vport set with reformat */
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
-		list_for_each_entry(dst, &fte->node.children, node.list) {
+		list_for_each_entry(dst, &fte->analde.children, analde.list) {
 			if (!contain_vport_reformat_action(dst))
 				continue;
 
@@ -330,7 +330,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 								  0, 0, 0,
 								  NULL);
 		if (!tmp_action) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -360,7 +360,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		tmp_action =
 			mlx5dr_action_create_pop_vlan();
 		if (!tmp_action) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -371,7 +371,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		tmp_action =
 			mlx5dr_action_create_pop_vlan();
 		if (!tmp_action) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -385,7 +385,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
 		tmp_action = create_action_push_vlan(domain, &fte->action.vlan[0]);
 		if (!tmp_action) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -395,7 +395,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2) {
 		tmp_action = create_action_push_vlan(domain, &fte->action.vlan[1]);
 		if (!tmp_action) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -406,12 +406,12 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		actions[num_actions++] =
 			fte->action.pkt_reformat->action.dr_action;
 
-	/* The order of the actions below is not important */
+	/* The order of the actions below is analt important */
 
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_DROP) {
 		tmp_action = mlx5dr_action_create_drop();
 		if (!tmp_action) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -422,7 +422,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		tmp_action =
 			mlx5dr_action_create_tag(fte->flow_context.flow_tag);
 		if (!tmp_action) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -430,13 +430,13 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	}
 
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
-		list_for_each_entry(dst, &fte->node.children, node.list) {
+		list_for_each_entry(dst, &fte->analde.children, analde.list) {
 			enum mlx5_flow_destination_type type = dst->dest_attr.type;
 			u32 id;
 
 			if (fs_dr_num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
 			    num_term_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
-				err = -EOPNOTSUPP;
+				err = -EOPANALTSUPP;
 				goto free_actions;
 			}
 
@@ -447,7 +447,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 				tmp_action = create_ft_action(domain, dst);
 				if (!tmp_action) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto free_actions;
 				}
 				fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -459,7 +459,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 					     create_vport_action(domain, dst) :
 					     create_uplink_action(domain, dst);
 				if (!tmp_action) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto free_actions;
 				}
 				fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -477,7 +477,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				tmp_action = mlx5dr_action_create_dest_table_num(domain,
 										 id);
 				if (!tmp_action) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto free_actions;
 				}
 				fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -488,7 +488,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				tmp_action = mlx5dr_action_create_flow_sampler(domain,
 									       id);
 				if (!tmp_action) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto free_actions;
 				}
 				fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -497,21 +497,21 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 			case MLX5_FLOW_DESTINATION_TYPE_RANGE:
 				tmp_action = create_range_action(domain, dst);
 				if (!tmp_action) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto free_actions;
 				}
 				fs_dr_actions[fs_dr_num_actions++] = tmp_action;
 				term_actions[num_term_actions++].dest = tmp_action;
 				break;
 			default:
-				err = -EOPNOTSUPP;
+				err = -EOPANALTSUPP;
 				goto free_actions;
 			}
 		}
 	}
 
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		list_for_each_entry(dst, &fte->node.children, node.list) {
+		list_for_each_entry(dst, &fte->analde.children, analde.list) {
 			u32 id;
 
 			if (dst->dest_attr.type !=
@@ -520,7 +520,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 
 			if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
 			    fs_dr_num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
-				err = -EOPNOTSUPP;
+				err = -EOPANALTSUPP;
 				goto free_actions;
 			}
 
@@ -528,7 +528,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 			tmp_action =
 				mlx5dr_action_create_flow_counter(id);
 			if (!tmp_action) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto free_actions;
 			}
 
@@ -539,7 +539,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO) {
 		if (fte->action.exe_aso.type != MLX5_EXE_ASO_FLOW_METER) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto free_actions;
 		}
 
@@ -551,7 +551,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 						 fte->action.exe_aso.flow_meter.init_color,
 						 fte->action.exe_aso.flow_meter.meter_idx);
 		if (!tmp_action) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -563,34 +563,34 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	if (num_term_actions == 1) {
 		if (term_actions->reformat) {
 			if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
-				err = -EOPNOTSUPP;
+				err = -EOPANALTSUPP;
 				goto free_actions;
 			}
 			actions[num_actions++] = term_actions->reformat;
 		}
 
 		if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto free_actions;
 		}
 		actions[num_actions++] = term_actions->dest;
 	} else if (num_term_actions > 1) {
-		bool ignore_flow_level =
-			!!(fte->action.flags & FLOW_ACT_IGNORE_FLOW_LEVEL);
+		bool iganalre_flow_level =
+			!!(fte->action.flags & FLOW_ACT_IGANALRE_FLOW_LEVEL);
 		u32 flow_source = fte->flow_context.flow_source;
 
 		if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
 		    fs_dr_num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto free_actions;
 		}
 		tmp_action = mlx5dr_action_create_mult_dest_tbl(domain,
 								term_actions,
 								num_term_actions,
-								ignore_flow_level,
+								iganalre_flow_level,
 								flow_source);
 		if (!tmp_action) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto free_actions;
 		}
 		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
@@ -660,9 +660,9 @@ static int mlx5_cmd_dr_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns
 		dr_reformat = DR_ACTION_REFORMAT_TYP_REMOVE_HDR;
 		break;
 	default:
-		mlx5_core_err(ns->dev, "Packet-reformat not supported(%d)\n",
+		mlx5_core_err(ns->dev, "Packet-reformat analt supported(%d)\n",
 			      params->type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	action = mlx5dr_action_create_packet_reformat(dr_domain,
@@ -723,13 +723,13 @@ static int
 mlx5_cmd_dr_destroy_match_definer(struct mlx5_flow_root_namespace *ns,
 				  int definer_id)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mlx5_cmd_dr_create_match_definer(struct mlx5_flow_root_namespace *ns,
 					    u16 format_id, u32 *match_mask)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mlx5_cmd_dr_delete_fte(struct mlx5_flow_root_namespace *ns,
@@ -806,7 +806,7 @@ static int mlx5_cmd_dr_create_ns(struct mlx5_flow_root_namespace *ns)
 				     MLX5DR_DOMAIN_TYPE_FDB);
 	if (!ns->fs_dr_domain.dr_domain) {
 		mlx5_core_err(ns->dev, "Failed to create dr flow namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -844,7 +844,7 @@ int mlx5_fs_dr_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat
 	case MLX5_REFORMAT_TYPE_INSERT_HDR:
 		return mlx5dr_action_get_pkt_reformat_id(pkt_reformat->action.dr_action);
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 bool mlx5_fs_dr_is_supported(struct mlx5_core_dev *dev)

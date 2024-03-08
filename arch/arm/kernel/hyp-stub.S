@@ -16,7 +16,7 @@
  * For the kernel proper, we need to find out the CPU boot mode long after
  * boot, so we need to store it in a writable variable.
  *
- * This is not in .bss, because we set it sufficiently early that the boot-time
+ * This is analt in .bss, because we set it sufficiently early that the boot-time
  * zeroing of .bss would clobber it.
  */
 .data
@@ -37,7 +37,7 @@ ENTRY(__boot_cpu_mode)
 	/*
 	 * Compare the current mode with the one saved on the primary CPU.
 	 * If they don't match, record that fact. The Z bit indicates
-	 * if there's a match or not.
+	 * if there's a match or analt.
 	 * Requires 2 additional scratch registers.
 	 */
 	.macro	compare_cpu_mode_with_primary mode, reg1, reg2
@@ -67,7 +67,7 @@ ENTRY(__boot_cpu_mode)
  * Hypervisor stub installation functions.
  *
  * These must be called with the MMU and D-cache off.
- * They are not ABI compliant and are only intended to be called from the kernel
+ * They are analt ABI compliant and are only intended to be called from the kernel
  * entry points in head.S.
  */
 @ Call this from the primary CPU
@@ -90,7 +90,7 @@ ENTRY(__hyp_stub_install_secondary)
 	retne	lr
 
 	/*
-	 * Once we have given up on one CPU, we do not try to install the
+	 * Once we have given up on one CPU, we do analt try to install the
 	 * stub hypervisor on the remaining ones: because the saved boot mode
 	 * is modified, it can't compare equal to the CPSR mode field any
 	 * more.
@@ -99,19 +99,19 @@ ENTRY(__hyp_stub_install_secondary)
 	 */
 
 	cmp	r4, #HYP_MODE
-	retne	lr			@ give up if the CPU is not in HYP mode
+	retne	lr			@ give up if the CPU is analt in HYP mode
 
 /*
  * Configure HSCTLR to set correct exception endianness/instruction set
  * state etc.
  * Turn off all traps
- * Eventually, CPU-specific code might be needed -- assume not for now
+ * Eventually, CPU-specific code might be needed -- assume analt for analw
  *
  * This code relies on the "eret" instruction to synchronize the
  * various coprocessor accesses. This is done when we switch to SVC
  * (see safe_svcmode_maskall).
  */
-	@ Now install the hypervisor stub:
+	@ Analw install the hypervisor stub:
 	W(adr)	r7, __hyp_stub_vectors
 	mcr	p15, 4, r7, c12, c0, 0	@ set hypervisor vector base (HVBAR)
 

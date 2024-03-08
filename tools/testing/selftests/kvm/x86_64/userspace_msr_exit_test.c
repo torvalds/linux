@@ -17,7 +17,7 @@
 #define KVM_FEP_LENGTH 5
 static int fep_available = 1;
 
-#define MSR_NON_EXISTENT 0x474f4f00
+#define MSR_ANALN_EXISTENT 0x474f4f00
 
 static u64 deny_bits = 0;
 struct kvm_msr_filter filter_allow = {
@@ -27,22 +27,22 @@ struct kvm_msr_filter filter_allow = {
 			.flags = KVM_MSR_FILTER_READ |
 				 KVM_MSR_FILTER_WRITE,
 			.nmsrs = 1,
-			/* Test an MSR the kernel knows about. */
+			/* Test an MSR the kernel kanalws about. */
 			.base = MSR_IA32_XSS,
 			.bitmap = (uint8_t*)&deny_bits,
 		}, {
 			.flags = KVM_MSR_FILTER_READ |
 				 KVM_MSR_FILTER_WRITE,
 			.nmsrs = 1,
-			/* Test an MSR the kernel doesn't know about. */
+			/* Test an MSR the kernel doesn't kanalw about. */
 			.base = MSR_IA32_FLUSH_CMD,
 			.bitmap = (uint8_t*)&deny_bits,
 		}, {
 			.flags = KVM_MSR_FILTER_READ |
 				 KVM_MSR_FILTER_WRITE,
 			.nmsrs = 1,
-			/* Test a fabricated MSR that no one knows about. */
-			.base = MSR_NON_EXISTENT,
+			/* Test a fabricated MSR that anal one kanalws about. */
+			.base = MSR_ANALN_EXISTENT,
 			.bitmap = (uint8_t*)&deny_bits,
 		},
 	},
@@ -72,7 +72,7 @@ struct kvm_msr_filter filter_gs = {
 	},
 };
 
-static uint64_t msr_non_existent_data;
+static uint64_t msr_analn_existent_data;
 static int guest_exception_count;
 static u32 msr_reads, msr_writes;
 
@@ -140,15 +140,15 @@ struct kvm_msr_filter filter_deny = {
 	},
 };
 
-struct kvm_msr_filter no_filter_deny = {
+struct kvm_msr_filter anal_filter_deny = {
 	.flags = KVM_MSR_FILTER_DEFAULT_ALLOW,
 };
 
 /*
- * Note: Force test_rdmsr() to not be inlined to prevent the labels,
+ * Analte: Force test_rdmsr() to analt be inlined to prevent the labels,
  * rdmsr_start and rdmsr_end, from being defined multiple times.
  */
-static noinline uint64_t test_rdmsr(uint32_t msr)
+static analinline uint64_t test_rdmsr(uint32_t msr)
 {
 	uint32_t a, d;
 
@@ -161,10 +161,10 @@ static noinline uint64_t test_rdmsr(uint32_t msr)
 }
 
 /*
- * Note: Force test_wrmsr() to not be inlined to prevent the labels,
+ * Analte: Force test_wrmsr() to analt be inlined to prevent the labels,
  * wrmsr_start and wrmsr_end, from being defined multiple times.
  */
-static noinline void test_wrmsr(uint32_t msr, uint64_t value)
+static analinline void test_wrmsr(uint32_t msr, uint64_t value)
 {
 	uint32_t a = value;
 	uint32_t d = value >> 32;
@@ -179,10 +179,10 @@ extern char rdmsr_start, rdmsr_end;
 extern char wrmsr_start, wrmsr_end;
 
 /*
- * Note: Force test_em_rdmsr() to not be inlined to prevent the labels,
+ * Analte: Force test_em_rdmsr() to analt be inlined to prevent the labels,
  * rdmsr_start and rdmsr_end, from being defined multiple times.
  */
-static noinline uint64_t test_em_rdmsr(uint32_t msr)
+static analinline uint64_t test_em_rdmsr(uint32_t msr)
 {
 	uint32_t a, d;
 
@@ -195,10 +195,10 @@ static noinline uint64_t test_em_rdmsr(uint32_t msr)
 }
 
 /*
- * Note: Force test_em_wrmsr() to not be inlined to prevent the labels,
+ * Analte: Force test_em_wrmsr() to analt be inlined to prevent the labels,
  * wrmsr_start and wrmsr_end, from being defined multiple times.
  */
-static noinline void test_em_wrmsr(uint32_t msr, uint64_t value)
+static analinline void test_em_wrmsr(uint32_t msr, uint64_t value)
 {
 	uint32_t a = value;
 	uint32_t d = value >> 32;
@@ -248,15 +248,15 @@ static void guest_code_filter_allow(void)
 	GUEST_ASSERT(guest_exception_count == 0);
 
 	/*
-	 * Test userspace intercepting rdmsr / wrmsr for MSR_NON_EXISTENT.
+	 * Test userspace intercepting rdmsr / wrmsr for MSR_ANALN_EXISTENT.
 	 *
 	 * Test that a fabricated MSR can pass through the kernel
 	 * and be handled in userspace.
 	 */
-	test_wrmsr(MSR_NON_EXISTENT, 2);
+	test_wrmsr(MSR_ANALN_EXISTENT, 2);
 	GUEST_ASSERT(guest_exception_count == 0);
 
-	data = test_rdmsr(MSR_NON_EXISTENT);
+	data = test_rdmsr(MSR_ANALN_EXISTENT);
 	GUEST_ASSERT(data == 2);
 	GUEST_ASSERT(guest_exception_count == 0);
 
@@ -265,14 +265,14 @@ static void guest_code_filter_allow(void)
 	 * parameter 'kvm.force_emulation_prefix=1' is set).  This instruction
 	 * will #UD if it isn't available.
 	 */
-	__asm__ __volatile__(KVM_FEP "nop");
+	__asm__ __volatile__(KVM_FEP "analp");
 
 	if (fep_available) {
-		/* Let userspace know we aren't done. */
+		/* Let userspace kanalw we aren't done. */
 		GUEST_SYNC(0);
 
 		/*
-		 * Now run the same tests with the instruction emulator.
+		 * Analw run the same tests with the instruction emulator.
 		 */
 		data = test_em_rdmsr(MSR_IA32_XSS);
 		GUEST_ASSERT(data == 0);
@@ -289,9 +289,9 @@ static void guest_code_filter_allow(void)
 		test_em_wrmsr(MSR_IA32_FLUSH_CMD, 1);
 		GUEST_ASSERT(guest_exception_count == 0);
 
-		test_em_wrmsr(MSR_NON_EXISTENT, 2);
+		test_em_wrmsr(MSR_ANALN_EXISTENT, 2);
 		GUEST_ASSERT(guest_exception_count == 0);
-		data = test_em_rdmsr(MSR_NON_EXISTENT);
+		data = test_em_rdmsr(MSR_ANALN_EXISTENT);
 		GUEST_ASSERT(data == 2);
 		GUEST_ASSERT(guest_exception_count == 0);
 	}
@@ -348,7 +348,7 @@ static void guest_code_permission_bitmap(void)
 	data = test_rdmsr(MSR_GS_BASE);
 	GUEST_ASSERT(data != MSR_GS_BASE);
 
-	/* Let userspace know to switch the filter */
+	/* Let userspace kanalw to switch the filter */
 	GUEST_SYNC(0);
 
 	data = test_rdmsr(MSR_FS_BASE);
@@ -370,7 +370,7 @@ static void __guest_gp_handler(struct ex_regs *regs,
 	} else if (regs->rip == (uintptr_t)w_start) {
 		regs->rip = (uintptr_t)w_end;
 	} else {
-		GUEST_ASSERT(!"RIP is at an unknown location!");
+		GUEST_ASSERT(!"RIP is at an unkanalwn location!");
 	}
 
 	++guest_exception_count;
@@ -422,8 +422,8 @@ static void process_rdmsr(struct kvm_vcpu *vcpu, uint32_t msr_index)
 	case MSR_IA32_FLUSH_CMD:
 		run->msr.error = 1;
 		break;
-	case MSR_NON_EXISTENT:
-		run->msr.data = msr_non_existent_data;
+	case MSR_ANALN_EXISTENT:
+		run->msr.data = msr_analn_existent_data;
 		break;
 	case MSR_FS_BASE:
 		run->msr.data = MSR_FS_BASE;
@@ -456,8 +456,8 @@ static void process_wrmsr(struct kvm_vcpu *vcpu, uint32_t msr_index)
 		if (run->msr.data != 1)
 			run->msr.error = 1;
 		break;
-	case MSR_NON_EXISTENT:
-		msr_non_existent_data = run->msr.data;
+	case MSR_ANALN_EXISTENT:
+		msr_analn_existent_data = run->msr.data;
 		break;
 	default:
 		TEST_ASSERT(false, "Unexpected MSR: 0x%04x", run->msr.index);
@@ -558,8 +558,8 @@ static void test_msr_filter_allow(void)
 	run_guest_then_process_wrmsr(vcpu, MSR_IA32_FLUSH_CMD);
 	run_guest_then_process_wrmsr(vcpu, MSR_IA32_FLUSH_CMD);
 
-	run_guest_then_process_wrmsr(vcpu, MSR_NON_EXISTENT);
-	run_guest_then_process_rdmsr(vcpu, MSR_NON_EXISTENT);
+	run_guest_then_process_wrmsr(vcpu, MSR_ANALN_EXISTENT);
+	run_guest_then_process_rdmsr(vcpu, MSR_ANALN_EXISTENT);
 
 	vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
 	vcpu_run(vcpu);
@@ -577,8 +577,8 @@ static void test_msr_filter_allow(void)
 		run_guest_then_process_wrmsr(vcpu, MSR_IA32_FLUSH_CMD);
 		run_guest_then_process_wrmsr(vcpu, MSR_IA32_FLUSH_CMD);
 
-		run_guest_then_process_wrmsr(vcpu, MSR_NON_EXISTENT);
-		run_guest_then_process_rdmsr(vcpu, MSR_NON_EXISTENT);
+		run_guest_then_process_wrmsr(vcpu, MSR_ANALN_EXISTENT);
+		run_guest_then_process_rdmsr(vcpu, MSR_ANALN_EXISTENT);
 
 		/* Confirm the guest completed without issues. */
 		run_guest_then_process_ucall_done(vcpu);
@@ -598,12 +598,12 @@ static int handle_ucall(struct kvm_vcpu *vcpu)
 		REPORT_GUEST_ASSERT(uc);
 		break;
 	case UCALL_SYNC:
-		vm_ioctl(vcpu->vm, KVM_X86_SET_MSR_FILTER, &no_filter_deny);
+		vm_ioctl(vcpu->vm, KVM_X86_SET_MSR_FILTER, &anal_filter_deny);
 		break;
 	case UCALL_DONE:
 		return 1;
 	default:
-		TEST_FAIL("Unknown ucall %lu", uc.cmd);
+		TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 	}
 
 	return 0;
@@ -621,14 +621,14 @@ static void handle_rdmsr(struct kvm_run *run)
 	}
 
 	if (run->msr.index == 0xdeadbeef) {
-		TEST_ASSERT(run->msr.reason == KVM_MSR_EXIT_REASON_UNKNOWN,
+		TEST_ASSERT(run->msr.reason == KVM_MSR_EXIT_REASON_UNKANALWN,
 			    "MSR deadbeef read trap w/o inval fault");
 	}
 }
 
 static void handle_wrmsr(struct kvm_run *run)
 {
-	/* ignore */
+	/* iganalre */
 	msr_writes++;
 
 	if (run->msr.index == MSR_IA32_POWER_CTL) {
@@ -641,7 +641,7 @@ static void handle_wrmsr(struct kvm_run *run)
 	if (run->msr.index == 0xdeadbeef) {
 		TEST_ASSERT(run->msr.data == 0x1234,
 			    "MSR data for deadbeef incorrect");
-		TEST_ASSERT(run->msr.reason == KVM_MSR_EXIT_REASON_UNKNOWN,
+		TEST_ASSERT(run->msr.reason == KVM_MSR_EXIT_REASON_UNKANALWN,
 			    "deadbeef trap w/o inval fault");
 	}
 }
@@ -659,7 +659,7 @@ static void test_msr_filter_deny(void)
 	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
 	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
 	vm_enable_cap(vm, KVM_CAP_X86_USER_SPACE_MSR, KVM_MSR_EXIT_REASON_INVAL |
-						      KVM_MSR_EXIT_REASON_UNKNOWN |
+						      KVM_MSR_EXIT_REASON_UNKANALWN |
 						      KVM_MSR_EXIT_REASON_FILTER);
 
 	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
@@ -726,9 +726,9 @@ static void test_msr_permission_bitmap(void)
 	if (flag & valid_mask)						\
 		TEST_ASSERT(!r, __KVM_IOCTL_ERROR(#cmd, r));		\
 	else								\
-		TEST_ASSERT(r == -1 && errno == EINVAL,			\
-			    "Wanted EINVAL for %s with flag = 0x%llx, got  rc: %i errno: %i (%s)", \
-			    #cmd, flag, r, errno,  strerror(errno));	\
+		TEST_ASSERT(r == -1 && erranal == EINVAL,			\
+			    "Wanted EINVAL for %s with flag = 0x%llx, got  rc: %i erranal: %i (%s)", \
+			    #cmd, flag, r, erranal,  strerror(erranal));	\
 })
 
 static void run_user_space_msr_flag_test(struct kvm_vm *vm)

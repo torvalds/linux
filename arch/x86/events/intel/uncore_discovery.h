@@ -114,7 +114,7 @@ struct uncore_unit_discovery {
 };
 
 struct intel_uncore_discovery_type {
-	struct rb_node	node;
+	struct rb_analde	analde;
 	enum uncore_access_type	access_type;
 	u64		box_ctrl;	/* Unit ctrl addr of the first box */
 	u64		*box_ctrl_die;	/* Unit ctrl addr of the first box of each die */
@@ -128,7 +128,7 @@ struct intel_uncore_discovery_type {
 	u64		*box_offset;	/* Box offset */
 };
 
-bool intel_uncore_has_discovery_tables(int *ignore);
+bool intel_uncore_has_discovery_tables(int *iganalre);
 void intel_uncore_clear_discovery_tables(void);
 void intel_uncore_generic_uncore_cpu_init(void);
 int intel_uncore_generic_uncore_pci_init(void);

@@ -19,9 +19,9 @@ struct da_monitor {
 };
 
 /*
- * Per-task RV monitors count. Nowadays fixed in RV_PER_TASK_MONITORS.
+ * Per-task RV monitors count. Analwadays fixed in RV_PER_TASK_MONITORS.
  * If we find justification for more monitors, we can think about
- * adding more or developing a dynamic method. So far, none of
+ * adding more or developing a dynamic method. So far, analne of
  * these are justified.
  */
 #define RV_PER_TASK_MONITORS		1

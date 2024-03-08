@@ -84,13 +84,13 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 
 #define __SYS_STUB0(abi, name)						\
 	long __##abi##_##name(const struct pt_regs *regs);		\
-	ALLOW_ERROR_INJECTION(__##abi##_##name, ERRNO);			\
+	ALLOW_ERROR_INJECTION(__##abi##_##name, ERRANAL);			\
 	long __##abi##_##name(const struct pt_regs *regs)		\
 		__alias(__do_##name);
 
 #define __SYS_STUBx(abi, name, ...)					\
 	long __##abi##_##name(const struct pt_regs *regs);		\
-	ALLOW_ERROR_INJECTION(__##abi##_##name, ERRNO);			\
+	ALLOW_ERROR_INJECTION(__##abi##_##name, ERRANAL);			\
 	long __##abi##_##name(const struct pt_regs *regs)		\
 	{								\
 		return __se_##name(__VA_ARGS__);			\
@@ -142,7 +142,7 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
  * For IA32 emulation, we need to handle "compat" syscalls *and* create
  * additional wrappers (aptly named __ia32_sys_xyzzy) which decode the
  * ia32 regs in the proper order for shared or "common" syscalls. As some
- * syscalls may not be implemented, we need to expand COND_SYSCALL in
+ * syscalls may analt be implemented, we need to expand COND_SYSCALL in
  * kernel/sys_ni.c to cover this case as well.
  */
 #define __IA32_COMPAT_SYS_STUB0(name)					\
@@ -166,7 +166,7 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 /*
  * For the x32 ABI, we need to create a stub for compat_sys_*() which is aware
  * of the x86-64-style parameter ordering of x32 syscalls. The syscalls common
- * with x86_64 obviously do not need such care.
+ * with x86_64 obviously do analt need such care.
  */
 #define __X32_COMPAT_SYS_STUB0(name)					\
 	__SYS_STUB0(x64, compat_sys_##name)
@@ -211,7 +211,7 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 /*
- * As some compat syscalls may not be implemented, we need to expand
+ * As some compat syscalls may analt be implemented, we need to expand
  * COND_SYSCALL_COMPAT in kernel/sys_ni.c to cover this case as well.
  */
 #define COND_SYSCALL_COMPAT(name) 					\
@@ -235,8 +235,8 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 /*
- * As the generic SYSCALL_DEFINE0() macro does not decode any parameters for
- * obvious reasons, and passing struct pt_regs *regs to it in %rdi does not
+ * As the generic SYSCALL_DEFINE0() macro does analt decode any parameters for
+ * obvious reasons, and passing struct pt_regs *regs to it in %rdi does analt
  * hurt, we only need to re-define it here to keep the naming congruent to
  * SYSCALL_DEFINEx() -- which is essential for the COND_SYSCALL() macro
  * to work correctly.

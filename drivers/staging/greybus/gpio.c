@@ -304,8 +304,8 @@ static int gb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	u8 irq_type;
 
 	switch (type) {
-	case IRQ_TYPE_NONE:
-		irq_type = GB_GPIO_IRQ_TYPE_NONE;
+	case IRQ_TYPE_ANALNE:
+		irq_type = GB_GPIO_IRQ_TYPE_ANALNE;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
 		irq_type = GB_GPIO_IRQ_TYPE_EDGE_RISING;
@@ -476,7 +476,7 @@ static int gb_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	u32 debounce;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
 	if (debounce > U16_MAX)
@@ -489,7 +489,7 @@ static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
 {
 	int ret;
 
-	/* Now find out how many lines there are */
+	/* Analw find out how many lines there are */
 	ret = gb_gpio_line_count_operation(ggc);
 	if (ret)
 		return ret;
@@ -497,7 +497,7 @@ static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
 	ggc->lines = kcalloc(ggc->line_max + 1, sizeof(*ggc->lines),
 			     GFP_KERNEL);
 	if (!ggc->lines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return ret;
 }
@@ -514,7 +514,7 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 
 	ggc = kzalloc(sizeof(*ggc), GFP_KERNEL);
 	if (!ggc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection =
 		gb_connection_create(gbphy_dev->bundle,
@@ -568,11 +568,11 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 
 	girq = &gpio->irq;
 	girq->chip = irqc;
-	/* The event comes from the outside so no parent handler */
+	/* The event comes from the outside so anal parent handler */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
 
 	ret = gb_connection_enable(connection);
@@ -607,7 +607,7 @@ static void gb_gpio_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_analresume(gbphy_dev);
 
 	gb_connection_disable_rx(connection);
 	gpiochip_remove(&ggc->chip);

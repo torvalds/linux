@@ -135,7 +135,7 @@ static ssize_t name_assign_type_show(struct device *dev,
 	struct net_device *ndev = to_net_dev(dev);
 	ssize_t ret = -EINVAL;
 
-	if (ndev->name_assign_type != NET_NAME_UNKNOWN)
+	if (ndev->name_assign_type != NET_NAME_UNKANALWN)
 		ret = netdev_show(dev, attr, buf, format_name_assign_type);
 
 	return ret;
@@ -184,7 +184,7 @@ static ssize_t carrier_store(struct device *dev, struct device_attribute *attr,
 	 * without hitting the trylock/restart in netdev_store.
 	 */
 	if (!netdev->netdev_ops->ndo_change_carrier)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return netdev_store(dev, attr, buf, len, change_carrier);
 }
@@ -267,7 +267,7 @@ static ssize_t duplex_show(struct device *dev,
 				duplex = "full";
 				break;
 			default:
-				duplex = "unknown";
+				duplex = "unkanalwn";
 				break;
 			}
 			ret = sysfs_emit(buf, "%s\n", duplex);
@@ -303,8 +303,8 @@ static ssize_t dormant_show(struct device *dev,
 static DEVICE_ATTR_RO(dormant);
 
 static const char *const operstates[] = {
-	"unknown",
-	"notpresent", /* currently unused */
+	"unkanalwn",
+	"analtpresent", /* currently unused */
 	"down",
 	"lowerlayerdown",
 	"testing",
@@ -325,7 +325,7 @@ static ssize_t operstate_show(struct device *dev,
 	read_unlock(&dev_base_lock);
 
 	if (operstate >= ARRAY_SIZE(operstates))
-		return -EINVAL; /* should not happen */
+		return -EINVAL; /* should analt happen */
 
 	return sysfs_emit(buf, "%s\n", operstates[operstate]);
 }
@@ -445,7 +445,7 @@ static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	/* ignore trailing newline */
+	/* iganalre trailing newline */
 	if (len >  0 && buf[len - 1] == '\n')
 		--count;
 
@@ -516,7 +516,7 @@ static ssize_t phys_port_id_show(struct device *dev,
 	 * early without hitting the trylock/restart below.
 	 */
 	if (!netdev->netdev_ops->ndo_get_phys_port_id)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -545,7 +545,7 @@ static ssize_t phys_port_name_show(struct device *dev,
 	 */
 	if (!netdev->netdev_ops->ndo_get_phys_port_name &&
 	    !netdev->devlink_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -575,7 +575,7 @@ static ssize_t phys_switch_id_show(struct device *dev,
 	 */
 	if (!netdev->netdev_ops->ndo_get_port_parent_id &&
 	    !netdev->devlink_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -614,10 +614,10 @@ static int modify_napi_threaded(struct net_device *dev, unsigned long val)
 	int ret;
 
 	if (list_empty(&dev->napi_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (val != 0 && val != 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev_set_threaded(dev, val);
 
@@ -724,7 +724,7 @@ NETSTAT_ENTRY(tx_heartbeat_errors);
 NETSTAT_ENTRY(tx_window_errors);
 NETSTAT_ENTRY(rx_compressed);
 NETSTAT_ENTRY(tx_compressed);
-NETSTAT_ENTRY(rx_nohandler);
+NETSTAT_ENTRY(rx_analhandler);
 
 static struct attribute *netstat_attrs[] __ro_after_init = {
 	&dev_attr_rx_packets.attr,
@@ -750,7 +750,7 @@ static struct attribute *netstat_attrs[] __ro_after_init = {
 	&dev_attr_tx_window_errors.attr,
 	&dev_attr_rx_compressed.attr,
 	&dev_attr_tx_compressed.attr,
-	&dev_attr_rx_nohandler.attr,
+	&dev_attr_rx_analhandler.attr,
 	NULL
 };
 
@@ -828,7 +828,7 @@ static ssize_t show_rps_map(struct netdev_rx_queue *queue, char *buf)
 	int i, len;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcu_read_lock();
 	map = rcu_dereference(queue->rps_map);
@@ -854,7 +854,7 @@ static int netdev_rx_queue_set_rps_mask(struct netdev_rx_queue *queue,
 			    RPS_MAP_SIZE(cpumask_weight(mask)), L1_CACHE_BYTES),
 		      GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	for_each_cpu_and(cpu, mask, cpu_online_mask)
@@ -905,7 +905,7 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 		return -EPERM;
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = bitmap_parse(buf, len, cpumask_bits(mask), nr_cpumask_bits);
 	if (err)
@@ -982,11 +982,11 @@ static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 #endif
 		table = vmalloc(RPS_DEV_FLOW_TABLE_SIZE(mask + 1));
 		if (!table)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		table->mask = mask;
 		for (count = 0; count <= mask; count++)
-			table->flows[count].cpu = RPS_NO_CPU;
+			table->flows[count].cpu = RPS_ANAL_CPU;
 	} else {
 		table = NULL;
 	}
@@ -1270,7 +1270,7 @@ static ssize_t traffic_class_show(struct netdev_queue *queue,
 	int index;
 
 	if (!netif_is_multiqueue(dev))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -1320,7 +1320,7 @@ static ssize_t tx_maxrate_store(struct netdev_queue *queue,
 	 * hitting the trylock/restart below.
 	 */
 	if (!dev->netdev_ops->ndo_set_tx_maxrate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = kstrtou32(buf, 10, &rate);
 	if (err < 0)
@@ -1329,7 +1329,7 @@ static ssize_t tx_maxrate_store(struct netdev_queue *queue,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (dev->netdev_ops->ndo_set_tx_maxrate)
 		err = dev->netdev_ops->ndo_set_tx_maxrate(dev, index, rate);
 
@@ -1468,20 +1468,20 @@ static ssize_t xps_queue_show(struct net_device *dev, unsigned int index,
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_maps[type]);
 
-	/* Default to nr_cpu_ids/dev->num_rx_queues and do not just return 0
+	/* Default to nr_cpu_ids/dev->num_rx_queues and do analt just return 0
 	 * when dev_maps hasn't been allocated yet, to be backward compatible.
 	 */
 	nr_ids = dev_maps ? dev_maps->nr_ids :
 		 (type == XPS_CPUS ? nr_cpu_ids : dev->num_rx_queues);
 
-	mask = bitmap_zalloc(nr_ids, GFP_NOWAIT);
+	mask = bitmap_zalloc(nr_ids, GFP_ANALWAIT);
 	if (!mask) {
 		rcu_read_unlock();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!dev_maps || tc >= dev_maps->num_tc)
-		goto out_no_maps;
+		goto out_anal_maps;
 
 	for (j = 0; j < nr_ids; j++) {
 		int i, tci = j * dev_maps->num_tc + tc;
@@ -1498,7 +1498,7 @@ static ssize_t xps_queue_show(struct net_device *dev, unsigned int index,
 			}
 		}
 	}
-out_no_maps:
+out_anal_maps:
 	rcu_read_unlock();
 
 	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
@@ -1514,7 +1514,7 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue, char *buf)
 	int len, tc;
 
 	if (!netif_is_multiqueue(dev))
-		return -ENOENT;
+		return -EANALENT;
 
 	index = get_netdev_queue_index(queue);
 
@@ -1549,13 +1549,13 @@ static ssize_t xps_cpus_store(struct netdev_queue *queue,
 	int err;
 
 	if (!netif_is_multiqueue(dev))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	index = get_netdev_queue_index(queue);
 
@@ -1614,7 +1614,7 @@ static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
 
 	mask = bitmap_zalloc(dev->num_rx_queues, GFP_KERNEL);
 	if (!mask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	index = get_netdev_queue_index(queue);
 
@@ -1806,7 +1806,7 @@ static int register_queue_kobjects(struct net_device *dev)
 	dev->queues_kset = kset_create_and_add("queues",
 					       NULL, &dev->dev.kobj);
 	if (!dev->queues_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 	real_rx = dev->real_num_rx_queues;
 #endif
 	real_tx = dev->real_num_tx_queues;
@@ -1943,7 +1943,7 @@ static void netdev_release(struct device *d)
 
 	BUG_ON(dev->reg_state != NETREG_RELEASED);
 
-	/* no need to wait for rcu grace period:
+	/* anal need to wait for rcu grace period:
 	 * device is dead and about to be freed.
 	 */
 	kfree(rcu_access_pointer(dev->ifalias));
@@ -1976,10 +1976,10 @@ static struct class net_class __ro_after_init = {
 };
 
 #ifdef CONFIG_OF
-static int of_dev_node_match(struct device *dev, const void *data)
+static int of_dev_analde_match(struct device *dev, const void *data)
 {
 	for (; dev; dev = dev->parent) {
-		if (dev->of_node == data)
+		if (dev->of_analde == data)
 			return 1;
 	}
 
@@ -1987,25 +1987,25 @@ static int of_dev_node_match(struct device *dev, const void *data)
 }
 
 /*
- * of_find_net_device_by_node - lookup the net device for the device node
- * @np: OF device node
+ * of_find_net_device_by_analde - lookup the net device for the device analde
+ * @np: OF device analde
  *
- * Looks up the net_device structure corresponding with the device node.
+ * Looks up the net_device structure corresponding with the device analde.
  * If successful, returns a pointer to the net_device with the embedded
  * struct device refcount incremented by one, or NULL on failure. The
  * refcount must be dropped when done with the net_device.
  */
-struct net_device *of_find_net_device_by_node(struct device_node *np)
+struct net_device *of_find_net_device_by_analde(struct device_analde *np)
 {
 	struct device *dev;
 
-	dev = class_find_device(&net_class, NULL, np, of_dev_node_match);
+	dev = class_find_device(&net_class, NULL, np, of_dev_analde_match);
 	if (!dev)
 		return NULL;
 
 	return to_net_dev(dev);
 }
-EXPORT_SYMBOL(of_find_net_device_by_node);
+EXPORT_SYMBOL(of_find_net_device_by_analde);
 #endif
 
 /* Delete sysfs entries but hold kobject reference until after all
@@ -2022,7 +2022,7 @@ void netdev_unregister_kobject(struct net_device *ndev)
 
 	remove_queue_kobjects(ndev);
 
-	pm_runtime_set_memalloc_noio(dev, false);
+	pm_runtime_set_memalloc_analio(dev, false);
 
 	device_del(dev);
 }
@@ -2062,7 +2062,7 @@ int netdev_register_kobject(struct net_device *ndev)
 		return error;
 	}
 
-	pm_runtime_set_memalloc_noio(dev, true);
+	pm_runtime_set_memalloc_analio(dev, true);
 
 	return error;
 }
@@ -2082,7 +2082,7 @@ int netdev_change_owner(struct net_device *ndev, const struct net *net_old,
 	net_ns_get_ownership(net_new, &new_uid, &new_gid);
 
 	/* The network namespace was changed but the owning user namespace is
-	 * identical so there's no need to change the owner of sysfs entries.
+	 * identical so there's anal need to change the owner of sysfs entries.
 	 */
 	if (uid_eq(old_uid, new_uid) && gid_eq(old_gid, new_gid))
 		return 0;

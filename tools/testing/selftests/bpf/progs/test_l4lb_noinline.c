@@ -50,7 +50,7 @@ static __always_inline __u32 rol32(__u32 word, unsigned int shift)
 
 typedef unsigned int u32;
 
-static __noinline u32 jhash(const void *key, u32 length, u32 initval)
+static __analinline u32 jhash(const void *key, u32 length, u32 initval)
 {
 	u32 a, b, c;
 	const unsigned char *k = key;
@@ -79,14 +79,14 @@ static __noinline u32 jhash(const void *key, u32 length, u32 initval)
 	case 2:  a += (u32)k[1]<<8;
 	case 1:  a += k[0];
 		 __jhash_final(a, b, c);
-	case 0: /* Nothing left to add */
+	case 0: /* Analthing left to add */
 		break;
 	}
 
 	return c;
 }
 
-static __noinline u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
+static __analinline u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 {
 	a += initval;
 	b += initval;
@@ -95,13 +95,13 @@ static __noinline u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 	return c;
 }
 
-static __noinline u32 jhash_2words(u32 a, u32 b, u32 initval)
+static __analinline u32 jhash_2words(u32 a, u32 b, u32 initval)
 {
 	return __jhash_nwords(a, b, 0, initval + JHASH_INITVAL + (2 << 2));
 }
 
 #define PCKT_FRAGMENTED 65343
-#define IPV4_HDR_LEN_NO_OPT 20
+#define IPV4_HDR_LEN_ANAL_OPT 20
 #define IPV4_PLUS_ICMP_HDR 28
 #define IPV6_PLUS_ICMP_HDR 48
 #define RING_SIZE 2
@@ -110,7 +110,7 @@ static __noinline u32 jhash_2words(u32 a, u32 b, u32 initval)
 #define CTL_MAP_SIZE 16
 #define CH_RINGS_SIZE (MAX_VIPS * RING_SIZE)
 #define F_IPV6 (1 << 0)
-#define F_HASH_NO_SRC_PORT (1 << 0)
+#define F_HASH_ANAL_SRC_PORT (1 << 0)
 #define F_ICMP (1 << 0)
 #define F_SYN_SET (1 << 1)
 
@@ -198,7 +198,7 @@ struct {
 	__type(value, struct ctl_value);
 } ctl_array SEC(".maps");
 
-static __noinline __u32 get_packet_hash(struct packet_description *pckt, bool ipv6)
+static __analinline __u32 get_packet_hash(struct packet_description *pckt, bool ipv6)
 {
 	if (ipv6)
 		return jhash_2words(jhash(pckt->srcv6, 16, MAX_VIPS),
@@ -207,7 +207,7 @@ static __noinline __u32 get_packet_hash(struct packet_description *pckt, bool ip
 		return jhash_2words(pckt->src, pckt->ports, CH_RINGS_SIZE);
 }
 
-static __noinline bool get_packet_dst(struct real_definition **real,
+static __analinline bool get_packet_dst(struct real_definition **real,
 				      struct packet_description *pckt,
 				      struct vip_meta *vip_info,
 				      bool is_ipv6)
@@ -230,7 +230,7 @@ static __noinline bool get_packet_dst(struct real_definition **real,
 	return true;
 }
 
-static __noinline int parse_icmpv6(void *data, void *data_end, __u64 off,
+static __analinline int parse_icmpv6(void *data, void *data_end, __u64 off,
 				   struct packet_description *pckt)
 {
 	struct icmp6hdr *icmp_hdr;
@@ -252,7 +252,7 @@ static __noinline int parse_icmpv6(void *data, void *data_end, __u64 off,
 	return TC_ACT_UNSPEC;
 }
 
-static __noinline int parse_icmp(void *data, void *data_end, __u64 off,
+static __analinline int parse_icmp(void *data, void *data_end, __u64 off,
 				 struct packet_description *pckt)
 {
 	struct icmphdr *icmp_hdr;
@@ -277,7 +277,7 @@ static __noinline int parse_icmp(void *data, void *data_end, __u64 off,
 	return TC_ACT_UNSPEC;
 }
 
-static __noinline bool parse_udp(void *data, __u64 off, void *data_end,
+static __analinline bool parse_udp(void *data, __u64 off, void *data_end,
 				 struct packet_description *pckt)
 {
 	struct udphdr *udp;
@@ -296,7 +296,7 @@ static __noinline bool parse_udp(void *data, __u64 off, void *data_end,
 	return true;
 }
 
-static __noinline bool parse_tcp(void *data, __u64 off, void *data_end,
+static __analinline bool parse_tcp(void *data, __u64 off, void *data_end,
 				 struct packet_description *pckt)
 {
 	struct tcphdr *tcp;
@@ -318,7 +318,7 @@ static __noinline bool parse_tcp(void *data, __u64 off, void *data_end,
 	return true;
 }
 
-static __noinline int process_packet(void *data, __u64 off, void *data_end,
+static __analinline int process_packet(void *data, __u64 off, void *data_end,
 				     bool is_ipv6, struct __sk_buff *skb)
 {
 	void *pkt_start = (void *)(long)skb->data;
@@ -374,7 +374,7 @@ static __noinline int process_packet(void *data, __u64 off, void *data_end,
 		protocol = iph->protocol;
 		pckt.proto = protocol;
 		pkt_bytes = bpf_ntohs(iph->tot_len);
-		off += IPV4_HDR_LEN_NO_OPT;
+		off += IPV4_HDR_LEN_ANAL_OPT;
 
 		if (iph->frag_off & PCKT_FRAGMENTED)
 			return TC_ACT_SHOT;
@@ -416,7 +416,7 @@ static __noinline int process_packet(void *data, __u64 off, void *data_end,
 		pckt.port16[1] = 0;
 	}
 
-	if (vip_info->flags & F_HASH_NO_SRC_PORT)
+	if (vip_info->flags & F_HASH_ANAL_SRC_PORT)
 		pckt.port16[0] = 0;
 
 	if (!get_packet_dst(&dst, &pckt, vip_info, is_ipv6))

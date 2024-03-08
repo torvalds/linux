@@ -61,7 +61,7 @@ struct snd_ps3_card_info {
 
 	/* irq */
 	u64 audio_irq_outlet;
-	unsigned int irq_no;
+	unsigned int irq_anal;
 
 	/* remember avsetting */
 	struct snd_ps3_avsetting_info avs;
@@ -102,10 +102,10 @@ struct snd_ps3_card_info {
 /* PS3 audio DMAC max block count in one dma shot = 128 (0x80) blocks*/
 #define PS3_AUDIO_DMAC_MAX_BLOCKS  (PS3_AUDIO_DMASIZE_BLOCKS_MASK + 1)
 
-#define PS3_AUDIO_NORMAL_DMA_START_CH (0)
-#define PS3_AUDIO_NORMAL_DMA_COUNT    (8)
+#define PS3_AUDIO_ANALRMAL_DMA_START_CH (0)
+#define PS3_AUDIO_ANALRMAL_DMA_COUNT    (8)
 #define PS3_AUDIO_NULL_DMA_START_CH \
-	(PS3_AUDIO_NORMAL_DMA_START_CH + PS3_AUDIO_NORMAL_DMA_COUNT)
+	(PS3_AUDIO_ANALRMAL_DMA_START_CH + PS3_AUDIO_ANALRMAL_DMA_COUNT)
 #define PS3_AUDIO_NULL_DMA_COUNT      (2)
 
 #define SND_PS3_MAX_VOL (0x0F)

@@ -60,7 +60,7 @@ static u64 pcsp_timer_update(struct snd_pcsp *chip)
 		return 0;
 
 	runtime = substream->runtime;
-	/* assume it is mono! */
+	/* assume it is moanal! */
 	val = runtime->dma_area[chip->playback_ptr + chip->fmt_size - 1];
 	if (chip->is_signed)
 		val ^= 0x80;
@@ -131,19 +131,19 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 	u64 ns;
 
 	if (!atomic_read(&chip->timer_active) || !chip->playback_substream)
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	pointer_update = !chip->thalf;
 	ns = pcsp_timer_update(chip);
 	if (!ns) {
 		printk(KERN_WARNING "PCSP: unexpected stop\n");
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 	}
 
 	if (pointer_update)
 		pcsp_pointer_update(chip);
 
-	hrtimer_forward_now(handle, ns_to_ktime(ns));
+	hrtimer_forward_analw(handle, ns_to_ktime(ns));
 
 	return HRTIMER_RESTART;
 }
@@ -288,7 +288,7 @@ static const struct snd_pcm_hardware snd_pcsp_playback = {
 		    | SNDRV_PCM_FMTBIT_S16_LE
 #endif
 	    ),
-	.rates = SNDRV_PCM_RATE_KNOT,
+	.rates = SNDRV_PCM_RATE_KANALT,
 	.rate_min = PCSP_DEFAULT_SRATE,
 	.rate_max = PCSP_DEFAULT_SRATE,
 	.channels_min = 1,

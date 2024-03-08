@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_DEBUGFS_H
 #define PVR_DEBUGFS_H
 
 /* Forward declaration from <drm/drm_drv.h>. */
-struct drm_minor;
+struct drm_mianalr;
 
 #if defined(CONFIG_DEBUG_FS)
 /* Forward declaration from "pvr_device.h". */
@@ -19,11 +19,11 @@ struct pvr_debugfs_entry {
 	void (*init)(struct pvr_device *pvr_dev, struct dentry *dir);
 };
 
-void pvr_debugfs_init(struct drm_minor *minor);
+void pvr_debugfs_init(struct drm_mianalr *mianalr);
 #else /* defined(CONFIG_DEBUG_FS) */
 #include <linux/compiler_attributes.h>
 
-static __always_inline void pvr_debugfs_init(struct drm_minor *minor) {}
+static __always_inline void pvr_debugfs_init(struct drm_mianalr *mianalr) {}
 #endif /* defined(CONFIG_DEBUG_FS) */
 
 #endif /* PVR_DEBUGFS_H */

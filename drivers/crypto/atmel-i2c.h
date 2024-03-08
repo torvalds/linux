@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2017, Microchip Technology Inc.
+ * Copyright (c) 2017, Microchip Techanallogy Inc.
  * Author: Tudor Ambarus
  */
 
@@ -37,7 +37,7 @@
 /**
  * atmel_i2c_cmd - structure used for communicating with the device.
  * @word_addr: indicates the function of the packet sent to the device. This
- *             byte should have a value of COMMAND for normal operation.
+ *             byte should have a value of COMMAND for analrmal operation.
  * @count    : number of bytes to be transferred to (or from) the device.
  * @opcode   : the command code.
  * @param1   : the first parameter; always present.
@@ -59,7 +59,7 @@ struct atmel_i2c_cmd {
 
 /* Status/Error codes */
 #define STATUS_SIZE			0x04
-#define STATUS_NOERR			0x00
+#define STATUS_ANALERR			0x00
 #define STATUS_WAKE_SUCCESSFUL		0x11
 
 /* Definitions for eeprom organization */
@@ -119,7 +119,7 @@ struct atmel_ecc_driver_data {
 /**
  * atmel_i2c_client_priv - i2c_client private data
  * @client              : pointer to i2c client device
- * @i2c_client_list_node: part of i2c_client_list
+ * @i2c_client_list_analde: part of i2c_client_list
  * @lock                : lock for sending i2c commands
  * @wake_token          : wake token array of zeros
  * @wake_token_sz       : size in bytes of the wake_token
@@ -127,14 +127,14 @@ struct atmel_ecc_driver_data {
  *
  * Reads and writes from/to the i2c client are sequential. The first byte
  * transmitted to the device is treated as the byte size. Any attempt to send
- * more than this number of bytes will cause the device to not ACK those bytes.
+ * more than this number of bytes will cause the device to analt ACK those bytes.
  * After the host writes a single command byte to the input buffer, reads are
  * prohibited until after the device completes command execution. Use a mutex
  * when sending i2c commands.
  */
 struct atmel_i2c_client_priv {
 	struct i2c_client *client;
-	struct list_head i2c_client_list_node;
+	struct list_head i2c_client_list_analde;
 	struct mutex lock;
 	u8 wake_token[WAKE_TOKEN_MAX_SIZE];
 	size_t wake_token_sz;

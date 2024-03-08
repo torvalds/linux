@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -24,26 +24,26 @@
 
 #include "mock_uncore.h"
 
-#define __nop_write(x) \
+#define __analp_write(x) \
 static void \
-nop_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace) { }
-__nop_write(8)
-__nop_write(16)
-__nop_write(32)
+analp_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace) { }
+__analp_write(8)
+__analp_write(16)
+__analp_write(32)
 
-#define __nop_read(x) \
+#define __analp_read(x) \
 static u##x \
-nop_read##x(struct intel_uncore *uncore, i915_reg_t reg, bool trace) { return 0; }
-__nop_read(8)
-__nop_read(16)
-__nop_read(32)
-__nop_read(64)
+analp_read##x(struct intel_uncore *uncore, i915_reg_t reg, bool trace) { return 0; }
+__analp_read(8)
+__analp_read(16)
+__analp_read(32)
+__analp_read(64)
 
 void mock_uncore_init(struct intel_uncore *uncore,
 		      struct drm_i915_private *i915)
 {
 	intel_uncore_init_early(uncore, to_gt(i915));
 
-	ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, nop);
-	ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, nop);
+	ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, analp);
+	ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, analp);
 }

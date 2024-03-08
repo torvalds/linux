@@ -111,7 +111,7 @@ static int q40kbd_probe(struct platform_device *pdev)
 	q40kbd = kzalloc(sizeof(struct q40kbd), GFP_KERNEL);
 	port = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!q40kbd || !port) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

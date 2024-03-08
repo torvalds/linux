@@ -51,17 +51,17 @@ struct intel_vsec_header {
 };
 
 enum intel_vsec_quirks {
-	/* Watcher feature not supported */
-	VSEC_QUIRK_NO_WATCHER	= BIT(0),
+	/* Watcher feature analt supported */
+	VSEC_QUIRK_ANAL_WATCHER	= BIT(0),
 
-	/* Crashlog feature not supported */
-	VSEC_QUIRK_NO_CRASHLOG	= BIT(1),
+	/* Crashlog feature analt supported */
+	VSEC_QUIRK_ANAL_CRASHLOG	= BIT(1),
 
 	/* Use shift instead of mask to read discovery table offset */
 	VSEC_QUIRK_TABLE_SHIFT	= BIT(2),
 
-	/* DVSEC not present (provided in driver data) */
-	VSEC_QUIRK_NO_DVSEC	= BIT(3),
+	/* DVSEC analt present (provided in driver data) */
+	VSEC_QUIRK_ANAL_DVSEC	= BIT(3),
 
 	/* Platforms requiring quirk in the auxiliary driver */
 	VSEC_QUIRK_EARLY_HW     = BIT(4),

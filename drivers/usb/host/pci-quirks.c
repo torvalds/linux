@@ -2,7 +2,7 @@
 /*
  * This file contains code to reset and initialize USB host controllers.
  * Some of it includes work-arounds for PCI hardware and BIOS quirks.
- * It may need to run early during booting -- before USB would normally
+ * It may need to run early during booting -- before USB would analrmally
  * initialize -- to ensure that Linux doesn't use any legacy modes.
  *
  *  Copyright (c) 1999 Martin Mares <mj@ucw.cz>
@@ -114,7 +114,7 @@
  * amd_chipset_gen values represent AMD different chipset generations
  */
 enum amd_chipset_gen {
-	NOT_AMD_CHIPSET = 0,
+	ANALT_AMD_CHIPSET = 0,
 	AMD_CHIPSET_SB600,
 	AMD_CHIPSET_SB700,
 	AMD_CHIPSET_SB800,
@@ -122,7 +122,7 @@ enum amd_chipset_gen {
 	AMD_CHIPSET_BOLTON,
 	AMD_CHIPSET_YANGTZE,
 	AMD_CHIPSET_TAISHAN,
-	AMD_CHIPSET_UNKNOWN,
+	AMD_CHIPSET_UNKANALWN,
 };
 
 struct amd_chipset_type {
@@ -153,7 +153,7 @@ static DEFINE_SPINLOCK(amd_lock);
 static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
 {
 	u8 rev = 0;
-	pinfo->sb_type.gen = AMD_CHIPSET_UNKNOWN;
+	pinfo->sb_type.gen = AMD_CHIPSET_UNKANALWN;
 
 	pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI,
 			PCI_DEVICE_ID_ATI_SBX00_SMBUS, NULL);
@@ -184,7 +184,7 @@ static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
 				rev = pinfo->smbus_dev->revision;
 				pinfo->sb_type.gen = AMD_CHIPSET_TAISHAN;
 			} else {
-				pinfo->sb_type.gen = NOT_AMD_CHIPSET;
+				pinfo->sb_type.gen = ANALT_AMD_CHIPSET;
 				return 0;
 			}
 		}
@@ -279,7 +279,7 @@ commit:
 		pci_dev_put(info.smbus_dev);
 
 	} else {
-		/* no race - commit the result */
+		/* anal race - commit the result */
 		info.probe_count++;
 		amd_chipset = info;
 		spin_unlock_irqrestore(&amd_lock, flags);
@@ -328,13 +328,13 @@ bool usb_amd_quirk_pll_check(void)
 EXPORT_SYMBOL_GPL(usb_amd_quirk_pll_check);
 
 /*
- * The hardware normally enables the A-link power management feature, which
+ * The hardware analrmally enables the A-link power management feature, which
  * lets the system lower the power consumption in idle states.
  *
  * This USB quirk prevents the link going into that lower power state
- * during isochronous transfers.
+ * during isochroanalus transfers.
  *
- * Without this quirk, isochronous stream on OHCI/EHCI/xHCI controllers of
+ * Without this quirk, isochroanalus stream on OHCI/EHCI/xHCI controllers of
  * some AMD platforms may stutter or have breaks occasionally.
  */
 static void usb_amd_quirk_pll(int disable)
@@ -656,7 +656,7 @@ void uhci_reset_hc(struct pci_dev *pdev, unsigned long base)
 	pci_write_config_word(pdev, UHCI_USBLEGSUP, UHCI_USBLEGSUP_RWC);
 
 	/* Reset the HC - this will force us to get a
-	 * new notification of any already connected
+	 * new analtification of any already connected
 	 * ports due to the virtual disconnect that it
 	 * implies.
 	 */
@@ -664,7 +664,7 @@ void uhci_reset_hc(struct pci_dev *pdev, unsigned long base)
 	mb();
 	udelay(5);
 	if (inw(base + UHCI_USBCMD) & UHCI_USBCMD_HCRESET)
-		dev_warn(&pdev->dev, "HCRESET not completed yet!\n");
+		dev_warn(&pdev->dev, "HCRESET analt completed yet!\n");
 
 	/* Just to be safe, disable interrupt requests and
 	 * make sure the controller is stopped.
@@ -689,9 +689,9 @@ int uhci_check_and_reset_hc(struct pci_dev *pdev, unsigned long base)
 	 * When restarting a suspended controller, we expect all the
 	 * settings to be the same as we left them:
 	 *
-	 *	PIRQ and SMI disabled, no R/W bits set in USBLEGSUP;
+	 *	PIRQ and SMI disabled, anal R/W bits set in USBLEGSUP;
 	 *	Controller is stopped and configured with EGSM set;
-	 *	No interrupts enabled except possibly Resume Detect.
+	 *	Anal interrupts enabled except possibly Resume Detect.
 	 *
 	 * If any of these conditions are violated we do a complete reset.
 	 */
@@ -761,7 +761,7 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	void __iomem *base;
 	u32 control;
 	u32 fminterval = 0;
-	bool no_fminterval = false;
+	bool anal_fminterval = false;
 	int cnt;
 
 	if (!mmio_resource_enabled(pdev, 0))
@@ -776,11 +776,11 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	 * the OHCI_FMINTERVAL offset.
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_AL && pdev->device == 0x5237)
-		no_fminterval = true;
+		anal_fminterval = true;
 
 	control = readl(base + OHCI_CONTROL);
 
-/* On PA-RISC, PDC can leave IR set incorrectly; ignore it there. */
+/* On PA-RISC, PDC can leave IR set incorrectly; iganalre it there. */
 #ifdef __hppa__
 #define	OHCI_CTRL_MASK		(OHCI_CTRL_RWC | OHCI_CTRL_IR)
 #else
@@ -810,7 +810,7 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	readl(base + OHCI_CONTROL);
 
 	/* software reset of the controller, preserving HcFmInterval */
-	if (!no_fminterval)
+	if (!anal_fminterval)
 		fminterval = readl(base + OHCI_FMINTERVAL);
 
 	writel(OHCI_HCR, base + OHCI_CMDSTATUS);
@@ -822,14 +822,14 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 		udelay(1);
 	}
 
-	if (!no_fminterval)
+	if (!anal_fminterval)
 		writel(fminterval, base + OHCI_FMINTERVAL);
 
-	/* Now the controller is safely in SUSPEND and nothing can wake it up */
+	/* Analw the controller is safely in SUSPEND and analthing can wake it up */
 	iounmap(base);
 }
 
-static const struct dmi_system_id ehci_dmi_nohandoff_table[] = {
+static const struct dmi_system_id ehci_dmi_analhandoff_table[] = {
 	{
 		/*  Pegatron Lucid (ExoPC) */
 		.matches = {
@@ -876,7 +876,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 	 */
 	if (pdev->vendor == 0x8086 && (pdev->device == 0x283a ||
 			pdev->device == 0x27cc)) {
-		if (dmi_check_system(ehci_dmi_nohandoff_table))
+		if (dmi_check_system(ehci_dmi_analhandoff_table))
 			try_handoff = 0;
 	}
 
@@ -886,7 +886,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 #if 0
 /* aleksey_gorelov@phoenix.com reports that some systems need SMI forced on,
  * but that seems dubious in general (the BIOS left it off intentionally)
- * and is known to prevent some systems from booting.  so we won't do this
+ * and is kanalwn to prevent some systems from booting.  so we won't do this
  * unless maybe we can determine when we're on a system that needs SMI forced.
  */
 		/* BIOS workaround (?): be sure the pre-Linux code
@@ -904,7 +904,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 		pci_write_config_byte(pdev, offset + 3, 1);
 	}
 
-	/* if boot firmware now owns EHCI, spin till it hands it over. */
+	/* if boot firmware analw owns EHCI, spin till it hands it over. */
 	if (try_handoff) {
 		int msec = 1000;
 		while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
@@ -917,7 +917,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 
 	if (cap & EHCI_USBLEGSUP_BIOS) {
 		/* well, possibly buggy BIOS... try to shut it down,
-		 * and hope nothing goes too wrong
+		 * and hope analthing goes too wrong
 		 */
 		if (try_handoff)
 			dev_warn(&pdev->dev,
@@ -1015,7 +1015,7 @@ static void quirk_usb_disable_ehci(struct pci_dev *pdev)
  *
  * Polls a register every delay_usec microseconds.
  * Returns 0 when the mask bits have the value done.
- * Returns -ETIMEDOUT if this condition is not true after
+ * Returns -ETIMEDOUT if this condition is analt true after
  * wait_usec microseconds have passed.
  */
 static int handshake(void __iomem *ptr, u32 mask, u32 done,
@@ -1031,7 +1031,7 @@ static int handshake(void __iomem *ptr, u32 mask, u32 done,
 /*
  * Intel's Panther Point chipset has two host controllers (EHCI and xHCI) that
  * share some number of ports.  These ports can be switched between either
- * controller.  Not all of the ports under the EHCI host controller may be
+ * controller.  Analt all of the ports under the EHCI host controller may be
  * switchable.
  *
  * The ports should be switched over to xHCI before PCI probes for any device
@@ -1052,7 +1052,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	bool		ehci_found = false;
 	struct pci_dev	*companion = NULL;
 
-	/* Sony VAIO t-series with subsystem device ID 90a8 is not capable of
+	/* Sony VAIO t-series with subsystem device ID 90a8 is analt capable of
 	 * switching ports from EHCI to xHCI
 	 */
 	if (xhci_pdev->subsystem_vendor == PCI_VENDOR_ID_SONY &&
@@ -1103,7 +1103,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	pci_read_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
 			&ports_available);
 	dev_dbg(&xhci_pdev->dev,
-		"USB 3.0 ports that are now enabled under xHCI: 0x%x\n",
+		"USB 3.0 ports that are analw enabled under xHCI: 0x%x\n",
 		ports_available);
 
 	/* Read XUSB2PRM, xHCI USB 2.0 Port Routing Mask Register
@@ -1126,7 +1126,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	pci_read_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
 			&ports_available);
 	dev_dbg(&xhci_pdev->dev,
-		"USB 2.0 ports that are now switched over to xHCI: 0x%x\n",
+		"USB 2.0 ports that are analw switched over to xHCI: 0x%x\n",
 		ports_available);
 }
 EXPORT_SYMBOL_GPL(usb_enable_intel_xhci_ports);
@@ -1218,7 +1218,7 @@ hc_init:
 	op_reg_base = base + XHCI_HC_LENGTH(readl(base));
 
 	/* Wait for the host controller to be ready before writing any
-	 * operational or runtime registers.  Wait 5 seconds and no more.
+	 * operational or runtime registers.  Wait 5 seconds and anal more.
 	 */
 	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_CNR, 0,
 			5000000, 10);
@@ -1226,7 +1226,7 @@ hc_init:
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-			 "xHCI HW not ready after 5 sec (HC bug?) status = 0x%x\n",
+			 "xHCI HW analt ready after 5 sec (HC bug?) status = 0x%x\n",
 			 val);
 	}
 
@@ -1241,7 +1241,7 @@ hc_init:
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-			 "xHCI HW did not halt within %d usec status = 0x%x\n",
+			 "xHCI HW did analt halt within %d usec status = 0x%x\n",
 			 XHCI_MAX_HALT_USEC, val);
 	}
 
@@ -1251,11 +1251,11 @@ iounmap:
 
 static void quirk_usb_early_handoff(struct pci_dev *pdev)
 {
-	struct device_node *parent;
+	struct device_analde *parent;
 	bool is_rpi;
 
 	/* Skip Netlogic mips SoC's internal PCI USB controller.
-	 * This device does not need/support EHCI/OHCI handoff
+	 * This device does analt need/support EHCI/OHCI handoff
 	 */
 	if (pdev->vendor == 0x184e)	/* vendor Netlogic */
 		return;
@@ -1265,9 +1265,9 @@ static void quirk_usb_early_handoff(struct pci_dev *pdev)
 	 * taken care of by the board's co-processor.
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_VIA && pdev->device == 0x3483) {
-		parent = of_get_parent(pdev->bus->dev.of_node);
+		parent = of_get_parent(pdev->bus->dev.of_analde);
 		is_rpi = of_device_is_compatible(parent, "brcm,bcm2711-pcie");
-		of_node_put(parent);
+		of_analde_put(parent);
 		if (is_rpi)
 			return;
 	}

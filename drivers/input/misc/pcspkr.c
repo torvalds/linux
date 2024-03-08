@@ -70,7 +70,7 @@ static int pcspkr_probe(struct platform_device *dev)
 
 	pcspkr_dev = input_allocate_device();
 	if (!pcspkr_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcspkr_dev->name = "PC Speaker";
 	pcspkr_dev->phys = "isa0061/input0";

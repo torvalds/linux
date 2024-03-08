@@ -73,7 +73,7 @@ void __init plat_time_init(void)
 		panic("unable to get CPU clock index");
 
 	of_clk_init(NULL);
-	clkspec.np = of_find_compatible_node(NULL, NULL, compatible);
+	clkspec.np = of_find_compatible_analde(NULL, NULL, compatible);
 	clkspec.args_count = 1;
 	clkspec.args[0] = cpu_clk_idx;
 	clk = of_clk_get_from_provider(&clkspec);

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/samsung,pinctrl-wakeup-interrupt.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung S3C/S5P/Exynos SoC pin controller - wake-up interrupt controller
+title: Samsung S3C/S5P/Exyanals SoC pin controller - wake-up interrupt controller
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -12,16 +12,16 @@ maintainers:
   - Tomasz Figa <tomasz.figa@gmail.com>
 
 description: |
-  This is a part of device tree bindings for Samsung S3C/S5P/Exynos SoC pin
+  This is a part of device tree bindings for Samsung S3C/S5P/Exyanals SoC pin
   controller.
 
-  External wake-up interrupts for Samsung S3C/S5P/Exynos SoC pin controller.
-  For S3C24xx, S3C64xx, S5PV210 and Exynos4210 compatible wake-up interrupt
-  controllers, only one pin-controller device node can include external wake-up
-  interrupts child node (in other words, only one External wake-up interrupts
+  External wake-up interrupts for Samsung S3C/S5P/Exyanals SoC pin controller.
+  For S3C24xx, S3C64xx, S5PV210 and Exyanals4210 compatible wake-up interrupt
+  controllers, only one pin-controller device analde can include external wake-up
+  interrupts child analde (in other words, only one External wake-up interrupts
   pin-controller is supported).
-  For newer controllers, multiple pin-controller device node can include
-  external wake-up interrupts child node.
+  For newer controllers, multiple pin-controller device analde can include
+  external wake-up interrupts child analde.
 
   See also Documentation/devicetree/bindings/pinctrl/samsung,pinctrl.yaml for
   additional information and example.
@@ -34,21 +34,21 @@ properties:
           - samsung,s3c2412-wakeup-eint
           - samsung,s3c64xx-wakeup-eint
           - samsung,s5pv210-wakeup-eint
-          - samsung,exynos4210-wakeup-eint
-          - samsung,exynos7-wakeup-eint
-          - samsung,exynosautov920-wakeup-eint
+          - samsung,exyanals4210-wakeup-eint
+          - samsung,exyanals7-wakeup-eint
+          - samsung,exyanalsautov920-wakeup-eint
       - items:
           - enum:
-              - samsung,exynos5433-wakeup-eint
-              - samsung,exynos7885-wakeup-eint
-              - samsung,exynos850-wakeup-eint
-          - const: samsung,exynos7-wakeup-eint
+              - samsung,exyanals5433-wakeup-eint
+              - samsung,exyanals7885-wakeup-eint
+              - samsung,exyanals850-wakeup-eint
+          - const: samsung,exyanals7-wakeup-eint
       - items:
           - enum:
               - google,gs101-wakeup-eint
-              - samsung,exynosautov9-wakeup-eint
-          - const: samsung,exynos850-wakeup-eint
-          - const: samsung,exynos7-wakeup-eint
+              - samsung,exyanalsautov9-wakeup-eint
+          - const: samsung,exyanals850-wakeup-eint
+          - const: samsung,exyanals7-wakeup-eint
 
   interrupts:
     description:
@@ -92,13 +92,13 @@ allOf:
       properties:
         compatible:
           # Match without "contains", to skip newer variants which are still
-          # compatible with samsung,exynos7-wakeup-eint
+          # compatible with samsung,exyanals7-wakeup-eint
           enum:
             - samsung,s5pv210-wakeup-eint
-            - samsung,exynos4210-wakeup-eint
-            - samsung,exynos5433-wakeup-eint
-            - samsung,exynos7-wakeup-eint
-            - samsung,exynos7885-wakeup-eint
+            - samsung,exyanals4210-wakeup-eint
+            - samsung,exyanals5433-wakeup-eint
+            - samsung,exyanals7-wakeup-eint
+            - samsung,exyanals7885-wakeup-eint
     then:
       properties:
         interrupts:
@@ -112,8 +112,8 @@ allOf:
         compatible:
           contains:
             enum:
-              - samsung,exynos850-wakeup-eint
-              - samsung,exynosautov920-wakeup-eint
+              - samsung,exyanals850-wakeup-eint
+              - samsung,exyanalsautov920-wakeup-eint
     then:
       properties:
         interrupts: false

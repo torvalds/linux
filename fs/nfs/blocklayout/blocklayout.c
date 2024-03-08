@@ -11,10 +11,10 @@
  *
  * permission is granted to use, copy, create derivative works and
  * redistribute this software and such derivative works for any purpose,
- * so long as the name of the university of michigan is not used in
+ * so long as the name of the university of michigan is analt used in
  * any advertising or publicity pertaining to the use or distribution
  * of this software without specific, written prior authorization.  if
- * the above copyright notice or any other identification of the
+ * the above copyright analtice or any other identification of the
  * university of michigan is included in any copy of any portion of
  * this software, then the disclaimer below must also be included.
  *
@@ -23,7 +23,7 @@
  * warranty by the university of michigan of any kind, either express
  * or implied, including without limitation the implied warranties of
  * merchantability and fitness for a particular purpose.  the regents
- * of the university of michigan shall not be liable for any damages,
+ * of the university of michigan shall analt be liable for any damages,
  * including special, indirect, incidental, or consequential damages,
  * with respect to any claim arising out or in connection with the use
  * of the software, even if it has been or is hereafter advised of the
@@ -52,7 +52,7 @@ MODULE_DESCRIPTION("The NFSv4.1 pNFS Block layout driver");
 static bool is_hole(struct pnfs_block_extent *be)
 {
 	switch (be->be_state) {
-	case PNFS_BLOCK_NONE_DATA:
+	case PNFS_BLOCK_ANALNE_DATA:
 		return true;
 	case PNFS_BLOCK_INVALID_DATA:
 		return be->be_tag ? false : true;
@@ -74,7 +74,7 @@ static inline struct parallel_io *alloc_parallel(void *data)
 {
 	struct parallel_io *rv;
 
-	rv  = kmalloc(sizeof(*rv), GFP_NOFS);
+	rv  = kmalloc(sizeof(*rv), GFP_ANALFS);
 	if (rv) {
 		rv->data = data;
 		kref_init(&rv->refcnt);
@@ -127,7 +127,7 @@ do_add_page_to_bio(struct bio *bio, int npg, enum req_op op, sector_t isect,
 		struct parallel_io *par, unsigned int offset, int *len)
 {
 	struct pnfs_block_dev *dev =
-		container_of(be->be_device, struct pnfs_block_dev, node);
+		container_of(be->be_device, struct pnfs_block_dev, analde);
 	u64 disk_addr, end;
 
 	dprintk("%s: npg %d rw %d isect %llu offset %u len %d\n", __func__,
@@ -154,7 +154,7 @@ do_add_page_to_bio(struct bio *bio, int npg, enum req_op op, sector_t isect,
 
 retry:
 	if (!bio) {
-		bio = bio_alloc(map->bdev, bio_max_segs(npg), op, GFP_NOIO);
+		bio = bio_alloc(map->bdev, bio_max_segs(npg), op, GFP_ANALIO);
 		bio->bi_iter.bi_sector = disk_addr >> SECTOR_SHIFT;
 		bio->bi_end_io = end_io;
 		bio->bi_private = par;
@@ -250,7 +250,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 
 	par = alloc_parallel(header);
 	if (!par)
-		return PNFS_NOT_ATTEMPTED;
+		return PNFS_ANALT_ATTEMPTED;
 	par->pnfs_callback = bl_end_par_io_read;
 
 	blk_start_plug(&plug);
@@ -307,9 +307,9 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 		bytes_left -= pg_len;
 		pg_offset = 0;
 	}
-	if ((isect << SECTOR_SHIFT) >= header->inode->i_size) {
+	if ((isect << SECTOR_SHIFT) >= header->ianalde->i_size) {
 		header->res.eof = 1;
-		header->res.count = header->inode->i_size - header->args.offset;
+		header->res.count = header->ianalde->i_size - header->args.offset;
 	} else {
 		header->res.count = (isect << SECTOR_SHIFT) - header->args.offset;
 	}
@@ -396,7 +396,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	 */
 	par = alloc_parallel(header);
 	if (!par)
-		return PNFS_NOT_ATTEMPTED;
+		return PNFS_ANALT_ATTEMPTED;
 	par->pnfs_callback = bl_end_par_io_write;
 
 	blk_start_plug(&plug);
@@ -455,7 +455,7 @@ static void bl_free_layout_hdr(struct pnfs_layout_hdr *lo)
 	kfree_rcu(bl, bl_layout.plh_rcu);
 }
 
-static struct pnfs_layout_hdr *__bl_alloc_layout_hdr(struct inode *inode,
+static struct pnfs_layout_hdr *__bl_alloc_layout_hdr(struct ianalde *ianalde,
 		gfp_t gfp_flags, bool is_scsi_layout)
 {
 	struct pnfs_block_layout *bl;
@@ -473,16 +473,16 @@ static struct pnfs_layout_hdr *__bl_alloc_layout_hdr(struct inode *inode,
 	return &bl->bl_layout;
 }
 
-static struct pnfs_layout_hdr *bl_alloc_layout_hdr(struct inode *inode,
+static struct pnfs_layout_hdr *bl_alloc_layout_hdr(struct ianalde *ianalde,
 						   gfp_t gfp_flags)
 {
-	return __bl_alloc_layout_hdr(inode, gfp_flags, false);
+	return __bl_alloc_layout_hdr(ianalde, gfp_flags, false);
 }
 
-static struct pnfs_layout_hdr *sl_alloc_layout_hdr(struct inode *inode,
+static struct pnfs_layout_hdr *sl_alloc_layout_hdr(struct ianalde *ianalde,
 						   gfp_t gfp_flags)
 {
-	return __bl_alloc_layout_hdr(inode, gfp_flags, true);
+	return __bl_alloc_layout_hdr(ianalde, gfp_flags, true);
 }
 
 static void bl_free_lseg(struct pnfs_layout_segment *lseg)
@@ -494,7 +494,7 @@ static void bl_free_lseg(struct pnfs_layout_segment *lseg)
 /* Tracks info needed to ensure extents in layout obey constraints of spec */
 struct layout_verification {
 	u32 mode;	/* R or RW */
-	u64 start;	/* Expected start of next non-COW extent */
+	u64 start;	/* Expected start of next analn-COW extent */
 	u64 inval;	/* Start of INVAL coverage */
 	u64 cowread;	/* End of COW read coverage */
 };
@@ -551,38 +551,38 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 
 	*rp = xdr_decode_hyper(*rp, &s);
 	if (s & 0x1ff) {
-		printk(KERN_WARNING "NFS: %s: sector not aligned\n", __func__);
+		printk(KERN_WARNING "NFS: %s: sector analt aligned\n", __func__);
 		return -1;
 	}
 	*sp = s >> SECTOR_SHIFT;
 	return 0;
 }
 
-static struct nfs4_deviceid_node *
+static struct nfs4_deviceid_analde *
 bl_find_get_deviceid(struct nfs_server *server,
 		const struct nfs4_deviceid *id, const struct cred *cred,
 		gfp_t gfp_mask)
 {
-	struct nfs4_deviceid_node *node;
+	struct nfs4_deviceid_analde *analde;
 	unsigned long start, end;
 
 retry:
-	node = nfs4_find_get_deviceid(server, id, cred, gfp_mask);
-	if (!node)
-		return ERR_PTR(-ENODEV);
+	analde = nfs4_find_get_deviceid(server, id, cred, gfp_mask);
+	if (!analde)
+		return ERR_PTR(-EANALDEV);
 
-	if (test_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags) == 0)
-		return node;
+	if (test_bit(NFS_DEVICEID_UNAVAILABLE, &analde->flags) == 0)
+		return analde;
 
 	end = jiffies;
 	start = end - PNFS_DEVICE_RETRY_TIMEOUT;
-	if (!time_in_range(node->timestamp_unavailable, start, end)) {
-		nfs4_delete_deviceid(node->ld, node->nfs_client, id);
+	if (!time_in_range(analde->timestamp_unavailable, start, end)) {
+		nfs4_delete_deviceid(analde->ld, analde->nfs_client, id);
 		goto retry;
 	}
 
-	nfs4_put_deviceid_node(node);
-	return ERR_PTR(-ENODEV);
+	nfs4_put_deviceid_analde(analde);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int
@@ -599,14 +599,14 @@ bl_alloc_extent(struct xdr_stream *xdr, struct pnfs_layout_hdr *lo,
 	if (!p)
 		return -EIO;
 
-	be = kzalloc(sizeof(*be), GFP_NOFS);
+	be = kzalloc(sizeof(*be), GFP_ANALFS);
 	if (!be)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&id, p, NFS4_DEVICEID4_SIZE);
 	p += XDR_QUADLEN(NFS4_DEVICEID4_SIZE);
 
-	be->be_device = bl_find_get_deviceid(NFS_SERVER(lo->plh_inode), &id,
+	be->be_device = bl_find_get_deviceid(NFS_SERVER(lo->plh_ianalde), &id,
 						lo->plh_lc_cred, gfp_mask);
 	if (IS_ERR(be->be_device)) {
 		error = PTR_ERR(be->be_device);
@@ -636,7 +636,7 @@ bl_alloc_extent(struct xdr_stream *xdr, struct pnfs_layout_hdr *lo,
 	return 0;
 
 out_put_deviceid:
-	nfs4_put_deviceid_node(be->be_device);
+	nfs4_put_deviceid_analde(be->be_device);
 out_free_be:
 	kfree(be);
 	return error;
@@ -666,9 +666,9 @@ bl_alloc_lseg(struct pnfs_layout_hdr *lo, struct nfs4_layoutget_res *lgr,
 
 	lseg = kzalloc(sizeof(*lseg), gfp_mask);
 	if (!lseg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	status = -ENOMEM;
+	status = -EANALMEM;
 	scratch = alloc_page(gfp_mask);
 	if (!scratch)
 		goto out;
@@ -718,7 +718,7 @@ process_extents:
 			status = ext_tree_insert(bl, be);
 
 		if (status) {
-			nfs4_put_deviceid_node(be->be_device);
+			nfs4_put_deviceid_analde(be->be_device);
 			kfree(be);
 		}
 	}
@@ -728,7 +728,7 @@ out_free_scratch:
 out:
 	dprintk("%s returns %d\n", __func__, status);
 	switch (status) {
-	case -ENODEV:
+	case -EANALDEV:
 		/* Our extent block devices are unavailable */
 		set_bit(NFS_LSEG_UNAVAILABLE, &lseg->pls_flags);
 		fallthrough;
@@ -748,14 +748,14 @@ bl_return_range(struct pnfs_layout_hdr *lo,
 	sector_t offset = range->offset >> SECTOR_SHIFT, end;
 
 	if (range->offset % 8) {
-		dprintk("%s: offset %lld not block size aligned\n",
+		dprintk("%s: offset %lld analt block size aligned\n",
 			__func__, range->offset);
 		return;
 	}
 
 	if (range->length != NFS4_MAX_UINT64) {
 		if (range->length % 8) {
-			dprintk("%s: length %lld not block size aligned\n",
+			dprintk("%s: length %lld analt block size aligned\n",
 				__func__, range->length);
 			return;
 		}
@@ -786,11 +786,11 @@ bl_set_layoutdriver(struct nfs_server *server, const struct nfs_fh *fh)
 	dprintk("%s enter\n", __func__);
 
 	if (server->pnfs_blksize == 0) {
-		dprintk("%s Server did not return blksize\n", __func__);
+		dprintk("%s Server did analt return blksize\n", __func__);
 		return -EINVAL;
 	}
 	if (server->pnfs_blksize > PAGE_SIZE) {
-		printk(KERN_ERR "%s: pNFS blksize %d not supported.\n",
+		printk(KERN_ERR "%s: pNFS blksize %d analt supported.\n",
 			__func__, server->pnfs_blksize);
 		return -EINVAL;
 	}
@@ -816,10 +816,10 @@ is_aligned_req(struct nfs_pageio_descriptor *pgio,
 		return true;
 
 	if (is_write &&
-	    (req_offset(req) + req->wb_bytes == i_size_read(pgio->pg_inode))) {
+	    (req_offset(req) + req->wb_bytes == i_size_read(pgio->pg_ianalde))) {
 		/*
-		 * If the write goes up to the inode size, just write
-		 * the full page.  Data past the inode size is
+		 * If the write goes up to the ianalde size, just write
+		 * the full page.  Data past the ianalde size is
 		 * guaranteed to be zeroed by the higher level client
 		 * code, and this behaviour is mandated by RFC 5663
 		 * section 2.3.2.
@@ -842,14 +842,14 @@ bl_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 
 	if (pgio->pg_lseg &&
 		test_bit(NFS_LSEG_UNAVAILABLE, &pgio->pg_lseg->pls_flags)) {
-		pnfs_error_mark_layout_for_return(pgio->pg_inode, pgio->pg_lseg);
+		pnfs_error_mark_layout_for_return(pgio->pg_ianalde, pgio->pg_lseg);
 		pnfs_set_lo_fail(pgio->pg_lseg);
 		nfs_pageio_reset_read_mds(pgio);
 	}
 }
 
 /*
- * Return 0 if @req cannot be coalesced into @pgio, otherwise return the number
+ * Return 0 if @req cananalt be coalesced into @pgio, otherwise return the number
  * of bytes (maximum @req->wb_bytes) that can be coalesced.
  */
 static size_t
@@ -862,24 +862,24 @@ bl_pg_test_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 }
 
 /*
- * Return the number of contiguous bytes for a given inode
+ * Return the number of contiguous bytes for a given ianalde
  * starting at page frame idx.
  */
-static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
+static u64 pnfs_num_cont_bytes(struct ianalde *ianalde, pgoff_t idx)
 {
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = ianalde->i_mapping;
 	pgoff_t end;
 
 	/* Optimize common case that writes from 0 to end of file */
-	end = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
-	if (end != inode->i_mapping->nrpages) {
+	end = DIV_ROUND_UP(i_size_read(ianalde), PAGE_SIZE);
+	if (end != ianalde->i_mapping->nrpages) {
 		rcu_read_lock();
 		end = page_cache_next_miss(mapping, idx + 1, ULONG_MAX);
 		rcu_read_unlock();
 	}
 
 	if (!end)
-		return i_size_read(inode) - (idx << PAGE_SHIFT);
+		return i_size_read(ianalde) - (idx << PAGE_SHIFT);
 	else
 		return (end - idx) << PAGE_SHIFT;
 }
@@ -895,7 +895,7 @@ bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 	}
 
 	if (pgio->pg_dreq == NULL)
-		wb_size = pnfs_num_cont_bytes(pgio->pg_inode, req->wb_index);
+		wb_size = pnfs_num_cont_bytes(pgio->pg_ianalde, req->wb_index);
 	else
 		wb_size = nfs_dreq_bytes_left(pgio->pg_dreq, req_offset(req));
 
@@ -904,14 +904,14 @@ bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 	if (pgio->pg_lseg &&
 		test_bit(NFS_LSEG_UNAVAILABLE, &pgio->pg_lseg->pls_flags)) {
 
-		pnfs_error_mark_layout_for_return(pgio->pg_inode, pgio->pg_lseg);
+		pnfs_error_mark_layout_for_return(pgio->pg_ianalde, pgio->pg_lseg);
 		pnfs_set_lo_fail(pgio->pg_lseg);
 		nfs_pageio_reset_write_mds(pgio);
 	}
 }
 
 /*
- * Return 0 if @req cannot be coalesced into @pgio, otherwise return the number
+ * Return 0 if @req cananalt be coalesced into @pgio, otherwise return the number
  * of bytes (maximum @req->wb_bytes) that can be coalesced.
  */
 static size_t
@@ -954,8 +954,8 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.prepare_layoutcommit		= bl_prepare_layoutcommit,
 	.cleanup_layoutcommit		= bl_cleanup_layoutcommit,
 	.set_layoutdriver		= bl_set_layoutdriver,
-	.alloc_deviceid_node		= bl_alloc_deviceid_node,
-	.free_deviceid_node		= bl_free_deviceid_node,
+	.alloc_deviceid_analde		= bl_alloc_deviceid_analde,
+	.free_deviceid_analde		= bl_free_deviceid_analde,
 	.pg_read_ops			= &bl_pg_read_ops,
 	.pg_write_ops			= &bl_pg_write_ops,
 	.sync				= pnfs_generic_sync,
@@ -978,8 +978,8 @@ static struct pnfs_layoutdriver_type scsilayout_type = {
 	.prepare_layoutcommit		= bl_prepare_layoutcommit,
 	.cleanup_layoutcommit		= bl_cleanup_layoutcommit,
 	.set_layoutdriver		= bl_set_layoutdriver,
-	.alloc_deviceid_node		= bl_alloc_deviceid_node,
-	.free_deviceid_node		= bl_free_deviceid_node,
+	.alloc_deviceid_analde		= bl_alloc_deviceid_analde,
+	.free_deviceid_analde		= bl_free_deviceid_analde,
 	.pg_read_ops			= &bl_pg_read_ops,
 	.pg_write_ops			= &bl_pg_write_ops,
 	.sync				= pnfs_generic_sync,

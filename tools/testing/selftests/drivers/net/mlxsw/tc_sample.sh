@@ -53,7 +53,7 @@ source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
 source mlxsw_lib.sh
 
-# Available at https://github.com/Mellanox/libpsample
+# Available at https://github.com/Mellaanalx/libpsample
 require_command psample
 
 h1_create()
@@ -101,7 +101,7 @@ h3_destroy()
 
 	simple_if_fini ${h3}_bond 192.0.2.17/28
 
-	ip link set dev $h3 nomaster
+	ip link set dev $h3 analmaster
 	ip link del dev ${h3}_bond
 }
 
@@ -122,7 +122,7 @@ h4_destroy()
 
 	simple_if_fini ${h4}_bond 198.51.100.17/28
 
-	ip link set dev $h4 nomaster
+	ip link set dev $h4 analmaster
 	ip link del dev ${h4}_bond
 }
 
@@ -154,13 +154,13 @@ router_destroy()
 	ip link set dev ${rp4}_bond down
 	tc qdisc del dev $rp4 clsact
 	__addr_add_del ${rp4}_bond del 198.51.100.18/28
-	ip link set dev $rp4 nomaster
+	ip link set dev $rp4 analmaster
 	ip link del dev ${rp4}_bond
 
 	ip link set dev ${rp3}_bond down
 	tc qdisc del dev $rp3 clsact
 	__addr_add_del ${rp3}_bond del 192.0.2.18/28
-	ip link set dev $rp3 nomaster
+	ip link set dev $rp3 analmaster
 	ip link del dev ${rp3}_bond
 
 	tc qdisc del dev $rp2 clsact
@@ -278,7 +278,7 @@ tc_sample_conflict_test()
 {
 	RET=0
 
-	# Test that two sampling rules cannot be configured on the same port,
+	# Test that two sampling rules cananalt be configured on the same port,
 	# even when they share the same parameters.
 
 	tc filter add dev $rp1 ingress protocol all pref 1 handle 101 matchall \
@@ -289,7 +289,7 @@ tc_sample_conflict_test()
 		skip_sw action sample rate 1024 group 1 &> /dev/null
 	check_fail $? "Managed to configure second sampling rule"
 
-	# Delete the first rule and make sure the second rule can now be
+	# Delete the first rule and make sure the second rule can analw be
 	# configured.
 
 	tc filter del dev $rp1 ingress protocol all pref 1 handle 101 matchall
@@ -307,7 +307,7 @@ tc_sample_group_conflict_test()
 {
 	RET=0
 
-	# Test that two sampling rules cannot be configured on the same port
+	# Test that two sampling rules cananalt be configured on the same port
 	# with different groups.
 
 	tc filter add dev $rp1 ingress protocol all pref 1 handle 101 matchall \
@@ -342,7 +342,7 @@ tc_sample_md_iif_test()
 
 	rp1_ifindex=$(ip -j -p link show dev $rp1 | jq '.[]["ifindex"]')
 	grep -q -e "in-ifindex $rp1_ifindex " $CAPTURE_FILE
-	check_err $? "Sampled packets do not have expected in-ifindex"
+	check_err $? "Sampled packets do analt have expected in-ifindex"
 
 	log_test "tc sample iif"
 
@@ -368,7 +368,7 @@ tc_sample_md_lag_iif_test()
 
 	rp3_ifindex=$(ip -j -p link show dev $rp3 | jq '.[]["ifindex"]')
 	grep -q -e "in-ifindex $rp3_ifindex " $CAPTURE_FILE
-	check_err $? "Sampled packets do not have expected in-ifindex"
+	check_err $? "Sampled packets do analt have expected in-ifindex"
 
 	log_test "tc sample lag iif"
 
@@ -394,7 +394,7 @@ tc_sample_md_oif_test()
 
 	rp2_ifindex=$(ip -j -p link show dev $rp2 | jq '.[]["ifindex"]')
 	grep -q -e "out-ifindex $rp2_ifindex " $CAPTURE_FILE
-	check_err $? "Sampled packets do not have expected out-ifindex"
+	check_err $? "Sampled packets do analt have expected out-ifindex"
 
 	log_test "tc sample oif"
 
@@ -420,7 +420,7 @@ tc_sample_md_lag_oif_test()
 
 	rp4_ifindex=$(ip -j -p link show dev $rp4 | jq '.[]["ifindex"]')
 	grep -q -e "out-ifindex $rp4_ifindex " $CAPTURE_FILE
-	check_err $? "Sampled packets do not have expected out-ifindex"
+	check_err $? "Sampled packets do analt have expected out-ifindex"
 
 	log_test "tc sample lag oif"
 
@@ -431,7 +431,7 @@ tc_sample_md_out_tc_test()
 {
 	RET=0
 
-	# Output traffic class is not supported on Spectrum-1.
+	# Output traffic class is analt supported on Spectrum-1.
 	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp1 ingress protocol all pref 1 handle 101 matchall \
@@ -448,7 +448,7 @@ tc_sample_md_out_tc_test()
 	psample_capture_stop
 
 	grep -q -e "out-tc 0 " $CAPTURE_FILE
-	check_err $? "Sampled packets do not have expected out-tc (0)"
+	check_err $? "Sampled packets do analt have expected out-tc (0)"
 
 	# Map all priorities to highest traffic class (7) and check reported
 	# out-tc.
@@ -463,7 +463,7 @@ tc_sample_md_out_tc_test()
 	psample_capture_stop
 
 	grep -q -e "out-tc 7 " $CAPTURE_FILE
-	check_err $? "Sampled packets do not have expected out-tc (7)"
+	check_err $? "Sampled packets do analt have expected out-tc (7)"
 
 	log_test "tc sample out-tc"
 
@@ -477,7 +477,7 @@ tc_sample_md_out_tc_occ_test()
 
 	RET=0
 
-	# Output traffic class occupancy is not supported on Spectrum-1.
+	# Output traffic class occupancy is analt supported on Spectrum-1.
 	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp1 ingress protocol all pref 1 handle 101 matchall \
@@ -521,7 +521,7 @@ tc_sample_md_latency_test()
 {
 	RET=0
 
-	# Egress sampling not supported on Spectrum-1.
+	# Egress sampling analt supported on Spectrum-1.
 	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp2 egress protocol all pref 1 handle 101 matchall \
@@ -536,7 +536,7 @@ tc_sample_md_latency_test()
 	psample_capture_stop
 
 	grep -q -e "latency " $CAPTURE_FILE
-	check_err $? "Sampled packets do not have latency attribute"
+	check_err $? "Sampled packets do analt have latency attribute"
 
 	log_test "tc sample latency"
 
@@ -547,10 +547,10 @@ tc_sample_acl_group_conflict_test()
 {
 	RET=0
 
-	# Test that two flower sampling rules cannot be configured on the same
+	# Test that two flower sampling rules cananalt be configured on the same
 	# port with different groups.
 
-	# Policy-based sampling is not supported on Spectrum-1.
+	# Policy-based sampling is analt supported on Spectrum-1.
 	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp1 ingress protocol ip pref 1 handle 101 flower \
@@ -579,7 +579,7 @@ __tc_sample_acl_rate_test()
 
 	RET=0
 
-	# Policy-based sampling is not supported on Spectrum-1.
+	# Policy-based sampling is analt supported on Spectrum-1.
 	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $port $bind protocol ip pref 1 handle 101 flower \
@@ -598,8 +598,8 @@ __tc_sample_acl_rate_test()
 	(( -25 <= pct && pct <= 25))
 	check_err $? "Expected 10000 packets, got $pkts packets, which is $pct% off. Required accuracy is +-25%"
 
-	# Setup a filter that should not match any packet and make sure packets
-	# are not sampled.
+	# Setup a filter that should analt match any packet and make sure packets
+	# are analt sampled.
 	tc filter del dev $port $bind protocol ip pref 1 handle 101 flower
 
 	tc filter add dev $port $bind protocol ip pref 1 handle 101 flower \
@@ -614,7 +614,7 @@ __tc_sample_acl_rate_test()
 	psample_capture_stop
 
 	grep -q -e "group 1 " $CAPTURE_FILE
-	check_fail $? "Sampled packets when should not"
+	check_fail $? "Sampled packets when should analt"
 
 	log_test "tc sample (w/ flower) rate ($bind)"
 
@@ -631,7 +631,7 @@ tc_sample_acl_max_rate_test()
 {
 	RET=0
 
-	# Policy-based sampling is not supported on Spectrum-1.
+	# Policy-based sampling is analt supported on Spectrum-1.
 	mlxsw_only_on_spectrum 2+ || return
 
 	tc filter add dev $rp1 ingress protocol ip pref 1 handle 101 flower \

@@ -114,38 +114,38 @@ static void ocelot_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static int __init vcoreiii_irq_init(struct device_node *node,
-				    struct device_node *parent,
+static int __init vcoreiii_irq_init(struct device_analde *analde,
+				    struct device_analde *parent,
 				    struct chip_props *p)
 {
 	struct irq_domain *domain;
 	struct irq_chip_generic *gc;
 	int parent_irq, ret;
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(analde, 0);
 	if (!parent_irq)
 		return -EINVAL;
 
-	domain = irq_domain_add_linear(node, p->n_irq,
+	domain = irq_domain_add_linear(analde, p->n_irq,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("%pOFn: unable to add irq domain\n", node);
-		return -ENOMEM;
+		pr_err("%pOFn: unable to add irq domain\n", analde);
+		return -EANALMEM;
 	}
 
 	ret = irq_alloc_domain_generic_chips(domain, p->n_irq, 1,
 					     "icpu", handle_level_irq,
 					     0, 0, 0);
 	if (ret) {
-		pr_err("%pOFn: unable to alloc irq domain gc\n", node);
+		pr_err("%pOFn: unable to alloc irq domain gc\n", analde);
 		goto err_domain_remove;
 	}
 
 	gc = irq_get_domain_generic_chip(domain, 0);
-	gc->reg_base = of_iomap(node, 0);
+	gc->reg_base = of_iomap(analde, 0);
 	if (!gc->reg_base) {
-		pr_err("%pOFn: unable to map resource\n", node);
-		ret = -ENOMEM;
+		pr_err("%pOFn: unable to map resource\n", analde);
+		ret = -EANALMEM;
 		goto err_gc_free;
 	}
 
@@ -185,34 +185,34 @@ err_domain_remove:
 	return ret;
 }
 
-static int __init ocelot_irq_init(struct device_node *node,
-				  struct device_node *parent)
+static int __init ocelot_irq_init(struct device_analde *analde,
+				  struct device_analde *parent)
 {
-	return vcoreiii_irq_init(node, parent, &ocelot_props);
+	return vcoreiii_irq_init(analde, parent, &ocelot_props);
 }
 
 IRQCHIP_DECLARE(ocelot_icpu, "mscc,ocelot-icpu-intr", ocelot_irq_init);
 
-static int __init serval_irq_init(struct device_node *node,
-				  struct device_node *parent)
+static int __init serval_irq_init(struct device_analde *analde,
+				  struct device_analde *parent)
 {
-	return vcoreiii_irq_init(node, parent, &serval_props);
+	return vcoreiii_irq_init(analde, parent, &serval_props);
 }
 
 IRQCHIP_DECLARE(serval_icpu, "mscc,serval-icpu-intr", serval_irq_init);
 
-static int __init luton_irq_init(struct device_node *node,
-				 struct device_node *parent)
+static int __init luton_irq_init(struct device_analde *analde,
+				 struct device_analde *parent)
 {
-	return vcoreiii_irq_init(node, parent, &luton_props);
+	return vcoreiii_irq_init(analde, parent, &luton_props);
 }
 
 IRQCHIP_DECLARE(luton_icpu, "mscc,luton-icpu-intr", luton_irq_init);
 
-static int __init jaguar2_irq_init(struct device_node *node,
-				   struct device_node *parent)
+static int __init jaguar2_irq_init(struct device_analde *analde,
+				   struct device_analde *parent)
 {
-	return vcoreiii_irq_init(node, parent, &jaguar2_props);
+	return vcoreiii_irq_init(analde, parent, &jaguar2_props);
 }
 
 IRQCHIP_DECLARE(jaguar2_icpu, "mscc,jaguar2-icpu-intr", jaguar2_irq_init);

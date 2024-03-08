@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -263,7 +263,7 @@ void dce4_hdmi_audio_set_dto(struct radeon_device *rdev,
 
 	/* Express [24MHz / target pixel clock] as an exact rational
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
-	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the deanalminator
 	 */
 	WREG32(DCCG_AUDIO_DTO0_PHASE, dto_phase);
 	WREG32(DCCG_AUDIO_DTO0_MODULE, clock);
@@ -289,7 +289,7 @@ void dce4_dp_audio_set_dto(struct radeon_device *rdev,
 
 	/* Express [24MHz / target pixel clock] as an exact rational
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
-	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the deanalminator
 	 */
 	if (ASIC_IS_DCE41(rdev)) {
 		unsigned int div = (RREG32(DCE41_DENTIST_DISPCLK_CNTL) &
@@ -380,7 +380,7 @@ void dce4_set_audio_packet(struct drm_encoder *encoder, u32 offset)
 
 	WREG32(HDMI_AUDIO_PACKET_CONTROL + offset,
 	       HDMI_AUDIO_DELAY_EN(1) | /* set the default audio delay */
-	       HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
+	       HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small eanalugh for all hblanks */
 
 	/* allow 60958 channel status and send audio packets fields to be updated */
 	WREG32_OR(AFMT_AUDIO_PACKET_CONTROL + offset,

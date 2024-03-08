@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 **********
 References
@@ -51,7 +51,7 @@ ISO 13818-1
 ===========
 
 
-:title:     ITU-T Rec. H.222.0 | ISO/IEC 13818-1 "Information technology --- Generic coding of moving pictures and associated audio information: Systems"
+:title:     ITU-T Rec. H.222.0 | ISO/IEC 13818-1 "Information techanallogy --- Generic coding of moving pictures and associated audio information: Systems"
 
 :author:    International Telecommunication Union (http://www.itu.ch), International Organisation for Standardisation (http://www.iso.ch)
 
@@ -61,7 +61,7 @@ ISO 13818-2
 ===========
 
 
-:title:     ITU-T Rec. H.262 | ISO/IEC 13818-2 "Information technology --- Generic coding of moving pictures and associated audio information: Video"
+:title:     ITU-T Rec. H.262 | ISO/IEC 13818-2 "Information techanallogy --- Generic coding of moving pictures and associated audio information: Video"
 
 :author:    International Telecommunication Union (http://www.itu.ch), International Organisation for Standardisation (http://www.iso.ch)
 
@@ -150,7 +150,7 @@ ITU-T.81
 ========
 
 
-:title:     ITU-T Recommendation T.81 "Information Technology --- Digital Compression and Coding of Continous-Tone Still Images --- Requirements and Guidelines"
+:title:     ITU-T Recommendation T.81 "Information Techanallogy --- Digital Compression and Coding of Contianalus-Tone Still Images --- Requirements and Guidelines"
 
 :author:    International Telecommunication Union (http://www.itu.int)
 

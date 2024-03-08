@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2010-2011 Canonical Ltd <jeremy.kerr@canonical.com>
+ * Copyright (C) 2010-2011 Caanalnical Ltd <jeremy.kerr@caanalnical.com>
  * Copyright (C) 2011-2012 Mike Turquette, Linaro Ltd <mturquette@linaro.org>
  *
  * Fixed rate clock implementation
@@ -15,13 +15,13 @@
 #include <linux/platform_device.h>
 
 /*
- * DOC: basic fixed-rate clock that cannot gate
+ * DOC: basic fixed-rate clock that cananalt gate
  *
  * Traits of this clock:
  * prepare - clk_(un)prepare only ensures parents are prepared
  * enable - clk_enable only ensures parents are enabled
- * rate - rate is always a fixed value.  No clk_set_rate support
- * parent - fixed parent.  No clk_set_parent support
+ * rate - rate is always a fixed value.  Anal clk_set_rate support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 #define to_clk_fixed_rate(_hw) container_of(_hw, struct clk_fixed_rate, hw)
@@ -54,7 +54,7 @@ static void devm_clk_hw_register_fixed_rate_release(struct device *dev, void *re
 	struct clk_fixed_rate *fix = res;
 
 	/*
-	 * We can not use clk_hw_unregister_fixed_rate, since it will kfree()
+	 * We can analt use clk_hw_unregister_fixed_rate, since it will kfree()
 	 * the hw, resulting in double free. Just unregister the hw and let
 	 * devres code kfree() it.
 	 */
@@ -62,7 +62,7 @@ static void devm_clk_hw_register_fixed_rate_release(struct device *dev, void *re
 }
 
 struct clk_hw *__clk_hw_register_fixed_rate(struct device *dev,
-		struct device_node *np, const char *name,
+		struct device_analde *np, const char *name,
 		const char *parent_name, const struct clk_hw *parent_hw,
 		const struct clk_parent_data *parent_data, unsigned long flags,
 		unsigned long fixed_rate, unsigned long fixed_accuracy,
@@ -80,7 +80,7 @@ struct clk_hw *__clk_hw_register_fixed_rate(struct device *dev,
 	else
 		fixed = kzalloc(sizeof(*fixed), GFP_KERNEL);
 	if (!fixed)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_fixed_rate_ops;
@@ -157,27 +157,27 @@ void clk_hw_unregister_fixed_rate(struct clk_hw *hw)
 EXPORT_SYMBOL_GPL(clk_hw_unregister_fixed_rate);
 
 #ifdef CONFIG_OF
-static struct clk_hw *_of_fixed_clk_setup(struct device_node *node)
+static struct clk_hw *_of_fixed_clk_setup(struct device_analde *analde)
 {
 	struct clk_hw *hw;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	u32 rate;
 	u32 accuracy = 0;
 	int ret;
 
-	if (of_property_read_u32(node, "clock-frequency", &rate))
+	if (of_property_read_u32(analde, "clock-frequency", &rate))
 		return ERR_PTR(-EIO);
 
-	of_property_read_u32(node, "clock-accuracy", &accuracy);
+	of_property_read_u32(analde, "clock-accuracy", &accuracy);
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	hw = clk_hw_register_fixed_rate_with_accuracy(NULL, clk_name, NULL,
 						    0, rate, accuracy);
 	if (IS_ERR(hw))
 		return hw;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, hw);
 	if (ret) {
 		clk_hw_unregister_fixed_rate(hw);
 		return ERR_PTR(ret);
@@ -188,11 +188,11 @@ static struct clk_hw *_of_fixed_clk_setup(struct device_node *node)
 
 /**
  * of_fixed_clk_setup() - Setup function for simple fixed rate clock
- * @node:	device node for the clock
+ * @analde:	device analde for the clock
  */
-void __init of_fixed_clk_setup(struct device_node *node)
+void __init of_fixed_clk_setup(struct device_analde *analde)
 {
-	_of_fixed_clk_setup(node);
+	_of_fixed_clk_setup(analde);
 }
 CLK_OF_DECLARE(fixed_clk, "fixed-clock", of_fixed_clk_setup);
 
@@ -200,7 +200,7 @@ static void of_fixed_clk_remove(struct platform_device *pdev)
 {
 	struct clk_hw *hw = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 	clk_hw_unregister_fixed_rate(hw);
 }
 
@@ -209,10 +209,10 @@ static int of_fixed_clk_probe(struct platform_device *pdev)
 	struct clk_hw *hw;
 
 	/*
-	 * This function is not executed when of_fixed_clk_setup
+	 * This function is analt executed when of_fixed_clk_setup
 	 * succeeded.
 	 */
-	hw = _of_fixed_clk_setup(pdev->dev.of_node);
+	hw = _of_fixed_clk_setup(pdev->dev.of_analde);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 

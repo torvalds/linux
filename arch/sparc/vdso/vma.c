@@ -94,7 +94,7 @@ static int find_sections64(const struct vdso_image *image, struct vdso_elfinfo *
 
 	if (!e->dynsym || !e->dynstr) {
 		pr_err("VDSO64: Missing symbol sections.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -122,7 +122,7 @@ static int patchsym64(struct vdso_elfinfo *_e, const char *orig,
 
 	if (!nsym || !osym) {
 		pr_err("VDSO64: Missing symbols.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	osym->st_value = nsym->st_value;
 	osym->st_size = nsym->st_size;
@@ -162,7 +162,7 @@ static int find_sections32(const struct vdso_image *image, struct vdso_elfinfo *
 
 	if (!e->dynsym || !e->dynstr) {
 		pr_err("VDSO32: Missing symbol sections.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -190,7 +190,7 @@ static int patchsym32(struct vdso_elfinfo *_e, const char *orig,
 
 	if (!nsym || !osym) {
 		pr_err("VDSO32: Missing symbols.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	osym->st_value = nsym->st_value;
 	osym->st_size = nsym->st_size;
@@ -280,7 +280,7 @@ int __init init_vdso_image(const struct vdso_image *image,
 	}
 
 	/*
-	 * Now the vvar page.  This is uninitialized data.
+	 * Analw the vvar page.  This is uninitialized data.
 	 */
 
 	if (vvar_data == NULL) {
@@ -324,9 +324,9 @@ int __init init_vdso_image(const struct vdso_image *image,
 		vvar_mapping.pages = NULL;
 	}
 
-	pr_warn("Cannot allocate vdso\n");
+	pr_warn("Cananalt allocate vdso\n");
 	vdso_enabled = 0;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int __init init_vdso(void)

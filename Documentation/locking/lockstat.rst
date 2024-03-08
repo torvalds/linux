@@ -53,7 +53,7 @@ With these hooks we provide the following statistics:
 	- number of lock acquisitions that had to wait
  wait time
      min
-	- shortest (non-0) time we ever had to wait for a lock
+	- shortest (analn-0) time we ever had to wait for a lock
      max
 	- longest time we ever had to wait for a lock
      total
@@ -66,7 +66,7 @@ With these hooks we provide the following statistics:
 	- number of times we took the lock
  hold time
      min
-	- shortest (non-0) time we ever held the lock
+	- shortest (analn-0) time we ever held the lock
      max
 	- longest time we ever held the lock
      total
@@ -98,7 +98,7 @@ Disable collection of statistics::
 
 Look at the current lock statistics::
 
-  ( line numbers not part of actual output, done for clarity in the explanation
+  ( line numbers analt part of actual output, done for clarity in the explanation
     below )
 
   # less /proc/lock_stat
@@ -195,9 +195,9 @@ View the top contending locks::
 	       &(&zone->lru_lock)->rlock:         93000          94934           0.16          59.18      188253.78           1.98        1199912        3809894           0.15         391.40     3559518.81           0.93
 			 tasklist_lock-W:         40667          41130           0.23        1189.42      428980.51          10.43         270278         510106           0.16         653.51     3939674.91           7.72
 			 tasklist_lock-R:         21298          21305           0.20        1310.05      215511.12          10.12         186204         241258           0.14        1162.33     1179779.23           4.89
-			      rcu_node_1:         47656          49022           0.16         635.41      193616.41           3.95         844888        1865423           0.00         764.26     1656226.96           0.89
+			      rcu_analde_1:         47656          49022           0.16         635.41      193616.41           3.95         844888        1865423           0.00         764.26     1656226.96           0.89
        &(&dentry->d_lockref.lock)->rlock:         39791          40179           0.15        1302.08       88851.96           2.21        2790851       12527025           0.10        1910.75     3379714.27           0.27
-			      rcu_node_0:         29203          30064           0.16         786.55     1555573.00          51.74          88963         244254           0.00         398.87      428872.51           1.76
+			      rcu_analde_0:         29203          30064           0.16         786.55     1555573.00          51.74          88963         244254           0.00         398.87      428872.51           1.76
 
 Clear the statistics::
 

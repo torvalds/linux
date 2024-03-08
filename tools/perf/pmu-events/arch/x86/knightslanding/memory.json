@@ -592,9 +592,9 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from any NON_DRAM system address. This includes MMIO transactions",
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from any ANALN_DRAM system address. This includes MMIO transactions",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000020080",
         "SampleAfterValue": "100007",
@@ -790,9 +790,9 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from any NON_DRAM system address. This includes MMIO transactions",
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from any ANALN_DRAM system address. This includes MMIO transactions",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000020020",
         "SampleAfterValue": "100007",

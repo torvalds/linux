@@ -2,7 +2,7 @@
 /*
  * Loongson GPIO Support
  *
- * Copyright (C) 2022-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2022-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/kernel.h>
@@ -31,7 +31,7 @@ struct loongson_gpio_chip_data {
 
 struct loongson_gpio_chip {
 	struct gpio_chip	chip;
-	struct fwnode_handle	*fwnode;
+	struct fwanalde_handle	*fwanalde;
 	spinlock_t		lock;
 	void __iomem		*reg_base;
 	const struct loongson_gpio_chip_data *chip_data;
@@ -180,7 +180,7 @@ static int loongson_gpio_probe(struct platform_device *pdev)
 
 	lgpio = devm_kzalloc(dev, sizeof(*lgpio), GFP_KERNEL);
 	if (!lgpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lgpio->chip_data = device_get_match_data(dev);
 

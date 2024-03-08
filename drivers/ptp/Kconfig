@@ -18,7 +18,7 @@ config PTP_1588_CLOCK
 	  be used to achieve synchronization within a few dozen
 	  microseconds. In addition, with the help of special hardware
 	  time stamping units, it can be possible to achieve
-	  synchronization to within a few hundred nanoseconds.
+	  synchronization to within a few hundred naanalseconds.
 
 	  This driver adds support for PTP clocks as character
 	  devices. If you want to use a PTP clock, then you should
@@ -110,7 +110,7 @@ config PTP_1588_CLOCK_PCH
 	  This driver adds support for using the PCH EG20T as a PTP
 	  clock. The hardware supports time stamping of PTP packets
 	  when using the end-to-end delay (E2E) mechanism. The peer
-	  delay mechanism (P2P) is not supported.
+	  delay mechanism (P2P) is analt supported.
 
 	  This clock is only useful if your PTP programs are getting
 	  hardware time stamps on the PTP Ethernet packets using the
@@ -160,7 +160,7 @@ config PTP_1588_CLOCK_MOCK
 	depends on PTP_1588_CLOCK
 	help
 	  This driver offers a set of PTP clock manipulation operations over
-	  the system monotonic time. It can be used by virtual network device
+	  the system moanaltonic time. It can be used by virtual network device
 	  drivers to emulate PTP capabilities.
 
 	  To compile this driver as a module, choose M here: the module

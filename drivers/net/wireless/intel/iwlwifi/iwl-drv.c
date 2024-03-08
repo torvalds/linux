@@ -149,7 +149,7 @@ static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
 
 	data = vmalloc(sec->size);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->len = sec->size;
 	desc->offset = sec->offset;
@@ -210,7 +210,7 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		}
 		break;
 	default:
-		return "unknown-rf";
+		return "unkanalwn-rf";
 	}
 
 	cdb = CSR_HW_RFID_IS_CDB(trans->hw_rf_id) ? "4" : "";
@@ -250,7 +250,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		drv->fw_index--;
 
 	if (drv->fw_index < cfg->ucode_api_min) {
-		IWL_ERR(drv, "no suitable firmware found!\n");
+		IWL_ERR(drv, "anal suitable firmware found!\n");
 
 		if (cfg->ucode_api_min == cfg->ucode_api_max) {
 			IWL_ERR(drv, "%s-%d is required\n", fw_name_pre,
@@ -264,7 +264,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 
 		IWL_ERR(drv,
 			"check git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s-%d.ucode",
@@ -273,7 +273,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	IWL_DEBUG_FW_INFO(drv, "attempting to load firmware '%s'\n",
 			  drv->firmware_name);
 
-	return request_firmware_nowait(THIS_MODULE, 1, drv->firmware_name,
+	return request_firmware_analwait(THIS_MODULE, 1, drv->firmware_name,
 				       drv->trans->dev,
 				       GFP_KERNEL, drv, iwl_req_fw_callback);
 }
@@ -413,7 +413,7 @@ static int iwl_store_ucode_sec(struct iwl_firmware_pieces *pieces,
 	alloc_size = sizeof(*img->sec) * (img->sec_counter + 1);
 	sec = krealloc(img->sec, alloc_size, GFP_KERNEL);
 	if (!sec)
-		return -ENOMEM;
+		return -EANALMEM;
 	img->sec = sec;
 
 	sec = &img->sec[img->sec_counter];
@@ -557,7 +557,7 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 		 sizeof(drv->fw.fw_version),
 		 "%u.%u.%u.%u%s %s",
 		 IWL_UCODE_MAJOR(drv->fw.ucode_ver),
-		 IWL_UCODE_MINOR(drv->fw.ucode_ver),
+		 IWL_UCODE_MIANALR(drv->fw.ucode_ver),
 		 IWL_UCODE_API(drv->fw.ucode_ver),
 		 IWL_UCODE_SERIAL(drv->fw.ucode_ver),
 		 buildstr, iwl_reduced_fw_name(drv));
@@ -571,7 +571,7 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 	    get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA)) {
 
 		IWL_ERR(drv,
-			"uCode file size %d does not match expected size\n",
+			"uCode file size %d does analt match expected size\n",
 			(int)ucode_raw->size);
 		return -EINVAL;
 	}
@@ -737,7 +737,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		 sizeof(drv->fw.fw_version),
 		 "%u.%u.%u.%u%s %s",
 		 IWL_UCODE_MAJOR(drv->fw.ucode_ver),
-		 IWL_UCODE_MINOR(drv->fw.ucode_ver),
+		 IWL_UCODE_MIANALR(drv->fw.ucode_ver),
 		 IWL_UCODE_API(drv->fw.ucode_ver),
 		 IWL_UCODE_SERIAL(drv->fw.ucode_ver),
 		 buildstr, iwl_reduced_fw_name(drv));
@@ -822,10 +822,10 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				goto invalid_tlv_len;
 			/*
 			 * This driver only reads the first u32 as
-			 * right now no more features are defined,
+			 * right analw anal more features are defined,
 			 * if that changes then either the driver
-			 * will not work with the new firmware, or
-			 * it'll not take advantage of new features.
+			 * will analt work with the new firmware, or
+			 * it'll analt take advantage of new features.
 			 */
 			capa->flags = le32_to_cpup((const __le32 *)tlv_data);
 			break;
@@ -977,25 +977,25 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			break;
 		case IWL_UCODE_TLV_FW_VERSION: {
 			const __le32 *ptr = (const void *)tlv_data;
-			u32 major, minor;
+			u32 major, mianalr;
 			u8 local_comp;
 
 			if (tlv_len != sizeof(u32) * 3)
 				goto invalid_tlv_len;
 
 			major = le32_to_cpup(ptr++);
-			minor = le32_to_cpup(ptr++);
+			mianalr = le32_to_cpup(ptr++);
 			local_comp = le32_to_cpup(ptr);
 
 			if (major >= 35)
 				snprintf(drv->fw.fw_version,
 					 sizeof(drv->fw.fw_version),
-					"%u.%08x.%u %s", major, minor,
+					"%u.%08x.%u %s", major, mianalr,
 					local_comp, iwl_reduced_fw_name(drv));
 			else
 				snprintf(drv->fw.fw_version,
 					 sizeof(drv->fw.fw_version),
-					"%u.%u.%u %s", major, minor,
+					"%u.%u.%u %s", major, mianalr,
 					local_comp, iwl_reduced_fw_name(drv));
 			break;
 			}
@@ -1018,7 +1018,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (pieces->dbg_dest_tlv_init) {
 				IWL_ERR(drv,
-					"dbg destination ignored, already exists\n");
+					"dbg destination iganalred, already exists\n");
 				break;
 			}
 
@@ -1054,21 +1054,21 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (!pieces->dbg_dest_tlv_init) {
 				IWL_ERR(drv,
-					"Ignore dbg config %d - no destination configured\n",
+					"Iganalre dbg config %d - anal destination configured\n",
 					conf->id);
 				break;
 			}
 
 			if (conf->id >= ARRAY_SIZE(drv->fw.dbg.conf_tlv)) {
 				IWL_ERR(drv,
-					"Skip unknown configuration: %d\n",
+					"Skip unkanalwn configuration: %d\n",
 					conf->id);
 				break;
 			}
 
 			if (pieces->dbg_conf_tlv[conf->id]) {
 				IWL_ERR(drv,
-					"Ignore duplicate dbg config %d\n",
+					"Iganalre duplicate dbg config %d\n",
 					conf->id);
 				break;
 			}
@@ -1090,14 +1090,14 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (trigger_id >= ARRAY_SIZE(drv->fw.dbg.trigger_tlv)) {
 				IWL_ERR(drv,
-					"Skip unknown trigger: %u\n",
+					"Skip unkanalwn trigger: %u\n",
 					trigger->id);
 				break;
 			}
 
 			if (pieces->dbg_trigger_tlv[trigger_id]) {
 				IWL_ERR(drv,
-					"Ignore duplicate dbg trigger %u\n",
+					"Iganalre duplicate dbg trigger %u\n",
 					trigger->id);
 				break;
 			}
@@ -1155,7 +1155,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				paging_mem_size;
 			break;
 		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
-			/* ignored */
+			/* iganalred */
 			break;
 		case IWL_UCODE_TLV_FW_MEM_SEG: {
 			const struct iwl_fw_dbg_mem_seg_tlv *dbg_mem =
@@ -1173,7 +1173,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			       (pieces->n_mem_tlv + 1);
 			n = krealloc(pieces->dbg_mem_tlv, size, GFP_KERNEL);
 			if (!n)
-				return -ENOMEM;
+				return -EANALMEM;
 			pieces->dbg_mem_tlv = n;
 			pieces->dbg_mem_tlv[pieces->n_mem_tlv] = *dbg_mem;
 			pieces->n_mem_tlv++;
@@ -1183,7 +1183,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			drv->fw.iml_len = tlv_len;
 			drv->fw.iml = kmemdup(tlv_data, tlv_len, GFP_KERNEL);
 			if (!drv->fw.iml)
-				return -ENOMEM;
+				return -EANALMEM;
 			break;
 			}
 		case IWL_UCODE_TLV_FW_RECOVERY_INFO: {
@@ -1287,21 +1287,21 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			capa->cmd_versions = kmemdup(tlv_data, tlv_len,
 						     GFP_KERNEL);
 			if (!capa->cmd_versions)
-				return -ENOMEM;
+				return -EANALMEM;
 			capa->n_cmd_versions =
 				tlv_len / sizeof(struct iwl_fw_cmd_version);
 			break;
 		case IWL_UCODE_TLV_PHY_INTEGRATION_VERSION:
 			if (drv->fw.phy_integration_ver) {
 				IWL_ERR(drv,
-					"phy integration str ignored, already exists\n");
+					"phy integration str iganalred, already exists\n");
 				break;
 			}
 
 			drv->fw.phy_integration_ver =
 				kmemdup(tlv_data, tlv_len, GFP_KERNEL);
 			if (!drv->fw.phy_integration_ver)
-				return -ENOMEM;
+				return -EANALMEM;
 			drv->fw.phy_integration_ver_len = tlv_len;
 			break;
 		case IWL_UCODE_TLV_SEC_TABLE_ADDR:
@@ -1315,12 +1315,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			drv->trans->dbg.pc_data =
 				kmemdup(tlv_data, tlv_len, GFP_KERNEL);
 			if (!drv->trans->dbg.pc_data)
-				return -ENOMEM;
+				return -EANALMEM;
 			drv->trans->dbg.num_pc =
 				tlv_len / sizeof(struct iwl_pc_data);
 			break;
 		default:
-			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
+			IWL_DEBUG_INFO(drv, "unkanalwn TLV: %d\n", tlv_type);
 			break;
 		}
 	}
@@ -1357,13 +1357,13 @@ static int iwl_alloc_ucode(struct iwl_drv *drv,
 
 	sec = kcalloc(pieces->img[type].sec_counter, sizeof(*sec), GFP_KERNEL);
 	if (!sec)
-		return -ENOMEM;
+		return -EANALMEM;
 	drv->fw.img[type].sec = sec;
 	drv->fw.img[type].num_sec = pieces->img[type].sec_counter;
 
 	for (i = 0; i < pieces->img[type].sec_counter; i++)
 		if (iwl_alloc_fw_desc(drv, &sec[i], get_sec(pieces, type, i)))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	return 0;
 }
@@ -1553,7 +1553,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 	/*
-	 * In mvm uCode there is no difference between data and instructions
+	 * In mvm uCode there is anal difference between data and instructions
 	 * sections.
 	 */
 	if (fw->type == IWL_FW_DVM && validate_sec_sizes(drv, pieces,
@@ -1607,7 +1607,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 			 * relevant for internal buffer exclusively,
 			 * the base address is part of given with the length
 			 * of the buffer, and the size shift is give instead of
-			 * end shift. We now store these values in base_reg,
+			 * end shift. We analw store these values in base_reg,
 			 * and end shift, and when dumping the data we'll
 			 * manipulate it for extracting both the length and
 			 * base address */
@@ -1633,7 +1633,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	trigger_tlv_sz[FW_DBG_TRIGGER_MISSED_BEACONS] =
 		sizeof(struct iwl_fw_dbg_trigger_missed_bcon);
 	trigger_tlv_sz[FW_DBG_TRIGGER_CHANNEL_SWITCH] = 0;
-	trigger_tlv_sz[FW_DBG_TRIGGER_FW_NOTIF] =
+	trigger_tlv_sz[FW_DBG_TRIGGER_FW_ANALTIF] =
 		sizeof(struct iwl_fw_dbg_trigger_cmd);
 	trigger_tlv_sz[FW_DBG_TRIGGER_MLME] =
 		sizeof(struct iwl_fw_dbg_trigger_mlme);
@@ -1653,10 +1653,10 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg.trigger_tlv); i++) {
 		if (pieces->dbg_trigger_tlv[i]) {
 			/*
-			 * If the trigger isn't long enough, WARN and exit.
+			 * If the trigger isn't long eanalugh, WARN and exit.
 			 * Someone is trying to debug something and he won't
 			 * be able to catch the bug he is trying to chase.
-			 * We'd better be noisy to be sure he knows what's
+			 * We'd better be analisy to be sure he kanalws what's
 			 * going on.
 			 */
 			if (WARN_ON(pieces->dbg_trigger_tlv_len[i] <
@@ -1674,7 +1674,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		}
 	}
 
-	/* Now that we can no longer fail, copy information */
+	/* Analw that we can anal longer fail, copy information */
 
 	drv->fw.dbg.mem_tlv = pieces->dbg_mem_tlv;
 	pieces->dbg_mem_tlv = NULL;
@@ -1701,7 +1701,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->inst_errlog_ptr = pieces->inst_errlog_ptr;
 
 	/*
-	 * figure out the offset of chain noise reset and gain commands
+	 * figure out the offset of chain analise reset and gain commands
 	 * base on the size of standard phy calibration commands table size
 	 */
 	if (fw->ucode_capa.standard_phy_calibration_size >
@@ -1709,7 +1709,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		fw->ucode_capa.standard_phy_calibration_size =
 			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 
-	/* We have our copies now, allow OS release its copies */
+	/* We have our copies analw, allow OS release its copies */
 	release_firmware(ucode_raw);
 
 	iwl_dbg_tlv_load_bin(drv->trans->dev, drv->trans);
@@ -1790,7 +1790,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 
 	drv = kzalloc(sizeof(*drv), GFP_KERNEL);
 	if (!drv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1811,7 +1811,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 
 	drv->trans->dbg.domains_bitmap = IWL_TRANS_FW_DBG_DOMAIN(drv->trans);
 	if (iwlwifi_mod_params.enable_ini != ENABLE_INI) {
-		/* We have a non-default value in the module parameter,
+		/* We have a analn-default value in the module parameter,
 		 * take its value
 		 */
 		drv->trans->dbg.domains_bitmap &= 0xffff;
@@ -2003,13 +2003,13 @@ MODULE_PARM_DESC(enable_ini,
  * set bt_coex_active to true, uCode will do kill/defer
  * every time the priority line is asserted (BT is sending signals on the
  * priority line in the PCIx).
- * set bt_coex_active to false, uCode will ignore the BT activity and
- * perform the normal operation
+ * set bt_coex_active to false, uCode will iganalre the BT activity and
+ * perform the analrmal operation
  *
  * User might experience transmit issue on some platform due to WiFi/BT
  * co-exist problem. The possible behaviors are:
  *   Able to scan and finding all the available AP
- *   Not able to associate with any AP
+ *   Analt able to associate with any AP
  * On those platforms, WiFi communication can be restored by set
  * "bt_coex_active" module parameter to "false"
  *

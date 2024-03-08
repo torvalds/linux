@@ -74,15 +74,15 @@ struct coeff_ram {
 
 static inline void init_coeff_ram_cache(u8 *cache)
 {
-	static const u8 norm_addrs[] = { 0x00, 0x05, 0x0a, 0x0f, 0x14, 0x19,
+	static const u8 analrm_addrs[] = { 0x00, 0x05, 0x0a, 0x0f, 0x14, 0x19,
 		0x1f, 0x20, 0x25, 0x2a, 0x2f, 0x34, 0x39, 0x3f, 0x40, 0x45,
 		0x4a, 0x4f, 0x54, 0x59, 0x5f, 0x60, 0x65, 0x6a, 0x6f, 0x74,
 		0x79, 0x7f, 0x80, 0x85, 0x8c, 0x91, 0x96, 0x97, 0x9c, 0xa3,
 		0xa8, 0xad, 0xaf, 0xb0, 0xb5, 0xba, 0xbf, 0xc4, 0xc9};
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(norm_addrs); i++)
-		cache[((norm_addrs[i] + 1) * COEFF_SIZE) - 1] = 0x40;
+	for (i = 0; i < ARRAY_SIZE(analrm_addrs); i++)
+		cache[((analrm_addrs[i] + 1) * COEFF_SIZE) - 1] = 0x40;
 }
 
 static inline void coeff_ram_init(struct coeff_ram *ram)
@@ -729,7 +729,7 @@ static int pll_power_event(struct snd_soc_dapm_widget *w,
 	else
 		/*
 		 * FV_PLL1CLKEN_DISABLE and FV_PLL2CLKEN_DISABLE are
-		 * identical zero vzalues, there is no need to test
+		 * identical zero vzalues, there is anal need to test
 		 * the PLL index
 		 */
 		val = FV_PLL1CLKEN_DISABLE;
@@ -775,8 +775,8 @@ static inline int aif_set_provider(struct snd_soc_component *component,
 		reg = R_I2SP3CTL;
 		break;
 	default:
-		ret = -ENODEV;
-		dev_err(component->dev, "Unknown DAI %d (%d)\n", aif_id, ret);
+		ret = -EANALDEV;
+		dev_err(component->dev, "Unkanalwn DAI %d (%d)\n", aif_id, ret);
 		return ret;
 	}
 	mask = FM_I2SPCTL_PORTMS;
@@ -897,7 +897,7 @@ static struct soc_enum const data_out_ctrl_enums[] = {
 
 /* R_AUDIOMUX1 PG 0 ADDR 0x3A */
 static char const * const asrc_mux_txt[] = {
-		"None", "DAI 1", "DAI 2", "DAI 3"};
+		"Analne", "DAI 1", "DAI 2", "DAI 3"};
 
 static struct soc_enum const asrc_in_mux_enum =
 		SOC_ENUM_SINGLE(R_AUDIOMUX1, FB_AUDIOMUX1_ASRCIMUX,
@@ -1054,7 +1054,7 @@ static struct snd_kcontrol_new const in_proc_mux_ch1_dapm_enum =
 
 /* R_ICTL0 PG 1 ADDR 0x0A */
 static char const * const pol_txt[] = {
-		"Normal", "Invert"};
+		"Analrmal", "Invert"};
 
 static struct soc_enum const in_pol_ch1_enum =
 		SOC_ENUM_SINGLE(R_ICTL0, FB_ICTL0_IN0POL,
@@ -1065,8 +1065,8 @@ static struct soc_enum const in_pol_ch0_enum =
 				ARRAY_SIZE(pol_txt), pol_txt);
 
 static char const * const in_proc_ch_sel_txt[] = {
-		"Normal", "Mono Mix to Channel 0",
-		"Mono Mix to Channel 1", "Add"};
+		"Analrmal", "Moanal Mix to Channel 0",
+		"Moanal Mix to Channel 1", "Add"};
 
 static struct soc_enum const in_proc_ch01_sel_enum =
 		SOC_ENUM_SINGLE(R_ICTL0, FB_ICTL0_INPCH10SEL,
@@ -1150,12 +1150,12 @@ static struct soc_enum const ngate_type_enum =
 				ARRAY_SIZE(ngate_type_txt), ngate_type_txt);
 
 /* R_DMICCTL PG 1 ADDR 0x22 */
-static char const * const dmic_mono_sel_txt[] = {
-		"Stereo", "Mono"};
+static char const * const dmic_moanal_sel_txt[] = {
+		"Stereo", "Moanal"};
 
-static struct soc_enum const dmic_mono_sel_enum =
-		SOC_ENUM_SINGLE(R_DMICCTL, FB_DMICCTL_DMONO,
-			ARRAY_SIZE(dmic_mono_sel_txt), dmic_mono_sel_txt);
+static struct soc_enum const dmic_moanal_sel_enum =
+		SOC_ENUM_SINGLE(R_DMICCTL, FB_DMICCTL_DMOANAL,
+			ARRAY_SIZE(dmic_moanal_sel_txt), dmic_moanal_sel_txt);
 
 /* R_DACCTL PG 2 ADDR 0x01 */
 static struct soc_enum const dac_pol_r_enum =
@@ -1494,7 +1494,7 @@ static int bytes_info_ext(struct snd_kcontrol *kcontrol,
 static char const * const ch_0_1_mux_txt[] = {"DAI 1", "TDM 0_1"};
 
 static struct soc_enum const ch_0_1_mux_enum =
-		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
+		SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0,
 				ARRAY_SIZE(ch_0_1_mux_txt), ch_0_1_mux_txt);
 
 static struct snd_kcontrol_new const ch_0_1_mux_dapm_enum =
@@ -1504,7 +1504,7 @@ static struct snd_kcontrol_new const ch_0_1_mux_dapm_enum =
 static char const * const ch_2_3_mux_txt[] = {"DAI 2", "TDM 2_3"};
 
 static struct soc_enum const ch_2_3_mux_enum =
-		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
+		SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0,
 				ARRAY_SIZE(ch_2_3_mux_txt), ch_2_3_mux_txt);
 
 static struct snd_kcontrol_new const ch_2_3_mux_dapm_enum =
@@ -1514,7 +1514,7 @@ static struct snd_kcontrol_new const ch_2_3_mux_dapm_enum =
 static char const * const ch_4_5_mux_txt[] = {"DAI 3", "TDM 4_5"};
 
 static struct soc_enum const ch_4_5_mux_enum =
-		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
+		SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0,
 				ARRAY_SIZE(ch_4_5_mux_txt), ch_4_5_mux_txt);
 
 static struct snd_kcontrol_new const ch_4_5_mux_dapm_enum =
@@ -1696,14 +1696,14 @@ static struct snd_kcontrol_new const tscs454_snd_controls[] = {
 	SOC_SINGLE_RANGE("ALC Attack", R_ALCCTL3,
 			FB_ALCCTL3_ATK, 0, FM_ALCCTL3_ATK, 0),
 	/* R_NGATE PG 1 ADDR 0x21 */
-	SOC_SINGLE_TLV("Noise Gate Threshold Volume", R_NGATE,
+	SOC_SINGLE_TLV("Analise Gate Threshold Volume", R_NGATE,
 			FB_NGATE_NGTH, FM_NGATE_NGTH, 0, ngth_tlv_arr),
-	SOC_ENUM("Noise Gate Type", ngate_type_enum),
-	SOC_SINGLE("Noise Gate Switch", R_NGATE, FB_NGATE_NGAT, 1, 0),
+	SOC_ENUM("Analise Gate Type", ngate_type_enum),
+	SOC_SINGLE("Analise Gate Switch", R_NGATE, FB_NGATE_NGAT, 1, 0),
 	/* R_DMICCTL PG 1 ADDR 0x22 */
 	SOC_SINGLE("Digital Mic 2 Switch", R_DMICCTL, FB_DMICCTL_DMIC2EN, 1, 0),
 	SOC_SINGLE("Digital Mic 1 Switch", R_DMICCTL, FB_DMICCTL_DMIC1EN, 1, 0),
-	SOC_ENUM("Digital Mic Mono Select", dmic_mono_sel_enum),
+	SOC_ENUM("Digital Mic Moanal Select", dmic_moanal_sel_enum),
 	/* R_DACCTL PG 2 ADDR 0x01 */
 	SOC_ENUM("DAC Polarity Left", dac_pol_r_enum),
 	SOC_ENUM("DAC Polarity Right", dac_pol_l_enum),
@@ -2173,8 +2173,8 @@ static struct snd_kcontrol_new const tscs454_snd_controls[] = {
 	COEFF_RAM_CTL("DAC Bass Extraction BiQuad 1", BIQUAD_SIZE, 0x80),
 	COEFF_RAM_CTL("DAC Bass Extraction BiQuad 2", BIQUAD_SIZE, 0x85),
 
-	COEFF_RAM_CTL("DAC Bass Non Linear Function 1", COEFF_SIZE, 0x8a),
-	COEFF_RAM_CTL("DAC Bass Non Linear Function 2", COEFF_SIZE, 0x8b),
+	COEFF_RAM_CTL("DAC Bass Analn Linear Function 1", COEFF_SIZE, 0x8a),
+	COEFF_RAM_CTL("DAC Bass Analn Linear Function 2", COEFF_SIZE, 0x8b),
 
 	COEFF_RAM_CTL("DAC Bass Limiter BiQuad", BIQUAD_SIZE, 0x8c),
 
@@ -2185,8 +2185,8 @@ static struct snd_kcontrol_new const tscs454_snd_controls[] = {
 	COEFF_RAM_CTL("DAC Treb Extraction BiQuad 1", BIQUAD_SIZE, 0x97),
 	COEFF_RAM_CTL("DAC Treb Extraction BiQuad 2", BIQUAD_SIZE, 0x9c),
 
-	COEFF_RAM_CTL("DAC Treb Non Linear Function 1", COEFF_SIZE, 0xa1),
-	COEFF_RAM_CTL("DAC Treb Non Linear Function 2", COEFF_SIZE, 0xa2),
+	COEFF_RAM_CTL("DAC Treb Analn Linear Function 1", COEFF_SIZE, 0xa1),
+	COEFF_RAM_CTL("DAC Treb Analn Linear Function 2", COEFF_SIZE, 0xa2),
 
 	COEFF_RAM_CTL("DAC Treb Limiter BiQuad", BIQUAD_SIZE, 0xa3),
 
@@ -2244,8 +2244,8 @@ static struct snd_kcontrol_new const tscs454_snd_controls[] = {
 	COEFF_RAM_CTL("Speaker Bass Extraction BiQuad 1", BIQUAD_SIZE, 0x80),
 	COEFF_RAM_CTL("Speaker Bass Extraction BiQuad 2", BIQUAD_SIZE, 0x85),
 
-	COEFF_RAM_CTL("Speaker Bass Non Linear Function 1", COEFF_SIZE, 0x8a),
-	COEFF_RAM_CTL("Speaker Bass Non Linear Function 2", COEFF_SIZE, 0x8b),
+	COEFF_RAM_CTL("Speaker Bass Analn Linear Function 1", COEFF_SIZE, 0x8a),
+	COEFF_RAM_CTL("Speaker Bass Analn Linear Function 2", COEFF_SIZE, 0x8b),
 
 	COEFF_RAM_CTL("Speaker Bass Limiter BiQuad", BIQUAD_SIZE, 0x8c),
 
@@ -2256,8 +2256,8 @@ static struct snd_kcontrol_new const tscs454_snd_controls[] = {
 	COEFF_RAM_CTL("Speaker Treb Extraction BiQuad 1", BIQUAD_SIZE, 0x97),
 	COEFF_RAM_CTL("Speaker Treb Extraction BiQuad 2", BIQUAD_SIZE, 0x9c),
 
-	COEFF_RAM_CTL("Speaker Treb Non Linear Function 1", COEFF_SIZE, 0xa1),
-	COEFF_RAM_CTL("Speaker Treb Non Linear Function 2", COEFF_SIZE, 0xa2),
+	COEFF_RAM_CTL("Speaker Treb Analn Linear Function 1", COEFF_SIZE, 0xa1),
+	COEFF_RAM_CTL("Speaker Treb Analn Linear Function 2", COEFF_SIZE, 0xa2),
 
 	COEFF_RAM_CTL("Speaker Treb Limiter BiQuad", BIQUAD_SIZE, 0xa3),
 
@@ -2315,8 +2315,8 @@ static struct snd_kcontrol_new const tscs454_snd_controls[] = {
 	COEFF_RAM_CTL("Sub Bass Extraction BiQuad 1", BIQUAD_SIZE, 0x80),
 	COEFF_RAM_CTL("Sub Bass Extraction BiQuad 2", BIQUAD_SIZE, 0x85),
 
-	COEFF_RAM_CTL("Sub Bass Non Linear Function 1", COEFF_SIZE, 0x8a),
-	COEFF_RAM_CTL("Sub Bass Non Linear Function 2", COEFF_SIZE, 0x8b),
+	COEFF_RAM_CTL("Sub Bass Analn Linear Function 1", COEFF_SIZE, 0x8a),
+	COEFF_RAM_CTL("Sub Bass Analn Linear Function 2", COEFF_SIZE, 0x8b),
 
 	COEFF_RAM_CTL("Sub Bass Limiter BiQuad", BIQUAD_SIZE, 0x8c),
 
@@ -2327,8 +2327,8 @@ static struct snd_kcontrol_new const tscs454_snd_controls[] = {
 	COEFF_RAM_CTL("Sub Treb Extraction BiQuad 1", BIQUAD_SIZE, 0x97),
 	COEFF_RAM_CTL("Sub Treb Extraction BiQuad 2", BIQUAD_SIZE, 0x9c),
 
-	COEFF_RAM_CTL("Sub Treb Non Linear Function 1", COEFF_SIZE, 0xa1),
-	COEFF_RAM_CTL("Sub Treb Non Linear Function 2", COEFF_SIZE, 0xa2),
+	COEFF_RAM_CTL("Sub Treb Analn Linear Function 1", COEFF_SIZE, 0xa1),
+	COEFF_RAM_CTL("Sub Treb Analn Linear Function 2", COEFF_SIZE, 0xa2),
 
 	COEFF_RAM_CTL("Sub Treb Limiter BiQuad", BIQUAD_SIZE, 0xa3),
 
@@ -2417,45 +2417,45 @@ static struct snd_soc_dapm_widget const tscs454_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("ClassD Left", NULL, R_PWRM4, FB_PWRM4_OPSPKLPU, 0),
 	SND_SOC_DAPM_DAC("ClassD Right", NULL, R_PWRM4, FB_PWRM4_OPSPKRPU, 0),
 	/* R_AUDIOMUX1  PG 0 ADDR 0x3A */
-	SND_SOC_DAPM_MUX("DAI 2 Out Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI 2 Out Mux", SND_SOC_ANALPM, 0, 0,
 			&dai2_mux_dapm_enum),
-	SND_SOC_DAPM_MUX("DAI 1 Out Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI 1 Out Mux", SND_SOC_ANALPM, 0, 0,
 			&dai1_mux_dapm_enum),
 	/* R_AUDIOMUX2 PG 0 ADDR 0x3B */
-	SND_SOC_DAPM_MUX("DAC Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC Mux", SND_SOC_ANALPM, 0, 0,
 			&dac_mux_dapm_enum),
-	SND_SOC_DAPM_MUX("DAI 3 Out Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI 3 Out Mux", SND_SOC_ANALPM, 0, 0,
 			&dai3_mux_dapm_enum),
 	/* R_AUDIOMUX3 PG 0 ADDR 0x3C */
-	SND_SOC_DAPM_MUX("Sub Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Sub Mux", SND_SOC_ANALPM, 0, 0,
 			&sub_mux_dapm_enum),
-	SND_SOC_DAPM_MUX("Speaker Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Speaker Mux", SND_SOC_ANALPM, 0, 0,
 			&classd_mux_dapm_enum),
 	/* R_HSDCTL1 PG 1 ADDR 0x01 */
 	SND_SOC_DAPM_SUPPLY("GHS Detect Power", R_HSDCTL1,
 			FB_HSDCTL1_CON_DET_PWD, 1, NULL, 0),
 	/* R_CH0AIC PG 1 ADDR 0x06 */
-	SND_SOC_DAPM_MUX("Input Boost Channel 0 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Boost Channel 0 Mux", SND_SOC_ANALPM, 0, 0,
 			&in_bst_mux_ch0_dapm_enum),
-	SND_SOC_DAPM_MUX("ADC Channel 0 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC Channel 0 Mux", SND_SOC_ANALPM, 0, 0,
 			&adc_mux_ch0_dapm_enum),
-	SND_SOC_DAPM_MUX("Input Processor Channel 0 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Processor Channel 0 Mux", SND_SOC_ANALPM, 0, 0,
 			&in_proc_mux_ch0_dapm_enum),
 	/* R_CH1AIC PG 1 ADDR 0x07 */
-	SND_SOC_DAPM_MUX("Input Boost Channel 1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Boost Channel 1 Mux", SND_SOC_ANALPM, 0, 0,
 			&in_bst_mux_ch1_dapm_enum),
-	SND_SOC_DAPM_MUX("ADC Channel 1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC Channel 1 Mux", SND_SOC_ANALPM, 0, 0,
 			&adc_mux_ch1_dapm_enum),
-	SND_SOC_DAPM_MUX("Input Processor Channel 1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Processor Channel 1 Mux", SND_SOC_ANALPM, 0, 0,
 			&in_proc_mux_ch1_dapm_enum),
 	/* Virtual */
 	SND_SOC_DAPM_AIF_IN("DAI 3 In", "DAI 3 Playback", 0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("DAI 2 In", "DAI 2 Playback", 0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("DAI 1 In", "DAI 1 Playback", 0,
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_SUPPLY("PLLs", SND_SOC_NOPM, 0, 0, NULL, 0),
+			SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_SUPPLY("PLLs", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("Sub Out"),
 	SND_SOC_DAPM_OUTPUT("Headphone Left"),
 	SND_SOC_DAPM_OUTPUT("Headphone Right"),
@@ -2474,11 +2474,11 @@ static struct snd_soc_dapm_widget const tscs454_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("DMic 1"),
 	SND_SOC_DAPM_INPUT("DMic 2"),
 
-	SND_SOC_DAPM_MUX("CH 0_1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("CH 0_1 Mux", SND_SOC_ANALPM, 0, 0,
 			&ch_0_1_mux_dapm_enum),
-	SND_SOC_DAPM_MUX("CH 2_3 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("CH 2_3 Mux", SND_SOC_ANALPM, 0, 0,
 			&ch_2_3_mux_dapm_enum),
-	SND_SOC_DAPM_MUX("CH 4_5 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("CH 4_5 Mux", SND_SOC_ANALPM, 0, 0,
 			&ch_4_5_mux_dapm_enum),
 };
 
@@ -2677,7 +2677,7 @@ static int tscs454_set_bclk_ratio(struct snd_soc_dai *dai,
 		break;
 	default:
 		ret = -EINVAL;
-		dev_err(component->dev, "Unknown audio interface (%d)\n", ret);
+		dev_err(component->dev, "Unkanalwn audio interface (%d)\n", ret);
 		return ret;
 	}
 
@@ -2748,7 +2748,7 @@ static inline int set_aif_tdm_delay(struct snd_soc_component *component,
 	default:
 		ret = -EINVAL;
 		dev_err(component->dev,
-				"DAI %d unknown (%d)\n", dai_id + 1, ret);
+				"DAI %d unkanalwn (%d)\n", dai_id + 1, ret);
 		return ret;
 	}
 	ret = snd_soc_component_update_bits(component,
@@ -2782,7 +2782,7 @@ static inline int set_aif_format_from_fmt(struct snd_soc_component *component,
 	default:
 		ret = -EINVAL;
 		dev_err(component->dev,
-				"DAI %d unknown (%d)\n", dai_id + 1, ret);
+				"DAI %d unkanalwn (%d)\n", dai_id + 1, ret);
 		return ret;
 	}
 
@@ -2846,26 +2846,26 @@ set_aif_clock_format_from_fmt(struct snd_soc_component *component,
 	default:
 		ret = -EINVAL;
 		dev_err(component->dev,
-				"DAI %d unknown (%d)\n", dai_id + 1, ret);
+				"DAI %d unkanalwn (%d)\n", dai_id + 1, ret);
 		return ret;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		val = FV_BCLKP_NOT_INVERTED | FV_LRCLKP_NOT_INVERTED;
+		val = FV_BCLKP_ANALT_INVERTED | FV_LRCLKP_ANALT_INVERTED;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		val = FV_BCLKP_NOT_INVERTED | FV_LRCLKP_INVERTED;
+		val = FV_BCLKP_ANALT_INVERTED | FV_LRCLKP_INVERTED;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		val = FV_BCLKP_INVERTED | FV_LRCLKP_NOT_INVERTED;
+		val = FV_BCLKP_INVERTED | FV_LRCLKP_ANALT_INVERTED;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
 		val = FV_BCLKP_INVERTED | FV_LRCLKP_INVERTED;
 		break;
 	default:
 		ret = -EINVAL;
-		dev_err(component->dev, "Format unknown (%d)\n", ret);
+		dev_err(component->dev, "Format unkanalwn (%d)\n", ret);
 		return ret;
 	}
 
@@ -3097,7 +3097,7 @@ static int set_aif_fs(struct snd_soc_component *component,
 		break;
 	default:
 		ret = -EINVAL;
-		dev_err(component->dev, "DAI ID not recognized (%d)\n", ret);
+		dev_err(component->dev, "DAI ID analt recognized (%d)\n", ret);
 		return ret;
 	}
 
@@ -3151,7 +3151,7 @@ static int set_aif_sample_format(struct snd_soc_component *component,
 		break;
 	default:
 		ret = -EINVAL;
-		dev_err(component->dev, "AIF ID not recognized (%d)\n", ret);
+		dev_err(component->dev, "AIF ID analt recognized (%d)\n", ret);
 		return ret;
 	}
 
@@ -3408,7 +3408,7 @@ static int tscs454_i2c_probe(struct i2c_client *i2c)
 
 	tscs454 = devm_kzalloc(&i2c->dev, sizeof(*tscs454), GFP_KERNEL);
 	if (!tscs454)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = tscs454_data_init(tscs454, i2c);
 	if (ret < 0)
@@ -3420,7 +3420,7 @@ static int tscs454_i2c_probe(struct i2c_client *i2c)
 		tscs454->sysclk = devm_clk_get(&i2c->dev, src_names[src]);
 		if (!IS_ERR(tscs454->sysclk)) {
 			break;
-		} else if (PTR_ERR(tscs454->sysclk) != -ENOENT) {
+		} else if (PTR_ERR(tscs454->sysclk) != -EANALENT) {
 			ret = PTR_ERR(tscs454->sysclk);
 			dev_err(&i2c->dev, "Failed to get sysclk (%d)\n", ret);
 			return ret;

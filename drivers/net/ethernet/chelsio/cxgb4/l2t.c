@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -74,7 +74,7 @@ static inline void l2t_hold(struct l2t_data *d, struct l2t_entry *e)
 }
 
 /*
- * To avoid having to check address families we do not allow v4 and v6
+ * To avoid having to check address families we do analt allow v4 and v6
  * neighbors to be on the same hash chain.  We keep v4 entries in the first
  * half of available hash buckets and v6 in the second.  We need at least two
  * entries in our L2T for this scheme to work.
@@ -109,7 +109,7 @@ static unsigned int addr_hash(struct l2t_data *d, const u32 *addr,
 }
 
 /*
- * Checks if an L2T entry is for the given IP/IPv6 address.  It does not check
+ * Checks if an L2T entry is for the given IP/IPv6 address.  It does analt check
  * whether the L2T entry and the address are of the same address family.
  * Callers ensure an address is only checked against L2T entries of the same
  * family, something made trivial by the separation of IP and IPv6 hash chains
@@ -133,7 +133,7 @@ static void neigh_replace(struct l2t_entry *e, struct neighbour *n)
 
 /*
  * Write an L2T entry.  Must be called with the entry locked.
- * The write may be synchronous or asynchronous.
+ * The write may be synchroanalus or asynchroanalus.
  */
 static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 {
@@ -144,7 +144,7 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 
 	skb = alloc_skb(sizeof(*req), GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = __skb_put(skb, sizeof(*req));
 	INIT_TP_WR(req, 0);
@@ -152,7 +152,7 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ,
 					l2t_idx | (sync ? SYNC_WR_F : 0) |
 					TID_QID_V(adap->sge.fw_evtq.abs_id)));
-	req->params = htons(L2T_W_PORT_V(e->lport) | L2T_W_NOREPLY_V(!sync));
+	req->params = htons(L2T_W_PORT_V(e->lport) | L2T_W_ANALREPLY_V(!sync));
 	req->l2t_idx = htons(l2t_idx);
 	req->vlan = htons(e->vlan);
 	if (e->neigh && !(e->neigh->dev->flags & IFF_LOOPBACK))
@@ -180,7 +180,7 @@ static void send_pending(struct adapter *adap, struct l2t_entry *e)
 
 /*
  * Process a CPL_L2T_WRITE_RPL.  Wake up the ARP queue if it completes a
- * synchronous L2T_WRITE.  Note that the TID in the reply is really the L2T
+ * synchroanalus L2T_WRITE.  Analte that the TID in the reply is really the L2T
  * index it refers to.
  */
 void do_l2t_write_rpl(struct adapter *adap, const struct cpl_l2t_write_rpl *rpl)
@@ -189,7 +189,7 @@ void do_l2t_write_rpl(struct adapter *adap, const struct cpl_l2t_write_rpl *rpl)
 	unsigned int tid = GET_TID(rpl);
 	unsigned int l2t_idx = tid % L2T_SIZE;
 
-	if (unlikely(rpl->status != CPL_ERR_NONE)) {
+	if (unlikely(rpl->status != CPL_ERR_ANALNE)) {
 		dev_err(adap->pdev_dev,
 			"Unexpected L2T_WRITE_RPL status %u for entry %u\n",
 			rpl->status, l2t_idx);
@@ -338,7 +338,7 @@ exists:
 	return e;
 }
 
-/* Called when an L2T entry has no more users.  The entry is left in the hash
+/* Called when an L2T entry has anal more users.  The entry is left in the hash
  * table since it is likely to be reused but we also bump nfree to indicate
  * that the entry can be reallocated for a different neighbor.  We also drop
  * the existing neighbor reference in case the neighbor is going away and is
@@ -433,7 +433,7 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 		vlan = vlan_dev_vlan_id(neigh->dev);
 		vlan |= vlan_dev_get_egress_qos_mask(neigh->dev, priority);
 	} else {
-		vlan = VLAN_NONE;
+		vlan = VLAN_ANALNE;
 	}
 
 	write_lock_bh(&d->lock);
@@ -481,7 +481,7 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 	/* Initialize each of the fields which we care about which are present
 	 * in the Compressed Filter Tuple.
 	 */
-	if (tp->vlan_shift >= 0 && l2t->vlan != VLAN_NONE)
+	if (tp->vlan_shift >= 0 && l2t->vlan != VLAN_ANALNE)
 		ntuple |= (u64)(FT_VLAN_VLD_F | l2t->vlan) << tp->vlan_shift;
 
 	if (tp->port_shift >= 0)
@@ -571,8 +571,8 @@ void t4_l2t_update(struct adapter *adap, struct neighbour *neigh)
 }
 
 /* Allocate an L2T entry for use by a switching rule.  Such need to be
- * explicitly freed and while busy they are not on any hash chain, so normal
- * address resolution updates do not see them.
+ * explicitly freed and while busy they are analt on any hash chain, so analrmal
+ * address resolution updates do analt see them.
  */
 struct l2t_entry *t4_l2t_alloc_switching(struct adapter *adap, u16 vlan,
 					 u8 port, u8 *eth_addr)
@@ -740,12 +740,12 @@ static const struct seq_operations l2t_seq_ops = {
 	.show = l2t_seq_show
 };
 
-static int l2t_seq_open(struct inode *inode, struct file *file)
+static int l2t_seq_open(struct ianalde *ianalde, struct file *file)
 {
 	int rc = seq_open(file, &l2t_seq_ops);
 
 	if (!rc) {
-		struct adapter *adap = inode->i_private;
+		struct adapter *adap = ianalde->i_private;
 		struct seq_file *seq = file->private_data;
 
 		seq->private = adap->l2t;

@@ -4,7 +4,7 @@
  * Copyright (C) 2000 Deep Blue Solutions Ltd
  * Copyright 2006-2007 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
- * Copyright 2009 Ilya Yanok, Emcraft Systems Ltd, yanok@emcraft.com
+ * Copyright 2009 Ilya Yaanalk, Emcraft Systems Ltd, yaanalk@emcraft.com
  */
 
 #include <linux/kernel.h>
@@ -42,7 +42,7 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 	imx_writew(wcr_enable, wdog_base);
 	/*
 	 * Due to imx6q errata ERR004346 (WDOG: WDOG SRS bit requires to be
-	 * written twice), we add another two writes to ensure there must be at
+	 * written twice), we add aanalther two writes to ensure there must be at
 	 * least two writes happen in the same one 32kHz clock period.  We save
 	 * the target check here, since the writes shouldn't be a huge burden
 	 * for other platforms.
@@ -86,16 +86,16 @@ void __init imx1_reset_init(void __iomem *base)
 void __init imx_init_l2cache(void)
 {
 	void __iomem *l2x0_base;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int val;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
+	np = of_find_compatible_analde(NULL, NULL, "arm,pl310-cache");
 	if (!np)
 		return;
 
 	l2x0_base = of_iomap(np, 0);
 	if (!l2x0_base)
-		goto put_node;
+		goto put_analde;
 
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
 		/* Configure the L2 PREFETCH and POWER registers */
@@ -112,7 +112,7 @@ void __init imx_init_l2cache(void)
 	}
 
 	iounmap(l2x0_base);
-put_node:
-	of_node_put(np);
+put_analde:
+	of_analde_put(np);
 }
 #endif

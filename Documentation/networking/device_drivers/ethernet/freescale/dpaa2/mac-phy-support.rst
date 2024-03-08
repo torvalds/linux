@@ -25,7 +25,7 @@ Data connections may be established between a DPNI and a DPMAC, or between two
 DPNIs. Depending on the connection type, the netif_carrier_[on/off] is handled
 directly by the dpaa2-eth driver or by phylink.
 
-.. code-block:: none
+.. code-block:: analne
 
   Sources of abstracted link state information presented by the MC firmware
 
@@ -63,7 +63,7 @@ Depending on an MC firmware configuration setting, each MAC may be in one of two
 
 - DPMAC_LINK_TYPE_FIXED: the link state management is handled exclusively by
   the MC firmware by polling the MAC PCS. Without the need to register a
-  phylink instance, the dpaa2-eth driver will not bind to the connected dpmac
+  phylink instance, the dpaa2-eth driver will analt bind to the connected dpmac
   object at all.
 
 - DPMAC_LINK_TYPE_PHY: The MC firmware is left waiting for link state update
@@ -112,7 +112,7 @@ the following sequence of operations:
 (6) The dpaa2-eth driver handles the LINK_STATE_CHANGE irq in order to
     enable/disable Rx taildrop based on the pause frame settings.
 
-.. code-block:: none
+.. code-block:: analne
 
   +---------+               +---------+
   | PHYLINK |-------------->|  eth0   |
@@ -146,11 +146,11 @@ the following:
 (3) ip link set dev eth1 up
 (4) The dpni_enable() MC API called on the associated fsl_mc_device.
 (5) The LINK_STATE_CHANGED irq is received by both instances of the dpaa2-eth
-    driver because now the operational link state is up.
+    driver because analw the operational link state is up.
 (6) The netif_carrier_on() is called on the exported net_device from
     link_state_update().
 
-.. code-block:: none
+.. code-block:: analne
 
   +---------+               +---------+
   |  eth0   |               |  eth1   |
@@ -181,10 +181,10 @@ when necessary using the below listed API::
  - int dpaa2_mac_connect(struct dpaa2_mac *mac);
  - void dpaa2_mac_disconnect(struct dpaa2_mac *mac);
 
-A phylink integration is necessary only when the partner DPMAC is not of
+A phylink integration is necessary only when the partner DPMAC is analt of
 ``TYPE_FIXED``. This means it is either of ``TYPE_PHY``, or of
 ``TYPE_BACKPLANE`` (the difference being the two that in the ``TYPE_BACKPLANE``
-mode, the MC firmware does not access the PCS registers). One can check for
+mode, the MC firmware does analt access the PCS registers). One can check for
 this condition using the following helper::
 
  - static inline bool dpaa2_mac_is_type_phy(struct dpaa2_mac *mac);

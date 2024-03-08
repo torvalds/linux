@@ -36,7 +36,7 @@ static int mc13xxx_rtc_irq_enable_unlocked(struct device *dev,
 	int (*func)(struct mc13xxx *mc13xxx, int irq);
 
 	if (!priv->valid)
-		return -ENODATA;
+		return -EANALDATA;
 
 	func = enabled ? mc13xxx_irq_unmask : mc13xxx_irq_mask;
 	return func(priv->mc13xxx, irq);
@@ -63,7 +63,7 @@ static int mc13xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned int seconds, days1, days2;
 
 	if (!priv->valid)
-		return -ENODATA;
+		return -EANALDATA;
 
 	do {
 		int ret;
@@ -166,7 +166,7 @@ static int mc13xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (unlikely(ret))
 		goto out;
 	if (seconds >= SEC_PER_DAY) {
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		goto out;
 	}
 
@@ -276,7 +276,7 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mc13xxx = dev_get_drvdata(pdev->dev.parent);
 	priv->mc13xxx = mc13xxx;
@@ -300,7 +300,7 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_irq_request;
 
-	ret = mc13xxx_irq_request_nounmask(mc13xxx, MC13XXX_IRQ_TODA,
+	ret = mc13xxx_irq_request_analunmask(mc13xxx, MC13XXX_IRQ_TODA,
 			mc13xxx_rtc_alarm_handler, DRIVER_NAME, priv);
 	if (ret)
 		goto err_irq_request;

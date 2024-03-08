@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,12 +48,12 @@ nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 	if (!uevent)
 		return 0;
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	switch (args->v0.type) {
-	case NVIF_CHAN_EVENT_V0_NON_STALL_INTR:
-		return nvkm_uevent_add(uevent, &runl->fifo->nonstall.event, runl->id,
-				       NVKM_FIFO_NONSTALL_EVENT, NULL);
+	case NVIF_CHAN_EVENT_V0_ANALN_STALL_INTR:
+		return nvkm_uevent_add(uevent, &runl->fifo->analnstall.event, runl->id,
+				       NVKM_FIFO_ANALNSTALL_EVENT, NULL);
 	case NVIF_CHAN_EVENT_V0_KILLED:
 		return nvkm_uevent_add(uevent, &runl->chid->event, chan->id,
 				       NVKM_CHAN_EVENT_ERRORED, NULL);
@@ -61,7 +61,7 @@ nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 		break;
 	}
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 struct nvkm_uobj {
@@ -82,7 +82,7 @@ nvkm_uchan_object_fini_1(struct nvkm_oproxy *oproxy, bool suspend)
 	if (!ectx->object)
 		return 0;
 
-	/* Unbind engine context from channel, if no longer required. */
+	/* Unbind engine context from channel, if anal longer required. */
 	if (refcount_dec_and_mutex_lock(&cctx->uses, &chan->cgrp->mutex)) {
 		nvkm_chan_cctx_bind(chan, ectx->engn, NULL);
 
@@ -107,10 +107,10 @@ nvkm_uchan_object_init_0(struct nvkm_oproxy *oproxy)
 		return 0;
 
 	/* Bind engine context to channel, if it hasn't been already. */
-	if (!refcount_inc_not_zero(&cctx->uses)) {
+	if (!refcount_inc_analt_zero(&cctx->uses)) {
 		mutex_lock(&chan->cgrp->mutex);
-		if (!refcount_inc_not_zero(&cctx->uses)) {
-			if (!refcount_inc_not_zero(&ectx->uses)) {
+		if (!refcount_inc_analt_zero(&cctx->uses)) {
+			if (!refcount_inc_analt_zero(&ectx->uses)) {
 				ret = nvkm_object_init(ectx->object);
 				if (ret == 0)
 					refcount_set(&ectx->uses, 1);
@@ -167,7 +167,7 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 
 	/* Allocate SW object. */
 	if (!(uobj = kzalloc(sizeof(*uobj), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_oproxy_ctor(&nvkm_uchan_object, oclass, &uobj->oproxy);
 	uobj->chan = chan;
@@ -259,7 +259,7 @@ nvkm_uchan_map(struct nvkm_object *object, void *argv, u32 argc,
 	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
 
 	if (chan->func->userd->bar < 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	*type = NVKM_OBJECT_MAP_IO;
 	*addr = device->func->resource_addr(device, chan->func->userd->bar) +
@@ -340,7 +340,7 @@ nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm
 	int ret;
 
 	if (argc < sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	argc -= sizeof(args->v0);
 
 	if (args->v0.namelen != argc)
@@ -376,7 +376,7 @@ nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm
 
 	/* Allocate channel. */
 	if (!(uchan = kzalloc(sizeof(*uchan), GFP_KERNEL))) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 

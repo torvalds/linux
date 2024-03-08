@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2021 Mellanox Technologies. */
+/* Copyright (c) 2021 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5_EN_TC_SAMPLE_H__
 #define __MLX5_EN_TC_SAMPLE_H__
@@ -29,7 +29,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *sample_priv,
 			struct mlx5_flow_attr *attr);
 
 void
-mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *sample_priv,
+mlx5e_tc_sample_uanalffload(struct mlx5e_tc_psample *sample_priv,
 			  struct mlx5_flow_handle *rule,
 			  struct mlx5_flow_attr *attr);
 
@@ -45,16 +45,16 @@ static inline struct mlx5_flow_handle *
 mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 			struct mlx5_flow_spec *spec,
 			struct mlx5_flow_attr *attr)
-{ return ERR_PTR(-EOPNOTSUPP); }
+{ return ERR_PTR(-EOPANALTSUPP); }
 
 static inline void
-mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
+mlx5e_tc_sample_uanalffload(struct mlx5e_tc_psample *tc_psample,
 			  struct mlx5_flow_handle *rule,
 			  struct mlx5_flow_attr *attr) {}
 
 static inline struct mlx5e_tc_psample *
 mlx5e_tc_sample_init(struct mlx5_eswitch *esw, struct mlx5e_post_act *post_act)
-{ return ERR_PTR(-EOPNOTSUPP); }
+{ return ERR_PTR(-EOPANALTSUPP); }
 
 static inline void
 mlx5e_tc_sample_cleanup(struct mlx5e_tc_psample *tc_psample) {}

@@ -96,7 +96,7 @@ struct net_device *l3mdev_master_dev_rcu(const struct net_device *_dev)
 {
 	/* netdev_master_upper_dev_get_rcu calls
 	 * list_first_or_null_rcu to walk the upper dev list.
-	 * list_first_or_null_rcu does not handle a const arg. We aren't
+	 * list_first_or_null_rcu does analt handle a const arg. We aren't
 	 * making changes, just want the master device from that list so
 	 * typecast to remove the const
 	 */
@@ -303,7 +303,7 @@ static inline
 int l3mdev_table_lookup_register(enum l3mdev_type l3type,
 				 lookup_by_table_id_t fn)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline
@@ -316,7 +316,7 @@ static inline
 int l3mdev_ifindex_lookup_by_table_id(enum l3mdev_type l3type, struct net *net,
 				      u32 table_id)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline

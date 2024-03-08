@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /******************************************************************************
 *******************************************************************************
 **
@@ -34,7 +34,7 @@ typedef void dlm_lockspace_t;
  * lock.  DLM writes the status of the lock request and the lock ID assigned
  * to the request in the lock status block.
  *
- * sb_lkid: the returned lock ID.  It is set on new (non-conversion) requests.
+ * sb_lkid: the returned lock ID.  It is set on new (analn-conversion) requests.
  * It is available when dlm_lock returns.
  *
  * sb_lvbptr: saves or returns the contents of the lock's LVB according to rules
@@ -42,13 +42,13 @@ typedef void dlm_lockspace_t;
  *
  * sb_flags: DLM_SBF_DEMOTED is returned if in the process of promoting a lock,
  * it was first demoted to NL to avoid conversion deadlock.
- * DLM_SBF_VALNOTVALID is returned if the resource's LVB is marked invalid.
+ * DLM_SBF_VALANALTVALID is returned if the resource's LVB is marked invalid.
  *
  * sb_status: the returned status of the lock request set prior to AST
  * execution.  Possible return values:
  *
  * 0 if lock request was successful
- * -EAGAIN if request would block and is flagged DLM_LKF_NOQUEUE
+ * -EAGAIN if request would block and is flagged DLM_LKF_ANALQUEUE
  * -DLM_EUNLOCK if unlock request was successful
  * -DLM_ECANCEL if a cancel completed successfully
  * -EDEADLK if a deadlock was detected
@@ -56,7 +56,7 @@ typedef void dlm_lockspace_t;
  */
 
 #define DLM_SBF_DEMOTED		0x01
-#define DLM_SBF_VALNOTVALID	0x02
+#define DLM_SBF_VALANALTVALID	0x02
 #define DLM_SBF_ALTMODE		0x04
 
 struct dlm_lksb {
@@ -68,7 +68,7 @@ struct dlm_lksb {
 
 /* dlm_new_lockspace() flags */
 
-/* DLM_LSFL_TIMEWARN is deprecated and reserved. DO NOT USE! */
+/* DLM_LSFL_TIMEWARN is deprecated and reserved. DO ANALT USE! */
 #define DLM_LSFL_TIMEWARN	0x00000002
 #define DLM_LSFL_NEWEXCL     	0x00000008
 

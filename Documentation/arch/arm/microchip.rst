@@ -6,9 +6,9 @@ ARM Microchip SoCs (aka AT91)
 Introduction
 ------------
 This document gives useful information about the ARM Microchip SoCs that are
-currently supported in Linux Mainline (you know, the one on kernel.org).
+currently supported in Linux Mainline (you kanalw, the one on kernel.org).
 
-It is important to note that the Microchip (previously Atmel) ARM-based MPU
+It is important to analte that the Microchip (previously Atmel) ARM-based MPU
 product line is historically named "AT91" or "at91" throughout the Linux kernel
 development process even if this product prefix has completely disappeared from
 the official Microchip product name. Anyway, files, directories, git trees,
@@ -220,11 +220,11 @@ Naming conventions and best practice:
 
 - SoCs Device Tree Source Include files are named after the official name of
   the product (at91sam9g20.dtsi or sama5d33.dtsi for instance).
-- Device Tree Source Include files (.dtsi) are used to collect common nodes that can be
+- Device Tree Source Include files (.dtsi) are used to collect common analdes that can be
   shared across SoCs or boards (sama5d3.dtsi or at91sam9x5cm.dtsi for instance).
-  When collecting nodes for a particular peripheral or topic, the identifier have to
+  When collecting analdes for a particular peripheral or topic, the identifier have to
   be placed at the end of the file name, separated with a "_" (at91sam9x5_can.dtsi
   or sama5d3_gmac.dtsi for example).
 - board Device Tree Source files (.dts) are prefixed by the string "at91-" so
-  that they can be identified easily. Note that some files are historical exceptions
+  that they can be identified easily. Analte that some files are historical exceptions
   to this rule (sama5d3[13456]ek.dts, usb_a9g20.dts or animeo_ip.dts for example).

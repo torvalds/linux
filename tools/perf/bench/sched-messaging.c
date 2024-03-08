@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -99,7 +99,7 @@ static void *sender(struct sender_context *ctx)
 	ready(ctx->ready_out, ctx->wakefd);
 	memset(data, 'S', sizeof(data));
 
-	/* Now pump to every receiver. */
+	/* Analw pump to every receiver. */
 	for (i = 0; i < nr_loops; i++) {
 		for (j = 0; j < ctx->num_fds; j++) {
 			int ret, done = 0;
@@ -245,7 +245,7 @@ static unsigned int group(union messaging_worker *worker,
 			close(fds[0]);
 	}
 
-	/* Now we have all the fds, fork the senders */
+	/* Analw we have all the fds, fork the senders */
 	for (i = 0; i < num_fds; i++) {
 		snd_ctx->ready_out = ready_out;
 		snd_ctx->wakefd = wakefd;
@@ -268,7 +268,7 @@ static void sig_handler(int sig __maybe_unused)
 	unsigned int i;
 
 	/*
-	 * When exit abnormally, kill all forked child processes.
+	 * When exit abanalrmally, kill all forked child processes.
 	 */
 	for (i = 0; i < total_children; i++)
 		kill(worker_tab[i].pid, SIGKILL);
@@ -353,7 +353,7 @@ int bench_sched_messaging(int argc, const char **argv)
 		break;
 	default:
 		/* reaching here is something disaster */
-		fprintf(stderr, "Unknown format:%d\n", bench_format);
+		fprintf(stderr, "Unkanalwn format:%d\n", bench_format);
 		exit(1);
 		break;
 	}

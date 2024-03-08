@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -43,7 +43,7 @@
 
 #define ATH6KL_TX_TIMEOUT      10
 #define ATH6KL_MAX_ENDPOINTS   4
-#define MAX_NODE_NUM           15
+#define MAX_ANALDE_NUM           15
 
 #define ATH6KL_APSD_ALL_FRAME		0xFFFF
 #define ATH6KL_APSD_NUM_OF_AC		0x4
@@ -121,8 +121,8 @@ enum ath6kl_fw_capability {
 	/* FW sets mac_addr[4] ^= 0x80 for newly created interfaces */
 	ATH6KL_FW_CAPABILITY_CUSTOM_MAC_ADDR,
 
-	/* Firmware supports TX error rate notification */
-	ATH6KL_FW_CAPABILITY_TX_ERR_NOTIFY,
+	/* Firmware supports TX error rate analtification */
+	ATH6KL_FW_CAPABILITY_TX_ERR_ANALTIFY,
 
 	/* supports WMI_SET_REGDOMAIN_CMDID command */
 	ATH6KL_FW_CAPABILITY_REGDOMAIN,
@@ -149,7 +149,7 @@ enum ath6kl_fw_capability {
 	ATH6KL_FW_CAPABILITY_RATETABLE_MCS15,
 
 	/* firmware doesn't support IP checksumming */
-	ATH6KL_FW_CAPABILITY_NO_IP_CHECKSUM,
+	ATH6KL_FW_CAPABILITY_ANAL_IP_CHECKSUM,
 
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
@@ -260,8 +260,8 @@ enum ath6kl_hw_flags {
 #define AGGR_WIN_IDX(x, y)          ((x) % (y))
 #define AGGR_INCR_IDX(x, y)         AGGR_WIN_IDX(((x) + 1), (y))
 #define AGGR_DCRM_IDX(x, y)         AGGR_WIN_IDX(((x) - 1), (y))
-#define ATH6KL_MAX_SEQ_NO		0xFFF
-#define ATH6KL_NEXT_SEQ_NO(x)		(((x) + 1) & ATH6KL_MAX_SEQ_NO)
+#define ATH6KL_MAX_SEQ_ANAL		0xFFF
+#define ATH6KL_NEXT_SEQ_ANAL(x)		(((x) + 1) & ATH6KL_MAX_SEQ_ANAL)
 
 #define NUM_OF_TIDS         8
 #define AGGR_SZ_DEFAULT     8
@@ -286,15 +286,15 @@ enum ath6kl_hw_flags {
 
 /* configuration lags */
 /*
- * ATH6KL_CONF_IGNORE_ERP_BARKER: Ignore the barker premable in
+ * ATH6KL_CONF_IGANALRE_ERP_BARKER: Iganalre the barker premable in
  * ERP IE of beacon to determine the short premable support when
  * sending (Re)Assoc req.
- * ATH6KL_CONF_IGNORE_PS_FAIL_EVT_IN_SCAN: Don't send the power
+ * ATH6KL_CONF_IGANALRE_PS_FAIL_EVT_IN_SCAN: Don't send the power
  * module state transition failure events which happen during
  * scan, to the host.
  */
-#define ATH6KL_CONF_IGNORE_ERP_BARKER		BIT(0)
-#define ATH6KL_CONF_IGNORE_PS_FAIL_EVT_IN_SCAN  BIT(1)
+#define ATH6KL_CONF_IGANALRE_ERP_BARKER		BIT(0)
+#define ATH6KL_CONF_IGANALRE_PS_FAIL_EVT_IN_SCAN  BIT(1)
 #define ATH6KL_CONF_ENABLE_11N			BIT(2)
 #define ATH6KL_CONF_ENABLE_TX_BURST		BIT(3)
 #define ATH6KL_CONF_UART_DEBUG			BIT(4)
@@ -317,7 +317,7 @@ enum sme_state {
 struct skb_hold_q {
 	struct sk_buff *skb;
 	bool is_amsdu;
-	u16 seq_no;
+	u16 seq_anal;
 };
 
 struct rxtid {
@@ -337,7 +337,7 @@ struct rxtid {
 	 * Some of the other fields like hold_q_sz, win_sz and aggr are
 	 * initialized/reset when receiving addba/delba req, also while
 	 * deleting aggr state all the pending buffers are flushed before
-	 * resetting these fields, so there should not be any race in accessing
+	 * resetting these fields, so there should analt be any race in accessing
 	 * these fields.
 	 */
 	spinlock_t lock;
@@ -386,7 +386,7 @@ struct ath6kl_key {
 	u32 cipher;
 };
 
-struct ath6kl_node_mapping {
+struct ath6kl_analde_mapping {
 	u8 mac_addr[ETH_ALEN];
 	u8 ep_id;
 	u8 tx_pend;
@@ -394,7 +394,7 @@ struct ath6kl_node_mapping {
 
 struct ath6kl_cookie {
 	struct sk_buff *skb;
-	u32 map_no;
+	u32 map_anal;
 	struct htc_packet htc_pkt;
 	struct ath6kl_cookie *arc_list_next;
 };
@@ -404,7 +404,7 @@ struct ath6kl_mgmt_buff {
 	u32 freq;
 	u32 wait;
 	u32 id;
-	bool no_cck;
+	bool anal_cck;
 	size_t len;
 	u8 buf[];
 };
@@ -499,7 +499,7 @@ struct target_stats {
 	u32 wow_pkt_dropped;
 	u16 wow_evt_discarded;
 
-	s16 noise_floor_calib;
+	s16 analise_floor_calib;
 	s16 cs_rssi;
 	s16 cs_ave_beacon_rssi;
 	u8 cs_ave_beacon_snr;
@@ -527,7 +527,7 @@ struct ath6kl_mbox_info {
 };
 
 /*
- * 802.11i defines an extended IV for use with non-WEP ciphers.
+ * 802.11i defines an extended IV for use with analn-WEP ciphers.
  * When the EXTIV bit is set in the key id byte an additional
  * 4 bytes immediately follow the IV for TKIP.  For CCMP the
  * EXTIV bit is likewise set but the 8 bytes represent the
@@ -574,7 +574,7 @@ struct ath6kl_htcap {
 };
 
 /*
- * Driver's maximum limit, note that some firmwares support only one vif
+ * Driver's maximum limit, analte that some firmwares support only one vif
  * and the runtime (current) limit must be checked from ar->vif_max.
  */
 #define ATH6KL_VIF_MAX	3
@@ -712,7 +712,7 @@ struct ath6kl {
 	spinlock_t list_lock;
 	u8 num_vif;
 	unsigned int vif_max;
-	u8 max_norm_iface;
+	u8 max_analrm_iface;
 	u8 avail_idx_map;
 
 	/*
@@ -726,10 +726,10 @@ struct ath6kl {
 	struct ath6kl_version version;
 	u32 target_type;
 	u8 tx_pwr;
-	struct ath6kl_node_mapping node_map[MAX_NODE_NUM];
+	struct ath6kl_analde_mapping analde_map[MAX_ANALDE_NUM];
 	u8 ibss_ps_enable;
 	bool ibss_if_active;
-	u8 node_num;
+	u8 analde_num;
 	u8 next_ep_id;
 	struct ath6kl_cookie *cookie_list;
 	u32 cookie_count;
@@ -928,7 +928,7 @@ struct htc_packet *ath6kl_alloc_amsdu_rxbuf(struct htc_target *target,
 void aggr_module_destroy(struct aggr_info *aggr_info);
 void aggr_reset_state(struct aggr_info_conn *aggr_conn);
 
-struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 *node_addr);
+struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 *analde_addr);
 struct ath6kl_sta *ath6kl_find_sta_by_aid(struct ath6kl *ar, u8 aid);
 
 void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver,
@@ -959,7 +959,7 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid);
 void ath6kl_dtimexpiry_event(struct ath6kl_vif *vif);
 void ath6kl_disconnect(struct ath6kl_vif *vif);
 void aggr_recv_delba_req_evt(struct ath6kl_vif *vif, u8 tid);
-void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid, u16 seq_no,
+void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid, u16 seq_anal,
 			     u8 win_sz);
 void ath6kl_wakeup_event(void *dev);
 
@@ -983,7 +983,7 @@ void ath6kl_core_destroy(struct ath6kl *ar);
 
 /* Fw error recovery */
 void ath6kl_init_hw_restart(struct ath6kl *ar);
-void ath6kl_recovery_err_notify(struct ath6kl *ar, enum ath6kl_fw_err reason);
+void ath6kl_recovery_err_analtify(struct ath6kl *ar, enum ath6kl_fw_err reason);
 void ath6kl_recovery_hb_event(struct ath6kl *ar, u32 cookie);
 void ath6kl_recovery_init(struct ath6kl *ar);
 void ath6kl_recovery_cleanup(struct ath6kl *ar);

@@ -141,7 +141,7 @@ exit_free:
 	kfree(rdebug.state_before_suspend);
 exit_destroy_power_state:
 	debugfs_remove_recursive(rdebug.dir);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int ux500_regulator_debug_exit(void)

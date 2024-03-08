@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
@@ -270,7 +270,7 @@ static const struct dpu_merge_3d_cfg sm8350_merge_3d[] = {
 };
 
 /*
- * NOTE: Each display compression engine (DCE) contains dual hard
+ * ANALTE: Each display compression engine (DCE) contains dual hard
  * slice DSC encoders so both share same base address but with
  * its own different sub block address.
  */
@@ -387,7 +387,7 @@ static const struct dpu_perf_cfg sm8350_perf_data = {
 
 static const struct dpu_mdss_version sm8350_mdss_ver = {
 	.core_major_ver = 7,
-	.core_minor_ver = 0,
+	.core_mianalr_ver = 0,
 };
 
 const struct dpu_mdss_cfg dpu_sm8350_cfg = {

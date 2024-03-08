@@ -52,14 +52,14 @@ static void read_skip(struct mtk_jpeg_stream *stream, long len)
 static bool mtk_jpeg_do_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,
 			      u32 src_size)
 {
-	bool notfound = true;
+	bool analtfound = true;
 	struct mtk_jpeg_stream stream;
 
 	stream.addr = src_addr_va;
 	stream.size = src_size;
 	stream.curr = 0;
 
-	while (notfound) {
+	while (analtfound) {
 		int i, length, byte;
 		u32 word;
 
@@ -116,7 +116,7 @@ static bool mtk_jpeg_do_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,
 					break;
 			}
 
-			notfound = !(i == param->comp_num);
+			analtfound = !(i == param->comp_num);
 			break;
 		case JPEG_MARKER_RST ... JPEG_MARKER_RST + 7:
 		case JPEG_MARKER_SOI:
@@ -132,7 +132,7 @@ static bool mtk_jpeg_do_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,
 		}
 	}
 
-	return !notfound;
+	return !analtfound;
 }
 
 bool mtk_jpeg_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,

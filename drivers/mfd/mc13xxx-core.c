@@ -103,7 +103,7 @@ int mc13xxx_irq_mask(struct mc13xxx *mc13xxx, int irq)
 {
 	int virq = regmap_irq_get_virq(mc13xxx->irq_data, irq);
 
-	disable_irq_nosync(virq);
+	disable_irq_analsync(virq);
 
 	return 0;
 }
@@ -373,13 +373,13 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 		.pdata_size = pdata_size,
 	};
 
-	/* there is no asnprintf in the kernel :-( */
+	/* there is anal asnprintf in the kernel :-( */
 	if (snprintf(buf, sizeof(buf), format, name) > sizeof(buf))
 		return -E2BIG;
 
 	cell.name = kmemdup(buf, strlen(buf) + 1, GFP_KERNEL);
 	if (!cell.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return mfd_add_devices(mc13xxx->dev, -1, &cell, 1, NULL, 0,
 			       regmap_irq_get_domain(mc13xxx->irq_data));
@@ -393,10 +393,10 @@ static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
 #ifdef CONFIG_OF
 static int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
 {
-	struct device_node *np = mc13xxx->dev->of_node;
+	struct device_analde *np = mc13xxx->dev->of_analde;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (of_property_read_bool(np, "fsl,mc13xxx-uses-adc"))
 		mc13xxx->flags |= MC13XXX_USE_ADC;
@@ -415,7 +415,7 @@ static int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
 #else
 static inline int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

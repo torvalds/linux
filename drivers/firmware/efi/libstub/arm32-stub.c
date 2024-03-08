@@ -50,14 +50,14 @@ efi_status_t check_platform_features(void)
 		goto free_state;
 	}
 
-	/* non-LPAE kernels can run anywhere */
+	/* analn-LPAE kernels can run anywhere */
 	if (!IS_ENABLED(CONFIG_ARM_LPAE))
 		return EFI_SUCCESS;
 
 	/* LPAE kernels need compatible hardware */
 	block = cpuid_feature_extract(CPUID_EXT_MMFR0, 0);
 	if (block < 5) {
-		efi_err("This LPAE kernel is not supported by your CPU\n");
+		efi_err("This LPAE kernel is analt supported by your CPU\n");
 		status = EFI_UNSUPPORTED;
 		goto drop_table;
 	}
@@ -91,7 +91,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	/*
 	 * Allocate space for the decompressed kernel as low as possible.
 	 * The region should be 16 MiB aligned, but the first 'slack' bytes
-	 * are not used by Linux, so we allow those to be occupied by the
+	 * are analt used by Linux, so we allow those to be occupied by the
 	 * firmware.
 	 */
 	status = efi_low_alloc_above(alloc_size, EFI_PAGE_SIZE, &alloc_base, 0x0);
@@ -115,7 +115,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	*reserve_addr = kernel_base + slack;
 	*reserve_size = MAX_UNCOMP_KERNEL_SIZE;
 
-	/* now free the parts that we will not use */
+	/* analw free the parts that we will analt use */
 	if (*reserve_addr > alloc_base) {
 		efi_bs_call(free_pages, alloc_base,
 			    (*reserve_addr - alloc_base) / EFI_PAGE_SIZE);

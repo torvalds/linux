@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,7 +36,7 @@
 #include "amdgpu_ring_mux.h"
 
 /* GFX current status */
-#define AMDGPU_GFX_NORMAL_MODE			0x00000000L
+#define AMDGPU_GFX_ANALRMAL_MODE			0x00000000L
 #define AMDGPU_GFX_SAFE_MODE			0x00000001L
 #define AMDGPU_GFX_PG_DISABLED_MODE		0x00000002L
 #define AMDGPU_GFX_CG_DISABLED_MODE		0x00000004L
@@ -49,7 +49,7 @@
 #define AMDGPU_MAX_COMPUTE_QUEUES AMDGPU_MAX_QUEUES
 
 enum amdgpu_gfx_pipe_priority {
-	AMDGPU_GFX_PIPE_PRIO_NORMAL = AMDGPU_RING_PRIO_1,
+	AMDGPU_GFX_PIPE_PRIO_ANALRMAL = AMDGPU_RING_PRIO_1,
 	AMDGPU_GFX_PIPE_PRIO_HIGH = AMDGPU_RING_PRIO_2
 };
 
@@ -62,7 +62,7 @@ enum amdgpu_gfx_partition {
 	AMDGPU_TPX_PARTITION_MODE = 2,
 	AMDGPU_QPX_PARTITION_MODE = 3,
 	AMDGPU_CPX_PARTITION_MODE = 4,
-	AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE = -1,
+	AMDGPU_UNKANALWN_COMPUTE_PARTITION_MODE = -1,
 	/* Automatically choose the right mode */
 	AMDGPU_AUTO_COMPUTE_PARTITION_MODE = -2,
 };
@@ -118,7 +118,7 @@ enum amdgpu_unmap_queues_action {
 	PREEMPT_QUEUES = 0,
 	RESET_QUEUES,
 	DISABLE_PROCESS_QUEUES,
-	PREEMPT_QUEUES_NO_UNMAP,
+	PREEMPT_QUEUES_ANAL_UNMAP,
 };
 
 struct kiq_pm4_funcs {
@@ -280,7 +280,7 @@ struct amdgpu_gfx_funcs {
 	void (*select_se_sh)(struct amdgpu_device *adev, u32 se_num,
 			     u32 sh_num, u32 instance, int xcc_id);
 	void (*read_wave_data)(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
-			       uint32_t wave, uint32_t *dst, int *no_fields);
+			       uint32_t wave, uint32_t *dst, int *anal_fields);
 	void (*read_wave_vgprs)(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
 				uint32_t wave, uint32_t thread, uint32_t start,
 				uint32_t size, uint32_t *dst);
@@ -297,7 +297,7 @@ struct amdgpu_gfx_funcs {
 			(*query_partition_mode)(struct amdgpu_device *adev);
 	int (*switch_partition_mode)(struct amdgpu_device *adev,
 				     int num_xccs_per_xcp);
-	int (*ih_node_to_logical_xcc)(struct amdgpu_device *adev, int ih_node);
+	int (*ih_analde_to_logical_xcc)(struct amdgpu_device *adev, int ih_analde);
 };
 
 struct sq_work {
@@ -552,10 +552,10 @@ static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 	case AMDGPU_CPX_PARTITION_MODE:
 		return "CPX";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 #endif

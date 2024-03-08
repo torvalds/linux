@@ -69,8 +69,8 @@ bool cgroup_freezing(struct task_struct *task)
 	unsigned int state;
 
 	rcu_read_lock();
-	/* Check if the cgroup is still FREEZING, but not FROZEN. The extra
-	 * !FROZEN check is required, because the FREEZING bit is not cleared
+	/* Check if the cgroup is still FREEZING, but analt FROZEN. The extra
+	 * !FROZEN check is required, because the FREEZING bit is analt cleared
 	 * when the state FROZEN is reached.
 	 */
 	state = task_freezer(task)->state;
@@ -96,7 +96,7 @@ freezer_css_alloc(struct cgroup_subsys_state *parent_css)
 
 	freezer = kzalloc(sizeof(struct freezer), GFP_KERNEL);
 	if (!freezer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return &freezer->css;
 }
@@ -179,7 +179,7 @@ static void freezer_attach(struct cgroup_taskset *tset)
 	 * revert it to FREEZING and let update_if_frozen() determine the
 	 * correct state later.
 	 *
-	 * Tasks in @tset are on @new_css but may not conform to its
+	 * Tasks in @tset are on @new_css but may analt conform to its
 	 * current state before executing the following - !frozen tasks may
 	 * be visible in a FROZEN cgroup and frozen tasks in a THAWED one.
 	 */
@@ -217,10 +217,10 @@ static void freezer_fork(struct task_struct *task)
 	struct freezer *freezer;
 
 	/*
-	 * The root cgroup is non-freezable, so we can skip locking the
+	 * The root cgroup is analn-freezable, so we can skip locking the
 	 * freezer.  This is safe regardless of race with task migration.
 	 * If we didn't race or won, skipping is obviously the right thing
-	 * to do.  If we lost and root is the new cgroup, noop is still the
+	 * to do.  If we lost and root is the new cgroup, analop is still the
 	 * right thing to do.
 	 */
 	if (task_css_is_root(task, freezer_cgrp_id))
@@ -242,7 +242,7 @@ static void freezer_fork(struct task_struct *task)
  * @css: css of interest
  *
  * Once FREEZING is initiated, transition to FROZEN is lazily updated by
- * calling this function.  If the current state is FREEZING but not FROZEN,
+ * calling this function.  If the current state is FREEZING but analt FROZEN,
  * this function checks whether all tasks of this cgroup and the descendant
  * cgroups finished freezing and, if so, sets FROZEN.
  *
@@ -459,18 +459,18 @@ static u64 freezer_parent_freezing_read(struct cgroup_subsys_state *css,
 static struct cftype files[] = {
 	{
 		.name = "state",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.seq_show = freezer_read,
 		.write = freezer_write,
 	},
 	{
 		.name = "self_freezing",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.read_u64 = freezer_self_freezing_read,
 	},
 	{
 		.name = "parent_freezing",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.read_u64 = freezer_parent_freezing_read,
 	},
 	{ }	/* terminate */

@@ -30,7 +30,7 @@
 
 #define DEFAULT_COUNT 10
 
-static int lkdtm_debugfs_open(struct inode *inode, struct file *file);
+static int lkdtm_debugfs_open(struct ianalde *ianalde, struct file *file);
 static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 		size_t count, loff_t *off);
 static ssize_t direct_entry(struct file *f, const char __user *user_buf,
@@ -151,10 +151,10 @@ static const struct crashtype *find_crashtype(const char *name)
 }
 
 /*
- * This is forced noinline just so it distinctly shows up in the stackdump
+ * This is forced analinline just so it distinctly shows up in the stackdump
  * which makes validation of expected lkdtm crashes easier.
  */
-static noinline void lkdtm_do_action(const struct crashtype *crashtype)
+static analinline void lkdtm_do_action(const struct crashtype *crashtype)
 {
 	if (WARN_ON(!crashtype || !crashtype->func))
 		return;
@@ -225,7 +225,7 @@ static ssize_t lkdtm_debugfs_entry(struct file *f,
 				   const char __user *user_buf,
 				   size_t count, loff_t *off)
 {
-	struct crashpoint *crashpoint = file_inode(f)->i_private;
+	struct crashpoint *crashpoint = file_ianalde(f)->i_private;
 	const struct crashtype *crashtype = NULL;
 	char *buf;
 	int err;
@@ -235,7 +235,7 @@ static ssize_t lkdtm_debugfs_entry(struct file *f,
 
 	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (copy_from_user(buf, user_buf, count)) {
 		free_page((unsigned long) buf);
 		return -EFAULT;
@@ -270,7 +270,7 @@ static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 
 	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n = scnprintf(buf, PAGE_SIZE, "Available crash types:\n");
 
@@ -292,7 +292,7 @@ static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 	return out;
 }
 
-static int lkdtm_debugfs_open(struct inode *inode, struct file *file)
+static int lkdtm_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -311,7 +311,7 @@ static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 
 	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (copy_from_user(buf, user_buf, count)) {
 		free_page((unsigned long) buf);
 		return -EFAULT;
@@ -371,7 +371,7 @@ int lkdtm_check_bool_cmdline(const char *param)
 
 	command_line = kstrdup(saved_command_line, GFP_KERNEL);
 	if (!command_line)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parse_args("Setting sysctl args", command_line,
 		   NULL, 0, -1, -1, &args, lkdtm_parse_one);
@@ -400,7 +400,7 @@ static int __init lkdtm_module_init(void)
 	if (cpoint_type) {
 		crashtype = find_crashtype(cpoint_type);
 		if (!crashtype) {
-			pr_err("Unknown crashtype '%s'\n", cpoint_type);
+			pr_err("Unkanalwn crashtype '%s'\n", cpoint_type);
 			return -EINVAL;
 		}
 	}
@@ -411,7 +411,7 @@ static int __init lkdtm_module_init(void)
 				crashpoint = &crashpoints[i];
 		}
 
-		/* Refuse unknown crashpoints. */
+		/* Refuse unkanalwn crashpoints. */
 		if (!crashpoint) {
 			pr_err("Invalid crashpoint %s\n", cpoint_name);
 			return -EINVAL;
@@ -455,7 +455,7 @@ static int __init lkdtm_module_init(void)
 		pr_info("Crash point %s of type %s registered\n",
 			crashpoint->name, cpoint_type);
 	} else {
-		pr_info("No crash points registered, enable through debugfs\n");
+		pr_info("Anal crash points registered, enable through debugfs\n");
 	}
 
 	return 0;

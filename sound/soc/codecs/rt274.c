@@ -217,7 +217,7 @@ static bool rt274_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case 0 ... 0xff:
-	case RT274_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID):
+	case RT274_GET_PARAM(AC_ANALDE_ROOT, AC_PAR_VENDOR_ID):
 	case RT274_GET_HP_SENSE:
 	case RT274_GET_MIC_SENSE:
 	case RT274_PROC_COEF:
@@ -261,7 +261,7 @@ static bool rt274_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case 0 ... 0xff:
-	case RT274_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID):
+	case RT274_GET_PARAM(AC_ANALDE_ROOT, AC_PAR_VENDOR_ID):
 	case RT274_GET_HP_SENSE:
 	case RT274_GET_MIC_SENSE:
 	case RT274_SET_AUDIO_POWER:
@@ -498,28 +498,28 @@ static const struct snd_soc_dapm_widget rt274_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINE2"),
 
 	/* DMIC */
-	SND_SOC_DAPM_PGA("DMIC1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("DMIC2", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DMIC1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DMIC2", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* ADCs */
 	SND_SOC_DAPM_ADC("ADC 0", NULL, RT274_SET_STREAMID_ADC1, 4, 0),
 	SND_SOC_DAPM_ADC("ADC 1", NULL, RT274_SET_STREAMID_ADC2, 4, 0),
 
 	/* ADC Mux */
-	SND_SOC_DAPM_MUX("ADC 0 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 0 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt274_adc0_mux),
-	SND_SOC_DAPM_MUX("ADC 1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 1 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt274_adc1_mux),
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIF1RXL", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIF1RXR", "AIF1 Playback", 1, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF1TXL", "AIF1 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF1TXR", "AIF1 Capture", 1, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIF2RXL", "AIF1 Playback", 2, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIF2RXR", "AIF1 Playback", 3, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF2TXL", "AIF1 Capture", 2, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF2TXR", "AIF1 Capture", 3, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RXL", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RXR", "AIF1 Playback", 1, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF1TXL", "AIF1 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF1TXR", "AIF1 Capture", 1, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF2RXL", "AIF1 Playback", 2, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF2RXR", "AIF1 Playback", 3, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF2TXL", "AIF1 Capture", 2, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF2TXR", "AIF1 Capture", 3, SND_SOC_ANALPM, 0, 0),
 
 	/* Output Side */
 	/* DACs */
@@ -527,8 +527,8 @@ static const struct snd_soc_dapm_widget rt274_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC 1", NULL, RT274_SET_STREAMID_DAC1, 4, 0),
 
 	/* Output Mux */
-	SND_SOC_DAPM_MUX("HPO Mux", SND_SOC_NOPM, 0, 0, &rt274_hpo_mux),
-	SND_SOC_DAPM_MUX("LOUT Mux", SND_SOC_NOPM, 0, 0, &rt274_lout_mux),
+	SND_SOC_DAPM_MUX("HPO Mux", SND_SOC_ANALPM, 0, 0, &rt274_hpo_mux),
+	SND_SOC_DAPM_MUX("LOUT Mux", SND_SOC_ANALPM, 0, 0, &rt274_lout_mux),
 
 	SND_SOC_DAPM_SUPPLY("HP Power", RT274_SET_PIN_HPO,
 		RT274_SET_PIN_SFT, 0, NULL, 0),
@@ -536,19 +536,19 @@ static const struct snd_soc_dapm_widget rt274_dapm_widgets[] = {
 		RT274_SET_PIN_SFT, 0, NULL, 0),
 
 	/* Output Mixer */
-	SND_SOC_DAPM_PGA("DAC OUT0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA("DAC OUT0", SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
-	SND_SOC_DAPM_PGA("DAC OUT1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA("DAC OUT1", SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 
 	/* Output Pga */
-	SND_SOC_DAPM_SWITCH("LOUT L", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("LOUT L", SND_SOC_ANALPM, 0, 0,
 		&loutl_enable_control),
-	SND_SOC_DAPM_SWITCH("LOUT R", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("LOUT R", SND_SOC_ANALPM, 0, 0,
 		&loutr_enable_control),
-	SND_SOC_DAPM_SWITCH("HPO L", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HPO L", SND_SOC_ANALPM, 0, 0,
 		&hpol_enable_control),
-	SND_SOC_DAPM_SWITCH("HPO R", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HPO R", SND_SOC_ANALPM, 0, 0,
 		&hpor_enable_control),
 
 	/* Output Lines */
@@ -633,7 +633,7 @@ static int rt274_hw_params(struct snd_pcm_substream *substream,
 	case 12288000:
 	case 24576000:
 		if (params_rate(params) != 48000) {
-			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is analt matched (%d %d)\n",
 					params_rate(params), rt274->sys_clk);
 			return -EINVAL;
 		}
@@ -641,7 +641,7 @@ static int rt274_hw_params(struct snd_pcm_substream *substream,
 	case 11289600:
 	case 22579200:
 		if (params_rate(params) != 44100) {
-			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is analt matched (%d %d)\n",
 					params_rate(params), rt274->sys_clk);
 			return -EINVAL;
 		}
@@ -740,7 +740,7 @@ static int rt274_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	default:
 		return -EINVAL;
 	}
-	/* bit 15 Stream Type 0:PCM 1:Non-PCM */
+	/* bit 15 Stream Type 0:PCM 1:Analn-PCM */
 	snd_soc_component_update_bits(component, RT274_DAC_FORMAT, 0x8000, 0);
 	snd_soc_component_update_bits(component, RT274_ADC_FORMAT, 0x8000, 0);
 
@@ -836,7 +836,7 @@ static int rt274_set_dai_sysclk(struct snd_soc_dai *dai,
 	switch (freq) {
 	case 19200000:
 		if (clk_id == RT274_SCLK_S_MCLK) {
-			dev_err(component->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should analt use MCLK\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -844,7 +844,7 @@ static int rt274_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case 24000000:
 		if (clk_id == RT274_SCLK_S_MCLK) {
-			dev_err(component->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should analt use MCLK\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -1121,7 +1121,7 @@ static int rt274_i2c_probe(struct i2c_client *i2c)
 	rt274 = devm_kzalloc(&i2c->dev,	sizeof(*rt274),
 				GFP_KERNEL);
 	if (rt274 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt274->regmap = devm_regmap_init(&i2c->dev, NULL, i2c, &rt274_regmap);
 	if (IS_ERR(rt274->regmap)) {
@@ -1132,20 +1132,20 @@ static int rt274_i2c_probe(struct i2c_client *i2c)
 	}
 
 	ret = regmap_read(rt274->regmap,
-		RT274_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &val);
+		RT274_GET_PARAM(AC_ANALDE_ROOT, AC_PAR_VENDOR_ID), &val);
 	if (ret)
 		return ret;
 
 	if (val != RT274_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt274\n", val);
-		return -ENODEV;
+			"Device with ID register %#x is analt rt274\n", val);
+		return -EANALDEV;
 	}
 
 	rt274->index_cache = devm_kmemdup(&i2c->dev, rt274_index_def,
 					  sizeof(rt274_index_def), GFP_KERNEL);
 	if (!rt274->index_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt274->index_cache_size = INDEX_CACHE_SIZE;
 	rt274->i2c = i2c;

@@ -142,12 +142,12 @@ struct rkisp1_info {
 };
 
 /*
- * struct rkisp1_sensor_async - A container for the v4l2_async_subdev to add to the notifier
+ * struct rkisp1_sensor_async - A container for the v4l2_async_subdev to add to the analtifier
  *				of the v4l2-async API
  *
  * @asd:		async_subdev variable for the sensor
  * @index:		index of the sensor (counting sensor found in DT)
- * @source_ep:		fwnode for the sensor source endpoint
+ * @source_ep:		fwanalde for the sensor source endpoint
  * @lanes:		number of lanes
  * @mbus_type:		type of bus (currently only CSI2 is supported)
  * @mbus_flags:		media bus (V4L2_MBUS_*) flags
@@ -158,7 +158,7 @@ struct rkisp1_info {
 struct rkisp1_sensor_async {
 	struct v4l2_async_connection asd;
 	unsigned int index;
-	struct fwnode_handle *source_ep;
+	struct fwanalde_handle *source_ep;
 	unsigned int lanes;
 	enum v4l2_mbus_type mbus_type;
 	unsigned int mbus_flags;
@@ -204,14 +204,14 @@ struct rkisp1_isp {
 };
 
 /*
- * struct rkisp1_vdev_node - Container for the video nodes: params, stats, mainpath, selfpath
+ * struct rkisp1_vdev_analde - Container for the video analdes: params, stats, mainpath, selfpath
  *
  * @buf_queue:	queue of buffers
- * @vlock:	lock of the video node
- * @vdev:	video node
+ * @vlock:	lock of the video analde
+ * @vdev:	video analde
  * @pad:	media pad
  */
-struct rkisp1_vdev_node {
+struct rkisp1_vdev_analde {
 	struct vb2_queue buf_queue;
 	struct mutex vlock; /* ioctl serialization mutex */
 	struct video_device vdev;
@@ -234,7 +234,7 @@ struct rkisp1_buffer {
 
 /*
  * struct rkisp1_dummy_buffer - A buffer to write the next frame to in case
- *				there are no vb2 buffers available.
+ *				there are anal vb2 buffers available.
  *
  * @vaddr:	return value of call to dma_alloc_attrs.
  * @dma_addr:	dma address of the buffer.
@@ -251,7 +251,7 @@ struct rkisp1_device;
 /*
  * struct rkisp1_capture - ISP capture video device
  *
- * @vnode:	  video node
+ * @vanalde:	  video analde
  * @rkisp1:	  pointer to rkisp1_device
  * @id:		  id of the capture, one of RKISP1_SELFPATH, RKISP1_MAINPATH
  * @ops:	  list of callbacks to configure the capture device.
@@ -261,7 +261,7 @@ struct rkisp1_device;
  *		  stopping the streaming.
  * @done:	  when stop_streaming callback is called, the device waits for the next irq
  *		  handler to stop the streaming by waiting on the 'done' wait queue.
- *		  If the irq handler is not called, the stream is stopped by the callback
+ *		  If the irq handler is analt called, the stream is stopped by the callback
  *		  after timeout.
  * @sp_y_stride:  the selfpath allows to configure a y stride that is longer than the image width.
  * @buf.lock:	  lock to protect buf.queue
@@ -276,7 +276,7 @@ struct rkisp1_device;
  * @pix.fmt:	  buffer format
  */
 struct rkisp1_capture {
-	struct rkisp1_vdev_node vnode;
+	struct rkisp1_vdev_analde vanalde;
 	struct rkisp1_device *rkisp1;
 	enum rkisp1_stream_id id;
 	const struct rkisp1_capture_ops *ops;
@@ -313,14 +313,14 @@ struct rkisp1_stats_ops {
 /*
  * struct rkisp1_stats - ISP Statistics device
  *
- * @vnode:	  video node
+ * @vanalde:	  video analde
  * @rkisp1:	  pointer to the rkisp1 device
  * @lock:	  locks the buffer list 'stat'
  * @stat:	  queue of rkisp1_buffer
  * @vdev_fmt:	  v4l2_format of the metadata format
  */
 struct rkisp1_stats {
-	struct rkisp1_vdev_node vnode;
+	struct rkisp1_vdev_analde vanalde;
 	struct rkisp1_device *rkisp1;
 	const struct rkisp1_stats_ops *ops;
 
@@ -355,7 +355,7 @@ struct rkisp1_params_ops {
 /*
  * struct rkisp1_params - ISP input parameters device
  *
- * @vnode:		video node
+ * @vanalde:		video analde
  * @rkisp1:		pointer to the rkisp1 device
  * @ops:		pointer to the variant-specific operations
  * @config_lock:	locks the buffer list 'params'
@@ -365,7 +365,7 @@ struct rkisp1_params_ops {
  * @raw_type:		the bayer pattern on the isp video sink pad
  */
 struct rkisp1_params {
-	struct rkisp1_vdev_node vnode;
+	struct rkisp1_vdev_analde vanalde;
 	struct rkisp1_device *rkisp1;
 	const struct rkisp1_params_ops *ops;
 
@@ -407,12 +407,12 @@ struct rkisp1_resizer {
  * @img_stabilization_size_error: size error is generated in image stabilization submodule
  * @inform_size_err:		  size error is generated in inform submodule
  * @mipi_error:			  mipi error occurred
- * @stats_error:		  writing to the 'Interrupt clear register' did not clear
+ * @stats_error:		  writing to the 'Interrupt clear register' did analt clear
  *				  it in the register 'Masked interrupt status'
  * @stop_timeout:		  upon stream stop, the capture waits 1 second for the isr to stop
  *				  the stream. This param is incremented in case of timeout.
  * @frame_drop:			  a frame was ready but the buffer queue was empty so the frame
- *				  was not sent to userspace
+ *				  was analt sent to userspace
  */
 struct rkisp1_debug {
 	struct dentry *debugfs_dir;
@@ -437,7 +437,7 @@ struct rkisp1_debug {
  * @clks:	   array of clocks
  * @v4l2_dev:	   v4l2_device variable
  * @media_dev:	   media_device variable
- * @notifier:	   a notifier to register on the v4l2-async API to be notified on the sensor
+ * @analtifier:	   a analtifier to register on the v4l2-async API to be analtified on the sensor
  * @source:        source subdev in-use, set when starting streaming
  * @csi:	   internal CSI-2 receiver
  * @isp:	   ISP sub-device
@@ -459,7 +459,7 @@ struct rkisp1_device {
 	struct clk_bulk_data clks[RKISP1_MAX_BUS_CLK];
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *source;
 	struct rkisp1_csi csi;
 	struct rkisp1_isp isp;
@@ -527,7 +527,7 @@ int rkisp1_cap_enum_mbus_codes(struct rkisp1_capture *cap,
 const struct rkisp1_mbus_info *rkisp1_mbus_info_get_by_index(unsigned int index);
 
 /*
- * rkisp1_sd_adjust_crop_rect - adjust a rectangle to fit into another rectangle.
+ * rkisp1_sd_adjust_crop_rect - adjust a rectangle to fit into aanalther rectangle.
  *
  * @crop:   rectangle to adjust.
  * @bounds: rectangle used as bounds.

@@ -19,7 +19,7 @@
  * Events are signalled to the device drivers through interrupts.
  * They have the format of dot commands, with the type field set to
  * sp_event.
- * The driver does not interpret the events, it simply stores them in a
+ * The driver does analt interpret the events, it simply stores them in a
  * circular buffer.
  */
 
@@ -27,7 +27,7 @@ static void wake_up_event_readers(struct service_processor *sp)
 {
 	struct event_reader *reader;
 
-	list_for_each_entry(reader, &sp->event_buffer->readers, node)
+	list_for_each_entry(reader, &sp->event_buffer->readers, analde)
                 wake_up_interruptible(&reader->wait);
 }
 
@@ -37,7 +37,7 @@ static void wake_up_event_readers(struct service_processor *sp)
  * received.
  * Store the event in the circular event buffer, wake up any sleeping
  * event readers.
- * There is no reader marker in the buffer, therefore readers are
+ * There is anal reader marker in the buffer, therefore readers are
  * responsible for keeping up with the writer, or they will lose events.
  */
 void ibmasm_receive_event(struct service_processor *sp, void *data, unsigned int data_size)
@@ -120,7 +120,7 @@ void ibmasm_event_reader_register(struct service_processor *sp, struct event_rea
 	reader->next_serial_number = sp->event_buffer->next_serial_number;
 	init_waitqueue_head(&reader->wait);
 	spin_lock_irqsave(&sp->lock, flags);
-	list_add(&reader->node, &sp->event_buffer->readers);
+	list_add(&reader->analde, &sp->event_buffer->readers);
 	spin_unlock_irqrestore(&sp->lock, flags);
 }
 
@@ -129,7 +129,7 @@ void ibmasm_event_reader_unregister(struct service_processor *sp, struct event_r
 	unsigned long flags;
 
 	spin_lock_irqsave(&sp->lock, flags);
-	list_del(&reader->node);
+	list_del(&reader->analde);
 	spin_unlock_irqrestore(&sp->lock, flags);
 }
 
@@ -141,7 +141,7 @@ int ibmasm_event_buffer_init(struct service_processor *sp)
 
 	buffer = kmalloc(sizeof(struct event_buffer), GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer->next_index = 0;
 	buffer->next_serial_number = 1;

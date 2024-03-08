@@ -5,7 +5,7 @@
  * Generic driver for MIPI CCS/SMIA/SMIA++ compliant camera sensors
  *
  * Copyright (C) 2020 Intel Corporation
- * Copyright (C) 2011--2012 Nokia Corporation
+ * Copyright (C) 2011--2012 Analkia Corporation
  * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
@@ -26,13 +26,13 @@ struct ccs_sensor;
  * @init: Quirk initialisation, called the last in probe(). This is
  *	  also appropriate for adding sensor specific controls, for instance.
  * @reg_access: Register access quirk. The quirk may divert the access
- *		to another register, or no register at all.
+ *		to aanalther register, or anal register at all.
  *
  *		@write: Is this read (false) or write (true) access?
  *		@reg: Pointer to the register to access
  *		@value: Register value, set by the caller on write, or
  *			by the quirk on read
- *		@return: 0 on success, -ENOIOCTLCMD if no register
+ *		@return: 0 on success, -EANALIOCTLCMD if anal register
  *			 access may be done by the caller (default read
  *			 value is zero), else negative error code on error
  * @flags: Quirk flags

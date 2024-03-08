@@ -5,7 +5,7 @@ Required properties:
  - compatible: "raspberrypi,firmware-ts"
 
 Optional properties:
- - firmware: Reference to RPi's firmware device node
+ - firmware: Reference to RPi's firmware device analde
  - touchscreen-size-x: See touchscreen.txt
  - touchscreen-size-y: See touchscreen.txt
  - touchscreen-inverted-x: See touchscreen.txt

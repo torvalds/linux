@@ -435,10 +435,10 @@
 #define WM8993_DAC_OSR128_MASK                  0x2000  /* DAC_OSR128 */
 #define WM8993_DAC_OSR128_SHIFT                     13  /* DAC_OSR128 */
 #define WM8993_DAC_OSR128_WIDTH                      1  /* DAC_OSR128 */
-#define WM8993_DAC_MONO                         0x0200  /* DAC_MONO */
-#define WM8993_DAC_MONO_MASK                    0x0200  /* DAC_MONO */
-#define WM8993_DAC_MONO_SHIFT                        9  /* DAC_MONO */
-#define WM8993_DAC_MONO_WIDTH                        1  /* DAC_MONO */
+#define WM8993_DAC_MOANAL                         0x0200  /* DAC_MOANAL */
+#define WM8993_DAC_MOANAL_MASK                    0x0200  /* DAC_MOANAL */
+#define WM8993_DAC_MOANAL_SHIFT                        9  /* DAC_MOANAL */
+#define WM8993_DAC_MOANAL_WIDTH                        1  /* DAC_MOANAL */
 #define WM8993_DAC_SB_FILT                      0x0100  /* DAC_SB_FILT */
 #define WM8993_DAC_SB_FILT_MASK                 0x0100  /* DAC_SB_FILT */
 #define WM8993_DAC_SB_FILT_SHIFT                     8  /* DAC_SB_FILT */
@@ -1768,9 +1768,9 @@
 /*
  * R85 (0x55) - DC Servo 1
  */
-#define WM8993_DCS_SERIES_NO_01_MASK            0x0FE0  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8993_DCS_SERIES_NO_01_SHIFT                5  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8993_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 - [11:5] */
+#define WM8993_DCS_SERIES_ANAL_01_MASK            0x0FE0  /* DCS_SERIES_ANAL_01 - [11:5] */
+#define WM8993_DCS_SERIES_ANAL_01_SHIFT                5  /* DCS_SERIES_ANAL_01 - [11:5] */
+#define WM8993_DCS_SERIES_ANAL_01_WIDTH                7  /* DCS_SERIES_ANAL_01 - [11:5] */
 #define WM8993_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 - [3:0] */
 #define WM8993_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 - [3:0] */
 #define WM8993_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 - [3:0] */

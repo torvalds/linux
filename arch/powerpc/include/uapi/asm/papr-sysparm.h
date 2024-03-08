@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_PAPR_SYSPARM_H_
 #define _UAPI_PAPR_SYSPARM_H_
 
@@ -25,19 +25,19 @@ struct papr_sysparm_io_block {
  * to supply input data (a date string) in the buffer passed to
  * firmware. So the @length and @data of the incoming
  * papr_sysparm_io_block are always used to initialize the work area
- * supplied to ibm,get-system-parameter. No other parameters are known
+ * supplied to ibm,get-system-parameter. Anal other parameters are kanalwn
  * to parameterize the result this way, and callers are encouraged
- * (but not required) to zero-initialize @length and @data in the
+ * (but analt required) to zero-initialize @length and @data in the
  * common case.
  *
  * On error the contents of the ioblock are indeterminate.
  *
  * Return:
- * 0: Success; @length is the length of valid data in @data, not to exceed @PAPR_SYSPARM_MAX_OUTPUT.
+ * 0: Success; @length is the length of valid data in @data, analt to exceed @PAPR_SYSPARM_MAX_OUTPUT.
  * -EIO: Platform error. (-1)
  * -EINVAL: Incorrect data length or format. (-9999)
- * -EPERM: The calling partition is not allowed to access this parameter. (-9002)
- * -EOPNOTSUPP: Parameter not supported on this platform (-3)
+ * -EPERM: The calling partition is analt allowed to access this parameter. (-9002)
+ * -EOPANALTSUPP: Parameter analt supported on this platform (-3)
  */
 #define PAPR_SYSPARM_IOC_GET _IOWR(PAPR_MISCDEV_IOC_ID, 1, struct papr_sysparm_io_block)
 
@@ -50,8 +50,8 @@ struct papr_sysparm_io_block {
  * 0: Success; the parameter has been updated.
  * -EIO: Platform error. (-1)
  * -EINVAL: Incorrect data length or format. (-9999)
- * -EPERM: The calling partition is not allowed to access this parameter. (-9002)
- * -EOPNOTSUPP: Parameter not supported on this platform (-3)
+ * -EPERM: The calling partition is analt allowed to access this parameter. (-9002)
+ * -EOPANALTSUPP: Parameter analt supported on this platform (-3)
  */
 #define PAPR_SYSPARM_IOC_SET _IOW(PAPR_MISCDEV_IOC_ID, 2, struct papr_sysparm_io_block)
 

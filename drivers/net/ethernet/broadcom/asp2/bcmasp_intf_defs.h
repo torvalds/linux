@@ -17,17 +17,17 @@
 #define   UMC_CMD_PAD_EN		BIT(5)
 #define   UMC_CMD_CRC_FWD		BIT(6)
 #define   UMC_CMD_PAUSE_FWD		BIT(7)
-#define   UMC_CMD_RX_PAUSE_IGNORE	BIT(8)
+#define   UMC_CMD_RX_PAUSE_IGANALRE	BIT(8)
 #define   UMC_CMD_TX_ADDR_INS		BIT(9)
 #define   UMC_CMD_HD_EN			BIT(10)
 #define   UMC_CMD_SW_RESET		BIT(13)
 #define   UMC_CMD_LCL_LOOP_EN		BIT(15)
 #define   UMC_CMD_AUTO_CONFIG		BIT(22)
 #define   UMC_CMD_CNTL_FRM_EN		BIT(23)
-#define   UMC_CMD_NO_LEN_CHK		BIT(24)
+#define   UMC_CMD_ANAL_LEN_CHK		BIT(24)
 #define   UMC_CMD_RMT_LOOP_EN		BIT(25)
 #define   UMC_CMD_PRBL_EN		BIT(27)
-#define   UMC_CMD_TX_PAUSE_IGNORE	BIT(28)
+#define   UMC_CMD_TX_PAUSE_IGANALRE	BIT(28)
 #define   UMC_CMD_TX_RX_EN		BIT(29)
 #define   UMC_CMD_RUNT_FILTER_DIS	BIT(30)
 #define  UMC_MAC0			0x0c
@@ -201,7 +201,7 @@
 #define  RX_EDPKT_DMA_VALID		0x20
 #define  RX_EDPKT_DMA_FULLNESS		0x28
 #define  RX_EDPKT_DMA_MIN_THRES		0x2c
-#define  RX_EDPKT_DMA_CH_XONOFF		0x30
+#define  RX_EDPKT_DMA_CH_XOANALFF		0x30
 
 #define RX_EDPKT_CFG_OFFSET(intf) \
 	((((intf)->channel) * 0x70) + 0x9c600)
@@ -210,10 +210,10 @@
 #define    RX_EDPKT_CFG_CFG0_RBUF	0x0
 #define    RX_EDPKT_CFG_CFG0_RBUF_4K	0x1
 #define    RX_EDPKT_CFG_CFG0_BUF_4K	0x2
-/* EFRM STUFF, 0 = no byte stuff, 1 = two byte stuff */
+/* EFRM STUFF, 0 = anal byte stuff, 1 = two byte stuff */
 #define   RX_EDPKT_CFG_CFG0_EFRM_STUF	BIT(11)
 #define   RX_EDPKT_CFG_CFG0_BALN_SHIFT	12
-#define    RX_EDPKT_CFG_CFG0_NO_ALN	0
+#define    RX_EDPKT_CFG_CFG0_ANAL_ALN	0
 #define    RX_EDPKT_CFG_CFG0_4_ALN	2
 #define    RX_EDPKT_CFG_CFG0_64_ALN	6
 #define  RX_EDPKT_RING_BUFFER_WRITE	0x38

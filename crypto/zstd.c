@@ -37,7 +37,7 @@ static int zstd_comp_init(struct zstd_ctx *ctx)
 
 	ctx->cwksp = vzalloc(wksp_size);
 	if (!ctx->cwksp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -60,7 +60,7 @@ static int zstd_decomp_init(struct zstd_ctx *ctx)
 
 	ctx->dwksp = vzalloc(wksp_size);
 	if (!ctx->dwksp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -110,7 +110,7 @@ static void *zstd_alloc_ctx(struct crypto_scomp *tfm)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = __zstd_init(ctx);
 	if (ret) {

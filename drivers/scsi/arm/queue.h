@@ -32,7 +32,7 @@ extern void queue_free (Queue_t *queue);
  * Function: struct scsi_cmnd *queue_remove (queue)
  * Purpose : removes first SCSI command from a queue
  * Params  : queue   - queue to remove command from
- * Returns : struct scsi_cmnd if successful (and a reference), or NULL if no command available
+ * Returns : struct scsi_cmnd if successful (and a reference), or NULL if anal command available
  */
 extern struct scsi_cmnd *queue_remove (Queue_t *queue);
 
@@ -41,7 +41,7 @@ extern struct scsi_cmnd *queue_remove (Queue_t *queue);
  * Purpose : remove a SCSI command from a queue
  * Params  : queue   - queue to remove command from
  *	     exclude - array of busy LUNs
- * Returns : struct scsi_cmnd if successful (and a reference), or NULL if no command available
+ * Returns : struct scsi_cmnd if successful (and a reference), or NULL if anal command available
  */
 extern struct scsi_cmnd *queue_remove_exclude(Queue_t *queue,
 					      unsigned long *exclude);
@@ -67,7 +67,7 @@ extern int __queue_add(Queue_t *queue, struct scsi_cmnd *SCpnt, int head);
  *	     target - target that we want
  *	     lun    - lun on device
  *	     tag    - tag on device
- * Returns : struct scsi_cmnd if successful, or NULL if no command satisfies requirements
+ * Returns : struct scsi_cmnd if successful, or NULL if anal command satisfies requirements
  */
 extern struct scsi_cmnd *queue_remove_tgtluntag(Queue_t *queue, int target,
 						int lun, int tag);
@@ -77,7 +77,7 @@ extern struct scsi_cmnd *queue_remove_tgtluntag(Queue_t *queue, int target,
  * Purpose : remove all SCSI commands from the queue for a specified target
  * Params  : queue  - queue to remove command from
  *           target - target device id
- * Returns : nothing
+ * Returns : analthing
  */
 extern void queue_remove_all_target(Queue_t *queue, int target);
 
@@ -88,7 +88,7 @@ extern void queue_remove_all_target(Queue_t *queue, int target);
  * Params  : queue  - queue to look in
  *	     target - target we want to probe
  *	     lun    - lun on target
- * Returns : 0 if not found, != 0 if found
+ * Returns : 0 if analt found, != 0 if found
  */
 extern int queue_probetgtlun (Queue_t *queue, int target, int lun);
 
@@ -97,7 +97,7 @@ extern int queue_probetgtlun (Queue_t *queue, int target, int lun);
  * Purpose : remove a specific command from the queues
  * Params  : queue - queue to look in
  *	     SCpnt - command to find
- * Returns : 0 if not found
+ * Returns : 0 if analt found
  */
 int queue_remove_cmd(Queue_t *queue, struct scsi_cmnd *SCpnt);
 

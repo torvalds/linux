@@ -3,14 +3,14 @@
  * OMAP3xxx PRM module functions
  *
  * Copyright (C) 2010-2012 Texas Instruments, Inc.
- * Copyright (C) 2010 Nokia Corporation
- * Benoît Cousson
+ * Copyright (C) 2010 Analkia Corporation
+ * Beanalît Cousson
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -132,7 +132,7 @@ u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
  * omap3xxx_prm_dpll3_reset - use DPLL3 reset to reboot the OMAP SoC
  *
  * Set the DPLL3 reset bit, which should reboot the SoC.  This is the
- * recommended way to restart the SoC, considering Errata i520.  No
+ * recommended way to restart the SoC, considering Errata i520.  Anal
  * return value.
  */
 static void omap3xxx_prm_dpll3_reset(void)
@@ -149,7 +149,7 @@ static void omap3xxx_prm_dpll3_reset(void)
  *
  * Read PRM_IRQSTATUS_MPU bits, AND'ed with the currently-enabled PRM
  * MPU IRQs, and store the result into the u32 pointed to by @events.
- * No return value.
+ * Anal return value.
  */
 static void omap3xxx_prm_read_pending_irqs(unsigned long *events)
 {
@@ -167,8 +167,8 @@ static void omap3xxx_prm_read_pending_irqs(unsigned long *events)
  *
  * Force any buffered writes to the PRM IP block to complete.  Needed
  * by the PRM IRQ handler, which reads and writes directly to the IP
- * block, to avoid race conditions after acknowledging or clearing IRQ
- * bits.  No return value.
+ * block, to avoid race conditions after ackanalwledging or clearing IRQ
+ * bits.  Anal return value.
  */
 static void omap3xxx_prm_ocp_barrier(void)
 {
@@ -183,7 +183,7 @@ static void omap3xxx_prm_ocp_barrier(void)
  * must be allocated by the caller.  Intended to be used in the PRM
  * interrupt handler suspend callback.  The OCP barrier is needed to
  * ensure the write to disable PRM interrupts reaches the PRM before
- * returning; otherwise, spurious interrupts might occur.  No return
+ * returning; otherwise, spurious interrupts might occur.  Anal return
  * value.
  */
 static void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
@@ -202,9 +202,9 @@ static void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
  *
  * Restore the PRM_IRQENABLE_MPU register from @saved_mask.  Intended
  * to be used in the PRM interrupt handler resume callback to restore
- * values saved by omap3xxx_prm_save_and_clear_irqen().  No OCP
+ * values saved by omap3xxx_prm_save_and_clear_irqen().  Anal OCP
  * barrier should be needed here; any pending PRM interrupts will fire
- * once the writes reach the PRM.  No return value.
+ * once the writes reach the PRM.  Anal return value.
  */
 static void omap3xxx_prm_restore_irqen(u32 *saved_mask)
 {
@@ -221,7 +221,7 @@ static void omap3xxx_prm_restore_irqen(u32 *saved_mask)
  * The purpose of this function is to clear any wake-up events latched
  * in the PRCM PM_WKST_x registers. It is possible that a wake-up event
  * may occur whilst attempting to clear a PM_WKST_x register and thus
- * set another bit in this register. A while loop is used to ensure
+ * set aanalther bit in this register. A while loop is used to ensure
  * that any peripheral wake-up events occurring while attempting to
  * clear the PM_WKST_x are detected and cleared.
  */
@@ -245,7 +245,7 @@ static int omap3xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
 			clken = wkst;
 			omap2_cm_set_mod_reg_bits(clken, module, iclk_off);
 			/*
-			 * For USBHOST, we don't know whether HOST1 or
+			 * For USBHOST, we don't kanalw whether HOST1 or
 			 * HOST2 woke us up, so enable both f-clocks
 			 */
 			if (module == OMAP3430ES2_USBHOST_MOD)
@@ -304,7 +304,7 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 	omap2_prm_write_mod_reg(OMAP3430_EN_IO_MASK | OMAP3430_EN_GPIO1_MASK |
 				OMAP3430_EN_GPT1_MASK | OMAP3430_EN_GPT12_MASK,
 				WKUP_MOD, PM_WKEN);
-	/* No need to write EN_IO, that is always enabled */
+	/* Anal need to write EN_IO, that is always enabled */
 	omap2_prm_write_mod_reg(OMAP3430_GRPSEL_GPIO1_MASK |
 				OMAP3430_GRPSEL_GPT1_MASK |
 				OMAP3430_GRPSEL_GPT12_MASK,
@@ -370,7 +370,7 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 	/* Clear any pending PRCM interrupts */
 	omap2_prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
 
-	/* We need to idle iva2_pwrdm even on am3703 with no iva2. */
+	/* We need to idle iva2_pwrdm even on am3703 with anal iva2. */
 	omap3xxx_prm_iva_idle();
 
 	omap3_prm_reset_modem();
@@ -379,7 +379,7 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 /**
  * omap3430_pre_es3_1_reconfigure_io_chain - restart wake-up daisy chain
  *
- * The ST_IO_CHAIN bit does not exist in 3430 before es3.1. The only
+ * The ST_IO_CHAIN bit does analt exist in 3430 before es3.1. The only
  * thing we can do is toggle EN_IO bit for earlier omaps.
  */
 static void omap3430_pre_es3_1_reconfigure_io_chain(void)
@@ -397,7 +397,7 @@ static void omap3430_pre_es3_1_reconfigure_io_chain(void)
  * Clear any previously-latched I/O wakeup events and ensure that the
  * I/O wakeup gates are aligned with the current mux settings.  Works
  * by asserting WUCLKIN, waiting for WUCLKOUT to be asserted, and then
- * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  No
+ * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  Anal
  * return value. These registers are only available in 3430 es3.1 and later.
  */
 static void omap3_prm_reconfigure_io_chain(void)
@@ -429,7 +429,7 @@ static void omap3_prm_reconfigure_io_chain(void)
  * those latches to signal a wakeup event to the PRCM.  For I/O
  * wakeups to occur, WAKEUPENABLE bits must be set in the pad mux
  * registers, and omap3xxx_prm_reconfigure_io_chain() must be called.
- * No return value.
+ * Anal return value.
  */
 static void omap3xxx_prm_enable_io_wakeup(void)
 {
@@ -466,7 +466,7 @@ static u32 omap3xxx_prm_read_reset_sources(void)
  * omap3xxx_prm_iva_idle - ensure IVA is in idle so it can be put into retention
  *
  * In cases where IVA2 is activated by bootcode, it may prevent
- * full-chip retention or off-mode because it is not idle.  This
+ * full-chip retention or off-mode because it is analt idle.  This
  * function forces the IVA2 into idle state so it can go
  * into retention/off and thus allow full-chip retention/off.
  */
@@ -475,7 +475,7 @@ static void omap3xxx_prm_iva_idle(void)
 	/* ensure IVA2 clock is disabled */
 	omap2_cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
 
-	/* if no clock activity, nothing else to do */
+	/* if anal clock activity, analthing else to do */
 	if (!(omap2_cm_read_mod_reg(OMAP3430_IVA2_MOD, OMAP3430_CM_CLKSTST) &
 	      OMAP3430_CLKACTIVITY_IVA2_MASK))
 		return;
@@ -507,7 +507,7 @@ static void omap3xxx_prm_iva_idle(void)
  * omap3xxx_prm_clear_global_cold_reset - checks the global cold reset status
  *					  and clears it if asserted
  *
- * Checks if cold-reset has occurred and clears the status bit if yes. Returns
+ * Checks if cold-reset has occurred and clears the status bit if anal. Returns
  * 1 if cold-reset has occurred, 0 otherwise.
  */
 int omap3xxx_prm_clear_global_cold_reset(void)
@@ -556,7 +556,7 @@ static int omap3_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 					     OMAP_POWERSTATEST_MASK);
 }
 
-/* Applicable only for OMAP3. Not supported on OMAP2 */
+/* Applicable only for OMAP3. Analt supported on OMAP2 */
 static int omap3_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
 {
 	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
@@ -688,7 +688,7 @@ static const struct of_device_id omap3_prm_dt_match_table[] = {
 
 static int omap3xxx_prm_late_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int irq_num;
 
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
@@ -701,15 +701,15 @@ static int omap3xxx_prm_late_init(void)
 		omap3_prcm_irq_setup.reconfigure_io_chain =
 			omap3430_pre_es3_1_reconfigure_io_chain;
 
-	np = of_find_matching_node(NULL, omap3_prm_dt_match_table);
+	np = of_find_matching_analde(NULL, omap3_prm_dt_match_table);
 	if (!np) {
-		pr_err("PRM: no device tree node for interrupt?\n");
+		pr_err("PRM: anal device tree analde for interrupt?\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	irq_num = of_irq_get(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (irq_num == -EPROBE_DEFER)
 		return irq_num;
 

@@ -41,7 +41,7 @@ D_h	.req	x14
 
 	mov	dst, dstin
 	cmp	count, #16
-	/*When memory length is less than 16, the accessed are not aligned.*/
+	/*When memory length is less than 16, the accessed are analt aligned.*/
 	b.lo	.Ltiny15
 
 	neg	tmp2, src

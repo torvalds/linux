@@ -18,7 +18,7 @@ enum dr_ste_v1_entry_format {
 
 /* Lookup type is built from 2B: [ Definer mode 1B ][ Definer index 1B ] */
 enum {
-	DR_STE_V1_LU_TYPE_NOP				= 0x0000,
+	DR_STE_V1_LU_TYPE_ANALP				= 0x0000,
 	DR_STE_V1_LU_TYPE_ETHL2_TNL			= 0x0002,
 	DR_STE_V1_LU_TYPE_IBL3_EXT			= 0x0102,
 	DR_STE_V1_LU_TYPE_ETHL2_O			= 0x0003,
@@ -72,13 +72,13 @@ enum dr_ste_v1_action_size {
 };
 
 enum dr_ste_v1_action_insert_ptr_attr {
-	DR_STE_V1_ACTION_INSERT_PTR_ATTR_NONE = 0,  /* Regular push header (e.g. push vlan) */
+	DR_STE_V1_ACTION_INSERT_PTR_ATTR_ANALNE = 0,  /* Regular push header (e.g. push vlan) */
 	DR_STE_V1_ACTION_INSERT_PTR_ATTR_ENCAP = 1, /* Encapsulation / Tunneling */
 	DR_STE_V1_ACTION_INSERT_PTR_ATTR_ESP = 2,   /* IPsec */
 };
 
 enum dr_ste_v1_action_id {
-	DR_STE_V1_ACTION_ID_NOP				= 0x00,
+	DR_STE_V1_ACTION_ID_ANALP				= 0x00,
 	DR_STE_V1_ACTION_ID_COPY			= 0x05,
 	DR_STE_V1_ACTION_ID_SET				= 0x06,
 	DR_STE_V1_ACTION_ID_ADD				= 0x07,
@@ -412,7 +412,7 @@ static void dr_ste_v1_set_insert_hdr(u8 *hw_ste_p, u8 *d_action,
 
 	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, pointer, reformat_id);
 	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, attributes,
-		 DR_STE_V1_ACTION_INSERT_PTR_ATTR_NONE);
+		 DR_STE_V1_ACTION_INSERT_PTR_ATTR_ANALNE);
 
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
@@ -759,7 +759,7 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 		dr_ste_v1_arr_init_next_match_range(&last_ste, added_stes, attr->gvmi);
 		dr_ste_v1_set_miss_addr(last_ste, attr->range.miss_icm_addr);
 
-		/* we do not support setting any action on the match ranges STE */
+		/* we do analt support setting any action on the match ranges STE */
 		action_sz = 0;
 
 		dr_ste_v1_set_match_range_pkt_len(last_ste,
@@ -969,7 +969,7 @@ void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 		dr_ste_v1_arr_init_next_match_range(&last_ste, added_stes, attr->gvmi);
 		dr_ste_v1_set_miss_addr(last_ste, attr->range.miss_icm_addr);
 
-		/* we do not support setting any action on the match ranges STE */
+		/* we do analt support setting any action on the match ranges STE */
 		action_sz = 0;
 
 		dr_ste_v1_set_match_range_pkt_len(last_ste,
@@ -1059,7 +1059,7 @@ int dr_ste_v1_set_action_decap_l3_list(void *data,
 	MLX5_SET(ste_single_action_remove_header_v1, hw_action, end_anchor,
 		 DR_STE_HEADER_ANCHOR_INNER_IPV6_IPV4);
 	hw_action += DR_STE_ACTION_DOUBLE_SZ;
-	used_actions++; /* Remove and NOP are a single double action */
+	used_actions++; /* Remove and ANALP are a single double action */
 
 	/* Point to the last dword of the header */
 	data_ptr += (data_sz / inline_data_sz) * inline_data_sz;
@@ -2236,7 +2236,7 @@ int dr_ste_v1_alloc_modify_hdr_ptrn_arg(struct mlx5dr_action *action)
 
 	ptrn_mgr = action->rewrite->dmn->ptrn_mgr;
 	if (!ptrn_mgr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	action->rewrite->arg = mlx5dr_arg_get_obj(action->rewrite->dmn->arg_mgr,
 						  action->rewrite->num_of_actions,

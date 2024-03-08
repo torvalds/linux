@@ -28,5 +28,5 @@ void arch_alloc_page(struct page *page, int order)
 	if (cmma_flag < 2)
 		__set_page_stable_dat(page_to_virt(page), 1UL << order);
 	else
-		__set_page_stable_nodat(page_to_virt(page), 1UL << order);
+		__set_page_stable_analdat(page_to_virt(page), 1UL << order);
 }

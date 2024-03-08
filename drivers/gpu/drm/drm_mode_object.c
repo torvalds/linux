@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -98,7 +98,7 @@ void drm_mode_object_register(struct drm_device *dev,
  * Free @id from @dev's unique identifier pool.
  * This function can be called multiple times, and guards against
  * multiple removals.
- * These modeset identifiers are _not_ reference counted. Hence don't use this
+ * These modeset identifiers are _analt_ reference counted. Hence don't use this
  * for reference counted modeset objects like framebuffers.
  */
 void drm_mode_object_unregister(struct drm_device *dev,
@@ -148,7 +148,7 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 
 	if (obj && drm_mode_object_lease_required(obj->type) &&
 	    !_drm_lease_held(file_priv, obj->id)) {
-		drm_dbg_kms(dev, "[OBJECT:%d] not included in lease", id);
+		drm_dbg_kms(dev, "[OBJECT:%d] analt included in lease", id);
 		obj = NULL;
 	}
 
@@ -188,7 +188,7 @@ EXPORT_SYMBOL(drm_mode_object_find);
  * @obj: DRM mode object
  *
  * This function decrements the object's refcount if it is a refcounted modeset
- * object. It is a no-op on any other object. This is used to drop references
+ * object. It is a anal-op on any other object. This is used to drop references
  * acquired with drm_mode_object_get().
  */
 void drm_mode_object_put(struct drm_mode_object *obj)
@@ -205,7 +205,7 @@ EXPORT_SYMBOL(drm_mode_object_put);
  * @obj: DRM mode object
  *
  * This function increments the object's refcount if it is a refcounted modeset
- * object. It is a no-op on any other object. References should be dropped again
+ * object. It is a anal-op on any other object. References should be dropped again
  * by calling drm_mode_object_put().
  */
 void drm_mode_object_get(struct drm_mode_object *obj)
@@ -224,10 +224,10 @@ EXPORT_SYMBOL(drm_mode_object_get);
  * @init_val: initial value of the property
  *
  * This attaches the given property to the modeset object with the given initial
- * value. Currently this function cannot fail since the properties are stored in
+ * value. Currently this function cananalt fail since the properties are stored in
  * a statically sized array.
  *
- * Note that all properties must be attached before the object itself is
+ * Analte that all properties must be attached before the object itself is
  * registered and accessible from userspace.
  */
 void drm_object_attach_property(struct drm_mode_object *obj,
@@ -268,10 +268,10 @@ EXPORT_SYMBOL(drm_object_attach_property);
  * @val: value the property should be set to
  *
  * This function sets a given property on a given object. This function only
- * changes the software state of the property, it does not call into the
+ * changes the software state of the property, it does analt call into the
  * driver's ->set_property callback.
  *
- * Note that atomic drivers should not have any need to call this, the core will
+ * Analte that atomic drivers should analt have any need to call this, the core will
  * ensure consistency of values reported back to userspace through the
  * appropriate ->atomic_get_property callback. Only legacy drivers should call
  * this function to update the tracked value (after clamping and other
@@ -338,7 +338,7 @@ static int __drm_object_property_get_value(struct drm_mode_object *obj,
  * @val: storage for the property value
  *
  * This function retrieves the softare state of the given property for the given
- * property. Since there is no driver callback to retrieve the current property
+ * property. Since there is anal driver callback to retrieve the current property
  * value this might be out of sync with the hardware, depending upon the driver
  * and property.
  *
@@ -367,7 +367,7 @@ EXPORT_SYMBOL(drm_object_property_get_value);
  * This function retrieves the default state of the given property as passed in
  * to drm_object_attach_property
  *
- * Only atomic drivers should call this function directly, as for non-atomic
+ * Only atomic drivers should call this function directly, as for analn-atomic
  * drivers it will return the current value.
  *
  * Returns:
@@ -430,7 +430,7 @@ int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv)
@@ -441,13 +441,13 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 
 	obj = drm_mode_object_find(dev, file_priv, arg->obj_id, arg->obj_type);
 	if (!obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	if (!obj->properties) {
@@ -522,7 +522,7 @@ static int set_property_atomic(struct drm_mode_object *obj,
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_modeset_acquire_init(&ctx, 0);
 	state->acquire_ctx = &ctx;
@@ -567,11 +567,11 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	int ret = -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	arg_obj = drm_mode_object_find(dev, file_priv, arg->obj_id, arg->obj_type);
 	if (!arg_obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!arg_obj->properties)
 		goto out_unref;

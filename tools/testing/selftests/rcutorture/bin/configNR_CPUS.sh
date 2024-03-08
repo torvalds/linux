@@ -3,7 +3,7 @@
 #
 # Extract the number of CPUs expected from the specified Kconfig-file
 # fragment by checking CONFIG_SMP and CONFIG_NR_CPUS.  If the specified
-# file gives no clue, base the number on the number of idle CPUs on
+# file gives anal clue, base the number on the number of idle CPUs on
 # the system.
 #
 # Usage: configNR_CPUS.sh config-frag

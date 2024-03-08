@@ -38,16 +38,16 @@ mt7921_tm_set(struct mt792x_dev *dev, struct mt7921_tm_cmd *req)
 		.param0 = cpu_to_le32(req->param0),
 		.param1 = cpu_to_le32(req->param1),
 	};
-	bool testmode = false, normal = false;
+	bool testmode = false, analrmal = false;
 	struct mt76_connac_pm *pm = &dev->pm;
 	struct mt76_phy *phy = &dev->mphy;
-	int ret = -ENOTCONN;
+	int ret = -EANALTCONN;
 
 	mutex_lock(&dev->mt76.mutex);
 
 	if (req->action == TM_SWITCH_MODE) {
-		if (req->param0 == MT7921_TM_NORMAL)
-			normal = true;
+		if (req->param0 == MT7921_TM_ANALRMAL)
+			analrmal = true;
 		else
 			testmode = true;
 	}
@@ -70,8 +70,8 @@ mt7921_tm_set(struct mt792x_dev *dev, struct mt7921_tm_cmd *req)
 	if (ret)
 		goto out;
 
-	if (normal) {
-		/* Switch back to the normal world */
+	if (analrmal) {
+		/* Switch back to the analrmal world */
 		phy->test.state = MT76_TM_STATE_OFF;
 		pm->enable = true;
 	}
@@ -118,7 +118,7 @@ int mt7921_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (!test_bit(MT76_STATE_RUNNING, &mphy->state) ||
 	    !(hw->conf.flags & IEEE80211_CONF_MONITOR))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	err = nla_parse_deprecated(tb, MT76_TM_ATTR_MAX, data, len,
 				   mt76_tm_policy, NULL);
@@ -156,10 +156,10 @@ int mt7921_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 	if (!test_bit(MT76_STATE_RUNNING, &mphy->state) ||
 	    !(hw->conf.flags & IEEE80211_CONF_MONITOR) ||
 	    !mt76_testmode_enabled(mphy))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (cb->args[2]++ > 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = nla_parse_deprecated(tb, MT76_TM_ATTR_MAX, data, len,
 				   mt76_tm_policy, NULL);

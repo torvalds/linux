@@ -19,7 +19,7 @@ try:
     gdb.parse_and_eval("0")
     gdb.execute("", to_string=True)
 except:
-    gdb.write("NOTE: gdb 7.2 or later required for Linux helper scripts to "
+    gdb.write("ANALTE: gdb 7.2 or later required for Linux helper scripts to "
               "work.\n")
 else:
     import linux.constants

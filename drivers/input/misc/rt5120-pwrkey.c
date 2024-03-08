@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
 
@@ -29,7 +29,7 @@ static irqreturn_t rt5120_pwrkey_handler(int irq, void *devid)
 
 	error = regmap_read(priv->regmap, RT5120_REG_INTSTAT, &stat);
 	if (error)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	input_report_key(priv->input, KEY_POWER,
 			 !(stat & RT5120_PWRKEYSTAT_MASK));
@@ -47,12 +47,12 @@ static int rt5120_pwrkey_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!priv->regmap) {
 		dev_err(dev, "Failed to init regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	press_irq = platform_get_irq_byname(pdev, "pwrkey-press");
@@ -66,7 +66,7 @@ static int rt5120_pwrkey_probe(struct platform_device *pdev)
 	/* Make input device be device resource managed */
 	priv->input = devm_input_allocate_device(dev);
 	if (!priv->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->input->name = "rt5120_pwrkey";
 	priv->input->phys = "rt5120_pwrkey/input0";

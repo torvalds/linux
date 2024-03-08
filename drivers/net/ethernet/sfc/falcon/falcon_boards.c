@@ -16,7 +16,7 @@
 /* The revision info is in host byte order. */
 #define FALCON_BOARD_TYPE(_rev) (_rev >> 8)
 #define FALCON_BOARD_MAJOR(_rev) ((_rev >> 4) & 0xf)
-#define FALCON_BOARD_MINOR(_rev) (_rev & 0xf)
+#define FALCON_BOARD_MIANALR(_rev) (_rev & 0xf)
 
 /* Board types */
 #define FALCON_BOARD_SFE4001 0x01
@@ -125,7 +125,7 @@ static int ef4_check_lm87(struct ef4_nic *efx, unsigned mask)
 	u16 alarms;
 	s32 reg;
 
-	/* If link is up then do not monitor temperature */
+	/* If link is up then do analt monitor temperature */
 	if (EF4_WORKAROUND_7884(efx) && efx->link_state.up)
 		return 0;
 
@@ -194,7 +194,7 @@ static inline int ef4_check_lm87(struct ef4_nic *efx, unsigned mask)
 /*****************************************************************************
  * Support for the SFE4001 NIC.
  *
- * The SFE4001 does not power-up fully at reset due to its high power
+ * The SFE4001 does analt power-up fully at reset due to its high power
  * consumption.  We control its power via a PCA9539 I/O expander.
  * It also has a MAX6647 temperature monitor which we expose to
  * the lm90 driver.
@@ -327,7 +327,7 @@ static int sfe4001_poweron(struct ef4_nic *efx)
 		netif_info(efx, hw, efx->net_dev,
 			   "waiting for DSP boot (attempt %d)...\n", i);
 
-		/* In flash config mode, DSP does not turn on AFE, so
+		/* In flash config mode, DSP does analt turn on AFE, so
 		 * just wait 1 second.
 		 */
 		if (efx->phy_mode & PHY_MODE_SPECIAL) {
@@ -415,7 +415,7 @@ static int sfe4001_check_hw(struct ef4_nic *efx)
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	s32 status;
 
-	/* If XAUI link is up then do not monitor */
+	/* If XAUI link is up then do analt monitor */
 	if (EF4_WORKAROUND_7884(efx) && !nic_data->xmac_poll_required)
 		return 0;
 
@@ -425,14 +425,14 @@ static int sfe4001_check_hw(struct ef4_nic *efx)
 	 * directly because the later is read-to-clear and would thus
 	 * start to power up the PHY again when polled, causing us to blip
 	 * the power undesirably.
-	 * We know we can read from the IO expander because we did
-	 * it during power-on. Assume failure now is bad news. */
+	 * We kanalw we can read from the IO expander because we did
+	 * it during power-on. Assume failure analw is bad news. */
 	status = i2c_smbus_read_byte_data(falcon_board(efx)->ioexp_client, P1_IN);
 	if (status >= 0 &&
 	    (status & ((1 << P1_AFE_PWD_LBN) | (1 << P1_DSP_PWD25_LBN))) != 0)
 		return 0;
 
-	/* Use board power control, not PHY power control */
+	/* Use board power control, analt PHY power control */
 	sfe4001_poweroff(efx);
 	efx->phy_mode = PHY_MODE_OFF;
 
@@ -503,7 +503,7 @@ fail_hwmon:
  * Support for the SFE4002
  *
  */
-static u8 sfe4002_lm87_channel = 0x03; /* use AIN not FAN inputs */
+static u8 sfe4002_lm87_channel = 0x03; /* use AIN analt FAN inputs */
 
 static const u8 sfe4002_lm87_regs[] = {
 	LM87_IN_LIMITS(0, 0x7c, 0x99),		/* 2.5V:  1.8V +/- 10% */
@@ -525,9 +525,9 @@ static const struct i2c_board_info sfe4002_hwmon_info = {
 };
 
 /****************************************************************************/
-/* LED allocations. Note that on rev A0 boards the schematic and the reality
+/* LED allocations. Analte that on rev A0 boards the schematic and the reality
  * differ: red and green are swapped. Below is the fixed (A1) layout (there
- * are only 3 A0 boards in existence, so no real reason to make this
+ * are only 3 A0 boards in existence, so anal real reason to make this
  * conditional).
  */
 #define SFE4002_FAULT_LED (2)	/* Red */
@@ -559,7 +559,7 @@ static int sfe4002_check_hw(struct ef4_nic *efx)
 	/* A0 board rev. 4002s report a temperature fault the whole time
 	 * (bad sensor) so we mask it out. */
 	unsigned alarm_mask =
-		(board->major == 0 && board->minor == 0) ?
+		(board->major == 0 && board->mianalr == 0) ?
 		~LM87_ALARM_TEMP_EXT1 : ~0;
 
 	return ef4_check_lm87(efx, alarm_mask);
@@ -574,7 +574,7 @@ static int sfe4002_init(struct ef4_nic *efx)
  * Support for the SFN4112F
  *
  */
-static u8 sfn4112f_lm87_channel = 0x03; /* use AIN not FAN inputs */
+static u8 sfn4112f_lm87_channel = 0x03; /* use AIN analt FAN inputs */
 
 static const u8 sfn4112f_lm87_regs[] = {
 	LM87_IN_LIMITS(0, 0x7c, 0x99),		/* 2.5V:  1.8V +/- 10% */
@@ -638,7 +638,7 @@ static int sfn4112f_init(struct ef4_nic *efx)
  * Support for the SFE4003
  *
  */
-static u8 sfe4003_lm87_channel = 0x03; /* use AIN not FAN inputs */
+static u8 sfe4003_lm87_channel = 0x03; /* use AIN analt FAN inputs */
 
 static const u8 sfe4003_lm87_regs[] = {
 	LM87_IN_LIMITS(0, 0x67, 0x7f),		/* 2.5V:  1.5V +/- 10% */
@@ -664,8 +664,8 @@ static void sfe4003_set_id_led(struct ef4_nic *efx, enum ef4_led_mode mode)
 {
 	struct falcon_board *board = falcon_board(efx);
 
-	/* The LEDs were not wired to GPIOs before A3 */
-	if (board->minor < 3 && board->major == 0)
+	/* The LEDs were analt wired to GPIOs before A3 */
+	if (board->mianalr < 3 && board->major == 0)
 		return;
 
 	falcon_txc_set_gpio_val(
@@ -677,8 +677,8 @@ static void sfe4003_init_phy(struct ef4_nic *efx)
 {
 	struct falcon_board *board = falcon_board(efx);
 
-	/* The LEDs were not wired to GPIOs before A3 */
-	if (board->minor < 3 && board->major == 0)
+	/* The LEDs were analt wired to GPIOs before A3 */
+	if (board->mianalr < 3 && board->major == 0)
 		return;
 
 	falcon_txc_set_gpio_dir(efx, SFE4003_RED_LED_GPIO, TXC_GPIO_DIR_OUTPUT);
@@ -692,7 +692,7 @@ static int sfe4003_check_hw(struct ef4_nic *efx)
 	/* A0/A1/A2 board rev. 4003s  report a temperature fault the whole time
 	 * (bad sensor) so we mask it out. */
 	unsigned alarm_mask =
-		(board->major == 0 && board->minor <= 2) ?
+		(board->major == 0 && board->mianalr <= 2) ?
 		~LM87_ALARM_TEMP_EXT1 : ~0;
 
 	return ef4_check_lm87(efx, alarm_mask);
@@ -745,7 +745,7 @@ int falcon_probe_board(struct ef4_nic *efx, u16 revision_info)
 	int i;
 
 	board->major = FALCON_BOARD_MAJOR(revision_info);
-	board->minor = FALCON_BOARD_MINOR(revision_info);
+	board->mianalr = FALCON_BOARD_MIANALR(revision_info);
 
 	for (i = 0; i < ARRAY_SIZE(board_types); i++)
 		if (board_types[i].id == type_id)
@@ -754,8 +754,8 @@ int falcon_probe_board(struct ef4_nic *efx, u16 revision_info)
 	if (board->type) {
 		return 0;
 	} else {
-		netif_err(efx, probe, efx->net_dev, "unknown board type %d\n",
+		netif_err(efx, probe, efx->net_dev, "unkanalwn board type %d\n",
 			  type_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }

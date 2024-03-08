@@ -407,7 +407,7 @@ static void rtl8225_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 			  RTL8187_RTL8225_ANAPARAM2_ON);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
 			reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_ANALRMAL);
 
 	rtl8225_write_phy_ofdm(dev, 2, 0x42);
 	rtl8225_write_phy_ofdm(dev, 6, 0x00);
@@ -658,7 +658,7 @@ static void rtl8225z2_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 			  RTL8187_RTL8225_ANAPARAM2_ON);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
 			reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_ANALRMAL);
 
 	rtl8225_write_phy_ofdm(dev, 2, 0x42);
 	rtl8225_write_phy_ofdm(dev, 5, 0x00);
@@ -699,14 +699,14 @@ static void rtl8225z2_b_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 
 	if (priv->hw_rev == RTL8187BvB) {
 		if (cck_power <= 6)
-			; /* do nothing */
+			; /* do analthing */
 		else if (cck_power <= 11)
 			tmp += 8;
 		else
 			tmp += 16;
 	} else {
 		if (cck_power <= 5)
-			; /* do nothing */
+			; /* do analthing */
 		else if (cck_power <= 11)
 			tmp += 8;
 		else if (cck_power <= 17)

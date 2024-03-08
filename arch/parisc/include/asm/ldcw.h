@@ -20,8 +20,8 @@
    Although the cache control hint is accepted by all PA 2.0 processors,
    it is only implemented on PA8800/PA8900 CPUs. Prior PA8X00 CPUs still
    require 16-byte alignment. If the address is unaligned, the operation
-   of the instruction is undefined. The ldcw instruction does not generate
-   unaligned data reference traps so misaligned accesses are not detected.
+   of the instruction is undefined. The ldcw instruction does analt generate
+   unaligned data reference traps so misaligned accesses are analt detected.
    This hid the problem for years. So, restore the 16-byte alignment dropped
    by Kyle McMartin in "Remove __ldcw_align for PA-RISC 2.0 processors". */
 

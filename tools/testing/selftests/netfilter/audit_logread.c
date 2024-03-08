@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
@@ -34,12 +34,12 @@ int audit_recv(int fd, struct audit_message *rep)
 	do {
 		ret = recvfrom(fd, rep, sizeof(*rep), 0,
 			       (struct sockaddr *)&addr, &addrlen);
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 
 	if (ret < 0 ||
 	    addrlen != sizeof(addr) ||
 	    addr.nl_pid != 0 ||
-	    rep->nlh.nlmsg_type == NLMSG_ERROR) /* short-cut for now */
+	    rep->nlh.nlmsg_type == NLMSG_ERROR) /* short-cut for analw */
 		return -1;
 
 	return ret;
@@ -69,7 +69,7 @@ int audit_send(int fd, uint16_t type, uint32_t key, uint32_t val)
 	do {
 		ret = sendto(fd, &msg, msg.nlh.nlmsg_len, 0,
 			     (struct sockaddr *)&addr, sizeof(addr));
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 
 	if (ret != (int)msg.nlh.nlmsg_len)
 		return -1;
@@ -110,7 +110,7 @@ int readlog(int fd)
 	while ((k = strtok(NULL, "="))) {
 		v = strtok(NULL, " ");
 
-		/* these vary and/or are uninteresting, ignore */
+		/* these vary and/or are uninteresting, iganalre */
 		if (!strcmp(k, "pid") ||
 		    !strcmp(k, "comm") ||
 		    !strcmp(k, "subj"))

@@ -158,8 +158,8 @@ out_context:
 static struct intel_gt *find_gt_for_required_teelink(struct drm_i915_private *i915)
 {
 	/*
-	 * NOTE: Only certain platforms require PXP-tee-backend dependencies
-	 * for HuC authentication. For now, its limited to DG2.
+	 * ANALTE: Only certain platforms require PXP-tee-backend dependencies
+	 * for HuC authentication. For analw, its limited to DG2.
 	 */
 	if (IS_ENABLED(CONFIG_INTEL_MEI_PXP) && IS_ENABLED(CONFIG_INTEL_MEI_GSC) &&
 	    intel_huc_is_loaded_by_gsc(&to_gt(i915)->uc.huc) && intel_uc_uses_huc(&to_gt(i915)->uc))
@@ -175,7 +175,7 @@ static struct intel_gt *find_gt_for_required_protected_content(struct drm_i915_p
 
 	/*
 	 * For MTL onwards, PXP-controller-GT needs to have a valid GSC engine
-	 * on the media GT. NOTE: if we have a media-tile with a GSC-engine,
+	 * on the media GT. ANALTE: if we have a media-tile with a GSC-engine,
 	 * the VDBOX is already present so skip that check. We also have to
 	 * ensure the GSC and HUC firmware are coming online
 	 */
@@ -200,10 +200,10 @@ int intel_pxp_init(struct drm_i915_private *i915)
 	bool is_full_feature = false;
 
 	if (intel_gt_is_wedged(to_gt(i915)))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	/*
-	 * NOTE: Get the ctrl_gt before checking intel_pxp_is_supported since
+	 * ANALTE: Get the ctrl_gt before checking intel_pxp_is_supported since
 	 * we still need it if PXP's backend tee transport is needed.
 	 */
 	gt = find_gt_for_required_protected_content(i915);
@@ -213,7 +213,7 @@ int intel_pxp_init(struct drm_i915_private *i915)
 		gt = find_gt_for_required_teelink(i915);
 
 	if (!gt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * At this point, we will either enable full featured PXP capabilities
@@ -222,14 +222,14 @@ int intel_pxp_init(struct drm_i915_private *i915)
 	 */
 	i915->pxp = kzalloc(sizeof(*i915->pxp), GFP_KERNEL);
 	if (!i915->pxp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* init common info used by all feature-mode usages*/
 	i915->pxp->ctrl_gt = gt;
 	mutex_init(&i915->pxp->tee_mutex);
 
 	/*
-	 * If full PXP feature is not available but HuC is loaded by GSC on pre-MTL
+	 * If full PXP feature is analt available but HuC is loaded by GSC on pre-MTL
 	 * such as DG2, we can skip the init of the full PXP session/object management
 	 * and just init the tee channel.
 	 */
@@ -309,7 +309,7 @@ static int __pxp_global_teardown_final(struct intel_pxp *pxp)
 
 	drm_dbg(&pxp->ctrl_gt->i915->drm, "PXP: teardown for suspend/fini");
 	/*
-	 * To ensure synchronous and coherent session teardown completion
+	 * To ensure synchroanalus and coherent session teardown completion
 	 * in response to suspend or shutdown triggers, don't use a worker.
 	 */
 	intel_pxp_mark_termination_in_progress(pxp);
@@ -396,13 +396,13 @@ static bool pxp_fw_dependencies_completed(struct intel_pxp *pxp)
 int intel_pxp_get_readiness_status(struct intel_pxp *pxp, int timeout_ms)
 {
 	if (!intel_pxp_is_enabled(pxp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pxp_required_fw_failed(pxp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pxp->platform_cfg_is_bad)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (timeout_ms) {
 		if (wait_for(pxp_fw_dependencies_completed(pxp), timeout_ms))
@@ -425,7 +425,7 @@ int intel_pxp_start(struct intel_pxp *pxp)
 
 	ret = intel_pxp_get_readiness_status(pxp, PXP_READINESS_TIMEOUT);
 	if (ret < 0) {
-		drm_dbg(&pxp->ctrl_gt->i915->drm, "PXP: tried but not-avail (%d)", ret);
+		drm_dbg(&pxp->ctrl_gt->i915->drm, "PXP: tried but analt-avail (%d)", ret);
 		return ret;
 	} else if (ret > 1) {
 		return -EIO; /* per UAPI spec, user may retry later */
@@ -465,7 +465,7 @@ int intel_pxp_key_check(struct intel_pxp *pxp,
 			bool assign)
 {
 	if (!intel_pxp_is_active(pxp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!i915_gem_object_is_protected(obj))
 		return -EINVAL;
@@ -473,7 +473,7 @@ int intel_pxp_key_check(struct intel_pxp *pxp,
 	GEM_BUG_ON(!pxp->key_instance);
 
 	/*
-	 * If this is the first time we're using this object, it's not
+	 * If this is the first time we're using this object, it's analt
 	 * encrypted yet; it will be encrypted with the current key, so mark it
 	 * as such. If the object is already encrypted, check instead if the
 	 * used key is still valid.
@@ -482,7 +482,7 @@ int intel_pxp_key_check(struct intel_pxp *pxp,
 		obj->pxp_key_instance = pxp->key_instance;
 
 	if (obj->pxp_key_instance != pxp->key_instance)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	return 0;
 }
@@ -513,7 +513,7 @@ void intel_pxp_invalidate(struct intel_pxp *pxp)
 		 * quiesced execution or the HW keys are already long gone and
 		 * in this case it is worthless to attempt to close the context
 		 * and wait for its execution. It will hang the GPU if it has
-		 * not already. So, as a fast mitigation, we can ban the
+		 * analt already. So, as a fast mitigation, we can ban the
 		 * context as quick as we can. That might race with the
 		 * execbuffer, but currently this is the best that can be done.
 		 */
@@ -522,7 +522,7 @@ void intel_pxp_invalidate(struct intel_pxp *pxp)
 		i915_gem_context_unlock_engines(ctx);
 
 		/*
-		 * The context has been banned, no need to keep the wakeref.
+		 * The context has been banned, anal need to keep the wakeref.
 		 * This is safe from races because the only other place this
 		 * is touched is context_release and we're holding a ctx ref
 		 */

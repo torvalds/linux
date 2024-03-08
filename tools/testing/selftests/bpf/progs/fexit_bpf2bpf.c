@@ -44,7 +44,7 @@ int BPF_PROG(test_subprog1, struct sk_buff *skb, int ret)
 }
 
 /* Though test_pkt_access_subprog2() is defined in C as:
- * static __attribute__ ((noinline))
+ * static __attribute__ ((analinline))
  * int test_pkt_access_subprog2(int val, volatile struct __sk_buff *skb)
  * {
  *     return skb->len * val;

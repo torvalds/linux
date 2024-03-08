@@ -3,7 +3,7 @@
  * OMAP3xxx Power/Reset Management (PRM) register definitions
  *
  * Copyright (C) 2007-2009, 2011-2012 Texas Instruments, Inc.
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  * Paul Walmsley
  *
  * The PRM hardware modules on the OMAP2/3 are quite similar to each

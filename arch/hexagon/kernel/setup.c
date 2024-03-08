@@ -42,7 +42,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * These will eventually be pulled in via either some hypervisor
-	 * or devicetree description.  Hardwiring for now.
+	 * or devicetree description.  Hardwiring for analw.
 	 */
 	pcycle_freq_mhz = 600;
 	thread_freq_mhz = 100;
@@ -57,7 +57,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * Simulator has a few differences from the hardware.
-	 * For now, check uninitialized-but-mapped memory
+	 * For analw, check uninitialized-but-mapped memory
 	 * prior to invoking setup_arch_memory().
 	 */
 	if (*(int *)((unsigned long)_end + 8) == 0x1f1f1f1f)
@@ -73,7 +73,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * boot_command_line and the value set up by setup_arch
-	 * are both picked up by the init code. If no reason to
+	 * are both picked up by the init code. If anal reason to
 	 * make them different, pass the same pointer back.
 	 */
 	strscpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);

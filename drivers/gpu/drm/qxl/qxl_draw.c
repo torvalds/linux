@@ -8,13 +8,13 @@
  * license, and/or sell copies of the Software, and to permit persons to whom
  * the Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -39,7 +39,7 @@ static int alloc_clips(struct qxl_device *qdev,
 }
 
 /* returns a pointer to the already allocated qxl_rect array inside
- * the qxl_clip_rects. This is *not* the same as the memory allocated
+ * the qxl_clip_rects. This is *analt* the same as the memory allocated
  * on the device, it is offset to qxl_clip_rects.chunk.data */
 static struct qxl_rect *drawable_set_clipping(struct qxl_device *qdev,
 					      unsigned int num_clips,
@@ -85,11 +85,11 @@ make_drawable(struct qxl_device *qdev, int surface, uint8_t type,
 
 	drawable = (struct qxl_drawable *)qxl_release_map(qdev, release);
 	if (!drawable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drawable->type = type;
 
-	drawable->surface_id = surface;		/* Only primary for now */
+	drawable->surface_id = surface;		/* Only primary for analw */
 	drawable->effect = QXL_EFFECT_OPAQUE;
 	drawable->self_bitmap = 0;
 	drawable->self_bitmap_area.top = 0;
@@ -97,7 +97,7 @@ make_drawable(struct qxl_device *qdev, int surface, uint8_t type,
 	drawable->self_bitmap_area.bottom = 0;
 	drawable->self_bitmap_area.right = 0;
 	/* FIXME: add clipping */
-	drawable->clip.type = SPICE_CLIP_TYPE_NONE;
+	drawable->clip.type = SPICE_CLIP_TYPE_ANALNE;
 
 	/*
 	 * surfaces_dest[i] should apparently be filled out with the
@@ -119,8 +119,8 @@ make_drawable(struct qxl_device *qdev, int surface, uint8_t type,
 /* push a draw command using the given clipping rectangles as
  * the sources from the shadow framebuffer.
  *
- * Right now implementing with a single draw and a clip list. Clip
- * lists are known to be a problem performance wise, this can be solved
+ * Right analw implementing with a single draw and a clip list. Clip
+ * lists are kanalwn to be a problem performance wise, this can be solved
  * by treating them differently in the server.
  */
 void qxl_draw_dirty_fb(struct qxl_device *qdev,
@@ -132,7 +132,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		       uint32_t dumb_shadow_offset)
 {
 	/*
-	 * TODO: if flags & DRM_MODE_FB_DIRTY_ANNOTATE_FILL then we should
+	 * TODO: if flags & DRM_MODE_FB_DIRTY_ANANALTATE_FILL then we should
 	 * send a fill command instead, much cheaper.
 	 *
 	 * See include/drm/drm_mode.h
@@ -145,7 +145,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	struct qxl_rect drawable_rect;
 	struct qxl_rect *rects;
 	int stride = fb->pitches[0];
-	/* depth is not actually interesting, we don't mask with it */
+	/* depth is analt actually interesting, we don't mask with it */
 	int depth = fb->format->cpp[0] * 8;
 	struct iosys_map surface_map;
 	uint8_t *surface_base;

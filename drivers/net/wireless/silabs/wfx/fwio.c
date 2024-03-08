@@ -29,7 +29,7 @@
 #define     HOST_UPLOAD_COMPLETE      0xD4C64A99
 #define     HOST_OK_TO_JUMP           0x174FC882
 #define WFX_DCA_NCP_STATUS        0x0900C010
-#define     NCP_NOT_READY             0x12345678
+#define     NCP_ANALT_READY             0x12345678
 #define     NCP_READY                 0x87654321
 #define     NCP_INFO_READY            0xBD53EF99
 #define     NCP_DOWNLOAD_PENDING      0xABCDDCBA
@@ -64,18 +64,18 @@
 static const char * const fwio_errors[] = {
 	[ERR_INVALID_SEC_TYPE] = "Invalid section type or wrong encryption",
 	[ERR_SIG_VERIF_FAILED] = "Signature verification failed",
-	[ERR_AES_CTRL_KEY]     = "AES control key not initialized",
-	[ERR_ECC_PUB_KEY]      = "ECC public key not initialized",
-	[ERR_MAC_KEY]          = "MAC key not initialized",
+	[ERR_AES_CTRL_KEY]     = "AES control key analt initialized",
+	[ERR_ECC_PUB_KEY]      = "ECC public key analt initialized",
+	[ERR_MAC_KEY]          = "MAC key analt initialized",
 };
 
-/* request_firmware() allocate data using vmalloc(). It is not compatible with underlying hardware
+/* request_firmware() allocate data using vmalloc(). It is analt compatible with underlying hardware
  * that use DMA. Function below detect this case and allocate a bounce buffer if necessary.
  *
- * Notice that, in doubt, you can enable CONFIG_DEBUG_SG to ask kernel to detect this problem at
+ * Analtice that, in doubt, you can enable CONFIG_DEBUG_SG to ask kernel to detect this problem at
  * runtime  (else, kernel silently fail).
  *
- * NOTE: it may also be possible to use 'pages' from struct firmware and avoid bounce buffer
+ * ANALTE: it may also be possible to use 'pages' from struct firmware and avoid bounce buffer
  */
 static int wfx_sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf, size_t len)
 {
@@ -85,7 +85,7 @@ static int wfx_sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf
 	if (!virt_addr_valid(buf)) {
 		tmp = kmemdup(buf, len, GFP_KERNEL);
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		tmp = buf;
 	}
@@ -105,7 +105,7 @@ static int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
 
 	snprintf(filename, sizeof(filename), "%s_%02X.sec",
 		 wdev->pdata.file_fw, keyset_chip);
-	ret = firmware_request_nowarn(fw, filename, wdev->dev);
+	ret = firmware_request_analwarn(fw, filename, wdev->dev);
 	if (ret) {
 		dev_info(wdev->dev, "can't load %s, falling back to %s.sec\n",
 			 filename, wdev->pdata.file_fw);
@@ -138,7 +138,7 @@ static int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
 			keyset_file, keyset_chip);
 		release_firmware(*fw);
 		*fw = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	wdev->keyset = keyset_file;
 	return 0;
@@ -146,7 +146,7 @@ static int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
 
 static int wait_ncp_status(struct wfx_dev *wdev, u32 status)
 {
-	ktime_t now, start;
+	ktime_t analw, start;
 	u32 reg;
 	int ret;
 
@@ -155,14 +155,14 @@ static int wait_ncp_status(struct wfx_dev *wdev, u32 status)
 		ret = wfx_sram_reg_read(wdev, WFX_DCA_NCP_STATUS, &reg);
 		if (ret < 0)
 			return -EIO;
-		now = ktime_get();
+		analw = ktime_get();
 		if (reg == status)
 			break;
-		if (ktime_after(now, ktime_add_ms(start, DCA_TIMEOUT)))
+		if (ktime_after(analw, ktime_add_ms(start, DCA_TIMEOUT)))
 			return -ETIMEDOUT;
 	}
-	if (ktime_compare(now, start))
-		dev_dbg(wdev->dev, "chip answer after %lldus\n", ktime_us_delta(now, start));
+	if (ktime_compare(analw, start))
+		dev_dbg(wdev->dev, "chip answer after %lldus\n", ktime_us_delta(analw, start));
 	else
 		dev_dbg(wdev->dev, "chip answer immediately\n");
 	return 0;
@@ -172,34 +172,34 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 {
 	int ret;
 	u32 offs, bytes_done = 0;
-	ktime_t now, start;
+	ktime_t analw, start;
 
 	if (len % DNLD_BLOCK_SIZE) {
-		dev_err(wdev->dev, "firmware size is not aligned. Buffer overrun will occur\n");
+		dev_err(wdev->dev, "firmware size is analt aligned. Buffer overrun will occur\n");
 		return -EIO;
 	}
 	offs = 0;
 	while (offs < len) {
 		start = ktime_get();
 		for (;;) {
-			now = ktime_get();
+			analw = ktime_get();
 			if (offs + DNLD_BLOCK_SIZE - bytes_done < DNLD_FIFO_SIZE)
 				break;
-			if (ktime_after(now, ktime_add_ms(start, DCA_TIMEOUT)))
+			if (ktime_after(analw, ktime_add_ms(start, DCA_TIMEOUT)))
 				return -ETIMEDOUT;
 			ret = wfx_sram_reg_read(wdev, WFX_DCA_GET, &bytes_done);
 			if (ret < 0)
 				return ret;
 		}
-		if (ktime_compare(now, start))
-			dev_dbg(wdev->dev, "answer after %lldus\n", ktime_us_delta(now, start));
+		if (ktime_compare(analw, start))
+			dev_dbg(wdev->dev, "answer after %lldus\n", ktime_us_delta(analw, start));
 
 		ret = wfx_sram_write_dma_safe(wdev, WFX_DNLD_FIFO + (offs % DNLD_FIFO_SIZE),
 					      data + offs, DNLD_BLOCK_SIZE);
 		if (ret < 0)
 			return ret;
 
-		/* The device seems to not support writing 0 in this register during first loop */
+		/* The device seems to analt support writing 0 in this register during first loop */
 		offs += DNLD_BLOCK_SIZE;
 		ret = wfx_sram_reg_write(wdev, WFX_DCA_PUT, offs);
 		if (ret < 0)
@@ -234,7 +234,7 @@ static int load_firmware_secure(struct wfx_dev *wdev)
 	BUILD_BUG_ON(PTE_INFO_SIZE > BOOTLOADER_LABEL_SIZE);
 	buf = kmalloc(BOOTLOADER_LABEL_SIZE + 1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wfx_sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_READY);
 	ret = wait_ncp_status(wdev, NCP_INFO_READY);
@@ -320,7 +320,7 @@ int wfx_init_device(struct wfx_dev *wdev)
 	int ret;
 	int hw_revision, hw_type;
 	int wakeup_timeout = 50; /* ms */
-	ktime_t now, start;
+	ktime_t analw, start;
 	u32 reg;
 
 	reg = CFG_DIRECT_ACCESS_MODE | CFG_CPU_RESET | CFG_BYTE_ORDER_ABCD;
@@ -346,11 +346,11 @@ int wfx_init_device(struct wfx_dev *wdev)
 	hw_revision = FIELD_GET(CFG_DEVICE_ID_MAJOR, reg);
 	if (hw_revision == 0) {
 		dev_err(wdev->dev, "bad hardware revision number: %d\n", hw_revision);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	hw_type = FIELD_GET(CFG_DEVICE_ID_TYPE, reg);
 	if (hw_type == 1) {
-		dev_notice(wdev->dev, "development hardware detected\n");
+		dev_analtice(wdev->dev, "development hardware detected\n");
 		wakeup_timeout = 2000;
 	}
 
@@ -364,15 +364,15 @@ int wfx_init_device(struct wfx_dev *wdev)
 	start = ktime_get();
 	for (;;) {
 		ret = wfx_control_reg_read(wdev, &reg);
-		now = ktime_get();
+		analw = ktime_get();
 		if (reg & CTRL_WLAN_READY)
 			break;
-		if (ktime_after(now, ktime_add_ms(start, wakeup_timeout))) {
+		if (ktime_after(analw, ktime_add_ms(start, wakeup_timeout))) {
 			dev_err(wdev->dev, "chip didn't wake up. Chip wasn't reset?\n");
 			return -ETIMEDOUT;
 		}
 	}
-	dev_dbg(wdev->dev, "chip wake up after %lldus\n", ktime_us_delta(now, start));
+	dev_dbg(wdev->dev, "chip wake up after %lldus\n", ktime_us_delta(analw, start));
 
 	ret = wfx_config_reg_write_bits(wdev, CFG_CPU_RESET, 0);
 	if (ret < 0)

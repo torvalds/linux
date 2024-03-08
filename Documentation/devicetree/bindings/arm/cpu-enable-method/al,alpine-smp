@@ -5,15 +5,15 @@ Secondary CPU enable-method "al,alpine-smp" binding
 This document describes the "al,alpine-smp" method for
 enabling secondary CPUs. To apply to all CPUs, a single
 "al,alpine-smp" enable method should be defined in the
-"cpus" node.
+"cpus" analde.
 
 Enable method name:	"al,alpine-smp"
 Compatible machines:	"al,alpine"
 Compatible CPUs:	"arm,cortex-a15"
-Related properties:	(none)
+Related properties:	(analne)
 
-Note:
-This enable method requires valid nodes compatible with
+Analte:
+This enable method requires valid analdes compatible with
 "al,alpine-cpu-resume" and "al,alpine-nb-service".
 
 

@@ -135,7 +135,7 @@ enum clk_id {
 	tegra_clk_ndflash_8,
 	tegra_clk_ndspeed,
 	tegra_clk_ndspeed_8,
-	tegra_clk_nor,
+	tegra_clk_analr,
 	tegra_clk_nvdec,
 	tegra_clk_nvenc,
 	tegra_clk_nvjpg,

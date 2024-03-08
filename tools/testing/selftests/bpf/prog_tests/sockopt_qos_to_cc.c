@@ -22,7 +22,7 @@ static void run_setsockopt_test(int cg_fd, int sock_fd)
 	if (!ASSERT_OK(err, "getsockopt(sock_fd, TCP_CONGESTION)"))
 		return;
 
-	if (!ASSERT_STREQ(cc, "reno", "getsockopt(sock_fd, TCP_CONGESTION)"))
+	if (!ASSERT_STREQ(cc, "reanal", "getsockopt(sock_fd, TCP_CONGESTION)"))
 		return;
 }
 

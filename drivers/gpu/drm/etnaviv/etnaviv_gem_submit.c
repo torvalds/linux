@@ -81,7 +81,7 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
 			submit->bos[i].va = bo->presumed;
 		}
 
-		/* normally use drm_gem_object_lookup(), but for bulk lookup
+		/* analrmally use drm_gem_object_lookup(), but for bulk lookup
 		 * all under single table_lock just hit object_idr directly:
 		 */
 		obj = idr_find(&file->object_idr, bo->handle);
@@ -159,7 +159,7 @@ fail:
 
 		obj = &submit->bos[contended].obj->base;
 
-		/* we lost out in a seqno race, lock and retry.. */
+		/* we lost out in a seqanal race, lock and retry.. */
 		ret = dma_resv_lock_slow_interruptible(obj->resv, ticket);
 		if (!ret) {
 			submit->bos[contended].flags |= BO_LOCKED;
@@ -183,7 +183,7 @@ static int submit_fence_sync(struct etnaviv_gem_submit *submit)
 		if (ret)
 			return ret;
 
-		if (submit->flags & ETNA_SUBMIT_NO_IMPLICIT)
+		if (submit->flags & ETNA_SUBMIT_ANAL_IMPLICIT)
 			continue;
 
 		ret = drm_sched_job_add_implicit_dependencies(&submit->sched_job,
@@ -279,7 +279,7 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 		}
 
 		if (r->submit_offset % 4) {
-			DRM_ERROR("non-aligned reloc offset: %u\n",
+			DRM_ERROR("analn-aligned reloc offset: %u\n",
 				  r->submit_offset);
 			return -EINVAL;
 		}
@@ -336,12 +336,12 @@ static int submit_perfmon_validate(struct etnaviv_gem_submit *submit,
 		}
 
 		if (r->flags & ~(ETNA_PM_PROCESS_PRE | ETNA_PM_PROCESS_POST)) {
-			DRM_ERROR("perfmon request: flags are not valid");
+			DRM_ERROR("perfmon request: flags are analt valid");
 			return -EINVAL;
 		}
 
 		if (etnaviv_pm_req_validate(r, exec_state)) {
-			DRM_ERROR("perfmon request: domain or signal not valid");
+			DRM_ERROR("perfmon request: domain or signal analt valid");
 			return -EINVAL;
 		}
 
@@ -392,7 +392,7 @@ static void submit_cleanup(struct kref *kref)
 	if (submit->out_fence) {
 		/*
 		 * Remove from user fence array before dropping the reference,
-		 * so fence can not be found in lookup anymore.
+		 * so fence can analt be found in lookup anymore.
 		 */
 		xa_erase(&submit->gpu->user_fences, submit->out_fence_id);
 		dma_fence_put(submit->out_fence);
@@ -435,7 +435,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		return -ENXIO;
 
 	if (args->stream_size % 4) {
-		DRM_ERROR("non-aligned cmdstream buffer size: %u\n",
+		DRM_ERROR("analn-aligned cmdstream buffer size: %u\n",
 			  args->stream_size);
 		return -EINVAL;
 	}
@@ -473,7 +473,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	pmrs = kvmalloc_array(args->nr_pmrs, sizeof(*pmrs), GFP_KERNEL);
 	stream = kvmalloc_array(1, args->stream_size, GFP_KERNEL);
 	if (!bos || !relocs || !pmrs || !stream) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_submit_cmds;
 	}
 
@@ -517,7 +517,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit = submit_create(dev, gpu, args->nr_bos, args->nr_pmrs);
 	if (!submit) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_submit_ww_acquire;
 	}
 
@@ -596,16 +596,16 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		/*
 		 * This can be improved: ideally we want to allocate the sync
 		 * file before kicking off the GPU job and just attach the
-		 * fence to the sync file here, eliminating the ENOMEM
+		 * fence to the sync file here, eliminating the EANALMEM
 		 * possibility at this stage.
 		 */
 		sync_file = sync_file_create(submit->out_fence);
 		if (!sync_file) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			/*
 			 * When this late error is hit, the submit has already
 			 * been handed over to the scheduler. At this point
-			 * the sched_job must not be cleaned up.
+			 * the sched_job must analt be cleaned up.
 			 */
 			goto err_submit_put;
 		}

@@ -48,7 +48,7 @@ enum {
 	BYT_WM5102_INTMIC_IN1L_HSMIC_IN2L,
 };
 
-/* Note these values are pre-shifted for easy use of setting quirks */
+/* Analte these values are pre-shifted for easy use of setting quirks */
 enum {
 	BYT_WM5102_SPK_SPK_MAP		= FIELD_PREP_CONST(BYT_WM5102_OUT_MAP, 0),
 	BYT_WM5102_SPK_HPOUT2_MAP	= FIELD_PREP_CONST(BYT_WM5102_OUT_MAP, 1),
@@ -118,8 +118,8 @@ static int byt_wm5102_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai, int
 	int ret;
 
 	/* Reset FLL1 */
-	snd_soc_dai_set_pll(codec_dai, WM5102_FLL1_REFCLK, ARIZONA_FLL_SRC_NONE, 0, 0);
-	snd_soc_dai_set_pll(codec_dai, WM5102_FLL1, ARIZONA_FLL_SRC_NONE, 0, 0);
+	snd_soc_dai_set_pll(codec_dai, WM5102_FLL1_REFCLK, ARIZONA_FLL_SRC_ANALNE, 0, 0);
+	snd_soc_dai_set_pll(codec_dai, WM5102_FLL1, ARIZONA_FLL_SRC_ANALNE, 0, 0);
 
 	/* Configure the FLL1 PLL before selecting it */
 	ret = snd_soc_dai_set_pll(codec_dai, WM5102_FLL1, ARIZONA_CLK_SRC_MCLK1,
@@ -158,7 +158,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 
 	codec_dai = snd_soc_card_get_codec_dai(card, "wm5102-aif1");
 	if (!codec_dai) {
-		dev_err(card->dev, "Error codec DAI not found\n");
+		dev_err(card->dev, "Error codec DAI analt found\n");
 		return -EIO;
 	}
 
@@ -179,7 +179,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		 * so we can disable the PLL, followed by disabling the
 		 * platform clock which is the source-clock for the PLL.
 		 */
-		snd_soc_dai_set_pll(codec_dai, WM5102_FLL1, ARIZONA_FLL_SRC_NONE, 0, 0);
+		snd_soc_dai_set_pll(codec_dai, WM5102_FLL1, ARIZONA_FLL_SRC_ANALNE, 0, 0);
 		clk_disable_unprepare(priv->mclk);
 	}
 
@@ -192,10 +192,10 @@ static const struct snd_soc_dapm_widget byt_wm5102_widgets[] = {
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 	SND_SOC_DAPM_LINE("Line Out", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("Speaker VDD", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Speaker VDD", SND_SOC_ANALPM, 0, 0,
 			    byt_wm5102_spkvdd_power_event,
 			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 };
@@ -343,10 +343,10 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 
 	/*
 	 * The firmware might enable the clock at boot (this information
-	 * may or may not be reflected in the enable clock register).
+	 * may or may analt be reflected in the enable clock register).
 	 * To change the rate we must disable the clock first to cover these
-	 * cases. Due to common clock framework restrictions that do not allow
-	 * to disable a clock that has not been enabled, we need to enable
+	 * cases. Due to common clock framework restrictions that do analt allow
+	 * to disable a clock that has analt been enabled, we need to enable
 	 * the clock first.
 	 */
 	ret = clk_prepare_enable(priv->mclk);
@@ -402,7 +402,7 @@ static int byt_wm5102_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
 	 * with explicit setting to I2S 2ch 16-bit. The word length is set with
-	 * dai_set_tdm_slot() since there is no other API exposed
+	 * dai_set_tdm_slot() since there is anal other API exposed
 	 */
 	ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_cpu(rtd, 0),
 				  SND_SOC_DAIFMT_I2S     |
@@ -447,7 +447,7 @@ SND_SOC_DAILINK_DEF(ssp0_port,
 SND_SOC_DAILINK_DEF(ssp0_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC(
 	/*
-	 * Note there is no need to overwrite the codec-name as is done in
+	 * Analte there is anal need to overwrite the codec-name as is done in
 	 * other bytcr machine drivers, because the codec is a MFD child-dev.
 	 */
 	"wm5102-codec",
@@ -460,7 +460,7 @@ static struct snd_soc_dai_link byt_wm5102_dais[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Baytrail Audio Port",
 		.stream_name = "Baytrail Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -471,7 +471,7 @@ static struct snd_soc_dai_link byt_wm5102_dais[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &byt_wm5102_aif1_ops,
@@ -486,7 +486,7 @@ static struct snd_soc_dai_link byt_wm5102_dais[] = {
 		 */
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBC_CFC,
 		.be_hw_params_fixup = byt_wm5102_codec_fixup,
@@ -536,7 +536,7 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get MCLK */
 	priv->mclk = devm_clk_get(dev, "pmc_plt_clk_3");
@@ -563,7 +563,7 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 	if (!codec_dev)
 		return -EPROBE_DEFER;
 
-	/* Note no devm_ here since we call gpiod_get on codec_dev rather then dev */
+	/* Analte anal devm_ here since we call gpiod_get on codec_dev rather then dev */
 	priv->spkvdd_en_gpio = gpiod_get(codec_dev, "wlf,spkvdd-ena", GPIOD_OUT_LOW);
 	put_device(codec_dev);
 
@@ -571,9 +571,9 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(priv->spkvdd_en_gpio);
 		/*
 		 * The spkvdd gpio-lookup is registered by: drivers/mfd/arizona-spi.c,
-		 * so -ENOENT means that arizona-spi hasn't probed yet.
+		 * so -EANALENT means that arizona-spi hasn't probed yet.
 		 */
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			ret = -EPROBE_DEFER;
 
 		return dev_err_probe(dev, ret, "getting spkvdd-GPIO\n");

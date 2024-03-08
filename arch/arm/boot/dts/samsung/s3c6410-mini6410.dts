@@ -54,7 +54,7 @@
 			reg = <0x18000000 0x2>, <0x18000004 0x2>;
 			interrupt-parent = <&gpn>;
 			interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
-			davicom,no-eeprom;
+			davicom,anal-eeprom;
 		};
 	};
 
@@ -195,13 +195,13 @@
 &pinctrl0 {
 	gpio_leds: gpio-leds-pins {
 		samsung,pins = "gpk-4", "gpk-5", "gpk-6", "gpk-7";
-		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_ANALNE>;
 	};
 
 	gpio_keys: gpio-keys-pins {
 		samsung,pins = "gpn-0", "gpn-1", "gpn-2", "gpn-3",
 				"gpn-4", "gpn-5", "gpl-11", "gpl-12";
-		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_ANALNE>;
 	};
 };
 

@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <assert.h>
 #include <linux/filter.h>
 
@@ -35,7 +35,7 @@
 enum jmp_type { JTL, JFL, JKL };
 
 extern FILE *yyin;
-extern int yylineno;
+extern int yylineanal;
 extern int yylex(void);
 extern void yyerror(const char *str);
 
@@ -184,13 +184,13 @@ ldx
 		bpf_set_curr_instr(BPF_LDX | BPF_MEM, 0, 0, $4); }
 	| OP_LDXB number '*' '(' '[' number ']' '&' number ')' {
 		if ($2 != 4 || $9 != 0xf) {
-			fprintf(stderr, "ldxb offset not supported!\n");
+			fprintf(stderr, "ldxb offset analt supported!\n");
 			exit(1);
 		} else {
 			bpf_set_curr_instr(BPF_LDX | BPF_MSH | BPF_B, 0, 0, $6); } }
 	| OP_LDX number '*' '(' '[' number ']' '&' number ')' {
 		if ($2 != 4 || $9 != 0xf) {
-			fprintf(stderr, "ldxb offset not supported!\n");
+			fprintf(stderr, "ldxb offset analt supported!\n");
 			exit(1);
 		} else {
 			bpf_set_curr_instr(BPF_LDX | BPF_MSH | BPF_B, 0, 0, $6); } }
@@ -511,7 +511,7 @@ static void bpf_set_jmp_label(char *label, enum jmp_type type)
 
 static int bpf_find_insns_offset(const char *label)
 {
-	int i, max = curr_instr, ret = -ENOENT;
+	int i, max = curr_instr, ret = -EANALENT;
 
 	for (i = 0; i < max; i++) {
 		if (labels[i] && !strcmp(label, labels[i])) {
@@ -520,8 +520,8 @@ static int bpf_find_insns_offset(const char *label)
 		}
 	}
 
-	if (ret == -ENOENT) {
-		fprintf(stderr, "no such label \'%s\'!\n", label);
+	if (ret == -EANALENT) {
+		fprintf(stderr, "anal such label \'%s\'!\n", label);
 		exit(1);
 	}
 
@@ -663,6 +663,6 @@ void bpf_asm_compile(FILE *fp, bool cstyle)
 
 void yyerror(const char *str)
 {
-	fprintf(stderr, "error: %s at line %d\n", str, yylineno);
+	fprintf(stderr, "error: %s at line %d\n", str, yylineanal);
 	exit(1);
 }

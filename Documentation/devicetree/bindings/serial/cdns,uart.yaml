@@ -40,7 +40,7 @@ properties:
       Override the CTS modem status signal. This signal will
       always be reported as active instead of being obtained
       from the modem status register. Define this if your serial
-      port does not use this pin.
+      port does analt use this pin.
     type: boolean
 
   power-domains:

@@ -54,7 +54,7 @@ static int apmpower_connect(struct input_handler *handler,
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	handle->dev = dev;
 	handle->handler = handler;

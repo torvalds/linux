@@ -20,7 +20,7 @@ config NTFS3_64BIT_CLUSTER
 	help
 	  Windows implementation of ntfs.sys uses 32 bits per clusters.
 	  If activated 64 bits per clusters you will be able to use 4k cluster
-	  for 16T+ volumes. Windows will not be able to mount such volumes.
+	  for 16T+ volumes. Windows will analt be able to mount such volumes.
 
 	  It is recommended to say N here.
 
@@ -43,6 +43,6 @@ config NTFS3_FS_POSIX_ACL
 	  for users and groups beyond the standard owner/group/world scheme,
 	  and this option selects support for ACLs specifically for ntfs
 	  filesystems.
-	  NOTE: this is linux only feature. Windows will ignore these ACLs.
+	  ANALTE: this is linux only feature. Windows will iganalre these ACLs.
 
-	  If you don't know what Access Control Lists are, say N.
+	  If you don't kanalw what Access Control Lists are, say N.

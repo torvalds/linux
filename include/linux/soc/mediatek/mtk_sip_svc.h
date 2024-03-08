@@ -7,7 +7,7 @@
 
 /* Error Code */
 #define SIP_SVC_E_SUCCESS               0
-#define SIP_SVC_E_NOT_SUPPORTED         -1
+#define SIP_SVC_E_ANALT_SUPPORTED         -1
 #define SIP_SVC_E_INVALID_PARAMS        -2
 #define SIP_SVC_E_INVALID_RANGE         -3
 #define SIP_SVC_E_PERMISSION_DENIED     -4

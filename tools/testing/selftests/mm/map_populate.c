@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018 Dmitry Safonov, Arista Networks
+ * Copyright (c) 2018 Dmitry Safoanalv, Arista Networks
  *
  * MAP_POPULATE | MAP_PRIVATE should COW VMA pages.
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -23,7 +23,7 @@
 	do {								\
 		if (condition) {					\
 			fprintf(stderr, "[FAIL]\t%s:%d\t%s:%s\n", __func__, \
-				__LINE__, (description), strerror(errno)); \
+				__LINE__, (description), strerror(erranal)); \
 			exit(1);					\
 		}							\
 	} while (0)
@@ -79,11 +79,11 @@ int main(int argc, char **argv)
 	ftmp = tmpfile();
 	BUG_ON(!ftmp, "tmpfile()");
 
-	ret = ftruncate(fileno(ftmp), MMAP_SZ);
+	ret = ftruncate(fileanal(ftmp), MMAP_SZ);
 	BUG_ON(ret, "ftruncate()");
 
 	smap = mmap(0, MMAP_SZ, PROT_READ | PROT_WRITE,
-			MAP_SHARED, fileno(ftmp), 0);
+			MAP_SHARED, fileanal(ftmp), 0);
 	BUG_ON(smap == MAP_FAILED, "mmap()");
 
 	*smap = 0xdeadbabe;
@@ -107,5 +107,5 @@ int main(int argc, char **argv)
 	ret = close(sock[1]);
 	BUG_ON(ret, "close()");
 
-	return child_f(sock[0], smap, fileno(ftmp));
+	return child_f(sock[0], smap, fileanal(ftmp));
 }

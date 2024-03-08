@@ -79,7 +79,7 @@ struct t7xx_modem {
 };
 
 void t7xx_md_exception_handshake(struct t7xx_modem *md);
-void t7xx_md_event_notify(struct t7xx_modem *md, enum md_event_id evt_id);
+void t7xx_md_event_analtify(struct t7xx_modem *md, enum md_event_id evt_id);
 int t7xx_md_reset(struct t7xx_pci_dev *t7xx_dev);
 int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev);
 void t7xx_md_exit(struct t7xx_pci_dev *t7xx_dev);

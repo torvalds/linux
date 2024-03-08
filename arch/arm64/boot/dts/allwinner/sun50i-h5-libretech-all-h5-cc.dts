@@ -24,7 +24,7 @@
 };
 
 &codec {
-	/* No line out; only onboard microphone */
+	/* Anal line out; only onboard microphone */
 	allwinner,audio-routing =
 		"MIC1", "Mic",
 		"Mic",  "MBIAS";
@@ -54,7 +54,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 	};

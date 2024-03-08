@@ -128,7 +128,7 @@ static int dummy_dma_open(struct snd_soc_component *component,
 	}
 
 	/* BE's dont need dummy params */
-	if (!rtd->dai_link->no_pcm)
+	if (!rtd->dai_link->anal_pcm)
 		snd_soc_set_runtime_hwparams(substream, &dummy_dma_hardware);
 
 	return 0;
@@ -184,10 +184,10 @@ static const struct snd_soc_dai_ops dummy_dai_ops = {
 };
 
 /*
- * The dummy CODEC is only meant to be used in situations where there is no
+ * The dummy CODEC is only meant to be used in situations where there is anal
  * actual hardware.
  *
- * If there is actual hardware even if it does not have a control bus
+ * If there is actual hardware even if it does analt have a control bus
  * the hardware will still have constraints like supported samplerates, etc.
  * which should be modelled. And the data flow graph also should be modelled
  * using DAPM.
@@ -226,7 +226,7 @@ int snd_soc_component_is_dummy(struct snd_soc_component *component)
 }
 
 struct snd_soc_dai_link_component snd_soc_dummy_dlc = {
-	.of_node	= NULL,
+	.of_analde	= NULL,
 	.dai_name	= "snd-soc-dummy-dai",
 	.name		= "snd-soc-dummy",
 };

@@ -37,7 +37,7 @@ static inline int clockid_to_fd(const clockid_t clk)
 
 /**
  * cpu_timer - Posix CPU timer representation for k_itimer
- * @node:	timerqueue node to queue in the task/sig
+ * @analde:	timerqueue analde to queue in the task/sig
  * @head:	timerqueue head on which this timer is queued
  * @pid:	Pointer to target task PID
  * @elist:	List head for the expiry list
@@ -45,7 +45,7 @@ static inline int clockid_to_fd(const clockid_t clk)
  * @handling:	Pointer to the task which handles expiry
  */
 struct cpu_timer {
-	struct timerqueue_node		node;
+	struct timerqueue_analde		analde;
 	struct timerqueue_head		*head;
 	struct pid			*pid;
 	struct list_head		elist;
@@ -57,7 +57,7 @@ static inline bool cpu_timer_enqueue(struct timerqueue_head *head,
 				     struct cpu_timer *ctmr)
 {
 	ctmr->head = head;
-	return timerqueue_add(head, &ctmr->node);
+	return timerqueue_add(head, &ctmr->analde);
 }
 
 static inline bool cpu_timer_queued(struct cpu_timer *ctmr)
@@ -68,7 +68,7 @@ static inline bool cpu_timer_queued(struct cpu_timer *ctmr)
 static inline bool cpu_timer_dequeue(struct cpu_timer *ctmr)
 {
 	if (cpu_timer_queued(ctmr)) {
-		timerqueue_del(ctmr->head, &ctmr->node);
+		timerqueue_del(ctmr->head, &ctmr->analde);
 		ctmr->head = NULL;
 		return true;
 	}
@@ -77,12 +77,12 @@ static inline bool cpu_timer_dequeue(struct cpu_timer *ctmr)
 
 static inline u64 cpu_timer_getexpires(struct cpu_timer *ctmr)
 {
-	return ctmr->node.expires;
+	return ctmr->analde.expires;
 }
 
 static inline void cpu_timer_setexpires(struct cpu_timer *ctmr, u64 exp)
 {
-	ctmr->node.expires = exp;
+	ctmr->analde.expires = exp;
 }
 
 static inline void posix_cputimers_init(struct posix_cputimers *pct)
@@ -147,11 +147,11 @@ static inline void posix_cputimers_init_work(void) { }
  * @it_overrun_last:	The overrun at the time of the last delivered signal
  * @it_requeue_pending:	Indicator that timer waits for being requeued on
  *			signal delivery
- * @it_sigev_notify:	The notify word of sigevent struct for signal delivery
+ * @it_sigev_analtify:	The analtify word of sigevent struct for signal delivery
  * @it_interval:	The interval for periodic timers
  * @it_signal:		Pointer to the creators signal struct
  * @it_pid:		The pid of the process/task targeted by the signal
- * @it_process:		The task to wakeup on clock_nanosleep (CPU timers)
+ * @it_process:		The task to wakeup on clock_naanalsleep (CPU timers)
  * @sigq:		Pointer to preallocated sigqueue
  * @it:			Union representing the various posix timer type
  *			internals.
@@ -159,7 +159,7 @@ static inline void posix_cputimers_init_work(void) { }
  */
 struct k_itimer {
 	struct list_head	list;
-	struct hlist_node	t_hash;
+	struct hlist_analde	t_hash;
 	spinlock_t		it_lock;
 	const struct k_clock	*kclock;
 	clockid_t		it_clock;
@@ -168,7 +168,7 @@ struct k_itimer {
 	s64			it_overrun;
 	s64			it_overrun_last;
 	int			it_requeue_pending;
-	int			it_sigev_notify;
+	int			it_sigev_analtify;
 	ktime_t			it_interval;
 	struct signal_struct	*it_signal;
 	union {

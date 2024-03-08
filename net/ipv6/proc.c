@@ -54,16 +54,16 @@ static const struct snmp_mib snmp6_ipstats_list[] = {
 	SNMP_MIB_ITEM("Ip6InReceives", IPSTATS_MIB_INPKTS),
 	SNMP_MIB_ITEM("Ip6InHdrErrors", IPSTATS_MIB_INHDRERRORS),
 	SNMP_MIB_ITEM("Ip6InTooBigErrors", IPSTATS_MIB_INTOOBIGERRORS),
-	SNMP_MIB_ITEM("Ip6InNoRoutes", IPSTATS_MIB_INNOROUTES),
+	SNMP_MIB_ITEM("Ip6InAnalRoutes", IPSTATS_MIB_INANALROUTES),
 	SNMP_MIB_ITEM("Ip6InAddrErrors", IPSTATS_MIB_INADDRERRORS),
-	SNMP_MIB_ITEM("Ip6InUnknownProtos", IPSTATS_MIB_INUNKNOWNPROTOS),
+	SNMP_MIB_ITEM("Ip6InUnkanalwnProtos", IPSTATS_MIB_INUNKANALWNPROTOS),
 	SNMP_MIB_ITEM("Ip6InTruncatedPkts", IPSTATS_MIB_INTRUNCATEDPKTS),
 	SNMP_MIB_ITEM("Ip6InDiscards", IPSTATS_MIB_INDISCARDS),
 	SNMP_MIB_ITEM("Ip6InDelivers", IPSTATS_MIB_INDELIVERS),
 	SNMP_MIB_ITEM("Ip6OutForwDatagrams", IPSTATS_MIB_OUTFORWDATAGRAMS),
 	SNMP_MIB_ITEM("Ip6OutRequests", IPSTATS_MIB_OUTREQUESTS),
 	SNMP_MIB_ITEM("Ip6OutDiscards", IPSTATS_MIB_OUTDISCARDS),
-	SNMP_MIB_ITEM("Ip6OutNoRoutes", IPSTATS_MIB_OUTNOROUTES),
+	SNMP_MIB_ITEM("Ip6OutAnalRoutes", IPSTATS_MIB_OUTANALROUTES),
 	SNMP_MIB_ITEM("Ip6ReasmTimeout", IPSTATS_MIB_REASMTIMEOUT),
 	SNMP_MIB_ITEM("Ip6ReasmReqds", IPSTATS_MIB_REASMREQDS),
 	SNMP_MIB_ITEM("Ip6ReasmOKs", IPSTATS_MIB_REASMOKS),
@@ -73,14 +73,14 @@ static const struct snmp_mib snmp6_ipstats_list[] = {
 	SNMP_MIB_ITEM("Ip6FragCreates", IPSTATS_MIB_FRAGCREATES),
 	SNMP_MIB_ITEM("Ip6InMcastPkts", IPSTATS_MIB_INMCASTPKTS),
 	SNMP_MIB_ITEM("Ip6OutMcastPkts", IPSTATS_MIB_OUTMCASTPKTS),
-	SNMP_MIB_ITEM("Ip6InOctets", IPSTATS_MIB_INOCTETS),
+	SNMP_MIB_ITEM("Ip6InOctets", IPSTATS_MIB_IANALCTETS),
 	SNMP_MIB_ITEM("Ip6OutOctets", IPSTATS_MIB_OUTOCTETS),
 	SNMP_MIB_ITEM("Ip6InMcastOctets", IPSTATS_MIB_INMCASTOCTETS),
 	SNMP_MIB_ITEM("Ip6OutMcastOctets", IPSTATS_MIB_OUTMCASTOCTETS),
 	SNMP_MIB_ITEM("Ip6InBcastOctets", IPSTATS_MIB_INBCASTOCTETS),
 	SNMP_MIB_ITEM("Ip6OutBcastOctets", IPSTATS_MIB_OUTBCASTOCTETS),
-	/* IPSTATS_MIB_CSUMERRORS is not relevant in IPv6 (no checksum) */
-	SNMP_MIB_ITEM("Ip6InNoECTPkts", IPSTATS_MIB_NOECTPKTS),
+	/* IPSTATS_MIB_CSUMERRORS is analt relevant in IPv6 (anal checksum) */
+	SNMP_MIB_ITEM("Ip6InAnalECTPkts", IPSTATS_MIB_ANALECTPKTS),
 	SNMP_MIB_ITEM("Ip6InECT1Pkts", IPSTATS_MIB_ECT1PKTS),
 	SNMP_MIB_ITEM("Ip6InECT0Pkts", IPSTATS_MIB_ECT0PKTS),
 	SNMP_MIB_ITEM("Ip6InCEPkts", IPSTATS_MIB_CEPKTS),
@@ -121,20 +121,20 @@ static const char *const icmp6type2name[256] = {
 
 static const struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6InDatagrams", UDP_MIB_INDATAGRAMS),
-	SNMP_MIB_ITEM("Udp6NoPorts", UDP_MIB_NOPORTS),
+	SNMP_MIB_ITEM("Udp6AnalPorts", UDP_MIB_ANALPORTS),
 	SNMP_MIB_ITEM("Udp6InErrors", UDP_MIB_INERRORS),
 	SNMP_MIB_ITEM("Udp6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_ITEM("Udp6RcvbufErrors", UDP_MIB_RCVBUFERRORS),
 	SNMP_MIB_ITEM("Udp6SndbufErrors", UDP_MIB_SNDBUFERRORS),
 	SNMP_MIB_ITEM("Udp6InCsumErrors", UDP_MIB_CSUMERRORS),
-	SNMP_MIB_ITEM("Udp6IgnoredMulti", UDP_MIB_IGNOREDMULTI),
+	SNMP_MIB_ITEM("Udp6IganalredMulti", UDP_MIB_IGANALREDMULTI),
 	SNMP_MIB_ITEM("Udp6MemErrors", UDP_MIB_MEMERRORS),
 	SNMP_MIB_SENTINEL
 };
 
 static const struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6InDatagrams", UDP_MIB_INDATAGRAMS),
-	SNMP_MIB_ITEM("UdpLite6NoPorts", UDP_MIB_NOPORTS),
+	SNMP_MIB_ITEM("UdpLite6AnalPorts", UDP_MIB_ANALPORTS),
 	SNMP_MIB_ITEM("UdpLite6InErrors", UDP_MIB_INERRORS),
 	SNMP_MIB_ITEM("UdpLite6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_ITEM("UdpLite6RcvbufErrors", UDP_MIB_RCVBUFERRORS),
@@ -164,7 +164,7 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, atomic_long_t *smib)
 			   atomic_long_read(smib + i));
 	}
 
-	/* print by number (nonzero only) - ICMPMsgStat format */
+	/* print by number (analnzero only) - ICMPMsgStat format */
 	for (i = 0; i < ICMP6MSG_MIB_MAX; i++) {
 		unsigned long val;
 
@@ -253,12 +253,12 @@ int snmp6_register_dev(struct inet6_dev *idev)
 
 	net = dev_net(idev->dev);
 	if (!net->mib.proc_net_devsnmp6)
-		return -ENOENT;
+		return -EANALENT;
 
 	p = proc_create_single_data(idev->dev->name, 0444,
 			net->mib.proc_net_devsnmp6, snmp6_dev_seq_show, idev);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->stats.proc_dir_entry = p;
 	return 0;
@@ -268,7 +268,7 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 {
 	struct net *net = dev_net(idev->dev);
 	if (!net->mib.proc_net_devsnmp6)
-		return -ENOENT;
+		return -EANALENT;
 	if (!idev->stats.proc_dir_entry)
 		return -EINVAL;
 	proc_remove(idev->stats.proc_dir_entry);
@@ -280,7 +280,7 @@ static int __net_init ipv6_proc_init_net(struct net *net)
 {
 	if (!proc_create_net_single("sockstat6", 0444, net->proc_net,
 			sockstat6_seq_show, NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!proc_create_net_single("snmp6", 0444, net->proc_net,
 			snmp6_seq_show, NULL))
@@ -295,7 +295,7 @@ proc_dev_snmp6_fail:
 	remove_proc_entry("snmp6", net->proc_net);
 proc_snmp6_fail:
 	remove_proc_entry("sockstat6", net->proc_net);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __net_exit ipv6_proc_exit_net(struct net *net)

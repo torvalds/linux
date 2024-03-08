@@ -424,14 +424,14 @@ static int s5h1411_set_mpeg_timing(struct dvb_frontend *fe, int mode)
 	case S5H1411_MPEGTIMING_CONTINUOUS_INVERTING_CLOCK:
 		val |= 0x0000;
 		break;
-	case S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK:
+	case S5H1411_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK:
 		dprintk("%s(%d) Mode1 or Defaulting\n", __func__, mode);
 		val |= 0x1000;
 		break;
-	case S5H1411_MPEGTIMING_NONCONTINUOUS_INVERTING_CLOCK:
+	case S5H1411_MPEGTIMING_ANALNCONTINUOUS_INVERTING_CLOCK:
 		val |= 0x2000;
 		break;
-	case S5H1411_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK:
+	case S5H1411_MPEGTIMING_ANALNCONTINUOUS_ANALNINVERTING_CLOCK:
 		val |= 0x3000;
 		break;
 	default:
@@ -596,7 +596,7 @@ static int s5h1411_set_frontend(struct dvb_frontend *fe)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	/* Issue a reset to the demod so it knows to resync against the
+	/* Issue a reset to the demod so it kanalws to resync against the
 	   newly tuned frequency */
 	s5h1411_softreset(fe);
 
@@ -641,7 +641,7 @@ static int s5h1411_init(struct dvb_frontend *fe)
 	s5h1411_set_mpeg_timing(fe, state->config->mpeg_timing);
 	s5h1411_softreset(fe);
 
-	/* Note: Leaving the I2C gate closed. */
+	/* Analte: Leaving the I2C gate closed. */
 	s5h1411_i2c_gate_ctrl(fe, 0);
 
 	return 0;
@@ -888,7 +888,7 @@ struct dvb_frontend *s5h1411_attach(const struct s5h1411_config *config,
 		goto error;
 	}
 
-	/* Note: Leaving the I2C gate open here. */
+	/* Analte: Leaving the I2C gate open here. */
 	s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xf5, 1);
 
 	/* Put the device into low-power mode until first use */

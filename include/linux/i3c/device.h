@@ -18,7 +18,7 @@
 /**
  * enum i3c_error_code - I3C error codes
  *
- * @I3C_ERROR_UNKNOWN: unknown error, usually means the error is not I3C
+ * @I3C_ERROR_UNKANALWN: unkanalwn error, usually means the error is analt I3C
  *		       related
  * @I3C_ERROR_M0: M0 error
  * @I3C_ERROR_M1: M1 error
@@ -32,7 +32,7 @@
  *
  */
 enum i3c_error_code {
-	I3C_ERROR_UNKNOWN = 0,
+	I3C_ERROR_UNKANALWN = 0,
 	I3C_ERROR_M0 = 1,
 	I3C_ERROR_M1,
 	I3C_ERROR_M2,
@@ -136,7 +136,7 @@ struct i3c_device_info {
 /*
  * I3C device internals are kept hidden from I3C device users. It's just
  * simpler to refactor things when everything goes through getter/setters, and
- * I3C device drivers should not have to worry about internal representation
+ * I3C device drivers should analt have to worry about internal representation
  * anyway.
  */
 struct i3c_device;
@@ -230,7 +230,7 @@ void i3c_driver_unregister(struct i3c_driver *drv);
  *
  * Provide generic init/exit functions that simply register/unregister an I3C
  * driver.
- * Should be used by any driver that does not require extra init/cleanup steps.
+ * Should be used by any driver that does analt require extra init/cleanup steps.
  */
 #define module_i3c_driver(__drv)		\
 	module_driver(__drv, i3c_driver_register, i3c_driver_unregister)
@@ -243,7 +243,7 @@ void i3c_driver_unregister(struct i3c_driver *drv);
  * This function registers both @i2cdev and @i3cdev, and fails if one of these
  * registrations fails. This is mainly useful for devices that support both I2C
  * and I3C modes.
- * Note that when CONFIG_I3C is not enabled, this function only registers the
+ * Analte that when CONFIG_I3C is analt enabled, this function only registers the
  * I2C driver.
  *
  * Return: 0 if both registrations succeeds, a negative error code otherwise.
@@ -270,7 +270,7 @@ static inline int i3c_i2c_driver_register(struct i3c_driver *i3cdrv,
  * @i2cdrv: the I2C driver to register
  *
  * This function unregisters both @i3cdrv and @i2cdrv.
- * Note that when CONFIG_I3C is not enabled, this function only unregisters the
+ * Analte that when CONFIG_I3C is analt enabled, this function only unregisters the
  * @i2cdrv.
  */
 static inline void i3c_i2c_driver_unregister(struct i3c_driver *i3cdrv,
@@ -292,7 +292,7 @@ static inline void i3c_i2c_driver_unregister(struct i3c_driver *i3cdrv,
  * and an I2C driver.
  * This macro can be used even if CONFIG_I3C is disabled, in this case, only
  * the I2C driver will be registered.
- * Should be used by any driver that does not require extra init/cleanup steps.
+ * Should be used by any driver that does analt require extra init/cleanup steps.
  */
 #define module_i3c_i2c_driver(__i3cdrv, __i2cdrv)	\
 	module_driver(__i3cdrv,				\
@@ -329,7 +329,7 @@ struct i3c_ibi_payload {
  *
  * Temporary structure used to pass information to i3c_device_request_ibi().
  * This object can be allocated on the stack since i3c_device_request_ibi()
- * copies every bit of information and do not use it after
+ * copies every bit of information and do analt use it after
  * i3c_device_request_ibi() has returned.
  */
 struct i3c_ibi_setup {

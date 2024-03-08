@@ -3,7 +3,7 @@
  * Microchip PCI1XXXX I2C adapter driver for PCIe Switch
  * which has I2C controller in one of its downstream functions
  *
- * Copyright (C) 2021 - 2022 Microchip Technology Inc.
+ * Copyright (C) 2021 - 2022 Microchip Techanallogy Inc.
  *
  * Authors: Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>
  *          Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>
@@ -398,7 +398,7 @@ static void pci1xxxx_i2c_send_start_stop(struct pci1xxxx_i2c *i2c, bool start)
 }
 
 /*
- * When accessing the core control reg, we should not do a read modified write
+ * When accessing the core control reg, we should analt do a read modified write
  * as they are write '1' to clear bits. Instead we need to write with the
  * specific bits that needs to be set.
  */
@@ -427,7 +427,7 @@ static void pci1xxxx_i2c_buffer_write(struct pci1xxxx_i2c *i2c, u8 slaveaddr,
 }
 
 /*
- * When accessing the core control reg, we should not do a read modified write
+ * When accessing the core control reg, we should analt do a read modified write
  * as there are write '1' to clear bits. Instead we need to write with the
  * specific bits that needs to be set.
  */
@@ -520,7 +520,7 @@ static irqreturn_t pci1xxxx_i2c_isr(int irq, void *dev)
 	struct pci1xxxx_i2c *i2c = dev;
 	void __iomem *p1 = i2c->i2c_base + SMBUS_GEN_INT_STAT_REG_OFF;
 	void __iomem *p2 = i2c->i2c_base + SMBUS_INTR_STAT_REG_OFF;
-	irqreturn_t intr_handled = IRQ_NONE;
+	irqreturn_t intr_handled = IRQ_ANALNE;
 	u16 reg1;
 	u8 reg3;
 
@@ -755,7 +755,7 @@ static void pci1xxxx_i2c_init(struct pci1xxxx_i2c *i2c)
 
 	/*
 	 * Enable pull-up for the SMB alert pin which is just used for
-	 * wakeup right now.
+	 * wakeup right analw.
 	 */
 	pci1xxxx_i2c_configure_smbalert_pin(i2c, true);
 }
@@ -869,10 +869,10 @@ static int pci1xxxx_i2c_read(struct pci1xxxx_i2c *i2c, u8 slaveaddr,
 			goto cleanup;
 		}
 
-		/* Read the completion reg to know the reason for DMA_TERM. */
+		/* Read the completion reg to kanalw the reason for DMA_TERM. */
 		regval = readb(p2);
 
-		/* Slave did not respond. */
+		/* Slave did analt respond. */
 		if (regval & COMPLETION_MNAKX) {
 			writeb(COMPLETION_MNAKX, p2);
 			retval = -ETIMEDOUT;
@@ -1053,7 +1053,7 @@ static const struct i2c_algorithm pci1xxxx_i2c_algo = {
 };
 
 static const struct i2c_adapter_quirks pci1xxxx_i2c_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 };
 
 static const struct i2c_adapter pci1xxxx_i2c_ops = {
@@ -1135,7 +1135,7 @@ static int pci1xxxx_i2c_probe_pci(struct pci_dev *pdev,
 
 	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, i2c);
 	i2c->i2c_xfer_in_progress = false;
@@ -1209,4 +1209,4 @@ module_pci_driver(pci1xxxx_i2c_pci_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tharun Kumar P<tharunkumar.pasumarthi@microchip.com>");
 MODULE_AUTHOR("Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>");
-MODULE_DESCRIPTION("Microchip Technology Inc. pci1xxxx I2C bus driver");
+MODULE_DESCRIPTION("Microchip Techanallogy Inc. pci1xxxx I2C bus driver");

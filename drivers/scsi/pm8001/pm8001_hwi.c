@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -23,13 +23,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -73,7 +73,7 @@ static void read_main_config_table(struct pm8001_hba_info *pm8001_ha)
 		pm8001_mr32(address, MAIN_HDA_FLAGS_OFFSET);
 
 	/* read analog Setting offset from the configuration table */
-	pm8001_ha->main_cfg_tbl.pm8001_tbl.anolog_setup_table_offset =
+	pm8001_ha->main_cfg_tbl.pm8001_tbl.aanallog_setup_table_offset =
 		pm8001_mr32(address, MAIN_ANALOG_SETUP_OFFSET);
 
 	/* read Error Dump Offset and Length */
@@ -461,10 +461,10 @@ static void mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha,
 	Address: (via MEMBASE-III):
 	Using shifted destination address 0x0_0000: with Offset 0xD8
 
-	31:28 R/W Reserved Do not change
+	31:28 R/W Reserved Do analt change
 	27:24 R/W SAS_SMOD_SPRDUP 0000
 	23:20 R/W SAS_SMOD_SPRDDN 0000
-	19:0  R/W  Reserved Do not change
+	19:0  R/W  Reserved Do analt change
 	Upon power-up this register will read as 0x8990c016,
 	and I would like you to change the SAS_SMOD_SPRDUP bits to 0b0000
 	so that the written value will be 0x8090c016.
@@ -562,7 +562,7 @@ static int mpi_init_check(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * check_fw_ready - The LLDD check if the FW is ready, if not, return error.
+ * check_fw_ready - The LLDD check if the FW is ready, if analt, return error.
  * @pm8001_ha: our hba card information
  */
 static int check_fw_ready(struct pm8001_hba_info *pm8001_ha)
@@ -586,7 +586,7 @@ static int check_fw_ready(struct pm8001_hba_info *pm8001_ha)
 		return -1;
 	}
 
-	/* bit 4-31 of scratch pad1 should be zeros if it is not
+	/* bit 4-31 of scratch pad1 should be zeros if it is analt
 	in error state*/
 	if (value & SCRATCH_PAD1_STATE_MASK) {
 		/* error case */
@@ -594,7 +594,7 @@ static int check_fw_ready(struct pm8001_hba_info *pm8001_ha)
 		return -1;
 	}
 
-	/* bit 2, 4-31 of scratch pad2 should be zeros if it is not
+	/* bit 2, 4-31 of scratch pad2 should be zeros if it is analt
 	in error state */
 	if (value1 & SCRATCH_PAD2_STATE_MASK) {
 		/* error case */
@@ -661,7 +661,7 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 	}
 	/* check the firmware status */
 	if (-1 == check_fw_ready(pm8001_ha)) {
-		pm8001_dbg(pm8001_ha, FAIL, "Firmware is not ready!\n");
+		pm8001_dbg(pm8001_ha, FAIL, "Firmware is analt ready!\n");
 		return -EBUSY;
 	}
 
@@ -678,21 +678,21 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 		update_inbnd_queue_table(pm8001_ha, i);
 	for (i = 0; i < pm8001_ha->max_q_num; i++)
 		update_outbnd_queue_table(pm8001_ha, i);
-	/* 8081 controller donot require these operations */
+	/* 8081 controller doanalt require these operations */
 	if (deviceid != 0x8081 && deviceid != 0x0042) {
 		mpi_set_phys_g3_with_ssc(pm8001_ha, 0);
 		/* 7->130ms, 34->500ms, 119->1.5s */
 		mpi_set_open_retry_interval_reg(pm8001_ha, 119);
 	}
-	/* notify firmware update finished and check initialization status */
+	/* analtify firmware update finished and check initialization status */
 	if (0 == mpi_init_check(pm8001_ha)) {
 		pm8001_dbg(pm8001_ha, INIT, "MPI initialize successful!\n");
 	} else
 		return -EBUSY;
 	/*This register is a 16-bit timer with a resolution of 1us. This is the
 	timer used for interrupt delay/coalescing in the PCIe Application Layer.
-	Zero is not a valid value. A value of 1 in the register will cause the
-	interrupts to be normal. A value greater than 1 will cause coalescing
+	Zero is analt a valid value. A value of 1 in the register will cause the
+	interrupts to be analrmal. A value greater than 1 will cause coalescing
 	delays.*/
 	pm8001_cw32(pm8001_ha, 1, 0x0033c0, 0x1);
 	pm8001_cw32(pm8001_ha, 1, 0x0033c4, 0x0);
@@ -765,7 +765,7 @@ static u32 soft_reset_ready_check(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 regVal, regVal1, regVal2;
 	if (mpi_uninit_check(pm8001_ha) != 0) {
-		pm8001_dbg(pm8001_ha, FAIL, "MPI state is not ready\n");
+		pm8001_dbg(pm8001_ha, FAIL, "MPI state is analt ready\n");
 		return -1;
 	}
 	/* read the scratch pad 2 register bit 2 */
@@ -826,7 +826,7 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 
 	/* step1: Check FW is ready for soft reset */
 	if (soft_reset_ready_check(pm8001_ha) != 0) {
-		pm8001_dbg(pm8001_ha, FAIL, "FW is not ready\n");
+		pm8001_dbg(pm8001_ha, FAIL, "FW is analt ready\n");
 		return -1;
 	}
 
@@ -1053,11 +1053,11 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 	regVal |= (SPC_REG_RESET_PCS_IOP_SS | SPC_REG_RESET_PCS_AAP1_SS);
 	pm8001_cw32(pm8001_ha, 2, SPC_REG_RESET, regVal);
 
-	/* step 14: delay 10 usec - Normal Mode */
+	/* step 14: delay 10 usec - Analrmal Mode */
 	udelay(10);
-	/* check Soft Reset Normal mode or Soft Reset HDA mode */
+	/* check Soft Reset Analrmal mode or Soft Reset HDA mode */
 	if (signature == SPC_SOFT_RESET_SIGNATURE) {
-		/* step 15 (Normal Mode): wait until scratch pad1 register
+		/* step 15 (Analrmal Mode): wait until scratch pad1 register
 		bit 2 toggled */
 		max_wait_count = 2 * 1000 * 1000;/* 2 sec */
 		do {
@@ -1087,23 +1087,23 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 			return -1;
 		}
 
-		/* step 16 (Normal) - Clear ODMR and ODCR */
+		/* step 16 (Analrmal) - Clear ODMR and ODCR */
 		pm8001_cw32(pm8001_ha, 0, MSGU_ODCR, ODCR_CLEAR_ALL);
 		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, ODMR_CLEAR_ALL);
 
-		/* step 17 (Normal Mode): wait for the FW and IOP to get
+		/* step 17 (Analrmal Mode): wait for the FW and IOP to get
 		ready - 1 sec timeout */
 		/* Wait for the SPC Configuration Table to be ready */
 		if (check_fw_ready(pm8001_ha) == -1) {
 			regVal = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
-			/* return error if MPI Configuration Table not ready */
+			/* return error if MPI Configuration Table analt ready */
 			pm8001_dbg(pm8001_ha, INIT,
-				   "FW not ready SCRATCH_PAD1 = 0x%x\n",
+				   "FW analt ready SCRATCH_PAD1 = 0x%x\n",
 				   regVal);
 			regVal = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_2);
-			/* return error if MPI Configuration Table not ready */
+			/* return error if MPI Configuration Table analt ready */
 			pm8001_dbg(pm8001_ha, INIT,
-				   "FW not ready SCRATCH_PAD2 = 0x%x\n",
+				   "FW analt ready SCRATCH_PAD2 = 0x%x\n",
 				   regVal);
 			pm8001_dbg(pm8001_ha, INIT,
 				   "SCRATCH_PAD0 value = 0x%x\n",
@@ -1217,7 +1217,7 @@ pm8001_chip_interrupt_disable(struct pm8001_hba_info *pm8001_ha, u8 vec)
  * pm8001_mpi_msg_free_get - get the free message buffer for transfer
  * inbound queue.
  * @circularQ: the inbound queue  we want to transfer to HBA.
- * @messageSize: the message size of this transfer, normally it is 64 bytes
+ * @messageSize: the message size of this transfer, analrmally it is 64 bytes
  * @messagePtr: the pointer to message.
  */
 int pm8001_mpi_msg_free_get(struct inbound_queue_table *circularQ,
@@ -1284,8 +1284,8 @@ int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 	rv = pm8001_mpi_msg_free_get(circularQ, pm8001_ha->iomb_size,
 			&pMessage);
 	if (rv < 0) {
-		pm8001_dbg(pm8001_ha, IO, "No free mpi buffer\n");
-		rv = -ENOMEM;
+		pm8001_dbg(pm8001_ha, IO, "Anal free mpi buffer\n");
+		rv = -EANALMEM;
 		goto done;
 	}
 
@@ -1368,7 +1368,7 @@ u32 pm8001_mpi_msg_consume(struct pm8001_hba_info *pm8001_ha,
 	__le32	msgHeader_tmp;
 	u32 header_tmp;
 	do {
-		/* If there are not-yet-delivered messages ... */
+		/* If there are analt-yet-delivered messages ... */
 		if (le32_to_cpu(circularQ->producer_index)
 			!= circularQ->consumer_idx) {
 			/*Get the pointer to the circular queue buffer element*/
@@ -1438,7 +1438,7 @@ u32 pm8001_mpi_msg_consume(struct pm8001_hba_info *pm8001_ha,
 		}
 	} while (le32_to_cpu(circularQ->producer_index) !=
 		circularQ->consumer_idx);
-	/* while we don't have any more not-yet-delivered message */
+	/* while we don't have any more analt-yet-delivered message */
 	/* report empty */
 	return MPI_IO_STATUS_BUSY;
 }
@@ -1483,7 +1483,7 @@ void pm8001_work_fn(struct work_struct *work)
 		if (unlikely((t->task_state_flags & SAS_TASK_STATE_DONE))) {
 			spin_unlock_irqrestore(&t->task_state_lock, flags1);
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-			break; /* Task got completed by another */
+			break; /* Task got completed by aanalther */
 		}
 		spin_unlock_irqrestore(&t->task_state_lock, flags1);
 
@@ -1496,7 +1496,7 @@ void pm8001_work_fn(struct work_struct *work)
 		}
 		if (!ccb) {
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-			break; /* Task got freed by another */
+			break; /* Task got freed by aanalther */
 		}
 		ts = &t->task_status;
 		ts->resp = SAS_TASK_COMPLETE;
@@ -1537,7 +1537,7 @@ void pm8001_work_fn(struct work_struct *work)
 		if (ret == TMF_RESP_FUNC_SUCC)
 			pm8001_dbg(pm8001_ha, IO, "...Task on lu\n");
 		else if (ret == TMF_RESP_FUNC_COMPLETE)
-			pm8001_dbg(pm8001_ha, IO, "...Task NOT on lu\n");
+			pm8001_dbg(pm8001_ha, IO, "...Task ANALT on lu\n");
 		else
 			pm8001_dbg(pm8001_ha, DEVIO, "...query task failed!!!\n");
 
@@ -1550,7 +1550,7 @@ void pm8001_work_fn(struct work_struct *work)
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			if (ret == TMF_RESP_FUNC_SUCC) /* task on lu */
 				(void)pm8001_abort_task(t);
-			break; /* Task got completed by another */
+			break; /* Task got completed by aanalther */
 		}
 
 		spin_unlock_irqrestore(&t->task_state_lock, flags1);
@@ -1566,7 +1566,7 @@ void pm8001_work_fn(struct work_struct *work)
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			if (ret == TMF_RESP_FUNC_SUCC) /* task on lu */
 				(void)pm8001_abort_task(t);
-			break; /* Task got freed by another */
+			break; /* Task got freed by aanalther */
 		}
 
 		pm8001_dev = ccb->device;
@@ -1590,7 +1590,7 @@ void pm8001_work_fn(struct work_struct *work)
 			}
 			break;
 
-		case TMF_RESP_FUNC_COMPLETE: /* task not on lu */
+		case TMF_RESP_FUNC_COMPLETE: /* task analt on lu */
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			/* Do we need to abort the task locally? */
 			break;
@@ -1619,7 +1619,7 @@ void pm8001_work_fn(struct work_struct *work)
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
-	case IO_DS_NON_OPERATIONAL:
+	case IO_DS_ANALN_OPERATIONAL:
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
@@ -1649,7 +1649,7 @@ void pm8001_work_fn(struct work_struct *work)
 				ts->resp = SAS_TASK_COMPLETE;
 				task->task_done(task);
 			} else if (ccb->ccb_tag != PM8001_INVALID_TAG) {
-				/* complete the internal commands/non-sas task */
+				/* complete the internal commands/analn-sas task */
 				pm8001_dev = ccb->device;
 				if (pm8001_dev->dcompletion) {
 					complete(pm8001_dev->dcompletion);
@@ -1694,7 +1694,7 @@ int pm8001_handle_event(struct pm8001_hba_info *pm8001_ha, void *data,
 		INIT_WORK(&pw->work, pm8001_work_fn);
 		queue_work(pm8001_wq, &pw->work);
 	} else
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	return ret;
 }
@@ -1728,7 +1728,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	tag = le32_to_cpu(psspPayload->tag);
 	ccb = &pm8001_ha->ccb_info[tag];
 	if ((status == IO_ABORTED) && ccb->open_retry) {
-		/* Being completed by another */
+		/* Being completed by aanalther */
 		ccb->open_retry = 0;
 		return;
 	}
@@ -1785,8 +1785,8 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
-	case IO_NO_DEVICE:
-		pm8001_dbg(pm8001_ha, IO, "IO_NO_DEVICE\n");
+	case IO_ANAL_DEVICE:
+		pm8001_dbg(pm8001_ha, IO, "IO_ANAL_DEVICE\n");
 		ts->resp = SAS_TASK_UNDELIVERED;
 		ts->stat = SAS_PHY_DOWN;
 		break;
@@ -1797,15 +1797,15 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		/* Force the midlayer to retry */
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
-	case IO_XFER_ERROR_PHY_NOT_READY:
-		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_NOT_READY\n");
+	case IO_XFER_ERROR_PHY_ANALT_READY:
+		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_ANALT_READY\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
-	case IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED:
+	case IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED:
 		pm8001_dbg(pm8001_ha, IO,
-			   "IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED\n");
+			   "IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_EPROTO;
@@ -1815,7 +1815,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			   "IO_OPEN_CNX_ERROR_ZONE_VIOLATION\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		break;
 	case IO_OPEN_CNX_ERROR_BREAK:
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_BREAK\n");
@@ -1827,7 +1827,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		if (!t->uldd_task)
 			pm8001_handle_event(pm8001_ha,
 				pm8001_dev,
@@ -1840,8 +1840,8 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_BAD_DEST;
 		break;
-	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED:
-		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED\n");
+	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED:
+		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_CONN_RATE;
@@ -1885,22 +1885,22 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		break;
-	case IO_DS_NON_OPERATIONAL:
-		pm8001_dbg(pm8001_ha, IO, "IO_DS_NON_OPERATIONAL\n");
+	case IO_DS_ANALN_OPERATIONAL:
+		pm8001_dbg(pm8001_ha, IO, "IO_DS_ANALN_OPERATIONAL\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		if (!t->uldd_task)
 			pm8001_handle_event(pm8001_ha,
 				pm8001_dev,
-				IO_DS_NON_OPERATIONAL);
+				IO_DS_ANALN_OPERATIONAL);
 		break;
 	case IO_DS_IN_RECOVERY:
 		pm8001_dbg(pm8001_ha, IO, "IO_DS_IN_RECOVERY\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		break;
-	case IO_TM_TAG_NOT_FOUND:
-		pm8001_dbg(pm8001_ha, IO, "IO_TM_TAG_NOT_FOUND\n");
+	case IO_TM_TAG_ANALT_FOUND:
+		pm8001_dbg(pm8001_ha, IO, "IO_TM_TAG_ANALT_FOUND\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		break;
@@ -1917,8 +1917,8 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "Unknown status 0x%x\n", status);
-		/* not allowed case. Therefore, return failed status */
+		pm8001_dbg(pm8001_ha, DEVIO, "Unkanalwn status 0x%x\n", status);
+		/* analt allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		break;
@@ -1979,14 +1979,14 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_BREAK\n");
 		pm8001_handle_event(pm8001_ha, t, IO_XFER_ERROR_BREAK);
 		return;
-	case IO_XFER_ERROR_PHY_NOT_READY:
-		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_NOT_READY\n");
+	case IO_XFER_ERROR_PHY_ANALT_READY:
+		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_ANALT_READY\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
-	case IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED:
-		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED\n");
+	case IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED:
+		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_EPROTO;
@@ -1996,7 +1996,7 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			   "IO_OPEN_CNX_ERROR_ZONE_VIOLATION\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		break;
 	case IO_OPEN_CNX_ERROR_BREAK:
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_BREAK\n");
@@ -2008,7 +2008,7 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		if (!t->uldd_task)
 			pm8001_handle_event(pm8001_ha,
 				pm8001_dev,
@@ -2021,8 +2021,8 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_BAD_DEST;
 		break;
-	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED:
-		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED\n");
+	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED:
+		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_CONN_RATE;
@@ -2059,9 +2059,9 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_DATA_OVERRUN;
 		break;
-	case IO_XFER_ERROR_XFER_RDY_NOT_EXPECTED:
+	case IO_XFER_ERROR_XFER_RDY_ANALT_EXPECTED:
 		pm8001_dbg(pm8001_ha, IO,
-			   "IO_XFER_ERROR_XFER_RDY_NOT_EXPECTED\n");
+			   "IO_XFER_ERROR_XFER_RDY_ANALT_EXPECTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_DATA_OVERRUN;
 		break;
@@ -2086,8 +2086,8 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, IO, "IO_XFER_CMD_FRAME_ISSUED\n");
 		return;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "Unknown status 0x%x\n", event);
-		/* not allowed case. Therefore, return failed status */
+		pm8001_dbg(pm8001_ha, DEVIO, "Unkanalwn status 0x%x\n", event);
+		/* analt allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_DATA_OVERRUN;
 		break;
@@ -2222,7 +2222,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 				pm8001_dbg(pm8001_ha, IO,
 					   "PIO read len = %d\n", len);
 			} else if (t->ata_task.use_ncq &&
-				   t->data_dir != DMA_NONE) {
+				   t->data_dir != DMA_ANALNE) {
 				len = sizeof(struct set_dev_bits_fis);
 				pm8001_dbg(pm8001_ha, IO, "FPDMA len = %d\n",
 					   len);
@@ -2259,8 +2259,8 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
-	case IO_NO_DEVICE:
-		pm8001_dbg(pm8001_ha, IO, "IO_NO_DEVICE\n");
+	case IO_ANAL_DEVICE:
+		pm8001_dbg(pm8001_ha, IO, "IO_ANAL_DEVICE\n");
 		ts->resp = SAS_TASK_UNDELIVERED;
 		ts->stat = SAS_PHY_DOWN;
 		if (pm8001_dev)
@@ -2273,16 +2273,16 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
-	case IO_XFER_ERROR_PHY_NOT_READY:
-		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_NOT_READY\n");
+	case IO_XFER_ERROR_PHY_ANALT_READY:
+		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_ANALT_READY\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
-	case IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED:
-		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED\n");
+	case IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED:
+		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_EPROTO;
@@ -2294,7 +2294,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			   "IO_OPEN_CNX_ERROR_ZONE_VIOLATION\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
@@ -2309,7 +2309,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n");
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (!t->uldd_task) {
 			pm8001_handle_event(pm8001_ha,
 				pm8001_dev,
@@ -2336,8 +2336,8 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			return;
 		}
 		break;
-	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED:
-		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED\n");
+	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED:
+		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_CONN_RATE;
@@ -2347,7 +2347,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY:
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY\n");
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (!t->uldd_task) {
 			pm8001_handle_event(pm8001_ha,
 				pm8001_dev,
@@ -2391,7 +2391,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_XFER_ERROR_SATA_LINK_TIMEOUT:
 		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_SATA_LINK_TIMEOUT\n");
 		ts->resp = SAS_TASK_UNDELIVERED;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
@@ -2412,17 +2412,17 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_PORT_IN_RESET:
 		pm8001_dbg(pm8001_ha, IO, "IO_PORT_IN_RESET\n");
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
-	case IO_DS_NON_OPERATIONAL:
-		pm8001_dbg(pm8001_ha, IO, "IO_DS_NON_OPERATIONAL\n");
+	case IO_DS_ANALN_OPERATIONAL:
+		pm8001_dbg(pm8001_ha, IO, "IO_DS_ANALN_OPERATIONAL\n");
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (!t->uldd_task) {
 			pm8001_handle_event(pm8001_ha, pm8001_dev,
-				    IO_DS_NON_OPERATIONAL);
+				    IO_DS_ANALN_OPERATIONAL);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_QUEUE_FULL;
 			pm8001_ccb_task_free_done(pm8001_ha, ccb);
@@ -2432,14 +2432,14 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_DS_IN_RECOVERY:
 		pm8001_dbg(pm8001_ha, IO, "  IO_DS_IN_RECOVERY\n");
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
 	case IO_DS_IN_ERROR:
 		pm8001_dbg(pm8001_ha, IO, "IO_DS_IN_ERROR\n");
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (!t->uldd_task) {
 			pm8001_handle_event(pm8001_ha, pm8001_dev,
 				    IO_DS_IN_ERROR);
@@ -2459,10 +2459,10 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "Unknown status 0x%x\n", status);
-		/* not allowed case. Therefore, return failed status */
+		pm8001_dbg(pm8001_ha, DEVIO, "Unkanalwn status 0x%x\n", status);
+		/* analt allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
@@ -2542,14 +2542,14 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_INTERRUPTED;
 		break;
-	case IO_XFER_ERROR_PHY_NOT_READY:
-		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_NOT_READY\n");
+	case IO_XFER_ERROR_PHY_ANALT_READY:
+		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_ANALT_READY\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
-	case IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED:
-		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED\n");
+	case IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED:
+		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_EPROTO;
@@ -2559,7 +2559,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			   "IO_OPEN_CNX_ERROR_ZONE_VIOLATION\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		break;
 	case IO_OPEN_CNX_ERROR_BREAK:
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_BREAK\n");
@@ -2570,7 +2570,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n");
 		ts->resp = SAS_TASK_UNDELIVERED;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		if (!t->uldd_task) {
 			pm8001_handle_event(pm8001_ha,
 				pm8001_dev,
@@ -2587,8 +2587,8 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_BAD_DEST;
 		break;
-	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED:
-		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED\n");
+	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED:
+		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_CONN_RATE;
@@ -2630,9 +2630,9 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_TO;
 		break;
-	case IO_XFER_ERROR_XFER_RDY_NOT_EXPECTED:
+	case IO_XFER_ERROR_XFER_RDY_ANALT_EXPECTED:
 		pm8001_dbg(pm8001_ha, IO,
-			   "IO_XFER_ERROR_XFER_RDY_NOT_EXPECTED\n");
+			   "IO_XFER_ERROR_XFER_RDY_ANALT_EXPECTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_TO;
 		break;
@@ -2656,8 +2656,8 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->stat = SAS_OPEN_TO;
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "Unknown status 0x%x\n", event);
-		/* not allowed case. Therefore, return failed status */
+		pm8001_dbg(pm8001_ha, DEVIO, "Unkanalwn status 0x%x\n", event);
+		/* analt allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_TO;
 		break;
@@ -2717,8 +2717,8 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		break;
-	case IO_NO_DEVICE:
-		pm8001_dbg(pm8001_ha, IO, "IO_NO_DEVICE\n");
+	case IO_ANAL_DEVICE:
+		pm8001_dbg(pm8001_ha, IO, "IO_ANAL_DEVICE\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_PHY_DOWN;
 		break;
@@ -2732,24 +2732,24 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_SAM_STAT_BUSY;
 		break;
-	case IO_XFER_ERROR_PHY_NOT_READY:
-		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_NOT_READY\n");
+	case IO_XFER_ERROR_PHY_ANALT_READY:
+		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_PHY_ANALT_READY\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_SAM_STAT_BUSY;
 		break;
-	case IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED:
+	case IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED:
 		pm8001_dbg(pm8001_ha, IO,
-			   "IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED\n");
+			   "IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		break;
 	case IO_OPEN_CNX_ERROR_ZONE_VIOLATION:
 		pm8001_dbg(pm8001_ha, IO,
 			   "IO_OPEN_CNX_ERROR_ZONE_VIOLATION\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		break;
 	case IO_OPEN_CNX_ERROR_BREAK:
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_BREAK\n");
@@ -2761,7 +2761,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+		ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		pm8001_handle_event(pm8001_ha,
 				pm8001_dev,
 				IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS);
@@ -2773,8 +2773,8 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_BAD_DEST;
 		break;
-	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED:
-		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED\n");
+	case IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED:
+		pm8001_dbg(pm8001_ha, IO, "IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_CONN_RATE;
@@ -2789,7 +2789,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_XFER_ERROR_RX_FRAME:
 		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_RX_FRAME\n");
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		break;
 	case IO_XFER_OPEN_RETRY_TIMEOUT:
 		pm8001_dbg(pm8001_ha, IO, "IO_XFER_OPEN_RETRY_TIMEOUT\n");
@@ -2808,10 +2808,10 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
-	case IO_DS_NON_OPERATIONAL:
-		pm8001_dbg(pm8001_ha, IO, "IO_DS_NON_OPERATIONAL\n");
+	case IO_DS_ANALN_OPERATIONAL:
+		pm8001_dbg(pm8001_ha, IO, "IO_DS_ANALN_OPERATIONAL\n");
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		break;
 	case IO_DS_IN_RECOVERY:
 		pm8001_dbg(pm8001_ha, IO, "IO_DS_IN_RECOVERY\n");
@@ -2827,10 +2827,10 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "Unknown status 0x%x\n", status);
+		pm8001_dbg(pm8001_ha, DEVIO, "Unkanalwn status 0x%x\n", status);
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_DEV_NO_RESPONSE;
-		/* not allowed case. Therefore, return failed status */
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
+		/* analt allowed case. Therefore, return failed status */
 		break;
 	}
 	spin_lock_irqsave(&t->task_state_lock, flags);
@@ -2903,7 +2903,7 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, FAIL, "Get nvm data error %x\n",
 				dlen_status);
 		complete(pm8001_ha->nvmd_completion);
-		/* We should free tag during failure also, the tag is not being
+		/* We should free tag during failure also, the tag is analt being
 		 * freed by requesting path anywhere.
 		 */
 		pm8001_ccb_free(pm8001_ha, ccb);
@@ -2927,7 +2927,7 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			|| ((ir_tds_bn_dps_das_nvm & NVMD_TYPE) == IOP_RDUMP)) {
 			;
 		} else {
-			/* Should not be happened*/
+			/* Should analt be happened*/
 			pm8001_dbg(pm8001_ha, MSG,
 				   "(IR=1)Wrong Device type 0x%x\n",
 				   ir_tds_bn_dps_das_nvm);
@@ -2986,7 +2986,7 @@ int pm8001_mpi_local_phy_ctl(struct pm8001_hba_info *pm8001_ha, void *piomb)
  * @i: which phy that received the event.
  *
  * when HBA driver received the identify done event or initiate FIS received
- * event(for SATA), it will invoke this function to notify the sas layer that
+ * event(for SATA), it will invoke this function to analtify the sas layer that
  * the sas toplogy has formed, please discover the whole sas domain,
  * while receive a broadcast(change) primitive just tell the sas
  * layer to discover the changed domain rather than the whole domain.
@@ -3005,12 +3005,12 @@ void pm8001_bytes_dmaed(struct pm8001_hba_info *pm8001_ha, int i)
 		id->initiator_bits = SAS_PROTOCOL_ALL;
 		id->target_bits = phy->identify.target_port_protocols;
 	} else if (phy->phy_type & PORT_TYPE_SATA) {
-		/*Nothing*/
+		/*Analthing*/
 	}
 	pm8001_dbg(pm8001_ha, MSG, "phy %d byte dmaded.\n", i);
 
 	sas_phy->frame_rcvd_size = phy->frame_rcvd_size;
-	sas_notify_port_event(sas_phy, PORTE_BYTES_DMAED, GFP_ATOMIC);
+	sas_analtify_port_event(sas_phy, PORTE_BYTES_DMAED, GFP_ATOMIC);
 }
 
 /* Get the link rate speed  */
@@ -3069,7 +3069,7 @@ void pm8001_get_attached_sas_addr(struct pm8001_phy *phy,
 }
 
 /**
- * pm8001_hw_event_ack_req- For PM8001,some events need to acknowage to FW.
+ * pm8001_hw_event_ack_req- For PM8001,some events need to ackanalwage to FW.
  * @pm8001_ha: our hba card information
  * @Qnum: the outbound queue message number.
  * @SEA: source of event to ack
@@ -3130,12 +3130,12 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 
 	switch (deviceType) {
 	case SAS_PHY_UNUSED:
-		pm8001_dbg(pm8001_ha, MSG, "device type no device.\n");
+		pm8001_dbg(pm8001_ha, MSG, "device type anal device.\n");
 		break;
 	case SAS_END_DEVICE:
 		pm8001_dbg(pm8001_ha, MSG, "end device.\n");
 		pm8001_chip_phy_ctl_req(pm8001_ha, phy_id,
-			PHY_NOTIFY_ENABLE_SPINUP);
+			PHY_ANALTIFY_ENABLE_SPINUP);
 		port->port_attached = 1;
 		pm8001_get_lrate_mode(phy, link_rate);
 		break;
@@ -3144,13 +3144,13 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		port->port_attached = 1;
 		pm8001_get_lrate_mode(phy, link_rate);
 		break;
-	case SAS_FANOUT_EXPANDER_DEVICE:
-		pm8001_dbg(pm8001_ha, MSG, "fanout expander device.\n");
+	case SAS_FAANALUT_EXPANDER_DEVICE:
+		pm8001_dbg(pm8001_ha, MSG, "faanalut expander device.\n");
 		port->port_attached = 1;
 		pm8001_get_lrate_mode(phy, link_rate);
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "unknown device type(%x)\n",
+		pm8001_dbg(pm8001_ha, DEVIO, "unkanalwn device type(%x)\n",
 			   deviceType);
 		break;
 	}
@@ -3162,7 +3162,7 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	else if (phy->identify.device_type != SAS_PHY_UNUSED)
 		phy->identify.target_port_protocols = SAS_PROTOCOL_SMP;
 	phy->sas_phy.oob_mode = SAS_OOB_MODE;
-	sas_notify_phy_event(&phy->sas_phy, PHYE_OOB_DONE, GFP_ATOMIC);
+	sas_analtify_phy_event(&phy->sas_phy, PHYE_OOB_DONE, GFP_ATOMIC);
 	spin_lock_irqsave(&phy->sas_phy.frame_rcvd_lock, flags);
 	memcpy(phy->frame_rcvd, &pPayload->sas_identify,
 		sizeof(struct sas_identify_frame)-4);
@@ -3207,7 +3207,7 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	phy->phy_type |= PORT_TYPE_SATA;
 	phy->phy_attached = 1;
 	phy->sas_phy.oob_mode = SATA_OOB_MODE;
-	sas_notify_phy_event(&phy->sas_phy, PHYE_OOB_DONE, GFP_ATOMIC);
+	sas_analtify_phy_event(&phy->sas_phy, PHYE_OOB_DONE, GFP_ATOMIC);
 	spin_lock_irqsave(&phy->sas_phy.frame_rcvd_lock, flags);
 	memcpy(phy->frame_rcvd, ((u8 *)&pPayload->sata_fis - 4),
 		sizeof(struct dev_to_host_fis));
@@ -3220,7 +3220,7 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 }
 
 /**
- * hw_event_phy_down -we should notify the libsas the phy is down.
+ * hw_event_phy_down -we should analtify the libsas the phy is down.
  * @pm8001_ha: our hba card information
  * @piomb: IO message buffer
  */
@@ -3259,9 +3259,9 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, MSG, " Port In Reset portID %d\n",
 			   port_id);
 		break;
-	case PORT_NOT_ESTABLISHED:
+	case PORT_ANALT_ESTABLISHED:
 		pm8001_dbg(pm8001_ha, MSG,
-			   " phy Down and PORT_NOT_ESTABLISHED\n");
+			   " phy Down and PORT_ANALT_ESTABLISHED\n");
 		port->port_attached = 0;
 		break;
 	case PORT_LOSTCOMM:
@@ -3286,9 +3286,9 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
  * @pm8001_ha: our hba card information
  * @piomb: IO message buffer
  *
- * when sas layer find a device it will notify LLDD, then the driver register
+ * when sas layer find a device it will analtify LLDD, then the driver register
  * the domain device to FW, this event is the return device ID which the FW
- * has assigned, from now, inter-communication with FW is no longer using the
+ * has assigned, from analw, inter-communication with FW is anal longer using the
  * SAS address, use device ID which FW assigned.
  */
 int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
@@ -3332,17 +3332,17 @@ int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, MSG,
 			   "DEVREG_FAILURE_PORT_ID_OUT_OF_RANGE\n");
 		break;
-	case DEVREG_FAILURE_PORT_NOT_VALID_STATE:
+	case DEVREG_FAILURE_PORT_ANALT_VALID_STATE:
 		pm8001_dbg(pm8001_ha, MSG,
-			   "DEVREG_FAILURE_PORT_NOT_VALID_STATE\n");
+			   "DEVREG_FAILURE_PORT_ANALT_VALID_STATE\n");
 		break;
-	case DEVREG_FAILURE_DEVICE_TYPE_NOT_VALID:
+	case DEVREG_FAILURE_DEVICE_TYPE_ANALT_VALID:
 		pm8001_dbg(pm8001_ha, MSG,
-			   "DEVREG_FAILURE_DEVICE_TYPE_NOT_VALID\n");
+			   "DEVREG_FAILURE_DEVICE_TYPE_ANALT_VALID\n");
 		break;
 	default:
 		pm8001_dbg(pm8001_ha, MSG,
-			   "DEVREG_FAILURE_DEVICE_TYPE_NOT_SUPPORTED\n");
+			   "DEVREG_FAILURE_DEVICE_TYPE_ANALT_SUPPORTED\n");
 		break;
 	}
 	complete(pm8001_dev->dcompletion);
@@ -3404,15 +3404,15 @@ int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 	case FLASH_UPDATE_HW_ERR:
 		pm8001_dbg(pm8001_ha, MSG, ": FLASH_UPDATE_HW_ERR\n");
 		break;
-	case FLASH_UPDATE_DNLD_NOT_SUPPORTED:
+	case FLASH_UPDATE_DNLD_ANALT_SUPPORTED:
 		pm8001_dbg(pm8001_ha, MSG,
-			   ": FLASH_UPDATE_DNLD_NOT_SUPPORTED\n");
+			   ": FLASH_UPDATE_DNLD_ANALT_SUPPORTED\n");
 		break;
 	case FLASH_UPDATE_DISABLED:
 		pm8001_dbg(pm8001_ha, MSG, ": FLASH_UPDATE_DISABLED\n");
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "No matched status = %d\n",
+		pm8001_dbg(pm8001_ha, DEVIO, "Anal matched status = %d\n",
 			   status);
 		break;
 	}
@@ -3476,8 +3476,8 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_SAM_STAT_GOOD;
 		break;
-	case IO_NOT_VALID:
-		pm8001_dbg(pm8001_ha, EH, "IO_NOT_VALID\n");
+	case IO_ANALT_VALID:
+		pm8001_dbg(pm8001_ha, EH, "IO_ANALT_VALID\n");
 		ts->resp = TMF_RESP_FUNC_FAILED;
 		break;
 	}
@@ -3547,12 +3547,12 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	case HW_EVENT_SATA_SPINUP_HOLD:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_SATA_SPINUP_HOLD\n");
-		sas_notify_phy_event(&phy->sas_phy, PHYE_SPINUP_HOLD,
+		sas_analtify_phy_event(&phy->sas_phy, PHYE_SPINUP_HOLD,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PHY_DOWN:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_DOWN\n");
-		sas_notify_phy_event(&phy->sas_phy, PHYE_LOSS_OF_SIGNAL,
+		sas_analtify_phy_event(&phy->sas_phy, PHYE_LOSS_OF_SIGNAL,
 			GFP_ATOMIC);
 		phy->phy_attached = 0;
 		phy->phy_state = 0;
@@ -3562,7 +3562,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_INVALID\n");
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	/* the broadcast change primitive received, tell the LIBSAS this event
@@ -3574,21 +3574,21 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		spin_lock_irqsave(&sas_phy->sas_prim_lock, flags);
 		sas_phy->sas_prim = HW_EVENT_BROADCAST_CHANGE;
 		spin_unlock_irqrestore(&sas_phy->sas_prim_lock, flags);
-		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
+		sas_analtify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PHY_ERROR:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_ERROR\n");
 		sas_phy_disconnected(&phy->sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_phy_event(&phy->sas_phy, PHYE_OOB_ERROR, GFP_ATOMIC);
+		sas_analtify_phy_event(&phy->sas_phy, PHYE_OOB_ERROR, GFP_ATOMIC);
 		break;
 	case HW_EVENT_BROADCAST_EXP:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_BROADCAST_EXP\n");
 		spin_lock_irqsave(&sas_phy->sas_prim_lock, flags);
 		sas_phy->sas_prim = HW_EVENT_BROADCAST_EXP;
 		spin_unlock_irqrestore(&sas_phy->sas_prim_lock, flags);
-		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
+		sas_analtify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_INVALID_DWORD:
@@ -3598,7 +3598,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			HW_EVENT_LINK_ERR_INVALID_DWORD, port_id, phy_id, 0, 0);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_DISPARITY_ERROR:
@@ -3609,7 +3609,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			port_id, phy_id, 0, 0);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_CODE_VIOLATION:
@@ -3620,7 +3620,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			port_id, phy_id, 0, 0);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_LOSS_OF_DWORD_SYNCH:
@@ -3631,7 +3631,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			port_id, phy_id, 0, 0);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_MALFUNCTION:
@@ -3642,7 +3642,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		spin_lock_irqsave(&sas_phy->sas_prim_lock, flags);
 		sas_phy->sas_prim = HW_EVENT_BROADCAST_SES;
 		spin_unlock_irqrestore(&sas_phy->sas_prim_lock, flags);
-		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
+		sas_analtify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_INBOUND_CRC_ERROR:
@@ -3653,13 +3653,13 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	case HW_EVENT_HARD_RESET_RECEIVED:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_HARD_RESET_RECEIVED\n");
-		sas_notify_port_event(sas_phy, PORTE_HARD_RESET, GFP_ATOMIC);
+		sas_analtify_port_event(sas_phy, PORTE_HARD_RESET, GFP_ATOMIC);
 		break;
 	case HW_EVENT_ID_FRAME_TIMEOUT:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_ID_FRAME_TIMEOUT\n");
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_LINK_ERR_PHY_RESET_FAILED:
@@ -3670,14 +3670,14 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			port_id, phy_id, 0, 0);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PORT_RESET_TIMER_TMO:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RESET_TIMER_TMO\n");
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PORT_RECOVERY_TIMER_TMO:
@@ -3685,7 +3685,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			   "HW_EVENT_PORT_RECOVERY_TIMER_TMO\n");
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
-		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
+		sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
 			GFP_ATOMIC);
 		break;
 	case HW_EVENT_PORT_RECOVER:
@@ -3698,7 +3698,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, MSG, "EVENT_BROADCAST_ASYNCH_EVENT\n");
 		break;
 	default:
-		pm8001_dbg(pm8001_ha, DEVIO, "Unknown event type = %x\n",
+		pm8001_dbg(pm8001_ha, DEVIO, "Unkanalwn event type = %x\n",
 			   eventType);
 		break;
 	}
@@ -3839,7 +3839,7 @@ static void process_one_iomb(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	default:
 		pm8001_dbg(pm8001_ha, DEVIO,
-			   "Unknown outbound Queue IOMB OPC = %x\n",
+			   "Unkanalwn outbound Queue IOMB OPC = %x\n",
 			   opc);
 		break;
 	}
@@ -3883,7 +3883,7 @@ static const u8 data_dir_flags[] = {
 	[DMA_BIDIRECTIONAL]	= DATA_DIR_BYRECIPIENT,	/* UNSPECIFIED */
 	[DMA_TO_DEVICE]		= DATA_DIR_OUT,		/* OUTBOUND */
 	[DMA_FROM_DEVICE]	= DATA_DIR_IN,		/* INBOUND */
-	[DMA_NONE]		= DATA_DIR_NONE,	/* NO TRANSFER */
+	[DMA_ANALNE]		= DATA_DIR_ANALNE,	/* ANAL TRANSFER */
 };
 void
 pm8001_chip_make_sg(struct scatterlist *scatter, int nr, void *prd)
@@ -3931,13 +3931,13 @@ static int pm8001_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	sg_req = &task->smp_task.smp_req;
 	elem = dma_map_sg(pm8001_ha->dev, sg_req, 1, DMA_TO_DEVICE);
 	if (!elem)
-		return -ENOMEM;
+		return -EANALMEM;
 	req_len = sg_dma_len(sg_req);
 
 	sg_resp = &task->smp_task.smp_resp;
 	elem = dma_map_sg(pm8001_ha->dev, sg_resp, 1, DMA_FROM_DEVICE);
 	if (!elem) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 	resp_len = sg_dma_len(sg_resp);
@@ -4041,9 +4041,9 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
 
-	if (task->data_dir == DMA_NONE && !task->ata_task.use_ncq) {
-		ATAP = 0x04;  /* no data*/
-		pm8001_dbg(pm8001_ha, IO, "no data\n");
+	if (task->data_dir == DMA_ANALNE && !task->ata_task.use_ncq) {
+		ATAP = 0x04;  /* anal data*/
+		pm8001_dbg(pm8001_ha, IO, "anal data\n");
 	} else if (likely(!task->ata_task.device_control_reg_update)) {
 		if (task->ata_task.use_ncq &&
 		    dev->sata_dev.class != ATA_DEV_ATAPI) {
@@ -4295,7 +4295,7 @@ static int send_task_abort(struct pm8001_hba_info *pm8001_ha, u32 opc,
 		task_abort.abort_all = cpu_to_le32(1);
 		task_abort.device_id = cpu_to_le32(dev_id);
 	} else {
-		pm8001_dbg(pm8001_ha, EH, "unknown type (%d)\n", type);
+		pm8001_dbg(pm8001_ha, EH, "unkanalwn type (%d)\n", type);
 		return -EIO;
 	}
 
@@ -4372,10 +4372,10 @@ int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	struct fw_control_ex *fw_control_context;
 	struct pm8001_ioctl_payload *ioctl_payload = payload;
 
-	nvmd_type = ioctl_payload->minor_function;
+	nvmd_type = ioctl_payload->mianalr_function;
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
 	if (!fw_control_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	fw_control_context->usrAddr = (u8 *)ioctl_payload->func_specific;
 	fw_control_context->len = ioctl_payload->rd_length;
 	memset(&nvmd_req, 0, sizeof(nvmd_req));
@@ -4465,10 +4465,10 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	struct fw_control_ex *fw_control_context;
 	struct pm8001_ioctl_payload *ioctl_payload = payload;
 
-	nvmd_type = ioctl_payload->minor_function;
+	nvmd_type = ioctl_payload->mianalr_function;
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
 	if (!fw_control_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(pm8001_ha->memoryMap.region[NVMD].virt_ptr,
 		&ioctl_payload->func_specific,
@@ -4583,7 +4583,7 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
 	if (!fw_control_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	fw_control = (struct fw_control_info *)&ioctl_payload->func_specific;
 	pm8001_dbg(pm8001_ha, DEVIO,
 		   "dma fw_control context input length :%x\n",
@@ -4682,7 +4682,7 @@ pm8001_get_gsm_dump(struct device *cdev, u32 length, char *buf)
 	if (rem != 0) {
 		value = pm8001_cr32(pm8001_ha, bar, (work_offset + offset) &
 						0x0000FFFF);
-		/* xfr for non_dw */
+		/* xfr for analn_dw */
 		direct_data += sprintf(direct_data, "%08x ", value);
 	}
 	/* Shift back to BAR4 original address */

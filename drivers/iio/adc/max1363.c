@@ -54,10 +54,10 @@
 #define MAX1363_SETUP_UNIPOLAR			0x00
 #define MAX1363_SETUP_BIPOLAR			0x04
 #define MAX1363_SETUP_RESET			0x00
-#define MAX1363_SETUP_NORESET			0x02
+#define MAX1363_SETUP_ANALRESET			0x02
 /* max1363 only - though don't care on others.
- * For now monitor modes are not implemented as the relevant
- * line is not connected on my test board.
+ * For analw monitor modes are analt implemented as the relevant
+ * line is analt connected on my test board.
  * The definitions are here as I intend to add this soon.
  */
 #define MAX1363_SETUP_MONITOR_SETUP		0x01
@@ -170,7 +170,7 @@ struct max1363_state {
 	struct mutex			lock;
 
 	/* Using monitor modes and buffer at the same time is
-	   currently not supported */
+	   currently analt supported */
 	bool				monitor_on;
 	unsigned int			monitor_speed:3;
 	u8				mask_high;
@@ -200,7 +200,7 @@ struct max1363_state {
 			.modemask[0] = _mask,				\
 			}
 
-/* note not available for max1363 hence naming */
+/* analte analt available for max1363 hence naming */
 #define MAX1236_MODE_SCAN_MID_TO_CHANNEL(_mid, _num, _mask) {		\
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1236_SCAN_MID_TO_CHANNEL			\
@@ -215,7 +215,7 @@ struct max1363_state {
 			.modemask[0] = _mask				\
 			}
 
-/* Can't think how to automate naming so specify for now */
+/* Can't think how to automate naming so specify for analw */
 #define MAX1363_MODE_DIFF_SCAN_TO_CHANNEL(_num, _numvals, _mask) {	\
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1363_CONFIG_SCAN_TO_CS			\
@@ -223,7 +223,7 @@ struct max1363_state {
 			.modemask[0] = _mask				\
 			}
 
-/* note only available for max1363 hence naming */
+/* analte only available for max1363 hence naming */
 #define MAX1236_MODE_DIFF_SCAN_MID_TO_CHANNEL(_num, _numvals, _mask) {	\
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1236_SCAN_MID_TO_CHANNEL			\
@@ -370,10 +370,10 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 
 	/*
 	 * If monitor mode is enabled, the method for reading a single
-	 * channel will have to be rather different and has not yet
+	 * channel will have to be rather different and has analt yet
 	 * been implemented.
 	 *
-	 * Also, cannot read directly if buffered capture enabled.
+	 * Also, cananalt read directly if buffered capture enabled.
 	 */
 	if (st->monitor_on) {
 		ret = -EBUSY;
@@ -834,7 +834,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	const long *modemask;
 
 	if (!enabled) {
-		/* transition to buffered capture is not currently supported */
+		/* transition to buffered capture is analt currently supported */
 		st->setupbyte &= ~MAX1363_SETUP_MONITOR_SETUP;
 		st->configbyte &= ~MAX1363_SCAN_MASK;
 		st->monitor_on = false;
@@ -861,7 +861,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	len = 3 * numelements + 3;
 	tx_buf = kmalloc(len, GFP_KERNEL);
 	if (!tx_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_ret;
 	}
 	tx_buf[0] = st->configbyte;
@@ -869,7 +869,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	tx_buf[2] = (st->monitor_speed << 1);
 
 	/*
-	 * So we need to do yet another bit of nefarious scan mode
+	 * So we need to do yet aanalther bit of nefarious scan mode
 	 * setup to match what we need.
 	 */
 	for (j = 0; j < 8; j++)
@@ -909,7 +909,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	}
 
 	/*
-	 * Now that we hopefully have sensible thresholds in place it is
+	 * Analw that we hopefully have sensible thresholds in place it is
 	 * time to turn the interrupts on.
 	 * It is unclear from the data sheet if this should be necessary
 	 * (i.e. whether monitor mode setup is atomic) but it appears to
@@ -1437,7 +1437,7 @@ static int max1363_initial_setup(struct max1363_state *st)
 {
 	st->setupbyte = MAX1363_SETUP_INT_CLOCK
 		| MAX1363_SETUP_UNIPOLAR
-		| MAX1363_SETUP_NORESET;
+		| MAX1363_SETUP_ANALRESET;
 
 	if (st->vref)
 		st->setupbyte |= MAX1363_SETUP_AIN3_IS_REF_EXT_TO_REF;
@@ -1465,7 +1465,7 @@ static int max1363_alloc_scan_masks(struct iio_dev *indio_dev)
 				    st->chip_info->num_modes + 1),
 			GFP_KERNEL);
 	if (!masks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < st->chip_info->num_modes; i++)
 		bitmap_copy(masks + BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*i,
@@ -1498,9 +1498,9 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 		if (d_size % sizeof(s64))
 			d_size += sizeof(s64) - (d_size % sizeof(s64));
 	}
-	/* Monitor mode prevents reading. Whilst not currently implemented
+	/* Monitor mode prevents reading. Whilst analt currently implemented
 	 * might as well have this test in here in the meantime as it does
-	 * no harm.
+	 * anal harm.
 	 */
 	if (numvals == 0)
 		goto done;
@@ -1521,7 +1521,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 done_free:
 	kfree(rxbuf);
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1590,7 +1590,7 @@ static int max1363_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev,
 					  sizeof(struct max1363_state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -1631,7 +1631,7 @@ static int max1363_probe(struct i2c_client *client)
 		st->send = max1363_smbus_send;
 		st->recv = max1363_smbus_recv;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = max1363_alloc_scan_masks(indio_dev);

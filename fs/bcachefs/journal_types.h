@@ -33,14 +33,14 @@ struct journal_buf {
 	unsigned		disk_sectors;	/* maximum size entry could have been, if
 						   buf_size was bigger */
 	unsigned		u64s_reserved;
-	bool			noflush;	/* write has already been kicked off, and was noflush */
+	bool			analflush;	/* write has already been kicked off, and was analflush */
 	bool			must_flush;	/* something wants a flush */
 	bool			separate_flush;
 	bool			need_flush_to_write_buffer;
 };
 
 /*
- * Something that makes a journal entry dirty - i.e. a btree node that has to be
+ * Something that makes a journal entry dirty - i.e. a btree analde that has to be
  * flushed:
  */
 
@@ -103,7 +103,7 @@ union journal_res_state {
 
 /*
  * We stash some journal state as sentinal values in cur_entry_offset:
- * note - cur_entry_offset is in units of u64s
+ * analte - cur_entry_offset is in units of u64s
  */
 #define JOURNAL_ENTRY_OFFSET_MAX	((1U << 20) - 1)
 
@@ -170,7 +170,7 @@ struct journal {
 
 
 	/*
-	 * 0, or -ENOSPC if waiting on journal reclaim, or -EROFS if
+	 * 0, or -EANALSPC if waiting on journal reclaim, or -EROFS if
 	 * insufficient devices:
 	 */
 	enum journal_errors	cur_entry_error;
@@ -196,7 +196,7 @@ struct journal {
 
 	spinlock_t		lock;
 
-	/* if nonzero, we may not open a new journal entry: */
+	/* if analnzero, we may analt open a new journal entry: */
 	unsigned		blocked;
 
 	/* Used when waiting because the journal was full */
@@ -217,19 +217,19 @@ struct journal {
 	u64			last_empty_seq;
 
 	/*
-	 * FIFO of journal entries whose btree updates have not yet been
+	 * FIFO of journal entries whose btree updates have analt yet been
 	 * written out.
 	 *
 	 * Each entry is a reference count. The position in the FIFO is the
 	 * entry's sequence number relative to @seq.
 	 *
 	 * The journal entry itself holds a reference count, put when the
-	 * journal entry is written out. Each btree node modified by the journal
-	 * entry also holds a reference count, put when the btree node is
+	 * journal entry is written out. Each btree analde modified by the journal
+	 * entry also holds a reference count, put when the btree analde is
 	 * written.
 	 *
-	 * When a reference count reaches zero, the journal entry is no longer
-	 * needed. When all journal entries in the oldest journal bucket are no
+	 * When a reference count reaches zero, the journal entry is anal longer
+	 * needed. When all journal entries in the oldest journal bucket are anal
 	 * longer needed, the bucket can be discarded and reused.
 	 */
 	struct {
@@ -271,7 +271,7 @@ struct journal {
 	u64			write_start_time;
 
 	u64			nr_flush_writes;
-	u64			nr_noflush_writes;
+	u64			nr_analflush_writes;
 	u64			entry_bytes_written;
 
 	u64			low_on_space_start;
@@ -280,7 +280,7 @@ struct journal {
 	u64			write_buffer_full_start;
 
 	struct bch2_time_stats	*flush_write_time;
-	struct bch2_time_stats	*noflush_write_time;
+	struct bch2_time_stats	*analflush_write_time;
 	struct bch2_time_stats	*flush_seq_time;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -295,7 +295,7 @@ struct journal {
 struct journal_device {
 	/*
 	 * For each journal bucket, contains the max sequence number of the
-	 * journal writes it contains - so we know when a bucket can be reused.
+	 * journal writes it contains - so we kanalw when a bucket can be reused.
 	 */
 	u64			*bucket_seq;
 

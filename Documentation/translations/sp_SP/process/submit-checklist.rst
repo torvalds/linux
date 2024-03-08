@@ -17,7 +17,7 @@ Todo esto está más allá de la documentación que se proporciona en
 y en otros lugares con respecto al envío de parches del kernel de Linux.
 
 1) Si utiliza una funcionalidad, #include el archivo que define/declara
-   esa funcionalidad. No dependa de otros archivos de encabezado que
+   esa funcionalidad. Anal dependa de otros archivos de encabezado que
    extraigan los que utiliza.
 
 2) Compile limpiamente:
@@ -26,7 +26,7 @@ y en otros lugares con respecto al envío de parches del kernel de Linux.
      y ``=n``. Sin advertencias/errores del compilador ``gcc``, ni
      advertencias/errores del linker.
 
-  b) Aprobar ``allnoconfig``, ``allmodconfig``
+  b) Aprobar ``allanalconfig``, ``allmodconfig``
 
   c) Compila correctamente cuando se usa ``O=builddir``
 
@@ -48,8 +48,8 @@ y en otros lugares con respecto al envío de parches del kernel de Linux.
    Debería ser capaz de justificar todas las infracciones que permanezcan
    en su parche.
 
-6) Cualquier opción ``CONFIG`` nueva o modificada no altera el menú de
-   configuración y se desactiva por defecto, a menos que cumpla con los
+6) Cualquier opción ``CONFIG`` nueva o modificada anal altera el menú de
+   configuración y se desactiva por defecto, a meanals que cumpla con los
    criterios de excepción documentados en
    ``Documentation/kbuild/kconfig-language.rst`` Atributos del menú: valor por defecto.
 
@@ -63,14 +63,14 @@ y en otros lugares con respecto al envío de parches del kernel de Linux.
 
 10) Use ``make checkstack`` y solucione cualquier problema que encuentre.
 
-    .. note::
+    .. analte::
 
-       ``checkstack`` no señala los problemas explícitamente, pero
+       ``checkstack`` anal señala los problemas explícitamente, pero
        cualquier función que use más de 512 bytes en la pila es
        candidata para el cambio.
 
 11) Incluya :ref:`kernel-doc <kernel_doc>` para documentar las API
-    globales del kernel. (No es necesario para funciones estáticas, pero
+    globales del kernel. (Anal es necesario para funciones estáticas, pero
     también está bien.) Utilice ``make htmldocs`` o ``make pdfdocs``
     para comprobar el :ref:`kernel-doc <kernel_doc>` y solucionar
     cualquier problema.
@@ -101,7 +101,7 @@ y en otros lugares con respecto al envío de parches del kernel de Linux.
     obtener más información. Los parches que cambian las interfaces del
     espacio de usuario deben ser CCed a linux-api@vger.kernel.org.
 
-19) Se ha comprobado con la inyección de al menos errores de asignación
+19) Se ha comprobado con la inyección de al meanals errores de asignación
     de slab y página. Consulte ``Documentation/fault-injection/``.
 
     Si el nuevo código es sustancial, la adición de la inyección de
@@ -126,7 +126,7 @@ y en otros lugares con respecto al envío de parches del kernel de Linux.
     API o características del kernel que están relacionadas con los
     siguientes símbolos ``Kconfig`` entonces pruebe varias compilaciones
     con los símbolos ``Kconfig`` relacionados deshabilitados y/o ``=m``
-    (si esa opción esta disponible) [no todos estos al mismo tiempo, solo
+    (si esa opción esta disponible) [anal todos estos al mismo tiempo, solo
     varias/aleatorias combinaciones de ellos]:
 
     ``CONFIG_SMP``, ``CONFIG_SYSFS``, ``CONFIG_PROC_FS``, ``CONFIG_INPUT``, ``CONFIG_PCI``, ``CONFIG_BLOCK``, ``CONFIG_PM``, ``CONFIG_MAGIC_SYSRQ``

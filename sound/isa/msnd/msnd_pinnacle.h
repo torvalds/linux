@@ -84,7 +84,7 @@
 #define MOP_WAVEHDR				0
 #define MOP_EXTOUT				1
 #define MOP_HWINIT				0xfe
-#define MOP_NONE				0xff
+#define MOP_ANALNE				0xff
 #define MOP_MAX					1
 
 #define MIP_EXTIN				0

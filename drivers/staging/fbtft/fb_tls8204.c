@@ -2,10 +2,10 @@
 /*
  * FB driver for the TLS8204 LCD Controller
  *
- * The display is monochrome and the video memory is RGB565.
+ * The display is moanalchrome and the video memory is RGB565.
  * Any pixel value except 0 turns the pixel on.
  *
- * Copyright (C) 2013 Noralf Tronnes
+ * Copyright (C) 2013 Analralf Tronnes
  * Copyright (C) 2014 Michael Hope (adapted for the TLS8204)
  */
 
@@ -61,7 +61,7 @@ static int init_display(struct fbtft_par *par)
 	/* H=0 Display control */
 	write_reg(par, 0x08 | 4);
 				/* 3:1  1
-				 * 2:1  D - DE: 10=normal mode
+				 * 2:1  D - DE: 10=analrmal mode
 				 * 1:0  0
 				 * 0:0  E
 				 */

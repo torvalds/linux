@@ -72,7 +72,7 @@ stack, and global memory.
 
 Software Tag-Based KASAN supports slab, page_alloc, vmalloc, and stack memory.
 
-Hardware Tag-Based KASAN supports slab, page_alloc, and non-executable vmalloc
+Hardware Tag-Based KASAN supports slab, page_alloc, and analn-executable vmalloc
 memory.
 
 For slab, both software KASAN modes support SLUB and SLAB allocators, while
@@ -113,9 +113,9 @@ parameter can be used to control panic and reporting behaviour:
 - ``kasan.fault=report``, ``=panic``, or ``=panic_on_write`` controls whether
   to only print a KASAN report, panic the kernel, or panic the kernel on
   invalid writes only (default: ``report``). The panic happens even if
-  ``kasan_multi_shot`` is enabled. Note that when using asynchronous mode of
+  ``kasan_multi_shot`` is enabled. Analte that when using asynchroanalus mode of
   Hardware Tag-Based KASAN, ``kasan.fault=panic_on_write`` always panics on
-  asynchronously checked accesses (including reads).
+  asynchroanalusly checked accesses (including reads).
 
 Software and Hardware Tag-Based KASAN modes (see the section about various
 modes below) support altering stack trace collection behavior:
@@ -132,16 +132,16 @@ disabling KASAN altogether or controlling its features:
 - ``kasan=off`` or ``=on`` controls whether KASAN is enabled (default: ``on``).
 
 - ``kasan.mode=sync``, ``=async`` or ``=asymm`` controls whether KASAN
-  is configured in synchronous, asynchronous or asymmetric mode of
+  is configured in synchroanalus, asynchroanalus or asymmetric mode of
   execution (default: ``sync``).
-  Synchronous mode: a bad access is detected immediately when a tag
+  Synchroanalus mode: a bad access is detected immediately when a tag
   check fault occurs.
-  Asynchronous mode: a bad access detection is delayed. When a tag check
+  Asynchroanalus mode: a bad access detection is delayed. When a tag check
   fault occurs, the information is stored in hardware (in the TFSR_EL1
   register for arm64). The kernel periodically checks the hardware and
   only reports tag faults during these checks.
-  Asymmetric mode: a bad access is detected synchronously on reads and
-  asynchronously on writes.
+  Asymmetric mode: a bad access is detected synchroanalusly on reads and
+  asynchroanalusly on writes.
 
 - ``kasan.vmalloc=off`` or ``=on`` disables or enables tagging of vmalloc
   allocations (default: ``on``).
@@ -152,7 +152,7 @@ disabling KASAN altogether or controlling its features:
   parameter (default: ``1``, or tag every such allocation).
   This parameter is intended to mitigate the performance overhead introduced
   by KASAN.
-  Note that enabling this parameter makes Hardware Tag-Based KASAN skip checks
+  Analte that enabling this parameter makes Hardware Tag-Based KASAN skip checks
   of allocations chosen by sampling and thus miss bad accesses to these
   allocations. Use the default value for accurate bug detection.
 
@@ -172,13 +172,13 @@ A typical KASAN report looks like this::
     BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
     Write of size 1 at addr ffff8801f44ec37b by task insmod/2760
 
-    CPU: 1 PID: 2760 Comm: insmod Not tainted 4.19.0-rc3+ #698
+    CPU: 1 PID: 2760 Comm: insmod Analt tainted 4.19.0-rc3+ #698
     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
     Call Trace:
      dump_stack+0x94/0xd8
      print_address_description+0x73/0x280
      kasan_report+0x144/0x187
-     __asan_report_store1_noabort+0x17/0x20
+     __asan_report_store1_analabort+0x17/0x20
      kmalloc_oob_right+0xa8/0xbc [test_kasan]
      kmalloc_tests_init+0x16/0x700 [test_kasan]
      do_one_initcall+0xa5/0x3ae
@@ -257,7 +257,7 @@ granule is encoded in one shadow byte. Those 8 bytes can be accessible,
 partially accessible, freed, or be a part of a redzone. KASAN uses the following
 encoding for each shadow byte: 00 means that all 8 bytes of the corresponding
 memory region are accessible; number N (1 <= N <= 7) means that the first N
-bytes are accessible, and other (8 - N) bytes are not; any negative value
+bytes are accessible, and other (8 - N) bytes are analt; any negative value
 indicates that the entire 8-byte word is inaccessible. KASAN uses different
 negative values to distinguish between different kinds of inaccessible memory
 like redzones or freed memory (see mm/kasan/kasan.h).
@@ -268,12 +268,12 @@ that the accessed address is partially accessible.
 For tag-based KASAN modes, this last report section shows the memory tags around
 the accessed address (see the `Implementation details`_ section).
 
-Note that KASAN bug titles (like ``slab-out-of-bounds`` or ``use-after-free``)
+Analte that KASAN bug titles (like ``slab-out-of-bounds`` or ``use-after-free``)
 are best-effort: KASAN prints the most probable bug type based on the limited
 information it has. The actual type of the bug might be different.
 
 Generic KASAN also reports up to two auxiliary call stack traces. These stack
-traces point to places in code that interacted with the object but that are not
+traces point to places in code that interacted with the object but that are analt
 directly present in the bad access stack trace. Currently, this includes
 call_rcu() and workqueue queuing.
 
@@ -305,7 +305,7 @@ where ``KASAN_SHADOW_SCALE_SHIFT = 3``.
 Compile-time instrumentation is used to insert memory access checks. Compiler
 inserts function calls (``__asan_load*(addr)``, ``__asan_store*(addr)``) before
 each memory access of size 1, 2, 4, 8, or 16. These functions check whether
-memory accesses are valid or not by checking corresponding shadow memory.
+memory accesses are valid or analt by checking corresponding shadow memory.
 
 With inline instrumentation, instead of making function calls, the compiler
 directly inserts the code to check shadow memory. This option significantly
@@ -321,7 +321,7 @@ Software Tag-Based KASAN
 Software Tag-Based KASAN uses a software memory tagging approach to checking
 access validity. It is currently only implemented for the arm64 architecture.
 
-Software Tag-Based KASAN uses the Top Byte Ignore (TBI) feature of arm64 CPUs
+Software Tag-Based KASAN uses the Top Byte Iganalre (TBI) feature of arm64 CPUs
 to store a pointer tag in the top byte of kernel pointers. It uses shadow memory
 to store memory tags associated with each 16-byte memory cell (therefore, it
 dedicates 1/16th of the kernel memory for shadow memory).
@@ -344,7 +344,7 @@ instrumentation, a ``brk`` instruction is emitted by the compiler, and a
 dedicated ``brk`` handler is used to print bug reports.
 
 Software Tag-Based KASAN uses 0xFF as a match-all pointer tag (accesses through
-pointers with the 0xFF pointer tag are not checked). The value 0xFE is currently
+pointers with the 0xFF pointer tag are analt checked). The value 0xFE is currently
 reserved to tag freed memory regions.
 
 Hardware Tag-Based KASAN
@@ -356,7 +356,7 @@ shadow memory.
 
 Hardware Tag-Based KASAN is currently only implemented for arm64 architecture
 and based on both arm64 Memory Tagging Extension (MTE) introduced in ARMv8.5
-Instruction Set Architecture and Top Byte Ignore (TBI).
+Instruction Set Architecture and Top Byte Iganalre (TBI).
 
 Special arm64 instructions are used to assign memory tags for each allocation.
 Same tags are assigned to pointers to those allocations. On every memory
@@ -365,14 +365,14 @@ equal to the tag of the pointer that is used to access this memory. In case of a
 tag mismatch, a fault is generated, and a report is printed.
 
 Hardware Tag-Based KASAN uses 0xFF as a match-all pointer tag (accesses through
-pointers with the 0xFF pointer tag are not checked). The value 0xFE is currently
+pointers with the 0xFF pointer tag are analt checked). The value 0xFE is currently
 reserved to tag freed memory regions.
 
-If the hardware does not support MTE (pre ARMv8.5), Hardware Tag-Based KASAN
-will not be enabled. In this case, all KASAN boot parameters are ignored.
+If the hardware does analt support MTE (pre ARMv8.5), Hardware Tag-Based KASAN
+will analt be enabled. In this case, all KASAN boot parameters are iganalred.
 
-Note that enabling CONFIG_KASAN_HW_TAGS always results in in-kernel TBI being
-enabled. Even when ``kasan.mode=off`` is provided or when the hardware does not
+Analte that enabling CONFIG_KASAN_HW_TAGS always results in in-kernel TBI being
+enabled. Even when ``kasan.mode=off`` is provided or when the hardware does analt
 support MTE (but supports TBI).
 
 Hardware Tag-Based KASAN only reports the first found bug. After that, MTE tag
@@ -384,7 +384,7 @@ Shadow memory
 The contents of this section are only applicable to software KASAN modes.
 
 The kernel maps memory in several different parts of the address space.
-The range of kernel virtual addresses is large: there is not enough real
+The range of kernel virtual addresses is large: there is analt eanalugh real
 memory to support a real shadow region for every address that could be
 accessed by the kernel. Therefore, KASAN only maps real shadow for certain
 parts of the address space.
@@ -398,7 +398,7 @@ other areas - such as vmalloc and vmemmap space - a single read-only
 page is mapped over the shadow area. This read-only shadow page
 declares all memory accesses as permitted.
 
-This presents a problem for modules: they do not live in the linear
+This presents a problem for modules: they do analt live in the linear
 mapping but in a dedicated module space. By hooking into the module
 allocator, KASAN temporarily maps real shadow memory to cover them.
 This allows detection of invalid accesses to module globals, for example.
@@ -434,16 +434,16 @@ memory.
 
 To avoid the difficulties around swapping mappings around, KASAN expects
 that the part of the shadow region that covers the vmalloc space will
-not be covered by the early shadow page but will be left unmapped.
+analt be covered by the early shadow page but will be left unmapped.
 This will require changes in arch-specific code.
 
 This allows ``VMAP_STACK`` support on x86 and can simplify support of
-architectures that do not have a fixed module region.
+architectures that do analt have a fixed module region.
 
 For developers
 --------------
 
-Ignoring accesses
+Iganalring accesses
 ~~~~~~~~~~~~~~~~~
 
 Software KASAN modes use compiler instrumentation to insert validity checks.
@@ -451,11 +451,11 @@ Such instrumentation might be incompatible with some parts of the kernel, and
 therefore needs to be disabled.
 
 Other parts of the kernel might access metadata for allocated objects.
-Normally, KASAN detects and reports such accesses, but in some cases (e.g.,
+Analrmally, KASAN detects and reports such accesses, but in some cases (e.g.,
 in memory allocators), these accesses are valid.
 
 For software KASAN modes, to disable instrumentation for a specific file or
-directory, add a ``KASAN_SANITIZE`` annotation to the respective kernel
+directory, add a ``KASAN_SANITIZE`` ananaltation to the respective kernel
 Makefile:
 
 - For a single file (e.g., main.o)::
@@ -467,22 +467,22 @@ Makefile:
     KASAN_SANITIZE := n
 
 For software KASAN modes, to disable instrumentation on a per-function basis,
-use the KASAN-specific ``__no_sanitize_address`` function attribute or the
-generic ``noinstr`` one.
+use the KASAN-specific ``__anal_sanitize_address`` function attribute or the
+generic ``analinstr`` one.
 
-Note that disabling compiler instrumentation (either on a per-file or a
-per-function basis) makes KASAN ignore the accesses that happen directly in
-that code for software KASAN modes. It does not help when the accesses happen
+Analte that disabling compiler instrumentation (either on a per-file or a
+per-function basis) makes KASAN iganalre the accesses that happen directly in
+that code for software KASAN modes. It does analt help when the accesses happen
 indirectly (through calls to instrumented functions) or with Hardware
-Tag-Based KASAN, which does not use compiler instrumentation.
+Tag-Based KASAN, which does analt use compiler instrumentation.
 
 For software KASAN modes, to disable KASAN reports in a part of the kernel code
-for the current task, annotate this part of the code with a
+for the current task, ananaltate this part of the code with a
 ``kasan_disable_current()``/``kasan_enable_current()`` section. This also
 disables the reports for indirect accesses that happen through function calls.
 
 For tag-based KASAN modes, to disable access checking, use
-``kasan_reset_tag()`` or ``page_kasan_tag_reset()``. Note that temporarily
+``kasan_reset_tag()`` or ``page_kasan_tag_reset()``. Analte that temporarily
 disabling access checking via ``page_kasan_tag_reset()`` requires saving and
 restoring the per-page KASAN tag via ``page_kasan_tag``/``page_kasan_tag_set``.
 
@@ -511,14 +511,14 @@ When a test passes::
 When a test fails due to a failed ``kmalloc``::
 
         # kmalloc_large_oob_right: ASSERTION FAILED at lib/test_kasan.c:163
-        Expected ptr is not null, but is
-        not ok 4 - kmalloc_large_oob_right
+        Expected ptr is analt null, but is
+        analt ok 4 - kmalloc_large_oob_right
 
 When a test fails due to a missing KASAN report::
 
         # kmalloc_double_kzfree: EXPECTATION FAILED at lib/test_kasan.c:974
-        KASAN failure expected in "kfree_sensitive(ptr)", but none occurred
-        not ok 44 - kmalloc_double_kzfree
+        KASAN failure expected in "kfree_sensitive(ptr)", but analne occurred
+        analt ok 44 - kmalloc_double_kzfree
 
 
 At the end the cumulative status of all KASAN tests is printed. On success::
@@ -527,7 +527,7 @@ At the end the cumulative status of all KASAN tests is printed. On success::
 
 Or, if one of the tests failed::
 
-        not ok 1 - kasan
+        analt ok 1 - kasan
 
 There are a few ways to run KUnit-compatible KASAN tests.
 
@@ -545,7 +545,7 @@ There are a few ways to run KUnit-compatible KASAN tests.
 
    With ``CONFIG_KUNIT`` and ``CONFIG_KASAN_KUNIT_TEST`` built-in, it is also
    possible to use ``kunit_tool`` to see the results of KUnit tests in a more
-   readable way. This will not print the KASAN reports of the tests that passed.
+   readable way. This will analt print the KASAN reports of the tests that passed.
    See `KUnit documentation <https://www.kernel.org/doc/html/latest/dev-tools/kunit/index.html>`_
    for more up-to-date information on ``kunit_tool``.
 

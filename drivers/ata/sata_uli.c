@@ -87,7 +87,7 @@ MODULE_VERSION(DRV_VERSION);
 static unsigned int get_scr_cfg_addr(struct ata_port *ap, unsigned int sc_reg)
 {
 	struct uli_priv *hpriv = ap->host->private_data;
-	return hpriv->scr_cfg_addr[ap->port_no] + (4 * sc_reg);
+	return hpriv->scr_cfg_addr[ap->port_anal] + (4 * sc_reg);
 }
 
 static u32 uli_scr_cfg_read(struct ata_link *link, unsigned int sc_reg)
@@ -149,11 +149,11 @@ static int uli_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* allocate the host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	host->private_data = hpriv;
 
 	/* the first two ports are standard SFF */

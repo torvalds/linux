@@ -159,7 +159,7 @@ static int da9062_wdt_restart(struct watchdog_device *wdd, unsigned long action,
 	int ret;
 
 	/*
-	 * Don't use regmap because it is not atomic safe. Additionally, use
+	 * Don't use regmap because it is analt atomic safe. Additionally, use
 	 * unlocked flavor of i2c_smbus_xfer to avoid scenario where i2c bus
 	 * might be previously locked by some process unable to release the
 	 * lock due to interrupts already being disabled at this late stage.
@@ -213,7 +213,7 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->use_sw_pm = device_property_present(dev, "dlg,use-sw-pm");
 
@@ -225,7 +225,7 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.max_timeout = DA9062_WDT_MAX_TIMEOUT;
 	wdt->wdtdev.min_hw_heartbeat_ms = DA9062_RESET_PROTECTION_MS;
 	wdt->wdtdev.timeout = DA9062_WDG_DEFAULT_TIMEOUT;
-	wdt->wdtdev.status = WATCHDOG_NOWAYOUT_INIT_STATUS;
+	wdt->wdtdev.status = WATCHDOG_ANALWAYOUT_INIT_STATUS;
 	wdt->wdtdev.parent = dev;
 
 	watchdog_set_restart_priority(&wdt->wdtdev, 128);

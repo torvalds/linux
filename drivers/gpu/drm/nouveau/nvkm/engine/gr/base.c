@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,7 +82,7 @@ nvkm_gr_tlb_flush(struct nvkm_gr *gr)
 {
 	if (gr->func->tlb_flush)
 		return gr->func->tlb_flush(gr);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
@@ -126,12 +126,12 @@ nvkm_gr_intr(struct nvkm_engine *engine)
 }
 
 static int
-nvkm_gr_nonstall(struct nvkm_engine *engine)
+nvkm_gr_analnstall(struct nvkm_engine *engine)
 {
 	struct nvkm_gr *gr = nvkm_gr(engine);
 
-	if (gr->func->nonstall)
-		return gr->func->nonstall(gr);
+	if (gr->func->analnstall)
+		return gr->func->analnstall(gr);
 
 	return -EINVAL;
 }
@@ -153,7 +153,7 @@ nvkm_gr_reset(struct nvkm_engine *engine)
 	if (gr->func->reset)
 		return gr->func->reset(gr);
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int
@@ -192,7 +192,7 @@ nvkm_gr = {
 	.init = nvkm_gr_init,
 	.fini = nvkm_gr_fini,
 	.reset = nvkm_gr_reset,
-	.nonstall = nvkm_gr_nonstall,
+	.analnstall = nvkm_gr_analnstall,
 	.intr = nvkm_gr_intr,
 	.tile = nvkm_gr_tile,
 	.chsw_load = nvkm_gr_chsw_load,

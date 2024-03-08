@@ -197,7 +197,7 @@ static int cx24113_set_gain_settings(struct cx24113_state *state,
 			state->gain_level, gain_level);
 
 	if (gain_level == state->gain_level)
-		return 0; /* nothing to be done */
+		return 0; /* analthing to be done */
 
 	ampout |= 0xf;
 
@@ -400,7 +400,7 @@ static int cx24113_set_frequency(struct cx24113_state *state, u32 frequency)
 		r |= 1 << 6;
 	cx24113_writereg(state, 0x18, r);
 
-	/* The need for this sleep is not clear. But helps in some cases */
+	/* The need for this sleep is analt clear. But helps in some cases */
 	msleep(5);
 
 	r = cx24113_readreg(state, 0x1c) & 0xef;
@@ -560,7 +560,7 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 
 	rc = cx24113_readreg(state, 0x00);
 	if (rc < 0) {
-		cx_info("CX24113 not found.\n");
+		cx_info("CX24113 analt found.\n");
 		goto error;
 	}
 	state->rev = rc;

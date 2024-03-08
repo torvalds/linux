@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	ctresource.c
  *
@@ -38,8 +38,8 @@ get_resource(u8 *rscs, unsigned int amount,
 	}
 
 	if (i >= amount) {
-		/* Can not find sufficient contiguous resources */
-		return -ENOENT;
+		/* Can analt find sufficient contiguous resources */
+		return -EANALENT;
 	}
 
 	/* Mark the contiguous bits in resource bit-map as used */
@@ -75,7 +75,7 @@ int mgr_get_resource(struct rsc_mgr *mgr, unsigned int n, unsigned int *ridx)
 	int err;
 
 	if (n > mgr->avail)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = get_resource(mgr->rscs, mgr->amount, n, ridx);
 	if (!err)
@@ -210,7 +210,7 @@ int rsc_mgr_init(struct rsc_mgr *mgr, enum RSCTYP type,
 
 	mgr->rscs = kzalloc(DIV_ROUND_UP(amount, 8), GFP_KERNEL);
 	if (!mgr->rscs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (type) {
 	case SRC:

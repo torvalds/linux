@@ -18,23 +18,23 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_print.h>
 
-static DEFINE_SPINLOCK(accel_minor_lock);
-static struct idr accel_minors_idr;
+static DEFINE_SPINLOCK(accel_mianalr_lock);
+static struct idr accel_mianalrs_idr;
 
 static struct dentry *accel_debugfs_root;
 
-static struct device_type accel_sysfs_device_minor = {
-	.name = "accel_minor"
+static struct device_type accel_sysfs_device_mianalr = {
+	.name = "accel_mianalr"
 };
 
-static char *accel_devnode(const struct device *dev, umode_t *mode)
+static char *accel_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "accel/%s", dev_name(dev));
 }
 
 static const struct class accel_class = {
 	.name = "accel",
-	.devnode = accel_devnode,
+	.devanalde = accel_devanalde,
 };
 
 static int accel_sysfs_init(void)
@@ -49,9 +49,9 @@ static void accel_sysfs_destroy(void)
 
 static int accel_name_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_minor *minor = node->minor;
-	struct drm_device *dev = minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct drm_mianalr *mianalr = analde->mianalr;
+	struct drm_device *dev = mianalr->dev;
 	struct drm_master *master;
 
 	mutex_lock(&dev->master_mutex);
@@ -93,152 +93,152 @@ void accel_debugfs_init(struct drm_device *dev)
  */
 void accel_debugfs_register(struct drm_device *dev)
 {
-	struct drm_minor *minor = dev->accel;
+	struct drm_mianalr *mianalr = dev->accel;
 
-	minor->debugfs_root = dev->debugfs_root;
+	mianalr->debugfs_root = dev->debugfs_root;
 
 	drm_debugfs_create_files(accel_debugfs_list, ACCEL_DEBUGFS_ENTRIES,
-				 dev->debugfs_root, minor);
+				 dev->debugfs_root, mianalr);
 }
 
 /**
  * accel_set_device_instance_params() - Set some device parameters for accel device
  * @kdev: Pointer to the device instance.
- * @index: The minor's index
+ * @index: The mianalr's index
  *
  * This function creates the dev_t of the device using the accel major and
- * the device's minor number. In addition, it sets the class and type of the
+ * the device's mianalr number. In addition, it sets the class and type of the
  * device instance to the accel sysfs class and device type, respectively.
  */
 void accel_set_device_instance_params(struct device *kdev, int index)
 {
 	kdev->devt = MKDEV(ACCEL_MAJOR, index);
 	kdev->class = &accel_class;
-	kdev->type = &accel_sysfs_device_minor;
+	kdev->type = &accel_sysfs_device_mianalr;
 }
 
 /**
- * accel_minor_alloc() - Allocates a new accel minor
+ * accel_mianalr_alloc() - Allocates a new accel mianalr
  *
- * This function access the accel minors idr and allocates from it
- * a new id to represent a new accel minor
+ * This function access the accel mianalrs idr and allocates from it
+ * a new id to represent a new accel mianalr
  *
  * Return: A new id on success or error code in case idr_alloc failed
  */
-int accel_minor_alloc(void)
+int accel_mianalr_alloc(void)
 {
 	unsigned long flags;
 	int r;
 
-	spin_lock_irqsave(&accel_minor_lock, flags);
-	r = idr_alloc(&accel_minors_idr, NULL, 0, ACCEL_MAX_MINORS, GFP_NOWAIT);
-	spin_unlock_irqrestore(&accel_minor_lock, flags);
+	spin_lock_irqsave(&accel_mianalr_lock, flags);
+	r = idr_alloc(&accel_mianalrs_idr, NULL, 0, ACCEL_MAX_MIANALRS, GFP_ANALWAIT);
+	spin_unlock_irqrestore(&accel_mianalr_lock, flags);
 
 	return r;
 }
 
 /**
- * accel_minor_remove() - Remove an accel minor
- * @index: The minor id to remove.
+ * accel_mianalr_remove() - Remove an accel mianalr
+ * @index: The mianalr id to remove.
  *
- * This function access the accel minors idr and removes from
+ * This function access the accel mianalrs idr and removes from
  * it the member with the id that is passed to this function.
  */
-void accel_minor_remove(int index)
+void accel_mianalr_remove(int index)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&accel_minor_lock, flags);
-	idr_remove(&accel_minors_idr, index);
-	spin_unlock_irqrestore(&accel_minor_lock, flags);
+	spin_lock_irqsave(&accel_mianalr_lock, flags);
+	idr_remove(&accel_mianalrs_idr, index);
+	spin_unlock_irqrestore(&accel_mianalr_lock, flags);
 }
 
 /**
- * accel_minor_replace() - Replace minor pointer in accel minors idr.
- * @minor: Pointer to the new minor.
- * @index: The minor id to replace.
+ * accel_mianalr_replace() - Replace mianalr pointer in accel mianalrs idr.
+ * @mianalr: Pointer to the new mianalr.
+ * @index: The mianalr id to replace.
  *
- * This function access the accel minors idr structure and replaces the pointer
- * that is associated with an existing id. Because the minor pointer can be
+ * This function access the accel mianalrs idr structure and replaces the pointer
+ * that is associated with an existing id. Because the mianalr pointer can be
  * NULL, we need to explicitly pass the index.
  *
  * Return: 0 for success, negative value for error
  */
-void accel_minor_replace(struct drm_minor *minor, int index)
+void accel_mianalr_replace(struct drm_mianalr *mianalr, int index)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&accel_minor_lock, flags);
-	idr_replace(&accel_minors_idr, minor, index);
-	spin_unlock_irqrestore(&accel_minor_lock, flags);
+	spin_lock_irqsave(&accel_mianalr_lock, flags);
+	idr_replace(&accel_mianalrs_idr, mianalr, index);
+	spin_unlock_irqrestore(&accel_mianalr_lock, flags);
 }
 
 /*
- * Looks up the given minor-ID and returns the respective DRM-minor object. The
+ * Looks up the given mianalr-ID and returns the respective DRM-mianalr object. The
  * refence-count of the underlying device is increased so you must release this
- * object with accel_minor_release().
+ * object with accel_mianalr_release().
  *
- * The object can be only a drm_minor that represents an accel device.
+ * The object can be only a drm_mianalr that represents an accel device.
  *
- * As long as you hold this minor, it is guaranteed that the object and the
- * minor->dev pointer will stay valid! However, the device may get unplugged and
- * unregistered while you hold the minor.
+ * As long as you hold this mianalr, it is guaranteed that the object and the
+ * mianalr->dev pointer will stay valid! However, the device may get unplugged and
+ * unregistered while you hold the mianalr.
  */
-static struct drm_minor *accel_minor_acquire(unsigned int minor_id)
+static struct drm_mianalr *accel_mianalr_acquire(unsigned int mianalr_id)
 {
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&accel_minor_lock, flags);
-	minor = idr_find(&accel_minors_idr, minor_id);
-	if (minor)
-		drm_dev_get(minor->dev);
-	spin_unlock_irqrestore(&accel_minor_lock, flags);
+	spin_lock_irqsave(&accel_mianalr_lock, flags);
+	mianalr = idr_find(&accel_mianalrs_idr, mianalr_id);
+	if (mianalr)
+		drm_dev_get(mianalr->dev);
+	spin_unlock_irqrestore(&accel_mianalr_lock, flags);
 
-	if (!minor) {
-		return ERR_PTR(-ENODEV);
-	} else if (drm_dev_is_unplugged(minor->dev)) {
-		drm_dev_put(minor->dev);
-		return ERR_PTR(-ENODEV);
+	if (!mianalr) {
+		return ERR_PTR(-EANALDEV);
+	} else if (drm_dev_is_unplugged(mianalr->dev)) {
+		drm_dev_put(mianalr->dev);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	return minor;
+	return mianalr;
 }
 
-static void accel_minor_release(struct drm_minor *minor)
+static void accel_mianalr_release(struct drm_mianalr *mianalr)
 {
-	drm_dev_put(minor->dev);
+	drm_dev_put(mianalr->dev);
 }
 
 /**
  * accel_open - open method for ACCEL file
- * @inode: device inode
+ * @ianalde: device ianalde
  * @filp: file pointer.
  *
  * This function must be used by drivers as their &file_operations.open method.
  * It looks up the correct ACCEL device and instantiates all the per-file
  * resources for it. It also calls the &drm_driver.open driver callback.
  *
- * Return: 0 on success or negative errno value on failure.
+ * Return: 0 on success or negative erranal value on failure.
  */
-int accel_open(struct inode *inode, struct file *filp)
+int accel_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct drm_device *dev;
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	int retcode;
 
-	minor = accel_minor_acquire(iminor(inode));
-	if (IS_ERR(minor))
-		return PTR_ERR(minor);
+	mianalr = accel_mianalr_acquire(imianalr(ianalde));
+	if (IS_ERR(mianalr))
+		return PTR_ERR(mianalr);
 
-	dev = minor->dev;
+	dev = mianalr->dev;
 
 	atomic_fetch_inc(&dev->open_count);
 
 	/* share address_space across all char-devs of a single device */
-	filp->f_mapping = dev->anon_inode->i_mapping;
+	filp->f_mapping = dev->aanaln_ianalde->i_mapping;
 
-	retcode = drm_open_helper(filp, minor);
+	retcode = drm_open_helper(filp, mianalr);
 	if (retcode)
 		goto err_undo;
 
@@ -246,35 +246,35 @@ int accel_open(struct inode *inode, struct file *filp)
 
 err_undo:
 	atomic_dec(&dev->open_count);
-	accel_minor_release(minor);
+	accel_mianalr_release(mianalr);
 	return retcode;
 }
 EXPORT_SYMBOL_GPL(accel_open);
 
-static int accel_stub_open(struct inode *inode, struct file *filp)
+static int accel_stub_open(struct ianalde *ianalde, struct file *filp)
 {
 	const struct file_operations *new_fops;
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	int err;
 
-	minor = accel_minor_acquire(iminor(inode));
-	if (IS_ERR(minor))
-		return PTR_ERR(minor);
+	mianalr = accel_mianalr_acquire(imianalr(ianalde));
+	if (IS_ERR(mianalr))
+		return PTR_ERR(mianalr);
 
-	new_fops = fops_get(minor->dev->driver->fops);
+	new_fops = fops_get(mianalr->dev->driver->fops);
 	if (!new_fops) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	replace_fops(filp, new_fops);
 	if (filp->f_op->open)
-		err = filp->f_op->open(inode, filp);
+		err = filp->f_op->open(ianalde, filp);
 	else
 		err = 0;
 
 out:
-	accel_minor_release(minor);
+	accel_mianalr_release(mianalr);
 
 	return err;
 }
@@ -282,7 +282,7 @@ out:
 static const struct file_operations accel_stub_fops = {
 	.owner = THIS_MODULE,
 	.open = accel_stub_open,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 void accel_core_exit(void)
@@ -290,18 +290,18 @@ void accel_core_exit(void)
 	unregister_chrdev(ACCEL_MAJOR, "accel");
 	debugfs_remove(accel_debugfs_root);
 	accel_sysfs_destroy();
-	idr_destroy(&accel_minors_idr);
+	idr_destroy(&accel_mianalrs_idr);
 }
 
 int __init accel_core_init(void)
 {
 	int ret;
 
-	idr_init(&accel_minors_idr);
+	idr_init(&accel_mianalrs_idr);
 
 	ret = accel_sysfs_init();
 	if (ret < 0) {
-		DRM_ERROR("Cannot create ACCEL class: %d\n", ret);
+		DRM_ERROR("Cananalt create ACCEL class: %d\n", ret);
 		goto error;
 	}
 
@@ -309,7 +309,7 @@ int __init accel_core_init(void)
 
 	ret = register_chrdev(ACCEL_MAJOR, "accel", &accel_stub_fops);
 	if (ret < 0)
-		DRM_ERROR("Cannot register ACCEL major: %d\n", ret);
+		DRM_ERROR("Cananalt register ACCEL major: %d\n", ret);
 
 error:
 	/*

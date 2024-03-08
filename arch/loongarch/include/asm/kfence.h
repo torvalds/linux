@@ -2,7 +2,7 @@
 /*
  * KFENCE support for LoongArch.
  *
- * Author: Enze Li <lienze@kylinos.cn>
+ * Author: Enze Li <lienze@kylianals.cn>
  * Copyright (C) 2022-2023 KylinSoft Corporation.
  */
 
@@ -43,7 +43,7 @@ static inline bool kfence_protect_page(unsigned long addr, bool protect)
 {
 	pte_t *pte = virt_to_kpte(addr);
 
-	if (WARN_ON(!pte) || pte_none(*pte))
+	if (WARN_ON(!pte) || pte_analne(*pte))
 		return false;
 
 	if (protect)

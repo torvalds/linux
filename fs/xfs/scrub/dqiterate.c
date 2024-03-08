@@ -12,7 +12,7 @@
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "xfs_bmap.h"
@@ -31,7 +31,7 @@ xchk_dqiter_init(
 	cursor->sc = sc;
 	cursor->bmap.br_startoff = NULLFILEOFF;
 	cursor->dqtype = dqtype & XFS_DQTYPE_REC_MASK;
-	cursor->quota_ip = xfs_quota_inode(sc->mp, cursor->dqtype);
+	cursor->quota_ip = xfs_quota_ianalde(sc->mp, cursor->dqtype);
 	cursor->id = 0;
 }
 
@@ -55,7 +55,7 @@ xchk_dquot_iter_revalidate_bmap(
 
 	/*
 	 * If we have a mapping for cursor->id and it's still fresh, there's
-	 * no need to reread the bmbt.
+	 * anal need to reread the bmbt.
 	 */
 	if (cursor->bmap.br_startoff != NULLFILEOFF &&
 	    cursor->if_seq == ifp->if_seq &&
@@ -81,7 +81,7 @@ xchk_dquot_iter_revalidate_bmap(
 	return 0;
 }
 
-/* Advance the dqiter cursor to the next non-sparse region of the quota file. */
+/* Advance the dqiter cursor to the next analn-sparse region of the quota file. */
 STATIC int
 xchk_dquot_iter_advance_bmap(
 	struct xchk_dqiter	*cursor,
@@ -95,7 +95,7 @@ xchk_dquot_iter_advance_bmap(
 	int			nmaps = 1;
 	int			error;
 
-	/* Find the dquot id for the next non-hole mapping. */
+	/* Find the dquot id for the next analn-hole mapping. */
 	do {
 		fileoff = cursor->bmap.br_startoff + cursor->bmap.br_blockcount;
 		if (fileoff > XFS_DQ_ID_MAX / qi->qi_dqperchunk) {
@@ -135,10 +135,10 @@ xchk_dquot_iter_advance_bmap(
 }
 
 /*
- * Find the id of the next highest incore dquot.  Normally this will correspond
+ * Find the id of the next highest incore dquot.  Analrmally this will correspond
  * exactly with the quota file block mappings, but repair might have erased a
  * mapping because it was crosslinked; in that case, we need to re-allocate the
- * space so that we can reset q_blkno.
+ * space so that we can reset q_blkanal.
  */
 STATIC void
 xchk_dquot_iter_advance_incore(
@@ -163,9 +163,9 @@ xchk_dquot_iter_advance_incore(
 
 /*
  * Walk all incore dquots of this filesystem.  Caller must set *@cursorp to
- * zero before the first call, and must not hold the quota file ILOCK.
- * Returns 1 and a valid *@dqpp; 0 and *@dqpp == NULL when there are no more
- * dquots to iterate; or a negative errno.
+ * zero before the first call, and must analt hold the quota file ILOCK.
+ * Returns 1 and a valid *@dqpp; 0 and *@dqpp == NULL when there are anal more
+ * dquots to iterate; or a negative erranal.
  */
 int
 xchk_dquot_iter(

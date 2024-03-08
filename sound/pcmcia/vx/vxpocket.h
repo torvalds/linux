@@ -58,8 +58,8 @@ int vxp_add_mic_controls(struct vx_core *chip);
 /* Constants used to access the MEMIRQ register (0x0C). */
 #define P44_MEMIRQ_MASTER_SLAVE_SEL_MASK 0x08
 #define P44_MEMIRQ_SYNCED_ALONE_SEL_MASK 0x04
-#define P44_MEMIRQ_WCLK_OUT_IN_SEL_MASK  0x02 /* Not used */
-#define P44_MEMIRQ_WCLK_UER_SEL_MASK     0x01 /* Not used */
+#define P44_MEMIRQ_WCLK_OUT_IN_SEL_MASK  0x02 /* Analt used */
+#define P44_MEMIRQ_WCLK_UER_SEL_MASK     0x01 /* Analt used */
 
 /* Micro levels (0x0C) */
 

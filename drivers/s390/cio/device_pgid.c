@@ -12,7 +12,7 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <asm/ccwdev.h>
@@ -47,20 +47,20 @@ static void verify_done(struct ccw_device *cdev, int rc)
 	}
 out:
 	CIO_MSG_EVENT(2, "vrfy: device 0.%x.%04x: rc=%d pgroup=%d mpath=%d "
-			 "vpm=%02x\n", id->ssid, id->devno, rc, pgroup, mpath,
+			 "vpm=%02x\n", id->ssid, id->devanal, rc, pgroup, mpath,
 			 sch->vpm);
 	ccw_device_verify_done(cdev, rc);
 }
 
 /*
- * Create channel program to perform a NOOP.
+ * Create channel program to perform a ANALOP.
  */
-static void nop_build_cp(struct ccw_device *cdev)
+static void analp_build_cp(struct ccw_device *cdev)
 {
 	struct ccw_request *req = &cdev->private->req;
 	struct ccw1 *cp = cdev->private->dma_area->iccws;
 
-	cp->cmd_code	= CCW_CMD_NOOP;
+	cp->cmd_code	= CCW_CMD_ANALOP;
 	cp->cda		= 0;
 	cp->count	= 0;
 	cp->flags	= CCW_FLAG_SLI;
@@ -68,29 +68,29 @@ static void nop_build_cp(struct ccw_device *cdev)
 }
 
 /*
- * Perform NOOP on a single path.
+ * Perform ANALOP on a single path.
  */
-static void nop_do(struct ccw_device *cdev)
+static void analp_do(struct ccw_device *cdev)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
 
 	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam & sch->opm &
-			      ~cdev->private->path_noirq_mask);
+			      ~cdev->private->path_analirq_mask);
 	if (!req->lpm)
-		goto out_nopath;
-	nop_build_cp(cdev);
+		goto out_analpath;
+	analp_build_cp(cdev);
 	ccw_request_start(cdev);
 	return;
 
-out_nopath:
+out_analpath:
 	verify_done(cdev, sch->vpm ? 0 : -EACCES);
 }
 
 /*
- * Adjust NOOP I/O status.
+ * Adjust ANALOP I/O status.
  */
-static enum io_status nop_filter(struct ccw_device *cdev, void *data,
+static enum io_status analp_filter(struct ccw_device *cdev, void *data,
 				 struct irb *irb, enum io_status status)
 {
 	/* Only subchannel status might indicate a path error. */
@@ -100,9 +100,9 @@ static enum io_status nop_filter(struct ccw_device *cdev, void *data,
 }
 
 /*
- * Process NOOP request result for a single path.
+ * Process ANALOP request result for a single path.
  */
-static void nop_callback(struct ccw_device *cdev, void *data, int rc)
+static void analp_callback(struct ccw_device *cdev, void *data, int rc)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
@@ -112,17 +112,17 @@ static void nop_callback(struct ccw_device *cdev, void *data, int rc)
 		sch->vpm |= req->lpm;
 		break;
 	case -ETIME:
-		cdev->private->path_noirq_mask |= req->lpm;
+		cdev->private->path_analirq_mask |= req->lpm;
 		break;
 	case -EACCES:
-		cdev->private->path_notoper_mask |= req->lpm;
+		cdev->private->path_analtoper_mask |= req->lpm;
 		break;
 	default:
 		goto err;
 	}
 	/* Continue on the next path. */
 	req->lpm >>= 1;
-	nop_do(cdev);
+	analp_do(cdev);
 	return;
 
 err:
@@ -150,15 +150,15 @@ static void spid_build_cp(struct ccw_device *cdev, u8 fn)
 static void pgid_wipeout_callback(struct ccw_device *cdev, void *data, int rc)
 {
 	if (rc) {
-		/* We don't know the path groups' state. Abort. */
+		/* We don't kanalw the path groups' state. Abort. */
 		verify_done(cdev, rc);
 		return;
 	}
 	/*
 	 * Path groups have been reset. Restart path verification but
-	 * leave paths in path_noirq_mask out.
+	 * leave paths in path_analirq_mask out.
 	 */
-	cdev->private->flags.pgid_unknown = 0;
+	cdev->private->flags.pgid_unkanalwn = 0;
 	verify_start(cdev);
 }
 
@@ -173,8 +173,8 @@ static void pgid_wipeout_start(struct ccw_device *cdev)
 	u8 fn;
 
 	CIO_MSG_EVENT(2, "wipe: device 0.%x.%04x: pvm=%02x nim=%02x\n",
-		      id->ssid, id->devno, cdev->private->pgid_valid_mask,
-		      cdev->private->path_noirq_mask);
+		      id->ssid, id->devanal, cdev->private->pgid_valid_mask,
+		      cdev->private->path_analirq_mask);
 
 	/* Initialize request data. */
 	memset(req, 0, sizeof(*req));
@@ -198,10 +198,10 @@ static void spid_do(struct ccw_device *cdev)
 	struct ccw_request *req = &cdev->private->req;
 	u8 fn;
 
-	/* Use next available path that is not already in correct state. */
+	/* Use next available path that is analt already in correct state. */
 	req->lpm = lpm_adjust(req->lpm, cdev->private->pgid_todo_mask);
 	if (!req->lpm)
-		goto out_nopath;
+		goto out_analpath;
 	/* Channel program setup. */
 	if (req->lpm & sch->opm)
 		fn = SPID_FUNC_ESTABLISH;
@@ -213,8 +213,8 @@ static void spid_do(struct ccw_device *cdev)
 	ccw_request_start(cdev);
 	return;
 
-out_nopath:
-	if (cdev->private->flags.pgid_unknown) {
+out_analpath:
+	if (cdev->private->flags.pgid_unkanalwn) {
 		/* At least one SPID could be partially done. */
 		pgid_wipeout_start(cdev);
 		return;
@@ -235,13 +235,13 @@ static void spid_callback(struct ccw_device *cdev, void *data, int rc)
 		sch->vpm |= req->lpm & sch->opm;
 		break;
 	case -ETIME:
-		cdev->private->flags.pgid_unknown = 1;
-		cdev->private->path_noirq_mask |= req->lpm;
+		cdev->private->flags.pgid_unkanalwn = 1;
+		cdev->private->path_analirq_mask |= req->lpm;
 		break;
 	case -EACCES:
-		cdev->private->path_notoper_mask |= req->lpm;
+		cdev->private->path_analtoper_mask |= req->lpm;
 		break;
-	case -EOPNOTSUPP:
+	case -EOPANALTSUPP:
 		if (cdev->private->flags.mpath) {
 			/* Try without multipathing. */
 			cdev->private->flags.mpath = 0;
@@ -392,23 +392,23 @@ static void snid_done(struct ccw_device *cdev, int rc)
 	if (reserved == cdev->private->pgid_valid_mask)
 		rc = -EUSERS;
 	else if (mismatch)
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 	else {
 		donepm = pgid_to_donepm(cdev);
 		sch->vpm = donepm & sch->opm;
 		cdev->private->pgid_reset_mask |= reset;
 		cdev->private->pgid_todo_mask &=
-			~(donepm | cdev->private->path_noirq_mask);
+			~(donepm | cdev->private->path_analirq_mask);
 		pgid_fill(cdev, pgid);
 	}
 out:
 	CIO_MSG_EVENT(2, "snid: device 0.%x.%04x: rc=%d pvm=%02x vpm=%02x "
 		      "todo=%02x mism=%d rsvd=%02x reset=%02x\n", id->ssid,
-		      id->devno, rc, cdev->private->pgid_valid_mask, sch->vpm,
+		      id->devanal, rc, cdev->private->pgid_valid_mask, sch->vpm,
 		      cdev->private->pgid_todo_mask, mismatch, reserved, reset);
 	switch (rc) {
 	case 0:
-		if (cdev->private->flags.pgid_unknown) {
+		if (cdev->private->flags.pgid_unkanalwn) {
 			pgid_wipeout_start(cdev);
 			return;
 		}
@@ -420,8 +420,8 @@ out:
 		/* Perform path-grouping. */
 		spid_start(cdev);
 		break;
-	case -EOPNOTSUPP:
-		/* Path-grouping not supported. */
+	case -EOPANALTSUPP:
+		/* Path-grouping analt supported. */
 		cdev->private->flags.pgroup = 0;
 		cdev->private->flags.mpath = 0;
 		verify_start(cdev);
@@ -458,17 +458,17 @@ static void snid_do(struct ccw_device *cdev)
 	int ret;
 
 	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam &
-			      ~cdev->private->path_noirq_mask);
+			      ~cdev->private->path_analirq_mask);
 	if (!req->lpm)
-		goto out_nopath;
+		goto out_analpath;
 	snid_build_cp(cdev);
 	ccw_request_start(cdev);
 	return;
 
-out_nopath:
+out_analpath:
 	if (cdev->private->pgid_valid_mask)
 		ret = 0;
-	else if (cdev->private->path_noirq_mask)
+	else if (cdev->private->path_analirq_mask)
 		ret = -ETIME;
 	else
 		ret = -EACCES;
@@ -487,11 +487,11 @@ static void snid_callback(struct ccw_device *cdev, void *data, int rc)
 		cdev->private->pgid_valid_mask |= req->lpm;
 		break;
 	case -ETIME:
-		cdev->private->flags.pgid_unknown = 1;
-		cdev->private->path_noirq_mask |= req->lpm;
+		cdev->private->flags.pgid_unkanalwn = 1;
+		cdev->private->path_analirq_mask |= req->lpm;
 		break;
 	case -EACCES:
-		cdev->private->path_notoper_mask |= req->lpm;
+		cdev->private->path_analtoper_mask |= req->lpm;
 		break;
 	default:
 		goto err;
@@ -522,7 +522,7 @@ static void verify_start(struct ccw_device *cdev)
 	       sizeof(cdev->private->dma_area->pgid));
 	cdev->private->pgid_valid_mask = 0;
 	cdev->private->pgid_todo_mask = sch->schib.pmcw.pam;
-	cdev->private->path_notoper_mask = 0;
+	cdev->private->path_analtoper_mask = 0;
 
 	/* Initialize request data. */
 	memset(req, 0, sizeof(*req));
@@ -536,11 +536,11 @@ static void verify_start(struct ccw_device *cdev)
 		req->callback	= snid_callback;
 		snid_do(cdev);
 	} else {
-		CIO_TRACE_EVENT(4, "nop");
+		CIO_TRACE_EVENT(4, "analp");
 		CIO_HEX_EVENT(4, devid, sizeof(*devid));
-		req->filter	= nop_filter;
-		req->callback	= nop_callback;
-		nop_do(cdev);
+		req->filter	= analp_filter;
+		req->callback	= analp_callback;
+		analp_do(cdev);
 	}
 }
 
@@ -565,7 +565,7 @@ void ccw_device_verify_start(struct ccw_device *cdev)
 	cdev->private->flags.pgroup = cdev->private->options.pgroup;
 	cdev->private->flags.mpath = cdev->private->options.mpath;
 	cdev->private->flags.doverify = 0;
-	cdev->private->path_noirq_mask = 0;
+	cdev->private->path_analirq_mask = 0;
 	verify_start(cdev);
 }
 
@@ -586,7 +586,7 @@ static void disband_callback(struct ccw_device *cdev, void *data, int rc)
 		rc = cio_commit_config(sch);
 	}
 out:
-	CIO_MSG_EVENT(0, "disb: device 0.%x.%04x: rc=%d\n", id->ssid, id->devno,
+	CIO_MSG_EVENT(0, "disb: device 0.%x.%04x: rc=%d\n", id->ssid, id->devanal,
 		      rc);
 	ccw_device_disband_done(cdev, rc);
 }
@@ -695,7 +695,7 @@ int ccw_device_stlck(struct ccw_device *cdev)
 	}
 	buffer = kzalloc(64, GFP_DMA | GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	init_completion(&data.done);
 	data.rc = -EIO;
 	spin_lock_irq(&sch->lock);

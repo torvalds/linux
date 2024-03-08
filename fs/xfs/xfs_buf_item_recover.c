@@ -19,7 +19,7 @@
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 #include "xfs_error.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_dir2.h"
 #include "xfs_quota.h"
 
@@ -29,15 +29,15 @@
  */
 #define	XLOG_BC_TABLE_SIZE	64
 
-#define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
-	((log)->l_buf_cancel_table + ((uint64_t)blkno % XLOG_BC_TABLE_SIZE))
+#define XLOG_BUF_CANCEL_BUCKET(log, blkanal) \
+	((log)->l_buf_cancel_table + ((uint64_t)blkanal % XLOG_BC_TABLE_SIZE))
 
 /*
  * This structure is used during recovery to record the buf log items which
- * have been canceled and should not be replayed.
+ * have been canceled and should analt be replayed.
  */
 struct xfs_buf_cancel {
-	xfs_daddr_t		bc_blkno;
+	xfs_daddr_t		bc_blkanal;
 	uint			bc_len;
 	int			bc_refcount;
 	struct list_head	bc_list;
@@ -46,7 +46,7 @@ struct xfs_buf_cancel {
 static struct xfs_buf_cancel *
 xlog_find_buffer_cancelled(
 	struct xlog		*log,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	uint			len)
 {
 	struct list_head	*bucket;
@@ -55,9 +55,9 @@ xlog_find_buffer_cancelled(
 	if (!log->l_buf_cancel_table)
 		return NULL;
 
-	bucket = XLOG_BUF_CANCEL_BUCKET(log, blkno);
+	bucket = XLOG_BUF_CANCEL_BUCKET(log, blkanal);
 	list_for_each_entry(bcp, bucket, bc_list) {
-		if (bcp->bc_blkno == blkno && bcp->bc_len == len)
+		if (bcp->bc_blkanal == blkanal && bcp->bc_len == len)
 			return bcp;
 	}
 
@@ -67,7 +67,7 @@ xlog_find_buffer_cancelled(
 static bool
 xlog_add_buffer_cancelled(
 	struct xlog		*log,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	uint			len)
 {
 	struct xfs_buf_cancel	*bcp;
@@ -79,34 +79,34 @@ xlog_add_buffer_cancelled(
 	 * log, a reference count is kept to tell how many times we expect to
 	 * see this record during the second pass.
 	 */
-	bcp = xlog_find_buffer_cancelled(log, blkno, len);
+	bcp = xlog_find_buffer_cancelled(log, blkanal, len);
 	if (bcp) {
 		bcp->bc_refcount++;
 		return false;
 	}
 
 	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), 0);
-	bcp->bc_blkno = blkno;
+	bcp->bc_blkanal = blkanal;
 	bcp->bc_len = len;
 	bcp->bc_refcount = 1;
-	list_add_tail(&bcp->bc_list, XLOG_BUF_CANCEL_BUCKET(log, blkno));
+	list_add_tail(&bcp->bc_list, XLOG_BUF_CANCEL_BUCKET(log, blkanal));
 	return true;
 }
 
 /*
- * Check if there is and entry for blkno, len in the buffer cancel record table.
+ * Check if there is and entry for blkanal, len in the buffer cancel record table.
  */
 bool
 xlog_is_buffer_cancelled(
 	struct xlog		*log,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	uint			len)
 {
-	return xlog_find_buffer_cancelled(log, blkno, len) != NULL;
+	return xlog_find_buffer_cancelled(log, blkanal, len) != NULL;
 }
 
 /*
- * Check if there is and entry for blkno, len in the buffer cancel record table,
+ * Check if there is and entry for blkanal, len in the buffer cancel record table,
  * and decremented the reference count on it if there is one.
  *
  * Remove the cancel record once the refcount hits zero, so that if the same
@@ -116,12 +116,12 @@ xlog_is_buffer_cancelled(
 static bool
 xlog_put_buffer_cancelled(
 	struct xlog		*log,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	uint			len)
 {
 	struct xfs_buf_cancel	*bcp;
 
-	bcp = xlog_find_buffer_cancelled(log, blkno, len);
+	bcp = xlog_find_buffer_cancelled(log, blkanal, len);
 	if (!bcp) {
 		ASSERT(0);
 		return false;
@@ -144,9 +144,9 @@ xlog_put_buffer_cancelled(
  *    might depend on the incor ecancellation record, and replaying a cancelled
  *    buffer item can remove the incore record.
  *
- * 2. XFS_BLF_INODE_BUF buffers are handled after most regular items so that
- *    we replay di_next_unlinked only after flushing the inode 'free' state
- *    to the inode buffer.
+ * 2. XFS_BLF_IANALDE_BUF buffers are handled after most regular items so that
+ *    we replay di_next_unlinked only after flushing the ianalde 'free' state
+ *    to the ianalde buffer.
  *
  * See xlog_recover_reorder_trans for more details.
  */
@@ -158,8 +158,8 @@ xlog_recover_buf_reorder(
 
 	if (buf_f->blf_flags & XFS_BLF_CANCEL)
 		return XLOG_REORDER_CANCEL_LIST;
-	if (buf_f->blf_flags & XFS_BLF_INODE_BUF)
-		return XLOG_REORDER_INODE_BUFFER_LIST;
+	if (buf_f->blf_flags & XFS_BLF_IANALDE_BUF)
+		return XLOG_REORDER_IANALDE_BUFFER_LIST;
 	return XLOG_REORDER_BUFFER_LIST;
 }
 
@@ -170,7 +170,7 @@ xlog_recover_buf_ra_pass2(
 {
 	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].i_addr;
 
-	xlog_buf_readahead(log, buf_f->blf_blkno, buf_f->blf_len, NULL);
+	xlog_buf_readahead(log, buf_f->blf_blkanal, buf_f->blf_len, NULL);
 }
 
 /*
@@ -191,8 +191,8 @@ xlog_recover_buf_commit_pass1(
 	}
 
 	if (!(bf->blf_flags & XFS_BLF_CANCEL))
-		trace_xfs_log_recover_buf_not_cancel(log, bf);
-	else if (xlog_add_buffer_cancelled(log, bf->blf_blkno, bf->blf_len))
+		trace_xfs_log_recover_buf_analt_cancel(log, bf);
+	else if (xlog_add_buffer_cancelled(log, bf->blf_blkanal, bf->blf_len))
 		trace_xfs_log_recover_buf_cancel_add(log, bf);
 	else
 		trace_xfs_log_recover_buf_cancel_ref_inc(log, bf);
@@ -203,7 +203,7 @@ xlog_recover_buf_commit_pass1(
  * Validate the recovered buffer is of the correct type and attach the
  * appropriate buffer operations to them for writeback. Magic numbers are in a
  * few places:
- *	the first 16 bits of the buffer (inode buffer, dquot buffer),
+ *	the first 16 bits of the buffer (ianalde buffer, dquot buffer),
  *	the first 32 bits of the buffer (most blocks),
  *	inside a struct xfs_da_blkinfo at the start of the buffer.
  */
@@ -222,11 +222,11 @@ xlog_recover_validate_buf_type(
 
 	/*
 	 * We can only do post recovery validation on items on CRC enabled
-	 * fielsystems as we need to know when the buffer was written to be able
+	 * fielsystems as we need to kanalw when the buffer was written to be able
 	 * to determine if we should have replayed the item. If we replay old
 	 * metadata over a newer buffer, then it will enter a temporarily
-	 * inconsistent state resulting in verification failures. Hence for now
-	 * just avoid the verification stage for non-crc filesystems
+	 * inconsistent state resulting in verification failures. Hence for analw
+	 * just avoid the verification stage for analn-crc filesystems
 	 */
 	if (!xfs_has_crc(mp))
 		return;
@@ -239,7 +239,7 @@ xlog_recover_validate_buf_type(
 		switch (magic32) {
 		case XFS_ABTB_CRC_MAGIC:
 		case XFS_ABTB_MAGIC:
-			bp->b_ops = &xfs_bnobt_buf_ops;
+			bp->b_ops = &xfs_banalbt_buf_ops;
 			break;
 		case XFS_ABTC_CRC_MAGIC:
 		case XFS_ABTC_MAGIC:
@@ -247,11 +247,11 @@ xlog_recover_validate_buf_type(
 			break;
 		case XFS_IBT_CRC_MAGIC:
 		case XFS_IBT_MAGIC:
-			bp->b_ops = &xfs_inobt_buf_ops;
+			bp->b_ops = &xfs_ianalbt_buf_ops;
 			break;
 		case XFS_FIBT_CRC_MAGIC:
 		case XFS_FIBT_MAGIC:
-			bp->b_ops = &xfs_finobt_buf_ops;
+			bp->b_ops = &xfs_fianalbt_buf_ops;
 			break;
 		case XFS_BMAP_CRC_MAGIC:
 		case XFS_BMAP_MAGIC:
@@ -304,12 +304,12 @@ xlog_recover_validate_buf_type(
 		ASSERT(0);
 #endif
 		break;
-	case XFS_BLFT_DINO_BUF:
-		if (magic16 != XFS_DINODE_MAGIC) {
-			warnmsg = "Bad INODE block magic!";
+	case XFS_BLFT_DIANAL_BUF:
+		if (magic16 != XFS_DIANALDE_MAGIC) {
+			warnmsg = "Bad IANALDE block magic!";
 			break;
 		}
-		bp->b_ops = &xfs_inode_buf_ops;
+		bp->b_ops = &xfs_ianalde_buf_ops;
 		break;
 	case XFS_BLFT_SYMLINK_BUF:
 		if (magic32 != XFS_SYMLINK_MAGIC) {
@@ -358,13 +358,13 @@ xlog_recover_validate_buf_type(
 		}
 		bp->b_ops = &xfs_dir3_leafn_buf_ops;
 		break;
-	case XFS_BLFT_DA_NODE_BUF:
-		if (magicda != XFS_DA_NODE_MAGIC &&
-		    magicda != XFS_DA3_NODE_MAGIC) {
-			warnmsg = "Bad da node magic!";
+	case XFS_BLFT_DA_ANALDE_BUF:
+		if (magicda != XFS_DA_ANALDE_MAGIC &&
+		    magicda != XFS_DA3_ANALDE_MAGIC) {
+			warnmsg = "Bad da analde magic!";
 			break;
 		}
-		bp->b_ops = &xfs_da3_node_buf_ops;
+		bp->b_ops = &xfs_da3_analde_buf_ops;
 		break;
 	case XFS_BLFT_ATTR_LEAF_BUF:
 		if (magicda != XFS_ATTR_LEAF_MAGIC &&
@@ -391,18 +391,18 @@ xlog_recover_validate_buf_type(
 #ifdef CONFIG_XFS_RT
 	case XFS_BLFT_RTBITMAP_BUF:
 	case XFS_BLFT_RTSUMMARY_BUF:
-		/* no magic numbers for verification of RT buffers */
+		/* anal magic numbers for verification of RT buffers */
 		bp->b_ops = &xfs_rtbuf_ops;
 		break;
 #endif /* CONFIG_XFS_RT */
 	default:
-		xfs_warn(mp, "Unknown buffer type %d!",
+		xfs_warn(mp, "Unkanalwn buffer type %d!",
 			 xfs_blft_from_flags(buf_f));
 		break;
 	}
 
 	/*
-	 * Nothing else to do in the case of a NULL current LSN as this means
+	 * Analthing else to do in the case of a NULL current LSN as this means
 	 * the buffer is more recent than the change in the log and will be
 	 * skipped.
 	 */
@@ -436,7 +436,7 @@ xlog_recover_validate_buf_type(
 }
 
 /*
- * Perform a 'normal' buffer recovery.  Each logged region of the
+ * Perform a 'analrmal' buffer recovery.  Each logged region of the
  * buffer should be copied over the corresponding region in the
  * given buffer.  The bitmap in the buf log format structure indicates
  * where to place the logged data.
@@ -561,7 +561,7 @@ xlog_recover_do_dquot_buffer(
 	if (buf_f->blf_flags & XFS_BLF_GDQUOT_BUF)
 		type |= XFS_DQTYPE_GROUP;
 	/*
-	 * This type of quotas was turned off, so ignore this buffer
+	 * This type of quotas was turned off, so iganalre this buffer
 	 */
 	if (log->l_quotaoffs_flag & type)
 		return false;
@@ -571,19 +571,19 @@ xlog_recover_do_dquot_buffer(
 }
 
 /*
- * Perform recovery for a buffer full of inodes.  In these buffers, the only
+ * Perform recovery for a buffer full of ianaldes.  In these buffers, the only
  * data which should be recovered is that which corresponds to the
- * di_next_unlinked pointers in the on disk inode structures.  The rest of the
- * data for the inodes is always logged through the inodes themselves rather
- * than the inode buffer and is recovered in xlog_recover_inode_pass2().
+ * di_next_unlinked pointers in the on disk ianalde structures.  The rest of the
+ * data for the ianaldes is always logged through the ianaldes themselves rather
+ * than the ianalde buffer and is recovered in xlog_recover_ianalde_pass2().
  *
- * The only time when buffers full of inodes are fully recovered is when the
- * buffer is full of newly allocated inodes.  In this case the buffer will
- * not be marked as an inode buffer and so will be sent to
+ * The only time when buffers full of ianaldes are fully recovered is when the
+ * buffer is full of newly allocated ianaldes.  In this case the buffer will
+ * analt be marked as an ianalde buffer and so will be sent to
  * xlog_recover_do_reg_buffer() below during recovery.
  */
 STATIC int
-xlog_recover_do_inode_buffer(
+xlog_recover_do_ianalde_buffer(
 	struct xfs_mount		*mp,
 	struct xlog_recover_item	*item,
 	struct xfs_buf			*bp,
@@ -596,23 +596,23 @@ xlog_recover_do_inode_buffer(
 	int				reg_buf_offset = 0;
 	int				reg_buf_bytes = 0;
 	int				next_unlinked_offset;
-	int				inodes_per_buf;
-	xfs_agino_t			*logged_nextp;
-	xfs_agino_t			*buffer_nextp;
+	int				ianaldes_per_buf;
+	xfs_agianal_t			*logged_nextp;
+	xfs_agianal_t			*buffer_nextp;
 
-	trace_xfs_log_recover_buf_inode_buf(mp->m_log, buf_f);
+	trace_xfs_log_recover_buf_ianalde_buf(mp->m_log, buf_f);
 
 	/*
 	 * Post recovery validation only works properly on CRC enabled
 	 * filesystems.
 	 */
 	if (xfs_has_crc(mp))
-		bp->b_ops = &xfs_inode_buf_ops;
+		bp->b_ops = &xfs_ianalde_buf_ops;
 
-	inodes_per_buf = BBTOB(bp->b_length) >> mp->m_sb.sb_inodelog;
-	for (i = 0; i < inodes_per_buf; i++) {
-		next_unlinked_offset = (i * mp->m_sb.sb_inodesize) +
-			offsetof(struct xfs_dinode, di_next_unlinked);
+	ianaldes_per_buf = BBTOB(bp->b_length) >> mp->m_sb.sb_ianaldelog;
+	for (i = 0; i < ianaldes_per_buf; i++) {
+		next_unlinked_offset = (i * mp->m_sb.sb_ianaldesize) +
+			offsetof(struct xfs_dianalde, di_next_unlinked);
 
 		while (next_unlinked_offset >=
 		       (reg_buf_offset + reg_buf_bytes)) {
@@ -627,7 +627,7 @@ xlog_recover_do_inode_buffer(
 					   buf_f->blf_map_size, bit);
 
 			/*
-			 * If there are no more logged regions in the
+			 * If there are anal more logged regions in the
 			 * buffer, then we're done.
 			 */
 			if (bit == -1)
@@ -662,8 +662,8 @@ xlog_recover_do_inode_buffer(
 				next_unlinked_offset - reg_buf_offset;
 		if (XFS_IS_CORRUPT(mp, *logged_nextp == 0)) {
 			xfs_alert(mp,
-		"Bad inode buffer log record (ptr = "PTR_FMT", bp = "PTR_FMT"). "
-		"Trying to replay bad (0) inode di_next_unlinked field.",
+		"Bad ianalde buffer log record (ptr = "PTR_FMT", bp = "PTR_FMT"). "
+		"Trying to replay bad (0) ianalde di_next_unlinked field.",
 				item, bp);
 			return -EFSCORRUPTED;
 		}
@@ -672,12 +672,12 @@ xlog_recover_do_inode_buffer(
 		*buffer_nextp = *logged_nextp;
 
 		/*
-		 * If necessary, recalculate the CRC in the on-disk inode. We
-		 * have to leave the inode in a consistent state for whoever
+		 * If necessary, recalculate the CRC in the on-disk ianalde. We
+		 * have to leave the ianalde in a consistent state for whoever
 		 * reads it next....
 		 */
-		xfs_dinode_calc_crc(mp,
-				xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize));
+		xfs_dianalde_calc_crc(mp,
+				xfs_buf_offset(bp, i * mp->m_sb.sb_ianaldesize));
 
 	}
 
@@ -685,19 +685,19 @@ xlog_recover_do_inode_buffer(
 }
 
 /*
- * V5 filesystems know the age of the buffer on disk being recovered. We can
+ * V5 filesystems kanalw the age of the buffer on disk being recovered. We can
  * have newer objects on disk than we are replaying, and so for these cases we
  * don't want to replay the current change as that will make the buffer contents
  * temporarily invalid on disk.
  *
- * The magic number might not match the buffer type we are going to recover
- * (e.g. reallocated blocks), so we ignore the xfs_buf_log_format flags.  Hence
+ * The magic number might analt match the buffer type we are going to recover
+ * (e.g. reallocated blocks), so we iganalre the xfs_buf_log_format flags.  Hence
  * extract the LSN of the existing object in the buffer based on it's current
  * magic number.  If we don't recognise the magic number in the buffer, then
- * return a LSN of -1 so that the caller knows it was an unrecognised block and
+ * return a LSN of -1 so that the caller kanalws it was an unrecognised block and
  * so can recover the buffer.
  *
- * Note: we cannot rely solely on magic number matches to determine that the
+ * Analte: we cananalt rely solely on magic number matches to determine that the
  * buffer has a valid LSN - we also need to verify that it belongs to this
  * filesystem, so we need to extract the object's LSN and compare it to that
  * which we read from the superblock. If the UUIDs don't match, then we've got a
@@ -723,7 +723,7 @@ xlog_recover_get_buf_lsn(
 		goto recover_immediately;
 
 	/*
-	 * realtime bitmap and summary file blocks do not have magic numbers or
+	 * realtime bitmap and summary file blocks do analt have magic numbers or
 	 * UUIDs, so we must recover them immediately.
 	 */
 	blft = xfs_blft_from_flags(buf_f);
@@ -780,8 +780,8 @@ xlog_recover_get_buf_lsn(
 		break;
 	case XFS_ATTR3_RMT_MAGIC:
 		/*
-		 * Remote attr blocks are written synchronously, rather than
-		 * being logged. That means they do not contain a valid LSN
+		 * Remote attr blocks are written synchroanalusly, rather than
+		 * being logged. That means they do analt contain a valid LSN
 		 * (i.e. transactionally ordered) in them, and hence any time we
 		 * see a buffer to replay over the top of a remote attribute
 		 * block we should simply do so.
@@ -789,7 +789,7 @@ xlog_recover_get_buf_lsn(
 		goto recover_immediately;
 	case XFS_SB_MAGIC:
 		/*
-		 * superblock uuids are magic. We may or may not have a
+		 * superblock uuids are magic. We may or may analt have a
 		 * sb_meta_uuid on disk, but it will be set in the in-core
 		 * superblock. We set the uuid pointer for verification
 		 * according to the superblock feature mask to ensure we check
@@ -816,7 +816,7 @@ xlog_recover_get_buf_lsn(
 	case XFS_DIR3_LEAF1_MAGIC:
 	case XFS_DIR3_LEAFN_MAGIC:
 	case XFS_ATTR3_LEAF_MAGIC:
-	case XFS_DA3_NODE_MAGIC:
+	case XFS_DA3_ANALDE_MAGIC:
 		lsn = be64_to_cpu(((struct xfs_da3_blkinfo *)blk)->lsn);
 		uuid = &((struct xfs_da3_blkinfo *)blk)->uuid;
 		break;
@@ -831,26 +831,26 @@ xlog_recover_get_buf_lsn(
 	}
 
 	/*
-	 * We do individual object checks on dquot and inode buffers as they
+	 * We do individual object checks on dquot and ianalde buffers as they
 	 * have their own individual LSN records. Also, we could have a stale
 	 * buffer here, so we have to at least recognise these buffer types.
 	 *
-	 * A notd complexity here is inode unlinked list processing - it logs
-	 * the inode directly in the buffer, but we don't know which inodes have
-	 * been modified, and there is no global buffer LSN. Hence we need to
-	 * recover all inode buffer types immediately. This problem will be
+	 * A analtd complexity here is ianalde unlinked list processing - it logs
+	 * the ianalde directly in the buffer, but we don't kanalw which ianaldes have
+	 * been modified, and there is anal global buffer LSN. Hence we need to
+	 * recover all ianalde buffer types immediately. This problem will be
 	 * fixed by logical logging of the unlinked list modifications.
 	 */
 	magic16 = be16_to_cpu(*(__be16 *)blk);
 	switch (magic16) {
 	case XFS_DQUOT_MAGIC:
-	case XFS_DINODE_MAGIC:
+	case XFS_DIANALDE_MAGIC:
 		goto recover_immediately;
 	default:
 		break;
 	}
 
-	/* unknown buffer contents, recover immediately */
+	/* unkanalwn buffer contents, recover immediately */
 
 recover_immediately:
 	return (xfs_lsn_t)-1;
@@ -859,16 +859,16 @@ recover_immediately:
 
 /*
  * This routine replays a modification made to a buffer at runtime.
- * There are actually two types of buffer, regular and inode, which
- * are handled differently.  Inode buffers are handled differently
+ * There are actually two types of buffer, regular and ianalde, which
+ * are handled differently.  Ianalde buffers are handled differently
  * in that we only recover a specific set of data from them, namely
- * the inode di_next_unlinked fields.  This is because all other inode
- * data is actually logged via inode records and any data we replay
+ * the ianalde di_next_unlinked fields.  This is because all other ianalde
+ * data is actually logged via ianalde records and any data we replay
  * here which overlaps that may be stale.
  *
  * When meta-data buffers are freed at run time we log a buffer item
  * with the XFS_BLF_CANCEL bit set to indicate that previous copies
- * of the buffer in the log should not be replayed at recovery time.
+ * of the buffer in the log should analt be replayed at recovery time.
  * This is so that if the blocks covered by the buffer are reused for
  * file data before we crash we don't end up replaying old, freed
  * meta-data into a user's file.
@@ -876,7 +876,7 @@ recover_immediately:
  * To handle the cancellation of buffer log items, we make two passes
  * over the log during recovery.  During the first we build a table of
  * those buffers which have been cancelled, and during the second we
- * only replay those buffers which do not have corresponding cancel
+ * only replay those buffers which do analt have corresponding cancel
  * records in the table.  See xlog_recover_buf_pass[1,2] above
  * for more details on the implementation of the table of cancel records.
  */
@@ -896,15 +896,15 @@ xlog_recover_buf_commit_pass2(
 
 	/*
 	 * In this pass we only want to recover all the buffers which have
-	 * not been cancelled and are not cancellation buffers themselves.
+	 * analt been cancelled and are analt cancellation buffers themselves.
 	 */
 	if (buf_f->blf_flags & XFS_BLF_CANCEL) {
-		if (xlog_put_buffer_cancelled(log, buf_f->blf_blkno,
+		if (xlog_put_buffer_cancelled(log, buf_f->blf_blkanal,
 				buf_f->blf_len))
 			goto cancelled;
 	} else {
 
-		if (xlog_is_buffer_cancelled(log, buf_f->blf_blkno,
+		if (xlog_is_buffer_cancelled(log, buf_f->blf_blkanal,
 				buf_f->blf_len))
 			goto cancelled;
 	}
@@ -912,10 +912,10 @@ xlog_recover_buf_commit_pass2(
 	trace_xfs_log_recover_buf_recover(log, buf_f);
 
 	buf_flags = 0;
-	if (buf_f->blf_flags & XFS_BLF_INODE_BUF)
+	if (buf_f->blf_flags & XFS_BLF_IANALDE_BUF)
 		buf_flags |= XBF_UNMAPPED;
 
-	error = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkno, buf_f->blf_len,
+	error = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkanal, buf_f->blf_len,
 			  buf_flags, &bp, NULL);
 	if (error)
 		return error;
@@ -924,8 +924,8 @@ xlog_recover_buf_commit_pass2(
 	 * Recover the buffer only if we get an LSN from it and it's less than
 	 * the lsn of the transaction we are replaying.
 	 *
-	 * Note that we have to be extremely careful of readahead here.
-	 * Readahead does not attach verfiers to the buffers so if we don't
+	 * Analte that we have to be extremely careful of readahead here.
+	 * Readahead does analt attach verfiers to the buffers so if we don't
 	 * actually do any replay after readahead because of the LSN we found
 	 * in the buffer if more recent than that current transaction then we
 	 * need to attach the verifier directly. Failure to do so can lead to
@@ -956,8 +956,8 @@ xlog_recover_buf_commit_pass2(
 		goto out_release;
 	}
 
-	if (buf_f->blf_flags & XFS_BLF_INODE_BUF) {
-		error = xlog_recover_do_inode_buffer(mp, item, bp, buf_f);
+	if (buf_f->blf_flags & XFS_BLF_IANALDE_BUF) {
+		error = xlog_recover_do_ianalde_buffer(mp, item, bp, buf_f);
 		if (error)
 			goto out_release;
 	} else if (buf_f->blf_flags &
@@ -972,23 +972,23 @@ xlog_recover_buf_commit_pass2(
 	}
 
 	/*
-	 * Perform delayed write on the buffer.  Asynchronous writes will be
+	 * Perform delayed write on the buffer.  Asynchroanalus writes will be
 	 * slower when taking into account all the buffers to be flushed.
 	 *
-	 * Also make sure that only inode buffers with good sizes stay in
-	 * the buffer cache.  The kernel moves inodes in buffers of 1 block
-	 * or inode_cluster_size bytes, whichever is bigger.  The inode
+	 * Also make sure that only ianalde buffers with good sizes stay in
+	 * the buffer cache.  The kernel moves ianaldes in buffers of 1 block
+	 * or ianalde_cluster_size bytes, whichever is bigger.  The ianalde
 	 * buffers in the log can be a different size if the log was generated
-	 * by an older kernel using unclustered inode buffers or a newer kernel
-	 * running with a different inode cluster size.  Regardless, if
-	 * the inode buffer size isn't max(blocksize, inode_cluster_size)
-	 * for *our* value of inode_cluster_size, then we need to keep
+	 * by an older kernel using unclustered ianalde buffers or a newer kernel
+	 * running with a different ianalde cluster size.  Regardless, if
+	 * the ianalde buffer size isn't max(blocksize, ianalde_cluster_size)
+	 * for *our* value of ianalde_cluster_size, then we need to keep
 	 * the buffer out of the buffer cache so that the buffer won't
-	 * overlap with future reads of those inodes.
+	 * overlap with future reads of those ianaldes.
 	 */
-	if (XFS_DINODE_MAGIC ==
+	if (XFS_DIANALDE_MAGIC ==
 	    be16_to_cpu(*((__be16 *)xfs_buf_offset(bp, 0))) &&
-	    (BBTOB(bp->b_length) != M_IGEO(log->l_mp)->inode_cluster_size)) {
+	    (BBTOB(bp->b_length) != M_IGEO(log->l_mp)->ianalde_cluster_size)) {
 		xfs_buf_stale(bp);
 		error = xfs_bwrite(bp);
 	} else {
@@ -1037,7 +1037,7 @@ xlog_alloc_buf_cancel_table(
 	p = kmalloc_array(XLOG_BC_TABLE_SIZE, sizeof(struct list_head),
 			  GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	log->l_buf_cancel_table = p;
 	for (i = 0; i < XLOG_BC_TABLE_SIZE; i++)

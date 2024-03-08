@@ -155,11 +155,11 @@ config INTEL_PUNIT_IPC
 	  which is used to bridge the communications between kernel and P-Unit.
 
 config INTEL_RST
-	tristate "Intel Rapid Start Technology Driver"
+	tristate "Intel Rapid Start Techanallogy Driver"
 	depends on ACPI
 	help
 	  This driver provides support for modifying parameters on systems
-	  equipped with Intel's Rapid Start Technology. When put in an ACPI
+	  equipped with Intel's Rapid Start Techanallogy. When put in an ACPI
 	  sleep state, these devices will wake after either a configured
 	  timeout or when the system battery reaches a critical state,
 	  automatically copying memory contents to disk. On resume, the
@@ -182,12 +182,12 @@ config INTEL_SMARTCONNECT
 	tristate "Intel Smart Connect disabling driver"
 	depends on ACPI
 	help
-	  Intel Smart Connect is a technology intended to permit devices to
+	  Intel Smart Connect is a techanallogy intended to permit devices to
 	  update state by resuming for a short period of time at regular
 	  intervals. If a user enables this functionality under Windows and
 	  then reboots into Linux, the system may remain configured to resume
 	  on suspend. In the absence of any userspace to support it, the system
-	  will then remain awake until something triggers another suspend.
+	  will then remain awake until something triggers aanalther suspend.
 
 	  This driver checks to determine whether the device has Intel Smart
 	  Connect enabled, and if so disables it.
@@ -206,14 +206,14 @@ config INTEL_TPMI
 	  be called intel_vsec_tpmi.
 
 config INTEL_TURBO_MAX_3
-	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"
+	bool "Intel Turbo Boost Max Techanallogy 3.0 enumeration driver"
 	depends on X86_64 && SCHED_MC_PRIO
 	help
 	  This driver reads maximum performance ratio of each CPU and set up
 	  the scheduler priority metrics. In this way scheduler can prefer
 	  CPU with higher performance to schedule tasks.
 
-	  This driver is only required when the system is not using Hardware
+	  This driver is only required when the system is analt using Hardware
 	  P-States (HWP). In HWP mode, priority can be read from ACPI tables.
 
 config INTEL_VSEC

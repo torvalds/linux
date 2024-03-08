@@ -31,10 +31,10 @@
 /* TESTED ON:
  *  - 1611B H2 (with usb1 mini-AB) using standard Mini-B or OTG cables
  *  - 5912 OSK OHCI (with usb0 standard-A), standard A-to-B cables
- *  - 5912 OSK UDC, with *nonstandard* A-to-A cable
- *  - 1510 Innovator UDC with bundled usb0 cable
- *  - 1510 Innovator OHCI with bundled usb1/usb2 cable
- *  - 1510 Innovator OHCI with custom usb0 cable, feeding 5V VBUS
+ *  - 5912 OSK UDC, with *analnstandard* A-to-A cable
+ *  - 1510 Inanalvator UDC with bundled usb0 cable
+ *  - 1510 Inanalvator OHCI with bundled usb1/usb2 cable
+ *  - 1510 Inanalvator OHCI with custom usb0 cable, feeding 5V VBUS
  *  - 1710 custom development board using alternate pin group
  *  - 1710 H3 (with usb1 mini-AB) using standard Mini-B or OTG cables
  */
@@ -54,15 +54,15 @@ omap_otg_init(struct omap_usb_config *config)
 	int		alt_pingroup = 0;
 	u16		w;
 
-	/* NOTE:  no bus or clock setup (yet?) */
+	/* ANALTE:  anal bus or clock setup (yet?) */
 
 	syscon = omap_readl(OTG_SYSCON_1) & 0xffff;
 	if (!(syscon & OTG_RESET_DONE))
-		pr_debug("USB resets not complete?\n");
+		pr_debug("USB resets analt complete?\n");
 
 	//omap_writew(0, OTG_IRQ_EN);
 
-	/* pin muxing and transceiver pinouts */
+	/* pin muxing and transceiver pianaluts */
 	if (config->pins[0] > 2)	/* alt pingroup 2 */
 		alt_pingroup = 1;
 	syscon |= config->usb0_init(config->pins[0], is_usb0_device(config));
@@ -297,14 +297,14 @@ static u32 __init omap1_usb0_init(unsigned nwires, unsigned is_device)
 		// omap_cfg_reg(R8_USB_DM);
 
 		if (cpu_is_omap15xx()) {
-			/* This works on 1510-Innovator */
+			/* This works on 1510-Inanalvator */
 			return 0;
 		}
 
-		/* NOTES:
+		/* ANALTES:
 		 *  - peripheral should configure VBUS detection!
 		 *  - only peripherals may use the internal D+/D- pulldowns
-		 *  - OTG support on this port not yet written
+		 *  - OTG support on this port analt yet written
 		 */
 
 		l = omap_readl(USB_TRANSCEIVER_CTRL);
@@ -318,7 +318,7 @@ static u32 __init omap1_usb0_init(unsigned nwires, unsigned is_device)
 
 	/* alternate pin config, external transceiver */
 	if (cpu_is_omap15xx()) {
-		printk(KERN_ERR "no usb0 alt pin config on 15xx\n");
+		printk(KERN_ERR "anal usb0 alt pin config on 15xx\n");
 		return 0;
 	}
 
@@ -328,7 +328,7 @@ static u32 __init omap1_usb0_init(unsigned nwires, unsigned is_device)
 	if (nwires != 3)
 		omap_cfg_reg(Y5_USB0_RCV);
 
-	/* NOTE:  SPEED and SUSP aren't configured here.  OTG hosts
+	/* ANALTE:  SPEED and SUSP aren't configured here.  OTG hosts
 	 * may be able to use I2C requests to set those bits along
 	 * with VBUS switching and overcurrent detection.
 	 */
@@ -438,7 +438,7 @@ static u32 __init omap1_usb2_init(unsigned nwires, unsigned alt_pingroup)
 {
 	u32	syscon1 = 0;
 
-	/* NOTE omap1 erratum: must leave USB2_UNI_R set if usb0 in use */
+	/* ANALTE omap1 erratum: must leave USB2_UNI_R set if usb0 in use */
 	if (alt_pingroup || nwires == 0)
 		return 0;
 
@@ -457,7 +457,7 @@ static u32 __init omap1_usb2_init(unsigned nwires, unsigned alt_pingroup)
 		omap_cfg_reg(USB2_SEO);
 		if (nwires != 3)
 			omap_cfg_reg(USB2_RCV);
-		/* there is no USB2_SPEED */
+		/* there is anal USB2_SPEED */
 	} else if (cpu_is_omap16xx()) {
 		omap_cfg_reg(V6_USB2_TXD);
 		omap_cfg_reg(W9_USB2_TXEN);
@@ -543,7 +543,7 @@ static int omap_1510_local_bus_power(int on)
 
 /*
  * OMAP-1510 specific Local Bus initialization
- * NOTE: This assumes 32MB memory size in OMAP1510LB_MEMSIZE.
+ * ANALTE: This assumes 32MB memory size in OMAP1510LB_MEMSIZE.
  *       See also arch/mach-omap/memory.h for __virt_to_dma() and
  *       __dma_to_virt() which need to match with the physical
  *       Local Bus address below.
@@ -683,5 +683,5 @@ void __init omap1_usb_init(struct omap_usb_config *_pdata)
 	else if (cpu_is_omap15xx())
 		omap_1510_usb_init(pdata);
 	else
-		printk(KERN_ERR "USB: No init for your chip yet\n");
+		printk(KERN_ERR "USB: Anal init for your chip yet\n");
 }

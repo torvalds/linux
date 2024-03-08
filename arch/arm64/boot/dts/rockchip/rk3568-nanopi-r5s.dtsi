@@ -457,11 +457,11 @@
 
 	usb {
 		vcc5v0_usb_host_en: vcc5v0-usb-host-en {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_usb_otg_en: vcc5v0-usb-otg-en {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -486,7 +486,7 @@
 &sdhci {
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd>;
 	status = "okay";
@@ -494,8 +494,8 @@
 
 &sdmmc0 {
 	max-frequency = <150000000>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;

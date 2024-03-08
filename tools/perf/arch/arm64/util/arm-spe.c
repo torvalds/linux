@@ -69,18 +69,18 @@ arm_spe_snapshot_resolve_auxtrace_defaults(struct record_opts *opts,
 					   bool privileged)
 {
 	/*
-	 * The default snapshot size is the auxtrace mmap size. If neither auxtrace mmap size nor
+	 * The default snapshot size is the auxtrace mmap size. If neither auxtrace mmap size analr
 	 * snapshot size is specified, then the default is 4MiB for privileged users, 128KiB for
 	 * unprivileged users.
 	 *
 	 * The default auxtrace mmap size is 4MiB/page_size for privileged users, 128KiB for
-	 * unprivileged users. If an unprivileged user does not specify mmap pages, the mmap pages
+	 * unprivileged users. If an unprivileged user does analt specify mmap pages, the mmap pages
 	 * will be reduced from the default 512KiB/page_size to 256KiB/page_size, otherwise the
 	 * user is likely to get an error as they exceed their mlock limmit.
 	 */
 
 	/*
-	 * No size were given to '-S' or '-m,', so go with the default
+	 * Anal size were given to '-S' or '-m,', so go with the default
 	 */
 	if (!opts->auxtrace_snapshot_size && !opts->auxtrace_mmap_pages) {
 		if (privileged) {
@@ -95,15 +95,15 @@ arm_spe_snapshot_resolve_auxtrace_defaults(struct record_opts *opts,
 	}
 
 	/*
-	 * '-m,xyz' was specified but no snapshot size, so make the snapshot size as big as the
+	 * '-m,xyz' was specified but anal snapshot size, so make the snapshot size as big as the
 	 * auxtrace mmap area.
 	 */
 	if (!opts->auxtrace_snapshot_size)
 		opts->auxtrace_snapshot_size = opts->auxtrace_mmap_pages * (size_t)page_size;
 
 	/*
-	 * '-Sxyz' was specified but no auxtrace mmap area, so make the auxtrace mmap area big
-	 * enough to fit the requested snapshot size.
+	 * '-Sxyz' was specified but anal auxtrace mmap area, so make the auxtrace mmap area big
+	 * eanalugh to fit the requested snapshot size.
 	 */
 	if (!opts->auxtrace_mmap_pages) {
 		size_t sz = opts->auxtrace_snapshot_size;
@@ -141,7 +141,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	struct perf_pmu *arm_spe_pmu = sper->arm_spe_pmu;
 	struct evsel *evsel, *arm_spe_evsel = NULL;
 	struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
-	bool privileged = perf_event_paranoid_check(-1);
+	bool privileged = perf_event_paraanalid_check(-1);
 	struct evsel *tracking_evsel;
 	int err;
 	u64 bit;
@@ -180,7 +180,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 		 * Snapshot size can't be bigger than the auxtrace area.
 		 */
 		if (opts->auxtrace_snapshot_size > opts->auxtrace_mmap_pages * (size_t)page_size) {
-			pr_err("Snapshot size %zu must not be greater than AUX area tracing mmap size %zu\n",
+			pr_err("Snapshot size %zu must analt be greater than AUX area tracing mmap size %zu\n",
 			       opts->auxtrace_snapshot_size,
 			       opts->auxtrace_mmap_pages * (size_t)page_size);
 			return -EINVAL;
@@ -239,13 +239,13 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	}
 
 	/*
-	 * Set this only so that perf report knows that SPE generates memory info. It has no effect
+	 * Set this only so that perf report kanalws that SPE generates memory info. It has anal effect
 	 * on the opening of the event or the SPE data produced.
 	 */
 	evsel__set_sample_bit(arm_spe_evsel, DATA_SRC);
 
 	/*
-	 * The PHYS_ADDR flag does not affect the driver behaviour, it is used to
+	 * The PHYS_ADDR flag does analt affect the driver behaviour, it is used to
 	 * inform that the resulting output's SPE samples contain physical addresses
 	 * where applicable.
 	 */
@@ -270,7 +270,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 		evsel__set_sample_bit(tracking_evsel, CPU);
 
 		/* also track task context switch */
-		if (!record_opts__no_switch_events(opts))
+		if (!record_opts__anal_switch_events(opts))
 			tracking_evsel->core.attr.context_switch = 1;
 	}
 
@@ -328,7 +328,7 @@ static int arm_spe_alloc_wrapped_array(struct arm_spe_recording *ptr, int idx)
 	int cnt = ptr->wrapped_cnt, new_cnt, i;
 
 	/*
-	 * No need to allocate, so return early.
+	 * Anal need to allocate, so return early.
 	 */
 	if (idx < cnt)
 		return 0;
@@ -343,7 +343,7 @@ static int arm_spe_alloc_wrapped_array(struct arm_spe_recording *ptr, int idx)
 	 */
 	wrapped = reallocarray(ptr->wrapped, new_cnt, sizeof(bool));
 	if (!wrapped)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * init new allocated values.
@@ -379,7 +379,7 @@ static bool arm_spe_buffer_has_wrapped(unsigned char *buffer,
 
 	/*
 	 * The value of head is somewhere within the size of the ring buffer. This can be that there
-	 * hasn't been enough data to fill the ring buffer yet or the trace time was so long that
+	 * hasn't been eanalugh data to fill the ring buffer yet or the trace time was so long that
 	 * head has numerically wrapped around.  To find we need to check if we have data at the
 	 * very end of the ring buffer.  We can reliably do this because mmap'ed pages are zeroed
 	 * out and there is a fresh mapping with every new session.
@@ -443,7 +443,7 @@ static int arm_spe_find_snapshot(struct auxtrace_record *itr, int idx,
 		  __func__, idx, (size_t)*old, (size_t)*head, mm->len);
 
 	/*
-	 * No wrap has occurred, we can just use *head and *old.
+	 * Anal wrap has occurred, we can just use *head and *old.
 	 */
 	if (!wrapped)
 		return 0;
@@ -466,7 +466,7 @@ static u64 arm_spe_reference(struct auxtrace_record *itr __maybe_unused)
 {
 	struct timespec ts;
 
-	clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+	clock_gettime(CLOCK_MOANALTONIC_RAW, &ts);
 
 	return ts.tv_sec ^ ts.tv_nsec;
 }
@@ -486,13 +486,13 @@ struct auxtrace_record *arm_spe_recording_init(int *err,
 	struct arm_spe_recording *sper;
 
 	if (!arm_spe_pmu) {
-		*err = -ENODEV;
+		*err = -EANALDEV;
 		return NULL;
 	}
 
 	sper = zalloc(sizeof(struct arm_spe_recording));
 	if (!sper) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		return NULL;
 	}
 

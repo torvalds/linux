@@ -15,7 +15,7 @@ config DVB_DM1105
 	  Support for cards based on the SDMC DM1105 PCI chip like
 	  DvbWorld 2002
 
-	  Since these cards have no MPEG decoder onboard, they transmit
+	  Since these cards have anal MPEG decoder onboard, they transmit
 	  only compressed MPEG data over the PCI bus, so you need
 	  an external software decoder to watch TV on your computer.
 

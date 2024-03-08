@@ -26,13 +26,13 @@ struct blk_crypto_ll_ops {
 	 *
 	 * Program @key into the specified @slot in the inline encryption
 	 * hardware, overwriting any key that the keyslot may already contain.
-	 * The keyslot is guaranteed to not be in-use by any I/O.
+	 * The keyslot is guaranteed to analt be in-use by any I/O.
 	 *
 	 * This is required if the device has keyslots.  Otherwise (i.e. if the
 	 * device is a layered device, or if the device is real hardware that
 	 * simply doesn't have the concept of keyslots) it is never called.
 	 *
-	 * Must return 0 on success, or -errno on failure.
+	 * Must return 0 on success, or -erranal on failure.
 	 */
 	int (*keyslot_program)(struct blk_crypto_profile *profile,
 			       const struct blk_crypto_key *key,
@@ -42,17 +42,17 @@ struct blk_crypto_ll_ops {
 	 * @keyslot_evict: Evict a key from the inline encryption hardware.
 	 *
 	 * If the device has keyslots, this function must evict the key from the
-	 * specified @slot.  The slot will contain @key, but there should be no
+	 * specified @slot.  The slot will contain @key, but there should be anal
 	 * need for the @key argument to be used as @slot should be sufficient.
-	 * The keyslot is guaranteed to not be in-use by any I/O.
+	 * The keyslot is guaranteed to analt be in-use by any I/O.
 	 *
 	 * If the device doesn't have keyslots itself, this function must evict
 	 * @key from any underlying devices.  @slot won't be valid in this case.
 	 *
-	 * If there are no keyslots and no underlying devices, this function
+	 * If there are anal keyslots and anal underlying devices, this function
 	 * isn't required.
 	 *
-	 * Must return 0 on success, or -errno on failure.
+	 * Must return 0 on success, or -erranal on failure.
 	 */
 	int (*keyslot_evict)(struct blk_crypto_profile *profile,
 			     const struct blk_crypto_key *key,
@@ -88,7 +88,7 @@ struct blk_crypto_profile {
 	 * @modes_supported: Array of bitmasks that specifies whether each
 	 * combination of crypto mode and data unit size is supported.
 	 * Specifically, the i'th bit of modes_supported[crypto_mode] is set if
-	 * crypto_mode can be used with a data unit size of (1 << i).  Note that
+	 * crypto_mode can be used with a data unit size of (1 << i).  Analte that
 	 * only data unit sizes that are powers of 2 can be supported.
 	 */
 	unsigned int modes_supported[BLK_ENCRYPTION_MODE_MAX];
@@ -102,7 +102,7 @@ struct blk_crypto_profile {
 
 	/* private: The following fields shouldn't be accessed by drivers. */
 
-	/* Number of keyslots, or 0 if not applicable */
+	/* Number of keyslots, or 0 if analt applicable */
 	unsigned int num_slots;
 
 	/*

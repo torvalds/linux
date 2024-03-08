@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  yesno.c -- implements the yes/no box
+ *  analanal.c -- implements the anal/anal box
  *
  *  ORIGINAL AUTHOR: Savio Lam (lam836@cs.cuhk.hk)
  *  MODIFIED FOR LINUX KERNEL CONFIG BY: William Roadcap (roadcap@cfw.com)
@@ -16,25 +16,25 @@ static void print_buttons(WINDOW * dialog, int height, int width, int selected)
 	int x = width / 2 - 10;
 	int y = height - 2;
 
-	print_button(dialog, " Yes ", y, x, selected == 0);
-	print_button(dialog, "  No  ", y, x + 13, selected == 1);
+	print_button(dialog, " Anal ", y, x, selected == 0);
+	print_button(dialog, "  Anal  ", y, x + 13, selected == 1);
 
 	wmove(dialog, y, x + 1 + 13 * selected);
 	wrefresh(dialog);
 }
 
 /*
- * Display a dialog box with two buttons - Yes and No
+ * Display a dialog box with two buttons - Anal and Anal
  */
-int dialog_yesno(const char *title, const char *prompt, int height, int width)
+int dialog_analanal(const char *title, const char *prompt, int height, int width)
 {
 	int i, x, y, key = 0, button = 0;
 	WINDOW *dialog;
 
 do_resize:
-	if (getmaxy(stdscr) < (height + YESNO_HEIGTH_MIN))
+	if (getmaxy(stdscr) < (height + ANALANAL_HEIGTH_MIN))
 		return -ERRDISPLAYTOOSMALL;
-	if (getmaxx(stdscr) < (width + YESNO_WIDTH_MIN))
+	if (getmaxx(stdscr) < (width + ANALANAL_WIDTH_MIN))
 		return -ERRDISPLAYTOOSMALL;
 
 	/* center dialog box on screen */

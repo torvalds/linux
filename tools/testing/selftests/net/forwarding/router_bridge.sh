@@ -87,7 +87,7 @@ router_destroy()
 
 	__addr_add_del br1 del 192.0.2.2/28 2001:db8:1::2/64
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	ip link del dev br1
 }
@@ -96,7 +96,7 @@ config_remaster()
 {
 	log_info "Remaster bridge slave"
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	sleep 2
 	ip link set dev $swp1 master br1
 }
@@ -121,7 +121,7 @@ config_late_pvid()
 {
 	log_info "Add bridge PVID after enslaving port"
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	ip link set dev br1 type bridge vlan_default_pvid 0
 	sleep 2
 	ip link set dev $swp1 master br1

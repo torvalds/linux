@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASMARM_SIGNAL_H
 #define _UAPI_ASMARM_SIGNAL_H
 
@@ -53,7 +53,7 @@ typedef unsigned long sigset_t;
 #define SIGSYS		31
 #define	SIGUNUSED	31
 
-/* These should not be considered constants from userland.  */
+/* These should analt be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	_NSIG
 
@@ -61,8 +61,8 @@ typedef unsigned long sigset_t;
 
 /*
  * SA_THIRTYTWO historically meant deliver the signal in 32-bit mode, even if
- * the task is running in 26-bit. But since the kernel no longer supports
- * 26-bit mode, the flag has no effect.
+ * the task is running in 26-bit. But since the kernel anal longer supports
+ * 26-bit mode, the flag has anal effect.
  */
 #define SA_THIRTYTWO	0x02000000
 #define SA_RESTORER	0x04000000

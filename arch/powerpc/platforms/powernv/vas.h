@@ -26,7 +26,7 @@
  * Coprocessor Request Blocks (CRB)s and submit them using the "copy" and
  * "paste" instructions which were introduced in Power9.
  *
- * A Power node can have (upto?) 8 Power chips. There is one instance of
+ * A Power analde can have (upto?) 8 Power chips. There is one instance of
  * VAS in each Power9 chip. Each instance of VAS has 64K windows or ports,
  * Senders and receivers must each connect to a separate window before they
  * can exchange messages through the switchboard.
@@ -50,7 +50,7 @@
  * are referred to as the UWC BAR for the instance.
  *
  * The two BARs for each instance are defined Power9 MMIO Ranges spreadsheet
- * and available to the kernel in the VAS node's "reg" property in the device
+ * and available to the kernel in the VAS analde's "reg" property in the device
  * tree:
  *
  *	/proc/device-tree/vasm@.../reg
@@ -72,7 +72,7 @@
  *
  * The hardware paste address for a window is computed using the "paste
  * base address" and "paste win id shift" reg properties in the VAS device
- * tree node using:
+ * tree analde using:
  *
  *	paste_addr = paste_base + ((winid << paste_win_id_shift))
  *
@@ -82,7 +82,7 @@
  * after which they can use the 'paste' instruction (new in Power9) to
  * send a message (submit a request aka CRB) to the coprocessor.
  *
- * NOTE: In the initial version, senders can only in-kernel drivers/threads.
+ * ANALTE: In the initial version, senders can only in-kernel drivers/threads.
  *	 Support for user space threads will be added in follow-on patches.
  *
  * TODO: Do we need to map the UWC into user address space so they can return
@@ -177,8 +177,8 @@
 #define VAS_CURR_MSG_COUNT_OFFSET	0x0C0
 #define VAS_CURR_MSG_COUNT		PPC_BITMASK(0, 7)
 
-#define VAS_LNOTIFY_AFTER_COUNT_OFFSET	0x0C8
-#define VAS_LNOTIFY_AFTER_COUNT		PPC_BITMASK(0, 7)
+#define VAS_LANALTIFY_AFTER_COUNT_OFFSET	0x0C8
+#define VAS_LANALTIFY_AFTER_COUNT		PPC_BITMASK(0, 7)
 
 #define VAS_LRX_WCRED_OFFSET		0x0E0
 #define VAS_LRX_WCRED			PPC_BITMASK(0, 15)
@@ -197,7 +197,7 @@
 
 #define VAS_WINCTL_OFFSET		0x108
 #define VAS_WINCTL_OPEN			PPC_BIT(0)
-#define VAS_WINCTL_REJ_NO_CREDIT	PPC_BIT(1)
+#define VAS_WINCTL_REJ_ANAL_CREDIT	PPC_BIT(1)
 #define VAS_WINCTL_PIN			PPC_BIT(2)
 #define VAS_WINCTL_TX_WCRED_MODE	PPC_BIT(3)
 #define VAS_WINCTL_RX_WCRED_MODE	PPC_BIT(4)
@@ -223,27 +223,27 @@
 #define VAS_LRX_WIN_ID			PPC_BITMASK(0, 15)
 
 /*
- * Local Notification Control Register controls what happens in _response_
+ * Local Analtification Control Register controls what happens in _response_
  * to a paste command and hence applies only to receive windows.
  */
-#define VAS_LNOTIFY_CTL_OFFSET		0x138
-#define VAS_NOTIFY_DISABLE		PPC_BIT(0)
+#define VAS_LANALTIFY_CTL_OFFSET		0x138
+#define VAS_ANALTIFY_DISABLE		PPC_BIT(0)
 #define VAS_INTR_DISABLE		PPC_BIT(1)
-#define VAS_NOTIFY_EARLY		PPC_BIT(2)
-#define VAS_NOTIFY_OSU_INTR		PPC_BIT(3)
+#define VAS_ANALTIFY_EARLY		PPC_BIT(2)
+#define VAS_ANALTIFY_OSU_INTR		PPC_BIT(3)
 
-#define VAS_LNOTIFY_PID_OFFSET		0x140
-#define VAS_LNOTIFY_PID			PPC_BITMASK(0, 19)
+#define VAS_LANALTIFY_PID_OFFSET		0x140
+#define VAS_LANALTIFY_PID			PPC_BITMASK(0, 19)
 
-#define VAS_LNOTIFY_LPID_OFFSET		0x148
-#define VAS_LNOTIFY_LPID		PPC_BITMASK(0, 11)
+#define VAS_LANALTIFY_LPID_OFFSET		0x148
+#define VAS_LANALTIFY_LPID		PPC_BITMASK(0, 11)
 
-#define VAS_LNOTIFY_TID_OFFSET		0x150
-#define VAS_LNOTIFY_TID			PPC_BITMASK(0, 15)
+#define VAS_LANALTIFY_TID_OFFSET		0x150
+#define VAS_LANALTIFY_TID			PPC_BITMASK(0, 15)
 
-#define VAS_LNOTIFY_SCOPE_OFFSET	0x158
-#define VAS_LNOTIFY_MIN_SCOPE		PPC_BITMASK(0, 1)
-#define VAS_LNOTIFY_MAX_SCOPE		PPC_BITMASK(2, 3)
+#define VAS_LANALTIFY_SCOPE_OFFSET	0x158
+#define VAS_LANALTIFY_MIN_SCOPE		PPC_BITMASK(0, 1)
+#define VAS_LANALTIFY_MAX_SCOPE		PPC_BITMASK(2, 3)
 
 #define VAS_NX_UTIL_OFFSET		0x1B0
 #define VAS_NX_UTIL			PPC_BITMASK(0, 63)
@@ -266,9 +266,9 @@
 #define VREG(r)		VREG_SFX(r, _OFFSET)
 
 /*
- * Local Notify Scope Control Register. (Receive windows only).
+ * Local Analtify Scope Control Register. (Receive windows only).
  */
-enum vas_notify_scope {
+enum vas_analtify_scope {
 	VAS_SCOPE_LOCAL,
 	VAS_SCOPE_GROUP,
 	VAS_SCOPE_VECTORED_GROUP,
@@ -284,20 +284,20 @@ enum vas_dma_type {
 };
 
 /*
- * Local Notify Scope Control Register. (Receive windows only).
- * Not applicable to NX receive windows.
+ * Local Analtify Scope Control Register. (Receive windows only).
+ * Analt applicable to NX receive windows.
  */
-enum vas_notify_after_count {
-	VAS_NOTIFY_AFTER_256 = 0,
-	VAS_NOTIFY_NONE,
-	VAS_NOTIFY_AFTER_2
+enum vas_analtify_after_count {
+	VAS_ANALTIFY_AFTER_256 = 0,
+	VAS_ANALTIFY_ANALNE,
+	VAS_ANALTIFY_AFTER_2
 };
 
 /*
  * NX can generate an interrupt for multiple faults and expects kernel
  * to process all of them. So read all valid CRB entries until find the
  * invalid one. So use pswid which is pasted by NX and ccw[0] (reserved
- * bit in BE) to check valid CRB. CCW[0] will not be touched by user
+ * bit in BE) to check valid CRB. CCW[0] will analt be touched by user
  * space. Application gets CRB formt error if it updates this bit.
  *
  * Invalidate FIFO during allocation and process all entries from last
@@ -319,7 +319,7 @@ enum vas_notify_after_count {
 struct vas_instance {
 	int vas_id;
 	struct ida ida;
-	struct list_head node;
+	struct list_head analde;
 	struct platform_device *pdev;
 
 	u64 hvwc_bar_start;
@@ -386,24 +386,24 @@ struct vas_winctx {
 	bool fault_win;
 	bool rsvd_txbuf_enable;
 	bool pin_win;
-	bool rej_no_credit;
+	bool rej_anal_credit;
 	bool tx_wcred_mode;
 	bool rx_wcred_mode;
 	bool tx_word_mode;
 	bool rx_word_mode;
 	bool data_stamp;
 	bool xtra_write;
-	bool notify_disable;
+	bool analtify_disable;
 	bool intr_disable;
 	bool fifo_disable;
-	bool notify_early;
-	bool notify_os_intr_reg;
+	bool analtify_early;
+	bool analtify_os_intr_reg;
 
 	int lpid;
-	int pidr;		/* value from SPRN_PID, not linux pid */
-	int lnotify_lpid;
-	int lnotify_pid;
-	int lnotify_tid;
+	int pidr;		/* value from SPRN_PID, analt linux pid */
+	int lanaltify_lpid;
+	int lanaltify_pid;
+	int lanaltify_tid;
 	u32 pswid;
 	int rx_win_id;
 	int fault_win_id;
@@ -412,9 +412,9 @@ struct vas_winctx {
 	u64 irq_port;
 
 	enum vas_dma_type dma_type;
-	enum vas_notify_scope min_scope;
-	enum vas_notify_scope max_scope;
-	enum vas_notify_after_count notify_after_count;
+	enum vas_analtify_scope min_scope;
+	enum vas_analtify_scope max_scope;
+	enum vas_analtify_after_count analtify_after_count;
 };
 
 extern struct mutex vas_mutex;

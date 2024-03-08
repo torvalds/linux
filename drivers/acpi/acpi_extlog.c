@@ -29,7 +29,7 @@
 #define ELOG_ENTRY_LEN		0x1000
 
 #define EMCA_BUG \
-	"Can not request iomem region <0x%016llx-0x%016llx> - eMCA disabled\n"
+	"Can analt request iomem region <0x%016llx-0x%016llx> - eMCA disabled\n"
 
 struct extlog_l1_head {
 	u32 ver;	/* Header Version */
@@ -84,7 +84,7 @@ static struct acpi_hest_generic_status *extlog_elog_entry_check(int cpu, int ban
 	data &= EXT_ELOG_ENTRY_MASK;
 	estatus = (struct acpi_hest_generic_status *)ELOG_ENTRY_ADDR(data);
 
-	/* if no valid data in elog entry, just return */
+	/* if anal valid data in elog entry, just return */
 	if (estatus->block_status == 0)
 		return NULL;
 
@@ -94,8 +94,8 @@ static struct acpi_hest_generic_status *extlog_elog_entry_check(int cpu, int ban
 static void __print_extlog_rcd(const char *pfx,
 			       struct acpi_hest_generic_status *estatus, int cpu)
 {
-	static atomic_t seqno;
-	unsigned int curr_seqno;
+	static atomic_t seqanal;
+	unsigned int curr_seqanal;
 	char pfx_seq[64];
 
 	if (!pfx) {
@@ -104,8 +104,8 @@ static void __print_extlog_rcd(const char *pfx,
 		else
 			pfx = KERN_ERR;
 	}
-	curr_seqno = atomic_inc_return(&seqno);
-	snprintf(pfx_seq, sizeof(pfx_seq), "%s{%u}", pfx, curr_seqno);
+	curr_seqanal = atomic_inc_return(&seqanal);
+	snprintf(pfx_seq, sizeof(pfx_seq), "%s{%u}", pfx, curr_seqanal);
 	printk("%s""Hardware error detected on CPU%d\n", pfx_seq, cpu);
 	cper_estatus_print(pfx_seq, estatus);
 }
@@ -113,7 +113,7 @@ static void __print_extlog_rcd(const char *pfx,
 static int print_extlog_rcd(const char *pfx,
 			    struct acpi_hest_generic_status *estatus, int cpu)
 {
-	/* Not more than 2 messages every 5 seconds */
+	/* Analt more than 2 messages every 5 seconds */
 	static DEFINE_RATELIMIT_STATE(ratelimit_corrected, 5*HZ, 2);
 	static DEFINE_RATELIMIT_STATE(ratelimit_uncorrected, 5*HZ, 2);
 	struct ratelimit_state *ratelimit;
@@ -131,7 +131,7 @@ static int print_extlog_rcd(const char *pfx,
 	return 1;
 }
 
-static int extlog_print(struct notifier_block *nb, unsigned long val,
+static int extlog_print(struct analtifier_block *nb, unsigned long val,
 			void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -146,11 +146,11 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 
 	estatus = extlog_elog_entry_check(cpu, bank);
 	if (!estatus)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (mce->kflags & MCE_HANDLED_CEC) {
 		estatus->block_status = 0;
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	memcpy(elog_buf, (void *)estatus, ELOG_ENTRY_LEN);
@@ -187,7 +187,7 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 
 out:
 	mce->kflags |= MCE_HANDLED_EXTLOG;
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static bool __init extlog_get_l1addr(void)
@@ -220,8 +220,8 @@ static bool __init extlog_get_l1addr(void)
 
 	return true;
 }
-static struct notifier_block extlog_mce_dec = {
-	.notifier_call	= extlog_print,
+static struct analtifier_block extlog_mce_dec = {
+	.analtifier_call	= extlog_print,
 	.priority	= MCE_PRIO_EXTLOG,
 };
 
@@ -237,7 +237,7 @@ static int __init extlog_init(void)
 	if (rdmsrl_safe(MSR_IA32_MCG_CAP, &cap) ||
 	    !(cap & MCG_ELOG_P) ||
 	    !extlog_get_l1addr())
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = -EINVAL;
 	/* get L1 header to fetch necessary information */
@@ -280,7 +280,7 @@ static int __init extlog_init(void)
 	}
 	elog_addr = acpi_os_map_iomem(elog_base, elog_size);
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	/* allocate buffer to save elog record */
 	elog_buf = kmalloc(ELOG_ENTRY_LEN, GFP_KERNEL);
 	if (elog_buf == NULL)

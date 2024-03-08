@@ -223,10 +223,10 @@ ENTRY(aes_sparc64_key_expand)
 
 	cmp	%o2, 24
 	bl	2f
-	 nop
+	 analp
 
 	be	1f
-	 nop
+	 analp
 
 	/* 256-bit key expansion */
 	ld	[%o0 + 0x10], %f4
@@ -938,7 +938,7 @@ ENTRY(aes_sparc64_ecb_encrypt_128)
 	brgz		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	ldx		[%o1 + 0x00], %g3
 	ldx		[%o1 + 0x08], %g7
 	xor		%g1, %g3, %g3
@@ -949,7 +949,7 @@ ENTRY(aes_sparc64_ecb_encrypt_128)
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
 11:	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_ecb_encrypt_128)
 
 	.align		32
@@ -981,7 +981,7 @@ ENTRY(aes_sparc64_ecb_encrypt_192)
 	brgz		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	ldx		[%o1 + 0x00], %g3
 	ldx		[%o1 + 0x08], %g7
 	xor		%g1, %g3, %g3
@@ -992,7 +992,7 @@ ENTRY(aes_sparc64_ecb_encrypt_192)
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
 11:	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_ecb_encrypt_192)
 
 	.align		32
@@ -1024,7 +1024,7 @@ ENTRY(aes_sparc64_ecb_encrypt_256)
 	brgz		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	ldd		[%o0 + 0xd0], %f56
 	ldd		[%o0 + 0xd8], %f58
 	ldd		[%o0 + 0xe0], %f60
@@ -1039,7 +1039,7 @@ ENTRY(aes_sparc64_ecb_encrypt_256)
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
 11:	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_ecb_encrypt_256)
 
 	.align		32
@@ -1071,7 +1071,7 @@ ENTRY(aes_sparc64_ecb_decrypt_128)
 	brgz,pt		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	ldx		[%o1 + 0x00], %g3
 	ldx		[%o1 + 0x08], %g7
 	xor		%g1, %g3, %g3
@@ -1082,7 +1082,7 @@ ENTRY(aes_sparc64_ecb_decrypt_128)
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
 11:	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_ecb_decrypt_128)
 
 	.align		32
@@ -1114,7 +1114,7 @@ ENTRY(aes_sparc64_ecb_decrypt_192)
 	brgz,pt		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	ldx		[%o1 + 0x00], %g3
 	ldx		[%o1 + 0x08], %g7
 	xor		%g1, %g3, %g3
@@ -1125,7 +1125,7 @@ ENTRY(aes_sparc64_ecb_decrypt_192)
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
 11:	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_ecb_decrypt_192)
 
 	.align		32
@@ -1158,7 +1158,7 @@ ENTRY(aes_sparc64_ecb_decrypt_256)
 	brgz,pt		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	ldd		[%o0 + 0x18], %f56
 	ldd		[%o0 + 0x10], %f58
 	ldd		[%o0 + 0x08], %f60
@@ -1173,7 +1173,7 @@ ENTRY(aes_sparc64_ecb_decrypt_256)
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
 11:	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_ecb_decrypt_256)
 
 	.align		32
@@ -1201,7 +1201,7 @@ ENTRY(aes_sparc64_cbc_encrypt_128)
 	std		%f4, [%o4 + 0x00]
 	std		%f6, [%o4 + 0x08]
 	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_cbc_encrypt_128)
 
 	.align		32
@@ -1229,7 +1229,7 @@ ENTRY(aes_sparc64_cbc_encrypt_192)
 	std		%f4, [%o4 + 0x00]
 	std		%f6, [%o4 + 0x08]
 	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_cbc_encrypt_192)
 
 	.align		32
@@ -1257,7 +1257,7 @@ ENTRY(aes_sparc64_cbc_encrypt_256)
 	std		%f4, [%o4 + 0x00]
 	std		%f6, [%o4 + 0x08]
 	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_cbc_encrypt_256)
 
 	.align		32
@@ -1289,7 +1289,7 @@ ENTRY(aes_sparc64_cbc_decrypt_128)
 	stx		%o0, [%o4 + 0x00]
 	stx		%o5, [%o4 + 0x08]
 	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_cbc_decrypt_128)
 
 	.align		32
@@ -1321,7 +1321,7 @@ ENTRY(aes_sparc64_cbc_decrypt_192)
 	stx		%o0, [%o4 + 0x00]
 	stx		%o5, [%o4 + 0x08]
 	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_cbc_decrypt_192)
 
 	.align		32
@@ -1353,7 +1353,7 @@ ENTRY(aes_sparc64_cbc_decrypt_256)
 	stx		%o0, [%o4 + 0x00]
 	stx		%o5, [%o4 + 0x08]
 	retl
-	 nop
+	 analp
 ENDPROC(aes_sparc64_cbc_decrypt_256)
 
 	.align		32
@@ -1397,7 +1397,7 @@ ENTRY(aes_sparc64_ctr_crypt_128)
 	brgz		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	xor		%g1, %g3, %o5
 	MOVXTOD_O5_F0
 	xor		%g2, %g7, %o5
@@ -1458,7 +1458,7 @@ ENTRY(aes_sparc64_ctr_crypt_192)
 	brgz		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	xor		%g1, %g3, %o5
 	MOVXTOD_O5_F0
 	xor		%g2, %g7, %o5
@@ -1519,7 +1519,7 @@ ENTRY(aes_sparc64_ctr_crypt_256)
 	brgz		%o3, 1b
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
-	 nop
+	 analp
 10:	ldd		[%o0 + 0xd0], %f56
 	ldd		[%o0 + 0xd8], %f58
 	ldd		[%o0 + 0xe0], %f60

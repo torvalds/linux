@@ -8,7 +8,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/auxvec.h>
 #include <linux/signal.h>
 #include <asm/sigcontext.h>
@@ -86,7 +86,7 @@ static void handler(int n, siginfo_t *si __always_unused,
 			      >> PSR_BTYPE_SHIFT) * 2], 2);
 	if (!sigill_expected) {
 		putstr("]\n");
-		putstr("not ok ");
+		putstr("analt ok ");
 		putnum(test_num);
 		putstr(" ");
 		puttestname(current_test_name, current_trampoline_name);
@@ -125,7 +125,7 @@ static void __do_test(void (*trampoline)(void (*)(void)),
 	trampoline(fn);
 
 	if (expect_sigill && !sigill_received) {
-		putstr("not ok ");
+		putstr("analt ok ");
 		test_failed++;
 	} else {
 		putstr("ok ");
@@ -186,7 +186,7 @@ void start(int *argcp)
 	if (hwcap & HWCAP_PACA)
 		putstr("# HWCAP_PACA present\n");
 	else
-		putstr("# HWCAP_PACA not present\n");
+		putstr("# HWCAP_PACA analt present\n");
 
 	if (hwcap2 & HWCAP2_BTI) {
 		putstr("# HWCAP2_BTI present\n");
@@ -194,13 +194,13 @@ void start(int *argcp)
 			putstr("# Bad hardware?  Expect problems.\n");
 		have_bti = true;
 	} else {
-		putstr("# HWCAP2_BTI not present\n");
+		putstr("# HWCAP2_BTI analt present\n");
 		have_bti = false;
 	}
 
 	putstr("# Test binary");
 	if (!BTI)
-		putstr(" not");
+		putstr(" analt");
 	putstr(" built for BTI\n");
 
 	sa.sa_handler = (sighandler_t)(void *)handler;
@@ -210,8 +210,8 @@ void start(int *argcp)
 	sigaddset(&sa.sa_mask, SIGILL);
 	sigprocmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
 
-	do_test(1, 1, 1, nohint_func);
-	do_test(1, 1, 1, bti_none_func);
+	do_test(1, 1, 1, analhint_func);
+	do_test(1, 1, 1, bti_analne_func);
 	do_test(1, 0, 0, bti_c_func);
 	do_test(0, 0, 1, bti_j_func);
 	do_test(0, 0, 0, bti_jc_func);

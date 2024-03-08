@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/stat.h>
@@ -40,7 +40,7 @@ static const struct super_operations v9fs_super_ops, v9fs_super_ops_dotl;
 static int v9fs_set_super(struct super_block *s, void *data)
 {
 	s->s_fs_info = data;
-	return set_anon_super(s, data);
+	return set_aanaln_super(s, data);
 }
 
 /**
@@ -63,7 +63,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	sb->s_magic = V9FS_MAGIC;
 	if (v9fs_proto_dotl(v9ses)) {
 		sb->s_op = &v9fs_super_ops_dotl;
-		if (!(v9ses->flags & V9FS_NO_XATTR))
+		if (!(v9ses->flags & V9FS_ANAL_XATTR))
 			sb->s_xattr = v9fs_xattr_handlers;
 	} else {
 		sb->s_op = &v9fs_super_ops;
@@ -107,7 +107,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		       const char *dev_name, void *data)
 {
 	struct super_block *sb = NULL;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct dentry *root = NULL;
 	struct v9fs_session_info *v9ses = NULL;
 	umode_t mode = 0777 | S_ISVTX;
@@ -118,7 +118,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 
 	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fid = v9fs_session_init(v9ses, dev_name, data);
 	if (IS_ERR(fid)) {
@@ -140,15 +140,15 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	else
 		sb->s_d_op = &v9fs_dentry_operations;
 
-	inode = v9fs_get_inode(sb, S_IFDIR | mode, 0);
-	if (IS_ERR(inode)) {
-		retval = PTR_ERR(inode);
+	ianalde = v9fs_get_ianalde(sb, S_IFDIR | mode, 0);
+	if (IS_ERR(ianalde)) {
+		retval = PTR_ERR(ianalde);
 		goto release_sb;
 	}
 
-	root = d_make_root(inode);
+	root = d_make_root(ianalde);
 	if (!root) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto release_sb;
 	}
 	sb->s_root = root;
@@ -160,8 +160,8 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 			retval = PTR_ERR(st);
 			goto release_sb;
 		}
-		d_inode(root)->i_ino = v9fs_qid2ino(&st->qid);
-		v9fs_stat2inode_dotl(st, d_inode(root), 0);
+		d_ianalde(root)->i_ianal = v9fs_qid2ianal(&st->qid);
+		v9fs_stat2ianalde_dotl(st, d_ianalde(root), 0);
 		kfree(st);
 	} else {
 		struct p9_wstat *st = NULL;
@@ -172,13 +172,13 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 			goto release_sb;
 		}
 
-		d_inode(root)->i_ino = v9fs_qid2ino(&st->qid);
-		v9fs_stat2inode(st, d_inode(root), sb, 0);
+		d_ianalde(root)->i_ianal = v9fs_qid2ianal(&st->qid);
+		v9fs_stat2ianalde(st, d_ianalde(root), sb, 0);
 
 		p9stat_free(st);
 		kfree(st);
 	}
-	retval = v9fs_get_acl(inode, fid);
+	retval = v9fs_get_acl(ianalde, fid);
 	if (retval)
 		goto release_sb;
 	v9fs_fid_add(root, &fid);
@@ -217,7 +217,7 @@ static void v9fs_kill_super(struct super_block *s)
 
 	p9_debug(P9_DEBUG_VFS, " %p\n", s);
 
-	kill_anon_super(s);
+	kill_aanaln_super(s);
 
 	v9fs_session_cancel(v9ses);
 	v9fs_session_close(v9ses);
@@ -262,7 +262,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 			buf->f_fsid = u64_to_fsid(rs.fsid);
 			buf->f_namelen = rs.namelen;
 		}
-		if (res != -ENOSYS)
+		if (res != -EANALSYS)
 			goto done;
 	}
 	res = simple_statfs(dentry, buf);
@@ -271,60 +271,60 @@ done:
 	return res;
 }
 
-static int v9fs_drop_inode(struct inode *inode)
+static int v9fs_drop_ianalde(struct ianalde *ianalde)
 {
 	struct v9fs_session_info *v9ses;
 
-	v9ses = v9fs_inode2v9ses(inode);
+	v9ses = v9fs_ianalde2v9ses(ianalde);
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
-		return generic_drop_inode(inode);
+		return generic_drop_ianalde(ianalde);
 	/*
-	 * in case of non cached mode always drop the
-	 * inode because we want the inode attribute
+	 * in case of analn cached mode always drop the
+	 * ianalde because we want the ianalde attribute
 	 * to always match that on the server.
 	 */
 	return 1;
 }
 
-static int v9fs_write_inode(struct inode *inode,
+static int v9fs_write_ianalde(struct ianalde *ianalde,
 			    struct writeback_control *wbc)
 {
 	/*
 	 * send an fsync request to server irrespective of
 	 * wbc->sync_mode.
 	 */
-	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
-	return netfs_unpin_writeback(inode, wbc);
+	p9_debug(P9_DEBUG_VFS, "%s: ianalde %p\n", __func__, ianalde);
+	return netfs_unpin_writeback(ianalde, wbc);
 }
 
-static int v9fs_write_inode_dotl(struct inode *inode,
+static int v9fs_write_ianalde_dotl(struct ianalde *ianalde,
 				 struct writeback_control *wbc)
 {
 
-	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
+	p9_debug(P9_DEBUG_VFS, "%s: ianalde %p\n", __func__, ianalde);
 
-	return netfs_unpin_writeback(inode, wbc);
+	return netfs_unpin_writeback(ianalde, wbc);
 }
 
 static const struct super_operations v9fs_super_ops = {
-	.alloc_inode = v9fs_alloc_inode,
-	.free_inode = v9fs_free_inode,
+	.alloc_ianalde = v9fs_alloc_ianalde,
+	.free_ianalde = v9fs_free_ianalde,
 	.statfs = simple_statfs,
-	.evict_inode = v9fs_evict_inode,
+	.evict_ianalde = v9fs_evict_ianalde,
 	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
-	.write_inode = v9fs_write_inode,
+	.write_ianalde = v9fs_write_ianalde,
 };
 
 static const struct super_operations v9fs_super_ops_dotl = {
-	.alloc_inode = v9fs_alloc_inode,
-	.free_inode = v9fs_free_inode,
+	.alloc_ianalde = v9fs_alloc_ianalde,
+	.free_ianalde = v9fs_free_ianalde,
 	.statfs = v9fs_statfs,
-	.drop_inode = v9fs_drop_inode,
-	.evict_inode = v9fs_evict_inode,
+	.drop_ianalde = v9fs_drop_ianalde,
+	.evict_ianalde = v9fs_evict_ianalde,
 	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
-	.write_inode = v9fs_write_inode_dotl,
+	.write_ianalde = v9fs_write_ianalde_dotl,
 };
 
 struct file_system_type v9fs_fs_type = {

@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/memory-controllers/ti,gpmc-child.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Texas Instruments GPMC Bus Child Nodes
+title: Texas Instruments GPMC Bus Child Analdes
 
 maintainers:
   - Tony Lindgren <tony@atomide.com>
   - Roger Quadros <rogerq@kernel.org>
 
 description:
-  This binding is meant for the child nodes of the GPMC node. The node
+  This binding is meant for the child analdes of the GPMC analde. The analde
   represents any device connected to the GPMC bus. It may be a Flash chip,
   RAM chip or Ethernet controller, etc. These properties are meant for
   configuring the GPMC settings/timings and will accompany the bindings
@@ -20,9 +20,9 @@ description:
 properties:
   reg: true
 
-# GPMC Timing properties for child nodes. All are optional and default to 0.
+# GPMC Timing properties for child analdes. All are optional and default to 0.
   gpmc,sync-clk-ps:
-    description: Minimum clock period for synchronous mode
+    description: Minimum clock period for synchroanalus mode
     default: 0
 
 # Chip-select signal timings corresponding to GPMC_CONFIG2:
@@ -89,7 +89,7 @@ properties:
     description: Deassertion time for AAD
     default: 0
 
-# Access time and cycle time timings (in nanoseconds) corresponding to
+# Access time and cycle time timings (in naanalseconds) corresponding to
 # GPMC_CONFIG5:
   gpmc,page-burst-access-ns:
     description: Multiple access word delay
@@ -160,7 +160,7 @@ properties:
 # The following two properties are applicable only to OMAP3+ and AM335x:
   gpmc,wr-access-ns:
     description: |
-      In synchronous write mode, for single or
+      In synchroanalus write mode, for single or
       burst accesses, defines the number of
       GPMC_FCLK cycles from start access time
       to the GPMC_CLK rising edge used by the
@@ -174,7 +174,7 @@ properties:
       the address-data bus.
     default: 0
 
-# GPMC chip-select settings properties for child nodes. All are optional.
+# GPMC chip-select settings properties for child analdes. All are optional.
   gpmc,burst-length:
     description: Page/burst length.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -207,7 +207,7 @@ properties:
     description: |
       Address and data multiplexing configuration.
       Valid values are
-      0 for Non multiplexed mode
+      0 for Analn multiplexed mode
       1 for address-address-data multiplexing mode and
       2 for address-data multiplexing mode.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -215,14 +215,14 @@ properties:
 
   gpmc,sync-read:
     description: |
-      Enables synchronous read. Defaults to asynchronous
-      is this is not set.
+      Enables synchroanalus read. Defaults to asynchroanalus
+      is this is analt set.
     type: boolean
 
   gpmc,sync-write:
     description: |
-      Enables synchronous writes. Defaults to asynchronous
-      is this is not set.
+      Enables synchroanalus writes. Defaults to asynchroanalus
+      is this is analt set.
     type: boolean
 
   gpmc,wait-pin:

@@ -71,7 +71,7 @@
 enum dev_num {
 	U1,
 	T4,
-	UNKNOWN,
+	UNKANALWN,
 };
 /**
  * struct alps_dev
@@ -172,7 +172,7 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 
 	input = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input[0] = T4_FEATURE_REPORT_ID;
 	if (read_flag) {
@@ -204,7 +204,7 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 	if (read_flag) {
 		readbuf = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 		if (!readbuf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit;
 		}
 
@@ -259,7 +259,7 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 
 	input = kzalloc(U1_FEATURE_REPORT_LEN, GFP_KERNEL);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input[0] = U1_FEATURE_REPORT_ID;
 	if (read_flag) {
@@ -290,7 +290,7 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 	if (read_flag) {
 		readbuf = kzalloc(U1_FEATURE_REPORT_LEN, GFP_KERNEL);
 		if (!readbuf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit;
 		}
 
@@ -731,7 +731,7 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	if (data->has_sp) {
 		input2 = input_allocate_device();
 		if (!input2) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit;
 		}
 
@@ -761,7 +761,7 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 
 		if (input_register_device(data->input2)) {
 			input_free_device(input2);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto exit;
 		}
 	}
@@ -785,12 +785,12 @@ static int alps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	int ret;
 	data = devm_kzalloc(&hdev->dev, sizeof(struct alps_dev), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->hdev = hdev;
 	hid_set_drvdata(hdev, data);
 
-	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
+	hdev->quirks |= HID_QUIRK_ANAL_INIT_REPORTS;
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -808,7 +808,7 @@ static int alps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		data->dev_type = U1;
 		break;
 	default:
-		data->dev_type = UNKNOWN;
+		data->dev_type = UNKANALWN;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);

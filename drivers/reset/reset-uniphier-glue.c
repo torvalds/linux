@@ -51,7 +51,7 @@ static int uniphier_glue_reset_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data = of_device_get_match_data(dev);
 	if (WARN_ON(!priv->data || priv->data->nclks > MAX_CLKS ||
@@ -95,7 +95,7 @@ static int uniphier_glue_reset_probe(struct platform_device *pdev)
 	priv->rdata.rcdev.owner = THIS_MODULE;
 	priv->rdata.rcdev.nr_resets = resource_size(res) * BITS_PER_BYTE;
 	priv->rdata.rcdev.ops = &reset_simple_ops;
-	priv->rdata.rcdev.of_node = dev->of_node;
+	priv->rdata.rcdev.of_analde = dev->of_analde;
 	priv->rdata.active_low = true;
 
 	return devm_reset_controller_register(dev, &priv->rdata.rcdev);

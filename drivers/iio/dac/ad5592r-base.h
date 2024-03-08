@@ -20,7 +20,7 @@ struct device;
 struct ad5592r_state;
 
 enum ad5592r_registers {
-	AD5592R_REG_NOOP		= 0x0,
+	AD5592R_REG_ANALOP		= 0x0,
 	AD5592R_REG_DAC_READBACK	= 0x1,
 	AD5592R_REG_ADC_SEQ		= 0x2,
 	AD5592R_REG_CTRL		= 0x3,
@@ -68,7 +68,7 @@ struct ad5592r_state {
 	u8 gpio_val;
 
 	__be16 spi_msg __aligned(IIO_DMA_MINALIGN);
-	__be16 spi_msg_nop;
+	__be16 spi_msg_analp;
 };
 
 int ad5592r_probe(struct device *dev, const char *name,

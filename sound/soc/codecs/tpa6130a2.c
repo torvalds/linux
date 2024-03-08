@@ -2,13 +2,13 @@
 /*
  * ALSA SoC Texas Instruments TPA6130A2 headset stereo amplifier driver
  *
- * Copyright (C) Nokia Corporation
+ * Copyright (C) Analkia Corporation
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -68,7 +68,7 @@ static int tpa6130a2_power(struct tpa6130a2_data *data, bool enable)
 			return ret;
 		}
 	} else {
-		/* Powered off device does not retain registers. While device
+		/* Powered off device does analt retain registers. While device
 		 * is off, any register updates (i.e. volume changes) should
 		 * happen in cache only.
 		 */
@@ -221,7 +221,7 @@ static int tpa6130a2_probe(struct i2c_client *client)
 	struct device *dev;
 	struct tpa6130a2_data *data;
 	struct tpa6130a2_platform_data *pdata = client->dev.platform_data;
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	const struct i2c_device_id *id;
 	const char *regulator;
 	unsigned int version;
@@ -231,7 +231,7 @@ static int tpa6130a2_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = dev;
 
@@ -244,9 +244,9 @@ static int tpa6130a2_probe(struct i2c_client *client)
 	} else if (np) {
 		data->power_gpio = of_get_named_gpio(np, "power-gpio", 0);
 	} else {
-		dev_err(dev, "Platform data not set\n");
+		dev_err(dev, "Platform data analt set\n");
 		dump_stack();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	i2c_set_clientdata(client, data);
@@ -267,7 +267,7 @@ static int tpa6130a2_probe(struct i2c_client *client)
 
 	switch (data->id) {
 	default:
-		dev_warn(dev, "Unknown TPA model (%d). Assuming 6130A2\n",
+		dev_warn(dev, "Unkanalwn TPA model (%d). Assuming 6130A2\n",
 			 data->id);
 		fallthrough;
 	case TPA6130A2:

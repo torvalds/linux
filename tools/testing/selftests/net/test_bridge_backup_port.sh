@@ -47,8 +47,8 @@ TESTS="
 	backup_nhid_torture
 "
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 PING_TIMEOUT=5
 
 ################################################################################
@@ -71,7 +71,7 @@ log_test()
 			echo "    rc=$rc, expected $expected"
 		fi
 
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -79,7 +79,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -142,7 +142,7 @@ setup_topo_ns()
 	local ns=$1; shift
 
 	ip netns exec $ns sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1
-	ip netns exec $ns sysctl -qw net.ipv6.conf.default.ignore_routes_with_linkdown=1
+	ip netns exec $ns sysctl -qw net.ipv6.conf.default.iganalre_routes_with_linkdown=1
 	ip netns exec $ns sysctl -qw net.ipv6.conf.all.accept_dad=0
 	ip netns exec $ns sysctl -qw net.ipv6.conf.default.accept_dad=0
 }
@@ -177,7 +177,7 @@ setup_sw_common()
 	ip -n $ns route add default via $gw_addr
 
 	ip -n $ns link add name br0 up type bridge vlan_filtering 1 \
-		vlan_default_pvid 0 mcast_snooping 0
+		vlan_default_pvid 0 mcast_sanaloping 0
 
 	ip -n $ns link add link br0 name br0.10 up type vlan id 10
 	bridge -n $ns vlan add vid 10 dev br0 self
@@ -188,7 +188,7 @@ setup_sw_common()
 	bridge -n $ns vlan add vid 10 dev swp1 untagged
 
 	ip -n $ns link add name vx0 up master br0 type vxlan \
-		local $local_addr dstport 4789 nolearning external
+		local $local_addr dstport 4789 anallearning external
 	bridge -n $ns link set dev vx0 vlan_tunnel on learning off
 
 	bridge -n $ns vlan add vid 10 dev vx0
@@ -260,13 +260,13 @@ backup_port()
 	run_cmd "bridge -n $sw1 fdb replace $dmac dev swp1 master static vlan 10"
 
 	# Initial state - check that packets are forwarded out of swp1 when it
-	# has a carrier and not forwarded out of any port when it does not have
+	# has a carrier and analt forwarded out of any port when it does analt have
 	# a carrier.
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 1
 	log_test $? 0 "Forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 0
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
 	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
@@ -274,9 +274,9 @@ backup_port()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 1
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 0
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier on"
 	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 forwarding
@@ -284,7 +284,7 @@ backup_port()
 
 	# Configure vx0 as the backup port of swp1 and check that packets are
 	# forwarded out of swp1 when it has a carrier and out of vx0 when swp1
-	# does not have a carrier.
+	# does analt have a carrier.
 	run_cmd "bridge -n $sw1 link set dev swp1 backup_port vx0"
 	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_port vx0\""
 	log_test $? 0 "vx0 configured as backup port of swp1"
@@ -293,7 +293,7 @@ backup_port()
 	tc_check_packets $sw1 "dev swp1 egress" 101 2
 	log_test $? 0 "Forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 0
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
 	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
@@ -301,7 +301,7 @@ backup_port()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 2
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "Forwarding out of vx0"
 
@@ -313,19 +313,19 @@ backup_port()
 	tc_check_packets $sw1 "dev swp1 egress" 101 3
 	log_test $? 0 "Forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 1
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 
-	# Remove vx0 as the backup port of swp1 and check that packets are no
-	# longer forwarded out of vx0 when swp1 does not have a carrier.
-	run_cmd "bridge -n $sw1 link set dev swp1 nobackup_port"
+	# Remove vx0 as the backup port of swp1 and check that packets are anal
+	# longer forwarded out of vx0 when swp1 does analt have a carrier.
+	run_cmd "bridge -n $sw1 link set dev swp1 analbackup_port"
 	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_port vx0\""
-	log_test $? 1 "vx0 not configured as backup port of swp1"
+	log_test $? 1 "vx0 analt configured as backup port of swp1"
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 4
 	log_test $? 0 "Forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 1
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
 	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
@@ -333,9 +333,9 @@ backup_port()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 4
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 1
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 }
 
 backup_nhid()
@@ -371,7 +371,7 @@ backup_nhid()
 
 	# Configure vx0 as the backup port of swp1 and check that packets are
 	# forwarded out of swp1 when it has a carrier and out of vx0 when swp1
-	# does not have a carrier. When packets are forwarded out of vx0, check
+	# does analt have a carrier. When packets are forwarded out of vx0, check
 	# that they are forwarded by the VXLAN FDB entry.
 	run_cmd "bridge -n $sw1 link set dev swp1 backup_port vx0"
 	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_port vx0\""
@@ -381,7 +381,7 @@ backup_nhid()
 	tc_check_packets $sw1 "dev swp1 egress" 101 1
 	log_test $? 0 "Forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 0
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
 	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
@@ -389,11 +389,11 @@ backup_nhid()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 1
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "Forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 0
-	log_test $? 0 "No forwarding using backup nexthop ID"
+	log_test $? 0 "Anal forwarding using backup nexthop ID"
 	tc_check_packets $sw2 "dev vx0 ingress" 102 1
 	log_test $? 0 "Forwarding using VXLAN FDB entry"
 
@@ -412,7 +412,7 @@ backup_nhid()
 	tc_check_packets $sw1 "dev swp1 egress" 101 2
 	log_test $? 0 "Forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 1
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
 	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
@@ -420,13 +420,13 @@ backup_nhid()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 2
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 2
 	log_test $? 0 "Forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "Forwarding using backup nexthop ID"
 	tc_check_packets $sw2 "dev vx0 ingress" 102 1
-	log_test $? 0 "No forwarding using VXLAN FDB entry"
+	log_test $? 0 "Anal forwarding using VXLAN FDB entry"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier on"
 	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 forwarding
@@ -436,28 +436,28 @@ backup_nhid()
 	tc_check_packets $sw1 "dev swp1 egress" 101 3
 	log_test $? 0 "Forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 2
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
-	log_test $? 0 "No forwarding using backup nexthop ID"
+	log_test $? 0 "Anal forwarding using backup nexthop ID"
 	tc_check_packets $sw2 "dev vx0 ingress" 102 1
-	log_test $? 0 "No forwarding using VXLAN FDB entry"
+	log_test $? 0 "Anal forwarding using VXLAN FDB entry"
 
-	# Reset the backup nexthop ID to 0 and check that packets are no longer
-	# forwarded using the backup nexthop ID when swp1 does not have a
+	# Reset the backup nexthop ID to 0 and check that packets are anal longer
+	# forwarded using the backup nexthop ID when swp1 does analt have a
 	# carrier and are instead forwarded by the VXLAN FDB.
 	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 0"
 	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid\""
-	log_test $? 1 "No backup nexthop ID configured for swp1"
+	log_test $? 1 "Anal backup nexthop ID configured for swp1"
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 4
 	log_test $? 0 "Forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 2
-	log_test $? 0 "No forwarding out of vx0"
+	log_test $? 0 "Anal forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
-	log_test $? 0 "No forwarding using backup nexthop ID"
+	log_test $? 0 "Anal forwarding using backup nexthop ID"
 	tc_check_packets $sw2 "dev vx0 ingress" 102 1
-	log_test $? 0 "No forwarding using VXLAN FDB entry"
+	log_test $? 0 "Anal forwarding using VXLAN FDB entry"
 
 	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
 	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
@@ -465,11 +465,11 @@ backup_nhid()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 4
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 3
 	log_test $? 0 "Forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
-	log_test $? 0 "No forwarding using backup nexthop ID"
+	log_test $? 0 "Anal forwarding using backup nexthop ID"
 	tc_check_packets $sw2 "dev vx0 ingress" 102 2
 	log_test $? 0 "Forwarding using VXLAN FDB entry"
 }
@@ -486,7 +486,7 @@ backup_nhid_invalid()
 
 	# Check that when traffic is redirected with an invalid nexthop ID, it
 	# is forwarded out of the VXLAN port, but dropped by the VXLAN driver
-	# and does not crash the host.
+	# and does analt crash the host.
 
 	run_cmd "tc -n $sw1 qdisc replace dev swp1 clsact"
 	run_cmd "tc -n $sw1 filter replace dev swp1 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
@@ -522,26 +522,26 @@ backup_nhid_invalid()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 0
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "Forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "Forwarding using backup nexthop ID"
 	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $tx_drop'"
-	log_test $? 0 "No Tx drop increase"
+	log_test $? 0 "Anal Tx drop increase"
 
-	# Use a non-existent nexthop ID.
+	# Use a analn-existent nexthop ID.
 	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 20"
 	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid 20\""
-	log_test $? 0 "Non-existent nexthop as backup nexthop"
+	log_test $? 0 "Analn-existent nexthop as backup nexthop"
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 0
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 2
 	log_test $? 0 "Forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
-	log_test $? 0 "No forwarding using backup nexthop ID"
+	log_test $? 0 "Anal forwarding using backup nexthop ID"
 	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 1))'"
 	log_test $? 0 "Tx drop increased"
 
@@ -553,26 +553,26 @@ backup_nhid_invalid()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 0
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 3
 	log_test $? 0 "Forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
-	log_test $? 0 "No forwarding using backup nexthop ID"
+	log_test $? 0 "Anal forwarding using backup nexthop ID"
 	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 2))'"
 	log_test $? 0 "Tx drop increased"
 
-	# Non-group FDB nexthop.
+	# Analn-group FDB nexthop.
 	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 1"
 	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid 1\""
-	log_test $? 0 "Non-group FDB nexthop as backup nexthop"
+	log_test $? 0 "Analn-group FDB nexthop as backup nexthop"
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 0
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 4
 	log_test $? 0 "Forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
-	log_test $? 0 "No forwarding using backup nexthop ID"
+	log_test $? 0 "Anal forwarding using backup nexthop ID"
 	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 3))'"
 	log_test $? 0 "Tx drop increased"
 
@@ -586,11 +586,11 @@ backup_nhid_invalid()
 
 	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
 	tc_check_packets $sw1 "dev swp1 egress" 101 0
-	log_test $? 0 "No forwarding out of swp1"
+	log_test $? 0 "Anal forwarding out of swp1"
 	tc_check_packets $sw1 "dev vx0 egress" 101 5
 	log_test $? 0 "Forwarding out of vx0"
 	tc_check_packets $sw2 "dev vx0 ingress" 101 1
-	log_test $? 0 "No forwarding using backup nexthop ID"
+	log_test $? 0 "Anal forwarding using backup nexthop ID"
 	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 4))'"
 	log_test $? 0 "Tx drop increased"
 }
@@ -661,7 +661,7 @@ backup_nhid_torture()
 	echo "--------------------------------"
 
 	# Continuously send traffic through the backup nexthop while adding and
-	# deleting the group. The test is considered successful if nothing
+	# deleting the group. The test is considered successful if analthing
 	# crashed.
 
 	run_cmd "ip -n $sw1 nexthop replace id 1 via 192.0.2.34 fdb"
@@ -711,8 +711,8 @@ trap cleanup EXIT
 while getopts ":t:pPvhw:" opt; do
 	case $opt in
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		w) PING_TIMEOUT=$OPTARG;;
 		h) usage; exit 0;;
@@ -721,7 +721,7 @@ while getopts ":t:pPvhw:" opt; do
 done
 
 # Make sure we don't pause twice.
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -729,27 +729,27 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v bridge)" ]; then
-	echo "SKIP: Could not run test without bridge tool"
+	echo "SKIP: Could analt run test without bridge tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v tc)" ]; then
-	echo "SKIP: Could not run test without tc tool"
+	echo "SKIP: Could analt run test without tc tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v mausezahn)" ]; then
-	echo "SKIP: Could not run test without mausezahn tool"
+	echo "SKIP: Could analt run test without mausezahn tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v jq)" ]; then
-	echo "SKIP: Could not run test without jq tool"
+	echo "SKIP: Could analt run test without jq tool"
 	exit $ksft_skip
 fi
 
@@ -767,7 +767,7 @@ do
 	setup; $t; cleanup;
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

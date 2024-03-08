@@ -34,9 +34,9 @@ DeviceID(DID) combination to uniquely identify itself to the host. AIC100
 uses the standard Qualcomm VID (0x17cb). All AIC100 SKUs use the same
 AIC100 DID (0xa100).
 
-AIC100 does not implement FLR (function level reset).
+AIC100 does analt implement FLR (function level reset).
 
-AIC100 implements MSI but does not implement MSI-X. AIC100 prefers 17 MSIs to
+AIC100 implements MSI but does analt implement MSI-X. AIC100 prefers 17 MSIs to
 operate (1 for MHI, 16 for the DMA Bridge). Falling back to 1 MSI is possible in
 scenarios where reserving 32 MSIs isn't feasible.
 
@@ -49,7 +49,7 @@ hardware. AIC100 provides 3, 64-bit BARs.
   host.
 
 * The third BAR is variable in size based on an individual AIC100's
-  configuration, but defaults to 64K. This BAR currently has no purpose.
+  configuration, but defaults to 64K. This BAR currently has anal purpose.
 
 From the host perspective, AIC100 has several key hardware components -
 
@@ -83,7 +83,7 @@ the processors that run the workloads on AIC100. Each NSP is a Qualcomm Hexagon
 (Q6) DSP with HVX and HMX. Each NSP can only run one workload at a time, but
 multiple NSPs may be assigned to a single workload. Since each NSP can only run
 one workload, AIC100 is limited to 16 concurrent workloads. Workload
-"scheduling" is under the purview of the host. AIC100 does not automatically
+"scheduling" is under the purview of the host. AIC100 does analt automatically
 timeslice.
 
 DMA Bridge
@@ -102,7 +102,7 @@ DDR
 AIC100 has on-card DDR. In total, an AIC100 can have up to 32 GB of DDR.
 This DDR is used to store workloads, data for the workloads, and is used by the
 QSM for managing the device. NSPs are granted access to sections of the DDR by
-the QSM. The host does not have direct access to the DDR, and must make
+the QSM. The host does analt have direct access to the DDR, and must make
 requests to the QSM to transfer data to the DDR.
 
 High-level Use Flow
@@ -110,7 +110,7 @@ High-level Use Flow
 
 AIC100 is a multi-user, programmable accelerator typically used for running
 neural networks in inferencing mode to efficiently perform AI operations.
-AIC100 is not intended for training neural networks. AIC100 can be utilized
+AIC100 is analt intended for training neural networks. AIC100 can be utilized
 for generic compute workloads.
 
 Assuming a user wants to utilize AIC100, they would follow these steps:
@@ -122,9 +122,9 @@ Assuming a user wants to utilize AIC100, they would follow these steps:
 4. Make requests to the DMA Bridge to send input data to the workload to be
    processed, and other requests to receive processed output data from the
    workload.
-5. Once the workload is no longer required, make a request to the QSM to
+5. Once the workload is anal longer required, make a request to the QSM to
    deactivate the workload, thus putting the NSPs back into an idle state.
-6. Once the workload and related artifacts are no longer needed for future
+6. Once the workload and related artifacts are anal longer needed for future
    sessions, make requests to the QSM to unload the data from DDR. This frees
    the DDR to be used by other users.
 
@@ -142,7 +142,7 @@ Using BHI, the host points PBL to the location of the SBL (Secondary Bootloader)
 image. The PBL pulls the image from the host, validates it, and begins
 execution of SBL.
 
-SBL initializes MHI, and uses MHI to notify the host that the device has entered
+SBL initializes MHI, and uses MHI to analtify the host that the device has entered
 the SBL stage. SBL performs a number of operations:
 
 * SBL initializes the majority of hardware (anything PBL left uninitialized),
@@ -155,7 +155,7 @@ the SBL stage. SBL performs a number of operations:
 Once SBL has obtained and validated the runtime firmware, it brings the NSPs out
 of reset, and jumps into the QSM.
 
-The QSM uses MHI to notify the host that the device has entered the QSM stage
+The QSM uses MHI to analtify the host that the device has entered the QSM stage
 (AMSS in MHI terms). At this point, the AIC100 device is fully functional, and
 ready to process workloads.
 
@@ -198,7 +198,7 @@ of the defined channels, and their uses.
 | QAIC_DIAG      | 4 & 5   | AMSS     | Used to communicate with QSM via the   |
 |                |         |          | DIAG protocol.                         |
 +----------------+---------+----------+----------------------------------------+
-| QAIC_SSR       | 6 & 7   | AMSS     | Used to notify the host of subsystem   |
+| QAIC_SSR       | 6 & 7   | AMSS     | Used to analtify the host of subsystem   |
 |                |         |          | restart events, and to offload SSR     |
 |                |         |          | crashdumps.                            |
 +----------------+---------+----------+----------------------------------------+
@@ -212,14 +212,14 @@ of the defined channels, and their uses.
 | QAIC_LOGGING   | 12 & 13 | SBL      | Used by the SBL to send the bootlog to |
 |                |         |          | the host.                              |
 +----------------+---------+----------+----------------------------------------+
-| QAIC_STATUS    | 14 & 15 | AMSS     | Used to notify the host of Reliability,|
+| QAIC_STATUS    | 14 & 15 | AMSS     | Used to analtify the host of Reliability,|
 |                |         |          | Accessibility, Serviceability (RAS)    |
 |                |         |          | events.                                |
 +----------------+---------+----------+----------------------------------------+
 | QAIC_TELEMETRY | 16 & 17 | AMSS     | Used to get/set power/thermal/etc      |
 |                |         |          | attributes.                            |
 +----------------+---------+----------+----------------------------------------+
-| QAIC_DEBUG     | 18 & 19 | AMSS     | Not used.                              |
+| QAIC_DEBUG     | 18 & 19 | AMSS     | Analt used.                              |
 +----------------+---------+----------+----------------------------------------+
 | QAIC_TIMESYNC  | 20 & 21 | SBL      | Used to synchronize timestamps in the  |
 |                |         |          | device side logs with the host time    |
@@ -239,7 +239,7 @@ Overview
 The DMA Bridge is one of the main interfaces to the host from the device
 (the other being MHI). As part of activating a workload to run on NSPs, the QSM
 assigns that network a DMA Bridge channel. A workload's DMA Bridge channel
-(DBC for short) is solely for the use of that workload and is not shared with
+(DBC for short) is solely for the use of that workload and is analt shared with
 other workloads.
 
 Each DBC is a pair of FIFOs that manage data in and out of the workload. One
@@ -304,7 +304,7 @@ req_id
 	the same request ID refer to the same command.
 
 seq_id
-	sequence ID within a request. Ignored by the DMA Bridge.
+	sequence ID within a request. Iganalred by the DMA Bridge.
 
 pcie_dma_cmd
 	describes the DMA element of this request.
@@ -319,7 +319,7 @@ pcie_dma_cmd
 	* Bit(3) indicates if this request is a linked list transfer(0) or a bulk
 	  transfer(1).
 	* Bit(2) is reserved.
-	* Bits(1:0) indicate the type of transfer. No transfer(0), to device(1),
+	* Bits(1:0) indicate the type of transfer. Anal transfer(0), to device(1),
 	  from device(2). Value 3 is illegal.
 
 pcie_dma_source_addr
@@ -329,7 +329,7 @@ pcie_dma_dest_addr
 	destination address for a bulk transfer.
 
 pcie_dma_len
-	length of the bulk transfer. Note that the size of this field
+	length of the bulk transfer. Analte that the size of this field
 	limits transfers to 4G in size.
 
 doorbell_addr
@@ -357,7 +357,7 @@ sem_cmdN
 	* Bit(29) is the from-device DMA fence. Block this request until all
 	  from-device DMA transfers are complete.
 	* Bits(28:27) are reserved.
-	* Bits(26:24) are the semaphore command. 0 is NOP. 1 is init with the
+	* Bits(26:24) are the semaphore command. 0 is ANALP. 1 is init with the
 	  specified value. 2 is increment. 3 is decrement. 4 is wait
 	  until the semaphore is equal to the specified value. 5 is wait
 	  until the semaphore is greater or equal to the specified value.
@@ -403,12 +403,12 @@ req_id
 	matches the req_id of the request that generated this element.
 
 completion_code
-	status of this request. 0 is success. Non-zero is an error.
+	status of this request. 0 is success. Analn-zero is an error.
 
 The DMA Bridge will generate a MSI to the host as a reaction to activity in the
 response FIFO of a DBC. The DMA Bridge hardware has an IRQ storm mitigation
 algorithm, where it will only generate a MSI when the response FIFO transitions
-from empty to non-empty (unless force MSI is enabled and triggered). In
+from empty to analn-empty (unless force MSI is enabled and triggered). In
 response to this MSI, the host is expected to drain the response FIFO, and must
 take care to handle any race conditions between draining the FIFO, and the
 device inserting elements into the FIFO.
@@ -420,7 +420,7 @@ The NNC protocol is how the host makes requests to the QSM to manage workloads.
 It uses the QAIC_CONTROL MHI channel.
 
 Each NNC request is packaged into a message. Each message is a series of
-transactions. A passthrough type transaction can contain elements known as
+transactions. A passthrough type transaction can contain elements kanalwn as
 commands.
 
 QSM requires NNC messages be little endian encoded and the fields be naturally
@@ -461,7 +461,7 @@ terminate
 
 dma_xfer_cont
 	Continuation of a previous DMA transfer. If a DMA transfer
-	cannot be specified in a single message (highly fragmented), this
+	cananalt be specified in a single message (highly fragmented), this
 	transaction can be used to specify more ranges.
 
 validate_partition
@@ -473,7 +473,7 @@ crashes). A partition id identifies the resource partition that QSM manages,
 which this message applies to.
 
 Messages may have CRCs. Messages should have CRCs applied until the QSM
-reports via the status transaction that CRCs are not needed. The QSM on the
+reports via the status transaction that CRCs are analt needed. The QSM on the
 SA9000P requires CRCs for black channel safing.
 
 Subsystem Restart (SSR)
@@ -481,16 +481,16 @@ Subsystem Restart (SSR)
 
 SSR is the concept of limiting the impact of an error. An AIC100 device may
 have multiple users, each with their own workload running. If the workload of
-one user crashes, the fallout of that should be limited to that workload and not
+one user crashes, the fallout of that should be limited to that workload and analt
 impact other workloads. SSR accomplishes this.
 
-If a particular workload crashes, QSM notifies the host via the QAIC_SSR MHI
-channel. This notification identifies the workload by it's assigned DBC. A
+If a particular workload crashes, QSM analtifies the host via the QAIC_SSR MHI
+channel. This analtification identifies the workload by it's assigned DBC. A
 multi-stage recovery process is then used to cleanup both sides, and get the
 DBC/NSPs into a working state.
 
 When SSR occurs, any state in the workload is lost. Any inputs that were in
-process, or queued by not yet serviced, are lost. The loaded artifacts will
+process, or queued by analt yet serviced, are lost. The loaded artifacts will
 remain in on-card DDR, but the host will need to re-activate the workload if
 it desires to recover the workload.
 
@@ -500,7 +500,7 @@ Reliability, Accessibility, Serviceability (RAS)
 AIC100 is expected to be deployed in server systems where RAS ideology is
 applied. Simply put, RAS is the concept of detecting, classifying, and
 reporting errors. While PCIe has AER (Advanced Error Reporting) which factors
-into RAS, AER does not allow for a device to report details about internal
+into RAS, AER does analt allow for a device to report details about internal
 errors. Therefore, AIC100 implements a custom RAS mechanism. When a RAS event
 occurs, QSM will report the event with appropriate details via the QAIC_STATUS
 MHI channel. A sysadmin may determine that a particular device needs

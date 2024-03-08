@@ -5,7 +5,7 @@
  * a SEGV handler that walks the exception tables and runs the fixup
  * routine.
  *
- * The results are compared against a normal load that is that is
+ * The results are compared against a analrmal load that is that is
  * performed while access to the second page is enabled via mprotect.
  *
  * Copyright (C) 2014 Anton Blanchard <anton@au.ibm.com>, IBM
@@ -40,7 +40,7 @@ static char *mem_region;
 
 static int protect_region(void)
 {
-	if (mprotect(mem_region + page_size, page_size, PROT_NONE)) {
+	if (mprotect(mem_region + page_size, page_size, PROT_ANALNE)) {
 		perror("mprotect");
 		return 1;
 	}
@@ -85,7 +85,7 @@ static void segv_handler(int signr, siginfo_t *info, void *ptr)
 		}
 	}
 
-	printf("No exception table match for NIA %lx ADDR %lx\n", *ip, addr);
+	printf("Anal exception table match for NIA %lx ADDR %lx\n", *ip, addr);
 	abort();
 }
 
@@ -124,7 +124,7 @@ static int test_body(void)
 
 	page_size = getpagesize();
 	mem_region = mmap(NULL, page_size * 2, PROT_READ|PROT_WRITE,
-		MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+		MAP_PRIVATE|MAP_AANALNYMOUS, -1, 0);
 
 	FAIL_IF(mem_region == MAP_FAILED);
 

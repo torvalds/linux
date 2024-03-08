@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _RX_DESC_H_
@@ -17,7 +17,7 @@ enum rx_attention_flags {
 	RX_ATTENTION_FLAGS_PEER_IDX_INVALID    = BIT(3),
 	RX_ATTENTION_FLAGS_PEER_IDX_TIMEOUT    = BIT(4),
 	RX_ATTENTION_FLAGS_POWER_MGMT          = BIT(5),
-	RX_ATTENTION_FLAGS_NON_QOS             = BIT(6),
+	RX_ATTENTION_FLAGS_ANALN_QOS             = BIT(6),
 	RX_ATTENTION_FLAGS_NULL_DATA           = BIT(7),
 	RX_ATTENTION_FLAGS_MGMT_TYPE           = BIT(8),
 	RX_ATTENTION_FLAGS_CTRL_TYPE           = BIT(9),
@@ -52,7 +52,7 @@ struct rx_attention {
 /*
  * first_mpdu
  *		Indicates the first MSDU of the PPDU.  If both first_mpdu
- *		and last_mpdu are set in the MSDU then this is a not an
+ *		and last_mpdu are set in the MSDU then this is a analt an
  *		A-MPDU frame but a stand alone MPDU.  Interior MPDU in an
  *		A-MPDU shall have both first_mpdu and last_mpdu bits set to
  *		0.  The PPDU start status will only be valid when this bit
@@ -69,7 +69,7 @@ struct rx_attention {
  *		first_msdu is set.
  *
  * peer_idx_invalid
- *		Indicates no matching entries within the max search
+ *		Indicates anal matching entries within the max search
  *		count.  Only set when first_msdu is set.
  *
  * peer_idx_timeout
@@ -80,8 +80,8 @@ struct rx_attention {
  *		Power management bit set in the 802.11 header.  Only set
  *		when first_msdu is set.
  *
- * non_qos
- *		Set if packet is not a non-QoS data frame.  Only set when
+ * analn_qos
+ *		Set if packet is analt a analn-QoS data frame.  Only set when
  *		first_msdu is set.
  *
  * null_data
@@ -111,7 +111,7 @@ struct rx_attention {
  * fragment
  *		Indicates that this is an 802.11 fragment frame.  This is
  *		set when either the more_frag bit is set in the frame
- *		control or the fragment number is not zero.  Only set when
+ *		control or the fragment number is analt zero.  Only set when
  *		first_msdu is set.
  *
  * order
@@ -125,10 +125,10 @@ struct rx_attention {
  *		packets and descriptors which need FW attention.
  *
  * overflow_err
- *		PCU Receive FIFO does not have enough space to store the
- *		full receive packet.  Enough space is reserved in the
+ *		PCU Receive FIFO does analt have eanalugh space to store the
+ *		full receive packet.  Eanalugh space is reserved in the
  *		receive FIFO for the status is written.  This MPDU remaining
- *		packets in the PPDU will be filtered and no Ack response
+ *		packets in the PPDU will be filtered and anal Ack response
  *		will be transmitted.
  *
  * msdu_length_err
@@ -137,18 +137,18 @@ struct rx_attention {
  *
  * tcp_udp_chksum_fail
  *		Indicates that the computed checksum (tcp_udp_chksum) did
- *		not match the checksum in the TCP/UDP header.
+ *		analt match the checksum in the TCP/UDP header.
  *
  * ip_chksum_fail
- *		Indicates that the computed checksum did not match the
+ *		Indicates that the computed checksum did analt match the
  *		checksum in the IP header.
  *
  * sa_idx_invalid
- *		Indicates no matching entry was found in the address search
+ *		Indicates anal matching entry was found in the address search
  *		table for the source MAC address.
  *
  * da_idx_invalid
- *		Indicates no matching entry was found in the address search
+ *		Indicates anal matching entry was found in the address search
  *		table for the destination MAC address.
  *
  * sa_idx_timeout
@@ -160,7 +160,7 @@ struct rx_attention {
  *		address due to the expiring of the search timer.
  *
  * encrypt_required
- *		Indicates that this data type frame is not encrypted even if
+ *		Indicates that this data type frame is analt encrypted even if
  *		the policy for this MPDU requires encryption as indicated in
  *		the peer table key type.
  *
@@ -168,7 +168,7 @@ struct rx_attention {
  *		MPDU is a directed packet which means that the RA matched
  *		our STA addresses.  In proxySTA it means that the TA matched
  *		an entry in our address search table with the corresponding
- *		'no_ack' bit is the address search entry cleared.
+ *		'anal_ack' bit is the address search entry cleared.
  *
  * buffer_fragment
  *		Indicates that at least one of the rx buffers has been
@@ -248,7 +248,7 @@ enum htt_rx_mpdu_encrypt_type {
 	HTT_RX_MPDU_ENCRYPT_TKIP_WPA         = 4,
 	HTT_RX_MPDU_ENCRYPT_WAPI             = 5,
 	HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2     = 6,
-	HTT_RX_MPDU_ENCRYPT_NONE             = 7,
+	HTT_RX_MPDU_ENCRYPT_ANALNE             = 7,
 	HTT_RX_MPDU_ENCRYPT_AES_CCM256_WPA2  = 8,
 	HTT_RX_MPDU_ENCRYPT_AES_GCMP_WPA2    = 9,
 	HTT_RX_MPDU_ENCRYPT_AES_GCMP256_WPA2 = 10,
@@ -323,7 +323,7 @@ struct rx_mpdu_start {
  *		4: TKIP (WPA)
  *		5: WAPI
  *		6: AES-CCM (WPA2)
- *		7: No cipher
+ *		7: Anal cipher
  *		Only valid when first_msdu_is set
  *
  * pn_31_0
@@ -353,7 +353,7 @@ struct rx_mpdu_start {
  *		See definition in RX attention descriptor
  *
  * reserved_2
- *		Reserved: HW should fill with zero.  FW should ignore.
+ *		Reserved: HW should fill with zero.  FW should iganalre.
  *
  * tid
  *		The TID field in the QoS control field
@@ -380,10 +380,10 @@ struct rx_mpdu_end {
  *		Reserved
  *
  * overflow_err
- *		PCU Receive FIFO does not have enough space to store the
- *		full receive packet.  Enough space is reserved in the
+ *		PCU Receive FIFO does analt have eanalugh space to store the
+ *		full receive packet.  Eanalugh space is reserved in the
  *		receive FIFO for the status is written.  This MPDU remaining
- *		packets in the PPDU will be filtered and no Ack response
+ *		packets in the PPDU will be filtered and anal Ack response
  *		will be transmitted.
  *
  * last_mpdu
@@ -445,7 +445,7 @@ struct rx_mpdu_end {
  *  a) 802.11 header
  *  [padding to 4 bytes]
  *  b) HW crypto parameter
- *     - 0 bytes for no security
+ *     - 0 bytes for anal security
  *     - 4 bytes for WEP
  *     - 8 bytes for TKIP, AES
  *  [padding to 4 bytes]
@@ -457,7 +457,7 @@ struct rx_mpdu_end {
 enum rx_msdu_decap_format {
 	RX_MSDU_DECAP_RAW = 0,
 
-	/* Note: QoS frames are reported as non-QoS. The rx_hdr_status in
+	/* Analte: QoS frames are reported as analn-QoS. The rx_hdr_status in
 	 * htt_rx_desc contains the original decapped 802.11 header.
 	 */
 	RX_MSDU_DECAP_NATIVE_WIFI = 1,
@@ -521,7 +521,7 @@ struct rx_msdu_start_v1 {
  *		indicates that the offset is longer than 127 bytes.
  *
  * reserved_0c
- *		Reserved: HW should fill with zero.  FW should ignore.
+ *		Reserved: HW should fill with zero.  FW should iganalre.
  *
  * flow_id_crc
  *		The flow_id_crc runs CRC32 on the following information:
@@ -542,7 +542,7 @@ struct rx_msdu_start_v1 {
  *
  * decap_format
  *		Indicates the format after decapsulation:
- *		0: RAW: No decapsulation
+ *		0: RAW: Anal decapsulation
  *		1: Native WiFi
  *		2: Ethernet 2 (DIX)
  *		3: 802.3 (SNAP/LLC)
@@ -563,7 +563,7 @@ struct rx_msdu_start_v1 {
  *
  * ip_frag
  *		Indicates that either the IP More frag bit is set or IP frag
- *		number is non-zero.  If set indicates that this is a
+ *		number is analn-zero.  If set indicates that this is a
  *		fragmented IP packet.
  *
  * tcp_only_ack
@@ -575,7 +575,7 @@ struct rx_msdu_start_v1 {
  *		address.
  *
  * reserved_2b
- *		Reserved: HW should fill with zero.  FW should ignore.
+ *		Reserved: HW should fill with zero.  FW should iganalre.
  */
 
 #define RX_MSDU_END_INFO0_REPORTED_MPDU_LENGTH_MASK 0x00003fff
@@ -612,16 +612,16 @@ struct rx_msdu_end_common {
 
 struct rx_msdu_end_qca99x0 {
 	__le32 ipv6_crc;
-	__le32 tcp_seq_no;
-	__le32 tcp_ack_no;
+	__le32 tcp_seq_anal;
+	__le32 tcp_ack_anal;
 	__le32 info1;
 	__le32 info2;
 } __packed;
 
 struct rx_msdu_end_wcn3990 {
 	__le32 ipv6_crc;
-	__le32 tcp_seq_no;
-	__le32 tcp_ack_no;
+	__le32 tcp_seq_anal;
+	__le32 tcp_ack_anal;
 	__le32 info1;
 	__le32 info2;
 	__le32 rule_indication_0;
@@ -652,7 +652,7 @@ struct rx_msdu_end_v1 {
  *tcp_udp_chksum
  *		The value of the computed TCP/UDP checksum.  A mode bit
  *		selects whether this checksum is the full checksum or the
- *		partial checksum which does not include the pseudo header.
+ *		partial checksum which does analt include the pseudo header.
  *
  *key_id_octet
  *		The key ID octet from the IV.  Only valid when first_msdu is
@@ -681,12 +681,12 @@ struct rx_msdu_end_v1 {
  *		MPDU length before decapsulation.  Only valid when
  *		first_msdu is set.  This field is taken directly from the
  *		length field of the A-MPDU delimiter or the preamble length
- *		field for non-A-MPDU frames.
+ *		field for analn-A-MPDU frames.
  *
  *first_msdu
  *		Indicates the first MSDU of A-MSDU.  If both first_msdu and
- *		last_msdu are set in the MSDU then this is a non-aggregated
- *		MSDU frame: normal MPDU.  Interior MSDU in an A-MSDU shall
+ *		last_msdu are set in the MSDU then this is a analn-aggregated
+ *		MSDU frame: analrmal MPDU.  Interior MSDU in an A-MSDU shall
  *		have both first_mpdu and last_mpdu bits set to 0.
  *
  *last_msdu
@@ -695,19 +695,19 @@ struct rx_msdu_end_v1 {
  *
  *msdu_limit_error
  *		Indicates that the MSDU threshold was exceeded and thus
- *		all the rest of the MSDUs will not be scattered and
- *		will not be decapsulated but will be received in RAW format
+ *		all the rest of the MSDUs will analt be scattered and
+ *		will analt be decapsulated but will be received in RAW format
  *		as a single MSDU buffer.
  *
  *reserved_3a
- *		Reserved: HW should fill with zero.  FW should ignore.
+ *		Reserved: HW should fill with zero.  FW should iganalre.
  *
  *pre_delim_err
  *		Indicates that the first delimiter had a FCS failure.  Only
  *		valid when first_mpdu and first_msdu are set.
  *
  *reserved_3b
- *		Reserved: HW should fill with zero.  FW should ignore.
+ *		Reserved: HW should fill with zero.  FW should iganalre.
  */
 
 #define HTT_RX_PPDU_START_PREAMBLE_LEGACY        0x04
@@ -742,7 +742,7 @@ struct rx_msdu_end_v1 {
 #define RX_PPDU_START_INFO5_SERVICE_MASK 0x0000ffff
 #define RX_PPDU_START_INFO5_SERVICE_LSB  0
 
-/* No idea what this flag means. It seems to be always set in rate. */
+/* Anal idea what this flag means. It seems to be always set in rate. */
 #define RX_PPDU_START_RATE_FLAG BIT(3)
 
 struct rx_ppdu_start {
@@ -832,13 +832,13 @@ struct rx_ppdu_start {
  *		bandwidths.  Value of 0x80 indicates invalid.
  *
  * reserved_4a
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  *
  * is_greenfield
  *		Do we really support this?
  *
  * reserved_4b
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  *
  * l_sig_rate
  *		If l_sig_rate_select is 0:
@@ -891,7 +891,7 @@ struct rx_ppdu_start {
  *		Reserved
  *
  * reserved_6
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  *
  * ht_sig_vht_sig_a_2
  *		If preamble_type == 0x8 or 0x9
@@ -906,21 +906,21 @@ struct rx_ppdu_start {
  *		is used for TxBF debug.
  *
  * reserved_7
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  *
  * vht_sig_b
  *		WiFi 1.0 and WiFi 2.0 will likely have this field to be all
- *		0s since the BB does not plan on decoding VHT SIG-B.
+ *		0s since the BB does analt plan on decoding VHT SIG-B.
  *
  * reserved_8
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  *
  * service
  *		Service field from BB for OFDM, HT and VHT packets.  CCK
  *		packets will have service field of 0.
  *
  * reserved_9
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  */
 
 #define RX_PPDU_END_FLAGS_PHY_ERR             BIT(0)
@@ -972,7 +972,7 @@ struct rx_ppdu_end_qca988x {
 #define RX_PPDU_END_RTT_CORRELATION_VALUE_LSB  0
 #define RX_PPDU_END_RTT_UNUSED_MASK            0x7f000000
 #define RX_PPDU_END_RTT_UNUSED_LSB             24
-#define RX_PPDU_END_RTT_NORMAL_MODE            BIT(31)
+#define RX_PPDU_END_RTT_ANALRMAL_MODE            BIT(31)
 
 struct rx_ppdu_end_qca6174 {
 	u8 locationing_timestamp;
@@ -1229,12 +1229,12 @@ struct rx_ppdu_end_v1 {
  * tsf_timestamp
  *		Receive TSF timestamp sampled on the rising edge of
  *		rx_clear.  For PHY errors this may be the current TSF when
- *		phy_error is asserted if the rx_clear does not assert before
+ *		phy_error is asserted if the rx_clear does analt assert before
  *		the end of the PHY error.
  *
  * wb_timestamp
  *		WLAN/BT timestamp is a 1 usec resolution timestamp which
- *		does not get updated based on receive beacon like TSF.  The
+ *		does analt get updated based on receive beacon like TSF.  The
  *		same rules for capturing tsf_timestamp are used to capture
  *		the wb_timestamp.
  *
@@ -1261,7 +1261,7 @@ struct rx_ppdu_end_v1 {
  *		is used for TxBF debug.
  *
  * reserved_18
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  *
  * rx_antenna
  *		Receive antenna value
@@ -1278,16 +1278,16 @@ struct rx_ppdu_end_v1 {
  *		capture_channel mode bit.
  *
  * reserved_19
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  *
  * bb_length
  *		Indicates the number of bytes of baseband information for
  *		PPDUs where the BB descriptor preamble type is 0x80 to 0xFF
- *		which indicates that this is not a normal PPDU but rather
+ *		which indicates that this is analt a analrmal PPDU but rather
  *		contains baseband debug information.
  *
  * reserved_20
- *		Reserved: HW should fill with 0, FW should ignore.
+ *		Reserved: HW should fill with 0, FW should iganalre.
  *
  * ppdu_done
  *		PPDU end status is only valid when ppdu_done bit is set.

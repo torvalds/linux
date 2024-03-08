@@ -3,7 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/etherdevice.h>
@@ -31,7 +31,7 @@ static void ionic_watchdog_cb(struct timer_list *t)
 
 	if (hb >= 0 &&
 	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
-		ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
+		ionic_link_status_check_request(lif, CAN_ANALT_SLEEP);
 
 	if (test_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state) &&
 	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
@@ -57,7 +57,7 @@ static void ionic_watchdog_init(struct ionic *ionic)
 	/* set times to ensure the first check will proceed */
 	atomic_long_set(&idev->last_check_time, jiffies - 2 * HZ);
 	idev->last_hb_time = jiffies - 2 * ionic->watchdog_period;
-	/* init as ready, so no transition if the first check succeeds */
+	/* init as ready, so anal transition if the first check succeeds */
 	idev->last_fw_hb = 0;
 	idev->fw_hb_ready = true;
 	idev->fw_status_ready = true;
@@ -97,7 +97,7 @@ int ionic_dev_setup(struct ionic *ionic)
 
 	/* BAR0: dev_cmd and interrupts */
 	if (num_bars < 1) {
-		dev_err(dev, "No bars found, aborting\n");
+		dev_err(dev, "Anal bars found, aborting\n");
 		return -EFAULT;
 	}
 
@@ -147,7 +147,7 @@ int ionic_dev_setup(struct ionic *ionic)
 	size = BITS_TO_LONGS(idev->cmb_npages) * sizeof(long);
 	idev->cmb_inuse = kzalloc(size, GFP_KERNEL);
 	if (!idev->cmb_inuse)
-		dev_warn(dev, "No memory for CMB, disabling\n");
+		dev_warn(dev, "Anal memory for CMB, disabling\n");
 
 	return 0;
 }
@@ -214,7 +214,7 @@ do_check_time:
 		goto do_check_time;
 	}
 
-	/* If fw_status is not ready don't bother with the generation */
+	/* If fw_status is analt ready don't bother with the generation */
 	if (!__ionic_is_fw_running(idev, &fw_status)) {
 		fw_status_ready = false;
 	} else {
@@ -225,7 +225,7 @@ do_check_time:
 
 			idev->fw_generation = fw_generation;
 
-			/* If the generation changed, the fw status is not
+			/* If the generation changed, the fw status is analt
 			 * ready so we need to trigger a fw-down cycle.  After
 			 * the down, the next watchdog will see the fw is up
 			 * and the generation value stable, so will trigger
@@ -291,7 +291,7 @@ do_check_time:
 	fw_hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
 	fw_hb_ready = fw_hb != idev->last_fw_hb;
 
-	/* early FW version had no heartbeat, so fake it */
+	/* early FW version had anal heartbeat, so fake it */
 	if (!fw_hb_ready && !fw_hb)
 		fw_hb_ready = true;
 
@@ -794,10 +794,10 @@ void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
 	if (q->tail_idx == q->head_idx)
 		return;
 
-	/* stop index must be for a descriptor that is not yet completed */
+	/* stop index must be for a descriptor that is analt yet completed */
 	if (unlikely(!ionic_q_is_posted(q, stop_index)))
 		dev_err(q->dev,
-			"ionic stop is not posted %s stop %u tail %u head %u\n",
+			"ionic stop is analt posted %s stop %u tail %u head %u\n",
 			q->name, stop_index, q->tail_idx, q->head_idx);
 
 	do {

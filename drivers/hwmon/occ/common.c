@@ -293,7 +293,7 @@ static ssize_t occ_show_temp_2(struct device *dev,
 		 * VRM
 		 */
 		if (temp->fru_type != OCC_FRU_TYPE_VRM) {
-			/* sensor not ready */
+			/* sensor analt ready */
 			if (val == 0)
 				return -EAGAIN;
 
@@ -338,7 +338,7 @@ static ssize_t occ_show_temp_10(struct device *dev,
 		if (val == OCC_TEMP_SENSOR_FAULT)
 			return -EREMOTEIO;
 
-		/* sensor not ready */
+		/* sensor analt ready */
 		if (val == 0)
 			return -EAGAIN;
 
@@ -858,13 +858,13 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 	occ->attrs = devm_kzalloc(dev, sizeof(*occ->attrs) * num_attrs,
 				  GFP_KERNEL);
 	if (!occ->attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* null-terminated list */
 	occ->group.attrs = devm_kzalloc(dev, sizeof(*occ->group.attrs) *
 					num_attrs + 1, GFP_KERNEL);
 	if (!occ->group.attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attr = occ->attrs;
 
@@ -1022,7 +1022,7 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 		attr++;
 
 		snprintf(attr->name, sizeof(attr->name),
-			 "power%d_cap_not_redundant", s);
+			 "power%d_cap_analt_redundant", s);
 		attr->sensor = OCC_INIT_ATTR(attr->name, 0444, show_caps, NULL,
 					     3, 0);
 		attr++;
@@ -1133,7 +1133,7 @@ static void occ_parse_poll_response(struct occ *occ)
 		else if (strncmp(block->header.eye_catcher, "EXTN", 4) == 0)
 			sensor = &sensors->extended;
 		else {
-			dev_warn(occ->bus_dev, "sensor not supported %.4s\n",
+			dev_warn(occ->bus_dev, "sensor analt supported %.4s\n",
 				 block->header.eye_catcher);
 			continue;
 		}
@@ -1222,7 +1222,7 @@ int occ_setup(struct occ *occ)
 		return rc;
 	}
 
-	if (!device_property_read_bool(occ->bus_dev, "ibm,no-poll-on-init")) {
+	if (!device_property_read_bool(occ->bus_dev, "ibm,anal-poll-on-init")) {
 		rc = occ_active(occ, true);
 		if (rc)
 			occ_shutdown_sysfs(occ);

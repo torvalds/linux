@@ -66,7 +66,7 @@ port_range_test()
 	local should_fail=$1; shift
 
 	if ! tc_offload_check $PORT_RANGE_NUM_NETIFS; then
-		check_err 1 "Could not test offloaded functionality"
+		check_err 1 "Could analt test offloaded functionality"
 		return
 	fi
 

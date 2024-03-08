@@ -24,7 +24,7 @@ static int pds_vdpa_device_id_check(struct pci_dev *pdev)
 {
 	if (pdev->device != PCI_DEVICE_ID_PENSANDO_VDPA_VF ||
 	    pdev->vendor != PCI_VENDOR_ID_PENSANDO)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return PCI_DEVICE_ID_PENSANDO_VDPA_VF;
 }
@@ -41,7 +41,7 @@ static int pds_vdpa_probe(struct auxiliary_device *aux_dev,
 
 	vdpa_aux = kzalloc(sizeof(*vdpa_aux), GFP_KERNEL);
 	if (!vdpa_aux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdpa_aux->padev = padev;
 	vdpa_aux->vf_id = pci_iov_vf_id(padev->vf_pdev);
@@ -63,7 +63,7 @@ static int pds_vdpa_probe(struct auxiliary_device *aux_dev,
 		goto err_free_mgmt_info;
 	}
 
-	/* Let vdpa know that we can provide devices */
+	/* Let vdpa kanalw that we can provide devices */
 	err = vdpa_mgmtdev_register(&vdpa_aux->vdpa_mdev);
 	if (err) {
 		dev_err(dev, "%s: Failed to initialize vdpa_mgmt interface: %pe\n",

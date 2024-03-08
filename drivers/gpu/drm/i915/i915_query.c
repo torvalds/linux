@@ -4,7 +4,7 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "i915_drv.h"
 #include "i915_perf.h"
@@ -42,7 +42,7 @@ static int fill_topology_info(const struct sseu_dev_info *sseu,
 	BUILD_BUG_ON(sizeof(u8) != sizeof(sseu->slice_mask));
 
 	if (sseu->max_slices == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	slice_length = sizeof(sseu->slice_mask);
 	subslice_length = sseu->max_slices * ss_stride;
@@ -106,7 +106,7 @@ static int query_geometry_subslices(struct drm_i915_private *i915,
 	struct i915_engine_class_instance classinstance;
 
 	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 50))
-		return -ENODEV;
+		return -EANALDEV;
 
 	classinstance = *((struct i915_engine_class_instance *)&query_item->flags);
 
@@ -240,7 +240,7 @@ static int query_perf_config_data(struct drm_i915_private *i915,
 	int ret;
 
 	if (!perf->i915)
-		return -ENODEV;
+		return -EANALDEV;
 
 	total_size =
 		sizeof(struct drm_i915_query_perf_config) +
@@ -289,7 +289,7 @@ static int query_perf_config_data(struct drm_i915_private *i915,
 		oa_config = i915_perf_get_oa_config(perf, config_id);
 	}
 	if (!oa_config)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (copy_from_user(&user_config, user_config_ptr, sizeof(user_config))) {
 		ret = -EFAULT;
@@ -381,7 +381,7 @@ static int query_perf_config_list(struct drm_i915_private *i915,
 	int ret;
 
 	if (!perf->i915)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (query_item->length == 0)
 		return sizeof_perf_metrics(perf);
@@ -402,7 +402,7 @@ static int query_perf_config_list(struct drm_i915_private *i915,
 			       n_configs * sizeof(*oa_config_ids),
 			       GFP_KERNEL);
 		if (!ids)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		alloc = fetch_and_zero(&n_configs);
 
@@ -536,7 +536,7 @@ static int query_hwconfig_blob(struct drm_i915_private *i915,
 	struct intel_hwconfig *hwconfig = &gt->info.hwconfig;
 
 	if (!hwconfig->size || !hwconfig->ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (query_item->length == 0)
 		return hwconfig->size;
@@ -590,7 +590,7 @@ int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 		ret = -EINVAL;
 		if (func_idx < ARRAY_SIZE(i915_query_funcs)) {
-			func_idx = array_index_nospec(func_idx,
+			func_idx = array_index_analspec(func_idx,
 						      ARRAY_SIZE(i915_query_funcs));
 			ret = i915_query_funcs[func_idx](dev_priv, &item);
 		}

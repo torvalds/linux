@@ -4,7 +4,7 @@
 
 #include <linux/bpf.h>
 #include <linux/bpf-cgroup-defs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/jump_label.h>
 #include <linux/percpu.h>
 #include <linux/rbtree.h>
@@ -96,7 +96,7 @@ struct bpf_cgroup_storage {
 	struct bpf_cgroup_storage_key key;
 	struct list_head list_map;
 	struct list_head list_cg;
-	struct rb_node node;
+	struct rb_analde analde;
 	struct rcu_head rcu;
 };
 
@@ -107,7 +107,7 @@ struct bpf_cgroup_link {
 };
 
 struct bpf_prog_list {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct bpf_prog *prog;
 	struct bpf_cgroup_link *link;
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE];
@@ -134,7 +134,7 @@ int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
 				     struct bpf_sock_ops_kern *sock_ops,
 				     enum cgroup_bpf_attach_type atype);
 
-int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
+int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 mianalr,
 				      short access, enum cgroup_bpf_attach_type atype);
 
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
@@ -261,7 +261,7 @@ static inline bool cgroup_bpf_sock_enabled(struct sock *sk,
 /* BPF_CGROUP_INET4_BIND and BPF_CGROUP_INET6_BIND can return extra flags
  * via upper bits of return code. The only flag that is supported
  * (at bit position 0) is to indicate CAP_NET_BIND_SERVICE capability check
- * should be bypassed (BPF_RET_BIND_NO_CAP_NET_BIND_SERVICE).
+ * should be bypassed (BPF_RET_BIND_ANAL_CAP_NET_BIND_SERVICE).
  */
 #define BPF_CGROUP_RUN_PROG_INET_BIND_LOCK(sk, uaddr, uaddrlen, atype, bind_flags) \
 ({									       \
@@ -272,8 +272,8 @@ static inline bool cgroup_bpf_sock_enabled(struct sock *sk,
 		__ret = __cgroup_bpf_run_filter_sock_addr(sk, uaddr, uaddrlen, \
 							  atype, NULL, &__flags); \
 		release_sock(sk);					       \
-		if (__flags & BPF_RET_BIND_NO_CAP_NET_BIND_SERVICE)	       \
-			*bind_flags |= BIND_NO_CAP_NET_BIND_SERVICE;	       \
+		if (__flags & BPF_RET_BIND_ANAL_CAP_NET_BIND_SERVICE)	       \
+			*bind_flags |= BIND_ANAL_CAP_NET_BIND_SERVICE;	       \
 	}								       \
 	__ret;								       \
 })
@@ -316,19 +316,19 @@ static inline bool cgroup_bpf_sock_enabled(struct sock *sk,
 #define BPF_CGROUP_RUN_PROG_UNIX_RECVMSG_LOCK(sk, uaddr, uaddrlen)		\
 	BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, uaddrlen, CGROUP_UNIX_RECVMSG, NULL)
 
-/* The SOCK_OPS"_SK" macro should be used when sock_ops->sk is not a
- * fullsock and its parent fullsock cannot be traced by
+/* The SOCK_OPS"_SK" macro should be used when sock_ops->sk is analt a
+ * fullsock and its parent fullsock cananalt be traced by
  * sk_to_full_sk().
  *
  * e.g. sock_ops->sk is a request_sock and it is under syncookie mode.
- * Its listener-sk is not attached to the rsk_listener.
+ * Its listener-sk is analt attached to the rsk_listener.
  * In this case, the caller holds the listener-sk (unlocked),
  * set its sock_ops->sk to req_sk, and call this SOCK_OPS"_SK" with
  * the listener-sk such that the cgroup-bpf-progs of the
  * listener-sk will be run.
  *
- * Regardless of syncookie mode or not,
- * calling bpf_setsockopt on listener-sk will not make sense anyway,
+ * Regardless of syncookie mode or analt,
+ * calling bpf_setsockopt on listener-sk will analt make sense anyway,
  * so passing 'sock_ops->sk == req_sk' to the bpf prog is appropriate here.
  */
 #define BPF_CGROUP_RUN_PROG_SOCK_OPS_SK(sock_ops, sk)			\
@@ -354,11 +354,11 @@ static inline bool cgroup_bpf_sock_enabled(struct sock *sk,
 	__ret;								       \
 })
 
-#define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(atype, major, minor, access)	      \
+#define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(atype, major, mianalr, access)	      \
 ({									      \
 	int __ret = 0;							      \
 	if (cgroup_bpf_enabled(CGROUP_DEVICE))			      \
-		__ret = __cgroup_bpf_check_dev_permission(atype, major, minor, \
+		__ret = __cgroup_bpf_check_dev_permission(atype, major, mianalr, \
 							  access,	      \
 							  CGROUP_DEVICE); \
 									      \
@@ -515,7 +515,7 @@ static inline int bpf_percpu_cgroup_storage_update(struct bpf_map *map,
 #define BPF_CGROUP_RUN_PROG_UDP6_RECVMSG_LOCK(sk, uaddr, uaddrlen) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_UNIX_RECVMSG_LOCK(sk, uaddr, uaddrlen) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops) ({ 0; })
-#define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(atype, major, minor, access) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(atype, major, mianalr, access) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_SYSCTL(head,table,write,buf,count,pos) ({ 0; })
 #define BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock, level, optname, optval, \

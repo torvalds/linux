@@ -29,7 +29,7 @@
 #define CM3605_PROX_CHANNEL 0
 #define CM3605_ALS_CHANNEL 1
 #define CM3605_AOUT_TYP_MAX_MV 1550
-/* It should not go above 1.650V according to the data sheet */
+/* It should analt go above 1.650V according to the data sheet */
 #define CM3605_AOUT_MAX_MV 1650
 
 /**
@@ -164,7 +164,7 @@ static int cm3605_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*cm3605));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, indio_dev);
 
 	cm3605 = iio_priv(indio_dev);
@@ -173,7 +173,7 @@ static int cm3605_probe(struct platform_device *pdev)
 
 	ret = device_property_read_u32(dev, "capella,aset-resistance-ohms", &rset);
 	if (ret) {
-		dev_info(dev, "no RSET specified, assuming 100K\n");
+		dev_info(dev, "anal RSET specified, assuming 100K\n");
 		rset = 100000;
 	}
 	switch (rset) {
@@ -190,14 +190,14 @@ static int cm3605_probe(struct platform_device *pdev)
 		cm3605->als_max = 50;
 		break;
 	default:
-		dev_info(dev, "non-standard resistance\n");
+		dev_info(dev, "analn-standard resistance\n");
 		return -EINVAL;
 	}
 
 	cm3605->aout = devm_iio_channel_get(dev, "aout");
 	if (IS_ERR(cm3605->aout)) {
 		ret = PTR_ERR(cm3605->aout);
-		ret = (ret == -ENODEV) ? -EPROBE_DEFER : ret;
+		ret = (ret == -EANALDEV) ? -EPROBE_DEFER : ret;
 		return dev_err_probe(dev, ret, "failed to get AOUT ADC channel\n");
 	}
 	ret = iio_get_channel_type(cm3605->aout, &ch_type);
@@ -221,7 +221,7 @@ static int cm3605_probe(struct platform_device *pdev)
 
 	cm3605->aset = devm_gpiod_get(dev, "aset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cm3605->aset)) {
-		ret = dev_err_probe(dev, PTR_ERR(cm3605->aset), "no ASET GPIO\n");
+		ret = dev_err_probe(dev, PTR_ERR(cm3605->aset), "anal ASET GPIO\n");
 		goto out_disable_vdd;
 	}
 

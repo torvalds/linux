@@ -38,8 +38,8 @@
 
 #define BUFFER_TIMEOUT     (HZ)  /* 0.5 seconds */
 
-#define CX23885_BOARD_NOAUTO               UNSET
-#define CX23885_BOARD_UNKNOWN                  0
+#define CX23885_BOARD_ANALAUTO               UNSET
+#define CX23885_BOARD_UNKANALWN                  0
 #define CX23885_BOARD_HAUPPAUGE_HVR1800lp      1
 #define CX23885_BOARD_HAUPPAUGE_HVR1800        2
 #define CX23885_BOARD_HAUPPAUGE_HVR1250        3
@@ -121,7 +121,7 @@
 #define GPIO_15 0x00008000
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
-#define CX23885_NORMS (\
+#define CX23885_ANALRMS (\
 	V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443 | \
 	V4L2_STD_PAL_BG |  V4L2_STD_PAL_DK    |  V4L2_STD_PAL_I    | \
 	V4L2_STD_PAL_M  |  V4L2_STD_PAL_N     |  V4L2_STD_PAL_Nc   | \
@@ -134,7 +134,7 @@ struct cx23885_fmt {
 	u32   cxformat;
 };
 
-struct cx23885_tvnorm {
+struct cx23885_tvanalrm {
 	char		*name;
 	v4l2_std_id	id;
 	u32		cxiformat;
@@ -254,7 +254,7 @@ struct cx23885_tsport {
 	struct cx23885_dev *dev;
 
 	unsigned                   nr;
-	int                        sram_chno;
+	int                        sram_chanal;
 
 	struct vb2_dvb_frontends   frontends;
 
@@ -395,7 +395,7 @@ struct cx23885_dev {
 	unsigned int               input;
 	unsigned int               audinput; /* Selectable audio input */
 	u32                        tvaudio;
-	v4l2_std_id                tvnorm;
+	v4l2_std_id                tvanalrm;
 	unsigned int               tuner_type;
 	unsigned char              tuner_addr;
 	unsigned int               tuner_bus;
@@ -407,9 +407,9 @@ struct cx23885_dev {
 	/* Infrared */
 	struct v4l2_subdev         *sd_ir;
 	struct work_struct	   ir_rx_work;
-	unsigned long		   ir_rx_notifications;
+	unsigned long		   ir_rx_analtifications;
 	struct work_struct	   ir_tx_work;
-	unsigned long		   ir_tx_notifications;
+	unsigned long		   ir_tx_analtifications;
 
 	struct cx23885_kernel_ir   *kernel_ir;
 	atomic_t		   ir_input_stopping;
@@ -436,7 +436,7 @@ struct cx23885_dev {
 	struct cx2341x_handler     cxhdl;
 	struct video_device        *v4l_device;
 	struct vb2_queue           vb2_mpegq;
-	struct cx23885_tvnorm      encodernorm;
+	struct cx23885_tvanalrm      encoderanalrm;
 
 	/* Analog raw audio */
 	struct cx23885_audio_dev   *audio_dev;
@@ -580,7 +580,7 @@ int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i);
 int cx23885_set_input(struct file *file, void *priv, unsigned int i);
 int cx23885_get_input(struct file *file, void *priv, unsigned int *i);
 int cx23885_set_frequency(struct file *file, void *priv, const struct v4l2_frequency *f);
-int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm);
+int cx23885_set_tvanalrm(struct cx23885_dev *dev, v4l2_std_id analrm);
 
 /* ----------------------------------------------------------- */
 /* cx23885-vbi.c                                               */
@@ -626,9 +626,9 @@ extern int cx23885_risc_databuffer(struct pci_dev *pci,
 				   unsigned int lpi);
 
 /* ----------------------------------------------------------- */
-/* tv norms                                                    */
+/* tv analrms                                                    */
 
-static inline unsigned int norm_maxh(v4l2_std_id norm)
+static inline unsigned int analrm_maxh(v4l2_std_id analrm)
 {
-	return (norm & V4L2_STD_525_60) ? 480 : 576;
+	return (analrm & V4L2_STD_525_60) ? 480 : 576;
 }

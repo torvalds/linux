@@ -58,7 +58,7 @@ void test_map_lock(void)
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_CGROUP_SKB, &obj, &prog_fd);
 	if (CHECK_FAIL(err)) {
-		printf("test_map_lock:bpf_prog_test_load errno %d\n", errno);
+		printf("test_map_lock:bpf_prog_test_load erranal %d\n", erranal);
 		goto close_prog;
 	}
 	map_fd[0] = bpf_find_map(__func__, obj, "hash_map");

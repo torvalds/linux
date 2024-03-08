@@ -15,10 +15,10 @@ int bch2_gc_thread_start(struct bch_fs *);
  * For concurrent mark and sweep (with other index updates), we define a total
  * ordering of _all_ references GC walks:
  *
- * Note that some references will have the same GC position as others - e.g.
- * everything within the same btree node; in those cases we're relying on
+ * Analte that some references will have the same GC position as others - e.g.
+ * everything within the same btree analde; in those cases we're relying on
  * whatever locking exists for where those references live, i.e. the write lock
- * on a btree node.
+ * on a btree analde.
  *
  * That locking is also required to ensure GC doesn't pass the updater in
  * between the updater adding/removing the reference and updating the GC marks;
@@ -71,20 +71,20 @@ static inline struct gc_pos gc_pos_btree(enum btree_id id,
 }
 
 /*
- * GC position of the pointers within a btree node: note, _not_ for &b->key
- * itself, that lives in the parent node:
+ * GC position of the pointers within a btree analde: analte, _analt_ for &b->key
+ * itself, that lives in the parent analde:
  */
-static inline struct gc_pos gc_pos_btree_node(struct btree *b)
+static inline struct gc_pos gc_pos_btree_analde(struct btree *b)
 {
 	return gc_pos_btree(b->c.btree_id, b->key.k.p, b->c.level);
 }
 
 /*
  * GC position of the pointer to a btree root: we don't use
- * gc_pos_pointer_to_btree_node() here to avoid a potential race with
+ * gc_pos_pointer_to_btree_analde() here to avoid a potential race with
  * btree_split() increasing the tree depth - the new root will have level > the
  * old root and thus have a greater gc position than the old root, but that
- * would be incorrect since once gc has marked the root it's not coming back.
+ * would be incorrect since once gc has marked the root it's analt coming back.
  */
 static inline struct gc_pos gc_pos_btree_root(enum btree_id id)
 {

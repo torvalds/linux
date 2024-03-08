@@ -200,7 +200,7 @@ SYM_FUNC_START(chacha_4block_xor_neon)
 	// This function encrypts four consecutive ChaCha blocks by loading
 	// the state matrix in NEON registers four times. The algorithm performs
 	// each operation on the corresponding word of each state matrix, hence
-	// requires no word shuffling. For final XORing step we transpose the
+	// requires anal word shuffling. For final XORing step we transpose the
 	// matrix by interleaving 32- and then 64-bit words, which allows us to
 	// do XOR in NEON registers.
 	//

@@ -14,7 +14,7 @@ dvb-usb-pctv452e cards list
      - USB IDs
    * - PCTV HDTV USB
      - 2304:021f
-   * - Technotrend TT Connect S2-3600
+   * - Techanaltrend TT Connect S2-3600
      - 0b48:3007
-   * - Technotrend TT Connect S2-3650-CI
+   * - Techanaltrend TT Connect S2-3650-CI
      - 0b48:300a

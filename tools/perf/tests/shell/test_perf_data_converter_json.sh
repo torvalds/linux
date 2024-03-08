@@ -30,7 +30,7 @@ trap trap_cleanup exit term int
 test_json_converter_command()
 {
 	echo "Testing Perf Data Convertion Command to JSON"
-	perf record -o "$perfdata" -F 99 -g -- perf test -w noploop > /dev/null 2>&1
+	perf record -o "$perfdata" -F 99 -g -- perf test -w analploop > /dev/null 2>&1
 	perf data convert --to-json "$result" --force -i "$perfdata" >/dev/null 2>&1
 	if [ "$(cat ${result} | wc -l)" -gt "0" ] ; then
 		echo "Perf Data Converter Command to JSON [SUCCESS]"
@@ -48,12 +48,12 @@ validate_json_format()
 		if $PYTHON -c  "import json; json.load(open('$result'))" >/dev/null 2>&1 ; then
 			echo "The file contains valid JSON format [SUCCESS]"
 		else
-			echo "The file does not contain valid JSON format [FAILED]"
+			echo "The file does analt contain valid JSON format [FAILED]"
 			err=1
 			exit
 		fi
 	else
-		echo "File not found [FAILED]"
+		echo "File analt found [FAILED]"
 		err=2
 		exit
 	fi

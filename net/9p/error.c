@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/jhash.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <net/9p/9p.h>
 
 /**
@@ -30,7 +30,7 @@ struct errormap {
 	int val;
 
 	int namelen;
-	struct hlist_node list;
+	struct hlist_analde list;
 };
 
 #define ERRHASHSZ		32
@@ -38,33 +38,33 @@ static struct hlist_head hash_errmap[ERRHASHSZ];
 
 /* FixMe - reduce to a reasonable size */
 static struct errormap errmap[] = {
-	{"Operation not permitted", EPERM},
+	{"Operation analt permitted", EPERM},
 	{"wstat prohibited", EPERM},
-	{"No such file or directory", ENOENT},
-	{"directory entry not found", ENOENT},
-	{"file not found", ENOENT},
+	{"Anal such file or directory", EANALENT},
+	{"directory entry analt found", EANALENT},
+	{"file analt found", EANALENT},
 	{"Interrupted system call", EINTR},
 	{"Input/output error", EIO},
-	{"No such device or address", ENXIO},
+	{"Anal such device or address", ENXIO},
 	{"Argument list too long", E2BIG},
 	{"Bad file descriptor", EBADF},
 	{"Resource temporarily unavailable", EAGAIN},
-	{"Cannot allocate memory", ENOMEM},
+	{"Cananalt allocate memory", EANALMEM},
 	{"Permission denied", EACCES},
 	{"Bad address", EFAULT},
-	{"Block device required", ENOTBLK},
+	{"Block device required", EANALTBLK},
 	{"Device or resource busy", EBUSY},
 	{"File exists", EEXIST},
 	{"Invalid cross-device link", EXDEV},
-	{"No such device", ENODEV},
-	{"Not a directory", ENOTDIR},
+	{"Anal such device", EANALDEV},
+	{"Analt a directory", EANALTDIR},
 	{"Is a directory", EISDIR},
 	{"Invalid argument", EINVAL},
 	{"Too many open files in system", ENFILE},
 	{"Too many open files", EMFILE},
 	{"Text file busy", ETXTBSY},
 	{"File too large", EFBIG},
-	{"No space left on device", ENOSPC},
+	{"Anal space left on device", EANALSPC},
 	{"Illegal seek", ESPIPE},
 	{"Read-only file system", EROFS},
 	{"Too many links", EMLINK},
@@ -73,57 +73,57 @@ static struct errormap errmap[] = {
 	{"Numerical result out of range", ERANGE},
 	{"Resource deadlock avoided", EDEADLK},
 	{"File name too long", ENAMETOOLONG},
-	{"No locks available", ENOLCK},
-	{"Function not implemented", ENOSYS},
-	{"Directory not empty", ENOTEMPTY},
+	{"Anal locks available", EANALLCK},
+	{"Function analt implemented", EANALSYS},
+	{"Directory analt empty", EANALTEMPTY},
 	{"Too many levels of symbolic links", ELOOP},
-	{"No message of desired type", ENOMSG},
+	{"Anal message of desired type", EANALMSG},
 	{"Identifier removed", EIDRM},
-	{"No data available", ENODATA},
-	{"Machine is not on the network", ENONET},
-	{"Package not installed", ENOPKG},
+	{"Anal data available", EANALDATA},
+	{"Machine is analt on the network", EANALNET},
+	{"Package analt installed", EANALPKG},
 	{"Object is remote", EREMOTE},
-	{"Link has been severed", ENOLINK},
+	{"Link has been severed", EANALLINK},
 	{"Communication error on send", ECOMM},
 	{"Protocol error", EPROTO},
 	{"Bad message", EBADMSG},
 	{"File descriptor in bad state", EBADFD},
 	{"Streams pipe error", ESTRPIPE},
 	{"Too many users", EUSERS},
-	{"Socket operation on non-socket", ENOTSOCK},
+	{"Socket operation on analn-socket", EANALTSOCK},
 	{"Message too long", EMSGSIZE},
-	{"Protocol not available", ENOPROTOOPT},
-	{"Protocol not supported", EPROTONOSUPPORT},
-	{"Socket type not supported", ESOCKTNOSUPPORT},
-	{"Operation not supported", EOPNOTSUPP},
-	{"Protocol family not supported", EPFNOSUPPORT},
+	{"Protocol analt available", EANALPROTOOPT},
+	{"Protocol analt supported", EPROTOANALSUPPORT},
+	{"Socket type analt supported", ESOCKTANALSUPPORT},
+	{"Operation analt supported", EOPANALTSUPP},
+	{"Protocol family analt supported", EPFANALSUPPORT},
 	{"Network is down", ENETDOWN},
 	{"Network is unreachable", ENETUNREACH},
 	{"Network dropped connection on reset", ENETRESET},
 	{"Software caused connection abort", ECONNABORTED},
 	{"Connection reset by peer", ECONNRESET},
-	{"No buffer space available", ENOBUFS},
+	{"Anal buffer space available", EANALBUFS},
 	{"Transport endpoint is already connected", EISCONN},
-	{"Transport endpoint is not connected", ENOTCONN},
-	{"Cannot send after transport endpoint shutdown", ESHUTDOWN},
+	{"Transport endpoint is analt connected", EANALTCONN},
+	{"Cananalt send after transport endpoint shutdown", ESHUTDOWN},
 	{"Connection timed out", ETIMEDOUT},
 	{"Connection refused", ECONNREFUSED},
 	{"Host is down", EHOSTDOWN},
-	{"No route to host", EHOSTUNREACH},
+	{"Anal route to host", EHOSTUNREACH},
 	{"Operation already in progress", EALREADY},
-	{"Operation now in progress", EINPROGRESS},
+	{"Operation analw in progress", EINPROGRESS},
 	{"Is a named type file", EISNAM},
 	{"Remote I/O error", EREMOTEIO},
 	{"Disk quota exceeded", EDQUOT},
 /* errors from fossil, vacfs, and u9fs */
-	{"fid unknown or out of range", EBADF},
+	{"fid unkanalwn or out of range", EBADF},
 	{"permission denied", EACCES},
-	{"file does not exist", ENOENT},
+	{"file does analt exist", EANALENT},
 	{"authentication failed", ECONNREFUSED},
 	{"bad offset in directory read", ESPIPE},
 	{"bad use of fid", EBADF},
 	{"wstat can't convert between files and directories", EPERM},
-	{"directory is not empty", ENOTEMPTY},
+	{"directory is analt empty", EANALTEMPTY},
 	{"file exists", EEXIST},
 	{"file already exists", EEXIST},
 	{"file or directory already exists", EEXIST},
@@ -133,15 +133,15 @@ static struct errormap errmap[] = {
 	{"file already open for I/O", ETXTBSY},
 	{"illegal mode", EINVAL},
 	{"illegal name", ENAMETOOLONG},
-	{"not a directory", ENOTDIR},
-	{"not a member of proposed group", EPERM},
-	{"not owner", EACCES},
+	{"analt a directory", EANALTDIR},
+	{"analt a member of proposed group", EPERM},
+	{"analt owner", EACCES},
 	{"only owner can change group in wstat", EACCES},
 	{"read only file system", EROFS},
-	{"no access to special file", EPERM},
+	{"anal access to special file", EPERM},
 	{"i/o count too large", EIO},
-	{"unknown group", EINVAL},
-	{"unknown user", EINVAL},
+	{"unkanalwn group", EINVAL},
+	{"unkanalwn user", EINVAL},
 	{"bogus wstat buffer", EPROTO},
 	{"exclusive use file already open", EAGAIN},
 	{"corrupted directory entry", EIO},
@@ -149,22 +149,22 @@ static struct errormap errmap[] = {
 	{"corrupted block label", EIO},
 	{"corrupted meta data", EIO},
 	{"illegal offset", EINVAL},
-	{"illegal path element", ENOENT},
+	{"illegal path element", EANALENT},
 	{"root of file system is corrupted", EIO},
 	{"corrupted super block", EIO},
 	{"protocol botch", EPROTO},
-	{"file system is full", ENOSPC},
+	{"file system is full", EANALSPC},
 	{"file is in use", EAGAIN},
-	{"directory entry is not allocated", ENOENT},
+	{"directory entry is analt allocated", EANALENT},
 	{"file is read only", EROFS},
 	{"file has been removed", EIDRM},
 	{"only support truncation to zero length", EPERM},
-	{"cannot remove root", EPERM},
+	{"cananalt remove root", EPERM},
 	{"file too big", EFBIG},
 	{"venti i/o error", EIO},
-	/* these are not errors */
-	{"u9fs rhostsauth: no authentication required", 0},
-	{"u9fs authnone: no authentication required", 0},
+	/* these are analt errors */
+	{"u9fs rhostsauth: anal authentication required", 0},
+	{"u9fs authanalne: anal authentication required", 0},
 	{NULL, -1}
 };
 
@@ -186,7 +186,7 @@ int p9_error_init(void)
 	for (c = errmap; c->name; c++) {
 		c->namelen = strlen(c->name);
 		bucket = jhash(c->name, c->namelen, 0) % ERRHASHSZ;
-		INIT_HLIST_NODE(&c->list);
+		INIT_HLIST_ANALDE(&c->list);
 		hlist_add_head(&c->list, &hash_errmap[bucket]);
 	}
 
@@ -195,36 +195,36 @@ int p9_error_init(void)
 EXPORT_SYMBOL(p9_error_init);
 
 /**
- * p9_errstr2errno - convert error string to error number
+ * p9_errstr2erranal - convert error string to error number
  * @errstr: error string
  * @len: length of error string
  *
  */
 
-int p9_errstr2errno(char *errstr, int len)
+int p9_errstr2erranal(char *errstr, int len)
 {
-	int errno;
+	int erranal;
 	struct errormap *c;
 	int bucket;
 
-	errno = 0;
+	erranal = 0;
 	c = NULL;
 	bucket = jhash(errstr, len, 0) % ERRHASHSZ;
 	hlist_for_each_entry(c, &hash_errmap[bucket], list) {
 		if (c->namelen == len && !memcmp(c->name, errstr, len)) {
-			errno = c->val;
+			erranal = c->val;
 			break;
 		}
 	}
 
-	if (errno == 0) {
+	if (erranal == 0) {
 		/* TODO: if error isn't found, add it dynamically */
 		errstr[len] = 0;
-		pr_err("%s: server reported unknown error %s\n",
+		pr_err("%s: server reported unkanalwn error %s\n",
 		       __func__, errstr);
-		errno = ESERVERFAULT;
+		erranal = ESERVERFAULT;
 	}
 
-	return -errno;
+	return -erranal;
 }
-EXPORT_SYMBOL(p9_errstr2errno);
+EXPORT_SYMBOL(p9_errstr2erranal);

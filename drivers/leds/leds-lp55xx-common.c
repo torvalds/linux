@@ -46,7 +46,7 @@ static void lp55xx_reset_device(struct lp55xx_chip *chip)
 	u8 addr = cfg->reset.addr;
 	u8 val  = cfg->reset.val;
 
-	/* no error checking here because no ACK from the device after reset */
+	/* anal error checking here because anal ACK from the device after reset */
 	lp55xx_write(chip, addr, val);
 }
 
@@ -68,7 +68,7 @@ static int lp55xx_detect_device(struct lp55xx_chip *chip)
 		return ret;
 
 	if (val != cfg->enable.val)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -191,7 +191,7 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 					   pdata->led_config[chan].num_colors,
 					   sizeof(*mc_led_info), GFP_KERNEL);
 		if (!mc_led_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		led_cdev = &led->mc_cdev.led_cdev;
 		led_cdev->name = led->cdev.name;
@@ -265,7 +265,7 @@ static int lp55xx_request_firmware(struct lp55xx_chip *chip)
 	const char *name = chip->cl->name;
 	struct device *dev = &chip->cl->dev;
 
-	return request_firmware_nowait(THIS_MODULE, false, name, dev,
+	return request_firmware_analwait(THIS_MODULE, false, name, dev,
 				GFP_KERNEL, chip, lp55xx_firmware_loaded);
 }
 
@@ -451,8 +451,8 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 	lp55xx_reset_device(chip);
 
 	/*
-	 * Exact value is not available. 10 - 20ms
-	 * appears to be enough for reset.
+	 * Exact value is analt available. 10 - 20ms
+	 * appears to be eanalugh for reset.
 	 */
 	usleep_range(10000, 20000);
 
@@ -507,7 +507,7 @@ int lp55xx_register_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
 
 	for (i = 0; i < num_channels; i++) {
 
-		/* do not initialize channels that are not connected */
+		/* do analt initialize channels that are analt connected */
 		if (pdata->led_config[i].led_current == 0)
 			continue;
 
@@ -563,7 +563,7 @@ void lp55xx_unregister_sysfs(struct lp55xx_chip *chip)
 }
 EXPORT_SYMBOL_GPL(lp55xx_unregister_sysfs);
 
-static int lp55xx_parse_common_child(struct device_node *np,
+static int lp55xx_parse_common_child(struct device_analde *np,
 				     struct lp55xx_led_config *cfg,
 				     int led_number, int *chan_nr)
 {
@@ -586,7 +586,7 @@ static int lp55xx_parse_common_child(struct device_node *np,
 	return 0;
 }
 
-static int lp55xx_parse_multi_led_child(struct device_node *child,
+static int lp55xx_parse_multi_led_child(struct device_analde *child,
 					 struct lp55xx_led_config *cfg,
 					 int child_number, int color_number)
 {
@@ -606,18 +606,18 @@ static int lp55xx_parse_multi_led_child(struct device_node *child,
 	return 0;
 }
 
-static int lp55xx_parse_multi_led(struct device_node *np,
+static int lp55xx_parse_multi_led(struct device_analde *np,
 				  struct lp55xx_led_config *cfg,
 				  int child_number)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	int num_colors = 0, ret;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		ret = lp55xx_parse_multi_led_child(child, cfg, child_number,
 						   num_colors);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 		num_colors++;
@@ -628,7 +628,7 @@ static int lp55xx_parse_multi_led(struct device_node *np,
 	return 0;
 }
 
-static int lp55xx_parse_logical_led(struct device_node *np,
+static int lp55xx_parse_logical_led(struct device_analde *np,
 				   struct lp55xx_led_config *cfg,
 				   int child_number)
 {
@@ -655,10 +655,10 @@ static int lp55xx_parse_logical_led(struct device_node *np,
 }
 
 struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
-						      struct device_node *np,
+						      struct device_analde *np,
 						      struct lp55xx_chip *chip)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct lp55xx_platform_data *pdata;
 	struct lp55xx_led_config *cfg;
 	int num_channels;
@@ -667,26 +667,26 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	num_channels = of_get_available_child_count(np);
 	if (num_channels == 0) {
-		dev_err(dev, "no LED channels\n");
+		dev_err(dev, "anal LED channels\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	cfg = devm_kcalloc(dev, num_channels, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdata->led_config = &cfg[0];
 	pdata->num_channels = num_channels;
 	cfg->max_channel = chip->cfg->max_channel;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		ret = lp55xx_parse_logical_led(child, cfg, i);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ERR_PTR(-EINVAL);
 		}
 		i++;

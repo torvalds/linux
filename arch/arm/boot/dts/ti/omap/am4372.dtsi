@@ -164,10 +164,10 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		ti,no-idle;
+		ti,anal-idle;
 
-		l3-noc@44000000 {
-			compatible = "ti,am4372-l3-noc";
+		l3-analc@44000000 {
+			compatible = "ti,am4372-l3-analc";
 			reg = <0x44000000 0x400000>,
 			      <0x44800000 0x400000>;
 			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
@@ -187,7 +187,7 @@
 			reg-names = "rev";
 			clocks = <&emif_clkctrl AM4_EMIF_EMIF_CLKCTRL 0>;
 			clock-names = "fck";
-			ti,no-idle;
+			ti,anal-idle;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x4c000000 0x1000000>;
@@ -310,7 +310,7 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&l3s_clkctrl AM4_L3S_MMC3_CLKCTRL 0>;
@@ -337,7 +337,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			/* Domains (P, C): per_pwrdm, l3_clkdm */
@@ -365,7 +365,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,syss-mask = <1>;
@@ -395,7 +395,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,syss-mask = <1>;
@@ -424,10 +424,10 @@
 			ti,sysc-mask = <(SYSC_PRUSS_STANDBY_INIT |
 					 SYSC_PRUSS_SUB_MWAIT)>;
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			clocks = <&pruss_ocp_clkctrl AM4_PRUSS_OCP_PRUSS_CLKCTRL 0>;
 			clock-names = "fck";
@@ -610,7 +610,7 @@
 			      <0x50000014 4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&l3s_clkctrl AM4_L3S_GPMC_CLKCTRL 0>;
@@ -646,7 +646,7 @@
 			      <0x47900010 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			clocks = <&l3s_clkctrl AM4_L3S_QSPI_CLKCTRL 0>;
@@ -674,7 +674,7 @@
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
 			clocks = <&l3_clkctrl AM4_L3_OCMCRAM_CLKCTRL 0>;
 			clock-names = "fck";
-			ti,no-idle;
+			ti,anal-idle;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x40300000 0x40000>;
@@ -706,10 +706,10 @@
 			      <0x5600fe10 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			clocks = <&gfx_l3_clkctrl AM4_GFX_L3_GFX_CLKCTRL 0>;
 			clock-names = "fck";
@@ -781,8 +781,8 @@
 
 /* Preferred always-on timer for clocksource */
 &timer1_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	clocks = <&l4_wkup_clkctrl AM4_L4_WKUP_TIMER1_CLKCTRL 0>,
 		 <&l4_wkup_clkctrl AM4_L4_WKUP_L4_WKUP_CLKCTRL 0>;
 	clock-names = "fck", "ick";
@@ -794,8 +794,8 @@
 
 /* Preferred timer for clockevent */
 &timer2_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	clocks = <&l4ls_clkctrl AM4_L4LS_TIMER2_CLKCTRL 0>,
 		 <&l4ls_clkctrl AM4_L4LS_L4_LS_CLKCTRL 0>;
 	clock-names = "fck", "ick";

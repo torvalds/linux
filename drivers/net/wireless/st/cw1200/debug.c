@@ -4,7 +4,7 @@
  * DebugFS code
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #include <linux/module.h>
@@ -19,7 +19,7 @@ static const char * const cw1200_debug_join_status[] = {
 	"passive",
 	"monitor",
 	"station (joining)",
-	"station (not authenticated yet)",
+	"station (analt authenticated yet)",
 	"station",
 	"adhoc",
 	"access point",
@@ -75,8 +75,8 @@ static void cw1200_queue_status_show(struct seq_file *seq,
 	seq_printf(seq, "  queued:   %zu\n", q->num_queued);
 	seq_printf(seq, "  pending:  %zu\n", q->num_pending);
 	seq_printf(seq, "  sent:     %zu\n", q->num_sent);
-	seq_printf(seq, "  locked:   %s\n", q->tx_locked_cnt ? "yes" : "no");
-	seq_printf(seq, "  overfull: %s\n", q->overfull ? "yes" : "no");
+	seq_printf(seq, "  locked:   %s\n", q->tx_locked_cnt ? "anal" : "anal");
+	seq_printf(seq, "  overfull: %s\n", q->overfull ? "anal" : "anal");
 	seq_puts(seq,   "  link map: 0-> ");
 	for (i = 0; i < q->stats->map_capacity; ++i)
 		seq_printf(seq, "%.2d ", q->link_map_cache[i]);
@@ -153,7 +153,7 @@ static int cw1200_status_show(struct seq_file *seq, void *v)
 			   priv->edca.params[i].max_rx_lifetime);
 
 	if (priv->join_status == CW1200_JOIN_STATUS_STA) {
-		static const char *pm_mode = "unknown";
+		static const char *pm_mode = "unkanalwn";
 		switch (priv->powersave_mode.mode) {
 		case WSM_PSM_ACTIVE:
 			pm_mode = "off";
@@ -183,7 +183,7 @@ static int cw1200_status_show(struct seq_file *seq, void *v)
 		   cw1200_is_ht(&priv->ht_info) ? "on" : "off");
 	if (cw1200_is_ht(&priv->ht_info)) {
 		seq_printf(seq, "Greenfield: %s\n",
-			   cw1200_ht_greenfield(&priv->ht_info) ? "yes" : "no");
+			   cw1200_ht_greenfield(&priv->ht_info) ? "anal" : "anal");
 		seq_printf(seq, "AMPDU dens: %d\n",
 			   cw1200_ht_ampdu_density(&priv->ht_info));
 	}
@@ -309,7 +309,7 @@ static int cw1200_counters_show(struct seq_file *seq, void *v)
 	PUT_COUNTER("\t\t", rx_packet_errors);
 	PUT_COUNTER("\t",   rx_decryption_failures);
 	PUT_COUNTER("\t\t", rx_mic_failures);
-	PUT_COUNTER("\t",   rx_no_key_failures);
+	PUT_COUNTER("\t",   rx_anal_key_failures);
 	PUT_COUNTER("\t",   tx_multicast_frames);
 	PUT_COUNTER("\t",   tx_frames_success);
 	PUT_COUNTER("\t",   tx_frame_failures);
@@ -359,7 +359,7 @@ static const struct file_operations fops_wsm_dumps = {
 
 int cw1200_debug_init(struct cw1200_common *priv)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct cw1200_debug_priv *d = kzalloc(sizeof(struct cw1200_debug_priv),
 			GFP_KERNEL);
 	priv->debug = d;

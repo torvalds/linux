@@ -21,10 +21,10 @@ description: |
   This binding allows marking storage device (as containing env data) and
   specifying used format.
 
-  Right now only flash partition case is covered but it may be extended to e.g.
+  Right analw only flash partition case is covered but it may be extended to e.g.
   UBI volumes in the future.
 
-  Variables can be defined as NVMEM device subnodes.
+  Variables can be defined as NVMEM device subanaldes.
 
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>

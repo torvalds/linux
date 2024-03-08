@@ -14,17 +14,17 @@ void test_skc_to_unix_sock(void)
 	int err, sockfd = 0;
 
 	skel = test_skc_to_unix_sock__open();
-	if (!ASSERT_OK_PTR(skel, "could not open BPF object"))
+	if (!ASSERT_OK_PTR(skel, "could analt open BPF object"))
 		return;
 
 	skel->rodata->my_pid = getpid();
 
 	err = test_skc_to_unix_sock__load(skel);
-	if (!ASSERT_OK(err, "could not load BPF object"))
+	if (!ASSERT_OK(err, "could analt load BPF object"))
 		goto cleanup;
 
 	err = test_skc_to_unix_sock__attach(skel);
-	if (!ASSERT_OK(err, "could not attach BPF object"))
+	if (!ASSERT_OK(err, "could analt attach BPF object"))
 		goto cleanup;
 
 	/* trigger unix_listen */

@@ -35,10 +35,10 @@ static const struct __extcon_info {
 	const char *name;
 
 } extcon_info[] = {
-	[EXTCON_NONE] = {
+	[EXTCON_ANALNE] = {
 		.type = EXTCON_TYPE_MISC,
-		.id = EXTCON_NONE,
-		.name = "NONE",
+		.id = EXTCON_ANALNE,
+		.name = "ANALNE",
 	},
 
 	/* USB external connector */
@@ -308,12 +308,12 @@ static bool is_extcon_property_supported(unsigned int id, unsigned int prop)
 {
 	int type;
 
-	/* Check whether the property is supported or not. */
+	/* Check whether the property is supported or analt. */
 	type = get_extcon_type(prop);
 	if (type < 0)
 		return false;
 
-	/* Check whether a specific extcon id supports the property or not. */
+	/* Check whether a specific extcon id supports the property or analt. */
 	return !!(extcon_info[id].type & type);
 }
 
@@ -323,7 +323,7 @@ static int is_extcon_property_capability(struct extcon_dev *edev,
 	struct extcon_cable *cable;
 	int type, ret;
 
-	/* Check whether the property is supported or not. */
+	/* Check whether the property is supported or analt. */
 	type = get_extcon_type(prop);
 	if (type < 0)
 		return type;
@@ -421,7 +421,7 @@ static ssize_t cable_state_show(struct device *dev,
  * @edev:	the extcon device
  * @id:		the unique id indicating an external connector
  *
- * Note that this function send a notification in order to synchronize
+ * Analte that this function send a analtification in order to synchronize
  * the state and property of an external connector.
  *
  * Returns 0 if success or error number if fail.
@@ -450,16 +450,16 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	/*
-	 * Call functions in a raw notifier chain for the specific one
+	 * Call functions in a raw analtifier chain for the specific one
 	 * external connector.
 	 */
-	raw_notifier_call_chain(&edev->nh[index], state, edev);
+	raw_analtifier_call_chain(&edev->nh[index], state, edev);
 
 	/*
-	 * Call functions in a raw notifier chain for the all supported
+	 * Call functions in a raw analtifier chain for the all supported
 	 * external connectors.
 	 */
-	raw_notifier_call_chain(&edev->nh_all, state, edev);
+	raw_analtifier_call_chain(&edev->nh_all, state, edev);
 
 	spin_lock_irqsave(&edev->lock, flags);
 	/* This could be in interrupt handler */
@@ -471,7 +471,7 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 		dev_err(&edev->dev, "out of memory in extcon_set_state\n");
 		kobject_uevent(&edev->dev.kobj, KOBJ_CHANGE);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	length = name_show(&edev->dev, NULL, prop_buf);
@@ -534,8 +534,8 @@ EXPORT_SYMBOL_GPL(extcon_get_state);
  * @state:	the new state of an external connector.
  *		the default semantics is true: attached / false: detached.
  *
- * Note that this function set the state of an external connector without
- * a notification. To synchronize the state of an external connector,
+ * Analte that this function set the state of an external connector without
+ * a analtification. To synchronize the state of an external connector,
  * have to use extcon_set_state_sync() and extcon_sync().
  *
  * Returns 0 if success or error number if fail.
@@ -590,8 +590,8 @@ EXPORT_SYMBOL_GPL(extcon_set_state);
  * @state:	the new state of external connector.
  *		the default semantics is true: attached / false: detached.
  *
- * Note that this function set the state of external connector
- * and synchronize the state by sending a notification.
+ * Analte that this function set the state of external connector
+ * and synchronize the state by sending a analtification.
  *
  * Returns 0 if success or error number if fail.
  */
@@ -614,7 +614,7 @@ EXPORT_SYMBOL_GPL(extcon_set_state_sync);
  * @prop:	the property id indicating an extcon property
  * @prop_val:	the pointer which store the value of extcon property
  *
- * Note that when getting the property value of external connector,
+ * Analte that when getting the property value of external connector,
  * the external connector should be attached. If detached state, function
  * return 0 without property value. Also, the each property should be
  * included in the list of supported properties according to extcon type.
@@ -634,7 +634,7 @@ int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 	if (!edev)
 		return -EINVAL;
 
-	/* Check whether the property is supported or not */
+	/* Check whether the property is supported or analt */
 	if (!is_extcon_property_supported(id, prop))
 		return -EINVAL;
 
@@ -645,7 +645,7 @@ int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 
 	spin_lock_irqsave(&edev->lock, flags);
 
-	/* Check whether the property is available or not. */
+	/* Check whether the property is available or analt. */
 	if (!is_extcon_property_capability(edev, id, index, prop)) {
 		spin_unlock_irqrestore(&edev->lock, flags);
 		return -EPERM;
@@ -653,7 +653,7 @@ int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 
 	/*
 	 * Check whether the external connector is attached.
-	 * If external connector is detached, the user can not
+	 * If external connector is detached, the user can analt
 	 * get the property value.
 	 */
 	if (!is_extcon_attached(edev, index)) {
@@ -695,7 +695,7 @@ EXPORT_SYMBOL_GPL(extcon_get_property);
  * @prop:	the property id indicating an extcon property
  * @prop_val:	the pointer including the new value of extcon property
  *
- * Note that each property should be included in the list of supported
+ * Analte that each property should be included in the list of supported
  * properties according to the extcon type.
  *
  * Returns 0 if success or error number if fail.
@@ -711,7 +711,7 @@ int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 	if (!edev)
 		return -EINVAL;
 
-	/* Check whether the property is supported or not */
+	/* Check whether the property is supported or analt */
 	if (!is_extcon_property_supported(id, prop))
 		return -EINVAL;
 
@@ -722,7 +722,7 @@ int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 
 	spin_lock_irqsave(&edev->lock, flags);
 
-	/* Check whether the property is available or not. */
+	/* Check whether the property is available or analt. */
 	if (!is_extcon_property_capability(edev, id, index, prop)) {
 		spin_unlock_irqrestore(&edev->lock, flags);
 		return -EPERM;
@@ -762,7 +762,7 @@ EXPORT_SYMBOL_GPL(extcon_set_property);
  * @prop:	the property id indicating an extcon property
  * @prop_val:	the pointer including the new value of extcon property
  *
- * Note that when setting the property value of external connector,
+ * Analte that when setting the property value of external connector,
  * the external connector should be attached. The each property should
  * be included in the list of supported properties according to extcon type.
  *
@@ -789,7 +789,7 @@ EXPORT_SYMBOL_GPL(extcon_set_property_sync);
  * @id:		the unique id indicating an external connector
  * @prop:	the property id indicating an extcon property
  *
- * Returns 1 if the property is available or 0 if not available.
+ * Returns 1 if the property is available or 0 if analt available.
  */
 int extcon_get_property_capability(struct extcon_dev *edev, unsigned int id,
 					unsigned int prop)
@@ -799,7 +799,7 @@ int extcon_get_property_capability(struct extcon_dev *edev, unsigned int id,
 	if (!edev)
 		return -EINVAL;
 
-	/* Check whether the property is supported or not */
+	/* Check whether the property is supported or analt */
 	if (!is_extcon_property_supported(id, prop))
 		return -EINVAL;
 
@@ -819,7 +819,7 @@ EXPORT_SYMBOL_GPL(extcon_get_property_capability);
  * @id:		the unique id indicating an external connector
  * @prop:	the property id indicating an extcon property
  *
- * Note that this function set the capability of the property
+ * Analte that this function set the capability of the property
  * for an external connector in order to mark the bit in capability
  * bitmap which mean the available state of the property.
  *
@@ -834,7 +834,7 @@ int extcon_set_property_capability(struct extcon_dev *edev, unsigned int id,
 	if (!edev)
 		return -EINVAL;
 
-	/* Check whether the property is supported or not. */
+	/* Check whether the property is supported or analt. */
 	if (!is_extcon_property_supported(id, prop))
 		return -EINVAL;
 
@@ -875,7 +875,7 @@ EXPORT_SYMBOL_GPL(extcon_set_property_capability);
  * @extcon_name:	the extcon name provided with extcon_dev_register()
  *
  * Return the pointer of extcon device if success or ERR_PTR(err) if fail.
- * NOTE: This function returns -EPROBE_DEFER so it may only be called from
+ * ANALTE: This function returns -EPROBE_DEFER so it may only be called from
  * probe() functions.
  */
 struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
@@ -898,20 +898,20 @@ out:
 EXPORT_SYMBOL_GPL(extcon_get_extcon_dev);
 
 /**
- * extcon_register_notifier() - Register a notifier block to get notified by
+ * extcon_register_analtifier() - Register a analtifier block to get analtified by
  *				any state changes from the extcon.
  * @edev:	the extcon device
  * @id:		the unique id indicating an external connector
- * @nb:		a notifier block to be registered
+ * @nb:		a analtifier block to be registered
  *
- * Note that the second parameter given to the callback of nb (val) is
+ * Analte that the second parameter given to the callback of nb (val) is
  * the current state of an external connector and the third pameter
  * is the pointer of extcon device.
  *
  * Returns 0 if success or error number if fail.
  */
-int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
-			     struct notifier_block *nb)
+int extcon_register_analtifier(struct extcon_dev *edev, unsigned int id,
+			     struct analtifier_block *nb)
 {
 	unsigned long flags;
 	int ret, idx;
@@ -924,23 +924,23 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 		return idx;
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_register(&edev->nh[idx], nb);
+	ret = raw_analtifier_chain_register(&edev->nh[idx], nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(extcon_register_notifier);
+EXPORT_SYMBOL_GPL(extcon_register_analtifier);
 
 /**
- * extcon_unregister_notifier() - Unregister a notifier block from the extcon.
+ * extcon_unregister_analtifier() - Unregister a analtifier block from the extcon.
  * @edev:	the extcon device
  * @id:		the unique id indicating an external connector
- * @nb:		a notifier block to be registered
+ * @nb:		a analtifier block to be registered
  *
  * Returns 0 if success or error number if fail.
  */
-int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb)
+int extcon_unregister_analtifier(struct extcon_dev *edev, unsigned int id,
+				struct analtifier_block *nb)
 {
 	unsigned long flags;
 	int ret, idx;
@@ -953,27 +953,27 @@ int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 		return idx;
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_unregister(&edev->nh[idx], nb);
+	ret = raw_analtifier_chain_unregister(&edev->nh[idx], nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(extcon_unregister_notifier);
+EXPORT_SYMBOL_GPL(extcon_unregister_analtifier);
 
 /**
- * extcon_register_notifier_all() - Register a notifier block for all connectors.
+ * extcon_register_analtifier_all() - Register a analtifier block for all connectors.
  * @edev:	the extcon device
- * @nb:		a notifier block to be registered
+ * @nb:		a analtifier block to be registered
  *
- * Note that this function registers a notifier block in order to receive
+ * Analte that this function registers a analtifier block in order to receive
  * the state change of all supported external connectors from extcon device.
  * And the second parameter given to the callback of nb (val) is
  * the current state and the third pameter is the pointer of extcon device.
  *
  * Returns 0 if success or error number if fail.
  */
-int extcon_register_notifier_all(struct extcon_dev *edev,
-				struct notifier_block *nb)
+int extcon_register_analtifier_all(struct extcon_dev *edev,
+				struct analtifier_block *nb)
 {
 	unsigned long flags;
 	int ret;
@@ -982,22 +982,22 @@ int extcon_register_notifier_all(struct extcon_dev *edev,
 		return -EINVAL;
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_register(&edev->nh_all, nb);
+	ret = raw_analtifier_chain_register(&edev->nh_all, nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(extcon_register_notifier_all);
+EXPORT_SYMBOL_GPL(extcon_register_analtifier_all);
 
 /**
- * extcon_unregister_notifier_all() - Unregister a notifier block from extcon.
+ * extcon_unregister_analtifier_all() - Unregister a analtifier block from extcon.
  * @edev:	the extcon device
- * @nb:		a notifier block to be registered
+ * @nb:		a analtifier block to be registered
  *
  * Returns 0 if success or error number if fail.
  */
-int extcon_unregister_notifier_all(struct extcon_dev *edev,
-				struct notifier_block *nb)
+int extcon_unregister_analtifier_all(struct extcon_dev *edev,
+				struct analtifier_block *nb)
 {
 	unsigned long flags;
 	int ret;
@@ -1006,12 +1006,12 @@ int extcon_unregister_notifier_all(struct extcon_dev *edev,
 		return -EINVAL;
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_unregister(&edev->nh_all, nb);
+	ret = raw_analtifier_chain_unregister(&edev->nh_all, nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(extcon_unregister_notifier_all);
+EXPORT_SYMBOL_GPL(extcon_unregister_analtifier_all);
 
 static struct attribute *extcon_attrs[] = {
 	&dev_attr_state.attr,
@@ -1045,9 +1045,9 @@ static void dummy_sysfs_dev_release(struct device *dev)
 /*
  * extcon_dev_allocate() - Allocate the memory of extcon device.
  * @supported_cable:	the array of the supported external connectors
- *			ending with EXTCON_NONE.
+ *			ending with EXTCON_ANALNE.
  *
- * Note that this function allocates the memory for extcon device 
+ * Analte that this function allocates the memory for extcon device 
  * and initialize default setting for the extcon device.
  *
  * Returns the pointer memory of allocated extcon_dev if success
@@ -1062,7 +1062,7 @@ struct extcon_dev *extcon_dev_allocate(const unsigned int *supported_cable)
 
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
 	if (!edev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	edev->max_supported = 0;
 	edev->supported_cable = supported_cable;
@@ -1101,7 +1101,7 @@ static int extcon_alloc_cables(struct extcon_dev *edev)
 	edev->cables = kcalloc(edev->max_supported, sizeof(*edev->cables),
 			       GFP_KERNEL);
 	if (!edev->cables)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (index = 0; index < edev->max_supported; index++) {
 		cable = &edev->cables[index];
@@ -1114,7 +1114,7 @@ static int extcon_alloc_cables(struct extcon_dev *edev)
 			}
 
 			kfree(edev->cables);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		cable->edev = edev;
@@ -1163,13 +1163,13 @@ static int extcon_alloc_muex(struct extcon_dev *edev)
 	edev->attrs_muex = kcalloc(index + 1, sizeof(*edev->attrs_muex),
 				   GFP_KERNEL);
 	if (!edev->attrs_muex)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edev->d_attrs_muex = kcalloc(index, sizeof(*edev->d_attrs_muex),
 				     GFP_KERNEL);
 	if (!edev->d_attrs_muex) {
 		kfree(edev->attrs_muex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (index = 0; edev->mutually_exclusive[index]; index++) {
@@ -1181,7 +1181,7 @@ static int extcon_alloc_muex(struct extcon_dev *edev)
 
 			kfree(edev->d_attrs_muex);
 			kfree(edev->attrs_muex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		sysfs_attr_init(&edev->d_attrs_muex[index].attr);
 		edev->d_attrs_muex[index].attr.name = name;
@@ -1214,7 +1214,7 @@ static int extcon_alloc_groups(struct extcon_dev *edev)
 					  sizeof(*edev->extcon_dev_type.groups),
 					  GFP_KERNEL);
 	if (!edev->extcon_dev_type.groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edev->extcon_dev_type.name = dev_name(&edev->dev);
 	edev->extcon_dev_type.release = dummy_sysfs_dev_release;
@@ -1235,10 +1235,10 @@ static int extcon_alloc_groups(struct extcon_dev *edev)
  * @edev:	the extcon device to be registered
  *
  * Among the members of edev struct, please set the "user initializing data"
- * do not set the values of "internal data", which are initialized by
+ * do analt set the values of "internal data", which are initialized by
  * this function.
  *
- * Note that before calling this funciton, have to allocate the memory
+ * Analte that before calling this funciton, have to allocate the memory
  * of an extcon device by using the extcon_dev_allocate(). And the extcon
  * dev should include the supported_cable information.
  *
@@ -1255,7 +1255,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 	if (!edev || !edev->supported_cable)
 		return -EINVAL;
 
-	for (index = 0; edev->supported_cable[index] != EXTCON_NONE; index++);
+	for (index = 0; edev->supported_cable[index] != EXTCON_ANALNE; index++);
 
 	edev->max_supported = index;
 	if (index > SUPPORTED_CABLE_MAX) {
@@ -1297,15 +1297,15 @@ int extcon_dev_register(struct extcon_dev *edev)
 		edev->nh = kcalloc(edev->max_supported, sizeof(*edev->nh),
 				GFP_KERNEL);
 		if (!edev->nh) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_alloc_nh;
 		}
 	}
 
 	for (index = 0; index < edev->max_supported; index++)
-		RAW_INIT_NOTIFIER_HEAD(&edev->nh[index]);
+		RAW_INIT_ANALTIFIER_HEAD(&edev->nh[index]);
 
-	RAW_INIT_NOTIFIER_HEAD(&edev->nh_all);
+	RAW_INIT_ANALTIFIER_HEAD(&edev->nh_all);
 
 	dev_set_drvdata(&edev->dev, edev);
 	dev_set_name(&edev->dev, "extcon%d", edev->id);
@@ -1352,7 +1352,7 @@ EXPORT_SYMBOL_GPL(extcon_dev_register);
  * extcon_dev_unregister() - Unregister the extcon device.
  * @edev:	the extcon device to be unregistered.
  *
- * Note that this does not call kfree(edev) because edev was not allocated
+ * Analte that this does analt call kfree(edev) because edev was analt allocated
  * by this class.
  */
 void extcon_dev_unregister(struct extcon_dev *edev)
@@ -1399,18 +1399,18 @@ EXPORT_SYMBOL_GPL(extcon_dev_unregister);
 #ifdef CONFIG_OF
 
 /*
- * extcon_find_edev_by_node - Find the extcon device from devicetree.
- * @node	: OF node identifying edev
+ * extcon_find_edev_by_analde - Find the extcon device from devicetree.
+ * @analde	: OF analde identifying edev
  *
  * Return the pointer of extcon device if success or ERR_PTR(err) if fail.
  */
-struct extcon_dev *extcon_find_edev_by_node(struct device_node *node)
+struct extcon_dev *extcon_find_edev_by_analde(struct device_analde *analde)
 {
 	struct extcon_dev *edev;
 
 	mutex_lock(&extcon_dev_list_lock);
 	list_for_each_entry(edev, &extcon_dev_list, entry)
-		if (edev->dev.parent && device_match_of_node(edev->dev.parent, node))
+		if (edev->dev.parent && device_match_of_analde(edev->dev.parent, analde))
 			goto out;
 	edev = ERR_PTR(-EPROBE_DEFER);
 out:
@@ -1428,41 +1428,41 @@ out:
  */
 struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 {
-	struct device_node *node, *np = dev_of_node(dev);
+	struct device_analde *analde, *np = dev_of_analde(dev);
 	struct extcon_dev *edev;
 
 	if (!np) {
-		dev_dbg(dev, "device does not have a device node entry\n");
+		dev_dbg(dev, "device does analt have a device analde entry\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	node = of_parse_phandle(np, "extcon", index);
-	if (!node) {
-		dev_dbg(dev, "failed to get phandle in %pOF node\n", np);
-		return ERR_PTR(-ENODEV);
+	analde = of_parse_phandle(np, "extcon", index);
+	if (!analde) {
+		dev_dbg(dev, "failed to get phandle in %pOF analde\n", np);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	edev = extcon_find_edev_by_node(node);
-	of_node_put(node);
+	edev = extcon_find_edev_by_analde(analde);
+	of_analde_put(analde);
 
 	return edev;
 }
 
 #else
 
-struct extcon_dev *extcon_find_edev_by_node(struct device_node *node)
+struct extcon_dev *extcon_find_edev_by_analde(struct device_analde *analde)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 #endif /* CONFIG_OF */
 
-EXPORT_SYMBOL_GPL(extcon_find_edev_by_node);
+EXPORT_SYMBOL_GPL(extcon_find_edev_by_analde);
 EXPORT_SYMBOL_GPL(extcon_get_edev_by_phandle);
 
 /**

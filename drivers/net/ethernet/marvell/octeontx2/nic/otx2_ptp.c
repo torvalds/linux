@@ -53,13 +53,13 @@ static int otx2_ptp_hw_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
 	int rc;
 
 	if (!ptp->nic)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&pfvf->mbox.lock);
 	req = otx2_mbox_alloc_msg_ptp_op(&ptp->nic->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	req->op = PTP_OP_ADJTIME;
 	req->delta = delta;
@@ -120,7 +120,7 @@ static int otx2_ptp_hw_settime(struct ptp_clock_info *ptp_info,
 	int rc;
 
 	if (!ptp->nic)
-		return -ENODEV;
+		return -EANALDEV;
 
 	nsec = timespec64_to_ns(ts);
 
@@ -128,7 +128,7 @@ static int otx2_ptp_hw_settime(struct ptp_clock_info *ptp_info,
 	req = otx2_mbox_alloc_msg_ptp_op(&ptp->nic->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->op = PTP_OP_SET_CLOCK;
@@ -146,11 +146,11 @@ static int otx2_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 	struct ptp_req *req;
 
 	if (!ptp->nic)
-		return -ENODEV;
+		return -EANALDEV;
 
 	req = otx2_mbox_alloc_msg_ptp_op(&ptp->nic->mbox);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->op = PTP_OP_ADJFINE;
 	req->scaled_ppm = scaled_ppm;
@@ -163,11 +163,11 @@ static int ptp_set_thresh(struct otx2_ptp *ptp, u64 thresh)
 	struct ptp_req *req;
 
 	if (!ptp->nic)
-		return -ENODEV;
+		return -EANALDEV;
 
 	req = otx2_mbox_alloc_msg_ptp_op(&ptp->nic->mbox);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->op = PTP_OP_SET_THRESH;
 	req->thresh = thresh;
@@ -180,11 +180,11 @@ static int ptp_pps_on(struct otx2_ptp *ptp, int on, u64 period)
 	struct ptp_req *req;
 
 	if (!ptp->nic)
-		return -ENODEV;
+		return -EANALDEV;
 
 	req = otx2_mbox_alloc_msg_ptp_op(&ptp->nic->mbox);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->op = PTP_OP_PPS_ON;
 	req->pps_on = on;
@@ -275,7 +275,7 @@ static int otx2_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 			       enum ptp_pin_function func, unsigned int chan)
 {
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_EXTTS:
 	case PTP_PF_PEROUT:
 		break;
@@ -287,7 +287,7 @@ static int otx2_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 
 static u64 otx2_ptp_hw_tstamp2time(const struct timecounter *time_counter, u64 tstamp)
 {
-	/* On HW which supports atomic updates, timecounter is not initialized */
+	/* On HW which supports atomic updates, timecounter is analt initialized */
 	return tstamp;
 }
 
@@ -345,7 +345,7 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 	int pin;
 
 	if (!ptp->nic)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (rq->type) {
 	case PTP_CLK_REQ_EXTTS:
@@ -361,7 +361,7 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 		return 0;
 	case PTP_CLK_REQ_PEROUT:
 		if (rq->perout.flags)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (rq->perout.index >= ptp_info->n_pins)
 			return -EINVAL;
@@ -376,7 +376,7 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int otx2_ptp_init(struct otx2_nic *pfvf)
@@ -396,7 +396,7 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 	req = otx2_mbox_alloc_msg_ptp_op(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->op = PTP_OP_GET_CLOCK;
@@ -410,7 +410,7 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 
 	ptp_ptr = kzalloc(sizeof(*ptp_ptr), GFP_KERNEL);
 	if (!ptp_ptr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -418,7 +418,7 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 
 	snprintf(ptp_ptr->extts_config.name, sizeof(ptp_ptr->extts_config.name), "TSTAMP");
 	ptp_ptr->extts_config.index = 0;
-	ptp_ptr->extts_config.func = PTP_PF_NONE;
+	ptp_ptr->extts_config.func = PTP_PF_ANALNE;
 
 	ptp_ptr->ptp_info = (struct ptp_clock_info) {
 		.owner          = THIS_MODULE,
@@ -462,7 +462,7 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 	ptp_ptr->ptp_clock = ptp_clock_register(&ptp_ptr->ptp_info, pfvf->dev);
 	if (IS_ERR_OR_NULL(ptp_ptr->ptp_clock)) {
 		err = ptp_ptr->ptp_clock ?
-		      PTR_ERR(ptp_ptr->ptp_clock) : -ENODEV;
+		      PTR_ERR(ptp_ptr->ptp_clock) : -EANALDEV;
 		kfree(ptp_ptr);
 		goto error;
 	}
@@ -502,7 +502,7 @@ EXPORT_SYMBOL_GPL(otx2_ptp_destroy);
 int otx2_ptp_clock_index(struct otx2_nic *pfvf)
 {
 	if (!pfvf->ptp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ptp_clock_index(pfvf->ptp->ptp_clock);
 }
@@ -511,7 +511,7 @@ EXPORT_SYMBOL_GPL(otx2_ptp_clock_index);
 int otx2_ptp_tstamp2time(struct otx2_nic *pfvf, u64 tstamp, u64 *tsns)
 {
 	if (!pfvf->ptp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*tsns = pfvf->ptp->ptp_tstamp2nsec(&pfvf->ptp->time_counter, tstamp);
 

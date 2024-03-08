@@ -23,10 +23,10 @@ EXPORT_SYMBOL(_totalram_pages);
 unsigned long totalreserve_pages __read_mostly;
 unsigned long totalcma_pages __read_mostly;
 
-static inline void show_node(struct zone *zone)
+static inline void show_analde(struct zone *zone)
 {
 	if (IS_ENABLED(CONFIG_NUMA))
-		printk("Node %d ", zone_to_nid(zone));
+		printk("Analde %d ", zone_to_nid(zone));
 }
 
 long si_mem_available(void)
@@ -47,22 +47,22 @@ long si_mem_available(void)
 	available = global_zone_page_state(NR_FREE_PAGES) - totalreserve_pages;
 
 	/*
-	 * Not all the page cache can be freed, otherwise the system will
+	 * Analt all the page cache can be freed, otherwise the system will
 	 * start swapping or thrashing. Assume at least half of the page
 	 * cache, or the low watermark worth of cache, needs to stay.
 	 */
-	pagecache = global_node_page_state(NR_ACTIVE_FILE) +
-		global_node_page_state(NR_INACTIVE_FILE);
+	pagecache = global_analde_page_state(NR_ACTIVE_FILE) +
+		global_analde_page_state(NR_INACTIVE_FILE);
 	pagecache -= min(pagecache / 2, wmark_low);
 	available += pagecache;
 
 	/*
 	 * Part of the reclaimable slab and other kernel memory consists of
-	 * items that are in use, and cannot be freed. Cap this estimate at the
+	 * items that are in use, and cananalt be freed. Cap this estimate at the
 	 * low watermark.
 	 */
-	reclaimable = global_node_page_state_pages(NR_SLAB_RECLAIMABLE_B) +
-		global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
+	reclaimable = global_analde_page_state_pages(NR_SLAB_RECLAIMABLE_B) +
+		global_analde_page_state(NR_KERNEL_MISC_RECLAIMABLE);
 	reclaimable -= min(reclaimable / 2, wmark_low);
 	available += reclaimable;
 
@@ -75,7 +75,7 @@ EXPORT_SYMBOL_GPL(si_mem_available);
 void si_meminfo(struct sysinfo *val)
 {
 	val->totalram = totalram_pages();
-	val->sharedram = global_node_page_state(NR_SHMEM);
+	val->sharedram = global_analde_page_state(NR_SHMEM);
 	val->freeram = global_zone_page_state(NR_FREE_PAGES);
 	val->bufferram = nr_blockdev_pages();
 	val->totalhigh = totalhigh_pages();
@@ -86,22 +86,22 @@ void si_meminfo(struct sysinfo *val)
 EXPORT_SYMBOL(si_meminfo);
 
 #ifdef CONFIG_NUMA
-void si_meminfo_node(struct sysinfo *val, int nid)
+void si_meminfo_analde(struct sysinfo *val, int nid)
 {
 	int zone_type;		/* needs to be signed */
 	unsigned long managed_pages = 0;
 	unsigned long managed_highpages = 0;
 	unsigned long free_highpages = 0;
-	pg_data_t *pgdat = NODE_DATA(nid);
+	pg_data_t *pgdat = ANALDE_DATA(nid);
 
 	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
-		managed_pages += zone_managed_pages(&pgdat->node_zones[zone_type]);
+		managed_pages += zone_managed_pages(&pgdat->analde_zones[zone_type]);
 	val->totalram = managed_pages;
-	val->sharedram = node_page_state(pgdat, NR_SHMEM);
-	val->freeram = sum_zone_node_page_state(nid, NR_FREE_PAGES);
+	val->sharedram = analde_page_state(pgdat, NR_SHMEM);
+	val->freeram = sum_zone_analde_page_state(nid, NR_FREE_PAGES);
 #ifdef CONFIG_HIGHMEM
 	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
-		struct zone *zone = &pgdat->node_zones[zone_type];
+		struct zone *zone = &pgdat->analde_zones[zone_type];
 
 		if (is_highmem(zone)) {
 			managed_highpages += zone_managed_pages(zone);
@@ -119,23 +119,23 @@ void si_meminfo_node(struct sysinfo *val, int nid)
 #endif
 
 /*
- * Determine whether the node should be displayed or not, depending on whether
- * SHOW_MEM_FILTER_NODES was passed to show_free_areas().
+ * Determine whether the analde should be displayed or analt, depending on whether
+ * SHOW_MEM_FILTER_ANALDES was passed to show_free_areas().
  */
-static bool show_mem_node_skip(unsigned int flags, int nid, nodemask_t *nodemask)
+static bool show_mem_analde_skip(unsigned int flags, int nid, analdemask_t *analdemask)
 {
-	if (!(flags & SHOW_MEM_FILTER_NODES))
+	if (!(flags & SHOW_MEM_FILTER_ANALDES))
 		return false;
 
 	/*
-	 * no node mask - aka implicit memory numa policy. Do not bother with
-	 * the synchronization - read_mems_allowed_begin - because we do not
+	 * anal analde mask - aka implicit memory numa policy. Do analt bother with
+	 * the synchronization - read_mems_allowed_begin - because we do analt
 	 * have to be precise here.
 	 */
-	if (!nodemask)
-		nodemask = &cpuset_current_mems_allowed;
+	if (!analdemask)
+		analdemask = &cpuset_current_mems_allowed;
 
-	return !node_isset(nid, *nodemask);
+	return !analde_isset(nid, *analdemask);
 }
 
 static void show_migration_types(unsigned char type)
@@ -165,11 +165,11 @@ static void show_migration_types(unsigned char type)
 	printk(KERN_CONT "(%s) ", tmp);
 }
 
-static bool node_has_managed_zones(pg_data_t *pgdat, int max_zone_idx)
+static bool analde_has_managed_zones(pg_data_t *pgdat, int max_zone_idx)
 {
 	int zone_idx;
 	for (zone_idx = 0; zone_idx <= max_zone_idx; zone_idx++)
-		if (zone_managed_pages(pgdat->node_zones + zone_idx))
+		if (zone_managed_pages(pgdat->analde_zones + zone_idx))
 			return true;
 	return false;
 }
@@ -180,10 +180,10 @@ static bool node_has_managed_zones(pg_data_t *pgdat, int max_zone_idx)
  * memory on each free list with the exception of the first item on the list.
  *
  * Bits in @filter:
- * SHOW_MEM_FILTER_NODES: suppress nodes that are not allowed by current's
+ * SHOW_MEM_FILTER_ANALDES: suppress analdes that are analt allowed by current's
  *   cpuset.
  */
-static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_zone_idx)
+static void show_free_areas(unsigned int filter, analdemask_t *analdemask, int max_zone_idx)
 {
 	unsigned long free_pcp = 0;
 	int cpu, nid;
@@ -193,14 +193,14 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 	for_each_populated_zone(zone) {
 		if (zone_idx(zone) > max_zone_idx)
 			continue;
-		if (show_mem_node_skip(filter, zone_to_nid(zone), nodemask))
+		if (show_mem_analde_skip(filter, zone_to_nid(zone), analdemask))
 			continue;
 
 		for_each_online_cpu(cpu)
 			free_pcp += per_cpu_ptr(zone->per_cpu_pageset, cpu)->count;
 	}
 
-	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
+	printk("active_aanaln:%lu inactive_aanaln:%lu isolated_aanaln:%lu\n"
 		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
 		" unevictable:%lu dirty:%lu writeback:%lu\n"
 		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
@@ -208,40 +208,40 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 		" sec_pagetables:%lu bounce:%lu\n"
 		" kernel_misc_reclaimable:%lu\n"
 		" free:%lu free_pcp:%lu free_cma:%lu\n",
-		global_node_page_state(NR_ACTIVE_ANON),
-		global_node_page_state(NR_INACTIVE_ANON),
-		global_node_page_state(NR_ISOLATED_ANON),
-		global_node_page_state(NR_ACTIVE_FILE),
-		global_node_page_state(NR_INACTIVE_FILE),
-		global_node_page_state(NR_ISOLATED_FILE),
-		global_node_page_state(NR_UNEVICTABLE),
-		global_node_page_state(NR_FILE_DIRTY),
-		global_node_page_state(NR_WRITEBACK),
-		global_node_page_state_pages(NR_SLAB_RECLAIMABLE_B),
-		global_node_page_state_pages(NR_SLAB_UNRECLAIMABLE_B),
-		global_node_page_state(NR_FILE_MAPPED),
-		global_node_page_state(NR_SHMEM),
-		global_node_page_state(NR_PAGETABLE),
-		global_node_page_state(NR_SECONDARY_PAGETABLE),
+		global_analde_page_state(NR_ACTIVE_AANALN),
+		global_analde_page_state(NR_INACTIVE_AANALN),
+		global_analde_page_state(NR_ISOLATED_AANALN),
+		global_analde_page_state(NR_ACTIVE_FILE),
+		global_analde_page_state(NR_INACTIVE_FILE),
+		global_analde_page_state(NR_ISOLATED_FILE),
+		global_analde_page_state(NR_UNEVICTABLE),
+		global_analde_page_state(NR_FILE_DIRTY),
+		global_analde_page_state(NR_WRITEBACK),
+		global_analde_page_state_pages(NR_SLAB_RECLAIMABLE_B),
+		global_analde_page_state_pages(NR_SLAB_UNRECLAIMABLE_B),
+		global_analde_page_state(NR_FILE_MAPPED),
+		global_analde_page_state(NR_SHMEM),
+		global_analde_page_state(NR_PAGETABLE),
+		global_analde_page_state(NR_SECONDARY_PAGETABLE),
 		global_zone_page_state(NR_BOUNCE),
-		global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE),
+		global_analde_page_state(NR_KERNEL_MISC_RECLAIMABLE),
 		global_zone_page_state(NR_FREE_PAGES),
 		free_pcp,
 		global_zone_page_state(NR_FREE_CMA_PAGES));
 
 	for_each_online_pgdat(pgdat) {
-		if (show_mem_node_skip(filter, pgdat->node_id, nodemask))
+		if (show_mem_analde_skip(filter, pgdat->analde_id, analdemask))
 			continue;
-		if (!node_has_managed_zones(pgdat, max_zone_idx))
+		if (!analde_has_managed_zones(pgdat, max_zone_idx))
 			continue;
 
-		printk("Node %d"
-			" active_anon:%lukB"
-			" inactive_anon:%lukB"
+		printk("Analde %d"
+			" active_aanaln:%lukB"
+			" inactive_aanaln:%lukB"
 			" active_file:%lukB"
 			" inactive_file:%lukB"
 			" unevictable:%lukB"
-			" isolated(anon):%lukB"
+			" isolated(aanaln):%lukB"
 			" isolated(file):%lukB"
 			" mapped:%lukB"
 			" dirty:%lukB"
@@ -250,7 +250,7 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 			" shmem_thp:%lukB"
 			" shmem_pmdmapped:%lukB"
-			" anon_thp:%lukB"
+			" aanaln_thp:%lukB"
 #endif
 			" writeback_tmp:%lukB"
 			" kernel_stack:%lukB"
@@ -261,32 +261,32 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 			" sec_pagetables:%lukB"
 			" all_unreclaimable? %s"
 			"\n",
-			pgdat->node_id,
-			K(node_page_state(pgdat, NR_ACTIVE_ANON)),
-			K(node_page_state(pgdat, NR_INACTIVE_ANON)),
-			K(node_page_state(pgdat, NR_ACTIVE_FILE)),
-			K(node_page_state(pgdat, NR_INACTIVE_FILE)),
-			K(node_page_state(pgdat, NR_UNEVICTABLE)),
-			K(node_page_state(pgdat, NR_ISOLATED_ANON)),
-			K(node_page_state(pgdat, NR_ISOLATED_FILE)),
-			K(node_page_state(pgdat, NR_FILE_MAPPED)),
-			K(node_page_state(pgdat, NR_FILE_DIRTY)),
-			K(node_page_state(pgdat, NR_WRITEBACK)),
-			K(node_page_state(pgdat, NR_SHMEM)),
+			pgdat->analde_id,
+			K(analde_page_state(pgdat, NR_ACTIVE_AANALN)),
+			K(analde_page_state(pgdat, NR_INACTIVE_AANALN)),
+			K(analde_page_state(pgdat, NR_ACTIVE_FILE)),
+			K(analde_page_state(pgdat, NR_INACTIVE_FILE)),
+			K(analde_page_state(pgdat, NR_UNEVICTABLE)),
+			K(analde_page_state(pgdat, NR_ISOLATED_AANALN)),
+			K(analde_page_state(pgdat, NR_ISOLATED_FILE)),
+			K(analde_page_state(pgdat, NR_FILE_MAPPED)),
+			K(analde_page_state(pgdat, NR_FILE_DIRTY)),
+			K(analde_page_state(pgdat, NR_WRITEBACK)),
+			K(analde_page_state(pgdat, NR_SHMEM)),
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-			K(node_page_state(pgdat, NR_SHMEM_THPS)),
-			K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED)),
-			K(node_page_state(pgdat, NR_ANON_THPS)),
+			K(analde_page_state(pgdat, NR_SHMEM_THPS)),
+			K(analde_page_state(pgdat, NR_SHMEM_PMDMAPPED)),
+			K(analde_page_state(pgdat, NR_AANALN_THPS)),
 #endif
-			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
-			node_page_state(pgdat, NR_KERNEL_STACK_KB),
+			K(analde_page_state(pgdat, NR_WRITEBACK_TEMP)),
+			analde_page_state(pgdat, NR_KERNEL_STACK_KB),
 #ifdef CONFIG_SHADOW_CALL_STACK
-			node_page_state(pgdat, NR_KERNEL_SCS_KB),
+			analde_page_state(pgdat, NR_KERNEL_SCS_KB),
 #endif
-			K(node_page_state(pgdat, NR_PAGETABLE)),
-			K(node_page_state(pgdat, NR_SECONDARY_PAGETABLE)),
+			K(analde_page_state(pgdat, NR_PAGETABLE)),
+			K(analde_page_state(pgdat, NR_SECONDARY_PAGETABLE)),
 			pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ?
-				"yes" : "no");
+				"anal" : "anal");
 	}
 
 	for_each_populated_zone(zone) {
@@ -294,14 +294,14 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 
 		if (zone_idx(zone) > max_zone_idx)
 			continue;
-		if (show_mem_node_skip(filter, zone_to_nid(zone), nodemask))
+		if (show_mem_analde_skip(filter, zone_to_nid(zone), analdemask))
 			continue;
 
 		free_pcp = 0;
 		for_each_online_cpu(cpu)
 			free_pcp += per_cpu_ptr(zone->per_cpu_pageset, cpu)->count;
 
-		show_node(zone);
+		show_analde(zone);
 		printk(KERN_CONT
 			"%s"
 			" free:%lukB"
@@ -310,8 +310,8 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 			" low:%lukB"
 			" high:%lukB"
 			" reserved_highatomic:%luKB"
-			" active_anon:%lukB"
-			" inactive_anon:%lukB"
+			" active_aanaln:%lukB"
+			" inactive_aanaln:%lukB"
 			" active_file:%lukB"
 			" inactive_file:%lukB"
 			" unevictable:%lukB"
@@ -331,8 +331,8 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 			K(low_wmark_pages(zone)),
 			K(high_wmark_pages(zone)),
 			K(zone->nr_reserved_highatomic),
-			K(zone_page_state(zone, NR_ZONE_ACTIVE_ANON)),
-			K(zone_page_state(zone, NR_ZONE_INACTIVE_ANON)),
+			K(zone_page_state(zone, NR_ZONE_ACTIVE_AANALN)),
+			K(zone_page_state(zone, NR_ZONE_INACTIVE_AANALN)),
 			K(zone_page_state(zone, NR_ZONE_ACTIVE_FILE)),
 			K(zone_page_state(zone, NR_ZONE_INACTIVE_FILE)),
 			K(zone_page_state(zone, NR_ZONE_UNEVICTABLE)),
@@ -357,9 +357,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 
 		if (zone_idx(zone) > max_zone_idx)
 			continue;
-		if (show_mem_node_skip(filter, zone_to_nid(zone), nodemask))
+		if (show_mem_analde_skip(filter, zone_to_nid(zone), analdemask))
 			continue;
-		show_node(zone);
+		show_analde(zone);
 		printk(KERN_CONT "%s: ", zone->name);
 
 		spin_lock_irqsave(&zone->lock, flags);
@@ -386,24 +386,24 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 		printk(KERN_CONT "= %lukB\n", K(total));
 	}
 
-	for_each_online_node(nid) {
-		if (show_mem_node_skip(filter, nid, nodemask))
+	for_each_online_analde(nid) {
+		if (show_mem_analde_skip(filter, nid, analdemask))
 			continue;
-		hugetlb_show_meminfo_node(nid);
+		hugetlb_show_meminfo_analde(nid);
 	}
 
-	printk("%ld total pagecache pages\n", global_node_page_state(NR_FILE_PAGES));
+	printk("%ld total pagecache pages\n", global_analde_page_state(NR_FILE_PAGES));
 
 	show_swap_cache_info();
 }
 
-void __show_mem(unsigned int filter, nodemask_t *nodemask, int max_zone_idx)
+void __show_mem(unsigned int filter, analdemask_t *analdemask, int max_zone_idx)
 {
 	unsigned long total = 0, reserved = 0, highmem = 0;
 	struct zone *zone;
 
 	printk("Mem-Info:\n");
-	show_free_areas(filter, nodemask, max_zone_idx);
+	show_free_areas(filter, analdemask, max_zone_idx);
 
 	for_each_populated_zone(zone) {
 

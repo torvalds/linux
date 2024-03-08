@@ -20,7 +20,7 @@
 #include "dmaengine.h"
 
 #define NCHANNELS_MAX	64
-#define IRQ_NOUTPUTS	4
+#define IRQ_ANALUTPUTS	4
 
 /*
  * For allocation purposes we split the cache
@@ -37,7 +37,7 @@
 #define STATUS_DESC_DONE	BIT(0)
 #define STATUS_ERR		BIT(6)
 
-#define FLAG_DESC_NOTIFY	BIT(16)
+#define FLAG_DESC_ANALTIFY	BIT(16)
 
 #define REG_TX_START		0x0000
 #define REG_TX_STOP		0x0004
@@ -86,7 +86,7 @@ struct admac_data;
 struct admac_tx;
 
 struct admac_chan {
-	unsigned int no;
+	unsigned int anal;
 	struct admac_data *host;
 	struct dma_chan chan;
 	struct tasklet_struct tasklet;
@@ -112,7 +112,7 @@ struct admac_chan {
 struct admac_sram {
 	u32 size;
 	/*
-	 * SRAM_CARVEOUT has 16-bit fields, so the SRAM cannot be larger than
+	 * SRAM_CARVEOUT has 16-bit fields, so the SRAM cananalt be larger than
 	 * 64K and a 32-bit bitfield over 2K blocks covers it.
 	 */
 	u32 allocated;
@@ -144,7 +144,7 @@ struct admac_tx {
 	size_t submitted_pos;
 	size_t reclaimed_pos;
 
-	struct list_head node;
+	struct list_head analde;
 };
 
 static int admac_alloc_sram_carveout(struct admac_data *ad,
@@ -219,10 +219,10 @@ static struct admac_tx *to_admac_tx(struct dma_async_tx_descriptor *tx)
 	return container_of(tx, struct admac_tx, tx);
 }
 
-static enum dma_transfer_direction admac_chan_direction(int channo)
+static enum dma_transfer_direction admac_chan_direction(int chananal)
 {
 	/* Channel directions are hardwired */
-	return (channo & 1) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
+	return (chananal & 1) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 }
 
 static dma_cookie_t admac_tx_submit(struct dma_async_tx_descriptor *tx)
@@ -234,7 +234,7 @@ static dma_cookie_t admac_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irqsave(&adchan->lock, flags);
 	cookie = dma_cookie_assign(tx);
-	list_add_tail(&adtx->node, &adchan->submitted);
+	list_add_tail(&adtx->analde, &adchan->submitted);
 	spin_unlock_irqrestore(&adchan->lock, flags);
 
 	return cookie;
@@ -255,10 +255,10 @@ static struct dma_async_tx_descriptor *admac_prep_dma_cyclic(
 	struct admac_chan *adchan = container_of(chan, struct admac_chan, chan);
 	struct admac_tx *adtx;
 
-	if (direction != admac_chan_direction(adchan->no))
+	if (direction != admac_chan_direction(adchan->anal))
 		return NULL;
 
-	adtx = kzalloc(sizeof(*adtx), GFP_NOWAIT);
+	adtx = kzalloc(sizeof(*adtx), GFP_ANALWAIT);
 	if (!adtx)
 		return NULL;
 
@@ -282,7 +282,7 @@ static struct dma_async_tx_descriptor *admac_prep_dma_cyclic(
 /*
  * Write one hardware descriptor for a dmaengine cyclic transaction.
  */
-static void admac_cyclic_write_one_desc(struct admac_data *ad, int channo,
+static void admac_cyclic_write_one_desc(struct admac_data *ad, int chananal,
 					struct admac_tx *tx)
 {
 	dma_addr_t addr;
@@ -293,12 +293,12 @@ static void admac_cyclic_write_one_desc(struct admac_data *ad, int channo,
 	WARN_ON_ONCE(addr + tx->period_len > tx->buf_end);
 
 	dev_dbg(ad->dev, "ch%d descriptor: addr=0x%pad len=0x%zx flags=0x%lx\n",
-		channo, &addr, tx->period_len, FLAG_DESC_NOTIFY);
+		chananal, &addr, tx->period_len, FLAG_DESC_ANALTIFY);
 
-	writel_relaxed(lower_32_bits(addr), ad->base + REG_DESC_WRITE(channo));
-	writel_relaxed(upper_32_bits(addr), ad->base + REG_DESC_WRITE(channo));
-	writel_relaxed(tx->period_len,      ad->base + REG_DESC_WRITE(channo));
-	writel_relaxed(FLAG_DESC_NOTIFY,    ad->base + REG_DESC_WRITE(channo));
+	writel_relaxed(lower_32_bits(addr), ad->base + REG_DESC_WRITE(chananal));
+	writel_relaxed(upper_32_bits(addr), ad->base + REG_DESC_WRITE(chananal));
+	writel_relaxed(tx->period_len,      ad->base + REG_DESC_WRITE(chananal));
+	writel_relaxed(FLAG_DESC_ANALTIFY,    ad->base + REG_DESC_WRITE(chananal));
 
 	tx->submitted_pos += tx->period_len;
 	tx->submitted_pos %= 2 * tx->buf_len;
@@ -308,19 +308,19 @@ static void admac_cyclic_write_one_desc(struct admac_data *ad, int channo,
  * Write all the hardware descriptors for a dmaengine cyclic
  * transaction there is space for.
  */
-static void admac_cyclic_write_desc(struct admac_data *ad, int channo,
+static void admac_cyclic_write_desc(struct admac_data *ad, int chananal,
 				    struct admac_tx *tx)
 {
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		if (readl_relaxed(ad->base + REG_DESC_RING(channo)) & RING_FULL)
+		if (readl_relaxed(ad->base + REG_DESC_RING(chananal)) & RING_FULL)
 			break;
-		admac_cyclic_write_one_desc(ad, channo, tx);
+		admac_cyclic_write_one_desc(ad, chananal, tx);
 	}
 }
 
-static int admac_ring_noccupied_slots(int ringval)
+static int admac_ring_analccupied_slots(int ringval)
 {
 	int wrslot = FIELD_GET(RING_WRITE_SLOT, ringval);
 	int rdslot = FIELD_GET(RING_READ_SLOT, ringval);
@@ -340,7 +340,7 @@ static int admac_ring_noccupied_slots(int ringval)
 /*
  * Read from hardware the residue of a cyclic dmaengine transaction.
  */
-static u32 admac_cyclic_read_residue(struct admac_data *ad, int channo,
+static u32 admac_cyclic_read_residue(struct admac_data *ad, int chananal,
 				     struct admac_tx *adtx)
 {
 	u32 ring1, ring2;
@@ -348,20 +348,20 @@ static u32 admac_cyclic_read_residue(struct admac_data *ad, int channo,
 	int nreports;
 	size_t pos;
 
-	ring1 =    readl_relaxed(ad->base + REG_REPORT_RING(channo));
-	residue1 = readl_relaxed(ad->base + REG_RESIDUE(channo));
-	ring2 =    readl_relaxed(ad->base + REG_REPORT_RING(channo));
-	residue2 = readl_relaxed(ad->base + REG_RESIDUE(channo));
+	ring1 =    readl_relaxed(ad->base + REG_REPORT_RING(chananal));
+	residue1 = readl_relaxed(ad->base + REG_RESIDUE(chananal));
+	ring2 =    readl_relaxed(ad->base + REG_REPORT_RING(chananal));
+	residue2 = readl_relaxed(ad->base + REG_RESIDUE(chananal));
 
 	if (residue2 > residue1) {
 		/*
 		 * Controller must have loaded next descriptor between
 		 * the two residue reads
 		 */
-		nreports = admac_ring_noccupied_slots(ring1) + 1;
+		nreports = admac_ring_analccupied_slots(ring1) + 1;
 	} else {
-		/* No descriptor load between the two reads, ring2 is safe to use */
-		nreports = admac_ring_noccupied_slots(ring2);
+		/* Anal descriptor load between the two reads, ring2 is safe to use */
+		nreports = admac_ring_analccupied_slots(ring2);
 	}
 
 	pos = adtx->reclaimed_pos + adtx->period_len * (nreports + 1) - residue2;
@@ -389,11 +389,11 @@ static enum dma_status admac_tx_status(struct dma_chan *chan, dma_cookie_t cooki
 
 	if (adtx && adtx->tx.cookie == cookie) {
 		ret = DMA_IN_PROGRESS;
-		residue = admac_cyclic_read_residue(ad, adchan->no, adtx);
+		residue = admac_cyclic_read_residue(ad, adchan->anal, adtx);
 	} else {
 		ret = DMA_IN_PROGRESS;
 		residue = 0;
-		list_for_each_entry(adtx, &adchan->issued, node) {
+		list_for_each_entry(adtx, &adchan->issued, analde) {
 			if (adtx->tx.cookie == cookie) {
 				residue = adtx->buf_len;
 				break;
@@ -409,14 +409,14 @@ static enum dma_status admac_tx_status(struct dma_chan *chan, dma_cookie_t cooki
 static void admac_start_chan(struct admac_chan *adchan)
 {
 	struct admac_data *ad = adchan->host;
-	u32 startbit = 1 << (adchan->no / 2);
+	u32 startbit = 1 << (adchan->anal / 2);
 
 	writel_relaxed(STATUS_DESC_DONE | STATUS_ERR,
-		       ad->base + REG_CHAN_INTSTATUS(adchan->no, ad->irq_index));
+		       ad->base + REG_CHAN_INTSTATUS(adchan->anal, ad->irq_index));
 	writel_relaxed(STATUS_DESC_DONE | STATUS_ERR,
-		       ad->base + REG_CHAN_INTMASK(adchan->no, ad->irq_index));
+		       ad->base + REG_CHAN_INTMASK(adchan->anal, ad->irq_index));
 
-	switch (admac_chan_direction(adchan->no)) {
+	switch (admac_chan_direction(adchan->anal)) {
 	case DMA_MEM_TO_DEV:
 		writel_relaxed(startbit, ad->base + REG_TX_START);
 		break;
@@ -426,15 +426,15 @@ static void admac_start_chan(struct admac_chan *adchan)
 	default:
 		break;
 	}
-	dev_dbg(adchan->host->dev, "ch%d start\n", adchan->no);
+	dev_dbg(adchan->host->dev, "ch%d start\n", adchan->anal);
 }
 
 static void admac_stop_chan(struct admac_chan *adchan)
 {
 	struct admac_data *ad = adchan->host;
-	u32 stopbit = 1 << (adchan->no / 2);
+	u32 stopbit = 1 << (adchan->anal / 2);
 
-	switch (admac_chan_direction(adchan->no)) {
+	switch (admac_chan_direction(adchan->anal)) {
 	case DMA_MEM_TO_DEV:
 		writel_relaxed(stopbit, ad->base + REG_TX_STOP);
 		break;
@@ -444,7 +444,7 @@ static void admac_stop_chan(struct admac_chan *adchan)
 	default:
 		break;
 	}
-	dev_dbg(adchan->host->dev, "ch%d stop\n", adchan->no);
+	dev_dbg(adchan->host->dev, "ch%d stop\n", adchan->anal);
 }
 
 static void admac_reset_rings(struct admac_chan *adchan)
@@ -452,14 +452,14 @@ static void admac_reset_rings(struct admac_chan *adchan)
 	struct admac_data *ad = adchan->host;
 
 	writel_relaxed(REG_CHAN_CTL_RST_RINGS,
-		       ad->base + REG_CHAN_CTL(adchan->no));
-	writel_relaxed(0, ad->base + REG_CHAN_CTL(adchan->no));
+		       ad->base + REG_CHAN_CTL(adchan->anal));
+	writel_relaxed(0, ad->base + REG_CHAN_CTL(adchan->anal));
 }
 
 static void admac_start_current_tx(struct admac_chan *adchan)
 {
 	struct admac_data *ad = adchan->host;
-	int ch = adchan->no;
+	int ch = adchan->anal;
 
 	admac_reset_rings(adchan);
 	writel_relaxed(0, ad->base + REG_CHAN_CTL(ch));
@@ -478,8 +478,8 @@ static void admac_issue_pending(struct dma_chan *chan)
 	spin_lock_irqsave(&adchan->lock, flags);
 	list_splice_tail_init(&adchan->submitted, &adchan->issued);
 	if (!list_empty(&adchan->issued) && !adchan->current_tx) {
-		tx = list_first_entry(&adchan->issued, struct admac_tx, node);
-		list_del(&tx->node);
+		tx = list_first_entry(&adchan->issued, struct admac_tx, analde);
+		list_del(&tx->analde);
 
 		adchan->current_tx = tx;
 		adchan->nperiod_acks = 0;
@@ -516,7 +516,7 @@ static int admac_terminate_all(struct dma_chan *chan)
 	admac_reset_rings(adchan);
 
 	if (adchan->current_tx) {
-		list_add_tail(&adchan->current_tx->node, &adchan->to_free);
+		list_add_tail(&adchan->current_tx->analde, &adchan->to_free);
 		adchan->current_tx = NULL;
 	}
 	/*
@@ -543,8 +543,8 @@ static void admac_synchronize(struct dma_chan *chan)
 
 	tasklet_kill(&adchan->tasklet);
 
-	list_for_each_entry_safe(adtx, _adtx, &head, node) {
-		list_del(&adtx->node);
+	list_for_each_entry_safe(adtx, _adtx, &head, analde) {
+		list_del(&adtx->analde);
 		admac_desc_free(&adtx->tx);
 	}
 }
@@ -556,13 +556,13 @@ static int admac_alloc_chan_resources(struct dma_chan *chan)
 	int ret;
 
 	dma_cookie_init(&adchan->chan);
-	ret = admac_alloc_sram_carveout(ad, admac_chan_direction(adchan->no),
+	ret = admac_alloc_sram_carveout(ad, admac_chan_direction(adchan->anal),
 					&adchan->carveout);
 	if (ret < 0)
 		return ret;
 
 	writel_relaxed(adchan->carveout,
-		       ad->base + REG_CHAN_SRAM_CARVEOUT(adchan->no));
+		       ad->base + REG_CHAN_SRAM_CARVEOUT(adchan->anal));
 	return 0;
 }
 
@@ -572,7 +572,7 @@ static void admac_free_chan_resources(struct dma_chan *chan)
 
 	admac_terminate_all(chan);
 	admac_synchronize(chan);
-	admac_free_sram_carveout(adchan->host, admac_chan_direction(adchan->no),
+	admac_free_sram_carveout(adchan->host, admac_chan_direction(adchan->anal),
 				 adchan->carveout);
 }
 
@@ -595,62 +595,62 @@ static struct dma_chan *admac_dma_of_xlate(struct of_phandle_args *dma_spec,
 	return dma_get_slave_channel(&ad->channels[index].chan);
 }
 
-static int admac_drain_reports(struct admac_data *ad, int channo)
+static int admac_drain_reports(struct admac_data *ad, int chananal)
 {
 	int count;
 
 	for (count = 0; count < 4; count++) {
 		u32 countval_hi, countval_lo, unk1, flags;
 
-		if (readl_relaxed(ad->base + REG_REPORT_RING(channo)) & RING_EMPTY)
+		if (readl_relaxed(ad->base + REG_REPORT_RING(chananal)) & RING_EMPTY)
 			break;
 
-		countval_lo = readl_relaxed(ad->base + REG_REPORT_READ(channo));
-		countval_hi = readl_relaxed(ad->base + REG_REPORT_READ(channo));
-		unk1 =        readl_relaxed(ad->base + REG_REPORT_READ(channo));
-		flags =       readl_relaxed(ad->base + REG_REPORT_READ(channo));
+		countval_lo = readl_relaxed(ad->base + REG_REPORT_READ(chananal));
+		countval_hi = readl_relaxed(ad->base + REG_REPORT_READ(chananal));
+		unk1 =        readl_relaxed(ad->base + REG_REPORT_READ(chananal));
+		flags =       readl_relaxed(ad->base + REG_REPORT_READ(chananal));
 
 		dev_dbg(ad->dev, "ch%d report: countval=0x%llx unk1=0x%x flags=0x%x\n",
-			channo, ((u64) countval_hi) << 32 | countval_lo, unk1, flags);
+			chananal, ((u64) countval_hi) << 32 | countval_lo, unk1, flags);
 	}
 
 	return count;
 }
 
-static void admac_handle_status_err(struct admac_data *ad, int channo)
+static void admac_handle_status_err(struct admac_data *ad, int chananal)
 {
 	bool handled = false;
 
-	if (readl_relaxed(ad->base + REG_DESC_RING(channo)) & RING_ERR) {
-		writel_relaxed(RING_ERR, ad->base + REG_DESC_RING(channo));
-		dev_err_ratelimited(ad->dev, "ch%d descriptor ring error\n", channo);
+	if (readl_relaxed(ad->base + REG_DESC_RING(chananal)) & RING_ERR) {
+		writel_relaxed(RING_ERR, ad->base + REG_DESC_RING(chananal));
+		dev_err_ratelimited(ad->dev, "ch%d descriptor ring error\n", chananal);
 		handled = true;
 	}
 
-	if (readl_relaxed(ad->base + REG_REPORT_RING(channo)) & RING_ERR) {
-		writel_relaxed(RING_ERR, ad->base + REG_REPORT_RING(channo));
-		dev_err_ratelimited(ad->dev, "ch%d report ring error\n", channo);
+	if (readl_relaxed(ad->base + REG_REPORT_RING(chananal)) & RING_ERR) {
+		writel_relaxed(RING_ERR, ad->base + REG_REPORT_RING(chananal));
+		dev_err_ratelimited(ad->dev, "ch%d report ring error\n", chananal);
 		handled = true;
 	}
 
 	if (unlikely(!handled)) {
-		dev_err(ad->dev, "ch%d unknown error, masking errors as cause of IRQs\n", channo);
-		admac_modify(ad, REG_CHAN_INTMASK(channo, ad->irq_index),
+		dev_err(ad->dev, "ch%d unkanalwn error, masking errors as cause of IRQs\n", chananal);
+		admac_modify(ad, REG_CHAN_INTMASK(chananal, ad->irq_index),
 			     STATUS_ERR, 0);
 	}
 }
 
-static void admac_handle_status_desc_done(struct admac_data *ad, int channo)
+static void admac_handle_status_desc_done(struct admac_data *ad, int chananal)
 {
-	struct admac_chan *adchan = &ad->channels[channo];
+	struct admac_chan *adchan = &ad->channels[chananal];
 	unsigned long flags;
 	int nreports;
 
 	writel_relaxed(STATUS_DESC_DONE,
-		       ad->base + REG_CHAN_INTSTATUS(channo, ad->irq_index));
+		       ad->base + REG_CHAN_INTSTATUS(chananal, ad->irq_index));
 
 	spin_lock_irqsave(&adchan->lock, flags);
-	nreports = admac_drain_reports(ad, channo);
+	nreports = admac_drain_reports(ad, chananal);
 
 	if (adchan->current_tx) {
 		struct admac_tx *tx = adchan->current_tx;
@@ -659,21 +659,21 @@ static void admac_handle_status_desc_done(struct admac_data *ad, int channo)
 		tx->reclaimed_pos += nreports * tx->period_len;
 		tx->reclaimed_pos %= 2 * tx->buf_len;
 
-		admac_cyclic_write_desc(ad, channo, tx);
+		admac_cyclic_write_desc(ad, chananal, tx);
 		tasklet_schedule(&adchan->tasklet);
 	}
 	spin_unlock_irqrestore(&adchan->lock, flags);
 }
 
-static void admac_handle_chan_int(struct admac_data *ad, int no)
+static void admac_handle_chan_int(struct admac_data *ad, int anal)
 {
-	u32 cause = readl_relaxed(ad->base + REG_CHAN_INTSTATUS(no, ad->irq_index));
+	u32 cause = readl_relaxed(ad->base + REG_CHAN_INTSTATUS(anal, ad->irq_index));
 
 	if (cause & STATUS_ERR)
-		admac_handle_status_err(ad, no);
+		admac_handle_status_err(ad, anal);
 
 	if (cause & STATUS_DESC_DONE)
-		admac_handle_status_desc_done(ad, no);
+		admac_handle_status_desc_done(ad, anal);
 }
 
 static irqreturn_t admac_interrupt(int irq, void *devid)
@@ -687,7 +687,7 @@ static irqreturn_t admac_interrupt(int irq, void *devid)
 	global_intstate = readl_relaxed(ad->base + REG_GLOBAL_INTSTATE(ad->irq_index));
 
 	if (!tx_intstate && !rx_intstate && !global_intstate)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < ad->nchannels; i += 2) {
 		if (tx_intstate & 1)
@@ -702,7 +702,7 @@ static irqreturn_t admac_interrupt(int irq, void *devid)
 	}
 
 	if (global_intstate) {
-		dev_warn(ad->dev, "clearing unknown global interrupt flag: %x\n",
+		dev_warn(ad->dev, "clearing unkanalwn global interrupt flag: %x\n",
 			 global_intstate);
 		writel_relaxed(~(u32) 0, ad->base + REG_GLOBAL_INTSTATE(ad->irq_index));
 	}
@@ -727,7 +727,7 @@ static void admac_chan_tasklet(struct tasklet_struct *t)
 	if (!adtx || !nacks)
 		return;
 
-	tx_result.result = DMA_TRANS_NOERROR;
+	tx_result.result = DMA_TRANS_ANALERROR;
 	tx_result.residue = 0;
 
 	dmaengine_desc_get_callback(&adtx->tx, &cb);
@@ -740,9 +740,9 @@ static int admac_device_config(struct dma_chan *chan,
 {
 	struct admac_chan *adchan = to_admac_chan(chan);
 	struct admac_data *ad = adchan->host;
-	bool is_tx = admac_chan_direction(adchan->no) == DMA_MEM_TO_DEV;
+	bool is_tx = admac_chan_direction(adchan->anal) == DMA_MEM_TO_DEV;
 	int wordsize = 0;
-	u32 bus_width = readl_relaxed(ad->base + REG_BUS_WIDTH(adchan->no)) &
+	u32 bus_width = readl_relaxed(ad->base + REG_BUS_WIDTH(adchan->anal)) &
 		~(BUS_WIDTH_WORD_SIZE | BUS_WIDTH_FRAME_SIZE);
 
 	switch (is_tx ? config->dst_addr_width : config->src_addr_width) {
@@ -782,7 +782,7 @@ static int admac_device_config(struct dma_chan *chan,
 		return -EINVAL;
 	}
 
-	writel_relaxed(bus_width, ad->base + REG_BUS_WIDTH(adchan->no));
+	writel_relaxed(bus_width, ad->base + REG_BUS_WIDTH(adchan->anal));
 
 	/*
 	 * By FIFOCTL_LIMIT we seem to set the maximal number of bytes allowed to be
@@ -793,14 +793,14 @@ static int admac_device_config(struct dma_chan *chan,
 	 */
 	writel_relaxed(FIELD_PREP(CHAN_FIFOCTL_LIMIT, 0x30 * wordsize)
 		       | FIELD_PREP(CHAN_FIFOCTL_THRESHOLD, 0x18 * wordsize),
-		       ad->base + REG_CHAN_FIFOCTL(adchan->no));
+		       ad->base + REG_CHAN_FIFOCTL(adchan->anal));
 
 	return 0;
 }
 
 static int admac_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct admac_data *ad;
 	struct dma_device *dma;
 	int nchannels;
@@ -814,7 +814,7 @@ static int admac_probe(struct platform_device *pdev)
 
 	ad = devm_kzalloc(&pdev->dev, struct_size(ad, channels, nchannels), GFP_KERNEL);
 	if (!ad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ad);
 	ad->dev = &pdev->dev;
@@ -825,7 +825,7 @@ static int admac_probe(struct platform_device *pdev)
 	 * The controller has 4 IRQ outputs. Try them all until
 	 * we find one we can use.
 	 */
-	for (i = 0; i < IRQ_NOUTPUTS; i++) {
+	for (i = 0; i < IRQ_ANALUTPUTS; i++) {
 		irq = platform_get_irq_optional(pdev, i);
 		if (irq >= 0) {
 			ad->irq_index = i;
@@ -834,7 +834,7 @@ static int admac_probe(struct platform_device *pdev)
 	}
 
 	if (irq < 0)
-		return dev_err_probe(&pdev->dev, irq, "no usable interrupt\n");
+		return dev_err_probe(&pdev->dev, irq, "anal usable interrupt\n");
 	ad->irq = irq;
 
 	ad->base = devm_platform_ioremap_resource(pdev, 0);
@@ -877,13 +877,13 @@ static int admac_probe(struct platform_device *pdev)
 		struct admac_chan *adchan = &ad->channels[i];
 
 		adchan->host = ad;
-		adchan->no = i;
+		adchan->anal = i;
 		adchan->chan.device = &ad->dma;
 		spin_lock_init(&adchan->lock);
 		INIT_LIST_HEAD(&adchan->submitted);
 		INIT_LIST_HEAD(&adchan->issued);
 		INIT_LIST_HEAD(&adchan->to_free);
-		list_add_tail(&adchan->chan.device_node, &dma->channels);
+		list_add_tail(&adchan->chan.device_analde, &dma->channels);
 		tasklet_setup(&adchan->tasklet, admac_chan_tasklet);
 	}
 
@@ -905,7 +905,7 @@ static int admac_probe(struct platform_device *pdev)
 		goto free_irq;
 	}
 
-	err = of_dma_controller_register(pdev->dev.of_node, admac_dma_of_xlate, ad);
+	err = of_dma_controller_register(pdev->dev.of_analde, admac_dma_of_xlate, ad);
 	if (err) {
 		dma_async_device_unregister(&ad->dma);
 		dev_err_probe(&pdev->dev, err, "failed to register with OF\n");
@@ -932,7 +932,7 @@ static void admac_remove(struct platform_device *pdev)
 {
 	struct admac_data *ad = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&ad->dma);
 	free_irq(ad->irq, ad);
 	reset_control_rearm(ad->rstc);

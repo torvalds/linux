@@ -156,7 +156,7 @@ static unsigned int __get_ndiv(struct iproc_arm_pll *pll)
 
 		ndiv_frac = val & IPROC_CLK_PLLARM_NDIV_FRAC_OFFSET_MASK;
 	} else {
-		/* offset mode not active */
+		/* offset mode analt active */
 		val = readl(pll->base + IPROC_CLK_PLLARMA_OFFSET);
 		ndiv_int = (val >> IPROC_CLK_PLLARMA_NDIV_INT_SHIFT) &
 			IPROC_CLK_PLLARMA_NDIV_INT_MASK;
@@ -231,7 +231,7 @@ static const struct clk_ops iproc_arm_pll_ops = {
 	.recalc_rate = iproc_arm_pll_recalc_rate,
 };
 
-void __init iproc_armpll_setup(struct device_node *node)
+void __init iproc_armpll_setup(struct device_analde *analde)
 {
 	int ret;
 	struct iproc_arm_pll *pll;
@@ -242,14 +242,14 @@ void __init iproc_armpll_setup(struct device_node *node)
 	if (WARN_ON(!pll))
 		return;
 
-	pll->base = of_iomap(node, 0);
+	pll->base = of_iomap(analde, 0);
 	if (WARN_ON(!pll->base))
 		goto err_free_pll;
 
-	init.name = node->name;
+	init.name = analde->name;
 	init.ops = &iproc_arm_pll_ops;
 	init.flags = 0;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(analde, 0);
 	init.parent_names = (parent_name ? &parent_name : NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 	pll->hw.init = &init;
@@ -258,7 +258,7 @@ void __init iproc_armpll_setup(struct device_node *node)
 	if (WARN_ON(ret))
 		goto err_iounmap;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &pll->hw);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, &pll->hw);
 	if (WARN_ON(ret))
 		goto err_clk_unregister;
 

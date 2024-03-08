@@ -54,7 +54,7 @@ struct xdr_netobj {
  * operations and/or has a need for scatter/gather involving pages.
  */
 struct xdr_buf {
-	struct kvec	head[1],	/* RPC header + non-page data */
+	struct kvec	head[1],	/* RPC header + analn-page data */
 			tail[1];	/* Appended after page data */
 
 	struct bio_vec	*bvec;
@@ -292,7 +292,7 @@ xdr_set_scratch_buffer(struct xdr_stream *xdr, void *buf, size_t buflen)
 /**
  * xdr_set_scratch_page - Attach a scratch buffer for decoding data
  * @xdr: pointer to xdr_stream struct
- * @page: an anonymous page
+ * @page: an aanalnymous page
  *
  * See xdr_set_scratch_buffer().
  */
@@ -404,7 +404,7 @@ static inline ssize_t xdr_stream_encode_item_present(struct xdr_stream *xdr)
 }
 
 /**
- * xdr_stream_encode_item_absent - Encode a "not present" list item
+ * xdr_stream_encode_item_absent - Encode a "analt present" list item
  * @xdr: pointer to xdr_stream
  *
  * Return values:
@@ -728,7 +728,7 @@ xdr_stream_decode_opaque_fixed(struct xdr_stream *xdr, void *ptr, size_t len)
  * @ptr: location to store pointer to opaque data
  * @maxlen: maximum acceptable object size
  *
- * Note: the pointer stored in @ptr cannot be assumed valid after the XDR
+ * Analte: the pointer stored in @ptr cananalt be assumed valid after the XDR
  * buffer has been destroyed, or even after calling xdr_inline_decode()
  * on @xdr. It is therefore expected that the object it points to should
  * be processed immediately.

@@ -76,14 +76,14 @@ static const struct reg_default cs35l34_reg[] = {
 	{CS35L34_VPBR_VOL_CTL, 0x90},
 	{CS35L34_VPBR_TIMING_CTL, 0x6A},
 	{CS35L34_PRED_MAX_ATTEN_SPK_LOAD, 0x95},
-	{CS35L34_PRED_BROWNOUT_THRESH, 0x1C},
-	{CS35L34_PRED_BROWNOUT_VOL_CTL, 0x00},
-	{CS35L34_PRED_BROWNOUT_RATE_CTL, 0x10},
+	{CS35L34_PRED_BROWANALUT_THRESH, 0x1C},
+	{CS35L34_PRED_BROWANALUT_VOL_CTL, 0x00},
+	{CS35L34_PRED_BROWANALUT_RATE_CTL, 0x10},
 	{CS35L34_PRED_WAIT_CTL, 0x10},
 	{CS35L34_PRED_ZVP_INIT_IMP_CTL, 0x08},
 	{CS35L34_PRED_MAN_SAFE_VPI_CTL, 0x80},
 	{CS35L34_VPBR_ATTEN_STATUS, 0x00},
-	{CS35L34_PRED_BRWNOUT_ATT_STATUS, 0x00},
+	{CS35L34_PRED_BRWANALUT_ATT_STATUS, 0x00},
 	{CS35L34_SPKR_MON_CTL, 0xC6},
 	{CS35L34_ADSP_I2S_CTL, 0x00},
 	{CS35L34_ADSP_TDM_CTL, 0x00},
@@ -172,14 +172,14 @@ static bool cs35l34_readable_register(struct device *dev, unsigned int reg)
 	case	CS35L34_VPBR_VOL_CTL:
 	case	CS35L34_VPBR_TIMING_CTL:
 	case	CS35L34_PRED_MAX_ATTEN_SPK_LOAD:
-	case	CS35L34_PRED_BROWNOUT_THRESH:
-	case	CS35L34_PRED_BROWNOUT_VOL_CTL:
-	case	CS35L34_PRED_BROWNOUT_RATE_CTL:
+	case	CS35L34_PRED_BROWANALUT_THRESH:
+	case	CS35L34_PRED_BROWANALUT_VOL_CTL:
+	case	CS35L34_PRED_BROWANALUT_RATE_CTL:
 	case	CS35L34_PRED_WAIT_CTL:
 	case	CS35L34_PRED_ZVP_INIT_IMP_CTL:
 	case	CS35L34_PRED_MAN_SAFE_VPI_CTL:
 	case	CS35L34_VPBR_ATTEN_STATUS:
-	case	CS35L34_PRED_BRWNOUT_ATT_STATUS:
+	case	CS35L34_PRED_BRWANALUT_ATT_STATUS:
 	case	CS35L34_SPKR_MON_CTL:
 	case	CS35L34_ADSP_I2S_CTL:
 	case	CS35L34_ADSP_TDM_CTL:
@@ -245,7 +245,7 @@ static int cs35l34_sdin_event(struct snd_soc_dapm_widget *w,
 		ret = regmap_update_bits(priv->regmap, CS35L34_PWRCTL1,
 						CS35L34_PDN_ALL, 0);
 		if (ret < 0) {
-			dev_err(component->dev, "Cannot set Power bits %d\n", ret);
+			dev_err(component->dev, "Cananalt set Power bits %d\n", ret);
 			return ret;
 		}
 		usleep_range(5000, 5100);
@@ -409,7 +409,7 @@ static int cs35l34_mclk_event(struct snd_soc_dapm_widget *w,
 			usleep_range(5000, 5100);
 		}
 		if (i == PDN_DONE_ATTEMPTS)
-			pr_err("%s Device did not power down properly\n",
+			pr_err("%s Device did analt power down properly\n",
 				__func__);
 		break;
 	default:
@@ -806,7 +806,7 @@ static struct regmap_config cs35l34_regmap = {
 static int cs35l34_handle_of_data(struct i2c_client *i2c_client,
 				struct cs35l34_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_analde *np = i2c_client->dev.of_analde;
 	unsigned int val;
 
 	if (of_property_read_u32(np, "cirrus,boost-vtge-millivolt",
@@ -823,13 +823,13 @@ static int cs35l34_handle_of_data(struct i2c_client *i2c_client,
 			pdata->boost_vtge = ((val - 3300)/100) + 1;
 	} else {
 		dev_warn(&i2c_client->dev,
-			"Boost Voltage not specified. Using VP\n");
+			"Boost Voltage analt specified. Using VP\n");
 	}
 
-	if (of_property_read_u32(np, "cirrus,boost-ind-nanohenry", &val) >= 0) {
+	if (of_property_read_u32(np, "cirrus,boost-ind-naanalhenry", &val) >= 0) {
 		pdata->boost_ind = val;
 	} else {
-		dev_err(&i2c_client->dev, "Inductor not specified.\n");
+		dev_err(&i2c_client->dev, "Inductor analt specified.\n");
 		return -EINVAL;
 	}
 
@@ -880,14 +880,14 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 
 	if (!(sticky1 & ~mask1) && !(sticky2 & ~mask2) && !(sticky3 & ~mask3)
 		&& !(sticky4 & ~mask4))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regmap_read(cs35l34->regmap, CS35L34_INT_STATUS_1, &current1);
 
 	if (sticky1 & CS35L34_CAL_ERR) {
 		dev_err(component->dev, "Cal error\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is anal longer asserted; safe to reset */
 		if (!(current1 & CS35L34_CAL_ERR)) {
 			dev_dbg(component->dev, "Cal error release\n");
 			regmap_update_bits(cs35l34->regmap,
@@ -900,7 +900,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 			regmap_update_bits(cs35l34->regmap,
 					CS35L34_PROT_RELEASE_CTL,
 					CS35L34_CAL_ERR_RLS, 0);
-			/* note: amp will re-calibrate on next resume */
+			/* analte: amp will re-calibrate on next resume */
 		}
 	}
 
@@ -910,7 +910,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 	if (sticky1 & CS35L34_AMP_SHORT) {
 		dev_crit(component->dev, "Amp short error\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is anal longer asserted; safe to reset */
 		if (!(current1 & CS35L34_AMP_SHORT)) {
 			dev_dbg(component->dev,
 				"Amp short error release\n");
@@ -930,7 +930,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 	if (sticky1 & CS35L34_OTW) {
 		dev_crit(component->dev, "Over temperature warning\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is anal longer asserted; safe to reset */
 		if (!(current1 & CS35L34_OTW)) {
 			dev_dbg(component->dev,
 				"Over temperature warning release\n");
@@ -950,7 +950,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 	if (sticky1 & CS35L34_OTE) {
 		dev_crit(component->dev, "Over temperature error\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is anal longer asserted; safe to reset */
 		if (!(current1 & CS35L34_OTE)) {
 			dev_dbg(component->dev,
 				"Over temperature error release\n");
@@ -1002,7 +1002,7 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client)
 
 	cs35l34 = devm_kzalloc(&i2c_client->dev, sizeof(*cs35l34), GFP_KERNEL);
 	if (!cs35l34)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c_client, cs35l34);
 	cs35l34->regmap = devm_regmap_init_i2c(i2c_client, &cs35l34_regmap);
@@ -1039,11 +1039,11 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client)
 		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
 				     GFP_KERNEL);
 		if (!pdata) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_regulator;
 		}
 
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_analde) {
 			ret = cs35l34_handle_of_data(i2c_client, pdata);
 			if (ret != 0)
 				goto err_regulator;
@@ -1080,7 +1080,7 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client)
 		dev_err(&i2c_client->dev,
 			"CS35l34 Device ID (%X). Expected ID %X\n",
 			devid, CS35L34_CHIP_ID);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_reset;
 	}
 

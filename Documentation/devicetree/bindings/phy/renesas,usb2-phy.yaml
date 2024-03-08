@@ -76,10 +76,10 @@ properties:
       Phandle to a regulator that provides power to the VBUS. This regulator
       will be managed during the PHY power on/off sequence.
 
-  renesas,no-otg-pins:
+  renesas,anal-otg-pins:
     $ref: /schemas/types.yaml#/definitions/flag
     description: |
-      specify when a board does not provide proper otg pins.
+      specify when a board does analt provide proper otg pins.
 
   dr_mode: true
 

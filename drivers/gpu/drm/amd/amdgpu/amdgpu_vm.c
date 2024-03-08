@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -53,7 +53,7 @@
  * for the entire GPU, there can be multiple GPUVM page tables active
  * at any given time.  The GPUVM page tables can contain a mix
  * VRAM pages and system pages (both memory and MMIO) and system pages
- * can be mapped as snooped (cached system pages) or unsnooped
+ * can be mapped as sanaloped (cached system pages) or unsanaloped
  * (uncached system pages).
  *
  * Each active GPUVM has an ID associated with it and there is a page table
@@ -86,8 +86,8 @@
  * accessing an invalid page on a CPU.
  */
 
-#define START(node) ((node)->start)
-#define LAST(node) ((node)->last)
+#define START(analde) ((analde)->start)
+#define LAST(analde) ((analde)->last)
 
 INTERVAL_TREE_DEFINE(struct amdgpu_bo_va_mapping, rb, uint64_t, __subtree_last,
 		     START, LAST, static, amdgpu_vm_it)
@@ -171,7 +171,7 @@ int amdgpu_vm_set_pasid(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  *
  * @vm_bo: vm_bo which is evicted
  *
- * State for PDs/PTs and per VM BOs which are not at the location they should
+ * State for PDs/PTs and per VM BOs which are analt at the location they should
  * be.
  */
 static void amdgpu_vm_bo_evicted(struct amdgpu_vm_bo_base *vm_bo)
@@ -192,7 +192,7 @@ static void amdgpu_vm_bo_evicted(struct amdgpu_vm_bo_base *vm_bo)
  *
  * @vm_bo: vm_bo which is moved
  *
- * State for per VM BOs which are moved, but that change is not yet reflected
+ * State for per VM BOs which are moved, but that change is analt yet reflected
  * in the page tables.
  */
 static void amdgpu_vm_bo_moved(struct amdgpu_vm_bo_base *vm_bo)
@@ -205,10 +205,10 @@ static void amdgpu_vm_bo_moved(struct amdgpu_vm_bo_base *vm_bo)
 /**
  * amdgpu_vm_bo_idle - vm_bo is idle
  *
- * @vm_bo: vm_bo which is now idle
+ * @vm_bo: vm_bo which is analw idle
  *
  * State for PDs/PTs and per VM BOs which have gone through the state machine
- * and are now idle.
+ * and are analw idle.
  */
 static void amdgpu_vm_bo_idle(struct amdgpu_vm_bo_base *vm_bo)
 {
@@ -221,9 +221,9 @@ static void amdgpu_vm_bo_idle(struct amdgpu_vm_bo_base *vm_bo)
 /**
  * amdgpu_vm_bo_invalidated - vm_bo is invalidated
  *
- * @vm_bo: vm_bo which is now invalidated
+ * @vm_bo: vm_bo which is analw invalidated
  *
- * State for normal BOs which are invalidated and that change not yet reflected
+ * State for analrmal BOs which are invalidated and that change analt yet reflected
  * in the PTs.
  */
 static void amdgpu_vm_bo_invalidated(struct amdgpu_vm_bo_base *vm_bo)
@@ -255,9 +255,9 @@ static void amdgpu_vm_bo_relocated(struct amdgpu_vm_bo_base *vm_bo)
 /**
  * amdgpu_vm_bo_done - vm_bo is done
  *
- * @vm_bo: vm_bo which is now done
+ * @vm_bo: vm_bo which is analw done
  *
- * State for normal BOs which are invalidated and that change has been updated
+ * State for analrmal BOs which are invalidated and that change has been updated
  * in the PTs.
  */
 static void amdgpu_vm_bo_done(struct amdgpu_vm_bo_base *vm_bo)
@@ -380,13 +380,13 @@ static int amdgpu_vm_init_entities(struct amdgpu_device *adev,
 {
 	int r;
 
-	r = drm_sched_entity_init(&vm->immediate, DRM_SCHED_PRIORITY_NORMAL,
+	r = drm_sched_entity_init(&vm->immediate, DRM_SCHED_PRIORITY_ANALRMAL,
 				  adev->vm_manager.vm_pte_scheds,
 				  adev->vm_manager.vm_pte_num_scheds, NULL);
 	if (r)
 		goto error;
 
-	return drm_sched_entity_init(&vm->delayed, DRM_SCHED_PRIORITY_NORMAL,
+	return drm_sched_entity_init(&vm->delayed, DRM_SCHED_PRIORITY_ANALRMAL,
 				     adev->vm_manager.vm_pte_scheds,
 				     adev->vm_manager.vm_pte_num_scheds, NULL);
 
@@ -501,7 +501,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  * Check if all VM PDs/PTs are ready for updates
  *
  * Returns:
- * True if VM is not evicting.
+ * True if VM is analt evicting.
  */
 bool amdgpu_vm_ready(struct amdgpu_vm *vm)
 {
@@ -595,7 +595,7 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
  * Emit a VM flush when it is necessary.
  *
  * Returns:
- * 0 on success, errno otherwise.
+ * 0 on success, erranal otherwise.
  */
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 		    bool need_pipe_sync)
@@ -688,7 +688,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	if (ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);
 
-	/* the double SWITCH_BUFFER here *cannot* be skipped by COND_EXEC */
+	/* the double SWITCH_BUFFER here *cananalt* be skipped by COND_EXEC */
 	if (ring->funcs->emit_switch_buffer) {
 		amdgpu_ring_emit_switch_buffer(ring);
 		amdgpu_ring_emit_switch_buffer(ring);
@@ -705,7 +705,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
  *
  * Find @bo inside the requested vm.
  * Search inside the @bos vm list for the requested vm
- * Returns the found bo_va or NULL if none is found
+ * Returns the found bo_va or NULL if analne is found
  *
  * Object has to be reserved!
  *
@@ -782,7 +782,7 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 		return 0;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
@@ -845,12 +845,12 @@ static void amdgpu_vm_tlb_seq_cb(struct dma_fence *fence,
  * @immediate: immediate submission in a page fault
  * @unlocked: unlocked invalidation during MM callback
  * @flush_tlb: trigger tlb invalidation after update completed
- * @allow_override: change MTYPE for local NUMA nodes
+ * @allow_override: change MTYPE for local NUMA analdes
  * @resv: fences we need to sync to
  * @start: start of mapped range
  * @last: last mapped entry
  * @flags: flags for the entries
- * @offset: offset into nodes and pages_addr
+ * @offset: offset into analdes and pages_addr
  * @vram_base: base for vram mappings
  * @res: ttm_resource to map
  * @pages_addr: DMA addresses to use for mapping
@@ -875,18 +875,18 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	int r, idx;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	tlb_cb = kmalloc(sizeof(*tlb_cb), GFP_KERNEL);
 	if (!tlb_cb) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto error_unlock;
 	}
 
 	/* Vega20+XGMI where PTEs get inadvertently cached in L2 texture cache,
 	 * heavy-weight flush TLB unconditionally.
 	 */
-	flush_tlb |= adev->gmc.xgmi.num_physical_nodes &&
+	flush_tlb |= adev->gmc.xgmi.num_physical_analdes &&
 		     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 0);
 
 	/*
@@ -1016,7 +1016,7 @@ static void amdgpu_vm_bo_get_memory(struct amdgpu_bo_va *bo_va,
 		return;
 
 	/*
-	 * For now ignore BOs which are currently locked and potentially
+	 * For analw iganalre BOs which are currently locked and potentially
 	 * changing their location.
 	 */
 	if (bo->tbo.base.resv != vm->root.bo->tbo.base.resv &&
@@ -1138,7 +1138,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
 		uint64_t update_flags = flags;
 
-		/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
+		/* analrmally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
 		 * but in case of something, we filter the flags in first place
 		 */
 		if (!(mapping->flags & AMDGPU_PTE_READABLE))
@@ -1160,7 +1160,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 			return r;
 	}
 
-	/* If the BO is not in its preferred location add it back to
+	/* If the BO is analt in its preferred location add it back to
 	 * the evicted list so that it gets validated again on the
 	 * next command submission.
 	 */
@@ -1318,7 +1318,7 @@ static void amdgpu_vm_prt_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
- * @fence: optional resulting fence (unchanged if no work needed to be done
+ * @fence: optional resulting fence (unchanged if anal work needed to be done
  * or if an error occurred)
  *
  * Make sure all freed BOs are cleared in the PT.
@@ -1419,7 +1419,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 		} else if (ticket && dma_resv_locking_ctx(resv) == ticket) {
 			clear = false;
 			unlock = false;
-		/* Somebody else is using the BO right now */
+		/* Somebody else is using the BO right analw */
 		} else {
 			clear = true;
 			unlock = false;
@@ -1612,7 +1612,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 
 	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mapping->start = saddr;
 	mapping->last = eaddr;
@@ -1667,7 +1667,7 @@ int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
 	/* Allocate all the needed memory */
 	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = amdgpu_vm_bo_clear_mappings(adev, bo_va->base.vm, saddr, size);
 	if (r) {
@@ -1726,7 +1726,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		}
 
 		if (&mapping->list == &bo_va->invalids)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	list_del(&mapping->list);
@@ -1771,17 +1771,17 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 	/* Allocate all the needed memory */
 	before = kzalloc(sizeof(*before), GFP_KERNEL);
 	if (!before)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&before->list);
 
 	after = kzalloc(sizeof(*after), GFP_KERNEL);
 	if (!after) {
 		kfree(before);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&after->list);
 
-	/* Now gather all removed mappings */
+	/* Analw gather all removed mappings */
 	tmp = amdgpu_vm_it_iter_first(&vm->va, saddr, eaddr);
 	while (tmp) {
 		/* Remember mapping split at the start */
@@ -2097,7 +2097,7 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 		 * assumptions:
 		 *
 		 *  - Need to map system memory and VRAM from all GPUs
-		 *     - VRAM from other GPUs not known here
+		 *     - VRAM from other GPUs analt kanalwn here
 		 *     - Assume VRAM <= system memory
 		 *  - On GFX8 and older, VM space can be segmented for
 		 *    different MTYPEs
@@ -2282,7 +2282,7 @@ error_free_delayed:
  * @adev: amdgpu_device pointer
  * @vm: requested vm
  *
- * This only works on GFX VMs that don't have any BOs added and no
+ * This only works on GFX VMs that don't have any BOs added and anal
  * page tables allocated yet.
  *
  * Changes the following VM parameters:
@@ -2293,7 +2293,7 @@ error_free_delayed:
  * setting.
  *
  * Returns:
- * 0 for success, -errno for errors.
+ * 0 for success, -erranal for errors.
  */
 int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
@@ -2468,12 +2468,12 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	adev->vm_manager.fence_context =
 		dma_fence_context_alloc(AMDGPU_MAX_RINGS);
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		adev->vm_manager.seqno[i] = 0;
+		adev->vm_manager.seqanal[i] = 0;
 
 	spin_lock_init(&adev->vm_manager.prt_lock);
 	atomic_set(&adev->vm_manager.num_prt_users, 0);
 
-	/* If not overridden by the user, by default, only in large BAR systems
+	/* If analt overridden by the user, by default, only in large BAR systems
 	 * Compute VM tables will be updated by CPU
 	 */
 #ifdef CONFIG_X86_64
@@ -2519,7 +2519,7 @@ void amdgpu_vm_manager_fini(struct amdgpu_device *adev)
  * @filp: drm file pointer
  *
  * Returns:
- * 0 for success, -errno for errors.
+ * 0 for success, -erranal for errors.
  */
 int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
@@ -2527,7 +2527,7 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 
-	/* No valid flags defined yet */
+	/* Anal valid flags defined yet */
 	if (args->in.flags)
 		return -EINVAL;
 
@@ -2600,7 +2600,7 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm)
  * @adev: amdgpu device pointer
  * @pasid: PASID of the VM
  * @vmid: VMID, only used for GFX 9.4.3.
- * @node_id: Node_id received in IH cookie. Only applicable for
+ * @analde_id: Analde_id received in IH cookie. Only applicable for
  *           GFX 9.4.3.
  * @addr: Address of the fault
  * @write_fault: true is write fault, false is read fault
@@ -2609,7 +2609,7 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm)
  * shouldn't be reported any more.
  */
 bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
-			    u32 vmid, u32 node_id, uint64_t addr,
+			    u32 vmid, u32 analde_id, uint64_t addr,
 			    bool write_fault)
 {
 	bool is_compute_context = false;
@@ -2635,7 +2635,7 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 	addr /= AMDGPU_GPU_PAGE_SIZE;
 
 	if (is_compute_context && !svm_range_restore_pages(adev, pasid, vmid,
-	    node_id, addr, write_fault)) {
+	    analde_id, addr, write_fault)) {
 		amdgpu_bo_unref(&root);
 		return true;
 	}
@@ -2653,14 +2653,14 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 	if (!vm)
 		goto error_unlock;
 
-	flags = AMDGPU_PTE_VALID | AMDGPU_PTE_SNOOPED |
+	flags = AMDGPU_PTE_VALID | AMDGPU_PTE_SANALOPED |
 		AMDGPU_PTE_SYSTEM;
 
 	if (is_compute_context) {
 		/* Intentionally setting invalid PTE flag
-		 * combination to force a no-retry-fault
+		 * combination to force a anal-retry-fault
 		 */
-		flags = AMDGPU_VM_NORETRY_FLAGS;
+		flags = AMDGPU_VM_ANALRETRY_FLAGS;
 		value = 0;
 	} else if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_NEVER) {
 		/* Redirect the access to the dummy page */
@@ -2818,7 +2818,7 @@ void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
 	/* Don't update the fault cache if status is 0.  In the multiple
 	 * fault case, subsequent faults will return a 0 status which is
 	 * useless for userspace and replaces the useful fault status, so
-	 * only update if status is non-0.
+	 * only update if status is analn-0.
 	 */
 	if (vm && status) {
 		vm->fault_info.addr = addr;

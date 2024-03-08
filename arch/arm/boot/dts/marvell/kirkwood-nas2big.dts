@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2015 Seagate
  *
- * Author: Simon Guinot <simon.guinot@sequanux.org>
+ * Author: Simon Guianalt <simon.guianalt@sequanux.org>
  *
 */
 
@@ -28,7 +28,7 @@
 
 	ocp@f1000000 {
 		rtc@10300 {
-			/* The on-chip RTC is not powered (no supercap). */
+			/* The on-chip RTC is analt powered (anal supercap). */
 			status = "disabled";
 		};
 		spi@10600 {

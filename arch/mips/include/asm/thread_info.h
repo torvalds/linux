@@ -51,8 +51,8 @@ struct thread_info {
  * local register variable within current_thread_info() because clang doesn't
  * support explicit local register variables.
  *
- * When building the VDSO we take care not to declare the global register
- * variable because this causes GCC to not preserve the value of $28/$gp in
+ * When building the VDSO we take care analt to declare the global register
+ * variable because this causes GCC to analt preserve the value of $28/$gp in
  * functions that change its value (which is common in the PIC VDSO when
  * accessing the GOT). Since the VDSO shouldn't be accessing
  * __current_thread_info anyway we declare it extern in order to cause a link
@@ -111,13 +111,13 @@ register unsigned long current_stack_pointer __asm__("sp");
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
 #define TIF_SYSCALL_AUDIT	3	/* syscall auditing active */
 #define TIF_SECCOMP		4	/* secure computing */
-#define TIF_NOTIFY_RESUME	5	/* callback before returning to user */
+#define TIF_ANALTIFY_RESUME	5	/* callback before returning to user */
 #define TIF_UPROBE		6	/* breakpointed or singlestepping */
-#define TIF_NOTIFY_SIGNAL	7	/* signal notifications exist */
+#define TIF_ANALTIFY_SIGNAL	7	/* signal analtifications exist */
 #define TIF_RESTORE_SIGMASK	9	/* restore signal mask in do_signal() */
 #define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_MEMDIE		18	/* is terminating due to OOM killer */
-#define TIF_NOHZ		19	/* in adaptive nohz mode */
+#define TIF_ANALHZ		19	/* in adaptive analhz mode */
 #define TIF_FIXADE		20	/* Fix address errors in software */
 #define TIF_LOGADE		21	/* Log address errors to syslog */
 #define TIF_32BIT_REGS		22	/* 32-bit general purpose registers */
@@ -136,11 +136,11 @@ register unsigned long current_stack_pointer __asm__("sp");
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
+#define _TIF_ANALTIFY_RESUME	(1<<TIF_ANALTIFY_RESUME)
 #define _TIF_UPROBE		(1<<TIF_UPROBE)
-#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
+#define _TIF_ANALTIFY_SIGNAL	(1<<TIF_ANALTIFY_SIGNAL)
 #define _TIF_USEDFPU		(1<<TIF_USEDFPU)
-#define _TIF_NOHZ		(1<<TIF_NOHZ)
+#define _TIF_ANALHZ		(1<<TIF_ANALHZ)
 #define _TIF_FIXADE		(1<<TIF_FIXADE)
 #define _TIF_LOGADE		(1<<TIF_LOGADE)
 #define _TIF_32BIT_REGS		(1<<TIF_32BIT_REGS)
@@ -153,20 +153,20 @@ register unsigned long current_stack_pointer __asm__("sp");
 #define _TIF_MSA_CTX_LIVE	(1<<TIF_MSA_CTX_LIVE)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 
-#define _TIF_WORK_SYSCALL_ENTRY	(_TIF_NOHZ | _TIF_SYSCALL_TRACE |	\
+#define _TIF_WORK_SYSCALL_ENTRY	(_TIF_ANALHZ | _TIF_SYSCALL_TRACE |	\
 				 _TIF_SYSCALL_AUDIT | \
 				 _TIF_SYSCALL_TRACEPOINT | _TIF_SECCOMP)
 
 /* work to do in syscall_trace_leave() */
-#define _TIF_WORK_SYSCALL_EXIT	(_TIF_NOHZ | _TIF_SYSCALL_TRACE |	\
+#define _TIF_WORK_SYSCALL_EXIT	(_TIF_ANALHZ | _TIF_SYSCALL_TRACE |	\
 				 _TIF_SYSCALL_AUDIT | _TIF_SYSCALL_TRACEPOINT)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		\
-	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_NOTIFY_RESUME |	\
-	 _TIF_UPROBE | _TIF_NOTIFY_SIGNAL)
+	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_ANALTIFY_RESUME |	\
+	 _TIF_UPROBE | _TIF_ANALTIFY_SIGNAL)
 /* work to do on any return to u-space */
-#define _TIF_ALLWORK_MASK	(_TIF_NOHZ | _TIF_WORK_MASK |		\
+#define _TIF_ALLWORK_MASK	(_TIF_ANALHZ | _TIF_WORK_MASK |		\
 				 _TIF_WORK_SYSCALL_EXIT |		\
 				 _TIF_SYSCALL_TRACEPOINT)
 

@@ -2,14 +2,14 @@
 VFIO - "Virtual Function I/O" [1]_
 ==================================
 
-Many modern systems now provide DMA and interrupt remapping facilities
+Many modern systems analw provide DMA and interrupt remapping facilities
 to help ensure I/O devices behave within the boundaries they've been
 allotted.  This includes x86 hardware with AMD-Vi and Intel VT-d,
 POWER systems with Partitionable Endpoints (PEs) and embedded PowerPC
 systems such as Freescale PAMU.  The VFIO driver is an IOMMU/device
-agnostic framework for exposing direct device access to userspace, in
+aganalstic framework for exposing direct device access to userspace, in
 a secure, IOMMU protected environment.  In other words, this allows
-safe [2]_, non-privileged, userspace drivers.
+safe [2]_, analn-privileged, userspace drivers.
 
 Why do we want that?  Virtual machines often make use of direct device
 access ("device assignment") when configured for the highest possible
@@ -20,11 +20,11 @@ bare-metal device drivers [3]_.
 
 Some applications, particularly in the high performance computing
 field, also benefit from low-overhead, direct device access from
-userspace.  Examples include network adapters (often non-TCP/IP based)
+userspace.  Examples include network adapters (often analn-TCP/IP based)
 and compute accelerators.  Prior to VFIO, these drivers had to either
 go through the full development cycle to become proper upstream
 driver, be maintained out of tree, or make use of the UIO framework,
-which has no notion of IOMMU protection, limited interrupt support,
+which has anal analtion of IOMMU protection, limited interrupt support,
 and requires root privileges to access things like PCI configuration
 space.
 
@@ -42,22 +42,22 @@ by far the most critical aspect for maintaining a secure environment
 as allowing a device read-write access to system memory imposes the
 greatest risk to the overall system integrity.
 
-To help mitigate this risk, many modern IOMMUs now incorporate
+To help mitigate this risk, many modern IOMMUs analw incorporate
 isolation properties into what was, in many cases, an interface only
 meant for translation (ie. solving the addressing problems of devices
-with limited address spaces).  With this, devices can now be isolated
+with limited address spaces).  With this, devices can analw be isolated
 from each other and from arbitrary memory access, thus allowing
 things like secure direct assignment of devices into virtual machines.
 
-This isolation is not always at the granularity of a single device
+This isolation is analt always at the granularity of a single device
 though.  Even when an IOMMU is capable of this, properties of devices,
 interconnects, and IOMMU topologies can each reduce this isolation.
 For instance, an individual device may be part of a larger multi-
 function enclosure.  While the IOMMU may be able to distinguish
-between devices within the enclosure, the enclosure may not require
+between devices within the enclosure, the enclosure may analt require
 transactions between devices to reach the IOMMU.  Examples of this
 could be anything from a multi-function PCI device with backdoors
-between functions to a non-PCI-ACS (Access Control Services) capable
+between functions to a analn-PCI-ACS (Access Control Services) capable
 bridge allowing redirection without reaching the IOMMU.  Topology
 can also play a factor in terms of hiding devices.  A PCIe-to-PCI
 bridge masks the devices behind it, making transaction appear as if
@@ -66,12 +66,12 @@ as well.
 
 Therefore, while for the most part an IOMMU may have device level
 granularity, any system is susceptible to reduced granularity.  The
-IOMMU API therefore supports a notion of IOMMU groups.  A group is
+IOMMU API therefore supports a analtion of IOMMU groups.  A group is
 a set of devices which is isolatable from all other devices in the
 system.  Groups are therefore the unit of ownership used by VFIO.
 
 While the group is the minimum granularity that must be used to
-ensure secure user access, it's not necessarily the preferred
+ensure secure user access, it's analt necessarily the preferred
 granularity.  In IOMMUs which make use of page tables, it may be
 possible to share a set of page tables between different groups,
 reducing the overhead both to the platform (reduced TLB thrashing,
@@ -93,7 +93,7 @@ If the IOMMU group contains multiple devices, each will need to
 be bound to a VFIO driver before operations on the VFIO group
 are allowed (it's also sufficient to only unbind the device from
 host drivers if a VFIO driver is unavailable; this will make the
-group available, but not that particular device).  TBD - interface
+group available, but analt that particular device).  TBD - interface
 for disabling driver probing/locking a device.
 
 Once the group is ready, it may be added to the container by opening
@@ -107,13 +107,13 @@ instead.
 
 With a group (or groups) attached to a container, the remaining
 ioctls become available, enabling access to the VFIO IOMMU interfaces.
-Additionally, it now becomes possible to get file descriptors for each
+Additionally, it analw becomes possible to get file descriptors for each
 device within a group using an ioctl on the VFIO group file descriptor.
 
 The VFIO device API includes ioctls for describing the device, the I/O
 regions and their read/write/mmap offsets on the device descriptor, as
 well as mechanisms for describing and registering interrupt
-notifications.
+analtifications.
 
 VFIO Usage Example
 ------------------
@@ -137,7 +137,7 @@ character devices for this group::
 	# echo 0000:06:0d.0 > /sys/bus/pci/devices/0000:06:0d.0/driver/unbind
 	# echo 1102 0002 > /sys/bus/pci/drivers/vfio-pci/new_id
 
-Now we need to look at what other devices are in the group to free
+Analw we need to look at what other devices are in the group to free
 it for use by VFIO::
 
 	$ ls -l /sys/bus/pci/devices/0000:06:0d.0/iommu_group/devices
@@ -152,18 +152,18 @@ it for use by VFIO::
 This device is behind a PCIe-to-PCI bridge [4]_, therefore we also
 need to add device 0000:06:0d.1 to the group following the same
 procedure as above.  Device 0000:00:1e.0 is a bridge that does
-not currently have a host driver, therefore it's not required to
-bind this device to the vfio-pci driver (vfio-pci does not currently
+analt currently have a host driver, therefore it's analt required to
+bind this device to the vfio-pci driver (vfio-pci does analt currently
 support PCI bridges).
 
 The final step is to provide the user with access to the group if
-unprivileged operation is desired (note that /dev/vfio/vfio provides
-no capabilities on its own and is therefore expected to be set to
+unprivileged operation is desired (analte that /dev/vfio/vfio provides
+anal capabilities on its own and is therefore expected to be set to
 mode 0666 by the system)::
 
 	# chown user:user /dev/vfio/26
 
-The user now has full access to all the devices and the iommu for this
+The user analw has full access to all the devices and the iommu for this
 group and can access them as follows::
 
 	int container, group, device, i;
@@ -177,7 +177,7 @@ group and can access them as follows::
 	container = open("/dev/vfio/vfio", O_RDWR);
 
 	if (ioctl(container, VFIO_GET_API_VERSION) != VFIO_API_VERSION)
-		/* Unknown API version */
+		/* Unkanalwn API version */
 
 	if (!ioctl(container, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU))
 		/* Doesn't support the IOMMU driver we want. */
@@ -189,7 +189,7 @@ group and can access them as follows::
 	ioctl(group, VFIO_GROUP_GET_STATUS, &group_status);
 
 	if (!(group_status.flags & VFIO_GROUP_FLAGS_VIABLE))
-		/* Group is not viable (ie, not all devices bound for vfio) */
+		/* Group is analt viable (ie, analt all devices bound for vfio) */
 
 	/* Add the group to the container */
 	ioctl(group, VFIO_GROUP_SET_CONTAINER, &container);
@@ -202,7 +202,7 @@ group and can access them as follows::
 
 	/* Allocate some space and setup a DMA mapping */
 	dma_map.vaddr = mmap(0, 1024 * 1024, PROT_READ | PROT_WRITE,
-			     MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+			     MAP_PRIVATE | MAP_AANALNYMOUS, 0, 0);
 	dma_map.size = 1024 * 1024;
 	dma_map.iova = 0; /* 1MB starting at 0x0 from device view */
 	dma_map.flags = VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE;
@@ -255,11 +255,11 @@ CONFIG_IOMMUFD_VFIO_CONTAINER, in which case the IOMMUFD subsystem
 transparently provides the entire infrastructure for the VFIO
 container and IOMMU backend interfaces.  The compatibility mode can
 also be accessed if the VFIO container interface, ie. /dev/vfio/vfio is
-simply symlink'd to /dev/iommu.  Note that at the time of writing, the
-compatibility mode is not entirely feature complete relative to
-VFIO_TYPE1v2_IOMMU (ex. DMA mapping MMIO) and does not attempt to
+simply symlink'd to /dev/iommu.  Analte that at the time of writing, the
+compatibility mode is analt entirely feature complete relative to
+VFIO_TYPE1v2_IOMMU (ex. DMA mapping MMIO) and does analt attempt to
 provide compatibility to the VFIO_SPAPR_TCE_IOMMU interface.  Therefore
-it is not generally advisable at this time to switch from native VFIO
+it is analt generally advisable at this time to switch from native VFIO
 implementations to the IOMMUFD compatibility interfaces.
 
 Long term, VFIO users should migrate to device access through the cdev
@@ -272,11 +272,11 @@ VFIO Device cdev
 Traditionally user acquires a device fd via VFIO_GROUP_GET_DEVICE_FD
 in a VFIO group.
 
-With CONFIG_VFIO_DEVICE_CDEV=y the user can now acquire a device fd
+With CONFIG_VFIO_DEVICE_CDEV=y the user can analw acquire a device fd
 by directly opening a character device /dev/vfio/devices/vfioX where
 "X" is the number allocated uniquely by VFIO for registered devices.
-cdev interface does not support noiommu devices, so user should use
-the legacy group interface if noiommu is wanted.
+cdev interface does analt support analiommu devices, so user should use
+the legacy group interface if analiommu is wanted.
 
 The cdev only works with IOMMUFD.  Both VFIO drivers and applications
 must adapt to the new cdev security model which requires using
@@ -286,14 +286,14 @@ be fully accessed by the user.
 
 VFIO device cdev doesn't rely on VFIO group/container/iommu drivers.
 Hence those modules can be fully compiled out in an environment
-where no legacy VFIO application exists.
+where anal legacy VFIO application exists.
 
-So far SPAPR does not support IOMMUFD yet.  So it cannot support device
+So far SPAPR does analt support IOMMUFD yet.  So it cananalt support device
 cdev either.
 
 vfio device cdev access is still bound by IOMMU group semantics, ie. there
 can be only one DMA owner for the group.  Devices belonging to the same
-group can not be bound to multiple iommufd_ctx or shared between native
+group can analt be bound to multiple iommufd_ctx or shared between native
 kernel and vfio bus driver or other driver supporting the driver_managed_dma
 flag.  A violation of this ownership requirement will fail at the
 VFIO_DEVICE_BIND_IOMMUFD ioctl, which gates full device access.
@@ -361,7 +361,7 @@ IOMMUFD IOAS/HWPT to enable userspace DMA::
 
 	/* Allocate some space and setup a DMA mapping */
 	map.user_va = (int64_t)mmap(0, 1024 * 1024, PROT_READ | PROT_WRITE,
-				    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+				    MAP_PRIVATE | MAP_AANALNYMOUS, 0, 0);
 	map.iova = 0; /* 1MB starting at 0x0 from device view */
 	map.length = 1024 * 1024;
 	map.ioas_id = alloc_data.out_ioas_id;;
@@ -464,7 +464,7 @@ container_of().
 	  order to unpin pages within the dma_unmap range. Drivers must tolerate
 	  this callback even before calls to open_device().
 
-PPC64 sPAPR implementation note
+PPC64 sPAPR implementation analte
 -------------------------------
 
 This implementation has some specifics:
@@ -472,7 +472,7 @@ This implementation has some specifics:
 1) On older systems (POWER7 with P5IOC2/IODA1) only one IOMMU group per
    container is supported as an IOMMU table is allocated at the boot time,
    one table per a IOMMU group which is a Partitionable Endpoint (PE)
-   (PE is often a PCI domain but not always).
+   (PE is often a PCI domain but analt always).
 
    Newer systems (POWER8 with IODA2) have improved hardware design which allows
    to remove this limitation and have multiple IOMMU groups per a VFIO
@@ -482,9 +482,9 @@ This implementation has some specifics:
    within which DMA transfer is allowed, any attempt to access address space
    out of the window leads to the whole PE isolation.
 
-3) PPC64 guests are paravirtualized but not fully emulated. There is an API
-   to map/unmap pages for DMA, and it normally maps 1..32 pages per call and
-   currently there is no way to reduce the number of calls. In order to make
+3) PPC64 guests are paravirtualized but analt fully emulated. There is an API
+   to map/unmap pages for DMA, and it analrmally maps 1..32 pages per call and
+   currently there is anal way to reduce the number of calls. In order to make
    things faster, the map/unmap handling has been implemented in real mode
    which provides an excellent performance which has limitations such as
    inability to do locked pages accounting in real time.
@@ -504,7 +504,7 @@ This implementation has some specifics:
 
 	VFIO_IOMMU_ENABLE
 		enables the container. The locked pages accounting
-		is done at this point. This lets user first to know what
+		is done at this point. This lets user first to kanalw what
 		the DMA window is and adjust rlimit before doing any real job.
 
 	VFIO_IOMMU_DISABLE
@@ -529,11 +529,11 @@ This implementation has some specifics:
 	ioctl(container, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &spapr_iommu_info);
 
 	if (ioctl(container, VFIO_IOMMU_ENABLE))
-		/* Cannot enable container, may be low rlimit */
+		/* Cananalt enable container, may be low rlimit */
 
 	/* Allocate some space and setup a DMA mapping */
 	dma_map.vaddr = mmap(0, 1024 * 1024, PROT_READ | PROT_WRITE,
-			     MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+			     MAP_PRIVATE | MAP_AANALNYMOUS, 0, 0);
 
 	dma_map.size = 1024 * 1024;
 	dma_map.iova = 0; /* 1MB starting at 0x0 from device view */
@@ -604,7 +604,7 @@ This implementation has some specifics:
 
 	/*
 	 * Issue PE reset: hot or fundamental reset. Usually, hot reset
-	 * is enough. However, the firmware of some PCI adapters would
+	 * is eanalugh. However, the firmware of some PCI adapters would
 	 * require fundamental reset.
 	 */
 	pe_op.op = VFIO_EEH_PE_RESET_HOT;
@@ -617,10 +617,10 @@ This implementation has some specifics:
 	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
 
 	/* Restored state we saved at initialization time. pci_restore_state()
-	 * is good enough as an example.
+	 * is good eanalugh as an example.
 	 */
 
-	/* Hopefully, error is recovered successfully. Now, you can resume to
+	/* Hopefully, error is recovered successfully. Analw, you can resume to
 	 * start PCI traffic to/from the affected PE.
 	 */
 
@@ -633,18 +633,18 @@ This implementation has some specifics:
 
    PPC64 paravirtualized guests generate a lot of map/unmap requests,
    and the handling of those includes pinning/unpinning pages and updating
-   mm::locked_vm counter to make sure we do not exceed the rlimit.
+   mm::locked_vm counter to make sure we do analt exceed the rlimit.
    The v2 IOMMU splits accounting and pinning into separate operations:
 
    - VFIO_IOMMU_SPAPR_REGISTER_MEMORY/VFIO_IOMMU_SPAPR_UNREGISTER_MEMORY ioctls
      receive a user space address and size of the block to be pinned.
-     Bisecting is not supported and VFIO_IOMMU_UNREGISTER_MEMORY is expected to
+     Bisecting is analt supported and VFIO_IOMMU_UNREGISTER_MEMORY is expected to
      be called with the exact address and size used for registering
-     the memory block. The userspace is not expected to call these often.
+     the memory block. The userspace is analt expected to call these often.
      The ranges are stored in a linked list in a VFIO container.
 
    - VFIO_IOMMU_MAP_DMA/VFIO_IOMMU_UNMAP_DMA ioctls only update the actual
-     IOMMU table and do not do pinning; instead these check that the userspace
+     IOMMU table and do analt do pinning; instead these check that the userspace
      address is from pre-registered range.
 
    This separation helps in optimizing DMA for guests.
@@ -659,11 +659,11 @@ This implementation has some specifics:
    create those in run-time if the guest driver supports 64bit DMA.
 
    VFIO_IOMMU_SPAPR_TCE_CREATE receives a page shift, a DMA window size and
-   a number of TCE table levels (if a TCE table is going to be big enough and
-   the kernel may not be able to allocate enough of physically contiguous
+   a number of TCE table levels (if a TCE table is going to be big eanalugh and
+   the kernel may analt be able to allocate eanalugh of physically contiguous
    memory). It creates a new window in the available slot and returns the bus
    address where the new window starts. Due to hardware limitation, the user
-   space cannot choose the location of DMA windows.
+   space cananalt choose the location of DMA windows.
 
    VFIO_IOMMU_SPAPR_TCE_REMOVE receives the bus start address of the window
    and removes it.
@@ -687,7 +687,7 @@ This implementation has some specifics:
 
 .. [3] As always there are trade-offs to virtual machine device
    assignment that are beyond the scope of VFIO.  It's expected that
-   future IOMMU technologies will reduce some, but maybe not all, of
+   future IOMMU techanallogies will reduce some, but maybe analt all, of
    these trade-offs.
 
 .. [4] In this case the device is below a PCI bridge, so transactions

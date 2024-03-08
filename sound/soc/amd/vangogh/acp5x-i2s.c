@@ -379,17 +379,17 @@ static int acp5x_dai_probe(struct platform_device *pdev)
 	adata = devm_kzalloc(&pdev->dev, sizeof(struct i2s_dev_data),
 			     GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	adata->acp5x_base = devm_ioremap(&pdev->dev, res->start,
 					 resource_size(res));
 	if (!adata->acp5x_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->master_mode = I2S_MASTER_MODE_ENABLE;
 	dev_set_drvdata(&pdev->dev, adata);

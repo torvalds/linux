@@ -24,7 +24,7 @@ static inline void bcm47xx_fill_sprom(struct ssb_sprom *sprom,
 
 static inline int bcm47xx_sprom_register_fallbacks(void)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 };
 #endif
 

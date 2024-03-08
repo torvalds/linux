@@ -18,10 +18,10 @@ when using discs encoded using Microsoft's Joliet extensions.
  ==============	=============================================================
  iocharset=name Character set to use for converting from Unicode to
 		ASCII.  Joliet filenames are stored in Unicode format, but
-		Unix for the most part doesn't know how to deal with Unicode.
+		Unix for the most part doesn't kanalw how to deal with Unicode.
 		There is also an option of doing UTF-8 translations with the
 		utf8 option.
-  utf8          Encode Unicode names in UTF-8 format. Default is no.
+  utf8          Encode Unicode names in UTF-8 format. Default is anal.
  ==============	=============================================================
 
 Mount options unique to the isofs filesystem.
@@ -33,9 +33,9 @@ Mount options unique to the isofs filesystem.
   check=relaxed    Matches filenames with different cases
   check=strict     Matches only filenames with the exact same case
   cruft            Try to handle badly formatted CDs.
-  map=off          Do not map non-Rock Ridge filenames to lower case
-  map=normal       Map non-Rock Ridge filenames to lower case
-  map=acorn        As map=normal but also apply Acorn extensions if present
+  map=off          Do analt map analn-Rock Ridge filenames to lower case
+  map=analrmal       Map analn-Rock Ridge filenames to lower case
+  map=acorn        As map=analrmal but also apply Acorn extensions if present
   mode=xxx         Sets the permissions on files to xxx unless Rock Ridge
 		   extensions set the permissions otherwise
   dmode=xxx        Sets the permissions on directories to xxx unless Rock Ridge
@@ -43,12 +43,12 @@ Mount options unique to the isofs filesystem.
   overriderockperm Set permissions on files and directories according to
 		   'mode' and 'dmode' even though Rock Ridge extensions are
 		   present.
-  nojoliet         Ignore Joliet extensions if they are present.
-  norock           Ignore Rock Ridge extensions if they are present.
+  analjoliet         Iganalre Joliet extensions if they are present.
+  analrock           Iganalre Rock Ridge extensions if they are present.
   hide		   Completely strip hidden files from the file system.
   showassoc	   Show files marked with the 'associated' bit
-  unhide	   Deprecated; showing hidden files is now default;
-		   If given, it is a synonym for 'showassoc' which will
+  unhide	   Deprecated; showing hidden files is analw default;
+		   If given, it is a syanalnym for 'showassoc' which will
 		   recreate previous unhide behavior
   session=x        Select number of session on multisession CD
   sbsector=xxx     Session begins from sector xxx

@@ -9,7 +9,7 @@
  * that for a reset.
  *
  * The counters can't be individually enabled or disabled so when we remove
- * one event and replace it with another we could get spurious counts from the
+ * one event and replace it with aanalther we could get spurious counts from the
  * wrong event. However, we can take advantage of the fact that the
  * performance counters can export events to the event bus, and the event bus
  * itself can be monitored. This requires that we *don't* export the events to
@@ -24,10 +24,10 @@
  *	- enable the counter's interrupt generation.
  *	- set the new event type.
  *
- * Note: the dedicated cycle counter only counts cycles and can't be
+ * Analte: the dedicated cycle counter only counts cycles and can't be
  * enabled/disabled independently of the others. When we want to disable the
  * cycle counter, we have to just disable the interrupt reporting and start
- * ignoring that counter. When re-enabling, we have to reset the value and
+ * iganalring that counter. When re-enabling, we have to reset the value and
  * enable the interrupt.
  */
 
@@ -59,7 +59,7 @@ enum armv6_perf_types {
 	ARMV6_PERFCTR_LSU_FULL_STALL	    = 0x11,
 	ARMV6_PERFCTR_WBUF_DRAINED	    = 0x12,
 	ARMV6_PERFCTR_CPU_CYCLES	    = 0xFF,
-	ARMV6_PERFCTR_NOP		    = 0x20,
+	ARMV6_PERFCTR_ANALP		    = 0x20,
 };
 
 enum armv6_counters {
@@ -70,7 +70,7 @@ enum armv6_counters {
 
 /*
  * The hardware events that we support. We do support cache operations but
- * we have harvard caches and no way to combine instruction and data
+ * we have harvard caches and anal way to combine instruction and data
  * accesses/misses in hardware.
  */
 static const unsigned armv6_perf_map[PERF_COUNT_HW_MAX] = {
@@ -245,7 +245,7 @@ armv6pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	int idx;
 
 	if (!armv6_pmcr_has_overflowed(pmcr))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regs = get_irq_regs();
 
@@ -260,7 +260,7 @@ armv6pmu_handle_irq(struct arm_pmu *cpu_pmu)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		/* Ignore if we don't have an event. */
+		/* Iganalre if we don't have an event. */
 		if (!event)
 			continue;
 
@@ -284,9 +284,9 @@ armv6pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	/*
 	 * Handle the pending perf events.
 	 *
-	 * Note: this call *must* be run with interrupts disabled. For
+	 * Analte: this call *must* be run with interrupts disabled. For
 	 * platforms that can have the PMU interrupts raised as an NMI, this
-	 * will not work.
+	 * will analt work.
 	 */
 	irq_work_run();
 
@@ -355,10 +355,10 @@ static void armv6pmu_disable_event(struct perf_event *event)
 		evt	= 0;
 	} else if (ARMV6_COUNTER0 == idx) {
 		mask	= ARMV6_PMCR_COUNT0_IEN | ARMV6_PMCR_EVT_COUNT0_MASK;
-		evt	= ARMV6_PERFCTR_NOP << ARMV6_PMCR_EVT_COUNT0_SHIFT;
+		evt	= ARMV6_PERFCTR_ANALP << ARMV6_PMCR_EVT_COUNT0_SHIFT;
 	} else if (ARMV6_COUNTER1 == idx) {
 		mask	= ARMV6_PMCR_COUNT1_IEN | ARMV6_PMCR_EVT_COUNT1_MASK;
-		evt	= ARMV6_PERFCTR_NOP << ARMV6_PMCR_EVT_COUNT1_SHIFT;
+		evt	= ARMV6_PERFCTR_ANALP << ARMV6_PMCR_EVT_COUNT1_SHIFT;
 	} else {
 		WARN_ONCE(1, "invalid counter number (%d)\n", idx);
 		return;

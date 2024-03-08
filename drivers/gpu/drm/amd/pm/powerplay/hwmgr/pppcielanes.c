@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,22 +32,22 @@
 
 /* For converting from number of lanes to lane bits.  */
 static const unsigned char pp_r600_encode_lanes[] = {
-	0,          /*  0 Not Supported  */
+	0,          /*  0 Analt Supported  */
 	1,          /*  1 Lane  */
 	2,          /*  2 Lanes  */
-	0,          /*  3 Not Supported  */
+	0,          /*  3 Analt Supported  */
 	3,          /*  4 Lanes  */
-	0,          /*  5 Not Supported  */
-	0,          /*  6 Not Supported  */
-	0,          /*  7 Not Supported  */
+	0,          /*  5 Analt Supported  */
+	0,          /*  6 Analt Supported  */
+	0,          /*  7 Analt Supported  */
 	4,          /*  8 Lanes  */
-	0,          /*  9 Not Supported  */
-	0,          /* 10 Not Supported  */
-	0,          /* 11 Not Supported  */
-	5,          /* 12 Lanes (Not actually supported)  */
-	0,          /* 13 Not Supported  */
-	0,          /* 14 Not Supported  */
-	0,          /* 15 Not Supported  */
+	0,          /*  9 Analt Supported  */
+	0,          /* 10 Analt Supported  */
+	0,          /* 11 Analt Supported  */
+	5,          /* 12 Lanes (Analt actually supported)  */
+	0,          /* 13 Analt Supported  */
+	0,          /* 14 Analt Supported  */
+	0,          /* 15 Analt Supported  */
 	6           /* 16 Lanes  */
 };
 

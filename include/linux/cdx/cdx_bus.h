@@ -120,7 +120,7 @@ struct cdx_controller {
  * @req_id: Requestor ID associated with CDX device
  * @is_bus: Is this bus device
  * @enabled: is this bus enabled
- * @driver_override: driver name to force a match; do not set directly,
+ * @driver_override: driver name to force a match; do analt set directly,
  *                   because core frees it; use driver_set_override() to
  *                   set or clear it.
  */
@@ -166,12 +166,12 @@ struct cdx_device {
  * @probe: Function called when a device is added
  * @remove: Function called when a device is removed
  * @shutdown: Function called at shutdown time to quiesce the device
- * @reset_prepare: Function called before is reset to notify driver
- * @reset_done: Function called after reset is complete to notify driver
+ * @reset_prepare: Function called before is reset to analtify driver
+ * @reset_done: Function called after reset is complete to analtify driver
  * @driver_managed_dma: Device driver doesn't use kernel DMA API for DMA.
- *		For most device drivers, no need to care about this flag
+ *		For most device drivers, anal need to care about this flag
  *		as long as all DMAs are handled through the kernel DMA API.
- *		For some special ones, for example VFIO drivers, they know
+ *		For some special ones, for example VFIO drivers, they kanalw
  *		how to manage the DMA themselves and set this flag so that
  *		the IOMMU layer will allow them to setup and manage their
  *		own I/O address space.
@@ -199,7 +199,7 @@ struct cdx_driver {
  * @cdx_driver: CDX driver to register
  * @owner: module owner
  *
- * Return: -errno on failure, 0 on success.
+ * Return: -erranal on failure, 0 on success.
  */
 int __must_check __cdx_driver_register(struct cdx_driver *cdx_driver,
 				       struct module *owner);
@@ -217,7 +217,7 @@ extern struct bus_type cdx_bus_type;
  * cdx_dev_reset - Reset CDX device
  * @dev: device pointer
  *
- * Return: 0 for success, -errno on failure
+ * Return: 0 for success, -erranal on failure
  */
 int cdx_dev_reset(struct device *dev);
 
@@ -225,7 +225,7 @@ int cdx_dev_reset(struct device *dev);
  * cdx_set_master - enables bus-mastering for CDX device
  * @cdx_dev: the CDX device to enable
  *
- * Return: 0 for success, -errno on failure
+ * Return: 0 for success, -erranal on failure
  */
 int cdx_set_master(struct cdx_device *cdx_dev);
 
@@ -233,7 +233,7 @@ int cdx_set_master(struct cdx_device *cdx_dev);
  * cdx_clear_master - disables bus-mastering for CDX device
  * @cdx_dev: the CDX device to disable
  *
- * Return: 0 for success, -errno on failure
+ * Return: 0 for success, -erranal on failure
  */
 int cdx_clear_master(struct cdx_device *cdx_dev);
 

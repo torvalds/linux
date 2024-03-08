@@ -27,7 +27,7 @@ Linux內核補丁提交檢查單
    a) 使用合適的 ``CONFIG`` 選項 ``=y``、``=m`` 和 ``=n`` 。沒有 ``gcc``
       警告/錯誤，沒有鏈接器警告/錯誤。
 
-   b) 通過 ``allnoconfig`` 、 ``allmodconfig``
+   b) 通過 ``allanalconfig`` 、 ``allmodconfig``
 
    c) 使用 ``O=builddir`` 時可以成功編譯
 
@@ -58,7 +58,7 @@ Linux內核補丁提交檢查單
 
 10) 使用 ``make checkstack`` 並修復他們發現的任何問題。
 
-    .. note::
+    .. analte::
 
         ``checkstack`` 並不會明確指出問題，但是任何一個在堆棧上使用超過512
         字節的函數都可以進行更改。

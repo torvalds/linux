@@ -30,7 +30,7 @@ void test_decap_sanity(void)
 		return;
 
 	SYS(fail, "ip netns add %s", NS_TEST);
-	SYS(fail, "ip -net %s -6 addr add %s/128 dev lo nodad", NS_TEST, IPV6_IFACE_ADDR);
+	SYS(fail, "ip -net %s -6 addr add %s/128 dev lo analdad", NS_TEST, IPV6_IFACE_ADDR);
 	SYS(fail, "ip -net %s link set dev lo up", NS_TEST);
 
 	nstoken = open_netns(NS_TEST);
@@ -64,7 +64,7 @@ void test_decap_sanity(void)
 		goto fail;
 
 	ASSERT_TRUE(skel->bss->init_csum_partial, "init_csum_partial");
-	ASSERT_TRUE(skel->bss->final_csum_none, "final_csum_none");
+	ASSERT_TRUE(skel->bss->final_csum_analne, "final_csum_analne");
 	ASSERT_FALSE(skel->bss->broken_csum_start, "broken_csum_start");
 
 fail:
@@ -72,6 +72,6 @@ fail:
 		bpf_tc_hook_destroy(&qdisc_hook);
 		close_netns(nstoken);
 	}
-	SYS_NOFAIL("ip netns del " NS_TEST " &> /dev/null");
+	SYS_ANALFAIL("ip netns del " NS_TEST " &> /dev/null");
 	decap_sanity__destroy(skel);
 }

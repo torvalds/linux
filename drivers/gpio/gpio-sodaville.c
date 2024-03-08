@@ -7,7 +7,7 @@
  *  Author: Hans J. Koch <hjk@linutronix.de>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -81,7 +81,7 @@ static irqreturn_t sdv_gpio_pub_irq_handler(int irq, void *data)
 
 	irq_stat &= readl(sd->gpio_pub_base + GPIO_INT);
 	if (!irq_stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for_each_set_bit(irq_bit, &irq_stat, 32)
 		generic_handle_domain_irq(sd->id, irq_bit);
@@ -89,13 +89,13 @@ static irqreturn_t sdv_gpio_pub_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int sdv_xlate(struct irq_domain *h, struct device_node *node,
+static int sdv_xlate(struct irq_domain *h, struct device_analde *analde,
 		const u32 *intspec, u32 intsize, irq_hw_number_t *out_hwirq,
 		u32 *out_type)
 {
 	u32 line, type;
 
-	if (node != irq_domain_get_of_node(h))
+	if (analde != irq_domain_get_of_analde(h))
 		return -EINVAL;
 
 	if (intsize < 2)
@@ -153,7 +153,7 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 					     sd->gpio_pub_base,
 					     handle_fasteoi_irq);
 	if (!sd->gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sd->gc->private = sd;
 	ct = sd->gc->chip_types;
@@ -166,13 +166,13 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 	ct->chip.irq_set_type = sdv_gpio_pub_set_type;
 
 	irq_setup_generic_chip(sd->gc, IRQ_MSK(SDV_NUM_PUB_GPIOS),
-			IRQ_GC_INIT_MASK_CACHE, IRQ_NOREQUEST,
-			IRQ_LEVEL | IRQ_NOPROBE);
+			IRQ_GC_INIT_MASK_CACHE, IRQ_ANALREQUEST,
+			IRQ_LEVEL | IRQ_ANALPROBE);
 
-	sd->id = irq_domain_add_legacy(pdev->dev.of_node, SDV_NUM_PUB_GPIOS,
+	sd->id = irq_domain_add_legacy(pdev->dev.of_analde, SDV_NUM_PUB_GPIOS,
 				sd->irq_base, 0, &irq_domain_sdv_ops, sd);
 	if (!sd->id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -186,7 +186,7 @@ static int sdv_gpio_probe(struct pci_dev *pdev,
 
 	sd = devm_kzalloc(&pdev->dev, sizeof(*sd), GFP_KERNEL);
 	if (!sd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
@@ -202,7 +202,7 @@ static int sdv_gpio_probe(struct pci_dev *pdev,
 
 	sd->gpio_pub_base = pcim_iomap_table(pdev)[GPIO_BAR];
 
-	ret = of_property_read_u32(pdev->dev.of_node, "intel,muxctl", &mux_val);
+	ret = of_property_read_u32(pdev->dev.of_analde, "intel,muxctl", &mux_val);
 	if (!ret)
 		writel(mux_val, sd->gpio_pub_base + GPMUXCTL);
 

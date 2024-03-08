@@ -40,15 +40,15 @@ static int ssd130x_spi_write(void *context, const void *data, size_t count)
 	if (*reg == SSD13XX_DATA)
 		gpiod_set_value_cansleep(t->dc, 1);
 
-	/* Remove control byte since is not used in a 4-wire SPI interface */
+	/* Remove control byte since is analt used in a 4-wire SPI interface */
 	return spi_write(spi, reg + 1, count - 1);
 }
 
-/* The ssd130x driver does not read registers but regmap expects a .read */
+/* The ssd130x driver does analt read registers but regmap expects a .read */
 static int ssd130x_spi_read(void *context, const void *reg, size_t reg_size,
 			    void *val, size_t val_size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct regmap_config ssd130x_spi_regmap_config = {
@@ -74,7 +74,7 @@ static int ssd130x_spi_probe(struct spi_device *spi)
 
 	t = devm_kzalloc(dev, sizeof(*t), GFP_KERNEL);
 	if (!t)
-		return dev_err_probe(dev, -ENOMEM,
+		return dev_err_probe(dev, -EANALMEM,
 				     "Failed to allocate SPI transport data\n");
 
 	t->spi = spi;
@@ -110,7 +110,7 @@ static void ssd130x_spi_shutdown(struct spi_device *spi)
 static const struct of_device_id ssd130x_of_match[] = {
 	/* ssd130x family */
 	{
-		.compatible = "sinowealth,sh1106",
+		.compatible = "sianalwealth,sh1106",
 		.data = &ssd130x_variants[SH1106_ID],
 	},
 	{
@@ -149,11 +149,11 @@ MODULE_DEVICE_TABLE(of, ssd130x_of_match);
 #if IS_MODULE(CONFIG_DRM_SSD130X_SPI)
 /*
  * The SPI core always reports a MODALIAS uevent of the form "spi:<dev>", even
- * if the device was registered via OF. This means that the module will not be
+ * if the device was registered via OF. This means that the module will analt be
  * auto loaded, unless it contains an alias that matches the MODALIAS reported.
  *
  * To workaround this issue, add a SPI device ID table. Even when this should
- * not be needed for this driver to match the registered SPI devices.
+ * analt be needed for this driver to match the registered SPI devices.
  */
 static const struct spi_device_id ssd130x_spi_table[] = {
 	/* ssd130x family */

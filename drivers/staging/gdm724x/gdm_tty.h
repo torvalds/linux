@@ -26,7 +26,7 @@ struct gdm {
 	struct tty_dev *tty_dev;
 	struct tty_port port;
 	unsigned int index;
-	unsigned int minor;
+	unsigned int mianalr;
 };
 
 struct tty_dev {

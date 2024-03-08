@@ -6,7 +6,7 @@
  * Copyright (C) 1998 Randy Gobbel.
  *
  * May 1999, Al Viro: proper release of /proc/net/bmac entry, switched to
- * dynamic procfs inode.
+ * dynamic procfs ianalde.
  */
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -130,9 +130,9 @@ static bmac_reg_entry_t reg_entries[N_REG_ENTRIES] = {
 static unsigned char *bmac_emergency_rxbuf;
 
 /*
- * Number of bytes of private data per BMAC: allow enough for
+ * Number of bytes of private data per BMAC: allow eanalugh for
  * the rx and tx dma commands plus a branch dma command each,
- * and another 16 bytes to allow us to align the dma command
+ * and aanalther 16 bytes to allow us to align the dma command
  * buffers on a 16 byte boundary.
  */
 #define PRIV_BYTES	(sizeof(struct bmac_data) \
@@ -230,7 +230,7 @@ bmac_enable_and_reset_chip(struct net_device *dev)
 	if (td)
 		dbdma_reset(td);
 
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 1);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_analde(bp->mdev), 0, 1);
 }
 
 #define MIFDELAY	udelay(10)
@@ -319,7 +319,7 @@ bmac_init_registers(struct net_device *dev)
 	do {
 		--i;
 		udelay(10000);
-		regValue = bmread(dev, TXRST); /* wait for reset to clear..acknowledge */
+		regValue = bmread(dev, TXRST); /* wait for reset to clear..ackanalwledge */
 	} while ((regValue & TxResetBit) && i > 0);
 
 	if (!bp->is_bmac_plus) {
@@ -375,9 +375,9 @@ bmac_init_registers(struct net_device *dev)
 	bmwrite(dev, MADD1, *pWord16++);
 	bmwrite(dev, MADD2, *pWord16);
 
-	bmwrite(dev, RXCFG, RxCRCNoStrip | RxHashFilterEnable | RxRejectOwnPackets);
+	bmwrite(dev, RXCFG, RxCRCAnalStrip | RxHashFilterEnable | RxRejectOwnPackets);
 
-	bmwrite(dev, INTDISABLE, EnableNormal);
+	bmwrite(dev, INTDISABLE, EnableAnalrmal);
 }
 
 #if 0
@@ -390,7 +390,7 @@ bmac_disable_interrupts(struct net_device *dev)
 static void
 bmac_enable_interrupts(struct net_device *dev)
 {
-	bmwrite(dev, INTDISABLE, EnableNormal);
+	bmwrite(dev, INTDISABLE, EnableAnalrmal);
 }
 #endif
 
@@ -495,7 +495,7 @@ static int bmac_suspend(struct macio_dev *mdev, pm_message_t state)
 		       	}
 		}
 	}
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_analde(bp->mdev), 0, 0);
 	return 0;
 }
 
@@ -504,7 +504,7 @@ static int bmac_resume(struct macio_dev *mdev)
 	struct net_device* dev = macio_get_drvdata(mdev);
 	struct bmac_data *bp = netdev_priv(dev);
 
-	/* see if this is enough */
+	/* see if this is eanalugh */
 	if (bp->opened)
 		bmac_reset_and_enable(dev);
 
@@ -589,7 +589,7 @@ bmac_init_tx_ring(struct bmac_data *bp)
 
 	/* put a branch at the end of the tx command list */
 	dbdma_setcmd(&bp->tx_cmds[N_TX_RING],
-		     (DBDMA_NOP | BR_ALWAYS), 0, 0, virt_to_bus(bp->tx_cmds));
+		     (DBDMA_ANALP | BR_ALWAYS), 0, 0, virt_to_bus(bp->tx_cmds));
 
 	/* reset tx dma */
 	dbdma_reset(td);
@@ -622,7 +622,7 @@ bmac_init_rx_ring(struct net_device *dev)
 
 	/* Put a branch back to the beginning of the receive command list */
 	dbdma_setcmd(&bp->rx_cmds[N_RX_RING],
-		     (DBDMA_NOP | BR_ALWAYS), 0, 0, virt_to_bus(bp->rx_cmds));
+		     (DBDMA_ANALP | BR_ALWAYS), 0, 0, virt_to_bus(bp->rx_cmds));
 
 	/* start rx dma */
 	dbdma_reset(rd);
@@ -766,7 +766,7 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 		}
 		if (!(stat & ACTIVE)) {
 			/*
-			 * status field might not have been filled by DBDMA
+			 * status field might analt have been filled by DBDMA
 			 */
 			if (cp == bus_to_virt(in_le32(&bp->tx_dma->cmdptr)))
 				break;
@@ -875,7 +875,7 @@ bmac_removehash(struct bmac_data *bp, unsigned char *addr)
 	unsigned int crc;
 	unsigned char mask;
 
-	/* Now, delete the address from the filter copy, as indicated */
+	/* Analw, delete the address from the filter copy, as indicated */
 	crc = bmac_crc((unsigned short *)addr) & 0x3f; /* Big-endian alert! */
 	crc = reverse6[crc];	/* Hyperfast bit-reversing algorithm */
 	if (bp->hash_use_count[crc] == 0) return; /* That bit wasn't in use! */
@@ -956,8 +956,8 @@ bmac_remove_multi(struct net_device *dev,
 
 /* Set or clear the multicast filter for this adaptor.
     num_addrs == -1	Promiscuous mode, receive all packets
-    num_addrs == 0	Normal mode, clear multicast list
-    num_addrs > 0	Multicast mode, receive normal and MC packets, and do
+    num_addrs == 0	Analrmal mode, clear multicast list
+    num_addrs > 0	Multicast mode, receive analrmal and MC packets, and do
 			best-effort filtering.
  */
 static void bmac_set_multicast(struct net_device *dev)
@@ -1060,7 +1060,7 @@ static irqreturn_t bmac_misc_intr(int irq, void *dev_id)
 	/*   if (status & FrameSent) dev->stats.tx_dropped++; */
 	if (status & TxErrorMask) dev->stats.tx_errors++;
 	if (status & TxUnderrun) dev->stats.tx_fifo_errors++;
-	if (status & TxNormalCollExp) dev->stats.collisions++;
+	if (status & TxAnalrmalCollExp) dev->stats.collisions++;
 	return IRQ_HANDLED;
 }
 
@@ -1142,7 +1142,7 @@ read_srom(struct net_device *dev, unsigned int addr, unsigned int addr_len)
 		bmac_clock_in_bit(dev, val & 1);
 	}
 
-	/* Now read in the 16-bit data */
+	/* Analw read in the 16-bit data */
 	data = 0;
 	for (i = 0; i < 16; i++)	{
 		val = bmac_clock_out_bit(dev);
@@ -1200,7 +1200,7 @@ static void bmac_reset_and_enable(struct net_device *dev)
 	bmac_init_rx_ring(dev);
 	bmac_init_chip(dev);
 	bmac_start_chip(dev);
-	bmwrite(dev, INTDISABLE, EnableNormal);
+	bmwrite(dev, INTDISABLE, EnableAnalrmal);
 	bp->sleeping = 0;
 
 	/*
@@ -1242,23 +1242,23 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
 		printk(KERN_ERR "BMAC: can't use, need 3 addrs and 3 intrs\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	prop_addr = of_get_property(macio_get_of_node(mdev),
+	prop_addr = of_get_property(macio_get_of_analde(mdev),
 			"mac-address", NULL);
 	if (prop_addr == NULL) {
-		prop_addr = of_get_property(macio_get_of_node(mdev),
+		prop_addr = of_get_property(macio_get_of_analde(mdev),
 				"local-mac-address", NULL);
 		if (prop_addr == NULL) {
 			printk(KERN_ERR "BMAC: Can't get mac-address\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	memcpy(addr, prop_addr, sizeof(addr));
 
 	dev = alloc_etherdev(PRIV_BYTES);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bp = netdev_priv(dev);
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
@@ -1288,7 +1288,7 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 
 	eth_hw_addr_set(dev, macaddr);
 
-	/* Enable chip without interrupts for now */
+	/* Enable chip without interrupts for analw */
 	bmac_enable_and_reset_chip(dev);
 	bmwrite(dev, INTDISABLE, DisableAll);
 
@@ -1337,7 +1337,7 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	 * re-enabled on open()
 	 */
 	disable_irq(dev->irq);
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_analde(bp->mdev), 0, 0);
 
 	if (register_netdev(dev) != 0) {
 		printk(KERN_ERR "BMAC: Ethernet registration failed\n");
@@ -1366,10 +1366,10 @@ err_out_iounmap:
 out_release:
 	macio_release_resources(mdev);
 out_free:
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_analde(bp->mdev), 0, 0);
 	free_netdev(dev);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int bmac_open(struct net_device *dev)
@@ -1425,7 +1425,7 @@ static int bmac_close(struct net_device *dev)
 
 	bp->opened = 0;
 	disable_irq(dev->irq);
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_analde(bp->mdev), 0, 0);
 
 	return 0;
 }
@@ -1564,7 +1564,7 @@ bmac_proc_info(char *buffer, char **start, off_t offset, int length)
 	int i;
 
 	if (bmac_devs == NULL)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	len += sprintf(buffer, "BMAC counters & registers\n");
 
@@ -1649,7 +1649,7 @@ static int __init bmac_init(void)
 	if (bmac_emergency_rxbuf == NULL) {
 		bmac_emergency_rxbuf = kmalloc(RX_BUFLEN, GFP_KERNEL);
 		if (bmac_emergency_rxbuf == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return macio_register_driver(&bmac_driver);

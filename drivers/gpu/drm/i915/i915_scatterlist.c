@@ -21,7 +21,7 @@ bool i915_sg_trim(struct sg_table *orig_st)
 	if (orig_st->nents == orig_st->orig_nents)
 		return false;
 
-	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL | __GFP_NOWARN))
+	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL | __GFP_ANALWARN))
 		return false;
 
 	new_sg = new_st.sgl;
@@ -64,20 +64,20 @@ void i915_refct_sgt_init(struct i915_refct_sgt *rsgt, size_t size)
 }
 
 /**
- * i915_rsgt_from_mm_node - Create a refcounted sg_table from a struct
- * drm_mm_node
- * @node: The drm_mm_node.
+ * i915_rsgt_from_mm_analde - Create a refcounted sg_table from a struct
+ * drm_mm_analde
+ * @analde: The drm_mm_analde.
  * @region_start: An offset to add to the dma addresses of the sg list.
  * @page_alignment: Required page alignment for each sg entry. Power of two.
  *
- * Create a struct sg_table, initializing it from a struct drm_mm_node,
+ * Create a struct sg_table, initializing it from a struct drm_mm_analde,
  * taking a maximum segment length into account, splitting into segments
  * if necessary.
  *
  * Return: A pointer to a kmalloced struct i915_refct_sgt on success, negative
  * error code cast to an error pointer on failure.
  */
-struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
+struct i915_refct_sgt *i915_rsgt_from_mm_analde(const struct drm_mm_analde *analde,
 					      u64 region_start,
 					      u32 page_alignment)
 {
@@ -92,28 +92,28 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
 
 	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL);
 	if (!rsgt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	i915_refct_sgt_init(rsgt, node->size << PAGE_SHIFT);
+	i915_refct_sgt_init(rsgt, analde->size << PAGE_SHIFT);
 	st = &rsgt->table;
 	/* restricted by sg_alloc_table */
-	if (WARN_ON(overflows_type(DIV_ROUND_UP_ULL(node->size, segment_pages),
+	if (WARN_ON(overflows_type(DIV_ROUND_UP_ULL(analde->size, segment_pages),
 				   unsigned int))) {
 		i915_refct_sgt_put(rsgt);
 		return ERR_PTR(-E2BIG);
 	}
 
-	if (sg_alloc_table(st, DIV_ROUND_UP_ULL(node->size, segment_pages),
+	if (sg_alloc_table(st, DIV_ROUND_UP_ULL(analde->size, segment_pages),
 			   GFP_KERNEL)) {
 		i915_refct_sgt_put(rsgt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	sg = st->sgl;
 	st->nents = 0;
 	prev_end = (resource_size_t)-1;
-	block_size = node->size << PAGE_SHIFT;
-	offset = node->start << PAGE_SHIFT;
+	block_size = analde->size << PAGE_SHIFT;
+	offset = analde->start << PAGE_SHIFT;
 
 	while (block_size) {
 		u64 len;
@@ -180,7 +180,7 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 
 	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL);
 	if (!rsgt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	i915_refct_sgt_init(rsgt, size);
 	st = &rsgt->table;
@@ -192,7 +192,7 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 
 	if (sg_alloc_table(st, PFN_UP(res->size), GFP_KERNEL)) {
 		i915_refct_sgt_put(rsgt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	sg = st->sgl;

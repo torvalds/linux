@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *      IP Virtual Server
  *      data structure and functionality definitions
@@ -37,7 +37,7 @@
 /*
  *      IPVS sync daemon states
  */
-#define IP_VS_STATE_NONE	0x0000		/* daemon is stopped */
+#define IP_VS_STATE_ANALNE	0x0000		/* daemon is stopped */
 #define IP_VS_STATE_MASTER	0x0001		/* started as master */
 #define IP_VS_STATE_BACKUP	0x0002		/* started as backup */
 
@@ -46,7 +46,7 @@
  */
 #define IP_VS_BASE_CTL		(64+1024+64)		/* base */
 
-#define IP_VS_SO_SET_NONE	IP_VS_BASE_CTL		/* just peek */
+#define IP_VS_SO_SET_ANALNE	IP_VS_BASE_CTL		/* just peek */
 #define IP_VS_SO_SET_INSERT	(IP_VS_BASE_CTL+1)
 #define IP_VS_SO_SET_ADD	(IP_VS_BASE_CTL+2)
 #define IP_VS_SO_SET_EDIT	(IP_VS_BASE_CTL+3)
@@ -69,7 +69,7 @@
 #define IP_VS_SO_GET_SERVICES	(IP_VS_BASE_CTL+2)
 #define IP_VS_SO_GET_SERVICE	(IP_VS_BASE_CTL+3)
 #define IP_VS_SO_GET_DESTS	(IP_VS_BASE_CTL+4)
-#define IP_VS_SO_GET_DEST	(IP_VS_BASE_CTL+5)	/* not used now */
+#define IP_VS_SO_GET_DEST	(IP_VS_BASE_CTL+5)	/* analt used analw */
 #define IP_VS_SO_GET_TIMEOUT	(IP_VS_BASE_CTL+6)
 #define IP_VS_SO_GET_DAEMON	(IP_VS_BASE_CTL+7)
 #define IP_VS_SO_GET_MAX	IP_VS_SO_GET_DAEMON
@@ -81,27 +81,27 @@
  */
 #define IP_VS_CONN_F_FWD_MASK	0x0007		/* mask for the fwd methods */
 #define IP_VS_CONN_F_MASQ	0x0000		/* masquerading/NAT */
-#define IP_VS_CONN_F_LOCALNODE	0x0001		/* local node */
+#define IP_VS_CONN_F_LOCALANALDE	0x0001		/* local analde */
 #define IP_VS_CONN_F_TUNNEL	0x0002		/* tunneling */
 #define IP_VS_CONN_F_DROUTE	0x0003		/* direct routing */
 #define IP_VS_CONN_F_BYPASS	0x0004		/* cache bypass */
 #define IP_VS_CONN_F_SYNC	0x0020		/* entry created by sync */
 #define IP_VS_CONN_F_HASHED	0x0040		/* hashed entry */
-#define IP_VS_CONN_F_NOOUTPUT	0x0080		/* no output packets */
-#define IP_VS_CONN_F_INACTIVE	0x0100		/* not established */
+#define IP_VS_CONN_F_ANALOUTPUT	0x0080		/* anal output packets */
+#define IP_VS_CONN_F_INACTIVE	0x0100		/* analt established */
 #define IP_VS_CONN_F_OUT_SEQ	0x0200		/* must do output seq adjust */
 #define IP_VS_CONN_F_IN_SEQ	0x0400		/* must do input seq adjust */
 #define IP_VS_CONN_F_SEQ_MASK	0x0600		/* in/out sequence mask */
-#define IP_VS_CONN_F_NO_CPORT	0x0800		/* no client port set yet */
-#define IP_VS_CONN_F_TEMPLATE	0x1000		/* template, not connection */
+#define IP_VS_CONN_F_ANAL_CPORT	0x0800		/* anal client port set yet */
+#define IP_VS_CONN_F_TEMPLATE	0x1000		/* template, analt connection */
 #define IP_VS_CONN_F_ONE_PACKET	0x2000		/* forward only one packet */
 
 /* Initial bits allowed in backup server */
 #define IP_VS_CONN_F_BACKUP_MASK (IP_VS_CONN_F_FWD_MASK | \
-				  IP_VS_CONN_F_NOOUTPUT | \
+				  IP_VS_CONN_F_ANALOUTPUT | \
 				  IP_VS_CONN_F_INACTIVE | \
 				  IP_VS_CONN_F_SEQ_MASK | \
-				  IP_VS_CONN_F_NO_CPORT | \
+				  IP_VS_CONN_F_ANAL_CPORT | \
 				  IP_VS_CONN_F_TEMPLATE \
 				 )
 
@@ -109,7 +109,7 @@
 #define IP_VS_CONN_F_BACKUP_UPD_MASK (IP_VS_CONN_F_INACTIVE | \
 				      IP_VS_CONN_F_SEQ_MASK)
 
-/* Flags that are not sent to backup server start from bit 16 */
+/* Flags that are analt sent to backup server start from bit 16 */
 #define IP_VS_CONN_F_NFCT	(1 << 16)	/* use netfilter conntrack */
 
 /* Connection flags from destination that can be changed by user space */
@@ -133,7 +133,7 @@ enum {
 };
 
 /* Tunnel encapsulation flags */
-#define IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM		(0)
+#define IP_VS_TUNNEL_ENCAP_FLAG_ANALCSUM		(0)
 #define IP_VS_TUNNEL_ENCAP_FLAG_CSUM		(1 << 0)
 #define IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM		(1 << 1)
 

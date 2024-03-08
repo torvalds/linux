@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  **********************************************************************/
 
@@ -34,8 +34,8 @@
 #define  MAX_ORD_REQS_TO_PROCESS   4096
 
 /** Head of a response list. There are several response lists in the
- *  system. One for each response order- Unordered, ordered
- *  and 1 for noresponse entries on each instruction queue.
+ *  system. One for each response order- Uanalrdered, ordered
+ *  and 1 for analresponse entries on each instruction queue.
  */
 struct octeon_response_list {
 	/** List structure to add delete pending entries to */
@@ -51,8 +51,8 @@ struct octeon_response_list {
  */
 enum {
 	OCTEON_ORDERED_LIST = 0,
-	OCTEON_UNORDERED_NONBLOCKING_LIST = 1,
-	OCTEON_UNORDERED_BLOCKING_LIST = 2,
+	OCTEON_UANALRDERED_ANALNBLOCKING_LIST = 1,
+	OCTEON_UANALRDERED_BLOCKING_LIST = 2,
 	OCTEON_ORDERED_SC_LIST = 3,
 	OCTEON_DONE_SC_LIST = 4,
 	OCTEON_ZOMBIE_SC_LIST = 5
@@ -61,8 +61,8 @@ enum {
 /** Response Order values for a Octeon Request. */
 enum {
 	OCTEON_RESP_ORDERED = 0,
-	OCTEON_RESP_UNORDERED = 1,
-	OCTEON_RESP_NORESPONSE = 2
+	OCTEON_RESP_UANALRDERED = 1,
+	OCTEON_RESP_ANALRESPONSE = 2
 };
 
 /** Error codes  used in Octeon Host-Core communication.
@@ -73,9 +73,9 @@ enum {
  *   ---------------------------------
  *   Error codes are 32-bit wide. The upper 16-bits, called Major Error Number,
  *   are reserved to identify the group to which the error code belongs. The
- *   lower 16-bits, called Minor Error Number, carry the actual code.
+ *   lower 16-bits, called Mianalr Error Number, carry the actual code.
  *
- *   So error codes are (MAJOR NUMBER << 16)| MINOR_NUMBER.
+ *   So error codes are (MAJOR NUMBER << 16)| MIANALR_NUMBER.
  */
 
 /*------------   Error codes used by host driver   -----------------*/
@@ -83,19 +83,19 @@ enum {
 /*------   Error codes used by firmware (bits 15..0 set by firmware */
 #define FIRMWARE_MAJOR_ERROR_CODE         0x0001
 
-/**  A value of 0x00000000 indicates no error i.e. success */
-#define DRIVER_ERROR_NONE                 0x00000000
+/**  A value of 0x00000000 indicates anal error i.e. success */
+#define DRIVER_ERROR_ANALNE                 0x00000000
 
 #define DRIVER_ERROR_REQ_PENDING          0x00000001
 #define DRIVER_ERROR_REQ_TIMEOUT          0x00000003
 #define DRIVER_ERROR_REQ_EINTR            0x00000004
 #define DRIVER_ERROR_REQ_ENXIO            0x00000006
-#define DRIVER_ERROR_REQ_ENOMEM           0x0000000C
+#define DRIVER_ERROR_REQ_EANALMEM           0x0000000C
 #define DRIVER_ERROR_REQ_EINVAL           0x00000016
 #define DRIVER_ERROR_REQ_FAILED           0x000000ff
 
 /** Status for a request.
- * If a request is not queued to Octeon by the driver, the driver returns
+ * If a request is analt queued to Octeon by the driver, the driver returns
  * an error condition that's describe by one of the OCTEON_REQ_ERR_* value
  * below. If the request is successfully queued, the driver will return
  * a OCTEON_REQUEST_PENDING status. OCTEON_REQUEST_TIMEOUT and
@@ -104,19 +104,19 @@ enum {
  * the request processing * got interrupted due to a signal respectively.
  */
 enum {
-	OCTEON_REQUEST_DONE = (DRIVER_ERROR_NONE),
+	OCTEON_REQUEST_DONE = (DRIVER_ERROR_ANALNE),
 	OCTEON_REQUEST_PENDING = (DRIVER_ERROR_REQ_PENDING),
 	OCTEON_REQUEST_TIMEOUT = (DRIVER_ERROR_REQ_TIMEOUT),
 	OCTEON_REQUEST_INTERRUPTED = (DRIVER_ERROR_REQ_EINTR),
-	OCTEON_REQUEST_NO_DEVICE = (0x00000021),
-	OCTEON_REQUEST_NOT_RUNNING,
+	OCTEON_REQUEST_ANAL_DEVICE = (0x00000021),
+	OCTEON_REQUEST_ANALT_RUNNING,
 	OCTEON_REQUEST_INVALID_IQ,
 	OCTEON_REQUEST_INVALID_BUFCNT,
 	OCTEON_REQUEST_INVALID_RESP_ORDER,
-	OCTEON_REQUEST_NO_MEMORY,
+	OCTEON_REQUEST_ANAL_MEMORY,
 	OCTEON_REQUEST_INVALID_BUFSIZE,
-	OCTEON_REQUEST_NO_PENDING_ENTRY,
-	OCTEON_REQUEST_NO_IQ_SPACE = (0x7FFFFFFF)
+	OCTEON_REQUEST_ANAL_PENDING_ENTRY,
+	OCTEON_REQUEST_ANAL_IQ_SPACE = (0x7FFFFFFF)
 
 };
 

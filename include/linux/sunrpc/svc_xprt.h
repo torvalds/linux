@@ -41,7 +41,7 @@ struct svc_xprt_class {
 
 /*
  * This is embedded in an object that wants a callback before deleting
- * an xprt; intended for use by NFSv4.1, which needs to know when a
+ * an xprt; intended for use by NFSv4.1, which needs to kanalw when a
  * client's tcp connection (and hence possibly a backchannel) goes away.
  */
 struct svc_xpt_user {
@@ -54,7 +54,7 @@ struct svc_xprt {
 	const struct svc_xprt_ops *xpt_ops;
 	struct kref		xpt_ref;
 	struct list_head	xpt_list;
-	struct lwq_node		xpt_ready;
+	struct lwq_analde		xpt_ready;
 	unsigned long		xpt_flags;
 
 	struct svc_serv		*xpt_server;	/* service for transport */
@@ -115,10 +115,10 @@ static inline int register_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u
 		/*
 		 * The connection is about to be deleted soon (or,
 		 * worse, may already be deleted--in which case we've
-		 * already notified the xpt_users).
+		 * already analtified the xpt_users).
 		 */
 		spin_unlock(&xpt->xpt_lock);
-		return -ENOTCONN;
+		return -EANALTCONN;
 	}
 	list_add(&u->list, &xpt->xpt_users);
 	spin_unlock(&xpt->xpt_lock);
@@ -152,7 +152,7 @@ struct	svc_xprt *svc_find_xprt(struct svc_serv *serv, const char *xcl_name,
 			const unsigned short port);
 int	svc_xprt_names(struct svc_serv *serv, char *buf, const int buflen);
 void	svc_add_new_perm_xprt(struct svc_serv *serv, struct svc_xprt *xprt);
-void	svc_age_temp_xprts_now(struct svc_serv *, struct sockaddr *);
+void	svc_age_temp_xprts_analw(struct svc_serv *, struct sockaddr *);
 void	svc_xprt_deferred_close(struct svc_xprt *xprt);
 
 static inline void svc_xprt_get(struct svc_xprt *xprt)
@@ -231,7 +231,7 @@ static inline char *__svc_print_addr(const struct sockaddr *addr,
 		break;
 
 	default:
-		snprintf(buf, len, "unknown address type: %d", addr->sa_family);
+		snprintf(buf, len, "unkanalwn address type: %d", addr->sa_family);
 		break;
 	}
 

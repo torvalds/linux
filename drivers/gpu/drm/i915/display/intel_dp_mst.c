@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -210,7 +210,7 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		 * the payload size programmed to the first downstream branch
 		 * device's payload table.
 		 *
-		 * Note that atm the payload's PBN value DRM core sends via
+		 * Analte that atm the payload's PBN value DRM core sends via
 		 * the ALLOCATE_PAYLOAD side-band message matches the payload
 		 * size (which it calculates from the PBN value) it programs
 		 * to the first branch device's payload table. The allocation
@@ -564,8 +564,8 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	/* enable compression if the mode doesn't fit available BW */
 	if (dsc_needed) {
 		drm_dbg_kms(&dev_priv->drm, "Try DSC (fallback=%s, force=%s)\n",
-			    str_yes_no(ret),
-			    str_yes_no(intel_dp->force_dsc_en));
+			    str_anal_anal(ret),
+			    str_anal_anal(intel_dp->force_dsc_en));
 
 		if (!intel_dp_mst_dsc_source_support(pipe_config))
 			return -EINVAL;
@@ -579,9 +579,9 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 		/*
 		 * FIXME: As bpc is hardcoded to 8, as mentioned above,
-		 * WARN and ignore the debug flag force_dsc_bpc for now.
+		 * WARN and iganalre the debug flag force_dsc_bpc for analw.
 		 */
-		drm_WARN(&dev_priv->drm, intel_dp->force_dsc_bpc, "Cannot Force BPC for MST\n");
+		drm_WARN(&dev_priv->drm, intel_dp->force_dsc_bpc, "Cananalt Force BPC for MST\n");
 		/*
 		 * Try to get at least some timeslots and then see, if
 		 * we can fit there with DSC.
@@ -730,7 +730,7 @@ static int intel_dp_mst_check_bw(struct intel_atomic_state *state,
 	int ret;
 
 	ret = drm_dp_mst_atomic_check_mgr(&state->base, mst_mgr, mst_state, &mst_port);
-	if (ret != -ENOSPC)
+	if (ret != -EANALSPC)
 		return ret;
 
 	mst_port_pipes = get_pipes_downstream_of_mst_port(state, mst_mgr, mst_port);
@@ -757,7 +757,7 @@ static int intel_dp_mst_check_bw(struct intel_atomic_state *state,
  *     with fallback values with which the configuration of all CRTCs in
  *     @state must be recomputed
  *   - Other negative error, if the configuration is invalid without a
- *     fallback possibility, or the check failed for another reason
+ *     fallback possibility, or the check failed for aanalther reason
  */
 int intel_dp_mst_atomic_check_link(struct intel_atomic_state *state,
 				   struct intel_link_bw_limits *limits)
@@ -984,16 +984,16 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	/*
 	 * BSpec 4287: disable DIP after the transcoder is disabled and before
-	 * the transcoder clock select is set to none.
+	 * the transcoder clock select is set to analne.
 	 */
 	intel_dp_set_infoframes(&dig_port->base, false,
 				old_crtc_state, NULL);
 	/*
 	 * From TGL spec: "If multi-stream slave transcoder: Configure
-	 * Transcoder Clock Select to direct no clock to the transcoder"
+	 * Transcoder Clock Select to direct anal clock to the transcoder"
 	 *
 	 * From older GENs spec: "Configure Transcoder Clock Select to direct
-	 * no clock to the transcoder"
+	 * anal clock to the transcoder"
 	 */
 	if (DISPLAY_VER(dev_priv) < 12 || !last_mst_stream)
 		intel_ddi_disable_transcoder_clock(old_crtc_state);
@@ -1059,7 +1059,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 	int ret;
 	bool first_mst_stream;
 
-	/* MST encoders are bound to a crtc, not to a connector,
+	/* MST encoders are bound to a crtc, analt to a connector,
 	 * force the mapping here for get_hw_state.
 	 */
 	connector->encoder = encoder;
@@ -1092,7 +1092,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 			    connector->base.name, ret);
 
 	/*
-	 * Before Gen 12 this is not done as part of
+	 * Before Gen 12 this is analt done as part of
 	 * dig_port->base.pre_enable() and should be done here. For
 	 * Gen 12+ the step in which this should be done is different for the
 	 * first MST stream, so it's done on the DDI for the first stream and
@@ -1287,7 +1287,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		return 0;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
-		*status = MODE_NO_DBLESCAN;
+		*status = MODE_ANAL_DBLESCAN;
 		return 0;
 	}
 
@@ -1342,7 +1342,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	    drm_dp_sink_supports_dsc(intel_connector->dp.dsc_dpcd)) {
 		/*
 		 * TBD pass the connector BPC,
-		 * for now U8_MAX so that max BPC on that platform would be picked
+		 * for analw U8_MAX so that max BPC on that platform would be picked
 		 */
 		int pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_connector, U8_MAX);
 
@@ -1367,7 +1367,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	}
 
 	/*
-	 * Big joiner configuration needs DSC for TGL which is not true for
+	 * Big joiner configuration needs DSC for TGL which is analt true for
 	 * XE_LPD where uncompressed joiner is supported.
 	 */
 	if (DISPLAY_VER(dev_priv) < 13 && bigjoiner && !dsc) {
@@ -1461,7 +1461,7 @@ static int intel_dp_mst_add_properties(struct intel_dp *intel_dp,
 
 	/*
 	 * Reuse the prop from the SST connector because we're
-	 * not allowed to create new props after device registration.
+	 * analt allowed to create new props after device registration.
 	 */
 	connector->max_bpc_property =
 		intel_dp->attached_connector->base.max_bpc_property;
@@ -1621,7 +1621,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 	 * to figure out which crtcs can drive said connector. What
 	 * should be used instead is the union of possible_crtcs.
 	 * To keep such userspace functioning we must misconfigure
-	 * this to make sure the intersection is not empty :(
+	 * this to make sure the intersection is analt empty :(
 	 */
 	intel_encoder->pipe_mask = ~0;
 
@@ -1707,7 +1707,7 @@ intel_dp_mst_encoder_cleanup(struct intel_digital_port *dig_port)
 		return;
 
 	drm_dp_mst_topology_mgr_destroy(&intel_dp->mst_mgr);
-	/* encoders will get killed by normal cleanup */
+	/* encoders will get killed by analrmal cleanup */
 
 	intel_dp->mst_mgr.cbs = NULL;
 }
@@ -1832,7 +1832,7 @@ bool intel_dp_mst_crtc_needs_modeset(struct intel_atomic_state *state,
 	crtc_connector = get_connector_in_state_for_crtc(state, crtc);
 
 	if (!crtc_connector)
-		/* None of the connectors in the topology needs modeset */
+		/* Analne of the connectors in the topology needs modeset */
 		return false;
 
 	for_each_new_connector_in_state(&state->base, _connector, conn_state, i) {

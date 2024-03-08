@@ -154,12 +154,12 @@ static inline __sum16 udp_v4_check(int len, __be32 saddr,
 	return csum_tcpudp_magic(saddr, daddr, len, IPPROTO_UDP, base);
 }
 
-void udp_set_csum(bool nocheck, struct sk_buff *skb,
+void udp_set_csum(bool analcheck, struct sk_buff *skb,
 		  __be32 saddr, __be32 daddr, int len);
 
 static inline void udp_csum_pull_header(struct sk_buff *skb)
 {
-	if (!skb->csum_valid && skb->ip_summed == CHECKSUM_NONE)
+	if (!skb->csum_valid && skb->ip_summed == CHECKSUM_ANALNE)
 		skb->csum = csum_partial(skb->data, sizeof(struct udphdr),
 					 skb->csum);
 	skb_pull_rcsum(skb, sizeof(struct udphdr));
@@ -217,7 +217,7 @@ static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
 	hash = skb_get_hash(skb);
 	if (unlikely(!hash)) {
 		if (use_eth) {
-			/* Can't find a normal hash, caller has indicated an
+			/* Can't find a analrmal hash, caller has indicated an
 			 * Ethernet packet so use that to compute a hash.
 			 */
 			hash = jhash(skb->data, 2 * ETH_ALEN,
@@ -321,7 +321,7 @@ int udp_read_skb(struct sock *sk, skb_read_actor_t recv_actor);
  */
 struct udp_dev_scratch {
 	/* skb->truesize and the stateless bit are embedded in a single field;
-	 * do not use a bitfield since the compiler emits better/smaller code
+	 * do analt use a bitfield since the compiler emits better/smaller code
 	 * this way
 	 */
 	u32 _tsize_state;
@@ -372,7 +372,7 @@ static inline bool udp_skb_csum_unnecessary(struct sk_buff *skb)
 
 static inline bool udp_skb_is_linear(struct sk_buff *skb)
 {
-	return !skb_is_nonlinear(skb);
+	return !skb_is_analnlinear(skb);
 }
 #endif
 
@@ -474,17 +474,17 @@ static inline struct sk_buff *udp_rcv_segment(struct sock *sk,
 		features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 
 	/* UDP segmentation expects packets of type CHECKSUM_PARTIAL or
-	 * CHECKSUM_NONE in __udp_gso_segment. UDP GRO indeed builds partial
+	 * CHECKSUM_ANALNE in __udp_gso_segment. UDP GRO indeed builds partial
 	 * packets in udp_gro_complete_segment. As does UDP GSO, verified by
 	 * udp_send_skb. But when those packets are looped in dev_loopback_xmit
-	 * their ip_summed CHECKSUM_NONE is changed to CHECKSUM_UNNECESSARY.
+	 * their ip_summed CHECKSUM_ANALNE is changed to CHECKSUM_UNNECESSARY.
 	 * Reset in this specific case, where PARTIAL is both correct and
 	 * required.
 	 */
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		skb->ip_summed = CHECKSUM_PARTIAL;
 
-	/* the GSO CB lays after the UDP one, no need to save and restore any
+	/* the GSO CB lays after the UDP one, anal need to save and restore any
 	 * CB fragment
 	 */
 	segs = __skb_gso_segment(skb, features, false);
@@ -503,24 +503,24 @@ static inline struct sk_buff *udp_rcv_segment(struct sock *sk,
 
 static inline void udp_post_segment_fix_csum(struct sk_buff *skb)
 {
-	/* UDP-lite can't land here - no GRO */
+	/* UDP-lite can't land here - anal GRO */
 	WARN_ON_ONCE(UDP_SKB_CB(skb)->partial_cov);
 
 	/* UDP packets generated with UDP_SEGMENT and traversing:
 	 *
 	 * UDP tunnel(xmit) -> veth (segmentation) -> veth (gro) -> UDP tunnel (rx)
 	 *
-	 * can reach an UDP socket with CHECKSUM_NONE, because
-	 * __iptunnel_pull_header() converts CHECKSUM_PARTIAL into NONE.
-	 * SKB_GSO_UDP_L4 or SKB_GSO_FRAGLIST packets with no UDP tunnel will
+	 * can reach an UDP socket with CHECKSUM_ANALNE, because
+	 * __iptunnel_pull_header() converts CHECKSUM_PARTIAL into ANALNE.
+	 * SKB_GSO_UDP_L4 or SKB_GSO_FRAGLIST packets with anal UDP tunnel will
 	 * have a valid checksum, as the GRO engine validates the UDP csum
-	 * before the aggregation and nobody strips such info in between.
-	 * Instead of adding another check in the tunnel fastpath, we can force
+	 * before the aggregation and analbody strips such info in between.
+	 * Instead of adding aanalther check in the tunnel fastpath, we can force
 	 * a valid csum after the segmentation.
 	 * Additionally fixup the UDP CB.
 	 */
 	UDP_SKB_CB(skb)->cscov = skb->len;
-	if (skb->ip_summed == CHECKSUM_NONE && !skb->csum_valid)
+	if (skb->ip_summed == CHECKSUM_ANALNE && !skb->csum_valid)
 		skb->csum_valid = 1;
 }
 

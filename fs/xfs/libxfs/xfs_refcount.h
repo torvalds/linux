@@ -14,11 +14,11 @@ struct xfs_bmbt_irec;
 struct xfs_refcount_irec;
 
 extern int xfs_refcount_lookup_le(struct xfs_btree_cur *cur,
-		enum xfs_refc_domain domain, xfs_agblock_t bno, int *stat);
+		enum xfs_refc_domain domain, xfs_agblock_t banal, int *stat);
 extern int xfs_refcount_lookup_ge(struct xfs_btree_cur *cur,
-		enum xfs_refc_domain domain, xfs_agblock_t bno, int *stat);
+		enum xfs_refc_domain domain, xfs_agblock_t banal, int *stat);
 extern int xfs_refcount_lookup_eq(struct xfs_btree_cur *cur,
-		enum xfs_refc_domain domain, xfs_agblock_t bno, int *stat);
+		enum xfs_refc_domain domain, xfs_agblock_t banal, int *stat);
 extern int xfs_refcount_get_rec(struct xfs_btree_cur *cur,
 		struct xfs_refcount_irec *irec, int *stat);
 
@@ -32,7 +32,7 @@ xfs_refcount_encode_startblock(
 	/*
 	 * low level btree operations need to handle the generic btree range
 	 * query functions (which set rc_domain == -1U), so we check that the
-	 * domain is /not/ shared.
+	 * domain is /analt/ shared.
 	 */
 	start = startblock & ~XFS_REFC_COWFLAG;
 	if (domain != XFS_REFC_DOMAIN_SHARED)
@@ -82,7 +82,7 @@ extern int xfs_refcount_finish_one(struct xfs_trans *tp,
 		struct xfs_refcount_intent *ri, struct xfs_btree_cur **pcur);
 
 extern int xfs_refcount_find_shared(struct xfs_btree_cur *cur,
-		xfs_agblock_t agbno, xfs_extlen_t aglen, xfs_agblock_t *fbno,
+		xfs_agblock_t agbanal, xfs_extlen_t aglen, xfs_agblock_t *fbanal,
 		xfs_extlen_t *flen, bool find_end_of_shared);
 
 void xfs_refcount_alloc_cow_extent(struct xfs_trans *tp, xfs_fsblock_t fsb,
@@ -112,7 +112,7 @@ extern int xfs_refcount_recover_cow_leftovers(struct xfs_mount *mp,
 #define XFS_REFCOUNT_ITEM_OVERHEAD	32
 
 extern int xfs_refcount_has_records(struct xfs_btree_cur *cur,
-		enum xfs_refc_domain domain, xfs_agblock_t bno,
+		enum xfs_refc_domain domain, xfs_agblock_t banal,
 		xfs_extlen_t len, enum xbtree_recpacking *outcome);
 union xfs_btree_rec;
 extern void xfs_refcount_btrec_to_irec(const union xfs_btree_rec *rec,

@@ -2,7 +2,7 @@
 /*
  * Dynamic DMA mapping support for AMD Hammer.
  *
- * Use the integrated AGP GART in the Hammer northbridge as an IOMMU for PCI.
+ * Use the integrated AGP GART in the Hammer analrthbridge as an IOMMU for PCI.
  * This allows to use PCI devices that only support 32bit addresses on systems
  * with more than 4GB.
  *
@@ -165,12 +165,12 @@ static void iommu_full(struct device *dev, size_t size, int dir)
 {
 	/*
 	 * Ran out of IOMMU space for this operation. This is very bad.
-	 * Unfortunately the drivers cannot handle this operation properly.
-	 * Return some non mapped prereserved space in the aperture and
-	 * let the Northbridge deal with it. This will result in garbage
+	 * Unfortunately the drivers cananalt handle this operation properly.
+	 * Return some analn mapped prereserved space in the aperture and
+	 * let the Analrthbridge deal with it. This will result in garbage
 	 * in the IO operation. When the size exceeds the prereserved space
 	 * memory corruption will occur or random memory will be DMAed
-	 * out. Hopefully no network devices use single mappings that big.
+	 * out. Hopefully anal network devices use single mappings that big.
 	 */
 
 	dev_err(dev, "PCI-DMA: Out of IOMMU space for %lu bytes\n", size);
@@ -186,7 +186,7 @@ need_iommu(struct device *dev, unsigned long addr, size_t size)
 }
 
 static inline int
-nonforced_iommu(struct device *dev, unsigned long addr, size_t size)
+analnforced_iommu(struct device *dev, unsigned long addr, size_t size)
 {
 	return !dma_capable(dev, addr, size, true);
 }
@@ -206,7 +206,7 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 
 	iommu_page = alloc_iommu(dev, npages, align_mask);
 	if (iommu_page == -1) {
-		if (!nonforced_iommu(dev, phys_mem, size))
+		if (!analnforced_iommu(dev, phys_mem, size))
 			return phys_mem;
 		if (panic_on_overflow)
 			panic("dma_map_area overflow %lu bytes\n", size);
@@ -254,9 +254,9 @@ static void gart_unmap_page(struct device *dev, dma_addr_t dma_addr,
 		return;
 
 	/*
-	 * This driver will not always use a GART mapping, but might have
+	 * This driver will analt always use a GART mapping, but might have
 	 * created a direct mapping instead.  If that is the case there is
-	 * nothing to unmap here.
+	 * analthing to unmap here.
 	 */
 	if (dma_addr < iommu_bus_base ||
 	    dma_addr >= iommu_bus_base + iommu_size)
@@ -287,7 +287,7 @@ static void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 }
 
 /* Fallback for dma_map_sg in case of overflow */
-static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
+static int dma_map_sg_analnforce(struct device *dev, struct scatterlist *sg,
 			       int nents, int dir)
 {
 	struct scatterlist *s;
@@ -300,7 +300,7 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 	for_each_sg(sg, s, nents, i) {
 		unsigned long addr = sg_phys(s);
 
-		if (nonforced_iommu(dev, addr, s->length)) {
+		if (analnforced_iommu(dev, addr, s->length)) {
 			addr = dma_map_area(dev, addr, s->length, dir, 0);
 			if (addr == DMA_MAPPING_ERROR) {
 				if (i > 0)
@@ -329,7 +329,7 @@ static int __dma_map_cont(struct device *dev, struct scatterlist *start,
 	int i;
 
 	if (iommu_start == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_sg(start, s, nelems, i) {
 		unsigned long pages, addr;
@@ -402,7 +402,7 @@ static int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 		nextneed = need_iommu(dev, addr, s->length);
 
-		/* Handle the previous not yet processed entries */
+		/* Handle the previous analt yet processed entries */
 		if (i > start) {
 			/*
 			 * Can only merge when the last chunk ends on a
@@ -448,7 +448,7 @@ error:
 
 	/* When it was forced or merged try again in a dumb way */
 	if (force_iommu || iommu_merge) {
-		out = dma_map_sg_nonforce(dev, sg, nents, dir);
+		out = dma_map_sg_analnforce(dev, sg, nents, dir);
 		if (out > 0)
 			return out;
 	}
@@ -491,7 +491,7 @@ gart_free_coherent(struct device *dev, size_t size, void *vaddr,
 	dma_direct_free(dev, size, vaddr, dma_addr, attrs);
 }
 
-static int no_agp;
+static int anal_agp;
 
 static __init unsigned long check_iommu_size(unsigned long aper, u64 aper_size)
 {
@@ -499,7 +499,7 @@ static __init unsigned long check_iommu_size(unsigned long aper, u64 aper_size)
 
 	if (!iommu_size) {
 		iommu_size = aper_size;
-		if (!no_agp)
+		if (!anal_agp)
 			iommu_size /= 2;
 	}
 
@@ -543,7 +543,7 @@ static void enable_gart_translations(void)
 		return;
 
 	for (i = 0; i < amd_nb_num(); i++) {
-		struct pci_dev *dev = node_to_amd_nb(i)->misc;
+		struct pci_dev *dev = analde_to_amd_nb(i)->misc;
 
 		enable_gart_translation(dev, __pa(agp_gatt_table));
 	}
@@ -553,25 +553,25 @@ static void enable_gart_translations(void)
 }
 
 /*
- * If fix_up_north_bridges is set, the north bridges have to be fixed up on
+ * If fix_up_analrth_bridges is set, the analrth bridges have to be fixed up on
  * resume in the same way as they are handled in gart_iommu_hole_init().
  */
-static bool fix_up_north_bridges;
+static bool fix_up_analrth_bridges;
 static u32 aperture_order;
 static u32 aperture_alloc;
 
 void set_up_gart_resume(u32 aper_order, u32 aper_alloc)
 {
-	fix_up_north_bridges = true;
+	fix_up_analrth_bridges = true;
 	aperture_order = aper_order;
 	aperture_alloc = aper_alloc;
 }
 
-static void gart_fixup_northbridges(void)
+static void gart_fixup_analrthbridges(void)
 {
 	int i;
 
-	if (!fix_up_north_bridges)
+	if (!fix_up_analrth_bridges)
 		return;
 
 	if (!amd_nb_has_feature(AMD_NB_GART))
@@ -580,7 +580,7 @@ static void gart_fixup_northbridges(void)
 	pr_info("PCI-DMA: Restoring GART aperture settings\n");
 
 	for (i = 0; i < amd_nb_num(); i++) {
-		struct pci_dev *dev = node_to_amd_nb(i)->misc;
+		struct pci_dev *dev = analde_to_amd_nb(i)->misc;
 
 		/*
 		 * Don't enable translations just yet.  That is the next
@@ -595,7 +595,7 @@ static void gart_resume(void)
 {
 	pr_info("PCI-DMA: Resuming GART IOMMU\n");
 
-	gart_fixup_northbridges();
+	gart_fixup_analrthbridges();
 
 	enable_gart_translations();
 }
@@ -606,7 +606,7 @@ static struct syscore_ops gart_syscore_ops = {
 };
 
 /*
- * Private Northbridge GATT initialization in case we cannot use the
+ * Private Analrthbridge GATT initialization in case we cananalt use the
  * AGP driver for some reason.
  */
 static __init int init_amd_gatt(struct agp_kern_info *info)
@@ -622,20 +622,20 @@ static __init int init_amd_gatt(struct agp_kern_info *info)
 	aper_size = aper_base = info->aper_size = 0;
 	dev = NULL;
 	for (i = 0; i < amd_nb_num(); i++) {
-		dev = node_to_amd_nb(i)->misc;
+		dev = analde_to_amd_nb(i)->misc;
 		new_aper_base = read_aperture(dev, &new_aper_size);
 		if (!new_aper_base)
-			goto nommu;
+			goto analmmu;
 
 		if (!aper_base) {
 			aper_size = new_aper_size;
 			aper_base = new_aper_base;
 		}
 		if (aper_size != new_aper_size || aper_base != new_aper_base)
-			goto nommu;
+			goto analmmu;
 	}
 	if (!aper_base)
-		goto nommu;
+		goto analmmu;
 
 	info->aper_base = aper_base;
 	info->aper_size = aper_size >> 20;
@@ -644,9 +644,9 @@ static __init int init_amd_gatt(struct agp_kern_info *info)
 	gatt = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 					get_order(gatt_size));
 	if (!gatt)
-		panic("Cannot allocate GATT table");
+		panic("Cananalt allocate GATT table");
 	if (set_memory_uc((unsigned long)gatt, gatt_size >> PAGE_SHIFT))
-		panic("Could not set GART PTEs to uncacheable pages");
+		panic("Could analt set GART PTEs to uncacheable pages");
 
 	agp_gatt_table = gatt;
 
@@ -659,9 +659,9 @@ static __init int init_amd_gatt(struct agp_kern_info *info)
 
 	return 0;
 
- nommu:
-	/* Should not happen anymore */
-	pr_warn("PCI-DMA: More than 4GB of RAM and no IOMMU - falling back to iommu=soft.\n");
+ analmmu:
+	/* Should analt happen anymore */
+	pr_warn("PCI-DMA: More than 4GB of RAM and anal IOMMU - falling back to iommu=soft.\n");
 	return -1;
 }
 
@@ -686,7 +686,7 @@ static void gart_iommu_shutdown(void)
 	int i;
 
 	/* don't shutdown it if there is AGP installed */
-	if (!no_agp)
+	if (!anal_agp)
 		return;
 
 	if (!amd_nb_has_feature(AMD_NB_GART))
@@ -695,7 +695,7 @@ static void gart_iommu_shutdown(void)
 	for (i = 0; i < amd_nb_num(); i++) {
 		u32 ctl;
 
-		dev = node_to_amd_nb(i)->misc;
+		dev = analde_to_amd_nb(i)->misc;
 		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
 
 		ctl &= ~GARTEN;
@@ -716,21 +716,21 @@ int __init gart_iommu_init(void)
 		return 0;
 
 #ifndef CONFIG_AGP_AMD64
-	no_agp = 1;
+	anal_agp = 1;
 #else
 	/* Makefile puts PCI initialization via subsys_initcall first. */
 	/* Add other AMD AGP bridge drivers here */
-	no_agp = no_agp ||
+	anal_agp = anal_agp ||
 		(agp_amd64_init() < 0) ||
 		(agp_copy_info(agp_bridge, &info) < 0);
 #endif
 
-	if (no_iommu ||
+	if (anal_iommu ||
 	    (!force_iommu && max_pfn <= MAX_DMA32_PFN) ||
 	    !gart_iommu_aperture ||
-	    (no_agp && init_amd_gatt(&info) < 0)) {
+	    (anal_agp && init_amd_gatt(&info) < 0)) {
 		if (max_pfn > MAX_DMA32_PFN) {
-			pr_warn("More than 4GB of memory but GART IOMMU not available.\n");
+			pr_warn("More than 4GB of memory but GART IOMMU analt available.\n");
 			pr_warn("falling back to iommu=soft.\n");
 		}
 		return 0;
@@ -753,7 +753,7 @@ int __init gart_iommu_init(void)
 	iommu_gart_bitmap = (void *) __get_free_pages(GFP_KERNEL | __GFP_ZERO,
 						      get_order(iommu_pages/8));
 	if (!iommu_gart_bitmap)
-		panic("Cannot allocate iommu bitmap\n");
+		panic("Cananalt allocate iommu bitmap\n");
 
 	pr_info("PCI-DMA: Reserving %luMB of IOMMU area in the AGP aperture\n",
 	       iommu_size >> 20);
@@ -765,7 +765,7 @@ int __init gart_iommu_init(void)
 
 	/*
 	 * Unmap the IOMMU part of the GART. The alias of the page is
-	 * always mapped with cache enabled and there is no full cache
+	 * always mapped with cache enabled and there is anal full cache
 	 * coherency across the GART remapping. The unmapping avoids
 	 * automatic prefetches from the CPU allocating cache lines in
 	 * there. All CPU accesses are done via the direct mapping to
@@ -776,16 +776,16 @@ int __init gart_iommu_init(void)
 				iommu_size >> PAGE_SHIFT);
 	/*
 	 * Tricky. The GART table remaps the physical memory range,
-	 * so the CPU won't notice potential aliases and if the memory
+	 * so the CPU won't analtice potential aliases and if the memory
 	 * is remapped to UC later on, we might surprise the PCI devices
 	 * with a stray writeout of a cacheline. So play it sure and
 	 * do an explicit, full-scale wbinvd() _after_ having marked all
-	 * the pages as Not-Present:
+	 * the pages as Analt-Present:
 	 */
 	wbinvd();
 
 	/*
-	 * Now all caches are flushed and we can safely enable
+	 * Analw all caches are flushed and we can safely enable
 	 * GART hardware.  Doing it early leaves the possibility
 	 * of stale cache entries that can lead to GART PTE
 	 * errors.
@@ -800,7 +800,7 @@ int __init gart_iommu_init(void)
 	 */
 	scratch = get_zeroed_page(GFP_KERNEL);
 	if (!scratch)
-		panic("Cannot allocate iommu scratch page");
+		panic("Cananalt allocate iommu scratch page");
 	gart_unmapped_entry = GPTE_ENCODE(__pa(scratch));
 
 	flush_gart();
@@ -819,11 +819,11 @@ void __init gart_parse_options(char *p)
 		iommu_size = arg;
 	if (!strncmp(p, "fullflush", 9))
 		iommu_fullflush = 1;
-	if (!strncmp(p, "nofullflush", 11))
+	if (!strncmp(p, "analfullflush", 11))
 		iommu_fullflush = 0;
-	if (!strncmp(p, "noagp", 5))
-		no_agp = 1;
-	if (!strncmp(p, "noaperture", 10))
+	if (!strncmp(p, "analagp", 5))
+		anal_agp = 1;
+	if (!strncmp(p, "analaperture", 10))
 		fix_aperture = 0;
 	/* duplicated from pci-dma.c */
 	if (!strncmp(p, "force", 5))

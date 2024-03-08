@@ -10,7 +10,7 @@
  */
 
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -105,7 +105,7 @@ static int tr_connect(struct serio *serio, struct serio_driver *drv)
 	tr = kzalloc(sizeof(struct tr), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!tr || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 

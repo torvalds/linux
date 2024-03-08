@@ -43,9 +43,9 @@ Description:
                - In S0, the port will always provide power.
                - In S0ix, if usb_charge is enabled, then power will be
                  supplied to the port when on AC or if battery is > 50%.
-                 Else no power is supplied.
+                 Else anal power is supplied.
                - In S5, if usb_charge is enabled, then power will be supplied
-                 to the port when on AC. Else no power is supplied.
+                 to the port when on AC. Else anal power is supplied.
 
                Input should be either "0" or "1".
 
@@ -54,5 +54,5 @@ Date:          May 2019
 KernelVersion: 5.3
 Description:
                Display Wilco Embedded Controller firmware version.
-               The format of the string is x.y.z. Where x is major, y is minor
+               The format of the string is x.y.z. Where x is major, y is mianalr
                and z is the build number. For example: 95.00.06

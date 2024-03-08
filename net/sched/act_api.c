@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
@@ -93,7 +93,7 @@ int tcf_action_check_ctrlact(int action, struct tcf_proto *tp,
 		}
 		*newchain = tcf_chain_get_by_act(tp->chain->block, chain_index);
 		if (!*newchain) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			NL_SET_ERR_MSG(extack,
 				       "can't allocate goto_chain");
 		}
@@ -115,7 +115,7 @@ EXPORT_SYMBOL(tcf_action_set_ctrlact);
 /* XXX: For standalone actions, we don't need a RCU grace period either, because
  * actions are always connected to filters and filters are already destroyed in
  * RCU callbacks, so after a RCU grace period actions are already disconnected
- * from filters. Readers later can not find us.
+ * from filters. Readers later can analt find us.
  */
 static void free_tcf(struct tc_action *p)
 {
@@ -197,7 +197,7 @@ static int offload_action_init(struct flow_offload_action *fl_action,
 		return err;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int tcf_action_offload_cmd_ex(struct flow_offload_action *fl_act,
@@ -262,7 +262,7 @@ static int tcf_action_offload_add_ex(struct tc_action *action,
 	num = tcf_offload_act_num_actions_single(action);
 	fl_action = offload_action_alloc(num);
 	if (!fl_action)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = offload_action_init(fl_action, action, FLOW_ACT_REPLACE, extack);
 	if (err)
@@ -319,7 +319,7 @@ int tcf_action_update_hw_stats(struct tc_action *action)
 		action->used_hw_stats = fl_act.stats.used_hw_stats;
 		action->used_hw_stats_valid = true;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -348,7 +348,7 @@ static int tcf_action_offload_del_ex(struct tc_action *action,
 	if (!cb && action->in_hw_count != in_hw_count)
 		return -EINVAL;
 
-	/* do not need to update hw state when deleting action */
+	/* do analt need to update hw state when deleting action */
 	if (cb && in_hw_count)
 		offload_action_hw_count_dec(action, in_hw_count);
 
@@ -534,7 +534,7 @@ static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 
 		tcf_action_update_hw_stats(p);
 
-		nest = nla_nest_start_noflag(skb, n_i);
+		nest = nla_nest_start_analflag(skb, n_i);
 		if (!nest) {
 			index--;
 			goto nla_put_failure;
@@ -595,7 +595,7 @@ static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 	unsigned long id = 1;
 	unsigned long tmp;
 
-	nest = nla_nest_start_noflag(skb, 0);
+	nest = nla_nest_start_analflag(skb, 0);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_string(skb, TCA_ACT_KIND, ops->kind))
@@ -644,8 +644,8 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 	} else if (type == RTM_GETACTION) {
 		return tcf_dump_walker(idrinfo, skb, cb);
 	} else {
-		WARN(1, "tcf_generic_walker: unknown command %d\n", type);
-		NL_SET_ERR_MSG(extack, "tcf_generic_walker: unknown command");
+		WARN(1, "tcf_generic_walker: unkanalwn command %d\n", type);
+		NL_SET_ERR_MSG(extack, "tcf_generic_walker: unkanalwn command");
 		return -EINVAL;
 	}
 }
@@ -706,7 +706,7 @@ static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 	p = idr_find(&idrinfo->action_idr, index);
 	if (!p) {
 		mutex_unlock(&idrinfo->lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!atomic_read(&p->tcfa_bindcnt)) {
@@ -736,10 +736,10 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 {
 	struct tc_action *p = kzalloc(ops->size, GFP_KERNEL);
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (unlikely(!p))
-		return -ENOMEM;
+		return -EANALMEM;
 	refcount_set(&p->tcfa_refcnt, 1);
 	if (bind)
 		atomic_set(&p->tcfa_bindcnt, 1);
@@ -795,11 +795,11 @@ int tcf_idr_create_from_flags(struct tc_action_net *tn, u32 index,
 {
 	/* Set cpustats according to actions flags. */
 	return tcf_idr_create(tn, index, est, a, ops, bind,
-			      !(flags & TCA_ACT_FLAGS_NO_PERCPU_STATS), flags);
+			      !(flags & TCA_ACT_FLAGS_ANAL_PERCPU_STATS), flags);
 }
 EXPORT_SYMBOL(tcf_idr_create_from_flags);
 
-/* Cleanup idr index that was allocated but not initialized. */
+/* Cleanup idr index that was allocated but analt initialized. */
 
 void tcf_idr_cleanup(struct tc_action_net *tn, u32 index)
 {
@@ -835,8 +835,8 @@ again:
 		p = idr_find(&idrinfo->action_idr, *index);
 
 		if (IS_ERR(p)) {
-			/* This means that another process allocated
-			 * index but did not assign the pointer yet.
+			/* This means that aanalther process allocated
+			 * index but did analt assign the pointer yet.
 			 */
 			rcu_read_unlock();
 			goto again;
@@ -849,7 +849,7 @@ again:
 			goto new;
 		}
 
-		if (!refcount_inc_not_zero(&p->tcfa_refcnt)) {
+		if (!refcount_inc_analt_zero(&p->tcfa_refcnt)) {
 			/* Action was deleted in parallel */
 			rcu_read_unlock();
 			return -EAGAIN;
@@ -879,7 +879,7 @@ new:
 	/* N binds raced for action allocation,
 	 * retry for all the ones that failed.
 	 */
-	if (ret == -ENOSPC && *index == max)
+	if (ret == -EANALSPC && *index == max)
 		ret = -EAGAIN;
 
 	return ret;
@@ -909,7 +909,7 @@ EXPORT_SYMBOL(tcf_idrinfo_destroy);
 static LIST_HEAD(act_base);
 static DEFINE_RWLOCK(act_mod_lock);
 /* since act ops id is stored in pernet subsystem list,
- * then there is no way to walk through only all the action
+ * then there is anal way to walk through only all the action
  * subsystem, so we keep tc action pernet ops id for
  * reoffload to walk through.
  */
@@ -935,7 +935,7 @@ static int tcf_pernet_add_id_list(unsigned int id)
 
 	id_ptr = kzalloc(sizeof(*id_ptr), GFP_KERNEL);
 	if (!id_ptr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_out;
 	}
 	id_ptr->id = id;
@@ -1011,7 +1011,7 @@ int tcf_unregister_action(struct tc_action_ops *act,
 			  struct pernet_operations *ops)
 {
 	struct tc_action_ops *a;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	write_lock(&act_mod_lock);
 	list_for_each_entry(a, &act_base, head) {
@@ -1120,7 +1120,7 @@ repeat:
 		} else if (TC_ACT_EXT_CMP(ret, TC_ACT_GOTO_CHAIN)) {
 			if (unlikely(!rcu_access_pointer(a->goto_chain))) {
 				tcf_set_drop_reason(skb,
-						    SKB_DROP_REASON_TC_CHAIN_NOTFOUND);
+						    SKB_DROP_REASON_TC_CHAIN_ANALTFOUND);
 				return TC_ACT_SHOT;
 			}
 			tcf_action_goto_chain_exec(a, res);
@@ -1221,7 +1221,7 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	if (nla_put_u32(skb, TCA_ACT_IN_HW_COUNT, a->in_hw_count))
 		goto nla_put_failure;
 
-	nest = nla_nest_start_noflag(skb, TCA_ACT_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_ACT_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	err = tcf_action_dump_old(skb, a, bind, ref);
@@ -1244,7 +1244,7 @@ int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
 	struct nlattr *nest;
 
 	tcf_act_for_each_action(i, a, actions) {
-		nest = nla_nest_start_noflag(skb, i + 1);
+		nest = nla_nest_start_analflag(skb, i + 1);
 		if (nest == NULL)
 			goto nla_put_failure;
 		err = terse ? tcf_action_dump_terse(skb, a, false) :
@@ -1283,8 +1283,8 @@ static u8 tcf_action_hw_stats_get(struct nlattr *hw_stats_attr)
 {
 	struct nla_bitfield32 hw_stats_bf;
 
-	/* If the user did not pass the attr, that means he does
-	 * not care about the type. Return "any" in that case
+	/* If the user did analt pass the attr, that means he does
+	 * analt care about the type. Return "any" in that case
 	 * which is setting on all supported types.
 	 */
 	if (!hw_stats_attr)
@@ -1299,7 +1299,7 @@ static const struct nla_policy tcf_action_policy[TCA_ACT_MAX + 1] = {
 	[TCA_ACT_COOKIE]	= { .type = NLA_BINARY,
 				    .len = TC_COOKIE_MAX_SIZE },
 	[TCA_ACT_OPTIONS]	= { .type = NLA_NESTED },
-	[TCA_ACT_FLAGS]		= NLA_POLICY_BITFIELD32(TCA_ACT_FLAGS_NO_PERCPU_STATS |
+	[TCA_ACT_FLAGS]		= NLA_POLICY_BITFIELD32(TCA_ACT_FLAGS_ANAL_PERCPU_STATS |
 							TCA_ACT_FLAGS_SKIP_HW |
 							TCA_ACT_FLAGS_SKIP_SW),
 	[TCA_ACT_HW_STATS]	= NLA_POLICY_BITFIELD32(TCA_ACT_HW_STATS_ANY),
@@ -1359,7 +1359,7 @@ struct tc_action_ops *tc_action_load_ops(struct nlattr *nla, u32 flags,
 	a_o = tc_lookup_action_n(act_name);
 	if (a_o == NULL) {
 #ifdef CONFIG_MODULES
-		bool rtnl_held = !(flags & TCA_ACT_FLAGS_NO_RTNL);
+		bool rtnl_held = !(flags & TCA_ACT_FLAGS_ANAL_RTNL);
 
 		if (rtnl_held)
 			rtnl_unlock();
@@ -1381,7 +1381,7 @@ struct tc_action_ops *tc_action_load_ops(struct nlattr *nla, u32 flags,
 		}
 #endif
 		NL_SET_ERR_MSG(extack, "Failed to load TC action module");
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	return a_o;
@@ -1409,8 +1409,8 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 		if (tb[TCA_ACT_COOKIE]) {
 			user_cookie = nla_memdup_cookie(tb);
 			if (!user_cookie) {
-				NL_SET_ERR_MSG(extack, "No memory to generate TC cookie");
-				err = -ENOMEM;
+				NL_SET_ERR_MSG(extack, "Anal memory to generate TC cookie");
+				err = -EANALMEM;
 				goto err_out;
 			}
 		}
@@ -1516,7 +1516,7 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 	}
 
 	/* We have to commit them all together, because if any error happened in
-	 * between, we could not handle the failure gracefully.
+	 * between, we could analt handle the failure gracefully.
 	 */
 	tcf_idr_insert_many(actions, init_res);
 
@@ -1621,7 +1621,7 @@ static int tca_get_fill(struct sk_buff *skb, struct tc_action *actions[],
 	    nla_put_string(skb, TCA_ROOT_EXT_WARN_MSG, extack->_msg))
 		goto out_nlmsg_trim;
 
-	nest = nla_nest_start_noflag(skb, TCA_ACT_TAB);
+	nest = nla_nest_start_analflag(skb, TCA_ACT_TAB);
 	if (!nest)
 		goto out_nlmsg_trim;
 
@@ -1640,7 +1640,7 @@ out_nlmsg_trim:
 }
 
 static int
-tcf_get_notify(struct net *net, u32 portid, struct nlmsghdr *n,
+tcf_get_analtify(struct net *net, u32 portid, struct nlmsghdr *n,
 	       struct tc_action *actions[], int event,
 	       struct netlink_ext_ack *extack)
 {
@@ -1648,7 +1648,7 @@ tcf_get_notify(struct net *net, u32 portid, struct nlmsghdr *n,
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	if (tca_get_fill(skb, actions, portid, n->nlmsg_seq, 0, event,
 			 0, 1, NULL) <= 0) {
 		NL_SET_ERR_MSG(extack, "Failed to fill netlink attributes while adding TC action");
@@ -1685,12 +1685,12 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 	err = -EINVAL;
 	ops = tc_lookup_action(tb[TCA_ACT_KIND]);
 	if (!ops) { /* could happen in batch of actions */
-		NL_SET_ERR_MSG(extack, "Specified TC action kind not found");
+		NL_SET_ERR_MSG(extack, "Specified TC action kind analt found");
 		goto err_out;
 	}
-	err = -ENOENT;
+	err = -EANALENT;
 	if (__tcf_idr_search(net, ops, &a, index) == 0) {
-		NL_SET_ERR_MSG(extack, "TC action with specified index not found");
+		NL_SET_ERR_MSG(extack, "TC action with specified index analt found");
 		goto err_mod;
 	}
 
@@ -1716,7 +1716,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_ACT_MAX + 1];
 	const struct tc_action_ops *ops;
 	struct nlattr *kind;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -1732,15 +1732,15 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	err = -EINVAL;
 	kind = tb[TCA_ACT_KIND];
 	ops = tc_lookup_action(kind);
-	if (!ops) { /*some idjot trying to flush unknown action */
-		NL_SET_ERR_MSG(extack, "Cannot flush unknown TC action");
+	if (!ops) { /*some idjot trying to flush unkanalwn action */
+		NL_SET_ERR_MSG(extack, "Cananalt flush unkanalwn TC action");
 		goto err_out;
 	}
 
 	nlh = nlmsg_put(skb, portid, n->nlmsg_seq, RTM_DELACTION,
 			sizeof(*t), 0);
 	if (!nlh) {
-		NL_SET_ERR_MSG(extack, "Failed to create TC action flush notification");
+		NL_SET_ERR_MSG(extack, "Failed to create TC action flush analtification");
 		goto out_module_put;
 	}
 	t = nlmsg_data(nlh);
@@ -1748,7 +1748,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	nest = nla_nest_start_noflag(skb, TCA_ACT_TAB);
+	nest = nla_nest_start_analflag(skb, TCA_ACT_TAB);
 	if (!nest) {
 		NL_SET_ERR_MSG(extack, "Failed to add new netlink message");
 		goto out_module_put;
@@ -1768,7 +1768,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
 			     n->nlmsg_flags & NLM_F_ECHO);
 	if (err < 0)
-		NL_SET_ERR_MSG(extack, "Failed to send TC action flush notification");
+		NL_SET_ERR_MSG(extack, "Failed to send TC action flush analtification");
 
 	return err;
 
@@ -1799,7 +1799,7 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 		} else {
 			int ret;
 
-			/* now do the delete */
+			/* analw do the delete */
 			ret = tcf_idr_delete_index(idrinfo, act_index);
 			if (ret < 0)
 				return ret;
@@ -1808,7 +1808,7 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 	return 0;
 }
 
-static struct sk_buff *tcf_reoffload_del_notify_msg(struct net *net,
+static struct sk_buff *tcf_reoffload_del_analtify_msg(struct net *net,
 						    struct tc_action *action)
 {
 	size_t attr_size = tcf_action_fill_size(action);
@@ -1819,7 +1819,7 @@ static struct sk_buff *tcf_reoffload_del_notify_msg(struct net *net,
 
 	skb = alloc_skb(max(attr_size, NLMSG_GOODSIZE), GFP_KERNEL);
 	if (!skb)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EANALBUFS);
 
 	if (tca_get_fill(skb, actions, 0, 0, 0, RTM_DELACTION, 0, 1, NULL) <= 0) {
 		kfree_skb(skb);
@@ -1829,16 +1829,16 @@ static struct sk_buff *tcf_reoffload_del_notify_msg(struct net *net,
 	return skb;
 }
 
-static int tcf_reoffload_del_notify(struct net *net, struct tc_action *action)
+static int tcf_reoffload_del_analtify(struct net *net, struct tc_action *action)
 {
 	const struct tc_action_ops *ops = action->ops;
 	struct sk_buff *skb;
 	int ret;
 
-	if (!rtnl_notify_needed(net, 0, RTNLGRP_TC)) {
+	if (!rtnl_analtify_needed(net, 0, RTNLGRP_TC)) {
 		skb = NULL;
 	} else {
-		skb = tcf_reoffload_del_notify_msg(net, action);
+		skb = tcf_reoffload_del_analtify_msg(net, action);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
 	}
@@ -1901,7 +1901,7 @@ int tcf_action_reoffload_cb(flow_indr_block_bind_cb_t *cb,
 					continue;
 				if (tc_act_skip_sw(p->tcfa_flags) &&
 				    !tc_act_in_hw(p))
-					tcf_reoffload_del_notify(net, p);
+					tcf_reoffload_del_analtify(net, p);
 			}
 			mutex_unlock(&idrinfo->lock);
 		}
@@ -1912,7 +1912,7 @@ int tcf_action_reoffload_cb(flow_indr_block_bind_cb_t *cb,
 	return 0;
 }
 
-static struct sk_buff *tcf_del_notify_msg(struct net *net, struct nlmsghdr *n,
+static struct sk_buff *tcf_del_analtify_msg(struct net *net, struct nlmsghdr *n,
 					  struct tc_action *actions[],
 					  u32 portid, size_t attr_size,
 					  struct netlink_ext_ack *extack)
@@ -1921,7 +1921,7 @@ static struct sk_buff *tcf_del_notify_msg(struct net *net, struct nlmsghdr *n,
 
 	skb = alloc_skb(max(attr_size, NLMSG_GOODSIZE), GFP_KERNEL);
 	if (!skb)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EANALBUFS);
 
 	if (tca_get_fill(skb, actions, portid, n->nlmsg_seq, 0, RTM_DELACTION,
 			 0, 2, extack) <= 0) {
@@ -1933,23 +1933,23 @@ static struct sk_buff *tcf_del_notify_msg(struct net *net, struct nlmsghdr *n,
 	return skb;
 }
 
-static int tcf_del_notify(struct net *net, struct nlmsghdr *n,
+static int tcf_del_analtify(struct net *net, struct nlmsghdr *n,
 			  struct tc_action *actions[], u32 portid,
 			  size_t attr_size, struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb;
 	int ret;
 
-	if (!rtnl_notify_needed(net, n->nlmsg_flags, RTNLGRP_TC)) {
+	if (!rtnl_analtify_needed(net, n->nlmsg_flags, RTNLGRP_TC)) {
 		skb = NULL;
 	} else {
-		skb = tcf_del_notify_msg(net, n, actions, portid, attr_size,
+		skb = tcf_del_analtify_msg(net, n, actions, portid, attr_size,
 					 extack);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
 	}
 
-	/* now do the delete */
+	/* analw do the delete */
 	ret = tcf_action_delete(net, actions);
 	if (ret < 0) {
 		NL_SET_ERR_MSG(extack, "Failed to delete TC action");
@@ -1997,9 +1997,9 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	attr_size = tcf_action_full_attrs_size(attr_size);
 
 	if (event == RTM_GETACTION)
-		ret = tcf_get_notify(net, portid, n, actions, event, extack);
+		ret = tcf_get_analtify(net, portid, n, actions, event, extack);
 	else { /* delete */
-		ret = tcf_del_notify(net, n, actions, portid, attr_size, extack);
+		ret = tcf_del_analtify(net, n, actions, portid, attr_size, extack);
 		if (ret)
 			goto err;
 		return 0;
@@ -2009,7 +2009,7 @@ err:
 	return ret;
 }
 
-static struct sk_buff *tcf_add_notify_msg(struct net *net, struct nlmsghdr *n,
+static struct sk_buff *tcf_add_analtify_msg(struct net *net, struct nlmsghdr *n,
 					  struct tc_action *actions[],
 					  u32 portid, size_t attr_size,
 					  struct netlink_ext_ack *extack)
@@ -2018,7 +2018,7 @@ static struct sk_buff *tcf_add_notify_msg(struct net *net, struct nlmsghdr *n,
 
 	skb = alloc_skb(max(attr_size, NLMSG_GOODSIZE), GFP_KERNEL);
 	if (!skb)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EANALBUFS);
 
 	if (tca_get_fill(skb, actions, portid, n->nlmsg_seq, n->nlmsg_flags,
 			 RTM_NEWACTION, 0, 0, extack) <= 0) {
@@ -2030,16 +2030,16 @@ static struct sk_buff *tcf_add_notify_msg(struct net *net, struct nlmsghdr *n,
 	return skb;
 }
 
-static int tcf_add_notify(struct net *net, struct nlmsghdr *n,
+static int tcf_add_analtify(struct net *net, struct nlmsghdr *n,
 			  struct tc_action *actions[], u32 portid,
 			  size_t attr_size, struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb;
 
-	if (!rtnl_notify_needed(net, n->nlmsg_flags, RTNLGRP_TC)) {
+	if (!rtnl_analtify_needed(net, n->nlmsg_flags, RTNLGRP_TC)) {
 		skb = NULL;
 	} else {
-		skb = tcf_add_notify_msg(net, n, actions, portid, attr_size,
+		skb = tcf_add_analtify_msg(net, n, actions, portid, attr_size,
 					 extack);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
@@ -2068,7 +2068,7 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 	if (ret < 0)
 		return ret;
 
-	ret = tcf_add_notify(net, n, actions, portid, attr_size, extack);
+	ret = tcf_add_analtify(net, n, actions, portid, attr_size, extack);
 
 	/* only put bound actions */
 	tca_put_bound_many(actions, init_res);
@@ -2110,7 +2110,7 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n,
 	case RTM_NEWACTION:
 		/* we are going to assume all other flags
 		 * imply create only if it doesn't exist
-		 * Note that CREATE | EXCL implies that
+		 * Analte that CREATE | EXCL implies that
 		 * but since we want avoid ambiguity (eg when flags
 		 * is zero) then just set this
 		 */
@@ -2215,7 +2215,7 @@ static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!count_attr)
 		goto out_module_put;
 
-	nest = nla_nest_start_noflag(skb, TCA_ACT_TAB);
+	nest = nla_nest_start_analflag(skb, TCA_ACT_TAB);
 	if (nest == NULL)
 		goto out_module_put;
 

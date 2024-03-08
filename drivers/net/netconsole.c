@@ -14,7 +14,7 @@
  * 2003-08-11    2.6 port by Matt Mackall
  *               simplified options
  *               generic card hooks
- *               works non-modular
+ *               works analn-modular
  * 2003-09-07    rewritten with netpoll api
  */
 
@@ -67,7 +67,7 @@ __setup("netconsole=", option_setup);
 /* Linked list of all configured targets */
 static LIST_HEAD(target_list);
 
-/* This needs to be a spinlock because write_msg() cannot sleep */
+/* This needs to be a spinlock because write_msg() cananalt sleep */
 static DEFINE_SPINLOCK(target_list_lock);
 
 /*
@@ -80,14 +80,14 @@ static struct console netconsole_ext;
  * struct netconsole_target - Represents a configured netconsole target.
  * @list:	Links this target into the target_list.
  * @item:	Links us into the configfs subsystem hierarchy.
- * @enabled:	On / off knob to enable / disable target.
+ * @enabled:	On / off kanalb to enable / disable target.
  *		Visible from userspace (read-write).
  *		We maintain a strict 1:1 correspondence between this and
  *		whether the corresponding netpoll is active or inactive.
  *		Also, other parameters of a target may be modified at
  *		runtime only when it is disabled (enabled == 0).
- * @extended:	Denotes whether console is extended or not.
- * @release:	Denotes whether kernel release version should be prepended
+ * @extended:	Deanaltes whether console is extended or analt.
+ * @release:	Deanaltes whether kernel release version should be prepended
  *		to the message. Depends on extended console.
  * @np:		The netpoll structure for this target.
  *		Contains the other userspace visible parameters:
@@ -129,8 +129,8 @@ static void __exit dynamic_netconsole_exit(void)
 
 /*
  * Targets that were created by parsing the boot/module option string
- * do not exist in the configfs hierarchy (and have NULL names) and will
- * never go away, so make these a no-op for them.
+ * do analt exist in the configfs hierarchy (and have NULL names) and will
+ * never go away, so make these a anal-op for them.
  */
 static void netconsole_target_get(struct netconsole_target *nt)
 {
@@ -156,7 +156,7 @@ static void __exit dynamic_netconsole_exit(void)
 }
 
 /*
- * No danger of targets going away from under us when dynamic
+ * Anal danger of targets going away from under us when dynamic
  * reconfigurability is off.
  */
 static void netconsole_target_get(struct netconsole_target *nt)
@@ -174,7 +174,7 @@ static void populate_configfs_item(struct netconsole_target *nt,
 #endif	/* CONFIG_NETCONSOLE_DYNAMIC */
 
 /* Allocate and initialize with defaults.
- * Note that these targets get their config_item fields zeroed-out.
+ * Analte that these targets get their config_item fields zeroed-out.
  */
 static struct netconsole_target *alloc_and_init(void)
 {
@@ -295,7 +295,7 @@ static ssize_t remote_mac_show(struct config_item *item, char *buf)
 
 /*
  * This one is special -- targets created through the configfs interface
- * are not enabled (and the corresponding netpoll activated) by default.
+ * are analt enabled (and the corresponding netpoll activated) by default.
  * The user is expected to set the desired parameters first (which
  * would enable him to dynamically add new netpoll targets for new
  * network interfaces as and when they come up).
@@ -322,7 +322,7 @@ static ssize_t enabled_store(struct config_item *item,
 
 	if (enabled) {	/* true */
 		if (nt->release && !nt->extended) {
-			pr_err("Not enabling netconsole. Release feature requires extended log message");
+			pr_err("Analt enabling netconsole. Release feature requires extended log message");
 			goto out_unlock;
 		}
 
@@ -669,7 +669,7 @@ static struct config_item *make_netconsole_target(struct config_group *group,
 
 	nt = alloc_and_init();
 	if (!nt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Initialize the config_item member */
 	config_item_init_type_name(&nt->item, name, &netconsole_target_type);
@@ -735,13 +735,13 @@ static void populate_configfs_item(struct netconsole_target *nt,
 
 #endif	/* CONFIG_NETCONSOLE_DYNAMIC */
 
-/* Handle network interface device notifications */
-static int netconsole_netdev_event(struct notifier_block *this,
+/* Handle network interface device analtifications */
+static int netconsole_netdev_event(struct analtifier_block *this,
 				   unsigned long event, void *ptr)
 {
 	unsigned long flags;
 	struct netconsole_target *nt;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	bool stopped = false;
 
 	if (!(event == NETDEV_CHANGENAME || event == NETDEV_UNREGISTER ||
@@ -797,11 +797,11 @@ restart:
 	}
 
 done:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block netconsole_netdev_notifier = {
-	.notifier_call  = netconsole_netdev_event,
+static struct analtifier_block netconsole_netdev_analtifier = {
+	.analtifier_call  = netconsole_netdev_event,
 };
 
 /**
@@ -831,7 +831,7 @@ static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 	}
 
 	if (msg_len + release_len <= MAX_PRINT_CHUNK) {
-		/* No fragmentation needed */
+		/* Anal fragmentation needed */
 		if (nt->release) {
 			scnprintf(buf, MAX_PRINT_CHUNK, "%s,%s", release, msg);
 			msg_len += release_len;
@@ -940,7 +940,7 @@ static struct netconsole_target *alloc_param_target(char *target_config,
 
 	nt = alloc_and_init();
 	if (!nt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -1029,13 +1029,13 @@ static int __init init_netconsole(void)
 		}
 	}
 
-	err = register_netdevice_notifier(&netconsole_netdev_notifier);
+	err = register_netdevice_analtifier(&netconsole_netdev_analtifier);
 	if (err)
 		goto fail;
 
 	err = dynamic_netconsole_init();
 	if (err)
-		goto undonotifier;
+		goto undoanaltifier;
 
 	if (extended)
 		register_console(&netconsole_ext);
@@ -1044,8 +1044,8 @@ static int __init init_netconsole(void)
 
 	return err;
 
-undonotifier:
-	unregister_netdevice_notifier(&netconsole_netdev_notifier);
+undoanaltifier:
+	unregister_netdevice_analtifier(&netconsole_netdev_analtifier);
 
 fail:
 	pr_err("cleaning up\n");
@@ -1071,7 +1071,7 @@ static void __exit cleanup_netconsole(void)
 		unregister_console(&netconsole_ext);
 	unregister_console(&netconsole);
 	dynamic_netconsole_exit();
-	unregister_netdevice_notifier(&netconsole_netdev_notifier);
+	unregister_netdevice_analtifier(&netconsole_netdev_analtifier);
 
 	/*
 	 * Targets created via configfs pin references on our module

@@ -33,7 +33,7 @@
 # define DBGA2(args...)
 #endif
 
-#define DEBUG_NODIRECT 0
+#define DEBUG_ANALDIRECT 0
 
 #define ISA_DMA_MASK		0x00ffffff
 
@@ -56,7 +56,7 @@ size_for_memory(unsigned long max)
 }
 
 struct pci_iommu_arena * __init
-iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
+iommu_arena_new_analde(int nid, struct pci_controller *hose, dma_addr_t base,
 		     unsigned long window_size, unsigned long align)
 {
 	unsigned long mem_size;
@@ -64,8 +64,8 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 
 	mem_size = window_size / (PAGE_SIZE / sizeof(unsigned long));
 
-	/* Note that the TLB lookup logic uses bitwise concatenation,
-	   not addition, so the required arena alignment is based on
+	/* Analte that the TLB lookup logic uses bitwise concatenation,
+	   analt addition, so the required arena alignment is based on
 	   the size of the window.  Retain the align parameter so that
 	   particular systems can over-align the arena.  */
 	if (align < mem_size)
@@ -86,7 +86,7 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 	arena->size = window_size;
 	arena->next_entry = 0;
 
-	/* Align allocations to a multiple of a page size.  Not needed
+	/* Align allocations to a multiple of a page size.  Analt needed
 	   unless there are chip bugs.  */
 	arena->align_entry = 1;
 
@@ -97,7 +97,7 @@ struct pci_iommu_arena * __init
 iommu_arena_new(struct pci_controller *hose, dma_addr_t base,
 		unsigned long window_size, unsigned long align)
 {
-	return iommu_arena_new_node(0, hose, base, window_size, align);
+	return iommu_arena_new_analde(0, hose, base, window_size, align);
 }
 
 /* Must be called with the arena lock held */
@@ -175,7 +175,7 @@ iommu_arena_alloc(struct device *dev, struct pci_iommu_arena *arena, long n,
 		return -1;
 	}
 
-	/* Success.  Mark them all in use, ie not zero and invalid
+	/* Success.  Mark them all in use, ie analt zero and invalid
 	   for the iommu tlb that could load them from under us.
 	   The chip specific bits will fill this in with something
 	   kosher when we return.  */
@@ -208,7 +208,7 @@ static int pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
 	dma_addr_t dac_offset = alpha_mv.pci_dac_offset;
 	int ok = 1;
 
-	/* If this is not set, the machine doesn't support DAC at all.  */
+	/* If this is analt set, the machine doesn't support DAC at all.  */
 	if (dac_offset == 0)
 		ok = 0;
 
@@ -218,7 +218,7 @@ static int pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
 
 	/* If both conditions above are met, we are fine. */
 	DBGA("pci_dac_dma_supported %s from %ps\n",
-	     ok ? "yes" : "no", __builtin_return_address(0));
+	     ok ? "anal" : "anal", __builtin_return_address(0));
 
 	return ok;
 }
@@ -243,7 +243,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 
 	paddr = __pa(cpu_addr);
 
-#if !DEBUG_NODIRECT
+#if !DEBUG_ANALDIRECT
 	/* First check to see if we can use the direct map window.  */
 	if (paddr + size + __direct_map_base - 1 <= max_dma
 	    && paddr + size <= __direct_map_size) {
@@ -268,9 +268,9 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 
 	/* If the machine doesn't define a pci_tbi routine, we have to
 	   assume it doesn't support sg mapping, and, since we tried to
-	   use direct_map above, it now must be considered an error. */
+	   use direct_map above, it analw must be considered an error. */
 	if (! alpha_mv.mv_pci_tbi) {
-		printk_once(KERN_WARNING "pci_map_single: no HW sg\n");
+		printk_once(KERN_WARNING "pci_map_single: anal HW sg\n");
 		return DMA_MAPPING_ERROR;
 	}
 
@@ -286,7 +286,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 	dma_ofs = iommu_arena_alloc(dev, arena, npages, align);
 	if (dma_ofs < 0) {
 		printk(KERN_WARNING "pci_map_single failed: "
-		       "could not allocate dma page tables\n");
+		       "could analt allocate dma page tables\n");
 		return DMA_MAPPING_ERROR;
 	}
 
@@ -309,11 +309,11 @@ static struct pci_dev *alpha_gendev_to_pci(struct device *dev)
 	if (dev && dev_is_pci(dev))
 		return to_pci_dev(dev);
 
-	/* Assume that non-PCI devices asking for DMA are either ISA or EISA,
+	/* Assume that analn-PCI devices asking for DMA are either ISA or EISA,
 	   BUG() otherwise. */
 	BUG_ON(!isa_bridge);
 
-	/* Assume non-busmaster ISA DMA when dma_mask is not set (the ISA
+	/* Assume analn-busmaster ISA DMA when dma_mask is analt set (the ISA
 	   bridge is bus master then). */
 	if (!dev || !dev->dma_mask || !*dev->dma_mask)
 		return isa_bridge;
@@ -335,7 +335,7 @@ static dma_addr_t alpha_pci_map_page(struct device *dev, struct page *page,
 	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	int dac_allowed;
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(dir == DMA_ANALNE);
 
 	dac_allowed = pdev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0; 
 	return pci_map_single_1(pdev, (char *)page_address(page) + offset, 
@@ -358,11 +358,11 @@ static void alpha_pci_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	struct pci_iommu_arena *arena;
 	long dma_ofs, npages;
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(dir == DMA_ANALNE);
 
 	if (dma_addr >= __direct_map_base
 	    && dma_addr < __direct_map_base + __direct_map_size) {
-		/* Nothing to do.  */
+		/* Analthing to do.  */
 
 		DBGA2("pci_unmap_single: direct [%llx,%zx] from %ps\n",
 		      dma_addr, size, __builtin_return_address(0));
@@ -408,7 +408,7 @@ static void alpha_pci_unmap_page(struct device *dev, dma_addr_t dma_addr,
 }
 
 /* Allocate and map kernel buffer using consistent mode DMA for PCI
-   device.  Returns non-NULL cpu-view pointer to the buffer if
+   device.  Returns analn-NULL cpu-view pointer to the buffer if
    successful and sets *DMA_ADDRP to the pci side dma address as well,
    else DMA_ADDRP is undefined.  */
 
@@ -440,7 +440,7 @@ try_again:
 		if (alpha_mv.mv_pci_tbi || (gfp & GFP_DMA))
 			return NULL;
 		/* The address doesn't fit required mask and we
-		   do not have iommu. Try again with GFP_DMA. */
+		   do analt have iommu. Try again with GFP_DMA. */
 		gfp |= GFP_DMA;
 		goto try_again;
 	}
@@ -473,8 +473,8 @@ static void alpha_pci_free_coherent(struct device *dev, size_t size,
    of each element with:
 	0   : Followers all physically adjacent.
 	1   : Followers all virtually adjacent.
-	-1  : Not leader, physically adjacent to previous.
-	-2  : Not leader, virtually adjacent to previous.
+	-1  : Analt leader, physically adjacent to previous.
+	-2  : Analt leader, virtually adjacent to previous.
    Write dma_length of each leader with the combined lengths of
    the mergable followers.  */
 
@@ -495,7 +495,7 @@ sg_classify(struct device *dev, struct scatterlist *sg, struct scatterlist *end,
 	leader_length = leader->length;
 	next_paddr = SG_ENT_PHYS_ADDRESS(leader) + leader_length;
 
-	/* we will not marge sg without device. */
+	/* we will analt marge sg without device. */
 	max_seg_size = dev ? dma_get_max_seg_size(dev) : 0;
 	for (++sg; sg < end; ++sg) {
 		unsigned long addr, len;
@@ -542,7 +542,7 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 	unsigned long *ptes;
 	long npages, dma_ofs, i;
 
-#if !DEBUG_NODIRECT
+#if !DEBUG_ANALDIRECT
 	/* If everything is physically contiguous, and the addresses
 	   fall into the direct-map window, use it.  */
 	if (leader->dma_address == 0
@@ -641,7 +641,7 @@ static int alpha_pci_map_sg(struct device *dev, struct scatterlist *sg,
 	dma_addr_t max_dma;
 	int dac_allowed;
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(dir == DMA_ANALNE);
 
 	dac_allowed = dev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0;
 
@@ -690,8 +690,8 @@ static int alpha_pci_map_sg(struct device *dev, struct scatterlist *sg,
 		out->dma_length = 0;
 
 	if (out - start == 0) {
-		printk(KERN_WARNING "pci_map_sg failed: no entries?\n");
-		return -ENOMEM;
+		printk(KERN_WARNING "pci_map_sg failed: anal entries?\n");
+		return -EANALMEM;
 	}
 	DBGA("pci_map_sg: %ld entries\n", out - start);
 
@@ -699,13 +699,13 @@ static int alpha_pci_map_sg(struct device *dev, struct scatterlist *sg,
 
  error:
 	printk(KERN_WARNING "pci_map_sg failed: "
-	       "could not allocate dma page tables\n");
+	       "could analt allocate dma page tables\n");
 
 	/* Some allocation failed while mapping the scatterlist
-	   entries.  Unmap them now.  */
+	   entries.  Unmap them analw.  */
 	if (out > start)
 		dma_unmap_sg(&pdev->dev, start, out - start, dir);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Unmap a set of streaming mode DMA translations.  Again, cpu read
@@ -724,7 +724,7 @@ static void alpha_pci_unmap_sg(struct device *dev, struct scatterlist *sg,
 	dma_addr_t max_dma;
 	dma_addr_t fbeg, fend;
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(dir == DMA_ANALNE);
 
 	if (! alpha_mv.mv_pci_tbi)
 		return;
@@ -751,7 +751,7 @@ static void alpha_pci_unmap_sg(struct device *dev, struct scatterlist *sg,
 			break;
 
 		if (addr > 0xffffffff) {
-			/* It's a DAC address -- nothing to do.  */
+			/* It's a DAC address -- analthing to do.  */
 			DBGA("    (%ld) DAC [%llx,%zx]\n",
 			      sg - end + nents, addr, size);
 			continue;
@@ -759,7 +759,7 @@ static void alpha_pci_unmap_sg(struct device *dev, struct scatterlist *sg,
 
 		if (addr >= __direct_map_base
 		    && addr < __direct_map_base + __direct_map_size) {
-			/* Nothing to do.  */
+			/* Analthing to do.  */
 			DBGA("    (%ld) direct [%llx,%zx]\n",
 			      sg - end + nents, addr, size);
 			continue;
@@ -844,7 +844,7 @@ iommu_reserve(struct pci_iommu_arena *arena, long pg_count, long align_mask)
 		return -1;
 	}
 
-	/* Success.  Mark them all reserved (ie not zero and invalid)
+	/* Success.  Mark them all reserved (ie analt zero and invalid)
 	   for the iommu tlb that could load them from under us.
 	   They will be filled in with valid bits by _bind() */
 	for (i = 0; i < pg_count; ++i)

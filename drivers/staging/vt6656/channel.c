@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Channel number mapping
@@ -70,7 +70,7 @@ void vnt_init_bands(struct vnt_private *priv)
 	ch = vnt_channels_2ghz;
 	for (i = 0; i < ARRAY_SIZE(vnt_channels_2ghz); i++) {
 		ch[i].max_power = VNT_RF_MAX_POWER;
-		ch[i].flags = IEEE80211_CHAN_NO_HT40;
+		ch[i].flags = IEEE80211_CHAN_ANAL_HT40;
 	}
 	priv->hw->wiphy->bands[NL80211_BAND_2GHZ] =
 					&vnt_supported_2ghz_band;

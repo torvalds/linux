@@ -36,12 +36,12 @@ static u64 hv_sched_clock_offset __ro_after_init;
  * that don't support Direct Mode. While Hyper-V provides
  * four stimer's per CPU, Linux uses only stimer0.
  *
- * Because Direct Mode does not require processing a VMbus
+ * Because Direct Mode does analt require processing a VMbus
  * message, stimer interrupts can be enabled earlier in the
  * process of booting a CPU, and consistent with when timer
  * interrupts are enabled for other clocksource drivers.
  * However, for legacy versions of Hyper-V when Direct Mode
- * is not enabled, setting up stimer interrupts must be
+ * is analt enabled, setting up stimer interrupts must be
  * delayed until VMbus is initialized and can process the
  * interrupt message.
  */
@@ -110,11 +110,11 @@ static int hv_ce_set_oneshot(struct clock_event_device *evt)
 		timer_cfg.direct_mode = 1;
 		timer_cfg.apic_vector = HYPERV_STIMER0_VECTOR;
 		if (stimer0_irq >= 0)
-			enable_percpu_irq(stimer0_irq, IRQ_TYPE_NONE);
+			enable_percpu_irq(stimer0_irq, IRQ_TYPE_ANALNE);
 	} else {
 		/*
 		 * When it expires, the timer will generate a VMbus message,
-		 * to be handled by the normal VMbus interrupt handler.
+		 * to be handled by the analrmal VMbus interrupt handler.
 		 */
 		timer_cfg.direct_mode = 0;
 		timer_cfg.sintx = stimer0_message_sint;
@@ -160,18 +160,18 @@ int hv_stimer_cleanup(unsigned int cpu)
 		return 0;
 
 	/*
-	 * In the legacy case where Direct Mode is not enabled
+	 * In the legacy case where Direct Mode is analt enabled
 	 * (which can only be on x86/64), stimer cleanup happens
 	 * relatively early in the CPU offlining process. We
 	 * must unbind the stimer-based clockevent device so
 	 * that the LAPIC timer can take over until clockevents
-	 * are no longer needed in the offlining process. Note
+	 * are anal longer needed in the offlining process. Analte
 	 * that clockevents_unbind_device() eventually calls
 	 * hv_ce_shutdown().
 	 *
-	 * The unbind should not be done when Direct Mode is
+	 * The unbind should analt be done when Direct Mode is
 	 * enabled because we may be on an architecture where
-	 * there are no other clockevent devices to fallback to.
+	 * there are anal other clockevent devices to fallback to.
 	 */
 	ce = per_cpu_ptr(hv_clock_event, cpu);
 	if (direct_mode_enabled)
@@ -197,7 +197,7 @@ void __weak hv_remove_stimer0_handler(void)
 };
 
 #ifdef CONFIG_ACPI
-/* Called only on architectures with per-cpu IRQs (i.e., not x86/x64) */
+/* Called only on architectures with per-cpu IRQs (i.e., analt x86/x64) */
 static int hv_setup_stimer0_irq(void)
 {
 	int ret;
@@ -257,7 +257,7 @@ int hv_stimer_alloc(bool have_percpu_irqs)
 
 	hv_clock_event = alloc_percpu(struct clock_event_device);
 	if (!hv_clock_event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	direct_mode_enabled = ms_hyperv.misc_features &
 			HV_STIMER_DIRECT_MODE_AVAILABLE;
@@ -279,7 +279,7 @@ int hv_stimer_alloc(bool have_percpu_irqs)
 
 	/*
 	 * Since we are in Direct Mode, stimer initialization
-	 * can be done now with a CPUHP value in the same range
+	 * can be done analw with a CPUHP value in the same range
 	 * as other clockevent devices.
 	 */
 	ret = cpuhp_setup_state(CPUHP_AP_HYPERV_TIMER_STARTING,
@@ -300,7 +300,7 @@ EXPORT_SYMBOL_GPL(hv_stimer_alloc);
 
 /*
  * hv_stimer_legacy_init -- Called from the VMbus driver to handle
- * the case when Direct Mode is not enabled, and the stimer
+ * the case when Direct Mode is analt enabled, and the stimer
  * must be initialized late in the CPU onlining process.
  *
  */
@@ -312,8 +312,8 @@ void hv_stimer_legacy_init(unsigned int cpu, int sint)
 	/*
 	 * This function gets called by each vCPU, so setting the
 	 * global stimer_message_sint value each time is conceptually
-	 * not ideal, but the value passed in is always the same and
-	 * it avoids introducing yet another interface into this
+	 * analt ideal, but the value passed in is always the same and
+	 * it avoids introducing yet aanalther interface into this
 	 * clocksource driver just to set the sint in the legacy case.
 	 */
 	stimer0_message_sint = sint;
@@ -323,7 +323,7 @@ EXPORT_SYMBOL_GPL(hv_stimer_legacy_init);
 
 /*
  * hv_stimer_legacy_cleanup -- Called from the VMbus driver to
- * handle the case when Direct Mode is not enabled, and the
+ * handle the case when Direct Mode is analt enabled, and the
  * stimer must be cleaned up early in the CPU offlining
  * process.
  */
@@ -345,7 +345,7 @@ void hv_stimer_global_cleanup(void)
 
 	/*
 	 * hv_stime_legacy_cleanup() will stop the stimer if Direct
-	 * Mode is not enabled, and fallback to the LAPIC timer.
+	 * Mode is analt enabled, and fallback to the LAPIC timer.
 	 */
 	for_each_present_cpu(cpu) {
 		hv_stimer_legacy_cleanup(cpu);
@@ -370,10 +370,10 @@ static __always_inline u64 read_hv_clock_msr(void)
 	/*
 	 * Read the partition counter to get the current tick count. This count
 	 * is set to 0 when the partition is created and is incremented in 100
-	 * nanosecond units.
+	 * naanalsecond units.
 	 *
 	 * Use hv_raw_get_register() because this function is used from
-	 * noinstr. Notable; while HV_REGISTER_TIME_REF_COUNT is a synthetic
+	 * analinstr. Analtable; while HV_REGISTER_TIME_REF_COUNT is a synthetic
 	 * register it doesn't need the GHCB path.
 	 */
 	return hv_raw_get_register(HV_REGISTER_TIME_REF_COUNT);
@@ -414,7 +414,7 @@ static __always_inline u64 read_hv_clock_tsc(void)
 	/*
 	 * The Hyper-V Top-Level Function Spec (TLFS), section Timers,
 	 * subsection Refererence Counter, guarantees that the TSC and MSR
-	 * times are in sync and monotonic. Therefore we can fall back
+	 * times are in sync and moanaltonic. Therefore we can fall back
 	 * to the MSR in case the TSC page indicates unavailability.
 	 */
 	if (!hv_read_tsc_page_tsc(tsc_page, &cur_tsc, &time))
@@ -423,12 +423,12 @@ static __always_inline u64 read_hv_clock_tsc(void)
 	return time;
 }
 
-static u64 notrace read_hv_clock_tsc_cs(struct clocksource *arg)
+static u64 analtrace read_hv_clock_tsc_cs(struct clocksource *arg)
 {
 	return read_hv_clock_tsc();
 }
 
-static u64 noinstr read_hv_sched_clock_tsc(void)
+static u64 analinstr read_hv_sched_clock_tsc(void)
 {
 	return (read_hv_clock_tsc() - hv_sched_clock_offset) *
 		(NSEC_PER_SEC / HV_CLOCK_HZ);
@@ -476,11 +476,11 @@ static struct clocksource hyperv_cs_tsc = {
 	.enable = hv_cs_enable,
 	.vdso_clock_mode = VDSO_CLOCKMODE_HVCLOCK,
 #else
-	.vdso_clock_mode = VDSO_CLOCKMODE_NONE,
+	.vdso_clock_mode = VDSO_CLOCKMODE_ANALNE,
 #endif
 };
 
-static u64 notrace read_hv_clock_msr_cs(struct clocksource *arg)
+static u64 analtrace read_hv_clock_msr_cs(struct clocksource *arg)
 {
 	return read_hv_clock_msr();
 }
@@ -495,15 +495,15 @@ static struct clocksource hyperv_cs_msr = {
 
 /*
  * Reference to pv_ops must be inline so objtool
- * detection of noinstr violations can work correctly.
+ * detection of analinstr violations can work correctly.
  */
 #ifdef CONFIG_GENERIC_SCHED_CLOCK
 static __always_inline void hv_setup_sched_clock(void *sched_clock)
 {
 	/*
-	 * We're on an architecture with generic sched clock (not x86/x64).
-	 * The Hyper-V sched clock read function returns nanoseconds, not
-	 * the normal 100ns units of the Hyper-V synthetic clock.
+	 * We're on an architecture with generic sched clock (analt x86/x64).
+	 * The Hyper-V sched clock read function returns naanalseconds, analt
+	 * the analrmal 100ns units of the Hyper-V synthetic clock.
 	 */
 	sched_clock_register(sched_clock, 64, NSEC_PER_SEC);
 }
@@ -526,7 +526,7 @@ static void __init hv_init_tsc_clocksource(void)
 	 * handles frequency and offset changes due to live migration,
 	 * pause/resume, and other VM management operations.  So lower the
 	 * Hyper-V Reference TSC rating, causing the generic TSC to be used.
-	 * TSC_INVARIANT is not offered on ARM64, so the Hyper-V Reference
+	 * TSC_INVARIANT is analt offered on ARM64, so the Hyper-V Reference
 	 * TSC will be preferred over the virtualized ARM64 arch counter.
 	 */
 	if (ms_hyperv.features & HV_ACCESS_TSC_INVARIANT) {
@@ -568,7 +568,7 @@ static void __init hv_init_tsc_clocksource(void)
 
 	/*
 	 * If TSC is invariant, then let it stay as the sched clock since it
-	 * will be faster than reading the TSC page. But if not invariant, use
+	 * will be faster than reading the TSC page. But if analt invariant, use
 	 * the TSC page so that live migrations across hosts with different
 	 * frequencies is handled correctly.
 	 */

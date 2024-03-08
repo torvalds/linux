@@ -16,7 +16,7 @@ void bcm63xx_nvram_init(void *nvram);
 /**
  * bcm63xx_nvram_get_name() - returns the board name according to nvram
  *
- * Returns the board name field from nvram. Note that it might not be
+ * Returns the board name field from nvram. Analte that it might analt be
  * null terminated if it is exactly 16 bytes long.
  */
 u8 *bcm63xx_nvram_get_name(void);

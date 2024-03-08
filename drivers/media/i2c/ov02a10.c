@@ -13,7 +13,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define OV02A10_ID					0x2509
@@ -291,7 +291,7 @@ static void ov02a10_fill_fmt(const struct ov02a10_mode *mode,
 {
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov02a10_set_fmt(struct v4l2_subdev *sd,
@@ -806,29 +806,29 @@ err_free_handler:
 
 static int ov02a10_check_hwcfg(struct device *dev, struct ov02a10 *ov02a10)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	unsigned int i, j;
 	u32 clk_volt;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -EINVAL;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	/* Optional indication of MIPI clock voltage unit */
-	ret = fwnode_property_read_u32(ep, "ovti,mipi-clock-voltage",
+	ret = fwanalde_property_read_u32(ep, "ovti,mipi-clock-voltage",
 				       &clk_volt);
 
 	if (!ret)
@@ -842,14 +842,14 @@ static int ov02a10_check_hwcfg(struct device *dev, struct ov02a10 *ov02a10)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported\n",
+			dev_err(dev, "anal link frequency %lld supported\n",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			break;
 		}
 	}
 
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -864,7 +864,7 @@ static int ov02a10_probe(struct i2c_client *client)
 
 	ov02a10 = devm_kzalloc(dev, sizeof(*ov02a10), GFP_KERNEL);
 	if (!ov02a10)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ov02a10_check_hwcfg(dev, ov02a10);
 	if (ret)
@@ -934,7 +934,7 @@ static int ov02a10_probe(struct i2c_client *client)
 	}
 
 	/* Initialize subdev */
-	ov02a10->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov02a10->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov02a10->subdev.entity.ops = &ov02a10_subdev_entity_ops;
 	ov02a10->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ov02a10->pad.flags = MEDIA_PAD_FL_SOURCE;

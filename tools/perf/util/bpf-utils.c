@@ -4,7 +4,7 @@
 #define _GNU_SOURCE
 #endif
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -123,7 +123,7 @@ get_bpf_prog_info_linear(int fd, __u64 arrays)
 	/* step 1: get array dimensions */
 	err = bpf_obj_get_info_by_fd(fd, &info, &info_len);
 	if (err) {
-		pr_debug("can't get prog info: %s", strerror(errno));
+		pr_debug("can't get prog info: %s", strerror(erranal));
 		return ERR_PTR(-EFAULT);
 	}
 
@@ -155,7 +155,7 @@ get_bpf_prog_info_linear(int fd, __u64 arrays)
 	/* step 3: allocate continuous memory */
 	info_linear = malloc(sizeof(struct perf_bpil) + data_len);
 	if (!info_linear)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* step 4: fill data to info_linear->info */
 	info_linear->arrays = arrays;
@@ -185,7 +185,7 @@ get_bpf_prog_info_linear(int fd, __u64 arrays)
 	/* step 5: call syscall again to get required arrays */
 	err = bpf_obj_get_info_by_fd(fd, &info_linear->info, &info_len);
 	if (err) {
-		pr_debug("can't get prog info: %s", strerror(errno));
+		pr_debug("can't get prog info: %s", strerror(erranal));
 		free(info_linear);
 		return ERR_PTR(-EFAULT);
 	}

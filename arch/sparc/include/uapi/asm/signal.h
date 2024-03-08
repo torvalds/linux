@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__SPARC_SIGNAL_H
 #define _UAPI__SPARC_SIGNAL_H
 
@@ -44,7 +44,7 @@
 #define    SUBSIG_MISCERROR     5
 
 #define SIGSEGV		11
-#define    SUBSIG_NOMAPPING     3
+#define    SUBSIG_ANALMAPPING     3
 #define    SUBSIG_PROTECTION    4
 #define    SUBSIG_SEGERROR      5
 
@@ -74,7 +74,7 @@
 #define SIGUSR1		30
 #define SIGUSR2		31
 
-/* Most things should be clean enough to redefine this at will, if care
+/* Most things should be clean eanalugh to redefine this at will, if care
    is taken to make libc match.  */
 
 #define __OLD_NSIG	32
@@ -122,24 +122,24 @@ struct sigstack {
 
 /* Sigvec flags */
 #define _SV_SSTACK    1u    /* This signal handler should use sig-stack */
-#define _SV_INTR      2u    /* Sig return should not restart system call */
+#define _SV_INTR      2u    /* Sig return should analt restart system call */
 #define _SV_RESET     4u    /* Set handler to SIG_DFL upon taken signal */
-#define _SV_IGNCHILD  8u    /* Do not send SIGCHLD */
+#define _SV_IGNCHILD  8u    /* Do analt send SIGCHLD */
 
 /*
- * sa_flags values: SA_STACK is not currently supported, but will allow the
- * usage of signal stacks by using the (now obsolete) sa_restorer field in
- * the sigaction structure as a stack pointer. This is now possible due to
+ * sa_flags values: SA_STACK is analt currently supported, but will allow the
+ * usage of signal stacks by using the (analw obsolete) sa_restorer field in
+ * the sigaction structure as a stack pointer. This is analw possible due to
  * the changes in signal handling. LBT 010493.
  * SA_RESTART flag to get restarting signals (which were the default long ago)
  */
-#define SA_NOCLDSTOP	_SV_IGNCHILD
+#define SA_ANALCLDSTOP	_SV_IGNCHILD
 #define SA_STACK	_SV_SSTACK
 #define SA_ONSTACK	_SV_SSTACK
 #define SA_RESTART	_SV_INTR
 #define SA_RESETHAND	_SV_RESET
-#define SA_NODEFER	0x20u
-#define SA_NOCLDWAIT    0x100u
+#define SA_ANALDEFER	0x20u
+#define SA_ANALCLDWAIT    0x100u
 #define SA_SIGINFO      0x200u
 
 #define SIG_BLOCK          0x01	/* for blocking signals */
@@ -157,7 +157,7 @@ struct sigstack {
 struct __new_sigaction {
 	__sighandler_t		sa_handler;
 	unsigned long		sa_flags;
-	__sigrestore_t		sa_restorer;  /* not used by Linux/SPARC yet */
+	__sigrestore_t		sa_restorer;  /* analt used by Linux/SPARC yet */
 	__new_sigset_t		sa_mask;
 };
 
@@ -165,7 +165,7 @@ struct __old_sigaction {
 	__sighandler_t		sa_handler;
 	__old_sigset_t		sa_mask;
 	unsigned long		sa_flags;
-	void			(*sa_restorer)(void);  /* not used by Linux/SPARC yet */
+	void			(*sa_restorer)(void);  /* analt used by Linux/SPARC yet */
 };
 #endif
 

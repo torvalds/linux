@@ -677,7 +677,7 @@
 	offset +=  (a) * 0x8ull;			\
 	offset; })
 
-#define MCSX_CSE_RX_MEM_SLAVE_INOCTETSSECYDECRYPTEDX(a) ({ \
+#define MCSX_CSE_RX_MEM_SLAVE_IANALCTETSSECYDECRYPTEDX(a) ({ \
 	u64 offset;					\
 							\
 	offset = 0x5e80ull;				\
@@ -686,7 +686,7 @@
 	offset += (a) * 0x8ull;				\
 	offset; })
 
-#define MCSX_CSE_RX_MEM_SLAVE_INOCTETSSECYVALIDATEX(a)({ \
+#define MCSX_CSE_RX_MEM_SLAVE_IANALCTETSSECYVALIDATEX(a)({ \
 	u64 offset;					\
 							\
 	offset = 0x5680ull;				\
@@ -749,7 +749,7 @@
 	offset += (a) * 0x8ull;				\
 	offset; })
 
-#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCNOTVALIDX(a) ({	\
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCANALTVALIDX(a) ({	\
 	u64 offset;					\
 							\
 	offset = 0x10e80ull;				\
@@ -767,7 +767,7 @@
 	offset += (a) * 0x8ull;				\
 	offset; })
 
-#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOSAX(a) ({	\
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYANALSAX(a) ({	\
 	u64 offset;					\
 							\
 	offset = 0xc680ull;				\
@@ -776,7 +776,7 @@
 	offset += (a) * 0x8ull;				\
 	offset; })
 
-#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOSAERRORX(a) ({ \
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYANALSAERRORX(a) ({ \
 	u64 offset;					\
 							\
 	offset = 0xce80ull;				\
@@ -837,13 +837,13 @@
 	offset += (a) * 0x8ull;					\
 	offset; })
 
-#define MCSX_CSE_RX_MEM_SLAVE_INOCTETSSCDECRYPTEDX(a)	(0xe680ull + (a) * 0x8ull)
-#define MCSX_CSE_RX_MEM_SLAVE_INOCTETSSCVALIDATEX(a)	(0xde80ull + (a) * 0x8ull)
-#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOTAGX(a)	(0xd218 + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_IANALCTETSSCDECRYPTEDX(a)	(0xe680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_IANALCTETSSCVALIDATEX(a)	(0xde80ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYANALTAGX(a)	(0xd218 + (a) * 0x8ull)
 #define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYCTLX(a)		(0xb680ull + (a) * 0x8ull)
 #define MCSX_CSE_RX_MEM_SLAVE_INPKTSSAINVALIDX(a)	(0x12680ull + (a) * 0x8ull)
-#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSANOTUSINGSAERRORX(a) (0x15680ull + (a) * 0x8ull)
-#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSANOTVALIDX(a)	(0x13680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSAANALTUSINGSAERRORX(a) (0x15680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSAANALTVALIDX(a)	(0x13680ull + (a) * 0x8ull)
 #define MCSX_CSE_RX_MEM_SLAVE_INPKTSSAOKX(a)		(0x11680ull + (a) * 0x8ull)
 #define MCSX_CSE_RX_MEM_SLAVE_INPKTSSAUNUSEDSAX(a)	(0x14680ull + (a) * 0x8ull)
 #define MCSX_CSE_RX_MEM_SLAVE_INPKTSEARLYPREEMPTERRX(a) (0xec58ull + (a) * 0x8ull)
@@ -851,7 +851,7 @@
 #define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCDELAYEDX(a)	(0xe618ull + (a) * 0x8ull)
 
 /* CSE TX */
-#define MCSX_CSE_TX_MEM_SLAVE_IFOUTCOMMONOCTETSX(a)	(0x18440ull + (a) * 0x8ull)
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTCOMMOANALCTETSX(a)	(0x18440ull + (a) * 0x8ull)
 #define MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLBCPKTSX(a) ({	\
 	u64 offset;					\
 							\
@@ -1005,7 +1005,7 @@
 	offset += (a) * 0x8ull;				\
 	offset; })
 
-#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYNOACTIVESAX(a) ({	\
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYANALACTIVESAX(a) ({	\
 	u64 offset;					\
 							\
 	offset = 0x1dc40ull;				\

@@ -79,7 +79,7 @@ properties:
   '#power-domain-cells':
     description:
       SoC devices that are part of the CPG/MSSR Clock Domain and can be
-      power-managed through Module Standby should refer to the CPG device node
+      power-managed through Module Standby should refer to the CPG device analde
       in their "power-domains" property, as documented by the generic PM Domain
       bindings in Documentation/devicetree/bindings/power/power-domain.yaml.
     const: 0
@@ -91,7 +91,7 @@ properties:
     const: 1
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         items:

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_CREATE_BUFS:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_CREATE_BUFS - Create buffers for Memory Mapped or User Pointer or DMA Buffer I/O
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_CREATE_BUFS
@@ -52,14 +52,14 @@ able to handle. The application has to fill in this struct
 requested format is supported by the driver. Based on the format's
 ``type`` field the requested buffer size (for single-planar) or plane
 sizes (for multi-planar formats) will be used for the allocated buffers.
-The driver may return an error if the size(s) are not supported by the
+The driver may return an error if the size(s) are analt supported by the
 hardware (usually because they are too small).
 
 The buffers created by this ioctl will have as minimum size the size
 defined by the ``format.pix.sizeimage`` field (or the corresponding
 fields for other format types). Usually if the ``format.pix.sizeimage``
 field is less than the minimum required for the given format, then an
-error will be returned since drivers will typically not allow this. If
+error will be returned since drivers will typically analt allow this. If
 it is larger, then the value will be used as-is. In other words, the
 driver may reject the requested size, but if it is accepted the driver
 will use it unchanged.
@@ -87,9 +87,9 @@ than the number requested.
       - The number of buffers requested or granted. If count == 0, then
 	:ref:`VIDIOC_CREATE_BUFS` will set ``index`` to the current number of
 	created buffers, and it will check the validity of ``memory`` and
-	``format.type``. If those are invalid -1 is returned and errno is
+	``format.type``. If those are invalid -1 is returned and erranal is
 	set to ``EINVAL`` error code, otherwise :ref:`VIDIOC_CREATE_BUFS` returns
-	0. It will never set errno to ``EBUSY`` error code in this particular
+	0. It will never set erranal to ``EBUSY`` error code in this particular
 	case.
     * - __u32
       - ``memory``
@@ -102,9 +102,9 @@ than the number requested.
     * - __u32
       - ``capabilities``
       - Set by the driver. If 0, then the driver doesn't support
-        capabilities. In that case all you know is that the driver is
+        capabilities. In that case all you kanalw is that the driver is
 	guaranteed to support ``V4L2_MEMORY_MMAP`` and *might* support
-	other :c:type:`v4l2_memory` types. It will not support any other
+	other :c:type:`v4l2_memory` types. It will analt support any other
 	capabilities. See :ref:`here <v4l2-buf-capabilities>` for a list of the
 	capabilities.
 
@@ -129,13 +129,13 @@ than the number requested.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-ENOMEM
-    No memory to allocate buffers for :ref:`memory mapped <mmap>` I/O.
+EANALMEM
+    Anal memory to allocate buffers for :ref:`memory mapped <mmap>` I/O.
 
 EINVAL
     The buffer type (``format.type`` field), requested I/O method
-    (``memory``) or format (``format`` field) is not valid.
+    (``memory``) or format (``format`` field) is analt valid.

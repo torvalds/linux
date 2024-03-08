@@ -15,7 +15,7 @@
  * @cd: pointer to command details
  *
  * Send message to VF driver (0x0802) using mailbox
- * queue and asynchronously sending message via
+ * queue and asynchroanalusly sending message via
  * ice_sq_send_cmd() function
  */
 int
@@ -60,7 +60,7 @@ static const u32 ice_legacy_aq_to_vc_speed[] = {
  *
  * Convert link speed supported by HW to link speed supported by virtchnl.
  * If adv_link_support is true, then return link speed in Mbps. Else return
- * link speed as a VIRTCHNL_LINK_SPEED_* casted to a u32. Note that the caller
+ * link speed as a VIRTCHNL_LINK_SPEED_* casted to a u32. Analte that the caller
  * needs to cast back to an enum virtchnl_link_speed in the case where
  * adv_link_support is false, but when adv_link_support is true the caller can
  * expect the speed in Mbps.
@@ -73,14 +73,14 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
 	if (adv_link_support)
 		return ice_get_link_speed(index);
 	else if (index < ARRAY_SIZE(ice_legacy_aq_to_vc_speed))
-		/* Virtchnl speeds are not defined for every speed supported in
+		/* Virtchnl speeds are analt defined for every speed supported in
 		 * the hardware. To maintain compatibility with older AVF
 		 * drivers, while reporting the speed the new speed values are
-		 * resolved to the closest known virtchnl speeds
+		 * resolved to the closest kanalwn virtchnl speeds
 		 */
 		return ice_legacy_aq_to_vc_speed[index];
 
-	return VIRTCHNL_LINK_SPEED_UNKNOWN;
+	return VIRTCHNL_LINK_SPEED_UNKANALWN;
 }
 
 /* The mailbox overflow detection algorithm helps to check if there
@@ -105,7 +105,7 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
  * 4. Every time a message is read from the MBX queue, a tracking structure
  * for the VF must be passed to the state handler. The boolean output
  * report_malvf from ice_mbx_vf_state_handler() serves as an indicator to the
- * caller whether it must report this VF as malicious or not.
+ * caller whether it must report this VF as malicious or analt.
  *
  * 5. When a VF is identified to be malicious, the caller can send a message
  * to the system administrator.
@@ -113,7 +113,7 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
  * 6. The PF is responsible for maintaining the struct ice_mbx_vf_info
  * structure for each VF. The PF should clear the VF tracking structure if the
  * VF is reset. When a VF is shut down and brought back up, we will then
- * assume that the new VF is not malicious and may report it again if we
+ * assume that the new VF is analt malicious and may report it again if we
  * detect it again.
  *
  * 7. The function ice_mbx_reset_snapshot() is called to reset the information
@@ -121,9 +121,9 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
  */
 #define ICE_RQ_DATA_MASK(rq_data) ((rq_data) & PF_MBX_ARQH_ARQH_M)
 /* Using the highest value for an unsigned 16-bit value 0xFFFF to indicate that
- * the max messages check must be ignored in the algorithm
+ * the max messages check must be iganalred in the algorithm
  */
-#define ICE_IGNORE_MAX_MSG_CNT	0xFFFF
+#define ICE_IGANALRE_MAX_MSG_CNT	0xFFFF
 
 /**
  * ice_mbx_reset_snapshot - Reset mailbox snapshot structure
@@ -171,13 +171,13 @@ ice_mbx_traverse(struct ice_hw *hw,
 	 * the mailbox head which would indicate that we have reached the end
 	 * of the static snapshot.
 	 * Condition-2: If the maximum messages serviced in the mailbox for a
-	 * given interrupt is the highest possible value then there is no need
-	 * to check if the number of messages processed is equal to it. If not
+	 * given interrupt is the highest possible value then there is anal need
+	 * to check if the number of messages processed is equal to it. If analt
 	 * check if the number of messages processed is greater than or equal
 	 * to the maximum number of mailbox entries serviced in current work item.
 	 */
 	if (num_iterations == snap_buf->head ||
-	    (snap_buf->max_num_msgs_mbx < ICE_IGNORE_MAX_MSG_CNT &&
+	    (snap_buf->max_num_msgs_mbx < ICE_IGANALRE_MAX_MSG_CNT &&
 	     ++snap_buf->num_msg_proc >= snap_buf->max_num_msgs_mbx))
 		*new_state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
 }
@@ -189,7 +189,7 @@ ice_mbx_traverse(struct ice_hw *hw,
  * @new_state: new algorithm state
  * @is_malvf: boolean output to indicate if VF is malicious
  *
- * This function tracks the number of asynchronous messages
+ * This function tracks the number of asynchroanalus messages
  * sent per VF and marks the VF as malicious if it exceeds
  * the permissible number of messages to send.
  */
@@ -224,7 +224,7 @@ ice_mbx_detect_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
  * snapshot. The data from any previous mailbox snapshot is
  * cleared and a new capture of the mailbox head and tail is
  * logged. This will be the new static snapshot to detect
- * asynchronous messages sent by VFs. On capturing the snapshot
+ * asynchroanalus messages sent by VFs. On capturing the snapshot
  * and depending on whether the number of pending messages in that
  * snapshot exceed the watermark value, the state machine enters
  * traverse or detect states.
@@ -250,17 +250,17 @@ ice_mbx_vf_state_handler(struct ice_hw *hw, struct ice_mbx_data *mbx_data,
 	*report_malvf = false;
 
 	/* When entering the mailbox state machine assume that the VF
-	 * is not malicious until detected.
+	 * is analt malicious until detected.
 	 */
 	 /* Checking if max messages allowed to be processed while servicing current
-	  * interrupt is not less than the defined AVF message threshold.
+	  * interrupt is analt less than the defined AVF message threshold.
 	  */
 	if (mbx_data->max_num_msgs_mbx <= ICE_ASYNC_VF_MSG_THRESHOLD)
 		return -EINVAL;
 
-	/* The watermark value should not be lesser than the threshold limit
-	 * set for the number of asynchronous messages a VF can send to mailbox
-	 * nor should it be greater than the maximum number of messages in the
+	/* The watermark value should analt be lesser than the threshold limit
+	 * set for the number of asynchroanalus messages a VF can send to mailbox
+	 * analr should it be greater than the maximum number of messages in the
 	 * mailbox serviced in current interrupt.
 	 */
 	if (mbx_data->async_watermark_val < ICE_ASYNC_VF_MSG_THRESHOLD ||

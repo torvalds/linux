@@ -40,17 +40,17 @@
 
 		secmon@100000000 {
 			reg = <0x1 0x00000000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		jpu@130000000 {
 			reg = <0x1 0x30000000 0x0 0x08000000>; // 128M
-			no-map;
+			anal-map;
 		};
 
 		vpu@138000000 {
 			reg = <0x1 0x38000000 0x0 0x08000000>; // 128M
-			no-map;
+			anal-map;
 		};
 	};
 

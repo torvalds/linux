@@ -56,7 +56,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_TPLG_BUFFER_FREE:
 			str2 = "BUFFER_FREE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_PM_MSG:
@@ -79,7 +79,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_PM_GATE:
 			str2 = "GATE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_COMP_MSG:
@@ -94,7 +94,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_COMP_GET_DATA:
 			str2 = "GET_DATA"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_STREAM_MSG:
@@ -126,7 +126,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_STREAM_VORBIS_FREE:
 			str2 = "VORBIS_FREE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	case SOF_IPC_FW_READY:
@@ -139,7 +139,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_DAI_LOOPBACK:
 			str2 = "LOOPBACK"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_TRACE_MSG:
@@ -158,7 +158,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_TRACE_DMA_FREE:
 			str2 = "DMA_FREE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_TEST_MSG:
@@ -167,7 +167,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_TEST_IPC_FLOOD:
 			str2 = "IPC_FLOOD"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_DEBUG:
@@ -176,7 +176,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_DEBUG_MEM_USAGE:
 			str2 = "MEM_USAGE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_PROBE:
@@ -199,11 +199,11 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_PROBE_POINT_REMOVE:
 			str2 = "POINT_REMOVE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkanalwn type"; break;
 		}
 		break;
 	default:
-		str = "unknown GLB command"; break;
+		str = "unkanalwn GLB command"; break;
 	}
 
 	if (str2) {
@@ -348,22 +348,22 @@ static int ipc3_tx_msg_unlocked(struct snd_sof_ipc *ipc,
 		return ret;
 	}
 
-	/* now wait for completion */
+	/* analw wait for completion */
 	return ipc3_wait_tx_done(ipc, reply_data);
 }
 
 static int sof_ipc3_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
-			   void *reply_data, size_t reply_bytes, bool no_pm)
+			   void *reply_data, size_t reply_bytes, bool anal_pm)
 {
 	struct snd_sof_ipc *ipc = sdev->ipc;
 	int ret;
 
 	if (!msg_data || msg_bytes < sizeof(struct sof_ipc_cmd_hdr)) {
-		dev_err_ratelimited(sdev->dev, "No IPC message to send\n");
+		dev_err_ratelimited(sdev->dev, "Anal IPC message to send\n");
 		return -EINVAL;
 	}
 
-	if (!no_pm) {
+	if (!anal_pm) {
 		const struct sof_dsp_power_state target_state = {
 			.state = SOF_DSP_PM_D0,
 		};
@@ -386,7 +386,7 @@ static int sof_ipc3_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 		size_t payload_bytes, header_bytes;
 		char *payload = NULL;
 
-		/* payload is indicated by non zero msg/reply_bytes */
+		/* payload is indicated by analn zero msg/reply_bytes */
 		if (msg_bytes > sizeof(struct sof_ipc_cmd_hdr)) {
 			payload = msg_data;
 
@@ -427,19 +427,19 @@ static int sof_ipc3_set_get_data(struct snd_sof_dev *sdev, void *data, size_t da
 		return -EINVAL;
 
 	if ((cdata->rhdr.hdr.cmd & SOF_GLB_TYPE_MASK) != SOF_IPC_GLB_COMP_MSG) {
-		dev_err(sdev->dev, "%s: Not supported message type of %#x\n",
+		dev_err(sdev->dev, "%s: Analt supported message type of %#x\n",
 			__func__, cdata->rhdr.hdr.cmd);
 		return -EINVAL;
 	}
 
-	/* send normal size ipc in one part */
+	/* send analrmal size ipc in one part */
 	if (cdata->rhdr.hdr.size <= ipc->max_payload_size)
 		return sof_ipc3_tx_msg(sdev, cdata, cdata->rhdr.hdr.size,
 				       cdata, cdata->rhdr.hdr.size, false);
 
 	cdata_chunk = kzalloc(ipc->max_payload_size, GFP_KERNEL);
 	if (!cdata_chunk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (cdata->type) {
 	case SOF_CTRL_TYPE_VALUE_CHAN_GET:
@@ -538,7 +538,7 @@ int sof_ipc3_get_ext_windows(struct snd_sof_dev *sdev,
 	/* keep a local copy of the data */
 	sdev->info_window = devm_kmemdup(sdev->dev, w, ext_hdr->hdr.size, GFP_KERNEL);
 	if (!sdev->info_window)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -562,20 +562,20 @@ int sof_ipc3_get_cc_info(struct snd_sof_dev *sdev,
 
 	dev_dbg(sdev->dev,
 		"Firmware info: used compiler %s %d:%d:%d%s used optimization flags %s\n",
-		cc->name, cc->major, cc->minor, cc->micro, cc->desc, cc->optim);
+		cc->name, cc->major, cc->mianalr, cc->micro, cc->desc, cc->optim);
 
 	/* create read-only cc_version debugfs to store compiler version info */
 	/* use local copy of the cc_version to prevent data corruption */
 	if (sdev->first_boot) {
 		sdev->cc_version = devm_kmemdup(sdev->dev, cc, cc->ext_hdr.hdr.size, GFP_KERNEL);
 		if (!sdev->cc_version)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = snd_sof_debugfs_buf_item(sdev, sdev->cc_version,
 					       cc->ext_hdr.hdr.size,
 					       "cc_version", 0444);
 
-		/* errors are only due to memory allocation, not debugfs */
+		/* errors are only due to memory allocation, analt debugfs */
 		if (ret < 0) {
 			dev_err(sdev->dev, "snd_sof_debugfs_buf_item failed\n");
 			return ret;
@@ -594,7 +594,7 @@ static int ipc3_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 offset)
 
 	ext_data = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!ext_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get first header */
 	snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM, offset, ext_data,
@@ -625,7 +625,7 @@ static int ipc3_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 offset)
 			/* They are supported but we don't do anything here */
 			break;
 		default:
-			dev_info(sdev->dev, "unknown ext header type %d size 0x%x\n",
+			dev_info(sdev->dev, "unkanalwn ext header type %d size 0x%x\n",
 				 ext_hdr->type, ext_hdr->hdr.size);
 			ret = 0;
 			break;
@@ -663,7 +663,7 @@ static void ipc3_get_windows(struct snd_sof_dev *sdev)
 	int i;
 
 	if (!sdev->info_window) {
-		dev_err(sdev->dev, "%s: No window info present\n", __func__);
+		dev_err(sdev->dev, "%s: Anal window info present\n", __func__);
 		return;
 	}
 
@@ -672,7 +672,7 @@ static void ipc3_get_windows(struct snd_sof_dev *sdev)
 
 		window_offset = snd_sof_dsp_get_window_offset(sdev, elem->id);
 		if (window_offset < 0) {
-			dev_warn(sdev->dev, "No offset for window %d\n", elem->id);
+			dev_warn(sdev->dev, "Anal offset for window %d\n", elem->id);
 			continue;
 		}
 
@@ -768,7 +768,7 @@ static int ipc3_init_reply_data_buffer(struct snd_sof_dev *sdev)
 
 	msg->reply_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
 	if (!msg->reply_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->ipc->max_payload_size = SOF_IPC_MSG_MAX_SIZE;
 
@@ -781,14 +781,14 @@ int sof_ipc3_validate_fw_version(struct snd_sof_dev *sdev)
 	struct sof_ipc_fw_version *v = &ready->version;
 
 	dev_info(sdev->dev,
-		 "Firmware info: version %d:%d:%d-%s\n",  v->major, v->minor,
+		 "Firmware info: version %d:%d:%d-%s\n",  v->major, v->mianalr,
 		 v->micro, v->tag);
 	dev_info(sdev->dev,
 		 "Firmware: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
 		 SOF_ABI_VERSION_MAJOR(v->abi_version),
-		 SOF_ABI_VERSION_MINOR(v->abi_version),
+		 SOF_ABI_VERSION_MIANALR(v->abi_version),
 		 SOF_ABI_VERSION_PATCH(v->abi_version),
-		 SOF_ABI_MAJOR, SOF_ABI_MINOR, SOF_ABI_PATCH);
+		 SOF_ABI_MAJOR, SOF_ABI_MIANALR, SOF_ABI_PATCH);
 
 	if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, v->abi_version)) {
 		dev_err(sdev->dev, "incompatible FW ABI version\n");
@@ -796,7 +796,7 @@ int sof_ipc3_validate_fw_version(struct snd_sof_dev *sdev)
 	}
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS) &&
-	    SOF_ABI_VERSION_MINOR(v->abi_version) > SOF_ABI_MINOR) {
+	    SOF_ABI_VERSION_MIANALR(v->abi_version) > SOF_ABI_MIANALR) {
 		dev_err(sdev->dev, "FW ABI is more recent than kernel\n");
 		return -EINVAL;
 	}
@@ -831,19 +831,19 @@ static int ipc3_fw_ready(struct snd_sof_dev *sdev, u32 cmd)
 	/* mailbox must be on 4k boundary */
 	offset = snd_sof_dsp_get_mailbox_offset(sdev);
 	if (offset < 0) {
-		dev_err(sdev->dev, "%s: no mailbox offset\n", __func__);
+		dev_err(sdev->dev, "%s: anal mailbox offset\n", __func__);
 		return offset;
 	}
 
 	dev_dbg(sdev->dev, "DSP is ready 0x%8.8x offset 0x%x\n", cmd, offset);
 
-	/* no need to re-check version/ABI for subsequent boots */
+	/* anal need to re-check version/ABI for subsequent boots */
 	if (!sdev->first_boot)
 		return 0;
 
 	/*
 	 * copy data from the DSP FW ready offset
-	 * Subsequent error handling is not needed for BLK_TYPE_SRAM
+	 * Subsequent error handling is analt needed for BLK_TYPE_SRAM
 	 */
 	ret = snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM, offset, fw_ready,
 				     sizeof(*fw_ready));
@@ -858,7 +858,7 @@ static int ipc3_fw_ready(struct snd_sof_dev *sdev, u32 cmd)
 	if (ret < 0)
 		return ret;
 
-	/* now check for extended data */
+	/* analw check for extended data */
 	ipc3_fw_parse_ext_data(sdev, offset + sizeof(struct sof_ipc_fw_ready));
 
 	ipc3_get_windows(sdev);
@@ -877,7 +877,7 @@ static void ipc3_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 
 	spcm = snd_sof_find_spcm_comp(scomp, msg_id, &direction);
 	if (!spcm) {
-		dev_err(sdev->dev, "period elapsed for unknown stream, msg_id %d\n",
+		dev_err(sdev->dev, "period elapsed for unkanalwn stream, msg_id %d\n",
 			msg_id);
 		return;
 	}
@@ -896,12 +896,12 @@ static void ipc3_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 	if (spcm->pcm.compress)
 		snd_sof_compr_fragment_elapsed(stream->cstream);
 	else if (stream->substream->runtime &&
-		 !stream->substream->runtime->no_period_wakeup)
+		 !stream->substream->runtime->anal_period_wakeup)
 		/* only inform ALSA for period_wakeup mode */
 		snd_sof_pcm_period_elapsed(stream->substream);
 }
 
-/* DSP notifies host of an XRUN within FW */
+/* DSP analtifies host of an XRUN within FW */
 static void ipc3_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 {
 	struct snd_soc_component *scomp = sdev->component;
@@ -912,7 +912,7 @@ static void ipc3_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 
 	spcm = snd_sof_find_spcm_comp(scomp, msg_id, &direction);
 	if (!spcm) {
-		dev_err(sdev->dev, "XRUN for unknown stream, msg_id %d\n",
+		dev_err(sdev->dev, "XRUN for unkanalwn stream, msg_id %d\n",
 			msg_id);
 		return;
 	}
@@ -934,7 +934,7 @@ static void ipc3_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 #endif
 }
 
-/* stream notifications from firmware */
+/* stream analtifications from firmware */
 static void ipc3_stream_message(struct snd_sof_dev *sdev, void *msg_buf)
 {
 	struct sof_ipc_cmd_hdr *hdr = msg_buf;
@@ -955,8 +955,8 @@ static void ipc3_stream_message(struct snd_sof_dev *sdev, void *msg_buf)
 	}
 }
 
-/* component notifications from firmware */
-static void ipc3_comp_notification(struct snd_sof_dev *sdev, void *msg_buf)
+/* component analtifications from firmware */
+static void ipc3_comp_analtification(struct snd_sof_dev *sdev, void *msg_buf)
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	struct sof_ipc_cmd_hdr *hdr = msg_buf;
@@ -1009,7 +1009,7 @@ void sof_ipc3_do_rx_work(struct snd_sof_dev *sdev, struct sof_ipc_cmd_hdr *hdr, 
 	/* check message type */
 	switch (cmd) {
 	case SOF_IPC_GLB_REPLY:
-		dev_err(sdev->dev, "ipc reply unknown\n");
+		dev_err(sdev->dev, "ipc reply unkanalwn\n");
 		break;
 	case SOF_IPC_FW_READY:
 		/* check for FW boot completion */
@@ -1029,7 +1029,7 @@ void sof_ipc3_do_rx_work(struct snd_sof_dev *sdev, struct sof_ipc_cmd_hdr *hdr, 
 	case SOF_IPC_GLB_PM_MSG:
 		break;
 	case SOF_IPC_GLB_COMP_MSG:
-		rx_callback = ipc3_comp_notification;
+		rx_callback = ipc3_comp_analtification;
 		break;
 	case SOF_IPC_GLB_STREAM_MSG:
 		rx_callback = ipc3_stream_message;
@@ -1038,7 +1038,7 @@ void sof_ipc3_do_rx_work(struct snd_sof_dev *sdev, struct sof_ipc_cmd_hdr *hdr, 
 		rx_callback = ipc3_trace_message;
 		break;
 	default:
-		dev_err(sdev->dev, "%s: Unknown DSP message: 0x%x\n", __func__, cmd);
+		dev_err(sdev->dev, "%s: Unkanalwn DSP message: 0x%x\n", __func__, cmd);
 		break;
 	}
 
@@ -1046,7 +1046,7 @@ void sof_ipc3_do_rx_work(struct snd_sof_dev *sdev, struct sof_ipc_cmd_hdr *hdr, 
 	if (rx_callback)
 		rx_callback(sdev, msg_buf);
 
-	/* Notify registered clients */
+	/* Analtify registered clients */
 	sof_client_ipc_rx_dispatcher(sdev, msg_buf);
 
 	ipc3_log_header(sdev->dev, "ipc rx done", hdr->cmd);
@@ -1137,7 +1137,7 @@ static int sof_ipc3_set_pm_gate(struct snd_sof_dev *sdev, u32 flags)
 	pm_gate.flags = flags;
 
 	/* send pm_gate ipc to dsp */
-	return sof_ipc_tx_message_no_pm_no_reply(sdev->ipc, &pm_gate, sizeof(pm_gate));
+	return sof_ipc_tx_message_anal_pm_anal_reply(sdev->ipc, &pm_gate, sizeof(pm_gate));
 }
 
 static const struct sof_ipc_pm_ops ipc3_pm_ops = {

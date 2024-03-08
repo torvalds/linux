@@ -34,7 +34,7 @@ e.g. for the machine above::
 This maps Regulator-1 to the 'Vcc' supply for Consumer B and maps Regulator-2
 to the 'Vcc' supply for Consumer A.
 
-Constraints can now be registered by defining a struct regulator_init_data
+Constraints can analw be registered by defining a struct regulator_init_data
 for each regulator power domain. This structure also maps the consumers
 to their supply regulators::
 
@@ -43,7 +43,7 @@ to their supply regulators::
 		.name = "Regulator-1",
 		.min_uV = 3300000,
 		.max_uV = 3300000,
-		.valid_modes_mask = REGULATOR_MODE_NORMAL,
+		.valid_modes_mask = REGULATOR_MODE_ANALRMAL,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(regulator1_consumers),
 	.consumer_supplies = regulator1_consumers,
@@ -51,8 +51,8 @@ to their supply regulators::
 
 The name field should be set to something that is usefully descriptive
 for the board for configuration of supplies for other regulators and
-for use in logging and other diagnostic output.  Normally the name
-used for the supply rail in the schematic is a good choice.  If no
+for use in logging and other diaganalstic output.  Analrmally the name
+used for the supply rail in the schematic is a good choice.  If anal
 name is provided then the subsystem will choose one.
 
 Regulator-1 supplies power to Regulator-2. This relationship must be registered
@@ -66,7 +66,7 @@ field below and co::
 		.min_uV = 1800000,
 		.max_uV = 2000000,
 		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
-		.valid_modes_mask = REGULATOR_MODE_NORMAL,
+		.valid_modes_mask = REGULATOR_MODE_ANALRMAL,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(regulator2_consumers),
 	.consumer_supplies = regulator2_consumers,

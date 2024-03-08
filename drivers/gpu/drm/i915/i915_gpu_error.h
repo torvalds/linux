@@ -50,7 +50,7 @@ struct i915_request_coredump {
 	unsigned long flags;
 	pid_t pid;
 	u32 context;
-	u32 seqno;
+	u32 seqanal;
 	u32 head;
 	u32 tail;
 	struct i915_sched_attr sched_attr;
@@ -87,7 +87,7 @@ struct intel_engine_coredump {
 	u32 fault_reg;
 	u64 faddr;
 	u32 rc_psmi; /* sleep state */
-	u32 nopid;
+	u32 analpid;
 	u32 excc;
 	u32 cmd_cctl;
 	u32 cscmdop;
@@ -98,7 +98,7 @@ struct intel_engine_coredump {
 
 	/* GuC matched capture-lists info */
 	struct intel_guc_state_capture *guc_capture;
-	struct __guc_capture_parsed_output *guc_capture_node;
+	struct __guc_capture_parsed_output *guc_capture_analde;
 
 	struct i915_gem_context_coredump {
 		char comm[TASK_COMM_LEN];
@@ -110,7 +110,7 @@ struct intel_engine_coredump {
 		int active;
 		int guilty;
 		struct i915_sched_attr sched_attr;
-		u32 hwsp_seqno;
+		u32 hwsp_seqanal;
 	} context;
 
 	struct i915_vma_coredump *vma;
@@ -268,7 +268,7 @@ i915_increase_reset_engine_count(struct i915_gpu_error *error,
 	atomic_inc(&error->reset_engine_count[engine->class]);
 }
 
-#define CORE_DUMP_FLAG_NONE           0x0
+#define CORE_DUMP_FLAG_ANALNE           0x0
 #define CORE_DUMP_FLAG_IS_GUC_CAPTURE BIT(0)
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR) && IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)

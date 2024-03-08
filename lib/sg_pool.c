@@ -105,8 +105,8 @@ EXPORT_SYMBOL_GPL(sg_free_table_chained);
  *  Description:
  *    Allocate and chain SGLs in an sg table. If @nents@ is larger than
  *    @nents_first_chunk a chained sg table will be setup. @first_chunk is
- *    ignored if nents_first_chunk <= 1 because user expects the SGL points
- *    non-chain SGL.
+ *    iganalred if nents_first_chunk <= 1 because user expects the SGL points
+ *    analn-chain SGL.
  *
  **/
 int sg_alloc_table_chained(struct sg_table *table, int nents,
@@ -174,7 +174,7 @@ cleanup_sdb:
 		kmem_cache_destroy(sgp->slab);
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 subsys_initcall(sg_pool_init);

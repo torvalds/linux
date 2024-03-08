@@ -15,8 +15,8 @@ description: |
 
   The time-slots used by the codec must be set and so, the properties
   'dai-tdm-slot-num', 'dai-tdm-slot-width', 'dai-tdm-slot-tx-mask' and
-  'dai-tdm-slot-rx-mask' must be present in the ALSA sound card node for
-  sub-nodes that involve the codec. The codec uses one 8bit time-slot per
+  'dai-tdm-slot-rx-mask' must be present in the ALSA sound card analde for
+  sub-analdes that involve the codec. The codec uses one 8bit time-slot per
   channel.
   'dai-tdm-tdm-slot-with' must be set to 8.
 

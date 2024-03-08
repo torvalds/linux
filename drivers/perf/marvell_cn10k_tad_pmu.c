@@ -32,7 +32,7 @@ struct tad_pmu {
 	struct tad_region *regions;
 	u32 region_cnt;
 	unsigned int cpu;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct perf_event *events[TAD_MAX_COUNTERS];
 	DECLARE_BITMAP(counters_map, TAD_MAX_COUNTERS);
 };
@@ -141,7 +141,7 @@ static int tad_pmu_event_init(struct perf_event *event)
 	struct tad_pmu *tad_pmu = to_tad_pmu(event->pmu);
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!event->attr.disabled)
 		return -EINVAL;
@@ -169,7 +169,7 @@ static ssize_t tad_pmu_event_show(struct device *dev,
 	PMU_EVENT_ATTR_ID(name, tad_pmu_event_show, config)
 
 static struct attribute *tad_pmu_event_attrs[] = {
-	TAD_PMU_EVENT_ATTR(tad_none, 0x0),
+	TAD_PMU_EVENT_ATTR(tad_analne, 0x0),
 	TAD_PMU_EVENT_ATTR(tad_req_msh_in_any, 0x1),
 	TAD_PMU_EVENT_ATTR(tad_req_msh_in_mn, 0x2),
 	TAD_PMU_EVENT_ATTR(tad_req_msh_in_exlmn, 0x3),
@@ -266,14 +266,14 @@ static int tad_pmu_probe(struct platform_device *pdev)
 
 	tad_pmu = devm_kzalloc(&pdev->dev, sizeof(*tad_pmu), GFP_KERNEL);
 	if (!tad_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, tad_pmu);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "Mem resource not found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Mem resource analt found\n");
+		return -EANALDEV;
 	}
 
 	ret = device_property_read_u32(dev, "marvell,tad-page-size",
@@ -299,7 +299,7 @@ static int tad_pmu_probe(struct platform_device *pdev)
 	regions = devm_kcalloc(&pdev->dev, tad_cnt,
 			       sizeof(*regions), GFP_KERNEL);
 	if (!regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ioremap the distributed TAD pmu regions */
 	for (i = 0; i < tad_cnt && res->start < res->end; i++) {
@@ -308,7 +308,7 @@ static int tad_pmu_probe(struct platform_device *pdev)
 					       tad_pmu_page_size);
 		if (!regions[i].base) {
 			dev_err(&pdev->dev, "TAD%d ioremap fail\n", i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		res->start += tad_page_size;
 	}
@@ -320,8 +320,8 @@ static int tad_pmu_probe(struct platform_device *pdev)
 
 		.module		= THIS_MODULE,
 		.attr_groups	= tad_pmu_attr_groups,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE |
-				  PERF_PMU_CAP_NO_INTERRUPT,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE |
+				  PERF_PMU_CAP_ANAL_INTERRUPT,
 		.task_ctx_nr	= perf_invalid_context,
 
 		.event_init	= tad_pmu_event_init,
@@ -335,8 +335,8 @@ static int tad_pmu_probe(struct platform_device *pdev)
 	tad_pmu->cpu = raw_smp_processor_id();
 
 	/* Register pmu instance for cpu hotplug */
-	ret = cpuhp_state_add_instance_nocalls(tad_pmu_cpuhp_state,
-					       &tad_pmu->node);
+	ret = cpuhp_state_add_instance_analcalls(tad_pmu_cpuhp_state,
+					       &tad_pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		return ret;
@@ -345,8 +345,8 @@ static int tad_pmu_probe(struct platform_device *pdev)
 	name = "tad";
 	ret = perf_pmu_register(&tad_pmu->pmu, name, -1);
 	if (ret)
-		cpuhp_state_remove_instance_nocalls(tad_pmu_cpuhp_state,
-						    &tad_pmu->node);
+		cpuhp_state_remove_instance_analcalls(tad_pmu_cpuhp_state,
+						    &tad_pmu->analde);
 
 	return ret;
 }
@@ -355,8 +355,8 @@ static int tad_pmu_remove(struct platform_device *pdev)
 {
 	struct tad_pmu *pmu = platform_get_drvdata(pdev);
 
-	cpuhp_state_remove_instance_nocalls(tad_pmu_cpuhp_state,
-						&pmu->node);
+	cpuhp_state_remove_instance_analcalls(tad_pmu_cpuhp_state,
+						&pmu->analde);
 	perf_pmu_unregister(&pmu->pmu);
 
 	return 0;
@@ -388,9 +388,9 @@ static struct platform_driver tad_pmu_driver = {
 	.remove         = tad_pmu_remove,
 };
 
-static int tad_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int tad_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct tad_pmu *pmu = hlist_entry_safe(node, struct tad_pmu, node);
+	struct tad_pmu *pmu = hlist_entry_safe(analde, struct tad_pmu, analde);
 	unsigned int target;
 
 	if (cpu != pmu->cpu)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -25,12 +25,12 @@
 #include <nvif/class.h>
 
 int
-nv50_ovly_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
+nv50_ovly_new(struct analuveau_drm *drm, int head, struct nv50_wndw **pwndw)
 {
 	static const struct {
 		s32 oclass;
 		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
+		int (*new)(struct analuveau_drm *, int, s32, struct nv50_wndw **);
 	} ovlys[] = {
 		{ GK104_DISP_OVERLAY_CONTROL_DMA, 0, ovly917e_new },
 		{ GF110_DISP_OVERLAY_CONTROL_DMA, 0, ovly907e_new },
@@ -45,7 +45,7 @@ nv50_ovly_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
 
 	cid = nvif_mclass(&disp->disp->object, ovlys);
 	if (cid < 0) {
-		NV_ERROR(drm, "No supported overlay class\n");
+		NV_ERROR(drm, "Anal supported overlay class\n");
 		return cid;
 	}
 

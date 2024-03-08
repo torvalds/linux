@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999,2000 MIPS Techanallogies, Inc.  All rights reserved.
  *
  *  Setting up the clock on the MIPS boards.
  */
@@ -23,7 +23,7 @@ extern unsigned int idt_cpu_freq;
 
 /*
  * Figure out the r4k offset, the amount to increment the compare
- * register for each time tick. There is no RTC available.
+ * register for each time tick. There is anal RTC available.
  *
  * The RC32434 counts at half the CPU *core* speed.
  */

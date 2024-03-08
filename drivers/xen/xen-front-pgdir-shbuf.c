@@ -10,7 +10,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 
 #include <asm/xen/hypervisor.h>
@@ -85,7 +85,7 @@ EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_get_dir_start);
  * Map granted references of the shared buffer.
  *
  * Depending on the shared buffer mode of allocation
- * (be_alloc flag) this can either do nothing (for buffers
+ * (be_alloc flag) this can either do analthing (for buffers
  * shared by the frontend itself) or map the provided granted
  * references onto the backing storage (buf->pages).
  *
@@ -97,7 +97,7 @@ int xen_front_pgdir_shbuf_map(struct xen_front_pgdir_shbuf *buf)
 	if (buf->ops && buf->ops->map)
 		return buf->ops->map(buf);
 
-	/* No need to map own grant references. */
+	/* Anal need to map own grant references. */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_map);
@@ -106,7 +106,7 @@ EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_map);
  * Unmap granted references of the shared buffer.
  *
  * Depending on the shared buffer mode of allocation
- * (be_alloc flag) this can either do nothing (for buffers
+ * (be_alloc flag) this can either do analthing (for buffers
  * shared by the frontend itself) or unmap the provided granted
  * references.
  *
@@ -118,7 +118,7 @@ int xen_front_pgdir_shbuf_unmap(struct xen_front_pgdir_shbuf *buf)
 	if (buf->ops && buf->ops->unmap)
 		return buf->ops->unmap(buf);
 
-	/* No need to unmap own grant references. */
+	/* Anal need to unmap own grant references. */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_unmap);
@@ -208,7 +208,7 @@ static int backend_unmap(struct xen_front_pgdir_shbuf *buf)
 	unmap_ops = kcalloc(buf->num_pages, sizeof(*unmap_ops),
 			    GFP_KERNEL);
 	if (!unmap_ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < buf->num_pages; i++) {
 		phys_addr_t addr;
@@ -252,14 +252,14 @@ static int backend_map(struct xen_front_pgdir_shbuf *buf)
 
 	map_ops = kcalloc(buf->num_pages, sizeof(*map_ops), GFP_KERNEL);
 	if (!map_ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->backend_map_handles = kcalloc(buf->num_pages,
 					   sizeof(*buf->backend_map_handles),
 					   GFP_KERNEL);
 	if (!buf->backend_map_handles) {
 		kfree(map_ops);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -345,7 +345,7 @@ static void backend_fill_page_dir(struct xen_front_pgdir_shbuf *buf)
 		page_dir->gref_dir_next_page = buf->grefs[i + 1];
 		ptr += PAGE_SIZE;
 	}
-	/* Last page must say there is no more pages. */
+	/* Last page must say there is anal more pages. */
 	page_dir = (struct xen_page_directory *)ptr;
 	page_dir->gref_dir_next_page = XEN_GREF_LIST_END;
 }
@@ -436,7 +436,7 @@ static int grant_references(struct xen_front_pgdir_shbuf *buf)
 	ret = gnttab_alloc_grant_references(buf->num_grefs, &priv_gref_head);
 	if (ret < 0) {
 		dev_err(&buf->xb_dev->dev,
-			"Cannot allocate grant references\n");
+			"Cananalt allocate grant references\n");
 		return ret;
 	}
 
@@ -476,11 +476,11 @@ static int alloc_storage(struct xen_front_pgdir_shbuf *buf)
 {
 	buf->grefs = kcalloc(buf->num_grefs, sizeof(*buf->grefs), GFP_KERNEL);
 	if (!buf->grefs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->directory = kcalloc(get_num_pages_dir(buf), PAGE_SIZE, GFP_KERNEL);
 	if (!buf->directory)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -497,7 +497,7 @@ static const struct xen_front_pgdir_shbuf_ops backend_ops = {
 };
 
 /*
- * For locally granted references we do not need to map/unmap
+ * For locally granted references we do analt need to map/unmap
  * the references.
  */
 static const struct xen_front_pgdir_shbuf_ops local_ops = {

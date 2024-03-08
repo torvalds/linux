@@ -3,9 +3,9 @@
  * This file is part of the ROHM BH1770GLC / OSRAM SFH7770 sensor driver.
  * Chip is combined proximity and ambient light sensor.
  *
- * Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+ * Copyright (C) 2010 Analkia Corporation and/or its subsidiary(-ies).
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@analkia.com>
  */
 
 #include <linux/kernel.h>
@@ -115,7 +115,7 @@
 #define PROX_ABOVE_THRESHOLD	1
 #define PROX_BELOW_THRESHOLD	0
 
-#define PROX_IGNORE_LUX_LIMIT	500
+#define PROX_IGANALRE_LUX_LIMIT	500
 
 struct bh1770_chip {
 	struct bh1770_platform_data	*pdata;
@@ -235,7 +235,7 @@ static inline int bh1770_led_cfg(struct bh1770_chip *chip)
 }
 
 /*
- * Following two functions converts raw ps values from HW to normalized
+ * Following two functions converts raw ps values from HW to analrmalized
  * values. Purpose is to compensate differences between different sensor
  * versions and variants so that result means about the same between
  * versions.
@@ -263,7 +263,7 @@ static inline u8 bh1770_psadjusted_to_raw(struct bh1770_chip *chip, u8 ps)
 }
 
 /*
- * Following two functions converts raw lux values from HW to normalized
+ * Following two functions converts raw lux values from HW to analrmalized
  * values. Purpose is to compensate differences between different sensor
  * versions and variants so that result means about the same between
  * versions. Chip->mutex is kept when this is called.
@@ -308,7 +308,7 @@ static int bh1770_lux_update_thresholds(struct bh1770_chip *chip,
 		return 0;
 
 	/*
-	 * Compensate threshold values with the correction factors if not
+	 * Compensate threshold values with the correction factors if analt
 	 * set to minimum or maximum.
 	 * Min & max values disables interrupts.
 	 */
@@ -462,10 +462,10 @@ static int bh1770_prox_read_result(struct bh1770_chip *chip)
 
 	/*
 	 * when ALS levels goes above limit, proximity result may be
-	 * false proximity. Thus ignore the result. With real proximity
+	 * false proximity. Thus iganalre the result. With real proximity
 	 * there is a shadow causing low als levels.
 	 */
-	if (chip->lux_data_raw > PROX_IGNORE_LUX_LIMIT)
+	if (chip->lux_data_raw > PROX_IGANALRE_LUX_LIMIT)
 		ret = 0;
 
 	chip->prox_data = bh1770_psraw_to_adjusted(chip, ret);
@@ -481,7 +481,7 @@ static int bh1770_prox_read_result(struct bh1770_chip *chip)
 	if (likely(above)) {
 		if (chip->prox_persistence_counter < chip->prox_persistence) {
 			chip->prox_persistence_counter++;
-			ret = -ENODATA;
+			ret = -EANALDATA;
 		} else {
 			mode = PROX_ABOVE_THRESHOLD;
 			ret = 0;
@@ -496,7 +496,7 @@ static int bh1770_prox_read_result(struct bh1770_chip *chip)
 	/* Set proximity detection rate based on above or below value */
 	if (ret == 0) {
 		bh1770_prox_rate(chip, mode);
-		sysfs_notify(&chip->client->dev.kobj, NULL, "prox0_raw");
+		sysfs_analtify(&chip->client->dev.kobj, NULL, "prox0_raw");
 	}
 out:
 	return ret;
@@ -538,9 +538,9 @@ static int bh1770_detect(struct bh1770_chip *chip)
 		return 0;
 	}
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 error:
-	dev_dbg(&client->dev, "BH1770 or SFH7770 not found\n");
+	dev_dbg(&client->dev, "BH1770 or SFH7770 analt found\n");
 
 	return ret;
 }
@@ -548,7 +548,7 @@ error:
 /*
  * This work is re-scheduled at every proximity interrupt.
  * If this work is running, it means that there hasn't been any
- * proximity interrupt in time. Situation is handled as no-proximity.
+ * proximity interrupt in time. Situation is handled as anal-proximity.
  * It would be nice to have low-threshold interrupt or interrupt
  * when measurement and hi-threshold are both 0. But neither of those exists.
  * This is a workaroud for missing HW feature.
@@ -574,7 +574,7 @@ static irqreturn_t bh1770_irq(int irq, void *data)
 	mutex_lock(&chip->mutex);
 	status = i2c_smbus_read_byte_data(chip->client, BH1770_ALS_PS_STATUS);
 
-	/* Acknowledge interrupt by reading this register */
+	/* Ackanalwledge interrupt by reading this register */
 	i2c_smbus_read_byte_data(chip->client, BH1770_INTERRUPT);
 
 	/*
@@ -592,12 +592,12 @@ static irqreturn_t bh1770_irq(int irq, void *data)
 		}
 	}
 
-	/* Disable interrupt logic to guarantee acknowledgement */
+	/* Disable interrupt logic to guarantee ackanalwledgement */
 	i2c_smbus_write_byte_data(chip->client, BH1770_INTERRUPT,
 				  (0 << 1) | (0 << 0));
 
 	if ((status & BH1770_INT_ALS_INT))
-		sysfs_notify(&chip->client->dev.kobj, NULL, "lux0_input");
+		sysfs_analtify(&chip->client->dev.kobj, NULL, "lux0_input");
 
 	if (chip->int_mode_prox && (status & BH1770_INT_LEDS_INT)) {
 		rate = prox_rates_ms[chip->prox_rate_threshold];
@@ -616,7 +616,7 @@ static irqreturn_t bh1770_irq(int irq, void *data)
 	 */
 	if (rate) {
 		/*
-		 * Simulate missing no-proximity interrupt 50ms after the
+		 * Simulate missing anal-proximity interrupt 50ms after the
 		 * next expected interrupt time.
 		 */
 		cancel_delayed_work_sync(&chip->prox_work);
@@ -683,7 +683,7 @@ static ssize_t bh1770_lux_result_show(struct device *dev,
 	long timeout;
 
 	if (pm_runtime_suspended(dev))
-		return -EIO; /* Chip is not enabled at all */
+		return -EIO; /* Chip is analt enabled at all */
 
 	timeout = wait_event_interruptible_timeout(chip->wait,
 					!chip->lux_wait_result,
@@ -717,7 +717,7 @@ static ssize_t bh1770_prox_enable_store(struct device *dev,
 		return ret;
 
 	mutex_lock(&chip->mutex);
-	/* Assume no proximity. Sensor will tell real state soon */
+	/* Assume anal proximity. Sensor will tell real state soon */
 	if (!chip->prox_enable_count)
 		chip->prox_data = 0;
 
@@ -1169,7 +1169,7 @@ static int bh1770_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof *chip, GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, chip);
 	chip->client  = client;
@@ -1208,14 +1208,14 @@ static int bh1770_probe(struct i2c_client *client)
 	err = devm_regulator_bulk_get(&client->dev,
 				      ARRAY_SIZE(chip->regs), chip->regs);
 	if (err < 0) {
-		dev_err(&client->dev, "Cannot get regulators\n");
+		dev_err(&client->dev, "Cananalt get regulators\n");
 		return err;
 	}
 
 	err = regulator_bulk_enable(ARRAY_SIZE(chip->regs),
 				chip->regs);
 	if (err < 0) {
-		dev_err(&client->dev, "Cannot enable regulators\n");
+		dev_err(&client->dev, "Cananalt enable regulators\n");
 		return err;
 	}
 
@@ -1262,7 +1262,7 @@ static int bh1770_probe(struct i2c_client *client)
 				IRQF_TRIGGER_LOW,
 				"bh1770", chip);
 	if (err) {
-		dev_err(&client->dev, "could not get IRQ %d\n",
+		dev_err(&client->dev, "could analt get IRQ %d\n",
 			client->irq);
 		goto fail2;
 	}
@@ -1386,5 +1386,5 @@ static struct i2c_driver bh1770_driver = {
 module_i2c_driver(bh1770_driver);
 
 MODULE_DESCRIPTION("BH1770GLC / SFH7770 combined ALS and proximity sensor");
-MODULE_AUTHOR("Samu Onkalo, Nokia Corporation");
+MODULE_AUTHOR("Samu Onkalo, Analkia Corporation");
 MODULE_LICENSE("GPL v2");

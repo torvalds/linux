@@ -150,12 +150,12 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	struct arizona_gpio *arizona_gpio;
 	int ret;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	arizona_gpio = devm_kzalloc(&pdev->dev, sizeof(*arizona_gpio),
 				    GFP_KERNEL);
 	if (!arizona_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arizona_gpio->arizona = arizona;
 	arizona_gpio->gpio_chip = template_chip;
@@ -175,7 +175,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 		arizona_gpio->gpio_chip.ngpio = 2;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown chip variant %d\n",
+		dev_err(&pdev->dev, "Unkanalwn chip variant %d\n",
 			arizona->type);
 		return -EINVAL;
 	}
@@ -191,7 +191,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 				     arizona_gpio);
 	if (ret < 0) {
 		pm_runtime_disable(&pdev->dev);
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
+		dev_err(&pdev->dev, "Could analt register gpiochip, %d\n",
 			ret);
 		return ret;
 	}

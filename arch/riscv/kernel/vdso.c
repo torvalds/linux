@@ -70,7 +70,7 @@ static void __init __vdso_init(struct __vdso_info *vdso_info)
 	unsigned long pfn;
 
 	if (memcmp(vdso_info->vdso_code_start, "\177ELF", 4))
-		panic("vDSO is not a valid ELF object!\n");
+		panic("vDSO is analt a valid ELF object!\n");
 
 	vdso_info->vdso_pages = (
 		vdso_info->vdso_code_end -

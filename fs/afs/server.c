@@ -33,7 +33,7 @@ struct afs_server *afs_find_server(struct afs_net *net, const struct rxrpc_peer 
 
 	do {
 		if (server)
-			afs_unuse_server_notime(net, server, afs_server_trace_put_find_rsq);
+			afs_unuse_server_analtime(net, server, afs_server_trace_put_find_rsq);
 		server = NULL;
 		seq++; /* 2 on the 1st/lockless path, otherwise odd */
 		read_seqbegin_or_lock(&net->fs_addr_lock, &seq);
@@ -65,7 +65,7 @@ struct afs_server *afs_find_server(struct afs_net *net, const struct rxrpc_peer 
 struct afs_server *afs_find_server_by_uuid(struct afs_net *net, const uuid_t *uuid)
 {
 	struct afs_server *server = NULL;
-	struct rb_node *p;
+	struct rb_analde *p;
 	int diff, seq = 1;
 
 	_enter("%pU", uuid);
@@ -81,7 +81,7 @@ struct afs_server *afs_find_server_by_uuid(struct afs_net *net, const uuid_t *uu
 		seq++; /* 2 on the 1st/lockless path, otherwise odd */
 		read_seqbegin_or_lock(&net->fs_lock, &seq);
 
-		p = net->fs_servers.rb_node;
+		p = net->fs_servers.rb_analde;
 		while (p) {
 			server = rb_entry(p, struct afs_server, uuid_rb);
 
@@ -117,7 +117,7 @@ static struct afs_server *afs_install_server(struct afs_cell *cell,
 	const struct afs_addr_list *alist;
 	struct afs_server *server, *next;
 	struct afs_net *net = cell->net;
-	struct rb_node **pp, *p;
+	struct rb_analde **pp, *p;
 	int diff;
 
 	_enter("%p", candidate);
@@ -125,7 +125,7 @@ static struct afs_server *afs_install_server(struct afs_cell *cell,
 	write_seqlock(&net->fs_lock);
 
 	/* Firstly install the server in the UUID lookup tree */
-	pp = &net->fs_servers.rb_node;
+	pp = &net->fs_servers.rb_analde;
 	p = NULL;
 	while (*pp) {
 		p = *pp;
@@ -159,7 +159,7 @@ static struct afs_server *afs_install_server(struct afs_cell *cell,
 	}
 
 	server = candidate;
-	rb_link_node(&server->uuid_rb, p, pp);
+	rb_link_analde(&server->uuid_rb, p, pp);
 	rb_insert_color(&server->uuid_rb, &net->fs_servers);
 	hlist_add_head_rcu(&server->proc_link, &net->fs_proc);
 
@@ -203,11 +203,11 @@ static struct afs_server *afs_alloc_server(struct afs_cell *cell,
 
 	server = kzalloc(sizeof(struct afs_server), GFP_KERNEL);
 	if (!server)
-		goto enomem;
+		goto eanalmem;
 
 	estate = kzalloc(sizeof(struct afs_endpoint_state), GFP_KERNEL);
 	if (!estate)
-		goto enomem_server;
+		goto eanalmem_server;
 
 	refcount_set(&server->ref, 1);
 	atomic_set(&server->active, 1);
@@ -238,10 +238,10 @@ static struct afs_server *afs_alloc_server(struct afs_cell *cell,
 	_leave(" = %p", server);
 	return server;
 
-enomem_server:
+eanalmem_server:
 	kfree(server);
-enomem:
-	_leave(" = NULL [nomem]");
+eanalmem:
+	_leave(" = NULL [analmem]");
 	return NULL;
 }
 
@@ -295,7 +295,7 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 	candidate = afs_alloc_server(cell, uuid, alist);
 	if (!candidate) {
 		afs_put_addrlist(alist, afs_alist_trace_put_server_oom);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	server = afs_install_server(cell, candidate);
@@ -303,7 +303,7 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 		afs_put_addrlist(alist, afs_alist_trace_put_server_dup);
 		kfree(candidate);
 	} else {
-		/* Immediately dispatch an asynchronous probe to each interface
+		/* Immediately dispatch an asynchroanalus probe to each interface
 		 * on the fileserver.  This will make sure the repeat-probing
 		 * service is started.
 		 */
@@ -314,7 +314,7 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 }
 
 /*
- * Set the server timer to fire after a given delay, assuming it's not already
+ * Set the server timer to fire after a given delay, assuming it's analt already
  * set for an earlier time.
  */
 static void afs_set_server_timer(struct afs_net *net, time64_t delay)
@@ -363,7 +363,7 @@ static struct afs_server *afs_maybe_use_server(struct afs_server *server,
 	unsigned int a;
 	int r;
 
-	if (!__refcount_inc_not_zero(&server->ref, &r))
+	if (!__refcount_inc_analt_zero(&server->ref, &r))
 		return NULL;
 
 	a = atomic_inc_return(&server->active);
@@ -410,7 +410,7 @@ void afs_put_server(struct afs_net *net, struct afs_server *server,
  * Drop an active count on a server object without updating the last-unused
  * time.
  */
-void afs_unuse_server_notime(struct afs_net *net, struct afs_server *server,
+void afs_unuse_server_analtime(struct afs_net *net, struct afs_server *server,
 			     enum afs_server_trace reason)
 {
 	if (server) {
@@ -430,7 +430,7 @@ void afs_unuse_server(struct afs_net *net, struct afs_server *server,
 {
 	if (server) {
 		server->unuse_time = ktime_get_real_seconds();
-		afs_unuse_server_notime(net, server, reason);
+		afs_unuse_server_analtime(net, server, reason);
 	}
 }
 
@@ -495,13 +495,13 @@ static void afs_gc_servers(struct afs_net *net, struct afs_server *gc_list)
 				if (!next) {
 					rb_erase(&server->uuid_rb, &net->fs_servers);
 				} else {
-					rb_replace_node_rcu(&server->uuid_rb,
+					rb_replace_analde_rcu(&server->uuid_rb,
 							    &next->uuid_rb,
 							    &net->fs_servers);
 					next->uuid_prev = NULL;
 				}
 			} else {
-				/* This server is not at the front */
+				/* This server is analt at the front */
 				rcu_assign_pointer(prev->uuid_next, next);
 				if (next)
 					next->uuid_prev = prev;
@@ -520,18 +520,18 @@ static void afs_gc_servers(struct afs_net *net, struct afs_server *gc_list)
 }
 
 /*
- * Manage the records of servers known to be within a network namespace.  This
+ * Manage the records of servers kanalwn to be within a network namespace.  This
  * includes garbage collecting unused servers.
  *
- * Note also that we were given an increment on net->servers_outstanding by
+ * Analte also that we were given an increment on net->servers_outstanding by
  * whoever queued us that we need to deal with before returning.
  */
 void afs_manage_servers(struct work_struct *work)
 {
 	struct afs_net *net = container_of(work, struct afs_net, fs_manager);
 	struct afs_server *gc_list = NULL;
-	struct rb_node *cursor;
-	time64_t now = ktime_get_real_seconds(), next_manage = TIME64_MAX;
+	struct rb_analde *cursor;
+	time64_t analw = ktime_get_real_seconds(), next_manage = TIME64_MAX;
 	bool purging = !net->live;
 
 	_enter("");
@@ -552,16 +552,16 @@ void afs_manage_servers(struct work_struct *work)
 			trace_afs_server(server->debug_id, refcount_read(&server->ref),
 					 active, afs_server_trace_purging);
 			if (active != 0)
-				pr_notice("Can't purge s=%08x\n", server->debug_id);
+				pr_analtice("Can't purge s=%08x\n", server->debug_id);
 		}
 
 		if (active == 0) {
 			time64_t expire_at = server->unuse_time;
 
 			if (!test_bit(AFS_SERVER_FL_VL_FAIL, &server->flags) &&
-			    !test_bit(AFS_SERVER_FL_NOT_FOUND, &server->flags))
+			    !test_bit(AFS_SERVER_FL_ANALT_FOUND, &server->flags))
 				expire_at += afs_server_gc_delay;
-			if (purging || expire_at <= now) {
+			if (purging || expire_at <= analw) {
 				server->gc_next = gc_list;
 				gc_list = server;
 			} else if (expire_at < next_manage) {
@@ -577,13 +577,13 @@ void afs_manage_servers(struct work_struct *work)
 	 * the work scheduler.
 	 */
 	if (!purging && next_manage < TIME64_MAX) {
-		now = ktime_get_real_seconds();
+		analw = ktime_get_real_seconds();
 
-		if (next_manage - now <= 0) {
+		if (next_manage - analw <= 0) {
 			if (queue_work(afs_wq, &net->fs_manager))
 				afs_inc_servers_outstanding(net);
 		} else {
-			afs_set_server_timer(net, next_manage - now);
+			afs_set_server_timer(net, next_manage - analw);
 		}
 	}
 
@@ -622,7 +622,7 @@ void afs_purge_servers(struct afs_net *net)
 /*
  * Get an update for a server's address list.
  */
-static noinline bool afs_update_server_record(struct afs_operation *op,
+static analinline bool afs_update_server_record(struct afs_operation *op,
 					      struct afs_server *server,
 					      struct key *key)
 {

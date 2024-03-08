@@ -24,7 +24,7 @@ int __init xe_hw_fence_module_init(void)
 					     sizeof(struct xe_hw_fence), 0,
 					     SLAB_HWCACHE_ALIGN, NULL);
 	if (!xe_hw_fence_slab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -129,7 +129,7 @@ void xe_hw_fence_ctx_init(struct xe_hw_fence_ctx *ctx, struct xe_gt *gt,
 	ctx->gt = gt;
 	ctx->irq = irq;
 	ctx->dma_fence_ctx = dma_fence_context_alloc(1);
-	ctx->next_seqno = XE_FENCE_INITIAL_SEQNO;
+	ctx->next_seqanal = XE_FENCE_INITIAL_SEQANAL;
 	sprintf(ctx->name, "%s", name);
 }
 
@@ -162,10 +162,10 @@ static bool xe_hw_fence_signaled(struct dma_fence *dma_fence)
 {
 	struct xe_hw_fence *fence = to_xe_hw_fence(dma_fence);
 	struct xe_device *xe = gt_to_xe(fence->ctx->gt);
-	u32 seqno = xe_map_rd(xe, &fence->seqno_map, 0, u32);
+	u32 seqanal = xe_map_rd(xe, &fence->seqanal_map, 0, u32);
 
 	return dma_fence->error ||
-		!__dma_fence_is_later(dma_fence->seqno, seqno, dma_fence->ops);
+		!__dma_fence_is_later(dma_fence->seqanal, seqanal, dma_fence->ops);
 }
 
 static bool xe_hw_fence_enable_signaling(struct dma_fence *dma_fence)
@@ -176,7 +176,7 @@ static bool xe_hw_fence_enable_signaling(struct dma_fence *dma_fence)
 	dma_fence_get(dma_fence);
 	list_add_tail(&fence->irq_link, &irq->pending);
 
-	/* SW completed (no HW IRQ) so kick handler to signal fence */
+	/* SW completed (anal HW IRQ) so kick handler to signal fence */
 	if (xe_hw_fence_signaled(dma_fence))
 		xe_hw_fence_irq_run(irq);
 
@@ -209,20 +209,20 @@ static struct xe_hw_fence *to_xe_hw_fence(struct dma_fence *fence)
 }
 
 struct xe_hw_fence *xe_hw_fence_create(struct xe_hw_fence_ctx *ctx,
-				       struct iosys_map seqno_map)
+				       struct iosys_map seqanal_map)
 {
 	struct xe_hw_fence *fence;
 
 	fence = fence_alloc();
 	if (!fence)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fence->ctx = ctx;
-	fence->seqno_map = seqno_map;
+	fence->seqanal_map = seqanal_map;
 	INIT_LIST_HEAD(&fence->irq_link);
 
 	dma_fence_init(&fence->dma, &xe_hw_fence_ops, &ctx->irq->lock,
-		       ctx->dma_fence_ctx, ctx->next_seqno++);
+		       ctx->dma_fence_ctx, ctx->next_seqanal++);
 
 	trace_xe_hw_fence_create(fence);
 

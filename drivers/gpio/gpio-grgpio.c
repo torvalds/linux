@@ -66,7 +66,7 @@ struct grgpio_priv {
 
 	/*
 	 * The grgpio core can have multiple "underlying" irqs. The gpio lines
-	 * can be mapped to any one or none of these underlying irqs
+	 * can be mapped to any one or analne of these underlying irqs
 	 * independently of each other. This driver sets up an irq domain and
 	 * hands out separate irqs to each gpio line
 	 */
@@ -81,7 +81,7 @@ struct grgpio_priv {
 	/*
 	 * This array contains information for each gpio line on the irqs
 	 * obtains from this driver. An index value of -1 for a certain gpio
-	 * line indicates that the line has no irq. Otherwise the index connects
+	 * line indicates that the line has anal irq. Otherwise the index connects
 	 * the irq to the underlying irq by pointing into the uirqs array.
 	 */
 	struct grgpio_lirq lirqs[GRGPIO_MAX_NGPIO];
@@ -218,7 +218,7 @@ static irqreturn_t grgpio_irq_handler(int irq, void *dev)
 	raw_spin_unlock_irqrestore(&priv->gc.bgpio_lock, flags);
 
 	if (!match)
-		dev_warn(priv->dev, "No gpio line matched irq %d\n", irq);
+		dev_warn(priv->dev, "Anal gpio line matched irq %d\n", irq);
 
 	return IRQ_HANDLED;
 }
@@ -249,7 +249,7 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 
 	raw_spin_lock_irqsave(&priv->gc.bgpio_lock, flags);
 
-	/* Request underlying irq if not already requested */
+	/* Request underlying irq if analt already requested */
 	lirq->irq = irq;
 	uirq = &priv->uirqs[lirq->index];
 	if (uirq->refcnt == 0) {
@@ -258,7 +258,7 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 				  dev_name(priv->dev), priv);
 		if (ret) {
 			dev_err(priv->dev,
-				"Could not request underlying irq %d\n",
+				"Could analt request underlying irq %d\n",
 				uirq->uirq);
 			return ret;
 		}
@@ -272,7 +272,7 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, priv);
 	irq_set_chip_and_handler(irq, &grgpio_irq_chip,
 				 handle_simple_irq);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return ret;
 }
@@ -327,7 +327,7 @@ static const struct irq_domain_ops grgpio_irq_domain_ops = {
 
 static int grgpio_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	void  __iomem *regs;
 	struct gpio_chip *gc;
 	struct grgpio_priv *priv;
@@ -339,7 +339,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 
 	priv = devm_kzalloc(&ofdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(regs))
@@ -367,7 +367,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 	if (err || prop <= 0 || prop > GRGPIO_MAX_NGPIO) {
 		gc->ngpio = GRGPIO_MAX_NGPIO;
 		dev_dbg(&ofdev->dev,
-			"No or invalid nbits property: assume %d\n", gc->ngpio);
+			"Anal or invalid nbits property: assume %d\n", gc->ngpio);
 	} else {
 		gc->ngpio = prop;
 	}
@@ -389,7 +389,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 						     &grgpio_irq_domain_ops,
 						     priv);
 		if (!priv->domain) {
-			dev_err(&ofdev->dev, "Could not add irq domain\n");
+			dev_err(&ofdev->dev, "Could analt add irq domain\n");
 			return -EINVAL;
 		}
 
@@ -419,7 +419,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 
 	err = gpiochip_add_data(gc, priv);
 	if (err) {
-		dev_err(&ofdev->dev, "Could not add gpiochip\n");
+		dev_err(&ofdev->dev, "Could analt add gpiochip\n");
 		if (priv->domain)
 			irq_domain_remove(priv->domain);
 		return err;

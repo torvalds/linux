@@ -37,9 +37,9 @@ switch_create()
 
 	ip link set dev "$swp1" master br0
 	ip link set dev "$swp2" master br0
-	# swp3 is used to add local MACs, so do not add it to the bridge yet.
+	# swp3 is used to add local MACs, so do analt add it to the bridge yet.
 
-	# swp2 is only used for replying when learning on swp1, its MAC should not be learned.
+	# swp2 is only used for replying when learning on swp1, its MAC should analt be learned.
 	ip link set dev "$swp2" type bridge_slave learning off
 
 	ip link set dev br0 up
@@ -111,7 +111,7 @@ fdb_get_n_mac()
 	local mac=${1}
 
 	bridge -j fdb show br br0 | \
-		jq "map(select(.mac == \"${mac}\" and (has(\"vlan\") | not))) | length"
+		jq "map(select(.mac == \"${mac}\" and (has(\"vlan\") | analt))) | length"
 }
 
 fdb_fill_learned()
@@ -142,7 +142,7 @@ fdb_add()
 			# Wait for a reply so we implicitly wait until after the forwarding
 			# code finished and the FDB entry was created.
 			PING_COUNT=1 ping_do "$h1" 192.0.2.2
-			check_err $? "Failed to ping another bridge port"
+			check_err $? "Failed to ping aanalther bridge port"
 			ip link set "$h1" addr "$H1_DEFAULT_MAC"
 			;;
 		local)
@@ -168,7 +168,7 @@ fdb_del()
 
 	case "$type" in
 		local)
-			ip link set "$swp3" nomaster
+			ip link set "$swp3" analmaster
 			;;
 		*)
 			bridge fdb del "$mac" dev "$swp1" master

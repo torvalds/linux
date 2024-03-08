@@ -7,7 +7,7 @@ drm/amd/display - Display Core (DC)
 AMD display engine is partially shared with other operating systems; for this
 reason, our Display Core Driver is divided into two pieces:
 
-1. **Display Core (DC)** contains the OS-agnostic components. Things like
+1. **Display Core (DC)** contains the OS-aganalstic components. Things like
    hardware programming and resource management are handled here.
 2. **Display Manager (DM)** contains the OS-dependent components. Hooks to the
    amdgpu base driver and DRM are implemented here.

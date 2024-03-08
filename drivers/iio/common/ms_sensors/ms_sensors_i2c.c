@@ -32,7 +32,7 @@ static const u16 ms_sensors_tp_conversion_time[] = { 500, 1100, 2100,
 #define MS_SENSORS_TP_P_CONVERSION_START	0x40
 #define MS_SENSORS_TP_ADC_READ			0x00
 
-#define MS_SENSORS_NO_READ_CMD			0xFF
+#define MS_SENSORS_ANAL_READ_CMD			0xFF
 
 /**
  * ms_sensors_reset() - Reset function
@@ -42,7 +42,7 @@ static const u16 ms_sensors_tp_conversion_time[] = { 500, 1100, 2100,
  *
  * Generic I2C reset function for Measurement Specialties devices.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int ms_sensors_reset(void *cli, u8 cmd, unsigned int delay)
 {
@@ -68,7 +68,7 @@ EXPORT_SYMBOL_NS(ms_sensors_reset, IIO_MEAS_SPEC_SENSORS);
  *
  * Generic i2c prom word read function for Measurement Specialties devices.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int ms_sensors_read_prom_word(void *cli, int cmd, u16 *word)
 {
@@ -99,7 +99,7 @@ EXPORT_SYMBOL_NS(ms_sensors_read_prom_word, IIO_MEAS_SPEC_SENSORS);
  * The function will issue conversion command, sleep appopriate delay, and
  * issue command to read ADC.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int ms_sensors_convert_and_read(void *cli, u8 conv, u8 rd,
 				unsigned int delay, u32 *adc)
@@ -115,7 +115,7 @@ int ms_sensors_convert_and_read(void *cli, u8 conv, u8 rd,
 	usleep_range(delay, delay + 1000);
 
 	/* Retrieve ADC value */
-	if (rd != MS_SENSORS_NO_READ_CMD)
+	if (rd != MS_SENSORS_ANAL_READ_CMD)
 		ret = i2c_smbus_read_i2c_block_data(client, rd, 3, (u8 *)&buf);
 	else
 		ret = i2c_master_recv(client, (u8 *)&buf, 3);
@@ -137,7 +137,7 @@ EXPORT_SYMBOL_NS(ms_sensors_convert_and_read, IIO_MEAS_SPEC_SENSORS);
  * @value:	input and CRC compare value
  *
  * Cyclic Redundancy Check function used in TSYS02D, HTU21, MS8607.
- * This function performs a x^8 + x^5 + x^4 + 1 polynomial CRC.
+ * This function performs a x^8 + x^5 + x^4 + 1 polyanalmial CRC.
  * The argument contains CRC value in LSB byte while the bytes 1 and 2
  * are used for CRC computation.
  *
@@ -145,7 +145,7 @@ EXPORT_SYMBOL_NS(ms_sensors_convert_and_read, IIO_MEAS_SPEC_SENSORS);
  */
 static bool ms_sensors_crc_valid(u32 value)
 {
-	u32 polynom = 0x988000;	/* x^8 + x^5 + x^4 + 1 */
+	u32 polyanalm = 0x988000;	/* x^8 + x^5 + x^4 + 1 */
 	u32 msb = 0x800000;
 	u32 mask = 0xFF8000;
 	u32 result = value & 0xFFFF00;
@@ -153,11 +153,11 @@ static bool ms_sensors_crc_valid(u32 value)
 
 	while (msb != 0x80) {
 		if (result & msb)
-			result = ((result ^ polynom) & mask)
+			result = ((result ^ polyanalm) & mask)
 				| (result & ~mask);
 		msb >>= 1;
 		mask >>= 1;
-		polynom >>= 1;
+		polyanalm >>= 1;
 	}
 
 	return result == crc;
@@ -180,7 +180,7 @@ static bool ms_sensors_crc_valid(u32 value)
  * The resulting serial number is following :
  *	[ SNA1, SNA0, SNB3, SNB2, SNB1, SNB0, SNC1, SNC0]
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int ms_sensors_read_serial(struct i2c_client *client, u64 *sn)
 {
@@ -218,7 +218,7 @@ int ms_sensors_read_serial(struct i2c_client *client, u64 *sn)
 
 	for (i = 0; i < 64; i += 16) {
 		if (!ms_sensors_crc_valid((rcv_val >> i) & 0xFFFF))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	*sn = (((rcv_val >> 32) & 0xFF000000) |
@@ -241,7 +241,7 @@ int ms_sensors_read_serial(struct i2c_client *client, u64 *sn)
 
 	for (i = 0; i < 48; i += 24) {
 		if (!ms_sensors_crc_valid((rcv_val >> i) & 0xFFFFFF))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	*sn |= (rcv_val & 0xFFFF00) << 40 | (rcv_val >> 32);
@@ -280,7 +280,7 @@ static int ms_sensors_read_config_reg(struct i2c_client *client,
  * provided when user space will set samp_freq channel.
  * This function is used for TSYS02D, HTU21 and MS8607 chipsets.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 ssize_t ms_sensors_write_resolution(struct ms_ht_dev *dev_data,
 				    u8 i)
@@ -310,7 +310,7 @@ EXPORT_SYMBOL_NS(ms_sensors_write_resolution, IIO_MEAS_SPEC_SENSORS);
  * return 1 if the device voltage is below 2.25V.
  * This function is used for TSYS02D, HTU21 and MS8607 chipsets.
  *
- * Return: length of sprintf on success, negative errno otherwise.
+ * Return: length of sprintf on success, negative erranal otherwise.
  */
 ssize_t ms_sensors_show_battery_low(struct ms_ht_dev *dev_data,
 				    char *buf)
@@ -337,7 +337,7 @@ EXPORT_SYMBOL_NS(ms_sensors_show_battery_low, IIO_MEAS_SPEC_SENSORS);
  * return 1 if the heater is enabled.
  * This function is used for HTU21 and MS8607 chipsets.
  *
- * Return: length of sprintf on success, negative errno otherwise.
+ * Return: length of sprintf on success, negative erranal otherwise.
  */
 ssize_t ms_sensors_show_heater(struct ms_ht_dev *dev_data,
 			       char *buf)
@@ -365,7 +365,7 @@ EXPORT_SYMBOL_NS(ms_sensors_show_heater, IIO_MEAS_SPEC_SENSORS);
  * to enable or disable heater.
  * This function is used for HTU21 and MS8607 chipsets.
  *
- * Return: length of buffer, negative errno otherwise.
+ * Return: length of buffer, negative erranal otherwise.
  */
 ssize_t ms_sensors_write_heater(struct ms_ht_dev *dev_data,
 				const char *buf, size_t len)
@@ -412,7 +412,7 @@ EXPORT_SYMBOL_NS(ms_sensors_write_heater, IIO_MEAS_SPEC_SENSORS);
  * check the CRC and compute the temperature value.
  * This function is used for TSYS02D, HTU21 and MS8607 chipsets.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int ms_sensors_ht_read_temperature(struct ms_ht_dev *dev_data,
 				   s32 *temperature)
@@ -425,7 +425,7 @@ int ms_sensors_ht_read_temperature(struct ms_ht_dev *dev_data,
 	delay = ms_sensors_ht_t_conversion_time[dev_data->res_index];
 	ret = ms_sensors_convert_and_read(dev_data->client,
 					  MS_SENSORS_HT_T_CONVERSION_START,
-					  MS_SENSORS_NO_READ_CMD,
+					  MS_SENSORS_ANAL_READ_CMD,
 					  delay, &adc);
 	mutex_unlock(&dev_data->lock);
 	if (ret)
@@ -434,7 +434,7 @@ int ms_sensors_ht_read_temperature(struct ms_ht_dev *dev_data,
 	if (!ms_sensors_crc_valid(adc)) {
 		dev_err(&dev_data->client->dev,
 			"Temperature read crc check error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Temperature algorithm */
@@ -453,7 +453,7 @@ EXPORT_SYMBOL_NS(ms_sensors_ht_read_temperature, IIO_MEAS_SPEC_SENSORS);
  * check the CRC and compute the temperature value.
  * This function is used for HTU21 and MS8607 chipsets.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int ms_sensors_ht_read_humidity(struct ms_ht_dev *dev_data,
 				u32 *humidity)
@@ -466,7 +466,7 @@ int ms_sensors_ht_read_humidity(struct ms_ht_dev *dev_data,
 	delay = ms_sensors_ht_h_conversion_time[dev_data->res_index];
 	ret = ms_sensors_convert_and_read(dev_data->client,
 					  MS_SENSORS_HT_H_CONVERSION_START,
-					  MS_SENSORS_NO_READ_CMD,
+					  MS_SENSORS_ANAL_READ_CMD,
 					  delay, &adc);
 	mutex_unlock(&dev_data->lock);
 	if (ret)
@@ -475,7 +475,7 @@ int ms_sensors_ht_read_humidity(struct ms_ht_dev *dev_data,
 	if (!ms_sensors_crc_valid(adc)) {
 		dev_err(&dev_data->client->dev,
 			"Humidity read crc check error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Humidity algorithm */
@@ -572,7 +572,7 @@ static bool ms_sensors_tp_crc_valid_128(u16 *prom)
  * This function will read prom coefficients and check CRC.
  * This function is used for MS5637 and MS8607 chipsets.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int ms_sensors_tp_read_prom(struct ms_tp_dev *dev_data)
 {
@@ -597,7 +597,7 @@ int ms_sensors_tp_read_prom(struct ms_tp_dev *dev_data)
 	if (!valid) {
 		dev_err(&dev_data->client->dev,
 			"Calibration coefficients crc check error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -613,7 +613,7 @@ EXPORT_SYMBOL_NS(ms_sensors_tp_read_prom, IIO_MEAS_SPEC_SENSORS);
  * This function will read ADC and compute pressure and temperature value.
  * This function is used for MS5637 and MS8607 chipsets.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int ms_sensors_read_temp_and_pressure(struct ms_tp_dev *dev_data,
 				      int *temperature,

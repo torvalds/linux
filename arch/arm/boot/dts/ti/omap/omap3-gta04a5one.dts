@@ -18,7 +18,7 @@
 			OMAP3_CORE1_IOPAD(0x207c, PIN_OUTPUT | MUX_MODE0)       /* gpmc_a2.gpmc_a2 */
 			OMAP3_CORE1_IOPAD(0x207e, PIN_OUTPUT | MUX_MODE0)       /* gpmc_a3.gpmc_a3 */
 
-			/* data lines, gpmc_d0..d7 not muxable according to TRM */
+			/* data lines, gpmc_d0..d7 analt muxable according to TRM */
 			OMAP3_CORE1_IOPAD(0x209e, PIN_INPUT | MUX_MODE0)        /* gpmc_d8.gpmc_d8 */
 			OMAP3_CORE1_IOPAD(0x20a0, PIN_INPUT | MUX_MODE0)        /* gpmc_d9.gpmc_d9 */
 			OMAP3_CORE1_IOPAD(0x20a2, PIN_INPUT | MUX_MODE0)        /* gpmc_d10.gpmc_d10 */
@@ -29,7 +29,7 @@
 			OMAP3_CORE1_IOPAD(0x20ac, PIN_INPUT | MUX_MODE0)        /* gpmc_d15.gpmc_d15 */
 
 			/*
-			 * gpmc_ncs0, gpmc_nadv_ale, gpmc_noe, gpmc_nwe, gpmc_wait0 not muxable
+			 * gpmc_ncs0, gpmc_nadv_ale, gpmc_anale, gpmc_nwe, gpmc_wait0 analt muxable
 			 * according to TRM. OneNAND seems to require PIN_INPUT on clock.
 			 */
 			OMAP3_CORE1_IOPAD(0x20b0, PIN_OUTPUT | MUX_MODE0)       /* gpmc_ncs1.gpmc_ncs1 */
@@ -45,7 +45,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gpmc_pins>;
 
-	/delete-node/ nand@0,0;
+	/delete-analde/ nand@0,0;
 
 	onenand@0,0 {
 

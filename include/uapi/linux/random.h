@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/linux/random.h
  *
@@ -47,11 +47,11 @@ struct rand_pool_info {
 /*
  * Flags for getrandom(2)
  *
- * GRND_NONBLOCK	Don't block and return EAGAIN instead
- * GRND_RANDOM		No effect
- * GRND_INSECURE	Return non-cryptographic random bytes
+ * GRND_ANALNBLOCK	Don't block and return EAGAIN instead
+ * GRND_RANDOM		Anal effect
+ * GRND_INSECURE	Return analn-cryptographic random bytes
  */
-#define GRND_NONBLOCK	0x0001
+#define GRND_ANALNBLOCK	0x0001
 #define GRND_RANDOM	0x0002
 #define GRND_INSECURE	0x0004
 

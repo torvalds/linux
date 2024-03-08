@@ -3,10 +3,10 @@
 /*
  * Base device tree that overlays will be applied against.
  *
- * Do not add any properties in node "/".
- * Do not add any nodes other than "/testcase-data-2" in node "/".
- * Do not add anything that would result in dtc creating node "/__fixups__".
- * dtc will create nodes "/__symbols__" and "/__local_fixups__".
+ * Do analt add any properties in analde "/".
+ * Do analt add any analdes other than "/testcase-data-2" in analde "/".
+ * Do analt add anything that would result in dtc creating analde "/__fixups__".
+ * dtc will create analdes "/__symbols__" and "/__local_fixups__".
  */
 
 / {

@@ -58,7 +58,7 @@ static int xdp_mem_id_cmp(struct rhashtable_compare_arg *arg,
 
 static const struct rhashtable_params mem_id_rht_params = {
 	.nelem_hint = 64,
-	.head_offset = offsetof(struct xdp_mem_allocator, node),
+	.head_offset = offsetof(struct xdp_mem_allocator, analde),
 	.key_offset  = offsetof(struct xdp_mem_allocator, mem.id),
 	.key_len = sizeof_field(struct xdp_mem_allocator, mem.id),
 	.max_size = MEM_ID_MAX,
@@ -84,7 +84,7 @@ static void mem_xa_remove(struct xdp_mem_allocator *xa)
 {
 	trace_mem_disconnect(xa);
 
-	if (!rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+	if (!rhashtable_remove_fast(mem_id_ht, &xa->analde, mem_id_rht_params))
 		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
 }
 
@@ -170,11 +170,11 @@ int __xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 {
 	if (!dev) {
 		WARN(1, "Missing net_device from driver");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (xdp_rxq->reg_state == REG_STATE_UNUSED) {
-		WARN(1, "Driver promised not to register this");
+		WARN(1, "Driver promised analt to register this");
 		return -EINVAL;
 	}
 
@@ -217,7 +217,7 @@ static int __mem_id_init_hash_table(void)
 
 	rht = kzalloc(sizeof(*rht), GFP_KERNEL);
 	if (!rht)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rhashtable_init(rht, &mem_id_rht_params);
 	if (ret < 0) {
@@ -225,7 +225,7 @@ static int __mem_id_init_hash_table(void)
 		return ret;
 	}
 	mem_id_ht = rht;
-	smp_mb(); /* mutex lock should provide enough pairing */
+	smp_mb(); /* mutex lock should provide eanalugh pairing */
 	mem_id_init = true;
 
 	return 0;
@@ -244,14 +244,14 @@ static int __mem_id_cyclic_get(gfp_t gfp)
 again:
 	id = ida_simple_get(&mem_id_pool, mem_id_next, MEM_ID_MAX, gfp);
 	if (id < 0) {
-		if (id == -ENOSPC) {
+		if (id == -EANALSPC) {
 			/* Cyclic allocator, reset next id */
 			if (retries--) {
 				mem_id_next = MEM_ID_MIN;
 				goto again;
 			}
 		}
-		return id; /* errno */
+		return id; /* erranal */
 	}
 	mem_id_next = id + 1;
 
@@ -275,11 +275,11 @@ static struct xdp_mem_allocator *__xdp_reg_mem_model(struct xdp_mem_info *mem,
 {
 	struct xdp_mem_allocator *xdp_alloc;
 	gfp_t gfp = GFP_KERNEL;
-	int id, errno, ret;
+	int id, erranal, ret;
 	void *ptr;
 
 	if (!__is_supported_mem_type(type))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mem->type = type;
 
@@ -302,12 +302,12 @@ static struct xdp_mem_allocator *__xdp_reg_mem_model(struct xdp_mem_info *mem,
 
 	xdp_alloc = kzalloc(sizeof(*xdp_alloc), gfp);
 	if (!xdp_alloc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&mem_id_lock);
 	id = __mem_id_cyclic_get(gfp);
 	if (id < 0) {
-		errno = id;
+		erranal = id;
 		goto err;
 	}
 	mem->id = id;
@@ -315,11 +315,11 @@ static struct xdp_mem_allocator *__xdp_reg_mem_model(struct xdp_mem_info *mem,
 	xdp_alloc->allocator = allocator;
 
 	/* Insert allocator into ID lookup table */
-	ptr = rhashtable_insert_slow(mem_id_ht, &id, &xdp_alloc->node);
+	ptr = rhashtable_insert_slow(mem_id_ht, &id, &xdp_alloc->analde);
 	if (IS_ERR(ptr)) {
 		ida_simple_remove(&mem_id_pool, mem->id);
 		mem->id = 0;
-		errno = PTR_ERR(ptr);
+		erranal = PTR_ERR(ptr);
 		goto err;
 	}
 
@@ -332,7 +332,7 @@ static struct xdp_mem_allocator *__xdp_reg_mem_model(struct xdp_mem_info *mem,
 err:
 	mutex_unlock(&mem_id_lock);
 	kfree(xdp_alloc);
-	return ERR_PTR(errno);
+	return ERR_PTR(erranal);
 }
 
 int xdp_reg_mem_model(struct xdp_mem_info *mem,
@@ -382,10 +382,10 @@ void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 	switch (mem->type) {
 	case MEM_TYPE_PAGE_POOL:
 		page = virt_to_head_page(data);
-		if (napi_direct && xdp_return_frame_no_direct())
+		if (napi_direct && xdp_return_frame_anal_direct())
 			napi_direct = false;
-		/* No need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
-		 * as mem->type knows this a page_pool page
+		/* Anal need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
+		 * as mem->type kanalws this a page_pool page
 		 */
 		page_pool_put_full_page(page->pp, page, napi_direct);
 		break;
@@ -401,7 +401,7 @@ void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		xsk_buff_free(xdp);
 		break;
 	default:
-		/* Not possible, checked in xdp_rxq_info_reg_mem_model() */
+		/* Analt possible, checked in xdp_rxq_info_reg_mem_model() */
 		WARN(1, "Incorrect XDP memory type (%d) usage", mem->type);
 		break;
 	}
@@ -463,7 +463,7 @@ void xdp_flush_frame_bulk(struct xdp_frame_bulk *bq)
 		return;
 
 	page_pool_put_page_bulk(xa->page_pool, bq->q, bq->count);
-	/* bq->xa is not cleared to save lookup, if mem.id same in next bulk */
+	/* bq->xa is analt cleared to save lookup, if mem.id same in next bulk */
 	bq->count = 0;
 }
 EXPORT_SYMBOL_GPL(xdp_flush_frame_bulk);
@@ -591,7 +591,7 @@ int xdp_alloc_skb_bulk(void **skbs, int n_skb, gfp_t gfp)
 {
 	n_skb = kmem_cache_alloc_bulk(skbuff_cache, gfp, n_skb, skbs);
 	if (unlikely(!n_skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -704,13 +704,13 @@ __bpf_kfunc_start_defs();
  * @timestamp: Return value pointer.
  *
  * Return:
- * * Returns 0 on success or ``-errno`` on error.
- * * ``-EOPNOTSUPP`` : means device driver does not implement kfunc
- * * ``-ENODATA``    : means no RX-timestamp available for this frame
+ * * Returns 0 on success or ``-erranal`` on error.
+ * * ``-EOPANALTSUPP`` : means device driver does analt implement kfunc
+ * * ``-EANALDATA``    : means anal RX-timestamp available for this frame
  */
 __bpf_kfunc int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -726,14 +726,14 @@ __bpf_kfunc int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx, u64 *tim
  * ``XDP_RSS_TYPE_L*``.
  *
  * Return:
- * * Returns 0 on success or ``-errno`` on error.
- * * ``-EOPNOTSUPP`` : means device driver doesn't implement kfunc
- * * ``-ENODATA``    : means no RX-hash available for this frame
+ * * Returns 0 on success or ``-erranal`` on error.
+ * * ``-EOPANALTSUPP`` : means device driver doesn't implement kfunc
+ * * ``-EANALDATA``    : means anal RX-hash available for this frame
  */
 __bpf_kfunc int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx, u32 *hash,
 					 enum xdp_rss_hash_type *rss_type)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -750,7 +750,7 @@ __bpf_kfunc int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx, u32 *hash,
  *
  * ``vlan_tci`` contains the remaining 16 bits of a VLAN tag.
  * Driver is expected to provide those in **host byte order (usually LE)**,
- * so the bpf program should not perform byte conversion.
+ * so the bpf program should analt perform byte conversion.
  * According to 802.1Q standard, *VLAN TCI (Tag control information)*
  * is a bit field that contains:
  * *VLAN identifier (VID)* that can be read with ``vlan_tci & 0xfff``,
@@ -759,14 +759,14 @@ __bpf_kfunc int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx, u32 *hash,
  * For detailed meaning of DEI and PCP, please refer to other sources.
  *
  * Return:
- * * Returns 0 on success or ``-errno`` on error.
- * * ``-EOPNOTSUPP`` : device driver doesn't implement kfunc
- * * ``-ENODATA``    : VLAN tag was not stripped or is not available
+ * * Returns 0 on success or ``-erranal`` on error.
+ * * ``-EOPANALTSUPP`` : device driver doesn't implement kfunc
+ * * ``-EANALDATA``    : VLAN tag was analt stripped or is analt available
  */
 __bpf_kfunc int bpf_xdp_metadata_rx_vlan_tag(const struct xdp_md *ctx,
 					     __be16 *vlan_proto, u16 *vlan_tci)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 __bpf_kfunc_end_defs();
@@ -813,7 +813,7 @@ void xdp_set_features_flag(struct net_device *dev, xdp_features_t val)
 	dev->xdp_features = val;
 
 	if (dev->reg_state == NETREG_REGISTERED)
-		call_netdevice_notifiers(NETDEV_XDP_FEAT_CHANGE, dev);
+		call_netdevice_analtifiers(NETDEV_XDP_FEAT_CHANGE, dev);
 }
 EXPORT_SYMBOL_GPL(xdp_set_features_flag);
 

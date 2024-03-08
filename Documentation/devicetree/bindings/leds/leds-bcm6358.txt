@@ -18,12 +18,12 @@ Optional properties:
   - brcm,clk-dat-low : Boolean, makes clock and data signals active low.
     Default : false
 
-Each LED is represented as a sub-node of the brcm,bcm6358-leds device.
+Each LED is represented as a sub-analde of the brcm,bcm6358-leds device.
 
-LED sub-node required properties:
+LED sub-analde required properties:
   - reg : LED pin number (only LEDs 0 to 31 are valid).
 
-LED sub-node optional properties:
+LED sub-analde optional properties:
   - label : see Documentation/devicetree/bindings/leds/common.txt
   - active-low : Boolean, makes LED active low.
     Default : false

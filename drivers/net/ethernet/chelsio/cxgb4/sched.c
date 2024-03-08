@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -61,7 +61,7 @@ static int t4_sched_class_fw_cmd(struct port_info *pi,
 				      p->u.params.burstsize);
 		break;
 	default:
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		break;
 	}
 
@@ -89,7 +89,7 @@ static int t4_sched_bind_unbind_op(struct port_info *pi, void *arg,
 		fw_mnem = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
 			   FW_PARAMS_PARAM_X_V(
 				   FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH));
-		fw_class = bind ? qe->param.class : FW_SCHED_CLS_NONE;
+		fw_class = bind ? qe->param.class : FW_SCHED_CLS_ANALNE;
 		fw_param = (fw_mnem | FW_PARAMS_PARAM_YZ_V(qe->cntxt_id));
 
 		pf = adap->pf;
@@ -104,13 +104,13 @@ static int t4_sched_bind_unbind_op(struct port_info *pi, void *arg,
 
 		fe = (struct sched_flowc_entry *)arg;
 
-		fw_class = bind ? fe->param.class : FW_SCHED_CLS_NONE;
+		fw_class = bind ? fe->param.class : FW_SCHED_CLS_ANALNE;
 		err = cxgb4_ethofld_send_flowc(adap->port[pi->port_id],
 					       fe->param.tid, fw_class);
 		break;
 	}
 	default:
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		break;
 	}
 
@@ -227,7 +227,7 @@ static int t4_sched_queue_bind(struct port_info *pi, struct ch_sched_queue *p)
 
 	qe = kvzalloc(sizeof(struct sched_queue_entry), GFP_KERNEL);
 	if (!qe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txq = &adap->sge.ethtxq[pi->first_qset + p->queue];
 	qid = txq->q.cntxt_id;
@@ -296,7 +296,7 @@ static int t4_sched_flowc_bind(struct port_info *pi, struct ch_sched_flowc *p)
 
 	fe = kvzalloc(sizeof(*fe), GFP_KERNEL);
 	if (!fe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Unbind flowc from any existing class */
 	err = t4_sched_flowc_unbind(pi, p);
@@ -376,7 +376,7 @@ static int t4_sched_class_bind_unbind_op(struct port_info *pi, void *arg,
 		break;
 	}
 	default:
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		break;
 	}
 
@@ -390,7 +390,7 @@ static int t4_sched_class_bind_unbind_op(struct port_info *pi, void *arg,
  * @type: Entity type (Queue)
  *
  * Binds an entity (queue) to a scheduling class.  If the entity
- * is bound to another class, it will be unbound from the other class
+ * is bound to aanalther class, it will be unbound from the other class
  * and bound to the class specified in @arg.
  */
 int cxgb4_sched_class_bind(struct net_device *dev, void *arg,
@@ -400,7 +400,7 @@ int cxgb4_sched_class_bind(struct net_device *dev, void *arg,
 	u8 class_id;
 
 	if (!can_sched(dev))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!arg)
 		return -EINVAL;
@@ -419,14 +419,14 @@ int cxgb4_sched_class_bind(struct net_device *dev, void *arg,
 		break;
 	}
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (!valid_class_id(dev, class_id))
 		return -EINVAL;
 
-	if (class_id == SCHED_CLS_NONE)
-		return -ENOTSUPP;
+	if (class_id == SCHED_CLS_ANALNE)
+		return -EANALTSUPP;
 
 	return t4_sched_class_bind_unbind_op(pi, arg, type, true);
 
@@ -447,7 +447,7 @@ int cxgb4_sched_class_unbind(struct net_device *dev, void *arg,
 	u8 class_id;
 
 	if (!can_sched(dev))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!arg)
 		return -EINVAL;
@@ -466,7 +466,7 @@ int cxgb4_sched_class_unbind(struct net_device *dev, void *arg,
 		break;
 	}
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (!valid_class_id(dev, class_id))
@@ -499,7 +499,7 @@ static struct sched_class *t4_sched_class_lookup(struct port_info *pi,
 
 		memcpy(&tp, p, sizeof(tp));
 		/* Don't try to match class parameter */
-		tp.u.params.class = SCHED_CLS_NONE;
+		tp.u.params.class = SCHED_CLS_ANALNE;
 
 		end = &s->tab[s->sched_size];
 		for (e = &s->tab[0]; e != end; ++e) {
@@ -508,7 +508,7 @@ static struct sched_class *t4_sched_class_lookup(struct port_info *pi,
 
 			memcpy(&info, &e->info, sizeof(info));
 			/* Don't try to match class parameter */
-			info.u.params.class = SCHED_CLS_NONE;
+			info.u.params.class = SCHED_CLS_ANALNE;
 
 			if ((info.type == tp.type) &&
 			    (!memcmp(&info.u.params, &tp.u.params,
@@ -537,7 +537,7 @@ static struct sched_class *t4_sched_class_alloc(struct port_info *pi,
 	/* Only accept search for existing class with matching params
 	 * or allocation of new class with specified params
 	 */
-	if (class_id != SCHED_CLS_NONE)
+	if (class_id != SCHED_CLS_ANALNE)
 		return NULL;
 
 	/* See if there's an exisiting class with same requested sched
@@ -600,7 +600,7 @@ struct sched_class *cxgb4_sched_class_alloc(struct net_device *dev,
  * @dev: net_device pointer
  * @classid: scheduling class id to free
  *
- * Frees a scheduling class if there are no users.
+ * Frees a scheduling class if there are anal users.
  */
 void cxgb4_sched_class_free(struct net_device *dev, u8 classid)
 {

@@ -4,12 +4,12 @@
  * Linux multisound pinnacle/fiji driver for ALSA.
  *
  * 2002/06/30 Karsten Wiese:
- *	for now this is only used to build a pinnacle / fiji driver.
+ *	for analw this is only used to build a pinnacle / fiji driver.
  *	the OSS parent of this code is designed to also support
  *	the multisound classic via the file msnd_classic.c.
  *	to make it easier for some brave heart to implemt classic
  *	support in alsa, i left all the MSND_CLASSIC tokens in this file.
- *	but for now this untested & undone.
+ *	but for analw this untested & undone.
  *
  * ripped from linux kernel 2.4.18 by Karsten Wiese.
  *
@@ -197,7 +197,7 @@ static int snd_msnd_reset_dsp(long io, unsigned char *info)
 			return 0;
 		msleep(1);
 	}
-	snd_printk(KERN_ERR LOGNAME ": Cannot reset DSP\n");
+	snd_printk(KERN_ERR LOGNAME ": Cananalt reset DSP\n");
 
 	return -EIO;
 }
@@ -214,12 +214,12 @@ static int snd_msnd_probe(struct snd_card *card)
 
 	if (!request_region(chip->io, DSP_NUMIO, "probing")) {
 		snd_printk(KERN_ERR LOGNAME ": I/O port conflict\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (snd_msnd_reset_dsp(chip->io, &info) < 0) {
 		release_region(chip->io, DSP_NUMIO);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 #ifdef MSND_CLASSIC
@@ -246,7 +246,7 @@ static int snd_msnd_probe(struct snd_card *card)
 		xv = "1.4";
 		break;
 	default:
-		xv = "unknown";
+		xv = "unkanalwn";
 		break;
 	}
 
@@ -389,7 +389,7 @@ static int upload_dsp_code(struct snd_card *card)
 	memcpy_toio(chip->mappedbase, perm_fw->data, perm_fw->size);
 	if (snd_msnd_upload_host(chip, init_fw->data, init_fw->size) < 0) {
 		printk(KERN_WARNING LOGNAME ": Error uploading to DSP\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto cleanup;
 	}
 	printk(KERN_INFO LOGNAME ": DSP firmware uploaded\n");
@@ -425,7 +425,7 @@ static int snd_msnd_initialize(struct snd_card *card)
 #endif
 	err = snd_msnd_init_sma(chip);
 	if (err < 0) {
-		printk(KERN_WARNING LOGNAME ": Cannot initialize SMA\n");
+		printk(KERN_WARNING LOGNAME ": Cananalt initialize SMA\n");
 		return err;
 	}
 
@@ -435,7 +435,7 @@ static int snd_msnd_initialize(struct snd_card *card)
 
 	err = upload_dsp_code(card);
 	if (err < 0) {
-		printk(KERN_WARNING LOGNAME ": Cannot upload DSP code\n");
+		printk(KERN_WARNING LOGNAME ": Cananalt upload DSP code\n");
 		return err;
 	}
 
@@ -855,7 +855,7 @@ static int snd_msnd_isa_probe(struct device *pdev, unsigned int idx)
 #endif
 	    ) {
 		printk(KERN_INFO LOGNAME ": Assuming PnP mode\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = snd_devm_card_new(pdev, index[idx], id[idx], THIS_MODULE,
@@ -897,7 +897,7 @@ static int snd_msnd_isa_probe(struct device *pdev, unsigned int idx)
 		chip->memid = HPMEM_E800; break;
 	}
 #else
-	printk(KERN_INFO LOGNAME ": Non-PnP mode: configuring at port 0x%lx\n",
+	printk(KERN_INFO LOGNAME ": Analn-PnP mode: configuring at port 0x%lx\n",
 			cfg[idx]);
 
 	if (!devm_request_region(card->dev, cfg[idx], 2,
@@ -1028,18 +1028,18 @@ static int snd_msnd_pnp_detect(struct pnp_card_link *pcard,
 			break;
 	}
 	if (idx >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Check that we still have room for another sound card ...
+	 * Check that we still have room for aanalther sound card ...
 	 */
 	pnp_dev = pnp_request_card_device(pcard, pid->devs[0].id, NULL);
 	if (!pnp_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mpu_dev = pnp_request_card_device(pcard, pid->devs[1].id, NULL);
 	if (!mpu_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!pnp_is_active(pnp_dev) && pnp_activate_dev(pnp_dev) < 0) {
 		printk(KERN_INFO "msnd_pinnacle: device is inactive\n");
@@ -1125,7 +1125,7 @@ static const struct pnp_card_device_id msnd_pnpids[] = {
 MODULE_DEVICE_TABLE(pnp_card, msnd_pnpids);
 
 static struct pnp_card_driver msnd_pnpc_driver = {
-	.flags = PNP_DRIVER_RES_DO_NOT_CHANGE,
+	.flags = PNP_DRIVER_RES_DO_ANALT_CHANGE,
 	.name = "msnd_pinnacle",
 	.id_table = msnd_pnpids,
 	.probe = snd_msnd_pnp_detect,

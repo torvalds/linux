@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,7 +33,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_vblank.h>
-#include "nouveau_connector.h"
+#include "analuveau_connector.h"
 
 void
 nv50_head_flush_clr(struct nv50_head *head,
@@ -78,7 +78,7 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_atomic_check_procamp(struct nv50_head_atom *armh,
 			       struct nv50_head_atom *asyh,
-			       struct nouveau_conn_atom *asyc)
+			       struct analuveau_conn_atom *asyc)
 {
 	const int vib = asyc->procamp.color_vibrance - 100;
 	const int hue = asyc->procamp.vibrant_hue - 90;
@@ -91,7 +91,7 @@ nv50_head_atomic_check_procamp(struct nv50_head_atom *armh,
 static void
 nv50_head_atomic_check_dither(struct nv50_head_atom *armh,
 			      struct nv50_head_atom *asyh,
-			      struct nouveau_conn_atom *asyc)
+			      struct analuveau_conn_atom *asyc)
 {
 	u32 mode = 0x00;
 
@@ -120,7 +120,7 @@ nv50_head_atomic_check_dither(struct nv50_head_atom *armh,
 static void
 nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 			    struct nv50_head_atom *asyh,
-			    struct nouveau_conn_atom *asyc)
+			    struct analuveau_conn_atom *asyc)
 {
 	struct drm_connector *connector = asyc->state.connector;
 	struct drm_display_mode *omode = &asyh->state.adjusted_mode;
@@ -135,15 +135,15 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 		edid = NULL;
 
 	if (!asyc->scaler.full) {
-		if (mode == DRM_MODE_SCALE_NONE)
+		if (mode == DRM_MODE_SCALE_ANALNE)
 			omode = umode;
 	} else {
-		/* Non-EDID LVDS/eDP mode. */
+		/* Analn-EDID LVDS/eDP mode. */
 		mode = DRM_MODE_SCALE_FULLSCREEN;
 	}
 
-	/* For the user-specified mode, we must ignore doublescan and
-	 * the like, but honor frame packing.
+	/* For the user-specified mode, we must iganalre doublescan and
+	 * the like, but hoanalr frame packing.
 	 */
 	umode_vdisplay = umode->vdisplay;
 	if ((umode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
@@ -182,7 +182,7 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 	 */
 	switch (mode) {
 	case DRM_MODE_SCALE_CENTER:
-		/* NOTE: This will cause scaling when the input is
+		/* ANALTE: This will cause scaling when the input is
 		 * larger than the output.
 		 */
 		asyh->view.oW = min(asyh->view.iW, asyh->view.oW);
@@ -228,7 +228,7 @@ nv50_head_atomic_check_lut(struct nv50_head *head,
 	struct drm_device *dev = head->base.base.dev;
 	struct drm_crtc *crtc = &head->base.base;
 	struct nv50_disp *disp = nv50_disp(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct drm_property_blob *olut = asyh->state.gamma_lut,
 				 *ilut = asyh->state.degamma_lut;
 	int size;
@@ -336,11 +336,11 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 									      crtc);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
+	struct analuveau_drm *drm = analuveau_drm(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_head_atom *armh = nv50_head_atom(old_crtc_state);
 	struct nv50_head_atom *asyh = nv50_head_atom(crtc_state);
-	struct nouveau_conn_atom *asyc = NULL;
+	struct analuveau_conn_atom *asyc = NULL;
 	struct drm_connector_state *conns;
 	struct drm_connector *conn;
 	int i, ret;
@@ -358,7 +358,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	if (asyh->state.active) {
 		for_each_new_connector_in_state(asyh->state.state, conn, conns, i) {
 			if (conns->crtc == crtc) {
-				asyc = nouveau_conn_atom(conns);
+				asyc = analuveau_conn_atom(conns);
 				break;
 			}
 		}
@@ -453,7 +453,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 static const struct drm_crtc_helper_funcs
 nv50_head_help = {
 	.atomic_check = nv50_head_atomic_check,
-	.get_scanout_position = nouveau_display_scanoutpos,
+	.get_scaanalut_position = analuveau_display_scaanalutpos,
 };
 
 static void
@@ -531,8 +531,8 @@ nv50_head_func = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = nv50_head_atomic_duplicate_state,
 	.atomic_destroy_state = nv50_head_atomic_destroy_state,
-	.enable_vblank = nouveau_display_vblank_enable,
-	.disable_vblank = nouveau_display_vblank_disable,
+	.enable_vblank = analuveau_display_vblank_enable,
+	.disable_vblank = analuveau_display_vblank_disable,
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
 	.late_register = nv50_head_late_register,
 };
@@ -545,8 +545,8 @@ nvd9_head_func = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = nv50_head_atomic_duplicate_state,
 	.atomic_destroy_state = nv50_head_atomic_destroy_state,
-	.enable_vblank = nouveau_display_vblank_enable,
-	.disable_vblank = nouveau_display_vblank_disable,
+	.enable_vblank = analuveau_display_vblank_enable,
+	.disable_vblank = analuveau_display_vblank_disable,
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
 	.verify_crc_source = nv50_crc_verify_source,
 	.get_crc_sources = nv50_crc_get_sources,
@@ -557,7 +557,7 @@ nvd9_head_func = {
 static int
 nv50_head_vblank_handler(struct nvif_event *event, void *repv, u32 repc)
 {
-	struct nouveau_crtc *nv_crtc = container_of(event, struct nouveau_crtc, vblank);
+	struct analuveau_crtc *nv_crtc = container_of(event, struct analuveau_crtc, vblank);
 
 	if (drm_crtc_handle_vblank(&nv_crtc->base))
 		nv50_crc_handle_vblank(nv50_head(&nv_crtc->base));
@@ -568,18 +568,18 @@ nv50_head_vblank_handler(struct nvif_event *event, void *repv, u32 repc)
 struct nv50_head *
 nv50_head_create(struct drm_device *dev, int index)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
 	struct nv50_wndw *base, *ovly, *curs;
-	struct nouveau_crtc *nv_crtc;
+	struct analuveau_crtc *nv_crtc;
 	struct drm_crtc *crtc;
 	const struct drm_crtc_funcs *funcs;
 	int ret;
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	head->func = disp->core->func->head;
 	head->base.index = index;

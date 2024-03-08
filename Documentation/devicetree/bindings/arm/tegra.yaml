@@ -11,7 +11,7 @@ maintainers:
   - Jonathan Hunter <jonathanh@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:
@@ -116,7 +116,7 @@ properties:
           - const: nvidia,tegra124
       - items:
           - enum:
-              - nvidia,norrin
+              - nvidia,analrrin
           - const: nvidia,tegra132
           - const: nvidia,tegra124
       - items:
@@ -181,11 +181,11 @@ properties:
           - const: nvidia,p3768-0000+p3767-0000
           - const: nvidia,p3767-0000
           - const: nvidia,tegra234
-      - description: Jetson Orin Nano
+      - description: Jetson Orin Naanal
         items:
           - const: nvidia,p3767-0005
           - const: nvidia,tegra234
-      - description: Jetson Orin Nano Developer Kit
+      - description: Jetson Orin Naanal Developer Kit
         items:
           - const: nvidia,p3768-0000+p3767-0005
           - const: nvidia,p3767-0005

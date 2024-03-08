@@ -30,7 +30,7 @@
  * @active_only:	True if it represents an Active only peer
  * @corner:		current corner
  * @active_corner:	current active corner
- * @enable_corner:	lowest non-zero corner
+ * @enable_corner:	lowest analn-zero corner
  * @level:		An array of level (vlvl) to corner (hlvl) mappings
  *			derived from cmd-db
  * @level_count:	Number of levels supported by the power domain. max
@@ -822,13 +822,13 @@ static int rpmhpd_update_level_mapping(struct rpmhpd *rpmhpd)
 	for (i = 0; i < rpmhpd->level_count; i++) {
 		rpmhpd->level[i] = buf[i];
 
-		/* Remember the first corner with non-zero level */
+		/* Remember the first corner with analn-zero level */
 		if (!rpmhpd->level[rpmhpd->enable_corner] && rpmhpd->level[i])
 			rpmhpd->enable_corner = i;
 
 		/*
 		 * The AUX data may be zero padded.  These 0 valued entries at
-		 * the end of the map must be ignored.
+		 * the end of the map must be iganalred.
 		 */
 		if (i > 0 && rpmhpd->level[i] == 0) {
 			rpmhpd->level_count = i;
@@ -859,12 +859,12 @@ static int rpmhpd_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->domains = devm_kcalloc(dev, num_pds, sizeof(*data->domains),
 				     GFP_KERNEL);
 	if (!data->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->num_domains = num_pds;
 
@@ -875,9 +875,9 @@ static int rpmhpd_probe(struct platform_device *pdev)
 		rpmhpds[i]->dev = dev;
 		rpmhpds[i]->addr = cmd_db_read_addr(rpmhpds[i]->res_name);
 		if (!rpmhpds[i]->addr) {
-			dev_err(dev, "Could not find RPMh address for resource %s\n",
+			dev_err(dev, "Could analt find RPMh address for resource %s\n",
 				rpmhpds[i]->res_name);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		ret = cmd_db_read_slave_id(rpmhpds[i]->res_name);
@@ -907,7 +907,7 @@ static int rpmhpd_probe(struct platform_device *pdev)
 					       &rpmhpds[i]->pd);
 	}
 
-	return of_genpd_add_provider_onecell(pdev->dev.of_node, data);
+	return of_genpd_add_provider_onecell(pdev->dev.of_analde, data);
 }
 
 static void rpmhpd_sync_state(struct device *dev)
@@ -954,5 +954,5 @@ static int __init rpmhpd_init(void)
 }
 core_initcall(rpmhpd_init);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPMh Power Domain Driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. RPMh Power Domain Driver");
 MODULE_LICENSE("GPL v2");

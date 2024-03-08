@@ -7,23 +7,23 @@ Supported chips:
 
     Prefix: 'f71808e'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
-    Datasheet: Not public
+    Datasheet: Analt public
 
   * Fintek F71808A
 
     Prefix: 'f71808a'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
-    Datasheet: Not public
+    Datasheet: Analt public
 
   * Fintek F71858FG
 
     Prefix: 'f71858fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -31,7 +31,7 @@ Supported chips:
 
     Prefix: 'f71862fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -39,7 +39,7 @@ Supported chips:
 
     Prefix: 'f71869'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -47,15 +47,15 @@ Supported chips:
 
     Prefix: 'f71869a'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
-    Datasheet: Not public
+    Datasheet: Analt public
 
   * Fintek F71882FG and F71883FG
 
     Prefix: 'f71882fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -63,7 +63,7 @@ Supported chips:
 
     Prefix: 'f71889fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -71,7 +71,7 @@ Supported chips:
 
     Prefix: 'f71889ed'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Should become available on the Fintek website soon
 
@@ -79,7 +79,7 @@ Supported chips:
 
     Prefix: 'f71889a'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Should become available on the Fintek website soon
 
@@ -87,19 +87,19 @@ Supported chips:
 
     Prefix: 'f8000'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
-    Datasheet: Not public
+    Datasheet: Analt public
 
   * Fintek F81801U
 
     Prefix: 'f71889fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
-    Datasheet: Not public
+    Datasheet: Analt public
 
-    Note:
+    Analte:
 	  This is the 64-pin variant of the F71889FG, they have the
 	  same device ID and are fully compatible as far as hardware
 	  monitoring is concerned.
@@ -108,7 +108,7 @@ Supported chips:
 
     Prefix: 'f81865f'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -125,7 +125,7 @@ sensors.
 These chips also have fan controlling features, using either DC or PWM, in
 three different modes (one manual, two automatic).
 
-The driver assumes that no more than one chip is present, which seems
+The driver assumes that anal more than one chip is present, which seems
 reasonable.
 
 
@@ -144,7 +144,7 @@ supported. The right one to use depends on external circuitry on the
 motherboard, so the driver assumes that the BIOS set the method
 properly.
 
-Note that the lowest numbered temperature zone trip point corresponds to
+Analte that the lowest numbered temperature zone trip point corresponds to
 the border between the highest and one but highest temperature zones, and
 vica versa. So the temperature zone trip points 1-4 (or 1-2) go from high temp
 to low temp! This is how things are implemented in the IC, and the driver
@@ -159,8 +159,8 @@ Since both modes work in a 0-100% (mapped to 0-255) scale, there isn't a
 whole lot of a difference when modifying fan control settings. The only
 important difference is that in RPM mode the 0-100% controls the fan speed
 between 0-100% of fan#_full_speed. It is assumed that if the BIOS programs
-RPM mode, it will also set fan#_full_speed properly, if it does not then
-fan control will not work properly, unless you set a sane fan#_full_speed
+RPM mode, it will also set fan#_full_speed properly, if it does analt then
+fan control will analt work properly, unless you set a sane fan#_full_speed
 value yourself.
 
 Switching between these modes requires re-initializing a whole bunch of
@@ -168,7 +168,7 @@ registers, so the mode which the BIOS has set is kept. The mode is
 printed when loading the driver.
 
 Three different fan control modes are supported; the mode number is written
-to the pwm#_enable file. Note that not all modes are supported on all
+to the pwm#_enable file. Analte that analt all modes are supported on all
 chips, and some modes may only be available in RPM / PWM mode.
 Writing an unsupported mode will result in an invalid parameter error.
 
@@ -177,7 +177,7 @@ Writing an unsupported mode will result in an invalid parameter error.
   fan#_full_speed by writing to the pwm# file. This mode is only
   available on the F71858FG / F8000 if the fan channel is in RPM mode.
 
-* 2: Normal auto mode
+* 2: Analrmal auto mode
   You can define a number of temperature/fan speed trip points, which % the
   fan should run at at this temp and which temp a fan should follow using the
   standard sysfs interface. The number and type of trip points is chip

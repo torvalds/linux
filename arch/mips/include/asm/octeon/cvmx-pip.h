@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -44,16 +44,16 @@
  * Encodes the different error and exception codes
  */
 typedef enum {
-	CVMX_PIP_L4_NO_ERR = 0ull,
+	CVMX_PIP_L4_ANAL_ERR = 0ull,
 	/*
-	 * 1 = TCP (UDP) packet not long enough to cover TCP (UDP)
+	 * 1 = TCP (UDP) packet analt long eanalugh to cover TCP (UDP)
 	 * header
 	 */
 	CVMX_PIP_L4_MAL_ERR = 1ull,
 	/* 2  = TCP/UDP checksum failure */
 	CVMX_PIP_CHK_ERR = 2ull,
 	/*
-	 * 3 = TCP/UDP length check (TCP/UDP length does not match IP
+	 * 3 = TCP/UDP length check (TCP/UDP length does analt match IP
 	 * length).
 	 */
 	CVMX_PIP_L4_LENGTH_ERR = 3ull,
@@ -75,14 +75,14 @@ typedef enum {
 
 typedef enum {
 
-	CVMX_PIP_IP_NO_ERR = 0ull,
-	/* 1 = not IPv4 or IPv6 */
-	CVMX_PIP_NOT_IP = 1ull,
+	CVMX_PIP_IP_ANAL_ERR = 0ull,
+	/* 1 = analt IPv4 or IPv6 */
+	CVMX_PIP_ANALT_IP = 1ull,
 	/* 2 = IPv4 header checksum violation */
 	CVMX_PIP_IPV4_HDR_CHK = 2ull,
-	/* 3 = malformed (packet not long enough to cover IP hdr) */
+	/* 3 = malformed (packet analt long eanalugh to cover IP hdr) */
 	CVMX_PIP_IP_MAL_HDR = 3ull,
-	/* 4 = malformed (packet not long enough to cover len in IP hdr) */
+	/* 4 = malformed (packet analt long eanalugh to cover len in IP hdr) */
 	CVMX_PIP_IP_MAL_PKT = 4ull,
 	/* 5 = TTL / hop count equal zero */
 	CVMX_PIP_TTL_HOP = 5ull,
@@ -91,17 +91,17 @@ typedef enum {
 } cvmx_pip_ip_exc_t;
 
 /**
- * NOTES
+ * ANALTES
  *	 late collision (data received before collision)
- *	      late collisions cannot be detected by the receiver
+ *	      late collisions cananalt be detected by the receiver
  *	      they would appear as JAM bits which would appear as bad FCS
  *	      or carrier extend error which is CVMX_PIP_EXTEND_ERR
  */
 typedef enum {
-	/* No error */
-	CVMX_PIP_RX_NO_ERR = 0ull,
+	/* Anal error */
+	CVMX_PIP_RX_ANAL_ERR = 0ull,
 	/* RGM+SPI 1 = partially received packet (buffering/bandwidth
-	 * not adequate) */
+	 * analt adequate) */
 	CVMX_PIP_PARTIAL_ERR = 1ull,
 	/* RGM+SPI 2 = receive packet too large and truncated */
 	CVMX_PIP_JABBER_ERR = 2ull,
@@ -113,7 +113,7 @@ typedef enum {
 	/* RGM+SPI 4 = max frame error (pkt len > max frame len) */
 	CVMX_PIP_OVER_ERR = 4ull,
 	/*
-	 * RGM 5 = nibble error (data not byte multiple - 100M and 10M
+	 * RGM 5 = nibble error (data analt byte multiple - 100M and 10M
 	 * only)
 	 */
 	CVMX_PIP_ALIGN_ERR = 5ull,
@@ -129,7 +129,7 @@ typedef enum {
 	/* RGM	   9 = Frame carrier extend error */
 	CVMX_PIP_EXTEND_ERR = 9ull,
 	/*
-	 * RGM 10 = length mismatch (len did not match len in L2
+	 * RGM 10 = length mismatch (len did analt match len in L2
 	 * length/type)
 	 */
 	CVMX_PIP_LENGTH_ERR = 10ull,
@@ -138,30 +138,30 @@ typedef enum {
 	/*     SPI 11 = DIP4 error */
 	CVMX_PIP_DIP_ERR = 11ull,
 	/*
-	 * RGM 12 = packet was not large enough to pass the skipper -
-	 * no inspection could occur.
+	 * RGM 12 = packet was analt large eanalugh to pass the skipper -
+	 * anal inspection could occur.
 	 */
 	CVMX_PIP_SKIP_ERR = 12ull,
 	/*
-	 * RGM 13 = studder error (data not repeated - 100M and 10M
+	 * RGM 13 = studder error (data analt repeated - 100M and 10M
 	 * only)
 	 */
 	CVMX_PIP_NIBBLE_ERR = 13ull,
 	/* RGM+SPI 16 = FCS error */
 	CVMX_PIP_PIP_FCS = 16L,
 	/*
-	 * RGM+SPI+PCI 17 = packet was not large enough to pass the
-	 * skipper - no inspection could occur.
+	 * RGM+SPI+PCI 17 = packet was analt large eanalugh to pass the
+	 * skipper - anal inspection could occur.
 	 */
 	CVMX_PIP_PIP_SKIP_ERR = 17L,
 	/*
-	 * RGM+SPI+PCI 18 = malformed l2 (packet not long enough to
+	 * RGM+SPI+PCI 18 = malformed l2 (packet analt long eanalugh to
 	 * cover L2 hdr).
 	 */
 	CVMX_PIP_PIP_L2_MAL_HDR = 18L
 	/*
-	 * NOTES: xx = late collision (data received before collision)
-	 *	 late collisions cannot be detected by the receiver
+	 * ANALTES: xx = late collision (data received before collision)
+	 *	 late collisions cananalt be detected by the receiver
 	 *	 they would appear as JAM bits which would appear as
 	 *	 bad FCS or carrier extend error which is
 	 *	 CVMX_PIP_EXTEND_ERR
@@ -192,13 +192,13 @@ typedef struct {
 	/* Number of packets processed by PIP */
 	uint32_t packets;
 	/*
-	 * Number of identified L2 multicast packets.	Does not
+	 * Number of identified L2 multicast packets.	Does analt
 	 * include broadcast packets.  Only includes packets whose
 	 * parse mode is SKIP_TO_L2
 	 */
 	uint32_t multicast_packets;
 	/*
-	 * Number of identified L2 broadcast packets.	Does not
+	 * Number of identified L2 broadcast packets.	Does analt
 	 * include multicast packets.  Only includes packets whose
 	 * parse mode is SKIP_TO_L2
 	 */
@@ -495,7 +495,7 @@ static inline void cvmx_pip_tag_mask_clear(uint64_t mask_index)
 
 /**
  * Sets a range of bits in the tag mask. The tag mask is used
- * when the cvmx_pip_port_tag_cfg_t tag_mode is non zero.
+ * when the cvmx_pip_port_tag_cfg_t tag_mode is analn zero.
  * There are four separate masks that can be configured.
  *
  * @mask_index: Which tag mask to modify (0..3)

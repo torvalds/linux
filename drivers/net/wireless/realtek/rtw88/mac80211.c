@@ -192,7 +192,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_STATION:
 		rtw_add_rsvd_page_sta(rtwdev, rtwvif);
-		net_type = RTW_NET_NO_LINK;
+		net_type = RTW_NET_ANAL_LINK;
 		bcn_ctrl = BIT_EN_BCN_FUNCTION;
 		break;
 	default:
@@ -236,7 +236,7 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 
 	eth_zero_addr(rtwvif->mac_addr);
 	config |= PORT_SET_MAC_ADDR;
-	rtwvif->net_type = RTW_NET_NO_LINK;
+	rtwvif->net_type = RTW_NET_ANAL_LINK;
 	config |= PORT_SET_NET_TYPE;
 	rtwvif->bcn_ctrl = 0;
 	config |= PORT_SET_BCN_CTRL;
@@ -312,7 +312,7 @@ static void rtw_ops_configure_filter(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
-/* Only have one group of EDCA parameters now */
+/* Only have one group of EDCA parameters analw */
 static const u32 ac_to_edca_param[IEEE80211_NUM_ACS] = {
 	[IEEE80211_AC_VO] = REG_EDCA_VO_PARAM,
 	[IEEE80211_AC_VI] = REG_EDCA_VI_PARAM,
@@ -378,12 +378,12 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		rtw_vif_assoc_changed(rtwvif, conf);
 		if (vif->cfg.assoc) {
-			rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_FINISH);
+			rtw_coex_connect_analtify(rtwdev, COEX_ASSOCIATE_FINISH);
 
 			rtw_fw_download_rsvd_page(rtwdev);
 			rtw_send_rsvd_page_h2c(rtwdev);
 			rtw_fw_default_port(rtwdev, rtwvif);
-			rtw_coex_media_status_notify(rtwdev, vif->cfg.assoc);
+			rtw_coex_media_status_analtify(rtwdev, vif->cfg.assoc);
 			if (rtw_bf_support)
 				rtw_bf_assoc(rtwdev, vif, conf);
 		} else {
@@ -568,9 +568,9 @@ static int rtw_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		/* suppress error messages */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	mutex_lock(&rtwdev->mutex);
@@ -585,7 +585,7 @@ static int rtw_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	if (hw_key_idx > sec->total_cam_num) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -640,7 +640,7 @@ static int rtw_ops_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -690,7 +690,7 @@ static void rtw_ops_mgd_prepare_tx(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 	rtw_leave_lps_deep(rtwdev);
-	rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_START);
+	rtw_coex_connect_analtify(rtwdev, COEX_ASSOCIATE_START);
 	rtw_chip_prepare_tx(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 }
@@ -792,7 +792,7 @@ static int rtw_ops_set_antenna(struct ieee80211_hw *hw,
 	int ret;
 
 	if (!chip->ops->set_antenna)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&rtwdev->mutex);
 	ret = chip->ops->set_antenna(rtwdev, tx_antenna, rx_antenna);

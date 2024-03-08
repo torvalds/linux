@@ -98,7 +98,7 @@ static inline void __write_host_tlbe(struct kvm_book3e_206_tlb_entry *stlbe,
  * Acquire a mas0 with victim hint, as if we just took a TLB miss.
  *
  * We don't care about the address we're searching for, other than that it's
- * in the right set and is not present in the TLB.  Using a zero PID and a
+ * in the right set and is analt present in the TLB.  Using a zero PID and a
  * userspace address means we don't have to set and then restore MAS5, or
  * calculate a proper MAS6 value.
  */
@@ -220,7 +220,7 @@ void inval_gtlbe_on_host(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 	if (tlbsel == 1 && ref->flags & E500_TLB_TLB0) {
 		/*
 		 * TLB1 entry is backed by 4k pages. This should happen
-		 * rarely and is not worth optimizing. Invalidate everything.
+		 * rarely and is analt worth optimizing. Invalidate everything.
 		 */
 		kvmppc_e500_tlbil_all(vcpu_e500);
 		ref->flags &= ~(E500_TLB_TLB0 | E500_TLB_VALID);
@@ -233,7 +233,7 @@ void inval_gtlbe_on_host(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 	if (ref->flags & E500_TLB_VALID)
 		kvmppc_e500_tlbil_one(vcpu_e500, gtlbe);
 
-	/* Mark the TLB as not backed by the host anymore */
+	/* Mark the TLB as analt backed by the host anymore */
 	ref->flags = 0;
 }
 
@@ -344,7 +344,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	/*
 	 * Translate guest physical to true physical, acquiring
-	 * a page reference if it is normal, non-reserved memory.
+	 * a page reference if it is analrmal, analn-reserved memory.
 	 *
 	 * gfn_to_memslot() must succeed because otherwise we wouldn't
 	 * have gotten this far.  Eventually we should just pass the slot
@@ -362,7 +362,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 		    (vma->vm_flags & VM_PFNMAP)) {
 			/*
 			 * This VMA is a physically contiguous region (e.g.
-			 * /dev/mem) that bypasses normal Linux page
+			 * /dev/mem) that bypasses analrmal Linux page
 			 * management.  Find the overlap between the
 			 * vma and the memslot.
 			 */
@@ -396,7 +396,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 			tsize = max(BOOK3E_PAGESZ_4K, tsize & ~1);
 
 			/*
-			 * Now find the largest tsize (up to what the guest
+			 * Analw find the largest tsize (up to what the guest
 			 * requested) that will cover gfn, stay within the
 			 * range, and for which gfn and pfn are mutually
 			 * aligned.
@@ -447,9 +447,9 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	if (likely(!pfnmap)) {
 		tsize_pages = 1UL << (tsize + 10 - PAGE_SHIFT);
 		pfn = gfn_to_pfn_memslot(slot, gfn);
-		if (is_error_noslot_pfn(pfn)) {
+		if (is_error_analslot_pfn(pfn)) {
 			if (printk_ratelimit())
-				pr_err("%s: real page not found for gfn %lx\n",
+				pr_err("%s: real page analt found for gfn %lx\n",
 				       __func__, (long)gfn);
 			return -EINVAL;
 		}
@@ -470,7 +470,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	/*
 	 * We are just looking at the wimg bits, so we don't
 	 * care much about the trans splitting bit.
-	 * We are holding kvm->mmu_lock so a notifier invalidate
+	 * We are holding kvm->mmu_lock so a analtifier invalidate
 	 * can't run hence pfn won't change.
 	 */
 	local_irq_save(flags);
@@ -484,7 +484,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 			local_irq_restore(flags);
 		} else {
 			local_irq_restore(flags);
-			pr_err_ratelimited("%s: pte not present: gfn %lx,pfn %lx\n",
+			pr_err_ratelimited("%s: pte analt present: gfn %lx,pfn %lx\n",
 					   __func__, (long)gfn, pfn);
 			ret = -EINVAL;
 			goto out;
@@ -501,13 +501,13 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 out:
 	spin_unlock(&kvm->mmu_lock);
 
-	/* Drop refcount on page, so that mmu notifiers can clear it */
+	/* Drop refcount on page, so that mmu analtifiers can clear it */
 	kvm_release_pfn_clean(pfn);
 
 	return ret;
 }
 
-/* XXX only map the one-one case, for now use TLB0 */
+/* XXX only map the one-one case, for analw use TLB0 */
 static int kvmppc_e500_tlb0_map(struct kvmppc_vcpu_e500 *vcpu_e500, int esel,
 				struct kvm_book3e_206_tlb_entry *stlbe)
 {
@@ -666,8 +666,8 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
 		return EMULATE_AGAIN;
 
 	/*
-	 * Another thread may rewrite the TLB entry in parallel, don't
-	 * execute from the address if the execute permission is not set
+	 * Aanalther thread may rewrite the TLB entry in parallel, don't
+	 * execute from the address if the execute permission is analt set
 	 */
 	pr = vcpu->arch.shared->msr & MSR_PR;
 	if (unlikely((pr && !(mas3 & MAS3_UX)) ||
@@ -698,7 +698,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
 
 	/* Guard against emulation from devices area */
 	if (unlikely(!page_is_ram(pfn))) {
-		pr_err_ratelimited("%s: Instruction emulation from non-RAM host address %08llx is not supported\n",
+		pr_err_ratelimited("%s: Instruction emulation from analn-RAM host address %08llx is analt supported\n",
 			 __func__, addr);
 		return EMULATE_AGAIN;
 	}
@@ -719,7 +719,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
 }
 #endif
 
-/************* MMU Notifiers *************/
+/************* MMU Analtifiers *************/
 
 static bool kvm_e500_mmu_unmap_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
@@ -767,8 +767,8 @@ int e500_mmu_host_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	 */
 	if (host_tlb_params[0].entries == 0 ||
 	    host_tlb_params[1].entries == 0) {
-		pr_err("%s: need to know host tlb size\n", __func__);
-		return -ENODEV;
+		pr_err("%s: need to kanalw host tlb size\n", __func__);
+		return -EANALDEV;
 	}
 
 	host_tlb_params[0].ways = (mfspr(SPRN_TLB0CFG) & TLBnCFG_ASSOC) >>
@@ -782,7 +782,7 @@ int e500_mmu_host_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 		pr_err("%s: bad tlb0 host config: %u entries %u ways\n",
 		       __func__, host_tlb_params[0].entries,
 		       host_tlb_params[0].ways);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	host_tlb_params[0].sets =

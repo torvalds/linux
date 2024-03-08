@@ -26,8 +26,8 @@ static void test_fail_cases(void)
 	if (!ASSERT_LT(fd, 0, "bpf_map_create bloom filter invalid max entries size"))
 		close(fd);
 
-	/* Bloom filter maps do not support BPF_F_NO_PREALLOC */
-	opts.map_flags = BPF_F_NO_PREALLOC;
+	/* Bloom filter maps do analt support BPF_F_ANAL_PREALLOC */
+	opts.map_flags = BPF_F_ANAL_PREALLOC;
 	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, sizeof(value), 100, &opts);
 	if (!ASSERT_LT(fd, 0, "bpf_map_create bloom filter invalid flags"))
 		close(fd);
@@ -46,7 +46,7 @@ static void test_fail_cases(void)
 	err = bpf_map_update_elem(fd, NULL, &value, BPF_F_LOCK);
 	ASSERT_EQ(err, -EINVAL, "bpf_map_update_elem bloom filter invalid flags");
 
-	err = bpf_map_update_elem(fd, NULL, &value, BPF_NOEXIST);
+	err = bpf_map_update_elem(fd, NULL, &value, BPF_ANALEXIST);
 	ASSERT_EQ(err, -EINVAL, "bpf_map_update_elem bloom filter invalid flags");
 
 	err = bpf_map_update_elem(fd, NULL, &value, 10000);
@@ -62,7 +62,7 @@ static void test_success_cases(void)
 	int fd, err;
 
 	/* Create a map */
-	opts.map_flags = BPF_F_ZERO_SEED | BPF_F_NUMA_NODE;
+	opts.map_flags = BPF_F_ZERO_SEED | BPF_F_NUMA_ANALDE;
 	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, sizeof(value), 100, &opts);
 	if (!ASSERT_GE(fd, 0, "bpf_map_create bloom filter success case"))
 		return;
@@ -157,7 +157,7 @@ static int setup_progs(struct bloom_filter_map **out_skel, __u32 **out_rand_vals
 	map_size = bpf_map__max_entries(skel->maps.map_random_data);
 	rand_vals = malloc(sizeof(*rand_vals) * map_size);
 	if (!rand_vals) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 

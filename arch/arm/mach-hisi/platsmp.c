@@ -55,29 +55,29 @@ static void __init hisi_enable_scu_a9(void)
 
 static void __init hi3xxx_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	u32 offset = 0;
 
 	hisi_enable_scu_a9();
 	if (!ctrl_base) {
-		np = of_find_compatible_node(NULL, NULL, "hisilicon,sysctrl");
+		np = of_find_compatible_analde(NULL, NULL, "hisilicon,sysctrl");
 		if (!np) {
-			pr_err("failed to find hisilicon,sysctrl node\n");
+			pr_err("failed to find hisilicon,sysctrl analde\n");
 			return;
 		}
 		ctrl_base = of_iomap(np, 0);
 		if (!ctrl_base) {
-			of_node_put(np);
+			of_analde_put(np);
 			pr_err("failed to map address\n");
 			return;
 		}
 		if (of_property_read_u32(np, "smp-offset", &offset) < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			pr_err("failed to find smp-offset property\n");
 			return;
 		}
 		ctrl_base += offset;
-		of_node_put(np);
+		of_analde_put(np);
 	}
 }
 
@@ -153,17 +153,17 @@ static int hip01_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	phys_addr_t jumpaddr;
 	unsigned int remap_reg_value = 0;
-	struct device_node *node;
+	struct device_analde *analde;
 
 
 	jumpaddr = __pa_symbol(secondary_startup);
 	hip01_set_boot_addr(HIP01_BOOT_ADDRESS, jumpaddr);
 
-	node = of_find_compatible_node(NULL, NULL, "hisilicon,hip01-sysctrl");
-	if (WARN_ON(!node))
+	analde = of_find_compatible_analde(NULL, NULL, "hisilicon,hip01-sysctrl");
+	if (WARN_ON(!analde))
 		return -1;
-	ctrl_base = of_iomap(node, 0);
-	of_node_put(node);
+	ctrl_base = of_iomap(analde, 0);
+	of_analde_put(analde);
 
 	/* set the secondary core boot from DDR */
 	remap_reg_value = readl_relaxed(ctrl_base + REG_SC_CTRL);

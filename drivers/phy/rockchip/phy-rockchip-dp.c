@@ -74,37 +74,37 @@ static const struct phy_ops rockchip_dp_phy_ops = {
 static int rockchip_dp_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct phy_provider *phy_provider;
 	struct rockchip_dp_phy *dp;
 	struct phy *phy;
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (!dev->parent || !dev->parent->of_node)
-		return -ENODEV;
+	if (!dev->parent || !dev->parent->of_analde)
+		return -EANALDEV;
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp->dev = dev;
 
 	dp->phy_24m = devm_clk_get(dev, "24m");
 	if (IS_ERR(dp->phy_24m)) {
-		dev_err(dev, "cannot get clock 24m\n");
+		dev_err(dev, "cananalt get clock 24m\n");
 		return PTR_ERR(dp->phy_24m);
 	}
 
 	ret = clk_set_rate(dp->phy_24m, 24000000);
 	if (ret < 0) {
-		dev_err(dp->dev, "cannot set clock phy_24m %d\n", ret);
+		dev_err(dp->dev, "cananalt set clock phy_24m %d\n", ret);
 		return ret;
 	}
 
-	dp->grf = syscon_node_to_regmap(dev->parent->of_node);
+	dp->grf = syscon_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(dp->grf)) {
 		dev_err(dev, "rk3288-dp needs the General Register Files syscon\n");
 		return PTR_ERR(dp->grf);
@@ -113,7 +113,7 @@ static int rockchip_dp_phy_probe(struct platform_device *pdev)
 	ret = regmap_write(dp->grf, GRF_SOC_CON12, GRF_EDP_REF_CLK_SEL_INTER |
 			   GRF_EDP_REF_CLK_SEL_INTER_HIWORD_MASK);
 	if (ret != 0) {
-		dev_err(dp->dev, "Could not config GRF edp ref clk: %d\n", ret);
+		dev_err(dp->dev, "Could analt config GRF edp ref clk: %d\n", ret);
 		return ret;
 	}
 

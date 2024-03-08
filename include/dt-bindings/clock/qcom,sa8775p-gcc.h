@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2023, Linaro Limited
  */
 
@@ -15,7 +15,7 @@
 #define GCC_GPLL5					4
 #define GCC_GPLL7					5
 #define GCC_GPLL9					6
-#define GCC_AGGRE_NOC_QUPV3_AXI_CLK			7
+#define GCC_AGGRE_ANALC_QUPV3_AXI_CLK			7
 #define GCC_AGGRE_UFS_CARD_AXI_CLK			8
 #define GCC_AGGRE_UFS_PHY_AXI_CLK			9
 #define GCC_AGGRE_USB2_PRIM_AXI_CLK			10
@@ -30,9 +30,9 @@
 #define GCC_CAMERA_SF_AXI_CLK				19
 #define GCC_CAMERA_THROTTLE_XO_CLK			20
 #define GCC_CAMERA_XO_CLK				21
-#define GCC_CFG_NOC_USB2_PRIM_AXI_CLK			22
-#define GCC_CFG_NOC_USB3_PRIM_AXI_CLK			23
-#define GCC_CFG_NOC_USB3_SEC_AXI_CLK			24
+#define GCC_CFG_ANALC_USB2_PRIM_AXI_CLK			22
+#define GCC_CFG_ANALC_USB3_PRIM_AXI_CLK			23
+#define GCC_CFG_ANALC_USB3_SEC_AXI_CLK			24
 #define GCC_DDRSS_GPU_AXI_CLK				25
 #define GCC_DISP1_AHB_CLK				26
 #define GCC_DISP1_HF_AXI_CLK				27
@@ -70,8 +70,8 @@
 #define GCC_GPU_CFG_AHB_CLK				59
 #define GCC_GPU_GPLL0_CLK_SRC				60
 #define GCC_GPU_GPLL0_DIV_CLK_SRC			61
-#define GCC_GPU_MEMNOC_GFX_CLK				62
-#define GCC_GPU_SNOC_DVM_GFX_CLK			63
+#define GCC_GPU_MEMANALC_GFX_CLK				62
+#define GCC_GPU_SANALC_DVM_GFX_CLK			63
 #define GCC_GPU_TCU_THROTTLE_AHB_CLK			64
 #define GCC_GPU_TCU_THROTTLE_CLK			65
 #define GCC_PCIE_0_AUX_CLK				66
@@ -268,14 +268,14 @@
 #define GCC_MMSS_BCR					6
 #define GCC_PCIE_0_BCR					7
 #define GCC_PCIE_0_LINK_DOWN_BCR			8
-#define GCC_PCIE_0_NOCSR_COM_PHY_BCR			9
+#define GCC_PCIE_0_ANALCSR_COM_PHY_BCR			9
 #define GCC_PCIE_0_PHY_BCR				10
-#define GCC_PCIE_0_PHY_NOCSR_COM_PHY_BCR		11
+#define GCC_PCIE_0_PHY_ANALCSR_COM_PHY_BCR		11
 #define GCC_PCIE_1_BCR					12
 #define GCC_PCIE_1_LINK_DOWN_BCR			13
-#define GCC_PCIE_1_NOCSR_COM_PHY_BCR			14
+#define GCC_PCIE_1_ANALCSR_COM_PHY_BCR			14
 #define GCC_PCIE_1_PHY_BCR				15
-#define GCC_PCIE_1_PHY_NOCSR_COM_PHY_BCR		16
+#define GCC_PCIE_1_PHY_ANALCSR_COM_PHY_BCR		16
 #define GCC_PDM_BCR					17
 #define GCC_QUPV3_WRAPPER_0_BCR				18
 #define GCC_QUPV3_WRAPPER_1_BCR				19

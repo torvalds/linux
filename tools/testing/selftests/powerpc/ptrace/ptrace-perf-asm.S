@@ -6,10 +6,10 @@
 .global same_watch_addr_trap
 
 FUNC_START(same_watch_addr_child)
-	nop
+	analp
 same_watch_addr_load:
 	ld 0,0(3)
-	nop
+	analp
 same_watch_addr_trap:
 	trap
 	blr
@@ -21,12 +21,12 @@ FUNC_END(same_watch_addr_child)
 .global perf_then_ptrace_trap
 
 FUNC_START(perf_then_ptrace_child)
-	nop
+	analp
 perf_then_ptrace_load1:
 	ld 0,0(3)
 perf_then_ptrace_load2:
 	ld 0,0(4)
-	nop
+	analp
 perf_then_ptrace_trap:
 	trap
 	blr

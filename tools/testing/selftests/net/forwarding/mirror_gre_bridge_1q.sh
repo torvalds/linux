@@ -81,7 +81,7 @@ cleanup()
 {
 	pre_cleanup
 
-	ip link set dev $swp3 nomaster
+	ip link set dev $swp3 analmaster
 	vlan_destroy $h3 555
 
 	mirror_gre_topo_destroy
@@ -124,7 +124,7 @@ tcflags="skip_hw"
 tests
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests

@@ -10,7 +10,7 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
@@ -91,7 +91,7 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode,
 	get_debugreg(d6, 6);
 	get_debugreg(d7, 7);
 
-	/* Only print out debug registers if they are in their non-default state. */
+	/* Only print out debug registers if they are in their analn-default state. */
 	if ((d0 == 0) && (d1 == 0) && (d2 == 0) && (d3 == 0) &&
 	    (d6 == DR6_RESERVED) && (d7 == 0x400))
 		return;
@@ -129,19 +129,19 @@ EXPORT_SYMBOL_GPL(start_thread);
  *
  * We fsave/fwait so that an exception goes off at the right time
  * (as a call from the fsave or fwait in effect) rather than to
- * the wrong process. Lazy FP saving no longer makes any sense
+ * the wrong process. Lazy FP saving anal longer makes any sense
  * with modern CPU's, and this simplifies a lot of things (SMP
  * and UP become the same).
  *
- * NOTE! We used to use the x86 hardware context switching. The
- * reason for not using it any more becomes apparent when you
- * try to recover gracefully from saved state that is no longer
+ * ANALTE! We used to use the x86 hardware context switching. The
+ * reason for analt using it any more becomes apparent when you
+ * try to recover gracefully from saved state that is anal longer
  * valid (stale segment register values in particular). With the
- * hardware task-switch, there is no way to fix up bad state in
+ * hardware task-switch, there is anal way to fix up bad state in
  * a reasonable manner.
  *
  * The fact that Intel documents the hardware task-switching to
- * be slow is a fairly red herring - this code is not noticeably
+ * be slow is a fairly red herring - this code is analt analticeably
  * faster. However, there _is_ some room for improvement here,
  * so the performance issues may eventually be a valid point.
  * More important, however, is the fact that this allows us much
@@ -151,7 +151,7 @@ EXPORT_SYMBOL_GPL(start_thread);
  * the task-switch, and shows up in ret_from_fork in entry.S,
  * for example.
  */
-__visible __notrace_funcgraph struct task_struct *
+__visible __analtrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,
@@ -165,13 +165,13 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		switch_fpu_prepare(prev_fpu, cpu);
 
 	/*
-	 * Save away %gs. No need to save %fs, as it was saved on the
-	 * stack on entry.  No need to save %es and %ds, as those are
+	 * Save away %gs. Anal need to save %fs, as it was saved on the
+	 * stack on entry.  Anal need to save %es and %ds, as those are
 	 * always kernel segments while inside the kernel.  Doing this
 	 * before setting the new TLS descriptors avoids the situation
-	 * where we temporarily have non-reloadable segments in %fs
+	 * where we temporarily have analn-reloadable segments in %fs
 	 * and %gs.  This could be an issue if the NMI handler ever
-	 * used %fs or %gs (it does not today), or if the kernel is
+	 * used %fs or %gs (it does analt today), or if the kernel is
 	 * running inside of a hypervisor layer.
 	 */
 	savesegment(gs, prev->gs);

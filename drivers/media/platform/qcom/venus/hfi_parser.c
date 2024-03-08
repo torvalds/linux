@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2018 Linaro Ltd.
  *
- * Author: Stanimir Varbanov <stanimir.varbanov@linaro.org>
+ * Author: Stanimir Varbaanalv <stanimir.varbaanalv@linaro.org>
  */
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -287,7 +287,7 @@ u32 hfi_parser(struct venus_core *core, struct venus_inst *inst, void *buf,
 
 	ret = hfi_platform_parser(core, inst);
 	if (!ret)
-		return HFI_ERR_NONE;
+		return HFI_ERR_ANALNE;
 
 	if (size % 4)
 		return HFI_ERR_SYS_INSUFFICIENT_RESOURCES;
@@ -338,5 +338,5 @@ u32 hfi_parser(struct venus_core *core, struct venus_inst *inst, void *buf,
 
 	parser_fini(inst, codecs, domain);
 
-	return HFI_ERR_NONE;
+	return HFI_ERR_ANALNE;
 }

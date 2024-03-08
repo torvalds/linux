@@ -100,7 +100,7 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 	iov = kcalloc(iovnum, sizeof(*iov), GFP_KERNEL);
 	if (!iov) {
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_MALLOC);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	iovnum = 0;
@@ -143,7 +143,7 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 			goto out;
 		}
 	}
-	/* else - no buffer to send */
+	/* else - anal buffer to send */
 
 	/* 3. setup iso_packet_descriptor */
 	if (urb_p->type == USB_ENDPOINT_XFER_ISOC) {
@@ -153,7 +153,7 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 		if (!iso_buffer) {
 			usbip_event_add(&udc->ud,
 					VUDC_EVENT_ERROR_MALLOC);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 

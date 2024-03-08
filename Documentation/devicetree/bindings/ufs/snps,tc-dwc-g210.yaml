@@ -4,12 +4,12 @@
 $id: http://devicetree.org/schemas/ufs/snps,tc-dwc-g210.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DesignWare Universal Flash Storage (UFS) Controller
+title: Syanalpsys DesignWare Universal Flash Storage (UFS) Controller
 
 maintainers:
   - Li Wei <liwei213@huawei.com>
 
-# Select only our matches, not all jedec,ufs
+# Select only our matches, analt all jedec,ufs
 select:
   properties:
     compatible:

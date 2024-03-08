@@ -19,7 +19,7 @@ int asihpi_hpi_release(struct file *file);
 long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 /* This is called from hpifunc.c functions, called by ALSA
- * (or other kernel process) In this case there is no file descriptor
+ * (or other kernel process) In this case there is anal file descriptor
  * available for the message cache code
  */
 void hpi_send_recv(struct hpi_message *phm, struct hpi_response *phr);

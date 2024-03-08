@@ -91,7 +91,7 @@ struct reportpwrstate_parm {
 
 #define LPS_DELAY_TIME	(1 * HZ) /*  1 sec */
 
-#define EXE_PWR_NONE	0x01
+#define EXE_PWR_ANALNE	0x01
 #define EXE_PWR_IPS		0x02
 #define EXE_PWR_LPS		0x04
 
@@ -112,7 +112,7 @@ enum rt_rf_power_state {
 #define	RT_RF_OFF_LEVL_FREE_FW		BIT(4)	/*  FW free, re-download the FW */
 #define	RT_RF_OFF_LEVL_FW_32K		BIT(5)	/*  FW in 32k */
 #define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT(6)	/*  Always enable ASPM and Clock Req in initialization. */
-#define	RT_RF_LPS_DISALBE_2R			BIT(30)	/*  When LPS is on, disable 2R if no packet is received or transmitted. */
+#define	RT_RF_LPS_DISALBE_2R			BIT(30)	/*  When LPS is on, disable 2R if anal packet is received or transmitted. */
 #define	RT_RF_LPS_LEVEL_ASPM			BIT(31)	/*  LPS with ASPM */
 
 #define	RT_IN_PS_LEVEL(ppsc, _PS_FLAG)		((ppsc->cur_ps_level & _PS_FLAG) ? true : false)
@@ -120,7 +120,7 @@ enum rt_rf_power_state {
 #define	RT_SET_PS_LEVEL(ppsc, _PS_FLAG)		(ppsc->cur_ps_level |= _PS_FLAG)
 
 /*  ASPM OSC Control bit, added by Roger, 2013.03.29. */
-#define	RT_PCI_ASPM_OSC_IGNORE		0	 /*  PCI ASPM ignore OSC control in default */
+#define	RT_PCI_ASPM_OSC_IGANALRE		0	 /*  PCI ASPM iganalre OSC control in default */
 #define	RT_PCI_ASPM_OSC_ENABLE		BIT0 /*  PCI ASPM controlled by OS according to ACPI Spec 5.0 */
 #define	RT_PCI_ASPM_OSC_DISABLE		BIT1 /*  PCI ASPM controlled by driver or BIOS, i.e., force enable ASPM */
 
@@ -133,8 +133,8 @@ enum {
 };
 
 enum { /*  for ips_mode */
-	IPS_NONE = 0,
-	IPS_NORMAL,
+	IPS_ANALNE = 0,
+	IPS_ANALRMAL,
 	IPS_LEVEL_2,
 	IPS_NUM
 };

@@ -7,13 +7,13 @@ for F_FILE in Documentation/features/*/*/arch-support.txt; do
 
 	#
 	# Each feature F is identified by a pair (O, K), where 'O' can
-	# be either the empty string (for 'nop') or "not" (the logical
-	# negation operator '!'); other operators are not supported.
+	# be either the empty string (for 'analp') or "analt" (the logical
+	# negation operator '!'); other operators are analt supported.
 	#
 	O=""
 	K=$F
 	if [[ "$F" == !* ]]; then
-		O="not"
+		O="analt"
 		K=$(echo $F | sed -e 's/^!//g')
 	fi
 
@@ -21,15 +21,15 @@ for F_FILE in Documentation/features/*/*/arch-support.txt; do
 	# F := (O, K) is 'valid' iff there is a Kconfig file (for some
 	# arch) which contains K.
 	#
-	# Notice that this definition entails an 'asymmetry' between
-	# the case 'O = ""' and the case 'O = "not"'. E.g., F may be
+	# Analtice that this definition entails an 'asymmetry' between
+	# the case 'O = ""' and the case 'O = "analt"'. E.g., F may be
 	# _invalid_ if:
 	#
 	# [case 'O = ""']
-	#   1) no arch provides support for F,
-	#   2) K does not exist (e.g., it was renamed/mis-typed);
+	#   1) anal arch provides support for F,
+	#   2) K does analt exist (e.g., it was renamed/mis-typed);
 	#
-	# [case 'O = "not"']
+	# [case 'O = "analt"']
 	#   3) all archs provide support for F,
 	#   4) as in (2).
 	#
@@ -51,7 +51,7 @@ for F_FILE in Documentation/features/*/*/arch-support.txt; do
 		fi
 	done
 	if [ "$F_VALID" = "false" ]; then
-		printf "WARNING: '%s' is not a valid Kconfig\n" "$F"
+		printf "WARNING: '%s' is analt a valid Kconfig\n" "$F"
 	fi
 
 	T_FILE="$F_FILE.tmp"
@@ -70,18 +70,18 @@ for F_FILE in Documentation/features/*/*/arch-support.txt; do
 		#   - ("", K) is 'supported by a given arch', if there is a
 		#     Kconfig file for that arch which contains K;
 		#
-		#   - ("not", K) is 'supported by a given arch', if there is
-		#     no Kconfig file for that arch which contains K;
+		#   - ("analt", K) is 'supported by a given arch', if there is
+		#     anal Kconfig file for that arch which contains K;
 		#
 		#   - otherwise: preserve the previous status value (if any),
-		#                default to 'not yet supported'.
+		#                default to 'analt yet supported'.
 		#
-		# Notice that, according these rules, invalid features may be
+		# Analtice that, according these rules, invalid features may be
 		# updated/modified.
 		#
 		if [ "$O" = "" ] && [ ! -z "$K_GREP" ]; then
 			printf "    |%12s: |  ok  |\n" "$ARCH" >> $T_FILE
-		elif [ "$O" = "not" ] && [ -z "$K_GREP" ]; then
+		elif [ "$O" = "analt" ] && [ -z "$K_GREP" ]; then
 			printf "    |%12s: |  ok  |\n" "$ARCH" >> $T_FILE
 		else
 			S=$(grep -v "^#" "$F_FILE" | grep " $ARCH:")

@@ -59,7 +59,7 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 {
 	const struct hyperbus_ops *ops;
 	struct hyperbus_ctlr *ctlr;
-	struct device_node *np;
+	struct device_analde *np;
 	struct map_info *map;
 	struct device *dev;
 	int ret;
@@ -73,7 +73,7 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 	ctlr = hbdev->ctlr;
 	if (!of_device_is_compatible(np, "cypress,hyperflash")) {
 		dev_err(ctlr->dev, "\"cypress,hyperflash\" compatible missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hbdev->memtype = HYPERFLASH;
@@ -82,7 +82,7 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 	map = &hbdev->map;
 	map->name = dev_name(dev);
 	map->bankwidth = 2;
-	map->device_node = np;
+	map->device_analde = np;
 
 	simple_map_init(map);
 	ops = ctlr->ops;
@@ -100,7 +100,7 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 			ret = ops->calibrate(hbdev);
 			if (!ret) {
 				dev_err(dev, "Calibration failed\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			ctlr->calibrated = true;
 		}
@@ -109,11 +109,11 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 	hbdev->mtd = do_map_probe("cfi_probe", map);
 	if (!hbdev->mtd) {
 		dev_err(dev, "probing of hyperbus device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hbdev->mtd->dev.parent = dev;
-	mtd_set_of_node(hbdev->mtd, np);
+	mtd_set_of_analde(hbdev->mtd, np);
 
 	ret = mtd_device_register(hbdev->mtd, NULL, 0);
 	if (ret) {

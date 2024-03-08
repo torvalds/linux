@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2013 - 2014 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beanalit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  *
  * This program is free software; you may redistribute it and/or modify
@@ -10,9 +10,9 @@
  * the Free Software Foundation; version 2 of the License.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -35,7 +35,7 @@ enum vpfe_ccdc_data_size {
 	VPFE_CCDC_DATA_8BITS,
 };
 
-/* enum for No of pixel per line to be avg. in Black Clamping*/
+/* enum for Anal of pixel per line to be avg. in Black Clamping*/
 enum vpfe_ccdc_sample_length {
 	VPFE_CCDC_SAMPLE_1PIXELS = 0,
 	VPFE_CCDC_SAMPLE_2PIXELS,
@@ -44,7 +44,7 @@ enum vpfe_ccdc_sample_length {
 	VPFE_CCDC_SAMPLE_16PIXELS,
 };
 
-/* enum for No of lines in Black Clamping */
+/* enum for Anal of lines in Black Clamping */
 enum vpfe_ccdc_sample_line {
 	VPFE_CCDC_SAMPLE_1LINES = 0,
 	VPFE_CCDC_SAMPLE_2LINES,

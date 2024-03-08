@@ -87,18 +87,18 @@ static struct clk_pll_table clk_cvbs_pll_table[] = {
 };
 
 /* pll clocks */
-static OWL_PLL_NO_PARENT(clk_core_pll,   "core_pll", CMU_COREPLL, 12000000, 9, 0, 8,  4, 174, NULL, CLK_IGNORE_UNUSED);
-static OWL_PLL_NO_PARENT(clk_dev_pll,    "dev_pll", CMU_DEVPLL,  6000000, 8, 0, 8, 8, 126, NULL, CLK_IGNORE_UNUSED);
-static OWL_PLL_NO_PARENT(clk_ddr_pll,    "ddr_pll", CMU_DDRPLL, 6000000, 8, 0, 8,  2,  180, NULL, CLK_IGNORE_UNUSED);
-static OWL_PLL_NO_PARENT(clk_nand_pll,   "nand_pll", CMU_NANDPLL,  6000000, 8, 0, 8,  2, 86, NULL, CLK_IGNORE_UNUSED);
-static OWL_PLL_NO_PARENT(clk_display_pll, "display_pll", CMU_DISPLAYPLL, 6000000, 8, 0, 8, 2, 140, NULL, CLK_IGNORE_UNUSED);
-static OWL_PLL_NO_PARENT(clk_cvbs_pll, "cvbs_pll", CMU_CVBSPLL, 0, 8, 0, 8, 27, 43, clk_cvbs_pll_table, CLK_IGNORE_UNUSED);
-static OWL_PLL_NO_PARENT(clk_audio_pll,  "audio_pll", CMU_AUDIOPLL, 0, 4, 0, 1, 0, 0, clk_audio_pll_table, CLK_IGNORE_UNUSED);
-static OWL_PLL_NO_PARENT(clk_ethernet_pll, "ethernet_pll", CMU_ETHERNETPLL, 500000000, 0, 0, 0, 0, 0, NULL, CLK_IGNORE_UNUSED);
+static OWL_PLL_ANAL_PARENT(clk_core_pll,   "core_pll", CMU_COREPLL, 12000000, 9, 0, 8,  4, 174, NULL, CLK_IGANALRE_UNUSED);
+static OWL_PLL_ANAL_PARENT(clk_dev_pll,    "dev_pll", CMU_DEVPLL,  6000000, 8, 0, 8, 8, 126, NULL, CLK_IGANALRE_UNUSED);
+static OWL_PLL_ANAL_PARENT(clk_ddr_pll,    "ddr_pll", CMU_DDRPLL, 6000000, 8, 0, 8,  2,  180, NULL, CLK_IGANALRE_UNUSED);
+static OWL_PLL_ANAL_PARENT(clk_nand_pll,   "nand_pll", CMU_NANDPLL,  6000000, 8, 0, 8,  2, 86, NULL, CLK_IGANALRE_UNUSED);
+static OWL_PLL_ANAL_PARENT(clk_display_pll, "display_pll", CMU_DISPLAYPLL, 6000000, 8, 0, 8, 2, 140, NULL, CLK_IGANALRE_UNUSED);
+static OWL_PLL_ANAL_PARENT(clk_cvbs_pll, "cvbs_pll", CMU_CVBSPLL, 0, 8, 0, 8, 27, 43, clk_cvbs_pll_table, CLK_IGANALRE_UNUSED);
+static OWL_PLL_ANAL_PARENT(clk_audio_pll,  "audio_pll", CMU_AUDIOPLL, 0, 4, 0, 1, 0, 0, clk_audio_pll_table, CLK_IGANALRE_UNUSED);
+static OWL_PLL_ANAL_PARENT(clk_ethernet_pll, "ethernet_pll", CMU_ETHERNETPLL, 500000000, 0, 0, 0, 0, 0, NULL, CLK_IGANALRE_UNUSED);
 
-static const char *cpu_clk_mux_p[] = {"losc", "hosc", "core_pll", "noc1_clk_div"};
+static const char *cpu_clk_mux_p[] = {"losc", "hosc", "core_pll", "analc1_clk_div"};
 static const char *dev_clk_p[] = { "hosc", "dev_pll"};
-static const char *noc_clk_mux_p[] = { "dev_clk", "display_pll", "nand_pll", "ddr_pll", "cvbs_pll"};
+static const char *analc_clk_mux_p[] = { "dev_clk", "display_pll", "nand_pll", "ddr_pll", "cvbs_pll"};
 
 static const char *csi_clk_mux_p[] = { "display_pll", "dev_clk"};
 static const char *de_clk_mux_p[] = { "display_pll", "dev_clk"};
@@ -115,9 +115,9 @@ static const char *sensor_clk_mux_p[] = { "hosc", "si"};
 /* mux clocks */
 static OWL_MUX(clk_cpu, "cpu_clk", cpu_clk_mux_p,  CMU_BUSCLK, 0, 2, CLK_SET_RATE_PARENT);
 static OWL_MUX(clk_dev, "dev_clk", dev_clk_p, CMU_DEVPLL, 12, 1, CLK_SET_RATE_PARENT);
-static OWL_MUX(clk_noc0_clk_mux, "noc0_clk_mux", noc_clk_mux_p, CMU_BUSCLK, 4, 3, CLK_SET_RATE_PARENT);
-static OWL_MUX(clk_noc1_clk_mux, "noc1_clk_mux", noc_clk_mux_p, CMU_BUSCLK1, 4, 3, CLK_SET_RATE_PARENT);
-static OWL_MUX(clk_hp_clk_mux, "hp_clk_mux", noc_clk_mux_p, CMU_BUSCLK1, 8, 3, CLK_SET_RATE_PARENT);
+static OWL_MUX(clk_analc0_clk_mux, "analc0_clk_mux", analc_clk_mux_p, CMU_BUSCLK, 4, 3, CLK_SET_RATE_PARENT);
+static OWL_MUX(clk_analc1_clk_mux, "analc1_clk_mux", analc_clk_mux_p, CMU_BUSCLK1, 4, 3, CLK_SET_RATE_PARENT);
+static OWL_MUX(clk_hp_clk_mux, "hp_clk_mux", analc_clk_mux_p, CMU_BUSCLK1, 8, 3, CLK_SET_RATE_PARENT);
 
 static struct clk_factor_table sd_factor_table[] = {
 	/* bit0 ~ 4 */
@@ -167,9 +167,9 @@ static struct clk_div_table rmii_div_table[] = {
 };
 
 /* divider clocks */
-static OWL_DIVIDER(clk_noc0, "noc0_clk", "noc0_clk_mux", CMU_BUSCLK, 16, 2, NULL, 0, 0);
-static OWL_DIVIDER(clk_noc1, "noc1_clk", "noc1_clk_mux", CMU_BUSCLK1, 16, 2, NULL, 0, 0);
-static OWL_DIVIDER(clk_noc1_clk_div, "noc1_clk_div", "noc1_clk", CMU_BUSCLK1, 20, 1, NULL, 0, 0);
+static OWL_DIVIDER(clk_analc0, "analc0_clk", "analc0_clk_mux", CMU_BUSCLK, 16, 2, NULL, 0, 0);
+static OWL_DIVIDER(clk_analc1, "analc1_clk", "analc1_clk_mux", CMU_BUSCLK1, 16, 2, NULL, 0, 0);
+static OWL_DIVIDER(clk_analc1_clk_div, "analc1_clk_div", "analc1_clk", CMU_BUSCLK1, 20, 1, NULL, 0, 0);
 static OWL_DIVIDER(clk_hp_clk_div, "hp_clk_div", "hp_clk_mux", CMU_BUSCLK1, 12, 2, NULL, 0, 0);
 static OWL_DIVIDER(clk_ahb, "ahb_clk", "hp_clk_div", CMU_BUSCLK1, 2, 2, NULL, 0, 0);
 static OWL_DIVIDER(clk_apb, "apb_clk", "ahb_clk", CMU_BUSCLK1, 14, 2, NULL, 0, 0);
@@ -194,13 +194,13 @@ static struct clk_factor_table hde_factor_table[] = {
 static OWL_GATE(clk_gpio, "gpio", "apb_clk", CMU_DEVCLKEN1, 25, 0, 0);
 static OWL_GATE(clk_dmac, "dmac", "hp_clk_div", CMU_DEVCLKEN0, 17, 0, 0);
 static OWL_GATE(clk_timer, "timer", "hosc", CMU_DEVCLKEN1, 22, 0, 0);
-static OWL_GATE_NO_PARENT(clk_dsi, "dsi_clk", CMU_DEVCLKEN0, 2, 0, 0);
-static OWL_GATE_NO_PARENT(clk_tvout, "tvout_clk", CMU_DEVCLKEN0, 3, 0, 0);
-static OWL_GATE_NO_PARENT(clk_hdmi_dev, "hdmi_dev", CMU_DEVCLKEN0, 5, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb3_480mpll0, "usb3_480mpll0", CMU_USBPLL, 3, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb3_480mphy0, "usb3_480mphy0", CMU_USBPLL, 2, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb3_5gphy, "usb3_5gphy", CMU_USBPLL, 1, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb3_cce, "usb3_cce", CMU_DEVCLKEN0, 25, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_dsi, "dsi_clk", CMU_DEVCLKEN0, 2, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_tvout, "tvout_clk", CMU_DEVCLKEN0, 3, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_hdmi_dev, "hdmi_dev", CMU_DEVCLKEN0, 5, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb3_480mpll0, "usb3_480mpll0", CMU_USBPLL, 3, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb3_480mphy0, "usb3_480mphy0", CMU_USBPLL, 2, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb3_5gphy, "usb3_5gphy", CMU_USBPLL, 1, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb3_cce, "usb3_cce", CMU_DEVCLKEN0, 25, 0, 0);
 static OWL_GATE(clk_i2c0, "i2c0", "hosc", CMU_DEVCLKEN1, 0, 0, 0);
 static OWL_GATE(clk_i2c1, "i2c1", "hosc", CMU_DEVCLKEN1, 1, 0, 0);
 static OWL_GATE(clk_i2c2, "i2c2", "hosc", CMU_DEVCLKEN1, 2, 0, 0);
@@ -209,13 +209,13 @@ static OWL_GATE(clk_spi0, "spi0", "ahb_clk", CMU_DEVCLKEN1, 4, 0, 0);
 static OWL_GATE(clk_spi1, "spi1", "ahb_clk", CMU_DEVCLKEN1, 5, 0, 0);
 static OWL_GATE(clk_spi2, "spi2", "ahb_clk", CMU_DEVCLKEN1, 6, 0, 0);
 static OWL_GATE(clk_spi3, "spi3", "ahb_clk", CMU_DEVCLKEN1, 7, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb2h0_pllen, "usbh0_pllen", CMU_USBPLL, 12, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb2h0_phy, "usbh0_phy", CMU_USBPLL, 10, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb2h0_cce, "usbh0_cce", CMU_DEVCLKEN0, 26, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb2h1_pllen, "usbh1_pllen", CMU_USBPLL, 13, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb2h1_phy, "usbh1_phy", CMU_USBPLL, 11, 0, 0);
-static OWL_GATE_NO_PARENT(clk_usb2h1_cce, "usbh1_cce", CMU_DEVCLKEN0, 27, 0, 0);
-static OWL_GATE_NO_PARENT(clk_irc_switch, "irc_switch", CMU_DEVCLKEN1, 15, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb2h0_pllen, "usbh0_pllen", CMU_USBPLL, 12, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb2h0_phy, "usbh0_phy", CMU_USBPLL, 10, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb2h0_cce, "usbh0_cce", CMU_DEVCLKEN0, 26, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb2h1_pllen, "usbh1_pllen", CMU_USBPLL, 13, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb2h1_phy, "usbh1_phy", CMU_USBPLL, 11, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_usb2h1_cce, "usbh1_cce", CMU_DEVCLKEN0, 27, 0, 0);
+static OWL_GATE_ANAL_PARENT(clk_irc_switch, "irc_switch", CMU_DEVCLKEN1, 15, 0, 0);
 
 /* composite clocks */
 
@@ -325,7 +325,7 @@ static OWL_COMP_DIV(clk_pwm0, "pwm0", pwm_clk_mux_p,
 			OWL_MUX_HW(CMU_PWM0CLK, 12, 1),
 			OWL_GATE_HW(CMU_DEVCLKEN1, 16, 0),
 			OWL_DIVIDER_HW(CMU_PWM0CLK, 0, 10, 0, NULL),
-			CLK_IGNORE_UNUSED);
+			CLK_IGANALRE_UNUSED);
 
 static OWL_COMP_DIV(clk_pwm1, "pwm1", pwm_clk_mux_p,
 			OWL_MUX_HW(CMU_PWM1CLK, 12, 1),
@@ -421,13 +421,13 @@ static struct owl_clk_common *s700_clks[] = {
 	&clk_ahb.common,
 	&clk_apb.common,
 	&clk_dmac.common,
-	&clk_noc0_clk_mux.common,
-	&clk_noc1_clk_mux.common,
+	&clk_analc0_clk_mux.common,
+	&clk_analc1_clk_mux.common,
 	&clk_hp_clk_mux.common,
 	&clk_hp_clk_div.common,
-	&clk_noc1_clk_div.common,
-	&clk_noc0.common,
-	&clk_noc1.common,
+	&clk_analc1_clk_div.common,
+	&clk_analc0.common,
+	&clk_analc1.common,
 	&clk_sensor_src.common,
 	&clk_gpio.common,
 	&clk_timer.common,
@@ -504,14 +504,14 @@ static struct clk_hw_onecell_data s700_hw_clks = {
 			[CLK_AHB]				= &clk_ahb.common.hw,
 			[CLK_APB]				= &clk_apb.common.hw,
 			[CLK_DMAC]				= &clk_dmac.common.hw,
-			[CLK_NOC0_CLK_MUX]			= &clk_noc0_clk_mux.common.hw,
-			[CLK_NOC1_CLK_MUX]			= &clk_noc1_clk_mux.common.hw,
+			[CLK_ANALC0_CLK_MUX]			= &clk_analc0_clk_mux.common.hw,
+			[CLK_ANALC1_CLK_MUX]			= &clk_analc1_clk_mux.common.hw,
 			[CLK_HP_CLK_MUX]			= &clk_hp_clk_mux.common.hw,
 			[CLK_HP_CLK_DIV]			= &clk_hp_clk_div.common.hw,
-			[CLK_NOC1_CLK_DIV]			= &clk_noc1_clk_div.common.hw,
-			[CLK_NOC0]				= &clk_noc0.common.hw,
-			[CLK_NOC1]				= &clk_noc1.common.hw,
-			[CLK_SENOR_SRC]				= &clk_sensor_src.common.hw,
+			[CLK_ANALC1_CLK_DIV]			= &clk_analc1_clk_div.common.hw,
+			[CLK_ANALC0]				= &clk_analc0.common.hw,
+			[CLK_ANALC1]				= &clk_analc1.common.hw,
+			[CLK_SEANALR_SRC]				= &clk_sensor_src.common.hw,
 			[CLK_GPIO]				= &clk_gpio.common.hw,
 			[CLK_TIMER]				= &clk_timer.common.hw,
 			[CLK_DSI]				= &clk_dsi.common.hw,
@@ -625,9 +625,9 @@ static int s700_clk_probe(struct platform_device *pdev)
 	 */
 	reset = devm_kzalloc(&pdev->dev, sizeof(*reset), GFP_KERNEL);
 	if (!reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	reset->rcdev.of_node = pdev->dev.of_node;
+	reset->rcdev.of_analde = pdev->dev.of_analde;
 	reset->rcdev.ops = &owl_reset_ops;
 	reset->rcdev.nr_resets = desc->num_resets;
 	reset->reset_map = desc->resets;

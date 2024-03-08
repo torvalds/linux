@@ -25,9 +25,9 @@ SYM_FUNC_START(cmpxchg8b_emu)
 	cli
 
 	cmpl	0(%esi), %eax
-	jne	.Lnot_same
+	jne	.Lanalt_same
 	cmpl	4(%esi), %edx
-	jne	.Lnot_same
+	jne	.Lanalt_same
 
 	movl	%ebx, 0(%esi)
 	movl	%ecx, 4(%esi)
@@ -37,7 +37,7 @@ SYM_FUNC_START(cmpxchg8b_emu)
 	popfl
 	RET
 
-.Lnot_same:
+.Lanalt_same:
 	movl	0(%esi), %eax
 	movl	4(%esi), %edx
 
@@ -59,9 +59,9 @@ SYM_FUNC_START(this_cpu_cmpxchg8b_emu)
 	cli
 
 	cmpl	PER_CPU_VAR(0(%esi)), %eax
-	jne	.Lnot_same2
+	jne	.Lanalt_same2
 	cmpl	PER_CPU_VAR(4(%esi)), %edx
-	jne	.Lnot_same2
+	jne	.Lanalt_same2
 
 	movl	%ebx, PER_CPU_VAR(0(%esi))
 	movl	%ecx, PER_CPU_VAR(4(%esi))
@@ -71,7 +71,7 @@ SYM_FUNC_START(this_cpu_cmpxchg8b_emu)
 	popfl
 	RET
 
-.Lnot_same2:
+.Lanalt_same2:
 	movl	PER_CPU_VAR(0(%esi)), %eax
 	movl	PER_CPU_VAR(4(%esi)), %edx
 

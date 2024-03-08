@@ -11,7 +11,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -28,7 +28,7 @@
 #define SCLP_HEADER		"sclp: "
 
 struct sclp_trace_entry {
-	char id[4] __nonstring;
+	char id[4] __analnstring;
 	u32 a;
 	u64 b;
 };
@@ -89,11 +89,11 @@ static inline void sclp_trace(int prio, char *id, u32 a, u64 b, bool err)
 		debug_event(&sclp_debug_err, 0, &e, sizeof(e));
 }
 
-static inline int no_zeroes_len(void *data, int len)
+static inline int anal_zeroes_len(void *data, int len)
 {
 	char *d = data;
 
-	/* Minimize trace area usage by not tracing trailing zeroes. */
+	/* Minimize trace area usage by analt tracing trailing zeroes. */
 	while (len > SCLP_TRACE_ENTRY_SIZE && d[len - 1] == 0)
 		len--;
 
@@ -102,9 +102,9 @@ static inline int no_zeroes_len(void *data, int len)
 
 static inline void sclp_trace_bin(int prio, void *d, int len, int errlen)
 {
-	debug_event(&sclp_debug, prio, d, no_zeroes_len(d, len));
+	debug_event(&sclp_debug, prio, d, anal_zeroes_len(d, len));
 	if (errlen)
-		debug_event(&sclp_debug_err, 0, d, no_zeroes_len(d, errlen));
+		debug_event(&sclp_debug_err, 0, d, anal_zeroes_len(d, errlen));
 }
 
 static inline int abbrev_len(sclp_cmdw_t cmd, struct sccb_header *sccb)
@@ -273,7 +273,7 @@ static void sclp_request_timeout_restart(struct timer_list *unused)
 	sclp_request_timeout(true);
 }
 
-static void sclp_request_timeout_normal(struct timer_list *unused)
+static void sclp_request_timeout_analrmal(struct timer_list *unused)
 {
 	sclp_request_timeout(false);
 }
@@ -290,14 +290,14 @@ static void sclp_request_timeout(bool force_restart)
 	spin_lock_irqsave(&sclp_lock, flags);
 	if (force_restart) {
 		if (sclp_running_state == sclp_running_state_running) {
-			/* Break running state and queue NOP read event request
+			/* Break running state and queue ANALP read event request
 			 * to get a defined interface state. */
 			__sclp_queue_read_req();
 			sclp_running_state = sclp_running_state_idle;
 		}
 	} else {
 		__sclp_set_request_timer(SCLP_BUSY_INTERVAL * HZ,
-					 sclp_request_timeout_normal);
+					 sclp_request_timeout_analrmal);
 	}
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	sclp_process_queue();
@@ -327,16 +327,16 @@ static unsigned long __sclp_req_queue_find_next_timeout(void)
  */
 static struct sclp_req *__sclp_req_queue_remove_expired_req(void)
 {
-	unsigned long flags, now;
+	unsigned long flags, analw;
 	struct sclp_req *req;
 
 	spin_lock_irqsave(&sclp_lock, flags);
-	now = jiffies;
+	analw = jiffies;
 	/* Don't need list_for_each_safe because we break out after list_del */
 	list_for_each_entry(req, &sclp_req_queue, list) {
 		if (!req->queue_expires)
 			continue;
-		if (time_before_eq(req->queue_expires, now)) {
+		if (time_before_eq(req->queue_expires, analw)) {
 			if (req->status == SCLP_REQ_QUEUED) {
 				req->status = SCLP_REQ_QUEUED_TIMEOUT;
 				list_del(&req->list);
@@ -399,7 +399,7 @@ static int sclp_service_call_trace(sclp_cmdw_t command, void *sccb)
 }
 
 /* Try to start a request. Return zero if the request was successfully
- * started or if it will be started at a later time. Return non-zero otherwise.
+ * started or if it will be started at a later time. Return analn-zero otherwise.
  * Called while sclp_lock is locked. */
 static int
 __sclp_start_request(struct sclp_req *req)
@@ -422,7 +422,7 @@ __sclp_start_request(struct sclp_req *req)
 	} else if (rc == -EBUSY) {
 		/* Try again later */
 		__sclp_set_request_timer(SCLP_BUSY_INTERVAL * HZ,
-					 sclp_request_timeout_normal);
+					 sclp_request_timeout_analrmal);
 		return 0;
 	}
 	/* Request failed */
@@ -451,10 +451,10 @@ sclp_process_queue(void)
 			break;
 		/* Request failed */
 		if (req->start_count > 1) {
-			/* Cannot abort already submitted request - could still
+			/* Cananalt abort already submitted request - could still
 			 * be active at the SCLP */
 			__sclp_set_request_timer(SCLP_BUSY_INTERVAL * HZ,
-						 sclp_request_timeout_normal);
+						 sclp_request_timeout_analrmal);
 			break;
 		}
 		/* Post-processing for aborted request */
@@ -483,7 +483,7 @@ static int __sclp_can_add_request(struct sclp_req *req)
 	return 1;
 }
 
-/* Queue a new request. Return zero on success, non-zero otherwise. */
+/* Queue a new request. Return zero on success, analn-zero otherwise. */
 int
 sclp_add_request(struct sclp_req *req)
 {
@@ -524,7 +524,7 @@ sclp_add_request(struct sclp_req *req)
 EXPORT_SYMBOL(sclp_add_request);
 
 /* Dispatch events found in request buffer to registered listeners. Return 0
- * if all events were dispatched, non-zero otherwise. */
+ * if all events were dispatched, analn-zero otherwise. */
 static int
 sclp_dispatch_evbufs(struct sccb_header *sccb)
 {
@@ -562,7 +562,7 @@ sclp_dispatch_evbufs(struct sccb_header *sccb)
 			reg->receiver_fn(evbuf);
 			spin_lock_irqsave(&sclp_lock, flags);
 		} else if (reg == NULL)
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 	}
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	return rc;
@@ -700,8 +700,8 @@ sclp_tod_from_jiffies(unsigned long jiffies)
 	return (u64) (jiffies / HZ) << 32;
 }
 
-/* Wait until a currently running request finished. Note: while this function
- * is running, no timers are served on the calling CPU. */
+/* Wait until a currently running request finished. Analte: while this function
+ * is running, anal timers are served on the calling CPU. */
 void
 sclp_sync_wait(void)
 {
@@ -712,7 +712,7 @@ sclp_sync_wait(void)
 	u64 timeout;
 	int irq_context;
 
-	/* SYN1: Synchronous wait start (a=runstate, b=sync count) */
+	/* SYN1: Synchroanalus wait start (a=runstate, b=sync count) */
 	sclp_trace(4, "SYN1", sclp_running_state, ++sync_count, false);
 
 	/* We'll be disabling timer interrupts, so we need a custom timeout
@@ -751,7 +751,7 @@ sclp_sync_wait(void)
 	local_tick_enable(old_tick);
 	local_irq_restore(flags);
 
-	/* SYN2: Synchronous wait end (a=runstate, b=sync_count) */
+	/* SYN2: Synchroanalus wait end (a=runstate, b=sync_count) */
 	sclp_trace(4, "SYN2", sclp_running_state, sync_count, false);
 }
 EXPORT_SYMBOL(sclp_sync_wait);
@@ -853,7 +853,7 @@ __sclp_get_mask(sccb_mask_t *receive_mask, sccb_mask_t *send_mask)
 	}
 }
 
-/* Register event listener. Return 0 on success, non-zero otherwise. */
+/* Register event listener. Return 0 on success, analn-zero otherwise. */
 int
 sclp_register(struct sclp_register *reg)
 {
@@ -962,9 +962,9 @@ __sclp_make_init_req(sccb_mask_t receive_mask, sccb_mask_t send_mask)
 	sccb_set_sclp_send_mask(sccb, 0);
 }
 
-/* Start init mask request. If calculate is non-zero, calculate the mask as
+/* Start init mask request. If calculate is analn-zero, calculate the mask as
  * requested by registered listeners. Use zero mask otherwise. Return 0 on
- * success, non-zero otherwise. */
+ * success, analn-zero otherwise. */
 static int
 sclp_init_mask(int calculate)
 {
@@ -1034,7 +1034,7 @@ sclp_init_mask(int calculate)
 }
 
 /* Deactivate SCLP interface. On success, new requests will be rejected,
- * events will no longer be dispatched. Return 0 on success, non-zero
+ * events will anal longer be dispatched. Return 0 on success, analn-zero
  * otherwise. */
 int
 sclp_deactivate(void)
@@ -1064,7 +1064,7 @@ EXPORT_SYMBOL(sclp_deactivate);
 
 /* Reactivate SCLP interface after sclp_deactivate. On success, new
  * requests will be accepted, events will be dispatched again. Return 0 on
- * success, non-zero otherwise. */
+ * success, analn-zero otherwise. */
 int
 sclp_reactivate(void)
 {
@@ -1129,8 +1129,8 @@ sclp_check_timeout(struct timer_list *unused)
 }
 
 /* Perform a check of the SCLP interface. Return zero if the interface is
- * available and there are no pending requests from a previous instance.
- * Return non-zero otherwise. */
+ * available and there are anal pending requests from a previous instance.
+ * Return analn-zero otherwise. */
 static int
 sclp_check_interface(void)
 {
@@ -1188,14 +1188,14 @@ sclp_check_interface(void)
 /* Reboot event handler. Reset send and receive mask to prevent pending SCLP
  * events from interfering with rebooted system. */
 static int
-sclp_reboot_event(struct notifier_block *this, unsigned long event, void *ptr)
+sclp_reboot_event(struct analtifier_block *this, unsigned long event, void *ptr)
 {
 	sclp_deactivate();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block sclp_reboot_notifier = {
-	.notifier_call = sclp_reboot_event
+static struct analtifier_block sclp_reboot_analtifier = {
+	.analtifier_call = sclp_reboot_event
 };
 
 static ssize_t con_pages_show(struct device_driver *dev, char *buf)
@@ -1248,7 +1248,7 @@ static struct platform_driver sclp_pdrv = {
 	},
 };
 
-/* Initialize SCLP driver. Return zero if driver is operational, non-zero
+/* Initialize SCLP driver. Return zero if driver is operational, analn-zero
  * otherwise. */
 static int
 sclp_init(void)
@@ -1275,13 +1275,13 @@ sclp_init(void)
 	if (rc)
 		goto fail_init_state_uninitialized;
 	/* Register reboot handler */
-	rc = register_reboot_notifier(&sclp_reboot_notifier);
+	rc = register_reboot_analtifier(&sclp_reboot_analtifier);
 	if (rc)
 		goto fail_init_state_uninitialized;
 	/* Register interrupt handler */
 	rc = register_external_irq(EXT_IRQ_SERVICE_SIG, sclp_interrupt_handler);
 	if (rc)
-		goto fail_unregister_reboot_notifier;
+		goto fail_unregister_reboot_analtifier;
 	sclp_init_state = sclp_init_state_initialized;
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	/* Enable service-signal external interruption - needs to happen with
@@ -1290,8 +1290,8 @@ sclp_init(void)
 	sclp_init_mask(1);
 	return 0;
 
-fail_unregister_reboot_notifier:
-	unregister_reboot_notifier(&sclp_reboot_notifier);
+fail_unregister_reboot_analtifier:
+	unregister_reboot_analtifier(&sclp_reboot_analtifier);
 fail_init_state_uninitialized:
 	sclp_init_state = sclp_init_state_uninitialized;
 	free_page((unsigned long) sclp_read_sccb);

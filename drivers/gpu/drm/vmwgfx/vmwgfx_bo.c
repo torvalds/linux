@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -185,7 +185,7 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 		goto err_unlock;
 
 	/*
-	 * Is this buffer already in vram but not at the start of it?
+	 * Is this buffer already in vram but analt at the start of it?
 	 * In that case, evict it first because TTM isn't good at handling
 	 * that situation.
 	 */
@@ -219,7 +219,7 @@ err_unlock:
 
 
 /**
- * vmw_bo_unpin - Unpin the buffer given buffer, does not move the buffer.
+ * vmw_bo_unpin - Unpin the buffer given buffer, does analt move the buffer.
  *
  * This function takes the reservation_sem in write mode.
  *
@@ -326,11 +326,11 @@ void vmw_bo_pin_reserved(struct vmw_bo *vbo, bool pin)
 void *vmw_bo_map_and_cache(struct vmw_bo *vbo)
 {
 	struct ttm_buffer_object *bo = &vbo->tbo;
-	bool not_used;
+	bool analt_used;
 	void *virtual;
 	int ret;
 
-	virtual = ttm_kmap_obj_virtual(&vbo->map, &not_used);
+	virtual = ttm_kmap_obj_virtual(&vbo->map, &analt_used);
 	if (virtual)
 		return virtual;
 
@@ -338,7 +338,7 @@ void *vmw_bo_map_and_cache(struct vmw_bo *vbo)
 	if (ret)
 		DRM_ERROR("Buffer object map failed: %d.\n", ret);
 
-	return ttm_kmap_obj_virtual(&vbo->map, &not_used);
+	return ttm_kmap_obj_virtual(&vbo->map, &analt_used);
 }
 
 
@@ -377,7 +377,7 @@ static int vmw_bo_init(struct vmw_private *dev_priv,
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = params->bo_type != ttm_bo_type_kernel,
-		.no_wait_gpu = false
+		.anal_wait_gpu = false
 	};
 	struct ttm_device *bdev = &dev_priv->bdev;
 	struct drm_device *vdev = &dev_priv->drm;
@@ -415,7 +415,7 @@ int vmw_bo_create(struct vmw_private *vmw,
 	*p_bo = kmalloc(sizeof(**p_bo), GFP_KERNEL);
 	if (unlikely(!*p_bo)) {
 		DRM_ERROR("Failed to allocate a buffer.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -448,7 +448,7 @@ out_error:
 static int vmw_user_bo_synccpu_grab(struct vmw_bo *vmw_bo,
 				    uint32_t flags)
 {
-	bool nonblock = !!(flags & drm_vmw_synccpu_dontblock);
+	bool analnblock = !!(flags & drm_vmw_synccpu_dontblock);
 	struct ttm_buffer_object *bo = &vmw_bo->tbo;
 	int ret;
 
@@ -456,7 +456,7 @@ static int vmw_user_bo_synccpu_grab(struct vmw_bo *vmw_bo,
 		long lret;
 
 		lret = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_READ,
-					     true, nonblock ? 0 :
+					     true, analnblock ? 0 :
 					     MAX_SCHEDULE_TIMEOUT);
 		if (!lret)
 			return -EBUSY;
@@ -465,11 +465,11 @@ static int vmw_user_bo_synccpu_grab(struct vmw_bo *vmw_bo,
 		return 0;
 	}
 
-	ret = ttm_bo_reserve(bo, true, nonblock, NULL);
+	ret = ttm_bo_reserve(bo, true, analnblock, NULL);
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_wait(bo, true, nonblock);
+	ret = ttm_bo_wait(bo, true, analnblock);
 	if (likely(ret == 0))
 		atomic_inc(&vmw_bo->cpu_writers);
 
@@ -662,7 +662,7 @@ void vmw_bo_fence_single(struct ttm_buffer_object *bo,
  * Return: Zero on success, negative error code on failure.
  *
  * This is a driver callback for the core drm create_dumb functionality.
- * Note that this is very similar to the vmw_bo_alloc ioctl, except
+ * Analte that this is very similar to the vmw_bo_alloc ioctl, except
  * that the arguments have a different format.
  */
 int vmw_dumb_create(struct drm_file *file_priv,
@@ -693,17 +693,17 @@ int vmw_dumb_create(struct drm_file *file_priv,
 	ret = vmw_gem_object_create_with_handle(dev_priv, file_priv,
 						args->size, &args->handle,
 						&vbo);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(&vbo->tbo.base);
 	return ret;
 }
 
 /**
- * vmw_bo_swap_notify - swapout notify callback.
+ * vmw_bo_swap_analtify - swapout analtify callback.
  *
  * @bo: The buffer object to be swapped out.
  */
-void vmw_bo_swap_notify(struct ttm_buffer_object *bo)
+void vmw_bo_swap_analtify(struct ttm_buffer_object *bo)
 {
 	/* Kill any cached kernel maps before swapout */
 	vmw_bo_unmap(to_vmw_bo(&bo->base));
@@ -711,7 +711,7 @@ void vmw_bo_swap_notify(struct ttm_buffer_object *bo)
 
 
 /**
- * vmw_bo_move_notify - TTM move_notify_callback
+ * vmw_bo_move_analtify - TTM move_analtify_callback
  *
  * @bo: The TTM buffer object about to move.
  * @mem: The struct ttm_resource indicating to what memory
@@ -720,7 +720,7 @@ void vmw_bo_swap_notify(struct ttm_buffer_object *bo)
  * Detaches cached maps and device bindings that require that the
  * buffer doesn't move.
  */
-void vmw_bo_move_notify(struct ttm_buffer_object *bo,
+void vmw_bo_move_analtify(struct ttm_buffer_object *bo,
 			struct ttm_resource *mem)
 {
 	struct vmw_bo *vbo = to_vmw_bo(&bo->base);

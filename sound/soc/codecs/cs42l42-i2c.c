@@ -22,7 +22,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 
 	cs42l42 = devm_kzalloc(dev, sizeof(*cs42l42), GFP_KERNEL);
 	if (!cs42l42)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(i2c_client, &cs42l42_regmap);
 	if (IS_ERR(regmap))

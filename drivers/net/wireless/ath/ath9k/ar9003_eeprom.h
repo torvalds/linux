@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -20,9 +20,9 @@
 #include <linux/types.h>
 
 #define AR9300_EEP_VER               0xD000
-#define AR9300_EEP_VER_MINOR_MASK    0xFFF
-#define AR9300_EEP_MINOR_VER_1       0x1
-#define AR9300_EEP_MINOR_VER         AR9300_EEP_MINOR_VER_1
+#define AR9300_EEP_VER_MIANALR_MASK    0xFFF
+#define AR9300_EEP_MIANALR_VER_1       0x1
+#define AR9300_EEP_MIANALR_VER         AR9300_EEP_MIANALR_VER_1
 
 /* 16-bit offset location start of calibration struct */
 #define AR9300_EEP_START_LOC         256
@@ -55,22 +55,22 @@
 
 /* Delta from which to start power to pdadc table */
 /* This offset is used in both open loop and closed loop power control
- * schemes. In open loop power control, it is not really needed, but for
+ * schemes. In open loop power control, it is analt really needed, but for
  * the "sake of consistency" it was kept. For certain AP designs, this
  * value is overwritten by the value in the flag "pwrTableOffset" just
  * before writing the pdadc vs pwr into the chip registers.
  */
 #define AR9300_PWR_TABLE_OFFSET  0
 
-/* Noise power data definitions
- * units are: 4 x dBm - NOISE_PWR_DATA_OFFSET
+/* Analise power data definitions
+ * units are: 4 x dBm - ANALISE_PWR_DATA_OFFSET
  * (e.g. -25 = (-25/4 - 90) = -96.25 dBm)
  * range (for 6 signed bits) is (-32 to 31) + offset => -122dBm to -59dBm
  * resolution (2 bits) is 0.25dBm
  */
-#define NOISE_PWR_DATA_OFFSET	-90
-#define NOISE_PWR_DBM_2_INT(_p)	((((_p) + 3) >> 2) + NOISE_PWR_DATA_OFFSET)
-#define N2DBM(_p)		NOISE_PWR_DBM_2_INT(_p)
+#define ANALISE_PWR_DATA_OFFSET	-90
+#define ANALISE_PWR_DBM_2_INT(_p)	((((_p) + 3) >> 2) + ANALISE_PWR_DATA_OFFSET)
+#define N2DBM(_p)		ANALISE_PWR_DBM_2_INT(_p)
 
 /* byte addressable */
 #define AR9300_EEPROM_SIZE (16*1024)
@@ -79,7 +79,7 @@
 #define AR9300_BASE_ADDR 0x3ff
 #define AR9300_BASE_ADDR_512 0x1ff
 
-/* AR5416_EEPMISC_BIG_ENDIAN not set indicates little endian */
+/* AR5416_EEPMISC_BIG_ENDIAN analt set indicates little endian */
 #define AR9300_EEPMISC_LITTLE_ENDIAN 0
 
 #define AR9300_OTP_BASE(_ah) \
@@ -171,7 +171,7 @@ struct eepFlags {
 } __packed;
 
 enum CompressAlgorithm {
-	_CompressNone = 0,
+	_CompressAnalne = 0,
 	_CompressLzma,
 	_CompressPairs,
 	_CompressBlock,
@@ -231,7 +231,7 @@ struct ar9300_modal_eep_header {
 	/* spur channels in usual fbin coding format */
 	u8 spurChans[AR_EEPROM_MODAL_SPURS];
 	/* 3  Check if the register is per chain */
-	int8_t noiseFloorThreshCh[AR9300_MAX_CHAINS];
+	int8_t analiseFloorThreshCh[AR9300_MAX_CHAINS];
 	u8 reserved[11];
 	int8_t quick_drop;
 	u8 xpaBiasLvl;
@@ -259,10 +259,10 @@ struct ar9300_cal_data_per_freq_op_loop {
 	/* pcdac used for power measurement   */
 	u8 tempMeas;
 	/* range is -60 to -127 create a mapping equation 1db resolution */
-	int8_t rxNoisefloorCal;
-	/*range is same as noisefloor */
-	int8_t rxNoisefloorPower;
-	/* temp measured when noisefloor cal was performed */
+	int8_t rxAnalisefloorCal;
+	/*range is same as analisefloor */
+	int8_t rxAnalisefloorPower;
+	/* temp measured when analisefloor cal was performed */
 	u8 rxTempMeas;
 } __packed;
 

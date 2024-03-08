@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for Synopsys DesignWare Cores Mobile Storage Host Controller
+ * Driver for Syanalpsys DesignWare Cores Mobile Storage Host Controller
  *
  * Copyright (C) 2018 Synaptics Incorporated
  *
@@ -75,7 +75,7 @@
 #define DLL_STRBIN_DELAY_NUM_SEL	BIT(26)
 #define DLL_STRBIN_DELAY_NUM_OFFSET	16
 #define DLL_STRBIN_DELAY_NUM_DEFAULT	0x16
-#define DLL_RXCLK_NO_INVERTER		1
+#define DLL_RXCLK_ANAL_INVERTER		1
 #define DLL_RXCLK_INVERTER		0
 #define DLL_CMDOUT_TAPNUM_90_DEGREES	0x8
 #define DLL_RXCLK_ORI_GATE		BIT(31)
@@ -234,7 +234,7 @@ static void dwcmshc_check_auto_cmd23(struct mmc_host *mmc,
 	struct sdhci_host *host = mmc_priv(mmc);
 
 	/*
-	 * No matter V4 is enabled or not, ARGUMENT2 register is 32-bit
+	 * Anal matter V4 is enabled or analt, ARGUMENT2 register is 32-bit
 	 * block count register which doesn't support stuff bits of
 	 * CMD23 argument on dwcmsch host controller.
 	 */
@@ -353,7 +353,7 @@ static void th1520_sdhci_set_phy(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	u32 emmc_caps = MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
+	u32 emmc_caps = MMC_CAP2_ANAL_SD | MMC_CAP2_ANAL_SDIO;
 	u16 emmc_ctrl;
 
 	/* Before power on, set PHY configs */
@@ -477,7 +477,7 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	if (clock <= 52000000) {
 		/*
 		 * Disable DLL and reset both of sample and drive clock.
-		 * The bypass bit and start bit need to be set if DLL is not locked.
+		 * The bypass bit and start bit need to be set if DLL is analt locked.
 		 */
 		sdhci_writel(host, DWCMSHC_EMMC_DLL_BYPASS | DWCMSHC_EMMC_DLL_START, DWCMSHC_EMMC_DLL_CTRL);
 		sdhci_writel(host, DLL_RXCLK_ORI_GATE, DWCMSHC_EMMC_DLL_RXCLK);
@@ -501,12 +501,12 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	sdhci_writel(host, 0x0, DWCMSHC_EMMC_DLL_CTRL);
 
 	/*
-	 * We shouldn't set DLL_RXCLK_NO_INVERTER for identify mode but
+	 * We shouldn't set DLL_RXCLK_ANAL_INVERTER for identify mode but
 	 * we must set it in higher speed mode.
 	 */
 	extra = DWCMSHC_EMMC_DLL_DLYENA;
 	if (priv->devtype == DWCMSHC_RK3568)
-		extra |= DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
+		extra |= DLL_RXCLK_ANAL_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
 	/* Init DLL settings */
@@ -544,7 +544,7 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		DLL_TXCLK_TAPNUM_FROM_SW |
-		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL |
+		DLL_RXCLK_ANAL_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL |
 		txclk_tapnum;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 
@@ -728,7 +728,7 @@ static int dwcmshc_rk35xx_init(struct sdhci_host *host, struct dwcmshc_priv *dwc
 		return err;
 	}
 
-	if (of_property_read_u8(mmc_dev(host->mmc)->of_node, "rockchip,txclk-tapnum",
+	if (of_property_read_u8(mmc_dev(host->mmc)->of_analde, "rockchip,txclk-tapnum",
 				&priv->txclk_tapnum))
 		priv->txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT;
 
@@ -745,7 +745,7 @@ static void dwcmshc_rk35xx_postinit(struct sdhci_host *host, struct dwcmshc_priv
 {
 	/*
 	 * Don't support highspeed bus mode with low clk speed as we
-	 * cannot use DLL for this condition.
+	 * cananalt use DLL for this condition.
 	 */
 	if (host->mmc->f_max <= 52000000) {
 		dev_info(mmc_dev(host->mmc), "Disabling HS200/HS400, frequency too low (%d)\n",
@@ -800,8 +800,8 @@ static int dwcmshc_probe(struct platform_device *pdev)
 
 	pltfm_data = device_get_match_data(&pdev->dev);
 	if (!pltfm_data) {
-		dev_err(&pdev->dev, "Error: No device match data found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Error: Anal device match data found\n");
+		return -EANALDEV;
 	}
 
 	host = sdhci_pltfm_init(pdev, pltfm_data,
@@ -820,7 +820,7 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	priv = sdhci_pltfm_priv(pltfm_host);
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		pltfm_host->clk = devm_clk_get(dev, "core");
 		if (IS_ERR(pltfm_host->clk)) {
 			err = PTR_ERR(pltfm_host->clk);
@@ -851,11 +851,11 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	if (pltfm_data == &sdhci_dwcmshc_rk35xx_pdata) {
 		rk_priv = devm_kzalloc(&pdev->dev, sizeof(struct rk35xx_priv), GFP_KERNEL);
 		if (!rk_priv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_clk;
 		}
 
-		if (of_device_is_compatible(pdev->dev.of_node, "rockchip,rk3588-dwcmshc"))
+		if (of_device_is_compatible(pdev->dev.of_analde, "rockchip,rk3588-dwcmshc"))
 			rk_priv->devtype = DWCMSHC_RK3588;
 		else
 			rk_priv->devtype = DWCMSHC_RK3568;
@@ -898,7 +898,7 @@ static int dwcmshc_probe(struct platform_device *pdev)
 
 	host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -921,7 +921,7 @@ err_setup_host:
 	sdhci_cleanup_host(host);
 err_rpm:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 err_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 	clk_disable_unprepare(priv->bus_clk);
@@ -1073,7 +1073,7 @@ static const struct dev_pm_ops dwcmshc_pmops = {
 static struct platform_driver sdhci_dwcmshc_driver = {
 	.driver	= {
 		.name	= "sdhci-dwcmshc",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = sdhci_dwcmshc_dt_ids,
 		.acpi_match_table = ACPI_PTR(sdhci_dwcmshc_acpi_ids),
 		.pm = &dwcmshc_pmops,
@@ -1083,6 +1083,6 @@ static struct platform_driver sdhci_dwcmshc_driver = {
 };
 module_platform_driver(sdhci_dwcmshc_driver);
 
-MODULE_DESCRIPTION("SDHCI platform driver for Synopsys DWC MSHC");
+MODULE_DESCRIPTION("SDHCI platform driver for Syanalpsys DWC MSHC");
 MODULE_AUTHOR("Jisheng Zhang <jszhang@kernel.org>");
 MODULE_LICENSE("GPL v2");

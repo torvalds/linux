@@ -65,7 +65,7 @@ by the PCI controller driver.
 
 * pci_epc_linkup()
 
-   In order to notify all the function devices that the EPC device to which
+   In order to analtify all the function devices that the EPC device to which
    they are linked has established a link with the host, the PCI controller
    driver should invoke pci_epc_linkup().
 
@@ -207,7 +207,7 @@ by the PCI endpoint controller library.
 Other EPF APIs
 ~~~~~~~~~~~~~~
 
-There are other APIs provided by the EPF library. These are used to notify
+There are other APIs provided by the EPF library. These are used to analtify
 the function driver when the EPF device is bound to the EPC device.
 pci-ep-cfs.c can be used as reference for using these APIs.
 

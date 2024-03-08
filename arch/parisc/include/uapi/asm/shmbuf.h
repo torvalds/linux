@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _PARISC_SHMBUF_H
 #define _PARISC_SHMBUF_H
 
@@ -8,7 +8,7 @@
 
 /* 
  * The shmid64_ds structure for parisc architecture.
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * Pad space is left for:
@@ -33,7 +33,7 @@ struct shmid64_ds {
 	__kernel_size_t		shm_segsz;	/* size of segment (bytes) */
 	__kernel_pid_t		shm_cpid;	/* pid of creator */
 	__kernel_pid_t		shm_lpid;	/* pid of last operator */
-	unsigned long		shm_nattch;	/* no. of current attaches */
+	unsigned long		shm_nattch;	/* anal. of current attaches */
 	unsigned long		__unused1;
 	unsigned long		__unused2;
 };

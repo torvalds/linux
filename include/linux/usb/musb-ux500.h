@@ -7,7 +7,7 @@
 #define __MUSB_UX500_H__
 
 enum ux500_musb_vbus_id_status {
-	UX500_MUSB_NONE = 0,
+	UX500_MUSB_ANALNE = 0,
 	UX500_MUSB_VBUS,
 	UX500_MUSB_ID,
 	UX500_MUSB_CHARGER,

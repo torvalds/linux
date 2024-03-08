@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *	Linux ethernet bridge
  *
@@ -92,7 +92,7 @@ struct __port_info {
 
 struct __fdb_entry {
 	__u8 mac_addr[ETH_ALEN];
-	__u8 port_no;
+	__u8 port_anal;
 	__u8 is_local;
 	__u32 ageing_timer_value;
 	__u8 port_hi;
@@ -416,7 +416,7 @@ enum {
 	IFLA_BRIDGE_CFM_CC_CCM_TX_UNSPEC,
 	IFLA_BRIDGE_CFM_CC_CCM_TX_INSTANCE,
 	IFLA_BRIDGE_CFM_CC_CCM_TX_DMAC,
-	IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_NO_UPDATE,
+	IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_ANAL_UPDATE,
 	IFLA_BRIDGE_CFM_CC_CCM_TX_PERIOD,
 	IFLA_BRIDGE_CFM_CC_CCM_TX_IF_TLV,
 	IFLA_BRIDGE_CFM_CC_CCM_TX_IF_TLV_VALUE,
@@ -568,7 +568,7 @@ enum {
 	BRIDGE_VLANDB_GOPTS_UNSPEC,
 	BRIDGE_VLANDB_GOPTS_ID,
 	BRIDGE_VLANDB_GOPTS_RANGE,
-	BRIDGE_VLANDB_GOPTS_MCAST_SNOOPING,
+	BRIDGE_VLANDB_GOPTS_MCAST_SANALOPING,
 	BRIDGE_VLANDB_GOPTS_MCAST_IGMP_VERSION,
 	BRIDGE_VLANDB_GOPTS_MCAST_MLD_VERSION,
 	BRIDGE_VLANDB_GOPTS_MCAST_LAST_MEMBER_CNT,
@@ -820,15 +820,15 @@ struct br_mcast_stats {
 };
 
 /* bridge boolean options
- * BR_BOOLOPT_NO_LL_LEARN - disable learning from link-local packets
- * BR_BOOLOPT_MCAST_VLAN_SNOOPING - control vlan multicast snooping
+ * BR_BOOLOPT_ANAL_LL_LEARN - disable learning from link-local packets
+ * BR_BOOLOPT_MCAST_VLAN_SANALOPING - control vlan multicast sanaloping
  *
- * IMPORTANT: if adding a new option do not forget to handle
+ * IMPORTANT: if adding a new option do analt forget to handle
  *            it in br_boolopt_toggle/get and bridge sysfs
  */
 enum br_boolopt_id {
-	BR_BOOLOPT_NO_LL_LEARN,
-	BR_BOOLOPT_MCAST_VLAN_SNOOPING,
+	BR_BOOLOPT_ANAL_LL_LEARN,
+	BR_BOOLOPT_MCAST_VLAN_SANALOPING,
 	BR_BOOLOPT_MST_ENABLE,
 	BR_BOOLOPT_MAX
 };

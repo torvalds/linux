@@ -29,7 +29,7 @@ static int ___evlist__add_default_attrs(struct evlist *evlist,
 
 			if (evsel == NULL)
 				goto out_delete_partial_list;
-			list_add_tail(&evsel->core.node, &head);
+			list_add_tail(&evsel->core.analde, &head);
 			continue;
 		}
 
@@ -45,7 +45,7 @@ static int ___evlist__add_default_attrs(struct evlist *evlist,
 			evsel->core.cpus = cpus;
 			evsel->core.own_cpus = perf_cpu_map__get(cpus);
 			evsel->pmu_name = strdup(pmu->name);
-			list_add_tail(&evsel->core.node, &head);
+			list_add_tail(&evsel->core.analde, &head);
 		}
 	}
 

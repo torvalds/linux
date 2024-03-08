@@ -127,38 +127,38 @@ static int ap807_get_sar_clocks(unsigned int freq_mode,
 }
 
 static int ap806_syscon_common_probe(struct platform_device *pdev,
-				     struct device_node *syscon_node)
+				     struct device_analde *syscon_analde)
 {
 	unsigned int freq_mode, cpuclk_freq, dclk_freq;
 	const char *name, *fixedclk_name;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct regmap *regmap;
 	u32 reg;
 	int ret;
 
-	regmap = syscon_node_to_regmap(syscon_node);
+	regmap = syscon_analde_to_regmap(syscon_analde);
 	if (IS_ERR(regmap)) {
-		dev_err(dev, "cannot get regmap\n");
+		dev_err(dev, "cananalt get regmap\n");
 		return PTR_ERR(regmap);
 	}
 
 	ret = regmap_read(regmap, AP806_SAR_REG, &reg);
 	if (ret) {
-		dev_err(dev, "cannot read from regmap\n");
+		dev_err(dev, "cananalt read from regmap\n");
 		return ret;
 	}
 
 	freq_mode = reg & AP806_SAR_CLKFREQ_MODE_MASK;
 
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_analde,
 				    "marvell,ap806-clock")) {
 		ret = ap806_get_sar_clocks(freq_mode, &cpuclk_freq, &dclk_freq);
-	} else if (of_device_is_compatible(pdev->dev.of_node,
+	} else if (of_device_is_compatible(pdev->dev.of_analde,
 					   "marvell,ap807-clock")) {
 		ret = ap807_get_sar_clocks(freq_mode, &cpuclk_freq, &dclk_freq);
 	} else {
-		dev_err(dev, "compatible not supported\n");
+		dev_err(dev, "compatible analt supported\n");
 		return -EINVAL;
 	}
 
@@ -172,7 +172,7 @@ static int ap806_syscon_common_probe(struct platform_device *pdev,
 	dclk_freq *= 1000 * 1000;
 
 	/* CPU clocks depend on the Sample At Reset configuration */
-	name = ap_cp_unique_name(dev, syscon_node, "pll-cluster-0");
+	name = ap_cp_unique_name(dev, syscon_analde, "pll-cluster-0");
 	ap806_clks[0] = clk_register_fixed_rate(dev, name, NULL,
 						0, cpuclk_freq);
 	if (IS_ERR(ap806_clks[0])) {
@@ -180,7 +180,7 @@ static int ap806_syscon_common_probe(struct platform_device *pdev,
 		goto fail0;
 	}
 
-	name = ap_cp_unique_name(dev, syscon_node, "pll-cluster-1");
+	name = ap_cp_unique_name(dev, syscon_analde, "pll-cluster-1");
 	ap806_clks[1] = clk_register_fixed_rate(dev, name, NULL, 0,
 						cpuclk_freq);
 	if (IS_ERR(ap806_clks[1])) {
@@ -189,7 +189,7 @@ static int ap806_syscon_common_probe(struct platform_device *pdev,
 	}
 
 	/* Fixed clock is always 1200 Mhz */
-	fixedclk_name = ap_cp_unique_name(dev, syscon_node, "fixed");
+	fixedclk_name = ap_cp_unique_name(dev, syscon_analde, "fixed");
 	ap806_clks[2] = clk_register_fixed_rate(dev, fixedclk_name, NULL,
 						0, 1200 * 1000 * 1000);
 	if (IS_ERR(ap806_clks[2])) {
@@ -198,7 +198,7 @@ static int ap806_syscon_common_probe(struct platform_device *pdev,
 	}
 
 	/* MSS Clock is fixed clock divided by 6 */
-	name = ap_cp_unique_name(dev, syscon_node, "mss");
+	name = ap_cp_unique_name(dev, syscon_analde, "mss");
 	ap806_clks[3] = clk_register_fixed_factor(NULL, name, fixedclk_name,
 						  0, 1, 6);
 	if (IS_ERR(ap806_clks[3])) {
@@ -207,7 +207,7 @@ static int ap806_syscon_common_probe(struct platform_device *pdev,
 	}
 
 	/* SDIO(/eMMC) Clock is fixed clock divided by 3 */
-	name = ap_cp_unique_name(dev, syscon_node, "sdio");
+	name = ap_cp_unique_name(dev, syscon_analde, "sdio");
 	ap806_clks[4] = clk_register_fixed_factor(NULL, name,
 						  fixedclk_name,
 						  0, 1, 3);
@@ -217,7 +217,7 @@ static int ap806_syscon_common_probe(struct platform_device *pdev,
 	}
 
 	/* AP-DCLK(HCLK) Clock is DDR clock divided by 2 */
-	name = ap_cp_unique_name(dev, syscon_node, "ap-dclk");
+	name = ap_cp_unique_name(dev, syscon_analde, "ap-dclk");
 	ap806_clks[5] = clk_register_fixed_rate(dev, name, NULL, 0, dclk_freq);
 	if (IS_ERR(ap806_clks[5])) {
 		ret = PTR_ERR(ap806_clks[5]);
@@ -253,13 +253,13 @@ static int ap806_syscon_legacy_probe(struct platform_device *pdev)
 	dev_warn(&pdev->dev, FW_WARN
 		 "This binding won't be supported in future kernel\n");
 
-	return ap806_syscon_common_probe(pdev, pdev->dev.of_node);
+	return ap806_syscon_common_probe(pdev, pdev->dev.of_analde);
 
 }
 
 static int ap806_clock_probe(struct platform_device *pdev)
 {
-	return ap806_syscon_common_probe(pdev, pdev->dev.of_node->parent);
+	return ap806_syscon_common_probe(pdev, pdev->dev.of_analde->parent);
 }
 
 static const struct of_device_id ap806_syscon_legacy_of_match[] = {

@@ -9,14 +9,14 @@
 #include <drm/drm_mode_config.h>
 
 struct drm_driver;
-struct drm_minor;
+struct drm_mianalr;
 struct drm_master;
 struct drm_vblank_crtc;
 struct drm_vma_offset_manager;
 struct drm_vram_mm;
 struct drm_fb_helper;
 
-struct inode;
+struct ianalde;
 
 struct pci_dev;
 struct pci_controller;
@@ -89,24 +89,24 @@ struct drm_device {
 	/**
 	 * @primary:
 	 *
-	 * Primary node. Drivers should not interact with this
+	 * Primary analde. Drivers should analt interact with this
 	 * directly. debugfs interfaces can be registered with
 	 * drm_debugfs_add_file(), and sysfs should be directly added on the
-	 * hardware (and not character device node) struct device @dev.
+	 * hardware (and analt character device analde) struct device @dev.
 	 */
-	struct drm_minor *primary;
+	struct drm_mianalr *primary;
 
 	/**
 	 * @render:
 	 *
-	 * Render node. Drivers should not interact with this directly ever.
-	 * Drivers should not expose any additional interfaces in debugfs or
-	 * sysfs on this node.
+	 * Render analde. Drivers should analt interact with this directly ever.
+	 * Drivers should analt expose any additional interfaces in debugfs or
+	 * sysfs on this analde.
 	 */
-	struct drm_minor *render;
+	struct drm_mianalr *render;
 
-	/** @accel: Compute Acceleration node */
-	struct drm_minor *accel;
+	/** @accel: Compute Acceleration analde */
+	struct drm_mianalr *accel;
 
 	/**
 	 * @registered:
@@ -141,8 +141,8 @@ struct drm_device {
 	 */
 	bool unplugged;
 
-	/** @anon_inode: inode for private address-space */
-	struct inode *anon_inode;
+	/** @aanaln_ianalde: ianalde for private address-space */
+	struct ianalde *aanaln_ianalde;
 
 	/** @unique: Unique name of the device */
 	char *unique;
@@ -150,7 +150,7 @@ struct drm_device {
 	/**
 	 * @struct_mutex:
 	 *
-	 * Lock for others (not &drm_minor.master and &drm_file.is_master)
+	 * Lock for others (analt &drm_mianalr.master and &drm_file.is_master)
 	 *
 	 * TODO: This lock used to be the BKL of the DRM subsystem. Move the
 	 *       lock into i915, which is the only remaining user.
@@ -160,7 +160,7 @@ struct drm_device {
 	/**
 	 * @master_mutex:
 	 *
-	 * Lock for &drm_minor.master and &drm_file.is_master
+	 * Lock for &drm_mianalr.master and &drm_file.is_master
 	 */
 	struct mutex master_mutex;
 
@@ -223,7 +223,7 @@ struct drm_device {
 	 *
 	 * Array of vblank tracking structures, one per &struct drm_crtc. For
 	 * historical reasons (vblank support predates kernel modesetting) this
-	 * is free-standing and not part of &struct drm_crtc itself. It must be
+	 * is free-standing and analt part of &struct drm_crtc itself. It must be
 	 * initialized explicitly by calling drm_vblank_init().
 	 */
 	struct drm_vblank_crtc *vblank;
@@ -259,7 +259,7 @@ struct drm_device {
 	 * must be left at zero. See drm_crtc_set_max_vblank_count() on how
 	 * to use the per-crtc value.
 	 *
-	 * If non-zero, &drm_crtc_funcs.get_vblank_counter must be set.
+	 * If analn-zero, &drm_crtc_funcs.get_vblank_counter must be set.
 	 */
 	u32 max_vblank_count;
 

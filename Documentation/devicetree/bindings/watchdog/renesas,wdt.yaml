@@ -118,7 +118,7 @@ allOf:
   - $ref: watchdog.yaml#
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

@@ -3,7 +3,7 @@
  * mac80211 glue code for mac80211 ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  *
  * Based on:
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
@@ -12,9 +12,9 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  * - stlc45xx driver
- *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *   Copyright (C) 2008 Analkia Corporation and/or its subsidiary(-ies).
  */
 
 #include <linux/module.h>
@@ -36,7 +36,7 @@
 #include "debug.h"
 #include "pm.h"
 
-MODULE_AUTHOR("Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>");
+MODULE_AUTHOR("Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>");
 MODULE_DESCRIPTION("Softmac ST-Ericsson CW1200 common code");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("cw1200_core");
@@ -166,7 +166,7 @@ static struct ieee80211_supported_band cw1200_band_2ghz = {
 			IEEE80211_HT_CAP_MAX_AMSDU,
 		.ht_supported = 1,
 		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K,
-		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE,
+		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_ANALNE,
 		.mcs = {
 			.rx_mask[0] = 0xFF,
 			.rx_highest = __cpu_to_le16(0x41),
@@ -186,7 +186,7 @@ static struct ieee80211_supported_band cw1200_band_5ghz = {
 			IEEE80211_HT_CAP_MAX_AMSDU,
 		.ht_supported = 1,
 		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K,
-		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE,
+		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_ANALNE,
 		.mcs = {
 			.rx_mask[0] = 0xFF,
 			.rx_highest = __cpu_to_le16(0x41),
@@ -212,7 +212,7 @@ static const struct ieee80211_ops cw1200_ops = {
 	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.hw_scan		= cw1200_hw_scan,
 	.set_tim		= cw1200_set_tim,
-	.sta_notify		= cw1200_sta_notify,
+	.sta_analtify		= cw1200_sta_analtify,
 	.sta_add		= cw1200_sta_add,
 	.sta_remove		= cw1200_sta_remove,
 	.set_key		= cw1200_set_key,
@@ -229,7 +229,7 @@ static const struct ieee80211_ops cw1200_ops = {
 	.suspend		= cw1200_wow_suspend,
 	.resume			= cw1200_wow_resume,
 #endif
-	/* Intentionally not offloaded:					*/
+	/* Intentionally analt offloaded:					*/
 	/*.channel_switch	= cw1200_channel_switch,		*/
 	/*.remain_on_channel	= cw1200_remain_on_channel,		*/
 	/*.cancel_remain_on_channel = cw1200_cancel_remain_on_channel,	*/
@@ -420,7 +420,7 @@ static int cw1200_register_common(struct ieee80211_hw *dev)
 #ifdef CONFIG_PM
 	err = cw1200_pm_init(&priv->pm_state, priv);
 	if (err) {
-		pr_err("Cannot init PM. (%d).\n",
+		pr_err("Cananalt init PM. (%d).\n",
 		       err);
 		return err;
 	}
@@ -428,7 +428,7 @@ static int cw1200_register_common(struct ieee80211_hw *dev)
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		pr_err("Cannot register device (%d).\n",
+		pr_err("Cananalt register device (%d).\n",
 		       err);
 #ifdef CONFIG_PM
 		cw1200_pm_deinit(&priv->pm_state);
@@ -507,7 +507,7 @@ u32 cw1200_dpll_from_clk(u16 clk_khz)
 	case 0xCB20: /* 52000 KHz */
 		return 0x07627091;
 	default:
-		pr_err("Unknown Refclk freq (0x%04x), using 26000KHz\n",
+		pr_err("Unkanalwn Refclk freq (0x%04x), using 26000KHz\n",
 		       clk_khz);
 		return 0x0EC4F121;
 	}

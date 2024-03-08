@@ -33,7 +33,7 @@ static void *iwl_uefi_get_variable(efi_char16_t *name, efi_guid_t *guid,
 		return ERR_PTR(-EINVAL);
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	/* first call with NULL data to get the exact entry size */
 	*data_size = 0;
@@ -43,12 +43,12 @@ static void *iwl_uefi_get_variable(efi_char16_t *name, efi_guid_t *guid,
 
 	data = kmalloc(*data_size, GFP_KERNEL);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	status = efi.get_variable(name, guid, NULL, data_size, data);
 	if (status != EFI_SUCCESS) {
 		kfree(data);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	return data;
@@ -65,7 +65,7 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 				     &package_size);
 	if (IS_ERR(data)) {
 		IWL_DEBUG_FW(trans,
-			     "PNVM UEFI variable not found 0x%lx (len %lu)\n",
+			     "PNVM UEFI variable analt found 0x%lx (len %lu)\n",
 			     PTR_ERR(data), package_size);
 		return data;
 	}
@@ -161,7 +161,7 @@ static int iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 done:
 	if (!pnvm_data->n_chunks) {
 		IWL_DEBUG_FW(trans, "Empty REDUCE_POWER, skipping.\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	return 0;
 }
@@ -221,7 +221,7 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 u8 *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
@@ -235,7 +235,7 @@ u8 *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 
 	if (IS_ERR(package)) {
 		IWL_DEBUG_FW(trans,
-			     "Reduced Power UEFI variable not found 0x%lx (len %lu)\n",
+			     "Reduced Power UEFI variable analt found 0x%lx (len %lu)\n",
 			     PTR_ERR(package), package_size);
 		return ERR_CAST(package);
 	}
@@ -258,7 +258,7 @@ u8 *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 	data = kmemdup(package->data, *len, GFP_KERNEL);
 	if (!data) {
 		kfree(package);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	kfree(package);
@@ -294,7 +294,7 @@ void iwl_uefi_get_step_table(struct iwl_trans *trans)
 
 	if (IS_ERR(data)) {
 		IWL_DEBUG_FW(trans,
-			     "STEP UEFI variable not found 0x%lx\n",
+			     "STEP UEFI variable analt found 0x%lx\n",
 			     PTR_ERR(data));
 		return;
 	}
@@ -312,7 +312,7 @@ void iwl_uefi_get_step_table(struct iwl_trans *trans)
 
 	ret = iwl_uefi_step_parse(data, trans);
 	if (ret < 0)
-		IWL_DEBUG_FW(trans, "Cannot read STEP tables. rev is invalid\n");
+		IWL_DEBUG_FW(trans, "Cananalt read STEP tables. rev is invalid\n");
 
 	kfree(data);
 }
@@ -365,7 +365,7 @@ void iwl_uefi_get_sgom_table(struct iwl_trans *trans,
 				     &package_size);
 	if (IS_ERR(data)) {
 		IWL_DEBUG_FW(trans,
-			     "SGOM UEFI variable not found 0x%lx\n",
+			     "SGOM UEFI variable analt found 0x%lx\n",
 			     PTR_ERR(data));
 		return;
 	}
@@ -383,7 +383,7 @@ void iwl_uefi_get_sgom_table(struct iwl_trans *trans,
 
 	ret = iwl_uefi_sgom_parse(data, fwrt);
 	if (ret < 0)
-		IWL_DEBUG_FW(trans, "Cannot read SGOM tables. rev is invalid\n");
+		IWL_DEBUG_FW(trans, "Cananalt read SGOM tables. rev is invalid\n");
 
 	kfree(data);
 }
@@ -411,7 +411,7 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 				     &package_size);
 	if (IS_ERR(data)) {
 		IWL_DEBUG_FW(trans,
-			     "UATS UEFI variable not found 0x%lx\n",
+			     "UATS UEFI variable analt found 0x%lx\n",
 			     PTR_ERR(data));
 		return -EINVAL;
 	}
@@ -429,7 +429,7 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 
 	ret = iwl_uefi_uats_parse(data, fwrt);
 	if (ret < 0) {
-		IWL_DEBUG_FW(trans, "Cannot read UATS table. rev is invalid\n");
+		IWL_DEBUG_FW(trans, "Cananalt read UATS table. rev is invalid\n");
 		kfree(data);
 		return ret;
 	}

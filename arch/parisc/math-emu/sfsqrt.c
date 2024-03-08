@@ -65,9 +65,9 @@ sgl_fsqrt(
                  * Return quiet NaN or positive infinity.
 		 *  Fall through to negative test if negative infinity.
                  */
-		if (Sgl_iszero_sign(src) || Sgl_isnotzero_mantissa(src)) {
+		if (Sgl_iszero_sign(src) || Sgl_isanaltzero_mantissa(src)) {
                 	*dstptr = src;
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
 		}
         }
 
@@ -76,7 +76,7 @@ sgl_fsqrt(
          */
 	if (Sgl_iszero_exponentmantissa(src)) {
 		*dstptr = src;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 
         /*
@@ -89,7 +89,7 @@ sgl_fsqrt(
 		Set_invalidflag();
 		Sgl_makequietnan(src);
 		*dstptr = src;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 
 	/*
@@ -100,10 +100,10 @@ sgl_fsqrt(
 		Sgl_clear_signexponent_set_hidden(src);
 	}
 	else {
-		/* normalize operand */
+		/* analrmalize operand */
 		Sgl_clear_signexponent(src);
 		src_exponent++;
-		Sgl_normalize(src,src_exponent);
+		Sgl_analrmalize(src,src_exponent);
 		even_exponent = src_exponent & 1;
 	}
 	if (even_exponent) {
@@ -119,7 +119,7 @@ sgl_fsqrt(
 	 */
 	Sgl_setzero(result);
 	newbit = 1 << SGL_P;
-	while (newbit && Sgl_isnotzero(src)) {
+	while (newbit && Sgl_isanaltzero(src)) {
 		Sgl_addition(result,newbit,sum);
 		if(sum <= Sgl_all(src)) {
 			/* update result */
@@ -135,27 +135,27 @@ sgl_fsqrt(
 	}
 
 	/* check for inexact */
-	if (Sgl_isnotzero(src)) {
+	if (Sgl_isanaltzero(src)) {
 		if (!even_exponent && Sgl_islessthan(result,src)) 
 			Sgl_increment(result);
 		guardbit = Sgl_lowmantissa(result);
 		Sgl_rightshiftby1(result);
 
-		/*  now round result  */
+		/*  analw round result  */
 		switch (Rounding_mode()) {
 		case ROUNDPLUS:
 		     Sgl_increment(result);
 		     break;
 		case ROUNDNEAREST:
 		     /* stickybit is always true, so guardbit 
-		      * is enough to determine rounding */
+		      * is eanalugh to determine rounding */
 		     if (guardbit) {
 			Sgl_increment(result);
 		     }
 		     break;
 		}
 		/* increment result exponent by 1 if mantissa overflowed */
-		if (Sgl_isone_hiddenoverflow(result)) src_exponent+=2;
+		if (Sgl_isone_hiddeanalverflow(result)) src_exponent+=2;
 
 		if (Is_inexacttrap_enabled()) {
 			Sgl_set_exponent(result,
@@ -170,5 +170,5 @@ sgl_fsqrt(
 	}
 	Sgl_set_exponent(result,((src_exponent-SGL_BIAS)>>1)+SGL_BIAS);
 	*dstptr = result;
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }

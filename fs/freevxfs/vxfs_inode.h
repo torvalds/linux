@@ -3,22 +3,22 @@
  * Copyright (c) 2000-2001 Christoph Hellwig.
  * Copyright (c) 2016 Krzysztof Blaszkowski
  */
-#ifndef _VXFS_INODE_H_
-#define _VXFS_INODE_H_
+#ifndef _VXFS_IANALDE_H_
+#define _VXFS_IANALDE_H_
 
 /*
- * Veritas filesystem driver - inode structure.
+ * Veritas filesystem driver - ianalde structure.
  *
  * This file contains the definition of the disk and core
- * inodes of the Veritas Filesystem.
+ * ianaldes of the Veritas Filesystem.
  */
 
 
-#define VXFS_ISIZE		0x100		/* Inode size */
+#define VXFS_ISIZE		0x100		/* Ianalde size */
 
-#define VXFS_NDADDR		10		/* Number of direct addrs in inode */
-#define VXFS_NIADDR		2		/* Number of indirect addrs in inode */
-#define VXFS_NIMMED		96		/* Size of immediate data in inode */
+#define VXFS_NDADDR		10		/* Number of direct addrs in ianalde */
+#define VXFS_NIADDR		2		/* Number of indirect addrs in ianalde */
+#define VXFS_NIMMED		96		/* Size of immediate data in ianalde */
 #define VXFS_NTYPED		6		/* Num of typed extents */
 
 #define VXFS_TYPED_OFFSETMASK	(0x00FFFFFFFFFFFFFFULL)
@@ -39,7 +39,7 @@ enum {
 };
 
 /*
- * Data stored immediately in the inode.
+ * Data stored immediately in the ianalde.
  */
 struct vxfs_immed {
 	__u8			vi_immed[VXFS_NIMMED];
@@ -70,14 +70,14 @@ struct vxfs_typed_dev4 {
 };
 
 /*
- * The inode as contained on the physical device.
+ * The ianalde as contained on the physical device.
  */
-struct vxfs_dinode {
+struct vxfs_dianalde {
 	__fs32		vdi_mode;
 	__fs32		vdi_nlink;	/* Link count */
 	__fs32		vdi_uid;	/* UID */
 	__fs32		vdi_gid;	/* GID */
-	__fs64		vdi_size;	/* Inode size in bytes */
+	__fs64		vdi_size;	/* Ianalde size in bytes */
 	__fs32		vdi_atime;	/* Last time accessed - sec */
 	__fs32		vdi_autime;	/* Last time accessed - usec */
 	__fs32		vdi_mtime;	/* Last modify time - sec */
@@ -96,26 +96,26 @@ struct vxfs_dinode {
 			__fs32		fixextsize;
 		} i_regular;
 		struct {
-			__fs32		matchino;
+			__fs32		matchianal;
 			__fs32		fsetindex;
 		} i_vxspec;
 		__u64			align;
 	} vdi_ftarea;
-	__fs32		vdi_blocks;	/* How much blocks does inode occupy */
-	__fs32		vdi_gen;	/* Inode generation */
+	__fs32		vdi_blocks;	/* How much blocks does ianalde occupy */
+	__fs32		vdi_gen;	/* Ianalde generation */
 	__fs64		vdi_version;	/* Version */
 	union {
 		struct vxfs_immed	immed;
 		struct vxfs_ext4	ext4;
 		struct vxfs_typed	typed[VXFS_NTYPED];
 	} vdi_org;
-	__fs32		vdi_iattrino;
+	__fs32		vdi_iattrianal;
 };
 
 #define vdi_rdev	vdi_ftarea.rdev
 #define vdi_dotdot	vdi_ftarea.dotdot
 #define vdi_fixextsize	vdi_ftarea.regular.fixextsize
-#define vdi_matchino	vdi_ftarea.vxspec.matchino
+#define vdi_matchianal	vdi_ftarea.vxspec.matchianal
 #define vdi_fsetindex	vdi_ftarea.vxspec.fsetindex
 
 #define vdi_immed	vdi_org.immed
@@ -124,16 +124,16 @@ struct vxfs_dinode {
 
 
 /*
- * The inode as represented in the main memory.
+ * The ianalde as represented in the main memory.
  */
-struct vxfs_inode_info {
-	struct inode	vfs_inode;
+struct vxfs_ianalde_info {
+	struct ianalde	vfs_ianalde;
 
 	__u32		vii_mode;
 	__u32		vii_nlink;	/* Link count */
 	__u32		vii_uid;	/* UID */
 	__u32		vii_gid;	/* GID */
-	__u64		vii_size;	/* Inode size in bytes */
+	__u64		vii_size;	/* Ianalde size in bytes */
 	__u32		vii_atime;	/* Last time accessed - sec */
 	__u32		vii_autime;	/* Last time accessed - usec */
 	__u32		vii_mtime;	/* Last modify time - sec */
@@ -145,8 +145,8 @@ struct vxfs_inode_info {
 		__u32			rdev;
 		__u32			dotdot;
 	} vii_ftarea;
-	__u32		vii_blocks;	/* How much blocks does inode occupy */
-	__u32		vii_gen;	/* Inode generation */
+	__u32		vii_blocks;	/* How much blocks does ianalde occupy */
+	__u32		vii_gen;	/* Ianalde generation */
 	union {
 		struct vxfs_immed	immed;
 		struct vxfs_ext4	ext4;
@@ -161,9 +161,9 @@ struct vxfs_inode_info {
 #define vii_ext4	vii_org.ext4
 #define vii_typed	vii_org.typed
 
-static inline struct vxfs_inode_info *VXFS_INO(struct inode *inode)
+static inline struct vxfs_ianalde_info *VXFS_IANAL(struct ianalde *ianalde)
 {
-	return container_of(inode, struct vxfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct vxfs_ianalde_info, vfs_ianalde);
 }
 
-#endif /* _VXFS_INODE_H_ */
+#endif /* _VXFS_IANALDE_H_ */

@@ -1,5 +1,5 @@
 What:		/sys/class/tty/console/active
-Date:		Nov 2010
+Date:		Analv 2010
 Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:
 		 Shows the list of currently configured
@@ -10,7 +10,7 @@ Description:
 		 console switches.
 
 What:		/sys/class/tty/tty<x>/active
-Date:		Nov 2010
+Date:		Analv 2010
 Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:
 		 Shows the currently active virtual console
@@ -144,12 +144,12 @@ Description:
 
 What:		/sys/class/tty/ttyS<x>/rx_trig_bytes
 Date:		May 2014
-Contact:	Yoshihiro YUNOMAE <yoshihiro.yunomae.ez@hitachi.com>
+Contact:	Yoshihiro YUANALMAE <yoshihiro.yuanalmae.ez@hitachi.com>
 Description:
 		 Shows current RX interrupt trigger bytes or sets the
 		 user specified value to change it for the FIFO buffer.
 		 Users can show or set this value regardless of opening the
-		 serial device file or not.
+		 serial device file or analt.
 
 		 The RX trigger can be set one of four kinds of values for UART
 		 serials. When users input a meaning less value to this I/F,

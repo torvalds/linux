@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2019 Arm Ltd.
  *
- * Based on msm_gem_freedreno.c:
+ * Based on msm_gem_freedreanal.c:
  * Copyright (C) 2016 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  */
@@ -101,7 +101,7 @@ int panfrost_gem_shrinker_init(struct drm_device *dev)
 
 	pfdev->shrinker = shrinker_alloc(0, "drm-panfrost");
 	if (!pfdev->shrinker)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfdev->shrinker->count_objects = panfrost_gem_shrinker_count;
 	pfdev->shrinker->scan_objects = panfrost_gem_shrinker_scan;

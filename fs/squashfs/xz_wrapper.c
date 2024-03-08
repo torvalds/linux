@@ -44,7 +44,7 @@ static void *squashfs_xz_comp_opts(struct squashfs_sb_info *msblk,
 
 	opts = kmalloc(sizeof(*opts), GFP_KERNEL);
 	if (opts == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out2;
 	}
 
@@ -86,14 +86,14 @@ static void *squashfs_xz_init(struct squashfs_sb_info *msblk, void *buff)
 
 	stream = kmalloc(sizeof(*stream), GFP_KERNEL);
 	if (stream == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed;
 	}
 
 	stream->state = xz_dec_init(XZ_PREALLOC, comp_opts->dict_size);
 	if (stream->state == NULL) {
 		kfree(stream);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed;
 	}
 

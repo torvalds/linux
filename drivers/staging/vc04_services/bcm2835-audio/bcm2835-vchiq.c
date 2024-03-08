@@ -146,7 +146,7 @@ vc_vchi_audio_init(struct vchiq_instance *vchiq_instance,
 		return -EPERM;
 	}
 
-	/* Finished with the service for now */
+	/* Finished with the service for analw */
 	vchiq_release_service(instance->alsa_stream->chip->vchi_ctx->instance,
 			      instance->service_handle);
 
@@ -216,7 +216,7 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 	/* Allocate memory for this instance */
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&instance->vchi_mutex);
 	instance->dev = alsa_stream->chip->dev;
 	instance->alsa_stream = alsa_stream;
@@ -278,7 +278,7 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 	};
 	int err;
 
-	/* resend ctls - alsa_stream may not have been open when first send */
+	/* resend ctls - alsa_stream may analt have been open when first send */
 	err = bcm2835_audio_set_ctls(alsa_stream);
 	if (err)
 		return err;

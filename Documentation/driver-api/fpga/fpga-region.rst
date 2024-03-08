@@ -19,7 +19,7 @@ to program the FPGA and then DT to handle enumeration.  The common region code
 is intended to be used by other schemes that have other ways of accomplishing
 enumeration after programming.
 
-An fpga-region can be set up to know the following things:
+An fpga-region can be set up to kanalw the following things:
 
  * which FPGA manager to use to do the programming
 
@@ -59,7 +59,7 @@ during the region's probe function.
 
 * fpga_mgr_get() - Get a reference to an FPGA manager, raise ref count
 * of_fpga_mgr_get() -  Get a reference to an FPGA manager, raise ref count,
-  given a device node.
+  given a device analde.
 * fpga_mgr_put() - Put an FPGA manager
 
 The FPGA region will need to specify which bridges to control while programming
@@ -72,7 +72,7 @@ following APIs to handle building or tearing down that list.
 * fpga_bridge_get_to_list() - Get a ref of an FPGA bridge, add it to a
   list
 * of_fpga_bridge_get_to_list() - Get a ref of an FPGA bridge, add it to a
-  list, given a device node
+  list, given a device analde
 * fpga_bridges_put() - Given a list of bridges, put them
 
 .. kernel-doc:: include/linux/fpga/fpga-region.h

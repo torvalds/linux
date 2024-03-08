@@ -12,9 +12,9 @@
  * mind when they created this document.  The commands are all very
  * similar to commands in the SCSI-II and ATAPI specifications.
  *
- * It is important to note that in a number of cases this class
+ * It is important to analte that in a number of cases this class
  * exhibits class-specific exemptions from the USB specification.
- * Notably the usage of NAK, STALL and ACK differs from the norm, in
+ * Analtably the usage of NAK, STALL and ACK differs from the analrm, in
  * that they are used to communicate wait, failed and OK on commands.
  *
  * Also, for certain devices, the interrupt endpoint is used to convey
@@ -42,13 +42,13 @@
 
 #define USB_STOR_TRANSPORT_GOOD	   0   /* Transport good, command good	   */
 #define USB_STOR_TRANSPORT_FAILED  1   /* Transport good, command failed   */
-#define USB_STOR_TRANSPORT_NO_SENSE 2  /* Command failed, no auto-sense    */
+#define USB_STOR_TRANSPORT_ANAL_SENSE 2  /* Command failed, anal auto-sense    */
 #define USB_STOR_TRANSPORT_ERROR   3   /* Transport bad (i.e. device dead) */
 
 /*
  * We used to have USB_STOR_XFER_ABORTED and USB_STOR_TRANSPORT_ABORTED
- * return codes.  But now the transport and low-level transfer routines
- * treat an abort as just another error (-ENOENT for a cancelled URB).
+ * return codes.  But analw the transport and low-level transfer routines
+ * treat an abort as just aanalther error (-EANALENT for a cancelled URB).
  * It is up to the invoke_transport() function to test for aborts and
  * distinguish them from genuine communication errors.
  */

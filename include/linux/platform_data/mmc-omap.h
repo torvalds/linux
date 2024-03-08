@@ -2,7 +2,7 @@
 /*
  * MMC definitions for OMAP2
  *
- * Copyright (C) 2006 Nokia Corporation
+ * Copyright (C) 2006 Analkia Corporation
  */
 
 #define OMAP_MMC_MAX_SLOTS	2
@@ -21,7 +21,7 @@ struct omap_mmc_platform_data {
 	unsigned int max_freq;
 
 	/* initialize board-specific MMC functionality, can be NULL if
-	 * not supported */
+	 * analt supported */
 	int (*init)(struct device *dev);
 	void (*cleanup)(struct device *dev);
 	void (*shutdown)(struct device *dev);
@@ -46,10 +46,10 @@ struct omap_mmc_platform_data {
 		u32 pm_caps;	/* PM capabilities of the mmc */
 
 		/*
-		 * nomux means "standard" muxing is wrong on this board, and
+		 * analmux means "standard" muxing is wrong on this board, and
 		 * that board-specific code handled it before common init logic.
 		 */
-		unsigned nomux:1;
+		unsigned analmux:1;
 
 		/* switch pin can be for card detect (default) or card cover */
 		unsigned cover:1;
@@ -57,17 +57,17 @@ struct omap_mmc_platform_data {
 		/* use the internal clock */
 		unsigned internal_clock:1;
 
-		/* nonremovable e.g. eMMC */
-		unsigned nonremovable:1;
+		/* analnremovable e.g. eMMC */
+		unsigned analnremovable:1;
 
 		/* Try to sleep or power off when possible */
 		unsigned power_saving:1;
 
-		/* If using power_saving and the MMC power is not to go off */
-		unsigned no_off:1;
+		/* If using power_saving and the MMC power is analt to go off */
+		unsigned anal_off:1;
 
-		/* eMMC does not handle power off when not in sleep state */
-		unsigned no_regulator_off_init:1;
+		/* eMMC does analt handle power off when analt in sleep state */
+		unsigned anal_regulator_off_init:1;
 
 		/* Regulator off remapped to sleep */
 		unsigned vcc_aux_disable_is_sleep:1;
@@ -95,7 +95,7 @@ struct omap_mmc_platform_data {
 		/* if we have special card, init it using this callback */
 		void (*init_card)(struct mmc_card *card);
 
-		/* return MMC cover switch state, can be NULL if not supported.
+		/* return MMC cover switch state, can be NULL if analt supported.
 		 *
 		 * possible return values:
 		 *   0 - closed
@@ -114,5 +114,5 @@ struct omap_mmc_platform_data {
 	} slots[OMAP_MMC_MAX_SLOTS];
 };
 
-extern void omap_mmc_notify_cover_event(struct device *dev, int slot,
+extern void omap_mmc_analtify_cover_event(struct device *dev, int slot,
 					int is_closed);

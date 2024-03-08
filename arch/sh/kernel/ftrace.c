@@ -8,7 +8,7 @@
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  *
  * Thanks goes to Ingo Molnar, for suggesting the idea.
- * Mathieu Desnoyers, for suggesting postponing the modifications.
+ * Mathieu Desanalyers, for suggesting postponing the modifications.
  * Arjan van de Ven, for keeping me straight, and explaining to me
  * the dangers of modifying code on the run.
  */
@@ -26,9 +26,9 @@
 #ifdef CONFIG_DYNAMIC_FTRACE
 static unsigned char ftrace_replaced_code[MCOUNT_INSN_SIZE];
 
-static unsigned char ftrace_nop[4];
+static unsigned char ftrace_analp[4];
 /*
- * If we're trying to nop out a call to a function, we instead
+ * If we're trying to analp out a call to a function, we instead
  * place a call to the address after the memory table.
  *
  * 8c011060 <a>:
@@ -37,18 +37,18 @@ static unsigned char ftrace_nop[4];
  * 8c011064:       02 c7           mova    8c011070 <a+0x10>,r0
  * 8c011066:       2b 41           jmp     @r1
  * 8c011068:       2a 40           lds     r0,pr
- * 8c01106a:       09 00           nop
+ * 8c01106a:       09 00           analp
  * 8c01106c:       68 24           .word 0x2468     <--- ip
  * 8c01106e:       1d 8c           .word 0x8c1d
  * 8c011070:       26 4f           lds.l   @r15+,pr <--- ip + MCOUNT_INSN_SIZE
  *
  * We write 0x8c011070 to 0x8c01106c so that on entry to a() we branch
- * past the _mcount call and continue executing code like normal.
+ * past the _mcount call and continue executing code like analrmal.
  */
-static unsigned char *ftrace_nop_replace(unsigned long ip)
+static unsigned char *ftrace_analp_replace(unsigned long ip)
 {
-	__raw_writel(ip + MCOUNT_INSN_SIZE, ftrace_nop);
-	return ftrace_nop;
+	__raw_writel(ip + MCOUNT_INSN_SIZE, ftrace_analp);
+	return ftrace_analp;
 }
 
 static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
@@ -57,7 +57,7 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 	__raw_writel(addr, ftrace_replaced_code);
 
 	/*
-	 * No locking needed, this must be called via kstop_machine
+	 * Anal locking needed, this must be called via kstop_machine
 	 * which in essence is like running on a uniprocessor machine.
 	 */
 	return ftrace_replaced_code;
@@ -65,10 +65,10 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 
 /*
  * Modifying code must take extra care. On an SMP machine, if
- * the code being modified is also being executed on another CPU
+ * the code being modified is also being executed on aanalther CPU
  * that CPU will have undefined results and possibly take a GPF.
  * We use kstop_machine to stop other CPUS from executing code.
- * But this does not stop NMIs from happening. We still need
+ * But this does analt stop NMIs from happening. We still need
  * to protect against that. We separate out the modification of
  * the code to take care of this.
  *
@@ -86,7 +86,7 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  * "ftrace_nmi_enter". This will check if the flag is set to write
  * and if it is, it will write what is in the IP and "code" buffers.
  *
- * The trick is, it does not matter if everyone is writing the same
+ * The trick is, it does analt matter if everyone is writing the same
  * content to the code location. Also, if a CPU is executing code
  * it is OK to write to that code location if the contents being written
  * are the same as what exists.
@@ -114,12 +114,12 @@ static void clear_mod_flag(void)
 static void ftrace_mod_code(void)
 {
 	/*
-	 * Yes, more than one CPU process can be writing to mod_code_status.
+	 * Anal, more than one CPU process can be writing to mod_code_status.
 	 *    (and the code itself)
 	 * But if one were to fail, then they all should, and if one were
 	 * to succeed, then they all should.
 	 */
-	mod_code_status = copy_to_kernel_nofault(mod_code_ip, mod_code_newcode,
+	mod_code_status = copy_to_kernel_analfault(mod_code_ip, mod_code_newcode,
 					     MCOUNT_INSN_SIZE);
 
 	/* if we fail, then kill any new writers */
@@ -195,15 +195,15 @@ static int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	unsigned char replaced[MCOUNT_INSN_SIZE];
 
 	/*
-	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * Analte:
+	 * We are paraanalid about modifying text, as if a bug was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
 	 */
 
 	/* read the text we want to modify */
-	if (copy_from_kernel_nofault(replaced, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_analfault(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/* Make sure it is what we expect it to be */
@@ -230,14 +230,14 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ftrace_modify_code(ip, old, new);
 }
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_analp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned char *new, *old;
 	unsigned long ip = rec->ip;
 
 	old = ftrace_call_replace(ip, addr);
-	new = ftrace_nop_replace(ip);
+	new = ftrace_analp_replace(ip);
 
 	return ftrace_modify_code(rec->ip, old, new);
 }
@@ -247,7 +247,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned char *new, *old;
 	unsigned long ip = rec->ip;
 
-	old = ftrace_nop_replace(ip);
+	old = ftrace_analp_replace(ip);
 	new = ftrace_call_replace(ip, addr);
 
 	return ftrace_modify_code(rec->ip, old, new);
@@ -263,7 +263,7 @@ static int ftrace_mod(unsigned long ip, unsigned long old_addr,
 {
 	unsigned char code[MCOUNT_INSN_SIZE];
 
-	if (copy_from_kernel_nofault(code, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_analfault(code, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	if (old_addr != __raw_readl((unsigned long *)code))
@@ -328,7 +328,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	/*
 	 * Protect against fault, even if it shouldn't
 	 * happen. This tool is too much intrusive to
-	 * ignore such a protection.
+	 * iganalre such a protection.
 	 */
 	__asm__ __volatile__(
 		"1:						\n\t"

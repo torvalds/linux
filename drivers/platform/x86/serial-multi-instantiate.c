@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Serial multi-instantiate driver, pseudo driver to instantiate multiple
- * client devices from a single fwnode.
+ * client devices from a single fwanalde.
  *
  * Copyright 2018 Hans de Goede <hdegoede@redhat.com>
  */
@@ -18,7 +18,7 @@
 #include <linux/types.h>
 
 #define IRQ_RESOURCE_TYPE	GENMASK(1, 0)
-#define IRQ_RESOURCE_NONE	0
+#define IRQ_RESOURCE_ANALNE	0
 #define IRQ_RESOURCE_GPIO	1
 #define IRQ_RESOURCE_APIC	2
 #define IRQ_RESOURCE_AUTO   3
@@ -35,7 +35,7 @@ struct smi_instance {
 	int irq_idx;
 };
 
-struct smi_node {
+struct smi_analde {
 	enum smi_bus_type bus_type;
 	struct smi_instance instances[];
 };
@@ -96,7 +96,7 @@ static void smi_devs_unregister(struct smi *smi)
  * @smi:	Internal struct for Serial multi instantiate driver
  * @inst_array:	Array of instances to probe
  *
- * Returns the number of SPI devices instantiate, Zero if none is found or a negative error code.
+ * Returns the number of SPI devices instantiate, Zero if analne is found or a negative error code.
  */
 static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 			 const struct smi_instance *inst_array)
@@ -112,13 +112,13 @@ static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 	if (ret < 0)
 		return ret;
 	if (!ret)
-		return -ENOENT;
+		return -EANALENT;
 
 	count = ret;
 
 	smi->spi_devs = devm_kcalloc(dev, count, sizeof(*smi->spi_devs), GFP_KERNEL);
 	if (!smi->spi_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count && inst_array[i].type; i++) {
 
@@ -161,7 +161,7 @@ static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 
 	if (smi->spi_num < count) {
 		dev_dbg(dev, "Error finding driver, idx %d\n", i);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
@@ -180,7 +180,7 @@ error:
  * @smi:	Internal struct for Serial multi instantiate driver
  * @inst_array:	Array of instances to probe
  *
- * Returns the number of I2C devices instantiate, Zero if none is found or a negative error code.
+ * Returns the number of I2C devices instantiate, Zero if analne is found or a negative error code.
  */
 static int smi_i2c_probe(struct platform_device *pdev, struct smi *smi,
 			 const struct smi_instance *inst_array)
@@ -195,13 +195,13 @@ static int smi_i2c_probe(struct platform_device *pdev, struct smi *smi,
 	if (ret < 0)
 		return ret;
 	if (!ret)
-		return -ENOENT;
+		return -EANALENT;
 
 	count = ret;
 
 	smi->i2c_devs = devm_kcalloc(dev, count, sizeof(*smi->i2c_devs), GFP_KERNEL);
 	if (!smi->i2c_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count && inst_array[i].type; i++) {
 		memset(&board_info, 0, sizeof(board_info));
@@ -224,7 +224,7 @@ static int smi_i2c_probe(struct platform_device *pdev, struct smi *smi,
 	}
 	if (smi->i2c_num < count) {
 		dev_dbg(dev, "Error finding driver, idx %d\n", i);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
@@ -240,40 +240,40 @@ error:
 static int smi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct smi_node *node;
+	const struct smi_analde *analde;
 	struct smi *smi;
 	int ret;
 
-	node = device_get_match_data(dev);
-	if (!node) {
+	analde = device_get_match_data(dev);
+	if (!analde) {
 		dev_dbg(dev, "Error ACPI match data is missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	smi = devm_kzalloc(dev, sizeof(*smi), GFP_KERNEL);
 	if (!smi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, smi);
 
-	switch (node->bus_type) {
+	switch (analde->bus_type) {
 	case SMI_I2C:
-		return smi_i2c_probe(pdev, smi, node->instances);
+		return smi_i2c_probe(pdev, smi, analde->instances);
 	case SMI_SPI:
-		return smi_spi_probe(pdev, smi, node->instances);
+		return smi_spi_probe(pdev, smi, analde->instances);
 	case SMI_AUTO_DETECT:
 		/*
-		 * For backwards-compatibility with the existing nodes I2C
+		 * For backwards-compatibility with the existing analdes I2C
 		 * is checked first and if such entries are found ONLY I2C
-		 * devices are created. Since some existing nodes that were
+		 * devices are created. Since some existing analdes that were
 		 * already handled by this driver could also contain unrelated
-		 * SpiSerialBus nodes that were previously ignored, and this
+		 * SpiSerialBus analdes that were previously iganalred, and this
 		 * preserves that behavior.
 		 */
-		ret = smi_i2c_probe(pdev, smi, node->instances);
-		if (ret != -ENOENT)
+		ret = smi_i2c_probe(pdev, smi, analde->instances);
+		if (ret != -EANALENT)
 			return ret;
-		return smi_spi_probe(pdev, smi, node->instances);
+		return smi_spi_probe(pdev, smi, analde->instances);
 	default:
 		return -EINVAL;
 	}
@@ -286,7 +286,7 @@ static void smi_remove(struct platform_device *pdev)
 	smi_devs_unregister(smi);
 }
 
-static const struct smi_node bsg1160_data = {
+static const struct smi_analde bsg1160_data = {
 	.instances = {
 		{ "bmc150_accel", IRQ_RESOURCE_GPIO, 0 },
 		{ "bmc150_magn" },
@@ -296,18 +296,18 @@ static const struct smi_node bsg1160_data = {
 	.bus_type = SMI_I2C,
 };
 
-static const struct smi_node bsg2150_data = {
+static const struct smi_analde bsg2150_data = {
 	.instances = {
 		{ "bmc150_accel", IRQ_RESOURCE_GPIO, 0 },
 		{ "bmc150_magn" },
-		/* The resources describe a 3th client, but it is not really there. */
+		/* The resources describe a 3th client, but it is analt really there. */
 		{ "bsg2150_dummy_dev" },
 		{}
 	},
 	.bus_type = SMI_I2C,
 };
 
-static const struct smi_node int3515_data = {
+static const struct smi_analde int3515_data = {
 	.instances = {
 		{ "tps6598x", IRQ_RESOURCE_APIC, 0 },
 		{ "tps6598x", IRQ_RESOURCE_APIC, 1 },
@@ -318,7 +318,7 @@ static const struct smi_node int3515_data = {
 	.bus_type = SMI_I2C,
 };
 
-static const struct smi_node cs35l41_hda = {
+static const struct smi_analde cs35l41_hda = {
 	.instances = {
 		{ "cs35l41-hda", IRQ_RESOURCE_AUTO, 0 },
 		{ "cs35l41-hda", IRQ_RESOURCE_AUTO, 0 },
@@ -329,13 +329,13 @@ static const struct smi_node cs35l41_hda = {
 	.bus_type = SMI_AUTO_DETECT,
 };
 
-static const struct smi_node cs35l56_hda = {
+static const struct smi_analde cs35l56_hda = {
 	.instances = {
 		{ "cs35l56-hda", IRQ_RESOURCE_AUTO, 0 },
 		{ "cs35l56-hda", IRQ_RESOURCE_AUTO, 0 },
 		{ "cs35l56-hda", IRQ_RESOURCE_AUTO, 0 },
 		{ "cs35l56-hda", IRQ_RESOURCE_AUTO, 0 },
-		/* a 5th entry is an alias address, not a real device */
+		/* a 5th entry is an alias address, analt a real device */
 		{ "cs35l56-hda_dummy_dev" },
 		{}
 	},
@@ -343,7 +343,7 @@ static const struct smi_node cs35l56_hda = {
 };
 
 /*
- * Note new device-ids must also be added to ignore_serial_bus_ids in
+ * Analte new device-ids must also be added to iganalre_serial_bus_ids in
  * drivers/acpi/scan.c: acpi_device_enumeration_by_parent().
  */
 static const struct acpi_device_id smi_acpi_ids[] = {
@@ -352,7 +352,7 @@ static const struct acpi_device_id smi_acpi_ids[] = {
 	{ "CSC3551", (unsigned long)&cs35l41_hda },
 	{ "CSC3556", (unsigned long)&cs35l56_hda },
 	{ "INT3515", (unsigned long)&int3515_data },
-	/* Non-conforming _HID for Cirrus Logic already released */
+	/* Analn-conforming _HID for Cirrus Logic already released */
 	{ "CLSA0100", (unsigned long)&cs35l41_hda },
 	{ "CLSA0101", (unsigned long)&cs35l41_hda },
 	{ }

@@ -2,7 +2,7 @@
 /*
  * Clock driver for TI Davinci PSC controllers
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechanallogy.com>
  */
 
 #ifndef __CLK_DAVINCI_PLL_H___
@@ -112,7 +112,7 @@ davinci_pll_sysclk_register(struct device *dev,
 			    const struct davinci_pll_sysclk_info *info,
 			    void __iomem *base);
 
-int of_davinci_pll_init(struct device *dev, struct device_node *node,
+int of_davinci_pll_init(struct device *dev, struct device_analde *analde,
 			const struct davinci_pll_clk_info *info,
 			const struct davinci_pll_obsclk_info *obsclk_info,
 			const struct davinci_pll_sysclk_info **div_info,
@@ -123,7 +123,7 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 /* Platform-specific callbacks */
 
 int da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
-void of_da850_pll0_init(struct device_node *node);
+void of_da850_pll0_init(struct device_analde *analde);
 int of_da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
 
 #endif /* __CLK_DAVINCI_PLL_H___ */

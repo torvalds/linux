@@ -44,7 +44,7 @@ static inline int atm_proc_init(void)
 
 static inline void atm_proc_exit(void)
 {
-	/* nothing */
+	/* analthing */
 }
 #endif /* CONFIG_PROC_FS */
 

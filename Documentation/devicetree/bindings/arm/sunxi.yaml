@@ -11,7 +11,7 @@ maintainers:
   - Maxime Ripard <mripard@kernel.org>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -51,9 +51,9 @@ properties:
           - const: allwinner,parrot
           - const: allwinner,sun8i-a33
 
-      - description: Anbernic RG-Nano
+      - description: Anbernic RG-Naanal
         items:
-          - const: anbernic,rg-nano
+          - const: anbernic,rg-naanal
           - const: allwinner,sun8i-v3s
 
       - description: Amarula A64 Relic
@@ -83,27 +83,27 @@ properties:
 
       - description: BananaPi M1 Plus
         items:
-          - const: sinovoip,bpi-m1-plus
+          - const: sianalvoip,bpi-m1-plus
           - const: allwinner,sun7i-a20
 
       - description: BananaPi M2
         items:
-          - const: sinovoip,bpi-m2
+          - const: sianalvoip,bpi-m2
           - const: allwinner,sun6i-a31s
 
       - description: BananaPi M2 Berry
         items:
-          - const: sinovoip,bpi-m2-berry
+          - const: sianalvoip,bpi-m2-berry
           - const: allwinner,sun8i-r40
 
       - description: BananaPi M2 Plus
         items:
-          - const: sinovoip,bpi-m2-plus
+          - const: sianalvoip,bpi-m2-plus
           - const: allwinner,sun8i-h3
 
       - description: BananaPi M2 Plus
         items:
-          - const: sinovoip,bpi-m2-plus
+          - const: sianalvoip,bpi-m2-plus
           - const: allwinner,sun50i-h5
 
       - description: BananaPi M2 Plus v1.2
@@ -118,27 +118,27 @@ properties:
 
       - description: BananaPi M2 Magic
         items:
-          - const: sinovoip,bananapi-m2m
+          - const: sianalvoip,bananapi-m2m
           - const: allwinner,sun8i-a33
 
       - description: BananaPi M2 Ultra
         items:
-          - const: sinovoip,bpi-m2-ultra
+          - const: sianalvoip,bpi-m2-ultra
           - const: allwinner,sun8i-r40
 
       - description: BananaPi M2 Zero
         items:
-          - const: sinovoip,bpi-m2-zero
+          - const: sianalvoip,bpi-m2-zero
           - const: allwinner,sun8i-h2-plus
 
       - description: BananaPi M3
         items:
-          - const: sinovoip,bpi-m3
+          - const: sianalvoip,bpi-m3
           - const: allwinner,sun8i-a83t
 
       - description: BananaPi M64
         items:
-          - const: sinovoip,bananapi-m64
+          - const: sianalvoip,bananapi-m64
           - const: allwinner,sun50i-a64
 
       - description: BananaPro
@@ -246,54 +246,54 @@ properties:
           - const: forlinx,feta40i-c
           - const: allwinner,sun8i-r40
 
-      - description: FriendlyARM NanoPi A64
+      - description: FriendlyARM NaanalPi A64
         items:
-          - const: friendlyarm,nanopi-a64
+          - const: friendlyarm,naanalpi-a64
           - const: allwinner,sun50i-a64
 
-      - description: FriendlyARM NanoPi Duo2
+      - description: FriendlyARM NaanalPi Duo2
         items:
-          - const: friendlyarm,nanopi-duo2
+          - const: friendlyarm,naanalpi-duo2
           - const: allwinner,sun8i-h3
 
-      - description: FriendlyARM NanoPi M1
+      - description: FriendlyARM NaanalPi M1
         items:
-          - const: friendlyarm,nanopi-m1
+          - const: friendlyarm,naanalpi-m1
           - const: allwinner,sun8i-h3
 
-      - description: FriendlyARM NanoPi M1 Plus
+      - description: FriendlyARM NaanalPi M1 Plus
         items:
-          - const: friendlyarm,nanopi-m1-plus
+          - const: friendlyarm,naanalpi-m1-plus
           - const: allwinner,sun8i-h3
 
-      - description: FriendlyARM NanoPi Neo
+      - description: FriendlyARM NaanalPi Neo
         items:
-          - const: friendlyarm,nanopi-neo
+          - const: friendlyarm,naanalpi-neo
           - const: allwinner,sun8i-h3
 
-      - description: FriendlyARM NanoPi Neo 2
+      - description: FriendlyARM NaanalPi Neo 2
         items:
-          - const: friendlyarm,nanopi-neo2
+          - const: friendlyarm,naanalpi-neo2
           - const: allwinner,sun50i-h5
 
-      - description: FriendlyARM NanoPi Neo Air
+      - description: FriendlyARM NaanalPi Neo Air
         items:
-          - const: friendlyarm,nanopi-neo-air
+          - const: friendlyarm,naanalpi-neo-air
           - const: allwinner,sun8i-h3
 
-      - description: FriendlyARM NanoPi Neo Plus2
+      - description: FriendlyARM NaanalPi Neo Plus2
         items:
-          - const: friendlyarm,nanopi-neo-plus2
+          - const: friendlyarm,naanalpi-neo-plus2
           - const: allwinner,sun50i-h5
 
-      - description: FriendlyARM NanoPi R1
+      - description: FriendlyARM NaanalPi R1
         items:
-          - const: friendlyarm,nanopi-r1
+          - const: friendlyarm,naanalpi-r1
           - const: allwinner,sun8i-h3
 
-      - description: FriendlyARM NanoPi R1S H5
+      - description: FriendlyARM NaanalPi R1S H5
         items:
-          - const: friendlyarm,nanopi-r1s-h5
+          - const: friendlyarm,naanalpi-r1s-h5
           - const: allwinner,sun50i-h5
 
       - description: FriendlyARM ZeroPi
@@ -321,16 +321,16 @@ properties:
           - const: allwinner,i12-tvbox
           - const: allwinner,sun7i-a20
 
-      - description: ICnova A20 ADB4006
+      - description: ICanalva A20 ADB4006
         items:
-          - const: incircuit,icnova-a20-adb4006
-          - const: incircuit,icnova-a20
+          - const: incircuit,icanalva-a20-adb4006
+          - const: incircuit,icanalva-a20
           - const: allwinner,sun7i-a20
 
-      - description: ICNova A20 SWAC
+      - description: ICAnalva A20 SWAC
         items:
-          - const: incircuit,icnova-a20-swac
-          - const: incircuit,icnova-a20
+          - const: incircuit,icanalva-a20-swac
+          - const: incircuit,icanalva-a20
           - const: allwinner,sun7i-a20
 
       - description: INet-1
@@ -373,9 +373,9 @@ properties:
           - const: itead,itead-ibox-a20
           - const: allwinner,sun7i-a20
 
-      - description: Itead Iteaduino Plus A10
+      - description: Itead Iteaduianal Plus A10
         items:
-          - const: itead,iteaduino-plus-a10
+          - const: itead,iteaduianal-plus-a10
           - const: allwinner,sun4i-a10
 
       - description: Jesurun Q5
@@ -419,9 +419,9 @@ properties:
           - const: libretech,all-h5-cc-h5
           - const: allwinner,sun50i-h5
 
-      - description: Lichee Pi Nano
+      - description: Lichee Pi Naanal
         items:
-          - const: licheepi,licheepi-nano
+          - const: licheepi,licheepi-naanal
           - const: allwinner,suniv-f1c100s
 
       - description: Lichee Pi One
@@ -446,24 +446,24 @@ properties:
           - const: sochip,s3
           - const: allwinner,sun8i-v3
 
-      - description: Linksprite PCDuino
+      - description: Linksprite PCDuianal
         items:
-          - const: linksprite,a10-pcduino
+          - const: linksprite,a10-pcduianal
           - const: allwinner,sun4i-a10
 
-      - description: Linksprite PCDuino2
+      - description: Linksprite PCDuianal2
         items:
-          - const: linksprite,a10-pcduino2
+          - const: linksprite,a10-pcduianal2
           - const: allwinner,sun4i-a10
 
-      - description: Linksprite PCDuino3
+      - description: Linksprite PCDuianal3
         items:
-          - const: linksprite,pcduino3
+          - const: linksprite,pcduianal3
           - const: allwinner,sun7i-a20
 
-      - description: Linksprite PCDuino3 Nano
+      - description: Linksprite PCDuianal3 Naanal
         items:
-          - const: linksprite,pcduino3-nano
+          - const: linksprite,pcduianal3-naanal
           - const: allwinner,sun7i-a20
 
       - description: Linutronix Testbox v2
@@ -603,24 +603,24 @@ properties:
           - const: oceanic,5205-5inmfd
           - const: allwinner,sun50i-a64
 
-      - description: Olimex A10-OlinuXino LIME
+      - description: Olimex A10-OlinuXianal LIME
         items:
-          - const: olimex,a10-olinuxino-lime
+          - const: olimex,a10-olinuxianal-lime
           - const: allwinner,sun4i-a10
 
-      - description: Olimex A10s-OlinuXino Micro
+      - description: Olimex A10s-OlinuXianal Micro
         items:
-          - const: olimex,a10s-olinuxino-micro
+          - const: olimex,a10s-olinuxianal-micro
           - const: allwinner,sun5i-a10s
 
-      - description: Olimex A13-OlinuXino
+      - description: Olimex A13-OlinuXianal
         items:
-          - const: olimex,a13-olinuxino
+          - const: olimex,a13-olinuxianal
           - const: allwinner,sun5i-a13
 
-      - description: Olimex A13-OlinuXino Micro
+      - description: Olimex A13-OlinuXianal Micro
         items:
-          - const: olimex,a13-olinuxino-micro
+          - const: olimex,a13-olinuxianal-micro
           - const: allwinner,sun5i-a13
 
       - description: Olimex A20-Olimex SOM Evaluation Board
@@ -633,34 +633,34 @@ properties:
           - const: olimex,a20-olimex-som-evb-emmc
           - const: allwinner,sun7i-a20
 
-      - description: Olimex A20-OlinuXino LIME
+      - description: Olimex A20-OlinuXianal LIME
         items:
-          - const: olimex,a20-olinuxino-lime
+          - const: olimex,a20-olinuxianal-lime
           - const: allwinner,sun7i-a20
 
-      - description: Olimex A20-OlinuXino LIME (with eMMC)
+      - description: Olimex A20-OlinuXianal LIME (with eMMC)
         items:
-          - const: olimex,a20-olinuxino-lime-emmc
+          - const: olimex,a20-olinuxianal-lime-emmc
           - const: allwinner,sun7i-a20
 
-      - description: Olimex A20-OlinuXino LIME2
+      - description: Olimex A20-OlinuXianal LIME2
         items:
-          - const: olimex,a20-olinuxino-lime2
+          - const: olimex,a20-olinuxianal-lime2
           - const: allwinner,sun7i-a20
 
-      - description: Olimex A20-OlinuXino LIME2 (with eMMC)
+      - description: Olimex A20-OlinuXianal LIME2 (with eMMC)
         items:
-          - const: olimex,a20-olinuxino-lime2-emmc
+          - const: olimex,a20-olinuxianal-lime2-emmc
           - const: allwinner,sun7i-a20
 
-      - description: Olimex A20-OlinuXino Micro
+      - description: Olimex A20-OlinuXianal Micro
         items:
-          - const: olimex,a20-olinuxino-micro
+          - const: olimex,a20-olinuxianal-micro
           - const: allwinner,sun7i-a20
 
-      - description: Olimex A20-OlinuXino Micro (with eMMC)
+      - description: Olimex A20-OlinuXianal Micro (with eMMC)
         items:
-          - const: olimex,a20-olinuxino-micro-emmc
+          - const: olimex,a20-olinuxianal-micro-emmc
           - const: allwinner,sun7i-a20
 
       - description: Olimex A20-SOM204 Evaluation Board
@@ -673,19 +673,19 @@ properties:
           - const: olimex,a20-olimex-som204-evb-emmc
           - const: allwinner,sun7i-a20
 
-      - description: Olimex A33-OlinuXino
+      - description: Olimex A33-OlinuXianal
         items:
-          - const: olimex,a33-olinuxino
+          - const: olimex,a33-olinuxianal
           - const: allwinner,sun8i-a33
 
-      - description: Olimex A64-OlinuXino
+      - description: Olimex A64-OlinuXianal
         items:
-          - const: olimex,a64-olinuxino
+          - const: olimex,a64-olinuxianal
           - const: allwinner,sun50i-a64
 
-      - description: Olimex A64-OlinuXino (with eMMC)
+      - description: Olimex A64-OlinuXianal (with eMMC)
         items:
-          - const: olimex,a64-olinuxino-emmc
+          - const: olimex,a64-olinuxianal-emmc
           - const: allwinner,sun50i-a64
 
       - description: Olimex A64 Teres-I

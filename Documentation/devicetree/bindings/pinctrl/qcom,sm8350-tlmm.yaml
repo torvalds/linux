@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/pinctrl/qcom,sm8350-tlmm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. SM8350 TLMM block
+title: Qualcomm Techanallogies, Inc. SM8350 TLMM block
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 description:
   Top Level Mode Multiplexer pin controller in Qualcomm SM8350 SoC.
@@ -45,8 +45,8 @@ $defs:
   qcom-sm8350-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -54,7 +54,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           oneOf:
             - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-9][0-9]|20[0-2])$"
@@ -113,12 +113,12 @@ examples:
         #interrupt-cells = <2>;
         gpio-ranges = <&tlmm 0 0 204>; /* GPIOs + ufs_reset */
 
-        gpio-wo-subnode-state {
+        gpio-wo-subanalde-state {
             pins = "gpio1";
             function = "gpio";
         };
 
-        uart-w-subnodes-state {
+        uart-w-subanaldes-state {
             rx-pins {
                 pins = "gpio18";
                 function = "qup3";

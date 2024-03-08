@@ -1,5 +1,5 @@
 /*
- * linux/drivers/video/metronomefb.c -- FB driver for Metronome controller
+ * linux/drivers/video/metroanalmefb.c -- FB driver for Metroanalme controller
  *
  * Copyright (C) 2008, Jaya Kumar
  *
@@ -12,7 +12,7 @@
  * This work was made possible by help and equipment support from E-Ink
  * Corporation. https://www.eink.com/
  *
- * This driver is written to be used with the Metronome display controller.
+ * This driver is written to be used with the Metroanalme display controller.
  * It is intended to be architecture independent. A board specific driver
  * must be used to perform all the physical IO interactions. An example
  * is provided as am200epd.c
@@ -20,7 +20,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -35,7 +35,7 @@
 #include <linux/uaccess.h>
 #include <linux/irq.h>
 
-#include <video/metronomefb.h>
+#include <video/metroanalmefb.h>
 
 #include <asm/unaligned.h>
 
@@ -45,7 +45,7 @@
 
 static int user_wfm_size;
 
-/* frame differs from image. frame includes non-visible pixels */
+/* frame differs from image. frame includes analn-visible pixels */
 struct epd_frame {
 	int fw; /* frame width */
 	int fh; /* frame height */
@@ -99,25 +99,25 @@ static struct epd_frame epd_frame_table[] = {
 	},
 };
 
-static struct fb_fix_screeninfo metronomefb_fix = {
-	.id =		"metronomefb",
+static struct fb_fix_screeninfo metroanalmefb_fix = {
+	.id =		"metroanalmefb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_STATIC_PSEUDOCOLOR,
 	.xpanstep =	0,
 	.ypanstep =	0,
 	.ywrapstep =	0,
 	.line_length =	DPY_W,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 };
 
-static struct fb_var_screeninfo metronomefb_var = {
+static struct fb_var_screeninfo metroanalmefb_var = {
 	.xres		= DPY_W,
 	.yres		= DPY_H,
 	.xres_virtual	= DPY_W,
 	.yres_virtual	= DPY_H,
 	.bits_per_pixel	= 8,
 	.grayscale	= 1,
-	.nonstd		= 1,
+	.analnstd		= 1,
 	.red =		{ 4, 3, 0 },
 	.green =	{ 0, 0, 0 },
 	.blue =		{ 0, 0, 0 },
@@ -144,7 +144,7 @@ struct waveform_hdr {
 	u8 wfm_cs;
 } __attribute__ ((packed));
 
-/* main metronomefb functions */
+/* main metroanalmefb functions */
 static u8 calc_cksum(int start, int end, u8 *mem)
 {
 	u8 tmp = 0;
@@ -168,7 +168,7 @@ static u16 calc_img_cksum(u16 *start, int length)
 
 /* here we decode the incoming waveform file and populate metromem */
 static int load_waveform(u8 *mem, size_t size, int m, int t,
-			 struct metronomefb_par *par)
+			 struct metroanalmefb_par *par)
 {
 	int tta;
 	int wmta;
@@ -305,7 +305,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 	return 0;
 }
 
-static int metronome_display_cmd(struct metronomefb_par *par)
+static int metroanalme_display_cmd(struct metroanalmefb_par *par)
 {
 	int i;
 	u16 cs;
@@ -338,7 +338,7 @@ static int metronome_display_cmd(struct metronomefb_par *par)
 	return par->board->met_wait_event_intr(par);
 }
 
-static int metronome_powerup_cmd(struct metronomefb_par *par)
+static int metroanalme_powerup_cmd(struct metroanalmefb_par *par)
 {
 	int i;
 	u16 cs;
@@ -368,7 +368,7 @@ static int metronome_powerup_cmd(struct metronomefb_par *par)
 	return par->board->met_wait_event(par);
 }
 
-static int metronome_config_cmd(struct metronomefb_par *par)
+static int metroanalme_config_cmd(struct metroanalmefb_par *par)
 {
 	/* setup config command
 	we can't immediately set the opcode since the controller
@@ -387,7 +387,7 @@ static int metronome_config_cmd(struct metronomefb_par *par)
 	return par->board->met_wait_event(par);
 }
 
-static int metronome_init_cmd(struct metronomefb_par *par)
+static int metroanalme_init_cmd(struct metroanalmefb_par *par)
 {
 	int i;
 	u16 cs;
@@ -413,7 +413,7 @@ static int metronome_init_cmd(struct metronomefb_par *par)
 	return par->board->met_wait_event(par);
 }
 
-static int metronome_init_regs(struct metronomefb_par *par)
+static int metroanalme_init_regs(struct metroanalmefb_par *par)
 {
 	int res;
 
@@ -421,20 +421,20 @@ static int metronome_init_regs(struct metronomefb_par *par)
 	if (res)
 		return res;
 
-	res = metronome_powerup_cmd(par);
+	res = metroanalme_powerup_cmd(par);
 	if (res)
 		return res;
 
-	res = metronome_config_cmd(par);
+	res = metroanalme_config_cmd(par);
 	if (res)
 		return res;
 
-	res = metronome_init_cmd(par);
+	res = metroanalme_init_cmd(par);
 
 	return res;
 }
 
-static void metronomefb_dpy_update(struct metronomefb_par *par)
+static void metroanalmefb_dpy_update(struct metroanalmefb_par *par)
 {
 	int fbsize;
 	u16 cksum;
@@ -446,10 +446,10 @@ static void metronomefb_dpy_update(struct metronomefb_par *par)
 
 	cksum = calc_img_cksum((u16 *) par->metromem_img, fbsize/2);
 	*((u16 *)(par->metromem_img) + fbsize/2) = cksum;
-	metronome_display_cmd(par);
+	metroanalme_display_cmd(par);
 }
 
-static u16 metronomefb_dpy_update_page(struct metronomefb_par *par, int index)
+static u16 metroanalmefb_dpy_update_page(struct metroanalmefb_par *par, int index)
 {
 	int i;
 	u16 csum = 0;
@@ -465,62 +465,62 @@ static u16 metronomefb_dpy_update_page(struct metronomefb_par *par, int index)
 }
 
 /* this is called back from the deferred io workqueue */
-static void metronomefb_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
+static void metroanalmefb_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	u16 cksum;
 	struct fb_deferred_io_pageref *pageref;
-	struct metronomefb_par *par = info->par;
+	struct metroanalmefb_par *par = info->par;
 
 	/* walk the written page list and swizzle the data */
 	list_for_each_entry(pageref, pagereflist, list) {
 		unsigned long pgoffset = pageref->offset >> PAGE_SHIFT;
-		cksum = metronomefb_dpy_update_page(par, pageref->offset);
+		cksum = metroanalmefb_dpy_update_page(par, pageref->offset);
 		par->metromem_img_csum -= par->csum_table[pgoffset];
 		par->csum_table[pgoffset] = cksum;
 		par->metromem_img_csum += cksum;
 	}
 
-	metronome_display_cmd(par);
+	metroanalme_display_cmd(par);
 }
 
-static void metronomefb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
+static void metroanalmefb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
 {
-	struct metronomefb_par *par = info->par;
+	struct metroanalmefb_par *par = info->par;
 
-	metronomefb_dpy_update(par);
+	metroanalmefb_dpy_update(par);
 }
 
-static void metronomefb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
+static void metroanalmefb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
 					  u32 width, u32 height)
 {
-	struct metronomefb_par *par = info->par;
+	struct metroanalmefb_par *par = info->par;
 
-	metronomefb_dpy_update(par);
+	metroanalmefb_dpy_update(par);
 }
 
-FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(metronomefb,
-				   metronomefb_defio_damage_range,
-				   metronomefb_defio_damage_area)
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(metroanalmefb,
+				   metroanalmefb_defio_damage_range,
+				   metroanalmefb_defio_damage_area)
 
-static const struct fb_ops metronomefb_ops = {
+static const struct fb_ops metroanalmefb_ops = {
 	.owner	= THIS_MODULE,
-	FB_DEFAULT_DEFERRED_OPS(metronomefb),
+	FB_DEFAULT_DEFERRED_OPS(metroanalmefb),
 };
 
-static struct fb_deferred_io metronomefb_defio = {
+static struct fb_deferred_io metroanalmefb_defio = {
 	.delay			= HZ,
 	.sort_pagereflist	= true,
-	.deferred_io		= metronomefb_dpy_deferred_io,
+	.deferred_io		= metroanalmefb_dpy_deferred_io,
 };
 
-static int metronomefb_probe(struct platform_device *dev)
+static int metroanalmefb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
-	struct metronome_board *board;
-	int retval = -ENOMEM;
+	struct metroanalme_board *board;
+	int retval = -EANALMEM;
 	int videomemorysize;
 	unsigned char *videomemory;
-	struct metronomefb_par *par;
+	struct metroanalmefb_par *par;
 	const struct firmware *fw_entry;
 	int i;
 	int panel_type;
@@ -534,9 +534,9 @@ static int metronomefb_probe(struct platform_device *dev)
 
 	/* try to count device specific driver, if can't, platform recalls */
 	if (!try_module_get(board->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
-	info = framebuffer_alloc(sizeof(struct metronomefb_par), &dev->dev);
+	info = framebuffer_alloc(sizeof(struct metroanalmefb_par), &dev->dev);
 	if (!info)
 		goto err;
 
@@ -545,7 +545,7 @@ static int metronomefb_probe(struct platform_device *dev)
 	par->metromem which is physically contiguous memory and
 	contains the display controller commands, waveform,
 	processed image data and padding. this is the data pulled
-	by the device's LCD controller and pushed to Metronome.
+	by the device's LCD controller and pushed to Metroanalme.
 	the metromem memory is allocated by the board driver and
 	is provided to us */
 
@@ -577,15 +577,15 @@ static int metronomefb_probe(struct platform_device *dev)
 		goto err_fb_rel;
 
 	info->screen_buffer = videomemory;
-	info->fbops = &metronomefb_ops;
+	info->fbops = &metroanalmefb_ops;
 
-	metronomefb_fix.line_length = fw;
-	metronomefb_var.xres = fw;
-	metronomefb_var.yres = fh;
-	metronomefb_var.xres_virtual = fw;
-	metronomefb_var.yres_virtual = fh;
-	info->var = metronomefb_var;
-	info->fix = metronomefb_fix;
+	metroanalmefb_fix.line_length = fw;
+	metroanalmefb_var.xres = fw;
+	metroanalmefb_var.yres = fh;
+	metroanalmefb_var.xres_virtual = fw;
+	metroanalmefb_var.yres_virtual = fh;
+	info->var = metroanalmefb_var;
+	info->fix = metroanalmefb_fix;
 	info->fix.smem_len = videomemorysize;
 	par = info->par;
 	par->info = info;
@@ -617,10 +617,10 @@ static int metronomefb_probe(struct platform_device *dev)
 
 	info->fix.smem_start = par->metromem_dma;
 
-	/* load the waveform in. assume mode 3, temp 31 for now
+	/* load the waveform in. assume mode 3, temp 31 for analw
 		a) request the waveform file from userspace
 		b) process waveform and decode into metromem */
-	retval = request_firmware(&fw_entry, "metronome.wbf", &dev->dev);
+	retval = request_firmware(&fw_entry, "metroanalme.wbf", &dev->dev);
 	if (retval < 0) {
 		dev_err(&dev->dev, "Failed to get waveform\n");
 		goto err_csum_table;
@@ -638,13 +638,13 @@ static int metronomefb_probe(struct platform_device *dev)
 	if (retval)
 		goto err_csum_table;
 
-	retval = metronome_init_regs(par);
+	retval = metroanalme_init_regs(par);
 	if (retval < 0)
 		goto err_free_irq;
 
 	info->flags = FBINFO_VIRTFB;
 
-	info->fbdefio = &metronomefb_defio;
+	info->fbdefio = &metroanalmefb_defio;
 	fb_deferred_io_init(info);
 
 	retval = fb_alloc_cmap(&info->cmap, 8, 0);
@@ -666,8 +666,8 @@ static int metronomefb_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, info);
 
 	dev_dbg(&dev->dev,
-		"fb%d: Metronome frame buffer device, using %dK of video"
-		" memory\n", info->node, videomemorysize >> 10);
+		"fb%d: Metroanalme frame buffer device, using %dK of video"
+		" memory\n", info->analde, videomemorysize >> 10);
 
 	return 0;
 
@@ -686,12 +686,12 @@ err:
 	return retval;
 }
 
-static void metronomefb_remove(struct platform_device *dev)
+static void metroanalmefb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
 	if (info) {
-		struct metronomefb_par *par = info->par;
+		struct metroanalmefb_par *par = info->par;
 
 		unregister_framebuffer(info);
 		fb_deferred_io_cleanup(info);
@@ -705,20 +705,20 @@ static void metronomefb_remove(struct platform_device *dev)
 	}
 }
 
-static struct platform_driver metronomefb_driver = {
-	.probe	= metronomefb_probe,
-	.remove_new = metronomefb_remove,
+static struct platform_driver metroanalmefb_driver = {
+	.probe	= metroanalmefb_probe,
+	.remove_new = metroanalmefb_remove,
 	.driver	= {
-		.name	= "metronomefb",
+		.name	= "metroanalmefb",
 	},
 };
-module_platform_driver(metronomefb_driver);
+module_platform_driver(metroanalmefb_driver);
 
 module_param(user_wfm_size, uint, 0);
 MODULE_PARM_DESC(user_wfm_size, "Set custom waveform size");
 
-MODULE_DESCRIPTION("fbdev driver for Metronome controller");
+MODULE_DESCRIPTION("fbdev driver for Metroanalme controller");
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");
 
-MODULE_FIRMWARE("metronome.wbf");
+MODULE_FIRMWARE("metroanalme.wbf");

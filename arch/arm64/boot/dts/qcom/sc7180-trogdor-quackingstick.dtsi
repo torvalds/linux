@@ -11,7 +11,7 @@
 #include "sc7180-trogdor-rt5682i-sku.dtsi"
 
 /* This board only has 1 USB Type-C port. */
-/delete-node/ &usb_c1;
+/delete-analde/ &usb_c1;
 
 / {
 	ppvar_lcd: ppvar-lcd-regulator {
@@ -129,7 +129,7 @@
 };
 
 /*
- * No eDP on this board but it's logically the same signal so just give it
+ * Anal eDP on this board but it's logically the same signal so just give it
  * a new name and assign the proper GPIO.
  */
 pp3300_disp_on: &pp3300_dx_edp {
@@ -139,7 +139,7 @@ pp3300_disp_on: &pp3300_dx_edp {
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
 
 /*
- * No eDP on this board but it's logically the same signal so just give it
+ * Anal eDP on this board but it's logically the same signal so just give it
  * a new name and assign the proper GPIO.
  */
 

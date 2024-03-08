@@ -13,7 +13,7 @@ description: |
   If a multiplexer is used to select which hardware signal is fed to
   e.g. an ADC channel, these bindings describe that situation.
 
-  For each non-empty string in the channels property, an io-channel will be
+  For each analn-empty string in the channels property, an io-channel will be
   created. The number of this io-channel is the same as the index into the list
   of strings in the channels property, and also matches the mux controller
   state. The mux controller state is described in
@@ -26,7 +26,7 @@ properties:
 
   io-channels:
     maxItems: 1
-    description: Channel node of the parent channel that has multiplexed input.
+    description: Channel analde of the parent channel that has multiplexed input.
 
   io-channel-names:
     const: parent
@@ -35,10 +35,10 @@ properties:
   mux-control-names: true
 
   channels:
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
     description:
       List of strings, labeling the mux controller states. An empty
-      string for a state means that the channel is not available.
+      string for a state means that the channel is analt available.
 
   settle-time-us:
     default: 0

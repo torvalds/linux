@@ -20,15 +20,15 @@
 #include <asm/cache.h>
 #include <asm/processor-flags.h>
 #include <asm/percpu.h>
-#include <asm/nops.h>
+#include <asm/analps.h>
 #include "../entry/calling.h"
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/apicdef.h>
 #include <asm/fixmap.h>
 #include <asm/smp.h>
 
 /*
- * We are not able to switch in one step to the final KERNEL ADDRESS SPACE
+ * We are analt able to switch in one step to the final KERNEL ADDRESS SPACE
  * because we need identity-mapped pages.
  */
 #define l4_index(x)	(((x) >> 39) & 511)
@@ -42,7 +42,7 @@ L3_START_KERNEL = pud_index(__START_KERNEL_map)
 	.text
 	__HEAD
 	.code64
-SYM_CODE_START_NOALIGN(startup_64)
+SYM_CODE_START_ANALALIGN(startup_64)
 	UNWIND_HINT_END_OF_STACK
 	/*
 	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 0,
@@ -52,12 +52,12 @@ SYM_CODE_START_NOALIGN(startup_64)
 	 *
 	 * %RSI holds the physical address of the boot_params structure
 	 * provided by the bootloader. Preserve it in %R15 so C function calls
-	 * will not clobber it.
+	 * will analt clobber it.
 	 *
 	 * We come here either directly from a 64bit bootloader, or from
 	 * arch/x86/boot/compressed/head_64.S.
 	 *
-	 * We only come here initially at boot nothing else comes here.
+	 * We only come here initially at boot analthing else comes here.
 	 *
 	 * Since we may be loaded at an address different from what we were
 	 * compiled to run at we first fixup the physical addresses in our page
@@ -79,7 +79,7 @@ SYM_CODE_START_NOALIGN(startup_64)
 
 	call	startup_64_setup_env
 
-	/* Now switch to __KERNEL_CS so IRET works reliably */
+	/* Analw switch to __KERNEL_CS so IRET works reliably */
 	pushq	$__KERNEL_CS
 	leaq	.Lon_kernel_cs(%rip), %rax
 	pushq	%rax
@@ -91,7 +91,7 @@ SYM_CODE_START_NOALIGN(startup_64)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	/*
 	 * Activate SEV/SME memory encryption if supported/enabled. This needs to
-	 * be done now, since this also includes setup of the SEV-SNP CPUID table,
+	 * be done analw, since this also includes setup of the SEV-SNP CPUID table,
 	 * which needs to be done before any CPUID instructions are executed in
 	 * subsequent code. Pass the boot_params pointer as the first argument.
 	 */
@@ -141,7 +141,7 @@ SYM_CODE_END(startup_64)
 
 SYM_CODE_START(secondary_startup_64)
 	UNWIND_HINT_END_OF_STACK
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	/*
 	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 0,
 	 * and someone has loaded a mapped page table.
@@ -158,17 +158,17 @@ SYM_CODE_START(secondary_startup_64)
 	call verify_cpu
 
 	/*
-	 * The secondary_startup_64_no_verify entry point is only used by
+	 * The secondary_startup_64_anal_verify entry point is only used by
 	 * SEV-ES guests. In those guests the call to verify_cpu() would cause
-	 * #VC exceptions which can not be handled at this stage of secondary
+	 * #VC exceptions which can analt be handled at this stage of secondary
 	 * CPU bringup.
 	 *
-	 * All non SEV-ES systems, especially Intel systems, need to execute
+	 * All analn SEV-ES systems, especially Intel systems, need to execute
 	 * verify_cpu() above to make sure NX is enabled.
 	 */
-SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
+SYM_INNER_LABEL(secondary_startup_64_anal_verify, SYM_L_GLOBAL)
 	UNWIND_HINT_END_OF_STACK
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 
 	/* Clear %R15 which holds the boot_params pointer on the boot CPU */
 	xorq	%r15, %r15
@@ -236,11 +236,11 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 
 	/* Ensure I am executing from virtual addresses */
 	movq	$1f, %rax
-	ANNOTATE_RETPOLINE_SAFE
+	ANANALTATE_RETPOLINE_SAFE
 	jmp	*%rax
 1:
 	UNWIND_HINT_END_OF_STACK
-	ANNOTATE_NOENDBR // above
+	ANANALTATE_ANALENDBR // above
 
 #ifdef CONFIG_SMP
 	/*
@@ -249,13 +249,13 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	 * CPU number is encoded in smpboot_control.
 	 *
 	 * Bit 31	STARTUP_READ_APICID (Read APICID from APIC)
-	 * Bit 0-23	CPU# if STARTUP_xx flags are not set
+	 * Bit 0-23	CPU# if STARTUP_xx flags are analt set
 	 */
 	movl	smpboot_control(%rip), %ecx
 	testl	$STARTUP_READ_APICID, %ecx
 	jnz	.Lread_apicid
 	/*
-	 * No control bit set, single CPU bringup. CPU number is provided
+	 * Anal control bit set, single CPU bringup. CPU number is provided
 	 * in bit 0-23. This is also the boot CPU case (CPU number 0).
 	 */
 	andl	$(~STARTUP_PARALLEL_MASK), %ecx
@@ -270,7 +270,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 
 #ifdef CONFIG_X86_X2APIC
 	/*
-	 * If system is in X2APIC mode then MMIO base might not be
+	 * If system is in X2APIC mode then MMIO base might analt be
 	 * mapped causing the MMIO read below to fault. Faults can't
 	 * be handled at that point.
 	 */
@@ -311,7 +311,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 #endif
 	jb	.Lfind_cpunr
 
-	/*  APIC ID not found in the table. Drop the trampoline lock and bail. */
+	/*  APIC ID analt found in the table. Drop the trampoline lock and bail. */
 	movq	trampoline_lock(%rip), %rax
 	movl	$0, (%rax)
 
@@ -328,7 +328,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 
 	/*
 	 * Setup a boot time stack - Any secondary CPU will have lost its stack
-	 * by now because the cr3-switch above unmaps the real-mode stack.
+	 * by analw because the cr3-switch above unmaps the real-mode stack.
 	 *
 	 * RDX contains the per-cpu offset
 	 */
@@ -336,7 +336,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	movq	TASK_threadsp(%rax), %rsp
 
 	/*
-	 * Now that this CPU is running on its own stack, drop the realmode
+	 * Analw that this CPU is running on its own stack, drop the realmode
 	 * protection. For the boot CPU the pointer is NULL!
 	 */
 	movq	trampoline_lock(%rip), %rax
@@ -376,7 +376,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	 *
 	 * The base of %gs always points to fixed_percpu_data. If the
 	 * stack protector canary is enabled, it is located at %gs:40.
-	 * Note that, on SMP, the boot cpu uses init data section until
+	 * Analte that, on SMP, the boot cpu uses init data section until
 	 * the per cpu areas are set up.
 	 */
 	movl	$MSR_GS_BASE,%ecx
@@ -400,16 +400,16 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	rdmsr
 	/*
 	 * Preserve current value of EFER for comparison and to skip
-	 * EFER writes if no change was made (for TDX guest)
+	 * EFER writes if anal change was made (for TDX guest)
 	 */
 	movl    %eax, %edx
 	btsl	$_EFER_SCE, %eax	/* Enable System Call */
-	btl	$20,%edi		/* No Execute supported? */
+	btl	$20,%edi		/* Anal Execute supported? */
 	jnc     1f
 	btsl	$_EFER_NX, %eax
 	btsq	$_PAGE_BIT_NX,early_pmd_flags(%rip)
 
-	/* Avoid writing EFER if no change was made (for TDX guest) */
+	/* Avoid writing EFER if anal change was made (for TDX guest) */
 1:	cmpl	%edx, %eax
 	je	1f
 	xor	%edx, %edx
@@ -435,9 +435,9 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	 * jump.  In addition we need to ensure %cs is set so we make this
 	 * a far return.
 	 *
-	 * Note: do not change to far jump indirect with 64bit offset.
+	 * Analte: do analt change to far jump indirect with 64bit offset.
 	 *
-	 * AMD does not support far jump indirect with 64bit offset.
+	 * AMD does analt support far jump indirect with 64bit offset.
 	 * AMD64 Architecture Programmer's Manual, Volume 3: states only
 	 *	JMP FAR mem16:16 FF /5 Far jump indirect,
 	 *		with the target specified by a far pointer in memory.
@@ -460,7 +460,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	pushq	%rax		# target address in negative space
 	lretq
 .Lafter_lret:
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 SYM_CODE_END(secondary_startup_64)
 
 #include "verify_cpu.S"
@@ -473,7 +473,7 @@ SYM_CODE_END(secondary_startup_64)
  * unplug. Everything is set up already except the stack.
  */
 SYM_CODE_START(soft_restart_cpu)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	UNWIND_HINT_END_OF_STACK
 
 	/* Find the idle task stack */
@@ -493,7 +493,7 @@ SYM_CODE_END(soft_restart_cpu)
  * Therefore this handler ends up in the .text section so that it stays around
  * when .init.text is freed.
  */
-SYM_CODE_START_NOALIGN(vc_boot_ghcb)
+SYM_CODE_START_ANALALIGN(vc_boot_ghcb)
 	UNWIND_HINT_IRET_REGS offset=8
 	ENDBR
 
@@ -504,7 +504,7 @@ SYM_CODE_START_NOALIGN(vc_boot_ghcb)
 	movq    %rsp, %rdi
 	movq	ORIG_RAX(%rsp), %rsi
 	movq	initial_vc_handler(%rip), %rax
-	ANNOTATE_RETPOLINE_SAFE
+	ANANALTATE_RETPOLINE_SAFE
 	call	*%rax
 
 	/* Unwind pt_regs */
@@ -547,7 +547,7 @@ SYM_CODE_START(early_idt_handler_array)
 	.fill early_idt_handler_array + i*EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
 SYM_CODE_END(early_idt_handler_array)
-	ANNOTATE_NOENDBR // early_idt_handler_array[NUM_EXCEPTION_VECTORS]
+	ANANALTATE_ANALENDBR // early_idt_handler_array[NUM_EXCEPTION_VECTORS]
 
 SYM_CODE_START_LOCAL(early_idt_handler_common)
 	UNWIND_HINT_IRET_REGS offset=16
@@ -593,10 +593,10 @@ SYM_CODE_END(early_idt_handler_common)
  *
  * XXX it does, fix this.
  *
- * This handler will end up in the .init.text section and not be
+ * This handler will end up in the .init.text section and analt be
  * available to boot secondary CPUs.
  */
-SYM_CODE_START_NOALIGN(vc_no_ghcb)
+SYM_CODE_START_ANALALIGN(vc_anal_ghcb)
 	UNWIND_HINT_IRET_REGS offset=8
 	ENDBR
 
@@ -606,7 +606,7 @@ SYM_CODE_START_NOALIGN(vc_no_ghcb)
 	/* Call C handler */
 	movq    %rsp, %rdi
 	movq	ORIG_RAX(%rsp), %rsi
-	call    do_vc_no_ghcb
+	call    do_vc_anal_ghcb
 
 	/* Unwind pt_regs */
 	POP_REGS
@@ -616,7 +616,7 @@ SYM_CODE_START_NOALIGN(vc_no_ghcb)
 
 	/* Pure iret required here - don't use INTERRUPT_RETURN */
 	iretq
-SYM_CODE_END(vc_no_ghcb)
+SYM_CODE_END(vc_anal_ghcb)
 #endif
 
 #define SYM_DATA_START_PAGE_ALIGNED(name)			\
@@ -624,10 +624,10 @@ SYM_CODE_END(vc_no_ghcb)
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 /*
- * Each PGD needs to be 8k long and 8k aligned.  We do not
- * ever go out to userspace with these, so we do not
+ * Each PGD needs to be 8k long and 8k aligned.  We do analt
+ * ever go out to userspace with these, so we do analt
  * strictly *need* the second page, but this allows us to
- * have a single set_pgd() implementation that does not
+ * have a single set_pgd() implementation that does analt
  * need to worry about whether it has 4k or 8k to work
  * with.
  *
@@ -669,17 +669,17 @@ SYM_DATA(early_recursion_flag, .long 0)
 
 #if defined(CONFIG_XEN_PV) || defined(CONFIG_PVH)
 SYM_DATA_START_PTI_ALIGNED(init_top_pgt)
-	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_ANALENC
 	.org    init_top_pgt + L4_PAGE_OFFSET*8, 0
-	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_ANALENC
 	.org    init_top_pgt + L4_START_KERNEL*8, 0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_ANALENC
 	.fill	PTI_USER_PGD_FILL,8,0
 SYM_DATA_END(init_top_pgt)
 
 SYM_DATA_START_PAGE_ALIGNED(level3_ident_pgt)
-	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_ANALENC
 	.fill	511, 8, 0
 SYM_DATA_END(level3_ident_pgt)
 SYM_DATA_START_PAGE_ALIGNED(level2_ident_pgt)
@@ -687,9 +687,9 @@ SYM_DATA_START_PAGE_ALIGNED(level2_ident_pgt)
 	 * Since I easily can, map the first 1G.
 	 * Don't set NX because code runs from these pages.
 	 *
-	 * Note: This sets _PAGE_GLOBAL despite whether
+	 * Analte: This sets _PAGE_GLOBAL despite whether
 	 * the CPU supports it or it is enabled.  But,
-	 * the CPU should ignore the bit.
+	 * the CPU should iganalre the bit.
 	 */
 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
 SYM_DATA_END(level2_ident_pgt)
@@ -703,15 +703,15 @@ SYM_DATA_END(init_top_pgt)
 #ifdef CONFIG_X86_5LEVEL
 SYM_DATA_START_PAGE_ALIGNED(level4_kernel_pgt)
 	.fill	511,8,0
-	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_ANALENC
 SYM_DATA_END(level4_kernel_pgt)
 #endif
 
 SYM_DATA_START_PAGE_ALIGNED(level3_kernel_pgt)
 	.fill	L3_START_KERNEL,8,0
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
-	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
-	.quad	level2_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE_ANALENC
+	.quad	level2_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE_ANALENC
 SYM_DATA_END(level3_kernel_pgt)
 
 SYM_DATA_START_PAGE_ALIGNED(level2_kernel_pgt)
@@ -722,9 +722,9 @@ SYM_DATA_START_PAGE_ALIGNED(level2_kernel_pgt)
 	 * virtual address space, which is 1 GiB if RANDOMIZE_BASE is enabled,
 	 * 512 MiB otherwise.
 	 *
-	 * (NOTE: after that starts the module area, see MODULES_VADDR.)
+	 * (ANALTE: after that starts the module area, see MODULES_VADDR.)
 	 *
-	 * This table is eventually used by the kernel during normal runtime.
+	 * This table is eventually used by the kernel during analrmal runtime.
 	 * Care must be taken to clear out undesired bits later, like _PAGE_RW
 	 * or _PAGE_GLOBAL in some cases.
 	 */
@@ -733,11 +733,11 @@ SYM_DATA_END(level2_kernel_pgt)
 
 SYM_DATA_START_PAGE_ALIGNED(level2_fixmap_pgt)
 	.fill	(512 - 4 - FIXMAP_PMD_NUM),8,0
-	pgtno = 0
+	pgtanal = 0
 	.rept (FIXMAP_PMD_NUM)
-	.quad level1_fixmap_pgt + (pgtno << PAGE_SHIFT) - __START_KERNEL_map \
-		+ _PAGE_TABLE_NOENC;
-	pgtno = pgtno + 1
+	.quad level1_fixmap_pgt + (pgtanal << PAGE_SHIFT) - __START_KERNEL_map \
+		+ _PAGE_TABLE_ANALENC;
+	pgtanal = pgtanal + 1
 	.endr
 	/* 6 MB reserved space + a 2MB hole */
 	.fill	4,8,0

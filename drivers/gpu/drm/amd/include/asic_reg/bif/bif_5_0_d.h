@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -187,7 +187,7 @@
 #define mmMAILBOX_INT_CNTL                                                      0x14d1
 #define mmBIF_VIRT_RESET_REQ                                                    0x14d2
 #define mmVM_INIT_STATUS                                                        0x14d3
-#define mmBIF_GPUIOV_RESET_NOTIFICATION                                         0x14d5
+#define mmBIF_GPUIOV_RESET_ANALTIFICATION                                         0x14d5
 #define mmBIF_GPUIOV_VM_INIT_STATUS                                             0x14d6
 #define mmBIF_GPUIOV_FB_TOTAL_FB_INFO                                           0x14d8
 #define mmBIF_GPUIOV_GPU_IDLE_LATENCY                                           0x141c
@@ -403,7 +403,7 @@
 #define mmPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_CMD_CTRL_N_FUNC                       0x103
 #define mmPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_CMD_STATUS                            0x104
 #define mmPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_RESET_CONTROL                         0x105
-#define mmPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_RESET_NOTIFICATION                    0x106
+#define mmPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_RESET_ANALTIFICATION                    0x106
 #define mmPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VM_INIT_STATUS                        0x107
 #define mmPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_CONTEXT                               0x108
 #define mmPCIE_VENDOR_SPECIFIC_HDR_GPUIOV_TOTAL_FB                              0x109
@@ -1047,7 +1047,7 @@
 #define mmPCIEMSIX_VECT3_MSG_DATA                                               0x600e
 #define mmPCIEMSIX_VECT3_CONTROL                                                0x600f
 #define mmPCIEMSIX_PBA                                                          0x6200
-#define mmBIF_RFE_SNOOP_REG                                                     0x27
+#define mmBIF_RFE_SANALOP_REG                                                     0x27
 #define mmBIF_RFE_WARMRST_CNTL                                                  0x1459
 #define mmBIF_RFE_SOFTRST_CNTL                                                  0x1441
 #define mmBIF_RFE_IMPRST_CNTL                                                   0x1458

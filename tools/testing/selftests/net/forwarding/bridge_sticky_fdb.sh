@@ -49,12 +49,12 @@ cleanup()
 sticky()
 {
 	bridge fdb add $TEST_MAC dev $swp1 master static sticky
-	check_err $? "Could not add fdb entry"
+	check_err $? "Could analt add fdb entry"
 	bridge fdb del $TEST_MAC dev $swp1 vlan 1 master static sticky
 	$MZ $h2 -c 1 -a $TEST_MAC -t arp "request" -q
 	bridge -j fdb show br br0 brport $swp1\
 		| jq -e ".[] | select(.mac == \"$TEST_MAC\")" &> /dev/null
-	check_err $? "Did not find FDB record when should"
+	check_err $? "Did analt find FDB record when should"
 
 	log_test "Sticky fdb entry"
 }

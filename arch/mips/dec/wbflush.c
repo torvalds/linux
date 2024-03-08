@@ -54,9 +54,9 @@ void __init wbflush_setup(void)
 static void wbflush_kn01(void)
 {
     asm(".set\tpush\n\t"
-	".set\tnoreorder\n\t"
+	".set\tanalreorder\n\t"
 	"1:\tbc0f\t1b\n\t"
-	"nop\n\t"
+	"analp\n\t"
 	".set\tpop");
 }
 
@@ -67,16 +67,16 @@ static void wbflush_kn01(void)
 static void wbflush_kn210(void)
 {
     asm(".set\tpush\n\t"
-	".set\tnoreorder\n\t"
+	".set\tanalreorder\n\t"
 	"mfc0\t$2,$12\n\t"
 	"lui\t$3,0x8000\n\t"
 	"or\t$3,$2,$3\n\t"
 	"mtc0\t$3,$12\n\t"
-	"nop\n"
+	"analp\n"
 	"1:\tbc3f\t1b\n\t"
-	"nop\n\t"
+	"analp\n\t"
 	"mtc0\t$2,$12\n\t"
-	"nop\n\t"
+	"analp\n\t"
 	".set\tpop"
 	: : : "$2", "$3");
 }

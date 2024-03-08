@@ -41,13 +41,13 @@ void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 
 	port_bo = t_data->block_offset;
 
-	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_analde) {
 		rate = m_rt->stream->params.rate;
 		bps = m_rt->stream->params.bps;
 		sample_int = (m_rt->bus->params.curr_dr_freq / rate);
 		slave_total_ch = 0;
 
-		list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+		list_for_each_entry(p_rt, &s_rt->port_list, port_analde) {
 			ch = hweight32(p_rt->ch_mask);
 
 			sdw_fill_xport_params(&p_rt->transport_params,
@@ -104,7 +104,7 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 	hstart = hstop - params->hwidth + 1;
 	t_data.hstart = hstart;
 
-	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+	list_for_each_entry(p_rt, &m_rt->port_list, port_analde) {
 
 		sdw_fill_xport_params(&p_rt->transport_params, p_rt->num,
 				      false, SDW_BLK_GRP_CNT_1, sample_int,
@@ -119,7 +119,7 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 		/* Check for first entry */
 		if (!(p_rt == list_first_entry(&m_rt->port_list,
 					       struct sdw_port_runtime,
-					       port_node))) {
+					       port_analde))) {
 			port_bo += bps * ch;
 			continue;
 		}
@@ -145,7 +145,7 @@ static void _sdw_compute_port_params(struct sdw_bus *bus,
 	for (i = 0; i < count; i++) {
 		port_bo = 1;
 
-		list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+		list_for_each_entry(m_rt, &bus->m_rt_list, bus_analde) {
 			sdw_compute_master_ports(m_rt, &params[i], port_bo, hstop);
 
 			port_bo += m_rt->ch_count * m_rt->stream->params.bps;
@@ -170,7 +170,7 @@ static int sdw_compute_group_params(struct sdw_bus *bus,
 		params[i].full_bw = bus->params.curr_dr_freq / params[i].rate;
 	}
 
-	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+	list_for_each_entry(m_rt, &bus->m_rt_list, bus_analde) {
 		rate = m_rt->stream->params.rate;
 		bps = m_rt->stream->params.bps;
 		ch = m_rt->ch_count;
@@ -216,7 +216,7 @@ static int sdw_add_element_group_count(struct sdw_group *group,
 					 (sizeof(int) * group->max_size),
 					 GFP_KERNEL);
 			if (!rates)
-				return -ENOMEM;
+				return -EANALMEM;
 			group->rates = rates;
 		}
 
@@ -237,13 +237,13 @@ static int sdw_get_group_count(struct sdw_bus *bus,
 	group->max_size = SDW_STRM_RATE_GROUPING;
 	group->rates = kcalloc(group->max_size, sizeof(int), GFP_KERNEL);
 	if (!group->rates)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+	list_for_each_entry(m_rt, &bus->m_rt_list, bus_analde) {
 		rate = m_rt->stream->params.rate;
 		if (m_rt == list_first_entry(&bus->m_rt_list,
 					     struct sdw_master_runtime,
-					     bus_node)) {
+					     bus_analde)) {
 			group->rates[group->count++] = rate;
 
 		} else {
@@ -278,7 +278,7 @@ static int sdw_compute_port_params(struct sdw_bus *bus)
 
 	params = kcalloc(group.count, sizeof(*params), GFP_KERNEL);
 	if (!params) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -372,14 +372,14 @@ static int sdw_compute_bus_params(struct sdw_bus *bus)
 	}
 
 	if (i == clk_values) {
-		dev_err(bus->dev, "%s: could not find clock value for bandwidth %d\n",
+		dev_err(bus->dev, "%s: could analt find clock value for bandwidth %d\n",
 			__func__, bus->params.bandwidth);
 		return -EINVAL;
 	}
 
 	ret = sdw_select_row_col(bus, curr_dr_freq);
 	if (ret < 0) {
-		dev_err(bus->dev, "%s: could not find frame configuration for bus dr_freq %d\n",
+		dev_err(bus->dev, "%s: could analt find frame configuration for bus dr_freq %d\n",
 			__func__, curr_dr_freq);
 		return -EINVAL;
 	}

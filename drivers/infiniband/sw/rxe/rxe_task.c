@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -12,7 +12,7 @@ int rxe_alloc_wq(void)
 {
 	rxe_wq = alloc_workqueue("rxe_wq", WQ_UNBOUND, WQ_MAX_ACTIVE);
 	if (!rxe_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -22,11 +22,11 @@ void rxe_destroy_wq(void)
 	destroy_workqueue(rxe_wq);
 }
 
-/* Check if task is idle i.e. not running, not scheduled in
- * work queue and not draining. If so move to busy to
+/* Check if task is idle i.e. analt running, analt scheduled in
+ * work queue and analt draining. If so move to busy to
  * reserve a slot in do_task() by setting to busy and taking
- * a qp reference to cover the gap from now until the task finishes.
- * state will move out of busy if task returns a non zero value
+ * a qp reference to cover the gap from analw until the task finishes.
+ * state will move out of busy if task returns a analn zero value
  * in do_task(). If state is already busy it is raised to armed
  * to indicate to do_task that additional pass should be made
  * over the task.
@@ -50,7 +50,7 @@ static bool __reserve_if_idle(struct rxe_task *task)
 	return false;
 }
 
-/* check if task is idle or drained and not currently
+/* check if task is idle or drained and analt currently
  * scheduled in the work queue. This routine is
  * called by rxe_cleanup_task or rxe_disable_task to
  * see if the queue is empty.
@@ -85,19 +85,19 @@ static bool is_done(struct rxe_task *task)
 
 /* do_task is a wrapper for the three tasks (requester,
  * completer, responder) and calls them in a loop until
- * they return a non-zero value. It is called either
+ * they return a analn-zero value. It is called either
  * directly by rxe_run_task or indirectly if rxe_sched_task
  * schedules the task. They must call __reserve_if_idle to
  * move the task to busy before calling or scheduling.
  * The task can also be moved to drained or invalid
  * by calls to rxe_cleanup_task or rxe_disable_task.
- * In that case tasks which get here are not executed but
+ * In that case tasks which get here are analt executed but
  * just flushed. The tasks are designed to look to see if
  * there is work to do and then do part of it before returning
  * here with a return value of zero until all the work
- * has been consumed then it returns a non-zero value.
+ * has been consumed then it returns a analn-zero value.
  * The number of times the task can be run is limited by
- * max iterations so one task cannot hold the cpu forever.
+ * max iterations so one task cananalt hold the cpu forever.
  * If the limit is hit and work remains the task is rescheduled.
  */
 static void do_task(struct rxe_task *task)
@@ -128,7 +128,7 @@ static void do_task(struct rxe_task *task)
 		} while (ret == 0 && iterations-- > 0);
 
 		spin_lock_irqsave(&task->lock, flags);
-		/* we're not done yet but we ran out of iterations.
+		/* we're analt done yet but we ran out of iterations.
 		 * yield the cpu and reschedule the task
 		 */
 		if (!ret) {
@@ -202,7 +202,7 @@ int rxe_init_task(struct rxe_task *task, struct rxe_qp *qp,
 }
 
 /* rxe_cleanup_task is only called from rxe_do_qp_cleanup in
- * process context. The qp is already completed with no
+ * process context. The qp is already completed with anal
  * remaining references. Once the queue is drained the
  * task is moved to invalid and returns. The qp cleanup
  * code then calls the task functions directly without
@@ -223,7 +223,7 @@ void rxe_cleanup_task(struct rxe_task *task)
 	}
 	spin_unlock_irqrestore(&task->lock, flags);
 
-	/* now the task cannot be scheduled or run just wait
+	/* analw the task cananalt be scheduled or run just wait
 	 * for the previously scheduled tasks to finish.
 	 */
 	while (!is_done(task))
@@ -235,7 +235,7 @@ void rxe_cleanup_task(struct rxe_task *task)
 }
 
 /* run the task inline if it is currently idle
- * cannot call do_task holding the lock
+ * cananalt call do_task holding the lock
  */
 void rxe_run_task(struct rxe_task *task)
 {

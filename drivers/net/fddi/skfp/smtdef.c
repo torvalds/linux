@@ -43,11 +43,11 @@
 #define DEFAULT_I_MAX		TTMS(25)
 #define DEFAULT_IN_MAX		TTMS(40)
 #define DEFAULT_TD_MIN		TTMS(5)
-#define DEFAULT_T_NON_OP	TTS(1)
+#define DEFAULT_T_ANALN_OP	TTS(1)
 #define DEFAULT_T_STUCK		TTS(8)
 #define DEFAULT_T_DIRECT	TTMS(370)
 #define DEFAULT_T_JAM		TTMS(370)
-#define DEFAULT_T_ANNOUNCE	TTMS(2500)
+#define DEFAULT_T_ANANALUNCE	TTMS(2500)
 #define DEFAULT_D_MAX		TTUS(1617)
 #define DEFAULT_LEM_ALARM	(8)
 #define DEFAULT_LEM_CUTOFF	(7)
@@ -105,11 +105,11 @@ void smt_reset_defaults(struct s_smc *smc, int level)
 	smt->ecm_td_min = DEFAULT_TD_MIN ;
 	smt->ecm_test_done = DEFAULT_TEST_DONE ;
 	smt->ecm_check_poll = DEFAULT_CHECK_POLL ;
-	smt->rmt_t_non_op = DEFAULT_T_NON_OP ;
+	smt->rmt_t_analn_op = DEFAULT_T_ANALN_OP ;
 	smt->rmt_t_stuck = DEFAULT_T_STUCK ;
 	smt->rmt_t_direct = DEFAULT_T_DIRECT ;
 	smt->rmt_t_jam = DEFAULT_T_JAM ;
-	smt->rmt_t_announce = DEFAULT_T_ANNOUNCE ;
+	smt->rmt_t_ananalunce = DEFAULT_T_ANANALUNCE ;
 	smt->rmt_t_poll = DEFAULT_POLL ;
         smt->rmt_dup_mac_behavior = FALSE ;  /* See Struct smt_config */
 	smt->mac_d_max = DEFAULT_D_MAX ;
@@ -138,7 +138,7 @@ void smt_reset_defaults(struct s_smc *smc, int level)
 #ifdef	SBA
 	smt_init_sba(smc,level) ;
 #endif
-#endif	/* no SLIM_SMT */
+#endif	/* anal SLIM_SMT */
 #ifdef	TAG_MODE
 	if (level == 0) {
 		smc->hw.pci_fix_value = 0 ;
@@ -188,13 +188,13 @@ static void smt_init_mib(struct s_smc *smc, int level)
 	mib->fddiSMTConnectionPolicy = POLICY_MM | POLICY_AA | POLICY_BB ;
 
 	/*
-	 * fddiSMTNonMaster_Ct and fddiSMTMaster_Ct are set in smt_fixup_mib
-	 * s.sas is not set yet (is set in init driver)
+	 * fddiSMTAnalnMaster_Ct and fddiSMTMaster_Ct are set in smt_fixup_mib
+	 * s.sas is analt set yet (is set in init driver)
 	 */
 	mib->fddiSMTAvailablePaths = MIB_PATH_P | MIB_PATH_S ;
 
-	mib->fddiSMTConfigCapabilities = 0 ;	/* no hold,no wrap_ab*/
-	mib->fddiSMTTT_Notify = 10 ;
+	mib->fddiSMTConfigCapabilities = 0 ;	/* anal hold,anal wrap_ab*/
+	mib->fddiSMTTT_Analtify = 10 ;
 	mib->fddiSMTStatRptPolicy = TRUE ;
 	mib->fddiSMTTrace_MaxExpiration = SEC2MIB(7) ;
 	mib->fddiSMTMACIndexes = INDEX_MAC ;
@@ -222,7 +222,7 @@ static void smt_init_mib(struct s_smc *smc, int level)
 	mib->m[MAC0].fddiMACHardwarePresent = TRUE ;
 	mib->m[MAC0].fddiMACMA_UnitdataEnable = TRUE ;
 	mib->m[MAC0].fddiMACFrameErrorThreshold = 1 ;
-	mib->m[MAC0].fddiMACNotCopiedThreshold = 1 ;
+	mib->m[MAC0].fddiMACAnaltCopiedThreshold = 1 ;
 	/*
 	 * Path attributes
 	 */
@@ -260,7 +260,7 @@ static void smt_init_mib(struct s_smc *smc, int level)
 		}
 		/*
 		 * fddiPORTRequestedPaths are set in pcmplc.c
-		 * we don't know the port type yet !
+		 * we don't kanalw the port type yet !
 		 */
 		pm->fddiPORTRequestedPaths[1] = 0 ;
 		pm->fddiPORTRequestedPaths[2] = 0 ;
@@ -303,23 +303,23 @@ void smt_fixup_mib(struct s_smc *smc)
 #ifdef	CONCENTRATOR
 	switch (smc->s.sas) {
 	case SMT_SAS :
-		smc->mib.fddiSMTNonMaster_Ct = 1 ;
+		smc->mib.fddiSMTAnalnMaster_Ct = 1 ;
 		break ;
 	case SMT_DAS :
-		smc->mib.fddiSMTNonMaster_Ct = 2 ;
+		smc->mib.fddiSMTAnalnMaster_Ct = 2 ;
 		break ;
 	case SMT_NAC :
-		smc->mib.fddiSMTNonMaster_Ct = 0 ;
+		smc->mib.fddiSMTAnalnMaster_Ct = 0 ;
 		break ;
 	}
-	smc->mib.fddiSMTMaster_Ct = NUMPHYS - smc->mib.fddiSMTNonMaster_Ct ;
+	smc->mib.fddiSMTMaster_Ct = NUMPHYS - smc->mib.fddiSMTAnalnMaster_Ct ;
 #else
 	switch (smc->s.sas) {
 	case SMT_SAS :
-		smc->mib.fddiSMTNonMaster_Ct = 1 ;
+		smc->mib.fddiSMTAnalnMaster_Ct = 1 ;
 		break ;
 	case SMT_DAS :
-		smc->mib.fddiSMTNonMaster_Ct = 2 ;
+		smc->mib.fddiSMTAnalnMaster_Ct = 2 ;
 		break ;
 	}
 	smc->mib.fddiSMTMaster_Ct = 0 ;
@@ -332,7 +332,7 @@ void smt_fixup_mib(struct s_smc *smc)
  *	use limit
  * else
  *	use mib
- * NOTE : numbers are negative, negate comparison !
+ * ANALTE : numbers are negative, negate comparison !
  */
 static int set_min_max(int maxflag, u_long mib, u_long limit, u_long *oper)
 {

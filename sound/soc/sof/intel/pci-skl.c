@@ -36,7 +36,7 @@ static struct sof_dev_desc skl_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
-	.nocodec_tplg_filename = "sof-skl-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-skl-analcodec.tplg",
 	.ops = &sof_skl_ops,
 	.ops_init = sof_skl_ops_init,
 	.ops_free = hda_ops_free,
@@ -61,7 +61,7 @@ static struct sof_dev_desc kbl_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
-	.nocodec_tplg_filename = "sof-kbl-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-kbl-analcodec.tplg",
 	.ops = &sof_skl_ops,
 	.ops_init = sof_skl_ops_init,
 	.ops_free = hda_ops_free,

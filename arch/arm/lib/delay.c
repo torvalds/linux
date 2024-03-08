@@ -72,7 +72,7 @@ void __init register_current_timer_delay(const struct delay_timer *timer)
 	res = cyc_to_ns(1ULL, new_mult, new_shift);
 
 	if (res > 1000) {
-		pr_err("Ignoring delay timer %ps, which has insufficient resolution of %lluns\n",
+		pr_err("Iganalring delay timer %ps, which has insufficient resolution of %lluns\n",
 			timer, res);
 		return;
 	}
@@ -89,11 +89,11 @@ void __init register_current_timer_delay(const struct delay_timer *timer)
 		arm_delay_ops.const_udelay	= __timer_const_udelay;
 		arm_delay_ops.udelay		= __timer_udelay;
 	} else {
-		pr_info("Ignoring duplicate/late registration of read_current_timer delay\n");
+		pr_info("Iganalring duplicate/late registration of read_current_timer delay\n");
 	}
 }
 
-unsigned long calibrate_delay_is_known(void)
+unsigned long calibrate_delay_is_kanalwn(void)
 {
 	delay_calibrated = true;
 	return lpj_fine;

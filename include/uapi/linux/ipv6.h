@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_IPV6_H
 #define _UAPI_IPV6_H
 
@@ -112,7 +112,7 @@ struct ipv6_destopt_hao {
  *	IPv6 fixed header
  *
  *	BEWARE, it is incorrect. The first 4 bits of flow_lbl
- *	are glued to priority now, forming "class".
+ *	are glued to priority analw, forming "class".
  */
 
 struct ipv6hdr {
@@ -131,7 +131,7 @@ struct ipv6hdr {
 	__u8			nexthdr;
 	__u8			hop_limit;
 
-	__struct_group(/* no tag */, addrs, /* no attrs */,
+	__struct_group(/* anal tag */, addrs, /* anal attrs */,
 		struct	in6_addr	saddr;
 		struct	in6_addr	daddr;
 	);
@@ -169,7 +169,7 @@ enum {
 	DEVCONF_DISABLE_IPV6,
 	DEVCONF_ACCEPT_DAD,
 	DEVCONF_FORCE_TLLAO,
-	DEVCONF_NDISC_NOTIFY,
+	DEVCONF_NDISC_ANALTIFY,
 	DEVCONF_MLDV1_UNSOLICITED_REPORT_INTERVAL,
 	DEVCONF_MLDV2_UNSOLICITED_REPORT_INTERVAL,
 	DEVCONF_SUPPRESS_FRAG_NDISC,
@@ -179,7 +179,7 @@ enum {
 	DEVCONF_STABLE_SECRET,
 	DEVCONF_USE_OIF_ADDRS_ONLY,
 	DEVCONF_ACCEPT_RA_MIN_HOP_LIMIT,
-	DEVCONF_IGNORE_ROUTES_WITH_LINKDOWN,
+	DEVCONF_IGANALRE_ROUTES_WITH_LINKDOWN,
 	DEVCONF_DROP_UNICAST_IN_L2_MULTICAST,
 	DEVCONF_DROP_UNSOLICITED_NA,
 	DEVCONF_KEEP_ADDR_ON_DOWN,
@@ -196,7 +196,7 @@ enum {
 	DEVCONF_IOAM6_ENABLED,
 	DEVCONF_IOAM6_ID,
 	DEVCONF_IOAM6_ID_WIDE,
-	DEVCONF_NDISC_EVICT_NOCARRIER,
+	DEVCONF_NDISC_EVICT_ANALCARRIER,
 	DEVCONF_ACCEPT_UNTRACKED_NA,
 	DEVCONF_ACCEPT_RA_MIN_LFT,
 	DEVCONF_MAX

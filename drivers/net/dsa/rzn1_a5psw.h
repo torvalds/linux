@@ -136,7 +136,7 @@
 #define A5PSW_CMD_CFG_SW_RESET		BIT(13)
 #define A5PSW_CMD_CFG_TX_CRC_APPEND	BIT(11)
 #define A5PSW_CMD_CFG_HD_ENA		BIT(10)
-#define A5PSW_CMD_CFG_PAUSE_IGNORE	BIT(8)
+#define A5PSW_CMD_CFG_PAUSE_IGANALRE	BIT(8)
 #define A5PSW_CMD_CFG_CRC_FWD		BIT(6)
 #define A5PSW_CMD_CFG_ETH_SPEED		BIT(3)
 #define A5PSW_CMD_CFG_RX_ENA		BIT(1)
@@ -204,7 +204,7 @@
 #define A5PSW_TAG_LEN			8
 #define A5PSW_VLAN_COUNT		32
 
-/* Ensure enough space for 2 VLAN tags */
+/* Ensure eanalugh space for 2 VLAN tags */
 #define A5PSW_EXTRA_MTU_LEN		(A5PSW_TAG_LEN + 8)
 #define A5PSW_MAX_MTU			(A5PSW_JUMBO_LEN - A5PSW_EXTRA_MTU_LEN)
 
@@ -239,7 +239,7 @@ union lk_data {
  * @dev: Device associated to the switch
  * @mii_bus: MDIO bus struct
  * @mdio_freq: MDIO bus frequency requested
- * @pcs: Array of PCS connected to the switch ports (not for the CPU)
+ * @pcs: Array of PCS connected to the switch ports (analt for the CPU)
  * @ds: DSA switch struct
  * @stats_lock: lock to access statistics (shared HI counter)
  * @lk_lock: Lock for the lookup table

@@ -140,13 +140,13 @@ static const unsigned int nand_ren_wr_pins[]		= { BOOT_12 };
 static const unsigned int nand_rb0_pins[]		= { BOOT_14 };
 static const unsigned int nand_ce1_pins[]		= { BOOT_15 };
 
-/* nor */
-static const unsigned int nor_hold_pins[]		= { BOOT_3 };
-static const unsigned int nor_d_pins[]			= { BOOT_4 };
-static const unsigned int nor_q_pins[]			= { BOOT_5 };
-static const unsigned int nor_c_pins[]			= { BOOT_6 };
-static const unsigned int nor_wp_pins[]			= { BOOT_7 };
-static const unsigned int nor_cs_pins[]			= { BOOT_14 };
+/* analr */
+static const unsigned int analr_hold_pins[]		= { BOOT_3 };
+static const unsigned int analr_d_pins[]			= { BOOT_4 };
+static const unsigned int analr_q_pins[]			= { BOOT_5 };
+static const unsigned int analr_c_pins[]			= { BOOT_6 };
+static const unsigned int analr_wp_pins[]			= { BOOT_7 };
+static const unsigned int analr_cs_pins[]			= { BOOT_14 };
 
 /* sdio */
 static const unsigned int sdio_d0_pins[]		= { GPIOX_0 };
@@ -542,12 +542,12 @@ static struct meson_pmx_group meson_g12a_periphs_groups[] = {
 	GROUP(nand_ren_wr,		2),
 	GROUP(nand_rb0,			2),
 	GROUP(nand_ce1,			2),
-	GROUP(nor_hold,			3),
-	GROUP(nor_d,			3),
-	GROUP(nor_q,			3),
-	GROUP(nor_c,			3),
-	GROUP(nor_wp,			3),
-	GROUP(nor_cs,			3),
+	GROUP(analr_hold,			3),
+	GROUP(analr_d,			3),
+	GROUP(analr_q,			3),
+	GROUP(analr_c,			3),
+	GROUP(analr_wp,			3),
+	GROUP(analr_cs,			3),
 
 	/* bank GPIOZ */
 	GROUP(sdcard_d0_z,		5),
@@ -974,9 +974,9 @@ static const char * const nand_groups[] = {
 	"emmc_nand_ds", "nand_ce1",
 };
 
-static const char * const nor_groups[] = {
-	"nor_d", "nor_q", "nor_c", "nor_cs",
-	"nor_hold", "nor_wp",
+static const char * const analr_groups[] = {
+	"analr_d", "analr_q", "analr_c", "analr_cs",
+	"analr_hold", "analr_wp",
 };
 
 static const char * const sdio_groups[] = {
@@ -1256,7 +1256,7 @@ static const char * const mclk0_ao_groups[] = {
 static struct meson_pmx_func meson_g12a_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
-	FUNCTION(nor),
+	FUNCTION(analr),
 	FUNCTION(spi0),
 	FUNCTION(spi1),
 	FUNCTION(sdio),

@@ -27,10 +27,10 @@
  * hardware. We have a list of all CTIs irrespective of CPU bound or
  * otherwise.
  *
- * We assume that the non-CPU CTIs are always powered as we do with sinks etc.
+ * We assume that the analn-CPU CTIs are always powered as we do with sinks etc.
  *
  * We leave the client to figure out if all the CTIs are interconnected with
- * the same CTM, in general this is the case but does not always have to be.
+ * the same CTM, in general this is the case but does analt always have to be.
  */
 
 /* net of CTI devices connected via CTM */
@@ -53,7 +53,7 @@ static struct cti_drvdata *cti_cpu_drvdata[NR_CPUS];
  * N is the CPU ID. System CTIs will have the name cti_sys<I> where I
  * is an index allocated by order of discovery.
  *
- * CTI device name list - for CTI not bound to cores.
+ * CTI device name list - for CTI analt bound to cores.
  */
 DEFINE_CORESIGHT_DEVLIST(cti_sys_devs, "cti_sys");
 
@@ -95,14 +95,14 @@ static int cti_enable_hw(struct cti_drvdata *drvdata)
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/* no need to do anything if enabled or unpowered*/
+	/* anal need to do anything if enabled or unpowered*/
 	if (config->hw_enabled || !config->hw_powered)
 		goto cti_state_unchanged;
 
 	/* claim the device */
 	rc = coresight_claim_device(drvdata->csdev);
 	if (rc)
-		goto cti_err_not_enabled;
+		goto cti_err_analt_enabled;
 
 	cti_write_all_hw_regs(drvdata);
 
@@ -114,8 +114,8 @@ static int cti_enable_hw(struct cti_drvdata *drvdata)
 cti_state_unchanged:
 	drvdata->config.enable_req_count++;
 
-	/* cannot enable due to error */
-cti_err_not_enabled:
+	/* cananalt enable due to error */
+cti_err_analt_enabled:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 	return rc;
 }
@@ -128,21 +128,21 @@ static void cti_cpuhp_enable_hw(struct cti_drvdata *drvdata)
 	spin_lock(&drvdata->spinlock);
 	config->hw_powered = true;
 
-	/* no need to do anything if no enable request */
+	/* anal need to do anything if anal enable request */
 	if (!drvdata->config.enable_req_count)
-		goto cti_hp_not_enabled;
+		goto cti_hp_analt_enabled;
 
 	/* try to claim the device */
 	if (coresight_claim_device(drvdata->csdev))
-		goto cti_hp_not_enabled;
+		goto cti_hp_analt_enabled;
 
 	cti_write_all_hw_regs(drvdata);
 	config->hw_enabled = true;
 	spin_unlock(&drvdata->spinlock);
 	return;
 
-	/* did not re-enable due to no claim / no request */
-cti_hp_not_enabled:
+	/* did analt re-enable due to anal claim / anal request */
+cti_hp_analt_enabled:
 	spin_unlock(&drvdata->spinlock);
 }
 
@@ -158,16 +158,16 @@ static int cti_disable_hw(struct cti_drvdata *drvdata)
 	/* don't allow negative refcounts, return an error */
 	if (!drvdata->config.enable_req_count) {
 		ret = -EINVAL;
-		goto cti_not_disabled;
+		goto cti_analt_disabled;
 	}
 
 	/* check refcount - disable on 0 */
 	if (--drvdata->config.enable_req_count > 0)
-		goto cti_not_disabled;
+		goto cti_analt_disabled;
 
-	/* no need to do anything if disabled or cpu unpowered */
+	/* anal need to do anything if disabled or cpu unpowered */
 	if (!config->hw_enabled || !config->hw_powered)
-		goto cti_not_disabled;
+		goto cti_analt_disabled;
 
 	CS_UNLOCK(drvdata->base);
 
@@ -180,8 +180,8 @@ static int cti_disable_hw(struct cti_drvdata *drvdata)
 	spin_unlock(&drvdata->spinlock);
 	return ret;
 
-	/* not disabled this call */
-cti_not_disabled:
+	/* analt disabled this call */
+cti_analt_disabled:
 	spin_unlock(&drvdata->spinlock);
 	return ret;
 }
@@ -224,14 +224,14 @@ static void cti_set_default_config(struct device *dev,
 	config->nr_trig_max = CTI_DEVID_MAXTRIGS(devid);
 
 	/*
-	 * no current hardware should exceed this, but protect the driver
+	 * anal current hardware should exceed this, but protect the driver
 	 * in case of fault / out of spec hw
 	 */
-	if (config->nr_trig_max > CTIINOUTEN_MAX) {
+	if (config->nr_trig_max > CTIIANALUTEN_MAX) {
 		dev_warn_once(dev,
 			"Limiting HW MaxTrig value(%d) to driver max(%d)\n",
-			config->nr_trig_max, CTIINOUTEN_MAX);
-		config->nr_trig_max = CTIINOUTEN_MAX;
+			config->nr_trig_max, CTIIANALUTEN_MAX);
+		config->nr_trig_max = CTIIANALUTEN_MAX;
 	}
 
 	config->nr_ctm_channels = CTI_DEVID_CTMCHANNELS(devid);
@@ -256,7 +256,7 @@ int cti_add_connection_entry(struct device *dev, struct cti_drvdata *drvdata,
 	tc->con_dev = csdev;
 	/*
 	 * Prefer actual associated CS device dev name to supplied value -
-	 * which is likely to be node name / other conn name.
+	 * which is likely to be analde name / other conn name.
 	 */
 	if (csdev)
 		tc->con_dev_name = dev_name(&csdev->dev);
@@ -264,9 +264,9 @@ int cti_add_connection_entry(struct device *dev, struct cti_drvdata *drvdata,
 		tc->con_dev_name = devm_kstrdup(dev,
 						assoc_dev_name, GFP_KERNEL);
 		if (!tc->con_dev_name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
-	list_add_tail(&tc->node, &cti_dev->trig_cons);
+	list_add_tail(&tc->analde, &cti_dev->trig_cons);
 	cti_dev->nr_trig_con++;
 
 	/* add connection usage bit info to overall info */
@@ -307,8 +307,8 @@ struct cti_trig_con *cti_allocate_trig_con(struct device *dev, int in_sigs,
 }
 
 /*
- * Add a default connection if nothing else is specified.
- * single connection based on max in/out info, no assoc device
+ * Add a default connection if analthing else is specified.
+ * single connection based on max in/out info, anal assoc device
  */
 int cti_add_default_connection(struct device *dev, struct cti_drvdata *drvdata)
 {
@@ -323,7 +323,7 @@ int cti_add_default_connection(struct device *dev, struct cti_drvdata *drvdata)
 	 */
 	tc = cti_allocate_trig_con(dev, n_trigs, n_trigs);
 	if (!tc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc->con_in->used_mask = n_trig_mask;
 	tc->con_out->used_mask = n_trig_mask;
@@ -351,7 +351,7 @@ int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
 
 	trig_bitmask = BIT(trigger_idx);
 
-	/* ensure registered triggers and not out filtered */
+	/* ensure registered triggers and analt out filtered */
 	if (direction == CTI_TRIG_IN)	{
 		if (!(trig_bitmask & config->trig_in_use))
 			return -EINVAL;
@@ -515,16 +515,16 @@ static void cti_remove_sysfs_link(struct cti_drvdata *drvdata,
  * and return found.
  */
 static bool
-cti_match_fixup_csdev(struct cti_device *ctidev, const char *node_name,
+cti_match_fixup_csdev(struct cti_device *ctidev, const char *analde_name,
 		      struct coresight_device *csdev)
 {
 	struct cti_trig_con *tc;
 	struct cti_drvdata *drvdata = container_of(ctidev, struct cti_drvdata,
 						   ctidev);
 
-	list_for_each_entry(tc, &ctidev->trig_cons, node) {
+	list_for_each_entry(tc, &ctidev->trig_cons, analde) {
 		if (tc->con_dev_name) {
-			if (!strcmp(node_name, tc->con_dev_name)) {
+			if (!strcmp(analde_name, tc->con_dev_name)) {
 				/* match: so swap in csdev name & dev */
 				tc->con_dev_name = dev_name(&csdev->dev);
 				tc->con_dev = csdev;
@@ -549,7 +549,7 @@ static void cti_add_assoc_to_csdev(struct coresight_device *csdev)
 {
 	struct cti_drvdata *ect_item;
 	struct cti_device *ctidev;
-	const char *node_name = NULL;
+	const char *analde_name = NULL;
 
 	/* protect the list */
 	mutex_lock(&ect_mutex);
@@ -561,15 +561,15 @@ static void cti_add_assoc_to_csdev(struct coresight_device *csdev)
 	    list_empty(&ect_net))
 		goto cti_add_done;
 
-	/* if we didn't find the csdev previously we used the fwnode name */
-	node_name = cti_plat_get_node_name(dev_fwnode(csdev->dev.parent));
-	if (!node_name)
+	/* if we didn't find the csdev previously we used the fwanalde name */
+	analde_name = cti_plat_get_analde_name(dev_fwanalde(csdev->dev.parent));
+	if (!analde_name)
 		goto cti_add_done;
 
 	/* for each CTI in list... */
-	list_for_each_entry(ect_item, &ect_net, node) {
+	list_for_each_entry(ect_item, &ect_net, analde) {
 		ctidev = &ect_item->ctidev;
-		if (cti_match_fixup_csdev(ctidev, node_name, csdev)) {
+		if (cti_match_fixup_csdev(ctidev, analde_name, csdev)) {
 			/*
 			 * if we found a matching csdev then update the ECT
 			 * association pointer for the device with this CTI.
@@ -602,7 +602,7 @@ static void cti_remove_assoc_from_csdev(struct coresight_device *csdev)
 	mutex_lock(&ect_mutex);
 	ctidrv = csdev_to_cti_drvdata(cti_csdev);
 	ctidev = &ctidrv->ctidev;
-	list_for_each_entry(tc, &ctidev->trig_cons, node) {
+	list_for_each_entry(tc, &ctidev->trig_cons, analde) {
 		if (tc->con_dev == csdev) {
 			cti_remove_sysfs_link(ctidrv, tc);
 			tc->con_dev = NULL;
@@ -631,7 +631,7 @@ static void cti_update_conn_xrefs(struct cti_drvdata *drvdata)
 	struct cti_trig_con *tc;
 	struct cti_device *ctidev = &drvdata->ctidev;
 
-	list_for_each_entry(tc, &ctidev->trig_cons, node) {
+	list_for_each_entry(tc, &ctidev->trig_cons, analde) {
 		if (tc->con_dev) {
 			/* if we can set the sysfs link */
 			if (cti_add_sysfs_link(drvdata, tc))
@@ -650,7 +650,7 @@ static void cti_remove_conn_xrefs(struct cti_drvdata *drvdata)
 	struct cti_trig_con *tc;
 	struct cti_device *ctidev = &drvdata->ctidev;
 
-	list_for_each_entry(tc, &ctidev->trig_cons, node) {
+	list_for_each_entry(tc, &ctidev->trig_cons, analde) {
 		if (tc->con_dev) {
 			cti_remove_sysfs_link(drvdata, tc);
 			tc->con_dev = NULL;
@@ -659,28 +659,28 @@ static void cti_remove_conn_xrefs(struct cti_drvdata *drvdata)
 }
 
 /** cti PM callbacks **/
-static int cti_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
+static int cti_cpu_pm_analtify(struct analtifier_block *nb, unsigned long cmd,
 			     void *v)
 {
 	struct cti_drvdata *drvdata;
 	struct coresight_device *csdev;
 	unsigned int cpu = smp_processor_id();
-	int notify_res = NOTIFY_OK;
+	int analtify_res = ANALTIFY_OK;
 
 	if (!cti_cpu_drvdata[cpu])
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	drvdata = cti_cpu_drvdata[cpu];
 	csdev = drvdata->csdev;
 
 	if (WARN_ON_ONCE(drvdata->ctidev.cpu != cpu))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	spin_lock(&drvdata->spinlock);
 
 	switch (cmd) {
 	case CPU_PM_ENTER:
-		/* CTI regs all static - we have a copy & nothing to save */
+		/* CTI regs all static - we have a copy & analthing to save */
 		drvdata->config.hw_powered = false;
 		if (drvdata->config.hw_enabled)
 			coresight_disclaim_device(csdev);
@@ -703,7 +703,7 @@ static int cti_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
 		if (drvdata->config.enable_req_count) {
 			/* check we can claim the device as we re-power */
 			if (coresight_claim_device(csdev))
-				goto cti_notify_exit;
+				goto cti_analtify_exit;
 
 			drvdata->config.hw_enabled = true;
 			cti_write_all_hw_regs(drvdata);
@@ -711,17 +711,17 @@ static int cti_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
 		break;
 
 	default:
-		notify_res = NOTIFY_DONE;
+		analtify_res = ANALTIFY_DONE;
 		break;
 	}
 
-cti_notify_exit:
+cti_analtify_exit:
 	spin_unlock(&drvdata->spinlock);
-	return notify_res;
+	return analtify_res;
 }
 
-static struct notifier_block cti_cpu_pm_nb = {
-	.notifier_call = cti_cpu_pm_notify,
+static struct analtifier_block cti_cpu_pm_nb = {
+	.analtifier_call = cti_cpu_pm_analtify,
 };
 
 /* CPU HP handlers */
@@ -762,7 +762,7 @@ static int cti_pm_setup(struct cti_drvdata *drvdata)
 		goto done;
 
 	cpus_read_lock();
-	ret = cpuhp_setup_state_nocalls_cpuslocked(
+	ret = cpuhp_setup_state_analcalls_cpuslocked(
 			CPUHP_AP_ARM_CORESIGHT_CTI_STARTING,
 			"arm/coresight_cti:starting",
 			cti_starting_cpu, cti_dying_cpu);
@@ -771,10 +771,10 @@ static int cti_pm_setup(struct cti_drvdata *drvdata)
 		return ret;
 	}
 
-	ret = cpu_pm_register_notifier(&cti_cpu_pm_nb);
+	ret = cpu_pm_register_analtifier(&cti_cpu_pm_nb);
 	cpus_read_unlock();
 	if (ret) {
-		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_CTI_STARTING);
+		cpuhp_remove_state_analcalls(CPUHP_AP_ARM_CORESIGHT_CTI_STARTING);
 		return ret;
 	}
 
@@ -793,8 +793,8 @@ static void cti_pm_release(struct cti_drvdata *drvdata)
 
 	cti_cpu_drvdata[drvdata->ctidev.cpu] = NULL;
 	if (--nr_cti_cpu == 0) {
-		cpu_pm_unregister_notifier(&cti_cpu_pm_nb);
-		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_CTI_STARTING);
+		cpu_pm_unregister_analtifier(&cti_cpu_pm_nb);
+		cpuhp_remove_state_analcalls(CPUHP_AP_ARM_CORESIGHT_CTI_STARTING);
 	}
 }
 
@@ -835,9 +835,9 @@ static void cti_device_release(struct device *dev)
 	cti_pm_release(drvdata);
 
 	/* remove from the list */
-	list_for_each_entry_safe(ect_item, ect_tmp, &ect_net, node) {
+	list_for_each_entry_safe(ect_item, ect_tmp, &ect_net, analde) {
 		if (ect_item == drvdata) {
-			list_del(&ect_item->node);
+			list_del(&ect_item->analde);
 			break;
 		}
 	}
@@ -870,7 +870,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	/* driver data*/
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Validity for the resource is already checked by the AMBA core */
 	base = devm_ioremap_resource(dev, res);
@@ -899,7 +899,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 		return  PTR_ERR(pdata);
 	}
 
-	/* default to powered - could change on PM notifications */
+	/* default to powered - could change on PM analtifications */
 	drvdata->config.hw_powered = true;
 
 	/* set up device name - will depend if cpu bound or otherwise */
@@ -909,7 +909,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	else
 		cti_desc.name = coresight_alloc_device_name(&cti_sys_devs, dev);
 	if (!cti_desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* setup CPU power management handling for CPU bound CTI devices. */
 	ret = cti_pm_setup(drvdata);
@@ -939,7 +939,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/* add to list of CTI devices */
 	mutex_lock(&ect_mutex);
-	list_add(&drvdata->node, &ect_net);
+	list_add(&drvdata->analde, &ect_net);
 	/* set any cross references */
 	cti_update_conn_xrefs(drvdata);
 	mutex_unlock(&ect_mutex);

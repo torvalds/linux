@@ -2,7 +2,7 @@
 //
 // Driver for Microchip S/PDIF TX Controller
 //
-// Copyright (C) 2020 Microchip Technology Inc. and its subsidiaries
+// Copyright (C) 2020 Microchip Techanallogy Inc. and its subsidiaries
 //
 // Author: Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
@@ -51,7 +51,7 @@
 
 /* Multichannel Transfer */
 #define SPDIFTX_MR_MULTICH_MASK		GENAMSK(1, 1)
-#define SPDIFTX_MR_MULTICH_MONO		(0 << 1)
+#define SPDIFTX_MR_MULTICH_MOANAL		(0 << 1)
 #define SPDIFTX_MR_MULTICH_DUAL		(1 << 1)
 
 /* Data Word Endian Mode */
@@ -249,7 +249,7 @@ static irqreturn_t mchp_spdiftx_interrupt(int irq, void *dev_id)
 	pending = sr & imr;
 
 	if (!pending)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pending & SPDIFTX_IR_TXUDR) {
 		dev_warn(dev->dev, "underflow detected\n");
@@ -308,7 +308,7 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct mchp_spdiftx_mixer_control *ctrl = &dev->control;
 	int ret;
 
-	/* do not start/stop while channel status or user data is updated */
+	/* do analt start/stop while channel status or user data is updated */
 	spin_lock(&ctrl->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -359,7 +359,7 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 		params_width(params), params_channels(params));
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		dev_err(dev->dev, "Capture is not supported\n");
+		dev_err(dev->dev, "Capture is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -375,7 +375,7 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 	dev->playback.maxburst = 1;
 	switch (params_channels(params)) {
 	case 1:
-		mr |= SPDIFTX_MR_MULTICH_MONO;
+		mr |= SPDIFTX_MR_MULTICH_MOANAL;
 		break;
 	case 2:
 		mr |= SPDIFTX_MR_MULTICH_DUAL;
@@ -469,7 +469,7 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 	case 11025:
 	case 16000:
 	case 64000:
-		aes3 = IEC958_AES3_CON_FS_NOTID;
+		aes3 = IEC958_AES3_CON_FS_ANALTID;
 		break;
 	default:
 		dev_err(dev->dev, "unsupported sample frequency: %u\n",
@@ -791,7 +791,7 @@ static int mchp_spdiftx_probe(struct platform_device *pdev)
 	/* Get memory for driver data. */
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map I/O registers. */
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
@@ -835,8 +835,8 @@ static int mchp_spdiftx_probe(struct platform_device *pdev)
 	spin_lock_init(&ctrl->lock);
 
 	/* Init channel status */
-	ctrl->ch_stat[0] = IEC958_AES0_CON_NOT_COPYRIGHT |
-			   IEC958_AES0_CON_EMPHASIS_NONE;
+	ctrl->ch_stat[0] = IEC958_AES0_CON_ANALT_COPYRIGHT |
+			   IEC958_AES0_CON_EMPHASIS_ANALNE;
 
 	dev->dev = &pdev->dev;
 	dev->regmap = regmap;

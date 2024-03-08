@@ -9,11 +9,11 @@
 
 #include "kirkwood.dtsi"
 #include "kirkwood-6281.dtsi"
-#include "kirkwood-synology.dtsi"
+#include "kirkwood-syanallogy.dtsi"
 
 / {
-	model = "Synology DS411j";
-	compatible = "synology,ds411j", "marvell,kirkwood";
+	model = "Syanallogy DS411j";
+	compatible = "syanallogy,ds411j", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";

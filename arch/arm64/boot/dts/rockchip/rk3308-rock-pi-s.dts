@@ -129,7 +129,7 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&vcc_io>;
 	status = "okay";
 };
@@ -215,23 +215,23 @@
 
 	leds {
 		green_led_gio: green-led-gpio {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		heartbeat_led_gpio: heartbeat-led-gpio {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wifi_host_wake: wifi-host-wake {
@@ -258,7 +258,7 @@
 	keep-power-in-suspend;
 	max-frequency = <1000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	sd-uhs-sdr104;
 	status = "okay";
 };

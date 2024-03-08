@@ -8,7 +8,7 @@ This device controls the PHY for both the USB 1.1 OHCI and USB 2.0 OTG
 controllers on DA8xx SoCs. Consumers of this device should use index 0 for
 the USB 2.0 phy device and index 1 for the USB 1.1 phy device.
 
-It also requires a "syscon" node with compatible = "ti,da830-cfgchip", "syscon"
+It also requires a "syscon" analde with compatible = "ti,da830-cfgchip", "syscon"
 to access the CFGCHIP2 register.
 
 Example:

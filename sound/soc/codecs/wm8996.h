@@ -108,7 +108,7 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM8996_AIF1RX_CHANNEL_3_CONFIGURATION   0x312
 #define WM8996_AIF1RX_CHANNEL_4_CONFIGURATION   0x313
 #define WM8996_AIF1RX_CHANNEL_5_CONFIGURATION   0x314
-#define WM8996_AIF1RX_MONO_CONFIGURATION        0x315
+#define WM8996_AIF1RX_MOANAL_CONFIGURATION        0x315
 #define WM8996_AIF1TX_TEST                      0x31A
 #define WM8996_AIF2_CONTROL                     0x320
 #define WM8996_AIF2_BCLK                        0x321
@@ -123,7 +123,7 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM8996_AIF2TX_CHANNEL_1_CONFIGURATION   0x32A
 #define WM8996_AIF2RX_CHANNEL_0_CONFIGURATION   0x32B
 #define WM8996_AIF2RX_CHANNEL_1_CONFIGURATION   0x32C
-#define WM8996_AIF2RX_MONO_CONFIGURATION        0x32D
+#define WM8996_AIF2RX_MOANAL_CONFIGURATION        0x32D
 #define WM8996_AIF2TX_TEST                      0x32F
 #define WM8996_DSP1_TX_LEFT_VOLUME              0x400
 #define WM8996_DSP1_TX_RIGHT_VOLUME             0x401
@@ -1457,12 +1457,12 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 /*
  * R84 (0x54) - DC Servo (5)
  */
-#define WM8996_DCS_SERIES_NO_23_MASK            0x7F00  /* DCS_SERIES_NO_23 - [14:8] */
-#define WM8996_DCS_SERIES_NO_23_SHIFT                8  /* DCS_SERIES_NO_23 - [14:8] */
-#define WM8996_DCS_SERIES_NO_23_WIDTH                7  /* DCS_SERIES_NO_23 - [14:8] */
-#define WM8996_DCS_SERIES_NO_01_MASK            0x007F  /* DCS_SERIES_NO_01 - [6:0] */
-#define WM8996_DCS_SERIES_NO_01_SHIFT                0  /* DCS_SERIES_NO_01 - [6:0] */
-#define WM8996_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 - [6:0] */
+#define WM8996_DCS_SERIES_ANAL_23_MASK            0x7F00  /* DCS_SERIES_ANAL_23 - [14:8] */
+#define WM8996_DCS_SERIES_ANAL_23_SHIFT                8  /* DCS_SERIES_ANAL_23 - [14:8] */
+#define WM8996_DCS_SERIES_ANAL_23_WIDTH                7  /* DCS_SERIES_ANAL_23 - [14:8] */
+#define WM8996_DCS_SERIES_ANAL_01_MASK            0x007F  /* DCS_SERIES_ANAL_01 - [6:0] */
+#define WM8996_DCS_SERIES_ANAL_01_SHIFT                0  /* DCS_SERIES_ANAL_01 - [6:0] */
+#define WM8996_DCS_SERIES_ANAL_01_WIDTH                7  /* DCS_SERIES_ANAL_01 - [6:0] */
 
 /*
  * R85 (0x55) - DC Servo (6)
@@ -2074,20 +2074,20 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM8996_AIF1RX_CHAN5_START_SLOT_WIDTH         6  /* AIF1RX_CHAN5_START_SLOT - [5:0] */
 
 /*
- * R789 (0x315) - AIF1RX Mono Configuration
+ * R789 (0x315) - AIF1RX Moanal Configuration
  */
-#define WM8996_AIF1RX_CHAN4_MONO_MODE           0x0004  /* AIF1RX_CHAN4_MONO_MODE */
-#define WM8996_AIF1RX_CHAN4_MONO_MODE_MASK      0x0004  /* AIF1RX_CHAN4_MONO_MODE */
-#define WM8996_AIF1RX_CHAN4_MONO_MODE_SHIFT          2  /* AIF1RX_CHAN4_MONO_MODE */
-#define WM8996_AIF1RX_CHAN4_MONO_MODE_WIDTH          1  /* AIF1RX_CHAN4_MONO_MODE */
-#define WM8996_AIF1RX_CHAN2_MONO_MODE           0x0002  /* AIF1RX_CHAN2_MONO_MODE */
-#define WM8996_AIF1RX_CHAN2_MONO_MODE_MASK      0x0002  /* AIF1RX_CHAN2_MONO_MODE */
-#define WM8996_AIF1RX_CHAN2_MONO_MODE_SHIFT          1  /* AIF1RX_CHAN2_MONO_MODE */
-#define WM8996_AIF1RX_CHAN2_MONO_MODE_WIDTH          1  /* AIF1RX_CHAN2_MONO_MODE */
-#define WM8996_AIF1RX_CHAN0_MONO_MODE           0x0001  /* AIF1RX_CHAN0_MONO_MODE */
-#define WM8996_AIF1RX_CHAN0_MONO_MODE_MASK      0x0001  /* AIF1RX_CHAN0_MONO_MODE */
-#define WM8996_AIF1RX_CHAN0_MONO_MODE_SHIFT          0  /* AIF1RX_CHAN0_MONO_MODE */
-#define WM8996_AIF1RX_CHAN0_MONO_MODE_WIDTH          1  /* AIF1RX_CHAN0_MONO_MODE */
+#define WM8996_AIF1RX_CHAN4_MOANAL_MODE           0x0004  /* AIF1RX_CHAN4_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN4_MOANAL_MODE_MASK      0x0004  /* AIF1RX_CHAN4_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN4_MOANAL_MODE_SHIFT          2  /* AIF1RX_CHAN4_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN4_MOANAL_MODE_WIDTH          1  /* AIF1RX_CHAN4_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN2_MOANAL_MODE           0x0002  /* AIF1RX_CHAN2_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN2_MOANAL_MODE_MASK      0x0002  /* AIF1RX_CHAN2_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN2_MOANAL_MODE_SHIFT          1  /* AIF1RX_CHAN2_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN2_MOANAL_MODE_WIDTH          1  /* AIF1RX_CHAN2_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN0_MOANAL_MODE           0x0001  /* AIF1RX_CHAN0_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN0_MOANAL_MODE_MASK      0x0001  /* AIF1RX_CHAN0_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN0_MOANAL_MODE_SHIFT          0  /* AIF1RX_CHAN0_MOANAL_MODE */
+#define WM8996_AIF1RX_CHAN0_MOANAL_MODE_WIDTH          1  /* AIF1RX_CHAN0_MOANAL_MODE */
 
 /*
  * R794 (0x31A) - AIF1TX Test
@@ -2282,12 +2282,12 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM8996_AIF2RX_CHAN1_START_SLOT_WIDTH         6  /* AIF2RX_CHAN1_START_SLOT - [5:0] */
 
 /*
- * R813 (0x32D) - AIF2RX Mono Configuration
+ * R813 (0x32D) - AIF2RX Moanal Configuration
  */
-#define WM8996_AIF2RX_CHAN0_MONO_MODE           0x0001  /* AIF2RX_CHAN0_MONO_MODE */
-#define WM8996_AIF2RX_CHAN0_MONO_MODE_MASK      0x0001  /* AIF2RX_CHAN0_MONO_MODE */
-#define WM8996_AIF2RX_CHAN0_MONO_MODE_SHIFT          0  /* AIF2RX_CHAN0_MONO_MODE */
-#define WM8996_AIF2RX_CHAN0_MONO_MODE_WIDTH          1  /* AIF2RX_CHAN0_MONO_MODE */
+#define WM8996_AIF2RX_CHAN0_MOANAL_MODE           0x0001  /* AIF2RX_CHAN0_MOANAL_MODE */
+#define WM8996_AIF2RX_CHAN0_MOANAL_MODE_MASK      0x0001  /* AIF2RX_CHAN0_MOANAL_MODE */
+#define WM8996_AIF2RX_CHAN0_MOANAL_MODE_SHIFT          0  /* AIF2RX_CHAN0_MOANAL_MODE */
+#define WM8996_AIF2RX_CHAN0_MOANAL_MODE_WIDTH          1  /* AIF2RX_CHAN0_MOANAL_MODE */
 
 /*
  * R815 (0x32F) - AIF2TX Test
@@ -2370,10 +2370,10 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM8996_DSP1RX_MUTE_MASK                 0x0200  /* DSP1RX_MUTE */
 #define WM8996_DSP1RX_MUTE_SHIFT                     9  /* DSP1RX_MUTE */
 #define WM8996_DSP1RX_MUTE_WIDTH                     1  /* DSP1RX_MUTE */
-#define WM8996_DSP1RX_MONO                      0x0080  /* DSP1RX_MONO */
-#define WM8996_DSP1RX_MONO_MASK                 0x0080  /* DSP1RX_MONO */
-#define WM8996_DSP1RX_MONO_SHIFT                     7  /* DSP1RX_MONO */
-#define WM8996_DSP1RX_MONO_WIDTH                     1  /* DSP1RX_MONO */
+#define WM8996_DSP1RX_MOANAL                      0x0080  /* DSP1RX_MOANAL */
+#define WM8996_DSP1RX_MOANAL_MASK                 0x0080  /* DSP1RX_MOANAL */
+#define WM8996_DSP1RX_MOANAL_SHIFT                     7  /* DSP1RX_MOANAL */
+#define WM8996_DSP1RX_MOANAL_WIDTH                     1  /* DSP1RX_MOANAL */
 #define WM8996_DSP1RX_MUTERATE                  0x0020  /* DSP1RX_MUTERATE */
 #define WM8996_DSP1RX_MUTERATE_MASK             0x0020  /* DSP1RX_MUTERATE */
 #define WM8996_DSP1RX_MUTERATE_SHIFT                 5  /* DSP1RX_MUTERATE */
@@ -2724,10 +2724,10 @@ int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM8996_DSP2RX_MUTE_MASK                 0x0200  /* DSP2RX_MUTE */
 #define WM8996_DSP2RX_MUTE_SHIFT                     9  /* DSP2RX_MUTE */
 #define WM8996_DSP2RX_MUTE_WIDTH                     1  /* DSP2RX_MUTE */
-#define WM8996_DSP2RX_MONO                      0x0080  /* DSP2RX_MONO */
-#define WM8996_DSP2RX_MONO_MASK                 0x0080  /* DSP2RX_MONO */
-#define WM8996_DSP2RX_MONO_SHIFT                     7  /* DSP2RX_MONO */
-#define WM8996_DSP2RX_MONO_WIDTH                     1  /* DSP2RX_MONO */
+#define WM8996_DSP2RX_MOANAL                      0x0080  /* DSP2RX_MOANAL */
+#define WM8996_DSP2RX_MOANAL_MASK                 0x0080  /* DSP2RX_MOANAL */
+#define WM8996_DSP2RX_MOANAL_SHIFT                     7  /* DSP2RX_MOANAL */
+#define WM8996_DSP2RX_MOANAL_WIDTH                     1  /* DSP2RX_MOANAL */
 #define WM8996_DSP2RX_MUTERATE                  0x0020  /* DSP2RX_MUTERATE */
 #define WM8996_DSP2RX_MUTERATE_MASK             0x0020  /* DSP2RX_MUTERATE */
 #define WM8996_DSP2RX_MUTERATE_SHIFT                 5  /* DSP2RX_MUTERATE */

@@ -14,7 +14,7 @@
  * same. After that it switches back to the current page-table and when the
  * check succeeded it returns. If the check failed the code invalidates the
  * stack pointer and goes into a hlt loop. The stack-pointer is invalidated to
- * make sure no interrupt or exception can get the CPU out of the hlt loop.
+ * make sure anal interrupt or exception can get the CPU out of the hlt loop.
  *
  * New page-table pointer is expected in %rdi (first parameter)
  *
@@ -40,11 +40,11 @@ SYM_FUNC_START(sev_verify_cbit)
 	movq	%rdx, %cr4
 
 	/*
-	 * Verified that running under SEV - now get a random value using
+	 * Verified that running under SEV - analw get a random value using
 	 * RDRAND. This instruction is mandatory when running as an SEV guest.
 	 *
 	 * Don't bail out of the loop if RDRAND returns errors. It is better to
-	 * prevent forward progress than to work with a non-random value here.
+	 * prevent forward progress than to work with a analn-random value here.
 	 */
 1:	rdrand	%rdx
 	jnc	1b

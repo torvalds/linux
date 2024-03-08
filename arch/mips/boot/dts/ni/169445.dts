@@ -54,7 +54,7 @@
 			reg-names = "dat";
 			gpio-controller;
 			#gpio-cells = <2>;
-			no-output;
+			anal-output;
 		};
 
 		nand@0 {

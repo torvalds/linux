@@ -11,10 +11,10 @@
  */
 
 /*
- * Note: Although this driver assumes a 16550A-like UART implementation,
- * it is not possible to leverage the common 8250/16550 driver, nor the
+ * Analte: Although this driver assumes a 16550A-like UART implementation,
+ * it is analt possible to leverage the common 8250/16550 driver, analr the
  * core UART infrastructure, as they assumes direct access to the hardware
- * registers, often under a spinlock.  This is not possible in the SDIO
+ * registers, often under a spinlock.  This is analt possible in the SDIO
  * context as SDIO access functions must be able to sleep.
  *
  * Because we need to lock the SDIO host to ensure an exclusive access to
@@ -75,7 +75,7 @@ struct sdio_uart_port {
 	unsigned int		mctrl;
 	unsigned int		rx_mctrl;
 	unsigned int		read_status_mask;
-	unsigned int		ignore_status_mask;
+	unsigned int		iganalre_status_mask;
 	unsigned char		x_char;
 	unsigned char           ier;
 	unsigned char           lcr;
@@ -91,7 +91,7 @@ static int sdio_uart_add_port(struct sdio_uart_port *port)
 	mutex_init(&port->func_lock);
 	spin_lock_init(&port->write_lock);
 	if (kfifo_alloc(&port->xmit_fifo, FIFO_SIZE, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&sdio_uart_table_lock);
 	for (index = 0; index < UART_NR; index++) {
@@ -164,7 +164,7 @@ static int sdio_uart_claim_func(struct sdio_uart_port *port)
 	mutex_lock(&port->func_lock);
 	if (unlikely(!port->func)) {
 		mutex_unlock(&port->func_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (likely(port->in_sdio_uart_irq != current))
 		sdio_claim_host(port->func);
@@ -289,26 +289,26 @@ static void sdio_uart_change_speed(struct sdio_uart_port *port,
 		port->read_status_mask |= UART_LSR_BI;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
+		port->iganalre_status_mask |= UART_LSR_PE | UART_LSR_FE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= UART_LSR_BI;
+		port->iganalre_status_mask |= UART_LSR_BI;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= UART_LSR_OE;
+			port->iganalre_status_mask |= UART_LSR_OE;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * iganalre all characters if CREAD is analt set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_LSR_DR;
+		port->iganalre_status_mask |= UART_LSR_DR;
 
 	/*
 	 * CTS flow control flag and modem status interrupts
@@ -358,7 +358,7 @@ static void sdio_uart_receive_chars(struct sdio_uart_port *port, u8 *status)
 
 	do {
 		u8 ch = sdio_in(port, UART_RX);
-		u8 flag = TTY_NORMAL;
+		u8 flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		if (unlikely(*status & (UART_LSR_BI | UART_LSR_PE |
@@ -377,7 +377,7 @@ static void sdio_uart_receive_chars(struct sdio_uart_port *port, u8 *status)
 				port->icount.overrun++;
 
 			/*
-			 * Mask off conditions which should be ignored.
+			 * Mask off conditions which should be iganalred.
 			 */
 			*status &= port->read_status_mask;
 			if (*status & UART_LSR_BI)
@@ -388,14 +388,14 @@ static void sdio_uart_receive_chars(struct sdio_uart_port *port, u8 *status)
 				flag = TTY_FRAME;
 		}
 
-		if ((*status & port->ignore_status_mask & ~UART_LSR_OE) == 0)
+		if ((*status & port->iganalre_status_mask & ~UART_LSR_OE) == 0)
 			tty_insert_flip_char(&port->port, ch, flag);
 
 		/*
 		 * Overrun is special.  Since it's reported immediately,
 		 * it doesn't affect the current character.
 		 */
-		if (*status & ~port->ignore_status_mask & UART_LSR_OE)
+		if (*status & ~port->iganalre_status_mask & UART_LSR_OE)
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 
 		*status = sdio_in(port, UART_LSR);
@@ -509,7 +509,7 @@ static void sdio_uart_irq(struct sdio_func *func)
 		return;
 
 	iir = sdio_in(port, UART_IIR);
-	if (iir & UART_IIR_NO_INT)
+	if (iir & UART_IIR_ANAL_INT)
 		return;
 
 	port->in_sdio_uart_irq = current;
@@ -566,7 +566,7 @@ static void uart_dtr_rts(struct tty_port *tport, bool active)
  *	Activate a tty port. The port locking guarantees us this will be
  *	run exactly once per set of opens, and if successful will see the
  *	shutdown method run exactly once to match. Start up and shutdown are
- *	protected from each other by the internal locking and will not run
+ *	protected from each other by the internal locking and will analt run
  *	at the same time even during a hangup event.
  *
  *	If we successfully start up the port we take an extra kref as we
@@ -615,7 +615,7 @@ static int sdio_uart_activate(struct tty_port *tport, struct tty_struct *tty)
 	(void) sdio_in(port, UART_MSR);
 
 	/*
-	 * Now, initialize the UART
+	 * Analw, initialize the UART
 	 */
 	sdio_out(port, UART_LCR, UART_LCR_WLEN8);
 
@@ -652,7 +652,7 @@ err1:
  *
  *	Deactivate a tty port. The port locking guarantees us this will be
  *	run only if a successful matching activate already ran. The two are
- *	protected from each other by the internal locking and will not run
+ *	protected from each other by the internal locking and will analt run
  *	at the same time even during a hangup event.
  */
 
@@ -723,8 +723,8 @@ static int sdio_uart_install(struct tty_driver *driver, struct tty_struct *tty)
  *	sdio_uart_cleanup	-	called on the last tty kref drop
  *	@tty: the tty being destroyed
  *
- *	Called asynchronously when the last reference to the tty is dropped.
- *	We cannot destroy the tty->driver_data port kref until this point
+ *	Called asynchroanalusly when the last reference to the tty is dropped.
+ *	We cananalt destroy the tty->driver_data port kref until this point
  */
 
 static void sdio_uart_cleanup(struct tty_struct *tty)
@@ -735,7 +735,7 @@ static void sdio_uart_cleanup(struct tty_struct *tty)
 }
 
 /*
- *	Open/close/hangup is now entirely boilerplate
+ *	Open/close/hangup is analw entirely boilerplate
  */
 
 static int sdio_uart_open(struct tty_struct *tty, struct file *filp)
@@ -763,7 +763,7 @@ static ssize_t sdio_uart_write(struct tty_struct *tty, const u8 *buf,
 	int ret;
 
 	if (!port->func)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = kfifo_in_locked(&port->xmit_fifo, buf, count, &port->write_lock);
 	if (!(port->ier & UART_IER_THRI)) {
@@ -1023,13 +1023,13 @@ static int sdio_uart_probe(struct sdio_func *func,
 
 	port = kzalloc(sizeof(struct sdio_uart_port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (func->class == SDIO_CLASS_UART) {
 		pr_warn("%s: need info on UART class basic setup\n",
 			sdio_func_id(func));
 		kfree(port);
-		return -ENOSYS;
+		return -EANALSYS;
 	} else if (func->class == SDIO_CLASS_GPS) {
 		/*
 		 * We need tuple 0x91.  It contains SUBTPL_SIOREG
@@ -1125,9 +1125,9 @@ static int __init sdio_uart_init(void)
 	tty_drv->driver_name = "sdio_uart";
 	tty_drv->name =   "ttySDIO";
 	tty_drv->major = 0;  /* dynamically allocated */
-	tty_drv->minor_start = 0;
+	tty_drv->mianalr_start = 0;
 	tty_drv->type = TTY_DRIVER_TYPE_SERIAL;
-	tty_drv->subtype = SERIAL_TYPE_NORMAL;
+	tty_drv->subtype = SERIAL_TYPE_ANALRMAL;
 	tty_drv->init_termios = tty_std_termios;
 	tty_drv->init_termios.c_cflag = B4800 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty_drv->init_termios.c_ispeed = 4800;

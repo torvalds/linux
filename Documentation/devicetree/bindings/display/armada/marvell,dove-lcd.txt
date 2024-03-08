@@ -15,7 +15,7 @@ Optional properties:
 	"ext_ref_clk0" - external clock 0 for pixel clock
 	"ext_ref_clk1" - external clock 1 for pixel clock
 
-Note: all clocks are optional but at least one must be specified.
+Analte: all clocks are optional but at least one must be specified.
 Further clocks may be added in the future according to requirements of
 different SoCs.
 

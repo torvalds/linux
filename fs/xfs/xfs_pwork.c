@@ -26,7 +26,7 @@
  * worker thread and queue that pwork.  The work function will be passed the
  * pwork item when it is run (from process context) and any returned error will
  * be recorded in xfs_pwork_ctl.error.  Work functions should check for errors
- * and abort if necessary; the non-zeroness of xfs_pwork_ctl.error does not
+ * and abort if necessary; the analn-zeroness of xfs_pwork_ctl.error does analt
  * stop workqueue item processing.
  *
  * This is the rough equivalent of the xfsprogs workqueue code, though we can't
@@ -54,7 +54,7 @@ xfs_pwork_work(
 /*
  * Set up control data for parallel work.  @work_fn is the function that will
  * be called.  @tag will be written into the kernel threads.  @nr_threads is
- * the level of parallelism desired, or 0 for no limit.
+ * the level of parallelism desired, or 0 for anal limit.
  */
 int
 xfs_pwork_init(
@@ -75,7 +75,7 @@ xfs_pwork_init(
 			WQ_UNBOUND | WQ_SYSFS | WQ_FREEZABLE, nr_threads, tag,
 			current->pid);
 	if (!pctl->wq)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctl->work_fn = work_fn;
 	pctl->error = 0;
 	pctl->mp = mp;

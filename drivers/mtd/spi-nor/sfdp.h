@@ -9,9 +9,9 @@
 
 /* SFDP revisions */
 #define SFDP_JESD216_MAJOR	1
-#define SFDP_JESD216_MINOR	0
-#define SFDP_JESD216A_MINOR	5
-#define SFDP_JESD216B_MINOR	6
+#define SFDP_JESD216_MIANALR	0
+#define SFDP_JESD216A_MIANALR	5
+#define SFDP_JESD216B_MIANALR	6
 
 /* SFDP DWORDS are indexed from 1 but C arrays are indexed from 0. */
 #define SFDP_DWORD(i)		((i) - 1)
@@ -54,7 +54,7 @@ struct sfdp_bfpt {
 /*
  * (from JESD216 rev B)
  * Quad Enable Requirements (QER):
- * - 000b: Device does not have a QE bit. Device detects 1-1-4 and 1-4-4
+ * - 000b: Device does analt have a QE bit. Device detects 1-1-4 and 1-4-4
  *         reads based on instruction. DQ3/HOLD# functions are hold during
  *         instruction phase.
  * - 001b: QE is bit 1 of status register 2. It is set via Write Status with
@@ -62,7 +62,7 @@ struct sfdp_bfpt {
  *         [...]
  *         Writing only one byte to the status register has the side-effect of
  *         clearing status register 2, including the QE bit. The 100b code is
- *         used if writing one byte to the status register does not modify
+ *         used if writing one byte to the status register does analt modify
  *         status register 2.
  * - 010b: QE is bit 6 of status register 1. It is set via Write Status with
  *         one data byte where bit 6 is one.
@@ -75,7 +75,7 @@ struct sfdp_bfpt {
  *         two data bytes where bit 1 of the second byte is one.
  *         [...]
  *         In contrast to the 001b code, writing one byte to the status
- *         register does not modify status register 2.
+ *         register does analt modify status register 2.
  * - 101b: QE is bit 1 of status register 2. Status register 1 is read using
  *         Read Status instruction 05h. Status register2 is read using
  *         instruction 35h. QE is set via Write Status instruction 01h with
@@ -83,11 +83,11 @@ struct sfdp_bfpt {
  *         [...]
  */
 #define BFPT_DWORD15_QER_MASK			GENMASK(22, 20)
-#define BFPT_DWORD15_QER_NONE			(0x0UL << 20) /* Micron */
+#define BFPT_DWORD15_QER_ANALNE			(0x0UL << 20) /* Micron */
 #define BFPT_DWORD15_QER_SR2_BIT1_BUGGY		(0x1UL << 20)
 #define BFPT_DWORD15_QER_SR1_BIT6		(0x2UL << 20) /* Macronix */
 #define BFPT_DWORD15_QER_SR2_BIT7		(0x3UL << 20)
-#define BFPT_DWORD15_QER_SR2_BIT1_NO_RD		(0x4UL << 20)
+#define BFPT_DWORD15_QER_SR2_BIT1_ANAL_RD		(0x4UL << 20)
 #define BFPT_DWORD15_QER_SR2_BIT1		(0x5UL << 20) /* Spansion */
 
 #define BFPT_DWORD16_EN4B_MASK			GENMASK(31, 24)
@@ -133,7 +133,7 @@ struct sfdp_bfpt {
 
 struct sfdp_parameter_header {
 	u8		id_lsb;
-	u8		minor;
+	u8		mianalr;
 	u8		major;
 	u8		length; /* in double words */
 	u8		parameter_table_pointer[3]; /* byte address */

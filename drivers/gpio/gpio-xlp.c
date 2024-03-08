@@ -30,7 +30,7 @@
 #define GPIO_9XX_OUTPUT_EN	0x14
 #define GPIO_9XX_PADDRV		0x24
 /*
- * Only for 4 interrupt enable reg are defined for now,
+ * Only for 4 interrupt enable reg are defined for analw,
  * total reg available are 12.
  */
 #define GPIO_9XX_INT_EN00	0x44
@@ -248,7 +248,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev,	sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio_base))
@@ -289,10 +289,10 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 				     sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 	girq->parents[0] = irq;
 	girq->first = 0;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
 
 	err = gpiochip_add_data(gc, priv);

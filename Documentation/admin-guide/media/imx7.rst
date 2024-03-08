@@ -6,7 +6,7 @@ i.MX7 Video Capture Driver
 Introduction
 ------------
 
-The i.MX7 contrary to the i.MX5/6 family does not contain an Image Processing
+The i.MX7 contrary to the i.MX5/6 family does analt contain an Image Processing
 Unit (IPU); because of that the capabilities to perform operations or
 manipulation of the capture frames are less feature rich.
 
@@ -15,7 +15,7 @@ For image capture the i.MX7 has three units:
 - Video Multiplexer
 - MIPI CSI-2 Receiver
 
-.. code-block:: none
+.. code-block:: analne
 
    MIPI Camera Input ---> MIPI CSI-2 --- > |\
                                            | \
@@ -58,13 +58,13 @@ from the FIFO through AHB bus.
 
 This entity has one sink pad that receives from the csi-mux entity and a single
 source pad that routes video frames directly to memory buffers. This pad is
-routed to a capture device node.
+routed to a capture device analde.
 
-Usage Notes
+Usage Analtes
 -----------
 
 To aid in configuration and for backward compatibility with V4L2 applications
-that access controls only from video device nodes, the capture device interfaces
+that access controls only from video device analdes, the capture device interfaces
 inherit controls from the active entities in the current pipeline, so controls
 can be accessed either directly from the subdev or from the active capture
 device interface. For example, the sensor controls are available either from the
@@ -77,7 +77,7 @@ On this platform an OV2680 MIPI CSI-2 module is connected to the internal MIPI
 CSI-2 receiver. The following example configures a video capture pipeline with
 an output of 800x600, and BGGR 10 bit bayer format:
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links
    media-ctl -l "'ov2680 1-0036':0 -> 'imx7-mipi-csis.0':0[1]"
@@ -86,16 +86,16 @@ an output of 800x600, and BGGR 10 bit bayer format:
    media-ctl -l "'csi':1 -> 'csi capture':0[1]"
 
    # Configure pads for pipeline
-   media-ctl -V "'ov2680 1-0036':0 [fmt:SBGGR10_1X10/800x600 field:none]"
-   media-ctl -V "'csi-mux':1 [fmt:SBGGR10_1X10/800x600 field:none]"
-   media-ctl -V "'csi-mux':2 [fmt:SBGGR10_1X10/800x600 field:none]"
-   media-ctl -V "'imx7-mipi-csis.0':0 [fmt:SBGGR10_1X10/800x600 field:none]"
-   media-ctl -V "'csi':0 [fmt:SBGGR10_1X10/800x600 field:none]"
+   media-ctl -V "'ov2680 1-0036':0 [fmt:SBGGR10_1X10/800x600 field:analne]"
+   media-ctl -V "'csi-mux':1 [fmt:SBGGR10_1X10/800x600 field:analne]"
+   media-ctl -V "'csi-mux':2 [fmt:SBGGR10_1X10/800x600 field:analne]"
+   media-ctl -V "'imx7-mipi-csis.0':0 [fmt:SBGGR10_1X10/800x600 field:analne]"
+   media-ctl -V "'csi':0 [fmt:SBGGR10_1X10/800x600 field:analne]"
 
 After this streaming can start. The v4l2-ctl tool can be used to select any of
 the resolutions supported by the sensor.
 
-.. code-block:: none
+.. code-block:: analne
 
 	# media-ctl -p
 	Media controller API version 5.2.0
@@ -111,48 +111,48 @@ the resolutions supported by the sensor.
 
 	Device topology
 	- entity 1: csi (2 pads, 2 links)
-	            type V4L2 subdev subtype Unknown flags 0
-	            device node name /dev/v4l-subdev0
+	            type V4L2 subdev subtype Unkanalwn flags 0
+	            device analde name /dev/v4l-subdev0
 	        pad0: Sink
-	                [fmt:SBGGR10_1X10/800x600 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                [fmt:SBGGR10_1X10/800x600 field:analne colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
 	                <- "csi-mux":2 [ENABLED]
 	        pad1: Source
-	                [fmt:SBGGR10_1X10/800x600 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                [fmt:SBGGR10_1X10/800x600 field:analne colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
 	                -> "csi capture":0 [ENABLED]
 
 	- entity 4: csi capture (1 pad, 1 link)
-	            type Node subtype V4L flags 0
-	            device node name /dev/video0
+	            type Analde subtype V4L flags 0
+	            device analde name /dev/video0
 	        pad0: Sink
 	                <- "csi":1 [ENABLED]
 
 	- entity 10: csi-mux (3 pads, 2 links)
-	             type V4L2 subdev subtype Unknown flags 0
-	             device node name /dev/v4l-subdev1
+	             type V4L2 subdev subtype Unkanalwn flags 0
+	             device analde name /dev/v4l-subdev1
 	        pad0: Sink
-	                [fmt:Y8_1X8/1x1 field:none]
+	                [fmt:Y8_1X8/1x1 field:analne]
 	        pad1: Sink
-	               [fmt:SBGGR10_1X10/800x600 field:none]
+	               [fmt:SBGGR10_1X10/800x600 field:analne]
 	                <- "imx7-mipi-csis.0":1 [ENABLED]
 	        pad2: Source
-	                [fmt:SBGGR10_1X10/800x600 field:none]
+	                [fmt:SBGGR10_1X10/800x600 field:analne]
 	                -> "csi":0 [ENABLED]
 
 	- entity 14: imx7-mipi-csis.0 (2 pads, 2 links)
-	             type V4L2 subdev subtype Unknown flags 0
-	             device node name /dev/v4l-subdev2
+	             type V4L2 subdev subtype Unkanalwn flags 0
+	             device analde name /dev/v4l-subdev2
 	        pad0: Sink
-	                [fmt:SBGGR10_1X10/800x600 field:none]
+	                [fmt:SBGGR10_1X10/800x600 field:analne]
 	                <- "ov2680 1-0036":0 [ENABLED]
 	        pad1: Source
-	                [fmt:SBGGR10_1X10/800x600 field:none]
+	                [fmt:SBGGR10_1X10/800x600 field:analne]
 	                -> "csi-mux":1 [ENABLED]
 
 	- entity 17: ov2680 1-0036 (1 pad, 1 link)
 	             type V4L2 subdev subtype Sensor flags 0
-	             device node name /dev/v4l-subdev3
+	             device analde name /dev/v4l-subdev3
 	        pad0: Source
-	                [fmt:SBGGR10_1X10/800x600@1/30 field:none colorspace:srgb]
+	                [fmt:SBGGR10_1X10/800x600@1/30 field:analne colorspace:srgb]
 	                -> "imx7-mipi-csis.0":0 [ENABLED]
 
 i.MX6ULL-EVK with OV5640
@@ -162,22 +162,22 @@ On this platform a parallel OV5640 sensor is connected to the CSI port.
 The following example configures a video capture pipeline with an output
 of 640x480 and UYVY8_2X8 format:
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links
    media-ctl -l "'ov5640 1-003c':0 -> 'csi':0[1]"
    media-ctl -l "'csi':1 -> 'csi capture':0[1]"
 
    # Configure pads for pipeline
-   media-ctl -v -V "'ov5640 1-003c':0 [fmt:UYVY8_2X8/640x480 field:none]"
+   media-ctl -v -V "'ov5640 1-003c':0 [fmt:UYVY8_2X8/640x480 field:analne]"
 
 After this streaming can start:
 
-.. code-block:: none
+.. code-block:: analne
 
    gst-launch-1.0 -v v4l2src device=/dev/video1 ! video/x-raw,format=UYVY,width=640,height=480 ! v4l2convert ! fbdevsink
 
-.. code-block:: none
+.. code-block:: analne
 
 	# media-ctl -p
 	Media controller API version 5.14.0
@@ -193,26 +193,26 @@ After this streaming can start:
 
 	Device topology
 	- entity 1: csi (2 pads, 2 links)
-	            type V4L2 subdev subtype Unknown flags 0
-	            device node name /dev/v4l-subdev0
+	            type V4L2 subdev subtype Unkanalwn flags 0
+	            device analde name /dev/v4l-subdev0
 	        pad0: Sink
-	                [fmt:UYVY8_2X8/640x480 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                [fmt:UYVY8_2X8/640x480 field:analne colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
 	                <- "ov5640 1-003c":0 [ENABLED,IMMUTABLE]
 	        pad1: Source
-	                [fmt:UYVY8_2X8/640x480 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                [fmt:UYVY8_2X8/640x480 field:analne colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
 	                -> "csi capture":0 [ENABLED,IMMUTABLE]
 
 	- entity 4: csi capture (1 pad, 1 link)
-	            type Node subtype V4L flags 0
-	            device node name /dev/video1
+	            type Analde subtype V4L flags 0
+	            device analde name /dev/video1
 	        pad0: Sink
 	                <- "csi":1 [ENABLED,IMMUTABLE]
 
 	- entity 10: ov5640 1-003c (1 pad, 1 link)
 	             type V4L2 subdev subtype Sensor flags 0
-	             device node name /dev/v4l-subdev1
+	             device analde name /dev/v4l-subdev1
 	        pad0: Source
-	                [fmt:UYVY8_2X8/640x480@1/30 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                [fmt:UYVY8_2X8/640x480@1/30 field:analne colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
 	                -> "csi":0 [ENABLED,IMMUTABLE]
 
 References

@@ -315,8 +315,8 @@
 
 				cs-gpios = <&qcom_pinmux 20 GPIO_ACTIVE_HIGH>;
 
-				norflash: flash@0 {
-					compatible = "jedec,spi-nor";
+				analrflash: flash@0 {
+					compatible = "jedec,spi-analr";
 					#address-cells = <1>;
 					#size-cells = <1>;
 					spi-max-frequency = <50000000>;

@@ -50,14 +50,14 @@ static void cdns2_ep0_enqueue(struct cdns2_device *pdev, dma_addr_t dma_addr,
 
 	if (zlp) {
 		ring->trbs[0].control = cpu_to_le32(TRB_CYCLE |
-						    TRB_TYPE(TRB_NORMAL));
+						    TRB_TYPE(TRB_ANALRMAL));
 		ring->trbs[1].buffer = cpu_to_le32(TRB_BUFFER(dma_addr));
 		ring->trbs[1].length = cpu_to_le32(TRB_LEN(0));
 		ring->trbs[1].control = cpu_to_le32(TRB_CYCLE | TRB_IOC |
-					TRB_TYPE(TRB_NORMAL));
+					TRB_TYPE(TRB_ANALRMAL));
 	} else {
 		ring->trbs[0].control = cpu_to_le32(TRB_CYCLE | TRB_IOC |
-					TRB_TYPE(TRB_NORMAL));
+					TRB_TYPE(TRB_ANALRMAL));
 		ring->trbs[1].control = 0;
 	}
 
@@ -148,7 +148,7 @@ static int cdns2_req_ep0_set_address(struct cdns2_device *pdev, u32 addr)
 
 	if (addr > USB_DEVICE_MAX_ADDRESS) {
 		dev_err(pdev->dev,
-			"Device address (%d) cannot be greater than %d\n",
+			"Device address (%d) cananalt be greater than %d\n",
 			addr, USB_DEVICE_MAX_ADDRESS);
 		return -EINVAL;
 	}
@@ -358,9 +358,9 @@ static void __pending_setup_status_handler(struct cdns2_device *pdev)
 {
 	struct usb_request *request = pdev->pending_status_request;
 
-	if (pdev->status_completion_no_call && request && request->complete) {
+	if (pdev->status_completion_anal_call && request && request->complete) {
 		request->complete(&pdev->eps[0].endpoint, request);
-		pdev->status_completion_no_call = 0;
+		pdev->status_completion_anal_call = 0;
 	}
 }
 
@@ -391,7 +391,7 @@ void cdns2_handle_setup_packet(struct cdns2_device *pdev)
 		((u8 *)&pdev->setup)[i] = readb(&pdev->ep0_regs->setupdat[i]);
 
 	/*
-	 * If SETUP packet was modified while reading just simple ignore it.
+	 * If SETUP packet was modified while reading just simple iganalre it.
 	 * The new one will be handled latter.
 	 */
 	if (cdns2_check_new_setup(pdev)) {
@@ -404,7 +404,7 @@ void cdns2_handle_setup_packet(struct cdns2_device *pdev)
 	if (!pdev->gadget_driver)
 		goto out;
 
-	if (pdev->gadget.state == USB_STATE_NOTATTACHED) {
+	if (pdev->gadget.state == USB_STATE_ANALTATTACHED) {
 		dev_err(pdev->dev, "ERR: Setup detected in unattached state\n");
 		ret = -EINVAL;
 		goto out;
@@ -429,8 +429,8 @@ void cdns2_handle_setup_packet(struct cdns2_device *pdev)
 	pep->dir = ctrl->bRequestType & USB_DIR_IN;
 
 	/*
-	 * SET_ADDRESS request is acknowledged automatically by controller and
-	 * in the worse case driver may not notice this request. To check
+	 * SET_ADDRESS request is ackanalwledged automatically by controller and
+	 * in the worse case driver may analt analtice this request. To check
 	 * whether this request has been processed driver can use
 	 * fnaddr register.
 	 */
@@ -562,13 +562,13 @@ static int cdns2_gadget_ep0_queue(struct usb_ep *ep,
 		cdns2_status_stage(pdev);
 
 		request->actual = 0;
-		pdev->status_completion_no_call = true;
+		pdev->status_completion_anal_call = true;
 		pdev->pending_status_request = request;
 		usb_gadget_set_state(&pdev->gadget, USB_STATE_CONFIGURED);
 		spin_unlock_irqrestore(&pdev->lock, flags);
 
 		/*
-		 * Since there is no completion interrupt for status stage,
+		 * Since there is anal completion interrupt for status stage,
 		 * it needs to call ->completion in software after
 		 * cdns2_gadget_ep0_queue is back.
 		 */

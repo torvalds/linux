@@ -57,15 +57,15 @@
 
 #define  LCLASR_FPGA_SEL_SHIFT	12
 #define  LCLASR_NAND_SEL_SHIFT	8
-#define  LCLASR_NORB_SEL_SHIFT	4
-#define  LCLASR_NORA_SEL_SHIFT	0
+#define  LCLASR_ANALRB_SEL_SHIFT	4
+#define  LCLASR_ANALRA_SEL_SHIFT	0
 
 #define  LCLASR_AREA_MASK	0x7
 
 #define  LCLASR_FPGA_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_FPGA_SEL_SHIFT)
 #define  LCLASR_NAND_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_NAND_SEL_SHIFT)
-#define  LCLASR_NORB_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_NORB_SEL_SHIFT)
-#define  LCLASR_NORA_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_NORA_SEL_SHIFT)
+#define  LCLASR_ANALRB_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_ANALRB_SEL_SHIFT)
+#define  LCLASR_ANALRA_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_ANALRA_SEL_SHIFT)
 
 #define SBCR		0x190
 #define  SCBR_I2CMEN	BIT(0)	/* FPGA I2C master enable */
@@ -75,7 +75,7 @@
 #define  PWRCR_SCISEL0	BIT(0)
 #define  PWRCR_SCISEL1	BIT(1)
 #define  PWRCR_SCIEN	BIT(2)	/* Serial port enable */
-#define  PWRCR_PDWNACK	BIT(5)	/* Power down acknowledge */
+#define  PWRCR_PDWNACK	BIT(5)	/* Power down ackanalwledge */
 #define  PWRCR_PDWNREQ	BIT(7)	/* Power down request */
 #define  PWRCR_INT2	BIT(11)	/* INT2 connection to power manager */
 #define  PWRCR_BUPINIT	BIT(13)	/* DDR backup initialize */

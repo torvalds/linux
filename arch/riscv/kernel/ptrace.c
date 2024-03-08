@@ -154,7 +154,7 @@ static int riscv_vr_set(struct task_struct *target,
 
 static const struct user_regset riscv_user_regset[] = {
 	[REGSET_X] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = ELF_NGREG,
 		.size = sizeof(elf_greg_t),
 		.align = sizeof(elf_greg_t),
@@ -163,7 +163,7 @@ static const struct user_regset riscv_user_regset[] = {
 	},
 #ifdef CONFIG_FPU
 	[REGSET_F] = {
-		.core_note_type = NT_PRFPREG,
+		.core_analte_type = NT_PRFPREG,
 		.n = ELF_NFPREG,
 		.size = sizeof(elf_fpreg_t),
 		.align = sizeof(elf_fpreg_t),
@@ -173,7 +173,7 @@ static const struct user_regset riscv_user_regset[] = {
 #endif
 #ifdef CONFIG_RISCV_ISA_V
 	[REGSET_V] = {
-		.core_note_type = NT_RISCV_VECTOR,
+		.core_analte_type = NT_RISCV_VECTOR,
 		.align = 16,
 		.n = ((32 * RISCV_MAX_VLENB) +
 		      sizeof(struct __riscv_v_regset_state)) / sizeof(__u32),
@@ -262,7 +262,7 @@ int regs_query_register_offset(const char *name)
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If analt, returns false.
  */
 static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
 {
@@ -276,7 +276,7 @@ static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
  * @n:		stack entry number.
  *
  * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * is specified by @regs. If the @n th entry is ANALT in the kernel stack,
  * this returns 0.
  */
 unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
@@ -338,7 +338,7 @@ static int compat_riscv_gpr_set(struct task_struct *target,
 
 static const struct user_regset compat_riscv_user_regset[] = {
 	[REGSET_X] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = ELF_NGREG,
 		.size = sizeof(compat_elf_greg_t),
 		.align = sizeof(compat_elf_greg_t),
@@ -347,7 +347,7 @@ static const struct user_regset compat_riscv_user_regset[] = {
 	},
 #ifdef CONFIG_FPU
 	[REGSET_F] = {
-		.core_note_type = NT_PRFPREG,
+		.core_analte_type = NT_PRFPREG,
 		.n = ELF_NFPREG,
 		.size = sizeof(elf_fpreg_t),
 		.align = sizeof(elf_fpreg_t),

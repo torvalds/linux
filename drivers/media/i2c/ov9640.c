@@ -7,7 +7,7 @@
  * Based on ov772x camera driver:
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Based on ov7670 and soc_camera_platform driver,
  * transition from soc_camera to pxa_camera based on mt9m111
@@ -62,7 +62,7 @@ static const struct ov9640_reg ov9640_regs_dflt[] = {
 };
 
 /* Configurations
- * NOTE: for YUV, alter the following registers:
+ * ANALTE: for YUV, alter the following registers:
  *		COM12 |= OV9640_COM12_YUV_AVG
  *
  *	 for RGB, alter the following registers:
@@ -215,7 +215,7 @@ static int ov9640_reg_write(struct i2c_client *client, u8 reg, u8 val)
 		return ret;
 	}
 
-	/* we have to read the register back ... no idea why, maybe HW bug */
+	/* we have to read the register back ... anal idea why, maybe HW bug */
 	ret = ov9640_reg_read(client, reg, &_val);
 	if (ret)
 		dev_err(&client->dev,
@@ -249,7 +249,7 @@ static int ov9640_reg_rmw(struct i2c_client *client, u8 reg, u8 set, u8 unset)
 	return ret;
 }
 
-/* Soft reset the camera. This has nothing to do with the RESET pin! */
+/* Soft reset the camera. This has analthing to do with the RESET pin! */
 static int ov9640_reset(struct i2c_client *client)
 {
 	int ret;
@@ -493,7 +493,7 @@ static int ov9640_prog_dflt(struct i2c_client *client)
 			return ret;
 	}
 
-	/* wait for the changes to actually happen, 140ms are not enough yet */
+	/* wait for the changes to actually happen, 140ms are analt eanalugh yet */
 	msleep(150);
 
 	return 0;
@@ -529,7 +529,7 @@ static int ov9640_set_fmt(struct v4l2_subdev *sd,
 
 	ov9640_res_roundup(&mf->width, &mf->height);
 
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
@@ -619,7 +619,7 @@ static int ov9640_video_probe(struct i2c_client *client)
 		break;
 	default:
 		dev_err(&client->dev, "Product ID error %x:%x\n", pid, ver);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -687,7 +687,7 @@ static int ov9640_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->gpio_power = devm_gpiod_get(&client->dev, "Camera power",
 					  GPIOD_OUT_LOW);

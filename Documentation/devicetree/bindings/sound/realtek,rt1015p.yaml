@@ -10,7 +10,7 @@ maintainers:
   - Tzung-Bi Shih <tzungbi@kernel.org>
 
 description: |
-  Rt1015p is a rt1015 variant which does not support I2C and
+  Rt1015p is a rt1015 variant which does analt support I2C and
   only supports S24, 48kHz, 64FS.
 
 properties:

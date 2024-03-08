@@ -98,7 +98,7 @@ asm(
 	"4: andi  r2,r4,1\n"
 	"   cmpeq r2,r2,zero\n"
 	"   beq   r2,zero,7f\n"
-	/* If 'to' is not divideable by four copy halfwords */
+	/* If 'to' is analt divideable by four copy halfwords */
 	"5: andi  r2,r3,2\n"
 	"   beq   r2,zero,6f\n"
 	"   ldhu  r2,0(r5)\n"

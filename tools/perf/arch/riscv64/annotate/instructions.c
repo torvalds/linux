@@ -22,7 +22,7 @@ struct ins_ops *riscv64__associate_ins_ops(struct arch *arch, const char *name)
 }
 
 static
-int riscv64__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+int riscv64__ananaltate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	if (!arch->initialized) {
 		arch->associate_instruction_ops = riscv64__associate_ins_ops;

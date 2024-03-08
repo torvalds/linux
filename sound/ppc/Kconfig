@@ -31,7 +31,7 @@ config SND_POWERMAC_AUTO_DRC
 	  If this feature is enabled, DRC is turned off when the
 	  headphone/line jack is plugged, and turned on when unplugged.
 
-	  Note that you can turn on/off DRC manually even without this
+	  Analte that you can turn on/off DRC manually even without this
 	  option.
 
 config SND_PS3

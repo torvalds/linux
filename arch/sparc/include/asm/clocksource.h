@@ -6,7 +6,7 @@
 #define _ASM_SPARC_CLOCKSOURCE_H
 
 /* VDSO clocksources */
-#define VCLOCK_NONE   0  /* Nothing userspace can do. */
+#define VCLOCK_ANALNE   0  /* Analthing userspace can do. */
 #define VCLOCK_TICK   1  /* Use %tick.  */
 #define VCLOCK_STICK  2  /* Use %stick. */
 

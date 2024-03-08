@@ -23,7 +23,7 @@ int init_fpu(struct task_struct *tsk)
 		tsk->thread.xstate = kmem_cache_alloc(task_xstate_cachep,
 						      GFP_KERNEL);
 		if (!tsk->thread.xstate)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (boot_cpu_data.flags & CPU_HAS_FPU) {

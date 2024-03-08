@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Devin Heitmueller <dheitmueller@kernellabs.com>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/usb.h>
@@ -21,8 +21,8 @@ static int as102_usb_probe(struct usb_interface *interface,
 static int as102_usb_start_stream(struct as102_dev_t *dev);
 static void as102_usb_stop_stream(struct as102_dev_t *dev);
 
-static int as102_open(struct inode *inode, struct file *file);
-static int as102_release(struct inode *inode, struct file *file);
+static int as102_open(struct ianalde *ianalde, struct file *file);
+static int as102_release(struct ianalde *ianalde, struct file *file);
 
 static const struct usb_device_id as102_usb_id_table[] = {
 	{ USB_DEVICE(AS102_USB_DEVICE_VENDOR_ID, AS102_USB_DEVICE_PID_0001) },
@@ -33,7 +33,7 @@ static const struct usb_device_id as102_usb_id_table[] = {
 	{ } /* Terminating entry */
 };
 
-/* Note that this table must always have the same number of entries as the
+/* Analte that this table must always have the same number of entries as the
    as102_usb_id_table struct */
 static const char * const as102_device_names[] = {
 	AS102_REFERENCE_DESIGN,
@@ -71,7 +71,7 @@ static const struct file_operations as102_dev_fops = {
 static struct usb_class_driver as102_usb_class_driver = {
 	.name		= "aton2-%d",
 	.fops		= &as102_dev_fops,
-	.minor_base	= AS102_DEVICE_MAJOR,
+	.mianalr_base	= AS102_DEVICE_MAJOR,
 };
 
 static int as102_usb_xfer_cmd(struct as10x_bus_adapter_t *bus_adap,
@@ -221,7 +221,7 @@ void as102_urb_stream_irq(struct urb *urb)
 			memset(urb->transfer_buffer, 0, AS102_USB_BUF_SIZE);
 	}
 
-	/* is not stopped, re-submit urb */
+	/* is analt stopped, re-submit urb */
 	if (as102_dev->streaming)
 		as102_submit_urb_stream(as102_dev, urb);
 }
@@ -250,7 +250,7 @@ static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 	if (!dev->stream) {
 		dev_dbg(&dev->bus_adap.usb_dev->dev,
 			"%s: usb_buffer_alloc failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(dev->stream, 0, MAX_STREAM_URB * AS102_USB_BUF_SIZE);
@@ -262,12 +262,12 @@ static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (urb == NULL) {
 			as102_free_usb_stream_buffer(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		urb->transfer_buffer = dev->stream + (i * AS102_USB_BUF_SIZE);
 		urb->transfer_dma = dev->dma_addr + (i * AS102_USB_BUF_SIZE);
-		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 		urb->transfer_buffer_length = AS102_USB_BUF_SIZE;
 
 		dev->stream_urb[i] = urb;
@@ -347,7 +347,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 
 	as102_dev = kzalloc(sizeof(struct as102_dev_t), GFP_KERNEL);
 	if (as102_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Assign the user-friendly device name */
 	for (i = 0; i < ARRAY_SIZE(as102_usb_id_table); i++) {
@@ -358,7 +358,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 	}
 
 	if (as102_dev->name == NULL)
-		as102_dev->name = "Unknown AS102 device";
+		as102_dev->name = "Unkanalwn AS102 device";
 
 	/* set private callback functions */
 	as102_dev->bus_adap.ops = &as102_priv_ops;
@@ -376,12 +376,12 @@ static int as102_usb_probe(struct usb_interface *intf,
 	/* store in as102 device the usb_device pointer */
 	as102_dev->bus_adap.usb_dev = usb_get_dev(interface_to_usbdev(intf));
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device analw, as it is ready */
 	ret = usb_register_dev(intf, &as102_usb_class_driver);
 	if (ret < 0) {
 		/* something prevented us from registering this driver */
 		dev_err(&intf->dev,
-			"%s: usb_register_dev() failed (errno = %d)\n",
+			"%s: usb_register_dev() failed (erranal = %d)\n",
 			__func__, ret);
 		goto failed;
 	}
@@ -411,21 +411,21 @@ failed:
 	return ret;
 }
 
-static int as102_open(struct inode *inode, struct file *file)
+static int as102_open(struct ianalde *ianalde, struct file *file)
 {
-	int ret = 0, minor = 0;
+	int ret = 0, mianalr = 0;
 	struct usb_interface *intf = NULL;
 	struct as102_dev_t *dev = NULL;
 
-	/* read minor from inode */
-	minor = iminor(inode);
+	/* read mianalr from ianalde */
+	mianalr = imianalr(ianalde);
 
 	/* fetch device from usb interface */
-	intf = usb_find_interface(&as102_usb_driver, minor);
+	intf = usb_find_interface(&as102_usb_driver, mianalr);
 	if (intf == NULL) {
-		pr_err("%s: can't find device for minor %d\n",
-		       __func__, minor);
-		ret = -ENODEV;
+		pr_err("%s: can't find device for mianalr %d\n",
+		       __func__, mianalr);
+		ret = -EANALDEV;
 		goto exit;
 	}
 
@@ -446,7 +446,7 @@ exit:
 	return ret;
 }
 
-static int as102_release(struct inode *inode, struct file *file)
+static int as102_release(struct ianalde *ianalde, struct file *file)
 {
 	struct as102_dev_t *dev = NULL;
 

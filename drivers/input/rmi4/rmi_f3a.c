@@ -137,7 +137,7 @@ static int rmi_f3a_map_gpios(struct rmi_function *fn, struct f3a_data *f3a,
 						GFP_KERNEL);
 	if (!f3a->gpio_key_map) {
 		dev_err(&fn->dev, "Failed to allocate gpio map memory.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < button_count; i++) {
@@ -175,7 +175,7 @@ static int rmi_f3a_initialize(struct rmi_function *fn, struct f3a_data *f3a)
 	if (error < 0) {
 		dev_err(&fn->dev, "Failed to read general info register: %d\n",
 			error);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	f3a->gpio_count = buf & RMI_F3A_GPIO_COUNT;
@@ -212,13 +212,13 @@ static int rmi_f3a_probe(struct rmi_function *fn)
 	int error;
 
 	if (!drv_data->input) {
-		dev_info(&fn->dev, "F3A: no input device found, ignoring\n");
+		dev_info(&fn->dev, "F3A: anal input device found, iganalring\n");
 		return -ENXIO;
 	}
 
 	f3a = devm_kzalloc(&fn->dev, sizeof(*f3a), GFP_KERNEL);
 	if (!f3a)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f3a->input = drv_data->input;
 

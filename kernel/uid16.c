@@ -6,7 +6,7 @@
 
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/prctl.h>
 #include <linux/capability.h>
@@ -186,7 +186,7 @@ SYSCALL_DEFINE2(setgroups16, int, gidsetsize, old_gid_t __user *, grouplist)
 
 	group_info = groups_alloc(gidsetsize);
 	if (!group_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	retval = groups16_from_user(group_info, grouplist);
 	if (retval) {
 		put_group_info(group_info);

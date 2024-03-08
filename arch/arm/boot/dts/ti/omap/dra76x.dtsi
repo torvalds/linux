@@ -48,9 +48,9 @@
 		      <0x1b0010 0x4>;
 		reg-names = "rev", "sysc";
 		ti,sysc-midle = <SYSC_IDLE_FORCE>,
-				<SYSC_IDLE_NO>;
+				<SYSC_IDLE_ANAL>;
 		ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-				<SYSC_IDLE_NO>;
+				<SYSC_IDLE_ANAL>;
 		clocks = <&cam_clkctrl DRA7_CAM_VIP3_CLKCTRL 0>;
 		clock-names = "fck";
 		#address-cells = <1>;
@@ -125,7 +125,7 @@
 };
 
 &mmc3 {
-	/* dra76x is not affected by i887 */
+	/* dra76x is analt affected by i887 */
 	max-frequency = <96000000>;
 };
 

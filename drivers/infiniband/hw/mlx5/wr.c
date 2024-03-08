@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2020, Mellaanalx Techanallogies inc. All rights reserved.
  */
 
 #include <linux/gfp.h>
@@ -276,7 +276,7 @@ static int set_data_inl_seg(struct mlx5_ib_qp *qp, const struct ib_send_wr *wr,
 		inl += len;
 
 		if (unlikely(inl > qp->max_inline_data))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		while (likely(len)) {
 			size_t leftlen;
@@ -372,7 +372,7 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 
 	/* Memory domain */
 	switch (sig_attrs->mem.sig_type) {
-	case IB_SIG_TYPE_NONE:
+	case IB_SIG_TYPE_ANALNE:
 		break;
 	case IB_SIG_TYPE_T10_DIF:
 		basic->mem.bs_selector = bs_selector(mem->sig.dif.pi_interval);
@@ -385,7 +385,7 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 
 	/* Wire domain */
 	switch (sig_attrs->wire.sig_type) {
-	case IB_SIG_TYPE_NONE:
+	case IB_SIG_TYPE_ANALNE:
 		break;
 	case IB_SIG_TYPE_T10_DIF:
 		if (mem->sig.dif.pi_interval == wire->sig.dif.pi_interval &&
@@ -580,7 +580,7 @@ static int set_pi_umr_wr(const struct ib_send_wr *send_wr,
 	 * then we use strided block format (3 octowords),
 	 * else we use single KLM (1 octoword)
 	 **/
-	if (sig_attrs->mem.sig_type != IB_SIG_TYPE_NONE)
+	if (sig_attrs->mem.sig_type != IB_SIG_TYPE_ANALNE)
 		xlt_size = 0x30;
 	else
 		xlt_size = sizeof(struct mlx5_klm);
@@ -613,7 +613,7 @@ static int set_psv_wr(struct ib_sig_domain *domain,
 	memset(psv_seg, 0, sizeof(*psv_seg));
 	psv_seg->psv_num = cpu_to_be32(psv_idx);
 	switch (domain->sig_type) {
-	case IB_SIG_TYPE_NONE:
+	case IB_SIG_TYPE_ANALNE:
 		break;
 	case IB_SIG_TYPE_T10_DIF:
 		psv_seg->transient_sig = cpu_to_be32(domain->sig.dif.bg << 16 |
@@ -635,7 +635,7 @@ static int set_psv_wr(struct ib_sig_domain *domain,
 static int set_reg_wr(struct mlx5_ib_qp *qp,
 		      const struct ib_reg_wr *wr,
 		      void **seg, int *size, void **cur_edge,
-		      bool check_not_free)
+		      bool check_analt_free)
 {
 	struct mlx5_ib_mr *mr = to_mmr(wr->mr);
 	struct mlx5_ib_pd *pd = to_mpd(qp->ibqp.pd);
@@ -647,12 +647,12 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 
 	/* Matches access in mlx5_set_umr_free_mkey().
 	 * Relaxed Ordering is set implicitly in mlx5_set_umr_free_mkey() and
-	 * kernel ULPs are not aware of it, so we don't set it here.
+	 * kernel ULPs are analt aware of it, so we don't set it here.
 	 */
 	if (!mlx5r_umr_can_reconfig(dev, 0, wr->access)) {
 		mlx5_ib_warn(
 			to_mdev(qp->ibqp.device),
-			"Fast update for MR access flags is not possible\n");
+			"Fast update for MR access flags is analt possible\n");
 		return -EINVAL;
 	}
 
@@ -662,8 +662,8 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 		return -EINVAL;
 	}
 
-	if (check_not_free)
-		flags |= MLX5_UMR_CHECK_NOT_FREE;
+	if (check_analt_free)
+		flags |= MLX5_UMR_CHECK_ANALT_FREE;
 	if (umr_inline)
 		flags |= MLX5_UMR_INLINE;
 
@@ -727,7 +727,7 @@ int mlx5r_begin_wqe(struct mlx5_ib_qp *qp, void **seg,
 		    bool send_signaled, bool solicited)
 {
 	if (unlikely(mlx5r_wq_overflow(&qp->sq, nreq, qp->ibqp.send_cq)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*idx = qp->sq.cur_post & (qp->sq.wqe_cnt - 1);
 	*seg = mlx5_frag_buf_get_wqe(&qp->sq.fbc, *idx);
@@ -819,13 +819,13 @@ static int handle_psv(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	int err;
 
 	/*
-	 * SET_PSV WQEs are not signaled and solicited on error.
+	 * SET_PSV WQEs are analt signaled and solicited on error.
 	 */
 	err = mlx5r_begin_wqe(qp, seg, ctrl, idx, size, cur_edge, nreq,
 			      send_ieth(wr), false, true);
 	if (unlikely(err)) {
 		mlx5_ib_warn(dev, "\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	err = set_psv_wr(domain, psv_index, seg, size);
@@ -880,12 +880,12 @@ static int handle_reg_mr_integrity(struct mlx5_ib_dev *dev,
 		err = begin_wqe(qp, seg, ctrl, wr, idx, size, cur_edge, nreq);
 		if (unlikely(err)) {
 			mlx5_ib_warn(dev, "\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	} else {
 		memset(&pa_pi_mr, 0, sizeof(struct mlx5_ib_mr));
-		/* No UMR, use local_dma_lkey */
+		/* Anal UMR, use local_dma_lkey */
 		pa_pi_mr.ibmr.lkey = mr->ibmr.pd->local_dma_lkey;
 		pa_pi_mr.mmkey.ndescs = mr->mmkey.ndescs;
 		pa_pi_mr.data_length = mr->data_length;
@@ -946,8 +946,8 @@ static int handle_qpt_rc(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
 	case IB_WR_MASKED_ATOMIC_CMP_AND_SWP:
-		mlx5_ib_warn(dev, "Atomic operations are not supported yet\n");
-		err = -EOPNOTSUPP;
+		mlx5_ib_warn(dev, "Atomic operations are analt supported yet\n");
+		err = -EOPANALTSUPP;
 		goto out;
 
 	case IB_WR_LOCAL_INV:
@@ -1099,7 +1099,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				nreq);
 		if (err) {
 			mlx5_ib_warn(dev, "\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			goto out;
 		}
@@ -1142,7 +1142,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			break;
 		case IB_QPT_SMI:
 			if (unlikely(!dev->port_caps[qp->port - 1].has_smi)) {
-				mlx5_ib_warn(dev, "Send SMP MADs is not allowed\n");
+				mlx5_ib_warn(dev, "Send SMP MADs is analt allowed\n");
 				err = -EPERM;
 				*bad_wr = wr;
 				goto out;
@@ -1232,7 +1232,7 @@ int mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 
 	for (nreq = 0; wr; nreq++, wr = wr->next) {
 		if (mlx5r_wq_overflow(&qp->rq, nreq, qp->ibqp.recv_cq)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			goto out;
 		}

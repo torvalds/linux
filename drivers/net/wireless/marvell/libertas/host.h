@@ -183,8 +183,8 @@
 /* Define action or option for CMD_BT_ACCESS */
 enum cmd_bt_access_opts {
 	/* The bt commands start at 5 instead of 1 because the old dft commands
-	 * are mapped to 1-4.  These old commands are no longer maintained and
-	 * should not be called.
+	 * are mapped to 1-4.  These old commands are anal longer maintained and
+	 * should analt be called.
 	 */
 	CMD_ACT_BT_ACCESS_ADD = 5,
 	CMD_ACT_BT_ACCESS_DEL,
@@ -209,7 +209,7 @@ enum cmd_fwt_access_opts {
 
 /* Define action or option for CMD_802_11_HOST_SLEEP_CFG */
 enum cmd_wol_cfg_opts {
-	CMD_ACT_ACTION_NONE = 0,
+	CMD_ACT_ACTION_ANALNE = 0,
 	CMD_ACT_SET_WOL_RULE,
 	CMD_ACT_GET_WOL_RULE,
 	CMD_ACT_RESET_WOL_RULE,
@@ -256,7 +256,7 @@ enum cmd_mesh_config_types {
 #define MACREG_INT_CODE_TX_PPA_FREE		0
 #define MACREG_INT_CODE_TX_DMA_DONE		1
 #define MACREG_INT_CODE_LINK_LOST_W_SCAN	2
-#define MACREG_INT_CODE_LINK_LOST_NO_SCAN	3
+#define MACREG_INT_CODE_LINK_LOST_ANAL_SCAN	3
 #define MACREG_INT_CODE_LINK_SENSED		4
 #define MACREG_INT_CODE_CMD_FINISHED		5
 #define MACREG_INT_CODE_MIB_CHANGED		6
@@ -347,7 +347,7 @@ struct rxpd {
 	/* Pkt length */
 	__le16 pkt_len;
 
-	/* Noise Floor */
+	/* Analise Floor */
 	u8 nf;
 
 	/* Rx Packet Rate */
@@ -414,7 +414,7 @@ struct cmd_ds_get_hw_spec {
 	__le16 version;
 	/* Max number of TxPD FW can handle */
 	__le16 nr_txpd;
-	/* Max no of Multicast address */
+	/* Max anal of Multicast address */
 	__le16 nr_mcast_adr;
 	/* MAC address */
 	u8 permanentaddr[6];
@@ -528,7 +528,7 @@ struct cmd_ds_802_11_associate {
 	__le16 listeninterval;
 	__le16 bcnperiod;
 	u8 dtimperiod;
-	/* 512 permitted - enough for required and most optional IEs */
+	/* 512 permitted - eanalugh for required and most optional IEs */
 	u8 iebuf[];
 } __packed;
 
@@ -639,9 +639,9 @@ struct cmd_ds_802_11_rssi {
 	 * The following fields are only set in the response.
 	 * In the request these are reserved and should be set to 0.
 	 */
-	__le16 nf;       /* most recent beacon noise floor */
+	__le16 nf;       /* most recent beacon analise floor */
 	__le16 avg_snr;  /* average SNR weighted by N from request */
-	__le16 avg_nf;   /* average noise floor weighted by N from request */
+	__le16 avg_nf;   /* average analise floor weighted by N from request */
 } __packed;
 
 struct cmd_ds_802_11_mac_address {
@@ -782,7 +782,7 @@ struct adhoc_bssdesc {
 	u8 rates[MAX_RATES];
 
 	/*
-	 * DO NOT ADD ANY FIELDS TO THIS STRUCTURE. It is used below in the
+	 * DO ANALT ADD ANY FIELDS TO THIS STRUCTURE. It is used below in the
 	 * Adhoc join command and will cause a binary layout mismatch with
 	 * the firmware
 	 */
@@ -830,7 +830,7 @@ struct MrvlIEtype_keyParamSet {
 #define MAX_WOL_RULES 		16
 
 struct host_wol_rule {
-	uint8_t rule_no;
+	uint8_t rule_anal;
 	uint8_t rule_ops;
 	__le16 sig_offset;
 	__le16 sig_length;
@@ -842,7 +842,7 @@ struct host_wol_rule {
 struct wol_config {
 	uint8_t action;
 	uint8_t pattern;
-	uint8_t no_rules_in_cmd;
+	uint8_t anal_rules_in_cmd;
 	uint8_t result;
 	struct host_wol_rule rule[MAX_WOL_RULES];
 } __packed;

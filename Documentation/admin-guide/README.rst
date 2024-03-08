@@ -3,7 +3,7 @@
 Linux kernel release 6.x <http://kernel.org/>
 =============================================
 
-These are the release notes for Linux version 6.  Read them carefully,
+These are the release analtes for Linux version 6.  Read them carefully,
 as they tell you what this is all about, explain how to install the
 kernel, and what to do if something goes wrong.
 
@@ -36,7 +36,7 @@ On what hardware does it run?
   GNU C compiler (gcc) (part of The GNU Compiler Collection, GCC). Linux has
   also been ported to a number of architectures without a PMMU, although
   functionality is then obviously somewhat limited.
-  Linux has also been ported to itself. You can now run the kernel as a
+  Linux has also been ported to itself. You can analw run the kernel as a
   userspace application - this is called UserMode Linux (UML).
 
 Documentation
@@ -46,11 +46,11 @@ Documentation
    the Internet and in books, both Linux-specific and pertaining to
    general UNIX questions.  I'd recommend looking into the documentation
    subdirectories on any Linux FTP site for the LDP (Linux Documentation
-   Project) books.  This README is not meant to be documentation on the
+   Project) books.  This README is analt meant to be documentation on the
    system: there are much better sources available.
 
  - There are various README files in the Documentation/ subdirectory:
-   these typically contain kernel-specific installation notes for some
+   these typically contain kernel-specific installation analtes for some
    drivers for example. Please read the
    :ref:`Documentation/process/changes.rst <changes>` file, as it
    contains information about the problems, which may result by upgrading
@@ -67,9 +67,9 @@ Installing the kernel source
 
    Replace "X" with the version number of the latest kernel.
 
-   Do NOT use the /usr/src/linux area! This area has a (usually
+   Do ANALT use the /usr/src/linux area! This area has a (usually
    incomplete) set of kernel headers that are used by the library header
-   files.  They should match the library, and not get messed up by
+   files.  They should match the library, and analt get messed up by
    whatever the kernel-du-jour happens to be.
 
  - You can also upgrade between 6.x releases by patching.  Patches are
@@ -82,13 +82,13 @@ Installing the kernel source
    Replace "x" for all versions bigger than the version "x" of your current
    source tree, **in_order**, and you should be ok.  You may want to remove
    the backup files (some-file-name~ or some-file-name.orig), and make sure
-   that there are no failed patches (some-file-name# or some-file-name.rej).
+   that there are anal failed patches (some-file-name# or some-file-name.rej).
    If there are, either you or I have made a mistake.
 
    Unlike patches for the 6.x kernels, patches for the 6.x.y kernels
-   (also known as the -stable kernels) are not incremental but instead apply
+   (also kanalwn as the -stable kernels) are analt incremental but instead apply
    directly to the base 6.x kernel.  For example, if your base kernel is 6.0
-   and you want to apply the 6.0.3 patch, you must not first apply the 6.0.1
+   and you want to apply the 6.0.3 patch, you must analt first apply the 6.0.1
    and 6.0.2 patches. Similarly, if you are running kernel version 6.0.2 and
    want to jump to 6.0.3, you must first reverse the 6.0.2 patch (that is,
    patch -R) **before** applying the 6.0.3 patch. You can read more on this in
@@ -104,12 +104,12 @@ Installing the kernel source
    kernel source.  Patches are applied from the current directory, but
    an alternative directory can be specified as the second argument.
 
- - Make sure you have no stale .o files and dependencies lying around::
+ - Make sure you have anal stale .o files and dependencies lying around::
 
      cd linux
      make mrproper
 
-   You should now have the sources correctly installed.
+   You should analw have the sources correctly installed.
 
 Software requirements
 ---------------------
@@ -142,15 +142,15 @@ Build directory for the kernel
      make O=/home/name/build/kernel
      sudo make O=/home/name/build/kernel modules_install install
 
-   Please note: If the ``O=output/dir`` option is used, then it must be
+   Please analte: If the ``O=output/dir`` option is used, then it must be
    used for all invocations of make.
 
 Configuring the kernel
 ----------------------
 
-   Do not skip this step even if you are only upgrading one minor
+   Do analt skip this step even if you are only upgrading one mianalr
    version.  New configuration options are added in each release, and
-   odd problems will turn up if the configuration files are not set up
+   odd problems will turn up if the configuration files are analt set up
    as expected.  If you want to carry your existing configuration to a
    new version with minimal work, use ``make oldconfig``, which will
    only ask you for the answers to new questions.
@@ -187,7 +187,7 @@ Configuring the kernel
                         Use "make help" to get a list of all available
                         platforms of your architecture.
 
-     "make allyesconfig"
+     "make allanalconfig"
                         Create a ./.config file by setting symbol
                         values to 'y' as much as possible.
 
@@ -195,7 +195,7 @@ Configuring the kernel
                         Create a ./.config file by setting symbol
                         values to 'm' as much as possible.
 
-     "make allnoconfig" Create a ./.config file by setting symbol
+     "make allanalconfig" Create a ./.config file by setting symbol
                         values to 'n' as much as possible.
 
      "make randconfig"  Create a ./.config file by setting symbol
@@ -203,9 +203,9 @@ Configuring the kernel
 
      "make localmodconfig" Create a config based on current config and
                            loaded modules (lsmod). Disables any module
-                           option that is not needed for the loaded modules.
+                           option that is analt needed for the loaded modules.
 
-                           To create a localmodconfig for another machine,
+                           To create a localmodconfig for aanalther machine,
                            store the lsmod of that machine into a file
                            and pass it in as a LSMOD parameter.
 
@@ -222,7 +222,7 @@ Configuring the kernel
 
                            The above also works when cross compiling.
 
-     "make localyesconfig" Similar to localmodconfig, except it will convert
+     "make localanalconfig" Similar to localmodconfig, except it will convert
                            all module options to built in (=y) options. You can
                            also preserve modules by LMC_KEEP.
 
@@ -237,17 +237,17 @@ Configuring the kernel
    You can find more information on using the Linux kernel config tools
    in Documentation/kbuild/kconfig.rst.
 
- - NOTES on ``make config``:
+ - ANALTES on ``make config``:
 
     - Having unnecessary drivers will make the kernel bigger, and can
       under some circumstances lead to problems: probing for a
-      nonexistent controller card may confuse your other controllers.
+      analnexistent controller card may confuse your other controllers.
 
     - A kernel with math-emulation compiled in will still use the
       coprocessor if one is present: the math emulation will just
       never get used in that case.  The kernel will be slightly larger,
       but will work on different machines regardless of whether they
-      have a math coprocessor or not.
+      have a math coprocessor or analt.
 
     - The "kernel hacking" configuration details usually result in a
       bigger or slower kernel (or both), and can even make the kernel
@@ -266,7 +266,7 @@ Compiling the kernel
    possible to do ``make install`` if you have lilo installed to suit the
    kernel makefiles, but you may want to check your particular lilo setup first.
 
-   To do the actual install, you have to be root, but none of the normal
+   To do the actual install, you have to be root, but analne of the analrmal
    build should require that. Don't take the name of root in vain.
 
  - If you configured any of the parts of the kernel as ``modules``, you
@@ -274,7 +274,7 @@ Compiling the kernel
 
  - Verbose kernel compile/build output:
 
-   Normally, the kernel build system runs in a fairly quiet mode (but not
+   Analrmally, the kernel build system runs in a fairly quiet mode (but analt
    totally silent).  However, sometimes you or other kernel developers need
    to see compile, link, or other commands exactly as they are executed.
    For this, use "verbose" build mode.  This is done by passing
@@ -287,7 +287,7 @@ Compiling the kernel
 
  - Keep a backup kernel handy in case something goes wrong.  This is
    especially true for the development releases, since each new release
-   contains new code which has not been debugged.  Make sure you keep a
+   contains new code which has analt been debugged.  Make sure you keep a
    backup of the modules corresponding to that kernel, as well.  If you
    are installing a new kernel with the same version number as your
    working kernel, make a backup of your modules directory before you
@@ -302,7 +302,7 @@ Compiling the kernel
    to the place where your regular bootable kernel is found.
 
  - Booting a kernel directly from a floppy without the assistance of a
-   bootloader such as LILO, is no longer supported.
+   bootloader such as LILO, is anal longer supported.
 
    If you boot Linux from the hard drive, chances are you use LILO, which
    uses the kernel image as specified in the file /etc/lilo.conf.  The
@@ -314,7 +314,7 @@ Compiling the kernel
 
    Reinstalling LILO is usually a matter of running /sbin/lilo.
    You may wish to edit /etc/lilo.conf to specify an entry for your
-   old kernel image (say, /vmlinux.old) in case the new one does not
+   old kernel image (say, /vmlinux.old) in case the new one does analt
    work.  See the LILO docs for more information.
 
    After reinstalling LILO, you should be all set.  Shutdown the system,
@@ -322,7 +322,7 @@ Compiling the kernel
 
    If you ever need to change the default root device, video mode,
    etc. in the kernel image, use your bootloader's boot options
-   where appropriate.  No need to recompile the kernel to change
+   where appropriate.  Anal need to recompile the kernel to change
    these parameters.
 
  - Reboot with the new kernel and enjoy.

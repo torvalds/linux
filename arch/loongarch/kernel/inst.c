@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/sizes.h>
 #include <linux/uaccess.h>
@@ -36,7 +36,7 @@ void simu_pc(struct pt_regs *regs, union loongarch_instruction insn)
 		regs->regs[rd] &= ~((1 << 12) - 1);
 		break;
 	default:
-		pr_info("%s: unknown opcode\n", __func__);
+		pr_info("%s: unkanalwn opcode\n", __func__);
 		return;
 	}
 
@@ -128,16 +128,16 @@ void simu_branch(struct pt_regs *regs, union loongarch_instruction insn)
 		regs->regs[rd] = pc + LOONGARCH_INSN_SIZE;
 		break;
 	default:
-		pr_info("%s: unknown opcode\n", __func__);
+		pr_info("%s: unkanalwn opcode\n", __func__);
 		return;
 	}
 }
 
-bool insns_not_supported(union loongarch_instruction insn)
+bool insns_analt_supported(union loongarch_instruction insn)
 {
 	switch (insn.reg3_format.opcode) {
 	case amswapw_op ... ammindbdu_op:
-		pr_notice("atomic memory access instructions are not supported\n");
+		pr_analtice("atomic memory access instructions are analt supported\n");
 		return true;
 	}
 
@@ -146,13 +146,13 @@ bool insns_not_supported(union loongarch_instruction insn)
 	case lld_op:
 	case scw_op:
 	case scd_op:
-		pr_notice("ll and sc instructions are not supported\n");
+		pr_analtice("ll and sc instructions are analt supported\n");
 		return true;
 	}
 
 	switch (insn.reg1i21_format.opcode) {
 	case bceqz_op:
-		pr_notice("bceqz and bcnez instructions are not supported\n");
+		pr_analtice("bceqz and bcnez instructions are analt supported\n");
 		return true;
 	}
 
@@ -183,7 +183,7 @@ int larch_insn_read(void *addr, u32 *insnp)
 	int ret;
 	u32 val;
 
-	ret = copy_from_kernel_nofault(&val, addr, LOONGARCH_INSN_SIZE);
+	ret = copy_from_kernel_analfault(&val, addr, LOONGARCH_INSN_SIZE);
 	if (!ret)
 		*insnp = val;
 
@@ -196,7 +196,7 @@ int larch_insn_write(void *addr, u32 insn)
 	unsigned long flags = 0;
 
 	raw_spin_lock_irqsave(&patch_lock, flags);
-	ret = copy_to_kernel_nofault(addr, &insn, LOONGARCH_INSN_SIZE);
+	ret = copy_to_kernel_analfault(addr, &insn, LOONGARCH_INSN_SIZE);
 	raw_spin_unlock_irqrestore(&patch_lock, flags);
 
 	return ret;
@@ -218,9 +218,9 @@ int larch_insn_patch_text(void *addr, u32 insn)
 	return ret;
 }
 
-u32 larch_insn_gen_nop(void)
+u32 larch_insn_gen_analp(void)
 {
-	return INSN_NOP;
+	return INSN_ANALP;
 }
 
 u32 larch_insn_gen_b(unsigned long pc, unsigned long dest)

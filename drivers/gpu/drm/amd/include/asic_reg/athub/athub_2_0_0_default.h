@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -195,7 +195,7 @@
 #define mmXPB_PIPE_STS_DEFAULT                                                   0x00000000
 #define mmXPB_SUB_CTRL_DEFAULT                                                   0x00000000
 #define mmXPB_MAP_INVERT_FLUSH_NUM_LSB_DEFAULT                                   0x00000000
-#define mmXPB_PERF_KNOBS_DEFAULT                                                 0x00000000
+#define mmXPB_PERF_KANALBS_DEFAULT                                                 0x00000000
 #define mmXPB_STICKY_DEFAULT                                                     0x00000000
 #define mmXPB_STICKY_W1C_DEFAULT                                                 0x00000000
 #define mmXPB_MISC_CFG_DEFAULT                                                   0x4d585042

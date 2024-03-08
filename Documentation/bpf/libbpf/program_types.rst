@@ -15,7 +15,7 @@ names supported by libbpf for them. The ELF section names follow these rules:
 When ``extras`` are specified, they provide details of how to auto-attach the BPF program.  The
 format of ``extras`` depends on the program type, e.g. ``SEC("tracepoint/<category>/<name>")``
 for tracepoints or ``SEC("usdt/<path>:<provider>:<name>")`` for USDT probes. The extras are
-described in more detail in the footnotes.
+described in more detail in the footanaltes.
 
 
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
@@ -93,11 +93,11 @@ described in more detail in the footnotes.
 +                                           +                                        +----------------------------------+-----------+
 |                                           |                                        | ``uprobe+`` [#uprobe]_           |           |
 +                                           +                                        +----------------------------------+-----------+
-|                                           |                                        | ``uprobe.s+`` [#uprobe]_         | Yes       |
+|                                           |                                        | ``uprobe.s+`` [#uprobe]_         | Anal       |
 +                                           +                                        +----------------------------------+-----------+
 |                                           |                                        | ``uretprobe+`` [#uprobe]_        |           |
 +                                           +                                        +----------------------------------+-----------+
-|                                           |                                        | ``uretprobe.s+`` [#uprobe]_      | Yes       |
+|                                           |                                        | ``uretprobe.s+`` [#uprobe]_      | Anal       |
 +                                           +                                        +----------------------------------+-----------+
 |                                           |                                        | ``usdt+`` [#usdt]_               |           |
 +                                           +----------------------------------------+----------------------------------+-----------+
@@ -111,7 +111,7 @@ described in more detail in the footnotes.
 +                                           +----------------------------------------+----------------------------------+-----------+
 |                                           | ``BPF_LSM_MAC``                        | ``lsm+`` [#lsm]_                 |           |
 +                                           +                                        +----------------------------------+-----------+
-|                                           |                                        | ``lsm.s+`` [#lsm]_               | Yes       |
+|                                           |                                        | ``lsm.s+`` [#lsm]_               | Anal       |
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
 | ``BPF_PROG_TYPE_LWT_IN``                  |                                        | ``lwt_in``                       |           |
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
@@ -157,7 +157,7 @@ described in more detail in the footnotes.
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
 | ``BPF_PROG_TYPE_STRUCT_OPS``              |                                        | ``struct_ops+``                  |           |
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
-| ``BPF_PROG_TYPE_SYSCALL``                 |                                        | ``syscall``                      | Yes       |
+| ``BPF_PROG_TYPE_SYSCALL``                 |                                        | ``syscall``                      | Anal       |
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
 | ``BPF_PROG_TYPE_TRACEPOINT``              |                                        | ``tp+`` [#tp]_                   |           |
 +                                           +                                        +----------------------------------+-----------+
@@ -165,19 +165,19 @@ described in more detail in the footnotes.
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
 | ``BPF_PROG_TYPE_TRACING``                 | ``BPF_MODIFY_RETURN``                  | ``fmod_ret+`` [#fentry]_         |           |
 +                                           +                                        +----------------------------------+-----------+
-|                                           |                                        | ``fmod_ret.s+`` [#fentry]_       | Yes       |
+|                                           |                                        | ``fmod_ret.s+`` [#fentry]_       | Anal       |
 +                                           +----------------------------------------+----------------------------------+-----------+
 |                                           | ``BPF_TRACE_FENTRY``                   | ``fentry+`` [#fentry]_           |           |
 +                                           +                                        +----------------------------------+-----------+
-|                                           |                                        | ``fentry.s+`` [#fentry]_         | Yes       |
+|                                           |                                        | ``fentry.s+`` [#fentry]_         | Anal       |
 +                                           +----------------------------------------+----------------------------------+-----------+
 |                                           | ``BPF_TRACE_FEXIT``                    | ``fexit+`` [#fentry]_            |           |
 +                                           +                                        +----------------------------------+-----------+
-|                                           |                                        | ``fexit.s+`` [#fentry]_          | Yes       |
+|                                           |                                        | ``fexit.s+`` [#fentry]_          | Anal       |
 +                                           +----------------------------------------+----------------------------------+-----------+
 |                                           | ``BPF_TRACE_ITER``                     | ``iter+`` [#iter]_               |           |
 +                                           +                                        +----------------------------------+-----------+
-|                                           |                                        | ``iter.s+`` [#iter]_             | Yes       |
+|                                           |                                        | ``iter.s+`` [#iter]_             | Anal       |
 +                                           +----------------------------------------+----------------------------------+-----------+
 |                                           | ``BPF_TRACE_RAW_TP``                   | ``tp_btf+`` [#fentry]_           |           |
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
@@ -195,12 +195,12 @@ described in more detail in the footnotes.
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
 
 
-.. rubric:: Footnotes
+.. rubric:: Footanaltes
 
 .. [#fentry] The ``fentry`` attach format is ``fentry[.s]/<function>``.
 .. [#kprobe] The ``kprobe`` attach format is ``kprobe/<function>[+<offset>]``. Valid
              characters for ``function`` are ``a-zA-Z0-9_.`` and ``offset`` must be a valid
-             non-negative integer.
+             analn-negative integer.
 .. [#ksyscall] The ``ksyscall`` attach format is ``ksyscall/<syscall>``.
 .. [#uprobe] The ``uprobe`` attach format is ``uprobe[.s]/<path>:<function>[+<offset>]``.
 .. [#usdt] The ``usdt`` attach format is ``usdt/<path>:<provider>:<name>``.

@@ -215,8 +215,8 @@ static int g2d_setup_ctrls(struct g2d_ctx *ctx)
 		&g2d_ctrl_ops,
 		V4L2_CID_COLORFX,
 		V4L2_COLORFX_NEGATIVE,
-		~((1 << V4L2_COLORFX_NONE) | (1 << V4L2_COLORFX_NEGATIVE)),
-		V4L2_COLORFX_NONE);
+		~((1 << V4L2_COLORFX_ANALNE) | (1 << V4L2_COLORFX_NEGATIVE)),
+		V4L2_COLORFX_ANALNE);
 
 	if (ctx->ctrl_handler.error) {
 		int err = ctx->ctrl_handler.error;
@@ -238,7 +238,7 @@ static int g2d_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->dev = dev;
 	/* Set default formats */
 	ctx->in		= def_frame;
@@ -320,7 +320,7 @@ static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 
 	f->fmt.pix.width		= frm->width;
 	f->fmt.pix.height		= frm->height;
-	f->fmt.pix.field		= V4L2_FIELD_NONE;
+	f->fmt.pix.field		= V4L2_FIELD_ANALNE;
 	f->fmt.pix.pixelformat		= frm->fmt->fourcc;
 	f->fmt.pix.bytesperline		= (frm->width * frm->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage		= frm->size;
@@ -338,8 +338,8 @@ static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 
 	field = &f->fmt.pix.field;
 	if (*field == V4L2_FIELD_ANY)
-		*field = V4L2_FIELD_NONE;
-	else if (*field != V4L2_FIELD_NONE)
+		*field = V4L2_FIELD_ANALNE;
+	else if (*field != V4L2_FIELD_ANALNE)
 		return -EINVAL;
 
 	if (f->fmt.pix.width > MAX_WIDTH)
@@ -608,7 +608,7 @@ static const struct video_device g2d_videodev = {
 	.name		= G2D_NAME,
 	.fops		= &g2d_fops,
 	.ioctl_ops	= &g2d_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release,
 	.vfl_dir	= VFL_DIR_M2M,
 };
@@ -617,7 +617,7 @@ static const struct v4l2_m2m_ops g2d_m2m_ops = {
 	.device_run	= device_run,
 };
 
-static const struct of_device_id exynos_g2d_match[];
+static const struct of_device_id exyanals_g2d_match[];
 
 static int g2d_probe(struct platform_device *pdev)
 {
@@ -628,7 +628,7 @@ static int g2d_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dev->ctrl_lock);
 	mutex_init(&dev->mutex);
@@ -684,7 +684,7 @@ static int g2d_probe(struct platform_device *pdev)
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&dev->v4l2_dev, "Failed to allocate video device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unreg_v4l2_dev;
 	}
 	*vfd = g2d_videodev;
@@ -703,9 +703,9 @@ static int g2d_probe(struct platform_device *pdev)
 
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
 
-	of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
+	of_id = of_match_analde(exyanals_g2d_match, pdev->dev.of_analde);
 	if (!of_id) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_m2m;
 	}
 	dev->variant = (struct g2d_variant *)of_id->data;
@@ -756,31 +756,31 @@ static void g2d_remove(struct platform_device *pdev)
 }
 
 static struct g2d_variant g2d_drvdata_v3x = {
-	.hw_rev = TYPE_G2D_3X, /* Revision 3.0 for S5PV210 and Exynos4210 */
+	.hw_rev = TYPE_G2D_3X, /* Revision 3.0 for S5PV210 and Exyanals4210 */
 };
 
 static struct g2d_variant g2d_drvdata_v4x = {
-	.hw_rev = TYPE_G2D_4X, /* Revision 4.1 for Exynos4X12 and Exynos5 */
+	.hw_rev = TYPE_G2D_4X, /* Revision 4.1 for Exyanals4X12 and Exyanals5 */
 };
 
-static const struct of_device_id exynos_g2d_match[] = {
+static const struct of_device_id exyanals_g2d_match[] = {
 	{
 		.compatible = "samsung,s5pv210-g2d",
 		.data = &g2d_drvdata_v3x,
 	}, {
-		.compatible = "samsung,exynos4212-g2d",
+		.compatible = "samsung,exyanals4212-g2d",
 		.data = &g2d_drvdata_v4x,
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_g2d_match);
+MODULE_DEVICE_TABLE(of, exyanals_g2d_match);
 
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
 	.remove_new	= g2d_remove,
 	.driver		= {
 		.name = G2D_NAME,
-		.of_match_table = exynos_g2d_match,
+		.of_match_table = exyanals_g2d_match,
 	},
 };
 

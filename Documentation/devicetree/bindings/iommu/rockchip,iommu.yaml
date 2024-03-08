@@ -59,7 +59,7 @@ properties:
   rockchip,disable-mmu-reset:
     $ref: /schemas/types.yaml#/definitions/flag
     description: |
-      Do not use the mmu reset operation.
+      Do analt use the mmu reset operation.
       Some mmu instances may produce unexpected results
       when the reset operation is used.
 

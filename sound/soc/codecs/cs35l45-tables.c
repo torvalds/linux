@@ -217,7 +217,7 @@ static bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L45_SFT_RESET:
 	case CS35L45_GLOBAL_ENABLES:
 	case CS35L45_ERROR_RELEASE:
-	case CS35L45_AMP_PCM_HPF_TST:	/* not cachable */
+	case CS35L45_AMP_PCM_HPF_TST:	/* analt cachable */
 	case CS35L45_PWRMGT_STS:
 	case CS35L45_IRQ1_STATUS:
 	case CS35L45_IRQ1_EINT_1 ... CS35L45_IRQ1_EINT_18:

@@ -2,13 +2,13 @@
 core-y += arch/x86/crypto/
 
 #
-# Disable SSE and other FP/SIMD instructions to match normal x86
+# Disable SSE and other FP/SIMD instructions to match analrmal x86
 # This is required to work around issues in older LLVM versions, but breaks
 # GCC versions < 11. See:
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99652
 #
 ifeq ($(CONFIG_CC_IS_CLANG),y)
-KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx
+KBUILD_CFLAGS += -manal-sse -manal-mmx -manal-sse2 -manal-3danalw -manal-avx
 KBUILD_RUSTFLAGS += -Ctarget-feature=-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2
 endif
 
@@ -43,7 +43,7 @@ else
 
 START := 0x60000000
 
-KBUILD_CFLAGS += -fno-builtin -m64 
+KBUILD_CFLAGS += -fanal-builtin -m64 
 
 CHECKFLAGS  += -m64 -D__x86_64__
 KBUILD_AFLAGS += -m64
@@ -53,7 +53,7 @@ KBUILD_CPPFLAGS += -m64
 ELF_ARCH := i386:x86-64
 ELF_FORMAT := elf64-x86-64
 
-# Not on all 64-bit distros /lib is a symlink to /lib64. PLD is an example.
+# Analt on all 64-bit distros /lib is a symlink to /lib64. PLD is an example.
 
 LINK-$(CONFIG_LD_SCRIPT_DYN_RPATH) += -Wl,-rpath,/lib64
 LINK-y += -m64

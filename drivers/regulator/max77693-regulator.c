@@ -24,7 +24,7 @@
 
 /*
  * ID for MAX77843 regulators.
- * There is no need for such for MAX77693.
+ * There is anal need for such for MAX77693.
  */
 enum max77843_regulator_type {
 	MAX77843_SAFEOUT1 = 0,
@@ -47,7 +47,7 @@ struct chg_reg_data {
  * 0x00, 0x01, 0x2, 0x03	= 60 mA
  * 0x04 ~ 0x7E			= (60 + (X - 3) * 20) mA
  * Actually for MAX77693 the driver manipulates the maximum input current,
- * not the fast charge current (output). This should be fixed.
+ * analt the fast charge current (output). This should be fixed.
  *
  * On MAX77843 the calculation formula is the same (except values).
  * Fortunately it properly manipulates the fast charge current.
@@ -148,7 +148,7 @@ static const struct regulator_ops max77693_charger_ops = {
 	.name		= "ESAFEOUT"#_num,			\
 	.id		= MAX77693_ESAFEOUT##_num,		\
 	.of_match	= of_match_ptr("ESAFEOUT"#_num),	\
-	.regulators_node	= of_match_ptr("regulators"),	\
+	.regulators_analde	= of_match_ptr("regulators"),	\
 	.n_voltages	= 4,					\
 	.ops		= &max77693_safeout_ops,		\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -167,7 +167,7 @@ static const struct regulator_desc max77693_supported_regulators[] = {
 		.name = "CHARGER",
 		.id = MAX77693_CHARGER,
 		.of_match = of_match_ptr("CHARGER"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.ops = &max77693_charger_ops,
 		.type = REGULATOR_CURRENT,
 		.owner = THIS_MODULE,
@@ -190,7 +190,7 @@ static const struct chg_reg_data max77693_chg_reg_data = {
 	.id		= MAX77843_SAFEOUT ## num,			\
 	.ops		= &max77693_safeout_ops,			\
 	.of_match	= of_match_ptr("SAFEOUT" # num),		\
-	.regulators_node = of_match_ptr("regulators"),			\
+	.regulators_analde = of_match_ptr("regulators"),			\
 	.type		= REGULATOR_VOLTAGE,				\
 	.owner		= THIS_MODULE,					\
 	.n_voltages	= ARRAY_SIZE(max77693_safeout_table),		\
@@ -209,7 +209,7 @@ static const struct regulator_desc max77843_supported_regulators[] = {
 		.id		= MAX77843_CHARGER,
 		.ops		= &max77693_charger_ops,
 		.of_match	= of_match_ptr("CHARGER"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.type		= REGULATOR_CURRENT,
 		.owner		= THIS_MODULE,
 		.enable_reg	= MAX77843_CHG_REG_CHG_CNFG_00,
@@ -249,7 +249,7 @@ static int max77693_pmic_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported device type: %u\n", type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < regulators_size; i++) {
@@ -281,7 +281,7 @@ MODULE_DEVICE_TABLE(platform, max77693_pmic_id);
 static struct platform_driver max77693_pmic_driver = {
 	.driver = {
 		   .name = "max77693-pmic",
-		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		   .probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		   },
 	.probe = max77693_pmic_probe,
 	.id_table = max77693_pmic_id,

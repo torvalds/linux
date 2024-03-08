@@ -38,7 +38,7 @@ properties:
       - items:
           - enum:
               - fsl,imx8mn-ocotp
-              # i.MX8MP not really compatible with fsl,imx8mm-ocotp, however
+              # i.MX8MP analt really compatible with fsl,imx8mm-ocotp, however
               # the code for getting SoC revision depends on fsl,imx8mm-ocotp
               # compatible.
               - fsl,imx8mp-ocotp

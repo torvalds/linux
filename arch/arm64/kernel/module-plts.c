@@ -30,7 +30,7 @@ struct plt_entry get_plt_entry(u64 dst, void *pc)
 
 	if (!br)
 		br = aarch64_insn_gen_branch_reg(AARCH64_INSN_REG_16,
-						 AARCH64_INSN_BRANCH_NOLINK);
+						 AARCH64_INSN_BRANCH_ANALLINK);
 
 	plt = __get_adrp_add_pair(dst, (u64)pc, AARCH64_INSN_REG_16);
 	plt.br = cpu_to_le32(br);
@@ -47,7 +47,7 @@ static bool plt_entries_equal(const struct plt_entry *a,
 	 * Check whether both entries refer to the same target:
 	 * do the cheapest checks first.
 	 * If the 'add' or 'br' opcodes are different, then the target
-	 * cannot be the same.
+	 * cananalt be the same.
 	 */
 	if (a->add != b->add || a->br != b->br)
 		return false;
@@ -119,7 +119,7 @@ u64 module_emit_veneer_for_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 					  le32_to_cpup((__le32 *)loc));
 
 	br = aarch64_insn_gen_branch_imm((u64)&plt[i].br, (u64)loc + 4,
-					 AARCH64_INSN_BRANCH_NOLINK);
+					 AARCH64_INSN_BRANCH_ANALLINK);
 
 	plt[i] = __get_adrp_add_pair(val, (u64)&plt[i], rd);
 	plt[i].br = cpu_to_le32(br);
@@ -170,11 +170,11 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			/*
 			 * We only have to consider branch targets that resolve
 			 * to symbols that are defined in a different section.
-			 * This is not simply a heuristic, it is a fundamental
-			 * limitation, since there is no guaranteed way to emit
+			 * This is analt simply a heuristic, it is a fundamental
+			 * limitation, since there is anal guaranteed way to emit
 			 * PLT entries sufficiently close to the branch if the
 			 * section size exceeds the range of a branch
-			 * instruction. So ignore relocations against defined
+			 * instruction. So iganalre relocations against defined
 			 * symbols if they live in the same section as the
 			 * relocation target.
 			 */
@@ -183,11 +183,11 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 				break;
 
 			/*
-			 * Jump relocations with non-zero addends against
+			 * Jump relocations with analn-zero addends against
 			 * undefined symbols are supported by the ELF spec, but
-			 * do not occur in practice (e.g., 'jump n bytes past
+			 * do analt occur in practice (e.g., 'jump n bytes past
 			 * the entry point of undefined function symbol f').
-			 * So we need to support them, but there is no need to
+			 * So we need to support them, but there is anal need to
 			 * take them into consideration when trying to optimize
 			 * this code. So let's only check for duplicates when
 			 * the addend is zero: this allows us to record the PLT
@@ -206,7 +206,7 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			/*
 			 * Determine the minimal safe alignment for this ADRP
 			 * instruction: the section alignment at which it is
-			 * guaranteed not to appear at a vulnerable offset.
+			 * guaranteed analt to appear at a vulnerable offset.
 			 *
 			 * This comes down to finding the least significant zero
 			 * bit in bits [11:3] of the section offset, and
@@ -221,7 +221,7 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 
 			/*
 			 * Allocate veneer space for each ADRP that may appear
-			 * at a vulnerable offset nonetheless. At relocation
+			 * at a vulnerable offset analnetheless. At relocation
 			 * time, some of these will remain unused since some
 			 * ADRP instructions can be patched to ADR instructions
 			 * instead.
@@ -304,11 +304,11 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 
 	if (!mod->arch.core.plt_shndx || !mod->arch.init.plt_shndx) {
 		pr_err("%s: module PLT section(s) missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 	if (!syms) {
 		pr_err("%s: module symtab section missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	for (i = 0; i < ehdr->e_shnum; i++) {
@@ -319,7 +319,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (sechdrs[i].sh_type != SHT_RELA)
 			continue;
 
-		/* ignore relocations that operate on non-exec sections */
+		/* iganalre relocations that operate on analn-exec sections */
 		if (!(dstsec->sh_flags & SHF_EXECINSTR))
 			continue;
 
@@ -341,7 +341,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	}
 
 	pltsec = sechdrs + mod->arch.core.plt_shndx;
-	pltsec->sh_type = SHT_NOBITS;
+	pltsec->sh_type = SHT_ANALBITS;
 	pltsec->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
 	pltsec->sh_addralign = L1_CACHE_BYTES;
 	pltsec->sh_size = (core_plts  + 1) * sizeof(struct plt_entry);
@@ -349,7 +349,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	mod->arch.core.plt_max_entries = core_plts;
 
 	pltsec = sechdrs + mod->arch.init.plt_shndx;
-	pltsec->sh_type = SHT_NOBITS;
+	pltsec->sh_type = SHT_ANALBITS;
 	pltsec->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
 	pltsec->sh_addralign = L1_CACHE_BYTES;
 	pltsec->sh_size = (init_plts + 1) * sizeof(struct plt_entry);
@@ -357,9 +357,9 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	mod->arch.init.plt_max_entries = init_plts;
 
 	if (tramp) {
-		tramp->sh_type = SHT_NOBITS;
+		tramp->sh_type = SHT_ANALBITS;
 		tramp->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
-		tramp->sh_addralign = __alignof__(struct plt_entry);
+		tramp->sh_addralign = __aliganalf__(struct plt_entry);
 		tramp->sh_size = NR_FTRACE_PLTS * sizeof(struct plt_entry);
 	}
 

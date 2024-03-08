@@ -39,7 +39,7 @@ static const struct snd_pcm_hardware atmel_pcm_dma_hardware = {
 	.period_bytes_min	= 256,		/* lighting DMA overhead */
 	.period_bytes_max	= 2 * 0xffff,	/* if 2 bytes format */
 	.periods_min		= 8,
-	.periods_max		= 1024,		/* no limit */
+	.periods_max		= 1024,		/* anal limit */
 	.buffer_bytes_max	= 512 * 1024,
 };
 
@@ -68,7 +68,7 @@ static void atmel_pcm_dma_irq(u32 ssc_sr,
 		ssc_writex(prtd->ssc->regs, SSC_CR, prtd->mask->ssc_disable);
 		snd_pcm_stop_xrun(substream);
 
-		/* now drain RHR and read status to remove xrun condition */
+		/* analw drain RHR and read status to remove xrun condition */
 		ssc_readx(prtd->ssc->regs, SSC_RHR);
 		ssc_readx(prtd->ssc->regs, SSC_SR);
 	}

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -123,7 +123,7 @@ int cypress_populate_smc_initial_state(struct radeon_device *rdev,
 				       RV770_SMC_STATETABLE *table);
 u32 cypress_calculate_burst_time(struct radeon_device *rdev,
 				 u32 engine_clock, u32 memory_clock);
-void cypress_notify_link_speed_change_before_state_change(struct radeon_device *rdev,
+void cypress_analtify_link_speed_change_before_state_change(struct radeon_device *rdev,
 							  struct radeon_ps *radeon_new_state,
 							  struct radeon_ps *radeon_current_state);
 int cypress_upload_sw_state(struct radeon_device *rdev,
@@ -132,7 +132,7 @@ int cypress_upload_mc_reg_table(struct radeon_device *rdev,
 				struct radeon_ps *radeon_new_state);
 void cypress_program_memory_timing_parameters(struct radeon_device *rdev,
 					      struct radeon_ps *radeon_new_state);
-void cypress_notify_link_speed_change_after_state_change(struct radeon_device *rdev,
+void cypress_analtify_link_speed_change_after_state_change(struct radeon_device *rdev,
 							 struct radeon_ps *radeon_new_state,
 							 struct radeon_ps *radeon_current_state);
 int cypress_construct_voltage_tables(struct radeon_device *rdev);
@@ -144,7 +144,7 @@ int cypress_get_table_locations(struct radeon_device *rdev);
 int cypress_populate_mc_reg_table(struct radeon_device *rdev,
 				  struct radeon_ps *radeon_boot_state);
 void cypress_program_response_times(struct radeon_device *rdev);
-int cypress_notify_smc_display_change(struct radeon_device *rdev,
+int cypress_analtify_smc_display_change(struct radeon_device *rdev,
 				      bool has_display);
 void cypress_enable_sclk_control(struct radeon_device *rdev,
 				 bool enable);

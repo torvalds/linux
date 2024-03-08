@@ -30,7 +30,7 @@ static struct clk *__devm_clk_get(struct device *dev, const char *id,
 
 	state = devres_alloc(devm_clk_release, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk = get(dev, id);
 	if (IS_ERR(clk)) {
@@ -120,7 +120,7 @@ static int __devm_clk_bulk_get(struct device *dev, int num_clks,
 	devres = devres_alloc(devm_clk_bulk_release,
 			      sizeof(*devres), GFP_KERNEL);
 	if (!devres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (optional)
 		ret = clk_bulk_get_optional(dev, num_clks, clks);
@@ -167,7 +167,7 @@ int __must_check devm_clk_bulk_get_all(struct device *dev,
 	devres = devres_alloc(devm_clk_bulk_release_all,
 			      sizeof(*devres), GFP_KERNEL);
 	if (!devres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = clk_bulk_get_all(dev, &devres->clks);
 	if (ret > 0) {
@@ -203,14 +203,14 @@ void devm_clk_put(struct device *dev, struct clk *clk)
 EXPORT_SYMBOL(devm_clk_put);
 
 struct clk *devm_get_clk_from_child(struct device *dev,
-				    struct device_node *np, const char *con_id)
+				    struct device_analde *np, const char *con_id)
 {
 	struct devm_clk_state *state;
 	struct clk *clk;
 
 	state = devres_alloc(devm_clk_release, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk = of_clk_get_by_name(np, con_id);
 	if (!IS_ERR(clk)) {

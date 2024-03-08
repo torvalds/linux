@@ -21,7 +21,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     description:
       Name of the edge, used for debugging and identification purposes. The
-      node name will be used if this is not present.
+      analde name will be used if this is analt present.
 
   interrupts:
     maxItems: 1
@@ -33,7 +33,7 @@ properties:
   qcom,remote-pid:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      The identifier for the remote processor as known by the rest of the
+      The identifier for the remote processor as kanalwn by the rest of the
       system.
 
   qcom,rpm-msg-ram:

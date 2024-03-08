@@ -2,7 +2,7 @@
 /*
  * Microchip switch driver main logic
  *
- * Copyright (C) 2017-2019 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Techanallogy Inc.
  */
 
 #include <linux/delay.h>
@@ -211,7 +211,7 @@ struct ksz_drive_strength {
 
 /* ksz9477_drive_strengths - Drive strength mapping for KSZ9477 variants
  *
- * This values are not documented in KSZ9477 variants but confirmed by
+ * This values are analt documented in KSZ9477 variants but confirmed by
  * Microchip that KSZ9477, KSZ9567, KSZ8567, KSZ9897, KSZ9896, KSZ9563, KSZ9893
  * and KSZ8563 are using same register (drive strength) settings like KSZ8795.
  *
@@ -407,7 +407,7 @@ static const u32 ksz8795_masks[] = {
 	[STATIC_MAC_TABLE_FWD_PORTS]	= GENMASK(20, 16),
 	[DYNAMIC_MAC_TABLE_ENTRIES_H]	= GENMASK(6, 0),
 	[DYNAMIC_MAC_TABLE_MAC_EMPTY]	= BIT(7),
-	[DYNAMIC_MAC_TABLE_NOT_READY]	= BIT(7),
+	[DYNAMIC_MAC_TABLE_ANALT_READY]	= BIT(7),
 	[DYNAMIC_MAC_TABLE_ENTRIES]	= GENMASK(31, 29),
 	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(22, 16),
 	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(26, 24),
@@ -429,7 +429,7 @@ static const u8 ksz8795_xmii_ctrl1[] = {
 	[P_RMII_SEL]			= 1,
 	[P_MII_SEL]			= 0,
 	[P_GMII_1GBIT]			= 1,
-	[P_GMII_NOT_1GBIT]		= 0,
+	[P_GMII_ANALT_1GBIT]		= 0,
 };
 
 static const u8 ksz8795_shifts[] = {
@@ -480,7 +480,7 @@ static const u32 ksz8863_masks[] = {
 	[STATIC_MAC_TABLE_FWD_PORTS]	= GENMASK(18, 16),
 	[DYNAMIC_MAC_TABLE_ENTRIES_H]	= GENMASK(1, 0),
 	[DYNAMIC_MAC_TABLE_MAC_EMPTY]	= BIT(2),
-	[DYNAMIC_MAC_TABLE_NOT_READY]	= BIT(7),
+	[DYNAMIC_MAC_TABLE_ANALT_READY]	= BIT(7),
 	[DYNAMIC_MAC_TABLE_ENTRIES]	= GENMASK(31, 24),
 	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(19, 16),
 	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(21, 20),
@@ -532,7 +532,7 @@ static const u8 ksz9477_xmii_ctrl1[] = {
 	[P_GMII_SEL]			= 2,
 	[P_MII_SEL]			= 3,
 	[P_GMII_1GBIT]			= 0,
-	[P_GMII_NOT_1GBIT]		= 1,
+	[P_GMII_ANALT_1GBIT]		= 1,
 };
 
 static const u32 lan937x_masks[] = {
@@ -661,8 +661,8 @@ static const struct regmap_range ksz8563_valid_regs[] = {
 };
 
 static const struct regmap_access_table ksz8563_register_set = {
-	.yes_ranges = ksz8563_valid_regs,
-	.n_yes_ranges = ARRAY_SIZE(ksz8563_valid_regs),
+	.anal_ranges = ksz8563_valid_regs,
+	.n_anal_ranges = ARRAY_SIZE(ksz8563_valid_regs),
 };
 
 static const struct regmap_range ksz9477_valid_regs[] = {
@@ -927,8 +927,8 @@ static const struct regmap_range ksz9477_valid_regs[] = {
 };
 
 static const struct regmap_access_table ksz9477_register_set = {
-	.yes_ranges = ksz9477_valid_regs,
-	.n_yes_ranges = ARRAY_SIZE(ksz9477_valid_regs),
+	.anal_ranges = ksz9477_valid_regs,
+	.n_anal_ranges = ARRAY_SIZE(ksz9477_valid_regs),
 };
 
 static const struct regmap_range ksz9896_valid_regs[] = {
@@ -1140,8 +1140,8 @@ static const struct regmap_range ksz9896_valid_regs[] = {
 };
 
 static const struct regmap_access_table ksz9896_register_set = {
-	.yes_ranges = ksz9896_valid_regs,
-	.n_yes_ranges = ARRAY_SIZE(ksz9896_valid_regs),
+	.anal_ranges = ksz9896_valid_regs,
+	.n_anal_ranges = ARRAY_SIZE(ksz9896_valid_regs),
 };
 
 static const struct regmap_range ksz8873_valid_regs[] = {
@@ -1179,8 +1179,8 @@ static const struct regmap_range ksz8873_valid_regs[] = {
 };
 
 static const struct regmap_access_table ksz8873_register_set = {
-	.yes_ranges = ksz8873_valid_regs,
-	.n_yes_ranges = ARRAY_SIZE(ksz8873_valid_regs),
+	.anal_ranges = ksz8873_valid_regs,
+	.n_anal_ranges = ARRAY_SIZE(ksz8873_valid_regs),
 };
 
 const struct ksz_chip_data ksz_switch_chips[] = {
@@ -1244,9 +1244,9 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		 * =======
 		 * KSZ8794 is similar to KSZ8795, except the port map
 		 * contains a gap between external and CPU ports, the
-		 * port map is NOT continuous. The per-port register
+		 * port map is ANALT continuous. The per-port register
 		 * map is shifted accordingly too, i.e. registers at
-		 * offset 0x40 are NOT used on KSZ8794 and they ARE
+		 * offset 0x40 are ANALT used on KSZ8794 and they ARE
 		 * used on KSZ8795 for external port 3.
 		 *           external  cpu
 		 * KSZ8794   0,1,2      4
@@ -1680,7 +1680,7 @@ static int ksz_check_device_id(struct ksz_device *dev)
 		expected_chip_id = dev->pdata->chip_id;
 		expected_chip_data = ksz_lookup_info(expected_chip_id);
 		if (WARN_ON(!expected_chip_data))
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		expected_chip_data = of_device_get_match_data(dev->dev);
 		expected_chip_id = expected_chip_data->chip_id;
@@ -1690,7 +1690,7 @@ static int ksz_check_device_id(struct ksz_device *dev)
 		dev_err(dev->dev,
 			"Device tree specifies chip %s but found %s, please fix it!\n",
 			expected_chip_data->dev_name, dev->info->dev_name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1744,7 +1744,7 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast +
 		raw->tx_pause;
 
-	/* HW counters are counting bytes + FCS which is not acceptable
+	/* HW counters are counting bytes + FCS which is analt acceptable
 	 * for rtnl_link_stats64 interface
 	 */
 	stats->rx_bytes = raw->rx_total - stats->rx_packets * ETH_FCS_LEN;
@@ -1793,7 +1793,7 @@ void ksz88xx_r_mib_stats64(struct ksz_device *dev, int port)
 	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast +
 		raw->tx_pause;
 
-	/* HW counters are counting bytes + FCS which is not acceptable
+	/* HW counters are counting bytes + FCS which is analt acceptable
 	 * for rtnl_link_stats64 interface
 	 */
 	stats->rx_bytes = raw->rx + raw->rx_hi - stats->rx_packets * ETH_FCS_LEN;
@@ -1983,18 +1983,18 @@ static void ksz_irq_phy_free(struct ksz_device *dev)
 static int ksz_mdio_register(struct ksz_device *dev)
 {
 	struct dsa_switch *ds = dev->ds;
-	struct device_node *mdio_np;
+	struct device_analde *mdio_np;
 	struct mii_bus *bus;
 	int ret;
 
-	mdio_np = of_get_child_by_name(dev->dev->of_node, "mdio");
+	mdio_np = of_get_child_by_name(dev->dev->of_analde, "mdio");
 	if (!mdio_np)
 		return 0;
 
 	bus = devm_mdiobus_alloc(ds->dev);
 	if (!bus) {
-		of_node_put(mdio_np);
-		return -ENOMEM;
+		of_analde_put(mdio_np);
+		return -EANALMEM;
 	}
 
 	bus->priv = dev;
@@ -2010,7 +2010,7 @@ static int ksz_mdio_register(struct ksz_device *dev)
 	if (dev->irq > 0) {
 		ret = ksz_irq_phy_setup(dev);
 		if (ret) {
-			of_node_put(mdio_np);
+			of_analde_put(mdio_np);
 			return ret;
 		}
 	}
@@ -2023,7 +2023,7 @@ static int ksz_mdio_register(struct ksz_device *dev)
 			ksz_irq_phy_free(dev);
 	}
 
-	of_node_put(mdio_np);
+	of_analde_put(mdio_np);
 
 	return ret;
 }
@@ -2075,7 +2075,7 @@ static int ksz_irq_domain_map(struct irq_domain *d,
 {
 	irq_set_chip_data(irq, d->host_data);
 	irq_set_chip_and_handler(irq, &ksz_irq_chip, handle_level_irq);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -2124,7 +2124,7 @@ static irqreturn_t ksz_irq_thread_fn(int irq, void *dev_id)
 		}
 	}
 out:
-	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_ANALNE);
 }
 
 static int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq)
@@ -2134,10 +2134,10 @@ static int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq)
 	kirq->dev = dev;
 	kirq->masked = ~0;
 
-	kirq->domain = irq_domain_add_simple(dev->dev->of_node, kirq->nirqs, 0,
+	kirq->domain = irq_domain_add_simple(dev->dev->of_analde, kirq->nirqs, 0,
 					     &ksz_irq_domain_ops, kirq);
 	if (!kirq->domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < kirq->nirqs; n++)
 		irq_create_mapping(kirq->domain, n);
@@ -2198,7 +2198,7 @@ static int ksz_setup(struct dsa_switch *ds)
 	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
 				       dev->info->num_vlans, GFP_KERNEL);
 	if (!dev->vlan_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dev->dev_ops->reset(dev);
 	if (ret) {
@@ -2223,7 +2223,7 @@ static int ksz_setup(struct dsa_switch *ds)
 
 	ksz_init_mib_timer(dev);
 
-	ds->configure_vlan_while_not_filtering = false;
+	ds->configure_vlan_while_analt_filtering = false;
 
 	if (dev->dev_ops->setup) {
 		ret = dev->dev_ops->setup(ds);
@@ -2316,7 +2316,7 @@ static void port_r_cnt(struct ksz_device *dev, int port)
 	struct ksz_port_mib *mib = &dev->ports[port].mib;
 	u64 *dropped;
 
-	/* Some ports may not have MIB counters before SWITCH_COUNTER_NUM. */
+	/* Some ports may analt have MIB counters before SWITCH_COUNTER_NUM. */
 	while (mib->cnt_ptr < dev->info->reg_mib_cnt) {
 		dev->dev_ops->r_mib_cnt(dev, port, mib->cnt_ptr,
 					&mib->counters[mib->cnt_ptr]);
@@ -2326,7 +2326,7 @@ static void port_r_cnt(struct ksz_device *dev, int port)
 	/* last one in storage */
 	dropped = &mib->counters[dev->info->mib_cnt];
 
-	/* Some ports may not have MIB counters after SWITCH_COUNTER_NUM. */
+	/* Some ports may analt have MIB counters after SWITCH_COUNTER_NUM. */
 	while (mib->cnt_ptr < dev->info->mib_cnt) {
 		dev->dev_ops->r_mib_pkt(dev, port, mib->cnt_ptr,
 					dropped, &mib->counters[mib->cnt_ptr]);
@@ -2352,7 +2352,7 @@ static void ksz_mib_read_work(struct work_struct *work)
 		mutex_lock(&mib->cnt_mutex);
 
 		/* Only read MIB counters when the port is told to do.
-		 * If not, read only dropped counters when link is not up.
+		 * If analt, read only dropped counters when link is analt up.
 		 */
 		if (!p->read) {
 			const struct dsa_port *dp = dsa_to_port(dev->ds, i);
@@ -2420,8 +2420,8 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 	switch (dev->chip_id) {
 	case KSZ8830_CHIP_ID:
 		/* Silicon Errata Sheet (DS80000830A):
-		 * Port 1 does not work with LinkMD Cable-Testing.
-		 * Port 1 does not respond to received PAUSE control frames.
+		 * Port 1 does analt work with LinkMD Cable-Testing.
+		 * Port 1 does analt respond to received PAUSE control frames.
 		 */
 		if (!port)
 			return MICREL_KSZ8_P1_ERRATA;
@@ -2431,13 +2431,13 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 		 *
 		 * Module 4: Energy Efficient Ethernet (EEE) feature select must
 		 * be manually disabled
-		 *   The EEE feature is enabled by default, but it is not fully
+		 *   The EEE feature is enabled by default, but it is analt fully
 		 *   operational. It must be manually disabled through register
-		 *   controls. If not disabled, the PHY ports can auto-negotiate
+		 *   controls. If analt disabled, the PHY ports can auto-negotiate
 		 *   to enable EEE, and this feature can cause link drops when
-		 *   linked to another device supporting EEE.
+		 *   linked to aanalther device supporting EEE.
 		 */
-		return MICREL_NO_EEE;
+		return MICREL_ANAL_EEE;
 	}
 
 	return 0;
@@ -2476,7 +2476,7 @@ static void ksz_get_ethtool_stats(struct dsa_switch *ds, int port,
 	mib = &dev->ports[port].mib;
 	mutex_lock(&mib->cnt_mutex);
 
-	/* Only read dropped counters if no link. */
+	/* Only read dropped counters if anal link. */
 	if (!netif_carrier_ok(dp->user))
 		mib->cnt_ptr = dev->info->reg_mib_cnt;
 	port_r_cnt(dev, port);
@@ -2490,7 +2490,7 @@ static int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 				struct netlink_ext_ack *extack)
 {
 	/* port_stp_state_set() will be called after to put the port in
-	 * appropriate state so there is no need to do anything.
+	 * appropriate state so there is anal need to do anything.
 	 */
 
 	return 0;
@@ -2500,7 +2500,7 @@ static void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
 				  struct dsa_bridge bridge)
 {
 	/* port_stp_state_set() will be called after to put the port in
-	 * forwarding state so there is no need to do anything.
+	 * forwarding state so there is anal need to do anything.
 	 */
 }
 
@@ -2516,7 +2516,7 @@ static int ksz_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->set_ageing_time)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->set_ageing_time(dev, msecs);
 }
@@ -2528,7 +2528,7 @@ static int ksz_port_fdb_add(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->fdb_add)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->fdb_add(dev, port, addr, vid, db);
 }
@@ -2540,7 +2540,7 @@ static int ksz_port_fdb_del(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->fdb_del)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->fdb_del(dev, port, addr, vid, db);
 }
@@ -2551,7 +2551,7 @@ static int ksz_port_fdb_dump(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->fdb_dump)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->fdb_dump(dev, port, cb, data);
 }
@@ -2563,7 +2563,7 @@ static int ksz_port_mdb_add(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->mdb_add)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->mdb_add(dev, port, mdb, db);
 }
@@ -2575,7 +2575,7 @@ static int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->mdb_del)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->mdb_del(dev, port, mdb, db);
 }
@@ -2591,7 +2591,7 @@ static int ksz_port_setup(struct dsa_switch *ds, int port)
 	dev->dev_ops->port_setup(dev, port, false);
 
 	/* port_stp_state_set() will be called after to enable the port so
-	 * there is no need to do anything.
+	 * there is anal need to do anything.
 	 */
 
 	return 0;
@@ -2692,7 +2692,7 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 						  enum dsa_tag_protocol mp)
 {
 	struct ksz_device *dev = ds->priv;
-	enum dsa_tag_protocol proto = DSA_TAG_PROTO_NONE;
+	enum dsa_tag_protocol proto = DSA_TAG_PROTO_ANALNE;
 
 	if (dev->chip_id == KSZ8795_CHIP_ID ||
 	    dev->chip_id == KSZ8794_CHIP_ID ||
@@ -2732,7 +2732,7 @@ static int ksz_connect_tag_protocol(struct dsa_switch *ds,
 		tagger_data->xmit_work_fn = ksz_port_deferred_xmit;
 		return 0;
 	default:
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 }
 
@@ -2742,7 +2742,7 @@ static int ksz_port_vlan_filtering(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->vlan_filtering)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->vlan_filtering(dev, port, flag, extack);
 }
@@ -2754,7 +2754,7 @@ static int ksz_port_vlan_add(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->vlan_add)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->vlan_add(dev, port, vlan, extack);
 }
@@ -2765,7 +2765,7 @@ static int ksz_port_vlan_del(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->vlan_del)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->vlan_del(dev, port, vlan);
 }
@@ -2777,7 +2777,7 @@ static int ksz_port_mirror_add(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->mirror_add)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->mirror_add(dev, port, mirror, ingress, extack);
 }
@@ -2796,7 +2796,7 @@ static int ksz_change_mtu(struct dsa_switch *ds, int port, int mtu)
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->dev_ops->change_mtu)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->dev_ops->change_mtu(dev, port, mtu);
 }
@@ -2827,7 +2827,7 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 		return KSZ9477_MAX_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ksz_validate_eee(struct dsa_switch *ds, int port)
@@ -2835,7 +2835,7 @@ static int ksz_validate_eee(struct dsa_switch *ds, int port)
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->info->internal_phy[port])
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (dev->chip_id) {
 	case KSZ8563_CHIP_ID:
@@ -2848,7 +2848,7 @@ static int ksz_validate_eee(struct dsa_switch *ds, int port)
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ksz_get_mac_eee(struct dsa_switch *ds, int port,
@@ -2860,10 +2860,10 @@ static int ksz_get_mac_eee(struct dsa_switch *ds, int port,
 	if (ret)
 		return ret;
 
-	/* There is no documented control of Tx LPI configuration. */
+	/* There is anal documented control of Tx LPI configuration. */
 	e->tx_lpi_enabled = true;
 
-	/* There is no documented control of Tx LPI timer. According to tests
+	/* There is anal documented control of Tx LPI timer. According to tests
 	 * Tx LPI timer seems to be set by default to minimal value.
 	 */
 	e->tx_lpi_timer = 0;
@@ -2882,12 +2882,12 @@ static int ksz_set_mac_eee(struct dsa_switch *ds, int port,
 		return ret;
 
 	if (!e->tx_lpi_enabled) {
-		dev_err(dev->dev, "Disabling EEE Tx LPI is not supported\n");
+		dev_err(dev->dev, "Disabling EEE Tx LPI is analt supported\n");
 		return -EINVAL;
 	}
 
 	if (e->tx_lpi_timer) {
-		dev_err(dev->dev, "Setting EEE Tx LPI timer is not supported\n");
+		dev_err(dev->dev, "Setting EEE Tx LPI timer is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -2993,7 +2993,7 @@ static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
 		return;
 
 	if (phylink_autoneg_inband(mode)) {
-		dev_err(dev->dev, "In-band AN not supported!\n");
+		dev_err(dev->dev, "In-band AN analt supported!\n");
 		return;
 	}
 
@@ -3037,7 +3037,7 @@ static void ksz_set_gbit(struct ksz_device *dev, int port, bool gbit)
 	if (gbit)
 		data8 |= FIELD_PREP(P_GMII_1GBIT_M, bitval[P_GMII_1GBIT]);
 	else
-		data8 |= FIELD_PREP(P_GMII_1GBIT_M, bitval[P_GMII_NOT_1GBIT]);
+		data8 |= FIELD_PREP(P_GMII_1GBIT_M, bitval[P_GMII_ANALT_1GBIT]);
 
 	/* Write the updated value */
 	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_1], data8);
@@ -3161,14 +3161,14 @@ static int ksz_switch_detect(struct ksz_device *dev)
 		} else if (id2 == KSZ87_CHIP_ID_94) {
 			dev->chip_id = KSZ8794_CHIP_ID;
 		} else {
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		break;
 	case KSZ88_FAMILY_ID:
 		if (id2 == KSZ88_CHIP_ID_63)
 			dev->chip_id = KSZ8830_CHIP_ID;
 		else
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	default:
 		ret = ksz_read32(dev, REG_CHIP_ID0, &id32);
@@ -3207,7 +3207,7 @@ static int ksz_switch_detect(struct ksz_device *dev)
 		default:
 			dev_err(dev->dev,
 				"unsupported switch detected %x)\n", id32);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -3229,7 +3229,7 @@ static int ksz_cls_flower_add(struct dsa_switch *ds, int port,
 		return ksz9477_cls_flower_add(ds, port, cls, ingress);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ksz_cls_flower_del(struct dsa_switch *ds, int port,
@@ -3248,7 +3248,7 @@ static int ksz_cls_flower_del(struct dsa_switch *ds, int port,
 		return ksz9477_cls_flower_del(ds, port, cls, ingress);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* Bandwidth is calculated by idle slope/transmission speed. Then the Bandwidth
@@ -3302,7 +3302,7 @@ static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
 	u32 bw;
 
 	if (!dev->info->tc_cbs_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qopt->queue > dev->info->num_tx_queues)
 		return -EINVAL;
@@ -3347,12 +3347,12 @@ static int ksz_disable_egress_rate_limit(struct ksz_device *dev, int port)
 {
 	int queue, ret;
 
-	/* Configuration will not take effect until the last Port Queue X
+	/* Configuration will analt take effect until the last Port Queue X
 	 * Egress Limit Control Register is written.
 	 */
 	for (queue = 0; queue < dev->info->num_tx_queues; queue++) {
 		ret = ksz_pwrite8(dev, port, KSZ9477_REG_PORT_OUT_RATE_0 + queue,
-				  KSZ9477_OUT_RATE_NO_LIMIT);
+				  KSZ9477_OUT_RATE_ANAL_LIMIT);
 		if (ret)
 			return ret;
 	}
@@ -3407,7 +3407,7 @@ static int ksz_tc_ets_add(struct ksz_device *dev, int port,
 
 	/* In order to ensure proper prioritization, it is necessary to set the
 	 * rate limit for the related queue to zero. Otherwise strict priority
-	 * or WRR mode will not work. This is a hardware limitation.
+	 * or WRR mode will analt work. This is a hardware limitation.
 	 */
 	ret = ksz_disable_egress_rate_limit(dev, port);
 	if (ret)
@@ -3424,7 +3424,7 @@ static int ksz_tc_ets_add(struct ksz_device *dev, int port,
 			return ret;
 	}
 
-	/* Configure the mapping between traffic classes and queues. Note:
+	/* Configure the mapping between traffic classes and queues. Analte:
 	 * priomap variable support 16 traffic classes, but the chip can handle
 	 * only 8 classes.
 	 */
@@ -3488,13 +3488,13 @@ static int ksz_tc_ets_validate(struct ksz_device *dev, int port,
 {
 	int band;
 
-	/* Since it is not feasible to share one port among multiple qdisc,
+	/* Since it is analt feasible to share one port among multiple qdisc,
 	 * the user must configure all available queues appropriately.
 	 */
 	if (p->bands != dev->info->num_tx_queues) {
-		dev_err(dev->dev, "Not supported amount of bands. It should be %d\n",
+		dev_err(dev->dev, "Analt supported amount of bands. It should be %d\n",
 			dev->info->num_tx_queues);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	for (band = 0; band < p->bands; ++band) {
@@ -3511,8 +3511,8 @@ static int ksz_tc_ets_validate(struct ksz_device *dev, int port,
 		 * return an error instead.
 		 */
 		if (p->quanta[band]) {
-			dev_err(dev->dev, "Quanta/weights configuration is not supported.\n");
-			return -EOPNOTSUPP;
+			dev_err(dev->dev, "Quanta/weights configuration is analt supported.\n");
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -3526,11 +3526,11 @@ static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
 	int ret;
 
 	if (!dev->info->tc_ets_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qopt->parent != TC_H_ROOT) {
 		dev_err(dev->dev, "Parent should be \"root\"\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (qopt->command) {
@@ -3544,10 +3544,10 @@ static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
 		return ksz_tc_ets_del(dev, port);
 	case TC_ETS_STATS:
 	case TC_ETS_GRAFT:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ksz_setup_tc(struct dsa_switch *ds, int port,
@@ -3559,7 +3559,7 @@ static int ksz_setup_tc(struct dsa_switch *ds, int port,
 	case TC_SETUP_QDISC_ETS:
 		return ksz_tc_setup_qdisc_ets(ds, port, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3580,7 +3580,7 @@ static int ksz_set_wol(struct dsa_switch *ds, int port,
 	if (dev->dev_ops->set_wol)
 		return dev->dev_ops->set_wol(dev, port, wol);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
@@ -3591,7 +3591,7 @@ static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
 
 	if (dp->hsr_dev) {
 		dev_err(ds->dev,
-			"Cannot change MAC address on port %d with active HSR offload\n",
+			"Cananalt change MAC address on port %d with active HSR offload\n",
 			port);
 		return -EBUSY;
 	}
@@ -3599,7 +3599,7 @@ static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
 	ksz_get_wol(ds, dp->index, &wol);
 	if (wol.wolopts & WAKE_MAGIC) {
 		dev_err(ds->dev,
-			"Cannot change MAC address on port %d with active Wake on Magic Packet\n",
+			"Cananalt change MAC address on port %d with active Wake on Magic Packet\n",
 			port);
 		return -EBUSY;
 	}
@@ -3639,13 +3639,13 @@ bool ksz_is_port_mac_global_usable(struct dsa_switch *ds, int port)
  * ksz_switch_macaddr_get - Program the switch's MAC address register.
  * @ds: DSA switch instance.
  * @port: Port number.
- * @extack: Netlink extended acknowledgment.
+ * @extack: Netlink extended ackanalwledgment.
  *
  * This function programs the switch's MAC address register with the MAC address
  * of the requesting user port. This single address is used by the switch for
  * multiple features like HSR self-address filtering and WoL. Other user ports
  * can share ownership of this address as long as their MAC address is the same.
- * The MAC addresses of user ports must not change while they have ownership of
+ * The MAC addresses of user ports must analt change while they have ownership of
  * the switch MAC address.
  *
  * Return: 0 on success, or other error codes on failure.
@@ -3678,7 +3678,7 @@ int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
 
 	switch_macaddr = kzalloc(sizeof(*switch_macaddr), GFP_KERNEL);
 	if (!switch_macaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ether_addr_copy(switch_macaddr->addr, addr);
 	refcount_set(&switch_macaddr->refcount, 1);
@@ -3734,20 +3734,20 @@ static int ksz_hsr_join(struct dsa_switch *ds, int port, struct net_device *hsr,
 		return ret;
 
 	if (dev->chip_id != KSZ9477_CHIP_ID) {
-		NL_SET_ERR_MSG_MOD(extack, "Chip does not support HSR offload");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Chip does analt support HSR offload");
+		return -EOPANALTSUPP;
 	}
 
 	/* KSZ9477 can support HW offloading of only 1 HSR device */
 	if (dev->hsr_dev && hsr != dev->hsr_dev) {
 		NL_SET_ERR_MSG_MOD(extack, "Offload supported for a single HSR");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* KSZ9477 only supports HSR v0 and v1 */
 	if (!(ver == HSR_V0 || ver == HSR_V1)) {
 		NL_SET_ERR_MSG_MOD(extack, "Only HSR v0 and v1 supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Self MAC address filtering, to avoid frames traversing
@@ -3888,7 +3888,7 @@ void ksz_switch_shutdown(struct ksz_device *dev)
 EXPORT_SYMBOL(ksz_switch_shutdown);
 
 static void ksz_parse_rgmii_delay(struct ksz_device *dev, int port_num,
-				  struct device_node *port_dn)
+				  struct device_analde *port_dn)
 {
 	phy_interface_t phy_mode = dev->ports[port_num].interface;
 	int rx_delay = -1, tx_delay = -1;
@@ -4012,7 +4012,7 @@ static int ksz9477_drive_strength_write(struct ksz_device *dev,
 	u8 val = 0;
 
 	if (props[KSZ_DRIVER_STRENGTH_IO].value != -1)
-		dev_warn(dev->dev, "%s is not supported by this chip variant\n",
+		dev_warn(dev->dev, "%s is analt supported by this chip variant\n",
 			 props[KSZ_DRIVER_STRENGTH_IO].name);
 
 	if (dev->chip_id == KSZ8795_CHIP_ID ||
@@ -4067,7 +4067,7 @@ static int ksz8830_drive_strength_write(struct ksz_device *dev,
 		if (props[i].value == -1 || i == KSZ_DRIVER_STRENGTH_IO)
 			continue;
 
-		dev_warn(dev->dev, "%s is not supported by this chip variant\n",
+		dev_warn(dev->dev, "%s is analt supported by this chip variant\n",
 			 props[i].name);
 	}
 
@@ -4115,7 +4115,7 @@ static int ksz_parse_drive_strength(struct ksz_device *dev)
 			.value = -1,
 		},
 	};
-	struct device_node *np = dev->dev->of_node;
+	struct device_analde *np = dev->dev->of_analde;
 	bool have_any_prop = false;
 	int i, ret;
 
@@ -4155,7 +4155,7 @@ static int ksz_parse_drive_strength(struct ksz_device *dev)
 			if (of_props[i].value == -1)
 				continue;
 
-			dev_warn(dev->dev, "%s is not supported by this chip variant\n",
+			dev_warn(dev->dev, "%s is analt supported by this chip variant\n",
 				 of_props[i].name);
 		}
 	}
@@ -4166,7 +4166,7 @@ static int ksz_parse_drive_strength(struct ksz_device *dev)
 int ksz_switch_register(struct ksz_device *dev)
 {
 	const struct ksz_chip_data *info;
-	struct device_node *port, *ports;
+	struct device_analde *port, *ports;
 	phy_interface_t interface;
 	unsigned int port_num;
 	int ret;
@@ -4195,7 +4195,7 @@ int ksz_switch_register(struct ksz_device *dev)
 
 	info = ksz_lookup_info(dev->chip_id);
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Update the compatible info with the probed one */
 	dev->info = info;
@@ -4217,7 +4217,7 @@ int ksz_switch_register(struct ksz_device *dev)
 				  dev->info->port_cnt * sizeof(struct ksz_port),
 				  GFP_KERNEL);
 	if (!dev->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < dev->info->port_cnt; i++) {
 		spin_lock_init(&dev->ports[i].mib.stats64_lock);
@@ -4227,7 +4227,7 @@ int ksz_switch_register(struct ksz_device *dev)
 				     sizeof(u64) * (dev->info->mib_cnt + 1),
 				     GFP_KERNEL);
 		if (!dev->ports[i].mib.counters)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev->ports[i].ksz_dev = dev;
 		dev->ports[i].num = i;
@@ -4241,25 +4241,25 @@ int ksz_switch_register(struct ksz_device *dev)
 	 */
 	for (port_num = 0; port_num < dev->info->port_cnt; ++port_num)
 		dev->ports[port_num].interface = PHY_INTERFACE_MODE_NA;
-	if (dev->dev->of_node) {
+	if (dev->dev->of_analde) {
 		ret = ksz_parse_drive_strength(dev);
 		if (ret)
 			return ret;
 
-		ret = of_get_phy_mode(dev->dev->of_node, &interface);
+		ret = of_get_phy_mode(dev->dev->of_analde, &interface);
 		if (ret == 0)
 			dev->compat_interface = interface;
-		ports = of_get_child_by_name(dev->dev->of_node, "ethernet-ports");
+		ports = of_get_child_by_name(dev->dev->of_analde, "ethernet-ports");
 		if (!ports)
-			ports = of_get_child_by_name(dev->dev->of_node, "ports");
+			ports = of_get_child_by_name(dev->dev->of_analde, "ports");
 		if (ports) {
-			for_each_available_child_of_node(ports, port) {
+			for_each_available_child_of_analde(ports, port) {
 				if (of_property_read_u32(port, "reg",
 							 &port_num))
 					continue;
 				if (!(dev->port_mask & BIT(port_num))) {
-					of_node_put(port);
-					of_node_put(ports);
+					of_analde_put(port);
+					of_analde_put(ports);
 					return -EINVAL;
 				}
 				of_get_phy_mode(port,
@@ -4267,18 +4267,18 @@ int ksz_switch_register(struct ksz_device *dev)
 
 				ksz_parse_rgmii_delay(dev, port_num, port);
 			}
-			of_node_put(ports);
+			of_analde_put(ports);
 		}
-		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
+		dev->synclko_125 = of_property_read_bool(dev->dev->of_analde,
 							 "microchip,synclko-125");
-		dev->synclko_disable = of_property_read_bool(dev->dev->of_node,
+		dev->synclko_disable = of_property_read_bool(dev->dev->of_analde,
 							     "microchip,synclko-disable");
 		if (dev->synclko_125 && dev->synclko_disable) {
 			dev_err(dev->dev, "inconsistent synclko settings\n");
 			return -EINVAL;
 		}
 
-		dev->wakeup_source = of_property_read_bool(dev->dev->of_node,
+		dev->wakeup_source = of_property_read_bool(dev->dev->of_analde,
 							   "wakeup-source");
 	}
 

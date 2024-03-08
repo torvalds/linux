@@ -21,12 +21,12 @@ struct virtiovf_pci_core_device {
 	u8 *bar0_virtual_buf;
 	/* synchronize access to the virtual buf */
 	struct mutex bar_mutex;
-	void __iomem *notify_addr;
-	u64 notify_offset;
+	void __iomem *analtify_addr;
+	u64 analtify_offset;
 	__le32 pci_base_addr_0;
 	__le16 pci_cmd;
 	u8 bar0_virtual_buf_size;
-	u8 notify_bar;
+	u8 analtify_bar;
 };
 
 static int
@@ -82,7 +82,7 @@ virtiovf_pci_bar0_rw(struct virtiovf_pci_core_device *virtvdev,
 {
 	struct vfio_pci_core_device *core_device = &virtvdev->core_device;
 	struct pci_dev *pdev = core_device->pdev;
-	u16 queue_notify;
+	u16 queue_analtify;
 	int ret;
 
 	if (!(le16_to_cpu(virtvdev->pci_cmd) & PCI_COMMAND_IO))
@@ -98,28 +98,28 @@ virtiovf_pci_bar0_rw(struct virtiovf_pci_core_device *virtvdev,
 	}
 
 	switch (pos) {
-	case VIRTIO_PCI_QUEUE_NOTIFY:
-		if (count != sizeof(queue_notify)) {
+	case VIRTIO_PCI_QUEUE_ANALTIFY:
+		if (count != sizeof(queue_analtify)) {
 			ret = -EINVAL;
 			goto end;
 		}
 		if (read) {
-			ret = vfio_pci_core_ioread16(core_device, true, &queue_notify,
-						     virtvdev->notify_addr);
+			ret = vfio_pci_core_ioread16(core_device, true, &queue_analtify,
+						     virtvdev->analtify_addr);
 			if (ret)
 				goto end;
-			if (copy_to_user(buf, &queue_notify,
-					 sizeof(queue_notify))) {
+			if (copy_to_user(buf, &queue_analtify,
+					 sizeof(queue_analtify))) {
 				ret = -EFAULT;
 				goto end;
 			}
 		} else {
-			if (copy_from_user(&queue_notify, buf, count)) {
+			if (copy_from_user(&queue_analtify, buf, count)) {
 				ret = -EFAULT;
 				goto end;
 			}
-			ret = vfio_pci_core_iowrite16(core_device, true, queue_notify,
-						      virtvdev->notify_addr);
+			ret = vfio_pci_core_iowrite16(core_device, true, queue_analtify,
+						      virtvdev->analtify_addr);
 		}
 		break;
 	default:
@@ -354,22 +354,22 @@ virtiovf_vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 }
 
 static int
-virtiovf_set_notify_addr(struct virtiovf_pci_core_device *virtvdev)
+virtiovf_set_analtify_addr(struct virtiovf_pci_core_device *virtvdev)
 {
 	struct vfio_pci_core_device *core_device = &virtvdev->core_device;
 	int ret;
 
 	/*
-	 * Setup the BAR where the 'notify' exists to be used by vfio as well
+	 * Setup the BAR where the 'analtify' exists to be used by vfio as well
 	 * This will let us mmap it only once and use it when needed.
 	 */
 	ret = vfio_pci_core_setup_barmap(core_device,
-					 virtvdev->notify_bar);
+					 virtvdev->analtify_bar);
 	if (ret)
 		return ret;
 
-	virtvdev->notify_addr = core_device->barmap[virtvdev->notify_bar] +
-			virtvdev->notify_offset;
+	virtvdev->analtify_addr = core_device->barmap[virtvdev->analtify_bar] +
+			virtvdev->analtify_offset;
 	return 0;
 }
 
@@ -388,9 +388,9 @@ static int virtiovf_pci_open_device(struct vfio_device *core_vdev)
 		/*
 		 * Upon close_device() the vfio_pci_core_disable() is called
 		 * and will close all the previous mmaps, so it seems that the
-		 * valid life cycle for the 'notify' addr is per open/close.
+		 * valid life cycle for the 'analtify' addr is per open/close.
 		 */
-		ret = virtiovf_set_notify_addr(virtvdev);
+		ret = virtiovf_set_analtify_addr(virtvdev);
 		if (ret) {
 			vfio_pci_core_disable(vdev);
 			return ret;
@@ -407,20 +407,20 @@ static int virtiovf_get_device_config_size(unsigned short device)
 	return offsetofend(struct virtio_net_config, status);
 }
 
-static int virtiovf_read_notify_info(struct virtiovf_pci_core_device *virtvdev)
+static int virtiovf_read_analtify_info(struct virtiovf_pci_core_device *virtvdev)
 {
 	u64 offset;
 	int ret;
 	u8 bar;
 
-	ret = virtio_pci_admin_legacy_io_notify_info(virtvdev->core_device.pdev,
-				VIRTIO_ADMIN_CMD_NOTIFY_INFO_FLAGS_OWNER_MEM,
+	ret = virtio_pci_admin_legacy_io_analtify_info(virtvdev->core_device.pdev,
+				VIRTIO_ADMIN_CMD_ANALTIFY_INFO_FLAGS_OWNER_MEM,
 				&bar, &offset);
 	if (ret)
 		return ret;
 
-	virtvdev->notify_bar = bar;
-	virtvdev->notify_offset = offset;
+	virtvdev->analtify_bar = bar;
+	virtvdev->analtify_offset = offset;
 	return 0;
 }
 
@@ -436,7 +436,7 @@ static int virtiovf_pci_init_device(struct vfio_device *core_vdev)
 		return ret;
 
 	pdev = virtvdev->core_device.pdev;
-	ret = virtiovf_read_notify_info(virtvdev);
+	ret = virtiovf_read_analtify_info(virtvdev);
 	if (ret)
 		return ret;
 
@@ -446,7 +446,7 @@ static int virtiovf_pci_init_device(struct vfio_device *core_vdev)
 	virtvdev->bar0_virtual_buf = kzalloc(virtvdev->bar0_virtual_buf_size,
 					     GFP_KERNEL);
 	if (!virtvdev->bar0_virtual_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&virtvdev->bar_mutex);
 	return 0;
 }

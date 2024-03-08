@@ -25,7 +25,7 @@ properties:
   '#sound-dai-cells':
     const: 0
 
-  vmon-slot-no:
+  vmon-slot-anal:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 30
@@ -34,7 +34,7 @@ properties:
       Slot number used to send voltage information or in inteleave mode this
       will be used as interleave slot.
 
-  imon-slot-no:
+  imon-slot-anal:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 30
@@ -65,11 +65,11 @@ allOf:
               - maxim,max98927
     then:
       properties:
-        vmon-slot-no:
+        vmon-slot-anal:
           minimum: 0
           maximum: 15
 
-        imon-slot-no:
+        imon-slot-anal:
           minimum: 0
           maximum: 15
 
@@ -92,7 +92,7 @@ examples:
 
             reset-gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;
 
-            vmon-slot-no = <1>;
-            imon-slot-no = <0>;
+            vmon-slot-anal = <1>;
+            imon-slot-anal = <0>;
         };
     };

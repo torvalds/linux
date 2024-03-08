@@ -45,8 +45,8 @@ static int tps65219_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	int ret, val;
 
 	if (offset != TPS65219_GPIO0_IDX) {
-		dev_err(dev, "GPIO%d is output only, cannot get\n", offset);
-		return -ENOTSUPP;
+		dev_err(dev, "GPIO%d is output only, cananalt get\n", offset);
+		return -EANALTSUPP;
 	}
 
 	ret = regmap_read(gpio->tps->regmap, TPS65219_REG_MFP_CTRL, &val);
@@ -54,7 +54,7 @@ static int tps65219_gpio_get(struct gpio_chip *gc, unsigned int offset)
 		return ret;
 
 	ret = !!(val & BIT(TPS65219_MFP_GPIO_STATUS_MASK));
-	dev_warn(dev, "GPIO%d = %d, MULTI_DEVICE_ENABLE, not a standard GPIO\n", offset, ret);
+	dev_warn(dev, "GPIO%d = %d, MULTI_DEVICE_ENABLE, analt a standard GPIO\n", offset, ret);
 
 	/*
 	 * Depending on NVM config, return an error if direction is output, otherwise the GPIO0
@@ -62,7 +62,7 @@ static int tps65219_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	 */
 
 	if (tps65219_gpio_get_direction(gc, offset) == TPS65219_GPIO_DIR_OUT)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return ret;
 }
@@ -89,7 +89,7 @@ static int tps65219_gpio_change_direction(struct gpio_chip *gc, unsigned int off
 	struct device *dev = gpio->tps->dev;
 
 	/*
-	 * Documentation is stating that GPIO0 direction must not be changed in Linux:
+	 * Documentation is stating that GPIO0 direction must analt be changed in Linux:
 	 * Table 8-34. MFP_1_CONFIG(3): MULTI_DEVICE_ENABLE, should only be changed in INITIALIZE
 	 * state (prior to ON Request).
 	 * Set statically by NVM, changing direction in application can cause a hang.
@@ -108,10 +108,10 @@ static int tps65219_gpio_change_direction(struct gpio_chip *gc, unsigned int off
 #endif
 
 	dev_err(dev,
-		"GPIO%d direction set by NVM, change to %u failed, not allowed by specification\n",
+		"GPIO%d direction set by NVM, change to %u failed, analt allowed by specification\n",
 		 offset, direction);
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int tps65219_gpio_direction_input(struct gpio_chip *gc, unsigned int offset)
@@ -120,8 +120,8 @@ static int tps65219_gpio_direction_input(struct gpio_chip *gc, unsigned int offs
 	struct device *dev = gpio->tps->dev;
 
 	if (offset != TPS65219_GPIO0_IDX) {
-		dev_err(dev, "GPIO%d is output only, cannot change to input\n", offset);
-		return -ENOTSUPP;
+		dev_err(dev, "GPIO%d is output only, cananalt change to input\n", offset);
+		return -EANALTSUPP;
 	}
 
 	if (tps65219_gpio_get_direction(gc, offset) == TPS65219_GPIO_DIR_IN)
@@ -162,7 +162,7 @@ static int tps65219_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->tps = tps;
 	gpio->gpio_chip = tps65219_template_chip;

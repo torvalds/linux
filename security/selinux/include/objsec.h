@@ -9,9 +9,9 @@
  *		Wayne Salamon, <wsalamon@nai.com>
  *		James Morris <jmorris@redhat.com>
  *
- *  Copyright (C) 2001,2002 Networks Associates Technology, Inc.
+ *  Copyright (C) 2001,2002 Networks Associates Techanallogy, Inc.
  *  Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
- *  Copyright (C) 2016 Mellanox Technologies
+ *  Copyright (C) 2016 Mellaanalx Techanallogies
  */
 
 #ifndef _SELINUX_OBJSEC_H_
@@ -39,14 +39,14 @@ struct task_security_struct {
 } __randomize_layout;
 
 enum label_initialized {
-	LABEL_INVALID, /* invalid or not initialized */
+	LABEL_INVALID, /* invalid or analt initialized */
 	LABEL_INITIALIZED, /* initialized */
 	LABEL_PENDING
 };
 
-struct inode_security_struct {
-	struct inode *inode; /* back pointer to inode object */
-	struct list_head list; /* list of inode_security_struct */
+struct ianalde_security_struct {
+	struct ianalde *ianalde; /* back pointer to ianalde object */
+	struct list_head list; /* list of ianalde_security_struct */
 	u32 task_sid; /* SID of creating task */
 	u32 sid; /* SID of this object */
 	u16 sclass; /* security class of this object */
@@ -57,8 +57,8 @@ struct inode_security_struct {
 struct file_security_struct {
 	u32 sid; /* SID of open file description */
 	u32 fown_sid; /* SID of file owner (for SIGIO) */
-	u32 isid; /* SID of inode at the time of file open */
-	u32 pseqno; /* Policy seqno at the time of file open */
+	u32 isid; /* SID of ianalde at the time of file open */
+	u32 pseqanal; /* Policy seqanal at the time of file open */
 };
 
 struct superblock_security_struct {
@@ -87,17 +87,17 @@ struct netif_security_struct {
 	u32 sid; /* SID for this interface */
 };
 
-struct netnode_security_struct {
+struct netanalde_security_struct {
 	union {
-		__be32 ipv4; /* IPv4 node address */
-		struct in6_addr ipv6; /* IPv6 node address */
+		__be32 ipv4; /* IPv4 analde address */
+		struct in6_addr ipv6; /* IPv6 analde address */
 	} addr;
-	u32 sid; /* SID for this node */
+	u32 sid; /* SID for this analde */
 	u16 family; /* address family */
 };
 
 struct netport_security_struct {
-	u32 sid; /* SID for this node */
+	u32 sid; /* SID for this analde */
 	u16 port; /* port number */
 	u8 protocol; /* transport protocol */
 };
@@ -159,12 +159,12 @@ static inline struct file_security_struct *selinux_file(const struct file *file)
 	return file->f_security + selinux_blob_sizes.lbs_file;
 }
 
-static inline struct inode_security_struct *
-selinux_inode(const struct inode *inode)
+static inline struct ianalde_security_struct *
+selinux_ianalde(const struct ianalde *ianalde)
 {
-	if (unlikely(!inode->i_security))
+	if (unlikely(!ianalde->i_security))
 		return NULL;
-	return inode->i_security + selinux_blob_sizes.lbs_inode;
+	return ianalde->i_security + selinux_blob_sizes.lbs_ianalde;
 }
 
 static inline struct msg_security_struct *

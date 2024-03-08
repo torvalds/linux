@@ -28,16 +28,16 @@ extern enum prom_major_version prom_vers;
 /* Revision, and firmware revision. */
 extern unsigned int prom_rev, prom_prev;
 
-/* Root node of the prom device tree, this stays constant after
+/* Root analde of the prom device tree, this stays constant after
  * initialization is complete.
  */
-extern int prom_root_node;
+extern int prom_root_analde;
 
 /* Pointer to prom structure containing the device tree traversal
  * and usage utility functions.  Only prom-lib should use these,
  * users use the interface defined by the library only!
  */
-extern struct linux_nodeops *prom_nodeops;
+extern struct linux_analdeops *prom_analdeops;
 
 /* The functions... */
 
@@ -51,21 +51,21 @@ extern char *prom_getbootargs(void);
 
 /* Device utilities. */
 
-/* Map and unmap devices in IO space at virtual addresses. Note that the
+/* Map and unmap devices in IO space at virtual addresses. Analte that the
  * virtual address you pass is a request and the prom may put your mappings
  * somewhere else, so check your return value as that is where your new
  * mappings really are!
  *
- * Another note, these are only available on V2 or higher proms!
+ * Aanalther analte, these are only available on V2 or higher proms!
  */
 extern char *prom_mapio(char *virt_hint, int io_space, unsigned int phys_addr, unsigned int num_bytes);
 extern void prom_unmapio(char *virt_addr, unsigned int num_bytes);
 
 /* Device operations. */
 
-/* Open the device described by the passed string.  Note, that the format
+/* Open the device described by the passed string.  Analte, that the format
  * of the string is different on V0 vs. V2->higher proms.  The caller must
- * know what he/she is doing!  Returns the device descriptor, an int.
+ * kanalw what he/she is doing!  Returns the device descriptor, an int.
  */
 extern int prom_devopen(char *device_string);
 
@@ -107,7 +107,7 @@ extern void prom_feval(char *forth_string);
  */
 extern void prom_cmdline(void);
 
-/* Enter the prom, with no chance of continuation for the stand-alone
+/* Enter the prom, with anal chance of continuation for the stand-alone
  * which calls this.
  */
 extern void prom_halt(void);
@@ -121,7 +121,7 @@ extern void prom_halt(void);
 typedef void (*sync_func_t)(void);
 extern void prom_setsync(sync_func_t func_ptr);
 
-/* Acquire the IDPROM of the root node in the prom device tree.  This
+/* Acquire the IDPROM of the root analde in the prom device tree.  This
  * gets passed a buffer where you would like it stuffed.  The return value
  * is the format type of this idprom or 0xff on error.
  */
@@ -138,10 +138,10 @@ extern int prom_getprev(void);
 
 /* Character operations to/from the console.... */
 
-/* Non-blocking get character from console. */
+/* Analn-blocking get character from console. */
 extern int prom_nbgetchar(void);
 
-/* Non-blocking put character to console. */
+/* Analn-blocking put character to console. */
 extern int prom_nbputchar(char character);
 
 /* Blocking get character from console. */
@@ -177,20 +177,20 @@ extern enum prom_output_device prom_query_output_device(void);
 
 /* Multiprocessor operations... */
 
-/* Start the CPU with the given device tree node, context table, and context
+/* Start the CPU with the given device tree analde, context table, and context
  * at the passed program counter.
  */
-extern int prom_startcpu(int cpunode, struct linux_prom_registers *context_table,
+extern int prom_startcpu(int cpuanalde, struct linux_prom_registers *context_table,
 			 int context, char *program_counter);
 
-/* Stop the CPU with the passed device tree node. */
-extern int prom_stopcpu(int cpunode);
+/* Stop the CPU with the passed device tree analde. */
+extern int prom_stopcpu(int cpuanalde);
 
-/* Idle the CPU with the passed device tree node. */
-extern int prom_idlecpu(int cpunode);
+/* Idle the CPU with the passed device tree analde. */
+extern int prom_idlecpu(int cpuanalde);
 
-/* Re-Start the CPU with the passed device tree node. */
-extern int prom_restartcpu(int cpunode);
+/* Re-Start the CPU with the passed device tree analde. */
+extern int prom_restartcpu(int cpuanalde);
 
 /* PROM memory allocation facilities... */
 
@@ -212,65 +212,65 @@ extern void prom_putsegment(int context, unsigned long virt_addr,
 
 /* PROM device tree traversal functions... */
 
-/* Get the child node of the given node, or zero if no child exists. */
-extern int prom_getchild(int parent_node);
+/* Get the child analde of the given analde, or zero if anal child exists. */
+extern int prom_getchild(int parent_analde);
 
-/* Get the next sibling node of the given node, or zero if no further
+/* Get the next sibling analde of the given analde, or zero if anal further
  * siblings exist.
  */
-extern int prom_getsibling(int node);
+extern int prom_getsibling(int analde);
 
-/* Get the length, at the passed node, of the given property type.
- * Returns -1 on error (ie. no such property at this node).
+/* Get the length, at the passed analde, of the given property type.
+ * Returns -1 on error (ie. anal such property at this analde).
  */
-extern int prom_getproplen(int thisnode, char *property);
+extern int prom_getproplen(int thisanalde, char *property);
 
 /* Fetch the requested property using the given buffer.  Returns
  * the number of bytes the prom put into your buffer or -1 on error.
  */
-extern int prom_getproperty(int thisnode, char *property,
+extern int prom_getproperty(int thisanalde, char *property,
 			    char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
-extern int prom_getint(int node, char *property);
+extern int prom_getint(int analde, char *property);
 
 /* Acquire an integer property, with a default value. */
-extern int prom_getintdefault(int node, char *property, int defval);
+extern int prom_getintdefault(int analde, char *property, int defval);
 
 /* Acquire a boolean property, 0=FALSE 1=TRUE. */
-extern int prom_getbool(int node, char *prop);
+extern int prom_getbool(int analde, char *prop);
 
 /* Acquire a string property, null string on error. */
-extern void prom_getstring(int node, char *prop, char *buf, int bufsize);
+extern void prom_getstring(int analde, char *prop, char *buf, int bufsize);
 
-/* Does the passed node have the given "name"? YES=1 NO=0 */
-extern int prom_nodematch(int thisnode, char *name);
+/* Does the passed analde have the given "name"? ANAL=1 ANAL=0 */
+extern int prom_analdematch(int thisanalde, char *name);
 
-/* Search all siblings starting at the passed node for "name" matching
- * the given string.  Returns the node on success, zero on failure.
+/* Search all siblings starting at the passed analde for "name" matching
+ * the given string.  Returns the analde on success, zero on failure.
  */
-extern int prom_searchsiblings(int node_start, char *name);
+extern int prom_searchsiblings(int analde_start, char *name);
 
-/* Return the first property type, as a string, for the given node.
+/* Return the first property type, as a string, for the given analde.
  * Returns a null string on error.
  */
-extern char *prom_firstprop(int node);
+extern char *prom_firstprop(int analde);
 
 /* Returns the next property after the passed property for the given
- * node.  Returns null string on failure.
+ * analde.  Returns null string on failure.
  */
-extern char *prom_nextprop(int node, char *prev_property);
+extern char *prom_nextprop(int analde, char *prev_property);
 
-/* Returns 1 if the specified node has given property. */
-extern int prom_node_has_property(int node, char *property);
+/* Returns 1 if the specified analde has given property. */
+extern int prom_analde_has_property(int analde, char *property);
 
-/* Set the indicated property at the given node with the passed value.
+/* Set the indicated property at the given analde with the passed value.
  * Returns the number of bytes of your value that the prom took.
  */
-extern int prom_setprop(int node, char *prop_name, char *prop_value,
+extern int prom_setprop(int analde, char *prop_name, char *prop_value,
 			int value_size);
 
-extern int prom_pathtoinode(char *path);
+extern int prom_pathtoianalde(char *path);
 extern int prom_inst2pkg(int);
 
 /* Dorking with Bus ranges... */
@@ -286,8 +286,8 @@ extern void prom_adjust_ranges(struct linux_prom_ranges *cranges, int ncranges,
 /* Apply promlib probed OBIO ranges to registers. */
 extern void prom_apply_obio_ranges(struct linux_prom_registers *obioregs, int nregs);
 
-/* Apply ranges of any prom node (and optionally parent node as well) to registers. */
-extern void prom_apply_generic_ranges(int node, int parent,
+/* Apply ranges of any prom analde (and optionally parent analde as well) to registers. */
+extern void prom_apply_generic_ranges(int analde, int parent,
 				      struct linux_prom_registers *sbusregs, int nregs);
 
 

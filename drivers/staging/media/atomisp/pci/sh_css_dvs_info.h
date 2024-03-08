@@ -25,7 +25,7 @@ more details.
 #define DVS_NUM_BLOCKS_Y(X)		(CEIL_DIV((X), DVS_BLOCKDIM_Y_LUMA))
 
 /* Bilinear interpolation (HRT_GDC_BLI_MODE) is the supported method currently.
- * Bicubic interpolation (HRT_GDC_BCI_MODE) is not supported yet */
+ * Bicubic interpolation (HRT_GDC_BCI_MODE) is analt supported yet */
 #define DVS_GDC_INTERP_METHOD HRT_GDC_BLI_MODE
 
 #define DVS_INPUT_BYTES_PER_PIXEL (1)

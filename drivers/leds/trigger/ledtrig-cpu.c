@@ -16,7 +16,7 @@
  * activity indication in their code.
  *
  * Copyright 2011 Linus Walleij <linus.walleij@linaro.org>
- * Copyright 2011 - 2012 Bryan Wu <bryan.wu@canonical.com>
+ * Copyright 2011 - 2012 Bryan Wu <bryan.wu@caanalnical.com>
  */
 
 #include <linux/kernel.h>
@@ -143,7 +143,7 @@ static int __init ledtrig_cpu_init(void)
 
 	/*
 	 * Registering CPU led trigger for each CPU core here
-	 * ignores CPU hotplug, but after this CPU hotplug works
+	 * iganalres CPU hotplug, but after this CPU hotplug works
 	 * fine with this trigger.
 	 */
 	for_each_possible_cpu(cpu) {
@@ -162,7 +162,7 @@ static int __init ledtrig_cpu_init(void)
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "leds/trigger:starting",
 				ledtrig_online_cpu, ledtrig_prepare_down_cpu);
 	if (ret < 0)
-		pr_err("CPU hotplug notifier for ledtrig-cpu could not be registered: %d\n",
+		pr_err("CPU hotplug analtifier for ledtrig-cpu could analt be registered: %d\n",
 		       ret);
 
 	pr_info("ledtrig-cpu: registered to indicate activity on CPUs\n");

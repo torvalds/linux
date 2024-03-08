@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES.
  */
 #ifndef _UAPI_IOMMUFD_H
@@ -18,21 +18,21 @@
  * beyond what it understands is 0. This allows userspace to use the backward
  * compatible portion while consistently using the newer, larger, structures.
  *
- * ioctls use a standard meaning for common errnos:
+ * ioctls use a standard meaning for common erranals:
  *
- *  - ENOTTY: The IOCTL number itself is not supported at all
+ *  - EANALTTY: The IOCTL number itself is analt supported at all
  *  - E2BIG: The IOCTL number is supported, but the provided structure has
- *    non-zero in a part the kernel does not understand.
- *  - EOPNOTSUPP: The IOCTL number is supported, and the structure is
- *    understood, however a known field has a value the kernel does not
+ *    analn-zero in a part the kernel does analt understand.
+ *  - EOPANALTSUPP: The IOCTL number is supported, and the structure is
+ *    understood, however a kanalwn field has a value the kernel does analt
  *    understand or support.
- *  - EINVAL: Everything about the IOCTL was understood, but a field is not
+ *  - EINVAL: Everything about the IOCTL was understood, but a field is analt
  *    correct.
- *  - ENOENT: An ID or IOVA provided does not exist.
- *  - ENOMEM: Out of memory.
+ *  - EANALENT: An ID or IOVA provided does analt exist.
+ *  - EANALMEM: Out of memory.
  *  - EOVERFLOW: Mathematics overflowed.
  *
- * As well as additional errnos, within specific ioctls.
+ * As well as additional erranals, within specific ioctls.
  */
 enum {
 	IOMMUFD_CMD_BASE = 0x80,
@@ -103,14 +103,14 @@ struct iommu_iova_range {
  * @out_iova_alignment: Minimum alignment required for mapping IOVA
  *
  * Query an IOAS for ranges of allowed IOVAs. Mapping IOVA outside these ranges
- * is not allowed. num_iovas will be set to the total number of iovas and
+ * is analt allowed. num_iovas will be set to the total number of iovas and
  * the allowed_iovas[] will be filled in as space permits.
  *
  * The allowed ranges are dependent on the HW path the DMA operation takes, and
  * can change during the lifetime of the IOAS. A fresh empty IOAS will have a
  * full range, and each attached device will narrow the ranges based on that
  * device's HW restrictions. Detaching a device can widen the ranges. Userspace
- * should query ranges after every attach/detach to know what IOVAs are valid
+ * should query ranges after every attach/detach to kanalw what IOVAs are valid
  * for mapping.
  *
  * On input num_iovas is the length of the allowed_iovas array. On output it is
@@ -124,7 +124,7 @@ struct iommu_iova_range {
  *   starting_iova % out_iova_alignment == 0
  *   (starting_iova + length) % out_iova_alignment == 0
  *
- * out_iova_alignment can be 1 indicating any IOVA is allowed. It cannot
+ * out_iova_alignment can be 1 indicating any IOVA is allowed. It cananalt
  * be higher than the system PAGE_SIZE.
  */
 struct iommu_ioas_iova_ranges {
@@ -199,7 +199,7 @@ enum iommufd_ioas_map_flags {
  * iova.
  *
  * If IOMMU_IOAS_MAP_FIXED_IOVA is specified then the iova range must currently
- * be unused, existing IOVA cannot be replaced.
+ * be unused, existing IOVA cananalt be replaced.
  */
 struct iommu_ioas_map {
 	__u32 size;
@@ -227,7 +227,7 @@ struct iommu_ioas_map {
  * dst_ioas_id. The src iova/length must exactly match a range used with
  * IOMMU_IOAS_MAP.
  *
- * This may be used to efficiently clone a subset of an IOAS to another, or as a
+ * This may be used to efficiently clone a subset of an IOAS to aanalther, or as a
  * kind of 'cache' to speed up mapping. Copy has an efficiency advantage over
  * establishing equivalent new mappings, as internal resources are shared, and
  * the kernel will pin the user memory only once.
@@ -252,7 +252,7 @@ struct iommu_ioas_copy {
  *
  * Unmap an IOVA range. The iova/length must be a superset of a previously
  * mapped range used with IOMMU_IOAS_MAP or IOMMU_IOAS_COPY. Splitting or
- * truncating ranges is not allowed. The values 0 to U64_MAX will unmap
+ * truncating ranges is analt allowed. The values 0 to U64_MAX will unmap
  * everything.
  */
 struct iommu_ioas_unmap {
@@ -335,12 +335,12 @@ enum iommufd_vfio_ioas_op {
  * @op: One of enum iommufd_vfio_ioas_op
  * @__reserved: Must be 0
  *
- * The VFIO compatibility support uses a single ioas because VFIO APIs do not
+ * The VFIO compatibility support uses a single ioas because VFIO APIs do analt
  * support the ID field. Set or Get the IOAS that VFIO compatibility will use.
  * When VFIO_GROUP_SET_CONTAINER is used on an iommufd it will get the
  * compatibility ioas, either by taking what is already set, or auto creating
- * one. From then on VFIO will continue to use that ioas and is not effected by
- * this ioctl. SET or CLEAR does not destroy any auto-created IOAS.
+ * one. From then on VFIO will continue to use that ioas and is analt effected by
+ * this ioctl. SET or CLEAR does analt destroy any auto-created IOAS.
  */
 struct iommu_vfio_ioas {
 	__u32 size;
@@ -392,11 +392,11 @@ struct iommu_hwpt_vtd_s1 {
 
 /**
  * enum iommu_hwpt_data_type - IOMMU HWPT Data Type
- * @IOMMU_HWPT_DATA_NONE: no data
+ * @IOMMU_HWPT_DATA_ANALNE: anal data
  * @IOMMU_HWPT_DATA_VTD_S1: Intel VT-d stage-1 page table
  */
 enum iommu_hwpt_data_type {
-	IOMMU_HWPT_DATA_NONE,
+	IOMMU_HWPT_DATA_ANALNE,
 	IOMMU_HWPT_DATA_VTD_S1,
 };
 
@@ -418,7 +418,7 @@ enum iommu_hwpt_data_type {
  *
  * A kernel-managed HWPT will be created with the mappings from the given
  * IOAS via the @pt_id. The @data_type for this allocation must be set to
- * IOMMU_HWPT_DATA_NONE. The HWPT can be allocated as a parent HWPT for a
+ * IOMMU_HWPT_DATA_ANALNE. The HWPT can be allocated as a parent HWPT for a
  * nesting configuration by passing IOMMU_HWPT_ALLOC_NEST_PARENT via @flags.
  *
  * A user-managed nested HWPT will be created from a given parent HWPT via
@@ -427,7 +427,7 @@ enum iommu_hwpt_data_type {
  * must be set to a pre-defined type corresponding to an I/O page table
  * type supported by the underlying IOMMU hardware.
  *
- * If the @data_type is set to IOMMU_HWPT_DATA_NONE, @data_len and
+ * If the @data_type is set to IOMMU_HWPT_DATA_ANALNE, @data_len and
  * @data_uptr should be zero. Otherwise, both @data_len and @data_uptr
  * must be given.
  */
@@ -477,12 +477,12 @@ struct iommu_hw_info_vtd {
 
 /**
  * enum iommu_hw_info_type - IOMMU Hardware Info Types
- * @IOMMU_HW_INFO_TYPE_NONE: Used by the drivers that do not report hardware
+ * @IOMMU_HW_INFO_TYPE_ANALNE: Used by the drivers that do analt report hardware
  *                           info
  * @IOMMU_HW_INFO_TYPE_INTEL_VTD: Intel VT-d iommu info type
  */
 enum iommu_hw_info_type {
-	IOMMU_HW_INFO_TYPE_NONE,
+	IOMMU_HW_INFO_TYPE_ANALNE,
 	IOMMU_HW_INFO_TYPE_INTEL_VTD,
 };
 
@@ -570,7 +570,7 @@ struct iommu_hwpt_set_dirty_tracking {
 
 /**
  * enum iommufd_hwpt_get_dirty_bitmap_flags - Flags for getting dirty bits
- * @IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR: Just read the PTEs without clearing
+ * @IOMMU_HWPT_GET_DIRTY_BITMAP_ANAL_CLEAR: Just read the PTEs without clearing
  *                                        any dirty bits metadata. This flag
  *                                        can be passed in the expectation
  *                                        where the next operation is an unmap
@@ -578,7 +578,7 @@ struct iommu_hwpt_set_dirty_tracking {
  *
  */
 enum iommufd_hwpt_get_dirty_bitmap_flags {
-	IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR = 1,
+	IOMMU_HWPT_GET_DIRTY_BITMAP_ANAL_CLEAR = 1,
 };
 
 /**
@@ -679,8 +679,8 @@ struct iommu_hwpt_vtd_s1_invalidate {
  * that has a total size of @entry_len * @entry_num.
  *
  * An empty invalidation request array by setting @entry_num==0 is allowed, and
- * @entry_len and @data_uptr would be ignored in this case. This can be used to
- * check if the given @data_type is supported or not by kernel.
+ * @entry_len and @data_uptr would be iganalred in this case. This can be used to
+ * check if the given @data_type is supported or analt by kernel.
  */
 struct iommu_hwpt_invalidate {
 	__u32 size;

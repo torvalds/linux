@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -99,7 +99,7 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 		case AUX_RET_SUCCESS:
 			break;
 		case AUX_RET_ERROR_HPD_DISCON:
-		case AUX_RET_ERROR_UNKNOWN:
+		case AUX_RET_ERROR_UNKANALWN:
 		case AUX_RET_ERROR_INVALID_OPERATION:
 		case AUX_RET_ERROR_PROTOCOL_ERROR:
 			result = -EIO;
@@ -168,7 +168,7 @@ amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 
 	/*
 	 * Release dc_sink for connector which its attached port is
-	 * no longer in the mst topology
+	 * anal longer in the mst topology
 	 */
 	drm_modeset_lock(&root->mst_mgr.base.lock, NULL);
 	if (dc_sink) {
@@ -237,9 +237,9 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 
 	/*
 	 * drm_dp_mst_dsc_aux_for_port() will return NULL for certain configs
-	 * because it only check the dsc/fec caps of the "port variable" and not the dock
+	 * because it only check the dsc/fec caps of the "port variable" and analt the dock
 	 *
-	 * This case will return NULL: DSC capabe MST dock connected to a non fec/dsc capable display
+	 * This case will return NULL: DSC capabe MST dock connected to a analn fec/dsc capable display
 	 *
 	 * Workaround: explicitly check the use case above and use the mst dock's aux as dsc_aux
 	 *
@@ -447,7 +447,7 @@ dm_dp_mst_detect(struct drm_connector *connector,
 	connection_status = drm_dp_mst_detect_port(connector, ctx, &master->mst_mgr,
 							aconnector->mst_output_port);
 
-	if (port->pdt != DP_PEER_DEVICE_NONE && !port->dpcd_rev) {
+	if (port->pdt != DP_PEER_DEVICE_ANALNE && !port->dpcd_rev) {
 		uint8_t dpcd_rev;
 		int ret;
 
@@ -475,12 +475,12 @@ dm_dp_mst_detect(struct drm_connector *connector,
 		 */
 		if (ret != 1)
 			DRM_DEBUG_KMS("Can't access DPCD");
-	} else if (port->pdt == DP_PEER_DEVICE_NONE) {
+	} else if (port->pdt == DP_PEER_DEVICE_ANALNE) {
 		port->dpcd_rev = 0;
 	}
 
 	/*
-	 * Release dc_sink for connector which unplug event is notified by CSN msg
+	 * Release dc_sink for connector which unplug event is analtified by CSN msg
 	 */
 	if (connection_status == connector_status_disconnected && aconnector->dc_sink) {
 		if (aconnector->dc_link->sink_count)
@@ -669,7 +669,7 @@ void dm_handle_mst_sideband_msg_ready_event(
 			dpcd_bytes_to_read);
 
 		if (dret != dpcd_bytes_to_read) {
-			DRM_DEBUG_KMS("DPCD read and acked number is not as expected!");
+			DRM_DEBUG_KMS("DPCD read and acked number is analt as expected!");
 			break;
 		}
 
@@ -701,7 +701,7 @@ void dm_handle_mst_sideband_msg_ready_event(
 						 &new_irq_handled);
 
 		if (new_irq_handled) {
-			/* ACK at DPCD to notify down stream */
+			/* ACK at DPCD to analtify down stream */
 			for (retry = 0; retry < 3; retry++) {
 				ssize_t wret;
 
@@ -858,7 +858,7 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 	for (i = 0; i < count; i++) {
 		if (params[i].sink) {
 			if (params[i].sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
-				params[i].sink->sink_signal != SIGNAL_TYPE_NONE)
+				params[i].sink->sink_signal != SIGNAL_TYPE_ANALNE)
 				DRM_DEBUG_DRIVER("%s i=%d dispname=%s\n", __func__, i,
 					params[i].sink->edid_caps.display_name);
 		}
@@ -1145,7 +1145,7 @@ static int compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 	/* set vars start index for next mst hub phy link */
 	*link_vars_start_index += count;
 
-	/* Try no compression */
+	/* Try anal compression */
 	for (i = 0; i < count; i++) {
 		vars[i + k].aconnector = params[i].aconnector;
 		vars[i + k].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps, fec_overhead_multiplier_x1000);
@@ -1160,7 +1160,7 @@ static int compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 	if (ret == 0 && !debugfs_overwrite) {
 		set_dsc_configs_from_fairness_vars(params, vars, count, k);
 		return 0;
-	} else if (ret != -ENOSPC) {
+	} else if (ret != -EANALSPC) {
 		return ret;
 	}
 
@@ -1270,7 +1270,7 @@ static bool is_dsc_need_re_compute(
 		}
 	}
 
-	/* check current_state if there stream on link but it is not in
+	/* check current_state if there stream on link but it is analt in
 	 * new request state
 	 */
 	for (i = 0; i < dc->current_state->stream_count; i++) {
@@ -1291,7 +1291,7 @@ static bool is_dsc_need_re_compute(
 		}
 
 		if (j == new_stream_on_link_num) {
-			/* not in new state */
+			/* analt in new state */
 			is_dsc_need_re_compute = true;
 			break;
 		}
@@ -1476,7 +1476,7 @@ int pre_validate_dsc(struct drm_atomic_state *state,
 	int ret = 0;
 
 	if (!is_dsc_precompute_needed(state)) {
-		DRM_INFO_ONCE("DSC precompute is not needed.\n");
+		DRM_INFO_ONCE("DSC precompute is analt needed.\n");
 		return 0;
 	}
 	ret = dm_atomic_get_state(state, dm_state_ptr);
@@ -1488,13 +1488,13 @@ int pre_validate_dsc(struct drm_atomic_state *state,
 
 	/*
 	 * create local vailable for dc_state. copy content of streams of dm_state->context
-	 * to local variable. make sure stream pointer of local variable not the same as stream
+	 * to local variable. make sure stream pointer of local variable analt the same as stream
 	 * from dm_state->context.
 	 */
 
 	local_dc_state = kmemdup(dm_state->context, sizeof(struct dc_state), GFP_KERNEL);
 	if (!local_dc_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < local_dc_state->stream_count; i++) {
 		struct dc_stream_state *stream = dm_state->context->streams[i];
@@ -1615,7 +1615,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	 *    2. dsc passthrough supported at MST branch, or
 	 *    3. dsc decoding supported at leaf MST device
 	 *    Use maximum dsc compression as bw constraint
-	 * B. When dsc bitstream cannot be transmitted along the entire path
+	 * B. When dsc bitstream cananalt be transmitted along the entire path
 	 *    Use native bw as bw constraint
 	 */
 	if (is_dsc_common_config_possible(stream, &bw_range) &&
@@ -1629,7 +1629,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps, down_link_bw_in_kbps);
 
 		if (end_to_end_bw_in_kbps < bw_range.min_kbps) {
-			DRM_DEBUG_DRIVER("maximum dsc compression cannot fit into end-to-end bandwidth\n");
+			DRM_DEBUG_DRIVER("maximum dsc compression cananalt fit into end-to-end bandwidth\n");
 			return DC_FAIL_BANDWIDTH_VALIDATE;
 		}
 
@@ -1646,7 +1646,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 				stream->timing.flags.DSC = 1;
 				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc and dsc config found\n");
 			} else {
-				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc but dsc config not found\n");
+				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc but dsc config analt found\n");
 				return DC_FAIL_BANDWIDTH_VALIDATE;
 			}
 		}

@@ -31,7 +31,7 @@ const char *bch2_err_str(int err)
 	else if (err)
 		errstr = errname(err);
 	else
-		errstr = "(No error)";
+		errstr = "(Anal error)";
 	return errstr ?: "(Invalid error)";
 }
 

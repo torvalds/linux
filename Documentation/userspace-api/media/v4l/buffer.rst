@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _buffer:
@@ -10,7 +10,7 @@ Buffers
 A buffer contains data exchanged by application and driver using one of
 the Streaming I/O methods. In the multi-planar API, the data is held in
 planes, while the buffer structure acts as a container for the planes.
-Only pointers to buffers (planes) are exchanged, the data itself is not
+Only pointers to buffers (planes) are exchanged, the data itself is analt
 copied. These pointers, together with meta-information like timestamps
 or field parity, are stored in a struct :c:type:`v4l2_buffer`,
 argument to the :ref:`VIDIOC_QUERYBUF`,
@@ -59,7 +59,7 @@ the ``EBUSY`` error code. In that case drivers shall also set the
 :c:func:`VIDIOC_QUERYCTRL` or :c:func:`VIDIOC_QUERY_EXT_CTRL` for such a
 control while the stream is active.
 
-.. note::
+.. analte::
 
    The :c:func:`VIDIOC_S_SELECTION` ioctl can, depending on the hardware (for
    instance if the device doesn't include a scaler), modify the format in
@@ -71,7 +71,7 @@ control while the stream is active.
    :c:func:`VIDIOC_S_FMT` ioctl in all cases described in this section.
 
 Controls that only influence the buffer layout can be modified at any time
-when the stream is stopped. As they don't influence the buffer size, no
+when the stream is stopped. As they don't influence the buffer size, anal
 special handling is needed to synchronize those controls with buffer
 allocation and the ``V4L2_CTRL_FLAG_GRABBED`` flag is cleared once the
 stream is stopped.
@@ -99,7 +99,7 @@ The second :c:func:`VIDIOC_REQBUFS` call will take the new format and control
 value into account to compute the buffer size to allocate. Applications can
 also retrieve the size by calling the :c:func:`VIDIOC_G_FMT` ioctl if needed.
 
-.. note::
+.. analte::
 
    The API doesn't mandate the above order for control (3.) and format (4.)
    changes. Format and controls can be set in a different order, or even
@@ -124,8 +124,8 @@ sequence to modify format and controls is
  #. VIDIOC_QBUF
  #. VIDIOC_STREAMON
 
-For this sequence to operate correctly, queued buffers need to be large enough
-for the new format or controls. Drivers shall return a ``ENOSPC`` error in
+For this sequence to operate correctly, queued buffers need to be large eanalugh
+for the new format or controls. Drivers shall return a ``EANALSPC`` error in
 response to format change (:c:func:`VIDIOC_S_FMT`) or control changes
 (:c:func:`VIDIOC_S_CTRL` or :c:func:`VIDIOC_S_EXT_CTRLS`) if buffers too small
 for the new format are currently queued. As a simplification, drivers are
@@ -135,7 +135,7 @@ currently queued, without checking the queued buffers sizes.
 Additionally, drivers shall return a ``EINVAL`` error from the
 :c:func:`VIDIOC_QBUF` ioctl if the buffer being queued is too small for the
 current format or controls. Together, these requirements ensure that queued
-buffers will always be large enough for the configured format and controls.
+buffers will always be large eanalugh for the configured format and controls.
 
 Userspace applications can query the buffer size required for a given format
 and controls by first setting the desired control values and then trying the
@@ -149,7 +149,7 @@ buffer size.
 
 The :c:func:`VIDIOC_CREATE_BUFS` ioctl can then be used to allocate buffers
 based on the queried sizes (for instance by allocating a set of buffers large
-enough for all the desired formats and controls, or by allocating separate set
+eanalugh for all the desired formats and controls, or by allocating separate set
 of appropriately sized buffers for each use case).
 
 .. c:type:: v4l2_buffer
@@ -188,7 +188,7 @@ struct v4l2_buffer
 	compressed variable size data like JPEG images. Drivers must set
 	this field when ``type`` refers to a capture stream, applications
 	when it refers to an output stream. For multiplanar formats this field
-        is ignored and the
+        is iganalred and the
 	``planes`` pointer is used instead.
     * - __u32
       - ``flags``
@@ -196,7 +196,7 @@ struct v4l2_buffer
     * - __u32
       - ``field``
       - Indicates the field order of the image in the buffer, see
-	:c:type:`v4l2_field`. This field is not used when the buffer
+	:c:type:`v4l2_field`. This field is analt used when the buffer
 	contains VBI data. Drivers must set it when ``type`` refers to a
 	capture stream, applications when it refers to an output stream.
     * - struct timeval
@@ -222,24 +222,24 @@ struct v4l2_buffer
 	independent of the ``timestamp`` and ``sequence`` fields.
     * - __u32
       - ``sequence``
-      - Set by the driver, counting the frames (not fields!) in sequence.
+      - Set by the driver, counting the frames (analt fields!) in sequence.
 	This field is set for both input and output devices.
     * - :cspan:`2`
 
 	In :c:type:`V4L2_FIELD_ALTERNATE <v4l2_field>` mode the top and
 	bottom field have the same sequence number. The count starts at
 	zero and includes dropped or repeated frames. A dropped frame was
-	received by an input device but could not be stored due to lack of
+	received by an input device but could analt be stored due to lack of
 	free buffer space. A repeated frame was displayed again by an
-	output device because the application did not pass new data in
+	output device because the application did analt pass new data in
 	time.
 
-	.. note::
+	.. analte::
 
 	   This may count the frames received e.g. over USB, without
 	   taking into account the frames dropped by the remote hardware due
 	   to limited compression throughput or bus bandwidth. These devices
-	   identify by not enumerating any video standards, see
+	   identify by analt enumerating any video standards, see
 	   :ref:`standard`.
 
     * - __u32
@@ -254,7 +254,7 @@ struct v4l2_buffer
 	``V4L2_MEMORY_MMAP`` this is the offset of the buffer from the
 	start of the device memory. The value is returned by the driver
 	and apart of serving as parameter to the
-	:c:func:`mmap()` function not useful for applications.
+	:c:func:`mmap()` function analt useful for applications.
 	See :ref:`mmap` for details
     * - unsigned long
       - ``userptr``
@@ -277,7 +277,7 @@ struct v4l2_buffer
       -
     * - __u32
       - ``length``
-      - Size of the buffer (not the payload) in bytes for the
+      - Size of the buffer (analt the payload) in bytes for the
 	single-planar API. This is set by the driver based on the calls to
 	:ref:`VIDIOC_REQBUFS` and/or
 	:ref:`VIDIOC_CREATE_BUFS`. For the
@@ -292,17 +292,17 @@ struct v4l2_buffer
       - ``request_fd``
       - The file descriptor of the request to queue the buffer to. If the flag
         ``V4L2_BUF_FLAG_REQUEST_FD`` is set, then the buffer will be
-	queued to this request. If the flag is not set, then this field will
-	be ignored.
+	queued to this request. If the flag is analt set, then this field will
+	be iganalred.
 
 	The ``V4L2_BUF_FLAG_REQUEST_FD`` flag and this field are only used by
-	:ref:`ioctl VIDIOC_QBUF <VIDIOC_QBUF>` and ignored by other ioctls that
+	:ref:`ioctl VIDIOC_QBUF <VIDIOC_QBUF>` and iganalred by other ioctls that
 	take a :c:type:`v4l2_buffer` as argument.
 
-	Applications should not set ``V4L2_BUF_FLAG_REQUEST_FD`` for any ioctls
+	Applications should analt set ``V4L2_BUF_FLAG_REQUEST_FD`` for any ioctls
 	other than :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`.
 
-	If the device does not support requests, then ``EBADR`` will be returned.
+	If the device does analt support requests, then ``EBADR`` will be returned.
 	If requests are supported but an invalid request file descriptor is
 	given, then ``EINVAL`` will be returned.
 
@@ -327,13 +327,13 @@ struct v4l2_plane
 	Drivers must set this field when ``type`` refers to a capture
 	stream, applications when it refers to an output stream.
 
-	.. note::
+	.. analte::
 
-	   Note that the actual image data starts at ``data_offset``
-	   which may not be 0.
+	   Analte that the actual image data starts at ``data_offset``
+	   which may analt be 0.
     * - __u32
       - ``length``
-      - Size in bytes of the plane (not its payload). This is set by the
+      - Size in bytes of the plane (analt its payload). This is set by the
 	driver based on the calls to
 	:ref:`VIDIOC_REQBUFS` and/or
 	:ref:`VIDIOC_CREATE_BUFS`.
@@ -366,7 +366,7 @@ struct v4l2_plane
 	field when ``type`` refers to a capture stream, applications when
 	it refers to an output stream.
 
-	.. note::
+	.. analte::
 
 	   That data_offset is included  in ``bytesused``. So the
 	   size of the image in the plane is ``bytesused``-``data_offset``
@@ -447,7 +447,7 @@ Buffer Flags
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{6.5cm}|p{1.8cm}|p{9.0cm}|
 
@@ -489,7 +489,7 @@ Buffer Flags
 	queue, ready to be dequeued from the driver. Drivers set or clear
 	this flag when the ``VIDIOC_QUERYBUF`` ioctl is called. After
 	calling the ``VIDIOC_QBUF`` or ``VIDIOC_DQBUF`` it is always
-	cleared. Of course a buffer cannot be on both queues at the same
+	cleared. Of course a buffer cananalt be on both queues at the same
 	time, the ``V4L2_BUF_FLAG_QUEUED`` and ``V4L2_BUF_FLAG_DONE`` flag
 	are mutually exclusive. They can be both cleared however, then the
 	buffer is in "dequeued" state, in the application domain so to
@@ -500,8 +500,8 @@ Buffer Flags
       - 0x00000040
       - When this flag is set, the buffer has been dequeued successfully,
 	although the data might have been corrupted. This is recoverable,
-	streaming may continue as normal and the buffer may be reused
-	normally. Drivers set this flag when the ``VIDIOC_DQBUF`` ioctl is
+	streaming may continue as analrmal and the buffer may be reused
+	analrmally. Drivers set this flag when the ``VIDIOC_DQBUF`` ioctl is
 	called.
     * .. _`V4L2-BUF-FLAG-IN-REQUEST`:
 
@@ -515,7 +515,7 @@ Buffer Flags
       - Drivers set or clear this flag when calling the ``VIDIOC_DQBUF``
 	ioctl. It may be set by video capture devices when the buffer
 	contains a compressed image which is a key frame (or field), i. e.
-	can be decompressed on its own. Also known as an I-frame.
+	can be decompressed on its own. Also kanalwn as an I-frame.
 	Applications can set this bit when ``type`` refers to an output
 	stream.
     * .. _`V4L2-BUF-FLAG-PFRAME`:
@@ -553,27 +553,27 @@ Buffer Flags
 	:ref:`VIDIOC_PREPARE_BUF <VIDIOC_QBUF>`,
 	:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` or
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called.
-    * .. _`V4L2-BUF-FLAG-NO-CACHE-INVALIDATE`:
+    * .. _`V4L2-BUF-FLAG-ANAL-CACHE-INVALIDATE`:
 
-      - ``V4L2_BUF_FLAG_NO_CACHE_INVALIDATE``
+      - ``V4L2_BUF_FLAG_ANAL_CACHE_INVALIDATE``
       - 0x00000800
-      - Caches do not have to be invalidated for this buffer. Typically
+      - Caches do analt have to be invalidated for this buffer. Typically
 	applications shall use this flag if the data captured in the
-	buffer is not going to be touched by the CPU, instead the buffer
+	buffer is analt going to be touched by the CPU, instead the buffer
 	will, probably, be passed on to a DMA-capable hardware unit for
-	further processing or output. This flag is ignored unless the
+	further processing or output. This flag is iganalred unless the
 	queue is used for :ref:`memory mapping <mmap>` streaming I/O and
 	reports :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
 	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
-    * .. _`V4L2-BUF-FLAG-NO-CACHE-CLEAN`:
+    * .. _`V4L2-BUF-FLAG-ANAL-CACHE-CLEAN`:
 
-      - ``V4L2_BUF_FLAG_NO_CACHE_CLEAN``
+      - ``V4L2_BUF_FLAG_ANAL_CACHE_CLEAN``
       - 0x00001000
-      - Caches do not have to be cleaned for this buffer. Typically
+      - Caches do analt have to be cleaned for this buffer. Typically
 	applications shall use this flag for output buffers if the data in
-	this buffer has not been created by the CPU but by some
-	DMA-capable unit, in which case caches have not been used. This flag
-	is ignored unless the queue is used for :ref:`memory mapping <mmap>`
+	this buffer has analt been created by the CPU but by some
+	DMA-capable unit, in which case caches have analt been used. This flag
+	is iganalred unless the queue is used for :ref:`memory mapping <mmap>`
 	streaming I/O and reports :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
 	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
     * .. _`V4L2-BUF-FLAG-M2M-HOLD-CAPTURE-BUF`:
@@ -600,7 +600,7 @@ Buffer Flags
 	hardware limitations, the last buffer may be empty. In this case
 	the driver will set the ``bytesused`` field to 0, regardless of
 	the format. Any subsequent call to the
-	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
+	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will analt block anymore,
 	but return an ``EPIPE`` error code.
     * .. _`V4L2-BUF-FLAG-REQUEST-FD`:
 
@@ -612,24 +612,24 @@ Buffer Flags
       - ``V4L2_BUF_FLAG_TIMESTAMP_MASK``
       - 0x0000e000
       - Mask for timestamp types below. To test the timestamp type, mask
-	out bits not belonging to timestamp type by performing a logical
+	out bits analt belonging to timestamp type by performing a logical
 	and operation with buffer flags and timestamp mask.
-    * .. _`V4L2-BUF-FLAG-TIMESTAMP-UNKNOWN`:
+    * .. _`V4L2-BUF-FLAG-TIMESTAMP-UNKANALWN`:
 
-      - ``V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN``
+      - ``V4L2_BUF_FLAG_TIMESTAMP_UNKANALWN``
       - 0x00000000
-      - Unknown timestamp type. This type is used by drivers before Linux
-	3.9 and may be either monotonic (see below) or realtime (wall
-	clock). Monotonic clock has been favoured in embedded systems
+      - Unkanalwn timestamp type. This type is used by drivers before Linux
+	3.9 and may be either moanaltonic (see below) or realtime (wall
+	clock). Moanaltonic clock has been favoured in embedded systems
 	whereas most of the drivers use the realtime clock. Either kinds
 	of timestamps are available in user space via
-	:c:func:`clock_gettime` using clock IDs ``CLOCK_MONOTONIC``
+	:c:func:`clock_gettime` using clock IDs ``CLOCK_MOANALTONIC``
 	and ``CLOCK_REALTIME``, respectively.
-    * .. _`V4L2-BUF-FLAG-TIMESTAMP-MONOTONIC`:
+    * .. _`V4L2-BUF-FLAG-TIMESTAMP-MOANALTONIC`:
 
-      - ``V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC``
+      - ``V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC``
       - 0x00002000
-      - The buffer timestamp has been taken from the ``CLOCK_MONOTONIC``
+      - The buffer timestamp has been taken from the ``CLOCK_MOANALTONIC``
 	clock. To access the same clock outside V4L2, use
 	:c:func:`clock_gettime`.
     * .. _`V4L2-BUF-FLAG-TIMESTAMP-COPY`:
@@ -669,7 +669,7 @@ Buffer Flags
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 enum v4l2_memory
 ================
@@ -712,26 +712,26 @@ Memory Consistency Flags
     :stub-columns: 0
     :widths:       3 1 4
 
-    * .. _`V4L2-MEMORY-FLAG-NON-COHERENT`:
+    * .. _`V4L2-MEMORY-FLAG-ANALN-COHERENT`:
 
-      - ``V4L2_MEMORY_FLAG_NON_COHERENT``
+      - ``V4L2_MEMORY_FLAG_ANALN_COHERENT``
       - 0x00000001
       - A buffer is allocated either in coherent (it will be automatically
-	coherent between the CPU and the bus) or non-coherent memory. The
+	coherent between the CPU and the bus) or analn-coherent memory. The
 	latter can provide performance gains, for instance the CPU cache
 	sync/flush operations can be avoided if the buffer is accessed by the
-	corresponding device only and the CPU does not read/write to/from that
+	corresponding device only and the CPU does analt read/write to/from that
 	buffer. However, this requires extra care from the driver -- it must
 	guarantee memory consistency by issuing a cache flush/sync when
 	consistency is needed. If this flag is set V4L2 will attempt to
-	allocate the buffer in non-coherent memory. The flag takes effect
+	allocate the buffer in analn-coherent memory. The flag takes effect
 	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
 	queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
 	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 Timecodes
 =========
@@ -765,13 +765,13 @@ struct v4l2_timecode
 	timecode.
     * - __u8
       - ``seconds``
-      - Seconds count, 0 ... 59. This is a binary, not BCD number.
+      - Seconds count, 0 ... 59. This is a binary, analt BCD number.
     * - __u8
       - ``minutes``
-      - Minutes count, 0 ... 59. This is a binary, not BCD number.
+      - Minutes count, 0 ... 59. This is a binary, analt BCD number.
     * - __u8
       - ``hours``
-      - Hours count, 0 ... 29. This is a binary, not BCD number.
+      - Hours count, 0 ... 29. This is a binary, analt BCD number.
     * - __u8
       - ``userbits``\ [4]
       - The "user group" bits from the timecode.

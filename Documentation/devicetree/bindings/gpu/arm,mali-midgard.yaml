@@ -10,17 +10,17 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^gpu@[a-f0-9]+$'
   compatible:
     oneOf:
       - items:
           - enum:
-              - samsung,exynos5250-mali
+              - samsung,exyanals5250-mali
           - const: arm,mali-t604
       - items:
           - enum:
-              - samsung,exynos5420-mali
+              - samsung,exyanals5420-mali
           - const: arm,mali-t628
       - items:
           - enum:
@@ -33,17 +33,17 @@ properties:
           - const: arm,mali-t820
       - items:
           - enum:
-              - arm,juno-mali
+              - arm,juanal-mali
           - const: arm,mali-t624
       - items:
           - enum:
               - rockchip,rk3288-mali
-              - samsung,exynos5433-mali
+              - samsung,exyanals5433-mali
           - const: arm,mali-t760
       - items:
           - enum:
-              - samsung,exynos7-mali
-          - const: samsung,exynos5433-mali
+              - samsung,exyanals7-mali
+          - const: samsung,exyanals5433-mali
           - const: arm,mali-t760
       - items:
           - enum:

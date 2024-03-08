@@ -37,9 +37,9 @@ MODULE_LICENSE("GPL");
 #define SUBSAMPLE_422	1
 #define YUVORDER_YUYV	0
 #define YUVORDER_UYVY	1
-#define NOT_COMPRESSED	0
+#define ANALT_COMPRESSED	0
 #define COMPRESSED	1
-#define NO_DECIMATION	0
+#define ANAL_DECIMATION	0
 #define DECIMATION_ENAB	1
 #define EOI		0xff	/* End Of Image */
 #define EOL		0xfd	/* End Of Line */
@@ -50,7 +50,7 @@ MODULE_LICENSE("GPL");
 #define CPIA_GRAB_CONTINEOUS	1
 
 /* Compression parameters */
-#define CPIA_COMPRESSION_NONE	0
+#define CPIA_COMPRESSION_ANALNE	0
 #define CPIA_COMPRESSION_AUTO	1
 #define CPIA_COMPRESSION_MANUAL	2
 #define CPIA_COMPRESSION_TARGET_QUALITY         0
@@ -79,7 +79,7 @@ MODULE_LICENSE("GPL");
 #define GRAB_DONE		2
 
 /* StreamState */
-#define STREAM_NOT_READY	0
+#define STREAM_ANALT_READY	0
 #define STREAM_READY		1
 #define STREAM_OPEN		2
 #define STREAM_PAUSED		3
@@ -117,7 +117,7 @@ MODULE_LICENSE("GPL");
 /* exposure status */
 #define EXPOSURE_VERY_LIGHT 0
 #define EXPOSURE_LIGHT      1
-#define EXPOSURE_NORMAL     2
+#define EXPOSURE_ANALRMAL     2
 #define EXPOSURE_DARK       3
 #define EXPOSURE_VERY_DARK  4
 
@@ -364,7 +364,7 @@ struct sd {
 };
 
 static const struct v4l2_pix_format mode[] = {
-	{160, 120, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_ANALNE,
 		/* The sizeimage is trial and error, as with low framerates
 		 *  the camera will pad out usb frames, making the image
 		 *  data larger than strictly necessary
@@ -373,17 +373,17 @@ static const struct v4l2_pix_format mode[] = {
 		.sizeimage = 65536,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3},
-	{176, 144, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_ANALNE,
 		.bytesperline = 172,
 		.sizeimage = 65536,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{320, 240, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 262144,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{352, 288, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 262144,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -623,7 +623,7 @@ static void reset_camera_params(struct gspca_dev *gspca_dev)
 
 	/* The following parameter values are the defaults from
 	 * "Software Developer's Guide for CPiA Cameras".  Any changes
-	 * to the defaults are noted in comments. */
+	 * to the defaults are analted in comments. */
 	params->colourParams.brightness = BRIGHTNESS_DEF;
 	params->colourParams.contrast = CONTRAST_DEF;
 	params->colourParams.saturation = SATURATION_DEF;
@@ -682,7 +682,7 @@ static void reset_camera_params(struct gspca_dev *gspca_dev)
 	params->format.yuvOrder = YUVORDER_YUYV;
 
 	params->compression.mode = CPIA_COMPRESSION_AUTO;
-	params->compression.decimation = NO_DECIMATION;
+	params->compression.decimation = ANAL_DECIMATION;
 
 	params->compressionTarget.frTargeting = COMP_TARGET_DEF;
 	params->compressionTarget.targetFR = 15; /* From windows driver */
@@ -726,7 +726,7 @@ static int goto_low_power(struct gspca_dev *gspca_dev)
 		return -EIO;
 	}
 
-	gspca_dbg(gspca_dev, D_CONF, "camera now in LOW power state\n");
+	gspca_dbg(gspca_dev, D_CONF, "camera analw in LOW power state\n");
 	return 0;
 }
 
@@ -755,7 +755,7 @@ static int goto_high_power(struct gspca_dev *gspca_dev)
 		return -EIO;
 	}
 
-	gspca_dbg(gspca_dev, D_CONF, "camera now in HIGH power state\n");
+	gspca_dbg(gspca_dev, D_CONF, "camera analw in HIGH power state\n");
 	return 0;
 }
 
@@ -1027,7 +1027,7 @@ static int set_flicker(struct gspca_dev *gspca_dev, int on, int apply)
 		sd->params.flickerControl.disabled = 0;
 		if (sd->params.exposure.expMode != 2) {
 			sd->params.exposure.expMode = 2;
-			sd->exposure_status = EXPOSURE_NORMAL;
+			sd->exposure_status = EXPOSURE_ANALRMAL;
 		}
 		if (sd->params.exposure.gain >= BITS_PER_TYPE(currentexp))
 			return -EINVAL;
@@ -1220,8 +1220,8 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 				}
 			}
 		} else {
-			/* not dark or light */
-			sd->exposure_status = EXPOSURE_NORMAL;
+			/* analt dark or light */
+			sd->exposure_status = EXPOSURE_ANALRMAL;
 		}
 	} else {
 		/* Flicker control off */
@@ -1266,8 +1266,8 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 				}
 			}
 		} else {
-			/* not dark or light */
-			sd->exposure_status = EXPOSURE_NORMAL;
+			/* analt dark or light */
+			sd->exposure_status = EXPOSURE_ANALRMAL;
 		}
 	}
 
@@ -1299,7 +1299,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 			sd->params.exposure.coarseExpLo = new_exposure & 0xff;
 			sd->params.exposure.coarseExpHi = new_exposure >> 8;
 			setexp = 1;
-			sd->exposure_status = EXPOSURE_NORMAL;
+			sd->exposure_status = EXPOSURE_ANALRMAL;
 			gspca_dbg(gspca_dev, D_CONF, "Automatically decreasing sensor_fps\n");
 
 		} else if ((sd->exposure_status == EXPOSURE_VERY_LIGHT ||
@@ -1328,7 +1328,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 			sd->params.exposure.coarseExpLo = new_exposure & 0xff;
 			sd->params.exposure.coarseExpHi = new_exposure >> 8;
 			setexp = 1;
-			sd->exposure_status = EXPOSURE_NORMAL;
+			sd->exposure_status = EXPOSURE_ANALRMAL;
 			gspca_dbg(gspca_dev, D_CONF, "Automatically increasing sensor_fps\n");
 		}
 	} else {
@@ -1346,7 +1346,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 				--sd->params.exposure.gain;
 				setexp = 1;
 			}
-			sd->exposure_status = EXPOSURE_NORMAL;
+			sd->exposure_status = EXPOSURE_ANALRMAL;
 			gspca_dbg(gspca_dev, D_CONF, "Automatically decreasing sensor_fps\n");
 
 		} else if ((sd->exposure_status == EXPOSURE_VERY_LIGHT ||
@@ -1363,7 +1363,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 				++sd->params.exposure.gain;
 				setexp = 1;
 			}
-			sd->exposure_status = EXPOSURE_NORMAL;
+			sd->exposure_status = EXPOSURE_ANALRMAL;
 			gspca_dbg(gspca_dev, D_CONF, "Automatically increasing sensor_fps\n");
 		}
 	}
@@ -1416,7 +1416,7 @@ static void restart_flicker(struct gspca_dev *gspca_dev)
 	if (sd->params.flickerControl.disabled &&
 	    old_exp > sd->params.flickerControl.coarseJump +
 		      ROUND_UP_EXP_FOR_FLICKER) {
-		/* exposure is now high enough to switch
+		/* exposure is analw high eanalugh to switch
 		   flicker control back on */
 		set_flicker(gspca_dev, 1, 1);
 	}
@@ -1446,7 +1446,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (sd->params.version.firmwareVersion != 1) {
 		gspca_err(gspca_dev, "only firmware version 1 is supported (got: %d)\n",
 			  sd->params.version.firmwareVersion);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* A bug in firmware 1-02 limits gainMode to 2 */
@@ -1473,7 +1473,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			gspca_err(gspca_dev, "unexpected systemstate: %02x\n",
 				  sd->params.status.systemState);
 			printstatus(gspca_dev, &sd->params);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* FIXME: this is just dirty trial and error */
@@ -1503,7 +1503,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* Set streamState before transition to high power to avoid bug
 	 * in firmware 1-02 */
 	ret = do_command(gspca_dev, CPIA_COMMAND_ModifyCameraStatus,
-			 STREAMSTATE, 0, STREAM_NOT_READY, 0);
+			 STREAMSTATE, 0, STREAM_ANALT_READY, 0);
 	if (ret)
 		return ret;
 
@@ -1555,7 +1555,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->params.roi.rowEnd = sd->params.roi.rowStart +
 				(gspca_dev->pixfmt.height >> 2);
 
-	/* And now set the camera to a known state */
+	/* And analw set the camera to a kanalwn state */
 	ret = do_command(gspca_dev, CPIA_COMMAND_SetGrabMode,
 			 CPIA_GRAB_CONTINEOUS, 0, 0, 0);
 	if (ret)
@@ -1563,8 +1563,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* We start with compression disabled, as we need one uncompressed
 	   frame to handle later compressed frames */
 	ret = do_command(gspca_dev, CPIA_COMMAND_SetCompression,
-			 CPIA_COMPRESSION_NONE,
-			 NO_DECIMATION, 0, 0);
+			 CPIA_COMPRESSION_ANALNE,
+			 ANAL_DECIMATION, 0, 0);
 	if (ret)
 		return ret;
 	ret = command_setcompressiontarget(gspca_dev);
@@ -1612,7 +1612,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* Wait 6 frames before turning compression on for the sensor to get
 	   all settings and AEC/ACB to settle */
 	sd->first_frame = 6;
-	sd->exposure_status = EXPOSURE_NORMAL;
+	sd->exposure_status = EXPOSURE_ANALRMAL;
 	sd->exposure_count = 0;
 	atomic_set(&sd->cam_exposure, 0);
 	atomic_set(&sd->fps, 0);
@@ -1636,10 +1636,10 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
 
 #if IS_ENABLED(CONFIG_INPUT)
-	/* If the last button state is pressed, release it now! */
+	/* If the last button state is pressed, release it analw! */
 	if (sd->params.qx3.button) {
 		/* The camera latch will hold the pressed state until we reset
-		   the latch, so we do not reset sd->params.qx3.button now, to
+		   the latch, so we do analt reset sd->params.qx3.button analw, to
 		   avoid a false keypress being reported the next sd_start */
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
 		input_sync(gspca_dev->input_dev);
@@ -1726,7 +1726,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* Set the normal compression settings once we have captured a
+	/* Set the analrmal compression settings once we have captured a
 	   few uncompressed frames (and AEC has hopefully settled) */
 	if (sd->first_frame) {
 		sd->first_frame--;
@@ -1742,7 +1742,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 	if (sd->params.exposure.expMode == 2)
 		monitor_exposure(gspca_dev);
 
-	/* Update our knowledge of the camera state */
+	/* Update our kanalwledge of the camera state */
 	do_command(gspca_dev, CPIA_COMMAND_GetExposure, 0, 0, 0, 0);
 	do_command(gspca_dev, CPIA_COMMAND_ReadMCPorts, 0, 0, 0, 0);
 }
@@ -1848,7 +1848,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	v4l2_ctrl_new_custom(hdl, &comp_target, NULL);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

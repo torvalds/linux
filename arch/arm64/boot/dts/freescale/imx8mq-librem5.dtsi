@@ -104,7 +104,7 @@
 
 	/*
 	 * the pinctrl for reg_csi_1v8 and reg_vcam_1v8 is added to the PMIC
-	 * since we can't have it twice in the 2 different regulator nodes.
+	 * since we can't have it twice in the 2 different regulator analdes.
 	 */
 	reg_csi_1v8: regulator-csi-1v8 {
 		compatible = "regulator-fixed";
@@ -168,7 +168,7 @@
 		vin-supply = <&reg_vdd_1v8>;
 		gpio = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		/* Otherwise i2c3 is not functional */
+		/* Otherwise i2c3 is analt functional */
 		regulator-always-on;
 	};
 
@@ -352,8 +352,8 @@
 	#size-cells = <0>;
 	status = "okay";
 
-	nor_flash: flash@0 {
-		compatible = "jedec,spi-nor";
+	analr_flash: flash@0 {
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 		#address-cells = <1>;
@@ -1271,7 +1271,7 @@
 	assigned-clocks = <&clk IMX8MQ_CLK_SAI6>;
 	assigned-clock-parents = <&clk IMX8MQ_AUDIO_PLL1_OUT>;
 	assigned-clock-rates = <24576000>;
-	fsl,sai-synchronous-rx;
+	fsl,sai-synchroanalus-rx;
 	status = "okay";
 };
 
@@ -1377,7 +1377,7 @@
 	bus-width = <8>;
 	vmmc-supply = <&reg_vdd_3v3>;
 	vqmmc-supply = <&reg_vdd_1v8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

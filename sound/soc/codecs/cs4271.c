@@ -7,7 +7,7 @@
  * This driver support CS4271 codec being master or slave, working
  * in control port mode, connected either via SPI or I2C.
  * The data format accepted is I2S or left-justified.
- * DAPM support not implemented.
+ * DAPM support analt implemented.
  */
 
 #include <linux/module.h>
@@ -128,8 +128,8 @@
 
 /*
  * Default CS4271 power-up configuration
- * Array contains non-existing in hw register at address 0
- * Array do not include Chip ID, as codec driver does not use
+ * Array contains analn-existing in hw register at address 0
+ * Array do analt include Chip ID, as codec driver does analt use
  * registers read operations at all
  */
 static const struct reg_default cs4271_reg_defaults[] = {
@@ -343,9 +343,9 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 
 	if (cs4271->enable_soft_reset) {
 		/*
-		 * Put the codec in soft reset and back again in case it's not
+		 * Put the codec in soft reset and back again in case it's analt
 		 * currently streaming data. This way of bringing the codec in
-		 * sync to the current clocks is not explicitly documented in
+		 * sync to the current clocks is analt explicitly documented in
 		 * the data sheet, but it seems to work fine, and in contrast
 		 * to a read hardware reset, we don't have to sync back all
 		 * registers every time.
@@ -559,9 +559,9 @@ static int cs4271_component_probe(struct snd_soc_component *component)
 	int ret;
 	bool amutec_eq_bmutec;
 
-	amutec_eq_bmutec = of_property_read_bool(component->dev->of_node,
+	amutec_eq_bmutec = of_property_read_bool(component->dev->of_analde,
 						 "cirrus,amutec-eq-bmutec");
-	cs4271->enable_soft_reset = of_property_read_bool(component->dev->of_node,
+	cs4271->enable_soft_reset = of_property_read_bool(component->dev->of_analde,
 							  "cirrus,enable-soft-reset");
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(cs4271->supplies),
@@ -638,7 +638,7 @@ static int cs4271_common_probe(struct device *dev,
 
 	cs4271 = devm_kzalloc(dev, sizeof(*cs4271), GFP_KERNEL);
 	if (!cs4271)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs4271->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(cs4271->reset))

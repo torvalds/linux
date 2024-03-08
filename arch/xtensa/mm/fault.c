@@ -74,7 +74,7 @@ static void vmalloc_fault(struct pt_regs *regs, unsigned int address)
 bad_page_fault:
 	bad_page_fault(regs, address, SIGKILL);
 #else
-	WARN_ONCE(1, "%s in noMMU configuration\n", __func__);
+	WARN_ONCE(1, "%s in analMMU configuration\n", __func__);
 #endif
 }
 /*
@@ -82,7 +82,7 @@ bad_page_fault:
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  *
- * Note: does not handle Miss and MultiHit.
+ * Analte: does analt handle Miss and MultiHit.
  */
 
 void do_page_fault(struct pt_regs *regs)
@@ -107,8 +107,8 @@ void do_page_fault(struct pt_regs *regs)
 		return;
 	}
 
-	/* If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	/* If we're in an interrupt or have anal user
+	 * context, we must analt take the fault..
 	 */
 	if (faulthandler_disabled() || !mm) {
 		bad_page_fault(regs, address, SIGSEGV);
@@ -133,7 +133,7 @@ void do_page_fault(struct pt_regs *regs)
 retry:
 	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (!vma)
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 
 	/* Ok, we have a good vm_area for this memory access, so
 	 * we can handle it..
@@ -181,7 +181,7 @@ retry:
 	if (fault & VM_FAULT_RETRY) {
 		flags |= FAULT_FLAG_TRIED;
 
-		/* No need to mmap_read_unlock(mm) as we would
+		/* Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */
@@ -197,7 +197,7 @@ retry:
 	 */
 bad_area:
 	mmap_read_unlock(mm);
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	if (user_mode(regs)) {
 		force_sig_fault(SIGSEGV, code, (void *) address);
 		return;
@@ -235,7 +235,7 @@ do_sigbus:
 void
 bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 {
-	extern void __noreturn die(const char*, struct pt_regs*, long);
+	extern void __analreturn die(const char*, struct pt_regs*, long);
 	const struct exception_table_entry *entry;
 
 	/* Are we prepared to handle this kernel fault?  */

@@ -50,7 +50,7 @@ usage () {
 	usagehelp 1>&2
 }
 
-# checkarg --argname argtype $# arg mustmatch cannotmatch
+# checkarg --argname argtype $# arg mustmatch cananaltmatch
 checkarg () {
 	if test $3 -le 1
 	then
@@ -66,7 +66,7 @@ checkarg () {
 	fi
 	if echo "$4" | grep -q -e "$6"
 	then
-		echo $1 $2 \"$4\" must not match \"$6\"
+		echo $1 $2 \"$4\" must analt match \"$6\"
 		usage
 	fi
 }
@@ -80,7 +80,7 @@ do
 		mkdir $LKMM_DESTDIR > /dev/null 2>&1
 		if ! test -e "$LKMM_DESTDIR"
 		then
-			echo "Cannot create directory --destdir '$LKMM_DESTDIR'"
+			echo "Cananalt create directory --destdir '$LKMM_DESTDIR'"
 			usage
 		fi
 		if test -d "$LKMM_DESTDIR" -a -x "$LKMM_DESTDIR"
@@ -132,7 +132,7 @@ do
 		break
 		;;
 	*)
-		echo Unknown argument $1
+		echo Unkanalwn argument $1
 		usage
 		;;
 	esac

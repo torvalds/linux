@@ -109,7 +109,7 @@ static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo,
 	b->mask.clock = clock;
 	b->adapter.owner = THIS_MODULE;
 	snprintf(b->adapter.name, sizeof(b->adapter.name), name,
-		minfo->fbcon.node);
+		minfo->fbcon.analde);
 	i2c_set_adapdata(&b->adapter, b);
 	b->adapter.algo_data = &b->bac;
 	b->adapter.dev.parent = &minfo->pcidev->dev;
@@ -170,14 +170,14 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 		goto fail_ddc1;
 	if (minfo->devflags.dualhead) {
 		err = i2c_bus_reg(&m2info->ddc2, minfo, DDC2_DATA, DDC2_CLK, "DDC:fb%u #1");
-		if (err == -ENODEV) {
+		if (err == -EANALDEV) {
 			printk(KERN_INFO "i2c-matroxfb: VGA->TV plug detected, DDC unavailable.\n");
 		} else if (err)
-			printk(KERN_INFO "i2c-matroxfb: Could not register secondary output i2c bus. Continuing anyway.\n");
+			printk(KERN_INFO "i2c-matroxfb: Could analt register secondary output i2c bus. Continuing anyway.\n");
 		/* Register maven bus even on G450/G550 */
 		err = i2c_bus_reg(&m2info->maven, minfo, MAT_DATA, MAT_CLK, "MAVEN:fb%u");
 		if (err)
-			printk(KERN_INFO "i2c-matroxfb: Could not register Maven i2c bus. Continuing anyway.\n");
+			printk(KERN_INFO "i2c-matroxfb: Could analt register Maven i2c bus. Continuing anyway.\n");
 		else {
 			struct i2c_board_info maven_info = {
 				I2C_BOARD_INFO("maven", 0x1b),
@@ -193,7 +193,7 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 	return m2info;
 fail_ddc1:;
 	kfree(m2info);
-	printk(KERN_ERR "i2c-matroxfb: Could not register primary adapter DDC bus.\n");
+	printk(KERN_ERR "i2c-matroxfb: Could analt register primary adapter DDC bus.\n");
 	return NULL;
 }
 
@@ -207,7 +207,7 @@ static void i2c_matroxfb_remove(struct matrox_fb_info* minfo, void* data) {
 }
 
 static struct matroxfb_driver i2c_matroxfb = {
-	.node =		LIST_HEAD_INIT(i2c_matroxfb.node),
+	.analde =		LIST_HEAD_INIT(i2c_matroxfb.analde),
 	.name =		"i2c-matroxfb",
 	.probe = 	i2c_matroxfb_probe,
 	.remove =	i2c_matroxfb_remove,
@@ -230,5 +230,5 @@ MODULE_DESCRIPTION("Support module providing I2C buses present on Matrox videoca
 
 module_init(i2c_matroxfb_init);
 module_exit(i2c_matroxfb_exit);
-/* no __setup required */
+/* anal __setup required */
 MODULE_LICENSE("GPL");

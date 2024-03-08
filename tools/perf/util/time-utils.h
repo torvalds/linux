@@ -44,7 +44,7 @@ static inline unsigned long long rdclock(void)
 {
 	struct timespec ts;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MOANALTONIC, &ts);
 	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
 

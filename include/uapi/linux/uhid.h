@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef __UHID_H_
 #define __UHID_H_
 
@@ -113,7 +113,7 @@ struct uhid_set_report_reply_req {
 /*
  * Compat Layer
  * All these commands and requests are obsolete. You should avoid using them in
- * new code. We support them for backwards-compatibility, but you might not get
+ * new code. We support them for backwards-compatibility, but you might analt get
  * access to new feature in case you use them.
  */
 
@@ -146,7 +146,7 @@ struct uhid_input_req {
 	__u16 size;
 } __attribute__((__packed__));
 
-/* Obsolete! Kernel uses UHID_OUTPUT exclusively now. */
+/* Obsolete! Kernel uses UHID_OUTPUT exclusively analw. */
 struct uhid_output_ev_req {
 	__u16 type;
 	__u16 code;

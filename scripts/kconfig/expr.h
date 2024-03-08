@@ -21,15 +21,15 @@ struct file {
 	struct file *next;
 	struct file *parent;
 	const char *name;
-	int lineno;
+	int lineanal;
 };
 
 typedef enum tristate {
-	no, mod, yes
+	anal, mod, anal
 } tristate;
 
 enum expr_type {
-	E_NONE, E_OR, E_AND, E_NOT,
+	E_ANALNE, E_OR, E_AND, E_ANALT,
 	E_EQUAL, E_UNEQUAL, E_LTH, E_LEQ, E_GTH, E_GEQ,
 	E_LIST, E_SYMBOL, E_RANGE
 };
@@ -46,7 +46,7 @@ struct expr {
 
 #define EXPR_OR(dep1, dep2)	(((dep1)>(dep2))?(dep1):(dep2))
 #define EXPR_AND(dep1, dep2)	(((dep1)<(dep2))?(dep1):(dep2))
-#define EXPR_NOT(dep)		(2-(dep))
+#define EXPR_ANALT(dep)		(2-(dep))
 
 #define expr_list_for_each_sym(l, e, s) \
 	for (e = (l); e && (s = e->right.sym); e = e->left.expr)
@@ -62,7 +62,7 @@ struct symbol_value {
 };
 
 enum symbol_type {
-	S_UNKNOWN, S_BOOLEAN, S_TRISTATE, S_INT, S_HEX, S_STRING
+	S_UNKANALWN, S_BOOLEAN, S_TRISTATE, S_INT, S_HEX, S_STRING
 };
 
 /* enum values are used as index to symbol.def[] */
@@ -92,7 +92,7 @@ struct symbol {
 
 	/*
 	 * The calculated value of the symbol. The SYMBOL_VALID bit is set in
-	 * 'flags' when this is up to date. Note that this value might differ
+	 * 'flags' when this is up to date. Analte that this value might differ
 	 * from the user value set in e.g. a .config file, due to visibility.
 	 */
 	struct symbol_value curr;
@@ -107,7 +107,7 @@ struct symbol {
 	 * An upper bound on the tristate value the user can set for the symbol
 	 * if it is a boolean or tristate. Calculated from prompt dependencies,
 	 * which also inherit dependencies from enclosing menus, choices, and
-	 * ifs. If 'n', the user value will be ignored.
+	 * ifs. If 'n', the user value will be iganalred.
 	 *
 	 * Symbols lacking prompts always have visibility 'n'.
 	 */
@@ -142,7 +142,7 @@ struct symbol {
 #define SYMBOL_WRITE      0x0200  /* write symbol to file (KCONFIG_CONFIG) */
 #define SYMBOL_CHANGED    0x0400  /* ? */
 #define SYMBOL_WRITTEN    0x0800  /* track info to avoid double-write to .config */
-#define SYMBOL_NO_WRITE   0x1000  /* Symbol for internal use only; it will not be written */
+#define SYMBOL_ANAL_WRITE   0x1000  /* Symbol for internal use only; it will analt be written */
 #define SYMBOL_CHECKED    0x2000  /* used during dependency checking */
 #define SYMBOL_WARNED     0x8000  /* warning has been issued */
 
@@ -174,7 +174,7 @@ struct symbol {
  * list of property types!
  */
 enum prop_type {
-	P_UNKNOWN,
+	P_UNKANALWN,
 	P_PROMPT,   /* prompt "foo prompt" or "BAZ Value" */
 	P_COMMENT,  /* text associated with a comment */
 	P_MENU,     /* prompt associated with a menu or menuconfig symbol */
@@ -196,7 +196,7 @@ struct property {
 	                            * valid for: P_SELECT, P_RANGE, P_CHOICE,
 	                            * P_PROMPT, P_DEFAULT, P_MENU, P_COMMENT */
 	struct file *file;         /* what file was this property defined */
-	int lineno;                /* what lineno was this property defined */
+	int lineanal;                /* what lineanal was this property defined */
 };
 
 #define for_all_properties(sym, st, tok) \
@@ -209,29 +209,29 @@ struct property {
 		if (st->text)
 
 /*
- * Represents a node in the menu tree, as seen in e.g. menuconfig (though used
+ * Represents a analde in the menu tree, as seen in e.g. menuconfig (though used
  * for all front ends). Each symbol, menu, etc. defined in the Kconfig files
- * gets a node. A symbol defined in multiple locations gets one node at each
+ * gets a analde. A symbol defined in multiple locations gets one analde at each
  * location.
  */
 struct menu {
-	/* The next menu node at the same level */
+	/* The next menu analde at the same level */
 	struct menu *next;
 
-	/* The parent menu node, corresponding to e.g. a menu or choice */
+	/* The parent menu analde, corresponding to e.g. a menu or choice */
 	struct menu *parent;
 
-	/* The first child menu node, for e.g. menus and choices */
+	/* The first child menu analde, for e.g. menus and choices */
 	struct menu *list;
 
 	/*
-	 * The symbol associated with the menu node. Choices are implemented as
+	 * The symbol associated with the menu analde. Choices are implemented as
 	 * a special kind of symbol. NULL for menus, comments, and ifs.
 	 */
 	struct symbol *sym;
 
 	/*
-	 * The prompt associated with the node. This holds the prompt for a
+	 * The prompt associated with the analde. This holds the prompt for a
 	 * symbol as well as the text for a menu or comment, along with the
 	 * type (P_PROMPT, P_MENU, etc.)
 	 */
@@ -252,19 +252,19 @@ struct menu {
 	/* MENU_* flags */
 	unsigned int flags;
 
-	/* Any help text associated with the node */
+	/* Any help text associated with the analde */
 	char *help;
 
-	/* The location where the menu node appears in the Kconfig files */
+	/* The location where the menu analde appears in the Kconfig files */
 	struct file *file;
-	int lineno;
+	int lineanal;
 
 	/* For use by front ends that need to store auxiliary data */
 	void *data;
 };
 
 /*
- * Set on a menu node when the corresponding symbol changes state in some way.
+ * Set on a menu analde when the corresponding symbol changes state in some way.
  * Can be checked by front ends.
  */
 #define MENU_CHANGED		0x0001
@@ -281,7 +281,7 @@ extern struct file *file_list;
 extern struct file *current_file;
 struct file *lookup_file(const char *name);
 
-extern struct symbol symbol_yes, symbol_no, symbol_mod;
+extern struct symbol symbol_anal, symbol_anal, symbol_mod;
 extern struct symbol *modules_sym;
 extern int cdebug;
 struct expr *expr_alloc_symbol(struct symbol *sym);
@@ -308,14 +308,14 @@ void expr_gstr_print(struct expr *e, struct gstr *gs);
 void expr_gstr_print_revdep(struct expr *e, struct gstr *gs,
 			    tristate pr_type, const char *title);
 
-static inline int expr_is_yes(struct expr *e)
+static inline int expr_is_anal(struct expr *e)
 {
-	return !e || (e->type == E_SYMBOL && e->left.sym == &symbol_yes);
+	return !e || (e->type == E_SYMBOL && e->left.sym == &symbol_anal);
 }
 
-static inline int expr_is_no(struct expr *e)
+static inline int expr_is_anal(struct expr *e)
 {
-	return e && (e->type == E_SYMBOL && e->left.sym == &symbol_no);
+	return e && (e->type == E_SYMBOL && e->left.sym == &symbol_anal);
 }
 
 #ifdef __cplusplus

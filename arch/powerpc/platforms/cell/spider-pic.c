@@ -52,7 +52,7 @@ enum {
 struct spider_pic {
 	struct irq_domain		*host;
 	void __iomem		*regs;
-	unsigned int		node_id;
+	unsigned int		analde_id;
 };
 static struct spider_pic spider_pics[SPIDER_CHIP_COUNT];
 
@@ -110,8 +110,8 @@ static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 	u32 old_mask;
 	u32 ic;
 
-	/* Note that only level high is supported for most interrupts */
-	if (sense != IRQ_TYPE_NONE && sense != IRQ_TYPE_LEVEL_HIGH &&
+	/* Analte that only level high is supported for most interrupts */
+	if (sense != IRQ_TYPE_ANALNE && sense != IRQ_TYPE_LEVEL_HIGH &&
 	    (hw < 47 || hw > 50))
 		return -EINVAL;
 
@@ -127,7 +127,7 @@ static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 		ic = 0x0;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		ic = 0x1;
 		break;
 	default:
@@ -136,13 +136,13 @@ static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 
 	/* Configure the source. One gross hack that was there before and
 	 * that I've kept around is the priority to the BE which I set to
-	 * be the same as the interrupt source number. I don't know whether
+	 * be the same as the interrupt source number. I don't kanalw whether
 	 * that's supposed to make any kind of sense however, we'll have to
-	 * decide that, but for now, I'm not changing the behaviour.
+	 * decide that, but for analw, I'm analt changing the behaviour.
 	 */
 	old_mask = in_be32(cfg) & 0x30000000u;
 	out_be32(cfg, old_mask | (ic << 24) | (0x7 << 16) |
-		 (pic->node_id << 4) | 0xe);
+		 (pic->analde_id << 4) | 0xe);
 	out_be32(cfg + 4, (0x2 << 16) | (hw & 0xff));
 
 	return 0;
@@ -163,19 +163,19 @@ static int spider_host_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_and_handler(virq, &spider_pic, handle_level_irq);
 
 	/* Set default irq type */
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_ANALNE);
 
 	return 0;
 }
 
-static int spider_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int spider_host_xlate(struct irq_domain *h, struct device_analde *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
 {
 	/* Spider interrupts have 2 cells, first is the interrupt source,
-	 * second, well, I don't know for sure yet ... We mask the top bits
-	 * because old device-trees encode a node number in there
+	 * second, well, I don't kanalw for sure yet ... We mask the top bits
+	 * because old device-trees encode a analde number in there
 	 */
 	*out_hwirq = intspec[0] & 0x3f;
 	*out_flags = IRQ_TYPE_LEVEL_HIGH;
@@ -201,67 +201,67 @@ static void spider_irq_cascade(struct irq_desc *desc)
 }
 
 /* For hooking up the cascade we have a problem. Our device-tree is
- * crap and we don't know on which BE iic interrupt we are hooked on at
- * least not the "standard" way. We can reconstitute it based on two
- * informations though: which BE node we are connected to and whether
- * we are connected to IOIF0 or IOIF1. Right now, we really only care
- * about the IBM cell blade and we know that its firmware gives us an
+ * crap and we don't kanalw on which BE iic interrupt we are hooked on at
+ * least analt the "standard" way. We can reconstitute it based on two
+ * informations though: which BE analde we are connected to and whether
+ * we are connected to IOIF0 or IOIF1. Right analw, we really only care
+ * about the IBM cell blade and we kanalw that its firmware gives us an
  * interrupt-map property which is pretty strange.
  */
-static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
+static unsigned int __init spider_find_cascade_and_analde(struct spider_pic *pic)
 {
 	unsigned int virq;
 	const u32 *imap, *tmp;
 	int imaplen, intsize, unit;
-	struct device_node *iic;
-	struct device_node *of_node;
+	struct device_analde *iic;
+	struct device_analde *of_analde;
 
-	of_node = irq_domain_get_of_node(pic->host);
+	of_analde = irq_domain_get_of_analde(pic->host);
 
 	/* First, we check whether we have a real "interrupts" in the device
 	 * tree in case the device-tree is ever fixed
 	 */
-	virq = irq_of_parse_and_map(of_node, 0);
+	virq = irq_of_parse_and_map(of_analde, 0);
 	if (virq)
 		return virq;
 
-	/* Now do the horrible hacks */
-	tmp = of_get_property(of_node, "#interrupt-cells", NULL);
+	/* Analw do the horrible hacks */
+	tmp = of_get_property(of_analde, "#interrupt-cells", NULL);
 	if (tmp == NULL)
 		return 0;
 	intsize = *tmp;
-	imap = of_get_property(of_node, "interrupt-map", &imaplen);
+	imap = of_get_property(of_analde, "interrupt-map", &imaplen);
 	if (imap == NULL || imaplen < (intsize + 1))
 		return 0;
-	iic = of_find_node_by_phandle(imap[intsize]);
+	iic = of_find_analde_by_phandle(imap[intsize]);
 	if (iic == NULL)
 		return 0;
 	imap += intsize + 1;
 	tmp = of_get_property(iic, "#interrupt-cells", NULL);
 	if (tmp == NULL) {
-		of_node_put(iic);
+		of_analde_put(iic);
 		return 0;
 	}
 	intsize = *tmp;
 	/* Assume unit is last entry of interrupt specifier */
 	unit = imap[intsize - 1];
-	/* Ok, we have a unit, now let's try to get the node */
+	/* Ok, we have a unit, analw let's try to get the analde */
 	tmp = of_get_property(iic, "ibm,interrupt-server-ranges", NULL);
 	if (tmp == NULL) {
-		of_node_put(iic);
+		of_analde_put(iic);
 		return 0;
 	}
-	/* ugly as hell but works for now */
-	pic->node_id = (*tmp) >> 1;
-	of_node_put(iic);
+	/* ugly as hell but works for analw */
+	pic->analde_id = (*tmp) >> 1;
+	of_analde_put(iic);
 
-	/* Ok, now let's get cracking. You may ask me why I just didn't match
-	 * the iic host from the iic OF node, but that way I'm still compatible
-	 * with really really old old firmwares for which we don't have a node
+	/* Ok, analw let's get cracking. You may ask me why I just didn't match
+	 * the iic host from the iic OF analde, but that way I'm still compatible
+	 * with really really old old firmwares for which we don't have a analde
 	 */
 	/* Manufacture an IIC interrupt number of class 2 */
 	virq = irq_create_mapping(NULL,
-				  (pic->node_id << IIC_IRQ_NODE_SHIFT) |
+				  (pic->analde_id << IIC_IRQ_ANALDE_SHIFT) |
 				  (2 << IIC_IRQ_CLASS_SHIFT) |
 				  unit);
 	if (!virq)
@@ -270,7 +270,7 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 }
 
 
-static void __init spider_init_one(struct device_node *of_node, int chip,
+static void __init spider_init_one(struct device_analde *of_analde, int chip,
 				   unsigned long addr)
 {
 	struct spider_pic *pic = &spider_pics[chip];
@@ -282,7 +282,7 @@ static void __init spider_init_one(struct device_node *of_node, int chip,
 		panic("spider_pic: can't map registers !");
 
 	/* Allocate a host */
-	pic->host = irq_domain_add_linear(of_node, SPIDER_SRC_COUNT,
+	pic->host = irq_domain_add_linear(of_analde, SPIDER_SRC_COUNT,
 					  &spider_host_ops, pic);
 	if (pic->host == NULL)
 		panic("spider_pic: can't allocate irq host !");
@@ -293,21 +293,21 @@ static void __init spider_init_one(struct device_node *of_node, int chip,
 		out_be32(cfg, in_be32(cfg) & ~0x30000000u);
 	}
 
-	/* do not mask any interrupts because of level */
+	/* do analt mask any interrupts because of level */
 	out_be32(pic->regs + TIR_MSK, 0x0);
 
 	/* enable interrupt packets to be output */
 	out_be32(pic->regs + TIR_PIEN, in_be32(pic->regs + TIR_PIEN) | 0x1);
 
-	/* Hook up the cascade interrupt to the iic and nodeid */
-	virq = spider_find_cascade_and_node(pic);
+	/* Hook up the cascade interrupt to the iic and analdeid */
+	virq = spider_find_cascade_and_analde(pic);
 	if (!virq)
 		return;
 	irq_set_handler_data(virq, pic);
 	irq_set_chained_handler(virq, spider_irq_cascade);
 
-	printk(KERN_INFO "spider_pic: node %d, addr: 0x%lx %pOF\n",
-	       pic->node_id, addr, of_node);
+	printk(KERN_INFO "spider_pic: analde %d, addr: 0x%lx %pOF\n",
+	       pic->analde_id, addr, of_analde);
 
 	/* Enable the interrupt detection enable bit. Do this last! */
 	out_be32(pic->regs + TIR_DEN, in_be32(pic->regs + TIR_DEN) | 0x1);
@@ -316,17 +316,17 @@ static void __init spider_init_one(struct device_node *of_node, int chip,
 void __init spider_init_IRQ(void)
 {
 	struct resource r;
-	struct device_node *dn;
+	struct device_analde *dn;
 	int chip = 0;
 
-	/* XXX node numbers are totally bogus. We _hope_ we get the device
-	 * nodes in the right order here but that's definitely not guaranteed,
-	 * we need to get the node from the device tree instead.
-	 * There is currently no proper property for it (but our whole
+	/* XXX analde numbers are totally bogus. We _hope_ we get the device
+	 * analdes in the right order here but that's definitely analt guaranteed,
+	 * we need to get the analde from the device tree instead.
+	 * There is currently anal proper property for it (but our whole
 	 * device-tree is bogus anyway) so all we can do is pray or maybe test
-	 * the address and deduce the node-id
+	 * the address and deduce the analde-id
 	 */
-	for_each_node_by_name(dn, "interrupt-controller") {
+	for_each_analde_by_name(dn, "interrupt-controller") {
 		if (of_device_is_compatible(dn, "CBEA,platform-spider-pic")) {
 			if (of_address_to_resource(dn, 0, &r)) {
 				printk(KERN_WARNING "spider-pic: Failed\n");

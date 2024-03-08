@@ -25,7 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
@@ -412,7 +412,7 @@ static const struct regval ov8858_global_regs_r2a_2lane[] = {
 	{0x030e, 0x02}, /* pll2_rdiv */
 	{0x030f, 0x04}, /* pll2_divsp */
 	{0x0312, 0x03}, /* pll2_pre_div0, pll2_r_divdac */
-	{0x031e, 0x0c}, /* pll1_no_lat */
+	{0x031e, 0x0c}, /* pll1_anal_lat */
 	{0x3600, 0x00},
 	{0x3601, 0x00},
 	{0x3602, 0x00},
@@ -455,7 +455,7 @@ static const struct regval ov8858_global_regs_r2a_2lane[] = {
 	{0x364a, 0x07},
 	{0x3015, 0x00},
 	{0x3018, 0x32}, /* MIPI 2 lane */
-	{0x3020, 0x93}, /* Clock switch output normal, pclk_div =/1 */
+	{0x3020, 0x93}, /* Clock switch output analrmal, pclk_div =/1 */
 	{0x3022, 0x01}, /* pd_mipi enable when rst_sync */
 	{0x3031, 0x0a}, /* MIPI 10-bit mode */
 	{0x3034, 0x00},
@@ -817,7 +817,7 @@ static const struct regval ov8858_global_regs_r2a_4lane[] = {
 	{0x030e, 0x00}, /* pll2_rdiv */
 	{0x030f, 0x04}, /* pll2_divsp */
 	{0x0312, 0x01}, /* pll2_pre_div0, pll2_r_divdac */
-	{0x031e, 0x0c}, /* pll1_no_lat */
+	{0x031e, 0x0c}, /* pll1_anal_lat */
 	{0x3600, 0x00},
 	{0x3601, 0x00},
 	{0x3602, 0x00},
@@ -860,7 +860,7 @@ static const struct regval ov8858_global_regs_r2a_4lane[] = {
 	{0x364a, 0x07},
 	{0x3015, 0x01},
 	{0x3018, 0x72}, /* MIPI 4 lane */
-	{0x3020, 0x93}, /* Clock switch output normal, pclk_div =/1 */
+	{0x3020, 0x93}, /* Clock switch output analrmal, pclk_div =/1 */
 	{0x3022, 0x01}, /* pd_mipi enable when rst_sync */
 	{0x3031, 0x0a}, /* MIPI 10-bit mode */
 	{0x3034, 0x00},
@@ -1425,7 +1425,7 @@ static int ov8858_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 
 	/* Store the format in the current subdev state. */
 	*v4l2_subdev_state_get_format(state, 0) =  fmt->format;
@@ -1704,7 +1704,7 @@ static int ov8858_init_ctrls(struct ov8858 *ov8858)
 	struct i2c_client *client = v4l2_get_subdevdata(&ov8858->subdev);
 	struct v4l2_ctrl_handler *handler = &ov8858->ctrl_handler;
 	const struct ov8858_mode *mode = &ov8858_modes[0];
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	s64 exposure_max, vblank_def;
 	unsigned int pixel_rate;
 	struct v4l2_ctrl *ctrl;
@@ -1763,11 +1763,11 @@ static int ov8858_init_ctrls(struct ov8858 *ov8858)
 		goto err_free_handler;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto err_free_handler;
 
-	ret = v4l2_ctrl_new_fwnode_properties(handler, &ov8858_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(handler, &ov8858_ctrl_ops,
 					      &props);
 	if (ret)
 		goto err_free_handler;
@@ -1795,7 +1795,7 @@ static int ov8858_check_sensor_id(struct ov8858 *ov8858)
 
 	if (id != OV8858_CHIP_ID) {
 		dev_err(&client->dev, "Unexpected sensor id 0x%x\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = ov8858_read(ov8858, OV8858_REG_SUB_ID, &id);
@@ -1815,7 +1815,7 @@ static int ov8858_check_sensor_id(struct ov8858 *ov8858)
 		 * supported.
 		 */
 		ov8858->global_regs = ov8858_global_regs_r1a;
-		dev_warn(&client->dev, "R1A may not work well!\n");
+		dev_warn(&client->dev, "R1A may analt work well!\n");
 	} else {
 		dev_err(&client->dev,
 			"Unsupported number of data lanes for R1A revision.\n");
@@ -1840,20 +1840,20 @@ static int ov8858_configure_regulators(struct ov8858 *ov8858)
 
 static int ov8858_parse_of(struct ov8858 *ov8858)
 {
-	struct v4l2_fwnode_endpoint vep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
+	struct v4l2_fwanalde_endpoint vep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	struct i2c_client *client = v4l2_get_subdevdata(&ov8858->subdev);
 	struct device *dev = &client->dev;
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 	int ret;
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(dev_fwanalde(dev), NULL);
 	if (!endpoint) {
 		dev_err(dev, "Failed to get endpoint\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(endpoint, &vep);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_parse(endpoint, &vep);
+	fwanalde_handle_put(endpoint);
 	if (ret) {
 		dev_err(dev, "Failed to parse endpoint: %d\n", ret);
 		return ret;
@@ -1882,7 +1882,7 @@ static int ov8858_probe(struct i2c_client *client)
 
 	ov8858 = devm_kzalloc(dev, sizeof(*ov8858), GFP_KERNEL);
 	if (!ov8858)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov8858->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(ov8858->xvclk))
@@ -1917,7 +1917,7 @@ static int ov8858_probe(struct i2c_client *client)
 		return ret;
 
 	sd = &ov8858->subdev;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	ov8858->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sd->entity, 1, &ov8858->pad);
@@ -1936,7 +1936,7 @@ static int ov8858_probe(struct i2c_client *client)
 		goto err_clean_entity;
 
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 
 	ret = ov8858_check_sensor_id(ov8858);
@@ -1959,7 +1959,7 @@ static int ov8858_probe(struct i2c_client *client)
 
 err_power_off:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	ov8858_power_off(ov8858);
 err_clean_entity:
 	media_entity_cleanup(&sd->entity);

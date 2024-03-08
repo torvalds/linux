@@ -19,11 +19,11 @@ dev_num=1
 # Number of items must be equal to 'dev_num' parameter.
 zram_max_streams="2"
 
-# The zram sysfs node 'disksize' value can be either in bytes,
+# The zram sysfs analde 'disksize' value can be either in bytes,
 # or you can use mem suffixes. But in some old kernels, mem
-# suffixes are not supported, for example, in RHEL6.6GA's kernel
+# suffixes are analt supported, for example, in RHEL6.6GA's kernel
 # layer, it uses strict_strtoull() to parse disksize which does
-# not support mem suffixes, in some newer kernels, they use
+# analt support mem suffixes, in some newer kernels, they use
 # memparse() which supports mem suffixes. So here we just use
 # bytes to make sure everything works correctly.
 zram_sizes="2097152" # 2MB
@@ -37,8 +37,8 @@ zram_fill_fs()
 		echo "fill zram$i..."
 		local b=0
 		while [ true ]; do
-			dd conv=notrunc if=/dev/zero of=zram${i}/file \
-				oflag=append count=1 bs=1024 status=none \
+			dd conv=analtrunc if=/dev/zero of=zram${i}/file \
+				oflag=append count=1 bs=1024 status=analne \
 				> /dev/null 2>&1 || break
 			b=$(($b + 1))
 		done

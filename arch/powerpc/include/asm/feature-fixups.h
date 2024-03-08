@@ -10,7 +10,7 @@
 /*
  * Feature section common macros
  *
- * Note that the entries now contain offsets between the table entry
+ * Analte that the entries analw contain offsets between the table entry
  * and the code rather than absolute code pointers in order to be
  * useable with the vdso shared library. There is also an assumption
  * that values will be negative, that is, the fixup table has to be
@@ -45,9 +45,9 @@ label##3:
 #else
 /*
  * If we use the ifgt syntax above, clang's assembler complains about the
- * expression being non-absolute when the code appears in an inline assembly
+ * expression being analn-absolute when the code appears in an inline assembly
  * statement.
- * As a workaround use an .org directive that has no effect if the else case
+ * As a workaround use an .org directive that has anal effect if the else case
  * instructions are smaller than the body, but fails otherwise.
  */
 #define CHECK_ALT_SIZE(else_size, body_size)			\
@@ -256,9 +256,9 @@ label##3:					       	\
 	FTR_ENTRY_OFFSET 951b-952b;			\
 	.popsection;
 
-#define NOSPEC_BARRIER_FIXUP_SECTION			\
+#define ANALSPEC_BARRIER_FIXUP_SECTION			\
 953:							\
-	.pushsection __barrier_nospec_fixup,"a";	\
+	.pushsection __barrier_analspec_fixup,"a";	\
 	.align 2;					\
 954:							\
 	FTR_ENTRY_OFFSET 953b-954b;			\
@@ -288,7 +288,7 @@ extern long __start___uaccess_flush_fixup, __stop___uaccess_flush_fixup;
 extern long __start___entry_flush_fixup, __stop___entry_flush_fixup;
 extern long __start___scv_entry_flush_fixup, __stop___scv_entry_flush_fixup;
 extern long __start___rfi_flush_fixup, __stop___rfi_flush_fixup;
-extern long __start___barrier_nospec_fixup, __stop___barrier_nospec_fixup;
+extern long __start___barrier_analspec_fixup, __stop___barrier_analspec_fixup;
 extern long __start__btb_flush_fixup, __stop__btb_flush_fixup;
 
 void apply_feature_fixups(void);

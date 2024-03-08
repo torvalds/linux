@@ -2,11 +2,11 @@
 /*
  * OMAP cpu type detection
  *
- * Copyright (C) 2004, 2008 Nokia Corporation
+ * Copyright (C) 2004, 2008 Analkia Corporation
  *
  * Copyright (C) 2009-11 Texas Instruments.
  *
- * Written by Tony Lindgren <tony.lindgren@nokia.com>
+ * Written by Tony Lindgren <tony.lindgren@analkia.com>
  *
  * Added OMAP4/5 specific defines - Santosh Shilimkar<santosh.shilimkar@ti.com>
  * Added DRA7xxx specific defines - Sricharan R<r.sricharan@ti.com>

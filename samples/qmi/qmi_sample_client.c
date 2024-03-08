@@ -47,7 +47,7 @@ static const struct qmi_elem_info test_name_type_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 		.offset		= offsetof(struct test_name_type_v01,
 					   name_len),
@@ -85,7 +85,7 @@ static const struct qmi_elem_info test_ping_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= PING_OPT1_TLV_TYPE,
 		.offset		= offsetof(struct test_ping_req_msg_v01,
 					   client_name_valid),
@@ -94,7 +94,7 @@ static const struct qmi_elem_info test_ping_req_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct test_name_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= PING_OPT1_TLV_TYPE,
 		.offset		= offsetof(struct test_ping_req_msg_v01,
 					   client_name),
@@ -118,7 +118,7 @@ static const struct qmi_elem_info test_ping_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= PING_RESP1_TLV_TYPE,
 		.offset		= offsetof(struct test_ping_resp_msg_v01,
 					   resp),
@@ -128,7 +128,7 @@ static const struct qmi_elem_info test_ping_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= PING_OPT1_TLV_TYPE,
 		.offset		= offsetof(struct test_ping_resp_msg_v01,
 					   pong_valid),
@@ -146,7 +146,7 @@ static const struct qmi_elem_info test_ping_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= PING_OPT2_TLV_TYPE,
 		.offset		= offsetof(struct test_ping_resp_msg_v01,
 					   service_name_valid),
@@ -155,7 +155,7 @@ static const struct qmi_elem_info test_ping_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct test_name_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= PING_OPT2_TLV_TYPE,
 		.offset		= offsetof(struct test_ping_resp_msg_v01,
 					   service_name),
@@ -177,7 +177,7 @@ static const struct qmi_elem_info test_data_req_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= DATA_REQ1_TLV_TYPE,
 		.offset		= offsetof(struct test_data_req_msg_v01,
 					   data_len),
@@ -195,7 +195,7 @@ static const struct qmi_elem_info test_data_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= DATA_OPT1_TLV_TYPE,
 		.offset		= offsetof(struct test_data_req_msg_v01,
 					   client_name_valid),
@@ -204,7 +204,7 @@ static const struct qmi_elem_info test_data_req_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct test_name_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= DATA_OPT1_TLV_TYPE,
 		.offset		= offsetof(struct test_data_req_msg_v01,
 					   client_name),
@@ -229,7 +229,7 @@ static const struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= DATA_RESP1_TLV_TYPE,
 		.offset		= offsetof(struct test_data_resp_msg_v01,
 					   resp),
@@ -239,7 +239,7 @@ static const struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= DATA_OPT1_TLV_TYPE,
 		.offset		= offsetof(struct test_data_resp_msg_v01,
 					   data_valid),
@@ -248,7 +248,7 @@ static const struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= DATA_OPT1_TLV_TYPE,
 		.offset		= offsetof(struct test_data_resp_msg_v01,
 					   data_len),
@@ -266,7 +266,7 @@ static const struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= DATA_OPT2_TLV_TYPE,
 		.offset		= offsetof(struct test_data_resp_msg_v01,
 					   service_name_valid),
@@ -275,7 +275,7 @@ static const struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct test_name_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= DATA_OPT2_TLV_TYPE,
 		.offset		= offsetof(struct test_data_resp_msg_v01,
 					   service_name),
@@ -287,7 +287,7 @@ static const struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 /*
  * ping_write() - ping_pong debugfs file write handler
  * @file:	debugfs file context
- * @user_buf:	reference to the user data (ignored)
+ * @user_buf:	reference to the user data (iganalred)
  * @count:	number of bytes in @user_buf
  * @ppos:	offset in @file to write
  *
@@ -296,7 +296,7 @@ static const struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
  * transaction. It serves as an example of how to provide a custom response
  * handler.
  *
- * Return: @count, or negative errno on failure.
+ * Return: @count, or negative erranal on failure.
  */
 static ssize_t ping_write(struct file *file, const char __user *user_buf,
 			  size_t count, loff_t *ppos)
@@ -363,7 +363,7 @@ static void ping_pong_cb(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
  * transaction. It serves as an example of how to have the QMI helpers decode a
  * transaction response into a provided object automatically.
  *
- * Return: @count, or negative errno on failure.
+ * Return: @count, or negative erranal on failure.
  */
 static ssize_t data_write(struct file *file, const char __user *user_buf,
 			  size_t count, loff_t *ppos)
@@ -377,12 +377,12 @@ static ssize_t data_write(struct file *file, const char __user *user_buf,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
 	if (!resp) {
 		kfree(req);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->data_len = min_t(size_t, sizeof(req->data), count);
@@ -459,7 +459,7 @@ static int qmi_sample_probe(struct platform_device *pdev)
 
 	sample = devm_kzalloc(&pdev->dev, sizeof(*sample), GFP_KERNEL);
 	if (!sample)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qmi_handle_init(&sample->qmi, TEST_DATA_REQ_MAX_MSG_LEN_V01,
 			      NULL,
@@ -475,7 +475,7 @@ static int qmi_sample_probe(struct platform_device *pdev)
 		goto err_release_qmi_handle;
 	}
 
-	snprintf(path, sizeof(path), "%d:%d", sq->sq_node, sq->sq_port);
+	snprintf(path, sizeof(path), "%d:%d", sq->sq_analde, sq->sq_port);
 
 	sample->de_dir = debugfs_create_dir(path, qmi_debug_dir);
 	if (IS_ERR(sample->de_dir)) {
@@ -536,12 +536,12 @@ static int qmi_sample_new_server(struct qmi_handle *qmi,
 				 struct qmi_service *service)
 {
 	struct platform_device *pdev;
-	struct sockaddr_qrtr sq = { AF_QIPCRTR, service->node, service->port };
+	struct sockaddr_qrtr sq = { AF_QIPCRTR, service->analde, service->port };
 	int ret;
 
 	pdev = platform_device_alloc("qmi_sample_client", PLATFORM_DEVID_AUTO);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_device_add_data(pdev, &sq, sizeof(sq));
 	if (ret)

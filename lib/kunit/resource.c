@@ -37,7 +37,7 @@ int __kunit_add_resource(struct kunit *test,
 	}
 
 	spin_lock_irqsave(&test->lock, flags);
-	list_add_tail(&res->node, &test->resources);
+	list_add_tail(&res->analde, &test->resources);
 	/* refcount for list is established by kref_init() */
 	spin_unlock_irqrestore(&test->lock, flags);
 
@@ -51,8 +51,8 @@ void kunit_remove_resource(struct kunit *test, struct kunit_resource *res)
 	bool was_linked;
 
 	spin_lock_irqsave(&test->lock, flags);
-	was_linked = !list_empty(&res->node);
-	list_del_init(&res->node);
+	was_linked = !list_empty(&res->analde);
+	list_del_init(&res->analde);
 	spin_unlock_irqrestore(&test->lock, flags);
 
 	if (was_linked)
@@ -67,7 +67,7 @@ int kunit_destroy_resource(struct kunit *test, kunit_resource_match_t match,
 							 match_data);
 
 	if (!res)
-		return -ENOENT;
+		return -EANALENT;
 
 	kunit_remove_resource(test, res);
 
@@ -96,17 +96,17 @@ int kunit_add_action(struct kunit *test, void (*action)(void *), void *ctx)
 {
 	struct kunit_action_ctx *action_ctx;
 
-	KUNIT_ASSERT_NOT_NULL_MSG(test, action, "Tried to action a NULL function!");
+	KUNIT_ASSERT_ANALT_NULL_MSG(test, action, "Tried to action a NULL function!");
 
 	action_ctx = kzalloc(sizeof(*action_ctx), GFP_KERNEL);
 	if (!action_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	action_ctx->func = action;
 	action_ctx->ctx = ctx;
 
 	action_ctx->res.should_kfree = true;
-	/* As init is NULL, this cannot fail. */
+	/* As init is NULL, this cananalt fail. */
 	__kunit_add_resource(test, NULL, __kunit_action_free, &action_ctx->res, action_ctx);
 
 	return 0;

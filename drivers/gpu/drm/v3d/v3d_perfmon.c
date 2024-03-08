@@ -127,7 +127,7 @@ int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	unsigned int i;
 	int ret;
 
-	/* Number of monitored counters cannot exceed HW limits. */
+	/* Number of monitored counters cananalt exceed HW limits. */
 	if (req->ncounters > DRM_V3D_MAX_PERF_COUNTERS ||
 	    !req->ncounters)
 		return -EINVAL;
@@ -141,7 +141,7 @@ int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	perfmon = kzalloc(struct_size(perfmon, values, req->ncounters),
 			  GFP_KERNEL);
 	if (!perfmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < req->ncounters; i++)
 		perfmon->counters[i] = req->counters[i];

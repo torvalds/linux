@@ -73,7 +73,7 @@ static void __release_ruleset(struct rcu_head *rcu)
 		container_of(rcu, struct setid_ruleset, rcu);
 	int bucket;
 	struct setid_rule *rule;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
 	hash_for_each_safe(pol->rules, bucket, tmp, rule, next)
 		kfree(rule);
@@ -120,7 +120,7 @@ static int verify_ruleset(struct setid_ruleset *pol)
 			/* fix it up */
 			nrule = kmalloc(sizeof(struct setid_rule), GFP_KERNEL);
 			if (!nrule)
-				return -ENOMEM;
+				return -EANALMEM;
 			if (pol->type == UID){
 				nrule->src_id.uid = rule->dst_id.uid;
 				nrule->dst_id.uid = rule->dst_id.uid;
@@ -145,7 +145,7 @@ static ssize_t handle_policy_update(struct file *file,
 
 	pol = kmalloc(sizeof(struct setid_ruleset), GFP_KERNEL);
 	if (!pol)
-		return -ENOMEM;
+		return -EANALMEM;
 	pol->policy_str = NULL;
 	pol->type = policy_type;
 	hash_init(pol->rules);
@@ -157,7 +157,7 @@ static ssize_t handle_policy_update(struct file *file,
 	}
 	pol->policy_str = kstrdup(buf, GFP_KERNEL);
 	if (pol->policy_str == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_buf;
 	}
 
@@ -174,7 +174,7 @@ static ssize_t handle_policy_update(struct file *file,
 
 		rule = kmalloc(sizeof(struct setid_rule), GFP_KERNEL);
 		if (!rule) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_free_buf;
 		}
 
@@ -206,7 +206,7 @@ out_free_rule:
 	/*
 	 * Everything looks good, apply the policy and release the old one.
 	 * What we really want here is an xchg() wrapper for RCU, but since that
-	 * doesn't currently exist, just use a spinlock for now.
+	 * doesn't currently exist, just use a spinlock for analw.
 	 */
 	if (policy_type == UID) {
 		mutex_lock(&uid_policy_update_lock);

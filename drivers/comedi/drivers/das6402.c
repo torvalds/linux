@@ -15,7 +15,7 @@
  *   DAS6402-16 (das6402-16)
  * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
  * Updated: Fri, 14 Mar 2014 10:18:43 -0700
- * Status: unknown
+ * Status: unkanalwn
  *
  * Configuration Options:
  *   [0] - I/O base address
@@ -100,7 +100,7 @@ static const struct comedi_lrange das6402_ai_ranges = {
 
 /*
  * Analog output ranges are programmable on the DAS6402/12.
- * For the DAS6402/16 the range bits have no function, the
+ * For the DAS6402/16 the range bits have anal function, the
  * DAC ranges are selected by switches on the board.
  */
 static const struct comedi_lrange das6402_ao_ranges = {
@@ -179,7 +179,7 @@ static irqreturn_t das6402_interrupt(int irq, void *d)
 
 	status = inb(dev->iobase + DAS6402_STATUS_REG);
 	if ((status & DAS6402_STATUS_INT) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & DAS6402_STATUS_FFULL) {
 		async->events |= COMEDI_CB_OVERFLOW;
@@ -293,11 +293,11 @@ static int das6402_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -322,7 +322,7 @@ static int das6402_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -558,7 +558,7 @@ static int das6402_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)

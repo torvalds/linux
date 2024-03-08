@@ -11,8 +11,8 @@
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
 
-/delete-node/ &tz_mem;
-/delete-node/ &ipa_fw_mem;
+/delete-analde/ &tz_mem;
+/delete-analde/ &ipa_fw_mem;
 
 / {
 	model = "Acer Aspire 1";
@@ -33,27 +33,27 @@
 	reserved-memory {
 		zap_mem: zap-shader@80840000 {
 			reg = <0x0 0x80840000 0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: venus@85b00000 {
 			reg = <0x0 0x85b00000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss@86000000 {
 			reg = <0x0 0x86000000 0x0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: adsp@8e400000 {
 			reg = <0x0 0x8e400000 0x0 0x2800000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_mem: wlan@93900000 {
 			reg = <0x0 0x93900000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -263,7 +263,7 @@
 	status = "okay";
 
 	/*
-	 * NOTE: DSDT defines two possible touchpads, other one is
+	 * ANALTE: DSDT defines two possible touchpads, other one is
 	 *
 	 * reg = <0x15>;
 	 * hid-descr-addr = <0x1>;
@@ -321,7 +321,7 @@
 		LDO1-IN-supply = <&vreg_l15a_1p8>;
 
 		/*
-		 * NOTE: The board has a path from this codec to the
+		 * ANALTE: The board has a path from this codec to the
 		 * DMIC microphones in the lid, however some of the option
 		 * resistors are absent and the microphones are connected
 		 * to the SoC instead.
@@ -824,7 +824,7 @@
 &tlmm {
 	/*
 	 * The TZ seem to protect those because some boards can have
-	 * fingerprint sensor connected to this range. Not connected
+	 * fingerprint sensor connected to this range. Analt connected
 	 * on this board
 	 */
 	gpio-reserved-ranges = <58 5>;

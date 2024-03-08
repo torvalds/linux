@@ -78,22 +78,22 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 
 	log = &chip->log;
 
-	/* Unfortuntely ACPI does not associate the event log with a specific
+	/* Unfortuntely ACPI does analt associate the event log with a specific
 	 * TPM, like PPI. Thus all ACPI TPMs will read the same log.
 	 */
 	if (!chip->acpi_dev_handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		status = acpi_get_table("TPM2", 1,
 					(struct acpi_table_header **)&tbl);
 		if (ACPI_FAILURE(status))
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (tbl->header.length <
 				sizeof(*tbl) + sizeof(struct acpi_tpm2_phy)) {
 			acpi_put_table((struct acpi_table_header *)tbl);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		tpm2_phy = (void *)tbl + sizeof(*tbl);
@@ -102,7 +102,7 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 		start = tpm2_phy->log_area_start_address;
 		if (!start || !len) {
 			acpi_put_table((struct acpi_table_header *)tbl);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		acpi_put_table((struct acpi_table_header *)tbl);
@@ -112,7 +112,7 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 		status = acpi_get_table(ACPI_SIG_TCPA, 1,
 					(struct acpi_table_header **)&buff);
 		if (ACPI_FAILURE(status))
-			return -ENODEV;
+			return -EANALDEV;
 
 		switch (buff->platform_class) {
 		case BIOS_SERVER:
@@ -138,7 +138,7 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 	/* malloc EventLog space */
 	log->bios_event_log = devm_kmalloc(&chip->dev, len, GFP_KERNEL);
 	if (!log->bios_event_log)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	log->bios_event_log_end = log->bios_event_log + len;
 
@@ -147,7 +147,7 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 	if (!virt) {
 		dev_warn(&chip->dev, "%s: Failed to map ACPI memory\n", __func__);
 		/* try EFI log next */
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -158,7 +158,7 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 	if (chip->flags & TPM_CHIP_FLAG_TPM2 &&
 	    !tpm_is_tpm2_log(log->bios_event_log, len)) {
 		/* try EFI log next */
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 

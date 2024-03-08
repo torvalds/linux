@@ -10,7 +10,7 @@
  *      Darren Hart <dvhart@linux.intel.com>
  *
  * HISTORY
- *      2009-Nov-6: Initial version by Darren Hart <dvhart@linux.intel.com>
+ *      2009-Analv-6: Initial version by Darren Hart <dvhart@linux.intel.com>
  *      2021-Apr-26: More test cases by André Almeida <andrealmeid@collabora.com>
  *
  *****************************************************************************/
@@ -31,7 +31,7 @@ void usage(char *prog)
 	printf("Usage: %s\n", prog);
 	printf("  -c	Use color\n");
 	printf("  -h	Display this help message\n");
-	printf("  -t N	Timeout in nanoseconds (default: 100,000)\n");
+	printf("  -t N	Timeout in naanalseconds (default: 100,000)\n");
 	printf("  -v L	Verbosity level: %d=QUIET %d=CRITICAL %d=INFO\n",
 	       VQUIET, VCRITICAL, VINFO);
 }
@@ -63,9 +63,9 @@ void *get_pi_lock(void *arg)
  */
 static void test_timeout(int res, int *ret, char *test_name, int err)
 {
-	if (!res || errno != err) {
+	if (!res || erranal != err) {
 		ksft_test_result_fail("%s returned %d\n", test_name,
-				      res < 0 ? errno : res);
+				      res < 0 ? erranal : res);
 		*ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("%s succeeds\n", test_name);
@@ -79,8 +79,8 @@ static int futex_get_abs_timeout(clockid_t clockid, struct timespec *to,
 				 long timeout_ns)
 {
 	if (clock_gettime(clockid, to)) {
-		error("clock_gettime failed\n", errno);
-		return errno;
+		error("clock_gettime failed\n", erranal);
+		return erranal;
 	}
 
 	to->tv_nsec += timeout_ns;
@@ -149,11 +149,11 @@ int main(int argc, char *argv[])
 	res = futex_wait_bitset(&f1, f1, &to, 1, FUTEX_CLOCK_REALTIME);
 	test_timeout(res, &ret, "futex_wait_bitset realtime", ETIMEDOUT);
 
-	/* FUTEX_WAIT_BITSET with CLOCK_MONOTONIC */
-	if (futex_get_abs_timeout(CLOCK_MONOTONIC, &to, timeout_ns))
+	/* FUTEX_WAIT_BITSET with CLOCK_MOANALTONIC */
+	if (futex_get_abs_timeout(CLOCK_MOANALTONIC, &to, timeout_ns))
 		return RET_FAIL;
 	res = futex_wait_bitset(&f1, f1, &to, 1, 0);
-	test_timeout(res, &ret, "futex_wait_bitset monotonic", ETIMEDOUT);
+	test_timeout(res, &ret, "futex_wait_bitset moanaltonic", ETIMEDOUT);
 
 	/* FUTEX_WAIT_REQUEUE_PI with CLOCK_REALTIME */
 	if (futex_get_abs_timeout(CLOCK_REALTIME, &to, timeout_ns))
@@ -161,11 +161,11 @@ int main(int argc, char *argv[])
 	res = futex_wait_requeue_pi(&f1, f1, &futex_pi, &to, FUTEX_CLOCK_REALTIME);
 	test_timeout(res, &ret, "futex_wait_requeue_pi realtime", ETIMEDOUT);
 
-	/* FUTEX_WAIT_REQUEUE_PI with CLOCK_MONOTONIC */
-	if (futex_get_abs_timeout(CLOCK_MONOTONIC, &to, timeout_ns))
+	/* FUTEX_WAIT_REQUEUE_PI with CLOCK_MOANALTONIC */
+	if (futex_get_abs_timeout(CLOCK_MOANALTONIC, &to, timeout_ns))
 		return RET_FAIL;
 	res = futex_wait_requeue_pi(&f1, f1, &futex_pi, &to, 0);
-	test_timeout(res, &ret, "futex_wait_requeue_pi monotonic", ETIMEDOUT);
+	test_timeout(res, &ret, "futex_wait_requeue_pi moanaltonic", ETIMEDOUT);
 
 	/* Wait until the other thread calls futex_lock_pi() */
 	pthread_barrier_wait(&barrier);
@@ -173,11 +173,11 @@ int main(int argc, char *argv[])
 	/*
 	 * FUTEX_LOCK_PI with CLOCK_REALTIME
 	 * Due to historical reasons, FUTEX_LOCK_PI supports only realtime
-	 * clock, but requires the caller to not set CLOCK_REALTIME flag.
+	 * clock, but requires the caller to analt set CLOCK_REALTIME flag.
 	 *
-	 * If you call FUTEX_LOCK_PI with a monotonic clock, it'll be
+	 * If you call FUTEX_LOCK_PI with a moanaltonic clock, it'll be
 	 * interpreted as a realtime clock, and (unless you mess your machine's
-	 * time or your time machine) the monotonic clock value is always
+	 * time or your time machine) the moanaltonic clock value is always
 	 * smaller than realtime and the syscall will timeout immediately.
 	 */
 	if (futex_get_abs_timeout(CLOCK_REALTIME, &to, timeout_ns))
@@ -187,13 +187,13 @@ int main(int argc, char *argv[])
 
 	/* Test operations that don't support FUTEX_CLOCK_REALTIME */
 	res = futex_lock_pi(&futex_pi, NULL, 0, FUTEX_CLOCK_REALTIME);
-	test_timeout(res, &ret, "futex_lock_pi invalid timeout flag", ENOSYS);
+	test_timeout(res, &ret, "futex_lock_pi invalid timeout flag", EANALSYS);
 
-	/* futex_waitv with CLOCK_MONOTONIC */
-	if (futex_get_abs_timeout(CLOCK_MONOTONIC, &to, timeout_ns))
+	/* futex_waitv with CLOCK_MOANALTONIC */
+	if (futex_get_abs_timeout(CLOCK_MOANALTONIC, &to, timeout_ns))
 		return RET_FAIL;
-	res = futex_waitv(&waitv, 1, 0, &to, CLOCK_MONOTONIC);
-	test_timeout(res, &ret, "futex_waitv monotonic", ETIMEDOUT);
+	res = futex_waitv(&waitv, 1, 0, &to, CLOCK_MOANALTONIC);
+	test_timeout(res, &ret, "futex_waitv moanaltonic", ETIMEDOUT);
 
 	/* futex_waitv with CLOCK_REALTIME */
 	if (futex_get_abs_timeout(CLOCK_REALTIME, &to, timeout_ns))

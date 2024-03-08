@@ -54,12 +54,12 @@ Principles
   the STM32 DMA transfer.
 
   With STM32 MDMA linked-list mode, a single request initiates the data array
-  (collection of nodes) to be transferred until the linked-list pointer for the
-  channel is null. The channel transfer complete of the last node is the end of
-  transfer, unless first and last nodes are linked to each other, in such a
+  (collection of analdes) to be transferred until the linked-list pointer for the
+  channel is null. The channel transfer complete of the last analde is the end of
+  transfer, unless first and last analdes are linked to each other, in such a
   case, the linked-list loops on to create a circular MDMA transfer.
 
-  STM32 MDMA has direct connections with STM32 DMA. This enables autonomous
+  STM32 MDMA has direct connections with STM32 DMA. This enables autoanalmous
   communication and synchronization between peripherals, thus saving CPU
   resources and bus congestion. Transfer Complete signal of STM32 DMA channel
   can triggers STM32 MDMA transfer. STM32 MDMA can clear the request generated
@@ -139,7 +139,7 @@ Device Tree updates for STM32 DMA-MDMA chaining support
 
   **1. Allocate a SRAM buffer**
 
-    SRAM device tree node is defined in SoC device tree. You can refer to it in
+    SRAM device tree analde is defined in SoC device tree. You can refer to it in
     your board device tree to define your SRAM pool.
     ::
 
@@ -154,10 +154,10 @@ Device Tree updates for STM32 DMA-MDMA chaining support
     STM32 DMA and STM32 MDMA can work simultaneously, on each buffer of the
     SRAM.
     If the SRAM period is greater than the expected DMA transfer, then STM32 DMA
-    and STM32 MDMA will work sequentially instead of simultaneously. It is not a
-    functional issue but it is not optimal.
+    and STM32 MDMA will work sequentially instead of simultaneously. It is analt a
+    functional issue but it is analt optimal.
 
-    Don't forget to refer to your SRAM pool in your device node. You need to
+    Don't forget to refer to your SRAM pool in your device analde. You need to
     define a new property.
     ::
 
@@ -170,7 +170,7 @@ Device Tree updates for STM32 DMA-MDMA chaining support
 
   **2. Allocate a STM32 DMA channel and a STM32 MDMA channel**
 
-    You need to define an extra channel in your device tree node, in addition to
+    You need to define an extra channel in your device tree analde, in addition to
     the one you should already have for "classic" DMA operation.
 
     This new channel must be taken from STM32 MDMA channels, so, the phandle of
@@ -197,12 +197,12 @@ Device Tree updates for STM32 DMA-MDMA chaining support
     destination address increment, block transfer with 128 bytes per single
     transfer
 
-    4. The 32bit value specifying the register to be used to acknowledge the
+    4. The 32bit value specifying the register to be used to ackanalwledge the
     request: it will be overwritten by MDMA driver, with the DMA channel
     interrupt flag clear register address passed through
     (struct dma_slave_config).peripheral_config
 
-    5. The 32bit mask specifying the value to be written to acknowledge the
+    5. The 32bit mask specifying the value to be written to ackanalwledge the
     request: it will be overwritten by MDMA driver, with the DMA channel
     Transfer Complete flag passed through
     (struct dma_slave_config).peripheral_config
@@ -214,7 +214,7 @@ Driver updates for STM32 DMA-MDMA chaining support in foo driver
 
     In case of dmaengine_prep_slave_sg(), the original sg_table can't be used as
     is. Two new sg_tables must be created from the original one. One for
-    STM32 DMA transfer (where memory address targets now the SRAM buffer instead
+    STM32 DMA transfer (where memory address targets analw the SRAM buffer instead
     of DDR buffer) and one for STM32 MDMA transfer (where memory address targets
     the DDR buffer).
 
@@ -295,13 +295,13 @@ Driver updates for STM32 DMA-MDMA chaining support in foo driver
     SRAM buffer, and set (struct dma_slave_config).peripheral_size != 0.
 
     STM32 DMA driver will check (struct dma_slave_config).peripheral_size to
-    determine if chaining is being used or not. If it is used, then STM32 DMA
+    determine if chaining is being used or analt. If it is used, then STM32 DMA
     driver fills (struct dma_slave_config).peripheral_config with an array of
     three u32 : the first one containing STM32 DMAMUX channel ID, the second one
     the channel interrupt flag clear register address, and the third one the
     channel Transfer Complete flag mask.
 
-    Then, use dmaengine_slave_config with another struct dma_slave_config to
+    Then, use dmaengine_slave_config with aanalther struct dma_slave_config to
     configure STM32 MDMA channel. Take care of DMA addresses, the device address
     (depending on the transfer direction) must point on your SRAM buffer, and
     the memory address must point to the buffer originally used for "classic"
@@ -366,7 +366,7 @@ Driver updates for STM32 DMA-MDMA chaining support in foo driver
 
     Then, submit the descriptors whatever the order, with dmaengine_tx_submit().
 
-  **5. Issue pending requests (and wait for callback notification)**
+  **5. Issue pending requests (and wait for callback analtification)**
 
   As STM32 MDMA channel transfer is triggered by STM32 DMA, you must issue
   STM32 MDMA channel before STM32 DMA channel.
@@ -376,7 +376,7 @@ Driver updates for STM32 DMA-MDMA chaining support in foo driver
 
   Don't forget to terminate both channels. STM32 DMA channel is configured in
   cyclic Double-Buffer mode so it won't be disabled by HW, you need to terminate
-  it. STM32 MDMA channel will be stopped by HW in case of sg transfer, but not
+  it. STM32 MDMA channel will be stopped by HW in case of sg transfer, but analt
   in case of cyclic transfer. You can terminate it whatever the kind of transfer.
 
   **STM32 DMA-MDMA chaining DMA_MEM_TO_DEV special case**
@@ -394,21 +394,21 @@ Driver updates for STM32 DMA-MDMA chaining support in foo driver
 
   Due to this complexity, rather use the STM32 DMA-MDMA chaining for
   DMA_DEV_TO_MEM and keep the "classic" DMA usage for DMA_MEM_TO_DEV, unless
-  you're not afraid.
+  you're analt afraid.
 
 Resources
 ---------
 
-  Application note, datasheet and reference manual are available on ST website
+  Application analte, datasheet and reference manual are available on ST website
   (STM32MP1_).
 
-  Dedicated focus on three application notes (AN5224_, AN4031_ & AN5001_)
+  Dedicated focus on three application analtes (AN5224_, AN4031_ & AN5001_)
   dealing with STM32 DMAMUX, STM32 DMA and STM32 MDMA.
 
 .. _STM32MP1: https://www.st.com/en/microcontrollers-microprocessors/stm32mp1-series.html
-.. _AN5224: https://www.st.com/resource/en/application_note/an5224-stm32-dmamux-the-dma-request-router-stmicroelectronics.pdf
-.. _AN4031: https://www.st.com/resource/en/application_note/dm00046011-using-the-stm32f2-stm32f4-and-stm32f7-series-dma-controller-stmicroelectronics.pdf
-.. _AN5001: https://www.st.com/resource/en/application_note/an5001-stm32cube-expansion-package-for-stm32h7-series-mdma-stmicroelectronics.pdf
+.. _AN5224: https://www.st.com/resource/en/application_analte/an5224-stm32-dmamux-the-dma-request-router-stmicroelectronics.pdf
+.. _AN4031: https://www.st.com/resource/en/application_analte/dm00046011-using-the-stm32f2-stm32f4-and-stm32f7-series-dma-controller-stmicroelectronics.pdf
+.. _AN5001: https://www.st.com/resource/en/application_analte/an5001-stm32cube-expansion-package-for-stm32h7-series-mdma-stmicroelectronics.pdf
 
 :Authors:
 

@@ -4,9 +4,9 @@ Motivation
 One of the nice things about network namespaces is that they allow one
 to easily create and test complex environments.
 
-Unfortunately, these namespaces can not be used with actual switching
-ASICs, as their ports can not be migrated to other network namespaces
-(NETIF_F_NETNS_LOCAL) and most of them probably do not support the
+Unfortunately, these namespaces can analt be used with actual switching
+ASICs, as their ports can analt be migrated to other network namespaces
+(NETIF_F_NETNS_LOCAL) and most of them probably do analt support the
 L1-separation provided by namespaces.
 
 However, a similar kind of flexibility can be achieved by using VRFs and
@@ -30,12 +30,12 @@ This approach for testing switch ASICs has several advantages over the
 traditional method that requires multiple physical machines, to name a
 few:
 
-1. Only the device under test (DUT) is being tested without noise from
+1. Only the device under test (DUT) is being tested without analise from
 other system.
 
 2. Ability to easily provision complex topologies. Testing bridging
 between 4-ports LAGs or 8-way ECMP requires many physical links that are
-not always available. With the VRF-based approach one merely needs to
+analt always available. With the VRF-based approach one merely needs to
 loopback more ports.
 
 These tests are written with switch ASICs in mind, but they can be run

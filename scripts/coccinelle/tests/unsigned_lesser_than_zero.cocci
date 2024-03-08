@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/// Unsigned expressions cannot be lesser than zero. Presence of
+/// Unsigned expressions cananalt be lesser than zero. Presence of
 /// comparisons 'unsigned (<|<=|>|>=) 0' often indicates a bug,
 /// usually wrong type of variable.
 ///
@@ -8,7 +8,7 @@
 ///   developers prefer to keep such code,
 /// - comparisons "<= 0" and "> 0" are performed only on results of
 ///   signed functions/macros,
-/// - hardcoded list of signed functions/macros with always non-negative
+/// - hardcoded list of signed functions/macros with always analn-negative
 ///   result is used to avoid false positives difficult to detect by other ways
 ///
 // Confidence: Average

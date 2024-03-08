@@ -18,6 +18,6 @@ struct u8500_prcc_reset {
 	void __iomem *base[CLKRST_MAX];
 };
 
-void u8500_prcc_reset_init(struct device_node *np, struct u8500_prcc_reset *ur);
+void u8500_prcc_reset_init(struct device_analde *np, struct u8500_prcc_reset *ur);
 
 #endif

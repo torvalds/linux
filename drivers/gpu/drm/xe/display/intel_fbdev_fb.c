@@ -37,12 +37,12 @@ struct drm_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = PAGE_ALIGN(size);
-	obj = ERR_PTR(-ENODEV);
+	obj = ERR_PTR(-EANALDEV);
 
 	if (!IS_DGFX(dev_priv)) {
 		obj = xe_bo_create_pin_map(dev_priv, xe_device_get_root_tile(dev_priv),
 					   NULL, size,
-					   ttm_bo_type_kernel, XE_BO_SCANOUT_BIT |
+					   ttm_bo_type_kernel, XE_BO_SCAANALUT_BIT |
 					   XE_BO_CREATE_STOLEN_BIT |
 					   XE_BO_CREATE_PINNED_BIT);
 		if (!IS_ERR(obj))
@@ -52,20 +52,20 @@ struct drm_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 	}
 	if (IS_ERR(obj)) {
 		obj = xe_bo_create_pin_map(dev_priv, xe_device_get_root_tile(dev_priv), NULL, size,
-					  ttm_bo_type_kernel, XE_BO_SCANOUT_BIT |
+					  ttm_bo_type_kernel, XE_BO_SCAANALUT_BIT |
 					  XE_BO_CREATE_VRAM_IF_DGFX(xe_device_get_root_tile(dev_priv)) |
 					  XE_BO_CREATE_PINNED_BIT);
 	}
 
 	if (IS_ERR(obj)) {
 		drm_err(&dev_priv->drm, "failed to allocate framebuffer (%pe)\n", obj);
-		fb = ERR_PTR(-ENOMEM);
+		fb = ERR_PTR(-EANALMEM);
 		goto err;
 	}
 
 	fb = intel_framebuffer_create(obj, &mode_cmd);
 	if (IS_ERR(fb)) {
-		xe_bo_unpin_map_no_vm(obj);
+		xe_bo_unpin_map_anal_vm(obj);
 		goto err;
 	}
 
@@ -91,7 +91,7 @@ int intel_fbdev_fb_fill_info(struct drm_i915_private *i915, struct fb_info *info
 
 		info->fix.smem_len = obj->ttm.base.size;
 	} else {
-		/* XXX: Pure fiction, as the BO may not be physically accessible.. */
+		/* XXX: Pure fiction, as the BO may analt be physically accessible.. */
 		info->fix.smem_start = 0;
 		info->fix.smem_len = obj->ttm.base.size;
 	}

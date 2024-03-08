@@ -13,7 +13,7 @@
 
 /*
  * Some debugging routines (useful if you've got MM problems and
- * printk isn't working).  For DEBUGGING ONLY!!!  Do not leave
+ * printk isn't working).  For DEBUGGING ONLY!!!  Do analt leave
  * references to these in a production kernel!
  */
 

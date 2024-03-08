@@ -178,16 +178,16 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 		return ret;
 
 	if (!addr || !(~addr))
-		return -ENODEV;
+		return -EANALDEV;
 
 	opregionvbt = kzalloc(sizeof(*opregionvbt), GFP_KERNEL_ACCOUNT);
 	if (!opregionvbt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	opregionvbt->opregion = memremap(addr, OPREGION_SIZE, MEMREMAP_WB);
 	if (!opregionvbt->opregion) {
 		kfree(opregionvbt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (memcmp(opregionvbt->opregion, OPREGION_SIGNATURE, 16)) {
@@ -208,7 +208,7 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 	/*
 	 * OpRegion and VBT:
 	 * When VBT data doesn't exceed 6KB, it's stored in Mailbox #4.
-	 * When VBT data exceeds 6KB size, Mailbox #4 is no longer large enough
+	 * When VBT data exceeds 6KB size, Mailbox #4 is anal longer large eanalugh
 	 * to hold the VBT data, the Extended VBT region is introduced since
 	 * OpRegion 2.0 to hold the VBT data. Since OpRegion 2.0, RVDA/RVDS are
 	 * introduced to define the extended VBT data location and size.
@@ -220,9 +220,9 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 	 * Due to the RVDA definition diff in OpRegion VBT (also the only diff
 	 * between 2.0 and 2.1), exposing OpRegion and VBT as a contiguous range
 	 * for OpRegion 2.0 and above makes it possible to support the
-	 * non-contiguous VBT through a single vfio region. From r/w ops view,
+	 * analn-contiguous VBT through a single vfio region. From r/w ops view,
 	 * only contiguous VBT after OpRegion with version 2.1+ is exposed,
-	 * regardless the host OpRegion is 2.0 or non-contiguous 2.1+. The r/w
+	 * regardless the host OpRegion is 2.0 or analn-contiguous 2.1+. The r/w
 	 * ops will on-the-fly shift the actural offset into VBT so that data at
 	 * correct position can be returned to the requester.
 	 */
@@ -234,7 +234,7 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 		u32 rvds = le32_to_cpu(*(__le32 *)(opregionvbt->opregion +
 						   OPREGION_RVDS));
 
-		/* The extended VBT is valid only when RVDA/RVDS are non-zero */
+		/* The extended VBT is valid only when RVDA/RVDS are analn-zero */
 		if (rvda && rvds) {
 			size += rvds;
 
@@ -252,7 +252,7 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 			if (!opregionvbt->vbt_ex) {
 				memunmap(opregionvbt->opregion);
 				kfree(opregionvbt);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 	}
@@ -394,7 +394,7 @@ static int vfio_pci_igd_cfg_init(struct vfio_pci_core_device *vdev)
 
 	host_bridge = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!host_bridge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (host_bridge->vendor != PCI_VENDOR_ID_INTEL ||
 	    host_bridge->class != (PCI_CLASS_BRIDGE_HOST << 8)) {
@@ -414,7 +414,7 @@ static int vfio_pci_igd_cfg_init(struct vfio_pci_core_device *vdev)
 
 	lpc_bridge = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0x1f, 0));
 	if (!lpc_bridge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (lpc_bridge->vendor != PCI_VENDOR_ID_INTEL ||
 	    lpc_bridge->class != (PCI_CLASS_BRIDGE_ISA << 8)) {

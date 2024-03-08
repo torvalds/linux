@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos SoC syscon reboot/poweroff nodes common definition.
+ * Samsung's Exyanals SoC syscon reboot/poweroff analdes common definition.
  */
 
 &pmu_system_controller {

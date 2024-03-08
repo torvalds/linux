@@ -69,13 +69,13 @@ static inline bool rt2800_is_305x_soc(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rt(rt2x00dev, RT2872))
 		return false;
 
-	/* we know for sure that these rf chipsets are used on rt305x boards */
+	/* we kanalw for sure that these rf chipsets are used on rt305x boards */
 	if (rt2x00_rf(rt2x00dev, RF3020) ||
 	    rt2x00_rf(rt2x00dev, RF3021) ||
 	    rt2x00_rf(rt2x00dev, RF3022))
 		return true;
 
-	rt2x00_warn(rt2x00dev, "Unknown RF chipset on rt305x\n");
+	rt2x00_warn(rt2x00dev, "Unkanalwn RF chipset on rt305x\n");
 	return false;
 }
 
@@ -405,8 +405,8 @@ static unsigned int rt2800_eeprom_word_index(struct rt2x00_dev *rt2x00dev,
 
 	/* Index 0 is valid only for EEPROM_CHIP_ID.
 	 * Otherwise it means that the offset of the
-	 * given word is not initialized in the map,
-	 * or that the field is not usable on the
+	 * given word is analt initialized in the map,
+	 * or that the field is analt usable on the
 	 * actual chipset.
 	 */
 	WARN_ONCE(word != EEPROM_CHIP_ID && index == 0,
@@ -766,7 +766,7 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (i == REGISTER_BUSY_COUNT) {
-		rt2x00_err(rt2x00dev, "PBF system register not ready\n");
+		rt2x00_err(rt2x00dev, "PBF system register analt ready\n");
 		return -EBUSY;
 	}
 
@@ -845,7 +845,7 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 	 * from the descriptor. The TXWI_W1_WIRELESS_CLI_ID indicates which
 	 * crypto entry in the registers should be used to encrypt the frame.
 	 *
-	 * Nulify all remaining words as well, we don't know how to program them.
+	 * Nulify all remaining words as well, we don't kanalw how to program them.
 	 */
 	for (i = 2; i < entry->queue->winfo_size / sizeof(__le32); i++)
 		_rt2x00_desc_write(txwi, i, 0);
@@ -983,7 +983,7 @@ static bool rt2800_txdone_entry_check(struct queue_entry *entry, u32 reg)
 
 	/*
 	 * This frames has returned with an IO error,
-	 * so the status report is not intended for this
+	 * so the status report is analt intended for this
 	 * frame.
 	 */
 	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
@@ -1041,7 +1041,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 	ack_req	= rt2x00_get_field32(status, TX_STA_FIFO_TX_ACK_REQUIRED);
 
 	/*
-	 * If a frame was meant to be sent as a single non-aggregated MPDU
+	 * If a frame was meant to be sent as a single analn-aggregated MPDU
 	 * but ended up in an aggregate the used tx rate doesn't correlate
 	 * with the one specified in the TXWI as the whole aggregate is sent
 	 * with the same rate.
@@ -1052,11 +1052,11 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 	 * AMDPU the tx status for both frames will contain MCS7 although
 	 * the frame was sent successfully.
 	 *
-	 * Hence, replace the requested rate with the real tx rate to not
+	 * Hence, replace the requested rate with the real tx rate to analt
 	 * confuse the rate control algortihm by providing clearly wrong
 	 * data.
 	 *
-	 * FIXME: if we do not find matching entry, we tell that frame was
+	 * FIXME: if we do analt find matching entry, we tell that frame was
 	 * posted without any retries. We need to find a way to fix that
 	 * and provide retry count.
 	 */
@@ -1069,14 +1069,14 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 		__set_bit(TXDONE_AMPDU, &txdesc.flags);
 
 	if (!ack_req)
-		__set_bit(TXDONE_NO_ACK_REQ, &txdesc.flags);
+		__set_bit(TXDONE_ANAL_ACK_REQ, &txdesc.flags);
 
 	/*
 	 * Ralink has a retry mechanism using a global fallback
 	 * table. We setup this fallback table to try the immediate
 	 * lower rate for all rates. In the TX_STA_FIFO, the MCS field
 	 * always contains the MCS used for the last transmission, be
-	 * it successful or not.
+	 * it successful or analt.
 	 */
 	if (rt2x00_get_field32(status, TX_STA_FIFO_TX_SUCCESS)) {
 		/*
@@ -1103,13 +1103,13 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 		__set_bit(TXDONE_FALLBACK, &txdesc.flags);
 
 	if (!match) {
-		/* RCU assures non-null sta will not be freed by mac80211. */
+		/* RCU assures analn-null sta will analt be freed by mac80211. */
 		rcu_read_lock();
 		if (likely(wcid >= WCID_START && wcid <= WCID_END))
 			skbdesc->sta = drv_data->wcid_to_sta[wcid - WCID_START];
 		else
 			skbdesc->sta = NULL;
-		rt2x00lib_txdone_nomatch(entry, &txdesc);
+		rt2x00lib_txdone_analmatch(entry, &txdesc);
 		rcu_read_unlock();
 	} else {
 		rt2x00lib_txdone(entry, &txdesc);
@@ -1193,7 +1193,7 @@ EXPORT_SYMBOL_GPL(rt2800_txstatus_timeout);
 
 /*
  * test if there is an entry in any TX queue for which DMA is done
- * but the TX status has not been returned yet
+ * but the TX status has analt been returned yet
  */
 bool rt2800_txstatus_pending(struct rt2x00_dev *rt2x00dev)
 {
@@ -1208,14 +1208,14 @@ bool rt2800_txstatus_pending(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_txstatus_pending);
 
-void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
+void rt2800_txdone_analstatus(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
 
 	/*
 	 * Process any trailing TX status reports for IO failures,
-	 * we loop until we find the first non-IO error entry. This
+	 * we loop until we find the first analn-IO error entry. This
 	 * can either be a frame which is free, is being uploaded,
 	 * or has completed the upload but didn't have an entry
 	 * in the TX_STAT_FIFO register yet.
@@ -1230,13 +1230,13 @@ void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
 
 			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags) ||
 			    rt2800_entry_txstatus_timeout(rt2x00dev, entry))
-				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
+				rt2x00lib_txdone_analinfo(entry, TXDONE_FAILURE);
 			else
 				break;
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(rt2800_txdone_nostatus);
+EXPORT_SYMBOL_GPL(rt2800_txdone_analstatus);
 
 static bool rt2800_check_hung(struct data_queue *queue)
 {
@@ -1545,7 +1545,7 @@ const struct rt2x00debug rt2800_rt2x00debug = {
 		.word_count	= CSR_REG_SIZE / sizeof(u32),
 	},
 	.eeprom	= {
-		/* NOTE: The local EEPROM access functions can't
+		/* ANALTE: The local EEPROM access functions can't
 		 * be used here, use the generic versions instead.
 		 */
 		.read		= rt2x00_eeprom_read,
@@ -1750,7 +1750,7 @@ static void rt2800_config_wcid_attr_cipher(struct rt2x00_dev *rt2x00dev,
 
 	memset(&iveiv_entry, 0, sizeof(iveiv_entry));
 	if ((crypto->cipher == CIPHER_TKIP) ||
-	    (crypto->cipher == CIPHER_TKIP_NO_MIC) ||
+	    (crypto->cipher == CIPHER_TKIP_ANAL_MIC) ||
 	    (crypto->cipher == CIPHER_AES))
 		iveiv_entry.iv[3] |= 0x20;
 	iveiv_entry.iv[3] |= key->keyidx << 6;
@@ -1821,10 +1821,10 @@ int rt2800_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 	if (crypto->cmd == SET_KEY) {
 		/*
 		 * Allow key configuration only for STAs that are
-		 * known by the hw.
+		 * kanalwn by the hw.
 		 */
 		if (crypto->wcid > WCID_END)
-			return -ENOSPC;
+			return -EANALSPC;
 		key->hw_key_idx = crypto->wcid;
 
 		memcpy(key_entry.key, crypto->key,
@@ -1876,7 +1876,7 @@ int rt2800_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	/*
 	 * Limit global maximum TX AMPDU length to smallest value of all
 	 * connected stations. In AP mode this can be suboptimal, but we
-	 * do not have a choice if some connected STA is not capable to
+	 * do analt have a choice if some connected STA is analt capable to
 	 * receive the same amount of data like the others.
 	 */
 	if (sta->deflink.ht_cap.ht_supported) {
@@ -1897,8 +1897,8 @@ int rt2800_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	sta_priv->wcid = wcid;
 
 	/*
-	 * No space left in the device, however, we can still communicate
-	 * with the STA -> No error.
+	 * Anal space left in the device, however, we can still communicate
+	 * with the STA -> Anal error.
 	 */
 	if (wcid > WCID_END)
 		return 0;
@@ -1933,7 +1933,7 @@ int rt2800_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (wcid > WCID_END)
 		return 0;
 	/*
-	 * Remove WCID entry, no need to clean the attributes as they will
+	 * Remove WCID entry, anal need to clean the attributes as they will
 	 * get renewed when the WCID is reused.
 	 */
 	rt2800_config_wcid(rt2x00dev, NULL, wcid);
@@ -1970,18 +1970,18 @@ void rt2800_config_filter(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Start configuration steps.
-	 * Note that the version error will always be dropped
+	 * Analte that the version error will always be dropped
 	 * and broadcast frames will always be accepted since
-	 * there is no filter for it at this time.
+	 * there is anal filter for it at this time.
 	 */
 	reg = rt2800_register_read(rt2x00dev, RX_FILTER_CFG);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_CRC_ERROR,
 			   !(filter_flags & FIF_FCSFAIL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_PHY_ERROR,
 			   !(filter_flags & FIF_PLCPFAIL));
-	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_NOT_TO_ME,
+	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_ANALT_TO_ME,
 			   !test_bit(CONFIG_MONITORING, &rt2x00dev->flags));
-	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_NOT_MY_BSSD, 0);
+	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_ANALT_MY_BSSD, 0);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_VER_ERROR, 1);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_MULTICAST,
 			   !(filter_flags & FIF_ALLMULTI));
@@ -2022,7 +2022,7 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_SYNC, conf->sync);
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
-		if (conf->sync == TSF_SYNC_AP_NONE) {
+		if (conf->sync == TSF_SYNC_AP_ANALNE) {
 			/*
 			 * Tune beacon queue transmit parameters for AP mode
 			 */
@@ -2044,7 +2044,7 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 
 	if (flags & CONFIG_UPDATE_MAC) {
 		if (flags & CONFIG_UPDATE_TYPE &&
-		    conf->sync == TSF_SYNC_AP_NONE) {
+		    conf->sync == TSF_SYNC_AP_ANALNE) {
 			/*
 			 * The BSSID register has to be set to our own mac
 			 * address in AP mode.
@@ -2080,8 +2080,8 @@ EXPORT_SYMBOL_GPL(rt2800_config_intf);
 static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
 				    struct rt2x00lib_erp *erp)
 {
-	bool any_sta_nongf = !!(erp->ht_opmode &
-				IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+	bool any_sta_analngf = !!(erp->ht_opmode &
+				IEEE80211_HT_OP_MODE_ANALN_GF_STA_PRSNT);
 	u8 protection = erp->ht_opmode & IEEE80211_HT_OP_MODE_PROTECTION;
 	u8 mm20_mode, mm40_mode, gf20_mode, gf40_mode;
 	u16 mm20_rate, mm40_rate, gf20_rate, gf40_rate;
@@ -2094,10 +2094,10 @@ static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
 	mm40_rate = gf40_rate = 0x4084;
 
 	switch (protection) {
-	case IEEE80211_HT_OP_MODE_PROTECTION_NONE:
+	case IEEE80211_HT_OP_MODE_PROTECTION_ANALNE:
 		/*
 		 * All STAs in this BSS are HT20/40 but there might be
-		 * STAs not supporting greenfield mode.
+		 * STAs analt supporting greenfield mode.
 		 * => Disable protection for HT transmissions.
 		 */
 		mm20_mode = mm40_mode = gf20_mode = gf40_mode = 0;
@@ -2106,29 +2106,29 @@ static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
 	case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
 		/*
 		 * All STAs in this BSS are HT20 or HT20/40 but there
-		 * might be STAs not supporting greenfield mode.
+		 * might be STAs analt supporting greenfield mode.
 		 * => Protect all HT40 transmissions.
 		 */
 		mm20_mode = gf20_mode = 0;
 		mm40_mode = gf40_mode = 1;
 
 		break;
-	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
+	case IEEE80211_HT_OP_MODE_PROTECTION_ANALNMEMBER:
 		/*
-		 * Nonmember protection:
+		 * Analnmember protection:
 		 * According to 802.11n we _should_ protect all
 		 * HT transmissions (but we don't have to).
 		 *
 		 * But if cts_protection is enabled we _shall_ protect
 		 * all HT transmissions using a CCK rate.
 		 *
-		 * And if any station is non GF we _shall_ protect
+		 * And if any station is analn GF we _shall_ protect
 		 * GF transmissions.
 		 *
 		 * We decide to protect everything
 		 * -> fall through to mixed mode.
 		 */
-	case IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED:
+	case IEEE80211_HT_OP_MODE_PROTECTION_ANALNHT_MIXED:
 		/*
 		 * Legacy STAs are present
 		 * => Protect all HT transmissions.
@@ -2147,8 +2147,8 @@ static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
 		break;
 	}
 
-	/* check for STAs not supporting greenfield mode */
-	if (any_sta_nongf)
+	/* check for STAs analt supporting greenfield mode */
+	if (any_sta_analngf)
 		gf20_mode = gf40_mode = 1;
 
 	/* Update HT protection config */
@@ -2246,7 +2246,7 @@ static int rt2800_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * BBP was enabled after firmware was loaded,
-	 * but we need to reactivate it now.
+	 * but we need to reactivate it analw.
 	 */
 	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
@@ -2937,7 +2937,7 @@ static void rt2800_config_channel_rf3053(struct rt2x00_dev *rt2x00dev,
 					      RFCSR24_TX_H20M);
 	}
 
-	/* NOTE: the reference driver does not writes the new value
+	/* ANALTE: the reference driver does analt writes the new value
 	 * back to RFCSR 32
 	 */
 	rfcsr = rt2800_rfcsr_read(rt2x00dev, 32);
@@ -3450,33 +3450,33 @@ static void rt2800_config_channel_rf53xx(struct rt2x00_dev *rt2x00dev,
 		}
 	} else {
 		if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
-			static const u8 r55_nonbt_rev[] = {0x23, 0x23,
+			static const u8 r55_analnbt_rev[] = {0x23, 0x23,
 				0x23, 0x23, 0x13, 0x13, 0x03, 0x03,
 				0x03, 0x03, 0x03, 0x03, 0x03, 0x03};
-			static const u8 r59_nonbt_rev[] = {0x07, 0x07,
+			static const u8 r59_analnbt_rev[] = {0x07, 0x07,
 				0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
 				0x07, 0x07, 0x06, 0x05, 0x04, 0x04};
 
 			rt2800_rfcsr_write(rt2x00dev, 55,
-					   r55_nonbt_rev[idx]);
+					   r55_analnbt_rev[idx]);
 			rt2800_rfcsr_write(rt2x00dev, 59,
-					   r59_nonbt_rev[idx]);
+					   r59_analnbt_rev[idx]);
 		} else if (rt2x00_rt(rt2x00dev, RT5390) ||
 			   rt2x00_rt(rt2x00dev, RT5392) ||
 			   rt2x00_rt(rt2x00dev, RT6352)) {
-			static const u8 r59_non_bt[] = {0x8f, 0x8f,
+			static const u8 r59_analn_bt[] = {0x8f, 0x8f,
 				0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8d,
 				0x8a, 0x88, 0x88, 0x87, 0x87, 0x86};
 
 			rt2800_rfcsr_write(rt2x00dev, 59,
-					   r59_non_bt[idx]);
+					   r59_analn_bt[idx]);
 		} else if (rt2x00_rt(rt2x00dev, RT5350)) {
-			static const u8 r59_non_bt[] = {0x0b, 0x0b,
+			static const u8 r59_analn_bt[] = {0x0b, 0x0b,
 				0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a,
 				0x0a, 0x09, 0x08, 0x07, 0x07, 0x06};
 
 			rt2800_rfcsr_write(rt2x00dev, 59,
-					   r59_non_bt[idx]);
+					   r59_analn_bt[idx]);
 		}
 	}
 }
@@ -3936,7 +3936,7 @@ static void rt2800_config_alc_rt6352(struct rt2x00_dev *rt2x00dev,
 	/* We can't get the accurate TX power. Based on some tests, the real
 	 * TX power is approximately equal to channel_power + (max)rate_power.
 	 * Usually max rate_power is the gain of the OFDM 6M rate. The antenna
-	 * gain and externel PA gain are not included as we are unable to
+	 * gain and externel PA gain are analt included as we are unable to
 	 * obtain these values.
 	 */
 	rate_power = rt2800_eeprom_read_from_array(rt2x00dev,
@@ -4690,7 +4690,7 @@ static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 	eeprom = rt2800_eeprom_read(rt2x00dev, EEPROM_TXPOWER_DELTA);
 
 	/*
-	 * HT40 compensation not required.
+	 * HT40 compensation analt required.
 	 */
 	if (eeprom == 0xffff ||
 	    !test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
@@ -4732,8 +4732,8 @@ static int rt2800_get_txpower_reg_delta(struct rt2x00_dev *rt2x00dev,
 		return 0;
 
 	/*
-	 * XXX: We don't know the maximum transmit power of our hardware since
-	 * the EEPROM doesn't expose it. We only know that we are calibrated
+	 * XXX: We don't kanalw the maximum transmit power of our hardware since
+	 * the EEPROM doesn't expose it. We only kanalw that we are calibrated
 	 * to 100% tx power.
 	 *
 	 * Hence, we assume the regulatory limit that cfg80211 calulated for
@@ -5216,7 +5216,7 @@ static void rt2800_config_txpower_rt6352(struct rt2x00_dev *rt2x00dev,
 	delta = rt2800_get_txpower_bw_comp(rt2x00dev, band);
 
 	if (delta)
-		rt2x00_warn(rt2x00dev, "ignoring EEPROM HT40 power delta: %d\n",
+		rt2x00_warn(rt2x00dev, "iganalring EEPROM HT40 power delta: %d\n",
 			    delta);
 
 	/* populate TX_PWR_CFG_0 up to TX_PWR_CFG_4 from EEPROM for HT20, limit
@@ -5227,7 +5227,7 @@ static void rt2800_config_txpower_rt6352(struct rt2x00_dev *rt2x00dev,
 	 * used a fixed offset between HT20 and HT40 rates they had to work-
 	 * around that issue and most likely just forgot about it later on.
 	 * Maybe we should use rt2800_get_txpower_bw_comp() here as well,
-	 * however, the corresponding EEPROM value is not respected by the
+	 * however, the corresponding EEPROM value is analt respected by the
 	 * vendor driver, so maybe this is rather being taken care of the
 	 * TXALC and the driver doesn't need to handle it...?
 	 * Though this is all very awkward, just do as they did, as that's what
@@ -5290,7 +5290,7 @@ static void rt2800_config_txpower_rt6352(struct rt2x00_dev *rt2x00dev,
 	 * power-offsets more space would be needed. Ralink decided to keep the
 	 * EEPROM layout untouched and rather have some shared values covering
 	 * multiple bitrates.
-	 * Populate the registers not covered by the EEPROM in the same way the
+	 * Populate the registers analt covered by the EEPROM in the same way the
 	 * vendor driver does.
 	 */
 
@@ -5352,7 +5352,7 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Calculate temperature compensation. Depends on measurement of current
-	 * TSSI (Transmitter Signal Strength Indication) we know TX power (due
+	 * TSSI (Transmitter Signal Strength Indication) we kanalw TX power (due
 	 * to temperature or maybe other factors) is smaller or bigger than
 	 * expected. We adjust it, based on TSSI reference and boundaries values
 	 * provided in EEPROM.
@@ -5373,7 +5373,7 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/*
-	 * Decrease power according to user settings, on devices with unknown
+	 * Decrease power according to user settings, on devices with unkanalwn
 	 * maximum tx power. For other devices we take user power_level into
 	 * consideration on rt2800_compensate_txpower().
 	 */
@@ -5384,7 +5384,7 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 	 * BBP_R1 controls TX power for all rates, it allow to set the following
 	 * gains -12, -6, 0, +6 dBm by setting values 2, 1, 0, 3 respectively.
 	 *
-	 * TODO: we do not use +6 dBm option to do not increase power beyond
+	 * TODO: we do analt use +6 dBm option to do analt increase power beyond
 	 * regulatory limit, however this could be utilized for devices with
 	 * CAPABILITY_POWER_LIMIT.
 	 */
@@ -5419,7 +5419,7 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * TX_PWR_CFG_0: 1MBS, TX_PWR_CFG_1: 24MBS,
 		 * TX_PWR_CFG_2: MCS4, TX_PWR_CFG_3: MCS12,
-		 * TX_PWR_CFG_4: unknown
+		 * TX_PWR_CFG_4: unkanalwn
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE0);
@@ -5430,7 +5430,7 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * TX_PWR_CFG_0: 2MBS, TX_PWR_CFG_1: 36MBS,
 		 * TX_PWR_CFG_2: MCS5, TX_PWR_CFG_3: MCS13,
-		 * TX_PWR_CFG_4: unknown
+		 * TX_PWR_CFG_4: unkanalwn
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE1);
@@ -5441,7 +5441,7 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * TX_PWR_CFG_0: 5.5MBS, TX_PWR_CFG_1: 48MBS,
 		 * TX_PWR_CFG_2: MCS6,  TX_PWR_CFG_3: MCS14,
-		 * TX_PWR_CFG_4: unknown
+		 * TX_PWR_CFG_4: unkanalwn
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE2);
@@ -5452,7 +5452,7 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * TX_PWR_CFG_0: 11MBS, TX_PWR_CFG_1: 54MBS,
 		 * TX_PWR_CFG_2: MCS7,  TX_PWR_CFG_3: MCS15,
-		 * TX_PWR_CFG_4: unknown
+		 * TX_PWR_CFG_4: unkanalwn
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE3);
@@ -5468,8 +5468,8 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 		is_rate_b = 0;
 		/*
 		 * TX_PWR_CFG_0: 6MBS, TX_PWR_CFG_1: MCS0,
-		 * TX_PWR_CFG_2: MCS8, TX_PWR_CFG_3: unknown,
-		 * TX_PWR_CFG_4: unknown
+		 * TX_PWR_CFG_2: MCS8, TX_PWR_CFG_3: unkanalwn,
+		 * TX_PWR_CFG_4: unkanalwn
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE0);
@@ -5479,8 +5479,8 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 
 		/*
 		 * TX_PWR_CFG_0: 9MBS, TX_PWR_CFG_1: MCS1,
-		 * TX_PWR_CFG_2: MCS9, TX_PWR_CFG_3: unknown,
-		 * TX_PWR_CFG_4: unknown
+		 * TX_PWR_CFG_2: MCS9, TX_PWR_CFG_3: unkanalwn,
+		 * TX_PWR_CFG_4: unkanalwn
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE1);
@@ -5490,8 +5490,8 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 
 		/*
 		 * TX_PWR_CFG_0: 12MBS, TX_PWR_CFG_1: MCS2,
-		 * TX_PWR_CFG_2: MCS10, TX_PWR_CFG_3: unknown,
-		 * TX_PWR_CFG_4: unknown
+		 * TX_PWR_CFG_2: MCS10, TX_PWR_CFG_3: unkanalwn,
+		 * TX_PWR_CFG_4: unkanalwn
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE2);
@@ -5501,8 +5501,8 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 
 		/*
 		 * TX_PWR_CFG_0: 18MBS, TX_PWR_CFG_1: MCS3,
-		 * TX_PWR_CFG_2: MCS11, TX_PWR_CFG_3: unknown,
-		 * TX_PWR_CFG_4: unknown
+		 * TX_PWR_CFG_2: MCS11, TX_PWR_CFG_3: unkanalwn,
+		 * TX_PWR_CFG_4: unkanalwn
 		 */
 		txpower = rt2x00_get_field16(eeprom,
 					     EEPROM_TXPOWER_BYRATE_RATE3);
@@ -5592,7 +5592,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		min_sleep = 2000;
 		break;
 	default:
-		WARN_ONCE(1, "Not supported RF chipset %x for VCO recalibration",
+		WARN_ONCE(1, "Analt supported RF chipset %x for VCO recalibration",
 			  rt2x00dev->chip.rf);
 		return;
 	}
@@ -5793,7 +5793,7 @@ void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 
 	/* When RSSI is better than a certain threshold, increase VGC
 	 * with a chip specific value in order to improve the balance
-	 * between sensibility and noise isolation.
+	 * between sensibility and analise isolation.
 	 */
 
 	vgc = rt2800_get_default_vgc(rt2x00dev);
@@ -6075,7 +6075,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, TX_RTY_CFG_SHORT_RTY_LIMIT, 2);
 	rt2x00_set_field32(&reg, TX_RTY_CFG_LONG_RTY_LIMIT, 2);
 	rt2x00_set_field32(&reg, TX_RTY_CFG_LONG_RTY_THRE, 2000);
-	rt2x00_set_field32(&reg, TX_RTY_CFG_NON_AGG_RTY_MODE, 0);
+	rt2x00_set_field32(&reg, TX_RTY_CFG_ANALN_AGG_RTY_MODE, 0);
 	rt2x00_set_field32(&reg, TX_RTY_CFG_AGG_RTY_MODE, 0);
 	rt2x00_set_field32(&reg, TX_RTY_CFG_TX_AUTO_FB_ENABLE, 1);
 	rt2800_register_write(rt2x00dev, TX_RTY_CFG, reg);
@@ -6248,7 +6248,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Clear encryption initialization vectors on start, but keep them
-	 * for watchdog reset. Otherwise we will have wrong IVs and not be
+	 * for watchdog reset. Otherwise we will have wrong IVs and analt be
 	 * able to keep connections after reset.
 	 */
 	if (!test_bit(DEVICE_STATE_RESET, &rt2x00dev->flags))
@@ -6333,7 +6333,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, LG_FBK_CFG1, reg);
 
 	/*
-	 * Do not force the BA window size, we use the TXWI to set it
+	 * Do analt force the BA window size, we use the TXWI to set it
 	 */
 	reg = rt2800_register_read(rt2x00dev, AMPDU_BA_WINSIZE);
 	rt2x00_set_field32(&reg, AMPDU_BA_WINSIZE_FORCE_WINSIZE_ENABLE, 0);
@@ -7440,7 +7440,7 @@ static void rt2800_rx_filter_calibration(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 4, bbp);
 }
 
-static void rt2800_normal_mode_setup_3xxx(struct rt2x00_dev *rt2x00dev)
+static void rt2800_analrmal_mode_setup_3xxx(struct rt2x00_dev *rt2x00dev)
 {
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u8 min_gain, rfcsr, bbp;
@@ -7511,7 +7511,7 @@ static void rt2800_normal_mode_setup_3xxx(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-static void rt2800_normal_mode_setup_3593(struct rt2x00_dev *rt2x00dev)
+static void rt2800_analrmal_mode_setup_3593(struct rt2x00_dev *rt2x00dev)
 {
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u8 rfcsr;
@@ -7547,7 +7547,7 @@ static void rt2800_normal_mode_setup_3593(struct rt2x00_dev *rt2x00dev)
 	/* TODO: enable stream mode */
 }
 
-static void rt2800_normal_mode_setup_5xxx(struct rt2x00_dev *rt2x00dev)
+static void rt2800_analrmal_mode_setup_5xxx(struct rt2x00_dev *rt2x00dev)
 {
 	u8 reg;
 	u16 eeprom;
@@ -7681,7 +7681,7 @@ static void rt2800_init_rfcsr_30xx(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 27, 0x03);
 
 	rt2800_led_open_drain_enable(rt2x00dev);
-	rt2800_normal_mode_setup_3xxx(rt2x00dev);
+	rt2800_analrmal_mode_setup_3xxx(rt2x00dev);
 }
 
 static void rt2800_init_rfcsr_3290(struct rt2x00_dev *rt2x00dev)
@@ -7742,7 +7742,7 @@ static void rt2800_init_rfcsr_3290(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 29, rfcsr);
 
 	rt2800_led_open_drain_enable(rt2x00dev);
-	rt2800_normal_mode_setup_3xxx(rt2x00dev);
+	rt2800_analrmal_mode_setup_3xxx(rt2x00dev);
 }
 
 static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
@@ -7841,7 +7841,7 @@ static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_rx_filter_calibration(rt2x00dev);
 	rt2800_led_open_drain_enable(rt2x00dev);
-	rt2800_normal_mode_setup_3xxx(rt2x00dev);
+	rt2800_analrmal_mode_setup_3xxx(rt2x00dev);
 }
 
 static void rt2800_init_rfcsr_3390(struct rt2x00_dev *rt2x00dev)
@@ -7893,7 +7893,7 @@ static void rt2800_init_rfcsr_3390(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 27, 0x03);
 
 	rt2800_led_open_drain_enable(rt2x00dev);
-	rt2800_normal_mode_setup_3xxx(rt2x00dev);
+	rt2800_analrmal_mode_setup_3xxx(rt2x00dev);
 }
 
 static void rt2800_init_rfcsr_3572(struct rt2x00_dev *rt2x00dev)
@@ -7951,7 +7951,7 @@ static void rt2800_init_rfcsr_3572(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_rx_filter_calibration(rt2x00dev);
 	rt2800_led_open_drain_enable(rt2x00dev);
-	rt2800_normal_mode_setup_3xxx(rt2x00dev);
+	rt2800_analrmal_mode_setup_3xxx(rt2x00dev);
 }
 
 static void rt3593_post_bbp_init(struct rt2x00_dev *rt2x00dev)
@@ -8077,7 +8077,7 @@ static void rt2800_init_rfcsr_3593(struct rt2x00_dev *rt2x00dev)
 	drv_data->bbp26 = rt2800_bbp_read(rt2x00dev, 26);
 
 	rt2800_led_open_drain_enable(rt2x00dev);
-	rt2800_normal_mode_setup_3593(rt2x00dev);
+	rt2800_analrmal_mode_setup_3593(rt2x00dev);
 
 	rt3593_post_bbp_init(rt2x00dev);
 
@@ -8385,7 +8385,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 62, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 63, 0x00);
 
-	rt2800_normal_mode_setup_5xxx(rt2x00dev);
+	rt2800_analrmal_mode_setup_5xxx(rt2x00dev);
 
 	rt2800_led_open_drain_enable(rt2x00dev);
 }
@@ -8453,7 +8453,7 @@ static void rt2800_init_rfcsr_5392(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 62, 0x39);
 	rt2800_rfcsr_write(rt2x00dev, 63, 0x07);
 
-	rt2800_normal_mode_setup_5xxx(rt2x00dev);
+	rt2800_analrmal_mode_setup_5xxx(rt2x00dev);
 
 	rt2800_led_open_drain_enable(rt2x00dev);
 }
@@ -8493,7 +8493,7 @@ static void rt2800_init_rfcsr_5592(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rt_rev_gte(rt2x00dev, RT5592, REV_RT5592C))
 		rt2800_bbp_write(rt2x00dev, 103, 0xc0);
 
-	rt2800_normal_mode_setup_5xxx(rt2x00dev);
+	rt2800_analrmal_mode_setup_5xxx(rt2x00dev);
 
 	if (rt2x00_rt_rev_lt(rt2x00dev, RT5592, REV_RT5592C))
 		rt2800_rfcsr_write(rt2x00dev, 27, 0x03);
@@ -9223,7 +9223,7 @@ static void rt2800_rf_configstore(struct rt2x00_dev *rt2x00dev,
 		rf_reg_record[CHAIN_1][12].reg = 20;
 		rf_reg_record[CHAIN_1][12].value = rfvalue;
 	} else {
-		rt2x00_warn(rt2x00dev, "Unknown chain = %u\n", chain);
+		rt2x00_warn(rt2x00dev, "Unkanalwn chain = %u\n", chain);
 	}
 }
 
@@ -10886,7 +10886,7 @@ void rt2800_disable_radio(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_disable_wpdma(rt2x00dev);
 
-	/* Wait for DMA, ignore error */
+	/* Wait for DMA, iganalre error */
 	rt2800_wait_wpdma_ready(rt2x00dev);
 
 	reg = rt2800_register_read(rt2x00dev, MAC_SYS_CTRL);
@@ -11076,7 +11076,7 @@ static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * During the LNA validation we are going to use
-	 * lna0 as correct value. Note that EEPROM_LNA
+	 * lna0 as correct value. Analte that EEPROM_LNA
 	 * is never validated.
 	 */
 	word = rt2800_eeprom_read(rt2x00dev, EEPROM_LNA);
@@ -11202,7 +11202,7 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	default:
 		rt2x00_err(rt2x00dev, "Invalid RF chipset 0x%04x detected\n",
 			   rf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rt2x00_set_rf(rt2x00dev, rf);
@@ -11746,7 +11746,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 						   EEPROM_MAC_ADDR_0));
 
 	/*
-	 * As rt2800 has a global fallback table we cannot specify
+	 * As rt2800 has a global fallback table we cananalt specify
 	 * more then one tx rate per frame but since the hw will
 	 * try several rates (based on the fallback table) we should
 	 * initialize max_report_rates to the maximum number of rates
@@ -11827,7 +11827,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	}
 
 	if (WARN_ON_ONCE(!spec->channels))
-		return -ENODEV;
+		return -EANALDEV;
 
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	if (spec->num_channels > 14)
@@ -11882,14 +11882,14 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 */
 	info = kcalloc(spec->num_channels, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt2x00dev->chan_survey =
 		kcalloc(spec->num_channels, sizeof(struct rt2x00_chan_survey),
 			GFP_KERNEL);
 	if (!rt2x00dev->chan_survey) {
 		kfree(info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spec->channels_info = info;
@@ -11993,7 +11993,7 @@ static int rt2800_probe_rt(struct rt2x00_dev *rt2x00dev)
 	default:
 		rt2x00_err(rt2x00dev, "Invalid RT chipset 0x%04x, rev %04x detected\n",
 			   rt, rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (rt == RT5390 && rt2x00_is_soc(rt2x00dev))
@@ -12240,13 +12240,13 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/*
 	 * Don't allow aggregation for stations the hardware isn't aware
-	 * of because tx status reports for frames to an unknown station
+	 * of because tx status reports for frames to an unkanalwn station
 	 * always contain wcid=WCID_END+1 and thus we can't distinguish
 	 * between multiple stations which leads to unwanted situations
 	 * when the hw reorders frames due to aggregation.
 	 */
 	if (sta_priv->wcid > WCID_END)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -12270,7 +12270,7 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		break;
 	default:
 		rt2x00_warn((struct rt2x00_dev *)hw->priv,
-			    "Unknown AMPDU action\n");
+			    "Unkanalwn AMPDU action\n");
 	}
 
 	return ret;
@@ -12291,7 +12291,7 @@ int rt2800_get_survey(struct ieee80211_hw *hw, int idx,
 	}
 
 	if (idx >= rt2x00dev->bands[band].n_channels)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (idx == 0)
 		rt2800_update_survey(rt2x00dev);

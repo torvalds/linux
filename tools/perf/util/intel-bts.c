@@ -5,7 +5,7 @@
  */
 
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <byteswap.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
@@ -32,7 +32,7 @@
 
 #define MAX_TIMESTAMP (~0ULL)
 
-#define INTEL_BTS_ERR_NOINSN  5
+#define INTEL_BTS_ERR_ANALINSN  5
 #define INTEL_BTS_ERR_LOST    9
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
@@ -175,7 +175,7 @@ static int intel_bts_setup_queue(struct intel_bts *bts,
 	if (!btsq) {
 		btsq = intel_bts_alloc_queue(bts, queue_nr);
 		if (!btsq)
-			return -ENOMEM;
+			return -EANALMEM;
 		queue->priv = btsq;
 
 		if (queue->cpu != -1)
@@ -348,7 +348,7 @@ static int intel_bts_synth_error(struct intel_bts *bts, int cpu, pid_t pid,
 	int err;
 
 	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
-			     INTEL_BTS_ERR_NOINSN, cpu, pid, tid, ip,
+			     INTEL_BTS_ERR_ANALINSN, cpu, pid, tid, ip,
 			     "Failed to get instruction", 0);
 
 	err = perf_session__deliver_synth_event(bts->session, &event, NULL);
@@ -474,7 +474,7 @@ static int intel_bts_process_queue(struct intel_bts_queue *btsq, u64 *timestamp)
 		goto out_put;
 	}
 
-	/* Currently there is no support for split buffers */
+	/* Currently there is anal support for split buffers */
 	if (buffer->consecutive) {
 		err = -EINVAL;
 		goto out_put;
@@ -485,14 +485,14 @@ static int intel_bts_process_queue(struct intel_bts_queue *btsq, u64 *timestamp)
 
 		buffer->data = auxtrace_buffer__get_data(buffer, fd);
 		if (!buffer->data) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_put;
 		}
 	}
 
 	if (btsq->bts->snapshot_mode && !buffer->consecutive &&
 	    intel_bts_do_fix_overlap(queue, buffer)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put;
 	}
 
@@ -653,7 +653,7 @@ static int intel_bts_process_auxtrace_event(struct perf_session *session,
 		} else {
 			data_offset = lseek(fd, 0, SEEK_CUR);
 			if (data_offset == -1)
-				return -errno;
+				return -erranal;
 		}
 
 		err = auxtrace_queues__add_event(&bts->queues, session, event,
@@ -661,7 +661,7 @@ static int intel_bts_process_auxtrace_event(struct perf_session *session,
 		if (err)
 			return err;
 
-		/* Dump here now we have copied a piped trace out of the pipe */
+		/* Dump here analw we have copied a piped trace out of the pipe */
 		if (dump_trace) {
 			if (auxtrace_buffer__get_data(buffer, fd)) {
 				intel_bts_dump_event(bts, buffer->data,
@@ -784,7 +784,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 	}
 
 	if (!found) {
-		pr_debug("There are no selected events with Intel BTS data\n");
+		pr_debug("There are anal selected events with Intel BTS data\n");
 		return 0;
 	}
 
@@ -868,14 +868,14 @@ int intel_bts_process_auxtrace_info(union perf_event *event,
 
 	bts = zalloc(sizeof(struct intel_bts));
 	if (!bts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = auxtrace_queues__init(&bts->queues);
 	if (err)
 		goto err_free;
 
 	bts->session = session;
-	bts->machine = &session->machines.host; /* No kvm support */
+	bts->machine = &session->machines.host; /* Anal kvm support */
 	bts->auxtrace_type = auxtrace_info->type;
 	bts->pmu_type = auxtrace_info->priv[INTEL_BTS_PMU_TYPE];
 	bts->tc.time_shift = auxtrace_info->priv[INTEL_BTS_TIME_SHIFT];
@@ -905,7 +905,7 @@ int intel_bts_process_auxtrace_info(union perf_event *event,
 		bts->synth_opts = *session->itrace_synth_opts;
 	} else {
 		itrace_synth_opts__set_default(&bts->synth_opts,
-				session->itrace_synth_opts->default_no_sample);
+				session->itrace_synth_opts->default_anal_sample);
 		bts->synth_opts.thread_stack =
 				session->itrace_synth_opts->thread_stack;
 	}

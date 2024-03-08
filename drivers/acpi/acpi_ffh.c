@@ -14,13 +14,13 @@ static struct acpi_ffh_info ffh_ctx;
 int __weak acpi_ffh_address_space_arch_setup(void *handler_ctxt,
 					     void **region_ctxt)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int __weak acpi_ffh_address_space_arch_handler(acpi_integer *value,
 					       void *region_context)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static acpi_status
@@ -49,5 +49,5 @@ void __init acpi_init_ffh(void)
 						    &acpi_ffh_address_space_setup,
 						    &ffh_ctx);
 	if (ACPI_FAILURE(status))
-		pr_alert("OperationRegion handler could not be installed\n");
+		pr_alert("OperationRegion handler could analt be installed\n");
 }

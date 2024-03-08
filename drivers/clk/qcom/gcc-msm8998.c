@@ -1214,14 +1214,14 @@ static struct clk_rcg2 usb3_phy_aux_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_aggre1_noc_xo_clk = {
+static struct clk_branch gcc_aggre1_analc_xo_clk = {
 	.halt_reg = 0x8202c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x8202c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_aggre1_noc_xo_clk",
+			.name = "gcc_aggre1_analc_xo_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1328,27 +1328,27 @@ static struct clk_branch gcc_mss_cfg_ahb_clk = {
 	},
 };
 
-static struct clk_branch gcc_mss_snoc_axi_clk = {
+static struct clk_branch gcc_mss_sanalc_axi_clk = {
 	.halt_reg = 0x8a03c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x8a03c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mss_snoc_axi_clk",
+			.name = "gcc_mss_sanalc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_mss_mnoc_bimc_axi_clk = {
+static struct clk_branch gcc_mss_manalc_bimc_axi_clk = {
 	.halt_reg = 0x8a004,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x8a004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mss_mnoc_bimc_axi_clk",
+			.name = "gcc_mss_manalc_bimc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2037,14 +2037,14 @@ static struct clk_branch gcc_blsp2_uart3_apps_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_axi_clk = {
 	.halt_reg = 0x5018,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x5018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb3_axi_clk",
+			.name = "gcc_cfg_analc_usb3_axi_clk",
 			.parent_hws = (const struct clk_hw *[]) {
 				&usb30_master_clk_src.clkr.hw,
 			},
@@ -2167,14 +2167,14 @@ static struct clk_branch gcc_gpu_cfg_ahb_clk = {
 	},
 };
 
-static struct clk_branch gcc_gpu_snoc_dvm_gfx_clk = {
+static struct clk_branch gcc_gpu_sanalc_dvm_gfx_clk = {
 	.halt_reg = 0x71018,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x71018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_snoc_dvm_gfx_clk",
+			.name = "gcc_gpu_sanalc_dvm_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2261,19 +2261,19 @@ static struct clk_rcg2 hmss_gpll0_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_mmss_noc_cfg_ahb_clk = {
+static struct clk_branch gcc_mmss_analc_cfg_ahb_clk = {
 	.halt_reg = 0x9004,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x9004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mmss_noc_cfg_ahb_clk",
+			.name = "gcc_mmss_analc_cfg_ahb_clk",
 			.ops = &clk_branch2_ops,
 			/*
 			 * Any access to mmss depends on this clock.
 			 * Gating this clock has been shown to crash the system
-			 * when mmssnoc_axi_rpm_clk is inited in rpmcc.
+			 * when mmssanalc_axi_rpm_clk is inited in rpmcc.
 			 */
 			.flags = CLK_IS_CRITICAL,
 		},
@@ -2306,14 +2306,14 @@ static struct clk_branch gcc_mmss_qm_core_clk = {
 	},
 };
 
-static struct clk_branch gcc_mmss_sys_noc_axi_clk = {
+static struct clk_branch gcc_mmss_sys_analc_axi_clk = {
 	.halt_reg = 0x9000,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x9000,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mmss_sys_noc_axi_clk",
+			.name = "gcc_mmss_sys_analc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2883,14 +2883,14 @@ static struct clk_branch gcc_im_sleep_clk = {
 	},
 };
 
-static struct clk_branch aggre2_snoc_north_axi_clk = {
+static struct clk_branch aggre2_sanalc_analrth_axi_clk = {
 	.halt_reg = 0x83010,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x83010,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data){
-			.name = "aggre2_snoc_north_axi_clk",
+			.name = "aggre2_sanalc_analrth_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2909,14 +2909,14 @@ static struct clk_branch ssc_xo_clk = {
 	},
 };
 
-static struct clk_branch ssc_cnoc_ahbs_clk = {
+static struct clk_branch ssc_canalc_ahbs_clk = {
 	.halt_reg = 0x6300c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x6300c,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data){
-			.name = "ssc_cnoc_ahbs_clk",
+			.name = "ssc_canalc_ahbs_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2984,7 +2984,7 @@ static struct clk_regmap *gcc_msm8998_clocks[] = {
 	[BLSP2_UART1_APPS_CLK_SRC] = &blsp2_uart1_apps_clk_src.clkr,
 	[BLSP2_UART2_APPS_CLK_SRC] = &blsp2_uart2_apps_clk_src.clkr,
 	[BLSP2_UART3_APPS_CLK_SRC] = &blsp2_uart3_apps_clk_src.clkr,
-	[GCC_AGGRE1_NOC_XO_CLK] = &gcc_aggre1_noc_xo_clk.clkr,
+	[GCC_AGGRE1_ANALC_XO_CLK] = &gcc_aggre1_analc_xo_clk.clkr,
 	[GCC_AGGRE1_UFS_AXI_CLK] = &gcc_aggre1_ufs_axi_clk.clkr,
 	[GCC_AGGRE1_USB3_AXI_CLK] = &gcc_aggre1_usb3_axi_clk.clkr,
 	[GCC_APSS_QDSS_TSCTR_DIV2_CLK] = &gcc_apss_qdss_tsctr_div2_clk.clkr,
@@ -3025,7 +3025,7 @@ static struct clk_regmap *gcc_msm8998_clocks[] = {
 	[GCC_BLSP2_UART1_APPS_CLK] = &gcc_blsp2_uart1_apps_clk.clkr,
 	[GCC_BLSP2_UART2_APPS_CLK] = &gcc_blsp2_uart2_apps_clk.clkr,
 	[GCC_BLSP2_UART3_APPS_CLK] = &gcc_blsp2_uart3_apps_clk.clkr,
-	[GCC_CFG_NOC_USB3_AXI_CLK] = &gcc_cfg_noc_usb3_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_AXI_CLK] = &gcc_cfg_analc_usb3_axi_clk.clkr,
 	[GCC_GP1_CLK] = &gcc_gp1_clk.clkr,
 	[GCC_GP2_CLK] = &gcc_gp2_clk.clkr,
 	[GCC_GP3_CLK] = &gcc_gp3_clk.clkr,
@@ -3033,15 +3033,15 @@ static struct clk_regmap *gcc_msm8998_clocks[] = {
 	[GCC_GPU_BIMC_GFX_CLK] = &gcc_gpu_bimc_gfx_clk.clkr,
 	[GCC_GPU_BIMC_GFX_SRC_CLK] = &gcc_gpu_bimc_gfx_src_clk.clkr,
 	[GCC_GPU_CFG_AHB_CLK] = &gcc_gpu_cfg_ahb_clk.clkr,
-	[GCC_GPU_SNOC_DVM_GFX_CLK] = &gcc_gpu_snoc_dvm_gfx_clk.clkr,
+	[GCC_GPU_SANALC_DVM_GFX_CLK] = &gcc_gpu_sanalc_dvm_gfx_clk.clkr,
 	[GCC_HMSS_AHB_CLK] = &gcc_hmss_ahb_clk.clkr,
 	[GCC_HMSS_AT_CLK] = &gcc_hmss_at_clk.clkr,
 	[GCC_HMSS_RBCPR_CLK] = &gcc_hmss_rbcpr_clk.clkr,
 	[GCC_HMSS_TRIG_CLK] = &gcc_hmss_trig_clk.clkr,
-	[GCC_MMSS_NOC_CFG_AHB_CLK] = &gcc_mmss_noc_cfg_ahb_clk.clkr,
+	[GCC_MMSS_ANALC_CFG_AHB_CLK] = &gcc_mmss_analc_cfg_ahb_clk.clkr,
 	[GCC_MMSS_QM_AHB_CLK] = &gcc_mmss_qm_ahb_clk.clkr,
 	[GCC_MMSS_QM_CORE_CLK] = &gcc_mmss_qm_core_clk.clkr,
-	[GCC_MMSS_SYS_NOC_AXI_CLK] = &gcc_mmss_sys_noc_axi_clk.clkr,
+	[GCC_MMSS_SYS_ANALC_AXI_CLK] = &gcc_mmss_sys_analc_axi_clk.clkr,
 	[GCC_MSS_AT_CLK] = &gcc_mss_at_clk.clkr,
 	[GCC_PCIE_0_AUX_CLK] = &gcc_pcie_0_aux_clk.clkr,
 	[GCC_PCIE_0_CFG_AHB_CLK] = &gcc_pcie_0_cfg_ahb_clk.clkr,
@@ -3122,14 +3122,14 @@ static struct clk_regmap *gcc_msm8998_clocks[] = {
 	[GCC_MSS_CFG_AHB_CLK] = &gcc_mss_cfg_ahb_clk.clkr,
 	[GCC_BOOT_ROM_AHB_CLK] = &gcc_boot_rom_ahb_clk.clkr,
 	[GCC_MSS_GPLL0_DIV_CLK_SRC] = &gcc_mss_gpll0_div_clk_src.clkr,
-	[GCC_MSS_SNOC_AXI_CLK] = &gcc_mss_snoc_axi_clk.clkr,
-	[GCC_MSS_MNOC_BIMC_AXI_CLK] = &gcc_mss_mnoc_bimc_axi_clk.clkr,
+	[GCC_MSS_SANALC_AXI_CLK] = &gcc_mss_sanalc_axi_clk.clkr,
+	[GCC_MSS_MANALC_BIMC_AXI_CLK] = &gcc_mss_manalc_bimc_axi_clk.clkr,
 	[GCC_MMSS_GPLL0_CLK] = &gcc_mmss_gpll0_clk.clkr,
 	[HMSS_GPLL0_CLK_SRC] = &hmss_gpll0_clk_src.clkr,
 	[GCC_IM_SLEEP] = &gcc_im_sleep_clk.clkr,
-	[AGGRE2_SNOC_NORTH_AXI] = &aggre2_snoc_north_axi_clk.clkr,
+	[AGGRE2_SANALC_ANALRTH_AXI] = &aggre2_sanalc_analrth_axi_clk.clkr,
 	[SSC_XO] = &ssc_xo_clk.clkr,
-	[SSC_CNOC_AHBS_CLK] = &ssc_cnoc_ahbs_clk.clkr,
+	[SSC_CANALC_AHBS_CLK] = &ssc_canalc_ahbs_clk.clkr,
 	[GCC_MMSS_GPLL0_DIV_CLK] = &gcc_mmss_gpll0_div_clk.clkr,
 	[GCC_GPU_GPLL0_DIV_CLK] = &gcc_gpu_gpll0_div_clk.clkr,
 	[GCC_GPU_GPLL0_CLK] = &gcc_gpu_gpll0_clk.clkr,
@@ -3161,8 +3161,8 @@ static const struct qcom_reset_map gcc_msm8998_resets[] = {
 	[GCC_TSIF_BCR] = { 0x36000 },
 	[GCC_UFS_BCR] = { 0x75000 },
 	[GCC_USB_30_BCR] = { 0xf000 },
-	[GCC_SYSTEM_NOC_BCR] = { 0x4000 },
-	[GCC_CONFIG_NOC_BCR] = { 0x5000 },
+	[GCC_SYSTEM_ANALC_BCR] = { 0x4000 },
+	[GCC_CONFIG_ANALC_BCR] = { 0x5000 },
 	[GCC_AHB2PHY_EAST_BCR] = { 0x7000 },
 	[GCC_IMEM_BCR] = { 0x8000 },
 	[GCC_PIMEM_BCR] = { 0xa000 },
@@ -3195,21 +3195,21 @@ static const struct qcom_reset_map gcc_msm8998_resets[] = {
 	[GCC_SPDM_BCR] = { 0x40000 },
 	[GCC_CE1_BCR] = { 0x41000 },
 	[GCC_BIMC_BCR] = { 0x44000 },
-	[GCC_SNOC_BUS_TIMEOUT0_BCR] = { 0x49000 },
-	[GCC_SNOC_BUS_TIMEOUT1_BCR] = { 0x49008 },
-	[GCC_SNOC_BUS_TIMEOUT3_BCR] = { 0x49010 },
-	[GCC_SNOC_BUS_TIMEOUT_EXTREF_BCR] = { 0x49018 },
-	[GCC_PNOC_BUS_TIMEOUT0_BCR] = { 0x4a000 },
-	[GCC_CNOC_PERIPH_BUS_TIMEOUT1_BCR] = { 0x4a004 },
-	[GCC_CNOC_PERIPH_BUS_TIMEOUT2_BCR] = { 0x4a00c },
-	[GCC_CNOC_BUS_TIMEOUT0_BCR] = { 0x4b000 },
-	[GCC_CNOC_BUS_TIMEOUT1_BCR] = { 0x4b008 },
-	[GCC_CNOC_BUS_TIMEOUT2_BCR] = { 0x4b010 },
-	[GCC_CNOC_BUS_TIMEOUT3_BCR] = { 0x4b018 },
-	[GCC_CNOC_BUS_TIMEOUT4_BCR] = { 0x4b020 },
-	[GCC_CNOC_BUS_TIMEOUT5_BCR] = { 0x4b028 },
-	[GCC_CNOC_BUS_TIMEOUT6_BCR] = { 0x4b030 },
-	[GCC_CNOC_BUS_TIMEOUT7_BCR] = { 0x4b038 },
+	[GCC_SANALC_BUS_TIMEOUT0_BCR] = { 0x49000 },
+	[GCC_SANALC_BUS_TIMEOUT1_BCR] = { 0x49008 },
+	[GCC_SANALC_BUS_TIMEOUT3_BCR] = { 0x49010 },
+	[GCC_SANALC_BUS_TIMEOUT_EXTREF_BCR] = { 0x49018 },
+	[GCC_PANALC_BUS_TIMEOUT0_BCR] = { 0x4a000 },
+	[GCC_CANALC_PERIPH_BUS_TIMEOUT1_BCR] = { 0x4a004 },
+	[GCC_CANALC_PERIPH_BUS_TIMEOUT2_BCR] = { 0x4a00c },
+	[GCC_CANALC_BUS_TIMEOUT0_BCR] = { 0x4b000 },
+	[GCC_CANALC_BUS_TIMEOUT1_BCR] = { 0x4b008 },
+	[GCC_CANALC_BUS_TIMEOUT2_BCR] = { 0x4b010 },
+	[GCC_CANALC_BUS_TIMEOUT3_BCR] = { 0x4b018 },
+	[GCC_CANALC_BUS_TIMEOUT4_BCR] = { 0x4b020 },
+	[GCC_CANALC_BUS_TIMEOUT5_BCR] = { 0x4b028 },
+	[GCC_CANALC_BUS_TIMEOUT6_BCR] = { 0x4b030 },
+	[GCC_CANALC_BUS_TIMEOUT7_BCR] = { 0x4b038 },
 	[GCC_APB2JTAG_BCR] = { 0x4c000 },
 	[GCC_RBCPR_CX_BCR] = { 0x4e000 },
 	[GCC_RBCPR_MX_BCR] = { 0x4f000 },
@@ -3221,9 +3221,9 @@ static const struct qcom_reset_map gcc_msm8998_resets[] = {
 	[GCC_USB_PHY_CFG_AHB2PHY_BCR] = { 0x6a000 },
 	[GCC_PCIE_0_LINK_DOWN_BCR] = { 0x6c014 },
 	[GCC_PCIE_0_PHY_BCR] = { 0x6c01c },
-	[GCC_PCIE_0_NOCSR_COM_PHY_BCR] = { 0x6c020 },
+	[GCC_PCIE_0_ANALCSR_COM_PHY_BCR] = { 0x6c020 },
 	[GCC_PCIE_PHY_BCR] = { 0x6f000 },
-	[GCC_PCIE_PHY_NOCSR_COM_PHY_BCR] = { 0x6f00c },
+	[GCC_PCIE_PHY_ANALCSR_COM_PHY_BCR] = { 0x6f00c },
 	[GCC_PCIE_PHY_CFG_AHB_BCR] = { 0x6f010 },
 	[GCC_PCIE_PHY_COM_BCR] = { 0x6f014 },
 	[GCC_GPU_BCR] = { 0x71000 },
@@ -3235,16 +3235,16 @@ static const struct qcom_reset_map gcc_msm8998_resets[] = {
 	[GCC_GPU_VS_RESET] = { 0x7a104 },
 	[GCC_APC0_VS_RESET] = { 0x7a108 },
 	[GCC_APC1_VS_RESET] = { 0x7a10c },
-	[GCC_CNOC_BUS_TIMEOUT8_BCR] = { 0x80000 },
-	[GCC_CNOC_BUS_TIMEOUT9_BCR] = { 0x80008 },
-	[GCC_CNOC_BUS_TIMEOUT10_BCR] = { 0x80010 },
-	[GCC_CNOC_BUS_TIMEOUT11_BCR] = { 0x80018 },
-	[GCC_CNOC_BUS_TIMEOUT12_BCR] = { 0x80020 },
-	[GCC_CNOC_BUS_TIMEOUT13_BCR] = { 0x80028 },
-	[GCC_CNOC_BUS_TIMEOUT14_BCR] = { 0x80030 },
-	[GCC_CNOC_BUS_TIMEOUT_EXTREF_BCR] = { 0x80038 },
-	[GCC_AGGRE1_NOC_BCR] = { 0x82000 },
-	[GCC_AGGRE2_NOC_BCR] = { 0x83000 },
+	[GCC_CANALC_BUS_TIMEOUT8_BCR] = { 0x80000 },
+	[GCC_CANALC_BUS_TIMEOUT9_BCR] = { 0x80008 },
+	[GCC_CANALC_BUS_TIMEOUT10_BCR] = { 0x80010 },
+	[GCC_CANALC_BUS_TIMEOUT11_BCR] = { 0x80018 },
+	[GCC_CANALC_BUS_TIMEOUT12_BCR] = { 0x80020 },
+	[GCC_CANALC_BUS_TIMEOUT13_BCR] = { 0x80028 },
+	[GCC_CANALC_BUS_TIMEOUT14_BCR] = { 0x80030 },
+	[GCC_CANALC_BUS_TIMEOUT_EXTREF_BCR] = { 0x80038 },
+	[GCC_AGGRE1_ANALC_BCR] = { 0x82000 },
+	[GCC_AGGRE2_ANALC_BCR] = { 0x83000 },
 	[GCC_DCC_BCR] = { 0x84000 },
 	[GCC_QREFS_VBG_CAL_BCR] = { 0x88028 },
 	[GCC_IPA_BCR] = { 0x89000 },

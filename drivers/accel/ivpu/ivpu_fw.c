@@ -38,11 +38,11 @@
 	ivpu_fw_check_api(vdev, fw_hdr, #name, \
 			  VPU_##name##_API_VER_INDEX, \
 			  VPU_##name##_API_VER_MAJOR, \
-			  VPU_##name##_API_VER_MINOR, min_major)
+			  VPU_##name##_API_VER_MIANALR, min_major)
 
 /* Check if API version is lower that the given version */
-#define IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, name, major, minor) \
-	ivpu_fw_check_api_ver_lt(vdev, fw_hdr, #name, VPU_##name##_API_VER_INDEX, major, minor)
+#define IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, name, major, mianalr) \
+	ivpu_fw_check_api_ver_lt(vdev, fw_hdr, #name, VPU_##name##_API_VER_INDEX, major, mianalr)
 
 static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
@@ -62,7 +62,7 @@ static struct {
 
 static int ivpu_fw_request(struct ivpu_device *vdev)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	int i;
 
 	if (ivpu_firmware) {
@@ -76,7 +76,7 @@ static int ivpu_fw_request(struct ivpu_device *vdev)
 		if (fw_names[i].gen != ivpu_hw_gen(vdev))
 			continue;
 
-		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i].name, vdev->drm.dev);
+		ret = firmware_request_analwarn(&vdev->fw->file, fw_names[i].name, vdev->drm.dev);
 		if (!ret) {
 			vdev->fw->name = fw_names[i].name;
 			return 0;
@@ -89,35 +89,35 @@ static int ivpu_fw_request(struct ivpu_device *vdev)
 
 static int
 ivpu_fw_check_api(struct ivpu_device *vdev, const struct vpu_firmware_header *fw_hdr,
-		  const char *str, int index, u16 expected_major, u16 expected_minor,
+		  const char *str, int index, u16 expected_major, u16 expected_mianalr,
 		  u16 min_major)
 {
 	u16 major = (u16)(fw_hdr->api_version[index] >> 16);
-	u16 minor = (u16)(fw_hdr->api_version[index]);
+	u16 mianalr = (u16)(fw_hdr->api_version[index]);
 
 	if (major < min_major) {
 		ivpu_err(vdev, "Incompatible FW %s API version: %d.%d, required %d.0 or later\n",
-			 str, major, minor, min_major);
+			 str, major, mianalr, min_major);
 		return -EINVAL;
 	}
 	if (major != expected_major) {
 		ivpu_warn(vdev, "Major FW %s API version different: %d.%d (expected %d.%d)\n",
-			  str, major, minor, expected_major, expected_minor);
+			  str, major, mianalr, expected_major, expected_mianalr);
 	}
 	ivpu_dbg(vdev, FW_BOOT, "FW %s API version: %d.%d (expected %d.%d)\n",
-		 str, major, minor, expected_major, expected_minor);
+		 str, major, mianalr, expected_major, expected_mianalr);
 
 	return 0;
 }
 
 static bool
 ivpu_fw_check_api_ver_lt(struct ivpu_device *vdev, const struct vpu_firmware_header *fw_hdr,
-			 const char *str, int index, u16 major, u16 minor)
+			 const char *str, int index, u16 major, u16 mianalr)
 {
 	u16 fw_major = (u16)(fw_hdr->api_version[index] >> 16);
-	u16 fw_minor = (u16)(fw_hdr->api_version[index]);
+	u16 fw_mianalr = (u16)(fw_hdr->api_version[index]);
 
-	if (fw_major < major || (fw_major == major && fw_minor < minor))
+	if (fw_major < major || (fw_major == major && fw_mianalr < mianalr))
 		return true;
 
 	return false;
@@ -239,7 +239,7 @@ static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
 	u64 size = FW_SHARED_MEM_SIZE;
 
 	if (start + size > FW_GLOBAL_MEM_END) {
-		ivpu_err(vdev, "No space for shared region, start %lld, size %lld\n", start, size);
+		ivpu_err(vdev, "Anal space for shared region, start %lld, size %lld\n", start, size);
 		return -EINVAL;
 	}
 
@@ -260,14 +260,14 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	fw->mem = ivpu_bo_alloc_internal(vdev, fw->runtime_addr, fw->runtime_size, DRM_IVPU_BO_WC);
 	if (!fw->mem) {
 		ivpu_err(vdev, "Failed to allocate firmware runtime memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fw->mem_log_crit = ivpu_bo_alloc_internal(vdev, 0, IVPU_FW_CRITICAL_BUFFER_SIZE,
 						  DRM_IVPU_BO_CACHED);
 	if (!fw->mem_log_crit) {
 		ivpu_err(vdev, "Failed to allocate critical log buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_fw_mem;
 	}
 
@@ -279,7 +279,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	fw->mem_log_verb = ivpu_bo_alloc_internal(vdev, 0, log_verb_size, DRM_IVPU_BO_CACHED);
 	if (!fw->mem_log_verb) {
 		ivpu_err(vdev, "Failed to allocate verbose log buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_log_crit;
 	}
 
@@ -288,7 +288,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 							  fw->shave_nn_size, DRM_IVPU_BO_WC);
 		if (!fw->mem_shave_nn) {
 			ivpu_err(vdev, "Failed to allocate shavenn buffer\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_log_verb;
 		}
 	}

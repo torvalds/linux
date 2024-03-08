@@ -61,7 +61,7 @@ struct rtas_fadump_section_header {
  * Firmware Assisted dump memory structure. This structure is required for
  * registering future kernel dump with power firmware through rtas call.
  *
- * No disk dump option. Hence disk dump path string section is not included.
+ * Anal disk dump option. Hence disk dump path string section is analt included.
  */
 struct rtas_fadump_mem_struct {
 	struct rtas_fadump_section_header	header;

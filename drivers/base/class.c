@@ -30,12 +30,12 @@ static struct kset *class_kset;
  *
  * @class: pointer to the struct bus_type to look up
  *
- * The driver core internals need to work on the subsys_private structure, not
+ * The driver core internals need to work on the subsys_private structure, analt
  * the external struct class pointer.  This function walks the list of
  * registered classes in the system and finds the matching one and returns the
  * internal struct subsys_private that relates to that class.
  *
- * Note, the reference count of the return value is INCREMENTED if it is not
+ * Analte, the reference count of the return value is INCREMENTED if it is analt
  * NULL.  A call to subsys_put() must be done when finished with the pointer in
  * order for it to be properly freed.
  */
@@ -100,7 +100,7 @@ static void class_release(struct kobject *kobj)
 	if (class->class_release)
 		class->class_release(class);
 	else
-		pr_debug("class '%s' does not have a release() function, "
+		pr_debug("class '%s' does analt have a release() function, "
 			 "be careful\n", class->name);
 
 	lockdep_unregister_key(&cp->lock_key);
@@ -155,20 +155,20 @@ void class_remove_file_ns(const struct class *cls, const struct class_attribute 
 }
 EXPORT_SYMBOL_GPL(class_remove_file_ns);
 
-static struct device *klist_class_to_dev(struct klist_node *n)
+static struct device *klist_class_to_dev(struct klist_analde *n)
 {
 	struct device_private *p = to_device_private_class(n);
 	return p->device;
 }
 
-static void klist_class_dev_get(struct klist_node *n)
+static void klist_class_dev_get(struct klist_analde *n)
 {
 	struct device *dev = klist_class_to_dev(n);
 
 	get_device(dev);
 }
 
-static void klist_class_dev_put(struct klist_node *n)
+static void klist_class_dev_put(struct klist_analde *n)
 {
 	struct device *dev = klist_class_to_dev(n);
 
@@ -185,7 +185,7 @@ int class_register(const struct class *cls)
 
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp)
-		return -ENOMEM;
+		return -EANALMEM;
 	klist_init(&cp->klist_devices, klist_class_dev_get, klist_class_dev_put);
 	INIT_LIST_HEAD(&cp->interfaces);
 	kset_init(&cp->glue_dirs);
@@ -249,7 +249,7 @@ static void class_create_release(const struct class *cls)
  *
  * Returns &struct class pointer on success, or ERR_PTR() on error.
  *
- * Note, the pointer created here is to be destroyed when finished by
+ * Analte, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */
 struct class *class_create(const char *name)
@@ -259,7 +259,7 @@ struct class *class_create(const char *name)
 
 	cls = kzalloc(sizeof(*cls), GFP_KERNEL);
 	if (!cls) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error;
 	}
 
@@ -282,7 +282,7 @@ EXPORT_SYMBOL_GPL(class_create);
  * class_destroy - destroys a struct class structure
  * @cls: pointer to the struct class that is to be destroyed
  *
- * Note, the pointer to be destroyed must have been created with a call
+ * Analte, the pointer to be destroyed must have been created with a call
  * to class_create().
  */
 void class_destroy(const struct class *cls)
@@ -310,14 +310,14 @@ void class_dev_iter_init(struct class_dev_iter *iter, const struct class *class,
 			 const struct device *start, const struct device_type *type)
 {
 	struct subsys_private *sp = class_to_subsys(class);
-	struct klist_node *start_knode = NULL;
+	struct klist_analde *start_kanalde = NULL;
 
 	if (!sp)
 		return;
 
 	if (start)
-		start_knode = &start->p->knode_class;
-	klist_iter_init_node(&sp->klist_devices, &iter->ki, start_knode);
+		start_kanalde = &start->p->kanalde_class;
+	klist_iter_init_analde(&sp->klist_devices, &iter->ki, start_kanalde);
 	iter->type = type;
 	iter->sp = sp;
 }
@@ -337,14 +337,14 @@ EXPORT_SYMBOL_GPL(class_dev_iter_init);
  */
 struct device *class_dev_iter_next(struct class_dev_iter *iter)
 {
-	struct klist_node *knode;
+	struct klist_analde *kanalde;
 	struct device *dev;
 
 	while (1) {
-		knode = klist_next(&iter->ki);
-		if (!knode)
+		kanalde = klist_next(&iter->ki);
+		if (!kanalde)
 			return NULL;
-		dev = klist_class_to_dev(knode);
+		dev = klist_class_to_dev(kanalde);
 		if (!iter->type || iter->type == dev->type)
 			return dev;
 	}
@@ -356,7 +356,7 @@ EXPORT_SYMBOL_GPL(class_dev_iter_next);
  * @iter: class iterator to finish
  *
  * Finish an iteration.  Always call this function after iteration is
- * complete whether the iteration ran till the end or not.
+ * complete whether the iteration ran till the end or analt.
  */
 void class_dev_iter_exit(struct class_dev_iter *iter)
 {
@@ -381,7 +381,7 @@ EXPORT_SYMBOL_GPL(class_dev_iter_exit);
  * other than 0, we break out and return that value.
  *
  * @fn is allowed to do anything including calling back into class
- * code.  There's no locking restriction.
+ * code.  There's anal locking restriction.
  */
 int class_for_each_device(const struct class *class, const struct device *start,
 			  void *data, int (*fn)(struct device *, void *))
@@ -423,14 +423,14 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  * returns a reference to a device that is 'found' for later use, as
  * determined by the @match callback.
  *
- * The callback should return 0 if the device doesn't match and non-zero
- * if it does.  If the callback returns non-zero, this function will
- * return to the caller and not iterate over any more devices.
+ * The callback should return 0 if the device doesn't match and analn-zero
+ * if it does.  If the callback returns analn-zero, this function will
+ * return to the caller and analt iterate over any more devices.
  *
- * Note, you will need to drop the reference with put_device() after use.
+ * Analte, you will need to drop the reference with put_device() after use.
  *
  * @match is allowed to do anything including calling back into class
- * code.  There's no locking restriction.
+ * code.  There's anal locking restriction.
  */
 struct device *class_find_device(const struct class *class, const struct device *start,
 				 const void *data,
@@ -470,7 +470,7 @@ int class_interface_register(struct class_interface *class_intf)
 	struct device *dev;
 
 	if (!class_intf || !class_intf->class)
-		return -ENODEV;
+		return -EANALDEV;
 
 	parent = class_intf->class;
 	sp = class_to_subsys(parent);
@@ -478,12 +478,12 @@ int class_interface_register(struct class_interface *class_intf)
 		return -EINVAL;
 
 	/*
-	 * Reference in sp is now incremented and will be dropped when
+	 * Reference in sp is analw incremented and will be dropped when
 	 * the interface is removed in the call to class_interface_unregister()
 	 */
 
 	mutex_lock(&sp->mutex);
-	list_add_tail(&class_intf->node, &sp->interfaces);
+	list_add_tail(&class_intf->analde, &sp->interfaces);
 	if (class_intf->add_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))
@@ -511,7 +511,7 @@ void class_interface_unregister(struct class_interface *class_intf)
 		return;
 
 	mutex_lock(&sp->mutex);
-	list_del_init(&class_intf->node);
+	list_del_init(&class_intf->analde);
 	if (class_intf->remove_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))
@@ -630,13 +630,13 @@ EXPORT_SYMBOL_GPL(class_compat_remove_link);
 
 /**
  * class_is_registered - determine if at this moment in time, a class is
- *			 registered in the driver core or not.
+ *			 registered in the driver core or analt.
  * @class: the class to check
  *
  * Returns a boolean to state if the class is registered in the driver core
- * or not.  Note that the value could switch right after this call is made,
- * so only use this in places where you "know" it is safe to do so (usually
- * to determine if the specific class has been registered yet or not).
+ * or analt.  Analte that the value could switch right after this call is made,
+ * so only use this in places where you "kanalw" it is safe to do so (usually
+ * to determine if the specific class has been registered yet or analt).
  *
  * Be careful in using this.
  */
@@ -657,6 +657,6 @@ int __init classes_init(void)
 {
 	class_kset = kset_create_and_add("class", NULL, NULL);
 	if (!class_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }

@@ -75,7 +75,7 @@
 #define CNTL_LCDBPP24		(5 << 1)
 #define CNTL_LCDBW		(1 << 4)
 #define CNTL_LCDTFT		(1 << 5)
-#define CNTL_LCDMONO8		(1 << 6)
+#define CNTL_LCDMOANAL8		(1 << 6)
 #define CNTL_LCDDUAL		(1 << 7)
 #define CNTL_BGR		(1 << 8)
 #define CNTL_BEBO		(1 << 9)
@@ -98,13 +98,13 @@
 
 #define CLCD_IRQ_NEXTBASE_UPDATE BIT(2)
 
-struct drm_minor;
+struct drm_mianalr;
 
 /**
  * struct pl111_variant_data - encodes IP differences
  * @name: the name of this variant
  * @is_pl110: this is the early PL110 variant
- * @is_lcdc: this is the ST Microelectronics Nomadik LCDC variant
+ * @is_lcdc: this is the ST Microelectronics Analmadik LCDC variant
  * @external_bgr: this is the Versatile Pl110 variant with external
  *	BGR/RGB routing
  * @broken_clockdivider: the clock divider is broken and we need to
@@ -157,6 +157,6 @@ struct pl111_drm_dev_private {
 
 int pl111_display_init(struct drm_device *dev);
 irqreturn_t pl111_irq(int irq, void *data);
-void pl111_debugfs_init(struct drm_minor *minor);
+void pl111_debugfs_init(struct drm_mianalr *mianalr);
 
 #endif /* _PL111_DRM_H_ */

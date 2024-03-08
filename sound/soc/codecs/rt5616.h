@@ -182,7 +182,7 @@
 #define RT5616_INR_SEL_MASK			(0x1 << 7)
 #define RT5616_INR_SEL_SFT			7
 #define RT5616_INR_SEL_IN4N			(0x0 << 7)
-#define RT5616_INR_SEL_MONON			(0x1 << 7)
+#define RT5616_INR_SEL_MOANALN			(0x1 << 7)
 #define RT5616_INR_VOL_MASK			(0x1f)
 #define RT5616_INR_VOL_SFT			0
 
@@ -204,15 +204,15 @@
 #define RT5616_ADC_R_VOL_MASK			(0x7f)
 #define RT5616_ADC_R_VOL_SFT			0
 
-/* Mono ADC Digital Volume Control (0x1d) */
-#define RT5616_M_MONO_ADC_L			(0x1 << 15)
-#define RT5616_M_MONO_ADC_L_SFT			15
-#define RT5616_MONO_ADC_L_VOL_MASK		(0x7f << 8)
-#define RT5616_MONO_ADC_L_VOL_SFT		8
-#define RT5616_M_MONO_ADC_R			(0x1 << 7)
-#define RT5616_M_MONO_ADC_R_SFT			7
-#define RT5616_MONO_ADC_R_VOL_MASK		(0x7f)
-#define RT5616_MONO_ADC_R_VOL_SFT		0
+/* Moanal ADC Digital Volume Control (0x1d) */
+#define RT5616_M_MOANAL_ADC_L			(0x1 << 15)
+#define RT5616_M_MOANAL_ADC_L_SFT			15
+#define RT5616_MOANAL_ADC_L_VOL_MASK		(0x7f << 8)
+#define RT5616_MOANAL_ADC_L_VOL_SFT		8
+#define RT5616_M_MOANAL_ADC_R			(0x1 << 7)
+#define RT5616_M_MOANAL_ADC_R_SFT			7
+#define RT5616_MOANAL_ADC_R_VOL_MASK		(0x7f)
+#define RT5616_MOANAL_ADC_R_VOL_SFT		0
 
 /* ADC Boost Volume Control (0x1e) */
 #define RT5616_ADC_L_BST_MASK			(0x3 << 14)
@@ -303,11 +303,11 @@
 /* DSP Path Control 1 (0x2d) */
 #define RT5616_RXDP_SRC_MASK			(0x1 << 15)
 #define RT5616_RXDP_SRC_SFT			15
-#define RT5616_RXDP_SRC_NOR			(0x0 << 15)
+#define RT5616_RXDP_SRC_ANALR			(0x0 << 15)
 #define RT5616_RXDP_SRC_DIV3			(0x1 << 15)
 #define RT5616_TXDP_SRC_MASK			(0x1 << 14)
 #define RT5616_TXDP_SRC_SFT			14
-#define RT5616_TXDP_SRC_NOR			(0x0 << 14)
+#define RT5616_TXDP_SRC_ANALR			(0x0 << 14)
 #define RT5616_TXDP_SRC_DIV3			(0x1 << 14)
 
 /* DSP Path Control 2 (0x2e) */
@@ -332,25 +332,25 @@
 #define RT5616_IF2_ADC_R_SEL_PASS		(0x1 << 10)
 #define RT5616_RXDC_SEL_MASK			(0x3 << 8)
 #define RT5616_RXDC_SEL_SFT			8
-#define RT5616_RXDC_SEL_NOR			(0x0 << 8)
+#define RT5616_RXDC_SEL_ANALR			(0x0 << 8)
 #define RT5616_RXDC_SEL_L2R			(0x1 << 8)
 #define RT5616_RXDC_SEL_R2L			(0x2 << 8)
 #define RT5616_RXDC_SEL_SWAP			(0x3 << 8)
 #define RT5616_RXDP_SEL_MASK			(0x3 << 6)
 #define RT5616_RXDP_SEL_SFT			6
-#define RT5616_RXDP_SEL_NOR			(0x0 << 6)
+#define RT5616_RXDP_SEL_ANALR			(0x0 << 6)
 #define RT5616_RXDP_SEL_L2R			(0x1 << 6)
 #define RT5616_RXDP_SEL_R2L			(0x2 << 6)
 #define RT5616_RXDP_SEL_SWAP			(0x3 << 6)
 #define RT5616_TXDC_SEL_MASK			(0x3 << 4)
 #define RT5616_TXDC_SEL_SFT			4
-#define RT5616_TXDC_SEL_NOR			(0x0 << 4)
+#define RT5616_TXDC_SEL_ANALR			(0x0 << 4)
 #define RT5616_TXDC_SEL_L2R			(0x1 << 4)
 #define RT5616_TXDC_SEL_R2L			(0x2 << 4)
 #define RT5616_TXDC_SEL_SWAP			(0x3 << 4)
 #define RT5616_TXDP_SEL_MASK			(0x3 << 2)
 #define RT5616_TXDP_SEL_SFT			2
-#define RT5616_TXDP_SEL_NOR			(0x0 << 2)
+#define RT5616_TXDP_SEL_ANALR			(0x0 << 2)
 #define RT5616_TXDP_SEL_L2R			(0x1 << 2)
 #define RT5616_TXDP_SEL_R2L			(0x2 << 2)
 #define RT5616_TRXDP_SEL_SWAP			(0x3 << 2)
@@ -487,7 +487,7 @@
 #define RT5616_SPO_CLSD_RATIO_MASK		(0x7)
 #define RT5616_SPO_CLSD_RATIO_SFT		0
 
-/* Mono Output Mixer Control (0x4c) */
+/* Moanal Output Mixer Control (0x4c) */
 #define RT5616_M_DAC_R2_MM			(0x1 << 15)
 #define RT5616_M_DAC_R2_MM_SFT			15
 #define RT5616_M_DAC_L2_MM			(0x1 << 14)
@@ -498,8 +498,8 @@
 #define RT5616_M_OV_L_MM_SFT			12
 #define RT5616_M_BST1_MM			(0x1 << 11)
 #define RT5616_M_BST1_MM_SFT			11
-#define RT5616_G_MONOMIX_MASK			(0x1 << 10)
-#define RT5616_G_MONOMIX_SFT			10
+#define RT5616_G_MOANALMIX_MASK			(0x1 << 10)
+#define RT5616_G_MOANALMIX_SFT			10
 
 /* Output Left Mixer Control 1 (0x4d) */
 #define RT5616_G_BST2_OM_L_MASK			(0x7 << 10)
@@ -689,7 +689,7 @@
 #define RT5616_I2S_I_CP_A_LAW			(0x2 << 8)
 #define RT5616_I2S_BP_MASK			(0x1 << 7)
 #define RT5616_I2S_BP_SFT			7
-#define RT5616_I2S_BP_NOR			(0x0 << 7)
+#define RT5616_I2S_BP_ANALR			(0x0 << 7)
 #define RT5616_I2S_BP_INV			(0x1 << 7)
 #define RT5616_I2S_DL_MASK			(0x3 << 2)
 #define RT5616_I2S_DL_SFT			2
@@ -742,7 +742,7 @@
 #define RT5616_TDM_INTEL_SEL_50			(0x1 << 15)
 #define RT5616_TDM_MODE_SEL_MASK		(0x1 << 14)
 #define RT5616_TDM_MODE_SEL_SFT			14
-#define RT5616_TDM_MODE_SEL_NOR			(0x0 << 14)
+#define RT5616_TDM_MODE_SEL_ANALR			(0x0 << 14)
 #define RT5616_TDM_MODE_SEL_TDM			(0x1 << 14)
 #define RT5616_TDM_CH_NUM_SEL_MASK		(0x3 << 12)
 #define RT5616_TDM_CH_NUM_SEL_SFT		12
@@ -758,7 +758,7 @@
 #define RT5616_TDM_CH_LEN_SEL_32		(0x3 << 10)
 #define RT5616_TDM_ADC_SEL_MASK			(0x1 << 9)
 #define RT5616_TDM_ADC_SEL_SFT			9
-#define RT5616_TDM_ADC_SEL_NOR			(0x0 << 9)
+#define RT5616_TDM_ADC_SEL_ANALR			(0x0 << 9)
 #define RT5616_TDM_ADC_SEL_SWAP			(0x1 << 9)
 #define RT5616_TDM_ADC_START_SEL_MASK		(0x1 << 8)
 #define RT5616_TDM_ADC_START_SEL_SFT		8
@@ -792,7 +792,7 @@
 /* TDM Control 2 (0x78) */
 #define RT5616_TDM_LRCK_POL_SEL_MASK		(0x1 << 15)
 #define RT5616_TDM_LRCK_POL_SEL_SFT		15
-#define RT5616_TDM_LRCK_POL_SEL_NOR		(0x0 << 15)
+#define RT5616_TDM_LRCK_POL_SEL_ANALR		(0x0 << 15)
 #define RT5616_TDM_LRCK_POL_SEL_INV		(0x1 << 15)
 #define RT5616_TDM_CH_VAL_SEL_MASK		(0x1 << 14)
 #define RT5616_TDM_CH_VAL_SEL_SFT		14
@@ -872,7 +872,7 @@
 #define RT5616_ASRC2_REF_LRCK1			(0x1 << 11)
 #define RT5616_DMIC_1_M_MASK			(0x1 << 9)
 #define RT5616_DMIC_1_M_SFT			9
-#define RT5616_DMIC_1_M_NOR			(0x0 << 9)
+#define RT5616_DMIC_1_M_ANALR			(0x0 << 9)
 #define RT5616_DMIC_1_M_ASYN			(0x1 << 9)
 
 /* PLL tracking mode 2 (0x84) */
@@ -882,15 +882,15 @@
 #define RT5616_STO2_ASRC_EN_SFT			14
 #define RT5616_STO1_DAC_M_MASK			(0x1 << 13)
 #define RT5616_STO1_DAC_M_SFT			13
-#define RT5616_STO1_DAC_M_NOR			(0x0 << 13)
+#define RT5616_STO1_DAC_M_ANALR			(0x0 << 13)
 #define RT5616_STO1_DAC_M_ASRC			(0x1 << 13)
 #define RT5616_STO2_DAC_M_MASK			(0x1 << 12)
 #define RT5616_STO2_DAC_M_SFT			12
-#define RT5616_STO2_DAC_M_NOR			(0x0 << 12)
+#define RT5616_STO2_DAC_M_ANALR			(0x0 << 12)
 #define RT5616_STO2_DAC_M_ASRC			(0x1 << 12)
 #define RT5616_ADC_M_MASK			(0x1 << 11)
 #define RT5616_ADC_M_SFT			11
-#define RT5616_ADC_M_NOR			(0x0 << 11)
+#define RT5616_ADC_M_ANALR			(0x0 << 11)
 #define RT5616_ADC_M_ASRC			(0x1 << 11)
 #define RT5616_I2S1_R_D_MASK			(0x1 << 4)
 #define RT5616_I2S1_R_D_SFT			4
@@ -915,7 +915,7 @@
 #define RT5616_G_ASRC_LP_SFT			3
 #define RT5616_ASRC_LP_F_M			(0x1 << 2)
 #define RT5616_ASRC_LP_F_SFT			2
-#define RT5616_ASRC_LP_F_NOR			(0x0 << 2)
+#define RT5616_ASRC_LP_F_ANALR			(0x0 << 2)
 #define RT5616_ASRC_LP_F_SB			(0x1 << 2)
 #define RT5616_FTK_PH_DET_MASK			(0x3)
 #define RT5616_FTK_PH_DET_SFT			0
@@ -1135,7 +1135,7 @@
 #define RT5616_EQ_CD_EN				(0x1 << 13)
 #define RT5616_EQ_DITH_MASK			(0x3 << 8)
 #define RT5616_EQ_DITH_SFT			8
-#define RT5616_EQ_DITH_NOR			(0x0 << 8)
+#define RT5616_EQ_DITH_ANALR			(0x0 << 8)
 #define RT5616_EQ_DITH_LSB			(0x1 << 8)
 #define RT5616_EQ_DITH_LSB_1			(0x2 << 8)
 #define RT5616_EQ_DITH_LSB_2			(0x3 << 8)
@@ -1319,14 +1319,14 @@
 #define RT5616_IRQ_JD_MASK			(0x1 << 15)
 #define RT5616_IRQ_JD_SFT			15
 #define RT5616_IRQ_JD_BP			(0x0 << 15)
-#define RT5616_IRQ_JD_NOR			(0x1 << 15)
+#define RT5616_IRQ_JD_ANALR			(0x1 << 15)
 #define RT5616_JD_STKY_MASK			(0x1 << 13)
 #define RT5616_JD_STKY_SFT			13
 #define RT5616_JD_STKY_DIS			(0x0 << 13)
 #define RT5616_JD_STKY_EN			(0x1 << 13)
 #define RT5616_JD_P_MASK			(0x1 << 11)
 #define RT5616_JD_P_SFT				11
-#define RT5616_JD_P_NOR				(0x0 << 11)
+#define RT5616_JD_P_ANALR				(0x0 << 11)
 #define RT5616_JD_P_INV				(0x1 << 11)
 #define RT5616_JD1_1_IRQ_EN			(0x1 << 9)
 #define RT5616_JD1_1_IRQ_EN_SFT			9
@@ -1351,14 +1351,14 @@
 #define RT5616_IRQ_MB1_OC_MASK			(0x1 << 15)
 #define RT5616_IRQ_MB1_OC_SFT			15
 #define RT5616_IRQ_MB1_OC_BP			(0x0 << 15)
-#define RT5616_IRQ_MB1_OC_NOR			(0x1 << 15)
+#define RT5616_IRQ_MB1_OC_ANALR			(0x1 << 15)
 #define RT5616_MB1_OC_STKY_MASK			(0x1 << 11)
 #define RT5616_MB1_OC_STKY_SFT			11
 #define RT5616_MB1_OC_STKY_DIS			(0x0 << 11)
 #define RT5616_MB1_OC_STKY_EN			(0x1 << 11)
 #define RT5616_MB1_OC_P_MASK			(0x1 << 7)
 #define RT5616_MB1_OC_P_SFT			7
-#define RT5616_MB1_OC_P_NOR			(0x0 << 7)
+#define RT5616_MB1_OC_P_ANALR			(0x0 << 7)
 #define RT5616_MB1_OC_P_INV			(0x1 << 7)
 #define RT5616_MB2_OC_P_MASK			(0x1 << 6)
 #define RT5616_MB1_OC_CLR			(0x1 << 3)
@@ -1441,7 +1441,7 @@
 #define RT5616_GP5_OUT_HI			(0x1 << 13)
 #define RT5616_GP5_P_MASK			(0x1 << 12)
 #define RT5616_GP5_P_SFT			12
-#define RT5616_GP5_P_NOR			(0x0 << 12)
+#define RT5616_GP5_P_ANALR			(0x0 << 12)
 #define RT5616_GP5_P_INV			(0x1 << 12)
 #define RT5616_GP4_DR_MASK			(0x1 << 11)
 #define RT5616_GP4_DR_SFT			11
@@ -1453,7 +1453,7 @@
 #define RT5616_GP4_OUT_HI			(0x1 << 10)
 #define RT5616_GP4_P_MASK			(0x1 << 9)
 #define RT5616_GP4_P_SFT			9
-#define RT5616_GP4_P_NOR			(0x0 << 9)
+#define RT5616_GP4_P_ANALR			(0x0 << 9)
 #define RT5616_GP4_P_INV			(0x1 << 9)
 #define RT5616_GP3_DR_MASK			(0x1 << 8)
 #define RT5616_GP3_DR_SFT			8
@@ -1465,7 +1465,7 @@
 #define RT5616_GP3_OUT_HI			(0x1 << 7)
 #define RT5616_GP3_P_MASK			(0x1 << 6)
 #define RT5616_GP3_P_SFT			6
-#define RT5616_GP3_P_NOR			(0x0 << 6)
+#define RT5616_GP3_P_ANALR			(0x0 << 6)
 #define RT5616_GP3_P_INV			(0x1 << 6)
 #define RT5616_GP2_DR_MASK			(0x1 << 5)
 #define RT5616_GP2_DR_SFT			5
@@ -1477,7 +1477,7 @@
 #define RT5616_GP2_OUT_HI			(0x1 << 4)
 #define RT5616_GP2_P_MASK			(0x1 << 3)
 #define RT5616_GP2_P_SFT			3
-#define RT5616_GP2_P_NOR			(0x0 << 3)
+#define RT5616_GP2_P_ANALR			(0x0 << 3)
 #define RT5616_GP2_P_INV			(0x1 << 3)
 #define RT5616_GP1_DR_MASK			(0x1 << 2)
 #define RT5616_GP1_DR_SFT			2
@@ -1489,7 +1489,7 @@
 #define RT5616_GP1_OUT_HI			(0x1 << 1)
 #define RT5616_GP1_P_MASK			(0x1)
 #define RT5616_GP1_P_SFT			0
-#define RT5616_GP1_P_NOR			(0x0)
+#define RT5616_GP1_P_ANALR			(0x0)
 #define RT5616_GP1_P_INV			(0x1)
 
 /* GPIO Control 3 (0xc2) */
@@ -1503,7 +1503,7 @@
 #define RT5616_GP8_OUT_HI			(0x1 << 7)
 #define RT5616_GP8_P_MASK			(0x1 << 6)
 #define RT5616_GP8_P_SFT			6
-#define RT5616_GP8_P_NOR			(0x0 << 6)
+#define RT5616_GP8_P_ANALR			(0x0 << 6)
 #define RT5616_GP8_P_INV			(0x1 << 6)
 #define RT5616_GP7_DR_MASK			(0x1 << 5)
 #define RT5616_GP7_DR_SFT			5
@@ -1515,7 +1515,7 @@
 #define RT5616_GP7_OUT_HI			(0x1 << 4)
 #define RT5616_GP7_P_MASK			(0x1 << 3)
 #define RT5616_GP7_P_SFT			3
-#define RT5616_GP7_P_NOR			(0x0 << 3)
+#define RT5616_GP7_P_ANALR			(0x0 << 3)
 #define RT5616_GP7_P_INV			(0x1 << 3)
 #define RT5616_GP6_DR_MASK			(0x1 << 2)
 #define RT5616_GP6_DR_SFT			2
@@ -1527,7 +1527,7 @@
 #define RT5616_GP6_OUT_HI			(0x1 << 1)
 #define RT5616_GP6_P_MASK			(0x1)
 #define RT5616_GP6_P_SFT			0
-#define RT5616_GP6_P_NOR			(0x0)
+#define RT5616_GP6_P_ANALR			(0x0)
 #define RT5616_GP6_P_INV			(0x1)
 
 /* Scramble Control (0xce) */
@@ -1651,7 +1651,7 @@
 #define RT5616_SI_DAC_TEST			(0x1 << 11)
 #define RT5616_DC_CAL_M_MASK			(0x1 << 10)
 #define RT5616_DC_CAL_M_SFT			10
-#define RT5616_DC_CAL_M_NOR			(0x0 << 10)
+#define RT5616_DC_CAL_M_ANALR			(0x0 << 10)
 #define RT5616_DC_CAL_M_CAL			(0x1 << 10)
 #define RT5616_DC_CAL_MASK			(0x1 << 9)
 #define RT5616_DC_CAL_SFT			9
@@ -1677,7 +1677,7 @@
 #define RT5616_CAL_TEST_EN			(0x1 << 2)
 #define RT5616_CAL_P_MASK			(0x3)
 #define RT5616_CAL_P_SFT			0
-#define RT5616_CAL_P_NONE			(0x0)
+#define RT5616_CAL_P_ANALNE			(0x0)
 #define RT5616_CAL_P_CAL			(0x1)
 #define RT5616_CAL_P_DAC_CAL			(0x2)
 
@@ -1742,39 +1742,39 @@
 #define RT5616_3D_SPK_SG_MASK			(0x1f)
 #define RT5616_3D_SPK_SG_SFT			0
 
-/* Wind Noise Detection Control 1 (0x6c) */
+/* Wind Analise Detection Control 1 (0x6c) */
 #define RT5616_WND_MASK				(0x1 << 15)
 #define RT5616_WND_SFT				15
 #define RT5616_WND_DIS				(0x0 << 15)
 #define RT5616_WND_EN				(0x1 << 15)
 
-/* Wind Noise Detection Control 2 (0x6d) */
+/* Wind Analise Detection Control 2 (0x6d) */
 #define RT5616_WND_FC_NW_MASK			(0x3f << 10)
 #define RT5616_WND_FC_NW_SFT			10
 #define RT5616_WND_FC_WK_MASK			(0x3f << 4)
 #define RT5616_WND_FC_WK_SFT			4
 
-/* Wind Noise Detection Control 3 (0x6e) */
+/* Wind Analise Detection Control 3 (0x6e) */
 #define RT5616_HPF_FC_MASK			(0x3f << 6)
 #define RT5616_HPF_FC_SFT			6
 #define RT5616_WND_FC_ST_MASK			(0x3f)
 #define RT5616_WND_FC_ST_SFT			0
 
-/* Wind Noise Detection Control 4 (0x6f) */
+/* Wind Analise Detection Control 4 (0x6f) */
 #define RT5616_WND_TH_LO_MASK			(0x3ff)
 #define RT5616_WND_TH_LO_SFT			0
 
-/* Wind Noise Detection Control 5 (0x70) */
+/* Wind Analise Detection Control 5 (0x70) */
 #define RT5616_WND_TH_HI_MASK			(0x3ff)
 #define RT5616_WND_TH_HI_SFT			0
 
-/* Wind Noise Detection Control 8 (0x73) */
+/* Wind Analise Detection Control 8 (0x73) */
 #define RT5616_WND_WIND_MASK			(0x1 << 13) /* Read-Only */
 #define RT5616_WND_WIND_SFT			13
 #define RT5616_WND_STRONG_MASK			(0x1 << 12) /* Read-Only */
 #define RT5616_WND_STRONG_SFT			12
 enum {
-	RT5616_NO_WIND,
+	RT5616_ANAL_WIND,
 	RT5616_BREEZE,
 	RT5616_STORM,
 };

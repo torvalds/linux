@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <assert.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -46,12 +46,12 @@
 #define BPF_FS_MAGIC           0xcafe4a11
 #endif
 
-static const char * const sysfs__known_mountpoints[] = {
+static const char * const sysfs__kanalwn_mountpoints[] = {
 	"/sys",
 	0,
 };
 
-static const char * const procfs__known_mountpoints[] = {
+static const char * const procfs__kanalwn_mountpoints[] = {
 	"/proc",
 	0,
 };
@@ -60,7 +60,7 @@ static const char * const procfs__known_mountpoints[] = {
 #define DEBUGFS_DEFAULT_PATH "/sys/kernel/debug"
 #endif
 
-static const char * const debugfs__known_mountpoints[] = {
+static const char * const debugfs__kanalwn_mountpoints[] = {
 	DEBUGFS_DEFAULT_PATH,
 	"/debug",
 	0,
@@ -71,7 +71,7 @@ static const char * const debugfs__known_mountpoints[] = {
 #define TRACEFS_DEFAULT_PATH "/sys/kernel/tracing"
 #endif
 
-static const char * const tracefs__known_mountpoints[] = {
+static const char * const tracefs__kanalwn_mountpoints[] = {
 	TRACEFS_DEFAULT_PATH,
 	"/sys/kernel/debug/tracing",
 	"/tracing",
@@ -79,11 +79,11 @@ static const char * const tracefs__known_mountpoints[] = {
 	0,
 };
 
-static const char * const hugetlbfs__known_mountpoints[] = {
+static const char * const hugetlbfs__kanalwn_mountpoints[] = {
 	0,
 };
 
-static const char * const bpf_fs__known_mountpoints[] = {
+static const char * const bpf_fs__kanalwn_mountpoints[] = {
 	"/sys/fs/bpf",
 	0,
 };
@@ -107,7 +107,7 @@ static const char *fs__mount(struct fs *fs);
 #define FS(lower_name, fs_name, upper_name)		\
 static struct fs fs__##lower_name = {			\
 	.name = #fs_name,				\
-	.mounts = lower_name##__known_mountpoints,	\
+	.mounts = lower_name##__kanalwn_mountpoints,	\
 	.magic = upper_name##_MAGIC,			\
 	.mount_mutex = PTHREAD_MUTEX_INITIALIZER,	\
 };							\
@@ -179,9 +179,9 @@ static int fs__valid_mount(const char *fs, long magic)
 	struct statfs st_fs;
 
 	if (statfs(fs, &st_fs) < 0)
-		return -ENOENT;
+		return -EANALENT;
 	else if ((long)st_fs.f_type != magic)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -353,7 +353,7 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 
 	io.fd = open(filename, O_RDONLY);
 	if (io.fd < 0)
-		return -errno;
+		return -erranal;
 	io__init(&io, io.fd, bf, sizeof(bf));
 	*buf = NULL;
 	err = io__getdelim(&io, buf, sizep, /*delim=*/-1);
@@ -459,7 +459,7 @@ int sysfs__read_bool(const char *entry, bool *value)
 	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
 	io.fd = open(path, O_RDONLY);
 	if (io.fd < 0)
-		return -errno;
+		return -erranal;
 
 	io__init(&io, io.fd, bf, sizeof(bf));
 	switch (io__get_char(&io)) {

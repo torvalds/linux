@@ -151,7 +151,7 @@ static void hanwang_parse_packet(struct hanwang *hanwang)
 			default:
 				hanwang->current_id = 0;
 				dev_dbg(&dev->dev,
-					"unknown tablet tool %02x\n", data[0]);
+					"unkanalwn tablet tool %02x\n", data[0]);
 				break;
 			}
 			break;
@@ -258,14 +258,14 @@ static void hanwang_irq(struct urb *urb)
 		hanwang_parse_packet(hanwang);
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_err(&dev->dev, "%s - urb shutting down with status: %d",
 			__func__, urb->status);
 		return;
 	default:
-		dev_err(&dev->dev, "%s - nonzero urb status received: %d",
+		dev_err(&dev->dev, "%s - analnzero urb status received: %d",
 			__func__, urb->status);
 		break;
 	}
@@ -320,12 +320,12 @@ static int hanwang_probe(struct usb_interface *intf, const struct usb_device_id 
 	int i;
 
 	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hanwang = kzalloc(sizeof(struct hanwang), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!hanwang || !input_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail1;
 	}
 
@@ -337,13 +337,13 @@ static int hanwang_probe(struct usb_interface *intf, const struct usb_device_id 
 	hanwang->data = usb_alloc_coherent(dev, hanwang->features->pkg_len,
 					GFP_KERNEL, &hanwang->data_dma);
 	if (!hanwang->data) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail1;
 	}
 
 	hanwang->irq = usb_alloc_urb(0, GFP_KERNEL);
 	if (!hanwang->irq) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail2;
 	}
 
@@ -393,7 +393,7 @@ static int hanwang_probe(struct usb_interface *intf, const struct usb_device_id 
 			hanwang->data, hanwang->features->pkg_len,
 			hanwang_irq, hanwang, endpoint->bInterval);
 	hanwang->irq->transfer_dma = hanwang->data_dma;
-	hanwang->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	hanwang->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	error = input_register_device(hanwang->dev);
 	if (error)

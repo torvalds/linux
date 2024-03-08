@@ -3,9 +3,9 @@
  * store hypervisor information instruction emulation functions.
  *
  * Copyright IBM Corp. 2016
- * Author(s): Janosch Frank <frankja@linux.vnet.ibm.com>
+ * Author(s): Jaanalsch Frank <frankja@linux.vnet.ibm.com>
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/syscalls.h>
@@ -28,7 +28,7 @@
 #define IFL 0xc9c6d34040404040UL
 
 enum hdr_flags {
-	HDR_NOT_LPAR   = 0x10,
+	HDR_ANALT_LPAR   = 0x10,
 	HDR_STACK_INCM = 0x20,
 	HDR_STSI_UNAV  = 0x40,
 	HDR_PERF_UNAV  = 0x80,
@@ -317,8 +317,8 @@ static void fill_diag(struct sthyi_sctns *sctns)
 	if (pages <= 0)
 		return;
 
-	diag204_buf = __vmalloc_node(array_size(pages, PAGE_SIZE),
-				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
+	diag204_buf = __vmalloc_analde(array_size(pages, PAGE_SIZE),
+				     PAGE_SIZE, GFP_KERNEL, NUMA_ANAL_ANALDE,
 				     __builtin_return_address(0));
 	if (!diag204_buf)
 		return;
@@ -340,7 +340,7 @@ static void fill_diag(struct sthyi_sctns *sctns)
 		 * For the calling lpar we also need to get the cpu
 		 * caps and weights. The time information block header
 		 * specifies the offset to the partition block of the
-		 * caller lpar, so we know when we process its data.
+		 * caller lpar, so we kanalw when we process its data.
 		 */
 		this_lpar = (void *)part_block - diag204_buf == ti_hdr->this_part;
 		part_block = lpar_cpu_inf(&lpar_inf, this_lpar, diag224_buf,
@@ -436,7 +436,7 @@ static int sthyi_init_cache(void)
 		return 0;
 	sthyi_cache.info = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!sthyi_cache.info)
-		return -ENOMEM;
+		return -EANALMEM;
 	sthyi_cache.end = jiffies - 1; /* expired */
 	return 0;
 }
@@ -498,10 +498,10 @@ SYSCALL_DEFINE4(s390_sthyi, unsigned long, function_code, void __user *, buffer,
 	if (flags)
 		return -EINVAL;
 	if (function_code != STHYI_FC_CP_IFL_CAP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	info = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	r = sthyi_fill(info, &sthyi_rc);
 	if (r < 0)
 		goto out;

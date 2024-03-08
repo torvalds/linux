@@ -63,7 +63,7 @@ struct sti_fps_info {
  *
  * @plane:              drm plane it is bound to (if any)
  * @desc:               plane type & id
- * @status:             to know the status of the plane
+ * @status:             to kanalw the status of the plane
  * @fps_info:           frame per second info
  */
 struct sti_plane {

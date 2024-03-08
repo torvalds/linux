@@ -5,7 +5,7 @@
  * Copyright (C) 2018-2023 ARM Ltd.
  */
 
-#define pr_fmt(fmt) "SCMI Notifications PERF - " fmt
+#define pr_fmt(fmt) "SCMI Analtifications PERF - " fmt
 
 #include <linux/bits.h>
 #include <linux/hashtable.h>
@@ -22,7 +22,7 @@
 #include <trace/events/scmi.h>
 
 #include "protocols.h"
-#include "notify.h"
+#include "analtify.h"
 
 /* Updated only after ALL the mandatory features for that version are merged */
 #define SCMI_PROTOCOL_SUPPORTED_VERSION		0x40000
@@ -36,8 +36,8 @@ enum scmi_performance_protocol_cmd {
 	PERF_LIMITS_GET = 0x6,
 	PERF_LEVEL_SET = 0x7,
 	PERF_LEVEL_GET = 0x8,
-	PERF_NOTIFY_LIMITS = 0x9,
-	PERF_NOTIFY_LEVEL = 0xa,
+	PERF_ANALTIFY_LIMITS = 0x9,
+	PERF_ANALTIFY_LEVEL = 0xa,
 	PERF_DESCRIBE_FASTCHANNEL = 0xb,
 	PERF_DOMAIN_NAME_GET = 0xc,
 };
@@ -54,7 +54,7 @@ struct scmi_opp {
 	u32 trans_latency_us;
 	u32 indicative_freq;
 	u32 level_index;
-	struct hlist_node hash;
+	struct hlist_analde hash;
 };
 
 struct scmi_msg_resp_perf_attributes {
@@ -71,8 +71,8 @@ struct scmi_msg_resp_perf_domain_attributes {
 	__le32 flags;
 #define SUPPORTS_SET_LIMITS(x)		((x) & BIT(31))
 #define SUPPORTS_SET_PERF_LVL(x)	((x) & BIT(30))
-#define SUPPORTS_PERF_LIMIT_NOTIFY(x)	((x) & BIT(29))
-#define SUPPORTS_PERF_LEVEL_NOTIFY(x)	((x) & BIT(28))
+#define SUPPORTS_PERF_LIMIT_ANALTIFY(x)	((x) & BIT(29))
+#define SUPPORTS_PERF_LEVEL_ANALTIFY(x)	((x) & BIT(28))
 #define SUPPORTS_PERF_FASTCHANNELS(x)	((x) & BIT(27))
 #define SUPPORTS_EXTENDED_NAMES(x)	((x) & BIT(26))
 #define SUPPORTS_LEVEL_INDEXING(x)	((x) & BIT(25))
@@ -103,19 +103,19 @@ struct scmi_perf_set_level {
 	__le32 level;
 };
 
-struct scmi_perf_notify_level_or_limits {
+struct scmi_perf_analtify_level_or_limits {
 	__le32 domain;
-	__le32 notify_enable;
+	__le32 analtify_enable;
 };
 
-struct scmi_perf_limits_notify_payld {
+struct scmi_perf_limits_analtify_payld {
 	__le32 agent_id;
 	__le32 domain_id;
 	__le32 range_max;
 	__le32 range_min;
 };
 
-struct scmi_perf_level_notify_payld {
+struct scmi_perf_level_analtify_payld {
 	__le32 agent_id;
 	__le32 domain_id;
 	__le32 performance_level;
@@ -148,8 +148,8 @@ struct scmi_msg_resp_perf_describe_levels_v4 {
 struct perf_dom_info {
 	u32 id;
 	bool set_limits;
-	bool perf_limit_notify;
-	bool perf_level_notify;
+	bool perf_limit_analtify;
+	bool perf_level_analtify;
 	bool perf_fastchannels;
 	bool level_indexing_mode;
 	u32 opp_count;
@@ -186,8 +186,8 @@ struct scmi_perf_info {
 };
 
 static enum scmi_performance_protocol_cmd evt_2_cmd[] = {
-	PERF_NOTIFY_LIMITS,
-	PERF_NOTIFY_LEVEL,
+	PERF_ANALTIFY_LIMITS,
+	PERF_ANALTIFY_LEVEL,
 };
 
 static int scmi_perf_attributes_get(const struct scmi_protocol_handle *ph,
@@ -260,8 +260,8 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 
 		dom_info->set_limits = SUPPORTS_SET_LIMITS(flags);
 		dom_info->info.set_perf = SUPPORTS_SET_PERF_LVL(flags);
-		dom_info->perf_limit_notify = SUPPORTS_PERF_LIMIT_NOTIFY(flags);
-		dom_info->perf_level_notify = SUPPORTS_PERF_LEVEL_NOTIFY(flags);
+		dom_info->perf_limit_analtify = SUPPORTS_PERF_LIMIT_ANALTIFY(flags);
+		dom_info->perf_level_analtify = SUPPORTS_PERF_LEVEL_ANALTIFY(flags);
 		dom_info->perf_fastchannels = SUPPORTS_PERF_FASTCHANNELS(flags);
 		if (PROTOCOL_REV_MAJOR(version) >= 0x4)
 			dom_info->level_indexing_mode =
@@ -359,7 +359,7 @@ process_response_opp_v4(struct device *dev, struct perf_dom_info *dom,
 	opp->trans_latency_us =
 		le16_to_cpu(r->opp[loop_idx].transition_latency_us);
 
-	/* Note that PERF v4 reports always five 32-bit words */
+	/* Analte that PERF v4 reports always five 32-bit words */
 	opp->indicative_freq = le32_to_cpu(r->opp[loop_idx].indicative_freq);
 	if (dom->level_indexing_mode) {
 		int ret;
@@ -522,7 +522,7 @@ static int scmi_perf_limits_set(const struct scmi_protocol_handle *ph,
 		return PTR_ERR(dom);
 
 	if (!dom->set_limits)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x3 && !max_perf && !min_perf)
 		return -EINVAL;
@@ -675,7 +675,7 @@ static int scmi_perf_level_set(const struct scmi_protocol_handle *ph,
 		return PTR_ERR(dom);
 
 	if (!dom->info.set_perf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (dom->level_indexing_mode) {
 		struct scmi_opp *opp;
@@ -753,21 +753,21 @@ static int scmi_perf_level_get(const struct scmi_protocol_handle *ph,
 	return 0;
 }
 
-static int scmi_perf_level_limits_notify(const struct scmi_protocol_handle *ph,
+static int scmi_perf_level_limits_analtify(const struct scmi_protocol_handle *ph,
 					 u32 domain, int message_id,
 					 bool enable)
 {
 	int ret;
 	struct scmi_xfer *t;
-	struct scmi_perf_notify_level_or_limits *notify;
+	struct scmi_perf_analtify_level_or_limits *analtify;
 
-	ret = ph->xops->xfer_get_init(ph, message_id, sizeof(*notify), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, message_id, sizeof(*analtify), 0, &t);
 	if (ret)
 		return ret;
 
-	notify = t->tx.buf;
-	notify->domain = cpu_to_le32(domain);
-	notify->notify_enable = enable ? cpu_to_le32(BIT(0)) : 0;
+	analtify = t->tx.buf;
+	analtify->domain = cpu_to_le32(domain);
+	analtify->analtify_enable = enable ? cpu_to_le32(BIT(0)) : 0;
 
 	ret = ph->xops->do_xfer(ph, t);
 
@@ -978,7 +978,7 @@ static const struct scmi_perf_proto_ops perf_proto_ops = {
 	.power_scale_get = scmi_power_scale_get,
 };
 
-static int scmi_perf_set_notify_enabled(const struct scmi_protocol_handle *ph,
+static int scmi_perf_set_analtify_enabled(const struct scmi_protocol_handle *ph,
 					u8 evt_id, u32 src_id, bool enable)
 {
 	int ret, cmd_id;
@@ -987,7 +987,7 @@ static int scmi_perf_set_notify_enabled(const struct scmi_protocol_handle *ph,
 		return -EINVAL;
 
 	cmd_id = evt_2_cmd[evt_id];
-	ret = scmi_perf_level_limits_notify(ph, src_id, cmd_id, enable);
+	ret = scmi_perf_level_limits_analtify(ph, src_id, cmd_id, enable);
 	if (ret)
 		pr_debug("FAIL_ENABLED - evt[%X] dom[%d] - ret:%d\n",
 			 evt_id, src_id, ret);
@@ -1005,7 +1005,7 @@ static void *scmi_perf_fill_custom_report(const struct scmi_protocol_handle *ph,
 	switch (evt_id) {
 	case SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED:
 	{
-		const struct scmi_perf_limits_notify_payld *p = payld;
+		const struct scmi_perf_limits_analtify_payld *p = payld;
 		struct scmi_perf_limits_report *r = report;
 
 		if (sizeof(*p) != payld_sz)
@@ -1022,7 +1022,7 @@ static void *scmi_perf_fill_custom_report(const struct scmi_protocol_handle *ph,
 	}
 	case SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED:
 	{
-		const struct scmi_perf_level_notify_payld *p = payld;
+		const struct scmi_perf_level_analtify_payld *p = payld;
 		struct scmi_perf_level_report *r = report;
 
 		if (sizeof(*p) != payld_sz)
@@ -1056,19 +1056,19 @@ static int scmi_perf_get_num_sources(const struct scmi_protocol_handle *ph)
 static const struct scmi_event perf_events[] = {
 	{
 		.id = SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED,
-		.max_payld_sz = sizeof(struct scmi_perf_limits_notify_payld),
+		.max_payld_sz = sizeof(struct scmi_perf_limits_analtify_payld),
 		.max_report_sz = sizeof(struct scmi_perf_limits_report),
 	},
 	{
 		.id = SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED,
-		.max_payld_sz = sizeof(struct scmi_perf_level_notify_payld),
+		.max_payld_sz = sizeof(struct scmi_perf_level_analtify_payld),
 		.max_report_sz = sizeof(struct scmi_perf_level_report),
 	},
 };
 
 static const struct scmi_event_ops perf_event_ops = {
 	.get_num_sources = scmi_perf_get_num_sources,
-	.set_notify_enabled = scmi_perf_set_notify_enabled,
+	.set_analtify_enabled = scmi_perf_set_analtify_enabled,
 	.fill_custom_report = scmi_perf_fill_custom_report,
 };
 
@@ -1090,11 +1090,11 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 		return ret;
 
 	dev_dbg(ph->dev, "Performance Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MIANALR(version));
 
 	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pinfo->version = version;
 
@@ -1105,7 +1105,7 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	pinfo->dom_info = devm_kcalloc(ph->dev, pinfo->num_domains,
 				       sizeof(*pinfo->dom_info), GFP_KERNEL);
 	if (!pinfo->dom_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (domain = 0; domain < pinfo->num_domains; domain++) {
 		struct perf_dom_info *dom = pinfo->dom_info + domain;

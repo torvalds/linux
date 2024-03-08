@@ -13,7 +13,7 @@
  * Mapping of S_IF* types to NFS file types
  */
 static const u32 nfs_ftypes[] = {
-	NFNON,  NFCHR,  NFCHR, NFBAD,
+	NFANALN,  NFCHR,  NFCHR, NFBAD,
 	NFDIR,  NFBAD,  NFBLK, NFBAD,
 	NFREG,  NFBAD,  NFLNK, NFBAD,
 	NFSOCK, NFBAD,  NFLNK, NFBAD,
@@ -52,7 +52,7 @@ svcxdr_encode_stat(struct xdr_stream *xdr, __be32 status)
  * @fhp: OUT: filled-in server file handle
  *
  * Return values:
- *  %false: The encoded file handle was not valid
+ *  %false: The encoded file handle was analt valid
  *  %true: @fhp has been initialized
  */
 bool
@@ -258,10 +258,10 @@ svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	}
 	*p++ = cpu_to_be32(fsid);
 
-	*p++ = cpu_to_be32((u32)stat->ino);
+	*p++ = cpu_to_be32((u32)stat->ianal);
 	p = encode_timeval(p, &stat->atime);
 	time = stat->mtime;
-	lease_get_mtime(d_inode(dentry), &time);
+	lease_get_mtime(d_ianalde(dentry), &time);
 	p = encode_timeval(p, &time);
 	encode_timeval(p, &stat->ctime);
 
@@ -309,7 +309,7 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
 		return false;
-	/* totalcount is ignored */
+	/* totalcount is iganalred */
 	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
 		return false;
 
@@ -320,16 +320,16 @@ bool
 nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd_writeargs *args = rqstp->rq_argp;
-	u32 beginoffset, totalcount;
+	u32 begianalffset, totalcount;
 
 	if (!svcxdr_decode_fhandle(xdr, &args->fh))
 		return false;
-	/* beginoffset is ignored */
-	if (xdr_stream_decode_u32(xdr, &beginoffset) < 0)
+	/* begianalffset is iganalred */
+	if (xdr_stream_decode_u32(xdr, &begianalffset) < 0)
 		return false;
 	if (xdr_stream_decode_u32(xdr, &args->offset) < 0)
 		return false;
-	/* totalcount is ignored */
+	/* totalcount is iganalred */
 	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
 		return false;
 
@@ -515,7 +515,7 @@ nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	case nfs_ok:
 		svcxdr_encode_opaque_pages(rqstp, xdr, dirlist->pages, 0,
 					   dirlist->len);
-		/* no more entries */
+		/* anal more entries */
 		if (xdr_stream_encode_item_absent(xdr) < 0)
 			return false;
 		if (xdr_stream_encode_bool(xdr, resp->common.err == nfserr_eof) < 0)
@@ -573,7 +573,7 @@ void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset)
 
 static bool
 svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
-			   int namlen, loff_t offset, u64 ino)
+			   int namlen, loff_t offset, u64 ianal)
 {
 	struct xdr_buf *dirlist = &resp->dirlist;
 	struct xdr_stream *xdr = &resp->xdr;
@@ -581,7 +581,7 @@ svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
 	if (xdr_stream_encode_item_present(xdr) < 0)
 		return false;
 	/* fileid */
-	if (xdr_stream_encode_u32(xdr, (u32)ino) < 0)
+	if (xdr_stream_encode_u32(xdr, (u32)ianal) < 0)
 		return false;
 	/* name */
 	if (xdr_stream_encode_opaque(xdr, name, min(namlen, NFS2_MAXNAMLEN)) < 0)
@@ -600,7 +600,7 @@ svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
  * @name: name of the object to be encoded
  * @namlen: length of that name, in bytes
  * @offset: the offset of the previous entry
- * @ino: the fileid of this entry
+ * @ianal: the fileid of this entry
  * @d_type: unused
  *
  * Return values:
@@ -613,7 +613,7 @@ svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
  *   - resp->cookie_offset
  */
 int nfssvc_encode_entry(void *data, const char *name, int namlen,
-			loff_t offset, u64 ino, unsigned int d_type)
+			loff_t offset, u64 ianal, unsigned int d_type)
 {
 	struct readdir_cd *ccd = data;
 	struct nfsd_readdirres *resp = container_of(ccd,
@@ -624,7 +624,7 @@ int nfssvc_encode_entry(void *data, const char *name, int namlen,
 	/* The offset cookie for the previous entry */
 	nfssvc_encode_nfscookie(resp, offset);
 
-	if (!svcxdr_encode_entry_common(resp, name, namlen, offset, ino))
+	if (!svcxdr_encode_entry_common(resp, name, namlen, offset, ianal))
 		goto out_toosmall;
 
 	xdr_commit_encode(&resp->xdr);

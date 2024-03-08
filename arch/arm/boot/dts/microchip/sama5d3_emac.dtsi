@@ -16,16 +16,16 @@
 				macb1 {
 					pinctrl_macb1_rmii: macb1_rmii-0 {
 						atmel,pins =
-							<AT91_PIOC 0 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC0 periph A ETX0, conflicts with TIOA3 */
-							 AT91_PIOC 1 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC1 periph A ETX1, conflicts with TIOB3 */
-							 AT91_PIOC 2 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC2 periph A ERX0, conflicts with TCLK3 */
-							 AT91_PIOC 3 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC3 periph A ERX1, conflicts with TIOA4 */
-							 AT91_PIOC 4 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC4 periph A ETXEN, conflicts with TIOB4 */
-							 AT91_PIOC 5 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC5 periph A ECRSDV,conflicts with TCLK4 */
-							 AT91_PIOC 6 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC6 periph A ERXER, conflicts with TIOA5 */
-							 AT91_PIOC 7 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC7 periph A EREFCK, conflicts with TIOB5 */
-							 AT91_PIOC 8 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PC8 periph A EMDC, conflicts with TCLK5 */
-							 AT91_PIOC 9 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PC9 periph A EMDIO  */
+							<AT91_PIOC 0 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC0 periph A ETX0, conflicts with TIOA3 */
+							 AT91_PIOC 1 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC1 periph A ETX1, conflicts with TIOB3 */
+							 AT91_PIOC 2 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC2 periph A ERX0, conflicts with TCLK3 */
+							 AT91_PIOC 3 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC3 periph A ERX1, conflicts with TIOA4 */
+							 AT91_PIOC 4 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC4 periph A ETXEN, conflicts with TIOB4 */
+							 AT91_PIOC 5 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC5 periph A ECRSDV,conflicts with TCLK4 */
+							 AT91_PIOC 6 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC6 periph A ERXER, conflicts with TIOA5 */
+							 AT91_PIOC 7 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC7 periph A EREFCK, conflicts with TIOB5 */
+							 AT91_PIOC 8 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PC8 periph A EMDC, conflicts with TCLK5 */
+							 AT91_PIOC 9 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;	/* PC9 periph A EMDIO  */
 					};
 				};
 			};

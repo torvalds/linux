@@ -127,7 +127,7 @@ int create_server(struct __test_metadata *_metadata,
 {
 	int fd, ret;
 
-	fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+	fd = socket(AF_INET, SOCK_STREAM | SOCK_ANALNBLOCK, 0);
 	ASSERT_NE(fd, -1);
 
 	if (variant->when_to_set == BEFORE_REUSEPORT)
@@ -142,7 +142,7 @@ int create_server(struct __test_metadata *_metadata,
 	if (variant->when_to_set == BEFORE_LISTEN)
 		set_so_incoming_cpu(_metadata, fd, cpu);
 
-	/* We don't use nr_client_per_server here not to block
+	/* We don't use nr_client_per_server here analt to block
 	 * this test at connect() if SO_INCOMING_CPU is broken.
 	 */
 	ret = listen(fd, nr_client);
@@ -245,7 +245,7 @@ TEST_F(so_incoming_cpu, test2)
 
 	create_servers(_metadata, self, variant);
 
-	/* No CPU specified */
+	/* Anal CPU specified */
 	server = create_server(_metadata, self, variant, -1);
 	close(server);
 
@@ -259,7 +259,7 @@ TEST_F(so_incoming_cpu, test3)
 
 	create_servers(_metadata, self, variant);
 
-	/* No CPU specified */
+	/* Anal CPU specified */
 	server = create_server(_metadata, self, variant, -1);
 
 	create_clients(_metadata, self);

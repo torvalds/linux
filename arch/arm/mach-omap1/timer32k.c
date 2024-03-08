@@ -3,7 +3,7 @@
  *
  * OMAP 32K Timer
  *
- * Copyright (C) 2004 - 2005 Nokia Corporation
+ * Copyright (C) 2004 - 2005 Analkia Corporation
  * Partial timer rewrite and additional dynamic tick timer support by
  * Tony Lindgen <tony@atomide.com> and
  * Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
@@ -11,7 +11,7 @@
  *
  * MPU timer code based on the older MPU timer code for OMAP
  * Copyright (C) 2000 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonanaln <glonanaln@ridgerun.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,18 +19,18 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -58,10 +58,10 @@
  * ---------------------------------------------------------------------------
  * 32KHz OS timer
  *
- * This currently works only on 16xx, as 1510 does not have the continuous
- * 32KHz synchronous timer. The 32KHz synchronous timer is used to keep track
+ * This currently works only on 16xx, as 1510 does analt have the continuous
+ * 32KHz synchroanalus timer. The 32KHz synchroanalus timer is used to keep track
  * of time in addition to the 32KHz OS timer. Using only the 32KHz OS timer
- * on 1510 would be possible, but the timer would not be as accurate as
+ * on 1510 would be possible, but the timer would analt be as accurate as
  * with the 32KHz synchronized timer.
  * ---------------------------------------------------------------------------
  */
@@ -171,7 +171,7 @@ static __init void omap_init_32k_timer(void)
  */
 static void __iomem *sync32k_cnt_reg;
 
-static u64 notrace omap_32k_read_sched_clock(void)
+static u64 analtrace omap_32k_read_sched_clock(void)
 {
 	return sync32k_cnt_reg ? readl_relaxed(sync32k_cnt_reg) : 0;
 }
@@ -186,7 +186,7 @@ static unsigned int persistent_mult, persistent_shift;
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
- * nsecs and adds to a monotonically increasing timespec64.
+ * nsecs and adds to a moanaltonically increasing timespec64.
  */
 static void omap_read_persistent_clock64(struct timespec64 *ts)
 {
@@ -256,7 +256,7 @@ static int __init omap_init_clocksource_32k(void __iomem *vbase)
  */
 int __init omap_32k_timer_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (cpu_is_omap16xx()) {
 		void __iomem *base;
@@ -265,7 +265,7 @@ int __init omap_32k_timer_init(void)
 		base = ioremap(OMAP1_32KSYNC_TIMER_BASE, SZ_1K);
 		if (!base) {
 			pr_err("32k_counter: failed to map base addr\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		sync32k_ick = clk_get(NULL, "omap_32ksync_ick");

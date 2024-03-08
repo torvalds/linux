@@ -50,7 +50,7 @@ static int s6e63m0_spi_probe(struct spi_device *spi)
 
 	dbi = devm_kzalloc(dev, sizeof(*dbi), GFP_KERNEL);
 	if (!dbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mipi_dbi_spi_init(spi, dbi, NULL);
 	if (ret)

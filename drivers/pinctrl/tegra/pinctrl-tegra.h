@@ -57,7 +57,7 @@ enum tegra_pinconf_param {
 };
 
 enum tegra_pinconf_pull {
-	TEGRA_PINCONFIG_PULL_NONE,
+	TEGRA_PINCONFIG_PULL_ANALNE,
 	TEGRA_PINCONFIG_PULL_DOWN,
 	TEGRA_PINCONFIG_PULL_UP,
 };

@@ -36,8 +36,8 @@
 
 struct blk_crypto_keyslot {
 	atomic_t slot_refs;
-	struct list_head idle_slot_node;
-	struct hlist_node hash_node;
+	struct list_head idle_slot_analde;
+	struct hlist_analde hash_analde;
 	const struct blk_crypto_key *key;
 	struct blk_crypto_profile *profile;
 };
@@ -105,7 +105,7 @@ int blk_crypto_profile_init(struct blk_crypto_profile *profile,
 
 	for (slot = 0; slot < num_slots; slot++) {
 		profile->slots[slot].profile = profile;
-		list_add_tail(&profile->slots[slot].idle_slot_node,
+		list_add_tail(&profile->slots[slot].idle_slot_analde,
 			      &profile->idle_slots);
 	}
 
@@ -132,7 +132,7 @@ int blk_crypto_profile_init(struct blk_crypto_profile *profile,
 
 err_destroy:
 	blk_crypto_profile_destroy(profile);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(blk_crypto_profile_init);
 
@@ -182,7 +182,7 @@ blk_crypto_remove_slot_from_lru_list(struct blk_crypto_keyslot *slot)
 	unsigned long flags;
 
 	spin_lock_irqsave(&profile->idle_slots_lock, flags);
-	list_del(&slot->idle_slot_node);
+	list_del(&slot->idle_slot_analde);
 	spin_unlock_irqrestore(&profile->idle_slots_lock, flags);
 }
 
@@ -194,7 +194,7 @@ blk_crypto_find_keyslot(struct blk_crypto_profile *profile,
 		blk_crypto_hash_bucket_for_key(profile, key);
 	struct blk_crypto_keyslot *slotp;
 
-	hlist_for_each_entry(slotp, head, hash_node) {
+	hlist_for_each_entry(slotp, head, hash_analde) {
 		if (slotp->key == key)
 			return slotp;
 	}
@@ -256,7 +256,7 @@ blk_status_t blk_crypto_get_keyslot(struct blk_crypto_profile *profile,
 	*slot_ptr = NULL;
 
 	/*
-	 * If the device has no concept of "keyslots", then there is no need to
+	 * If the device has anal concept of "keyslots", then there is anal need to
 	 * get one.
 	 */
 	if (profile->num_slots == 0)
@@ -289,21 +289,21 @@ blk_status_t blk_crypto_get_keyslot(struct blk_crypto_profile *profile,
 	}
 
 	slot = list_first_entry(&profile->idle_slots, struct blk_crypto_keyslot,
-				idle_slot_node);
+				idle_slot_analde);
 	slot_idx = blk_crypto_keyslot_index(slot);
 
 	err = profile->ll_ops.keyslot_program(profile, key, slot_idx);
 	if (err) {
 		wake_up(&profile->idle_slots_wait_queue);
 		blk_crypto_hw_exit(profile);
-		return errno_to_blk_status(err);
+		return erranal_to_blk_status(err);
 	}
 
 	/* Move this slot to the hash list for the new key. */
 	if (slot->key)
-		hlist_del(&slot->hash_node);
+		hlist_del(&slot->hash_analde);
 	slot->key = key;
-	hlist_add_head(&slot->hash_node,
+	hlist_add_head(&slot->hash_analde,
 		       blk_crypto_hash_bucket_for_key(profile, key));
 
 	atomic_set(&slot->slot_refs, 1);
@@ -329,7 +329,7 @@ void blk_crypto_put_keyslot(struct blk_crypto_keyslot *slot)
 
 	if (atomic_dec_and_lock_irqsave(&slot->slot_refs,
 					&profile->idle_slots_lock, flags)) {
-		list_add_tail(&slot->idle_slot_node, &profile->idle_slots);
+		list_add_tail(&slot->idle_slot_analde, &profile->idle_slots);
 		spin_unlock_irqrestore(&profile->idle_slots_lock, flags);
 		wake_up(&profile->idle_slots_wait_queue);
 	}
@@ -380,7 +380,7 @@ int __blk_crypto_evict_key(struct blk_crypto_profile *profile,
 	slot = blk_crypto_find_keyslot(profile, key);
 	if (!slot) {
 		/*
-		 * Not an error, since a key not in use by I/O is not guaranteed
+		 * Analt an error, since a key analt in use by I/O is analt guaranteed
 		 * to be in a keyslot.  There can be more keys than keyslots.
 		 */
 		err = 0;
@@ -399,7 +399,7 @@ out_remove:
 	 * Callers free the key even on error, so unlink the key from the hash
 	 * table and clear slot->key even on error.
 	 */
-	hlist_del(&slot->hash_node);
+	hlist_del(&slot->hash_analde);
 	slot->key = NULL;
 out:
 	blk_crypto_hw_exit(profile);
@@ -454,7 +454,7 @@ bool blk_crypto_register(struct blk_crypto_profile *profile,
 			 struct request_queue *q)
 {
 	if (blk_integrity_queue_supports_integrity(q)) {
-		pr_warn("Integrity and hardware inline encryption are not supported together. Disabling hardware inline encryption.\n");
+		pr_warn("Integrity and hardware inline encryption are analt supported together. Disabling hardware inline encryption.\n");
 		return false;
 	}
 	q->crypto_profile = profile;
@@ -527,7 +527,7 @@ EXPORT_SYMBOL_GPL(blk_crypto_has_capabilities);
 
 /**
  * blk_crypto_update_capabilities() - Update the capabilities of a crypto
- *				      profile to match those of another crypto
+ *				      profile to match those of aanalther crypto
  *				      profile.
  * @dst: The crypto profile whose capabilities to update.
  * @src: The crypto profile whose capabilities this function will update @dst's
@@ -535,14 +535,14 @@ EXPORT_SYMBOL_GPL(blk_crypto_has_capabilities);
  *
  * Blk-crypto requires that crypto capabilities that were
  * advertised when a bio was created continue to be supported by the
- * device until that bio is ended. This is turn means that a device cannot
+ * device until that bio is ended. This is turn means that a device cananalt
  * shrink its advertised crypto capabilities without any explicit
- * synchronization with upper layers. So if there's no such explicit
+ * synchronization with upper layers. So if there's anal such explicit
  * synchronization, @src must support all the crypto capabilities that
  * @dst does (i.e. we need blk_crypto_has_capabilities(@src, @dst)).
  *
- * Note also that as long as the crypto capabilities are being expanded, the
- * order of updates becoming visible is not important because it's alright
+ * Analte also that as long as the crypto capabilities are being expanded, the
+ * order of updates becoming visible is analt important because it's alright
  * for blk-crypto to see stale values - they only cause blk-crypto to
  * believe that a crypto capability isn't supported when it actually is (which
  * might result in blk-crypto-fallback being used if available, or the bio being

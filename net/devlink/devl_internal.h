@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+/* Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/xarray.h>
@@ -70,7 +70,7 @@ extern struct genl_family devlink_nl_family;
  * devlink_register() call. Such logical barrier allows us to have certain
  * expectations related to locking.
  *
- * Before *_register() - we are in initialization stage and no parallel
+ * Before *_register() - we are in initialization stage and anal parallel
  * access possible to the devlink instance. All drivers perform that phase
  * by implicitly holding device_lock.
  *
@@ -79,7 +79,7 @@ extern struct genl_family devlink_nl_family;
  */
 #define ASSERT_DEVLINK_REGISTERED(d)                                           \
 	WARN_ON_ONCE(!xa_get_mark(&devlinks, (d)->index, DEVLINK_REGISTERED))
-#define ASSERT_DEVLINK_NOT_REGISTERED(d)                                       \
+#define ASSERT_DEVLINK_ANALT_REGISTERED(d)                                       \
 	WARN_ON_ONCE(xa_get_mark(&devlinks, (d)->index, DEVLINK_REGISTERED))
 
 /* Iterate over devlink pointers which were possible to get reference to.
@@ -116,16 +116,16 @@ static inline void devl_dev_unlock(struct devlink *devlink, bool dev_lock)
 		device_unlock(devlink->dev);
 }
 
-typedef void devlink_rel_notify_cb_t(struct devlink *devlink, u32 obj_index);
+typedef void devlink_rel_analtify_cb_t(struct devlink *devlink, u32 obj_index);
 typedef void devlink_rel_cleanup_cb_t(struct devlink *devlink, u32 obj_index,
 				      u32 rel_index);
 
 void devlink_rel_nested_in_clear(u32 rel_index);
 int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
-			      u32 obj_index, devlink_rel_notify_cb_t *notify_cb,
+			      u32 obj_index, devlink_rel_analtify_cb_t *analtify_cb,
 			      devlink_rel_cleanup_cb_t *cleanup_cb,
 			      struct devlink *devlink);
-void devlink_rel_nested_in_notify(struct devlink *devlink);
+void devlink_rel_nested_in_analtify(struct devlink *devlink);
 int devlink_rel_devlink_handle_put(struct sk_buff *msg, struct devlink *devlink,
 				   u32 rel_index, int attrtype,
 				   bool *msg_updated);
@@ -185,7 +185,7 @@ int devlink_nl_put_nested_handle(struct sk_buff *msg, struct net *net,
 				 struct devlink *devlink, int attrtype);
 int devlink_nl_msg_reply_and_new(struct sk_buff **msg, struct genl_info *info);
 
-static inline bool devlink_nl_notify_need(struct devlink *devlink)
+static inline bool devlink_nl_analtify_need(struct devlink *devlink)
 {
 	return genl_has_listeners(&devlink_nl_family, devlink_net(devlink),
 				  DEVLINK_MCGRP_CONFIG);
@@ -215,9 +215,9 @@ static inline void devlink_nl_obj_desc_port_set(struct devlink_obj_desc *desc,
 	desc->port_index_valid = true;
 }
 
-int devlink_nl_notify_filter(struct sock *dsk, struct sk_buff *skb, void *data);
+int devlink_nl_analtify_filter(struct sock *dsk, struct sk_buff *skb, void *data);
 
-static inline void devlink_nl_notify_send_desc(struct devlink *devlink,
+static inline void devlink_nl_analtify_send_desc(struct devlink *devlink,
 					       struct sk_buff *msg,
 					       struct devlink_obj_desc *desc)
 {
@@ -225,37 +225,37 @@ static inline void devlink_nl_notify_send_desc(struct devlink *devlink,
 					 devlink_net(devlink),
 					 msg, 0, DEVLINK_MCGRP_CONFIG,
 					 GFP_KERNEL,
-					 devlink_nl_notify_filter, desc);
+					 devlink_nl_analtify_filter, desc);
 }
 
-static inline void devlink_nl_notify_send(struct devlink *devlink,
+static inline void devlink_nl_analtify_send(struct devlink *devlink,
 					  struct sk_buff *msg)
 {
 	struct devlink_obj_desc desc;
 
 	devlink_nl_obj_desc_init(&desc, devlink);
-	devlink_nl_notify_send_desc(devlink, msg, &desc);
+	devlink_nl_analtify_send_desc(devlink, msg, &desc);
 }
 
-/* Notify */
-void devlink_notify_register(struct devlink *devlink);
-void devlink_notify_unregister(struct devlink *devlink);
-void devlink_ports_notify_register(struct devlink *devlink);
-void devlink_ports_notify_unregister(struct devlink *devlink);
-void devlink_params_notify_register(struct devlink *devlink);
-void devlink_params_notify_unregister(struct devlink *devlink);
-void devlink_regions_notify_register(struct devlink *devlink);
-void devlink_regions_notify_unregister(struct devlink *devlink);
-void devlink_trap_policers_notify_register(struct devlink *devlink);
-void devlink_trap_policers_notify_unregister(struct devlink *devlink);
-void devlink_trap_groups_notify_register(struct devlink *devlink);
-void devlink_trap_groups_notify_unregister(struct devlink *devlink);
-void devlink_traps_notify_register(struct devlink *devlink);
-void devlink_traps_notify_unregister(struct devlink *devlink);
-void devlink_rates_notify_register(struct devlink *devlink);
-void devlink_rates_notify_unregister(struct devlink *devlink);
-void devlink_linecards_notify_register(struct devlink *devlink);
-void devlink_linecards_notify_unregister(struct devlink *devlink);
+/* Analtify */
+void devlink_analtify_register(struct devlink *devlink);
+void devlink_analtify_unregister(struct devlink *devlink);
+void devlink_ports_analtify_register(struct devlink *devlink);
+void devlink_ports_analtify_unregister(struct devlink *devlink);
+void devlink_params_analtify_register(struct devlink *devlink);
+void devlink_params_analtify_unregister(struct devlink *devlink);
+void devlink_regions_analtify_register(struct devlink *devlink);
+void devlink_regions_analtify_unregister(struct devlink *devlink);
+void devlink_trap_policers_analtify_register(struct devlink *devlink);
+void devlink_trap_policers_analtify_unregister(struct devlink *devlink);
+void devlink_trap_groups_analtify_register(struct devlink *devlink);
+void devlink_trap_groups_analtify_unregister(struct devlink *devlink);
+void devlink_traps_analtify_register(struct devlink *devlink);
+void devlink_traps_analtify_unregister(struct devlink *devlink);
+void devlink_rates_analtify_register(struct devlink *devlink);
+void devlink_rates_analtify_unregister(struct devlink *devlink);
+void devlink_linecards_analtify_register(struct devlink *devlink);
+void devlink_linecards_analtify_unregister(struct devlink *devlink);
 
 /* Ports */
 #define ASSERT_DEVLINK_PORT_INITIALIZED(devlink_port)				\
@@ -263,7 +263,7 @@ void devlink_linecards_notify_unregister(struct devlink *devlink);
 
 struct devlink_port *devlink_port_get_by_index(struct devlink *devlink,
 					       unsigned int port_index);
-int devlink_port_netdevice_event(struct notifier_block *nb,
+int devlink_port_netdevice_event(struct analtifier_block *nb,
 				 unsigned long event, void *ptr);
 struct devlink_port *
 devlink_port_get_from_info(struct devlink *devlink, struct genl_info *info);
@@ -292,7 +292,7 @@ int devlink_resources_validate(struct devlink *devlink,
 			       struct genl_info *info);
 
 /* Rates */
-int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
+int devlink_rate_analdes_check(struct devlink *devlink, u16 mode,
 			     struct netlink_ext_ack *extack);
 
 /* Linecards */

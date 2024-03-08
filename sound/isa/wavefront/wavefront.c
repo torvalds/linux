@@ -99,10 +99,10 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 	if (acard->wss == NULL)
 		return -EBUSY;
 
-	/* there is a game port at logical device 1, but we ignore it completely */
+	/* there is a game port at logical device 1, but we iganalre it completely */
 
-	/* the control interface is logical device 2, but we ignore it
-	   completely. in fact, nobody even seems to know what it
+	/* the control interface is logical device 2, but we iganalre it
+	   completely. in fact, analbody even seems to kanalw what it
 	   does.
 	*/
 
@@ -126,7 +126,7 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 	pdev = acard->wss;
 
-	/* An interesting note from the Tropez+ FAQ:
+	/* An interesting analte from the Tropez+ FAQ:
 
 	   Q. [Ports] Why is the base address of the WSS I/O ports off by 4?
 
@@ -165,7 +165,7 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 	/* CS4232 MPU initialization. Configure this only if
 	   explicitly requested, since its physically inaccessible and
-	   consumes another IRQ.
+	   consumes aanalther IRQ.
 	*/
 
 	if (use_cs4232_midi[dev]) {
@@ -207,7 +207,7 @@ static irqreturn_t snd_wavefront_ics2115_interrupt(int irq, void *dev_id)
 	acard = (snd_wavefront_card_t *) dev_id;
 
 	if (acard == NULL) 
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (acard->wavefront.interrupts_are_midi) {
 		snd_wavefront_midi_interrupt (acard);
@@ -251,7 +251,7 @@ static struct snd_hwdep *snd_wavefront_new_fx(struct snd_card *card,
 	struct snd_hwdep *fx_processor;
 
 	if (snd_wavefront_fx_start (&acard->wavefront)) {
-		snd_printk (KERN_ERR "cannot initialize YSS225 FX processor");
+		snd_printk (KERN_ERR "cananalt initialize YSS225 FX processor");
 		return NULL;
 	}
 
@@ -282,7 +282,7 @@ static struct snd_rawmidi *snd_wavefront_new_midi(struct snd_card *card,
 		first = 0;
 		acard->wavefront.midi.base = port;
 		if (snd_wavefront_midi_start (acard)) {
-			snd_printk (KERN_ERR "cannot initialize MIDI interface\n");
+			snd_printk (KERN_ERR "cananalt initialize MIDI interface\n");
 			return NULL;
 		}
 	}
@@ -403,7 +403,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	wavefront_synth = snd_wavefront_new_synth(card, hw_dev, acard);
 	if (wavefront_synth == NULL) {
 		snd_printk (KERN_ERR "can't create WaveFront synth device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	strcpy (wavefront_synth->name, "ICS2115 Wavetable MIDI Synthesizer");
@@ -442,7 +442,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 						internal_mpu);
 		if (ics2115_internal_rmidi == NULL) {
 			snd_printk (KERN_ERR "can't setup ICS2115 internal MIDI device\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		midi_dev++;
 	}
@@ -458,7 +458,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 						external_mpu);
 		if (ics2115_external_rmidi == NULL) {
 			snd_printk (KERN_ERR "can't setup ICS2115 external MIDI device\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		midi_dev++;
 	}
@@ -472,7 +472,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 						     ics2115_port[dev]);
 		if (fx_processor == NULL) {
 			snd_printk (KERN_ERR "can't setup FX device\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		hw_dev++;
@@ -487,7 +487,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 
 	/* ----- Register the card --------- */
 
-	/* Not safe to include "Turtle Beach" in longname, due to 
+	/* Analt safe to include "Turtle Beach" in longname, due to 
 	   length restrictions
 	*/
 
@@ -577,7 +577,7 @@ static int snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
 			break;
 	}
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = snd_wavefront_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
@@ -586,7 +586,7 @@ static int snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
 	if (snd_wavefront_pnp (dev, card->private_data, pcard, pid) < 0) {
 		if (cs4232_pcm_port[dev] == SNDRV_AUTO_PORT) {
 			snd_printk (KERN_ERR "isapnp detection failed\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 

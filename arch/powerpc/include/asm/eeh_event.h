@@ -11,7 +11,7 @@
 /*
  * structure holding pci controller data that describes a
  * change in the isolation status of a PCI slot.  A pointer
- * to this struct is passed as the data pointer in a notify
+ * to this struct is passed as the data pointer in a analtify
  * callback.
  */
 struct eeh_event {
@@ -23,7 +23,7 @@ int eeh_event_init(void);
 int eeh_send_failure_event(struct eeh_pe *pe);
 int __eeh_send_failure_event(struct eeh_pe *pe);
 void eeh_remove_event(struct eeh_pe *pe, bool force);
-void eeh_handle_normal_event(struct eeh_pe *pe);
+void eeh_handle_analrmal_event(struct eeh_pe *pe);
 void eeh_handle_special_event(void);
 
 #endif /* __KERNEL__ */

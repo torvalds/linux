@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. */
 
 #include <net/inet_ecn.h>
 #include <net/vxlan.h>
@@ -91,14 +91,14 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 		 mlx5e_is_valid_eswitch_fwd_dev(priv, dev))
 		*out_dev = *route_dev;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!mlx5e_eswitch_uplink_rep(*out_dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mlx5e_eswitch_uplink_rep(priv->netdev) && *out_dev != priv->netdev &&
 	    !mlx5_lag_is_mpesw(priv->mdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -143,7 +143,7 @@ static int mlx5e_route_lookup_ipv4_get(struct mlx5e_priv *priv,
 		goto err_rt_release;
 	}
 #else
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 #endif
 
 	ret = get_route_and_out_devs(priv, rt->dst.dev, &route_dev, &out_dev);
@@ -155,7 +155,7 @@ static int mlx5e_route_lookup_ipv4_get(struct mlx5e_priv *priv,
 		attr->ttl = ip4_dst_hoplimit(&rt->dst);
 	n = dst_neigh_lookup(&rt->dst, &attr->fl.fl4.daddr);
 	if (!n) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dev_release;
 	}
 
@@ -182,15 +182,15 @@ static const char *mlx5e_netdev_kind(struct net_device *dev)
 	if (dev->rtnl_link_ops)
 		return dev->rtnl_link_ops->kind;
 	else
-		return "unknown";
+		return "unkanalwn";
 }
 
 static int mlx5e_gen_ip_tunnel_header(char buf[], __u8 *ip_proto,
 				      struct mlx5e_encap_entry *e)
 {
 	if (!e->tunnel) {
-		pr_warn("mlx5: Cannot generate tunnel header for this tunnel\n");
-		return -EOPNOTSUPP;
+		pr_warn("mlx5: Cananalt generate tunnel header for this tunnel\n");
+		return -EOPANALTSUPP;
 	}
 
 	return e->tunnel->generate_ip_tun_hdr(buf, ip_proto, e);
@@ -253,13 +253,13 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	if (max_encap_size < ipv4_encap_size) {
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
 			       ipv4_encap_size, max_encap_size);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto release_neigh;
 	}
 
 	encap_header = kzalloc(ipv4_encap_size, GFP_KERNEL);
 	if (!encap_header) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release_neigh;
 	}
 
@@ -269,7 +269,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	e->route_dev_ifindex = attr.route_dev->ifindex;
 
 	/* It's important to add the neigh to the hash table before checking
-	 * the neigh validity state. So if we'll get a notification, in case the
+	 * the neigh validity state. So if we'll get a analtification, in case the
 	 * neigh changes it's validity state, we would find the relevant neigh
 	 * in the hash.
 	 */
@@ -307,7 +307,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
-		 * and not used before that.
+		 * and analt used before that.
 		 */
 		goto release_neigh;
 	}
@@ -369,13 +369,13 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 	if (max_encap_size < ipv4_encap_size) {
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
 			       ipv4_encap_size, max_encap_size);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto release_neigh;
 	}
 
 	encap_header = kzalloc(ipv4_encap_size, GFP_KERNEL);
 	if (!encap_header) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release_neigh;
 	}
 
@@ -413,7 +413,7 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
-		 * and not used before that.
+		 * and analt used before that.
 		 */
 		goto release_neigh;
 	}
@@ -470,7 +470,7 @@ static int mlx5e_route_lookup_ipv6_get(struct mlx5e_priv *priv,
 	dev_hold(route_dev);
 	n = dst_neigh_lookup(dst, &attr->fl.fl6.daddr);
 	if (!n) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dev_release;
 	}
 
@@ -524,13 +524,13 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	if (max_encap_size < ipv6_encap_size) {
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
 			       ipv6_encap_size, max_encap_size);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto release_neigh;
 	}
 
 	encap_header = kzalloc(ipv6_encap_size, GFP_KERNEL);
 	if (!encap_header) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release_neigh;
 	}
 
@@ -540,7 +540,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	e->route_dev_ifindex = attr.route_dev->ifindex;
 
 	/* It's important to add the neigh to the hash table before checking
-	 * the neigh validity state. So if we'll get a notification, in case the
+	 * the neigh validity state. So if we'll get a analtification, in case the
 	 * neigh changes it's validity state, we would find the relevant neigh
 	 * in the hash.
 	 */
@@ -577,7 +577,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
-		 * and not used before that.
+		 * and analt used before that.
 		 */
 		goto release_neigh;
 	}
@@ -639,13 +639,13 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 	if (max_encap_size < ipv6_encap_size) {
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
 			       ipv6_encap_size, max_encap_size);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto release_neigh;
 	}
 
 	encap_header = kzalloc(ipv6_encap_size, GFP_KERNEL);
 	if (!encap_header) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release_neigh;
 	}
 
@@ -682,7 +682,7 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
-		 * and not used before that.
+		 * and analt used before that.
 		 */
 		goto release_neigh;
 	}
@@ -791,7 +791,7 @@ int mlx5e_tc_tun_init_encap_attr(struct net_device *tunnel_dev,
 
 	if (!tunnel) {
 		e->reformat_type = -1;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return tunnel->init_encap_attr(tunnel_dev, priv, e, extack);
@@ -814,9 +814,9 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 
 	if (!tunnel) {
 		netdev_warn(priv->netdev,
-			    "decapsulation offload is not supported for %s net device\n",
+			    "decapsulation offload is analt supported for %s net device\n",
 			    mlx5e_netdev_kind(filter_dev));
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -850,7 +850,7 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 		flow_rule_match_enc_control(rule, &match);
 		addr_type = match.key->addr_type;
 
-		/* For tunnel addr_type used same key id`s as for non-tunnel */
+		/* For tunnel addr_type used same key id`s as for analn-tunnel */
 		if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
 			struct flow_match_ipv4_addrs match;
 
@@ -924,8 +924,8 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 			(priv->mdev,
 			 ft_field_support.outer_ipv4_ttl)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Matching on TTL is not supported");
-			err = -EOPNOTSUPP;
+					   "Matching on TTL is analt supported");
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 	}
@@ -957,7 +957,7 @@ int mlx5e_tc_tun_parse_udp_ports(struct mlx5e_priv *priv,
 				   "UDP tunnel decap filter must include enc_dst_port condition");
 		netdev_warn(priv->netdev,
 			    "UDP tunnel decap filter must include enc_dst_port condition\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	flow_rule_match_enc_ports(rule, &enc_ports);
@@ -968,7 +968,7 @@ int mlx5e_tc_tun_parse_udp_ports(struct mlx5e_priv *priv,
 				   "UDP tunnel decap filter must match enc_dst_port fully");
 		netdev_warn(priv->netdev,
 			    "UDP tunnel decap filter must match enc_dst_port fully\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* match on UDP protocol and dst port number */
@@ -983,7 +983,7 @@ int mlx5e_tc_tun_parse_udp_ports(struct mlx5e_priv *priv,
 
 	/* UDP src port on outer header is generated by HW,
 	 * so it is probably a bad idea to request matching it.
-	 * Nonetheless, it is allowed.
+	 * Analnetheless, it is allowed.
 	 */
 
 	MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_sport,

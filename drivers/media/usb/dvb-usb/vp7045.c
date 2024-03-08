@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant Linux driver for the
  *  - TwinhanDTV Alpha/MagicBoxII USB2.0 DVB-T receiver
- *  - DigitalNow TinyUSB2 DVB-t receiver
+ *  - DigitalAnalw TinyUSB2 DVB-t receiver
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
@@ -88,9 +88,9 @@ u8 vp7045_read_reg(struct dvb_usb_device *d, u8 reg)
 	return v;
 }
 
-static int vp7045_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int vp7045_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
-	u8 v = onoff;
+	u8 v = oanalff;
 	return vp7045_usb_op(d,SET_TUNER_POWER,&v,1,NULL,0,150);
 }
 
@@ -108,7 +108,7 @@ static int vp7045_rc_query(struct dvb_usb_device *d)
 	if (key != 0x44) {
 		/*
 		 * The 8 bit address isn't available, but since the remote uses
-		 * address 0 we'll use that. nec repeats are ignored too, even
+		 * address 0 we'll use that. nec repeats are iganalred too, even
 		 * though the remote sends them.
 		 */
 		rc_keydown(d->rc_dev, RC_PROTO_NEC, RC_SCANCODE_NEC(0, key), 0);
@@ -232,7 +232,7 @@ static struct dvb_usb_device_properties vp7045_properties = {
 		  .cold_ids = { &vp7045_usb_table[VISIONPLUS_VP7045_COLD], NULL },
 		  .warm_ids = { &vp7045_usb_table[VISIONPLUS_VP7045_WARM], NULL },
 		},
-		{ .name = "DigitalNow TinyUSB 2 DVB-t Receiver",
+		{ .name = "DigitalAnalw TinyUSB 2 DVB-t Receiver",
 		  .cold_ids = { &vp7045_usb_table[VISIONPLUS_TINYUSB2_COLD], NULL },
 		  .warm_ids = { &vp7045_usb_table[VISIONPLUS_TINYUSB2_WARM], NULL },
 		},

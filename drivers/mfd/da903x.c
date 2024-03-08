@@ -65,7 +65,7 @@ struct da903x_chip {
 	struct mutex		lock;
 	struct work_struct	irq_work;
 
-	struct blocking_notifier_head notifier_list;
+	struct blocking_analtifier_head analtifier_list;
 };
 
 static inline int __da903x_read(struct i2c_client *client,
@@ -123,25 +123,25 @@ static inline int __da903x_writes(struct i2c_client *client, int reg,
 	return 0;
 }
 
-int da903x_register_notifier(struct device *dev, struct notifier_block *nb,
+int da903x_register_analtifier(struct device *dev, struct analtifier_block *nb,
 				unsigned int events)
 {
 	struct da903x_chip *chip = dev_get_drvdata(dev);
 
 	chip->ops->unmask_events(chip, events);
-	return blocking_notifier_chain_register(&chip->notifier_list, nb);
+	return blocking_analtifier_chain_register(&chip->analtifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(da903x_register_notifier);
+EXPORT_SYMBOL_GPL(da903x_register_analtifier);
 
-int da903x_unregister_notifier(struct device *dev, struct notifier_block *nb,
+int da903x_unregister_analtifier(struct device *dev, struct analtifier_block *nb,
 				unsigned int events)
 {
 	struct da903x_chip *chip = dev_get_drvdata(dev);
 
 	chip->ops->mask_events(chip, events);
-	return blocking_notifier_chain_unregister(&chip->notifier_list, nb);
+	return blocking_analtifier_chain_unregister(&chip->analtifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(da903x_unregister_notifier);
+EXPORT_SYMBOL_GPL(da903x_unregister_analtifier);
 
 int da903x_write(struct device *dev, int reg, uint8_t val)
 {
@@ -405,8 +405,8 @@ static void da903x_irq_work(struct work_struct *work)
 		if (events == 0)
 			break;
 
-		blocking_notifier_call_chain(
-				&chip->notifier_list, events, NULL);
+		blocking_analtifier_call_chain(
+				&chip->analtifier_list, events, NULL);
 	}
 	enable_irq(chip->client->irq);
 }
@@ -415,7 +415,7 @@ static irqreturn_t da903x_irq_handler(int irq, void *data)
 {
 	struct da903x_chip *chip = data;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	(void)schedule_work(&chip->irq_work);
 
 	return IRQ_HANDLED;
@@ -468,7 +468,7 @@ static int da903x_add_subdevs(struct da903x_chip *chip,
 
 		pdev = platform_device_alloc(subdev->name, subdev->id);
 		if (!pdev) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto failed;
 		}
 
@@ -499,7 +499,7 @@ static int da903x_probe(struct i2c_client *client)
 	chip = devm_kzalloc(&client->dev, sizeof(struct da903x_chip),
 				GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->client = client;
 	chip->dev = &client->dev;
@@ -507,7 +507,7 @@ static int da903x_probe(struct i2c_client *client)
 
 	mutex_init(&chip->lock);
 	INIT_WORK(&chip->irq_work, da903x_irq_work);
-	BLOCKING_INIT_NOTIFIER_HEAD(&chip->notifier_list);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&chip->analtifier_list);
 
 	i2c_set_clientdata(client, chip);
 

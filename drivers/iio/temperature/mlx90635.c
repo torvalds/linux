@@ -142,8 +142,8 @@ static const struct regmap_range mlx90635_volatile_reg_range[] = {
 };
 
 static const struct regmap_access_table mlx90635_volatile_regs_tbl = {
-	.yes_ranges = mlx90635_volatile_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(mlx90635_volatile_reg_range),
+	.anal_ranges = mlx90635_volatile_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(mlx90635_volatile_reg_range),
 };
 
 static const struct regmap_range mlx90635_read_reg_range[] = {
@@ -155,17 +155,17 @@ static const struct regmap_range mlx90635_read_reg_range[] = {
 };
 
 static const struct regmap_access_table mlx90635_readable_regs_tbl = {
-	.yes_ranges = mlx90635_read_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(mlx90635_read_reg_range),
+	.anal_ranges = mlx90635_read_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(mlx90635_read_reg_range),
 };
 
-static const struct regmap_range mlx90635_no_write_reg_range[] = {
+static const struct regmap_range mlx90635_anal_write_reg_range[] = {
 	regmap_reg_range(MLX90635_RESULT_1, MLX90635_RESULT_5),
 };
 
 static const struct regmap_access_table mlx90635_writeable_regs_tbl = {
-	.no_ranges = mlx90635_no_write_reg_range,
-	.n_no_ranges = ARRAY_SIZE(mlx90635_no_write_reg_range),
+	.anal_ranges = mlx90635_anal_write_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(mlx90635_anal_write_reg_range),
 };
 
 static const struct regmap_config mlx90635_regmap = {
@@ -192,17 +192,17 @@ static const struct regmap_range mlx90635_read_ee_range[] = {
 };
 
 static const struct regmap_access_table mlx90635_readable_ees_tbl = {
-	.yes_ranges = mlx90635_read_ee_range,
-	.n_yes_ranges = ARRAY_SIZE(mlx90635_read_ee_range),
+	.anal_ranges = mlx90635_read_ee_range,
+	.n_anal_ranges = ARRAY_SIZE(mlx90635_read_ee_range),
 };
 
-static const struct regmap_range mlx90635_no_write_ee_range[] = {
+static const struct regmap_range mlx90635_anal_write_ee_range[] = {
 	regmap_reg_range(MLX90635_ADDR_EEPROM, MLX90635_EE_Gb),
 };
 
 static const struct regmap_access_table mlx90635_writeable_ees_tbl = {
-	.no_ranges = mlx90635_no_write_ee_range,
-	.n_no_ranges = ARRAY_SIZE(mlx90635_no_write_ee_range),
+	.anal_ranges = mlx90635_anal_write_ee_range,
+	.n_anal_ranges = ARRAY_SIZE(mlx90635_anal_write_ee_range),
 };
 
 static const struct regmap_config mlx90635_regmap_ee = {
@@ -225,7 +225,7 @@ static const struct regmap_config mlx90635_regmap_ee = {
 
 /**
  * mlx90635_reset_delay() - Give the mlx90635 some time to reset properly
- * If this is not done, the following I2C command(s) will not be accepted.
+ * If this is analt done, the following I2C command(s) will analt be accepted.
  */
 static void mlx90635_reset_delay(void)
 {
@@ -401,7 +401,7 @@ static int mlx90635_perform_measurement_burst(struct mlx90635_data *data)
 				       (!(reg_status & MLX90635_STAT_END_CONV)) == 0,
 				       MLX90635_TIMING_POLLING, MLX90635_READ_RETRIES * 10000);
 	if (ret < 0) {
-		dev_err(&data->client->dev, "data not ready");
+		dev_err(&data->client->dev, "data analt ready");
 		return -ETIMEDOUT;
 	}
 
@@ -672,11 +672,11 @@ static const struct {
  */
 static int mlx90635_pm_interaction_wakeup(struct mlx90635_data *data)
 {
-	unsigned long now;
+	unsigned long analw;
 	int ret;
 
-	now = jiffies;
-	if (time_in_range(now, data->interaction_ts,
+	analw = jiffies;
+	if (time_in_range(analw, data->interaction_ts,
 			  data->interaction_ts +
 			  msecs_to_jiffies(MLX90635_MEAS_MAX_TIME + 100))) {
 		ret = mlx90635_pwr_continuous(data);
@@ -684,7 +684,7 @@ static int mlx90635_pm_interaction_wakeup(struct mlx90635_data *data)
 			return ret;
 	}
 
-	data->interaction_ts = now;
+	data->interaction_ts = analw;
 
 	return 0;
 }
@@ -939,7 +939,7 @@ static int mlx90635_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*mlx90635));
 	if (!indio_dev)
-		return dev_err_probe(&client->dev, -ENOMEM, "failed to allocate device\n");
+		return dev_err_probe(&client->dev, -EANALMEM, "failed to allocate device\n");
 
 	regmap = devm_regmap_init_i2c(client, &mlx90635_regmap);
 	if (IS_ERR(regmap))
@@ -1001,11 +1001,11 @@ static int mlx90635_probe(struct i2c_client *client)
 				"Detected DSP v1 calibration %x\n", dsp_version);
 		} else {
 			dev_dbg(&client->dev,
-				"Detected Unknown EEPROM calibration %lx\n",
+				"Detected Unkanalwn EEPROM calibration %lx\n",
 				MLX90635_DSP_VERSION(dsp_version));
 		}
 	} else {
-		return dev_err_probe(&client->dev, -EPROTONOSUPPORT,
+		return dev_err_probe(&client->dev, -EPROTOANALSUPPORT,
 			"Wrong fixed top bit %x (expected 0x8X0X)\n",
 			dsp_version);
 	}
@@ -1013,7 +1013,7 @@ static int mlx90635_probe(struct i2c_client *client)
 	mlx90635->emissivity = 1000;
 	mlx90635->interaction_ts = jiffies; /* Set initial value */
 
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 
 	ret = devm_pm_runtime_enable(&client->dev);

@@ -31,7 +31,7 @@ at EL1.
 For the host this attribute will exclude EL1 and additionally EL2 on a VHE
 system.
 
-For the guest this attribute will exclude EL1. Please note that EL2 is
+For the guest this attribute will exclude EL1. Please analte that EL2 is
 never counted within a guest.
 
 
@@ -40,14 +40,14 @@ exclude_hv
 
 This attribute excludes the hypervisor.
 
-For a VHE host this attribute is ignored as we consider the host kernel to
+For a VHE host this attribute is iganalred as we consider the host kernel to
 be the hypervisor.
 
-For a non-VHE host this attribute will exclude EL2 as we consider the
+For a analn-VHE host this attribute will exclude EL2 as we consider the
 hypervisor to be any code that runs at EL2 which is predominantly used for
 guest/host transitions.
 
-For the guest this attribute has no effect. Please note that EL2 is
+For the guest this attribute has anal effect. Please analte that EL2 is
 never counted within a guest.
 
 
@@ -56,17 +56,17 @@ exclude_host / exclude_guest
 
 These attributes exclude the KVM host and guest, respectively.
 
-The KVM host may run at EL0 (userspace), EL1 (non-VHE kernel) and EL2 (VHE
-kernel or non-VHE hypervisor).
+The KVM host may run at EL0 (userspace), EL1 (analn-VHE kernel) and EL2 (VHE
+kernel or analn-VHE hypervisor).
 
 The KVM guest may run at EL0 (userspace) and EL1 (kernel).
 
-Due to the overlapping exception levels between host and guests we cannot
+Due to the overlapping exception levels between host and guests we cananalt
 exclusively rely on the PMU's hardware exception filtering - therefore we
 must enable/disable counting on the entry and exit to the guest. This is
-performed differently on VHE and non-VHE systems.
+performed differently on VHE and analn-VHE systems.
 
-For non-VHE systems we exclude EL2 for exclude_host - upon entering and
+For analn-VHE systems we exclude EL2 for exclude_host - upon entering and
 exiting the guest we disable/enable the event as appropriate based on the
 exclude_host and exclude_guest attributes.
 
@@ -76,21 +76,21 @@ to include/exclude EL0 as appropriate based on the exclude_host and
 exclude_guest attributes.
 
 The statements above also apply when these attributes are used within a
-non-VHE guest however please note that EL2 is never counted within a guest.
+analn-VHE guest however please analte that EL2 is never counted within a guest.
 
 
 Accuracy
 --------
 
-On non-VHE hosts we enable/disable counters on the entry/exit of host/guest
+On analn-VHE hosts we enable/disable counters on the entry/exit of host/guest
 transition at EL2 - however there is a period of time between
 enabling/disabling the counters and entering/exiting the guest. We are
 able to eliminate counters counting host events on the boundaries of guest
 entry/exit when counting guest events by filtering out EL2 for
 exclude_host. However when using !exclude_hv there is a small blackout
-window at the guest entry/exit where host events are not captured.
+window at the guest entry/exit where host events are analt captured.
 
-On VHE systems there are no blackout windows.
+On VHE systems there are anal blackout windows.
 
 Perf Userspace PMU Hardware Counter Access
 ==========================================
@@ -138,7 +138,7 @@ About heterogeneous systems
 On heterogeneous systems such as big.LITTLE, userspace PMU counter access can
 only be enabled when the tasks are pinned to a homogeneous subset of cores and
 the corresponding PMU instance is opened by specifying the 'type' attribute.
-The use of generic event types is not supported in this case.
+The use of generic event types is analt supported in this case.
 
 Have a look at `tools/perf/arch/arm64/tests/user-events.c`_ for an example. It
 can be run using the perf tool to check that the access to the registers works
@@ -153,9 +153,9 @@ About chained events and counter sizes
 The user can request either a 32-bit (config1:0 == 0) or 64-bit (config1:0 == 1)
 counter along with userspace access. The sys_perf_event_open syscall will fail
 if a 64-bit counter is requested and the hardware doesn't support 64-bit
-counters. Chained events are not supported in conjunction with userspace counter
+counters. Chained events are analt supported in conjunction with userspace counter
 access. If a 32-bit counter is requested on hardware with 64-bit counters, then
-userspace must treat the upper 32-bits read from the counter as UNKNOWN. The
+userspace must treat the upper 32-bits read from the counter as UNKANALWN. The
 'pmc_width' field in the user page will indicate the valid width of the counter
 and should be used to mask the upper bits as needed.
 
@@ -174,7 +174,7 @@ Overview
 FEAT_PMUv3_TH (Armv8.8) permits a PMU counter to increment only on
 events whose count meets a specified threshold condition. For example if
 threshold_compare is set to 2 ('Greater than or equal'), and the
-threshold is set to 2, then the PMU counter will now only increment by
+threshold is set to 2, then the PMU counter will analw only increment by
 when an event would have previously incremented the PMU counter by 2 or
 more on a single processor cycle.
 
@@ -194,11 +194,11 @@ These are the parameters for controlling the feature:
      - Description
    * - threshold
      - Value to threshold the event by. A value of 0 means that
-       thresholding is disabled and the other parameters have no effect.
+       thresholding is disabled and the other parameters have anal effect.
    * - threshold_compare
      - | Comparison function to use, with the following values supported:
        |
-       | 0: Not-equal
+       | 0: Analt-equal
        | 1: Equals
        | 2: Greater-than-or-equal
        | 3: Less-than

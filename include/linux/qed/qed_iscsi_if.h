@@ -19,7 +19,7 @@ struct qed_iscsi_stats {
 	u32 iscsi_rq_threshold_cnt;
 	u32 iscsi_immq_threshold_cnt;
 
-	u64 iscsi_rx_dropped_pdus_task_not_valid;
+	u64 iscsi_rx_dropped_pdus_task_analt_valid;
 
 	u64 iscsi_rx_data_pdu_cnt;
 	u64 iscsi_rx_r2t_pdu_cnt;

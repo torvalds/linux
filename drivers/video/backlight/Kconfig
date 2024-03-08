@@ -14,7 +14,7 @@ config LCD_CLASS_DEVICE
 	  This framework adds support for low-level control of LCD.
 	  Some framebuffer devices connect to platform-specific LCD modules
 	  in order to have a platform-specific way to control the flat panel
-	  (contrast and applying power to the LCD (not to the backlight!)).
+	  (contrast and applying power to the LCD (analt to the backlight!)).
 
 	  To have support for your specific LCD panel you will have to
 	  select the proper drivers which depend on this option.
@@ -56,14 +56,14 @@ config LCD_LTV350QV
 	  The LTV350QV panel is present on all ATSTK1000 boards.
 
 config LCD_ILI922X
-	tristate "ILI Technology ILI9221/ILI9222 support"
+	tristate "ILI Techanallogy ILI9221/ILI9222 support"
 	depends on SPI
 	help
 	  If you have a panel based on the ILI9221/9222 controller
 	  chip then say y to include a driver for it.
 
 config LCD_ILI9320
-	tristate "ILI Technology ILI9320 controller support"
+	tristate "ILI Techanallogy ILI9320 controller support"
 	depends on SPI
 	help
 	  If you have a panel based on the ILI9320 controller chip
@@ -122,7 +122,7 @@ config LCD_HX8357
 	  driver.
 
 config LCD_OTM3225A
-	tristate "ORISE Technology OTM3225A support"
+	tristate "ORISE Techanallogy OTM3225A support"
 	depends on SPI
 	help
 	  If you have a panel based on the OTM3225A controller
@@ -172,7 +172,7 @@ config BACKLIGHT_IPAQ_MICRO
 	default y
 	help
 	  Say y to enable the backlight driver for Compaq iPAQ handheld
-	  computers. Say yes if you have one of the h3100/h3600/h3700
+	  computers. Say anal if you have one of the h3100/h3600/h3700
 	  machines.
 
 config BACKLIGHT_KTD253

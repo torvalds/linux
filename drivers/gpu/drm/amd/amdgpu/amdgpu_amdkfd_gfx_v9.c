@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -41,7 +41,7 @@
 #include <uapi/linux/kfd_ioctl.h>
 
 enum hqd_dequeue_request_type {
-	NO_ACTION = 0,
+	ANAL_ACTION = 0,
 	DRAIN_PIPE,
 	RESET_WAVES,
 	SAVE_WAVES
@@ -93,7 +93,7 @@ void kgd_gfx_v9_program_sh_mem_settings(struct amdgpu_device *adev, uint32_t vmi
 
 	WREG32_SOC15_RLC(GC, GET_INST(GC, inst), mmSH_MEM_CONFIG, sh_mem_config);
 	WREG32_SOC15_RLC(GC, GET_INST(GC, inst), mmSH_MEM_BASES, sh_mem_bases);
-	/* APE1 no longer exists on GFX9 */
+	/* APE1 anal longer exists on GFX9 */
 
 	kgd_gfx_v9_unlock_srbm(adev, inst);
 }
@@ -102,7 +102,7 @@ int kgd_gfx_v9_set_pasid_vmid_mapping(struct amdgpu_device *adev, u32 pasid,
 					unsigned int vmid, uint32_t inst)
 {
 	/*
-	 * We have to assume that there is no outstanding mapping.
+	 * We have to assume that there is anal outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
 	 * a mapping is in progress or because a mapping finished
 	 * and the SW cleared it.
@@ -249,7 +249,7 @@ int kgd_gfx_v9_hqd_load(struct amdgpu_device *adev, void *mqd,
 
 	if (wptr) {
 		/* Don't read wptr with get_user because the user
-		 * context may not be accessible (if this function
+		 * context may analt be accessible (if this function
 		 * runs in a work queue). Instead trigger a one-shot
 		 * polling read from memory in the CP. This assumes
 		 * that wptr is GPU-accessible in the queue's VMID via
@@ -331,7 +331,7 @@ int kgd_gfx_v9_hiq_mqd_load(struct amdgpu_device *adev, void *mqd,
 			  PACKET3_MAP_QUEUES_QUEUE(queue_id) |
 			  PACKET3_MAP_QUEUES_PIPE(pipe) |
 			  PACKET3_MAP_QUEUES_ME((mec - 1)) |
-			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: normal compute queue */
+			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: analrmal compute queue */
 			  PACKET3_MAP_QUEUES_ALLOC_FORMAT(0) | /* alloc format: all_on_one_pipe */
 			  PACKET3_MAP_QUEUES_ENGINE_SEL(1) | /* engine_sel: hiq */
 			  PACKET3_MAP_QUEUES_NUM_QUEUES(1)); /* num_queues: must be 1 */
@@ -365,7 +365,7 @@ int kgd_gfx_v9_hqd_dump(struct amdgpu_device *adev,
 
 	*dump = kmalloc_array(HQD_N_REGS, sizeof(**dump), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
 
@@ -404,7 +404,7 @@ static int kgd_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -421,7 +421,7 @@ static int kgd_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_HI,
 				m->sdmax_rlcx_rb_rptr_hi);
 
-	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 1);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MIANALR_PTR_UPDATE, 1);
 	if (read_user_wptr(mm, wptr64, data64)) {
 		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR,
 		       lower_32_bits(data64));
@@ -433,7 +433,7 @@ static int kgd_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR_HI,
 		       m->sdmax_rlcx_rb_rptr_hi);
 	}
-	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 0);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MIANALR_PTR_UPDATE, 0);
 
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE, m->sdmax_rlcx_rb_base);
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE_HI,
@@ -462,14 +462,14 @@ static int kgd_hqd_sdma_dump(struct amdgpu_device *adev,
 
 	*dump = kmalloc_array(HQD_N_REGS, sizeof(**dump), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (reg = mmSDMA0_RLC0_RB_CNTL; reg <= mmSDMA0_RLC0_DOORBELL; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_STATUS; reg <= mmSDMA0_RLC0_CSA_ADDR_HI; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_IB_SUB_REMAIN;
-	     reg <= mmSDMA0_RLC0_MINOR_PTR_UPDATE; reg++)
+	     reg <= mmSDMA0_RLC0_MIANALR_PTR_UPDATE; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_MIDCMD_DATA0;
 	     reg <= mmSDMA0_RLC0_MIDCMD_CNTL; reg++)
@@ -594,7 +594,7 @@ static int kgd_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -662,8 +662,8 @@ int kgd_gfx_v9_wave_control_execute(struct amdgpu_device *adev,
  *   SPI_GDBG_WAVE_CNTL translates to ~32 clock cycles.
  *   KGD_GFX_V9_WAVE_LAUNCH_SPI_DRAIN_LATENCY indicates the number of reads required.
  *
- *   NOTE: We can afford to clear the entire STALL_VMID field on unstall
- *   because GFX9.4.1 cannot support multi-process debugging due to trap
+ *   ANALTE: We can afford to clear the entire STALL_VMID field on unstall
+ *   because GFX9.4.1 cananalt support multi-process debugging due to trap
  *   configuration and masking being limited to global scope.  Always assume
  *   single process conditions.
  */
@@ -692,9 +692,9 @@ void kgd_gfx_v9_set_wave_launch_stall(struct amdgpu_device *adev,
 }
 
 /*
- * restore_dbg_registers is ignored here but is a general interface requirement
+ * restore_dbg_registers is iganalred here but is a general interface requirement
  * for devices that support GFXOFF and where the RLC save/restore list
- * does not support hw registers for debugging i.e. the driver has to manually
+ * does analt support hw registers for debugging i.e. the driver has to manually
  * initialize the debug mode registers after it has disabled GFX off during the
  * debug session.
  */
@@ -716,7 +716,7 @@ uint32_t kgd_gfx_v9_enable_debug_trap(struct amdgpu_device *adev,
 }
 
 /*
- * keep_trap_enabled is ignored here but is a general interface requirement
+ * keep_trap_enabled is iganalred here but is a general interface requirement
  * for devices that support multi-process debugging where the performance
  * overhead from trap temporary setup needs to be bypassed when the debug
  * session has ended.
@@ -959,7 +959,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
 	/*
 	 * Program GRBM with appropriate MEID, PIPEID, QUEUEID and VMID
 	 * parameters to read out waves in flight. Get VMID if there are
-	 * non-zero waves in flight.
+	 * analn-zero waves in flight.
 	 */
 	*vmid = 0xFF;
 	*wave_cnt = 0;
@@ -988,7 +988,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  *                    possible per Compute Unit
  * @inst: xcc's instance number on a multi-XCC setup
  *
- * Note: It's possible that the device has too many queues (oversubscription)
+ * Analte: It's possible that the device has too many queues (oversubscription)
  * in which case a VMID could be remapped to a different PASID. This could lead
  * to an inaccurate wave count. Following is a high-level sequence:
  *    Time T1: vmid = getVmid(); vmid is associated with Pasid P1
@@ -999,7 +999,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  * The registers that provide the waves in flight are:
  *
  *  SPI_CSQ_WF_ACTIVE_STATUS - bit-map of queues per pipe. The bit is ON if a
- *  queue is slotted, OFF if there is no queue. A process could have ZERO or
+ *  queue is slotted, OFF if there is anal queue. A process could have ZERO or
  *  more queues slotted and submitting waves to be run on compute units. Even
  *  when there is a queue it is possible there could be zero wave fronts, this
  *  can happen when queue is waiting on top-of-pipe events - e.g. waitRegMem
@@ -1011,12 +1011,12 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  *    number of waves that are in flight for the queue at specified index. The
  *    index ranges from 0 to 7.
  *
- *    If non-zero waves are in flight, read CP_HQD_VMID register to obtain VMID
+ *    If analn-zero waves are in flight, read CP_HQD_VMID register to obtain VMID
  *    of the wave(s).
  *
  *    Determine if VMID from above step maps to pasid provided as parameter. If
- *    it matches agrregate the wave count. That the VMID will not match pasid is
- *    a normal condition i.e. a device is expected to support multiple queues
+ *    it matches agrregate the wave count. That the VMID will analt match pasid is
+ *    a analrmal condition i.e. a device is expected to support multiple queues
  *    from multiple proceses.
  *
  *  Reading registers referenced above involves programming GRBM appropriately
@@ -1064,7 +1064,7 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
 			 */
 			for (qidx = 0; qidx < max_queue_cnt; qidx++) {
 
-				/* Skip qeueus that are not associated with
+				/* Skip qeueus that are analt associated with
 				 * compute functions
 				 */
 				if (!test_bit(qidx, cp_queue_bitmap))
@@ -1106,7 +1106,7 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 	*reg_data = wait_times;
 
 	/*
-	 * The CP cannot handle a 0 grace period input and will result in
+	 * The CP cananalt handle a 0 grace period input and will result in
 	 * an infinite grace period being set so set to 1 to prevent this.
 	 */
 	if (grace_period == 0)

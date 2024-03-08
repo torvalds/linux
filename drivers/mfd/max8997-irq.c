@@ -72,7 +72,7 @@ static const struct max8997_irq_data max8997_irqs[] = {
 
 	DECLARE_IRQ(MAX8997_PMICIRQ_CHGINS,	PMIC_INT3, 1 << 0),
 	DECLARE_IRQ(MAX8997_PMICIRQ_CHGRM,	PMIC_INT3, 1 << 1),
-	DECLARE_IRQ(MAX8997_PMICIRQ_DCINOVP,	PMIC_INT3, 1 << 2),
+	DECLARE_IRQ(MAX8997_PMICIRQ_DCIANALVP,	PMIC_INT3, 1 << 2),
 	DECLARE_IRQ(MAX8997_PMICIRQ_TOPOFFR,	PMIC_INT3, 1 << 3),
 	DECLARE_IRQ(MAX8997_PMICIRQ_CHGRSTF,	PMIC_INT3, 1 << 5),
 	DECLARE_IRQ(MAX8997_PMICIRQ_MBCHGTMEXPD,	PMIC_INT3, 1 << 7),
@@ -174,7 +174,7 @@ static irqreturn_t max8997_irq_thread(int irq, void *data)
 	if (ret < 0) {
 		dev_err(max8997->dev, "Failed to read interrupt source: %d\n",
 				ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (irq_src & MAX8997_IRQSRC_PMIC) {
@@ -189,12 +189,12 @@ static irqreturn_t max8997_irq_thread(int irq, void *data)
 		 * This is to be supported by Max17042 driver. When
 		 * an interrupt incurs here, it should be relayed to a
 		 * Max17042 device that is connected (probably by
-		 * platform-data). However, we do not have interrupt
+		 * platform-data). However, we do analt have interrupt
 		 * handling in Max17042 driver currently. The Max17042 IRQ
 		 * driver should be ready to be used as a stand-alone device and
-		 * a Max8997-dependent device. Because it is not ready in
-		 * Max17042-side and it is not too critical in operating
-		 * Max8997, we do not implement this in initial releases.
+		 * a Max8997-dependent device. Because it is analt ready in
+		 * Max17042-side and it is analt too critical in operating
+		 * Max8997, we do analt implement this in initial releases.
 		 */
 		irq_reg[FUEL_GAUGE] = 0;
 	}
@@ -280,7 +280,7 @@ static int max8997_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, max8997);
 	irq_set_chip_and_handler(irq, &max8997_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -297,7 +297,7 @@ int max8997_irq_init(struct max8997_dev *max8997)
 	u8 val;
 
 	if (!max8997->irq) {
-		dev_warn(max8997->dev, "No interrupt specified.\n");
+		dev_warn(max8997->dev, "Anal interrupt specified.\n");
 		return 0;
 	}
 
@@ -330,8 +330,8 @@ int max8997_irq_init(struct max8997_dev *max8997)
 	domain = irq_domain_add_linear(NULL, MAX8997_IRQ_NR,
 					&max8997_irq_domain_ops, max8997);
 	if (!domain) {
-		dev_err(max8997->dev, "could not create irq domain\n");
-		return -ENODEV;
+		dev_err(max8997->dev, "could analt create irq domain\n");
+		return -EANALDEV;
 	}
 	max8997->irq_domain = domain;
 
@@ -345,24 +345,24 @@ int max8997_irq_init(struct max8997_dev *max8997)
 		return ret;
 	}
 
-	if (!max8997->ono)
+	if (!max8997->oanal)
 		return 0;
 
-	ret = request_threaded_irq(max8997->ono, NULL, max8997_irq_thread,
+	ret = request_threaded_irq(max8997->oanal, NULL, max8997_irq_thread,
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
-			IRQF_ONESHOT, "max8997-ono", max8997);
+			IRQF_ONESHOT, "max8997-oanal", max8997);
 
 	if (ret)
-		dev_err(max8997->dev, "Failed to request ono-IRQ %d: %d\n",
-				max8997->ono, ret);
+		dev_err(max8997->dev, "Failed to request oanal-IRQ %d: %d\n",
+				max8997->oanal, ret);
 
 	return 0;
 }
 
 void max8997_irq_exit(struct max8997_dev *max8997)
 {
-	if (max8997->ono)
-		free_irq(max8997->ono, max8997);
+	if (max8997->oanal)
+		free_irq(max8997->oanal, max8997);
 
 	if (max8997->irq)
 		free_irq(max8997->irq, max8997);

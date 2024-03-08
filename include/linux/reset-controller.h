@@ -23,7 +23,7 @@ struct reset_control_ops {
 };
 
 struct module;
-struct device_node;
+struct device_analde;
 struct of_phandle_args;
 
 /**
@@ -59,7 +59,7 @@ struct reset_control_lookup {
  * @list: internal list of reset controller devices
  * @reset_control_head: head of internal list of requested reset controls
  * @dev: corresponding driver model device struct
- * @of_node: corresponding device tree node as phandle target
+ * @of_analde: corresponding device tree analde as phandle target
  * @of_reset_n_cells: number of cells in reset line specifiers
  * @of_xlate: translation function to translate from specifier as found in the
  *            device tree to id as given to the reset control ops, defaults
@@ -72,7 +72,7 @@ struct reset_controller_dev {
 	struct list_head list;
 	struct list_head reset_control_head;
 	struct device *dev;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	int of_reset_n_cells;
 	int (*of_xlate)(struct reset_controller_dev *rcdev,
 			const struct of_phandle_args *reset_spec);

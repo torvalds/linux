@@ -60,7 +60,7 @@ static void write_hbreg(unsigned long addr, unsigned long val)
 {
 	__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
 			     "membar	#Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (val), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
 			     : "memory");
 	if (addr == HBIRD_ESTAR_MODE_ADDR) {
@@ -317,7 +317,7 @@ static int __init us2e_freq_init(void)
 	int ret;
 
 	if (tlb_type != spitfire)
-		return -ENODEV;
+		return -EANALDEV;
 
 	__asm__("rdpr %%ver, %0" : "=r" (ver));
 	manuf = ((ver >> 48) & 0xffff);
@@ -327,7 +327,7 @@ static int __init us2e_freq_init(void)
 		us2e_freq_table = kzalloc(NR_CPUS * sizeof(*us2e_freq_table),
 					  GFP_KERNEL);
 		if (!us2e_freq_table)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = cpufreq_register_driver(&cpufreq_us2e_driver);
 		if (ret)
@@ -336,7 +336,7 @@ static int __init us2e_freq_init(void)
 		return ret;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit us2e_freq_exit(void)

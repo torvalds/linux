@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -39,7 +39,7 @@
 
 
 /* interface name assignment types (sysfs name_assign_type attribute) */
-#define NET_NAME_UNKNOWN	0	/* unknown origin (not exposed to userspace) */
+#define NET_NAME_UNKANALWN	0	/* unkanalwn origin (analt exposed to userspace) */
 #define NET_NAME_ENUM		1	/* enumerated by kernel */
 #define NET_NAME_PREDICTABLE	2	/* predictably named by the kernel */
 #define NET_NAME_USER		3	/* provided by user-space */
@@ -47,7 +47,7 @@
 
 /* Media selection options. */
 enum {
-        IF_PORT_UNKNOWN = 0,
+        IF_PORT_UNKANALWN = 0,
         IF_PORT_10BASE2,
         IF_PORT_10BASET,
         IF_PORT_AUI,

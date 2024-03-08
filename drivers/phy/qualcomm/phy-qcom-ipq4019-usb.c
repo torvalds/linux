@@ -3,7 +3,7 @@
  * Copyright (C) 2018 John Crispin <john@phrozen.org>
  *
  * Based on code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techanallogy Co., Ltd. <www.allwinnertech.com>
  *
  */
 
@@ -99,7 +99,7 @@ static int ipq4019_usb_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->dev = &pdev->dev;
 	phy->base = devm_platform_ioremap_resource(pdev, 0);

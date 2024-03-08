@@ -10,7 +10,7 @@ kms_flip@flip-vs-panning-vs-hang,Crash
 kms_force_connector_basic@force-load-detect,Fail
 kms_invalid_mode@int-max-clock,Crash
 kms_pipe_crc_basic@compare-crc-sanitycheck-nv12,Crash
-kms_pipe_crc_basic@nonblocking-crc-frame-sequence,Crash
+kms_pipe_crc_basic@analnblocking-crc-frame-sequence,Crash
 kms_pipe_crc_basic@read-crc-frame-sequence,Crash
 kms_plane@pixel-format,Crash
 kms_plane@pixel-format-source-clamping,Crash
@@ -37,7 +37,7 @@ kms_plane_cursor@pipe-B-viewport-size-256,Fail
 kms_plane_cursor@pipe-B-viewport-size-64,Fail
 kms_plane_cursor@primary,Crash
 kms_plane_cursor@viewport,Crash
-kms_plane_lowres@tiling-none,Fail
+kms_plane_lowres@tiling-analne,Fail
 kms_plane_scaling@downscale-with-modifier-factor-0-25,Fail
 kms_plane_scaling@downscale-with-rotation-factor-0-25,Fail
 kms_plane_scaling@upscale-with-modifier-20x20,Fail
@@ -49,6 +49,6 @@ kms_prime@basic-crc,Fail
 kms_properties@connector-properties-atomic,Crash
 kms_properties@connector-properties-legacy,Crash
 kms_properties@get_properties-sanity-atomic,Crash
-kms_properties@get_properties-sanity-non-atomic,Crash
+kms_properties@get_properties-sanity-analn-atomic,Crash
 kms_rmfb@close-fd,Crash
 kms_setmode@invalid-clone-single-crtc,Crash

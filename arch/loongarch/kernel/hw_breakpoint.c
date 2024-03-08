@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2022-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2022-2023 Loongson Techanallogy Corporation Limited
  */
 #define pr_fmt(fmt) "hw-breakpoint: " fmt
 
@@ -28,7 +28,7 @@ int hw_breakpoint_slots(int type)
 	case TYPE_DATA:
 		return get_num_wrps();
 	default:
-		pr_warn("unknown slot type: %d\n", type);
+		pr_warn("unkanalwn slot type: %d\n", type);
 		return 0;
 	}
 }
@@ -73,12 +73,12 @@ static u64 read_wb_reg(int reg, int n, int t)
 	GEN_READ_WB_REG_CASES(CSR_CFG_CTRL, CTRL, t, val);
 	GEN_READ_WB_REG_CASES(CSR_CFG_ASID, ASID, t, val);
 	default:
-		pr_warn("Attempt to read from unknown breakpoint register %d\n", n);
+		pr_warn("Attempt to read from unkanalwn breakpoint register %d\n", n);
 	}
 
 	return val;
 }
-NOKPROBE_SYMBOL(read_wb_reg);
+ANALKPROBE_SYMBOL(read_wb_reg);
 
 static void write_wb_reg(int reg, int n, int t, u64 val)
 {
@@ -88,10 +88,10 @@ static void write_wb_reg(int reg, int n, int t, u64 val)
 	GEN_WRITE_WB_REG_CASES(CSR_CFG_CTRL, CTRL, t, val);
 	GEN_WRITE_WB_REG_CASES(CSR_CFG_ASID, ASID, t, val);
 	default:
-		pr_warn("Attempt to write to unknown breakpoint register %d\n", n);
+		pr_warn("Attempt to write to unkanalwn breakpoint register %d\n", n);
 	}
 }
-NOKPROBE_SYMBOL(write_wb_reg);
+ANALKPROBE_SYMBOL(write_wb_reg);
 
 enum hw_breakpoint_ops {
 	HW_BREAKPOINT_INSTALL,
@@ -108,7 +108,7 @@ enum hw_breakpoint_ops {
  *
  * Return:
  *	slot index on success
- *	-ENOSPC if no slot is available/matches
+ *	-EANALSPC if anal slot is available/matches
  *	-EINVAL on wrong operations parameter
  */
 
@@ -139,7 +139,7 @@ static int hw_breakpoint_slot_setup(struct perf_event **slots, int max_slots,
 		}
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 void ptrace_hw_copy_thread(struct task_struct *tsk)
@@ -458,7 +458,7 @@ static void update_bp_registers(struct pt_regs *regs, int enable, int type)
 		}
 	}
 }
-NOKPROBE_SYMBOL(update_bp_registers);
+ANALKPROBE_SYMBOL(update_bp_registers);
 
 /*
  * Debug exception handlers.
@@ -478,7 +478,7 @@ void breakpoint_handler(struct pt_regs *regs)
 	}
 	update_bp_registers(regs, 0, 0);
 }
-NOKPROBE_SYMBOL(breakpoint_handler);
+ANALKPROBE_SYMBOL(breakpoint_handler);
 
 void watchpoint_handler(struct pt_regs *regs)
 {
@@ -495,7 +495,7 @@ void watchpoint_handler(struct pt_regs *regs)
 	}
 	update_bp_registers(regs, 0, 1);
 }
-NOKPROBE_SYMBOL(watchpoint_handler);
+ANALKPROBE_SYMBOL(watchpoint_handler);
 
 static int __init arch_hw_breakpoint_init(void)
 {
@@ -540,10 +540,10 @@ void hw_breakpoint_pmu_read(struct perf_event *bp)
 }
 
 /*
- * Dummy function to register with die_notifier.
+ * Dummy function to register with die_analtifier.
  */
-int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
+int hw_breakpoint_exceptions_analtify(struct analtifier_block *unused,
 				    unsigned long val, void *data)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }

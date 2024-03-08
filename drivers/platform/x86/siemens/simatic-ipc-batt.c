@@ -116,7 +116,7 @@ static int simatic_ipc_batt_read(struct device *dev, enum hwmon_sensor_types typ
 		*val = SIMATIC_IPC_BATT_LEVEL_CRIT;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -173,9 +173,9 @@ int simatic_ipc_batt_probe(struct platform_device *pdev, struct gpiod_lookup_tab
 		gpiod_add_lookup_table(table);
 		break;
 	case SIMATIC_IPC_DEVICE_227E:
-		goto nogpio;
+		goto analgpio;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv.gpios[0] = devm_gpiod_get_index(dev, "CMOSBattery empty", 0, GPIOD_IN);
@@ -206,7 +206,7 @@ int simatic_ipc_batt_probe(struct platform_device *pdev, struct gpiod_lookup_tab
 		priv.gpios[2] = NULL;
 	}
 
-nogpio:
+analgpio:
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, KBUILD_MODNAME,
 							 &priv,
 							 &simatic_ipc_batt_chip_info,

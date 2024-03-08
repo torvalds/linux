@@ -37,7 +37,7 @@
 /*
  * nfsd version
  */
-#define NFSD_SUPPORTED_MINOR_VERSION	2
+#define NFSD_SUPPORTED_MIANALR_VERSION	2
 /*
  * Maximum blocksizes supported by daemon under various circumstances.
  */
@@ -53,7 +53,7 @@
  * which are an RPC header, up to 26 XDR units of reply
  * data, and some page data.
  *
- * Note that accuracy here doesn't matter too much as the
+ * Analte that accuracy here doesn't matter too much as the
  * size is rounded up to a page size when allocating space.
  */
 #define NFSD_BUFSIZE            ((RPC_MAX_HEADER_WITH_AUTH+26)*XDR_UNIT + NFSSVC_MAXBLKSIZE)
@@ -109,8 +109,8 @@ int		nfsd_nrthreads(struct net *);
 int		nfsd_nrpools(struct net *);
 int		nfsd_get_nrthreads(int n, int *, struct net *);
 int		nfsd_set_nrthreads(int n, int *, struct net *);
-int		nfsd_pool_stats_open(struct inode *, struct file *);
-int		nfsd_pool_stats_release(struct inode *, struct file *);
+int		nfsd_pool_stats_open(struct ianalde *, struct file *);
+int		nfsd_pool_stats_release(struct ianalde *, struct file *);
 void		nfsd_shutdown_threads(struct net *net);
 
 bool		i_am_nfsd(void);
@@ -120,7 +120,7 @@ struct nfsdfs_client {
 	void (*cl_release)(struct kref *kref);
 };
 
-struct nfsdfs_client *get_nfsdfs_client(struct inode *);
+struct nfsdfs_client *get_nfsdfs_client(struct ianalde *);
 struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
 				 struct nfsdfs_client *ncl, u32 id,
 				 const struct tree_descr *,
@@ -145,7 +145,7 @@ struct nfsd_net;
 
 enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
 int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change);
-int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change);
+int nfsd_mianalrversion(struct nfsd_net *nn, u32 mianalrversion, enum vers_op change);
 void nfsd_reset_versions(struct nfsd_net *nn);
 int nfsd_create_serv(struct net *net);
 void nfsd_destroy_serv(struct net *net);
@@ -179,7 +179,7 @@ char * nfs4_recoverydir(void);
 bool nfsd4_spo_must_allow(struct svc_rqst *rqstp);
 int nfsd4_create_laundry_wq(void);
 void nfsd4_destroy_laundry_wq(void);
-bool nfsd_wait_for_delegreturn(struct svc_rqst *rqstp, struct inode *inode);
+bool nfsd_wait_for_delegreturn(struct svc_rqst *rqstp, struct ianalde *ianalde);
 #else
 static inline int nfsd4_init_slabs(void) { return 0; }
 static inline void nfsd4_free_slabs(void) { }
@@ -196,7 +196,7 @@ static inline bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
 static inline int nfsd4_create_laundry_wq(void) { return 0; };
 static inline void nfsd4_destroy_laundry_wq(void) {};
 static inline bool nfsd_wait_for_delegreturn(struct svc_rqst *rqstp,
-					      struct inode *inode)
+					      struct ianalde *ianalde)
 {
 	return false;
 }
@@ -214,32 +214,32 @@ void		nfsd_lockd_shutdown(void);
  */
 #define	nfs_ok			cpu_to_be32(NFS_OK)
 #define	nfserr_perm		cpu_to_be32(NFSERR_PERM)
-#define	nfserr_noent		cpu_to_be32(NFSERR_NOENT)
+#define	nfserr_analent		cpu_to_be32(NFSERR_ANALENT)
 #define	nfserr_io		cpu_to_be32(NFSERR_IO)
 #define	nfserr_nxio		cpu_to_be32(NFSERR_NXIO)
 #define	nfserr_eagain		cpu_to_be32(NFSERR_EAGAIN)
 #define	nfserr_acces		cpu_to_be32(NFSERR_ACCES)
 #define	nfserr_exist		cpu_to_be32(NFSERR_EXIST)
 #define	nfserr_xdev		cpu_to_be32(NFSERR_XDEV)
-#define	nfserr_nodev		cpu_to_be32(NFSERR_NODEV)
-#define	nfserr_notdir		cpu_to_be32(NFSERR_NOTDIR)
+#define	nfserr_analdev		cpu_to_be32(NFSERR_ANALDEV)
+#define	nfserr_analtdir		cpu_to_be32(NFSERR_ANALTDIR)
 #define	nfserr_isdir		cpu_to_be32(NFSERR_ISDIR)
 #define	nfserr_inval		cpu_to_be32(NFSERR_INVAL)
 #define	nfserr_fbig		cpu_to_be32(NFSERR_FBIG)
-#define	nfserr_nospc		cpu_to_be32(NFSERR_NOSPC)
+#define	nfserr_analspc		cpu_to_be32(NFSERR_ANALSPC)
 #define	nfserr_rofs		cpu_to_be32(NFSERR_ROFS)
 #define	nfserr_mlink		cpu_to_be32(NFSERR_MLINK)
-#define	nfserr_opnotsupp	cpu_to_be32(NFSERR_OPNOTSUPP)
+#define	nfserr_opanaltsupp	cpu_to_be32(NFSERR_OPANALTSUPP)
 #define	nfserr_nametoolong	cpu_to_be32(NFSERR_NAMETOOLONG)
-#define	nfserr_notempty		cpu_to_be32(NFSERR_NOTEMPTY)
+#define	nfserr_analtempty		cpu_to_be32(NFSERR_ANALTEMPTY)
 #define	nfserr_dquot		cpu_to_be32(NFSERR_DQUOT)
 #define	nfserr_stale		cpu_to_be32(NFSERR_STALE)
 #define	nfserr_remote		cpu_to_be32(NFSERR_REMOTE)
 #define	nfserr_wflush		cpu_to_be32(NFSERR_WFLUSH)
 #define	nfserr_badhandle	cpu_to_be32(NFSERR_BADHANDLE)
-#define	nfserr_notsync		cpu_to_be32(NFSERR_NOT_SYNC)
+#define	nfserr_analtsync		cpu_to_be32(NFSERR_ANALT_SYNC)
 #define	nfserr_badcookie	cpu_to_be32(NFSERR_BAD_COOKIE)
-#define	nfserr_notsupp		cpu_to_be32(NFSERR_NOTSUPP)
+#define	nfserr_analtsupp		cpu_to_be32(NFSERR_ANALTSUPP)
 #define	nfserr_toosmall		cpu_to_be32(NFSERR_TOOSMALL)
 #define	nfserr_serverfault	cpu_to_be32(NFSERR_SERVERFAULT)
 #define	nfserr_badtype		cpu_to_be32(NFSERR_BADTYPE)
@@ -253,25 +253,25 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_stale_clientid	cpu_to_be32(NFSERR_STALE_CLIENTID)
 #define	nfserr_resource		cpu_to_be32(NFSERR_RESOURCE)
 #define	nfserr_moved		cpu_to_be32(NFSERR_MOVED)
-#define	nfserr_nofilehandle	cpu_to_be32(NFSERR_NOFILEHANDLE)
-#define	nfserr_minor_vers_mismatch	cpu_to_be32(NFSERR_MINOR_VERS_MISMATCH)
+#define	nfserr_analfilehandle	cpu_to_be32(NFSERR_ANALFILEHANDLE)
+#define	nfserr_mianalr_vers_mismatch	cpu_to_be32(NFSERR_MIANALR_VERS_MISMATCH)
 #define nfserr_share_denied	cpu_to_be32(NFSERR_SHARE_DENIED)
 #define nfserr_stale_stateid	cpu_to_be32(NFSERR_STALE_STATEID)
 #define nfserr_old_stateid	cpu_to_be32(NFSERR_OLD_STATEID)
 #define nfserr_bad_stateid	cpu_to_be32(NFSERR_BAD_STATEID)
 #define nfserr_bad_seqid	cpu_to_be32(NFSERR_BAD_SEQID)
 #define	nfserr_symlink		cpu_to_be32(NFSERR_SYMLINK)
-#define	nfserr_not_same		cpu_to_be32(NFSERR_NOT_SAME)
+#define	nfserr_analt_same		cpu_to_be32(NFSERR_ANALT_SAME)
 #define nfserr_lock_range	cpu_to_be32(NFSERR_LOCK_RANGE)
 #define	nfserr_restorefh	cpu_to_be32(NFSERR_RESTOREFH)
-#define	nfserr_attrnotsupp	cpu_to_be32(NFSERR_ATTRNOTSUPP)
+#define	nfserr_attranaltsupp	cpu_to_be32(NFSERR_ATTRANALTSUPP)
 #define	nfserr_bad_xdr		cpu_to_be32(NFSERR_BAD_XDR)
 #define	nfserr_openmode		cpu_to_be32(NFSERR_OPENMODE)
 #define	nfserr_badowner		cpu_to_be32(NFSERR_BADOWNER)
 #define	nfserr_locks_held	cpu_to_be32(NFSERR_LOCKS_HELD)
 #define	nfserr_op_illegal	cpu_to_be32(NFSERR_OP_ILLEGAL)
 #define	nfserr_grace		cpu_to_be32(NFSERR_GRACE)
-#define	nfserr_no_grace		cpu_to_be32(NFSERR_NO_GRACE)
+#define	nfserr_anal_grace		cpu_to_be32(NFSERR_ANAL_GRACE)
 #define	nfserr_reclaim_bad	cpu_to_be32(NFSERR_RECLAIM_BAD)
 #define	nfserr_badname		cpu_to_be32(NFSERR_BADNAME)
 #define	nfserr_cb_path_down	cpu_to_be32(NFSERR_CB_PATH_DOWN)
@@ -283,14 +283,14 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_badsession		cpu_to_be32(NFS4ERR_BADSESSION)
 #define nfserr_badslot			cpu_to_be32(NFS4ERR_BADSLOT)
 #define nfserr_complete_already		cpu_to_be32(NFS4ERR_COMPLETE_ALREADY)
-#define nfserr_conn_not_bound_to_session cpu_to_be32(NFS4ERR_CONN_NOT_BOUND_TO_SESSION)
+#define nfserr_conn_analt_bound_to_session cpu_to_be32(NFS4ERR_CONN_ANALT_BOUND_TO_SESSION)
 #define nfserr_deleg_already_wanted	cpu_to_be32(NFS4ERR_DELEG_ALREADY_WANTED)
 #define nfserr_back_chan_busy		cpu_to_be32(NFS4ERR_BACK_CHAN_BUSY)
 #define nfserr_layouttrylater		cpu_to_be32(NFS4ERR_LAYOUTTRYLATER)
 #define nfserr_layoutunavailable	cpu_to_be32(NFS4ERR_LAYOUTUNAVAILABLE)
-#define nfserr_nomatching_layout	cpu_to_be32(NFS4ERR_NOMATCHING_LAYOUT)
+#define nfserr_analmatching_layout	cpu_to_be32(NFS4ERR_ANALMATCHING_LAYOUT)
 #define nfserr_recallconflict		cpu_to_be32(NFS4ERR_RECALLCONFLICT)
-#define nfserr_unknown_layouttype	cpu_to_be32(NFS4ERR_UNKNOWN_LAYOUTTYPE)
+#define nfserr_unkanalwn_layouttype	cpu_to_be32(NFS4ERR_UNKANALWN_LAYOUTTYPE)
 #define nfserr_seq_misordered		cpu_to_be32(NFS4ERR_SEQ_MISORDERED)
 #define nfserr_sequence_pos		cpu_to_be32(NFS4ERR_SEQUENCE_POS)
 #define nfserr_req_too_big		cpu_to_be32(NFS4ERR_REQ_TOO_BIG)
@@ -299,7 +299,7 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_retry_uncached_rep	cpu_to_be32(NFS4ERR_RETRY_UNCACHED_REP)
 #define nfserr_unsafe_compound		cpu_to_be32(NFS4ERR_UNSAFE_COMPOUND)
 #define nfserr_too_many_ops		cpu_to_be32(NFS4ERR_TOO_MANY_OPS)
-#define nfserr_op_not_in_session	cpu_to_be32(NFS4ERR_OP_NOT_IN_SESSION)
+#define nfserr_op_analt_in_session	cpu_to_be32(NFS4ERR_OP_ANALT_IN_SESSION)
 #define nfserr_hash_alg_unsupp		cpu_to_be32(NFS4ERR_HASH_ALG_UNSUPP)
 #define nfserr_clientid_busy		cpu_to_be32(NFS4ERR_CLIENTID_BUSY)
 #define nfserr_pnfs_io_hole		cpu_to_be32(NFS4ERR_PNFS_IO_HOLE)
@@ -307,23 +307,23 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_bad_high_slot		cpu_to_be32(NFS4ERR_BAD_HIGH_SLOT)
 #define nfserr_deadsession		cpu_to_be32(NFS4ERR_DEADSESSION)
 #define nfserr_encr_alg_unsupp		cpu_to_be32(NFS4ERR_ENCR_ALG_UNSUPP)
-#define nfserr_pnfs_no_layout		cpu_to_be32(NFS4ERR_PNFS_NO_LAYOUT)
-#define nfserr_not_only_op		cpu_to_be32(NFS4ERR_NOT_ONLY_OP)
+#define nfserr_pnfs_anal_layout		cpu_to_be32(NFS4ERR_PNFS_ANAL_LAYOUT)
+#define nfserr_analt_only_op		cpu_to_be32(NFS4ERR_ANALT_ONLY_OP)
 #define nfserr_wrong_cred		cpu_to_be32(NFS4ERR_WRONG_CRED)
 #define nfserr_wrong_type		cpu_to_be32(NFS4ERR_WRONG_TYPE)
 #define nfserr_dirdeleg_unavail		cpu_to_be32(NFS4ERR_DIRDELEG_UNAVAIL)
 #define nfserr_reject_deleg		cpu_to_be32(NFS4ERR_REJECT_DELEG)
 #define nfserr_returnconflict		cpu_to_be32(NFS4ERR_RETURNCONFLICT)
 #define nfserr_deleg_revoked		cpu_to_be32(NFS4ERR_DELEG_REVOKED)
-#define nfserr_partner_notsupp		cpu_to_be32(NFS4ERR_PARTNER_NOTSUPP)
-#define nfserr_partner_no_auth		cpu_to_be32(NFS4ERR_PARTNER_NO_AUTH)
-#define nfserr_union_notsupp		cpu_to_be32(NFS4ERR_UNION_NOTSUPP)
+#define nfserr_partner_analtsupp		cpu_to_be32(NFS4ERR_PARTNER_ANALTSUPP)
+#define nfserr_partner_anal_auth		cpu_to_be32(NFS4ERR_PARTNER_ANAL_AUTH)
+#define nfserr_union_analtsupp		cpu_to_be32(NFS4ERR_UNION_ANALTSUPP)
 #define nfserr_offload_denied		cpu_to_be32(NFS4ERR_OFFLOAD_DENIED)
 #define nfserr_wrong_lfs		cpu_to_be32(NFS4ERR_WRONG_LFS)
 #define nfserr_badlabel			cpu_to_be32(NFS4ERR_BADLABEL)
 #define nfserr_file_open		cpu_to_be32(NFS4ERR_FILE_OPEN)
 #define nfserr_xattr2big		cpu_to_be32(NFS4ERR_XATTR2BIG)
-#define nfserr_noxattr			cpu_to_be32(NFS4ERR_NOXATTR)
+#define nfserr_analxattr			cpu_to_be32(NFS4ERR_ANALXATTR)
 
 /* error codes for internal use */
 /* if a request fails due to kmalloc failure, it gets dropped.
@@ -343,7 +343,7 @@ void		nfsd_lockd_shutdown(void);
 #ifdef CONFIG_NFSD_V4
 
 /* before processing a COMPOUND operation, we have to check that there
- * is enough space in the buffer for XDR encode to succeed.  otherwise,
+ * is eanalugh space in the buffer for XDR encode to succeed.  otherwise,
  * we might process an operation with side effects, and be unable to
  * tell the client that the operation succeeded.
  *
@@ -367,7 +367,7 @@ void		nfsd_lockd_shutdown(void);
 #define NFSD_DELEGRETURN_TIMEOUT	(HZ / 34)	/* 30ms */
 
 /*
- * The following attributes are currently not supported by the NFSv4 server:
+ * The following attributes are currently analt supported by the NFSv4 server:
  *    ARCHIVE       (deprecated anyway)
  *    HIDDEN        (unlikely to be supported any time soon)
  *    MIMETYPE      (unlikely to be supported any time soon)
@@ -389,7 +389,7 @@ void		nfsd_lockd_shutdown(void);
  | FATTR4_WORD0_MAXREAD         | FATTR4_WORD0_MAXWRITE     | FATTR4_WORD0_ACL)
 
 #define NFSD4_SUPPORTED_ATTRS_WORD1                                                         \
-(FATTR4_WORD1_MODE              | FATTR4_WORD1_NO_TRUNC     | FATTR4_WORD1_NUMLINKS         \
+(FATTR4_WORD1_MODE              | FATTR4_WORD1_ANAL_TRUNC     | FATTR4_WORD1_NUMLINKS         \
  | FATTR4_WORD1_OWNER	        | FATTR4_WORD1_OWNER_GROUP  | FATTR4_WORD1_RAWDEV           \
  | FATTR4_WORD1_SPACE_AVAIL     | FATTR4_WORD1_SPACE_FREE   | FATTR4_WORD1_SPACE_TOTAL      \
  | FATTR4_WORD1_SPACE_USED      | FATTR4_WORD1_TIME_ACCESS  | FATTR4_WORD1_TIME_ACCESS_SET  \
@@ -471,9 +471,9 @@ static inline bool bmval_is_subset(const u32 *bm1, const u32 *bm2)
 		 (bm1[2] & ~bm2[2]));
 }
 
-static inline bool nfsd_attrs_supported(u32 minorversion, const u32 *bmval)
+static inline bool nfsd_attrs_supported(u32 mianalrversion, const u32 *bmval)
 {
-	return bmval_is_subset(bmval, nfsd_suppattrs[minorversion]);
+	return bmval_is_subset(bmval, nfsd_suppattrs[mianalrversion]);
 }
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */
@@ -514,8 +514,8 @@ static inline bool nfsd_attrs_supported(u32 minorversion, const u32 *bmval)
 	NFSD_WRITEABLE_ATTRS_WORD2
 
 extern int nfsd4_is_junction(struct dentry *dentry);
-extern int register_cld_notifier(void);
-extern void unregister_cld_notifier(void);
+extern int register_cld_analtifier(void);
+extern void unregister_cld_analtifier(void);
 #ifdef CONFIG_NFSD_V4_2_INTER_SSC
 extern void nfsd4_ssc_init_umount_work(struct nfsd_net *nn);
 #endif
@@ -530,8 +530,8 @@ static inline int nfsd4_is_junction(struct dentry *dentry)
 
 static inline void nfsd4_init_leases_net(struct nfsd_net *nn) { };
 
-#define register_cld_notifier() 0
-#define unregister_cld_notifier() do { } while(0)
+#define register_cld_analtifier() 0
+#define unregister_cld_analtifier() do { } while(0)
 
 #endif /* CONFIG_NFSD_V4 */
 

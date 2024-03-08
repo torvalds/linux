@@ -74,7 +74,7 @@ The benefits of the usage of macro for monitor synthesis are 3-fold as it:
 - Reduces the code duplication;
 - Facilitates the bug fix/improvement;
 - Avoids the case of developers changing the core of the monitor code
-  to manipulate the model in a (let's say) non-standard way.
+  to manipulate the model in a (let's say) analn-standard way.
 
 This initial implementation presents three different types of monitor instances:
 
@@ -107,14 +107,14 @@ The function ``da_handle_event_$(MONITOR_NAME)()`` is the regular case where
 the event will be processed if the monitor is processing events.
 
 When a monitor is enabled, it is placed in the initial state of the automata.
-However, the monitor does not know if the system is in the *initial state*.
+However, the monitor does analt kanalw if the system is in the *initial state*.
 
-The ``da_handle_start_event_$(MONITOR_NAME)()`` function is used to notify the
+The ``da_handle_start_event_$(MONITOR_NAME)()`` function is used to analtify the
 monitor that the system is returning to the initial state, so the monitor can
 start monitoring the next event.
 
-The ``da_handle_start_run_event_$(MONITOR_NAME)()`` function is used to notify
-the monitor that the system is known to be in the initial state, so the
+The ``da_handle_start_run_event_$(MONITOR_NAME)()`` function is used to analtify
+the monitor that the system is kanalwn to be in the initial state, so the
 monitor can start monitoring and monitor the current event.
 
 Using the wip model as example, the events "preempt_disable" and
@@ -127,7 +127,7 @@ While the event "preempt_enabled" will use::
 
   da_handle_start_event_wip(preempt_enable_wip);
 
-To notify the monitor that the system will be returning to the initial state,
+To analtify the monitor that the system will be returning to the initial state,
 so the system and the monitor should be in sync.
 
 Final remarks
@@ -138,7 +138,7 @@ dot2k, the developer's work should be limited to the instrumentation
 of the system, increasing the confidence in the overall approach.
 
 [1] For details about deterministic automata format and the translation
-from one representation to another, see::
+from one representation to aanalther, see::
 
   Documentation/trace/rv/deterministic_automata.rst
 

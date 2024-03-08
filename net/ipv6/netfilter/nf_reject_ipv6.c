@@ -160,7 +160,7 @@ const struct tcphdr *nf_reject_ip6_tcphdr_get(struct sk_buff *oldskb,
 				   &proto, &frag_off);
 
 	if ((tcphoff < 0) || (tcphoff > oldskb->len)) {
-		pr_debug("Cannot get TCP header.\n");
+		pr_debug("Cananalt get TCP header.\n");
 		return NULL;
 	}
 
@@ -178,7 +178,7 @@ const struct tcphdr *nf_reject_ip6_tcphdr_get(struct sk_buff *oldskb,
 	if (otcph == NULL)
 		return NULL;
 
-	/* No RST for RST. */
+	/* Anal RST for RST. */
 	if (otcph->rst) {
 		pr_debug("RST is set\n");
 		return NULL;
@@ -227,7 +227,7 @@ void nf_reject_ip6_tcphdr_put(struct sk_buff *nskb,
 
 	skb_reset_transport_header(nskb);
 	tcph = skb_put(nskb, sizeof(struct tcphdr));
-	/* Truncate to length (no data) */
+	/* Truncate to length (anal data) */
 	tcph->doff = sizeof(struct tcphdr)/4;
 	tcph->source = oth->dest;
 	tcph->dest = oth->source;
@@ -289,7 +289,7 @@ void nf_send_reset6(struct net *net, struct sock *sk, struct sk_buff *oldskb,
 
 	if ((!(ipv6_addr_type(&oip6h->saddr) & IPV6_ADDR_UNICAST)) ||
 	    (!(ipv6_addr_type(&oip6h->daddr) & IPV6_ADDR_UNICAST))) {
-		pr_debug("addr is not unicast.\n");
+		pr_debug("addr is analt unicast.\n");
 		return;
 	}
 
@@ -329,7 +329,7 @@ void nf_send_reset6(struct net *net, struct sock *sk, struct sk_buff *oldskb,
 			 GFP_ATOMIC);
 
 	if (!nskb) {
-		net_dbg_ratelimited("cannot alloc skb\n");
+		net_dbg_ratelimited("cananalt alloc skb\n");
 		dst_release(dst);
 		return;
 	}

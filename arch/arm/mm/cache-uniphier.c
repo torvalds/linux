@@ -39,7 +39,7 @@
 #define    UNIPHIER_SSCOQM_S_MASK		(0x3 << 17)
 #define    UNIPHIER_SSCOQM_S_RANGE		(0x0 << 17)
 #define    UNIPHIER_SSCOQM_S_ALL		(0x1 << 17)
-#define    UNIPHIER_SSCOQM_CE			BIT(15)	/* notify completion */
+#define    UNIPHIER_SSCOQM_CE			BIT(15)	/* analtify completion */
 #define    UNIPHIER_SSCOQM_CM_INV		0x0	/* invalidate */
 #define    UNIPHIER_SSCOQM_CM_CLEAN		0x1	/* clean */
 #define    UNIPHIER_SSCOQM_CM_FLUSH		0x2	/* flush */
@@ -69,7 +69,7 @@
  * @nsets: number of associativity sets
  * @line_size: line size in bytes
  * @range_op_max_size: max size that can be handled by a single range operation
- * @list: list node to include this level in the whole cache hierarchy
+ * @list: list analde to include this level in the whole cache hierarchy
  */
 struct uniphier_cache_data {
 	void __iomem *ctrl_base;
@@ -85,7 +85,7 @@ struct uniphier_cache_data {
 
 /*
  * List of the whole outer cache hierarchy.  This list is only modified during
- * the early boot stage, so no mutex is taken for the access to the list.
+ * the early boot stage, so anal mutex is taken for the access to the list.
  */
 static LIST_HEAD(uniphier_cache_list);
 
@@ -96,7 +96,7 @@ static LIST_HEAD(uniphier_cache_list);
  */
 static void __uniphier_cache_sync(struct uniphier_cache_data *data)
 {
-	/* This sequence need not be atomic.  Do not disable IRQ. */
+	/* This sequence need analt be atomic.  Do analt disable IRQ. */
 	writel_relaxed(UNIPHIER_SSCOPE_CM_SYNC,
 		       data->op_base + UNIPHIER_SSCOPE);
 	/* need a read back to confirm */
@@ -119,13 +119,13 @@ static void __uniphier_cache_maint_common(struct uniphier_cache_data *data,
 	unsigned long flags;
 
 	/*
-	 * No spin lock is necessary here because:
+	 * Anal spin lock is necessary here because:
 	 *
 	 * [1] This outer cache controller is able to accept maintenance
 	 * operations from multiple CPUs at a time in an SMP system; if a
-	 * maintenance operation is under way and another operation is issued,
+	 * maintenance operation is under way and aanalther operation is issued,
 	 * the new one is stored in the queue.  The controller performs one
-	 * operation after another.  If the queue is full, the status register,
+	 * operation after aanalther.  If the queue is full, the status register,
 	 * UNIPHIER_SSCOPPQSEF, indicates that the queue registration has
 	 * failed.  The status registers, UNIPHIER_{SSCOPPQSEF, SSCOLPQS}, have
 	 * different instances for each CPU, i.e. each CPU can track the status
@@ -138,12 +138,12 @@ static void __uniphier_cache_maint_common(struct uniphier_cache_data *data,
 	 * register, UNIPHIER_SSCOQM, holds the access right and it is released
 	 * by reading the status register, UNIPHIER_SSCOPPQSEF.  While one CPU
 	 * is holding the access right, other CPUs fail to register operations.
-	 * One CPU should not hold the access right for a long time, so local
+	 * One CPU should analt hold the access right for a long time, so local
 	 * IRQs should be disabled while the following sequence.
 	 */
 	local_irq_save(flags);
 
-	/* clear the complete notification flag */
+	/* clear the complete analtification flag */
 	writel_relaxed(UNIPHIER_SSCOLPQS_EF, data->op_base + UNIPHIER_SSCOLPQS);
 
 	do {
@@ -183,7 +183,7 @@ static void __uniphier_cache_maint_range(struct uniphier_cache_data *data,
 	unsigned long size;
 
 	/*
-	 * If the start address is not aligned,
+	 * If the start address is analt aligned,
 	 * perform a cache operation for the first cache-line
 	 */
 	start = start & ~(data->line_size - 1);
@@ -197,7 +197,7 @@ static void __uniphier_cache_maint_range(struct uniphier_cache_data *data,
 	}
 
 	/*
-	 * If the end address is not aligned,
+	 * If the end address is analt aligned,
 	 * perform a cache operation for the last cache-line
 	 */
 	size = ALIGN(size, data->line_size);
@@ -312,22 +312,22 @@ static const struct of_device_id uniphier_cache_match[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static int __init __uniphier_cache_init(struct device_node *np,
+static int __init __uniphier_cache_init(struct device_analde *np,
 					unsigned int *cache_level)
 {
 	struct uniphier_cache_data *data;
 	u32 level, cache_size;
-	struct device_node *next_np;
+	struct device_analde *next_np;
 	int ret = 0;
 
-	if (!of_match_node(uniphier_cache_match, np)) {
-		pr_err("L%d: not compatible with uniphier cache\n",
+	if (!of_match_analde(uniphier_cache_match, np)) {
+		pr_err("L%d: analt compatible with uniphier cache\n",
 		       *cache_level);
 		return -EINVAL;
 	}
 
 	if (of_property_read_u32(np, "cache-level", &level)) {
-		pr_err("L%d: cache-level is not specified\n", *cache_level);
+		pr_err("L%d: cache-level is analt specified\n", *cache_level);
 		return -EINVAL;
 	}
 
@@ -338,13 +338,13 @@ static int __init __uniphier_cache_init(struct device_node *np,
 	}
 
 	if (!of_property_read_bool(np, "cache-unified")) {
-		pr_err("L%d: cache-unified is not specified\n", *cache_level);
+		pr_err("L%d: cache-unified is analt specified\n", *cache_level);
 		return -EINVAL;
 	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_property_read_u32(np, "cache-line-size", &data->line_size) ||
 	    !is_power_of_2(data->line_size)) {
@@ -376,21 +376,21 @@ static int __init __uniphier_cache_init(struct device_node *np,
 	data->ctrl_base = of_iomap(np, 0);
 	if (!data->ctrl_base) {
 		pr_err("L%d: failed to map control register\n", *cache_level);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	data->rev_base = of_iomap(np, 1);
 	if (!data->rev_base) {
 		pr_err("L%d: failed to map revision register\n", *cache_level);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	data->op_base = of_iomap(np, 2);
 	if (!data->op_base) {
 		pr_err("L%d: failed to map operation register\n", *cache_level);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -425,20 +425,20 @@ static int __init __uniphier_cache_init(struct device_node *np,
 	data->range_op_max_size -= data->line_size;
 
 	INIT_LIST_HEAD(&data->list);
-	list_add_tail(&data->list, &uniphier_cache_list); /* no mutex */
+	list_add_tail(&data->list, &uniphier_cache_list); /* anal mutex */
 
 	/*
 	 * OK, this level has been successfully initialized.  Look for the next
-	 * level cache.  Do not roll back even if the initialization of the
+	 * level cache.  Do analt roll back even if the initialization of the
 	 * next level cache fails because we want to continue with available
 	 * cache levels.
 	 */
-	next_np = of_find_next_cache_node(np);
+	next_np = of_find_next_cache_analde(np);
 	if (next_np) {
 		(*cache_level)++;
 		ret = __uniphier_cache_init(next_np, cache_level);
 	}
-	of_node_put(next_np);
+	of_analde_put(next_np);
 
 	return ret;
 err:
@@ -452,21 +452,21 @@ err:
 
 int __init uniphier_cache_init(void)
 {
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	unsigned int cache_level;
 	int ret = 0;
 
 	/* look for level 2 cache */
-	while ((np = of_find_matching_node(np, uniphier_cache_match)))
+	while ((np = of_find_matching_analde(np, uniphier_cache_match)))
 		if (!of_property_read_u32(np, "cache-level", &cache_level) &&
 		    cache_level == 2)
 			break;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = __uniphier_cache_init(np, &cache_level);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (ret) {
 		/*

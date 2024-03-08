@@ -10,7 +10,7 @@ maintainers:
   - Martin Blumenstingl <martin.blumenstingl@googlemail.com>
 
 description: |+
-  The HDMI TX PHY node should be the child of a syscon node with the
+  The HDMI TX PHY analde should be the child of a syscon analde with the
   required property:
 
   compatible = "amlogic,meson-hhi-sysctrl", "simple-mfd", "syscon"
@@ -19,7 +19,7 @@ description: |+
   Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^hdmi-phy@[0-9a-f]+$"
 
   compatible:

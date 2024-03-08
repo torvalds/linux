@@ -52,7 +52,7 @@ static int komeda_layer_obj_add(struct komeda_kms_dev *kms,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->base.component = &layer->base;
 	drm_atomic_private_obj_init(&kms->base, &layer->base.obj, &st->base.obj,
@@ -94,7 +94,7 @@ static int komeda_scaler_obj_add(struct komeda_kms_dev *kms,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->base.component = &scaler->base;
 	drm_atomic_private_obj_init(&kms->base,
@@ -137,7 +137,7 @@ static int komeda_compiz_obj_add(struct komeda_kms_dev *kms,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->base.component = &compiz->base;
 	drm_atomic_private_obj_init(&kms->base, &compiz->base.obj, &st->base.obj,
@@ -180,7 +180,7 @@ static int komeda_splitter_obj_add(struct komeda_kms_dev *kms,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->base.component = &splitter->base;
 	drm_atomic_private_obj_init(&kms->base,
@@ -223,7 +223,7 @@ static int komeda_merger_obj_add(struct komeda_kms_dev *kms,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->base.component = &merger->base;
 	drm_atomic_private_obj_init(&kms->base,
@@ -267,7 +267,7 @@ static int komeda_improc_obj_add(struct komeda_kms_dev *kms,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->base.component = &improc->base;
 	drm_atomic_private_obj_init(&kms->base, &improc->base.obj, &st->base.obj,
@@ -310,7 +310,7 @@ static int komeda_timing_ctrlr_obj_add(struct komeda_kms_dev *kms,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->base.component = &ctrlr->base;
 	drm_atomic_private_obj_init(&kms->base, &ctrlr->base.obj, &st->base.obj,
@@ -354,7 +354,7 @@ static int komeda_pipeline_obj_add(struct komeda_kms_dev *kms,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->pipe = pipe;
 	drm_atomic_private_obj_init(&kms->base, &pipe->obj, &st->obj,

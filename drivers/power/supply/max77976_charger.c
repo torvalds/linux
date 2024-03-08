@@ -59,7 +59,7 @@ enum max77976_battery_state {
 	MAX77976_BATTERY_LOW_VOLTAGE,
 	MAX77976_BATTERY_OVERVOLTAGE,
 	MAX77976_BATTERY_RESERVED,
-	MAX77976_BATTERY_BATTERY_ONLY, // No valid adapter is present
+	MAX77976_BATTERY_BATTERY_ONLY, // Anal valid adapter is present
 };
 
 /* CHG_CNFG_00.MODE values */
@@ -145,7 +145,7 @@ static int max77976_get_status(struct max77976 *chg, int *val)
 	case MAX77976_CHARGING_SUSPENDED_JEITA:
 	case MAX77976_CHARGING_SUSPENDED_THM_REMOVAL:
 	case MAX77976_CHARGING_SUSPENDED_PIN:
-		*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*val = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case MAX77976_CHARGING_OFF:
 	case MAX77976_CHARGING_THERMAL_SHUTDOWN:
@@ -153,7 +153,7 @@ static int max77976_get_status(struct max77976 *chg, int *val)
 		*val = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	default:
-		*val = POWER_SUPPLY_STATUS_UNKNOWN;
+		*val = POWER_SUPPLY_STATUS_UNKANALWN;
 	}
 
 	return 0;
@@ -188,10 +188,10 @@ static int max77976_get_charge_type(struct max77976 *chg, int *val)
 	case MAX77976_CHARGING_SUSPENDED_JEITA:
 	case MAX77976_CHARGING_SUSPENDED_THM_REMOVAL:
 	case MAX77976_CHARGING_SUSPENDED_PIN:
-		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		*val = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	default:
-		*val = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+		*val = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 	}
 
 	return 0;
@@ -208,7 +208,7 @@ static int max77976_get_health(struct max77976 *chg, int *val)
 
 	switch (regval) {
 	case MAX77976_BATTERY_BATTERY_REMOVAL:
-		*val = POWER_SUPPLY_HEALTH_NO_BATTERY;
+		*val = POWER_SUPPLY_HEALTH_ANAL_BATTERY;
 		break;
 	case MAX77976_BATTERY_LOW_VOLTAGE:
 	case MAX77976_BATTERY_REGULAR_VOLTAGE:
@@ -222,10 +222,10 @@ static int max77976_get_health(struct max77976 *chg, int *val)
 		break;
 	case MAX77976_BATTERY_PREQUALIFICATION:
 	case MAX77976_BATTERY_BATTERY_ONLY:
-		*val = POWER_SUPPLY_HEALTH_UNKNOWN;
+		*val = POWER_SUPPLY_HEALTH_UNKANALWN;
 		break;
 	default:
-		*val = POWER_SUPPLY_HEALTH_UNKNOWN;
+		*val = POWER_SUPPLY_HEALTH_UNKANALWN;
 	}
 
 	return 0;
@@ -397,16 +397,16 @@ static int max77976_detect(struct max77976 *chg)
 
 	err = regmap_read(chg->regmap, MAX77976_REG_CHIP_ID, &id);
 	if (err)
-		return dev_err_probe(dev, err, "cannot read chip ID\n");
+		return dev_err_probe(dev, err, "cananalt read chip ID\n");
 
 	if (id != MAX77976_CHIP_ID)
-		return dev_err_probe(dev, -ENXIO, "unknown model ID 0x%02x\n", id);
+		return dev_err_probe(dev, -ENXIO, "unkanalwn model ID 0x%02x\n", id);
 
 	err = regmap_field_read(chg->rfield[VERSION], &ver);
 	if (!err)
 		err = regmap_field_read(chg->rfield[REVISION], &rev);
 	if (err)
-		return dev_err_probe(dev, -ENXIO, "cannot read version/revision\n");
+		return dev_err_probe(dev, -ENXIO, "cananalt read version/revision\n");
 
 	dev_info(dev, "detected model MAX779%02x ver %u rev %u", id, ver, rev);
 
@@ -425,7 +425,7 @@ static int max77976_configure(struct max77976 *chg)
 
 	/*
 	 * Mode 5 = Charger ON, OTG OFF, buck ON, boost OFF.
-	 * Other modes are not implemented by this driver.
+	 * Other modes are analt implemented by this driver.
 	 */
 	err = regmap_field_write(chg->rfield[MODE], MAX77976_MODE_CHARGER_BUCK);
 	if (err)
@@ -448,7 +448,7 @@ static int max77976_probe(struct i2c_client *client)
 
 	chg = devm_kzalloc(dev, sizeof(*chg), GFP_KERNEL);
 	if (!chg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, chg);
 	psy_cfg.drv_data = chg;
@@ -457,14 +457,14 @@ static int max77976_probe(struct i2c_client *client)
 	chg->regmap = devm_regmap_init_i2c(client, &max77976_regmap_config);
 	if (IS_ERR(chg->regmap))
 		return dev_err_probe(dev, PTR_ERR(chg->regmap),
-				     "cannot allocate regmap\n");
+				     "cananalt allocate regmap\n");
 
 	for (i = 0; i < MAX77976_N_REGMAP_FIELDS; i++) {
 		chg->rfield[i] = devm_regmap_field_alloc(dev, chg->regmap,
 							 max77976_reg_field[i]);
 		if (IS_ERR(chg->rfield[i]))
 			return dev_err_probe(dev, PTR_ERR(chg->rfield[i]),
-					     "cannot allocate regmap field\n");
+					     "cananalt allocate regmap field\n");
 	}
 
 	err = max77976_detect(chg);
@@ -475,9 +475,9 @@ static int max77976_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	psy = devm_power_supply_register_no_ws(dev, &max77976_psy_desc, &psy_cfg);
+	psy = devm_power_supply_register_anal_ws(dev, &max77976_psy_desc, &psy_cfg);
 	if (IS_ERR(psy))
-		return dev_err_probe(dev, PTR_ERR(psy), "cannot register\n");
+		return dev_err_probe(dev, PTR_ERR(psy), "cananalt register\n");
 
 	return 0;
 }

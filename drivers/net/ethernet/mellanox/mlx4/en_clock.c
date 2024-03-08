@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2012 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -132,7 +132,7 @@ static int mlx4_en_phc_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	struct mlx4_en_dev *mdev = container_of(ptp, struct mlx4_en_dev,
 						ptp_clock_info);
 
-	mult = (u32)adjust_by_scaled_ppm(mdev->nominal_c_mult, scaled_ppm);
+	mult = (u32)adjust_by_scaled_ppm(mdev->analminal_c_mult, scaled_ppm);
 
 	write_seqlock_irqsave(&mdev->clock_lock, flags);
 	timecounter_read(&mdev->clock);
@@ -145,7 +145,7 @@ static int mlx4_en_phc_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 /**
  * mlx4_en_phc_adjtime - Shift the time of the hardware clock
  * @ptp: ptp clock structure
- * @delta: Desired change in nanoseconds
+ * @delta: Desired change in naanalseconds
  *
  * Adjust the timer by resetting the timecounter structure.
  **/
@@ -218,13 +218,13 @@ static int mlx4_en_phc_settime(struct ptp_clock_info *ptp,
  * @on: Caller passes one to enable or zero to disable
  *
  * Enable (or disable) ancillary features of the PHC subsystem.
- * Currently, no ancillary features are supported.
+ * Currently, anal ancillary features are supported.
  **/
 static int mlx4_en_phc_enable(struct ptp_clock_info __always_unused *ptp,
 			      struct ptp_clock_request __always_unused *request,
 			      int __always_unused on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct ptp_clock_info mlx4_en_ptp_clock_info = {
@@ -278,7 +278,7 @@ void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 	mdev->cycles.shift = freq_to_shift(dev->caps.hca_core_clock);
 	mdev->cycles.mult =
 		clocksource_khz2mult(1000 * dev->caps.hca_core_clock, mdev->cycles.shift);
-	mdev->nominal_c_mult = mdev->cycles.mult;
+	mdev->analminal_c_mult = mdev->cycles.mult;
 
 	write_seqlock_irqsave(&mdev->clock_lock, flags);
 	timecounter_init(&mdev->clock, &mdev->cycles,

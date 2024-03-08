@@ -5,7 +5,7 @@
  * Copyright (C) 2017 KUNBUS GmbH
  *
  * The MAX3191x makes 8 digital 24V inputs available via SPI.
- * Multiple chips can be daisy-chained, the spec does not impose
+ * Multiple chips can be daisy-chained, the spec does analt impose
  * a limit on the number of chips and neither does this driver.
  *
  * Either of two modes is selectable: In 8-bit mode, only the state
@@ -14,7 +14,7 @@
  * a CRC and indicator bits for undervoltage and overtemperature.
  * The driver returns an error instead of potentially bogus data
  * if any of these fault conditions occur.  However it does allow
- * readout of non-faulting chips in the same daisy-chain.
+ * readout of analn-faulting chips in the same daisy-chain.
  *
  * MAX3191x supports four debounce settings and the driver is
  * capable of configuring these differently for each chip in the
@@ -62,7 +62,7 @@ enum max3191x_mode {
  * @undervolt1: bitmap signaling undervoltage alarm for each chip
  * @undervolt2: bitmap signaling undervoltage warning for each chip
  * @fault: bitmap signaling assertion of @fault_pins for each chip
- * @ignore_uv: whether to ignore undervoltage alarms;
+ * @iganalre_uv: whether to iganalre undervoltage alarms;
  *	set by a device property if the chips are powered through
  *	5VOUT instead of VCC24V, in which case they will constantly
  *	signal undervoltage;
@@ -85,11 +85,11 @@ struct max3191x_chip {
 	unsigned long *undervolt1;
 	unsigned long *undervolt2;
 	unsigned long *fault;
-	bool ignore_uv;
+	bool iganalre_uv;
 };
 
 #define MAX3191X_NGPIO 8
-#define MAX3191X_CRC8_POLYNOMIAL 0xa8 /* (x^5) + x^4 + x^2 + x^0 */
+#define MAX3191X_CRC8_POLYANALMIAL 0xa8 /* (x^5) + x^4 + x^2 + x^0 */
 
 DECLARE_CRC8_TABLE(max3191x_crc8);
 
@@ -150,7 +150,7 @@ static int max3191x_readout_locked(struct max3191x_chip *max3191x)
 				dev_err_ratelimited(dev,
 					"chip %d: overtemperature\n", i);
 
-			if (!max3191x->ignore_uv) {
+			if (!max3191x->iganalre_uv) {
 				uv1 = !((status >> 2) & 1);
 				__assign_bit(i, max3191x->undervolt1, uv1);
 				if (uv1)
@@ -165,7 +165,7 @@ static int max3191x_readout_locked(struct max3191x_chip *max3191x)
 			}
 		}
 
-		if (max3191x->fault_pins && !max3191x->ignore_uv) {
+		if (max3191x->fault_pins && !max3191x->iganalre_uv) {
 			/* fault pin shared by all chips or per chip */
 			struct gpio_desc *fault_pin =
 				(max3191x->fault_pins->ndescs == 1)
@@ -191,8 +191,8 @@ static int max3191x_readout_locked(struct max3191x_chip *max3191x)
 static bool max3191x_chip_is_faulting(struct max3191x_chip *max3191x,
 				      unsigned int chipnum)
 {
-	/* without status byte the only diagnostic is the fault pin */
-	if (!max3191x->ignore_uv && test_bit(chipnum, max3191x->fault))
+	/* without status byte the only diaganalstic is the fault pin */
+	if (!max3191x->iganalre_uv && test_bit(chipnum, max3191x->fault))
 		return true;
 
 	if (max3191x->mode == STATUS_BYTE_DISABLED)
@@ -200,7 +200,7 @@ static bool max3191x_chip_is_faulting(struct max3191x_chip *max3191x,
 
 	return test_bit(chipnum, max3191x->crc_error) ||
 	       test_bit(chipnum, max3191x->overtemp)  ||
-	       (!max3191x->ignore_uv &&
+	       (!max3191x->iganalre_uv &&
 		test_bit(chipnum, max3191x->undervolt1));
 }
 
@@ -270,7 +270,7 @@ static int max3191x_set_config(struct gpio_chip *gpio, unsigned int offset,
 	u32 debounce, chipnum, db0_val, db1_val;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!max3191x->db0_pins || !max3191x->db1_pins)
 		return -EINVAL;
@@ -336,11 +336,11 @@ static struct gpio_descs *devm_gpiod_get_array_optional_count(
 	struct gpio_descs *descs;
 	int found = gpiod_count(dev, con_id);
 
-	if (found == -ENOENT)
+	if (found == -EANALENT)
 		return NULL;
 
 	if (found != expected && found != 1) {
-		dev_err(dev, "ignoring %s-gpios: found %d, expected %u or 1\n",
+		dev_err(dev, "iganalring %s-gpios: found %d, expected %u or 1\n",
 			con_id, found, expected);
 		return NULL;
 	}
@@ -364,7 +364,7 @@ static int max3191x_probe(struct spi_device *spi)
 
 	max3191x = devm_kzalloc(dev, sizeof(*max3191x), GFP_KERNEL);
 	if (!max3191x)
-		return -ENOMEM;
+		return -EANALMEM;
 	spi_set_drvdata(spi, max3191x);
 
 	max3191x->nchips = 1;
@@ -382,7 +382,7 @@ static int max3191x_probe(struct spi_device *spi)
 	if (!max3191x->crc_error || !max3191x->undervolt1 ||
 	    !max3191x->overtemp  || !max3191x->undervolt2 ||
 	    !max3191x->fault     || !max3191x->xfer.rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max3191x->modesel_pins = devm_gpiod_get_array_optional_count(dev,
 				 "maxim,modesel", GPIOD_ASIS, max3191x->nchips);
@@ -401,12 +401,12 @@ static int max3191x_probe(struct spi_device *spi)
 				 max3191x->modesel_pins->desc,
 				 max3191x->modesel_pins->info, max3191x->mode);
 
-	max3191x->ignore_uv = device_property_read_bool(dev,
-						  "maxim,ignore-undervoltage");
+	max3191x->iganalre_uv = device_property_read_bool(dev,
+						  "maxim,iganalre-undervoltage");
 
 	if (max3191x->db0_pins && max3191x->db1_pins &&
 	    max3191x->db0_pins->ndescs != max3191x->db1_pins->ndescs) {
-		dev_err(dev, "ignoring maxim,db*-gpios: array len mismatch\n");
+		dev_err(dev, "iganalring maxim,db*-gpios: array len mismatch\n");
 		devm_gpiod_put_array(dev, max3191x->db0_pins);
 		devm_gpiod_put_array(dev, max3191x->db1_pins);
 		max3191x->db0_pins = NULL;
@@ -453,7 +453,7 @@ static void max3191x_remove(struct spi_device *spi)
 
 static int __init max3191x_register_driver(struct spi_driver *sdrv)
 {
-	crc8_populate_msb(max3191x_crc8, MAX3191X_CRC8_POLYNOMIAL);
+	crc8_populate_msb(max3191x_crc8, MAX3191X_CRC8_POLYANALMIAL);
 	return spi_register_driver(sdrv);
 }
 

@@ -10,9 +10,9 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
+#include "xfs_ianalde_item.h"
 #include "xfs_trace.h"
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
@@ -24,47 +24,47 @@
 #include "xfs_bmap_btree.h"
 
 STATIC void
-xlog_recover_inode_ra_pass2(
+xlog_recover_ianalde_ra_pass2(
 	struct xlog                     *log,
 	struct xlog_recover_item        *item)
 {
-	if (item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format)) {
-		struct xfs_inode_log_format	*ilfp = item->ri_buf[0].i_addr;
+	if (item->ri_buf[0].i_len == sizeof(struct xfs_ianalde_log_format)) {
+		struct xfs_ianalde_log_format	*ilfp = item->ri_buf[0].i_addr;
 
-		xlog_buf_readahead(log, ilfp->ilf_blkno, ilfp->ilf_len,
-				   &xfs_inode_buf_ra_ops);
+		xlog_buf_readahead(log, ilfp->ilf_blkanal, ilfp->ilf_len,
+				   &xfs_ianalde_buf_ra_ops);
 	} else {
-		struct xfs_inode_log_format_32	*ilfp = item->ri_buf[0].i_addr;
+		struct xfs_ianalde_log_format_32	*ilfp = item->ri_buf[0].i_addr;
 
-		xlog_buf_readahead(log, ilfp->ilf_blkno, ilfp->ilf_len,
-				   &xfs_inode_buf_ra_ops);
+		xlog_buf_readahead(log, ilfp->ilf_blkanal, ilfp->ilf_len,
+				   &xfs_ianalde_buf_ra_ops);
 	}
 }
 
 /*
- * Inode fork owner changes
+ * Ianalde fork owner changes
  *
- * If we have been told that we have to reparent the inode fork, it's because an
+ * If we have been told that we have to reparent the ianalde fork, it's because an
  * extent swap operation on a CRC enabled filesystem has been done and we are
  * replaying it. We need to walk the BMBT of the appropriate fork and change the
  * owners of it.
  *
- * The complexity here is that we don't have an inode context to work with, so
- * after we've replayed the inode we need to instantiate one.  This is where the
+ * The complexity here is that we don't have an ianalde context to work with, so
+ * after we've replayed the ianalde we need to instantiate one.  This is where the
  * fun begins.
  *
  * We are in the middle of log recovery, so we can't run transactions. That
- * means we cannot use cache coherent inode instantiation via xfs_iget(), as
- * that will result in the corresponding iput() running the inode through
- * xfs_inactive(). If we've just replayed an inode core that changes the link
+ * means we cananalt use cache coherent ianalde instantiation via xfs_iget(), as
+ * that will result in the corresponding iput() running the ianalde through
+ * xfs_inactive(). If we've just replayed an ianalde core that changes the link
  * count to zero (i.e. it's been unlinked), then xfs_inactive() will run
  * transactions (bad!).
  *
- * So, to avoid this, we instantiate an inode directly from the inode core we've
+ * So, to avoid this, we instantiate an ianalde directly from the ianalde core we've
  * just recovered. We have the buffer still locked, and all we really need to
- * instantiate is the inode core and the forks being modified. We can do this
- * manually, then run the inode btree owner change, and then tear down the
- * xfs_inode without having to run any transactions at all.
+ * instantiate is the ianalde core and the forks being modified. We can do this
+ * manually, then run the ianalde btree owner change, and then tear down the
+ * xfs_ianalde without having to run any transactions at all.
  *
  * Also, because we don't have a transaction context available here but need to
  * gather all the buffers we modify for writeback so we pass the buffer_list
@@ -72,32 +72,32 @@ xlog_recover_inode_ra_pass2(
  */
 
 STATIC int
-xfs_recover_inode_owner_change(
+xfs_recover_ianalde_owner_change(
 	struct xfs_mount	*mp,
-	struct xfs_dinode	*dip,
-	struct xfs_inode_log_format *in_f,
+	struct xfs_dianalde	*dip,
+	struct xfs_ianalde_log_format *in_f,
 	struct list_head	*buffer_list)
 {
-	struct xfs_inode	*ip;
+	struct xfs_ianalde	*ip;
 	int			error;
 
 	ASSERT(in_f->ilf_fields & (XFS_ILOG_DOWNER|XFS_ILOG_AOWNER));
 
-	ip = xfs_inode_alloc(mp, in_f->ilf_ino);
+	ip = xfs_ianalde_alloc(mp, in_f->ilf_ianal);
 	if (!ip)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* instantiate the inode */
+	/* instantiate the ianalde */
 	ASSERT(dip->di_version >= 3);
 
-	error = xfs_inode_from_disk(ip, dip);
+	error = xfs_ianalde_from_disk(ip, dip);
 	if (error)
 		goto out_free_ip;
 
 	if (in_f->ilf_fields & XFS_ILOG_DOWNER) {
 		ASSERT(in_f->ilf_fields & XFS_ILOG_DBROOT);
 		error = xfs_bmbt_change_owner(NULL, ip, XFS_DATA_FORK,
-					      ip->i_ino, buffer_list);
+					      ip->i_ianal, buffer_list);
 		if (error)
 			goto out_free_ip;
 	}
@@ -105,17 +105,17 @@ xfs_recover_inode_owner_change(
 	if (in_f->ilf_fields & XFS_ILOG_AOWNER) {
 		ASSERT(in_f->ilf_fields & XFS_ILOG_ABROOT);
 		error = xfs_bmbt_change_owner(NULL, ip, XFS_ATTR_FORK,
-					      ip->i_ino, buffer_list);
+					      ip->i_ianal, buffer_list);
 		if (error)
 			goto out_free_ip;
 	}
 
 out_free_ip:
-	xfs_inode_free(ip);
+	xfs_ianalde_free(ip);
 	return error;
 }
 
-static inline bool xfs_log_dinode_has_bigtime(const struct xfs_log_dinode *ld)
+static inline bool xfs_log_dianalde_has_bigtime(const struct xfs_log_dianalde *ld)
 {
 	return ld->di_version >= 3 &&
 	       (ld->di_flags2 & XFS_DIFLAG2_BIGTIME);
@@ -123,15 +123,15 @@ static inline bool xfs_log_dinode_has_bigtime(const struct xfs_log_dinode *ld)
 
 /* Convert a log timestamp to an ondisk timestamp. */
 static inline xfs_timestamp_t
-xfs_log_dinode_to_disk_ts(
-	struct xfs_log_dinode		*from,
+xfs_log_dianalde_to_disk_ts(
+	struct xfs_log_dianalde		*from,
 	const xfs_log_timestamp_t	its)
 {
 	struct xfs_legacy_timestamp	*lts;
 	struct xfs_log_legacy_timestamp	*lits;
 	xfs_timestamp_t			ts;
 
-	if (xfs_log_dinode_has_bigtime(from))
+	if (xfs_log_dianalde_has_bigtime(from))
 		return cpu_to_be64(its);
 
 	lts = (struct xfs_legacy_timestamp *)&ts;
@@ -142,19 +142,19 @@ xfs_log_dinode_to_disk_ts(
 	return ts;
 }
 
-static inline bool xfs_log_dinode_has_large_extent_counts(
-		const struct xfs_log_dinode *ld)
+static inline bool xfs_log_dianalde_has_large_extent_counts(
+		const struct xfs_log_dianalde *ld)
 {
 	return ld->di_version >= 3 &&
 	       (ld->di_flags2 & XFS_DIFLAG2_NREXT64);
 }
 
 static inline void
-xfs_log_dinode_to_disk_iext_counters(
-	struct xfs_log_dinode	*from,
-	struct xfs_dinode	*to)
+xfs_log_dianalde_to_disk_iext_counters(
+	struct xfs_log_dianalde	*from,
+	struct xfs_dianalde	*to)
 {
-	if (xfs_log_dinode_has_large_extent_counts(from)) {
+	if (xfs_log_dianalde_has_large_extent_counts(from)) {
 		to->di_big_nextents = cpu_to_be64(from->di_big_nextents);
 		to->di_big_anextents = cpu_to_be32(from->di_big_anextents);
 		to->di_nrext64_pad = cpu_to_be16(from->di_nrext64_pad);
@@ -166,9 +166,9 @@ xfs_log_dinode_to_disk_iext_counters(
 }
 
 STATIC void
-xfs_log_dinode_to_disk(
-	struct xfs_log_dinode	*from,
-	struct xfs_dinode	*to,
+xfs_log_dianalde_to_disk(
+	struct xfs_log_dianalde	*from,
+	struct xfs_dianalde	*to,
 	xfs_lsn_t		lsn)
 {
 	to->di_magic = cpu_to_be16(from->di_magic);
@@ -182,9 +182,9 @@ xfs_log_dinode_to_disk(
 	to->di_projid_lo = cpu_to_be16(from->di_projid_lo);
 	to->di_projid_hi = cpu_to_be16(from->di_projid_hi);
 
-	to->di_atime = xfs_log_dinode_to_disk_ts(from, from->di_atime);
-	to->di_mtime = xfs_log_dinode_to_disk_ts(from, from->di_mtime);
-	to->di_ctime = xfs_log_dinode_to_disk_ts(from, from->di_ctime);
+	to->di_atime = xfs_log_dianalde_to_disk_ts(from, from->di_atime);
+	to->di_mtime = xfs_log_dianalde_to_disk_ts(from, from->di_mtime);
+	to->di_ctime = xfs_log_dianalde_to_disk_ts(from, from->di_ctime);
 
 	to->di_size = cpu_to_be64(from->di_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
@@ -198,11 +198,11 @@ xfs_log_dinode_to_disk(
 
 	if (from->di_version == 3) {
 		to->di_changecount = cpu_to_be64(from->di_changecount);
-		to->di_crtime = xfs_log_dinode_to_disk_ts(from,
+		to->di_crtime = xfs_log_dianalde_to_disk_ts(from,
 							  from->di_crtime);
 		to->di_flags2 = cpu_to_be64(from->di_flags2);
 		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
-		to->di_ino = cpu_to_be64(from->di_ino);
+		to->di_ianal = cpu_to_be64(from->di_ianal);
 		to->di_lsn = cpu_to_be64(lsn);
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &from->di_uuid);
@@ -212,26 +212,26 @@ xfs_log_dinode_to_disk(
 		memset(to->di_v2_pad, 0, sizeof(to->di_v2_pad));
 	}
 
-	xfs_log_dinode_to_disk_iext_counters(from, to);
+	xfs_log_dianalde_to_disk_iext_counters(from, to);
 }
 
 STATIC int
-xlog_dinode_verify_extent_counts(
+xlog_dianalde_verify_extent_counts(
 	struct xfs_mount	*mp,
-	struct xfs_log_dinode	*ldip)
+	struct xfs_log_dianalde	*ldip)
 {
 	xfs_extnum_t		nextents;
 	xfs_aextnum_t		anextents;
 
-	if (xfs_log_dinode_has_large_extent_counts(ldip)) {
+	if (xfs_log_dianalde_has_large_extent_counts(ldip)) {
 		if (!xfs_has_large_extent_counts(mp) ||
 		    (ldip->di_nrext64_pad != 0)) {
 			XFS_CORRUPTION_ERROR(
-				"Bad log dinode large extent count format",
+				"Bad log dianalde large extent count format",
 				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 			xfs_alert(mp,
-				"Bad inode 0x%llx, large extent counts %d, padding 0x%x",
-				ldip->di_ino, xfs_has_large_extent_counts(mp),
+				"Bad ianalde 0x%llx, large extent counts %d, padding 0x%x",
+				ldip->di_ianal, xfs_has_large_extent_counts(mp),
 				ldip->di_nrext64_pad);
 			return -EFSCORRUPTED;
 		}
@@ -241,11 +241,11 @@ xlog_dinode_verify_extent_counts(
 	} else {
 		if (ldip->di_version == 3 && ldip->di_v3_pad != 0) {
 			XFS_CORRUPTION_ERROR(
-				"Bad log dinode di_v3_pad",
+				"Bad log dianalde di_v3_pad",
 				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 			xfs_alert(mp,
-				"Bad inode 0x%llx, di_v3_pad 0x%llx",
-				ldip->di_ino, ldip->di_v3_pad);
+				"Bad ianalde 0x%llx, di_v3_pad 0x%llx",
+				ldip->di_ianal, ldip->di_v3_pad);
 			return -EFSCORRUPTED;
 		}
 
@@ -254,11 +254,11 @@ xlog_dinode_verify_extent_counts(
 	}
 
 	if (unlikely(nextents + anextents > ldip->di_nblocks)) {
-		XFS_CORRUPTION_ERROR("Bad log dinode extent counts",
+		XFS_CORRUPTION_ERROR("Bad log dianalde extent counts",
 				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 		xfs_alert(mp,
-			"Bad inode 0x%llx, large extent counts %d, nextents 0x%llx, anextents 0x%x, nblocks 0x%llx",
-			ldip->di_ino, xfs_has_large_extent_counts(mp), nextents,
+			"Bad ianalde 0x%llx, large extent counts %d, nextents 0x%llx, anextents 0x%x, nblocks 0x%llx",
+			ldip->di_ianal, xfs_has_large_extent_counts(mp), nextents,
 			anextents, ldip->di_nblocks);
 		return -EFSCORRUPTED;
 	}
@@ -267,50 +267,50 @@ xlog_dinode_verify_extent_counts(
 }
 
 STATIC int
-xlog_recover_inode_commit_pass2(
+xlog_recover_ianalde_commit_pass2(
 	struct xlog			*log,
 	struct list_head		*buffer_list,
 	struct xlog_recover_item	*item,
 	xfs_lsn_t			current_lsn)
 {
-	struct xfs_inode_log_format	*in_f;
+	struct xfs_ianalde_log_format	*in_f;
 	struct xfs_mount		*mp = log->l_mp;
 	struct xfs_buf			*bp;
-	struct xfs_dinode		*dip;
+	struct xfs_dianalde		*dip;
 	int				len;
 	char				*src;
 	char				*dest;
 	int				error;
 	int				attr_index;
 	uint				fields;
-	struct xfs_log_dinode		*ldip;
+	struct xfs_log_dianalde		*ldip;
 	uint				isize;
 	int				need_free = 0;
 	xfs_failaddr_t			fa;
 
-	if (item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format)) {
+	if (item->ri_buf[0].i_len == sizeof(struct xfs_ianalde_log_format)) {
 		in_f = item->ri_buf[0].i_addr;
 	} else {
-		in_f = kmem_alloc(sizeof(struct xfs_inode_log_format), 0);
+		in_f = kmem_alloc(sizeof(struct xfs_ianalde_log_format), 0);
 		need_free = 1;
-		error = xfs_inode_item_format_convert(&item->ri_buf[0], in_f);
+		error = xfs_ianalde_item_format_convert(&item->ri_buf[0], in_f);
 		if (error)
 			goto error;
 	}
 
 	/*
-	 * Inode buffers can be freed, look out for it,
-	 * and do not replay the inode.
+	 * Ianalde buffers can be freed, look out for it,
+	 * and do analt replay the ianalde.
 	 */
-	if (xlog_is_buffer_cancelled(log, in_f->ilf_blkno, in_f->ilf_len)) {
+	if (xlog_is_buffer_cancelled(log, in_f->ilf_blkanal, in_f->ilf_len)) {
 		error = 0;
-		trace_xfs_log_recover_inode_cancel(log, in_f);
+		trace_xfs_log_recover_ianalde_cancel(log, in_f);
 		goto error;
 	}
-	trace_xfs_log_recover_inode_recover(log, in_f);
+	trace_xfs_log_recover_ianalde_recover(log, in_f);
 
-	error = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len,
-			0, &bp, &xfs_inode_buf_ops);
+	error = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkanal, in_f->ilf_len,
+			0, &bp, &xfs_ianalde_buf_ops);
 	if (error)
 		goto error;
 	ASSERT(in_f->ilf_fields & XFS_ILOG_CORE);
@@ -318,59 +318,59 @@ xlog_recover_inode_commit_pass2(
 
 	/*
 	 * Make sure the place we're flushing out to really looks
-	 * like an inode!
+	 * like an ianalde!
 	 */
 	if (XFS_IS_CORRUPT(mp, !xfs_verify_magic16(bp, dip->di_magic))) {
 		xfs_alert(mp,
-	"%s: Bad inode magic number, dip = "PTR_FMT", dino bp = "PTR_FMT", ino = %lld",
-			__func__, dip, bp, in_f->ilf_ino);
+	"%s: Bad ianalde magic number, dip = "PTR_FMT", dianal bp = "PTR_FMT", ianal = %lld",
+			__func__, dip, bp, in_f->ilf_ianal);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
 	ldip = item->ri_buf[1].i_addr;
-	if (XFS_IS_CORRUPT(mp, ldip->di_magic != XFS_DINODE_MAGIC)) {
+	if (XFS_IS_CORRUPT(mp, ldip->di_magic != XFS_DIANALDE_MAGIC)) {
 		xfs_alert(mp,
-			"%s: Bad inode log record, rec ptr "PTR_FMT", ino %lld",
-			__func__, item, in_f->ilf_ino);
+			"%s: Bad ianalde log record, rec ptr "PTR_FMT", ianal %lld",
+			__func__, item, in_f->ilf_ianal);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
 
 	/*
-	 * If the inode has an LSN in it, recover the inode only if the on-disk
-	 * inode's LSN is older than the lsn of the transaction we are
+	 * If the ianalde has an LSN in it, recover the ianalde only if the on-disk
+	 * ianalde's LSN is older than the lsn of the transaction we are
 	 * replaying. We can have multiple checkpoints with the same start LSN,
 	 * so the current LSN being equal to the on-disk LSN doesn't necessarily
-	 * mean that the on-disk inode is more recent than the change being
+	 * mean that the on-disk ianalde is more recent than the change being
 	 * replayed.
 	 *
-	 * We must check the current_lsn against the on-disk inode
-	 * here because the we can't trust the log dinode to contain a valid LSN
-	 * (see comment below before replaying the log dinode for details).
+	 * We must check the current_lsn against the on-disk ianalde
+	 * here because the we can't trust the log dianalde to contain a valid LSN
+	 * (see comment below before replaying the log dianalde for details).
 	 *
-	 * Note: we still need to replay an owner change even though the inode
-	 * is more recent than the transaction as there is no guarantee that all
+	 * Analte: we still need to replay an owner change even though the ianalde
+	 * is more recent than the transaction as there is anal guarantee that all
 	 * the btree blocks are more recent than this transaction, too.
 	 */
 	if (dip->di_version >= 3) {
 		xfs_lsn_t	lsn = be64_to_cpu(dip->di_lsn);
 
 		if (lsn && lsn != -1 && XFS_LSN_CMP(lsn, current_lsn) > 0) {
-			trace_xfs_log_recover_inode_skip(log, in_f);
+			trace_xfs_log_recover_ianalde_skip(log, in_f);
 			error = 0;
 			goto out_owner_change;
 		}
 	}
 
 	/*
-	 * di_flushiter is only valid for v1/2 inodes. All changes for v3 inodes
+	 * di_flushiter is only valid for v1/2 ianaldes. All changes for v3 ianaldes
 	 * are transactional and if ordering is necessary we can determine that
-	 * more accurately by the LSN field in the V3 inode core. Don't trust
-	 * the inode versions we might be changing them here - use the
+	 * more accurately by the LSN field in the V3 ianalde core. Don't trust
+	 * the ianalde versions we might be changing them here - use the
 	 * superblock flag to determine whether we need to look at di_flushiter
-	 * to skip replay when the on disk inode is newer than the log one
+	 * to skip replay when the on disk ianalde is newer than the log one
 	 */
-	if (!xfs_has_v3inodes(mp)) {
+	if (!xfs_has_v3ianaldes(mp)) {
 		if (ldip->di_flushiter < be16_to_cpu(dip->di_flushiter)) {
 			/*
 			 * Deal with the wrap case, DI_MAX_FLUSH is less
@@ -378,9 +378,9 @@ xlog_recover_inode_commit_pass2(
 			 */
 			if (be16_to_cpu(dip->di_flushiter) == DI_MAX_FLUSH &&
 			    ldip->di_flushiter < (DI_MAX_FLUSH >> 1)) {
-				/* do nothing */
+				/* do analthing */
 			} else {
-				trace_xfs_log_recover_inode_skip(log, in_f);
+				trace_xfs_log_recover_ianalde_skip(log, in_f);
 				error = 0;
 				goto out_release;
 			}
@@ -392,71 +392,71 @@ xlog_recover_inode_commit_pass2(
 
 
 	if (unlikely(S_ISREG(ldip->di_mode))) {
-		if ((ldip->di_format != XFS_DINODE_FMT_EXTENTS) &&
-		    (ldip->di_format != XFS_DINODE_FMT_BTREE)) {
+		if ((ldip->di_format != XFS_DIANALDE_FMT_EXTENTS) &&
+		    (ldip->di_format != XFS_DIANALDE_FMT_BTREE)) {
 			XFS_CORRUPTION_ERROR(
-				"Bad log dinode data fork format for regular file",
+				"Bad log dianalde data fork format for regular file",
 				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 			xfs_alert(mp,
-				"Bad inode 0x%llx, data fork format 0x%x",
-				in_f->ilf_ino, ldip->di_format);
+				"Bad ianalde 0x%llx, data fork format 0x%x",
+				in_f->ilf_ianal, ldip->di_format);
 			error = -EFSCORRUPTED;
 			goto out_release;
 		}
 	} else if (unlikely(S_ISDIR(ldip->di_mode))) {
-		if ((ldip->di_format != XFS_DINODE_FMT_EXTENTS) &&
-		    (ldip->di_format != XFS_DINODE_FMT_BTREE) &&
-		    (ldip->di_format != XFS_DINODE_FMT_LOCAL)) {
+		if ((ldip->di_format != XFS_DIANALDE_FMT_EXTENTS) &&
+		    (ldip->di_format != XFS_DIANALDE_FMT_BTREE) &&
+		    (ldip->di_format != XFS_DIANALDE_FMT_LOCAL)) {
 			XFS_CORRUPTION_ERROR(
-				"Bad log dinode data fork format for directory",
+				"Bad log dianalde data fork format for directory",
 				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 			xfs_alert(mp,
-				"Bad inode 0x%llx, data fork format 0x%x",
-				in_f->ilf_ino, ldip->di_format);
+				"Bad ianalde 0x%llx, data fork format 0x%x",
+				in_f->ilf_ianal, ldip->di_format);
 			error = -EFSCORRUPTED;
 			goto out_release;
 		}
 	}
 
-	error = xlog_dinode_verify_extent_counts(mp, ldip);
+	error = xlog_dianalde_verify_extent_counts(mp, ldip);
 	if (error)
 		goto out_release;
 
-	if (unlikely(ldip->di_forkoff > mp->m_sb.sb_inodesize)) {
-		XFS_CORRUPTION_ERROR("Bad log dinode fork offset",
+	if (unlikely(ldip->di_forkoff > mp->m_sb.sb_ianaldesize)) {
+		XFS_CORRUPTION_ERROR("Bad log dianalde fork offset",
 				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 		xfs_alert(mp,
-			"Bad inode 0x%llx, di_forkoff 0x%x",
-			in_f->ilf_ino, ldip->di_forkoff);
+			"Bad ianalde 0x%llx, di_forkoff 0x%x",
+			in_f->ilf_ianal, ldip->di_forkoff);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
-	isize = xfs_log_dinode_size(mp);
+	isize = xfs_log_dianalde_size(mp);
 	if (unlikely(item->ri_buf[1].i_len > isize)) {
-		XFS_CORRUPTION_ERROR("Bad log dinode size", XFS_ERRLEVEL_LOW,
+		XFS_CORRUPTION_ERROR("Bad log dianalde size", XFS_ERRLEVEL_LOW,
 				     mp, ldip, sizeof(*ldip));
 		xfs_alert(mp,
-			"Bad inode 0x%llx log dinode size 0x%x",
-			in_f->ilf_ino, item->ri_buf[1].i_len);
+			"Bad ianalde 0x%llx log dianalde size 0x%x",
+			in_f->ilf_ianal, item->ri_buf[1].i_len);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
 
 	/*
-	 * Recover the log dinode inode into the on disk inode.
+	 * Recover the log dianalde ianalde into the on disk ianalde.
 	 *
-	 * The LSN in the log dinode is garbage - it can be zero or reflect
+	 * The LSN in the log dianalde is garbage - it can be zero or reflect
 	 * stale in-memory runtime state that isn't coherent with the changes
 	 * logged in this transaction or the changes written to the on-disk
-	 * inode.  Hence we write the current lSN into the inode because that
-	 * matches what xfs_iflush() would write inode the inode when flushing
+	 * ianalde.  Hence we write the current lSN into the ianalde because that
+	 * matches what xfs_iflush() would write ianalde the ianalde when flushing
 	 * the changes in this transaction.
 	 */
-	xfs_log_dinode_to_disk(ldip, dip, current_lsn);
+	xfs_log_dianalde_to_disk(ldip, dip, current_lsn);
 
 	fields = in_f->ilf_fields;
 	if (fields & XFS_ILOG_DEV)
-		xfs_dinode_put_rdev(dip, in_f->ilf_u.ilfu_rdev);
+		xfs_dianalde_put_rdev(dip, in_f->ilf_u.ilfu_rdev);
 
 	if (in_f->ilf_size == 2)
 		goto out_owner_change;
@@ -481,7 +481,7 @@ xlog_recover_inode_commit_pass2(
 
 	default:
 		/*
-		 * There are no data fork flags set.
+		 * There are anal data fork flags set.
 		 */
 		ASSERT((fields & XFS_ILOG_DFORK) == 0);
 		break;
@@ -489,7 +489,7 @@ xlog_recover_inode_commit_pass2(
 
 	/*
 	 * If we logged any attribute data, recover it.  There may or
-	 * may not have been any other non-core data logged in this
+	 * may analt have been any other analn-core data logged in this
 	 * transaction.
 	 */
 	if (in_f->ilf_fields & XFS_ILOG_AFORK) {
@@ -526,21 +526,21 @@ xlog_recover_inode_commit_pass2(
 	}
 
 out_owner_change:
-	/* Recover the swapext owner change unless inode has been deleted */
+	/* Recover the swapext owner change unless ianalde has been deleted */
 	if ((in_f->ilf_fields & (XFS_ILOG_DOWNER|XFS_ILOG_AOWNER)) &&
 	    (dip->di_mode != 0))
-		error = xfs_recover_inode_owner_change(mp, dip, in_f,
+		error = xfs_recover_ianalde_owner_change(mp, dip, in_f,
 						       buffer_list);
-	/* re-generate the checksum and validate the recovered inode. */
-	xfs_dinode_calc_crc(log->l_mp, dip);
-	fa = xfs_dinode_verify(log->l_mp, in_f->ilf_ino, dip);
+	/* re-generate the checksum and validate the recovered ianalde. */
+	xfs_dianalde_calc_crc(log->l_mp, dip);
+	fa = xfs_dianalde_verify(log->l_mp, in_f->ilf_ianal, dip);
 	if (fa) {
 		XFS_CORRUPTION_ERROR(
-			"Bad dinode after recovery",
+			"Bad dianalde after recovery",
 				XFS_ERRLEVEL_LOW, mp, dip, sizeof(*dip));
 		xfs_alert(mp,
-			"Metadata corruption detected at %pS, inode 0x%llx",
-			fa, in_f->ilf_ino);
+			"Metadata corruption detected at %pS, ianalde 0x%llx",
+			fa, in_f->ilf_ianal);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
@@ -557,8 +557,8 @@ error:
 	return error;
 }
 
-const struct xlog_recover_item_ops xlog_inode_item_ops = {
-	.item_type		= XFS_LI_INODE,
-	.ra_pass2		= xlog_recover_inode_ra_pass2,
-	.commit_pass2		= xlog_recover_inode_commit_pass2,
+const struct xlog_recover_item_ops xlog_ianalde_item_ops = {
+	.item_type		= XFS_LI_IANALDE,
+	.ra_pass2		= xlog_recover_ianalde_ra_pass2,
+	.commit_pass2		= xlog_recover_ianalde_commit_pass2,
 };

@@ -82,7 +82,7 @@ int __devm_mdiobus_register(struct device *dev, struct mii_bus *bus,
 
 	dr = devres_alloc(devm_mdiobus_unregister, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __mdiobus_register(bus, owner);
 	if (ret) {
@@ -101,11 +101,11 @@ EXPORT_SYMBOL(__devm_mdiobus_register);
  * __devm_of_mdiobus_register - Resource managed variant of of_mdiobus_register()
  * @dev:	Device to register mii_bus for
  * @mdio:	MII bus structure to register
- * @np:		Device node to parse
+ * @np:		Device analde to parse
  * @owner:	Owning module
  */
 int __devm_of_mdiobus_register(struct device *dev, struct mii_bus *mdio,
-			       struct device_node *np, struct module *owner)
+			       struct device_analde *np, struct module *owner)
 {
 	struct mdiobus_devres *dr;
 	int ret;
@@ -116,7 +116,7 @@ int __devm_of_mdiobus_register(struct device *dev, struct mii_bus *mdio,
 
 	dr = devres_alloc(devm_mdiobus_unregister, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __of_mdiobus_register(mdio, np, owner);
 	if (ret) {

@@ -33,7 +33,7 @@
 			label = "button0";
 			linux,code = <BTN_0>;
 			gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;	/* gpio_121 */
-			/* Value above 7.95ms for no GPIO hardware debounce */
+			/* Value above 7.95ms for anal GPIO hardware debounce */
 			debounce-interval = <10>;
 			wakeup-source;
 		};

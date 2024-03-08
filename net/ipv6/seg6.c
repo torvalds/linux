@@ -6,7 +6,7 @@
  *  David Lebrun <david.lebrun@uclouvain.be>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/net.h>
@@ -93,7 +93,7 @@ struct ipv6_sr_hdr *seg6_get_srh(struct sk_buff *skb, int flags)
 	if (!pskb_may_pull(skb, srhoff + len))
 		return NULL;
 
-	/* note that pskb_may_pull may change pointers in header;
+	/* analte that pskb_may_pull may change pointers in header;
 	 * for this reason it is necessary to reload them when needed.
 	 */
 	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
@@ -206,7 +206,7 @@ static int seg6_genl_sethmac(struct sk_buff *skb, struct genl_info *info)
 
 	hinfo = kzalloc(sizeof(*hinfo), GFP_KERNEL);
 	if (!hinfo) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -228,7 +228,7 @@ out_unlock:
 
 static int seg6_genl_sethmac(struct sk_buff *skb, struct genl_info *info)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 #endif
@@ -247,7 +247,7 @@ static int seg6_genl_set_tunsrc(struct sk_buff *skb, struct genl_info *info)
 	val = nla_data(info->attrs[SEG6_ATTR_DST]);
 	t_new = kmemdup(val, sizeof(*val), GFP_KERNEL);
 	if (!t_new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&sdata->lock);
 
@@ -271,7 +271,7 @@ static int seg6_genl_get_tunsrc(struct sk_buff *skb, struct genl_info *info)
 
 	msg = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(msg, info->snd_portid, info->snd_seq,
 			  &seg6_genl_family, 0, SEG6_CMD_GET_TUNSRC);
@@ -293,7 +293,7 @@ nla_put_failure:
 	rcu_read_unlock();
 free_msg:
 	nlmsg_free(msg);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
@@ -318,7 +318,7 @@ static int __seg6_genl_dumphmac_element(struct seg6_hmac_info *hinfo,
 
 	hdr = genlmsg_put(skb, portid, seq, &seg6_genl_family, flags, cmd);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (__seg6_hmac_fill_info(hinfo, skb) < 0)
 		goto nla_put_failure;
@@ -343,7 +343,7 @@ static int seg6_genl_dumphmac_start(struct netlink_callback *cb)
 	if (!iter) {
 		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 		if (!iter)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb->args[0] = (long)iter;
 	}
@@ -414,7 +414,7 @@ static int seg6_genl_dumphmac_done(struct netlink_callback *cb)
 
 static int seg6_genl_dumphmac(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 #endif
@@ -425,14 +425,14 @@ static int __net_init seg6_net_init(struct net *net)
 
 	sdata = kzalloc(sizeof(*sdata), GFP_KERNEL);
 	if (!sdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&sdata->lock);
 
 	sdata->tun_src = kzalloc(sizeof(*sdata->tun_src), GFP_KERNEL);
 	if (!sdata->tun_src) {
 		kfree(sdata);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	net->ipv6.seg6_data = sdata;
@@ -441,7 +441,7 @@ static int __net_init seg6_net_init(struct net *net)
 	if (seg6_hmac_net_init(net)) {
 		kfree(rcu_dereference_raw(sdata->tun_src));
 		kfree(sdata);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 

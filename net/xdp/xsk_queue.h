@@ -76,23 +76,23 @@ struct parsed_desc {
  * this case load the old data.
  *
  * (C) protects the consumer from speculatively loading the data before
- * the producer pointer actually has been read. If we do not have this
+ * the producer pointer actually has been read. If we do analt have this
  * barrier, some architectures could load old data as speculative loads
- * are not discarded as the CPU does not know there is a dependency
+ * are analt discarded as the CPU does analt kanalw there is a dependency
  * between ->producer and data.
  *
  * (A) is a control dependency that separates the load of ->consumer
- * from the stores of $data. In case ->consumer indicates there is no
- * room in the buffer to store $data we do not. The dependency will
- * order both of the stores after the loads. So no barrier is needed.
+ * from the stores of $data. In case ->consumer indicates there is anal
+ * room in the buffer to store $data we do analt. The dependency will
+ * order both of the stores after the loads. So anal barrier is needed.
  *
  * (D) protects the load of the data to be observed to happen after the
- * store of the consumer pointer. If we did not have this memory
+ * store of the consumer pointer. If we did analt have this memory
  * barrier, the producer could observe the consumer pointer being set
  * and overwrite the data with a new value before the consumer got the
  * chance to read the old value. The consumer would thus miss reading
  * the old entry and very likely read the new entry twice, once right
- * now and again after circling through the ring.
+ * analw and again after circling through the ring.
  */
 
 /* The operations on the rings are the following:
@@ -174,7 +174,7 @@ static inline bool xp_unaligned_validate_desc(struct xsk_buff_pool *pool,
 		return false;
 
 	if (addr >= pool->addrs_cnt || addr + len > pool->addrs_cnt ||
-	    xp_desc_crosses_non_contig_pg(pool, addr, len))
+	    xp_desc_crosses_analn_contig_pg(pool, addr, len))
 		return false;
 
 	if (xp_unused_options_set(desc->options))
@@ -343,7 +343,7 @@ static inline void xskq_cons_cancel_n(struct xsk_queue *q, u32 cnt)
 
 static inline u32 xskq_cons_present_entries(struct xsk_queue *q)
 {
-	/* No barriers needed since data is not accessed */
+	/* Anal barriers needed since data is analt accessed */
 	return READ_ONCE(q->ring->producer) - READ_ONCE(q->ring->consumer);
 }
 
@@ -376,7 +376,7 @@ static inline void xskq_prod_cancel_n(struct xsk_queue *q, u32 cnt)
 static inline int xskq_prod_reserve(struct xsk_queue *q)
 {
 	if (xskq_prod_is_full(q))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* A, matches D */
 	q->cached_prod++;
@@ -388,7 +388,7 @@ static inline int xskq_prod_reserve_addr(struct xsk_queue *q, u64 addr)
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 
 	if (xskq_prod_is_full(q))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* A, matches D */
 	ring->desc[q->cached_prod++ & q->ring_mask] = addr;
@@ -415,7 +415,7 @@ static inline int xskq_prod_reserve_desc(struct xsk_queue *q,
 	u32 idx;
 
 	if (xskq_prod_is_full(q))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* A, matches D */
 	idx = q->cached_prod++ & q->ring_mask;
@@ -443,7 +443,7 @@ static inline void xskq_prod_submit_n(struct xsk_queue *q, u32 nb_entries)
 
 static inline bool xskq_prod_is_empty(struct xsk_queue *q)
 {
-	/* No barriers needed since data is not accessed */
+	/* Anal barriers needed since data is analt accessed */
 	return READ_ONCE(q->ring->consumer) == READ_ONCE(q->ring->producer);
 }
 

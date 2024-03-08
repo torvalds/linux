@@ -3,7 +3,7 @@ Frame Buffer Library
 
 The frame buffer drivers depend heavily on four data structures. These
 structures are declared in include/linux/fb.h. They are fb_info,
-fb_var_screeninfo, fb_fix_screeninfo and fb_monospecs. The last
+fb_var_screeninfo, fb_fix_screeninfo and fb_moanalspecs. The last
 three can be made available to and from userland.
 
 fb_info defines the current state of a particular video card. Inside
@@ -19,13 +19,13 @@ The next structure is fb_fix_screeninfo. This defines the properties
 of a card that are created when a mode is set and can't be changed
 otherwise. A good example of this is the start of the frame buffer
 memory. This "locks" the address of the frame buffer memory, so that it
-cannot be changed or moved.
+cananalt be changed or moved.
 
-The last structure is fb_monospecs. In the old API, there was little
-importance for fb_monospecs. This allowed for forbidden things such as
+The last structure is fb_moanalspecs. In the old API, there was little
+importance for fb_moanalspecs. This allowed for forbidden things such as
 setting a mode of 800x600 on a fix frequency monitor. With the new API,
-fb_monospecs prevents such things, and if used correctly, can prevent a
-monitor from being cooked. fb_monospecs will not be useful until
+fb_moanalspecs prevents such things, and if used correctly, can prevent a
+monitor from being cooked. fb_moanalspecs will analt be useful until
 kernels 2.5.x.
 
 Frame Buffer Memory

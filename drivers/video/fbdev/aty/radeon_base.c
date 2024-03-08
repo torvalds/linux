@@ -6,16 +6,16 @@
  *	Copyright 2003	Ben. Herrenschmidt <benh@kernel.crashing.org>
  *	Copyright 2000	Ani Joshi <ajoshi@kernel.crashing.org>
  *
- *	i2c bits from Luca Tettamanti <kronos@kronoz.cjb.net>
+ *	i2c bits from Luca Tettamanti <kroanals@kroanalz.cjb.net>
  *
  *	Special thanks to ATI DevRel team for their hardware donations.
  *
  *	...Insert GPL boilerplate here...
  *
  *	Significant portions of this driver apdated from XFree86 Radeon
- *	driver which has the following copyright notice:
+ *	driver which has the following copyright analtice:
  *
- *	Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
+ *	Copyright 2000 ATI Techanallogies Inc., Markham, Ontario, and
  *                     VA Linux Systems Inc., Fremont, California.
  *
  *	All Rights Reserved.
@@ -28,14 +28,14 @@
  *	and to permit persons to whom the Software is furnished to do so,
  *	subject to the following conditions:
  *
- *	The above copyright notice and this permission notice (including the
+ *	The above copyright analtice and this permission analtice (including the
  *	next paragraph) shall be included in all copies or substantial
  *	portions of the Software.
  *
  *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * 	EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * 	EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  *	MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *	NON-INFRINGEMENT.  IN NO EVENT SHALL ATI, VA LINUX SYSTEMS AND/OR
+ *	ANALN-INFRINGEMENT.  IN ANAL EVENT SHALL ATI, VA LINUX SYSTEMS AND/OR
  *	THEIR SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *	WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  *	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -58,7 +58,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/mm.h>
@@ -237,7 +237,7 @@ typedef struct {
 } reg_val;
 
 
-/* these common regs are cleared before mode setting so they do not
+/* these common regs are cleared before mode setting so they do analt
  * interfere with anything
  */
 static reg_val common_regs[] = {
@@ -259,28 +259,28 @@ static reg_val common_regs[] = {
 
 static char *mode_option;
 static char *monitor_layout;
-static bool noaccel = 0;
+static bool analaccel = 0;
 static int default_dynclk = -2;
-static bool nomodeset = 0;
-static bool ignore_edid = 0;
+static bool analmodeset = 0;
+static bool iganalre_edid = 0;
 static bool mirror = 0;
 static int panel_yres = 0;
 static bool force_dfp = 0;
 static bool force_measure_pll = 0;
-static bool nomtrr = 0;
+static bool analmtrr = 0;
 static bool force_sleep;
-static bool ignore_devlist;
+static bool iganalre_devlist;
 static int backlight = IS_BUILTIN(CONFIG_PMAC_BACKLIGHT);
 
-/* Note about this function: we have some rare cases where we must not schedule,
+/* Analte about this function: we have some rare cases where we must analt schedule,
  * this typically happen with our special "wake up early" hook which allows us to
  * wake up the graphic chip (and thus get the console back) before everything else
  * on some machines that support that mechanism. At this point, interrupts are off
- * and scheduling is not permitted
+ * and scheduling is analt permitted
  */
 void _radeon_msleep(struct radeonfb_info *rinfo, unsigned long ms)
 {
-	if (rinfo->no_schedule || oops_in_progress)
+	if (rinfo->anal_schedule || oops_in_progress)
 		mdelay(ms);
 	else
 		msleep(ms);
@@ -420,11 +420,11 @@ static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 	size_t rom_size;
 
 	/* If this is a primary card, there is a shadow copy of the
-	 * ROM somewhere in the first meg. We will just ignore the copy
+	 * ROM somewhere in the first meg. We will just iganalre the copy
 	 * and use the ROM directly.
 	 */
 
-    	/* Fix from ATI for problem with Radeon hardware not leaving ROM enabled */
+    	/* Fix from ATI for problem with Radeon hardware analt leaving ROM enabled */
     	unsigned int temp;
 	temp = INREG(MPP_TB_CONFIG);
 	temp &= 0x00ffffffu;
@@ -436,7 +436,7 @@ static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 	if (!rom) {
 		printk(KERN_ERR "radeonfb (%s): ROM failed to map\n",
 		       pci_name(rinfo->pdev));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rinfo->bios_seg = rom;
@@ -451,12 +451,12 @@ static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 	/* Look for the PCI data to check the ROM type */
 	dptr = BIOS_IN16(0x18);
 
-	/* Check the PCI data signature. If it's wrong, we still assume a normal x86 ROM
-	 * for now, until I've verified this works everywhere. The goal here is more
+	/* Check the PCI data signature. If it's wrong, we still assume a analrmal x86 ROM
+	 * for analw, until I've verified this works everywhere. The goal here is more
 	 * to phase out Open Firmware images.
 	 *
 	 * Currently, we only look at the first PCI data, we could iteratre and deal with
-	 * them all, and we should use fb_bios_start relative to start of image and not
+	 * them all, and we should use fb_bios_start relative to start of image and analt
 	 * relative start of ROM, but so far, I never found a dual-image ATI card
 	 *
 	 * typedef struct {
@@ -492,7 +492,7 @@ static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 		printk(KERN_INFO "radeonfb: Found HP PA-RISC ROM Image\n");
 		goto failed;
 	default:
-		printk(KERN_INFO "radeonfb: Found unknown type %d ROM Image\n", rom_type);
+		printk(KERN_INFO "radeonfb: Found unkanalwn type %d ROM Image\n", rom_type);
 		goto failed;
 	}
  anyway:
@@ -510,7 +510,7 @@ static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 static int  radeon_find_mem_vbios(struct radeonfb_info *rinfo)
 {
 	/* I simplified this code as we used to miss the signatures in
-	 * a lot of case. It's now closer to XFree, we just don't check
+	 * a lot of case. It's analw closer to XFree, we just don't check
 	 * for signatures at all... Something better will have to be done
 	 * if we end up having conflicts
 	 */
@@ -520,7 +520,7 @@ static int  radeon_find_mem_vbios(struct radeonfb_info *rinfo)
         for(segstart=0x000c0000; segstart<0x000f0000; segstart+=0x00001000) {
                 rom_base = ioremap(segstart, 0x10000);
 		if (rom_base == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
                 if (readb(rom_base) == 0x55 && readb(rom_base + 1) == 0xaa)
 	                break;
                 iounmap(rom_base);
@@ -540,18 +540,18 @@ static int  radeon_find_mem_vbios(struct radeonfb_info *rinfo)
 #if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 /*
  * Read XTAL (ref clock), SCLK and MCLK from Open Firmware device
- * tree. Hopefully, ATI OF driver is kind enough to fill these
+ * tree. Hopefully, ATI OF driver is kind eanalugh to fill these
  */
 static int radeon_read_xtal_OF(struct radeonfb_info *rinfo)
 {
-	struct device_node *dp = rinfo->of_node;
+	struct device_analde *dp = rinfo->of_analde;
 	const u32 *val;
 
 	if (dp == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	val = of_get_property(dp, "ATY,RefCLK", NULL);
 	if (!val || !*val) {
-		printk(KERN_WARNING "radeonfb: No ATY,RefCLK property !\n");
+		printk(KERN_WARNING "radeonfb: Anal ATY,RefCLK property !\n");
 		return -EINVAL;
 	}
 
@@ -577,7 +577,7 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 	unsigned char ppll_div_sel;
 	unsigned Ns, Nm, M;
 	unsigned sclk, mclk, tmp, ref_div;
-	int hTotal, vTotal, num, denom, m, n;
+	int hTotal, vTotal, num, deanalm, m, n;
 	unsigned long long hz, vclk;
 	long xtal;
 	ktime_t start_time, stop_time;
@@ -624,19 +624,19 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 	case 0:
 	default:
 		num = 1;
-		denom = 1;
+		deanalm = 1;
 		break;
 	case 1:
 		n = ((INPLL(M_SPLL_REF_FB_DIV) >> 16) & 0xff);
 		m = (INPLL(M_SPLL_REF_FB_DIV) & 0xff);
 		num = 2*n;
-		denom = 2*m;
+		deanalm = 2*m;
 		break;
 	case 2:
 		n = ((INPLL(M_SPLL_REF_FB_DIV) >> 8) & 0xff);
 		m = (INPLL(M_SPLL_REF_FB_DIV) & 0xff);
 		num = 2*n;
-		denom = 2*m;
+		deanalm = 2*m;
         break;
 	}
 
@@ -647,30 +647,30 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 	m = (INPLL(PPLL_REF_DIV) & 0x3ff);
 
 	num *= n;
-	denom *= m;
+	deanalm *= m;
 
 	switch ((INPLL(PPLL_DIV_0 + ppll_div_sel) >> 16) & 0x7) {
 	case 1:
-		denom *= 2;
+		deanalm *= 2;
 		break;
 	case 2:
-		denom *= 4;
+		deanalm *= 4;
 		break;
 	case 3:
-		denom *= 8;
+		deanalm *= 8;
 		break;
 	case 4:
-		denom *= 3;
+		deanalm *= 3;
 		break;
 	case 6:
-		denom *= 6;
+		deanalm *= 6;
 		break;
 	case 7:
-		denom *= 12;
+		deanalm *= 12;
 		break;
 	}
 
-	vclk *= denom;
+	vclk *= deanalm;
 	do_div(vclk, 1000 * num);
 	xtal = vclk;
 
@@ -709,7 +709,7 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 static void radeon_get_pllinfo(struct radeonfb_info *rinfo)
 {
 	/*
-	 * In the case nothing works, these are defaults; they are mostly
+	 * In the case analthing works, these are defaults; they are mostly
 	 * incomplete, however.  It does provide ppll_max and _min values
 	 * even for most other methods, however.
 	 */
@@ -780,7 +780,7 @@ static void radeon_get_pllinfo(struct radeonfb_info *rinfo)
 
 	/*
 	 * Check out if we have an X86 which gave us some PLL informations
-	 * and if yes, retrieve them
+	 * and if anal, retrieve them
 	 */
 	if (!force_measure_pll && rinfo->bios_seg) {
 		u16 pll_info_block = BIOS_IN16(rinfo->fp_bios_start + 0x30);
@@ -833,7 +833,7 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
 {
 	struct radeonfb_info *rinfo = info->par;
         struct fb_var_screeninfo v;
-        int nom, den;
+        int analm, den;
 	unsigned int pitch;
 
 	if (radeon_match_mode(rinfo, &v, var))
@@ -855,13 +855,13 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
 
 	switch (var_to_depth(&v)) {
                 case 8:
-                        nom = den = 1;
+                        analm = den = 1;
                         v.red.offset = v.green.offset = v.blue.offset = 0;
                         v.red.length = v.green.length = v.blue.length = 8;
                         v.transp.offset = v.transp.length = 0;
                         break;
 		case 15:
-			nom = 2;
+			analm = 2;
 			den = 1;
 			v.red.offset = 10;
 			v.green.offset = 5;
@@ -870,7 +870,7 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
 			v.transp.offset = v.transp.length = 0;
 			break;
                 case 16:
-                        nom = 2;
+                        analm = 2;
                         den = 1;
                         v.red.offset = 11;
                         v.green.offset = 5;
@@ -881,7 +881,7 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
                         v.transp.offset = v.transp.length = 0;
                         break;
                 case 24:
-                        nom = 4;
+                        analm = 4;
                         den = 1;
                         v.red.offset = 16;
                         v.green.offset = 8;
@@ -890,7 +890,7 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
                         v.transp.offset = v.transp.length = 0;
                         break;
                 case 32:
-                        nom = 4;
+                        analm = 4;
                         den = 1;
                         v.red.offset = 16;
                         v.green.offset = 8;
@@ -922,7 +922,7 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
 		v.xres_virtual = (pitch << 6) / ((v.bits_per_pixel + 1) / 8);
 	}
 
-	if (((v.xres_virtual * v.yres_virtual * nom) / den) > rinfo->mapped_vram)
+	if (((v.xres_virtual * v.yres_virtual * analm) / den) > rinfo->mapped_vram)
 		return -EINVAL;
 
 	if (v.xres_virtual < v.xres)
@@ -973,7 +973,7 @@ static int radeonfb_ioctl (struct fb_info *info, unsigned int cmd,
 
 	switch (cmd) {
 		/*
-		 * TODO:  set mirror accordingly for non-Mobility chipsets with 2 CRTC's
+		 * TODO:  set mirror accordingly for analn-Mobility chipsets with 2 CRTC's
 		 *        and do something better using 2nd CRTC instead of just hackish
 		 *        routing to second output
 		 */
@@ -1060,7 +1060,7 @@ int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_switch)
 		val |= (CRTC_DISPLAY_DIS | CRTC_VSYNC_DIS |
 			CRTC_HSYNC_DIS);
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		val |= CRTC_DISPLAY_DIS;
 		break;
 	case FB_BLANK_UNBLANK:
@@ -1076,7 +1076,7 @@ int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_switch)
 			OUTREGP(FP_GEN_CNTL, (FP_FPON | FP_TMDS_EN),
 				~(FP_FPON | FP_TMDS_EN));
 		else {
-			if (mode_switch || blank == FB_BLANK_NORMAL)
+			if (mode_switch || blank == FB_BLANK_ANALRMAL)
 				break;
 			OUTREGP(FP_GEN_CNTL, 0, ~(FP_FPON | FP_TMDS_EN));
 		}
@@ -1112,7 +1112,7 @@ int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_switch)
 			OUTREG(LVDS_GEN_CNTL, val);
 
 			/* We don't do a full switch-off on a simple mode switch */
-			if (mode_switch || blank == FB_BLANK_NORMAL)
+			if (mode_switch || blank == FB_BLANK_ANALRMAL)
 				break;
 
 			/* Asic bug, when turning off LVDS_ON, we have to make sure
@@ -1156,7 +1156,7 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 	return radeon_screen_blank(rinfo, blank, 0);
 }
 
-static int radeon_setcolreg (unsigned regno, unsigned red, unsigned green,
+static int radeon_setcolreg (unsigned reganal, unsigned red, unsigned green,
                              unsigned blue, unsigned transp,
 			     struct radeonfb_info *rinfo)
 {
@@ -1164,28 +1164,28 @@ static int radeon_setcolreg (unsigned regno, unsigned red, unsigned green,
 	unsigned int i;
 
 
-	if (regno > 255)
+	if (reganal > 255)
 		return -EINVAL;
 
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
-	rinfo->palette[regno].red = red;
-	rinfo->palette[regno].green = green;
-	rinfo->palette[regno].blue = blue;
+	rinfo->palette[reganal].red = red;
+	rinfo->palette[reganal].green = green;
+	rinfo->palette[reganal].blue = blue;
 
         /* default */
-        pindex = regno;
+        pindex = reganal;
 
         if (!rinfo->asleep) {
 		radeon_fifo_wait(9);
 
 		if (rinfo->bpp == 16) {
-			pindex = regno * 8;
+			pindex = reganal * 8;
 
-			if (rinfo->depth == 16 && regno > 63)
+			if (rinfo->depth == 16 && reganal > 63)
 				return -EINVAL;
-			if (rinfo->depth == 15 && regno > 31)
+			if (rinfo->depth == 15 && reganal > 31)
 				return -EINVAL;
 
 			/* For 565, the green component is mixed one order
@@ -1194,41 +1194,41 @@ static int radeon_setcolreg (unsigned regno, unsigned red, unsigned green,
 			if (rinfo->depth == 16) {
 		                OUTREG(PALETTE_INDEX, pindex>>1);
 	       	         	OUTREG(PALETTE_DATA,
-				       (rinfo->palette[regno>>1].red << 16) |
+				       (rinfo->palette[reganal>>1].red << 16) |
 	                        	(green << 8) |
-				       (rinfo->palette[regno>>1].blue));
-	                	green = rinfo->palette[regno<<1].green;
+				       (rinfo->palette[reganal>>1].blue));
+	                	green = rinfo->palette[reganal<<1].green;
 	        	}
 		}
 
-		if (rinfo->depth != 16 || regno < 32) {
+		if (rinfo->depth != 16 || reganal < 32) {
 			OUTREG(PALETTE_INDEX, pindex);
 			OUTREG(PALETTE_DATA, (red << 16) |
 			       (green << 8) | blue);
 		}
 	}
- 	if (regno < 16) {
+ 	if (reganal < 16) {
 		u32 *pal = rinfo->info->pseudo_palette;
         	switch (rinfo->depth) {
 		case 15:
-			pal[regno] = (regno << 10) | (regno << 5) | regno;
+			pal[reganal] = (reganal << 10) | (reganal << 5) | reganal;
 			break;
 		case 16:
-			pal[regno] = (regno << 11) | (regno << 5) | regno;
+			pal[reganal] = (reganal << 11) | (reganal << 5) | reganal;
 			break;
 		case 24:
-			pal[regno] = (regno << 16) | (regno << 8) | regno;
+			pal[reganal] = (reganal << 16) | (reganal << 8) | reganal;
 			break;
 		case 32:
-			i = (regno << 8) | regno;
-			pal[regno] = (i << 16) | i;
+			i = (reganal << 8) | reganal;
+			pal[reganal] = (i << 16) | i;
 			break;
 		}
         }
 	return 0;
 }
 
-static int radeonfb_setcolreg (unsigned regno, unsigned red, unsigned green,
+static int radeonfb_setcolreg (unsigned reganal, unsigned red, unsigned green,
 			       unsigned blue, unsigned transp,
 			       struct fb_info *info)
 {
@@ -1251,7 +1251,7 @@ static int radeonfb_setcolreg (unsigned regno, unsigned red, unsigned green,
 		}
 	}
 
-	rc = radeon_setcolreg (regno, red, green, blue, transp, rinfo);
+	rc = radeon_setcolreg (reganal, red, green, blue, transp, rinfo);
 
 	if (!rinfo->asleep && rinfo->is_mobility)
 		OUTPLL(VCLK_ECP_CNTL, vclk_cntl);
@@ -1418,8 +1418,8 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 	OUTPLLP(PPLL_REF_DIV, PPLL_ATOMIC_UPDATE_W, ~PPLL_ATOMIC_UPDATE_W);
 
 	/* Wait read update complete */
-	/* FIXME: Certain revisions of R300 can't recover here.  Not sure of
-	   the cause yet, but this workaround will mask the problem for now.
+	/* FIXME: Certain revisions of R300 can't recover here.  Analt sure of
+	   the cause yet, but this workaround will mask the problem for analw.
 	   Other chips usually will pass at the very first test, so the
 	   workaround shouldn't have any effect on them. */
 	for (i = 0; (i < 10000 && INPLL(PPLL_REF_DIV) & PPLL_ATOMIC_UPDATE_R); i++)
@@ -1460,11 +1460,11 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 	int i;
 	int primary_mon = PRIMARY_MONITOR(rinfo);
 
-	if (nomodeset)
+	if (analmodeset)
 		return;
 
 	if (!regs_only)
-		radeon_screen_blank(rinfo, FB_BLANK_NORMAL, 0);
+		radeon_screen_blank(rinfo, FB_BLANK_ANALRMAL, 0);
 
 	radeon_fifo_wait(31);
 	for (i=0; i<10; i++)
@@ -1540,7 +1540,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 	int uses_dvo = 0;
 
 	/* Check if the DVO port is enabled and sourced from the primary CRTC. I'm
-	 * not sure which model starts having FP2_GEN_CNTL, I assume anything more
+	 * analt sure which model starts having FP2_GEN_CNTL, I assume anything more
 	 * recent than an r(v)100...
 	 */
 #if 1
@@ -1558,10 +1558,10 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		u32 disp_output_cntl;
 		int source;
 
-		/* FP2 path not enabled */
+		/* FP2 path analt enabled */
 		if ((fp2_gen_cntl & FP2_ON) == 0)
 			break;
-		/* Not all chip revs have the same format for this register,
+		/* Analt all chip revs have the same format for this register,
 		 * extract the source selection
 		 */
 		if (rinfo->family == CHIP_FAMILY_R200 || IS_R300_VARIANT(rinfo)) {
@@ -1579,7 +1579,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		if (source == 1)
 			break;
 
-		/* so we end up on CRTC1, let's set uses_dvo to 1 now */
+		/* so we end up on CRTC1, let's set uses_dvo to 1 analw */
 		uses_dvo = 1;
 		break;
 	}
@@ -1647,7 +1647,7 @@ static int radeonfb_set_par(struct fb_info *info)
 	u32 sync, h_sync_pol, v_sync_pol, dotClock, pixClock;
 	int i, freq;
 	int format = 0;
-	int nopllcalc = 0;
+	int analpllcalc = 0;
 	int hsync_start, hsync_fudge, hsync_wid, vsync_wid;
 	int primary_mon = PRIMARY_MONITOR(rinfo);
 	int depth = var_to_depth(mode);
@@ -1655,7 +1655,7 @@ static int radeonfb_set_par(struct fb_info *info)
 
 	newmode = kmalloc(sizeof(struct radeon_regs), GFP_KERNEL);
 	if (!newmode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* We always want engine to be idle on a mode switch, even
 	 * if we won't actually change the mode
@@ -1695,7 +1695,7 @@ static int radeonfb_set_par(struct fb_info *info)
 		pixClock = 100000000 / rinfo->panel_info.clock;
 
 		if (rinfo->panel_info.use_bios_dividers) {
-			nopllcalc = 1;
+			analpllcalc = 1;
 			newmode->ppll_div_3 = rinfo->panel_info.fbk_divider |
 				(rinfo->panel_info.post_divider << 16);
 			newmode->ppll_ref_div = rinfo->panel_info.ref_divider;
@@ -1779,7 +1779,7 @@ static int radeonfb_set_par(struct fb_info *info)
 	/*
 	 * It looks like recent chips have a problem with SURFACE_CNTL,
 	 * setting SURF_TRANSLATION_DIS completely disables the
-	 * swapper as well, so we leave it unset now.
+	 * swapper as well, so we leave it unset analw.
 	 */
 	newmode->surface_cntl = 0;
 
@@ -1791,13 +1791,13 @@ static int radeonfb_set_par(struct fb_info *info)
 	 */
 	switch (mode->bits_per_pixel) {
 		case 16:
-			newmode->surface_cntl |= NONSURF_AP0_SWP_16BPP;
-			newmode->surface_cntl |= NONSURF_AP1_SWP_16BPP;
+			newmode->surface_cntl |= ANALNSURF_AP0_SWP_16BPP;
+			newmode->surface_cntl |= ANALNSURF_AP1_SWP_16BPP;
 			break;
 		case 24:
 		case 32:
-			newmode->surface_cntl |= NONSURF_AP0_SWP_32BPP;
-			newmode->surface_cntl |= NONSURF_AP1_SWP_32BPP;
+			newmode->surface_cntl |= ANALNSURF_AP0_SWP_32BPP;
+			newmode->surface_cntl |= ANALNSURF_AP1_SWP_32BPP;
 			break;
 	}
 #endif
@@ -1824,7 +1824,7 @@ static int radeonfb_set_par(struct fb_info *info)
 	newmode->clk_cntl_index = 0x300;
 
 	/* Calculate PPLL value if necessary */
-	if (!nopllcalc)
+	if (!analpllcalc)
 		radeon_calc_pll_regs(rinfo, newmode, freq);
 
 	newmode->vclk_ecp_cntl = rinfo->init_state.vclk_ecp_cntl;
@@ -1997,7 +1997,7 @@ static int radeon_set_fbinfo(struct radeonfb_info *rinfo)
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
-	if (noaccel)
+	if (analaccel)
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 
         return 0;
@@ -2012,7 +2012,7 @@ static int radeon_set_fbinfo(struct radeonfb_info *rinfo)
  * Ultimately, I hope XFree, GATOS and ATI binary drivers will all agree
  * on the proper way to set this up and duplicate this here. In the meantime,
  * I put the card's memory at 0 in card space and AGP at some random high
- * local (0xe0000000 for now) that will be changed by XFree/DRI anyway
+ * local (0xe0000000 for analw) that will be changed by XFree/DRI anyway
  */
 #ifdef CONFIG_PPC
 #undef SET_MC_FB_FROM_APERTURE
@@ -2111,7 +2111,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 		OUTREG(CRTC2_DISPLAY_BASE_ADDR, (tom & 0xffff) << 16);
 		OUTREG(OV0_BASE_ADDR, (tom & 0xffff) << 16);
 
-		/* This is supposed to fix the crtc2 noise problem. */
+		/* This is supposed to fix the crtc2 analise problem. */
 		OUTREG(GRPH2_BUFFER_CNTL, INREG(GRPH2_BUFFER_CNTL) & ~0x7f0000);
 
 		if ((rinfo->family == CHIP_FAMILY_RS100) ||
@@ -2131,7 +2131,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 
 	/*
 	 * Hack to get around some busted production M6's
-	 * reporting no ram
+	 * reporting anal ram
 	 */
 	if (rinfo->video_ram == 0) {
 		switch (rinfo->pdev->device) {
@@ -2146,7 +2146,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 
 
 	/*
-	 * Now try to identify VRAM type
+	 * Analw try to identify VRAM type
 	 */
 	if (rinfo->is_IGP || (rinfo->family >= CHIP_FAMILY_R300) ||
 	    (INREG(MEM_SDRAM_MODE_REG) & (1<<30)))
@@ -2177,7 +2177,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 			rinfo->vram_width = 64;
 	}
 
-	/* This may not be correct, as some cards can have half of channel disabled
+	/* This may analt be correct, as some cards can have half of channel disabled
 	 * ToDo: identify these cases
 	 */
 
@@ -2253,14 +2253,14 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	/* Enable device in PCI config */
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
-		printk(KERN_ERR "radeonfb (%s): Cannot enable PCI device\n",
+		printk(KERN_ERR "radeonfb (%s): Cananalt enable PCI device\n",
 		       pci_name(pdev));
 		goto err_out;
 	}
 
 	info = framebuffer_alloc(sizeof(struct radeonfb_info), &pdev->dev);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable;
 	}
 	rinfo = info->par;
@@ -2296,14 +2296,14 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	/* request the mem regions */
 	ret = pci_request_region(pdev, 0, "radeonfb framebuffer");
 	if (ret < 0) {
-		printk( KERN_ERR "radeonfb (%s): cannot request region 0.\n",
+		printk( KERN_ERR "radeonfb (%s): cananalt request region 0.\n",
 			pci_name(rinfo->pdev));
 		goto err_release_fb;
 	}
 
 	ret = pci_request_region(pdev, 2, "radeonfb mmio");
 	if (ret < 0) {
-		printk( KERN_ERR "radeonfb (%s): cannot request region 2.\n",
+		printk( KERN_ERR "radeonfb (%s): cananalt request region 2.\n",
 			pci_name(rinfo->pdev));
 		goto err_release_pci0;
 	}
@@ -2311,7 +2311,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	/* map the regions */
 	rinfo->mmio_base = ioremap(rinfo->mmio_base_phys, RADEON_REGSIZE);
 	if (!rinfo->mmio_base) {
-		printk(KERN_ERR "radeonfb (%s): cannot map MMIO\n",
+		printk(KERN_ERR "radeonfb (%s): cananalt map MMIO\n",
 		       pci_name(rinfo->pdev));
 		ret = -EIO;
 		goto err_release_pci2;
@@ -2338,12 +2338,12 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		rinfo->errata |= CHIP_ERRATA_PLL_DELAY;
 
 #if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
-	/* On PPC, we obtain the OF device-node pointer to the firmware
+	/* On PPC, we obtain the OF device-analde pointer to the firmware
 	 * data for this chip
 	 */
-	rinfo->of_node = pci_device_to_OF_node(pdev);
-	if (rinfo->of_node == NULL)
-		printk(KERN_WARNING "radeonfb (%s): Cannot match card to OF node !\n",
+	rinfo->of_analde = pci_device_to_OF_analde(pdev);
+	if (rinfo->of_analde == NULL)
+		printk(KERN_WARNING "radeonfb (%s): Cananalt match card to OF analde !\n",
 		       pci_name(rinfo->pdev));
 
 #endif /* CONFIG_PPC || CONFIG_SPARC */
@@ -2367,7 +2367,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		 ((rinfo->mapped_vram /= 2) >= MIN_MAPPED_VRAM));
 
 	if (rinfo->fb_base == NULL) {
-		printk (KERN_ERR "radeonfb (%s): cannot map FB\n",
+		printk (KERN_ERR "radeonfb (%s): cananalt map FB\n",
 			pci_name(rinfo->pdev));
 		ret = -EIO;
 		goto err_unmap_rom;
@@ -2380,7 +2380,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	 * Map the BIOS ROM if any and retrieve PLL parameters from
 	 * the BIOS. We skip that on mobility chips as the real panel
 	 * values we need aren't in the ROM but in the BIOS image in
-	 * memory. This is definitely not the best meacnism though,
+	 * memory. This is definitely analt the best meacnism though,
 	 * we really need the arch code to tell us which is the "primary"
 	 * video adapter to use the memory image (or better, the arch
 	 * should provide us a copy of the BIOS image to shield us from
@@ -2419,7 +2419,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	radeon_set_fbinfo (rinfo);
 
 	/* Probe screen types */
-	radeon_probe_screens(rinfo, monitor_layout, ignore_edid);
+	radeon_probe_screens(rinfo, monitor_layout, iganalre_edid);
 
 	/* Build mode list, check out panel native model */
 	radeon_check_modes(rinfo, mode_option);
@@ -2443,24 +2443,24 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 
 	/* Setup Power Management capabilities */
 	if (default_dynclk < -1) {
-		/* -2 is special: means  ON on mobility chips and do not
+		/* -2 is special: means  ON on mobility chips and do analt
 		 * change on others
 		 */
-		radeonfb_pm_init(rinfo, rinfo->is_mobility ? 1 : -1, ignore_devlist, force_sleep);
+		radeonfb_pm_init(rinfo, rinfo->is_mobility ? 1 : -1, iganalre_devlist, force_sleep);
 	} else
-		radeonfb_pm_init(rinfo, default_dynclk, ignore_devlist, force_sleep);
+		radeonfb_pm_init(rinfo, default_dynclk, iganalre_devlist, force_sleep);
 
 	pci_set_drvdata(pdev, info);
 
 	/* Register with fbdev layer */
 	ret = register_framebuffer(info);
 	if (ret < 0) {
-		printk (KERN_ERR "radeonfb (%s): could not register framebuffer\n",
+		printk (KERN_ERR "radeonfb (%s): could analt register framebuffer\n",
 			pci_name(rinfo->pdev));
 		goto err_unmap_fb;
 	}
 
-	if (!nomtrr)
+	if (!analmtrr)
 		rinfo->wc_cookie = arch_phys_wc_add(rinfo->fb_base_phys,
 						    rinfo->video_ram);
 
@@ -2564,8 +2564,8 @@ static int __init radeonfb_setup (char *options)
 		if (!*this_opt)
 			continue;
 
-		if (!strncmp(this_opt, "noaccel", 7)) {
-			noaccel = 1;
+		if (!strncmp(this_opt, "analaccel", 7)) {
+			analaccel = 1;
 		} else if (!strncmp(this_opt, "mirror", 6)) {
 			mirror = 1;
 		} else if (!strncmp(this_opt, "force_dfp", 9)) {
@@ -2574,19 +2574,19 @@ static int __init radeonfb_setup (char *options)
 			panel_yres = simple_strtoul((this_opt+11), NULL, 0);
 		} else if (!strncmp(this_opt, "backlight:", 10)) {
 			backlight = simple_strtoul(this_opt+10, NULL, 0);
-		} else if (!strncmp(this_opt, "nomtrr", 6)) {
-			nomtrr = 1;
-		} else if (!strncmp(this_opt, "nomodeset", 9)) {
-			nomodeset = 1;
+		} else if (!strncmp(this_opt, "analmtrr", 6)) {
+			analmtrr = 1;
+		} else if (!strncmp(this_opt, "analmodeset", 9)) {
+			analmodeset = 1;
 		} else if (!strncmp(this_opt, "force_measure_pll", 17)) {
 			force_measure_pll = 1;
-		} else if (!strncmp(this_opt, "ignore_edid", 11)) {
-			ignore_edid = 1;
+		} else if (!strncmp(this_opt, "iganalre_edid", 11)) {
+			iganalre_edid = 1;
 #if defined(CONFIG_PM) && defined(CONFIG_X86)
 	 	} else if (!strncmp(this_opt, "force_sleep", 11)) {
 			force_sleep = 1;
-		} else if (!strncmp(this_opt, "ignore_devlist", 14)) {
-			ignore_devlist = 1;
+		} else if (!strncmp(this_opt, "iganalre_devlist", 14)) {
+			iganalre_devlist = 1;
 #endif
 		} else
 			mode_option = this_opt;
@@ -2602,11 +2602,11 @@ static int __init radeonfb_init (void)
 #endif
 
 	if (fb_modesetting_disabled("radeonfb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("radeonfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	radeonfb_setup(option);
 #endif
 	return pci_register_driver (&radeonfb_driver);
@@ -2624,24 +2624,24 @@ module_exit(radeonfb_exit);
 MODULE_AUTHOR("Ani Joshi");
 MODULE_DESCRIPTION("framebuffer driver for ATI Radeon chipset");
 MODULE_LICENSE("GPL");
-module_param(noaccel, bool, 0);
+module_param(analaccel, bool, 0);
 module_param(default_dynclk, int, 0);
-MODULE_PARM_DESC(default_dynclk, "int: -2=enable on mobility only,-1=do not change,0=off,1=on");
-MODULE_PARM_DESC(noaccel, "bool: disable acceleration");
-module_param(nomodeset, bool, 0);
-MODULE_PARM_DESC(nomodeset, "bool: disable actual setting of video mode");
+MODULE_PARM_DESC(default_dynclk, "int: -2=enable on mobility only,-1=do analt change,0=off,1=on");
+MODULE_PARM_DESC(analaccel, "bool: disable acceleration");
+module_param(analmodeset, bool, 0);
+MODULE_PARM_DESC(analmodeset, "bool: disable actual setting of video mode");
 module_param(mirror, bool, 0);
 MODULE_PARM_DESC(mirror, "bool: mirror the display to both monitors");
 module_param(force_dfp, bool, 0);
 MODULE_PARM_DESC(force_dfp, "bool: force display to dfp");
-module_param(ignore_edid, bool, 0);
-MODULE_PARM_DESC(ignore_edid, "bool: Ignore EDID data when doing DDC probe");
+module_param(iganalre_edid, bool, 0);
+MODULE_PARM_DESC(iganalre_edid, "bool: Iganalre EDID data when doing DDC probe");
 module_param(monitor_layout, charp, 0);
 MODULE_PARM_DESC(monitor_layout, "Specify monitor mapping (like XFree86)");
 module_param(force_measure_pll, bool, 0);
 MODULE_PARM_DESC(force_measure_pll, "Force measurement of PLL (debug)");
-module_param(nomtrr, bool, 0);
-MODULE_PARM_DESC(nomtrr, "bool: disable use of MTRR registers");
+module_param(analmtrr, bool, 0);
+MODULE_PARM_DESC(analmtrr, "bool: disable use of MTRR registers");
 module_param(panel_yres, int, 0);
 MODULE_PARM_DESC(panel_yres, "int: set panel yres");
 module_param(mode_option, charp, 0);
@@ -2649,6 +2649,6 @@ MODULE_PARM_DESC(mode_option, "Specify resolution as \"<xres>x<yres>[-<bpp>][@<r
 #if defined(CONFIG_PM) && defined(CONFIG_X86)
 module_param(force_sleep, bool, 0);
 MODULE_PARM_DESC(force_sleep, "bool: force D2 sleep mode on all hardware");
-module_param(ignore_devlist, bool, 0);
-MODULE_PARM_DESC(ignore_devlist, "bool: ignore workarounds for bugs in specific laptops");
+module_param(iganalre_devlist, bool, 0);
+MODULE_PARM_DESC(iganalre_devlist, "bool: iganalre workarounds for bugs in specific laptops");
 #endif

@@ -2,7 +2,7 @@
 /*
  * StarFive JH7110 PCIe 2.0 PHY driver
  *
- * Copyright (C) 2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2023 StarFive Techanallogy Co., Ltd.
  * Author: Minda Chen <minda.chen@starfivetech.com>
  */
 
@@ -143,7 +143,7 @@ static int jh7110_pcie_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy->regs))
@@ -155,7 +155,7 @@ static int jh7110_pcie_phy_probe(struct platform_device *pdev)
 				     "Failed to map phy base\n");
 
 	phy->sys_syscon =
-		syscon_regmap_lookup_by_phandle_args(pdev->dev.of_node,
+		syscon_regmap_lookup_by_phandle_args(pdev->dev.of_analde,
 						     "starfive,sys-syscon",
 						     1, args);
 
@@ -165,7 +165,7 @@ static int jh7110_pcie_phy_probe(struct platform_device *pdev)
 		phy->sys_syscon = NULL;
 
 	phy->stg_syscon =
-		syscon_regmap_lookup_by_phandle_args(pdev->dev.of_node,
+		syscon_regmap_lookup_by_phandle_args(pdev->dev.of_analde,
 						     "starfive,stg-syscon",
 						     2, args);
 

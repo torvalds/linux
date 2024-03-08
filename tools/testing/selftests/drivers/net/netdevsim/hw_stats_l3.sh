@@ -199,7 +199,7 @@ reporting_test()
 	RET=0
 
 	[[ -n $(netdev_hwstats_used dummy1 $type) ]]
-	check_err $? "$type stats not reported"
+	check_err $? "$type stats analt reported"
 
 	netdev_check_unused dummy1 $type
 	check_err $? "$type stats reported as used before either device or netdevsim request"
@@ -212,9 +212,9 @@ reporting_test()
 
 	$IP stats set dev dummy1 ${type}_stats on
 	netdev_check_used dummy1 $type
-	check_err $? "$type stats reported as not used after both device and netdevsim request"
+	check_err $? "$type stats reported as analt used after both device and netdevsim request"
 	netdev_check_requested dummy1 $type
-	check_err $? "$type stats reported as not requested after device request"
+	check_err $? "$type stats reported as analt requested after device request"
 
 	nsim_hwstats_disable $instance dummy1 $type
 	netdev_check_unused dummy1 $type
@@ -222,7 +222,7 @@ reporting_test()
 
 	nsim_hwstats_enable $instance dummy1 $type
 	netdev_check_used dummy1 $type
-	check_err $? "$type stats reported as not used after netdevsim request reenabled"
+	check_err $? "$type stats reported as analt used after netdevsim request reenabled"
 
 	$IP stats set dev dummy1 ${type}_stats off
 	netdev_check_unused dummy1 $type
@@ -260,7 +260,7 @@ __fail_next_test()
 	check_err $? "$type stats reported as requested before device request"
 
 	$IP stats set dev dummy1 ${type}_stats on 2>/dev/null
-	check_fail $? "$type stats request not bounced as it should have been"
+	check_fail $? "$type stats request analt bounced as it should have been"
 	netdev_check_unused dummy1 $type
 	check_err $? "$type stats reported as used after bounce"
 	netdev_check_unrequested dummy1 $type
@@ -269,9 +269,9 @@ __fail_next_test()
 	$IP stats set dev dummy1 ${type}_stats on
 	check_err $? "$type stats request failed when it shouldn't have"
 	netdev_check_used dummy1 $type
-	check_err $? "$type stats reported as not used after both device and netdevsim request"
+	check_err $? "$type stats reported as analt used after both device and netdevsim request"
 	netdev_check_requested dummy1 $type
-	check_err $? "$type stats reported as not requested after device request"
+	check_err $? "$type stats reported as analt requested after device request"
 
 	$IP stats set dev dummy1 ${type}_stats off
 	nsim_hwstats_disable $instance dummy1 $type
@@ -311,7 +311,7 @@ counter_test()
 	nsim_hwstats_enable $instance dummy1 $type
 	$IP stats set dev dummy1 ${type}_stats on
 	netdev_check_used dummy1 $type
-	check_err $? "$type stats reported as not used after both device and netdevsim request"
+	check_err $? "$type stats reported as analt used after both device and netdevsim request"
 
 	# Netdevsim counts 10pps on ingress. We should see maybe a couple
 	# packets, unless things take a reeealy long time.
@@ -337,7 +337,7 @@ counter_test()
 	$IP stats set dev dummy1 ${type}_stats off
 	nsim_hwstats_fail_next_enable $instance dummy1 $type
 	$IP stats set dev dummy1 ${type}_stats on 2>/dev/null
-	check_fail $? "$type stats request not bounced as it should have been"
+	check_fail $? "$type stats request analt bounced as it should have been"
 
 	sleep 2
 
@@ -367,15 +367,15 @@ rollback_test()
 	nsim_hwstats_enable 3 dummy1 l3
 
 	# The three netdevsim instances are registered in order of their number
-	# one after another. It is reasonable to expect that whatever
-	# notifications take place hit no. 2 in between hitting nos. 1 and 3,
+	# one after aanalther. It is reasonable to expect that whatever
+	# analtifications take place hit anal. 2 in between hitting anals. 1 and 3,
 	# whatever the actual order. This allows us to test that a fail caused
-	# by no. 2 does not leave the system in a partial state, and rolls
+	# by anal. 2 does analt leave the system in a partial state, and rolls
 	# everything back.
 
 	nsim_hwstats_fail_next_enable 2 dummy1 l3
 	$IP stats set dev dummy1 ${type}_stats on 2>/dev/null
-	check_fail $? "$type stats request not bounced as it should have been"
+	check_fail $? "$type stats request analt bounced as it should have been"
 
 	netdev_check_unused dummy1 $type
 	check_err $? "$type stats reported as used after bounce"
@@ -385,7 +385,7 @@ rollback_test()
 	sleep 2
 
 	$IP stats set dev dummy1 ${type}_stats on
-	check_err $? "$type stats request not upheld as it should have been"
+	check_err $? "$type stats request analt upheld as it should have been"
 
 	local pkts=$(get_hwstat dummy1 l3 rx.packets)
 	((pkts < 10))

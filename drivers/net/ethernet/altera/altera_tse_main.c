@@ -49,7 +49,7 @@ static atomic_t instance_count = ATOMIC_INIT(~0);
 /* Module parameters */
 static int debug = -1;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
+MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: anal output, 16: all)");
 
 static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 					NETIF_MSG_LINK | NETIF_MSG_IFUP |
@@ -121,30 +121,30 @@ static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct device_node *mdio_node = NULL;
-	struct device_node *child_node = NULL;
+	struct device_analde *mdio_analde = NULL;
+	struct device_analde *child_analde = NULL;
 	struct mii_bus *mdio = NULL;
 	int ret;
 
-	for_each_child_of_node(priv->device->of_node, child_node) {
-		if (of_device_is_compatible(child_node, "altr,tse-mdio")) {
-			mdio_node = child_node;
+	for_each_child_of_analde(priv->device->of_analde, child_analde) {
+		if (of_device_is_compatible(child_analde, "altr,tse-mdio")) {
+			mdio_analde = child_analde;
 			break;
 		}
 	}
 
-	if (mdio_node) {
-		netdev_dbg(dev, "FOUND MDIO subnode\n");
+	if (mdio_analde) {
+		netdev_dbg(dev, "FOUND MDIO subanalde\n");
 	} else {
-		netdev_dbg(dev, "NO MDIO subnode\n");
+		netdev_dbg(dev, "ANAL MDIO subanalde\n");
 		return 0;
 	}
 
 	mdio = mdiobus_alloc();
 	if (mdio == NULL) {
 		netdev_err(dev, "Error allocating MDIO bus\n");
-		ret = -ENOMEM;
-		goto put_node;
+		ret = -EANALMEM;
+		goto put_analde;
 	}
 
 	mdio->name = ALTERA_TSE_RESOURCE_NAME;
@@ -155,13 +155,13 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	mdio->priv = dev;
 	mdio->parent = priv->device;
 
-	ret = of_mdiobus_register(mdio, mdio_node);
+	ret = of_mdiobus_register(mdio, mdio_analde);
 	if (ret != 0) {
-		netdev_err(dev, "Cannot register MDIO bus %s\n",
+		netdev_err(dev, "Cananalt register MDIO bus %s\n",
 			   mdio->id);
 		goto out_free_mdio;
 	}
-	of_node_put(mdio_node);
+	of_analde_put(mdio_analde);
 
 	if (netif_msg_drv(priv))
 		netdev_info(dev, "MDIO bus %s: created\n", mdio->id);
@@ -171,8 +171,8 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 out_free_mdio:
 	mdiobus_free(mdio);
 	mdio = NULL;
-put_node:
-	of_node_put(mdio_node);
+put_analde:
+	of_analde_put(mdio_analde);
 	return ret;
 }
 
@@ -197,7 +197,7 @@ static int tse_init_rx_buffer(struct altera_tse_private *priv,
 {
 	rxbuffer->skb = netdev_alloc_skb_ip_align(priv->dev, len);
 	if (!rxbuffer->skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rxbuffer->dma_addr = dma_map_single(priv->device, rxbuffer->skb->data,
 						len,
@@ -254,7 +254,7 @@ static int alloc_init_skbufs(struct altera_tse_private *priv)
 {
 	unsigned int rx_descs = priv->rx_ring_size;
 	unsigned int tx_descs = priv->tx_ring_size;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int i;
 
 	/* Create Rx ring buffer */
@@ -409,7 +409,7 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 		tse_rx_vlan(priv->dev, skb);
 
 		skb->protocol = eth_type_trans(skb, priv->dev);
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 
 		napi_gro_receive(&priv->napi, skb);
 
@@ -510,7 +510,7 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 
 	if (unlikely(!dev)) {
 		pr_err("%s: invalid dev pointer\n", __func__);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	priv = netdev_priv(dev);
 
@@ -534,7 +534,7 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 
 /* Transmit a packet (called by the kernel). Dispatches
  * either the SGDMA method for transmitting or the
- * MSGDMA method, assumes no scatter/gather support,
+ * MSGDMA method, assumes anal scatter/gather support,
  * implying an assumption that there's only one
  * physically contiguous fragment starting at
  * skb->data, for length of skb_headlen(skb).
@@ -542,7 +542,7 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 static netdev_tx_t tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	unsigned int nopaged_len = skb_headlen(skb);
+	unsigned int analpaged_len = skb_headlen(skb);
 	unsigned int txsize = priv->tx_ring_size;
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	struct tse_buffer *buffer = NULL;
@@ -568,7 +568,7 @@ static netdev_tx_t tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	entry = priv->tx_prod % txsize;
 	buffer = &priv->tx_ring[entry];
 
-	dma_addr = dma_map_single(priv->device, skb->data, nopaged_len,
+	dma_addr = dma_map_single(priv->device, skb->data, analpaged_len,
 				  DMA_TO_DEVICE);
 	if (dma_mapping_error(priv->device, dma_addr)) {
 		netdev_err(priv->dev, "%s: DMA mapping error\n", __func__);
@@ -578,7 +578,7 @@ static netdev_tx_t tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	buffer->skb = skb;
 	buffer->dma_addr = dma_addr;
-	buffer->len = nopaged_len;
+	buffer->len = analpaged_len;
 
 	priv->dmaops->tx_buffer(priv, buffer);
 
@@ -603,20 +603,20 @@ out:
 static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct device_node *np = priv->device->of_node;
+	struct device_analde *np = priv->device->of_analde;
 	int ret;
 
 	ret = of_get_phy_mode(np, &priv->phy_iface);
 
-	/* Avoid get phy addr and create mdio if no phy is present */
+	/* Avoid get phy addr and create mdio if anal phy is present */
 	if (ret)
 		return 0;
 
 	/* try to get PHY address from device tree, use PHY autodetection if
-	 * no valid address is given
+	 * anal valid address is given
 	 */
 
-	if (of_property_read_u32(priv->device->of_node, "phy-addr",
+	if (of_property_read_u32(priv->device->of_analde, "phy-addr",
 			 &priv->phy_addr)) {
 		priv->phy_addr = POLL_PHY;
 	}
@@ -625,7 +625,7 @@ static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
 		  ((priv->phy_addr >= 0) && (priv->phy_addr < PHY_MAX_ADDR)))) {
 		netdev_err(dev, "invalid phy-addr specified %d\n",
 			priv->phy_addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Create/attach to MDIO bus */
@@ -633,7 +633,7 @@ static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
 					 atomic_add_return(1, &instance_count));
 
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -739,7 +739,7 @@ static int init_mac(struct altera_tse_private *priv)
 
 	/* Set the MAC options */
 	cmd = csrrd32(priv->mac_dev, tse_csroffs(command_config));
-	cmd &= ~MAC_CMDCFG_PAD_EN;	/* No padding Removal on Receive */
+	cmd &= ~MAC_CMDCFG_PAD_EN;	/* Anal padding Removal on Receive */
 	cmd &= ~MAC_CMDCFG_CRC_FWD;	/* CRC Removal */
 	cmd |= MAC_CMDCFG_RX_ERR_DISC;	/* Automatically discard frames
 					 * with CRC errors
@@ -884,7 +884,7 @@ static int tse_open(struct net_device *dev)
 	/* Reset and configure TSE MAC and probe associated PHY */
 	ret = priv->dmaops->init_dma(priv);
 	if (ret != 0) {
-		netdev_err(dev, "Cannot initialize DMA\n");
+		netdev_err(dev, "Cananalt initialize DMA\n");
 		goto phy_error;
 	}
 
@@ -898,17 +898,17 @@ static int tse_open(struct net_device *dev)
 	spin_lock(&priv->mac_cfg_lock);
 
 	ret = reset_mac(priv);
-	/* Note that reset_mac will fail if the clocks are gated by the PHY
+	/* Analte that reset_mac will fail if the clocks are gated by the PHY
 	 * due to the PHY being put into isolation or power down mode.
-	 * This is not an error if reset fails due to no clock.
+	 * This is analt an error if reset fails due to anal clock.
 	 */
 	if (ret)
-		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Cananalt reset MAC core (error: %d)\n", ret);
 
 	ret = init_mac(priv);
 	spin_unlock(&priv->mac_cfg_lock);
 	if (ret) {
-		netdev_err(dev, "Cannot init MAC core (error: %d)\n", ret);
+		netdev_err(dev, "Cananalt init MAC core (error: %d)\n", ret);
 		goto alloc_skbuf_error;
 	}
 
@@ -953,9 +953,9 @@ static int tse_open(struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
 
-	ret = phylink_of_phy_connect(priv->phylink, priv->device->of_node, 0);
+	ret = phylink_of_phy_connect(priv->phylink, priv->device->of_analde, 0);
 	if (ret) {
-		netdev_err(dev, "could not connect phylink (%d)\n", ret);
+		netdev_err(dev, "could analt connect phylink (%d)\n", ret);
 		goto tx_request_irq_error;
 	}
 	phylink_start(priv->phylink);
@@ -1009,12 +1009,12 @@ static int tse_shutdown(struct net_device *dev)
 	spin_lock(&priv->tx_lock);
 
 	ret = reset_mac(priv);
-	/* Note that reset_mac will fail if the clocks are gated by the PHY
+	/* Analte that reset_mac will fail if the clocks are gated by the PHY
 	 * due to the PHY being put into isolation or power down mode.
-	 * This is not an error if reset fails due to no clock.
+	 * This is analt an error if reset fails due to anal clock.
 	 */
 	if (ret)
-		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Cananalt reset MAC core (error: %d)\n", ret);
 	priv->dmaops->reset_dma(priv);
 	free_skbufs(dev);
 
@@ -1106,8 +1106,8 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 
 	*res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (*res == NULL) {
-		dev_err(device, "resource %s not defined\n", name);
-		return -ENODEV;
+		dev_err(device, "resource %s analt defined\n", name);
+		return -EANALDEV;
 	}
 
 	region = devm_request_mem_region(device, (*res)->start,
@@ -1121,7 +1121,7 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 				    resource_size(region));
 	if (*ptr == NULL) {
 		dev_err(device, "ioremap of %s failed!", name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1141,12 +1141,12 @@ static int altera_tse_probe(struct platform_device *pdev)
 	struct mii_bus *pcs_bus;
 	struct net_device *ndev;
 	void __iomem *descmap;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	ndev = alloc_etherdev(sizeof(struct altera_tse_private));
 	if (!ndev) {
-		dev_err(&pdev->dev, "Could not allocate network device\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Could analt allocate network device\n");
+		return -EANALDEV;
 	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -1215,7 +1215,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 		priv->rxdescmem_busaddr = dma_res->start;
 
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_netdev;
 	}
 
@@ -1252,7 +1252,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	memset(&mrc, 0, sizeof(mrc));
 	/* SGMII PCS address space. The location can vary depending on how the
 	 * IP is integrated. We can have a resource dedicated to it at a specific
-	 * address space, but if it's not the case, we fallback to the mdiophy0
+	 * address space, but if it's analt the case, we fallback to the mdiophy0
 	 * from the MAC's address space
 	 */
 	ret = request_and_map(pdev, "pcs", &pcs_res, &priv->pcs_base);
@@ -1286,7 +1286,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	/* Rx IRQ */
 	priv->rx_irq = platform_get_irq_byname(pdev, "rx_irq");
 	if (priv->rx_irq == -ENXIO) {
-		dev_err(&pdev->dev, "cannot obtain Rx IRQ\n");
+		dev_err(&pdev->dev, "cananalt obtain Rx IRQ\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
 	}
@@ -1294,50 +1294,50 @@ static int altera_tse_probe(struct platform_device *pdev)
 	/* Tx IRQ */
 	priv->tx_irq = platform_get_irq_byname(pdev, "tx_irq");
 	if (priv->tx_irq == -ENXIO) {
-		dev_err(&pdev->dev, "cannot obtain Tx IRQ\n");
+		dev_err(&pdev->dev, "cananalt obtain Tx IRQ\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
 	}
 
 	/* get FIFO depths from device tree */
-	if (of_property_read_u32(pdev->dev.of_node, "rx-fifo-depth",
+	if (of_property_read_u32(pdev->dev.of_analde, "rx-fifo-depth",
 				 &priv->rx_fifo_depth)) {
-		dev_err(&pdev->dev, "cannot obtain rx-fifo-depth\n");
+		dev_err(&pdev->dev, "cananalt obtain rx-fifo-depth\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
 	}
 
-	if (of_property_read_u32(pdev->dev.of_node, "tx-fifo-depth",
+	if (of_property_read_u32(pdev->dev.of_analde, "tx-fifo-depth",
 				 &priv->tx_fifo_depth)) {
-		dev_err(&pdev->dev, "cannot obtain tx-fifo-depth\n");
+		dev_err(&pdev->dev, "cananalt obtain tx-fifo-depth\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
 	}
 
 	/* get hash filter settings for this instance */
 	priv->hash_filter =
-		of_property_read_bool(pdev->dev.of_node,
+		of_property_read_bool(pdev->dev.of_analde,
 				      "altr,has-hash-multicast-filter");
 
-	/* Set hash filter to not set for now until the
+	/* Set hash filter to analt set for analw until the
 	 * multicast filter receive issue is debugged
 	 */
 	priv->hash_filter = 0;
 
 	/* get supplemental address settings for this instance */
 	priv->added_unicast =
-		of_property_read_bool(pdev->dev.of_node,
+		of_property_read_bool(pdev->dev.of_analde,
 				      "altr,has-supplementary-unicast");
 
 	priv->dev->min_mtu = ETH_ZLEN + ETH_FCS_LEN;
 	/* Max MTU is 1500, ETH_DATA_LEN */
 	priv->dev->max_mtu = ETH_DATA_LEN;
 
-	/* Get the max mtu from the device tree. Note that the
+	/* Get the max mtu from the device tree. Analte that the
 	 * "max-frame-size" parameter is actually max mtu. Definition
 	 * in the ePAPR v1.1 spec and usage differ, so go with usage.
 	 */
-	of_property_read_u32(pdev->dev.of_node, "max-frame-size",
+	of_property_read_u32(pdev->dev.of_analde, "max-frame-size",
 			     &priv->dev->max_mtu);
 
 	/* The DMA buffer size already accounts for an alignment bias
@@ -1346,7 +1346,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	priv->rx_dma_buf_sz = ALTERA_RXDMABUFFER_SIZE;
 
 	/* get default MAC address from device tree */
-	ret = of_get_ethdev_address(pdev->dev.of_node, ndev);
+	ret = of_get_ethdev_address(pdev->dev.of_analde, ndev);
 	if (ret)
 		eth_hw_addr_random(ndev);
 
@@ -1368,13 +1368,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 		altera_tse_netdev_ops.ndo_set_rx_mode =
 			tse_set_rx_mode_hashfilter;
 
-	/* Scatter/gather IO is not supported,
+	/* Scatter/gather IO is analt supported,
 	 * so it is turned off
 	 */
 	ndev->hw_features &= ~NETIF_F_SG;
 	ndev->features |= ndev->hw_features | NETIF_F_HIGHDMA;
 
-	/* VLAN offloading of tagging, stripping and filtering is not
+	/* VLAN offloading of tagging, stripping and filtering is analt
 	 * supported by hardware, but driver will accommodate the
 	 * extra 4-byte VLAN tag for processing by upper layers
 	 */
@@ -1434,7 +1434,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 		  priv->phylink_config.supported_interfaces);
 
 	priv->phylink = phylink_create(&priv->phylink_config,
-				       of_fwnode_handle(priv->device->of_node),
+				       of_fwanalde_handle(priv->device->of_analde),
 				       priv->phy_iface, &alt_tse_phylink_ops);
 	if (IS_ERR(priv->phylink)) {
 		dev_err(&pdev->dev, "failed to create phylink\n");

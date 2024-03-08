@@ -22,17 +22,17 @@ int qce_dma_request(struct device *dev, struct qce_dma_data *dma)
 		goto error_rx;
 	}
 
-	dma->result_buf = kmalloc(QCE_RESULT_BUF_SZ + QCE_IGNORE_BUF_SZ,
+	dma->result_buf = kmalloc(QCE_RESULT_BUF_SZ + QCE_IGANALRE_BUF_SZ,
 				  GFP_KERNEL);
 	if (!dma->result_buf) {
-		ret = -ENOMEM;
-		goto error_nomem;
+		ret = -EANALMEM;
+		goto error_analmem;
 	}
 
-	dma->ignore_buf = dma->result_buf + QCE_RESULT_BUF_SZ;
+	dma->iganalre_buf = dma->result_buf + QCE_RESULT_BUF_SZ;
 
 	return 0;
-error_nomem:
+error_analmem:
 	dma_release_channel(dma->rxchan);
 error_rx:
 	dma_release_channel(dma->txchan);

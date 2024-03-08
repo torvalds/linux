@@ -10,14 +10,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -48,7 +48,7 @@
 #define DRIVER_DATE		"20120228"
 
 #define DRIVER_MAJOR		0
-#define DRIVER_MINOR		1
+#define DRIVER_MIANALR		1
 #define DRIVER_PATCHLEVEL	0
 
 #define PCI_CHIP_AST2000 0x2000
@@ -87,13 +87,13 @@ enum ast_chip {
 #define __AST_CHIP_GEN(__chip)	(((unsigned long)(__chip)) >> 16)
 
 enum ast_tx_chip {
-	AST_TX_NONE,
+	AST_TX_ANALNE,
 	AST_TX_SIL164,
 	AST_TX_DP501,
 	AST_TX_ASTDP,
 };
 
-#define AST_TX_NONE_BIT		BIT(AST_TX_NONE)
+#define AST_TX_ANALNE_BIT		BIT(AST_TX_ANALNE)
 #define AST_TX_SIL164_BIT	BIT(AST_TX_SIL164)
 #define AST_TX_DP501_BIT	BIT(AST_TX_DP501)
 #define AST_TX_ASTDP_BIT	BIT(AST_TX_ASTDP)
@@ -416,7 +416,7 @@ struct ast_vbios_mode_info {
 struct ast_crtc_state {
 	struct drm_crtc_state base;
 
-	/* Last known format of primary plane */
+	/* Last kanalwn format of primary plane */
 	const struct drm_format_info *format;
 
 	struct ast_vbios_mode_info vbios_mode_info;
@@ -505,8 +505,8 @@ struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
 bool ast_astdp_is_connected(struct ast_device *ast);
 int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata);
 void ast_dp_launch(struct drm_device *dev);
-void ast_dp_power_on_off(struct drm_device *dev, bool no);
-void ast_dp_set_on_off(struct drm_device *dev, bool no);
+void ast_dp_power_on_off(struct drm_device *dev, bool anal);
+void ast_dp_set_on_off(struct drm_device *dev, bool anal);
 void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode);
 
 #endif

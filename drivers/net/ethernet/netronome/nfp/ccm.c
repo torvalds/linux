@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2016-2019 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2019 Netroanalme Systems, Inc. */
 
 #include <linux/bitops.h>
 
@@ -106,7 +106,7 @@ nfp_ccm_wait_reply(struct nfp_ccm *ccm, struct nfp_app *app,
 								   tag),
 					       msecs_to_jiffies(5000));
 	/* We didn't get a response - try last time and atomically drop
-	 * the tag even if no response is matched.
+	 * the tag even if anal response is matched.
 	 */
 	if (!skb)
 		skb = nfp_ccm_reply_drop_tag(ccm, app, tag);
@@ -186,7 +186,7 @@ void nfp_ccm_rx(struct nfp_ccm *ccm, struct sk_buff *skb)
 
 	tag = nfp_ccm_get_tag(skb);
 	if (unlikely(!test_bit(tag, ccm->tag_allocator))) {
-		ccm_warn(app, "cmsg drop - no one is waiting for tag %u!\n",
+		ccm_warn(app, "cmsg drop - anal one is waiting for tag %u!\n",
 			 tag);
 		goto err_unlock;
 	}

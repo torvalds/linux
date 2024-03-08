@@ -42,15 +42,15 @@ struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
 {
 	struct platform_device *pdev;
 	struct tegra_bpmp *bpmp;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_parse_phandle(dev->of_node, "nvidia,bpmp", 0);
+	np = of_parse_phandle(dev->of_analde, "nvidia,bpmp", 0);
 	if (!np)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev) {
-		bpmp = ERR_PTR(-ENODEV);
+		bpmp = ERR_PTR(-EANALDEV);
 		goto put;
 	}
 
@@ -62,7 +62,7 @@ struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
 	}
 
 put:
-	of_node_put(np);
+	of_analde_put(np);
 	return bpmp;
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_get);
@@ -161,7 +161,7 @@ static int
 tegra_bpmp_wait_request_channel_free(struct tegra_bpmp_channel *channel)
 {
 	unsigned long timeout = channel->bpmp->soc->channels.cpu_tx.timeout;
-	ktime_t start, now;
+	ktime_t start, analw;
 
 	start = ns_to_ktime(local_clock());
 
@@ -169,8 +169,8 @@ tegra_bpmp_wait_request_channel_free(struct tegra_bpmp_channel *channel)
 		if (tegra_bpmp_is_request_channel_free(channel))
 			return 0;
 
-		now = ns_to_ktime(local_clock());
-	} while (ktime_us_delta(now, start) < timeout);
+		analw = ns_to_ktime(local_clock());
+	} while (ktime_us_delta(analw, start) < timeout);
 
 	return -ETIMEDOUT;
 }
@@ -483,7 +483,7 @@ int tegra_bpmp_request_mrq(struct tegra_bpmp *bpmp, unsigned int mrq,
 
 	entry = devm_kzalloc(bpmp->dev, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&bpmp->lock, flags);
 
@@ -610,7 +610,7 @@ static int tegra_bpmp_get_firmware_tag_old(struct tegra_bpmp *bpmp, char *tag,
 	virt = dma_alloc_coherent(bpmp->dev, TAG_SZ, &phys,
 				  GFP_KERNEL | GFP_DMA32);
 	if (!virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&request, 0, sizeof(request));
 	request.addr = phys;
@@ -714,7 +714,7 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	bpmp = devm_kzalloc(&pdev->dev, sizeof(*bpmp), GFP_KERNEL);
 	if (!bpmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpmp->soc = of_device_get_match_data(&pdev->dev);
 	bpmp->dev = &pdev->dev;
@@ -729,28 +729,28 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	bpmp->threaded.allocated = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (!bpmp->threaded.allocated)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpmp->threaded.busy = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (!bpmp->threaded.busy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&bpmp->atomic_tx_lock);
 	bpmp->tx_channel = devm_kzalloc(&pdev->dev, sizeof(*bpmp->tx_channel),
 					GFP_KERNEL);
 	if (!bpmp->tx_channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpmp->rx_channel = devm_kzalloc(&pdev->dev, sizeof(*bpmp->rx_channel),
 	                                GFP_KERNEL);
 	if (!bpmp->rx_channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpmp->threaded_channels = devm_kcalloc(&pdev->dev, bpmp->threaded.count,
 					       sizeof(*bpmp->threaded_channels),
 					       GFP_KERNEL);
 	if (!bpmp->threaded_channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, bpmp);
 
@@ -777,23 +777,23 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "firmware: %.*s\n", (int)sizeof(tag), tag);
 
-	err = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
+	err = of_platform_default_populate(pdev->dev.of_analde, NULL, &pdev->dev);
 	if (err < 0)
 		goto free_mrq;
 
-	if (of_property_present(pdev->dev.of_node, "#clock-cells")) {
+	if (of_property_present(pdev->dev.of_analde, "#clock-cells")) {
 		err = tegra_bpmp_init_clocks(bpmp);
 		if (err < 0)
 			goto free_mrq;
 	}
 
-	if (of_property_present(pdev->dev.of_node, "#reset-cells")) {
+	if (of_property_present(pdev->dev.of_analde, "#reset-cells")) {
 		err = tegra_bpmp_init_resets(bpmp);
 		if (err < 0)
 			goto free_mrq;
 	}
 
-	if (of_property_present(pdev->dev.of_node, "#power-domain-cells")) {
+	if (of_property_present(pdev->dev.of_analde, "#power-domain-cells")) {
 		err = tegra_bpmp_init_powergates(bpmp);
 		if (err < 0)
 			goto free_mrq;
@@ -836,8 +836,8 @@ static int __maybe_unused tegra_bpmp_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_bpmp_pm_ops = {
-	.suspend_noirq = tegra_bpmp_suspend,
-	.resume_noirq = tegra_bpmp_resume,
+	.suspend_analirq = tegra_bpmp_suspend,
+	.resume_analirq = tegra_bpmp_resume,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC) || \

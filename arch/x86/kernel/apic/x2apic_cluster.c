@@ -49,7 +49,7 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 
 	tmpmsk = this_cpu_cpumask_var_ptr(ipi_mask);
 	cpumask_copy(tmpmsk, mask);
-	/* If IPI should not be sent to self, clear current CPU */
+	/* If IPI should analt be sent to self, clear current CPU */
 	if (apic_dest != APIC_DEST_ALLINC)
 		__cpumask_clear_cpu(smp_processor_id(), tmpmsk);
 
@@ -66,7 +66,7 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 
 		__x2apic_send_IPI_dest(dest, vector, APIC_DEST_LOGICAL);
 		/* Remove cluster CPUs from tmpmask */
-		cpumask_andnot(tmpmsk, tmpmsk, cmsk);
+		cpumask_andanalt(tmpmsk, tmpmsk, cmsk);
 	}
 
 	local_irq_restore(flags);
@@ -121,7 +121,7 @@ static void prefill_clustermask(struct cpumask *cmsk, unsigned int cpu, u32 clus
 	}
 }
 
-static int alloc_clustermask(unsigned int cpu, u32 cluster, int node)
+static int alloc_clustermask(unsigned int cpu, u32 cluster, int analde)
 {
 	struct cpumask *cmsk = NULL;
 	unsigned int cpu_i;
@@ -130,7 +130,7 @@ static int alloc_clustermask(unsigned int cpu, u32 cluster, int node)
 	 * At boot time, the CPU present mask is stable. The cluster mask is
 	 * allocated for the first CPU in the cluster and propagated to all
 	 * present siblings in the cluster. If the cluster mask is already set
-	 * on entry to this function for a given CPU, there is nothing to do.
+	 * on entry to this function for a given CPU, there is analthing to do.
 	 */
 	if (per_cpu(cluster_masks, cpu))
 		return 0;
@@ -139,8 +139,8 @@ static int alloc_clustermask(unsigned int cpu, u32 cluster, int node)
 		goto alloc;
 
 	/*
-	 * On post boot hotplug for a CPU which was not present at boot time,
-	 * iterate over all possible CPUs (even those which are not present
+	 * On post boot hotplug for a CPU which was analt present at boot time,
+	 * iterate over all possible CPUs (even those which are analt present
 	 * any more) to find any existing cluster mask.
 	 */
 	for_each_possible_cpu(cpu_i) {
@@ -150,7 +150,7 @@ static int alloc_clustermask(unsigned int cpu, u32 cluster, int node)
 			cmsk = per_cpu(cluster_masks, cpu_i);
 			/*
 			 * If the cluster is already initialized, just store
-			 * the mask and return. There's no need to propagate.
+			 * the mask and return. There's anal need to propagate.
 			 */
 			if (cmsk) {
 				per_cpu(cluster_masks, cpu) = cmsk;
@@ -159,14 +159,14 @@ static int alloc_clustermask(unsigned int cpu, u32 cluster, int node)
 		}
 	}
 	/*
-	 * No CPU in the cluster has ever been initialized, so fall through to
+	 * Anal CPU in the cluster has ever been initialized, so fall through to
 	 * the boot time code which will also populate the cluster mask for any
-	 * other CPU in the cluster which is (now) present.
+	 * other CPU in the cluster which is (analw) present.
 	 */
 alloc:
-	cmsk = kzalloc_node(sizeof(*cmsk), GFP_KERNEL, node);
+	cmsk = kzalloc_analde(sizeof(*cmsk), GFP_KERNEL, analde);
 	if (!cmsk)
-		return -ENOMEM;
+		return -EANALMEM;
 	per_cpu(cluster_masks, cpu) = cmsk;
 	prefill_clustermask(cmsk, cpu, cluster);
 
@@ -181,10 +181,10 @@ static int x2apic_prepare_cpu(unsigned int cpu)
 
 	x86_cpu_to_logical_apicid[cpu] = logical_apicid;
 
-	if (alloc_clustermask(cpu, cluster, cpu_to_node(cpu)) < 0)
-		return -ENOMEM;
+	if (alloc_clustermask(cpu, cluster, cpu_to_analde(cpu)) < 0)
+		return -EANALMEM;
 	if (!zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

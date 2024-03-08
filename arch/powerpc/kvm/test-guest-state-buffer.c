@@ -12,9 +12,9 @@ static void test_creating_buffer(struct kunit *test)
 	size_t size = 0x100;
 
 	gsb = kvmppc_gsb_new(size, 0, 0, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, gsb);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, gsb);
 
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, gsb->hdr);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, gsb->hdr);
 
 	KUNIT_EXPECT_EQ(test, gsb->capacity, roundup_pow_of_two(size));
 	KUNIT_EXPECT_EQ(test, gsb->len, sizeof(__be32));
@@ -36,7 +36,7 @@ static void test_adding_element(struct kunit *test)
 	u64 data;
 
 	gsb = kvmppc_gsb_new(size, 0, 0, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, gsb);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, gsb);
 
 	/* Single elements, direct use of __kvmppc_gse_put() */
 	data = 0xdeadbeef;
@@ -106,7 +106,7 @@ static void test_gs_parsing(struct kunit *test)
 	u64 tmp1, tmp2;
 
 	gsb = kvmppc_gsb_new(size, 0, 0, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, gsb);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, gsb);
 
 	tmp1 = 0xdeadbeefull;
 	kvmppc_gse_put_u64(gsb, KVMPPC_GSID_GPR(0), tmp1);
@@ -114,7 +114,7 @@ static void test_gs_parsing(struct kunit *test)
 	KUNIT_EXPECT_GE(test, kvmppc_gse_parse(&gsp, gsb), 0);
 
 	gse = kvmppc_gsp_lookup(&gsp, KVMPPC_GSID_GPR(0));
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, gse);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, gse);
 
 	tmp2 = kvmppc_gse_get_u64(gse);
 	KUNIT_EXPECT_EQ(test, tmp2, 0xdeadbeefull);
@@ -287,10 +287,10 @@ static void test_gs_msg(struct kunit *test)
 
 	gsm = kvmppc_gsm_new(&gs_msg_test1_ops, &test1_data, GSM_SEND,
 			     GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, gsm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, gsm);
 
 	gsb = kvmppc_gsb_new(kvmppc_gsm_size(gsm), 0, 0, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, gsb);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, gsb);
 
 	kvmppc_gsm_include(gsm, KVMPPC_GSID_PARTITION_TABLE);
 	kvmppc_gsm_include(gsm, KVMPPC_GSID_PROCESS_TABLE);

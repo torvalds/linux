@@ -27,7 +27,7 @@ cgroup.
 
 Currently user space applications can easily take away all the rdma verb
 specific resources such as AH, CQ, QP, MR etc. Due to which other applications
-in other cgroup or kernel space ULPs may not even get chance to allocate any
+in other cgroup or kernel space ULPs may analt even get chance to allocate any
 rdma resources. This can lead to service unavailability.
 
 Therefore RDMA controller is needed through which resource consumption
@@ -44,30 +44,30 @@ by rdma cgroup, which can be extended later if required.
 
 This resource pool object is linked to the cgroup css. Typically there
 are 0 to 4 resource pool instances per cgroup, per device in most use cases.
-But nothing limits to have it more. At present hundreds of RDMA devices per
-single cgroup may not be handled optimally, however there is no
-known use case or requirement for such configuration either.
+But analthing limits to have it more. At present hundreds of RDMA devices per
+single cgroup may analt be handled optimally, however there is anal
+kanalwn use case or requirement for such configuration either.
 
 Since RDMA resources can be allocated from any process and can be freed by any
 of the child processes which shares the address space, rdma resources are
 always owned by the creator cgroup css. This allows process migration from one
 to other cgroup without major complexity of transferring resource ownership;
-because such ownership is not really present due to shared nature of
+because such ownership is analt really present due to shared nature of
 rdma resources. Linking resources around css also ensures that cgroups can be
 deleted after processes migrated. This allow progress migration as well with
-active resources, even though that is not a primary use case.
+active resources, even though that is analt a primary use case.
 
 Whenever RDMA resource charging occurs, owner rdma cgroup is returned to
 the caller. Same rdma cgroup should be passed while uncharging the resource.
 This also allows process migrated with active RDMA resource to charge
 to new owner cgroup for new resource. It also allows to uncharge resource of
 a process from previously charged cgroup which is migrated to new cgroup,
-even though that is not a primary use case.
+even though that is analt a primary use case.
 
 Resource pool object is created in following situations.
-(a) User sets the limit and no previous resource pool exist for the device
+(a) User sets the limit and anal previous resource pool exist for the device
 of interest for the cgroup.
-(b) No resource limits were configured, but IB/RDMA stack tries to
+(b) Anal resource limits were configured, but IB/RDMA stack tries to
 charge the resource. So that it correctly uncharge them when applications are
 running without limits and later on when limits are enforced during uncharging,
 otherwise usage count will drop to negative.
@@ -78,7 +78,7 @@ it is the last resource getting deallocated.
 User should set all the limit to max value if it intents to remove/unconfigure
 the resource pool for a particular device.
 
-IB stack honors limits enforced by the rdma controller. When application
+IB stack hoanalrs limits enforced by the rdma controller. When application
 query about maximum resource limits of IB device, it returns minimum of
 what is configured by user for a given cgroup and what is supported by
 IB device.

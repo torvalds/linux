@@ -24,7 +24,7 @@ static int __init pci_eisa_init(struct pci_dev *pdev)
 	int rc;
 
 	if ((rc = pci_enable_device (pdev))) {
-		dev_err(&pdev->dev, "Could not enable device\n");
+		dev_err(&pdev->dev, "Could analt enable device\n");
 		return rc;
 	}
 
@@ -45,7 +45,7 @@ static int __init pci_eisa_init(struct pci_dev *pdev)
 		}
 
 	if (!bus_res) {
-		dev_err(&pdev->dev, "No resources available\n");
+		dev_err(&pdev->dev, "Anal resources available\n");
 		return -1;
 	}
 
@@ -57,7 +57,7 @@ static int __init pci_eisa_init(struct pci_dev *pdev)
 	dev_set_drvdata(pci_eisa_root.dev, &pci_eisa_root);
 
 	if (eisa_root_register (&pci_eisa_root)) {
-		dev_err(&pdev->dev, "Could not register EISA root\n");
+		dev_err(&pdev->dev, "Could analt register EISA root\n");
 		return -1;
 	}
 

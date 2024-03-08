@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  Copyright (C) Greg Lonnon 2001
+ *  Copyright (C) Greg Lonanaln 2001
  *  Updated for OMAP-1610 by Tony Lindgren <tony@atomide.com>
  *
  * Copyright (C) 2009 Texas Instruments
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
- * NOTE: The interrupt vectors for the OMAP-1509, OMAP-1510, and OMAP-1610
+ * ANALTE: The interrupt vectors for the OMAP-1509, OMAP-1510, and OMAP-1610
  *	 are different.
  */
 
@@ -16,7 +16,7 @@
 /*
  * IRQ numbers for interrupt handler 1
  *
- * NOTE: See also the OMAP-1510 and 1610 specific IRQ numbers below
+ * ANALTE: See also the OMAP-1510 and 1610 specific IRQ numbers below
  *
  */
 #define INT_CAMERA		(NR_IRQS_LEGACY + 1)
@@ -74,7 +74,7 @@
  */
 #define INT_7XX_IH2_FIQ		(NR_IRQS_LEGACY + 0)
 #define INT_7XX_IH2_IRQ		(NR_IRQS_LEGACY + 1)
-#define INT_7XX_USB_NON_ISO	(NR_IRQS_LEGACY + 2)
+#define INT_7XX_USB_ANALN_ISO	(NR_IRQS_LEGACY + 2)
 #define INT_7XX_USB_ISO		(NR_IRQS_LEGACY + 3)
 #define INT_7XX_ICR		(NR_IRQS_LEGACY + 4)
 #define INT_7XX_EAC		(NR_IRQS_LEGACY + 5)
@@ -94,7 +94,7 @@
 /*
  * IRQ numbers for interrupt handler 2
  *
- * NOTE: See also the OMAP-1510 and 1610 specific IRQ numbers below
+ * ANALTE: See also the OMAP-1510 and 1610 specific IRQ numbers below
  */
 #define IH2_BASE		(NR_IRQS_LEGACY + 32)
 

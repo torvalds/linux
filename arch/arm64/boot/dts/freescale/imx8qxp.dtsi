@@ -167,28 +167,28 @@
 
 		decoder_boot: decoder-boot@84000000 {
 			reg = <0 0x84000000 0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		encoder_boot: encoder-boot@86000000 {
 			reg = <0 0x86000000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		decoder_rpc: decoder-rpc@92000000 {
 			reg = <0 0x92000000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		dsp_reserved: dsp@92400000 {
 			reg = <0 0x92400000 0 0x2000000>;
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 
 		encoder_rpc: encoder-rpc@94400000 {
 			reg = <0 0x94400000 0 0x700000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -255,7 +255,7 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>, /* Physical Secure */
-			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>, /* Physical Non-Secure */
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>, /* Physical Analn-Secure */
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>, /* Virtual */
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>; /* Hypervisor */
 	};
@@ -298,10 +298,10 @@
 				map0 {
 					trip = <&cpu_alert0>;
 					cooling-device =
-						<&A35_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A35_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A35_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A35_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A35_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A35_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A35_2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A35_3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

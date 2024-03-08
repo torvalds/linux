@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,7 +36,7 @@
 
 /*
  * Currently the register shifts and masks in this file are used for dce60
- * which has no DPREFCLK_CNTL register
+ * which has anal DPREFCLK_CNTL register
  * TODO: remove this when DENTIST_DISPCLK_CNTL
  * is moved to dccg, where it belongs
  */
@@ -69,13 +69,13 @@ static const struct clk_mgr_mask disp_clk_mask = {
 
 /* Max clock values for each state indexed by "enum clocks_state": */
 static const struct state_dependent_clocks dce60_max_clks_by_state[] = {
-/* ClocksStateInvalid - should not be used */
+/* ClocksStateInvalid - should analt be used */
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/* ClocksStateUltraLow - not expected to be used for DCE 6.0 */
+/* ClocksStateUltraLow - analt expected to be used for DCE 6.0 */
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
 /* ClocksStateLow */
 { .display_clk_khz = 352000, .pixel_clk_khz = 330000},
-/* ClocksStateNominal */
+/* ClocksStateAnalminal */
 { .display_clk_khz = 600000, .pixel_clk_khz = 400000 },
 /* ClocksStatePerformance */
 { .display_clk_khz = 600000, .pixel_clk_khz = 400000 } };
@@ -87,7 +87,7 @@ static int dce60_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base)
 	int dp_ref_clk_khz;
 	int target_div;
 
-	/* DCE6 has no DPREFCLK_CNTL to read DP Reference Clock source */
+	/* DCE6 has anal DPREFCLK_CNTL to read DP Reference Clock source */
 
 	/* Read the mmDENTIST_DISPCLK_CNTL to get the currently
 	 * programmed DID DENTIST_DPREFCLK_WDIVIDER*/

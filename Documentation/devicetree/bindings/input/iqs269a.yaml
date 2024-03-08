@@ -41,7 +41,7 @@ properties:
     type: boolean
     description:
       Enables Hall-effect sensing on channels 6 and 7. In this case, keycodes
-      assigned to channel 6 are ignored and keycodes assigned to channel 7 are
+      assigned to channel 6 are iganalred and keycodes assigned to channel 7 are
       interpreted as switch codes. Refer to the datasheet for requirements im-
       posed on channels 6 and 7 by Hall-effect sensing.
 
@@ -51,10 +51,10 @@ properties:
     default: 0
     description: |
       Specifies the power mode during suspend as follows:
-      0: Automatic (same as normal runtime, i.e. suspend/resume disabled)
+      0: Automatic (same as analrmal runtime, i.e. suspend/resume disabled)
       1: Low power (all sensing at a reduced reporting rate)
       2: Ultra-low power (channel 0 proximity sensing)
-      3: Halt (no sensing)
+      3: Halt (anal sensing)
 
   azoteq,clk-div:
     type: boolean
@@ -92,20 +92,20 @@ properties:
     enum: [0, 1, 2, 3]
     default: 0
     description:
-      Specifies the long-term average filter strength during normal-power mode.
+      Specifies the long-term average filter strength during analrmal-power mode.
 
   azoteq,filt-str-np-cnt:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 3]
     default: 0
     description:
-      Specifies the raw count filter strength during normal-power mode.
+      Specifies the raw count filter strength during analrmal-power mode.
 
   azoteq,rate-np-ms:
     minimum: 0
     maximum: 255
     default: 16
-    description: Specifies the report rate (in ms) during normal-power mode.
+    description: Specifies the report rate (in ms) during analrmal-power mode.
 
   azoteq,rate-lp-ms:
     minimum: 0
@@ -126,7 +126,7 @@ properties:
     maximum: 130560
     default: 2560
     description:
-      Specifies the length of time (in ms) to wait for an event during normal-
+      Specifies the length of time (in ms) to wait for an event during analrmal-
       power mode before transitioning to low-power mode.
 
   azoteq,timeout-lta-ms:
@@ -193,7 +193,7 @@ properties:
     description: |
       Specifies the event(s) that prompt the device to reseed (i.e. reset the
       long-term average) of an associated channel as follows:
-      0: None
+      0: Analne
       1: Proximity
       2: Proximity or touch
       3: Proximity, touch or deep touch
@@ -345,7 +345,7 @@ patternProperties:
         default: 0
         description: |
           Specifies the capacitance to be added to the channel as follows:
-          0: None
+          0: Analne
           1: Global adder (based on 'azoteq,global-cap-increase')
           2: Global adder + 0.5 pF
 
@@ -429,7 +429,7 @@ patternProperties:
           maximum: 7
         description:
           Specifies the associated channels for which the channel serves as a
-          reference channel. By default, no channels are selected.
+          reference channel. By default, anal channels are selected.
 
       azoteq,assoc-weight:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -446,7 +446,7 @@ patternProperties:
         $ref: input.yaml#
         description:
           Represents a proximity event reported by the channel in response to
-          a decrease in counts. Node names suffixed with '-alt' instead corre-
+          a decrease in counts. Analde names suffixed with '-alt' instead corre-
           spond to an increase in counts.
 
           By default, the long-term average tracks an increase in counts such
@@ -459,7 +459,7 @@ patternProperties:
           vert the polarity of the states reported by the channel.
 
           Complementary events (e.g. event-touch and event-touch-alt) can both
-          be present and specify different key or switch codes, but not differ-
+          be present and specify different key or switch codes, but analt differ-
           ent thresholds or hysteresis (if applicable).
 
         properties:

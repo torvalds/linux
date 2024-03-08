@@ -32,7 +32,7 @@ u8 eir_append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 	size_t short_len;
 	size_t complete_len;
 
-	/* no space left for name (+ NULL + type + len) */
+	/* anal space left for name (+ NULL + type + len) */
 	if ((max_adv_len(hdev) - ad_len) < HCI_MAX_SHORT_NAME_LENGTH + 3)
 		return ad_len;
 
@@ -50,7 +50,7 @@ u8 eir_append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 				       short_len == HCI_MAX_SHORT_NAME_LENGTH ?
 				       short_len : short_len + 1);
 
-	/* use shortened full name if present, we already know that name
+	/* use shortened full name if present, we already kanalw that name
 	 * is longer then HCI_MAX_SHORT_NAME_LENGTH
 	 */
 	if (complete_len)
@@ -107,7 +107,7 @@ static u8 *create_uuid16_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 			ptr += 2;
 		}
 
-		/* Stop if not enough space to put next UUID */
+		/* Stop if analt eanalugh space to put next UUID */
 		if ((ptr - data) + sizeof(u16) > len) {
 			uuids_start[1] = EIR_UUID16_SOME;
 			break;
@@ -140,7 +140,7 @@ static u8 *create_uuid32_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 			ptr += 2;
 		}
 
-		/* Stop if not enough space to put next UUID */
+		/* Stop if analt eanalugh space to put next UUID */
 		if ((ptr - data) + sizeof(u32) > len) {
 			uuids_start[1] = EIR_UUID32_SOME;
 			break;
@@ -173,7 +173,7 @@ static u8 *create_uuid128_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 			ptr += 2;
 		}
 
-		/* Stop if not enough space to put next UUID */
+		/* Stop if analt eanalugh space to put next UUID */
 		if ((ptr - data) + 16 > len) {
 			uuids_start[1] = EIR_UUID128_SOME;
 			break;
@@ -289,7 +289,7 @@ u8 eir_create_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 		flags |= LE_AD_LIMITED;
 
 	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-		flags |= LE_AD_NO_BREDR;
+		flags |= LE_AD_ANAL_BREDR;
 
 	if (flags || (instance_flags & MGMT_ADV_FLAG_MANAGED_FLAGS)) {
 		/* If a discovery flag wasn't provided, simply use the global
@@ -298,7 +298,7 @@ u8 eir_create_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 		if (!flags)
 			flags |= mgmt_get_adv_discov_flags(hdev);
 
-		/* If flags would still be empty, then there is no need to
+		/* If flags would still be empty, then there is anal need to
 		 * include the "Flags" AD field".
 		 */
 		if (flags) {

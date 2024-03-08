@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2023, SberDevices. All Rights Reserved.
  *
- * Author: Martin Kurbanov <mmkurbanov@sberdevices.ru>
+ * Author: Martin Kurbaanalv <mmkurbaanalv@sberdevices.ru>
  */
 
 #include <linux/bitfield.h>
@@ -328,7 +328,7 @@ static int amlogic_spifc_a1_probe(struct platform_device *pdev)
 
 	ctrl = devm_spi_alloc_host(&pdev->dev, sizeof(*spifc));
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spifc = spi_controller_get_devdata(ctrl);
 	platform_set_drvdata(pdev, spifc);
@@ -352,7 +352,7 @@ static int amlogic_spifc_a1_probe(struct platform_device *pdev)
 	devm_pm_runtime_enable(spifc->dev);
 
 	ctrl->num_chipselect = 1;
-	ctrl->dev.of_node = pdev->dev.of_node;
+	ctrl->dev.of_analde = pdev->dev.of_analde;
 	ctrl->bits_per_word_mask = SPI_BPW_MASK(8);
 	ctrl->auto_runtime_pm = true;
 	ctrl->mem_ops = &amlogic_spifc_a1_mem_ops;
@@ -455,6 +455,6 @@ static struct platform_driver amlogic_spifc_a1_driver = {
 };
 module_platform_driver(amlogic_spifc_a1_driver);
 
-MODULE_AUTHOR("Martin Kurbanov <mmkurbanov@sberdevices.ru>");
+MODULE_AUTHOR("Martin Kurbaanalv <mmkurbaanalv@sberdevices.ru>");
 MODULE_DESCRIPTION("Amlogic A1 SPIFC driver");
 MODULE_LICENSE("GPL");

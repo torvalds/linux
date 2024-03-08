@@ -576,9 +576,9 @@
 /*
  * R85 (0x55) - DC Servo 1
  */
-#define WM9090_DCS_SERIES_NO_01_MASK            0x0FE0  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM9090_DCS_SERIES_NO_01_SHIFT                5  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM9090_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 - [11:5] */
+#define WM9090_DCS_SERIES_ANAL_01_MASK            0x0FE0  /* DCS_SERIES_ANAL_01 - [11:5] */
+#define WM9090_DCS_SERIES_ANAL_01_SHIFT                5  /* DCS_SERIES_ANAL_01 - [11:5] */
+#define WM9090_DCS_SERIES_ANAL_01_WIDTH                7  /* DCS_SERIES_ANAL_01 - [11:5] */
 #define WM9090_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 - [3:0] */
 #define WM9090_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 - [3:0] */
 #define WM9090_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 - [3:0] */

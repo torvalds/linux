@@ -21,7 +21,7 @@ typedef unsigned short	USHORT;
 typedef unsigned long	ULONG __attribute__ ((__mode__ (__SI__)));
 typedef void		VOID;
 
-/* The pointer types.  Note that we're using a 64-bit compiler but all
+/* The pointer types.  Analte that we're using a 64-bit compiler but all
    pointer in the ARC structures are only 32-bit, so we need some disgusting
    workarounds.	 Keep your vomit bag handy.  */
 typedef LONG		_PCHAR;

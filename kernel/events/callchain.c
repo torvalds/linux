@@ -82,13 +82,13 @@ static int alloc_callchain_buffers(void)
 
 	entries = kzalloc(size, GFP_KERNEL);
 	if (!entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = perf_callchain_entry__sizeof() * PERF_NR_CONTEXTS;
 
 	for_each_possible_cpu(cpu) {
-		entries->cpu_entries[cpu] = kmalloc_node(size, GFP_KERNEL,
-							 cpu_to_node(cpu));
+		entries->cpu_entries[cpu] = kmalloc_analde(size, GFP_KERNEL,
+							 cpu_to_analde(cpu));
 		if (!entries->cpu_entries[cpu])
 			goto fail;
 	}
@@ -102,7 +102,7 @@ fail:
 		kfree(entries->cpu_entries[cpu]);
 	kfree(entries);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int get_callchain_buffers(int event_max_stack)

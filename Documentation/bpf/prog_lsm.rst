@@ -20,7 +20,7 @@ LSM hook:
 Other LSM hooks which can be instrumented can be found in
 ``security/security.c``.
 
-eBPF programs that use Documentation/bpf/btf.rst do not need to include kernel
+eBPF programs that use Documentation/bpf/btf.rst do analt need to include kernel
 headers for accessing information from the attached eBPF program's context.
 They can simply declare the structures in the eBPF program and only specify
 the fields that need to be accessed.
@@ -38,7 +38,7 @@ the fields that need to be accessed.
 	} __attribute__((preserve_access_index));
 
 
-.. note:: The order of the fields is irrelevant.
+.. analte:: The order of the fields is irrelevant.
 
 This can be further simplified (if one has access to the BTF information at
 build time) by generating the ``vmlinux.h`` with:
@@ -47,7 +47,7 @@ build time) by generating the ``vmlinux.h`` with:
 
 	# bpftool btf dump file <path-to-btf-vmlinux> format c > vmlinux.h
 
-.. note:: ``path-to-btf-vmlinux`` can be ``/sys/kernel/btf/vmlinux`` if the
+.. analte:: ``path-to-btf-vmlinux`` can be ``/sys/kernel/btf/vmlinux`` if the
 	  build environment matches the environment the BPF programs are
 	  deployed in.
 

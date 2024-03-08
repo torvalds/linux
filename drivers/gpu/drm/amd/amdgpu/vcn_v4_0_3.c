@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -263,7 +263,7 @@ done:
  *
  * @handle: amdgpu_device pointer
  *
- * Stop the VCN block, mark ring as not ready any more
+ * Stop the VCN block, mark ring as analt ready any more
  */
 static int vcn_v4_0_3_hw_fini(void *handle)
 {
@@ -325,7 +325,7 @@ static int vcn_v4_0_3_resume(void *handle)
  * @adev: amdgpu_device pointer
  * @inst_idx: instance number
  *
- * Let the VCN memory controller know it's offsets
+ * Let the VCN memory controller kanalw it's offsets
  */
 static void vcn_v4_0_3_mc_resume(struct amdgpu_device *adev, int inst_idx)
 {
@@ -380,16 +380,16 @@ static void vcn_v4_0_3_mc_resume(struct amdgpu_device *adev, int inst_idx)
 	WREG32_SOC15(VCN, vcn_inst, regUVD_VCPU_CACHE_SIZE2,
 		     AMDGPU_VCN_CONTEXT_SIZE);
 
-	/* non-cache window */
+	/* analn-cache window */
 	WREG32_SOC15(
 		VCN, vcn_inst, regUVD_LMI_VCPU_NC0_64BIT_BAR_LOW,
 		lower_32_bits(adev->vcn.inst[inst_idx].fw_shared.gpu_addr));
 	WREG32_SOC15(
 		VCN, vcn_inst, regUVD_LMI_VCPU_NC0_64BIT_BAR_HIGH,
 		upper_32_bits(adev->vcn.inst[inst_idx].fw_shared.gpu_addr));
-	WREG32_SOC15(VCN, vcn_inst, regUVD_VCPU_NONCACHE_OFFSET0, 0);
+	WREG32_SOC15(VCN, vcn_inst, regUVD_VCPU_ANALNCACHE_OFFSET0, 0);
 	WREG32_SOC15(
-		VCN, vcn_inst, regUVD_VCPU_NONCACHE_SIZE0,
+		VCN, vcn_inst, regUVD_VCPU_ANALNCACHE_SIZE0,
 		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared)));
 }
 
@@ -400,7 +400,7 @@ static void vcn_v4_0_3_mc_resume(struct amdgpu_device *adev, int inst_idx)
  * @inst_idx: instance number index
  * @indirect: indirectly write sram
  *
- * Let the VCN memory controller know it's offsets with dpg mode
+ * Let the VCN memory controller kanalw it's offsets with dpg mode
  */
 static void vcn_v4_0_3_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
 {
@@ -487,7 +487,7 @@ static void vcn_v4_0_3_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_i
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 			VCN, 0, regUVD_VCPU_CACHE_SIZE2), AMDGPU_VCN_CONTEXT_SIZE, 0, indirect);
 
-	/* non-cache window */
+	/* analn-cache window */
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 			VCN, 0, regUVD_LMI_VCPU_NC0_64BIT_BAR_LOW),
 			lower_32_bits(adev->vcn.inst[inst_idx].fw_shared.gpu_addr), 0, indirect);
@@ -495,9 +495,9 @@ static void vcn_v4_0_3_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_i
 			VCN, 0, regUVD_LMI_VCPU_NC0_64BIT_BAR_HIGH),
 			upper_32_bits(adev->vcn.inst[inst_idx].fw_shared.gpu_addr), 0, indirect);
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
-			VCN, 0, regUVD_VCPU_NONCACHE_OFFSET0), 0, 0, indirect);
+			VCN, 0, regUVD_VCPU_ANALNCACHE_OFFSET0), 0, 0, indirect);
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
-			VCN, 0, regUVD_VCPU_NONCACHE_SIZE0),
+			VCN, 0, regUVD_VCPU_ANALNCACHE_SIZE0),
 			AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared)), 0, indirect);
 
 	/* VCN global tiling registers */
@@ -823,7 +823,7 @@ static int vcn_v4_0_3_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, b
 	WREG32_SOC15(VCN, vcn_inst, regUVD_RB_SIZE,
 		     ring->ring_size / sizeof(uint32_t));
 
-	/* resetting ring, fw should not check RB ring */
+	/* resetting ring, fw should analt check RB ring */
 	tmp = RREG32_SOC15(VCN, vcn_inst, regVCN_RB_ENABLE);
 	tmp &= ~(VCN_RB_ENABLE__RB_EN_MASK);
 	WREG32_SOC15(VCN, vcn_inst, regVCN_RB_ENABLE, tmp);
@@ -970,7 +970,7 @@ static int vcn_v4_0_3_start_sriov(struct amdgpu_device *adev)
 			regUVD_LMI_VCPU_NC0_64BIT_BAR_HIGH),
 			upper_32_bits(adev->vcn.inst[vcn_inst].fw_shared.gpu_addr));
 		MMSCH_V4_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
-			regUVD_VCPU_NONCACHE_SIZE0),
+			regUVD_VCPU_ANALNCACHE_SIZE0),
 			AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared)));
 		MMSCH_V4_0_INSERT_END();
 
@@ -1147,7 +1147,7 @@ static int vcn_v4_0_3_start(struct amdgpu_device *adev)
 				break;
 
 			DRM_DEV_ERROR(adev->dev,
-				"VCN decode not responding, trying to reset the VCPU!!!\n");
+				"VCN decode analt responding, trying to reset the VCPU!!!\n");
 			WREG32_P(SOC15_REG_OFFSET(VCN, vcn_inst,
 						  regUVD_VCPU_CNTL),
 				 UVD_VCPU_CNTL__BLK_RST_MASK,
@@ -1162,7 +1162,7 @@ static int vcn_v4_0_3_start(struct amdgpu_device *adev)
 		}
 
 		if (r) {
-			DRM_DEV_ERROR(adev->dev, "VCN decode not responding, giving up!!!\n");
+			DRM_DEV_ERROR(adev->dev, "VCN decode analt responding, giving up!!!\n");
 			return r;
 		}
 
@@ -1187,7 +1187,7 @@ static int vcn_v4_0_3_start(struct amdgpu_device *adev)
 		WREG32_SOC15(VCN, vcn_inst, regUVD_RB_SIZE,
 			     ring->ring_size / sizeof(uint32_t));
 
-		/* resetting ring, fw should not check RB ring */
+		/* resetting ring, fw should analt check RB ring */
 		tmp = RREG32_SOC15(VCN, vcn_inst, regVCN_RB_ENABLE);
 		tmp &= ~(VCN_RB_ENABLE__RB_EN_MASK);
 		WREG32_SOC15(VCN, vcn_inst, regVCN_RB_ENABLE, tmp);
@@ -1406,7 +1406,7 @@ static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring)
 static const struct amdgpu_ring_funcs vcn_v4_0_3_unified_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_ENC,
 	.align_mask = 0x3f,
-	.nop = VCN_ENC_CMD_NO_OP,
+	.analp = VCN_ENC_CMD_ANAL_OP,
 	.get_rptr = vcn_v4_0_3_unified_ring_get_rptr,
 	.get_wptr = vcn_v4_0_3_unified_ring_get_wptr,
 	.set_wptr = vcn_v4_0_3_unified_ring_set_wptr,
@@ -1422,7 +1422,7 @@ static const struct amdgpu_ring_funcs vcn_v4_0_3_unified_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_enc_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_enc_ring_test_ring,
 	.test_ib = amdgpu_vcn_unified_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.insert_end = vcn_v2_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vcn_ring_begin_use,
@@ -1536,7 +1536,7 @@ static int vcn_v4_0_3_set_powergating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
 
-	/* for SRIOV, guest should not control VCN Power-gating
+	/* for SRIOV, guest should analt control VCN Power-gating
 	 * MMSCH FW should control Power-gating and clock-gating
 	 * guest should avoid touching CGC and PG
 	 */
@@ -1592,7 +1592,7 @@ static int vcn_v4_0_3_process_interrupt(struct amdgpu_device *adev,
 {
 	uint32_t i, inst;
 
-	i = node_id_to_phys_map[entry->node_id];
+	i = analde_id_to_phys_map[entry->analde_id];
 
 	DRM_DEV_DEBUG(adev->dev, "IH: VCN TRAP\n");
 
@@ -1602,8 +1602,8 @@ static int vcn_v4_0_3_process_interrupt(struct amdgpu_device *adev,
 
 	if (inst >= adev->vcn.num_vcn_inst) {
 		dev_WARN_ONCE(adev->dev, 1,
-			      "Interrupt received for unknown VCN instance %d",
-			      entry->node_id);
+			      "Interrupt received for unkanalwn VCN instance %d",
+			      entry->analde_id);
 		return 0;
 	}
 
@@ -1665,7 +1665,7 @@ static const struct amd_ip_funcs vcn_v4_0_3_ip_funcs = {
 const struct amdgpu_ip_block_version vcn_v4_0_3_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCN,
 	.major = 4,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 3,
 	.funcs = &vcn_v4_0_3_ip_funcs,
 };
@@ -1698,7 +1698,7 @@ static void vcn_v4_0_3_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t i;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN)) {
-		dev_warn(adev->dev, "VCN RAS is not supported\n");
+		dev_warn(adev->dev, "VCN RAS is analt supported\n");
 		return;
 	}
 
@@ -1720,7 +1720,7 @@ static void vcn_v4_0_3_reset_ras_error_count(struct amdgpu_device *adev)
 	uint32_t i;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN)) {
-		dev_warn(adev->dev, "VCN RAS is not supported\n");
+		dev_warn(adev->dev, "VCN RAS is analt supported\n");
 		return;
 	}
 

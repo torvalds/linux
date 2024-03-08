@@ -42,7 +42,7 @@ void *nfc_llc_get_data(struct nfc_llc *llc);
 int nfc_llc_register(const char *name, const struct nfc_llc_ops *ops);
 void nfc_llc_unregister(const char *name);
 
-int nfc_llc_nop_register(void);
+int nfc_llc_analp_register(void);
 
 #if defined(CONFIG_NFC_SHDLC)
 int nfc_llc_shdlc_register(void);

@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Raw Decoder found in PowerDown Controller.
  *
- * Copyright 2010-2014 Imagination Technologies Ltd.
+ * Copyright 2010-2014 Imagination Techanallogies Ltd.
  *
  * This ties into the input subsystem using the RC-core in raw mode. Raw IR
  * signal edges are reported and decoded by generic software decoders.
@@ -26,8 +26,8 @@ static void img_ir_refresh_raw(struct img_ir_priv *priv, u32 irq_status)
 	multiple = ((irq_status & IMG_IR_IRQ_EDGE) == IMG_IR_IRQ_EDGE);
 	/*
 	 * If so, we need to see if the level has actually changed.
-	 * If it's just noise that we didn't have time to process,
-	 * there's no point reporting it.
+	 * If it's just analise that we didn't have time to process,
+	 * there's anal point reporting it.
 	 */
 	ir_status = img_ir_read(priv, IMG_IR_STATUS) & IMG_IR_IRRXD;
 	if (multiple && ir_status == raw->last_status)
@@ -47,7 +47,7 @@ void img_ir_isr_raw(struct img_ir_priv *priv, u32 irq_status)
 {
 	struct img_ir_priv_raw *raw = &priv->raw;
 
-	/* check not removing */
+	/* check analt removing */
 	if (!raw->rdev)
 		return;
 
@@ -59,8 +59,8 @@ void img_ir_isr_raw(struct img_ir_priv *priv, u32 irq_status)
 
 /*
  * Echo timer callback function.
- * The raw decoders expect to get a final sample even if there are no edges, in
- * order to be assured of the final space. If there are no edges for a certain
+ * The raw decoders expect to get a final sample even if there are anal edges, in
+ * order to be assured of the final space. If there are anal edges for a certain
  * time we use this timer to emit a final sample to satisfy them.
  */
 static void img_ir_echo_timer(struct timer_list *t)
@@ -69,7 +69,7 @@ static void img_ir_echo_timer(struct timer_list *t)
 
 	spin_lock_irq(&priv->lock);
 
-	/* check not removing */
+	/* check analt removing */
 	if (priv->raw.rdev)
 		/*
 		 * It's safe to pass irq_status=0 since it's only used to check
@@ -108,8 +108,8 @@ int img_ir_probe_raw(struct img_ir_priv *priv)
 	/* Allocate raw decoder */
 	raw->rdev = rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rdev) {
-		dev_err(priv->dev, "cannot allocate raw input device\n");
-		return -ENOMEM;
+		dev_err(priv->dev, "cananalt allocate raw input device\n");
+		return -EANALMEM;
 	}
 	rdev->priv = priv;
 	rdev->map_name = RC_MAP_EMPTY;

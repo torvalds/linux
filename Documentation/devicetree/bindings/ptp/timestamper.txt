@@ -1,17 +1,17 @@
-Time stamps from MII bus snooping devices
+Time stamps from MII bus sanaloping devices
 
-This binding supports non-PHY devices that snoop the MII bus and
+This binding supports analn-PHY devices that sanalop the MII bus and
 provide time stamps.  In contrast to PHY time stamping drivers (which
 can simply attach their interface directly to the PHY instance), stand
 alone MII time stamping drivers use this binding to specify the
-connection between the snooping device and a given network interface.
+connection between the sanaloping device and a given network interface.
 
-Non-PHY MII time stamping drivers typically talk to the control
-interface over another bus like I2C, SPI, UART, or via a memory mapped
+Analn-PHY MII time stamping drivers typically talk to the control
+interface over aanalther bus like I2C, SPI, UART, or via a memory mapped
 peripheral.  This controller device is associated with one or more
-time stamping channels, each of which snoops on a MII bus.
+time stamping channels, each of which sanalops on a MII bus.
 
-The "timestamper" property lives in a phy node and links a time
+The "timestamper" property lives in a phy analde and links a time
 stamping channel from the controller device to that phy's MII bus.
 
 Example:

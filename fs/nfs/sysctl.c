@@ -35,7 +35,7 @@ int nfs_register_sysctl(void)
 {
 	nfs_callback_sysctl_table = register_sysctl("fs/nfs", nfs_cb_sysctls);
 	if (nfs_callback_sysctl_table == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

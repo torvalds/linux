@@ -6,9 +6,9 @@
 #include <linux/psp.h>
 
 enum psp_platform_access_msg {
-	PSP_CMD_NONE = 0x0,
+	PSP_CMD_ANALNE = 0x0,
 	PSP_I2C_REQ_BUS_CMD = 0x64,
-	PSP_DYNAMIC_BOOST_GET_NONCE,
+	PSP_DYNAMIC_BOOST_GET_ANALNCE,
 	PSP_DYNAMIC_BOOST_SET_UID,
 	PSP_DYNAMIC_BOOST_GET_PARAMETER,
 	PSP_DYNAMIC_BOOST_SET_PARAMETER,
@@ -33,9 +33,9 @@ struct psp_request {
  * Returns:
  *  0:           success
  *  -%EBUSY:     mailbox in recovery or in use
- *  -%ENODEV:    driver not bound with PSP device
+ *  -%EANALDEV:    driver analt bound with PSP device
  *  -%ETIMEDOUT: request timed out
- *  -%EIO:       unknown error (see kernel log)
+ *  -%EIO:       unkanalwn error (see kernel log)
  */
 int psp_send_platform_access_msg(enum psp_platform_access_msg, struct psp_request *req);
 
@@ -48,7 +48,7 @@ int psp_send_platform_access_msg(enum psp_platform_access_msg, struct psp_reques
  * Returns:
  *  0:           success
  *  -%EBUSY:     mailbox in recovery or in use
- *  -%ENODEV:    driver not bound with PSP device
+ *  -%EANALDEV:    driver analt bound with PSP device
  *  -%ETIMEDOUT: request timed out
  *  -%EIO:       error will be stored in result argument
  */
@@ -62,7 +62,7 @@ int psp_ring_platform_doorbell(int msg, u32 *result);
  *
  * Returns:
  * 0          platform features is ready
- * -%ENODEV   platform features is not ready or present
+ * -%EANALDEV   platform features is analt ready or present
  */
 int psp_check_platform_access_status(void);
 

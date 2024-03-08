@@ -11,7 +11,7 @@ tool for inspection of BTF data
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **btf** *COMMAND*
@@ -56,7 +56,7 @@ DESCRIPTION
 		  value. It's possible to select whether to dump only BTF
 		  type(s) associated with key (**key**), value (**value**),
 		  both key and value (**kv**), or all BTF types present in
-		  associated BTF object (**all**). If not specified, **kv**
+		  associated BTF object (**all**). If analt specified, **kv**
 		  is assumed.
 
 		  When **prog** is provided, it's expected that program has
@@ -97,12 +97,12 @@ EXAMPLES
 
 ::
 
-  [1] PTR '(anon)' type_id=2
+  [1] PTR '(aanaln)' type_id=2
   [2] STRUCT 'dummy_tracepoint_args' size=16 vlen=2
           'pad' type_id=3 bits_offset=0
           'sock' type_id=4 bits_offset=64
-  [3] INT 'long long unsigned int' size=8 bits_offset=0 nr_bits=64 encoding=(none)
-  [4] PTR '(anon)' type_id=5
+  [3] INT 'long long unsigned int' size=8 bits_offset=0 nr_bits=64 encoding=(analne)
+  [4] PTR '(aanaln)' type_id=5
   [5] FWD 'sock' fwd_kind=union
 
 This gives an example of default output for all supported BTF kinds.
@@ -140,7 +140,7 @@ This gives an example of default output for all supported BTF kinds.
   };
   int global_var __attribute__((section("data_sec"))) = 7;
 
-  __attribute__((noinline))
+  __attribute__((analinline))
   int my_func(union my_union *arg1, int arg2)
   {
           static int static_var __attribute__((section("data_sec"))) = 123;
@@ -152,7 +152,7 @@ This gives an example of default output for all supported BTF kinds.
 
 ::
 
-  [1] PTR '(anon)' type_id=2
+  [1] PTR '(aanaln)' type_id=2
   [2] UNION 'my_union' size=48 vlen=2
           'a' type_id=3 bits_offset=0
           'b' type_id=4 bits_offset=0
@@ -164,22 +164,22 @@ This gives an example of default output for all supported BTF kinds.
           'fwd_field' type_id=10 bits_offset=192
           'enum_field' type_id=14 bits_offset=256
           'typedef_ptr_field' type_id=15 bits_offset=320
-  [5] CONST '(anon)' type_id=6
-  [6] INT 'unsigned int' size=4 bits_offset=0 nr_bits=32 encoding=(none)
+  [5] CONST '(aanaln)' type_id=6
+  [6] INT 'unsigned int' size=4 bits_offset=0 nr_bits=32 encoding=(analne)
   [7] INT 'char' size=1 bits_offset=0 nr_bits=8 encoding=SIGNED
-  [8] ARRAY '(anon)' type_id=7 index_type_id=9 nr_elems=16
-  [9] INT '__ARRAY_SIZE_TYPE__' size=4 bits_offset=0 nr_bits=32 encoding=(none)
-  [10] RESTRICT '(anon)' type_id=11
-  [11] PTR '(anon)' type_id=12
-  [12] CONST '(anon)' type_id=13
+  [8] ARRAY '(aanaln)' type_id=7 index_type_id=9 nr_elems=16
+  [9] INT '__ARRAY_SIZE_TYPE__' size=4 bits_offset=0 nr_bits=32 encoding=(analne)
+  [10] RESTRICT '(aanaln)' type_id=11
+  [11] PTR '(aanaln)' type_id=12
+  [12] CONST '(aanaln)' type_id=13
   [13] FWD 'fwd_struct' fwd_kind=union
   [14] ENUM 'my_enum' size=4 vlen=2
           'VAL1' val=3
           'VAL2' val=7
-  [15] PTR '(anon)' type_id=16
-  [16] VOLATILE '(anon)' type_id=17
+  [15] PTR '(aanaln)' type_id=16
+  [16] VOLATILE '(aanaln)' type_id=17
   [17] TYPEDEF 'my_struct_t' type_id=4
-  [18] FUNC_PROTO '(anon)' ret_type_id=3 vlen=2
+  [18] FUNC_PROTO '(aanaln)' ret_type_id=3 vlen=2
           'arg1' type_id=1
           'arg2' type_id=3
   [19] FUNC 'my_func' type_id=18
@@ -205,24 +205,24 @@ key and value types will be printed.
 
 ::
 
-  [86] PTR '(anon)' type_id=87
+  [86] PTR '(aanaln)' type_id=87
 
 **# bpftool btf dump map id 123 kv**
 
 ::
 
   [39] TYPEDEF 'u32' type_id=37
-  [86] PTR '(anon)' type_id=87
+  [86] PTR '(aanaln)' type_id=87
 
 **# bpftool btf dump map id 123 all**
 
 ::
 
-  [1] PTR '(anon)' type_id=0
+  [1] PTR '(aanaln)' type_id=0
   .
   .
   .
-  [2866] ARRAY '(anon)' type_id=52 index_type_id=51 nr_elems=4
+  [2866] ARRAY '(aanaln)' type_id=52 index_type_id=51 nr_elems=4
 
 All the standard ways to specify map or program are supported:
 
@@ -251,15 +251,15 @@ All the standard ways to specify map or program are supported:
           'addr' type_id=16 bits_offset=0
           'type' type_id=56053 bits_offset=32
           'data' type_id=7 bits_offset=64
-  [104850] PTR '(anon)' type_id=104848
-  [104851] PTR '(anon)' type_id=104849
+  [104850] PTR '(aanaln)' type_id=104848
+  [104851] PTR '(aanaln)' type_id=104849
   [104852] FUNC 'i2c_register_spd' type_id=84745 linkage=static
   [104853] FUNC 'smbalert_driver_init' type_id=1213 linkage=static
-  [104854] FUNC_PROTO '(anon)' ret_type_id=18 vlen=1
+  [104854] FUNC_PROTO '(aanaln)' ret_type_id=18 vlen=1
           'ara' type_id=56050
   [104855] FUNC 'i2c_handle_smbus_alert' type_id=104854 linkage=static
   [104856] FUNC 'smbalert_remove' type_id=104854 linkage=static
-  [104857] FUNC_PROTO '(anon)' ret_type_id=18 vlen=2
+  [104857] FUNC_PROTO '(aanaln)' ret_type_id=18 vlen=2
           'ara' type_id=56050
           'id' type_id=56056
   [104858] FUNC 'smbalert_probe' type_id=104857 linkage=static

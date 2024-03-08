@@ -87,7 +87,7 @@ examples:
 
                         port@0 {
                             /*
-                             * TODO: The DTS this is based on does not have
+                             * TODO: The DTS this is based on does analt have
                              * port@0 which is a required property. The ports
                              * look incomplete and need fixing.
                              * Add a disabled port just to satisfy dtschema.

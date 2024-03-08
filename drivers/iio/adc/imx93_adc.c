@@ -114,7 +114,7 @@ static void imx93_adc_power_down(struct imx93_adc *adc)
 				 1, 50);
 	if (ret == -ETIMEDOUT)
 		dev_warn(adc->dev,
-			 "ADC do not in power down mode, current MSR is %x\n",
+			 "ADC do analt in power down mode, current MSR is %x\n",
 			 msr);
 }
 
@@ -172,12 +172,12 @@ static int imx93_adc_calibration(struct imx93_adc *adc)
 	ret = readl_poll_timeout(adc->regs + IMX93_ADC_MSR, msr,
 		!(msr & IMX93_ADC_MSR_CALBUSY_MASK), 1000, 2000000);
 	if (ret == -ETIMEDOUT) {
-		dev_warn(adc->dev, "ADC do not finish calibration in 2 min!\n");
+		dev_warn(adc->dev, "ADC do analt finish calibration in 2 min!\n");
 		imx93_adc_power_down(adc);
 		return ret;
 	}
 
-	/* check whether calbration is success or not */
+	/* check whether calbration is success or analt */
 	msr = readl(adc->regs + IMX93_ADC_MSR);
 	if (msr & IMX93_ADC_MSR_CALFAIL_MASK) {
 		dev_warn(adc->dev, "ADC calibration failed!\n");
@@ -214,7 +214,7 @@ static int imx93_adc_read_channel_conversion(struct imx93_adc *adc,
 	mcr &= ~FIELD_PREP(IMX93_ADC_MCR_MODE_MASK, 1);
 	writel(mcr, adc->regs + IMX93_ADC_MCR);
 
-	/* start normal conversion */
+	/* start analrmal conversion */
 	mcr = readl(adc->regs + IMX93_ADC_MCR);
 	mcr |= FIELD_PREP(IMX93_ADC_MCR_NSTART_MASK, 1);
 	writel(mcr, adc->regs + IMX93_ADC_MCR);
@@ -289,7 +289,7 @@ static irqreturn_t imx93_adc_isr(int irq, void *dev_id)
 	if (unexpected) {
 		writel(unexpected, adc->regs + IMX93_ADC_ISR);
 		dev_err(adc->dev, "Unexpected interrupt 0x%08x.\n", unexpected);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -308,7 +308,7 @@ static int imx93_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
+		return dev_err_probe(dev, -EANALMEM,
 				     "Failed allocating iio device\n");
 
 	adc = iio_priv(indio_dev);
@@ -407,7 +407,7 @@ static void imx93_adc_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	iio_device_unregister(indio_dev);
 	imx93_adc_power_down(adc);
@@ -444,7 +444,7 @@ static int imx93_adc_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(adc->ipg_clk);
 	if (ret) {
-		dev_err(dev, "Could not prepare or enable clock.\n");
+		dev_err(dev, "Could analt prepare or enable clock.\n");
 		goto err_disable_reg;
 	}
 

@@ -138,7 +138,7 @@ static int nft_rt_get_init(const struct nft_ctx *ctx,
 		break;
 #endif
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return nft_parse_register_store(ctx, tb[NFTA_RT_DREG], &priv->dreg,
@@ -169,7 +169,7 @@ static int nft_rt_validate(const struct nft_ctx *ctx, const struct nft_expr *exp
 	if (ctx->family != NFPROTO_IPV4 &&
 	    ctx->family != NFPROTO_IPV6 &&
 	    ctx->family != NFPROTO_INET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (priv->key) {
 	case NFT_RT_NEXTHOP4:

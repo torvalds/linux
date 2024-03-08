@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _M68K_STAT_H
 #define _M68K_STAT_H
 
 struct __old_kernel_stat {
 	unsigned short st_dev;
-	unsigned short st_ino;
+	unsigned short st_ianal;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -19,7 +19,7 @@ struct __old_kernel_stat {
 struct stat {
 	unsigned short st_dev;
 	unsigned short __pad1;
-	unsigned long  st_ino;
+	unsigned long  st_ianal;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -46,8 +46,8 @@ struct stat64 {
 	unsigned long long	st_dev;
 	unsigned char	__pad1[2];
 
-#define STAT64_HAS_BROKEN_ST_INO	1
-	unsigned long	__st_ino;
+#define STAT64_HAS_BROKEN_ST_IANAL	1
+	unsigned long	__st_ianal;
 
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
@@ -72,7 +72,7 @@ struct stat64 {
 	unsigned long	st_ctime;
 	unsigned long	st_ctime_nsec;
 
-	unsigned long long	st_ino;
+	unsigned long long	st_ianal;
 };
 
 #endif /* _M68K_STAT_H */

@@ -29,7 +29,7 @@ static int victim_child(union pipe read_pipe, union pipe write_pipe)
 	setup_ebb_handler(standard_ebb_callee);
 	ebb_global_enable();
 
-	FAIL_IF(notify_parent(write_pipe));
+	FAIL_IF(analtify_parent(write_pipe));
 
 	while (ebb_state.stats.ebb_count < 20) {
 		FAIL_IF(core_busy_loop());
@@ -66,7 +66,7 @@ int ebb_on_willing_child(void)
 	/* Signal the child to setup its EBB handler */
 	FAIL_IF(sync_with_child(read_pipe, write_pipe));
 
-	/* Child is running now */
+	/* Child is running analw */
 
 	event_init_named(&event, 0x1001e, "cycles");
 	event_leader_ebb_init(&event);
@@ -78,7 +78,7 @@ int ebb_on_willing_child(void)
 	FAIL_IF(event_open_with_pid(&event, pid));
 	FAIL_IF(ebb_event_enable(&event));
 
-	/* Child show now take EBBs and then exit */
+	/* Child show analw take EBBs and then exit */
 	FAIL_IF(wait_for_child(pid));
 
 	event_close(&event);

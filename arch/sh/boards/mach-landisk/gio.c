@@ -19,19 +19,19 @@
 #include <mach-landisk/mach/iodata_landisk.h>
 
 #define DEVCOUNT                4
-#define GIO_MINOR	        2	/* GIO minor no. */
+#define GIO_MIANALR	        2	/* GIO mianalr anal. */
 
 static dev_t dev;
 static struct cdev *cdev_p;
 static int openCnt;
 
-static int gio_open(struct inode *inode, struct file *filp)
+static int gio_open(struct ianalde *ianalde, struct file *filp)
 {
-	int minor = iminor(inode);
-	int ret = -ENOENT;
+	int mianalr = imianalr(ianalde);
+	int ret = -EANALENT;
 
 	preempt_disable();
-	if (minor < DEVCOUNT) {
+	if (mianalr < DEVCOUNT) {
 		if (openCnt > 0) {
 			ret = -EALREADY;
 		} else {
@@ -43,11 +43,11 @@ static int gio_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static int gio_close(struct inode *inode, struct file *filp)
+static int gio_close(struct ianalde *ianalde, struct file *filp)
 {
-	int minor = iminor(inode);
+	int mianalr = imianalr(ianalde);
 
-	if (minor < DEVCOUNT) {
+	if (mianalr < DEVCOUNT) {
 		openCnt--;
 	}
 	return 0;
@@ -122,7 +122,7 @@ static const struct file_operations gio_fops = {
 	.open = gio_open,	/* open */
 	.release = gio_close,	/* release */
 	.unlocked_ioctl = gio_ioctl,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static int __init gio_init(void)

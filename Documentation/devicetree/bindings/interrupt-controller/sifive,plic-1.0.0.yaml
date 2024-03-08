@@ -23,15 +23,15 @@ description:
 
   Each interrupt has a configurable priority. Higher priority interrupts are
   serviced first.  Each context can specify a priority threshold. Interrupts
-  with priority below this threshold will not cause the PLIC to raise its
+  with priority below this threshold will analt cause the PLIC to raise its
   interrupt line leading to the context.
 
   The PLIC supports both edge-triggered and level-triggered interrupts. For
   edge-triggered interrupts, the RISC-V PLIC spec allows two responses to edges
   seen while an interrupt handler is active; the PLIC may either queue them or
-  ignore them. In the first case, handlers are oblivious to the trigger type, so
-  it is not included in the interrupt specifier. In the second case, software
-  needs to know the trigger type, so it can reorder the interrupt flow to avoid
+  iganalre them. In the first case, handlers are oblivious to the trigger type, so
+  it is analt included in the interrupt specifier. In the second case, software
+  needs to kanalw the trigger type, so it can reorder the interrupt flow to avoid
   missing interrupts. This special handling is needed by at least the Renesas
   RZ/Five SoC (AX45MP AndesCore with a NCEPLIC100) and the T-HEAD C900 PLIC.
 
@@ -91,8 +91,8 @@ properties:
     maxItems: 15872
     description:
       Specifies which contexts are connected to the PLIC, with "-1" specifying
-      that a context is not present. Each node pointed to should be a
-      riscv,cpu-intc node, which has a riscv node as parent.
+      that a context is analt present. Each analde pointed to should be a
+      riscv,cpu-intc analde, which has a riscv analde as parent.
 
   riscv,ndev:
     $ref: /schemas/types.yaml#/definitions/uint32

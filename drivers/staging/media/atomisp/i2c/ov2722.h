@@ -44,22 +44,22 @@
 
 /*
  * focal length bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
+ * bits 31-16: numerator, bits 15-0: deanalminator
  */
 #define OV2722_FOCAL_LENGTH_DEFAULT 0x1160064
 
 /*
  * current f-number bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
+ * bits 31-16: numerator, bits 15-0: deanalminator
  */
 #define OV2722_F_NUMBER_DEFAULT 0x1a000a
 
 /*
  * f-number range bits definition:
  * bits 31-24: max f-number numerator
- * bits 23-16: max f-number denominator
+ * bits 23-16: max f-number deanalminator
  * bits 15-8: min f-number numerator
- * bits 7-0: min f-number denominator
+ * bits 7-0: min f-number deanalminator
  */
 #define OV2722_F_NUMBER_RANGE 0x1a0a1a0a
 #define OV2720_ID	0x2720
@@ -1141,7 +1141,7 @@ static struct ov2722_resolution ov2722_res_preview[] = {
 #define N_RES_PREVIEW (ARRAY_SIZE(ov2722_res_preview))
 
 /*
- * Disable non-preview configurations until the configuration selection is
+ * Disable analn-preview configurations until the configuration selection is
  * improved.
  */
 #if 0

@@ -36,8 +36,8 @@ static struct ctl_table firmware_config_table[] = {
 		.extra2		= SYSCTL_ONE,
 	},
 	{
-		.procname	= "ignore_sysfs_fallback",
-		.data		= &fw_fallback_config.ignore_sysfs_fallback,
+		.procname	= "iganalre_sysfs_fallback",
+		.data		= &fw_fallback_config.iganalre_sysfs_fallback,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
 		.proc_handler   = proc_douintvec_minmax,
@@ -53,7 +53,7 @@ int register_firmware_config_sysctl(void)
 		register_sysctl("kernel/firmware_config",
 				firmware_config_table);
 	if (!firmware_config_sysct_table_header)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(register_firmware_config_sysctl, FIRMWARE_LOADER_PRIVATE);

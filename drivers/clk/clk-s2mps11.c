@@ -21,7 +21,7 @@
 
 struct s2mps11_clk {
 	struct sec_pmic_dev *iodev;
-	struct device_node *clk_np;
+	struct device_analde *clk_np;
 	struct clk_hw hw;
 	struct clk *clk;
 	struct clk_lookup *lookup;
@@ -94,19 +94,19 @@ static struct clk_init_data s2mps11_clks_init[S2MPS11_CLKS_NUM] = {
 	},
 };
 
-static struct device_node *s2mps11_clk_parse_dt(struct platform_device *pdev,
+static struct device_analde *s2mps11_clk_parse_dt(struct platform_device *pdev,
 		struct clk_init_data *clks_init)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *clk_np;
+	struct device_analde *clk_np;
 	int i;
 
-	if (!iodev->dev->of_node)
+	if (!iodev->dev->of_analde)
 		return ERR_PTR(-EINVAL);
 
-	clk_np = of_get_child_by_name(iodev->dev->of_node, "clocks");
+	clk_np = of_get_child_by_name(iodev->dev->of_analde, "clocks");
 	if (!clk_np) {
-		dev_err(&pdev->dev, "could not find clock sub-node\n");
+		dev_err(&pdev->dev, "could analt find clock sub-analde\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -129,13 +129,13 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	s2mps11_clks = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
 				sizeof(*s2mps11_clks), GFP_KERNEL);
 	if (!s2mps11_clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data = devm_kzalloc(&pdev->dev,
 				struct_size(clk_data, hws, S2MPS11_CLKS_NUM),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (hwid) {
 	case S2MPS11X:
@@ -155,14 +155,14 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* Store clocks of_node in first element of s2mps11_clks array */
+	/* Store clocks of_analde in first element of s2mps11_clks array */
 	s2mps11_clks->clk_np = s2mps11_clk_parse_dt(pdev, s2mps11_clks_init);
 	if (IS_ERR(s2mps11_clks->clk_np))
 		return PTR_ERR(s2mps11_clks->clk_np);
 
 	for (i = 0; i < S2MPS11_CLKS_NUM; i++) {
 		if (i == S2MPS11_CLK_CP && hwid == S2MPS14X)
-			continue; /* Skip clocks not present in some devices */
+			continue; /* Skip clocks analt present in some devices */
 		s2mps11_clks[i].iodev = iodev;
 		s2mps11_clks[i].hw.init = &s2mps11_clks_init[i];
 		s2mps11_clks[i].mask = 1 << i;
@@ -180,7 +180,7 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 		s2mps11_clks[i].lookup = clkdev_hw_create(&s2mps11_clks[i].hw,
 					s2mps11_clks_init[i].name, NULL);
 		if (!s2mps11_clks[i].lookup) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_reg;
 		}
 		clk_data->hws[i] = &s2mps11_clks[i].hw;
@@ -195,7 +195,7 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	return ret;
 
 err_reg:
-	of_node_put(s2mps11_clks[0].clk_np);
+	of_analde_put(s2mps11_clks[0].clk_np);
 	while (--i >= 0)
 		clkdev_drop(s2mps11_clks[i].lookup);
 
@@ -209,10 +209,10 @@ static void s2mps11_clk_remove(struct platform_device *pdev)
 
 	of_clk_del_provider(s2mps11_clks[0].clk_np);
 	/* Drop the reference obtained in s2mps11_clk_parse_dt */
-	of_node_put(s2mps11_clks[0].clk_np);
+	of_analde_put(s2mps11_clks[0].clk_np);
 
 	for (i = 0; i < S2MPS11_CLKS_NUM; i++) {
-		/* Skip clocks not present on S2MPS14 */
+		/* Skip clocks analt present on S2MPS14 */
 		if (!s2mps11_clks[i].lookup)
 			continue;
 		clkdev_drop(s2mps11_clks[i].lookup);
@@ -233,10 +233,10 @@ MODULE_DEVICE_TABLE(platform, s2mps11_clk_id);
  * Device is instantiated through parent MFD device and device matching is done
  * through platform_device_id.
  *
- * However if device's DT node contains proper clock compatible and driver is
+ * However if device's DT analde contains proper clock compatible and driver is
  * built as a module, then the *module* matching will be done trough DT aliases.
- * This requires of_device_id table.  In the same time this will not change the
- * actual *device* matching so do not add .of_match_table.
+ * This requires of_device_id table.  In the same time this will analt change the
+ * actual *device* matching so do analt add .of_match_table.
  */
 static const struct of_device_id s2mps11_dt_match[] __used = {
 	{

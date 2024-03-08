@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Broadcom Kona family Secure Monitor bounce buffer
 
 description:
-  A bounce buffer used for non-secure to secure communications.
+  A bounce buffer used for analn-secure to secure communications.
 
 maintainers:
   - Florian Fainelli <f.fainelli@gmail.com>

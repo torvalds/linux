@@ -18,7 +18,7 @@
 #include "rockchip_pdm.h"
 
 #define PDM_DMA_BURST_SIZE	(8) /* size * width: 8*4 = 32 bytes */
-#define PDM_SIGNOFF_CLK_RATE	(100000000)
+#define PDM_SIGANALFF_CLK_RATE	(100000000)
 #define PDM_PATH_MAX		(4)
 
 enum rk_pdm_version {
@@ -100,7 +100,7 @@ static unsigned int get_pdm_clk(struct rk_pdm_dev *pdm, unsigned int sr,
 	}
 
 	if (!clk) {
-		clk = clk_round_rate(pdm->clk, PDM_SIGNOFF_CLK_RATE);
+		clk = clk_round_rate(pdm->clk, PDM_SIGANALFF_CLK_RATE);
 		*clk_src = clk;
 	}
 	return clk;
@@ -224,10 +224,10 @@ static int rockchip_pdm_hw_params(struct snd_pcm_substream *substream,
 					    &m, &n);
 
 		val = (m << PDM_FD_NUMERATOR_SFT) |
-			(n << PDM_FD_DENOMINATOR_SFT);
+			(n << PDM_FD_DEANALMINATOR_SFT);
 		regmap_update_bits_check(pdm->regmap, PDM_CTRL1,
 					 PDM_FD_NUMERATOR_MSK |
-					 PDM_FD_DENOMINATOR_MSK,
+					 PDM_FD_DEANALMINATOR_MSK,
 					 val, &change);
 		if (change) {
 			reset_control_assert(pdm->reset);
@@ -325,7 +325,7 @@ static int rockchip_pdm_set_fmt(struct snd_soc_dai *cpu_dai,
 	mask = PDM_CKP_MSK;
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		val = PDM_CKP_NORMAL;
+		val = PDM_CKP_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		val = PDM_CKP_INVERTED;
@@ -541,17 +541,17 @@ static const struct of_device_id rockchip_pdm_match[] __maybe_unused = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_pdm_match);
 
-static int rockchip_pdm_path_parse(struct rk_pdm_dev *pdm, struct device_node *node)
+static int rockchip_pdm_path_parse(struct rk_pdm_dev *pdm, struct device_analde *analde)
 {
 	unsigned int path[PDM_PATH_MAX];
 	int cnt = 0, ret = 0, i = 0, val = 0, msk = 0;
 
-	cnt = of_count_phandle_with_args(node, "rockchip,path-map",
+	cnt = of_count_phandle_with_args(analde, "rockchip,path-map",
 					 NULL);
 	if (cnt != PDM_PATH_MAX)
 		return cnt;
 
-	ret = of_property_read_u32_array(node, "rockchip,path-map",
+	ret = of_property_read_u32_array(analde, "rockchip,path-map",
 					 path, cnt);
 	if (ret)
 		return ret;
@@ -570,7 +570,7 @@ static int rockchip_pdm_path_parse(struct rk_pdm_dev *pdm, struct device_node *n
 
 static int rockchip_pdm_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct rk_pdm_dev *pdm;
 	struct resource *res;
 	void __iomem *regs;
@@ -578,7 +578,7 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 
 	pdm = devm_kzalloc(&pdev->dev, sizeof(*pdm), GFP_KERNEL);
 	if (!pdm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdm->version = (enum rk_pdm_version)device_get_match_data(&pdev->dev);
 	if (pdm->version == RK_PDM_RK3308) {
@@ -627,19 +627,19 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 					      &rockchip_pdm_dai, 1);
 
 	if (ret) {
-		dev_err(&pdev->dev, "could not register dai: %d\n", ret);
+		dev_err(&pdev->dev, "could analt register dai: %d\n", ret);
 		goto err_suspend;
 	}
 
 	rockchip_pdm_rxctrl(pdm, 0);
 
-	ret = rockchip_pdm_path_parse(pdm, node);
-	if (ret != 0 && ret != -ENOENT)
+	ret = rockchip_pdm_path_parse(pdm, analde);
+	if (ret != 0 && ret != -EANALENT)
 		goto err_suspend;
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register pcm: %d\n", ret);
+		dev_err(&pdev->dev, "could analt register pcm: %d\n", ret);
 		goto err_suspend;
 	}
 

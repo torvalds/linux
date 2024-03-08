@@ -122,7 +122,7 @@
 		};
 
 		mmc0: sdhci@9060000 {
-			non-removable;
+			analn-removable;
 			status = "okay";
 		};
 
@@ -176,7 +176,7 @@
 			/* tsin0 is TSA on NIMA */
 			tsin0: port {
 				tsin-num = <0>;
-				serial-not-parallel;
+				serial-analt-parallel;
 				i2c-bus = <&ssc2>;
 				reset-gpios = <&pio15 4 GPIO_ACTIVE_LOW>;
 				dvb-card = <STV0367_TDA18212_NIMA_1>;

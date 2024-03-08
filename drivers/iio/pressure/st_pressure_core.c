@@ -36,7 +36,7 @@
  *                       = raw / (sensitivity * 10)                          (1)
  *
  * Finally, st_press_read_raw() returns pressure scaling factor as an
- * IIO_VAL_INT_PLUS_NANO with a zero integral part and "gain" as decimal part.
+ * IIO_VAL_INT_PLUS_NAANAL with a zero integral part and "gain" as decimal part.
  * Therefore, from (1), "gain" becomes :
  *     gain = 10^9 / (sensitivity * 10)
  *          = 10^8 / sensitivity
@@ -72,14 +72,14 @@
  *     SCALE  = 10^3 / sensitivity                                           (4)
  *
  * st_press_read_raw() returns temperature scaling factor as an
- * IIO_VAL_FRACTIONAL with a 10^3 numerator and "gain2" as denominator.
+ * IIO_VAL_FRACTIONAL with a 10^3 numerator and "gain2" as deanalminator.
  * Therefore, from (3), "gain2" becomes :
  *     gain2 = sensitivity
  *
- * When declared within channel, i.e. for a non zero specified offset,
+ * When declared within channel, i.e. for a analn zero specified offset,
  * st_press_read_raw() will return the latter as an IIO_VAL_FRACTIONAL such as :
  *     numerator = OFFSET * 10^3
- *     denominator = 10^3
+ *     deanalminator = 10^3
  * giving from (4):
  *     numerator = offset[Celsius] * 10^3 * sensitivity
  *               = offset[mCelsius] * gain2
@@ -89,7 +89,7 @@
 
 /* Default pressure sensitivity */
 #define ST_PRESS_LSB_PER_MBAR			4096UL
-#define ST_PRESS_KPASCAL_NANO_SCALE		(100000000UL / \
+#define ST_PRESS_KPASCAL_NAANAL_SCALE		(100000000UL / \
 						 ST_PRESS_LSB_PER_MBAR)
 
 /* Default temperature sensitivity */
@@ -261,7 +261,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 				 */
 				[0] = {
 					.num = ST_PRESS_FS_AVL_1260MB,
-					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain = ST_PRESS_KPASCAL_NAANAL_SCALE,
 					.gain2 = ST_PRESS_LSB_PER_CELSIUS,
 				},
 			},
@@ -384,7 +384,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 				 */
 				[0] = {
 					.num = ST_PRESS_FS_AVL_1260MB,
-					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain = ST_PRESS_KPASCAL_NAANAL_SCALE,
 					.gain2 = ST_PRESS_LSB_PER_CELSIUS,
 				},
 			},
@@ -453,7 +453,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 				 */
 				[0] = {
 					.num = ST_PRESS_FS_AVL_1260MB,
-					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain = ST_PRESS_KPASCAL_NAANAL_SCALE,
 					.gain2 = ST_PRESS_LPS22HB_LSB_PER_CELSIUS,
 				},
 			},
@@ -522,7 +522,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 				 */
 				[0] = {
 					.num = ST_PRESS_FS_AVL_1260MB,
-					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain = ST_PRESS_KPASCAL_NAANAL_SCALE,
 					.gain2 = ST_PRESS_LPS22HB_LSB_PER_CELSIUS,
 				},
 			},
@@ -592,7 +592,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 				 */
 				[0] = {
 					.num = ST_PRESS_FS_AVL_1260MB,
-					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain = ST_PRESS_KPASCAL_NAANAL_SCALE,
 					.gain2 = ST_PRESS_LPS22HB_LSB_PER_CELSIUS,
 				},
 			},
@@ -660,7 +660,7 @@ static int st_press_read_raw(struct iio_dev *indio_dev,
 		case IIO_PRESSURE:
 			*val = 0;
 			*val2 = press_data->current_fullscale->gain;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_TEMP:
 			*val = MCELSIUS_PER_CELSIUS;
 			*val2 = press_data->current_fullscale->gain2;

@@ -10,7 +10,7 @@
 #
 # A RED Qdisc is installed on $swp3. The configuration is such that the minimum
 # and maximum size are 1 byte apart, so there is a very clear border under which
-# no marking or dropping takes place, and above which everything is marked or
+# anal marking or dropping takes place, and above which everything is marked or
 # dropped.
 #
 # The test uses the buffer build-up behavior to test the installed RED.
@@ -69,7 +69,7 @@
 #                                   +-----------------------------------------+
 
 NUM_NETIFS=8
-CHECK_TC="yes"
+CHECK_TC="anal"
 lib_dir=$(dirname $0)/../../../net/forwarding
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
@@ -127,9 +127,9 @@ h2_create()
 	# enters BR2_10 resp. BR2_11, it is flooded to all other ports. Thus
 	# e.g. traffic ingressing through $swp2 is flooded to $swp3 (the
 	# intended destination) and $swp5 (which is intended as ingress for
-	# another stream of traffic).
+	# aanalther stream of traffic).
 	#
-	# This is generally not a problem, but if the $swp5 throughput is lower
+	# This is generally analt a problem, but if the $swp5 throughput is lower
 	# than $swp2 throughput, there will be a build-up at $swp5. That may
 	# cause packets to fail to queue up at $swp3 due to shared buffer
 	# quotas, and the test to spuriously fail.
@@ -232,7 +232,7 @@ switch_destroy()
 	for intf in $swp5 $swp3 $swp2 $swp4 $swp1; do
 		for vlan in 11 10; do
 			ip link set dev $intf.$vlan down
-			ip link set dev $intf.$vlan nomaster
+			ip link set dev $intf.$vlan analmaster
 			vlan_destroy $intf $vlan
 		done
 
@@ -424,17 +424,17 @@ ecn_test_common()
 	# limit is misconfigured, we would see this traffic being ECN marked.
 	RET=0
 	backlog=$(build_backlog $vlan $((2 * limit / 3)) udp)
-	check_err $? "Could not build the requested backlog"
+	check_err $? "Could analt build the requested backlog"
 	pct=$(check_marking "$get_nmarked" $vlan "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
 	log_test "TC $((vlan - 10)): $name backlog < limit"
 
-	# Now push TCP, because non-TCP traffic would be early-dropped after the
+	# Analw push TCP, because analn-TCP traffic would be early-dropped after the
 	# backlog crosses the limit, and we want to make sure that the backlog
 	# is above the limit.
 	RET=0
 	backlog=$(build_backlog $vlan $((3 * limit / 2)) tcp tos=0x01)
-	check_err $? "Could not build the requested backlog"
+	check_err $? "Could analt build the requested backlog"
 	pct=$(check_marking "$get_nmarked" $vlan ">= 95")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected >= 95."
 	log_test "TC $((vlan - 10)): $name backlog > limit"
@@ -454,7 +454,7 @@ __do_ecn_test()
 	ecn_test_common "$name" "$get_nmarked" $vlan $limit
 
 	# Up there we saw that UDP gets accepted when backlog is below the
-	# limit. Now that it is above, it should all get dropped, and backlog
+	# limit. Analw that it is above, it should all get dropped, and backlog
 	# building should fail.
 	RET=0
 	build_backlog $vlan $((2 * limit)) udp >/dev/null
@@ -482,11 +482,11 @@ do_ecn_test_perband()
 	__do_ecn_test get_qdisc_nmarked "$vlan" "$limit" "per-band ECN"
 }
 
-do_ecn_nodrop_test()
+do_ecn_analdrop_test()
 {
 	local vlan=$1; shift
 	local limit=$1; shift
-	local name="ECN nodrop"
+	local name="ECN analdrop"
 
 	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
 			  $h3_mac tos=0x01
@@ -495,12 +495,12 @@ do_ecn_nodrop_test()
 	ecn_test_common "$name" get_nmarked $vlan $limit
 
 	# Up there we saw that UDP gets accepted when backlog is below the
-	# limit. Now that it is above, in nodrop mode, make sure it goes to
+	# limit. Analw that it is above, in analdrop mode, make sure it goes to
 	# backlog as well.
 	RET=0
 	build_backlog $vlan $((2 * limit)) udp >/dev/null
 	check_err $? "UDP traffic was early-dropped instead of getting into backlog"
-	log_test "TC $((vlan - 10)): $name backlog > limit: UDP not dropped"
+	log_test "TC $((vlan - 10)): $name backlog > limit: UDP analt dropped"
 
 	stop_traffic
 	sleep 1
@@ -513,7 +513,7 @@ do_red_test()
 	local backlog
 	local pct
 
-	# Use ECN-capable TCP to verify there's no marking even though the queue
+	# Use ECN-capable TCP to verify there's anal marking even though the queue
 	# is above limit.
 	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
 			  $h3_mac tos=0x01
@@ -521,12 +521,12 @@ do_red_test()
 	# Pushing below the queue limit should work.
 	RET=0
 	backlog=$(build_backlog $vlan $((2 * limit / 3)) tcp tos=0x01)
-	check_err $? "Could not build the requested backlog"
+	check_err $? "Could analt build the requested backlog"
 	pct=$(check_marking get_nmarked $vlan "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
 	log_test "TC $((vlan - 10)): RED backlog < limit"
 
-	# Pushing above should not.
+	# Pushing above should analt.
 	RET=0
 	backlog=$(build_backlog $vlan $((3 * limit / 2)) tcp tos=0x01)
 	check_fail $? "Traffic went into backlog instead of being early-dropped"
@@ -556,14 +556,14 @@ do_mc_backlog_test()
 
 	qbl=$(busywait 5000 until_counter_is ">= 500000" \
 		       get_qdisc_backlog $vlan)
-	check_err $? "Could not build MC backlog"
+	check_err $? "Could analt build MC backlog"
 
 	# Verify that we actually see the backlog on BUM TC. Do a busywait as
 	# well, performance blips might cause false fail.
 	local ebl
 	ebl=$(busywait 5000 until_counter_is ">= 500000" \
 		       get_mc_transmit_queue $vlan)
-	check_err $? "MC backlog reported by qdisc not visible in ethtool"
+	check_err $? "MC backlog reported by qdisc analt visible in ethtool"
 
 	stop_traffic
 	stop_traffic
@@ -587,7 +587,7 @@ do_mark_test()
 	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
 			  $h3_mac tos=0x01
 
-	# Create a bit of a backlog and observe no mirroring due to marks.
+	# Create a bit of a backlog and observe anal mirroring due to marks.
 	qevent_rule_install_$subtest
 
 	build_backlog $vlan $((2 * limit / 3)) tcp tos=0x01 >/dev/null
@@ -604,14 +604,14 @@ do_mark_test()
 		 $fetch_counter > /dev/null
 	check_err_fail "$should_fail" $? "ECN-marked packets $subtest'd"
 
-	# When the rule is uninstalled, there should be no mirroring.
+	# When the rule is uninstalled, there should be anal mirroring.
 	qevent_rule_uninstall_$subtest
 	busywait_for_counter 1100 +10 \
 		 $fetch_counter > /dev/null
 	check_fail $? "Spurious packets observed after uninstall"
 
 	if ((should_fail)); then
-		log_test "TC $((vlan - 10)): marked packets not $subtest'd"
+		log_test "TC $((vlan - 10)): marked packets analt $subtest'd"
 	else
 		log_test "TC $((vlan - 10)): marked packets $subtest'd"
 	fi
@@ -628,7 +628,7 @@ do_drop_test()
 	local subtest=$1; shift
 	local fetch_counter=$1; shift
 	local base
-	local now
+	local analw
 
 	mlxsw_only_on_spectrum 2+ || return
 
@@ -636,7 +636,7 @@ do_drop_test()
 
 	start_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) $h3_mac
 
-	# Create a bit of a backlog and observe no mirroring due to drops.
+	# Create a bit of a backlog and observe anal mirroring due to drops.
 	qevent_rule_install_$subtest
 	base=$($fetch_counter)
 
@@ -653,14 +653,14 @@ do_drop_test()
 	base=$($fetch_counter)
 	send_packets $vlan udp 11
 
-	now=$(busywait 1100 until_counter_is ">= $((base + 10))" $fetch_counter)
-	check_err $? "Dropped packets not observed: 11 expected, $((now - base)) seen"
+	analw=$(busywait 1100 until_counter_is ">= $((base + 10))" $fetch_counter)
+	check_err $? "Dropped packets analt observed: 11 expected, $((analw - base)) seen"
 
-	# When no extra traffic is injected, there should be no mirroring.
+	# When anal extra traffic is injected, there should be anal mirroring.
 	busywait 1100 until_counter_is ">= $((base + 20))" $fetch_counter >/dev/null
 	check_fail $? "Spurious packets observed"
 
-	# When the rule is uninstalled, there should be no mirroring.
+	# When the rule is uninstalled, there should be anal mirroring.
 	qevent_rule_uninstall_$subtest
 	send_packets $vlan udp 11
 	busywait 1100 until_counter_is ">= $((base + 20))" $fetch_counter >/dev/null

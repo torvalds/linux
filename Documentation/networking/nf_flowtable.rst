@@ -19,9 +19,9 @@ action that allows you to specify when to add a flow to the flowtable.
 
 A packet that finds a matching entry in the flowtable (ie. flowtable hit) is
 transmitted to the output netdevice via neigh_xmit(), hence, packets bypass the
-classic IP forwarding path (the visible effect is that you do not see these
+classic IP forwarding path (the visible effect is that you do analt see these
 packets from any of the Netfilter hooks coming after ingress). In case that
-there is no matching entry in the flowtable (ie. flowtable miss), the packet
+there is anal matching entry in the flowtable (ie. flowtable miss), the packet
 follows the classic IP forwarding path.
 
 The flowtable uses a resizable hashtable. Lookups are based on the following
@@ -62,10 +62,10 @@ forwarding path including the Netfilter hooks and the flowtable fastpath bypass.
     |_____|   |                     flowtable                             |
        |      |                                                           |
       / \     |                                                           |
-     /hit\_no_|                                                           |
+     /hit\_anal_|                                                           |
      \ ? /                                                                |
       \ /                                                                 |
-       |__yes_________________fastpath bypass ____________________________|
+       |__anal_________________fastpath bypass ____________________________|
 
 	       Fig.1 Netfilter hooks and flowtable interactions
 
@@ -73,7 +73,7 @@ The flowtable entry also stores the NAT configuration, so all packets are
 mangled according to the NAT policy that is specified from the classic IP
 forwarding path. The TTL is decremented before calling neigh_xmit(). Fragmented
 traffic is passed up to follow the classic IP forwarding path given that the
-transport header is missing, in this case, flowtable lookups are not possible.
+transport header is missing, in this case, flowtable lookups are analt possible.
 TCP RST and FIN packets are also passed up to the classic IP forwarding path to
 release the flow gracefully. Packets that exceed the MTU are also passed up to
 the classic forwarding path to report packet-too-big ICMP errors to the sender.
@@ -105,7 +105,7 @@ nftables ingress chain hence the flowtable runs before in the pipeline).
 The 'flow offload' action from the forward chain 'y' adds an entry to the
 flowtable for the TCP syn-ack packet coming in the reply direction. Once the
 flow is offloaded, you will observe that the counter rule in the example above
-does not get updated for the packets that are being forwarded through the
+does analt get updated for the packets that are being forwarded through the
 forwarding bypass.
 
 You can identify offloaded flows through the [OFFLOAD] tag when listing your
@@ -126,7 +126,7 @@ parses the VLAN and PPPoE layer 2 headers to extract the ethertype and the
 VLAN ID / PPPoE session ID which are used for the flowtable lookups. The
 flowtable datapath also deals with layer 2 decapsulation.
 
-You do not need to add the PPPoE and the VLAN devices to your flowtable,
+You do analt need to add the PPPoE and the VLAN devices to your flowtable,
 instead the real device is sufficient for the flowtable to track your flows.
 
 Bridge and IP forwarding
@@ -195,12 +195,12 @@ means of the 'offload' flag in your flowtable definition, e.g.
 		}
 	}
 
-There is a workqueue that adds the flows to the hardware. Note that a few
+There is a workqueue that adds the flows to the hardware. Analte that a few
 packets might still run over the flowtable software path until the workqueue has
 a chance to offload the flow to the network device.
 
 You can identify hardware offloaded flows through the [HW_OFFLOAD] tag when
-listing your connection tracking table. Please, note that the [OFFLOAD] tag
+listing your connection tracking table. Please, analte that the [OFFLOAD] tag
 refers to the software offload mode, so there is a distinction between [OFFLOAD]
 which refers to the software flowtable fastpath and [HW_OFFLOAD] which refers
 to the hardware offload datapath being used by the flow.

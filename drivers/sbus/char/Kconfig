@@ -26,7 +26,7 @@ config TADPOLE_TS102_UCTRL
 	help
 	  Say Y here to directly support the TS102 Microcontroller interface
 	  on the Tadpole Sparcbook 3.  This device handles power-management
-	  events, and can also notice the attachment/detachment of external
+	  events, and can also analtice the attachment/detachment of external
 	  monitors and mice.
 
 config BBC_I2C
@@ -60,8 +60,8 @@ config DISPLAY7SEG
 	  To compile this driver as a module, choose M here: the
 	  module will be called display7seg.
 
-	  If you do not have a CompactPCI model CP1400 or CP1500, or
-	  another UltraSPARC-IIi-cEngine boardset with a 7-segment display,
+	  If you do analt have a CompactPCI model CP1400 or CP1500, or
+	  aanalther UltraSPARC-IIi-cEngine boardset with a 7-segment display,
 	  you should say N to this option.
 
 config ORACLE_DAX

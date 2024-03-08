@@ -8,8 +8,8 @@
 #define OCFS2_REFCOUNTTREE_H
 
 struct ocfs2_refcount_tree {
-	struct rb_node rf_node;
-	u64 rf_blkno;
+	struct rb_analde rf_analde;
+	u64 rf_blkanal;
 	u32 rf_generation;
 	struct kref rf_getcnt;
 	struct rw_semaphore rf_sem;
@@ -24,29 +24,29 @@ struct ocfs2_refcount_tree {
 };
 
 void ocfs2_purge_refcount_trees(struct ocfs2_super *osb);
-int ocfs2_lock_refcount_tree(struct ocfs2_super *osb, u64 ref_blkno, int rw,
+int ocfs2_lock_refcount_tree(struct ocfs2_super *osb, u64 ref_blkanal, int rw,
 			     struct ocfs2_refcount_tree **tree,
 			     struct buffer_head **ref_bh);
 void ocfs2_unlock_refcount_tree(struct ocfs2_super *osb,
 				struct ocfs2_refcount_tree *tree,
 				int rw);
 
-int ocfs2_decrease_refcount(struct inode *inode,
+int ocfs2_decrease_refcount(struct ianalde *ianalde,
 			    handle_t *handle, u32 cpos, u32 len,
 			    struct ocfs2_alloc_context *meta_ac,
 			    struct ocfs2_cached_dealloc_ctxt *dealloc,
 			    int delete);
-int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
+int ocfs2_prepare_refcount_change_for_del(struct ianalde *ianalde,
 					  u64 refcount_loc,
-					  u64 phys_blkno,
+					  u64 phys_blkanal,
 					  u32 clusters,
 					  int *credits,
 					  int *ref_blocks);
-int ocfs2_refcount_cow(struct inode *inode,
+int ocfs2_refcount_cow(struct ianalde *ianalde,
 		       struct buffer_head *di_bh,
 		       u32 cpos, u32 write_len, u32 max_cpos);
 
-typedef int (ocfs2_post_refcount_func)(struct inode *inode,
+typedef int (ocfs2_post_refcount_func)(struct ianalde *ianalde,
 				       handle_t *handle,
 				       void *para);
 /*
@@ -62,38 +62,38 @@ struct ocfs2_post_refcount {
 	void *para;
 };
 
-int ocfs2_refcounted_xattr_delete_need(struct inode *inode,
+int ocfs2_refcounted_xattr_delete_need(struct ianalde *ianalde,
 				       struct ocfs2_caching_info *ref_ci,
 				       struct buffer_head *ref_root_bh,
 				       struct ocfs2_xattr_value_root *xv,
 				       int *meta_add, int *credits);
-int ocfs2_refcount_cow_xattr(struct inode *inode,
-			     struct ocfs2_dinode *di,
+int ocfs2_refcount_cow_xattr(struct ianalde *ianalde,
+			     struct ocfs2_dianalde *di,
 			     struct ocfs2_xattr_value_buf *vb,
 			     struct ocfs2_refcount_tree *ref_tree,
 			     struct buffer_head *ref_root_bh,
 			     u32 cpos, u32 write_len,
 			     struct ocfs2_post_refcount *post);
 int ocfs2_duplicate_clusters_by_page(handle_t *handle,
-				     struct inode *inode,
+				     struct ianalde *ianalde,
 				     u32 cpos, u32 old_cluster,
 				     u32 new_cluster, u32 new_len);
 int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
-				    struct inode *inode,
+				    struct ianalde *ianalde,
 				    u32 cpos, u32 old_cluster,
 				    u32 new_cluster, u32 new_len);
 int ocfs2_cow_sync_writeback(struct super_block *sb,
-			     struct inode *inode,
+			     struct ianalde *ianalde,
 			     u32 cpos, u32 num_clusters);
-int ocfs2_add_refcount_flag(struct inode *inode,
+int ocfs2_add_refcount_flag(struct ianalde *ianalde,
 			    struct ocfs2_extent_tree *data_et,
 			    struct ocfs2_caching_info *ref_ci,
 			    struct buffer_head *ref_root_bh,
 			    u32 cpos, u32 p_cluster, u32 num_clusters,
 			    struct ocfs2_cached_dealloc_ctxt *dealloc,
 			    struct ocfs2_post_refcount *post);
-int ocfs2_remove_refcount_tree(struct inode *inode, struct buffer_head *di_bh);
-int ocfs2_try_remove_refcount_tree(struct inode *inode,
+int ocfs2_remove_refcount_tree(struct ianalde *ianalde, struct buffer_head *di_bh);
+int ocfs2_try_remove_refcount_tree(struct ianalde *ianalde,
 				   struct buffer_head *di_bh);
 int ocfs2_increase_refcount(handle_t *handle,
 			    struct ocfs2_caching_info *ci,
@@ -101,26 +101,26 @@ int ocfs2_increase_refcount(handle_t *handle,
 			    u64 cpos, u32 len,
 			    struct ocfs2_alloc_context *meta_ac,
 			    struct ocfs2_cached_dealloc_ctxt *dealloc);
-int ocfs2_reflink_ioctl(struct inode *inode,
+int ocfs2_reflink_ioctl(struct ianalde *ianalde,
 			const char __user *oldname,
 			const char __user *newname,
 			bool preserve);
-loff_t ocfs2_reflink_remap_blocks(struct inode *s_inode,
+loff_t ocfs2_reflink_remap_blocks(struct ianalde *s_ianalde,
 				  struct buffer_head *s_bh,
 				  loff_t pos_in,
-				  struct inode *t_inode,
+				  struct ianalde *t_ianalde,
 				  struct buffer_head *t_bh,
 				  loff_t pos_out,
 				  loff_t len);
-int ocfs2_reflink_inodes_lock(struct inode *s_inode,
+int ocfs2_reflink_ianaldes_lock(struct ianalde *s_ianalde,
 			      struct buffer_head **bh1,
-			      struct inode *t_inode,
+			      struct ianalde *t_ianalde,
 			      struct buffer_head **bh2);
-void ocfs2_reflink_inodes_unlock(struct inode *s_inode,
+void ocfs2_reflink_ianaldes_unlock(struct ianalde *s_ianalde,
 				 struct buffer_head *s_bh,
-				 struct inode *t_inode,
+				 struct ianalde *t_ianalde,
 				 struct buffer_head *t_bh);
-int ocfs2_reflink_update_dest(struct inode *dest,
+int ocfs2_reflink_update_dest(struct ianalde *dest,
 			      struct buffer_head *d_bh,
 			      loff_t newlen);
 

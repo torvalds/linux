@@ -20,7 +20,7 @@
         "BriefDescription": "Unhalted core cycles when thread is in rings 1, 2, or 3",
         "EventCode": "0x5C",
         "EventName": "CPL_CYCLES.RING123",
-        "PublicDescription": "Unhalted core cycles when the thread is not in ring 0.",
+        "PublicDescription": "Unhalted core cycles when the thread is analt in ring 0.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },

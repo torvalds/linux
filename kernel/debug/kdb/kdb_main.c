@@ -32,7 +32,7 @@
 #include <linux/kallsyms.h>
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nmi.h>
@@ -88,7 +88,7 @@ static unsigned int kdb_continue_catastrophic;
 static LIST_HEAD(kdb_cmds_head);
 
 typedef struct _kdbmsg {
-	int	km_diag;	/* kdb diagnostic */
+	int	km_diag;	/* kdb diaganalstic */
 	char	*km_msg;	/* Corresponding message text */
 } kdbmsg_t;
 
@@ -96,14 +96,14 @@ typedef struct _kdbmsg {
 	{ KDB_##msgnum, text }
 
 static kdbmsg_t kdbmsgs[] = {
-	KDBMSG(NOTFOUND, "Command Not Found"),
+	KDBMSG(ANALTFOUND, "Command Analt Found"),
 	KDBMSG(ARGCOUNT, "Improper argument count, see usage."),
 	KDBMSG(BADWIDTH, "Illegal value for BYTESPERWORD use 1, 2, 4 or 8, "
 	       "8 is only allowed on 64 bit systems"),
 	KDBMSG(BADRADIX, "Illegal value for RADIX use 8, 10 or 16"),
-	KDBMSG(NOTENV, "Cannot find environment variable"),
-	KDBMSG(NOENVVALUE, "Environment variable should have value"),
-	KDBMSG(NOTIMP, "Command not implemented"),
+	KDBMSG(ANALTENV, "Cananalt find environment variable"),
+	KDBMSG(ANALENVVALUE, "Environment variable should have value"),
+	KDBMSG(ANALTIMP, "Command analt implemented"),
 	KDBMSG(ENVFULL, "Environment full"),
 	KDBMSG(ENVBUFFULL, "Environment buffer full"),
 	KDBMSG(TOOMANYBPT, "Too many breakpoints defined"),
@@ -113,16 +113,16 @@ static kdbmsg_t kdbmsgs[] = {
 	KDBMSG(TOOMANYDBREGS, "More breakpoints than db registers defined"),
 #endif
 	KDBMSG(DUPBPT, "Duplicate breakpoint address"),
-	KDBMSG(BPTNOTFOUND, "Breakpoint not found"),
+	KDBMSG(BPTANALTFOUND, "Breakpoint analt found"),
 	KDBMSG(BADMODE, "Invalid IDMODE"),
 	KDBMSG(BADINT, "Illegal numeric value"),
 	KDBMSG(INVADDRFMT, "Invalid symbolic address format"),
 	KDBMSG(BADREG, "Invalid register name"),
 	KDBMSG(BADCPUNUM, "Invalid cpu number"),
 	KDBMSG(BADLENGTH, "Invalid length field"),
-	KDBMSG(NOBP, "No Breakpoint exists"),
+	KDBMSG(ANALBP, "Anal Breakpoint exists"),
 	KDBMSG(BADADDR, "Invalid address"),
-	KDBMSG(NOPERM, "Permission denied"),
+	KDBMSG(ANALPERM, "Permission denied"),
 };
 #undef KDBMSG
 
@@ -150,7 +150,7 @@ static char *__env[31] = {
 	"MDCOUNT=8",		/* lines of md output */
 	KDB_PLATFORM_ENV,
 	"DTABCOUNT=30",
-	"NOSECT=1",
+	"ANALSECT=1",
 };
 
 static const int __nenv = ARRAY_SIZE(__env);
@@ -179,11 +179,11 @@ struct task_struct *kdb_curr_task(int cpu)
  * The permission masks during a read+write lockdown permits the following
  * flags: INSPECT, SIGNAL, REBOOT (and ALWAYS_SAFE).
  *
- * The INSPECT commands are not blocked during lockdown because they are
- * not arbitrary memory reads. INSPECT covers the backtrace family (sometimes
- * forcing them to have no arguments) and lsmod. These commands do expose
- * some kernel state but do not allow the developer seated at the console to
- * choose what state is reported. SIGNAL and REBOOT should not be controversial,
+ * The INSPECT commands are analt blocked during lockdown because they are
+ * analt arbitrary memory reads. INSPECT covers the backtrace family (sometimes
+ * forcing them to have anal arguments) and lsmod. These commands do expose
+ * some kernel state but do analt allow the developer seated at the console to
+ * choose what state is reported. SIGNAL and REBOOT should analt be controversial,
  * given these are allowed for root during lockdown already.
  */
 static void kdb_check_for_lockdown(void)
@@ -222,15 +222,15 @@ static void kdb_check_for_lockdown(void)
  * console and the lockdown state allow a command to be run.
  */
 static bool kdb_check_flags(kdb_cmdflags_t flags, int permissions,
-				   bool no_args)
+				   bool anal_args)
 {
 	/* permissions comes from userspace so needs massaging slightly */
 	permissions &= KDB_ENABLE_MASK;
 	permissions |= KDB_ENABLE_ALWAYS_SAFE;
 
-	/* some commands change group when launched with no arguments */
-	if (no_args)
-		permissions |= permissions << KDB_ENABLE_NO_ARGS_SHIFT;
+	/* some commands change group when launched with anal arguments */
+	if (anal_args)
+		permissions |= permissions << KDB_ENABLE_ANAL_ARGS_SHIFT;
 
 	flags |= KDB_ENABLE_ALL;
 
@@ -243,7 +243,7 @@ static bool kdb_check_flags(kdb_cmdflags_t flags, int permissions,
  * Parameters:
  *	match	A character string representing an environment variable.
  * Returns:
- *	NULL	No environment variable matches 'match'
+ *	NULL	Anal environment variable matches 'match'
  *	char*	Pointer to string value of environment variable.
  */
 char *kdbgetenv(const char *match)
@@ -305,7 +305,7 @@ static char *kdballocenv(size_t bytes)
  * Outputs:
  *	*value  the unsigned long representation of the env variable 'match'
  * Returns:
- *	Zero on success, a kdb diagnostic on failure.
+ *	Zero on success, a kdb diaganalstic on failure.
  */
 static int kdbgetulenv(const char *match, unsigned long *value)
 {
@@ -313,9 +313,9 @@ static int kdbgetulenv(const char *match, unsigned long *value)
 
 	ep = kdbgetenv(match);
 	if (!ep)
-		return KDB_NOTENV;
+		return KDB_ANALTENV;
 	if (strlen(ep) == 0)
-		return KDB_NOENVVALUE;
+		return KDB_ANALENVVALUE;
 
 	*value = simple_strtoul(ep, NULL, 0);
 
@@ -330,7 +330,7 @@ static int kdbgetulenv(const char *match, unsigned long *value)
  * Outputs:
  *	*value  the integer representation of the environment variable 'match'
  * Returns:
- *	Zero on success, a kdb diagnostic on failure.
+ *	Zero on success, a kdb diaganalstic on failure.
  */
 int kdbgetintenv(const char *match, int *value)
 {
@@ -348,7 +348,7 @@ int kdbgetintenv(const char *match, int *value)
  * @var: Name of the variable
  * @val: Value of the variable
  *
- * Return: Zero on success, a kdb diagnostic on failure.
+ * Return: Zero on success, a kdb diaganalstic on failure.
  */
 static int kdb_setenv(const char *var, const char *val)
 {
@@ -408,7 +408,7 @@ static void kdb_printenv(void)
  * Outputs:
  *	*value  the unsigned long representation of arg.
  * Returns:
- *	Zero on success, a kdb diagnostic on failure.
+ *	Zero on success, a kdb diaganalstic on failure.
  */
 int kdbgetularg(const char *arg, unsigned long *value)
 {
@@ -476,7 +476,7 @@ int kdb_set(int argc, const char **argv)
 	 */
 	if (strcmp(argv[1], "PROMPT") == 0 &&
 	    !kdb_check_flags(KDB_ENABLE_MEM_READ, kdb_cmd_enabled, false))
-		return KDB_NOPERM;
+		return KDB_ANALPERM;
 
 	/*
 	 * Check for internal variables
@@ -507,8 +507,8 @@ int kdb_set(int argc, const char **argv)
 static int kdb_check_regs(void)
 {
 	if (!kdb_current_regs) {
-		kdb_printf("No current kdb registers."
-			   "  You may need to select another task\n");
+		kdb_printf("Anal current kdb registers."
+			   "  You may need to select aanalther task\n");
 		return KDB_BADREG;
 	}
 	return 0;
@@ -536,7 +536,7 @@ static int kdb_check_regs(void)
  *	*name   - receives the symbol name, if any
  *	*nextarg - index to next unparsed argument in argv[]
  * Returns:
- *	zero is returned on success, a kdb diagnostic code is
+ *	zero is returned on success, a kdb diaganalstic code is
  *      returned on error.
  */
 int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
@@ -555,12 +555,12 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 
 	/*
 	 * If the enable flags prohibit both arbitrary memory access
-	 * and flow control then there are no reasonable grounds to
+	 * and flow control then there are anal reasonable grounds to
 	 * provide symbol lookup.
 	 */
 	if (!kdb_check_flags(KDB_ENABLE_MEM_READ | KDB_ENABLE_FLOW_CTRL,
 			     kdb_cmd_enabled, false))
-		return KDB_NOPERM;
+		return KDB_ANALPERM;
 
 	/*
 	 * Process arguments which follow the following syntax:
@@ -576,7 +576,7 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 	symname = (char *)argv[*nextarg];
 
 	/*
-	 * If there is no whitespace between the symbol
+	 * If there is anal whitespace between the symbol
 	 * or address and the '+' or '-' symbols, we
 	 * remember the character and replace it with a
 	 * null so the symbol/value can be properly parsed
@@ -598,7 +598,7 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 		/* Implement register values with % at a later time as it is
 		 * arch optional.
 		 */
-		return KDB_NOTIMP;
+		return KDB_ANALTIMP;
 	} else {
 		found = kdbgetsymval(symname, &symtab);
 		if (found) {
@@ -634,7 +634,7 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 		if ((argv[*nextarg][0] != '+')
 		 && (argv[*nextarg][0] != '-')) {
 			/*
-			 * Not our argument.  Return.
+			 * Analt our argument.  Return.
 			 */
 			return 0;
 		} else {
@@ -645,7 +645,7 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 		positive = (symbol == '+');
 
 	/*
-	 * Now there must be an offset!
+	 * Analw there must be an offset!
 	 */
 	if ((*nextarg > argc)
 	 && (symbol == '\0')) {
@@ -678,7 +678,7 @@ static void kdb_cmderror(int diag)
 	int i;
 
 	if (diag >= 0) {
-		kdb_printf("no error detected (diagnostic is %d)\n", diag);
+		kdb_printf("anal error detected (diaganalstic is %d)\n", diag);
 		return;
 	}
 
@@ -689,7 +689,7 @@ static void kdb_cmderror(int diag)
 		}
 	}
 
-	kdb_printf("Unknown diag %d\n", -diag);
+	kdb_printf("Unkanalwn diag %d\n", -diag);
 }
 
 /*
@@ -702,7 +702,7 @@ static void kdb_cmderror(int diag)
  *	argc	argument count
  *	argv	argument vector
  * Returns:
- *	zero for success, a kdb diagnostic if error
+ *	zero for success, a kdb diaganalstic if error
  */
 struct kdb_macro {
 	kdbtab_t cmd;			/* Macro command */
@@ -711,7 +711,7 @@ struct kdb_macro {
 
 struct kdb_macro_statement {
 	char *statement;		/* Statement text */
-	struct list_head list_node;	/* Statement list node */
+	struct list_head list_analde;	/* Statement list analde */
 };
 
 static struct kdb_macro *kdb_macro;
@@ -725,7 +725,7 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 	struct kdb_macro_statement *kms;
 
 	if (!kdb_macro)
-		return KDB_NOTIMP;
+		return KDB_ANALTIMP;
 
 	if (strcmp(argv0, "endefcmd") == 0) {
 		defcmd_in_progress = false;
@@ -736,13 +736,13 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 
 	kms = kmalloc(sizeof(*kms), GFP_KDB);
 	if (!kms) {
-		kdb_printf("Could not allocate new kdb macro command: %s\n",
+		kdb_printf("Could analt allocate new kdb macro command: %s\n",
 			   cmdstr);
-		return KDB_NOTIMP;
+		return KDB_ANALTIMP;
 	}
 
 	kms->statement = kdb_strdup(cmdstr, GFP_KDB);
-	list_add_tail(&kms->list_node, &kdb_macro->statements);
+	list_add_tail(&kms->list_analde, &kdb_macro->statements);
 
 	return 0;
 }
@@ -761,13 +761,13 @@ static int kdb_defcmd(int argc, const char **argv)
 		struct kdb_macro *kmp;
 		struct kdb_macro_statement *kms;
 
-		list_for_each_entry(kp, &kdb_cmds_head, list_node) {
+		list_for_each_entry(kp, &kdb_cmds_head, list_analde) {
 			if (kp->func == kdb_exec_defcmd) {
 				kdb_printf("defcmd %s \"%s\" \"%s\"\n",
 					   kp->name, kp->usage, kp->help);
 				kmp = container_of(kp, struct kdb_macro, cmd);
 				list_for_each_entry(kms, &kmp->statements,
-						    list_node)
+						    list_analde)
 					kdb_printf("%s", kms->statement);
 				kdb_printf("endefcmd\n");
 			}
@@ -778,7 +778,7 @@ static int kdb_defcmd(int argc, const char **argv)
 		return KDB_ARGCOUNT;
 	if (in_dbg_master()) {
 		kdb_printf("Command only available during kdb_init()\n");
-		return KDB_NOTIMP;
+		return KDB_ANALTIMP;
 	}
 	kdb_macro = kzalloc(sizeof(*kdb_macro), GFP_KDB);
 	if (!kdb_macro)
@@ -816,8 +816,8 @@ fail_usage:
 fail_name:
 	kfree(kdb_macro);
 fail_defcmd:
-	kdb_printf("Could not allocate new kdb_macro entry for %s\n", argv[1]);
-	return KDB_NOTIMP;
+	kdb_printf("Could analt allocate new kdb_macro entry for %s\n", argv[1]);
+	return KDB_ANALTIMP;
 }
 
 /*
@@ -827,7 +827,7 @@ fail_defcmd:
  *	argc	argument count
  *	argv	argument vector
  * Returns:
- *	zero for success, a kdb diagnostic if error
+ *	zero for success, a kdb diaganalstic if error
  */
 static int kdb_exec_defcmd(int argc, const char **argv)
 {
@@ -839,19 +839,19 @@ static int kdb_exec_defcmd(int argc, const char **argv)
 	if (argc != 0)
 		return KDB_ARGCOUNT;
 
-	list_for_each_entry(kp, &kdb_cmds_head, list_node) {
+	list_for_each_entry(kp, &kdb_cmds_head, list_analde) {
 		if (strcmp(kp->name, argv[0]) == 0)
 			break;
 	}
-	if (list_entry_is_head(kp, &kdb_cmds_head, list_node)) {
-		kdb_printf("kdb_exec_defcmd: could not find commands for %s\n",
+	if (list_entry_is_head(kp, &kdb_cmds_head, list_analde)) {
+		kdb_printf("kdb_exec_defcmd: could analt find commands for %s\n",
 			   argv[0]);
-		return KDB_NOTIMP;
+		return KDB_ANALTIMP;
 	}
 	kmp = container_of(kp, struct kdb_macro, cmd);
-	list_for_each_entry(kms, &kmp->statements, list_node) {
+	list_for_each_entry(kms, &kmp->statements, list_analde) {
 		/*
-		 * Recursive use of kdb_parse, do not use argv after this point.
+		 * Recursive use of kdb_parse, do analt use argv after this point.
 		 */
 		argv = NULL;
 		kdb_printf("[%s]kdb> %s\n", kmp->cmd.name, kms->statement);
@@ -900,7 +900,7 @@ static void parse_grep(const char *str)
 		kdb_printf("invalid 'pipe', see grephelp\n");
 		return;
 	}
-	/* now cp points to a nonzero length search string */
+	/* analw cp points to a analnzero length search string */
 	if (*cp == '"') {
 		/* allow it be "x y z" by removing the "'s - there must
 		   be two of them */
@@ -946,7 +946,7 @@ static void parse_grep(const char *str)
  *      cmdstr	The input command line to be parsed.
  *	regs	The registers at the time kdb was entered.
  * Returns:
- *	Zero for success, a kdb diagnostic if failure.
+ *	Zero for success, a kdb diaganalstic if failure.
  * Remarks:
  *	Limited to 20 tokens.
  *
@@ -971,7 +971,7 @@ int kdb_parse(const char *cmdstr)
 	char *cp;
 	char *cpp, quoted;
 	kdbtab_t *tp;
-	int escaped, ignore_errors = 0, check_grep = 0;
+	int escaped, iganalre_errors = 0, check_grep = 0;
 
 	/*
 	 * First tokenize the command string.
@@ -979,11 +979,11 @@ int kdb_parse(const char *cmdstr)
 	cp = (char *)cmdstr;
 
 	if (KDB_FLAG(CMD_INTERRUPT)) {
-		/* Previous command was interrupted, newline must not
+		/* Previous command was interrupted, newline must analt
 		 * repeat the command */
 		KDB_FLAG_CLEAR(CMD_INTERRUPT);
 		KDB_STATE_SET(PAGER);
-		argc = 0;	/* no repeat */
+		argc = 0;	/* anal repeat */
 	}
 
 	if (*cp != '\n' && *cp != '\0') {
@@ -1003,14 +1003,14 @@ int kdb_parse(const char *cmdstr)
 			}
 			if (cpp >= cbuf + CMD_BUFLEN) {
 				kdb_printf("kdb_parse: command buffer "
-					   "overflow, command ignored\n%s\n",
+					   "overflow, command iganalred\n%s\n",
 					   cmdstr);
-				return KDB_NOTFOUND;
+				return KDB_ANALTFOUND;
 			}
 			if (argc >= MAXARGC - 1) {
 				kdb_printf("kdb_parse: too many arguments, "
-					   "command ignored\n%s\n", cmdstr);
-				return KDB_NOTFOUND;
+					   "command iganalred\n%s\n", cmdstr);
+				return KDB_ANALTFOUND;
 			}
 			argv[argc++] = cpp;
 			escaped = 0;
@@ -1057,11 +1057,11 @@ int kdb_parse(const char *cmdstr)
 	}
 	if (argv[0][0] == '-' && argv[0][1] &&
 	    (argv[0][1] < '0' || argv[0][1] > '9')) {
-		ignore_errors = 1;
+		iganalre_errors = 1;
 		++argv[0];
 	}
 
-	list_for_each_entry(tp, &kdb_cmds_head, list_node) {
+	list_for_each_entry(tp, &kdb_cmds_head, list_analde) {
 		/*
 		 * If this command is allowed to be abbreviated,
 		 * check to see if this is it.
@@ -1076,39 +1076,39 @@ int kdb_parse(const char *cmdstr)
 
 	/*
 	 * If we don't find a command by this name, see if the first
-	 * few characters of this match any of the known commands.
+	 * few characters of this match any of the kanalwn commands.
 	 * e.g., md1c20 should match md.
 	 */
-	if (list_entry_is_head(tp, &kdb_cmds_head, list_node)) {
-		list_for_each_entry(tp, &kdb_cmds_head, list_node) {
+	if (list_entry_is_head(tp, &kdb_cmds_head, list_analde)) {
+		list_for_each_entry(tp, &kdb_cmds_head, list_analde) {
 			if (strncmp(argv[0], tp->name, strlen(tp->name)) == 0)
 				break;
 		}
 	}
 
-	if (!list_entry_is_head(tp, &kdb_cmds_head, list_node)) {
+	if (!list_entry_is_head(tp, &kdb_cmds_head, list_analde)) {
 		int result;
 
 		if (!kdb_check_flags(tp->flags, kdb_cmd_enabled, argc <= 1))
-			return KDB_NOPERM;
+			return KDB_ANALPERM;
 
 		KDB_STATE_SET(CMD);
 		result = (*tp->func)(argc-1, (const char **)argv);
-		if (result && ignore_errors && result > KDB_CMD_GO)
+		if (result && iganalre_errors && result > KDB_CMD_GO)
 			result = 0;
 		KDB_STATE_CLEAR(CMD);
 
 		if (tp->flags & KDB_REPEAT_WITH_ARGS)
 			return result;
 
-		argc = tp->flags & KDB_REPEAT_NO_ARGS ? 1 : 0;
+		argc = tp->flags & KDB_REPEAT_ANAL_ARGS ? 1 : 0;
 		if (argv[argc])
 			*(argv[argc]) = '\0';
 		return result;
 	}
 
 	/*
-	 * If the input with which we were presented does not
+	 * If the input with which we were presented does analt
 	 * map to an existing command, attempt to parse it as an
 	 * address argument and display the result.   Useful for
 	 * obtaining the address of a variable, or the nearest symbol
@@ -1122,7 +1122,7 @@ int kdb_parse(const char *cmdstr)
 
 		if (kdbgetaddrarg(0, (const char **)argv, &nextarg,
 				  &value, &offset, &name)) {
-			return KDB_NOTFOUND;
+			return KDB_ANALTFOUND;
 		}
 
 		kdb_printf("%s = ", argv[0]);
@@ -1164,10 +1164,10 @@ static int handle_ctrl_cmd(char *cmd)
 static int kdb_reboot(int argc, const char **argv)
 {
 	emergency_restart();
-	kdb_printf("Hmm, kdb_reboot did not reboot, spinning here\n");
+	kdb_printf("Hmm, kdb_reboot did analt reboot, spinning here\n");
 	while (1)
 		cpu_relax();
-	/* NOTREACHED */
+	/* ANALTREACHED */
 	return 0;
 }
 
@@ -1205,7 +1205,7 @@ static void drop_newline(char *buf)
 
 /*
  * kdb_local - The main code for kdb.  This routine is invoked on a
- *	specific processor, it is not global.  The main kdb() routine
+ *	specific processor, it is analt global.  The main kdb() routine
  *	ensures that only one processor at a time is in this routine.
  *	This code is called with the real reason code on the first
  *	entry to a kdb session, thereafter it is called with reason
@@ -1219,7 +1219,7 @@ static void drop_newline(char *buf)
  *	0	KDB was invoked for an event which it wasn't responsible
  *	1	KDB handled the event for which it was invoked.
  *	KDB_CMD_GO	User typed 'go'.
- *	KDB_CMD_CPU	User switched to another cpu.
+ *	KDB_CMD_CPU	User switched to aanalther cpu.
  *	KDB_CMD_SS	Single step.
  */
 static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
@@ -1297,10 +1297,10 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		kdb_dumpregs(regs);
 		break;
 	case KDB_REASON_SYSTEM_NMI:
-		kdb_printf("due to System NonMaskable Interrupt\n");
+		kdb_printf("due to System AnalnMaskable Interrupt\n");
 		break;
 	case KDB_REASON_NMI:
-		kdb_printf("due to NonMaskable Interrupt @ "
+		kdb_printf("due to AnalnMaskable Interrupt @ "
 			   kdb_machreg_fmt "\n",
 			   instruction_pointer(regs));
 		break;
@@ -1317,7 +1317,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 			kdb_printf("kdb: error return from kdba_bp_trap: %d\n",
 				   db_result);
 			KDB_DEBUG_STATE("kdb_local 6", reason);
-			return 0;	/* Not for us, dismiss it */
+			return 0;	/* Analt for us, dismiss it */
 		}
 		break;
 	case KDB_REASON_RECURSE:
@@ -1327,7 +1327,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 	default:
 		kdb_printf("kdb: unexpected reason code: %d\n", reason);
 		KDB_DEBUG_STATE("kdb_local 8", reason);
-		return 0;	/* Not for us, dismiss it */
+		return 0;	/* Analt for us, dismiss it */
 	}
 
 	while (1) {
@@ -1337,7 +1337,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		kdb_nextline = 1;
 		KDB_STATE_CLEAR(SUPPRESS);
 		kdb_grepping_flag = 0;
-		/* ensure the old search does not leak into '/' commands */
+		/* ensure the old search does analt leak into '/' commands */
 		kdb_grep_string[0] = '\0';
 
 		cmdbuf = cmd_cur;
@@ -1377,9 +1377,9 @@ do_full_getstr:
 
 		cmdptr = cmd_head;
 		diag = kdb_parse(cmdbuf);
-		if (diag == KDB_NOTFOUND) {
+		if (diag == KDB_ANALTFOUND) {
 			drop_newline(cmdbuf);
-			kdb_printf("Unknown kdb command: '%s'\n", cmdbuf);
+			kdb_printf("Unkanalwn kdb command: '%s'\n", cmdbuf);
 			diag = 0;
 		}
 		if (diag == KDB_CMD_GO
@@ -1420,7 +1420,7 @@ void kdb_print_state(const char *text, int value)
  *	processes, this routine is invoked from the main kdb code via
  *	an architecture specific routine.  kdba_main_loop is
  *	responsible for making the kernel stacks consistent for all
- *	processes, there should be no difference between a blocked
+ *	processes, there should be anal difference between a blocked
  *	process and a running process as far as kdb is concerned.
  * Inputs:
  *	reason		The reason KDB was invoked
@@ -1458,7 +1458,7 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 		KDB_STATE_CLEAR(SUPPRESS);
 		KDB_DEBUG_STATE("kdb_main_loop 2", reason);
 		if (KDB_STATE(LEAVING))
-			break;	/* Another cpu said 'go' */
+			break;	/* Aanalther cpu said 'go' */
 		/* Still using kdb, this processor is in control */
 		result = kdb_local(reason2, error, regs, db_result);
 		KDB_DEBUG_STATE("kdb_main_loop 3", result);
@@ -1526,7 +1526,7 @@ static int kdb_mdr(unsigned long addr, unsigned int count)
  *	mdr  <addr arg>,<byte count>
  */
 static void kdb_md_line(const char *fmtstr, unsigned long addr,
-			int symbolic, int nosect, int bytesperword,
+			int symbolic, int analsect, int bytesperword,
 			int num, int repeat, int phys)
 {
 	/* print just one line of data */
@@ -1556,7 +1556,7 @@ static void kdb_md_line(const char *fmtstr, unsigned long addr,
 			memset(&symtab, 0, sizeof(symtab));
 		if (symtab.sym_name) {
 			kdb_symbol_print(word, &symtab, 0);
-			if (!nosect) {
+			if (!analsect) {
 				kdb_printf("\n");
 				kdb_printf("                       %s %s "
 					   kdb_machreg_fmt " "
@@ -1595,7 +1595,7 @@ static int kdb_md(int argc, const char **argv)
 	static unsigned long last_addr;
 	static int last_radix, last_bytesperword, last_repeat;
 	int radix = 16, mdcount = 8, bytesperword = KDB_WORD_SIZE, repeat;
-	int nosect = 0;
+	int analsect = 0;
 	char fmtchar, fmtstr[64];
 	unsigned long addr;
 	unsigned long word;
@@ -1643,7 +1643,7 @@ static int kdb_md(int argc, const char **argv)
 		phys = valid = 1;
 	}
 	if (!valid)
-		return KDB_NOTFOUND;
+		return KDB_ANALTFOUND;
 
 	if (argc == 0) {
 		if (last_addr == 0)
@@ -1736,12 +1736,12 @@ static int kdb_md(int argc, const char **argv)
 
 	if (strcmp(argv[0], "mds") == 0) {
 		symbolic = 1;
-		/* Do not save these changes as last_*, they are temporary mds
+		/* Do analt save these changes as last_*, they are temporary mds
 		 * overrides.
 		 */
 		bytesperword = KDB_WORD_SIZE;
 		repeat = mdcount;
-		kdbgetintenv("NOSECT", &nosect);
+		kdbgetintenv("ANALSECT", &analsect);
 	}
 
 	/* Round address down modulo BYTESPERWORD */
@@ -1763,7 +1763,7 @@ static int kdb_md(int argc, const char **argv)
 				break;
 		}
 		n = min(num, repeat);
-		kdb_md_line(fmtstr, addr, symbolic, nosect, bytesperword,
+		kdb_md_line(fmtstr, addr, symbolic, analsect, bytesperword,
 			    num, repeat, phys);
 		addr += bytesperword * n;
 		repeat -= n;
@@ -1798,7 +1798,7 @@ static int kdb_mm(int argc, const char **argv)
 	int width;
 
 	if (argv[0][2] && !isdigit(argv[0][2]))
-		return KDB_NOTFOUND;
+		return KDB_ANALTFOUND;
 
 	if (argc < 2)
 		return KDB_ARGCOUNT;
@@ -2002,7 +2002,7 @@ static int kdb_rm(int argc, const char **argv)
 	}
 	return diag;
 #else
-	kdb_printf("ERROR: Register set currently not implemented\n");
+	kdb_printf("ERROR: Register set currently analt implemented\n");
     return 0;
 #endif
 }
@@ -2036,7 +2036,7 @@ static int kdb_sr(int argc, const char **argv)
  *	it.
  *		regs address-expression
  * Remarks:
- *	Not done yet.
+ *	Analt done yet.
  */
 static int kdb_ef(int argc, const char **argv)
 {
@@ -2117,7 +2117,7 @@ static int kdb_dmesg(int argc, const char **argv)
 
 	if (lines < 0) {
 		if (adjust >= n)
-			kdb_printf("buffer only contains %d lines, nothing "
+			kdb_printf("buffer only contains %d lines, analthing "
 				   "printed\n", n);
 		else if (adjust - lines >= n)
 			kdb_printf("buffer only contains %d lines, last %d "
@@ -2129,7 +2129,7 @@ static int kdb_dmesg(int argc, const char **argv)
 		lines = abs(lines);
 		if (adjust >= n) {
 			kdb_printf("buffer only contains %d lines, "
-				   "nothing printed\n", n);
+				   "analthing printed\n", n);
 			skip = n;
 		} else if (skip < 0) {
 			lines += skip;
@@ -2191,7 +2191,7 @@ module_param_cb(enable_nmi, &kdb_param_ops_enable_nmi, NULL, 0600);
  * kdb_cpu - This function implements the 'cpu' command.
  *	cpu	[<cpunum>]
  * Returns:
- *	KDB_CMD_CPU for success, a kdb diagnostic if error
+ *	KDB_CMD_CPU for success, a kdb diaganalstic if error
  */
 static void kdb_cpu_status(void)
 {
@@ -2225,7 +2225,7 @@ static void kdb_cpu_status(void)
 			start_cpu = i;
 		}
 	}
-	/* print the trailing cpus, ignoring them if they are all offline */
+	/* print the trailing cpus, iganalring them if they are all offline */
 	if (prev_state != 'F') {
 		if (!first_print)
 			kdb_printf(", ");
@@ -2269,7 +2269,7 @@ static int kdb_cpu(int argc, const char **argv)
 	return KDB_CMD_CPU;
 }
 
-/* The user may not realize that ps/bta with no parameters does not print idle
+/* The user may analt realize that ps/bta with anal parameters does analt print idle
  * or sleeping system daemon processes, so tell them how many were suppressed.
  */
 void kdb_ps_suppressed(void)
@@ -2305,7 +2305,7 @@ void kdb_ps1(const struct task_struct *p)
 	unsigned long tmp;
 
 	if (!p ||
-	    copy_from_kernel_nofault(&tmp, (char *)p, sizeof(unsigned long)))
+	    copy_from_kernel_analfault(&tmp, (char *)p, sizeof(unsigned long)))
 		return;
 
 	cpu = kdb_process_cpu(p);
@@ -2318,10 +2318,10 @@ void kdb_ps1(const struct task_struct *p)
 		   p->comm);
 	if (kdb_task_has_cpu(p)) {
 		if (!KDB_TSK(cpu)) {
-			kdb_printf("  Error: no saved data for this cpu\n");
+			kdb_printf("  Error: anal saved data for this cpu\n");
 		} else {
 			if (KDB_TSK(cpu) != p)
-				kdb_printf("  Error: does not match running "
+				kdb_printf("  Error: does analt match running "
 				   "process table (0x%px)\n", KDB_TSK(cpu));
 		}
 	}
@@ -2355,7 +2355,7 @@ static int kdb_ps(int argc, const char **argv)
 			kdb_ps1(p);
 	}
 	kdb_printf("\n");
-	/* Now the real tasks */
+	/* Analw the real tasks */
 	for_each_process_thread(g, p) {
 		if (KDB_FLAG(CMD_INTERRUPT))
 			return 0;
@@ -2390,7 +2390,7 @@ static int kdb_pid(int argc, const char **argv)
 
 			p = find_task_by_pid_ns((pid_t)val,	&init_pid_ns);
 			if (!p) {
-				kdb_printf("No task with pid=%d\n", (pid_t)val);
+				kdb_printf("Anal task with pid=%d\n", (pid_t)val);
 				return 0;
 			}
 		}
@@ -2418,7 +2418,7 @@ static int kdb_help(int argc, const char **argv)
 	kdb_printf("%-15.15s %-20.20s %s\n", "Command", "Usage", "Description");
 	kdb_printf("-----------------------------"
 		   "-----------------------------\n");
-	list_for_each_entry(kt, &kdb_cmds_head, list_node) {
+	list_for_each_entry(kt, &kdb_cmds_head, list_analde) {
 		char *space = "";
 		if (KDB_FLAG(CMD_INTERRUPT))
 			return 0;
@@ -2474,12 +2474,12 @@ static int kdb_kill(int argc, const char **argv)
 
 /*
  * Most of this code has been lifted from kernel/timer.c::sys_sysinfo().
- * I cannot call that code directly from kdb, it has an unconditional
+ * I cananalt call that code directly from kdb, it has an unconditional
  * cli()/sti() and calls routines that take locks which can stop the debugger.
  */
 static void kdb_sysinfo(struct sysinfo *val)
 {
-	u64 uptime = ktime_get_mono_fast_ns();
+	u64 uptime = ktime_get_moanal_fast_ns();
 
 	memset(val, 0, sizeof(*val));
 	val->uptime = div_u64(uptime, NSEC_PER_SEC);
@@ -2497,7 +2497,7 @@ static void kdb_sysinfo(struct sysinfo *val)
  */
 static int kdb_summary(int argc, const char **argv)
 {
-	time64_t now;
+	time64_t analw;
 	struct sysinfo val;
 
 	if (argc)
@@ -2507,11 +2507,11 @@ static int kdb_summary(int argc, const char **argv)
 	kdb_printf("release    %s\n", init_uts_ns.name.release);
 	kdb_printf("version    %s\n", init_uts_ns.name.version);
 	kdb_printf("machine    %s\n", init_uts_ns.name.machine);
-	kdb_printf("nodename   %s\n", init_uts_ns.name.nodename);
+	kdb_printf("analdename   %s\n", init_uts_ns.name.analdename);
 	kdb_printf("domainname %s\n", init_uts_ns.name.domainname);
 
-	now = __ktime_get_real_seconds();
-	kdb_printf("date       %ptTs tz_minuteswest %d\n", &now, sys_tz.tz_minuteswest);
+	analw = __ktime_get_real_seconds();
+	kdb_printf("date       %ptTs tz_minuteswest %d\n", &analw, sys_tz.tz_minuteswest);
 	kdb_sysinfo(&val);
 	kdb_printf("uptime     ");
 	if (val.uptime > (24*60*60)) {
@@ -2565,13 +2565,13 @@ static int kdb_per_cpu(int argc, const char **argv)
 		if (diag)
 			return diag;
 		if (whichcpu >= nr_cpu_ids || !cpu_online(whichcpu)) {
-			kdb_printf("cpu %ld is not online\n", whichcpu);
+			kdb_printf("cpu %ld is analt online\n", whichcpu);
 			return KDB_BADCPUNUM;
 		}
 	}
 
 	/* Most architectures use __per_cpu_offset[cpu], some use
-	 * __per_cpu_offset(cpu), smp has no __per_cpu_offset.
+	 * __per_cpu_offset(cpu), smp has anal __per_cpu_offset.
 	 */
 #ifdef	__per_cpu_offset
 #define KDB_PCU(cpu) __per_cpu_offset(cpu)
@@ -2628,14 +2628,14 @@ static int kdb_grep_help(int argc, const char **argv)
  *                  command.
  * @cmd: pointer to kdb command
  *
- * Note that it's the job of the caller to keep the memory for the cmd
+ * Analte that it's the job of the caller to keep the memory for the cmd
  * allocated until unregister is called.
  */
 int kdb_register(kdbtab_t *cmd)
 {
 	kdbtab_t *kp;
 
-	list_for_each_entry(kp, &kdb_cmds_head, list_node) {
+	list_for_each_entry(kp, &kdb_cmds_head, list_analde) {
 		if (strcmp(kp->name, cmd->name) == 0) {
 			kdb_printf("Duplicate kdb cmd: %s, func %p help %s\n",
 				   cmd->name, cmd->func, cmd->help);
@@ -2643,7 +2643,7 @@ int kdb_register(kdbtab_t *cmd)
 		}
 	}
 
-	list_add_tail(&cmd->list_node, &kdb_cmds_head);
+	list_add_tail(&cmd->list_analde, &kdb_cmds_head);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kdb_register);
@@ -2657,7 +2657,7 @@ EXPORT_SYMBOL_GPL(kdb_register);
 void kdb_register_table(kdbtab_t *kp, size_t len)
 {
 	while (len--) {
-		list_add_tail(&kp->list_node, &kdb_cmds_head);
+		list_add_tail(&kp->list_analde, &kdb_cmds_head);
 		kp++;
 	}
 }
@@ -2670,7 +2670,7 @@ void kdb_register_table(kdbtab_t *kp, size_t len)
  */
 void kdb_unregister(kdbtab_t *cmd)
 {
-	list_del(&cmd->list_node);
+	list_del(&cmd->list_analde);
 }
 EXPORT_SYMBOL_GPL(kdb_unregister);
 
@@ -2680,31 +2680,31 @@ static kdbtab_t maintab[] = {
 		.usage = "<vaddr>",
 		.help = "Display Memory Contents, also mdWcN, e.g. md8c1",
 		.minlen = 1,
-		.flags = KDB_ENABLE_MEM_READ | KDB_REPEAT_NO_ARGS,
+		.flags = KDB_ENABLE_MEM_READ | KDB_REPEAT_ANAL_ARGS,
 	},
 	{	.name = "mdr",
 		.func = kdb_md,
 		.usage = "<vaddr> <bytes>",
 		.help = "Display Raw Memory",
-		.flags = KDB_ENABLE_MEM_READ | KDB_REPEAT_NO_ARGS,
+		.flags = KDB_ENABLE_MEM_READ | KDB_REPEAT_ANAL_ARGS,
 	},
 	{	.name = "mdp",
 		.func = kdb_md,
 		.usage = "<paddr> <bytes>",
 		.help = "Display Physical Memory",
-		.flags = KDB_ENABLE_MEM_READ | KDB_REPEAT_NO_ARGS,
+		.flags = KDB_ENABLE_MEM_READ | KDB_REPEAT_ANAL_ARGS,
 	},
 	{	.name = "mds",
 		.func = kdb_md,
 		.usage = "<vaddr>",
 		.help = "Display Memory Symbolically",
-		.flags = KDB_ENABLE_MEM_READ | KDB_REPEAT_NO_ARGS,
+		.flags = KDB_ENABLE_MEM_READ | KDB_REPEAT_ANAL_ARGS,
 	},
 	{	.name = "mm",
 		.func = kdb_mm,
 		.usage = "<vaddr> <contents>",
 		.help = "Modify Memory Contents",
-		.flags = KDB_ENABLE_MEM_WRITE | KDB_REPEAT_NO_ARGS,
+		.flags = KDB_ENABLE_MEM_WRITE | KDB_REPEAT_ANAL_ARGS,
 	},
 	{	.name = "go",
 		.func = kdb_go,
@@ -2712,7 +2712,7 @@ static kdbtab_t maintab[] = {
 		.help = "Continue Execution",
 		.minlen = 1,
 		.flags = KDB_ENABLE_REG_WRITE |
-			     KDB_ENABLE_ALWAYS_SAFE_NO_ARGS,
+			     KDB_ENABLE_ALWAYS_SAFE_ANAL_ARGS,
 	},
 	{	.name = "rd",
 		.func = kdb_rd,
@@ -2737,7 +2737,7 @@ static kdbtab_t maintab[] = {
 		.usage = "[<vaddr>]",
 		.help = "Stack traceback",
 		.minlen = 1,
-		.flags = KDB_ENABLE_MEM_READ | KDB_ENABLE_INSPECT_NO_ARGS,
+		.flags = KDB_ENABLE_MEM_READ | KDB_ENABLE_INSPECT_ANAL_ARGS,
 	},
 	{	.name = "btp",
 		.func = kdb_bt,
@@ -2761,7 +2761,7 @@ static kdbtab_t maintab[] = {
 		.func = kdb_bt,
 		.usage = "<vaddr>",
 		.help = "Backtrace process given its struct task address",
-		.flags = KDB_ENABLE_MEM_READ | KDB_ENABLE_INSPECT_NO_ARGS,
+		.flags = KDB_ENABLE_MEM_READ | KDB_ENABLE_INSPECT_ANAL_ARGS,
 	},
 	{	.name = "env",
 		.func = kdb_env,
@@ -2792,7 +2792,7 @@ static kdbtab_t maintab[] = {
 		.func = kdb_cpu,
 		.usage = "<cpunum>",
 		.help = "Switch to new cpu",
-		.flags = KDB_ENABLE_ALWAYS_SAFE_NO_ARGS,
+		.flags = KDB_ENABLE_ALWAYS_SAFE_ANAL_ARGS,
 	},
 	{	.name = "kgdb",
 		.func = kdb_kgdb,
@@ -2809,7 +2809,7 @@ static kdbtab_t maintab[] = {
 	{	.name = "pid",
 		.func = kdb_pid,
 		.usage = "<pidnum>",
-		.help = "Switch to another task",
+		.help = "Switch to aanalther task",
 		.flags = KDB_ENABLE_INSPECT,
 	},
 	{	.name = "reboot",
@@ -2916,14 +2916,14 @@ static void __init kdb_cmd_init(void)
 /* Initialize kdb_printf, breakpoint tables and kdb state */
 void __init kdb_init(int lvl)
 {
-	static int kdb_init_lvl = KDB_NOT_INITIALIZED;
+	static int kdb_init_lvl = KDB_ANALT_INITIALIZED;
 	int i;
 
 	if (kdb_init_lvl == KDB_INIT_FULL || lvl <= kdb_init_lvl)
 		return;
 	for (i = kdb_init_lvl; i < lvl; i++) {
 		switch (i) {
-		case KDB_NOT_INITIALIZED:
+		case KDB_ANALT_INITIALIZED:
 			kdb_inittab();		/* Initialize Command Table */
 			kdb_initbptab();	/* Initialize Breakpoints */
 			break;

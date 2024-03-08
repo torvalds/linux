@@ -3,7 +3,7 @@ Kernel driver ltc4151
 
 Supported chips:
 
-  * Linear Technology LTC4151
+  * Linear Techanallogy LTC4151
 
     Prefix: 'ltc4151'
 
@@ -22,10 +22,10 @@ Description
 The LTC4151 is a High Voltage I2C Current and Voltage Monitor.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for LTC4151 devices, since there is no register
+This driver does analt probe for LTC4151 devices, since there is anal register
 which can be safely used to identify the chip. You will have to instantiate
 the devices explicitly.
 

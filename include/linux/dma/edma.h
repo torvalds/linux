@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA core driver
+ * Copyright (c) 2018-2019 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare eDMA core driver
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
  */
 
 #ifndef _DW_EDMA_H
@@ -28,12 +28,12 @@ struct dw_edma_region {
 
 /**
  * struct dw_edma_core_ops - platform-specific eDMA methods
- * @irq_vector:		Get IRQ number of the passed eDMA channel. Note the
+ * @irq_vector:		Get IRQ number of the passed eDMA channel. Analte the
  *			method accepts the channel id in the end-to-end
  *			numbering with the eDMA write channels being placed
  *			first in the row.
  * @pci_address:	Get PCIe bus address corresponding to the passed CPU
- *			address. Note there is no need in specifying this
+ *			address. Analte there is anal need in specifying this
  *			function if the address translation is performed by
  *			the DW PCIe RP/EP controller with the DW eDMA device in
  *			subject and DMA_BYPASS isn't set for all the outbound
@@ -108,7 +108,7 @@ int dw_edma_remove(struct dw_edma_chip *chip);
 #else
 static inline int dw_edma_probe(struct dw_edma_chip *chip)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int dw_edma_remove(struct dw_edma_chip *chip)

@@ -147,7 +147,7 @@ struct msc {
 	u32			orig_addr;
 	u32			orig_sz;
 
-	/* <0: no buffer, 0: no users, >0: active users */
+	/* <0: anal buffer, 0: anal users, >0: active users */
 	atomic_t		user_count;
 
 	atomic_t		mmap_count;
@@ -229,7 +229,7 @@ int intel_th_msu_buffer_register(const struct msu_buffer *mbuf,
 
 	mbe = kzalloc(sizeof(*mbe), GFP_KERNEL);
 	if (!mbe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&msu_buffer_mutex);
 	if (__msu_buffer_entry_find(mbuf->name)) {
@@ -345,13 +345,13 @@ static size_t msc_win_total_sz(struct msc_window *win)
  * msc_find_window() - find a window matching a given sg_table
  * @msc:	MSC device
  * @sgt:	SG table of the window
- * @nonempty:	skip over empty windows
+ * @analnempty:	skip over empty windows
  *
  * Return:	MSC window structure pointer or NULL if the window
- *		could not be found.
+ *		could analt be found.
  */
 static struct msc_window *
-msc_find_window(struct msc *msc, struct sg_table *sgt, bool nonempty)
+msc_find_window(struct msc *msc, struct sg_table *sgt, bool analnempty)
 {
 	struct msc_window *win;
 	unsigned int found = 0;
@@ -369,7 +369,7 @@ msc_find_window(struct msc *msc, struct sg_table *sgt, bool nonempty)
 			found++;
 
 		/* skip the empty ones */
-		if (nonempty && msc_block_is_empty(msc_win_base(win)))
+		if (analnempty && msc_block_is_empty(msc_win_base(win)))
 			continue;
 
 		if (found)
@@ -443,7 +443,7 @@ static struct msc_iter *msc_iter_install(struct msc *msc)
 
 	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&msc->buf_mutex);
 
@@ -497,7 +497,7 @@ static void msc_iter_block_start(struct msc_iter *iter)
 
 static int msc_iter_win_start(struct msc_iter *iter, struct msc *msc)
 {
-	/* already started, nothing to do */
+	/* already started, analthing to do */
 	if (iter->start_win)
 		return 0;
 
@@ -540,7 +540,7 @@ static int msc_iter_block_advance(struct msc_iter *iter)
 			return msc_iter_win_advance(iter);
 	}
 
-	/* no wrapping, check for last written block */
+	/* anal wrapping, check for last written block */
 	if (!iter->wrap_count && msc_block_last_written(msc_iter_bdesc(iter)))
 		/* copied newest data for the window */
 		return msc_iter_win_advance(iter);
@@ -551,7 +551,7 @@ static int msc_iter_block_advance(struct msc_iter *iter)
 	else
 		iter->block = sg_next(iter->block);
 
-	/* no wrapping, sanity check in case there is no last written block */
+	/* anal wrapping, sanity check in case there is anal last written block */
 	if (!iter->wrap_count && iter->block == iter->start_block)
 		return msc_iter_win_advance(iter);
 
@@ -681,7 +681,7 @@ static int intel_th_msu_init(struct msc *msc)
 	mintctl |= msc->index ? M1BLIE : M0BLIE;
 	iowrite32(mintctl, msc->msu_base + REG_MSU_MINTCTL);
 	if (mintctl != ioread32(msc->msu_base + REG_MSU_MINTCTL)) {
-		dev_info(msc_dev(msc), "MINTCTL ignores writes: no usable interrupts\n");
+		dev_info(msc_dev(msc), "MINTCTL iganalres writes: anal usable interrupts\n");
 		msc->do_irq = 0;
 		return 0;
 	}
@@ -737,7 +737,7 @@ unlock:
 		if (expect == WIN_READY && old == WIN_LOCKED)
 			return -EBUSY;
 
-		/* from intel_th_msc_window_unlock(), don't warn if not locked */
+		/* from intel_th_msc_window_unlock(), don't warn if analt locked */
 		if (expect == WIN_LOCKED && old == new)
 			return 0;
 
@@ -869,7 +869,7 @@ static int intel_th_msc_activate(struct intel_th_device *thdev)
 	int ret = -EBUSY;
 
 	if (!atomic_inc_unless_negative(&msc->user_count))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&msc->buf_mutex);
 
@@ -905,7 +905,7 @@ static void intel_th_msc_deactivate(struct intel_th_device *thdev)
  * This modifies msc::base, which requires msc::buf_mutex to serialize, so the
  * caller is expected to hold it.
  *
- * Return:	0 on success, -errno otherwise.
+ * Return:	0 on success, -erranal otherwise.
  */
 static int msc_buffer_contig_alloc(struct msc *msc, unsigned long size)
 {
@@ -921,7 +921,7 @@ static int msc_buffer_contig_alloc(struct msc *msc, unsigned long size)
 	if (ret)
 		goto err_out;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	page = alloc_pages(GFP_KERNEL | __GFP_ZERO | GFP_DMA32, order);
 	if (!page)
 		goto err_free_sgt;
@@ -997,28 +997,28 @@ static int __msc_buffer_win_alloc(struct msc_window *win,
 
 	ret = sg_alloc_table(win->sgt, nr_segs, GFP_KERNEL);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_sg(win->sgt->sgl, sg_ptr, nr_segs, i) {
 		block = dma_alloc_coherent(msc_dev(win->msc)->parent->parent,
 					  PAGE_SIZE, &sg_dma_address(sg_ptr),
 					  GFP_KERNEL);
 		if (!block)
-			goto err_nomem;
+			goto err_analmem;
 
 		sg_set_buf(sg_ptr, block, PAGE_SIZE);
 	}
 
 	return nr_segs;
 
-err_nomem:
+err_analmem:
 	for_each_sg(win->sgt->sgl, sg_ptr, i, ret)
 		dma_free_coherent(msc_dev(win->msc)->parent->parent, PAGE_SIZE,
 				  sg_virt(sg_ptr), sg_dma_address(sg_ptr));
 
 	sg_free_table(win->sgt);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 #ifdef CONFIG_X86
@@ -1085,19 +1085,19 @@ static struct page *msc_sg_page(struct scatterlist *sg)
  * This modifies msc::win_list and msc::base, which requires msc::buf_mutex
  * to serialize, so the caller is expected to hold it.
  *
- * Return:	0 on success, -errno otherwise.
+ * Return:	0 on success, -erranal otherwise.
  */
 static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 {
 	struct msc_window *win;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (!nr_blocks)
 		return 0;
 
 	win = kzalloc(sizeof(*win), GFP_KERNEL);
 	if (!win)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	win->msc = msc;
 	win->sgt = &win->_sgt;
@@ -1119,7 +1119,7 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 		ret = __msc_buffer_win_alloc(win, nr_blocks);
 
 	if (ret <= 0)
-		goto err_nomem;
+		goto err_analmem;
 
 	win->nr_segs = ret;
 	win->nr_blocks = nr_blocks;
@@ -1135,7 +1135,7 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 
 	return 0;
 
-err_nomem:
+err_analmem:
 	kfree(win);
 
 	return ret;
@@ -1302,14 +1302,14 @@ static void msc_buffer_free(struct msc *msc)
  * This modifies msc::win_list and msc::base, which requires msc::buf_mutex
  * to serialize, so the caller is expected to hold it.
  *
- * Return:	0 on success, -errno otherwise.
+ * Return:	0 on success, -erranal otherwise.
  */
 static int msc_buffer_alloc(struct msc *msc, unsigned long *nr_pages,
 			    unsigned int nr_wins)
 {
 	int ret;
 
-	/* -1: buffer not allocated */
+	/* -1: buffer analt allocated */
 	if (atomic_read(&msc->user_count) != -1)
 		return -EBUSY;
 
@@ -1341,11 +1341,11 @@ static int msc_buffer_alloc(struct msc *msc, unsigned long *nr_pages,
  * msc_buffer_unlocked_free_unless_used() - free a buffer unless it's in use
  * @msc:	MSC device
  *
- * This will free MSC buffer unless it is in use or there is no allocated
+ * This will free MSC buffer unless it is in use or there is anal allocated
  * buffer.
  * Caller needs to hold msc::buf_mutex.
  *
- * Return:	0 on successful deallocation or if there was no buffer to
+ * Return:	0 on successful deallocation or if there was anal buffer to
  *		deallocate, -EBUSY if there are active users.
  */
 static int msc_buffer_unlocked_free_unless_used(struct msc *msc)
@@ -1357,10 +1357,10 @@ static int msc_buffer_unlocked_free_unless_used(struct msc *msc)
 	/* > 0: buffer is allocated and has users */
 	if (count > 0)
 		ret = -EBUSY;
-	/* 0: buffer is allocated, no users */
+	/* 0: buffer is allocated, anal users */
 	else if (!count)
 		msc_buffer_free(msc);
-	/* < 0: no buffer, nothing to do */
+	/* < 0: anal buffer, analthing to do */
 
 	return ret;
 }
@@ -1455,7 +1455,7 @@ static unsigned long msc_win_to_user(void *data, void *src, size_t len)
  * file operations' callbacks
  */
 
-static int intel_th_msc_open(struct inode *inode, struct file *file)
+static int intel_th_msc_open(struct ianalde *ianalde, struct file *file)
 {
 	struct intel_th_device *thdev = file->private_data;
 	struct msc *msc = dev_get_drvdata(&thdev->dev);
@@ -1470,10 +1470,10 @@ static int intel_th_msc_open(struct inode *inode, struct file *file)
 
 	file->private_data = iter;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int intel_th_msc_release(struct inode *inode, struct file *file)
+static int intel_th_msc_release(struct ianalde *ianalde, struct file *file)
 {
 	struct msc_iter *iter = file->private_data;
 	struct msc *msc = iter->msc;
@@ -1658,7 +1658,7 @@ out:
 	if (ret)
 		atomic_dec(&msc->user_count);
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTCOPY);
 	vma->vm_ops = &msc_mmap_ops;
 	return ret;
@@ -1669,7 +1669,7 @@ static const struct file_operations intel_th_msc_fops = {
 	.release	= intel_th_msc_release,
 	.read		= intel_th_msc_read,
 	.mmap		= intel_th_msc_mmap,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.owner		= THIS_MODULE,
 };
 
@@ -1730,7 +1730,7 @@ static int msc_win_switch(struct msc *msc)
 /**
  * intel_th_msc_window_unlock - put the window back in rotation
  * @dev:	MSC device to which this relates
- * @sgt:	buffer's sg_table for the window, does nothing if NULL
+ * @sgt:	buffer's sg_table for the window, does analthing if NULL
  */
 void intel_th_msc_window_unlock(struct device *dev, struct sg_table *sgt)
 {
@@ -1767,17 +1767,17 @@ static irqreturn_t intel_th_msc_interrupt(struct intel_th_device *thdev)
 	struct msc_window *win, *next_win;
 
 	if (!msc->do_irq || !msc->mbuf)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	msusts &= mask;
 
 	if (!msusts)
-		return msc->enabled ? IRQ_HANDLED : IRQ_NONE;
+		return msc->enabled ? IRQ_HANDLED : IRQ_ANALNE;
 
 	iowrite32(msusts, msc->msu_base + REG_MSU_MSUSTS);
 
 	if (!msc->enabled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* grab the window before we do the switch */
 	win = msc->cur_win;
@@ -1891,7 +1891,7 @@ mode_store(struct device *dev, struct device_attribute *attr, const char *buf,
 
 	mode = kstrndup(buf, len, GFP_KERNEL);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = match_string(msc_mode, ARRAY_SIZE(msc_mode), mode);
 	if (i >= 0) {
@@ -1914,12 +1914,12 @@ mode_store(struct device *dev, struct device_attribute *attr, const char *buf,
 
 found:
 	if (i == MSC_MODE_MULTI && msc->multi_is_broken)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&msc->buf_mutex);
 	ret = 0;
 
-	/* Same buffer: do nothing */
+	/* Same buffer: do analthing */
 	if (mbuf && mbuf == msc->mbuf) {
 		/* put the extra reference we just got */
 		msu_buffer_put(mbuf);
@@ -1934,7 +1934,7 @@ found:
 		void *mbuf_priv = mbuf->assign(dev, &i);
 
 		if (!mbuf_priv) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock;
 		}
 
@@ -2010,7 +2010,7 @@ nr_pages_store(struct device *dev, struct device_attribute *attr,
 		end = memchr(p, ',', len);
 		s = kstrndup(p, end ? end - p : len, GFP_KERNEL);
 		if (!s) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_win;
 		}
 
@@ -2029,7 +2029,7 @@ nr_pages_store(struct device *dev, struct device_attribute *attr,
 		rewin = krealloc_array(win, nr_wins, sizeof(*win), GFP_KERNEL);
 		if (!rewin) {
 			kfree(win);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		win = rewin;
@@ -2133,15 +2133,15 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 
 	res = intel_th_device_get_resource(thdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msc = devm_kzalloc(dev, sizeof(*msc), GFP_KERNEL);
 	if (!msc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = intel_th_device_get_resource(thdev, IORESOURCE_IRQ, 1);
 	if (!res)
@@ -2174,7 +2174,7 @@ static void intel_th_msc_remove(struct intel_th_device *thdev)
 	intel_th_msc_deactivate(thdev);
 
 	/*
-	 * Buffers should not be used at this point except if the
+	 * Buffers should analt be used at this point except if the
 	 * output character device is still open and the parent
 	 * device gets detached from its bus, which is a FIXME.
 	 */

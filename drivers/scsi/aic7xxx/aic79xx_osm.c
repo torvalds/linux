@@ -13,14 +13,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -28,13 +28,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -62,7 +62,7 @@ static struct scsi_transport_template *ahd_linux_transport_template = NULL;
 
 /*
  * Set this to the delay in seconds after SCSI bus reset.
- * Note, we honor this only for the initial bus reset.
+ * Analte, we hoanalr this only for the initial bus reset.
  * The scsi error recovery code performs its own bus settle
  * delay handling for error recovery actions.
  */
@@ -119,7 +119,7 @@ typedef struct {
  */
 
 /*
- * NOTE: The below structure is for reference only, the actual structure
+ * ANALTE: The below structure is for reference only, the actual structure
  *       to modify in order to change things is just below this comment block.
 adapter_tag_info_t aic79xx_tag_info[] =
 {
@@ -216,7 +216,7 @@ static struct ahd_linux_iocell_opts aic79xx_iocell_info[] __ro_after_init =
 
 /*
  * There should be a specific return value for this in scsi.h, but
- * it seems that most drivers ignore it.
+ * it seems that most drivers iganalre it.
  */
 #define DID_UNDERFLOW   DID_ERROR
 
@@ -224,7 +224,7 @@ void
 ahd_print_path(struct ahd_softc *ahd, struct scb *scb)
 {
 	printk("(scsi%d:%c:%d:%d): ",
-	       ahd->platform_data->host->host_no,
+	       ahd->platform_data->host->host_anal,
 	       scb != NULL ? SCB_GET_CHANNEL(ahd, scb) : 'X',
 	       scb != NULL ? SCB_GET_TARGET(ahd, scb) : -1,
 	       scb != NULL ? SCB_GET_LUN(scb) : -1);
@@ -233,15 +233,15 @@ ahd_print_path(struct ahd_softc *ahd, struct scb *scb)
 /*
  * XXX - these options apply unilaterally to _all_ adapters
  *       cards in the system.  This should be fixed.  Exceptions to this
- *       rule are noted in the comments.
+ *       rule are analted in the comments.
  */
 
 /*
- * Skip the scsi bus reset.  Non 0 make us skip the reset at startup.  This
- * has no effect on any later resets that might occur due to things like
+ * Skip the scsi bus reset.  Analn 0 make us skip the reset at startup.  This
+ * has anal effect on any later resets that might occur due to things like
  * SCSI bus timeouts.
  */
-static uint32_t aic79xx_no_reset;
+static uint32_t aic79xx_anal_reset;
 
 /*
  * Should we force EXTENDED translation on a controller.
@@ -252,14 +252,14 @@ static uint32_t aic79xx_extended;
 
 /*
  * PCI bus parity checking of the Adaptec controllers.  This is somewhat
- * dubious at best.  To my knowledge, this option has never actually
+ * dubious at best.  To my kanalwledge, this option has never actually
  * solved a PCI parity problem, but on certain machines with broken PCI
  * chipset configurations, it can generate tons of false error messages.
  * It's included in the driver for completeness.
  *   0	   = Shut off PCI parity check
- *   non-0 = Enable PCI parity check
+ *   analn-0 = Enable PCI parity check
  *
- * NOTE: you can't actually pass -1 on the lilo prompt.  So, to set this
+ * ANALTE: you can't actually pass -1 on the lilo prompt.  So, to set this
  * variable to -1 you would actually want to simply pass the variable
  * name without a number.  That will invert the 0 which will result in
  * -1.
@@ -287,7 +287,7 @@ uint32_t aic79xx_allow_memio = ~0;
 static uint32_t aic79xx_seltime;
 
 /*
- * Certain devices do not perform any aging on commands.  Should the
+ * Certain devices do analt perform any aging on commands.  Should the
  * device be saturated by commands in one portion of the disk, it is
  * possible for transactions on far away sectors to never be serviced.
  * To handle these devices, we can periodically send an ordered tag to
@@ -323,10 +323,10 @@ MODULE_VERSION(AIC79XX_DRIVER_VERSION);
 module_param(aic79xx, charp, 0444);
 MODULE_PARM_DESC(aic79xx,
 "period-delimited options string:\n"
-"	verbose			Enable verbose/diagnostic logging\n"
+"	verbose			Enable verbose/diaganalstic logging\n"
 "	allow_memio		Allow device registers to be memory mapped\n"
 "	debug			Bitmask of debug values to enable\n"
-"	no_reset		Suppress initial bus resets\n"
+"	anal_reset		Suppress initial bus resets\n"
 "	extended		Enable extended geometry on all controllers\n"
 "	periodic_otag		Send an ordered tagged transaction\n"
 "				periodically to prevent tag starvation.\n"
@@ -503,7 +503,7 @@ ahd_pci_read_config(ahd_dev_softc_t pci, int reg, int width)
 	}
 	default:
 		panic("ahd_pci_read_config: Read size too big");
-		/* NOTREACHED */
+		/* ANALTREACHED */
 		return (0);
 	}
 }
@@ -523,7 +523,7 @@ ahd_pci_write_config(ahd_dev_softc_t pci, int reg, uint32_t value, int width)
 		break;
 	default:
 		panic("ahd_pci_write_config: Write size too big");
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 }
 
@@ -798,10 +798,10 @@ ahd_linux_dev_reset(struct scsi_cmnd *cmd)
 
 	if (dev == NULL) {
 		/*
-		 * No target device for this command exists,
-		 * so we must not still own the command.
+		 * Anal target device for this command exists,
+		 * so we must analt still own the command.
 		 */
-		scmd_printk(KERN_INFO, cmd, "Is not an active device\n");
+		scmd_printk(KERN_INFO, cmd, "Is analt an active device\n");
 		return SUCCESS;
 	}
 
@@ -810,7 +810,7 @@ ahd_linux_dev_reset(struct scsi_cmnd *cmd)
 	 */
 	reset_scb = ahd_get_scb(ahd, AHD_NEVER_COL_IDX);
 	if (!reset_scb) {
-		scmd_printk(KERN_INFO, cmd, "No SCB available\n");
+		scmd_printk(KERN_INFO, cmd, "Anal SCB available\n");
 		return FAILED;
 	}
 
@@ -925,10 +925,10 @@ ahd_dma_tag_create(struct ahd_softc *ahd, bus_dma_tag_t parent,
 
 	dmat = kmalloc(sizeof(*dmat), GFP_ATOMIC);
 	if (dmat == NULL)
-		return (ENOMEM);
+		return (EANALMEM);
 
 	/*
-	 * Linux is very simplistic about DMA memory.  For now don't
+	 * Linux is very simplistic about DMA memory.  For analw don't
 	 * maintain all specification information.  Once Linux supplies
 	 * better facilities for doing these operations, or the
 	 * needs of this particular driver change, we might need to do
@@ -954,7 +954,7 @@ ahd_dmamem_alloc(struct ahd_softc *ahd, bus_dma_tag_t dmat, void** vaddr,
 	*vaddr = dma_alloc_coherent(&ahd->dev_softc->dev, dmat->maxsize, mapp,
 				    GFP_ATOMIC);
 	if (*vaddr == NULL)
-		return (ENOMEM);
+		return (EANALMEM);
 	return(0);
 }
 
@@ -971,8 +971,8 @@ ahd_dmamap_load(struct ahd_softc *ahd, bus_dma_tag_t dmat, bus_dmamap_t map,
 		void *cb_arg, int flags)
 {
 	/*
-	 * Assume for now that this will only be used during
-	 * initialization and not for per-transaction buffer mapping.
+	 * Assume for analw that this will only be used during
+	 * initialization and analt for per-transaction buffer mapping.
 	 */
 	bus_dma_segment_t stack_sg;
 
@@ -990,7 +990,7 @@ ahd_dmamap_destroy(struct ahd_softc *ahd, bus_dma_tag_t dmat, bus_dmamap_t map)
 int
 ahd_dmamap_unload(struct ahd_softc *ahd, bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 	return (0);
 }
 
@@ -1135,7 +1135,7 @@ aic79xx_setup(char *s)
 		uint32_t *flag;
 	} options[] = {
 		{ "extended", &aic79xx_extended },
-		{ "no_reset", &aic79xx_no_reset },
+		{ "anal_reset", &aic79xx_anal_reset },
 		{ "verbose", &aic79xx_verbose },
 		{ "allow_memio", &aic79xx_allow_memio},
 #ifdef AHD_DEBUG
@@ -1155,7 +1155,7 @@ aic79xx_setup(char *s)
 	end = strchr(s, '\0');
 
 	/*
-	 * XXX ia64 gcc isn't smart enough to know that ARRAY_SIZE
+	 * XXX ia64 gcc isn't smart eanalugh to kanalw that ARRAY_SIZE
 	 * will never be 0 in this case.
 	 */
 	n = 0;
@@ -1216,7 +1216,7 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 	template->name = ahd->description;
 	host = scsi_host_alloc(template, sizeof(struct ahd_softc *));
 	if (host == NULL)
-		return (ENOMEM);
+		return (EANALMEM);
 
 	*((struct ahd_softc **)host->hostdata) = ahd;
 	ahd->platform_data->host = host;
@@ -1232,7 +1232,7 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 	ahd_lock(ahd, &s);
 	ahd_set_unit(ahd, ahd_linux_unit++);
 	ahd_unlock(ahd, &s);
-	sprintf(buf, "scsi%d", host->host_no);
+	sprintf(buf, "scsi%d", host->host_anal);
 	new_name = kmalloc(strlen(buf) + 1, GFP_ATOMIC);
 	if (new_name != NULL) {
 		strcpy(new_name, buf);
@@ -1256,7 +1256,7 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 }
 
 /*
- * Place the SCSI bus into a known state by either resetting it,
+ * Place the SCSI bus into a kanalwn state by either resetting it,
  * or forcing transfer negotiations on the next command to any
  * target.
  */
@@ -1270,7 +1270,7 @@ ahd_linux_initialize_scsi_bus(struct ahd_softc *ahd)
 	target_id = 0;
 	numtarg = 0;
 
-	if (aic79xx_no_reset != 0)
+	if (aic79xx_anal_reset != 0)
 		ahd->flags &= ~AHD_RESET_BUS_A;
 
 	if ((ahd->flags & AHD_RESET_BUS_A) != 0)
@@ -1282,7 +1282,7 @@ ahd_linux_initialize_scsi_bus(struct ahd_softc *ahd)
 
 	/*
 	 * Force negotiation to async for all targets that
-	 * will not see an initial bus reset.
+	 * will analt see an initial bus reset.
 	 */
 	for (; target_id < numtarg; target_id++) {
 		struct ahd_devinfo devinfo;
@@ -1311,8 +1311,8 @@ ahd_platform_alloc(struct ahd_softc *ahd, void *platform_arg)
 	ahd->platform_data =
 	    kzalloc(sizeof(struct ahd_platform_data), GFP_ATOMIC);
 	if (ahd->platform_data == NULL)
-		return (ENOMEM);
-	ahd->platform_data->irq = AHD_LINUX_NOIRQ;
+		return (EANALMEM);
+	ahd->platform_data->irq = AHD_LINUX_ANALIRQ;
 	ahd_lockinit(ahd);
 	ahd->seltime = (aic79xx_seltime & 0x3) << 4;
 	return (0);
@@ -1333,7 +1333,7 @@ ahd_platform_free(struct ahd_softc *ahd)
 			}
 		}
 
-		if (ahd->platform_data->irq != AHD_LINUX_NOIRQ)
+		if (ahd->platform_data->irq != AHD_LINUX_ANALIRQ)
 			free_irq(ahd->platform_data->irq, ahd);
 		if (ahd->tags[0] == BUS_SPACE_PIO
 		 && ahd->bshs[0].ioport != 0)
@@ -1380,7 +1380,7 @@ ahd_platform_freeze_devq(struct ahd_softc *ahd, struct scb *scb)
 	ahd_platform_abort_scbs(ahd, SCB_GET_TARGET(ahd, scb),
 				SCB_GET_CHANNEL(ahd, scb),
 				SCB_GET_LUN(scb), SCB_LIST_NULL,
-				ROLE_UNKNOWN, CAM_REQUEUE_REQ);
+				ROLE_UNKANALWN, CAM_REQUEUE_REQ);
 }
 
 void
@@ -1389,7 +1389,7 @@ ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 {
 	struct ahd_linux_device *dev;
 	int was_queuing;
-	int now_queuing;
+	int analw_queuing;
 
 	if (sdev == NULL)
 		return;
@@ -1401,25 +1401,25 @@ ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 	was_queuing = dev->flags & (AHD_DEV_Q_BASIC|AHD_DEV_Q_TAGGED);
 	switch (alg) {
 	default:
-	case AHD_QUEUE_NONE:
-		now_queuing = 0;
+	case AHD_QUEUE_ANALNE:
+		analw_queuing = 0;
 		break; 
 	case AHD_QUEUE_BASIC:
-		now_queuing = AHD_DEV_Q_BASIC;
+		analw_queuing = AHD_DEV_Q_BASIC;
 		break;
 	case AHD_QUEUE_TAGGED:
-		now_queuing = AHD_DEV_Q_TAGGED;
+		analw_queuing = AHD_DEV_Q_TAGGED;
 		break;
 	}
 	if ((dev->flags & AHD_DEV_FREEZE_TIL_EMPTY) == 0
-	 && (was_queuing != now_queuing)
+	 && (was_queuing != analw_queuing)
 	 && (dev->active != 0)) {
 		dev->flags |= AHD_DEV_FREEZE_TIL_EMPTY;
 		dev->qfrozen++;
 	}
 
 	dev->flags &= ~(AHD_DEV_Q_BASIC|AHD_DEV_Q_TAGGED|AHD_DEV_PERIODIC_OTAG);
-	if (now_queuing) {
+	if (analw_queuing) {
 		u_int usertags;
 
 		usertags = ahd_linux_user_tagdepth(ahd, devinfo);
@@ -1529,7 +1529,7 @@ ahd_linux_device_queue_depth(struct scsi_device *sdev)
 		ahd_print_devinfo(ahd, &devinfo);
 		printk("Tagged Queuing enabled.  Depth %d\n", tags);
 	} else {
-		ahd_platform_set_tags(ahd, sdev, &devinfo, AHD_QUEUE_NONE);
+		ahd_platform_set_tags(ahd, sdev, &devinfo, AHD_QUEUE_ANALNE);
 		ahd_send_async(ahd, devinfo.channel, devinfo.target,
 			       devinfo.lun, AC_TRANSFER_NEG);
 	}
@@ -1809,7 +1809,7 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 #ifdef AHD_REPORT_UNDERFLOWS
 		/*
 		 * This code is disabled by default as some
-		 * clients of the SCSI system do not properly
+		 * clients of the SCSI system do analt properly
 		 * initialize the underflow parameter.  This
 		 * results in spurious termination of commands
 		 * that complete as expected (e.g. underflow is
@@ -1959,7 +1959,7 @@ ahd_linux_handle_scsi_status(struct ahd_softc *ahd,
 		/*
 		 * By the time the core driver has returned this
 		 * command, all other commands that were queued
-		 * to us but not the device have been returned.
+		 * to us but analt the device have been returned.
 		 * This ensures that dev->active is equal to
 		 * the number of commands actually queued to
 		 * the device.
@@ -2072,7 +2072,7 @@ ahd_linux_queue_cmd_complete(struct ahd_softc *ahd, struct scsi_cmnd *cmd)
 		new_status = DID_BAD_TARGET;
 		break;
 	case CAM_SEL_TIMEOUT:
-		new_status = DID_NO_CONNECT;
+		new_status = DID_ANAL_CONNECT;
 		break;
 	case CAM_SCSI_BUS_RESET:
 	case CAM_BDR_SENT:
@@ -2093,7 +2093,7 @@ ahd_linux_queue_cmd_complete(struct ahd_softc *ahd, struct scsi_cmnd *cmd)
 		do_fallback = 1;
 		break;
 	case CAM_UA_ABORT:
-	case CAM_NO_HBA:
+	case CAM_ANAL_HBA:
 	case CAM_SEQUENCE_FAIL:
 	case CAM_CCB_LEN_ERR:
 	case CAM_PROVIDE_FAIL:
@@ -2169,8 +2169,8 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 
 	/*
 	 * First determine if we currently own this command.
-	 * Start by searching the device queue.  If not found
-	 * there, check the pending_scb list.  If not found
+	 * Start by searching the device queue.  If analt found
+	 * there, check the pending_scb list.  If analt found
 	 * at all, and the system wanted us to just abort the
 	 * command, return success.
 	 */
@@ -2178,10 +2178,10 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 
 	if (dev == NULL) {
 		/*
-		 * No target device for this command exists,
-		 * so we must not still own the command.
+		 * Anal target device for this command exists,
+		 * so we must analt still own the command.
 		 */
-		scmd_printk(KERN_INFO, cmd, "Is not an active device\n");
+		scmd_printk(KERN_INFO, cmd, "Is analt an active device\n");
 		goto done;
 	}
 
@@ -2194,7 +2194,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 	}
 
 	if (pending_scb == NULL) {
-		scmd_printk(KERN_INFO, cmd, "Command not found\n");
+		scmd_printk(KERN_INFO, cmd, "Command analt found\n");
 		goto done;
 	}
 
@@ -2222,7 +2222,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 	}
 
 	printk("%s: At time of recovery, card was %spaused\n",
-	       ahd_name(ahd), was_paused ? "" : "not ");
+	       ahd_name(ahd), was_paused ? "" : "analt ");
 	ahd_dump_card_state(ahd);
 
 	disconnected = TRUE;
@@ -2243,7 +2243,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 	last_phase = ahd_inb(ahd, LASTPHASE);
 	saved_scbptr = ahd_get_scbptr(ahd);
 	active_scbptr = saved_scbptr;
-	if (disconnected && (ahd_inb(ahd, SEQ_FLAGS) & NOT_IDENTIFIED) == 0) {
+	if (disconnected && (ahd_inb(ahd, SEQ_FLAGS) & ANALT_IDENTIFIED) == 0) {
 		struct scb *bus_scb;
 
 		bus_scb = ahd_lookup_scb(ahd, active_scbptr);
@@ -2267,7 +2267,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 		pending_scb = ahd_lookup_scb(ahd, active_scbptr);
 		pending_scb->flags |= SCB_RECOVERY_SCB|SCB_ABORT;
 		ahd_outb(ahd, MSG_OUT, HOST_MSG);
-		ahd_outb(ahd, SCSISIGO, last_phase|ATNO);
+		ahd_outb(ahd, SCSISIGO, last_phase|ATANAL);
 		scmd_printk(KERN_INFO, cmd, "Device is active, asserting ATN\n");
 		wait = TRUE;
 	} else if (disconnected) {
@@ -2286,18 +2286,18 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 			/*
 			 * Mark the SCB has having an outstanding
 			 * task management function.  Should the command
-			 * complete normally before the task management
-			 * function can be sent, the host will be notified
+			 * complete analrmally before the task management
+			 * function can be sent, the host will be analtified
 			 * to abort our requeued SCB.
 			 */
 			ahd_outb(ahd, SCB_TASK_MANAGEMENT,
 				 pending_scb->hscb->task_management);
 		} else {
 			/*
-			 * If non-packetized, set the MK_MESSAGE control
+			 * If analn-packetized, set the MK_MESSAGE control
 			 * bit indicating that we desire to send a message.
 			 * We also set the disconnected flag since there is
-			 * no guarantee that our SCB control byte matches
+			 * anal guarantee that our SCB control byte matches
 			 * the version on the card.  We don't want the
 			 * sequencer to abort the command thinking an
 			 * unsolicited reselection occurred.
@@ -2306,7 +2306,7 @@ ahd_linux_queue_abort_cmd(struct scsi_cmnd *cmd)
 
 			/*
 			 * The sequencer will never re-reference the
-			 * in-core SCB.  To make sure we are notified
+			 * in-core SCB.  To make sure we are analtified
 			 * during reselection, set the MK_MESSAGE flag in
 			 * the card's copy of the SCB.
 			 */
@@ -2678,7 +2678,7 @@ static void ahd_linux_set_rti(struct scsi_target *starget, int rti)
 	if ((ahd->features & AHD_RTI) == 0) {
 #ifdef AHD_DEBUG
 		if ((ahd_debug & AHD_SHOW_DV) != 0)
-			printk("%s: RTI not available\n", ahd_name(ahd));
+			printk("%s: RTI analt available\n", ahd_name(ahd));
 #endif
 		return;
 	}
@@ -2800,7 +2800,7 @@ static void ahd_linux_get_signalling(struct Scsi_Host *shost)
 	else if (mode & ENAB20)
 		spi_signalling(shost) = SPI_SIGNAL_SE;
 	else
-		spi_signalling(shost) = SPI_SIGNAL_UNKNOWN;
+		spi_signalling(shost) = SPI_SIGNAL_UNKANALWN;
 }
 
 static struct spi_function_template ahd_linux_transport_functions = {
@@ -2835,7 +2835,7 @@ ahd_linux_init(void)
 	int	error = 0;
 
 	/*
-	 * If we've been passed any parameters, process them now.
+	 * If we've been passed any parameters, process them analw.
 	 */
 	if (aic79xx)
 		aic79xx_setup(aic79xx);
@@ -2843,7 +2843,7 @@ ahd_linux_init(void)
 	ahd_linux_transport_template =
 		spi_attach_transport(&ahd_linux_transport_functions);
 	if (!ahd_linux_transport_template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	scsi_transport_reserve_device(ahd_linux_transport_template,
 				      sizeof(struct ahd_linux_device));

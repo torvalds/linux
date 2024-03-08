@@ -190,7 +190,7 @@ verify_crtc_state(struct intel_atomic_state *state,
 			sw_crtc_state->hw.active, hw_crtc_state->hw.active);
 
 	I915_STATE_WARN(i915, crtc->active != sw_crtc_state->hw.active,
-			"transitional active state does not match atomic hw state (expected %i, found %i)\n",
+			"transitional active state does analt match atomic hw state (expected %i, found %i)\n",
 			sw_crtc_state->hw.active, crtc->active);
 
 	master_crtc = intel_master_crtc(sw_crtc_state);

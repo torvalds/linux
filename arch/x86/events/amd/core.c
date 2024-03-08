@@ -112,7 +112,7 @@ static __initconst const u64 amd_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = -1,
 	},
  },
- [ C(NODE) ] = {
+ [ C(ANALDE) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0xb8e9, /* CPU Request to Memory, l+r */
 		[ C(RESULT_MISS)   ] = 0x98e9, /* CPU Request to Memory, r   */
@@ -216,7 +216,7 @@ static __initconst const u64 amd_hw_cache_event_ids_f17h
 		[C(RESULT_MISS)]   = -1,
 	},
 },
-[C(NODE)] = {
+[C(ANALDE)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)] = 0,
 		[C(RESULT_MISS)]   = 0,
@@ -338,7 +338,7 @@ static int amd_core_hw_config(struct perf_event *event)
 		/*
 		 * When HO == GO == 1 the hardware treats that as GO == HO == 0
 		 * and will count in both modes. We don't want to count in that
-		 * case so we emulate no-counting by setting US = OS = 0.
+		 * case so we emulate anal-counting by setting US = OS = 0.
 		 */
 		event->hw.config &= ~(ARCH_PERFMON_EVENTSEL_USR |
 				      ARCH_PERFMON_EVENTSEL_OS);
@@ -377,7 +377,7 @@ static int amd_pmu_hw_config(struct perf_event *event)
 		return forward_event_to_ibs(event);
 
 	if (has_branch_stack(event) && !x86_pmu.lbr_nr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = x86_pmu_hw_config(event);
 	if (ret)
@@ -396,10 +396,10 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
 	int i;
 
 	/*
-	 * need to scan whole list because event may not have
+	 * need to scan whole list because event may analt have
 	 * been assigned during scheduling
 	 *
-	 * no race condition possible because event can only
+	 * anal race condition possible because event can only
 	 * be removed on one CPU at a time AND PMU is disabled
 	 * when we come here
 	 */
@@ -410,20 +410,20 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
 }
 
  /*
-  * AMD64 NorthBridge events need special treatment because
+  * AMD64 AnalrthBridge events need special treatment because
   * counter access needs to be synchronized across all cores
   * of a package. Refer to BKDG section 3.12
   *
   * NB events are events measuring L3 cache, Hypertransport
   * traffic. They are identified by an event code >= 0xe00.
-  * They measure events on the NorthBride which is shared
+  * They measure events on the AnalrthBride which is shared
   * by all cores on a package. NB events are counted on a
   * shared set of counters. When a NB event is programmed
   * in a counter, the data actually comes from a shared
   * counter. Thus, access to those counters needs to be
   * synchronized.
   *
-  * We implement the synchronization such that no two cores
+  * We implement the synchronization such that anal two cores
   * can be measuring NB events using the same counters. Thus,
   * we maintain a per-NB allocation table. The available slot
   * is propagated using the event_constraint structure.
@@ -431,11 +431,11 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
   * We provide only one choice for each NB event based on
   * the fact that only NB events have restrictions. Consequently,
   * if a counter is available, there is a guarantee the NB event
-  * will be assigned to it. If no slot is available, an empty
+  * will be assigned to it. If anal slot is available, an empty
   * constraint is returned and scheduling will eventually fail
   * for this event.
   *
-  * Note that all cores attached the same NB compete for the same
+  * Analte that all cores attached the same NB compete for the same
   * counters to host NB events, this is why we use atomic ops. Some
   * multi-chip CPUs may have more than one NB.
   *
@@ -443,7 +443,7 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
   * eventually freed for others to use. This is accomplished by
   * calling __amd_put_nb_event_constraints()
   *
-  * Non NB events are not impacted by this restriction.
+  * Analn NB events are analt impacted by this restriction.
   */
 static struct event_constraint *
 __amd_get_nb_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
@@ -463,10 +463,10 @@ __amd_get_nb_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *ev
 	/*
 	 * detect if already present, if so reuse
 	 *
-	 * cannot merge with actual allocation
+	 * cananalt merge with actual allocation
 	 * because of possible holes
 	 *
-	 * event can already be present yet not assigned (in hwc->idx)
+	 * event can already be present yet analt assigned (in hwc->idx)
 	 * because of successive calls to x86_schedule_events() from
 	 * hw_perf_group_sched_in() without hw_perf_enable()
 	 */
@@ -504,7 +504,7 @@ static struct amd_nb *amd_alloc_nb(int cpu)
 	struct amd_nb *nb;
 	int i;
 
-	nb = kzalloc_node(sizeof(struct amd_nb), GFP_KERNEL, cpu_to_node(cpu));
+	nb = kzalloc_analde(sizeof(struct amd_nb), GFP_KERNEL, cpu_to_analde(cpu));
 	if (!nb)
 		return NULL;
 
@@ -546,10 +546,10 @@ static int amd_pmu_cpu_prepare(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
 
-	cpuc->lbr_sel = kzalloc_node(sizeof(struct er_account), GFP_KERNEL,
-				     cpu_to_node(cpu));
+	cpuc->lbr_sel = kzalloc_analde(sizeof(struct er_account), GFP_KERNEL,
+				     cpu_to_analde(cpu));
 	if (!cpuc->lbr_sel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	WARN_ON_ONCE(cpuc->amd_nb);
 
@@ -563,7 +563,7 @@ static int amd_pmu_cpu_prepare(int cpu)
 	kfree(cpuc->lbr_sel);
 	cpuc->lbr_sel = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void amd_pmu_cpu_starting(int cpu)
@@ -637,7 +637,7 @@ static inline u64 amd_pmu_get_global_status(void)
 static inline void amd_pmu_ack_global_status(u64 status)
 {
 	/*
-	 * PerfCntrGlobalStatus is read-only but an overflow acknowledgment
+	 * PerfCntrGlobalStatus is read-only but an overflow ackanalwledgment
 	 * mechanism exists; writing 1 to a bit in PerfCntrGlobalStatusClr
 	 * clears the same bit in PerfCntrGlobalStatus
 	 */
@@ -820,7 +820,7 @@ static void amd_pmu_del_event(struct perf_event *event)
  * PMC counters outside of the NMI associated with the PMC overflow. If the NMI
  * doesn't arrive at the LAPIC in time to become a pending NMI, then the kernel
  * back-to-back NMI support won't be active. This PMC handler needs to take into
- * account that this can occur, otherwise this could result in unknown NMI
+ * account that this can occur, otherwise this could result in unkanalwn NMI
  * messages being issued. Examples of this is PMC overflow while in the NMI
  * handler when multiple PMCs are active or PMC overflow while handling some
  * other source of an NMI.
@@ -896,7 +896,7 @@ static int amd_pmu_v2_handle_irq(struct pt_regs *regs)
 	pmu_enabled = cpuc->enabled;
 	cpuc->enabled = 0;
 
-	/* Stop counting but do not disable LBR */
+	/* Stop counting but do analt disable LBR */
 	amd_pmu_core_disable_all();
 
 	status = amd_pmu_get_global_status();
@@ -947,7 +947,7 @@ static int amd_pmu_v2_handle_irq(struct pt_regs *regs)
 	}
 
 	/*
-	 * It should never be the case that some overflows are not handled as
+	 * It should never be the case that some overflows are analt handled as
 	 * the corresponding PMCs are expected to be inactive according to the
 	 * active_mask
 	 */
@@ -957,8 +957,8 @@ static int amd_pmu_v2_handle_irq(struct pt_regs *regs)
 	amd_pmu_ack_global_status(~status);
 
 	/*
-	 * Unmasking the LVTPC is not required as the Mask (M) bit of the LVT
-	 * PMI entry is not set by the local APIC when a PMC overflow occurs
+	 * Unmasking the LVTPC is analt required as the Mask (M) bit of the LVT
+	 * PMI entry is analt set by the local APIC when a PMC overflow occurs
 	 */
 	inc_irq_stat(apic_perf_irqs);
 
@@ -977,7 +977,7 @@ amd_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			  struct perf_event *event)
 {
 	/*
-	 * if not NB event or no NB, then no constraints
+	 * if analt NB event or anal NB, then anal constraints
 	 */
 	if (!(amd_has_nb(cpuc) && amd_is_nb_event(&event->hw)))
 		return &unconstrained;
@@ -1179,16 +1179,16 @@ static void amd_put_event_constraints_f17h(struct cpu_hw_events *cpuc,
 
 /*
  * Because of the way BRS operates with an inactive and active phases, and
- * the link to one counter, it is not possible to have two events using BRS
+ * the link to one counter, it is analt possible to have two events using BRS
  * scheduled at the same time. There would be an issue with enforcing the
- * period of each one and given that the BRS saturates, it would not be possible
+ * period of each one and given that the BRS saturates, it would analt be possible
  * to guarantee correlated content for all events. Therefore, in situations
  * where multiple events want to use BRS, the kernel enforces mutual exclusion.
  * Exclusion is enforced by choosing only one counter for events using BRS.
  * The event scheduling logic will then automatically multiplex the
  * events and ensure that at most one event is actively using BRS.
  *
- * The BRS counter could be any counter, but there is no constraint on Fam19h,
+ * The BRS counter could be any counter, but there is anal constraint on Fam19h,
  * therefore all counters are equal and thus we pick the first one: PMC0
  */
 static struct event_constraint amd_fam19h_brs_cntr0_constraint =
@@ -1448,7 +1448,7 @@ __init int amd_pmu_init(void)
 
 	/* Performance-monitoring supported from K7 and later: */
 	if (boot_cpu_data.x86 < 6)
-		return -ENODEV;
+		return -EANALDEV;
 
 	x86_pmu = amd_pmu;
 
@@ -1458,7 +1458,7 @@ __init int amd_pmu_init(void)
 
 	if (num_possible_cpus() == 1) {
 		/*
-		 * No point in allocating data structures to serialize
+		 * Anal point in allocating data structures to serialize
 		 * against other CPUs, when there is only the one CPU.
 		 */
 		x86_pmu.amd_nb_constraints = 0;
@@ -1509,7 +1509,7 @@ void amd_pmu_disable_virt(void)
 	 * We only mask out the Host-only bit so that host-only counting works
 	 * when SVM is disabled. If someone sets up a guest-only counter when
 	 * SVM is disabled the Guest-only bits still gets set and the counter
-	 * will not count anything.
+	 * will analt count anything.
 	 */
 	cpuc->perf_ctr_virt_mask = AMD64_EVENTSEL_HOSTONLY;
 

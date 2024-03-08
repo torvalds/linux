@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Based on arch/arm/include/asm/ptrace.h
  *
@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  */
 #ifndef _UAPI__ASM_PTRACE_H
 #define _UAPI__ASM_PTRACE_H
@@ -68,7 +68,7 @@
 #define PSR_c		0x000000ff	/* Control		*/
 
 /* Convenience names for the values of PSTATE.BTYPE */
-#define PSR_BTYPE_NONE		(0b00 << PSR_BTYPE_SHIFT)
+#define PSR_BTYPE_ANALNE		(0b00 << PSR_BTYPE_SHIFT)
 #define PSR_BTYPE_JC		(0b01 << PSR_BTYPE_SHIFT)
 #define PSR_BTYPE_C		(0b10 << PSR_BTYPE_SHIFT)
 #define PSR_BTYPE_J		(0b11 << PSR_BTYPE_SHIFT)

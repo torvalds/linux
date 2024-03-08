@@ -10,14 +10,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -25,13 +25,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -73,7 +73,7 @@ static symbol_ref_t accumulator;
 static symbol_ref_t mode_ptr;
 static symbol_ref_t allones;
 static symbol_ref_t allzeros;
-static symbol_ref_t none;
+static symbol_ref_t analne;
 static symbol_ref_t sindex;
 static int instruction_ptr;
 static int num_srams;
@@ -186,21 +186,21 @@ void yyerror(const char *string);
 
 %token <value> T_STC T_CLC
 
-%token <value> T_CMP T_NOT T_XOR
+%token <value> T_CMP T_ANALT T_XOR
 
 %token <value> T_TEST T_AND
 
 %token <value> T_OR
 
-/* 16 bit extensions, not implemented
+/* 16 bit extensions, analt implemented
  * %token <value> T_OR16 T_AND16 T_XOR16 T_ADD16
  * %token <value> T_ADC16 T_MVI16 T_TEST16 T_CMP16 T_CMPXCHG
  */
 %token T_RET
 
-%token T_NOP
+%token T_ANALP
 
-%token T_ACCUM T_ALLONES T_ALLZEROS T_NONE T_SINDEX T_MODE_PTR
+%token T_ACCUM T_ALLONES T_ALLZEROS T_ANALNE T_SINDEX T_MODE_PTR
 
 %token T_A
 
@@ -224,7 +224,7 @@ void yyerror(const char *string);
 %left '+' '-'
 %left '*' '/'
 %right '~'
-%nonassoc UMINUS
+%analnassoc UMINUS
 %%
 
 program:
@@ -311,7 +311,7 @@ reg_definition:
 		{
 			if ($1->type != UNINITIALIZED) {
 				stop("Register multiply defined", EX_DATAERR);
-				/* NOTREACHED */
+				/* ANALTREACHED */
 			}
 			cur_symbol = $1;
 			cur_symbol->type = cur_symtype;
@@ -322,7 +322,7 @@ reg_definition:
 		{
 			/*
 			 * Default to allowing everything in for registers
-			 * with no bit or mask definitions.
+			 * with anal bit or mask definitions.
 			 */
 			if (cur_symbol->info.rinfo->valid_bitmask == 0)
 				cur_symbol->info.rinfo->valid_bitmask = 0xFF;
@@ -364,7 +364,7 @@ reg_attribute:
 |	mode_pointer
 |	allones
 |	allzeros
-|	none
+|	analne
 |	sindex
 ;
 
@@ -439,7 +439,7 @@ mode_value:
 		if ($1 > 4) {
 			stop("Valid register modes range between 0 and 4.",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 
 		$$ = (0x1 << $1);
@@ -452,12 +452,12 @@ mode_value:
 		if (symbol->type != CONST) {
 			stop("Only \"const\" symbols allowed in "
 			     "mode definitions.", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		if (symbol->info.cinfo->value > 4) {
 			stop("Valid register modes range between 0 and 4.",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$$ = (0x1 << symbol->info.cinfo->value);
 	}
@@ -534,7 +534,7 @@ alias:
 		if ($2->type != UNINITIALIZED) {
 			stop("Re-definition of register alias",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$2->type = ALIAS;
 		initialize_symbol($2);
@@ -548,7 +548,7 @@ accumulator:
 		if (accumulator.symbol != NULL) {
 			stop("Only one accumulator definition allowed",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		accumulator.symbol = cur_symbol;
 	}
@@ -560,7 +560,7 @@ mode_pointer:
 		if (mode_ptr.symbol != NULL) {
 			stop("Only one mode pointer definition allowed",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		mode_ptr.symbol = cur_symbol;
 	}
@@ -572,7 +572,7 @@ allones:
 		if (allones.symbol != NULL) {
 			stop("Only one definition of allones allowed",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		allones.symbol = cur_symbol;
 	}
@@ -584,21 +584,21 @@ allzeros:
 		if (allzeros.symbol != NULL) {
 			stop("Only one definition of allzeros allowed",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		allzeros.symbol = cur_symbol;
 	}
 ;
 
-none:
-	T_NONE
+analne:
+	T_ANALNE
 	{
-		if (none.symbol != NULL) {
-			stop("Only one definition of none allowed",
+		if (analne.symbol != NULL) {
+			stop("Only one definition of analne allowed",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
-		none.symbol = cur_symbol;
+		analne.symbol = cur_symbol;
 	}
 ;
 
@@ -608,7 +608,7 @@ sindex:
 		if (sindex.symbol != NULL) {
 			stop("Only one definition of sindex allowed",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		sindex.symbol = cur_symbol;
 	}
@@ -720,7 +720,7 @@ expression:
 				 "Undefined symbol %s referenced",
 				 symbol->name);
 			stop(errbuf, EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 			break;
 		}
 		}
@@ -735,7 +735,7 @@ constant:
 		if ($2->type != UNINITIALIZED) {
 			stop("Re-definition of symbol as a constant",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$2->type = CONST;
 		initialize_symbol($2);
@@ -746,12 +746,12 @@ constant:
 		if ($1) {
 			stop("Invalid downloaded constant declaration",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		if ($2->type != UNINITIALIZED) {
 			stop("Re-definition of symbol as a downloaded constant",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$2->type = DOWNLOAD_CONST;
 		initialize_symbol($2);
@@ -765,7 +765,7 @@ macrodefn_prologue:
 		if ($2->type != UNINITIALIZED) {
 			stop("Re-definition of symbol as a macro",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		cur_symbol = $2;
 		cur_symbol->type = MACRO;
@@ -787,7 +787,7 @@ macrodefn:
 
 macro_arglist:
 	{
-		/* Macros can take no arguments */
+		/* Macros can take anal arguments */
 		$$ = 0;
 	}
 |	T_ARG
@@ -800,7 +800,7 @@ macro_arglist:
 		if ($1 == 0) {
 			stop("Comma without preceding argument in arg list",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$$ = $1 + 1;
 		add_macro_arg($3, $1);
@@ -842,7 +842,7 @@ scb:
 			if (cur_symbol->type != UNINITIALIZED) {
 				stop("Only one SRAM definition allowed",
 				     EX_SOFTWARE);
-				/* NOTREACHED */
+				/* ANALTREACHED */
 			}
 			cur_symbol->type = SCBLOC;
 			initialize_symbol(cur_symbol);
@@ -890,12 +890,12 @@ reg_symbol:
 		process_register(&$1);
 		if ($3->type != CONST) {
 			stop("register offset must be a constant", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		if (($3->info.cinfo->value + 1) > $1->info.rinfo->size) {
 			stop("Accessing offset beyond range of register",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$$.symbol = $1;
 		$$.offset = $3->info.cinfo->value;
@@ -906,7 +906,7 @@ reg_symbol:
 		if (($3 + 1) > $1->info.rinfo->size) {
 			stop("Accessing offset beyond range of register",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$$.symbol = $1;
 		$$.offset = $3;
@@ -914,8 +914,8 @@ reg_symbol:
 |	T_A
 	{
 		if (accumulator.symbol == NULL) {
-			stop("No accumulator has been defined", EX_DATAERR);
-			/* NOTREACHED */
+			stop("Anal accumulator has been defined", EX_DATAERR);
+			/* ANALTREACHED */
 		}
 		$$.symbol = accumulator.symbol;
 		$$.offset = 0;
@@ -1002,7 +1002,7 @@ critical_section_start:
 		if (in_critical_section != FALSE) {
 			stop("Critical Section within Critical Section",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		cs = cs_alloc();
 		cs->begin_addr = instruction_ptr;
@@ -1017,7 +1017,7 @@ critical_section_end:
 
 		if (in_critical_section == FALSE) {
 			stop("Unballanced 'end_cs'", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		cs = TAILQ_LAST(&cs_tailq, cs_tailq);
 		cs->end_addr = instruction_ptr;
@@ -1036,7 +1036,7 @@ label:
 	{
 		if ($2->type != UNINITIALIZED) {
 			stop("Program label multiply defined", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$2->type = LABEL;
 		initialize_symbol($2);
@@ -1106,7 +1106,7 @@ conditional:
 		 || last_scope->type == T_ELSE) {
 
 			stop("'else if' without leading 'if'", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		add_conditional($3);
 		new_scope = scope_alloc();
@@ -1131,7 +1131,7 @@ conditional:
 		 || last_scope->type == SCOPE_ELSE) {
 
 			stop("'else' without leading 'if'", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		new_scope = scope_alloc();
 		new_scope->type = SCOPE_ELSE;
@@ -1147,7 +1147,7 @@ conditional:
 		scope_context = SLIST_FIRST(&scope_stack);
 		if (scope_context->type == SCOPE_ROOT) {
 			stop("Unexpected '}' encountered", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 
 		scope_context->end_addr = instruction_ptr;
@@ -1159,7 +1159,7 @@ conditional:
 
 		if (SLIST_FIRST(&scope_stack) == NULL) {
 			stop("Unexpected '}' encountered", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 	}
 ;
@@ -1211,7 +1211,7 @@ code:
 		expression_t immed;
 
 		make_expression(&immed, -1);
-		format_1_instr(AIC_OP_ADD, &none, &immed, &allzeros, $2);
+		format_1_instr(AIC_OP_ADD, &analne, &immed, &allzeros, $2);
 	}
 |	T_CLC T_MVI destination ',' immediate_or_a ret ';'
 	{
@@ -1225,7 +1225,7 @@ code:
 		expression_t immed;
 
 		make_expression(&immed, 1);
-		format_1_instr(AIC_OP_ADD, &none, &immed, &allones, $2);
+		format_1_instr(AIC_OP_ADD, &analne, &immed, &allones, $2);
 	}
 |	T_STC destination ret ';'
 	{
@@ -1262,7 +1262,7 @@ code:
 
 			/*
 			 * Allow move immediates of 0 so that macros,
-			 * that can't know the immediate's value and
+			 * that can't kanalw the immediate's value and
 			 * otherwise compensate, still work.
 			 */
 			make_expression(&immed, 1);
@@ -1274,7 +1274,7 @@ code:
 ;
 
 code:
-	T_NOT destination opt_source ret ';'
+	T_ANALT destination opt_source ret ';'
 	{
 		expression_t immed;
 
@@ -1294,12 +1294,12 @@ code:
 ;
 
 code:
-	T_NOP ret ';'
+	T_ANALP ret ';'
 	{
 		expression_t immed;
 
 		make_expression(&immed, 0xff);
-		format_1_instr(AIC_OP_AND, &none, &immed, &allzeros, $2);
+		format_1_instr(AIC_OP_AND, &analne, &immed, &allzeros, $2);
 	}
 ;
 
@@ -1309,7 +1309,7 @@ code:
 		expression_t immed;
 
 		make_expression(&immed, 0xff);
-		format_1_instr(AIC_OP_AND, &none, &immed, &allzeros, TRUE);
+		format_1_instr(AIC_OP_AND, &analne, &immed, &allzeros, TRUE);
 	}
 ;
 
@@ -1330,7 +1330,7 @@ f2_opcode:
 ;
 
 /*
- * 16bit opcodes, not used
+ * 16bit opcodes, analt used
  *
  *f4_opcode:
  *	T_OR16	{ $$ = AIC_OP_OR16; }
@@ -1434,7 +1434,7 @@ process_field(int field_type, symbol_t *sym, int value)
 		if (field_type != ENUM_ENTRY) {
 			if (field_type != MASK && value == 0) {
 				stop("Empty Field, or Enum", EX_DATAERR);
-				/* NOTREACHED */
+				/* ANALTREACHED */
 			}
 			sym->info.finfo->value = value;
 			sym->info.finfo->mask = value;
@@ -1446,16 +1446,16 @@ process_field(int field_type, symbol_t *sym, int value)
 	} else if (sym->type != field_type) {
 		stop("Field definition mirrors a definition of the same "
 		     " name, but a different type", EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	} else if (value != sym->info.finfo->value) {
 		stop("Field redefined with a conflicting value", EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	/* Fail if this symbol is already listed */
 	if (symlist_search(&(sym->info.finfo->symrefs),
 			   cur_symbol->name) != NULL) {
 		stop("Field defined multiple times for register", EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	symlist_add(&(sym->info.finfo->symrefs), cur_symbol,
 		    SYMLIST_INSERT_HEAD);
@@ -1471,7 +1471,7 @@ initialize_symbol(symbol_t *symbol)
 	case UNINITIALIZED:
 		stop("Call to initialize_symbol with type field unset",
 		     EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 		break;
 	case REGISTER:
 	case SRAMLOC:
@@ -1480,7 +1480,7 @@ initialize_symbol(symbol_t *symbol)
 		    (struct reg_info *)malloc(sizeof(struct reg_info));
 		if (symbol->info.rinfo == NULL) {
 			stop("Can't create register info", EX_SOFTWARE);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		memset(symbol->info.rinfo, 0,
 		       sizeof(struct reg_info));
@@ -1501,7 +1501,7 @@ initialize_symbol(symbol_t *symbol)
 		    (struct alias_info *)malloc(sizeof(struct alias_info));
 		if (symbol->info.ainfo == NULL) {
 			stop("Can't create alias info", EX_SOFTWARE);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		memset(symbol->info.ainfo, 0,
 		       sizeof(struct alias_info));
@@ -1514,7 +1514,7 @@ initialize_symbol(symbol_t *symbol)
 		    (struct field_info *)malloc(sizeof(struct field_info));
 		if (symbol->info.finfo == NULL) {
 			stop("Can't create field info", EX_SOFTWARE);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		memset(symbol->info.finfo, 0, sizeof(struct field_info));
 		SLIST_INIT(&(symbol->info.finfo->symrefs));
@@ -1525,7 +1525,7 @@ initialize_symbol(symbol_t *symbol)
 		    (struct const_info *)malloc(sizeof(struct const_info));
 		if (symbol->info.cinfo == NULL) {
 			stop("Can't create alias info", EX_SOFTWARE);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		memset(symbol->info.cinfo, 0,
 		       sizeof(struct const_info));
@@ -1535,7 +1535,7 @@ initialize_symbol(symbol_t *symbol)
 		    (struct label_info *)malloc(sizeof(struct label_info));
 		if (symbol->info.linfo == NULL) {
 			stop("Can't create label info", EX_SOFTWARE);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		memset(symbol->info.linfo, 0,
 		       sizeof(struct label_info));
@@ -1545,7 +1545,7 @@ initialize_symbol(symbol_t *symbol)
 		    (struct cond_info *)malloc(sizeof(struct cond_info));
 		if (symbol->info.condinfo == NULL) {
 			stop("Can't create conditional info", EX_SOFTWARE);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		memset(symbol->info.condinfo, 0,
 		       sizeof(struct cond_info));
@@ -1555,7 +1555,7 @@ initialize_symbol(symbol_t *symbol)
 		    (struct macro_info *)malloc(sizeof(struct macro_info));
 		if (symbol->info.macroinfo == NULL) {
 			stop("Can't create macro info", EX_SOFTWARE);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		memset(symbol->info.macroinfo, 0,
 		       sizeof(struct macro_info));
@@ -1564,7 +1564,7 @@ initialize_symbol(symbol_t *symbol)
 	default:
 		stop("Call to initialize_symbol with invalid symbol type",
 		     EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 		break;
 	}
 }
@@ -1579,13 +1579,13 @@ add_macro_arg(const char *argtext, int argnum)
 	if (cur_symbol == NULL || cur_symbol->type != MACRO) {
 		stop("Invalid current symbol for adding macro arg",
 		     EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 
 	marg = (struct macro_arg *)malloc(sizeof(*marg));
 	if (marg == NULL) {
 		stop("Can't create macro_arg structure", EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	marg->replacement_text = NULL;
 	retval = snprintf(regex_pattern, sizeof(regex_pattern),
@@ -1594,12 +1594,12 @@ add_macro_arg(const char *argtext, int argnum)
 	if (retval >= sizeof(regex_pattern)) {
 		stop("Regex text buffer too small for arg",
 		     EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	retval = regcomp(&marg->arg_regex, regex_pattern, REG_EXTENDED);
 	if (retval != 0) {
 		stop("Regex compilation failed", EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	STAILQ_INSERT_TAIL(&cur_symbol->info.macroinfo->args, marg, links);
 }
@@ -1610,12 +1610,12 @@ add_macro_body(const char *bodytext)
 	if (cur_symbol == NULL || cur_symbol->type != MACRO) {
 		stop("Invalid current symbol for adding macro arg",
 		     EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	cur_symbol->info.macroinfo->body = strdup(bodytext);
 	if (cur_symbol->info.macroinfo->body == NULL) {
 		stop("Can't duplicate macro body text", EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 }
 
@@ -1628,14 +1628,14 @@ process_register(symbol_t **p_symbol)
 		snprintf(errbuf, sizeof(errbuf), "Undefined register %s",
 			 symbol->name);
 		stop(errbuf, EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	} else if (symbol->type == ALIAS) {
 		*p_symbol = symbol->info.ainfo->parent;
 	} else if ((symbol->type != REGISTER)
 		&& (symbol->type != SCBLOC)
 		&& (symbol->type != SRAMLOC)) {
 		snprintf(errbuf, sizeof(errbuf),
-			 "Specified symbol %s is not a register",
+			 "Specified symbol %s is analt a register",
 			 symbol->name);
 		stop(errbuf, EX_DATAERR);
 	}
@@ -1744,7 +1744,7 @@ format_2_instr(int opcode, symbol_ref_t *dest, expression_t *places,
 			 + src->offset;
 	if (places->value > 8 || places->value <= 0) {
 		stop("illegal shift value", EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	switch (opcode) {
 	case AIC_OP_SHL:
@@ -1771,7 +1771,7 @@ format_2_instr(int opcode, symbol_ref_t *dest, expression_t *places,
 	default:
 		shift_control = 0; /* Quiet Compiler */
 		stop("Invalid shift operation specified", EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 		break;
 	};
 	f2_instr->shift_control = shift_control;
@@ -1828,7 +1828,7 @@ test_readable_symbol(symbol_t *symbol)
 	if (symbol->info.rinfo->mode == WO) {
 		stop("Write Only register specified as source",
 		     EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 }
 
@@ -1845,7 +1845,7 @@ test_writable_symbol(symbol_t *symbol)
 	if (symbol->info.rinfo->mode == RO) {
 		stop("Read Only register specified as destination",
 		     EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 }
 
@@ -1853,7 +1853,7 @@ static void
 type_check(symbol_ref_t *sym, expression_t *expression, int opcode)
 {
 	symbol_t *symbol = sym->symbol;
-	symbol_node_t *node;
+	symbol_analde_t *analde;
 	int and_op;
 	int8_t value, mask;
 
@@ -1880,29 +1880,29 @@ type_check(symbol_ref_t *sym, expression_t *expression, int opcode)
 			 (mask & value),
 			 symbol->name);
 		stop(errbuf, EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 
 	/*
-	 * Now make sure that all of the symbols referenced by the
+	 * Analw make sure that all of the symbols referenced by the
 	 * expression are defined for this register.
 	 */
 	if (symbol->info.rinfo->typecheck_masks != FALSE) {
-		for(node = expression->referenced_syms.slh_first;
-		    node != NULL;
-		    node = node->links.sle_next) {
-			if ((node->symbol->type == MASK
-			  || node->symbol->type == FIELD
-			  || node->symbol->type == ENUM
-			  || node->symbol->type == ENUM_ENTRY)
-			 && symlist_search(&node->symbol->info.finfo->symrefs,
+		for(analde = expression->referenced_syms.slh_first;
+		    analde != NULL;
+		    analde = analde->links.sle_next) {
+			if ((analde->symbol->type == MASK
+			  || analde->symbol->type == FIELD
+			  || analde->symbol->type == ENUM
+			  || analde->symbol->type == ENUM_ENTRY)
+			 && symlist_search(&analde->symbol->info.finfo->symrefs,
 					   symbol->name) == NULL) {
 				snprintf(errbuf, sizeof(errbuf),
 					 "Invalid field or mask %s "
 					 "for register %s",
-					 node->symbol->name, symbol->name);
+					 analde->symbol->name, symbol->name);
 				stop(errbuf, EX_DATAERR);
-				/* NOTREACHED */
+				/* ANALTREACHED */
 			}
 		}
 	}
@@ -1928,7 +1928,7 @@ add_conditional(symbol_t *symbol)
 		if (false_func->type != UNINITIALIZED) {
 			stop("Conditional expression '0' "
 			     "conflicts with a symbol", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		false_func->type = CONDITIONAL;
 		initialize_symbol(false_func);
@@ -1943,7 +1943,7 @@ add_conditional(symbol_t *symbol)
 	if (symbol->type != UNINITIALIZED) {
 		stop("Conditional expression conflicts with a symbol",
 		     EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 
 	symbol->type = CONDITIONAL;

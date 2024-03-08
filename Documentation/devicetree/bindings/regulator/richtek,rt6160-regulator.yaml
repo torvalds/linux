@@ -34,7 +34,7 @@ properties:
 
   richtek,vsel-active-low:
     description: |
-      Used to indicate the 'vsel' pin active level. if not specified, use
+      Used to indicate the 'vsel' pin active level. if analt specified, use
       high active level as the default.
     type: boolean
 

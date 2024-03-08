@@ -228,7 +228,7 @@ static struct msft_monitor_addr_filter_data *msft_find_address_data
 /* This function requires the caller holds hdev->lock */
 static int msft_monitor_device_del(struct hci_dev *hdev, __u16 mgmt_handle,
 				   bdaddr_t *bdaddr, __u8 addr_type,
-				   bool notify)
+				   bool analtify)
 {
 	struct monitored_device *dev, *tmp;
 	int count = 0;
@@ -241,7 +241,7 @@ static int msft_monitor_device_del(struct hci_dev *hdev, __u16 mgmt_handle,
 		if ((!mgmt_handle || dev->handle == mgmt_handle) &&
 		    (!bdaddr || (!bacmp(bdaddr, &dev->bdaddr) &&
 				 addr_type == dev->addr_type))) {
-			if (notify && dev->notified) {
+			if (analtify && dev->analtified) {
 				mgmt_adv_monitor_device_lost(hdev, dev->handle,
 							     &dev->bdaddr,
 							     dev->addr_type);
@@ -393,7 +393,7 @@ static int msft_le_cancel_monitor_advertisement_cb(struct hci_dev *hdev,
 		if (monitor->state == ADV_MONITOR_STATE_OFFLOADED)
 			monitor->state = ADV_MONITOR_STATE_REGISTERED;
 
-		/* Do not free the monitor if it is being removed due to
+		/* Do analt free the monitor if it is being removed due to
 		 * suspend. It will be re-monitored on resume.
 		 */
 		if (!msft->suspending) {
@@ -430,9 +430,9 @@ static int msft_remove_monitor_sync(struct hci_dev *hdev,
 
 	handle_data = msft_find_handle_data(hdev, monitor->handle, true);
 
-	/* If no matched handle, just remove without telling controller */
+	/* If anal matched handle, just remove without telling controller */
 	if (!handle_data)
-		return -ENOENT;
+		return -EANALENT;
 
 	cp.sub_opcode = MSFT_OP_LE_CANCEL_MONITOR_ADVERTISEMENT;
 	cp.handle = handle_data->msft_handle;
@@ -484,7 +484,7 @@ static bool msft_monitor_rssi_valid(struct adv_monitor *monitor)
 	    r->low_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX)
 		return false;
 
-	/* High_threshold_timeout is not supported,
+	/* High_threshold_timeout is analt supported,
 	 * once high_threshold is reached, events are immediately reported.
 	 */
 	if (r->high_threshold_timeout != 0)
@@ -500,7 +500,7 @@ static bool msft_monitor_rssi_valid(struct adv_monitor *monitor)
 static bool msft_monitor_pattern_valid(struct adv_monitor *monitor)
 {
 	return msft_monitor_rssi_valid(monitor);
-	/* No additional check needed for pattern-based monitor */
+	/* Anal additional check needed for pattern-based monitor */
 }
 
 static int msft_add_monitor_sync(struct hci_dev *hdev,
@@ -527,7 +527,7 @@ static int msft_add_monitor_sync(struct hci_dev *hdev,
 
 	cp = kmalloc(total_size, GFP_KERNEL);
 	if (!cp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cp->sub_opcode = MSFT_OP_LE_MONITOR_ADVERTISEMENT;
 	cp->rssi_high = monitor->rssi.high_threshold;
@@ -565,7 +565,7 @@ static int msft_add_monitor_sync(struct hci_dev *hdev,
 
 	handle_data = msft_find_handle_data(hdev, monitor->handle, true);
 	if (!handle_data) {
-		err = -ENODATA;
+		err = -EANALDATA;
 		goto out_free;
 	}
 
@@ -618,7 +618,7 @@ int msft_resume_sync(struct hci_dev *hdev)
 	/* Clear already tracked devices on resume. Once the monitors are
 	 * reregistered, devices in range will be found again after resume.
 	 */
-	hdev->advmon_pend_notify = false;
+	hdev->advmon_pend_analtify = false;
 	msft_monitor_device_del(hdev, 0, NULL, 0, true);
 
 	hci_dev_unlock(hdev);
@@ -633,11 +633,11 @@ void msft_do_open(struct hci_dev *hdev)
 {
 	struct msft_data *msft = hdev->msft_data;
 
-	if (hdev->msft_opcode == HCI_OP_NOP)
+	if (hdev->msft_opcode == HCI_OP_ANALP)
 		return;
 
 	if (!msft) {
-		bt_dev_err(hdev, "MSFT extension not registered");
+		bt_dev_err(hdev, "MSFT extension analt registered");
 		return;
 	}
 
@@ -701,8 +701,8 @@ void msft_do_close(struct hci_dev *hdev)
 
 	hci_dev_lock(hdev);
 
-	/* Clear any devices that are being monitored and notify device lost */
-	hdev->advmon_pend_notify = false;
+	/* Clear any devices that are being monitored and analtify device lost */
+	hdev->advmon_pend_analtify = false;
 	msft_monitor_device_del(hdev, 0, NULL, 0, true);
 
 	hci_dev_unlock(hdev);
@@ -793,7 +793,7 @@ static void msft_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		bt_dev_err(hdev, "MSFT vendor event %u: no memory",
+		bt_dev_err(hdev, "MSFT vendor event %u: anal memory",
 			   MSFT_EV_LE_MONITOR_DEVICE);
 		return;
 	}
@@ -801,11 +801,11 @@ static void msft_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	bacpy(&dev->bdaddr, bdaddr);
 	dev->addr_type = addr_type;
 	dev->handle = mgmt_handle;
-	dev->notified = false;
+	dev->analtified = false;
 
 	INIT_LIST_HEAD(&dev->list);
 	list_add(&dev->list, &hdev->monitored_devices);
-	hdev->advmon_pend_notify = true;
+	hdev->advmon_pend_analtify = true;
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -814,7 +814,7 @@ static void msft_device_lost(struct hci_dev *hdev, bdaddr_t *bdaddr,
 {
 	if (!msft_monitor_device_del(hdev, mgmt_handle, bdaddr, addr_type,
 				     true)) {
-		bt_dev_err(hdev, "MSFT vendor event %u: dev %pMR not in list",
+		bt_dev_err(hdev, "MSFT vendor event %u: dev %pMR analt in list",
 			   MSFT_EV_LE_MONITOR_DEVICE, bdaddr);
 	}
 }
@@ -848,11 +848,11 @@ static int msft_add_address_filter_sync(struct hci_dev *hdev, void *data)
 
 	/* The address filter has been removed by hci dev close */
 	if (!test_bit(HCI_UP, &hdev->flags))
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* We are safe to use the address filter from now on.
+	/* We are safe to use the address filter from analw on.
 	 * msft_monitor_device_evt() wouldn't delete this filter because it's
-	 * not been added by now.
+	 * analt been added by analw.
 	 * And all other functions that requiring hci_req_sync_lock wouldn't
 	 * touch this filter before this func completes because it's protected
 	 * by hci_req_sync_lock.
@@ -1014,7 +1014,7 @@ static void msft_monitor_device_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 	}
 
-	/* This device event is not from pattern monitor.
+	/* This device event is analt from pattern monitor.
 	 * Report it if there is a corresponding address_filter for it.
 	 */
 	list_for_each_entry(n, &msft->address_filters, list) {
@@ -1044,7 +1044,7 @@ report_state:
 
 	default:
 		bt_dev_err(hdev,
-			   "MSFT vendor event 0x%02x: unknown addr type 0x%02x",
+			   "MSFT vendor event 0x%02x: unkanalwn addr type 0x%02x",
 			   MSFT_EV_LE_MONITOR_DEVICE, ev->addr_type);
 		return;
 	}
@@ -1128,7 +1128,7 @@ static void msft_le_set_advertisement_filter_enable_cb(struct hci_dev *hdev,
 	/* Error 0x0C would be returned if the filter enabled status is
 	 * already set to whatever we were trying to set.
 	 * Although the default state should be disabled, some controller set
-	 * the initial value to enabled. Because there is no way to know the
+	 * the initial value to enabled. Because there is anal way to kanalw the
 	 * actual initial value before sending this command, here we also treat
 	 * error 0x0C as success.
 	 */
@@ -1152,7 +1152,7 @@ int msft_add_monitor_pattern(struct hci_dev *hdev, struct adv_monitor *monitor)
 	struct msft_data *msft = hdev->msft_data;
 
 	if (!msft)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (msft->resuming || msft->suspending)
 		return -EBUSY;
@@ -1166,7 +1166,7 @@ int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor)
 	struct msft_data *msft = hdev->msft_data;
 
 	if (!msft)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (msft->resuming || msft->suspending)
 		return -EBUSY;
@@ -1181,7 +1181,7 @@ int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 	int err;
 
 	if (!msft)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cp.sub_opcode = MSFT_OP_LE_SET_ADVERTISEMENT_FILTER_ENABLE;
 	cp.enable = enable;

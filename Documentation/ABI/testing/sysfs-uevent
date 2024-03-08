@@ -11,7 +11,7 @@ Description:
 			ACTION [UUID [KEY=VALUE ...]
 
                 The ACTION is compulsory - it is the name of the uevent
-                action (``add``, ``change``, ``remove``). There is no change
+                action (``add``, ``change``, ``remove``). There is anal change
                 compared to previous functionality here. The rest of the
                 extended format is optional.
 
@@ -25,7 +25,7 @@ Description:
                 ``SYNTH_UUID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`` environment
                 variable.
 
-                If UUID is not passed in, the generated synthetic uevent gains
+                If UUID is analt passed in, the generated synthetic uevent gains
                 ``SYNTH_UUID=0`` environment variable automatically.
 
                 The KEY=VALUE pairs can contain alphanumeric characters only.

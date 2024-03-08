@@ -75,9 +75,9 @@ TRACE_EVENT(irq_handler_entry,
  * @action: pointer to struct irqaction
  * @ret: return value
  *
- * If the @ret value is set to IRQ_HANDLED, then we know that the corresponding
+ * If the @ret value is set to IRQ_HANDLED, then we kanalw that the corresponding
  * @action->handler successfully handled this irq. Otherwise, the irq might be
- * a shared irq line, or the irq was not handled successfully. Can be used in
+ * a shared irq line, or the irq was analt handled successfully. Can be used in
  * conjunction with the irq_handler_entry to understand irq handler latencies.
  */
 TRACE_EVENT(irq_handler_exit,

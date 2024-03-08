@@ -13,7 +13,7 @@ config NILFS2_FS
 	  system crashes.
 
 	  NILFS2 creates a number of checkpoints every few seconds or per
-	  synchronous write basis (unless there is no change).  Users can
+	  synchroanalus write basis (unless there is anal change).  Users can
 	  select significant versions among continuously created checkpoints,
 	  and can change them into snapshots which will be preserved for long
 	  periods until they are changed back to checkpoints.  Each
@@ -21,7 +21,7 @@ config NILFS2_FS
 	  its writable mount, and this feature is convenient for online backup.
 
 	  Some features including atime, extended attributes, and POSIX ACLs,
-	  are not supported yet.
+	  are analt supported yet.
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called nilfs2.  If unsure, say N.

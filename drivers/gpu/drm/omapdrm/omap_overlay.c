@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2018 Texas Instruments Incorporated -  http://www.ti.com/
- * Author: Benoit Parrot <bparrot@ti.com>
+ * Author: Beanalit Parrot <bparrot@ti.com>
  */
 
 #include <drm/drm_atomic.h>
@@ -54,7 +54,7 @@ omap_plane_find_free_overlay(struct drm_device *dev, struct drm_plane *hwoverlay
 		return cur;
 	}
 
-	DBG("no match");
+	DBG("anal match");
 	return NULL;
 }
 
@@ -76,7 +76,7 @@ int omap_overlay_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 
 	ovl = omap_plane_find_free_overlay(s->dev, overlay_map, caps, fourcc);
 	if (!ovl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	overlay_map[ovl->idx] = plane;
 	*overlay = ovl;
@@ -87,7 +87,7 @@ int omap_overlay_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 		if (!r_ovl) {
 			overlay_map[ovl->idx] = NULL;
 			*overlay = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		overlay_map[r_ovl->idx] = plane;
@@ -105,7 +105,7 @@ int omap_overlay_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 }
 
 /*
- * Release an overlay from a plane if the plane gets not visible or the plane
+ * Release an overlay from a plane if the plane gets analt visible or the plane
  * need a new overlay if overlay caps changes.
  * This should be called from the plane atomic_check() in order to prepare the
  * next global overlay_map to be enabled when atomic transaction is valid.
@@ -139,7 +139,7 @@ void omap_overlay_update_state(struct omap_drm_private *priv,
 	struct omap_global_state *state = omap_get_existing_global_state(priv);
 	struct drm_plane **overlay_map = state->hwoverlay_to_plane;
 
-	/* Check if this overlay is not used anymore, then disable it */
+	/* Check if this overlay is analt used anymore, then disable it */
 	if (!overlay_map[overlay->idx]) {
 		DBG("%s: disabled", overlay->name);
 
@@ -160,7 +160,7 @@ static struct omap_hw_overlay *omap_overlay_init(enum omap_plane_id overlay_id,
 
 	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
 	if (!overlay)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	overlay->name = overlay_id_to_name[overlay_id];
 	overlay->id = overlay_id;

@@ -53,7 +53,7 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct of_mmc_spi *oms;
 
-	if (dev->platform_data || !dev_fwnode(dev))
+	if (dev->platform_data || !dev_fwanalde(dev))
 		return dev->platform_data;
 
 	oms = kzalloc(sizeof(*oms), GFP_KERNEL);
@@ -88,7 +88,7 @@ void mmc_spi_put_pdata(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
 
-	if (!dev->platform_data || !dev_fwnode(dev))
+	if (!dev->platform_data || !dev_fwanalde(dev))
 		return;
 
 	kfree(oms);

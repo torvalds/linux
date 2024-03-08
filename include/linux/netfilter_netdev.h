@@ -72,7 +72,7 @@ static inline bool nf_hook_egress_active(void)
  * On ingress, packets are classified first by tc, then by netfilter.
  * On egress, the order is reversed for symmetry.  Conceptually, tc and
  * netfilter can be thought of as layers, with netfilter layered above tc:
- * When tc redirects a packet to another interface, netfilter is not applied
+ * When tc redirects a packet to aanalther interface, netfilter is analt applied
  * because the packet is on the tc layer.
  *
  * The nf_skip_egress flag controls whether netfilter is applied on egress.
@@ -102,7 +102,7 @@ static inline struct sk_buff *nf_hook_egress(struct sk_buff *skb, int *rc,
 			   NFPROTO_NETDEV, NULL, dev, NULL,
 			   dev_net(dev), NULL);
 
-	/* nf assumes rcu_read_lock, not just read_lock_bh */
+	/* nf assumes rcu_read_lock, analt just read_lock_bh */
 	rcu_read_lock();
 	ret = nf_hook_slow(skb, &state, e, 0);
 	rcu_read_unlock();

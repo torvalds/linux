@@ -2,7 +2,7 @@
 /*
  * max8997.h - Driver for the Maxim 8997/8966
  *
- *  Copyright (C) 2009-2010 Samsung Electrnoics
+ *  Copyright (C) 2009-2010 Samsung Electranalics
  *  MyungJoo Ham <myungjoo.ham@samsung.com>
  *
  * This driver is based on max8998.h
@@ -62,7 +62,7 @@ enum max8997_regulators {
 struct max8997_regulator_data {
 	int id;
 	struct regulator_init_data *initdata;
-	struct device_node *reg_node;
+	struct device_analde *reg_analde;
 };
 
 struct max8997_muic_reg_data {
@@ -110,7 +110,7 @@ enum max8997_haptic_pwm_divisor {
 
 /**
  * max8997_haptic_platform_data
- * @pwm_period: period in nano second for PWM device
+ * @pwm_period: period in naanal second for PWM device
  *		valid for MAX8997_EXTERNAL_MODE
  * @type: motor type
  * @mode: pulse mode
@@ -138,7 +138,7 @@ struct max8997_haptic_platform_data {
 };
 
 enum max8997_led_mode {
-	MAX8997_NONE,
+	MAX8997_ANALNE,
 	MAX8997_FLASH_MODE,
 	MAX8997_MOVIE_MODE,
 	MAX8997_FLASH_PIN_CONTROL_MODE,
@@ -161,7 +161,7 @@ struct max8997_led_platform_data {
 
 struct max8997_platform_data {
 	/* IRQ */
-	int ono;
+	int oanal;
 
 	/* ---- PMIC ---- */
 	struct max8997_regulator_data *regulators;
@@ -169,7 +169,7 @@ struct max8997_platform_data {
 
 	/*
 	 * SET1~3 DVS GPIOs control Buck1, 2, and 5 simultaneously. Therefore,
-	 * With buckx_gpiodvs enabled, the buckx cannot be controlled
+	 * With buckx_gpiodvs enabled, the buckx cananalt be controlled
 	 * independently. To control buckx (of 1, 2, and 5) independently,
 	 * disable buckx_gpiodvs and control with BUCKxDVS1 register.
 	 *
@@ -177,7 +177,7 @@ struct max8997_platform_data {
 	 * on buckx will change the voltage of bucky at the same time.
 	 *
 	 */
-	bool ignore_gpiodvs_side_effect;
+	bool iganalre_gpiodvs_side_effect;
 	int buck125_gpios[3]; /* GPIO of [0]SET1, [1]SET2, [2]SET3 */
 	int buck125_default_idx; /* Default value of SET1, 2, 3 */
 	unsigned int buck1_voltage[8]; /* buckx_voltage in uV */
@@ -191,7 +191,7 @@ struct max8997_platform_data {
 	/* eoc stands for 'end of charge' */
 	int eoc_mA; /* 50 ~ 200mA by 10mA step */
 	/* charge Full Timeout */
-	int timeout; /* 0 (no timeout), 5, 6, 7 hours */
+	int timeout; /* 0 (anal timeout), 5, 6, 7 hours */
 
 	/* ---- MUIC ---- */
 	struct max8997_muic_platform_data *muic_pdata;
@@ -199,7 +199,7 @@ struct max8997_platform_data {
 	/* ---- HAPTIC ---- */
 	struct max8997_haptic_platform_data *haptic_pdata;
 
-	/* RTC: Not implemented */
+	/* RTC: Analt implemented */
 	/* ---- LED ---- */
 	struct max8997_led_platform_data *led_pdata;
 };

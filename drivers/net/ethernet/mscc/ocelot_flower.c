@@ -32,7 +32,7 @@ static int ocelot_chain_to_block(int chain, bool ingress)
 	if (!ingress) {
 		if (chain == 0)
 			return VCAP_ES0;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Backwards compatibility with older, single-chain tc-flower
@@ -53,7 +53,7 @@ static int ocelot_chain_to_block(int chain, bool ingress)
 	if (chain == OCELOT_PSFP_CHAIN)
 		return PSFP_BLOCK_ID;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* Caller must ensure this is a valid IS1 or IS2 chain first,
@@ -98,7 +98,7 @@ static bool ocelot_is_goto_target_valid(int goto_target, int chain,
 	if (!ingress)
 		return (goto_target < 0);
 
-	/* Non-optional GOTOs */
+	/* Analn-optional GOTOs */
 	if (chain == 0)
 		/* VCAP IS1 can be skipped, either partially or completely */
 		return (goto_target == VCAP_IS1_CHAIN(0) ||
@@ -114,7 +114,7 @@ static bool ocelot_is_goto_target_valid(int goto_target, int chain,
 	if (chain == VCAP_IS1_CHAIN(1))
 		return (goto_target == VCAP_IS1_CHAIN(2));
 
-	/* Lookup 2 of VCAP IS1 can really support non-optional GOTOs,
+	/* Lookup 2 of VCAP IS1 can really support analn-optional GOTOs,
 	 * using a Policy Association Group (PAG) value, which is an 8-bit
 	 * value encoding a VCAP IS2 target chain.
 	 */
@@ -126,8 +126,8 @@ static bool ocelot_is_goto_target_valid(int goto_target, int chain,
 		return false;
 	}
 
-	/* Non-optional GOTO from VCAP IS2 lookup 0 to lookup 1.
-	 * We cannot change the PAG at this point.
+	/* Analn-optional GOTO from VCAP IS2 lookup 0 to lookup 1.
+	 * We cananalt change the PAG at this point.
 	 */
 	for (pag = 0; pag < VCAP_IS2_NUM_PAG; pag++)
 		if (chain == VCAP_IS2_CHAIN(0, pag))
@@ -179,13 +179,13 @@ ocelot_flower_parse_ingress_vlan_modify(struct ocelot *ocelot, int port,
 	if (filter->goto_target != -1) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Last action must be GOTO");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!ocelot_port->vlan_aware) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only modify VLAN under VLAN aware bridge");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	filter->action.vid_replace_ena = true;
@@ -213,8 +213,8 @@ ocelot_flower_parse_egress_vlan_modify(struct ocelot_vcap_filter *filter,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot modify custom TPID");
-		return -EOPNOTSUPP;
+				   "Cananalt modify custom TPID");
+		return -EOPANALTSUPP;
 	}
 
 	filter->action.tag_a_tpid_sel = tpid;
@@ -244,13 +244,13 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 
 	if (!flow_action_basic_hw_stats_check(&f->rule->action,
 					      f->common.extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	chain = f->common.chain_index;
 	filter->block_id = ocelot_chain_to_block(chain, ingress);
 	if (filter->block_id < 0) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload to this chain");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload to this chain");
+		return -EOPANALTSUPP;
 	}
 	if (filter->block_id == VCAP_IS1 || filter->block_id == VCAP_IS2)
 		filter->lookup = ocelot_chain_to_lookup(chain);
@@ -266,12 +266,12 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			if (filter->block_id != VCAP_IS2) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Drop action can only be offloaded to VCAP IS2");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (filter->goto_target != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			filter->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
 			filter->action.port_mask = 0;
@@ -285,13 +285,13 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			    filter->block_id != VCAP_IS2) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Accept action can only be offloaded to VCAP chains");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (filter->block_id != VCAP_ES0 &&
 			    filter->goto_target != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
@@ -300,12 +300,12 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			    filter->lookup != 0) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Trap action can only be offloaded to VCAP IS2 lookup 0");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (filter->goto_target != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			filter->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
 			filter->action.port_mask = 0;
@@ -323,12 +323,12 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			    filter->lookup != 0) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Police action can only be offloaded to VCAP IS2 lookup 0 or PSFP");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (filter->goto_target != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			err = ocelot_policer_validate(action, a, extack);
@@ -359,18 +359,18 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			if (filter->block_id != VCAP_IS2) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Redirect action can only be offloaded to VCAP IS2");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (filter->goto_target != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			egress_port = ocelot->ops->netdev_to_port(a->dev);
 			if (egress_port < 0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Destination not an ocelot port");
-				return -EOPNOTSUPP;
+						   "Destination analt an ocelot port");
+				return -EOPANALTSUPP;
 			}
 			filter->action.mask_mode = OCELOT_MASK_MODE_REDIRECT;
 			filter->action.port_mask = BIT(egress_port);
@@ -380,18 +380,18 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			if (filter->block_id != VCAP_IS2) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Mirror action can only be offloaded to VCAP IS2");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (filter->goto_target != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			egress_port = ocelot->ops->netdev_to_port(a->dev);
 			if (egress_port < 0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Destination not an ocelot port");
-				return -EOPNOTSUPP;
+						   "Destination analt an ocelot port");
+				return -EOPANALTSUPP;
 			}
 			filter->egress_port.value = egress_port;
 			filter->action.mirror_ena = true;
@@ -401,19 +401,19 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			if (filter->block_id != VCAP_IS1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "VLAN pop action can only be offloaded to VCAP IS1");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (filter->goto_target != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			filter->action.vlan_pop_cnt_ena = true;
 			filter->action.vlan_pop_cnt++;
 			if (filter->action.vlan_pop_cnt > 2) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Cannot pop more than 2 VLAN headers");
-				return -EOPNOTSUPP;
+						   "Cananalt pop more than 2 VLAN headers");
+				return -EOPANALTSUPP;
 			}
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
@@ -428,7 +428,7 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			} else {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "VLAN modify action can only be offloaded to VCAP IS1 or ES0");
-				err = -EOPNOTSUPP;
+				err = -EOPANALTSUPP;
 			}
 			if (err)
 				return err;
@@ -437,12 +437,12 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			if (filter->block_id != VCAP_IS1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Priority action can only be offloaded to VCAP IS1");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (filter->goto_target != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			filter->action.qos_ena = true;
 			filter->action.qos_val = a->priority;
@@ -463,7 +463,7 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			if (filter->block_id != VCAP_ES0) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "VLAN push action can only be offloaded to VCAP ES0");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			switch (ntohs(a->vlan.proto)) {
 			case ETH_P_8021Q:
@@ -474,8 +474,8 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 				break;
 			default:
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Cannot push custom TPID");
-				return -EOPNOTSUPP;
+						   "Cananalt push custom TPID");
+				return -EOPANALTSUPP;
 			}
 			filter->action.tag_a_tpid_sel = tpid;
 			filter->action.push_outer_tag = OCELOT_ES0_TAG;
@@ -488,13 +488,13 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			if (filter->block_id != PSFP_BLOCK_ID) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Gate action can only be offloaded to PSFP chain");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			filter->type = OCELOT_PSFP_FILTER_OFFLOAD;
 			break;
 		default:
-			NL_SET_ERR_MSG_MOD(extack, "Cannot offload action");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Cananalt offload action");
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -504,14 +504,14 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			allow_missing_goto_target = true;
 		} else {
 			NL_SET_ERR_MSG_MOD(extack, "Missing GOTO action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
 	if (!ocelot_is_goto_target_valid(filter->goto_target, chain, ingress) &&
 	    !allow_missing_goto_target) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload this GOTO target");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload this GOTO target");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -536,7 +536,7 @@ static int ocelot_flower_parse_indev(struct ocelot *ocelot, int port,
 
 	if (match.mask->ingress_ifindex != 0xFFFFFFFF) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported ingress ifindex mask");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dev = ocelot->ops->port_to_netdev(ocelot, port);
@@ -547,14 +547,14 @@ static int ocelot_flower_parse_indev(struct ocelot *ocelot, int port,
 	if (!indev) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't find the ingress port to match on");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ingress_port = ocelot->ops->netdev_to_port(indev);
 	if (ingress_port < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only offload an ocelot ingress port");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (ingress_port == port) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -589,7 +589,7 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_META)) {
@@ -598,7 +598,7 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 		flow_rule_match_meta(rule, &match);
 		if (match.mask->l2_miss) {
 			NL_SET_ERR_MSG_MOD(extack, "Can't match on \"l2_miss\"");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -632,8 +632,8 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 
 		if (filter->block_id == VCAP_ES0) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "VCAP ES0 cannot match on MAC address");
-			return -EOPNOTSUPP;
+					   "VCAP ES0 cananalt match on MAC address");
+			return -EOPANALTSUPP;
 		}
 
 		/* The hw support mac matches only for MAC_ETYPE key,
@@ -647,15 +647,15 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 		    (BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 		     BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
 		     BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL)))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		flow_rule_match_eth_addrs(rule, &match);
 
 		if (filter->block_id == VCAP_IS1 &&
 		    !is_zero_ether_addr(match.mask->dst)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Key type S1_NORMAL cannot match on destination MAC");
-			return -EOPNOTSUPP;
+					   "Key type S1_ANALRMAL cananalt match on destination MAC");
+			return -EOPANALTSUPP;
 		}
 
 		filter->key_type = OCELOT_VCAP_KEY_ETYPE;
@@ -677,8 +677,8 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 		if (ntohs(match.key->n_proto) == ETH_P_IP) {
 			if (filter->block_id == VCAP_ES0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "VCAP ES0 cannot match on IP protocol");
-				return -EOPNOTSUPP;
+						   "VCAP ES0 cananalt match on IP protocol");
+				return -EOPANALTSUPP;
 			}
 
 			filter->key_type = OCELOT_VCAP_KEY_IPV4;
@@ -691,8 +691,8 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 		if (ntohs(match.key->n_proto) == ETH_P_IPV6) {
 			if (filter->block_id == VCAP_ES0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "VCAP ES0 cannot match on IP protocol");
-				return -EOPNOTSUPP;
+						   "VCAP ES0 cananalt match on IP protocol");
+				return -EOPANALTSUPP;
 			}
 
 			filter->key_type = OCELOT_VCAP_KEY_IPV6;
@@ -711,16 +711,16 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 
 		if (filter->block_id == VCAP_ES0) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "VCAP ES0 cannot match on IP address");
-			return -EOPNOTSUPP;
+					   "VCAP ES0 cananalt match on IP address");
+			return -EOPANALTSUPP;
 		}
 
 		flow_rule_match_ipv4_addrs(rule, &match);
 
 		if (filter->block_id == VCAP_IS1 && *(u32 *)&match.mask->dst) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Key type S1_NORMAL cannot match on destination IP");
-			return -EOPNOTSUPP;
+					   "Key type S1_ANALRMAL cananalt match on destination IP");
+			return -EOPANALTSUPP;
 		}
 
 		tmp = &filter->key.ipv4.sip.value.addr[0];
@@ -739,7 +739,7 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS) &&
 	    proto == ETH_P_IPV6) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
@@ -747,8 +747,8 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 
 		if (filter->block_id == VCAP_ES0) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "VCAP ES0 cannot match on L4 ports");
-			return -EOPNOTSUPP;
+					   "VCAP ES0 cananalt match on L4 ports");
+			return -EOPANALTSUPP;
 		}
 
 		flow_rule_match_ports(rule, &match);
@@ -763,13 +763,13 @@ finished_key_parsing:
 	if (match_protocol && proto != ETH_P_ALL) {
 		if (filter->block_id == VCAP_ES0) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "VCAP ES0 cannot match on L2 proto");
-			return -EOPNOTSUPP;
+					   "VCAP ES0 cananalt match on L2 proto");
+			return -EOPANALTSUPP;
 		}
 
 		/* TODO: support SNAP, LLC etc */
 		if (proto < ETH_P_802_3_MIN)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		filter->key_type = OCELOT_VCAP_KEY_ETYPE;
 		*(__be16 *)filter->key.etype.etype.value = htons(proto);
 		*(__be16 *)filter->key.etype.etype.mask = htons(0xffff);
@@ -856,7 +856,7 @@ ocelot_flower_patch_es0_vlan_modify(struct ocelot_vcap_filter *filter,
 	if (filter->vlan.vid.mask != VLAN_VID_MASK) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "VCAP ES0 VLAN rewriting needs a full VLAN in the key");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	filter->action.vid_a_val -= filter->vlan.vid.value;
@@ -874,14 +874,14 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 	int block_id, ret;
 
 	if (chain && !ocelot_find_vcap_filter_that_points_at(ocelot, chain)) {
-		NL_SET_ERR_MSG_MOD(extack, "No default GOTO action points to this chain");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Anal default GOTO action points to this chain");
+		return -EOPANALTSUPP;
 	}
 
 	block_id = ocelot_chain_to_block(chain, ingress);
 	if (block_id < 0) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload to this chain");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload to this chain");
+		return -EOPANALTSUPP;
 	}
 
 	filter = ocelot_vcap_block_find_filter_by_id(&ocelot->block[block_id],
@@ -889,8 +889,8 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 	if (filter) {
 		/* Filter already exists on other ports */
 		if (!ingress) {
-			NL_SET_ERR_MSG_MOD(extack, "VCAP ES0 does not support shared filters");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "VCAP ES0 does analt support shared filters");
+			return -EOPANALTSUPP;
 		}
 
 		filter->ingress_port_mask |= BIT(port);
@@ -898,10 +898,10 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 		return ocelot_vcap_filter_replace(ocelot, filter);
 	}
 
-	/* Filter didn't exist, create it now */
+	/* Filter didn't exist, create it analw */
 	filter = ocelot_vcap_filter_create(ocelot, port, ingress, f);
 	if (!filter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ocelot_flower_parse(ocelot, port, ingress, f, filter);
 	if (ret) {
@@ -915,7 +915,7 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 		return ret;
 	}
 
-	/* The non-optional GOTOs for the TCAM skeleton don't need
+	/* The analn-optional GOTOs for the TCAM skeleton don't need
 	 * to be actually offloaded.
 	 */
 	if (filter->type == OCELOT_VCAP_FILTER_DUMMY)
@@ -926,8 +926,8 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 		if (ocelot->ops->psfp_filter_add)
 			return ocelot->ops->psfp_filter_add(ocelot, port, f);
 
-		NL_SET_ERR_MSG_MOD(extack, "PSFP chain is not supported in HW");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "PSFP chain is analt supported in HW");
+		return -EOPANALTSUPP;
 	}
 
 	return ocelot_vcap_filter_add(ocelot, filter, f->common.extack);
@@ -949,7 +949,7 @@ int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
 		if (ocelot->ops->psfp_filter_del)
 			return ocelot->ops->psfp_filter_del(ocelot, f);
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	block = &ocelot->block[block_id];
@@ -992,7 +992,7 @@ int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
 			goto stats_update;
 		}
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	block = &ocelot->block[block_id];

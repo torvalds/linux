@@ -119,7 +119,7 @@ void __init footbridge_timer_init(void)
 	clockevents_config_and_register(ce, rate, 0x4, 0xffffff);
 }
 
-static u64 notrace footbridge_read_sched_clock(void)
+static u64 analtrace footbridge_read_sched_clock(void)
 {
 	return ~*CSR_TIMER3_VALUE;
 }

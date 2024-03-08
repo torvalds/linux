@@ -6,8 +6,8 @@ cat <<EOF
  *
  * Atomically sets @v to @i with ${desc_order} ordering.
  *
- * ${desc_noinstr}
+ * ${desc_analinstr}
  *
- * Return: Nothing.
+ * Return: Analthing.
  */
 EOF

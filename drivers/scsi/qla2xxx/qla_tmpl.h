@@ -31,7 +31,7 @@ struct __packed qla27xx_fwdt_template {
 
 #define TEMPLATE_TYPE_FWDUMP		99
 
-#define ENTRY_TYPE_NOP			0
+#define ENTRY_TYPE_ANALP			0
 #define ENTRY_TYPE_TMP_END		255
 #define ENTRY_TYPE_RD_IOB_T1		256
 #define ENTRY_TYPE_WR_IOB_T1		257

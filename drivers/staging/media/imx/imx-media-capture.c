@@ -16,7 +16,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
@@ -143,7 +143,7 @@ __capture_try_fmt(struct v4l2_pix_format *pixfmt, struct v4l2_rect *compose)
 	const struct imx_media_pixfmt *cc;
 
 	/*
-	 * Find the pixel format, default to the first supported format if not
+	 * Find the pixel format, default to the first supported format if analt
 	 * found.
 	 */
 	cc = imx_media_find_pixel_format(pixfmt->pixelformat, PIXFMT_SEL_ANY);
@@ -220,7 +220,7 @@ static int capture_g_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_COMPOSE_PADDED:
 		/*
 		 * The hardware writes with a configurable but fixed DMA burst
-		 * size. If the source format width is not burst size aligned,
+		 * size. If the source format width is analt burst size aligned,
 		 * the written frame contains padding to the right.
 		 */
 		s->r.left = 0;
@@ -650,7 +650,7 @@ static int capture_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < pix->sizeimage) {
 		dev_err(priv->dev,
-			"data will not fit into plane (%lu < %lu)\n",
+			"data will analt fit into plane (%lu < %lu)\n",
 			vb2_plane_size(vb, 0), (long)pix->sizeimage);
 		return -EINVAL;
 	}
@@ -689,7 +689,7 @@ static int capture_validate_fmt(struct capture_priv *priv)
 
 	/*
 	 * Verify that the media bus size matches the size set on the video
-	 * node. It is sufficient to check the compose rectangle size without
+	 * analde. It is sufficient to check the compose rectangle size without
 	 * checking the rounded size from vdev.fmt, as the rounded size is
 	 * derived directly from the compose rectangle size, and will thus
 	 * always match if the compose rectangle matches.
@@ -700,7 +700,7 @@ static int capture_validate_fmt(struct capture_priv *priv)
 
 	/*
 	 * Verify that the media bus code is compatible with the pixel format
-	 * set on the video node.
+	 * set on the video analde.
 	 */
 	cc = capture_find_format(fmt_src.format.code, 0);
 	if (!cc || priv->vdev.cc->cs != cc->cs)
@@ -718,7 +718,7 @@ static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = capture_validate_fmt(priv);
 	if (ret) {
-		dev_err(priv->dev, "capture format not valid\n");
+		dev_err(priv->dev, "capture format analt valid\n");
 		goto return_bufs;
 	}
 
@@ -931,15 +931,15 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev,
 	}
 
 	dev_info(priv->dev, "Registered %s as /dev/%s\n", vfd->name,
-		 video_device_node_name(vfd));
+		 video_device_analde_name(vfd));
 
-	/* Create the link from the src_sd devnode pad to device node. */
+	/* Create the link from the src_sd devanalde pad to device analde. */
 	if (link_flags & MEDIA_LNK_FL_IMMUTABLE)
 		link_flags |= MEDIA_LNK_FL_ENABLED;
 	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
 				    &vfd->entity, 0, link_flags);
 	if (ret) {
-		dev_err(priv->dev, "failed to create link to device node\n");
+		dev_err(priv->dev, "failed to create link to device analde\n");
 		video_unregister_device(vfd);
 		return ret;
 	}
@@ -972,7 +972,7 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->src_sd = src_sd;
 	priv->src_sd_pad = pad;
@@ -986,15 +986,15 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	/* Allocate and initialize the video device. */
 	vfd = video_device_alloc();
 	if (!vfd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vfd->fops = &capture_fops;
 	vfd->ioctl_ops = legacy_api ? &capture_legacy_ioctl_ops
 		       : &capture_ioctl_ops;
-	vfd->minor = -1;
+	vfd->mianalr = -1;
 	vfd->release = video_device_release;
 	vfd->vfl_dir = VFL_DIR_RX;
-	vfd->tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
+	vfd->tvanalrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
 	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING
 			 | (!legacy_api ? V4L2_CAP_IO_MC : 0);
 	vfd->lock = &priv->mutex;
@@ -1022,7 +1022,7 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	vq->buf_struct_size = sizeof(struct imx_media_buffer);
 	vq->ops = &capture_qops;
 	vq->mem_ops = &vb2_dma_contig_memops;
-	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vq->lock = &priv->mutex;
 	vq->min_queued_buffers = 2;
 	vq->dev = priv->dev;

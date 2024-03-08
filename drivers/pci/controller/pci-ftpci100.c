@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Support for Faraday Technology FTPC100 PCI Controller
+ * Support for Faraday Techanallogy FTPC100 PCI Controller
  *
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Based on the out-of-tree OpenWRT patch for Cortina Gemini:
- * Copyright (C) 2009 Janos Laube <janos.dev@gmail.com>
+ * Copyright (C) 2009 Jaanals Laube <jaanals.dev@gmail.com>
  * Copyright (C) 2009 Paulius Zaleckas <paulius.zaleckas@teltonika.lt>
  * Based on SL2312 PCI controller code
  * Storlink (C) 2003
@@ -166,7 +166,7 @@ static int faraday_res_to_memcfg(resource_size_t mem_base,
 	}
 	outval <<= FARADAY_PCI_MEMSIZE_SHIFT;
 
-	/* This is probably not good */
+	/* This is probably analt good */
 	if (mem_base & ~(FARADAY_PCI_MEMBASE_MASK))
 		pr_warn("truncated PCI memory base\n");
 	/* Translate to bridge side address space */
@@ -328,12 +328,12 @@ static const struct irq_domain_ops faraday_pci_irqdomain_ops = {
 
 static int faraday_pci_setup_cascaded_irq(struct faraday_pci *p)
 {
-	struct device_node *intc = of_get_next_child(p->dev->of_node, NULL);
+	struct device_analde *intc = of_get_next_child(p->dev->of_analde, NULL);
 	int irq;
 	int i;
 
 	if (!intc) {
-		dev_err(p->dev, "missing child interrupt-controller node\n");
+		dev_err(p->dev, "missing child interrupt-controller analde\n");
 		return -EINVAL;
 	}
 
@@ -341,13 +341,13 @@ static int faraday_pci_setup_cascaded_irq(struct faraday_pci *p)
 	irq = of_irq_get(intc, 0);
 	if (irq <= 0) {
 		dev_err(p->dev, "failed to get parent IRQ\n");
-		of_node_put(intc);
+		of_analde_put(intc);
 		return irq ?: -EINVAL;
 	}
 
 	p->irqdomain = irq_domain_add_linear(intc, PCI_NUM_INTX,
 					     &faraday_pci_irqdomain_ops, p);
-	of_node_put(intc);
+	of_analde_put(intc);
 	if (!p->irqdomain) {
 		dev_err(p->dev, "failed to create Gemini PCI IRQ domain\n");
 		return -EINVAL;
@@ -393,7 +393,7 @@ static int faraday_pci_parse_map_dma_ranges(struct faraday_pci *p)
 			faraday_raw_pci_write_config(p, 0, 0, confreg[i],
 						     4, val);
 		} else {
-			dev_err(dev, "ignore extraneous dma-range %d\n", i);
+			dev_err(dev, "iganalre extraneous dma-range %d\n", i);
 			break;
 		}
 
@@ -420,7 +420,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 
 	host = devm_pci_alloc_host_bridge(dev, sizeof(*p));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->ops = &faraday_pci_ops;
 	p = pci_host_bridge_priv(host);

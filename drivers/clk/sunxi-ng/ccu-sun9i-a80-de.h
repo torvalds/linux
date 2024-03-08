@@ -11,7 +11,7 @@
 #include <dt-bindings/clock/sun9i-a80-de.h>
 #include <dt-bindings/reset/sun9i-a80-de.h>
 
-/* Intermediary clock dividers are not exported */
+/* Intermediary clock dividers are analt exported */
 #define CLK_FE0_DIV	31
 #define CLK_FE1_DIV	32
 #define CLK_FE2_DIV	33

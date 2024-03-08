@@ -104,7 +104,7 @@ struct nft_data {
 		u32			data[4];
 		struct nft_verdict	verdict;
 	};
-} __attribute__((aligned(__alignof__(u64))));
+} __attribute__((aligned(__aliganalf__(u64))));
 
 #define NFT_REG32_NUM		20
 
@@ -136,7 +136,7 @@ struct nft_regs_track {
 
 /* Store/load an u8, u16 or u64 integer to/from the u32 data register.
  *
- * Note, when using concatenations, register allocation happens at 32-bit
+ * Analte, when using concatenations, register allocation happens at 32-bit
  * level. So for store instruction, pad the rest part with zero to avoid
  * garbage values.
  */
@@ -208,7 +208,7 @@ static inline void nft_data_copy(u32 *dst, const struct nft_data *src,
  *	@flags: modifiers to new request
  *	@family: protocol family
  *	@level: depth of the chains
- *	@report: notify via unicast netlink message
+ *	@report: analtify via unicast netlink message
  */
 struct nft_ctx {
 	struct net			*net;
@@ -379,7 +379,7 @@ struct nft_set_estimate {
 
 #define NFT_EXPR_MAXATTR		16
 #define NFT_EXPR_SIZE(size)		(sizeof(struct nft_expr) + \
-					 ALIGN(size, __alignof__(struct nft_expr)))
+					 ALIGN(size, __aliganalf__(struct nft_expr)))
 
 /**
  *	struct nft_expr - nf_tables expression
@@ -390,7 +390,7 @@ struct nft_set_estimate {
 struct nft_expr {
 	const struct nft_expr_ops	*ops;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(u64))));
+		__attribute__((aligned(__aliganalf__(u64))));
 };
 
 static inline void *nft_expr_priv(const struct nft_expr *expr)
@@ -509,7 +509,7 @@ struct nft_set_type {
 struct nft_set_elem_expr {
 	u8				size;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(struct nft_expr))));
+		__attribute__((aligned(__aliganalf__(struct nft_expr))));
 };
 
 #define nft_setelem_expr_at(__elem_expr, __offset)			\
@@ -525,14 +525,14 @@ struct nft_set_elem_expr {
 /**
  * 	struct nft_set - nf_tables set instance
  *
- *	@list: table set list node
+ *	@list: table set list analde
  *	@bindings: list of set bindings
  *	@refs: internal refcounting for async set destruction
  *	@table: table this set belongs to
  *	@net: netnamespace this set belongs to
  * 	@name: name of the set
  *	@handle: unique handle of the set
- * 	@ktype: key type (numeric type defined by userspace, not used in the kernel)
+ * 	@ktype: key type (numeric type defined by userspace, analt used in the kernel)
  * 	@dtype: data type (verdict or numeric type defined by userspace)
  * 	@objtype: object type (see NFT_OBJECT_* definitions)
  * 	@size: maximum set size
@@ -592,12 +592,12 @@ struct nft_set {
 	struct nft_expr			*exprs[NFT_SET_EXPR_MAX];
 	struct list_head		catchall_list;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(u64))));
+		__attribute__((aligned(__aliganalf__(u64))));
 };
 
-static inline bool nft_set_is_anonymous(const struct nft_set *set)
+static inline bool nft_set_is_aanalnymous(const struct nft_set *set)
 {
-	return set->flags & NFT_SET_ANONYMOUS;
+	return set->flags & NFT_SET_AANALNYMOUS;
 }
 
 static inline void *nft_set_priv(const struct nft_set *set)
@@ -634,7 +634,7 @@ static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
 /**
  *	struct nft_set_binding - nf_tables set binding
  *
- *	@list: set bindings list node
+ *	@list: set bindings list analde
  *	@chain: chain containing the rule bound to the set
  *	@flags: set action flags
  *
@@ -855,7 +855,7 @@ struct nft_expr_ops;
  *
  *	@select_ops: function to select nft_expr_ops
  *	@release_ops: release nft_expr_ops
- *	@ops: default ops, used when no select_ops functions is present
+ *	@ops: default ops, used when anal select_ops functions is present
  *	@inner_ops: inner ops, used for inner packet operation
  *	@list: used internally
  *	@name: Identifier
@@ -910,7 +910,7 @@ struct nft_offload_ctx;
  *	@reduce: reduce expression
  *	@gc: garbage collection expression
  *	@offload: hardware offload expression
- *	@offload_action: function to report true/false to allocate one slot or not in the flow
+ *	@offload_action: function to report true/false to allocate one slot or analt in the flow
  *			 offload array
  *	@offload_stats: function to synchronize hardware stats via updating the counter expression
  *	@type: expression type
@@ -973,7 +973,7 @@ struct nft_rule {
 					dlen:12,
 					udata:1;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(struct nft_expr))));
+		__attribute__((aligned(__aliganalf__(struct nft_expr))));
 };
 
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
@@ -1042,7 +1042,7 @@ struct nft_rule_dp {
 					dlen:12,
 					handle:42;	/* for tracing */
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(struct nft_expr))));
+		__attribute__((aligned(__aliganalf__(struct nft_expr))));
 };
 
 struct nft_rule_dp_last {
@@ -1060,7 +1060,7 @@ static inline const struct nft_rule_dp *nft_rule_next(const struct nft_rule_dp *
 struct nft_rule_blob {
 	unsigned long			size;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(struct nft_rule_dp))));
+		__attribute__((aligned(__aliganalf__(struct nft_rule_dp))));
 };
 
 /**
@@ -1075,7 +1075,7 @@ struct nft_rule_blob {
  *	@handle: chain handle
  *	@use: number of jump references to this chain
  *	@flags: bitmask of enum NFTA_CHAIN_FLAGS
- *	@bound: bind or not
+ *	@bound: bind or analt
  *	@genmask: generation mask
  *	@name: name of the chain
  *	@udlen: user data length
@@ -1178,7 +1178,7 @@ struct nft_hook {
  *	@hook_list: list of netfilter hooks (for NFPROTO_NETDEV family)
  *	@type: chain type
  *	@policy: default policy
- *	@flags: indicate the base chain disabled or not
+ *	@flags: indicate the base chain disabled or analt
  *	@stats: per-cpu chain stats
  *	@chain: the chain
  *	@flow_block: flow block (for hardware offload)
@@ -1306,8 +1306,8 @@ struct nft_object_hash_key {
 /**
  *	struct nft_object - nf_tables stateful object
  *
- *	@list: table stateful object list node
- *	@rhlhead: nft_objname_ht node
+ *	@list: table stateful object list analde
+ *	@rhlhead: nft_objname_ht analde
  *	@key: keys that identify this object
  *	@genmask: generation mask
  *	@use: number of references to this stateful object
@@ -1329,7 +1329,7 @@ struct nft_object {
 	/* runtime data below here */
 	const struct nft_object_ops	*ops ____cacheline_aligned;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(u64))));
+		__attribute__((aligned(__aliganalf__(u64))));
 };
 
 static inline void *nft_obj_data(const struct nft_object *obj)
@@ -1344,7 +1344,7 @@ struct nft_object *nft_obj_lookup(const struct net *net,
 				  const struct nlattr *nla, u32 objtype,
 				  u8 genmask);
 
-void nft_obj_notify(struct net *net, const struct nft_table *table,
+void nft_obj_analtify(struct net *net, const struct nft_table *table,
 		    struct nft_object *obj, u32 portid, u32 seq,
 		    int event, u16 flags, int family, int report, gfp_t gfp);
 
@@ -1352,8 +1352,8 @@ void nft_obj_notify(struct net *net, const struct nft_table *table,
  *	struct nft_object_type - stateful object type
  *
  *	@select_ops: function to select nft_object_ops
- *	@ops: default ops, used when no select_ops functions is present
- *	@list: list node in list of object types
+ *	@ops: default ops, used when anal select_ops functions is present
+ *	@list: list analde in list of object types
  *	@type: stateful object numeric type
  *	@owner: module owner
  *	@maxattr: maximum netlink attribute
@@ -1409,7 +1409,7 @@ void nft_unregister_obj(struct nft_object_type *obj_type);
 /**
  *	struct nft_flowtable - nf_tables flow table
  *
- *	@list: flow table list node in table list
+ *	@list: flow table list analde in table list
  * 	@table: the table the flow table is contained in
  *	@name: name of this flow table
  *	@hooknum: hook number
@@ -1467,7 +1467,7 @@ struct nft_traceinfo {
 void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
 		    const struct nft_chain *basechain);
 
-void nft_trace_notify(const struct nft_pktinfo *pkt,
+void nft_trace_analtify(const struct nft_pktinfo *pkt,
 		      const struct nft_verdict *verdict,
 		      const struct nft_rule_dp *rule,
 		      struct nft_traceinfo *info);
@@ -1774,7 +1774,7 @@ __be64 nf_jiffies64_to_msecs(u64 input);
 #ifdef CONFIG_MODULES
 __printf(2, 3) int nft_request_module(struct net *net, const char *fmt, ...);
 #else
-static inline int nft_request_module(struct net *net, const char *fmt, ...) { return -ENOENT; }
+static inline int nft_request_module(struct net *net, const char *fmt, ...) { return -EANALENT; }
 #endif
 
 struct nftables_pernet {
@@ -1782,7 +1782,7 @@ struct nftables_pernet {
 	struct list_head	commit_list;
 	struct list_head	binding_list;
 	struct list_head	module_list;
-	struct list_head	notify_list;
+	struct list_head	analtify_list;
 	struct mutex		commit_mutex;
 	u64			table_handle;
 	u64			tstamp;

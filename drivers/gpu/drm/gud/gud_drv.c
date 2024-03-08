@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /*
- * Copyright 2020 Noralf Trønnes
+ * Copyright 2020 Analralf Trønnes
  */
 
 #include <linux/dma-buf.h>
@@ -83,7 +83,7 @@ static int gud_get_display_descriptor(struct usb_interface *intf,
 
 	buf = kmalloc(sizeof(*desc), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gud_usb_control_msg(intf, true, GUD_REQ_GET_DESCRIPTOR, 0, buf, sizeof(*desc));
 	memcpy(desc, buf, sizeof(*desc));
@@ -94,7 +94,7 @@ static int gud_get_display_descriptor(struct usb_interface *intf,
 		return -EIO;
 
 	if (desc->magic != le32_to_cpu(GUD_DISPLAY_MAGIC))
-		return -ENODATA;
+		return -EANALDATA;
 
 	DRM_DEV_DEBUG_DRIVER(&intf->dev,
 			     "version=%u flags=0x%x compression=0x%x max_buffer_size=%u\n",
@@ -109,15 +109,15 @@ static int gud_get_display_descriptor(struct usb_interface *intf,
 	return 0;
 }
 
-static int gud_status_to_errno(u8 status)
+static int gud_status_to_erranal(u8 status)
 {
 	switch (status) {
 	case GUD_STATUS_OK:
 		return 0;
 	case GUD_STATUS_BUSY:
 		return -EBUSY;
-	case GUD_STATUS_REQUEST_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
+	case GUD_STATUS_REQUEST_ANALT_SUPPORTED:
+		return -EOPANALTSUPP;
 	case GUD_STATUS_PROTOCOL_ERROR:
 		return -EPROTO;
 	case GUD_STATUS_INVALID_PARAMETER:
@@ -136,11 +136,11 @@ static int gud_usb_get_status(struct usb_interface *intf)
 
 	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gud_usb_control_msg(intf, true, GUD_REQ_GET_STATUS, 0, buf, sizeof(*buf));
 	if (ret == sizeof(*buf))
-		status = gud_status_to_errno(*buf);
+		status = gud_status_to_erranal(*buf);
 	kfree(buf);
 
 	if (ret < 0)
@@ -159,7 +159,7 @@ static int gud_usb_transfer(struct gud_device *gdrm, bool in, u8 request, u16 in
 		in ? "get" : "set", request, index, len);
 
 	if (!drm_dev_enter(&gdrm->drm, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&gdrm->ctrl_lock);
 
@@ -189,7 +189,7 @@ static int gud_usb_transfer(struct gud_device *gdrm, bool in, u8 request, u16 in
 }
 
 /*
- * @buf cannot be allocated on the stack.
+ * @buf cananalt be allocated on the stack.
  * Returns number of bytes received or negative error code on failure.
  */
 int gud_usb_get(struct gud_device *gdrm, u8 request, u16 index, void *buf, size_t max_len)
@@ -209,7 +209,7 @@ int gud_usb_set(struct gud_device *gdrm, u8 request, u16 index, void *buf, size_
 	if (buf && len) {
 		trbuf = kmemdup(buf, len, GFP_KERNEL);
 		if (!trbuf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = gud_usb_transfer(gdrm, false, request, index, trbuf, len);
@@ -231,7 +231,7 @@ int gud_usb_get_u8(struct gud_device *gdrm, u8 request, u16 index, u8 *val)
 
 	buf = kmalloc(sizeof(*val), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gud_usb_get(gdrm, request, index, buf, sizeof(*val));
 	*val = *buf;
@@ -256,7 +256,7 @@ static int gud_get_properties(struct gud_device *gdrm)
 
 	properties = kcalloc(GUD_PROPERTIES_MAX_NUM, sizeof(*properties), GFP_KERNEL);
 	if (!properties)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gud_usb_get(gdrm, GUD_REQ_GET_PROPERTIES, 0,
 			  properties, GUD_PROPERTIES_MAX_NUM * sizeof(*properties));
@@ -273,7 +273,7 @@ static int gud_get_properties(struct gud_device *gdrm)
 	gdrm->properties = drmm_kcalloc(&gdrm->drm, num_properties, sizeof(*gdrm->properties),
 					GFP_KERNEL);
 	if (!gdrm->properties) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -292,8 +292,8 @@ static int gud_get_properties(struct gud_device *gdrm)
 								 DRM_MODE_ROTATE_0, val);
 			break;
 		default:
-			/* New ones might show up in future devices, skip those we don't know. */
-			drm_dbg(&gdrm->drm, "Ignoring unknown property: %u\n", prop);
+			/* New ones might show up in future devices, skip those we don't kanalw. */
+			drm_dbg(&gdrm->drm, "Iganalring unkanalwn property: %u\n", prop);
 			continue;
 		}
 
@@ -318,7 +318,7 @@ static struct drm_gem_object *gud_gem_prime_import(struct drm_device *drm, struc
 	struct gud_device *gdrm = to_gud_device(drm);
 
 	if (!gdrm->dmadev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return drm_gem_prime_import_dev(drm, dma_buf, gdrm->dmadev);
 }
@@ -337,7 +337,7 @@ static int gud_stats_debugfs(struct seq_file *m, void *data)
 	if (gdrm->compression & GUD_COMPRESSION_LZ4)
 		seq_puts(m, " lz4");
 	if (!gdrm->compression)
-		seq_puts(m, " none");
+		seq_puts(m, " analne");
 	seq_puts(m, "\n");
 
 	if (gdrm->compression) {
@@ -381,7 +381,7 @@ static const struct drm_driver gud_drm_driver = {
 	.desc			= "Generic USB Display",
 	.date			= "20200422",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static int gud_alloc_bulk_buffer(struct gud_device *gdrm)
@@ -393,12 +393,12 @@ static int gud_alloc_bulk_buffer(struct gud_device *gdrm)
 
 	gdrm->bulk_buf = vmalloc_32(gdrm->bulk_len);
 	if (!gdrm->bulk_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_pages = DIV_ROUND_UP(gdrm->bulk_len, PAGE_SIZE);
 	pages = kmalloc_array(num_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, ptr = gdrm->bulk_buf; i < num_pages; i++, ptr += PAGE_SIZE)
 		pages[i] = vmalloc_to_page(ptr);
@@ -443,13 +443,13 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	ret = gud_get_display_descriptor(intf, &desc);
 	if (ret) {
-		DRM_DEV_DEBUG_DRIVER(dev, "Not a display interface: ret=%d\n", ret);
-		return -ENODEV;
+		DRM_DEV_DEBUG_DRIVER(dev, "Analt a display interface: ret=%d\n", ret);
+		return -EANALDEV;
 	}
 
 	if (desc.version > 1) {
-		dev_err(dev, "Protocol version %u is not supported\n", desc.version);
-		return -ENODEV;
+		dev_err(dev, "Protocol version %u is analt supported\n", desc.version);
+		return -EANALDEV;
 	}
 
 	gdrm = devm_drm_dev_alloc(dev, &gud_drm_driver, struct gud_device, drm);
@@ -486,7 +486,7 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Add room for emulated XRGB8888 */
 	formats = devm_kmalloc_array(dev, GUD_FORMATS_MAX_NUM + 1, sizeof(*formats), GFP_KERNEL);
 	if (!formats_dev || !formats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gud_usb_get(gdrm, GUD_REQ_GET_FORMATS, 0, formats_dev, GUD_FORMATS_MAX_NUM);
 	if (ret < 0)
@@ -539,13 +539,13 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		max_buffer_size = max(max_buffer_size, fmt_buf_size);
 
 		if (format == GUD_DRM_FORMAT_R1 || format == GUD_DRM_FORMAT_XRGB1111)
-			continue; /* Internal not for userspace */
+			continue; /* Internal analt for userspace */
 
 		formats[num_formats++] = format;
 	}
 
 	if (!num_formats && !xrgb8888_emulation_format) {
-		dev_err(dev, "No supported pixel formats found\n");
+		dev_err(dev, "Anal supported pixel formats found\n");
 		return -EINVAL;
 	}
 
@@ -574,11 +574,11 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (gdrm->compression & GUD_COMPRESSION_LZ4) {
 		gdrm->lz4_comp_mem = devm_kmalloc(dev, LZ4_MEM_COMPRESS, GFP_KERNEL);
 		if (!gdrm->lz4_comp_mem)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		gdrm->compress_buf = vmalloc(gdrm->bulk_len);
 		if (!gdrm->compress_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = drm_simple_display_pipe_init(drm, &gdrm->pipe, &gud_pipe_funcs,
@@ -610,7 +610,7 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	gdrm->dmadev = usb_intf_get_dma_device(intf);
 	if (!gdrm->dmadev)
-		dev_warn(dev, "buffer sharing not supported");
+		dev_warn(dev, "buffer sharing analt supported");
 
 	drm_debugfs_add_file(drm, "stats", gud_stats_debugfs, NULL);
 
@@ -677,5 +677,5 @@ static struct usb_driver gud_usb_driver = {
 
 module_usb_driver(gud_usb_driver);
 
-MODULE_AUTHOR("Noralf Trønnes");
+MODULE_AUTHOR("Analralf Trønnes");
 MODULE_LICENSE("Dual MIT/GPL");

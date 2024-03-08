@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
@@ -11,7 +11,7 @@
 
 struct mlxsw_sp2_kvdl_part_info {
 	u8 res_type;
-	/* For each defined partititon we need to know how many
+	/* For each defined partititon we need to kanalw how many
 	 * usage bits we need and how many indexes there are
 	 * represented by a single bit. This could be got from FW
 	 * querying appropriate resources. So have the resource
@@ -74,7 +74,7 @@ again:
 		goto again;
 	}
 	if (wrap && bit + bit_count >= start_bit)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	for (i = 0; i < bit_count; i++) {
 		if (test_bit(bit + i, part->usage)) {
 			bit += bit_count;
@@ -112,7 +112,7 @@ static int mlxsw_sp2_kvdl_rec_del(struct mlxsw_sp *mlxsw_sp, u8 res_type,
 
 	iedr_pl = kmalloc(MLXSW_REG_IEDR_LEN, GFP_KERNEL);
 	if (!iedr_pl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxsw_reg_iedr_pack(iedr_pl);
 	mlxsw_reg_iedr_rec_pack(iedr_pl, 0, res_type, size, kvdl_index);
@@ -205,7 +205,7 @@ mlxsw_sp2_kvdl_part_init(struct mlxsw_sp *mlxsw_sp,
 	usage_size = BITS_TO_LONGS(usage_bit_count) * sizeof(unsigned long);
 	part = kzalloc(sizeof(*part) + usage_size, GFP_KERNEL);
 	if (!part)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	part->info = info;
 	part->usage_bit_count = usage_bit_count;
 	part->indexes_per_usage_bit = indexes_per_usage_bit;

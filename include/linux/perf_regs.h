@@ -32,12 +32,12 @@ static inline u64 perf_reg_value(struct pt_regs *regs, int idx)
 
 static inline int perf_reg_validate(u64 mask)
 {
-	return mask ? -ENOSYS : 0;
+	return mask ? -EANALSYS : 0;
 }
 
 static inline u64 perf_reg_abi(struct task_struct *task)
 {
-	return PERF_SAMPLE_REGS_ABI_NONE;
+	return PERF_SAMPLE_REGS_ABI_ANALNE;
 }
 
 static inline void perf_get_regs_user(struct perf_regs *regs_user,

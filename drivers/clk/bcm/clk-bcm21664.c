@@ -19,7 +19,7 @@ static struct peri_clk_data frac_1m_data = {
 
 static struct ccu_data root_ccu_data = {
 	BCM21664_CCU_COMMON(root, ROOT),
-	/* no policy control */
+	/* anal policy control */
 	.kona_clks	= {
 		[BCM21664_ROOT_CCU_FRAC_1M] =
 			KONA_CLK(root, frac_1m, peri),
@@ -252,24 +252,24 @@ static struct ccu_data slave_ccu_data = {
 
 /* Device tree match table callback functions */
 
-static void __init kona_dt_root_ccu_setup(struct device_node *node)
+static void __init kona_dt_root_ccu_setup(struct device_analde *analde)
 {
-	kona_dt_ccu_setup(&root_ccu_data, node);
+	kona_dt_ccu_setup(&root_ccu_data, analde);
 }
 
-static void __init kona_dt_aon_ccu_setup(struct device_node *node)
+static void __init kona_dt_aon_ccu_setup(struct device_analde *analde)
 {
-	kona_dt_ccu_setup(&aon_ccu_data, node);
+	kona_dt_ccu_setup(&aon_ccu_data, analde);
 }
 
-static void __init kona_dt_master_ccu_setup(struct device_node *node)
+static void __init kona_dt_master_ccu_setup(struct device_analde *analde)
 {
-	kona_dt_ccu_setup(&master_ccu_data, node);
+	kona_dt_ccu_setup(&master_ccu_data, analde);
 }
 
-static void __init kona_dt_slave_ccu_setup(struct device_node *node)
+static void __init kona_dt_slave_ccu_setup(struct device_analde *analde)
 {
-	kona_dt_ccu_setup(&slave_ccu_data, node);
+	kona_dt_ccu_setup(&slave_ccu_data, analde);
 }
 
 CLK_OF_DECLARE(bcm21664_root_ccu, BCM21664_DT_ROOT_CCU_COMPAT,

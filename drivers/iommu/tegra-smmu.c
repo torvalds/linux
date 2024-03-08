@@ -139,19 +139,19 @@ static inline u32 smmu_readl(struct tegra_smmu *smmu, unsigned long offset)
 
 #define SMMU_PD_READABLE	(1 << 31)
 #define SMMU_PD_WRITABLE	(1 << 30)
-#define SMMU_PD_NONSECURE	(1 << 29)
+#define SMMU_PD_ANALNSECURE	(1 << 29)
 
 #define SMMU_PDE_READABLE	(1 << 31)
 #define SMMU_PDE_WRITABLE	(1 << 30)
-#define SMMU_PDE_NONSECURE	(1 << 29)
+#define SMMU_PDE_ANALNSECURE	(1 << 29)
 #define SMMU_PDE_NEXT		(1 << 28)
 
 #define SMMU_PTE_READABLE	(1 << 31)
 #define SMMU_PTE_WRITABLE	(1 << 30)
-#define SMMU_PTE_NONSECURE	(1 << 29)
+#define SMMU_PTE_ANALNSECURE	(1 << 29)
 
 #define SMMU_PDE_ATTR		(SMMU_PDE_READABLE | SMMU_PDE_WRITABLE | \
-				 SMMU_PDE_NONSECURE)
+				 SMMU_PDE_ANALNSECURE)
 
 static unsigned int iova_pd_index(unsigned long iova)
 {
@@ -259,7 +259,7 @@ static int tegra_smmu_alloc_asid(struct tegra_smmu *smmu, unsigned int *idp)
 
 	id = find_first_zero_bit(smmu->asids, smmu->soc->num_asids);
 	if (id >= smmu->soc->num_asids)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	set_bit(id, smmu->asids);
 	*idp = id;
@@ -280,7 +280,7 @@ static struct iommu_domain *tegra_smmu_domain_alloc_paging(struct device *dev)
 	if (!as)
 		return NULL;
 
-	as->attr = SMMU_PD_READABLE | SMMU_PD_WRITABLE | SMMU_PD_NONSECURE;
+	as->attr = SMMU_PD_READABLE | SMMU_PD_WRITABLE | SMMU_PD_ANALNSECURE;
 
 	as->pd = alloc_page(GFP_KERNEL | __GFP_DMA | __GFP_ZERO);
 	if (!as->pd) {
@@ -356,9 +356,9 @@ static void tegra_smmu_enable(struct tegra_smmu *smmu, unsigned int swgroup,
 		value |= SMMU_ASID_ENABLE;
 		smmu_writel(smmu, value, group->reg);
 	} else {
-		pr_warn("%s group from swgroup %u not found\n", __func__,
+		pr_warn("%s group from swgroup %u analt found\n", __func__,
 				swgroup);
-		/* No point moving ahead if group was not found */
+		/* Anal point moving ahead if group was analt found */
 		return;
 	}
 
@@ -418,13 +418,13 @@ static int tegra_smmu_as_prepare(struct tegra_smmu *smmu,
 	as->pd_dma = dma_map_page(smmu->dev, as->pd, 0, SMMU_SIZE_PD,
 				  DMA_TO_DEVICE);
 	if (dma_mapping_error(smmu->dev, as->pd_dma)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
 	/* We can't handle 64-bit DMA addresses */
 	if (!smmu_dma_addr_valid(smmu, as->pd_dma)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap;
 	}
 
@@ -484,7 +484,7 @@ static int tegra_smmu_attach_dev(struct iommu_domain *domain,
 	int err;
 
 	if (!fwspec)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (index = 0; index < fwspec->num_ids; index++) {
 		err = tegra_smmu_as_prepare(smmu, as);
@@ -495,7 +495,7 @@ static int tegra_smmu_attach_dev(struct iommu_domain *domain,
 	}
 
 	if (index == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 
@@ -518,7 +518,7 @@ static int tegra_smmu_identity_attach(struct iommu_domain *identity_domain,
 	unsigned int index;
 
 	if (!fwspec)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (domain == identity_domain || !domain)
 		return 0;
@@ -638,7 +638,7 @@ static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 	struct page *page = as->pts[pde];
 
 	/*
-	 * When no entries in this page table are used anymore, return the
+	 * When anal entries in this page table are used anymore, return the
 	 * memory page to the system.
 	 */
 	if (--as->count[pde] == 0) {
@@ -721,17 +721,17 @@ __tegra_smmu_map(struct iommu_domain *domain, unsigned long iova,
 
 	page = as_get_pde_page(as, iova, gfp, flags);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pte = as_get_pte(as, iova, &pte_dma, page);
 	if (!pte)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* If we aren't overwriting a pre-existing entry, increment use */
 	if (*pte == 0)
 		tegra_smmu_pte_get_use(as, iova);
 
-	pte_attrs = SMMU_PTE_NONSECURE;
+	pte_attrs = SMMU_PTE_ANALNSECURE;
 
 	if (prot & IOMMU_READ)
 		pte_attrs |= SMMU_PTE_READABLE;
@@ -811,12 +811,12 @@ static phys_addr_t tegra_smmu_iova_to_phys(struct iommu_domain *domain,
 	return SMMU_PFN_PHYS(pfn) + SMMU_OFFSET_IN_PAGE(iova);
 }
 
-static struct tegra_smmu *tegra_smmu_find(struct device_node *np)
+static struct tegra_smmu *tegra_smmu_find(struct device_analde *np)
 {
 	struct platform_device *pdev;
 	struct tegra_mc *mc;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev)
 		return NULL;
 
@@ -835,7 +835,7 @@ static int tegra_smmu_configure(struct tegra_smmu *smmu, struct device *dev,
 	const struct iommu_ops *ops = smmu->iommu.ops;
 	int err;
 
-	err = iommu_fwspec_init(dev, &dev->of_node->fwnode, ops);
+	err = iommu_fwspec_init(dev, &dev->of_analde->fwanalde, ops);
 	if (err < 0) {
 		dev_err(dev, "failed to initialize fwspec: %d\n", err);
 		return err;
@@ -853,7 +853,7 @@ static int tegra_smmu_configure(struct tegra_smmu *smmu, struct device *dev,
 
 static struct iommu_device *tegra_smmu_probe_device(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct tegra_smmu *smmu = NULL;
 	struct of_phandle_args args;
 	unsigned int index = 0;
@@ -866,18 +866,18 @@ static struct iommu_device *tegra_smmu_probe_device(struct device *dev)
 			err = tegra_smmu_configure(smmu, dev, &args);
 
 			if (err < 0) {
-				of_node_put(args.np);
+				of_analde_put(args.np);
 				return ERR_PTR(err);
 			}
 		}
 
-		of_node_put(args.np);
+		of_analde_put(args.np);
 		index++;
 	}
 
 	smmu = dev_iommu_priv_get(dev);
 	if (!smmu)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return &smmu->iommu;
 }
@@ -961,12 +961,12 @@ static struct iommu_group *tegra_smmu_device_group(struct device *dev)
 static int tegra_smmu_of_xlate(struct device *dev,
 			       struct of_phandle_args *args)
 {
-	struct platform_device *iommu_pdev = of_find_device_by_node(args->np);
+	struct platform_device *iommu_pdev = of_find_device_by_analde(args->np);
 	struct tegra_mc *mc = platform_get_drvdata(iommu_pdev);
 	u32 id = args->args[0];
 
 	/*
-	 * Note: we are here releasing the reference of &iommu_pdev->dev, which
+	 * Analte: we are here releasing the reference of &iommu_pdev->dev, which
 	 * is mc->dev. Although some functions in tegra_smmu_ops may keep using
 	 * its private data beyond this point, it's still safe to do so because
 	 * the SMMU parent device is the same as the MC, so the reference count
@@ -982,7 +982,7 @@ static int tegra_smmu_of_xlate(struct device *dev,
 static int tegra_smmu_def_domain_type(struct device *dev)
 {
 	/*
-	 * FIXME: For now we want to run all translation in IDENTITY mode, due
+	 * FIXME: For analw we want to run all translation in IDENTITY mode, due
 	 * to some device quirks. Better would be to just quirk the troubled
 	 * devices.
 	 */
@@ -1012,12 +1012,12 @@ static void tegra_smmu_ahb_enable(void)
 		{ .compatible = "nvidia,tegra30-ahb", },
 		{ }
 	};
-	struct device_node *ahb;
+	struct device_analde *ahb;
 
-	ahb = of_find_matching_node(NULL, ahb_match);
+	ahb = of_find_matching_analde(NULL, ahb_match);
 	if (ahb) {
 		tegra_ahb_enable_smmu(ahb);
-		of_node_put(ahb);
+		of_analde_put(ahb);
 	}
 }
 
@@ -1038,9 +1038,9 @@ static int tegra_smmu_swgroups_show(struct seq_file *s, void *data)
 		value = smmu_readl(smmu, group->reg);
 
 		if (value & SMMU_ASID_ENABLE)
-			status = "yes";
+			status = "anal";
 		else
-			status = "no";
+			status = "anal";
 
 		asid = value & SMMU_ASID_MASK;
 
@@ -1069,9 +1069,9 @@ static int tegra_smmu_clients_show(struct seq_file *s, void *data)
 		value = smmu_readl(smmu, client->regs.smmu.reg);
 
 		if (value & BIT(client->regs.smmu.bit))
-			status = "yes";
+			status = "anal";
 		else
-			status = "no";
+			status = "anal";
 
 		seq_printf(s, "%-12s %s\n", client->name, status);
 	}
@@ -1106,13 +1106,13 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
 	if (!smmu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * This is a bit of a hack. Ideally we'd want to simply return this
 	 * value. However iommu_device_register() will attempt to add
 	 * all devices to the IOMMU before we get that far. In order
-	 * not to rely on global variables to track the IOMMU instance, we
+	 * analt to rely on global variables to track the IOMMU instance, we
 	 * set it here so that it can be looked up from the .probe_device()
 	 * callback via the IOMMU device's .drvdata field.
 	 */
@@ -1120,7 +1120,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 
 	smmu->asids = devm_bitmap_zalloc(dev, soc->num_asids, GFP_KERNEL);
 	if (!smmu->asids)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&smmu->groups);
 	mutex_init(&smmu->lock);

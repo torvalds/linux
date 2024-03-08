@@ -4,7 +4,7 @@
  *
  * Authors:	Thomas Graf <tgraf@suug.ch>
  *
- * Note: Quantum tunneling is not supported.
+ * Analte: Quantum tunneling is analt supported.
  */
 
 #include <linux/init.h>

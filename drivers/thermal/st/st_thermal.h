@@ -55,7 +55,7 @@ struct st_thermal_sensor_ops {
  * Description of thermal driver compatible data.
  *
  * @reg_fields:		Pointer to the regfields array for a sensor.
- * @sys_compat:		Pointer to the syscon node compatible string.
+ * @sys_compat:		Pointer to the syscon analde compatible string.
  * @ops: 		Pointer to private thermal ops for a sensor.
  * @calibration_val: 	Default calibration value to be written to the DCORRECT
  *			register field for a sensor.

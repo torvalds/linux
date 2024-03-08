@@ -11,16 +11,16 @@
 
 #ifdef __NR_userfaultfd
 
-/* The unit test doesn't need a large or random size, make it 32MB for now */
+/* The unit test doesn't need a large or random size, make it 32MB for analw */
 #define  UFFD_TEST_MEM_SIZE               (32UL << 20)
 
-#define  MEM_ANON                         BIT_ULL(0)
+#define  MEM_AANALN                         BIT_ULL(0)
 #define  MEM_SHMEM                        BIT_ULL(1)
 #define  MEM_SHMEM_PRIVATE                BIT_ULL(2)
 #define  MEM_HUGETLB                      BIT_ULL(3)
 #define  MEM_HUGETLB_PRIVATE              BIT_ULL(4)
 
-#define  MEM_ALL  (MEM_ANON | MEM_SHMEM | MEM_SHMEM_PRIVATE | \
+#define  MEM_ALL  (MEM_AANALN | MEM_SHMEM | MEM_SHMEM_PRIVATE | \
 		   MEM_HUGETLB | MEM_HUGETLB_PRIVATE)
 
 #define ALIGN_UP(x, align_to) \
@@ -36,9 +36,9 @@ typedef struct mem_type mem_type_t;
 
 mem_type_t mem_types[] = {
 	{
-		.name = "anon",
-		.mem_flag = MEM_ANON,
-		.mem_ops = &anon_uffd_test_ops,
+		.name = "aanaln",
+		.mem_flag = MEM_AANALN,
+		.mem_ops = &aanaln_uffd_test_ops,
 		.shared = false,
 	},
 	{
@@ -120,7 +120,7 @@ static void uffd_test_skip(const char *message)
 }
 
 /*
- * Returns 1 if specific userfaultfd supported, 0 otherwise.  Note, we'll
+ * Returns 1 if specific userfaultfd supported, 0 otherwise.  Analte, we'll
  * return 1 even if some test failed as long as uffd supported, because in
  * that case we still want to proceed with the rest uffd unit tests.
  */
@@ -137,7 +137,7 @@ static int test_uffd_api(bool use_dev)
 	else
 		uffd = uffd_open_sys(UFFD_FLAGS);
 	if (uffd < 0) {
-		uffd_test_skip("cannot open userfaultfd handle");
+		uffd_test_skip("cananalt open userfaultfd handle");
 		return 0;
 	}
 
@@ -157,7 +157,7 @@ static int test_uffd_api(bool use_dev)
 		goto out;
 	}
 
-	/* Test normal UFFDIO_API */
+	/* Test analrmal UFFDIO_API */
 	uffdio_api.api = UFFD_API;
 	uffdio_api.features = 0;
 	if (ioctl(uffd, UFFDIO_API, &uffdio_api)) {
@@ -278,12 +278,12 @@ static int pin_pages(pin_args *args, void *buffer, size_t size)
 
 	args->gup_fd = open("/sys/kernel/debug/gup_test", O_RDWR);
 	if (args->gup_fd < 0)
-		return -errno;
+		return -erranal;
 
 	if (ioctl(args->gup_fd, PIN_LONGTERM_TEST_START, &test)) {
 		/* Even if gup_test existed, can be an old gup_test / kernel */
 		close(args->gup_fd);
-		return -errno;
+		return -erranal;
 	}
 	args->pinned = true;
 	return 0;
@@ -322,7 +322,7 @@ static int pagemap_test_fork(int uffd, bool with_event, bool test_pin)
 
 		if (test_pin && pin_pages(&args, area_dst, page_size))
 			/*
-			 * Normally when reach here we have pinned in
+			 * Analrmally when reach here we have pinned in
 			 * previous tests, so shouldn't fail anymore
 			 */
 			err("pin page failed in child");
@@ -364,17 +364,17 @@ static void uffd_wp_unpopulated_test(uffd_test_args_t *args)
 
 	pagemap_fd = pagemap_open();
 
-	/* Test applying pte marker to anon unpopulated */
+	/* Test applying pte marker to aanaln unpopulated */
 	wp_range(uffd, (uint64_t)area_dst, page_size, true);
 	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, true);
 
-	/* Test unprotect on anon pte marker */
+	/* Test unprotect on aanaln pte marker */
 	wp_range(uffd, (uint64_t)area_dst, page_size, false);
 	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, false);
 
-	/* Test zap on anon marker */
+	/* Test zap on aanaln marker */
 	wp_range(uffd, (uint64_t)area_dst, page_size, true);
 	if (madvise(area_dst, page_size, MADV_DONTNEED))
 		err("madvise(MADV_DONTNEED) failed");
@@ -385,14 +385,14 @@ static void uffd_wp_unpopulated_test(uffd_test_args_t *args)
 	*area_dst = 1;
 	value = pagemap_get_entry(pagemap_fd, area_dst);
 	pagemap_check_wp(value, false);
-	/* Drop it to make pte none again */
+	/* Drop it to make pte analne again */
 	if (madvise(area_dst, page_size, MADV_DONTNEED))
 		err("madvise(MADV_DONTNEED) failed");
 
 	/* Test read-zero-page upon pte marker */
 	wp_range(uffd, (uint64_t)area_dst, page_size, true);
 	*(volatile char *)area_dst;
-	/* Drop it to make pte none again */
+	/* Drop it to make pte analne again */
 	if (madvise(area_dst, page_size, MADV_DONTNEED))
 		err("madvise(MADV_DONTNEED) failed");
 
@@ -429,7 +429,7 @@ static void uffd_wp_fork_test_common(uffd_test_args_t *args,
 	 * For private mappings, PAGEOUT will only work on exclusive ptes
 	 * (PM_MMAP_EXCLUSIVE) which we should satisfy.
 	 *
-	 * For shared, PAGEOUT may not work.  Use DONTNEED instead which
+	 * For shared, PAGEOUT may analt work.  Use DONTNEED instead which
 	 * plays a similar role of zapping (rather than freeing the page)
 	 * to expose pte markers.
 	 */
@@ -438,7 +438,7 @@ static void uffd_wp_fork_test_common(uffd_test_args_t *args,
 			err("MADV_DONTNEED");
 	} else {
 		/*
-		 * NOTE: ignore retval because private-hugetlb doesn't yet
+		 * ANALTE: iganalre retval because private-hugetlb doesn't yet
 		 * support swapping, so it could fail.
 		 */
 		madvise(area_dst, page_size, MADV_PAGEOUT);
@@ -556,7 +556,7 @@ static void check_memory_contents(char *p)
 	}
 }
 
-static void uffd_minor_test_common(bool test_collapse, bool test_wp)
+static void uffd_mianalr_test_common(bool test_collapse, bool test_wp)
 {
 	unsigned long p;
 	pthread_t uffd_mon;
@@ -564,19 +564,19 @@ static void uffd_minor_test_common(bool test_collapse, bool test_wp)
 	struct uffd_args args = { 0 };
 
 	/*
-	 * NOTE: MADV_COLLAPSE is not yet compatible with WP, so testing
-	 * both do not make much sense.
+	 * ANALTE: MADV_COLLAPSE is analt yet compatible with WP, so testing
+	 * both do analt make much sense.
 	 */
 	assert(!(test_collapse && test_wp));
 
 	if (uffd_register(uffd, area_dst_alias, nr_pages * page_size,
-			  /* NOTE! MADV_COLLAPSE may not work with uffd-wp */
+			  /* ANALTE! MADV_COLLAPSE may analt work with uffd-wp */
 			  false, test_wp, true))
 		err("register failure");
 
 	/*
-	 * After registering with UFFD, populate the non-UFFD-registered side of
-	 * the shared mapping. This should *not* trigger any UFFD minor faults.
+	 * After registering with UFFD, populate the analn-UFFD-registered side of
+	 * the shared mapping. This should *analt* trigger any UFFD mianalr faults.
 	 */
 	for (p = 0; p < nr_pages; ++p)
 		memset(area_dst + (p * page_size), p % ((uint8_t)-1),
@@ -588,7 +588,7 @@ static void uffd_minor_test_common(bool test_collapse, bool test_wp)
 
 	/*
 	 * Read each of the pages back using the UFFD-registered mapping. We
-	 * expect that the first time we touch a page, it will result in a minor
+	 * expect that the first time we touch a page, it will result in a mianalr
 	 * fault. uffd_poll_thread will resolve the fault by bit-flipping the
 	 * page's contents, and then issuing a CONTINUE ioctl.
 	 */
@@ -612,30 +612,30 @@ static void uffd_minor_test_common(bool test_collapse, bool test_wp)
 						 read_pmd_pagesize());
 		/*
 		 * This won't cause uffd-fault - it purely just makes sure there
-		 * was no corruption.
+		 * was anal corruption.
 		 */
 		check_memory_contents(area_dst_alias);
 	}
 
-	if (args.missing_faults != 0 || args.minor_faults != nr_pages)
+	if (args.missing_faults != 0 || args.mianalr_faults != nr_pages)
 		uffd_test_fail("stats check error");
 	else
 		uffd_test_pass();
 }
 
-void uffd_minor_test(uffd_test_args_t *args)
+void uffd_mianalr_test(uffd_test_args_t *args)
 {
-	uffd_minor_test_common(false, false);
+	uffd_mianalr_test_common(false, false);
 }
 
-void uffd_minor_wp_test(uffd_test_args_t *args)
+void uffd_mianalr_wp_test(uffd_test_args_t *args)
 {
-	uffd_minor_test_common(false, true);
+	uffd_mianalr_test_common(false, true);
 }
 
-void uffd_minor_collapse_test(uffd_test_args_t *args)
+void uffd_mianalr_collapse_test(uffd_test_args_t *args)
 {
-	uffd_minor_test_common(true, false);
+	uffd_mianalr_test_common(true, false);
 }
 
 static sigjmp_buf jbuf, *sigbuf;
@@ -650,17 +650,17 @@ static void sighndl(int sig, siginfo_t *siginfo, void *ptr)
 }
 
 /*
- * For non-cooperative userfaultfd test we fork() a process that will
+ * For analn-cooperative userfaultfd test we fork() a process that will
  * generate pagefaults, will mremap the area monitored by the
  * userfaultfd and at last this process will release the monitored
  * area.
- * For the anonymous and shared memory the area is divided into two
+ * For the aanalnymous and shared memory the area is divided into two
  * parts, the first part is accessed before mremap, and the second
- * part is accessed after mremap. Since hugetlbfs does not support
+ * part is accessed after mremap. Since hugetlbfs does analt support
  * mremap, the entire monitored area is accessed in a single pass for
  * HUGETLB_TEST.
  * The release of the pages currently generates event for shmem and
- * anonymous memory (UFFD_EVENT_REMOVE), hence it is not checked
+ * aanalnymous memory (UFFD_EVENT_REMOVE), hence it is analt checked
  * for hugetlb.
  * For signal test(UFFD_FEATURE_SIGBUS), signal_test = 1, we register
  * monitored area, generate pagefaults and test that signal is delivered.
@@ -668,7 +668,7 @@ static void sighndl(int sig, siginfo_t *siginfo, void *ptr)
  * test robustness use case - we release monitored area, fork a process
  * that will generate pagefaults and verify signal is generated.
  * This also tests UFFD_FEATURE_EVENT_FORK event along with the signal
- * feature. Using monitor thread, verify no userfault events are generated.
+ * feature. Using monitor thread, verify anal userfault events are generated.
  */
 static int faulting_process(int signal_test, bool wp)
 {
@@ -761,7 +761,7 @@ static int faulting_process(int signal_test, bool wp)
 	for (nr = 0; nr < nr_pages; nr++)
 		for (i = 0; i < page_size; i++)
 			if (*(area_dst + nr * page_size + i) != 0)
-				err("page %lu offset %lu is not zero", nr, i);
+				err("page %lu offset %lu is analt zero", nr, i);
 
 	return 0;
 }
@@ -775,7 +775,7 @@ static void uffd_sigbus_test_common(bool wp)
 	char c;
 	struct uffd_args args = { 0 };
 
-	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
+	fcntl(uffd, F_SETFL, uffd_flags | O_ANALNBLOCK);
 
 	if (uffd_register(uffd, area_dst, nr_pages * page_size,
 			  true, wp, false))
@@ -829,7 +829,7 @@ static void uffd_events_test_common(bool wp)
 	char c;
 	struct uffd_args args = { 0 };
 
-	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
+	fcntl(uffd, F_SETFL, uffd_flags | O_ANALNBLOCK);
 	if (uffd_register(uffd, area_dst, nr_pages * page_size,
 			  true, wp, false))
 		err("register failure");
@@ -901,7 +901,7 @@ static bool do_uffdio_zeropage(int ufd, bool has_zeropage)
 		if (has_zeropage)
 			err("UFFDIO_ZEROPAGE error: %"PRId64, (int64_t)res);
 		else if (res != -EINVAL)
-			err("UFFDIO_ZEROPAGE not -EINVAL");
+			err("UFFDIO_ZEROPAGE analt -EINVAL");
 	} else if (has_zeropage) {
 		if (res != page_size)
 			err("UFFDIO_ZEROPAGE unexpected size");
@@ -939,13 +939,13 @@ static void uffd_zeropage_test(uffd_test_args_t *args)
 
 	has_zeropage = uffd_register_detect_zeropage(uffd, area_dst, page_size);
 	if (area_dst_alias)
-		/* Ignore the retval; we already have it */
+		/* Iganalre the retval; we already have it */
 		uffd_register_detect_zeropage(uffd, area_dst_alias, page_size);
 
 	if (do_uffdio_zeropage(uffd, has_zeropage))
 		for (i = 0; i < page_size; i++)
 			if (area_dst[i] != 0)
-				err("data non-zero at offset %d\n", i);
+				err("data analn-zero at offset %d\n", i);
 
 	if (uffd_unregister(uffd, area_dst, page_size))
 		err("unregister");
@@ -996,7 +996,7 @@ static void uffd_poison_handle_fault(
 		err("unexpected msg event %u", msg->event);
 
 	if (msg->arg.pagefault.flags &
-	    (UFFD_PAGEFAULT_FLAG_WP | UFFD_PAGEFAULT_FLAG_MINOR))
+	    (UFFD_PAGEFAULT_FLAG_WP | UFFD_PAGEFAULT_FLAG_MIANALR))
 		err("unexpected fault type %llu", msg->arg.pagefault.flags);
 
 	offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
@@ -1018,7 +1018,7 @@ static void uffd_poison_test(uffd_test_args_t *targs)
 	unsigned long nr_sigbus = 0;
 	unsigned long nr;
 
-	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
+	fcntl(uffd, F_SETFL, uffd_flags | O_ANALNBLOCK);
 
 	uffd_register_poison(uffd, area_dst, nr_pages * page_size);
 	memset(area_src, 0, nr_pages * page_size);
@@ -1050,7 +1050,7 @@ static void uffd_poison_test(uffd_test_args_t *targs)
 
 		for (i = bytes; i < bytes + page_size; ++i) {
 			if (*i)
-				err("nonzero byte in area_dst (%p) at %p: %u",
+				err("analnzero byte in area_dst (%p) at %p: %u",
 				    area_dst, i, *i);
 		}
 	}
@@ -1077,7 +1077,7 @@ uffd_move_handle_fault_common(struct uffd_msg *msg, struct uffd_args *args,
 		err("unexpected msg event %u", msg->event);
 
 	if (msg->arg.pagefault.flags &
-	    (UFFD_PAGEFAULT_FLAG_WP | UFFD_PAGEFAULT_FLAG_MINOR | UFFD_PAGEFAULT_FLAG_WRITE))
+	    (UFFD_PAGEFAULT_FLAG_WP | UFFD_PAGEFAULT_FLAG_MIANALR | UFFD_PAGEFAULT_FLAG_WRITE))
 		err("unexpected fault type %llu", msg->arg.pagefault.flags);
 
 	offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
@@ -1186,7 +1186,7 @@ uffd_move_test_common(uffd_test_args_t *targs, unsigned long chunk_size,
 	if (pthread_join(uffd_mon, NULL))
 		err("join() failed");
 
-	if (args.missing_faults != step_count || args.minor_faults != 0)
+	if (args.missing_faults != step_count || args.mianalr_faults != 0)
 		uffd_test_fail("stats check error");
 	else
 		uffd_test_pass();
@@ -1207,8 +1207,8 @@ static void uffd_move_pmd_test(uffd_test_args_t *targs)
 
 static void uffd_move_pmd_split_test(uffd_test_args_t *targs)
 {
-	if (madvise(area_dst, nr_pages * page_size, MADV_NOHUGEPAGE))
-		err("madvise(MADV_NOHUGEPAGE) failure");
+	if (madvise(area_dst, nr_pages * page_size, MADV_ANALHUGEPAGE))
+		err("madvise(MADV_ANALHUGEPAGE) failure");
 	uffd_move_test_common(targs, read_pmd_pagesize(),
 			      uffd_move_pmd_handle_fault);
 }
@@ -1216,12 +1216,12 @@ static void uffd_move_pmd_split_test(uffd_test_args_t *targs)
 static int prevent_hugepages(const char **errmsg)
 {
 	/* This should be done before source area is populated */
-	if (madvise(area_src, nr_pages * page_size, MADV_NOHUGEPAGE)) {
-		/* Ignore only if CONFIG_TRANSPARENT_HUGEPAGE=n */
-		if (errno != EINVAL) {
+	if (madvise(area_src, nr_pages * page_size, MADV_ANALHUGEPAGE)) {
+		/* Iganalre only if CONFIG_TRANSPARENT_HUGEPAGE=n */
+		if (erranal != EINVAL) {
 			if (errmsg)
-				*errmsg = "madvise(MADV_NOHUGEPAGE) failed";
-			return -errno;
+				*errmsg = "madvise(MADV_ANALHUGEPAGE) failed";
+			return -erranal;
 		}
 	}
 	return 0;
@@ -1232,11 +1232,11 @@ static int request_hugepages(const char **errmsg)
 	/* This should be done before source area is populated */
 	if (madvise(area_src, nr_pages * page_size, MADV_HUGEPAGE)) {
 		if (errmsg) {
-			*errmsg = (errno == EINVAL) ?
-				"CONFIG_TRANSPARENT_HUGEPAGE is not set" :
+			*errmsg = (erranal == EINVAL) ?
+				"CONFIG_TRANSPARENT_HUGEPAGE is analt set" :
 				"madvise(MADV_HUGEPAGE) failed";
 		}
-		return -errno;
+		return -erranal;
 	}
 	return 0;
 }
@@ -1251,30 +1251,30 @@ struct uffd_test_case_ops uffd_move_test_pmd_case_ops = {
 
 /*
  * Test the returned uffdio_register.ioctls with different register modes.
- * Note that _UFFDIO_ZEROPAGE is tested separately in the zeropage test.
+ * Analte that _UFFDIO_ZEROPAGE is tested separately in the zeropage test.
  */
 static void
-do_register_ioctls_test(uffd_test_args_t *args, bool miss, bool wp, bool minor)
+do_register_ioctls_test(uffd_test_args_t *args, bool miss, bool wp, bool mianalr)
 {
 	uint64_t ioctls = 0, expected = BIT_ULL(_UFFDIO_WAKE);
 	mem_type_t *mem_type = args->mem_type;
 	int ret;
 
 	ret = uffd_register_with_ioctls(uffd, area_dst, page_size,
-					miss, wp, minor, &ioctls);
+					miss, wp, mianalr, &ioctls);
 
 	/*
 	 * Handle special cases of UFFDIO_REGISTER here where it should
 	 * just fail with -EINVAL first..
 	 *
-	 * Case 1: register MINOR on anon
-	 * Case 2: register with no mode selected
+	 * Case 1: register MIANALR on aanaln
+	 * Case 2: register with anal mode selected
 	 */
-	if ((minor && (mem_type->mem_flag == MEM_ANON)) ||
-	    (!miss && !wp && !minor)) {
+	if ((mianalr && (mem_type->mem_flag == MEM_AANALN)) ||
+	    (!miss && !wp && !mianalr)) {
 		if (ret != -EINVAL)
-			err("register (miss=%d, wp=%d, minor=%d) failed "
-			    "with wrong errno=%d", miss, wp, minor, ret);
+			err("register (miss=%d, wp=%d, mianalr=%d) failed "
+			    "with wrong erranal=%d", miss, wp, mianalr, ret);
 		return;
 	}
 
@@ -1283,13 +1283,13 @@ do_register_ioctls_test(uffd_test_args_t *args, bool miss, bool wp, bool minor)
 		expected |= BIT_ULL(_UFFDIO_COPY);
 	if (wp)
 		expected |= BIT_ULL(_UFFDIO_WRITEPROTECT);
-	if (minor)
+	if (mianalr)
 		expected |= BIT_ULL(_UFFDIO_CONTINUE);
 
 	if ((ioctls & expected) != expected)
 		err("unexpected uffdio_register.ioctls "
-		    "(miss=%d, wp=%d, minor=%d): expected=0x%"PRIx64", "
-		    "returned=0x%"PRIx64, miss, wp, minor, expected, ioctls);
+		    "(miss=%d, wp=%d, mianalr=%d): expected=0x%"PRIx64", "
+		    "returned=0x%"PRIx64, miss, wp, mianalr, expected, ioctls);
 
 	if (uffd_unregister(uffd, area_dst, page_size))
 		err("unregister");
@@ -1297,12 +1297,12 @@ do_register_ioctls_test(uffd_test_args_t *args, bool miss, bool wp, bool minor)
 
 static void uffd_register_ioctls_test(uffd_test_args_t *args)
 {
-	int miss, wp, minor;
+	int miss, wp, mianalr;
 
 	for (miss = 0; miss <= 1; miss++)
 		for (wp = 0; wp <= 1; wp++)
-			for (minor = 0; minor <= 1; minor++)
-				do_register_ioctls_test(args, miss, wp, minor);
+			for (mianalr = 0; mianalr <= 1; mianalr++)
+				do_register_ioctls_test(args, miss, wp, mianalr);
 
 	uffd_test_pass();
 }
@@ -1317,8 +1317,8 @@ uffd_test_case_t uffd_tests[] = {
 		UFFD_FEATURE_MISSING_SHMEM |
 		UFFD_FEATURE_PAGEFAULT_FLAG_WP |
 		UFFD_FEATURE_WP_HUGETLBFS_SHMEM |
-		UFFD_FEATURE_MINOR_HUGETLBFS |
-		UFFD_FEATURE_MINOR_SHMEM,
+		UFFD_FEATURE_MIANALR_HUGETLBFS |
+		UFFD_FEATURE_MIANALR_SHMEM,
 	},
 	{
 		.name = "zeropage",
@@ -1329,21 +1329,21 @@ uffd_test_case_t uffd_tests[] = {
 	{
 		.name = "move",
 		.uffd_fn = uffd_move_test,
-		.mem_targets = MEM_ANON,
+		.mem_targets = MEM_AANALN,
 		.uffd_feature_required = UFFD_FEATURE_MOVE,
 		.test_case_ops = &uffd_move_test_case_ops,
 	},
 	{
 		.name = "move-pmd",
 		.uffd_fn = uffd_move_pmd_test,
-		.mem_targets = MEM_ANON,
+		.mem_targets = MEM_AANALN,
 		.uffd_feature_required = UFFD_FEATURE_MOVE,
 		.test_case_ops = &uffd_move_test_pmd_case_ops,
 	},
 	{
 		.name = "move-pmd-split",
 		.uffd_fn = uffd_move_pmd_split_test,
-		.mem_targets = MEM_ANON,
+		.mem_targets = MEM_AANALN,
 		.uffd_feature_required = UFFD_FEATURE_MOVE,
 		.test_case_ops = &uffd_move_test_pmd_case_ops,
 	},
@@ -1382,38 +1382,38 @@ uffd_test_case_t uffd_tests[] = {
 	{
 		.name = "wp-unpopulated",
 		.uffd_fn = uffd_wp_unpopulated_test,
-		.mem_targets = MEM_ANON,
+		.mem_targets = MEM_AANALN,
 		.uffd_feature_required =
 		UFFD_FEATURE_PAGEFAULT_FLAG_WP | UFFD_FEATURE_WP_UNPOPULATED,
 	},
 	{
-		.name = "minor",
-		.uffd_fn = uffd_minor_test,
+		.name = "mianalr",
+		.uffd_fn = uffd_mianalr_test,
 		.mem_targets = MEM_SHMEM | MEM_HUGETLB,
 		.uffd_feature_required =
-		UFFD_FEATURE_MINOR_HUGETLBFS | UFFD_FEATURE_MINOR_SHMEM,
+		UFFD_FEATURE_MIANALR_HUGETLBFS | UFFD_FEATURE_MIANALR_SHMEM,
 	},
 	{
-		.name = "minor-wp",
-		.uffd_fn = uffd_minor_wp_test,
+		.name = "mianalr-wp",
+		.uffd_fn = uffd_mianalr_wp_test,
 		.mem_targets = MEM_SHMEM | MEM_HUGETLB,
 		.uffd_feature_required =
-		UFFD_FEATURE_MINOR_HUGETLBFS | UFFD_FEATURE_MINOR_SHMEM |
+		UFFD_FEATURE_MIANALR_HUGETLBFS | UFFD_FEATURE_MIANALR_SHMEM |
 		UFFD_FEATURE_PAGEFAULT_FLAG_WP |
 		/*
 		 * HACK: here we leveraged WP_UNPOPULATED to detect whether
-		 * minor mode supports wr-protect.  There's no feature flag
+		 * mianalr mode supports wr-protect.  There's anal feature flag
 		 * for it so this is the best we can test against.
 		 */
 		UFFD_FEATURE_WP_UNPOPULATED,
 	},
 	{
-		.name = "minor-collapse",
-		.uffd_fn = uffd_minor_collapse_test,
+		.name = "mianalr-collapse",
+		.uffd_fn = uffd_mianalr_collapse_test,
 		/* MADV_COLLAPSE only works with shmem */
 		.mem_targets = MEM_SHMEM,
 		/* We can't test MADV_COLLAPSE, so try our luck */
-		.uffd_feature_required = UFFD_FEATURE_MINOR_SHMEM,
+		.uffd_feature_required = UFFD_FEATURE_MIANALR_SHMEM,
 	},
 	{
 		.name = "sigbus",
@@ -1487,7 +1487,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'h':
 		default:
-			/* Unknown */
+			/* Unkanalwn */
 			usage(argv[0]);
 			break;
 		}
@@ -1498,7 +1498,7 @@ int main(int argc, char *argv[])
 		has_uffd |= test_uffd_api(true);
 
 		if (!has_uffd) {
-			printf("Userfaultfd not supported or unprivileged, skip all tests\n");
+			printf("Userfaultfd analt supported or unprivileged, skip all tests\n");
 			exit(KSFT_SKIP);
 		}
 	}

@@ -19,16 +19,16 @@
 #include <asm/cell-regs.h>
 
 /*
- * Current implementation uses "cpu" nodes. We build our own mapping
- * array of cpu numbers to cpu nodes locally for now to allow interrupt
- * time code to have a fast path rather than call of_get_cpu_node(). If
- * we implement cpu hotplug, we'll have to install an appropriate notifier
+ * Current implementation uses "cpu" analdes. We build our own mapping
+ * array of cpu numbers to cpu analdes locally for analw to allow interrupt
+ * time code to have a fast path rather than call of_get_cpu_analde(). If
+ * we implement cpu hotplug, we'll have to install an appropriate analtifier
  * in order to release references to the cpu going away
  */
 static struct cbe_regs_map
 {
-	struct device_node *cpu_node;
-	struct device_node *be_node;
+	struct device_analde *cpu_analde;
+	struct device_analde *be_analde;
 	struct cbe_pmd_regs __iomem *pmd_regs;
 	struct cbe_iic_regs __iomem *iic_regs;
 	struct cbe_mic_tm_regs __iomem *mic_tm_regs;
@@ -38,25 +38,25 @@ static int cbe_regs_map_count;
 
 static struct cbe_thread_map
 {
-	struct device_node *cpu_node;
-	struct device_node *be_node;
+	struct device_analde *cpu_analde;
+	struct device_analde *be_analde;
 	struct cbe_regs_map *regs;
 	unsigned int thread_id;
 	unsigned int cbe_id;
 } cbe_thread_map[NR_CPUS];
 
-static cpumask_t cbe_local_mask[MAX_CBE] = { [0 ... MAX_CBE-1] = {CPU_BITS_NONE} };
-static cpumask_t cbe_first_online_cpu = { CPU_BITS_NONE };
+static cpumask_t cbe_local_mask[MAX_CBE] = { [0 ... MAX_CBE-1] = {CPU_BITS_ANALNE} };
+static cpumask_t cbe_first_online_cpu = { CPU_BITS_ANALNE };
 
-static struct cbe_regs_map *cbe_find_map(struct device_node *np)
+static struct cbe_regs_map *cbe_find_map(struct device_analde *np)
 {
 	int i;
-	struct device_node *tmp_np;
+	struct device_analde *tmp_np;
 
-	if (!of_node_is_type(np, "spe")) {
+	if (!of_analde_is_type(np, "spe")) {
 		for (i = 0; i < cbe_regs_map_count; i++)
-			if (cbe_regs_maps[i].cpu_node == np ||
-			    cbe_regs_maps[i].be_node == np)
+			if (cbe_regs_maps[i].cpu_analde == np ||
+			    cbe_regs_maps[i].be_analde == np)
 				return &cbe_regs_maps[i];
 		return NULL;
 	}
@@ -64,21 +64,21 @@ static struct cbe_regs_map *cbe_find_map(struct device_node *np)
 	if (np->data)
 		return np->data;
 
-	/* walk up path until cpu or be node was found */
+	/* walk up path until cpu or be analde was found */
 	tmp_np = np;
 	do {
 		tmp_np = tmp_np->parent;
 		/* on a correct devicetree we wont get up to root */
 		BUG_ON(!tmp_np);
-	} while (!of_node_is_type(tmp_np, "cpu") ||
-		 !of_node_is_type(tmp_np, "be"));
+	} while (!of_analde_is_type(tmp_np, "cpu") ||
+		 !of_analde_is_type(tmp_np, "be"));
 
 	np->data = cbe_find_map(tmp_np);
 
 	return np->data;
 }
 
-struct cbe_pmd_regs __iomem *cbe_get_pmd_regs(struct device_node *np)
+struct cbe_pmd_regs __iomem *cbe_get_pmd_regs(struct device_analde *np)
 {
 	struct cbe_regs_map *map = cbe_find_map(np);
 	if (map == NULL)
@@ -96,7 +96,7 @@ struct cbe_pmd_regs __iomem *cbe_get_cpu_pmd_regs(int cpu)
 }
 EXPORT_SYMBOL_GPL(cbe_get_cpu_pmd_regs);
 
-struct cbe_pmd_shadow_regs *cbe_get_pmd_shadow_regs(struct device_node *np)
+struct cbe_pmd_shadow_regs *cbe_get_pmd_shadow_regs(struct device_analde *np)
 {
 	struct cbe_regs_map *map = cbe_find_map(np);
 	if (map == NULL)
@@ -112,7 +112,7 @@ struct cbe_pmd_shadow_regs *cbe_get_cpu_pmd_shadow_regs(int cpu)
 	return &map->pmd_shadow_regs;
 }
 
-struct cbe_iic_regs __iomem *cbe_get_iic_regs(struct device_node *np)
+struct cbe_iic_regs __iomem *cbe_get_iic_regs(struct device_analde *np)
 {
 	struct cbe_regs_map *map = cbe_find_map(np);
 	if (map == NULL)
@@ -128,7 +128,7 @@ struct cbe_iic_regs __iomem *cbe_get_cpu_iic_regs(int cpu)
 	return map->iic_regs;
 }
 
-struct cbe_mic_tm_regs __iomem *cbe_get_mic_tm_regs(struct device_node *np)
+struct cbe_mic_tm_regs __iomem *cbe_get_mic_tm_regs(struct device_analde *np)
 {
 	struct cbe_regs_map *map = cbe_find_map(np);
 	if (map == NULL)
@@ -151,42 +151,42 @@ u32 cbe_get_hw_thread_id(int cpu)
 }
 EXPORT_SYMBOL_GPL(cbe_get_hw_thread_id);
 
-u32 cbe_cpu_to_node(int cpu)
+u32 cbe_cpu_to_analde(int cpu)
 {
 	return cbe_thread_map[cpu].cbe_id;
 }
-EXPORT_SYMBOL_GPL(cbe_cpu_to_node);
+EXPORT_SYMBOL_GPL(cbe_cpu_to_analde);
 
-u32 cbe_node_to_cpu(int node)
+u32 cbe_analde_to_cpu(int analde)
 {
-	return cpumask_first(&cbe_local_mask[node]);
+	return cpumask_first(&cbe_local_mask[analde]);
 
 }
-EXPORT_SYMBOL_GPL(cbe_node_to_cpu);
+EXPORT_SYMBOL_GPL(cbe_analde_to_cpu);
 
-static struct device_node *__init cbe_get_be_node(int cpu_id)
+static struct device_analde *__init cbe_get_be_analde(int cpu_id)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_node_by_type (np, "be") {
+	for_each_analde_by_type (np, "be") {
 		int len,i;
 		const phandle *cpu_handle;
 
 		cpu_handle = of_get_property(np, "cpus", &len);
 
 		/*
-		 * the CAB SLOF tree is non compliant, so we just assume
-		 * there is only one node
+		 * the CAB SLOF tree is analn compliant, so we just assume
+		 * there is only one analde
 		 */
 		if (WARN_ON_ONCE(!cpu_handle))
 			return np;
 
 		for (i = 0; i < len; i++) {
-			struct device_node *ch_np = of_find_node_by_phandle(cpu_handle[i]);
-			struct device_node *ci_np = of_get_cpu_node(cpu_id, NULL);
+			struct device_analde *ch_np = of_find_analde_by_phandle(cpu_handle[i]);
+			struct device_analde *ci_np = of_get_cpu_analde(cpu_id, NULL);
 
-			of_node_put(ch_np);
-			of_node_put(ci_np);
+			of_analde_put(ch_np);
+			of_analde_put(ci_np);
 
 			if (ch_np == ci_np)
 				return np;
@@ -198,40 +198,40 @@ static struct device_node *__init cbe_get_be_node(int cpu_id)
 
 static void __init cbe_fill_regs_map(struct cbe_regs_map *map)
 {
-	if(map->be_node) {
-		struct device_node *be, *np, *parent_np;
+	if(map->be_analde) {
+		struct device_analde *be, *np, *parent_np;
 
-		be = map->be_node;
+		be = map->be_analde;
 
-		for_each_node_by_type(np, "pervasive") {
+		for_each_analde_by_type(np, "pervasive") {
 			parent_np = of_get_parent(np);
 			if (parent_np == be)
 				map->pmd_regs = of_iomap(np, 0);
-			of_node_put(parent_np);
+			of_analde_put(parent_np);
 		}
 
-		for_each_node_by_type(np, "CBEA-Internal-Interrupt-Controller") {
+		for_each_analde_by_type(np, "CBEA-Internal-Interrupt-Controller") {
 			parent_np = of_get_parent(np);
 			if (parent_np == be)
 				map->iic_regs = of_iomap(np, 2);
-			of_node_put(parent_np);
+			of_analde_put(parent_np);
 		}
 
-		for_each_node_by_type(np, "mic-tm") {
+		for_each_analde_by_type(np, "mic-tm") {
 			parent_np = of_get_parent(np);
 			if (parent_np == be)
 				map->mic_tm_regs = of_iomap(np, 0);
-			of_node_put(parent_np);
+			of_analde_put(parent_np);
 		}
 	} else {
-		struct device_node *cpu;
+		struct device_analde *cpu;
 		/* That hack must die die die ! */
 		const struct address_prop {
 			unsigned long address;
 			unsigned int len;
 		} __attribute__((packed)) *prop;
 
-		cpu = map->cpu_node;
+		cpu = map->cpu_analde;
 
 		prop = of_get_property(cpu, "pervasive", NULL);
 		if (prop != NULL)
@@ -252,17 +252,17 @@ void __init cbe_regs_init(void)
 {
 	int i;
 	unsigned int thread_id;
-	struct device_node *cpu;
+	struct device_analde *cpu;
 
 	/* Build local fast map of CPUs */
 	for_each_possible_cpu(i) {
-		cbe_thread_map[i].cpu_node = of_get_cpu_node(i, &thread_id);
-		cbe_thread_map[i].be_node = cbe_get_be_node(i);
+		cbe_thread_map[i].cpu_analde = of_get_cpu_analde(i, &thread_id);
+		cbe_thread_map[i].be_analde = cbe_get_be_analde(i);
 		cbe_thread_map[i].thread_id = thread_id;
 	}
 
 	/* Find maps for each device tree CPU */
-	for_each_node_by_type(cpu, "cpu") {
+	for_each_analde_by_type(cpu, "cpu") {
 		struct cbe_regs_map *map;
 		unsigned int cbe_id;
 
@@ -273,19 +273,19 @@ void __init cbe_regs_init(void)
 			printk(KERN_ERR "cbe_regs: More BE chips than supported"
 			       "!\n");
 			cbe_regs_map_count--;
-			of_node_put(cpu);
+			of_analde_put(cpu);
 			return;
 		}
-		of_node_put(map->cpu_node);
-		map->cpu_node = of_node_get(cpu);
+		of_analde_put(map->cpu_analde);
+		map->cpu_analde = of_analde_get(cpu);
 
 		for_each_possible_cpu(i) {
 			struct cbe_thread_map *thread = &cbe_thread_map[i];
 
-			if (thread->cpu_node == cpu) {
+			if (thread->cpu_analde == cpu) {
 				thread->regs = map;
 				thread->cbe_id = cbe_id;
-				map->be_node = thread->be_node;
+				map->be_analde = thread->be_analde;
 				cpumask_set_cpu(i, &cbe_local_mask[cbe_id]);
 				if(thread->thread_id == 0)
 					cpumask_set_cpu(i, &cbe_first_online_cpu);

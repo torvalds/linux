@@ -30,7 +30,7 @@
 #define ONENAND_REG_DATA_BUFFER_SIZE	ONENAND_MEMORY_MAP(0xF003)
 #define ONENAND_REG_BOOT_BUFFER_SIZE	ONENAND_MEMORY_MAP(0xF004)
 #define ONENAND_REG_NUM_BUFFERS		ONENAND_MEMORY_MAP(0xF005)
-#define ONENAND_REG_TECHNOLOGY		ONENAND_MEMORY_MAP(0xF006)
+#define ONENAND_REG_TECHANALLOGY		ONENAND_MEMORY_MAP(0xF006)
 
 #define ONENAND_REG_START_ADDRESS1	ONENAND_MEMORY_MAP(0xF100)
 #define ONENAND_REG_START_ADDRESS2	ONENAND_MEMORY_MAP(0xF101)
@@ -85,9 +85,9 @@
 #define ONENAND_VERSION_PROCESS_SHIFT	(8)
 
 /*
- * Technology Register F006h (R)
+ * Techanallogy Register F006h (R)
  */
-#define ONENAND_TECHNOLOGY_IS_MLC	(1 << 0)
+#define ONENAND_TECHANALLOGY_IS_MLC	(1 << 0)
 
 /*
  * Start Address 1 F100h (R/W) & Start Address 2 F101h (R/W)
@@ -99,7 +99,7 @@
 /*
  * Start Address 8 F107h (R/W)
  */
-/* Note: It's actually 0x3f in case of SLC */
+/* Analte: It's actually 0x3f in case of SLC */
 #define ONENAND_FPA_MASK		(0x7f)
 #define ONENAND_FPA_SHIFT		(2)
 #define ONENAND_FSA_MASK		(0x03)
@@ -112,7 +112,7 @@
 #define ONENAND_BSA_BOOTRAM		(0 << 2)
 #define ONENAND_BSA_DATARAM0		(2 << 2)
 #define ONENAND_BSA_DATARAM1		(3 << 2)
-/* Note: It's actually 0x03 in case of SLC */
+/* Analte: It's actually 0x03 in case of SLC */
 #define ONENAND_BSC_MASK		(0x07)
 
 /*
@@ -138,7 +138,7 @@
 #define FLEXONENAND_CMD_PI_ACCESS	(0x66)
 #define FLEXONENAND_CMD_RECOVER_LSB	(0x05)
 
-/* NOTE: Those are not *REAL* commands */
+/* ANALTE: Those are analt *REAL* commands */
 #define ONENAND_CMD_BUFFERRAM		(0x1978)
 #define FLEXONENAND_CMD_READ_PI		(0x1985)
 
@@ -161,7 +161,7 @@
 #define ONENAND_SYS_CFG1_BL_4		(1 << 9)
 #define ONENAND_SYS_CFG1_BL_CONT	(0 << 9)
 #define ONENAND_SYS_CFG1_BL_SHIFT	(9)
-#define ONENAND_SYS_CFG1_NO_ECC		(1 << 8)
+#define ONENAND_SYS_CFG1_ANAL_ECC		(1 << 8)
 #define ONENAND_SYS_CFG1_RDY		(1 << 7)
 #define ONENAND_SYS_CFG1_INT		(1 << 6)
 #define ONENAND_SYS_CFG1_IOBE		(1 << 5)

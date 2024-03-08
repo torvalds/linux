@@ -39,7 +39,7 @@
 #define MHIDATALIMIT_HIGHER		0xa4
 
 /* MHI BHI registers */
-#define BHI_BHIVERSION_MINOR		0x00
+#define BHI_BHIVERSION_MIANALR		0x00
 #define BHI_BHIVERSION_MAJOR		0x04
 #define BHI_IMGADDR_LOW			0x08
 #define BHI_IMGADDR_HIGH		0x0c
@@ -115,10 +115,10 @@
 #define MHISTATUS_READY_MASK		BIT(0)
 
 /* Command Ring Element macros */
-/* No operation command */
-#define MHI_TRE_CMD_NOOP_PTR		0
-#define MHI_TRE_CMD_NOOP_DWORD0		0
-#define MHI_TRE_CMD_NOOP_DWORD1		cpu_to_le32(FIELD_PREP(GENMASK(23, 16), MHI_CMD_NOP))
+/* Anal operation command */
+#define MHI_TRE_CMD_ANALOP_PTR		0
+#define MHI_TRE_CMD_ANALOP_DWORD0		0
+#define MHI_TRE_CMD_ANALOP_DWORD1		cpu_to_le32(FIELD_PREP(GENMASK(23, 16), MHI_CMD_ANALP))
 
 /* Channel reset command */
 #define MHI_TRE_CMD_RESET_PTR		0
@@ -206,7 +206,7 @@
 
 enum mhi_pkt_type {
 	MHI_PKT_TYPE_INVALID = 0x0,
-	MHI_PKT_TYPE_NOOP_CMD = 0x1,
+	MHI_PKT_TYPE_ANALOP_CMD = 0x1,
 	MHI_PKT_TYPE_TRANSFER = 0x2,
 	MHI_PKT_TYPE_COALESCING = 0x8,
 	MHI_PKT_TYPE_RESET_CHAN_CMD = 0x10,
@@ -246,7 +246,7 @@ enum mhi_ch_state {
 };
 
 enum mhi_cmd_type {
-	MHI_CMD_NOP = 1,
+	MHI_CMD_ANALP = 1,
 	MHI_CMD_RESET_CHAN = 16,
 	MHI_CMD_STOP_CHAN = 17,
 	MHI_CMD_START_CHAN = 18,
@@ -319,7 +319,7 @@ static inline const char *mhi_state_str(enum mhi_state state)
 	case MHI_STATE_SYS_ERR:
 		return "SYS ERROR";
 	default:
-		return "Unknown state";
+		return "Unkanalwn state";
 	}
 };
 

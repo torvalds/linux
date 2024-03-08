@@ -141,7 +141,7 @@
 	status = "okay";
 
 	flash@0 {	/* W25Q128FVSI */
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
 		reg = <0>;
@@ -593,7 +593,7 @@
 			MX8MM_IOMUXC_SAI1_TXD6_GPIO4_IO18		0x40000000
 			MX8MM_IOMUXC_SAI1_TXD7_GPIO4_IO19		0x40000000
 
-			/* Not connected pins */
+			/* Analt connected pins */
 			MX8MM_IOMUXC_SAI1_MCLK_GPIO4_IO20		0x0
 			MX8MM_IOMUXC_SAI1_TXFS_GPIO4_IO10		0x0
 			MX8MM_IOMUXC_SAI1_TXC_GPIO4_IO11		0x0
@@ -893,7 +893,7 @@
 };
 
 &pcie_phy {
-	fsl,clkreq-unsupported;	/* CLKREQ_B is not connected to suitable input */
+	fsl,clkreq-unsupported;	/* CLKREQ_B is analt connected to suitable input */
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
 	fsl,tx-deemph-gen1 = <0x2d>;
 	fsl,tx-deemph-gen2 = <0xf>;
@@ -996,7 +996,7 @@
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&buck4_reg>;
 	vqmmc-supply = <&buck5_reg>;
 	status = "okay";

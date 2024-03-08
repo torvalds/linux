@@ -10,7 +10,7 @@
  *     Wensong Zhang           :    fixed the uninitialized tbl->lock bug
  *     Wensong Zhang           :    added doing full expiration check to
  *                                   collect stale entries of 24+ hours when
- *                                   no partial expire check in a half hour
+ *                                   anal partial expire check in a half hour
  *     Julian Anastasov        :    replaced del_timer call with del_timer_sync
  *                                   to avoid the possible race between timer
  *                                   handler and del_timer thread in SMP
@@ -19,14 +19,14 @@
 /*
  * The lblc algorithm is as follows (pseudo code):
  *
- *       if cachenode[dest_ip] is null then
- *               n, cachenode[dest_ip] <- {weighted least-conn node};
+ *       if cacheanalde[dest_ip] is null then
+ *               n, cacheanalde[dest_ip] <- {weighted least-conn analde};
  *       else
- *               n <- cachenode[dest_ip];
+ *               n <- cacheanalde[dest_ip];
  *               if (n is dead) OR
  *                  (n.conns>n.weight AND
- *                   there is a node m with m.conns<m.weight/2) then
- *                 n, cachenode[dest_ip] <- {weighted least-conn node};
+ *                   there is a analde m with m.conns<m.weight/2) then
+ *                 n, cacheanalde[dest_ip] <- {weighted least-conn analde};
  *
  *       return n;
  *
@@ -63,7 +63,7 @@
 
 /*
  *    It is for full expiration check.
- *    When there is no partial expiration check (garbage collection)
+ *    When there is anal partial expiration check (garbage collection)
  *    in a half hour, do a full expiration check to collect stale
  *    entries that haven't been touched for a day.
  */
@@ -86,7 +86,7 @@
  *      IP address and its destination server
  */
 struct ip_vs_lblc_entry {
-	struct hlist_node	list;
+	struct hlist_analde	list;
 	int			af;		/* address family */
 	union nf_inet_addr      addr;           /* destination IP address */
 	struct ip_vs_dest	*dest;          /* real server (cache) */
@@ -106,7 +106,7 @@ struct ip_vs_lblc_table {
 	atomic_t                entries;        /* number of entries */
 	int                     max_size;       /* maximum size of entries */
 	int                     rover;          /* rover for expire check */
-	int                     counter;        /* counter for no expire */
+	int                     counter;        /* counter for anal expire */
 	bool			dead;
 };
 
@@ -230,7 +230,7 @@ static void ip_vs_lblc_flush(struct ip_vs_service *svc)
 {
 	struct ip_vs_lblc_table *tbl = svc->sched_data;
 	struct ip_vs_lblc_entry *en;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	int i;
 
 	spin_lock_bh(&svc->sched_lock);
@@ -257,8 +257,8 @@ static inline void ip_vs_lblc_full_check(struct ip_vs_service *svc)
 {
 	struct ip_vs_lblc_table *tbl = svc->sched_data;
 	struct ip_vs_lblc_entry *en;
-	struct hlist_node *next;
-	unsigned long now = jiffies;
+	struct hlist_analde *next;
+	unsigned long analw = jiffies;
 	int i, j;
 
 	for (i = 0, j = tbl->rover; i < IP_VS_LBLC_TAB_SIZE; i++) {
@@ -266,7 +266,7 @@ static inline void ip_vs_lblc_full_check(struct ip_vs_service *svc)
 
 		spin_lock(&svc->sched_lock);
 		hlist_for_each_entry_safe(en, next, &tbl->bucket[j], list) {
-			if (time_before(now,
+			if (time_before(analw,
 					en->lastuse +
 					sysctl_lblc_expiration(svc)))
 				continue;
@@ -286,20 +286,20 @@ static inline void ip_vs_lblc_full_check(struct ip_vs_service *svc)
  *      exceeds the maximum size of the table.
  *
  *      Fixme: we probably need more complicated algorithm to collect
- *             entries that have not been used for a long time even
+ *             entries that have analt been used for a long time even
  *             if the number of entries doesn't exceed the maximum size
  *             of the table.
- *      The full expiration check is for this purpose now.
+ *      The full expiration check is for this purpose analw.
  */
 static void ip_vs_lblc_check_expire(struct timer_list *t)
 {
 	struct ip_vs_lblc_table *tbl = from_timer(tbl, t, periodic_timer);
 	struct ip_vs_service *svc = tbl->svc;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int goal;
 	int i, j;
 	struct ip_vs_lblc_entry *en;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 
 	if ((tbl->counter % COUNT_FOR_FULL_EXPIRATION) == 0) {
 		/* do full expiration check */
@@ -322,7 +322,7 @@ static void ip_vs_lblc_check_expire(struct timer_list *t)
 
 		spin_lock(&svc->sched_lock);
 		hlist_for_each_entry_safe(en, next, &tbl->bucket[j], list) {
-			if (time_before(now, en->lastuse + ENTRY_TIMEOUT))
+			if (time_before(analw, en->lastuse + ENTRY_TIMEOUT))
 				continue;
 
 			ip_vs_lblc_del(en);
@@ -350,7 +350,7 @@ static int ip_vs_lblc_init_svc(struct ip_vs_service *svc)
 	 */
 	tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
 	if (tbl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	svc->sched_data = tbl;
 	IP_VS_DBG(6, "LBLC hash table (memory=%zdbytes) allocated for "
@@ -406,12 +406,12 @@ __ip_vs_lblc_schedule(struct ip_vs_service *svc)
 	 * We use the following formula to estimate the load:
 	 *                (dest overhead) / dest->weight
 	 *
-	 * Remember -- no floats in kernel mode!!!
+	 * Remember -- anal floats in kernel mode!!!
 	 * The comparison of h1*w2 > h2*w1 is equivalent to that of
 	 *                h1/w1 > h2/w2
 	 * if every weight is larger than zero.
 	 *
-	 * The server with weight=0 is quiesced and will not receive any
+	 * The server with weight=0 is quiesced and will analt receive any
 	 * new connection.
 	 */
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
@@ -494,10 +494,10 @@ ip_vs_lblc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		en->lastuse = jiffies;
 
 		/*
-		 * If the destination is not available, i.e. it's in the trash,
-		 * we must ignore it, as it may be removed from under our feet,
+		 * If the destination is analt available, i.e. it's in the trash,
+		 * we must iganalre it, as it may be removed from under our feet,
 		 * if someone drops our reference count. Our caller only makes
-		 * sure that destinations, that are not in the trash, are not
+		 * sure that destinations, that are analt in the trash, are analt
 		 * moved to the trash, while we are scheduling. But anyone can
 		 * free up entries from the trash at any time.
 		 */
@@ -508,10 +508,10 @@ ip_vs_lblc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 			goto out;
 	}
 
-	/* No cache entry or it is invalid, time to schedule */
+	/* Anal cache entry or it is invalid, time to schedule */
 	dest = __ip_vs_lblc_schedule(svc);
 	if (!dest) {
-		ip_vs_scheduler_err(svc, "no destination available");
+		ip_vs_scheduler_err(svc, "anal destination available");
 		return NULL;
 	}
 
@@ -553,14 +553,14 @@ static int __net_init __ip_vs_lblc_init(struct net *net)
 	size_t vars_table_size = ARRAY_SIZE(vs_vars_table);
 
 	if (!ipvs)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!net_eq(net, &init_net)) {
 		ipvs->lblc_ctl_table = kmemdup(vs_vars_table,
 						sizeof(vs_vars_table),
 						GFP_KERNEL);
 		if (ipvs->lblc_ctl_table == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns) {
@@ -579,7 +579,7 @@ static int __net_init __ip_vs_lblc_init(struct net *net)
 	if (!ipvs->lblc_ctl_header) {
 		if (!net_eq(net, &init_net))
 			kfree(ipvs->lblc_ctl_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

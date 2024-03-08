@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2015 Seagate
  *
- * Author: Simon Guinot <simon.guinot@sequanux.org>
+ * Author: Simon Guianalt <simon.guianalt@sequanux.org>
  */
 
 /*
@@ -91,7 +91,7 @@
 		};
 		button-usb {
 			label = "USB VBUS error";
-			linux,code = <KEY_UNKNOWN>;
+			linux,code = <KEY_UNKANALWN>;
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
 			debounce-interval = <100>;
 		};
@@ -154,7 +154,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		/* MX25L8006E */
-		compatible = "mxicy,mx25l8005", "jedec,spi-nor";
+		compatible = "mxicy,mx25l8005", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <50000000>;
 

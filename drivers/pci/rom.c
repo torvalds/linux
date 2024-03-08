@@ -17,7 +17,7 @@
  * @pdev: PCI device to enable
  *
  * Enable ROM decoding on @dev.  This involves simply turning on the last
- * bit of the PCI ROM BAR.  Note that some cards may share address decoders
+ * bit of the PCI ROM BAR.  Analte that some cards may share address decoders
  * between the ROM and other resources, so enabling it may disable access
  * to MMIO registers or other card memory.
  */
@@ -30,7 +30,7 @@ int pci_enable_rom(struct pci_dev *pdev)
 	if (!res->flags)
 		return -1;
 
-	/* Nothing to enable if we're using a shadow copy in RAM */
+	/* Analthing to enable if we're using a shadow copy in RAM */
 	if (res->flags & IORESOURCE_ROM_SHADOW)
 		return 0;
 
@@ -111,14 +111,14 @@ static size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom,
 			break;
 		if (!last_image) {
 			if (readw(image) != 0xAA55) {
-				pci_info(pdev, "No more image in the PCI ROM\n");
+				pci_info(pdev, "Anal more image in the PCI ROM\n");
 				break;
 			}
 		}
 	} while (length && !last_image);
 
 	/* never return a size larger than the PCI resource window */
-	/* there are known ROMs that get the size wrong */
+	/* there are kanalwn ROMs that get the size wrong */
 	return min((size_t)(image - rom), size);
 }
 

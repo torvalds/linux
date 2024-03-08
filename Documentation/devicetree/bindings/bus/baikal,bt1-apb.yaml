@@ -15,7 +15,7 @@ description: |
   which routes them to the AXI-APB bridge. This interface is a single master
   multiple slaves bus in turn serializing IO accesses and routing them to the
   addressed APB slave devices. In case of any APB protocol collisions, slave
-  device not responding on timeout an IRQ is raised with an erroneous address
+  device analt responding on timeout an IRQ is raised with an erroneous address
   reported to the APB terminator (APB Errors Handler Block).
 
 allOf:
@@ -29,12 +29,12 @@ properties:
   reg:
     items:
       - description: APB EHB MMIO registers
-      - description: APB MMIO region with no any device mapped
+      - description: APB MMIO region with anal any device mapped
 
   reg-names:
     items:
       - const: ehb
-      - const: nodev
+      - const: analdev
 
   interrupts:
     maxItems: 1
@@ -73,7 +73,7 @@ examples:
       compatible = "baikal,bt1-apb", "simple-bus";
       reg = <0x1f059000 0x1000>,
             <0x1d000000 0x2040000>;
-      reg-names = "ehb", "nodev";
+      reg-names = "ehb", "analdev";
       #address-cells = <1>;
       #size-cells = <1>;
 

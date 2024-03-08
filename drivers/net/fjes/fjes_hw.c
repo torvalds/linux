@@ -97,7 +97,7 @@ static int fjes_hw_alloc_shared_status_region(struct fjes_hw *hw)
 	    (sizeof(u8) * hw->max_epid);
 	hw->hw_info.share = kzalloc(size, GFP_KERNEL);
 	if (!hw->hw_info.share)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->hw_info.share->epnum = hw->max_epid;
 
@@ -116,7 +116,7 @@ static int fjes_hw_alloc_epbuf(struct epbuf_handler *epbh)
 
 	mem = vzalloc(EP_BUFFER_SIZE);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epbh->buffer = mem;
 	epbh->size = EP_BUFFER_SIZE;
@@ -215,14 +215,14 @@ static int fjes_hw_setup(struct fjes_hw *hw)
 	buf = kcalloc(hw->max_epid, sizeof(struct ep_share_mem_info),
 		      GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->ep_shm_info = (struct ep_share_mem_info *)buf;
 
 	mem_size = FJES_DEV_REQ_BUF_SIZE(hw->max_epid);
 	hw->hw_info.req_buf = kzalloc(mem_size, GFP_KERNEL);
 	if (!(hw->hw_info.req_buf)) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto free_ep_info;
 	}
 
@@ -231,7 +231,7 @@ static int fjes_hw_setup(struct fjes_hw *hw)
 	mem_size = FJES_DEV_RES_BUF_SIZE(hw->max_epid);
 	hw->hw_info.res_buf = kzalloc(mem_size, GFP_KERNEL);
 	if (!(hw->hw_info.res_buf)) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto free_req_buf;
 	}
 
@@ -393,7 +393,7 @@ static enum fjes_dev_command_response_e
 fjes_hw_issue_request_command(struct fjes_hw *hw,
 			      enum fjes_dev_command_request_type type)
 {
-	enum fjes_dev_command_response_e ret = FJES_CMD_STATUS_UNKNOWN;
+	enum fjes_dev_command_response_e ret = FJES_CMD_STATUS_UNKANALWN;
 	union REG_CR cr;
 	union REG_CS cs;
 	int timeout = FJES_COMMAND_REQ_TIMEOUT * 1000;
@@ -415,7 +415,7 @@ fjes_hw_issue_request_command(struct fjes_hw *hw,
 		}
 
 		if (cs.bits.complete == 1)
-			ret = FJES_CMD_STATUS_NORMAL;
+			ret = FJES_CMD_STATUS_ANALRMAL;
 		else if (timeout <= 0)
 			ret = FJES_CMD_STATUS_TIMEOUT;
 
@@ -428,7 +428,7 @@ fjes_hw_issue_request_command(struct fjes_hw *hw,
 			ret = FJES_CMD_STATUS_ERROR_STATUS;
 			break;
 		default:
-			ret = FJES_CMD_STATUS_UNKNOWN;
+			ret = FJES_CMD_STATUS_UNKANALWN;
 			break;
 		}
 	}
@@ -461,10 +461,10 @@ int fjes_hw_request_info(struct fjes_hw *hw)
 	if (FJES_DEV_COMMAND_INFO_RES_LEN((*hw->hw_info.max_epid)) !=
 		res_buf->info.length) {
 		trace_fjes_hw_request_info_err("Invalid res_buf");
-		result = -ENOMSG;
-	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+		result = -EANALMSG;
+	} else if (ret == FJES_CMD_STATUS_ANALRMAL) {
 		switch (res_buf->info.code) {
-		case FJES_CMD_REQ_RES_CODE_NORMAL:
+		case FJES_CMD_REQ_RES_CODE_ANALRMAL:
 			result = 0;
 			break;
 		default:
@@ -473,7 +473,7 @@ int fjes_hw_request_info(struct fjes_hw *hw)
 		}
 	} else {
 		switch (ret) {
-		case FJES_CMD_STATUS_UNKNOWN:
+		case FJES_CMD_STATUS_UNKANALWN:
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
@@ -547,7 +547,7 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_SHARE_BUFFER);
 
 	timeout = FJES_COMMAND_REQ_BUFF_TIMEOUT * 1000;
-	while ((ret == FJES_CMD_STATUS_NORMAL) &&
+	while ((ret == FJES_CMD_STATUS_ANALRMAL) &&
 	       (res_buf->share_buffer.length ==
 		FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN) &&
 	       (res_buf->share_buffer.code == FJES_CMD_REQ_RES_CODE_BUSY) &&
@@ -569,10 +569,10 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 	if (res_buf->share_buffer.length !=
 			FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN) {
 		trace_fjes_hw_register_buff_addr_err("Invalid res_buf");
-		result = -ENOMSG;
-	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+		result = -EANALMSG;
+	} else if (ret == FJES_CMD_STATUS_ANALRMAL) {
 		switch (res_buf->share_buffer.code) {
-		case FJES_CMD_REQ_RES_CODE_NORMAL:
+		case FJES_CMD_REQ_RES_CODE_ANALRMAL:
 			result = 0;
 			set_bit(dest_epid, &hw->hw_info.buffer_share_bit);
 			break;
@@ -586,7 +586,7 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 		}
 	} else {
 		switch (ret) {
-		case FJES_CMD_STATUS_UNKNOWN:
+		case FJES_CMD_STATUS_UNKANALWN:
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
@@ -636,7 +636,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_UNSHARE_BUFFER);
 
 	timeout = FJES_COMMAND_REQ_BUFF_TIMEOUT * 1000;
-	while ((ret == FJES_CMD_STATUS_NORMAL) &&
+	while ((ret == FJES_CMD_STATUS_ANALRMAL) &&
 	       (res_buf->unshare_buffer.length ==
 		FJES_DEV_COMMAND_UNSHARE_BUFFER_RES_LEN) &&
 	       (res_buf->unshare_buffer.code ==
@@ -659,10 +659,10 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 	if (res_buf->unshare_buffer.length !=
 			FJES_DEV_COMMAND_UNSHARE_BUFFER_RES_LEN) {
 		trace_fjes_hw_unregister_buff_addr_err("Invalid res_buf");
-		result = -ENOMSG;
-	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+		result = -EANALMSG;
+	} else if (ret == FJES_CMD_STATUS_ANALRMAL) {
 		switch (res_buf->unshare_buffer.code) {
-		case FJES_CMD_REQ_RES_CODE_NORMAL:
+		case FJES_CMD_REQ_RES_CODE_ANALRMAL:
 			result = 0;
 			clear_bit(dest_epid, &hw->hw_info.buffer_share_bit);
 			break;
@@ -676,7 +676,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 		}
 	} else {
 		switch (ret) {
-		case FJES_CMD_STATUS_UNKNOWN:
+		case FJES_CMD_STATUS_UNKANALWN:
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
@@ -730,7 +730,7 @@ bool fjes_hw_epid_is_same_zone(struct fjes_hw *hw, int epid)
 	if ((hw->ep_shm_info[epid].es_status !=
 			FJES_ZONING_STATUS_ENABLE) ||
 		(hw->ep_shm_info[hw->my_epid].zone ==
-			FJES_ZONING_ZONE_TYPE_NONE))
+			FJES_ZONING_ZONE_TYPE_ANALNE))
 		return false;
 	else
 		return (hw->ep_shm_info[epid].zone ==
@@ -963,7 +963,7 @@ int fjes_hw_epbuf_tx_pkt_send(struct epbuf_handler *epbh,
 	struct esmem_frame *ring_frame;
 
 	if (EP_RING_FULL(info->v1i.head, info->v1i.tail, info->v1i.count_max))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	ring_frame = (struct esmem_frame *)&(epbh->ring[EP_RING_INDEX
 					     (info->v1i.tail - 1,
@@ -1007,7 +1007,7 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 
 	ret = fjes_hw_request_info(hw);
 	switch (ret) {
-	case -ENOMSG:
+	case -EANALMSG:
 	case -EBUSY:
 	default:
 		if (!work_pending(&adapter->force_close_task)) {
@@ -1032,7 +1032,7 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 			case EP_PARTNER_UNSHARE:
 			default:
 				if ((info[epidx].zone !=
-					FJES_ZONING_ZONE_TYPE_NONE) &&
+					FJES_ZONING_ZONE_TYPE_ANALNE) &&
 				    (info[epidx].es_status ==
 					FJES_ZONING_STATUS_ENABLE) &&
 				    (info[epidx].zone ==
@@ -1045,7 +1045,7 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 			case EP_PARTNER_COMPLETE:
 			case EP_PARTNER_WAITING:
 				if ((info[epidx].zone ==
-					FJES_ZONING_ZONE_TYPE_NONE) ||
+					FJES_ZONING_ZONE_TYPE_ANALNE) ||
 				    (info[epidx].es_status !=
 					FJES_ZONING_STATUS_ENABLE) ||
 				    (info[epidx].zone !=
@@ -1059,7 +1059,7 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 
 			case EP_PARTNER_SHARED:
 				if ((info[epidx].zone ==
-					FJES_ZONING_ZONE_TYPE_NONE) ||
+					FJES_ZONING_ZONE_TYPE_ANALNE) ||
 				    (info[epidx].es_status !=
 					FJES_ZONING_STATUS_ENABLE) ||
 				    (info[epidx].zone !=
@@ -1095,7 +1095,7 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 			switch (ret) {
 			case 0:
 				break;
-			case -ENOMSG:
+			case -EANALMSG:
 			case -EBUSY:
 			default:
 				if (!work_pending(&adapter->force_close_task)) {
@@ -1119,7 +1119,7 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 			switch (ret) {
 			case 0:
 				break;
-			case -ENOMSG:
+			case -EANALMSG:
 			case -EBUSY:
 			default:
 				if (!work_pending(&adapter->force_close_task)) {
@@ -1238,11 +1238,11 @@ int fjes_hw_start_debug(struct fjes_hw *hw)
 
 	if (res_buf->start_trace.length !=
 		FJES_DEV_COMMAND_START_DBG_RES_LEN) {
-		result = -ENOMSG;
+		result = -EANALMSG;
 		trace_fjes_hw_start_debug_err("Invalid res_buf");
-	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+	} else if (ret == FJES_CMD_STATUS_ANALRMAL) {
 		switch (res_buf->start_trace.code) {
-		case FJES_CMD_REQ_RES_CODE_NORMAL:
+		case FJES_CMD_REQ_RES_CODE_ANALRMAL:
 			result = 0;
 			break;
 		default:
@@ -1251,7 +1251,7 @@ int fjes_hw_start_debug(struct fjes_hw *hw)
 		}
 	} else {
 		switch (ret) {
-		case FJES_CMD_STATUS_UNKNOWN:
+		case FJES_CMD_STATUS_UNKANALWN:
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
@@ -1291,10 +1291,10 @@ int fjes_hw_stop_debug(struct fjes_hw *hw)
 
 	if (res_buf->stop_trace.length != FJES_DEV_COMMAND_STOP_DBG_RES_LEN) {
 		trace_fjes_hw_stop_debug_err("Invalid res_buf");
-		result = -ENOMSG;
-	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+		result = -EANALMSG;
+	} else if (ret == FJES_CMD_STATUS_ANALRMAL) {
 		switch (res_buf->stop_trace.code) {
-		case FJES_CMD_REQ_RES_CODE_NORMAL:
+		case FJES_CMD_REQ_RES_CODE_ANALRMAL:
 			result = 0;
 			hw->debug_mode = 0;
 			break;
@@ -1304,7 +1304,7 @@ int fjes_hw_stop_debug(struct fjes_hw *hw)
 		}
 	} else {
 		switch (ret) {
-		case FJES_CMD_STATUS_UNKNOWN:
+		case FJES_CMD_STATUS_UNKANALWN:
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:

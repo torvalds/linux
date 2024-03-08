@@ -190,9 +190,9 @@ int gb_audio_manager_module_create(struct gb_audio_manager_module **module,
 
 	m = kzalloc(sizeof(*m), GFP_ATOMIC);
 	if (!m)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Initialize the node */
+	/* Initialize the analde */
 	INIT_LIST_HEAD(&m->list);
 
 	/* Set the module id */
@@ -219,7 +219,7 @@ int gb_audio_manager_module_create(struct gb_audio_manager_module **module,
 	}
 
 	/*
-	 * Notify the object was created
+	 * Analtify the object was created
 	 */
 	send_add_uevent(m);
 

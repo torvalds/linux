@@ -17,10 +17,10 @@
 
 struct f_hid_opts {
 	struct usb_function_instance	func_inst;
-	int				minor;
+	int				mianalr;
 	unsigned char			subclass;
 	unsigned char			protocol;
-	unsigned char			no_out_endpoint;
+	unsigned char			anal_out_endpoint;
 	unsigned short			report_length;
 	unsigned short			report_desc_length;
 	unsigned char			*report_desc;

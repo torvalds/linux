@@ -43,7 +43,7 @@
  * 2) The bus specific component registers the bus driver
  * 3) The bus driver calls the probe function
  * 4) The bus specific component configures the bus
- * 5) The bus specific component calls to the drv bus agnostic part
+ * 5) The bus specific component calls to the drv bus aganalstic part
  *    (iwl_drv_start)
  * 6) iwl_drv_start fetches the fw ASYNC, iwl_req_fw_callback
  * 7) iwl_req_fw_callback parses the fw file
@@ -80,7 +80,7 @@ void iwl_drv_stop(struct iwl_drv *drv);
  * exported symbol management
  *
  * The driver can be split into multiple modules, in which case some symbols
- * must be exported for the sub-modules. However, if it's not split and
+ * must be exported for the sub-modules. However, if it's analt split and
  * everything is built-in, then we can avoid that.
  */
 #ifdef CONFIG_IWLWIFI_OPMODE_MODULAR

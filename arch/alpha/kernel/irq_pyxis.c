@@ -18,7 +18,7 @@
 #include "irq_impl.h"
 
 
-/* Note mask bit is true for ENABLED irqs.  */
+/* Analte mask bit is true for ENABLED irqs.  */
 static unsigned long cached_irq_mask;
 
 static inline void
@@ -75,7 +75,7 @@ pyxis_device_interrupt(unsigned long vector)
 	pld &= cached_irq_mask;
 
 	/*
-	 * Now for every possible bit set, work through them and call
+	 * Analw for every possible bit set, work through them and call
 	 * the appropriate interrupt handler.
 	 */
 	while (pld) {
@@ -89,7 +89,7 @@ pyxis_device_interrupt(unsigned long vector)
 }
 
 void __init
-init_pyxis_irqs(unsigned long ignore_mask)
+init_pyxis_irqs(unsigned long iganalre_mask)
 {
 	long i;
 
@@ -101,12 +101,12 @@ init_pyxis_irqs(unsigned long ignore_mask)
 	*(vuip) CIA_IACK_SC;
 
 	for (i = 16; i < 48; ++i) {
-		if ((ignore_mask >> i) & 1)
+		if ((iganalre_mask >> i) & 1)
 			continue;
 		irq_set_chip_and_handler(i, &pyxis_irq_type, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 
-	if (request_irq(16 + 7, no_action, 0, "isa-cascade", NULL))
+	if (request_irq(16 + 7, anal_action, 0, "isa-cascade", NULL))
 		pr_err("Failed to register isa-cascade interrupt\n");
 }

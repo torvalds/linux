@@ -18,7 +18,7 @@
 #include "br_private.h"
 
 /* IMPORTANT: new bridge port options must be added with netlink support only
- *            please do not add new sysfs entries
+ *            please do analt add new sysfs entries
  */
 
 struct brport_attribute {
@@ -127,12 +127,12 @@ static ssize_t show_port_id(struct net_bridge_port *p, char *buf)
 }
 static BRPORT_ATTR(port_id, 0444, show_port_id, NULL);
 
-static ssize_t show_port_no(struct net_bridge_port *p, char *buf)
+static ssize_t show_port_anal(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "0x%x\n", p->port_no);
+	return sprintf(buf, "0x%x\n", p->port_anal);
 }
 
-static BRPORT_ATTR(port_no, 0444, show_port_no, NULL);
+static BRPORT_ATTR(port_anal, 0444, show_port_anal, NULL);
 
 static ssize_t show_change_ack(struct net_bridge_port *p, char *buf)
 {
@@ -222,7 +222,7 @@ static int store_backup_port(struct net_bridge_port *p, char *buf)
 	if (strlen(buf) > 0) {
 		backup_dev = __dev_get_by_name(dev_net(p->dev), buf);
 		if (!backup_dev)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	return nbp_backup_change(p, backup_dev);
@@ -241,7 +241,7 @@ BRPORT_ATTR_FLAG(broadcast_flood, BR_BCAST_FLOOD);
 BRPORT_ATTR_FLAG(neigh_suppress, BR_NEIGH_SUPPRESS);
 BRPORT_ATTR_FLAG(isolated, BR_ISOLATED);
 
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 static ssize_t show_multicast_router(struct net_bridge_port *p, char *buf)
 {
 	return sprintf(buf, "%d\n", p->multicast_ctx.multicast_router);
@@ -263,7 +263,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_path_cost,
 	&brport_attr_priority,
 	&brport_attr_port_id,
-	&brport_attr_port_no,
+	&brport_attr_port_anal,
 	&brport_attr_designated_root,
 	&brport_attr_designated_bridge,
 	&brport_attr_designated_port,
@@ -280,7 +280,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_root_block,
 	&brport_attr_learning,
 	&brport_attr_unicast_flood,
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 	&brport_attr_multicast_router,
 	&brport_attr_multicast_fast_leave,
 	&brport_attr_multicast_to_unicast,
@@ -331,7 +331,7 @@ static ssize_t brport_store(struct kobject *kobj,
 
 		buf_copy = kstrndup(buf, count, GFP_KERNEL);
 		if (!buf_copy) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_unlock;
 		}
 		spin_lock_bh(&p->br->lock);
@@ -348,7 +348,7 @@ static ssize_t brport_store(struct kobject *kobj,
 	}
 
 	if (!ret) {
-		br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+		br_ifinfo_analtify(RTM_NEWLINK, NULL, p);
 		ret = count;
 	}
 out_unlock:
@@ -394,7 +394,7 @@ int br_sysfs_renameif(struct net_bridge_port *p)
 	struct net_bridge *br = p->br;
 	int err;
 
-	/* If a rename fails, the rollback will cause another
+	/* If a rename fails, the rollback will cause aanalther
 	 * rename call with the existing name.
 	 */
 	if (!strncmp(p->sysfs_name, p->dev->name, IFNAMSIZ))
@@ -403,7 +403,7 @@ int br_sysfs_renameif(struct net_bridge_port *p)
 	err = sysfs_rename_link(br->ifobj, &p->kobj,
 				p->sysfs_name, p->dev->name);
 	if (err)
-		netdev_notice(br->dev, "unable to rename link %s to %s",
+		netdev_analtice(br->dev, "unable to rename link %s to %s",
 			      p->sysfs_name, p->dev->name);
 	else
 		strscpy(p->sysfs_name, p->dev->name, IFNAMSIZ);

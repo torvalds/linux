@@ -2,7 +2,7 @@ include ../scripts/Makefile.include
 
 ifndef MK
 ifeq ($(MAKECMDGOALS),)
-# no target specified, trigger the whole suite
+# anal target specified, trigger the whole suite
 all:
 	@echo "Testing Makefile";      $(MAKE) -sf tests/make MK=Makefile
 	@echo "Testing Makefile.perf"; $(MAKE) -sf tests/make MK=Makefile.perf SET_PARALLEL=1 SET_O=1
@@ -68,34 +68,34 @@ python_perf_so := $(shell $(MAKE) python_perf_target|grep "Target is:"|awk '{pri
 make_clean_all      := clean all
 make_python_perf_so := $(python_perf_so)
 make_debug          := DEBUG=1
-make_nondistro      := BUILD_NONDISTRO=1
+make_analndistro      := BUILD_ANALNDISTRO=1
 make_extra_tests    := EXTRA_TESTS=1
-make_no_bpf_skel    := BUILD_BPF_SKEL=0
+make_anal_bpf_skel    := BUILD_BPF_SKEL=0
 make_gen_vmlinux_h  := GEN_VMLINUX_H=1
-make_no_libperl     := NO_LIBPERL=1
-make_no_libpython   := NO_LIBPYTHON=1
-make_no_scripts     := NO_LIBPYTHON=1 NO_LIBPERL=1
-make_no_slang       := NO_SLANG=1
-make_no_gtk2        := NO_GTK2=1
-make_no_ui          := NO_SLANG=1 NO_GTK2=1
-make_no_demangle    := NO_DEMANGLE=1
-make_no_libelf      := NO_LIBELF=1
-make_no_libunwind   := NO_LIBUNWIND=1
-make_no_libdw_dwarf_unwind := NO_LIBDW_DWARF_UNWIND=1
-make_no_backtrace   := NO_BACKTRACE=1
-make_no_libnuma     := NO_LIBNUMA=1
-make_no_libaudit    := NO_LIBAUDIT=1
-make_no_libbionic   := NO_LIBBIONIC=1
-make_no_auxtrace    := NO_AUXTRACE=1
-make_no_libbpf	    := NO_LIBBPF=1
+make_anal_libperl     := ANAL_LIBPERL=1
+make_anal_libpython   := ANAL_LIBPYTHON=1
+make_anal_scripts     := ANAL_LIBPYTHON=1 ANAL_LIBPERL=1
+make_anal_slang       := ANAL_SLANG=1
+make_anal_gtk2        := ANAL_GTK2=1
+make_anal_ui          := ANAL_SLANG=1 ANAL_GTK2=1
+make_anal_demangle    := ANAL_DEMANGLE=1
+make_anal_libelf      := ANAL_LIBELF=1
+make_anal_libunwind   := ANAL_LIBUNWIND=1
+make_anal_libdw_dwarf_unwind := ANAL_LIBDW_DWARF_UNWIND=1
+make_anal_backtrace   := ANAL_BACKTRACE=1
+make_anal_libnuma     := ANAL_LIBNUMA=1
+make_anal_libaudit    := ANAL_LIBAUDIT=1
+make_anal_libbionic   := ANAL_LIBBIONIC=1
+make_anal_auxtrace    := ANAL_AUXTRACE=1
+make_anal_libbpf	    := ANAL_LIBBPF=1
 make_libbpf_dynamic := LIBBPF_DYNAMIC=1
-make_no_libbpf_DEBUG := NO_LIBBPF=1 DEBUG=1
-make_no_libcrypto   := NO_LIBCRYPTO=1
+make_anal_libbpf_DEBUG := ANAL_LIBBPF=1 DEBUG=1
+make_anal_libcrypto   := ANAL_LIBCRYPTO=1
 make_with_babeltrace:= LIBBABELTRACE=1
 make_with_coresight := CORESIGHT=1
-make_no_sdt	    := NO_SDT=1
-make_no_syscall_tbl := NO_SYSCALL_TABLE=1
-make_no_libpfm4     := NO_LIBPFM4=1
+make_anal_sdt	    := ANAL_SDT=1
+make_anal_syscall_tbl := ANAL_SYSCALL_TABLE=1
+make_anal_libpfm4     := ANAL_LIBPFM4=1
 make_with_gtk2      := GTK2=1
 make_refcnt_check   := EXTRA_CFLAGS="-DREFCNT_CHECKING=1"
 make_tags           := tags
@@ -114,15 +114,15 @@ make_install_info   := install-info
 make_install_pdf    := install-pdf
 make_install_prefix       := install prefix=/tmp/krava
 make_install_prefix_slash := install prefix=/tmp/krava/
-make_static         := LDFLAGS=-static NO_PERF_READ_VDSO32=1 NO_PERF_READ_VDSOX32=1 NO_JVMTI=1 NO_LIBTRACEEVENT=1 NO_LIBELF=1
+make_static         := LDFLAGS=-static ANAL_PERF_READ_VDSO32=1 ANAL_PERF_READ_VDSOX32=1 ANAL_JVMTI=1 ANAL_LIBTRACEEVENT=1 ANAL_LIBELF=1
 
-# all the NO_* variable combined
-make_minimal        := NO_LIBPERL=1 NO_LIBPYTHON=1 NO_GTK2=1
-make_minimal        += NO_DEMANGLE=1 NO_LIBELF=1 NO_LIBUNWIND=1 NO_BACKTRACE=1
-make_minimal        += NO_LIBNUMA=1 NO_LIBAUDIT=1 NO_LIBBIONIC=1
-make_minimal        += NO_LIBDW_DWARF_UNWIND=1 NO_AUXTRACE=1 NO_LIBBPF=1
-make_minimal        += NO_LIBCRYPTO=1 NO_SDT=1 NO_JVMTI=1 NO_LIBZSTD=1
-make_minimal        += NO_LIBCAP=1 NO_SYSCALL_TABLE=1
+# all the ANAL_* variable combined
+make_minimal        := ANAL_LIBPERL=1 ANAL_LIBPYTHON=1 ANAL_GTK2=1
+make_minimal        += ANAL_DEMANGLE=1 ANAL_LIBELF=1 ANAL_LIBUNWIND=1 ANAL_BACKTRACE=1
+make_minimal        += ANAL_LIBNUMA=1 ANAL_LIBAUDIT=1 ANAL_LIBBIONIC=1
+make_minimal        += ANAL_LIBDW_DWARF_UNWIND=1 ANAL_AUXTRACE=1 ANAL_LIBBPF=1
+make_minimal        += ANAL_LIBCRYPTO=1 ANAL_SDT=1 ANAL_JVMTI=1 ANAL_LIBZSTD=1
+make_minimal        += ANAL_LIBCAP=1 ANAL_SYSCALL_TABLE=1
 
 # $(run) contains all available tests
 run := make_pure
@@ -137,34 +137,34 @@ MAKE_F := $(MAKE) -f $(MK)
 endif
 run += make_python_perf_so
 run += make_debug
-run += make_nondistro
+run += make_analndistro
 run += make_extra_tests
-run += make_no_bpf_skel
+run += make_anal_bpf_skel
 run += make_gen_vmlinux_h
-run += make_no_libperl
-run += make_no_libpython
-run += make_no_scripts
-run += make_no_slang
-run += make_no_gtk2
-run += make_no_ui
-run += make_no_demangle
-run += make_no_libelf
-run += make_no_libunwind
-run += make_no_libdw_dwarf_unwind
-run += make_no_backtrace
-run += make_no_libnuma
-run += make_no_libaudit
-run += make_no_libbionic
-run += make_no_auxtrace
-run += make_no_libbpf
-run += make_no_libbpf_DEBUG
-run += make_no_libcrypto
-run += make_no_sdt
-run += make_no_syscall_tbl
+run += make_anal_libperl
+run += make_anal_libpython
+run += make_anal_scripts
+run += make_anal_slang
+run += make_anal_gtk2
+run += make_anal_ui
+run += make_anal_demangle
+run += make_anal_libelf
+run += make_anal_libunwind
+run += make_anal_libdw_dwarf_unwind
+run += make_anal_backtrace
+run += make_anal_libnuma
+run += make_anal_libaudit
+run += make_anal_libbionic
+run += make_anal_auxtrace
+run += make_anal_libbpf
+run += make_anal_libbpf_DEBUG
+run += make_anal_libcrypto
+run += make_anal_sdt
+run += make_anal_syscall_tbl
 run += make_with_babeltrace
 run += make_with_coresight
 run += make_with_clangllvm
-run += make_no_libpfm4
+run += make_anal_libpfm4
 run += make_refcnt_check
 run += make_help
 run += make_doc
@@ -251,23 +251,23 @@ test_make_install_prefix_O :=  $(call test_dest_files,$(installed_files_all_pref
 test_make_install_prefix_slash   := $(test_make_install_prefix)
 test_make_install_prefix_slash_O := $(test_make_install_prefix_O)
 
-# FIXME nothing gets installed
+# FIXME analthing gets installed
 test_make_install_man    := test -f $$TMP_DEST/share/man/man1/perf.1
 test_make_install_man_O  := $(test_make_install_man)
 
-# FIXME nothing gets installed
+# FIXME analthing gets installed
 test_make_install_doc    := $(test_ok)
 test_make_install_doc_O  := $(test_ok)
 
-# FIXME nothing gets installed
+# FIXME analthing gets installed
 test_make_install_html   := $(test_ok)
 test_make_install_html_O := $(test_ok)
 
-# FIXME nothing gets installed
+# FIXME analthing gets installed
 test_make_install_info   := $(test_ok)
 test_make_install_info_O := $(test_ok)
 
-# FIXME nothing gets installed
+# FIXME analthing gets installed
 test_make_install_pdf    := $(test_ok)
 test_make_install_pdf_O  := $(test_ok)
 
@@ -299,7 +299,7 @@ d := $(info run   $(run))
 d := $(info run_O $(run_O))
 endif
 
-MAKEFLAGS := --no-print-directory
+MAKEFLAGS := --anal-print-directory
 
 clean := @(cd $(PERF); $(MAKE_F) -s $(O_OPT) clean >/dev/null && $(MAKE) -s $(O_OPT) -C ../build clean >/dev/null)
 
@@ -402,7 +402,7 @@ $(foreach t,$(run) $(run_O),$(eval \
 		$(FEATURES_DUMP_FILE))))
 
 # Append 'FEATURES_DUMP=' option to all test cases. For example:
-# make_no_libbpf: NO_LIBBPF=1  --> NO_LIBBPF=1 FEATURES_DUMP=/a/b/BUILD_TEST_FEATURE_DUMP
+# make_anal_libbpf: ANAL_LIBBPF=1  --> ANAL_LIBBPF=1 FEATURES_DUMP=/a/b/BUILD_TEST_FEATURE_DUMP
 # make_static: LDFLAGS=-static --> LDFLAGS=-static FEATURES_DUMP=/a/b/BUILD_TEST_FEATURE_DUMP_STATIC
 $(foreach t,$(run),$(if $(findstring make_static,$(t)),\
 			$(eval $(t) := $($(t)) FEATURES_DUMP=$(FEATURES_DUMP_FILE_STATIC)),\

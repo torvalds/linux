@@ -55,13 +55,13 @@ static struct timespec ts_end;
 
 void perf_kwork__trace_start(void)
 {
-	clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_start);
 	skel->bss->enabled = 1;
 }
 
 void perf_kwork__trace_finish(void)
 {
-	clock_gettime(CLOCK_MONOTONIC, &ts_end);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_end);
 	skel->bss->enabled = 0;
 }
 
@@ -216,7 +216,7 @@ int perf_kwork__trace_prepare_bpf(struct perf_kwork *kwork)
 	}
 
 	/*
-	 * set all progs to non-autoload,
+	 * set all progs to analn-autoload,
 	 * then set corresponding progs according to config
 	 */
 	bpf_object__for_each_program(prog, skel->obj)

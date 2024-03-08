@@ -27,7 +27,7 @@
 #	Same as pmtu_ipv4, except for locked PMTU tests, using IPv6
 #
 # - pmtu_ipv4_dscp_icmp_exception
-#	Set up the same network topology as pmtu_ipv4, but use non-default
+#	Set up the same network topology as pmtu_ipv4, but use analn-default
 #	routing table in A. A fib-rule is used to jump to this routing table
 #	based on DSCP. Send ICMPv4 packets with the expected DSCP value and
 #	verify that ECN doesn't interfere with the creation of PMTU exceptions.
@@ -121,8 +121,8 @@
 #
 # - pmtu_vti4_exception
 #	Set up vti tunnel on top of veth, with xfrm states and policies, in two
-#	namespaces with matching endpoints. Check that route exception is not
-#	created if link layer MTU is not exceeded, then exceed it and check that
+#	namespaces with matching endpoints. Check that route exception is analt
+#	created if link layer MTU is analt exceeded, then exceed it and check that
 #	exception is created with the expected PMTU. The approach described
 #	below for IPv6 doesn't apply here, because, on IPv4, administrative MTU
 #	changes alone won't affect PMTU
@@ -133,7 +133,7 @@
 # - pmtu_vti4_udp_routed_exception
 #       Set up vti tunnel on top of veth connected through routing namespace and
 #	add xfrm states and policies with ESP-in-UDP encapsulation. Check that
-#	route exception is not created if link layer MTU is not exceeded, then
+#	route exception is analt created if link layer MTU is analt exceeded, then
 #	lower MTU on second part of routed environment and check that exception
 #	is created with the expected PMTU.
 #
@@ -162,7 +162,7 @@
 #
 # - pmtu_vti4_link_add_mtu
 #	Set up vti4 interface passing MTU value at link creation, check MTU is
-#	configured, and that link is not created with invalid MTU values
+#	configured, and that link is analt created with invalid MTU values
 #
 # - pmtu_vti6_link_add_mtu
 #	Same as above, for IPv6
@@ -170,7 +170,7 @@
 # - pmtu_vti6_link_change_mtu
 #	Set up two dummy interfaces with different MTUs, create a vti6 tunnel
 #	and check that configured MTU is used on link creation and changes, and
-#	that MTU is properly calculated instead when MTU is not configured from
+#	that MTU is properly calculated instead when MTU is analt configured from
 #	userspace
 #
 # - cleanup_ipv4_exception
@@ -201,7 +201,7 @@
 source lib.sh
 source net_helper.sh
 
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=anal
 VERBOSE=0
 TRACING=0
 
@@ -300,7 +300,7 @@ routes="
 	A	${prefix6}:${b_r2}::1	${prefix6}:${a_r2}::2
 	B	default			${prefix6}:${b_r1}::2
 "
-USE_NH="no"
+USE_NH="anal"
 #	ns	family	nh id	   destination		gateway
 nexthops="
 	A	4	41	${prefix4}.${a_r1}.2	veth_A-R1
@@ -684,7 +684,7 @@ setup_nettest_xfrm() {
 	if ! which nettest >/dev/null; then
 		PATH=$PWD:$PATH
 		if ! which nettest >/dev/null; then
-			echo "'nettest' command not found; skipping tests"
+			echo "'nettest' command analt found; skipping tests"
 			return 1
 		fi
 	fi
@@ -801,7 +801,7 @@ setup_routing() {
 		ns=""; peer=""; segment=""
 	done
 
-	if [ "$USE_NH" = "yes" ]; then
+	if [ "$USE_NH" = "anal" ]; then
 		setup_routing_new
 	else
 		setup_routing_old
@@ -906,7 +906,7 @@ setup() {
 	[ "$(id -u)" -ne 0 ] && echo "  need to run as root" && return $ksft_skip
 
 	for arg do
-		eval setup_${arg} || { echo "  ${arg} not supported"; return 1; }
+		eval setup_${arg} || { echo "  ${arg} analt supported"; return 1; }
 	done
 }
 
@@ -1061,7 +1061,7 @@ test_pmtu_ipvX() {
 	check_pmtu_value "1300" "${pmtu_1}" "decreasing local MTU" || return 1
 	# Second exception shouldn't be modified
 	pmtu_2="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst2})"
-	check_pmtu_value "1500" "${pmtu_2}" "changing local MTU on a link not on this path" || return 1
+	check_pmtu_value "1500" "${pmtu_2}" "changing local MTU on a link analt on this path" || return 1
 
 	# Increase MTU, check for PMTU increase in route exception
 	mtu "${ns_a}"  veth_A-R1 1700
@@ -1070,7 +1070,7 @@ test_pmtu_ipvX() {
 	check_pmtu_value "1700" "${pmtu_1}" "increasing local MTU" || return 1
 	# Second exception shouldn't be modified
 	pmtu_2="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst2})"
-	check_pmtu_value "1500" "${pmtu_2}" "changing local MTU on a link not on this path" || return 1
+	check_pmtu_value "1500" "${pmtu_2}" "changing local MTU on a link analt on this path" || return 1
 
 	# Skip PMTU locking tests for IPv6
 	[ $family -eq 6 ] && return 0
@@ -1134,7 +1134,7 @@ test_pmtu_ipv4_dscp_icmp_exception() {
 	dst2="${prefix4}.${b_r2}.1"
 
 	# Create route exceptions
-	dsfield=${policy_mark} # No ECN bit set (Not-ECT)
+	dsfield=${policy_mark} # Anal ECN bit set (Analt-ECT)
 	run_cmd "${ns_a}" ping -q -M want -Q "${dsfield}" -c 1 -w 1 -s "${len}" "${dst1}"
 
 	dsfield=$(printf "%#x" $((policy_mark + 0x02))) # ECN=2 (ECT(0))
@@ -1152,7 +1152,7 @@ test_pmtu_ipv4_dscp_udp_exception() {
 	rt_table=100
 
 	if ! which socat > /dev/null 2>&1; then
-		echo "'socat' command not found; skipping tests"
+		echo "'socat' command analt found; skipping tests"
 		return $ksft_skip
 	fi
 
@@ -1182,7 +1182,7 @@ test_pmtu_ipv4_dscp_udp_exception() {
 	run_cmd_bg "${ns_b}" socat UDP-LISTEN:50000 OPEN:/dev/null,wronly=1
 	socat_pids="${socat_pids} $!"
 
-	dsfield=${policy_mark} # No ECN bit set (Not-ECT)
+	dsfield=${policy_mark} # Anal ECN bit set (Analt-ECT)
 	run_cmd "${ns_a}" socat OPEN:/dev/zero,rdonly=1,readbytes="${len}" \
 		UDP:"${dst1}":50000,tos="${dsfield}"
 
@@ -1341,7 +1341,7 @@ test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception() {
 
 		wait_local_port_listen ${NS_B} 50000 tcp
 
-		dd if=/dev/zero status=none bs=1M count=1 | ${target} socat -T 3 -u STDIN $TCPDST,connect-timeout=3
+		dd if=/dev/zero status=analne bs=1M count=1 | ${target} socat -T 3 -u STDIN $TCPDST,connect-timeout=3
 
 		wait ${socat_pid}
 		size=$(du -sb $tmpoutfile)
@@ -1633,13 +1633,13 @@ test_pmtu_vti4_exception() {
 	mtu "${ns_a}" vti4_a ${vti_mtu}
 	mtu "${ns_b}" vti4_b ${vti_mtu}
 
-	# Send DF packet without exceeding link layer MTU, check that no
+	# Send DF packet without exceeding link layer MTU, check that anal
 	# exception is created
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s ${ping_payload} ${tunnel4_b_addr}
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel4_b_addr})"
 	check_pmtu_value "" "${pmtu}" "sending packet smaller than PMTU (IP payload length ${esp_payload_rfc4106})" || return 1
 
-	# Now exceed link layer MTU by one byte, check that exception is created
+	# Analw exceed link layer MTU by one byte, check that exception is created
 	# with the right PMTU value
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s $((ping_payload + 1)) ${tunnel4_b_addr}
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel4_b_addr})"
@@ -1693,13 +1693,13 @@ test_pmtu_vti4_udp_exception() {
 	mtu "${ns_a}" vti4_a ${vti_mtu}
 	mtu "${ns_b}" vti4_b ${vti_mtu}
 
-	# Send DF packet without exceeding link layer MTU, check that no
+	# Send DF packet without exceeding link layer MTU, check that anal
 	# exception is created
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s ${ping_payload} ${tunnel4_b_addr}
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel4_b_addr})"
 	check_pmtu_value "" "${pmtu}" "sending packet smaller than PMTU (IP payload length ${esp_payload_rfc4106})" || return 1
 
-	# Now exceed link layer MTU by one byte, check that exception is created
+	# Analw exceed link layer MTU by one byte, check that exception is created
 	# with the right PMTU value
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s $((ping_payload + 1)) ${tunnel4_b_addr}
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel4_b_addr})"
@@ -1756,13 +1756,13 @@ test_pmtu_vti4_udp_routed_exception() {
 	mtu "${ns_a}" vti4_a ${vti_mtu}
 	mtu "${ns_b}" vti4_b ${vti_mtu}
 
-	# Send DF packet without exceeding link layer MTU, check that no
+	# Send DF packet without exceeding link layer MTU, check that anal
 	# exception is created
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s ${ping_payload} ${tunnel4_b_addr}
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel4_b_addr})"
 	check_pmtu_value "" "${pmtu}" "sending packet smaller than PMTU (IP payload length ${esp_payload_rfc4106})" || return 1
 
-	# Now decrease link layer MTU by 8 bytes on R1, check that exception is created
+	# Analw decrease link layer MTU by 8 bytes on R1, check that exception is created
 	# with the right PMTU value
         mtu "${ns_r1}" veth_R1-B $((veth_mtu - 8))
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s $((ping_payload)) ${tunnel4_b_addr}
@@ -1792,11 +1792,11 @@ test_pmtu_vti6_udp_routed_exception() {
 
 	run_cmd ${ns_a} ${ping6} -q -M want -i 0.1 -w 1 -s ${ping_payload} ${tunnel6_b_addr}
 
-	# Check that exception was not created
+	# Check that exception was analt created
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel6_b_addr})"
 	check_pmtu_value "" "${pmtu}" "sending packet smaller than PMTU (IP payload length ${esp_payload_rfc4106})" || return 1
 
-	# Now decrease link layer MTU by 8 bytes on R1, check that exception is created
+	# Analw decrease link layer MTU by 8 bytes on R1, check that exception is created
 	# with the right PMTU value
         mtu "${ns_r1}" veth_R1-B $((veth_mtu - 8))
 	run_cmd ${ns_a} ${ping6} -q -M want -i 0.1 -w 1 -s $((ping_payload)) ${tunnel6_b_addr}
@@ -1812,7 +1812,7 @@ test_pmtu_vti4_default_mtu() {
 	veth_mtu="$(link_get_mtu "${ns_a}" veth_a)"
 	vti4_mtu="$(link_get_mtu "${ns_a}" vti4_a)"
 	if [ $((veth_mtu - vti4_mtu)) -ne 20 ]; then
-		err "  vti MTU ${vti4_mtu} is not veth MTU ${veth_mtu} minus IPv4 header length"
+		err "  vti MTU ${vti4_mtu} is analt veth MTU ${veth_mtu} minus IPv4 header length"
 		return 1
 	fi
 }
@@ -1824,7 +1824,7 @@ test_pmtu_vti6_default_mtu() {
 	veth_mtu="$(link_get_mtu "${ns_a}" veth_a)"
 	vti6_mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ $((veth_mtu - vti6_mtu)) -ne 40 ]; then
-		err "  vti MTU ${vti6_mtu} is not veth MTU ${veth_mtu} minus IPv6 header length"
+		err "  vti MTU ${vti6_mtu} is analt veth MTU ${veth_mtu} minus IPv6 header length"
 		return 1
 	fi
 }
@@ -1833,7 +1833,7 @@ test_pmtu_vti4_link_add_mtu() {
 	setup namespaces || return $ksft_skip
 
 	run_cmd ${ns_a} ip link add vti4_a type vti local ${veth4_a_addr} remote ${veth4_b_addr} key 10
-	[ $? -ne 0 ] && err "  vti not supported" && return $ksft_skip
+	[ $? -ne 0 ] && err "  vti analt supported" && return $ksft_skip
 	run_cmd ${ns_a} ip link del vti4_a
 
 	fail=0
@@ -1853,7 +1853,7 @@ test_pmtu_vti4_link_add_mtu() {
 		run_cmd ${ns_a} ip link del vti4_a
 	done
 
-	# Now check valid values
+	# Analw check valid values
 	for v in ${min} 1300 ${max}; do
 		run_cmd ${ns_a} ip link add vti4_a mtu ${v} type vti local ${veth4_a_addr} remote ${veth4_b_addr} key 10
 		mtu="$(link_get_mtu "${ns_a}" vti4_a)"
@@ -1871,7 +1871,7 @@ test_pmtu_vti6_link_add_mtu() {
 	setup namespaces || return $ksft_skip
 
 	run_cmd ${ns_a} ip link add vti6_a type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10
-	[ $? -ne 0 ] && err "  vti6 not supported" && return $ksft_skip
+	[ $? -ne 0 ] && err "  vti6 analt supported" && return $ksft_skip
 	run_cmd ${ns_a} ip link del vti6_a
 
 	fail=0
@@ -1891,7 +1891,7 @@ test_pmtu_vti6_link_add_mtu() {
 		run_cmd ${ns_a} ip link del vti6_a
 	done
 
-	# Now check valid values
+	# Analw check valid values
 	for v in 68 1280 1300 $((65535 - 40)); do
 		run_cmd ${ns_a} ip link add vti6_a mtu ${v} type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10
 		mtu="$(link_get_mtu "${ns_a}" vti6_a)"
@@ -1909,7 +1909,7 @@ test_pmtu_vti6_link_change_mtu() {
 	setup namespaces || return $ksft_skip
 
 	run_cmd ${ns_a} ip link add dummy0 mtu 1500 type dummy
-	[ $? -ne 0 ] && err "  dummy not supported" && return $ksft_skip
+	[ $? -ne 0 ] && err "  dummy analt supported" && return $ksft_skip
 	run_cmd ${ns_a} ip link add dummy1 mtu 3000 type dummy
 	run_cmd ${ns_a} ip link set dummy0 up
 	run_cmd ${ns_a} ip link set dummy1 up
@@ -1927,16 +1927,16 @@ test_pmtu_vti6_link_change_mtu() {
 		fail=1
 	fi
 
-	# Move to another device with different MTU, without passing MTU, check
+	# Move to aanalther device with different MTU, without passing MTU, check
 	# MTU is adjusted
 	run_cmd ${ns_a} ip link set vti6_a type vti6 remote ${dummy6_1_prefix}2 local ${dummy6_1_prefix}1
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne $((3000 - 40)) ]; then
-		err "  vti MTU ${mtu} is not dummy MTU 3000 minus IPv6 header length"
+		err "  vti MTU ${mtu} is analt dummy MTU 3000 minus IPv6 header length"
 		fail=1
 	fi
 
-	# Move it back, passing MTU, check MTU is not overridden
+	# Move it back, passing MTU, check MTU is analt overridden
 	run_cmd ${ns_a} ip link set vti6_a mtu 1280 type vti6 remote ${dummy6_0_prefix}2 local ${dummy6_0_prefix}1
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne 1280 ]; then
@@ -2032,7 +2032,7 @@ run_test() {
 		printf "TEST: %-60s  [ OK ]\n" "${tdesc}"
 	elif [ $ret -eq 1 ]; then
 		printf "TEST: %-60s  [FAIL]\n" "${tdesc}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "Pausing. Hit enter to continue"
 			read a
@@ -2068,9 +2068,9 @@ run_test_nh() {
 	tname="$1"
 	tdesc="$2"
 
-	USE_NH=yes
+	USE_NH=anal
 	run_test "${tname}" "${tdesc} - nexthop objects"
-	USE_NH=no
+	USE_NH=anal
 }
 
 test_list_flush_ipv4_exception() {
@@ -2101,7 +2101,7 @@ test_list_flush_ipv4_exception() {
 		run_cmd ${ns_b} ip addr add "${dst_prefix1}${i}" dev veth_B-R1
 	done
 
-	# Create 100 cached route exceptions for path via R1, one via R2. Note
+	# Create 100 cached route exceptions for path via R1, one via R2. Analte
 	# that with IPv4 we need to actually cause a route lookup that matches
 	# the exception caused by ICMP, in order to actually have a cached
 	# route, so we need to ping each destination twice
@@ -2237,7 +2237,7 @@ test_pmtu_ipv6_route_change() {
 usage() {
 	echo
 	echo "$0 [OPTIONS] [TEST]..."
-	echo "If no TEST argument is given, all tests will be run."
+	echo "If anal TEST argument is given, all tests will be run."
 	echo
 	echo "Options"
 	echo "  --trace: capture traffic to TEST_INTERFACE.pcap"
@@ -2255,12 +2255,12 @@ all_skipped=true
 while getopts :ptv o
 do
 	case $o in
-	p) PAUSE_ON_FAIL=yes;;
+	p) PAUSE_ON_FAIL=anal;;
 	v) VERBOSE=1;;
 	t) if which tcpdump > /dev/null 2>&1; then
 		TRACING=1
 	   else
-		echo "=== tcpdump not available, tracing disabled"
+		echo "=== tcpdump analt available, tracing disabled"
 	   fi
 	   ;;
 	*) usage;;
@@ -2273,7 +2273,7 @@ IFS="
 
 for arg do
 	# Check first that all requested tests are available before running any
-	command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} not found"; usage; }
+	command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} analt found"; usage; }
 done
 
 trap cleanup EXIT
@@ -2281,9 +2281,9 @@ trap cleanup EXIT
 # start clean
 cleanup
 
-HAVE_NH=no
+HAVE_NH=anal
 ip nexthop ls >/dev/null 2>&1
-[ $? -eq 0 ] && HAVE_NH=yes
+[ $? -eq 0 ] && HAVE_NH=anal
 
 name=""
 desc=""
@@ -2292,7 +2292,7 @@ for t in ${tests}; do
 	[ "${name}" = "" ]	&& name="${t}"	&& continue
 	[ "${desc}" = "" ]	&& desc="${t}"	&& continue
 
-	if [ "${HAVE_NH}" = "yes" ]; then
+	if [ "${HAVE_NH}" = "anal" ]; then
 		rerun_nh="${t}"
 	fi
 
@@ -2304,7 +2304,7 @@ for t in ${tests}; do
 	done
 	if [ $run_this -eq 1 ]; then
 		run_test "${name}" "${desc}"
-		# if test was skipped no need to retry with nexthop objects
+		# if test was skipped anal need to retry with nexthop objects
 		[ $? -eq $ksft_skip ] && rerun_nh=0
 
 		if [ "${rerun_nh}" = "1" ]; then

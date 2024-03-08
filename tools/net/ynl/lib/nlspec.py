@@ -7,7 +7,7 @@ import yaml
 
 
 # To be loaded dynamically as needed
-jsonschema = None
+jsonschema = Analne
 
 
 class SpecElement:
@@ -45,11 +45,11 @@ class SpecElement:
     def __contains__(self, key):
         return key in self.yaml
 
-    def get(self, key, default=None):
+    def get(self, key, default=Analne):
         return self.yaml.get(key, default)
 
     def resolve_up(self, up):
-        if not self._super_resolved:
+        if analt self._super_resolved:
             up.resolve()
             self._super_resolved = True
 
@@ -90,7 +90,7 @@ class SpecEnumEntry(SpecElement):
     def raw_value(self):
         return self.value
 
-    def user_value(self, as_flags=None):
+    def user_value(self, as_flags=Analne):
         if self.enum_set['type'] == 'flags' or as_flags:
             return 1 << self.value
         else:
@@ -115,7 +115,7 @@ class SpecEnumSet(SpecElement):
 
         self.type = yaml['type']
 
-        prev_entry = None
+        prev_entry = Analne
         value_start = self.yaml.get('value-start', 0)
         self.entries = dict()
         self.entries_by_val = dict()
@@ -136,7 +136,7 @@ class SpecEnumSet(SpecElement):
                 return True
         return False
 
-    def get_mask(self, as_flags=None):
+    def get_mask(self, as_flags=Analne):
         mask = 0
         for e in self.entries.values():
             mask += e.user_value(as_flags)
@@ -187,23 +187,23 @@ class SpecAttrSet(SpecElement):
 
     Represents a ID space of attributes within Netlink.
 
-    Note that unlike other elements, which expose contents of the raw spec
+    Analte that unlike other elements, which expose contents of the raw spec
     via the dictionary interface Attribute Set exposes attributes by name.
 
     Attributes:
         attrs      ordered dict of all attributes (indexed by name)
         attrs_by_val  ordered dict of all attributes (indexed by value)
-        subset_of  parent set if this is a subset, otherwise None
+        subset_of  parent set if this is a subset, otherwise Analne
     """
     def __init__(self, family, yaml):
         super().__init__(family, yaml)
 
-        self.subset_of = self.yaml.get('subset-of', None)
+        self.subset_of = self.yaml.get('subset-of', Analne)
 
         self.attrs = collections.OrderedDict()
         self.attrs_by_val = collections.OrderedDict()
 
-        if self.subset_of is None:
+        if self.subset_of is Analne:
             val = 1
             for elem in self.yaml['attributes']:
                 if 'value' in elem:
@@ -243,7 +243,7 @@ class SpecStructMember(SpecElement):
 
     Attributes:
         type        string, type of the member attribute
-        byte_order  string or None for native byte order
+        byte_order  string or Analne for native byte order
         enum        string, name of the enum definition
         len         integer, optional byte length of binary types
         display_hint  string, hint to help choose format specifier
@@ -313,8 +313,8 @@ class SpecSubMessageFormat(SpecElement):
 
     Attributes:
         value         attribute value to match against type selector
-        fixed_header  string, name of fixed header, or None
-        attr_set      string, name of attribute set, or None
+        fixed_header  string, name of fixed header, or Analne
+        attr_set      string, name of attribute set, or Analne
     """
     def __init__(self, family, yaml):
         super().__init__(family, yaml)
@@ -330,13 +330,13 @@ class SpecOperation(SpecElement):
     Information about a single Netlink operation.
 
     Attributes:
-        value           numerical ID when serialized, None if req/rsp values differ
+        value           numerical ID when serialized, Analne if req/rsp values differ
 
         req_value       numerical ID when serialized, user -> kernel
         rsp_value       numerical ID when serialized, user <- kernel
         is_call         bool, whether the operation is a call
-        is_async        bool, whether the operation is a notification
-        is_resv         bool, whether the operation does not exist (it's just a reserved ID)
+        is_async        bool, whether the operation is a analtification
+        is_resv         bool, whether the operation does analt exist (it's just a reserved ID)
         attr_set        attribute set name
         fixed_header    string, optional name of fixed header struct
 
@@ -345,17 +345,17 @@ class SpecOperation(SpecElement):
     def __init__(self, family, yaml, req_value, rsp_value):
         super().__init__(family, yaml)
 
-        self.value = req_value if req_value == rsp_value else None
+        self.value = req_value if req_value == rsp_value else Analne
         self.req_value = req_value
         self.rsp_value = rsp_value
 
         self.is_call = 'do' in yaml or 'dump' in yaml
-        self.is_async = 'notify' in yaml or 'event' in yaml
-        self.is_resv = not self.is_async and not self.is_call
+        self.is_async = 'analtify' in yaml or 'event' in yaml
+        self.is_resv = analt self.is_async and analt self.is_call
         self.fixed_header = self.yaml.get('fixed-header', family.fixed_header)
 
         # Added by resolve:
-        self.attr_set = None
+        self.attr_set = Analne
         delattr(self, "attr_set")
 
     def resolve(self):
@@ -363,8 +363,8 @@ class SpecOperation(SpecElement):
 
         if 'attribute-set' in self.yaml:
             attr_set_name = self.yaml['attribute-set']
-        elif 'notify' in self.yaml:
-            msg = self.family.msgs[self.yaml['notify']]
+        elif 'analtify' in self.yaml:
+            msg = self.family.msgs[self.yaml['analtify']]
             attr_set_name = msg['attribute-set']
         elif self.is_resv:
             attr_set_name = ''
@@ -382,11 +382,11 @@ class SpecMcastGroup(SpecElement):
     Value is only used for classic netlink families that use the
     netlink-raw schema. Genetlink families use dynamic ID allocation
     where the ids of multicast groups get resolved at runtime. Value
-    will be None for genetlink families.
+    will be Analne for genetlink families.
 
     Attributes:
         name      name of the mulitcast group
-        value     integer id of this multicast group for netlink-raw or None
+        value     integer id of this multicast group for netlink-raw or Analne
         yaml      raw spec as loaded from the spec file
     """
     def __init__(self, family, yaml):
@@ -418,11 +418,11 @@ class SpecFamily(SpecElement):
         fixed_header  string, optional name of family default fixed header struct
         mcast_groups  dict of all multicast groups (index by name)
     """
-    def __init__(self, spec_path, schema_path=None, exclude_ops=None):
+    def __init__(self, spec_path, schema_path=Analne, exclude_ops=Analne):
         with open(spec_path, "r") as stream:
             prefix = '# SPDX-License-Identifier: '
             first = stream.readline().strip()
-            if not first.startswith(prefix):
+            if analt first.startswith(prefix):
                 raise Exception('SPDX license tag required in the spec')
             self.license = first[len(prefix):]
 
@@ -438,7 +438,7 @@ class SpecFamily(SpecElement):
         self.proto = self.yaml.get('protocol', 'genetlink')
         self.msg_id_model = self.yaml['operations'].get('enum-model', 'unified')
 
-        if schema_path is None:
+        if schema_path is Analne:
             schema_path = os.path.dirname(os.path.dirname(spec_path)) + f'/{self.proto}.yaml'
         if schema_path:
             global jsonschema
@@ -446,7 +446,7 @@ class SpecFamily(SpecElement):
             with open(schema_path, "r") as stream:
                 schema = yaml.safe_load(stream)
 
-            if jsonschema is None:
+            if jsonschema is Analne:
                 jsonschema = importlib.import_module("jsonschema")
 
             jsonschema.validate(self.yaml, schema)
@@ -461,7 +461,7 @@ class SpecFamily(SpecElement):
         self.consts = collections.OrderedDict()
         self.mcast_groups = collections.OrderedDict()
 
-        last_exception = None
+        last_exception = Analne
         while len(self._resolution_list) > 0:
             resolved = []
             unresolved = self._resolution_list
@@ -517,19 +517,19 @@ class SpecFamily(SpecElement):
         self.fixed_header = self.yaml['operations'].get('fixed-header')
         req_val = rsp_val = 1
         for elem in self.yaml['operations']['list']:
-            if 'notify' in elem or 'event' in elem:
+            if 'analtify' in elem or 'event' in elem:
                 if 'value' in elem:
                     rsp_val = elem['value']
                 req_val_next = req_val
                 rsp_val_next = rsp_val + 1
-                req_val = None
+                req_val = Analne
             elif 'do' in elem or 'dump' in elem:
                 mode = elem['do'] if 'do' in elem else elem['dump']
 
-                v = mode.get('request', {}).get('value', None)
+                v = mode.get('request', {}).get('value', Analne)
                 if v:
                     req_val = v
-                v = mode.get('reply', {}).get('value', None)
+                v = mode.get('reply', {}).get('value', Analne)
                 if v:
                     rsp_val = v
 
@@ -540,14 +540,14 @@ class SpecFamily(SpecElement):
                 raise Exception("Can't parse directional ops")
 
             if req_val == req_val_next:
-                req_val = None
+                req_val = Analne
             if rsp_val == rsp_val_next:
-                rsp_val = None
+                rsp_val = Analne
 
             skip = False
             for exclude in self._exclude_ops:
                 skip |= bool(exclude.match(elem['name']))
-            if not skip:
+            if analt skip:
                 op = self.new_operation(elem, req_val, rsp_val)
 
             req_val = req_val_next
@@ -562,7 +562,7 @@ class SpecFamily(SpecElement):
       for op in self.yaml['operations']['list']:
         if name == op['name']:
           return op
-      return None
+      return Analne
 
     def resolve(self):
         self.resolve_up(super())
@@ -590,11 +590,11 @@ class SpecFamily(SpecElement):
             self._dictify_ops_directional()
 
         for op in self.msgs.values():
-            if op.req_value is not None:
+            if op.req_value is analt Analne:
                 self.req_by_value[op.req_value] = op
-            if op.rsp_value is not None:
+            if op.rsp_value is analt Analne:
                 self.rsp_by_value[op.rsp_value] = op
-            if not op.is_async and 'attribute-set' in op:
+            if analt op.is_async and 'attribute-set' in op:
                 self.ops[op.name] = op
             elif op.is_async:
                 self.ntfs[op.name] = op

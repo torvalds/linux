@@ -184,7 +184,7 @@ int hantro_vp9_dec_init(struct hantro_ctx *ctx)
 
 	tile_edge->cpu = dma_alloc_coherent(vpu->dev, size, &tile_edge->dma, GFP_KERNEL);
 	if (!tile_edge->cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tile_edge->size = size;
 	memset(tile_edge->cpu, 0, size);
@@ -223,7 +223,7 @@ err_misc:
 err_segment_map:
 	dma_free_coherent(vpu->dev, tile_edge->size, tile_edge->cpu, tile_edge->dma);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void hantro_vp9_dec_exit(struct hantro_ctx *ctx)

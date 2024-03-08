@@ -20,7 +20,7 @@ static netdev_tx_t nlmon_xmit(struct sk_buff *skb, struct net_device *dev)
 static int nlmon_dev_init(struct net_device *dev)
 {
 	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
-	return dev->lstats == NULL ? -ENOMEM : 0;
+	return dev->lstats == NULL ? -EANALMEM : 0;
 }
 
 static void nlmon_dev_uninit(struct net_device *dev)
@@ -83,7 +83,7 @@ static const struct net_device_ops nlmon_ops = {
 static void nlmon_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_NETLINK;
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
 
 	dev->netdev_ops	= &nlmon_ops;
 	dev->ethtool_ops = &nlmon_ethtool_ops;
@@ -91,10 +91,10 @@ static void nlmon_setup(struct net_device *dev)
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			NETIF_F_HIGHDMA | NETIF_F_LLTX;
-	dev->flags = IFF_NOARP;
+	dev->flags = IFF_ANALARP;
 
 	/* That's rather a softlimit here, which, of course,
-	 * can be altered. Not a real MTU, but what is to be
+	 * can be altered. Analt a real MTU, but what is to be
 	 * expected in most cases.
 	 */
 	dev->mtu = NLMSG_GOODSIZE;

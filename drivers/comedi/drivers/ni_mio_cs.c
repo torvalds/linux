@@ -15,7 +15,7 @@
  *   DAQCard-AI-16E-4, DAQCard-6062E, DAQCard-6024E, DAQCard-6036E
  * Updated: Thu Oct 23 19:43:17 CDT 2003
  *
- * See the notes in the ni_atmio.o driver.
+ * See the analtes in the ni_atmio.o driver.
  */
 
 /*
@@ -103,7 +103,7 @@ static const struct ni_board_struct ni_boards[] = {
 #if 0
 	{
 		.name		= "DAQCard-6715",
-		.device_id	= 0x0000,	/* unknown */
+		.device_id	= 0x0000,	/* unkanalwn */
 		.n_aochan	= 8,
 		.ao_maxdata	= 0x0fff,
 		.ao_671x	= 8192,
@@ -141,7 +141,7 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 		if (!ret)
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int mio_cs_auto_attach(struct comedi_device *dev,
@@ -153,7 +153,7 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 
 	board = ni_getboardtype(dev, link);
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 

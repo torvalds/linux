@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -18,7 +18,7 @@
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/random.h>
-#include <linux/user-return-notifier.h>
+#include <linux/user-return-analtifier.h>
 #include <linux/dmi.h>
 #include <linux/utsname.h>
 #include <linux/stackprotector.h>
@@ -57,7 +57,7 @@
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
- * no more per-task TSS's. The TSS size is kept cacheline-aligned
+ * anal more per-task TSS's. The TSS size is kept cacheline-aligned
  * so they are allowed to end up in the .data..cacheline_aligned
  * section. Since TSS's are completely CPU-local, we want them
  * on exact cacheline boundaries, to eliminate cacheline ping-pong.
@@ -67,7 +67,7 @@ __visible DEFINE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw) = {
 		/*
 		 * .sp0 is only used when entering ring 0 from a lower
 		 * privilege level.  Since the init task never runs anything
-		 * but ring 0 code, there is no need for a valid value here.
+		 * but ring 0 code, there is anal need for a valid value here.
 		 * Poison it.
 		 */
 		.sp0 = (1UL << (BITS_PER_LONG-1)) + 1,
@@ -195,7 +195,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	savesegment(gs, p->thread.gs);
 	/*
 	 * Clear all status flags including IF and set fixed bit. 64bit
-	 * does not have this initialization as the frame does not contain
+	 * does analt have this initialization as the frame does analt contain
 	 * flags. The flags consistency (especially vs. AC) is there
 	 * ensured via objtool, which lacks 32bit support.
 	 */
@@ -204,7 +204,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	/*
 	 * Allocate a new shadow stack for thread if needed. If shadow stack,
-	 * is disabled, new_ssp will remain 0, and fpu_clone() will know not to
+	 * is disabled, new_ssp will remain 0, and fpu_clone() will kanalw analt to
 	 * update it.
 	 */
 	new_ssp = shstk_alloc_thread_stack(p, clone_flags, args->stack_size);
@@ -283,10 +283,10 @@ void flush_thread(void)
 void disable_TSC(void)
 {
 	preempt_disable();
-	if (!test_and_set_thread_flag(TIF_NOTSC))
+	if (!test_and_set_thread_flag(TIF_ANALTSC))
 		/*
-		 * Must flip the CPU state synchronously with
-		 * TIF_NOTSC in the current running context.
+		 * Must flip the CPU state synchroanalusly with
+		 * TIF_ANALTSC in the current running context.
 		 */
 		cr4_set_bits(X86_CR4_TSD);
 	preempt_enable();
@@ -295,10 +295,10 @@ void disable_TSC(void)
 static void enable_TSC(void)
 {
 	preempt_disable();
-	if (test_and_clear_thread_flag(TIF_NOTSC))
+	if (test_and_clear_thread_flag(TIF_ANALTSC))
 		/*
-		 * Must flip the CPU state synchronously with
-		 * TIF_NOTSC in the current running context.
+		 * Must flip the CPU state synchroanalusly with
+		 * TIF_ANALTSC in the current running context.
 		 */
 		cr4_clear_bits(X86_CR4_TSD);
 	preempt_enable();
@@ -308,7 +308,7 @@ int get_tsc_mode(unsigned long adr)
 {
 	unsigned int val;
 
-	if (test_thread_flag(TIF_NOTSC))
+	if (test_thread_flag(TIF_ANALTSC))
 		val = PR_TSC_SIGSEGV;
 	else
 		val = PR_TSC_ENABLE;
@@ -344,10 +344,10 @@ static void set_cpuid_faulting(bool on)
 static void disable_cpuid(void)
 {
 	preempt_disable();
-	if (!test_and_set_thread_flag(TIF_NOCPUID)) {
+	if (!test_and_set_thread_flag(TIF_ANALCPUID)) {
 		/*
-		 * Must flip the CPU state synchronously with
-		 * TIF_NOCPUID in the current running context.
+		 * Must flip the CPU state synchroanalusly with
+		 * TIF_ANALCPUID in the current running context.
 		 */
 		set_cpuid_faulting(true);
 	}
@@ -357,10 +357,10 @@ static void disable_cpuid(void)
 static void enable_cpuid(void)
 {
 	preempt_disable();
-	if (test_and_clear_thread_flag(TIF_NOCPUID)) {
+	if (test_and_clear_thread_flag(TIF_ANALCPUID)) {
 		/*
-		 * Must flip the CPU state synchronously with
-		 * TIF_NOCPUID in the current running context.
+		 * Must flip the CPU state synchroanalusly with
+		 * TIF_ANALCPUID in the current running context.
 		 */
 		set_cpuid_faulting(false);
 	}
@@ -369,13 +369,13 @@ static void enable_cpuid(void)
 
 static int get_cpuid_mode(void)
 {
-	return !test_thread_flag(TIF_NOCPUID);
+	return !test_thread_flag(TIF_ANALCPUID);
 }
 
 static int set_cpuid_mode(unsigned long cpuid_enabled)
 {
 	if (!boot_cpu_has(X86_FEATURE_CPUID_FAULT))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cpuid_enabled)
 		enable_cpuid();
@@ -391,18 +391,18 @@ static int set_cpuid_mode(unsigned long cpuid_enabled)
 void arch_setup_new_exec(void)
 {
 	/* If cpuid was previously disabled for this task, re-enable it. */
-	if (test_thread_flag(TIF_NOCPUID))
+	if (test_thread_flag(TIF_ANALCPUID))
 		enable_cpuid();
 
 	/*
 	 * Don't inherit TIF_SSBD across exec boundary when
-	 * PR_SPEC_DISABLE_NOEXEC is used.
+	 * PR_SPEC_DISABLE_ANALEXEC is used.
 	 */
 	if (test_thread_flag(TIF_SSBD) &&
-	    task_spec_ssb_noexec(current)) {
+	    task_spec_ssb_analexec(current)) {
 		clear_thread_flag(TIF_SSBD);
 		task_clear_spec_ssb_disable(current);
-		task_clear_spec_ssb_noexec(current);
+		task_clear_spec_ssb_analexec(current);
 		speculation_ctrl_update(read_thread_flags());
 	}
 
@@ -509,7 +509,7 @@ void speculative_store_bypass_ht_init(void)
 
 	/*
 	 * Shared state setup happens once on the first bringup
-	 * of the CPU. It's not destroyed on CPU hotunplug.
+	 * of the CPU. It's analt destroyed on CPU hotunplug.
 	 */
 	if (st->shared_state)
 		return;
@@ -698,7 +698,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 
 	switch_to_bitmap(tifp);
 
-	propagate_user_return_notify(prev_p, next_p);
+	propagate_user_return_analtify(prev_p, next_p);
 
 	if ((tifp & _TIF_BLOCKSTEP || tifn & _TIF_BLOCKSTEP) &&
 	    arch_has_block_step()) {
@@ -711,11 +711,11 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 	}
 
-	if ((tifp ^ tifn) & _TIF_NOTSC)
+	if ((tifp ^ tifn) & _TIF_ANALTSC)
 		cr4_toggle_bits_irqsoff(X86_CR4_TSD);
 
-	if ((tifp ^ tifn) & _TIF_NOCPUID)
-		set_cpuid_faulting(!!(tifn & _TIF_NOCPUID));
+	if ((tifp ^ tifn) & _TIF_ANALCPUID)
+		set_cpuid_faulting(!!(tifn & _TIF_ANALCPUID));
 
 	if (likely(!((tifp | tifn) & _TIF_SPEC_FORCE_UPDATE))) {
 		__speculation_ctrl_update(tifp, tifn);
@@ -731,7 +731,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 /*
  * Idle related variables and functions
  */
-unsigned long boot_option_idle_override = IDLE_NO_OVERRIDE;
+unsigned long boot_option_idle_override = IDLE_ANAL_OVERRIDE;
 EXPORT_SYMBOL(boot_option_idle_override);
 
 /*
@@ -754,7 +754,7 @@ static bool x86_idle_set(void)
 }
 
 #ifndef CONFIG_SMP
-static inline void __noreturn play_dead(void)
+static inline void __analreturn play_dead(void)
 {
 	BUG();
 }
@@ -766,7 +766,7 @@ void arch_cpu_idle_enter(void)
 	local_touch_nmi();
 }
 
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	play_dead();
 }
@@ -793,7 +793,7 @@ bool xen_set_default_idle(void)
 
 struct cpumask cpus_stop_mask;
 
-void __noreturn stop_this_cpu(void *dummy)
+void __analreturn stop_this_cpu(void *dummy)
 {
 	struct cpuinfo_x86 *c = this_cpu_ptr(&cpu_info);
 	unsigned int cpu = smp_processor_id();
@@ -854,7 +854,7 @@ void __noreturn stop_this_cpu(void *dummy)
 static void amd_e400_idle(void)
 {
 	/*
-	 * We cannot use static_cpu_has_bug() here because X86_BUG_AMD_APIC_C1E
+	 * We cananalt use static_cpu_has_bug() here because X86_BUG_AMD_APIC_C1E
 	 * gets set after static_cpu_has() places have been converted via
 	 * alternatives.
 	 */
@@ -875,7 +875,7 @@ static void amd_e400_idle(void)
  * exists and whenever MONITOR/MWAIT extensions are present there is at
  * least one C1 substate.
  *
- * Do not prefer MWAIT if MONITOR instruction has a bug or idle=nomwait
+ * Do analt prefer MWAIT if MONITOR instruction has a bug or idle=analmwait
  * is passed to kernel commandline parameter.
  */
 static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
@@ -883,10 +883,10 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 	u32 eax, ebx, ecx, edx;
 
 	/* User has disallowed the use of MWAIT. Fallback to HALT */
-	if (boot_option_idle_override == IDLE_NOMWAIT)
+	if (boot_option_idle_override == IDLE_ANALMWAIT)
 		return 0;
 
-	/* MWAIT is not supported on this platform. Fallback to HALT */
+	/* MWAIT is analt supported on this platform. Fallback to HALT */
 	if (!cpu_has(c, X86_FEATURE_MWAIT))
 		return 0;
 
@@ -897,7 +897,7 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &edx);
 
 	/*
-	 * If MWAIT extensions are not available, it is safe to use MWAIT
+	 * If MWAIT extensions are analt available, it is safe to use MWAIT
 	 * with EAX=0, ECX=0.
 	 */
 	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED))
@@ -911,8 +911,8 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 }
 
 /*
- * MONITOR/MWAIT with no hints, used for default C1 state. This invokes MWAIT
- * with interrupts enabled and no flags, which is backwards compatible with the
+ * MONITOR/MWAIT with anal hints, used for default C1 state. This invokes MWAIT
+ * with interrupts enabled and anal flags, which is backwards compatible with the
  * original MWAIT implementation.
  */
 static __cpuidle void mwait_idle(void)
@@ -983,7 +983,7 @@ void __init arch_post_acpi_subsys_init(void)
 
 	boot_cpu_set_bug(X86_BUG_AMD_APIC_C1E);
 
-	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
+	if (!boot_cpu_has(X86_FEATURE_ANALNSTOP_TSC))
 		mark_tsc_unstable("TSC halt in AMD C1E");
 	pr_info("System has AMD C1E enabled\n");
 }
@@ -1007,13 +1007,13 @@ static int __init idle_setup(char *str)
 		 */
 		static_call_update(x86_idle, default_idle);
 		boot_option_idle_override = IDLE_HALT;
-	} else if (!strcmp(str, "nomwait")) {
+	} else if (!strcmp(str, "analmwait")) {
 		/*
-		 * If the boot option of "idle=nomwait" is added,
+		 * If the boot option of "idle=analmwait" is added,
 		 * it means that mwait will be disabled for CPU C1/C2/C3
 		 * states.
 		 */
-		boot_option_idle_override = IDLE_NOMWAIT;
+		boot_option_idle_override = IDLE_ANALMWAIT;
 	} else
 		return -1;
 
@@ -1023,7 +1023,7 @@ early_param("idle", idle_setup);
 
 unsigned long arch_align_stack(unsigned long sp)
 {
-	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+	if (!(current->personality & ADDR_ANAL_RANDOMIZE) && randomize_va_space)
 		sp -= get_random_u32_below(8192);
 	return sp & ~0xf;
 }

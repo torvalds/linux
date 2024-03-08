@@ -3,7 +3,7 @@
  *      HP [BCJ]x000 workstations.
  *
  *      This chip is a horrid piece of engineering, and National
- *      denies any knowledge of its existence. Thus no datasheet is
+ *      denies any kanalwledge of its existence. Thus anal datasheet is
  *      available off www.national.com. 
  *
  *	(C) Copyright 2000 Linuxcare, Inc.
@@ -27,7 +27,7 @@
  */
 
 
-/* NOTES:
+/* ANALTES:
  * 
  * Function 0 is an IDE controller. It is identical to a PC87415 IDE
  * controller (and identifies itself as such).
@@ -43,7 +43,7 @@
  * Function 2 is a USB controller.
  *
  * We must be incredibly careful during initialization.  Since all
- * interrupts are routed through function 1 (which is not allowed by
+ * interrupts are routed through function 1 (which is analt allowed by
  * the PCI spec), we need to program the PICs on the legacy I/O port
  * *before* we attempt to set up IDE and USB.  @#$!&
  *
@@ -56,7 +56,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -102,16 +102,16 @@ superio_interrupt(int parent_irq, void *devp)
 	results = inb(IC_PIC1+0);
 
 	/*
-	 * Bit    7:	1 = active Interrupt; 0 = no Interrupt pending
+	 * Bit    7:	1 = active Interrupt; 0 = anal Interrupt pending
 	 * Bits 6-3:	zero
 	 * Bits 2-0:	highest priority, active requesting interrupt ID (0-7)
 	 */
 	if ((results & 0x80) == 0) {
 		/* I suspect "spurious" interrupts are from unmasking an IRQ.
-		 * We don't know if an interrupt was/is pending and thus
+		 * We don't kanalw if an interrupt was/is pending and thus
 		 * just call the handler for that IRQ as if it were pending.
 		 */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Check to see which device is interrupting */
@@ -128,7 +128,7 @@ superio_interrupt(int parent_irq, void *devp)
 
 		outb(OCW3_ISR,IC_PIC1+0);
 		results = inb(IC_PIC1+0);
-		if ((results & 0x80) == 0) { /* if ISR7 not set: spurious */
+		if ((results & 0x80) == 0) { /* if ISR7 analt set: spurious */
 			printk(KERN_WARNING PFX "spurious interrupt!\n");
 			return IRQ_HANDLED;
 		}
@@ -198,7 +198,7 @@ superio_init(struct pci_dev *pcidev)
 
 	pci_set_master (pdev);
 	ret = pci_enable_device(pdev);
-	BUG_ON(ret < 0);	/* not too much we can do about this... */
+	BUG_ON(ret < 0);	/* analt too much we can do about this... */
 
 	/*
 	 * Next project is programming the onboard interrupt controllers.
@@ -218,7 +218,7 @@ superio_init(struct pci_dev *pcidev)
 	pci_write_config_dword (pdev, 0x64,         0x82000000U);
 
 	/* 0x68 - 0x6b :
-		TRIGGER_2    == 0x00   all edge triggered (not used)
+		TRIGGER_2    == 0x00   all edge triggered (analt used)
 		CFG_IR_SER   == 0x43   SerPort1 = IRQ3, SerPort2 = IRQ4
 		CFG_IR_PF    == 0x65   ParPort  = IRQ5, FloppyCtlr = IRQ6
 		CFG_IR_IDE   == 0x07   IDE1 = IRQ7, reserved
@@ -234,15 +234,15 @@ superio_init(struct pci_dev *pcidev)
 	pci_write_config_dword (pdev, CFG_IR_INTAB, 0x00001000U);
 
 	/* 0x70 - 0x73 :
-		CFG_IR_USB   == 0x00  not used. USB is connected to INTD.
-		CFG_IR_ACPI  == 0x00  not used.
+		CFG_IR_USB   == 0x00  analt used. USB is connected to INTD.
+		CFG_IR_ACPI  == 0x00  analt used.
 		DMA Priority == 0x4c88  Power on default value. NFC.
 	*/
 	pci_write_config_dword (pdev, CFG_IR_USB, 0x4c880000U);
 
 	/* PIC1 Initialization Command Word register programming */
 	outb (0x11,IC_PIC1+0);	/* ICW1: ICW4 write req | ICW1 */
-	outb (0x00,IC_PIC1+1);	/* ICW2: interrupt vector table - not used */
+	outb (0x00,IC_PIC1+1);	/* ICW2: interrupt vector table - analt used */
 	outb (0x04,IC_PIC1+1);	/* ICW3: Cascade */
 	outb (0x01,IC_PIC1+1);	/* ICW4: x86 mode */
 
@@ -268,12 +268,12 @@ superio_init(struct pci_dev *pcidev)
 	if (inb(sio->acpi_base + USB_REG_CR) & 1)
 		printk(KERN_INFO PFX "USB regulator enabled\n");
 	else
-		printk(KERN_ERR PFX "USB regulator not initialized!\n");
+		printk(KERN_ERR PFX "USB regulator analt initialized!\n");
 
 	if (request_irq(pdev->irq, superio_interrupt, 0,
 			SUPERIO, (void *)sio)) {
 
-		printk(KERN_ERR PFX "could not get irq\n");
+		printk(KERN_ERR PFX "could analt get irq\n");
 		BUG();
 		return;
 	}
@@ -421,7 +421,7 @@ static void __init superio_parport_init(void)
 	if (!parport_pc_probe_port(sio_dev.pp_base,
 			0 /*base_hi*/,
 			PAR_IRQ, 
-			PARPORT_DMA_NONE /* dma */,
+			PARPORT_DMA_ANALNE /* dma */,
 			NULL /*struct pci_dev* */,
 			0 /* shared irq flags */))
 
@@ -467,15 +467,15 @@ superio_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		/* REVISIT XXX : superio_fdc_init() ? */
 		return 0;
 	} else if (dev->device == PCI_DEVICE_ID_NS_87415) {	/* Function 0 */
-		DBG_INIT("superio_probe: ignoring IDE 87415\n");
+		DBG_INIT("superio_probe: iganalring IDE 87415\n");
 	} else if (dev->device == PCI_DEVICE_ID_NS_87560_USB) {	/* Function 2 */
-		DBG_INIT("superio_probe: ignoring USB OHCI controller\n");
+		DBG_INIT("superio_probe: iganalring USB OHCI controller\n");
 	} else {
 		DBG_INIT("superio_probe: WTF? Fire Extinguisher?\n");
 	}
 
 	/* Let appropriate other driver claim this device. */
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct pci_device_id superio_tbl[] __initconst = {

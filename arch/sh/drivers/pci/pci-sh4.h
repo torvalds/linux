@@ -107,8 +107,8 @@
 #define SH4_PCIDCR3		0x1BC		/* DMA3 Control Register */
 #define SH4_PCIPAR		0x1C0		/* PIO Address Register */
   #define SH4_PCIPAR_CFGEN	  0x80000000	/* Configuration Enable */
-  #define SH4_PCIPAR_BUSNO	  0x00FF0000	/* Config. Bus Number */
-  #define SH4_PCIPAR_DEVNO	  0x0000FF00	/* Config. Device Number */
+  #define SH4_PCIPAR_BUSANAL	  0x00FF0000	/* Config. Bus Number */
+  #define SH4_PCIPAR_DEVANAL	  0x0000FF00	/* Config. Device Number */
   #define SH4_PCIPAR_REGAD	  0x000000FC	/* Register Address Number */
 #define SH4_PCIMBR		0x1C4		/* Memory Base Address */
   #define SH4_PCIMBR_MASK	  0xFF000000	/* Memory Space Mask */

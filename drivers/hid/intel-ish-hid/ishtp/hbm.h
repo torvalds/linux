@@ -24,7 +24,7 @@ struct ishtp_cl;
 /*
  * ISHTP Version
  */
-#define HBM_MINOR_VERSION		0
+#define HBM_MIANALR_VERSION		0
 #define HBM_MAJOR_VERSION		1
 
 /* Host bus message command opcode */
@@ -57,7 +57,7 @@ struct ishtp_cl;
 
 #define ISHTP_FLOW_CONTROL_CMD		0x08
 
-#define DMA_BUFFER_ALLOC_NOTIFY		0x11
+#define DMA_BUFFER_ALLOC_ANALTIFY		0x11
 #define DMA_BUFFER_ALLOC_RESPONSE	0x91
 
 #define DMA_XFER			0x12
@@ -102,7 +102,7 @@ struct ishtp_hbm_cl_cmd {
 };
 
 struct hbm_version {
-	uint8_t minor_version;
+	uint8_t mianalr_version;
 	uint8_t major_version;
 } __packed;
 
@@ -208,7 +208,7 @@ struct hbm_flow_control {
 	uint8_t reserved[ISHTP_FC_MESSAGE_RESERVED_LENGTH];
 } __packed;
 
-struct dma_alloc_notify {
+struct dma_alloc_analtify {
 	uint8_t hbm;
 	uint8_t status;
 	uint8_t reserved[2];
@@ -267,7 +267,7 @@ struct ish_system_states_state_change_req {
 /**
  * enum ishtp_hbm_state - host bus message protocol state
  *
- * @ISHTP_HBM_IDLE : protocol not started
+ * @ISHTP_HBM_IDLE : protocol analt started
  * @ISHTP_HBM_START : start request message was sent
  * @ISHTP_HBM_ENUM_CLIENTS : enumeration request was sent
  * @ISHTP_HBM_CLIENT_PROPERTIES : acquiring clients properties

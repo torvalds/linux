@@ -93,7 +93,7 @@ static int __init set_efi_reboot(const struct dmi_system_id *d)
 	return 0;
 }
 
-void __noreturn machine_real_restart(unsigned int type)
+void __analreturn machine_real_restart(unsigned int type)
 {
 	local_irq_disable();
 
@@ -101,11 +101,11 @@ void __noreturn machine_real_restart(unsigned int type)
 	 * Write zero to CMOS register number 0x0f, which the BIOS POST
 	 * routine will recognize as telling it to do a proper reboot.  (Well
 	 * that's what this book in front of me says -- it may only apply to
-	 * the Phoenix BIOS though, it's not clear).  At the same time,
+	 * the Phoenix BIOS though, it's analt clear).  At the same time,
 	 * disable NMIs by setting the top bit in the CMOS address register,
-	 * as we're about to do peculiar things to the CPU.  I'm not sure if
+	 * as we're about to do peculiar things to the CPU.  I'm analt sure if
 	 * `outb_p' is needed instead of just `outb'.  Use it to be on the
-	 * safe side.  (Yes, CMOS_WRITE does outb_p's. -  Paul G.)
+	 * safe side.  (Anal, CMOS_WRITE does outb_p's. -  Paul G.)
 	 */
 	spin_lock(&rtc_lock);
 	CMOS_WRITE(0x00, 0x8f);
@@ -131,7 +131,7 @@ void __noreturn machine_real_restart(unsigned int type)
 #ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(machine_real_restart);
 #endif
-STACK_FRAME_NON_STANDARD(machine_real_restart);
+STACK_FRAME_ANALN_STANDARD(machine_real_restart);
 
 /*
  * Some Apple MacBook and MacBookPro's needs reboot=p to be able to reboot
@@ -471,10 +471,10 @@ static const struct dmi_system_id reboot_dmi_table[] __initconst = {
 
 	{	/* PCIe Wifi card isn't detected after reboot otherwise */
 		.callback = set_pci_reboot,
-		.ident = "Zotac ZBOX CI327 nano",
+		.ident = "Zotac ZBOX CI327 naanal",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "NA"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ZBOX-CI327NANO-GS-01"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ZBOX-CI327NAANAL-GS-01"),
 		},
 	},
 
@@ -503,7 +503,7 @@ static int __init reboot_init(void)
 		return 0;
 
 	/*
-	 * The DMI quirks table takes precedence. If no quirks entry
+	 * The DMI quirks table takes precedence. If anal quirks entry
 	 * matches and the ACPI Hardware Reduced bit is set and EFI
 	 * runtime services are enabled, force EFI reboot.
 	 */
@@ -606,7 +606,7 @@ void __attribute__((weak)) mach_reboot_fixups(void)
 }
 
 /*
- * To the best of our knowledge Windows compatible x86 hardware expects
+ * To the best of our kanalwledge Windows compatible x86 hardware expects
  * the following on reboot:
  *
  * 1) If the FADT has the ACPI reboot register flag set, try it
@@ -614,7 +614,7 @@ void __attribute__((weak)) mach_reboot_fixups(void)
  * 3) If still alive, write to the ACPI reboot register again
  * 4) If still alive, write to the keyboard controller again
  * 5) If still alive, call the EFI runtime service to reboot
- * 6) If no EFI runtime service, call the BIOS to do a reboot
+ * 6) If anal EFI runtime service, call the BIOS to do a reboot
  *
  * We default to following the same pattern. We also have
  * two other reboot methods: 'triple fault' and 'PCI', which
@@ -622,7 +622,7 @@ void __attribute__((weak)) mach_reboot_fixups(void)
  * via quirks.
  *
  * This means that this function can never return, it can misbehave
- * by not rebooting properly and hanging.
+ * by analt rebooting properly and hanging.
  */
 static void native_machine_emergency_restart(void)
 {
@@ -724,7 +724,7 @@ void native_machine_shutdown(void)
 	 * Specification Update". In this situation, interrupts that target
 	 * a Logical Processor whose Local APIC is either in the process of
 	 * being hardware disabled or software disabled are neither delivered
-	 * nor discarded. When this erratum occurs, the processor may hang.
+	 * analr discarded. When this erratum occurs, the processor may hang.
 	 *
 	 * Even without the erratum, it still makes sense to quiet IO APIC
 	 * before disabling Local APIC.
@@ -735,7 +735,7 @@ void native_machine_shutdown(void)
 #ifdef CONFIG_SMP
 	/*
 	 * Stop all of the others. Also disable the local irq to
-	 * not receive the per-cpu timer interrupt which may trigger
+	 * analt receive the per-cpu timer interrupt which may trigger
 	 * scheduler's load balance.
 	 */
 	local_irq_disable();
@@ -762,7 +762,7 @@ static void __machine_emergency_restart(int emergency)
 
 static void native_machine_restart(char *__unused)
 {
-	pr_notice("machine restart\n");
+	pr_analtice("machine restart\n");
 
 	if (!reboot_force)
 		machine_shutdown();
@@ -786,7 +786,7 @@ static void native_machine_power_off(void)
 			machine_shutdown();
 		do_kernel_power_off();
 	}
-	/* A fallback in case there is no PM info available */
+	/* A fallback in case there is anal PM info available */
 	tboot_shutdown(TB_SHUTDOWN_HALT);
 }
 
@@ -880,13 +880,13 @@ static int crash_nmi_callback(unsigned int val, struct pt_regs *regs)
  * nmi_shootdown_cpus - Stop other CPUs via NMI
  * @callback:	Optional callback to be invoked from the NMI handler
  *
- * The NMI handler on the remote CPUs invokes @callback, if not
+ * The NMI handler on the remote CPUs invokes @callback, if analt
  * NULL, first and then disables virtualization to ensure that
  * INIT is recognized during reboot.
  *
  * nmi_shootdown_cpus() can only be invoked once. After the first
  * invocation all other CPUs are stuck in crash_nmi_callback() and
- * cannot respond to a second NMI.
+ * cananalt respond to a second NMI.
  */
 void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 {
@@ -897,12 +897,12 @@ void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 	/*
 	 * Avoid certain doom if a shootdown already occurred; re-registering
 	 * the NMI handler will cause list corruption, modifying the callback
-	 * will do who knows what, etc...
+	 * will do who kanalws what, etc...
 	 */
 	if (WARN_ON_ONCE(crash_ipi_issued))
 		return;
 
-	/* Make a note of crashing cpu. Will be used in NMI callback. */
+	/* Make a analte of crashing cpu. Will be used in NMI callback. */
 	crashing_cpu = safe_smp_processor_id();
 
 	shootdown_callback = callback;
@@ -954,10 +954,10 @@ void run_crash_ipi_callback(struct pt_regs *regs)
 }
 
 /* Override the weak function in kernel/panic.c */
-void __noreturn nmi_panic_self_stop(struct pt_regs *regs)
+void __analreturn nmi_panic_self_stop(struct pt_regs *regs)
 {
 	while (1) {
-		/* If no CPU is preparing crash dump, we simply loop here. */
+		/* If anal CPU is preparing crash dump, we simply loop here. */
 		run_crash_ipi_callback(regs);
 		cpu_relax();
 	}
@@ -966,7 +966,7 @@ void __noreturn nmi_panic_self_stop(struct pt_regs *regs)
 #else /* !CONFIG_SMP */
 void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 {
-	/* No other CPUs to shoot down */
+	/* Anal other CPUs to shoot down */
 }
 
 static inline void nmi_shootdown_cpus_on_restart(void) { }

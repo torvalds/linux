@@ -22,7 +22,7 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
 	val = MT_EE_CAL_GROUP_SIZE + MT_EE_CAL_DPD_SIZE;
 	dev->cal = devm_kzalloc(mdev->dev, val, GFP_KERNEL);
 	if (!dev->cal)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offs = is_mt7915(&dev->mt76) ? MT_EE_PRECAL : MT_EE_PRECAL_V2;
 
@@ -129,7 +129,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 		if (ret < 0)
 			return ret;
 
-		/* efuse info isn't enough */
+		/* efuse info isn't eanalugh */
 		if (free_block_num >= 29)
 			return -EINVAL;
 

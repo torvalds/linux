@@ -75,7 +75,7 @@ int __init pci_is_66mhz_capable(struct pci_channel *hose,
 					       pci_devfn, PCI_STATUS, &stat);
 			if (!(stat & PCI_STATUS_66MHZ)) {
 				printk(KERN_DEBUG
-				       "PCI: %02x:%02x not 66MHz capable.\n",
+				       "PCI: %02x:%02x analt 66MHz capable.\n",
 				       current_bus, pci_devfn);
 				cap66 = 0;
 				break;
@@ -148,9 +148,9 @@ unsigned int pcibios_handle_status_errors(unsigned long addr,
 
 		cmd |= PCI_STATUS_PARITY | PCI_STATUS_DETECTED_PARITY;
 
-		/* Now back off of the IRQ for awhile */
+		/* Analw back off of the IRQ for awhile */
 		if (hose->err_irq) {
-			disable_irq_nosync(hose->err_irq);
+			disable_irq_analsync(hose->err_irq);
 			hose->err_timer.expires = jiffies + HZ;
 			add_timer(&hose->err_timer);
 		}

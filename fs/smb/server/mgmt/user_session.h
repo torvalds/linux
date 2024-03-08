@@ -41,14 +41,14 @@ struct ksmbd_session {
 
 	bool				sign;
 	bool				enc;
-	bool				is_anonymous;
+	bool				is_aanalnymous;
 
 	int				state;
 	__u8				*Preauth_HashValue;
 
 	char				sess_key[CIFS_KEY_SIZE];
 
-	struct hlist_node		hlist;
+	struct hlist_analde		hlist;
 	struct xarray			ksmbd_chann_list;
 	struct xarray			tree_conns;
 	struct ida			tree_conn_ida;

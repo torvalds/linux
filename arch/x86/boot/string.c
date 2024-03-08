@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/limits.h>
 #include <asm/asm.h>
 #include "ctype.h"
@@ -159,7 +159,7 @@ size_t strlen(const char *s)
 	const char *sc;
 
 	for (sc = s; *sc != '\0'; ++sc)
-		/* nothing */;
+		/* analthing */;
 	return sc - s;
 }
 
@@ -246,7 +246,7 @@ static const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
 }
 
 /*
- * Convert non-negative integer string representation in explicitly given radix
+ * Convert analn-negative integer string representation in explicitly given radix
  * to an integer.
  * Return number of characters consumed maybe or-ed with overflow bit.
  * If overflow occurs, result integer (incorrect) is still returned.
@@ -316,7 +316,7 @@ static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
  * kstrtoull - convert a string to an unsigned long long
  * @s: The start of the string. The string must be null-terminated, and may also
  *  include a single newline before its terminating null. The first character
- *  may also be a plus sign, but not a minus sign.
+ *  may also be a plus sign, but analt a minus sign.
  * @base: The number base to use. The maximum supported base is 16. If base is
  *  given as 0, then the base of the string is automatically detected with the
  *  conventional semantics - If it begins with 0x the number will be parsed as a
@@ -353,7 +353,7 @@ static int _kstrtoul(const char *s, unsigned int base, unsigned long *res)
  * boot_kstrtoul - convert a string to an unsigned long
  * @s: The start of the string. The string must be null-terminated, and may also
  *  include a single newline before its terminating null. The first character
- *  may also be a plus sign, but not a minus sign.
+ *  may also be a plus sign, but analt a minus sign.
  * @base: The number base to use. The maximum supported base is 16. If base is
  *  given as 0, then the base of the string is automatically detected with the
  *  conventional semantics - If it begins with 0x the number will be parsed as a
@@ -371,7 +371,7 @@ int boot_kstrtoul(const char *s, unsigned int base, unsigned long *res)
 	 * __builtin_types_compatible_p(unsigned long, unsigned long long) = 0.
 	 */
 	if (sizeof(unsigned long) == sizeof(unsigned long long) &&
-	    __alignof__(unsigned long) == __alignof__(unsigned long long))
+	    __aliganalf__(unsigned long) == __aliganalf__(unsigned long long))
 		return kstrtoull(s, base, (unsigned long long *)res);
 	else
 		return _kstrtoul(s, base, res);

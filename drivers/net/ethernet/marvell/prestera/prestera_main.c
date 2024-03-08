@@ -348,8 +348,8 @@ static int prestera_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 static void prestera_pcs_an_restart(struct phylink_pcs *pcs)
 {
 	/* TODO: add 1000basex AN restart support
-	 * (Currently FW has no support for 1000baseX AN restart, but it will in the future,
-	 * so as for now the function would stay empty.)
+	 * (Currently FW has anal support for 1000baseX AN restart, but it will in the future,
+	 * so as for analw the function would stay empty.)
 	 */
 }
 
@@ -369,25 +369,25 @@ static const struct phylink_pcs_ops prestera_pcs_ops = {
 static int prestera_port_sfp_bind(struct prestera_port *port)
 {
 	struct prestera_switch *sw = port->sw;
-	struct device_node *ports, *node;
-	struct fwnode_handle *fwnode;
+	struct device_analde *ports, *analde;
+	struct fwanalde_handle *fwanalde;
 	struct phylink *phy_link;
 	int err;
 
 	if (!sw->np)
 		return 0;
 
-	of_node_get(sw->np);
-	ports = of_find_node_by_name(sw->np, "ports");
+	of_analde_get(sw->np);
+	ports = of_find_analde_by_name(sw->np, "ports");
 
-	for_each_child_of_node(ports, node) {
+	for_each_child_of_analde(ports, analde) {
 		int num;
 
-		err = of_property_read_u32(node, "prestera,port-num", &num);
+		err = of_property_read_u32(analde, "prestera,port-num", &num);
 		if (err) {
 			dev_err(sw->dev->dev,
-				"device node %pOF has no valid reg property: %d\n",
-				node, err);
+				"device analde %pOF has anal valid reg property: %d\n",
+				analde, err);
 			goto out;
 		}
 
@@ -400,7 +400,7 @@ static int prestera_port_sfp_bind(struct prestera_port *port)
 		port->phy_config.dev = &port->dev->dev;
 		port->phy_config.type = PHYLINK_NETDEV;
 
-		fwnode = of_fwnode_handle(node);
+		fwanalde = of_fwanalde_handle(analde);
 
 		__set_bit(PHY_INTERFACE_MODE_10GBASER,
 			  port->phy_config.supported_interfaces);
@@ -414,7 +414,7 @@ static int prestera_port_sfp_bind(struct prestera_port *port)
 		port->phy_config.mac_capabilities =
 			MAC_1000 | MAC_2500FD | MAC_10000FD;
 
-		phy_link = phylink_create(&port->phy_config, fwnode,
+		phy_link = phylink_create(&port->phy_config, fwanalde,
 					  PHY_INTERFACE_MODE_INTERNAL,
 					  &prestera_mac_ops);
 		if (IS_ERR(phy_link)) {
@@ -428,8 +428,8 @@ static int prestera_port_sfp_bind(struct prestera_port *port)
 	}
 
 out:
-	of_node_put(node);
-	of_node_put(ports);
+	of_analde_put(analde);
+	of_analde_put(ports);
 	return err;
 }
 
@@ -450,7 +450,7 @@ static netdev_tx_t prestera_port_xmit(struct sk_buff *skb,
 int prestera_is_valid_mac_addr(struct prestera_port *port, const u8 *addr)
 {
 	if (!is_valid_ether_addr(addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	/* firmware requires that port's MAC address contains first 5 bytes
 	 * of the base MAC address
@@ -551,7 +551,7 @@ static int prestera_port_setup_tc(struct net_device *dev,
 	case TC_SETUP_BLOCK:
 		return prestera_flow_block_setup(port, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -609,7 +609,7 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 
 	dev = alloc_etherdev(sizeof(*port));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port = netdev_priv(dev);
 
@@ -693,7 +693,7 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 	}
 	cfg_mac.inband = 0;
 	cfg_mac.speed = 0;
-	cfg_mac.duplex = DUPLEX_UNKNOWN;
+	cfg_mac.duplex = DUPLEX_UNKANALWN;
 	cfg_mac.fec = PRESTERA_PORT_FEC_OFF;
 
 	err = prestera_port_cfg_mac_write(port, &cfg_mac);
@@ -905,7 +905,7 @@ int prestera_lag_id(struct prestera_switch *sw,
 		}
 	}
 	if (free_id < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 	*lag_id = free_id;
 	return 0;
 }
@@ -948,11 +948,11 @@ static int prestera_lag_port_add(struct prestera_port *port,
 	if (!lag) {
 		lag = prestera_lag_create(sw, lag_dev);
 		if (!lag)
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	if (lag->member_count >= sw->lag_member_max)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	err = prestera_hw_lag_member_add(port, lag->lag_id);
 	if (err) {
@@ -1015,7 +1015,7 @@ static int prestera_lag_init(struct prestera_switch *sw)
 
 	sw->lags = kcalloc(sw->lag_max, sizeof(*sw->lags), GFP_KERNEL);
 	if (!sw->lags)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (id = 0; id < sw->lag_max; id++)
 		sw->lags[id].lag_id = id;
@@ -1069,7 +1069,7 @@ struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev)
 static int prestera_netdev_port_lower_event(struct net_device *dev,
 					    unsigned long event, void *ptr)
 {
-	struct netdev_notifier_changelowerstate_info *info = ptr;
+	struct netdev_analtifier_changelowerstate_info *info = ptr;
 	struct netdev_lag_lower_state_info *lower_state_info;
 	struct prestera_port *port = netdev_priv(dev);
 	bool enabled;
@@ -1101,15 +1101,15 @@ static int prestera_netdev_port_event(struct net_device *lower,
 				      struct net_device *dev,
 				      unsigned long event, void *ptr)
 {
-	struct netdev_notifier_info *info = ptr;
-	struct netdev_notifier_changeupper_info *cu_info;
+	struct netdev_analtifier_info *info = ptr;
+	struct netdev_analtifier_changeupper_info *cu_info;
 	struct prestera_port *port = netdev_priv(dev);
 	struct netlink_ext_ack *extack;
 	struct net_device *upper;
 
-	extack = netdev_notifier_info_to_extack(info);
+	extack = netdev_analtifier_info_to_extack(info);
 	cu_info = container_of(info,
-			       struct netdev_notifier_changeupper_info,
+			       struct netdev_analtifier_changeupper_info,
 			       info);
 
 	switch (event) {
@@ -1117,7 +1117,7 @@ static int prestera_netdev_port_event(struct net_device *lower,
 		upper = cu_info->upper_dev;
 		if (!netif_is_bridge_master(upper) &&
 		    !netif_is_lag_master(upper)) {
-			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+			NL_SET_ERR_MSG_MOD(extack, "Unkanalwn upper device type");
 			return -EINVAL;
 		}
 
@@ -1131,7 +1131,7 @@ static int prestera_netdev_port_event(struct net_device *lower,
 
 		if (netif_is_lag_master(upper) &&
 		    !prestera_lag_master_check(upper, cu_info->upper_info, extack))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (netif_is_lag_master(upper) && vlan_uses_dev(dev)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Master device is a LAG master and port has a VLAN");
@@ -1140,7 +1140,7 @@ static int prestera_netdev_port_event(struct net_device *lower,
 		if (netif_is_lag_port(dev) && is_vlan_dev(upper) &&
 		    !netif_is_lag_master(vlan_dev_real_dev(upper))) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Can not put a VLAN on a LAG port");
+					   "Can analt put a VLAN on a LAG port");
 			return -EINVAL;
 		}
 		break;
@@ -1187,10 +1187,10 @@ static int prestera_netdevice_lag_event(struct net_device *lag_dev,
 	return 0;
 }
 
-static int prestera_netdev_event_handler(struct notifier_block *nb,
+static int prestera_netdev_event_handler(struct analtifier_block *nb,
 					 unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	int err = 0;
 
 	if (prestera_netdev_check(dev))
@@ -1198,7 +1198,7 @@ static int prestera_netdev_event_handler(struct notifier_block *nb,
 	else if (netif_is_lag_master(dev))
 		err = prestera_netdevice_lag_event(dev, event, ptr);
 
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 struct prestera_mdb_entry *
@@ -1280,7 +1280,7 @@ prestera_flood_domain_port_create(struct prestera_flood_domain *flood_domain,
 
 	flood_domain_port = kzalloc(sizeof(*flood_domain_port), GFP_KERNEL);
 	if (!flood_domain_port) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_port_alloc;
 	}
 
@@ -1289,7 +1289,7 @@ prestera_flood_domain_port_create(struct prestera_flood_domain *flood_domain,
 	if (list_empty(&flood_domain->flood_domain_port_list))
 		is_first_port_in_list = true;
 
-	list_add(&flood_domain_port->flood_domain_port_node,
+	list_add(&flood_domain_port->flood_domain_port_analde,
 		 &flood_domain->flood_domain_port_list);
 
 	flood_domain_port->flood_domain = flood_domain;
@@ -1308,7 +1308,7 @@ prestera_flood_domain_port_create(struct prestera_flood_domain *flood_domain,
 	return 0;
 
 err_prestera_mdb_port_create_hw:
-	list_del(&flood_domain_port->flood_domain_port_node);
+	list_del(&flood_domain_port->flood_domain_port_analde);
 	kfree(flood_domain_port);
 err_port_alloc:
 	return err;
@@ -1319,7 +1319,7 @@ prestera_flood_domain_port_destroy(struct prestera_flood_domain_port *port)
 {
 	struct prestera_flood_domain *flood_domain = port->flood_domain;
 
-	list_del(&port->flood_domain_port_node);
+	list_del(&port->flood_domain_port_analde);
 
 	WARN_ON_ONCE(prestera_hw_flood_domain_ports_reset(flood_domain));
 
@@ -1337,7 +1337,7 @@ prestera_flood_domain_port_find(struct prestera_flood_domain *flood_domain,
 
 	list_for_each_entry(flood_domain_port,
 			    &flood_domain->flood_domain_port_list,
-			    flood_domain_port_node)
+			    flood_domain_port_analde)
 		if (flood_domain_port->dev == dev &&
 		    vid == flood_domain_port->vid)
 			return flood_domain_port;
@@ -1347,21 +1347,21 @@ prestera_flood_domain_port_find(struct prestera_flood_domain *flood_domain,
 
 static int prestera_netdev_event_handler_register(struct prestera_switch *sw)
 {
-	sw->netdev_nb.notifier_call = prestera_netdev_event_handler;
+	sw->netdev_nb.analtifier_call = prestera_netdev_event_handler;
 
-	return register_netdevice_notifier(&sw->netdev_nb);
+	return register_netdevice_analtifier(&sw->netdev_nb);
 }
 
 static void prestera_netdev_event_handler_unregister(struct prestera_switch *sw)
 {
-	unregister_netdevice_notifier(&sw->netdev_nb);
+	unregister_netdevice_analtifier(&sw->netdev_nb);
 }
 
 static int prestera_switch_init(struct prestera_switch *sw)
 {
 	int err;
 
-	sw->np = sw->dev->dev->of_node;
+	sw->np = sw->dev->dev->of_analde;
 
 	err = prestera_hw_switch_init(sw);
 	if (err) {
@@ -1463,7 +1463,7 @@ static void prestera_switch_fini(struct prestera_switch *sw)
 	prestera_router_fini(sw);
 	prestera_netdev_event_handler_unregister(sw);
 	prestera_hw_switch_fini(sw);
-	of_node_put(sw->np);
+	of_analde_put(sw->np);
 }
 
 int prestera_device_register(struct prestera_device *dev)
@@ -1473,7 +1473,7 @@ int prestera_device_register(struct prestera_device *dev)
 
 	sw = prestera_devlink_alloc(dev);
 	if (!sw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->priv = sw;
 	sw->dev = dev;
@@ -1501,12 +1501,12 @@ static int __init prestera_module_init(void)
 {
 	prestera_wq = alloc_workqueue("prestera", 0, 0);
 	if (!prestera_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prestera_owq = alloc_ordered_workqueue("prestera_ordered", 0);
 	if (!prestera_owq) {
 		destroy_workqueue(prestera_wq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

@@ -31,7 +31,7 @@ obj-$(CONFIG_BT_MTK)		+= btmtk.o
 obj-$(CONFIG_BT_VIRTIO)		+= virtio_bt.o
 obj-$(CONFIG_BT_NXPUART)	+= btnxpuart.o
 
-obj-$(CONFIG_BT_HCIUART_NOKIA)	+= hci_nokia.o
+obj-$(CONFIG_BT_HCIUART_ANALKIA)	+= hci_analkia.o
 
 obj-$(CONFIG_BT_HCIRSI)		+= btrsi.o
 

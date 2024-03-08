@@ -10,7 +10,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/cpufreq.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -40,16 +40,16 @@ struct soc_data {
 
 static u32 get_bus_freq(void)
 {
-	struct device_node *soc;
+	struct device_analde *soc;
 	u32 sysfreq;
 	struct clk *pltclk;
 	int ret;
 
 	/* get platform freq by searching bus-frequency property */
-	soc = of_find_node_by_type(NULL, "soc");
+	soc = of_find_analde_by_type(NULL, "soc");
 	if (soc) {
 		ret = of_property_read_u32(soc, "bus-frequency", &sysfreq);
-		of_node_put(soc);
+		of_analde_put(soc);
 		if (!ret)
 			return sysfreq;
 	}
@@ -67,22 +67,22 @@ static u32 get_bus_freq(void)
 
 static struct clk *cpu_to_clk(int cpu)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct clk *clk;
 
 	if (!cpu_present(cpu))
 		return NULL;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_analde(cpu, NULL);
 	if (!np)
 		return NULL;
 
 	clk = of_clk_get(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	return clk;
 }
 
-/* traverse cpu nodes to get cpu mask of sharing clock wire */
+/* traverse cpu analdes to get cpu mask of sharing clock wire */
 static void set_affected_cpus(struct cpufreq_policy *policy)
 {
 	struct cpumask *dstp = policy->cpus;
@@ -92,7 +92,7 @@ static void set_affected_cpus(struct cpufreq_policy *policy)
 	for_each_present_cpu(i) {
 		clk = cpu_to_clk(i);
 		if (IS_ERR(clk)) {
-			pr_err("%s: no clock for cpu %d\n", __func__, i);
+			pr_err("%s: anal clock for cpu %d\n", __func__, i);
 			continue;
 		}
 
@@ -154,7 +154,7 @@ static void freq_table_sort(struct cpufreq_frequency_table *freq_table,
 
 static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int i, count;
 	u32 freq;
 	struct clk *clk;
@@ -164,9 +164,9 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	unsigned int cpu = policy->cpu;
 	u64 u64temp;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_analde(cpu, NULL);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -174,8 +174,8 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	policy->clk = of_clk_get(np, 0);
 	if (IS_ERR(policy->clk)) {
-		pr_err("%s: no clock information\n", __func__);
-		goto err_nomem2;
+		pr_err("%s: anal clock information\n", __func__);
+		goto err_analmem2;
 	}
 
 	hwclk = __clk_get_hw(policy->clk);
@@ -183,7 +183,7 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	data->pclk = kcalloc(count, sizeof(struct clk *), GFP_KERNEL);
 	if (!data->pclk)
-		goto err_nomem2;
+		goto err_analmem2;
 
 	table = kcalloc(count + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
@@ -202,7 +202,7 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->freq_table = table;
 	data->table = table;
 
-	/* update ->cpus if we have cluster, no harm if not */
+	/* update ->cpus if we have cluster, anal harm if analt */
 	set_affected_cpus(policy);
 	policy->driver_data = data;
 
@@ -211,18 +211,18 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	do_div(u64temp, get_bus_freq());
 	policy->cpuinfo.transition_latency = u64temp + 1;
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 
 err_pclk:
 	kfree(data->pclk);
-err_nomem2:
+err_analmem2:
 	kfree(data);
 err_np:
-	of_node_put(np);
+	of_analde_put(np);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int qoriq_cpufreq_cpu_exit(struct cpufreq_policy *policy)
@@ -260,7 +260,7 @@ static struct cpufreq_driver qoriq_cpufreq_driver = {
 };
 
 static const struct of_device_id qoriq_cpufreq_blacklist[] = {
-	/* e6500 cannot use cpufreq due to erratum A-008083 */
+	/* e6500 cananalt use cpufreq due to erratum A-008083 */
 	{ .compatible = "fsl,b4420-clockgen", },
 	{ .compatible = "fsl,b4860-clockgen", },
 	{ .compatible = "fsl,t2080-clockgen", },
@@ -271,13 +271,13 @@ static const struct of_device_id qoriq_cpufreq_blacklist[] = {
 static int qoriq_cpufreq_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node(NULL, qoriq_cpufreq_blacklist);
+	np = of_find_matching_analde(NULL, qoriq_cpufreq_blacklist);
 	if (np) {
-		of_node_put(np);
+		of_analde_put(np);
 		dev_info(&pdev->dev, "Disabling due to erratum A-008083");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = cpufreq_register_driver(&qoriq_cpufreq_driver);

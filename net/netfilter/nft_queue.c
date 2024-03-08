@@ -34,7 +34,7 @@ static void nft_queue_eval(const struct nft_expr *expr,
 	u32 ret;
 
 	if (priv->queues_total > 1) {
-		if (priv->flags & NFT_QUEUE_FLAG_CPU_FANOUT) {
+		if (priv->flags & NFT_QUEUE_FLAG_CPU_FAANALUT) {
 			int cpu = raw_smp_processor_id();
 
 			queue = priv->queuenum + cpu % priv->queues_total;
@@ -87,7 +87,7 @@ static int nft_queue_validate(const struct nft_ctx *ctx,
 	case NFPROTO_NETDEV: /* lacks okfn */
 		fallthrough;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return nft_chain_validate_hooks(ctx->chain, supported_hooks);
@@ -145,8 +145,8 @@ static int nft_queue_sreg_init(const struct nft_ctx *ctx,
 		priv->flags = ntohs(nla_get_be16(tb[NFTA_QUEUE_FLAGS]));
 		if (priv->flags & ~NFT_QUEUE_FLAG_MASK)
 			return -EINVAL;
-		if (priv->flags & NFT_QUEUE_FLAG_CPU_FANOUT)
-			return -EOPNOTSUPP;
+		if (priv->flags & NFT_QUEUE_FLAG_CPU_FAANALUT)
+			return -EOPANALTSUPP;
 	}
 
 	return 0;

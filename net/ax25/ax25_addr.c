@@ -3,7 +3,7 @@
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -239,7 +239,7 @@ int ax25_addr_build(unsigned char *buf, const ax25_address *src,
 	if (flag == AX25_RESPONSE) buf[6] |= AX25_CBIT;
 
 	/*
-	 *	Fast path the normal digiless path
+	 *	Fast path the analrmal digiless path
 	 */
 	if (d == NULL || d->ndigi == 0) {
 		buf[6] |= AX25_EBIT;
@@ -279,7 +279,7 @@ int ax25_addr_size(const ax25_digi *dp)
 }
 
 /*
- *	Reverse Digipeat List. May not pass both parameters as same struct
+ *	Reverse Digipeat List. May analt pass both parameters as same struct
  */
 void ax25_digi_invert(const ax25_digi *in, ax25_digi *out)
 {

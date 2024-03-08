@@ -290,8 +290,8 @@ static int test_mmap_thread(void)
 	waitpid(pid, NULL, 0);
 
 	/*
-	 * There's no need to call perf_evlist__disable,
-	 * monitored process is dead now.
+	 * There's anal need to call perf_evlist__disable,
+	 * monitored process is dead analw.
 	 */
 
 	perf_evlist__for_each_mmap(evlist, map, false) {
@@ -450,13 +450,13 @@ static int test_stat_multiplexing(void)
 			       PERF_FORMAT_TOTAL_TIME_RUNNING,
 		.disabled    = 1,
 	};
-	int err, i, nonzero = 0;
+	int err, i, analnzero = 0;
 	unsigned long count;
 	long long max = 0, min = 0, avg = 0;
 	double error = 0.0;
 	s8 scaled = 0;
 
-	/* read for non-multiplexing event count */
+	/* read for analn-multiplexing event count */
 	threads = perf_thread_map__new_dummy();
 	__T("failed to create threads", threads);
 
@@ -478,7 +478,7 @@ static int test_stat_multiplexing(void)
 
 	perf_evsel__read(evsel, 0, 0, &expected_counts);
 	__T("failed to read value for evsel", expected_counts.val != 0);
-	__T("failed to read non-multiplexing event count",
+	__T("failed to read analn-multiplexing event count",
 	    expected_counts.ena == expected_counts.run);
 
 	err = perf_evsel__disable(evsel);
@@ -537,9 +537,9 @@ static int test_stat_multiplexing(void)
 				    (double)counts[i].run / (double)counts[i].ena * 100.0,
 				    counts[i].run, counts[i].ena);
 		} else if (scaled == -1) {
-			__T_VERBOSE("\t Not Running\n");
+			__T_VERBOSE("\t Analt Running\n");
 		} else {
-			__T_VERBOSE("\t Not Scaling\n");
+			__T_VERBOSE("\t Analt Scaling\n");
 		}
 
 		if (counts[i].val > max)
@@ -551,11 +551,11 @@ static int test_stat_multiplexing(void)
 		avg += counts[i].val;
 
 		if (counts[i].val != 0)
-			nonzero++;
+			analnzero++;
 	}
 
-	if (nonzero != 0)
-		avg = avg / nonzero;
+	if (analnzero != 0)
+		avg = avg / analnzero;
 	else
 		avg = 0;
 

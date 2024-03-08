@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/list.h>
@@ -324,8 +324,8 @@ struct pch_vbus_gpio_data {
  * @suspended:		driver in suspended state
  * @connected:		gadget driver associated
  * @vbus_session:	required vbus_session state
- * @set_cfg_not_acked:	pending acknowledgement 4 setup
- * @waiting_zlp_ack:	pending acknowledgement 4 ZLP
+ * @set_cfg_analt_acked:	pending ackanalwledgement 4 setup
+ * @waiting_zlp_ack:	pending ackanalwledgement 4 ZLP
  * @data_requests:	DMA pool for data requests
  * @stp_requests:	DMA pool for setup requests
  * @dma_addr:		DMA pool for received
@@ -347,7 +347,7 @@ struct pch_udc_dev {
 			suspended:1,
 			connected:1,
 			vbus_session:1,
-			set_cfg_not_acked:1,
+			set_cfg_analt_acked:1,
 			waiting_zlp_ack:1;
 	struct dma_pool		*data_requests;
 	struct dma_pool		*stp_requests;
@@ -936,7 +936,7 @@ static void pch_udc_ep_clear_nak(struct pch_udc_ep *ep)
 			--loopcnt)
 			udelay(5);
 		if (!loopcnt)
-			dev_err(&dev->pdev->dev, "%s: RxFIFO not Empty\n",
+			dev_err(&dev->pdev->dev, "%s: RxFIFO analt Empty\n",
 				__func__);
 	}
 	loopcnt = 10000;
@@ -945,7 +945,7 @@ static void pch_udc_ep_clear_nak(struct pch_udc_ep *ep)
 		udelay(5);
 	}
 	if (!loopcnt)
-		dev_err(&dev->pdev->dev, "%s: Clear NAK not set for ep%d%s\n",
+		dev_err(&dev->pdev->dev, "%s: Clear NAK analt set for ep%d%s\n",
 			__func__, ep->num, (ep->in ? "in" : "out"));
 }
 
@@ -1131,9 +1131,9 @@ static int pch_udc_pcd_wakeup(struct usb_gadget *gadget)
 
 /**
  * pch_udc_pcd_selfpowered() - This API is invoked to specify whether the device
- *				is self powered or not
+ *				is self powered or analt
  * @gadget:	Reference to the gadget driver
- * @value:	Specifies self powered or not
+ * @value:	Specifies self powered or analt
  *
  * Return codes:
  *	0:		Success
@@ -1221,11 +1221,11 @@ static int pch_udc_pcd_vbus_session(struct usb_gadget *gadget, int is_active)
  *
  * Return codes:
  *	-EINVAL:	If the gadget passed is NULL
- *	-EOPNOTSUPP:
+ *	-EOPANALTSUPP:
  */
 static int pch_udc_pcd_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int pch_udc_start(struct usb_gadget *g,
@@ -1250,7 +1250,7 @@ static const struct usb_gadget_ops pch_udc_ops = {
  * Return value:
  *	1: VBUS is high
  *	0: VBUS is low
- *     -1: It is not enable to detect VBUS using GPIO
+ *     -1: It is analt enable to detect VBUS using GPIO
  */
 static int pch_vbus_gpio_get_value(struct pch_udc_dev *dev)
 {
@@ -1346,7 +1346,7 @@ static irqreturn_t pch_vbus_gpio_irq(int irq, void *data)
 	struct pch_udc_dev *dev = (struct pch_udc_dev *)data;
 
 	if (!dev->vbus_gpio.port || !dev->vbus_gpio.intr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pch_vbus_gpio_get_value(dev))
 		schedule_work(&dev->vbus_gpio.irq_work_rise);
@@ -1479,7 +1479,7 @@ static void pch_udc_free_dma_chain(struct pch_udc_dev *dev,
 	dma_addr_t addr = (dma_addr_t)td->next;
 	td->next = 0x00;
 	for (; i > 1; --i) {
-		/* do not free first desc., will be done by free for request */
+		/* do analt free first desc., will be done by free for request */
 		td = phys_to_virt(addr);
 		addr2 = (dma_addr_t)td->next;
 		dma_pool_free(dev->data_requests, td, addr);
@@ -1498,7 +1498,7 @@ static void pch_udc_free_dma_chain(struct pch_udc_dev *dev,
  *
  * Return codes:
  *	0:		success,
- *	-ENOMEM:	dma_pool_alloc invocation fails
+ *	-EANALMEM:	dma_pool_alloc invocation fails
  */
 static int pch_udc_create_dma_chain(struct pch_udc_ep *ep,
 				    struct pch_udc_request *req,
@@ -1524,7 +1524,7 @@ static int pch_udc_create_dma_chain(struct pch_udc_ep *ep,
 		td = dma_pool_alloc(ep->dev->data_requests, gfp_flags,
 				    &dma_addr);
 		if (!td)
-			goto nomem;
+			goto analmem;
 		i += buf_len;
 		td->dataptr = req->td_data->dataptr + i;
 		last->next = dma_addr;
@@ -1536,13 +1536,13 @@ static int pch_udc_create_dma_chain(struct pch_udc_ep *ep,
 	req->chain_len = len;
 	return 0;
 
-nomem:
+analmem:
 	if (len > 1) {
 		req->chain_len = len;
 		pch_udc_free_dma_chain(ep->dev, req);
 	}
 	req->chain_len = 1;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -1564,7 +1564,7 @@ static int prepare_dma(struct pch_udc_ep *ep, struct pch_udc_request *req,
 	/* Allocate and create a DMA chain */
 	retval = pch_udc_create_dma_chain(ep, req, ep->ep.maxpacket, gfp);
 	if (retval) {
-		pr_err("%s: could not create DMA chain:%d\n", __func__, retval);
+		pr_err("%s: could analt create DMA chain:%d\n", __func__, retval);
 		return retval;
 	}
 	if (ep->in)
@@ -1589,11 +1589,11 @@ static void process_zlp(struct pch_udc_ep *ep, struct pch_udc_request *req)
 	/* if set_config or set_intf is waiting for ack by zlp
 	 * then set CSR_DONE
 	 */
-	if (dev->set_cfg_not_acked) {
+	if (dev->set_cfg_analt_acked) {
 		pch_udc_set_csr_done(dev);
-		dev->set_cfg_not_acked = 0;
+		dev->set_cfg_analt_acked = 0;
 	}
-	/* setup command is ACK'ed now by zlp */
+	/* setup command is ACK'ed analw by zlp */
 	if (!dev->stall && dev->waiting_zlp_ack) {
 		pch_udc_ep_clear_nak(&(dev->ep[UDC_EP0IN_IDX]));
 		dev->waiting_zlp_ack = 0;
@@ -1653,7 +1653,7 @@ static int pch_udc_pcd_ep_enable(struct usb_ep *usbep,
 
 	ep = container_of(usbep, struct pch_udc_ep, ep);
 	dev = ep->dev;
-	if (!dev->driver || (dev->gadget.speed == USB_SPEED_UNKNOWN))
+	if (!dev->driver || (dev->gadget.speed == USB_SPEED_UNKANALWN))
 		return -ESHUTDOWN;
 	spin_lock_irqsave(&dev->lock, iflags);
 	ep->ep.desc = desc;
@@ -1759,7 +1759,7 @@ static void pch_udc_free_request(struct usb_ep *usbep,
 	req = container_of(usbreq, struct pch_udc_request, req);
 	dev = ep->dev;
 	if (!list_empty(&req->queue))
-		dev_err(&dev->pdev->dev, "%s: %s req=0x%p queue not empty\n",
+		dev_err(&dev->pdev->dev, "%s: %s req=0x%p queue analt empty\n",
 			__func__, usbep->name, req);
 	if (req->td_data != NULL) {
 		if (req->chain_len > 1)
@@ -1799,7 +1799,7 @@ static int pch_udc_pcd_queue(struct usb_ep *usbep, struct usb_request *usbreq,
 	req = container_of(usbreq, struct pch_udc_request, req);
 	if (!list_empty(&req->queue))
 		return -EINVAL;
-	if (!dev->driver || (dev->gadget.speed == USB_SPEED_UNKNOWN))
+	if (!dev->driver || (dev->gadget.speed == USB_SPEED_UNKANALWN))
 		return -ESHUTDOWN;
 	spin_lock_irqsave(&dev->lock, iflags);
 	/* map the buffer for dma */
@@ -1815,7 +1815,7 @@ static int pch_udc_pcd_queue(struct usb_ep *usbep, struct usb_request *usbreq,
 	usbreq->status = -EINPROGRESS;
 	req->dma_done = 0;
 	if (list_empty(&ep->queue) && !ep->halted) {
-		/* no pending transfer, so start this req */
+		/* anal pending transfer, so start this req */
 		if (!usbreq->length) {
 			process_zlp(ep, req);
 			retval = 0;
@@ -1834,7 +1834,7 @@ static int pch_udc_pcd_queue(struct usb_ep *usbep, struct usb_request *usbreq,
 			pch_udc_enable_ep_interrupts(ep->dev, (1 << ep->num));
 		}
 	}
-	/* Now add this request to the ep's pending requests */
+	/* Analw add this request to the ep's pending requests */
 	if (req != NULL)
 		list_add_tail(&req->queue, &ep->queue);
 
@@ -1901,7 +1901,7 @@ static int pch_udc_pcd_set_halt(struct usb_ep *usbep, int halt)
 	ep = container_of(usbep, struct pch_udc_ep, ep);
 	if (!ep->ep.desc && !ep->num)
 		return -EINVAL;
-	if (!ep->dev->driver || (ep->dev->gadget.speed == USB_SPEED_UNKNOWN))
+	if (!ep->dev->driver || (ep->dev->gadget.speed == USB_SPEED_UNKANALWN))
 		return -ESHUTDOWN;
 	spin_lock_irqsave(&udc_stall_spinlock, iflags);
 	if (list_empty(&ep->queue)) {
@@ -1942,7 +1942,7 @@ static int pch_udc_pcd_set_wedge(struct usb_ep *usbep)
 	ep = container_of(usbep, struct pch_udc_ep, ep);
 	if (!ep->ep.desc && !ep->num)
 		return -EINVAL;
-	if (!ep->dev->driver || (ep->dev->gadget.speed == USB_SPEED_UNKNOWN))
+	if (!ep->dev->driver || (ep->dev->gadget.speed == USB_SPEED_UNKANALWN))
 		return -ESHUTDOWN;
 	spin_lock_irqsave(&udc_stall_spinlock, iflags);
 	if (!list_empty(&ep->queue)) {
@@ -2122,7 +2122,7 @@ static void pch_udc_complete_receiver(struct pch_udc_ep *ep)
 				break;
 			}
 		if (td == req->td_data_last) {
-			dev_err(&dev->pdev->dev, "Not complete RX descriptor");
+			dev_err(&dev->pdev->dev, "Analt complete RX descriptor");
 			return;
 		}
 		addr = (dma_addr_t)td->next;
@@ -2137,7 +2137,7 @@ static void pch_udc_complete_receiver(struct pch_udc_ep *ep)
 	req->dma_going = 0;
 	req->req.actual = count;
 	complete_req(ep, req, 0);
-	/* If there is a new/failed requests try that now */
+	/* If there is a new/failed requests try that analw */
 	if (!list_empty(&ep->queue)) {
 		req = list_entry(ep->queue.next, struct pch_udc_request, queue);
 		pch_udc_start_rxrequest(ep, req);
@@ -2492,7 +2492,7 @@ static void pch_udc_svc_ur_interrupt(struct pch_udc_dev *dev)
 	dev->stall = 0;
 	dev->prot_stall = 0;
 	dev->waiting_zlp_ack = 0;
-	dev->set_cfg_not_acked = 0;
+	dev->set_cfg_analt_acked = 0;
 
 	/* disable ep to empty req queue. Skip the control EP's */
 	for (i = 0; i < (PCH_UDC_USED_EP_NUM*2); i++) {
@@ -2563,7 +2563,7 @@ static void pch_udc_svc_intf_interrupt(struct pch_udc_dev *dev)
 							 UDC_DEVSTS_INTF_SHIFT;
 	dev->cfg_data.cur_alt = (dev_stat & UDC_DEVSTS_ALT_MASK) >>
 							 UDC_DEVSTS_ALT_SHIFT;
-	dev->set_cfg_not_acked = 1;
+	dev->set_cfg_analt_acked = 1;
 	/* Construct the usb request for gadget driver and inform it */
 	memset(&dev->setup_data, 0 , sizeof dev->setup_data);
 	dev->setup_data.bRequest = USB_REQ_SET_INTERFACE;
@@ -2598,7 +2598,7 @@ static void pch_udc_svc_cfg_interrupt(struct pch_udc_dev *dev)
 	u32 reg, dev_stat = 0;
 
 	dev_stat = pch_udc_read_device_status(dev);
-	dev->set_cfg_not_acked = 1;
+	dev->set_cfg_analt_acked = 1;
 	dev->cfg_data.cur_cfg = (dev_stat & UDC_DEVSTS_CFG_MASK) >>
 				UDC_DEVSTS_CFG_SHIFT;
 	/* make usb request for gadget driver */
@@ -2713,7 +2713,7 @@ static irqreturn_t pch_udc_isr(int irq, void *pdev)
 		/* Clear ep interrupts */
 		pch_udc_write_ep_interrupts(dev, ep_intr);
 	if (!dev_intr && !ep_intr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	spin_lock(&dev->lock);
 	if (dev_intr)
 		pch_udc_dev_isr(dev, dev_intr);
@@ -2776,7 +2776,7 @@ static void pch_udc_pcd_reinit(struct pch_udc_dev *dev)
 	};
 	int i;
 
-	dev->gadget.speed = USB_SPEED_UNKNOWN;
+	dev->gadget.speed = USB_SPEED_UNKANALWN;
 	INIT_LIST_HEAD(&dev->gadget.ep_list);
 
 	/* Initialize the endpoints structures */
@@ -2826,7 +2826,7 @@ static void pch_udc_pcd_reinit(struct pch_udc_dev *dev)
  *
  * Return codes:
  *	0:		Success
- *	-ERRNO:		All kind of errors when retrieving VBUS GPIO
+ *	-ERRANAL:		All kind of errors when retrieving VBUS GPIO
  */
 static int pch_udc_pcd_init(struct pch_udc_dev *dev)
 {
@@ -2857,7 +2857,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	if (!dev->data_requests) {
 		dev_err(&dev->pdev->dev, "%s: can't get request data pool\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* dma desc for setup data */
@@ -2866,7 +2866,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	if (!dev->stp_requests) {
 		dev_err(&dev->pdev->dev, "%s: can't get setup request pool\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* setup */
 	td_stp = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
@@ -2874,7 +2874,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	if (!td_stp) {
 		dev_err(&dev->pdev->dev,
 			"%s: can't allocate setup dma descriptor\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev->ep[UDC_EP0OUT_IDX].td_stp = td_stp;
 
@@ -2884,7 +2884,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	if (!td_data) {
 		dev_err(&dev->pdev->dev,
 			"%s: can't allocate data dma descriptor\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev->ep[UDC_EP0OUT_IDX].td_data = td_data;
 	dev->ep[UDC_EP0IN_IDX].td_stp = NULL;
@@ -2895,7 +2895,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	ep0out_buf = devm_kzalloc(&dev->pdev->dev, UDC_EP0OUT_BUFF_SIZE * 4,
 				  GFP_KERNEL);
 	if (!ep0out_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->dma_addr = dma_map_single(&dev->pdev->dev, ep0out_buf,
 				       UDC_EP0OUT_BUFF_SIZE * 4,
 				       DMA_FROM_DEVICE);
@@ -2926,7 +2926,7 @@ static int pch_udc_stop(struct usb_gadget *g)
 
 	pch_udc_disable_interrupts(dev, UDC_DEVINT_MSK);
 
-	/* Assures that there are no pending requests with this driver */
+	/* Assures that there are anal pending requests with this driver */
 	dev->driver = NULL;
 	dev->connected = 0;
 
@@ -2947,7 +2947,7 @@ static int pch_vbus_gpio_add_table(struct device *d, void *table)
 	return devm_add_action_or_reset(d, pch_vbus_gpio_remove_table, table);
 }
 
-static struct gpiod_lookup_table pch_udc_minnow_vbus_gpio_table = {
+static struct gpiod_lookup_table pch_udc_minanalw_vbus_gpio_table = {
 	.dev_id		= "0000:02:02.4",
 	.table		= {
 		GPIO_LOOKUP("sch_gpio.33158", 12, NULL, GPIO_ACTIVE_HIGH),
@@ -2955,9 +2955,9 @@ static struct gpiod_lookup_table pch_udc_minnow_vbus_gpio_table = {
 	},
 };
 
-static int pch_udc_minnow_platform_init(struct device *d)
+static int pch_udc_minanalw_platform_init(struct device *d)
 {
-	return pch_vbus_gpio_add_table(d, &pch_udc_minnow_vbus_gpio_table);
+	return pch_vbus_gpio_add_table(d, &pch_udc_minanalw_vbus_gpio_table);
 }
 
 static int pch_udc_quark_platform_init(struct device *d)
@@ -2985,7 +2985,7 @@ static void pch_udc_remove(struct pci_dev *pdev)
 
 	usb_del_gadget_udc(&dev->gadget);
 
-	/* gadget driver must not be registered */
+	/* gadget driver must analt be registered */
 	if (dev->driver)
 		dev_err(&pdev->dev,
 			"%s: gadget driver still bound!!!\n", __func__);
@@ -3044,7 +3044,7 @@ static int pch_udc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* init */
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* pci setup */
 	retval = pcim_enable_device(pdev);
@@ -3119,10 +3119,10 @@ static const struct pci_device_id pch_udc_pcidev_id[] = {
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC,
-			       PCI_VENDOR_ID_CIRCUITCO, PCI_SUBSYSTEM_ID_CIRCUITCO_MINNOWBOARD),
+			       PCI_VENDOR_ID_CIRCUITCO, PCI_SUBSYSTEM_ID_CIRCUITCO_MINANALWBOARD),
 		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
-		.driver_data = (kernel_ulong_t)&pch_udc_minnow_platform_init,
+		.driver_data = (kernel_ulong_t)&pch_udc_minanalw_platform_init,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC),

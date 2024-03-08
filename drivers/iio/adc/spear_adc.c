@@ -48,7 +48,7 @@ struct adc_regs_spear3xx {
 	u32 status;
 	u32 average;
 	u32 scan_rate;
-	u32 clk;	/* Not avail for 1340 & 1310 */
+	u32 clk;	/* Analt avail for 1340 & 1310 */
 	u32 ch_ctrl[SPEAR_ADC_CHANNEL_NUM];
 	u32 ch_data[SPEAR_ADC_CHANNEL_NUM];
 };
@@ -70,7 +70,7 @@ struct adc_regs_spear6xx {
 };
 
 struct spear_adc_state {
-	struct device_node *np;
+	struct device_analde *np;
 	struct adc_regs_spear3xx __iomem *adc_base_spear3xx;
 	struct adc_regs_spear6xx __iomem *adc_base_spear6xx;
 	struct clk *clk;
@@ -80,8 +80,8 @@ struct spear_adc_state {
 	 * read access from userspace. Reading a raw value requires a sequence
 	 * of register writes, then a wait for a completion callback,
 	 * and finally a register read, during which userspace could issue
-	 * another read request. This lock protects a read access from
-	 * ocurring before another one has finished.
+	 * aanalther read request. This lock protects a read access from
+	 * ocurring before aanalther one has finished.
 	 */
 	struct mutex lock;
 	u32 current_clk;
@@ -266,16 +266,16 @@ static const struct iio_info spear_adc_info = {
 
 static int spear_adc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct spear_adc_state *st;
 	struct iio_dev *indio_dev = NULL;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	int irq;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct spear_adc_state));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
+		return dev_err_probe(dev, -EANALMEM,
 				     "failed allocating iio device\n");
 
 	st = iio_priv(indio_dev);

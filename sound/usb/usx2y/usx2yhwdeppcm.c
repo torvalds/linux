@@ -95,7 +95,7 @@ static int usx2y_iso_frames_per_buffer(struct snd_pcm_runtime *runtime,
  * we copy the data directly from the pcm buffer.
  * the current position to be copied is held in hwptr field.
  * since a urb can handle only a single linear buffer, if the total
- * transferred area overflows the buffer boundary, we cannot send
+ * transferred area overflows the buffer boundary, we cananalt send
  * it directly from the buffer.  thus the data is once copied to
  * a temporary buffer and urb points to that.
  */
@@ -120,7 +120,7 @@ static int usx2y_hwdep_urb_play_prepare(struct snd_usx2y_substream *subs,
 		/* calculate the size of a packet */
 		counts = shm->captured_iso[shm->playback_iso_head].length / usx2y->stride;
 		if (counts < 43 || counts > 50) {
-			snd_printk(KERN_ERR "should not be here with counts=%i\n", counts);
+			snd_printk(KERN_ERR "should analt be here with counts=%i\n", counts);
 			return -EPIPE;
 		}
 		/* set up descriptor */
@@ -335,7 +335,7 @@ static int usx2y_usbpcm_urbs_allocate(struct snd_usx2y_substream *subs)
 		*purb = usb_alloc_urb(nr_of_packs(), GFP_KERNEL);
 		if (!*purb) {
 			usx2y_usbpcm_urbs_release(subs);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		(*purb)->transfer_buffer = is_playback ?
 			subs->usx2y->hwdep_pcm_shm->playback : (
@@ -456,7 +456,7 @@ static int usx2y_usbpcm_urbs_start(struct snd_usx2y_substream *subs)
 				urb->transfer_buffer_length = subs->maxpacksize * nr_of_packs();
 				err = usb_submit_urb(urb, GFP_KERNEL);
 				if (err < 0) {
-					snd_printk(KERN_ERR "cannot usb_submit_urb() for urb %d, err = %d\n", u, err);
+					snd_printk(KERN_ERR "cananalt usb_submit_urb() for urb %d, err = %d\n", u, err);
 					err = -EPIPE;
 					goto cleanup;
 				}  else {
@@ -478,7 +478,7 @@ static int usx2y_usbpcm_urbs_start(struct snd_usx2y_substream *subs)
 
  cleanup:
 	if (err) {
-		usx2y_subs_startup_finish(usx2y);	// Call it now
+		usx2y_subs_startup_finish(usx2y);	// Call it analw
 		usx2y_clients_stop(usx2y);	// something is completely wrong > stop everything
 	}
 	return err;
@@ -508,7 +508,7 @@ static int snd_usx2y_usbpcm_prepare(struct snd_pcm_substream *substream)
 		usx2y->hwdep_pcm_shm = alloc_pages_exact(USX2Y_HWDEP_PCM_PAGES,
 							 GFP_KERNEL);
 		if (!usx2y->hwdep_pcm_shm) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto up_prepare_mutex;
 		}
 		memset(usx2y->hwdep_pcm_shm, 0, USX2Y_HWDEP_PCM_PAGES);
@@ -703,7 +703,7 @@ static int snd_usx2y_hwdep_pcm_mmap(struct snd_hwdep *hw, struct file *filp, str
 	}
 
 	if (!usx2y->hwdep_pcm_shm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	area->vm_ops = &snd_usx2y_hwdep_pcm_vm_ops;
 	vm_flags_set(area, VM_DONTEXPAND | VM_DONTDUMP);

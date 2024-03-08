@@ -265,11 +265,11 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xfe410820, 0xfe410850, 32, /* CnINT2MSK0 / CnINT2MSKCLR0 */
 	  { FE1, FE0, 0, ATAPI, VCORE0, VIN1, VIN0, IIC,
 	    DU, GPIO3, GPIO2, GPIO1, GPIO0, PAM, 0, 0,
-	    0, 0, 0, 0, 0, 0, 0, 0, /* HUDI bits ignored */
+	    0, 0, 0, 0, 0, 0, 0, 0, /* HUDI bits iganalred */
 	    0, TMU5, TMU4, TMU3, TMU2, TMU1, TMU0, 0, },
 	    INTC_SMP_BALANCING(INT2DISTCR0) },
 	{ 0xfe410830, 0xfe410860, 32, /* CnINT2MSK1 / CnINT2MSKCLR1 */
-	  { 0, 0, 0, 0, DTU3, DTU2, DTU1, DTU0, /* IRM bits ignored */
+	  { 0, 0, 0, 0, DTU3, DTU2, DTU1, DTU0, /* IRM bits iganalred */
 	    PCII9, PCII8, PCII7, PCII6, PCII5, PCII4, PCII3, PCII2,
 	    PCII1, PCII0, DMAC1_DMAE, DMAC1_DMINT11,
 	    DMAC1_DMINT10, DMAC1_DMINT9, DMAC1_DMINT8, DMAC1_DMINT7,
@@ -382,15 +382,15 @@ void __init plat_mem_setup(void)
 {
 	unsigned int nid = 1;
 
-	/* Register CPU#0 URAM space as Node 1 */
-	setup_bootmem_node(nid++, 0x145f0000, 0x14610000);	/* CPU0 */
+	/* Register CPU#0 URAM space as Analde 1 */
+	setup_bootmem_analde(nid++, 0x145f0000, 0x14610000);	/* CPU0 */
 
 #if 0
-	/* XXX: Not yet.. */
-	setup_bootmem_node(nid++, 0x14df0000, 0x14e10000);	/* CPU1 */
-	setup_bootmem_node(nid++, 0x155f0000, 0x15610000);	/* CPU2 */
-	setup_bootmem_node(nid++, 0x15df0000, 0x15e10000);	/* CPU3 */
+	/* XXX: Analt yet.. */
+	setup_bootmem_analde(nid++, 0x14df0000, 0x14e10000);	/* CPU1 */
+	setup_bootmem_analde(nid++, 0x155f0000, 0x15610000);	/* CPU2 */
+	setup_bootmem_analde(nid++, 0x15df0000, 0x15e10000);	/* CPU3 */
 #endif
 
-	setup_bootmem_node(nid++, 0x16000000, 0x16020000);	/* CSM */
+	setup_bootmem_analde(nid++, 0x16000000, 0x16020000);	/* CSM */
 }

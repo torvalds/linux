@@ -10,7 +10,7 @@
 #include <asm/memory.h>
 #include <asm/sysreg.h>
 
-#define ESR_ELx_EC_UNKNOWN	(0x00)
+#define ESR_ELx_EC_UNKANALWN	(0x00)
 #define ESR_ELx_EC_WFx		(0x01)
 /* Unallocated EC: 0x02 */
 #define ESR_ELx_EC_CP15_32	(0x03)
@@ -85,7 +85,7 @@
 #define ESR_ELx_WNR_SHIFT	(6)
 #define ESR_ELx_WNR		(UL(1) << ESR_ELx_WNR_SHIFT)
 
-/* Asynchronous Error Type */
+/* Asynchroanalus Error Type */
 #define ESR_ELx_IDS_SHIFT	(24)
 #define ESR_ELx_IDS		(UL(1) << ESR_ELx_IDS_SHIFT)
 #define ESR_ELx_AET_SHIFT	(10)

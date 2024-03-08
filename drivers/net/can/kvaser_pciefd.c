@@ -85,7 +85,7 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 /* System build information fields */
 #define KVASER_PCIEFD_SYSID_VERSION_NR_CHAN_MASK GENMASK(31, 24)
 #define KVASER_PCIEFD_SYSID_VERSION_MAJOR_MASK GENMASK(23, 16)
-#define KVASER_PCIEFD_SYSID_VERSION_MINOR_MASK GENMASK(7, 0)
+#define KVASER_PCIEFD_SYSID_VERSION_MIANALR_MASK GENMASK(7, 0)
 #define KVASER_PCIEFD_SYSID_BUILD_SEQ_MASK GENMASK(15, 1)
 
 /* Reset DMA buffer 0, 1 and FIFO offset */
@@ -155,7 +155,7 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 #define KVASER_PCIEFD_KCAN_TX_NR_PACKETS_CURRENT_MASK GENMASK(7, 0)
 
 /* Current status packet sequence number */
-#define KVASER_PCIEFD_KCAN_STAT_SEQNO_MASK GENMASK(31, 24)
+#define KVASER_PCIEFD_KCAN_STAT_SEQANAL_MASK GENMASK(31, 24)
 /* Controller got CAN FD capability */
 #define KVASER_PCIEFD_KCAN_STAT_FD BIT(19)
 /* Controller got one-shot capability */
@@ -166,7 +166,7 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 #define KVASER_PCIEFD_KCAN_STAT_RMR BIT(14)
 /* Bus off */
 #define KVASER_PCIEFD_KCAN_STAT_BOFF BIT(11)
-/* Idle state. Controller in reset mode and no abort or flush pending */
+/* Idle state. Controller in reset mode and anal abort or flush pending */
 #define KVASER_PCIEFD_KCAN_STAT_IDLE BIT(10)
 /* Abort request */
 #define KVASER_PCIEFD_KCAN_STAT_AR BIT(7)
@@ -179,9 +179,9 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 #define KVASER_PCIEFD_KCAN_MODE_CCM BIT(31)
 /* Active error flag enable. Clear to force error passive */
 #define KVASER_PCIEFD_KCAN_MODE_EEN BIT(23)
-/* Acknowledgment packet type */
+/* Ackanalwledgment packet type */
 #define KVASER_PCIEFD_KCAN_MODE_APT BIT(20)
-/* CAN FD non-ISO */
+/* CAN FD analn-ISO */
 #define KVASER_PCIEFD_KCAN_MODE_NIFDEN BIT(15)
 /* Error packet enable */
 #define KVASER_PCIEFD_KCAN_MODE_EPEN BIT(12)
@@ -229,7 +229,7 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 #define KVASER_PCIEFD_RPACKET_ESI BIT(13)
 #define KVASER_PCIEFD_RPACKET_DLC_MASK GENMASK(11, 8)
 
-/* KCAN Transmit acknowledge packet, first word */
+/* KCAN Transmit ackanalwledge packet, first word */
 #define KVASER_PCIEFD_APACKET_NACK BIT(11)
 #define KVASER_PCIEFD_APACKET_ABL BIT(10)
 #define KVASER_PCIEFD_APACKET_CT BIT(9)
@@ -534,7 +534,7 @@ static void kvaser_pciefd_setup_controller(struct kvaser_pciefd_can *can)
 	mode = ioread32(can->reg_base + KVASER_PCIEFD_KCAN_MODE_REG);
 	if (can->can.ctrlmode & CAN_CTRLMODE_FD) {
 		mode &= ~KVASER_PCIEFD_KCAN_MODE_CCM;
-		if (can->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)
+		if (can->can.ctrlmode & CAN_CTRLMODE_FD_ANALN_ISO)
 			mode |= KVASER_PCIEFD_KCAN_MODE_NIFDEN;
 		else
 			mode &= ~KVASER_PCIEFD_KCAN_MODE_NIFDEN;
@@ -543,7 +543,7 @@ static void kvaser_pciefd_setup_controller(struct kvaser_pciefd_can *can)
 		mode &= ~KVASER_PCIEFD_KCAN_MODE_NIFDEN;
 	}
 
-	if (can->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (can->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		mode |= KVASER_PCIEFD_KCAN_MODE_LOM;
 	else
 		mode &= ~KVASER_PCIEFD_KCAN_MODE_LOM;
@@ -793,7 +793,7 @@ static netdev_tx_t kvaser_pciefd_start_xmit(struct sk_buff *skb,
 
 	count = FIELD_GET(KVASER_PCIEFD_KCAN_TX_NR_PACKETS_CURRENT_MASK,
 			  ioread32(can->reg_base + KVASER_PCIEFD_KCAN_TX_NR_PACKETS_REG));
-	/* No room for a new message, stop the queue until at least one
+	/* Anal room for a new message, stop the queue until at least one
 	 * successful transmit
 	 */
 	if (count >= can->can.echo_skb_max || can->can.echo_skb[can->echo_idx])
@@ -845,7 +845,7 @@ static int kvaser_pciefd_set_bittiming(struct kvaser_pciefd_can *can, bool data)
 	return 0;
 }
 
-static int kvaser_pciefd_set_nominal_bittiming(struct net_device *ndev)
+static int kvaser_pciefd_set_analminal_bittiming(struct net_device *ndev)
 {
 	return kvaser_pciefd_set_bittiming(netdev_priv(ndev), false);
 }
@@ -866,7 +866,7 @@ static int kvaser_pciefd_set_mode(struct net_device *ndev, enum can_mode mode)
 			ret = kvaser_pciefd_bus_on(can);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -916,7 +916,7 @@ static int kvaser_pciefd_setup_can_ctrls(struct kvaser_pciefd *pcie)
 		netdev = alloc_candev(sizeof(struct kvaser_pciefd_can),
 				      KVASER_PCIEFD_CAN_TX_MAX_COUNT);
 		if (!netdev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		can = netdev_priv(netdev);
 		netdev->netdev_ops = &kvaser_pciefd_netdev_ops;
@@ -947,22 +947,22 @@ static int kvaser_pciefd_setup_can_ctrls(struct kvaser_pciefd *pcie)
 
 		can->can.bittiming_const = &kvaser_pciefd_bittiming_const;
 		can->can.data_bittiming_const = &kvaser_pciefd_bittiming_const;
-		can->can.do_set_bittiming = kvaser_pciefd_set_nominal_bittiming;
+		can->can.do_set_bittiming = kvaser_pciefd_set_analminal_bittiming;
 		can->can.do_set_data_bittiming = kvaser_pciefd_set_data_bittiming;
 		can->can.do_set_mode = kvaser_pciefd_set_mode;
 		can->can.do_get_berr_counter = kvaser_pciefd_get_berr_counter;
-		can->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY |
+		can->can.ctrlmode_supported = CAN_CTRLMODE_LISTEANALNLY |
 					      CAN_CTRLMODE_FD |
-					      CAN_CTRLMODE_FD_NON_ISO |
+					      CAN_CTRLMODE_FD_ANALN_ISO |
 					      CAN_CTRLMODE_CC_LEN8_DLC;
 
 		status = ioread32(can->reg_base + KVASER_PCIEFD_KCAN_STAT_REG);
 		if (!(status & KVASER_PCIEFD_KCAN_STAT_FD)) {
 			dev_err(&pcie->pci->dev,
-				"CAN FD not supported as expected %d\n", i);
+				"CAN FD analt supported as expected %d\n", i);
 
 			free_candev(netdev);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (status & KVASER_PCIEFD_KCAN_STAT_CAP)
@@ -1053,7 +1053,7 @@ static int kvaser_pciefd_setup_dma(struct kvaser_pciefd *pcie)
 		if (!pcie->dma_data[i] || !dma_addr[i]) {
 			dev_err(&pcie->pci->dev, "Rx dma_alloc(%u) failure\n",
 				KVASER_PCIEFD_DMA_SIZE);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		pcie->driver_data->ops->kvaser_pciefd_write_dma_map(pcie, dma_addr[i], i);
 	}
@@ -1075,7 +1075,7 @@ static int kvaser_pciefd_setup_dma(struct kvaser_pciefd *pcie)
 
 	srb_status = ioread32(KVASER_PCIEFD_SRB_ADDR(pcie) + KVASER_PCIEFD_SRB_STAT_REG);
 	if (!(srb_status & KVASER_PCIEFD_SRB_STAT_DI)) {
-		dev_err(&pcie->pci->dev, "DMA not idle before enabling\n");
+		dev_err(&pcie->pci->dev, "DMA analt idle before enabling\n");
 		return -EIO;
 	}
 
@@ -1097,13 +1097,13 @@ static int kvaser_pciefd_setup_board(struct kvaser_pciefd *pcie)
 	build = ioread32(KVASER_PCIEFD_SYSID_ADDR(pcie) + KVASER_PCIEFD_SYSID_BUILD_REG);
 	dev_dbg(&pcie->pci->dev, "Version %lu.%lu.%lu\n",
 		FIELD_GET(KVASER_PCIEFD_SYSID_VERSION_MAJOR_MASK, version),
-		FIELD_GET(KVASER_PCIEFD_SYSID_VERSION_MINOR_MASK, version),
+		FIELD_GET(KVASER_PCIEFD_SYSID_VERSION_MIANALR_MASK, version),
 		FIELD_GET(KVASER_PCIEFD_SYSID_BUILD_SEQ_MASK, build));
 
 	srb_status = ioread32(KVASER_PCIEFD_SRB_ADDR(pcie) + KVASER_PCIEFD_SRB_STAT_REG);
 	if (!(srb_status & KVASER_PCIEFD_SRB_STAT_DMA)) {
-		dev_err(&pcie->pci->dev, "Hardware without DMA is not supported\n");
-		return -ENODEV;
+		dev_err(&pcie->pci->dev, "Hardware without DMA is analt supported\n");
+		return -EANALDEV;
 	}
 
 	pcie->bus_freq = ioread32(KVASER_PCIEFD_SYSID_ADDR(pcie) + KVASER_PCIEFD_SYSID_BUSFREQ_REG);
@@ -1137,7 +1137,7 @@ static int kvaser_pciefd_handle_data_packet(struct kvaser_pciefd *pcie,
 		skb = alloc_canfd_skb(priv->dev, &cf);
 		if (!skb) {
 			priv->dev->stats.rx_dropped++;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		cf->len = can_fd_dlc2len(dlc);
@@ -1149,7 +1149,7 @@ static int kvaser_pciefd_handle_data_packet(struct kvaser_pciefd *pcie,
 		skb = alloc_can_skb(priv->dev, (struct can_frame **)&cf);
 		if (!skb) {
 			priv->dev->stats.rx_dropped++;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		can_frame_set_cc_len((struct can_frame *)cf, dlc, priv->ctrlmode);
 	}
@@ -1258,7 +1258,7 @@ static int kvaser_pciefd_rx_error_frame(struct kvaser_pciefd_can *can,
 
 	if (!skb) {
 		ndev->stats.rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kvaser_pciefd_set_skb_timestamp(can->kv_pcie, skb, p->timestamp);
@@ -1283,7 +1283,7 @@ static int kvaser_pciefd_handle_error_packet(struct kvaser_pciefd *pcie,
 	can = pcie->can[ch_id];
 	kvaser_pciefd_rx_error_frame(can, p);
 	if (can->err_rep_cnt >= KVASER_PCIEFD_MAX_ERR_REP)
-		/* Do not report more errors, until bec_poll_timer expires */
+		/* Do analt report more errors, until bec_poll_timer expires */
 		kvaser_pciefd_disable_err_gen(can);
 	/* Start polling the error counters */
 	mod_timer(&can->bec_poll_timer, KVASER_PCIEFD_BEC_POLL_FREQ);
@@ -1311,7 +1311,7 @@ static int kvaser_pciefd_handle_status_resp(struct kvaser_pciefd_can *can,
 		skb = alloc_can_err_skb(ndev, &cf);
 		if (!skb) {
 			ndev->stats.rx_dropped++;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		kvaser_pciefd_change_state(can, cf, new_state, tx_state, rx_state);
@@ -1352,7 +1352,7 @@ static int kvaser_pciefd_handle_status_packet(struct kvaser_pciefd *pcie,
 	can = pcie->can[ch_id];
 
 	status = ioread32(can->reg_base + KVASER_PCIEFD_KCAN_STAT_REG);
-	cmdseq = FIELD_GET(KVASER_PCIEFD_KCAN_STAT_SEQNO_MASK, status);
+	cmdseq = FIELD_GET(KVASER_PCIEFD_KCAN_STAT_SEQANAL_MASK, status);
 
 	/* Reset done, start abort and flush */
 	if (p->header[0] & KVASER_PCIEFD_SPACK_IRM &&
@@ -1367,7 +1367,7 @@ static int kvaser_pciefd_handle_status_packet(struct kvaser_pciefd *pcie,
 		   p->header[0] & KVASER_PCIEFD_SPACK_IRM &&
 		   cmdseq == FIELD_GET(KVASER_PCIEFD_PACKET_SEQ_MASK, p->header[1]) &&
 		   status & KVASER_PCIEFD_KCAN_STAT_IDLE) {
-		/* Reset detected, send end of flush if no packet are in FIFO */
+		/* Reset detected, send end of flush if anal packet are in FIFO */
 		u8 count;
 
 		count = FIELD_GET(KVASER_PCIEFD_KCAN_TX_NR_PACKETS_CURRENT_MASK,
@@ -1416,7 +1416,7 @@ static void kvaser_pciefd_handle_nack_packet(struct kvaser_pciefd_can *can,
 		netif_rx(skb);
 	} else {
 		can->can.dev->stats.rx_dropped++;
-		netdev_warn(can->can.dev, "No memory left for err_skb\n");
+		netdev_warn(can->can.dev, "Anal memory left for err_skb\n");
 	}
 }
 
@@ -1431,7 +1431,7 @@ static int kvaser_pciefd_handle_ack_packet(struct kvaser_pciefd *pcie,
 		return -EIO;
 
 	can = pcie->can[ch_id];
-	/* Ignore control packet ACK */
+	/* Iganalre control packet ACK */
 	if (p->header[0] & KVASER_PCIEFD_APACKET_CT)
 		return 0;
 
@@ -1548,7 +1548,7 @@ static int kvaser_pciefd_read_packet(struct kvaser_pciefd *pcie, int *start_pos,
 		break;
 
 	default:
-		dev_err(&pcie->pci->dev, "Unknown packet type 0x%08X\n", type);
+		dev_err(&pcie->pci->dev, "Unkanalwn packet type 0x%08X\n", type);
 		ret = -EIO;
 		break;
 	}
@@ -1556,7 +1556,7 @@ static int kvaser_pciefd_read_packet(struct kvaser_pciefd *pcie, int *start_pos,
 	if (ret)
 		return ret;
 
-	/* Position does not point to the end of the package,
+	/* Position does analt point to the end of the package,
 	 * corrupted packet size?
 	 */
 	if ((*start_pos + size) != pos)
@@ -1616,7 +1616,7 @@ static void kvaser_pciefd_transmit_irq(struct kvaser_pciefd_can *can)
 
 	if (irq & KVASER_PCIEFD_KCAN_IRQ_BPP)
 		netdev_err(can->can.dev,
-			   "Fail to change bittiming, when not in reset mode\n");
+			   "Fail to change bittiming, when analt in reset mode\n");
 
 	if (irq & KVASER_PCIEFD_KCAN_IRQ_FDIC)
 		netdev_err(can->can.dev, "CAN FD frame in CAN mode\n");
@@ -1635,7 +1635,7 @@ static irqreturn_t kvaser_pciefd_irq_handler(int irq, void *dev)
 	int i;
 
 	if (!(board_irq & irq_mask->all))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (board_irq & irq_mask->kcan_rx0)
 		kvaser_pciefd_receive_irq(pcie);
@@ -1680,7 +1680,7 @@ static int kvaser_pciefd_probe(struct pci_dev *pdev,
 
 	pcie = devm_kzalloc(&pdev->dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, pcie);
 	pcie->pci = pdev;
@@ -1697,7 +1697,7 @@ static int kvaser_pciefd_probe(struct pci_dev *pdev,
 
 	pcie->reg_base = pci_iomap(pdev, 0, 0);
 	if (!pcie->reg_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_regions;
 	}
 

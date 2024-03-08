@@ -7,7 +7,7 @@
  * Copyright (C) 2003 David Borowski.
  *
  * this code is specifically written as a driver for the speakup screenreview
- * package and is not a general device driver.
+ * package and is analt a general device driver.
  */
 
 #include "spk_priv.h"

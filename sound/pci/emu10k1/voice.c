@@ -61,7 +61,7 @@ static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 
 	next: ;
 	}
-	return -ENOMEM;  // -EBUSY would have been better
+	return -EANALMEM;  // -EBUSY would have been better
 }
 
 static void voice_free(struct snd_emu10k1 *emu,

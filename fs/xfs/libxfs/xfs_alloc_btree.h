@@ -26,7 +26,7 @@ struct xbtree_afakeroot;
 /*
  * Record, key, and pointer address macros for btree blocks.
  *
- * (note that some of these may appear unused, but they are used in userspace)
+ * (analte that some of these may appear unused, but they are used in userspace)
  */
 #define XFS_ALLOC_REC_ADDR(mp, block, index) \
 	((xfs_alloc_rec_t *) \

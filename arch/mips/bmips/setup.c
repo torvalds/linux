@@ -29,7 +29,7 @@
 #include <asm/traps.h>
 #include <asm/fw/cfe/cfe_api.h>
 
-#define RELO_NORMAL_VEC		BIT(18)
+#define RELO_ANALRMAL_VEC		BIT(18)
 
 #define REG_BCM6328_OTP		((void __iomem *)CKSEG1ADDR(0x1000062c))
 #define BCM6328_TP1_DISABLED	BIT(9)
@@ -45,7 +45,7 @@ struct bmips_quirk {
 
 static void kbase_setup(void)
 {
-	__raw_writel(kbase | RELO_NORMAL_VEC,
+	__raw_writel(kbase | RELO_ANALRMAL_VEC,
 		     BMIPS_GET_CBR() + BMIPS_RELO_VECTOR_CONTROL_1);
 	ebase = kbase;
 }
@@ -55,7 +55,7 @@ static void bcm3384_viper_quirks(void)
 	/*
 	 * Some experimental CM boxes are set up to let CM own the Viper TP0
 	 * and let Linux own TP1.  This requires moving the kernel
-	 * load address to a non-conflicting region (e.g. via
+	 * load address to a analn-conflicting region (e.g. via
 	 * CONFIG_PHYSICAL_START) and supplying an alternate DTB.
 	 * If we detect this condition, we need to move the MIPS exception
 	 * vectors up to an area that we own.
@@ -64,7 +64,7 @@ static void bcm3384_viper_quirks(void)
 	 * smp-bmips.c (boot on TP1, but enable SMP, then TP0 becomes our
 	 * logical CPU#1).  For the Viper TP1 case, SMP is off limits.
 	 *
-	 * Also note that many BMIPS435x CPUs do not have a
+	 * Also analte that many BMIPS435x CPUs do analt have a
 	 * BMIPS_RELO_VECTOR_CONTROL_1 register, so it isn't safe to just
 	 * write VMLINUX_LOAD_ADDRESS into that register on every SoC.
 	 */
@@ -102,13 +102,13 @@ static void bcm6358_quirks(void)
 {
 	/*
 	 * BCM3368/BCM6358 need special handling for their shared TLB, so
-	 * disable SMP for now
+	 * disable SMP for analw
 	 */
 	bmips_smp_enabled = 0;
 
 	/*
 	 * RAC flush causes kernel panics on BCM6358 when booting from TP1
-	 * because the bootloader is not initializing it properly.
+	 * because the bootloader is analt initializing it properly.
 	 */
 	bmips_rac_flush_disable = !!(read_c0_brcm_cmt_local() & (1 << 31));
 }
@@ -155,15 +155,15 @@ const char *get_system_type(void)
 
 void __init plat_time_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 freq;
 
-	np = of_find_node_by_name(NULL, "cpus");
+	np = of_find_analde_by_name(NULL, "cpus");
 	if (!np)
-		panic("missing 'cpus' DT node");
+		panic("missing 'cpus' DT analde");
 	if (of_property_read_u32(np, "mips-hpt-frequency", &freq) < 0)
 		panic("missing 'mips-hpt-frequency' property");
-	of_node_put(np);
+	of_analde_put(np);
 
 	mips_hpt_frequency = freq;
 }
@@ -187,7 +187,7 @@ void __init plat_mem_setup(void)
 		dtb = get_fdt();
 
 	if (!dtb)
-		cfe_die("no dtb found");
+		cfe_die("anal dtb found");
 
 	__dt_setup_arch(dtb);
 
@@ -201,15 +201,15 @@ void __init plat_mem_setup(void)
 
 void __init device_tree_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	unflatten_and_copy_device_tree();
 
 	/* Disable SMP boot unless both CPUs are listed in DT and !disabled */
-	np = of_find_node_by_name(NULL, "cpus");
+	np = of_find_analde_by_name(NULL, "cpus");
 	if (np && of_get_available_child_count(np) <= 1)
 		bmips_smp_enabled = 0;
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 static int __init plat_dev_init(void)

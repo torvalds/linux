@@ -8,17 +8,17 @@
 #include "intel.h"
 #include "nfit.h"
 
-static ssize_t firmware_activate_noidle_show(struct device *dev,
+static ssize_t firmware_activate_analidle_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
 	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 
-	return sprintf(buf, "%s\n", acpi_desc->fwa_noidle ? "Y" : "N");
+	return sprintf(buf, "%s\n", acpi_desc->fwa_analidle ? "Y" : "N");
 }
 
-static ssize_t firmware_activate_noidle_store(struct device *dev,
+static ssize_t firmware_activate_analidle_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
@@ -30,12 +30,12 @@ static ssize_t firmware_activate_noidle_store(struct device *dev,
 	rc = kstrtobool(buf, &val);
 	if (rc)
 		return rc;
-	if (val != acpi_desc->fwa_noidle)
+	if (val != acpi_desc->fwa_analidle)
 		acpi_desc->fwa_cap = NVDIMM_FWA_CAP_INVALID;
-	acpi_desc->fwa_noidle = val;
+	acpi_desc->fwa_analidle = val;
 	return size;
 }
-DEVICE_ATTR_RW(firmware_activate_noidle);
+DEVICE_ATTR_RW(firmware_activate_analidle);
 
 bool intel_fwa_supported(struct nvdimm_bus *nvdimm_bus)
 {
@@ -134,7 +134,7 @@ static int intel_security_freeze(struct nvdimm *nvdimm)
 	int rc;
 
 	if (!test_bit(NVDIMM_INTEL_FREEZE_LOCK, &nfit_mem->dsm_mask))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
 	if (rc < 0)
@@ -168,7 +168,7 @@ static int intel_security_change_key(struct nvdimm *nvdimm,
 	int rc;
 
 	if (!test_bit(cmd, &nfit_mem->dsm_mask))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memcpy(nd_cmd.cmd.old_pass, old_data->data,
 			sizeof(nd_cmd.cmd.old_pass));
@@ -183,8 +183,8 @@ static int intel_security_change_key(struct nvdimm *nvdimm,
 		return 0;
 	case ND_INTEL_STATUS_INVALID_PASS:
 		return -EINVAL;
-	case ND_INTEL_STATUS_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
+	case ND_INTEL_STATUS_ANALT_SUPPORTED:
+		return -EOPANALTSUPP;
 	case ND_INTEL_STATUS_INVALID_STATE:
 	default:
 		return -EIO;
@@ -210,7 +210,7 @@ static int __maybe_unused intel_security_unlock(struct nvdimm *nvdimm,
 	int rc;
 
 	if (!test_bit(NVDIMM_INTEL_UNLOCK_UNIT, &nfit_mem->dsm_mask))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memcpy(nd_cmd.cmd.passphrase, key_data->data,
 			sizeof(nd_cmd.cmd.passphrase));
@@ -248,7 +248,7 @@ static int intel_security_disable(struct nvdimm *nvdimm,
 	};
 
 	if (!test_bit(NVDIMM_INTEL_DISABLE_PASSPHRASE, &nfit_mem->dsm_mask))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memcpy(nd_cmd.cmd.passphrase, key_data->data,
 			sizeof(nd_cmd.cmd.passphrase));
@@ -291,7 +291,7 @@ static int __maybe_unused intel_security_erase(struct nvdimm *nvdimm,
 	};
 
 	if (!test_bit(cmd, &nfit_mem->dsm_mask))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memcpy(nd_cmd.cmd.passphrase, key->data,
 			sizeof(nd_cmd.cmd.passphrase));
@@ -302,8 +302,8 @@ static int __maybe_unused intel_security_erase(struct nvdimm *nvdimm,
 	switch (nd_cmd.cmd.status) {
 	case 0:
 		break;
-	case ND_INTEL_STATUS_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
+	case ND_INTEL_STATUS_ANALT_SUPPORTED:
+		return -EOPANALTSUPP;
 	case ND_INTEL_STATUS_INVALID_PASS:
 		return -EINVAL;
 	case ND_INTEL_STATUS_INVALID_STATE:
@@ -331,7 +331,7 @@ static int __maybe_unused intel_security_query_overwrite(struct nvdimm *nvdimm)
 	};
 
 	if (!test_bit(NVDIMM_INTEL_QUERY_OVERWRITE, &nfit_mem->dsm_mask))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
 	if (rc < 0)
@@ -368,7 +368,7 @@ static int __maybe_unused intel_security_overwrite(struct nvdimm *nvdimm,
 	};
 
 	if (!test_bit(NVDIMM_INTEL_OVERWRITE, &nfit_mem->dsm_mask))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memcpy(nd_cmd.cmd.passphrase, nkey->data,
 			sizeof(nd_cmd.cmd.passphrase));
@@ -380,7 +380,7 @@ static int __maybe_unused intel_security_overwrite(struct nvdimm *nvdimm,
 	case 0:
 		return 0;
 	case ND_INTEL_STATUS_OVERWRITE_UNSUPPORTED:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case ND_INTEL_STATUS_INVALID_PASS:
 		return -EINVAL;
 	case ND_INTEL_STATUS_INVALID_STATE:
@@ -439,8 +439,8 @@ static enum nvdimm_fwa_state intel_bus_fwa_state(
 	int rc;
 
 	/*
-	 * It should not be possible for platform firmware to return
-	 * busy because activate is a synchronous operation. Treat it
+	 * It should analt be possible for platform firmware to return
+	 * busy because activate is a synchroanalus operation. Treat it
 	 * similar to invalid, i.e. always refresh / poll the status.
 	 */
 	switch (acpi_desc->fwa_state) {
@@ -488,12 +488,12 @@ static enum nvdimm_fwa_state intel_bus_fwa_state(
 		else if (info.capability & ND_INTEL_BUS_FWA_CAP_OSQUIESCE) {
 			/*
 			 * Skip hibernate cycle by default if platform
-			 * indicates that it does not need devices to be
+			 * indicates that it does analt need devices to be
 			 * quiesced.
 			 */
 			acpi_desc->fwa_cap = NVDIMM_FWA_CAP_LIVE;
 		} else
-			acpi_desc->fwa_cap = NVDIMM_FWA_CAP_NONE;
+			acpi_desc->fwa_cap = NVDIMM_FWA_CAP_ANALNE;
 	}
 
 	acpi_desc->fwa_state = state;
@@ -538,7 +538,7 @@ static int intel_bus_fwa_activate(struct nvdimm_bus_descriptor *nd_desc)
 		 * parameter override that policy.
 		 */
 		.cmd = {
-			.iodev_state = acpi_desc->fwa_noidle
+			.iodev_state = acpi_desc->fwa_analidle
 				? ND_INTEL_BUS_FWA_IODEV_OS_IDLE
 				: ND_INTEL_BUS_FWA_IODEV_FORCE_IDLE,
 		},
@@ -560,7 +560,7 @@ static int intel_bus_fwa_activate(struct nvdimm_bus_descriptor *nd_desc)
 	 * Whether the command succeeded, or failed, the agent checking
 	 * for the result needs to query the DIMMs individually.
 	 * Increment the activation count to invalidate all the DIMM
-	 * states at once (it's otherwise not possible to take
+	 * states at once (it's otherwise analt possible to take
 	 * acpi_desc->init_mutex in this context)
 	 */
 	acpi_desc->fwa_state = NVDIMM_FWA_INVALID;
@@ -610,7 +610,7 @@ static enum nvdimm_fwa_state intel_fwa_state(struct nvdimm *nvdimm)
 	int rc;
 
 	/*
-	 * Similar to the bus state, since activate is synchronous the
+	 * Similar to the bus state, since activate is synchroanalus the
 	 * busy state should resolve within the context of 'activate'.
 	 */
 	switch (nfit_mem->fwa_state) {
@@ -618,7 +618,7 @@ static enum nvdimm_fwa_state intel_fwa_state(struct nvdimm *nvdimm)
 	case NVDIMM_FWA_BUSY:
 		break;
 	default:
-		/* If no activations occurred the old state is still valid */
+		/* If anal activations occurred the old state is still valid */
 		if (nfit_mem->fwa_count == acpi_desc->fwa_count)
 			return nfit_mem->fwa_state;
 	}
@@ -643,21 +643,21 @@ static enum nvdimm_fwa_state intel_fwa_state(struct nvdimm *nvdimm)
 	}
 
 	switch (info.result) {
-	case ND_INTEL_DIMM_FWA_NONE:
-		nfit_mem->fwa_result = NVDIMM_FWA_RESULT_NONE;
+	case ND_INTEL_DIMM_FWA_ANALNE:
+		nfit_mem->fwa_result = NVDIMM_FWA_RESULT_ANALNE;
 		break;
 	case ND_INTEL_DIMM_FWA_SUCCESS:
 		nfit_mem->fwa_result = NVDIMM_FWA_RESULT_SUCCESS;
 		break;
-	case ND_INTEL_DIMM_FWA_NOTSTAGED:
-		nfit_mem->fwa_result = NVDIMM_FWA_RESULT_NOTSTAGED;
+	case ND_INTEL_DIMM_FWA_ANALTSTAGED:
+		nfit_mem->fwa_result = NVDIMM_FWA_RESULT_ANALTSTAGED;
 		break;
 	case ND_INTEL_DIMM_FWA_NEEDRESET:
 		nfit_mem->fwa_result = NVDIMM_FWA_RESULT_NEEDRESET;
 		break;
 	case ND_INTEL_DIMM_FWA_MEDIAFAILED:
 	case ND_INTEL_DIMM_FWA_ABORT:
-	case ND_INTEL_DIMM_FWA_NOTSUPP:
+	case ND_INTEL_DIMM_FWA_ANALTSUPP:
 	case ND_INTEL_DIMM_FWA_ERROR:
 	default:
 		nfit_mem->fwa_result = NVDIMM_FWA_RESULT_FAIL;
@@ -727,7 +727,7 @@ static int intel_fwa_arm(struct nvdimm *nvdimm, enum nvdimm_fwa_trigger arm)
 	}
 
 	/*
-	 * Invalidate the bus-level state, now that we're committed to
+	 * Invalidate the bus-level state, analw that we're committed to
 	 * changing the 'arm' state.
 	 */
 	acpi_desc->fwa_state = NVDIMM_FWA_INVALID;

@@ -19,7 +19,7 @@
 #define MAX_WRITE_REGSIZE 20
 
 enum helene_state {
-	STATE_UNKNOWN,
+	STATE_UNKANALWN,
 	STATE_SLEEP,
 	STATE_ACTIVE
 };
@@ -48,7 +48,7 @@ struct helene_priv {
 #define HELENE_BW_1_7		0x03
 
 enum helene_tv_system_t {
-	SONY_HELENE_TV_SYSTEM_UNKNOWN,
+	SONY_HELENE_TV_SYSTEM_UNKANALWN,
 	/* Terrestrial Analog */
 	SONY_HELENE_ATV_MN_EIAJ,
 	/**< System-M (Japan) (IF: Fp=5.75MHz in default) */
@@ -187,7 +187,7 @@ struct helene_terr_adjust_param_t {
 
 static const struct helene_terr_adjust_param_t
 terr_params[SONY_HELENE_TERR_TV_SYSTEM_NUM] = {
-	/*< SONY_HELENE_TV_SYSTEM_UNKNOWN */
+	/*< SONY_HELENE_TV_SYSTEM_UNKANALWN */
 	{HELENE_AUTO, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		HELENE_BW_6, HELENE_OFFSET(0),  HELENE_OFFSET(0),  0x00},
 	/* Analog */
@@ -447,7 +447,7 @@ static int helene_sleep(struct dvb_frontend *fe)
 
 static enum helene_tv_system_t helene_get_tv_system(struct dvb_frontend *fe)
 {
-	enum helene_tv_system_t system = SONY_HELENE_TV_SYSTEM_UNKNOWN;
+	enum helene_tv_system_t system = SONY_HELENE_TV_SYSTEM_UNKANALWN;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct helene_priv *priv = fe->tuner_priv;
 
@@ -522,8 +522,8 @@ static int helene_set_params_s(struct dvb_frontend *fe)
 			__func__, frequencykHz, symbol_rate);
 	tv_system = helene_get_tv_system(fe);
 
-	if (tv_system == SONY_HELENE_TV_SYSTEM_UNKNOWN) {
-		dev_err(&priv->i2c->dev, "%s(): unknown DTV system\n",
+	if (tv_system == SONY_HELENE_TV_SYSTEM_UNKANALWN) {
+		dev_err(&priv->i2c->dev, "%s(): unkanalwn DTV system\n",
 				__func__);
 		return -EINVAL;
 	}
@@ -569,7 +569,7 @@ static int helene_set_params_s(struct dvb_frontend *fe)
 		data[2] = 0x05;
 		break;
 	default:
-		dev_err(&priv->i2c->dev, "%s(): unknown xtal %d\n",
+		dev_err(&priv->i2c->dev, "%s(): unkanalwn xtal %d\n",
 				__func__, priv->xtal);
 		return -EINVAL;
 	}
@@ -627,7 +627,7 @@ static int helene_set_params_s(struct dvb_frontend *fe)
 			data[11] = 36; /* 5 <= lpf_cutoff <= 36 is valid */
 		break;
 	default:
-		dev_err(&priv->i2c->dev, "%s(): unknown standard %d\n",
+		dev_err(&priv->i2c->dev, "%s(): unkanalwn standard %d\n",
 				__func__, tv_system);
 		return -EINVAL;
 	}
@@ -670,8 +670,8 @@ static int helene_set_params_t(struct dvb_frontend *fe)
 			__func__, frequencykHz);
 	tv_system = helene_get_tv_system(fe);
 
-	if (tv_system == SONY_HELENE_TV_SYSTEM_UNKNOWN) {
-		dev_dbg(&priv->i2c->dev, "%s(): unknown DTV system\n",
+	if (tv_system == SONY_HELENE_TV_SYSTEM_UNKANALWN) {
+		dev_dbg(&priv->i2c->dev, "%s(): unkanalwn DTV system\n",
 				__func__);
 		return -EINVAL;
 	}
@@ -1072,7 +1072,7 @@ static int helene_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->i2c_address = client->addr;
 	priv->i2c = client->adapter;

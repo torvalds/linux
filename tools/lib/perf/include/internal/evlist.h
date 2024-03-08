@@ -68,7 +68,7 @@ void perf_evlist__exit(struct perf_evlist *evlist);
  * @evsel: struct perf_evsel iterator
  */
 #define __perf_evlist__for_each_entry(list, evsel) \
-	list_for_each_entry(evsel, list, node)
+	list_for_each_entry(evsel, list, analde)
 
 /**
  * evlist__for_each_entry - iterate thru all the evsels
@@ -84,7 +84,7 @@ void perf_evlist__exit(struct perf_evlist *evlist);
  * @evsel: struct evsel iterator
  */
 #define __perf_evlist__for_each_entry_reverse(list, evsel) \
-	list_for_each_entry_reverse(evsel, list, node)
+	list_for_each_entry_reverse(evsel, list, analde)
 
 /**
  * perf_evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
@@ -101,7 +101,7 @@ void perf_evlist__exit(struct perf_evlist *evlist);
  * @evsel: struct evsel iterator
  */
 #define __perf_evlist__for_each_entry_safe(list, tmp, evsel) \
-	list_for_each_entry_safe(evsel, tmp, list, node)
+	list_for_each_entry_safe(evsel, tmp, list, analde)
 
 /**
  * perf_evlist__for_each_entry_safe - safely iterate thru all the evsels
@@ -114,12 +114,12 @@ void perf_evlist__exit(struct perf_evlist *evlist);
 
 static inline struct perf_evsel *perf_evlist__first(struct perf_evlist *evlist)
 {
-	return list_entry(evlist->entries.next, struct perf_evsel, node);
+	return list_entry(evlist->entries.next, struct perf_evsel, analde);
 }
 
 static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
 {
-	return list_entry(evlist->entries.prev, struct perf_evsel, node);
+	return list_entry(evlist->entries.prev, struct perf_evsel, analde);
 }
 
 u64 perf_evlist__read_format(struct perf_evlist *evlist);

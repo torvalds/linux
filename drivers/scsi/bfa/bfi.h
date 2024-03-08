@@ -92,7 +92,7 @@ struct bfi_mhdr_s {
  * SG Flags
  */
 enum {
-	BFI_SGE_DATA		= 0,	/*  data address, not last	     */
+	BFI_SGE_DATA		= 0,	/*  data address, analt last	     */
 	BFI_SGE_DATA_CPL	= 1,	/*  data addr, last in current page */
 	BFI_SGE_DATA_LAST	= 3,	/*  data address, last		     */
 	BFI_SGE_LINK		= 2,	/*  link address		     */
@@ -184,7 +184,7 @@ enum bfi_pcifn_class {
  */
 enum bfi_mclass {
 	BFI_MC_IOC		= 1,	/*  IO Controller (IOC)	    */
-	BFI_MC_DIAG		= 2,    /*  Diagnostic Msgs            */
+	BFI_MC_DIAG		= 2,    /*  Diaganalstic Msgs            */
 	BFI_MC_FLASH		= 3,	/*  Flash message class	*/
 	BFI_MC_CEE		= 4,	/*  CEE	*/
 	BFI_MC_FCPORT		= 5,	/*  FC port			    */
@@ -261,7 +261,7 @@ struct bfi_ioc_getattr_req_s {
 #define BFI_IOC_ATTR_UUID_SZ	16
 struct bfi_ioc_attr_s {
 	wwn_t		mfg_pwwn;	/*  Mfg port wwn	   */
-	wwn_t		mfg_nwwn;	/*  Mfg node wwn	   */
+	wwn_t		mfg_nwwn;	/*  Mfg analde wwn	   */
 	mac_t		mfg_mac;	/*  Mfg mac		   */
 	u8		port_mode;	/* bfi_port_mode	   */
 	u8		rsvd_a;
@@ -287,7 +287,7 @@ struct bfi_ioc_attr_s {
 	u8	mfg_day;	/* manufacturing day */
 	u8	mfg_month;	/* manufacturing month */
 	u16	mfg_year;	/* manufacturing year */
-	u8	uuid[BFI_IOC_ATTR_UUID_SZ];	/*!< chinook uuid */
+	u8	uuid[BFI_IOC_ATTR_UUID_SZ];	/*!< chianalok uuid */
 };
 
 /*
@@ -325,14 +325,14 @@ struct bfi_ioc_fwver_s {
 #ifdef __BIG_ENDIAN
 	uint8_t patch;
 	uint8_t maint;
-	uint8_t minor;
+	uint8_t mianalr;
 	uint8_t major;
 	uint8_t rsvd[2];
 	uint8_t build;
 	uint8_t phase;
 #else
 	uint8_t major;
-	uint8_t minor;
+	uint8_t mianalr;
 	uint8_t maint;
 	uint8_t patch;
 	uint8_t phase;
@@ -371,12 +371,12 @@ enum bfi_ioc_img_ver_cmp_e {
 	 ((u32)(__p1_mode)))
 
 enum bfi_fwboot_type {
-	BFI_FWBOOT_TYPE_NORMAL  = 0,
+	BFI_FWBOOT_TYPE_ANALRMAL  = 0,
 	BFI_FWBOOT_TYPE_FLASH   = 1,
 	BFI_FWBOOT_TYPE_MEMTEST = 2,
 };
 
-#define BFI_FWBOOT_TYPE_NORMAL	0
+#define BFI_FWBOOT_TYPE_ANALRMAL	0
 #define BFI_FWBOOT_TYPE_MEMTEST	2
 #define BFI_FWBOOT_ENV_OS       0
 
@@ -394,7 +394,7 @@ struct bfi_ioc_hbeat_s {
  * IOC hardware/firmware state
  */
 enum bfi_ioc_state {
-	BFI_IOC_UNINIT		= 0,	/*  not initialized		     */
+	BFI_IOC_UNINIT		= 0,	/*  analt initialized		     */
 	BFI_IOC_INITING		= 1,	/*  h/w is being initialized	     */
 	BFI_IOC_HWINIT		= 2,	/*  h/w is initialized		     */
 	BFI_IOC_CFG		= 3,	/*  IOC configuration in progress   */
@@ -422,7 +422,7 @@ enum {
 	BFI_ADAPTER_SPEED_SH	= 0,	        /*  adapter speed shift   */
 	BFI_ADAPTER_PROTO	= 0x100000,	/*  prototype adapaters   */
 	BFI_ADAPTER_TTV		= 0x200000,	/*  TTV debug capable     */
-	BFI_ADAPTER_UNSUPP	= 0x400000,	/*  unknown adapter type  */
+	BFI_ADAPTER_UNSUPP	= 0x400000,	/*  unkanalwn adapter type  */
 };
 
 #define BFI_ADAPTER_GETP(__prop, __adap_prop)			\
@@ -825,13 +825,13 @@ enum bfi_sfp_i2h_e {
 };
 
 /*
- *	SFP state change notification
+ *	SFP state change analtification
  */
 struct bfi_sfp_scn_s {
 	struct bfi_mhdr_s mhr;	/* host msg header        */
 	u8	event;
 	u8	sfpid;
-	u8	pomlvl;	/* pom level: normal/warning/alarm */
+	u8	pomlvl;	/* pom level: analrmal/warning/alarm */
 	u8	is_elb;	/* e-loopback */
 };
 
@@ -978,7 +978,7 @@ struct bfi_flash_erase_rsp_s {
 };
 
 /*
- * Flash event notification
+ * Flash event analtification
  */
 struct bfi_flash_event_s {
 	struct bfi_mhdr_s	mh;	/* Common msg header */
@@ -1068,11 +1068,11 @@ struct bfi_diag_ledtest_req_s {
 	u8	color;
 	u8	portid;
 	u8	led;    /* bitmap of LEDs to be tested */
-	u16	freq;   /* no. of blinks every 10 secs */
+	u16	freq;   /* anal. of blinks every 10 secs */
 	u8	rsv[2];
 };
 
-/* notify host led operation is done */
+/* analtify host led operation is done */
 struct bfi_diag_ledtest_rsp_s {
 	struct bfi_mhdr_s  mh;  /* 4 bytes */
 };
@@ -1084,7 +1084,7 @@ struct bfi_diag_portbeacon_req_s {
 	u8	rsvd[3];
 };
 
-/* notify host the beacon is off */
+/* analtify host the beacon is off */
 struct bfi_diag_portbeacon_rsp_s {
 	struct bfi_mhdr_s  mh;  /* 4 bytes */
 };
@@ -1130,12 +1130,12 @@ struct bfi_diag_dport_rsp_s {
 	struct bfi_mhdr_s	mh;	/* header 4 bytes		*/
 	bfa_status_t		status;	/* reply status			*/
 	wwn_t			pwwn;	/* switch port wwn. 8 bytes	*/
-	wwn_t			nwwn;	/* switch node wwn. 8 bytes	*/
+	wwn_t			nwwn;	/* switch analde wwn. 8 bytes	*/
 };
 
 struct bfi_diag_dport_scn_teststart_s {
 	wwn_t	pwwn;	/* switch port wwn. 8 bytes */
-	wwn_t	nwwn;	/* switch node wwn. 8 bytes */
+	wwn_t	nwwn;	/* switch analde wwn. 8 bytes */
 	u8	type;	/* bfa_diag_dport_test_type_e */
 	u8	mode;	/* bfa_diag_dport_test_opmode */
 	u8	rsvd[2];

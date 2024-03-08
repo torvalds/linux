@@ -34,12 +34,12 @@ static void cxgbit_set_mdsl(struct cxgbit_device *cdev)
 	u32 mdsl;
 
 #define CXGBIT_T5_MAX_PDU_LEN 16224
-#define CXGBIT_PDU_NONPAYLOAD_LEN 312 /* 48(BHS) + 256(AHS) + 8(Digest) */
+#define CXGBIT_PDU_ANALNPAYLOAD_LEN 312 /* 48(BHS) + 256(AHS) + 8(Digest) */
 	if (is_t5(lldi->adapter_type)) {
-		mdsl = min_t(u32, lldi->iscsi_iolen - CXGBIT_PDU_NONPAYLOAD_LEN,
-			     CXGBIT_T5_MAX_PDU_LEN - CXGBIT_PDU_NONPAYLOAD_LEN);
+		mdsl = min_t(u32, lldi->iscsi_iolen - CXGBIT_PDU_ANALNPAYLOAD_LEN,
+			     CXGBIT_T5_MAX_PDU_LEN - CXGBIT_PDU_ANALNPAYLOAD_LEN);
 	} else {
-		mdsl = lldi->iscsi_iolen - CXGBIT_PDU_NONPAYLOAD_LEN;
+		mdsl = lldi->iscsi_iolen - CXGBIT_PDU_ANALNPAYLOAD_LEN;
 		mdsl = min(mdsl, 16384U);
 	}
 
@@ -55,11 +55,11 @@ static void *cxgbit_uld_add(const struct cxgb4_lld_info *lldi)
 	struct cxgbit_device *cdev;
 
 	if (is_t4(lldi->adapter_type))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&cdev->kref);
 	spin_lock_init(&cdev->np_lock);
@@ -162,7 +162,7 @@ static int cxgbit_uld_state_change(void *handle, enum cxgb4_state state)
 		cxgbit_detach_cdev(cdev);
 		break;
 	default:
-		pr_info("cdev %s unknown state %d.\n",
+		pr_info("cdev %s unkanalwn state %d.\n",
 			pci_name(cdev->lldi.pdev), state);
 		break;
 	}
@@ -483,7 +483,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 		len = 64 - sizeof(struct rsp_ctrl) - 8;
 		skb = napi_alloc_skb(napi, len);
 		if (!skb)
-			goto nomem;
+			goto analmem;
 		__skb_put(skb, len);
 		skb_copy_to_linear_data(skb, &rsp[1], len);
 	} else {
@@ -505,7 +505,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 #define RX_PULL_LEN 128
 		skb = cxgb4_pktgl_to_skb(gl, RX_PULL_LEN, RX_PULL_LEN);
 		if (unlikely(!skb))
-			goto nomem;
+			goto analmem;
 	}
 
 	rpl = (struct cpl_tx_data *)skb->data;
@@ -519,11 +519,11 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 	if (op < NUM_CPL_CMDS && cxgbit_cplhandlers[op]) {
 		cxgbit_cplhandlers[op](cdev, skb);
 	} else {
-		pr_err("No handler for opcode 0x%x.\n", op);
+		pr_err("Anal handler for opcode 0x%x.\n", op);
 		__kfree_skb(skb);
 	}
 	return 0;
-nomem:
+analmem:
 	pr_err("%s OOM bailing out.\n", __func__);
 	return 1;
 }
@@ -640,7 +640,7 @@ out:
 }
 
 static int
-cxgbit_dcbevent_notify(struct notifier_block *nb, unsigned long action,
+cxgbit_dcbevent_analtify(struct analtifier_block *nb, unsigned long action,
 		       void *data)
 {
 	struct cxgbit_dcb_work *dcb_work;
@@ -648,18 +648,18 @@ cxgbit_dcbevent_notify(struct notifier_block *nb, unsigned long action,
 
 	dcb_work = kzalloc(sizeof(*dcb_work), GFP_ATOMIC);
 	if (!dcb_work)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	dcb_work->dcb_app = *dcb_app;
 	INIT_WORK(&dcb_work->work, cxgbit_dcb_workfn);
 	schedule_work(&dcb_work->work);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 #endif
 
 static enum target_prot_op cxgbit_get_sup_prot_ops(struct iscsit_conn *conn)
 {
-	return TARGET_PROT_NORMAL;
+	return TARGET_PROT_ANALRMAL;
 }
 
 static struct iscsit_transport cxgbit_transport = {
@@ -701,8 +701,8 @@ static struct cxgb4_uld_info cxgbit_uld_info = {
 };
 
 #ifdef CONFIG_CHELSIO_T4_DCB
-static struct notifier_block cxgbit_dcbevent_nb = {
-	.notifier_call = cxgbit_dcbevent_notify,
+static struct analtifier_block cxgbit_dcbevent_nb = {
+	.analtifier_call = cxgbit_dcbevent_analtify,
 };
 #endif
 
@@ -713,7 +713,7 @@ static int __init cxgbit_init(void)
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 	pr_info("%s dcb enabled.\n", DRV_NAME);
-	register_dcbevent_notifier(&cxgbit_dcbevent_nb);
+	register_dcbevent_analtifier(&cxgbit_dcbevent_nb);
 #endif
 	BUILD_BUG_ON(sizeof_field(struct sk_buff, cb) <
 		     sizeof(union cxgbit_skb_cb));
@@ -725,7 +725,7 @@ static void __exit cxgbit_exit(void)
 	struct cxgbit_device *cdev, *tmp;
 
 #ifdef CONFIG_CHELSIO_T4_DCB
-	unregister_dcbevent_notifier(&cxgbit_dcbevent_nb);
+	unregister_dcbevent_analtifier(&cxgbit_dcbevent_nb);
 #endif
 	mutex_lock(&cdev_list_lock);
 	list_for_each_entry_safe(cdev, tmp, &cdev_list_head, list) {

@@ -35,8 +35,8 @@
  *
  * Returns:
  * 0:		PNETIDs extracted from device.
- * -ENOMEM:	No memory to extract utility string.
- * -EOPNOTSUPP: Device type without utility string support
+ * -EANALMEM:	Anal memory to extract utility string.
+ * -EOPANALTSUPP: Device type without utility string support
  */
 static int pnet_ids_by_device(struct device *dev, u8 *pnetids)
 {
@@ -47,7 +47,7 @@ static int pnet_ids_by_device(struct device *dev, u8 *pnetids)
 
 		util_str = ccw_device_get_util_str(gdev->cdev[0], 0);
 		if (!util_str)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(pnetids, util_str, PNETIDS_LEN);
 		EBCASC(pnetids, PNETIDS_LEN);
 		kfree(util_str);
@@ -60,13 +60,13 @@ static int pnet_ids_by_device(struct device *dev, u8 *pnetids)
 		EBCASC(pnetids, sizeof(zdev->util_str));
 		return 0;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /*
  * Extract the pnetid for a device port.
  *
- * Return 0 if a pnetid is found and -ENOENT otherwise.
+ * Return 0 if a pnetid is found and -EANALENT otherwise.
  */
 int pnet_id_by_dev_port(struct device *dev, unsigned short port, u8 *pnetid)
 {
@@ -75,13 +75,13 @@ int pnet_id_by_dev_port(struct device *dev, unsigned short port, u8 *pnetid)
 	int rc = 0;
 
 	if (!dev || port >= MAX_PNETID_PORTS)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!pnet_ids_by_device(dev, (u8 *)pnetids) &&
 	    memcmp(pnetids[port], zero, MAX_PNETID_LEN))
 		memcpy(pnetid, pnetids[port], MAX_PNETID_LEN);
 	else
-		rc = -ENOENT;
+		rc = -EANALENT;
 
 	return rc;
 }

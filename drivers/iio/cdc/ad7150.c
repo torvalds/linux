@@ -67,7 +67,7 @@ enum {
  *	from 'average' value.
  * @thresh_timeout: a timeout, in samples from the moment an
  *	adaptive threshold event occurs to when the average
- *	value jumps to current value.  Note made up of two fields,
+ *	value jumps to current value.  Analte made up of two fields,
  *      3:0 are for timeout receding - applies if below lower threshold
  *      7:4 are for timeout approaching - applies if above upper threshold
  * @state_lock: ensure consistent state of this structure wrt the
@@ -127,7 +127,7 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		/*
-		 * Base units for capacitance are nano farads and the value
+		 * Base units for capacitance are naanal farads and the value
 		 * calculated from the datasheet formula is in picofarad
 		 * so multiply by 1000
 		 */
@@ -194,7 +194,7 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 		return 0;
 
 	switch (type) {
-		/* Note completely different from the adaptive versions */
+		/* Analte completely different from the adaptive versions */
 	case IIO_EV_TYPE_THRESH: {
 		u16 value = chip->threshold[rising][chan];
 		return i2c_smbus_write_word_swapped(chip->client,
@@ -238,7 +238,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 	int ret = 0;
 
 	/*
-	 * There is only a single shared control and no on chip
+	 * There is only a single shared control and anal on chip
 	 * interrupt disables for the two interrupt lines.
 	 * So, enabling will switch the events configured to enable
 	 * whatever was most recently requested and if necessary enable_irq()
@@ -263,8 +263,8 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 		 * Need to temporarily disable both interrupts if
 		 * enabled - this is to avoid races around changing
 		 * config and thresholds.
-		 * Note enable/disable_irq() are reference counted so
-		 * no need to check if already enabled.
+		 * Analte enable/disable_irq() are reference counted so
+		 * anal need to check if already enabled.
 		 */
 		disable_irq(chip->interrupts[0]);
 		disable_irq(chip->interrupts[1]);
@@ -294,7 +294,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 			goto error_ret;
 
 		/*
-		 * There is a potential race condition here, but not easy
+		 * There is a potential race condition here, but analt easy
 		 * to close given we can't disable the interrupt at the
 		 * chip side of things. Rely on the status bit.
 		 */
@@ -447,7 +447,7 @@ static const struct iio_event_spec ad7150_events[] = {
 		.num_event_specs = ARRAY_SIZE(ad7150_events),	\
 	}
 
-#define AD7150_CAPACITANCE_CHAN_NO_IRQ(_chan)	{		\
+#define AD7150_CAPACITANCE_CHAN_ANAL_IRQ(_chan)	{		\
 		.type = IIO_CAPACITANCE,			\
 		.indexed = 1,					\
 		.channel = _chan,				\
@@ -463,17 +463,17 @@ static const struct iio_chan_spec ad7150_channels[] = {
 	AD7150_CAPACITANCE_CHAN(1),
 };
 
-static const struct iio_chan_spec ad7150_channels_no_irq[] = {
-	AD7150_CAPACITANCE_CHAN_NO_IRQ(0),
-	AD7150_CAPACITANCE_CHAN_NO_IRQ(1),
+static const struct iio_chan_spec ad7150_channels_anal_irq[] = {
+	AD7150_CAPACITANCE_CHAN_ANAL_IRQ(0),
+	AD7150_CAPACITANCE_CHAN_ANAL_IRQ(1),
 };
 
 static const struct iio_chan_spec ad7151_channels[] = {
 	AD7150_CAPACITANCE_CHAN(0),
 };
 
-static const struct iio_chan_spec ad7151_channels_no_irq[] = {
-	AD7150_CAPACITANCE_CHAN_NO_IRQ(0),
+static const struct iio_chan_spec ad7151_channels_anal_irq[] = {
+	AD7150_CAPACITANCE_CHAN_ANAL_IRQ(0),
 };
 
 static irqreturn_t __ad7150_event_handler(void *private, u8 status_mask,
@@ -532,7 +532,7 @@ static const struct iio_info ad7150_info = {
 	.write_event_value = &ad7150_write_event_value,
 };
 
-static const struct iio_info ad7150_info_no_irq = {
+static const struct iio_info ad7150_info_anal_irq = {
 	.read_raw = &ad7150_read_raw,
 };
 
@@ -546,7 +546,7 @@ static int ad7150_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 	mutex_init(&chip->state_lock);
@@ -560,16 +560,16 @@ static int ad7150_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	chip->interrupts[0] = fwnode_irq_get(dev_fwnode(&client->dev), 0);
+	chip->interrupts[0] = fwanalde_irq_get(dev_fwanalde(&client->dev), 0);
 	if (chip->interrupts[0] < 0)
 		use_irq = false;
 	else if (id->driver_data == AD7150) {
-		chip->interrupts[1] = fwnode_irq_get(dev_fwnode(&client->dev), 1);
+		chip->interrupts[1] = fwanalde_irq_get(dev_fwanalde(&client->dev), 1);
 		if (chip->interrupts[1] < 0)
 			use_irq = false;
 	}
 	if (use_irq) {
-		irq_set_status_flags(chip->interrupts[0], IRQ_NOAUTOEN);
+		irq_set_status_flags(chip->interrupts[0], IRQ_ANALAUTOEN);
 		ret = devm_request_threaded_irq(&client->dev,
 						chip->interrupts[0],
 						NULL,
@@ -586,7 +586,7 @@ static int ad7150_probe(struct i2c_client *client)
 		case AD7150:
 			indio_dev->channels = ad7150_channels;
 			indio_dev->num_channels = ARRAY_SIZE(ad7150_channels);
-			irq_set_status_flags(chip->interrupts[1], IRQ_NOAUTOEN);
+			irq_set_status_flags(chip->interrupts[1], IRQ_ANALAUTOEN);
 			ret = devm_request_threaded_irq(&client->dev,
 							chip->interrupts[1],
 							NULL,
@@ -607,17 +607,17 @@ static int ad7150_probe(struct i2c_client *client)
 		}
 
 	} else {
-		indio_dev->info = &ad7150_info_no_irq;
+		indio_dev->info = &ad7150_info_anal_irq;
 		switch (id->driver_data) {
 		case AD7150:
-			indio_dev->channels = ad7150_channels_no_irq;
+			indio_dev->channels = ad7150_channels_anal_irq;
 			indio_dev->num_channels =
-				ARRAY_SIZE(ad7150_channels_no_irq);
+				ARRAY_SIZE(ad7150_channels_anal_irq);
 			break;
 		case AD7151:
-			indio_dev->channels = ad7151_channels_no_irq;
+			indio_dev->channels = ad7151_channels_anal_irq;
 			indio_dev->num_channels =
-				ARRAY_SIZE(ad7151_channels_no_irq);
+				ARRAY_SIZE(ad7151_channels_anal_irq);
 			break;
 		default:
 			return -EINVAL;

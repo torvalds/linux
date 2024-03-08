@@ -79,7 +79,7 @@
 			/* 8 MB of designated video RAM */
 			compatible = "shared-dma-pool";
 			reg = <0x4c000000 0x00800000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -222,7 +222,7 @@
 		};
 
 		volt-vd10-s2 {
-			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
+			/* PL310, L2 cache, RAM cell supply (analt PL310 logic) */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 1>;
 			regulator-name = "VD10_S2";
@@ -267,7 +267,7 @@
 		};
 
 		amp-vd10-s2 {
-			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
+			/* PL310, L2 cache, RAM cell supply (analt PL310 logic) */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 0>;
 			label = "VD10_S2";
@@ -281,7 +281,7 @@
 		};
 
 		power-vd10-s2 {
-			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
+			/* PL310, L2 cache, RAM cell supply (analt PL310 logic) */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 0>;
 			label = "PVD10_S2";

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2013 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -59,7 +59,7 @@ static int usnic_uiom_dma_fault(struct iommu_domain *domain,
 	usnic_err("Device %s iommu fault domain 0x%pK va 0x%lx flags 0x%x\n",
 		dev_name(dev),
 		domain, iova, flags);
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
@@ -116,7 +116,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
 	if (!page_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	npages = PAGE_ALIGN(size + (addr & ~PAGE_MASK)) >> PAGE_SHIFT;
 
@@ -127,7 +127,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 
 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -153,7 +153,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 					min_t(int, ret, USNIC_UIOM_PAGE_CHUNK)),
 					GFP_KERNEL);
 			if (!chunk) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -190,7 +190,7 @@ out:
 static void usnic_uiom_unmap_sorted_intervals(struct list_head *intervals,
 						struct usnic_uiom_pd *pd)
 {
-	struct usnic_uiom_interval_node *interval, *tmp;
+	struct usnic_uiom_interval_analde *interval, *tmp;
 	long unsigned va, size;
 
 	list_for_each_entry_safe(interval, tmp, intervals, link) {
@@ -212,7 +212,7 @@ static void __usnic_uiom_reg_release(struct usnic_uiom_pd *pd,
 {
 	int npages;
 	unsigned long vpn_start, vpn_last;
-	struct usnic_uiom_interval_node *interval, *tmp;
+	struct usnic_uiom_interval_analde *interval, *tmp;
 	int writable = 0;
 	LIST_HEAD(rm_intervals);
 
@@ -242,7 +242,7 @@ static int usnic_uiom_map_sorted_intervals(struct list_head *intervals,
 	int i, err;
 	size_t size;
 	struct usnic_uiom_chunk *chunk;
-	struct usnic_uiom_interval_node *interval_node;
+	struct usnic_uiom_interval_analde *interval_analde;
 	dma_addr_t pa;
 	dma_addr_t pa_start = 0;
 	dma_addr_t pa_end = 0;
@@ -254,14 +254,14 @@ static int usnic_uiom_map_sorted_intervals(struct list_head *intervals,
 	flags |= (uiomr->writable) ? IOMMU_WRITE : 0;
 	chunk = list_first_entry(&uiomr->chunk_list, struct usnic_uiom_chunk,
 									list);
-	list_for_each_entry(interval_node, intervals, link) {
+	list_for_each_entry(interval_analde, intervals, link) {
 iter_chunk:
 		for (i = 0; i < chunk->nents; i++, va += PAGE_SIZE) {
 			pa = sg_phys(&chunk->page_list[i]);
-			if ((va >> PAGE_SHIFT) < interval_node->start)
+			if ((va >> PAGE_SHIFT) < interval_analde->start)
 				continue;
 
-			if ((va >> PAGE_SHIFT) == interval_node->start) {
+			if ((va >> PAGE_SHIFT) == interval_analde->start) {
 				/* First page of the interval */
 				va_start = va;
 				pa_start = pa;
@@ -272,7 +272,7 @@ iter_chunk:
 
 			if ((pa_end + PAGE_SIZE != pa) &&
 					(pa != pa_start)) {
-				/* PAs are not contiguous */
+				/* PAs are analt contiguous */
 				size = pa_end - pa_start + PAGE_SIZE;
 				usnic_dbg("va 0x%lx pa %pa size 0x%zx flags 0x%x",
 					va_start, &pa_start, size, flags);
@@ -288,7 +288,7 @@ iter_chunk:
 				pa_end = pa;
 			}
 
-			if ((va >> PAGE_SHIFT) == interval_node->last) {
+			if ((va >> PAGE_SHIFT) == interval_analde->last) {
 				/* Last page of the interval */
 				size = pa - pa_start + PAGE_SIZE;
 				usnic_dbg("va 0x%lx pa %pa size 0x%zx flags 0x%x\n",
@@ -338,7 +338,7 @@ struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 
 	/*
 	 * Intel IOMMU map throws an error if a translation entry is
-	 * changed from read to write.  This module may not unmap
+	 * changed from read to write.  This module may analt unmap
 	 * and then remap the entry after fixing the permission
 	 * b/c this open up a small windows where hw DMA may page fault
 	 * Hence, make all entries to be writable.
@@ -353,7 +353,7 @@ struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 
 	uiomr = kmalloc(sizeof(*uiomr), GFP_KERNEL);
 	if (!uiomr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	uiomr->va = va_base;
 	uiomr->offset = offset;
@@ -441,13 +441,13 @@ struct usnic_uiom_pd *usnic_uiom_alloc_pd(struct device *dev)
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pd->domain = domain = iommu_domain_alloc(dev->bus);
 	if (!domain) {
 		usnic_err("Failed to allocate IOMMU domain");
 		kfree(pd);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	iommu_set_fault_handler(pd->domain, usnic_uiom_dma_fault, NULL);
@@ -471,7 +471,7 @@ int usnic_uiom_attach_dev_to_pd(struct usnic_uiom_pd *pd, struct device *dev)
 
 	uiom_dev = kzalloc(sizeof(*uiom_dev), GFP_ATOMIC);
 	if (!uiom_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	uiom_dev->dev = dev;
 
 	err = iommu_attach_device(pd->domain, dev);
@@ -479,7 +479,7 @@ int usnic_uiom_attach_dev_to_pd(struct usnic_uiom_pd *pd, struct device *dev)
 		goto out_free_dev;
 
 	if (!device_iommu_capable(dev, IOMMU_CAP_CACHE_COHERENCY)) {
-		usnic_err("IOMMU of %s does not support cache coherency\n",
+		usnic_err("IOMMU of %s does analt support cache coherency\n",
 				dev_name(dev));
 		err = -EINVAL;
 		goto out_detach_device;
@@ -513,7 +513,7 @@ void usnic_uiom_detach_dev_from_pd(struct usnic_uiom_pd *pd, struct device *dev)
 	}
 
 	if (!found) {
-		usnic_err("Unable to free dev %s - not found\n",
+		usnic_err("Unable to free dev %s - analt found\n",
 				dev_name(dev));
 		spin_unlock(&pd->lock);
 		return;
@@ -535,7 +535,7 @@ struct device **usnic_uiom_get_dev_list(struct usnic_uiom_pd *pd)
 	spin_lock(&pd->lock);
 	devs = kcalloc(pd->dev_cnt + 1, sizeof(*devs), GFP_ATOMIC);
 	if (!devs) {
-		devs = ERR_PTR(-ENOMEM);
+		devs = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 

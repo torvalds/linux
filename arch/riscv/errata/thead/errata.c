@@ -12,7 +12,7 @@
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
-#include <asm/dma-noncoherent.h>
+#include <asm/dma-analncoherent.h>
 #include <asm/errata_list.h>
 #include <asm/hwprobe.h>
 #include <asm/io.h>
@@ -92,7 +92,7 @@ static void thead_errata_cache_wback_inv(phys_addr_t paddr, size_t size)
 	THEAD_CMO_OP(FLUSH, paddr, size, riscv_cbom_block_size);
 }
 
-static const struct riscv_nonstd_cache_ops thead_errata_cmo_ops = {
+static const struct riscv_analnstd_cache_ops thead_errata_cmo_ops = {
 	.wback = &thead_errata_cache_wback,
 	.inv = &thead_errata_cache_inv,
 	.wback_inv = &thead_errata_cache_wback_inv,
@@ -112,8 +112,8 @@ static bool errata_probe_cmo(unsigned int stage,
 
 	if (stage == RISCV_ALTERNATIVES_BOOT) {
 		riscv_cbom_block_size = L1_CACHE_BYTES;
-		riscv_noncoherent_supported();
-		riscv_noncoherent_register_cache_ops(&thead_errata_cmo_ops);
+		riscv_analncoherent_supported();
+		riscv_analncoherent_register_cache_ops(&thead_errata_cmo_ops);
 	}
 
 	return true;
@@ -176,7 +176,7 @@ void thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 				memcpy(oldptr, altptr, alt->alt_len);
 			} else {
 				mutex_lock(&text_mutex);
-				patch_text_nosync(oldptr, altptr, alt->alt_len);
+				patch_text_analsync(oldptr, altptr, alt->alt_len);
 				mutex_unlock(&text_mutex);
 			}
 		}

@@ -12,15 +12,15 @@
 #ifndef __JFFS2_OS_LINUX_H__
 #define __JFFS2_OS_LINUX_H__
 
-/* JFFS2 uses Linux mode bits natively -- no need for conversion */
+/* JFFS2 uses Linux mode bits natively -- anal need for conversion */
 #define os_to_jffs2_mode(x) (x)
 #define jffs2_to_os_mode(x) (x)
 
 struct kstatfs;
 struct kvec;
 
-#define JFFS2_INODE_INFO(i) (container_of(i, struct jffs2_inode_info, vfs_inode))
-#define OFNI_EDONI_2SFFJ(f)  (&(f)->vfs_inode)
+#define JFFS2_IANALDE_INFO(i) (container_of(i, struct jffs2_ianalde_info, vfs_ianalde))
+#define OFNI_EDONI_2SFFJ(f)  (&(f)->vfs_ianalde)
 #define JFFS2_SB_INFO(sb) (sb->s_fs_info)
 #define OFNI_BS_2SFFJ(c)  ((struct super_block *)c->os_priv)
 
@@ -33,11 +33,11 @@ struct kvec;
 
 #define JFFS2_CLAMP_TIME(t) ((uint32_t)clamp_t(time64_t, (t), 0, U32_MAX))
 #define ITIME(sec) ((struct timespec64){sec, 0})
-#define JFFS2_NOW() JFFS2_CLAMP_TIME(ktime_get_real_seconds())
+#define JFFS2_ANALW() JFFS2_CLAMP_TIME(ktime_get_real_seconds())
 #define I_SEC(tv) JFFS2_CLAMP_TIME((tv).tv_sec)
-#define JFFS2_F_I_CTIME(f) I_SEC(inode_get_ctime(OFNI_EDONI_2SFFJ(f)))
-#define JFFS2_F_I_MTIME(f) I_SEC(inode_get_mtime(OFNI_EDONI_2SFFJ(f)))
-#define JFFS2_F_I_ATIME(f) I_SEC(inode_get_atime(OFNI_EDONI_2SFFJ(f)))
+#define JFFS2_F_I_CTIME(f) I_SEC(ianalde_get_ctime(OFNI_EDONI_2SFFJ(f)))
+#define JFFS2_F_I_MTIME(f) I_SEC(ianalde_get_mtime(OFNI_EDONI_2SFFJ(f)))
+#define JFFS2_F_I_ATIME(f) I_SEC(ianalde_get_atime(OFNI_EDONI_2SFFJ(f)))
 #define sleep_on_spinunlock(wq, s)				\
 	do {							\
 		DECLARE_WAITQUEUE(__wait, current);		\
@@ -48,7 +48,7 @@ struct kvec;
 		remove_wait_queue((wq), &__wait);		\
 	} while(0)
 
-static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
+static inline void jffs2_init_ianalde_info(struct jffs2_ianalde_info *f)
 {
 	f->highest_version = 0;
 	f->fragtree = RB_ROOT;
@@ -90,15 +90,15 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_dataflash(c) (0)
 #define jffs2_dataflash_setup(c) (0)
 #define jffs2_dataflash_cleanup(c) do {} while (0)
-#define jffs2_nor_wbuf_flash(c) (0)
-#define jffs2_nor_wbuf_flash_setup(c) (0)
-#define jffs2_nor_wbuf_flash_cleanup(c) do {} while (0)
+#define jffs2_analr_wbuf_flash(c) (0)
+#define jffs2_analr_wbuf_flash_setup(c) (0)
+#define jffs2_analr_wbuf_flash_cleanup(c) do {} while (0)
 #define jffs2_ubivol(c) (0)
 #define jffs2_ubivol_setup(c) (0)
 #define jffs2_ubivol_cleanup(c) do {} while (0)
 #define jffs2_dirty_trigger(c) do {} while (0)
 
-#else /* NAND and/or ECC'd NOR support present */
+#else /* NAND and/or ECC'd ANALR support present */
 
 #define jffs2_is_writebuffered(c) (c->wbuf != NULL)
 
@@ -113,7 +113,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_wbuf_dirty(c) (!!(c)->wbuf_len)
 
 /* wbuf.c */
-int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen, uint32_t ino);
+int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen, uint32_t ianal);
 int jffs2_flash_write(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *retlen, const u_char *buf);
 int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *retlen, u_char *buf);
 int jffs2_check_oob_empty(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,int mode);
@@ -122,7 +122,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c, struct jffs2_erasebloc
 int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t bad_offset);
 void jffs2_wbuf_timeout(unsigned long data);
 void jffs2_wbuf_process(void *data);
-int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino);
+int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ianal);
 int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c);
 int jffs2_nand_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c);
@@ -134,9 +134,9 @@ void jffs2_dataflash_cleanup(struct jffs2_sb_info *c);
 int jffs2_ubivol_setup(struct jffs2_sb_info *c);
 void jffs2_ubivol_cleanup(struct jffs2_sb_info *c);
 
-#define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && ! (c->mtd->flags & MTD_BIT_WRITEABLE))
-int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c);
-void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c);
+#define jffs2_analr_wbuf_flash(c) (c->mtd->type == MTD_ANALRFLASH && ! (c->mtd->flags & MTD_BIT_WRITEABLE))
+int jffs2_analr_wbuf_flash_setup(struct jffs2_sb_info *c);
+void jffs2_analr_wbuf_flash_cleanup(struct jffs2_sb_info *c);
 void jffs2_dirty_trigger(struct jffs2_sb_info *c);
 
 #endif /* WRITEBUFFER */
@@ -148,11 +148,11 @@ void jffs2_garbage_collect_trigger(struct jffs2_sb_info *c);
 
 /* dir.c */
 extern const struct file_operations jffs2_dir_operations;
-extern const struct inode_operations jffs2_dir_inode_operations;
+extern const struct ianalde_operations jffs2_dir_ianalde_operations;
 
 /* file.c */
 extern const struct file_operations jffs2_file_operations;
-extern const struct inode_operations jffs2_file_inode_operations;
+extern const struct ianalde_operations jffs2_file_ianalde_operations;
 extern const struct address_space_operations jffs2_file_address_operations;
 int jffs2_fsync(struct file *, loff_t, loff_t, int);
 int __jffs2_read_folio(struct file *file, struct folio *folio);
@@ -161,26 +161,26 @@ int __jffs2_read_folio(struct file *file, struct folio *folio);
 long jffs2_ioctl(struct file *, unsigned int, unsigned long);
 
 /* symlink.c */
-extern const struct inode_operations jffs2_symlink_inode_operations;
+extern const struct ianalde_operations jffs2_symlink_ianalde_operations;
 
 /* fs.c */
 int jffs2_setattr (struct mnt_idmap *, struct dentry *, struct iattr *);
-int jffs2_do_setattr (struct inode *, struct iattr *);
-struct inode *jffs2_iget(struct super_block *, unsigned long);
-void jffs2_evict_inode (struct inode *);
-void jffs2_dirty_inode(struct inode *inode, int flags);
-struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode,
-			       struct jffs2_raw_inode *ri);
+int jffs2_do_setattr (struct ianalde *, struct iattr *);
+struct ianalde *jffs2_iget(struct super_block *, unsigned long);
+void jffs2_evict_ianalde (struct ianalde *);
+void jffs2_dirty_ianalde(struct ianalde *ianalde, int flags);
+struct ianalde *jffs2_new_ianalde (struct ianalde *dir_i, umode_t mode,
+			       struct jffs2_raw_ianalde *ri);
 int jffs2_statfs (struct dentry *, struct kstatfs *);
 int jffs2_do_remount_fs(struct super_block *sb, struct fs_context *fc);
 int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc);
-void jffs2_gc_release_inode(struct jffs2_sb_info *c,
-			    struct jffs2_inode_info *f);
-struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
+void jffs2_gc_release_ianalde(struct jffs2_sb_info *c,
+			    struct jffs2_ianalde_info *f);
+struct jffs2_ianalde_info *jffs2_gc_fetch_ianalde(struct jffs2_sb_info *c,
 					      int inum, int unlinked);
 
 unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
-				   struct jffs2_inode_info *f,
+				   struct jffs2_ianalde_info *f,
 				   unsigned long offset,
 				   unsigned long *priv);
 void jffs2_flash_cleanup(struct jffs2_sb_info *c);

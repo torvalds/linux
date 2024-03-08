@@ -88,21 +88,21 @@ static inline bool ceph_has_room(void **p, void *end, size_t n)
 	} while (0)
 
 /*
- * Allocate a buffer big enough to hold the wire-encoded string, and
+ * Allocate a buffer big eanalugh to hold the wire-encoded string, and
  * decode the string into it.  The resulting string will always be
  * terminated with '\0'.  If successful, *p will be advanced
- * past the decoded data.  Also, if lenp is not a null pointer, the
- * length (not including the terminating '\0') will be recorded in
- * *lenp.  Note that a zero-length string is a valid return value.
+ * past the decoded data.  Also, if lenp is analt a null pointer, the
+ * length (analt including the terminating '\0') will be recorded in
+ * *lenp.  Analte that a zero-length string is a valid return value.
  *
  * Returns a pointer to the newly-allocated string buffer, or a
- * pointer-coded errno if an error occurs.  Neither *p nor *lenp
+ * pointer-coded erranal if an error occurs.  Neither *p analr *lenp
  * will have been updated if an error is returned.
  *
  * There are two possible failures:
  *   - converting the string would require accessing memory at or
  *     beyond the "end" pointer provided (-ERANGE)
- *   - memory could not be allocated for the result (-ENOMEM)
+ *   - memory could analt be allocated for the result (-EANALMEM)
  */
 static inline char *ceph_extract_encoded_string(void **p, void *end,
 						size_t *lenp, gfp_t gfp)
@@ -117,7 +117,7 @@ static inline char *ceph_extract_encoded_string(void **p, void *end,
 
 	buf = kmalloc(len + 1, gfp);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (len)
 		memcpy(buf, sp, len);
@@ -218,7 +218,7 @@ static inline void ceph_encode_timespec64(struct ceph_timespec *tv,
 /*
  * sockaddr_storage <-> ceph_sockaddr
  */
-#define CEPH_ENTITY_ADDR_TYPE_NONE	0
+#define CEPH_ENTITY_ADDR_TYPE_ANALNE	0
 #define CEPH_ENTITY_ADDR_TYPE_LEGACY	__cpu_to_le32(1)
 #define CEPH_ENTITY_ADDR_TYPE_MSGR2	__cpu_to_le32(2)
 #define CEPH_ENTITY_ADDR_TYPE_ANY	__cpu_to_le32(3)
@@ -228,8 +228,8 @@ static inline void ceph_encode_banner_addr(struct ceph_entity_addr *a)
 	__be16 ss_family = htons(a->in_addr.ss_family);
 	a->in_addr.ss_family = *(__u16 *)&ss_family;
 
-	/* Banner addresses require TYPE_NONE */
-	a->type = CEPH_ENTITY_ADDR_TYPE_NONE;
+	/* Banner addresses require TYPE_ANALNE */
+	a->type = CEPH_ENTITY_ADDR_TYPE_ANALNE;
 }
 static inline void ceph_decode_banner_addr(struct ceph_entity_addr *a)
 {
@@ -280,12 +280,12 @@ static inline void ceph_encode_copy(void **p, const void *s, int len)
  * filepath, string encoders
  */
 static inline void ceph_encode_filepath(void **p, void *end,
-					u64 ino, const char *path)
+					u64 ianal, const char *path)
 {
 	u32 len = path ? strlen(path) : 0;
-	BUG_ON(*p + 1 + sizeof(ino) + sizeof(len) + len > end);
+	BUG_ON(*p + 1 + sizeof(ianal) + sizeof(len) + len > end);
 	ceph_encode_8(p, 1);
-	ceph_encode_64(p, ino);
+	ceph_encode_64(p, ianal);
 	ceph_encode_32(p, len);
 	if (len)
 		memcpy(*p, path, len);

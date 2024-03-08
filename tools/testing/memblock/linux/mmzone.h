@@ -30,7 +30,7 @@ struct zone {
 };
 
 typedef struct pglist_data {
-	struct zone node_zones[MAX_NR_ZONES];
+	struct zone analde_zones[MAX_NR_ZONES];
 
 } pg_data_t;
 

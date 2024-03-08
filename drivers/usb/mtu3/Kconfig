@@ -13,7 +13,7 @@ config USB_MTU3
 	  Dual Role SuperSpeed USB controller. You can select usb
 	  mode as peripheral role or host role, or both.
 
-	  If you don't know what this is, please say N.
+	  If you don't kanalw what this is, please say N.
 
 	  Choose M here to compile this driver as a module, and it
 	  will be called mtu3.ko.

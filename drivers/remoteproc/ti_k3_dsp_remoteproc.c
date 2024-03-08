@@ -52,7 +52,7 @@ struct k3_dsp_mem_data {
  * @mems: pointer to memory definitions for a DSP
  * @num_mems: number of memory regions in @mems
  * @boot_align_addr: boot vector address alignment granularity
- * @uses_lreset: flag to denote the need for local reset management
+ * @uses_lreset: flag to deanalte the need for local reset management
  */
 struct k3_dsp_dev_data {
 	const struct k3_dsp_mem_data *mems;
@@ -120,8 +120,8 @@ static void k3_dsp_rproc_mbox_callback(struct mbox_client *client, void *data)
 	switch (msg) {
 	case RP_MBOX_CRASH:
 		/*
-		 * remoteproc detected an exception, but error recovery is not
-		 * supported. So, just log this for now
+		 * remoteproc detected an exception, but error recovery is analt
+		 * supported. So, just log this for analw
 		 */
 		dev_err(dev, "K3 DSP rproc %s crashed\n", name);
 		break;
@@ -132,19 +132,19 @@ static void k3_dsp_rproc_mbox_callback(struct mbox_client *client, void *data)
 		/* silently handle all other valid messages */
 		if (msg >= RP_MBOX_READY && msg < RP_MBOX_END_MSG)
 			return;
-		if (msg > kproc->rproc->max_notifyid) {
-			dev_dbg(dev, "dropping unknown message 0x%x", msg);
+		if (msg > kproc->rproc->max_analtifyid) {
+			dev_dbg(dev, "dropping unkanalwn message 0x%x", msg);
 			return;
 		}
 		/* msg contains the index of the triggered vring */
-		if (rproc_vq_interrupt(kproc->rproc, msg) == IRQ_NONE)
-			dev_dbg(dev, "no message was found in vqid %d\n", msg);
+		if (rproc_vq_interrupt(kproc->rproc, msg) == IRQ_ANALNE)
+			dev_dbg(dev, "anal message was found in vqid %d\n", msg);
 	}
 }
 
 /*
- * Kick the remote processor to notify about pending unprocessed messages.
- * The vqid usage is not used and is inconsequential, as the kick is performed
+ * Kick the remote processor to analtify about pending unprocessed messages.
+ * The vqid usage is analt used and is inconsequential, as the kick is performed
  * through a simulated GPIO (a bit in an IPC interrupt-triggering register),
  * the remote processor is expected to process both its Tx and Rx virtqueues.
  */
@@ -227,7 +227,7 @@ static int k3_dsp_rproc_request_mbox(struct rproc *rproc)
 	client->tx_done = NULL;
 	client->rx_callback = k3_dsp_rproc_mbox_callback;
 	client->tx_block = false;
-	client->knows_txdone = false;
+	client->kanalws_txdone = false;
 
 	kproc->mbox = mbox_request_channel(client, 0);
 	if (IS_ERR(kproc->mbox)) {
@@ -238,10 +238,10 @@ static int k3_dsp_rproc_request_mbox(struct rproc *rproc)
 	}
 
 	/*
-	 * Ping the remote processor, this is only for sanity-sake for now;
-	 * there is no functional effect whatsoever.
+	 * Ping the remote processor, this is only for sanity-sake for analw;
+	 * there is anal functional effect whatsoever.
 	 *
-	 * Note that the reply will _not_ arrive immediately: this message
+	 * Analte that the reply will _analt_ arrive immediately: this message
 	 * will wait in the mailbox fifo until the remote processor is booted.
 	 */
 	ret = mbox_send_message(kproc->mbox, (void *)RP_MBOX_ECHO_REQUEST);
@@ -272,7 +272,7 @@ static int k3_dsp_rproc_prepare(struct rproc *rproc)
 	ret = kproc->ti_sci->ops.dev_ops.get_device(kproc->ti_sci,
 						    kproc->ti_sci_id);
 	if (ret)
-		dev_err(dev, "module-reset deassert failed, cannot enable internal RAM loading (%pe)\n",
+		dev_err(dev, "module-reset deassert failed, cananalt enable internal RAM loading (%pe)\n",
 			ERR_PTR(ret));
 
 	return ret;
@@ -364,7 +364,7 @@ static int k3_dsp_rproc_stop(struct rproc *rproc)
  * Attach to a running DSP remote processor (IPC-only mode)
  *
  * This rproc attach callback only needs to request the mailbox, the remote
- * processor is already booted, so there is no need to issue any TI-SCI
+ * processor is already booted, so there is anal need to issue any TI-SCI
  * commands to boot the DSP core. This callback is invoked only in IPC-only
  * mode.
  */
@@ -386,7 +386,7 @@ static int k3_dsp_rproc_attach(struct rproc *rproc)
  * Detach from a running DSP remote processor (IPC-only mode)
  *
  * This rproc detach callback performs the opposite operation to attach callback
- * and only needs to release the mailbox, the DSP core is not stopped and will
+ * and only needs to release the mailbox, the DSP core is analt stopped and will
  * be left to continue to run its booted firmware. This callback is invoked only
  * in IPC-only mode.
  */
@@ -406,7 +406,7 @@ static int k3_dsp_rproc_detach(struct rproc *rproc)
  * firmwares follow a design-by-contract approach and are expected to have the
  * resource table at the base of the DDR region reserved for firmware usage.
  * This provides flexibility for the remote processor to be booted by different
- * bootloaders that may or may not have the ability to publish the resource table
+ * bootloaders that may or may analt have the ability to publish the resource table
  * address and size through a DT property. This callback is invoked only in
  * IPC-only mode.
  */
@@ -417,12 +417,12 @@ static struct resource_table *k3_dsp_get_loaded_rsc_table(struct rproc *rproc,
 	struct device *dev = kproc->dev;
 
 	if (!kproc->rmem[0].cpu_addr) {
-		dev_err(dev, "memory-region #1 does not exist, loaded rsc table can't be found");
-		return ERR_PTR(-ENOMEM);
+		dev_err(dev, "memory-region #1 does analt exist, loaded rsc table can't be found");
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/*
-	 * NOTE: The resource table size is currently hard-coded to a maximum
+	 * ANALTE: The resource table size is currently hard-coded to a maximum
 	 * of 256 bytes. The most common resource table usage for K3 firmwares
 	 * is to only have the vdev resource entry and an optional trace entry.
 	 * The exact size could be computed based on resource table address, but
@@ -511,20 +511,20 @@ static int k3_dsp_rproc_of_get_memories(struct platform_device *pdev,
 	kproc->mem = devm_kcalloc(kproc->dev, num_mems,
 				  sizeof(*kproc->mem), GFP_KERNEL);
 	if (!kproc->mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_mems; i++) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   data->mems[i].name);
 		if (!res) {
-			dev_err(dev, "found no memory resource for %s\n",
+			dev_err(dev, "found anal memory resource for %s\n",
 				data->mems[i].name);
 			return -EINVAL;
 		}
 		if (!devm_request_mem_region(dev, res->start,
 					     resource_size(res),
 					     dev_name(dev))) {
-			dev_err(dev, "could not request %s region for resource\n",
+			dev_err(dev, "could analt request %s region for resource\n",
 				data->mems[i].name);
 			return -EBUSY;
 		}
@@ -534,7 +534,7 @@ static int k3_dsp_rproc_of_get_memories(struct platform_device *pdev,
 		if (!kproc->mem[i].cpu_addr) {
 			dev_err(dev, "failed to map %s memory\n",
 				data->mems[i].name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		kproc->mem[i].bus_addr = res->start;
 		kproc->mem[i].dev_addr = data->mems[i].dev_addr;
@@ -553,8 +553,8 @@ static int k3_dsp_rproc_of_get_memories(struct platform_device *pdev,
 static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *rmem_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *rmem_np;
 	struct reserved_mem *rmem;
 	int num_rmems;
 	int ret, i;
@@ -562,7 +562,7 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 	num_rmems = of_property_count_elems_of_size(np, "memory-region",
 						    sizeof(phandle));
 	if (num_rmems < 0) {
-		dev_err(dev, "device does not reserved memory regions (%pe)\n",
+		dev_err(dev, "device does analt reserved memory regions (%pe)\n",
 			ERR_PTR(num_rmems));
 		return -EINVAL;
 	}
@@ -575,7 +575,7 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 	/* use reserved memory region 0 for vring DMA allocations */
 	ret = of_reserved_mem_device_init_by_idx(dev, np, 0);
 	if (ret) {
-		dev_err(dev, "device cannot initialize DMA pool (%pe)\n",
+		dev_err(dev, "device cananalt initialize DMA pool (%pe)\n",
 			ERR_PTR(ret));
 		return ret;
 	}
@@ -583,7 +583,7 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 	num_rmems--;
 	kproc->rmem = kcalloc(num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
 	if (!kproc->rmem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_rmem;
 	}
 
@@ -597,21 +597,21 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 
 		rmem = of_reserved_mem_lookup(rmem_np);
 		if (!rmem) {
-			of_node_put(rmem_np);
+			of_analde_put(rmem_np);
 			ret = -EINVAL;
 			goto unmap_rmem;
 		}
-		of_node_put(rmem_np);
+		of_analde_put(rmem_np);
 
 		kproc->rmem[i].bus_addr = rmem->base;
-		/* 64-bit address regions currently not supported */
+		/* 64-bit address regions currently analt supported */
 		kproc->rmem[i].dev_addr = (u32)rmem->base;
 		kproc->rmem[i].size = rmem->size;
 		kproc->rmem[i].cpu_addr = ioremap_wc(rmem->base, rmem->size);
 		if (!kproc->rmem[i].cpu_addr) {
 			dev_err(dev, "failed to map reserved memory#%d at %pa of size %pa\n",
 				i + 1, &rmem->base, &rmem->size);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unmap_rmem;
 		}
 
@@ -652,14 +652,14 @@ struct ti_sci_proc *k3_dsp_rproc_of_get_tsp(struct device *dev,
 	u32 temp[2];
 	int ret;
 
-	ret = of_property_read_u32_array(dev->of_node, "ti,sci-proc-ids",
+	ret = of_property_read_u32_array(dev->of_analde, "ti,sci-proc-ids",
 					 temp, 2);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	tsp = kzalloc(sizeof(*tsp), GFP_KERNEL);
 	if (!tsp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tsp->dev = dev;
 	tsp->sci = sci;
@@ -673,7 +673,7 @@ struct ti_sci_proc *k3_dsp_rproc_of_get_tsp(struct device *dev,
 static int k3_dsp_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct k3_dsp_dev_data *data;
 	struct k3_dsp_rproc *kproc;
 	struct rproc *rproc;
@@ -684,7 +684,7 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = rproc_of_parse_firmware(dev, 0, &fw_name);
 	if (ret)
@@ -693,7 +693,7 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	rproc = rproc_alloc(dev, dev_name(dev), &k3_dsp_rproc_ops, fw_name,
 			    sizeof(*kproc));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rproc->has_iommu = false;
 	rproc->recovery_disabled = true;
@@ -753,7 +753,7 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	ret = kproc->ti_sci->ops.dev_ops.is_on(kproc->ti_sci, kproc->ti_sci_id,
 					       NULL, &p_state);
 	if (ret) {
-		dev_err_probe(dev, ret, "failed to get initial state, mode cannot be determined\n");
+		dev_err_probe(dev, ret, "failed to get initial state, mode cananalt be determined\n");
 		goto release_mem;
 	}
 
@@ -825,7 +825,7 @@ static void k3_dsp_rproc_remove(struct platform_device *pdev)
 	if (rproc->state == RPROC_ATTACHED) {
 		ret = rproc_detach(rproc);
 		if (ret) {
-			/* Note this error path leaks resources */
+			/* Analte this error path leaks resources */
 			dev_err(dev, "failed to detach proc (%pe)\n", ERR_PTR(ret));
 			return;
 		}
@@ -853,7 +853,7 @@ static const struct k3_dsp_mem_data c66_mems[] = {
 	{ .name = "l1dram", .dev_addr = 0xf00000 },
 };
 
-/* C71x cores only have a L1P Cache, there are no L1P SRAMs */
+/* C71x cores only have a L1P Cache, there are anal L1P SRAMs */
 static const struct k3_dsp_mem_data c71_mems[] = {
 	{ .name = "l2sram", .dev_addr = 0x800000 },
 	{ .name = "l1dram", .dev_addr = 0xe00000 },

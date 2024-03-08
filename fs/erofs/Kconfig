@@ -7,7 +7,7 @@ config EROFS_FS
 	select LIBCRC32C
 	help
 	  EROFS (Enhanced Read-Only File System) is a lightweight read-only
-	  file system with modern designs (e.g. no buffer heads, inline
+	  file system with modern designs (e.g. anal buffer heads, inline
 	  xattrs/data, chunk-based deduplication, multiple devices, etc.) for
 	  scenarios which need high-performance read-only solutions, e.g.
 	  smartphones with Android OS, LiveCDs and high-density hosts with
@@ -41,7 +41,7 @@ config EROFS_FS_XATTR
 	select XXHASH
 	default y
 	help
-	  Extended attributes are name:value pairs associated with inodes by
+	  Extended attributes are name:value pairs associated with ianaldes by
 	  the kernel or by users (see the attr(5) manual page, or visit
 	  <http://acl.bestbits.at/> for details).
 
@@ -59,7 +59,7 @@ config EROFS_FS_POSIX_ACL
 	  To learn more about Access Control Lists, visit the POSIX ACLs for
 	  Linux website <http://acl.bestbits.at/>.
 
-	  If you don't know what Access Control Lists are, say N.
+	  If you don't kanalw what Access Control Lists are, say N.
 
 config EROFS_FS_SECURITY
 	bool "EROFS Security Labels"
@@ -72,7 +72,7 @@ config EROFS_FS_SECURITY
 	  security labels in the erofs filesystem, so that it requires enabling
 	  the extended attribute support in advance.
 
-	  If you are not using a security module, say N.
+	  If you are analt using a security module, say N.
 
 config EROFS_FS_ZIP
 	bool "EROFS Data Compression Support"
@@ -107,7 +107,7 @@ config EROFS_FS_ZIP_DEFLATE
 	  ratios than the default LZ4 format, while it costs more CPU
 	  overhead.
 
-	  DEFLATE support is an experimental feature for now and so most
+	  DEFLATE support is an experimental feature for analw and so most
 	  file systems will be readable without selecting this option.
 
 	  If unsure, say N.

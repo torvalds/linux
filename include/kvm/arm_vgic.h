@@ -75,7 +75,7 @@ struct vgic_global {
 	bool			has_gicv4_1;
 
 	/* Pseudo GICv3 from outer space */
-	bool			no_hw_deactivation;
+	bool			anal_hw_deactivation;
 
 	/* GIC system register CPU interface */
 	struct static_key_false gicv3_cpuif;
@@ -97,7 +97,7 @@ enum vgic_irq_config {
 /*
  * Per-irq ops overriding some common behavious.
  *
- * Always called in non-preemptible section and the functions can use
+ * Always called in analn-preemptible section and the functions can use
  * kvm_arm_get_running_vcpu() to get the vcpu pointer for private IRQs.
  */
 struct irq_ops {
@@ -135,7 +135,7 @@ struct vgic_irq {
 	bool pending_latch;		/* The pending latch state used to calculate
 					 * the pending state for both level
 					 * and edge triggered IRQs. */
-	bool active;			/* not used for LPIs */
+	bool active;			/* analt used for LPIs */
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
 	struct kref refcount;		/* Used for LPIs */
@@ -306,7 +306,7 @@ struct vgic_v2_cpu_if {
 struct vgic_v3_cpu_if {
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
-	u32		vgic_sre;	/* Restored only, change ignored */
+	u32		vgic_sre;	/* Restored only, change iganalred */
 	u32		vgic_ap0r[4];
 	u32		vgic_ap1r[4];
 	u64		vgic_lr[VGIC_V3_MAX_LRS];
@@ -336,7 +336,7 @@ struct vgic_cpu {
 	/*
 	 * List of IRQs that this VCPU should consider because they are either
 	 * Active or Pending (hence the name; AP list), or because they recently
-	 * were one of the two and need to be migrated off this list to another
+	 * were one of the two and need to be migrated off this list to aanalther
 	 * VCPU.
 	 */
 	struct list_head ap_list_head;

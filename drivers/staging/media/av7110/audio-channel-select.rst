@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.audio
 
 .. _AUDIO_CHANNEL_SELECT:
@@ -14,7 +14,7 @@ AUDIO_CHANNEL_SELECT
 
 .. attention:: This ioctl is deprecated
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: AUDIO_CHANNEL_SELECT
@@ -38,7 +38,7 @@ Arguments
 
        -  audio_channel_select_t ch
 
-       -  Select the output format of the audio (mono left/right, stereo).
+       -  Select the output format of the audio (moanal left/right, stereo).
 
 Description
 -----------
@@ -52,6 +52,6 @@ possible.
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

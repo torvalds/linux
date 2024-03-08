@@ -20,7 +20,7 @@
 /**
  * DOC: overview
  *
- * This class allows non KMS drivers, from e.g. drivers/platform/x86 to
+ * This class allows analn KMS drivers, from e.g. drivers/platform/x86 to
  * register a privacy-screen device, which the KMS drivers can then use
  * to implement the standard privacy-screen properties, see
  * :ref:`Standard Connector Properties<standard_connector_properties>`.
@@ -46,10 +46,10 @@ static LIST_HEAD(drm_privacy_screen_devs);
  *    lookup list
  * @lookup: lookup list entry to add
  *
- * Add an entry to the static privacy-screen lookup list. Note the
+ * Add an entry to the static privacy-screen lookup list. Analte the
  * &struct list_head which is part of the &struct drm_privacy_screen_lookup
  * gets added to a list owned by the privacy-screen core. So the passed in
- * &struct drm_privacy_screen_lookup must not be free-ed until it is removed
+ * &struct drm_privacy_screen_lookup must analt be free-ed until it is removed
  * from the lookup list by calling drm_privacy_screen_lookup_remove().
  */
 void drm_privacy_screen_lookup_add(struct drm_privacy_screen_lookup *lookup)
@@ -108,9 +108,9 @@ static struct drm_privacy_screen *drm_privacy_screen_get_by_name(
  *
  * Return:
  * * A pointer to a &struct drm_privacy_screen on success.
- * * ERR_PTR(-ENODEV) if no matching privacy-screen is found
+ * * ERR_PTR(-EANALDEV) if anal matching privacy-screen is found
  * * ERR_PTR(-EPROBE_DEFER) if there is a matching privacy-screen,
- *                          but it has not been registered yet.
+ *                          but it has analt been registered yet.
  */
 struct drm_privacy_screen *drm_privacy_screen_get(struct device *dev,
 						  const char *con_id)
@@ -122,9 +122,9 @@ struct drm_privacy_screen *drm_privacy_screen_get(struct device *dev,
 	int match, best = -1;
 
 	/*
-	 * For now we only support using a static lookup table, which is
+	 * For analw we only support using a static lookup table, which is
 	 * populated by the drm_privacy_screen_arch_init() call. This should
-	 * be extended with device-tree / fw_node lookup when support is added
+	 * be extended with device-tree / fw_analde lookup when support is added
 	 * for device-tree using hardware with a privacy-screen.
 	 *
 	 * The lookup algorithm was shamelessly taken from the clock
@@ -165,7 +165,7 @@ struct drm_privacy_screen *drm_privacy_screen_get(struct device *dev,
 	mutex_unlock(&drm_privacy_screen_lookup_lock);
 
 	if (!provider)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	priv = drm_privacy_screen_get_by_name(provider);
 	if (!priv)
@@ -181,7 +181,7 @@ EXPORT_SYMBOL(drm_privacy_screen_get);
  *
  * Release a privacy-screen provider reference gotten through
  * drm_privacy_screen_get(). May be called with a NULL or ERR_PTR,
- * in which case it is a no-op.
+ * in which case it is a anal-op.
  */
 void drm_privacy_screen_put(struct drm_privacy_screen *priv)
 {
@@ -197,7 +197,7 @@ EXPORT_SYMBOL(drm_privacy_screen_put);
  * @priv: privacy screen to set the sw-state for
  * @sw_state: new sw-state value to set
  *
- * Set the sw-state of a privacy screen. If the privacy-screen is not
+ * Set the sw-state of a privacy screen. If the privacy-screen is analt
  * in a locked hw-state, then the actual and hw-state of the privacy-screen
  * will be immediately updated to the new value. If the privacy-screen is
  * in a locked hw-state, then the new sw-state will be remembered as the
@@ -213,15 +213,15 @@ int drm_privacy_screen_set_sw_state(struct drm_privacy_screen *priv,
 	mutex_lock(&priv->lock);
 
 	if (!priv->ops) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
 	/*
 	 * As per the DRM connector properties documentation, setting the
 	 * sw_state while the hw_state is locked is allowed. In this case
-	 * it is a no-op other then storing the new sw_state so that it
-	 * can be honored when the state gets unlocked.
+	 * it is a anal-op other then storing the new sw_state so that it
+	 * can be hoanalred when the state gets unlocked.
 	 * Also skip the set if the hw already is in the desired state.
 	 */
 	if (priv->hw_state >= PRIVACY_SCREEN_DISABLED_LOCKED ||
@@ -258,47 +258,47 @@ void drm_privacy_screen_get_state(struct drm_privacy_screen *priv,
 EXPORT_SYMBOL(drm_privacy_screen_get_state);
 
 /**
- * drm_privacy_screen_register_notifier - register a notifier
- * @priv: Privacy screen to register the notifier with
- * @nb: Notifier-block for the notifier to register
+ * drm_privacy_screen_register_analtifier - register a analtifier
+ * @priv: Privacy screen to register the analtifier with
+ * @nb: Analtifier-block for the analtifier to register
  *
- * Register a notifier with the privacy-screen to be notified of changes made
+ * Register a analtifier with the privacy-screen to be analtified of changes made
  * to the privacy-screen state from outside of the privacy-screen class.
  * E.g. the state may be changed by the hardware itself in response to a
  * hotkey press.
  *
- * The notifier is called with no locks held. The new hw_state and sw_state
+ * The analtifier is called with anal locks held. The new hw_state and sw_state
  * can be retrieved using the drm_privacy_screen_get_state() function.
  * A pointer to the drm_privacy_screen's struct is passed as the ``void *data``
- * argument of the notifier_block's notifier_call.
+ * argument of the analtifier_block's analtifier_call.
  *
- * The notifier will NOT be called when changes are made through
+ * The analtifier will ANALT be called when changes are made through
  * drm_privacy_screen_set_sw_state(). It is only called for external changes.
  *
  * Return: 0 on success, negative error code on failure.
  */
-int drm_privacy_screen_register_notifier(struct drm_privacy_screen *priv,
-					 struct notifier_block *nb)
+int drm_privacy_screen_register_analtifier(struct drm_privacy_screen *priv,
+					 struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&priv->notifier_head, nb);
+	return blocking_analtifier_chain_register(&priv->analtifier_head, nb);
 }
-EXPORT_SYMBOL(drm_privacy_screen_register_notifier);
+EXPORT_SYMBOL(drm_privacy_screen_register_analtifier);
 
 /**
- * drm_privacy_screen_unregister_notifier - unregister a notifier
- * @priv: Privacy screen to register the notifier with
- * @nb: Notifier-block for the notifier to register
+ * drm_privacy_screen_unregister_analtifier - unregister a analtifier
+ * @priv: Privacy screen to register the analtifier with
+ * @nb: Analtifier-block for the analtifier to register
  *
- * Unregister a notifier registered with drm_privacy_screen_register_notifier().
+ * Unregister a analtifier registered with drm_privacy_screen_register_analtifier().
  *
  * Return: 0 on success, negative error code on failure.
  */
-int drm_privacy_screen_unregister_notifier(struct drm_privacy_screen *priv,
-					   struct notifier_block *nb)
+int drm_privacy_screen_unregister_analtifier(struct drm_privacy_screen *priv,
+					   struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&priv->notifier_head, nb);
+	return blocking_analtifier_chain_unregister(&priv->analtifier_head, nb);
 }
-EXPORT_SYMBOL(drm_privacy_screen_unregister_notifier);
+EXPORT_SYMBOL(drm_privacy_screen_unregister_analtifier);
 
 /*** drm_privacy_screen_driver.h functions ***/
 
@@ -315,7 +315,7 @@ static ssize_t sw_state_show(struct device *dev,
 	mutex_lock(&priv->lock);
 
 	if (!priv->ops)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	else if (WARN_ON(priv->sw_state >= ARRAY_SIZE(sw_state_names)))
 		ret = -ENXIO;
 	else
@@ -325,7 +325,7 @@ static ssize_t sw_state_show(struct device *dev,
 	return ret;
 }
 /*
- * RO: Do not allow setting the sw_state through sysfs, this MUST be done
+ * RO: Do analt allow setting the sw_state through sysfs, this MUST be done
  * through the drm_properties on the drm_connector.
  */
 static DEVICE_ATTR_RO(sw_state);
@@ -345,7 +345,7 @@ static ssize_t hw_state_show(struct device *dev,
 	mutex_lock(&priv->lock);
 
 	if (!priv->ops)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	else if (WARN_ON(priv->hw_state >= ARRAY_SIZE(hw_state_names)))
 		ret = -ENXIO;
 	else
@@ -385,7 +385,7 @@ static void drm_privacy_screen_device_release(struct device *dev)
  *
  * Return:
  * * A pointer to the created privacy-screen on success.
- * * An ERR_PTR(errno) on failure.
+ * * An ERR_PTR(erranal) on failure.
  */
 struct drm_privacy_screen *drm_privacy_screen_register(
 	struct device *parent, const struct drm_privacy_screen_ops *ops,
@@ -396,10 +396,10 @@ struct drm_privacy_screen *drm_privacy_screen_register(
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&priv->lock);
-	BLOCKING_INIT_NOTIFIER_HEAD(&priv->notifier_head);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&priv->analtifier_head);
 
 	priv->dev.class = drm_class;
 	priv->dev.type = &drm_privacy_screen_type;
@@ -430,7 +430,7 @@ EXPORT_SYMBOL(drm_privacy_screen_register);
  * @priv: privacy-screen to unregister
  *
  * Unregister a privacy-screen registered with drm_privacy_screen_register().
- * May be called with a NULL or ERR_PTR, in which case it is a no-op.
+ * May be called with a NULL or ERR_PTR, in which case it is a anal-op.
  */
 void drm_privacy_screen_unregister(struct drm_privacy_screen *priv)
 {
@@ -451,8 +451,8 @@ void drm_privacy_screen_unregister(struct drm_privacy_screen *priv)
 EXPORT_SYMBOL(drm_privacy_screen_unregister);
 
 /**
- * drm_privacy_screen_call_notifier_chain - notify consumers of state change
- * @priv: Privacy screen to register the notifier with
+ * drm_privacy_screen_call_analtifier_chain - analtify consumers of state change
+ * @priv: Privacy screen to register the analtifier with
  *
  * A privacy-screen provider driver can call this functions upon external
  * changes to the privacy-screen state. E.g. the state may be changed by the
@@ -462,10 +462,10 @@ EXPORT_SYMBOL(drm_privacy_screen_unregister);
  * calling this function.
  * The expected behavior from the driver upon receiving an external state
  * change event is: 1. Take the lock; 2. Update sw_state and hw_state;
- * 3. Release the lock. 4. Call drm_privacy_screen_call_notifier_chain().
+ * 3. Release the lock. 4. Call drm_privacy_screen_call_analtifier_chain().
  */
-void drm_privacy_screen_call_notifier_chain(struct drm_privacy_screen *priv)
+void drm_privacy_screen_call_analtifier_chain(struct drm_privacy_screen *priv)
 {
-	blocking_notifier_call_chain(&priv->notifier_head, 0, priv);
+	blocking_analtifier_call_chain(&priv->analtifier_head, 0, priv);
 }
-EXPORT_SYMBOL(drm_privacy_screen_call_notifier_chain);
+EXPORT_SYMBOL(drm_privacy_screen_call_analtifier_chain);

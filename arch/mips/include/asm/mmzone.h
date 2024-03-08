@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Written by Kanoj Sarcar (kanoj@sgi.com) Aug 99
+ * Written by Kaanalj Sarcar (kaanalj@sgi.com) Aug 99
  * Rewritten for Linux 2.6 by Christoph Hellwig (hch@lst.de) Jan 2004
  */
 #ifndef _ASM_MMZONE_H_

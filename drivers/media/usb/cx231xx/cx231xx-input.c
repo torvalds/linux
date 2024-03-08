@@ -30,7 +30,7 @@ static int get_key_isdbt(struct IR_i2c *ir, enum rc_proto *protocol,
 		return -EIO;
 
 	/* it seems that 0xFE indicates that a button is still hold
-	   down, while 0xff indicates that no button is hold
+	   down, while 0xff indicates that anal button is hold
 	   down. 0xfe sequences are sometimes interrupted by 0xFF */
 
 	if (cmd == 0xff)
@@ -55,7 +55,7 @@ int cx231xx_ir_init(struct cx231xx *dev)
 
 	/* Only initialize if a rc keycode map is defined */
 	if (!cx231xx_boards[dev->model].rc_map_name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	request_module("ir-kbd-i2c");
 
@@ -63,7 +63,7 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	memset(&dev->init_data, 0, sizeof(dev->init_data));
 	dev->init_data.rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev->init_data.rc_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->init_data.name = cx231xx_boards[dev->model].name;
 
@@ -73,7 +73,7 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	/*
 	 * Board-dependent values
 	 *
-	 * For now, there's just one type of hardware design using
+	 * For analw, there's just one type of hardware design using
 	 * an i2c device.
 	 */
 	dev->init_data.get_key = get_key_isdbt;

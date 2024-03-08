@@ -30,7 +30,7 @@ enum intel_pt_insn_op {
 };
 
 enum intel_pt_insn_branch {
-	INTEL_PT_BR_NO_BRANCH,
+	INTEL_PT_BR_ANAL_BRANCH,
 	INTEL_PT_BR_INDIRECT,
 	INTEL_PT_BR_CONDITIONAL,
 	INTEL_PT_BR_UNCONDITIONAL,

@@ -256,7 +256,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	case HIERARCHY_AUTO:
 		auto_mode = true;
 		break;
-	case HIERARCHY_NONE:
+	case HIERARCHY_ANALNE:
 		break;
 	case HIERARCHY_1:
 		buf[0] |= (1 << 4);
@@ -333,7 +333,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	case FEC_7_8:
 		buf[2] |= (4 << 3);
 		break;
-	case FEC_NONE:
+	case FEC_ANALNE:
 		break;
 	default:
 		dev_dbg(&client->dev, "invalid code_rate_LP\n");
@@ -445,7 +445,7 @@ static int af9013_get_frontend(struct dvb_frontend *fe,
 
 	switch ((buf[0] >> 4) & 7) {
 	case 0:
-		c->hierarchy = HIERARCHY_NONE;
+		c->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		c->hierarchy = HIERARCHY_1;
@@ -593,7 +593,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 			state->strength_en = 1;
 		} else {
-			/* Signal strength is not supported */
+			/* Signal strength is analt supported */
 			state->strength_en = 2;
 			break;
 		}
@@ -630,7 +630,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->strength.stat[0].svalue = stmp1;
 		break;
 	default:
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		break;
 	}
 
@@ -646,7 +646,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		if (!((utmp >> 3) & 0x01)) {
-			dev_dbg(&client->dev, "cnr not ready\n");
+			dev_dbg(&client->dev, "cnr analt ready\n");
 			break;
 		}
 
@@ -712,7 +712,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].svalue = utmp1;
 		break;
 	default:
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		break;
 	}
 
@@ -728,7 +728,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		if (!((utmp >> 4) & 0x01)) {
-			dev_dbg(&client->dev, "ber not ready\n");
+			dev_dbg(&client->dev, "ber analt ready\n");
 			break;
 		}
 
@@ -776,11 +776,11 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->block_count.stat[0].uvalue += utmp4;
 		break;
 	default:
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		break;
 	}
 
@@ -938,10 +938,10 @@ static int af9013_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(tuner_init_tab_tda18271);
 		tab = tuner_init_tab_tda18271;
 		break;
-	case AF9013_TUNER_UNKNOWN:
+	case AF9013_TUNER_UNKANALWN:
 	default:
-		len = ARRAY_SIZE(tuner_init_tab_unknown);
-		tab = tuner_init_tab_unknown;
+		len = ARRAY_SIZE(tuner_init_tab_unkanalwn);
+		tab = tuner_init_tab_unkanalwn;
 		break;
 	}
 
@@ -1050,7 +1050,7 @@ static int af9013_download_firmware(struct af9013_state *state)
 	/* Request the firmware, will block and timeout */
 	ret = request_firmware(&firmware, name, &client->dev);
 	if (ret) {
-		dev_info(&client->dev, "firmware file '%s' not found %d\n",
+		dev_info(&client->dev, "firmware file '%s' analt found %d\n",
 			 name, ret);
 		goto err;
 	}
@@ -1102,11 +1102,11 @@ static int af9013_download_firmware(struct af9013_state *state)
 	dev_dbg(&client->dev, "firmware status %02x\n", utmp);
 
 	if (utmp == 0x04) {
-		ret = -ENODEV;
-		dev_err(&client->dev, "firmware did not run\n");
+		ret = -EANALDEV;
+		dev_err(&client->dev, "firmware did analt run\n");
 		goto err;
 	} else if (utmp != 0x0c) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&client->dev, "firmware boot timeout\n");
 		goto err;
 	}
@@ -1160,15 +1160,15 @@ static const struct dvb_frontend_ops af9013_ops = {
 	.read_ucblocks = af9013_read_ucblocks,
 };
 
-static int af9013_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int af9013_pid_filter_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct af9013_state *state = fe->demodulator_priv;
 	struct i2c_client *client = state->client;
 	int ret;
 
-	dev_dbg(&client->dev, "onoff %d\n", onoff);
+	dev_dbg(&client->dev, "oanalff %d\n", oanalff);
 
-	ret = regmap_update_bits(state->regmap, 0xd503, 0x01, onoff);
+	ret = regmap_update_bits(state->regmap, 0xd503, 0x01, oanalff);
 	if (ret)
 		goto err;
 
@@ -1179,15 +1179,15 @@ err:
 }
 
 static int af9013_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
-			     int onoff)
+			     int oanalff)
 {
 	struct af9013_state *state = fe->demodulator_priv;
 	struct i2c_client *client = state->client;
 	int ret;
 	u8 buf[2];
 
-	dev_dbg(&client->dev, "index %d, pid %04x, onoff %d\n",
-		index, pid, onoff);
+	dev_dbg(&client->dev, "index %d, pid %04x, oanalff %d\n",
+		index, pid, oanalff);
 
 	if (pid > 0x1fff) {
 		/* 0x2000 is kernel virtual pid for whole ts (all pids) */
@@ -1200,7 +1200,7 @@ static int af9013_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
 	ret = regmap_bulk_write(state->regmap, 0xd505, buf, 2);
 	if (ret)
 		goto err;
-	ret = regmap_write(state->regmap, 0xd504, onoff << 5 | index << 0);
+	ret = regmap_write(state->regmap, 0xd504, oanalff << 5 | index << 0);
 	if (ret)
 		goto err;
 
@@ -1449,7 +1449,7 @@ static int af9013_probe(struct i2c_client *client)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1476,7 +1476,7 @@ static int af9013_probe(struct i2c_client *client)
 	state->muxc = i2c_mux_alloc(client->adapter, &client->dev, 1, 0, 0,
 				    af9013_select, af9013_deselect);
 	if (!state->muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_regmap_exit;
 	}
 	state->muxc->priv = state;

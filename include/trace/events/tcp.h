@@ -44,7 +44,7 @@
 /*
  * tcp event with arguments sk and skb
  *
- * Note: this class requires a valid sk pointer; while skb pointer could
+ * Analte: this class requires a valid sk pointer; while skb pointer could
  *       be NULL.
  */
 DECLARE_EVENT_CLASS(tcp_event_sk_skb,
@@ -116,7 +116,7 @@ DEFINE_EVENT(tcp_event_sk_skb, tcp_send_reset,
 /*
  * tcp event with arguments sk
  *
- * Note: this class requires a valid sk pointer.
+ * Analte: this class requires a valid sk pointer.
  */
 DECLARE_EVENT_CLASS(tcp_event_sk,
 

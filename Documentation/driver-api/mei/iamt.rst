@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Intel(R) Active Management Technology (Intel AMT)
+Intel(R) Active Management Techanallogy (Intel AMT)
 =================================================
 
 Prominent usage of the Intel ME Interface is to communicate with Intel(R)
-Active Management Technology (Intel AMT) implemented in firmware running on
+Active Management Techanallogy (Intel AMT) implemented in firmware running on
 the Intel ME.
 
 Intel AMT provides the ability to manage a host remotely out-of-band (OOB)
@@ -82,7 +82,7 @@ Intel AMT OS Health Watchdog
 The Intel AMT Watchdog is an OS Health (Hang/Crash) watchdog.
 Whenever the OS hangs or crashes, Intel AMT will send an event
 to any subscriber to this event. This mechanism means that
-IT knows when a platform crashes even when there is a hard failure on the host.
+IT kanalws when a platform crashes even when there is a hard failure on the host.
 
 The Intel AMT Watchdog is composed of two parts:
     1) Firmware feature - receives the heartbeats
@@ -94,7 +94,7 @@ The Intel iAMT watchdog MEI driver uses the kernel watchdog API to configure
 the Intel AMT Watchdog and to send heartbeats to it. The default timeout of the
 watchdog is 120 seconds.
 
-If the Intel AMT is not enabled in the firmware then the watchdog client won't enumerate
+If the Intel AMT is analt enabled in the firmware then the watchdog client won't enumerate
 on the me client bus and watchdog devices won't be exposed.
 
 ---

@@ -9,7 +9,7 @@
  * Copyright (C) 2006 MontaVista Software, Inc.
  *
  * Based on tlv320aic23.c:
- * Copyright (c) by Kai Svahn <kai.svahn@nokia.com>
+ * Copyright (c) by Kai Svahn <kai.svahn@analkia.com>
  *
  * Code cleanup and modifications to IRQ handler.
  * by syed khasim <x0khasim@ti.com>
@@ -161,7 +161,7 @@ static struct twl_private *twl_priv;
 
 static struct twl_mapping twl4030_map[] = {
 	/*
-	 * NOTE:  don't change this table without updating the
+	 * ANALTE:  don't change this table without updating the
 	 * <linux/mfd/twl.h> defines for TWL4030_MODULE_*
 	 * so they continue to match the order in this table.
 	 */
@@ -249,8 +249,8 @@ static const struct reg_default twl4030_49_defaults[] = {
 	{ 0x32, 0x00}, /* DTMF_TONEXT1L	*/
 	{ 0x33, 0x00}, /* DTMF_TONEXT2H	*/
 	{ 0x34, 0x00}, /* DTMF_TONEXT2L	*/
-	{ 0x35, 0x79}, /* DTMF_TONOFF	*/
-	{ 0x36, 0x11}, /* DTMF_WANONOFF	*/
+	{ 0x35, 0x79}, /* DTMF_TOANALFF	*/
+	{ 0x36, 0x11}, /* DTMF_WAANALANALFF	*/
 	{ 0x37, 0x00}, /* I2S_RX_SCRAMBLE_H */
 	{ 0x38, 0x00}, /* I2S_RX_SCRAMBLE_M */
 	{ 0x39, 0x00}, /* I2S_RX_SCRAMBLE_L */
@@ -271,7 +271,7 @@ static const struct reg_default twl4030_49_defaults[] = {
 	/* End of Audio Registers */
 };
 
-static bool twl4030_49_nop_reg(struct device *dev, unsigned int reg)
+static bool twl4030_49_analp_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case 0x00:
@@ -290,8 +290,8 @@ static const struct regmap_range twl4030_49_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table twl4030_49_volatile_table = {
-	.yes_ranges = twl4030_49_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(twl4030_49_volatile_ranges),
+	.anal_ranges = twl4030_49_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(twl4030_49_volatile_ranges),
 };
 
 static const struct regmap_config twl4030_regmap_config[4] = {
@@ -307,8 +307,8 @@ static const struct regmap_config twl4030_regmap_config[4] = {
 		.val_bits = 8,
 		.max_register = 0xff,
 
-		.readable_reg = twl4030_49_nop_reg,
-		.writeable_reg = twl4030_49_nop_reg,
+		.readable_reg = twl4030_49_analp_reg,
+		.writeable_reg = twl4030_49_analp_reg,
 
 		.volatile_table = &twl4030_49_volatile_table,
 
@@ -332,7 +332,7 @@ static const struct regmap_config twl4030_regmap_config[4] = {
 
 static struct twl_mapping twl6030_map[] = {
 	/*
-	 * NOTE:  don't change this table without updating the
+	 * ANALTE:  don't change this table without updating the
 	 * <linux/mfd/twl.h> defines for TWL4030_MODULE_*
 	 * so they continue to match the order in this table.
 	 */
@@ -409,25 +409,25 @@ EXPORT_SYMBOL(twl_rev);
 
 /**
  * twl_get_regmap - Get the regmap associated with the given module
- * @mod_no: module number
+ * @mod_anal: module number
  *
  * Returns the regmap pointer or NULL in case of failure.
  */
-static struct regmap *twl_get_regmap(u8 mod_no)
+static struct regmap *twl_get_regmap(u8 mod_anal)
 {
 	int sid;
 	struct twl_client *twl;
 
 	if (unlikely(!twl_priv || !twl_priv->ready)) {
-		pr_err("%s: not initialized\n", DRIVER_NAME);
+		pr_err("%s: analt initialized\n", DRIVER_NAME);
 		return NULL;
 	}
-	if (unlikely(mod_no >= twl_get_last_module())) {
-		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
+	if (unlikely(mod_anal >= twl_get_last_module())) {
+		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_anal);
 		return NULL;
 	}
 
-	sid = twl_priv->twl_map[mod_no].sid;
+	sid = twl_priv->twl_map[mod_anal].sid;
 	twl = &twl_priv->twl_modules[sid];
 
 	return twl->regmap;
@@ -435,27 +435,27 @@ static struct regmap *twl_get_regmap(u8 mod_no)
 
 /**
  * twl_i2c_write - Writes a n bit register in TWL4030/TWL5030/TWL60X0
- * @mod_no: module number
+ * @mod_anal: module number
  * @value: an array of num_bytes+1 containing data to write
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
  * Returns 0 on success or else a negative error code.
  */
-int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
+int twl_i2c_write(u8 mod_anal, u8 *value, u8 reg, unsigned num_bytes)
 {
-	struct regmap *regmap = twl_get_regmap(mod_no);
+	struct regmap *regmap = twl_get_regmap(mod_anal);
 	int ret;
 
 	if (!regmap)
 		return -EPERM;
 
-	ret = regmap_bulk_write(regmap, twl_priv->twl_map[mod_no].base + reg,
+	ret = regmap_bulk_write(regmap, twl_priv->twl_map[mod_anal].base + reg,
 				value, num_bytes);
 
 	if (ret)
 		pr_err("%s: Write failed (mod %d, reg 0x%02x count %d)\n",
-		       DRIVER_NAME, mod_no, reg, num_bytes);
+		       DRIVER_NAME, mod_anal, reg, num_bytes);
 
 	return ret;
 }
@@ -463,27 +463,27 @@ EXPORT_SYMBOL(twl_i2c_write);
 
 /**
  * twl_i2c_read - Reads a n bit register in TWL4030/TWL5030/TWL60X0
- * @mod_no: module number
+ * @mod_anal: module number
  * @value: an array of num_bytes containing data to be read
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
  * Returns 0 on success or else a negative error code.
  */
-int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
+int twl_i2c_read(u8 mod_anal, u8 *value, u8 reg, unsigned num_bytes)
 {
-	struct regmap *regmap = twl_get_regmap(mod_no);
+	struct regmap *regmap = twl_get_regmap(mod_anal);
 	int ret;
 
 	if (!regmap)
 		return -EPERM;
 
-	ret = regmap_bulk_read(regmap, twl_priv->twl_map[mod_no].base + reg,
+	ret = regmap_bulk_read(regmap, twl_priv->twl_map[mod_anal].base + reg,
 			       value, num_bytes);
 
 	if (ret)
 		pr_err("%s: Read failed (mod %d, reg 0x%02x count %d)\n",
-		       DRIVER_NAME, mod_no, reg, num_bytes);
+		       DRIVER_NAME, mod_anal, reg, num_bytes);
 
 	return ret;
 }
@@ -492,14 +492,14 @@ EXPORT_SYMBOL(twl_i2c_read);
 /**
  * twl_set_regcache_bypass - Configure the regcache bypass for the regmap associated
  *			 with the module
- * @mod_no: module number
+ * @mod_anal: module number
  * @enable: Regcache bypass state
  *
  * Returns 0 else failure.
  */
-int twl_set_regcache_bypass(u8 mod_no, bool enable)
+int twl_set_regcache_bypass(u8 mod_anal, bool enable)
 {
-	struct regmap *regmap = twl_get_regmap(mod_no);
+	struct regmap *regmap = twl_get_regmap(mod_anal);
 
 	if (!regmap)
 		return -EPERM;
@@ -587,7 +587,7 @@ int twl_get_hfclk_rate(void)
 		rate = 38400000;
 		break;
 	default:
-		pr_err("TWL4030: HFCLK is not configured\n");
+		pr_err("TWL4030: HFCLK is analt configured\n");
 		rate = -EINVAL;
 		break;
 	}
@@ -634,7 +634,7 @@ static void clocks_init(struct device *dev)
 	osc = clk_get(dev, "fck");
 	if (IS_ERR(osc)) {
 		printk(KERN_WARNING "Skipping twl internal clock init and "
-				"using bootloader value (unknown osc rate)\n");
+				"using bootloader value (unkanalwn osc rate)\n");
 		return;
 	}
 
@@ -696,20 +696,20 @@ static const struct mfd_cell twl6032_cells[] = {
 	{ .name = "twl6032-clk" },
 };
 
-/* NOTE: This driver only handles a single twl4030/tps659x0 chip */
+/* ANALTE: This driver only handles a single twl4030/tps659x0 chip */
 static int
 twl_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	struct device_node		*node = client->dev.of_node;
+	struct device_analde		*analde = client->dev.of_analde;
 	struct platform_device		*pdev;
 	const struct regmap_config	*twl_regmap_config;
 	int				irq_base = 0;
 	int				status;
 	unsigned			i, num_slaves;
 
-	if (!node) {
-		dev_err(&client->dev, "no platform data\n");
+	if (!analde) {
+		dev_err(&client->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -722,7 +722,7 @@ twl_probe(struct i2c_client *client)
 	pdev = platform_device_alloc(DRIVER_NAME, -1);
 	if (!pdev) {
 		dev_err(&client->dev, "can't alloc pdev\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	status = platform_device_add(pdev);
@@ -740,7 +740,7 @@ twl_probe(struct i2c_client *client)
 	twl_priv = devm_kzalloc(&client->dev, sizeof(struct twl_private),
 				GFP_KERNEL);
 	if (!twl_priv) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto free;
 	}
 
@@ -760,7 +760,7 @@ twl_probe(struct i2c_client *client)
 					 sizeof(struct twl_client),
 					 GFP_KERNEL);
 	if (!twl_priv->twl_modules) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto free;
 	}
 
@@ -844,7 +844,7 @@ twl_probe(struct i2c_client *client)
 
 	if (id->driver_data == (TWL6030_CLASS | TWL6032_SUBCLASS)) {
 		status = devm_mfd_add_devices(&client->dev,
-					      PLATFORM_DEVID_NONE,
+					      PLATFORM_DEVID_ANALNE,
 					      twl6032_cells,
 					      ARRAY_SIZE(twl6032_cells),
 					      NULL, 0, NULL);
@@ -852,7 +852,7 @@ twl_probe(struct i2c_client *client)
 			goto free;
 	}
 
-	status = of_platform_populate(node, NULL, twl_auxdata_lookup,
+	status = of_platform_populate(analde, NULL, twl_auxdata_lookup,
 				      &client->dev);
 
 fail:
@@ -892,9 +892,9 @@ static const struct i2c_device_id twl_ids[] = {
 	{ "twl5030", 0 },		/* T2 updated */
 	{ "twl5031", TWL5031 },		/* TWL5030 updated */
 	{ "tps65950", 0 },		/* catalog version of twl5030 */
-	{ "tps65930", TPS_SUBSET },	/* fewer LDOs and DACs; no charger */
-	{ "tps65920", TPS_SUBSET },	/* fewer LDOs; no codec or charger */
-	{ "tps65921", TPS_SUBSET },	/* fewer LDOs; no codec, no LED
+	{ "tps65930", TPS_SUBSET },	/* fewer LDOs and DACs; anal charger */
+	{ "tps65920", TPS_SUBSET },	/* fewer LDOs; anal codec or charger */
+	{ "tps65921", TPS_SUBSET },	/* fewer LDOs; anal codec, anal LED
 					   and vibrator. Charger in USB module*/
 	{ "twl6030", TWL6030_CLASS },	/* "Phoenix power chip" */
 	{ "twl6032", TWL6030_CLASS | TWL6032_SUBCLASS }, /* "Phoenix lite" */

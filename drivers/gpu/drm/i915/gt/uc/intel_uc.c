@@ -51,7 +51,7 @@ static void uc_expand_default_options(struct intel_uc *uc)
 	/* Default: enable HuC authentication and GuC submission */
 	i915->params.enable_guc = ENABLE_GUC_LOAD_HUC | ENABLE_GUC_SUBMISSION;
 
-	/* XEHPSDV and PVC do not use HuC */
+	/* XEHPSDV and PVC do analt use HuC */
 	if (IS_XEHPSDV(i915) || IS_PONTEVECCHIO(i915))
 		i915->params.enable_guc &= ~ENABLE_GUC_LOAD_HUC;
 }
@@ -89,10 +89,10 @@ static void __confirm_options(struct intel_uc *uc)
 
 	gt_dbg(gt, "enable_guc=%d (guc:%s submission:%s huc:%s slpc:%s)\n",
 	       i915->params.enable_guc,
-	       str_yes_no(intel_uc_wants_guc(uc)),
-	       str_yes_no(intel_uc_wants_guc_submission(uc)),
-	       str_yes_no(intel_uc_wants_huc(uc)),
-	       str_yes_no(intel_uc_wants_guc_slpc(uc)));
+	       str_anal_anal(intel_uc_wants_guc(uc)),
+	       str_anal_anal(intel_uc_wants_guc_submission(uc)),
+	       str_anal_anal(intel_uc_wants_huc(uc)),
+	       str_anal_anal(intel_uc_wants_guc_slpc(uc)));
 
 	if (i915->params.enable_guc == 0) {
 		GEM_BUG_ON(intel_uc_wants_guc(uc));
@@ -104,7 +104,7 @@ static void __confirm_options(struct intel_uc *uc)
 
 	if (!intel_uc_supports_guc(uc))
 		gt_info(gt,  "Incompatible option enable_guc=%d - %s\n",
-			i915->params.enable_guc, "GuC is not supported!");
+			i915->params.enable_guc, "GuC is analt supported!");
 
 	if (i915->params.enable_guc & ENABLE_GUC_SUBMISSION &&
 	    !intel_uc_supports_guc_submission(uc))
@@ -198,7 +198,7 @@ static void guc_get_mmio_msg(struct intel_guc *guc)
 	guc->mmio_msg |= val & guc->msg_enabled_mask;
 
 	/*
-	 * clear all events, including the ones we're not currently servicing,
+	 * clear all events, including the ones we're analt currently servicing,
 	 * to make sure we don't try to process a stale message if we enable
 	 * handling of more events later.
 	 */
@@ -266,7 +266,7 @@ static void guc_disable_communication(struct intel_guc *guc)
 	intel_guc_ct_disable(&guc->ct);
 
 	/*
-	 * Check for messages received during/after the CT disable. We do not
+	 * Check for messages received during/after the CT disable. We do analt
 	 * expect any messages to have arrived via CT between the interrupt
 	 * disable and the CT disable because GuC should've been idle until we
 	 * triggered the CT disable protocol.
@@ -327,7 +327,7 @@ static int __uc_init(struct intel_uc *uc)
 		return 0;
 
 	if (i915_inject_probe_failure(uc_to_gt(uc)->i915))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = intel_guc_init(guc);
 	if (ret)
@@ -449,7 +449,7 @@ static void print_fw_ver(struct intel_gt *gt, struct intel_uc_fw *fw)
 	gt_info(gt, "%s firmware %s version %u.%u.%u\n",
 		intel_uc_fw_type_repr(fw->type), fw->file_selected.path,
 		fw->file_selected.ver.major,
-		fw->file_selected.ver.minor,
+		fw->file_selected.ver.mianalr,
 		fw->file_selected.ver.patch);
 }
 
@@ -485,7 +485,7 @@ static int __uc_init_hw(struct intel_uc *uc)
 	intel_guc_reset_interrupts(guc);
 
 	/* WaEnableuKernelHeaderValidFix:skl */
-	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
+	/* WaEnableGuCBootHashCheckAnaltSet:skl,bxt,kbl */
 	if (GRAPHICS_VER(i915) == 9)
 		attempts = 3;
 	else
@@ -546,7 +546,7 @@ static int __uc_init_hw(struct intel_uc *uc)
 		if (ret)
 			goto err_submission;
 	} else {
-		/* Restore GT back to RPn for non-SLPC path */
+		/* Restore GT back to RPn for analn-SLPC path */
 		intel_rps_lower_unslice(&uc_to_gt(uc)->rps);
 	}
 
@@ -573,7 +573,7 @@ err_out:
 	__uc_sanitize(uc);
 
 	if (!ret) {
-		gt_notice(gt, "GuC is uninitialized\n");
+		gt_analtice(gt, "GuC is uninitialized\n");
 		/* We want to run without GuC submission */
 		return 0;
 	}
@@ -609,7 +609,7 @@ void intel_uc_reset_prepare(struct intel_uc *uc)
 
 	uc->reset_in_progress = true;
 
-	/* Nothing to do if GuC isn't supported */
+	/* Analthing to do if GuC isn't supported */
 	if (!intel_uc_supports_guc(uc))
 		return;
 
@@ -628,7 +628,7 @@ void intel_uc_reset(struct intel_uc *uc, intel_engine_mask_t stalled)
 {
 	struct intel_guc *guc = &uc->guc;
 
-	/* Firmware can not be running when this function is called  */
+	/* Firmware can analt be running when this function is called  */
 	if (intel_uc_uses_guc_submission(uc))
 		intel_guc_submission_reset(guc, stalled);
 }
@@ -648,7 +648,7 @@ void intel_uc_cancel_requests(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 
-	/* Firmware can not be running when this function is called  */
+	/* Firmware can analt be running when this function is called  */
 	if (intel_uc_uses_guc_submission(uc))
 		intel_guc_submission_cancel_requests(guc);
 }
@@ -718,7 +718,7 @@ static int __uc_resume(struct intel_uc *uc, bool enable_communication)
 	if (enable_communication)
 		guc_enable_communication(guc);
 
-	/* If we are only resuming GuC communication but not reloading
+	/* If we are only resuming GuC communication but analt reloading
 	 * GuC, we need to ensure the ARAT timer interrupt is enabled
 	 * again. In case of GuC reload, it is enabled during SLPC enable.
 	 */

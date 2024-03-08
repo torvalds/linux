@@ -259,7 +259,7 @@ err:
 		gq->rx_bufs[index] = NULL;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void rswitch_gwca_queue_free(struct net_device *ndev,
@@ -313,7 +313,7 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 	if (!dir_tx) {
 		gq->rx_bufs = kcalloc(gq->ring_size, sizeof(*gq->rx_bufs), GFP_KERNEL);
 		if (!gq->rx_bufs)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (rswitch_gwca_queue_alloc_rx_buf(gq, 0, gq->ring_size) < 0)
 			goto out;
 
@@ -323,7 +323,7 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 	} else {
 		gq->skbs = kcalloc(gq->ring_size, sizeof(*gq->skbs), GFP_KERNEL);
 		if (!gq->skbs)
-			return -ENOMEM;
+			return -EANALMEM;
 		gq->unmap_addrs = kcalloc(gq->ring_size, sizeof(*gq->unmap_addrs), GFP_KERNEL);
 		if (!gq->unmap_addrs)
 			goto out;
@@ -347,7 +347,7 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 out:
 	rswitch_gwca_queue_free(ndev, gq);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void rswitch_desc_set_dptr(struct rswitch_desc *desc, dma_addr_t addr)
@@ -409,7 +409,7 @@ err:
 		}
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void rswitch_gwca_ts_queue_fill(struct rswitch_private *priv,
@@ -471,7 +471,7 @@ err:
 		}
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int rswitch_gwca_queue_ext_ts_format(struct net_device *ndev,
@@ -513,7 +513,7 @@ static int rswitch_gwca_linkfix_alloc(struct rswitch_private *priv)
 	gwca->linkfix_table = dma_alloc_coherent(dev, gwca->linkfix_table_size,
 						 &gwca->linkfix_table_dma, GFP_KERNEL);
 	if (!gwca->linkfix_table)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < num_queues; i++)
 		gwca->linkfix_table[i].die_dt = DT_EOS;
 
@@ -541,7 +541,7 @@ static int rswitch_gwca_ts_queue_alloc(struct rswitch_private *priv)
 					 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
 
 	if (!gq->ts_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rswitch_gwca_ts_queue_fill(priv, 0, TS_RING_SIZE);
 	desc = &gq->ts_ring[gq->ring_size];
@@ -958,7 +958,7 @@ static irqreturn_t rswitch_gwca_irq(int irq, void *dev_id)
 {
 	struct rswitch_private *priv = dev_id;
 	u32 dis[RSWITCH_NUM_IRQ_REGS];
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	rswitch_get_data_irq_status(priv, dis);
 
@@ -977,7 +977,7 @@ static int rswitch_gwca_request_irqs(struct rswitch_private *priv)
 	for (i = 0; i < GWCA_NUM_IRQS; i++) {
 		resource_name = kasprintf(GFP_KERNEL, GWCA_IRQ_RESOURCE_NAME, i);
 		if (!resource_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		irq = platform_get_irq_byname(priv->pdev, resource_name);
 		kfree(resource_name);
@@ -987,7 +987,7 @@ static int rswitch_gwca_request_irqs(struct rswitch_private *priv)
 		irq_name = devm_kasprintf(&priv->pdev->dev, GFP_KERNEL,
 					  GWCA_IRQ_NAME, i);
 		if (!irq_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = devm_request_irq(&priv->pdev->dev, irq, rswitch_gwca_irq,
 				       0, irq_name, priv);
@@ -1050,7 +1050,7 @@ static irqreturn_t rswitch_gwca_ts_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int rswitch_gwca_ts_request_irqs(struct rswitch_private *priv)
@@ -1176,7 +1176,7 @@ static int rswitch_etha_set_access(struct rswitch_etha *etha, bool read,
 	int ret;
 
 	if (devad == 0xffffffff)
-		return -ENODEV;
+		return -EANALDEV;
 
 	writel(MMIS1_CLEAR_FLAGS, etha->addr + MMIS1);
 
@@ -1225,19 +1225,19 @@ static int rswitch_etha_mii_write_c45(struct mii_bus *bus, int addr, int devad,
 	return rswitch_etha_set_access(etha, false, addr, devad, regad, val);
 }
 
-/* Call of_node_put(port) after done */
-static struct device_node *rswitch_get_port_node(struct rswitch_device *rdev)
+/* Call of_analde_put(port) after done */
+static struct device_analde *rswitch_get_port_analde(struct rswitch_device *rdev)
 {
-	struct device_node *ports, *port;
+	struct device_analde *ports, *port;
 	int err = 0;
 	u32 index;
 
-	ports = of_get_child_by_name(rdev->ndev->dev.parent->of_node,
+	ports = of_get_child_by_name(rdev->ndev->dev.parent->of_analde,
 				     "ethernet-ports");
 	if (!ports)
 		return NULL;
 
-	for_each_child_of_node(ports, port) {
+	for_each_child_of_analde(ports, port) {
 		err = of_property_read_u32(port, "reg", &index);
 		if (err < 0) {
 			port = NULL;
@@ -1251,7 +1251,7 @@ static struct device_node *rswitch_get_port_node(struct rswitch_device *rdev)
 	}
 
 out:
-	of_node_put(ports);
+	of_analde_put(ports);
 
 	return port;
 }
@@ -1262,7 +1262,7 @@ static int rswitch_etha_get_params(struct rswitch_device *rdev)
 	int err;
 
 	if (!rdev->np_port)
-		return 0;	/* ignored */
+		return 0;	/* iganalred */
 
 	err = of_get_phy_mode(rdev->np_port, &rdev->etha->phy_interface);
 	if (err)
@@ -1274,7 +1274,7 @@ static int rswitch_etha_get_params(struct rswitch_device *rdev)
 		return 0;
 	}
 
-	/* if no "max-speed" property, let's use default speed */
+	/* if anal "max-speed" property, let's use default speed */
 	switch (rdev->etha->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
 		rdev->etha->speed = SPEED_100;
@@ -1294,13 +1294,13 @@ static int rswitch_etha_get_params(struct rswitch_device *rdev)
 
 static int rswitch_mii_register(struct rswitch_device *rdev)
 {
-	struct device_node *mdio_np;
+	struct device_analde *mdio_np;
 	struct mii_bus *mii_bus;
 	int err;
 
 	mii_bus = mdiobus_alloc();
 	if (!mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mii_bus->name = "rswitch_mii";
 	sprintf(mii_bus->id, "etha%d", rdev->etha->index);
@@ -1319,7 +1319,7 @@ static int rswitch_mii_register(struct rswitch_device *rdev)
 	rdev->etha->mii = mii_bus;
 
 out:
-	of_node_put(mdio_np);
+	of_analde_put(mdio_np);
 
 	return err;
 }
@@ -1347,7 +1347,7 @@ static void rswitch_adjust_link(struct net_device *ndev)
 
 		rdev->etha->link = phydev->link;
 
-		if (!rdev->priv->etha_no_runtime_change &&
+		if (!rdev->priv->etha_anal_runtime_change &&
 		    phydev->speed != rdev->etha->speed) {
 			rdev->etha->speed = phydev->speed;
 
@@ -1360,7 +1360,7 @@ static void rswitch_adjust_link(struct net_device *ndev)
 static void rswitch_phy_remove_link_mode(struct rswitch_device *rdev,
 					 struct phy_device *phydev)
 {
-	if (!rdev->priv->etha_no_runtime_change)
+	if (!rdev->priv->etha_anal_runtime_change)
 		return;
 
 	switch (rdev->etha->speed) {
@@ -1386,15 +1386,15 @@ static void rswitch_phy_remove_link_mode(struct rswitch_device *rdev,
 static int rswitch_phy_device_init(struct rswitch_device *rdev)
 {
 	struct phy_device *phydev;
-	struct device_node *phy;
-	int err = -ENOENT;
+	struct device_analde *phy;
+	int err = -EANALENT;
 
 	if (!rdev->np_port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy = of_parse_phandle(rdev->np_port, "phy-handle", 0);
 	if (!phy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Set phydev->host_interfaces before calling of_phy_connect() to
 	 * configure the PHY with the information of host_interfaces.
@@ -1421,7 +1421,7 @@ static int rswitch_phy_device_init(struct rswitch_device *rdev)
 
 	err = 0;
 out:
-	of_node_put(phy);
+	of_analde_put(phy);
 
 	return err;
 }
@@ -1452,7 +1452,7 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 		err = rswitch_etha_hw_init(rdev->etha, rdev->ndev->dev_addr);
 		if (err < 0)
 			return err;
-		if (rdev->priv->etha_no_runtime_change)
+		if (rdev->priv->etha_anal_runtime_change)
 			rdev->etha->operated = true;
 	}
 
@@ -1734,7 +1734,7 @@ static int rswitch_hwstamp_get(struct net_device *ndev, struct ifreq *req)
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
-		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		config.rx_filter = HWTSTAMP_FILTER_ANALNE;
 		break;
 	}
 
@@ -1766,7 +1766,7 @@ static int rswitch_hwstamp_set(struct net_device *ndev, struct ifreq *req)
 	}
 
 	switch (config.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		tstamp_rx_ctrl = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
@@ -1821,7 +1821,7 @@ static int rswitch_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) | BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
 }
@@ -1849,7 +1849,7 @@ static void rswitch_etha_init(struct rswitch_private *priv, unsigned int index)
 
 	/* MPIC.PSMCS = (clk [MHz] / (MDC frequency [MHz] * 2) - 1.
 	 * Calculating PSMCS value as MDC frequency = 2.5MHz. So, multiply
-	 * both the numerator and the denominator by 10.
+	 * both the numerator and the deanalminator by 10.
 	 */
 	etha->psmcs = clk_get_rate(priv->clk) / 100000 / (25 * 2) - 1;
 }
@@ -1866,7 +1866,7 @@ static int rswitch_device_alloc(struct rswitch_private *priv, unsigned int index
 
 	ndev = alloc_etherdev_mqs(sizeof(struct rswitch_device), 1, 1);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ether_setup(ndev);
@@ -1888,10 +1888,10 @@ static int rswitch_device_alloc(struct rswitch_private *priv, unsigned int index
 
 	netif_napi_add(ndev, &rdev->napi, rswitch_poll);
 
-	rdev->np_port = rswitch_get_port_node(rdev);
+	rdev->np_port = rswitch_get_port_analde(rdev);
 	rdev->disabled = !rdev->np_port;
 	err = of_get_ethdev_address(rdev->np_port, ndev);
-	of_node_put(rdev->np_port);
+	of_analde_put(rdev->np_port);
 	if (err) {
 		if (is_valid_ether_addr(rdev->etha->mac_addr))
 			eth_hw_addr_set(ndev, rdev->etha->mac_addr);
@@ -1962,7 +1962,7 @@ static int rswitch_init(struct rswitch_private *priv)
 
 	err = rswitch_gwca_linkfix_alloc(priv);
 	if (err < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rswitch_gwca_ts_queue_alloc(priv);
 	if (err < 0)
@@ -2039,7 +2039,7 @@ err_ts_queue_alloc:
 	return err;
 }
 
-static const struct soc_device_attribute rswitch_soc_no_speed_change[]  = {
+static const struct soc_device_attribute rswitch_soc_anal_speed_change[]  = {
 	{ .soc_id = "r8a779f0", .revision = "ES1.0" },
 	{ /* Sentinel */ }
 };
@@ -2059,20 +2059,20 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&priv->lock);
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 
-	attr = soc_device_match(rswitch_soc_no_speed_change);
+	attr = soc_device_match(rswitch_soc_anal_speed_change);
 	if (attr)
-		priv->etha_no_runtime_change = true;
+		priv->etha_anal_runtime_change = true;
 
 	priv->ptp_priv = rcar_gen4_ptp_alloc(pdev);
 	if (!priv->ptp_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 	priv->pdev = pdev;
@@ -2095,7 +2095,7 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	priv->gwca.queues = devm_kcalloc(&pdev->dev, priv->gwca.num_queues,
 					 sizeof(*priv->gwca.queues), GFP_KERNEL);
 	if (!priv->gwca.queues)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);

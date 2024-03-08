@@ -19,7 +19,7 @@ static struct pci_dev *pci_upstream_ptm(struct pci_dev *dev)
 	struct pci_dev *ups = pci_upstream_bridge(dev);
 
 	/*
-	 * Switch Downstream Ports are not permitted to have a PTM
+	 * Switch Downstream Ports are analt permitted to have a PTM
 	 * capability; their PTM behavior is controlled by the Upstream
 	 * Port (PCIe r5.0, sec 7.9.16), so if the upstream bridge is a
 	 * Switch Downstream Port, look up one more level.
@@ -133,7 +133,7 @@ static int __pci_enable_ptm(struct pci_dev *dev)
 	 * A device uses local PTM Messages to request time information
 	 * from a PTM Root that's farther upstream.  Every device along the
 	 * path must support PTM and have it enabled so it can handle the
-	 * messages.  Therefore, if this device is not a PTM Root, the
+	 * messages.  Therefore, if this device is analt a PTM Root, the
 	 * upstream link partner must have PTM enabled before we can enable
 	 * PTM.
 	 */
@@ -161,10 +161,10 @@ static int __pci_enable_ptm(struct pci_dev *dev)
  * @granularity: pointer to return granularity
  *
  * Enable Precision Time Measurement for @dev.  If successful and
- * @granularity is non-NULL, return the Effective Granularity.
+ * @granularity is analn-NULL, return the Effective Granularity.
  *
  * Return: zero if successful, or -EINVAL if @dev lacks a PTM Capability or
- * is not a PTM Root and lacks an upstream path of PTM-enabled devices.
+ * is analt a PTM Root and lacks an upstream path of PTM-enabled devices.
  */
 int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 {
@@ -182,7 +182,7 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 
 	switch (dev->ptm_granularity) {
 	case 0:
-		snprintf(clock_desc, sizeof(clock_desc), "unknown");
+		snprintf(clock_desc, sizeof(clock_desc), "unkanalwn");
 		break;
 	case 255:
 		snprintf(clock_desc, sizeof(clock_desc), ">254ns");

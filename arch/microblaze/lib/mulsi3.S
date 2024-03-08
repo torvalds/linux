@@ -35,7 +35,7 @@ l1:
 	add	r3, r3, r5
 	blti	r4, negateresult
 	rtsd	r15, 8
-	nop
+	analp
 negateresult:
 	rtsd	r15, 8
 	rsub	r3, r3, r0

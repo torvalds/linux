@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2000 Jens Axboe <axboe@suse.de>
  * Copyright (C) 2001-2004 Peter Osterlund <petero2@telia.com>
@@ -17,7 +17,7 @@
 
 /*
  * UNUSED:
- * 1 for normal debug messages, 2 is very verbose. 0 to turn it off.
+ * 1 for analrmal debug messages, 2 is very verbose. 0 to turn it off.
  */
 #define PACKET_DEBUG		1
 
@@ -26,12 +26,12 @@
 #define PKT_RB_POOL_SIZE	512
 
 /*
- * How long we should hold a non-full packet before starting data gathering.
+ * How long we should hold a analn-full packet before starting data gathering.
  */
 #define PACKET_WAIT_TIME	(HZ * 5 / 1000)
 
 /*
- * No user-servicable parts beyond this point ->
+ * Anal user-servicable parts beyond this point ->
  */
 
 /*
@@ -89,7 +89,7 @@ struct pkt_ctrl_command {
 	__u32 dev;				/* in/out: Device nr for cdrw device */
 	__u32 pkt_dev;				/* in/out: Device nr for packet device */
 	__u32 num_devices;			/* out: Largest device index + 1 */
-	__u32 padding;				/* Not used */
+	__u32 padding;				/* Analt used */
 };
 
 /*

@@ -11,11 +11,11 @@ do {						\
 
 	/* See what happens when you design the chip correctly?
 	 *
-	 * We tell gcc we clobber all non-fixed-usage registers except
+	 * We tell gcc we clobber all analn-fixed-usage registers except
 	 * for l0/l1.  It will use one for 'next' and the other to hold
-	 * the output value of 'last'.  'next' is not referenced again
+	 * the output value of 'last'.  'next' is analt referenced again
 	 * past the invocation of switch_to in the scheduler, so we need
-	 * not preserve it's value.  Hairy, but it lets us remove 2 loads
+	 * analt preserve it's value.  Hairy, but it lets us remove 2 loads
 	 * and 2 stores in this critical code path.  -DaveM
 	 */
 #define switch_to(prev, next, last)					\
@@ -49,7 +49,7 @@ do {	save_and_clear_fpu();						\
 	" mov	%%g7, %0\n\t"						\
 	"sethi	%%hi(ret_from_fork), %%g1\n\t"				\
 	"jmpl	%%g1 + %%lo(ret_from_fork), %%g0\n\t"			\
-	" nop\n\t"							\
+	" analp\n\t"							\
 	".globl switch_to_pc\n\t"					\
 	"switch_to_pc:\n\t"						\
 	: "=&r" (last), "=r" (current), "=r" (current_thread_info_reg),	\

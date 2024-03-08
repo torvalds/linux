@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 /*
  * constants
@@ -96,7 +96,7 @@ snd_seq_oss_synth_probe(struct device *_dev)
 
 	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
 	if (!rec)
-		return -ENOMEM;
+		return -EANALMEM;
 	rec->seq_device = -1;
 	rec->synth_type = reg->type;
 	rec->synth_subtype = reg->subtype;
@@ -118,9 +118,9 @@ snd_seq_oss_synth_probe(struct device *_dev)
 	if (i >= max_synth_devs) {
 		if (max_synth_devs >= SNDRV_SEQ_OSS_MAX_SYNTH_DEVS) {
 			spin_unlock_irqrestore(&register_lock, flags);
-			pr_err("ALSA: seq_oss: no more synth slot\n");
+			pr_err("ALSA: seq_oss: anal more synth slot\n");
 			kfree(rec);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		max_synth_devs++;
 	}
@@ -328,11 +328,11 @@ snd_seq_oss_synth_cleanup(struct seq_oss_devinfo *dp)
 }
 
 static struct seq_oss_synthinfo *
-get_synthinfo_nospec(struct seq_oss_devinfo *dp, int dev)
+get_synthinfo_analspec(struct seq_oss_devinfo *dp, int dev)
 {
 	if (dev < 0 || dev >= dp->max_synthdev)
 		return NULL;
-	dev = array_index_nospec(dev, SNDRV_SEQ_OSS_MAX_SYNTH_DEVS);
+	dev = array_index_analspec(dev, SNDRV_SEQ_OSS_MAX_SYNTH_DEVS);
 	return &dp->synths[dev];
 }
 
@@ -343,7 +343,7 @@ static struct seq_oss_synth *
 get_synthdev(struct seq_oss_devinfo *dp, int dev)
 {
 	struct seq_oss_synth *rec;
-	struct seq_oss_synthinfo *info = get_synthinfo_nospec(dp, dev);
+	struct seq_oss_synthinfo *info = get_synthinfo_analspec(dp, dev);
 
 	if (!info)
 		return NULL;
@@ -366,7 +366,7 @@ get_synthdev(struct seq_oss_devinfo *dp, int dev)
 
 
 /*
- * reset note and velocity on each channel.
+ * reset analte and velocity on each channel.
  */
 static void
 reset_channels(struct seq_oss_synthinfo *info)
@@ -375,7 +375,7 @@ reset_channels(struct seq_oss_synthinfo *info)
 	if (info->ch == NULL || ! info->nr_voices)
 		return;
 	for (i = 0; i < info->nr_voices; i++) {
-		info->ch[i].note = -1;
+		info->ch[i].analte = -1;
 		info->ch[i].vel = 0;
 	}
 }
@@ -383,7 +383,7 @@ reset_channels(struct seq_oss_synthinfo *info)
 
 /*
  * reset synth device:
- * call reset callback.  if no callback is defined, send a heartbeat
+ * call reset callback.  if anal callback is defined, send a heartbeat
  * event to the corresponding port.
  */
 void
@@ -392,7 +392,7 @@ snd_seq_oss_synth_reset(struct seq_oss_devinfo *dp, int dev)
 	struct seq_oss_synth *rec;
 	struct seq_oss_synthinfo *info;
 
-	info = get_synthinfo_nospec(dp, dev);
+	info = get_synthinfo_analspec(dp, dev);
 	if (!info || !info->opened)
 		return;
 	if (info->sysex)
@@ -445,7 +445,7 @@ snd_seq_oss_synth_load_patch(struct seq_oss_devinfo *dp, int dev, int fmt,
 	struct seq_oss_synthinfo *info;
 	int rc;
 
-	info = get_synthinfo_nospec(dp, dev);
+	info = get_synthinfo_analspec(dp, dev);
 	if (!info)
 		return -ENXIO;
 
@@ -474,7 +474,7 @@ snd_seq_oss_synth_info(struct seq_oss_devinfo *dp, int dev)
 	rec = get_synthdev(dp, dev);
 	if (rec) {
 		snd_use_lock_free(&rec->use_lock);
-		return get_synthinfo_nospec(dp, dev);
+		return get_synthinfo_analspec(dp, dev);
 	}
 	return NULL;
 }
@@ -501,7 +501,7 @@ snd_seq_oss_synth_sysex(struct seq_oss_devinfo *dp, int dev, unsigned char *buf,
 	if (sysex == NULL) {
 		sysex = kzalloc(sizeof(*sysex), GFP_KERNEL);
 		if (sysex == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		info->sysex = sysex;
 	}
 
@@ -567,7 +567,7 @@ snd_seq_oss_synth_ioctl(struct seq_oss_devinfo *dp, int dev, unsigned int cmd, u
 	struct seq_oss_synthinfo *info;
 	int rc;
 
-	info = get_synthinfo_nospec(dp, dev);
+	info = get_synthinfo_analspec(dp, dev);
 	if (!info || info->is_midi)
 		return -ENXIO;
 	rec = get_synthdev(dp, dev);
@@ -606,7 +606,7 @@ int
 snd_seq_oss_synth_make_info(struct seq_oss_devinfo *dp, int dev, struct synth_info *inf)
 {
 	struct seq_oss_synth *rec;
-	struct seq_oss_synthinfo *info = get_synthinfo_nospec(dp, dev);
+	struct seq_oss_synthinfo *info = get_synthinfo_analspec(dp, dev);
 
 	if (!info)
 		return -ENXIO;

@@ -11,10 +11,10 @@
 void flush_tmregs_to_thread(struct task_struct *tsk)
 {
 	/*
-	 * If task is not current, it will have been flushed already to
+	 * If task is analt current, it will have been flushed already to
 	 * it's thread_struct during __switch_to().
 	 *
-	 * A reclaim flushes ALL the state or if not in TM save TM SPRs
+	 * A reclaim flushes ALL the state or if analt in TM save TM SPRs
 	 * in the appropriate thread structures from live.
 	 */
 
@@ -58,7 +58,7 @@ static int set_user_ckpt_trap(struct task_struct *task, unsigned long trap)
 int tm_cgpr_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
 		return 0;
@@ -92,10 +92,10 @@ int tm_cgpr_get(struct task_struct *target, const struct user_regset *regset,
 #endif
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	flush_tmregs_to_thread(target);
 	flush_fp_to_thread(target);
@@ -139,10 +139,10 @@ int tm_cgpr_set(struct task_struct *target, const struct user_regset *regset,
 	int ret;
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	flush_tmregs_to_thread(target);
 	flush_fp_to_thread(target);
@@ -170,7 +170,7 @@ int tm_cgpr_set(struct task_struct *target, const struct user_regset *regset,
 					 (PT_MAX_PUT_REG + 1) * sizeof(reg));
 
 	if (PT_MAX_PUT_REG + 1 < PT_TRAP && !ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  (PT_MAX_PUT_REG + 1) * sizeof(reg),
 					  PT_TRAP * sizeof(reg));
 
@@ -183,7 +183,7 @@ int tm_cgpr_set(struct task_struct *target, const struct user_regset *regset,
 	}
 
 	if (!ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  (PT_TRAP + 1) * sizeof(reg), -1);
 
 	return ret;
@@ -200,7 +200,7 @@ int tm_cgpr_set(struct task_struct *target, const struct user_regset *regset,
 int tm_cfpr_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
 		return 0;
@@ -233,10 +233,10 @@ int tm_cfpr_get(struct task_struct *target, const struct user_regset *regset,
 	int i;
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	flush_tmregs_to_thread(target);
 	flush_fp_to_thread(target);
@@ -278,10 +278,10 @@ int tm_cfpr_set(struct task_struct *target, const struct user_regset *regset,
 	int i;
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	flush_tmregs_to_thread(target);
 	flush_fp_to_thread(target);
@@ -312,7 +312,7 @@ int tm_cfpr_set(struct task_struct *target, const struct user_regset *regset,
 int tm_cvmx_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
 		return 0;
@@ -349,10 +349,10 @@ int tm_cvmx_get(struct task_struct *target, const struct user_regset *regset,
 	BUILD_BUG_ON(TVSO(vscr) != TVSO(vr[32]));
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Flush the state */
 	flush_tmregs_to_thread(target);
@@ -399,10 +399,10 @@ int tm_cvmx_set(struct task_struct *target, const struct user_regset *regset,
 	BUILD_BUG_ON(TVSO(vscr) != TVSO(vr[32]));
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	flush_tmregs_to_thread(target);
 	flush_fp_to_thread(target);
@@ -440,7 +440,7 @@ int tm_cvmx_set(struct task_struct *target, const struct user_regset *regset,
 int tm_cvsx_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
 		return 0;
@@ -473,10 +473,10 @@ int tm_cvsx_get(struct task_struct *target, const struct user_regset *regset,
 	int i;
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Flush the state */
 	flush_tmregs_to_thread(target);
@@ -517,10 +517,10 @@ int tm_cvsx_set(struct task_struct *target, const struct user_regset *regset,
 	int ret, i;
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Flush the state */
 	flush_tmregs_to_thread(target);
@@ -551,7 +551,7 @@ int tm_cvsx_set(struct task_struct *target, const struct user_regset *regset,
 int tm_spr_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regset->n;
 }
@@ -580,7 +580,7 @@ int tm_spr_get(struct task_struct *target, const struct user_regset *regset,
 	BUILD_BUG_ON(TSO(tm_tfiar) + sizeof(u64) != TSO(ckpt_regs));
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Flush the states */
 	flush_tmregs_to_thread(target);
@@ -625,7 +625,7 @@ int tm_spr_set(struct task_struct *target, const struct user_regset *regset,
 	BUILD_BUG_ON(TSO(tm_tfiar) + sizeof(u64) != TSO(ckpt_regs));
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Flush the states */
 	flush_tmregs_to_thread(target);
@@ -653,7 +653,7 @@ int tm_spr_set(struct task_struct *target, const struct user_regset *regset,
 int tm_tar_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (MSR_TM_ACTIVE(target->thread.regs->msr))
 		return regset->n;
@@ -665,10 +665,10 @@ int tm_tar_get(struct task_struct *target, const struct user_regset *regset,
 	       struct membuf to)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	return membuf_write(&to, &target->thread.tm_tar, sizeof(u64));
 }
@@ -680,10 +680,10 @@ int tm_tar_set(struct task_struct *target, const struct user_regset *regset,
 	int ret;
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 &target->thread.tm_tar, 0, sizeof(u64));
@@ -693,7 +693,7 @@ int tm_tar_set(struct task_struct *target, const struct user_regset *regset,
 int tm_ppr_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (MSR_TM_ACTIVE(target->thread.regs->msr))
 		return regset->n;
@@ -706,10 +706,10 @@ int tm_ppr_get(struct task_struct *target, const struct user_regset *regset,
 	       struct membuf to)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	return membuf_write(&to, &target->thread.tm_ppr, sizeof(u64));
 }
@@ -721,10 +721,10 @@ int tm_ppr_set(struct task_struct *target, const struct user_regset *regset,
 	int ret;
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 &target->thread.tm_ppr, 0, sizeof(u64));
@@ -734,7 +734,7 @@ int tm_ppr_set(struct task_struct *target, const struct user_regset *regset,
 int tm_dscr_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (MSR_TM_ACTIVE(target->thread.regs->msr))
 		return regset->n;
@@ -746,10 +746,10 @@ int tm_dscr_get(struct task_struct *target, const struct user_regset *regset,
 		struct membuf to)
 {
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	return membuf_write(&to, &target->thread.tm_dscr, sizeof(u64));
 }
@@ -761,10 +761,10 @@ int tm_dscr_set(struct task_struct *target, const struct user_regset *regset,
 	int ret;
 
 	if (!cpu_has_feature(CPU_FTR_TM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!MSR_TM_ACTIVE(target->thread.regs->msr))
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 &target->thread.tm_dscr, 0, sizeof(u64));

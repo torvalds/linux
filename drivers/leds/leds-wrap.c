@@ -96,7 +96,7 @@ static int __init wrap_led_init(void)
 	int ret;
 
 	if (!scx200_gpio_present()) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 

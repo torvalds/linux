@@ -144,7 +144,7 @@ extern void __memset_io(volatile void __iomem *, int, size_t);
 #define _PAGE_IOREMAP PROT_DEVICE_nGnRE
 
 #define ioremap_wc(addr, size)	\
-	ioremap_prot((addr), (size), PROT_NORMAL_NC)
+	ioremap_prot((addr), (size), PROT_ANALRMAL_NC)
 #define ioremap_np(addr, size)	\
 	ioremap_prot((addr), (size), PROT_DEVICE_nGnRnE)
 
@@ -167,7 +167,7 @@ static inline void __iomem *ioremap_cache(phys_addr_t addr, size_t size)
 	if (pfn_is_map_memory(__phys_to_pfn(addr)))
 		return (void __iomem *)__phys_to_virt(addr);
 
-	return ioremap_prot(addr, size, PROT_NORMAL);
+	return ioremap_prot(addr, size, PROT_ANALRMAL);
 }
 
 /*

@@ -70,7 +70,7 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 
 	fw_core = kzalloc(sizeof(*fw_core), GFP_KERNEL);
 	if (!fw_core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Parse CPorts and create connections */
 	for (i = 0; i < bundle->num_cports; i++) {
@@ -167,7 +167,7 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 	/* Firmware Management connection is mandatory */
 	if (!fw_core->mgmt_connection) {
 		dev_err(&bundle->dev, "missing management connection\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_destroy_connections;
 	}
 
@@ -209,7 +209,7 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 	greybus_set_drvdata(bundle, fw_core);
 
 	/* FIXME: Remove this after S2 Loader gets runtime PM support */
-	if (!(bundle->intf->quirks & GB_INTERFACE_QUIRK_NO_PM))
+	if (!(bundle->intf->quirks & GB_INTERFACE_QUIRK_ANAL_PM))
 		gb_pm_runtime_put_autosuspend(bundle);
 
 	return 0;
@@ -234,10 +234,10 @@ static void gb_fw_core_disconnect(struct gb_bundle *bundle)
 	int ret;
 
 	/* FIXME: Remove this after S2 Loader gets runtime PM support */
-	if (!(bundle->intf->quirks & GB_INTERFACE_QUIRK_NO_PM)) {
+	if (!(bundle->intf->quirks & GB_INTERFACE_QUIRK_ANAL_PM)) {
 		ret = gb_pm_runtime_get_sync(bundle);
 		if (ret)
-			gb_pm_runtime_get_noresume(bundle);
+			gb_pm_runtime_get_analresume(bundle);
 	}
 
 	gb_fw_mgmt_connection_exit(fw_core->mgmt_connection);

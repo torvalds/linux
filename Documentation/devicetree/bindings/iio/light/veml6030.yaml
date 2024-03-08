@@ -13,7 +13,7 @@ description: |
   Bindings for the ambient light sensor veml6030 from Vishay
   Semiconductors over an i2c interface.
 
-  Irrespective of whether interrupt is used or not, application
+  Irrespective of whether interrupt is used or analt, application
   can get the ALS and White channel reading from IIO raw interface.
 
   If the interrupts are used, application will receive an IIO event
@@ -38,7 +38,7 @@ properties:
     description:
       interrupt mapping for IRQ. Configure with IRQ_TYPE_LEVEL_LOW.
       Refer to interrupt-controller/interrupts.txt for generic
-      interrupt client node bindings.
+      interrupt client analde bindings.
     maxItems: 1
 
 required:

@@ -7,11 +7,11 @@
 #include <linux/cache.h>
 #include <linux/types.h>
 
-extern bool movable_node_enabled;
+extern bool movable_analde_enabled;
 
-static inline bool movable_node_is_enabled(void)
+static inline bool movable_analde_is_enabled(void)
 {
-	return movable_node_enabled;
+	return movable_analde_enabled;
 }
 
 #endif

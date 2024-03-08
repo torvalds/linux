@@ -7,7 +7,7 @@
  *	Copyright (C) 1998-2000
  *          Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *  Please note that the GPL allows you to use the driver, NOT the radio.
+ *  Please analte that the GPL allows you to use the driver, ANALT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
  *
@@ -49,7 +49,7 @@
 
 /* --------------------------------------------------------------------- */
 
-static const char paranoia_str[] = KERN_ERR 
+static const char paraanalia_str[] = KERN_ERR 
 	"baycom_epp: bad magic number for hdlcdrv_state struct in routine %s\n";
 
 static const char bc_drvname[] = "baycom_epp";
@@ -360,7 +360,7 @@ static void encode_hdlc(struct baycom_state *bc)
 	struct sk_buff *skb;
 	unsigned char *wp, *bp;
 	int pkt_len;
-        unsigned bitstream, notbitstream, bitbuf, numbit, crc;
+        unsigned bitstream, analtbitstream, bitbuf, numbit, crc;
 	unsigned char crcarr[2];
 	int j;
 	
@@ -382,18 +382,18 @@ static void encode_hdlc(struct baycom_state *bc)
 		bitstream >>= 8;
 		bitstream |= ((unsigned int)*bp) << 8;
 		bitbuf |= ((unsigned int)*bp) << numbit;
-		notbitstream = ~bitstream;
+		analtbitstream = ~bitstream;
 		bp++;
 		pkt_len--;
 		if (!pkt_len)
 			bp = crcarr;
 		for (j = 0; j < 8; j++)
-			if (unlikely(!(notbitstream & (0x1f0 << j)))) {
+			if (unlikely(!(analtbitstream & (0x1f0 << j)))) {
 				bitstream &= ~(0x100 << j);
 				bitbuf = (bitbuf & (((2 << j) << numbit) - 1)) |
 					((bitbuf & ~(((2 << j) << numbit) - 1)) << 1);
 				numbit++;
-				notbitstream = ~bitstream;
+				analtbitstream = ~bitstream;
 			}
 		numbit += 8;
 		while (numbit >= 8) {
@@ -552,7 +552,7 @@ static int receive(struct net_device *dev, int cnt)
 {
 	struct baycom_state *bc = netdev_priv(dev);
 	struct parport *pp = bc->pdev->port;
-        unsigned int bitbuf, notbitstream, bitstream, numbits, state;
+        unsigned int bitbuf, analtbitstream, bitstream, numbits, state;
 	unsigned char tmp[128];
         unsigned char *cp;
 	int cnt2, ret = 0;
@@ -576,14 +576,14 @@ static int receive(struct net_device *dev, int cnt)
 			bitbuf >>= 8;
 			bitbuf |= (*cp) << 8;
 			numbits += 8;
-			notbitstream = ~bitstream;
+			analtbitstream = ~bitstream;
 			for (j = 0; j < 8; j++) {
 
 				/* flag or abort */
-			        if (unlikely(!(notbitstream & (0x0fc << j)))) {
+			        if (unlikely(!(analtbitstream & (0x0fc << j)))) {
 
 					/* abort received */
-					if (!(notbitstream & (0x1fc << j)))
+					if (!(analtbitstream & (0x1fc << j)))
 						state = 0;
 
 					/* flag received */
@@ -667,7 +667,7 @@ static void epp_bh(struct work_struct *work)
 			goto epptimeout;
 		cnt2 = tmp[0] | (tmp[1] << 8);
 		cnt2 = 16384 - (cnt2 & 0x7fff);
-		/* return to normal */
+		/* return to analrmal */
 		tmp[0] = EPP_TX_FIFO_ENABLE|EPP_RX_FIFO_ENABLE|EPP_MODEM_ENABLE;
 		if (pp->ops->epp_write_addr(pp, tmp, 1, 0) != 1)
 			goto epptimeout;
@@ -809,7 +809,7 @@ static void epp_wakeup(void *handle)
  *
  * This routine should set everything up anew at each open, even
  * registers that "should" only need to be set once at boot, so that
- * there is non-reboot way to recover if something goes wrong.
+ * there is analn-reboot way to recover if something goes wrong.
  */
 
 static int epp_open(struct net_device *dev)
@@ -823,18 +823,18 @@ static int epp_open(struct net_device *dev)
 	struct pardev_cb par_cb;
 	
         if (!pp) {
-                printk(KERN_ERR "%s: parport at 0x%lx unknown\n", bc_drvname, dev->base_addr);
+                printk(KERN_ERR "%s: parport at 0x%lx unkanalwn\n", bc_drvname, dev->base_addr);
                 return -ENXIO;
         }
 #if 0
         if (pp->irq < 0) {
-                printk(KERN_ERR "%s: parport at 0x%lx has no irq\n", bc_drvname, pp->base);
+                printk(KERN_ERR "%s: parport at 0x%lx has anal irq\n", bc_drvname, pp->base);
 		parport_put_port(pp);
                 return -ENXIO;
         }
 #endif
 	if ((~pp->modes) & (PARPORT_MODE_TRISTATE | PARPORT_MODE_PCSPP | PARPORT_MODE_SAFEININT)) {
-                printk(KERN_ERR "%s: parport at 0x%lx cannot be used\n",
+                printk(KERN_ERR "%s: parport at 0x%lx cananalt be used\n",
 		       bc_drvname, pp->base);
 		parport_put_port(pp);
                 return -EIO;
@@ -849,15 +849,15 @@ static int epp_open(struct net_device *dev)
 			break;
 
 	if (i == NR_PORTS) {
-		pr_err("%s: no device found\n", bc_drvname);
+		pr_err("%s: anal device found\n", bc_drvname);
 		parport_put_port(pp);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	bc->pdev = parport_register_dev_model(pp, dev->name, &par_cb, i);
 	parport_put_port(pp);
         if (!bc->pdev) {
-                printk(KERN_ERR "%s: cannot register parport at 0x%lx\n", bc_drvname, pp->base);
+                printk(KERN_ERR "%s: cananalt register parport at 0x%lx\n", bc_drvname, pp->base);
                 return -ENXIO;
         }
         if (parport_claim(bc->pdev)) {
@@ -870,7 +870,7 @@ static int epp_open(struct net_device *dev)
 	bc->work_running = 1;
 	bc->modem = EPP_CONVENTIONAL;
 	if (eppconfig(bc))
-		printk(KERN_INFO "%s: no FPGA detected, assuming conventional EPP modem\n", bc_drvname);
+		printk(KERN_INFO "%s: anal FPGA detected, assuming conventional EPP modem\n", bc_drvname);
 	else
 		bc->modem = /*EPP_FPGA*/ EPP_FPGAEXTSTATUS;
 	parport_write_control(pp, LPTCTRL_PROGRAM); /* prepare EPP mode; we aren't using interrupts */
@@ -978,7 +978,7 @@ static int baycom_setmode(struct baycom_state *bc, const char *modestr)
 		bc->cfg.extmodem = 1;
 	if (strstr(modestr,"loopback"))
 		bc->cfg.loopback = 1;
-	if (strstr(modestr, "noloopback"))
+	if (strstr(modestr, "analloopback"))
 		bc->cfg.loopback = 0;
 	if ((cp = strstr(modestr,"fclk="))) {
 		bc->cfg.fclk = simple_strtoul(cp+5, NULL, 0);
@@ -1006,13 +1006,13 @@ static int baycom_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 	struct hdlcdrv_ioctl hi;
 
 	if (cmd != SIOCDEVPRIVATE)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	if (copy_from_user(&hi, data, sizeof(hi)))
 		return -EFAULT;
 	switch (hi.cmd) {
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	case HDLCDRVCTL_GETCHANNELPAR:
 		hi.data.cp.tx_delay = bc->ch_params.tx_delay;
@@ -1129,7 +1129,7 @@ static void baycom_probe(struct net_device *dev)
 	struct baycom_state *bc;
 
 	/*
-	 * not a real probe! only initialize data structures
+	 * analt a real probe! only initialize data structures
 	 */
 	bc = netdev_priv(dev);
 	/*
@@ -1185,7 +1185,7 @@ static int baycom_epp_par_probe(struct pardevice *par_dev)
 	int len = strlen(drv->name);
 
 	if (strncmp(par_dev->name, drv->name, len))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -1231,11 +1231,11 @@ static int __init init_baycomepp(void)
 		struct net_device *dev;
 		
 		dev = alloc_netdev(sizeof(struct baycom_state), "bce%d",
-				   NET_NAME_UNKNOWN, baycom_epp_dev_setup);
+				   NET_NAME_UNKANALWN, baycom_epp_dev_setup);
 
 		if (!dev) {
 			printk(KERN_WARNING "bce%d : out of memory\n", i);
-			return found ? 0 : -ENOMEM;
+			return found ? 0 : -EANALMEM;
 		}
 			
 		sprintf(dev->name, "bce%d", i);
@@ -1247,7 +1247,7 @@ static int __init init_baycomepp(void)
 			iobase[i] = 0;
 
 		if (register_netdev(dev)) {
-			printk(KERN_WARNING "%s: cannot register net device %s\n", bc_drvname, dev->name);
+			printk(KERN_WARNING "%s: cananalt register net device %s\n", bc_drvname, dev->name);
 			free_netdev(dev);
 			break;
 		}
@@ -1278,7 +1278,7 @@ static void __exit cleanup_baycomepp(void)
 				unregister_netdev(dev);
 				free_netdev(dev);
 			} else
-				printk(paranoia_str, "cleanup_module");
+				printk(paraanalia_str, "cleanup_module");
 		}
 	}
 	parport_unregister_driver(&baycom_epp_par_driver);

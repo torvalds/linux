@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syanalpsys, Inc. and/or its affiliates.
  * stmmac HW Interface Handling
  */
 
@@ -14,11 +14,11 @@ static u32 stmmac_get_id(struct stmmac_priv *priv, u32 id_reg)
 	u32 reg = readl(priv->ioaddr + id_reg);
 
 	if (!reg) {
-		dev_info(priv->device, "Version ID not available\n");
+		dev_info(priv->device, "Version ID analt available\n");
 		return 0x0;
 	}
 
-	dev_info(priv->device, "User ID: 0x%x, Synopsys ID: 0x%x\n",
+	dev_info(priv->device, "User ID: 0x%x, Syanalpsys ID: 0x%x\n",
 			(unsigned int)(reg & GENMASK(15, 8)) >> 8,
 			(unsigned int)(reg & GENMASK(7, 0)));
 	return reg & GENMASK(7, 0);
@@ -29,7 +29,7 @@ static u32 stmmac_get_dev_id(struct stmmac_priv *priv, u32 id_reg)
 	u32 reg = readl(priv->ioaddr + id_reg);
 
 	if (!reg) {
-		dev_info(priv->device, "Version ID not available\n");
+		dev_info(priv->device, "Version ID analt available\n");
 		return 0x0;
 	}
 
@@ -58,17 +58,17 @@ static int stmmac_dwmac1_quirks(struct stmmac_priv *priv)
 	if (priv->plat->enh_desc) {
 		dev_info(priv->device, "Enhanced/Alternate descriptors\n");
 
-		/* GMAC older than 3.50 has no extended descriptors */
-		if (priv->synopsys_id >= DWMAC_CORE_3_50) {
+		/* GMAC older than 3.50 has anal extended descriptors */
+		if (priv->syanalpsys_id >= DWMAC_CORE_3_50) {
 			dev_info(priv->device, "Enabled extended descriptors\n");
 			priv->extend_desc = 1;
 		} else {
-			dev_warn(priv->device, "Extended descriptors not supported\n");
+			dev_warn(priv->device, "Extended descriptors analt supported\n");
 		}
 
 		mac->desc = &enh_desc_ops;
 	} else {
-		dev_info(priv->device, "Normal descriptors\n");
+		dev_info(priv->device, "Analrmal descriptors\n");
 		mac->desc = &ndesc_ops;
 	}
 
@@ -119,7 +119,7 @@ static const struct stmmac_hwif_entry {
 	int (*setup)(struct stmmac_priv *priv);
 	int (*quirks)(struct stmmac_priv *priv);
 } stmmac_hw[] = {
-	/* NOTE: New HW versions shall go to the end of this table */
+	/* ANALTE: New HW versions shall go to the end of this table */
 	{
 		.gmac = false,
 		.gmac4 = false,
@@ -303,7 +303,7 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	}
 
 	/* Save ID for later use */
-	priv->synopsys_id = id;
+	priv->syanalpsys_id = id;
 
 	/* Lets assume some safe values first */
 	priv->ptpaddr = priv->ioaddr +
@@ -324,7 +324,7 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	}
 
 	if (!mac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Fallback to generic HW */
 	for (i = ARRAY_SIZE(stmmac_hw) - 1; i >= 0; i--) {
@@ -336,8 +336,8 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 			continue;
 		if (needs_xgmac ^ entry->xgmac)
 			continue;
-		/* Use synopsys_id var because some setups can override this */
-		if (priv->synopsys_id < entry->min_id)
+		/* Use syanalpsys_id var because some setups can override this */
+		if (priv->syanalpsys_id < entry->min_id)
 			continue;
 		if (needs_xgmac && (dev_id ^ entry->dev_id))
 			continue;

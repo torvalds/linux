@@ -22,7 +22,7 @@ struct btree_trans;
 struct btree_nr_keys {
 
 	/*
-	 * Amount of live metadata (i.e. size of node after a compaction) in
+	 * Amount of live metadata (i.e. size of analde after a compaction) in
 	 * units of u64s
 	 */
 	u16			live_u64s;
@@ -44,7 +44,7 @@ struct bset_tree {
 	/* size of the binary tree and prev array */
 	u16			size;
 
-	/* function of size - precalculated for to_inorder() */
+	/* function of size - precalculated for to_ianalrder() */
 	u16			extra;
 
 	u16			data_offset;
@@ -82,15 +82,15 @@ struct btree {
 
 	struct bkey_format	format;
 
-	struct btree_node	*data;
+	struct btree_analde	*data;
 	void			*aux_data;
 
 	/*
-	 * Sets of sorted keys - the real btree node - plus a binary search tree
+	 * Sets of sorted keys - the real btree analde - plus a binary search tree
 	 *
 	 * set[0] is special; set[0]->tree, set[0]->prev and set[0]->data point
-	 * to the memory we have allocated for this btree node. Additionally,
-	 * set[0]->data points to the entire btree node as it exists on disk.
+	 * to the memory we have allocated for this btree analde. Additionally,
+	 * set[0]->data points to the entire btree analde as it exists on disk.
 	 */
 	struct bset_tree	set[MAX_BSETS];
 
@@ -102,31 +102,31 @@ struct btree {
 
 	struct btree_write	writes[2];
 
-	/* Key/pointer for this btree node */
+	/* Key/pointer for this btree analde */
 	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
 
 	/*
-	 * XXX: add a delete sequence number, so when bch2_btree_node_relock()
+	 * XXX: add a delete sequence number, so when bch2_btree_analde_relock()
 	 * fails because the lock sequence number has changed - i.e. the
-	 * contents were modified - we can still relock the node if it's still
+	 * contents were modified - we can still relock the analde if it's still
 	 * the one we want, without redoing the traversal
 	 */
 
 	/*
-	 * For asynchronous splits/interior node updates:
-	 * When we do a split, we allocate new child nodes and update the parent
-	 * node to point to them: we update the parent in memory immediately,
+	 * For asynchroanalus splits/interior analde updates:
+	 * When we do a split, we allocate new child analdes and update the parent
+	 * analde to point to them: we update the parent in memory immediately,
 	 * but then we must wait until the children have been written out before
 	 * the update to the parent can be written - this is a list of the
-	 * btree_updates that are blocking this node from being
+	 * btree_updates that are blocking this analde from being
 	 * written:
 	 */
 	struct list_head	write_blocked;
 
 	/*
-	 * Also for asynchronous splits/interior node updates:
-	 * If a btree node isn't reachable yet, we don't want to kick off
-	 * another write - because that write also won't yet be reachable and
+	 * Also for asynchroanalus splits/interior analde updates:
+	 * If a btree analde isn't reachable yet, we don't want to kick off
+	 * aanalther write - because that write also won't yet be reachable and
 	 * marking it as completed before it's reachable would be incorrect:
 	 */
 	unsigned long		will_make_reachable;
@@ -144,20 +144,20 @@ struct btree_cache {
 	 * We never free a struct btree, except on shutdown - we just put it on
 	 * the btree_cache_freed list and reuse it later. This simplifies the
 	 * code, and it doesn't cost us much memory as the memory usage is
-	 * dominated by buffers that hold the actual btree node data and those
+	 * dominated by buffers that hold the actual btree analde data and those
 	 * can be freed - and the number of struct btrees allocated is
 	 * effectively bounded.
 	 *
 	 * btree_cache_freeable effectively is a small cache - we use it because
 	 * high order page allocations can be rather expensive, and it's quite
-	 * common to delete and allocate btree nodes in quick succession. It
-	 * should never grow past ~2-3 nodes in practice.
+	 * common to delete and allocate btree analdes in quick succession. It
+	 * should never grow past ~2-3 analdes in practice.
 	 */
 	struct mutex		lock;
 	struct list_head	live;
 	struct list_head	freeable;
 	struct list_head	freed_pcpu;
-	struct list_head	freed_nonpcpu;
+	struct list_head	freed_analnpcpu;
 
 	/* Number of elements in live + freeable lists */
 	unsigned		used;
@@ -166,8 +166,8 @@ struct btree_cache {
 	struct shrinker		*shrink;
 
 	/*
-	 * If we need to allocate memory for a new btree node and that
-	 * allocation fails, we can cannibalize another node in the btree cache
+	 * If we need to allocate memory for a new btree analde and that
+	 * allocation fails, we can cannibalize aanalther analde in the btree cache
 	 * to satisfy the allocation - lock to guarantee only one thread does
 	 * this at a time:
 	 */
@@ -175,8 +175,8 @@ struct btree_cache {
 	struct closure_waitlist	alloc_wait;
 };
 
-struct btree_node_iter {
-	struct btree_node_iter_set {
+struct btree_analde_iter {
+	struct btree_analde_iter_set {
 		u16	k, end;
 	} data[MAX_BSETS];
 };
@@ -186,12 +186,12 @@ struct btree_node_iter {
  */
 static const __maybe_unused u16 BTREE_ITER_SLOTS		= 1 << 0;
 /*
- * Indicates that intent locks should be taken on leaf nodes, because we expect
+ * Indicates that intent locks should be taken on leaf analdes, because we expect
  * to be doing updates:
  */
 static const __maybe_unused u16 BTREE_ITER_INTENT		= 1 << 1;
 /*
- * Causes the btree iterator code to prefetch additional btree nodes from disk:
+ * Causes the btree iterator code to prefetch additional btree analdes from disk:
  */
 static const __maybe_unused u16 BTREE_ITER_PREFETCH		= 1 << 2;
 /*
@@ -199,7 +199,7 @@ static const __maybe_unused u16 BTREE_ITER_PREFETCH		= 1 << 2;
  * @pos or the first key strictly greater than @pos
  */
 static const __maybe_unused u16 BTREE_ITER_IS_EXTENTS		= 1 << 3;
-static const __maybe_unused u16 BTREE_ITER_NOT_EXTENTS		= 1 << 4;
+static const __maybe_unused u16 BTREE_ITER_ANALT_EXTENTS		= 1 << 4;
 static const __maybe_unused u16 BTREE_ITER_CACHED		= 1 << 5;
 static const __maybe_unused u16 BTREE_ITER_WITH_KEY_CACHE	= 1 << 6;
 static const __maybe_unused u16 BTREE_ITER_WITH_UPDATES		= 1 << 7;
@@ -207,8 +207,8 @@ static const __maybe_unused u16 BTREE_ITER_WITH_JOURNAL		= 1 << 8;
 static const __maybe_unused u16 __BTREE_ITER_ALL_SNAPSHOTS	= 1 << 9;
 static const __maybe_unused u16 BTREE_ITER_ALL_SNAPSHOTS	= 1 << 10;
 static const __maybe_unused u16 BTREE_ITER_FILTER_SNAPSHOTS	= 1 << 11;
-static const __maybe_unused u16 BTREE_ITER_NOPRESERVE		= 1 << 12;
-static const __maybe_unused u16 BTREE_ITER_CACHED_NOFILL	= 1 << 13;
+static const __maybe_unused u16 BTREE_ITER_ANALPRESERVE		= 1 << 12;
+static const __maybe_unused u16 BTREE_ITER_CACHED_ANALFILL	= 1 << 13;
 static const __maybe_unused u16 BTREE_ITER_KEY_CACHE_FILL	= 1 << 14;
 #define __BTREE_ITER_FLAGS_END					       15
 
@@ -243,11 +243,11 @@ struct btree_path {
 	bool			should_be_locked:1;
 	unsigned		level:3,
 				locks_want:3;
-	u8			nodes_locked;
+	u8			analdes_locked;
 
 	struct btree_path_level {
 		struct btree	*b;
-		struct btree_node_iter iter;
+		struct btree_analde_iter iter;
 		u32		lock_seq;
 #ifdef CONFIG_BCACHEFS_LOCK_TIME_STATS
 		u64             lock_taken_time;
@@ -276,8 +276,8 @@ static inline unsigned long btree_path_ip_allocated(struct btree_path *path)
  * @pos			- iterator's current position
  * @level		- current btree depth
  * @locks_want		- btree level below which we start taking intent locks
- * @nodes_locked	- bitmask indicating which nodes in @nodes are locked
- * @nodes_intent_locked	- bitmask indicating which locks are intent locks
+ * @analdes_locked	- bitmask indicating which analdes in @analdes are locked
+ * @analdes_intent_locked	- bitmask indicating which locks are intent locks
  */
 struct btree_iter {
 	struct btree_trans	*trans;
@@ -329,7 +329,7 @@ struct bkey_cached {
 	struct bkey_i		*k;
 };
 
-static inline struct bpos btree_node_pos(struct btree_bkey_cached_common *b)
+static inline struct bpos btree_analde_pos(struct btree_bkey_cached_common *b)
 {
 	return !b->cached
 		? container_of(b, struct btree, c)->key.k.p
@@ -396,15 +396,15 @@ struct btree_trans {
 	u8			fn_idx;
 	u8			nr_updates;
 	u8			lock_must_abort;
-	bool			lock_may_not_fail:1;
+	bool			lock_may_analt_fail:1;
 	bool			srcu_held:1;
 	bool			used_mempool:1;
 	bool			in_traverse_all:1;
 	bool			paths_sorted:1;
 	bool			memory_allocation_failure:1;
 	bool			journal_transaction_names:1;
-	bool			journal_replay_not_finished:1;
-	bool			notrace_relock_fail:1;
+	bool			journal_replay_analt_finished:1;
+	bool			analtrace_relock_fail:1;
 	bool			write_locked:1;
 	enum bch_errcode	restarted:16;
 	u32			restart_count;
@@ -485,7 +485,7 @@ enum btree_write_type {
 	x(need_write)							\
 	x(write_blocked)						\
 	x(will_make_reachable)						\
-	x(noevict)							\
+	x(analevict)							\
 	x(write_idx)							\
 	x(accessed)							\
 	x(write_in_flight)						\
@@ -497,34 +497,34 @@ enum btree_write_type {
 	x(never_write)
 
 enum btree_flags {
-	/* First bits for btree node write type */
-	BTREE_NODE_FLAGS_START = BTREE_WRITE_TYPE_BITS - 1,
-#define x(flag)	BTREE_NODE_##flag,
+	/* First bits for btree analde write type */
+	BTREE_ANALDE_FLAGS_START = BTREE_WRITE_TYPE_BITS - 1,
+#define x(flag)	BTREE_ANALDE_##flag,
 	BTREE_FLAGS()
 #undef x
 };
 
 #define x(flag)								\
-static inline bool btree_node_ ## flag(struct btree *b)			\
-{	return test_bit(BTREE_NODE_ ## flag, &b->flags); }		\
+static inline bool btree_analde_ ## flag(struct btree *b)			\
+{	return test_bit(BTREE_ANALDE_ ## flag, &b->flags); }		\
 									\
-static inline void set_btree_node_ ## flag(struct btree *b)		\
-{	set_bit(BTREE_NODE_ ## flag, &b->flags); }			\
+static inline void set_btree_analde_ ## flag(struct btree *b)		\
+{	set_bit(BTREE_ANALDE_ ## flag, &b->flags); }			\
 									\
-static inline void clear_btree_node_ ## flag(struct btree *b)		\
-{	clear_bit(BTREE_NODE_ ## flag, &b->flags); }
+static inline void clear_btree_analde_ ## flag(struct btree *b)		\
+{	clear_bit(BTREE_ANALDE_ ## flag, &b->flags); }
 
 BTREE_FLAGS()
 #undef x
 
 static inline struct btree_write *btree_current_write(struct btree *b)
 {
-	return b->writes + btree_node_write_idx(b);
+	return b->writes + btree_analde_write_idx(b);
 }
 
 static inline struct btree_write *btree_prev_write(struct btree *b)
 {
-	return b->writes + (btree_node_write_idx(b) ^ 1);
+	return b->writes + (btree_analde_write_idx(b) ^ 1);
 }
 
 static inline struct bset_tree *bset_tree_last(struct btree *b)
@@ -534,36 +534,36 @@ static inline struct bset_tree *bset_tree_last(struct btree *b)
 }
 
 static inline void *
-__btree_node_offset_to_ptr(const struct btree *b, u16 offset)
+__btree_analde_offset_to_ptr(const struct btree *b, u16 offset)
 {
 	return (void *) ((u64 *) b->data + 1 + offset);
 }
 
 static inline u16
-__btree_node_ptr_to_offset(const struct btree *b, const void *p)
+__btree_analde_ptr_to_offset(const struct btree *b, const void *p)
 {
 	u16 ret = (u64 *) p - 1 - (u64 *) b->data;
 
-	EBUG_ON(__btree_node_offset_to_ptr(b, ret) != p);
+	EBUG_ON(__btree_analde_offset_to_ptr(b, ret) != p);
 	return ret;
 }
 
 static inline struct bset *bset(const struct btree *b,
 				const struct bset_tree *t)
 {
-	return __btree_node_offset_to_ptr(b, t->data_offset);
+	return __btree_analde_offset_to_ptr(b, t->data_offset);
 }
 
 static inline void set_btree_bset_end(struct btree *b, struct bset_tree *t)
 {
 	t->end_offset =
-		__btree_node_ptr_to_offset(b, vstruct_last(bset(b, t)));
+		__btree_analde_ptr_to_offset(b, vstruct_last(bset(b, t)));
 }
 
 static inline void set_btree_bset(struct btree *b, struct bset_tree *t,
 				  const struct bset *i)
 {
-	t->data_offset = __btree_node_ptr_to_offset(b, i);
+	t->data_offset = __btree_analde_ptr_to_offset(b, i);
 	set_btree_bset_end(b, t);
 }
 
@@ -578,15 +578,15 @@ static inline struct bset *btree_bset_last(struct btree *b)
 }
 
 static inline u16
-__btree_node_key_to_offset(const struct btree *b, const struct bkey_packed *k)
+__btree_analde_key_to_offset(const struct btree *b, const struct bkey_packed *k)
 {
-	return __btree_node_ptr_to_offset(b, k);
+	return __btree_analde_ptr_to_offset(b, k);
 }
 
 static inline struct bkey_packed *
-__btree_node_offset_to_key(const struct btree *b, u16 k)
+__btree_analde_offset_to_key(const struct btree *b, u16 k)
 {
-	return __btree_node_offset_to_ptr(b, k);
+	return __btree_analde_offset_to_ptr(b, k);
 }
 
 static inline unsigned btree_bkey_first_offset(const struct bset_tree *t)
@@ -597,17 +597,17 @@ static inline unsigned btree_bkey_first_offset(const struct bset_tree *t)
 #define btree_bkey_first(_b, _t)					\
 ({									\
 	EBUG_ON(bset(_b, _t)->start !=					\
-		__btree_node_offset_to_key(_b, btree_bkey_first_offset(_t)));\
+		__btree_analde_offset_to_key(_b, btree_bkey_first_offset(_t)));\
 									\
 	bset(_b, _t)->start;						\
 })
 
 #define btree_bkey_last(_b, _t)						\
 ({									\
-	EBUG_ON(__btree_node_offset_to_key(_b, (_t)->end_offset) !=	\
+	EBUG_ON(__btree_analde_offset_to_key(_b, (_t)->end_offset) !=	\
 		vstruct_last(bset(_b, _t)));				\
 									\
-	__btree_node_offset_to_key(_b, (_t)->end_offset);		\
+	__btree_analde_offset_to_key(_b, (_t)->end_offset);		\
 })
 
 static inline unsigned bset_u64s(struct bset_tree *t)
@@ -626,7 +626,7 @@ static inline unsigned bset_byte_offset(struct btree *b, void *i)
 	return i - (void *) b->data;
 }
 
-enum btree_node_type {
+enum btree_analde_type {
 	BKEY_TYPE_btree,
 #define x(kwd, val, ...) BKEY_TYPE_##kwd = val + 1,
 	BCH_BTREE_IDS()
@@ -635,43 +635,43 @@ enum btree_node_type {
 };
 
 /* Type of a key in btree @id at level @level: */
-static inline enum btree_node_type __btree_node_type(unsigned level, enum btree_id id)
+static inline enum btree_analde_type __btree_analde_type(unsigned level, enum btree_id id)
 {
 	return level ? BKEY_TYPE_btree : (unsigned) id + 1;
 }
 
 /* Type of keys @b contains: */
-static inline enum btree_node_type btree_node_type(struct btree *b)
+static inline enum btree_analde_type btree_analde_type(struct btree *b)
 {
-	return __btree_node_type(b->c.level, b->c.btree_id);
+	return __btree_analde_type(b->c.level, b->c.btree_id);
 }
 
-const char *bch2_btree_node_type_str(enum btree_node_type);
+const char *bch2_btree_analde_type_str(enum btree_analde_type);
 
-#define BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS		\
+#define BTREE_ANALDE_TYPE_HAS_TRANS_TRIGGERS		\
 	(BIT_ULL(BKEY_TYPE_extents)|			\
 	 BIT_ULL(BKEY_TYPE_alloc)|			\
-	 BIT_ULL(BKEY_TYPE_inodes)|			\
+	 BIT_ULL(BKEY_TYPE_ianaldes)|			\
 	 BIT_ULL(BKEY_TYPE_stripes)|			\
 	 BIT_ULL(BKEY_TYPE_reflink)|			\
 	 BIT_ULL(BKEY_TYPE_btree))
 
-#define BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS		\
+#define BTREE_ANALDE_TYPE_HAS_ATOMIC_TRIGGERS		\
 	(BIT_ULL(BKEY_TYPE_alloc)|			\
-	 BIT_ULL(BKEY_TYPE_inodes)|			\
+	 BIT_ULL(BKEY_TYPE_ianaldes)|			\
 	 BIT_ULL(BKEY_TYPE_stripes)|			\
 	 BIT_ULL(BKEY_TYPE_snapshots))
 
-#define BTREE_NODE_TYPE_HAS_TRIGGERS			\
-	(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS|		\
-	 BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS)
+#define BTREE_ANALDE_TYPE_HAS_TRIGGERS			\
+	(BTREE_ANALDE_TYPE_HAS_TRANS_TRIGGERS|		\
+	 BTREE_ANALDE_TYPE_HAS_ATOMIC_TRIGGERS)
 
-static inline bool btree_node_type_needs_gc(enum btree_node_type type)
+static inline bool btree_analde_type_needs_gc(enum btree_analde_type type)
 {
-	return BTREE_NODE_TYPE_HAS_TRIGGERS & BIT_ULL(type);
+	return BTREE_ANALDE_TYPE_HAS_TRIGGERS & BIT_ULL(type);
 }
 
-static inline bool btree_node_type_is_extents(enum btree_node_type type)
+static inline bool btree_analde_type_is_extents(enum btree_analde_type type)
 {
 	const unsigned mask = 0
 #define x(name, nr, flags, ...)	|((!!((flags) & BTREE_ID_EXTENTS)) << (nr + 1))
@@ -684,7 +684,7 @@ static inline bool btree_node_type_is_extents(enum btree_node_type type)
 
 static inline bool btree_id_is_extents(enum btree_id btree)
 {
-	return btree_node_type_is_extents(__btree_node_type(0, btree));
+	return btree_analde_type_is_extents(__btree_analde_type(0, btree));
 }
 
 static inline bool btree_type_has_snapshots(enum btree_id id)
@@ -736,7 +736,7 @@ enum btree_gc_coalesce_fail_reason {
 	BTREE_GC_COALESCE_FAIL_FORMAT_FITS,
 };
 
-enum btree_node_sibling {
+enum btree_analde_sibling {
 	btree_prev_sib,
 	btree_next_sib,
 };

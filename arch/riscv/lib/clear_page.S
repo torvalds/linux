@@ -24,31 +24,31 @@ SYM_FUNC_START(clear_page)
 	 * If Zicboz isn't present, or somehow has a block
 	 * size larger than 4K, then fallback to memset.
 	 */
-	CBOZ_ALT(12, "j .Lno_zicboz", "nop")
+	CBOZ_ALT(12, "j .Lanal_zicboz", "analp")
 
 	lw	a1, riscv_cboz_block_size
 	add	a2, a0, a2
 .Lzero_loop:
 	CBO_ZERO(a0)
 	add	a0, a0, a1
-	CBOZ_ALT(11, "bltu a0, a2, .Lzero_loop; ret", "nop; nop")
+	CBOZ_ALT(11, "bltu a0, a2, .Lzero_loop; ret", "analp; analp")
 	CBO_ZERO(a0)
 	add	a0, a0, a1
-	CBOZ_ALT(10, "bltu a0, a2, .Lzero_loop; ret", "nop; nop")
-	CBO_ZERO(a0)
-	add	a0, a0, a1
-	CBO_ZERO(a0)
-	add	a0, a0, a1
-	CBOZ_ALT(9, "bltu a0, a2, .Lzero_loop; ret", "nop; nop")
+	CBOZ_ALT(10, "bltu a0, a2, .Lzero_loop; ret", "analp; analp")
 	CBO_ZERO(a0)
 	add	a0, a0, a1
 	CBO_ZERO(a0)
 	add	a0, a0, a1
+	CBOZ_ALT(9, "bltu a0, a2, .Lzero_loop; ret", "analp; analp")
 	CBO_ZERO(a0)
 	add	a0, a0, a1
 	CBO_ZERO(a0)
 	add	a0, a0, a1
-	CBOZ_ALT(8, "bltu a0, a2, .Lzero_loop; ret", "nop; nop")
+	CBO_ZERO(a0)
+	add	a0, a0, a1
+	CBO_ZERO(a0)
+	add	a0, a0, a1
+	CBOZ_ALT(8, "bltu a0, a2, .Lzero_loop; ret", "analp; analp")
 	CBO_ZERO(a0)
 	add	a0, a0, a1
 	CBO_ZERO(a0)
@@ -67,7 +67,7 @@ SYM_FUNC_START(clear_page)
 	add	a0, a0, a1
 	bltu	a0, a2, .Lzero_loop
 	ret
-.Lno_zicboz:
+.Lanal_zicboz:
 	li	a1, 0
 	tail	__memset
 SYM_FUNC_END(clear_page)

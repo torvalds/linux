@@ -61,7 +61,7 @@ static ssize_t online_store(struct device *dev,
 
 	if (online && (!aq->config || !aq->card->config ||
 		       aq->chkstop || aq->card->chkstop))
-		return -ENODEV;
+		return -EANALDEV;
 	if (online && !zc->online)
 		return -EINVAL;
 	zq->online = online;

@@ -15,7 +15,7 @@
  * Virtual machine MMU allows first-level entries to either be
  * single-level lookup PTEs for very large pages, or PDEs pointing
  * to second-level PTEs for smaller pages. If PTE is single-level,
- * the least significant bits cannot be used as software bits to encode
+ * the least significant bits cananalt be used as software bits to encode
  * virtual memory subsystem information about the page, and that state
  * must be maintained in some parallel data structure.
  */
@@ -53,8 +53,8 @@
  * Cache Attributes, to be shifted as necessary for virtual/physical PTEs
  */
 
-#define __HEXAGON_C_WB		0x0	/* Write-back, no L2 */
-#define	__HEXAGON_C_WT		0x1	/* Write-through, no L2 */
+#define __HEXAGON_C_WB		0x0	/* Write-back, anal L2 */
+#define	__HEXAGON_C_WT		0x1	/* Write-through, anal L2 */
 #define	__HEXAGON_C_UNC		0x6	/* Uncached memory */
 #if CONFIG_HEXAGON_ARCH_VERSION >= 2
 #define	__HEXAGON_C_DEV		0x4	/* Device register space */

@@ -38,11 +38,11 @@ bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr)
  * hl_mmu_init() - initialize the MMU module.
  * @hdev: habanalabs device structure.
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, analn-zero for failure.
  */
 int hl_mmu_init(struct hl_device *hdev)
 {
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	if (hdev->mmu_disable)
 		return 0;
@@ -100,12 +100,12 @@ void hl_mmu_fini(struct hl_device *hdev)
  *
  * Initialize a mutex to protect the concurrent mapping flow, a hash to hold all
  * page tables hops related to this context.
- * Return: 0 on success, non-zero otherwise.
+ * Return: 0 on success, analn-zero otherwise.
  */
 int hl_mmu_ctx_init(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	if (hdev->mmu_disable)
 		return 0;
@@ -137,7 +137,7 @@ fini_dr_ctx:
  * @ctx: pointer to the context structure
  *
  * This function does the following:
- * - Free any pgts which were not freed yet
+ * - Free any pgts which were analt freed yet
  * - Free the mutex
  * - Free DRAM default page mapping hops
  */
@@ -164,11 +164,11 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
  * @real_page_size: set here the actual page size to use for the operation
  * @is_dram_addr: true if DRAM address, otherwise false.
  *
- * @return 0 on success, otherwise non 0 error code
+ * @return 0 on success, otherwise analn 0 error code
  *
- * note that this is general implementation that can fit most MMU arch. but as this is used as an
+ * analte that this is general implementation that can fit most MMU arch. but as this is used as an
  * MMU function:
- * 1. it shall not be called directly- only from mmu_func structure instance
+ * 1. it shall analt be called directly- only from mmu_func structure instance
  * 2. each MMU may modify the implementation internally
  */
 int hl_mmu_get_real_page_size(struct hl_device *hdev, struct hl_mmu_properties *mmu_prop,
@@ -183,7 +183,7 @@ int hl_mmu_get_real_page_size(struct hl_device *hdev, struct hl_mmu_properties *
 		return 0;
 	}
 
-	dev_err(hdev->dev, "page size of %u is not %uKB aligned, can't map\n",
+	dev_err(hdev->dev, "page size of %u is analt %uKB aligned, can't map\n",
 						page_size, mmu_prop->page_size >> 10);
 
 	return -EFAULT;
@@ -213,7 +213,7 @@ static struct hl_mmu_properties *hl_mmu_get_prop(struct hl_device *hdev, u32 pag
  * This function does the following:
  * - Check that the virt addr is mapped
  * - Unmap the virt addr and frees pgts if possible
- * - Returns 0 on success, -EINVAL if the given addr is not mapped
+ * - Returns 0 on success, -EINVAL if the given addr is analt mapped
  *
  * Because this function changes the page tables in the device and because it
  * changes the MMU hash, it must be protected by a lock.
@@ -277,9 +277,9 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size, bool flu
  * @flush_pte: whether to do a PCI flush
  *
  * This function does the following:
- * - Check that the virt addr is not mapped
+ * - Check that the virt addr is analt mapped
  * - Allocate pgts as necessary in order to map the virt addr to the phys
- * - Returns 0 on success, -EINVAL if addr is already mapped, or -ENOMEM.
+ * - Returns 0 on success, -EINVAL if addr is already mapped, or -EANALMEM.
  *
  * Because this function changes the page tables in the device and because it
  * changes the MMU hash, it must be protected by a lock.
@@ -500,9 +500,9 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 		u32 page_off;
 
 		/*
-		 * Bit arithmetic cannot be used for non power of two page
-		 * sizes. In addition, since bit arithmetic is not used,
-		 * we cannot ignore dram base. All that shall be considered.
+		 * Bit arithmetic cananalt be used for analn power of two page
+		 * sizes. In addition, since bit arithmetic is analt used,
+		 * we cananalt iganalre dram base. All that shall be considered.
 		 */
 
 		dram_page_size = prop->dram_page_size;
@@ -555,16 +555,16 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 	bool is_dram_addr;
 
 	if (hdev->mmu_disable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	prop = &hdev->asic_prop;
-	hops->scrambled_vaddr = virt_addr;      /* assume no scrambling */
+	hops->scrambled_vaddr = virt_addr;      /* assume anal scrambling */
 
 	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
 								prop->dmmu.start_addr,
 								prop->dmmu.end_addr);
 
-	/* host-residency is the same in PMMU and PMMU huge, no need to distinguish here */
+	/* host-residency is the same in PMMU and PMMU huge, anal need to distinguish here */
 	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
 	pgt_residency = mmu_prop->host_resident ? MMU_HR_PGT : MMU_DR_PGT;
 	mmu_funcs = hl_mmu_get_funcs(hdev, pgt_residency, is_dram_addr);
@@ -603,7 +603,7 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
 			hdev->asic_type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -692,7 +692,7 @@ int hl_mmu_prefetch_cache_range(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va,
 
 	handle_prefetch_work = kmalloc(sizeof(*handle_prefetch_work), GFP_KERNEL);
 	if (!handle_prefetch_work)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&handle_prefetch_work->prefetch_work, hl_mmu_prefetch_work_function);
 	handle_prefetch_work->ctx = ctx;
@@ -808,7 +808,7 @@ static void hl_mmu_hr_pool_destroy(struct hl_device *hdev, struct hl_mmu_hr_priv
  * @hop_table_size: HOP table size.
  * @pgt_size: memory size allocated for the page table
  *
- * @return 0 on success otherwise non-zero error code
+ * @return 0 on success otherwise analn-zero error code
  *
  * This function does the following:
  * - Create a pool of pages for pgt_infos.
@@ -833,13 +833,13 @@ int hl_mmu_hr_init(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 h
 	hr_priv->mmu_pgt_pool = gen_pool_create(PAGE_SHIFT, -1);
 	if (ZERO_OR_NULL_PTR(hr_priv->mmu_pgt_pool)) {
 		dev_err(hdev->dev, "Failed to create hr page pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hr_priv->mmu_asid_hop0 = kvcalloc(prop->max_asid, sizeof(struct pgt_info), GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(hr_priv->mmu_asid_hop0)) {
 		dev_err(hdev->dev, "Failed to allocate hr-mmu hop0 table\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto destroy_mmu_pgt_pool;
 	}
 
@@ -850,7 +850,7 @@ int hl_mmu_hr_init(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 h
 		if (ZERO_OR_NULL_PTR(virt_addr)) {
 			dev_err(hdev->dev,
 				"Failed to allocate memory for host-resident page pool\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto destroy_mmu_pgt_pool;
 		}
 
@@ -871,7 +871,7 @@ int hl_mmu_hr_init(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 h
 								hop_table_size);
 		if (!hop0_pgt->virt_addr) {
 			dev_err(hdev->dev, "Failed to allocate HOP from pgt pool\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto destroy_mmu_pgt_pool;
 		}
 	}
@@ -927,7 +927,7 @@ void hl_mmu_hr_free_hop_remove_pgt(struct pgt_info *pgt_info, struct hl_mmu_hr_p
 					u32 hop_table_size)
 {
 	gen_pool_free(hr_priv->mmu_pgt_pool, pgt_info->virt_addr, hop_table_size);
-	hash_del(&pgt_info->node);
+	hash_del(&pgt_info->analde);
 	kfree(pgt_info);
 }
 
@@ -982,12 +982,12 @@ void hl_mmu_hr_write_pte(struct hl_ctx *ctx, struct pgt_info *pgt_info, u64 phys
 void hl_mmu_hr_clear_pte(struct hl_ctx *ctx, struct pgt_info *pgt_info, u64 phys_pte_addr,
 						u32 hop_table_size)
 {
-	/* no need to transform the value to physical address */
+	/* anal need to transform the value to physical address */
 	hl_mmu_hr_write_pte(ctx, pgt_info, phys_pte_addr, 0, hop_table_size);
 }
 
 /**
- * hl_mmu_hr_put_pte() - put HR PTE and remove it if necessary (no more PTEs)
+ * hl_mmu_hr_put_pte() - put HR PTE and remove it if necessary (anal more PTEs)
  * @ctx: pointer to the context structure
  * @pgt_info: HOP's page table info structure
  * @hr_priv: HR MMU private info
@@ -1076,7 +1076,7 @@ struct pgt_info *hl_mmu_hr_alloc_hop(struct hl_ctx *ctx, struct hl_mmu_hr_priv *
 		if (virt_addr)
 			break;
 
-		/* No memory in pool - get some and try again */
+		/* Anal memory in pool - get some and try again */
 		virt_addr = hl_asic_dma_alloc_coherent(hdev, SZ_2M, &phys_addr,
 							GFP_KERNEL | __GFP_ZERO);
 		if (ZERO_OR_NULL_PTR(virt_addr))
@@ -1111,7 +1111,7 @@ pool_alloc_err:
 }
 
 /**
- * hl_mmu_hr_get_alloc_next_hop() - get the next HOP, allocate it if it does not exist
+ * hl_mmu_hr_get_alloc_next_hop() - get the next HOP, allocate it if it does analt exist
  * @ctx: pointer to the context structure.
  * @hr_priv: host resident private info structure.
  * @hr_func: host resident functions.
@@ -1143,7 +1143,7 @@ struct pgt_info *hl_mmu_hr_get_alloc_next_hop(struct hl_ctx *ctx,
  * @hops: HOPs info structure.
  * @hr_func: host resident functions.
  *
- * @return 0 on success, otherwise non 0 error code..
+ * @return 0 on success, otherwise analn 0 error code..
  */
 int hl_mmu_hr_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr, struct hl_mmu_hop_info *hops,
 								struct hl_hr_mmu_funcs *hr_func)
@@ -1194,7 +1194,7 @@ int hl_mmu_hr_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr, struct hl_mmu_hop_
 			break;
 	}
 
-	/* if passed over all hops then no last hop was found */
+	/* if passed over all hops then anal last hop was found */
 	if (i == mmu_prop->num_hops)
 		return -EFAULT;
 

@@ -69,7 +69,7 @@ int pci_enable_ats(struct pci_dev *dev, int ps)
 		return -EINVAL;
 
 	/*
-	 * Note that enabling ATS on a VF fails unless it's already enabled
+	 * Analte that enabling ATS on a VF fails unless it's already enabled
 	 * with the same STU on the PF.
 	 */
 	ctrl = PCI_ATS_CTRL_ENABLE;
@@ -201,7 +201,7 @@ int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
 	int pri = pdev->pri_cap;
 
 	/*
-	 * VFs must not implement the PRI Capability.  If their PF
+	 * VFs must analt implement the PRI Capability.  If their PF
 	 * implements PRI, it is shared by the VFs, so if the PF PRI is
 	 * enabled, it is also enabled for the VF.
 	 */
@@ -357,7 +357,7 @@ void pci_pasid_init(struct pci_dev *pdev)
  *
  * Returns 0 on success, negative value on error. This function checks
  * whether the features are actually supported by the device and returns
- * an error if not.
+ * an error if analt.
  */
 int pci_enable_pasid(struct pci_dev *pdev, int features)
 {
@@ -365,7 +365,7 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 	int pasid = pdev->pasid_cap;
 
 	/*
-	 * VFs must not implement the PASID Capability, but if a PF
+	 * VFs must analt implement the PASID Capability, but if a PF
 	 * supports PASID, its VFs share the PF PASID configuration.
 	 */
 	if (pdev->is_virtfn) {
@@ -377,7 +377,7 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 	if (WARN_ON(pdev->pasid_enabled))
 		return -EBUSY;
 
-	if (!pdev->eetlp_prefix_path && !pdev->pasid_no_tlp)
+	if (!pdev->eetlp_prefix_path && !pdev->pasid_anal_tlp)
 		return -EINVAL;
 
 	if (!pasid)
@@ -455,7 +455,7 @@ void pci_restore_pasid_state(struct pci_dev *pdev)
  * pci_pasid_features - Check which PASID features are supported
  * @pdev: PCI device structure
  *
- * Returns a negative value when no PASI capability is present.
+ * Returns a negative value when anal PASI capability is present.
  * Otherwise is returns a bitmask with supported features. Current
  * features reported are:
  * PCI_PASID_CAP_EXEC - Execute permission supported
@@ -485,7 +485,7 @@ EXPORT_SYMBOL_GPL(pci_pasid_features);
  * pci_max_pasids - Get maximum number of PASIDs supported by device
  * @pdev: PCI device structure
  *
- * Returns negative value when PASID capability is not present.
+ * Returns negative value when PASID capability is analt present.
  * Otherwise it returns the number of supported PASIDs.
  */
 int pci_max_pasids(struct pci_dev *pdev)

@@ -19,7 +19,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -72,8 +72,8 @@ const char *dev_event_names[] = {
 const char *ctc_ch_event_names[] = {
 	[CTC_EVENT_IO_SUCCESS]	= "ccw_device success",
 	[CTC_EVENT_IO_EBUSY]	= "ccw_device busy",
-	[CTC_EVENT_IO_ENODEV]	= "ccw_device enodev",
-	[CTC_EVENT_IO_UNKNOWN]	= "ccw_device unknown",
+	[CTC_EVENT_IO_EANALDEV]	= "ccw_device eanaldev",
+	[CTC_EVENT_IO_UNKANALWN]	= "ccw_device unkanalwn",
 	[CTC_EVENT_ATTNBUSY]	= "Status ATTN & BUSY",
 	[CTC_EVENT_ATTN]	= "Status ATTN",
 	[CTC_EVENT_BUSY]	= "Status BUSY",
@@ -84,11 +84,11 @@ const char *ctc_ch_event_names[] = {
 	[CTC_EVENT_UC_HWFAIL]	= "Unit check Hardware failure",
 	[CTC_EVENT_UC_RXPARITY]	= "Unit check RX parity",
 	[CTC_EVENT_UC_ZERO]	= "Unit check ZERO",
-	[CTC_EVENT_UC_UNKNOWN]	= "Unit check Unknown",
-	[CTC_EVENT_SC_UNKNOWN]	= "SubChannel check Unknown",
+	[CTC_EVENT_UC_UNKANALWN]	= "Unit check Unkanalwn",
+	[CTC_EVENT_SC_UNKANALWN]	= "SubChannel check Unkanalwn",
 	[CTC_EVENT_MC_FAIL]	= "Machine check failure",
 	[CTC_EVENT_MC_GOOD]	= "Machine check operational",
-	[CTC_EVENT_IRQ]		= "IRQ normal",
+	[CTC_EVENT_IRQ]		= "IRQ analrmal",
 	[CTC_EVENT_FINSTAT]	= "IRQ final",
 	[CTC_EVENT_TIMER]	= "Timer",
 	[CTC_EVENT_START]	= "Start",
@@ -116,7 +116,7 @@ const char *ctc_ch_state_names[] = {
 	[CTC_STATE_TXERR]	= "TX error",
 	[CTC_STATE_TERM]	= "Terminating",
 	[CTC_STATE_DTERM]	= "Restarting",
-	[CTC_STATE_NOTOP]	= "Not operational",
+	[CTC_STATE_ANALTOP]	= "Analt operational",
 	/*
 	* additional MPC states
 	*/
@@ -129,7 +129,7 @@ const char *ctc_ch_state_names[] = {
 	[CH_XID7_PENDING4]	= "XID7 Complete - Pending READY ",
 };
 
-static void ctcm_action_nop(fsm_instance *fi, int event, void *arg);
+static void ctcm_action_analp(fsm_instance *fi, int event, void *arg);
 
 /*
  * ----- static ctcm actions for channel statemachine -----
@@ -199,15 +199,15 @@ void ctcm_ccw_check_rc(struct channel *ch, int rc, char *msg)
 			ch->id);
 		fsm_event(ch->fsm, CTC_EVENT_IO_EBUSY, ch);
 		break;
-	case -ENODEV:
-		pr_err("%s: The specified target device is not valid\n",
+	case -EANALDEV:
+		pr_err("%s: The specified target device is analt valid\n",
 		       ch->id);
-		fsm_event(ch->fsm, CTC_EVENT_IO_ENODEV, ch);
+		fsm_event(ch->fsm, CTC_EVENT_IO_EANALDEV, ch);
 		break;
 	default:
 		pr_err("An I/O operation resulted in error %04x\n",
 		       rc);
-		fsm_event(ch->fsm, CTC_EVENT_IO_UNKNOWN, ch);
+		fsm_event(ch->fsm, CTC_EVENT_IO_UNKANALWN, ch);
 	}
 }
 
@@ -224,9 +224,9 @@ void ctcm_purge_skb_queue(struct sk_buff_head *q)
 }
 
 /*
- * NOP action for statemachines
+ * ANALP action for statemachines
  */
-static void ctcm_action_nop(fsm_instance *fi, int event, void *arg)
+static void ctcm_action_analp(fsm_instance *fi, int event, void *arg)
 {
 }
 
@@ -235,7 +235,7 @@ static void ctcm_action_nop(fsm_instance *fi, int event, void *arg)
  */
 
 /*
- * Normal data has been send. Free the corresponding
+ * Analrmal data has been send. Free the corresponding
  * skb (it's in io_queue), reset dev->tbusy and
  * revert to idle state.
  *
@@ -262,7 +262,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 
 	if (ch->irb->scsw.cmd.count != 0)
 		CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
-			"%s(%s): TX not complete, remaining %d bytes",
+			"%s(%s): TX analt complete, remaining %d bytes",
 			     CTCM_FUNTAIL, dev->name, ch->irb->scsw.cmd.count);
 	fsm_deltimer(&ch->timer);
 	while ((skb = skb_dequeue(&ch->io_queue))) {
@@ -276,7 +276,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 		dev_kfree_skb_irq(skb);
 	}
 	spin_lock(&ch->collect_lock);
-	clear_normalized_cda(&ch->ccw[4]);
+	clear_analrmalized_cda(&ch->ccw[4]);
 	if (ch->collect_len > 0) {
 		int rc;
 
@@ -324,7 +324,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 
 /*
  * Initial data is sent.
- * Notify device statemachine that we are up and
+ * Analtify device statemachine that we are up and
  * running.
  *
  * fi		An instance of a channel statemachine.
@@ -345,7 +345,7 @@ void ctcm_chx_txidle(fsm_instance *fi, int event, void *arg)
 }
 
 /*
- * Got normal data, check for sanity, queue it up, allocate new buffer
+ * Got analrmal data, check for sanity, queue it up, allocate new buffer
  * trigger bottom half, and initiate next read.
  *
  * fi		An instance of a channel statemachine.
@@ -365,7 +365,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 
 	fsm_deltimer(&ch->timer);
 	if (len < 8) {
-		CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_ANALTICE,
 			"%s(%s): got packet with length %d < 8\n",
 					CTCM_FUNTAIL, dev->name, len);
 		priv->stats.rx_dropped++;
@@ -373,7 +373,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 		goto again;
 	}
 	if (len > ch->max_bufsize) {
-		CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_ANALTICE,
 			"%s(%s): got packet with length %d > %d\n",
 				CTCM_FUNTAIL, dev->name, len, ch->max_bufsize);
 		priv->stats.rx_dropped++;
@@ -394,7 +394,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 		break;
 	}
 	if ((len < block_len) || (len > check_len)) {
-		CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_ANALTICE,
 			"%s(%s): got block length %d != rx length %d\n",
 				CTCM_FUNTAIL, dev->name, block_len, len);
 		if (do_debug)
@@ -418,7 +418,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 	ch->ccw[1].count = ch->max_bufsize;
 	rc = ccw_device_start(ch->cdev, &ch->ccw[0], 0, 0xff, 0);
 	if (rc != 0)
-		ctcm_ccw_check_rc(ch, rc, "normal RX");
+		ctcm_ccw_check_rc(ch, rc, "analrmal RX");
 }
 
 /*
@@ -434,7 +434,7 @@ static void chx_firstio(fsm_instance *fi, int event, void *arg)
 	struct channel *ch = arg;
 	int fsmstate = fsm_getstate(fi);
 
-	CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+	CTCM_DBF_TEXT_(TRACE, CTC_DBF_ANALTICE,
 		"%s(%s) : %02x",
 		CTCM_FUNTAIL, ch->id, fsmstate);
 
@@ -499,7 +499,7 @@ static void chx_firstio(fsm_instance *fi, int event, void *arg)
 
 /*
  * Got initial data, check it. If OK,
- * notify device statemachine that we are up and
+ * analtify device statemachine that we are up and
  * running.
  *
  * fi		An instance of a channel statemachine.
@@ -531,7 +531,7 @@ static void chx_rxidle(fsm_instance *fi, int event, void *arg)
 		} else
 			fsm_event(priv->fsm, DEV_EVENT_RXUP, dev);
 	} else {
-		CTCM_PR_DEBUG("%s: %s: Initial RX count %d not %d\n",
+		CTCM_PR_DEBUG("%s: %s: Initial RX count %d analt %d\n",
 				__func__, dev->name,
 					buflen, CTCM_INITIAL_BLOCKLEN);
 		chx_firstio(fi, event, arg);
@@ -562,10 +562,10 @@ static void ctcm_chx_setmode(fsm_instance *fi, int event, void *arg)
 	fsm_newstate(fi, CTC_STATE_SETUPWAIT);
 	CTCM_CCW_DUMP((char *)&ch->ccw[6], sizeof(struct ccw1) * 2);
 
-	if (event == CTC_EVENT_TIMER)	/* only for timer not yet locked */
+	if (event == CTC_EVENT_TIMER)	/* only for timer analt yet locked */
 		spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
 			/* Such conditional locking is undeterministic in
-			 * static view. => ignore sparse warnings here. */
+			 * static view. => iganalre sparse warnings here. */
 
 	rc = ccw_device_start(ch->cdev, &ch->ccw[6], 0, 0xff, 0);
 	if (event == CTC_EVENT_TIMER)	/* see above comments */
@@ -596,7 +596,7 @@ static void ctcm_chx_start(fsm_instance *fi, int event, void *arg)
 		(CHANNEL_DIRECTION(ch->flags) == CTCM_READ) ? "RX" : "TX");
 
 	if (ch->trans_skb != NULL) {
-		clear_normalized_cda(&ch->ccw[1]);
+		clear_analrmalized_cda(&ch->ccw[1]);
 		dev_kfree_skb(ch->trans_skb);
 		ch->trans_skb = NULL;
 	}
@@ -621,7 +621,7 @@ static void ctcm_chx_start(fsm_instance *fi, int event, void *arg)
 	ch->ccw[0].flags = CCW_FLAG_SLI | CCW_FLAG_CC;
 	ch->ccw[0].count = 0;
 	ch->ccw[0].cda = 0;
-	ch->ccw[2].cmd_code = CCW_CMD_NOOP;	/* jointed CE + DE */
+	ch->ccw[2].cmd_code = CCW_CMD_ANALOP;	/* jointed CE + DE */
 	ch->ccw[2].flags = CCW_FLAG_SLI;
 	ch->ccw[2].count = 0;
 	ch->ccw[2].cda = 0;
@@ -661,10 +661,10 @@ static void ctcm_chx_haltio(fsm_instance *fi, int event, void *arg)
 
 	fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
 
-	if (event == CTC_EVENT_STOP)	/* only for STOP not yet locked */
+	if (event == CTC_EVENT_STOP)	/* only for STOP analt yet locked */
 		spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
 			/* Such conditional locking is undeterministic in
-			 * static view. => ignore sparse warnings here. */
+			 * static view. => iganalre sparse warnings here. */
 	oldstate = fsm_getstate(fi);
 	fsm_newstate(fi, CTC_STATE_TERM);
 	rc = ccw_device_halt(ch->cdev, 0);
@@ -684,7 +684,7 @@ static void ctcm_chx_haltio(fsm_instance *fi, int event, void *arg)
 
 /*
  * Cleanup helper for chx_fail and chx_stopped
- * cleanup channels queue and notify interface statemachine.
+ * cleanup channels queue and analtify interface statemachine.
  *
  * fi		An instance of a channel statemachine.
  * state	The next state (depending on caller).
@@ -696,7 +696,7 @@ static void ctcm_chx_cleanup(fsm_instance *fi, int state,
 	struct net_device *dev = ch->netdev;
 	struct ctcm_priv *priv = dev->ml_priv;
 
-	CTCM_DBF_TEXT_(SETUP, CTC_DBF_NOTICE,
+	CTCM_DBF_TEXT_(SETUP, CTC_DBF_ANALTICE,
 			"%s(%s): %s[%d]\n",
 			CTCM_FUNTAIL, dev->name, ch->id, state);
 
@@ -706,7 +706,7 @@ static void ctcm_chx_cleanup(fsm_instance *fi, int state,
 
 	fsm_newstate(fi, state);
 	if (state == CTC_STATE_STOPPED && ch->trans_skb != NULL) {
-		clear_normalized_cda(&ch->ccw[1]);
+		clear_analrmalized_cda(&ch->ccw[1]);
 		dev_kfree_skb_any(ch->trans_skb);
 		ch->trans_skb = NULL;
 	}
@@ -730,7 +730,7 @@ static void ctcm_chx_cleanup(fsm_instance *fi, int state,
 
 /*
  * A channel has successfully been halted.
- * Cleanup it's queue and notify interface statemachine.
+ * Cleanup it's queue and analtify interface statemachine.
  *
  * fi		An instance of a channel statemachine.
  * event	The event, just happened.
@@ -743,7 +743,7 @@ static void ctcm_chx_stopped(fsm_instance *fi, int event, void *arg)
 
 /*
  * A stop command from device statemachine arrived and we are in
- * not operational mode. Set state to stopped.
+ * analt operational mode. Set state to stopped.
  *
  * fi		An instance of a channel statemachine.
  * event	The event, just happened.
@@ -755,9 +755,9 @@ static void ctcm_chx_stop(fsm_instance *fi, int event, void *arg)
 }
 
 /*
- * A machine check for no path, not operational status or gone device has
+ * A machine check for anal path, analt operational status or gone device has
  * happened.
- * Cleanup queue and notify interface statemachine.
+ * Cleanup queue and analtify interface statemachine.
  *
  * fi		An instance of a channel statemachine.
  * event	The event, just happened.
@@ -765,7 +765,7 @@ static void ctcm_chx_stop(fsm_instance *fi, int event, void *arg)
  */
 static void ctcm_chx_fail(fsm_instance *fi, int event, void *arg)
 {
-	ctcm_chx_cleanup(fi, CTC_STATE_NOTOP, arg);
+	ctcm_chx_cleanup(fi, CTC_STATE_ANALTOP, arg);
 }
 
 /*
@@ -832,7 +832,7 @@ static void ctcm_chx_restart(fsm_instance *fi, int event, void *arg)
 	int oldstate;
 	int rc;
 
-	CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+	CTCM_DBF_TEXT_(TRACE, CTC_DBF_ANALTICE,
 		"%s: %s[%d] of %s\n",
 			CTCM_FUNTAIL, ch->id, event, dev->name);
 
@@ -841,11 +841,11 @@ static void ctcm_chx_restart(fsm_instance *fi, int event, void *arg)
 	fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
 	oldstate = fsm_getstate(fi);
 	fsm_newstate(fi, CTC_STATE_STARTWAIT);
-	if (event == CTC_EVENT_TIMER)	/* only for timer not yet locked */
+	if (event == CTC_EVENT_TIMER)	/* only for timer analt yet locked */
 		spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
-			/* Such conditional locking is a known problem for
+			/* Such conditional locking is a kanalwn problem for
 			 * sparse because its undeterministic in static view.
-			 * Warnings should be ignored here. */
+			 * Warnings should be iganalred here. */
 	rc = ccw_device_halt(ch->cdev, 0);
 	if (event == CTC_EVENT_TIMER)
 		spin_unlock_irqrestore(get_ccwdev_lock(ch->cdev), saveflags);
@@ -894,7 +894,7 @@ static void ctcm_chx_rxiniterr(fsm_instance *fi, int event, void *arg)
 }
 
 /*
- * Notify device statemachine if we gave up initialization
+ * Analtify device statemachine if we gave up initialization
  * of RX channel.
  *
  * fi		An instance of a channel statemachine.
@@ -928,12 +928,12 @@ static void ctcm_chx_rxdisc(fsm_instance *fi, int event, void *arg)
 	struct net_device *dev = ch->netdev;
 	struct ctcm_priv *priv = dev->ml_priv;
 
-	CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+	CTCM_DBF_TEXT_(TRACE, CTC_DBF_ANALTICE,
 			"%s: %s: remote disconnect - re-init ...",
 				CTCM_FUNTAIL, dev->name);
 	fsm_deltimer(&ch->timer);
 	/*
-	 * Notify device statemachine
+	 * Analtify device statemachine
 	 */
 	fsm_event(priv->fsm, DEV_EVENT_RXDOWN, dev);
 	fsm_event(priv->fsm, DEV_EVENT_TXDOWN, dev);
@@ -1002,7 +1002,7 @@ static void ctcm_chx_txretry(fsm_instance *fi, int event, void *arg)
 				"%s: %s: retries exceeded",
 					CTCM_FUNTAIL, ch->id);
 		fsm_event(priv->fsm, DEV_EVENT_TXDOWN, dev);
-		/* call restart if not MPC or if MPC and mpcg fsm is ready.
+		/* call restart if analt MPC or if MPC and mpcg fsm is ready.
 			use gptr as mpc indicator */
 		if (!(gptr && (fsm_getstate(gptr->fsm) != MPCG_STATE_READY)))
 			ctcm_chx_restart(fi, event, arg);
@@ -1016,9 +1016,9 @@ static void ctcm_chx_txretry(fsm_instance *fi, int event, void *arg)
 	if (skb) {
 		int rc = 0;
 		unsigned long saveflags = 0;
-		clear_normalized_cda(&ch->ccw[4]);
+		clear_analrmalized_cda(&ch->ccw[4]);
 		ch->ccw[4].count = skb->len;
-		if (set_normalized_cda(&ch->ccw[4], skb->data)) {
+		if (set_analrmalized_cda(&ch->ccw[4], skb->data)) {
 			CTCM_DBF_TEXT_(TRACE, CTC_DBF_INFO,
 				"%s: %s: IDAL alloc failed",
 						CTCM_FUNTAIL, ch->id);
@@ -1027,11 +1027,11 @@ static void ctcm_chx_txretry(fsm_instance *fi, int event, void *arg)
 			goto done;
 		}
 		fsm_addtimer(&ch->timer, 1000, CTC_EVENT_TIMER, ch);
-		if (event == CTC_EVENT_TIMER) /* for TIMER not yet locked */
+		if (event == CTC_EVENT_TIMER) /* for TIMER analt yet locked */
 			spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
-			/* Such conditional locking is a known problem for
+			/* Such conditional locking is a kanalwn problem for
 			 * sparse because its undeterministic in static view.
-			 * Warnings should be ignored here. */
+			 * Warnings should be iganalred here. */
 		if (do_debug_ccw)
 			ctcmpc_dumpit((char *)&ch->ccw[3],
 					sizeof(struct ccw1) * 3);
@@ -1085,96 +1085,96 @@ static void ctcm_chx_iofatal(fsm_instance *fi, int event, void *arg)
 /*
  * The ctcm statemachine for a channel.
  */
-const fsm_node ch_fsm[] = {
-	{ CTC_STATE_STOPPED,	CTC_EVENT_STOP,		ctcm_action_nop  },
+const fsm_analde ch_fsm[] = {
+	{ CTC_STATE_STOPPED,	CTC_EVENT_STOP,		ctcm_action_analp  },
 	{ CTC_STATE_STOPPED,	CTC_EVENT_START,	ctcm_chx_start  },
-	{ CTC_STATE_STOPPED,	CTC_EVENT_FINSTAT,	ctcm_action_nop  },
-	{ CTC_STATE_STOPPED,	CTC_EVENT_MC_FAIL,	ctcm_action_nop  },
+	{ CTC_STATE_STOPPED,	CTC_EVENT_FINSTAT,	ctcm_action_analp  },
+	{ CTC_STATE_STOPPED,	CTC_EVENT_MC_FAIL,	ctcm_action_analp  },
 
-	{ CTC_STATE_NOTOP,	CTC_EVENT_STOP,		ctcm_chx_stop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_FINSTAT,	ctcm_action_nop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_MC_FAIL,	ctcm_action_nop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_MC_GOOD,	ctcm_chx_start  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_STOP,		ctcm_chx_stop  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_FINSTAT,	ctcm_action_analp  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_MC_FAIL,	ctcm_action_analp  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_MC_GOOD,	ctcm_chx_start  },
 
 	{ CTC_STATE_STARTWAIT,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_STARTWAIT,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_STARTWAIT,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_STARTWAIT,	CTC_EVENT_FINSTAT,	ctcm_chx_setmode  },
 	{ CTC_STATE_STARTWAIT,	CTC_EVENT_TIMER,	ctcm_chx_setuperr  },
-	{ CTC_STATE_STARTWAIT,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_STARTWAIT,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_STARTWAIT,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_STARTRETRY,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
 	{ CTC_STATE_STARTRETRY,	CTC_EVENT_TIMER,	ctcm_chx_setmode  },
-	{ CTC_STATE_STARTRETRY,	CTC_EVENT_FINSTAT,	ctcm_action_nop  },
+	{ CTC_STATE_STARTRETRY,	CTC_EVENT_FINSTAT,	ctcm_action_analp  },
 	{ CTC_STATE_STARTRETRY,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_FINSTAT,	chx_firstio  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_UC_RSRESET,	ctcm_chx_setuperr  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_TIMER,	ctcm_chx_setmode  },
-	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_RXINIT,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_RXINIT,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_RXINIT,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_FINSTAT,	chx_rxidle  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_UC_RCRESET,	ctcm_chx_rxiniterr  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_UC_RSRESET,	ctcm_chx_rxiniterr  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_TIMER,	ctcm_chx_rxiniterr  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_ATTNBUSY,	ctcm_chx_rxinitfail  },
-	{ CTC_STATE_RXINIT,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_RXINIT,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_UC_ZERO,	chx_firstio  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_RXIDLE,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_RXIDLE,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_FINSTAT,	chx_rx  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_UC_RCRESET,	ctcm_chx_rxdisc  },
-	{ CTC_STATE_RXIDLE,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_RXIDLE,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_UC_ZERO,	chx_rx  },
 
 	{ CTC_STATE_TXINIT,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_TXINIT,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_TXINIT,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_FINSTAT,	ctcm_chx_txidle  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_UC_RCRESET,	ctcm_chx_txiniterr  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_UC_RSRESET,	ctcm_chx_txiniterr  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_TIMER,	ctcm_chx_txiniterr  },
-	{ CTC_STATE_TXINIT,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_TXINIT,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_TXIDLE,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_TXIDLE,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_FINSTAT,	chx_firstio  },
-	{ CTC_STATE_TXIDLE,	CTC_EVENT_UC_RCRESET,	ctcm_action_nop  },
-	{ CTC_STATE_TXIDLE,	CTC_EVENT_UC_RSRESET,	ctcm_action_nop  },
-	{ CTC_STATE_TXIDLE,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_TXIDLE,	CTC_EVENT_UC_RCRESET,	ctcm_action_analp  },
+	{ CTC_STATE_TXIDLE,	CTC_EVENT_UC_RSRESET,	ctcm_action_analp  },
+	{ CTC_STATE_TXIDLE,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
-	{ CTC_STATE_TERM,	CTC_EVENT_STOP,		ctcm_action_nop  },
+	{ CTC_STATE_TERM,	CTC_EVENT_STOP,		ctcm_action_analp  },
 	{ CTC_STATE_TERM,	CTC_EVENT_START,	ctcm_chx_restart  },
 	{ CTC_STATE_TERM,	CTC_EVENT_FINSTAT,	ctcm_chx_stopped  },
-	{ CTC_STATE_TERM,	CTC_EVENT_UC_RCRESET,	ctcm_action_nop  },
-	{ CTC_STATE_TERM,	CTC_EVENT_UC_RSRESET,	ctcm_action_nop  },
+	{ CTC_STATE_TERM,	CTC_EVENT_UC_RCRESET,	ctcm_action_analp  },
+	{ CTC_STATE_TERM,	CTC_EVENT_UC_RSRESET,	ctcm_action_analp  },
 	{ CTC_STATE_TERM,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_DTERM,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
 	{ CTC_STATE_DTERM,	CTC_EVENT_START,	ctcm_chx_restart  },
 	{ CTC_STATE_DTERM,	CTC_EVENT_FINSTAT,	ctcm_chx_setmode  },
-	{ CTC_STATE_DTERM,	CTC_EVENT_UC_RCRESET,	ctcm_action_nop  },
-	{ CTC_STATE_DTERM,	CTC_EVENT_UC_RSRESET,	ctcm_action_nop  },
+	{ CTC_STATE_DTERM,	CTC_EVENT_UC_RCRESET,	ctcm_action_analp  },
+	{ CTC_STATE_DTERM,	CTC_EVENT_UC_RSRESET,	ctcm_action_analp  },
 	{ CTC_STATE_DTERM,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_TX,		CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_TX,		CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_TX,		CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_TX,		CTC_EVENT_FINSTAT,	chx_txdone  },
 	{ CTC_STATE_TX,		CTC_EVENT_UC_RCRESET,	ctcm_chx_txretry  },
 	{ CTC_STATE_TX,		CTC_EVENT_UC_RSRESET,	ctcm_chx_txretry  },
 	{ CTC_STATE_TX,		CTC_EVENT_TIMER,	ctcm_chx_txretry  },
-	{ CTC_STATE_TX,		CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_TX,		CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_TX,		CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_RXERR,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
@@ -1199,7 +1199,7 @@ int ch_fsm_len = ARRAY_SIZE(ch_fsm);
  */
 
 /*
- * Normal data has been send. Free the corresponding
+ * Analrmal data has been send. Free the corresponding
  * skb (it's in io_queue), reset dev->tbusy and
  * revert to idle state.
  *
@@ -1233,7 +1233,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 
 	if (ch->irb->scsw.cmd.count != 0)
 		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_DEBUG,
-			"%s(%s): TX not complete, remaining %d bytes",
+			"%s(%s): TX analt complete, remaining %d bytes",
 			     CTCM_FUNTAIL, dev->name, ch->irb->scsw.cmd.count);
 	fsm_deltimer(&ch->timer);
 	while ((skb = skb_dequeue(&ch->io_queue))) {
@@ -1247,7 +1247,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		dev_kfree_skb_irq(skb);
 	}
 	spin_lock(&ch->collect_lock);
-	clear_normalized_cda(&ch->ccw[4]);
+	clear_analrmalized_cda(&ch->ccw[4]);
 	if ((ch->collect_len <= 0) || (grp->in_sweep != 0)) {
 		spin_unlock(&ch->collect_lock);
 		fsm_newstate(fi, CTC_STATE_TXIDLE);
@@ -1307,7 +1307,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	header = skb_push(ch->trans_skb, TH_HEADER_LENGTH);
 	memset(header, 0, TH_HEADER_LENGTH);
 
-	header->th_ch_flag = TH_HAS_PDU;  /* Normal data */
+	header->th_ch_flag = TH_HAS_PDU;  /* Analrmal data */
 	ch->th_seq_num++;
 	header->th_seq_num = ch->th_seq_num;
 
@@ -1322,20 +1322,20 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 				min_t(int, ch->trans_skb->len, 50));
 
 	spin_unlock(&ch->collect_lock);
-	clear_normalized_cda(&ch->ccw[1]);
+	clear_analrmalized_cda(&ch->ccw[1]);
 
 	CTCM_PR_DBGDATA("ccwcda=0x%p data=0x%p\n",
 			(void *)(unsigned long)ch->ccw[1].cda,
 			ch->trans_skb->data);
 	ch->ccw[1].count = ch->max_bufsize;
 
-	if (set_normalized_cda(&ch->ccw[1], ch->trans_skb->data)) {
+	if (set_analrmalized_cda(&ch->ccw[1], ch->trans_skb->data)) {
 		dev_kfree_skb_any(ch->trans_skb);
 		ch->trans_skb = NULL;
 		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ERROR,
 			"%s: %s: IDAL alloc failed",
 				CTCM_FUNTAIL, ch->id);
-		fsm_event(priv->mpcg->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(priv->mpcg->fsm, MPCG_EVENT_IANALP, dev);
 		return;
 	}
 
@@ -1362,7 +1362,7 @@ done:
 }
 
 /*
- * Got normal data, check for sanity, queue it up, allocate new buffer
+ * Got analrmal data, check for sanity, queue it up, allocate new buffer
  * trigger bottom half, and initiate next read.
  *
  * fi		An instance of a channel statemachine.
@@ -1408,12 +1408,12 @@ static void ctcmpc_chx_rx(fsm_instance *fi, int event, void *arg)
 			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
 				"%s(%s): skb allocation failed",
 						CTCM_FUNTAIL, dev->name);
-			fsm_event(priv->mpcg->fsm, MPCG_EVENT_INOP, dev);
+			fsm_event(priv->mpcg->fsm, MPCG_EVENT_IANALP, dev);
 			goto again;
 		}
 		switch (fsm_getstate(grp->fsm)) {
 		case MPCG_STATE_RESET:
-		case MPCG_STATE_INOP:
+		case MPCG_STATE_IANALP:
 			dev_kfree_skb_any(new_skb);
 			break;
 		case MPCG_STATE_FLOWC:
@@ -1453,7 +1453,7 @@ again:
 			spin_unlock_irqrestore(
 				get_ccwdev_lock(ch->cdev), saveflags);
 		if (rc != 0)
-			ctcm_ccw_check_rc(ch, rc, "normal RX");
+			ctcm_ccw_check_rc(ch, rc, "analrmal RX");
 		break;
 	default:
 		break;
@@ -1518,7 +1518,7 @@ done:
 
 /*
  * Got initial data, check it. If OK,
- * notify device statemachine that we are up and
+ * analtify device statemachine that we are up and
  * running.
  *
  * fi		An instance of a channel statemachine.
@@ -1654,7 +1654,7 @@ static void ctcmpc_chx_attnbusy(fsm_instance *fsm, int event, void *arg)
 	switch (fsm_getstate(grp->fsm)) {
 	case MPCG_STATE_XID0IOWAIT:
 		/* vtam wants to be primary.start yside xid exchanges*/
-		/* only receive one attn-busy at a time so must not  */
+		/* only receive one attn-busy at a time so must analt  */
 		/* change state each time			     */
 		grp->changed_side = 1;
 		fsm_newstate(grp->fsm, MPCG_STATE_XID2INITW);
@@ -1669,9 +1669,9 @@ static void ctcmpc_chx_attnbusy(fsm_instance *fsm, int event, void *arg)
 		/* back to ready-for-xid passive state		 */
 		if (grp->estconnfunc)
 				goto done;
-		/* this attnbusy is NOT the result of xside xid  */
+		/* this attnbusy is ANALT the result of xside xid  */
 		/* collisions so yside must have been triggered  */
-		/* by an ATTN that was not intended to start XID */
+		/* by an ATTN that was analt intended to start XID */
 		/* processing. Revert back to ready-for-xid and  */
 		/* wait for ATTN interrupt to signal xid start	 */
 		if (fsm_getstate(ch->fsm) == CH_XID0_INPROGRESS) {
@@ -1679,7 +1679,7 @@ static void ctcmpc_chx_attnbusy(fsm_instance *fsm, int event, void *arg)
 			fsm_deltimer(&grp->timer);
 			goto done;
 		}
-		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 		goto done;
 	case MPCG_STATE_XID2INITX:
 		/* XID2 was received before ATTN Busy for second
@@ -1697,9 +1697,9 @@ static void ctcmpc_chx_attnbusy(fsm_instance *fsm, int event, void *arg)
 	case MPCG_STATE_XID7INITZ:
 	default:
 		/* multiple attn-busy indicates too out-of-sync      */
-		/* and they are certainly not being received as part */
+		/* and they are certainly analt being received as part */
 		/* of valid mpc group negotiations..		     */
-		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 				goto done;
 	}
 
@@ -1712,7 +1712,7 @@ static void ctcmpc_chx_attnbusy(fsm_instance *fsm, int event, void *arg)
 		fsm_event(grp->fsm, MPCG_EVENT_XID0DO, ch);
 	else
 		CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-			"%s(%s): channel %s not added to group",
+			"%s(%s): channel %s analt added to group",
 				CTCM_FUNTAIL, dev->name, ch->id);
 
 done:
@@ -1775,11 +1775,11 @@ static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg)
 	if (!skb)
 				goto done;
 
-	if (set_normalized_cda(&wch->ccw[4], skb->data)) {
+	if (set_analrmalized_cda(&wch->ccw[4], skb->data)) {
 		grp->in_sweep = 0;
 		ctcm_clear_busy_do(dev);
 		dev_kfree_skb_any(skb);
-		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 		goto done;
 	} else {
 		refcount_inc(&skb->users);
@@ -1836,60 +1836,60 @@ done:
  * The ctcmpc statemachine for a channel.
  */
 
-const fsm_node ctcmpc_ch_fsm[] = {
-	{ CTC_STATE_STOPPED,	CTC_EVENT_STOP,		ctcm_action_nop  },
+const fsm_analde ctcmpc_ch_fsm[] = {
+	{ CTC_STATE_STOPPED,	CTC_EVENT_STOP,		ctcm_action_analp  },
 	{ CTC_STATE_STOPPED,	CTC_EVENT_START,	ctcm_chx_start  },
-	{ CTC_STATE_STOPPED,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
-	{ CTC_STATE_STOPPED,	CTC_EVENT_FINSTAT,	ctcm_action_nop  },
-	{ CTC_STATE_STOPPED,	CTC_EVENT_MC_FAIL,	ctcm_action_nop  },
+	{ CTC_STATE_STOPPED,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_STOPPED,	CTC_EVENT_FINSTAT,	ctcm_action_analp  },
+	{ CTC_STATE_STOPPED,	CTC_EVENT_MC_FAIL,	ctcm_action_analp  },
 
-	{ CTC_STATE_NOTOP,	CTC_EVENT_STOP,		ctcm_chx_stop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_FINSTAT,	ctcm_action_nop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_MC_FAIL,	ctcm_action_nop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_MC_GOOD,	ctcm_chx_start  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_UC_RCRESET,	ctcm_chx_stop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_UC_RSRESET,	ctcm_chx_stop  },
-	{ CTC_STATE_NOTOP,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_STOP,		ctcm_chx_stop  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_FINSTAT,	ctcm_action_analp  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_MC_FAIL,	ctcm_action_analp  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_MC_GOOD,	ctcm_chx_start  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_UC_RCRESET,	ctcm_chx_stop  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_UC_RSRESET,	ctcm_chx_stop  },
+	{ CTC_STATE_ANALTOP,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 
 	{ CTC_STATE_STARTWAIT,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_STARTWAIT,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_STARTWAIT,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_STARTWAIT,	CTC_EVENT_FINSTAT,	ctcm_chx_setmode  },
 	{ CTC_STATE_STARTWAIT,	CTC_EVENT_TIMER,	ctcm_chx_setuperr  },
-	{ CTC_STATE_STARTWAIT,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_STARTWAIT,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_STARTWAIT,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_STARTRETRY,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
 	{ CTC_STATE_STARTRETRY,	CTC_EVENT_TIMER,	ctcm_chx_setmode  },
 	{ CTC_STATE_STARTRETRY,	CTC_EVENT_FINSTAT,	ctcm_chx_setmode  },
 	{ CTC_STATE_STARTRETRY,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
-	{ CTC_STATE_STARTRETRY,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_STARTRETRY,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_FINSTAT,	ctcmpc_chx_firstio  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_UC_RSRESET,	ctcm_chx_setuperr  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_TIMER,	ctcm_chx_setmode  },
-	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_SETUPWAIT,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
 	{ CTC_STATE_RXINIT,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_RXINIT,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_RXINIT,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_FINSTAT,	ctcmpc_chx_rxidle  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_UC_RCRESET,	ctcm_chx_rxiniterr  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_UC_RSRESET,	ctcm_chx_rxiniterr  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_TIMER,	ctcm_chx_rxiniterr  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_ATTNBUSY,	ctcm_chx_rxinitfail  },
-	{ CTC_STATE_RXINIT,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_RXINIT,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_UC_ZERO,	ctcmpc_chx_firstio  },
 	{ CTC_STATE_RXINIT,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 
-	{ CH_XID0_PENDING,	CTC_EVENT_FINSTAT,	ctcm_action_nop  },
+	{ CH_XID0_PENDING,	CTC_EVENT_FINSTAT,	ctcm_action_analp  },
 	{ CH_XID0_PENDING,	CTC_EVENT_ATTN,		ctcmpc_chx_attn  },
 	{ CH_XID0_PENDING,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CH_XID0_PENDING,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CH_XID0_PENDING,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CH_XID0_PENDING,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CH_XID0_PENDING,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CH_XID0_PENDING,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CH_XID0_PENDING,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr  },
 	{ CH_XID0_PENDING,	CTC_EVENT_UC_RSRESET,	ctcm_chx_setuperr  },
@@ -1899,8 +1899,8 @@ const fsm_node ctcmpc_ch_fsm[] = {
 	{ CH_XID0_INPROGRESS,	CTC_EVENT_FINSTAT,	ctcmpc_chx_rx  },
 	{ CH_XID0_INPROGRESS,	CTC_EVENT_ATTN,		ctcmpc_chx_attn  },
 	{ CH_XID0_INPROGRESS,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CH_XID0_INPROGRESS,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CH_XID0_INPROGRESS,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CH_XID0_INPROGRESS,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CH_XID0_INPROGRESS,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CH_XID0_INPROGRESS,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CH_XID0_INPROGRESS,	CTC_EVENT_UC_ZERO,	ctcmpc_chx_rx  },
 	{ CH_XID0_INPROGRESS,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr },
@@ -1911,8 +1911,8 @@ const fsm_node ctcmpc_ch_fsm[] = {
 	{ CH_XID7_PENDING,	CTC_EVENT_FINSTAT,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING,	CTC_EVENT_ATTN,		ctcmpc_chx_attn  },
 	{ CH_XID7_PENDING,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CH_XID7_PENDING,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CH_XID7_PENDING,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CH_XID7_PENDING,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CH_XID7_PENDING,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CH_XID7_PENDING,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CH_XID7_PENDING,	CTC_EVENT_UC_ZERO,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr  },
@@ -1925,8 +1925,8 @@ const fsm_node ctcmpc_ch_fsm[] = {
 	{ CH_XID7_PENDING1,	CTC_EVENT_FINSTAT,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING1,	CTC_EVENT_ATTN,		ctcmpc_chx_attn  },
 	{ CH_XID7_PENDING1,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CH_XID7_PENDING1,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CH_XID7_PENDING1,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CH_XID7_PENDING1,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CH_XID7_PENDING1,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CH_XID7_PENDING1,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CH_XID7_PENDING1,	CTC_EVENT_UC_ZERO,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING1,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr  },
@@ -1938,8 +1938,8 @@ const fsm_node ctcmpc_ch_fsm[] = {
 	{ CH_XID7_PENDING2,	CTC_EVENT_FINSTAT,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING2,	CTC_EVENT_ATTN,		ctcmpc_chx_attn  },
 	{ CH_XID7_PENDING2,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CH_XID7_PENDING2,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CH_XID7_PENDING2,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CH_XID7_PENDING2,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CH_XID7_PENDING2,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CH_XID7_PENDING2,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CH_XID7_PENDING2,	CTC_EVENT_UC_ZERO,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING2,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr  },
@@ -1951,8 +1951,8 @@ const fsm_node ctcmpc_ch_fsm[] = {
 	{ CH_XID7_PENDING3,	CTC_EVENT_FINSTAT,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING3,	CTC_EVENT_ATTN,		ctcmpc_chx_attn  },
 	{ CH_XID7_PENDING3,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CH_XID7_PENDING3,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CH_XID7_PENDING3,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CH_XID7_PENDING3,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CH_XID7_PENDING3,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CH_XID7_PENDING3,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CH_XID7_PENDING3,	CTC_EVENT_UC_ZERO,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING3,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr  },
@@ -1964,8 +1964,8 @@ const fsm_node ctcmpc_ch_fsm[] = {
 	{ CH_XID7_PENDING4,	CTC_EVENT_FINSTAT,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING4,	CTC_EVENT_ATTN,		ctcmpc_chx_attn  },
 	{ CH_XID7_PENDING4,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CH_XID7_PENDING4,	CTC_EVENT_START,	ctcm_action_nop  },
-	{ CH_XID7_PENDING4,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CH_XID7_PENDING4,	CTC_EVENT_START,	ctcm_action_analp  },
+	{ CH_XID7_PENDING4,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CH_XID7_PENDING4,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CH_XID7_PENDING4,	CTC_EVENT_UC_ZERO,	ctcmpc_chx_rx  },
 	{ CH_XID7_PENDING4,	CTC_EVENT_UC_RCRESET,	ctcm_chx_setuperr  },
@@ -1975,64 +1975,64 @@ const fsm_node ctcmpc_ch_fsm[] = {
 	{ CH_XID7_PENDING4,	CTC_EVENT_IO_EBUSY,	ctcm_chx_fail  },
 
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_RXIDLE,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_RXIDLE,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_FINSTAT,	ctcmpc_chx_rx  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_UC_RCRESET,	ctcm_chx_rxdisc  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_UC_RSRESET,	ctcm_chx_fail  },
-	{ CTC_STATE_RXIDLE,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_RXIDLE,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CTC_STATE_RXIDLE,	CTC_EVENT_UC_ZERO,	ctcmpc_chx_rx  },
 
 	{ CTC_STATE_TXINIT,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_TXINIT,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_TXINIT,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_FINSTAT,	ctcm_chx_txidle  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_UC_RCRESET,	ctcm_chx_txiniterr  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_UC_RSRESET,	ctcm_chx_txiniterr  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_TIMER,	ctcm_chx_txiniterr  },
-	{ CTC_STATE_TXINIT,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_TXINIT,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CTC_STATE_TXINIT,	CTC_EVENT_RSWEEP_TIMER,	ctcmpc_chx_send_sweep },
 
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_TXIDLE,	CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_TXIDLE,	CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_FINSTAT,	ctcmpc_chx_firstio  },
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_UC_RCRESET,	ctcm_chx_fail  },
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_UC_RSRESET,	ctcm_chx_fail  },
-	{ CTC_STATE_TXIDLE,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_TXIDLE,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CTC_STATE_TXIDLE,	CTC_EVENT_RSWEEP_TIMER,	ctcmpc_chx_send_sweep },
 
-	{ CTC_STATE_TERM,	CTC_EVENT_STOP,		ctcm_action_nop  },
+	{ CTC_STATE_TERM,	CTC_EVENT_STOP,		ctcm_action_analp  },
 	{ CTC_STATE_TERM,	CTC_EVENT_START,	ctcm_chx_restart  },
 	{ CTC_STATE_TERM,	CTC_EVENT_FINSTAT,	ctcm_chx_stopped  },
-	{ CTC_STATE_TERM,	CTC_EVENT_UC_RCRESET,	ctcm_action_nop  },
-	{ CTC_STATE_TERM,	CTC_EVENT_UC_RSRESET,	ctcm_action_nop  },
+	{ CTC_STATE_TERM,	CTC_EVENT_UC_RCRESET,	ctcm_action_analp  },
+	{ CTC_STATE_TERM,	CTC_EVENT_UC_RSRESET,	ctcm_action_analp  },
 	{ CTC_STATE_TERM,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CTC_STATE_TERM,	CTC_EVENT_IO_EBUSY,	ctcm_chx_fail  },
-	{ CTC_STATE_TERM,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_TERM,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 
 	{ CTC_STATE_DTERM,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
 	{ CTC_STATE_DTERM,	CTC_EVENT_START,	ctcm_chx_restart  },
 	{ CTC_STATE_DTERM,	CTC_EVENT_FINSTAT,	ctcm_chx_setmode  },
-	{ CTC_STATE_DTERM,	CTC_EVENT_UC_RCRESET,	ctcm_action_nop  },
-	{ CTC_STATE_DTERM,	CTC_EVENT_UC_RSRESET,	ctcm_action_nop  },
+	{ CTC_STATE_DTERM,	CTC_EVENT_UC_RCRESET,	ctcm_action_analp  },
+	{ CTC_STATE_DTERM,	CTC_EVENT_UC_RSRESET,	ctcm_action_analp  },
 	{ CTC_STATE_DTERM,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
-	{ CTC_STATE_DTERM,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_DTERM,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 
 	{ CTC_STATE_TX,		CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_TX,		CTC_EVENT_START,	ctcm_action_nop  },
+	{ CTC_STATE_TX,		CTC_EVENT_START,	ctcm_action_analp  },
 	{ CTC_STATE_TX,		CTC_EVENT_FINSTAT,	ctcmpc_chx_txdone  },
 	{ CTC_STATE_TX,		CTC_EVENT_UC_RCRESET,	ctcm_chx_fail  },
 	{ CTC_STATE_TX,		CTC_EVENT_UC_RSRESET,	ctcm_chx_fail  },
 	{ CTC_STATE_TX,		CTC_EVENT_TIMER,	ctcm_chx_txretry  },
-	{ CTC_STATE_TX,		CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_TX,		CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_TX,		CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CTC_STATE_TX,		CTC_EVENT_RSWEEP_TIMER,	ctcmpc_chx_send_sweep },
 	{ CTC_STATE_TX,		CTC_EVENT_IO_EBUSY,	ctcm_chx_fail  },
 
 	{ CTC_STATE_RXERR,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
 	{ CTC_STATE_TXERR,	CTC_EVENT_STOP,		ctcm_chx_haltio  },
-	{ CTC_STATE_TXERR,	CTC_EVENT_IO_ENODEV,	ctcm_chx_iofatal  },
+	{ CTC_STATE_TXERR,	CTC_EVENT_IO_EANALDEV,	ctcm_chx_iofatal  },
 	{ CTC_STATE_TXERR,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 	{ CTC_STATE_RXERR,	CTC_EVENT_MC_FAIL,	ctcm_chx_fail  },
 };
@@ -2136,7 +2136,7 @@ static void dev_action_chup(fsm_instance *fi, int event, void *arg)
 	struct ctcm_priv *priv = dev->ml_priv;
 	int dev_stat = fsm_getstate(fi);
 
-	CTCM_DBF_TEXT_(SETUP, CTC_DBF_NOTICE,
+	CTCM_DBF_TEXT_(SETUP, CTC_DBF_ANALTICE,
 			"%s(%s): priv = %p [%d,%d]\n ",	CTCM_FUNTAIL,
 				dev->name, dev->ml_priv, dev_stat, event);
 
@@ -2239,7 +2239,7 @@ static void dev_action_chdown(fsm_instance *fi, int event, void *arg)
 	}
 }
 
-const fsm_node dev_fsm[] = {
+const fsm_analde dev_fsm[] = {
 	{ DEV_STATE_STOPPED,        DEV_EVENT_START,   dev_action_start   },
 	{ DEV_STATE_STOPWAIT_RXTX,  DEV_EVENT_START,   dev_action_start   },
 	{ DEV_STATE_STOPWAIT_RXTX,  DEV_EVENT_RXDOWN,  dev_action_chdown  },
@@ -2274,8 +2274,8 @@ const fsm_node dev_fsm[] = {
 	{ DEV_STATE_RUNNING,        DEV_EVENT_STOP,    dev_action_stop    },
 	{ DEV_STATE_RUNNING,        DEV_EVENT_RXDOWN,  dev_action_chdown  },
 	{ DEV_STATE_RUNNING,        DEV_EVENT_TXDOWN,  dev_action_chdown  },
-	{ DEV_STATE_RUNNING,        DEV_EVENT_TXUP,    ctcm_action_nop    },
-	{ DEV_STATE_RUNNING,        DEV_EVENT_RXUP,    ctcm_action_nop    },
+	{ DEV_STATE_RUNNING,        DEV_EVENT_TXUP,    ctcm_action_analp    },
+	{ DEV_STATE_RUNNING,        DEV_EVENT_RXUP,    ctcm_action_analp    },
 	{ DEV_STATE_RUNNING,        DEV_EVENT_RESTART, dev_action_restart },
 };
 

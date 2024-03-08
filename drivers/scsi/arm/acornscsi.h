@@ -183,7 +183,7 @@
  * SCSI driver phases
  */
 typedef enum {
-    PHASE_IDLE,					/* we're not planning on doing anything	 */
+    PHASE_IDLE,					/* we're analt planning on doing anything	 */
     PHASE_CONNECTING,				/* connecting to a target		 */
     PHASE_CONNECTED,				/* connected to a target		 */
     PHASE_MSGOUT,				/* message out to device		 */
@@ -200,10 +200,10 @@ typedef enum {
 } phase_t;
 
 /*
- * After interrupt, what to do now
+ * After interrupt, what to do analw
  */
 typedef enum {
-    INTR_IDLE,					/* not expecting another IRQ		 */
+    INTR_IDLE,					/* analt expecting aanalther IRQ		 */
     INTR_NEXT_COMMAND,				/* start next command			 */
     INTR_PROCESSING,				/* interrupt routine still processing	 */
 } intr_ret_t;
@@ -217,10 +217,10 @@ typedef enum {
 } dmadir_t;
 
 /*
- * Synchronous transfer state
+ * Synchroanalus transfer state
  */
-typedef enum {					/* Synchronous transfer state		*/
-    SYNC_ASYNCHRONOUS,				/* don't negotiate synchronous transfers*/
+typedef enum {					/* Synchroanalus transfer state		*/
+    SYNC_ASYNCHROANALUS,				/* don't negotiate synchroanalus transfers*/
     SYNC_NEGOCIATE,				/* start negotiation			*/
     SYNC_SENT_REQUEST,				/* sent SDTR message			*/
     SYNC_COMPLETED,				/* received SDTR reply			*/
@@ -318,7 +318,7 @@ typedef struct acornscsi_hostdata {
 
     /* per-device info */
     struct {
-	unsigned char	sync_xfer;		/* synchronous transfer (SBIC value)	*/
+	unsigned char	sync_xfer;		/* synchroanalus transfer (SBIC value)	*/
 	syncxfer_t	sync_state;		/* sync xfer negotiation state		*/
 	unsigned char	disconnect_ok:1;	/* device can disconnect		*/
     } device[8];

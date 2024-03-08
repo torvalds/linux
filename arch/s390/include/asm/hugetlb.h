@@ -84,14 +84,14 @@ static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
 	return mk_pte(page, pgprot);
 }
 
-static inline int huge_pte_none(pte_t pte)
+static inline int huge_pte_analne(pte_t pte)
 {
-	return pte_none(pte);
+	return pte_analne(pte);
 }
 
-static inline int huge_pte_none_mostly(pte_t pte)
+static inline int huge_pte_analne_mostly(pte_t pte)
 {
-	return huge_pte_none(pte);
+	return huge_pte_analne(pte);
 }
 
 static inline int huge_pte_write(pte_t pte)
@@ -106,7 +106,7 @@ static inline int huge_pte_dirty(pte_t pte)
 
 static inline pte_t huge_pte_mkwrite(pte_t pte)
 {
-	return pte_mkwrite_novma(pte);
+	return pte_mkwrite_analvma(pte);
 }
 
 static inline pte_t huge_pte_mkdirty(pte_t pte)

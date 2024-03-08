@@ -42,20 +42,20 @@ static const struct of_device_id sun_top_ctrl_match[] = {
 
 static int __init brcmstb_soc_device_early_init(void)
 {
-	struct device_node *sun_top_ctrl;
+	struct device_analde *sun_top_ctrl;
 	void __iomem *sun_top_ctrl_base;
 	int ret = 0;
 
 	/* We could be on a multi-platform kernel, don't make this fatal but
 	 * bail out early
 	 */
-	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
+	sun_top_ctrl = of_find_matching_analde(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
 		return ret;
 
 	sun_top_ctrl_base = of_iomap(sun_top_ctrl, 0);
 	if (!sun_top_ctrl_base) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -63,7 +63,7 @@ static int __init brcmstb_soc_device_early_init(void)
 	product_id = readl(sun_top_ctrl_base + 0x4);
 	iounmap(sun_top_ctrl_base);
 out:
-	of_node_put(sun_top_ctrl);
+	of_analde_put(sun_top_ctrl);
 	return ret;
 }
 early_initcall(brcmstb_soc_device_early_init);
@@ -71,20 +71,20 @@ early_initcall(brcmstb_soc_device_early_init);
 static int __init brcmstb_soc_device_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
-	struct device_node *sun_top_ctrl;
+	struct device_analde *sun_top_ctrl;
 	struct soc_device *soc_dev;
 	int ret = 0;
 
 	/* We could be on a multi-platform kernel, don't make this fatal but
 	 * bail out early
 	 */
-	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
+	sun_top_ctrl = of_find_matching_analde(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
 		return ret;
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -104,10 +104,10 @@ static int __init brcmstb_soc_device_init(void)
 		kfree(soc_dev_attr->soc_id);
 		kfree(soc_dev_attr->revision);
 		kfree(soc_dev_attr);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 out:
-	of_node_put(sun_top_ctrl);
+	of_analde_put(sun_top_ctrl);
 	return ret;
 }
 arch_initcall(brcmstb_soc_device_init);

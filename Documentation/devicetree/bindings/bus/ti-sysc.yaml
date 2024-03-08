@@ -12,7 +12,7 @@ maintainers:
 description:
   Texas Instruments SoCs can have a generic interconnect target module
   for devices connected to various interconnects such as L3 interconnect
-  using Arteris NoC, and L4 interconnect using Sonics s3220. This module
+  using Arteris AnalC, and L4 interconnect using Sonics s3220. This module
   is mostly used for interaction between module and Power, Reset and Clock
   Manager PRCM. It participates in the OCP Disconnect Protocol, but other
   than that it is mostly independent of the interconnect.
@@ -27,7 +27,7 @@ description:
   SYSCONFIG and SYSSTATUS.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^target-module(@[0-9a-f]+)?$"
 
   compatible:
@@ -85,7 +85,7 @@ properties:
       Target module clocks consisting of one functional clock, one
       interface clock, and up to 8 module specific optional clocks.
       Some modules may have only the functional clock, and some have
-      no configurable clocks.
+      anal configurable clocks.
     minItems: 1
     maxItems: 4
 
@@ -115,7 +115,7 @@ properties:
   resets:
     description:
       Target module reset bit in the RSTCTRL register if wired for the module.
-      Note that the other reset bits should be mapped for the child device
+      Analte that the other reset bits should be mapped for the child device
       driver to use.
     maxItems: 1
 
@@ -158,16 +158,16 @@ properties:
     minimum: 0
     maximum: 2
 
-  ti,no-reset-on-init:
-    description: Interconnect target module shall not be reset at init
+  ti,anal-reset-on-init:
+    description: Interconnect target module shall analt be reset at init
     type: boolean
 
-  ti,no-idle-on-init:
-    description: Interconnect target module shall not be idled at init
+  ti,anal-idle-on-init:
+    description: Interconnect target module shall analt be idled at init
     type: boolean
 
-  ti,no-idle:
-    description: Interconnect target module shall not be idled
+  ti,anal-idle:
+    description: Interconnect target module shall analt be idled
     type: boolean
 
   ti,hwmods:
@@ -202,10 +202,10 @@ examples:
                          SYSC_OMAP2_SOFTRESET |
                          SYSC_OMAP2_AUTOIDLE)>;
         ti,sysc-midle = <SYSC_IDLE_FORCE>,
-                        <SYSC_IDLE_NO>,
+                        <SYSC_IDLE_ANAL>,
                         <SYSC_IDLE_SMART>;
         ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-                        <SYSC_IDLE_NO>,
+                        <SYSC_IDLE_ANAL>,
                         <SYSC_IDLE_SMART>,
                         <SYSC_IDLE_SMART_WKUP>;
         ti,syss-mask = <1>;

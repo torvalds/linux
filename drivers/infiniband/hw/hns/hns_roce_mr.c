@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -60,7 +60,7 @@ static int alloc_mr_key(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 			     GFP_KERNEL);
 	if (id < 0) {
 		ibdev_err(ibdev, "failed to alloc id for MR key, id(%d)\n", id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mr->key = hw_index_to_key(id); /* MR key */
@@ -101,7 +101,7 @@ static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 	buf_attr.region[0].hopnum = mr->pbl_hop_num;
 	buf_attr.region_count = 1;
 	buf_attr.user_access = mr->access;
-	/* fast MR's buffer is alloced before mapping, not at creation */
+	/* fast MR's buffer is alloced before mapping, analt at creation */
 	buf_attr.mtt_only = is_fast;
 
 	err = hns_roce_mtr_create(hr_dev, &mr->pbl_mtr, &buf_attr,
@@ -192,7 +192,7 @@ struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc)
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return  ERR_PTR(-ENOMEM);
+		return  ERR_PTR(-EANALMEM);
 
 	mr->type = MR_TYPE_DMA;
 	mr->pd = to_hr_pd(pd)->pdn;
@@ -229,7 +229,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_out;
 	}
 
@@ -381,7 +381,7 @@ struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr->type = MR_TYPE_FRMR;
 	mr->pd = to_hr_pd(pd)->pdn;
@@ -423,7 +423,7 @@ static int hns_roce_set_page(struct ib_mr *ibmr, u64 addr)
 		return 0;
 	}
 
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
@@ -551,7 +551,7 @@ int hns_roce_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 			     GFP_KERNEL);
 	if (id < 0) {
 		ibdev_err(ibdev, "failed to alloc id for MW key, id(%d)\n", id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mw->rkey = hw_index_to_key(id);
@@ -600,7 +600,7 @@ static int mtr_map_region(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		mtts = hns_roce_hem_list_find_mtt(hr_dev, &mtr->hem_list,
 						  offset, &count);
 		if (!mtts)
-			return -ENOBUFS;
+			return -EANALBUFS;
 
 		for (i = 0; i < count && npage < max_count; i++) {
 			addr = pages[npage];
@@ -689,7 +689,7 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		if (IS_ERR(mtr->umem)) {
 			ibdev_err(ibdev, "failed to get umem, ret = %ld.\n",
 				  PTR_ERR(mtr->umem));
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		mtr->umem = NULL;
@@ -718,7 +718,7 @@ static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	/* alloc a tmp array to store buffer's dma address */
 	pages = kvcalloc(page_count, sizeof(dma_addr_t), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mtr->umem)
 		npage = hns_roce_get_umem_bufs(hr_dev, pages, page_count,
@@ -730,7 +730,7 @@ static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	if (npage != page_count) {
 		ibdev_err(ibdev, "failed to get mtr page %d != %d.\n", npage,
 			  page_count);
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto err_alloc_list;
 	}
 
@@ -739,7 +739,7 @@ static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		if (ret) {
 			ibdev_err(ibdev, "failed to check %s page: %d / %d.\n",
 				  mtr->umem ? "umtr" : "kmtr", ret, npage);
-			ret = -ENOBUFS;
+			ret = -EANALBUFS;
 			goto err_alloc_list;
 		}
 	}
@@ -774,7 +774,7 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	for (i = 0, mapped_cnt = 0; i < mtr->hem_cfg.region_count &&
 	     mapped_cnt < page_cnt; i++) {
 		r = &mtr->hem_cfg.region[i];
-		/* if hopnum is 0, no need to map pages in this region */
+		/* if hopnum is 0, anal need to map pages in this region */
 		if (!r->hopnum) {
 			mapped_cnt += r->count;
 			continue;
@@ -801,7 +801,7 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	}
 
 	if (mapped_cnt < page_cnt) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		ibdev_err(ibdev, "failed to map mtr pages count: %u < %u.\n",
 			  mapped_cnt, page_cnt);
 	}
@@ -823,7 +823,7 @@ int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	if (!mtt_buf || mtt_max < 1)
 		goto done;
 
-	/* no mtt memory in direct mode, so just return the buffer address */
+	/* anal mtt memory in direct mode, so just return the buffer address */
 	if (cfg->is_direct) {
 		start_index = offset >> HNS_HW_PAGE_SHIFT;
 		for (mtt_count = 0; mtt_count < cfg->region_count &&

@@ -11,7 +11,7 @@
 #include <linux/phy/phy.h>
 #include "phy-samsung-usb2.h"
 
-/* Exynos USB PHY registers */
+/* Exyanals USB PHY registers */
 
 /* PHY power control */
 #define S5PV210_UPHYPWR			0x0

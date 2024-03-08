@@ -26,12 +26,12 @@
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
 
-static int no_hypercall;
+static int anal_hypercall;
 MODULE_PARM_DESC(off, "Inhibit the hypercall.");
-module_param_named(off, no_hypercall, int, 0400);
+module_param_named(off, anal_hypercall, int, 0400);
 
 /*
- * Note: Do not convert the acpi_id* below to cpumask_var_t or use cpumask_bit
+ * Analte: Do analt convert the acpi_id* below to cpumask_var_t or use cpumask_bit
  * - as those shrink to nr_cpu_bits (which is dependent on possible_cpu), which
  * can be less than what we want to put in. Instead use the 'nr_acpi_bits'
  * which is dynamically computed based on the MADT or x2APIC table.
@@ -64,7 +64,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 	dst_cx_states = kcalloc(_pr->power.count,
 				sizeof(struct xen_processor_cx), GFP_KERNEL);
 	if (!dst_cx_states)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (ok = 0, i = 1; i <= _pr->power.count; i++) {
 		cx = &_pr->power.states[i];
@@ -96,7 +96,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 		set_xen_guest_handle(dst_cx->dp, NULL);
 	}
 	if (!ok) {
-		pr_debug("No _Cx for ACPI CPU %u\n", _pr->acpi_id);
+		pr_debug("Anal _Cx for ACPI CPU %u\n", _pr->acpi_id);
 		kfree(dst_cx_states);
 		return -EINVAL;
 	}
@@ -109,7 +109,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 
 	set_xen_guest_handle(op.u.set_pminfo.power.states, dst_cx_states);
 
-	if (!no_hypercall)
+	if (!anal_hypercall)
 		ret = HYPERVISOR_platform_op(&op);
 
 	if (!ret) {
@@ -121,9 +121,9 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 			pr_debug("     C%d: %s %d uS\n",
 				 cx->type, cx->desc, (u32)cx->latency);
 		}
-	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
+	} else if ((ret != -EINVAL) && (ret != -EANALSYS))
 		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
-		 * table is referencing a non-existing CPU - which can happen
+		 * table is referencing a analn-existing CPU - which can happen
 		 * with broken ACPI tables. */
 		pr_err("(CX): Hypervisor error (%d) for ACPI CPU%u\n",
 		       ret, _pr->acpi_id);
@@ -145,7 +145,7 @@ xen_copy_pss_data(struct acpi_processor *_pr,
 	dst_states = kcalloc(_pr->performance->state_count,
 			     sizeof(struct xen_processor_px), GFP_KERNEL);
 	if (!dst_states)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dst_perf->state_count = _pr->performance->state_count;
 	for (i = 0; i < _pr->performance->state_count; i++) {
@@ -170,7 +170,7 @@ static int xen_copy_psd_data(struct acpi_processor *_pr,
 
 	pdomain = &(_pr->performance->domain_info);
 
-	/* 'acpi_processor_preregister_performance' does not parse if the
+	/* 'acpi_processor_preregister_performance' does analt parse if the
 	 * num_processors <= 1, but Xen still requires it. Do it manually here.
 	 */
 	if (pdomain->num_processors <= 1) {
@@ -189,7 +189,7 @@ static int xen_copy_pct_data(struct acpi_pct_register *pct,
 			     struct xen_pct_register *dst_pct)
 {
 	/* It would be nice if you could just do 'memcpy(pct, dst_pct') but
-	 * sadly the Xen structure did not have the proper padding so the
+	 * sadly the Xen structure did analt have the proper padding so the
 	 * descriptor field takes two (dst_pct) bytes instead of one (pct).
 	 */
 	dst_pct->descriptor = pct->descriptor;
@@ -233,11 +233,11 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 	if (dst_perf->flags != (XEN_PX_PSD | XEN_PX_PSS | XEN_PX_PCT | XEN_PX_PPC)) {
 		pr_warn("ACPI CPU%u missing some P-state data (%x), skipping\n",
 			_pr->acpi_id, dst_perf->flags);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free;
 	}
 
-	if (!no_hypercall)
+	if (!anal_hypercall)
 		ret = HYPERVISOR_platform_op(&op);
 
 	if (!ret) {
@@ -253,9 +253,9 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 			(u32) perf->states[i].power,
 			(u32) perf->states[i].transition_latency);
 		}
-	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
+	} else if ((ret != -EINVAL) && (ret != -EANALSYS))
 		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
-		 * table is referencing a non-existing CPU - which can happen
+		 * table is referencing a analn-existing CPU - which can happen
 		 * with broken ACPI tables. */
 		pr_warn("(_PXX): Hypervisor error (%d) for ACPI CPU%u\n",
 			ret, _pr->acpi_id);
@@ -393,23 +393,23 @@ static int check_acpi_ids(struct acpi_processor *pr_backup)
 {
 
 	if (!pr_backup)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (acpi_id_present && acpi_id_cst_present)
 		/* OK, done this once .. skip to uploading */
 		goto upload;
 
-	/* All online CPUs have been processed at this stage. Now verify
+	/* All online CPUs have been processed at this stage. Analw verify
 	 * whether in fact "online CPUs" == physical CPUs.
 	 */
 	acpi_id_present = bitmap_zalloc(nr_acpi_bits, GFP_KERNEL);
 	if (!acpi_id_present)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acpi_id_cst_present = bitmap_zalloc(nr_acpi_bits, GFP_KERNEL);
 	if (!acpi_id_cst_present) {
 		bitmap_free(acpi_id_present);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	acpi_psd = kcalloc(nr_acpi_bits, sizeof(struct acpi_psd_package),
@@ -417,7 +417,7 @@ static int check_acpi_ids(struct acpi_processor *pr_backup)
 	if (!acpi_psd) {
 		bitmap_free(acpi_id_present);
 		bitmap_free(acpi_id_cst_present);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
@@ -430,9 +430,9 @@ upload:
 		unsigned int i;
 		for_each_set_bit(i, acpi_id_present, nr_acpi_bits) {
 			pr_backup->acpi_id = i;
-			/* Mask out C-states if there are no _CST or PBLK */
+			/* Mask out C-states if there are anal _CST or PBLK */
 			pr_backup->flags.power = test_bit(i, acpi_id_cst_present);
-			/* num_entries is non-zero if we evaluated _PSD */
+			/* num_entries is analn-zero if we evaluated _PSD */
 			if (acpi_psd[i].num_entries) {
 				memcpy(&pr_backup->performance->domain_info,
 				       &acpi_psd[i],
@@ -500,7 +500,7 @@ static void xen_acpi_processor_resume(void)
 	static DECLARE_WORK(wq, xen_acpi_processor_resume_worker);
 
 	/*
-	 * xen_upload_processor_pm_data() calls non-atomic code.
+	 * xen_upload_processor_pm_data() calls analn-atomic code.
 	 * However, the context for xen_acpi_processor_resume is syscore
 	 * with only the boot CPU online and in an atomic context.
 	 *
@@ -519,24 +519,24 @@ static int __init xen_acpi_processor_init(void)
 	int rc;
 
 	if (!xen_initial_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	nr_acpi_bits = get_max_acpi_id() + 1;
 	acpi_ids_done = bitmap_zalloc(nr_acpi_bits, GFP_KERNEL);
 	if (!acpi_ids_done)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acpi_perf_data = alloc_percpu(struct acpi_processor_performance);
 	if (!acpi_perf_data) {
 		pr_debug("Memory allocation error for acpi_perf_data\n");
 		bitmap_free(acpi_ids_done);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for_each_possible_cpu(i) {
-		if (!zalloc_cpumask_var_node(
+		if (!zalloc_cpumask_var_analde(
 			&per_cpu_ptr(acpi_perf_data, i)->shared_cpu_map,
-			GFP_KERNEL, cpu_to_node(i))) {
-			rc = -ENOMEM;
+			GFP_KERNEL, cpu_to_analde(i))) {
+			rc = -EANALMEM;
 			goto err_out;
 		}
 	}

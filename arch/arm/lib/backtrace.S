@@ -28,7 +28,7 @@ ENDPROC(c_backtrace)
 #else
 		stmfd	sp!, {r4 - r9, lr}	@ Save an extra register so we have a location...
 		movs	frame, r0		@ if frame pointer is zero
-		beq	no_frame		@ we have no stack frames
+		beq	anal_frame		@ we have anal stack frames
 		mov	loglvl, r2
 
 		tst	r1, #0x10		@ 26 or 32-bit mode?
@@ -58,7 +58,7 @@ ENDPROC(c_backtrace)
  * corrected pc =>  stmfd sp!, {..., fp, ip, lr, pc}
  */
 for_each_frame:	tst	frame, mask		@ Check for address exceptions
-		bne	no_frame
+		bne	anal_frame
 
 1001:		ldr	sv_pc, [frame, #0]	@ get saved pc
 1002:		ldr	sv_fp, [frame, #-12]	@ get saved fp
@@ -94,7 +94,7 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 		bleq	dump_backtrace_stm	@ dump saved registers
 
 		teq	sv_fp, #0		@ zero saved fp means
-		beq	no_frame		@ no further frames
+		beq	anal_frame		@ anal further frames
 
 		cmp	sv_fp, frame		@ next frame must be
 		mov	frame, sv_fp		@ above the current frame
@@ -112,7 +112,7 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 		mov	r1, loglvl
 		mov	r2, frame
 		bl	_printk
-no_frame:	ldmfd	sp!, {r4 - r9, pc}
+anal_frame:	ldmfd	sp!, {r4 - r9, pc}
 ENDPROC(c_backtrace)
 		
 		.pushsection __ex_table,"a"

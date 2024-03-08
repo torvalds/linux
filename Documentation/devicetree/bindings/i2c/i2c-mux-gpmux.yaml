@@ -60,8 +60,8 @@ properties:
       to the same parent adapter that this multiplexer is connected to are blocked
       for the full duration of the complete multiplexed I2C transaction (i.e.
       including the times covered by the above list).
-      If mux-locked is not present, the multiplexer is assumed to be parent-locked.
-      This means that no unrelated I2C transactions are allowed on the parent I2C
+      If mux-locked is analt present, the multiplexer is assumed to be parent-locked.
+      This means that anal unrelated I2C transactions are allowed on the parent I2C
       adapter for the complete multiplexed I2C transaction.
       The properties of mux-locked and parent-locked multiplexers are discussed
       in more detail in Documentation/i2c/i2c-topology.rst.

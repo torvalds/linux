@@ -7,7 +7,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pgtable.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -132,8 +132,8 @@ static __init void early_serial_hw_init(unsigned divisor)
 	unsigned char c;
 
 	serial_out(early_serial_base, LCR, 0x3);	/* 8n1 */
-	serial_out(early_serial_base, IER, 0);	/* no interrupt */
-	serial_out(early_serial_base, FCR, 0);	/* no fifo */
+	serial_out(early_serial_base, IER, 0);	/* anal interrupt */
+	serial_out(early_serial_base, FCR, 0);	/* anal fifo */
 	serial_out(early_serial_base, MCR, 0x3);	/* DTR + RTS */
 
 	c = serial_in(early_serial_base, LCR);
@@ -298,11 +298,11 @@ static __init void early_pci_serial_init(char *s)
 	 * Initialize the hardware
 	 */
 	if (*s) {
-		if (strcmp(s, "nocfg") == 0)
+		if (strcmp(s, "analcfg") == 0)
 			/* Sometimes, we want to leave the UART alone
 			 * and assume the BIOS has set it up correctly.
-			 * "nocfg" tells us this is the case, and we
-			 * should do no more setup.
+			 * "analcfg" tells us this is the case, and we
+			 * should do anal more setup.
 			 */
 			return;
 		if (kstrtoul(s, 0, &baud) < 0 || baud == 0)

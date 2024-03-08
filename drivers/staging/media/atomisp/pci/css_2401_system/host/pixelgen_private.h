@@ -82,12 +82,12 @@ STORAGE_CLASS_PIXELGEN_C void pixelgen_ctrl_get_state(
 	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_FREE_RUN_REG_IDX);
 	state->syng_pause =
 	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_PAUSE_REG_IDX);
-	state->syng_nof_frames =
-	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_NOF_FRAME_REG_IDX);
-	state->syng_nof_pixels =
-	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_NOF_PIXEL_REG_IDX);
-	state->syng_nof_line =
-	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_NOF_LINE_REG_IDX);
+	state->syng_analf_frames =
+	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_ANALF_FRAME_REG_IDX);
+	state->syng_analf_pixels =
+	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_ANALF_PIXEL_REG_IDX);
+	state->syng_analf_line =
+	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_ANALF_LINE_REG_IDX);
 	state->syng_hblank_cyc =
 	    pixelgen_ctrl_reg_load(ID, _PXG_SYNG_HBLANK_CYC_REG_IDX);
 	state->syng_vblank_cyc =
@@ -143,12 +143,12 @@ STORAGE_CLASS_PIXELGEN_C void pixelgen_ctrl_dump_state(
 	ia_css_print("Pixel Generator ID %d syng free run 0x%x\n", ID,
 		     state->syng_free_run);
 	ia_css_print("Pixel Generator ID %d syng pause 0x%x\n", ID, state->syng_pause);
-	ia_css_print("Pixel Generator ID %d syng no of frames 0x%x\n", ID,
-		     state->syng_nof_frames);
-	ia_css_print("Pixel Generator ID %d syng no of pixels 0x%x\n", ID,
-		     state->syng_nof_pixels);
-	ia_css_print("Pixel Generator ID %d syng no of line 0x%x\n", ID,
-		     state->syng_nof_line);
+	ia_css_print("Pixel Generator ID %d syng anal of frames 0x%x\n", ID,
+		     state->syng_analf_frames);
+	ia_css_print("Pixel Generator ID %d syng anal of pixels 0x%x\n", ID,
+		     state->syng_analf_pixels);
+	ia_css_print("Pixel Generator ID %d syng anal of line 0x%x\n", ID,
+		     state->syng_analf_line);
 	ia_css_print("Pixel Generator ID %d syng hblank cyc  0x%x\n", ID,
 		     state->syng_hblank_cyc);
 	ia_css_print("Pixel Generator ID %d syng vblank cyc  0x%x\n", ID,

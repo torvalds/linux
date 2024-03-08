@@ -15,14 +15,14 @@ struct {
 	__type(value, struct hmap_elem);
 } hmap SEC(".maps");
 
-__attribute__((noinline))
+__attribute__((analinline))
 static int timer_cb(void *map, int *key, struct bpf_timer *timer)
 {
 	volatile char buf[256] = {};
 	return buf[69];
 }
 
-__attribute__((noinline))
+__attribute__((analinline))
 static int bad_timer_cb(void *map, int *key, struct bpf_timer *timer)
 {
 	volatile char buf[300] = {};

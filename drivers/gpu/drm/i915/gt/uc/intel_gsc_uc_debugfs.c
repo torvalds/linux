@@ -18,7 +18,7 @@ static int gsc_info_show(struct seq_file *m, void *data)
 	struct intel_gsc_uc *gsc = m->private;
 
 	if (!intel_gsc_uc_is_supported(gsc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	intel_gsc_uc_load_status(gsc, &p);
 

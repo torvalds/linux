@@ -179,7 +179,7 @@ static int lpc18xx_gpio_pin_ic_domain_alloc(struct irq_domain *domain,
 	 * All LPC18xx/LPC43xx GPIO pin hardware interrupts are translated
 	 * into edge interrupts 32...39 on parent Cortex-M3/M4 NVIC
 	 */
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	parent_fwspec.param_count = 1;
 	parent_fwspec.param[0] = hwirq + 32;
 
@@ -204,32 +204,32 @@ static int lpc18xx_gpio_pin_ic_probe(struct lpc18xx_gpio_chip *gc)
 {
 	struct device *dev = gc->gpio.parent;
 	struct irq_domain *parent_domain;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	struct lpc18xx_gpio_pin_ic *ic;
 	struct resource res;
 	int ret, index;
 
-	parent_node = of_irq_find_parent(dev->of_node);
-	if (!parent_node)
+	parent_analde = of_irq_find_parent(dev->of_analde);
+	if (!parent_analde)
 		return -ENXIO;
 
-	parent_domain = irq_find_host(parent_node);
-	of_node_put(parent_node);
+	parent_domain = irq_find_host(parent_analde);
+	of_analde_put(parent_analde);
 	if (!parent_domain)
 		return -ENXIO;
 
 	ic = devm_kzalloc(dev, sizeof(*ic), GFP_KERNEL);
 	if (!ic)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	index = of_property_match_string(dev->of_node, "reg-names",
+	index = of_property_match_string(dev->of_analde, "reg-names",
 					 "gpio-pin-ic");
 	if (index < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_ic;
 	}
 
-	ret = of_address_to_resource(dev->of_node, index, &res);
+	ret = of_address_to_resource(dev->of_analde, index, &res);
 	if (ret < 0)
 		goto free_ic;
 
@@ -243,12 +243,12 @@ static int lpc18xx_gpio_pin_ic_probe(struct lpc18xx_gpio_chip *gc)
 
 	ic->domain = irq_domain_add_hierarchy(parent_domain, 0,
 					      NR_LPC18XX_GPIO_PIN_IC_IRQS,
-					      dev->of_node,
+					      dev->of_analde,
 					      &lpc18xx_gpio_pin_ic_domain_ops,
 					      ic);
 	if (!ic->domain) {
 		pr_err("unable to add irq domain\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_iomap;
 	}
 
@@ -331,19 +331,19 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 
 	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc->gpio = lpc18xx_chip;
 	platform_set_drvdata(pdev, gc);
 
-	index = of_property_match_string(dev->of_node, "reg-names", "gpio");
+	index = of_property_match_string(dev->of_analde, "reg-names", "gpio");
 	if (index < 0) {
 		/* To support backward compatibility take the first resource */
 		gc->base = devm_platform_ioremap_resource(pdev, 0);
 	} else {
 		struct resource res;
 
-		ret = of_address_to_resource(dev->of_node, index, &res);
+		ret = of_address_to_resource(dev->of_analde, index, &res);
 		if (ret < 0)
 			return ret;
 
@@ -354,7 +354,7 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 
 	gc->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(gc->clk)) {
-		dev_err(dev, "input clock not found\n");
+		dev_err(dev, "input clock analt found\n");
 		return PTR_ERR(gc->clk);
 	}
 

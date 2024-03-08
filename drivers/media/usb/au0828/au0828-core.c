@@ -65,7 +65,7 @@ u32 au0828_writereg(struct au0828_dev *dev, u16 reg, u32 val)
 static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 	u16 index)
 {
-	int status = -ENODEV;
+	int status = -EANALDEV;
 
 	if (dev->usbdev) {
 
@@ -92,7 +92,7 @@ static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 	u16 index, unsigned char *cp, u16 size)
 {
-	int status = -ENODEV;
+	int status = -EANALDEV;
 	mutex_lock(&dev->mutex);
 	if (dev->usbdev) {
 		status = usb_control_msg(dev->usbdev,
@@ -118,24 +118,24 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 }
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-static void au0828_media_graph_notify(struct media_entity *new,
-				      void *notify_data);
+static void au0828_media_graph_analtify(struct media_entity *new,
+				      void *analtify_data);
 #endif
 
 static void au0828_unregister_media_device(struct au0828_dev *dev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev = dev->media_dev;
-	struct media_entity_notify *notify, *nextp;
+	struct media_entity_analtify *analtify, *nextp;
 
-	if (!mdev || !media_devnode_is_registered(mdev->devnode))
+	if (!mdev || !media_devanalde_is_registered(mdev->devanalde))
 		return;
 
-	/* Remove au0828 entity_notify callbacks */
-	list_for_each_entry_safe(notify, nextp, &mdev->entity_notify, list) {
-		if (notify->notify != au0828_media_graph_notify)
+	/* Remove au0828 entity_analtify callbacks */
+	list_for_each_entry_safe(analtify, nextp, &mdev->entity_analtify, list) {
+		if (analtify->analtify != au0828_media_graph_analtify)
 			continue;
-		media_device_unregister_entity_notify(mdev, notify);
+		media_device_unregister_entity_analtify(mdev, analtify);
 	}
 
 	/* clear enable_source, disable_source */
@@ -184,7 +184,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	mutex_unlock(&dev->mutex);
 	if (au0828_analog_unregister(dev)) {
 		/*
-		 * No need to call au0828_usb_release() if V4L2 is enabled,
+		 * Anal need to call au0828_usb_release() if V4L2 is enabled,
 		 * as this is already called via au0828_usb_v4l2_release()
 		 */
 		return;
@@ -208,10 +208,10 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 }
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-static void au0828_media_graph_notify(struct media_entity *new,
-				      void *notify_data)
+static void au0828_media_graph_analtify(struct media_entity *new,
+				      void *analtify_data)
 {
-	struct au0828_dev *dev = notify_data;
+	struct au0828_dev *dev = analtify_data;
 	int ret;
 	struct media_entity *entity, *mixer = NULL, *decoder = NULL;
 
@@ -219,7 +219,7 @@ static void au0828_media_graph_notify(struct media_entity *new,
 		/*
 		 * Called during au0828 probe time to connect
 		 * entities that were created prior to registering
-		 * the notify handler. Find mixer and decoder.
+		 * the analtify handler. Find mixer and decoder.
 		*/
 		media_device_for_each_entity(entity, dev->media_dev) {
 			if (entity->function == MEDIA_ENT_F_AUDIO_MIXER)
@@ -296,15 +296,15 @@ static int au0828_enable_source(struct media_entity *entity,
 	struct au0828_dev *dev;
 
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = mdev->source_priv;
 
 	/*
 	 * For Audio and V4L2 entity, find the link to which decoder
 	 * is the sink. Look for an active link between decoder and
-	 * source (tuner/s-video/Composite), if one exists, nothing
-	 * to do. If not, look for any  active links between source
+	 * source (tuner/s-video/Composite), if one exists, analthing
+	 * to do. If analt, look for any  active links between source
 	 * and any other entity. If one exists, source is busy. If
 	 * source is free, setup link and start pipeline from source.
 	 * For DVB FE entity, the source for the link is the tuner.
@@ -317,7 +317,7 @@ static int au0828_enable_source(struct media_entity *entity,
 	} else {
 		/* Analog isn't configured or register failed */
 		if (!dev->decoder) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto end;
 		}
 
@@ -346,7 +346,7 @@ static int au0828_enable_source(struct media_entity *entity,
 			 dev->input_type == AU0828_VMUX_COMPOSITE)
 			find_source = &dev->input_ent[dev->input_type];
 		else {
-			/* unknown input - let user select input */
+			/* unkanalwn input - let user select input */
 			ret = 0;
 			goto end;
 		}
@@ -397,7 +397,7 @@ static int au0828_enable_source(struct media_entity *entity,
 	}
 
 	if (!found_link) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto end;
 	}
 
@@ -421,7 +421,7 @@ static int au0828_enable_source(struct media_entity *entity,
 	}
 
 	/* save link state to allow audio and video share the link
-	 * and not disable the link while the other is using it.
+	 * and analt disable the link while the other is using it.
 	 * active_link_owner is used to deactivate the link.
 	*/
 	dev->active_link = found_link;
@@ -515,7 +515,7 @@ static void au0828_disable_source(struct media_entity *entity)
 					ret);
 				goto deactivate_link;
 			}
-			/* link user is now the owner */
+			/* link user is analw the owner */
 			dev->active_link_owner = dev->active_link_user;
 			dev->active_link_user = NULL;
 			dev->active_link_user_pipe = NULL;
@@ -566,7 +566,7 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 	if (!dev->media_dev)
 		return 0;
 
-	if (!media_devnode_is_registered(dev->media_dev->devnode)) {
+	if (!media_devanalde_is_registered(dev->media_dev->devanalde)) {
 
 		/* register media device */
 		ret = media_device_register(dev->media_dev);
@@ -580,13 +580,13 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 		}
 	} else {
 		/*
-		 * Call au0828_media_graph_notify() to connect
+		 * Call au0828_media_graph_analtify() to connect
 		 * audio graph to our graph. In this case, audio
-		 * driver registered the device and there is no
-		 * entity_notify to be called when new entities
-		 * are added. Invoke it now.
+		 * driver registered the device and there is anal
+		 * entity_analtify to be called when new entities
+		 * are added. Invoke it analw.
 		*/
-		au0828_media_graph_notify(NULL, (void *) dev);
+		au0828_media_graph_analtify(NULL, (void *) dev);
 	}
 
 	/*
@@ -597,7 +597,7 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 	 *
 	 * It also needs to disable the link between tuner and
 	 * decoder/demod, to avoid disable step when tuner is requested
-	 * by video or audio. Note that this step can't be done until dvb
+	 * by video or audio. Analte that this step can't be done until dvb
 	 * graph is created during dvb register.
 	*/
 	media_device_for_each_entity(entity, dev->media_dev) {
@@ -624,11 +624,11 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 		}
 	}
 
-	/* register entity_notify callback */
-	dev->entity_notify.notify_data = (void *) dev;
-	dev->entity_notify.notify = (void *) au0828_media_graph_notify;
-	media_device_register_entity_notify(dev->media_dev,
-						  &dev->entity_notify);
+	/* register entity_analtify callback */
+	dev->entity_analtify.analtify_data = (void *) dev;
+	dev->entity_analtify.analtify = (void *) au0828_media_graph_analtify;
+	media_device_register_entity_analtify(dev->media_dev,
+						  &dev->entity_analtify);
 
 	/* set enable_source */
 	mutex_lock(&dev->media_dev->graph_mutex);
@@ -652,7 +652,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	ifnum = interface->altsetting->desc.bInterfaceNumber;
 
 	if (ifnum != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dprintk(1, "%s() vendor id 0x%x device id 0x%x ifnum:%d\n", __func__,
 		le16_to_cpu(usbdev->descriptor.idVendor),
@@ -662,18 +662,18 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
 	 * video stream wouldn't likely work, since 12 Mbps is generally
-	 * not enough even for most Digital TV streams.
+	 * analt eanalugh even for most Digital TV streams.
 	 */
 	if (usbdev->speed != USB_SPEED_HIGH && disable_usb_speed_check == 0) {
 		pr_err("au0828: Device initialization failed.\n");
 		pr_err("au0828: Device must be connected to a high-speed USB 2.0 port.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		pr_err("%s() Unable to allocate memory\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&dev->lock);

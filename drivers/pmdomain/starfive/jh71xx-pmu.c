@@ -2,7 +2,7 @@
 /*
  * StarFive JH71XX PMU (Power Management Unit) Controller Driver
  *
- * Copyright (C) 2022-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/interrupt.h>
@@ -293,7 +293,7 @@ static int jh71xx_pmu_init_domain(struct jh71xx_pmu *pmu, int index)
 
 	pmd = devm_kzalloc(pmu->dev, sizeof(*pmd), GFP_KERNEL);
 	if (!pmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmd->domain_info = &pmu->match_data->domain_info[index];
 	pmd->pmu = pmu;
@@ -319,7 +319,7 @@ static int jh71xx_pmu_init_domain(struct jh71xx_pmu *pmu, int index)
 static int jh71xx_pmu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct jh71xx_pmu_match_data *match_data;
 	struct jh71xx_pmu *pmu;
 	unsigned int i;
@@ -327,7 +327,7 @@ static int jh71xx_pmu_probe(struct platform_device *pdev)
 
 	pmu = devm_kzalloc(dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pmu->base))
@@ -351,7 +351,7 @@ static int jh71xx_pmu_probe(struct platform_device *pdev)
 				  sizeof(struct generic_pm_domain *),
 				  GFP_KERNEL);
 	if (!pmu->genpd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmu->dev = dev;
 	pmu->match_data = match_data;

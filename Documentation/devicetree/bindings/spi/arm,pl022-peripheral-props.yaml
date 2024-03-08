@@ -17,7 +17,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 0      # SPI
-      - 1      # Texas Instruments Synchronous Serial Frame Format
+      - 1      # Texas Instruments Synchroanalus Serial Frame Format
       - 2      # Microwire (Half Duplex)
 
   pl022,com-mode:

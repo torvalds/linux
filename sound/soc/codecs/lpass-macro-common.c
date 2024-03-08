@@ -16,16 +16,16 @@ struct lpass_macro *lpass_macro_pds_init(struct device *dev)
 	struct lpass_macro *l_pds;
 	int ret;
 
-	if (!of_property_present(dev->of_node, "power-domains"))
+	if (!of_property_present(dev->of_analde, "power-domains"))
 		return NULL;
 
 	l_pds = devm_kzalloc(dev, sizeof(*l_pds), GFP_KERNEL);
 	if (!l_pds)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	l_pds->macro_pd = dev_pm_domain_attach_by_name(dev, "macro");
 	if (IS_ERR_OR_NULL(l_pds->macro_pd)) {
-		ret = l_pds->macro_pd ? PTR_ERR(l_pds->macro_pd) : -ENODATA;
+		ret = l_pds->macro_pd ? PTR_ERR(l_pds->macro_pd) : -EANALDATA;
 		goto macro_err;
 	}
 
@@ -35,7 +35,7 @@ struct lpass_macro *lpass_macro_pds_init(struct device *dev)
 
 	l_pds->dcodec_pd = dev_pm_domain_attach_by_name(dev, "dcodec");
 	if (IS_ERR_OR_NULL(l_pds->dcodec_pd)) {
-		ret = l_pds->dcodec_pd ? PTR_ERR(l_pds->dcodec_pd) : -ENODATA;
+		ret = l_pds->dcodec_pd ? PTR_ERR(l_pds->dcodec_pd) : -EANALDATA;
 		goto dcodec_err;
 	}
 

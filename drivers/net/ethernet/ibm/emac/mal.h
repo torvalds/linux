@@ -9,7 +9,7 @@
  *
  * Based on the arch/ppc version of the driver:
  *
- * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Copyright (c) 2004, 2005 Zultys Techanallogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
  * Based on original work by
@@ -21,14 +21,14 @@
 
 /*
  * There are some variations on the MAL, we express them in this driver as
- * MAL Version 1 and 2 though that doesn't match any IBM terminology.
+ * MAL Version 1 and 2 though that doesn't match any IBM termianallogy.
  *
  * We call MAL 1 the version in 405GP, 405GPR, 405EP, 440EP, 440GR and
  * NP405H.
  *
  * We call MAL 2 the version in 440GP, 440GX, 440SP, 440SPE and Axon
  *
- * The driver expects a "version" property in the emac node containing
+ * The driver expects a "version" property in the emac analde containing
  * a number 1 or 2. New device-trees for EMAC capable platforms are thus
  * required to include that when porting to arch/powerpc.
  */

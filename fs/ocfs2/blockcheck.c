@@ -44,7 +44,7 @@
  *
  * An example.  Take bit 1 of the data buffer.  1 is a power of two (2^0),
  * so it's a parity bit.  2 is a power of two (2^1), so it's a parity bit.
- * 3 is not a power of two.  So bit 1 of the data buffer ends up as bit 3
+ * 3 is analt a power of two.  So bit 1 of the data buffer ends up as bit 3
  * in the code buffer.
  *
  * The caller can pass in *p if it wants to keep track of the most recent
@@ -130,7 +130,7 @@ u32 ocfs2_hamming_encode(u32 parity, void *data, unsigned int d, unsigned int nr
 		 * bits 1000(2) = 8, 0100(2)=4 and 0001(2) = 1.
 		 * </wikipedia>
 		 *
-		 * Note that 'k' is the _code_ bit number.  'b' in
+		 * Analte that 'k' is the _code_ bit number.  'b' in
 		 * our loop.
 		 */
 		parity ^= b;
@@ -148,8 +148,8 @@ u32 ocfs2_hamming_encode_block(void *data, unsigned int blocksize)
 
 /*
  * Like ocfs2_hamming_encode(), this can handle hunks.  nr is the bit
- * offset of the current hunk.  If bit to be fixed is not part of the
- * current hunk, this does nothing.
+ * offset of the current hunk.  If bit to be fixed is analt part of the
+ * current hunk, this does analthing.
  *
  * If you only have one hunk, use ocfs2_hamming_fix_block().
  */
@@ -162,14 +162,14 @@ void ocfs2_hamming_fix(void *data, unsigned int d, unsigned int nr,
 
 	/*
 	 * If the bit to fix has an hweight of 1, it's a parity bit.  One
-	 * busted parity bit is its own error.  Nothing to do here.
+	 * busted parity bit is its own error.  Analthing to do here.
 	 */
 	if (hweight32(fix) == 1)
 		return;
 
 	/*
 	 * nr + d is the bit right past the data hunk we're looking at.
-	 * If fix after that, nothing to do
+	 * If fix after that, analthing to do
 	 */
 	if (fix >= calc_code_bit(nr + d, NULL))
 		return;
@@ -180,7 +180,7 @@ void ocfs2_hamming_fix(void *data, unsigned int d, unsigned int nr,
 	 * for a more detailed description of 'b'.
 	 */
 	b = calc_code_bit(nr, NULL);
-	/* If the fix is before this hunk, nothing to do */
+	/* If the fix is before this hunk, analthing to do */
 	if (fix < b)
 		return;
 
@@ -291,7 +291,7 @@ static void ocfs2_blockcheck_inc_check(struct ocfs2_blockcheck_stats *stats)
 	spin_unlock(&stats->b_lock);
 
 	if (!new_count)
-		mlog(ML_NOTICE, "Block check count has wrapped\n");
+		mlog(ML_ANALTICE, "Block check count has wrapped\n");
 }
 
 static void ocfs2_blockcheck_inc_failure(struct ocfs2_blockcheck_stats *stats)
@@ -307,7 +307,7 @@ static void ocfs2_blockcheck_inc_failure(struct ocfs2_blockcheck_stats *stats)
 	spin_unlock(&stats->b_lock);
 
 	if (!new_count)
-		mlog(ML_NOTICE, "Checksum failure count has wrapped\n");
+		mlog(ML_ANALTICE, "Checksum failure count has wrapped\n");
 }
 
 static void ocfs2_blockcheck_inc_recover(struct ocfs2_blockcheck_stats *stats)
@@ -323,7 +323,7 @@ static void ocfs2_blockcheck_inc_recover(struct ocfs2_blockcheck_stats *stats)
 	spin_unlock(&stats->b_lock);
 
 	if (!new_count)
-		mlog(ML_NOTICE, "ECC recovery count has wrapped\n");
+		mlog(ML_ANALTICE, "ECC recovery count has wrapped\n");
 }
 
 
@@ -339,7 +339,7 @@ static void ocfs2_blockcheck_inc_recover(struct ocfs2_blockcheck_stats *stats)
  *
  * bc should be a pointer inside data, as the function will
  * take care of zeroing it before calculating the check information.  If
- * bc does not point inside data, the caller must make sure any inline
+ * bc does analt point inside data, the caller must make sure any inline
  * ocfs2_block_check structures are zeroed.
  *
  * The data buffer must be in on-disk endian (little endian for ocfs2).
@@ -358,7 +358,7 @@ void ocfs2_block_check_compute(void *data, size_t blocksize,
 	ecc = ocfs2_hamming_encode_block(data, blocksize);
 
 	/*
-	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be no
+	 * Anal ecc'd ocfs2 structure is larger than 4K, so ecc will be anal
 	 * larger than 16 bits.
 	 */
 	BUG_ON(ecc > USHRT_MAX);
@@ -370,7 +370,7 @@ void ocfs2_block_check_compute(void *data, size_t blocksize,
 /*
  * This function validates existing check information.  Like _compute,
  * the function will take care of zeroing bc before calculating check codes.
- * If bc is not a pointer inside data, the caller must have zeroed any
+ * If bc is analt a pointer inside data, the caller must have zeroed any
  * inline ocfs2_block_check structures.
  *
  * Again, the data passed in should be the on-disk endian.
@@ -431,7 +431,7 @@ out:
  *
  * bc should be a pointer inside data, as the function will
  * take care of zeroing it before calculating the check information.  If
- * bc does not point inside data, the caller must make sure any inline
+ * bc does analt point inside data, the caller must make sure any inline
  * ocfs2_block_check structures are zeroed.
  *
  * The data buffer must be in on-disk endian (little endian for ocfs2).
@@ -464,7 +464,7 @@ void ocfs2_block_check_compute_bhs(struct buffer_head **bhs, int nr,
 	}
 
 	/*
-	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be no
+	 * Anal ecc'd ocfs2 structure is larger than 4K, so ecc will be anal
 	 * larger than 16 bits.
 	 */
 	BUG_ON(ecc > USHRT_MAX);
@@ -476,7 +476,7 @@ void ocfs2_block_check_compute_bhs(struct buffer_head **bhs, int nr,
 /*
  * This function validates existing check information on a list of
  * buffer_heads.  Like _compute_bhs, the function will take care of
- * zeroing bc before calculating check codes.  If bc is not a pointer
+ * zeroing bc before calculating check codes.  If bc is analt a pointer
  * inside data, the caller must have zeroed any inline
  * ocfs2_block_check structures.
  *

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Driver for the Synopsys DesignWare DMA Controller
+ * Driver for the Syanalpsys DesignWare DMA Controller
  *
  * Copyright (C) 2007 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
@@ -45,9 +45,9 @@ int dw_dma_remove(struct dw_dma_chip *chip);
 int idma32_dma_probe(struct dw_dma_chip *chip);
 int idma32_dma_remove(struct dw_dma_chip *chip);
 #else
-static inline int dw_dma_probe(struct dw_dma_chip *chip) { return -ENODEV; }
+static inline int dw_dma_probe(struct dw_dma_chip *chip) { return -EANALDEV; }
 static inline int dw_dma_remove(struct dw_dma_chip *chip) { return 0; }
-static inline int idma32_dma_probe(struct dw_dma_chip *chip) { return -ENODEV; }
+static inline int idma32_dma_probe(struct dw_dma_chip *chip) { return -EANALDEV; }
 static inline int idma32_dma_remove(struct dw_dma_chip *chip) { return 0; }
 #endif /* CONFIG_DW_DMAC_CORE */
 

@@ -27,7 +27,7 @@
 extern unsigned long __cmpxchg_called_with_bad_pointer(void)
 	__compiletime_error("Bad argument size for cmpxchg");
 extern unsigned long __cmpxchg64_unsupported(void)
-	__compiletime_error("cmpxchg64 not available; cpu_has_64bits may be false");
+	__compiletime_error("cmpxchg64 analt available; cpu_has_64bits may be false");
 extern unsigned long __xchg_called_with_bad_pointer(void)
 	__compiletime_error("Bad argument size for xchg");
 
@@ -38,7 +38,7 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 	if (kernel_uses_llsc) {						\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
-		"	.set	noat				\n"	\
+		"	.set	analat				\n"	\
 		"	.set	push				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
 		"	" __SYNC(full, loongson3_war) "		\n"	\
@@ -116,7 +116,7 @@ unsigned long __arch_xchg(volatile void *ptr, unsigned long x, int size)
 	if (kernel_uses_llsc) {						\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
-		"	.set	noat				\n"	\
+		"	.set	analat				\n"	\
 		"	.set	push				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"	" __SYNC(full, loongson3_war) "		\n"	\
@@ -271,7 +271,7 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 #  else
 	"	dsll	%L1, %L5, 32			\n"
 	"	dsrl	%L1, %L1, 32			\n"
-	"	.set	noat				\n"
+	"	.set	analat				\n"
 	"	dsll	$at, %M5, 32			\n"
 	"	or	%L1, %L1, $at			\n"
 	"	.set	at				\n"
@@ -302,7 +302,7 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	__typeof__(*(ptr)) __res;					\
 									\
 	/*								\
-	 * We can only use cmpxchg64 if we know that the CPU supports	\
+	 * We can only use cmpxchg64 if we kanalw that the CPU supports	\
 	 * 64-bits, ie. lld & scd. Our call to __cmpxchg64_unsupported	\
 	 * will cause a build error unless cpu_has_64bits is a		\
 	 * compile-time constant 1.					\

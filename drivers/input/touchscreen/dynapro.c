@@ -13,7 +13,7 @@
  *   Copied inexio.c and edited for Dynapro protocol (from retired Xorg module)
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -80,7 +80,7 @@ static irqreturn_t dynapro_interrupt(struct serio *serio,
 	if (DYNAPRO_RESPONSE_BEGIN_BYTE & pdynapro->data[0])
 		dynapro_process_data(pdynapro);
 	else
-		dev_dbg(&serio->dev, "unknown/unsynchronized data: %x\n",
+		dev_dbg(&serio->dev, "unkanalwn/unsynchronized data: %x\n",
 			pdynapro->data[0]);
 
 	return IRQ_HANDLED;
@@ -113,7 +113,7 @@ static int dynapro_connect(struct serio *serio, struct serio_driver *drv)
 	pdynapro = kzalloc(sizeof(struct dynapro), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!pdynapro || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 

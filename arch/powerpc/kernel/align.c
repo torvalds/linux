@@ -305,7 +305,7 @@ int fix_alignment(struct pt_regs *regs)
 	int r, type;
 
 	if (is_kernel_addr(regs->nip))
-		r = copy_inst_from_kernel_nofault(&instr, (void *)regs->nip);
+		r = copy_inst_from_kernel_analfault(&instr, (void *)regs->nip);
 	else
 		r = __get_user_instr(instr, (void __user *)regs->nip);
 
@@ -333,7 +333,7 @@ int fix_alignment(struct pt_regs *regs)
 	 *
 	 * Send a SIGBUS to the process that caused the fault.
 	 *
-	 * We do not emulate these because paste may contain additional metadata
+	 * We do analt emulate these because paste may contain additional metadata
 	 * when pasting to a co-processor. Furthermore, paste_last is the
 	 * synchronisation point for preceding copy/paste sequences.
 	 */

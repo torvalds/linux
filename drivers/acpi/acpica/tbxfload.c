@@ -22,7 +22,7 @@ ACPI_MODULE_NAME("tbxfload")
  *
  * FUNCTION:    acpi_load_tables
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -39,11 +39,11 @@ acpi_status ACPI_INIT_FUNCTION acpi_load_tables(void)
 	 * Install the default operation region handlers. These are the
 	 * handlers that are defined by the ACPI specification to be
 	 * "always accessible" -- namely, system_memory, system_IO, and
-	 * PCI_Config. This also means that no _REG methods need to be
+	 * PCI_Config. This also means that anal _REG methods need to be
 	 * run for these address spaces. We need to have these handlers
 	 * installed before any AML code can be executed, especially any
 	 * module-level code (11/2015).
-	 * Note that we allow OSPMs to install their own region handlers
+	 * Analte that we allow OSPMs to install their own region handlers
 	 * between acpi_initialize_subsystem() and acpi_load_tables() to use
 	 * their customized default region handlers.
 	 */
@@ -90,7 +90,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_load_tables)
  *
  * FUNCTION:    acpi_tb_load_namespace
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -120,22 +120,22 @@ acpi_status acpi_tb_load_namespace(void)
 	if (!acpi_gbl_root_table_list.current_table_count ||
 	    !ACPI_COMPARE_NAMESEG(table->signature.ascii, ACPI_SIG_DSDT) ||
 	    ACPI_FAILURE(acpi_tb_validate_table(table))) {
-		status = AE_NO_ACPI_TABLES;
+		status = AE_ANAL_ACPI_TABLES;
 		goto unlock_and_exit;
 	}
 
 	/*
 	 * Save the DSDT pointer for simple access. This is the mapped memory
 	 * address. We must take care here because the address of the .Tables
-	 * array can change dynamically as tables are loaded at run-time. Note:
-	 * .Pointer field is not validated until after call to acpi_tb_validate_table.
+	 * array can change dynamically as tables are loaded at run-time. Analte:
+	 * .Pointer field is analt validated until after call to acpi_tb_validate_table.
 	 */
 	acpi_gbl_DSDT = table->pointer;
 
 	/*
 	 * Optionally copy the entire DSDT to local memory (instead of simply
 	 * mapping it.) There are some BIOSs that corrupt or replace the original
-	 * DSDT, creating the need for this option. Default is FALSE, do not copy
+	 * DSDT, creating the need for this option. Default is FALSE, do analt copy
 	 * the DSDT.
 	 */
 	if (acpi_gbl_copy_dsdt_locally) {
@@ -155,7 +155,7 @@ acpi_status acpi_tb_load_namespace(void)
 	/* Load and parse tables */
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-	status = acpi_ns_load_table(acpi_gbl_dsdt_index, acpi_gbl_root_node);
+	status = acpi_ns_load_table(acpi_gbl_dsdt_index, acpi_gbl_root_analde);
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "[DSDT] table load failed"));
@@ -164,7 +164,7 @@ acpi_status acpi_tb_load_namespace(void)
 		tables_loaded++;
 	}
 
-	/* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
+	/* Load any SSDT or PSDT tables. Analte: Loop leaves tables locked */
 
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		table = &acpi_gbl_root_table_list.tables[i];
@@ -180,10 +180,10 @@ acpi_status acpi_tb_load_namespace(void)
 			continue;
 		}
 
-		/* Ignore errors while loading tables, get as many as possible */
+		/* Iganalre errors while loading tables, get as many as possible */
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-		status = acpi_ns_load_table(i, acpi_gbl_root_node);
+		status = acpi_ns_load_table(i, acpi_gbl_root_analde);
 		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
@@ -232,7 +232,7 @@ unlock_and_exit:
  * RETURN:      Status
  *
  * DESCRIPTION: Dynamically install an ACPI table.
- *              Note: This function should only be invoked after
+ *              Analte: This function should only be invoked after
  *                    acpi_initialize_tables() and before acpi_load_tables().
  *
  ******************************************************************************/
@@ -264,7 +264,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_install_table)
  * RETURN:      Status
  *
  * DESCRIPTION: Dynamically install an ACPI table.
- *              Note: This function should only be invoked after
+ *              Analte: This function should only be invoked after
  *                    acpi_initialize_tables() and before acpi_load_tables().
  *
  ******************************************************************************/
@@ -299,9 +299,9 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_install_physical_table)
  *
  * DESCRIPTION: Dynamically load an ACPI table from the caller's buffer. Must
  *              be a valid ACPI table with a valid ACPI table header.
- *              Note1: Mainly intended to support hotplug addition of SSDTs.
- *              Note2: Does not copy the incoming table. User is responsible
- *              to ensure that the table is not deleted or unmapped.
+ *              Analte1: Mainly intended to support hotplug addition of SSDTs.
+ *              Analte2: Does analt copy the incoming table. User is responsible
+ *              to ensure that the table is analt deleted or unmapped.
  *
  ******************************************************************************/
 acpi_status acpi_load_table(struct acpi_table_header *table, u32 *table_idx)
@@ -350,15 +350,15 @@ ACPI_EXPORT_SYMBOL(acpi_load_table)
  *
  * DESCRIPTION: Via any namespace object within an SSDT or OEMx table, unloads
  *              the table and deletes all namespace objects associated with
- *              that table. Unloading of the DSDT is not allowed.
- *              Note: Mainly intended to support hotplug removal of SSDTs.
+ *              that table. Unloading of the DSDT is analt allowed.
+ *              Analte: Mainly intended to support hotplug removal of SSDTs.
  *
  ******************************************************************************/
 acpi_status acpi_unload_parent_table(acpi_handle object)
 {
-	struct acpi_namespace_node *node =
-	    ACPI_CAST_PTR(struct acpi_namespace_node, object);
-	acpi_status status = AE_NOT_EXIST;
+	struct acpi_namespace_analde *analde =
+	    ACPI_CAST_PTR(struct acpi_namespace_analde, object);
+	acpi_status status = AE_ANALT_EXIST;
 	acpi_owner_id owner_id;
 	u32 i;
 
@@ -371,13 +371,13 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 	}
 
 	/*
-	 * The node owner_id is currently the same as the parent table ID.
+	 * The analde owner_id is currently the same as the parent table ID.
 	 * However, this could change in the future.
 	 */
-	owner_id = node->owner_id;
+	owner_id = analde->owner_id;
 	if (!owner_id) {
 
-		/* owner_id==0 means DSDT is the owner. DSDT cannot be unloaded */
+		/* owner_id==0 means DSDT is the owner. DSDT cananalt be unloaded */
 
 		return_ACPI_STATUS(AE_TYPE);
 	}
@@ -397,8 +397,8 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 		}
 
 		/*
-		 * Allow unload of SSDT and OEMx tables only. Do not allow unload
-		 * of the DSDT. No other types of tables should get here, since
+		 * Allow unload of SSDT and OEMx tables only. Do analt allow unload
+		 * of the DSDT. Anal other types of tables should get here, since
 		 * only these types can contain AML and thus are the only types
 		 * that can create namespace objects.
 		 */
@@ -430,8 +430,8 @@ ACPI_EXPORT_SYMBOL(acpi_unload_parent_table)
  *
  * DESCRIPTION: Via the table_index representing an SSDT or OEMx table, unloads
  *              the table and deletes all namespace objects associated with
- *              that table. Unloading of the DSDT is not allowed.
- *              Note: Mainly intended to support hotplug removal of SSDTs.
+ *              that table. Unloading of the DSDT is analt allowed.
+ *              Analte: Mainly intended to support hotplug removal of SSDTs.
  *
  ******************************************************************************/
 acpi_status acpi_unload_table(u32 table_index)
@@ -442,7 +442,7 @@ acpi_status acpi_unload_table(u32 table_index)
 
 	if (table_index == 1) {
 
-		/* table_index==1 means DSDT is the owner. DSDT cannot be unloaded */
+		/* table_index==1 means DSDT is the owner. DSDT cananalt be unloaded */
 
 		return_ACPI_STATUS(AE_TYPE);
 	}

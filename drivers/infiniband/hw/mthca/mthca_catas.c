@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -54,7 +54,7 @@ static struct work_struct catas_work;
 
 static int catas_reset_disable;
 module_param_named(catas_reset_disable, catas_reset_disable, int, 0644);
-MODULE_PARM_DESC(catas_reset_disable, "disable reset on catastrophic event if nonzero");
+MODULE_PARM_DESC(catas_reset_disable, "disable reset on catastrophic event if analnzero");
 
 static void catas_reset(struct work_struct *work)
 {
@@ -71,7 +71,7 @@ static void catas_reset(struct work_struct *work)
 	list_for_each_entry_safe(dev, tmpdev, &tlist, catas_err.list) {
 		struct pci_dev *pdev = dev->pdev;
 		ret = __mthca_restart_one(dev->pdev);
-		/* 'dev' now is not valid */
+		/* 'dev' analw is analt valid */
 		if (ret)
 			printk(KERN_ERR "mthca %s: Reset failed (%d)\n",
 			       pci_name(pdev), ret);
@@ -112,7 +112,7 @@ static void handle_catas(struct mthca_dev *dev)
 		type = "internal parity error";
 		break;
 	default:
-		type = "unknown error";
+		type = "unkanalwn error";
 		break;
 	}
 
@@ -187,7 +187,7 @@ int __init mthca_catas_init(void)
 
 	catas_wq = alloc_ordered_workqueue("mthca_catas", WQ_MEM_RECLAIM);
 	if (!catas_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

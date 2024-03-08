@@ -4,7 +4,7 @@ Required properties:
 - compatible: one of "marvell,88pg867", "marvell,88pg868";
 - reg: I2C slave address.
 
-Optional subnodes for regulators: "buck1", "buck2", using common regulator
+Optional subanaldes for regulators: "buck1", "buck2", using common regulator
 bindings given in <Documentation/devicetree/bindings/regulator/regulator.txt>.
 
 Example:

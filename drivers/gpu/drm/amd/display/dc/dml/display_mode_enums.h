@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -45,8 +45,8 @@ enum source_format_class {
 	dm_422_8 = 6,
 	dm_422_10 = 7,
 	dm_444_8 = 8,
-	dm_mono_8 = dm_444_8,
-	dm_mono_16 = dm_444_16,
+	dm_moanal_8 = dm_444_8,
+	dm_moanal_16 = dm_444_16,
 	dm_rgbe = 9,
 	dm_rgbe_alpha = 10,
 };
@@ -97,7 +97,7 @@ enum lb_depth {
 	dm_lb_19 = 5
 };
 enum voltage_state {
-	dm_vmin = 0, dm_vmid = 1, dm_vnom = 2, dm_vmax = 3
+	dm_vmin = 0, dm_vmid = 1, dm_vanalm = 2, dm_vmax = 3
 };
 enum source_macro_tile_size {
 	dm_4k_tile = 0, dm_64k_tile = 1, dm_256k_tile = 2
@@ -110,7 +110,7 @@ enum cursor_bpp {
  * @enum clock_change_support - It represents possible reasons to change the DRAM clock.
  *
  * DC may change the DRAM clock during its execution, and this enum tracks all
- * the available methods. Note that every ASIC has their specific way to deal
+ * the available methods. Analte that every ASIC has their specific way to deal
  * with these clock switch.
  */
 enum clock_change_support {
@@ -136,7 +136,7 @@ enum clock_change_support {
 	dm_dram_clock_change_vblank_w_mall_sub_vp,
 
 	/**
-	 * @dm_dram_clock_change_unsupported: Do not support DRAM switch
+	 * @dm_dram_clock_change_unsupported: Do analt support DRAM switch
 	 */
 	dm_dram_clock_change_unsupported
 };
@@ -155,14 +155,14 @@ enum mpc_combine_affinity {
 };
 
 enum RequestType {
-	REQ_256Bytes, REQ_128BytesNonContiguous, REQ_128BytesContiguous, REQ_NA
+	REQ_256Bytes, REQ_128BytesAnalnContiguous, REQ_128BytesContiguous, REQ_NA
 };
 
 enum self_refresh_affinity {
 	dm_try_to_allow_self_refresh_and_mclk_switch,
 	dm_allow_self_refresh_and_mclk_switch,
 	dm_allow_self_refresh,
-	dm_neither_self_refresh_nor_mclk_switch
+	dm_neither_self_refresh_analr_mclk_switch
 };
 
 enum dm_validation_status {
@@ -172,7 +172,7 @@ enum dm_validation_status {
 	DML_FAIL_VIEWPORT_SIZE,
 	DML_FAIL_TOTAL_V_ACTIVE_BW,
 	DML_FAIL_DIO_SUPPORT,
-	DML_FAIL_NOT_ENOUGH_DSC,
+	DML_FAIL_ANALT_EANALUGH_DSC,
 	DML_FAIL_DSC_CLK_REQUIRED,
 	DML_FAIL_DSC_VALIDATION_FAILURE,
 	DML_FAIL_URGENT_LATENCY,
@@ -192,17 +192,17 @@ enum dm_validation_status {
 	DML_FAIL_V_RATIO_PREFETCH,
 	DML_FAIL_P2I_WITH_420,
 	DML_FAIL_DSC_ONLY_IF_NECESSARY_WITH_BPP,
-	DML_FAIL_NOT_DSC422_NATIVE,
+	DML_FAIL_ANALT_DSC422_NATIVE,
 	DML_FAIL_ODM_COMBINE4TO1,
-	DML_FAIL_ENOUGH_WRITEBACK_UNITS,
+	DML_FAIL_EANALUGH_WRITEBACK_UNITS,
 	DML_FAIL_VIEWPORT_EXCEEDS_SURFACE,
 	DML_FAIL_DYNAMIC_METADATA,
 	DML_FAIL_FMT_BUFFER_EXCEEDED,
 };
 
 enum writeback_config {
-	dm_normal,
-	dm_whole_buffer_for_single_stream_no_interleave,
+	dm_analrmal,
+	dm_whole_buffer_for_single_stream_anal_interleave,
 	dm_whole_buffer_for_single_stream_interleave,
 };
 
@@ -217,7 +217,7 @@ enum odm_combine_mode {
 
 enum odm_combine_policy {
 	dm_odm_combine_policy_dal,
-	dm_odm_combine_policy_none,
+	dm_odm_combine_policy_analne,
 	dm_odm_combine_policy_2to1,
 	dm_odm_combine_policy_4to1,
 	dm_odm_split_policy_1to2,
@@ -226,7 +226,7 @@ enum odm_combine_policy {
 };
 
 enum immediate_flip_requirement {
-	dm_immediate_flip_not_required,
+	dm_immediate_flip_analt_required,
 	dm_immediate_flip_required,
 	dm_immediate_flip_opportunistic,
 };
@@ -282,10 +282,10 @@ enum dm_prefetch_modes {
 	dm_prefetch_support_uclk_fclk_and_stutter,
 	dm_prefetch_support_fclk_and_stutter,
 	dm_prefetch_support_stutter,
-	dm_prefetch_support_none,
+	dm_prefetch_support_analne,
 };
 enum dm_output_type {
-	dm_output_type_unknown,
+	dm_output_type_unkanalwn,
 	dm_output_type_dp,
 	dm_output_type_edp,
 	dm_output_type_dp2p0,
@@ -294,7 +294,7 @@ enum dm_output_type {
 };
 
 enum dm_output_rate {
-	dm_output_rate_unknown,
+	dm_output_rate_unkanalwn,
 	dm_output_rate_dp_rate_hbr,
 	dm_output_rate_dp_rate_hbr2,
 	dm_output_rate_dp_rate_hbr3,

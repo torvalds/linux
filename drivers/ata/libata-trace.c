@@ -109,8 +109,8 @@ libata_trace_parse_eh_err_mask(struct trace_seq *p, unsigned int eh_err_mask)
 			trace_seq_printf(p, "INVALID ");
 		if (eh_err_mask & AC_ERR_OTHER)
 			trace_seq_printf(p, "OTHER ");
-		if (eh_err_mask & AC_ERR_NODEV_HINT)
-			trace_seq_printf(p, "NODEV_HINT ");
+		if (eh_err_mask & AC_ERR_ANALDEV_HINT)
+			trace_seq_printf(p, "ANALDEV_HINT ");
 		if (eh_err_mask & AC_ERR_NCQ)
 			trace_seq_printf(p, "NCQ ");
 		trace_seq_putc(p, '}');
@@ -211,18 +211,18 @@ libata_trace_parse_subcmd(struct trace_seq *p, unsigned char cmd,
 			break;
 		}
 		break;
-	case ATA_CMD_NCQ_NON_DATA:
+	case ATA_CMD_NCQ_ANALN_DATA:
 		switch (feature) {
-		case ATA_SUBCMD_NCQ_NON_DATA_ABORT_QUEUE:
+		case ATA_SUBCMD_NCQ_ANALN_DATA_ABORT_QUEUE:
 			trace_seq_printf(p, " ABORT_QUEUE");
 			break;
-		case ATA_SUBCMD_NCQ_NON_DATA_SET_FEATURES:
+		case ATA_SUBCMD_NCQ_ANALN_DATA_SET_FEATURES:
 			trace_seq_printf(p, " SET_FEATURES");
 			break;
-		case ATA_SUBCMD_NCQ_NON_DATA_ZERO_EXT:
+		case ATA_SUBCMD_NCQ_ANALN_DATA_ZERO_EXT:
 			trace_seq_printf(p, " ZERO_EXT");
 			break;
-		case ATA_SUBCMD_NCQ_NON_DATA_ZAC_MGMT_OUT:
+		case ATA_SUBCMD_NCQ_ANALN_DATA_ZAC_MGMT_OUT:
 			trace_seq_printf(p, " ZAC_MGMT_OUT");
 			break;
 		}

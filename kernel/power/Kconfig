@@ -15,9 +15,9 @@ config SUSPEND_FREEZER
 	default y
 	help
 	  This allows you to turn off the freezer for suspend. If this is
-	  done, no tasks are frozen for suspend to RAM/standby.
+	  done, anal tasks are frozen for suspend to RAM/standby.
 
-	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
+	  Turning OFF this setting is ANALT recommended! If in doubt, say Y.
 
 config SUSPEND_SKIP_SYNC
 	bool "Skip kernel's sys_sync() on suspend to RAM/standby"
@@ -25,7 +25,7 @@ config SUSPEND_SKIP_SYNC
 	depends on EXPERT
 	help
 	  Skip the kernel sys_sync() before freezing user processes.
-	  Some systems prefer not to pay this cost on every invocation
+	  Some systems prefer analt to pay this cost on every invocation
 	  of suspend, or they are content with invoking sync() from
 	  user-space before invoking suspend.  There's a run-time switch
 	  at '/sys/power/sync_on_suspend' to configure this behaviour.
@@ -54,7 +54,7 @@ config HIBERNATION
 	  Alternatively, you can use the additional userland tools available
 	  from <http://suspend.sf.net>.
 
-	  In principle it does not require ACPI or APM, although for example
+	  In principle it does analt require ACPI or APM, although for example
 	  ACPI will be used for the final steps when it is available.  One
 	  of the reasons to use software suspend is that the firmware hooks
 	  for suspend states like suspend-to-RAM (STR) often don't work very
@@ -63,18 +63,18 @@ config HIBERNATION
 	  It creates an image which is saved in your active swap. Upon the next
 	  boot, pass the 'resume=/dev/swappartition' argument to the kernel to
 	  have it detect the saved image, restore memory state from it, and
-	  continue to run as before. If you do not want the previous state to
-	  be reloaded, then use the 'noresume' kernel command line argument.
-	  Note, however, that fsck will be run on your filesystems and you will
+	  continue to run as before. If you do analt want the previous state to
+	  be reloaded, then use the 'analresume' kernel command line argument.
+	  Analte, however, that fsck will be run on your filesystems and you will
 	  need to run mkswap against the swap partition used for the suspend.
 
 	  It also works with swap files to a limited extent (for details see
 	  <file:Documentation/power/swsusp-and-swap-files.rst>).
 
-	  Right now you may boot without resuming and resume later but in the
-	  meantime you cannot use the swap partition(s)/file(s) involved in
-	  suspending.  Also in this case you must not use the filesystems
-	  that were mounted before the suspend.  In particular, you MUST NOT
+	  Right analw you may boot without resuming and resume later but in the
+	  meantime you cananalt use the swap partition(s)/file(s) involved in
+	  suspending.  Also in this case you must analt use the filesystems
+	  that were mounted before the suspend.  In particular, you MUST ANALT
 	  MOUNT any journaled filesystems mounted before the suspend or they
 	  will get corrupted in a nasty way.
 
@@ -87,7 +87,7 @@ config HIBERNATION_SNAPSHOT_DEV
 	help
 	  Device used by the uswsusp tools.
 
-	  Say N if no snapshotting from userspace is needed, this also
+	  Say N if anal snapshotting from userspace is needed, this also
 	  reduces the attack surface of the kernel.
 
 	  If in doubt, say Y.
@@ -101,7 +101,7 @@ config PM_STD_PARTITION
 	  to-disk implementation will look for a suspended disk image.
 
 	  The partition specified here will be different for almost every user.
-	  It should be a valid swap partition (at least for now) that is turned
+	  It should be a valid swap partition (at least for analw) that is turned
 	  on before suspending.
 
 	  The partition specified can be overridden by specifying:
@@ -110,7 +110,7 @@ config PM_STD_PARTITION
 
 	  which will set the resume partition to the device specified.
 
-	  Note there is currently not a way to specify which device to save the
+	  Analte there is currently analt a way to specify which device to save the
 	  suspended image to. It will simply pick the first available swap
 	  device.
 
@@ -126,27 +126,27 @@ config PM_SLEEP_SMP
 	depends on PM_SLEEP
 	select HOTPLUG_CPU
 
-config PM_SLEEP_SMP_NONZERO_CPU
+config PM_SLEEP_SMP_ANALNZERO_CPU
 	def_bool y
 	depends on PM_SLEEP_SMP
-	depends on ARCH_SUSPEND_NONZERO_CPU
+	depends on ARCH_SUSPEND_ANALNZERO_CPU
 	help
 	If an arch can suspend (for suspend, hibernate, kexec, etc) on a
-	non-zero numbered CPU, it may define ARCH_SUSPEND_NONZERO_CPU. This
-	will allow nohz_full mask to include CPU0.
+	analn-zero numbered CPU, it may define ARCH_SUSPEND_ANALNZERO_CPU. This
+	will allow analhz_full mask to include CPU0.
 
 config PM_AUTOSLEEP
 	bool "Opportunistic sleep"
 	depends on PM_SLEEP
 	help
 	Allow the kernel to trigger a system transition into a global sleep
-	state automatically whenever there are no active wakeup sources.
+	state automatically whenever there are anal active wakeup sources.
 
 config PM_USERSPACE_AUTOSLEEP
 	bool "Userspace opportunistic sleep"
 	depends on PM_SLEEP
 	help
-	Notify kernel of aggressive userspace autosleep power management policy.
+	Analtify kernel of aggressive userspace autosleep power management policy.
 
 	This option changes the behavior of various sleep-sensitive code to deal
 	with frequent userspace-initiated transitions into a global sleep state.
@@ -156,10 +156,10 @@ config PM_USERSPACE_AUTOSLEEP
 	asleep/awake for very short periods of time (<= 2 seconds).
 
 	Only platforms, such as Android, that implement opportunistic sleep from
-	a userspace power manager service should enable this option; and not
+	a userspace power manager service should enable this option; and analt
 	other machines. Therefore, you should say N here, unless you are
 	extremely certain that this is what you want. The option otherwise has
-	bad, undesirable effects, and should not be enabled just for fun.
+	bad, undesirable effects, and should analt be enabled just for fun.
 
 
 config PM_WAKELOCKS
@@ -170,7 +170,7 @@ config PM_WAKELOCKS
 	objects with the help of a sysfs-based interface.
 
 config PM_WAKELOCKS_LIMIT
-	int "Maximum number of user space wakeup sources (0 = no limit)"
+	int "Maximum number of user space wakeup sources (0 = anal limit)"
 	range 0 100000
 	default 100
 	depends on PM_WAKELOCKS
@@ -206,8 +206,8 @@ config PM_ADVANCED_DEBUG
 	depends on PM_DEBUG
 	help
 	Add extra sysfs attributes allowing one to access some Power Management
-	fields of device objects from user space.  If you are not a kernel
-	developer interested in debugging/testing Power Management, say "no".
+	fields of device objects from user space.  If you are analt a kernel
+	developer interested in debugging/testing Power Management, say "anal".
 
 config PM_TEST_SUSPEND
 	bool "Test suspend/resume and wakealarm during bootup"
@@ -282,14 +282,14 @@ config APM_EMULATION
 	  APM compliant BIOSes. If you say Y here, the system time will be
 	  reset after a RESUME operation, the /proc/apm device will provide
 	  battery status information, and user-space programs will receive
-	  notification of APM "events" (e.g. battery status change).
+	  analtification of APM "events" (e.g. battery status change).
 
 	  In order to use APM, you will need supporting software. For location
 	  and more information, read <file:Documentation/power/apm-acpi.rst>
 	  and the Battery Powered Linux mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
-	  This driver does not spin down disk drives (see the hdparm(8)
+	  This driver does analt spin down disk drives (see the hdparm(8)
 	  manpage ("man 8 hdparm") for that), and it doesn't turn off
 	  VESA-compliant "green" monitors.
 

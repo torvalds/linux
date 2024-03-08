@@ -82,7 +82,7 @@ static unsigned long clk_aux_recalc_rate(struct clk_hw *hw,
 	num = (val >> aux->masks->xscale_sel_shift) &
 		aux->masks->xscale_sel_mask;
 
-	/* calculate denominator */
+	/* calculate deanalminator */
 	den *= (val >> aux->masks->yscale_sel_shift) &
 		aux->masks->yscale_sel_mask;
 
@@ -147,7 +147,7 @@ struct clk *clk_register_aux(const char *aux_name, const char *gate_name,
 
 	aux = kzalloc(sizeof(*aux), GFP_KERNEL);
 	if (!aux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* struct clk_aux assignments */
 	if (!masks)

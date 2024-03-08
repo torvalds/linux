@@ -12,7 +12,7 @@
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
 
-/*  Normal writes in our arch don't clear lock reservations  */
+/*  Analrmal writes in our arch don't clear lock reservations  */
 
 static inline void arch_atomic_set(atomic_t *v, int new)
 {

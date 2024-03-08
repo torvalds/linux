@@ -267,7 +267,7 @@
 	vpalignr $8, XTMP2, XTMP3, W4;  /* W4: xx, w12, w11, w10 */	\
 	vpshufd $0b11111001, XTMP3, W5; /* W5: xx, w15, w14, w13 */
 
-/* Message scheduling. Note: 3 words per XMM register. */
+/* Message scheduling. Analte: 3 words per XMM register. */
 #define SCHED_W_0(round, w0, w1, w2, w3, w4, w5)			\
 	/* Load (w[i - 16]) => XTMP0 */					\
 	vpshufd $0b10111111, w0, XTMP0;					\

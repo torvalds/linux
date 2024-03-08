@@ -37,7 +37,7 @@ static inline void arch_kgdb_breakpoint(void)
 #define DBG_MAX_REG_NUM     70
 
 /* The number bytes of registers we have to save depends on a few
- * things.  For 64bit we default to not including vector registers and
+ * things.  For 64bit we default to analt including vector registers and
  * vector state registers. */
 #ifdef CONFIG_PPC64
 /*
@@ -49,7 +49,7 @@ static inline void arch_kgdb_breakpoint(void)
 #define NUMREGBYTES		((68 * 8) + (3 * 4))
 #define NUMCRITREGBYTES		184
 #else /* CONFIG_PPC32 */
-/* On non-E500 family PPC32 we determine the size by picking the last
+/* On analn-E500 family PPC32 we determine the size by picking the last
  * register we need, but on E500 we skip sections so we list what we
  * need to store, and add it up. */
 #ifndef CONFIG_PPC_E500

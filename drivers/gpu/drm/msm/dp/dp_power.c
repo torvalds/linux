@@ -39,11 +39,11 @@ static int dp_power_clk_init(struct dp_power_private *power)
 
 	rc = devm_clk_bulk_get(dev, ctrl->num_clk, ctrl->clocks);
 	if (rc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = devm_clk_bulk_get(dev, stream->num_clk, stream->clocks);
 	if (rc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -172,7 +172,7 @@ struct dp_power *dp_power_get(struct device *dev, struct dp_parser *parser)
 
 	power = devm_kzalloc(dev, sizeof(*power), GFP_KERNEL);
 	if (!power)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	power->parser = parser;
 	power->dev = dev;

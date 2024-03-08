@@ -36,8 +36,8 @@ struct ti_sysc_cookie {
  * @dmadisable_shift: Offset of the dmadisable bit
  * @emufree_shift; Offset of the emufree bit
  *
- * Note that 0 is a valid shift, and for ti-sysc.c -ENODEV can be used if a
- * feature is not available.
+ * Analte that 0 is a valid shift, and for ti-sysc.c -EANALDEV can be used if a
+ * feature is analt available.
  */
 struct sysc_regbits {
 	s8 midle_shift;
@@ -59,7 +59,7 @@ struct sysc_regbits {
 #define SYSC_MODULE_QUIRK_PRUSS		BIT(24)
 #define SYSC_MODULE_QUIRK_DSS_RESET	BIT(23)
 #define SYSC_MODULE_QUIRK_RTC_UNLOCK	BIT(22)
-#define SYSC_QUIRK_CLKDM_NOAUTO		BIT(21)
+#define SYSC_QUIRK_CLKDM_ANALAUTO		BIT(21)
 #define SYSC_QUIRK_FORCE_MSTANDBY	BIT(20)
 #define SYSC_MODULE_QUIRK_AESS		BIT(19)
 #define SYSC_MODULE_QUIRK_SGX		BIT(18)
@@ -73,9 +73,9 @@ struct sysc_regbits {
 #define SYSC_QUIRK_EXT_OPT_CLOCK	BIT(10)
 #define SYSC_QUIRK_LEGACY_IDLE		BIT(9)
 #define SYSC_QUIRK_RESET_STATUS		BIT(8)
-#define SYSC_QUIRK_NO_IDLE		BIT(7)
-#define SYSC_QUIRK_NO_IDLE_ON_INIT	BIT(6)
-#define SYSC_QUIRK_NO_RESET_ON_INIT	BIT(5)
+#define SYSC_QUIRK_ANAL_IDLE		BIT(7)
+#define SYSC_QUIRK_ANAL_IDLE_ON_INIT	BIT(6)
+#define SYSC_QUIRK_ANAL_RESET_ON_INIT	BIT(5)
 #define SYSC_QUIRK_OPT_CLKS_NEEDED	BIT(4)
 #define SYSC_QUIRK_OPT_CLKS_IN_RESET	BIT(3)
 #define SYSC_QUIRK_16BIT		BIT(2)
@@ -133,7 +133,7 @@ enum sysc_registers {
  * @cap: interconnect target module capabilities
  * @cfg: interconnect target module configuration
  *
- * This data is enough to allocate a new struct omap_hwmod_class_sysconfig
+ * This data is eanalugh to allocate a new struct omap_hwmod_class_sysconfig
  * based on device tree data parsed by ti-sysc driver.
  */
 struct ti_sysc_module_data {

@@ -23,34 +23,34 @@
 #include "cxl.h"
 #include "trace.h"
 
-#define CXL_NUM_MINORS 256 /* Total to reserve */
+#define CXL_NUM_MIANALRS 256 /* Total to reserve */
 
-#define CXL_AFU_MINOR_D(afu) (CXL_CARD_MINOR(afu->adapter) + 1 + (3 * afu->slice))
-#define CXL_AFU_MINOR_M(afu) (CXL_AFU_MINOR_D(afu) + 1)
-#define CXL_AFU_MINOR_S(afu) (CXL_AFU_MINOR_D(afu) + 2)
-#define CXL_AFU_MKDEV_D(afu) MKDEV(MAJOR(cxl_dev), CXL_AFU_MINOR_D(afu))
-#define CXL_AFU_MKDEV_M(afu) MKDEV(MAJOR(cxl_dev), CXL_AFU_MINOR_M(afu))
-#define CXL_AFU_MKDEV_S(afu) MKDEV(MAJOR(cxl_dev), CXL_AFU_MINOR_S(afu))
+#define CXL_AFU_MIANALR_D(afu) (CXL_CARD_MIANALR(afu->adapter) + 1 + (3 * afu->slice))
+#define CXL_AFU_MIANALR_M(afu) (CXL_AFU_MIANALR_D(afu) + 1)
+#define CXL_AFU_MIANALR_S(afu) (CXL_AFU_MIANALR_D(afu) + 2)
+#define CXL_AFU_MKDEV_D(afu) MKDEV(MAJOR(cxl_dev), CXL_AFU_MIANALR_D(afu))
+#define CXL_AFU_MKDEV_M(afu) MKDEV(MAJOR(cxl_dev), CXL_AFU_MIANALR_M(afu))
+#define CXL_AFU_MKDEV_S(afu) MKDEV(MAJOR(cxl_dev), CXL_AFU_MIANALR_S(afu))
 
-#define CXL_DEVT_AFU(dev) ((MINOR(dev) % CXL_DEV_MINORS - 1) / 3)
+#define CXL_DEVT_AFU(dev) ((MIANALR(dev) % CXL_DEV_MIANALRS - 1) / 3)
 
-#define CXL_DEVT_IS_CARD(dev) (MINOR(dev) % CXL_DEV_MINORS == 0)
+#define CXL_DEVT_IS_CARD(dev) (MIANALR(dev) % CXL_DEV_MIANALRS == 0)
 
 static dev_t cxl_dev;
 
-static int __afu_open(struct inode *inode, struct file *file, bool master)
+static int __afu_open(struct ianalde *ianalde, struct file *file, bool master)
 {
 	struct cxl *adapter;
 	struct cxl_afu *afu;
 	struct cxl_context *ctx;
-	int adapter_num = CXL_DEVT_ADAPTER(inode->i_rdev);
-	int slice = CXL_DEVT_AFU(inode->i_rdev);
-	int rc = -ENODEV;
+	int adapter_num = CXL_DEVT_ADAPTER(ianalde->i_rdev);
+	int slice = CXL_DEVT_AFU(ianalde->i_rdev);
+	int rc = -EANALDEV;
 
 	pr_devel("afu_open afu%i.%i\n", slice, adapter_num);
 
 	if (!(adapter = get_cxl_adapter(adapter_num)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (slice > adapter->slices)
 		goto err_put_adapter;
@@ -78,7 +78,7 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 	}
 
 	if (!(ctx = cxl_context_alloc())) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_put_afu;
 	}
 
@@ -86,7 +86,7 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 	if (rc)
 		goto err_put_afu;
 
-	cxl_context_set_mapping(ctx, inode->i_mapping);
+	cxl_context_set_mapping(ctx, ianalde->i_mapping);
 
 	pr_devel("afu_open pe: %i\n", ctx->pe);
 	file->private_data = ctx;
@@ -102,17 +102,17 @@ err_put_adapter:
 	return rc;
 }
 
-int afu_open(struct inode *inode, struct file *file)
+int afu_open(struct ianalde *ianalde, struct file *file)
 {
-	return __afu_open(inode, file, false);
+	return __afu_open(ianalde, file, false);
 }
 
-static int afu_master_open(struct inode *inode, struct file *file)
+static int afu_master_open(struct ianalde *ianalde, struct file *file)
 {
-	return __afu_open(inode, file, true);
+	return __afu_open(ianalde, file, true);
 }
 
-int afu_release(struct inode *inode, struct file *file)
+int afu_release(struct ianalde *ianalde, struct file *file)
 {
 	struct cxl_context *ctx = file->private_data;
 
@@ -133,7 +133,7 @@ int afu_release(struct inode *inode, struct file *file)
 
 	/*
 	 * At this this point all bottom halfs have finished and we should be
-	 * getting no more IRQs from the hardware for this context.  Once it's
+	 * getting anal more IRQs from the hardware for this context.  Once it's
 	 * removed from the IDR (and RCU synchronised) it's safe to free the
 	 * sstp and context.
 	 */
@@ -203,10 +203,10 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	}
 
 	/*
-	 * We grab the PID here and not in the file open to allow for the case
+	 * We grab the PID here and analt in the file open to allow for the case
 	 * where a process (master, some daemon, etc) has opened the chardev on
-	 * behalf of another process, so the AFU's mm gets bound to the process
-	 * that performs this ioctl and not the process that opened the file.
+	 * behalf of aanalther process, so the AFU's mm gets bound to the process
+	 * that performs this ioctl and analt the process that opened the file.
 	 * Also we grab the PID of the group leader so that if the task that
 	 * has performed the attach operation exits the mm context of the
 	 * process is still accessible.
@@ -372,9 +372,9 @@ __poll_t afu_poll(struct file *file, struct poll_table_struct *poll)
 
 	spin_lock_irqsave(&ctx->lock, flags);
 	if (ctx_event_pending(ctx))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	else if (ctx->status == CLOSED)
-		/* Only error on closed when there are no futher events pending
+		/* Only error on closed when there are anal futher events pending
 		 */
 		mask |= EPOLLERR;
 	spin_unlock_irqrestore(&ctx->lock, flags);
@@ -447,7 +447,7 @@ ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 			goto out;
 		}
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			rc = -EAGAIN;
 			goto out;
 		}
@@ -518,7 +518,7 @@ out:
 }
 
 /* 
- * Note: if this is updated, we need to update api.c to patch the new ones in
+ * Analte: if this is updated, we need to update api.c to patch the new ones in
  * too
  */
 const struct file_operations afu_fops = {
@@ -544,12 +544,12 @@ static const struct file_operations afu_master_fops = {
 };
 
 
-static char *cxl_devnode(const struct device *dev, umode_t *mode)
+static char *cxl_devanalde(const struct device *dev, umode_t *mode)
 {
 	if (cpu_has_feature(CPU_FTR_HVMODE) &&
 	    CXL_DEVT_IS_CARD(dev->devt)) {
 		/*
-		 * These minor numbers will eventually be used to program the
+		 * These mianalr numbers will eventually be used to program the
 		 * PSL and AFUs once we have dynamic reprogramming support
 		 */
 		return NULL;
@@ -559,7 +559,7 @@ static char *cxl_devnode(const struct device *dev, umode_t *mode)
 
 static const struct class cxl_class = {
 	.name =		"cxl",
-	.devnode =	cxl_devnode,
+	.devanalde =	cxl_devanalde,
 };
 
 static int cxl_add_chardev(struct cxl_afu *afu, dev_t devt, struct cdev *cdev,
@@ -672,7 +672,7 @@ int __init cxl_file_init(void)
 	BUILD_BUG_ON(sizeof(struct cxl_event_data_storage) != 32);
 	BUILD_BUG_ON(sizeof(struct cxl_event_afu_error) != 16);
 
-	if ((rc = alloc_chrdev_region(&cxl_dev, 0, CXL_NUM_MINORS, "cxl"))) {
+	if ((rc = alloc_chrdev_region(&cxl_dev, 0, CXL_NUM_MIANALRS, "cxl"))) {
 		pr_err("Unable to allocate CXL major number: %i\n", rc);
 		return rc;
 	}
@@ -688,12 +688,12 @@ int __init cxl_file_init(void)
 	return 0;
 
 err:
-	unregister_chrdev_region(cxl_dev, CXL_NUM_MINORS);
+	unregister_chrdev_region(cxl_dev, CXL_NUM_MIANALRS);
 	return rc;
 }
 
 void cxl_file_exit(void)
 {
-	unregister_chrdev_region(cxl_dev, CXL_NUM_MINORS);
+	unregister_chrdev_region(cxl_dev, CXL_NUM_MIANALRS);
 	class_unregister(&cxl_class);
 }

@@ -36,7 +36,7 @@ struct snd_sof_pcm_stream;
 							* on primary core
 							*/
 #define SOF_DBG_PRINT_ALL_DUMPS		BIT(6) /* Print all ipc and dsp dumps */
-#define SOF_DBG_IGNORE_D3_PERSISTENT		BIT(7) /* ignore the DSP D3 persistent capability
+#define SOF_DBG_IGANALRE_D3_PERSISTENT		BIT(7) /* iganalre the DSP D3 persistent capability
 							* and always download firmware upon D3 exit
 							*/
 #define SOF_DBG_PRINT_DMA_POSITION_UPDATE_LOGS	BIT(8) /* print DMA position updates
@@ -45,13 +45,13 @@ struct snd_sof_pcm_stream;
 #define SOF_DBG_PRINT_IPC_SUCCESS_LOGS		BIT(9) /* print IPC success
 							* in dmesg logs
 							*/
-#define SOF_DBG_FORCE_NOCODEC			BIT(10) /* ignore all codec-related
+#define SOF_DBG_FORCE_ANALCODEC			BIT(10) /* iganalre all codec-related
 							 * configurations
 							 */
 #define SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD	BIT(11) /* On top of the IPC message header
 							 * dump the message payload also
 							 */
-#define SOF_DBG_DSPLESS_MODE			BIT(15) /* Do not initialize and use the DSP */
+#define SOF_DBG_DSPLESS_MODE			BIT(15) /* Do analt initialize and use the DSP */
 
 /* Flag definitions used for controlling the DSP dump behavior */
 #define SOF_DBG_DUMP_REGS		BIT(0)
@@ -97,7 +97,7 @@ struct sof_dsp_power_state {
 
 /* System suspend target state */
 enum sof_system_suspend_state {
-	SOF_SUSPEND_NONE = 0,
+	SOF_SUSPEND_ANALNE = 0,
 	SOF_SUSPEND_S0IX,
 	SOF_SUSPEND_S3,
 	SOF_SUSPEND_S4,
@@ -136,13 +136,13 @@ struct snd_sof_pdata;
  * @use_phy_addr:	Use the provided @phy_addr for configuration
  * @phy_addr:		Platform dependent address to be used, if  @use_phy_addr
  *			is true
- * @no_ipc_position:	Disable position update IPC from firmware
+ * @anal_ipc_position:	Disable position update IPC from firmware
  */
 struct snd_sof_platform_stream_params {
 	u16 stream_tag;
 	bool use_phy_address;
 	u32 phy_addr;
-	bool no_ipc_position;
+	bool anal_ipc_position;
 	bool cont_update_posn;
 };
 
@@ -256,7 +256,7 @@ struct snd_sof_dsp_ops {
 
 	/*
 	 * optional callback to retrieve the link DMA position for the substream
-	 * when the position is not reported in the shared SRAM windows but
+	 * when the position is analt reported in the shared SRAM windows but
 	 * instead from a host-accessible hardware counter.
 	 */
 	u64 (*get_stream_position)(struct snd_sof_dev *sdev,
@@ -403,7 +403,7 @@ struct snd_sof_ipc_msg {
 	size_t reply_size;
 	int reply_error;
 
-	/* notification, firmware initiated messages */
+	/* analtification, firmware initiated messages */
 	void *rx_data;
 
 	wait_queue_head_t waitq;
@@ -414,7 +414,7 @@ struct snd_sof_ipc_msg {
  * struct sof_ipc_fw_tracing_ops - IPC-specific firmware tracing ops
  * @init:	Function pointer for initialization of the tracing
  * @free:	Optional function pointer for freeing of the tracing
- * @fw_crashed:	Optional function pointer to notify the tracing of a firmware crash
+ * @fw_crashed:	Optional function pointer to analtify the tracing of a firmware crash
  * @suspend:	Function pointer for system/runtime suspend
  * @resume:	Function pointer for system/runtime resume
  */
@@ -480,7 +480,7 @@ struct sof_ipc_pcm_ops;
  *		sdev->ipc->msg.reply_data
  * @rx_msg:	Function pointer for handling a received message
  *
- * Note: both @tx_msg and @set_get_data considered as TX functions and they are
+ * Analte: both @tx_msg and @set_get_data considered as TX functions and they are
  * serialized for the duration of the instructed transfer. A large message sent
  * via @set_get_data is a single transfer even if at the hardware level it is
  * handled with multiple chunks.
@@ -497,7 +497,7 @@ struct sof_ipc_ops {
 	int (*post_fw_boot)(struct snd_sof_dev *sdev);
 
 	int (*tx_msg)(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
-		      void *reply_data, size_t reply_bytes, bool no_pm);
+		      void *reply_data, size_t reply_bytes, bool anal_pm);
 	int (*set_get_data)(struct snd_sof_dev *sdev, void *data, size_t data_bytes,
 			    bool set);
 	int (*get_reply)(struct snd_sof_dev *sdev);
@@ -535,7 +535,7 @@ struct snd_sof_dev {
 	spinlock_t hw_lock;	/* lock for HW IO access */
 
 	/*
-	 * When true the DSP is not used.
+	 * When true the DSP is analt used.
 	 * It is set under the following condition:
 	 * User sets the SOF_DBG_DSPLESS_MODE flag in sof_debug module parameter
 	 * and
@@ -582,7 +582,7 @@ struct snd_sof_dev {
 	struct snd_sof_mailbox debug_box;	/* Debug info updates */
 	struct snd_sof_ipc_msg *msg;
 	int ipc_irq;
-	u32 next_comp_id; /* monotonic - reset during S3 */
+	u32 next_comp_id; /* moanaltonic - reset during S3 */
 
 	/* memory bases for mmaped DSPs - set by dsp_init() */
 	void __iomem *bar[SND_SOF_BARS];	/* DSP base address */
@@ -656,7 +656,7 @@ struct snd_sof_dev {
 
 	/*
 	 * Used for tracking the IPC client's registration for DSP state change
-	 * notification
+	 * analtification
 	 */
 	struct list_head fw_state_handler_list;
 
@@ -667,7 +667,7 @@ struct snd_sof_dev {
 	bool mclk_id_override;
 	u16  mclk_id_quirk; /* same size as in IPC3 definitions */
 
-	void *private;			/* core does not touch this */
+	void *private;			/* core does analt touch this */
 };
 
 /*
@@ -684,7 +684,7 @@ int snd_sof_runtime_resume(struct device *dev);
 int snd_sof_runtime_idle(struct device *dev);
 int snd_sof_resume(struct device *dev);
 int snd_sof_suspend(struct device *dev);
-int snd_sof_dsp_power_down_notify(struct snd_sof_dev *sdev);
+int snd_sof_dsp_power_down_analtify(struct snd_sof_dev *sdev);
 int snd_sof_prepare(struct device *dev);
 void snd_sof_complete(struct device *dev);
 
@@ -723,19 +723,19 @@ static inline void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 }
 int sof_ipc_tx_message(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
 		       void *reply_data, size_t reply_bytes);
-static inline int sof_ipc_tx_message_no_reply(struct snd_sof_ipc *ipc, void *msg_data,
+static inline int sof_ipc_tx_message_anal_reply(struct snd_sof_ipc *ipc, void *msg_data,
 					      size_t msg_bytes)
 {
 	return sof_ipc_tx_message(ipc, msg_data, msg_bytes, NULL, 0);
 }
 int sof_ipc_set_get_data(struct snd_sof_ipc *ipc, void *msg_data,
 			 size_t msg_bytes, bool set);
-int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
+int sof_ipc_tx_message_anal_pm(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
 			     void *reply_data, size_t reply_bytes);
-static inline int sof_ipc_tx_message_no_pm_no_reply(struct snd_sof_ipc *ipc, void *msg_data,
+static inline int sof_ipc_tx_message_anal_pm_anal_reply(struct snd_sof_ipc *ipc, void *msg_data,
 						    size_t msg_bytes)
 {
-	return sof_ipc_tx_message_no_pm(ipc, msg_data, msg_bytes, NULL, 0);
+	return sof_ipc_tx_message_anal_pm(ipc, msg_data, msg_bytes, NULL, 0);
 }
 int sof_ipc_send_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 		     size_t reply_bytes);

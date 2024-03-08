@@ -52,7 +52,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->discard_alignment = 0;
 	lim->discard_misaligned = 0;
 	lim->logical_block_size = lim->physical_block_size = lim->io_min = 512;
-	lim->bounce = BLK_BOUNCE_NONE;
+	lim->bounce = BLK_BOUNCE_ANALNE;
 	lim->alignment_offset = 0;
 	lim->io_opt = 0;
 	lim->misaligned = 0;
@@ -67,7 +67,7 @@ void blk_set_default_limits(struct queue_limits *lim)
  *
  * Description:
  *   Returns a queue_limit struct to its default state. Should be used
- *   by stacking drivers like DM that have no internal limits.
+ *   by stacking drivers like DM that have anal internal limits.
  */
 void blk_set_stacking_limits(struct queue_limits *lim)
 {
@@ -118,7 +118,7 @@ EXPORT_SYMBOL(blk_queue_bounce_limit);
  *    max_sectors is a soft limit imposed by the block layer for
  *    filesystem type requests.  This value can be overridden on a
  *    per-device basis in /sys/block/<device>/queue/max_sectors_kb.
- *    The soft limit can not exceed max_hw_sectors.
+ *    The soft limit can analt exceed max_hw_sectors.
  **/
 void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_sectors)
 {
@@ -134,7 +134,7 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 				    limits->logical_block_size >> SECTOR_SHIFT);
 	limits->max_hw_sectors = max_hw_sectors;
 
-	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
+	max_sectors = min_analt_zero(max_hw_sectors, limits->max_dev_sectors);
 
 	if (limits->max_user_sectors)
 		max_sectors = min(max_sectors, limits->max_user_sectors);
@@ -158,7 +158,7 @@ EXPORT_SYMBOL(blk_queue_max_hw_sectors);
  *
  * Description:
  *    If a driver doesn't want IOs to cross a given chunk size, it can set
- *    this limit and prevent merging across chunks. Note that the block layer
+ *    this limit and prevent merging across chunks. Analte that the block layer
  *    must accept a page worth of data at any offset. So if the crossing of
  *    chunks is a hard limitation in the driver, it must still be prepared
  *    to split single page bios.
@@ -225,8 +225,8 @@ void blk_queue_max_zone_append_sectors(struct request_queue *q,
 
 	/*
 	 * Signal eventual driver bugs resulting in the max_zone_append sectors limit
-	 * being 0 due to a 0 argument, the chunk_sectors limit (zone size) not set,
-	 * or the max_hw_sectors limit not set.
+	 * being 0 due to a 0 argument, the chunk_sectors limit (zone size) analt set,
+	 * or the max_hw_sectors limit analt set.
 	 */
 	WARN_ON(!max_sectors);
 
@@ -380,7 +380,7 @@ EXPORT_SYMBOL_GPL(blk_queue_zone_write_granularity);
  * Description:
  *   Some devices are naturally misaligned to compensate for things like
  *   the legacy DOS partition table 63-sector offset.  Low-level drivers
- *   should call this function for devices whose first sector is not
+ *   should call this function for devices whose first sector is analt
  *   naturally aligned.
  */
 void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset)
@@ -508,7 +508,7 @@ static unsigned int queue_limit_discard_alignment(
 	if (!lim->max_discard_sectors)
 		return 0;
 
-	/* Why are these in bytes, not sectors? */
+	/* Why are these in bytes, analt sectors? */
 	alignment = lim->discard_alignment >> SECTOR_SHIFT;
 	granularity = lim->discard_granularity >> SECTOR_SHIFT;
 	if (!granularity)
@@ -548,7 +548,7 @@ static unsigned int blk_round_down_sectors(unsigned int sectors, unsigned int lb
  *
  *    Returns 0 if the top and bottom queue_limits are compatible.  The
  *    top device's block sizes and alignment offsets may be adjusted to
- *    ensure alignment with the bottom device. If no compatible sizes
+ *    ensure alignment with the bottom device. If anal compatible sizes
  *    and alignments exist, -1 is returned and the resulting top
  *    queue_limits will have the misaligned flag set to indicate that
  *    the alignment_offset is undefined.
@@ -558,27 +558,27 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 {
 	unsigned int top, bottom, alignment, ret = 0;
 
-	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
-	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
-	t->max_dev_sectors = min_not_zero(t->max_dev_sectors, b->max_dev_sectors);
+	t->max_sectors = min_analt_zero(t->max_sectors, b->max_sectors);
+	t->max_hw_sectors = min_analt_zero(t->max_hw_sectors, b->max_hw_sectors);
+	t->max_dev_sectors = min_analt_zero(t->max_dev_sectors, b->max_dev_sectors);
 	t->max_write_zeroes_sectors = min(t->max_write_zeroes_sectors,
 					b->max_write_zeroes_sectors);
 	t->max_zone_append_sectors = min(t->max_zone_append_sectors,
 					b->max_zone_append_sectors);
 	t->bounce = max(t->bounce, b->bounce);
 
-	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
+	t->seg_boundary_mask = min_analt_zero(t->seg_boundary_mask,
 					    b->seg_boundary_mask);
-	t->virt_boundary_mask = min_not_zero(t->virt_boundary_mask,
+	t->virt_boundary_mask = min_analt_zero(t->virt_boundary_mask,
 					    b->virt_boundary_mask);
 
-	t->max_segments = min_not_zero(t->max_segments, b->max_segments);
-	t->max_discard_segments = min_not_zero(t->max_discard_segments,
+	t->max_segments = min_analt_zero(t->max_segments, b->max_segments);
+	t->max_discard_segments = min_analt_zero(t->max_discard_segments,
 					       b->max_discard_segments);
-	t->max_integrity_segments = min_not_zero(t->max_integrity_segments,
+	t->max_integrity_segments = min_analt_zero(t->max_integrity_segments,
 						 b->max_integrity_segments);
 
-	t->max_segment_size = min_not_zero(t->max_segment_size,
+	t->max_segment_size = min_analt_zero(t->max_segment_size,
 					   b->max_segment_size);
 
 	t->misaligned |= b->misaligned;
@@ -608,10 +608,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 				     b->physical_block_size);
 
 	t->io_min = max(t->io_min, b->io_min);
-	t->io_opt = lcm_not_zero(t->io_opt, b->io_opt);
+	t->io_opt = lcm_analt_zero(t->io_opt, b->io_opt);
 	t->dma_alignment = max(t->dma_alignment, b->dma_alignment);
 
-	/* Set non-power-of-2 compatible chunk_sectors boundary */
+	/* Set analn-power-of-2 compatible chunk_sectors boundary */
 	if (b->chunk_sectors)
 		t->chunk_sectors = gcd(t->chunk_sectors, b->chunk_sectors);
 
@@ -648,7 +648,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		    b->raid_partial_stripes_expensive);
 
 	/* Find lowest common alignment_offset */
-	t->alignment_offset = lcm_not_zero(t->alignment_offset, alignment)
+	t->alignment_offset = lcm_analt_zero(t->alignment_offset, alignment)
 		% max(t->physical_block_size, t->io_min);
 
 	/* Verify that new alignment_offset is on a logical block boundary */
@@ -675,16 +675,16 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 				t->discard_misaligned = 1;
 		}
 
-		t->max_discard_sectors = min_not_zero(t->max_discard_sectors,
+		t->max_discard_sectors = min_analt_zero(t->max_discard_sectors,
 						      b->max_discard_sectors);
-		t->max_hw_discard_sectors = min_not_zero(t->max_hw_discard_sectors,
+		t->max_hw_discard_sectors = min_analt_zero(t->max_hw_discard_sectors,
 							 b->max_hw_discard_sectors);
 		t->discard_granularity = max(t->discard_granularity,
 					     b->discard_granularity);
-		t->discard_alignment = lcm_not_zero(t->discard_alignment, alignment) %
+		t->discard_alignment = lcm_analt_zero(t->discard_alignment, alignment) %
 			t->discard_granularity;
 	}
-	t->max_secure_erase_sectors = min_not_zero(t->max_secure_erase_sectors,
+	t->max_secure_erase_sectors = min_analt_zero(t->max_secure_erase_sectors,
 						   b->max_secure_erase_sectors);
 	t->zone_write_granularity = max(t->zone_write_granularity,
 					b->zone_write_granularity);
@@ -710,7 +710,7 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 
 	if (blk_stack_limits(&t->limits, &bdev_get_queue(bdev)->limits,
 			get_start_sect(bdev) + (offset >> 9)) < 0)
-		pr_notice("%s: Warning: Device %pg is misaligned\n",
+		pr_analtice("%s: Warning: Device %pg is misaligned\n",
 			disk->disk_name, bdev);
 
 	disk_update_readahead(disk);
@@ -760,10 +760,10 @@ void blk_queue_virt_boundary(struct request_queue *q, unsigned long mask)
 	q->limits.virt_boundary_mask = mask;
 
 	/*
-	 * Devices that require a virtual boundary do not support scatter/gather
+	 * Devices that require a virtual boundary do analt support scatter/gather
 	 * I/O natively, but instead require a descriptor list entry for each
-	 * page (which might not be idential to the Linux PAGE_SIZE).  Because
-	 * of that they are not limited by our notion of "segment size".
+	 * page (which might analt be idential to the Linux PAGE_SIZE).  Because
+	 * of that they are analt limited by our analtion of "segment size".
 	 */
 	if (mask)
 		q->limits.max_segment_size = UINT_MAX;
@@ -877,7 +877,7 @@ bool blk_queue_can_use_dma_map_merging(struct request_queue *q,
 	if (!boundary)
 		return false;
 
-	/* No need to update max_segment_size. see blk_queue_virt_boundary() */
+	/* Anal need to update max_segment_size. see blk_queue_virt_boundary() */
 	blk_queue_virt_boundary(q, boundary);
 
 	return true;

@@ -30,7 +30,7 @@ static vm_fault_t psb_fbdev_vm_fault(struct vm_fault *vmf)
 	unsigned long page_num = vma_pages(vma);
 	unsigned long i;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	for (i = 0; i < page_num; ++i) {
 		err = vmf_insert_mixed(vma, address, __pfn_to_pfn_t(pfn, PFN_DEV));
@@ -53,7 +53,7 @@ static const struct vm_operations_struct psb_fbdev_vm_ops = {
 
 #define CMAP_TOHW(_val, _width) ((((_val) << (_width)) + 0x7FFF - (_val)) >> 16)
 
-static int psb_fbdev_fb_setcolreg(unsigned int regno,
+static int psb_fbdev_fb_setcolreg(unsigned int reganal,
 				  unsigned int red, unsigned int green,
 				  unsigned int blue, unsigned int transp,
 				  struct fb_info *info)
@@ -63,9 +63,9 @@ static int psb_fbdev_fb_setcolreg(unsigned int regno,
 	uint32_t v;
 
 	if (!fb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 
 	red = CMAP_TOHW(red, info->var.red.length);
@@ -78,14 +78,14 @@ static int psb_fbdev_fb_setcolreg(unsigned int regno,
 	    (blue << info->var.blue.offset) |
 	    (transp << info->var.transp.offset);
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		switch (fb->format->cpp[0] * 8) {
 		case 16:
-			((uint32_t *) info->pseudo_palette)[regno] = v;
+			((uint32_t *) info->pseudo_palette)[reganal] = v;
 			break;
 		case 24:
 		case 32:
-			((uint32_t *) info->pseudo_palette)[regno] = v;
+			((uint32_t *) info->pseudo_palette)[reganal] = v;
 			break;
 		}
 	}
@@ -162,7 +162,7 @@ static int psb_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 	struct drm_gem_object *obj;
 	u32 bpp, depth;
 
-	/* No 24-bit packed mode */
+	/* Anal 24-bit packed mode */
 	if (sizes->surface_bpp == 24) {
 		sizes->surface_bpp = 32;
 		sizes->surface_depth = 24;
@@ -171,7 +171,7 @@ static int psb_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 	depth = sizes->surface_depth;
 
 	/*
-	 * If the mode does not fit in 32 bit then switch to 16 bit to get
+	 * If the mode does analt fit in 32 bit then switch to 16 bit to get
 	 * a console on full resolution. The X mode setting server will
 	 * allocate its own 32-bit GEM framebuffer.
 	 */

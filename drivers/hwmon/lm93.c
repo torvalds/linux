@@ -135,18 +135,18 @@
 		I2C_FUNC_SMBUS_WORD_DATA)
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
 
 static bool disable_block;
 module_param(disable_block, bool, 0);
 MODULE_PARM_DESC(disable_block,
-	"Set to non-zero to disable SMBus block data transactions.");
+	"Set to analn-zero to disable SMBus block data transactions.");
 
 static bool init;
 module_param(init, bool, 0);
-MODULE_PARM_DESC(init, "Set to non-zero to force chip initialization.");
+MODULE_PARM_DESC(init, "Set to analn-zero to force chip initialization.");
 
 static int vccp_limit_type[2] = {0, 0};
 module_param_array(vccp_limit_type, int, NULL, 0);
@@ -304,7 +304,7 @@ static int LM93_VID_FROM_REG(u8 reg)
 	return vid_from_reg((reg & 0x3f), 100);
 }
 
-/* min, max, and nominal register values, per channel (u8) */
+/* min, max, and analminal register values, per channel (u8) */
 static const u8 lm93_vin_reg_min[16] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xae,
@@ -315,13 +315,13 @@ static const u8 lm93_vin_reg_max[16] = {
 };
 /*
  * Values from the datasheet. They're here for documentation only.
- * static const u8 lm93_vin_reg_nom[16] = {
+ * static const u8 lm93_vin_reg_analm[16] = {
  * 0xc0, 0xc0, 0xc0, 0xc0, 0xc0, 0xc0, 0xc0, 0xc0,
  * 0xc0, 0xc0, 0xc0, 0xc0, 0xc0, 0xc0, 0x40, 0xc0,
  * };
  */
 
-/* min, max, and nominal voltage readings, per channel (mV)*/
+/* min, max, and analminal voltage readings, per channel (mV)*/
 static const unsigned long lm93_vin_val_min[16] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 3000,
@@ -333,7 +333,7 @@ static const unsigned long lm93_vin_val_max[16] = {
 };
 /*
  * Values from the datasheet. They're here for documentation only.
- * static const unsigned long lm93_vin_val_nom[16] = {
+ * static const unsigned long lm93_vin_val_analm[16] = {
  * 927,  927,  927, 1200, 1500, 1500, 1200, 1200,
  * 3300, 5000, 2500, 1969,  984,  984,  309, 3300,
  * };
@@ -361,7 +361,7 @@ static u8 LM93_IN_TO_REG(int nr, unsigned val)
 	const long mv = clamp_val(val,
 				  lm93_vin_val_min[nr], lm93_vin_val_max[nr]);
 
-	/* try not to lose too much precision here */
+	/* try analt to lose too much precision here */
 	const long uv = mv * 1000;
 	const long uv_max = lm93_vin_val_max[nr] * 1000;
 	const long uv_min = lm93_vin_val_min[nr] * 1000;
@@ -432,7 +432,7 @@ static u8 LM93_TEMP_TO_REG(long temp)
 /* Determine 4-bit temperature offset resolution */
 static int LM93_TEMP_OFFSET_MODE_FROM_REG(u8 sfc2, int nr)
 {
-	/* mode: 0 => 1C/bit, nonzero => 0.5C/bit */
+	/* mode: 0 => 1C/bit, analnzero => 0.5C/bit */
 	return sfc2 & (nr < 2 ? 0x10 : 0x20);
 }
 
@@ -477,8 +477,8 @@ static int LM93_TEMP_AUTO_OFFSET_FROM_REG(u8 reg, int nr, int mode)
 }
 
 /*
- * TEMP: 1/10 degrees C (0C to +15C (mode 0) or +7.5C (mode non-zero))
- * REG: 1.0C/bit (mode 0) or 0.5C/bit (mode non-zero)
+ * TEMP: 1/10 degrees C (0C to +15C (mode 0) or +7.5C (mode analn-zero))
+ * REG: 1.0C/bit (mode 0) or 0.5C/bit (mode analn-zero)
  * 0 <= nr <= 3
  */
 static u8 LM93_TEMP_AUTO_OFFSET_TO_REG(u8 old, int off, int nr, int mode)
@@ -732,8 +732,8 @@ static unsigned LM93_GPI_FROM_REG(u8 reg)
  * The LM93 has nearly 64 bits of error status... I've pared that down to
  * what I think is a useful subset in order to fit it into 32 bits.
  *
- * Especially note that the #VRD_HOT alarms are missing because we provide
- * that information as values in another sysfs file.
+ * Especially analte that the #VRD_HOT alarms are missing because we provide
+ * that information as values in aanalther sysfs file.
  *
  * If libsensors is extended to support 64 bit values, this could be revisited.
  */
@@ -874,7 +874,7 @@ static int lm93_write_word(struct i2c_client *client, u8 reg, u16 value)
 static u8 lm93_block_buffer[I2C_SMBUS_BLOCK_MAX];
 
 /*
- * read block data into values, retry if not expected length
+ * read block data into values, retry if analt expected length
  * fbn => index to lm93_block_read_cmds table
  * (Fixed Block Number - section 14.5.2 of LM93 datasheet)
  */
@@ -924,7 +924,7 @@ static struct lm93_data *lm93_update_device(struct device *dev)
 	return data;
 }
 
-/* update routine for data that has no corresponding SMBus block command */
+/* update routine for data that has anal corresponding SMBus block command */
 static void lm93_update_client_common(struct lm93_data *data,
 				      struct i2c_client *client)
 {
@@ -1724,7 +1724,7 @@ static ssize_t fan_smart_tach_store(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	/* sanity test, ignore the write otherwise */
+	/* sanity test, iganalre the write otherwise */
 	if (val <= 2) {
 		/* can't enable if pwm freq is 22.5KHz */
 		if (val) {
@@ -2540,7 +2540,7 @@ static void lm93_init_client(struct i2c_client *client)
 		 "timed out waiting for sensor chip to signal ready!\n");
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm93_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -2548,14 +2548,14 @@ static int lm93_detect(struct i2c_client *client, struct i2c_board_info *info)
 	const char *name;
 
 	if (!i2c_check_functionality(adapter, LM93_SMBUS_FUNC_MIN))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* detection */
 	mfr = lm93_read_byte(client, LM93_REG_MFR_ID);
 	if (mfr != 0x01) {
 		dev_dbg(&adapter->dev,
 			"detect failed, bad manufacturer id 0x%02x!\n", mfr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ver = lm93_read_byte(client, LM93_REG_VER);
@@ -2572,7 +2572,7 @@ static int lm93_detect(struct i2c_client *client, struct i2c_board_info *info)
 	default:
 		dev_dbg(&adapter->dev,
 			"detect failed, bad version id 0x%02x!\n", ver);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
@@ -2601,13 +2601,13 @@ static int lm93_probe(struct i2c_client *client)
 		dev_dbg(dev, "disabled SMBus block data transactions\n");
 		update = lm93_update_client_min;
 	} else {
-		dev_dbg(dev, "detect failed, smbus byte and/or word data not supported!\n");
-		return -ENODEV;
+		dev_dbg(dev, "detect failed, smbus byte and/or word data analt supported!\n");
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(dev, sizeof(struct lm93_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* housekeeping */
 	data->client = client;
@@ -2638,7 +2638,7 @@ static struct i2c_driver lm93_driver = {
 	.probe		= lm93_probe,
 	.id_table	= lm93_id,
 	.detect		= lm93_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm93_driver);

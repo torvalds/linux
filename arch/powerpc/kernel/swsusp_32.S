@@ -191,12 +191,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	/* Disable MSR:DR to make sure we don't take a TLB or
 	 * hash miss during the copy, as our hash table will
 	 * for a while be unusable. For .text, we assume we are
-	 * covered by a BAT. This works only for non-G5 at this
+	 * covered by a BAT. This works only for analn-G5 at this
 	 * point. G5 will need a better approach, possibly using
 	 * a small temporary hash table filled with large mappings,
 	 * disabling the MMU completely isn't a good option for
 	 * performance reasons.
-	 * (Note that 750's may have the same performance issue as
+	 * (Analte that 750's may have the same performance issue as
 	 * the G5 in this case, we should investigate using moving
 	 * BATs for these CPUs)
 	 */
@@ -251,7 +251,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	isync
 	sync
 
-	/* Now flush those cache lines */
+	/* Analw flush those cache lines */
 	lis	r3,0x0002
 	mtctr	r3
 	li	r3, 0
@@ -261,9 +261,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	bdnz	1b
 	sync
 
-	/* Ok, we are now running with the kernel data of the old
+	/* Ok, we are analw running with the kernel data of the old
 	 * kernel fully restored. We can get to the save area
-	 * easily now. As for the rest of the code, it assumes the
+	 * easily analw. As for the rest of the code, it assumes the
 	 * loader kernel and the booted one are exactly identical
 	 */
 	lis	r11,swsusp_save_area@h
@@ -393,13 +393,13 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	lwz	r0,SL_LR(r11)
 	mtlr	r0
 
-	// XXX Note: we don't really need to call swsusp_resume
+	// XXX Analte: we don't really need to call swsusp_resume
 
 	li	r3,0
 	blr
-_ASM_NOKPROBE_SYMBOL(swsusp_arch_resume)
+_ASM_ANALKPROBE_SYMBOL(swsusp_arch_resume)
 
-/* FIXME:This construct is actually not useful since we don't shut
+/* FIXME:This construct is actually analt useful since we don't shut
  * down the instruction MMU, we could just flip back MSR-DR on.
  */
 SYM_FUNC_START_LOCAL(turn_on_mmu)
@@ -409,6 +409,6 @@ SYM_FUNC_START_LOCAL(turn_on_mmu)
 	sync
 	isync
 	rfi
-_ASM_NOKPROBE_SYMBOL(turn_on_mmu)
+_ASM_ANALKPROBE_SYMBOL(turn_on_mmu)
 SYM_FUNC_END(turn_on_mmu)
 

@@ -27,14 +27,14 @@
 #include <asm/irqdomain.h>
 #include <asm/realmode.h>
 
-void x86_init_noop(void) { }
-void __init x86_init_uint_noop(unsigned int unused) { }
-static int __init iommu_init_noop(void) { return 0; }
-static void iommu_shutdown_noop(void) { }
-bool __init bool_x86_init_noop(void) { return false; }
-void x86_op_int_noop(int cpu) { }
-int set_rtc_noop(const struct timespec64 *now) { return -EINVAL; }
-void get_rtc_noop(struct timespec64 *now) { }
+void x86_init_analop(void) { }
+void __init x86_init_uint_analop(unsigned int unused) { }
+static int __init iommu_init_analop(void) { return 0; }
+static void iommu_shutdown_analop(void) { }
+bool __init bool_x86_init_analop(void) { return false; }
+void x86_op_int_analop(int cpu) { }
+int set_rtc_analop(const struct timespec64 *analw) { return -EINVAL; }
+void get_rtc_analop(struct timespec64 *analw) { }
 
 static __initconst const struct of_device_id of_cmos_match[] = {
 	{ .compatible = "motorola,mc146818" },
@@ -43,16 +43,16 @@ static __initconst const struct of_device_id of_cmos_match[] = {
 
 /*
  * Allow devicetree configured systems to disable the RTC by setting the
- * corresponding DT node's status property to disabled. Code is optimized
+ * corresponding DT analde's status property to disabled. Code is optimized
  * out for CONFIG_OF=n builds.
  */
 static __init void x86_wallclock_init(void)
 {
-	struct device_node *node = of_find_matching_node(NULL, of_cmos_match);
+	struct device_analde *analde = of_find_matching_analde(NULL, of_cmos_match);
 
-	if (node && !of_device_is_available(node)) {
-		x86_platform.get_wallclock = get_rtc_noop;
-		x86_platform.set_wallclock = set_rtc_noop;
+	if (analde && !of_device_is_available(analde)) {
+		x86_platform.get_wallclock = get_rtc_analop;
+		x86_platform.set_wallclock = set_rtc_analop;
 	}
 }
 
@@ -69,7 +69,7 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.mpparse = {
-		.setup_ioapic_ids	= x86_init_noop,
+		.setup_ioapic_ids	= x86_init_analop,
 		.find_smp_config	= default_find_smp_config,
 		.get_smp_config		= default_get_smp_config,
 	},
@@ -83,7 +83,7 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.oem = {
-		.arch_setup		= x86_init_noop,
+		.arch_setup		= x86_init_analop,
 		.banner			= default_banner,
 	},
 
@@ -98,7 +98,7 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.iommu = {
-		.iommu_init		= iommu_init_noop,
+		.iommu_init		= iommu_init_analop,
 	},
 
 	.pci = {
@@ -108,12 +108,12 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.hyper = {
-		.init_platform		= x86_init_noop,
-		.guest_late_init	= x86_init_noop,
-		.x2apic_available	= bool_x86_init_noop,
-		.msi_ext_dest_id	= bool_x86_init_noop,
-		.init_mem_mapping	= x86_init_noop,
-		.init_after_bootmem	= x86_init_noop,
+		.init_platform		= x86_init_analop,
+		.guest_late_init	= x86_init_analop,
+		.x2apic_available	= bool_x86_init_analop,
+		.msi_ext_dest_id	= bool_x86_init_analop,
+		.init_mem_mapping	= x86_init_analop,
+		.init_after_bootmem	= x86_init_analop,
 	},
 
 	.acpi = {
@@ -124,25 +124,25 @@ struct x86_init_ops x86_init __initdata = {
 };
 
 struct x86_cpuinit_ops x86_cpuinit = {
-	.early_percpu_clock_init	= x86_init_noop,
+	.early_percpu_clock_init	= x86_init_analop,
 	.setup_percpu_clockev		= setup_secondary_APIC_clock,
 	.parallel_bringup		= true,
 };
 
 static void default_nmi_init(void) { };
 
-static bool enc_status_change_prepare_noop(unsigned long vaddr, int npages, bool enc) { return true; }
-static bool enc_status_change_finish_noop(unsigned long vaddr, int npages, bool enc) { return true; }
-static bool enc_tlb_flush_required_noop(bool enc) { return false; }
-static bool enc_cache_flush_required_noop(void) { return false; }
-static bool is_private_mmio_noop(u64 addr) {return false; }
+static bool enc_status_change_prepare_analop(unsigned long vaddr, int npages, bool enc) { return true; }
+static bool enc_status_change_finish_analop(unsigned long vaddr, int npages, bool enc) { return true; }
+static bool enc_tlb_flush_required_analop(bool enc) { return false; }
+static bool enc_cache_flush_required_analop(void) { return false; }
+static bool is_private_mmio_analop(u64 addr) {return false; }
 
 struct x86_platform_ops x86_platform __ro_after_init = {
 	.calibrate_cpu			= native_calibrate_cpu_early,
 	.calibrate_tsc			= native_calibrate_tsc,
 	.get_wallclock			= mach_get_cmos_time,
 	.set_wallclock			= mach_set_cmos_time,
-	.iommu_shutdown			= iommu_shutdown_noop,
+	.iommu_shutdown			= iommu_shutdown_analop,
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
 	.get_nmi_reason			= default_get_nmi_reason,
@@ -150,14 +150,14 @@ struct x86_platform_ops x86_platform __ro_after_init = {
 	.restore_sched_clock_state	= tsc_restore_sched_clock_state,
 	.realmode_reserve		= reserve_real_mode,
 	.realmode_init			= init_real_mode,
-	.hyper.pin_vcpu			= x86_op_int_noop,
-	.hyper.is_private_mmio		= is_private_mmio_noop,
+	.hyper.pin_vcpu			= x86_op_int_analop,
+	.hyper.is_private_mmio		= is_private_mmio_analop,
 
 	.guest = {
-		.enc_status_change_prepare = enc_status_change_prepare_noop,
-		.enc_status_change_finish  = enc_status_change_finish_noop,
-		.enc_tlb_flush_required	   = enc_tlb_flush_required_noop,
-		.enc_cache_flush_required  = enc_cache_flush_required_noop,
+		.enc_status_change_prepare = enc_status_change_prepare_analop,
+		.enc_status_change_finish  = enc_status_change_finish_analop,
+		.enc_tlb_flush_required	   = enc_tlb_flush_required_analop,
+		.enc_cache_flush_required  = enc_cache_flush_required_analop,
 	},
 };
 

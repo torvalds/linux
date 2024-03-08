@@ -108,7 +108,7 @@ static int wm8350_gpio_probe(struct platform_device *pdev)
 	wm8350_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm8350_gpio),
 				   GFP_KERNEL);
 	if (wm8350_gpio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8350_gpio->wm8350 = wm8350;
 	wm8350_gpio->gpio_chip = template_chip;

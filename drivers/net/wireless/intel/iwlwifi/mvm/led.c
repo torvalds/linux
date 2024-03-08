@@ -57,7 +57,7 @@ int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 
 	switch (mode) {
 	case IWL_LED_BLINK:
-		IWL_ERR(mvm, "Blink led mode not supported, used default\n");
+		IWL_ERR(mvm, "Blink led mode analt supported, used default\n");
 		fallthrough;
 	case IWL_LED_DEFAULT:
 	case IWL_LED_RF_STATE:
@@ -73,7 +73,7 @@ int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 	mvm->led.name = kasprintf(GFP_KERNEL, "%s-led",
 				   wiphy_name(mvm->hw->wiphy));
 	if (!mvm->led.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mvm->led.brightness_set = iwl_led_brightness_set;
 	mvm->led.max_brightness = 1;
@@ -100,7 +100,7 @@ void iwl_mvm_leds_sync(struct iwl_mvm *mvm)
 
 	/*
 	 * if we control through the register, we're doing it
-	 * even when the firmware isn't up, so no need to sync
+	 * even when the firmware isn't up, so anal need to sync
 	 */
 	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_8000)
 		return;

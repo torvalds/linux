@@ -80,7 +80,7 @@ static int ar724x_pci_local_write(struct ar724x_pci_controller *apc,
 	WARN_ON(where & (size - 1));
 
 	if (!apc->link_up)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	base = apc->crp_base;
 	data = __raw_readl(base + (where & ~3));
@@ -119,10 +119,10 @@ static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 
 	apc = pci_bus_to_ar724x_controller(bus);
 	if (!apc->link_up)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (devfn)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	base = apc->devcfg_base;
 	data = __raw_readl(base + (where & ~3));
@@ -167,17 +167,17 @@ static int ar724x_pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 
 	apc = pci_bus_to_ar724x_controller(bus);
 	if (!apc->link_up)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (devfn)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (soc_is_ar7240() && where == PCI_BASE_ADDRESS_0 && size == 4) {
 		if (value != 0xffffffff) {
 			/*
 			 * WAR for a hw issue. If the BAR0 register of the
 			 * device is set to the proper base address, the
-			 * memory space of the device is not accessible.
+			 * memory space of the device is analt accessible.
 			 *
 			 * Cache the intended value so it can be read back,
 			 * and write a SoC specific constant value to the
@@ -370,7 +370,7 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 	apc = devm_kzalloc(&pdev->dev, sizeof(struct ar724x_pci_controller),
 			    GFP_KERNEL);
 	if (!apc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	apc->ctrl_base = devm_platform_ioremap_resource_byname(pdev, "ctrl_base");
 	if (IS_ERR(apc->ctrl_base))

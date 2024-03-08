@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2019 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2019 Syanalpsys, Inc. and/or its affiliates.
  * stmmac Selftests Support
  *
- * Author: Jose Abreu <joabreu@synopsys.com>
+ * Author: Jose Abreu <joabreu@syanalpsys.com>
  */
 
 #include <linux/bitrev.h>
@@ -326,7 +326,7 @@ static int __stmmac_test_loopback(struct stmmac_priv *priv,
 
 	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
 	if (!tpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpriv->ok = false;
 	init_completion(&tpriv->comp);
@@ -342,7 +342,7 @@ static int __stmmac_test_loopback(struct stmmac_priv *priv,
 
 	skb = stmmac_test_get_udp_skb(priv, attr);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -380,7 +380,7 @@ static int stmmac_test_phy_loopback(struct stmmac_priv *priv)
 	int ret;
 
 	if (!priv->dev->phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = phy_loopback(priv->dev->phydev, true);
 	if (ret)
@@ -402,7 +402,7 @@ static int stmmac_test_mmc(struct stmmac_priv *priv)
 	memset(&final, 0, sizeof(final));
 
 	if (!priv->dma_cap.rmon)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Save previous results into internal struct */
 	stmmac_mmc_read(priv, priv->mmcaddr, &priv->mmc);
@@ -411,13 +411,13 @@ static int stmmac_test_mmc(struct stmmac_priv *priv)
 	if (ret)
 		return ret;
 
-	/* These will be loopback results so no need to save them */
+	/* These will be loopback results so anal need to save them */
 	stmmac_mmc_read(priv, priv->mmcaddr, &final);
 
 	/*
 	 * The number of MMC counters available depends on HW configuration
 	 * so we just use this one to validate the feature. I hope there is
-	 * not a version without this counter.
+	 * analt a version without this counter.
 	 */
 	if (final.mmc_tx_framecount_g <= initial.mmc_tx_framecount_g)
 		return -EINVAL;
@@ -432,15 +432,15 @@ static int stmmac_test_eee(struct stmmac_priv *priv)
 	int ret;
 
 	if (!priv->dma_cap.eee || !priv->eee_active)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	initial = kzalloc(sizeof(*initial), GFP_KERNEL);
 	if (!initial)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	final = kzalloc(sizeof(*final), GFP_KERNEL);
 	if (!final) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_initial;
 	}
 
@@ -450,7 +450,7 @@ static int stmmac_test_eee(struct stmmac_priv *priv)
 	if (ret)
 		goto out_free_final;
 
-	/* We have no traffic in the line so, sooner or later it will go LPI */
+	/* We have anal traffic in the line so, sooner or later it will go LPI */
 	while (--retries) {
 		memcpy(final, &priv->xstats, sizeof(*final));
 
@@ -490,7 +490,7 @@ static int stmmac_filter_check(struct stmmac_priv *priv)
 		return 0;
 
 	netdev_warn(priv->dev, "Test can't be run in promiscuous mode!\n");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static bool stmmac_hash_check(struct stmmac_priv *priv, unsigned char *addr)
@@ -504,14 +504,14 @@ static bool stmmac_hash_check(struct stmmac_priv *priv, unsigned char *addr)
 	hash_nr = hash >> 5;
 	hash = 1 << (hash & 0x1f);
 
-	/* Now, check if it collides with any existing one */
+	/* Analw, check if it collides with any existing one */
 	netdev_for_each_mc_addr(ha, priv->dev) {
 		u32 nr = bitrev32(~crc32_le(~0, ha->addr, ETH_ALEN)) >> mc_offset;
 		if (((nr >> 5) == hash_nr) && ((1 << (nr & 0x1f)) == hash))
 			return false;
 	}
 
-	/* No collisions, address is good to go */
+	/* Anal collisions, address is good to go */
 	return true;
 }
 
@@ -525,7 +525,7 @@ static bool stmmac_perfect_check(struct stmmac_priv *priv, unsigned char *addr)
 			return false;
 	}
 
-	/* No collisions, address is good to go */
+	/* Anal collisions, address is good to go */
 	return true;
 }
 
@@ -541,7 +541,7 @@ static int stmmac_test_hfilt(struct stmmac_priv *priv)
 		return ret;
 
 	if (netdev_mc_count(priv->dev) >= priv->hw->multicast_filter_bins)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	while (--tries) {
 		/* We only need to check the bd_addr for collisions */
@@ -551,7 +551,7 @@ static int stmmac_test_hfilt(struct stmmac_priv *priv)
 	}
 
 	if (!tries)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev_mc_add(priv->dev, gd_addr);
 	if (ret)
@@ -566,7 +566,7 @@ static int stmmac_test_hfilt(struct stmmac_priv *priv)
 
 	attr.dst = bd_addr;
 
-	/* Shall NOT receive packet */
+	/* Shall ANALT receive packet */
 	ret = __stmmac_test_loopback(priv, &attr);
 	ret = ret ? 0 : -EINVAL;
 
@@ -583,9 +583,9 @@ static int stmmac_test_pfilt(struct stmmac_priv *priv)
 	int ret, tries = 256;
 
 	if (stmmac_filter_check(priv))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (netdev_uc_count(priv->dev) >= priv->hw->unicast_filter_entries)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	while (--tries) {
 		/* We only need to check the bd_addr for collisions */
@@ -595,7 +595,7 @@ static int stmmac_test_pfilt(struct stmmac_priv *priv)
 	}
 
 	if (!tries)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev_uc_add(priv->dev, gd_addr);
 	if (ret)
@@ -610,7 +610,7 @@ static int stmmac_test_pfilt(struct stmmac_priv *priv)
 
 	attr.dst = bd_addr;
 
-	/* Shall NOT receive packet */
+	/* Shall ANALT receive packet */
 	ret = __stmmac_test_loopback(priv, &attr);
 	ret = ret ? 0 : -EINVAL;
 
@@ -627,11 +627,11 @@ static int stmmac_test_mcfilt(struct stmmac_priv *priv)
 	int ret, tries = 256;
 
 	if (stmmac_filter_check(priv))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (netdev_uc_count(priv->dev) >= priv->hw->unicast_filter_entries)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (netdev_mc_count(priv->dev) >= priv->hw->multicast_filter_bins)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	while (--tries) {
 		/* We only need to check the mc_addr for collisions */
@@ -641,7 +641,7 @@ static int stmmac_test_mcfilt(struct stmmac_priv *priv)
 	}
 
 	if (!tries)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev_uc_add(priv->dev, uc_addr);
 	if (ret)
@@ -656,7 +656,7 @@ static int stmmac_test_mcfilt(struct stmmac_priv *priv)
 
 	attr.dst = mc_addr;
 
-	/* Shall NOT receive packet */
+	/* Shall ANALT receive packet */
 	ret = __stmmac_test_loopback(priv, &attr);
 	ret = ret ? 0 : -EINVAL;
 
@@ -673,11 +673,11 @@ static int stmmac_test_ucfilt(struct stmmac_priv *priv)
 	int ret, tries = 256;
 
 	if (stmmac_filter_check(priv))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (netdev_uc_count(priv->dev) >= priv->hw->unicast_filter_entries)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (netdev_mc_count(priv->dev) >= priv->hw->multicast_filter_bins)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	while (--tries) {
 		/* We only need to check the uc_addr for collisions */
@@ -687,7 +687,7 @@ static int stmmac_test_ucfilt(struct stmmac_priv *priv)
 	}
 
 	if (!tries)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev_mc_add(priv->dev, mc_addr);
 	if (ret)
@@ -702,7 +702,7 @@ static int stmmac_test_ucfilt(struct stmmac_priv *priv)
 
 	attr.dst = uc_addr;
 
-	/* Shall NOT receive packet */
+	/* Shall ANALT receive packet */
 	ret = __stmmac_test_loopback(priv, &attr);
 	ret = ret ? 0 : -EINVAL;
 
@@ -742,11 +742,11 @@ static int stmmac_test_flowctrl(struct stmmac_priv *priv)
 	int i, ret = 0;
 
 	if (!phydev || (!phydev->pause && !phydev->asym_pause))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
 	if (!tpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpriv->ok = false;
 	init_completion(&tpriv->comp);
@@ -822,7 +822,7 @@ static int stmmac_test_rss(struct stmmac_priv *priv)
 	struct stmmac_packet_attrs attr = { };
 
 	if (!priv->dma_cap.rssen || !priv->rss.enable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	attr.dst = priv->dev->dev_addr;
 	attr.exp_hash = true;
@@ -858,7 +858,7 @@ static int stmmac_test_vlan_validate(struct sk_buff *skb,
 		if (skb->vlan_proto != htons(proto))
 			goto out;
 		if (skb->vlan_tci != tpriv->vlan_id) {
-			/* Means filter did not work. */
+			/* Means filter did analt work. */
 			tpriv->ok = false;
 			complete(&tpriv->comp);
 			goto out;
@@ -900,7 +900,7 @@ static int __stmmac_test_vlanfilt(struct stmmac_priv *priv)
 
 	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
 	if (!tpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpriv->ok = false;
 	init_completion(&tpriv->comp);
@@ -932,7 +932,7 @@ static int __stmmac_test_vlanfilt(struct stmmac_priv *priv)
 
 		skb = stmmac_test_get_udp_skb(priv, &attr);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto vlan_del;
 		}
 
@@ -965,7 +965,7 @@ cleanup:
 static int stmmac_test_vlanfilt(struct stmmac_priv *priv)
 {
 	if (!priv->dma_cap.vlhash)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return __stmmac_test_vlanfilt(priv);
 }
@@ -975,7 +975,7 @@ static int stmmac_test_vlanfilt_perfect(struct stmmac_priv *priv)
 	int ret, prev_cap = priv->dma_cap.vlhash;
 
 	if (!(priv->dev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	priv->dma_cap.vlhash = 0;
 	ret = __stmmac_test_vlanfilt(priv);
@@ -993,7 +993,7 @@ static int __stmmac_test_dvlanfilt(struct stmmac_priv *priv)
 
 	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
 	if (!tpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpriv->ok = false;
 	tpriv->double_vlan = true;
@@ -1026,7 +1026,7 @@ static int __stmmac_test_dvlanfilt(struct stmmac_priv *priv)
 
 		skb = stmmac_test_get_udp_skb(priv, &attr);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto vlan_del;
 		}
 
@@ -1059,7 +1059,7 @@ cleanup:
 static int stmmac_test_dvlanfilt(struct stmmac_priv *priv)
 {
 	if (!priv->dma_cap.vlhash)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return __stmmac_test_dvlanfilt(priv);
 }
@@ -1069,7 +1069,7 @@ static int stmmac_test_dvlanfilt_perfect(struct stmmac_priv *priv)
 	int ret, prev_cap = priv->dma_cap.vlhash;
 
 	if (!(priv->dev->features & NETIF_F_HW_VLAN_STAG_FILTER))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	priv->dma_cap.vlhash = 0;
 	ret = __stmmac_test_dvlanfilt(priv);
@@ -1091,38 +1091,38 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	int ret, i, nk = 1;
 
 	if (!tc_can_offload(priv->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!priv->dma_cap.frpsel)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sel = kzalloc(struct_size(sel, keys, nk), GFP_KERNEL);
 	if (!sel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	exts = kzalloc(sizeof(*exts), GFP_KERNEL);
 	if (!exts) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_sel;
 	}
 
 	actions = kcalloc(nk, sizeof(*actions), GFP_KERNEL);
 	if (!actions) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_exts;
 	}
 
 	gact = kcalloc(nk, sizeof(*gact), GFP_KERNEL);
 	if (!gact) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_actions;
 	}
 
-	cls_u32.command = TC_CLSU32_NEW_KNODE;
+	cls_u32.command = TC_CLSU32_NEW_KANALDE;
 	cls_u32.common.chain_index = 0;
 	cls_u32.common.protocol = htons(ETH_P_ALL);
-	cls_u32.knode.exts = exts;
-	cls_u32.knode.sel = sel;
-	cls_u32.knode.handle = 0x123;
+	cls_u32.kanalde.exts = exts;
+	cls_u32.kanalde.sel = sel;
+	cls_u32.kanalde.handle = 0x123;
 
 	exts->nr_actions = nk;
 	exts->actions = actions;
@@ -1145,9 +1145,9 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	attr.src = addr;
 
 	ret = __stmmac_test_loopback(priv, &attr);
-	ret = ret ? 0 : -EINVAL; /* Shall NOT receive packet */
+	ret = ret ? 0 : -EINVAL; /* Shall ANALT receive packet */
 
-	cls_u32.command = TC_CLSU32_DELETE_KNODE;
+	cls_u32.command = TC_CLSU32_DELETE_KANALDE;
 	stmmac_tc_setup_cls_u32(priv, priv, &cls_u32);
 
 cleanup_act:
@@ -1163,7 +1163,7 @@ cleanup_sel:
 #else
 static int stmmac_test_rxp(struct stmmac_priv *priv)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -1174,7 +1174,7 @@ static int stmmac_test_desc_sai(struct stmmac_priv *priv)
 	int ret;
 
 	if (!priv->dma_cap.vlins)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	attr.remove_sa = true;
 	attr.sarc = true;
@@ -1196,7 +1196,7 @@ static int stmmac_test_desc_sar(struct stmmac_priv *priv)
 	int ret;
 
 	if (!priv->dma_cap.vlins)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	attr.sarc = true;
 	attr.src = src;
@@ -1217,7 +1217,7 @@ static int stmmac_test_reg_sai(struct stmmac_priv *priv)
 	int ret;
 
 	if (!priv->dma_cap.vlins)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	attr.remove_sa = true;
 	attr.sarc = true;
@@ -1225,7 +1225,7 @@ static int stmmac_test_reg_sai(struct stmmac_priv *priv)
 	attr.dst = priv->dev->dev_addr;
 
 	if (stmmac_sarc_configure(priv, priv->ioaddr, 0x2))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = __stmmac_test_loopback(priv, &attr);
 
@@ -1240,14 +1240,14 @@ static int stmmac_test_reg_sar(struct stmmac_priv *priv)
 	int ret;
 
 	if (!priv->dma_cap.vlins)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	attr.sarc = true;
 	attr.src = src;
 	attr.dst = priv->dev->dev_addr;
 
 	if (stmmac_sarc_configure(priv, priv->ioaddr, 0x3))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = __stmmac_test_loopback(priv, &attr);
 
@@ -1255,7 +1255,7 @@ static int stmmac_test_reg_sar(struct stmmac_priv *priv)
 	return ret;
 }
 
-static int stmmac_test_vlanoff_common(struct stmmac_priv *priv, bool svlan)
+static int stmmac_test_vlaanalff_common(struct stmmac_priv *priv, bool svlan)
 {
 	struct stmmac_packet_attrs attr = { };
 	struct stmmac_test_priv *tpriv;
@@ -1264,11 +1264,11 @@ static int stmmac_test_vlanoff_common(struct stmmac_priv *priv, bool svlan)
 	u16 proto;
 
 	if (!priv->dma_cap.vlins)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
 	if (!tpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	proto = svlan ? ETH_P_8021AD : ETH_P_8021Q;
 
@@ -1292,7 +1292,7 @@ static int stmmac_test_vlanoff_common(struct stmmac_priv *priv, bool svlan)
 
 	skb = stmmac_test_get_udp_skb(priv, &attr);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto vlan_del;
 	}
 
@@ -1314,16 +1314,16 @@ cleanup:
 	return ret;
 }
 
-static int stmmac_test_vlanoff(struct stmmac_priv *priv)
+static int stmmac_test_vlaanalff(struct stmmac_priv *priv)
 {
-	return stmmac_test_vlanoff_common(priv, false);
+	return stmmac_test_vlaanalff_common(priv, false);
 }
 
-static int stmmac_test_svlanoff(struct stmmac_priv *priv)
+static int stmmac_test_svlaanalff(struct stmmac_priv *priv)
 {
 	if (!priv->dma_cap.dvlan)
-		return -EOPNOTSUPP;
-	return stmmac_test_vlanoff_common(priv, true);
+		return -EOPANALTSUPP;
+	return stmmac_test_vlaanalff_common(priv, true);
 }
 
 #ifdef CONFIG_NET_CLS_ACT
@@ -1339,9 +1339,9 @@ static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 	struct flow_rule *rule;
 
 	if (!tc_can_offload(priv->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!priv->dma_cap.l3l4fnum)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (priv->rss.enable) {
 		old_enable = priv->rss.enable;
 		priv->rss.enable = false;
@@ -1351,7 +1351,7 @@ static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 
 	dissector = kzalloc(sizeof(*dissector), GFP_KERNEL);
 	if (!dissector) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_rss;
 	}
 
@@ -1360,7 +1360,7 @@ static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 
 	cls = kzalloc(sizeof(*cls), GFP_KERNEL);
 	if (!cls) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_dissector;
 	}
 
@@ -1370,7 +1370,7 @@ static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 
 	rule = kzalloc(struct_size(rule, action.entries, 1), GFP_KERNEL);
 	if (!rule) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_cls;
 	}
 
@@ -1402,7 +1402,7 @@ static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 	if (ret)
 		goto cleanup_rule;
 
-	/* Shall NOT receive packet */
+	/* Shall ANALT receive packet */
 	ret = __stmmac_test_loopback(priv, &attr);
 	ret = ret ? 0 : -EINVAL;
 
@@ -1427,7 +1427,7 @@ cleanup_rss:
 static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 				u32 dst_mask, u32 src_mask)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -1465,9 +1465,9 @@ static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 	struct flow_rule *rule;
 
 	if (!tc_can_offload(priv->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!priv->dma_cap.l3l4fnum)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (priv->rss.enable) {
 		old_enable = priv->rss.enable;
 		priv->rss.enable = false;
@@ -1477,7 +1477,7 @@ static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 
 	dissector = kzalloc(sizeof(*dissector), GFP_KERNEL);
 	if (!dissector) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_rss;
 	}
 
@@ -1488,7 +1488,7 @@ static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 
 	cls = kzalloc(sizeof(*cls), GFP_KERNEL);
 	if (!cls) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_dissector;
 	}
 
@@ -1498,7 +1498,7 @@ static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 
 	rule = kzalloc(struct_size(rule, action.entries, 1), GFP_KERNEL);
 	if (!rule) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_cls;
 	}
 
@@ -1533,7 +1533,7 @@ static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 	if (ret)
 		goto cleanup_rule;
 
-	/* Shall NOT receive packet */
+	/* Shall ANALT receive packet */
 	ret = __stmmac_test_loopback(priv, &attr);
 	ret = ret ? 0 : -EINVAL;
 
@@ -1558,7 +1558,7 @@ cleanup_rss:
 static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 				u32 dst_mask, u32 src_mask, bool udp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -1626,11 +1626,11 @@ static int stmmac_test_arpoffload(struct stmmac_priv *priv)
 	int ret;
 
 	if (!priv->dma_cap.arpoffsel)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
 	if (!tpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpriv->ok = false;
 	init_completion(&tpriv->comp);
@@ -1649,7 +1649,7 @@ static int stmmac_test_arpoffload(struct stmmac_priv *priv)
 
 	skb = stmmac_test_get_arp_skb(priv, &attr);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -1704,7 +1704,7 @@ static int stmmac_test_mjumbo(struct stmmac_priv *priv)
 	int ret;
 
 	if (tx_cnt <= 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (chan = 0; chan < tx_cnt; chan++) {
 		ret = __stmmac_test_jumbo(priv, chan);
@@ -1722,7 +1722,7 @@ static int stmmac_test_sph(struct stmmac_priv *priv)
 	int ret;
 
 	if (!priv->sph)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Check for UDP first */
 	attr.dst = priv->dev->dev_addr;
@@ -1736,7 +1736,7 @@ static int stmmac_test_sph(struct stmmac_priv *priv)
 	if (cnt_end <= cnt_start)
 		return -EINVAL;
 
-	/* Check for TCP now */
+	/* Check for TCP analw */
 	cnt_start = cnt_end;
 
 	attr.dst = priv->dev->dev_addr;
@@ -1763,7 +1763,7 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 	int ret, i;
 
 	if (!priv->hwts_tx_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Find first TBS enabled Queue, if any */
 	for (i = 0; i < priv->plat->tx_queues_to_use; i++)
@@ -1771,7 +1771,7 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 			break;
 
 	if (i >= priv->plat->tx_queues_to_use)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	qopt.enable = true;
 	qopt.queue = i;
@@ -1785,7 +1785,7 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if (!curr_time) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto fail_disable;
 	}
 
@@ -1815,7 +1815,7 @@ fail_disable:
 	return ret;
 }
 
-#define STMMAC_LOOPBACK_NONE	0
+#define STMMAC_LOOPBACK_ANALNE	0
 #define STMMAC_LOOPBACK_MAC	1
 #define STMMAC_LOOPBACK_PHY	2
 
@@ -1830,7 +1830,7 @@ static const struct stmmac_test {
 		.fn = stmmac_test_mac_loopback,
 	}, {
 		.name = "PHY Loopback               ",
-		.lb = STMMAC_LOOPBACK_NONE, /* Test will handle it */
+		.lb = STMMAC_LOOPBACK_ANALNE, /* Test will handle it */
 		.fn = stmmac_test_phy_loopback,
 	}, {
 		.name = "MMC Counters               ",
@@ -1903,11 +1903,11 @@ static const struct stmmac_test {
 	}, {
 		.name = "VLAN TX Insertion          ",
 		.lb = STMMAC_LOOPBACK_PHY,
-		.fn = stmmac_test_vlanoff,
+		.fn = stmmac_test_vlaanalff,
 	}, {
 		.name = "SVLAN TX Insertion         ",
 		.lb = STMMAC_LOOPBACK_PHY,
-		.fn = stmmac_test_svlanoff,
+		.fn = stmmac_test_svlaanalff,
 	}, {
 		.name = "L3 DA Filtering            ",
 		.lb = STMMAC_LOOPBACK_PHY,
@@ -1983,7 +1983,7 @@ void stmmac_selftest_run(struct net_device *dev,
 
 		switch (stmmac_selftests[i].lb) {
 		case STMMAC_LOOPBACK_PHY:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			if (dev->phydev)
 				ret = phy_loopback(dev->phydev, true);
 			if (!ret)
@@ -1992,31 +1992,31 @@ void stmmac_selftest_run(struct net_device *dev,
 		case STMMAC_LOOPBACK_MAC:
 			ret = stmmac_set_mac_loopback(priv, priv->ioaddr, true);
 			break;
-		case STMMAC_LOOPBACK_NONE:
+		case STMMAC_LOOPBACK_ANALNE:
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
 		/*
 		 * First tests will always be MAC / PHY loobpack. If any of
-		 * them is not supported we abort earlier.
+		 * them is analt supported we abort earlier.
 		 */
 		if (ret) {
-			netdev_err(priv->dev, "Loopback is not supported\n");
+			netdev_err(priv->dev, "Loopback is analt supported\n");
 			etest->flags |= ETH_TEST_FL_FAILED;
 			break;
 		}
 
 		ret = stmmac_selftests[i].fn(priv);
-		if (ret && (ret != -EOPNOTSUPP))
+		if (ret && (ret != -EOPANALTSUPP))
 			etest->flags |= ETH_TEST_FL_FAILED;
 		buf[i] = ret;
 
 		switch (stmmac_selftests[i].lb) {
 		case STMMAC_LOOPBACK_PHY:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			if (dev->phydev)
 				ret = phy_loopback(dev->phydev, false);
 			if (!ret)

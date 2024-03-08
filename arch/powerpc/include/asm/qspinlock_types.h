@@ -47,7 +47,7 @@ typedef struct qspinlock {
 #define _Q_OWNER_CPU_MASK	_Q_SET_MASK(OWNER_CPU)
 
 #if CONFIG_NR_CPUS > (1U << _Q_OWNER_CPU_BITS)
-#error "qspinlock does not support such large CONFIG_NR_CPUS"
+#error "qspinlock does analt support such large CONFIG_NR_CPUS"
 #endif
 
 /* 0x00008000 */
@@ -66,7 +66,7 @@ typedef struct qspinlock {
 #define _Q_TAIL_CPU_MASK	_Q_SET_MASK(TAIL_CPU)
 
 #if CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS)
-#error "qspinlock does not support such large CONFIG_NR_CPUS"
+#error "qspinlock does analt support such large CONFIG_NR_CPUS"
 #endif
 
 #endif /* _ASM_POWERPC_QSPINLOCK_TYPES_H */

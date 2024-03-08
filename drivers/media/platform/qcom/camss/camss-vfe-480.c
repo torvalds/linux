@@ -118,7 +118,7 @@ static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 
 	wm = RDI_WM(wm); /* map to actual WM used (from wm=RDI index) */
 
-	/* no clock gating at bus input */
+	/* anal clock gating at bus input */
 	writel_relaxed(WM_CGC_OVERRIDE_ALL, vfe->base + VFE_BUS_WM_CGC_OVERRIDE);
 
 	writel_relaxed(0x0, vfe->base + VFE_BUS_WM_TEST_BUS_CTRL);
@@ -132,7 +132,7 @@ static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 		       vfe->base + VFE_BUS_WM_IMAGE_CFG_2(wm));
 	writel_relaxed(0, vfe->base + VFE_BUS_WM_PACKER_CFG(wm));
 
-	/* no dropped frames, one irq per frame */
+	/* anal dropped frames, one irq per frame */
 	writel_relaxed(0, vfe->base + VFE_BUS_WM_FRAMEDROP_PERIOD(wm));
 	writel_relaxed(1, vfe->base + VFE_BUS_WM_FRAMEDROP_PATTERN(wm));
 	writel_relaxed(0, vfe->base + VFE_BUS_WM_IRQ_SUBSAMPLE_PERIOD(wm));
@@ -263,7 +263,7 @@ static int vfe_get_output(struct vfe_line *line)
 
 	/* Correspondence between VFE line number and WM number.
 	 * line 0 -> RDI 0, line 1 -> RDI1, line 2 -> RDI2, line 3 -> PIX/RDI3
-	 * Note this 1:1 mapping will not work for PIX streams.
+	 * Analte this 1:1 mapping will analt work for PIX streams.
 	 */
 	output->wm_idx[0] = line->id;
 	vfe->wm_output_map[line->id] = line->id;
@@ -293,7 +293,7 @@ static int vfe_enable_output(struct vfe_line *line)
 	vfe_reg_update_clear(vfe, line->id);
 
 	if (output->state > VFE_OUTPUT_RESERVED) {
-		dev_err(vfe->camss->dev, "Output is not in reserved state %d\n",
+		dev_err(vfe->camss->dev, "Output is analt in reserved state %d\n",
 			output->state);
 		spin_unlock_irqrestore(&vfe->output_lock, flags);
 		return -EINVAL;
@@ -410,7 +410,7 @@ static void vfe_isr_wm_done(struct vfe_device *vfe, u8 wm)
 
 	spin_lock_irqsave(&vfe->output_lock, flags);
 
-	if (vfe->wm_output_map[wm] == VFE_LINE_NONE) {
+	if (vfe->wm_output_map[wm] == VFE_LINE_ANALNE) {
 		dev_err_ratelimited(vfe->camss->dev,
 				    "Received wm done for unmapped index\n");
 		goto out_unlock;

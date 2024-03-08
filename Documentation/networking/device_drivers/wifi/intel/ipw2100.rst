@@ -33,7 +33,7 @@ README.ipw2100
 0. IMPORTANT INFORMATION BEFORE USING THIS DRIVER
 =================================================
 
-Important Notice FOR ALL USERS OR DISTRIBUTORS!!!!
+Important Analtice FOR ALL USERS OR DISTRIBUTORS!!!!
 
 Intel wireless LAN adapters are engineered, manufactured, tested, and
 quality checked to ensure that they meet all necessary local and
@@ -51,25 +51,25 @@ radio operation and to ensure electromagnetic compliance (EMC). These
 parameters include, without limitation, RF power, spectrum usage,
 channel scanning, and human exposure.
 
-For these reasons Intel cannot permit any manipulation by third parties
+For these reasons Intel cananalt permit any manipulation by third parties
 of the software provided in binary format with the wireless WLAN
 adapters (e.g., the EEPROM and firmware). Furthermore, if you use any
 patches, utilities, or code with the Intel wireless LAN adapters that
 have been manipulated by an unauthorized party (i.e., patches,
 utilities, or code (including open source code modifications) which have
-not been validated by Intel), (i) you will be solely responsible for
+analt been validated by Intel), (i) you will be solely responsible for
 ensuring the regulatory compliance of the products, (ii) Intel will bear
-no liability, under any theory of liability for any issues associated
+anal liability, under any theory of liability for any issues associated
 with the modified products, including without limitation, claims under
-the warranty and/or issues arising from regulatory non-compliance, and
-(iii) Intel will not provide or be required to assist in providing
+the warranty and/or issues arising from regulatory analn-compliance, and
+(iii) Intel will analt provide or be required to assist in providing
 support to any third parties for such modified products.
 
-Note: Many regulatory agencies consider Wireless LAN adapters to be
+Analte: Many regulatory agencies consider Wireless LAN adapters to be
 modules, and accordingly, condition system-level regulatory approval
 upon receipt and review of test data documenting that the antennas and
-system configuration do not cause the EMC and radio operation to be
-non-compliant.
+system configuration do analt cause the EMC and radio operation to be
+analn-compliant.
 
 The drivers available for download from SourceForge are provided as a
 part of a development project.  Conformance to local regulatory
@@ -89,7 +89,7 @@ development version of the driver can be found, is:
 
 	http://ipw2100.sourceforge.net
 
-There you can find the not only the latest releases, but also information about
+There you can find the analt only the latest releases, but also information about
 potential fixes and patches, as well as links to the development mailing list
 for the driver project.
 
@@ -102,7 +102,7 @@ for the driver project.
 - Wireless Tools support
 - 802.1x (tested with XSupplicant 1.0.1)
 
-Enabled (but not supported) features:
+Enabled (but analt supported) features:
 - Monitor/RFMon mode
 - WPA/WPA2
 
@@ -132,8 +132,8 @@ Name		Value		Example       Meaning
 debug		0x0-0xffffffff	debug=1024    Debug level set to 1024
 mode		0,1,2		mode=1        AdHoc
 channel		int		channel=3     Only valid in AdHoc or Monitor
-associate	boolean		associate=0   Do NOT auto associate
-disable		boolean		disable=1     Do not power the HW
+associate	boolean		associate=0   Do ANALT auto associate
+disable		boolean		disable=1     Do analt power the HW
 =========	==============	============  ==============================
 
 
@@ -154,7 +154,7 @@ For the driver level files, look in /sys/bus/pci/drivers/ipw2100/
 	information on the various debugging levels available, run the 'dvals'
 	script found in the driver source directory.
 
-	.. note::
+	.. analte::
 
 	      'debug_level' is only enabled if CONFIG_IPW2100_DEBUG is turn on.
 
@@ -174,7 +174,7 @@ For the device level files, see /sys/bus/pci/drivers/ipw2100:
 	read
 
 	==  =========================================
-	0   RF kill not enabled (radio on)
+	0   RF kill analt enabled (radio on)
 	1   SW based RF kill active (radio off)
 	2   HW based RF kill active (radio off)
 	3   Both HW and SW RF kill active (radio off)
@@ -187,17 +187,17 @@ For the device level files, see /sys/bus/pci/drivers/ipw2100:
 	1   If radio is on, activate SW based RF kill
 	==  ==================================================
 
-	.. note::
+	.. analte::
 
 	   If you enable the SW based RF kill and then toggle the HW
-	   based RF kill from ON -> OFF -> ON, the radio will NOT come back on
+	   based RF kill from ON -> OFF -> ON, the radio will ANALT come back on
 
 
 5. Radio Kill Switch
 ====================
 
 Most laptops provide the ability for the user to physically disable the radio.
-Some vendors have implemented this as a physical switch that requires no
+Some vendors have implemented this as a physical switch that requires anal
 software to turn the radio off and on.  On other laptops, however, the switch
 is controlled through a button being pressed and a software driver then making
 calls to turn the radio off and on.  This is referred to as a "software based
@@ -210,7 +210,7 @@ on your system.
 6. Dynamic Firmware
 ===================
 
-As the firmware is licensed under a restricted use license, it can not be
+As the firmware is licensed under a restricted use license, it can analt be
 included within the kernel sources.  To enable the IPW2100 you will need a
 firmware image to load into the wireless NIC's processors.
 
@@ -227,7 +227,7 @@ through a private wireless extension interface.  The IPW2100 supports
 the following different modes:
 
 	===	===========================================================
-	off	No power management.  Radio is always on.
+	off	Anal power management.  Radio is always on.
 	on	Automatic power management
 	1-5	Different levels of power management.  The higher the
 		number the greater the power savings, but with an impact to
@@ -235,14 +235,14 @@ the following different modes:
 	===	===========================================================
 
 Power management works by powering down the radio after a certain
-interval of time has passed where no packets are passed through the
+interval of time has passed where anal packets are passed through the
 radio.  Once powered down, the radio remains in that state for a given
 period of time.  For higher power savings, the interval between last
 packet processed to sleep is shorter and the sleep period is longer.
 
 When the radio is asleep, the access point sending data to the station
 must buffer packets at the AP until the station wakes up and requests
-any buffered packets.  If you have an AP that does not correctly support
+any buffered packets.  If you have an AP that does analt correctly support
 the PSP protocol you may experience packet loss or very poor performance
 while power management is enabled.  If this is the case, you will need
 to try and find a firmware update for your AP, or disable power
@@ -257,10 +257,10 @@ and set it to auto.
 	iwconfig eth1 power on     Enables radio power management to
 				   last set level (defaults to AUTO)
 	iwpriv eth1 set_power 0    Sets power level to AUTO and enables
-				   power management if not previously
+				   power management if analt previously
 				   enabled.
 	iwpriv eth1 set_power 1-5  Set the power level as specified,
-				   enabling power management if not
+				   enabling power management if analt
 				   previously enabled.
 	=========================  ====================================
 
@@ -309,7 +309,7 @@ For installation support on the ipw2100 1.1.0 driver on Linux kernels
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
+  this program; if analt, write to the Free Software Foundation, Inc., 59
   Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
   The full GNU General Public License is included in this distribution in the
@@ -317,7 +317,7 @@ For installation support on the ipw2100 1.1.0 driver on Linux kernels
 
   License Contact Information:
 
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+  James P. Ketreanals <ipw2100-admin@linux.intel.com>
 
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 

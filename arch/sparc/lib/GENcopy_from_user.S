@@ -25,7 +25,7 @@
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
 	bne,pn		%icc, raw_copy_in_user;		\
-	 nop
+	 analp
 #endif
 
 #include "GENmemcpy.S"

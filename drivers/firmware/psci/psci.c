@@ -10,7 +10,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/cpuidle.h>
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <linux/of.h>
 #include <linux/pm.h>
@@ -49,7 +49,7 @@
  */
 static int resident_cpu = -1;
 struct psci_operations psci_ops;
-static enum arm_smccc_conduit psci_conduit = SMCCC_CONDUIT_NONE;
+static enum arm_smccc_conduit psci_conduit = SMCCC_CONDUIT_ANALNE;
 
 bool psci_tos_resident_on(int cpu)
 {
@@ -130,13 +130,13 @@ __invoke_psci_fn_smc(unsigned long function_id,
 	return res.a0;
 }
 
-static __always_inline int psci_to_linux_errno(int errno)
+static __always_inline int psci_to_linux_erranal(int erranal)
 {
-	switch (errno) {
+	switch (erranal) {
 	case PSCI_RET_SUCCESS:
 		return 0;
-	case PSCI_RET_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
+	case PSCI_RET_ANALT_SUPPORTED:
+		return -EOPANALTSUPP;
 	case PSCI_RET_INVALID_PARAMS:
 	case PSCI_RET_INVALID_ADDRESS:
 		return -EINVAL;
@@ -169,7 +169,7 @@ int psci_set_osi_mode(bool enable)
 	if (err < 0)
 		pr_info(FW_BUG "failed to set %s mode: %d\n",
 				enable ? "OSI" : "PC", err);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erranal(err);
 }
 
 static __always_inline int
@@ -178,7 +178,7 @@ __psci_cpu_suspend(u32 fn, u32 state, unsigned long entry_point)
 	int err;
 
 	err = invoke_psci_fn(fn, state, entry_point, 0);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erranal(err);
 }
 
 static __always_inline int
@@ -200,7 +200,7 @@ static int __psci_cpu_off(u32 fn, u32 state)
 	int err;
 
 	err = invoke_psci_fn(fn, state, 0, 0);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erranal(err);
 }
 
 static int psci_0_1_cpu_off(u32 state)
@@ -218,7 +218,7 @@ static int __psci_cpu_on(u32 fn, unsigned long cpuid, unsigned long entry_point)
 	int err;
 
 	err = invoke_psci_fn(fn, cpuid, entry_point, 0);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erranal(err);
 }
 
 static int psci_0_1_cpu_on(unsigned long cpuid, unsigned long entry_point)
@@ -236,7 +236,7 @@ static int __psci_migrate(u32 fn, unsigned long cpuid)
 	int err;
 
 	err = invoke_psci_fn(fn, cpuid, 0, 0);
-	return psci_to_linux_errno(err);
+	return psci_to_linux_erranal(err);
 }
 
 static int psci_0_1_migrate(unsigned long cpuid)
@@ -283,7 +283,7 @@ static void set_conduit(enum arm_smccc_conduit conduit)
 	psci_conduit = conduit;
 }
 
-static int get_set_conduit_method(const struct device_node *np)
+static int get_set_conduit_method(const struct device_analde *np)
 {
 	const char *method;
 
@@ -305,7 +305,7 @@ static int get_set_conduit_method(const struct device_node *np)
 	return 0;
 }
 
-static int psci_sys_reset(struct notifier_block *nb, unsigned long action,
+static int psci_sys_reset(struct analtifier_block *nb, unsigned long action,
 			  void *data)
 {
 	if ((reboot_mode == REBOOT_WARM || reboot_mode == REBOOT_SOFT) &&
@@ -313,18 +313,18 @@ static int psci_sys_reset(struct notifier_block *nb, unsigned long action,
 		/*
 		 * reset_type[31] = 0 (architectural)
 		 * reset_type[30:0] = 0 (SYSTEM_WARM_RESET)
-		 * cookie = 0 (ignored by the implementation)
+		 * cookie = 0 (iganalred by the implementation)
 		 */
 		invoke_psci_fn(PSCI_FN_NATIVE(1_1, SYSTEM_RESET2), 0, 0, 0);
 	} else {
 		invoke_psci_fn(PSCI_0_2_FN_SYSTEM_RESET, 0, 0, 0);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block psci_sys_reset_nb = {
-	.notifier_call = psci_sys_reset,
+static struct analtifier_block psci_sys_reset_nb = {
+	.analtifier_call = psci_sys_reset,
 	.priority = 129,
 };
 
@@ -356,7 +356,7 @@ static const struct {
 	PSCI_ID_NATIVE(0_2, MIGRATE_INFO_UP_CPU),
 	PSCI_ID(1_0, CPU_FREEZE),
 	PSCI_ID_NATIVE(1_0, CPU_DEFAULT_SUSPEND),
-	PSCI_ID_NATIVE(1_0, NODE_HW_STATE),
+	PSCI_ID_NATIVE(1_0, ANALDE_HW_STATE),
 	PSCI_ID_NATIVE(1_0, SYSTEM_SUSPEND),
 	PSCI_ID(1_0, SET_SUSPEND_MODE),
 	PSCI_ID_NATIVE(1_0, STAT_RESIDENCY),
@@ -374,18 +374,18 @@ static int psci_debugfs_read(struct seq_file *s, void *data)
 	ver = psci_ops.get_version();
 	seq_printf(s, "PSCIv%d.%d\n",
 		   PSCI_VERSION_MAJOR(ver),
-		   PSCI_VERSION_MINOR(ver));
+		   PSCI_VERSION_MIANALR(ver));
 
 	/* PSCI_FEATURES is available only starting from 1.0 */
 	if (PSCI_VERSION_MAJOR(ver) < 1)
 		return 0;
 
 	feature = psci_features(ARM_SMCCC_VERSION_FUNC_ID);
-	if (feature != PSCI_RET_NOT_SUPPORTED) {
+	if (feature != PSCI_RET_ANALT_SUPPORTED) {
 		ver = invoke_psci_fn(ARM_SMCCC_VERSION_FUNC_ID, 0, 0, 0);
 		seq_printf(s, "SMC Calling Convention v%d.%d\n",
 			   PSCI_VERSION_MAJOR(ver),
-			   PSCI_VERSION_MINOR(ver));
+			   PSCI_VERSION_MIANALR(ver));
 	} else {
 		seq_puts(s, "SMC Calling Convention v1.0 is assumed\n");
 	}
@@ -395,31 +395,31 @@ static int psci_debugfs_read(struct seq_file *s, void *data)
 		seq_printf(s, "PSCI_FEATURES(CPU_SUSPEND) error (%d)\n", feature);
 	} else {
 		seq_printf(s, "OSI is %ssupported\n",
-			   (feature & BIT(0)) ? "" : "not ");
+			   (feature & BIT(0)) ? "" : "analt ");
 		seq_printf(s, "%s StateID format is used\n",
 			   (feature & BIT(1)) ? "Extended" : "Original");
 	}
 
 	type = psci_ops.migrate_info_type();
 	if (type == PSCI_0_2_TOS_UP_MIGRATE ||
-	    type == PSCI_0_2_TOS_UP_NO_MIGRATE) {
+	    type == PSCI_0_2_TOS_UP_ANAL_MIGRATE) {
 		unsigned long cpuid;
 
 		seq_printf(s, "Trusted OS %smigrate capable\n",
-			   type == PSCI_0_2_TOS_UP_NO_MIGRATE ? "not " : "");
+			   type == PSCI_0_2_TOS_UP_ANAL_MIGRATE ? "analt " : "");
 		cpuid = psci_migrate_info_up_cpu();
 		seq_printf(s, "Trusted OS resident on physical CPU 0x%lx (#%d)\n",
 			   cpuid, resident_cpu);
 	} else if (type == PSCI_0_2_TOS_MP) {
-		seq_puts(s, "Trusted OS migration not required\n");
+		seq_puts(s, "Trusted OS migration analt required\n");
 	} else {
-		if (type != PSCI_RET_NOT_SUPPORTED)
-			seq_printf(s, "MIGRATE_INFO_TYPE returned unknown type (%d)\n", type);
+		if (type != PSCI_RET_ANALT_SUPPORTED)
+			seq_printf(s, "MIGRATE_INFO_TYPE returned unkanalwn type (%d)\n", type);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(psci_fn_ids); i++) {
 		feature = psci_features(psci_fn_ids[i].fn);
-		if (feature == PSCI_RET_NOT_SUPPORTED)
+		if (feature == PSCI_RET_ANALT_SUPPORTED)
 			continue;
 		if (feature < 0)
 			seq_printf(s, "PSCI_FEATURES(%s) error (%d)\n",
@@ -431,7 +431,7 @@ static int psci_debugfs_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int psci_debugfs_open(struct inode *inode, struct file *f)
+static int psci_debugfs_open(struct ianalde *ianalde, struct file *f)
 {
 	return single_open(f, psci_debugfs_read, NULL);
 }
@@ -456,12 +456,12 @@ late_initcall(psci_debugfs_init)
 #endif
 
 #ifdef CONFIG_CPU_IDLE
-static noinstr int psci_suspend_finisher(unsigned long state)
+static analinstr int psci_suspend_finisher(unsigned long state)
 {
 	u32 power_state = state;
 	phys_addr_t pa_cpu_resume;
 
-	pa_cpu_resume = __pa_symbol_nodebug((unsigned long)cpu_resume);
+	pa_cpu_resume = __pa_symbol_analdebug((unsigned long)cpu_resume);
 
 	return psci_ops.cpu_suspend(power_state, pa_cpu_resume);
 }
@@ -519,7 +519,7 @@ static void __init psci_init_system_reset2(void)
 
 	ret = psci_features(PSCI_FN_NATIVE(1_1, SYSTEM_RESET2));
 
-	if (ret != PSCI_RET_NOT_SUPPORTED)
+	if (ret != PSCI_RET_ANALT_SUPPORTED)
 		psci_system_reset2_supported = true;
 }
 
@@ -532,7 +532,7 @@ static void __init psci_init_system_suspend(void)
 
 	ret = psci_features(PSCI_FN_NATIVE(1_0, SYSTEM_SUSPEND));
 
-	if (ret != PSCI_RET_NOT_SUPPORTED)
+	if (ret != PSCI_RET_ANALT_SUPPORTED)
 		suspend_set_ops(&psci_suspend_ops);
 }
 
@@ -540,7 +540,7 @@ static void __init psci_init_cpu_suspend(void)
 {
 	int feature = psci_features(PSCI_FN_NATIVE(0_2, CPU_SUSPEND));
 
-	if (feature != PSCI_RET_NOT_SUPPORTED)
+	if (feature != PSCI_RET_ANALT_SUPPORTED)
 		psci_cpu_suspend_feature = feature;
 }
 
@@ -556,18 +556,18 @@ static void __init psci_init_migrate(void)
 	type = psci_ops.migrate_info_type();
 
 	if (type == PSCI_0_2_TOS_MP) {
-		pr_info("Trusted OS migration not required\n");
+		pr_info("Trusted OS migration analt required\n");
 		return;
 	}
 
-	if (type == PSCI_RET_NOT_SUPPORTED) {
-		pr_info("MIGRATE_INFO_TYPE not supported.\n");
+	if (type == PSCI_RET_ANALT_SUPPORTED) {
+		pr_info("MIGRATE_INFO_TYPE analt supported.\n");
 		return;
 	}
 
 	if (type != PSCI_0_2_TOS_UP_MIGRATE &&
-	    type != PSCI_0_2_TOS_UP_NO_MIGRATE) {
-		pr_err("MIGRATE_INFO_TYPE returned unknown type (%d)\n", type);
+	    type != PSCI_0_2_TOS_UP_ANAL_MIGRATE) {
+		pr_err("MIGRATE_INFO_TYPE returned unkanalwn type (%d)\n", type);
 		return;
 	}
 
@@ -591,7 +591,7 @@ static void __init psci_init_smccc(void)
 
 	feature = psci_features(ARM_SMCCC_VERSION_FUNC_ID);
 
-	if (feature != PSCI_RET_NOT_SUPPORTED) {
+	if (feature != PSCI_RET_ANALT_SUPPORTED) {
 		u32 ret;
 		ret = invoke_psci_fn(ARM_SMCCC_VERSION_FUNC_ID, 0, 0, 0);
 		if (ret >= ARM_SMCCC_VERSION_1_1) {
@@ -602,10 +602,10 @@ static void __init psci_init_smccc(void)
 
 	/*
 	 * Conveniently, the SMCCC and PSCI versions are encoded the
-	 * same way. No, this isn't accidental.
+	 * same way. Anal, this isn't accidental.
 	 */
 	pr_info("SMC Calling Convention v%d.%d\n",
-		PSCI_VERSION_MAJOR(ver), PSCI_VERSION_MINOR(ver));
+		PSCI_VERSION_MAJOR(ver), PSCI_VERSION_MIANALR(ver));
 
 }
 
@@ -637,9 +637,9 @@ static int __init psci_probe(void)
 
 	pr_info("PSCIv%d.%d detected in firmware.\n",
 			PSCI_VERSION_MAJOR(ver),
-			PSCI_VERSION_MINOR(ver));
+			PSCI_VERSION_MIANALR(ver));
 
-	if (PSCI_VERSION_MAJOR(ver) == 0 && PSCI_VERSION_MINOR(ver) < 2) {
+	if (PSCI_VERSION_MAJOR(ver) == 0 && PSCI_VERSION_MIANALR(ver) < 2) {
 		pr_err("Conflicting PSCI version detected.\n");
 		return -EINVAL;
 	}
@@ -659,14 +659,14 @@ static int __init psci_probe(void)
 	return 0;
 }
 
-typedef int (*psci_initcall_t)(const struct device_node *);
+typedef int (*psci_initcall_t)(const struct device_analde *);
 
 /*
  * PSCI init function for PSCI versions >=0.2
  *
  * Probe based on PSCI PSCI_VERSION function
  */
-static int __init psci_0_2_init(const struct device_node *np)
+static int __init psci_0_2_init(const struct device_analde *np)
 {
 	int err;
 
@@ -687,7 +687,7 @@ static int __init psci_0_2_init(const struct device_node *np)
 /*
  * PSCI < v0.2 get PSCI Function IDs via DT.
  */
-static int __init psci_0_1_init(const struct device_node *np)
+static int __init psci_0_1_init(const struct device_analde *np)
 {
 	u32 id;
 	int err;
@@ -723,7 +723,7 @@ static int __init psci_0_1_init(const struct device_node *np)
 	return 0;
 }
 
-static int __init psci_1_0_init(const struct device_node *np)
+static int __init psci_1_0_init(const struct device_analde *np)
 {
 	int err;
 
@@ -750,20 +750,20 @@ static const struct of_device_id psci_of_match[] __initconst = {
 
 int __init psci_dt_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *matched_np;
 	psci_initcall_t init_fn;
 	int ret;
 
-	np = of_find_matching_node_and_match(NULL, psci_of_match, &matched_np);
+	np = of_find_matching_analde_and_match(NULL, psci_of_match, &matched_np);
 
 	if (!np || !of_device_is_available(np))
-		return -ENODEV;
+		return -EANALDEV;
 
 	init_fn = (psci_initcall_t)matched_np->data;
 	ret = init_fn(np);
 
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -775,8 +775,8 @@ int __init psci_dt_init(void)
 int __init psci_acpi_init(void)
 {
 	if (!acpi_psci_present()) {
-		pr_info("is not implemented in ACPI.\n");
-		return -EOPNOTSUPP;
+		pr_info("is analt implemented in ACPI.\n");
+		return -EOPANALTSUPP;
 	}
 
 	pr_info("probing for conduit method from ACPI.\n");

@@ -118,7 +118,7 @@ void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
 }
 
 /* The buffer pool is stored both in the _rx struct and the _tx struct as we do
- * not know if the device has more tx queues than rx, or the opposite.
+ * analt kanalw if the device has more tx queues than rx, or the opposite.
  * This might also change during run time.
  */
 int xsk_reg_pool_at_qid(struct net_device *dev, struct xsk_buff_pool *pool,
@@ -173,14 +173,14 @@ static int xsk_rcv_zc(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 		return 0;
 
 	xskb_list = &xskb->pool->xskb_list;
-	list_for_each_entry_safe(pos, tmp, xskb_list, xskb_list_node) {
+	list_for_each_entry_safe(pos, tmp, xskb_list, xskb_list_analde) {
 		if (list_is_singular(xskb_list))
 			contd = 0;
 		len = pos->xdp.data_end - pos->xdp.data;
 		err = __xsk_rcv_zc(xs, pos, len, contd);
 		if (err)
 			goto err;
-		list_del(&pos->xskb_list_node);
+		list_del(&pos->xskb_list_analde);
 	}
 
 	return 0;
@@ -244,7 +244,7 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 		xsk_xdp = xsk_buff_alloc(xs->pool);
 		if (!xsk_xdp) {
 			xs->rx_dropped++;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memcpy(xsk_xdp->data - meta_len, copy_from, rem);
 		xskb = container_of(xsk_xdp, struct xdp_buff_xsk, xdp);
@@ -261,11 +261,11 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 
 	if (!xsk_buff_can_alloc(xs->pool, num_desc)) {
 		xs->rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (xskq_prod_nb_free(xs->rx, num_desc) < num_desc) {
 		xs->rx_queue_full++;
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	if (xdp_buff_has_frags(xdp)) {
@@ -321,7 +321,7 @@ static int xsk_rcv_check(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 
 	if (len > xsk_pool_get_rx_frame_size(xs->pool) && !xs->sg) {
 		xs->rx_dropped++;
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	sk_mark_napi_id_once_xdp(&xs->sk, xdp);
@@ -379,8 +379,8 @@ int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp)
 	if (err)
 		return err;
 
-	if (!xs->flush_node.prev)
-		list_add(&xs->flush_node, flush_list);
+	if (!xs->flush_analde.prev)
+		list_add(&xs->flush_analde, flush_list);
 
 	return 0;
 }
@@ -390,9 +390,9 @@ void __xsk_map_flush(void)
 	struct list_head *flush_list = this_cpu_ptr(&xskmap_flush_list);
 	struct xdp_sock *xs, *tmp;
 
-	list_for_each_entry_safe(xs, tmp, flush_list, flush_node) {
+	list_for_each_entry_safe(xs, tmp, flush_list, flush_analde) {
 		xsk_flush(xs);
-		__list_del_clearprev(&xs->flush_node);
+		__list_del_clearprev(&xs->flush_analde);
 	}
 }
 
@@ -492,7 +492,7 @@ u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, u32 nb_pkts)
 
 	rcu_read_lock();
 	if (!list_is_singular(&pool->xsk_tx_list)) {
-		/* Fallback to the non-batched version */
+		/* Fallback to the analn-batched version */
 		rcu_read_unlock();
 		return xsk_tx_peek_release_fallback(pool, nb_pkts);
 	}
@@ -578,7 +578,7 @@ static void xsk_destruct_skb(struct sk_buff *skb)
 	struct xsk_tx_metadata_compl *compl = &skb_shinfo(skb)->xsk_meta;
 
 	if (compl->tx_timestamp) {
-		/* sw completion timestamp, not a real one */
+		/* sw completion timestamp, analt a real one */
 		*compl->tx_timestamp = ktime_get_tai_fast_ns();
 	}
 
@@ -672,7 +672,7 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 	bool first_frag = false;
 	int err;
 
-	if (dev->priv_flags & IFF_TX_SKB_NO_LINEAR) {
+	if (dev->priv_flags & IFF_TX_SKB_ANAL_LINEAR) {
 		skb = xsk_build_skb_zerocopy(xs, desc);
 		if (IS_ERR(skb)) {
 			err = PTR_ERR(skb);
@@ -841,9 +841,9 @@ static int __xsk_generic_xmit(struct sock *sk)
 			goto out;
 		}
 
-		/* Ignore NET_XMIT_CN as packet might have been sent */
+		/* Iganalre NET_XMIT_CN as packet might have been sent */
 		if (err == NET_XMIT_DROP) {
-			/* SKB completed but not sent */
+			/* SKB completed but analt sent */
 			err = -EBUSY;
 			xs->skb = NULL;
 			goto out;
@@ -881,7 +881,7 @@ static int xsk_generic_xmit(struct sock *sk)
 	return ret;
 }
 
-static bool xsk_no_wakeup(struct sock *sk)
+static bool xsk_anal_wakeup(struct sock *sk)
 {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	/* Prefer busy-polling, skip the wakeup. */
@@ -914,17 +914,17 @@ static int __xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len
 	if (err)
 		return err;
 	if (unlikely(need_wait))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (unlikely(!xs->tx))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	if (sk_can_busy_loop(sk)) {
 		if (xs->zc)
 			__sk_mark_napi_id_once(sk, xsk_pool_get_napi_id(xs->pool));
-		sk_busy_loop(sk, 1); /* only support non-blocking sockets */
+		sk_busy_loop(sk, 1); /* only support analn-blocking sockets */
 	}
 
-	if (xs->zc && xsk_no_wakeup(sk))
+	if (xs->zc && xsk_anal_wakeup(sk))
 		return 0;
 
 	pool = xs->pool;
@@ -958,14 +958,14 @@ static int __xsk_recvmsg(struct socket *sock, struct msghdr *m, size_t len, int 
 	if (err)
 		return err;
 	if (unlikely(!xs->rx))
-		return -ENOBUFS;
+		return -EANALBUFS;
 	if (unlikely(need_wait))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (sk_can_busy_loop(sk))
-		sk_busy_loop(sk, 1); /* only support non-blocking sockets */
+		sk_busy_loop(sk, 1); /* only support analn-blocking sockets */
 
-	if (xsk_no_wakeup(sk))
+	if (xsk_anal_wakeup(sk))
 		return 0;
 
 	if (xs->pool->cached_need_wakeup & XDP_WAKEUP_RX && xs->zc)
@@ -1009,9 +1009,9 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 	}
 
 	if (xs->rx && !xskq_prod_is_empty(xs->rx))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (xs->tx && xsk_tx_writeable(xs))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 out:
 	rcu_read_unlock();
 	return mask;
@@ -1027,7 +1027,7 @@ static int xsk_init_queue(u32 entries, struct xsk_queue **queue,
 
 	q = xskq_create(entries, umem_queue);
 	if (!q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Make sure queue is ready before it can be seen by others */
 	smp_wmb();
@@ -1053,17 +1053,17 @@ static struct xsk_map *xsk_get_map_list_entry(struct xdp_sock *xs,
 					      struct xdp_sock __rcu ***map_entry)
 {
 	struct xsk_map *map = NULL;
-	struct xsk_map_node *node;
+	struct xsk_map_analde *analde;
 
 	*map_entry = NULL;
 
 	spin_lock_bh(&xs->map_list_lock);
-	node = list_first_entry_or_null(&xs->map_list, struct xsk_map_node,
-					node);
-	if (node) {
-		bpf_map_inc(&node->map->map);
-		map = node->map;
-		*map_entry = node->map_entry;
+	analde = list_first_entry_or_null(&xs->map_list, struct xsk_map_analde,
+					analde);
+	if (analde) {
+		bpf_map_inc(&analde->map->map);
+		map = analde->map;
+		*map_entry = analde->map_entry;
 	}
 	spin_unlock_bh(&xs->map_list_lock);
 	return map;
@@ -1082,7 +1082,7 @@ static void xsk_delete_from_maps(struct xdp_sock *xs)
 	 * map to guarantee existence between the
 	 * xsk_get_map_list_entry() and xsk_map_try_sock_delete()
 	 * calls. Then we ask the map to remove the socket, which
-	 * tries to remove the socket from the map. Note that there
+	 * tries to remove the socket from the map. Analte that there
 	 * might be updates to the map between
 	 * xsk_get_map_list_entry() and xsk_map_try_sock_delete().
 	 */
@@ -1110,7 +1110,7 @@ static int xsk_release(struct socket *sock)
 		xsk_drop_skb(xs->skb);
 
 	mutex_lock(&net->xdp.lock);
-	sk_del_node_init_rcu(sk);
+	sk_del_analde_init_rcu(sk);
 	mutex_unlock(&net->xdp.lock);
 
 	sock_prot_inuse_add(net, sk->sk_prot, -1);
@@ -1140,11 +1140,11 @@ static struct socket *xsk_lookup_xsk_from_fd(int fd)
 
 	sock = sockfd_lookup(fd, &err);
 	if (!sock)
-		return ERR_PTR(-ENOTSOCK);
+		return ERR_PTR(-EANALTSOCK);
 
 	if (sock->sk->sk_family != PF_XDP) {
 		sockfd_put(sock);
-		return ERR_PTR(-ENOPROTOOPT);
+		return ERR_PTR(-EANALPROTOOPT);
 	}
 
 	return sock;
@@ -1188,7 +1188,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 
 	dev = dev_get_by_index(sock_net(sk), sxdp->sxdp_ifindex);
 	if (!dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_release;
 	}
 
@@ -1205,7 +1205,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 
 		if ((flags & XDP_COPY) || (flags & XDP_ZEROCOPY) ||
 		    (flags & XDP_USE_NEED_WAKEUP) || (flags & XDP_USE_SG)) {
-			/* Cannot specify flags for shared sockets. */
+			/* Cananalt specify flags for shared sockets. */
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -1230,13 +1230,13 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		}
 
 		if (umem_xs->queue_id != qid || umem_xs->dev != dev) {
-			/* Share the umem with another socket on another qid
+			/* Share the umem with aanalther socket on aanalther qid
 			 * and/or device.
 			 */
 			xs->pool = xp_create_and_assign_umem(xs,
 							     umem_xs->umem);
 			if (!xs->pool) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				sockfd_put(sock);
 				goto out_unlock;
 			}
@@ -1252,7 +1252,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		} else {
 			/* Share the buffer pool with the other socket. */
 			if (xs->fq_tmp || xs->cq_tmp) {
-				/* Do not allow setting your own fq or cq. */
+				/* Do analt allow setting your own fq or cq. */
 				err = -EINVAL;
 				sockfd_put(sock);
 				goto out_unlock;
@@ -1286,7 +1286,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		/* This xsk has its own umem. */
 		xs->pool = xp_create_and_assign_umem(xs, xs->umem);
 		if (!xs->pool) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_unlock;
 		}
 
@@ -1298,7 +1298,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		}
 	}
 
-	/* FQ and CQ are now owned by the buffer pool and cleaned up with it. */
+	/* FQ and CQ are analw owned by the buffer pool and cleaned up with it. */
 	xs->fq_tmp = NULL;
 	xs->cq_tmp = NULL;
 
@@ -1347,7 +1347,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 	int err;
 
 	if (level != SOL_XDP)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	switch (optname) {
 	case XDP_RX_RING:
@@ -1433,7 +1433,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 		break;
 	}
 
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static void xsk_enter_rxtx_offsets(struct xdp_ring_offset_v1 *ring)
@@ -1464,7 +1464,7 @@ static int xsk_getsockopt(struct socket *sock, int level, int optname,
 	int len;
 
 	if (level != SOL_XDP)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	if (get_user(len, optlen))
 		return -EFAULT;
@@ -1584,7 +1584,7 @@ static int xsk_getsockopt(struct socket *sock, int level, int optname,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int xsk_mmap(struct file *file, struct socket *sock,
@@ -1625,10 +1625,10 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	return remap_vmalloc_range(vma, q->ring, 0);
 }
 
-static int xsk_notifier(struct notifier_block *this,
+static int xsk_analtifier(struct analtifier_block *this,
 			unsigned long msg, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct sock *sk;
 
@@ -1654,7 +1654,7 @@ static int xsk_notifier(struct notifier_block *this,
 		mutex_unlock(&net->xdp.lock);
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static struct proto xsk_proto = {
@@ -1668,14 +1668,14 @@ static const struct proto_ops xsk_proto_ops = {
 	.owner		= THIS_MODULE,
 	.release	= xsk_release,
 	.bind		= xsk_bind,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.getname	= sock_no_getname,
+	.connect	= sock_anal_connect,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
+	.getname	= sock_anal_getname,
 	.poll		= xsk_poll,
-	.ioctl		= sock_no_ioctl,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.ioctl		= sock_anal_ioctl,
+	.listen		= sock_anal_listen,
+	.shutdown	= sock_anal_shutdown,
 	.setsockopt	= xsk_setsockopt,
 	.getsockopt	= xsk_getsockopt,
 	.sendmsg	= xsk_sendmsg,
@@ -1703,16 +1703,16 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	if (!ns_capable(net->user_ns, CAP_NET_RAW))
 		return -EPERM;
 	if (sock->type != SOCK_RAW)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	if (protocol)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	sock->state = SS_UNCONNECTED;
 
 	sk = sk_alloc(net, PF_XDP, GFP_KERNEL, &xsk_proto, kern);
 	if (!sk)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	sock->ops = &xsk_proto_ops;
 
@@ -1733,7 +1733,7 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	spin_lock_init(&xs->map_list_lock);
 
 	mutex_lock(&net->xdp.lock);
-	sk_add_node_rcu(sk, &net->xdp.list);
+	sk_add_analde_rcu(sk, &net->xdp.list);
 	mutex_unlock(&net->xdp.lock);
 
 	sock_prot_inuse_add(net, &xsk_proto, 1);
@@ -1747,8 +1747,8 @@ static const struct net_proto_family xsk_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-static struct notifier_block xsk_netdev_notifier = {
-	.notifier_call	= xsk_notifier,
+static struct analtifier_block xsk_netdev_analtifier = {
+	.analtifier_call	= xsk_analtifier,
 };
 
 static int __net_init xsk_net_init(struct net *net)
@@ -1772,7 +1772,7 @@ static int __init xsk_init(void)
 {
 	int err, cpu;
 
-	err = proto_register(&xsk_proto, 0 /* no slab */);
+	err = proto_register(&xsk_proto, 0 /* anal slab */);
 	if (err)
 		goto out;
 
@@ -1784,7 +1784,7 @@ static int __init xsk_init(void)
 	if (err)
 		goto out_sk;
 
-	err = register_netdevice_notifier(&xsk_netdev_notifier);
+	err = register_netdevice_analtifier(&xsk_netdev_analtifier);
 	if (err)
 		goto out_pernet;
 

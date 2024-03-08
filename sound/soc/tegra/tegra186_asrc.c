@@ -559,13 +559,13 @@ static struct snd_soc_dai_driver tegra186_asrc_dais[] = {
 };
 
 static const struct snd_soc_dapm_widget tegra186_asrc_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("RX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX3", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX4", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX5", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX6", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX7", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX3", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX4", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX5", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX6", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX7", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_AIF_OUT_E("TX1", NULL, 0,
 			       ASRC_STREAM_REG(TEGRA186_ASRC_ENABLE, 0),
@@ -970,7 +970,7 @@ static int tegra186_asrc_platform_probe(struct platform_device *pdev)
 
 	asrc = devm_kzalloc(dev, sizeof(*asrc), GFP_KERNEL);
 	if (!asrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, asrc);
 

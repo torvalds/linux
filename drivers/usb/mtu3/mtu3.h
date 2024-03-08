@@ -69,17 +69,17 @@ struct mtu3_request;
  * IP TRUNK version
  * from 0x1003 version, USB3 Gen2 is supported, two changes affect driver:
  * 1. MAXPKT and MULTI bits layout of TXCSR1 and RXCSR1 are adjusted,
- *    but not backward compatible
+ *    but analt backward compatible
  * 2. QMU extend buffer length supported
  */
 #define MTU3_TRUNK_VERS_1003	0x1003
 
 /**
- * Normally the device works on HS or SS, to simplify fifo management,
+ * Analrmally the device works on HS or SS, to simplify fifo management,
  * devide fifo into some 512B parts, use bitmap to manage it; And
- * 128 bits size of bitmap is large enough, that means it can manage
+ * 128 bits size of bitmap is large eanalugh, that means it can manage
  * up to 64KB fifo size.
- * NOTE: MTU3_EP_FIFO_UNIT should be power of two
+ * ANALTE: MTU3_EP_FIFO_UNIT should be power of two
  */
 #define MTU3_EP_FIFO_UNIT		(1 << 9)
 #define MTU3_FIFO_BIT_SIZE		128
@@ -121,14 +121,14 @@ enum mtu3_g_ep0_state {
 };
 
 /**
- * MTU3_DR_FORCE_NONE: automatically switch host and periperal mode
+ * MTU3_DR_FORCE_ANALNE: automatically switch host and periperal mode
  *		by IDPIN signal.
  * MTU3_DR_FORCE_HOST: force to enter host mode and override OTG
  *		IDPIN signal.
  * MTU3_DR_FORCE_DEVICE: force to enter peripheral mode.
  */
 enum mtu3_dr_force_mode {
-	MTU3_DR_FORCE_NONE = 0,
+	MTU3_DR_FORCE_ANALNE = 0,
 	MTU3_DR_FORCE_HOST,
 	MTU3_DR_FORCE_DEVICE,
 };
@@ -151,7 +151,7 @@ struct mtu3_fifo_info {
  *
  * @dw0_info:
  *	bit0: Hardware Own (HWO)
- *	bit1: Buffer Descriptor Present (BDP), always 0, BD is not supported
+ *	bit1: Buffer Descriptor Present (BDP), always 0, BD is analt supported
  *	bit2: Bypass (BPS), 1: HW skips this GPD if HWO = 1
  *	bit6: [EL] Zero Length Packet (ZLP), moved from @dw3_info[29]
  *	bit7: Interrupt On Completion (IOC)
@@ -184,7 +184,7 @@ struct qmu_gpd {
 * end: the last GPD element
 * enqueue: the first empty GPD to use
 * dequeue: the first completed GPD serviced by ISR
-* NOTE: the size of GPD ring should be >= 2
+* ANALTE: the size of GPD ring should be >= 2
 */
 struct mtu3_gpd_ring {
 	dma_addr_t dma;
@@ -197,21 +197,21 @@ struct mtu3_gpd_ring {
 /**
 * @vbus: vbus 5V used by host mode
 * @edev: external connector used to detect vbus and iddig changes
-* @id_nb : notifier for iddig(idpin) detection
+* @id_nb : analtifier for iddig(idpin) detection
 * @dr_work : work for drd mode switch, used to avoid sleep in atomic context
 * @desired_role : role desired to switch
-* @default_role : default mode while usb role is USB_ROLE_NONE
+* @default_role : default mode while usb role is USB_ROLE_ANALNE
 * @role_sw : use USB Role Switch to support dual-role switch, can't use
 *		extcon at the same time, and extcon is deprecated.
 * @role_sw_used : true when the USB Role Switch is used.
-* @is_u3_drd: whether port0 supports usb3.0 dual-role device or not
+* @is_u3_drd: whether port0 supports usb3.0 dual-role device or analt
 * @manual_drd_enabled: it's true when supports dual-role device by debugfs
 *		to switch host/device modes depending on user input.
 */
 struct otg_switch_mtk {
 	struct regulator *vbus;
 	struct extcon_dev *edev;
-	struct notifier_block id_nb;
+	struct analtifier_block id_nb;
 	struct work_struct dr_work;
 	enum usb_role desired_role;
 	enum usb_role default_role;

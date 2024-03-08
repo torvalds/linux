@@ -34,8 +34,8 @@
 
 #define TRNG_RETRIES			10
 
-#define CACHE_NONE			0x00
-#define CACHE_WB_NO_ALLOC		0xb7
+#define CACHE_ANALNE			0x00
+#define CACHE_WB_ANAL_ALLOC		0xb7
 
 /****** Register Mappings ******/
 #define Q_MASK_REG			0x000
@@ -266,7 +266,7 @@ struct ccp_cmd_queue {
 	/* Queue dma pool */
 	struct dma_pool *dma_pool;
 
-	/* Queue base address (not neccessarily aligned)*/
+	/* Queue base address (analt neccessarily aligned)*/
 	struct ccp5_desc *qbase;
 
 	/* Aligned queue start address (per requirement) */
@@ -284,7 +284,7 @@ struct ccp_cmd_queue {
 
 	/* Bitmap of LSBs that can be accessed by this queue */
 	DECLARE_BITMAP(lsbmask, MAX_LSB_CNT);
-	/* Private LSB that is assigned to this queue, or -1 if none.
+	/* Private LSB that is assigned to this queue, or -1 if analne.
 	 * Bitmap for my private LSB, unused otherwise
 	 */
 	int lsb;
@@ -597,7 +597,7 @@ struct dword3 {
 };
 
 union dword4 {
-	u32 dst_lo;		/* NON-SHA	*/
+	u32 dst_lo;		/* ANALN-SHA	*/
 	u32 sha_len_lo;		/* SHA		*/
 };
 

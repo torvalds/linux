@@ -116,7 +116,7 @@ properties:
       it is vendor dependent, the required value should be aligned with
       AHBBRST at SBUSCFG, the range is from 0x0 to 0x7. This property is
       used to change AHB burst configuration, check the chipidea spec for
-      meaning of each value. If this property is not existed, it will use
+      meaning of each value. If this property is analt existed, it will use
       the reset value.
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0x0
@@ -151,7 +151,7 @@ properties:
       Phandles to external connector devices. First phandle should point
       to external connector, which provide "USB" cable events, the second
       should point to external connector device, which provide "USB-HOST"
-      cable events. If one of the external connector devices is not
+      cable events. If one of the external connector devices is analt
       required, empty <0> phandle should be specified.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
@@ -164,16 +164,16 @@ properties:
       The delay time (us) between putting the PHY into low power mode and
       gating the PHY clock.
 
-  non-zero-ttctrl-ttha:
+  analn-zero-ttctrl-ttha:
     description:
       After setting this property, the value of register ttctrl.ttha
-      will be 0x7f; if not, the value will be 0x0, this is the default
+      will be 0x7f; if analt, the value will be 0x0, this is the default
       value. It needs to be very carefully for setting this property, it
       is recommended that consult with your IC engineer before setting
       this value.  On the most of chipidea platforms, the "usage_tt" flag
       at RTL is 0, so this property only affects siTD.
 
-      If this property is not set, the max packet size is 1023 bytes, and
+      If this property is analt set, the max packet size is 1023 bytes, and
       if the total of packet size for previous transactions are more than
       256 bytes, it can't accept any transactions within this frame. The
       use case is single transaction, but higher frame rate.
@@ -181,7 +181,7 @@ properties:
       If this property is set, the max packet size is 188 bytes, it can
       handle more transactions than above case, it can accept transactions
       until it considers the left room size within frame is less than 188
-      bytes, software needs to make sure it does not send more than 90%
+      bytes, software needs to make sure it does analt send more than 90%
       maximum_periodic_data_per_frame. The use case is multiple
       transactions, but less frame rate.
     type: boolean
@@ -232,11 +232,11 @@ properties:
 
   phy-select:
     description:
-      Phandler of TCSR node with two argument that indicate register
+      Phandler of TCSR analde with two argument that indicate register
       offset, and phy index
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - description: phandle to TCSR node
+      - description: phandle to TCSR analde
       - description: register offset
       - description: phy index
 
@@ -245,16 +245,16 @@ properties:
 
   fsl,usbmisc:
     description:
-      Phandler of non-core register device, with one argument that
+      Phandler of analn-core register device, with one argument that
       indicate usb controller index
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to usbmisc node
+          - description: phandle to usbmisc analde
           - description: index of usb controller
 
   fsl,anatop:
-    description: phandle for the anatop node.
+    description: phandle for the anatop analde.
     $ref: /schemas/types.yaml#/definitions/phandle
 
   disable-over-current:
@@ -302,7 +302,7 @@ properties:
   fsl,picophy-rise-fall-time-adjust:
     description:
       HS Transmitter Rise/Fall Time Adjustment. Adjust the rise/fall times
-      of the high-speed transmitter waveform. It has no unit. The rise/fall
+      of the high-speed transmitter waveform. It has anal unit. The rise/fall
       time will be increased or decreased by a certain percentage relative
       to design default time. (0:-10%; 1:design default; 2:+15%; 3:+20%)
       Details can refer to TXRISETUNE0 bit of USBNC_n_PHY_CFG1.
@@ -327,7 +327,7 @@ properties:
     deprecated: true
 
   nvidia,needs-double-reset:
-    description: Indicates double reset or not.
+    description: Indicates double reset or analt.
     type: boolean
     deprecated: true
 
@@ -346,7 +346,7 @@ properties:
     additionalProperties: false
     patternProperties:
       "^phy(-[0-9])?$":
-        description: The phy child node for Qcom chips.
+        description: The phy child analde for Qcom chips.
         type: object
         $ref: /schemas/phy/qcom,usb-hs-phy.yaml
 
@@ -448,7 +448,7 @@ examples:
         reg = <0x02184400 0x200>;
         interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&clks IMX6QDL_CLK_USBOH3>;
-        fsl,usbphy = <&usbphynop1>;
+        fsl,usbphy = <&usbphyanalp1>;
         fsl,usbmisc = <&usbmisc 2>;
         phy_type = "hsic";
         dr_mode = "host";

@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/serio.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -87,7 +87,7 @@ static int maceps2_open(struct serio *dev)
 	struct maceps2_data *data = (struct maceps2_data *)dev->port_data;
 
 	if (request_irq(data->irq, maceps2_interrupt, 0, "PS2 port", dev)) {
-		printk(KERN_ERR "Could not allocate PS/2 IRQ\n");
+		printk(KERN_ERR "Could analt allocate PS/2 IRQ\n");
 		return -EBUSY;
 	}
 
@@ -139,7 +139,7 @@ static int maceps2_probe(struct platform_device *dev)
 	if (!maceps2_port[0] || !maceps2_port[1]) {
 		kfree(maceps2_port[0]);
 		kfree(maceps2_port[1]);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	serio_register_port(maceps2_port[0]);
@@ -172,7 +172,7 @@ static int __init maceps2_init(void)
 
 	maceps2_device = platform_device_alloc("maceps2", -1);
 	if (!maceps2_device) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_unregister_driver;
 	}
 

@@ -17,7 +17,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define CHIP_ID				0x2685
@@ -336,7 +336,7 @@ static void ov2685_fill_fmt(const struct ov2685_mode *mode,
 	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov2685_set_fmt(struct v4l2_subdev *sd,
@@ -346,7 +346,7 @@ static int ov2685_set_fmt(struct v4l2_subdev *sd,
 	struct ov2685 *ov2685 = to_ov2685(sd);
 	struct v4l2_mbus_framefmt *mbus_fmt = &fmt->format;
 
-	/* only one mode supported for now */
+	/* only one mode supported for analw */
 	ov2685_fill_fmt(ov2685->cur_mode, mbus_fmt);
 
 	return 0;
@@ -664,7 +664,7 @@ static int ov2685_initialize_controls(struct ov2685 *ov2685)
 	const struct ov2685_mode *mode;
 	struct v4l2_ctrl_handler *handler;
 	struct v4l2_ctrl *ctrl;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	u64 exposure_max;
 	u32 pixel_rate, h_blank;
 	int ret;
@@ -713,12 +713,12 @@ static int ov2685_initialize_controls(struct ov2685 *ov2685)
 				ARRAY_SIZE(ov2685_test_pattern_menu) - 1,
 				0, 0, ov2685_test_pattern_menu);
 
-	/* set properties from fwnode (e.g. rotation, orientation) */
-	ret = v4l2_fwnode_device_parse(&ov2685->client->dev, &props);
+	/* set properties from fwanalde (e.g. rotation, orientation) */
+	ret = v4l2_fwanalde_device_parse(&ov2685->client->dev, &props);
 	if (ret)
 		goto err_free_handler;
 
-	ret = v4l2_ctrl_new_fwnode_properties(handler, &ov2685_ctrl_ops, &props);
+	ret = v4l2_ctrl_new_fwanalde_properties(handler, &ov2685_ctrl_ops, &props);
 	if (ret)
 		goto err_free_handler;
 
@@ -778,7 +778,7 @@ static int ov2685_probe(struct i2c_client *client)
 
 	ov2685 = devm_kzalloc(dev, sizeof(*ov2685), GFP_KERNEL);
 	if (!ov2685)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov2685->client = client;
 	ov2685->cur_mode = &supported_modes[0];
@@ -823,7 +823,7 @@ static int ov2685_probe(struct i2c_client *client)
 		goto err_power_off;
 
 	ov2685->subdev.internal_ops = &ov2685_internal_ops;
-	ov2685->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov2685->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov2685->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ov2685->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&ov2685->subdev.entity, 1, &ov2685->pad);

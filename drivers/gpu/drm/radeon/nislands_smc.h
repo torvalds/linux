@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -164,7 +164,7 @@ struct NISLANDS_SMC_VOLTAGEMASKTABLE
 
 typedef struct NISLANDS_SMC_VOLTAGEMASKTABLE NISLANDS_SMC_VOLTAGEMASKTABLE;
 
-#define NISLANDS_MAX_NO_VREG_STEPS 32
+#define NISLANDS_MAX_ANAL_VREG_STEPS 32
 
 struct NISLANDS_SMC_STATETABLE
 {
@@ -172,8 +172,8 @@ struct NISLANDS_SMC_STATETABLE
 	uint8_t                             systemFlags;
 	uint8_t                             maxVDDCIndexInPPTable;
 	uint8_t                             extraFlags;
-	uint8_t                             highSMIO[NISLANDS_MAX_NO_VREG_STEPS];
-	uint32_t                            lowSMIO[NISLANDS_MAX_NO_VREG_STEPS];
+	uint8_t                             highSMIO[NISLANDS_MAX_ANAL_VREG_STEPS];
+	uint32_t                            lowSMIO[NISLANDS_MAX_ANAL_VREG_STEPS];
 	NISLANDS_SMC_VOLTAGEMASKTABLE       voltageMaskTable;
 	PP_NIslands_DPM2Parameters          dpm2Params;
 	struct NISLANDS_SMC_SWSTATE_SINGLE  initialState;

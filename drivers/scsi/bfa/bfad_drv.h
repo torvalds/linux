@@ -197,7 +197,7 @@ struct bfad_s {
 	struct bfad_port_s     pport;	/* physical port of the BFAD */
 	struct bfa_meminfo_s meminfo;
 	struct bfa_iocfc_cfg_s   ioc_cfg;
-	u32	inst_no;	/* BFAD instance number */
+	u32	inst_anal;	/* BFAD instance number */
 	u32	bfad_flags;
 	spinlock_t      bfad_lock;
 	struct task_struct *bfad_tsk;

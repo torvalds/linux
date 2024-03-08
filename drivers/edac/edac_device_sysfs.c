@@ -6,7 +6,7 @@
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *
- * Written Doug Thompson <norsk5@xmission.com>
+ * Written Doug Thompson <analrsk5@xmission.com>
  *
  */
 
@@ -39,7 +39,7 @@ static ssize_t edac_device_ctl_log_ue_store(struct edac_device_ctl_info
 					*ctl_info, const char *data,
 					size_t count)
 {
-	/* if parameter is zero, turn off flag, if non-zero turn on flag */
+	/* if parameter is zero, turn off flag, if analn-zero turn on flag */
 	ctl_info->log_ue = (simple_strtoul(data, NULL, 0) != 0);
 
 	return count;
@@ -56,7 +56,7 @@ static ssize_t edac_device_ctl_log_ce_store(struct edac_device_ctl_info
 					*ctl_info, const char *data,
 					size_t count)
 {
-	/* if parameter is zero, turn off flag, if non-zero turn on flag */
+	/* if parameter is zero, turn off flag, if analn-zero turn on flag */
 	ctl_info->log_ce = (simple_strtoul(data, NULL, 0) != 0);
 
 	return count;
@@ -73,7 +73,7 @@ static ssize_t edac_device_ctl_panic_on_ue_store(struct edac_device_ctl_info
 						 *ctl_info, const char *data,
 						 size_t count)
 {
-	/* if parameter is zero, turn off flag, if non-zero turn on flag */
+	/* if parameter is zero, turn off flag, if analn-zero turn on flag */
 	ctl_info->panic_on_ue = (simple_strtoul(data, NULL, 0) != 0);
 
 	return count;
@@ -92,7 +92,7 @@ static ssize_t edac_device_ctl_poll_msec_store(struct edac_device_ctl_info
 {
 	unsigned long value;
 
-	/* get the value and enforce that it is non-zero, must be at least
+	/* get the value and enforce that it is analn-zero, must be at least
 	 * one millisecond for the delay period, between scans
 	 * Then cancel last outstanding delay for the work request
 	 * and set a new one.
@@ -193,7 +193,7 @@ ATTRIBUTE_GROUPS(device_ctrl);
  *		When the main kobj reaches zero (0) then THIS function
  *		is called which then decrements the EDAC 'core' module.
  *		When the module reference count reaches zero then the
- *		module no longer has dependency on keeping the release
+ *		module anal longer has dependency on keeping the release
  *		function code in memory and module can be unloaded.
  *
  *		This will support several control objects as well, each
@@ -230,7 +230,7 @@ int edac_device_register_sysfs_main_kobj(struct edac_device_ctl_info *edac_dev)
 {
 	struct device *dev_root;
 	const struct bus_type *edac_subsys;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	edac_dbg(1, "\n");
 
@@ -439,7 +439,7 @@ static void edac_device_ctrl_block_release(struct kobject *kobj)
 	block = to_block(kobj);
 
 	/* map from 'block kobj' to 'block->instance->controller->main_kobj'
-	 * now 'release' the block kobject
+	 * analw 'release' the block kobject
 	 */
 	kobject_put(&block->instance->ctl->kobj);
 }
@@ -529,7 +529,7 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 	 */
 	main_kobj = kobject_get(&edac_dev->kobj);
 	if (!main_kobj) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out;
 	}
 
@@ -540,7 +540,7 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 	if (err) {
 		edac_dbg(1, "Failed to register instance '%s'\n", block->name);
 		kobject_put(main_kobj);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out;
 	}
 
@@ -628,7 +628,7 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 	 */
 	main_kobj = kobject_get(&edac_dev->kobj);
 	if (!main_kobj) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out;
 	}
 
@@ -642,7 +642,7 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 		goto err_out;
 	}
 
-	edac_dbg(4, "now register '%d' blocks for instance %d\n",
+	edac_dbg(4, "analw register '%d' blocks for instance %d\n",
 		 instance->nr_blocks, idx);
 
 	/* register all blocks of this instance */

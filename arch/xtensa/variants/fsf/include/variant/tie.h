@@ -14,7 +14,7 @@
 #define _XTENSA_CORE_TIE_H
 
 #define XCHAL_CP_NUM			0	/* number of coprocessors */
-#define XCHAL_CP_MAX			0	/* max CP ID + 1 (0 if none) */
+#define XCHAL_CP_MAX			0	/* max CP ID + 1 (0 if analne) */
 #define XCHAL_CP_MASK			0x00	/* bitmask of all CPs by ID */
 #define XCHAL_CP_PORT_MASK		0x00	/* bitmask of only port CPs */
 
@@ -38,7 +38,7 @@
 #define XCHAL_CP7_SA_SIZE		0
 #define XCHAL_CP7_SA_ALIGN		1
 
-/*  Save area for non-coprocessor optional and custom (TIE) state:  */
+/*  Save area for analn-coprocessor optional and custom (TIE) state:  */
 #define XCHAL_NCP_SA_SIZE		0
 #define XCHAL_NCP_SA_ALIGN		1
 

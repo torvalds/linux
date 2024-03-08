@@ -26,7 +26,7 @@
 #define XGENE_RNG_RETRY_INTERVAL	10
 
 /* RNG  Registers */
-#define RNG_INOUT_0			0x00
+#define RNG_IANALUT_0			0x00
 #define RNG_INTR_STS_ACK		0x10
 #define RNG_CONTROL			0x14
 #define RNG_CONFIG			0x18
@@ -38,17 +38,17 @@
 #define RNG_OPTIONS			0x78
 #define RNG_EIP_REV			0x7c
 
-#define MONOBIT_FAIL_MASK		BIT(7)
+#define MOANALBIT_FAIL_MASK		BIT(7)
 #define POKER_FAIL_MASK			BIT(6)
 #define LONG_RUN_FAIL_MASK		BIT(5)
 #define RUN_FAIL_MASK			BIT(4)
-#define NOISE_FAIL_MASK			BIT(3)
+#define ANALISE_FAIL_MASK			BIT(3)
 #define STUCK_OUT_MASK			BIT(2)
 #define SHUTDOWN_OFLO_MASK		BIT(1)
 #define READY_MASK			BIT(0)
 
 #define MAJOR_HW_REV_RD(src)		(((src) & 0x0f000000) >> 24)
-#define MINOR_HW_REV_RD(src)		(((src) & 0x00f00000) >> 20)
+#define MIANALR_HW_REV_RD(src)		(((src) & 0x00f00000) >> 20)
 #define HW_PATCH_LEVEL_RD(src)		(((src) & 0x000f0000) >> 16)
 #define MAX_REFILL_CYCLES_SET(dst, src) \
 			((dst & ~0xffff0000) | (((u32)src << 16) & 0xffff0000))
@@ -60,7 +60,7 @@
 			((dst & ~BIT(10)) | (((u32)src << 10) & BIT(10)))
 #define REGSPEC_TEST_MODE_SET(dst, src) \
 			((dst & ~BIT(8)) | (((u32)src << 8) & BIT(8)))
-#define MONOBIT_FAIL_MASK_SET(dst, src) \
+#define MOANALBIT_FAIL_MASK_SET(dst, src) \
 			((dst & ~BIT(7)) | (((u32)src << 7) & BIT(7)))
 #define POKER_FAIL_MASK_SET(dst, src) \
 			((dst & ~BIT(6)) | (((u32)src << 6) & BIT(6)))
@@ -68,7 +68,7 @@
 			((dst & ~BIT(5)) | (((u32)src << 5) & BIT(5)))
 #define RUN_FAIL_MASK_SET(dst, src) \
 			((dst & ~BIT(4)) | (((u32)src << 4) & BIT(4)))
-#define NOISE_FAIL_MASK_SET(dst, src) \
+#define ANALISE_FAIL_MASK_SET(dst, src) \
 			((dst & ~BIT(3)) | (((u32)src << 3) & BIT(3)))
 #define STUCK_OUT_MASK_SET(dst, src) \
 			((dst & ~BIT(2)) | (((u32)src << 2) & BIT(2)))
@@ -119,13 +119,13 @@ static void xgene_rng_chk_overflow(struct xgene_rng_dev *ctx)
 	u32 val;
 
 	val = readl(ctx->csr_base + RNG_INTR_STS_ACK);
-	if (val & MONOBIT_FAIL_MASK)
+	if (val & MOANALBIT_FAIL_MASK)
 		/*
 		 * LFSR detected an out-of-bounds number of 1s after
 		 * checking 20,000 bits (test T1 as specified in the
 		 * AIS-31 standard)
 		 */
-		dev_err(ctx->dev, "test monobit failure error 0x%08X\n", val);
+		dev_err(ctx->dev, "test moanalbit failure error 0x%08X\n", val);
 	if (val & POKER_FAIL_MASK)
 		/*
 		 * LFSR detected an out-of-bounds value in at least one
@@ -147,9 +147,9 @@ static void xgene_rng_chk_overflow(struct xgene_rng_dev *ctx)
 		 * (test T3 as specified in the AIS-31 standard)
 		 */
 		dev_err(ctx->dev, "test run failure error 0x%08X\n", val);
-	if (val & NOISE_FAIL_MASK)
+	if (val & ANALISE_FAIL_MASK)
 		/* LFSR detected a sequence of 48 identical bits */
-		dev_err(ctx->dev, "noise failure error 0x%08X\n", val);
+		dev_err(ctx->dev, "analise failure error 0x%08X\n", val);
 	if (val & STUCK_OUT_MASK)
 		/*
 		 * Detected output data registers generated same value twice
@@ -228,7 +228,7 @@ static int xgene_rng_data_read(struct hwrng *rng, u32 *data)
 	int i;
 
 	for (i = 0; i < ctx->datum_size; i++)
-		data[i] = readl(ctx->csr_base + RNG_INOUT_0 + i * 4);
+		data[i] = readl(ctx->csr_base + RNG_IANALUT_0 + i * 4);
 
 	/* Clear ready bit to start next transaction */
 	writel(READY_MASK, ctx->csr_base + RNG_INTR_STS_ACK);
@@ -251,21 +251,21 @@ static void xgene_rng_init_internal(struct xgene_rng_dev *ctx)
 
 	xgene_rng_init_fro(ctx, 0);
 
-	writel(MONOBIT_FAIL_MASK |
+	writel(MOANALBIT_FAIL_MASK |
 		POKER_FAIL_MASK	|
 		LONG_RUN_FAIL_MASK |
 		RUN_FAIL_MASK |
-		NOISE_FAIL_MASK |
+		ANALISE_FAIL_MASK |
 		STUCK_OUT_MASK |
 		SHUTDOWN_OFLO_MASK |
 		READY_MASK, ctx->csr_base + RNG_INTR_STS_ACK);
 
 	val = ENABLE_RNG_SET(0, 1);
-	val = MONOBIT_FAIL_MASK_SET(val, 1);
+	val = MOANALBIT_FAIL_MASK_SET(val, 1);
 	val = POKER_FAIL_MASK_SET(val, 1);
 	val = LONG_RUN_FAIL_MASK_SET(val, 1);
 	val = RUN_FAIL_MASK_SET(val, 1);
-	val = NOISE_FAIL_MASK_SET(val, 1);
+	val = ANALISE_FAIL_MASK_SET(val, 1);
 	val = STUCK_OUT_MASK_SET(val, 1);
 	val = SHUTDOWN_OFLO_MASK_SET(val, 1);
 	writel(val, ctx->csr_base + RNG_CONTROL);
@@ -282,7 +282,7 @@ static int xgene_rng_init(struct hwrng *rng)
 
 	dev_dbg(ctx->dev, "Rev %d.%d.%d\n",
 		MAJOR_HW_REV_RD(ctx->revision),
-		MINOR_HW_REV_RD(ctx->revision),
+		MIANALR_HW_REV_RD(ctx->revision),
 		HW_PATCH_LEVEL_RD(ctx->revision));
 
 	dev_dbg(ctx->dev, "Options 0x%08X",
@@ -318,7 +318,7 @@ static int xgene_rng_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = &pdev->dev;
 
@@ -337,7 +337,7 @@ static int xgene_rng_probe(struct platform_device *pdev)
 	rc = devm_request_irq(&pdev->dev, ctx->irq, xgene_rng_irq_handler, 0,
 				dev_name(&pdev->dev), ctx);
 	if (rc)
-		return dev_err_probe(&pdev->dev, rc, "Could not request RNG alarm IRQ\n");
+		return dev_err_probe(&pdev->dev, rc, "Could analt request RNG alarm IRQ\n");
 
 	/* Enable IP clock */
 	clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);

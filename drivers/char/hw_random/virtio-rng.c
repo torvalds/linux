@@ -83,7 +83,7 @@ static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 	size_t read;
 
 	if (vi->hwrng_removed)
-		return -ENODEV;
+		return -EANALDEV;
 
 	read = 0;
 
@@ -133,7 +133,7 @@ static int probe_common(struct virtio_device *vdev)
 
 	vi = kzalloc(sizeof(struct virtrng_info), GFP_KERNEL);
 	if (!vi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vi->index = index = ida_alloc(&rng_index_ida, GFP_KERNEL);
 	if (index < 0) {
@@ -224,7 +224,7 @@ static int virtrng_restore(struct virtio_device *vdev)
 
 		/*
 		 * Set hwrng_removed to ensure that virtio_read()
-		 * does not block waiting for data before the
+		 * does analt block waiting for data before the
 		 * registration is complete.
 		 */
 		vi->hwrng_removed = true;

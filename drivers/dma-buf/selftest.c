@@ -142,7 +142,7 @@ static int run_selftests(struct selftest *st, unsigned long count)
 			break;
 	}
 
-	if (WARN(err > 0 || err == -ENOTTY,
+	if (WARN(err > 0 || err == -EANALTTY,
 		 "%s returned %d, conflicting with selftest's magic values!\n",
 		 st->name, err))
 		err = -1;

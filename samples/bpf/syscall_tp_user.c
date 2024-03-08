@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/perf_event.h>
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 
@@ -28,7 +28,7 @@ static void verify_map(int map_id)
 	__u32 val;
 
 	if (bpf_map_lookup_elem(map_id, &key, &val) != 0) {
-		fprintf(stderr, "map_lookup failed: %s\n", strerror(errno));
+		fprintf(stderr, "map_lookup failed: %s\n", strerror(erranal));
 		return;
 	}
 	if (val == 0) {
@@ -40,7 +40,7 @@ static void verify_map(int map_id)
 
 	val = 0;
 	if (bpf_map_update_elem(map_id, &key, &val, BPF_ANY) != 0) {
-		fprintf(stderr, "map_update failed: %s\n", strerror(errno));
+		fprintf(stderr, "map_update failed: %s\n", strerror(erranal));
 		return;
 	}
 }
@@ -102,13 +102,13 @@ static int test(char *filename, int nr_tests)
 
 	/* current load_bpf_file has perf_event_open default pid = -1
 	 * and cpu = 0, which permits attached bpf execution on
-	 * all cpus for all pid's. bpf program execution ignores
+	 * all cpus for all pid's. bpf program execution iganalres
 	 * cpu affinity.
 	 */
 	/* trigger some "open" operations */
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "open failed: %s\n", strerror(errno));
+		fprintf(stderr, "open failed: %s\n", strerror(erranal));
 		return 1;
 	}
 	close(fd);

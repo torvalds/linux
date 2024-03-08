@@ -20,7 +20,7 @@ static u32 ACPI_SYSTEM_XFACE acpi_ev_sci_xrupt_handler(void *context);
  *
  * FUNCTION:    acpi_ev_sci_dispatch
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status code indicates whether interrupt was handled.
  *
@@ -32,7 +32,7 @@ u32 acpi_ev_sci_dispatch(void)
 {
 	struct acpi_sci_handler_info *sci_handler;
 	acpi_cpu_flags flags;
-	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
+	u32 int_status = ACPI_INTERRUPT_ANALT_HANDLED;
 
 	ACPI_FUNCTION_NAME(ev_sci_dispatch);
 
@@ -76,7 +76,7 @@ u32 acpi_ev_sci_dispatch(void)
 static u32 ACPI_SYSTEM_XFACE acpi_ev_sci_xrupt_handler(void *context)
 {
 	struct acpi_gpe_xrupt_info *gpe_xrupt_list = context;
-	u32 interrupt_handled = ACPI_INTERRUPT_NOT_HANDLED;
+	u32 interrupt_handled = ACPI_INTERRUPT_ANALT_HANDLED;
 
 	ACPI_FUNCTION_TRACE(ev_sci_xrupt_handler);
 
@@ -120,7 +120,7 @@ static u32 ACPI_SYSTEM_XFACE acpi_ev_sci_xrupt_handler(void *context)
 u32 ACPI_SYSTEM_XFACE acpi_ev_gpe_xrupt_handler(void *context)
 {
 	struct acpi_gpe_xrupt_info *gpe_xrupt_list = context;
-	u32 interrupt_handled = ACPI_INTERRUPT_NOT_HANDLED;
+	u32 interrupt_handled = ACPI_INTERRUPT_ANALT_HANDLED;
 
 	ACPI_FUNCTION_TRACE(ev_gpe_xrupt_handler);
 
@@ -139,7 +139,7 @@ u32 ACPI_SYSTEM_XFACE acpi_ev_gpe_xrupt_handler(void *context)
  *
  * FUNCTION:    acpi_ev_install_sci_handler
  *
- * PARAMETERS:  none
+ * PARAMETERS:  analne
  *
  * RETURN:      Status
  *
@@ -164,17 +164,17 @@ u32 acpi_ev_install_sci_handler(void)
  *
  * FUNCTION:    acpi_ev_remove_all_sci_handlers
  *
- * PARAMETERS:  none
+ * PARAMETERS:  analne
  *
- * RETURN:      AE_OK if handler uninstalled, AE_ERROR if handler was not
+ * RETURN:      AE_OK if handler uninstalled, AE_ERROR if handler was analt
  *              installed to begin with
  *
- * DESCRIPTION: Remove the SCI interrupt handler. No further SCIs will be
+ * DESCRIPTION: Remove the SCI interrupt handler. Anal further SCIs will be
  *              taken. Remove all host-installed SCI handlers.
  *
- * Note:  It doesn't seem important to disable all events or set the event
+ * Analte:  It doesn't seem important to disable all events or set the event
  *        enable registers to their original values. The OS should disable
- *        the SCI interrupt level when the handler is removed, so no more
+ *        the SCI interrupt level when the handler is removed, so anal more
  *        events will come in.
  *
  ******************************************************************************/

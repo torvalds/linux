@@ -11,7 +11,7 @@
 
 /* List of workload types */
 static const char * const workload_types[] = {
-	"none",
+	"analne",
 	"idle",
 	"semi_active",
 	"bursty",

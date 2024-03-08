@@ -87,7 +87,7 @@ exit:
  * @hw: pointer to our HW structure
  * @hmc_info: pointer to the HMC configuration information structure
  * @pd_index: which page descriptor index to manipulate
- * @rsrc_pg: if not NULL, use preallocated page instead of allocating new one.
+ * @rsrc_pg: if analt NULL, use preallocated page instead of allocating new one.
  *
  * This function:
  *	1. Initializes the pd entry
@@ -269,7 +269,7 @@ int i40e_remove_sd_bp_new(struct i40e_hw *hw,
 	struct i40e_hmc_sd_entry *sd_entry;
 
 	if (!is_pf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* get the entry and decrease its ref counter */
 	sd_entry = &hmc_info->sd_table.sd_entry[idx];
@@ -318,7 +318,7 @@ int i40e_remove_pd_page_new(struct i40e_hw *hw,
 	struct i40e_hmc_sd_entry *sd_entry;
 
 	if (!is_pf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sd_entry = &hmc_info->sd_table.sd_entry[idx];
 	I40E_CLEAR_PF_SD_ENTRY(hw, idx, I40E_SD_TYPE_PAGED);

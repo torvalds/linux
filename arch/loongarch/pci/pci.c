@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -36,9 +36,9 @@ int raw_pci_write(unsigned int domain, unsigned int bus, unsigned int devfn,
 	return -EINVAL;
 }
 
-phys_addr_t mcfg_addr_init(int node)
+phys_addr_t mcfg_addr_init(int analde)
 {
-	return (((u64)node << 44) | MCFG_EXT_PCICFG_BASE);
+	return (((u64)analde << 44) | MCFG_EXT_PCICFG_BASE);
 }
 
 static int __init pcibios_init(void)
@@ -68,7 +68,7 @@ int pcibios_device_add(struct pci_dev *dev)
 	struct irq_domain *dom;
 
 	id = pci_domain_nr(dev->bus);
-	dom = irq_find_matching_fwnode(get_pch_msi_handle(id), DOMAIN_BUS_PCI_MSI);
+	dom = irq_find_matching_fwanalde(get_pch_msi_handle(id), DOMAIN_BUS_PCI_MSI);
 	dev_set_msi_domain(&dev->dev, dom);
 
 	return 0;

@@ -17,7 +17,7 @@
  * ixgbe_fcoe_clear_ddp - clear the given ddp context
  * @ddp: ptr to the ixgbe_fcoe_ddp
  *
- * Returns : none
+ * Returns : analne
  *
  */
 static inline void ixgbe_fcoe_clear_ddp(struct ixgbe_fcoe_ddp *ddp)
@@ -64,12 +64,12 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 
 	hw = &adapter->hw;
 	len = ddp->len;
-	/* if no error then skip ddp context invalidation */
+	/* if anal error then skip ddp context invalidation */
 	if (!ddp->err)
 		goto skip_ddpinv;
 
 	if (hw->mac.type == ixgbe_mac_X550) {
-		/* X550 does not require DDP FCoE lock */
+		/* X550 does analt require DDP FCoE lock */
 
 		IXGBE_WRITE_REG(hw, IXGBE_FCDFC(0, xid), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_FCDFC(3, xid),
@@ -128,7 +128,7 @@ skip_ddpinv:
  * @sgc: the number of scatter-gather items
  * @target_mode: 1 to setup target mode, 0 to setup initiator mode
  *
- * Returns : 1 for success and 0 for no ddp
+ * Returns : 1 for success and 0 for anal ddp
  */
 static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 				struct scatterlist *sgl, unsigned int sgc,
@@ -159,7 +159,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 		return 0;
 	}
 
-	/* no DDP if we are already down or resetting */
+	/* anal DDP if we are already down or resetting */
 	if (test_bit(__IXGBE_DOWN, &adapter->state) ||
 	    test_bit(__IXGBE_RESETTING, &adapter->state))
 		return 0;
@@ -167,7 +167,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	fcoe = &adapter->fcoe;
 	ddp = &fcoe->ddp[xid];
 	if (ddp->sgl) {
-		e_err(drv, "xid 0x%x w/ non-null sgl=%p nents=%d\n",
+		e_err(drv, "xid 0x%x w/ analn-null sgl=%p nents=%d\n",
 		      xid, ddp->sgl, ddp->sgc);
 		return 0;
 	}
@@ -175,28 +175,28 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 
 
 	if (!fcoe->ddp_pool) {
-		e_warn(drv, "No ddp_pool resources allocated\n");
+		e_warn(drv, "Anal ddp_pool resources allocated\n");
 		return 0;
 	}
 
 	ddp_pool = per_cpu_ptr(fcoe->ddp_pool, get_cpu());
 	if (!ddp_pool->pool) {
-		e_warn(drv, "xid=0x%x no ddp pool for fcoe\n", xid);
-		goto out_noddp;
+		e_warn(drv, "xid=0x%x anal ddp pool for fcoe\n", xid);
+		goto out_analddp;
 	}
 
 	/* setup dma from scsi command sgl */
 	dmacount = dma_map_sg(&adapter->pdev->dev, sgl, sgc, DMA_FROM_DEVICE);
 	if (dmacount == 0) {
 		e_err(drv, "xid 0x%x DMA map error\n", xid);
-		goto out_noddp;
+		goto out_analddp;
 	}
 
 	/* alloc the udl from per cpu ddp pool */
 	ddp->udl = dma_pool_alloc(ddp_pool->pool, GFP_ATOMIC, &ddp->udp);
 	if (!ddp->udl) {
 		e_err(drv, "failed allocated ddp context\n");
-		goto out_noddp_unmap;
+		goto out_analddp_unmap;
 	}
 	ddp->pool = ddp_pool->pool;
 	ddp->sgl = sgl;
@@ -209,8 +209,8 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 		while (len) {
 			/* max number of buffers allowed in one DDP context */
 			if (j >= IXGBE_BUFFCNT_MAX) {
-				ddp_pool->noddp++;
-				goto out_noddp_free;
+				ddp_pool->analddp++;
+				goto out_analddp_free;
 			}
 
 			/* get the offset of length of current buffer */
@@ -221,7 +221,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 			 * must be aligned on bufflen
 			 */
 			if ((j != 0) && (thisoff))
-				goto out_noddp_free;
+				goto out_analddp_free;
 			/*
 			 * all but the last buffer
 			 * ((i == (dmacount - 1)) && (thislen == len))
@@ -229,10 +229,10 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 			 */
 			if (((i != (dmacount - 1)) || (thislen != len))
 			    && ((thislen + thisoff) != bufflen))
-				goto out_noddp_free;
+				goto out_analddp_free;
 
 			ddp->udl[j] = (u64)(addr - thisoff);
-			/* only the first buffer may have none-zero offset */
+			/* only the first buffer may have analne-zero offset */
 			if (j == 0)
 				firstoff = thisoff;
 			len -= thislen;
@@ -240,17 +240,17 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 			j++;
 		}
 	}
-	/* only the last buffer may have non-full bufflen */
+	/* only the last buffer may have analn-full bufflen */
 	lastsize = thisoff + thislen;
 
 	/*
-	 * lastsize can not be buffer len.
-	 * If it is then adding another buffer with lastsize = 1.
+	 * lastsize can analt be buffer len.
+	 * If it is then adding aanalther buffer with lastsize = 1.
 	 */
 	if (lastsize == bufflen) {
 		if (j >= IXGBE_BUFFCNT_MAX) {
-			ddp_pool->noddp_ext_buff++;
-			goto out_noddp_free;
+			ddp_pool->analddp_ext_buff++;
+			goto out_analddp_free;
 		}
 
 		ddp->udl[j] = (u64)(fcoe->extra_ddp_buffer_dma);
@@ -287,7 +287,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	}
 
 	if (hw->mac.type == ixgbe_mac_X550) {
-		/* X550 does not require DDP lock */
+		/* X550 does analt require DDP lock */
 
 		IXGBE_WRITE_REG(hw, IXGBE_FCDDC(0, xid),
 				ddp->udp & DMA_BIT_MASK(32));
@@ -316,13 +316,13 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 
 	return 1;
 
-out_noddp_free:
+out_analddp_free:
 	dma_pool_free(ddp->pool, ddp->udl, ddp->udp);
 	ixgbe_fcoe_clear_ddp(ddp);
 
-out_noddp_unmap:
+out_analddp_unmap:
 	dma_unmap_sg(&adapter->pdev->dev, sgl, sgc, DMA_FROM_DEVICE);
-out_noddp:
+out_analddp:
 	put_cpu();
 	return 0;
 }
@@ -339,7 +339,7 @@ out_noddp:
  * to set up ddp for the corresponding xid of the given sglist for
  * the corresponding I/O.
  *
- * Returns : 1 for success and 0 for no ddp
+ * Returns : 1 for success and 0 for anal ddp
  */
 int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 		       struct scatterlist *sgl, unsigned int sgc)
@@ -360,7 +360,7 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
  * the corresponding I/O. The DDP in target mode is a write I/O request
  * from the initiator.
  *
- * Returns : 1 for success and 0 for no ddp
+ * Returns : 1 for success and 0 for anal ddp
  */
 int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
 			    struct scatterlist *sgl, unsigned int sgc)
@@ -376,8 +376,8 @@ int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
  *
  * This checks ddp status.
  *
- * Returns : < 0 indicates an error or not a FCiE ddp, 0 indicates
- * not passing the skb to ULD, > 0 indicates is the length of data
+ * Returns : < 0 indicates an error or analt a FCiE ddp, 0 indicates
+ * analt passing the skb to ULD, > 0 indicates is the length of data
  * being ddped.
  */
 int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
@@ -396,7 +396,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	u16 xid;
 
 	if (fcerr == cpu_to_le32(IXGBE_FCERR_BADCRC))
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 	else
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -446,14 +446,14 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		ddp->sgc = 0;
 		fallthrough;
 	/* if DDP length is present pass it through to ULD */
-	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_ANALDDP):
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 		if (ddp->len)
 			rc = ddp->len;
 		break;
-	/* no match will return as an error */
-	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NOMTCH):
+	/* anal match will return as an error */
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_ANALMTCH):
 	default:
 		break;
 	}
@@ -462,7 +462,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	 * For DDP in target mode, data is already DDPed but the header
 	 * indication of the last data frame ould allow is to tell if we
 	 * got all the data and the ULP can send FCP_RSP back, as this is
-	 * not a full fcoe frame, we fill the trailer here so it won't be
+	 * analt a full fcoe frame, we fill the trailer here so it won't be
 	 * dropped by the ULP stack.
 	 */
 	if ((fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA) &&
@@ -524,7 +524,7 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 		fcoe_sof_eof = IXGBE_ADVTXD_FCOEF_SOF;
 		break;
 	default:
-		dev_warn(tx_ring->dev, "unknown sof = 0x%x\n", sof);
+		dev_warn(tx_ring->dev, "unkanalwn sof = 0x%x\n", sof);
 		return -EINVAL;
 	}
 
@@ -550,7 +550,7 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 		fcoe_sof_eof |= IXGBE_ADVTXD_FCOEF_EOF_A;
 		break;
 	default:
-		dev_warn(tx_ring->dev, "unknown eof = 0x%x\n", eof);
+		dev_warn(tx_ring->dev, "unkanalwn eof = 0x%x\n", eof);
 		return -EINVAL;
 	}
 
@@ -578,7 +578,7 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 	/* set flag indicating FCOE to ixgbe_tx_map call */
 	first->tx_flags |= IXGBE_TX_FLAGS_FCOE | IXGBE_TX_FLAGS_CC;
 
-	/* mss_l4len_id: use 0 for FSO as TSO, no need for L4LEN */
+	/* mss_l4len_id: use 0 for FSO as TSO, anal need for L4LEN */
 	mss_l4len_idx = skb_shinfo(skb)->gso_size << IXGBE_ADVTXD_MSS_SHIFT;
 
 	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
@@ -617,12 +617,12 @@ static int ixgbe_fcoe_dma_pool_alloc(struct ixgbe_fcoe *fcoe,
 	pool = dma_pool_create(pool_name, dev, IXGBE_FCPTR_MAX,
 			       IXGBE_FCPTR_ALIGN, PAGE_SIZE);
 	if (!pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddp_pool = per_cpu_ptr(fcoe->ddp_pool, cpu);
 	ddp_pool->pool = pool;
-	ddp_pool->noddp = 0;
-	ddp_pool->noddp_ext_buff = 0;
+	ddp_pool->analddp = 0;
+	ddp_pool->analddp_ext_buff = 0;
 
 	return 0;
 }
@@ -633,7 +633,7 @@ static int ixgbe_fcoe_dma_pool_alloc(struct ixgbe_fcoe *fcoe,
  *
  * This sets up FCoE related registers
  *
- * Returns : none
+ * Returns : analne
  */
 void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 {
@@ -708,14 +708,14 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
  *
  * Cleans up outstanding ddp context resources
  *
- * Returns : none
+ * Returns : analne
  */
 void ixgbe_free_fcoe_ddp_resources(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
 	int cpu, i, ddp_max;
 
-	/* do nothing if no DDP pools were allocated */
+	/* do analthing if anal DDP pools were allocated */
 	if (!fcoe->ddp_pool)
 		return;
 
@@ -756,20 +756,20 @@ int ixgbe_setup_fcoe_ddp_resources(struct ixgbe_adapter *adapter)
 	dma_addr_t dma;
 	unsigned int cpu;
 
-	/* do nothing if no DDP pools were allocated */
+	/* do analthing if anal DDP pools were allocated */
 	if (!fcoe->ddp_pool)
 		return 0;
 
 	/* Extra buffer to be shared by all DDPs for HW work around */
 	buffer = kmalloc(IXGBE_FCBUFF_MIN, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma = dma_map_single(dev, buffer, IXGBE_FCBUFF_MIN, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma)) {
 		e_err(drv, "failed to map extra DDP buffer\n");
 		kfree(buffer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fcoe->extra_ddp_buffer = buffer;
@@ -783,7 +783,7 @@ int ixgbe_setup_fcoe_ddp_resources(struct ixgbe_adapter *adapter)
 
 		e_err(drv, "failed to alloc DDP pool on cpu:%d\n", cpu);
 		ixgbe_free_fcoe_ddp_resources(adapter);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -800,7 +800,7 @@ static int ixgbe_fcoe_ddp_enable(struct ixgbe_adapter *adapter)
 
 	if (!fcoe->ddp_pool) {
 		e_err(drv, "failed to allocate percpu DDP resources\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adapter->netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
@@ -856,7 +856,7 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 	/* Allocate per CPU memory to track DDP pools */
 	ixgbe_fcoe_ddp_enable(adapter);
 
-	/* enable FCoE and notify stack */
+	/* enable FCoE and analtify stack */
 	adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
 	netdev->features |= NETIF_F_FCOE_MTU;
 	netdev_features_change(netdev);
@@ -896,7 +896,7 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 	/* Free per CPU memory to track DDP pools */
 	ixgbe_fcoe_ddp_disable(adapter);
 
-	/* disable FCoE and notify stack */
+	/* disable FCoE and analtify stack */
 	adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
 	netdev->features &= ~NETIF_F_FCOE_MTU;
 
@@ -913,12 +913,12 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 }
 
 /**
- * ixgbe_fcoe_get_wwn - get world wide name for the node or the port
+ * ixgbe_fcoe_get_wwn - get world wide name for the analde or the port
  * @netdev : ixgbe adapter
  * @wwn : the world wide name
  * @type: the type of world wide name
  *
- * Returns the node or port world wide name if both the prefix and the san
+ * Returns the analde or port world wide name if both the prefix and the san
  * mac address are valid, then the wwn is formed based on the NAA-2 for
  * IEEE Extended name identifier (ref. to T10 FC-LS Spec., Sec. 15.3).
  *
@@ -991,7 +991,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 			 "%016llX", dsn);
 	else
 		snprintf(info->serial_number, sizeof(info->serial_number),
-			 "Unknown");
+			 "Unkanalwn");
 
 	/* Hardware Version */
 	snprintf(info->hardware_version,

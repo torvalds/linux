@@ -120,10 +120,10 @@ static inline void change_bit(int nr, volatile void *addr)
 
 
 /*
- * These are allowed to be non-atomic.  In fact the generic flavors are
- * in non-atomic.h.  Would it be better to use intrinsics for this?
+ * These are allowed to be analn-atomic.  In fact the generic flavors are
+ * in analn-atomic.h.  Would it be better to use intrinsics for this?
  *
- * OK, writes in our architecture do not invalidate LL/SC, so this has to
+ * OK, writes in our architecture do analt invalidate LL/SC, so this has to
  * be atomic, particularly for things like slab_lock and slab_unlock.
  *
  */
@@ -145,7 +145,7 @@ arch___change_bit(unsigned long nr, volatile unsigned long *addr)
 	test_and_change_bit(nr, addr);
 }
 
-/*  Apparently, at least some of these are allowed to be non-atomic  */
+/*  Apparently, at least some of these are allowed to be analn-atomic  */
 static __always_inline bool
 arch___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
@@ -198,7 +198,7 @@ arch_test_bit_acquire(unsigned long nr, const volatile unsigned long *addr)
  * ffz - find first zero in word.
  * @word: The word to search
  *
- * Undefined if no zero exists, so code should check against ~0UL first.
+ * Undefined if anal zero exists, so code should check against ~0UL first.
  */
 static inline long ffz(int x)
 {
@@ -215,7 +215,7 @@ static inline long ffz(int x)
  * @x: the word to search
  *
  * This is defined the same way as ffs.
- * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
+ * Analte fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 static inline int fls(unsigned int x)
 {
@@ -255,7 +255,7 @@ static inline int ffs(int x)
  * __ffs - find first bit in word.
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if anal bit exists, so code should check against 0 first.
  *
  * bits_per_long assumed to be 32
  * numbering starts at 0 I think (instead of 1 like ffs)
@@ -275,7 +275,7 @@ static inline unsigned long __ffs(unsigned long word)
  * __fls - find last (most-significant) set bit in a long word
  * @word: the word to search
  *
- * Undefined if no set bit exists, so code should check against 0 first.
+ * Undefined if anal set bit exists, so code should check against 0 first.
  * bits_per_long assumed to be 32
  */
 static inline unsigned long __fls(unsigned long word)
@@ -291,7 +291,7 @@ static inline unsigned long __fls(unsigned long word)
 }
 
 #include <asm-generic/bitops/lock.h>
-#include <asm-generic/bitops/non-instrumented-non-atomic.h>
+#include <asm-generic/bitops/analn-instrumented-analn-atomic.h>
 
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>

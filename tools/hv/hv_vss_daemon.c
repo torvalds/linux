@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/hyperv.h>
@@ -50,8 +50,8 @@ static int vss_do_freeze(char *dir, unsigned int cmd)
 	 * mounted more than once.
 	 */
 	if (ret) {
-		if ((cmd == FIFREEZE && errno == EBUSY) ||
-		    (cmd == FITHAW && errno == EINVAL)) {
+		if ((cmd == FIFREEZE && erranal == EBUSY) ||
+		    (cmd == FITHAW && erranal == EINVAL)) {
 			close(fd);
 			return 0;
 		}
@@ -78,17 +78,17 @@ static bool is_dev_loop(const char *blkname)
 	if (!access(buffer, R_OK | X_OK)) {
 		ret = true;
 		goto free_buffer;
-	} else if (errno != ENOENT) {
+	} else if (erranal != EANALENT) {
 		syslog(LOG_ERR, "Can't access: %s; error:%d %s!",
-		       buffer, errno, strerror(errno));
+		       buffer, erranal, strerror(erranal));
 	}
 
 	snprintf(buffer, PATH_MAX, "%s/slaves", blkname);
 	dir = opendir(buffer);
 	if (!dir) {
-		if (errno != ENOENT)
+		if (erranal != EANALENT)
 			syslog(LOG_ERR, "Can't opendir: %s; error:%d %s!",
-			       buffer, errno, strerror(errno));
+			       buffer, erranal, strerror(erranal));
 		goto free_buffer;
 	}
 
@@ -119,7 +119,7 @@ static int vss_operate(int operation)
 	char errdir[1024] = {0};
 	char blkdir[23]; /* /sys/dev/block/XXX:XXX */
 	unsigned int cmd;
-	int error = 0, root_seen = 0, save_errno = 0;
+	int error = 0, root_seen = 0, save_erranal = 0;
 
 	switch (operation) {
 	case VSS_OP_FREEZE:
@@ -141,10 +141,10 @@ static int vss_operate(int operation)
 			continue;
 		if (stat(ent->mnt_fsname, &sb)) {
 			syslog(LOG_ERR, "Can't stat: %s; error:%d %s!",
-			       ent->mnt_fsname, errno, strerror(errno));
+			       ent->mnt_fsname, erranal, strerror(erranal));
 		} else {
 			sprintf(blkdir, "/sys/dev/block/%d:%d",
-				major(sb.st_rdev), minor(sb.st_rdev));
+				major(sb.st_rdev), mianalr(sb.st_rdev));
 			if (is_dev_loop(blkdir))
 				continue;
 		}
@@ -180,7 +180,7 @@ static int vss_operate(int operation)
 
 	goto out;
 err:
-	save_errno = errno;
+	save_erranal = erranal;
 	if (ent) {
 		strncpy(errdir, ent->mnt_dir, sizeof(errdir)-1);
 		endmntent(mounts);
@@ -190,10 +190,10 @@ err:
 	/* Call syslog after we thaw all filesystems */
 	if (ent)
 		syslog(LOG_ERR, "FREEZE of %s failed; error:%d %s",
-		       errdir, save_errno, strerror(save_errno));
+		       errdir, save_erranal, strerror(save_erranal));
 	else
-		syslog(LOG_ERR, "FREEZE of / failed; error:%d %s", save_errno,
-		       strerror(save_errno));
+		syslog(LOG_ERR, "FREEZE of / failed; error:%d %s", save_erranal,
+		       strerror(save_erranal));
 out:
 	return error;
 }
@@ -202,7 +202,7 @@ void print_usage(char *argv[])
 {
 	fprintf(stderr, "Usage: %s [options]\n"
 		"Options are:\n"
-		"  -n, --no-daemon        stay in foreground, don't daemonize\n"
+		"  -n, --anal-daemon        stay in foreground, don't daemonize\n"
 		"  -h, --help             print this help\n", argv[0]);
 }
 
@@ -218,8 +218,8 @@ int main(int argc, char *argv[])
 	__u32 kernel_modver;
 
 	static struct option long_options[] = {
-		{"help",	no_argument,	   0,  'h' },
-		{"no-daemon",	no_argument,	   0,  'n' },
+		{"help",	anal_argument,	   0,  'h' },
+		{"anal-daemon",	anal_argument,	   0,  'n' },
 		{0,		0,		   0,  0   }
 	};
 
@@ -250,7 +250,7 @@ reopen_vss_fd:
 	if (fs_frozen) {
 		if (vss_operate(VSS_OP_THAW) || fs_frozen) {
 			syslog(LOG_ERR, "failed to thaw file system: err=%d",
-			       errno);
+			       erranal);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -259,7 +259,7 @@ reopen_vss_fd:
 	vss_fd = open("/dev/vmbus/hv_vss", O_RDWR);
 	if (vss_fd < 0) {
 		syslog(LOG_ERR, "open /dev/vmbus/hv_vss failed; error: %d %s",
-		       errno, strerror(errno));
+		       erranal, strerror(erranal));
 		exit(EXIT_FAILURE);
 	}
 	/*
@@ -270,7 +270,7 @@ reopen_vss_fd:
 	len = write(vss_fd, vss_msg, sizeof(struct hv_vss_msg));
 	if (len < 0) {
 		syslog(LOG_ERR, "registration to kernel failed; error: %d %s",
-		       errno, strerror(errno));
+		       erranal, strerror(erranal));
 		close(vss_fd);
 		exit(EXIT_FAILURE);
 	}
@@ -282,8 +282,8 @@ reopen_vss_fd:
 		pfd.revents = 0;
 
 		if (poll(&pfd, 1, -1) < 0) {
-			syslog(LOG_ERR, "poll failed; error:%d %s", errno, strerror(errno));
-			if (errno == EINVAL) {
+			syslog(LOG_ERR, "poll failed; error:%d %s", erranal, strerror(erranal));
+			if (erranal == EINVAL) {
 				close(vss_fd);
 				exit(EXIT_FAILURE);
 			}
@@ -307,7 +307,7 @@ reopen_vss_fd:
 
 		if (len != sizeof(struct hv_vss_msg)) {
 			syslog(LOG_ERR, "read failed; error:%d %s",
-			       errno, strerror(errno));
+			       erranal, strerror(erranal));
 			goto reopen_vss_fd;
 		}
 
@@ -338,14 +338,14 @@ reopen_vss_fd:
 
 		/*
 		 * The write() may return an error due to the faked VSS_OP_THAW
-		 * message upon hibernation. Ignore the error by resetting the
+		 * message upon hibernation. Iganalre the error by resetting the
 		 * dev file, i.e. closing and re-opening it.
 		 */
 		vss_msg->error = error;
 		len = write(vss_fd, vss_msg, sizeof(struct hv_vss_msg));
 		if (len != sizeof(struct hv_vss_msg)) {
-			syslog(LOG_ERR, "write failed; error: %d %s", errno,
-			       strerror(errno));
+			syslog(LOG_ERR, "write failed; error: %d %s", erranal,
+			       strerror(erranal));
 			goto reopen_vss_fd;
 		}
 	}

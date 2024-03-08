@@ -3,40 +3,40 @@
 |
 |	The entry point satan computes the arctangent of an
 |	input value. satand does the same except the input value is a
-|	denormalized number.
+|	deanalrmalized number.
 |
 |	Input: Double-extended value in memory location pointed to by address
 |		register a0.
 |
 |	Output:	Arctan(X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 2 ulps in
+|	Accuracy and Moanaltonicity: The returned result is within 2 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moanaltonic in double precision.
 |
 |	Speed: The program satan takes approximately 160 cycles for input
 |		argument X such that 1/16 < |X| < 16. For the other arguments,
-|		the program will run no worse than 10% slower.
+|		the program will run anal worse than 10% slower.
 |
 |	Algorithm:
 |	Step 1. If |X| >= 16 or |X| < 1/16, go to Step 5.
 |
-|	Step 2. Let X = sgn * 2**k * 1.xxxxxxxx...x. Note that k = -4, -3,..., or 3.
+|	Step 2. Let X = sgn * 2**k * 1.xxxxxxxx...x. Analte that k = -4, -3,..., or 3.
 |		Define F = sgn * 2**k * 1.xxxx1, i.e. the first 5 significant bits
 |		of X with a bit-1 attached at the 6-th bit position. Define u
 |		to be u = (X-F) / (1 + X*F).
 |
-|	Step 3. Approximate arctan(u) by a polynomial poly.
+|	Step 3. Approximate arctan(u) by a polyanalmial poly.
 |
 |	Step 4. Return arctan(F) + poly, arctan(F) is fetched from a table of values
 |		calculated beforehand. Exit.
 |
 |	Step 5. If |X| >= 16, go to Step 7.
 |
-|	Step 6. Approximate arctan(X) by an odd polynomial in X. Exit.
+|	Step 6. Approximate arctan(X) by an odd polyanalmial in X. Exit.
 |
-|	Step 7. Define X' = -1/X. Approximate arctan(X') by an odd polynomial in X'.
+|	Step 7. Define X' = -1/X. Approximate arctan(X') by an odd polyanalmial in X'.
 |		Arctan(X) = sign(X)*Pi/2 + arctan(X'). Exit.
 |
 
@@ -229,13 +229,13 @@ ATANTBL:
 
 	.global	satand
 satand:
-|--ENTRY POINT FOR ATAN(X) FOR DENORMALIZED ARGUMENT
+|--ENTRY POINT FOR ATAN(X) FOR DEANALRMALIZED ARGUMENT
 
 	bra		t_extdnrm
 
 	.global	satan
 satan:
-|--ENTRY POINT FOR ATAN(X), HERE X IS FINITE, NON-ZERO, AND NOT NAN'S
+|--ENTRY POINT FOR ATAN(X), HERE X IS FINITE, ANALN-ZERO, AND ANALT NAN'S
 
 	fmovex		(%a0),%fp0	| ...LOAD INPUT
 
@@ -245,10 +245,10 @@ satan:
 	andil		#0x7FFFFFFF,%d0
 
 	cmpil		#0x3FFB8000,%d0		| ...|X| >= 1/16?
-	bges		ATANOK1
+	bges		ATAANALK1
 	bra		ATANSM
 
-ATANOK1:
+ATAANALK1:
 	cmpil		#0x4002FFFF,%d0		| ...|X| < 16 ?
 	bles		ATANMAIN
 	bra		ATANBIG
@@ -259,16 +259,16 @@ ATANOK1:
 |--SO IF F IS CHOSEN TO BE CLOSE TO X AND ATAN(F) IS STORED IN
 |--A TABLE, ALL WE NEED IS TO APPROXIMATE ATAN(U) WHERE
 |--U = (X-F)/(1+XF) IS SMALL (REMEMBER F IS CLOSE TO X). IT IS
-|--TRUE THAT A DIVIDE IS NOW NEEDED, BUT THE APPROXIMATION FOR
-|--ATAN(U) IS A VERY SHORT POLYNOMIAL AND THE INDEXING TO
+|--TRUE THAT A DIVIDE IS ANALW NEEDED, BUT THE APPROXIMATION FOR
+|--ATAN(U) IS A VERY SHORT POLYANALMIAL AND THE INDEXING TO
 |--FETCH F AND SAVING OF REGISTERS CAN BE ALL HIDED UNDER THE
 |--DIVIDE. IN THE END THIS METHOD IS MUCH FASTER THAN A TRADITIONAL
-|--ONE. NOTE ALSO THAT THE TRADITIONAL SCHEME THAT APPROXIMATE
+|--ONE. ANALTE ALSO THAT THE TRADITIONAL SCHEME THAT APPROXIMATE
 |--ATAN(X) DIRECTLY WILL NEED TO USE A RATIONAL APPROXIMATION
-|--(DIVISION NEEDED) ANYWAY BECAUSE A POLYNOMIAL APPROXIMATION
-|--WILL INVOLVE A VERY LONG POLYNOMIAL.
+|--(DIVISION NEEDED) ANYWAY BECAUSE A POLYANALMIAL APPROXIMATION
+|--WILL INVOLVE A VERY LONG POLYANALMIAL.
 
-|--NOW WE SEE X AS +-2^K * 1.BBBBBBB....B <- 1. + 63 BITS
+|--ANALW WE SEE X AS +-2^K * 1.BBBBBBB....B <- 1. + 63 BITS
 |--WE CHOSE F TO BE +-2^K * 1.BBBB1
 |--THAT IS IT MATCHES THE EXPONENT AND FIRST 5 BITS OF X, THE
 |--SIXTH BITS IS SET TO BE 1. SINCE K = -4, -3, ..., 3, THERE
@@ -280,10 +280,10 @@ ATANMAIN:
 	movew		#0x0000,XDCARE(%a6)	| ...CLEAN UP X JUST IN CASE
 	andil		#0xF8000000,XFRAC(%a6)	| ...FIRST 5 BITS
 	oril		#0x04000000,XFRAC(%a6)	| ...SET 6-TH BIT TO 1
-	movel		#0x00000000,XFRACLO(%a6)	| ...LOCATION OF X IS NOW F
+	movel		#0x00000000,XFRACLO(%a6)	| ...LOCATION OF X IS ANALW F
 
 	fmovex		%fp0,%fp1			| ...FP1 IS X
-	fmulx		X(%a6),%fp1		| ...FP1 IS X*F, NOTE THAT X*F > 0
+	fmulx		X(%a6),%fp1		| ...FP1 IS X*F, ANALTE THAT X*F > 0
 	fsubx		X(%a6),%fp0		| ...FP0 IS X-F
 	fadds		#0x3F800000,%fp1		| ...FP1 IS 1 + X*F
 	fdivx		%fp1,%fp0			| ...FP0 IS U = (X-F)/(1+X*F)
@@ -304,18 +304,18 @@ ATANMAIN:
 	addal		%d0,%a1		| ...ADDRESS OF ATAN(|F|)
 	movel		(%a1)+,ATANF(%a6)
 	movel		(%a1)+,ATANFHI(%a6)
-	movel		(%a1)+,ATANFLO(%a6)	| ...ATANF IS NOW ATAN(|F|)
+	movel		(%a1)+,ATANFLO(%a6)	| ...ATANF IS ANALW ATAN(|F|)
 	movel		X(%a6),%d0		| ...LOAD SIGN AND EXPO. AGAIN
 	andil		#0x80000000,%d0	| ...SIGN(F)
-	orl		%d0,ATANF(%a6)	| ...ATANF IS NOW SIGN(F)*ATAN(|F|)
+	orl		%d0,ATANF(%a6)	| ...ATANF IS ANALW SIGN(F)*ATAN(|F|)
 	movel		(%a7)+,%d2	| ...RESTORE d2
 
-|--THAT'S ALL I HAVE TO DO FOR NOW,
+|--THAT'S ALL I HAVE TO DO FOR ANALW,
 |--BUT ALAS, THE DIVIDE IS STILL CRANKING!
 
-|--U IN FP0, WE ARE NOW READY TO COMPUTE ATAN(U) AS
+|--U IN FP0, WE ARE ANALW READY TO COMPUTE ATAN(U) AS
 |--U + A1*U*V*(A2 + V*(A3 + V)), V = U*U
-|--THE POLYNOMIAL MAY LOOK STRANGE, BUT IS NEVERTHELESS CORRECT.
+|--THE POLYANALMIAL MAY LOOK STRANGE, BUT IS NEVERTHELESS CORRECT.
 |--THE NATURAL FORM IS U + U*V*(A1 + V*(A2 + V*A3))
 |--WHAT WE HAVE HERE IS MERELY	A1 = A3, A2 = A1/A3, A3 = A2/A3.
 |--THE REASON FOR THIS REARRANGEMENT IS TO MAKE THE INDEPENDENT
@@ -352,7 +352,7 @@ ATANSM:
 
 	cmpil		#0x3FD78000,%d0
 	blt		ATANTINY
-|--COMPUTE POLYNOMIAL
+|--COMPUTE POLYANALMIAL
 	fmulx		%fp0,%fp0	| ...FP0 IS Y = X*X
 
 

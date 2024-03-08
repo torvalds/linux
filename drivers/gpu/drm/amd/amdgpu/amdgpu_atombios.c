@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -228,16 +228,16 @@ amdgpu_atombios_get_hpd_info_from_gpio(struct amdgpu_device *adev,
 			hpd.hpd = AMDGPU_HPD_6;
 			break;
 		default:
-			hpd.hpd = AMDGPU_HPD_NONE;
+			hpd.hpd = AMDGPU_HPD_ANALNE;
 			break;
 		}
 	} else
-		hpd.hpd = AMDGPU_HPD_NONE;
+		hpd.hpd = AMDGPU_HPD_ANALNE;
 	return hpd;
 }
 
 static const int object_connector_convert[] = {
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkanalwn,
 	DRM_MODE_CONNECTOR_DVII,
 	DRM_MODE_CONNECTOR_DVII,
 	DRM_MODE_CONNECTOR_DVID,
@@ -245,20 +245,20 @@ static const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_VGA,
 	DRM_MODE_CONNECTOR_Composite,
 	DRM_MODE_CONNECTOR_SVIDEO,
-	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkanalwn,
+	DRM_MODE_CONNECTOR_Unkanalwn,
 	DRM_MODE_CONNECTOR_9PinDIN,
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkanalwn,
 	DRM_MODE_CONNECTOR_HDMIA,
 	DRM_MODE_CONNECTOR_HDMIB,
 	DRM_MODE_CONNECTOR_LVDS,
 	DRM_MODE_CONNECTOR_9PinDIN,
-	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkanalwn,
+	DRM_MODE_CONNECTOR_Unkanalwn,
+	DRM_MODE_CONNECTOR_Unkanalwn,
 	DRM_MODE_CONNECTOR_DisplayPort,
 	DRM_MODE_CONNECTOR_eDP,
-	DRM_MODE_CONNECTOR_Unknown
+	DRM_MODE_CONNECTOR_Unkanalwn
 };
 
 bool amdgpu_atombios_has_dce_engine_info(struct amdgpu_device *adev)
@@ -359,7 +359,7 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 				object_connector_convert[con_obj_id];
 			connector_object_id = con_obj_id;
 
-			if (connector_type == DRM_MODE_CONNECTOR_Unknown)
+			if (connector_type == DRM_MODE_CONNECTOR_Unkanalwn)
 				continue;
 
 			router.ddc_valid = false;
@@ -469,7 +469,7 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 
 			/* look up gpio for ddc, hpd */
 			ddc_bus.valid = false;
-			hpd.hpd = AMDGPU_HPD_NONE;
+			hpd.hpd = AMDGPU_HPD_ANALNE;
 			if ((le16_to_cpu(path->usDeviceTag) &
 			     (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT)) == 0) {
 				for (j = 0; j < con_obj->ucNumberOfObjects; j++) {
@@ -692,7 +692,7 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 		if (adev->clock.max_pixel_clock == 0)
 			adev->clock.max_pixel_clock = 40000;
 
-		/* not technically a clock, but... */
+		/* analt technically a clock, but... */
 		adev->mode_info.firmware_flags =
 			le16_to_cpu(firmware_info->info.usFirmwareCapability.susAccess);
 
@@ -746,7 +746,7 @@ union igp_info {
 
 /*
  * Return vram width from integrated system info table, if available,
- * or 0 if not.
+ * or 0 if analt.
  */
 int amdgpu_atombios_get_vram_width(struct amdgpu_device *adev)
 {
@@ -1219,7 +1219,7 @@ int amdgpu_atombios_get_max_vddc(struct amdgpu_device *adev, u8 voltage_type,
 		*voltage = le16_to_cpu(args.v3.usVoltageLevel);
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 		return -EINVAL;
 	}
 
@@ -1294,12 +1294,12 @@ int amdgpu_atombios_get_svi2_info(struct amdgpu_device *adev,
 				}
 				break;
 			default:
-				DRM_ERROR("unknown voltage object table\n");
+				DRM_ERROR("unkanalwn voltage object table\n");
 				return -EINVAL;
 			}
 			break;
 		default:
-			DRM_ERROR("unknown voltage object table\n");
+			DRM_ERROR("unkanalwn voltage object table\n");
 			return -EINVAL;
 		}
 
@@ -1330,12 +1330,12 @@ amdgpu_atombios_is_voltage_gpio(struct amdgpu_device *adev,
 					return true;
 				break;
 			default:
-				DRM_ERROR("unknown voltage object table\n");
+				DRM_ERROR("unkanalwn voltage object table\n");
 				return false;
 			}
 			break;
 		default:
-			DRM_ERROR("unknown voltage object table\n");
+			DRM_ERROR("unkanalwn voltage object table\n");
 			return false;
 		}
 
@@ -1388,12 +1388,12 @@ int amdgpu_atombios_get_voltage_table(struct amdgpu_device *adev,
 				}
 				break;
 			default:
-				DRM_ERROR("unknown voltage object table\n");
+				DRM_ERROR("unkanalwn voltage object table\n");
 				return -EINVAL;
 			}
 			break;
 		default:
-			DRM_ERROR("unknown voltage object table\n");
+			DRM_ERROR("unkanalwn voltage object table\n");
 			return -EINVAL;
 		}
 	}
@@ -1492,12 +1492,12 @@ int amdgpu_atombios_init_mc_reg_table(struct amdgpu_device *adev,
 					return -EINVAL;
 				break;
 			default:
-				DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+				DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 				return -EINVAL;
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 			return -EINVAL;
 		}
 		return 0;
@@ -1548,7 +1548,7 @@ static void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev)
 	/* let the bios control the backlight */
 	bios_2_scratch &= ~ATOM_S2_VRI_BRIGHT_ENABLE;
 
-	/* tell the bios not to handle mode switching */
+	/* tell the bios analt to handle mode switching */
 	bios_6_scratch |= ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH;
 
 	/* clear the vbios dpms state */
@@ -1594,13 +1594,13 @@ bool amdgpu_atombios_scratch_need_asic_init(struct amdgpu_device *adev)
 }
 
 /* Atom needs data in little endian format so swap as appropriate when copying
- * data to or from atom. Note that atom operates on dw units.
+ * data to or from atom. Analte that atom operates on dw units.
  *
  * Use to_le=true when sending data to atom and provide at least
  * ALIGN(num_bytes,4) bytes in the dst buffer.
  *
  * Use to_le=false when receiving data from atom and provide ALIGN(num_bytes,4)
- * byes in the src buffer.
+ * banal in the src buffer.
  */
 void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
 {
@@ -1664,7 +1664,7 @@ static int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
 	/* allocate some scratch memory */
 	ctx->scratch = kzalloc(usage_bytes, GFP_KERNEL);
 	if (!ctx->scratch)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->scratch_size_bytes = usage_bytes;
 	return 0;
 }
@@ -1828,7 +1828,7 @@ void amdgpu_atombios_fini(struct amdgpu_device *adev)
  *
  * Initializes the driver info and register access callbacks for the
  * ATOM interpreter (r4xx+).
- * Returns 0 on sucess, -ENOMEM on failure.
+ * Returns 0 on sucess, -EANALMEM on failure.
  * Called at driver startup.
  */
 int amdgpu_atombios_init(struct amdgpu_device *adev)
@@ -1837,7 +1837,7 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 	    kzalloc(sizeof(struct card_info), GFP_KERNEL);
 
 	if (!atom_card_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->mode_info.atom_card_info = atom_card_info;
 	atom_card_info->dev = adev_to_drm(adev);
@@ -1851,7 +1851,7 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 	adev->mode_info.atom_context = amdgpu_atom_parse(atom_card_info, adev->bios);
 	if (!adev->mode_info.atom_context) {
 		amdgpu_atombios_fini(adev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&adev->mode_info.atom_context->mutex);

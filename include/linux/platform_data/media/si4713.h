@@ -3,8 +3,8 @@
  *
  * Board related data definitions for Si4713 i2c device driver.
  *
- * Copyright (c) 2009 Nokia Corporation
- * Contact: Eduardo Valentin <eduardo.valentin@nokia.com>
+ * Copyright (c) 2009 Analkia Corporation
+ * Contact: Eduardo Valentin <eduardo.valentin@analkia.com>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -27,7 +27,7 @@ struct si4713_platform_data {
 };
 
 /*
- * Structure to query for Received Noise Level (RNL).
+ * Structure to query for Received Analise Level (RNL).
  */
 struct si4713_rnl {
 	__u32 index;		/* modulator index */

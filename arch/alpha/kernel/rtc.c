@@ -6,7 +6,7 @@
  *
  * This file contains date handling.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -38,7 +38,7 @@ specifiy_epoch(char *str)
 {
 	unsigned long epoch = simple_strtoul(str, NULL, 0);
 	if (epoch < 1900)
-		printk("Ignoring invalid user specified epoch %lu\n", epoch);
+		printk("Iganalring invalid user specified epoch %lu\n", epoch);
 	else
 		rtc_epoch = epoch;
 	return 1;
@@ -87,7 +87,7 @@ alpha_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	/* Adjust for non-default epochs.  It's easier to depend on the
+	/* Adjust for analn-default epochs.  It's easier to depend on the
 	   generic __get_rtc_time and adjust the epoch here than create
 	   a copy of __get_rtc_time with the edits we need.  */
 	if (rtc_epoch != 1900) {
@@ -131,7 +131,7 @@ alpha_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		rtc_epoch = arg;
 		return 0;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 

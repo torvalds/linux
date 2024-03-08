@@ -3,9 +3,9 @@
  * This file is part of wl1271
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __EVENT_H__
@@ -17,7 +17,7 @@
  * The event mechanism is based on a pair of event buffers (buffers A and
  * B) at fixed locations in the target's memory. The host processes one
  * buffer while the other buffer continues to collect events. If the host
- * is not processing events, an interrupt is issued to signal that a buffer
+ * is analt processing events, an interrupt is issued to signal that a buffer
  * is ready. Once the host is done with processing events from one buffer,
  * it signals the target (with an ACK interrupt) that the event buffer is
  * free.

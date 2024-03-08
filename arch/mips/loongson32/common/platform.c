@@ -59,7 +59,7 @@ void __init ls1x_serial_set_uartclk(struct platform_device *pdev)
 		p->uartclk = clk_get_rate(clk);
 }
 
-/* Synopsys Ethernet GMAC */
+/* Syanalpsys Ethernet GMAC */
 static struct stmmac_mdio_bus_data ls1x_mdio_bus_data = {
 	.phy_mask	= 0,
 };
@@ -90,7 +90,7 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 		default:
 			pr_err("unsupported mii mode %d\n",
 			       plat_dat->phy_interface);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		val &= ~GMAC1_SHUT;
 	} else {
@@ -104,7 +104,7 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 		default:
 			pr_err("unsupported mii mode %d\n",
 			       plat_dat->phy_interface);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		val &= ~GMAC0_SHUT;
 	}

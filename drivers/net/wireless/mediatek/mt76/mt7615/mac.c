@@ -80,7 +80,7 @@ mt7615_mac_get_cipher(int cipher)
 	case WLAN_CIPHER_SUITE_SMS4:
 		return MT_CIPHER_WAPI;
 	default:
-		return MT_CIPHER_NONE;
+		return MT_CIPHER_ANALNE;
 	}
 }
 
@@ -248,7 +248,7 @@ static void mt7615_mac_fill_tm_rx(struct mt7615_phy *phy, __le32 *rxv)
 #endif
 }
 
-/* The HW does not translate the mac header to 802.3 for mesh point */
+/* The HW does analt translate the mac header to 802.3 for mesh point */
 static int mt7615_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -260,11 +260,11 @@ static int mt7615_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 	struct ieee80211_hdr hdr;
 	u16 frame_control;
 
-	if (le32_get_bits(rxd[1], MT_RXD1_NORMAL_ADDR_TYPE) !=
-	    MT_RXD1_NORMAL_U2M)
+	if (le32_get_bits(rxd[1], MT_RXD1_ANALRMAL_ADDR_TYPE) !=
+	    MT_RXD1_ANALRMAL_U2M)
 		return -EINVAL;
 
-	if (!(le32_to_cpu(rxd[0]) & MT_RXD0_NORMAL_GROUP_4))
+	if (!(le32_to_cpu(rxd[0]) & MT_RXD0_ANALRMAL_GROUP_4))
 		return -EINVAL;
 
 	if (!msta || !msta->vif)
@@ -342,7 +342,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	u32 rxd0 = le32_to_cpu(rxd[0]);
 	u32 rxd1 = le32_to_cpu(rxd[1]);
 	u32 rxd2 = le32_to_cpu(rxd[2]);
-	u32 csum_mask = MT_RXD0_NORMAL_IP_SUM | MT_RXD0_NORMAL_UDP_TCP_SUM;
+	u32 csum_mask = MT_RXD0_ANALRMAL_IP_SUM | MT_RXD0_ANALRMAL_UDP_TCP_SUM;
 	u32 csum_status = *(u32 *)skb->cb;
 	bool unicast, hdr_trans, remove_pad, insert_ccmp_hdr = false;
 	u16 hdr_gap;
@@ -354,7 +354,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	memset(status, 0, sizeof(*status));
 
-	chfreq = FIELD_GET(MT_RXD1_NORMAL_CH_FREQ, rxd1);
+	chfreq = FIELD_GET(MT_RXD1_ANALRMAL_CH_FREQ, rxd1);
 
 	phy2 = dev->mt76.phys[MT_BAND1] ? dev->mt76.phys[MT_BAND1]->priv : NULL;
 	if (!phy2)
@@ -368,19 +368,19 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	else
 		phy_idx = -1;
 
-	if (rxd2 & MT_RXD2_NORMAL_AMSDU_ERR)
+	if (rxd2 & MT_RXD2_ANALRMAL_AMSDU_ERR)
 		return -EINVAL;
 
-	hdr_trans = rxd1 & MT_RXD1_NORMAL_HDR_TRANS;
-	if (hdr_trans && (rxd2 & MT_RXD2_NORMAL_CM))
+	hdr_trans = rxd1 & MT_RXD1_ANALRMAL_HDR_TRANS;
+	if (hdr_trans && (rxd2 & MT_RXD2_ANALRMAL_CM))
 		return -EINVAL;
 
 	/* ICV error or CCMP/BIP/WPI MIC error */
-	if (rxd2 & MT_RXD2_NORMAL_ICV_ERR)
+	if (rxd2 & MT_RXD2_ANALRMAL_ICV_ERR)
 		status->flag |= RX_FLAG_ONLY_MONITOR;
 
-	unicast = (rxd1 & MT_RXD1_NORMAL_ADDR_TYPE) == MT_RXD1_NORMAL_U2M;
-	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
+	unicast = (rxd1 & MT_RXD1_ANALRMAL_ADDR_TYPE) == MT_RXD1_ANALRMAL_U2M;
+	idx = FIELD_GET(MT_RXD2_ANALRMAL_WLAN_IDX, rxd2);
 	status->wcid = mt7615_rx_get_wcid(dev, idx, unicast);
 
 	if (status->wcid) {
@@ -398,26 +398,26 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	    !(csum_status & (BIT(0) | BIT(2) | BIT(3))))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	if (rxd2 & MT_RXD2_NORMAL_FCS_ERR)
+	if (rxd2 & MT_RXD2_ANALRMAL_FCS_ERR)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (rxd2 & MT_RXD2_NORMAL_TKIP_MIC_ERR)
+	if (rxd2 & MT_RXD2_ANALRMAL_TKIP_MIC_ERR)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
-	if (FIELD_GET(MT_RXD2_NORMAL_SEC_MODE, rxd2) != 0 &&
-	    !(rxd2 & (MT_RXD2_NORMAL_CLM | MT_RXD2_NORMAL_CM))) {
+	if (FIELD_GET(MT_RXD2_ANALRMAL_SEC_MODE, rxd2) != 0 &&
+	    !(rxd2 & (MT_RXD2_ANALRMAL_CLM | MT_RXD2_ANALRMAL_CM))) {
 		status->flag |= RX_FLAG_DECRYPTED;
 		status->flag |= RX_FLAG_IV_STRIPPED;
 		status->flag |= RX_FLAG_MMIC_STRIPPED | RX_FLAG_MIC_STRIPPED;
 	}
 
-	remove_pad = rxd1 & MT_RXD1_NORMAL_HDR_OFFSET;
+	remove_pad = rxd1 & MT_RXD1_ANALRMAL_HDR_OFFSET;
 
-	if (rxd2 & MT_RXD2_NORMAL_MAX_LEN_ERROR)
+	if (rxd2 & MT_RXD2_ANALRMAL_MAX_LEN_ERROR)
 		return -EINVAL;
 
 	rxd += 4;
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_4) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_4) {
 		u32 v0 = le32_to_cpu(rxd[0]);
 		u32 v2 = le32_to_cpu(rxd[2]);
 
@@ -430,19 +430,19 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 	}
 
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_1) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_1) {
 		u8 *data = (u8 *)rxd;
 
 		if (status->flag & RX_FLAG_DECRYPTED) {
-			switch (FIELD_GET(MT_RXD2_NORMAL_SEC_MODE, rxd2)) {
+			switch (FIELD_GET(MT_RXD2_ANALRMAL_SEC_MODE, rxd2)) {
 			case MT_CIPHER_AES_CCMP:
 			case MT_CIPHER_CCMP_CCX:
 			case MT_CIPHER_CCMP_256:
 				insert_ccmp_hdr =
-					FIELD_GET(MT_RXD2_NORMAL_FRAG, rxd2);
+					FIELD_GET(MT_RXD2_ANALRMAL_FRAG, rxd2);
 				fallthrough;
 			case MT_CIPHER_TKIP:
-			case MT_CIPHER_TKIP_NO_MIC:
+			case MT_CIPHER_TKIP_ANAL_MIC:
 			case MT_CIPHER_GCMP:
 			case MT_CIPHER_GCMP_256:
 				status->iv[0] = data[5];
@@ -461,12 +461,12 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 	}
 
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_2) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_2) {
 		status->timestamp = le32_to_cpu(rxd[0]);
 		status->flag |= RX_FLAG_MACTIME_START;
 
-		if (!(rxd2 & (MT_RXD2_NORMAL_NON_AMPDU_SUB |
-			      MT_RXD2_NORMAL_NON_AMPDU))) {
+		if (!(rxd2 & (MT_RXD2_ANALRMAL_ANALN_AMPDU_SUB |
+			      MT_RXD2_ANALRMAL_ANALN_AMPDU))) {
 			status->flag |= RX_FLAG_AMPDU_DETAILS;
 
 			/* all subframes of an A-MPDU have the same timestamp */
@@ -484,14 +484,14 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 	}
 
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_3) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_3) {
 		u32 rxdg5 = le32_to_cpu(rxd[5]);
 
 		/*
 		 * If both PHYs are on the same channel and we don't have a WCID,
 		 * we need to figure out which PHY this packet was received on.
-		 * On the primary PHY, the noise value for the chains belonging to the
-		 * second PHY will be set to the noise value of the last packet from
+		 * On the primary PHY, the analise value for the chains belonging to the
+		 * second PHY will be set to the analise value of the last packet from
 		 * that PHY.
 		 */
 		if (phy_idx < 0) {
@@ -522,7 +522,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	if (!sband->channels)
 		return -EINVAL;
 
-	if (rxd0 & MT_RXD0_NORMAL_GROUP_3) {
+	if (rxd0 & MT_RXD0_ANALRMAL_GROUP_3) {
 		u32 rxdg0 = le32_to_cpu(rxd[0]);
 		u32 rxdg1 = le32_to_cpu(rxd[1]);
 		u32 rxdg3 = le32_to_cpu(rxd[3]);
@@ -588,7 +588,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 	}
 
-	amsdu_info = FIELD_GET(MT_RXD1_NORMAL_PAYLOAD_FORMAT, rxd1);
+	amsdu_info = FIELD_GET(MT_RXD1_ANALRMAL_PAYLOAD_FORMAT, rxd1);
 	status->amsdu = !!amsdu_info;
 	if (status->amsdu) {
 		status->first_amsdu = amsdu_info == MT_RXD1_FIRST_AMSDU_FRAME;
@@ -606,13 +606,13 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		skb_pull(skb, hdr_gap);
 		if (!hdr_trans && status->amsdu) {
 			pad_start = ieee80211_get_hdrlen_from_skb(skb);
-		} else if (hdr_trans && (rxd2 & MT_RXD2_NORMAL_HDR_TRANS_ERROR)) {
+		} else if (hdr_trans && (rxd2 & MT_RXD2_ANALRMAL_HDR_TRANS_ERROR)) {
 			/*
 			 * When header translation failure is indicated,
 			 * the hardware will insert an extra 2-byte field
 			 * containing the data length after the protocol
 			 * type field. This happens either when the LLC-SNAP
-			 * pattern did not match, or if a VLAN header was
+			 * pattern did analt match, or if a VLAN header was
 			 * detected.
 			 */
 			pad_start = 12;
@@ -629,7 +629,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	}
 
 	if (insert_ccmp_hdr && !hdr_trans) {
-		u8 key_id = FIELD_GET(MT_RXD1_NORMAL_KEY_ID, rxd1);
+		u8 key_id = FIELD_GET(MT_RXD1_ANALRMAL_KEY_ID, rxd1);
 
 		mt76_insert_ccmp_hdr(skb, key_id);
 	}
@@ -651,7 +651,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	status->aggr = unicast &&
 		       !ieee80211_is_qos_nullfunc(fc);
 	status->qos_ctl = qos_ctl;
-	status->seqno = IEEE80211_SEQ_TO_SN(seq_ctrl);
+	status->seqanal = IEEE80211_SEQ_TO_SN(seq_ctrl);
 
 	return 0;
 }
@@ -731,7 +731,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	struct mt76_phy *mphy = &dev->mphy;
 	__le16 fc = hdr->frame_control;
 	int tx_count = 8;
-	u16 seqno = 0;
+	u16 seqanal = 0;
 
 	if (vif) {
 		struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
@@ -844,23 +844,23 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 
 	val = FIELD_PREP(MT_TXD3_REM_TX_COUNT, tx_count);
 	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
-		seqno = le16_to_cpu(hdr->seq_ctrl);
+		seqanal = le16_to_cpu(hdr->seq_ctrl);
 
 		if (ieee80211_is_back_req(hdr->frame_control)) {
 			struct ieee80211_bar *bar;
 
 			bar = (struct ieee80211_bar *)skb->data;
-			seqno = le16_to_cpu(bar->start_seq_num);
+			seqanal = le16_to_cpu(bar->start_seq_num);
 		}
 
 		val |= MT_TXD3_SN_VALID |
-		       FIELD_PREP(MT_TXD3_SEQ, IEEE80211_SEQ_TO_SN(seqno));
+		       FIELD_PREP(MT_TXD3_SEQ, IEEE80211_SEQ_TO_SN(seqanal));
 	}
 
 	txwi[3] |= cpu_to_le32(val);
 
-	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-		txwi[3] |= cpu_to_le32(MT_TXD3_NO_ACK);
+	if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+		txwi[3] |= cpu_to_le32(MT_TXD3_ANAL_ACK);
 
 	val = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
 	      FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype) |
@@ -1064,12 +1064,12 @@ mt7615_mac_queue_rate_update(struct mt7615_phy *phy, struct mt7615_sta *sta,
 
 	wrd = kzalloc(sizeof(*wrd), GFP_ATOMIC);
 	if (!wrd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wrd->sta = sta;
 	mt7615_mac_update_rate_desc(phy, sta, probe_rate, rates,
 				    &wrd->rate);
-	list_add_tail(&wrd->node, &dev->wrd_head);
+	list_add_tail(&wrd->analde, &dev->wrd_head);
 	queue_work(dev->mt76.wq, &dev->rate_work);
 
 	return 0;
@@ -1280,8 +1280,8 @@ int __mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
 	int err;
 
 	cipher = mt7615_mac_get_cipher(key->cipher);
-	if (cipher == MT_CIPHER_NONE)
-		return -EOPNOTSUPP;
+	if (cipher == MT_CIPHER_ANALNE)
+		return -EOPANALTSUPP;
 
 	cipher_mask |= BIT(cipher);
 	mt7615_mac_wtbl_update_cipher(dev, wcid, cipher, cipher_mask);
@@ -1500,7 +1500,7 @@ static void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	pid = le32_get_bits(txs_data[0], MT_TXS0_PID);
 	wcidx = le32_get_bits(txs_data[2], MT_TXS2_WCID);
 
-	if (pid == MT_PACKET_ID_NO_ACK)
+	if (pid == MT_PACKET_ID_ANAL_ACK)
 		return;
 
 	if (wcidx >= MT7615_WTBL_SIZE)
@@ -1531,7 +1531,7 @@ static void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 
 	if (mt7615_fill_txs(dev, msta, &info, txs_data)) {
 		spin_lock_bh(&dev->mt76.rx_lock);
-		ieee80211_tx_status_noskb(mphy->hw, sta, &info);
+		ieee80211_tx_status_analskb(mphy->hw, sta, &info);
 		spin_unlock_bh(&dev->mt76.rx_lock);
 	}
 
@@ -1626,7 +1626,7 @@ bool mt7615_rx_check(struct mt76_dev *mdev, void *data, int len)
 	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 
 	switch (type) {
-	case PKT_TYPE_TXRX_NOTIFY:
+	case PKT_TYPE_TXRX_ANALTIFY:
 		mt7615_mac_tx_free(dev, data, len);
 		return false;
 	case PKT_TYPE_TXS:
@@ -1651,7 +1651,7 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 	flag = le32_get_bits(rxd[0], MT_RXD0_PKT_FLAG);
 	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
-		type = PKT_TYPE_NORMAL_MCU;
+		type = PKT_TYPE_ANALRMAL_MCU;
 
 	switch (type) {
 	case PKT_TYPE_TXS:
@@ -1659,15 +1659,15 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			mt7615_mac_add_txs(dev, rxd);
 		dev_kfree_skb(skb);
 		break;
-	case PKT_TYPE_TXRX_NOTIFY:
+	case PKT_TYPE_TXRX_ANALTIFY:
 		mt7615_mac_tx_free(dev, skb->data, skb->len);
 		dev_kfree_skb(skb);
 		break;
 	case PKT_TYPE_RX_EVENT:
 		mt7615_mcu_rx_event(dev, skb);
 		break;
-	case PKT_TYPE_NORMAL_MCU:
-	case PKT_TYPE_NORMAL:
+	case PKT_TYPE_ANALRMAL_MCU:
+	case PKT_TYPE_ANALRMAL:
 		if (!mt7615_mac_fill_rx(dev, skb)) {
 			mt76_rx(&dev->mt76, q, skb);
 			return;
@@ -1931,17 +1931,17 @@ mt7615_phy_update_channel(struct mt76_phy *mphy, int idx)
 	obss_time = mt76_get_field(dev, obss_reg, MT_MIB_OBSSTIME_MASK);
 
 	nf = mt7615_phy_get_nf(dev, idx);
-	if (!phy->noise)
-		phy->noise = nf << 4;
+	if (!phy->analise)
+		phy->analise = nf << 4;
 	else if (nf)
-		phy->noise += nf - (phy->noise >> 4);
+		phy->analise += nf - (phy->analise >> 4);
 
 	state = mphy->chan_state;
 	state->cc_busy += busy_time;
 	state->cc_tx += tx_time;
 	state->cc_rx += rx_time + obss_time;
 	state->cc_bss_rx += rx_time;
-	state->noise = -(phy->noise >> 4);
+	state->analise = -(phy->analise >> 4);
 }
 
 static void mt7615_update_survey(struct mt7615_dev *dev)
@@ -2070,7 +2070,7 @@ void mt7615_pm_power_save_work(struct work_struct *work)
 		goto out;
 
 	if (mutex_is_locked(&dev->mt76.mutex))
-		/* if mt76 mutex is held we should not put the device
+		/* if mt76 mutex is held we should analt put the device
 		 * to sleep since we are currently accessing device
 		 * register map. We need to wait for the next power_save
 		 * trigger.
@@ -2207,7 +2207,7 @@ mt7615_dfs_init_radar_specs(struct mt7615_phy *phy)
 		return -EINVAL;
 	}
 
-	/* avoid FCC radar detection in non-FCC region */
+	/* avoid FCC radar detection in analn-FCC region */
 	err = mt7615_mcu_set_fcc5_lpn(dev, lpn);
 	if (err < 0)
 		return err;
@@ -2263,7 +2263,7 @@ int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_END,
 				      ext_phy, MT_RX_SEL0, 0);
 	if (err < 0) {
-		phy->mt76->dfs_state = MT_DFS_STATE_UNKNOWN;
+		phy->mt76->dfs_state = MT_DFS_STATE_UNKANALWN;
 		return err;
 	}
 
@@ -2271,7 +2271,7 @@ int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 	return 0;
 
 stop:
-	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_NORMAL_START, ext_phy,
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_ANALRMAL_START, ext_phy,
 				      MT_RX_SEL0, 0);
 	if (err < 0)
 		return err;
@@ -2291,7 +2291,7 @@ int mt7615_mac_set_beacon_filter(struct mt7615_phy *phy,
 	int err;
 
 	if (!mt7615_firmware_offload(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_MONITOR:

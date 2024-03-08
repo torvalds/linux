@@ -11,7 +11,7 @@
 #include "lkc.h"
 #include "internal.h"
 
-static const char nohelp_text[] = "There is no help available for this option.";
+static const char analhelp_text[] = "There is anal help available for this option.";
 
 struct menu rootmenu;
 static struct menu **last_entry_ptr;
@@ -23,7 +23,7 @@ void menu_warn(struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", menu->file->name, menu->lineno);
+	fprintf(stderr, "%s:%d:warning: ", menu->file->name, menu->lineanal);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -33,7 +33,7 @@ static void prop_warn(struct property *prop, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", prop->file->name, prop->lineno);
+	fprintf(stderr, "%s:%d:warning: ", prop->file->name, prop->lineanal);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -54,7 +54,7 @@ void menu_add_entry(struct symbol *sym)
 	menu->sym = sym;
 	menu->parent = current_menu;
 	menu->file = current_file;
-	menu->lineno = zconf_lineno();
+	menu->lineanal = zconf_lineanal();
 
 	*last_entry_ptr = menu;
 	last_entry_ptr = &menu->next;
@@ -86,7 +86,7 @@ static struct expr *rewrite_m(struct expr *e)
 		return e;
 
 	switch (e->type) {
-	case E_NOT:
+	case E_ANALT:
 		e->left.expr = rewrite_m(e->left.expr);
 		break;
 	case E_OR:
@@ -116,12 +116,12 @@ void menu_set_type(int type)
 
 	if (sym->type == type)
 		return;
-	if (sym->type == S_UNKNOWN) {
+	if (sym->type == S_UNKANALWN) {
 		sym->type = type;
 		return;
 	}
 	menu_warn(current_entry,
-		"ignoring type redefinition of '%s' from '%s' to '%s'",
+		"iganalring type redefinition of '%s' from '%s' to '%s'",
 		sym->name ? sym->name : "<choice>",
 		sym_type_name(sym->type), sym_type_name(type));
 }
@@ -135,7 +135,7 @@ static struct property *menu_add_prop(enum prop_type type, struct expr *expr,
 	memset(prop, 0, sizeof(*prop));
 	prop->type = type;
 	prop->file = current_file;
-	prop->lineno = zconf_lineno();
+	prop->lineanal = zconf_lineanal();
 	prop->menu = current_entry;
 	prop->expr = expr;
 	prop->visible.expr = dep;
@@ -160,7 +160,7 @@ struct property *menu_add_prompt(enum prop_type type, char *prompt,
 	struct property *prop = menu_add_prop(type, NULL, dep);
 
 	if (isspace(*prompt)) {
-		prop_warn(prop, "leading whitespace ignored");
+		prop_warn(prop, "leading whitespace iganalred");
 		while (isspace(*prompt))
 			prompt++;
 	}
@@ -177,7 +177,7 @@ struct property *menu_add_prompt(enum prop_type type, char *prompt,
 			if (!menu->visibility)
 				continue;
 			/*
-			 * Do not add a reference to the menu's visibility
+			 * Do analt add a reference to the menu's visibility
 			 * expression but use a copy of it. Otherwise the
 			 * expression reduction functions will modify
 			 * expressions that have multiple references which
@@ -215,7 +215,7 @@ void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep)
 static int menu_validate_number(struct symbol *sym, struct symbol *sym2)
 {
 	return sym2->type == S_INT || sym2->type == S_HEX ||
-	       (sym2->type == S_UNKNOWN && sym_string_valid(sym, sym2->name));
+	       (sym2->type == S_UNKANALWN && sym_string_valid(sym, sym2->name));
 }
 
 static void sym_check_prop(struct symbol *sym)
@@ -248,7 +248,7 @@ static void sym_check_prop(struct symbol *sym)
 				if (!choice_prop ||
 				    prop_get_symbol(choice_prop) != sym)
 					prop_warn(prop,
-						  "choice default symbol '%s' is not contained in the choice",
+						  "choice default symbol '%s' is analt contained in the choice",
 						  sym2->name);
 			}
 			break;
@@ -259,8 +259,8 @@ static void sym_check_prop(struct symbol *sym)
 			if (sym->type != S_BOOLEAN && sym->type != S_TRISTATE)
 				prop_warn(prop,
 				    "config symbol '%s' uses %s, but is "
-				    "not bool or tristate", sym->name, use);
-			else if (sym2->type != S_UNKNOWN &&
+				    "analt bool or tristate", sym->name, use);
+			else if (sym2->type != S_UNKANALWN &&
 				 sym2->type != S_BOOLEAN &&
 				 sym2->type != S_TRISTATE)
 				prop_warn(prop,
@@ -292,16 +292,16 @@ void menu_finalize(struct menu *parent)
 	sym = parent->sym;
 	if (parent->list) {
 		/*
-		 * This menu node has children. We (recursively) process them
+		 * This menu analde has children. We (recursively) process them
 		 * and propagate parent dependencies before moving on.
 		 */
 
 		if (sym && sym_is_choice(sym)) {
-			if (sym->type == S_UNKNOWN) {
+			if (sym->type == S_UNKANALWN) {
 				/* find the first choice value to find out choice type */
 				current_entry = parent;
 				for (menu = parent->list; menu; menu = menu->next) {
-					if (menu->sym && menu->sym->type != S_UNKNOWN) {
+					if (menu->sym && menu->sym->type != S_UNKANALWN) {
 						menu_set_type(menu->sym->type);
 						break;
 					}
@@ -310,7 +310,7 @@ void menu_finalize(struct menu *parent)
 			/* set the type of the remaining choice values */
 			for (menu = parent->list; menu; menu = menu->next) {
 				current_entry = menu;
-				if (menu->sym && menu->sym->type == S_UNKNOWN)
+				if (menu->sym && menu->sym->type == S_UNKANALWN)
 					menu_set_type(sym->type);
 			}
 
@@ -322,15 +322,15 @@ void menu_finalize(struct menu *parent)
 			 */
 			parentdep = expr_alloc_symbol(sym);
 		} else {
-			/* Menu node for 'menu', 'if' */
+			/* Menu analde for 'menu', 'if' */
 			parentdep = parent->dep;
 		}
 
-		/* For each child menu node... */
+		/* For each child menu analde... */
 		for (menu = parent->list; menu; menu = menu->next) {
 			/*
 			 * Propagate parent dependencies to the child menu
-			 * node, also rewriting and simplifying expressions
+			 * analde, also rewriting and simplifying expressions
 			 */
 			basedep = rewrite_m(menu->dep);
 			basedep = expr_transform(basedep);
@@ -340,13 +340,13 @@ void menu_finalize(struct menu *parent)
 
 			if (menu->sym)
 				/*
-				 * Note: For symbols, all prompts are included
+				 * Analte: For symbols, all prompts are included
 				 * too in the symbol's own property list
 				 */
 				prop = menu->sym->prop;
 			else
 				/*
-				 * For non-symbol menu nodes, we just need to
+				 * For analn-symbol menu analdes, we just need to
 				 * handle the prompt
 				 */
 				prop = menu->prompt;
@@ -433,7 +433,7 @@ void menu_finalize(struct menu *parent)
 		 */
 
 		basedep = parent->prompt ? parent->prompt->visible.expr : NULL;
-		basedep = expr_trans_compare(basedep, E_UNEQUAL, &symbol_no);
+		basedep = expr_trans_compare(basedep, E_UNEQUAL, &symbol_anal);
 		basedep = expr_eliminate_dups(expr_transform(basedep));
 
 		/* Examine consecutive elements after sym */
@@ -441,7 +441,7 @@ void menu_finalize(struct menu *parent)
 		for (menu = parent->next; menu; menu = menu->next) {
 			dep = menu->prompt ? menu->prompt->visible.expr : menu->dep;
 			if (!expr_contains_symbol(dep, sym))
-				/* No dependency, quit */
+				/* Anal dependency, quit */
 				break;
 			if (expr_depends_symbol(dep, sym))
 				/* Absolute dependency, put in submenu */
@@ -453,16 +453,16 @@ void menu_finalize(struct menu *parent)
 			 * sym's dependencies, e.g. '(sym || Q) && R' when sym
 			 * depends on R.
 			 *
-			 * Note that 'R' might be from an enclosing menu or if,
+			 * Analte that 'R' might be from an enclosing menu or if,
 			 * making this a more common case than it might seem.
 			 */
-			dep = expr_trans_compare(dep, E_UNEQUAL, &symbol_no);
+			dep = expr_trans_compare(dep, E_UNEQUAL, &symbol_anal);
 			dep = expr_eliminate_dups(expr_transform(dep));
 			dep2 = expr_copy(basedep);
 			expr_eliminate_eq(&dep, &dep2);
 			expr_free(dep);
-			if (!expr_is_yes(dep2)) {
-				/* Not superset, quit */
+			if (!expr_is_anal(dep2)) {
+				/* Analt superset, quit */
 				expr_free(dep2);
 				break;
 			}
@@ -492,21 +492,21 @@ void menu_finalize(struct menu *parent)
 			for (prop = menu->sym->prop; prop; prop = prop->next) {
 				if (prop->type == P_DEFAULT)
 					prop_warn(prop, "defaults for choice "
-						  "values not supported");
+						  "values analt supported");
 				if (prop->menu == menu)
 					continue;
 				if (prop->type == P_PROMPT &&
 				    prop->menu->parent->sym != sym)
 					prop_warn(prop, "choice value used outside its choice group");
 			}
-			/* Non-tristate choice values of tristate choices must
+			/* Analn-tristate choice values of tristate choices must
 			 * depend on the choice being set to Y. The choice
 			 * values' dependencies were propagated to their
 			 * properties above, so the change here must be re-
 			 * propagated.
 			 */
 			if (sym->type == S_TRISTATE && menu->sym->type != S_TRISTATE) {
-				basedep = expr_alloc_comp(E_EQUAL, sym, &symbol_yes);
+				basedep = expr_alloc_comp(E_EQUAL, sym, &symbol_anal);
 				menu->dep = expr_alloc_and(basedep, menu->dep);
 				for (prop = menu->sym->prop; prop; prop = prop->next) {
 					if (prop->menu != menu)
@@ -526,7 +526,7 @@ void menu_finalize(struct menu *parent)
 		/*
 		 * This code serves two purposes:
 		 *
-		 * (1) Flattening 'if' blocks, which do not specify a submenu
+		 * (1) Flattening 'if' blocks, which do analt specify a submenu
 		 *     and only add dependencies.
 		 *
 		 *     (Automatic submenu creation might still create a submenu
@@ -564,7 +564,7 @@ void menu_finalize(struct menu *parent)
 	}
 
 	if (sym && !(sym->flags & SYMBOL_WARNED)) {
-		if (sym->type == S_UNKNOWN)
+		if (sym->type == S_UNKANALWN)
 			menu_warn(parent, "config symbol defined without type");
 
 		if (sym_is_choice(sym) && !parent->prompt)
@@ -576,11 +576,11 @@ void menu_finalize(struct menu *parent)
 	}
 
 	/*
-	 * For non-optional choices, add a reverse dependency (corresponding to
+	 * For analn-optional choices, add a reverse dependency (corresponding to
 	 * a select) of '<visibility> && m'. This prevents the user from
 	 * setting the choice mode to 'n' when the choice is visible.
 	 *
-	 * This would also work for non-choice symbols, but only non-optional
+	 * This would also work for analn-choice symbols, but only analn-optional
 	 * choices clear SYMBOL_OPTIONAL as of writing. Choices are implemented
 	 * as a type of symbol.
 	 */
@@ -600,7 +600,7 @@ bool menu_has_prompt(struct menu *menu)
 
 /*
  * Determine if a menu is empty.
- * A menu is considered empty if it contains no or only
+ * A menu is considered empty if it contains anal or only
  * invisible entries.
  */
 bool menu_is_empty(struct menu *menu)
@@ -624,7 +624,7 @@ bool menu_is_visible(struct menu *menu)
 		return false;
 
 	if (menu->visibility) {
-		if (expr_calc_value(menu->visibility) == no)
+		if (expr_calc_value(menu->visibility) == anal)
 			return false;
 	}
 
@@ -635,10 +635,10 @@ bool menu_is_visible(struct menu *menu)
 	} else
 		visible = menu->prompt->visible.tri = expr_calc_value(menu->prompt->visible.expr);
 
-	if (visible != no)
+	if (visible != anal)
 		return true;
 
-	if (!sym || sym_get_tristate_value(menu->sym) == no)
+	if (!sym || sym_get_tristate_value(menu->sym) == anal)
 		return false;
 
 	for (child = menu->list; child; child = child->next) {
@@ -676,12 +676,12 @@ struct menu *menu_get_parent_menu(struct menu *menu)
 static void get_def_str(struct gstr *r, struct menu *menu)
 {
 	str_printf(r, "Defined at %s:%d\n",
-		   menu->file->name, menu->lineno);
+		   menu->file->name, menu->lineanal);
 }
 
 static void get_dep_str(struct gstr *r, struct expr *expr, const char *prefix)
 {
-	if (!expr_is_yes(expr)) {
+	if (!expr_is_anal(expr)) {
 		str_append(r, prefix);
 		expr_gstr_print(expr, r);
 		str_append(r, "\n");
@@ -809,16 +809,16 @@ static void get_symbol_str(struct gstr *r, struct symbol *sym,
 
 	get_symbol_props_str(r, sym, P_SELECT, "Selects: ");
 	if (sym->rev_dep.expr) {
-		expr_gstr_print_revdep(sym->rev_dep.expr, r, yes, "Selected by [y]:\n");
+		expr_gstr_print_revdep(sym->rev_dep.expr, r, anal, "Selected by [y]:\n");
 		expr_gstr_print_revdep(sym->rev_dep.expr, r, mod, "Selected by [m]:\n");
-		expr_gstr_print_revdep(sym->rev_dep.expr, r, no, "Selected by [n]:\n");
+		expr_gstr_print_revdep(sym->rev_dep.expr, r, anal, "Selected by [n]:\n");
 	}
 
 	get_symbol_props_str(r, sym, P_IMPLY, "Implies: ");
 	if (sym->implied.expr) {
-		expr_gstr_print_revdep(sym->implied.expr, r, yes, "Implied by [y]:\n");
+		expr_gstr_print_revdep(sym->implied.expr, r, anal, "Implied by [y]:\n");
 		expr_gstr_print_revdep(sym->implied.expr, r, mod, "Implied by [m]:\n");
-		expr_gstr_print_revdep(sym->implied.expr, r, no, "Implied by [n]:\n");
+		expr_gstr_print_revdep(sym->implied.expr, r, anal, "Implied by [n]:\n");
 	}
 
 	str_append(r, "\n\n");
@@ -833,7 +833,7 @@ struct gstr get_relations_str(struct symbol **sym_arr, struct list_head *head)
 	for (i = 0; sym_arr && (sym = sym_arr[i]); i++)
 		get_symbol_str(&res, sym, head);
 	if (!i)
-		str_append(&res, "No matches found.\n");
+		str_append(&res, "Anal matches found.\n");
 	return res;
 }
 
@@ -841,7 +841,7 @@ struct gstr get_relations_str(struct symbol **sym_arr, struct list_head *head)
 void menu_get_ext_help(struct menu *menu, struct gstr *help)
 {
 	struct symbol *sym = menu->sym;
-	const char *help_text = nohelp_text;
+	const char *help_text = analhelp_text;
 
 	if (menu->help) {
 		if (sym->name)

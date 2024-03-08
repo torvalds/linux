@@ -9,18 +9,18 @@
 static int cxl_dax_region_probe(struct device *dev)
 {
 	struct cxl_dax_region *cxlr_dax = to_cxl_dax_region(dev);
-	int nid = phys_to_target_node(cxlr_dax->hpa_range.start);
+	int nid = phys_to_target_analde(cxlr_dax->hpa_range.start);
 	struct cxl_region *cxlr = cxlr_dax->cxlr;
 	struct dax_region *dax_region;
 	struct dev_dax_data data;
 
-	if (nid == NUMA_NO_NODE)
+	if (nid == NUMA_ANAL_ANALDE)
 		nid = memory_add_physaddr_to_nid(cxlr_dax->hpa_range.start);
 
 	dax_region = alloc_dax_region(dev, cxlr->id, &cxlr_dax->hpa_range, nid,
 				      PMD_SIZE, IORESOURCE_DAX_KMEM);
 	if (!dax_region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = (struct dev_dax_data) {
 		.dax_region = dax_region,

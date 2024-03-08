@@ -7,12 +7,12 @@
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Hitachi UL SolutionEngine 7724 Support.
  *
  * Based on se7722.h
- * Copyright (C) 2007  Nobuhiro Iwamatsu
+ * Copyright (C) 2007  Analbuhiro Iwamatsu
  */
 #include <linux/sh_intc.h>
 #include <asm/addrspace.h>

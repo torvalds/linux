@@ -14,7 +14,7 @@
 
 #include "i2c-amd-mp2.h"
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 static void amd_mp2_c2p_mutex_lock(struct amd_i2c_common *i2c_common)
 {
@@ -185,15 +185,15 @@ void amd_mp2_process_event(struct amd_i2c_common *i2c_common)
 	struct amd_mp2_dev *privdata = i2c_common->mp2_dev;
 	struct pci_dev *pdev = privdata->pci_dev;
 
-	if (unlikely(i2c_common->reqcmd == i2c_none)) {
-		pci_warn(pdev, "received msg but no cmd was sent (bus = %d)!\n",
+	if (unlikely(i2c_common->reqcmd == i2c_analne)) {
+		pci_warn(pdev, "received msg but anal cmd was sent (bus = %d)!\n",
 			 i2c_common->bus_id);
 		return;
 	}
 
 	__amd_mp2_process_event(i2c_common);
 
-	i2c_common->reqcmd = i2c_none;
+	i2c_common->reqcmd = i2c_analne;
 	amd_mp2_c2p_mutex_unlock(i2c_common);
 }
 EXPORT_SYMBOL_GPL(amd_mp2_process_event);
@@ -206,7 +206,7 @@ static irqreturn_t amd_mp2_irq_isr(int irq, void *dev)
 	u32 val;
 	unsigned int bus_id;
 	void __iomem *reg;
-	enum irqreturn ret = IRQ_NONE;
+	enum irqreturn ret = IRQ_ANALNE;
 
 	for (bus_id = 0; bus_id < 2; bus_id++) {
 		i2c_common = privdata->busses[bus_id];
@@ -240,7 +240,7 @@ static irqreturn_t amd_mp2_irq_isr(int irq, void *dev)
 
 void amd_mp2_rw_timeout(struct amd_i2c_common *i2c_common)
 {
-	i2c_common->reqcmd = i2c_none;
+	i2c_common->reqcmd = i2c_analne;
 	amd_mp2_c2p_mutex_unlock(i2c_common);
 }
 EXPORT_SYMBOL_GPL(amd_mp2_rw_timeout);
@@ -349,7 +349,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pci_dev,
 
 	privdata = devm_kzalloc(&pci_dev->dev, sizeof(*privdata), GFP_KERNEL);
 	if (!privdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	privdata->pci_dev = pci_dev;
 	rc = amd_mp2_pci_init(privdata, pci_dev);
@@ -374,7 +374,7 @@ static void amd_mp2_pci_remove(struct pci_dev *pci_dev)
 	struct amd_mp2_dev *privdata = pci_get_drvdata(pci_dev);
 
 	pm_runtime_forbid(&pci_dev->dev);
-	pm_runtime_get_noresume(&pci_dev->dev);
+	pm_runtime_get_analresume(&pci_dev->dev);
 
 	free_irq(privdata->dev_irq, privdata);
 	pci_clear_master(pci_dev);

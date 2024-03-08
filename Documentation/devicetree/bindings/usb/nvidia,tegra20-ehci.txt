@@ -1,6 +1,6 @@
 Tegra SOC USB controllers
 
-The device node for a USB controller that is part of a Tegra
+The device analde for a USB controller that is part of a Tegra
 SOC is as described in the document "Open Firmware Recommended
 Practice : Universal Serial Bus" with the following modifications
 and additions :

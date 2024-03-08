@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,9 +55,9 @@ static enum dc_irq_source to_dal_irq_source_dcn201(
 		return DC_IRQ_SOURCE_PFLIP1;
 	case DCN_1_0__SRCID__HUBP1_FLIP_INTERRUPT:
 		return DC_IRQ_SOURCE_PFLIP2;
-	case DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
+	case DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE1;
-	case DCN_1_0__SRCID__OTG1_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
+	case DCN_1_0__SRCID__OTG1_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE2;
 	case DCN_1_0__SRCID__DC_HPD1_INT:
 		/* generic src_id for all HPD and HPDRX interrupts */
@@ -131,7 +131,7 @@ static struct irq_source_info_funcs vline0_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
-static struct irq_source_info_funcs vupdate_no_lock_irq_info_funcs = {
+static struct irq_source_info_funcs vupdate_anal_lock_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
@@ -196,15 +196,15 @@ static struct irq_source_info_funcs vupdate_no_lock_irq_info_funcs = {
 		.funcs = &vblank_irq_info_funcs\
 	}
 
-/* vupdate_no_lock_int_entry maps to DC_IRQ_SOURCE_VUPDATEx, to match semantic
+/* vupdate_anal_lock_int_entry maps to DC_IRQ_SOURCE_VUPDATEx, to match semantic
  * of DCE's DC_IRQ_SOURCE_VUPDATEx.
  */
-#define vupdate_no_lock_int_entry(reg_num)\
+#define vupdate_anal_lock_int_entry(reg_num)\
 	[DC_IRQ_SOURCE_VUPDATE1 + reg_num] = {\
 		IRQ_REG_ENTRY(OTG, reg_num,\
-			OTG_GLOBAL_SYNC_STATUS, VUPDATE_NO_LOCK_INT_EN,\
-			OTG_GLOBAL_SYNC_STATUS, VUPDATE_NO_LOCK_EVENT_CLEAR),\
-		.funcs = &vupdate_no_lock_irq_info_funcs\
+			OTG_GLOBAL_SYNC_STATUS, VUPDATE_ANAL_LOCK_INT_EN,\
+			OTG_GLOBAL_SYNC_STATUS, VUPDATE_ANAL_LOCK_EVENT_CLEAR),\
+		.funcs = &vupdate_anal_lock_irq_info_funcs\
 	}
 #define vblank_int_entry(reg_num)\
 	[DC_IRQ_SOURCE_VBLANK1 + reg_num] = {\
@@ -318,8 +318,8 @@ irq_source_info_dcn201[DAL_IRQ_SOURCES_NUMBER] = {
 	dummy_irq_entry(),
 	[DC_IRQ_SOURCE_DMCU_SCP] = dummy_irq_entry(),
 	[DC_IRQ_SOURCE_VBIOS_SW] = dummy_irq_entry(),
-	vupdate_no_lock_int_entry(0),
-	vupdate_no_lock_int_entry(1),
+	vupdate_anal_lock_int_entry(0),
+	vupdate_anal_lock_int_entry(1),
 	dummy_irq_entry(),
 	dummy_irq_entry(),
 	dummy_irq_entry(),

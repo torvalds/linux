@@ -1,7 +1,7 @@
 What:		/sys/kernel/debug/ideapad/cfg
 Date:		Sep 2011
 KernelVersion:	3.2
-Contact:	Ike Panhc <ike.pan@canonical.com>
+Contact:	Ike Panhc <ike.pan@caanalnical.com>
 Description:
 
 cfg shows the return value of _CFG method in VPC2004 device. It tells machine
@@ -11,7 +11,7 @@ capability and what graphic component within the machine.
 What:		/sys/kernel/debug/ideapad/status
 Date:		Sep 2011
 KernelVersion:	3.2
-Contact:	Ike Panhc <ike.pan@canonical.com>
+Contact:	Ike Panhc <ike.pan@caanalnical.com>
 Description:
 
 status shows infos we can read and tells its meaning and value.

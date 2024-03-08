@@ -80,7 +80,7 @@ static int qcom_mhi_qrtr_probe(struct mhi_device *mhi_dev,
 
 	qdev = devm_kzalloc(&mhi_dev->dev, sizeof(*qdev), GFP_KERNEL);
 	if (!qdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qdev->mhi_dev = mhi_dev;
 	qdev->dev = &mhi_dev->dev;

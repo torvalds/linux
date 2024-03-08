@@ -86,7 +86,7 @@ struct dm_crypt_io {
 
 	struct bvec_iter saved_bi_iter;
 
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 } CRYPTO_MINALIGN_ATTR;
 
 struct dm_crypt_request {
@@ -137,13 +137,13 @@ struct iv_elephant_private {
  * and encrypts / decrypts at the same time.
  */
 enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
-	     DM_CRYPT_SAME_CPU, DM_CRYPT_NO_OFFLOAD,
-	     DM_CRYPT_NO_READ_WORKQUEUE, DM_CRYPT_NO_WRITE_WORKQUEUE,
+	     DM_CRYPT_SAME_CPU, DM_CRYPT_ANAL_OFFLOAD,
+	     DM_CRYPT_ANAL_READ_WORKQUEUE, DM_CRYPT_ANAL_WRITE_WORKQUEUE,
 	     DM_CRYPT_WRITE_INLINE };
 
 enum cipher_flags {
 	CRYPT_MODE_INTEGRITY_AEAD,	/* Use authenticated mode for cipher */
-	CRYPT_IV_LARGE_SECTORS,		/* Calculate IV from sector_size, not 512B sectors */
+	CRYPT_IV_LARGE_SECTORS,		/* Calculate IV from sector_size, analt 512B sectors */
 	CRYPT_ENCRYPT_PREPROCESS,	/* Must preprocess data for encryption (elephant) */
 };
 
@@ -279,7 +279,7 @@ static struct crypto_aead *any_tfm_aead(struct crypt_config *cc)
  *        (needed for LRW-32-AES and possible other narrow block modes)
  *
  * null: the initial vector is always zero.  Provides compatibility with
- *       obsolete loop_fish2 devices.  Do not use for new devices.
+ *       obsolete loop_fish2 devices.  Do analt use for new devices.
  *
  * lmk:  Compatible implementation of the block chaining mode used
  *       by the Loop-AES block device encryption system
@@ -302,7 +302,7 @@ static struct crypto_aead *any_tfm_aead(struct crypt_config *cc)
  *       with an IV derived from initial key and the sector number.
  *       In addition, whitening value is applied on every sector, whitening
  *       is calculated from initial key, sector number and mixed using CRC32.
- *       Note that this encryption scheme is vulnerable to watermarking attacks
+ *       Analte that this encryption scheme is vulnerable to watermarking attacks
  *       and should be used for old compatible containers access only.
  *
  * eboiv: Encrypted byte-offset IV (used in Bitlocker in CBC mode)
@@ -347,7 +347,7 @@ static int crypt_iv_essiv_gen(struct crypt_config *cc, u8 *iv,
 			      struct dm_crypt_request *dmreq)
 {
 	/*
-	 * ESSIV encryption of the IV is now handled by the crypto API,
+	 * ESSIV encryption of the IV is analw handled by the crypto API,
 	 * so just pass the plain sector number here.
 	 */
 	memset(iv, 0, cc->iv_size);
@@ -373,7 +373,7 @@ static int crypt_iv_benbi_ctr(struct crypt_config *cc, struct dm_target *ti,
 	 * to get the cipher block count, we use this shift in _gen.
 	 */
 	if (1 << log != bs) {
-		ti->error = "cypher blocksize is not a power of 2";
+		ti->error = "cypher blocksize is analt a power of 2";
 		return -EINVAL;
 	}
 
@@ -441,7 +441,7 @@ static int crypt_iv_lmk_ctr(struct crypt_config *cc, struct dm_target *ti,
 		return PTR_ERR(lmk->hash_tfm);
 	}
 
-	/* No seed in LMK version 2 */
+	/* Anal seed in LMK version 2 */
 	if (cc->key_parts == cc->tfms_count) {
 		lmk->seed = NULL;
 		return 0;
@@ -451,7 +451,7 @@ static int crypt_iv_lmk_ctr(struct crypt_config *cc, struct dm_target *ti,
 	if (!lmk->seed) {
 		crypt_iv_lmk_dtr(cc);
 		ti->error = "Error kmallocing seed storage in LMK";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -516,7 +516,7 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 	if (r)
 		return r;
 
-	/* No MD5 padding here */
+	/* Anal MD5 padding here */
 	r = crypto_shash_export(desc, &md5state);
 	if (r)
 		return r;
@@ -609,7 +609,7 @@ static int crypt_iv_tcw_ctr(struct crypt_config *cc, struct dm_target *ti,
 	if (!tcw->iv_seed || !tcw->whitening) {
 		crypt_iv_tcw_dtr(cc);
 		ti->error = "Error allocating seed storage in TCW";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -726,12 +726,12 @@ static int crypt_iv_eboiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 			    const char *opts)
 {
 	if (crypt_integrity_aead(cc)) {
-		ti->error = "AEAD transforms not supported for EBOIV";
+		ti->error = "AEAD transforms analt supported for EBOIV";
 		return -EINVAL;
 	}
 
 	if (crypto_skcipher_blocksize(any_tfm(cc)) != cc->iv_size) {
-		ti->error = "Block size of EBOIV cipher does not match IV size of block cipher";
+		ti->error = "Block size of EBOIV cipher does analt match IV size of block cipher";
 		return -EINVAL;
 	}
 
@@ -750,11 +750,11 @@ static int crypt_iv_eboiv_gen(struct crypt_config *cc, u8 *iv,
 	u8 *buf;
 
 	reqsize = sizeof(*req) + crypto_skcipher_reqsize(tfm);
-	reqsize = ALIGN(reqsize, __alignof__(__le64));
+	reqsize = ALIGN(reqsize, __aliganalf__(__le64));
 
-	req = kmalloc(reqsize + cc->iv_size, GFP_NOIO);
+	req = kmalloc(reqsize + cc->iv_size, GFP_ANALIO);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skcipher_request_set_tfm(req, tfm);
 
@@ -953,12 +953,12 @@ static int crypt_iv_elephant(struct crypt_config *cc, struct dm_crypt_request *d
 	DECLARE_CRYPTO_WAIT(wait);
 	int i, r;
 
-	req = skcipher_request_alloc(elephant->tfm, GFP_NOIO);
-	es = kzalloc(16, GFP_NOIO); /* Key for AES */
-	ks = kzalloc(32, GFP_NOIO); /* Elephant sector key */
+	req = skcipher_request_alloc(elephant->tfm, GFP_ANALIO);
+	es = kzalloc(16, GFP_ANALIO); /* Key for AES */
+	ks = kzalloc(32, GFP_ANALIO); /* Elephant sector key */
 
 	if (!req || !es || !ks) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto out;
 	}
 
@@ -984,7 +984,7 @@ static int crypt_iv_elephant(struct crypt_config *cc, struct dm_crypt_request *d
 	data = kmap_local_page(sg_page(sg));
 	data_offset = data + sg->offset;
 
-	/* Cannot modify original bio, copy to sg_out and apply Elephant to it */
+	/* Cananalt modify original bio, copy to sg_out and apply Elephant to it */
 	if (bio_data_dir(dmreq->ctx->bio_in) == WRITE) {
 		sg2 = crypt_get_sg_data(cc, dmreq->sg_in);
 		data2 = kmap_local_page(sg_page(sg2));
@@ -1151,7 +1151,7 @@ static int dm_crypt_integrity_io_alloc(struct dm_crypt_io *io, struct bio *bio)
 	if (!bio_sectors(bio) || !io->cc->on_disk_tag_size)
 		return 0;
 
-	bip = bio_integrity_alloc(bio, GFP_NOIO, 1);
+	bip = bio_integrity_alloc(bio, GFP_ANALIO, 1);
 	if (IS_ERR(bip))
 		return PTR_ERR(bip);
 
@@ -1162,7 +1162,7 @@ static int dm_crypt_integrity_io_alloc(struct dm_crypt_io *io, struct bio *bio)
 	ret = bio_integrity_add_page(bio, virt_to_page(io->integrity_metadata),
 				     tag_len, offset_in_page(io->integrity_metadata));
 	if (unlikely(ret != tag_len))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1173,9 +1173,9 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 	struct blk_integrity *bi = blk_get_integrity(cc->dev->bdev->bd_disk);
 	struct mapped_device *md = dm_table_get_md(ti->table);
 
-	/* From now we require underlying device with our integrity profile */
+	/* From analw we require underlying device with our integrity profile */
 	if (!bi || strcasecmp(bi->profile->name, "DM-DIF-EXT-TAG")) {
-		ti->error = "Integrity profile not supported.";
+		ti->error = "Integrity profile analt supported.";
 		return -EINVAL;
 	}
 
@@ -1195,7 +1195,7 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 		       cc->integrity_tag_size, cc->integrity_iv_size);
 
 		if (crypto_aead_setauthsize(any_tfm_aead(cc), cc->integrity_tag_size)) {
-			ti->error = "Integrity AEAD auth tag size is not supported.";
+			ti->error = "Integrity AEAD auth tag size is analt supported.";
 			return -EINVAL;
 		}
 	} else if (cc->integrity_iv_size)
@@ -1203,13 +1203,13 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 		       cc->integrity_iv_size);
 
 	if ((cc->integrity_tag_size + cc->integrity_iv_size) != bi->tag_size) {
-		ti->error = "Not enough space for integrity tag in the profile.";
+		ti->error = "Analt eanalugh space for integrity tag in the profile.";
 		return -EINVAL;
 	}
 
 	return 0;
 #else
-	ti->error = "Integrity profile not supported.";
+	ti->error = "Integrity profile analt supported.";
 	return -EINVAL;
 #endif
 }
@@ -1477,9 +1477,9 @@ static int crypt_alloc_req_skcipher(struct crypt_config *cc,
 	unsigned int key_index = ctx->cc_sector & (cc->tfms_count - 1);
 
 	if (!ctx->r.req) {
-		ctx->r.req = mempool_alloc(&cc->req_pool, in_interrupt() ? GFP_ATOMIC : GFP_NOIO);
+		ctx->r.req = mempool_alloc(&cc->req_pool, in_interrupt() ? GFP_ATOMIC : GFP_ANALIO);
 		if (!ctx->r.req)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	skcipher_request_set_tfm(ctx->r.req, cc->cipher_tfm.tfms[key_index]);
@@ -1499,9 +1499,9 @@ static int crypt_alloc_req_aead(struct crypt_config *cc,
 				 struct convert_context *ctx)
 {
 	if (!ctx->r.req_aead) {
-		ctx->r.req_aead = mempool_alloc(&cc->req_pool, in_interrupt() ? GFP_ATOMIC : GFP_NOIO);
+		ctx->r.req_aead = mempool_alloc(&cc->req_pool, in_interrupt() ? GFP_ATOMIC : GFP_ANALIO);
 		if (!ctx->r.req_aead)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	aead_request_set_tfm(ctx->r.req_aead, cc->cipher_tfm.tfms_aead[0]);
@@ -1553,7 +1553,7 @@ static void crypt_free_req(struct crypt_config *cc, void *req, struct bio *base_
 }
 
 /*
- * Encrypt / decrypt data from one bio to another one (can be the same one)
+ * Encrypt / decrypt data from one bio to aanalther one (can be the same one)
  */
 static blk_status_t crypt_convert(struct crypt_config *cc,
 			 struct convert_context *ctx, bool atomic, bool reset_pending)
@@ -1613,7 +1613,7 @@ static blk_status_t crypt_convert(struct crypt_config *cc,
 			reinit_completion(&ctx->restart);
 			fallthrough;
 		/*
-		 * The request is queued and processed asynchronously,
+		 * The request is queued and processed asynchroanalusly,
 		 * completion function kcryptd_async_done() will be called.
 		 */
 		case -EINPROGRESS:
@@ -1622,7 +1622,7 @@ static blk_status_t crypt_convert(struct crypt_config *cc,
 			tag_offset++;
 			continue;
 		/*
-		 * The request was already processed (synchronously).
+		 * The request was already processed (synchroanalusly).
 		 */
 		case 0:
 			atomic_dec(&ctx->cc_pending);
@@ -1664,19 +1664,19 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone);
  *
  * In order to avoid this scenario we allocate the pages under a mutex.
  *
- * In order to not degrade performance with excessive locking, we try
- * non-blocking allocations without a mutex first but on failure we fallback
+ * In order to analt degrade performance with excessive locking, we try
+ * analn-blocking allocations without a mutex first but on failure we fallback
  * to blocking allocations with a mutex.
  *
  * In order to reduce allocation overhead, we try to allocate compound pages in
- * the first pass. If they are not available, we fall back to the mempool.
+ * the first pass. If they are analt available, we fall back to the mempool.
  */
 static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned int size)
 {
 	struct crypt_config *cc = io->cc;
 	struct bio *clone;
 	unsigned int nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	gfp_t gfp_mask = GFP_NOWAIT | __GFP_HIGHMEM;
+	gfp_t gfp_mask = GFP_ANALWAIT | __GFP_HIGHMEM;
 	unsigned int remaining_size;
 	unsigned int order = MAX_PAGE_ORDER;
 
@@ -1685,7 +1685,7 @@ retry:
 		mutex_lock(&cc->bio_alloc_lock);
 
 	clone = bio_alloc_bioset(cc->dev->bdev, nr_iovecs, io->base_bio->bi_opf,
-				 GFP_NOIO, &cc->bs);
+				 GFP_ANALIO, &cc->bs);
 	clone->bi_private = io;
 	clone->bi_end_io = crypt_endio;
 
@@ -1702,7 +1702,7 @@ retry:
 					(1 << order) > dm_crypt_pages_per_client))
 				goto decrease_order;
 			pages = alloc_pages(gfp_mask
-				| __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN | __GFP_COMP,
+				| __GFP_ANALMEMALLOC | __GFP_ANALRETRY | __GFP_ANALWARN | __GFP_COMP,
 				order);
 			if (likely(pages != NULL)) {
 				percpu_counter_add(&cc->n_allocated_pages, 1 << order);
@@ -1829,7 +1829,7 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
  * to memory allocation.
  *
  * The work is done per CPU global for all dm-crypt instances.
- * They should not depend on each other and do not block.
+ * They should analt depend on each other and do analt block.
  */
 static void crypt_endio(struct bio *clone)
 {
@@ -1862,7 +1862,7 @@ static void crypt_endio(struct bio *clone)
 	crypt_dec_pending(io);
 }
 
-#define CRYPT_MAP_READ_GFP GFP_NOWAIT
+#define CRYPT_MAP_READ_GFP GFP_ANALWAIT
 
 static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 {
@@ -1916,7 +1916,7 @@ static void kcryptd_io_read_work(struct work_struct *work)
 	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
 
 	crypt_inc_pending(io);
-	if (kcryptd_io_read(io, GFP_NOIO))
+	if (kcryptd_io_read(io, GFP_ANALIO))
 		io->error = BLK_STS_RESOURCE;
 	crypt_dec_pending(io);
 }
@@ -1936,7 +1936,7 @@ static void kcryptd_io_write(struct dm_crypt_io *io)
 	dm_submit_bio_remap(io->base_bio, clone);
 }
 
-#define crypt_io_from_node(node) rb_entry((node), struct dm_crypt_io, rb_node)
+#define crypt_io_from_analde(analde) rb_entry((analde), struct dm_crypt_io, rb_analde)
 
 static int dmcrypt_write(void *data)
 {
@@ -1973,16 +1973,16 @@ pop_from_list:
 		cc->write_tree = RB_ROOT;
 		spin_unlock_irq(&cc->write_thread_lock);
 
-		BUG_ON(rb_parent(write_tree.rb_node));
+		BUG_ON(rb_parent(write_tree.rb_analde));
 
 		/*
-		 * Note: we cannot walk the tree here with rb_next because
+		 * Analte: we cananalt walk the tree here with rb_next because
 		 * the structures may be freed when kcryptd_io_write is called.
 		 */
 		blk_start_plug(&plug);
 		do {
-			io = crypt_io_from_node(rb_first(&write_tree));
-			rb_erase(&io->rb_node, &write_tree);
+			io = crypt_io_from_analde(rb_first(&write_tree));
+			rb_erase(&io->rb_analde, &write_tree);
 			kcryptd_io_write(io);
 			cond_resched();
 		} while (!RB_EMPTY_ROOT(&write_tree));
@@ -1997,7 +1997,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 	struct crypt_config *cc = io->cc;
 	unsigned long flags;
 	sector_t sector;
-	struct rb_node **rbp, *parent;
+	struct rb_analde **rbp, *parent;
 
 	if (unlikely(io->error)) {
 		crypt_free_buffer_pages(cc, clone);
@@ -2011,8 +2011,8 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 
 	clone->bi_iter.bi_sector = cc->start + io->sector;
 
-	if ((likely(!async) && test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags)) ||
-	    test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags)) {
+	if ((likely(!async) && test_bit(DM_CRYPT_ANAL_OFFLOAD, &cc->flags)) ||
+	    test_bit(DM_CRYPT_ANAL_WRITE_WORKQUEUE, &cc->flags)) {
 		dm_submit_bio_remap(io->base_bio, clone);
 		return;
 	}
@@ -2020,18 +2020,18 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 	spin_lock_irqsave(&cc->write_thread_lock, flags);
 	if (RB_EMPTY_ROOT(&cc->write_tree))
 		wake_up_process(cc->write_thread);
-	rbp = &cc->write_tree.rb_node;
+	rbp = &cc->write_tree.rb_analde;
 	parent = NULL;
 	sector = io->sector;
 	while (*rbp) {
 		parent = *rbp;
-		if (sector < crypt_io_from_node(parent)->sector)
+		if (sector < crypt_io_from_analde(parent)->sector)
 			rbp = &(*rbp)->rb_left;
 		else
 			rbp = &(*rbp)->rb_right;
 	}
-	rb_link_node(&io->rb_node, parent, rbp);
-	rb_insert_color(&io->rb_node, &cc->write_tree);
+	rb_link_analde(&io->rb_analde, parent, rbp);
+	rb_insert_color(&io->rb_analde, &cc->write_tree);
 	spin_unlock_irqrestore(&cc->write_thread_lock, flags);
 }
 
@@ -2043,8 +2043,8 @@ static bool kcryptd_crypt_write_inline(struct crypt_config *cc,
 		return false;
 
 	/*
-	 * Note: zone append writes (REQ_OP_ZONE_APPEND) do not have ordering
-	 * constraints so they do not need to be issued inline by
+	 * Analte: zone append writes (REQ_OP_ZONE_APPEND) do analt have ordering
+	 * constraints so they do analt need to be issued inline by
 	 * kcryptd_crypt_write_convert().
 	 */
 	switch (bio_op(ctx->bio_in)) {
@@ -2078,7 +2078,7 @@ static void kcryptd_crypt_write_continue(struct work_struct *work)
 		crypt_finished = 1;
 	}
 
-	/* Encryption was already finished, submit io now */
+	/* Encryption was already finished, submit io analw */
 	if (crypt_finished) {
 		kcryptd_crypt_write_io_submit(io, 0);
 		io->sector = sector;
@@ -2121,7 +2121,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 
 	crypt_inc_pending(io);
 	r = crypt_convert(cc, ctx,
-			  test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags), true);
+			  test_bit(DM_CRYPT_ANAL_WRITE_WORKQUEUE, &cc->flags), true);
 	/*
 	 * Crypto API backlogged the request, because its queue was full
 	 * and we're in softirq context, so continue from a workqueue
@@ -2141,7 +2141,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		crypt_finished = 1;
 	}
 
-	/* Encryption was already finished, submit io now */
+	/* Encryption was already finished, submit io analw */
 	if (crypt_finished) {
 		kcryptd_crypt_write_io_submit(io, 0);
 		io->sector = sector;
@@ -2193,13 +2193,13 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 	if (io->ctx.aead_recheck) {
 		io->ctx.cc_sector = io->sector + cc->iv_offset;
 		r = crypt_convert(cc, &io->ctx,
-				  test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags), true);
+				  test_bit(DM_CRYPT_ANAL_READ_WORKQUEUE, &cc->flags), true);
 	} else {
 		crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
 				   io->sector);
 
 		r = crypt_convert(cc, &io->ctx,
-				  test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags), true);
+				  test_bit(DM_CRYPT_ANAL_READ_WORKQUEUE, &cc->flags), true);
 	}
 	/*
 	 * Crypto API backlogged the request, because its queue was full
@@ -2227,7 +2227,7 @@ static void kcryptd_async_done(void *data, int error)
 	struct crypt_config *cc = io->cc;
 
 	/*
-	 * A request from crypto driver backlog is going to be processed now,
+	 * A request from crypto driver backlog is going to be processed analw,
 	 * finish the completion and continue in crypt_convert().
 	 * (Callback will be called for the second time for this request.)
 	 */
@@ -2289,8 +2289,8 @@ static void kcryptd_queue_crypt(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->cc;
 
-	if ((bio_data_dir(io->base_bio) == READ && test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags)) ||
-	    (bio_data_dir(io->base_bio) == WRITE && test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags))) {
+	if ((bio_data_dir(io->base_bio) == READ && test_bit(DM_CRYPT_ANAL_READ_WORKQUEUE, &cc->flags)) ||
+	    (bio_data_dir(io->base_bio) == WRITE && test_bit(DM_CRYPT_ANAL_WRITE_WORKQUEUE, &cc->flags))) {
 		/*
 		 * in_hardirq(): Crypto API's skcipher_walk_first() refuses to work in hard IRQ context.
 		 * irqs_disabled(): the kernel may run some IO completion from the idle thread, but
@@ -2354,7 +2354,7 @@ static int crypt_alloc_tfms_skcipher(struct crypt_config *cc, char *ciphermode)
 				      sizeof(struct crypto_skcipher *),
 				      GFP_KERNEL);
 	if (!cc->cipher_tfm.tfms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cc->tfms_count; i++) {
 		cc->cipher_tfm.tfms[i] = crypto_alloc_skcipher(ciphermode, 0,
@@ -2382,7 +2382,7 @@ static int crypt_alloc_tfms_aead(struct crypt_config *cc, char *ciphermode)
 
 	cc->cipher_tfm.tfms = kmalloc(sizeof(struct crypto_aead *), GFP_KERNEL);
 	if (!cc->cipher_tfm.tfms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cc->cipher_tfm.tfms_aead[0] = crypto_alloc_aead(ciphermode, 0,
 						CRYPTO_ALG_ALLOCATES_MEMORY);
@@ -2442,7 +2442,7 @@ static int crypt_setkey(struct crypt_config *cc)
 	unsigned int subkey_size;
 	int err = 0, i, r;
 
-	/* Ignore extra keys (which are used for IV etc) */
+	/* Iganalre extra keys (which are used for IV etc) */
 	subkey_size = crypt_subkey_size(cc);
 
 	if (crypt_integrity_hmac(cc)) {
@@ -2547,7 +2547,7 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 	 * proper whitespace escaping in arguments on DM_TABLE_STATUS path.
 	 */
 	if (contains_whitespace(key_string)) {
-		DMERR("whitespace chars not allowed in key string");
+		DMERR("whitespace chars analt allowed in key string");
 		return -EINVAL;
 	}
 
@@ -2576,7 +2576,7 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 
 	new_key_string = kstrdup(key_string, GFP_KERNEL);
 	if (!new_key_string)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	key = request_key(type, key_desc + 1, NULL);
 	if (IS_ERR(key)) {
@@ -2654,11 +2654,11 @@ static int crypt_set_key(struct crypt_config *cc, char *key)
 	int r = -EINVAL;
 	int key_string_len = strlen(key);
 
-	/* Hyphen (which gives a key_size of zero) means there is no key. */
+	/* Hyphen (which gives a key_size of zero) means there is anal key. */
 	if (!cc->key_size && strcmp(key, "-"))
 		goto out;
 
-	/* ':' means the key is in kernel keyring, short-circuit normal key processing */
+	/* ':' means the key is in kernel keyring, short-circuit analrmal key processing */
 	if (key[0] == ':') {
 		r = crypt_set_keyring_key(cc, key + 1);
 		goto out;
@@ -2680,7 +2680,7 @@ static int crypt_set_key(struct crypt_config *cc, char *key)
 		set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 
 out:
-	/* Hex key string not needed after here, so wipe it. */
+	/* Hex key string analt needed after here, so wipe it. */
 	memset(key, '0', key_string_len);
 
 	return r;
@@ -2727,12 +2727,12 @@ static void *crypt_page_alloc(gfp_t gfp_mask, void *pool_data)
 	struct page *page;
 
 	/*
-	 * Note, percpu_counter_read_positive() may over (and under) estimate
+	 * Analte, percpu_counter_read_positive() may over (and under) estimate
 	 * the current usage by at most (batch - 1) * num_online_cpus() pages,
 	 * but avoids potential spinlock contention of an exact result.
 	 */
 	if (unlikely(percpu_counter_read_positive(&cc->n_allocated_pages) >= dm_crypt_pages_per_client) &&
-	    likely(gfp_mask & __GFP_NORETRY))
+	    likely(gfp_mask & __GFP_ANALRETRY))
 		return NULL;
 
 	page = alloc_page(gfp_mask);
@@ -2817,7 +2817,7 @@ static int crypt_ctr_ivmode(struct dm_target *ti, const char *ivmode)
 		cc->iv_size = max(cc->iv_size,
 				  (unsigned int)(sizeof(u64) / sizeof(u8)));
 	else if (ivmode) {
-		DMWARN("Selected cipher does not support IVs");
+		DMWARN("Selected cipher does analt support IVs");
 		ivmode = NULL;
 	}
 
@@ -2893,7 +2893,7 @@ static int crypt_ctr_auth_cipher(struct crypt_config *cc, char *cipher_api)
 
 	mac_alg = kmemdup_nul(start, end - start, GFP_KERNEL);
 	if (!mac_alg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mac = crypto_alloc_ahash(mac_alg, 0, CRYPTO_ALG_ALLOCATES_MEMORY);
 	kfree(mac_alg);
@@ -2906,7 +2906,7 @@ static int crypt_ctr_auth_cipher(struct crypt_config *cc, char *cipher_api)
 
 	cc->authenc_key = kmalloc(crypt_authenckey_size(cc), GFP_KERNEL);
 	if (!cc->authenc_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -2926,7 +2926,7 @@ static int crypt_ctr_cipher_new(struct dm_target *ti, char *cipher_in, char *key
 	 */
 	tmp = &cipher_in[strlen("capi:")];
 
-	/* Separate IV options if present, it can contain another '-' in hash name */
+	/* Separate IV options if present, it can contain aanalther '-' in hash name */
 	*ivopts = strrchr(tmp, ':');
 	if (*ivopts) {
 		**ivopts = '\0';
@@ -2961,8 +2961,8 @@ static int crypt_ctr_cipher_new(struct dm_target *ti, char *cipher_in, char *key
 		ret = snprintf(buf, CRYPTO_MAX_ALG_NAME, "essiv(%s,%s)",
 			       cipher_api, *ivopts);
 		if (ret < 0 || ret >= CRYPTO_MAX_ALG_NAME) {
-			ti->error = "Cannot allocate cipher string";
-			return -ENOMEM;
+			ti->error = "Cananalt allocate cipher string";
+			return -EANALMEM;
 		}
 		cipher_api = buf;
 	}
@@ -3065,8 +3065,8 @@ static int crypt_ctr_cipher_old(struct dm_target *ti, char *cipher_in, char *key
 
 	return 0;
 bad_mem:
-	ti->error = "Cannot allocate cipher strings";
-	return -ENOMEM;
+	ti->error = "Cananalt allocate cipher strings";
+	return -EANALMEM;
 }
 
 static int crypt_ctr_cipher(struct dm_target *ti, char *cipher_in, char *key)
@@ -3077,8 +3077,8 @@ static int crypt_ctr_cipher(struct dm_target *ti, char *cipher_in, char *key)
 
 	cc->cipher_string = kstrdup(cipher_in, GFP_KERNEL);
 	if (!cc->cipher_string) {
-		ti->error = "Cannot allocate cipher strings";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate cipher strings";
+		return -EANALMEM;
 	}
 
 	if (strstarts(cipher_in, "capi:"))
@@ -3148,7 +3148,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 	while (opt_params--) {
 		opt_string = dm_shift_arg(&as);
 		if (!opt_string) {
-			ti->error = "Not enough feature arguments";
+			ti->error = "Analt eanalugh feature arguments";
 			return -EINVAL;
 		}
 
@@ -3159,11 +3159,11 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			set_bit(DM_CRYPT_SAME_CPU, &cc->flags);
 
 		else if (!strcasecmp(opt_string, "submit_from_crypt_cpus"))
-			set_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
-		else if (!strcasecmp(opt_string, "no_read_workqueue"))
-			set_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
-		else if (!strcasecmp(opt_string, "no_write_workqueue"))
-			set_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
+			set_bit(DM_CRYPT_ANAL_OFFLOAD, &cc->flags);
+		else if (!strcasecmp(opt_string, "anal_read_workqueue"))
+			set_bit(DM_CRYPT_ANAL_READ_WORKQUEUE, &cc->flags);
+		else if (!strcasecmp(opt_string, "anal_write_workqueue"))
+			set_bit(DM_CRYPT_ANAL_WRITE_WORKQUEUE, &cc->flags);
 		else if (sscanf(opt_string, "integrity:%u:", &val) == 1) {
 			if (val == 0 || val > MAX_TAG_SIZE) {
 				ti->error = "Invalid integrity arguments";
@@ -3173,14 +3173,14 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			sval = strchr(opt_string + strlen("integrity:"), ':') + 1;
 			if (!strcasecmp(sval, "aead")) {
 				set_bit(CRYPT_MODE_INTEGRITY_AEAD, &cc->cipher_flags);
-			} else if (strcasecmp(sval, "none")) {
-				ti->error = "Unknown integrity profile";
+			} else if (strcasecmp(sval, "analne")) {
+				ti->error = "Unkanalwn integrity profile";
 				return -EINVAL;
 			}
 
 			cc->cipher_auth = kstrdup(sval, GFP_KERNEL);
 			if (!cc->cipher_auth)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else if (sscanf(opt_string, "sector_size:%hu%c", &cc->sector_size, &dummy) == 1) {
 			if (cc->sector_size < (1 << SECTOR_SHIFT) ||
 			    cc->sector_size > 4096 ||
@@ -3189,7 +3189,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 				return -EINVAL;
 			}
 			if (ti->len & ((cc->sector_size >> SECTOR_SHIFT) - 1)) {
-				ti->error = "Device size is not multiple of sector_size feature";
+				ti->error = "Device size is analt multiple of sector_size feature";
 				return -EINVAL;
 			}
 			cc->sector_shift = __ffs(cc->sector_size) - SECTOR_SHIFT;
@@ -3234,20 +3234,20 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	char dummy;
 
 	if (argc < 5) {
-		ti->error = "Not enough arguments";
+		ti->error = "Analt eanalugh arguments";
 		return -EINVAL;
 	}
 
 	key_size = get_key_size(&argv[1]);
 	if (key_size < 0) {
-		ti->error = "Cannot parse key size";
+		ti->error = "Cananalt parse key size";
 		return -EINVAL;
 	}
 
 	cc = kzalloc(struct_size(cc, key, key_size), GFP_KERNEL);
 	if (!cc) {
-		ti->error = "Cannot allocate encryption context";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate encryption context";
+		return -EANALMEM;
 	}
 	cc->key_size = key_size;
 	cc->sector_size = (1 << SECTOR_SHIFT);
@@ -3284,7 +3284,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->dmreq_start += crypto_skcipher_reqsize(any_tfm(cc));
 		align_mask = crypto_skcipher_alignmask(any_tfm(cc));
 	}
-	cc->dmreq_start = ALIGN(cc->dmreq_start, __alignof__(struct dm_crypt_request));
+	cc->dmreq_start = ALIGN(cc->dmreq_start, __aliganalf__(struct dm_crypt_request));
 
 	if (align_mask < CRYPTO_MINALIGN) {
 		/* Allocate the padding exactly */
@@ -3293,7 +3293,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	} else {
 		/*
 		 * If the cipher requires greater alignment than kmalloc
-		 * alignment, we don't know the exact position of the
+		 * alignment, we don't kanalw the exact position of the
 		 * initialization vector. We must assume worst case.
 		 */
 		iv_size_padding = align_mask;
@@ -3308,7 +3308,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ret = mempool_init_kmalloc_pool(&cc->req_pool, MIN_IOS, cc->dmreq_start + additional_req_size);
 	if (ret) {
-		ti->error = "Cannot allocate crypt request mempool";
+		ti->error = "Cananalt allocate crypt request mempool";
 		goto bad;
 	}
 
@@ -3318,13 +3318,13 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ret = mempool_init(&cc->page_pool, BIO_MAX_VECS, crypt_page_alloc, crypt_page_free, cc);
 	if (ret) {
-		ti->error = "Cannot allocate page mempool";
+		ti->error = "Cananalt allocate page mempool";
 		goto bad;
 	}
 
 	ret = bioset_init(&cc->bs, MIN_IOS, 0, BIOSET_NEED_BVECS);
 	if (ret) {
-		ti->error = "Cannot allocate crypt bioset";
+		ti->error = "Cananalt allocate crypt bioset";
 		goto bad;
 	}
 
@@ -3357,7 +3357,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		 * ordering. To do so, disable write workqueues and force inline
 		 * encryption completion.
 		 */
-		set_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
+		set_bit(DM_CRYPT_ANAL_WRITE_WORKQUEUE, &cc->flags);
 		set_bit(DM_CRYPT_WRITE_INLINE, &cc->flags);
 
 		/*
@@ -3365,7 +3365,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		 * have the same BIO sector, the start of the zone. When the
 		 * cypher IV mode uses sector values, all data targeting a
 		 * zone will be encrypted using the first sector numbers of the
-		 * zone. This will not result in write errors but will
+		 * zone. This will analt result in write errors but will
 		 * cause most reads to fail as reads will use the sector values
 		 * for the actual data locations, resulting in IV mismatch.
 		 * To avoid this problem, ask DM core to emulate zone append
@@ -3387,14 +3387,14 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ret = mempool_init_kmalloc_pool(&cc->tag_pool, MIN_IOS,
 			cc->tag_pool_max_sectors * cc->on_disk_tag_size);
 		if (ret) {
-			ti->error = "Cannot allocate integrity tags mempool";
+			ti->error = "Cananalt allocate integrity tags mempool";
 			goto bad;
 		}
 
 		cc->tag_pool_max_sectors <<= cc->sector_shift;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	cc->io_queue = alloc_workqueue("kcryptd_io/%s", WQ_MEM_RECLAIM, 1, devname);
 	if (!cc->io_queue) {
 		ti->error = "Couldn't create kcryptd io queue";
@@ -3444,7 +3444,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 
 	/*
 	 * If bio is REQ_PREFLUSH or REQ_OP_DISCARD, just bypass crypt queues.
-	 * - for REQ_PREFLUSH device-mapper core ensures that no IO is in-flight
+	 * - for REQ_PREFLUSH device-mapper core ensures that anal IO is in-flight
 	 * - for REQ_OP_DISCARD caller must use flush if IO ordering matters
 	 */
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH ||
@@ -3482,12 +3482,12 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 		if (unlikely(tag_len > KMALLOC_MAX_SIZE))
 			io->integrity_metadata = NULL;
 		else
-			io->integrity_metadata = kmalloc(tag_len, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+			io->integrity_metadata = kmalloc(tag_len, GFP_ANALIO | __GFP_ANALRETRY | __GFP_ANALMEMALLOC | __GFP_ANALWARN);
 
 		if (unlikely(!io->integrity_metadata)) {
 			if (bio_sectors(bio) > cc->tag_pool_max_sectors)
 				dm_accept_partial_bio(bio, cc->tag_pool_max_sectors);
-			io->integrity_metadata = mempool_alloc(&cc->tag_pool, GFP_NOIO);
+			io->integrity_metadata = mempool_alloc(&cc->tag_pool, GFP_ANALIO);
 			io->integrity_metadata_from_pool = true;
 		}
 	}
@@ -3543,9 +3543,9 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 
 		num_feature_args += !!ti->num_discard_bios;
 		num_feature_args += test_bit(DM_CRYPT_SAME_CPU, &cc->flags);
-		num_feature_args += test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
-		num_feature_args += test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
-		num_feature_args += test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
+		num_feature_args += test_bit(DM_CRYPT_ANAL_OFFLOAD, &cc->flags);
+		num_feature_args += test_bit(DM_CRYPT_ANAL_READ_WORKQUEUE, &cc->flags);
+		num_feature_args += test_bit(DM_CRYPT_ANAL_WRITE_WORKQUEUE, &cc->flags);
 		num_feature_args += cc->sector_size != (1 << SECTOR_SHIFT);
 		num_feature_args += test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags);
 		if (cc->on_disk_tag_size)
@@ -3556,12 +3556,12 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(" allow_discards");
 			if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
 				DMEMIT(" same_cpu_crypt");
-			if (test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags))
+			if (test_bit(DM_CRYPT_ANAL_OFFLOAD, &cc->flags))
 				DMEMIT(" submit_from_crypt_cpus");
-			if (test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags))
-				DMEMIT(" no_read_workqueue");
-			if (test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags))
-				DMEMIT(" no_write_workqueue");
+			if (test_bit(DM_CRYPT_ANAL_READ_WORKQUEUE, &cc->flags))
+				DMEMIT(" anal_read_workqueue");
+			if (test_bit(DM_CRYPT_ANAL_WRITE_WORKQUEUE, &cc->flags))
+				DMEMIT(" anal_write_workqueue");
 			if (cc->on_disk_tag_size)
 				DMEMIT(" integrity:%u:%s", cc->on_disk_tag_size, cc->cipher_auth);
 			if (cc->sector_size != (1 << SECTOR_SHIFT))
@@ -3575,11 +3575,11 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 		DMEMIT_TARGET_NAME_VERSION(ti->type);
 		DMEMIT(",allow_discards=%c", ti->num_discard_bios ? 'y' : 'n');
 		DMEMIT(",same_cpu_crypt=%c", test_bit(DM_CRYPT_SAME_CPU, &cc->flags) ? 'y' : 'n');
-		DMEMIT(",submit_from_crypt_cpus=%c", test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags) ?
+		DMEMIT(",submit_from_crypt_cpus=%c", test_bit(DM_CRYPT_ANAL_OFFLOAD, &cc->flags) ?
 		       'y' : 'n');
-		DMEMIT(",no_read_workqueue=%c", test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags) ?
+		DMEMIT(",anal_read_workqueue=%c", test_bit(DM_CRYPT_ANAL_READ_WORKQUEUE, &cc->flags) ?
 		       'y' : 'n');
-		DMEMIT(",no_write_workqueue=%c", test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags) ?
+		DMEMIT(",anal_write_workqueue=%c", test_bit(DM_CRYPT_ANAL_WRITE_WORKQUEUE, &cc->flags) ?
 		       'y' : 'n');
 		DMEMIT(",iv_large_sectors=%c", test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags) ?
 		       'y' : 'n');
@@ -3613,7 +3613,7 @@ static int crypt_preresume(struct dm_target *ti)
 	struct crypt_config *cc = ti->private;
 
 	if (!test_bit(DM_CRYPT_KEY_VALID, &cc->flags)) {
-		DMERR("aborting resume - crypt key is not set.");
+		DMERR("aborting resume - crypt key is analt set.");
 		return -EAGAIN;
 	}
 
@@ -3642,11 +3642,11 @@ static int crypt_message(struct dm_target *ti, unsigned int argc, char **argv,
 
 	if (!strcasecmp(argv[0], "key")) {
 		if (!test_bit(DM_CRYPT_SUSPENDED, &cc->flags)) {
-			DMWARN("not suspended during key manipulation.");
+			DMWARN("analt suspended during key manipulation.");
 			return -EINVAL;
 		}
 		if (argc == 3 && !strcasecmp(argv[1], "set")) {
-			/* The key size may not be changed. */
+			/* The key size may analt be changed. */
 			key_size = get_key_size(&argv[2]);
 			if (key_size < 0 || cc->key_size != key_size) {
 				memset(argv[2], '0', strlen(argv[2]));
@@ -3688,7 +3688,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * Unfortunate constraint that is required to avoid the potential
 	 * for exceeding underlying device's max_segments limits -- due to
 	 * crypt_alloc_buffer() possibly allocating pages for the encryption
-	 * bio that are not as physically contiguous as the original bio.
+	 * bio that are analt as physically contiguous as the original bio.
 	 */
 	limits->max_segment_size = PAGE_SIZE;
 

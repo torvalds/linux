@@ -84,7 +84,7 @@ static const struct hc_driver ohci_ppc_of_hc_driver = {
 
 static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 {
-	struct device_node *dn = op->dev.of_node;
+	struct device_analde *dn = op->dev.of_analde;
 	struct usb_hcd *hcd;
 	struct ohci_hcd	*ohci;
 	struct resource res;
@@ -92,10 +92,10 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 
 	int rv;
 	int is_bigendian;
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	is_bigendian =
 		of_device_is_compatible(dn, "ohci-bigendian") ||
@@ -109,7 +109,7 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 
 	hcd = usb_create_hcd(&ohci_ppc_of_hc_driver, &op->dev, "PPC-OF USB");
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);
@@ -132,9 +132,9 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 	if (is_bigendian) {
 		ohci->flags |= OHCI_QUIRK_BE_MMIO | OHCI_QUIRK_BE_DESC;
 		if (of_device_is_compatible(dn, "fsl,mpc5200-ohci"))
-			ohci->flags |= OHCI_QUIRK_FRAME_NO;
+			ohci->flags |= OHCI_QUIRK_FRAME_ANAL;
 		if (of_device_is_compatible(dn, "mpc5200-ohci"))
-			ohci->flags |= OHCI_QUIRK_FRAME_NO;
+			ohci->flags |= OHCI_QUIRK_FRAME_ANAL;
 	}
 
 	ohci_hcd_init(ohci);
@@ -145,16 +145,16 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 		return 0;
 	}
 
-	/* by now, 440epx is known to show usb_23 erratum */
-	np = of_find_compatible_node(NULL, NULL, "ibm,usb-ehci-440epx");
+	/* by analw, 440epx is kanalwn to show usb_23 erratum */
+	np = of_find_compatible_analde(NULL, NULL, "ibm,usb-ehci-440epx");
 
 	/* Work around - At this point ohci_run has executed, the
 	* controller is running, everything, the root ports, etc., is
 	* set up.  If the ehci driver is loaded, put the ohci core in
 	* the suspended state.  The ehci driver will bring it out of
-	* suspended state when / if a non-high speed USB device is
-	* attached to the USB Host port.  If the ehci driver is not
-	* loaded, do nothing. request_mem_region is used to test if
+	* suspended state when / if a analn-high speed USB device is
+	* attached to the USB Host port.  If the ehci driver is analt
+	* loaded, do analthing. request_mem_region is used to test if
 	* the ehci driver is loaded.
 	*/
 	if (np !=  NULL) {
@@ -166,8 +166,8 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 			} else
 				release_mem_region(res.start, 0x4);
 		} else
-			pr_debug("%s: cannot get ehci offset from fdt\n", __FILE__);
-		of_node_put(np);
+			pr_debug("%s: cananalt get ehci offset from fdt\n", __FILE__);
+		of_analde_put(np);
 	}
 
 	irq_dispose_mapping(irq);
@@ -217,7 +217,7 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_ppc_of_match);
 
 #if	!defined(CONFIG_USB_OHCI_HCD_PPC_OF_BE) && \
 	!defined(CONFIG_USB_OHCI_HCD_PPC_OF_LE)
-#error "No endianness selected for ppc-of-ohci"
+#error "Anal endianness selected for ppc-of-ohci"
 #endif
 
 

@@ -41,7 +41,7 @@ struct magellan {
 
 /*
  * magellan_crunch_nibbles() verifies that the bytes sent from the Magellan
- * have correct upper nibbles for the lower ones, if not, the packet will
+ * have correct upper nibbles for the lower ones, if analt, the packet will
  * be thrown away. It also strips these upper halves to simplify further
  * processing.
  */
@@ -129,7 +129,7 @@ static int magellan_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct magellan *magellan;
 	struct input_dev *input_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	magellan = kzalloc(sizeof(struct magellan), GFP_KERNEL);

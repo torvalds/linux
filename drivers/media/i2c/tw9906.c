@@ -18,7 +18,7 @@ MODULE_LICENSE("GPL v2");
 struct tw9906 {
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler hdl;
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 };
 
 static inline struct tw9906 *to_state(struct v4l2_subdev *sd)
@@ -82,10 +82,10 @@ static int tw9906_s_video_routing(struct v4l2_subdev *sd, u32 input,
 	return 0;
 }
 
-static int tw9906_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int tw9906_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct tw9906 *dec = to_state(sd);
-	bool is_60hz = norm & V4L2_STD_525_60;
+	bool is_60hz = analrm & V4L2_STD_525_60;
 	static const u8 config_60hz[] = {
 		0x05, 0x81,
 		0x07, 0x02,
@@ -102,7 +102,7 @@ static int tw9906_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	};
 
 	write_regs(sd, is_60hz ? config_60hz : config_50hz);
-	dec->norm = norm;
+	dec->analrm = analrm;
 	return 0;
 }
 
@@ -130,7 +130,7 @@ static int tw9906_s_ctrl(struct v4l2_ctrl *ctrl)
 static int tw9906_log_status(struct v4l2_subdev *sd)
 {
 	struct tw9906 *dec = to_state(sd);
-	bool is_60hz = dec->norm & V4L2_STD_525_60;
+	bool is_60hz = dec->analrm & V4L2_STD_525_60;
 
 	v4l2_info(sd, "Standard: %d Hz\n", is_60hz ? 60 : 50);
 	v4l2_ctrl_subdev_log_status(sd);
@@ -172,7 +172,7 @@ static int tw9906_probe(struct i2c_client *client)
 
 	dec = devm_kzalloc(&client->dev, sizeof(*dec), GFP_KERNEL);
 	if (dec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &dec->sd;
 	v4l2_i2c_subdev_init(sd, client, &tw9906_ops);
 	hdl = &dec->hdl;
@@ -192,7 +192,7 @@ static int tw9906_probe(struct i2c_client *client)
 	}
 
 	/* Initialize tw9906 */
-	dec->norm = V4L2_STD_NTSC;
+	dec->analrm = V4L2_STD_NTSC;
 
 	if (write_regs(sd, initial_registers) < 0) {
 		v4l2_err(client, "error initializing TW9906\n");

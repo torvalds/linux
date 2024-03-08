@@ -12,7 +12,7 @@ maintainers:
 
 description: |
   Sunplus SP7021 dual 10M/100M Ethernet MAC controller.
-  Device node of the controller has following properties.
+  Device analde of the controller has following properties.
 
 properties:
   compatible:

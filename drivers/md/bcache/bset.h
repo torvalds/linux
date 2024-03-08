@@ -19,7 +19,7 @@
  *
  * bch_ptr_invalid() primarily filters out keys and pointers that would be
  * invalid due to some sort of bug, whereas bch_ptr_bad() filters out keys and
- * pointer that occur in normal practice but don't point to real data.
+ * pointer that occur in analrmal practice but don't point to real data.
  *
  * The one exception to the rule that ptr_invalid() filters out invalid keys is
  * that it also filters out keys of size 0 - these are keys that have been
@@ -29,7 +29,7 @@
  *
  * We can't filter out stale keys when we're resorting, because garbage
  * collection needs to find them to ensure bucket gens don't wrap around -
- * unless we're rewriting the btree node those stale keys still exist on disk.
+ * unless we're rewriting the btree analde those stale keys still exist on disk.
  *
  * We also implement functions here for removing some number of sectors from the
  * front or the back of a bkey - this is mainly used for fixing overlapping
@@ -38,7 +38,7 @@
  * BSETS:
  *
  * A bset is an array of bkeys laid out contiguously in memory in sorted order,
- * along with a header. A btree node is made up of a number of these, written at
+ * along with a header. A btree analde is made up of a number of these, written at
  * different times.
  *
  * There could be many of them on disk, but we never allow there to be more than
@@ -51,11 +51,11 @@
  * BTREE ITERATOR:
  *
  * Most of the code in bcache doesn't care about an individual bset - it needs
- * to search entire btree nodes and iterate over them in sorted order.
+ * to search entire btree analdes and iterate over them in sorted order.
  *
  * The btree iterator code serves both functions; it iterates through the keys
- * in a btree node in sorted order, starting from either keys after a specific
- * point (if you pass it a search key) or the start of the btree node.
+ * in a btree analde in sorted order, starting from either keys after a specific
+ * point (if you pass it a search key) or the start of the btree analde.
  *
  * AUXILIARY SEARCH TREES:
  *
@@ -65,7 +65,7 @@
  * searches and that code topped out at under 50k lookups/second.
  *
  * So we need to construct some sort of lookup table. Since we only insert keys
- * into the last (unwritten) set, most of the keys within a given btree node are
+ * into the last (unwritten) set, most of the keys within a given btree analde are
  * usually in sets that are mostly constant. We use two different types of
  * lookup tables to take advantage of this.
  *
@@ -73,70 +73,70 @@
  * set; they index one key every BSET_CACHELINE bytes, and then a linear search
  * is used for the rest.
  *
- * For sets that have been written to disk and are no longer being inserted
+ * For sets that have been written to disk and are anal longer being inserted
  * into, we construct a binary search tree in an array - traversing a binary
  * search tree in an array gives excellent locality of reference and is very
- * fast, since both children of any node are adjacent to each other in memory
+ * fast, since both children of any analde are adjacent to each other in memory
  * (and their grandchildren, and great grandchildren...) - this means
  * prefetching can be used to great effect.
  *
- * It's quite useful performance wise to keep these nodes small - not just
+ * It's quite useful performance wise to keep these analdes small - analt just
  * because they're more likely to be in L2, but also because we can prefetch
- * more nodes on a single cacheline and thus prefetch more iterations in advance
+ * more analdes on a single cacheline and thus prefetch more iterations in advance
  * when traversing this tree.
  *
- * Nodes in the auxiliary search tree must contain both a key to compare against
+ * Analdes in the auxiliary search tree must contain both a key to compare against
  * (we don't want to fetch the key from the set, that would defeat the purpose),
  * and a pointer to the key. We use a few tricks to compress both of these.
  *
- * To compress the pointer, we take advantage of the fact that one node in the
+ * To compress the pointer, we take advantage of the fact that one analde in the
  * search tree corresponds to precisely BSET_CACHELINE bytes in the set. We have
- * a function (to_inorder()) that takes the index of a node in a binary tree and
- * returns what its index would be in an inorder traversal, so we only have to
+ * a function (to_ianalrder()) that takes the index of a analde in a binary tree and
+ * returns what its index would be in an ianalrder traversal, so we only have to
  * store the low bits of the offset.
  *
  * The key is 84 bits (KEY_DEV + key->key, the offset on the device). To
  * compress that,  we take advantage of the fact that when we're traversing the
- * search tree at every iteration we know that both our search key and the key
+ * search tree at every iteration we kanalw that both our search key and the key
  * we're looking for lie within some range - bounded by our previous
  * comparisons. (We special case the start of a search so that this is true even
  * at the root of the tree).
  *
- * So we know the key we're looking for is between a and b, and a and b don't
+ * So we kanalw the key we're looking for is between a and b, and a and b don't
  * differ higher than bit 50, we don't need to check anything higher than bit
  * 50.
  *
- * We don't usually need the rest of the bits, either; we only need enough bits
+ * We don't usually need the rest of the bits, either; we only need eanalugh bits
  * to partition the key range we're currently checking.  Consider key n - the
- * key our auxiliary search tree node corresponds to, and key p, the key
+ * key our auxiliary search tree analde corresponds to, and key p, the key
  * immediately preceding n.  The lowest bit we need to store in the auxiliary
  * search tree is the highest bit that differs between n and p.
  *
- * Note that this could be bit 0 - we might sometimes need all 80 bits to do the
- * comparison. But we'd really like our nodes in the auxiliary search tree to be
+ * Analte that this could be bit 0 - we might sometimes need all 80 bits to do the
+ * comparison. But we'd really like our analdes in the auxiliary search tree to be
  * of fixed size.
  *
- * The solution is to make them fixed size, and when we're constructing a node
+ * The solution is to make them fixed size, and when we're constructing a analde
  * check if p and n differed in the bits we needed them to. If they don't we
- * flag that node, and when doing lookups we fallback to comparing against the
+ * flag that analde, and when doing lookups we fallback to comparing against the
  * real key. As long as this doesn't happen to often (and it seems to reliably
  * happen a bit less than 1% of the time), we win - even on failures, that key
  * is then more likely to be in cache than if we were doing binary searches all
  * the way, since we're touching so much less memory.
  *
  * The keys in the auxiliary search tree are stored in (software) floating
- * point, with an exponent and a mantissa. The exponent needs to be big enough
+ * point, with an exponent and a mantissa. The exponent needs to be big eanalugh
  * to address all the bits in the original key, but the number of bits in the
  * mantissa is somewhat arbitrary; more bits just gets us fewer failures.
  *
  * We need 7 bits for the exponent and 3 bits for the key's offset (since keys
- * are 8 byte aligned); using 22 bits for the mantissa means a node is 4 bytes.
- * We need one node per 128 bytes in the btree node, which means the auxiliary
+ * are 8 byte aligned); using 22 bits for the mantissa means a analde is 4 bytes.
+ * We need one analde per 128 bytes in the btree analde, which means the auxiliary
  * search trees take up 3% as much memory as the btree itself.
  *
  * Constructing these auxiliary search trees is moderately expensive, and we
  * don't want to be constantly rebuilding the search tree for the last set
- * whenever we insert another key into it. For the unwritten set, we use a much
+ * whenever we insert aanalther key into it. For the unwritten set, we use a much
  * simpler lookup table - it's just a flat array, so index i in the lookup table
  * corresponds to the i range of BSET_CACHELINE bytes in the set. Indexing
  * within each byte range works the same as with the auxiliary search trees.
@@ -165,7 +165,7 @@ struct bset_tree {
 	/* size of the binary tree and prev array */
 	unsigned int		size;
 
-	/* function of size - precalculated for to_inorder() */
+	/* function of size - precalculated for to_ianalrder() */
 	unsigned int		extra;
 
 	/* copy of the last key in the set */
@@ -173,7 +173,7 @@ struct bset_tree {
 	struct bkey_float	*tree;
 
 	/*
-	 * The nodes in the bset tree point to specific keys - this
+	 * The analdes in the bset tree point to specific keys - this
 	 * array holds the sizes of the previous key.
 	 *
 	 * Conceptually it's a member of struct bkey_float, but we want
@@ -182,7 +182,7 @@ struct bset_tree {
 	 */
 	uint8_t			*prev;
 
-	/* The actual btree node, with pointers to each sorted set */
+	/* The actual btree analde, with pointers to each sorted set */
 	struct bset		*data;
 };
 
@@ -222,11 +222,11 @@ struct btree_keys {
 	bool			*expensive_debug_checks;
 
 	/*
-	 * Sets of sorted keys - the real btree node - plus a binary search tree
+	 * Sets of sorted keys - the real btree analde - plus a binary search tree
 	 *
 	 * set[0] is special; set[0]->tree, set[0]->prev and set[0]->data point
-	 * to the memory we have allocated for this btree node. Additionally,
-	 * set[0]->data points to the entire btree node as it exists on disk.
+	 * to the memory we have allocated for this btree analde. Additionally,
+	 * set[0]->data points to the entire btree analde as it exists on disk.
 	 */
 	struct bset_tree	set[MAX_BSETS];
 };
@@ -305,7 +305,7 @@ unsigned int bch_btree_insert_key(struct btree_keys *b, struct bkey *k,
 			      struct bkey *replace_key);
 
 enum {
-	BTREE_INSERT_STATUS_NO_INSERT = 0,
+	BTREE_INSERT_STATUS_ANAL_INSERT = 0,
 	BTREE_INSERT_STATUS_INSERT,
 	BTREE_INSERT_STATUS_BACK_MERGE,
 	BTREE_INSERT_STATUS_OVERWROTE,
@@ -413,8 +413,8 @@ static inline void bkey_init(struct bkey *k)
 static __always_inline int64_t bkey_cmp(const struct bkey *l,
 					const struct bkey *r)
 {
-	return unlikely(KEY_INODE(l) != KEY_INODE(r))
-		? (int64_t) KEY_INODE(l) - (int64_t) KEY_INODE(r)
+	return unlikely(KEY_IANALDE(l) != KEY_IANALDE(r))
+		? (int64_t) KEY_IANALDE(l) - (int64_t) KEY_IANALDE(r)
 		: (int64_t) KEY_OFFSET(l) - (int64_t) KEY_OFFSET(r);
 }
 
@@ -437,7 +437,7 @@ static inline bool bch_cut_back(const struct bkey *where, struct bkey *k)
 
 /*
  * Pointer '*preceding_key_p' points to a memory object to store preceding
- * key of k. If the preceding key does not exist, set '*preceding_key_p' to
+ * key of k. If the preceding key does analt exist, set '*preceding_key_p' to
  * NULL. So the caller of preceding_key() needs to take care of memory
  * which '*preceding_key_p' pointed to before calling preceding_key().
  * Currently the only caller of preceding_key() is bch_btree_insert_key(),
@@ -446,8 +446,8 @@ static inline bool bch_cut_back(const struct bkey *where, struct bkey *k)
  */
 static inline void preceding_key(struct bkey *k, struct bkey **preceding_key_p)
 {
-	if (KEY_INODE(k) || KEY_OFFSET(k)) {
-		(**preceding_key_p) = KEY(KEY_INODE(k), KEY_OFFSET(k), 0);
+	if (KEY_IANALDE(k) || KEY_OFFSET(k)) {
+		(**preceding_key_p) = KEY(KEY_IANALDE(k), KEY_OFFSET(k), 0);
 		if (!(*preceding_key_p)->low)
 			(*preceding_key_p)->high--;
 		(*preceding_key_p)->low--;
@@ -492,7 +492,7 @@ struct keylist {
 		uint64_t		*top_p;
 	};
 
-	/* Enough room for btree_split's keys without realloc */
+	/* Eanalugh room for btree_split's keys without realloc */
 #define KEYLIST_INLINE		16
 	uint64_t		inline_keys[KEYLIST_INLINE];
 };

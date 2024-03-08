@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2000 RidgeRun, Inc.
  * Author: RidgeRun, Inc.
- *         Greg Lonnon glonnon@ridgerun.com or info@ridgerun.com
+ *         Greg Lonanaln glonanaln@ridgerun.com or info@ridgerun.com
  *
  */
 
@@ -43,7 +43,7 @@ static ssize_t mmapper_write(struct file *file, const char __user *buf,
 
 static long mmapper_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static int mmapper_mmap(struct file *file, struct vm_area_struct *vma)
@@ -70,12 +70,12 @@ out:
 	return ret;
 }
 
-static int mmapper_open(struct inode *inode, struct file *file)
+static int mmapper_open(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
 
-static int mmapper_release(struct inode *inode, struct file *file)
+static int mmapper_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -92,10 +92,10 @@ static const struct file_operations mmapper_fops = {
 };
 
 /*
- * No locking needed - only used (and modified) by below initcall and exitcall.
+ * Anal locking needed - only used (and modified) by below initcall and exitcall.
  */
 static struct miscdevice mmapper_dev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "mmapper",
 	.fops		= &mmapper_fops
 };
@@ -109,7 +109,7 @@ static int __init mmapper_init(void)
 	v_buf = (char *) find_iomem("mmapper", &mmapper_size);
 	if (mmapper_size == 0) {
 		printk(KERN_ERR "mmapper_init - find_iomem failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	p_buf = __pa(v_buf);
 
@@ -130,6 +130,6 @@ static void __exit mmapper_exit(void)
 module_init(mmapper_init);
 module_exit(mmapper_exit);
 
-MODULE_AUTHOR("Greg Lonnon <glonnon@ridgerun.com>");
+MODULE_AUTHOR("Greg Lonanaln <glonanaln@ridgerun.com>");
 MODULE_DESCRIPTION("DSPLinux simulator mmapper driver");
 MODULE_LICENSE("GPL");

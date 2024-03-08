@@ -28,7 +28,7 @@
 #include <asm/sibyte/sb1250_scd.h>
 
 /*  *********************************************************************
-    *  Some general notes:
+    *  Some general analtes:
     *
     *  This file is basically a "what's new" header file.  Since the
     *  BCM1250 and the new BCM1480 (and derivatives) share many common
@@ -40,7 +40,7 @@
     *  for blocks that are different between the two chip families.
     *  All BCM1480-specific symbols have _BCM1480_ in their names,
     *  and all BCM1250-specific and "base" functions that are common in
-    *  both chips have no special names (this is for compatibility with
+    *  both chips have anal special names (this is for compatibility with
     *  older include files).  Therefore, if you're working with the
     *  SCD, which is very different on each chip, A_SCD_xxx implies
     *  the BCM1250 version and A_BCM1480_SCD_xxx implies the BCM1480
@@ -122,10 +122,10 @@
 
 #define M_BCM1480_SYS_RESERVED32	    _SB_MAKEMASK(32, 15)
 
-#define S_BCM1480_SYS_NODEID		    47
-#define M_BCM1480_SYS_NODEID		    _SB_MAKEMASK(4, S_BCM1480_SYS_NODEID)
-#define V_BCM1480_SYS_NODEID(x)		    _SB_MAKEVALUE(x, S_BCM1480_SYS_NODEID)
-#define G_BCM1480_SYS_NODEID(x)		    _SB_GETVALUE(x, S_BCM1480_SYS_NODEID, M_BCM1480_SYS_NODEID)
+#define S_BCM1480_SYS_ANALDEID		    47
+#define M_BCM1480_SYS_ANALDEID		    _SB_MAKEMASK(4, S_BCM1480_SYS_ANALDEID)
+#define V_BCM1480_SYS_ANALDEID(x)		    _SB_MAKEVALUE(x, S_BCM1480_SYS_ANALDEID)
+#define G_BCM1480_SYS_ANALDEID(x)		    _SB_GETVALUE(x, S_BCM1480_SYS_ANALDEID, M_BCM1480_SYS_ANALDEID)
 
 #define M_BCM1480_SYS_CCNUMA_EN		    _SB_MAKEMASK1(51)
 #define M_BCM1480_SYS_CPU_RESET_0	    _SB_MAKEMASK1(52)
@@ -345,9 +345,9 @@
 #define V_BCM1480_ATRAP_CFG_CATTR(x)	    _SB_MAKEVALUE(x, S_BCM1480_ATRAP_CFG_CATTR)
 #define G_BCM1480_ATRAP_CFG_CATTR(x)	    _SB_GETVALUE(x, S_BCM1480_ATRAP_CFG_CATTR, M_BCM1480_ATRAP_CFG_CATTR)
 
-#define K_BCM1480_ATRAP_CFG_CATTR_IGNORE    0
+#define K_BCM1480_ATRAP_CFG_CATTR_IGANALRE    0
 #define K_BCM1480_ATRAP_CFG_CATTR_UNC	    1
-#define K_BCM1480_ATRAP_CFG_CATTR_NONCOH    2
+#define K_BCM1480_ATRAP_CFG_CATTR_ANALNCOH    2
 #define K_BCM1480_ATRAP_CFG_CATTR_COHERENT  3
 
 #define M_BCM1480_ATRAP_CFG_CATTRINV	    _SB_MAKEMASK1(14)

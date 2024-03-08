@@ -66,10 +66,10 @@ int sun8i_ss_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 
 	tfmctx->ipad = kzalloc(bs, GFP_KERNEL);
 	if (!tfmctx->ipad)
-		return -ENOMEM;
+		return -EANALMEM;
 	tfmctx->opad = kzalloc(bs, GFP_KERNEL);
 	if (!tfmctx->opad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_opad;
 	}
 
@@ -106,7 +106,7 @@ int sun8i_ss_hash_init_tfm(struct crypto_ahash *tfm)
 	op->fallback_tfm = crypto_alloc_ahash(crypto_ahash_alg_name(tfm), 0,
 					      CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(algt->ss->dev, "Fallback driver could no be loaded\n");
+		dev_err(algt->ss->dev, "Fallback driver could anal be loaded\n");
 		return PTR_ERR(op->fallback_tfm);
 	}
 
@@ -125,7 +125,7 @@ int sun8i_ss_hash_init_tfm(struct crypto_ahash *tfm)
 		goto error_pm;
 	return 0;
 error_pm:
-	pm_runtime_put_noidle(op->ss->dev);
+	pm_runtime_put_analidle(op->ss->dev);
 	crypto_free_ahash(op->fallback_tfm);
 	return err;
 }
@@ -489,7 +489,7 @@ int sun8i_ss_hash_run(struct crypto_engine *engine, void *breq)
 	dma_addr_t addr_res, addr_pad, addr_xpad;
 	__le32 *bf;
 	/* HMAC step:
-	 * 0: normal hashing
+	 * 0: analrmal hashing
 	 * 1: IPAD
 	 * 2: OPAD
 	 */
@@ -541,7 +541,7 @@ int sun8i_ss_hash_run(struct crypto_engine *engine, void *breq)
 			continue;
 		}
 		todo = min(len, sg_dma_len(sg));
-		/* only the last SG could be with a size not modulo64 */
+		/* only the last SG could be with a size analt modulo64 */
 		if (todo % 64 == 0) {
 			rctx->t_src[i].addr = sg_dma_address(sg);
 			rctx->t_src[i].len = todo / 4;

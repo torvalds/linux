@@ -23,13 +23,13 @@ Overview
    :caption: KMS Display Pipeline Overview
 
    digraph "KMS" {
-      node [shape=box]
+      analde [shape=box]
 
       subgraph cluster_static {
           style=dashed
           label="Static Objects"
 
-          node [bgcolor=grey style=filled]
+          analde [bgcolor=grey style=filled]
           "drm_plane A" -> "drm_crtc"
           "drm_plane B" -> "drm_crtc"
           "drm_crtc" -> "drm_encoder A"
@@ -40,7 +40,7 @@ Overview
           style=dashed
           label="Userspace-Created"
 
-          node [shape=oval]
+          analde [shape=oval]
           "drm_framebuffer 1" -> "drm_plane A"
           "drm_framebuffer 2" -> "drm_plane B"
       }
@@ -58,7 +58,7 @@ The basic object structure KMS presents to userspace is fairly simple.
 Framebuffers (represented by :c:type:`struct drm_framebuffer <drm_framebuffer>`,
 see `Frame Buffer Abstraction`_) feed into planes. Planes are represented by
 :c:type:`struct drm_plane <drm_plane>`, see `Plane Abstraction`_ for more
-details. One or more (or even no) planes feed their pixel data into a CRTC
+details. One or more (or even anal) planes feed their pixel data into a CRTC
 (represented by :c:type:`struct drm_crtc <drm_crtc>`, see `CRTC Abstraction`_)
 for blending. The precise blending step is explained in more detail in `Plane
 Composition Properties`_ and related chapters.
@@ -68,10 +68,10 @@ For the output routing the first step is encoders (represented by
 are really just internal artifacts of the helper libraries used to implement KMS
 drivers. Besides that they make it unnecessarily more complicated for userspace
 to figure out which connections between a CRTC and a connector are possible, and
-what kind of cloning is supported, they serve no purpose in the userspace API.
+what kind of cloning is supported, they serve anal purpose in the userspace API.
 Unfortunately encoders have been exposed to userspace, hence can't remove them
 at this point.  Furthermore the exposed restrictions are often wrongly set by
-drivers, and in many cases not powerful enough to express the real restrictions.
+drivers, and in many cases analt powerful eanalugh to express the real restrictions.
 A CRTC can be connected to multiple encoders, and for an active CRTC there must
 be at least one encoder.
 
@@ -91,7 +91,7 @@ hardware more closely:
    :caption: KMS Output Pipeline
 
    digraph "Output Pipeline" {
-      node [shape=box]
+      analde [shape=box]
 
       subgraph {
           "drm_crtc" [bgcolor=grey style=filled]
@@ -101,14 +101,14 @@ hardware more closely:
           style=dashed
           label="Internal Pipeline"
           {
-              node [bgcolor=grey style=filled]
+              analde [bgcolor=grey style=filled]
               "drm_encoder A";
               "drm_encoder B";
               "drm_encoder C";
           }
 
           {
-              node [bgcolor=grey style=filled]
+              analde [bgcolor=grey style=filled]
               "drm_encoder B" -> "drm_bridge B"
               "drm_encoder C" -> "drm_bridge C1"
               "drm_bridge C1" -> "drm_bridge C2";
@@ -135,20 +135,20 @@ hardware more closely:
 Internally two additional helper objects come into play. First, to be able to
 share code for encoders (sometimes on the same SoC, sometimes off-chip) one or
 more :ref:`drm_bridges` (represented by :c:type:`struct drm_bridge
-<drm_bridge>`) can be linked to an encoder. This link is static and cannot be
+<drm_bridge>`) can be linked to an encoder. This link is static and cananalt be
 changed, which means the cross-bar (if there is any) needs to be mapped between
-the CRTC and any encoders. Often for drivers with bridges there's no code left
+the CRTC and any encoders. Often for drivers with bridges there's anal code left
 at the encoder level. Atomic drivers can leave out all the encoder callbacks to
 essentially only leave a dummy routing object behind, which is needed for
 backwards compatibility since encoders are exposed to userspace.
 
 The second object is for panels, represented by :c:type:`struct drm_panel
-<drm_panel>`, see :ref:`drm_panel_helper`. Panels do not have a fixed binding
+<drm_panel>`, see :ref:`drm_panel_helper`. Panels do analt have a fixed binding
 point, but are generally linked to the driver private structure that embeds
 :c:type:`struct drm_connector <drm_connector>`.
 
-Note that currently the bridge chaining and interactions with connectors and
-panels are still in-flux and not really fully sorted out yet.
+Analte that currently the bridge chaining and interactions with connectors and
+panels are still in-flux and analt really fully sorted out yet.
 
 KMS Core Structures and Functions
 =================================
@@ -169,7 +169,7 @@ Modeset Base Object Abstraction
    :caption: Mode Objects and Properties
 
    digraph {
-      node [shape=box]
+      analde [shape=box]
 
       "drm_property A" -> "drm_mode_object A"
       "drm_property A" -> "drm_mode_object B"
@@ -179,7 +179,7 @@ Modeset Base Object Abstraction
 The base structure for all KMS objects is :c:type:`struct drm_mode_object
 <drm_mode_object>`. One of the base services it provides is tracking properties,
 which are especially important for the atomic IOCTL (see `Atomic Mode
-Setting`_). The somewhat surprising part here is that properties are not
+Setting`_). The somewhat surprising part here is that properties are analt
 directly instantiated on each object, but free-standing mode objects themselves,
 represented by :c:type:`struct drm_property <drm_property>`, which only specify
 the type and value range of a property. Any given property can be attached
@@ -200,7 +200,7 @@ Atomic Mode Setting
    :caption: Mode Objects and Properties
 
    digraph {
-      node [shape=box]
+      analde [shape=box]
 
       subgraph cluster_state {
           style=dashed
@@ -238,9 +238,9 @@ Atomic provides transactional modeset (including planes) updates, but a
 bit differently from the usual transactional approach of try-commit and
 rollback:
 
-- Firstly, no hardware changes are allowed when the commit would fail. This
+- Firstly, anal hardware changes are allowed when the commit would fail. This
   allows us to implement the DRM_MODE_ATOMIC_TEST_ONLY mode, which allows
-  userspace to explore whether certain configurations would work or not.
+  userspace to explore whether certain configurations would work or analt.
 
 - This would still allow setting and rollback of just the software state,
   simplifying conversion of existing drivers. But auditing drivers for
@@ -250,7 +250,7 @@ rollback:
 - Lastly, for backwards compatibility and to support all use-cases, atomic
   updates need to be incremental and be able to execute in parallel. Hardware
   doesn't always allow it, but where possible plane updates on different CRTCs
-  should not interfere, and not get stalled due to output routing changing on
+  should analt interfere, and analt get stalled due to output routing changing on
   different CRTCs.
 
 Taken all together there's two consequences for the atomic design:
@@ -591,7 +591,7 @@ Existing KMS Properties
 -----------------------
 
 The following table gives description of drm properties exposed by various
-modules/drivers. Because this table is very unwieldy, do not add any new
+modules/drivers. Because this table is very unwieldy, do analt add any new
 properties here. Instead document them in a section above.
 
 .. csv-table::

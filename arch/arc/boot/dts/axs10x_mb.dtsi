@@ -2,7 +2,7 @@
 /*
  * Support for peripherals on the AXS10x mainboard
  *
- * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 / {
@@ -113,7 +113,7 @@
 		 *
 		 * Most probably "Hold Register" utilization is platform-
 		 * independent requirement which means that single unified
-		 * "snps,dw-mshc" should be enough for all users of DW MMC once
+		 * "snps,dw-mshc" should be eanalugh for all users of DW MMC once
 		 * dw_mci_pltfm_prepare_command() is used in generic platform
 		 * code.
 		 */

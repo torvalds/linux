@@ -48,28 +48,28 @@ u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
 u64 nvmet_ana_chgcnt;
 DECLARE_RWSEM(nvmet_ana_sem);
 
-inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
+inline u16 erranal_to_nvme_status(struct nvmet_req *req, int erranal)
 {
-	switch (errno) {
+	switch (erranal) {
 	case 0:
 		return NVME_SC_SUCCESS;
-	case -ENOSPC:
+	case -EANALSPC:
 		req->error_loc = offsetof(struct nvme_rw_command, length);
 		return NVME_SC_CAP_EXCEEDED | NVME_SC_DNR;
 	case -EREMOTEIO:
 		req->error_loc = offsetof(struct nvme_rw_command, slba);
 		return  NVME_SC_LBA_RANGE | NVME_SC_DNR;
-	case -EOPNOTSUPP:
+	case -EOPANALTSUPP:
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
 		switch (req->cmd->common.opcode) {
 		case nvme_cmd_dsm:
 		case nvme_cmd_write_zeroes:
-			return NVME_SC_ONCS_NOT_SUPPORTED | NVME_SC_DNR;
+			return NVME_SC_ONCS_ANALT_SUPPORTED | NVME_SC_DNR;
 		default:
 			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 		break;
-	case -ENODATA:
+	case -EANALDATA:
 		req->error_loc = offsetof(struct nvme_rw_command, nsid);
 		return NVME_SC_ACCESS_DENIED;
 	case -EIO:
@@ -248,8 +248,8 @@ void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid)
 		nvmet_add_to_changed_ns_log(ctrl, cpu_to_le32(nsid));
 		if (nvmet_aen_bit_disabled(ctrl, NVME_AEN_BIT_NS_ATTR))
 			continue;
-		nvmet_add_async_event(ctrl, NVME_AER_NOTICE,
-				NVME_AER_NOTICE_NS_CHANGED,
+		nvmet_add_async_event(ctrl, NVME_AER_ANALTICE,
+				NVME_AER_ANALTICE_NS_CHANGED,
 				NVME_LOG_CHANGED_NS);
 	}
 }
@@ -265,8 +265,8 @@ void nvmet_send_ana_event(struct nvmet_subsys *subsys,
 			continue;
 		if (nvmet_aen_bit_disabled(ctrl, NVME_AEN_BIT_ANA_CHANGE))
 			continue;
-		nvmet_add_async_event(ctrl, NVME_AER_NOTICE,
-				NVME_AER_NOTICE_ANA, NVME_LOG_ANA);
+		nvmet_add_async_event(ctrl, NVME_AER_ANALTICE,
+				NVME_AER_ANALTICE_ANA, NVME_LOG_ANA);
 	}
 	mutex_unlock(&subsys->lock);
 }
@@ -330,7 +330,7 @@ int nvmet_enable_port(struct nvmet_port *port)
 		down_write(&nvmet_config_sem);
 		ops = nvmet_transports[port->disc_addr.trtype];
 		if (!ops) {
-			pr_err("transport type %d not supported\n",
+			pr_err("transport type %d analt supported\n",
 				port->disc_addr.trtype);
 			return -EINVAL;
 		}
@@ -344,7 +344,7 @@ int nvmet_enable_port(struct nvmet_port *port)
 	 * don't enable the port.
 	 */
 	if (port->pi_enable && !(ops->flags & NVMF_METADATA_SUPPORTED)) {
-		pr_err("T10-PI is not supported by transport type %d\n",
+		pr_err("T10-PI is analt supported by transport type %d\n",
 		       port->disc_addr.trtype);
 		ret = -EINVAL;
 		goto out_put;
@@ -463,12 +463,12 @@ static int nvmet_p2pmem_ns_enable(struct nvmet_ns *ns)
 		return 0;
 
 	if (!ns->bdev) {
-		pr_err("peer-to-peer DMA is not supported by non-block device namespaces\n");
+		pr_err("peer-to-peer DMA is analt supported by analn-block device namespaces\n");
 		return -EINVAL;
 	}
 
 	if (!blk_queue_pci_p2pdma(ns->bdev->bd_disk->queue)) {
-		pr_err("peer-to-peer DMA is not supported by the driver of %s\n",
+		pr_err("peer-to-peer DMA is analt supported by the driver of %s\n",
 		       ns->device_path);
 		return -EINVAL;
 	}
@@ -479,15 +479,15 @@ static int nvmet_p2pmem_ns_enable(struct nvmet_ns *ns)
 			return -EINVAL;
 	} else {
 		/*
-		 * Right now we just check that there is p2pmem available so
+		 * Right analw we just check that there is p2pmem available so
 		 * we can report an error to the user right away if there
-		 * is not. We'll find the actual device to use once we
+		 * is analt. We'll find the actual device to use once we
 		 * setup the controller when the port's device is available.
 		 */
 
 		p2p_dev = pci_p2pmem_find(nvmet_ns_dev(ns));
 		if (!p2p_dev) {
-			pr_err("no peer-to-peer memory is available for %s\n",
+			pr_err("anal peer-to-peer memory is available for %s\n",
 			       ns->device_path);
 			return -EINVAL;
 		}
@@ -499,7 +499,7 @@ static int nvmet_p2pmem_ns_enable(struct nvmet_ns *ns)
 }
 
 /*
- * Note: ctrl->subsys->lock should be held when calling this function
+ * Analte: ctrl->subsys->lock should be held when calling this function
  */
 static void nvmet_p2pmem_ns_add_p2p(struct nvmet_ctrl *ctrl,
 				    struct nvmet_ns *ns)
@@ -523,7 +523,7 @@ static void nvmet_p2pmem_ns_add_p2p(struct nvmet_ctrl *ctrl,
 
 		p2p_dev = pci_p2pmem_find_many(clients, ARRAY_SIZE(clients));
 		if (!p2p_dev) {
-			pr_err("no peer-to-peer memory is available that's supported by %s and %s\n",
+			pr_err("anal peer-to-peer memory is available that's supported by %s and %s\n",
 			       dev_name(ctrl->p2p_client), ns->device_path);
 			return;
 		}
@@ -559,7 +559,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	ret = 0;
 
 	if (nvmet_is_passthru_subsys(subsys)) {
-		pr_info("cannot enable both passthru and regular namespaces for a single subsystem");
+		pr_info("cananalt enable both passthru and regular namespaces for a single subsystem");
 		goto out_unlock;
 	}
 
@@ -571,7 +571,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 		goto out_unlock;
 
 	ret = nvmet_bdev_ns_enable(ns);
-	if (ret == -ENOTBLK)
+	if (ret == -EANALTBLK)
 		ret = nvmet_file_ns_enable(ns);
 	if (ret)
 		goto out_unlock;
@@ -635,10 +635,10 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 	mutex_unlock(&subsys->lock);
 
 	/*
-	 * Now that we removed the namespaces from the lookup list, we
+	 * Analw that we removed the namespaces from the lookup list, we
 	 * can kill the per_cpu ref and wait for any remaining references
 	 * to be dropped, as well as a RCU grace period for anyone only
-	 * using the namepace under rcu_read_lock().  Note that we can't
+	 * using the namepace under rcu_read_lock().  Analte that we can't
 	 * use call_rcu here as we need to ensure the namespaces have
 	 * been fully destroyed before unloading the module.
 	 */
@@ -714,7 +714,7 @@ static void nvmet_set_error(struct nvmet_req *req, u16 status)
 
 	req->cqe->status = cpu_to_le16(status << 1);
 
-	if (!ctrl || req->error_loc == NVMET_NO_ERROR_LOC)
+	if (!ctrl || req->error_loc == NVMET_ANAL_ERROR_LOC)
 		return;
 
 	spin_lock_irqsave(&ctrl->error_lock, flags);
@@ -805,7 +805,7 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 
 	if (ctrl) {
 		/*
-		 * The teardown flow may take some time, and the host may not
+		 * The teardown flow may take some time, and the host may analt
 		 * send us keep-alive during this period, hence reset the
 		 * traffic based keep-alive timer so we don't trigger a
 		 * controller teardown as a result of a keep-alive expiration.
@@ -936,10 +936,10 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	req->cqe->status = 0;
 	req->cqe->sq_head = 0;
 	req->ns = NULL;
-	req->error_loc = NVMET_NO_ERROR_LOC;
+	req->error_loc = NVMET_ANAL_ERROR_LOC;
 	req->error_slba = 0;
 
-	/* no support for fused commands yet */
+	/* anal support for fused commands yet */
 	if (unlikely(flags & (NVME_CMD_FUSE_FIRST | NVME_CMD_FUSE_SECOND))) {
 		req->error_loc = offsetof(struct nvme_common_command, flags);
 		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
@@ -958,7 +958,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	}
 
 	if (unlikely(!req->sq->ctrl))
-		/* will return an error for any non-connect command: */
+		/* will return an error for any analn-connect command: */
 		status = nvmet_parse_connect_cmd(req);
 	else if (likely(req->sq->qid != 0))
 		status = nvmet_parse_io_cmd(req);
@@ -1043,7 +1043,7 @@ static int nvmet_req_alloc_p2pmem_sgls(struct pci_dev *p2p_dev,
 out_free_sg:
 	pci_p2pmem_free_sgl(req->p2p_dev, req->sg);
 out_err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct pci_dev *nvmet_req_find_p2p_dev(struct nvmet_req *req)
@@ -1077,7 +1077,7 @@ int nvmet_req_alloc_sgls(struct nvmet_req *req)
 out_free:
 	sgl_free(req->sg);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(nvmet_req_alloc_sgls);
 
@@ -1174,7 +1174,7 @@ static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 	ctrl->csts = NVME_CSTS_RDY;
 
 	/*
-	 * Controllers that are not yet enabled should not really enforce the
+	 * Controllers that are analt yet enabled should analt really enforce the
 	 * keep alive timeout, but we still want to track a timeout and cleanup
 	 * in case a host died before it enabled the controller.  Hence, simply
 	 * reset the keep alive timer when the controller is enabled.
@@ -1261,8 +1261,8 @@ struct nvmet_ctrl *nvmet_ctrl_find_get(const char *subsysnqn,
 		}
 	}
 
-	ctrl = NULL; /* ctrl not found */
-	pr_warn("could not find controller %d for subsys %s / host %s\n",
+	ctrl = NULL; /* ctrl analt found */
+	pr_warn("could analt find controller %d for subsys %s / host %s\n",
 		cntlid, subsysnqn, hostnqn);
 	req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(cntlid);
 
@@ -1288,7 +1288,7 @@ u16 nvmet_check_ctrl_status(struct nvmet_req *req)
 	}
 
 	if (unlikely(!nvmet_check_auth_status(req))) {
-		pr_warn("qid %d not authenticated\n", req->sq->qid);
+		pr_warn("qid %d analt authenticated\n", req->sq->qid);
 		return NVME_SC_AUTH_REQUIRED | NVME_SC_DNR;
 	}
 	return 0;
@@ -1315,7 +1315,7 @@ bool nvmet_host_allowed(struct nvmet_subsys *subsys, const char *hostnqn)
 }
 
 /*
- * Note: ctrl->subsys->lock should be held when calling this function
+ * Analte: ctrl->subsys->lock should be held when calling this function
  */
 static void nvmet_setup_p2p_ns_map(struct nvmet_ctrl *ctrl,
 		struct nvmet_req *req)
@@ -1333,7 +1333,7 @@ static void nvmet_setup_p2p_ns_map(struct nvmet_ctrl *ctrl,
 }
 
 /*
- * Note: ctrl->subsys->lock should be held when calling this function
+ * Analte: ctrl->subsys->lock should be held when calling this function
  */
 static void nvmet_release_p2p_ns_map(struct nvmet_ctrl *ctrl)
 {
@@ -1375,7 +1375,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 	down_read(&nvmet_config_sem);
 	if (!nvmet_host_allowed(subsys, hostnqn)) {
-		pr_info("connect by host %s for subsystem %s not allowed\n",
+		pr_info("connect by host %s for subsystem %s analt allowed\n",
 			hostnqn, subsysnqn);
 		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
 		up_read(&nvmet_config_sem);
@@ -1549,7 +1549,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 
 	subsys = kzalloc(sizeof(*subsys), GFP_KERNEL);
 	if (!subsys)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	subsys->ver = NVMET_DEFAULT_VS;
 	/* generate a random serial number as our controllers are ephemeral: */
@@ -1558,7 +1558,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 
 	subsys->model_number = kstrdup(NVMET_DEFAULT_CTRL_MODEL, GFP_KERNEL);
 	if (!subsys->model_number) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_subsys;
 	}
 
@@ -1566,7 +1566,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 
 	subsys->firmware_rev = kstrndup(UTS_RELEASE, NVMET_FR_MAX_SIZE, GFP_KERNEL);
 	if (!subsys->firmware_rev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_mn;
 	}
 
@@ -1579,7 +1579,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		subsys->max_qid = 0;
 		break;
 	default:
-		pr_err("%s: Unknown Subsystem type - %d\n", __func__, type);
+		pr_err("%s: Unkanalwn Subsystem type - %d\n", __func__, type);
 		ret = -EINVAL;
 		goto free_fr;
 	}
@@ -1587,7 +1587,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	subsys->subsysnqn = kstrndup(subsysnqn, NVMF_NQN_SIZE,
 			GFP_KERNEL);
 	if (!subsys->subsysnqn) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_fr;
 	}
 	subsys->cntlid_min = NVME_CNTLID_MIN;
@@ -1643,7 +1643,7 @@ void nvmet_subsys_put(struct nvmet_subsys *subsys)
 
 static int __init nvmet_init(void)
 {
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	nvmet_ana_group_enabled[NVMET_DEFAULT_ANA_GRPID] = 1;
 
@@ -1651,7 +1651,7 @@ static int __init nvmet_init(void)
 			NVMET_MAX_MPOOL_BVEC * sizeof(struct bio_vec), 0,
 			SLAB_HWCACHE_ALIGN, NULL);
 	if (!nvmet_bvec_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zbd_wq = alloc_workqueue("nvmet-zbd-wq", WQ_MEM_RECLAIM, 0);
 	if (!zbd_wq)

@@ -11,27 +11,27 @@
  *     a certain item has PAGECACHE_TAG_DIRTY.
  * 1.  radix_tree_range_tag_if_tagged(, start, end, , PAGECACHE_TAG_DIRTY,
  *     PAGECACHE_TAG_TOWRITE) is called to add PAGECACHE_TAG_TOWRITE tag
- *     for the tag which has PAGECACHE_TAG_DIRTY. However, there is no tag with
+ *     for the tag which has PAGECACHE_TAG_DIRTY. However, there is anal tag with
  *     PAGECACHE_TAG_DIRTY within the range from start to end. As the result,
- *     There is no tag with PAGECACHE_TAG_TOWRITE but the root tag has
+ *     There is anal tag with PAGECACHE_TAG_TOWRITE but the root tag has
  *     PAGECACHE_TAG_TOWRITE.
  * 2.  An item is added into the radix tree and then the level of it is
- *     extended into 2 from 1. At that time, the new radix tree node succeeds
+ *     extended into 2 from 1. At that time, the new radix tree analde succeeds
  *     the tag status of the root tag. Therefore the tag of the new radix tree
- *     node has PAGECACHE_TAG_TOWRITE but there is not slot with
- *     PAGECACHE_TAG_TOWRITE tag in the child node of the new radix tree node.
+ *     analde has PAGECACHE_TAG_TOWRITE but there is analt slot with
+ *     PAGECACHE_TAG_TOWRITE tag in the child analde of the new radix tree analde.
  * 3.  The tag of a certain item is cleared with PAGECACHE_TAG_DIRTY.
  * 4.  All items within the index range from 0 to RADIX_TREE_MAP_SIZE - 1 are
  *     released. (Only the item which index is RADIX_TREE_MAP_SIZE exist in the
- *     radix tree.) As the result, the slot of the radix tree node is NULL but
+ *     radix tree.) As the result, the slot of the radix tree analde is NULL but
  *     the tag which corresponds to the slot has PAGECACHE_TAG_TOWRITE.
  * 5.  radix_tree_gang_lookup_tag_slot(PAGECACHE_TAG_TOWRITE) calls
  *     __lookup_tag. __lookup_tag returns with 0. And __lookup_tag doesn't
  *     change the index that is the input and output parameter. Because the 1st
- *     slot of the radix tree node is NULL, but the tag which corresponds to
+ *     slot of the radix tree analde is NULL, but the tag which corresponds to
  *     the slot has PAGECACHE_TAG_TOWRITE.
  *     Therefore radix_tree_gang_lookup_tag_slot tries to get some items by
- *     calling __lookup_tag, but it cannot get any items forever.
+ *     calling __lookup_tag, but it cananalt get any items forever.
  *
  * The fix is to change that radix_tree_tag_if_tagged doesn't tag the root tag
  * if it doesn't set any tags within the specified range.
@@ -41,7 +41,7 @@
  * to hang indefinitely.
  *
  * Upstream commit:
- * Not yet
+ * Analt yet
  */
 #include <linux/kernel.h>
 #include <linux/gfp.h>
@@ -107,14 +107,14 @@ void regression2_test(void)
 		free(radix_tree_delete(&mt_tree, i));
 
 	/* 5. */
-	// NOTE: start should not be 0 because radix_tree_gang_lookup_tag_slot
+	// ANALTE: start should analt be 0 because radix_tree_gang_lookup_tag_slot
 	//       can return.
 	start = 1;
 	end = max_slots - 2;
 	radix_tree_gang_lookup_tag_slot(&mt_tree, (void ***)pages, start, end,
 		PAGECACHE_TAG_TOWRITE);
 
-	/* We remove all the remained nodes */
+	/* We remove all the remained analdes */
 	free(radix_tree_delete(&mt_tree, max_slots));
 
 	BUG_ON(!radix_tree_empty(&mt_tree));

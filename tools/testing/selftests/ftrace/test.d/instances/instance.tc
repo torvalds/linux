@@ -20,7 +20,7 @@ rmdir x
 result=$?
 
 if [ $result -ne 0 ]; then
-    echo "instance rmdir not supported"
+    echo "instance rmdir analt supported"
     exit_unsupported
 fi
 

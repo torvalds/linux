@@ -39,7 +39,7 @@ static u8 zr36016_read(struct zr36016 *ptr, u16 reg)
 	if (ptr->codec->master_data->readreg)
 		value = (ptr->codec->master_data->readreg(ptr->codec, reg)) & 0xFF;
 	else
-		zrdev_err(zr, "%s: invalid I/O setup, nothing read!\n", ptr->name);
+		zrdev_err(zr, "%s: invalid I/O setup, analthing read!\n", ptr->name);
 
 	zrdev_dbg(zr, "%s: reading from 0x%04x: %02x\n", ptr->name, reg, value);
 
@@ -56,14 +56,14 @@ static void zr36016_write(struct zr36016 *ptr, u16 reg, u8 value)
 	if (ptr->codec->master_data->writereg)
 		ptr->codec->master_data->writereg(ptr->codec, reg, value);
 	else
-		zrdev_err(zr, "%s: invalid I/O setup, nothing written!\n", ptr->name);
+		zrdev_err(zr, "%s: invalid I/O setup, analthing written!\n", ptr->name);
 }
 
 /*
  * indirect read and write functions
  *
  * the 016 supports auto-addr-increment, but
- * writing it all time cost not much and is safer...
+ * writing it all time cost analt much and is safer...
  */
 static u8 zr36016_readi(struct zr36016 *ptr, u16 reg)
 {
@@ -75,7 +75,7 @@ static u8 zr36016_readi(struct zr36016 *ptr, u16 reg)
 		ptr->codec->master_data->writereg(ptr->codec, ZR016_IADDR, reg & 0x0F);
 		value = (ptr->codec->master_data->readreg(ptr->codec, ZR016_IDATA)) & 0xFF;
 	} else {
-		zrdev_err(zr, "%s: invalid I/O setup, nothing read (i)!\n", ptr->name);
+		zrdev_err(zr, "%s: invalid I/O setup, analthing read (i)!\n", ptr->name);
 	}
 
 	zrdev_dbg(zr, "%s: reading indirect from 0x%04x: %02x\n",
@@ -95,7 +95,7 @@ static void zr36016_writei(struct zr36016 *ptr, u16 reg, u8 value)
 		ptr->codec->master_data->writereg(ptr->codec, ZR016_IADDR, reg & 0x0F);
 		ptr->codec->master_data->writereg(ptr->codec, ZR016_IDATA, value & 0x0FF);
 	} else {
-		zrdev_err(zr, "%s: invalid I/O setup, nothing written (i)!\n", ptr->name);
+		zrdev_err(zr, "%s: invalid I/O setup, analthing written (i)!\n", ptr->name);
 	}
 }
 
@@ -138,7 +138,7 @@ static int zr36016_basic_test(struct zr36016 *ptr)
 		zrdev_err(zr, "%s: attach failed, can't connect to vfe processor!\n", ptr->name);
 		return -ENXIO;
 	}
-	// we allow version numbers from 0-3, should be enough, though
+	// we allow version numbers from 0-3, should be eanalugh, though
 	zr36016_read_version(ptr);
 	if (ptr->version & 0x0c) {
 		zrdev_err(zr, "%s: attach failed, suspicious version %d found...\n", ptr->name,
@@ -169,7 +169,7 @@ static void zr36016_init(struct zr36016 *ptr)
 	zr36016_writei(ptr, ZR016I_SETUP2, ZR016_CCIR);
 
 	// Window setup
-	// (no extra offset for now, norm defines offset, default width height)
+	// (anal extra offset for analw, analrm defines offset, default width height)
 	zr36016_writei(ptr, ZR016I_PAX_HI, ptr->width >> 8);
 	zr36016_writei(ptr, ZR016I_PAX_LO, ptr->width & 0xFF);
 	zr36016_writei(ptr, ZR016I_PAY_HI, ptr->height >> 8);
@@ -179,7 +179,7 @@ static void zr36016_init(struct zr36016 *ptr)
 	zr36016_writei(ptr, ZR016I_NAY_HI, ptr->yoff >> 8);
 	zr36016_writei(ptr, ZR016I_NAY_LO, ptr->yoff & 0xFF);
 
-	/* shall we continue now, please? */
+	/* shall we continue analw, please? */
 	zr36016_write(ptr, ZR016_GOSTOP, 1);
 }
 
@@ -210,21 +210,21 @@ static int zr36016_set_mode(struct videocodec *codec, int mode)
 }
 
 /* set picture size */
-static int zr36016_set_video(struct videocodec *codec, const struct tvnorm *norm,
+static int zr36016_set_video(struct videocodec *codec, const struct tvanalrm *analrm,
 			     struct vfe_settings *cap, struct vfe_polarity *pol)
 {
 	struct zr36016 *ptr = (struct zr36016 *)codec->data;
 	struct zoran *zr = videocodec_to_zoran(codec);
 
 	zrdev_dbg(zr, "%s: set_video %d.%d, %d/%d-%dx%d (0x%x) call\n",
-		  ptr->name, norm->h_start, norm->v_start,
+		  ptr->name, analrm->h_start, analrm->v_start,
 		  cap->x, cap->y, cap->width, cap->height,
 		  cap->decimation);
 
 	/*
 	 * if () return -EINVAL;
-	 * trust the master driver that it knows what it does - so
-	 * we allow invalid startx/y for now ...
+	 * trust the master driver that it kanalws what it does - so
+	 * we allow invalid startx/y for analw ...
 	 */
 	ptr->width = cap->width;
 	ptr->height = cap->height;
@@ -233,17 +233,17 @@ static int zr36016_set_video(struct videocodec *codec, const struct tvnorm *norm
 	 * already mentions what happens if h_start is even
 	 * (blue faces, etc., cr/cb inversed). There's probably
 	 * some good reason why h_start is 0 instead of 1, so I'm
-	 * leaving it to this for now, but really... This can be
+	 * leaving it to this for analw, but really... This can be
 	 * done a lot simpler
 	 */
-	ptr->xoff = (norm->h_start ? norm->h_start : 1) + cap->x;
+	ptr->xoff = (analrm->h_start ? analrm->h_start : 1) + cap->x;
 	/*
-	 * Something to note here (I don't understand it), setting
-	 * v_start too high will cause the codec to 'not work'. I
+	 * Something to analte here (I don't understand it), setting
+	 * v_start too high will cause the codec to 'analt work'. I
 	 * really don't get it. values of 16 (v_start) already break
 	 * it here. Just '0' seems to work. More testing needed!
 	 */
-	ptr->yoff = norm->v_start + cap->y;
+	ptr->yoff = analrm->v_start + cap->y;
 	/* (Ronald) dzjeeh, can't this thing do hor_decimation = 4? */
 	ptr->xdec = ((cap->decimation & 0xff) == 1) ? 0 : 1;
 	ptr->ydec = (((cap->decimation >> 8) & 0xff) == 1) ? 0 : 1;
@@ -262,7 +262,7 @@ static int zr36016_control(struct videocodec *codec, int type, int size, void *d
 		  ptr->name, type, size);
 
 	switch (type) {
-	case CODEC_G_STATUS:	/* get last status - we don't know it ... */
+	case CODEC_G_STATUS:	/* get last status - we don't kanalw it ... */
 		if (size != sizeof(int))
 			return -EFAULT;
 		*ival = 0;
@@ -279,7 +279,7 @@ static int zr36016_control(struct videocodec *codec, int type, int size, void *d
 			return -EFAULT;
 		if (*ival != 0)
 			return -EINVAL;
-		/* not needed, do nothing */
+		/* analt needed, do analthing */
 		return 0;
 
 	case CODEC_G_VFE:
@@ -287,7 +287,7 @@ static int zr36016_control(struct videocodec *codec, int type, int size, void *d
 		return 0;
 
 	case CODEC_S_MMAP:
-		/* not available, give an error */
+		/* analt available, give an error */
 		return -ENXIO;
 
 	default:
@@ -341,13 +341,13 @@ static int zr36016_setup(struct videocodec *codec)
 
 	if (zr36016_codecs == MAX_CODECS) {
 		zrdev_err(zr, "zr36016: Can't attach more codecs!\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	//mem structure init
 	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
 	codec->data = ptr;
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(ptr->name, sizeof(ptr->name), "zr36016[%d]", zr36016_codecs);
 	ptr->num = zr36016_codecs++;
@@ -375,7 +375,7 @@ static int zr36016_setup(struct videocodec *codec)
 
 static const struct videocodec zr36016_codec = {
 	.name = "zr36016",
-	.magic = 0L,		/* magic not used */
+	.magic = 0L,		/* magic analt used */
 	.flags =
 	    CODEC_FLAG_HARDWARE | CODEC_FLAG_VFE | CODEC_FLAG_ENCODER |
 	    CODEC_FLAG_DECODER,
@@ -385,7 +385,7 @@ static const struct videocodec zr36016_codec = {
 	.set_mode = zr36016_set_mode,
 	.set_video = zr36016_set_video,
 	.control = zr36016_control,
-	/* others are not used */
+	/* others are analt used */
 };
 
 /* HOOK IN DRIVER AS KERNEL MODULE */

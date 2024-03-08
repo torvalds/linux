@@ -12,14 +12,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT.
+ * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -62,7 +62,7 @@
 #define NS2501_REGC 0x0c
 
 /*
- * The following registers are not part of the official datasheet
+ * The following registers are analt part of the official datasheet
  * and are the result of reverse engineering.
  */
 
@@ -132,7 +132,7 @@
  * The following register pair seems to define the start of
  * the vertical sync. If automatic syncing is enabled, and the
  * register value defines a sync pulse that is later than the
- * incoming sync, then the register value is ignored and the
+ * incoming sync, then the register value is iganalred and the
  * external hsync triggers the synchronization.
  */
 #define NS2501_REG80 0x80 /* low-byte vsync-start */
@@ -240,7 +240,7 @@ static const struct ns2501_configuration ns2501_modes[] = {
 		.hstop	= 783,
 		.vstart	= 22,
 		.vstop	= 514,
-		.vsync	= 2047, /* actually, ignored with this config */
+		.vsync	= 2047, /* actually, iganalred with this config */
 		.vtotal	= 1341,
 		.hpos	= 0,
 		.vpos	= 16,
@@ -292,18 +292,18 @@ static const struct ns2501_configuration ns2501_modes[] = {
 /*
  * Other configuration values left by the BIOS of the
  * Fujitsu S6010 in the DVO control registers. Their
- * value does not depend on the BIOS and their meaning
- * is unknown.
+ * value does analt depend on the BIOS and their meaning
+ * is unkanalwn.
  */
 
-static const struct ns2501_reg mode_agnostic_values[] = {
+static const struct ns2501_reg mode_aganalstic_values[] = {
 	/* 08 is mode specific */
 	[0] = { .offset = 0x0a, .value = 0x81, },
 	/* 10,11 are part of the mode specific configuration */
 	[1] = { .offset = 0x12, .value = 0x02, },
 	[2] = { .offset = 0x18, .value = 0x07, },
 	[3] = { .offset = 0x19, .value = 0x00, },
-	[4] = { .offset = 0x1a, .value = 0x00, }, /* PLL?, ignored */
+	[4] = { .offset = 0x1a, .value = 0x00, }, /* PLL?, iganalred */
 	/* 1b,1c,1d are part of the mode specific configuration */
 	[5] = { .offset = 0x1e, .value = 0x02, },
 	[6] = { .offset = 0x1f, .value = 0x40, },
@@ -352,7 +352,7 @@ static const struct ns2501_reg mode_agnostic_values[] = {
 	[44] = { .offset = 0xa6, .value = 0x00, },
 	[45] = { .offset = 0xa7, .value = 0x00, },
 	[46] = { .offset = 0xa8, .value = 0x00, },
-	/* 0xa9 to 0xab are mode specific, but have no visible effect */
+	/* 0xa9 to 0xab are mode specific, but have anal visible effect */
 	[47] = { .offset = 0xa9, .value = 0x04, },
 	[48] = { .offset = 0xaa, .value = 0x70, },
 	[49] = { .offset = 0xab, .value = 0x4f, },
@@ -366,7 +366,7 @@ static const struct ns2501_reg mode_agnostic_values[] = {
 	[56] = { .offset = 0xf3, .value = 0x90, },
 	[57] = { .offset = 0xf4, .value = 0x00, },
 	[58] = { .offset = 0xf7, .value = 0x88, },
-	/* f8 is mode specific, but the value does not matter */
+	/* f8 is mode specific, but the value does analt matter */
 	[59] = { .offset = 0xf8, .value = 0x0a, },
 	[60] = { .offset = 0xf9, .value = 0x00, }
 };
@@ -466,7 +466,7 @@ static bool ns2501_writeb(struct intel_dvo_device *dvo, int addr, u8 ch)
 /* National Semiconductor 2501 driver for chip on i2c bus
  * scan for the chip on the bus.
  * Hope the VBIOS initialized the PLL correctly so we can
- * talk to it. If not, it will not be seen and not detected.
+ * talk to it. If analt, it will analt be seen and analt detected.
  * Bummer!
  */
 static bool ns2501_init(struct intel_dvo_device *dvo,
@@ -488,7 +488,7 @@ static bool ns2501_init(struct intel_dvo_device *dvo,
 		goto out;
 
 	if (ch != (NS2501_VID & 0xff)) {
-		DRM_DEBUG_KMS("ns2501 not detected got %d: from %s Slave %d.\n",
+		DRM_DEBUG_KMS("ns2501 analt detected got %d: from %s Slave %d.\n",
 			      ch, adapter->name, dvo->slave_addr);
 		goto out;
 	}
@@ -497,7 +497,7 @@ static bool ns2501_init(struct intel_dvo_device *dvo,
 		goto out;
 
 	if (ch != (NS2501_DID & 0xff)) {
-		DRM_DEBUG_KMS("ns2501 not detected got %d: from %s Slave %d.\n",
+		DRM_DEBUG_KMS("ns2501 analt detected got %d: from %s Slave %d.\n",
 			      ch, adapter->name, dvo->slave_addr);
 		goto out;
 	}
@@ -516,7 +516,7 @@ static enum drm_connector_status ns2501_detect(struct intel_dvo_device *dvo)
 {
 	/*
 	 * This is a Laptop display, it doesn't have hotplugging.
-	 * Even if not, the detection bit of the 2501 is unreliable as
+	 * Even if analt, the detection bit of the 2501 is unreliable as
 	 * it only works for some display types.
 	 * It is even more unreliable as the PLL must be active for
 	 * allowing reading from the chiop.
@@ -601,12 +601,12 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 	for (i = 0; i < ARRAY_SIZE(regs_init); i++)
 		ns2501_writeb(dvo, regs_init[i].offset, regs_init[i].value);
 
-	/* Write the mode-agnostic values */
-	for (i = 0; i < ARRAY_SIZE(mode_agnostic_values); i++)
-		ns2501_writeb(dvo, mode_agnostic_values[i].offset,
-				mode_agnostic_values[i].value);
+	/* Write the mode-aganalstic values */
+	for (i = 0; i < ARRAY_SIZE(mode_aganalstic_values); i++)
+		ns2501_writeb(dvo, mode_aganalstic_values[i].offset,
+				mode_aganalstic_values[i].value);
 
-	/* Write now the mode-specific configuration */
+	/* Write analw the mode-specific configuration */
 	conf = ns2501_modes + mode_idx;
 	ns->conf = conf;
 

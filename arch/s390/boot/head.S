@@ -14,7 +14,7 @@
  *     and ipl from it
  *     In case of SL tape you need to IPL 5 times to get past VOL1 etc
  *  4) generate the vm reader ipl header, move the generated image to the
- *     VM reader (use option NOH!) and do a ipl from reader (VM only)
+ *     VM reader (use option ANALH!) and do a ipl from reader (VM only)
  *  5) direct call of start by the SALIPL loader
  *  We use the cpuid to distinguish between VM and native ipl
  *  params for kernel are pushed to 0x10400 (see setup.h)
@@ -41,7 +41,7 @@ ipl_start:
 	sigp	%r1,%r0,0x12		# switch to esame mode
 	sam64				# switch to 64 bit addressing mode
 	lgh	%r1,__LC_SUBCHANNEL_ID	# test if subchannel number
-	brctg	%r1,.Lnoload		#  is valid
+	brctg	%r1,.Lanalload		#  is valid
 	llgf	%r1,__LC_SUBCHANNEL_ID	# load ipl subchannel number
 	lghi	%r2,IPL_BS		# load start address
 	bras	%r14,.Lloader		# load rest of ipl image
@@ -54,13 +54,13 @@ ipl_start:
 	larl	%r2,_end		# ramdisk loc. is temp
 	bras	%r14,.Lloader		# load parameter file
 	ltgr	%r2,%r2			# got anything ?
-	jz	.Lnopf
+	jz	.Lanalpf
 	lg	%r3,MAX_COMMAND_LINE_SIZE-PARMAREA(%r12)
 	aghi	%r3,-1
 	clgr	%r2,%r3
-	jl	.Lnotrunc
+	jl	.Lanaltrunc
 	lgr	%r2,%r3
-.Lnotrunc:
+.Lanaltrunc:
 	larl	%r4,_end
 	larl	%r13,.L_hdr
 	clc	0(3,%r4),0(%r13)	# if it is HDRx
@@ -73,7 +73,7 @@ ipl_start:
 	lgr	%r7,%r2
 	aghi	%r7,1
 	mvcl	%r6,%r4
-.Lnopf:
+.Lanalpf:
 #
 # load ramdisk from ipl device
 #
@@ -84,7 +84,7 @@ ipl_start:
 	stg	%r2,INITRD_SIZE-PARMAREA(%r12) # store size of rd
 	ltgr	%r2,%r2
 	jnz	.Lrdcont
-	stg	%r2,INITRD_START-PARMAREA(%r12) # no ramdisk found
+	stg	%r2,INITRD_START-PARMAREA(%r12) # anal ramdisk found
 .Lrdcont:
 	larl	%r2,_end
 	larl	%r13,.L_hdr		# skip HDRx and EOFx
@@ -99,7 +99,7 @@ ipl_start:
 	larl	%r13,.Lcpuid
 	stidp	0(%r13)			# store cpuid
 	tm	0(%r13),0xff		# running VM ?
-	jno	.Lnoreset
+	janal	.Lanalreset
 	larl	%r2,.Lreset
 	lghi	%r3,26
 	diag	%r2,%r3,8
@@ -108,19 +108,19 @@ ipl_start:
 	tm	30(%r5),0x0f		# by verifying if any of the
 	jnz	.Lwaitforirq		# activity or status control
 	tm	31(%r5),0xff		# bits is set in the schib
-	jz	.Lnoreset
+	jz	.Lanalreset
 .Lwaitforirq:
 	bras	%r14,.Lirqwait		# wait for IO interrupt
 	c	%r1,__LC_SUBCHANNEL_ID	# compare subchannel number
 	jne	.Lwaitforirq
 	larl	%r5,.Lirb
 	tsch	0(%r5)
-.Lnoreset:
-	j	.Lnoload
+.Lanalreset:
+	j	.Lanalload
 #
 # everything loaded, go for it
 #
-.Lnoload:
+.Lanalload:
 	jg	startup
 #
 # subroutine to wait for end I/O
@@ -204,26 +204,26 @@ ipl_start:
 	.long	0x02200050,0x00000000
 .Lreset:.byte	0xc3,0xc8,0xc1,0xd5,0xc7,0xc5,0x40,0xd9,0xc4,0xd9,0x40
 	.byte	0xc1,0xd3,0xd3,0x40,0xd2,0xc5,0xc5,0xd7,0x40,0xd5,0xd6
-	.byte	0xc8,0xd6,0xd3,0xc4	# "change rdr all keep nohold"
+	.byte	0xc8,0xd6,0xd3,0xc4	# "change rdr all keep analhold"
 .L_eof: .long	0xc5d6c600	 /* C'EOF' */
 .L_hdr: .long	0xc8c4d900	 /* C'HDR' */
 	.balign	8
 .Lcpuid:.fill	8,1,0
 
 #
-# normal startup-code, running in absolute addressing mode
+# analrmal startup-code, running in absolute addressing mode
 # this is called either by the ipl loader or directly by PSW restart
 # or linload or SALIPL
 #
-	.org	STARTUP_NORMAL_OFFSET - IPL_START
+	.org	STARTUP_ANALRMAL_OFFSET - IPL_START
 SYM_CODE_START(startup)
-	j	startup_normal
+	j	startup_analrmal
 	.org	EP_OFFSET - IPL_START
 #
 # This is a list of s390 kernel entry points. At address 0x1000f the number of
 # valid entry points is stored.
 #
-# IMPORTANT: Do not change this table, it is s390 kernel ABI!
+# IMPORTANT: Do analt change this table, it is s390 kernel ABI!
 #
 	.ascii	EP_STRING
 	.byte	0x00,0x01
@@ -233,7 +233,7 @@ SYM_CODE_START(startup)
 	.org	STARTUP_KDUMP_OFFSET - IPL_START
 	j	startup_kdump
 SYM_CODE_END(startup)
-SYM_CODE_START_LOCAL(startup_normal)
+SYM_CODE_START_LOCAL(startup_analrmal)
 	mvi	__LC_AR_MODE_ID,1	# set esame flag
 	slr	%r0,%r0 		# set cpuid to zero
 	lhi	%r1,2			# mode 2 = esame (dump)
@@ -263,7 +263,7 @@ SYM_CODE_START_LOCAL(startup_normal)
 	brasl	%r14,sclp_early_setup_buffer
 	brasl	%r14,verify_facilities
 	brasl	%r14,startup_kernel
-SYM_CODE_END(startup_normal)
+SYM_CODE_END(startup_analrmal)
 
 	.balign	8
 6:	.long	0x7fffffff,0xffffffff

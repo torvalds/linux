@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright (c) 2003+ Evgeniy Polyakov <johnpol@2ka.mxt.ru>
  */
@@ -17,10 +17,10 @@
 
 #define XT_OSF_LOGLEVEL_ALL		NF_OSF_LOGLEVEL_ALL
 #define XT_OSF_LOGLEVEL_FIRST		NF_OSF_LOGLEVEL_FIRST
-#define XT_OSF_LOGLEVEL_ALL_KNOWN	NF_OSF_LOGLEVEL_ALL_KNOWN
+#define XT_OSF_LOGLEVEL_ALL_KANALWN	NF_OSF_LOGLEVEL_ALL_KANALWN
 
 #define XT_OSF_TTL_TRUE		NF_OSF_TTL_TRUE
-#define XT_OSF_TTL_NOCHECK	NF_OSF_TTL_NOCHECK
+#define XT_OSF_TTL_ANALCHECK	NF_OSF_TTL_ANALCHECK
 #define XT_OSF_TTL_LESS		NF_OSF_TTL_LESS
 
 #define xt_osf_wc		nf_osf_wc

@@ -41,7 +41,7 @@ enum {
 	DA9063_ID_BCORES_MERGED,
 	/* BMEM and BIO in merged mode */
 	DA9063_ID_BMEM_BIO_MERGED,
-	/* When two BUCKs are merged, they cannot be reused separately */
+	/* When two BUCKs are merged, they cananalt be reused separately */
 
 	/* LDOs on both DA9063 and DA9063L */
 	DA9063_ID_LDO3,
@@ -217,7 +217,7 @@ static int da9063_set_xvp(struct regulator_dev *rdev, int lim_uV, int severity, 
 	/*
 	 * only support enable and disable.
 	 * the da9063 offers a GPIO (GP_FB2) which is unasserted if an XV happens.
-	 * therefore ignore severity here, as there might be handlers in hardware.
+	 * therefore iganalre severity here, as there might be handlers in hardware.
 	 */
 	if (lim_uV)
 		return -EINVAL;
@@ -234,7 +234,7 @@ static int da9063_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_FAST:
 		val = BUCK_MODE_SYNC;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = BUCK_MODE_AUTO;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -248,9 +248,9 @@ static int da9063_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 }
 
 /*
- * Bucks use single mode register field for normal operation
+ * Bucks use single mode register field for analrmal operation
  * and suspend state.
- * There are 3 modes to map to: FAST, NORMAL, and STANDBY.
+ * There are 3 modes to map to: FAST, ANALRMAL, and STANDBY.
  */
 
 static unsigned int da9063_buck_get_mode(struct regulator_dev *rdev)
@@ -273,7 +273,7 @@ static unsigned int da9063_buck_get_mode(struct regulator_dev *rdev)
 	case BUCK_MODE_SYNC:
 		return REGULATOR_MODE_FAST;
 	case BUCK_MODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	}
 
 	ret = regmap_field_read(regl->sleep, &val);
@@ -287,8 +287,8 @@ static unsigned int da9063_buck_get_mode(struct regulator_dev *rdev)
 }
 
 /*
- * LDOs use sleep flags - one for normal and one for suspend state.
- * There are 2 modes to map to: NORMAL and STANDBY (sleep) for each state.
+ * LDOs use sleep flags - one for analrmal and one for suspend state.
+ * There are 2 modes to map to: ANALRMAL and STANDBY (sleep) for each state.
  */
 
 static int da9063_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
@@ -297,7 +297,7 @@ static int da9063_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	unsigned int val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -322,7 +322,7 @@ static unsigned int da9063_ldo_get_mode(struct regulator_dev *rdev)
 	if (val)
 		return REGULATOR_MODE_STANDBY;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int da9063_buck_get_status(struct regulator_dev *rdev)
@@ -401,7 +401,7 @@ static int da9063_buck_set_suspend_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = BUCK_MODE_SYNC;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = BUCK_MODE_AUTO;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -421,7 +421,7 @@ static int da9063_ldo_set_suspend_mode(struct regulator_dev *rdev,
 	unsigned int val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -479,7 +479,7 @@ static int da9063_buck_set_limit_set_overdrive(struct regulator_dev *rdev,
 		/*
 		 * regulator_set_current_limit_regmap may have rejected the
 		 * change because of unusable min_uA and/or max_uA inputs.
-		 * Attempt to restore original overdrive state, ignore failure-
+		 * Attempt to restore original overdrive state, iganalre failure-
 		 * on-failure.
 		 */
 		regmap_clear_bits(regl->hw->regmap, DA9063_REG_CONFIG_H,
@@ -511,7 +511,7 @@ static int da9063_buck_set_limit_clear_overdrive(struct regulator_dev *rdev,
 				overdrive_mask);
 	if (ret < 0)
 		/*
-		 * Attempt to restore original current limit, ignore failure-
+		 * Attempt to restore original current limit, iganalre failure-
 		 * on-failure.
 		 */
 		regmap_write(rdev->regmap, rdev->desc->csel_reg, orig_limit);
@@ -685,7 +685,7 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 		.vmon = BFIELD(DA9063_BB_REG_MON_REG_3, DA9063_LDO11_MON_EN),
 	},
 
-	/* The following LDOs are present only on DA9063, not on DA9063L */
+	/* The following LDOs are present only on DA9063, analt on DA9063L */
 	{
 		DA9063_LDO(DA9063, LDO1, 600, 20, 1860),
 		.vmon = BFIELD(DA9063_BB_REG_MON_REG_2, DA9063_LDO1_MON_EN),
@@ -739,7 +739,7 @@ static irqreturn_t da9063_ldo_lim_event(int irq, void *data)
 
 	ret = regmap_read(hw->regmap, DA9063_REG_STATUS_D, &bits);
 	if (ret < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = regulators->n_regulators - 1; i >= 0; i--) {
 		regl = &regulators->regulator[i];
@@ -747,7 +747,7 @@ static irqreturn_t da9063_ldo_lim_event(int irq, void *data)
 			continue;
 
 		if (BIT(regl->info->oc_event.lsb) & bits) {
-			regulator_notifier_call_chain(regl->rdev,
+			regulator_analtifier_call_chain(regl->rdev,
 					REGULATOR_EVENT_OVER_CURRENT, NULL);
 		}
 	}
@@ -775,8 +775,8 @@ static int da9063_check_xvp_constraints(struct regulator_config *config)
 {
 	struct da9063_regulator *regl = config->driver_data;
 	const struct regulation_constraints *constr = &config->init_data->constraints;
-	const struct notification_limit *uv_l = &constr->under_voltage_limits;
-	const struct notification_limit *ov_l = &constr->over_voltage_limits;
+	const struct analtification_limit *uv_l = &constr->under_voltage_limits;
+	const struct analtification_limit *ov_l = &constr->over_voltage_limits;
 
 	/* make sure that only one severity is used to clarify if unchanged, enabled or disabled */
 	if ((!!uv_l->prot + !!uv_l->err + !!uv_l->warn) > 1) {
@@ -820,7 +820,7 @@ static struct of_regulator_match da9063_matches[] = {
 	[DA9063_ID_LDO8]             = { .name = "ldo8",            },
 	[DA9063_ID_LDO9]             = { .name = "ldo9",            },
 	[DA9063_ID_LDO11]            = { .name = "ldo11",           },
-	/* The following LDOs are present only on DA9063, not on DA9063L */
+	/* The following LDOs are present only on DA9063, analt on DA9063L */
 	[DA9063_ID_LDO1]             = { .name = "ldo1",            },
 	[DA9063_ID_LDO2]             = { .name = "ldo2",            },
 	[DA9063_ID_LDO4]             = { .name = "ldo4",            },
@@ -836,22 +836,22 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
 	struct da9063_regulators_pdata *pdata;
 	struct da9063_regulator_data *rdata;
-	struct device_node *node;
+	struct device_analde *analde;
 	int da9063_matches_len = ARRAY_SIZE(da9063_matches);
 	int i, n, num;
 
 	if (da9063->type == PMIC_TYPE_DA9063L)
 		da9063_matches_len -= 6;
 
-	node = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
-	if (!node) {
-		dev_err(&pdev->dev, "Regulators device node not found\n");
-		return ERR_PTR(-ENODEV);
+	analde = of_get_child_by_name(pdev->dev.parent->of_analde, "regulators");
+	if (!analde) {
+		dev_err(&pdev->dev, "Regulators device analde analt found\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
-	num = of_regulator_match(&pdev->dev, node, da9063_matches,
+	num = of_regulator_match(&pdev->dev, analde, da9063_matches,
 				 da9063_matches_len);
-	of_node_put(node);
+	of_analde_put(analde);
 	if (num < 0) {
 		dev_err(&pdev->dev, "Failed to match regulators\n");
 		return ERR_PTR(-EINVAL);
@@ -859,13 +859,13 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdata->regulator_data = devm_kcalloc(&pdev->dev,
 					num, sizeof(*pdata->regulator_data),
 					GFP_KERNEL);
 	if (!pdata->regulator_data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	pdata->n_regulators = num;
 
 	n = 0;
@@ -900,8 +900,8 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 
 	if (IS_ERR(regl_pdata) || regl_pdata->n_regulators == 0) {
 		dev_err(&pdev->dev,
-			"No regulators defined for the platform\n");
-		return -ENODEV;
+			"Anal regulators defined for the platform\n");
+		return -EANALDEV;
 	}
 
 	/* Find regulators set for particular device model */
@@ -910,9 +910,9 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 			break;
 	}
 	if (!model->regulator_info) {
-		dev_err(&pdev->dev, "Chip model not recognised (%u)\n",
+		dev_err(&pdev->dev, "Chip model analt recognised (%u)\n",
 			da9063->type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(da9063->regmap, DA9063_REG_CONFIG_H, &val);
@@ -938,7 +938,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	regulators = devm_kzalloc(&pdev->dev, struct_size(regulators,
 				  regulator, n_regulators), GFP_KERNEL);
 	if (!regulators)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regulators->n_regulators = n_regulators;
 	platform_set_drvdata(pdev, regulators);
@@ -1025,7 +1025,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		config.init_data = da9063_get_regulator_initdata(regl_pdata, id);
 		config.driver_data = regl;
 		if (da9063_reg_matches)
-			config.of_node = da9063_reg_matches[id].of_node;
+			config.of_analde = da9063_reg_matches[id].of_analde;
 		config.regmap = da9063->regmap;
 
 		/* Checking constraints requires init_data from DT. */
@@ -1065,7 +1065,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 static struct platform_driver da9063_regulator_driver = {
 	.driver = {
 		.name = DA9063_DRVNAME_REGULATORS,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = da9063_regulator_probe,
 };

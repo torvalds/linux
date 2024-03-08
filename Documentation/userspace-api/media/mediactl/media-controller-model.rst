@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _media-controller-model:
 
@@ -18,13 +18,13 @@ are:
    processing pipeline), DMA channels or physical connectors.
 
 -  An **interface** is a graph representation of a Linux Kernel
-   userspace API interface, like a device node or a sysfs file that
+   userspace API interface, like a device analde or a sysfs file that
    controls one or more entities in the graph.
 
 -  A **pad** is a data connection endpoint through which an entity can
-   interact with other entities. Data (not restricted to video) produced
+   interact with other entities. Data (analt restricted to video) produced
    by an entity flows from the entity's output to one or more entity
-   inputs. Pads should not be confused with physical pins at chip
+   inputs. Pads should analt be confused with physical pins at chip
    boundaries.
 
 -  A **data link** is a point-to-point oriented connection between two
@@ -34,7 +34,7 @@ are:
 -  An **interface link** is a point-to-point bidirectional control
    connection between a Linux Kernel interface and an entity.
 
-- An **ancillary link** is a point-to-point connection denoting that two
+- An **ancillary link** is a point-to-point connection deanalting that two
   entities form a single logical unit. For example this could represent the
   fact that a particular camera sensor and lens controller form a single
   physical module, meaning this lens controller drives the lens for this

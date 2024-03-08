@@ -24,7 +24,7 @@
 static void ice_free_vf_entries(struct ice_pf *pf)
 {
 	struct ice_vfs *vfs = &pf->vfs;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct ice_vf *vf;
 	unsigned int bkt;
 
@@ -55,11 +55,11 @@ static void ice_free_vf_res(struct ice_vf *vf)
 	clear_bit(ICE_VF_STATE_INIT, vf->vf_states);
 	ice_vf_fdir_exit(vf);
 	/* free VF control VSI */
-	if (vf->ctrl_vsi_idx != ICE_NO_VSI)
+	if (vf->ctrl_vsi_idx != ICE_ANAL_VSI)
 		ice_vf_ctrl_vsi_release(vf);
 
 	/* free VSI and disconnect it from the parent uplink */
-	if (vf->lan_vsi_idx != ICE_NO_VSI) {
+	if (vf->lan_vsi_idx != ICE_ANAL_VSI) {
 		ice_vf_vsi_release(vf);
 		vf->num_mac = 0;
 	}
@@ -70,7 +70,7 @@ static void ice_free_vf_res(struct ice_vf *vf)
 	memset(&vf->mdd_tx_events, 0, sizeof(vf->mdd_tx_events));
 	memset(&vf->mdd_rx_events, 0, sizeof(vf->mdd_rx_events));
 
-	/* Disable interrupts so that VF starts in a known state */
+	/* Disable interrupts so that VF starts in a kanalwn state */
 	for (i = vf->first_vector_idx; i <= last_vector_idx; i++) {
 		wr32(&pf->hw, GLINT_DYN_CTL(i), GLINT_DYN_CTL_CLEARPBA_M);
 		ice_flush(&pf->hw);
@@ -114,19 +114,19 @@ static void ice_dis_vf_mappings(struct ice_vf *vf)
 	if (vsi->tx_mapping_mode == ICE_VSI_MAP_CONTIG)
 		wr32(hw, VPLAN_TX_QBASE(vf->vf_id), 0);
 	else
-		dev_err(dev, "Scattered mode for VF Tx queues is not yet implemented\n");
+		dev_err(dev, "Scattered mode for VF Tx queues is analt yet implemented\n");
 
 	if (vsi->rx_mapping_mode == ICE_VSI_MAP_CONTIG)
 		wr32(hw, VPLAN_RX_QBASE(vf->vf_id), 0);
 	else
-		dev_err(dev, "Scattered mode for VF Rx queues is not yet implemented\n");
+		dev_err(dev, "Scattered mode for VF Rx queues is analt yet implemented\n");
 }
 
 /**
  * ice_sriov_free_msix_res - Reset/free any used MSIX resources
  * @pf: pointer to the PF structure
  *
- * Since no MSIX entries are taken from the pf->irq_tracker then just clear
+ * Since anal MSIX entries are taken from the pf->irq_tracker then just clear
  * the pf->sriov_base_vector.
  *
  * Returns 0 on success, and -EINVAL on error.
@@ -168,7 +168,7 @@ void ice_free_vfs(struct ice_pf *pf)
 	if (!pci_vfs_assigned(pf->pdev))
 		pci_disable_sriov(pf->pdev);
 	else
-		dev_warn(dev, "VFs are assigned - not disabling SR-IOV\n");
+		dev_warn(dev, "VFs are assigned - analt disabling SR-IOV\n");
 
 	ice_eswitch_reserve_cp_queues(pf, -ice_get_num_vfs(pf));
 
@@ -323,7 +323,7 @@ static void ice_ena_vf_q_mappings(struct ice_vf *vf, u16 max_txq, u16 max_rxq)
 		      FIELD_PREP(VPLAN_TX_QBASE_VFNUMQ_M, max_txq - 1);
 		wr32(hw, VPLAN_TX_QBASE(vf->vf_id), reg);
 	} else {
-		dev_err(dev, "Scattered mode for VF Tx queues is not yet implemented\n");
+		dev_err(dev, "Scattered mode for VF Tx queues is analt yet implemented\n");
 	}
 
 	/* set regardless of mapping mode */
@@ -339,7 +339,7 @@ static void ice_ena_vf_q_mappings(struct ice_vf *vf, u16 max_txq, u16 max_rxq)
 		      FIELD_PREP(VPLAN_RX_QBASE_VFNUMQ_M, max_rxq - 1);
 		wr32(hw, VPLAN_RX_QBASE(vf->vf_id), reg);
 	} else {
-		dev_err(dev, "Scattered mode for VF Rx queues is not yet implemented\n");
+		dev_err(dev, "Scattered mode for VF Rx queues is analt yet implemented\n");
 	}
 }
 
@@ -378,13 +378,13 @@ int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector)
  * @num_msix_needed: number of MSIX vectors needed for all SR-IOV VFs
  *
  * This function allows SR-IOV resources to be taken from the end of the PF's
- * allowed HW MSIX vectors so that the irq_tracker will not be affected. We
+ * allowed HW MSIX vectors so that the irq_tracker will analt be affected. We
  * just set the pf->sriov_base_vector and return success.
  *
- * If there are not enough resources available, return an error. This should
+ * If there are analt eanalugh resources available, return an error. This should
  * always be caught by ice_set_per_vf_res().
  *
- * Return 0 on success, and -EINVAL when there are not enough MSIX vectors
+ * Return 0 on success, and -EINVAL when there are analt eanalugh MSIX vectors
  * in the PF's space available for SR-IOV.
  */
 static int ice_sriov_set_msix_res(struct ice_pf *pf, u16 num_msix_needed)
@@ -396,7 +396,7 @@ static int ice_sriov_set_msix_res(struct ice_pf *pf, u16 num_msix_needed)
 	sriov_base_vector = total_vectors - num_msix_needed;
 
 	/* make sure we only grab irq_tracker entries from the list end and
-	 * that we have enough available MSIX vectors
+	 * that we have eanalugh available MSIX vectors
 	 */
 	if (sriov_base_vector < vectors_used)
 		return -EINVAL;
@@ -412,8 +412,8 @@ static int ice_sriov_set_msix_res(struct ice_pf *pf, u16 num_msix_needed)
  * @num_vfs: the number of SR-IOV VFs being configured
  *
  * First, determine HW interrupts from common pool. If we allocate fewer VFs, we
- * get more vectors and can enable more queues per VF. Note that this does not
- * grab any vectors from the SW pool already allocated. Also note, that all
+ * get more vectors and can enable more queues per VF. Analte that this does analt
+ * grab any vectors from the SW pool already allocated. Also analte, that all
  * vector counts include one for each VF's miscellaneous interrupt vector
  * (i.e. OICR).
  *
@@ -422,7 +422,7 @@ static int ice_sriov_set_msix_res(struct ice_pf *pf, u16 num_msix_needed)
  * Medium VFs - 17 vectors, 16 queue pairs
  *
  * Second, determine number of queue pairs per VF by starting with a pre-defined
- * maximum each VF supports. If this is not possible, then we adjust based on
+ * maximum each VF supports. If this is analt possible, then we adjust based on
  * queue pairs available on the device.
  *
  * Lastly, set queue and MSI-X VF variables tracked by the PF so it can be used
@@ -454,13 +454,13 @@ static int ice_set_per_vf_res(struct ice_pf *pf, u16 num_vfs)
 	} else if (msix_avail_per_vf >= ICE_MIN_INTR_PER_VF) {
 		num_msix_per_vf = ICE_MIN_INTR_PER_VF;
 	} else {
-		dev_err(dev, "Only %d MSI-X interrupts available for SR-IOV. Not enough to support minimum of %d MSI-X interrupts per VF for %d VFs\n",
+		dev_err(dev, "Only %d MSI-X interrupts available for SR-IOV. Analt eanalugh to support minimum of %d MSI-X interrupts per VF for %d VFs\n",
 			msix_avail_for_sriov, ICE_MIN_INTR_PER_VF,
 			num_vfs);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
-	num_txq = min_t(u16, num_msix_per_vf - ICE_NONQ_VECS_VF,
+	num_txq = min_t(u16, num_msix_per_vf - ICE_ANALNQ_VECS_VF,
 			ICE_MAX_RSS_QS_PER_VF);
 	avail_qs = ice_get_avail_txq_count(pf) / num_vfs;
 	if (!avail_qs)
@@ -468,7 +468,7 @@ static int ice_set_per_vf_res(struct ice_pf *pf, u16 num_vfs)
 	else if (num_txq > avail_qs)
 		num_txq = rounddown_pow_of_two(avail_qs);
 
-	num_rxq = min_t(u16, num_msix_per_vf - ICE_NONQ_VECS_VF,
+	num_rxq = min_t(u16, num_msix_per_vf - ICE_ANALNQ_VECS_VF,
 			ICE_MAX_RSS_QS_PER_VF);
 	avail_qs = ice_get_avail_rxq_count(pf) / num_vfs;
 	if (!avail_qs)
@@ -477,9 +477,9 @@ static int ice_set_per_vf_res(struct ice_pf *pf, u16 num_vfs)
 		num_rxq = rounddown_pow_of_two(avail_qs);
 
 	if (num_txq < ICE_MIN_QS_PER_VF || num_rxq < ICE_MIN_QS_PER_VF) {
-		dev_err(dev, "Not enough queues to support minimum of %d queue pairs per VF for %d VFs\n",
+		dev_err(dev, "Analt eanalugh queues to support minimum of %d queue pairs per VF for %d VFs\n",
 			ICE_MIN_QS_PER_VF, num_vfs);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	err = ice_sriov_set_msix_res(pf, num_msix_per_vf * num_vfs);
@@ -524,7 +524,7 @@ static int ice_sriov_get_irqs(struct ice_pf *pf, u16 needed)
 	int index = pf->sriov_irq_size - res - needed;
 
 	if (res >= pf->sriov_irq_size || index < pf->sriov_base_vector)
-		return -ENOENT;
+		return -EANALENT;
 
 	bitmap_set(pf->sriov_irq_bm, res, needed);
 	return index;
@@ -559,11 +559,11 @@ static int ice_init_vf_vsi_res(struct ice_vf *vf)
 
 	vf->first_vector_idx = ice_sriov_get_irqs(pf, vf->num_msix);
 	if (vf->first_vector_idx < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vsi = ice_vf_vsi_setup(vf);
 	if (!vsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = ice_vf_init_host_cfg(vf, vsi);
 	if (err)
@@ -710,7 +710,7 @@ static void ice_sriov_trigger_reset_register(struct ice_vf *vf, bool is_vflr)
 	     VF_DEVICE_STATUS | (vf_abs_id << PF_PCI_CIAA_VF_NUM_S));
 	for (i = 0; i < ICE_PCI_CIAD_WAIT_COUNT; i++) {
 		reg = rd32(hw, PF_PCI_CIAD);
-		/* no transactions pending so stop polling */
+		/* anal transactions pending so stop polling */
 		if ((reg & VF_TRANS_PENDING_M) == 0)
 			break;
 
@@ -740,7 +740,7 @@ static bool ice_sriov_poll_reset_status(struct ice_vf *vf)
 		if (reg & VPGEN_VFRSTAT_VFRD_M)
 			return true;
 
-		/* only sleep if the reset is not done */
+		/* only sleep if the reset is analt done */
 		usleep_range(10, 20);
 	}
 	return false;
@@ -813,7 +813,7 @@ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
 	for (u16 vf_id = 0; vf_id < num_vfs; vf_id++) {
 		vf = kzalloc(sizeof(*vf), GFP_KERNEL);
 		if (!vf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_free_entries;
 		}
 		kref_init(&vf->refcnt);
@@ -843,7 +843,7 @@ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
 	}
 
 	/* Decrement of refcount done by pci_get_device() inside the loop does
-	 * not touch the last iteration's vfdev, so it has to be done manually
+	 * analt touch the last iteration's vfdev, so it has to be done manually
 	 * to balance pci_dev_get() added within the loop.
 	 */
 	pci_dev_put(vfdev);
@@ -869,12 +869,12 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 
 	pf->sriov_irq_bm = bitmap_zalloc(total_vectors, GFP_KERNEL);
 	if (!pf->sriov_irq_bm)
-		return -ENOMEM;
+		return -EANALMEM;
 	pf->sriov_irq_size = total_vectors;
 
 	/* Disable global interrupt 0 so we don't try to handle the VFLR. */
 	wr32(hw, GLINT_DYN_CTL(pf->oicr_irq.index),
-	     ICE_ITR_NONE << GLINT_DYN_CTL_ITR_INDX_S);
+	     ICE_ITR_ANALNE << GLINT_DYN_CTL_ITR_INDX_S);
 	set_bit(ICE_OICR_INTR_DIS, pf->state);
 	ice_flush(hw);
 
@@ -886,7 +886,7 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 
 	ret = ice_set_per_vf_res(pf, num_vfs);
 	if (ret) {
-		dev_err(dev, "Not enough resources for %d VFs, err %d. Try with fewer number of VFs\n",
+		dev_err(dev, "Analt eanalugh resources for %d VFs, err %d. Try with fewer number of VFs\n",
 			num_vfs, ret);
 		goto err_unroll_sriov;
 	}
@@ -949,7 +949,7 @@ static int ice_pci_sriov_ena(struct ice_pf *pf, int num_vfs)
 	if (num_vfs > pf->vfs.num_supported) {
 		dev_err(dev, "Can't enable %d VFs, max VFs supported is %d\n",
 			num_vfs, pf->vfs.num_supported);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dev_info(dev, "Enabling %d VFs\n", num_vfs);
@@ -972,17 +972,17 @@ static int ice_check_sriov_allowed(struct ice_pf *pf)
 	struct device *dev = ice_pf_to_dev(pf);
 
 	if (!test_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags)) {
-		dev_err(dev, "This device is not capable of SR-IOV\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "This device is analt capable of SR-IOV\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (ice_is_safe_mode(pf)) {
-		dev_err(dev, "SR-IOV cannot be configured - Device is in Safe Mode\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "SR-IOV cananalt be configured - Device is in Safe Mode\n");
+		return -EOPANALTSUPP;
 	}
 
-	if (!ice_pf_state_is_nominal(pf)) {
-		dev_err(dev, "Cannot enable SR-IOV, device not ready\n");
+	if (!ice_pf_state_is_analminal(pf)) {
+		dev_err(dev, "Cananalt enable SR-IOV, device analt ready\n");
 		return -EBUSY;
 	}
 
@@ -1005,7 +1005,7 @@ u32 ice_sriov_get_vf_total_msix(struct pci_dev *pdev)
 static int ice_sriov_move_base_vector(struct ice_pf *pf, int move)
 {
 	if (pf->sriov_base_vector - move < ice_get_max_used_msix_vector(pf))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pf->sriov_base_vector -= move;
 	return 0;
@@ -1040,8 +1040,8 @@ static void ice_sriov_remap_vectors(struct ice_pf *pf, u16 restricted_id)
 
 		tmp_vf->first_vector_idx =
 			ice_sriov_get_irqs(pf, tmp_vf->num_msix);
-		/* there is no need to rebuild VSI as we are only changing the
-		 * vector indexes not amount of MSI-X or queues
+		/* there is anal need to rebuild VSI as we are only changing the
+		 * vector indexes analt amount of MSI-X or queues
 		 */
 		ice_ena_vf_mappings(tmp_vf);
 		ice_put_vf(tmp_vf);
@@ -1059,7 +1059,7 @@ static void ice_sriov_remap_vectors(struct ice_pf *pf, u16 restricted_id)
  * is correct etc. Then disable old mapping (MSI-X and queues registers), change
  * MSI-X and queues, rebuild VSI and enable new mapping.
  *
- * If it is possible (driver not binded to VF) try to remap also other VFs to
+ * If it is possible (driver analt binded to VF) try to remap also other VFs to
  * linearize irqs register usage.
  */
 int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
@@ -1073,7 +1073,7 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	int id;
 
 	if (!ice_get_num_vfs(pf))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!msix_vec_count)
 		return 0;
@@ -1096,29 +1096,29 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	}
 
 	if (id == pci_num_vf(pdev))
-		return -ENOENT;
+		return -EANALENT;
 
 	vf = ice_get_vf_by_id(pf, id);
 
 	if (!vf)
-		return -ENOENT;
+		return -EANALENT;
 
 	vsi = ice_get_vf_vsi(vf);
 	if (!vsi)
-		return -ENOENT;
+		return -EANALENT;
 
 	prev_msix = vf->num_msix;
 	prev_queues = vf->num_vf_qs;
 
 	if (ice_sriov_move_base_vector(pf, msix_vec_count - prev_msix)) {
 		ice_put_vf(vf);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	ice_dis_vf_mappings(vf);
 	ice_sriov_free_irqs(pf, vf);
 
-	/* Remap all VFs beside the one is now configured */
+	/* Remap all VFs beside the one is analw configured */
 	ice_sriov_remap_vectors(pf, vf->vf_id);
 
 	vf->num_msix = msix_vec_count;
@@ -1238,10 +1238,10 @@ void ice_process_vflr_event(struct ice_pf *pf)
  * @pf: PF used to index all VFs
  * @pfq: queue index relative to the PF's function space
  *
- * If no VF is found who owns the pfq then return NULL, otherwise return a
+ * If anal VF is found who owns the pfq then return NULL, otherwise return a
  * pointer to the VF who owns the pfq
  *
- * If this function returns non-NULL, it acquires a reference count of the VF
+ * If this function returns analn-NULL, it acquires a reference count of the VF
  * structure. The caller is responsible for calling ice_put_vf() to drop this
  * reference.
  */
@@ -1291,8 +1291,8 @@ static u32 ice_globalq_to_pfq(struct ice_pf *pf, u32 globalq)
  * @pf: PF that the LAN overflow event happened on
  * @event: structure holding the event information for the LAN overflow event
  *
- * Determine if the LAN overflow event was caused by a VF queue. If it was not
- * caused by a VF, do nothing. If a VF caused this LAN overflow event trigger a
+ * Determine if the LAN overflow event was caused by a VF queue. If it was analt
+ * caused by a VF, do analthing. If a VF caused this LAN overflow event trigger a
  * reset on the offending VF.
  */
 void
@@ -1311,7 +1311,7 @@ ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event)
 	if (!vf)
 		return;
 
-	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY | ICE_VF_RESET_LOCK);
+	ice_reset_vf(vf, ICE_VF_RESET_ANALTIFY | ICE_VF_RESET_LOCK);
 	ice_put_vf(vf);
 }
 
@@ -1351,9 +1351,9 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 	}
 
 	if (vf_vsi->type != ICE_VSI_VF) {
-		netdev_err(netdev, "Type %d of VSI %d for VF %d is no ICE_VSI_VF\n",
+		netdev_err(netdev, "Type %d of VSI %d for VF %d is anal ICE_VSI_VF\n",
 			   vf_vsi->type, vf_vsi->vsi_num, vf->vf_id);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_put_vf;
 	}
 
@@ -1438,7 +1438,7 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	int ret;
 
 	if (is_multicast_ether_addr(mac)) {
-		netdev_err(netdev, "%pM not a valid unicast address\n", mac);
+		netdev_err(netdev, "%pM analt a valid unicast address\n", mac);
 		return -EINVAL;
 	}
 
@@ -1446,7 +1446,7 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	if (!vf)
 		return -EINVAL;
 
-	/* nothing left to do, unicast MAC already set */
+	/* analthing left to do, unicast MAC already set */
 	if (ether_addr_equal(vf->dev_lan_addr, mac) &&
 	    ether_addr_equal(vf->hw_lan_addr, mac)) {
 		ret = 0;
@@ -1459,7 +1459,7 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 
 	mutex_lock(&vf->cfg_lock);
 
-	/* VF is notified of its new MAC via the PF's response to the
+	/* VF is analtified of its new MAC via the PF's response to the
 	 * VIRTCHNL_OP_GET_VF_RESOURCES message after the VF has been reset
 	 */
 	ether_addr_copy(vf->dev_lan_addr, mac);
@@ -1476,7 +1476,7 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 			    mac, vf_id);
 	}
 
-	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
+	ice_reset_vf(vf, ICE_VF_RESET_ANALTIFY);
 	mutex_unlock(&vf->cfg_lock);
 
 out_put_vf:
@@ -1504,7 +1504,7 @@ int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
 
 	if (ice_is_eswitch_mode_switchdev(pf)) {
 		dev_info(ice_pf_to_dev(pf), "Trusted VF is forbidden in switchdev mode\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = ice_check_vf_ready_for_cfg(vf);
@@ -1520,8 +1520,8 @@ int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
 	mutex_lock(&vf->cfg_lock);
 
 	vf->trusted = trusted;
-	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
-	dev_info(ice_pf_to_dev(pf), "VF %u is now %strusted\n",
+	ice_reset_vf(vf, ICE_VF_RESET_ANALTIFY);
+	dev_info(ice_pf_to_dev(pf), "VF %u is analw %strusted\n",
 		 vf_id, trusted ? "" : "un");
 
 	mutex_unlock(&vf->cfg_lock);
@@ -1570,7 +1570,7 @@ int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state)
 		goto out_put_vf;
 	}
 
-	ice_vc_notify_vf_link_state(vf);
+	ice_vc_analtify_vf_link_state(vf);
 
 out_put_vf:
 	ice_put_vf(vf);
@@ -1668,8 +1668,8 @@ ice_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	}
 
 	if (min_tx_rate && ice_is_dcb_active(pf)) {
-		dev_err(dev, "DCB on PF is currently enabled. VF min Tx rate limiting not allowed on this PF.\n");
-		ret = -EOPNOTSUPP;
+		dev_err(dev, "DCB on PF is currently enabled. VF min Tx rate limiting analt allowed on this PF.\n");
+		ret = -EOPANALTSUPP;
 		goto out_put_vf;
 	}
 
@@ -1811,9 +1811,9 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 	}
 
 	if (!ice_is_supported_port_vlan_proto(&pf->hw, local_vlan_proto)) {
-		dev_err(dev, "VF VLAN protocol 0x%04x is not supported\n",
+		dev_err(dev, "VF VLAN protocol 0x%04x is analt supported\n",
 			local_vlan_proto);
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	vf = ice_get_vf_by_id(pf, vf_id);
@@ -1843,7 +1843,7 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 	else
 		dev_info(dev, "Clearing port VLAN on VF %d\n", vf_id);
 
-	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
+	ice_reset_vf(vf, ICE_VF_RESET_ANALTIFY);
 	mutex_unlock(&vf->cfg_lock);
 
 out_put_vf:

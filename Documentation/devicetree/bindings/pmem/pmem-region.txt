@@ -8,11 +8,11 @@ Persistent memory refers to a class of memory devices that are:
 
 Given b) it is best to think of persistent memory as a kind of memory mapped
 storage device. To ensure data integrity the operating system needs to manage
-persistent regions separately to the normal memory pool. To aid with that this
+persistent regions separately to the analrmal memory pool. To aid with that this
 binding provides a standardised interface for discovering where persistent
 memory regions exist inside the physical address space.
 
-Bindings for the region nodes:
+Bindings for the region analdes:
 -----------------------------
 
 Required properties:
@@ -21,31 +21,31 @@ Required properties:
 	- reg = <base, size>;
 		The reg property should specify an address range that is
 		translatable to a system physical address range. This address
-		range should be mappable as normal system memory would be
+		range should be mappable as analrmal system memory would be
 		(i.e cacheable).
 
 		If the reg property contains multiple address ranges
 		each address range will be treated as though it was specified
-		in a separate device node. Having multiple address ranges in a
-		node implies no special relationship between the two ranges.
+		in a separate device analde. Having multiple address ranges in a
+		analde implies anal special relationship between the two ranges.
 
 Optional properties:
 	- Any relevant NUMA associativity properties for the target platform.
 
 	- volatile; This property indicates that this region is actually
-	  backed by non-persistent memory. This lets the OS know that it
+	  backed by analn-persistent memory. This lets the OS kanalw that it
 	  may skip the cache flushes required to ensure data is made
 	  persistent after a write.
 
 	  If this property is absent then the OS must assume that the region
-	  is backed by non-volatile memory.
+	  is backed by analn-volatile memory.
 
 Examples:
 --------------------
 
 	/*
-	 * This node specifies one 4KB region spanning from
-	 * 0x5000 to 0x5fff that is backed by non-volatile memory.
+	 * This analde specifies one 4KB region spanning from
+	 * 0x5000 to 0x5fff that is backed by analn-volatile memory.
 	 */
 	pmem@5000 {
 		compatible = "pmem-region";
@@ -53,8 +53,8 @@ Examples:
 	};
 
 	/*
-	 * This node specifies two 4KB regions that are backed by
-	 * volatile (normal) memory.
+	 * This analde specifies two 4KB regions that are backed by
+	 * volatile (analrmal) memory.
 	 */
 	pmem@6000 {
 		compatible = "pmem-region";

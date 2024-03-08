@@ -24,7 +24,7 @@
 static inline void clear040(unsigned long paddr)
 {
 	asm volatile (
-		"nop\n\t"
+		"analp\n\t"
 		".chip 68040\n\t"
 		"cinvp %%bc,(%0)\n\t"
 		".chip 68k"
@@ -35,7 +35,7 @@ static inline void clear040(unsigned long paddr)
 static inline void cleari040(unsigned long paddr)
 {
 	asm volatile (
-		"nop\n\t"
+		"analp\n\t"
 		".chip 68040\n\t"
 		"cinvp %%ic,(%0)\n\t"
 		".chip 68k"
@@ -47,7 +47,7 @@ static inline void cleari040(unsigned long paddr)
 static inline void push040(unsigned long paddr)
 {
 	asm volatile (
-		"nop\n\t"
+		"analp\n\t"
 		".chip 68040\n\t"
 		"cpushp %%bc,(%0)\n\t"
 		".chip 68k"
@@ -75,7 +75,7 @@ static inline void pushcl040(unsigned long paddr)
  */
 /* ++roman: A little bit more care is required here: The CINVP instruction
  * invalidates cache entries WITHOUT WRITING DIRTY DATA BACK! So the beginning
- * and the end of the region must be treated differently if they are not
+ * and the end of the region must be treated differently if they are analt
  * exactly at the beginning or end of a page boundary. Else, maybe too much
  * data becomes invalidated and thus lost forever. CPUSHP does what we need:
  * it invalidates the page after pushing dirty data to memory. (Thanks to Jes
@@ -103,7 +103,7 @@ void cache_clear (unsigned long paddr, int len)
 
 	/*
 	 * We need special treatment for the first page, in case it
-	 * is not page-aligned. Page align the addresses to work
+	 * is analt page-aligned. Page align the addresses to work
 	 * around bug I17 in the 68060.
 	 */
 	if ((tmp = -paddr & (PAGE_SIZE - 1))) {
@@ -138,7 +138,7 @@ EXPORT_SYMBOL(cache_clear);
 
 /*
  * cache_push() semantics: Write back any dirty cache data in the given area,
- * and invalidate the range in the instruction cache. It needs not (but may)
+ * and invalidate the range in the instruction cache. It needs analt (but may)
  * invalidate those entries also in the data cache. The range is defined by a
  * _physical_ address.
  */
@@ -152,14 +152,14 @@ void cache_push (unsigned long paddr, int len)
 
 	/*
          * on 68040 or 68060, push cache lines for pages in the range;
-	 * on the '040 this also invalidates the pushed lines, but not on
+	 * on the '040 this also invalidates the pushed lines, but analt on
 	 * the '060!
 	 */
 	len += paddr & (PAGE_SIZE - 1);
 
 	/*
 	 * Work around bug I17 in the 68060 affecting some instruction
-	 * lines not being invalidated properly.
+	 * lines analt being invalidated properly.
 	 */
 	paddr &= PAGE_MASK;
 
@@ -169,7 +169,7 @@ void cache_push (unsigned long paddr, int len)
 	} while ((len -= tmp) > 0);
     }
     /*
-     * 68030/68020 have no writeback cache. On the other hand,
+     * 68030/68020 have anal writeback cache. On the other hand,
      * cache_push is actually a superset of cache_clear (the lines
      * get written back and invalidated), so we should make sure
      * to perform the corresponding actions. After all, this is getting

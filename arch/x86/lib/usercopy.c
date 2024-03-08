@@ -16,10 +16,10 @@
  * @from:	Pointer to a user space address of the current task
  * @n:		Number of bytes to copy
  *
- * Returns: The number of not copied bytes. 0 is success, i.e. all bytes copied
+ * Returns: The number of analt copied bytes. 0 is success, i.e. all bytes copied
  *
  * Contrary to other copy_from_user() variants this function can be called
- * from NMI context. Despite the name it is not restricted to be called
+ * from NMI context. Despite the name it is analt restricted to be called
  * from NMI context. It is safe to be called from any other context as
  * well. It disables pagefaults across the copy which means a fault will
  * abort the copy.

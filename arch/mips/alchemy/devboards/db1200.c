@@ -118,7 +118,7 @@ int __init db1200_board_setup(void)
 	unsigned short whoami;
 
 	if (db1200_detect_board())
-		return -ENODEV;
+		return -EANALDEV;
 
 	whoami = bcsr_read(BCSR_WHOAMI);
 	switch (BCSR_WHOAMI_BOARD(whoami)) {
@@ -127,7 +127,7 @@ int __init db1200_board_setup(void)
 	case BCSR_WHOAMI_DB1200:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	printk(KERN_INFO "Alchemy/AMD/RMI %s Board, CPLD Rev %d"
@@ -200,7 +200,7 @@ static void au1200_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 		ioaddr += MEM_STNAND_DATA;
 	}
 	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W = (void __iomem *)ioaddr;
-	if (cmd != NAND_CMD_NONE) {
+	if (cmd != NAND_CMD_ANALNE) {
 		__raw_writeb(cmd, this->legacy.IO_ADDR_W);
 		wmb();
 	}
@@ -259,7 +259,7 @@ static struct platform_device db1200_nand_dev = {
 /**********************************************************************/
 
 static struct smc91x_platdata db1200_eth_data = {
-	.flags	= SMC91X_NOWAIT | SMC91X_USE_16BIT,
+	.flags	= SMC91X_ANALWAIT | SMC91X_USE_16BIT,
 	.leda	= RPC_LED_100_10,
 	.ledb	= RPC_LED_TX_RX,
 };
@@ -334,7 +334,7 @@ static struct platform_device db1200_ide_dev = {
  */
 static irqreturn_t db1200_mmc_cd(int irq, void *ptr)
 {
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -418,7 +418,7 @@ static struct led_classdev db1200_mmc_led = {
 
 static irqreturn_t pb1200_mmc1_cd(int irq, void *ptr)
 {
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -780,7 +780,7 @@ static int __init pb1200_res_fixup(void)
 		printk(KERN_ERR "WARNING!!!\n");
 		printk(KERN_ERR "PB1200 must be at CPLD rev 4. Please have\n");
 		printk(KERN_ERR "the board updated to latest revisions.\n");
-		printk(KERN_ERR "This software will not work reliably\n");
+		printk(KERN_ERR "This software will analt work reliably\n");
 		printk(KERN_ERR "on anything older than CPLD rev 4.!\n");
 		printk(KERN_ERR "WARNING!!!\n");
 		printk(KERN_ERR "WARNING!!!\n");
@@ -807,7 +807,7 @@ int __init db1200_dev_setup(void)
 	if ((bid == BCSR_WHOAMI_PB1200_DDR1) ||
 	    (bid == BCSR_WHOAMI_PB1200_DDR2)) {
 		if (pb1200_res_fixup())
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	/* GPIO7 is low-level triggered CPLD cascade */
@@ -834,15 +834,15 @@ int __init db1200_dev_setup(void)
 	}
 
 	/* insert/eject pairs: one of both is always screaming.	 To avoid
-	 * issues they must not be automatically enabled when initially
+	 * issues they must analt be automatically enabled when initially
 	 * requested.
 	 */
-	irq_set_status_flags(DB1200_SD0_INSERT_INT, IRQ_NOAUTOEN);
-	irq_set_status_flags(DB1200_SD0_EJECT_INT, IRQ_NOAUTOEN);
-	irq_set_status_flags(DB1200_PC0_INSERT_INT, IRQ_NOAUTOEN);
-	irq_set_status_flags(DB1200_PC0_EJECT_INT, IRQ_NOAUTOEN);
-	irq_set_status_flags(DB1200_PC1_INSERT_INT, IRQ_NOAUTOEN);
-	irq_set_status_flags(DB1200_PC1_EJECT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_SD0_INSERT_INT, IRQ_ANALAUTOEN);
+	irq_set_status_flags(DB1200_SD0_EJECT_INT, IRQ_ANALAUTOEN);
+	irq_set_status_flags(DB1200_PC0_INSERT_INT, IRQ_ANALAUTOEN);
+	irq_set_status_flags(DB1200_PC0_EJECT_INT, IRQ_ANALAUTOEN);
+	irq_set_status_flags(DB1200_PC1_INSERT_INT, IRQ_ANALAUTOEN);
+	irq_set_status_flags(DB1200_PC1_EJECT_INT, IRQ_ANALAUTOEN);
 
 	i2c_register_board_info(0, db1200_i2c_devs,
 				ARRAY_SIZE(db1200_i2c_devs));
@@ -854,7 +854,7 @@ int __init db1200_dev_setup(void)
 	 *		or S12 on the PB1200.
 	 */
 
-	/* NOTE: GPIO215 controls OTG VBUS supply.  In SPI mode however
+	/* ANALTE: GPIO215 controls OTG VBUS supply.  In SPI mode however
 	 * this pin is claimed by PSC0 (unused though, but pinmux doesn't
 	 * allow to free it without crippling the SPI interface).
 	 * As a result, in SPI mode, OTG simply won't work (PSC0 uses
@@ -930,7 +930,7 @@ int __init db1200_dev_setup(void)
 		/*DB1200_PC1_STSCHG_INT*/0, DB1200_PC1_EJECT_INT, 1);
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1200_SWAPBOOT;
-	db1x_register_norflash(64 << 20, 2, swapped);
+	db1x_register_analrflash(64 << 20, 2, swapped);
 
 	platform_add_devices(db1200_devs, ARRAY_SIZE(db1200_devs));
 

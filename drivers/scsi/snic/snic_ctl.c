@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2014 Cisco Systems, Inc.  All rights reserved.
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 
@@ -33,7 +33,7 @@ snic_handle_link(struct work_struct *work)
 	SNIC_HOST_INFO(snic->shost, "Link Event: Link %s.\n",
 		       ((snic->link_status) ? "Up" : "Down"));
 
-	SNIC_ASSERT_NOT_IMPL(1);
+	SNIC_ASSERT_ANALT_IMPL(1);
 }
 
 
@@ -101,14 +101,14 @@ snic_queue_exch_ver_req(struct snic *snic)
 	rqi = snic_req_init(snic, 0);
 	if (!rqi) {
 		SNIC_HOST_ERR(snic->shost, "Init Exch Ver Req failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	req = rqi_to_req(rqi);
 
 	/* Initialize snic_host_req */
-	snic_io_hdr_enc(&req->hdr, SNIC_REQ_EXCH_VER, 0, SCSI_NO_TAG,
+	snic_io_hdr_enc(&req->hdr, SNIC_REQ_EXCH_VER, 0, SCSI_ANAL_TAG,
 			snic->config.hid, 0, (ulong)rqi);
 	ver = snic_ver_enc(SNIC_DRV_VERSION);
 	req->u.exch_ver.drvr_ver = cpu_to_le32(ver);
@@ -211,7 +211,7 @@ exch_cmpl_end:
 /*
  * snic_get_conf
  *
- * Synchronous call, and Retrieves snic params.
+ * Synchroanalus call, and Retrieves snic params.
  */
 int
 snic_get_conf(struct snic *snic)
@@ -231,7 +231,7 @@ snic_get_conf(struct snic *snic)
 	msleep(50);
 
 	/*
-	 * Exch ver req can be ignored by FW, if HW Resource initialization
+	 * Exch ver req can be iganalred by FW, if HW Resource initialization
 	 * is in progress, Hence retry.
 	 */
 	do {

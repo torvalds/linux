@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -87,7 +87,7 @@ struct decode_info {
 /* Render Command Map */
 
 /* MI_* command Opcode (28:23) */
-#define OP_MI_NOOP                          0x0
+#define OP_MI_ANALOP                          0x0
 #define OP_MI_SET_PREDICATE                 0x1  /* HSW+ */
 #define OP_MI_USER_INTERRUPT                0x2
 #define OP_MI_WAIT_FOR_EVENT                0x3
@@ -144,26 +144,26 @@ struct decode_info {
 
 #define OP_XY_SETUP_BLT                             OP_2D(0x1)
 #define OP_XY_SETUP_CLIP_BLT                        OP_2D(0x3)
-#define OP_XY_SETUP_MONO_PATTERN_SL_BLT             OP_2D(0x11)
+#define OP_XY_SETUP_MOANAL_PATTERN_SL_BLT             OP_2D(0x11)
 #define OP_XY_PIXEL_BLT                             OP_2D(0x24)
 #define OP_XY_SCANLINES_BLT                         OP_2D(0x25)
 #define OP_XY_TEXT_BLT                              OP_2D(0x26)
 #define OP_XY_TEXT_IMMEDIATE_BLT                    OP_2D(0x31)
 #define OP_XY_COLOR_BLT                             OP_2D(0x50)
 #define OP_XY_PAT_BLT                               OP_2D(0x51)
-#define OP_XY_MONO_PAT_BLT                          OP_2D(0x52)
+#define OP_XY_MOANAL_PAT_BLT                          OP_2D(0x52)
 #define OP_XY_SRC_COPY_BLT                          OP_2D(0x53)
-#define OP_XY_MONO_SRC_COPY_BLT                     OP_2D(0x54)
+#define OP_XY_MOANAL_SRC_COPY_BLT                     OP_2D(0x54)
 #define OP_XY_FULL_BLT                              OP_2D(0x55)
-#define OP_XY_FULL_MONO_SRC_BLT                     OP_2D(0x56)
-#define OP_XY_FULL_MONO_PATTERN_BLT                 OP_2D(0x57)
-#define OP_XY_FULL_MONO_PATTERN_MONO_SRC_BLT        OP_2D(0x58)
-#define OP_XY_MONO_PAT_FIXED_BLT                    OP_2D(0x59)
-#define OP_XY_MONO_SRC_COPY_IMMEDIATE_BLT           OP_2D(0x71)
+#define OP_XY_FULL_MOANAL_SRC_BLT                     OP_2D(0x56)
+#define OP_XY_FULL_MOANAL_PATTERN_BLT                 OP_2D(0x57)
+#define OP_XY_FULL_MOANAL_PATTERN_MOANAL_SRC_BLT        OP_2D(0x58)
+#define OP_XY_MOANAL_PAT_FIXED_BLT                    OP_2D(0x59)
+#define OP_XY_MOANAL_SRC_COPY_IMMEDIATE_BLT           OP_2D(0x71)
 #define OP_XY_PAT_BLT_IMMEDIATE                     OP_2D(0x72)
 #define OP_XY_SRC_COPY_CHROMA_BLT                   OP_2D(0x73)
 #define OP_XY_FULL_IMMEDIATE_PATTERN_BLT            OP_2D(0x74)
-#define OP_XY_FULL_MONO_SRC_IMMEDIATE_PATTERN_BLT   OP_2D(0x75)
+#define OP_XY_FULL_MOANAL_SRC_IMMEDIATE_PATTERN_BLT   OP_2D(0x75)
 #define OP_XY_PAT_CHROMA_BLT                        OP_2D(0x76)
 #define OP_XY_PAT_CHROMA_BLT_IMMEDIATE              OP_2D(0x77)
 
@@ -287,7 +287,7 @@ struct decode_info {
 #define OP_SNB_3DSTATE_STENCIL_BUFFER           OP_3D_MEDIA(0x3, 0x1, 0x0E)
 #define OP_SNB_3DSTATE_HIER_DEPTH_BUFFER        OP_3D_MEDIA(0x3, 0x1, 0x0F)
 #define OP_SNB_3DSTATE_CLEAR_PARAMS             OP_3D_MEDIA(0x3, 0x1, 0x10)
-#define OP_3DSTATE_MONOFILTER_SIZE              OP_3D_MEDIA(0x3, 0x1, 0x11)
+#define OP_3DSTATE_MOANALFILTER_SIZE              OP_3D_MEDIA(0x3, 0x1, 0x11)
 #define OP_3DSTATE_PUSH_CONSTANT_ALLOC_VS       OP_3D_MEDIA(0x3, 0x1, 0x12) /* IVB+ */
 #define OP_3DSTATE_PUSH_CONSTANT_ALLOC_HS       OP_3D_MEDIA(0x3, 0x1, 0x13) /* IVB+ */
 #define OP_3DSTATE_PUSH_CONSTANT_ALLOC_DS       OP_3D_MEDIA(0x3, 0x1, 0x14) /* IVB+ */
@@ -306,7 +306,7 @@ struct decode_info {
 
 /*
  * Below MFX and VBE cmd definition is from vaapi intel driver project (BSD License)
- * git://anongit.freedesktop.org/vaapi/intel-driver
+ * git://aanalngit.freedesktop.org/vaapi/intel-driver
  * src/i965_defines.h
  *
  */
@@ -398,7 +398,7 @@ typedef int (*parser_cmd_handler)(struct parser_exec_state *s);
 static int gvt_check_valid_cmd_length(int len, int valid_len)
 {
 	if (valid_len != len) {
-		gvt_err("len is not valid:  len=%u  valid_len=%u\n",
+		gvt_err("len is analt valid:  len=%u  valid_len=%u\n",
 			len, valid_len);
 		return -EFAULT;
 	}
@@ -436,18 +436,18 @@ struct cmd_info {
 	u16 devices;
 
 	/* which DWords are address that need fix up.
-	 * bit 0 means a 32-bit non address operand in command
+	 * bit 0 means a 32-bit analn address operand in command
 	 * bit 1 means address operand, which could be 32-bit
 	 * or 64-bit depending on different architectures.(
 	 * defined by "gmadr_bytes_in_cmd" in intel_gvt.
-	 * No matter the address length, each address only takes
+	 * Anal matter the address length, each address only takes
 	 * one bit in the bitmap.
 	 */
 	u16 addr_bitmap;
 
 	/* flag == F_LEN_CONST : command length
 	 * flag == F_LEN_VAR : length bias bits
-	 * Note: length is in DWord
+	 * Analte: length is in DWord
 	 */
 	u32 len;
 
@@ -458,7 +458,7 @@ struct cmd_info {
 };
 
 struct cmd_entry {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	const struct cmd_info *info;
 };
 
@@ -836,7 +836,7 @@ static inline int cmd_length(struct parser_exec_state *s)
 	return get_cmd_length(s->info, cmd_val(s, 0));
 }
 
-/* do not remove this, some platform may need clflush here */
+/* do analt remove this, some platform may need clflush here */
 #define patch_value(s, addr, val) do { \
 	*addr = val; \
 } while (0)
@@ -878,7 +878,7 @@ static int cmd_pdp_mmio_update_handler(struct parser_exec_state *s,
 		*cmd_ptr(s, 2) = upper_32_bits(mm->ppgtt_mm.shadow_pdps[0]);
 		*cmd_ptr(s, 4) = lower_32_bits(mm->ppgtt_mm.shadow_pdps[0]);
 	} else {
-		/* Currently all guests use PML4 table and now can't
+		/* Currently all guests use PML4 table and analw can't
 		 * have a guest with 3-level table but uses LRI for
 		 * PPGTT update. So this is simply un-testable. */
 		GEM_BUG_ON(1);
@@ -913,7 +913,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	}
 
 	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
-		gvt_vgpu_err("%s access to non-render register (%x)\n",
+		gvt_vgpu_err("%s access to analn-render register (%x)\n",
 				cmd, offset);
 		return -EBADRQC;
 	}
@@ -937,7 +937,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		if (IS_BROADWELL(gvt->gt->i915) && offset == 0x215c)
 			return 0;
 		else {
-			gvt_vgpu_err("not allowed cmd %s reg (%x)\n", cmd, offset);
+			gvt_vgpu_err("analt allowed cmd %s reg (%x)\n", cmd, offset);
 			return -EPERM;
 		}
 	}
@@ -1143,34 +1143,34 @@ static int cmd_handler_srm(struct parser_exec_state *s)
 }
 
 struct cmd_interrupt_event {
-	int pipe_control_notify;
+	int pipe_control_analtify;
 	int mi_flush_dw;
 	int mi_user_interrupt;
 };
 
 static const struct cmd_interrupt_event cmd_interrupt_events[] = {
 	[RCS0] = {
-		.pipe_control_notify = RCS_PIPE_CONTROL,
+		.pipe_control_analtify = RCS_PIPE_CONTROL,
 		.mi_flush_dw = INTEL_GVT_EVENT_RESERVED,
 		.mi_user_interrupt = RCS_MI_USER_INTERRUPT,
 	},
 	[BCS0] = {
-		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
+		.pipe_control_analtify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = BCS_MI_FLUSH_DW,
 		.mi_user_interrupt = BCS_MI_USER_INTERRUPT,
 	},
 	[VCS0] = {
-		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
+		.pipe_control_analtify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VCS_MI_FLUSH_DW,
 		.mi_user_interrupt = VCS_MI_USER_INTERRUPT,
 	},
 	[VCS1] = {
-		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
+		.pipe_control_analtify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VCS2_MI_FLUSH_DW,
 		.mi_user_interrupt = VCS2_MI_USER_INTERRUPT,
 	},
 	[VECS0] = {
-		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
+		.pipe_control_analtify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VECS_MI_FLUSH_DW,
 		.mi_user_interrupt = VECS_MI_USER_INTERRUPT,
 	},
@@ -1223,8 +1223,8 @@ static int cmd_handler_pipe_control(struct parser_exec_state *s)
 	if (ret)
 		return ret;
 
-	if (cmd_val(s, 1) & PIPE_CONTROL_NOTIFY)
-		set_bit(cmd_interrupt_events[s->engine->id].pipe_control_notify,
+	if (cmd_val(s, 1) & PIPE_CONTROL_ANALTIFY)
+		set_bit(cmd_interrupt_events[s->engine->id].pipe_control_analtify,
 			s->workload->pending_events);
 	return 0;
 }
@@ -1233,7 +1233,7 @@ static int cmd_handler_mi_user_interrupt(struct parser_exec_state *s)
 {
 	set_bit(cmd_interrupt_events[s->engine->id].mi_user_interrupt,
 		s->workload->pending_events);
-	patch_value(s, cmd_ptr(s, 0), MI_NOOP);
+	patch_value(s, cmd_ptr(s, 0), MI_ANALOP);
 	return 0;
 }
 
@@ -1370,7 +1370,7 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 		break;
 
 	default:
-		gvt_vgpu_err("unknown plane code %d\n", plane);
+		gvt_vgpu_err("unkanalwn plane code %d\n", plane);
 		return -EBADRQC;
 	}
 
@@ -1405,10 +1405,10 @@ static int gen8_check_mi_display_flip(struct parser_exec_state *s,
 	}
 
 	if (stride != info->stride_val)
-		gvt_dbg_cmd("cannot change stride during async flip\n");
+		gvt_dbg_cmd("cananalt change stride during async flip\n");
 
 	if (tile != info->tile_val)
-		gvt_dbg_cmd("cannot change tile during async flip\n");
+		gvt_dbg_cmd("cananalt change tile during async flip\n");
 
 	return 0;
 }
@@ -1453,7 +1453,7 @@ static int decode_mi_display_flip(struct parser_exec_state *s,
 	if (GRAPHICS_VER(s->engine->i915) >= 9)
 		return skl_decode_mi_display_flip(s, info);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int check_mi_display_flip(struct parser_exec_state *s,
@@ -1505,7 +1505,7 @@ static int cmd_handler_mi_display_flip(struct parser_exec_state *s)
 	}
 
 	for (i = 0; i < len; i++)
-		patch_value(s, cmd_ptr(s, i), MI_NOOP);
+		patch_value(s, cmd_ptr(s, i), MI_ANALOP);
 	return 0;
 }
 
@@ -1526,7 +1526,7 @@ static int cmd_handler_mi_wait_for_event(struct parser_exec_state *s)
 	if (!is_wait_for_flip_pending(cmd))
 		return 0;
 
-	patch_value(s, cmd_ptr(s, 0), MI_NOOP);
+	patch_value(s, cmd_ptr(s, 0), MI_ANALOP);
 	return 0;
 }
 
@@ -1742,7 +1742,7 @@ static int cmd_handler_mi_flush_dw(struct parser_exec_state *s)
 			patch_value(s, cmd_ptr(s, 0), val);
 		}
 	}
-	/* Check notify bit */
+	/* Check analtify bit */
 	if ((cmd_val(s, 0) & (1 << 8)))
 		set_bit(cmd_interrupt_events[s->engine->id].mi_flush_dw,
 			s->workload->pending_events);
@@ -1794,7 +1794,7 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 {
 	/* Decide privilege based on address space */
 	if (cmd_val(s, 0) & BIT(8) &&
-	    !(s->vgpu->scan_nonprivbb & s->engine->mask))
+	    !(s->vgpu->scan_analnprivbb & s->engine->mask))
 		return 0;
 
 	return 1;
@@ -1829,7 +1829,7 @@ static int find_bb_size(struct parser_exec_state *s,
 	cmd = cmd_val(s, 0);
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->engine);
 	if (info == NULL) {
-		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %s, workload=%p\n",
+		gvt_vgpu_err("unkanalwn cmd 0x%x, opcode=0x%x, addr_type=%s, ring %s, workload=%p\n",
 			     cmd, get_opcode(cmd, s->engine),
 			     repr_addr_type(s->buf_addr_type),
 			     s->engine->name, s->workload);
@@ -1841,7 +1841,7 @@ static int find_bb_size(struct parser_exec_state *s,
 			return -EFAULT;
 		info = get_cmd_info(s->vgpu->gvt, cmd, s->engine);
 		if (info == NULL) {
-			gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %s, workload=%p\n",
+			gvt_vgpu_err("unkanalwn cmd 0x%x, opcode=0x%x, addr_type=%s, ring %s, workload=%p\n",
 				     cmd, get_opcode(cmd, s->engine),
 				     repr_addr_type(s->buf_addr_type),
 				     s->engine->name, s->workload);
@@ -1875,7 +1875,7 @@ static int audit_bb_end(struct parser_exec_state *s, void *va)
 
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->engine);
 	if (info == NULL) {
-		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %s, workload=%p\n",
+		gvt_vgpu_err("unkanalwn cmd 0x%x, opcode=0x%x, addr_type=%s, ring %s, workload=%p\n",
 			     cmd, get_opcode(cmd, s->engine),
 			     repr_addr_type(s->buf_addr_type),
 			     s->engine->name, s->workload);
@@ -1913,17 +1913,17 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
 	if (!bb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bb->ppgtt = (s->buf_addr_type == GTT_BUFFER) ? false : true;
 
 	/* the start_offset stores the batch buffer's start gma's
-	 * offset relative to page boundary. so for non-privileged batch
+	 * offset relative to page boundary. so for analn-privileged batch
 	 * buffer, the shadowed gem object holds exactly the same page
 	 * layout as original gem object. This is for the convience of
-	 * replacing the whole non-privilged batch buffer page to this
+	 * replacing the whole analn-privilged batch buffer page to this
 	 * shadowed one in PPGTT at the same gma address. (this replacing
-	 * action is not implemented yet now, but may be necessary in
+	 * action is analt implemented yet analw, but may be necessary in
 	 * future).
 	 * for prileged batch buffer, we just change start gma address to
 	 * that of shadowed page.
@@ -2002,7 +2002,7 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 
 	second_level = BATCH_BUFFER_2ND_LEVEL_BIT(cmd_val(s, 0)) == 1;
 	if (second_level && (s->buf_type != BATCH_BUFFER_INSTRUCTION)) {
-		gvt_vgpu_err("Jumping to 2nd level BB from RB is not allowed\n");
+		gvt_vgpu_err("Jumping to 2nd level BB from RB is analt allowed\n");
 		return -EFAULT;
 	}
 
@@ -2030,10 +2030,10 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 	return ret;
 }
 
-static int mi_noop_index;
+static int mi_analop_index;
 
 static const struct cmd_info cmd_info[] = {
-	{"MI_NOOP", OP_MI_NOOP, F_LEN_CONST, R_ALL, D_ALL, 0, 1, NULL},
+	{"MI_ANALOP", OP_MI_ANALOP, F_LEN_CONST, R_ALL, D_ALL, 0, 1, NULL},
 
 	{"MI_SET_PREDICATE", OP_MI_SET_PREDICATE, F_LEN_CONST, R_ALL, D_ALL,
 		0, 1, NULL},
@@ -2166,7 +2166,7 @@ static const struct cmd_info cmd_info[] = {
 	{"XY_SETUP_CLIP_BLT", OP_XY_SETUP_CLIP_BLT, F_LEN_VAR, R_BCS, D_ALL,
 		0, 8, NULL},
 
-	{"XY_SETUP_MONO_PATTERN_SL_BLT", OP_XY_SETUP_MONO_PATTERN_SL_BLT,
+	{"XY_SETUP_MOANAL_PATTERN_SL_BLT", OP_XY_SETUP_MOANAL_PATTERN_SL_BLT,
 		F_LEN_VAR, R_BCS, D_ALL, ADDR_FIX_1(4), 8, NULL},
 
 	{"XY_PIXEL_BLT", OP_XY_PIXEL_BLT, F_LEN_VAR, R_BCS, D_ALL, 0, 8, NULL},
@@ -2186,31 +2186,31 @@ static const struct cmd_info cmd_info[] = {
 	{"XY_PAT_BLT", OP_XY_PAT_BLT, F_LEN_VAR, R_BCS, D_ALL,
 		ADDR_FIX_2(4, 5), 8, NULL},
 
-	{"XY_MONO_PAT_BLT", OP_XY_MONO_PAT_BLT, F_LEN_VAR, R_BCS, D_ALL,
+	{"XY_MOANAL_PAT_BLT", OP_XY_MOANAL_PAT_BLT, F_LEN_VAR, R_BCS, D_ALL,
 		ADDR_FIX_1(4), 8, NULL},
 
 	{"XY_SRC_COPY_BLT", OP_XY_SRC_COPY_BLT, F_LEN_VAR, R_BCS, D_ALL,
 		ADDR_FIX_2(4, 7), 8, NULL},
 
-	{"XY_MONO_SRC_COPY_BLT", OP_XY_MONO_SRC_COPY_BLT, F_LEN_VAR, R_BCS,
+	{"XY_MOANAL_SRC_COPY_BLT", OP_XY_MOANAL_SRC_COPY_BLT, F_LEN_VAR, R_BCS,
 		D_ALL, ADDR_FIX_2(4, 5), 8, NULL},
 
 	{"XY_FULL_BLT", OP_XY_FULL_BLT, F_LEN_VAR, R_BCS, D_ALL, 0, 8, NULL},
 
-	{"XY_FULL_MONO_SRC_BLT", OP_XY_FULL_MONO_SRC_BLT, F_LEN_VAR, R_BCS,
+	{"XY_FULL_MOANAL_SRC_BLT", OP_XY_FULL_MOANAL_SRC_BLT, F_LEN_VAR, R_BCS,
 		D_ALL, ADDR_FIX_3(4, 5, 8), 8, NULL},
 
-	{"XY_FULL_MONO_PATTERN_BLT", OP_XY_FULL_MONO_PATTERN_BLT, F_LEN_VAR,
+	{"XY_FULL_MOANAL_PATTERN_BLT", OP_XY_FULL_MOANAL_PATTERN_BLT, F_LEN_VAR,
 		R_BCS, D_ALL, ADDR_FIX_2(4, 7), 8, NULL},
 
-	{"XY_FULL_MONO_PATTERN_MONO_SRC_BLT",
-		OP_XY_FULL_MONO_PATTERN_MONO_SRC_BLT,
+	{"XY_FULL_MOANAL_PATTERN_MOANAL_SRC_BLT",
+		OP_XY_FULL_MOANAL_PATTERN_MOANAL_SRC_BLT,
 		F_LEN_VAR, R_BCS, D_ALL, ADDR_FIX_2(4, 5), 8, NULL},
 
-	{"XY_MONO_PAT_FIXED_BLT", OP_XY_MONO_PAT_FIXED_BLT, F_LEN_VAR, R_BCS,
+	{"XY_MOANAL_PAT_FIXED_BLT", OP_XY_MOANAL_PAT_FIXED_BLT, F_LEN_VAR, R_BCS,
 		D_ALL, ADDR_FIX_1(4), 8, NULL},
 
-	{"XY_MONO_SRC_COPY_IMMEDIATE_BLT", OP_XY_MONO_SRC_COPY_IMMEDIATE_BLT,
+	{"XY_MOANAL_SRC_COPY_IMMEDIATE_BLT", OP_XY_MOANAL_SRC_COPY_IMMEDIATE_BLT,
 		F_LEN_VAR, R_BCS, D_ALL, ADDR_FIX_1(4), 8, NULL},
 
 	{"XY_PAT_BLT_IMMEDIATE", OP_XY_PAT_BLT_IMMEDIATE, F_LEN_VAR, R_BCS,
@@ -2222,8 +2222,8 @@ static const struct cmd_info cmd_info[] = {
 	{"XY_FULL_IMMEDIATE_PATTERN_BLT", OP_XY_FULL_IMMEDIATE_PATTERN_BLT,
 		F_LEN_VAR, R_BCS, D_ALL, ADDR_FIX_2(4, 7), 8, NULL},
 
-	{"XY_FULL_MONO_SRC_IMMEDIATE_PATTERN_BLT",
-		OP_XY_FULL_MONO_SRC_IMMEDIATE_PATTERN_BLT,
+	{"XY_FULL_MOANAL_SRC_IMMEDIATE_PATTERN_BLT",
+		OP_XY_FULL_MOANAL_SRC_IMMEDIATE_PATTERN_BLT,
 		F_LEN_VAR, R_BCS, D_ALL, ADDR_FIX_2(4, 5), 8, NULL},
 
 	{"XY_PAT_CHROMA_BLT", OP_XY_PAT_CHROMA_BLT, F_LEN_VAR, R_BCS, D_ALL,
@@ -2501,7 +2501,7 @@ static const struct cmd_info cmd_info[] = {
 	{"3DSTATE_PUSH_CONSTANT_ALLOC_PS", OP_3DSTATE_PUSH_CONSTANT_ALLOC_PS,
 		F_LEN_VAR, R_RCS, D_ALL, 0, 8, NULL},
 
-	{"3DSTATE_MONOFILTER_SIZE", OP_3DSTATE_MONOFILTER_SIZE, F_LEN_VAR,
+	{"3DSTATE_MOANALFILTER_SIZE", OP_3DSTATE_MOANALFILTER_SIZE, F_LEN_VAR,
 		R_RCS, D_ALL, 0, 8, NULL},
 
 	{"3DSTATE_SO_DECL_LIST", OP_3DSTATE_SO_DECL_LIST, F_LEN_VAR, R_RCS,
@@ -2728,14 +2728,14 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 
 	cmd = cmd_val(s, 0);
 
-	/* fastpath for MI_NOOP */
-	if (cmd == MI_NOOP)
-		info = &cmd_info[mi_noop_index];
+	/* fastpath for MI_ANALOP */
+	if (cmd == MI_ANALOP)
+		info = &cmd_info[mi_analop_index];
 	else
 		info = get_cmd_info(s->vgpu->gvt, cmd, s->engine);
 
 	if (info == NULL) {
-		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %s, workload=%p\n",
+		gvt_vgpu_err("unkanalwn cmd 0x%x, opcode=0x%x, addr_type=%s, ring %s, workload=%p\n",
 			     cmd, get_opcode(cmd, s->engine),
 			     repr_addr_type(s->buf_addr_type),
 			     s->engine->name, s->workload);
@@ -2782,8 +2782,8 @@ static inline bool gma_out_of_range(unsigned long gma,
 		return (gma > gma_tail) && (gma < gma_head);
 }
 
-/* Keep the consistent return type, e.g EBADRQC for unknown
- * cmd, EFAULT for invalid address, EPERM for nonpriv. later
+/* Keep the consistent return type, e.g EBADRQC for unkanalwn
+ * cmd, EFAULT for invalid address, EPERM for analnpriv. later
  * works as the input of VM healthy status.
  */
 static int command_scan(struct parser_exec_state *s,
@@ -2939,7 +2939,7 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 			     workload->rb_len, GFP_KERNEL);
 		if (!p) {
 			gvt_vgpu_err("fail to re-alloc ring scan buffer\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		s->ring_scan_buffer[workload->engine->id] = p;
 		s->ring_scan_buffer_size[workload->engine->id] = workload->rb_len;
@@ -3165,7 +3165,7 @@ int intel_gvt_scan_engine_context(struct intel_vgpu_workload *workload)
 
 	ctx_size = workload->engine->context_size - PAGE_SIZE;
 
-	/* Only ring contxt is loaded to HW for inhibit context, no need to
+	/* Only ring contxt is loaded to HW for inhibit context, anal need to
 	 * scan engine context
 	 */
 	if (is_inhibit_context(ce))
@@ -3217,13 +3217,13 @@ static int init_cmd_table(struct intel_gvt *gvt)
 
 		e = kzalloc(sizeof(*e), GFP_KERNEL);
 		if (!e)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		e->info = &cmd_info[i];
-		if (cmd_info[i].opcode == OP_MI_NOOP)
-			mi_noop_index = i;
+		if (cmd_info[i].opcode == OP_MI_ANALOP)
+			mi_analop_index = i;
 
-		INIT_HLIST_NODE(&e->hlist);
+		INIT_HLIST_ANALDE(&e->hlist);
 		add_cmd_entry(gvt, e);
 		gvt_dbg_cmd("add %-30s op %04x flag %x devs %02x rings %02x\n",
 			    e->info->name, e->info->opcode, e->info->flag,
@@ -3235,7 +3235,7 @@ static int init_cmd_table(struct intel_gvt *gvt)
 
 static void clean_cmd_table(struct intel_gvt *gvt)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct cmd_entry *e;
 	int i;
 

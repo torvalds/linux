@@ -13,8 +13,8 @@
 };
 
 &soc {
-	/delete-node/ ssi@1004a800;
-	/delete-node/ serial@1004c800;
-	/delete-node/ adc@10059000;
-	/delete-node/ ethernet@11c30000;
+	/delete-analde/ ssi@1004a800;
+	/delete-analde/ serial@1004c800;
+	/delete-analde/ adc@10059000;
+	/delete-analde/ ethernet@11c30000;
 };

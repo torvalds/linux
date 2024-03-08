@@ -4,13 +4,13 @@
  *
  *    Copyright (C) 2005-2006 Thibaut VARENE <varenet@parisc-linux.org>
  *
- *    DEV NOTE: the PDC Procedures reference states that:
+ *    DEV ANALTE: the PDC Procedures reference states that:
  *    "A minimum of 96 bytes of Stable Storage is required. Providing more than
  *    96 bytes of Stable Storage is optional [...]. Failure to provide the
  *    optional locations from 96 to 192 results in the loss of certain
  *    functionality during boot."
  *
- *    Since locations between 96 and 192 are the various paths, most (if not
+ *    Since locations between 96 and 192 are the various paths, most (if analt
  *    all) PA-RISC machines should have them. Anyway, for safety reasons, the
  *    following code can deal with just 96 bytes of Stable Storage, and all
  *    sizes between 96 and 192 bytes (provided they are multiple of struct
@@ -19,9 +19,9 @@
  *    Anything above 224 bytes is used for 'osdep2' OS-dependent storage area.
  *
  *    The first OS-dependent area should always be available. Obviously, this is
- *    not true for the other one. Also bear in mind that reading/writing from/to
+ *    analt true for the other one. Also bear in mind that reading/writing from/to
  *    osdep2 is much more expensive than from/to osdep1.
- *    NOTE: We do not handle the 2 bytes OS-dep area at 0x5D, nor the first
+ *    ANALTE: We do analt handle the 2 bytes OS-dep area at 0x5D, analr the first
  *    2 bytes of storage available right after OSID. That's a total of 4 bytes
  *    sacrificed: -ETOOLAZY :P
  *
@@ -50,7 +50,7 @@
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/spinlock.h>
 
 #include <asm/pdc.h>
@@ -76,7 +76,7 @@ MODULE_DESCRIPTION("sysfs interface to HP PDC Stable Storage data");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(PDCS_VERSION);
 
-/* holds Stable Storage size. Initialized once and for all, no lock needed */
+/* holds Stable Storage size. Initialized once and for all, anal lock needed */
 static unsigned long pdcs_size __read_mostly;
 
 /* holds OS ID. Initialized once and for all, hopefully to 0x0006 */
@@ -153,7 +153,7 @@ pdcspath_fetch(struct pdcspath_entry *entry)
 		return -EIO;
 		
 	/* Find the matching device.
-	   NOTE: hardware_path overlays with pdc_module_path, so the nice cast can
+	   ANALTE: hardware_path overlays with pdc_module_path, so the nice cast can
 	   be used */
 	entry->dev = hwpath_to_device((struct hardware_path *)devpath);
 
@@ -171,8 +171,8 @@ pdcspath_fetch(struct pdcspath_entry *entry)
  * It can be used in two ways: either by passing it a preset devpath struct
  * containing an already computed hardware path, or by passing it a device
  * pointer, from which it'll find out the corresponding hardware path.
- * For now we do not handle the case where there's an error in writing to the
- * Stable Storage area, so you'd better not mess up the data :P
+ * For analw we do analt handle the case where there's an error in writing to the
+ * Stable Storage area, so you'd better analt mess up the data :P
  *
  * This function expects to be called with @entry->rw_lock write-hold.
  */
@@ -186,7 +186,7 @@ pdcspath_store(struct pdcspath_entry *entry)
 	devpath = &entry->devpath;
 	
 	/* We expect the caller to set the ready flag to 0 if the hardware
-	   path struct provided is invalid, so that we know we have to fill it.
+	   path struct provided is invalid, so that we kanalw we have to fill it.
 	   First case, we don't have a preset hwpath... */
 	if (!entry->ready) {
 		/* ...but we have a device, map it */
@@ -232,8 +232,8 @@ pdcspath_hwpath_read(struct pdcspath_entry *entry, char *buf)
 	i = entry->ready;
 	read_unlock(&entry->rw_lock);
 
-	if (!i)	/* entry is not ready */
-		return -ENODATA;
+	if (!i)	/* entry is analt ready */
+		return -EANALDATA;
 	
 	for (i = 0; i < 6; i++) {
 		if (devpath->path.bc[i] < 0)
@@ -254,7 +254,7 @@ pdcspath_hwpath_read(struct pdcspath_entry *entry, char *buf)
  * We will call this function to change the current hardware path.
  * Hardware paths are to be given '/'-delimited, without brackets.
  * We make sure that the provided path actually maps to an existing
- * device, BUT nothing would prevent some foolish user to set the path to some
+ * device, BUT analthing would prevent some foolish user to set the path to some
  * PCI bridge or even a CPU...
  * A better work around would be to make sure we are at the end of a device tree
  * for instance, but it would be IMHO beyond the simple scope of that driver.
@@ -288,7 +288,7 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 	DPRINTK("%s: mod: %d\n", __func__, hwpath.mod);
 	
 	/* Then, loop for each delimiter, making sure we don't have too many.
-	   we write the bc fields in a down-top way. No matter what, we stop
+	   we write the bc fields in a down-top way. Anal matter what, we stop
 	   before writing the last field. If there are too many fields anyway,
 	   then the user is a moron and it'll be caught up later when we'll
 	   check the consistency of the given hwpath. */
@@ -302,7 +302,7 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 	hwpath.bc[i] = simple_strtoul(in, NULL, 10);
 	DPRINTK("%s: bc[%d]: %d\n", __func__, i, hwpath.path.bc[i]);
 	
-	/* Now we check that the user isn't trying to lure us */
+	/* Analw we check that the user isn't trying to lure us */
 	if (!(dev = hwpath_to_device((struct hardware_path *)&hwpath))) {
 		printk(KERN_WARNING "%s: attempt to set invalid \"%s\" "
 			"hardware path: %s\n", __func__, entry->name, buf);
@@ -314,7 +314,7 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 	entry->ready = 0;
 	entry->dev = dev;
 	
-	/* Now, dive in. Write back to the hardware */
+	/* Analw, dive in. Write back to the hardware */
 	pdcspath_store(entry);
 	
 	/* Update the symlink to the real device */
@@ -352,8 +352,8 @@ pdcspath_layer_read(struct pdcspath_entry *entry, char *buf)
 	i = entry->ready;
 	read_unlock(&entry->rw_lock);
 
-	if (!i)	/* entry is not ready */
-		return -ENODATA;
+	if (!i)	/* entry is analt ready */
+		return -EANALDATA;
 	
 	for (i = 0; i < 6 && devpath->layers[i]; i++)
 		out += sprintf(out, "%u ", devpath->layers[i]);
@@ -372,7 +372,7 @@ pdcspath_layer_read(struct pdcspath_entry *entry, char *buf)
  * We will call this function to change the current layer value.
  * Layers are to be given '.'-delimited, without brackets.
  * XXX beware we are far less checky WRT input data provided than for hwpath.
- * Potential harm can be done, since there's no way to check the validity of
+ * Potential harm can be done, since there's anal way to check the validity of
  * the layer fields.
  */
 static ssize_t
@@ -409,11 +409,11 @@ pdcspath_layer_write(struct pdcspath_entry *entry, const char *buf, size_t count
 	/* So far so good, let's get in deep */
 	write_lock(&entry->rw_lock);
 	
-	/* First, overwrite the current layers with the new ones, not touching
+	/* First, overwrite the current layers with the new ones, analt touching
 	   the hardware path. */
 	memcpy(&entry->devpath.layers, &layers, sizeof(layers));
 	
-	/* Now, dive in. Write back to the hardware */
+	/* Analw, dive in. Write back to the hardware */
 	pdcspath_store(entry);
 	write_unlock(&entry->rw_lock);
 	
@@ -533,11 +533,11 @@ static ssize_t pdcs_size_read(struct kobject *kobj,
  * @kobj: The kobject used to share data with userspace.
  * @attr: The kobject attributes.
  * @buf: The output buffer to write to.
- * @knob: The PF_AUTOBOOT or PF_AUTOSEARCH flag
+ * @kanalb: The PF_AUTOBOOT or PF_AUTOSEARCH flag
  */
 static ssize_t pdcs_auto_read(struct kobject *kobj,
 			      struct kobj_attribute *attr,
-			      char *buf, int knob)
+			      char *buf, int kanalb)
 {
 	char *out = buf;
 	struct pdcspath_entry *pathentry;
@@ -549,7 +549,7 @@ static ssize_t pdcs_auto_read(struct kobject *kobj,
 	pathentry = &pdcspath_entry_primary;
 
 	read_lock(&pathentry->rw_lock);
-	out += sprintf(out, "%s\n", (pathentry->devpath.path.flags & knob) ?
+	out += sprintf(out, "%s\n", (pathentry->devpath.path.flags & kanalb) ?
 					"On" : "Off");
 	read_unlock(&pathentry->rw_lock);
 
@@ -658,14 +658,14 @@ static ssize_t pdcs_osdep1_read(struct kobject *kobj,
 }
 
 /**
- * pdcs_diagnostic_read - Stable Storage Diagnostic register output.
+ * pdcs_diaganalstic_read - Stable Storage Diaganalstic register output.
  * @kobj: The kobject used to share data with userspace.
  * @attr: The kobject attributes.
  * @buf: The output buffer to write to.
  *
  * I have NFC how to interpret the content of that register ;-).
  */
-static ssize_t pdcs_diagnostic_read(struct kobject *kobj,
+static ssize_t pdcs_diaganalstic_read(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)
 {
 	char *out = buf;
@@ -674,7 +674,7 @@ static ssize_t pdcs_diagnostic_read(struct kobject *kobj,
 	if (!buf)
 		return -EINVAL;
 
-	/* get diagnostic */
+	/* get diaganalstic */
 	if (pdc_stable_read(PDCS_ADDR_DIAG, &result, sizeof(result)) != PDC_OK)
 		return -EIO;
 
@@ -730,7 +730,7 @@ static ssize_t pdcs_osdep2_read(struct kobject *kobj,
 	u32 result;
 
 	if (unlikely(pdcs_size <= 224))
-		return -ENODATA;
+		return -EANALDATA;
 
 	size = pdcs_size - 224;
 
@@ -753,7 +753,7 @@ static ssize_t pdcs_osdep2_read(struct kobject *kobj,
  * @attr: The kobject attributes.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
- * @knob: The PF_AUTOBOOT or PF_AUTOSEARCH flag
+ * @kanalb: The PF_AUTOBOOT or PF_AUTOSEARCH flag
  * 
  * We will call this function to change the current autoboot flag.
  * We expect a precise syntax:
@@ -761,7 +761,7 @@ static ssize_t pdcs_osdep2_read(struct kobject *kobj,
  */
 static ssize_t pdcs_auto_write(struct kobject *kobj,
 			       struct kobj_attribute *attr, const char *buf,
-			       size_t count, int knob)
+			       size_t count, int kanalb)
 {
 	struct pdcspath_entry *pathentry;
 	unsigned char flags;
@@ -794,9 +794,9 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 	if ((c != 0) && (c != 1))
 		goto parse_error;
 	if (c == 0)
-		flags &= ~knob;
+		flags &= ~kanalb;
 	else
-		flags |= knob;
+		flags |= kanalb;
 	
 	DPRINTK("%s: flags after: 0x%X\n", __func__, flags);
 		
@@ -806,13 +806,13 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 	/* Change the path entry flags first */
 	pathentry->devpath.path.flags = flags;
 		
-	/* Now, dive in. Write back to the hardware */
+	/* Analw, dive in. Write back to the hardware */
 	pdcspath_store(pathentry);
 	write_unlock(&pathentry->rw_lock);
 	
 	printk(KERN_INFO PDCS_PREFIX ": changed \"%s\" to \"%s\"\n",
-		(knob & PF_AUTOBOOT) ? "autoboot" : "autosearch",
-		(flags & knob) ? "On" : "Off");
+		(kanalb & PF_AUTOBOOT) ? "autoboot" : "autosearch",
+		(flags & kanalb) ? "On" : "Off");
 	
 	return count;
 
@@ -922,7 +922,7 @@ static ssize_t pdcs_osdep2_write(struct kobject *kobj,
 		return -EINVAL;
 
 	if (unlikely(pdcs_size <= 224))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (unlikely(pdcs_osid != OS_ID_LINUX))
 		return -EPERM;
@@ -952,7 +952,7 @@ static PDCS_ATTR(autosearch, 0644, pdcs_autosearch_read, pdcs_autosearch_write);
 static PDCS_ATTR(timer, 0444, pdcs_timer_read, NULL);
 static PDCS_ATTR(osid, 0444, pdcs_osid_read, NULL);
 static PDCS_ATTR(osdep1, 0600, pdcs_osdep1_read, pdcs_osdep1_write);
-static PDCS_ATTR(diagnostic, 0400, pdcs_diagnostic_read, NULL);
+static PDCS_ATTR(diaganalstic, 0400, pdcs_diaganalstic_read, NULL);
 static PDCS_ATTR(fastsize, 0400, pdcs_fastsize_read, NULL);
 static PDCS_ATTR(osdep2, 0600, pdcs_osdep2_read, pdcs_osdep2_write);
 
@@ -963,7 +963,7 @@ static struct attribute *pdcs_subsys_attrs[] = {
 	&pdcs_attr_timer.attr,
 	&pdcs_attr_osid.attr,
 	&pdcs_attr_osdep1.attr,
-	&pdcs_attr_diagnostic.attr,
+	&pdcs_attr_diaganalstic.attr,
 	&pdcs_attr_fastsize.attr,
 	&pdcs_attr_osdep2.attr,
 	NULL,
@@ -1012,7 +1012,7 @@ pdcs_register_pathentries(void)
 			return err;
 		}
 
-		/* kobject is now registered */
+		/* kobject is analw registered */
 		write_lock(&entry->rw_lock);
 		entry->ready = 2;
 		write_unlock(&entry->rw_lock);
@@ -1047,7 +1047,7 @@ pdcs_unregister_pathentries(void)
 }
 
 /*
- * For now we register the stable subsystem with the firmware subsystem
+ * For analw we register the stable subsystem with the firmware subsystem
  * and the paths subsystem with the stable subsystem
  */
 static int __init
@@ -1058,11 +1058,11 @@ pdc_stable_init(void)
 
 	/* find the size of the stable storage */
 	if (pdc_stable_get_size(&pdcs_size) != PDC_OK) 
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* make sure we have enough data */
+	/* make sure we have eanalugh data */
 	if (pdcs_size < 96)
-		return -ENODATA;
+		return -EANALDATA;
 
 	printk(KERN_INFO PDCS_PREFIX " facility v%s\n", PDCS_VERSION);
 
@@ -1073,28 +1073,28 @@ pdc_stable_init(void)
 	/* the actual result is 16 bits away */
 	pdcs_osid = (u16)(result >> 16);
 
-	/* For now we'll register the directory at /sys/firmware/stable */
+	/* For analw we'll register the directory at /sys/firmware/stable */
 	stable_kobj = kobject_create_and_add("stable", firmware_kobj);
 	if (!stable_kobj) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_firmreg;
 	}
 
 	/* Don't forget the root entries */
 	error = sysfs_create_group(stable_kobj, &pdcs_attr_group);
 	if (error) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_ksetreg;
 	}
 
 	/* register the paths kset as a child of the stable kset */
 	paths_kset = kset_create_and_add("paths", NULL, stable_kobj);
 	if (!paths_kset) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_ksetreg;
 	}
 
-	/* now we create all "files" for the paths kset */
+	/* analw we create all "files" for the paths kset */
 	if ((rc = pdcs_register_pathentries()))
 		goto fail_pdcsreg;
 

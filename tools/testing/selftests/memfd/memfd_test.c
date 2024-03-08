@@ -2,7 +2,7 @@
 #define _GNU_SOURCE
 #define __EXPORTED_HEADERS__
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <linux/falloc.h>
@@ -37,10 +37,10 @@
 		    F_SEAL_FUTURE_WRITE | \
 		    F_SEAL_EXEC)
 
-#define MFD_NOEXEC_SEAL	0x0008U
+#define MFD_ANALEXEC_SEAL	0x0008U
 
 /*
- * Default is not to test hugetlbfs
+ * Default is analt to test hugetlbfs
  */
 static size_t mfd_def_size = MFD_DEF_SIZE;
 static const char *memfd_str = MEMFD_STR;
@@ -93,7 +93,7 @@ static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
 
 static void sysctl_assert_write(const char *val)
 {
-	int fd = open("/proc/sys/vm/memfd_noexec", O_WRONLY | O_CLOEXEC);
+	int fd = open("/proc/sys/vm/memfd_analexec", O_WRONLY | O_CLOEXEC);
 
 	if (fd < 0) {
 		printf("open sysctl failed: %m\n");
@@ -108,7 +108,7 @@ static void sysctl_assert_write(const char *val)
 
 static void sysctl_fail_write(const char *val)
 {
-	int fd = open("/proc/sys/vm/memfd_noexec", O_WRONLY | O_CLOEXEC);
+	int fd = open("/proc/sys/vm/memfd_analexec", O_WRONLY | O_CLOEXEC);
 
 	if (fd < 0) {
 		printf("open sysctl failed: %m\n");
@@ -125,7 +125,7 @@ static void sysctl_fail_write(const char *val)
 static void sysctl_assert_equal(const char *val)
 {
 	char *p, buf[128] = {};
-	int fd = open("/proc/sys/vm/memfd_noexec", O_RDONLY | O_CLOEXEC);
+	int fd = open("/proc/sys/vm/memfd_analexec", O_RDONLY | O_CLOEXEC);
 
 	if (fd < 0) {
 		printf("open sysctl failed: %m\n");
@@ -429,7 +429,7 @@ static void mfd_assert_write(int fd)
 	int r;
 
 	/*
-	 * huegtlbfs does not support write, but we want to
+	 * huegtlbfs does analt support write, but we want to
 	 * verify everything else here.
 	 */
 	if (!hugetlbfs_test) {
@@ -515,7 +515,7 @@ static void mfd_fail_write(int fd)
 		abort();
 	}
 
-	/* verify PROT_READ | PROT_WRITE is not allowed */
+	/* verify PROT_READ | PROT_WRITE is analt allowed */
 	p = mmap(NULL,
 		 mfd_def_size,
 		 PROT_READ | PROT_WRITE,
@@ -527,7 +527,7 @@ static void mfd_fail_write(int fd)
 		abort();
 	}
 
-	/* verify PROT_WRITE is not allowed */
+	/* verify PROT_WRITE is analt allowed */
 	p = mmap(NULL,
 		 mfd_def_size,
 		 PROT_WRITE,
@@ -539,8 +539,8 @@ static void mfd_fail_write(int fd)
 		abort();
 	}
 
-	/* Verify PROT_READ with MAP_SHARED with a following mprotect is not
-	 * allowed. Note that for r/w the kernel already prevents the mmap. */
+	/* Verify PROT_READ with MAP_SHARED with a following mprotect is analt
+	 * allowed. Analte that for r/w the kernel already prevents the mmap. */
 	p = mmap(NULL,
 		 mfd_def_size,
 		 PROT_READ,
@@ -651,7 +651,7 @@ static void mfd_assert_grow_write(int fd)
 	static char *buf;
 	ssize_t l;
 
-	/* hugetlbfs does not support write */
+	/* hugetlbfs does analt support write */
 	if (hugetlbfs_test)
 		return;
 
@@ -675,7 +675,7 @@ static void mfd_fail_grow_write(int fd)
 	static char *buf;
 	ssize_t l;
 
-	/* hugetlbfs does not support write */
+	/* hugetlbfs does analt support write */
 	if (hugetlbfs_test)
 		return;
 
@@ -746,7 +746,7 @@ static void mfd_fail_chmod(int fd, int mode)
 		abort();
 	}
 
-	/* verify that file mode bits did not change */
+	/* verify that file mode bits did analt change */
 	mfd_assert_mode(fd, st.st_mode & 07777);
 }
 
@@ -793,7 +793,7 @@ static void join_thread(pid_t pid)
 	}
 
 	if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != 0) {
-		printf("newpid thread: exited with non-zero error code %d\n",
+		printf("newpid thread: exited with analn-zero error code %d\n",
 		       WEXITSTATUS(wstatus));
 		abort();
 	}
@@ -831,7 +831,7 @@ static void test_create(void)
 	/* test NULL name */
 	mfd_fail_new(NULL, 0);
 
-	/* test over-long name (not zero-terminated) */
+	/* test over-long name (analt zero-terminated) */
 	memset(buf, 0xff, sizeof(buf));
 	mfd_fail_new(buf, 0);
 
@@ -851,8 +851,8 @@ static void test_create(void)
 	mfd_fail_new("", ~0);
 	mfd_fail_new("", 0x80000000U);
 
-	/* verify EXEC and NOEXEC_SEAL can't both be set */
-	mfd_fail_new("", MFD_EXEC | MFD_NOEXEC_SEAL);
+	/* verify EXEC and ANALEXEC_SEAL can't both be set */
+	mfd_fail_new("", MFD_EXEC | MFD_ANALEXEC_SEAL);
 
 	/* verify MFD_CLOEXEC is allowed */
 	fd = mfd_assert_new("", 0, MFD_CLOEXEC);
@@ -901,13 +901,13 @@ static void test_basic(void)
 				 F_SEAL_WRITE |
 				 F_SEAL_SEAL);
 
-	/* verify that sealing no longer works */
+	/* verify that sealing anal longer works */
 	mfd_fail_add_seals(fd, F_SEAL_GROW);
 	mfd_fail_add_seals(fd, 0);
 
 	close(fd);
 
-	/* verify sealing does not work without MFD_ALLOW_SEALING */
+	/* verify sealing does analt work without MFD_ALLOW_SEALING */
 	fd = mfd_assert_new("kern_memfd_basic",
 			    mfd_def_size,
 			    MFD_CLOEXEC);
@@ -1066,7 +1066,7 @@ static void test_seal_resize(void)
 /*
  * Test SEAL_EXEC
  * Test fd is created with exec and allow sealing.
- * chmod() cannot change x bits after sealing.
+ * chmod() cananalt change x bits after sealing.
  */
 static void test_exec_seal(void)
 {
@@ -1115,17 +1115,17 @@ static void test_exec_seal(void)
 }
 
 /*
- * Test EXEC_NO_SEAL
- * Test fd is created with exec and not allow sealing.
+ * Test EXEC_ANAL_SEAL
+ * Test fd is created with exec and analt allow sealing.
  */
-static void test_exec_no_seal(void)
+static void test_exec_anal_seal(void)
 {
 	int fd;
 
-	printf("%s EXEC_NO_SEAL\n", memfd_str);
+	printf("%s EXEC_ANAL_SEAL\n", memfd_str);
 
 	/* Create with EXEC but without ALLOW_SEALING */
-	fd = mfd_assert_new("kern_memfd_exec_no_sealing",
+	fd = mfd_assert_new("kern_memfd_exec_anal_sealing",
 			    mfd_def_size,
 			    MFD_CLOEXEC | MFD_EXEC);
 	mfd_assert_mode(fd, 0777);
@@ -1135,27 +1135,27 @@ static void test_exec_no_seal(void)
 }
 
 /*
- * Test memfd_create with MFD_NOEXEC flag
+ * Test memfd_create with MFD_ANALEXEC flag
  */
-static void test_noexec_seal(void)
+static void test_analexec_seal(void)
 {
 	int fd;
 
-	printf("%s NOEXEC_SEAL\n", memfd_str);
+	printf("%s ANALEXEC_SEAL\n", memfd_str);
 
-	/* Create with NOEXEC and ALLOW_SEALING */
-	fd = mfd_assert_new("kern_memfd_noexec",
+	/* Create with ANALEXEC and ALLOW_SEALING */
+	fd = mfd_assert_new("kern_memfd_analexec",
 			    mfd_def_size,
-			    MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_NOEXEC_SEAL);
+			    MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_ANALEXEC_SEAL);
 	mfd_assert_mode(fd, 0666);
 	mfd_assert_has_seals(fd, F_SEAL_EXEC);
 	mfd_fail_chmod(fd, 0777);
 	close(fd);
 
-	/* Create with NOEXEC but without ALLOW_SEALING */
-	fd = mfd_assert_new("kern_memfd_noexec",
+	/* Create with ANALEXEC but without ALLOW_SEALING */
+	fd = mfd_assert_new("kern_memfd_analexec",
 			    mfd_def_size,
-			    MFD_CLOEXEC | MFD_NOEXEC_SEAL);
+			    MFD_CLOEXEC | MFD_ANALEXEC_SEAL);
 	mfd_assert_mode(fd, 0666);
 	mfd_assert_has_seals(fd, F_SEAL_EXEC);
 	mfd_fail_chmod(fd, 0777);
@@ -1205,9 +1205,9 @@ static void test_sysctl_sysctl1(void)
 	mfd_assert_chmod(fd, 0644);
 	close(fd);
 
-	fd = mfd_assert_new("kern_memfd_sysctl_1_noexec",
+	fd = mfd_assert_new("kern_memfd_sysctl_1_analexec",
 			    mfd_def_size,
-			    MFD_CLOEXEC | MFD_NOEXEC_SEAL | MFD_ALLOW_SEALING);
+			    MFD_CLOEXEC | MFD_ANALEXEC_SEAL | MFD_ALLOW_SEALING);
 	mfd_assert_mode(fd, 0666);
 	mfd_assert_has_seals(fd, F_SEAL_EXEC);
 	mfd_fail_chmod(fd, 0777);
@@ -1237,9 +1237,9 @@ static void test_sysctl_sysctl2(void)
 	mfd_fail_new("kern_memfd_sysctl_2_exec",
 		     MFD_CLOEXEC | MFD_EXEC | MFD_ALLOW_SEALING);
 
-	fd = mfd_assert_new("kern_memfd_sysctl_2_noexec",
+	fd = mfd_assert_new("kern_memfd_sysctl_2_analexec",
 			    mfd_def_size,
-			    MFD_CLOEXEC | MFD_NOEXEC_SEAL | MFD_ALLOW_SEALING);
+			    MFD_CLOEXEC | MFD_ANALEXEC_SEAL | MFD_ALLOW_SEALING);
 	mfd_assert_mode(fd, 0666);
 	mfd_assert_has_seals(fd, F_SEAL_EXEC);
 	mfd_fail_chmod(fd, 0777);
@@ -1335,7 +1335,7 @@ static int sysctl_nested_child(void *arg)
 	/* Child inherits our setting. */
 	pid = spawn_thread(CLONE_NEWPID, sysctl_nested, test_sysctl_sysctl1);
 	join_thread(pid);
-	/* Child cannot raise the setting. */
+	/* Child cananalt raise the setting. */
 	pid = spawn_thread(CLONE_NEWPID, sysctl_nested,
 			   test_sysctl_sysctl1_failset);
 	join_thread(pid);
@@ -1343,7 +1343,7 @@ static int sysctl_nested_child(void *arg)
 	pid = spawn_thread(CLONE_NEWPID, sysctl_nested,
 			   test_sysctl_set_sysctl2);
 	join_thread(pid);
-	/* Child lowering the setting has no effect on our setting. */
+	/* Child lowering the setting has anal effect on our setting. */
 	test_sysctl_sysctl1();
 
 	printf("%s nested sysctl 2\n", memfd_str);
@@ -1351,7 +1351,7 @@ static int sysctl_nested_child(void *arg)
 	/* Child inherits our setting. */
 	pid = spawn_thread(CLONE_NEWPID, sysctl_nested, test_sysctl_sysctl2);
 	join_thread(pid);
-	/* Child cannot raise the setting. */
+	/* Child cananalt raise the setting. */
 	pid = spawn_thread(CLONE_NEWPID, sysctl_nested,
 			   test_sysctl_sysctl2_failset);
 	join_thread(pid);
@@ -1461,7 +1461,7 @@ static void test_share_dup(char *banner, char *b_suffix)
 
 /*
  * Test sealing with active mmap()s
- * Modifying seals is only allowed if no other mmap() refs exist.
+ * Modifying seals is only allowed if anal other mmap() refs exist.
  */
 static void test_share_mmap(char *banner, char *b_suffix)
 {
@@ -1495,7 +1495,7 @@ static void test_share_mmap(char *banner, char *b_suffix)
 /*
  * Test sealing with open(/proc/self/fd/%d)
  * Via /proc we can get access to a separate file-context for the same memfd.
- * This is *not* like dup(), but like a real separate open(). Make sure the
+ * This is *analt* like dup(), but like a real separate open(). Make sure the
  * semantics are as expected and we correctly check for RDONLY / WRONLY / RDWR.
  */
 static void test_share_open(char *banner, char *b_suffix)
@@ -1584,7 +1584,7 @@ int main(int argc, char **argv)
 			memfd_str = MEMFD_HUGE_STR;
 			mfd_def_size = hpage_size * 2;
 		} else {
-			printf("Unknown option: %s\n", argv[1]);
+			printf("Unkanalwn option: %s\n", argv[1]);
 			abort();
 		}
 	}
@@ -1592,8 +1592,8 @@ int main(int argc, char **argv)
 	test_create();
 	test_basic();
 	test_exec_seal();
-	test_exec_no_seal();
-	test_noexec_seal();
+	test_exec_anal_seal();
+	test_analexec_seal();
 
 	test_seal_write();
 	test_seal_future_write();

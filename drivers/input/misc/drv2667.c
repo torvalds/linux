@@ -71,7 +71,7 @@
 #define DRV2667_DEV_RST		(1 << 7)
 
 /* RAM Envelope settings */
-#define DRV2667_NO_ENV			0x00
+#define DRV2667_ANAL_ENV			0x00
 #define DRV2667_32_MS_ENV		0x01
 #define DRV2667_64_MS_ENV		0x02
 #define DRV2667_96_MS_ENV		0x03
@@ -271,7 +271,7 @@ static const struct reg_sequence drv2667_page1_init[] = {
 	{ DRV2667_RAM_STOP_LO, 0x09 },
 	{ DRV2667_RAM_REPEAT_CT, 0 },
 	{ DRV2667_RAM_DURATION, 0x05 },
-	{ DRV2667_RAM_ENVELOPE, DRV2667_NO_ENV },
+	{ DRV2667_RAM_ENVELOPE, DRV2667_ANAL_ENV },
 	{ DRV2667_RAM_AMP, 0x60 },
 };
 
@@ -330,7 +330,7 @@ static const struct regmap_config drv2667_regmap_config = {
 	.max_register = DRV2667_MAX_REG,
 	.reg_defaults = drv2667_reg_defs,
 	.num_reg_defaults = ARRAY_SIZE(drv2667_reg_defs),
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int drv2667_probe(struct i2c_client *client)
@@ -340,7 +340,7 @@ static int drv2667_probe(struct i2c_client *client)
 
 	haptics = devm_kzalloc(&client->dev, sizeof(*haptics), GFP_KERNEL);
 	if (!haptics)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	haptics->regulator = devm_regulator_get(&client->dev, "vbat");
 	if (IS_ERR(haptics->regulator)) {
@@ -353,7 +353,7 @@ static int drv2667_probe(struct i2c_client *client)
 	haptics->input_dev = devm_input_allocate_device(&client->dev);
 	if (!haptics->input_dev) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	haptics->input_dev->name = "drv2667:haptics";

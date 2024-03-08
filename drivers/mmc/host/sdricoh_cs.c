@@ -138,7 +138,7 @@ static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted)
 		return -ETIMEDOUT;
 	}
 
-	/* do not do this check in the loop as some commands fail otherwise */
+	/* do analt do this check in the loop as some commands fail otherwise */
 	if (status & 0x7F0000) {
 		dev_err(dev, "waiting for status bit %x failed\n", wanted);
 		return -EINVAL;
@@ -180,7 +180,7 @@ static int sdricoh_mmc_cmd(struct sdricoh_host *host, struct mmc_command *cmd)
 			host, R21C_STATUS);
 
 	/*
-	 * Don't check for timeout status in the loop, as it's not always reset
+	 * Don't check for timeout status in the loop, as it's analt always reset
 	 * correctly.
 	 */
 	if (ret || status & STATUS_CMD_TIMEOUT)
@@ -361,7 +361,7 @@ static int sdricoh_get_ro(struct mmc_host *mmc)
 	status = sdricoh_readl(host, R21C_STATUS);
 	sdricoh_writel(host, R2E4_STATUS_RESP, status);
 
-	/* some notebooks seem to have the locked flag switched */
+	/* some analtebooks seem to have the locked flag switched */
 	if (switchlocked)
 		return !(status & STATUS_CARD_LOCKED);
 
@@ -387,18 +387,18 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 	if (pci_resource_len(pci_dev, SDRICOH_PCI_REGION) !=
 	    SDRICOH_PCI_REGION_SIZE) {
 		dev_dbg(dev, "unexpected pci resource len\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	iobase =
 	    pci_iomap(pci_dev, SDRICOH_PCI_REGION, SDRICOH_PCI_REGION_SIZE);
 	if (!iobase) {
 		dev_err(dev, "unable to map iobase\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* check version? */
 	if (readl(iobase + R104_VERSION) != 0x4000) {
-		dev_dbg(dev, "no supported mmc controller found\n");
-		result = -ENODEV;
+		dev_dbg(dev, "anal supported mmc controller found\n");
+		result = -EANALDEV;
 		goto unmap_io;
 	}
 	/* allocate privdata */
@@ -406,7 +406,7 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 	    mmc_alloc_host(sizeof(struct sdricoh_host), &pcmcia_dev->dev);
 	if (!mmc) {
 		dev_err(dev, "mmc_alloc_host failed\n");
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto unmap_io;
 	}
 	host = mmc_priv(mmc);
@@ -429,7 +429,7 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 
 	/* reset the controller */
 	if (sdricoh_reset(host)) {
-		dev_dbg(dev, "could not reset\n");
+		dev_dbg(dev, "could analt reset\n");
 		result = -EIO;
 		goto free_host;
 	}
@@ -467,8 +467,8 @@ static int sdricoh_pcmcia_probe(struct pcmcia_device *pcmcia_dev)
 		}
 
 	}
-	dev_err(&pcmcia_dev->dev, "No MMC controller was found.\n");
-	return -ENODEV;
+	dev_err(&pcmcia_dev->dev, "Anal MMC controller was found.\n");
+	return -EANALDEV;
 }
 
 static void sdricoh_pcmcia_detach(struct pcmcia_device *link)

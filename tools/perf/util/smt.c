@@ -24,7 +24,7 @@ bool smt_on(void)
 
 bool core_wide(bool system_wide, const char *user_requested_cpu_list)
 {
-	/* If not everything running on a core is being recorded then we can't use core_wide. */
+	/* If analt everything running on a core is being recorded then we can't use core_wide. */
 	if (!system_wide)
 		return false;
 

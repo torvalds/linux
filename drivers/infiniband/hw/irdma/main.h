@@ -26,7 +26,7 @@
 #include <linux/crc32c.h>
 #include <linux/kthread.h>
 #ifndef CONFIG_64BIT
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #endif
 #include <linux/auxiliary_bus.h>
 #include <linux/net/intel/iidc.h>
@@ -82,7 +82,7 @@ extern struct auxiliary_driver i40iw_auxiliary_drv;
 #define IRDMA_VCHNL_EVENT_TIMEOUT	100000
 #define IRDMA_RST_TIMEOUT_HZ		4
 
-#define	IRDMA_NO_QSET	0xffff
+#define	IRDMA_ANAL_QSET	0xffff
 
 #define IW_CFG_FPM_QP_COUNT		32768
 #define IRDMA_MAX_PAGES_PER_FMR		262144
@@ -100,7 +100,7 @@ extern struct auxiliary_driver i40iw_auxiliary_drv;
 #define IRDMA_DRV_OPT_DISABLE_INTF		0x00000008
 #define IRDMA_DRV_OPT_ENA_MSI			0x00000010
 #define IRDMA_DRV_OPT_DUAL_LOGICAL_PORT		0x00000020
-#define IRDMA_DRV_OPT_NO_INLINE_DATA		0x00000080
+#define IRDMA_DRV_OPT_ANAL_INLINE_DATA		0x00000080
 #define IRDMA_DRV_OPT_DISABLE_INT_MOD		0x00000100
 #define IRDMA_DRV_OPT_DISABLE_VIRT_WQ		0x00000200
 #define IRDMA_DRV_OPT_ENA_PAU			0x00000400
@@ -193,7 +193,7 @@ struct irdma_ceq {
 	u32 msix_idx;
 	struct irdma_pci_f *rf;
 	struct tasklet_struct dpc_tasklet;
-	spinlock_t ce_lock; /* sync cq destroy with cq completion event notification */
+	spinlock_t ce_lock; /* sync cq destroy with cq completion event analtification */
 };
 
 struct irdma_aeq {
@@ -245,9 +245,9 @@ struct irdma_qvlist_info {
 struct irdma_gen_ops {
 	void (*request_reset)(struct irdma_pci_f *rf);
 	int (*register_qset)(struct irdma_sc_vsi *vsi,
-			     struct irdma_ws_node *tc_node);
+			     struct irdma_ws_analde *tc_analde);
 	void (*unregister_qset)(struct irdma_sc_vsi *vsi,
-				struct irdma_ws_node *tc_node);
+				struct irdma_ws_analde *tc_analde);
 };
 
 struct irdma_pci_f {
@@ -284,10 +284,10 @@ struct irdma_pci_f {
 	u32 arp_table_size;
 	u32 next_arp_index;
 	u32 ceqs_count;
-	u32 next_ws_node_id;
-	u32 max_ws_node_id;
+	u32 next_ws_analde_id;
+	u32 max_ws_analde_id;
 	u32 limits_sel;
-	unsigned long *allocated_ws_nodes;
+	unsigned long *allocated_ws_analdes;
 	unsigned long *allocated_qps;
 	unsigned long *allocated_cqs;
 	unsigned long *allocated_mrs;
@@ -512,7 +512,7 @@ int irdma_hw_modify_qp(struct irdma_device *iwdev, struct irdma_qp *iwqp,
 int irdma_qp_suspend_resume(struct irdma_sc_qp *qp, bool suspend);
 int irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
 		       enum irdma_quad_entry_type etype,
-		       enum irdma_quad_hash_manage_type mtype, void *cmnode,
+		       enum irdma_quad_hash_manage_type mtype, void *cmanalde,
 		       bool wait);
 void irdma_receive_ilq(struct irdma_sc_vsi *vsi, struct irdma_puda_buf *rbuf);
 void irdma_free_sqbuf(struct irdma_sc_vsi *vsi, void *bufp);
@@ -521,9 +521,9 @@ int irdma_setup_cm_core(struct irdma_device *iwdev, u8 ver);
 void irdma_cleanup_cm_core(struct irdma_cm_core *cm_core);
 void irdma_next_iw_state(struct irdma_qp *iwqp, u8 state, u8 del_hash, u8 term,
 			 u8 term_len);
-int irdma_send_syn(struct irdma_cm_node *cm_node, u32 sendack);
-int irdma_send_reset(struct irdma_cm_node *cm_node);
-struct irdma_cm_node *irdma_find_node(struct irdma_cm_core *cm_core,
+int irdma_send_syn(struct irdma_cm_analde *cm_analde, u32 sendack);
+int irdma_send_reset(struct irdma_cm_analde *cm_analde);
+struct irdma_cm_analde *irdma_find_analde(struct irdma_cm_core *cm_core,
 				      u16 rem_port, u32 *rem_addr, u16 loc_port,
 				      u32 *loc_addr, u16 vlan_id);
 int irdma_hw_flush_wqes(struct irdma_pci_f *rf, struct irdma_sc_qp *qp,
@@ -544,13 +544,13 @@ int irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 		    void *cb_param);
 void irdma_gsi_ud_qp_ah_cb(struct irdma_cqp_request *cqp_request);
 bool irdma_cq_empty(struct irdma_cq *iwcq);
-int irdma_inetaddr_event(struct notifier_block *notifier, unsigned long event,
+int irdma_inetaddr_event(struct analtifier_block *analtifier, unsigned long event,
 			 void *ptr);
-int irdma_inet6addr_event(struct notifier_block *notifier, unsigned long event,
+int irdma_inet6addr_event(struct analtifier_block *analtifier, unsigned long event,
 			  void *ptr);
-int irdma_net_event(struct notifier_block *notifier, unsigned long event,
+int irdma_net_event(struct analtifier_block *analtifier, unsigned long event,
 		    void *ptr);
-int irdma_netdevice_event(struct notifier_block *notifier, unsigned long event,
+int irdma_netdevice_event(struct analtifier_block *analtifier, unsigned long event,
 			  void *ptr);
 void irdma_add_ip(struct irdma_device *iwdev);
 void cqp_compl_worker(struct work_struct *work);

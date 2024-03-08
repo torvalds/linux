@@ -36,7 +36,7 @@ struct mb86a16_state {
 };
 
 #define MB86A16_ERROR		0
-#define MB86A16_NOTICE		1
+#define MB86A16_ANALTICE		1
 #define MB86A16_INFO		2
 #define MB86A16_DEBUG		3
 
@@ -44,8 +44,8 @@ struct mb86a16_state {
 	if (z) {									\
 		if	((x > MB86A16_ERROR) && (x > y))				\
 			printk(KERN_ERR "%s: " format "\n", __func__, ##arg);		\
-		else if ((x > MB86A16_NOTICE) && (x > y))				\
-			printk(KERN_NOTICE "%s: " format "\n", __func__, ##arg);	\
+		else if ((x > MB86A16_ANALTICE) && (x > y))				\
+			printk(KERN_ANALTICE "%s: " format "\n", __func__, ##arg);	\
 		else if ((x > MB86A16_INFO) && (x > y))					\
 			printk(KERN_INFO "%s: " format "\n", __func__, ##arg);		\
 		else if ((x > MB86A16_DEBUG) && (x > y))				\
@@ -1214,7 +1214,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 					dprintk(verbose, MB86A16_ERROR, 1, "***** Signal Found *****");
 					loop = 0;
 				} else {
-					dprintk(verbose, MB86A16_ERROR, 1, "!!!!! No signal !!!!!, try again...");
+					dprintk(verbose, MB86A16_ERROR, 1, "!!!!! Anal signal !!!!!, try again...");
 					smrt_info_get(state, state->srate);
 					if (smrt_set(state, state->srate) < 0) {
 						dprintk(verbose, MB86A16_ERROR, 1, "smrt set error");
@@ -1368,7 +1368,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 			swp_freq += delta_freq;
 			dprintk(verbose, MB86A16_INFO, 1, "Adjusting .., DELTA Freq = %d, SWEEP Freq=%d", delta_freq, swp_freq);
 			if (abs(state->frequency * 1000 - swp_freq) > 3800) {
-				dprintk(verbose, MB86A16_INFO, 1, "NO  --  SIGNAL !");
+				dprintk(verbose, MB86A16_INFO, 1, "ANAL  --  SIGNAL !");
 			} else {
 
 				S1T = 0;
@@ -1468,13 +1468,13 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 					msleep_interruptible(wait_t);
 					SEQ_set(state, 1);
 				} else {
-					dprintk(verbose, MB86A16_INFO, 1, "NO  -- SYNC");
+					dprintk(verbose, MB86A16_INFO, 1, "ANAL  -- SYNC");
 					SEQ_set(state, 1);
 					ret = -1;
 				}
 			}
 		} else {
-			dprintk(verbose, MB86A16_INFO, 1, "NO  -- SIGNAL");
+			dprintk(verbose, MB86A16_INFO, 1, "ANAL  -- SIGNAL");
 			ret = -1;
 		}
 

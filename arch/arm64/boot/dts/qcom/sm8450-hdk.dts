@@ -20,7 +20,7 @@
 #include "pmr735a.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8450 HDK";
+	model = "Qualcomm Techanallogies, Inc. SM8450 HDK";
 	compatible = "qcom,sm8450-hdk", "qcom,sm8450";
 	chassis-type = "embedded";
 
@@ -911,8 +911,8 @@
 	pinctrl-1 = <&sdc2_sleep_state &sdc2_card_det_n>;
 	vmmc-supply = <&vreg_l9c_2p96>;
 	vqmmc-supply = <&vreg_l6c_1p8>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 

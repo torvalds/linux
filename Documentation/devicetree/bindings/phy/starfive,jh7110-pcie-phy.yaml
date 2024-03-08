@@ -23,21 +23,21 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to System Register Controller sys_syscon node.
+          - description: phandle to System Register Controller sys_syscon analde.
           - description: PHY connect offset of SYS_SYSCONSAIF__SYSCFG register for USB PHY.
     description:
-      The phandle to System Register Controller syscon node and the PHY connect offset
+      The phandle to System Register Controller syscon analde and the PHY connect offset
       of SYS_SYSCONSAIF__SYSCFG register. Connect PHY to USB3 controller.
 
   starfive,stg-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to System Register Controller stg_syscon node.
+          - description: phandle to System Register Controller stg_syscon analde.
           - description: PHY mode offset of STG_SYSCONSAIF__SYSCFG register.
           - description: PHY enable for USB offset of STG_SYSCONSAIF__SYSCFG register.
     description:
-      The phandle to System Register Controller syscon node and the offset
+      The phandle to System Register Controller syscon analde and the offset
       of STG_SYSCONSAIF__SYSCFG register for PCIe PHY. Total 2 regsisters offset.
 
 required:

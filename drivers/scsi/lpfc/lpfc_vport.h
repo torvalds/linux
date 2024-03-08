@@ -14,7 +14,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -42,14 +42,14 @@ struct vport_info {
 
 	uint8_t fail_reason;
 	uint8_t prev_fail_reason;
-#define  VPORT_FAIL_UNKNOWN	0
+#define  VPORT_FAIL_UNKANALWN	0
 #define  VPORT_FAIL_LINKDOWN	1
 #define  VPORT_FAIL_FAB_UNSUPPORTED	2
-#define  VPORT_FAIL_FAB_NORESOURCES	3
+#define  VPORT_FAIL_FAB_ANALRESOURCES	3
 #define  VPORT_FAIL_FAB_LOGOUT	4
-#define  VPORT_FAIL_ADAP_NORESOURCES	5
+#define  VPORT_FAIL_ADAP_ANALRESOURCES	5
 
-	uint8_t node_name[8];	/* WWNN */
+	uint8_t analde_name[8];	/* WWNN */
 	uint8_t port_name[8];	/* WWPN */
 
 	struct Scsi_Host *shost;
@@ -69,7 +69,7 @@ struct vport_data {
 	uint32_t options;
 #define  VPORT_OPT_AUTORETRY	0x01
 
-	uint8_t node_name[8];	/* WWNN */
+	uint8_t analde_name[8];	/* WWNN */
 	uint8_t port_name[8];	/* WWPN */
 
 /*
@@ -83,8 +83,8 @@ struct vport_data {
 #define VPORT_OK	0
 #define VPORT_ERROR	-1
 #define VPORT_INVAL	-2
-#define VPORT_NOMEM	-3
-#define VPORT_NORESOURCES	-4
+#define VPORT_ANALMEM	-3
+#define VPORT_ANALRESOURCES	-4
 
 int lpfc_vport_create(struct fc_vport *, bool);
 int lpfc_vport_delete(struct fc_vport *);
@@ -96,7 +96,7 @@ int lpfc_alloc_vpi(struct lpfc_hba *phba);
 
 /*
  *  queuecommand  VPORT-specific return codes. Specified in  the host byte code.
- *  Returned when the virtual link has failed or is not active.
+ *  Returned when the virtual link has failed or is analt active.
  */
 #define  DID_VPORT_ERROR	0x0f
 

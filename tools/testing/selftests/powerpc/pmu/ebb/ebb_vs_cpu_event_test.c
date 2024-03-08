@@ -27,7 +27,7 @@ static int setup_cpu_event(struct event *event, int cpu)
 	event->attr.exclude_hv = 1;
 	event->attr.exclude_idle = 1;
 
-	SKIP_IF(require_paranoia_below(1));
+	SKIP_IF(require_paraanalia_below(1));
 	FAIL_IF(event_open_with_cpu(event, cpu));
 	FAIL_IF(event_enable(event));
 
@@ -58,7 +58,7 @@ int ebb_vs_cpu_event(void)
 	/* Signal the child to install its EBB event and wait */
 	FAIL_IF(sync_with_child(read_pipe, write_pipe));
 
-	/* Now try to install our CPU event */
+	/* Analw try to install our CPU event */
 	rc = setup_cpu_event(&event, cpu);
 	if (rc) {
 		kill_child_and_wait(pid);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <net/pkt_cls.h>
@@ -26,7 +26,7 @@ static int sparx5_tc_block_cb(enum tc_setup_type type,
 	case TC_SETUP_CLSFLOWER:
 		return sparx5_tc_flower(ndev, type_data, ingress);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -54,22 +54,22 @@ static int sparx5_tc_setup_block(struct net_device *ndev,
 	else if (fbo->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
 		cb = sparx5_tc_block_cb_egress;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return flow_block_cb_setup_simple(fbo, &sparx5_block_cb_list,
 					  cb, ndev, ndev, false);
 }
 
-static void sparx5_tc_get_layer_and_idx(u32 parent, u32 portno, u32 *layer,
+static void sparx5_tc_get_layer_and_idx(u32 parent, u32 portanal, u32 *layer,
 					u32 *idx)
 {
 	if (parent == TC_H_ROOT) {
 		*layer = 2;
-		*idx = portno;
+		*idx = portanal;
 	} else {
 		u32 queue = TC_H_MIN(parent) - 1;
 		*layer = 0;
-		*idx = SPX5_HSCH_L0_GET_IDX(portno, queue);
+		*idx = SPX5_HSCH_L0_GET_IDX(portanal, queue);
 	}
 }
 
@@ -90,7 +90,7 @@ static int sparx5_tc_setup_qdisc_tbf(struct net_device *ndev,
 	struct sparx5_port *port = netdev_priv(ndev);
 	u32 layer, se_idx;
 
-	sparx5_tc_get_layer_and_idx(qopt->parent, port->portno, &layer,
+	sparx5_tc_get_layer_and_idx(qopt->parent, port->portanal, &layer,
 				    &se_idx);
 
 	switch (qopt->command) {
@@ -100,12 +100,12 @@ static int sparx5_tc_setup_qdisc_tbf(struct net_device *ndev,
 	case TC_TBF_DESTROY:
 		return sparx5_tc_tbf_del(port, layer, se_idx);
 	case TC_TBF_STATS:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int sparx5_tc_setup_qdisc_ets(struct net_device *ndev,
@@ -118,20 +118,20 @@ static int sparx5_tc_setup_qdisc_ets(struct net_device *ndev,
 
 	/* Only allow ets on ports  */
 	if (qopt->parent != TC_H_ROOT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (qopt->command) {
 	case TC_ETS_REPLACE:
 
 		/* We support eight priorities */
 		if (params->bands != SPX5_PRIOS)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* Sanity checks */
 		for (i = 0; i < SPX5_PRIOS; ++i) {
 			/* Priority map is *always* reverse e.g: 7 6 5 .. 0 */
 			if (params->priomap[i] != (7 - i))
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			/* Throw an error if we receive zero weights by tc */
 			if (params->quanta[i] && params->weights[i] == 0) {
 				pr_err("Invalid ets configuration; band %d has weight zero",
@@ -145,13 +145,13 @@ static int sparx5_tc_setup_qdisc_ets(struct net_device *ndev,
 
 		return sparx5_tc_ets_del(port);
 	case TC_ETS_GRAFT:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
@@ -167,7 +167,7 @@ int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 	case TC_SETUP_QDISC_ETS:
 		return sparx5_tc_setup_qdisc_ets(ndev, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

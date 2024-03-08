@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -143,14 +143,14 @@ gv100_engn_ce = {
 };
 
 static bool
-gv100_runq_intr_1_ctxnotvalid(struct nvkm_runq *runq, int chid)
+gv100_runq_intr_1_ctxanaltvalid(struct nvkm_runq *runq, int chid)
 {
 	struct nvkm_fifo *fifo = runq->fifo;
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	struct nvkm_chan *chan;
 	unsigned long flags;
 
-	RUNQ_ERROR(runq, "CTXNOTVALID chid:%d", chid);
+	RUNQ_ERROR(runq, "CTXANALTVALID chid:%d", chid);
 
 	chan = nvkm_chan_get_chid(&fifo->engine, chid, &flags);
 	if (WARN_ON_ONCE(!chan))
@@ -169,7 +169,7 @@ gv100_runq = {
 	.init = gk208_runq_init,
 	.intr = gk104_runq_intr,
 	.intr_0_names = gk104_runq_intr_0_names,
-	.intr_1_ctxnotvalid = gv100_runq_intr_1_ctxnotvalid,
+	.intr_1_ctxanaltvalid = gv100_runq_intr_1_ctxanaltvalid,
 	.idle = gk104_runq_idle,
 };
 
@@ -475,7 +475,7 @@ gv100_fifo = {
 	.intr = gk104_fifo_intr,
 	.intr_ctxsw_timeout = gv100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gv100_fifo_mmu_fault,
-	.nonstall = &gf100_fifo_nonstall,
+	.analnstall = &gf100_fifo_analnstall,
 	.runl = &gv100_runl,
 	.runq = &gv100_runq,
 	.engn = &gv100_engn,

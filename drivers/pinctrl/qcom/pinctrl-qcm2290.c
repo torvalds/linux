@@ -933,10 +933,10 @@ static const struct pinfunction qcm2290_functions[] = {
 	MSM_PIN_FUNCTION(wlan1_adc1),
 };
 
-/* Every pin is maintained as a single group, and missing or non-existing pin
+/* Every pin is maintained as a single group, and missing or analn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would analt be able to request these dummy pin groups.
  */
 static const struct msm_pingroup qcm2290_groups[] = {
 	[0] = PINGROUP(0, qup0, m_voc, ddr_bist, _, phase_flag, qdss_gpio, atest, _, _),

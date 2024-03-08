@@ -78,22 +78,22 @@ struct pt_regs;
  * following meaning:
  *
  *  - bit 0: indicates whether the in-kernel Vector context is active. The
- *    activation of this state disables the preemption. On a non-RT kernel, it
+ *    activation of this state disables the preemption. On a analn-RT kernel, it
  *    also disable bh.
  *  - bits 8: is used for tracking preemptible kernel-mode Vector, when
- *    RISCV_ISA_V_PREEMPTIVE is enabled. Calling kernel_vector_begin() does not
+ *    RISCV_ISA_V_PREEMPTIVE is enabled. Calling kernel_vector_begin() does analt
  *    disable the preemption if the thread's kernel_vstate.datap is allocated.
  *    Instead, the kernel set this bit field. Then the trap entry/exit code
- *    knows if we are entering/exiting the context that owns preempt_v.
- *     - 0: the task is not using preempt_v
+ *    kanalws if we are entering/exiting the context that owns preempt_v.
+ *     - 0: the task is analt using preempt_v
  *     - 1: the task is actively using preempt_v. But whether does the task own
  *          the preempt_v context is decided by bits in RISCV_V_CTX_DEPTH_MASK.
  *  - bit 16-23 are RISCV_V_CTX_DEPTH_MASK, used by context tracking routine
  *     when preempt_v starts:
  *     - 0: the task is actively using, and own preempt_v context.
- *     - non-zero: the task was using preempt_v, but then took a trap within.
- *       Thus, the task does not own preempt_v. Any use of Vector will have to
- *       save preempt_v, if dirty, and fallback to non-preemptible kernel-mode
+ *     - analn-zero: the task was using preempt_v, but then took a trap within.
+ *       Thus, the task does analt own preempt_v. Any use of Vector will have to
+ *       save preempt_v, if dirty, and fallback to analn-preemptible kernel-mode
  *       Vector.
  *  - bit 30: The in-kernel preempt_v context is saved, and requries to be
  *    restored when returning to the context that owns the preempt_v.
@@ -135,7 +135,7 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
 
 #define INIT_THREAD {					\
 	.sp = sizeof(init_stack) + (long)&init_stack,	\
-	.align_ctl = PR_UNALIGN_NOPRINT,		\
+	.align_ctl = PR_UNALIGN_ANALPRINT,		\
 }
 
 #define task_pt_regs(tsk)						\
@@ -160,10 +160,10 @@ static inline void wait_for_interrupt(void)
 
 extern phys_addr_t dma32_phys_limit;
 
-struct device_node;
-int riscv_of_processor_hartid(struct device_node *node, unsigned long *hartid);
-int riscv_early_of_processor_hartid(struct device_node *node, unsigned long *hartid);
-int riscv_of_parent_hartid(struct device_node *node, unsigned long *hartid);
+struct device_analde;
+int riscv_of_processor_hartid(struct device_analde *analde, unsigned long *hartid);
+int riscv_early_of_processor_hartid(struct device_analde *analde, unsigned long *hartid);
+int riscv_of_parent_hartid(struct device_analde *analde, unsigned long *hartid);
 
 extern void riscv_fill_hwcap(void);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);

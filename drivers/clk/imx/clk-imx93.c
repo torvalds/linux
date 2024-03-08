@@ -17,7 +17,7 @@
 
 enum clk_sel {
 	LOW_SPEED_IO_SEL,
-	NON_IO_SEL,
+	ANALN_IO_SEL,
 	FAST_SEL,
 	AUDIO_SEL,
 	VIDEO_SEL,
@@ -135,12 +135,12 @@ static const struct imx93_clk_root {
 	{ IMX93_CLK_TSTMR2,		"tstmr2_root",		0x2880,	LOW_SPEED_IO_SEL, },
 	{ IMX93_CLK_MQS1,		"mqs1_root",		0x2900,	AUDIO_SEL, },
 	{ IMX93_CLK_MQS2,		"mqs2_root",		0x2980,	AUDIO_SEL, },
-	{ IMX93_CLK_AUDIO_XCVR,		"audio_xcvr_root",	0x2a00,	NON_IO_SEL, },
+	{ IMX93_CLK_AUDIO_XCVR,		"audio_xcvr_root",	0x2a00,	ANALN_IO_SEL, },
 	{ IMX93_CLK_SPDIF,		"spdif_root",		0x2a80,	AUDIO_SEL, },
-	{ IMX93_CLK_ENET,		"enet_root",		0x2b00,	NON_IO_SEL, },
+	{ IMX93_CLK_ENET,		"enet_root",		0x2b00,	ANALN_IO_SEL, },
 	{ IMX93_CLK_ENET_TIMER1,	"enet_timer1_root",	0x2b80,	LOW_SPEED_IO_SEL, },
 	{ IMX93_CLK_ENET_TIMER2,	"enet_timer2_root",	0x2c00,	LOW_SPEED_IO_SEL, },
-	{ IMX93_CLK_ENET_REF,		"enet_ref_root",	0x2c80,	NON_IO_SEL, },
+	{ IMX93_CLK_ENET_REF,		"enet_ref_root",	0x2c80,	ANALN_IO_SEL, },
 	{ IMX93_CLK_ENET_REF_PHY,	"enet_ref_phy_root",	0x2d00,	LOW_SPEED_IO_SEL, },
 	{ IMX93_CLK_I3C1_SLOW,		"i3c1_slow_root",	0x2d80,	LOW_SPEED_IO_SEL, },
 	{ IMX93_CLK_I3C2_SLOW,		"i3c2_slow_root",	0x2e00,	LOW_SPEED_IO_SEL, },
@@ -167,8 +167,8 @@ static const struct imx93_clk_ccgr {
 	{ IMX93_CLK_WDOG5_GATE,		"wdog5",	"osc_24m",		0x8400, },
 	{ IMX93_CLK_SEMA1_GATE,		"sema1",	"bus_aon_root",		0x8440, },
 	{ IMX93_CLK_SEMA2_GATE,		"sema2",	"bus_wakeup_root",	0x8480, },
-	{ IMX93_CLK_MU1_A_GATE,		"mu1_a",	"bus_aon_root",		0x84c0, CLK_IGNORE_UNUSED },
-	{ IMX93_CLK_MU2_A_GATE,		"mu2_a",	"bus_wakeup_root",	0x84c0, CLK_IGNORE_UNUSED },
+	{ IMX93_CLK_MU1_A_GATE,		"mu1_a",	"bus_aon_root",		0x84c0, CLK_IGANALRE_UNUSED },
+	{ IMX93_CLK_MU2_A_GATE,		"mu2_a",	"bus_wakeup_root",	0x84c0, CLK_IGANALRE_UNUSED },
 	{ IMX93_CLK_MU1_B_GATE,		"mu1_b",	"bus_aon_root",		0x8500, 0, &share_count_mub },
 	{ IMX93_CLK_MU2_B_GATE,		"mu2_b",	"bus_wakeup_root",	0x8500, 0, &share_count_mub },
 	{ IMX93_CLK_EDMA1_GATE,		"edma1",	"m33_root",		0x8540, },
@@ -260,7 +260,7 @@ static struct clk_hw **clks;
 static int imx93_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct imx93_clk_root *root;
 	const struct imx93_clk_ccgr *ccgr;
 	void __iomem *base, *anatop_base;
@@ -269,7 +269,7 @@ static int imx93_clocks_probe(struct platform_device *pdev)
 	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws,
 					  IMX93_CLK_END), GFP_KERNEL);
 	if (!clk_hw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_hw_data->num = IMX93_CLK_END;
 	clks = clk_hw_data->hws;
@@ -289,9 +289,9 @@ static int imx93_clocks_probe(struct platform_device *pdev)
 	clks[IMX93_CLK_SYS_PLL_PFD2_DIV2] = imx_clk_hw_fixed_factor("sys_pll_pfd2_div2",
 								    "sys_pll_pfd2", 1, 2);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx93-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx93-anatop");
 	anatop_base = devm_of_iomap(dev, np, 0, NULL);
-	of_node_put(np);
+	of_analde_put(np);
 	if (WARN_ON(IS_ERR(anatop_base))) {
 		ret = PTR_ERR(anatop_base);
 		goto unregister_hws;
@@ -305,7 +305,7 @@ static int imx93_clocks_probe(struct platform_device *pdev)
 	clks[IMX93_CLK_VIDEO_PLL] = imx_clk_fracn_gppll("video_pll", "osc_24m", anatop_base + 0x1400,
 							&imx_fracn_gppll);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (WARN_ON(IS_ERR(base))) {
 		ret = PTR_ERR(base);
@@ -369,7 +369,7 @@ static struct platform_driver imx93_clk_driver = {
 };
 module_platform_driver(imx93_clk_driver);
 module_param(mcore_booted, bool, 0444);
-MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or not");
+MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or analt");
 
 MODULE_DESCRIPTION("NXP i.MX93 clock driver");
 MODULE_LICENSE("GPL v2");

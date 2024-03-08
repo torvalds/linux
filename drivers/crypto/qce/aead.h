@@ -38,7 +38,7 @@ struct qce_aead_reqctx {
 	unsigned int cryptlen;
 	unsigned int assoclen;
 	unsigned char *adata;
-	u8 ccm_nonce[QCE_MAX_NONCE];
+	u8 ccm_analnce[QCE_MAX_ANALNCE];
 	u8 ccmresult_buf[QCE_BAM_BURST_SIZE];
 	u8 ccm_rfc4309_iv[QCE_MAX_IV_SIZE];
 	struct aead_request fallback_req;

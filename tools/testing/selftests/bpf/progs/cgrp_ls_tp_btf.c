@@ -9,14 +9,14 @@ char _license[] SEC("license") = "GPL";
 
 struct {
 	__uint(type, BPF_MAP_TYPE_CGRP_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, long);
 } map_a SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_CGRP_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, long);
 } map_b SEC(".maps");
@@ -49,7 +49,7 @@ static void __on_enter(struct pt_regs *regs, long id, struct cgroup *cgrp)
 	if (err)
 		return;
 
-	/* value is not available */
+	/* value is analt available */
 	ptr = bpf_cgrp_storage_get(&map_a, cgrp, 0, 0);
 	if (ptr)
 		return;

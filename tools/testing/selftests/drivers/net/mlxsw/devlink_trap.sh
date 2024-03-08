@@ -1,8 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 #
-# Test generic devlink-trap functionality over mlxsw. These tests are not
-# specific to a single trap, but do not check the devlink-trap common
+# Test generic devlink-trap functionality over mlxsw. These tests are analt
+# specific to a single trap, but do analt check the devlink-trap common
 # infrastructure either.
 
 lib_dir=$(dirname $0)/../../../net/forwarding
@@ -37,7 +37,7 @@ h2_destroy()
 
 switch_create()
 {
-	ip link add dev br0 type bridge vlan_filtering 1 mcast_snooping 0
+	ip link add dev br0 type bridge vlan_filtering 1 mcast_sanaloping 0
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0

@@ -25,21 +25,21 @@ static void *efi_fb;
 
 /*
  * EFI earlycon needs to use early_memremap() to map the framebuffer.
- * But early_memremap() is not usable for 'earlycon=efifb keep_bootcon',
+ * But early_memremap() is analt usable for 'earlycon=efifb keep_bootcon',
  * memremap() should be used instead. memremap() will be available after
  * paging_init() which is earlier than initcall callbacks. Thus adding this
  * early initcall function early_efi_map_fb() to map the whole EFI framebuffer.
  */
 static int __init efi_earlycon_remap_fb(void)
 {
-	/* bail if there is no bootconsole or it was unregistered already */
+	/* bail if there is anal bootconsole or it was unregistered already */
 	if (!earlycon_console || !console_is_registered(earlycon_console))
 		return 0;
 
 	efi_fb = memremap(fb_base, screen_info.lfb_size,
 			  fb_wb ? MEMREMAP_WB : MEMREMAP_WC);
 
-	return efi_fb ? 0 : -ENOMEM;
+	return efi_fb ? 0 : -EANALMEM;
 }
 early_initcall(efi_earlycon_remap_fb);
 
@@ -234,7 +234,7 @@ static int __init efi_earlycon_setup(struct earlycon_device *device,
 
 	if (screen_info.orig_video_isVGA != VIDEO_TYPE_EFI) {
 		fb_probed = true;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	fb_base = screen_info.lfb_base;
@@ -250,11 +250,11 @@ static int __init efi_earlycon_setup(struct earlycon_device *device,
 	 * 32 bits per pixel.
 	 */
 	if (si->lfb_depth != 32)
-		return -ENODEV;
+		return -EANALDEV;
 
 	font = get_default_font(xres, yres, -1, -1);
 	if (!font)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Fill the cache with maximum possible value of x coordinate */
 	memset32(efi_x_array, rounddown(xres, font->width), ARRAY_SIZE(efi_x_array));

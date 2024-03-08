@@ -144,7 +144,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 
 	gpe_register_info = gpe_event_info->register_info;
 	if (!gpe_register_info) {
-		return (AE_NOT_EXIST);
+		return (AE_ANALT_EXIST);
 	}
 
 	/* Get current value of the enable register that contains this GPE */
@@ -219,7 +219,7 @@ acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 	gpe_register_info = gpe_event_info->register_info;
 	if (!gpe_register_info) {
-		return (AE_NOT_EXIST);
+		return (AE_ANALT_EXIST);
 	}
 
 	/*
@@ -265,7 +265,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info *gpe_event_info,
 	/* GPE currently handled? */
 
 	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) !=
-	    ACPI_GPE_DISPATCH_NONE) {
+	    ACPI_GPE_DISPATCH_ANALNE) {
 		local_event_status |= ACPI_EVENT_FLAG_HAS_HANDLER;
 	}
 
@@ -446,7 +446,7 @@ acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	struct acpi_gpe_register_info *gpe_register_info;
 	u8 enable_mask;
 
-	/* NOTE: assumes that all GPEs are currently disabled */
+	/* ANALTE: assumes that all GPEs are currently disabled */
 
 	/* Examine each GPE Register within the block */
 
@@ -577,7 +577,7 @@ acpi_hw_get_gpe_block_status(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
  *
  * FUNCTION:    acpi_hw_disable_all_gpes
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -599,7 +599,7 @@ acpi_status acpi_hw_disable_all_gpes(void)
  *
  * FUNCTION:    acpi_hw_enable_all_runtime_gpes
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -621,7 +621,7 @@ acpi_status acpi_hw_enable_all_runtime_gpes(void)
  *
  * FUNCTION:    acpi_hw_enable_all_wakeup_gpes
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *

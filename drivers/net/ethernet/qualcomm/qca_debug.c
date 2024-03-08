@@ -4,12 +4,12 @@
  *
  *   Permission to use, copy, modify, and/or distribute this software
  *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
+ *   that the above copyright analtice and this permission analtice appear
  *   in all copies.
  *
  *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
  *   WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL
  *   THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
  *   CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  *   LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
@@ -94,8 +94,8 @@ qcaspi_info_show(struct seq_file *s, void *what)
 	seq_printf(s, "Sync state       : %u (",
 		   (unsigned int)qca->sync);
 	switch (qca->sync) {
-	case QCASPI_SYNC_UNKNOWN:
-		seq_puts(s, "QCASPI_SYNC_UNKNOWN");
+	case QCASPI_SYNC_UNKANALWN:
+		seq_puts(s, "QCASPI_SYNC_UNKANALWN");
 		break;
 	case QCASPI_SYNC_RESET:
 		seq_puts(s, "QCASPI_SYNC_RESET");

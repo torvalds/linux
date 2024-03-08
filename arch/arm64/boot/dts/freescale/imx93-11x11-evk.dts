@@ -30,33 +30,33 @@
 
 		vdev0vring0: vdev0vring0@a4000000 {
 			reg = <0 0xa4000000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0vring1: vdev0vring1@a4008000 {
 			reg = <0 0xa4008000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev1vring0: vdev1vring0@a4000000 {
 			reg = <0 0xa4010000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev1vring1: vdev1vring1@a4018000 {
 			reg = <0 0xa4018000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		rsc_table: rsc-table@2021f000 {
 			reg = <0 0x2021f000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		vdevbuffer: vdevbuffer@a4020000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa4020000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 	};
@@ -162,7 +162,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1>;
 	pinctrl-2 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -175,8 +175,8 @@
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	bus-width = <4>;
 	status = "okay";
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 };
 
 &wdog3 {

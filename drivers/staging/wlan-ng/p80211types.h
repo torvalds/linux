@@ -28,7 +28,7 @@
  * This file declares some of the constants and types used in various
  * parts of the linux-wlan system.
  *
- * Notes:
+ * Analtes:
  *   - Constant values are always in HOST byte order.
  *
  * All functions and statics declared here are implemented in p80211types.c
@@ -75,7 +75,7 @@
 #define P80211ENUM_scantype_active		1
 #define P80211ENUM_resultcode_success		1
 #define P80211ENUM_resultcode_invalid_parameters	2
-#define P80211ENUM_resultcode_not_supported	3
+#define P80211ENUM_resultcode_analt_supported	3
 #define P80211ENUM_resultcode_refused		6
 #define P80211ENUM_resultcode_cant_set_readonly_mib	10
 #define P80211ENUM_resultcode_implementation_failure	11
@@ -84,7 +84,7 @@
 #define P80211ENUM_status_unspec_failure	1
 #define P80211ENUM_status_ap_full		17
 #define P80211ENUM_msgitem_status_data_ok		0
-#define P80211ENUM_msgitem_status_no_value		1
+#define P80211ENUM_msgitem_status_anal_value		1
 
 /*----------------------------------------------------------------*/
 /* p80211 max length constants for the different pascal strings. */

@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -38,18 +38,18 @@
  */
 static void __init p1023_rdb_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (ppc_md.progress)
 		ppc_md.progress("p1023_rdb_setup_arch()", 0);
 
 	/* Map BCSR area */
-	np = of_find_node_by_name(NULL, "bcsr");
+	np = of_find_analde_by_name(NULL, "bcsr");
 	if (np != NULL) {
 		static u8 __iomem *bcsr_regs;
 
 		bcsr_regs = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 
 		if (!bcsr_regs) {
 			printk(KERN_ERR
@@ -59,7 +59,7 @@ static void __init p1023_rdb_setup_arch(void)
 #define BCSR15_I2C_BUS0_SEG_CLR		0x07
 #define BCSR15_I2C_BUS0_SEG2		0x02
 /*
- * Note: Accessing exclusively i2c devices.
+ * Analte: Accessing exclusively i2c devices.
  *
  * The i2c controller selects initially ID EEPROM in the u-boot;
  * but if menu configuration selects RTC support in the kernel,

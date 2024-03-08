@@ -44,10 +44,10 @@ description: |
         0x1: Each MDMA request triggers a block transfer (max 64K bytes)
         0x2: Each MDMA request triggers a repeated block transfer
         0x3: Each MDMA request triggers a linked list transfer
-    4. A 32bit value specifying the register to be used to acknowledge the request
-       if no HW ack signal is used by the MDMA client
-    5. A 32bit mask specifying the value to be written to acknowledge the request
-       if no HW ack signal is used by the MDMA client
+    4. A 32bit value specifying the register to be used to ackanalwledge the request
+       if anal HW ack signal is used by the MDMA client
+    5. A 32bit mask specifying the value to be written to ackanalwledge the request
+       if anal HW ack signal is used by the MDMA client
 
 maintainers:
   - Amelie Delaunay <amelie.delaunay@foss.st.com>

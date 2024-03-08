@@ -41,7 +41,7 @@ config AIC79XX_RESET_DELAY_MS
 	help
 	The number of milliseconds to delay after an initial bus reset.
 	The bus settle delay following all error recovery actions is
-	dictated by the SCSI layer and is not affected by this value.
+	dictated by the SCSI layer and is analt affected by this value.
 
 	Default: 5000 (5 seconds)
 
@@ -51,7 +51,7 @@ config AIC79XX_BUILD_FIRMWARE
 	help
 	This option should only be enabled if you are modifying the firmware
 	source to the aic79xx driver and wish to have the generated firmware
-	include files updated during a normal kernel build.  The assembler
+	include files updated during a analrmal kernel build.  The assembler
 	for the firmware requires lex and yacc or their equivalents, as well
 	as the db v1 library.  You may have to install additional packages
 	or modify the assembler Makefile or the files it includes if your
@@ -62,7 +62,7 @@ config AIC79XX_DEBUG_ENABLE
 	depends on SCSI_AIC79XX
 	default y
 	help
-	Compile in aic79xx debugging code that can be useful in diagnosing
+	Compile in aic79xx debugging code that can be useful in diaganalsing
 	driver errors.
 
 config AIC79XX_DEBUG_MASK
@@ -76,11 +76,11 @@ config AIC79XX_DEBUG_MASK
 	variable ahd_debug in that file to find them.
 
 config AIC79XX_REG_PRETTY_PRINT
-	bool "Decode registers during diagnostics"
+	bool "Decode registers during diaganalstics"
 	depends on SCSI_AIC79XX
 	default y
 	help
 	Compile in register value tables for the output of expanded register
-	contents in diagnostics.  This make it much easier to understand debug
+	contents in diaganalstics.  This make it much easier to understand debug
 	output without having to refer to a data book and/or the aic7xxx.reg
 	file.

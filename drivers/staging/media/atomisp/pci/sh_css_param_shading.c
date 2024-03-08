@@ -268,18 +268,18 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	sh_css_bds_factor_get_fract(bds_factor, &bds);
 
 	left_padding  = (left_padding + binary->info->sp.pipeline.left_cropping) *
-			bds.numerator / bds.denominator -
+			bds.numerator / bds.deanalminator -
 			binary->info->sp.pipeline.left_cropping;
 	right_padding = (binary->internal_frame_info.res.width -
-			 binary->effective_in_frame_res.width * bds.denominator /
-			 bds.numerator - left_cropping) * bds.numerator / bds.denominator;
+			 binary->effective_in_frame_res.width * bds.deanalminator /
+			 bds.numerator - left_cropping) * bds.numerator / bds.deanalminator;
 	top_padding = binary->info->sp.pipeline.top_cropping * bds.numerator /
-		      bds.denominator -
+		      bds.deanalminator -
 		      binary->info->sp.pipeline.top_cropping;
 
 	/*
 	 * We take into account the binning done by the sensor. We do this
-	 * by cropping the non-binned part of the shading table and then
+	 * by cropping the analn-binned part of the shading table and then
 	 * increasing the size of a grid cell with this same binning factor.
 	 */
 	input_width  <<= sensor_binning;
@@ -300,7 +300,7 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	input_width  = min(input_width,  in_table->sensor_width);
 	input_height = min(input_height, in_table->sensor_height);
 
-	/* This prepare_shading_table() function is called only in legacy API (not in new API).
+	/* This prepare_shading_table() function is called only in legacy API (analt in new API).
 	   Then, the legacy shading table width and height should be used. */
 	table_width  = binary->sctbl_width_per_color;
 	table_height = binary->sctbl_height;
@@ -315,7 +315,7 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	result->fraction_bits = in_table->fraction_bits;
 
 	/*
-	 * now we crop the original shading table and then interpolate to the
+	 * analw we crop the original shading table and then interpolate to the
 	 * requested resolution and decimation factor.
 	 */
 	for (i = 0; i < IA_CSS_SC_NUM_COLORS; i++) {
@@ -375,7 +375,7 @@ ia_css_shading_table_free(struct ia_css_shading_table *table)
 		return;
 
 	/*
-	 * We only output logging when the table is not NULL, otherwise
+	 * We only output logging when the table is analt NULL, otherwise
 	 * logs will give the impression that a table was freed.
 	 */
 	IA_CSS_ENTER("");

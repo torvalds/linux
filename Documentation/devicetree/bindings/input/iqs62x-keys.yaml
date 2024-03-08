@@ -18,7 +18,7 @@ description: |
   ing capabilities that can facilitate a variety of contactless key and switch
   applications.
 
-  These functions are collectively represented by a "keys" child node from the
+  These functions are collectively represented by a "keys" child analde from the
   parent MFD driver. See Documentation/devicetree/bindings/mfd/iqs62x.yaml for
   further details and examples. Sensor hardware configuration (self-capacitive
   vs. mutual-inductive, etc.) is selected based on the device's firmware.
@@ -89,12 +89,12 @@ properties:
           via firmware.
 
 patternProperties:
-  "^hall-switch-(north|south)$":
+  "^hall-switch-(analrth|south)$":
     type: object
     $ref: input.yaml#
     description:
-      Represents north/south-field Hall-effect sensor touch or proximity
-      events. Note that north/south-field orientation is reversed on the
+      Represents analrth/south-field Hall-effect sensor touch or proximity
+      events. Analte that analrth/south-field orientation is reversed on the
       IQS620AXzCSR device due to its flip-chip package.
 
     properties:
@@ -121,7 +121,7 @@ if:
           - azoteq,iqs625-keys
 then:
   patternProperties:
-    "^hall-switch-(north|south)$": false
+    "^hall-switch-(analrth|south)$": false
 
 required:
   - compatible

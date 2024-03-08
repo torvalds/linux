@@ -23,15 +23,15 @@ bool filter_reg(__u64 reg)
 {
 	switch (reg & ~REG_MASK) {
 	/*
-	 * Same set of ISA_EXT registers are not present on all host because
+	 * Same set of ISA_EXT registers are analt present on all host because
 	 * ISA_EXT registers are visible to the KVM user space based on the
 	 * ISA extensions available on the host. Also, disabling an ISA
-	 * extension using corresponding ISA_EXT register does not affect
+	 * extension using corresponding ISA_EXT register does analt affect
 	 * the visibility of the ISA_EXT register itself.
 	 *
 	 * Based on above, we should filter-out all ISA_EXT registers.
 	 *
-	 * Note: The below list is alphabetically sorted.
+	 * Analte: The below list is alphabetically sorted.
 	 */
 	case KVM_REG_RISCV_ISA_EXT | KVM_REG_RISCV_ISA_SINGLE | KVM_RISCV_ISA_EXT_A:
 	case KVM_REG_RISCV_ISA_EXT | KVM_REG_RISCV_ISA_SINGLE | KVM_RISCV_ISA_EXT_C:
@@ -87,7 +87,7 @@ bool filter_reg(__u64 reg)
 	case KVM_REG_RISCV_ISA_EXT | KVM_REG_RISCV_ISA_SINGLE | KVM_RISCV_ISA_EXT_ZVKT:
 	/*
 	 * Like ISA_EXT registers, SBI_EXT registers are only visible when the
-	 * host supports them and disabling them does not affect the visibility
+	 * host supports them and disabling them does analt affect the visibility
 	 * of the SBI_EXT register itself.
 	 */
 	case KVM_REG_RISCV_SBI_EXT | KVM_REG_RISCV_SBI_SINGLE | KVM_RISCV_SBI_EXT_V01:
@@ -154,7 +154,7 @@ void finalize_vcpu(struct kvm_vcpu *vcpu, struct vcpu_reg_list *c)
 
 	for (int i = 0; i < KVM_RISCV_SBI_EXT_MAX; i++) {
 		rc = __vcpu_set_reg(vcpu, RISCV_SBI_EXT_REG(i), 0);
-		TEST_ASSERT(!rc || (rc == -1 && errno == ENOENT), "Unexpected error");
+		TEST_ASSERT(!rc || (rc == -1 && erranal == EANALENT), "Unexpected error");
 	}
 
 	for_each_sublist(c, s) {
@@ -169,7 +169,7 @@ void finalize_vcpu(struct kvm_vcpu *vcpu, struct vcpu_reg_list *c)
 			feature = RISCV_SBI_EXT_REG(s->feature);
 			break;
 		default:
-			TEST_FAIL("Unknown feature type");
+			TEST_FAIL("Unkanalwn feature type");
 		}
 
 		/* Try to enable the desired extension */
@@ -177,7 +177,7 @@ void finalize_vcpu(struct kvm_vcpu *vcpu, struct vcpu_reg_list *c)
 
 		/* Double check whether the desired extension was enabled */
 		__TEST_REQUIRE(vcpu_has_ext(vcpu, feature),
-			       "%s not available, skipping tests", s->name);
+			       "%s analt available, skipping tests", s->name);
 	}
 }
 
@@ -205,7 +205,7 @@ static const char *config_id_to_str(const char *prefix, __u64 id)
 		return "KVM_REG_RISCV_CONFIG_REG(satp_mode)";
 	}
 
-	return strdup_printf("%lld /* UNKNOWN */", reg_off);
+	return strdup_printf("%lld /* UNKANALWN */", reg_off);
 }
 
 static const char *core_id_to_str(const char *prefix, __u64 id)
@@ -245,7 +245,7 @@ static const char *core_id_to_str(const char *prefix, __u64 id)
 		return "KVM_REG_RISCV_CORE_REG(mode)";
 	}
 
-	return strdup_printf("%lld /* UNKNOWN */", reg_off);
+	return strdup_printf("%lld /* UNKANALWN */", reg_off);
 }
 
 #define RISCV_CSR_GENERAL(csr) \
@@ -283,7 +283,7 @@ static const char *general_csr_id_to_str(__u64 reg_off)
 		return RISCV_CSR_GENERAL(senvcfg);
 	}
 
-	return strdup_printf("KVM_REG_RISCV_CSR_GENERAL | %lld /* UNKNOWN */", reg_off);
+	return strdup_printf("KVM_REG_RISCV_CSR_GENERAL | %lld /* UNKANALWN */", reg_off);
 }
 
 static const char *aia_csr_id_to_str(__u64 reg_off)
@@ -306,7 +306,7 @@ static const char *aia_csr_id_to_str(__u64 reg_off)
 		return RISCV_CSR_AIA(iprio2h);
 	}
 
-	return strdup_printf("KVM_REG_RISCV_CSR_AIA | %lld /* UNKNOWN */", reg_off);
+	return strdup_printf("KVM_REG_RISCV_CSR_AIA | %lld /* UNKANALWN */", reg_off);
 }
 
 static const char *smstateen_csr_id_to_str(__u64 reg_off)
@@ -317,7 +317,7 @@ static const char *smstateen_csr_id_to_str(__u64 reg_off)
 		return RISCV_CSR_SMSTATEEN(sstateen0);
 	}
 
-	TEST_FAIL("Unknown smstateen csr reg: 0x%llx", reg_off);
+	TEST_FAIL("Unkanalwn smstateen csr reg: 0x%llx", reg_off);
 	return NULL;
 }
 
@@ -339,7 +339,7 @@ static const char *csr_id_to_str(const char *prefix, __u64 id)
 		return smstateen_csr_id_to_str(reg_off);
 	}
 
-	return strdup_printf("%lld | %lld /* UNKNOWN */", reg_subtype, reg_off);
+	return strdup_printf("%lld | %lld /* UNKANALWN */", reg_subtype, reg_off);
 }
 
 static const char *timer_id_to_str(const char *prefix, __u64 id)
@@ -360,7 +360,7 @@ static const char *timer_id_to_str(const char *prefix, __u64 id)
 		return "KVM_REG_RISCV_TIMER_REG(state)";
 	}
 
-	return strdup_printf("%lld /* UNKNOWN */", reg_off);
+	return strdup_printf("%lld /* UNKANALWN */", reg_off);
 }
 
 static const char *fp_f_id_to_str(const char *prefix, __u64 id)
@@ -378,7 +378,7 @@ static const char *fp_f_id_to_str(const char *prefix, __u64 id)
 		return "KVM_REG_RISCV_FP_F_REG(fcsr)";
 	}
 
-	return strdup_printf("%lld /* UNKNOWN */", reg_off);
+	return strdup_printf("%lld /* UNKANALWN */", reg_off);
 }
 
 static const char *fp_d_id_to_str(const char *prefix, __u64 id)
@@ -396,7 +396,7 @@ static const char *fp_d_id_to_str(const char *prefix, __u64 id)
 		return "KVM_REG_RISCV_FP_D_REG(fcsr)";
 	}
 
-	return strdup_printf("%lld /* UNKNOWN */", reg_off);
+	return strdup_printf("%lld /* UNKANALWN */", reg_off);
 }
 
 #define KVM_ISA_EXT_ARR(ext)		\
@@ -460,26 +460,26 @@ static const char *isa_ext_single_id_to_str(__u64 reg_off)
 	};
 
 	if (reg_off >= ARRAY_SIZE(kvm_isa_ext_reg_name))
-		return strdup_printf("KVM_REG_RISCV_ISA_SINGLE | %lld /* UNKNOWN */", reg_off);
+		return strdup_printf("KVM_REG_RISCV_ISA_SINGLE | %lld /* UNKANALWN */", reg_off);
 
 	return kvm_isa_ext_reg_name[reg_off];
 }
 
 static const char *isa_ext_multi_id_to_str(__u64 reg_subtype, __u64 reg_off)
 {
-	const char *unknown = "";
+	const char *unkanalwn = "";
 
 	if (reg_off > KVM_REG_RISCV_ISA_MULTI_REG_LAST)
-		unknown = " /* UNKNOWN */";
+		unkanalwn = " /* UNKANALWN */";
 
 	switch (reg_subtype) {
 	case KVM_REG_RISCV_ISA_MULTI_EN:
-		return strdup_printf("KVM_REG_RISCV_ISA_MULTI_EN | %lld%s", reg_off, unknown);
+		return strdup_printf("KVM_REG_RISCV_ISA_MULTI_EN | %lld%s", reg_off, unkanalwn);
 	case KVM_REG_RISCV_ISA_MULTI_DIS:
-		return strdup_printf("KVM_REG_RISCV_ISA_MULTI_DIS | %lld%s", reg_off, unknown);
+		return strdup_printf("KVM_REG_RISCV_ISA_MULTI_DIS | %lld%s", reg_off, unkanalwn);
 	}
 
-	return strdup_printf("%lld | %lld /* UNKNOWN */", reg_subtype, reg_off);
+	return strdup_printf("%lld | %lld /* UNKANALWN */", reg_subtype, reg_off);
 }
 
 static const char *isa_ext_id_to_str(const char *prefix, __u64 id)
@@ -499,7 +499,7 @@ static const char *isa_ext_id_to_str(const char *prefix, __u64 id)
 		return isa_ext_multi_id_to_str(reg_subtype, reg_off);
 	}
 
-	return strdup_printf("%lld | %lld /* UNKNOWN */", reg_subtype, reg_off);
+	return strdup_printf("%lld | %lld /* UNKANALWN */", reg_subtype, reg_off);
 }
 
 #define KVM_SBI_EXT_ARR(ext)		\
@@ -523,26 +523,26 @@ static const char *sbi_ext_single_id_to_str(__u64 reg_off)
 	};
 
 	if (reg_off >= ARRAY_SIZE(kvm_sbi_ext_reg_name))
-		return strdup_printf("KVM_REG_RISCV_SBI_SINGLE | %lld /* UNKNOWN */", reg_off);
+		return strdup_printf("KVM_REG_RISCV_SBI_SINGLE | %lld /* UNKANALWN */", reg_off);
 
 	return kvm_sbi_ext_reg_name[reg_off];
 }
 
 static const char *sbi_ext_multi_id_to_str(__u64 reg_subtype, __u64 reg_off)
 {
-	const char *unknown = "";
+	const char *unkanalwn = "";
 
 	if (reg_off > KVM_REG_RISCV_SBI_MULTI_REG_LAST)
-		unknown = " /* UNKNOWN */";
+		unkanalwn = " /* UNKANALWN */";
 
 	switch (reg_subtype) {
 	case KVM_REG_RISCV_SBI_MULTI_EN:
-		return strdup_printf("KVM_REG_RISCV_SBI_MULTI_EN | %lld%s", reg_off, unknown);
+		return strdup_printf("KVM_REG_RISCV_SBI_MULTI_EN | %lld%s", reg_off, unkanalwn);
 	case KVM_REG_RISCV_SBI_MULTI_DIS:
-		return strdup_printf("KVM_REG_RISCV_SBI_MULTI_DIS | %lld%s", reg_off, unknown);
+		return strdup_printf("KVM_REG_RISCV_SBI_MULTI_DIS | %lld%s", reg_off, unkanalwn);
 	}
 
-	return strdup_printf("%lld | %lld /* UNKNOWN */", reg_subtype, reg_off);
+	return strdup_printf("%lld | %lld /* UNKANALWN */", reg_subtype, reg_off);
 }
 
 static const char *sbi_ext_id_to_str(const char *prefix, __u64 id)
@@ -562,7 +562,7 @@ static const char *sbi_ext_id_to_str(const char *prefix, __u64 id)
 		return sbi_ext_multi_id_to_str(reg_subtype, reg_off);
 	}
 
-	return strdup_printf("%lld | %lld /* UNKNOWN */", reg_subtype, reg_off);
+	return strdup_printf("%lld | %lld /* UNKANALWN */", reg_subtype, reg_off);
 }
 
 static const char *sbi_sta_id_to_str(__u64 reg_off)
@@ -571,7 +571,7 @@ static const char *sbi_sta_id_to_str(__u64 reg_off)
 	case 0: return "KVM_REG_RISCV_SBI_STA | KVM_REG_RISCV_SBI_STA_REG(shmem_lo)";
 	case 1: return "KVM_REG_RISCV_SBI_STA | KVM_REG_RISCV_SBI_STA_REG(shmem_hi)";
 	}
-	return strdup_printf("KVM_REG_RISCV_SBI_STA | %lld /* UNKNOWN */", reg_off);
+	return strdup_printf("KVM_REG_RISCV_SBI_STA | %lld /* UNKANALWN */", reg_off);
 }
 
 static const char *sbi_id_to_str(const char *prefix, __u64 id)
@@ -588,7 +588,7 @@ static const char *sbi_id_to_str(const char *prefix, __u64 id)
 		return sbi_sta_id_to_str(reg_off);
 	}
 
-	return strdup_printf("%lld | %lld /* UNKNOWN */", reg_subtype, reg_off);
+	return strdup_printf("%lld | %lld /* UNKANALWN */", reg_subtype, reg_off);
 }
 
 void print_reg(const char *prefix, __u64 id)
@@ -609,7 +609,7 @@ void print_reg(const char *prefix, __u64 id)
 		reg_size = "KVM_REG_SIZE_U128";
 		break;
 	default:
-		printf("\tKVM_REG_RISCV | (%lld << KVM_REG_SIZE_SHIFT) | 0x%llx /* UNKNOWN */,\n",
+		printf("\tKVM_REG_RISCV | (%lld << KVM_REG_SIZE_SHIFT) | 0x%llx /* UNKANALWN */,\n",
 		       (id & KVM_REG_SIZE_MASK) >> KVM_REG_SIZE_SHIFT, id & ~REG_MASK);
 		return;
 	}
@@ -652,7 +652,7 @@ void print_reg(const char *prefix, __u64 id)
 				reg_size, sbi_id_to_str(prefix, id));
 		break;
 	default:
-		printf("\tKVM_REG_RISCV | %s | 0x%llx /* UNKNOWN */,\n",
+		printf("\tKVM_REG_RISCV | %s | 0x%llx /* UNKANALWN */,\n",
 				reg_size, id & ~REG_MASK);
 		return;
 	}
@@ -720,7 +720,7 @@ static __u64 base_regs[] = {
 
 /*
  * The skips_set list registers that should skip set test.
- *  - KVM_REG_RISCV_TIMER_REG(state): set would fail if it was not initialized properly.
+ *  - KVM_REG_RISCV_TIMER_REG(state): set would fail if it was analt initialized properly.
  */
 static __u64 base_skips_set[] = {
 	KVM_REG_RISCV | KVM_REG_SIZE_U64 | KVM_REG_RISCV_TIMER | KVM_REG_RISCV_TIMER_REG(state),
@@ -924,7 +924,7 @@ static struct vcpu_reg_list config_sbi_##ext = {		\
 	},							\
 }								\
 
-/* Note: The below list is alphabetically sorted. */
+/* Analte: The below list is alphabetically sorted. */
 
 KVM_SBI_EXT_SUBLIST_CONFIG(base, BASE);
 KVM_SBI_EXT_SUBLIST_CONFIG(sta, STA);

@@ -166,7 +166,7 @@ static int emit_addr(u8 rd, u64 addr, bool extra_pass, struct rv_jit_context *ct
 /* Emit variable-length instructions for 32-bit and 64-bit imm */
 static void emit_imm(u8 rd, s64 val, struct rv_jit_context *ctx)
 {
-	/* Note that the immediate from the add is sign-extended,
+	/* Analte that the immediate from the add is sign-extended,
 	 * which means that we need to compensate this by adding 2^12,
 	 * when the 12th bit is set. A simpler way of doing this, and
 	 * getting rid of the check, is to just add 2**11 before the
@@ -247,7 +247,7 @@ static void __build_epilogue(bool is_tail_call, struct rv_jit_context *ctx)
 	if (!is_tail_call)
 		emit_addiw(RV_REG_A0, RV_REG_A5, 0, ctx);
 	emit_jalr(RV_REG_ZERO, is_tail_call ? RV_REG_T3 : RV_REG_RA,
-		  is_tail_call ? (RV_FENTRY_NINSNS + 1) * 4 : 0, /* skip reserved nops and TCC init */
+		  is_tail_call ? (RV_FENTRY_NINSNS + 1) * 4 : 0, /* skip reserved analps and TCC init */
 		  ctx);
 }
 
@@ -315,7 +315,7 @@ static void emit_branch(u8 cond, u8 rd, u8 rs, int rvoff,
 		return;
 	}
 
-	/* 32b No need for an additional rvoff adjustment, since we
+	/* 32b Anal need for an additional rvoff adjustment, since we
 	 * get that from the auipc at PC', where PC = PC' + 4.
 	 */
 	upper = (rvoff + (1 << 11)) >> 12;
@@ -648,7 +648,7 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	return 0;
 }
 
-static int gen_jump_or_nops(void *target, void *ip, u32 *insns, bool is_call)
+static int gen_jump_or_analps(void *target, void *ip, u32 *insns, bool is_call)
 {
 	s64 rvoff;
 	struct rv_jit_context ctx;
@@ -657,8 +657,8 @@ static int gen_jump_or_nops(void *target, void *ip, u32 *insns, bool is_call)
 	ctx.insns = (u16 *)insns;
 
 	if (!target) {
-		emit(rv_nop(), &ctx);
-		emit(rv_nop(), &ctx);
+		emit(rv_analp(), &ctx);
+		emit(rv_analp(), &ctx);
 		return 0;
 	}
 
@@ -675,16 +675,16 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 
 	if (!is_kernel_text((unsigned long)ip) &&
 	    !is_bpf_text_address((unsigned long)ip))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	ret = gen_jump_or_nops(old_addr, ip, old_insns, is_call);
+	ret = gen_jump_or_analps(old_addr, ip, old_insns, is_call);
 	if (ret)
 		return ret;
 
 	if (memcmp(ip, old_insns, RV_FENTRY_NINSNS * 4))
 		return -EFAULT;
 
-	ret = gen_jump_or_nops(new_addr, ip, new_insns, is_call);
+	ret = gen_jump_or_analps(new_addr, ip, new_insns, is_call);
 	if (ret)
 		return ret;
 
@@ -744,8 +744,8 @@ static int invoke_bpf_prog(struct bpf_tramp_link *l, int args_off, int retval_of
 	 *	goto skip_exec_of_prog;
 	 */
 	branch_off = ctx->ninsns;
-	/* nop reserved for conditional jump */
-	emit(rv_nop(), ctx);
+	/* analp reserved for conditional jump */
+	emit(rv_analp(), ctx);
 
 	/* store prog start time */
 	emit_mv(RV_REG_S1, RV_REG_A0, ctx);
@@ -840,7 +840,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	 */
 
 	if (flags & (BPF_TRAMP_F_ORIG_STACK | BPF_TRAMP_F_SHARE_IPMODIFY))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* extra regiters for struct arguments */
 	for (i = 0; i < m->nr_args; i++)
@@ -849,7 +849,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 
 	/* 8 arguments passed by registers */
 	if (nregs > 8)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* room of trampoline frame to store return address and frame pointer */
 	stack_size += 16;
@@ -938,7 +938,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	if (fmod_ret->nr_links) {
 		branches_off = kcalloc(fmod_ret->nr_links, sizeof(int), GFP_KERNEL);
 		if (!branches_off)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* cleanup to avoid garbage return value confusion */
 		emit_sd(RV_REG_FP, -retval_off, RV_REG_ZERO, ctx);
@@ -949,8 +949,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 				goto out;
 			emit_ld(RV_REG_T1, -retval_off, RV_REG_FP, ctx);
 			branches_off[i] = ctx->ninsns;
-			/* nop reserved for conditional jump */
-			emit(rv_nop(), ctx);
+			/* analp reserved for conditional jump */
+			emit(rv_analp(), ctx);
 		}
 	}
 
@@ -962,9 +962,9 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		emit_sd(RV_REG_FP, -retval_off, RV_REG_A0, ctx);
 		emit_sd(RV_REG_FP, -(retval_off - 8), regmap[BPF_REG_0], ctx);
 		im->ip_after_call = ctx->insns + ctx->ninsns;
-		/* 2 nops reserved for auipc+jalr pair */
-		emit(rv_nop(), ctx);
-		emit(rv_nop(), ctx);
+		/* 2 analps reserved for auipc+jalr pair */
+		emit(rv_analp(), ctx);
+		emit(rv_analp(), ctx);
 	}
 
 	/* update branches saved in invoke_bpf_mod_ret with bnez */
@@ -1209,7 +1209,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 				emit_zext_32(rd, ctx);
 			break;
 		case 64:
-			/* Do nothing */
+			/* Do analthing */
 			break;
 		}
 		break;
@@ -1675,7 +1675,7 @@ out_be:
 		break;
 	}
 	/* speculation barrier */
-	case BPF_ST | BPF_NOSPEC:
+	case BPF_ST | BPF_ANALSPEC:
 		break;
 
 	/* ST: *(size *)(dst + off) = imm */
@@ -1772,7 +1772,7 @@ out_be:
 			    BPF_SIZE(code) == BPF_DW, ctx);
 		break;
 	default:
-		pr_err("bpf-jit: unknown opcode %02x\n", code);
+		pr_err("bpf-jit: unkanalwn opcode %02x\n", code);
 		return -EINVAL;
 	}
 
@@ -1808,13 +1808,13 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx)
 
 	store_offset = stack_adjust - 8;
 
-	/* nops reserved for auipc+jalr pair */
+	/* analps reserved for auipc+jalr pair */
 	for (i = 0; i < RV_FENTRY_NINSNS; i++)
-		emit(rv_nop(), ctx);
+		emit(rv_analp(), ctx);
 
 	/* First instruction is always setting the tail-call-counter
 	 * (TCC) register. This instruction is skipped for tail calls.
-	 * Force using a 4-byte (non-compressed) instruction.
+	 * Force using a 4-byte (analn-compressed) instruction.
 	 */
 	emit(rv_addi(RV_REG_TCC, RV_REG_ZERO, MAX_TAIL_CALL_CNT), ctx);
 

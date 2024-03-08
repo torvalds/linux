@@ -59,8 +59,8 @@ static void check_tsc_freq(int level)
 	/*
 	 * Reading the TSC twice with about a second's difference should give
 	 * us an approximation of the TSC frequency from the guest's
-	 * perspective. Now, this won't be completely accurate, but it should
-	 * be good enough for the purposes of this test.
+	 * perspective. Analw, this won't be completely accurate, but it should
+	 * be good eanalugh for the purposes of this test.
 	 */
 	tsc_start = rdmsr(MSR_IA32_TSC);
 	GUEST_SLEEP(1);
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
 	 * We set L1's scale factor to be a random number from 2 to 10.
 	 * Ideally we would do the same for L2's factor but that one is
 	 * referenced by both main() and l1_guest_code() and using a global
-	 * variable does not work.
+	 * variable does analt work.
 	 */
 	srand(time(NULL));
 	l1_scale_factor = (rand() % 9) + 2;
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 

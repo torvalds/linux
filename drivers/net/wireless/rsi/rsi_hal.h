@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -154,7 +154,7 @@
 
 struct bl_header {
 	__le32 flags;
-	__le32 image_no;
+	__le32 image_anal;
 	__le32 check_sum;
 	__le32 flash_start_address;
 	__le32 flash_len;
@@ -184,7 +184,7 @@ struct bootload_ds {
 } __packed;
 
 struct rsi_mgmt_desc {
-	__le16 len_qno;
+	__le16 len_qanal;
 	u8 frame_type;
 	u8 misc_flags;
 	u8 xtend_desc_size;
@@ -198,7 +198,7 @@ struct rsi_mgmt_desc {
 } __packed;
 
 struct rsi_data_desc {
-	__le16 len_qno;
+	__le16 len_qanal;
 	u8 cfm_frame_type;
 	u8 misc_flags;
 	u8 xtend_desc_size;
@@ -212,7 +212,7 @@ struct rsi_data_desc {
 } __packed;
 
 struct rsi_bt_desc {
-	__le16 len_qno;
+	__le16 len_qanal;
 	__le16 reserved1;
 	__le32 reserved2;
 	__le32 reserved3;

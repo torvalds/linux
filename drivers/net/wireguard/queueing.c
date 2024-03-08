@@ -35,7 +35,7 @@ int wg_packet_queue_init(struct crypt_queue *queue, work_func_t function,
 	queue->worker = wg_packet_percpu_multicore_worker_alloc(function, queue);
 	if (!queue->worker) {
 		ptr_ring_cleanup(&queue->ring, NULL);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

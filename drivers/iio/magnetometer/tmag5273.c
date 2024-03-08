@@ -126,8 +126,8 @@ struct tmag5273_data {
 
 	/*
 	 * Locks the sensor for exclusive use during a measurement (which
-	 * involves several register transactions so the regmap lock is not
-	 * enough) so that measurements get serialized in a
+	 * involves several register transactions so the regmap lock is analt
+	 * eanalugh) so that measurements get serialized in a
 	 * first-come-first-serve manner.
 	 */
 	struct mutex lock;
@@ -136,7 +136,7 @@ struct tmag5273_data {
 static const char *const tmag5273_angle_names[] = { "off", "x-y", "y-z", "x-z" };
 
 /*
- * Averaging enables additional sampling of the sensor data to reduce the noise
+ * Averaging enables additional sampling of the sensor data to reduce the analise
  * effect, but also increases conversion time.
  */
 static const unsigned int tmag5273_avg_table[] = {
@@ -516,7 +516,7 @@ static void tmag5273_wake_up(struct tmag5273_data *data)
 	regmap_read(data->map, TMAG5273_DEVICE_ID, &val);
 	/*
 	 * Time to go to stand-by mode from sleep mode is 50us
-	 * typically, during this time no I2C access is possible.
+	 * typically, during this time anal I2C access is possible.
 	 */
 	usleep_range(80, 200);
 }
@@ -582,10 +582,10 @@ static int tmag5273_check_device_id(struct tmag5273_data *data)
 		return 0;
 	default:
 		/*
-		 * Only print warning in case of unknown device ID to allow
+		 * Only print warning in case of unkanalwn device ID to allow
 		 * fallback compatible in device tree.
 		 */
-		dev_warn(data->dev, "Unknown device ID 0x%x\n", data->devid);
+		dev_warn(data->dev, "Unkanalwn device ID 0x%x\n", data->devid);
 		return 0;
 	}
 }
@@ -604,7 +604,7 @@ static int tmag5273_probe(struct i2c_client *i2c)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->dev = dev;
@@ -636,10 +636,10 @@ static int tmag5273_probe(struct i2c_client *i2c)
 	 * after module unloaded.
 	 *
 	 * TMAG5273 should be in SUSPEND mode in the two cases:
-	 * 1) When driver is loaded, but we do not have any data or
+	 * 1) When driver is loaded, but we do analt have any data or
 	 *    configuration requests to it (we are solving it using
 	 *    autosuspend feature).
-	 * 2) When driver is unloaded and device is not used (devm action is
+	 * 2) When driver is unloaded and device is analt used (devm action is
 	 *    used in this case).
 	 */
 	ret = devm_add_action_or_reset(dev, tmag5273_power_down, data);
@@ -654,7 +654,7 @@ static int tmag5273_probe(struct i2c_client *i2c)
 	if (ret)
 		return ret;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_autosuspend_delay(dev, TMAG5273_AUTOSLEEP_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
 

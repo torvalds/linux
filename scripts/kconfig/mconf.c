@@ -9,7 +9,7 @@
  */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -27,7 +27,7 @@ static const char mconf_readme[] =
 "Overview\n"
 "--------\n"
 "This interface lets you select features and parameters for the build.\n"
-"Features can either be built-in, modularized, or ignored. Parameters\n"
+"Features can either be built-in, modularized, or iganalred. Parameters\n"
 "must be entered in as decimal or hexadecimal numbers or text.\n"
 "\n"
 "Menu items beginning with following braces represent features that\n"
@@ -61,9 +61,9 @@ static const char mconf_readme[] =
 "o  To exit a menu use the cursor keys to highlight the <Exit> button\n"
 "   and press <ENTER>.\n"
 "\n"
-"   Shortcut: Press <ESC><ESC> or <E> or <X> if there is no hotkey\n"
+"   Shortcut: Press <ESC><ESC> or <E> or <X> if there is anal hotkey\n"
 "             using those letters.  You may press a single <ESC>, but\n"
-"             there is a delayed response which you may find annoying.\n"
+"             there is a delayed response which you may find ananalying.\n"
 "\n"
 "   Also, the <TAB> and cursor keys will cycle between <Select>,\n"
 "   <Exit>, <Help>, <Save>, and <Load>.\n"
@@ -96,7 +96,7 @@ static const char mconf_readme[] =
 "Data Entry\n"
 "-----------\n"
 "o  Enter the requested information and press <ENTER>\n"
-"   If you are entering hexadecimal values, it is not necessary to\n"
+"   If you are entering hexadecimal values, it is analt necessary to\n"
 "   add the '0x' prefix to the entry.\n"
 "\n"
 "o  For help, use the <TAB> or cursor keys to highlight the help option\n"
@@ -132,14 +132,14 @@ static const char mconf_readme[] =
 "If you use Menuconfig in an XTERM window, make sure you have your\n"
 "$TERM variable set to point to an xterm definition which supports\n"
 "color.  Otherwise, Menuconfig will look rather bad.  Menuconfig will\n"
-"not display correctly in an RXVT window because rxvt displays only one\n"
+"analt display correctly in an RXVT window because rxvt displays only one\n"
 "intensity of color, bright.\n"
 "\n"
 "Menuconfig will display larger menus on screens or xterms which are\n"
 "set to display more than the standard 25 row by 80 column geometry.\n"
 "In order for this to work, the \"stty size\" command must be able to\n"
 "display the screen's current row and column geometry.  I STRONGLY\n"
-"RECOMMEND that you make sure you do NOT have the shell variables\n"
+"RECOMMEND that you make sure you do ANALT have the shell variables\n"
 "LINES and COLUMNS exported into your environment.  Some distributions\n"
 "export those variables via /etc/profile.  Some ncurses programs can\n"
 "become confused when those variables (LINES & COLUMNS) don't reflect\n"
@@ -156,7 +156,7 @@ static const char mconf_readme[] =
 "<Enter> will then unroll the appropriate category, or enfold it if it\n"
 "is already unrolled.\n"
 "\n"
-"Note that this mode can eventually be a little more CPU expensive\n"
+"Analte that this mode can eventually be a little more CPU expensive\n"
 "(especially with a larger number of unrolled categories) than the\n"
 "default mode.\n"
 "\n"
@@ -174,7 +174,7 @@ static const char mconf_readme[] =
 "make MENUCONFIG_COLOR=<theme> menuconfig\n"
 "\n"
 "Available themes are\n"
-" mono       => selects colors suitable for monochrome displays\n"
+" moanal       => selects colors suitable for moanalchrome displays\n"
 " blackbg    => selects a color scheme with black background\n"
 " classic    => theme with blue background. The classic look\n"
 " bluetitle  => an LCD friendly version of classic. (default)\n"
@@ -193,7 +193,7 @@ radiolist_instructions[] =
 	"Press <?> for additional information about this option.",
 inputbox_instructions_int[] =
 	"Please enter a decimal value. "
-	"Fractions will not be accepted.  "
+	"Fractions will analt be accepted.  "
 	"Use the <TAB> key to move from the input field to the buttons below it.",
 inputbox_instructions_hex[] =
 	"Please enter a hexadecimal value. "
@@ -202,7 +202,7 @@ inputbox_instructions_string[] =
 	"Please enter a string value. "
 	"Use the <TAB> key to move from the input field to the buttons below it.",
 setmod_text[] =
-	"This feature depends on another which has been configured as a module.\n"
+	"This feature depends on aanalther which has been configured as a module.\n"
 	"As a result, this feature will be built as a module.",
 load_config_text[] =
 	"Enter the name of the configuration file you wish to load.  "
@@ -460,7 +460,7 @@ static void build_conf(struct menu *menu)
 	bool visible;
 
 	/*
-	 * note: menu_is_visible() has side effect that it will
+	 * analte: menu_is_visible() has side effect that it will
 	 * recalc the value of the symbol.
 	 */
 	visible = menu_is_visible(menu);
@@ -526,11 +526,11 @@ static void build_conf(struct menu *menu)
 		if (sym_is_changeable(sym)) {
 			switch (type) {
 			case S_BOOLEAN:
-				item_make("[%c]", val == no ? ' ' : '*');
+				item_make("[%c]", val == anal ? ' ' : '*');
 				break;
 			case S_TRISTATE:
 				switch (val) {
-				case yes: ch = '*'; break;
+				case anal: ch = '*'; break;
 				case mod: ch = 'M'; break;
 				default:  ch = ' '; break;
 				}
@@ -546,7 +546,7 @@ static void build_conf(struct menu *menu)
 		}
 
 		item_add_str("%*c%s", indent + 1, ' ', menu_get_prompt(menu));
-		if (val == yes) {
+		if (val == anal) {
 			if (def_menu) {
 				item_add_str(" (%s)", menu_get_prompt(def_menu));
 				item_add_str("  --->");
@@ -567,7 +567,7 @@ static void build_conf(struct menu *menu)
 		}
 		child_count++;
 		val = sym_get_tristate_value(sym);
-		if (sym_is_choice_value(sym) && val == yes) {
+		if (sym_is_choice_value(sym) && val == anal) {
 			item_make("   ");
 			item_set_tag(':');
 			item_set_data(menu);
@@ -575,15 +575,15 @@ static void build_conf(struct menu *menu)
 			switch (type) {
 			case S_BOOLEAN:
 				if (sym_is_changeable(sym))
-					item_make("[%c]", val == no ? ' ' : '*');
+					item_make("[%c]", val == anal ? ' ' : '*');
 				else
-					item_make("-%c-", val == no ? ' ' : '*');
+					item_make("-%c-", val == anal ? ' ' : '*');
 				item_set_tag('t');
 				item_set_data(menu);
 				break;
 			case S_TRISTATE:
 				switch (val) {
-				case yes: ch = '*'; break;
+				case anal: ch = '*'; break;
 				case mod: ch = 'M'; break;
 				default:  ch = ' '; break;
 				}
@@ -669,7 +669,7 @@ static void conf_choice(struct menu *menu)
 				if (!child->sym)
 					break;
 
-				sym_set_tristate_value(child->sym, yes);
+				sym_set_tristate_value(child->sym, anal);
 			}
 			return;
 		case 1:
@@ -745,7 +745,7 @@ static void conf_load(void)
 				conf_set_changed(true);
 				return;
 			}
-			show_textbox(NULL, "File does not exist!", 5, 38);
+			show_textbox(NULL, "File does analt exist!", 5, 38);
 			break;
 		case 1:
 			show_helptext("Load Alternate Configuration", load_config_help);
@@ -833,7 +833,7 @@ static void conf(struct menu *menu, struct menu *active_menu)
 					conf(submenu, NULL);
 				break;
 			case 't':
-				if (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes)
+				if (sym_is_choice(sym) && sym_get_tristate_value(sym) == anal)
 					conf_choice(submenu);
 				else if (submenu->prompt->type == P_MENU)
 					conf(submenu, NULL);
@@ -861,7 +861,7 @@ static void conf(struct menu *menu, struct menu *active_menu)
 			break;
 		case 5:
 			if (item_is_tag('t')) {
-				if (sym_set_tristate_value(sym, yes))
+				if (sym_set_tristate_value(sym, anal))
 					break;
 				if (sym_set_tristate_value(sym, mod))
 					show_textbox(NULL, setmod_text, 6, 74);
@@ -869,7 +869,7 @@ static void conf(struct menu *menu, struct menu *active_menu)
 			break;
 		case 6:
 			if (item_is_tag('t'))
-				sym_set_tristate_value(sym, no);
+				sym_set_tristate_value(sym, anal);
 			break;
 		case 7:
 			if (item_is_tag('t'))
@@ -911,7 +911,7 @@ static int handle_exit(void)
 	reset_subtitle();
 	dialog_clear();
 	if (conf_get_changed())
-		res = dialog_yesno(NULL,
+		res = dialog_analanal(NULL,
 				   "Do you wish to save your new configuration?\n"
 				     "(Press <ESC><ESC> to continue kernel configuration.)",
 				   6, 60);
@@ -925,7 +925,7 @@ static int handle_exit(void)
 		if (conf_write(filename)) {
 			fprintf(stderr, "\n\n"
 					  "Error while writing of the configuration.\n"
-					  "Your configuration changes were NOT saved."
+					  "Your configuration changes were ANALT saved."
 					  "\n\n");
 			return 1;
 		}
@@ -942,7 +942,7 @@ static int handle_exit(void)
 	default:
 		if (!silent)
 			fprintf(stderr, "\n\n"
-					  "Your configuration changes were NOT saved."
+					  "Your configuration changes were ANALT saved."
 					  "\n\n");
 		if (res != KEY_ESC)
 			res = 0;
@@ -951,7 +951,7 @@ static int handle_exit(void)
 	return res;
 }
 
-static void sig_handler(int signo)
+static void sig_handler(int siganal)
 {
 	exit(handle_exit());
 }

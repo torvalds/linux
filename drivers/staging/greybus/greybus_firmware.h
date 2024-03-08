@@ -28,11 +28,11 @@
 #define GB_FW_U_BACKEND_FW_STATUS_FAIL_WRITE	0x04
 #define GB_FW_U_BACKEND_FW_STATUS_INT		0x05
 #define GB_FW_U_BACKEND_FW_STATUS_RETRY		0x06
-#define GB_FW_U_BACKEND_FW_STATUS_NOT_SUPPORTED	0x07
+#define GB_FW_U_BACKEND_FW_STATUS_ANALT_SUPPORTED	0x07
 
 #define GB_FW_U_BACKEND_VERSION_STATUS_SUCCESS		0x01
-#define GB_FW_U_BACKEND_VERSION_STATUS_NOT_AVAILABLE	0x02
-#define GB_FW_U_BACKEND_VERSION_STATUS_NOT_SUPPORTED	0x03
+#define GB_FW_U_BACKEND_VERSION_STATUS_ANALT_AVAILABLE	0x02
+#define GB_FW_U_BACKEND_VERSION_STATUS_ANALT_SUPPORTED	0x03
 #define GB_FW_U_BACKEND_VERSION_STATUS_RETRY		0x04
 #define GB_FW_U_BACKEND_VERSION_STATUS_FAIL_INT		0x05
 
@@ -40,13 +40,13 @@
 struct fw_mgmt_ioc_get_intf_version {
 	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u16 major;
-	__u16 minor;
+	__u16 mianalr;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_get_backend_version {
 	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u16 major;
-	__u16 minor;
+	__u16 mianalr;
 	__u8 status;
 } __attribute__ ((__packed__));
 
@@ -55,7 +55,7 @@ struct fw_mgmt_ioc_intf_load_and_validate {
 	__u8 load_method;
 	__u8 status;
 	__u16 major;
-	__u16 minor;
+	__u16 mianalr;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_backend_fw_update {

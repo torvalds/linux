@@ -89,8 +89,8 @@ Actions and configuration
 	cfg80211_new_sta
 	cfg80211_rx_mgmt
 	cfg80211_mgmt_tx_status
-	cfg80211_cqm_rssi_notify
-	cfg80211_cqm_pktloss_notify
+	cfg80211_cqm_rssi_analtify
+	cfg80211_cqm_pktloss_analtify
 	cfg80211_michael_mic_failure
 
 Scanning and BSS list handling

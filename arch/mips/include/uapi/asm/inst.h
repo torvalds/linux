@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Format of an instruction in memory.
  *
@@ -8,8 +8,8 @@
  *
  * Copyright (C) 1996, 2000 by Ralf Baechle
  * Copyright (C) 2006 by Thiemo Seufer
- * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2012 MIPS Techanallogies, Inc.  All rights reserved.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  */
 #ifndef _UAPI_ASM_INST_H
 #define _UAPI_ASM_INST_H
@@ -51,7 +51,7 @@ enum spec_op {
 	mult_op, multu_op, div_op, divu_op,
 	dmult_op, dmultu_op, ddiv_op, ddivu_op,
 	add_op, addu_op, sub_op, subu_op,
-	and_op, or_op, xor_op, nor_op,
+	and_op, or_op, xor_op, analr_op,
 	spec3_unused_op, spec4_unused_op, slt_op, sltu_op,
 	dadd_op, daddu_op, dsub_op, dsubu_op,
 	tge_op, tgeu_op, tlt_op, tltu_op,
@@ -94,7 +94,7 @@ enum spec3_op {
 };
 
 /*
- * Bits 10-6 minor opcode for r6 spec mult/div encodings
+ * Bits 10-6 mianalr opcode for r6 spec mult/div encodings
  */
 enum mult_op {
 	mult_mult_op = 0x0,
@@ -311,7 +311,7 @@ enum dbshfl_func {
 };
 
 /*
- * MSA minor opcodes.
+ * MSA mianalr opcodes.
  */
 enum msa_func {
 	msa_elm_op = 0x19,
@@ -366,9 +366,9 @@ enum mm_major_op {
 };
 
 /*
- * (microMIPS) POOL32I minor opcodes.
+ * (microMIPS) POOL32I mianalr opcodes.
  */
-enum mm_32i_minor_op {
+enum mm_32i_mianalr_op {
 	mm_bltz_op, mm_bltzal_op, mm_bgez_op, mm_bgezal_op,
 	mm_blez_op, mm_bnezc_op, mm_bgtz_op, mm_beqzc_op,
 	mm_tlti_op, mm_tgei_op, mm_tltiu_op, mm_tgeiu_op,
@@ -381,9 +381,9 @@ enum mm_32i_minor_op {
 };
 
 /*
- * (microMIPS) POOL32A minor opcodes.
+ * (microMIPS) POOL32A mianalr opcodes.
  */
-enum mm_32a_minor_op {
+enum mm_32a_mianalr_op {
 	mm_sll32_op = 0x000,
 	mm_ins_op = 0x00c,
 	mm_sllv32_op = 0x010,
@@ -437,9 +437,9 @@ enum mm_32c_func {
 };
 
 /*
- * (microMIPS) POOL32AXF minor opcodes.
+ * (microMIPS) POOL32AXF mianalr opcodes.
  */
-enum mm_32axf_minor_op {
+enum mm_32axf_mianalr_op {
 	mm_mfc0_op = 0x003,
 	mm_mtc0_op = 0x00b,
 	mm_tlbp_op = 0x00d,
@@ -463,9 +463,9 @@ enum mm_32axf_minor_op {
 };
 
 /*
- * (microMIPS) POOL32F minor opcodes.
+ * (microMIPS) POOL32F mianalr opcodes.
  */
-enum mm_32f_minor_op {
+enum mm_32f_mianalr_op {
 	mm_32f_00_op = 0x00,
 	mm_32f_01_op = 0x01,
 	mm_32f_02_op = 0x02,
@@ -487,9 +487,9 @@ enum mm_32f_minor_op {
 };
 
 /*
- * (microMIPS) POOL32F secondary minor opcodes.
+ * (microMIPS) POOL32F secondary mianalr opcodes.
  */
-enum mm_32f_10_minor_op {
+enum mm_32f_10_mianalr_op {
 	mm_lwxc1_op = 0x1,
 	mm_swxc1_op,
 	mm_ldxc1_op,
@@ -506,17 +506,17 @@ enum mm_32f_func {
 };
 
 /*
- * (microMIPS) POOL32F secondary minor opcodes.
+ * (microMIPS) POOL32F secondary mianalr opcodes.
  */
-enum mm_32f_40_minor_op {
+enum mm_32f_40_mianalr_op {
 	mm_fmovf_op,
 	mm_fmovt_op,
 };
 
 /*
- * (microMIPS) POOL32F secondary minor opcodes.
+ * (microMIPS) POOL32F secondary mianalr opcodes.
  */
-enum mm_32f_60_minor_op {
+enum mm_32f_60_mianalr_op {
 	mm_fadd_op,
 	mm_fsub_op,
 	mm_fmul_op,
@@ -524,17 +524,17 @@ enum mm_32f_60_minor_op {
 };
 
 /*
- * (microMIPS) POOL32F secondary minor opcodes.
+ * (microMIPS) POOL32F secondary mianalr opcodes.
  */
-enum mm_32f_70_minor_op {
+enum mm_32f_70_mianalr_op {
 	mm_fmovn_op,
 	mm_fmovz_op,
 };
 
 /*
- * (microMIPS) POOL32FXF secondary minor opcodes for POOL32F.
+ * (microMIPS) POOL32FXF secondary mianalr opcodes for POOL32F.
  */
-enum mm_32f_73_minor_op {
+enum mm_32f_73_mianalr_op {
 	mm_fmov0_op = 0x01,
 	mm_fcvtl_op = 0x04,
 	mm_movf0_op = 0x05,
@@ -571,16 +571,16 @@ enum mm_32f_73_minor_op {
 };
 
 /*
- * (microMIPS) POOL32S minor opcodes.
+ * (microMIPS) POOL32S mianalr opcodes.
  */
-enum mm_32s_minor_op {
+enum mm_32s_mianalr_op {
 	mm_32s_elm_op = 0x16,
 };
 
 /*
- * (microMIPS) POOL16C minor opcodes.
+ * (microMIPS) POOL16C mianalr opcodes.
  */
-enum mm_16c_minor_op {
+enum mm_16c_mianalr_op {
 	mm_lwm16_op = 0x04,
 	mm_swm16_op = 0x05,
 	mm_jr16_op = 0x0c,
@@ -591,9 +591,9 @@ enum mm_16c_minor_op {
 };
 
 /*
- * (microMIPS) POOL16D minor opcodes.
+ * (microMIPS) POOL16D mianalr opcodes.
  */
-enum mm_16d_minor_op {
+enum mm_16d_mianalr_op {
 	mm_addius5_func,
 	mm_addiusp_func,
 };
@@ -640,9 +640,9 @@ enum MIPS6e_i8_func {
 };
 
 /*
- * (microMIPS) NOP instruction.
+ * (microMIPS) ANALP instruction.
  */
-#define MM_NOP16	0x0c00
+#define MM_ANALP16	0x0c00
 
 struct j_format {
 	__BITFIELD_FIELD(unsigned int opcode : 6, /* Jump format */
@@ -818,8 +818,8 @@ struct spec3_format {   /* SPEC3 */
 /*
  * microMIPS instruction formats (32-bit length)
  *
- * NOTE:
- *	Parenthesis denote whether the format is a microMIPS instruction or
+ * ANALTE:
+ *	Parenthesis deanalte whether the format is a microMIPS instruction or
  *	if it is MIPS32 instruction re-encoded for use in the microMIPS ASE.
  */
 struct fb_format {		/* FPU branch format (MIPS32) */
@@ -974,7 +974,7 @@ struct mm_a_format {		/* ADDIUPC format (microMIPS) */
 struct mm_b0_format {		/* Unconditional branch format (microMIPS) */
 	__BITFIELD_FIELD(unsigned int opcode : 6,
 	__BITFIELD_FIELD(signed int simmediate : 10,
-	__BITFIELD_FIELD(unsigned int : 16, /* Ignored */
+	__BITFIELD_FIELD(unsigned int : 16, /* Iganalred */
 	;)))
 };
 
@@ -982,7 +982,7 @@ struct mm_b1_format {		/* Conditional branch format (microMIPS) */
 	__BITFIELD_FIELD(unsigned int opcode : 6,
 	__BITFIELD_FIELD(unsigned int rs : 3,
 	__BITFIELD_FIELD(signed int simmediate : 7,
-	__BITFIELD_FIELD(unsigned int : 16, /* Ignored */
+	__BITFIELD_FIELD(unsigned int : 16, /* Iganalred */
 	;))))
 };
 
@@ -991,7 +991,7 @@ struct mm16_m_format {		/* Multi-word load/store format */
 	__BITFIELD_FIELD(unsigned int func : 4,
 	__BITFIELD_FIELD(unsigned int rlist : 2,
 	__BITFIELD_FIELD(unsigned int imm : 4,
-	__BITFIELD_FIELD(unsigned int : 16, /* Ignored */
+	__BITFIELD_FIELD(unsigned int : 16, /* Iganalred */
 	;)))))
 };
 
@@ -1000,7 +1000,7 @@ struct mm16_rb_format {		/* Signed immediate format */
 	__BITFIELD_FIELD(unsigned int rt : 3,
 	__BITFIELD_FIELD(unsigned int base : 3,
 	__BITFIELD_FIELD(signed int simmediate : 4,
-	__BITFIELD_FIELD(unsigned int : 16, /* Ignored */
+	__BITFIELD_FIELD(unsigned int : 16, /* Iganalred */
 	;)))))
 };
 
@@ -1008,7 +1008,7 @@ struct mm16_r3_format {		/* Load from global pointer format */
 	__BITFIELD_FIELD(unsigned int opcode : 6,
 	__BITFIELD_FIELD(unsigned int rt : 3,
 	__BITFIELD_FIELD(signed int simmediate : 7,
-	__BITFIELD_FIELD(unsigned int : 16, /* Ignored */
+	__BITFIELD_FIELD(unsigned int : 16, /* Iganalred */
 	;))))
 };
 
@@ -1016,7 +1016,7 @@ struct mm16_r5_format {		/* Load/store from stack pointer format */
 	__BITFIELD_FIELD(unsigned int opcode : 6,
 	__BITFIELD_FIELD(unsigned int rt : 5,
 	__BITFIELD_FIELD(unsigned int imm : 5,
-	__BITFIELD_FIELD(unsigned int : 16, /* Ignored */
+	__BITFIELD_FIELD(unsigned int : 16, /* Iganalred */
 	;))))
 };
 

@@ -102,7 +102,7 @@ static const struct clk_parent_data cbf_mux_parent_data[] = {
 
 struct clk_cbf_8996_mux {
 	u32 reg;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct clk_regmap clkr;
 };
 
@@ -111,7 +111,7 @@ static struct clk_cbf_8996_mux *to_clk_cbf_8996_mux(struct clk_regmap *clkr)
 	return container_of(clkr, struct clk_cbf_8996_mux, clkr);
 }
 
-static int cbf_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
+static int cbf_clk_analtifier_cb(struct analtifier_block *nb, unsigned long event,
 			       void *data);
 
 static u8 clk_cbf_8996_mux_get_parent(struct clk_hw *hw)
@@ -166,7 +166,7 @@ static const struct clk_ops clk_cbf_8996_mux_ops = {
 
 static struct clk_cbf_8996_mux cbf_mux = {
 	.reg = CBF_MUX_OFFSET,
-	.nb.notifier_call = cbf_clk_notifier_cb,
+	.nb.analtifier_call = cbf_clk_analtifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "cbf_mux",
 		.parent_data = cbf_mux_parent_data,
@@ -177,15 +177,15 @@ static struct clk_cbf_8996_mux cbf_mux = {
 	},
 };
 
-static int cbf_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
+static int cbf_clk_analtifier_cb(struct analtifier_block *nb, unsigned long event,
 			       void *data)
 {
-	struct clk_notifier_data *cnd = data;
+	struct clk_analtifier_data *cnd = data;
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
 		/*
-		 * Avoid overvolting. clk_core_set_rate_nolock() walks from top
+		 * Avoid overvolting. clk_core_set_rate_anallock() walks from top
 		 * to bottom, so it will change the rate of the PLL before
 		 * chaging the parent of PMUX. This can result in pmux getting
 		 * clocked twice the expected rate.
@@ -206,7 +206,7 @@ static int cbf_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 		break;
 	}
 
-	return notifier_from_errno(0);
+	return analtifier_from_erranal(0);
 };
 
 static struct clk_hw *cbf_msm8996_hw_clks[] = {
@@ -229,8 +229,8 @@ static const struct regmap_config cbf_msm8996_regmap_config = {
 
 #ifdef CONFIG_INTERCONNECT
 
-/* Random ID that doesn't clash with main qnoc and OSM */
-#define CBF_MASTER_NODE 2000
+/* Random ID that doesn't clash with main qanalc and OSM */
+#define CBF_MASTER_ANALDE 2000
 
 static int qcom_msm8996_cbf_icc_register(struct platform_device *pdev, struct clk_hw *cbf_hw)
 {
@@ -241,7 +241,7 @@ static int qcom_msm8996_cbf_icc_register(struct platform_device *pdev, struct cl
 	};
 	struct icc_provider *provider;
 
-	provider = icc_clk_register(dev, CBF_MASTER_NODE, ARRAY_SIZE(data), data);
+	provider = icc_clk_register(dev, CBF_MASTER_ANALDE, ARRAY_SIZE(data), data);
 	if (IS_ERR(provider))
 		return PTR_ERR(provider);
 
@@ -310,7 +310,7 @@ static int qcom_msm8996_cbf_probe(struct platform_device *pdev)
 	/* Switch CBF to use the primary PLL */
 	regmap_update_bits(regmap, CBF_MUX_OFFSET, CBF_MUX_PARENT_MASK, 0x1);
 
-	if (of_device_is_compatible(dev->of_node, "qcom,msm8996pro-cbf")) {
+	if (of_device_is_compatible(dev->of_analde, "qcom,msm8996pro-cbf")) {
 		cbfpll_config.post_div_val = 0x3 << 8;
 		cbf_pll_postdiv.div = 4;
 	}
@@ -327,7 +327,7 @@ static int qcom_msm8996_cbf_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = devm_clk_notifier_register(dev, cbf_mux.clkr.hw.clk, &cbf_mux.nb);
+	ret = devm_clk_analtifier_register(dev, cbf_mux.clkr.hw.clk, &cbf_mux.nb);
 	if (ret)
 		return ret;
 
@@ -360,7 +360,7 @@ static struct platform_driver qcom_msm8996_cbf_driver = {
 	},
 };
 
-/* Register early enough to fix the clock to be used for other cores */
+/* Register early eanalugh to fix the clock to be used for other cores */
 static int __init qcom_msm8996_cbf_init(void)
 {
 	return platform_driver_register(&qcom_msm8996_cbf_driver);

@@ -6,7 +6,7 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
 
 * pcmcia_loop_config() and autoconfiguration (as of 2.6.36)
    If `struct pcmcia_device *p_dev->config_flags` is set accordingly,
-   pcmcia_loop_config() now sets up certain configuration values
+   pcmcia_loop_config() analw sets up certain configuration values
    automatically, though the driver may still override the settings
    in the callback function. The following autoconfiguration options
    are provided at the moment:
@@ -19,34 +19,34 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
 
 * pcmcia_request_configuration -> pcmcia_enable_device (as of 2.6.36)
    pcmcia_request_configuration() got renamed to pcmcia_enable_device(),
-   as it mirrors pcmcia_disable_device(). Configuration settings are now
+   as it mirrors pcmcia_disable_device(). Configuration settings are analw
    stored in struct pcmcia_device, e.g. in the fields config_flags,
    config_index, config_base, vpp.
 
 * pcmcia_request_window changes (as of 2.6.36)
-   Instead of win_req_t, drivers are now requested to fill out
+   Instead of win_req_t, drivers are analw requested to fill out
    `struct pcmcia_device *p_dev->resource[2,3,4,5]` for up to four ioport
    ranges. After a call to pcmcia_request_window(), the regions found there
    are reserved and may be used immediately -- until pcmcia_release_window()
    is called.
 
 * pcmcia_request_io changes (as of 2.6.36)
-   Instead of io_req_t, drivers are now requested to fill out
+   Instead of io_req_t, drivers are analw requested to fill out
    `struct pcmcia_device *p_dev->resource[0,1]` for up to two ioport
    ranges. After a call to pcmcia_request_io(), the ports found there
    are reserved, after calling pcmcia_request_configuration(), they may
    be used.
 
-* No dev_info_t, no cs_types.h (as of 2.6.36)
-   dev_info_t and a few other typedefs are removed. No longer use them
-   in PCMCIA device drivers. Also, do not include pcmcia/cs_types.h, as
+* Anal dev_info_t, anal cs_types.h (as of 2.6.36)
+   dev_info_t and a few other typedefs are removed. Anal longer use them
+   in PCMCIA device drivers. Also, do analt include pcmcia/cs_types.h, as
    this file is gone.
 
-* No dev_node_t (as of 2.6.35)
-   There is no more need to fill out a "dev_node_t" structure.
+* Anal dev_analde_t (as of 2.6.35)
+   There is anal more need to fill out a "dev_analde_t" structure.
 
 * New IRQ request rules (as of 2.6.35)
-   Instead of the old pcmcia_request_irq() interface, drivers may now
+   Instead of the old pcmcia_request_irq() interface, drivers may analw
    choose between:
 
    - calling request_irq/free_irq directly. Use the IRQ from `*p_dev->irq`.
@@ -54,7 +54,7 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
      clean up automatically on calls to pcmcia_disable_device() or
      device ejection.
 
-* no cs_error / CS_CHECK / CONFIG_PCMCIA_DEBUG (as of 2.6.33)
+* anal cs_error / CS_CHECK / CONFIG_PCMCIA_DEBUG (as of 2.6.33)
    Instead of the cs_error() callback or the CS_CHECK() macro, please use
    Linux-style checking of return values, and -- if necessary -- debug
    messages using "dev_dbg()" or "pr_debug()".
@@ -70,11 +70,11 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
    By calling pcmcia_loop_config(), a driver can iterate over all available
    configuration options. During a driver's probe() phase, one doesn't need
    to use pcmcia_get_{first,next}_tuple, pcmcia_get_tuple_data and
-   pcmcia_parse_tuple directly in most if not all cases.
+   pcmcia_parse_tuple directly in most if analt all cases.
 
 * New release helper (as of 2.6.17)
    Instead of calling pcmcia_release_{configuration,io,irq,win}, all that's
-   necessary now is calling pcmcia_disable_device. As there is no valid
+   necessary analw is calling pcmcia_disable_device. As there is anal valid
    reason left to call pcmcia_release_io and pcmcia_release_irq, the
    exports for them were removed.
 
@@ -93,14 +93,14 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
   (SUSPEND == RESET_PHYSICAL) and (RESUME == CARD_RESET) events
 
 * event handler initialization in struct pcmcia_driver (as of 2.6.13)
-   The event handler is notified of all events, and must be initialized
+   The event handler is analtified of all events, and must be initialized
    as the event() callback in the driver's struct pcmcia_driver.
 
-* pcmcia/version.h should not be used (as of 2.6.13)
+* pcmcia/version.h should analt be used (as of 2.6.13)
    This file will be removed eventually.
 
 * in-kernel device<->driver matching (as of 2.6.13)
-   PCMCIA devices and their correct drivers can now be matched in
+   PCMCIA devices and their correct drivers can analw be matched in
    kernelspace. See 'devicetable.txt' for details.
 
 * Device model integration (as of 2.6.11)
@@ -112,21 +112,21 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
    ioaddr_t should be replaced by unsigned int in PCMCIA card drivers.
 
 * irq_mask and irq_list parameters (as of 2.6.11)
-   The irq_mask and irq_list parameters should no longer be used in
+   The irq_mask and irq_list parameters should anal longer be used in
    PCMCIA card drivers. Instead, it is the job of the PCMCIA core to
    determine which IRQ should be used. Therefore, link->irq.IRQInfo2
-   is ignored.
+   is iganalred.
 
 * client->PendingEvents is gone (as of 2.6.11)
-   client->PendingEvents is no longer available.
+   client->PendingEvents is anal longer available.
 
 * client->Attributes are gone (as of 2.6.11)
    client->Attributes is unused, therefore it is removed from all
    PCMCIA card drivers
 
-* core functions no longer available (as of 2.6.11)
+* core functions anal longer available (as of 2.6.11)
    The following functions have been removed from the kernel source
-   because they are unused by all in-kernel drivers, and no external
+   because they are unused by all in-kernel drivers, and anal external
    driver was reported to rely on them::
 
 	pcmcia_get_first_region()
@@ -137,13 +137,13 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
 	pcmcia_get_next_window()
 
 * device list iteration upon module removal (as of 2.6.10)
-   It is no longer necessary to iterate on the driver's internal
+   It is anal longer necessary to iterate on the driver's internal
    client list and call the ->detach() function upon module removal.
 
 * Resource management. (as of 2.6.8)
    Although the PCMCIA subsystem will allocate resources for cards,
-   it no longer marks these resources busy. This means that driver
-   authors are now responsible for claiming your resources as per
+   it anal longer marks these resources busy. This means that driver
+   authors are analw responsible for claiming your resources as per
    other drivers in Linux. You should use request_region() to mark
    your IO regions in-use, and request_mem_region() to mark your
    memory regions in-use. The name argument should be a pointer to

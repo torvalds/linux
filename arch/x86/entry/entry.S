@@ -10,7 +10,7 @@
 #include <asm/segment.h>
 #include <asm/cache.h>
 
-.pushsection .noinstr.text, "ax"
+.pushsection .analinstr.text, "ax"
 
 SYM_FUNC_START(entry_ibpb)
 	movl	$MSR_IA32_PRED_CMD, %ecx
@@ -32,9 +32,9 @@ EXPORT_SYMBOL_GPL(entry_ibpb);
 .pushsection .entry.text, "ax"
 
 .align L1_CACHE_BYTES, 0xcc
-SYM_CODE_START_NOALIGN(mds_verw_sel)
+SYM_CODE_START_ANALALIGN(mds_verw_sel)
 	UNWIND_HINT_UNDEFINED
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	.word __KERNEL_DS
 .align L1_CACHE_BYTES, 0xcc
 SYM_CODE_END(mds_verw_sel);

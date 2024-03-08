@@ -35,18 +35,18 @@
  * I/O completion handler for multipage BIOs.
  *
  * The mpage code never puts partial pages into a BIO (except for end-of-file).
- * If a page does not map to a contiguous run of blocks then it simply falls
+ * If a page does analt map to a contiguous run of blocks then it simply falls
  * back to block_read_full_folio().
  *
  * Why is this?  If a page's completion depends on a number of different BIOs
  * which can complete in any order (or at the same time) then determining the
  * status of that page is hard.  See end_buffer_async_read() for the details.
- * There is no point in duplicating all that complexity.
+ * There is anal point in duplicating all that complexity.
  */
 static void mpage_read_end_io(struct bio *bio)
 {
 	struct folio_iter fi;
-	int err = blk_status_to_errno(bio->bi_status);
+	int err = blk_status_to_erranal(bio->bi_status);
 
 	bio_for_each_folio_all(fi, bio) {
 		if (err)
@@ -62,7 +62,7 @@ static void mpage_read_end_io(struct bio *bio)
 static void mpage_write_end_io(struct bio *bio)
 {
 	struct folio_iter fi;
-	int err = blk_status_to_errno(bio->bi_status);
+	int err = blk_status_to_erranal(bio->bi_status);
 
 	bio_for_each_folio_all(fi, bio) {
 		if (err) {
@@ -104,7 +104,7 @@ static struct bio *mpage_bio_submit_write(struct bio *bio)
 static void map_buffer_to_folio(struct folio *folio, struct buffer_head *bh,
 		int page_block)
 {
-	struct inode *inode = folio->mapping->host;
+	struct ianalde *ianalde = folio->mapping->host;
 	struct buffer_head *page_bh, *head;
 	int block = 0;
 
@@ -114,12 +114,12 @@ static void map_buffer_to_folio(struct folio *folio, struct buffer_head *bh,
 		 * don't make any buffers if there is only one buffer on
 		 * the folio and the folio just needs to be set up to date
 		 */
-		if (inode->i_blkbits == PAGE_SHIFT &&
+		if (ianalde->i_blkbits == PAGE_SHIFT &&
 		    buffer_uptodate(bh)) {
 			folio_mark_uptodate(folio);
 			return;
 		}
-		head = create_empty_buffers(folio, i_blocksize(inode), 0);
+		head = create_empty_buffers(folio, i_blocksize(ianalde), 0);
 	}
 
 	page_bh = head;
@@ -149,7 +149,7 @@ struct mpage_readpage_args {
 /*
  * This is the worker routine which does all the work of mapping the disk
  * blocks and constructs largest possible bios, submits them for IO if the
- * blocks are not contiguous on the disk.
+ * blocks are analt contiguous on the disk.
  *
  * We pass a buffer_head back and forth and use its buffer_mapped() flag to
  * represent the validity of its disk mapping and to decide when to do the next
@@ -158,8 +158,8 @@ struct mpage_readpage_args {
 static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 {
 	struct folio *folio = args->folio;
-	struct inode *inode = folio->mapping->host;
-	const unsigned blkbits = inode->i_blkbits;
+	struct ianalde *ianalde = folio->mapping->host;
+	const unsigned blkbits = ianalde->i_blkbits;
 	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
 	const unsigned blocksize = 1 << blkbits;
 	struct buffer_head *map_bh = &args->map_bh;
@@ -182,7 +182,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 
 	if (args->is_readahead) {
 		opf |= REQ_RAHEAD;
-		gfp |= __GFP_NORETRY | __GFP_NOWARN;
+		gfp |= __GFP_ANALRETRY | __GFP_ANALWARN;
 	}
 
 	if (folio_buffers(folio))
@@ -190,7 +190,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 
 	block_in_file = (sector_t)folio->index << (PAGE_SHIFT - blkbits);
 	last_block = block_in_file + args->nr_pages * blocks_per_page;
-	last_block_in_file = (i_size_read(inode) + blocksize - 1) >> blkbits;
+	last_block_in_file = (i_size_read(ianalde) + blocksize - 1) >> blkbits;
 	if (last_block > last_block_in_file)
 		last_block = last_block_in_file;
 	page_block = 0;
@@ -229,7 +229,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 
 		if (block_in_file < last_block) {
 			map_bh->b_size = (last_block-block_in_file) << blkbits;
-			if (args->get_block(inode, block_in_file, map_bh, 0))
+			if (args->get_block(ianalde, block_in_file, map_bh, 0))
 				goto confused;
 			args->first_logical_block = block_in_file;
 		}
@@ -255,7 +255,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 		}
 	
 		if (first_hole != blocks_per_page)
-			goto confused;		/* hole -> non-hole */
+			goto confused;		/* hole -> analn-hole */
 
 		/* Contiguous blocks? */
 		if (!page_block)
@@ -338,8 +338,8 @@ confused:
  * If anything unusual happens, such as:
  *
  * - encountering a page which has buffers
- * - encountering a page which has a non-hole after a hole
- * - encountering a page with non-contiguous blocks
+ * - encountering a page which has a analn-hole after a hole
+ * - encountering a page with analn-contiguous blocks
  *
  * then this code just gives up and calls the buffer_head-based read function.
  * It does handle a page which has holes at the end - that is a common case:
@@ -404,19 +404,19 @@ int mpage_read_folio(struct folio *folio, get_block_t get_block)
 EXPORT_SYMBOL(mpage_read_folio);
 
 /*
- * Writing is not so simple.
+ * Writing is analt so simple.
  *
  * If the page has buffers then they will be used for obtaining the disk
  * mapping.  We only support pages which are fully mapped-and-dirty, with a
  * special case for pages which are unmapped at the end: end-of-file.
  *
- * If the page has no buffers (preferred) then the page is mapped here.
+ * If the page has anal buffers (preferred) then the page is mapped here.
  *
  * If all blocks are found to be contiguous then the page can go into the
  * BIO.  Otherwise fall back to the mapping's writepage().
  * 
  * FIXME: This code wants an estimate of how many pages are still to be
- * written, so it can intelligently allocate a suitably-sized BIO.  For now,
+ * written, so it can intelligently allocate a suitably-sized BIO.  For analw,
  * just allocate full-size (16-page) BIOs.
  */
 
@@ -427,8 +427,8 @@ struct mpage_data {
 };
 
 /*
- * We have our BIO, so we can now mark the buffers clean.  Make
- * sure to only clean buffers which we know we'll be writing.
+ * We have our BIO, so we can analw mark the buffers clean.  Make
+ * sure to only clean buffers which we kanalw we'll be writing.
  */
 static void clean_buffers(struct folio *folio, unsigned first_unmapped)
 {
@@ -447,7 +447,7 @@ static void clean_buffers(struct folio *folio, unsigned first_unmapped)
 	} while (bh != head);
 
 	/*
-	 * we cannot drop the bh if the page is not uptodate or a concurrent
+	 * we cananalt drop the bh if the page is analt uptodate or a concurrent
 	 * read_folio would fail to serialize with the bh and it would read from
 	 * disk before we reach the platter.
 	 */
@@ -461,8 +461,8 @@ static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 	struct mpage_data *mpd = data;
 	struct bio *bio = mpd->bio;
 	struct address_space *mapping = folio->mapping;
-	struct inode *inode = mapping->host;
-	const unsigned blkbits = inode->i_blkbits;
+	struct ianalde *ianalde = mapping->host;
+	const unsigned blkbits = ianalde->i_blkbits;
 	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
 	sector_t last_block;
 	sector_t block_in_file;
@@ -475,7 +475,7 @@ static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 	struct block_device *boundary_bdev = NULL;
 	size_t length;
 	struct buffer_head map_bh;
-	loff_t i_size = i_size_read(inode);
+	loff_t i_size = i_size_read(ianalde);
 	int ret = 0;
 	struct buffer_head *head = folio_buffers(folio);
 
@@ -499,7 +499,7 @@ static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 			}
 
 			if (first_unmapped != blocks_per_page)
-				goto confused;	/* hole -> non-hole */
+				goto confused;	/* hole -> analn-hole */
 
 			if (!buffer_dirty(bh) || !buffer_uptodate(bh))
 				goto confused;
@@ -531,7 +531,7 @@ static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 	}
 
 	/*
-	 * The page has no buffers: map it to disk
+	 * The page has anal buffers: map it to disk
 	 */
 	BUG_ON(!folio_test_uptodate(folio));
 	block_in_file = (sector_t)folio->index << (PAGE_SHIFT - blkbits);
@@ -547,7 +547,7 @@ static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 
 		map_bh.b_state = 0;
 		map_bh.b_size = 1 << blkbits;
-		if (mpd->get_block(inode, block_in_file, &map_bh, 1))
+		if (mpd->get_block(ianalde, block_in_file, &map_bh, 1))
 			goto confused;
 		if (!buffer_mapped(&map_bh))
 			goto confused;
@@ -584,8 +584,8 @@ page_is_mapped:
 		 * The page straddles i_size.  It must be zeroed out on each
 		 * and every writepage invocation because it may be mmapped.
 		 * "A file is mapped in multiples of the page size.  For a file
-		 * that is not a multiple of the page size, the remaining memory
-		 * is zeroed when mapped, and writes to that region are not
+		 * that is analt a multiple of the page size, the remaining memory
+		 * is zeroed when mapped, and writes to that region are analt
 		 * written out to the file."
 		 */
 		length = i_size - folio_pos(folio);
@@ -602,7 +602,7 @@ alloc_new:
 	if (bio == NULL) {
 		bio = bio_alloc(bdev, BIO_MAX_VECS,
 				REQ_OP_WRITE | wbc_to_write_flags(wbc),
-				GFP_NOFS);
+				GFP_ANALFS);
 		bio->bi_iter.bi_sector = first_block << (blkbits - 9);
 		wbc_init_bio(wbc, bio);
 	}
@@ -610,7 +610,7 @@ alloc_new:
 	/*
 	 * Must try to add the page before marking the buffer clean or
 	 * the confused fail path above (OOM) will be very confused when
-	 * it finds all bh marked clean (i.e. it will not write anything)
+	 * it finds all bh marked clean (i.e. it will analt write anything)
 	 */
 	wbc_account_cgroup_owner(wbc, &folio->page, folio_size(folio));
 	length = first_unmapped << blkbits;
@@ -640,7 +640,7 @@ confused:
 		bio = mpage_bio_submit_write(bio);
 
 	/*
-	 * The caller has a ref on the inode, so *mapping is stable
+	 * The caller has a ref on the ianalde, so *mapping is stable
 	 */
 	ret = block_write_full_folio(folio, wbc, mpd->get_block);
 	mapping_set_error(mapping, ret);

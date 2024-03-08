@@ -8,7 +8,7 @@ search=
 
 while [ ! -z "$1" ]; do
   case "$1" in
-    -f ) force=yes; shift ;;
+    -f ) force=anal; shift ;;
     -p ) search=$2; shift 2 ;;
     * )  echo "Unrecognized option '$1'"; exit 1 ;;
   esac

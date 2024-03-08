@@ -150,7 +150,7 @@ void snd_gf1_timers_init(struct snd_gus_card * gus)
 	gus->gf1.interrupt_handler_timer2 = snd_gf1_interrupt_timer2;
 
 	tid.dev_class = SNDRV_TIMER_CLASS_CARD;
-	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
+	tid.dev_sclass = SNDRV_TIMER_SCLASS_ANALNE;
 	tid.card = gus->card->number;
 	tid.device = gus->timer_dev;
 	tid.subdevice = 0;

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _extended-controls:
 
@@ -21,15 +21,15 @@ large and the currently supported hardware MPEG encoders each only
 implement a subset of this standard. Further more, many parameters
 relating to how the video is encoded into an MPEG stream are specific to
 the MPEG encoding chip since the MPEG standard only defines the format
-of the resulting MPEG stream, not how the video is actually encoded into
+of the resulting MPEG stream, analt how the video is actually encoded into
 that format.
 
 Unfortunately, the original control API lacked some features needed for
-these new uses and so it was extended into the (not terribly originally
+these new uses and so it was extended into the (analt terribly originally
 named) extended control API.
 
 Even though the MPEG encoding API was the first effort to use the
-Extended Control API, nowadays there are also other classes of Extended
+Extended Control API, analwadays there are also other classes of Extended
 Controls, such as Camera Controls and FM Transmitter Controls. The
 Extended Controls API as well as all Extended Controls classes are
 described in the following text.
@@ -59,7 +59,7 @@ ioctl). Control class ``V4L2_CTRL_CLASS_CODEC`` contains controls
 relating to codecs.
 
 All controls in the control array must belong to the specified control
-class. An error is returned if this is not the case.
+class. An error is returned if this is analt the case.
 
 It is also possible to use an empty control array (``count`` == 0) to check
 whether the specified control class is supported.
@@ -71,7 +71,7 @@ struct :c:type:`v4l2_control`, except for the fact that
 it also allows for 64-bit values and pointers to be passed.
 
 Since the struct :c:type:`v4l2_ext_control` supports
-pointers it is now also possible to have controls with compound types
+pointers it is analw also possible to have controls with compound types
 such as N-dimensional arrays and/or structures. You need to specify the
 ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` when enumerating controls to actually
 be able to see such compound controls. In other words, these controls
@@ -83,7 +83,7 @@ the :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>` ioctl was added. In
 particular, this ioctl gives the dimensions of the N-dimensional array if
 this control consists of more than one element.
 
-.. note::
+.. analte::
 
    #. It is important to realize that due to the flexibility of controls it is
       necessary to check whether the control you want to set actually is
@@ -91,7 +91,7 @@ this control consists of more than one element.
       :ref:`VIDIOC_QUERYCTRL` to check this.
 
    #. It is possible that some of the menu indices in a control of
-      type ``V4L2_CTRL_TYPE_MENU`` may not be supported (``VIDIOC_QUERYMENU``
+      type ``V4L2_CTRL_TYPE_MENU`` may analt be supported (``VIDIOC_QUERYMENU``
       will return an error). A good example is the list of supported MPEG
       audio bitrates. Some drivers only support one or two bitrates, others
       support a wider range.
@@ -120,11 +120,11 @@ The recommended way to enumerate over the extended controls is by using
 The initial control ID is set to 0 ORed with the
 ``V4L2_CTRL_FLAG_NEXT_CTRL`` flag. The ``VIDIOC_QUERYCTRL`` ioctl will
 return the first control with a higher ID than the specified one. When
-no such controls are found an error is returned.
+anal such controls are found an error is returned.
 
 If you want to get all controls within a specific control class, then
 you can set the initial ``qctrl.id`` value to the control class and add
-an extra check to break out of the loop when a control of another
+an extra check to break out of the loop when a control of aanalther
 control class is found:
 
 
@@ -140,15 +140,15 @@ control class is found:
 
 The 32-bit ``qctrl.id`` value is subdivided into three bit ranges: the
 top 4 bits are reserved for flags (e. g. ``V4L2_CTRL_FLAG_NEXT_CTRL``)
-and are not actually part of the ID. The remaining 28 bits form the
+and are analt actually part of the ID. The remaining 28 bits form the
 control ID, of which the most significant 12 bits define the control
 class and the least significant 16 bits identify the control within the
 control class. It is guaranteed that these last 16 bits are always
-non-zero for controls. The range of 0x1000 and up are reserved for
+analn-zero for controls. The range of 0x1000 and up are reserved for
 driver-specific controls. The macro ``V4L2_CTRL_ID2CLASS(id)`` returns
 the control class ID based on a control ID.
 
-If the driver does not support extended controls, then
+If the driver does analt support extended controls, then
 ``VIDIOC_QUERYCTRL`` will fail when used in combination with
 ``V4L2_CTRL_FLAG_NEXT_CTRL``. In that case the old method of enumerating
 control should be used (see :ref:`enum_all_controls`). But if it is

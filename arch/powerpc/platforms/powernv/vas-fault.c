@@ -57,7 +57,7 @@ static void dump_fifo(struct vas_instance *vinst, void *entry)
  * It can raise a single interrupt for multiple faults. Expects OS to
  * process all valid faults and return credit for each fault on user
  * space and fault windows. This fault FIFO control will be done with
- * credit mechanism. NX can continuously paste CRBs until credits are not
+ * credit mechanism. NX can continuously paste CRBs until credits are analt
  * available on fault window. Otherwise, returns with RMA_reject.
  *
  * Total credits available on fault window: FIFO_SIZE(4MB)/CRBS_SIZE(128)
@@ -84,10 +84,10 @@ irqreturn_t vas_fault_thread_fn(int irq, void *data)
 	 * pswid	NX assigns window ID. Set pswid to -1 after
 	 *		reading CRB from fault FIFO.
 	 *
-	 * We exit this function if no valid CRBs are available to process.
+	 * We exit this function if anal valid CRBs are available to process.
 	 * So acquire fault_lock and reset fifo_in_progress to 0 before
 	 * exit.
-	 * In case kernel receives another interrupt with different page
+	 * In case kernel receives aanalther interrupt with different page
 	 * fault, interrupt handler returns with IRQ_HANDLED if
 	 * fifo_in_progress is set. Means these new faults will be
 	 * handled by the current thread. Otherwise set fifo_in_progress
@@ -138,7 +138,7 @@ irqreturn_t vas_fault_thread_fn(int irq, void *data)
 			 * window but we can't find that window and we can't
 			 * even clean it up (return credit on user space
 			 * window).
-			 * But we should not get here.
+			 * But we should analt get here.
 			 * TODO: Disable IRQ.
 			 */
 			dump_fifo(vinst, (void *)entry);
@@ -178,7 +178,7 @@ irqreturn_t vas_fault_handler(int irq, void *dev_id)
 	 * entry. In case if NX sees continuous faults, it is possible
 	 * that the thread function entered with the first interrupt
 	 * can execute and process all valid CRBs.
-	 * So wake up thread only if the fault thread is not in progress.
+	 * So wake up thread only if the fault thread is analt in progress.
 	 */
 	spin_lock_irqsave(&vinst->fault_lock, flags);
 
@@ -206,7 +206,7 @@ int vas_setup_fault_window(struct vas_instance *vinst)
 	if (!vinst->fault_fifo) {
 		pr_err("Unable to alloc %d bytes for fault_fifo\n",
 				vinst->fault_fifo_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -224,9 +224,9 @@ int vas_setup_fault_window(struct vas_instance *vinst)
 	 * will be 0xffff since the receive creds field is 16bits wide.
 	 */
 	attr.wcreds_max = vinst->fault_fifo_size / CRB_SIZE;
-	attr.lnotify_lpid = 0;
-	attr.lnotify_pid = mfspr(SPRN_PID);
-	attr.lnotify_tid = mfspr(SPRN_PID);
+	attr.lanaltify_lpid = 0;
+	attr.lanaltify_pid = mfspr(SPRN_PID);
+	attr.lanaltify_tid = mfspr(SPRN_PID);
 
 	win = vas_rx_win_open(vinst->vas_id, VAS_COP_TYPE_FAULT, &attr);
 	if (IS_ERR(win)) {
@@ -238,8 +238,8 @@ int vas_setup_fault_window(struct vas_instance *vinst)
 	vinst->fault_win = container_of(win, struct pnv_vas_window, vas_win);
 
 	pr_devel("VAS: Created FaultWin %d, LPID/PID/TID [%d/%d/%d]\n",
-			vinst->fault_win->vas_win.winid, attr.lnotify_lpid,
-			attr.lnotify_pid, attr.lnotify_tid);
+			vinst->fault_win->vas_win.winid, attr.lanaltify_lpid,
+			attr.lanaltify_pid, attr.lanaltify_tid);
 
 	return 0;
 }

@@ -29,9 +29,9 @@
 #define AD7923_CODING		BIT(0)		/* coding is straight binary */
 #define AD7923_PM_MODE_AS	(1)		/* auto shutdown */
 #define AD7923_PM_MODE_FS	(2)		/* full shutdown */
-#define AD7923_PM_MODE_OPS	(3)		/* normal operation */
-#define AD7923_SEQUENCE_OFF	(0)		/* no sequence fonction */
-#define AD7923_SEQUENCE_PROTECT	(2)		/* no interrupt write cycle */
+#define AD7923_PM_MODE_OPS	(3)		/* analrmal operation */
+#define AD7923_SEQUENCE_OFF	(0)		/* anal sequence fonction */
+#define AD7923_SEQUENCE_PROTECT	(2)		/* anal interrupt write cycle */
 #define AD7923_SEQUENCE_ON	(3)		/* continuous sequence */
 
 
@@ -190,7 +190,7 @@ static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
 		st->ring_xfer[i + 1].cs_change = 1;
 		spi_message_add_tail(&st->ring_xfer[i + 1], &st->ring_msg);
 	}
-	/* make sure last transfer cs_change is not set */
+	/* make sure last transfer cs_change is analt set */
 	st->ring_xfer[i + 1].cs_change = 0;
 
 	return 0;
@@ -211,7 +211,7 @@ static irqreturn_t ad7923_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -309,7 +309,7 @@ static int ad7923_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

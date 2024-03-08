@@ -26,7 +26,7 @@
 #define DEVICE_NAME "mcp251xfd"
 
 static const struct mcp251xfd_devtype_data mcp251xfd_devtype_data_mcp2517fd = {
-	.quirks = MCP251XFD_QUIRK_MAB_NO_WARN | MCP251XFD_QUIRK_CRC_REG |
+	.quirks = MCP251XFD_QUIRK_MAB_ANAL_WARN | MCP251XFD_QUIRK_CRC_REG |
 		MCP251XFD_QUIRK_CRC_RX | MCP251XFD_QUIRK_CRC_TX |
 		MCP251XFD_QUIRK_ECC,
 	.model = MCP251XFD_MODEL_MCP2517FD,
@@ -88,7 +88,7 @@ static const char *__mcp251xfd_get_model_str(enum mcp251xfd_model model)
 		return "MCP251xFD";
 	}
 
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 
 static inline const char *
@@ -106,7 +106,7 @@ static const char *mcp251xfd_get_mode_str(const u8 mode)
 		return "Sleep";
 	case MCP251XFD_REG_CON_MODE_INT_LOOPBACK:
 		return "Internal Loopback";
-	case MCP251XFD_REG_CON_MODE_LISTENONLY:
+	case MCP251XFD_REG_CON_MODE_LISTEANALNLY:
 		return "Listen Only";
 	case MCP251XFD_REG_CON_MODE_CONFIG:
 		return "Configuration";
@@ -118,7 +118,7 @@ static const char *mcp251xfd_get_mode_str(const u8 mode)
 		return "Restricted Operation";
 	}
 
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 
 static const char *
@@ -134,7 +134,7 @@ mcp251xfd_get_osc_str(const u32 osc, const u32 osc_reference)
 		return "Oscillator/PLL";
 	}
 
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 
 static inline int mcp251xfd_vdd_enable(const struct mcp251xfd_priv *priv)
@@ -225,7 +225,7 @@ mcp251xfd_chip_get_mode(const struct mcp251xfd_priv *priv, u8 *mode)
 
 static int
 __mcp251xfd_chip_set_mode(const struct mcp251xfd_priv *priv,
-			  const u8 mode_req, bool nowait)
+			  const u8 mode_req, bool analwait)
 {
 	const struct can_bittiming *bt = &priv->can.bittiming;
 	unsigned long timeout_us = MCP251XFD_POLL_TIMEOUT_US;
@@ -240,12 +240,12 @@ __mcp251xfd_chip_set_mode(const struct mcp251xfd_priv *priv,
 		netdev_err(priv->ndev,
 			   "Failed to set Requested Operation Mode.\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	} else if (err) {
 		return err;
 	}
 
-	if (mode_req == MCP251XFD_REG_CON_MODE_SLEEP || nowait)
+	if (mode_req == MCP251XFD_REG_CON_MODE_SLEEP || analwait)
 		return 0;
 
 	if (bt->bitrate)
@@ -261,7 +261,7 @@ __mcp251xfd_chip_set_mode(const struct mcp251xfd_priv *priv,
 	if (err != -ETIMEDOUT && err != -EBADMSG)
 		return err;
 
-	/* Ignore return value.
+	/* Iganalre return value.
 	 * Print below error messages, even if this fails.
 	 */
 	regmap_read(priv->map_reg, MCP251XFD_REG_OSC, &osc);
@@ -271,7 +271,7 @@ __mcp251xfd_chip_set_mode(const struct mcp251xfd_priv *priv,
 			   "Failed to read CAN Control Register (con=0x%08x, osc=0x%08x).\n",
 			   con, osc);
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mode = FIELD_GET(MCP251XFD_REG_CON_OPMOD_MASK, con);
@@ -292,7 +292,7 @@ mcp251xfd_chip_set_mode(const struct mcp251xfd_priv *priv,
 }
 
 static inline int __maybe_unused
-mcp251xfd_chip_set_mode_nowait(const struct mcp251xfd_priv *priv,
+mcp251xfd_chip_set_mode_analwait(const struct mcp251xfd_priv *priv,
 			       const u8 mode_req)
 {
 	return __mcp251xfd_chip_set_mode(priv, mode_req, true);
@@ -317,7 +317,7 @@ mcp251xfd_chip_wait_for_osc_ready(const struct mcp251xfd_priv *priv,
 		netdev_err(priv->ndev,
 			   "Failed to read Oscillator Configuration Register (osc=0x%08x).\n",
 			   osc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	netdev_err(priv->ndev,
@@ -333,7 +333,7 @@ static int mcp251xfd_chip_wake(const struct mcp251xfd_priv *priv)
 	u32 osc, osc_reference, osc_mask;
 	int err;
 
-	/* For normal sleep on MCP2517FD and MCP2518FD, clearing
+	/* For analrmal sleep on MCP2517FD and MCP2518FD, clearing
 	 * "Oscillator Disable" will wake the chip. For low power mode
 	 * on MCP2518FD, asserting the chip select will wake the
 	 * chip. Writing to the Oscillator register will wake it in
@@ -342,7 +342,7 @@ static int mcp251xfd_chip_wake(const struct mcp251xfd_priv *priv)
 	osc = FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
 			 MCP251XFD_REG_OSC_CLKODIV_10);
 
-	/* We cannot check for the PLL ready bit (either set or
+	/* We cananalt check for the PLL ready bit (either set or
 	 * unset), as the PLL might be enabled. This can happen if the
 	 * system reboots, while the mcp251xfd stays powered.
 	 */
@@ -390,7 +390,7 @@ static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
 	int err;
 
 	/* The Set Mode and SPI Reset command only works if the
-	 * controller is not in Sleep Mode.
+	 * controller is analt in Sleep Mode.
 	 */
 	err = mcp251xfd_chip_wake(priv);
 	if (err)
@@ -400,7 +400,7 @@ static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
-	/* spi_write_then_read() works with non DMA-safe buffers */
+	/* spi_write_then_read() works with analn DMA-safe buffers */
 	return spi_write_then_read(priv->spi, &cmd, sizeof(cmd), NULL, 0);
 }
 
@@ -427,7 +427,7 @@ static int mcp251xfd_chip_softreset_check(const struct mcp251xfd_priv *priv)
 
 	if (mode != MCP251XFD_REG_CON_MODE_CONFIG) {
 		netdev_info(priv->ndev,
-			    "Controller not in Config Mode after reset, but in %s Mode (%u).\n",
+			    "Controller analt in Config Mode after reset, but in %s Mode (%u).\n",
 			    mcp251xfd_get_mode_str(mode), mode);
 		return -ETIMEDOUT;
 	}
@@ -468,7 +468,7 @@ static int mcp251xfd_chip_clock_init(const struct mcp251xfd_priv *priv)
 	int err;
 
 	/* Activate Low Power Mode on Oscillator Disable. This only
-	 * works on the MCP2518FD. The MCP2517FD will go into normal
+	 * works on the MCP2518FD. The MCP2517FD will go into analrmal
 	 * Sleep Mode instead.
 	 */
 	osc = MCP251XFD_REG_OSC_LPMEN |
@@ -516,7 +516,7 @@ static int mcp251xfd_set_bittiming(const struct mcp251xfd_priv *priv)
 
 	/* CAN Control Register
 	 *
-	 * - no transmit bandwidth sharing
+	 * - anal transmit bandwidth sharing
 	 * - config mode
 	 * - disable transmit queue
 	 * - store in transmit FIFO event
@@ -528,7 +528,7 @@ static int mcp251xfd_set_bittiming(const struct mcp251xfd_priv *priv)
 	 * - wake-up filter bits T11FILTER
 	 * - use CAN bus line filter for wakeup
 	 * - protocol exception is treated as a form error
-	 * - Do not compare data bytes
+	 * - Do analt compare data bytes
 	 */
 	val = FIELD_PREP(MCP251XFD_REG_CON_REQOP_MASK,
 			 MCP251XFD_REG_CON_MODE_CONFIG) |
@@ -540,14 +540,14 @@ static int mcp251xfd_set_bittiming(const struct mcp251xfd_priv *priv)
 		MCP251XFD_REG_CON_WAKFIL |
 		MCP251XFD_REG_CON_PXEDIS;
 
-	if (!(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO))
+	if (!(priv->can.ctrlmode & CAN_CTRLMODE_FD_ANALN_ISO))
 		val |= MCP251XFD_REG_CON_ISOCRCEN;
 
 	err = regmap_write(priv->map_reg, MCP251XFD_REG_CON, val);
 	if (err)
 		return err;
 
-	/* Nominal Bit Time */
+	/* Analminal Bit Time */
 	val = FIELD_PREP(MCP251XFD_REG_NBTCFG_BRP_MASK, bt->brp - 1) |
 		FIELD_PREP(MCP251XFD_REG_NBTCFG_TSEG1_MASK,
 			   bt->prop_seg + bt->phase_seg1 - 1) |
@@ -640,7 +640,7 @@ static int mcp251xfd_chip_ecc_init(struct mcp251xfd_priv *priv)
 
 	ram = kzalloc(MCP251XFD_RAM_SIZE, GFP_KERNEL);
 	if (!ram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = regmap_raw_write(priv->map_reg, MCP251XFD_RAM_START, ram,
 			       MCP251XFD_RAM_SIZE);
@@ -649,14 +649,14 @@ static int mcp251xfd_chip_ecc_init(struct mcp251xfd_priv *priv)
 	return err;
 }
 
-static u8 mcp251xfd_get_normal_mode(const struct mcp251xfd_priv *priv)
+static u8 mcp251xfd_get_analrmal_mode(const struct mcp251xfd_priv *priv)
 {
 	u8 mode;
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		mode = MCP251XFD_REG_CON_MODE_INT_LOOPBACK;
-	else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
-		mode = MCP251XFD_REG_CON_MODE_LISTENONLY;
+	else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
+		mode = MCP251XFD_REG_CON_MODE_LISTEANALNLY;
 	else if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
 		mode = MCP251XFD_REG_CON_MODE_MIXED;
 	else
@@ -666,26 +666,26 @@ static u8 mcp251xfd_get_normal_mode(const struct mcp251xfd_priv *priv)
 }
 
 static int
-__mcp251xfd_chip_set_normal_mode(const struct mcp251xfd_priv *priv,
-				 bool nowait)
+__mcp251xfd_chip_set_analrmal_mode(const struct mcp251xfd_priv *priv,
+				 bool analwait)
 {
 	u8 mode;
 
-	mode = mcp251xfd_get_normal_mode(priv);
+	mode = mcp251xfd_get_analrmal_mode(priv);
 
-	return __mcp251xfd_chip_set_mode(priv, mode, nowait);
+	return __mcp251xfd_chip_set_mode(priv, mode, analwait);
 }
 
 static inline int
-mcp251xfd_chip_set_normal_mode(const struct mcp251xfd_priv *priv)
+mcp251xfd_chip_set_analrmal_mode(const struct mcp251xfd_priv *priv)
 {
-	return __mcp251xfd_chip_set_normal_mode(priv, false);
+	return __mcp251xfd_chip_set_analrmal_mode(priv, false);
 }
 
 static inline int
-mcp251xfd_chip_set_normal_mode_nowait(const struct mcp251xfd_priv *priv)
+mcp251xfd_chip_set_analrmal_mode_analwait(const struct mcp251xfd_priv *priv)
 {
-	return __mcp251xfd_chip_set_normal_mode(priv, true);
+	return __mcp251xfd_chip_set_analrmal_mode(priv, true);
 }
 
 static int mcp251xfd_chip_interrupts_enable(const struct mcp251xfd_priv *priv)
@@ -785,7 +785,7 @@ static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	err = mcp251xfd_chip_set_normal_mode(priv);
+	err = mcp251xfd_chip_set_analrmal_mode(priv);
 	if (err)
 		goto out_chip_stop;
 
@@ -819,7 +819,7 @@ static int mcp251xfd_set_mode(struct net_device *ndev, enum can_mode mode)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -961,7 +961,7 @@ static int mcp251xfd_handle_ivmif(struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
-	/* Write 0s to clear error bits, don't write 1s to non active
+	/* Write 0s to clear error bits, don't write 1s to analn active
 	 * bits, as they will be set.
 	 */
 	err = regmap_write(priv->map_reg, MCP251XFD_REG_BDIAG1, 0x0);
@@ -1083,7 +1083,7 @@ static int mcp251xfd_handle_cerrif(struct mcp251xfd_priv *priv)
 	can_change_state(priv->ndev, cf, tx_state, rx_state);
 
 	if (new_state == CAN_STATE_BUS_OFF) {
-		/* As we're going to switch off the chip now, let's
+		/* As we're going to switch off the chip analw, let's
 		 * save the error counters and return them to
 		 * userspace, if do_get_berr_counter() is called while
 		 * the chip is in Bus Off.
@@ -1118,9 +1118,9 @@ static int mcp251xfd_handle_cerrif(struct mcp251xfd_priv *priv)
 }
 
 static int
-mcp251xfd_handle_modif(const struct mcp251xfd_priv *priv, bool *set_normal_mode)
+mcp251xfd_handle_modif(const struct mcp251xfd_priv *priv, bool *set_analrmal_mode)
 {
-	const u8 mode_reference = mcp251xfd_get_normal_mode(priv);
+	const u8 mode_reference = mcp251xfd_get_analrmal_mode(priv);
 	u8 mode;
 	int err;
 
@@ -1139,15 +1139,15 @@ mcp251xfd_handle_modif(const struct mcp251xfd_priv *priv, bool *set_normal_mode)
 	 * MAB underflow, the controller will transition to Restricted
 	 * Operation Mode or Listen Only Mode (depending on SERR2LOM).
 	 *
-	 * However this is not always the case. If SERR2LOM is
-	 * configured for Restricted Operation Mode (SERR2LOM not set)
+	 * However this is analt always the case. If SERR2LOM is
+	 * configured for Restricted Operation Mode (SERR2LOM analt set)
 	 * the MCP2517FD will sometimes transition to Listen Only Mode
 	 * first. When polling this bit we see that it will transition
 	 * to Restricted Operation Mode shortly after.
 	 */
-	if ((priv->devtype_data.quirks & MCP251XFD_QUIRK_MAB_NO_WARN) &&
+	if ((priv->devtype_data.quirks & MCP251XFD_QUIRK_MAB_ANAL_WARN) &&
 	    (mode == MCP251XFD_REG_CON_MODE_RESTRICTED ||
-	     mode == MCP251XFD_REG_CON_MODE_LISTENONLY))
+	     mode == MCP251XFD_REG_CON_MODE_LISTEANALNLY))
 		netdev_dbg(priv->ndev,
 			   "Controller changed into %s Mode (%u).\n",
 			   mcp251xfd_get_mode_str(mode), mode);
@@ -1156,20 +1156,20 @@ mcp251xfd_handle_modif(const struct mcp251xfd_priv *priv, bool *set_normal_mode)
 			   "Controller changed into %s Mode (%u).\n",
 			   mcp251xfd_get_mode_str(mode), mode);
 
-	/* After the application requests Normal mode, the controller
+	/* After the application requests Analrmal mode, the controller
 	 * will automatically attempt to retransmit the message that
 	 * caused the TX MAB underflow.
 	 *
 	 * However, if there is an ECC error in the TX-RAM, we first
-	 * have to reload the tx-object before requesting Normal
+	 * have to reload the tx-object before requesting Analrmal
 	 * mode. This is done later in mcp251xfd_handle_eccif().
 	 */
 	if (priv->regs_status.intf & MCP251XFD_REG_INT_ECCIF) {
-		*set_normal_mode = true;
+		*set_analrmal_mode = true;
 		return 0;
 	}
 
-	return mcp251xfd_chip_set_normal_mode_nowait(priv);
+	return mcp251xfd_chip_set_analrmal_mode_analwait(priv);
 }
 
 static int mcp251xfd_handle_serrif(struct mcp251xfd_priv *priv)
@@ -1190,15 +1190,15 @@ static int mcp251xfd_handle_serrif(struct mcp251xfd_priv *priv)
 	 * Sometimes there is an ECC error in the TX-RAM, which leads
 	 * to a TX MAB underflow.
 	 *
-	 * However, probably due to a race condition, there is no
+	 * However, probably due to a race condition, there is anal
 	 * associated MODIF pending.
 	 *
 	 * Further, there are situations, where the SERRIF is caused
-	 * by an ECC error in the TX-RAM, but not even the ECCIF is
+	 * by an ECC error in the TX-RAM, but analt even the ECCIF is
 	 * set. This only seems to happen _after_ the first occurrence
 	 * of a ECCIF (which is tracked in ecc->cnt).
 	 *
-	 * Treat all as a known system errors..
+	 * Treat all as a kanalwn system errors..
 	 */
 	if ((priv->regs_status.intf & MCP251XFD_REG_INT_MODIF &&
 	     priv->regs_status.intf & MCP251XFD_REG_INT_IVMIF) ||
@@ -1212,7 +1212,7 @@ static int mcp251xfd_handle_serrif(struct mcp251xfd_priv *priv)
 		else
 			msg = "TX MAB underflow detected.";
 
-		if (priv->devtype_data.quirks & MCP251XFD_QUIRK_MAB_NO_WARN)
+		if (priv->devtype_data.quirks & MCP251XFD_QUIRK_MAB_ANAL_WARN)
 			netdev_dbg(priv->ndev, "%s\n", msg);
 		else
 			netdev_info(priv->ndev, "%s\n", msg);
@@ -1232,9 +1232,9 @@ static int mcp251xfd_handle_serrif(struct mcp251xfd_priv *priv)
 	 * received into has the RXOVIE activated (and we have enabled
 	 * RXOVIE on all FIFOs).
 	 *
-	 * Sometimes there is no RXOVIF just a RXIF is pending.
+	 * Sometimes there is anal RXOVIF just a RXIF is pending.
 	 *
-	 * Treat all as a known system errors..
+	 * Treat all as a kanalwn system errors..
 	 */
 	if (priv->regs_status.intf & MCP251XFD_REG_INT_RXOVIF ||
 	    priv->regs_status.intf & MCP251XFD_REG_INT_RXIF) {
@@ -1271,8 +1271,8 @@ mcp251xfd_handle_eccif_recover(struct mcp251xfd_priv *priv, u8 nr)
 
 	/* Bail out if one of the following is met:
 	 * - tx_tail information is inconsistent
-	 * - for mcp2517fd: offset not 0
-	 * - for mcp2518fd: offset not 0 or 1
+	 * - for mcp2517fd: offset analt 0
+	 * - for mcp2518fd: offset analt 0 or 1
 	 */
 	if (chip_tx_tail != tx_tail ||
 	    !(offset == 0 || (offset == 1 && (mcp251xfd_is_2518FD(priv) ||
@@ -1297,11 +1297,11 @@ mcp251xfd_handle_eccif_recover(struct mcp251xfd_priv *priv, u8 nr)
 		return err;
 
 	/* ... and trigger retransmit */
-	return mcp251xfd_chip_set_normal_mode(priv);
+	return mcp251xfd_chip_set_analrmal_mode(priv);
 }
 
 static int
-mcp251xfd_handle_eccif(struct mcp251xfd_priv *priv, bool set_normal_mode)
+mcp251xfd_handle_eccif(struct mcp251xfd_priv *priv, bool set_analrmal_mode)
 {
 	struct mcp251xfd_ecc *ecc = &priv->ecc;
 	const char *msg;
@@ -1325,7 +1325,7 @@ mcp251xfd_handle_eccif(struct mcp251xfd_priv *priv, bool set_normal_mode)
 	err = mcp251xfd_get_tx_nr_by_addr(priv->tx, &nr, addr);
 	if (!err)
 		in_tx_ram = true;
-	else if (err == -ENOENT)
+	else if (err == -EANALENT)
 		in_tx_ram = false;
 	else
 		return err;
@@ -1333,14 +1333,14 @@ mcp251xfd_handle_eccif(struct mcp251xfd_priv *priv, bool set_normal_mode)
 	/* Errata Reference:
 	 * mcp2517fd: DS80000789B, mcp2518fd: DS80000792C 2.
 	 *
-	 * ECC single error correction does not work in all cases:
+	 * ECC single error correction does analt work in all cases:
 	 *
 	 * Fix/Work Around:
 	 * Enable single error correction and double error detection
 	 * interrupts by setting SECIE and DEDIE. Handle SECIF as a
-	 * detection interrupt and do not rely on the error
+	 * detection interrupt and do analt rely on the error
 	 * correction. Instead, handle both interrupts as a
-	 * notification that the RAM word at ERRADDR was corrupted.
+	 * analtification that the RAM word at ERRADDR was corrupted.
 	 */
 	if (ecc_stat & MCP251XFD_REG_ECCSTAT_SECIF)
 		msg = "Single ECC Error detected at address";
@@ -1352,7 +1352,7 @@ mcp251xfd_handle_eccif(struct mcp251xfd_priv *priv, bool set_normal_mode)
 	if (!in_tx_ram) {
 		ecc->ecc_stat = 0;
 
-		netdev_notice(priv->ndev, "%s 0x%04x.\n", msg, addr);
+		netdev_analtice(priv->ndev, "%s 0x%04x.\n", msg, addr);
 	} else {
 		/* Re-occurring error? */
 		if (ecc->ecc_stat == ecc_stat) {
@@ -1370,8 +1370,8 @@ mcp251xfd_handle_eccif(struct mcp251xfd_priv *priv, bool set_normal_mode)
 			return mcp251xfd_handle_eccif_recover(priv, nr);
 	}
 
-	if (set_normal_mode)
-		return mcp251xfd_chip_set_normal_mode_nowait(priv);
+	if (set_analrmal_mode)
+		return mcp251xfd_chip_set_analrmal_mode_analwait(priv);
 
 	return 0;
 }
@@ -1392,9 +1392,9 @@ static int mcp251xfd_handle_spicrcif(struct mcp251xfd_priv *priv)
 		return err;
 
 	if (crc & MCP251XFD_REG_CRC_FERRIF)
-		netdev_notice(priv->ndev, "CRC write command format error.\n");
+		netdev_analtice(priv->ndev, "CRC write command format error.\n");
 	else if (crc & MCP251XFD_REG_CRC_CRCERRIF)
-		netdev_notice(priv->ndev,
+		netdev_analtice(priv->ndev,
 			      "CRC write error detected. CRC=0x%04lx.\n",
 			      FIELD_GET(MCP251XFD_REG_CRC_MASK, crc));
 
@@ -1431,7 +1431,7 @@ static int mcp251xfd_read_regs_status(struct mcp251xfd_priv *priv)
 static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 {
 	struct mcp251xfd_priv *priv = dev_id;
-	irqreturn_t handled = IRQ_NONE;
+	irqreturn_t handled = IRQ_ANALNE;
 	int err;
 
 	if (priv->rx_int)
@@ -1453,7 +1453,7 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 
 			handled = IRQ_HANDLED;
 
-			/* We don't know which RX-FIFO is pending, but only
+			/* We don't kanalw which RX-FIFO is pending, but only
 			 * handle the 1st RX-FIFO. Leave loop here if we have
 			 * more than 1 RX-FIFO to avoid starvation.
 			 */
@@ -1461,7 +1461,7 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 
 	do {
 		u32 intf_pending, intf_pending_clearable;
-		bool set_normal_mode = false;
+		bool set_analrmal_mode = false;
 
 		err = mcp251xfd_read_regs_status(priv);
 		if (err)
@@ -1497,7 +1497,7 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 		}
 
 		if (intf_pending & MCP251XFD_REG_INT_MODIF) {
-			err = mcp251xfd_handle(priv, modif, &set_normal_mode);
+			err = mcp251xfd_handle(priv, modif, &set_analrmal_mode);
 			if (err)
 				goto out_fail;
 		}
@@ -1539,7 +1539,7 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 		}
 
 		if (intf_pending & MCP251XFD_REG_INT_ECCIF) {
-			err = mcp251xfd_handle(priv, eccif, set_normal_mode);
+			err = mcp251xfd_handle(priv, eccif, set_analrmal_mode);
 			if (err)
 				goto out_fail;
 		}
@@ -1712,7 +1712,7 @@ static int mcp251xfd_register_chip_detect(struct mcp251xfd_priv *priv)
 		return err;
 
 	if (osc & MCP251XFD_REG_OSC_LPMEN) {
-		/* We cannot distinguish between MCP2518FD and
+		/* We cananalt distinguish between MCP2518FD and
 		 * MCP251863. If firmware specifies MCP251863, keep
 		 * it, otherwise set to MCP2518FD.
 		 */
@@ -1751,7 +1751,7 @@ static int mcp251xfd_register_check_rx_int(struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
-	/* Check if RX_INT is properly working. The RX_INT should not
+	/* Check if RX_INT is properly working. The RX_INT should analt
 	 * be active after a softreset.
 	 */
 	rx_pending = gpiod_get_value_cansleep(priv->rx_int);
@@ -1776,18 +1776,18 @@ mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv, u32 *dev_id,
 			      u32 *effective_speed_hz_slow,
 			      u32 *effective_speed_hz_fast)
 {
-	struct mcp251xfd_map_buf_nocrc *buf_rx;
-	struct mcp251xfd_map_buf_nocrc *buf_tx;
+	struct mcp251xfd_map_buf_analcrc *buf_rx;
+	struct mcp251xfd_map_buf_analcrc *buf_tx;
 	struct spi_transfer xfer[2] = { };
 	int err;
 
 	buf_rx = kzalloc(sizeof(*buf_rx), GFP_KERNEL);
 	if (!buf_rx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf_tx = kzalloc(sizeof(*buf_tx), GFP_KERNEL);
 	if (!buf_tx) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_kfree_buf_rx;
 	}
 
@@ -1798,7 +1798,7 @@ mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv, u32 *dev_id,
 	xfer[1].len = sizeof(*dev_id);
 	xfer[1].speed_hz = priv->spi_max_speed_hz_fast;
 
-	mcp251xfd_spi_cmd_read_nocrc(&buf_tx->cmd, MCP251XFD_REG_DEVID);
+	mcp251xfd_spi_cmd_read_analcrc(&buf_tx->cmd, MCP251XFD_REG_DEVID);
 
 	err = spi_sync_transfer(priv->spi, xfer, ARRAY_SIZE(xfer));
 	if (err)
@@ -1835,13 +1835,13 @@ mcp251xfd_register_done(const struct mcp251xfd_priv *priv)
 	clk_rate = clk_get_rate(priv->clk);
 
 	netdev_info(priv->ndev,
-		    "%s rev%lu.%lu (%cRX_INT %cPLL %cMAB_NO_WARN %cCRC_REG %cCRC_RX %cCRC_TX %cECC %cHD o:%lu.%02luMHz c:%u.%02uMHz m:%u.%02uMHz rs:%u.%02uMHz es:%u.%02uMHz rf:%u.%02uMHz ef:%u.%02uMHz) successfully initialized.\n",
+		    "%s rev%lu.%lu (%cRX_INT %cPLL %cMAB_ANAL_WARN %cCRC_REG %cCRC_RX %cCRC_TX %cECC %cHD o:%lu.%02luMHz c:%u.%02uMHz m:%u.%02uMHz rs:%u.%02uMHz es:%u.%02uMHz rf:%u.%02uMHz ef:%u.%02uMHz) successfully initialized.\n",
 		    mcp251xfd_get_model_str(priv),
 		    FIELD_GET(MCP251XFD_REG_DEVID_ID_MASK, dev_id),
 		    FIELD_GET(MCP251XFD_REG_DEVID_REV_MASK, dev_id),
 		    priv->rx_int ? '+' : '-',
 		    priv->pll_enable ? '+' : '-',
-		    MCP251XFD_QUIRK_ACTIVE(MAB_NO_WARN),
+		    MCP251XFD_QUIRK_ACTIVE(MAB_ANAL_WARN),
 		    MCP251XFD_QUIRK_ACTIVE(CRC_REG),
 		    MCP251XFD_QUIRK_ACTIVE(CRC_RX),
 		    MCP251XFD_QUIRK_ACTIVE(CRC_TX),
@@ -1874,22 +1874,22 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
-	pm_runtime_get_noresume(ndev->dev.parent);
+	pm_runtime_get_analresume(ndev->dev.parent);
 	err = pm_runtime_set_active(ndev->dev.parent);
 	if (err)
-		goto out_runtime_put_noidle;
+		goto out_runtime_put_analidle;
 	pm_runtime_enable(ndev->dev.parent);
 
 	mcp251xfd_register_quirks(priv);
 
 	err = mcp251xfd_chip_softreset(priv);
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		goto out_runtime_disable;
 	if (err)
 		goto out_chip_sleep;
 
 	err = mcp251xfd_chip_clock_init(priv);
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		goto out_runtime_disable;
 	if (err)
 		goto out_chip_sleep;
@@ -1913,7 +1913,7 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 		goto out_unregister_candev;
 
 	/* Put controller into sleep mode and let pm_runtime_put()
-	 * disable the clocks and vdd. If CONFIG_PM is not enabled,
+	 * disable the clocks and vdd. If CONFIG_PM is analt enabled,
 	 * the clocks and vdd will stay powered.
 	 */
 	err = mcp251xfd_chip_sleep(priv);
@@ -1930,8 +1930,8 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 	mcp251xfd_chip_sleep(priv);
  out_runtime_disable:
 	pm_runtime_disable(ndev->dev.parent);
- out_runtime_put_noidle:
-	pm_runtime_put_noidle(ndev->dev.parent);
+ out_runtime_put_analidle:
+	pm_runtime_put_analidle(ndev->dev.parent);
 	mcp251xfd_clks_and_vdd_disable(priv);
 
 	return err;
@@ -2001,7 +2001,7 @@ static int mcp251xfd_probe(struct spi_device *spi)
 
 	if (!spi->irq)
 		return dev_err_probe(&spi->dev, -ENXIO,
-				     "No IRQ specified (maybe node \"interrupts-extended\" in DT missing)!\n");
+				     "Anal IRQ specified (maybe analde \"interrupts-extended\" in DT missing)!\n");
 
 	rx_int = devm_gpiod_get_optional(&spi->dev, "microchip,rx-int",
 					 GPIOD_IN);
@@ -2010,14 +2010,14 @@ static int mcp251xfd_probe(struct spi_device *spi)
 				     "Failed to get RX-INT!\n");
 
 	reg_vdd = devm_regulator_get_optional(&spi->dev, "vdd");
-	if (PTR_ERR(reg_vdd) == -ENODEV)
+	if (PTR_ERR(reg_vdd) == -EANALDEV)
 		reg_vdd = NULL;
 	else if (IS_ERR(reg_vdd))
 		return dev_err_probe(&spi->dev, PTR_ERR(reg_vdd),
 				     "Failed to get VDD regulator!\n");
 
 	reg_xceiver = devm_regulator_get_optional(&spi->dev, "xceiver");
-	if (PTR_ERR(reg_xceiver) == -ENODEV)
+	if (PTR_ERR(reg_xceiver) == -EANALDEV)
 		reg_xceiver = NULL;
 	else if (IS_ERR(reg_xceiver))
 		return dev_err_probe(&spi->dev, PTR_ERR(reg_xceiver),
@@ -2052,7 +2052,7 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	ndev = alloc_candev(sizeof(struct mcp251xfd_priv),
 			    MCP251XFD_TX_OBJ_NUM_MAX);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(ndev, &spi->dev);
 
@@ -2070,8 +2070,8 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	priv->can.bittiming_const = &mcp251xfd_bittiming_const;
 	priv->can.data_bittiming_const = &mcp251xfd_data_bittiming_const;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-		CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_BERR_REPORTING |
-		CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO |
+		CAN_CTRLMODE_LISTEANALNLY | CAN_CTRLMODE_BERR_REPORTING |
+		CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_ANALN_ISO |
 		CAN_CTRLMODE_CC_LEN8_DLC;
 	set_bit(MCP251XFD_FLAGS_DOWN, priv->flags);
 	priv->ndev = ndev;
@@ -2103,7 +2103,7 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	 * Ensure that FSCK is less than or equal to 0.85 *
 	 * (FSYSCLK/2).
 	 *
-	 * Known good combinations are:
+	 * Kanalwn good combinations are:
 	 *
 	 * MCP	ext-clk	SoC			SPI			SPI-clk		max-clk	parent-clk	config
 	 *

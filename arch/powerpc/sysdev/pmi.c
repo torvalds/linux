@@ -97,13 +97,13 @@ static const struct of_device_id pmi_match[] = {
 
 MODULE_DEVICE_TABLE(of, pmi_match);
 
-static void pmi_notify_handlers(struct work_struct *work)
+static void pmi_analtify_handlers(struct work_struct *work)
 {
 	struct pmi_handler *handler;
 
 	spin_lock(&data->handler_spinlock);
-	list_for_each_entry(handler, &data->handler, node) {
-		pr_debug("pmi: notifying handler %p\n", handler);
+	list_for_each_entry(handler, &data->handler, analde) {
+		pr_debug("pmi: analtifying handler %p\n", handler);
 		if (handler->type == data->msg.type)
 			handler->handle_pmi_message(data->msg);
 	}
@@ -112,7 +112,7 @@ static void pmi_notify_handlers(struct work_struct *work)
 
 static int pmi_of_probe(struct platform_device *dev)
 {
-	struct device_node *np = dev->dev.of_node;
+	struct device_analde *np = dev->dev.of_analde;
 	int rc;
 
 	if (data) {
@@ -123,8 +123,8 @@ static int pmi_of_probe(struct platform_device *dev)
 
 	data = kzalloc(sizeof(struct pmi_data), GFP_KERNEL);
 	if (!data) {
-		printk(KERN_ERR "pmi: could not allocate memory.\n");
-		rc = -ENOMEM;
+		printk(KERN_ERR "pmi: could analt allocate memory.\n");
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -141,7 +141,7 @@ static int pmi_of_probe(struct platform_device *dev)
 	spin_lock_init(&data->pmi_spinlock);
 	spin_lock_init(&data->handler_spinlock);
 
-	INIT_WORK(&data->work, pmi_notify_handlers);
+	INIT_WORK(&data->work, pmi_analtify_handlers);
 
 	data->dev = dev;
 
@@ -182,8 +182,8 @@ static int pmi_of_remove(struct platform_device *dev)
 
 	spin_lock(&data->handler_spinlock);
 
-	list_for_each_entry_safe(handler, tmp, &data->handler, node)
-		list_del(&handler->node);
+	list_for_each_entry_safe(handler, tmp, &data->handler, analde)
+		list_del(&handler->analde);
 
 	spin_unlock(&data->handler_spinlock);
 
@@ -209,7 +209,7 @@ int pmi_send_message(pmi_message_t msg)
 	DECLARE_COMPLETION_ONSTACK(completion);
 
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&data->msg_mutex);
 
@@ -241,10 +241,10 @@ EXPORT_SYMBOL_GPL(pmi_send_message);
 int pmi_register_handler(struct pmi_handler *handler)
 {
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock(&data->handler_spinlock);
-	list_add_tail(&handler->node, &data->handler);
+	list_add_tail(&handler->analde, &data->handler);
 	spin_unlock(&data->handler_spinlock);
 
 	return 0;
@@ -259,7 +259,7 @@ void pmi_unregister_handler(struct pmi_handler *handler)
 	pr_debug("pmi: unregistering handler %p\n", handler);
 
 	spin_lock(&data->handler_spinlock);
-	list_del(&handler->node);
+	list_del(&handler->analde);
 	spin_unlock(&data->handler_spinlock);
 }
 EXPORT_SYMBOL_GPL(pmi_unregister_handler);

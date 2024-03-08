@@ -133,7 +133,7 @@ static irqreturn_t dwc3_imx8mp_interrupt(int irq, void *_dwc3_imx)
 	if (!dwc3_imx->pm_suspended)
 		return IRQ_HANDLED;
 
-	disable_irq_nosync(dwc3_imx->irq);
+	disable_irq_analsync(dwc3_imx->irq);
 	dwc3_imx->wakeup_pending = true;
 
 	if ((dwc->current_dr_role == DWC3_GCTL_PRTCAP_HOST) && dwc->xhci)
@@ -147,19 +147,19 @@ static irqreturn_t dwc3_imx8mp_interrupt(int irq, void *_dwc3_imx)
 static int dwc3_imx8mp_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
-	struct device_node	*dwc3_np, *node = dev->of_node;
+	struct device_analde	*dwc3_np, *analde = dev->of_analde;
 	struct dwc3_imx8mp	*dwc3_imx;
 	struct resource		*res;
 	int			err, irq;
 
-	if (!node) {
-		dev_err(dev, "device node not found\n");
+	if (!analde) {
+		dev_err(dev, "device analde analt found\n");
 		return -EINVAL;
 	}
 
 	dwc3_imx = devm_kzalloc(dev, sizeof(*dwc3_imx), GFP_KERNEL);
 	if (!dwc3_imx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dwc3_imx);
 
@@ -219,26 +219,26 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto disable_rpm;
 
-	dwc3_np = of_get_compatible_child(node, "snps,dwc3");
+	dwc3_np = of_get_compatible_child(analde, "snps,dwc3");
 	if (!dwc3_np) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(dev, "failed to find dwc3 core child\n");
 		goto disable_rpm;
 	}
 
-	err = of_platform_populate(node, NULL, NULL, dev);
+	err = of_platform_populate(analde, NULL, NULL, dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to create dwc3 core\n");
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
-	dwc3_imx->dwc3 = of_find_device_by_node(dwc3_np);
+	dwc3_imx->dwc3 = of_find_device_by_analde(dwc3_np);
 	if (!dwc3_imx->dwc3) {
 		dev_err(dev, "failed to get dwc3 platform device\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto depopulate;
 	}
-	of_node_put(dwc3_np);
+	of_analde_put(dwc3_np);
 
 	err = devm_request_threaded_irq(dev, irq, NULL, dwc3_imx8mp_interrupt,
 					IRQF_ONESHOT, dev_name(dev), dwc3_imx);
@@ -254,11 +254,11 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 
 depopulate:
 	of_platform_depopulate(dev);
-err_node_put:
-	of_node_put(dwc3_np);
+err_analde_put:
+	of_analde_put(dwc3_np);
 disable_rpm:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 disable_clks:
 	clk_disable_unprepare(dwc3_imx->suspend_clk);
 disable_hsio_clk:
@@ -279,7 +279,7 @@ static void dwc3_imx8mp_remove(struct platform_device *pdev)
 	clk_disable_unprepare(dwc3_imx->hsio_clk);
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 }
 
 static int __maybe_unused dwc3_imx8mp_suspend(struct dwc3_imx8mp *dwc3_imx,
@@ -321,7 +321,7 @@ static int __maybe_unused dwc3_imx8mp_resume(struct dwc3_imx8mp *dwc3_imx,
 		} else {
 			/*
 			 * Add wait for xhci switch from suspend
-			 * clock to normal clock to detect connection.
+			 * clock to analrmal clock to detect connection.
 			 */
 			usleep_range(9000, 10000);
 		}

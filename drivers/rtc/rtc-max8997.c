@@ -103,7 +103,7 @@ static int max8997_rtc_tm_to_data(struct rtc_time *tm, u8 *data)
 	data[RTC_YEAR] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
-		pr_warn("RTC cannot handle the year %d.  Assume it's 2000.\n",
+		pr_warn("RTC cananalt handle the year %d.  Assume it's 2000.\n",
 			1900 + tm->tm_year);
 		return -EINVAL;
 	}
@@ -454,7 +454,7 @@ static int max8997_rtc_probe(struct platform_device *pdev)
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8997_rtc_info),
 			GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&info->lock);
 	info->dev = &pdev->dev;

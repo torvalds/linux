@@ -162,7 +162,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_rst>;
 	vmmc-supply = <&vcc_emmc>;
@@ -323,7 +323,7 @@
 
 &mmc1 {
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_clk>, <&sd1_cmd>, <&sd1_bus4>;
 	vmmc-supply = <&vccio_wl>;

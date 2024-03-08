@@ -110,7 +110,7 @@ static void print_page(WINDOW *win, int height, int width)
 		if (end_reached && !passed_end)
 			passed_end = 1;
 	}
-	wnoutrefresh(win);
+	wanalutrefresh(win);
 }
 
 /*
@@ -225,7 +225,7 @@ do_resize:
 	print_title(dialog, title, width);
 
 	print_button(dialog, " Exit ", height - 2, width / 2 - 4, TRUE);
-	wnoutrefresh(dialog);
+	wanalutrefresh(dialog);
 	getyx(dialog, cur_y, cur_x);	/* Save cursor position */
 
 	/* Print first page of text */

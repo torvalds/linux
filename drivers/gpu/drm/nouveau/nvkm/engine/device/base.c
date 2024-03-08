@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -3078,7 +3078,7 @@ nvkm_device_endianness(struct nvkm_device *device)
 	const bool big_endian = false;
 #endif
 
-	/* Read NV_PMC_BOOT_1, and assume non-functional endian switch if it
+	/* Read NV_PMC_BOOT_1, and assume analn-functional endian switch if it
 	 * doesn't contain the expected values.
 	 */
 	u32 pmc_boot_1 = nvkm_rd32(device, 0x000004);
@@ -3136,7 +3136,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		device->pri = ioremap(mmio_base, mmio_size);
 		if (device->pri == NULL) {
 			nvdev_error(device, "unable to map PRI\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 	}
@@ -3147,7 +3147,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		if (!nvkm_device_endianness(device)) {
 			nvdev_error(device,
 				    "Couldn't switch GPU to CPUs endianness\n");
-			ret = -ENOSYS;
+			ret = -EANALSYS;
 			goto done;
 		}
 
@@ -3323,8 +3323,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			}
 
 			if (!device->chip) {
-				nvdev_error(device, "unknown chipset (%08x)\n", boot0);
-				ret = -ENODEV;
+				nvdev_error(device, "unkanalwn chipset (%08x)\n", boot0);
+				ret = -EANALDEV;
 				goto done;
 			}
 			break;
@@ -3336,8 +3336,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		/* vGPU detection */
 		boot1 = nvkm_rd32(device, 0x0000004);
 		if (device->card_type >= TU100 && (boot1 & 0x00030000)) {
-			nvdev_info(device, "vGPUs are not supported\n");
-			ret = -ENODEV;
+			nvdev_info(device, "vGPUs are analt supported\n");
+			ret = -EANALDEV;
 			goto done;
 		}
 
@@ -3375,7 +3375,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		if (ret) {                                                                   \
 			nvkm_subdev_del(&subdev);                                            \
 			device->ptr = NULL;                                                  \
-			if (ret != -ENODEV) {                                                \
+			if (ret != -EANALDEV) {                                                \
 				nvdev_error(device, "%s ctor failed: %d\n",                  \
 					    nvkm_subdev_type[(type)], ret);                  \
 				goto done;                                                   \
@@ -3393,7 +3393,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			if (ret) {                                                           \
 				nvkm_subdev_del(&subdev);                                    \
 				device->ptr[j] = NULL;                                       \
-				if (ret != -ENODEV) {                                        \
+				if (ret != -EANALDEV) {                                        \
 					nvdev_error(device, "%s%d ctor failed: %d\n",        \
 						    nvkm_subdev_type[(type)], (j), ret);     \
 					goto done;                                           \

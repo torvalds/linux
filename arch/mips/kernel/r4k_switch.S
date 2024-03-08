@@ -7,7 +7,7 @@
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1994, 1995, 1996, by Andreas Busse
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.
  *    written by Carsten Langgaard, carstenl@mips.com
  */
 #include <asm/asm.h>
@@ -28,7 +28,7 @@
 	LEAF(resume)
 	mfc0	t1, CP0_STATUS
 	LONG_S	t1, THREAD_STATUS(a0)
-	cpu_save_nonscratch a0
+	cpu_save_analnscratch a0
 	LONG_S	ra, THREAD_REG31(a0)
 
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
@@ -42,7 +42,7 @@
 	 * updating $28, $29 and kernelsp without disabling ints.
 	 */
 	move	$28, a2
-	cpu_restore_nonscratch a1
+	cpu_restore_analnscratch a1
 
 	PTR_ADDU	t0, $28, _THREAD_SIZE - 32
 	set_saved_sp	t0, t1, t2
@@ -50,7 +50,7 @@
 	li	a3, 0xff01
 	and	t1, a3
 	LONG_L	a2, THREAD_STATUS(a1)
-	nor	a3, $0, a3
+	analr	a3, $0, a3
 	and	a2, a3
 	or	a2, t1
 	mtc0	a2, CP0_STATUS

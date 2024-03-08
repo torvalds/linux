@@ -21,7 +21,7 @@ struct pmdemand_params {
 	u8 qclk_gv_index;
 	u8 active_pipes;
 	u8 active_dbufs;
-	/* Total number of non type C active phys from active_phys_mask */
+	/* Total number of analn type C active phys from active_phys_mask */
 	u8 active_phys;
 	u8 plls;
 	u16 cdclk_freq_mhz;
@@ -36,7 +36,7 @@ struct intel_pmdemand_state {
 	/* Maintain a persistent list of port clocks across all crtcs */
 	int ddi_clocks[I915_MAX_PIPES];
 
-	/* Maintain a persistent list of non type C phys mask */
+	/* Maintain a persistent list of analn type C phys mask */
 	u16 active_combo_phys_mask;
 
 	/* Parameters to be configured in the pmdemand registers */

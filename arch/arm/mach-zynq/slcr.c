@@ -87,22 +87,22 @@ u32 zynq_slcr_get_device_id(void)
 /**
  * zynq_slcr_system_restart - Restart the entire system.
  *
- * @nb:		Pointer to restart notifier block (unused)
+ * @nb:		Pointer to restart analtifier block (unused)
  * @action:	Reboot mode (unused)
  * @data:	Restart handler private data (unused)
  *
  * Return:	0 always
  */
 static
-int zynq_slcr_system_restart(struct notifier_block *nb,
+int zynq_slcr_system_restart(struct analtifier_block *nb,
 			     unsigned long action, void *data)
 {
 	u32 reboot;
 
 	/*
 	 * Clear 0x0F000000 bits of reboot status register to workaround
-	 * the FSBL not loading the bitstream after soft-reboot
-	 * This is a temporary solution until we know more.
+	 * the FSBL analt loading the bitstream after soft-reboot
+	 * This is a temporary solution until we kanalw more.
 	 */
 	zynq_slcr_read(&reboot, SLCR_REBOOT_STATUS_OFFSET);
 	zynq_slcr_write(reboot & 0xF0FFFFFF, SLCR_REBOOT_STATUS_OFFSET);
@@ -110,8 +110,8 @@ int zynq_slcr_system_restart(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block zynq_slcr_restart_nb = {
-	.notifier_call	= zynq_slcr_system_restart,
+static struct analtifier_block zynq_slcr_restart_nb = {
+	.analtifier_call	= zynq_slcr_system_restart,
 	.priority	= 192,
 };
 
@@ -188,17 +188,17 @@ void zynq_slcr_cpu_state_write(int cpu, bool die)
 /**
  * zynq_early_slcr_init - Early slcr init function
  *
- * Return:	0 on success, negative errno otherwise.
+ * Return:	0 on success, negative erranal otherwise.
  *
  * Called very early during boot from platform code to unlock SLCR.
  */
 int __init zynq_early_slcr_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "xlnx,zynq-slcr");
+	np = of_find_compatible_analde(NULL, NULL, "xlnx,zynq-slcr");
 	if (!np) {
-		pr_err("%s: no slcr node found\n", __func__);
+		pr_err("%s: anal slcr analde found\n", __func__);
 		BUG();
 	}
 
@@ -213,8 +213,8 @@ int __init zynq_early_slcr_init(void)
 	zynq_slcr_regmap = syscon_regmap_lookup_by_compatible("xlnx,zynq-slcr");
 	if (IS_ERR(zynq_slcr_regmap)) {
 		pr_err("%s: failed to find zynq-slcr\n", __func__);
-		of_node_put(np);
-		return -ENODEV;
+		of_analde_put(np);
+		return -EANALDEV;
 	}
 
 	/* unlock the SLCR so that registers can be changed */
@@ -227,7 +227,7 @@ int __init zynq_early_slcr_init(void)
 
 	pr_info("%pOFn mapped to %p\n", np, zynq_slcr_base);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Copyright (C) 2015 Nikolay Martynov <mar.kolya@gmail.com>
+ * Copyright (C) 2015 Nikolay Martyanalv <mar.kolya@gmail.com>
  * Copyright (C) 2015 John Crispin <john@phrozen.org>
  */
 
@@ -34,7 +34,7 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 
 	entry = resource_list_first_type(&bridge->windows, IORESOURCE_MEM);
 	if (!entry) {
-		pr_err("Cannot get memory resource\n");
+		pr_err("Cananalt get memory resource\n");
 		return -EINVAL;
 	}
 
@@ -58,7 +58,7 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 
 phys_addr_t mips_cpc_default_phys_base(void)
 {
-	panic("Cannot detect cpc address");
+	panic("Cananalt detect cpc address");
 }
 
 static bool __init mt7621_addr_wraparound_test(phys_addr_t size)
@@ -146,7 +146,7 @@ static int __init mt7621_soc_dev_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev_attr->soc_id = "mt7621";
 	soc_dev_attr->family = "Ralink";
@@ -174,12 +174,12 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 		/*
 		 * mips_cm_probe() wipes out bootloader
 		 * config for CM regions and we have to configure them
-		 * again. This SoC cannot talk to pamlbus devices
+		 * again. This SoC cananalt talk to pamlbus devices
 		 * without proper iocu region set up.
 		 *
 		 * FIXME: it would be better to do this with values
 		 * from DT, but we need this very early because
-		 * without this we cannot talk to pretty much anything
+		 * without this we cananalt talk to pretty much anything
 		 * including serial.
 		 */
 		write_gcr_reg0_base(MT7621_PALMBUS_BASE);
@@ -191,7 +191,7 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 	if (mt7621_soc_valid())
 		soc_info->compatible = "mediatek,mt7621-soc";
 	else
-		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n",
+		panic("mt7621: unkanalwn SoC, n0:%08x n1:%08x\n",
 				mt7621_get_soc_name0(),
 				mt7621_get_soc_name1());
 	ralink_soc = MT762X_SOC_MT7621AT;

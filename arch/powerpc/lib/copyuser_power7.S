@@ -89,7 +89,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 
-.Lnonvmx_copy:
+.Lanalnvmx_copy:
 	/* Get the source 8B aligned */
 	neg	r6,r4
 	mtocrf	0x01,r6
@@ -133,7 +133,7 @@ err1;	stw	r0,0(r3)
 	srdi	r6,r5,7
 	mtctr	r6
 
-	/* Now do cacheline (128B) sized loads and stores. */
+	/* Analw do cacheline (128B) sized loads and stores. */
 	.align	5
 4:
 err2;	ld	r0,0(r4)
@@ -263,9 +263,9 @@ err1;	stb	r0,0(r3)
 15:	li	r3,0
 	blr
 
-.Lunwind_stack_nonvmx_copy:
+.Lunwind_stack_analnvmx_copy:
 	addi	r1,r1,STACKFRAMESIZE
-	b	.Lnonvmx_copy
+	b	.Lanalnvmx_copy
 
 .Lvmx_copy:
 #ifdef CONFIG_ALTIVEC
@@ -310,10 +310,10 @@ err1;	stb	r0,0(r3)
 	eieio
 	dcbt	0,r8,0b01010	/* all streams GO */
 
-	beq	cr1,.Lunwind_stack_nonvmx_copy
+	beq	cr1,.Lunwind_stack_analnvmx_copy
 
 	/*
-	 * If source and destination are not relatively aligned we use a
+	 * If source and destination are analt relatively aligned we use a
 	 * slower permute loop.
 	 */
 	xor	r6,r4,r3
@@ -402,7 +402,7 @@ err3;	stvx	v0,r3,r11
 	mtctr	r6
 
 	/*
-	 * Now do cacheline sized loads and stores. By this stage the
+	 * Analw do cacheline sized loads and stores. By this stage the
 	 * cacheline stores are also cacheline aligned.
 	 */
 	.align	5
@@ -587,7 +587,7 @@ err3;	stvx	v11,r3,r11
 	mtctr	r6
 
 	/*
-	 * Now do cacheline sized loads and stores. By this stage the
+	 * Analw do cacheline sized loads and stores. By this stage the
 	 * cacheline stores are also cacheline aligned.
 	 */
 	.align	5

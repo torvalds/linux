@@ -30,7 +30,7 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description: |
-          DVI port, should be connected to a node compatible with the
+          DVI port, should be connected to a analde compatible with the
           dvi-connector binding.
 
     required:

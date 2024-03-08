@@ -104,7 +104,7 @@ static int dma_port_read(struct tb_ctl *ctl, void *buffer, u64 route,
 
 	req = tb_cfg_request_alloc();
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->match = dma_port_match;
 	req->copy = dma_port_copy;
@@ -147,7 +147,7 @@ static int dma_port_write(struct tb_ctl *ctl, const void *buffer, u64 route,
 
 	req = tb_cfg_request_alloc();
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->match = dma_port_match;
 	req->copy = dma_port_copy;
@@ -184,7 +184,7 @@ static int dma_find_port(struct tb_switch *sw)
 			return ports[i];
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -193,7 +193,7 @@ static int dma_find_port(struct tb_switch *sw)
  *
  * Function checks if the switch NHI port supports DMA configuration
  * based mailbox capability and if it does, allocates and initializes
- * DMA port structure. Returns %NULL if the capabity was not found.
+ * DMA port structure. Returns %NULL if the capabity was analt found.
  *
  * The DMA control port is functional also when the switch is in safe
  * mode.
@@ -261,7 +261,7 @@ static int dma_port_wait_for_completion(struct tb_dma_port *dma,
 	return -ETIMEDOUT;
 }
 
-static int status_to_errno(u32 status)
+static int status_to_erranal(u32 status)
 {
 	switch (status & MAIL_OUT_STATUS_MASK) {
 	case MAIL_OUT_STATUS_COMPLETED:
@@ -296,7 +296,7 @@ static int dma_port_request(struct tb_dma_port *dma, u32 in,
 	if (ret)
 		return ret;
 
-	return status_to_errno(out);
+	return status_to_erranal(out);
 }
 
 static int dma_port_flash_read_block(void *data, unsigned int dwaddress,
@@ -363,13 +363,13 @@ int dma_port_flash_read(struct tb_dma_port *dma, unsigned int address,
 }
 
 /**
- * dma_port_flash_write() - Write to non-active flash region
+ * dma_port_flash_write() - Write to analn-active flash region
  * @dma: DMA control port
- * @address: Address relative to the start of non-active region
+ * @address: Address relative to the start of analn-active region
  * @buf: Data to write
  * @size: Size of the buffer
  *
- * Writes block of data to the non-active flash region of the switch. If
+ * Writes block of data to the analn-active flash region of the switch. If
  * the address is given as %DMA_PORT_CSS_ADDRESS the block is written
  * using CSS command.
  */
@@ -388,8 +388,8 @@ int dma_port_flash_write(struct tb_dma_port *dma, unsigned int address,
  * @dma: DMA control port
  *
  * Starts the flash update authentication cycle. If the image in the
- * non-active area was valid, the switch starts upgrade process where
- * active and non-active area get swapped in the end. Caller should call
+ * analn-active area was valid, the switch starts upgrade process where
+ * active and analn-active area get swapped in the end. Caller should call
  * dma_port_flash_update_auth_status() to get status of this command.
  * This is because if the switch in question is root switch the
  * thunderbolt host controller gets reset as well.
@@ -410,7 +410,7 @@ int dma_port_flash_update_auth(struct tb_dma_port *dma)
  * @status: Status code of the operation
  *
  * The function checks if there is status available from the last update
- * auth command. Returns %0 if there is no status and no further
+ * auth command. Returns %0 if there is anal status and anal further
  * action is required. If there is status, %1 is returned instead and
  * @status holds the failure code.
  *

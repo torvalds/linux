@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 #include "dcn_calc_math.h"
 
 /*
- * NOTE:
+ * ANALTE:
  *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
  *
  * It doesn't adhere to Linux kernel style and sometimes will do things in odd
@@ -41,7 +41,7 @@ void scaler_settings_calculation(struct dcn_bw_internal_vars *v)
 {
 	int k;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if (v->allow_different_hratio_vratio == dcn_bw_yes) {
+		if (v->allow_different_hratio_vratio == dcn_bw_anal) {
 			if (v->source_scan[k] == dcn_bw_hor) {
 				v->h_ratio[k] = v->viewport_width[k] / v->scaler_rec_out_width[k];
 				v->v_ratio[k] = v->viewport_height[k] / v->scaler_recout_height[k];
@@ -127,18 +127,18 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 
 	/*scale ratio support check*/
 
-	v->scale_ratio_support = dcn_bw_yes;
+	v->scale_ratio_support = dcn_bw_anal;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		if (v->h_ratio[k] > v->max_hscl_ratio || v->v_ratio[k] > v->max_vscl_ratio || v->h_ratio[k] > v->htaps[k] || v->v_ratio[k] > v->vtaps[k] || (v->source_pixel_format[k] != dcn_bw_rgb_sub_64 && v->source_pixel_format[k] != dcn_bw_rgb_sub_32 && v->source_pixel_format[k] != dcn_bw_rgb_sub_16 && (v->h_ratio[k] / 2.0 > v->hta_pschroma[k] || v->v_ratio[k] / 2.0 > v->vta_pschroma[k]))) {
-			v->scale_ratio_support = dcn_bw_no;
+			v->scale_ratio_support = dcn_bw_anal;
 		}
 	}
 	/*source format, pixel format and scan support check*/
 
-	v->source_format_pixel_and_scan_support = dcn_bw_yes;
+	v->source_format_pixel_and_scan_support = dcn_bw_anal;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		if ((v->source_surface_mode[k] == dcn_bw_sw_linear && v->source_scan[k] != dcn_bw_hor) || ((v->source_surface_mode[k] == dcn_bw_sw_4_kb_d || v->source_surface_mode[k] == dcn_bw_sw_4_kb_d_x || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_t || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_x || v->source_surface_mode[k] == dcn_bw_sw_var_d || v->source_surface_mode[k] == dcn_bw_sw_var_d_x) && v->source_pixel_format[k] != dcn_bw_rgb_sub_64)) {
-			v->source_format_pixel_and_scan_support = dcn_bw_no;
+			v->source_format_pixel_and_scan_support = dcn_bw_anal;
 		}
 	}
 	/*bandwidth support check*/
@@ -174,16 +174,16 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 	v->total_read_bandwidth_consumed_gbyte_per_second = 0.0;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		v->read_bandwidth[k] = v->swath_width_ysingle_dpp[k] * (dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) * v->v_ratio[k] +dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 2.0 * v->v_ratio[k] / 2) / (v->htotal[k] / v->pixel_clock[k]);
-		if (v->dcc_enable[k] == dcn_bw_yes) {
+		if (v->dcc_enable[k] == dcn_bw_anal) {
 			v->read_bandwidth[k] = v->read_bandwidth[k] * (1 + 1 / 256);
 		}
-		if (v->pte_enable == dcn_bw_yes && v->source_scan[k] != dcn_bw_hor && (v->source_surface_mode[k] == dcn_bw_sw_4_kb_s || v->source_surface_mode[k] == dcn_bw_sw_4_kb_s_x || v->source_surface_mode[k] == dcn_bw_sw_4_kb_d || v->source_surface_mode[k] == dcn_bw_sw_4_kb_d_x)) {
+		if (v->pte_enable == dcn_bw_anal && v->source_scan[k] != dcn_bw_hor && (v->source_surface_mode[k] == dcn_bw_sw_4_kb_s || v->source_surface_mode[k] == dcn_bw_sw_4_kb_s_x || v->source_surface_mode[k] == dcn_bw_sw_4_kb_d || v->source_surface_mode[k] == dcn_bw_sw_4_kb_d_x)) {
 			v->read_bandwidth[k] = v->read_bandwidth[k] * (1 + 1 / 64);
 		}
-		else if (v->pte_enable == dcn_bw_yes && v->source_scan[k] == dcn_bw_hor && (v->source_pixel_format[k] == dcn_bw_rgb_sub_64 || v->source_pixel_format[k] == dcn_bw_rgb_sub_32) && (v->source_surface_mode[k] == dcn_bw_sw_64_kb_s || v->source_surface_mode[k] == dcn_bw_sw_64_kb_s_t || v->source_surface_mode[k] == dcn_bw_sw_64_kb_s_x || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_t || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_x)) {
+		else if (v->pte_enable == dcn_bw_anal && v->source_scan[k] == dcn_bw_hor && (v->source_pixel_format[k] == dcn_bw_rgb_sub_64 || v->source_pixel_format[k] == dcn_bw_rgb_sub_32) && (v->source_surface_mode[k] == dcn_bw_sw_64_kb_s || v->source_surface_mode[k] == dcn_bw_sw_64_kb_s_t || v->source_surface_mode[k] == dcn_bw_sw_64_kb_s_x || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_t || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_x)) {
 			v->read_bandwidth[k] = v->read_bandwidth[k] * (1 + 1 / 256);
 		}
-		else if (v->pte_enable == dcn_bw_yes) {
+		else if (v->pte_enable == dcn_bw_anal) {
 			v->read_bandwidth[k] = v->read_bandwidth[k] * (1 + 1 / 512);
 		}
 		v->total_read_bandwidth_consumed_gbyte_per_second = v->total_read_bandwidth_consumed_gbyte_per_second + v->read_bandwidth[k] / 1000.0;
@@ -202,48 +202,48 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 		v->total_write_bandwidth_consumed_gbyte_per_second = v->total_write_bandwidth_consumed_gbyte_per_second + v->write_bandwidth[k] / 1000.0;
 	}
 	v->total_bandwidth_consumed_gbyte_per_second = v->total_read_bandwidth_consumed_gbyte_per_second + v->total_write_bandwidth_consumed_gbyte_per_second;
-	v->dcc_enabled_in_any_plane = dcn_bw_no;
+	v->dcc_enabled_in_any_plane = dcn_bw_anal;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if (v->dcc_enable[k] == dcn_bw_yes) {
-			v->dcc_enabled_in_any_plane = dcn_bw_yes;
+		if (v->dcc_enable[k] == dcn_bw_anal) {
+			v->dcc_enabled_in_any_plane = dcn_bw_anal;
 		}
 	}
 	for (i = 0; i <= number_of_states_plus_one; i++) {
 		v->return_bw_todcn_per_state =dcn_bw_min2(v->return_bus_width * v->dcfclk_per_state[i], v->fabric_and_dram_bandwidth_per_state[i] * 1000.0 * v->percent_of_ideal_drambw_received_after_urg_latency / 100.0);
 		v->return_bw_per_state[i] = v->return_bw_todcn_per_state;
-		if (v->dcc_enabled_in_any_plane == dcn_bw_yes && v->return_bw_todcn_per_state > v->dcfclk_per_state[i] * v->return_bus_width / 4.0) {
+		if (v->dcc_enabled_in_any_plane == dcn_bw_anal && v->return_bw_todcn_per_state > v->dcfclk_per_state[i] * v->return_bus_width / 4.0) {
 			v->return_bw_per_state[i] =dcn_bw_min2(v->return_bw_per_state[i], v->return_bw_todcn_per_state * 4.0 * (1.0 - v->urgent_latency / ((v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 / (v->return_bw_todcn_per_state - v->dcfclk_per_state[i] * v->return_bus_width / 4.0) + v->urgent_latency)));
 		}
 		v->critical_point = 2.0 * v->return_bus_width * v->dcfclk_per_state[i] * v->urgent_latency / (v->return_bw_todcn_per_state * v->urgent_latency + (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0);
-		if (v->dcc_enabled_in_any_plane == dcn_bw_yes && v->critical_point > 1.0 && v->critical_point < 4.0) {
+		if (v->dcc_enabled_in_any_plane == dcn_bw_anal && v->critical_point > 1.0 && v->critical_point < 4.0) {
 			v->return_bw_per_state[i] =dcn_bw_min2(v->return_bw_per_state[i], dcn_bw_pow(4.0 * v->return_bw_todcn_per_state * (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 * v->return_bus_width * v->dcfclk_per_state[i] * v->urgent_latency / (v->return_bw_todcn_per_state * v->urgent_latency + (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0), 2));
 		}
 		v->return_bw_todcn_per_state =dcn_bw_min2(v->return_bus_width * v->dcfclk_per_state[i], v->fabric_and_dram_bandwidth_per_state[i] * 1000.0);
-		if (v->dcc_enabled_in_any_plane == dcn_bw_yes && v->return_bw_todcn_per_state > v->dcfclk_per_state[i] * v->return_bus_width / 4.0) {
+		if (v->dcc_enabled_in_any_plane == dcn_bw_anal && v->return_bw_todcn_per_state > v->dcfclk_per_state[i] * v->return_bus_width / 4.0) {
 			v->return_bw_per_state[i] =dcn_bw_min2(v->return_bw_per_state[i], v->return_bw_todcn_per_state * 4.0 * (1.0 - v->urgent_latency / ((v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 / (v->return_bw_todcn_per_state - v->dcfclk_per_state[i] * v->return_bus_width / 4.0) + v->urgent_latency)));
 		}
 		v->critical_point = 2.0 * v->return_bus_width * v->dcfclk_per_state[i] * v->urgent_latency / (v->return_bw_todcn_per_state * v->urgent_latency + (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0);
-		if (v->dcc_enabled_in_any_plane == dcn_bw_yes && v->critical_point > 1.0 && v->critical_point < 4.0) {
+		if (v->dcc_enabled_in_any_plane == dcn_bw_anal && v->critical_point > 1.0 && v->critical_point < 4.0) {
 			v->return_bw_per_state[i] =dcn_bw_min2(v->return_bw_per_state[i], dcn_bw_pow(4.0 * v->return_bw_todcn_per_state * (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 * v->return_bus_width * v->dcfclk_per_state[i] * v->urgent_latency / (v->return_bw_todcn_per_state * v->urgent_latency + (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0), 2));
 		}
 	}
 	for (i = 0; i <= number_of_states_plus_one; i++) {
 		if ((v->total_read_bandwidth_consumed_gbyte_per_second * 1000.0 <= v->return_bw_per_state[i]) && (v->total_bandwidth_consumed_gbyte_per_second * 1000.0 <= v->fabric_and_dram_bandwidth_per_state[i] * 1000.0 * v->percent_of_ideal_drambw_received_after_urg_latency / 100.0)) {
-			v->bandwidth_support[i] = dcn_bw_yes;
+			v->bandwidth_support[i] = dcn_bw_anal;
 		}
 		else {
-			v->bandwidth_support[i] = dcn_bw_no;
+			v->bandwidth_support[i] = dcn_bw_anal;
 		}
 	}
 	/*writeback latency support check*/
 
-	v->writeback_latency_support = dcn_bw_yes;
+	v->writeback_latency_support = dcn_bw_anal;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		if (v->output[k] == dcn_bw_writeback && v->output_format[k] == dcn_bw_444 && v->scaler_rec_out_width[k] / (v->htotal[k] / v->pixel_clock[k]) * 4.0 > (v->writeback_luma_buffer_size + v->writeback_chroma_buffer_size) * 1024.0 / v->write_back_latency) {
-			v->writeback_latency_support = dcn_bw_no;
+			v->writeback_latency_support = dcn_bw_anal;
 		}
 		else if (v->output[k] == dcn_bw_writeback && v->scaler_rec_out_width[k] / (v->htotal[k] / v->pixel_clock[k]) >dcn_bw_min2(v->writeback_luma_buffer_size, 2.0 * v->writeback_chroma_buffer_size) * 1024.0 / v->write_back_latency) {
-			v->writeback_latency_support = dcn_bw_no;
+			v->writeback_latency_support = dcn_bw_anal;
 		}
 	}
 	/*re-ordering buffer support check*/
@@ -251,16 +251,16 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 	for (i = 0; i <= number_of_states_plus_one; i++) {
 		v->urgent_round_trip_and_out_of_order_latency_per_state[i] = (v->round_trip_ping_latency_cycles + 32.0) / v->dcfclk_per_state[i] + v->urgent_out_of_order_return_per_channel * v->number_of_channels / v->return_bw_per_state[i];
 		if ((v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 / v->return_bw_per_state[i] > v->urgent_round_trip_and_out_of_order_latency_per_state[i]) {
-			v->rob_support[i] = dcn_bw_yes;
+			v->rob_support[i] = dcn_bw_anal;
 		}
 		else {
-			v->rob_support[i] = dcn_bw_no;
+			v->rob_support[i] = dcn_bw_anal;
 		}
 	}
 	/*display io support check*/
 
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if (v->output[k] == dcn_bw_dp && v->dsc_capability == dcn_bw_yes) {
+		if (v->output[k] == dcn_bw_dp && v->dsc_capability == dcn_bw_anal) {
 			if (v->output_format[k] == dcn_bw_420) {
 				v->required_output_bw = v->pixel_clock[k] / 2.0;
 			}
@@ -296,10 +296,10 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 		}
 	}
 	for (i = 0; i <= number_of_states_plus_one; i++) {
-		v->dio_support[i] = dcn_bw_yes;
+		v->dio_support[i] = dcn_bw_anal;
 		for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 			if (v->required_phyclk[k] > v->phyclk_per_state[i] || (v->output[k] == dcn_bw_hdmi && v->required_phyclk[k] > 600.0)) {
-				v->dio_support[i] = dcn_bw_no;
+				v->dio_support[i] = dcn_bw_anal;
 			}
 		}
 	}
@@ -312,10 +312,10 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 		}
 	}
 	if (v->total_number_of_active_writeback <= v->max_num_writeback) {
-		v->total_available_writeback_support = dcn_bw_yes;
+		v->total_available_writeback_support = dcn_bw_anal;
 	}
 	else {
-		v->total_available_writeback_support = dcn_bw_no;
+		v->total_available_writeback_support = dcn_bw_anal;
 	}
 	/*maximum dispclk/dppclk support check*/
 
@@ -395,7 +395,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 			}
 			else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_8 && v->source_scan[k] == dcn_bw_hor) {
 				v->min_swath_height_y[k] = v->max_swath_height_y[k] / 2.0;
-				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
+				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_anal) {
 					v->min_swath_height_c[k] = v->max_swath_height_c[k];
 				}
 				else {
@@ -404,7 +404,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 			}
 			else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10 && v->source_scan[k] == dcn_bw_hor) {
 				v->min_swath_height_c[k] = v->max_swath_height_c[k] / 2.0;
-				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
+				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_anal) {
 					v->min_swath_height_y[k] = v->max_swath_height_y[k];
 				}
 				else {
@@ -435,10 +435,10 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 		for (j = 0; j <= 1; j++) {
 			v->total_number_of_active_dpp[i][j] = 0.0;
 			v->required_dispclk[i][j] = 0.0;
-			v->dispclk_dppclk_support[i][j] = dcn_bw_yes;
+			v->dispclk_dppclk_support[i][j] = dcn_bw_anal;
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				v->min_dispclk_using_single_dpp =dcn_bw_max2(v->pixel_clock[k], v->min_dppclk_using_single_dpp[k] * (j + 1)) * (1.0 + v->downspreading / 100.0);
-				if (v->odm_capability == dcn_bw_yes) {
+				if (v->odm_capability == dcn_bw_anal) {
 					v->min_dispclk_using_dual_dpp =dcn_bw_max2(v->pixel_clock[k] / 2.0, v->min_dppclk_using_single_dpp[k] / 2.0 * (j + 1)) * (1.0 + v->downspreading / 100.0);
 				}
 				else {
@@ -449,24 +449,24 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					v->min_dispclk_using_dual_dpp = v->min_dispclk_using_dual_dpp * (1.0 + v->dispclk_ramping_margin / 100.0);
 				}
 				if (v->min_dispclk_using_single_dpp <=dcn_bw_min2(v->max_dispclk[i], (j + 1) * v->max_dppclk[i]) && v->number_of_dpp_required_for_det_and_lb_size[k] <= 1.0) {
-					v->no_of_dpp[i][j][k] = 1.0;
+					v->anal_of_dpp[i][j][k] = 1.0;
 					v->required_dispclk[i][j] =dcn_bw_max2(v->required_dispclk[i][j], v->min_dispclk_using_single_dpp);
 				}
 				else if (v->min_dispclk_using_dual_dpp <=dcn_bw_min2(v->max_dispclk[i], (j + 1) * v->max_dppclk[i])) {
-					v->no_of_dpp[i][j][k] = 2.0;
+					v->anal_of_dpp[i][j][k] = 2.0;
 					v->required_dispclk[i][j] =dcn_bw_max2(v->required_dispclk[i][j], v->min_dispclk_using_dual_dpp);
 				}
 				else {
-					v->no_of_dpp[i][j][k] = 2.0;
+					v->anal_of_dpp[i][j][k] = 2.0;
 					v->required_dispclk[i][j] =dcn_bw_max2(v->required_dispclk[i][j], v->min_dispclk_using_dual_dpp);
-					v->dispclk_dppclk_support[i][j] = dcn_bw_no;
+					v->dispclk_dppclk_support[i][j] = dcn_bw_anal;
 				}
-				v->total_number_of_active_dpp[i][j] = v->total_number_of_active_dpp[i][j] + v->no_of_dpp[i][j][k];
+				v->total_number_of_active_dpp[i][j] = v->total_number_of_active_dpp[i][j] + v->anal_of_dpp[i][j][k];
 			}
 			if (v->total_number_of_active_dpp[i][j] > v->max_num_dpp) {
 				v->total_number_of_active_dpp[i][j] = 0.0;
 				v->required_dispclk[i][j] = 0.0;
-				v->dispclk_dppclk_support[i][j] = dcn_bw_yes;
+				v->dispclk_dppclk_support[i][j] = dcn_bw_anal;
 				for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 					v->min_dispclk_using_single_dpp =dcn_bw_max2(v->pixel_clock[k], v->min_dppclk_using_single_dpp[k] * (j + 1)) * (1.0 + v->downspreading / 100.0);
 					v->min_dispclk_using_dual_dpp =dcn_bw_max2(v->pixel_clock[k], v->min_dppclk_using_single_dpp[k] / 2.0 * (j + 1)) * (1.0 + v->downspreading / 100.0);
@@ -475,30 +475,30 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 						v->min_dispclk_using_dual_dpp = v->min_dispclk_using_dual_dpp * (1.0 + v->dispclk_ramping_margin / 100.0);
 					}
 					if (v->number_of_dpp_required_for_det_and_lb_size[k] <= 1.0) {
-						v->no_of_dpp[i][j][k] = 1.0;
+						v->anal_of_dpp[i][j][k] = 1.0;
 						v->required_dispclk[i][j] =dcn_bw_max2(v->required_dispclk[i][j], v->min_dispclk_using_single_dpp);
 						if (v->min_dispclk_using_single_dpp >dcn_bw_min2(v->max_dispclk[i], (j + 1) * v->max_dppclk[i])) {
-							v->dispclk_dppclk_support[i][j] = dcn_bw_no;
+							v->dispclk_dppclk_support[i][j] = dcn_bw_anal;
 						}
 					}
 					else {
-						v->no_of_dpp[i][j][k] = 2.0;
+						v->anal_of_dpp[i][j][k] = 2.0;
 						v->required_dispclk[i][j] =dcn_bw_max2(v->required_dispclk[i][j], v->min_dispclk_using_dual_dpp);
 						if (v->min_dispclk_using_dual_dpp >dcn_bw_min2(v->max_dispclk[i], (j + 1) * v->max_dppclk[i])) {
-							v->dispclk_dppclk_support[i][j] = dcn_bw_no;
+							v->dispclk_dppclk_support[i][j] = dcn_bw_anal;
 						}
 					}
-					v->total_number_of_active_dpp[i][j] = v->total_number_of_active_dpp[i][j] + v->no_of_dpp[i][j][k];
+					v->total_number_of_active_dpp[i][j] = v->total_number_of_active_dpp[i][j] + v->anal_of_dpp[i][j][k];
 				}
 			}
 		}
 	}
 	/*viewport size check*/
 
-	v->viewport_size_support = dcn_bw_yes;
+	v->viewport_size_support = dcn_bw_anal;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		if (v->number_of_dpp_required_for_det_and_lb_size[k] > 2.0) {
-			v->viewport_size_support = dcn_bw_no;
+			v->viewport_size_support = dcn_bw_anal;
 		}
 	}
 	/*total available pipes support check*/
@@ -506,10 +506,10 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 	for (i = 0; i <= number_of_states_plus_one; i++) {
 		for (j = 0; j <= 1; j++) {
 			if (v->total_number_of_active_dpp[i][j] <= v->max_num_dpp) {
-				v->total_available_pipes_support[i][j] = dcn_bw_yes;
+				v->total_available_pipes_support[i][j] = dcn_bw_anal;
 			}
 			else {
-				v->total_available_pipes_support[i][j] = dcn_bw_no;
+				v->total_available_pipes_support[i][j] = dcn_bw_anal;
 			}
 		}
 	}
@@ -518,7 +518,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		for (i = 0; i <= number_of_states_plus_one; i++) {
 			for (j = 0; j <= 1; j++) {
-				v->swath_width_yper_state[i][j][k] = v->swath_width_ysingle_dpp[k] / v->no_of_dpp[i][j][k];
+				v->swath_width_yper_state[i][j][k] = v->swath_width_ysingle_dpp[k] / v->anal_of_dpp[i][j][k];
 				v->swath_width_granularity_y = 256.0 /dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / v->max_swath_height_y[k];
 				v->rounded_up_max_swath_size_bytes_y = (dcn_bw_ceil2(v->swath_width_yper_state[i][j][k] - 1.0, v->swath_width_granularity_y) + v->swath_width_granularity_y) * v->byte_per_pixel_in_dety[k] * v->max_swath_height_y[k];
 				if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10) {
@@ -554,22 +554,22 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 				v->effective_lb_latency_hiding_source_lines_luma =dcn_bw_min2(v->max_line_buffer_lines,dcn_bw_floor2(v->line_buffer_size / v->lb_bit_per_pixel[k] / (v->swath_width_yper_state[i][j][k] /dcn_bw_max2(v->h_ratio[k], 1.0)), 1.0)) - (v->vtaps[k] - 1.0);
 				v->effective_detlb_lines_luma =dcn_bw_floor2(v->lines_in_det_luma +dcn_bw_min2(v->lines_in_det_luma * v->required_dispclk[i][j] * v->byte_per_pixel_in_dety[k] * v->pscl_factor[k] / v->return_bw_per_state[i], v->effective_lb_latency_hiding_source_lines_luma), v->swath_height_yper_state[i][j][k]);
 				if (v->byte_per_pixel_in_detc[k] == 0.0) {
-					v->urgent_latency_support_us_per_state[i][j][k] = v->effective_detlb_lines_luma * (v->htotal[k] / v->pixel_clock[k]) / v->v_ratio[k] - v->effective_detlb_lines_luma * v->swath_width_yper_state[i][j][k] *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / (v->return_bw_per_state[i] / v->no_of_dpp[i][j][k]);
+					v->urgent_latency_support_us_per_state[i][j][k] = v->effective_detlb_lines_luma * (v->htotal[k] / v->pixel_clock[k]) / v->v_ratio[k] - v->effective_detlb_lines_luma * v->swath_width_yper_state[i][j][k] *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / (v->return_bw_per_state[i] / v->anal_of_dpp[i][j][k]);
 				}
 				else {
 					v->effective_lb_latency_hiding_source_lines_chroma = dcn_bw_min2(v->max_line_buffer_lines, dcn_bw_floor2(v->line_buffer_size / v->lb_bit_per_pixel[k] / (v->swath_width_yper_state[i][j][k] / 2.0 / dcn_bw_max2(v->h_ratio[k] / 2.0, 1.0)), 1.0)) - (v->vta_pschroma[k] - 1.0);
 					v->effective_detlb_lines_chroma = dcn_bw_floor2(v->lines_in_det_chroma + dcn_bw_min2(v->lines_in_det_chroma * v->required_dispclk[i][j] * v->byte_per_pixel_in_detc[k] * v->pscl_factor_chroma[k] / v->return_bw_per_state[i], v->effective_lb_latency_hiding_source_lines_chroma), v->swath_height_cper_state[i][j][k]);
-					v->urgent_latency_support_us_per_state[i][j][k] = dcn_bw_min2(v->effective_detlb_lines_luma * (v->htotal[k] / v->pixel_clock[k]) / v->v_ratio[k] - v->effective_detlb_lines_luma * v->swath_width_yper_state[i][j][k] * dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / (v->return_bw_per_state[i] / v->no_of_dpp[i][j][k]), v->effective_detlb_lines_chroma * (v->htotal[k] / v->pixel_clock[k]) / (v->v_ratio[k] / 2.0) - v->effective_detlb_lines_chroma * v->swath_width_yper_state[i][j][k] / 2.0 * dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / (v->return_bw_per_state[i] / v->no_of_dpp[i][j][k]));
+					v->urgent_latency_support_us_per_state[i][j][k] = dcn_bw_min2(v->effective_detlb_lines_luma * (v->htotal[k] / v->pixel_clock[k]) / v->v_ratio[k] - v->effective_detlb_lines_luma * v->swath_width_yper_state[i][j][k] * dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / (v->return_bw_per_state[i] / v->anal_of_dpp[i][j][k]), v->effective_detlb_lines_chroma * (v->htotal[k] / v->pixel_clock[k]) / (v->v_ratio[k] / 2.0) - v->effective_detlb_lines_chroma * v->swath_width_yper_state[i][j][k] / 2.0 * dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / (v->return_bw_per_state[i] / v->anal_of_dpp[i][j][k]));
 				}
 			}
 		}
 	}
 	for (i = 0; i <= number_of_states_plus_one; i++) {
 		for (j = 0; j <= 1; j++) {
-			v->urgent_latency_support[i][j] = dcn_bw_yes;
+			v->urgent_latency_support[i][j] = dcn_bw_anal;
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				if (v->urgent_latency_support_us_per_state[i][j][k] < v->urgent_latency / 1.0) {
-					v->urgent_latency_support[i][j] = dcn_bw_no;
+					v->urgent_latency_support[i][j] = dcn_bw_anal;
 				}
 			}
 		}
@@ -580,8 +580,8 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 		for (j = 0; j <= 1; j++) {
 			v->total_number_of_dcc_active_dpp[i][j] = 0.0;
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-				if (v->dcc_enable[k] == dcn_bw_yes) {
-					v->total_number_of_dcc_active_dpp[i][j] = v->total_number_of_dcc_active_dpp[i][j] + v->no_of_dpp[i][j][k];
+				if (v->dcc_enable[k] == dcn_bw_anal) {
+					v->total_number_of_dcc_active_dpp[i][j] = v->total_number_of_dcc_active_dpp[i][j] + v->anal_of_dpp[i][j][k];
 				}
 			}
 		}
@@ -593,7 +593,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 				v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, v->pixel_clock[k] / 16.0);
 				if (v->byte_per_pixel_in_detc[k] == 0.0) {
 					if (v->v_ratio[k] <= 1.0) {
-						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / 64.0 * v->h_ratio[k] * v->pixel_clock[k] / v->no_of_dpp[i][j][k]);
+						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / 64.0 * v->h_ratio[k] * v->pixel_clock[k] / v->anal_of_dpp[i][j][k]);
 					}
 					else {
 						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / 64.0 * v->pscl_factor[k] * v->required_dispclk[i][j] / (1 + j));
@@ -601,13 +601,13 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 				}
 				else {
 					if (v->v_ratio[k] <= 1.0) {
-						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / 32.0 * v->h_ratio[k] * v->pixel_clock[k] / v->no_of_dpp[i][j][k]);
+						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / 32.0 * v->h_ratio[k] * v->pixel_clock[k] / v->anal_of_dpp[i][j][k]);
 					}
 					else {
 						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / 32.0 * v->pscl_factor[k] * v->required_dispclk[i][j] / (1 + j));
 					}
 					if (v->v_ratio[k] / 2.0 <= 1.0) {
-						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 32.0 * v->h_ratio[k] / 2.0 * v->pixel_clock[k] / v->no_of_dpp[i][j][k]);
+						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 32.0 * v->h_ratio[k] / 2.0 * v->pixel_clock[k] / v->anal_of_dpp[i][j][k]);
 					}
 					else {
 						v->projected_dcfclk_deep_sleep =dcn_bw_max2(v->projected_dcfclk_deep_sleep, 1.1 *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 32.0 * v->pscl_factor_chroma[k] * v->required_dispclk[i][j] / (1 + j));
@@ -615,12 +615,12 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 				}
 			}
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-				if (v->dcc_enable[k] == dcn_bw_yes) {
+				if (v->dcc_enable[k] == dcn_bw_anal) {
 					v->meta_req_height_y = 8.0 * v->read256_block_height_y[k];
 					v->meta_req_width_y = 64.0 * 256.0 /dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / v->meta_req_height_y;
-					v->meta_surface_width_y =dcn_bw_ceil2(v->viewport_width[k] / v->no_of_dpp[i][j][k] - 1.0, v->meta_req_width_y) + v->meta_req_width_y;
+					v->meta_surface_width_y =dcn_bw_ceil2(v->viewport_width[k] / v->anal_of_dpp[i][j][k] - 1.0, v->meta_req_width_y) + v->meta_req_width_y;
 					v->meta_surface_height_y =dcn_bw_ceil2(v->viewport_height[k] - 1.0, v->meta_req_height_y) + v->meta_req_height_y;
-					if (v->pte_enable == dcn_bw_yes) {
+					if (v->pte_enable == dcn_bw_anal) {
 						v->meta_pte_bytes_per_frame_y = (dcn_bw_ceil2((v->meta_surface_width_y * v->meta_surface_height_y *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / 256.0 - 4096.0) / 8.0 / 4096.0, 1.0) + 1) * 64.0;
 					}
 					else {
@@ -637,7 +637,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					v->meta_pte_bytes_per_frame_y = 0.0;
 					v->meta_row_bytes_y = 0.0;
 				}
-				if (v->pte_enable == dcn_bw_yes) {
+				if (v->pte_enable == dcn_bw_anal) {
 					if (v->source_surface_mode[k] == dcn_bw_sw_linear) {
 						v->macro_tile_block_size_bytes_y = 256.0;
 						v->macro_tile_block_height_y = 1.0;
@@ -662,10 +662,10 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					}
 					v->data_pte_req_width_y = 4096.0 /dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / v->data_pte_req_height_y * 8;
 					if (v->source_surface_mode[k] == dcn_bw_sw_linear) {
-						v->dpte_bytes_per_row_y = 64.0 * (dcn_bw_ceil2((v->viewport_width[k] / v->no_of_dpp[i][j][k] *dcn_bw_min2(128.0, dcn_bw_pow(2.0,dcn_bw_floor2(dcn_bw_log(v->pte_buffer_size_in_requests * v->data_pte_req_width_y / (v->viewport_width[k] / v->no_of_dpp[i][j][k]), 2.0), 1.0))) - 1.0) / v->data_pte_req_width_y, 1.0) + 1);
+						v->dpte_bytes_per_row_y = 64.0 * (dcn_bw_ceil2((v->viewport_width[k] / v->anal_of_dpp[i][j][k] *dcn_bw_min2(128.0, dcn_bw_pow(2.0,dcn_bw_floor2(dcn_bw_log(v->pte_buffer_size_in_requests * v->data_pte_req_width_y / (v->viewport_width[k] / v->anal_of_dpp[i][j][k]), 2.0), 1.0))) - 1.0) / v->data_pte_req_width_y, 1.0) + 1);
 					}
 					else if (v->source_scan[k] == dcn_bw_hor) {
-						v->dpte_bytes_per_row_y = 64.0 * (dcn_bw_ceil2((v->viewport_width[k] / v->no_of_dpp[i][j][k] - 1.0) / v->data_pte_req_width_y, 1.0) + 1);
+						v->dpte_bytes_per_row_y = 64.0 * (dcn_bw_ceil2((v->viewport_width[k] / v->anal_of_dpp[i][j][k] - 1.0) / v->data_pte_req_width_y, 1.0) + 1);
 					}
 					else {
 						v->dpte_bytes_per_row_y = 64.0 * (dcn_bw_ceil2((v->viewport_height[k] - 1.0) / v->data_pte_req_height_y, 1.0) + 1);
@@ -675,12 +675,12 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					v->dpte_bytes_per_row_y = 0.0;
 				}
 				if ((v->source_pixel_format[k] != dcn_bw_rgb_sub_64 && v->source_pixel_format[k] != dcn_bw_rgb_sub_32 && v->source_pixel_format[k] != dcn_bw_rgb_sub_16)) {
-					if (v->dcc_enable[k] == dcn_bw_yes) {
+					if (v->dcc_enable[k] == dcn_bw_anal) {
 						v->meta_req_height_c = 8.0 * v->read256_block_height_c[k];
 						v->meta_req_width_c = 64.0 * 256.0 /dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / v->meta_req_height_c;
-						v->meta_surface_width_c =dcn_bw_ceil2(v->viewport_width[k] / v->no_of_dpp[i][j][k] / 2.0 - 1.0, v->meta_req_width_c) + v->meta_req_width_c;
+						v->meta_surface_width_c =dcn_bw_ceil2(v->viewport_width[k] / v->anal_of_dpp[i][j][k] / 2.0 - 1.0, v->meta_req_width_c) + v->meta_req_width_c;
 						v->meta_surface_height_c =dcn_bw_ceil2(v->viewport_height[k] / 2.0 - 1.0, v->meta_req_height_c) + v->meta_req_height_c;
-						if (v->pte_enable == dcn_bw_yes) {
+						if (v->pte_enable == dcn_bw_anal) {
 							v->meta_pte_bytes_per_frame_c = (dcn_bw_ceil2((v->meta_surface_width_c * v->meta_surface_height_c *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 256.0 - 4096.0) / 8.0 / 4096.0, 1.0) + 1) * 64.0;
 						}
 						else {
@@ -697,7 +697,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 						v->meta_pte_bytes_per_frame_c = 0.0;
 						v->meta_row_bytes_c = 0.0;
 					}
-					if (v->pte_enable == dcn_bw_yes) {
+					if (v->pte_enable == dcn_bw_anal) {
 						if (v->source_surface_mode[k] == dcn_bw_sw_linear) {
 							v->macro_tile_block_size_bytes_c = 256.0;
 							v->macro_tile_block_height_c = 1.0;
@@ -723,10 +723,10 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 						}
 						v->data_pte_req_width_c = 4096.0 /dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / v->data_pte_req_height_c * 8;
 						if (v->source_surface_mode[k] == dcn_bw_sw_linear) {
-							v->dpte_bytes_per_row_c = 64.0 * (dcn_bw_ceil2((v->viewport_width[k] / v->no_of_dpp[i][j][k] / 2.0 * dcn_bw_min2(128.0, dcn_bw_pow(2.0,dcn_bw_floor2(dcn_bw_log(v->pte_buffer_size_in_requests * v->data_pte_req_width_c / (v->viewport_width[k] / v->no_of_dpp[i][j][k] / 2.0), 2.0), 1.0))) - 1.0) / v->data_pte_req_width_c, 1.0) + 1);
+							v->dpte_bytes_per_row_c = 64.0 * (dcn_bw_ceil2((v->viewport_width[k] / v->anal_of_dpp[i][j][k] / 2.0 * dcn_bw_min2(128.0, dcn_bw_pow(2.0,dcn_bw_floor2(dcn_bw_log(v->pte_buffer_size_in_requests * v->data_pte_req_width_c / (v->viewport_width[k] / v->anal_of_dpp[i][j][k] / 2.0), 2.0), 1.0))) - 1.0) / v->data_pte_req_width_c, 1.0) + 1);
 						}
 						else if (v->source_scan[k] == dcn_bw_hor) {
-							v->dpte_bytes_per_row_c = 64.0 * (dcn_bw_ceil2((v->viewport_width[k] / v->no_of_dpp[i][j][k] / 2.0 - 1.0) / v->data_pte_req_width_c, 1.0) + 1);
+							v->dpte_bytes_per_row_c = 64.0 * (dcn_bw_ceil2((v->viewport_width[k] / v->anal_of_dpp[i][j][k] / 2.0 - 1.0) / v->data_pte_req_width_c, 1.0) + 1);
 						}
 						else {
 							v->dpte_bytes_per_row_c = 64.0 * (dcn_bw_ceil2((v->viewport_height[k] / 2.0 - 1.0) / v->data_pte_req_height_c, 1.0) + 1);
@@ -772,7 +772,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					v->prefetch_lines_c[k] = 0.0;
 				}
 				v->dst_x_after_scaler = 90.0 * v->pixel_clock[k] / (v->required_dispclk[i][j] / (j + 1)) + 42.0 * v->pixel_clock[k] / v->required_dispclk[i][j];
-				if (v->no_of_dpp[i][j][k] > 1.0) {
+				if (v->anal_of_dpp[i][j][k] > 1.0) {
 					v->dst_x_after_scaler = v->dst_x_after_scaler + v->scaler_rec_out_width[k] / 2.0;
 				}
 				if (v->output_format[k] == dcn_bw_420) {
@@ -788,10 +788,10 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 				v->v_ready_offset[k][j] = dcn_bw_max2(150.0 / (v->required_dispclk[i][j] / (j + 1)), v->total_repeater_delay + 20.0 / v->projected_dcfclk_deep_sleep + 10.0 / (v->required_dispclk[i][j] / (j + 1))) * v->pixel_clock[k];
 				v->time_setup = (v->v_update_offset[k][j] + v->v_update_width[k][j] + v->v_ready_offset[k][j]) / v->pixel_clock[k];
 				v->extra_latency = v->urgent_round_trip_and_out_of_order_latency_per_state[i] + (v->total_number_of_active_dpp[i][j] * v->pixel_chunk_size_in_kbyte + v->total_number_of_dcc_active_dpp[i][j] * v->meta_chunk_size) * 1024.0 / v->return_bw_per_state[i];
-				if (v->pte_enable == dcn_bw_yes) {
+				if (v->pte_enable == dcn_bw_anal) {
 					v->extra_latency = v->extra_latency + v->total_number_of_active_dpp[i][j] * v->pte_chunk_size * 1024.0 / v->return_bw_per_state[i];
 				}
-				if (v->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_yes) {
+				if (v->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_anal) {
 					v->maximum_vstartup = v->vtotal[k] - v->vactive[k] - 1.0;
 				}
 				else {
@@ -803,7 +803,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					v->line_times_for_prefetch[k] =dcn_bw_floor2(4.0 * (v->line_times_for_prefetch[k] + 0.125), 1.0) / 4;
 					v->prefetch_bw[k] = (v->meta_pte_bytes_per_frame[k] + 2.0 * v->meta_row_bytes[k] + 2.0 * v->dpte_bytes_per_row[k] + v->prefetch_lines_y[k] * v->swath_width_yper_state[i][j][k] *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) + v->prefetch_lines_c[k] * v->swath_width_yper_state[i][j][k] / 2.0 *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0)) / (v->line_times_for_prefetch[k] * v->htotal[k] / v->pixel_clock[k]);
 
-					if (v->pte_enable == dcn_bw_yes && v->dcc_enable[k] == dcn_bw_yes) {
+					if (v->pte_enable == dcn_bw_anal && v->dcc_enable[k] == dcn_bw_anal) {
 						v->time_for_meta_pte_without_immediate_flip = dcn_bw_max3(
 								v->meta_pte_bytes_frame[k] / v->prefetch_bw[k],
 								v->extra_latency,
@@ -812,7 +812,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 						v->time_for_meta_pte_without_immediate_flip = v->htotal[k] / v->pixel_clock[k] / 4.0;
 					}
 
-					if (v->pte_enable == dcn_bw_yes || v->dcc_enable[k] == dcn_bw_yes) {
+					if (v->pte_enable == dcn_bw_anal || v->dcc_enable[k] == dcn_bw_anal) {
 						v->time_for_meta_and_dpte_row_without_immediate_flip = dcn_bw_max3((
 								v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) / v->prefetch_bw[k],
 								v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_without_immediate_flip,
@@ -843,13 +843,13 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 				}
 			}
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-				if (v->pte_enable == dcn_bw_yes && v->dcc_enable[k] == dcn_bw_yes) {
+				if (v->pte_enable == dcn_bw_anal && v->dcc_enable[k] == dcn_bw_anal) {
 					v->time_for_meta_pte_with_immediate_flip =dcn_bw_max5(v->meta_pte_bytes_per_frame[k] / v->prefetch_bw[k], v->meta_pte_bytes_per_frame[k] * v->total_immediate_flip_bytes[k] / (v->bw_available_for_immediate_flip * (v->meta_pte_bytes_per_frame[k] + v->meta_row_bytes[k] + v->dpte_bytes_per_row[k])), v->extra_latency, v->urgent_latency, v->htotal[k] / v->pixel_clock[k] / 4.0);
 				}
 				else {
 					v->time_for_meta_pte_with_immediate_flip = v->htotal[k] / v->pixel_clock[k] / 4.0;
 				}
-				if (v->pte_enable == dcn_bw_yes || v->dcc_enable[k] == dcn_bw_yes) {
+				if (v->pte_enable == dcn_bw_anal || v->dcc_enable[k] == dcn_bw_anal) {
 					v->time_for_meta_and_dpte_row_with_immediate_flip =dcn_bw_max5((v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) / v->prefetch_bw[k], (v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) * v->total_immediate_flip_bytes[k] / (v->bw_available_for_immediate_flip * (v->meta_pte_bytes_per_frame[k] + v->meta_row_bytes[k] + v->dpte_bytes_per_row[k])), v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_with_immediate_flip, v->extra_latency, 2.0 * v->urgent_latency);
 				}
 				else {
@@ -878,7 +878,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 							v->v_ratio_pre_cwith_immediate_flip[i][j][k] = 999999.0;
 						}
 					}
-					v->required_prefetch_pixel_data_bw_with_immediate_flip[i][j][k] = v->no_of_dpp[i][j][k] * (v->prefetch_lines_y[k] / v->line_times_to_request_prefetch_pixel_data_with_immediate_flip *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) + v->prefetch_lines_c[k] / v->line_times_to_request_prefetch_pixel_data_with_immediate_flip *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 2.0) * v->swath_width_yper_state[i][j][k] / (v->htotal[k] / v->pixel_clock[k]);
+					v->required_prefetch_pixel_data_bw_with_immediate_flip[i][j][k] = v->anal_of_dpp[i][j][k] * (v->prefetch_lines_y[k] / v->line_times_to_request_prefetch_pixel_data_with_immediate_flip *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) + v->prefetch_lines_c[k] / v->line_times_to_request_prefetch_pixel_data_with_immediate_flip *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 2.0) * v->swath_width_yper_state[i][j][k] / (v->htotal[k] / v->pixel_clock[k]);
 				}
 				else {
 					v->v_ratio_pre_ywith_immediate_flip[i][j][k] = 999999.0;
@@ -904,7 +904,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 							v->v_ratio_pre_cwithout_immediate_flip[i][j][k] = 999999.0;
 						}
 					}
-					v->required_prefetch_pixel_data_bw_without_immediate_flip[i][j][k] = v->no_of_dpp[i][j][k] * (v->prefetch_lines_y[k] / v->line_times_to_request_prefetch_pixel_data_without_immediate_flip *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) + v->prefetch_lines_c[k] / v->line_times_to_request_prefetch_pixel_data_without_immediate_flip *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 2.0) * v->swath_width_yper_state[i][j][k] / (v->htotal[k] / v->pixel_clock[k]);
+					v->required_prefetch_pixel_data_bw_without_immediate_flip[i][j][k] = v->anal_of_dpp[i][j][k] * (v->prefetch_lines_y[k] / v->line_times_to_request_prefetch_pixel_data_without_immediate_flip *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) + v->prefetch_lines_c[k] / v->line_times_to_request_prefetch_pixel_data_without_immediate_flip *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / 2.0) * v->swath_width_yper_state[i][j][k] / (v->htotal[k] / v->pixel_clock[k]);
 				}
 				else {
 					v->v_ratio_pre_ywithout_immediate_flip[i][j][k] = 999999.0;
@@ -925,38 +925,38 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				v->maximum_read_bandwidth_with_prefetch_without_immediate_flip = v->maximum_read_bandwidth_with_prefetch_without_immediate_flip +dcn_bw_max2(v->read_bandwidth[k], v->required_prefetch_pixel_data_bw_without_immediate_flip[i][j][k]);
 			}
-			v->prefetch_supported_with_immediate_flip[i][j] = dcn_bw_yes;
+			v->prefetch_supported_with_immediate_flip[i][j] = dcn_bw_anal;
 			if (v->maximum_read_bandwidth_with_prefetch_with_immediate_flip > v->return_bw_per_state[i]) {
-				v->prefetch_supported_with_immediate_flip[i][j] = dcn_bw_no;
+				v->prefetch_supported_with_immediate_flip[i][j] = dcn_bw_anal;
 			}
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				if (v->line_times_for_prefetch[k] < 2.0 || v->lines_for_meta_pte_with_immediate_flip[k] >= 8.0 || v->lines_for_meta_and_dpte_row_with_immediate_flip[k] >= 16.0) {
-					v->prefetch_supported_with_immediate_flip[i][j] = dcn_bw_no;
+					v->prefetch_supported_with_immediate_flip[i][j] = dcn_bw_anal;
 				}
 			}
-			v->prefetch_supported_without_immediate_flip[i][j] = dcn_bw_yes;
+			v->prefetch_supported_without_immediate_flip[i][j] = dcn_bw_anal;
 			if (v->maximum_read_bandwidth_with_prefetch_without_immediate_flip > v->return_bw_per_state[i]) {
-				v->prefetch_supported_without_immediate_flip[i][j] = dcn_bw_no;
+				v->prefetch_supported_without_immediate_flip[i][j] = dcn_bw_anal;
 			}
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				if (v->line_times_for_prefetch[k] < 2.0 || v->lines_for_meta_pte_without_immediate_flip[k] >= 8.0 || v->lines_for_meta_and_dpte_row_without_immediate_flip[k] >= 16.0) {
-					v->prefetch_supported_without_immediate_flip[i][j] = dcn_bw_no;
+					v->prefetch_supported_without_immediate_flip[i][j] = dcn_bw_anal;
 				}
 			}
 		}
 	}
 	for (i = 0; i <= number_of_states_plus_one; i++) {
 		for (j = 0; j <= 1; j++) {
-			v->v_ratio_in_prefetch_supported_with_immediate_flip[i][j] = dcn_bw_yes;
+			v->v_ratio_in_prefetch_supported_with_immediate_flip[i][j] = dcn_bw_anal;
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				if ((((v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10) && (v->v_ratio_pre_ywith_immediate_flip[i][j][k] > 4.0 || v->v_ratio_pre_cwith_immediate_flip[i][j][k] > 4.0)) || ((v->source_pixel_format[k] == dcn_bw_yuv420_sub_8 || v->source_pixel_format[k] == dcn_bw_yuv420_sub_10) && (v->v_ratio_pre_ywithout_immediate_flip[i][j][k] > 4.0 || v->v_ratio_pre_cwithout_immediate_flip[i][j][k] > 4.0)))) {
-					v->v_ratio_in_prefetch_supported_with_immediate_flip[i][j] = dcn_bw_no;
+					v->v_ratio_in_prefetch_supported_with_immediate_flip[i][j] = dcn_bw_anal;
 				}
 			}
-			v->v_ratio_in_prefetch_supported_without_immediate_flip[i][j] = dcn_bw_yes;
+			v->v_ratio_in_prefetch_supported_without_immediate_flip[i][j] = dcn_bw_anal;
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				if ((v->v_ratio_pre_ywithout_immediate_flip[i][j][k] > 4.0 || v->v_ratio_pre_cwithout_immediate_flip[i][j][k] > 4.0)) {
-					v->v_ratio_in_prefetch_supported_without_immediate_flip[i][j] = dcn_bw_no;
+					v->v_ratio_in_prefetch_supported_without_immediate_flip[i][j] = dcn_bw_anal;
 				}
 			}
 		}
@@ -965,42 +965,42 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 
 	for (i = number_of_states_plus_one; i >= 0; i--) {
 		for (j = 0; j <= 1; j++) {
-			if (v->scale_ratio_support == dcn_bw_yes && v->source_format_pixel_and_scan_support == dcn_bw_yes && v->viewport_size_support == dcn_bw_yes && v->bandwidth_support[i] == dcn_bw_yes && v->dio_support[i] == dcn_bw_yes && v->urgent_latency_support[i][j] == dcn_bw_yes && v->rob_support[i] == dcn_bw_yes && v->dispclk_dppclk_support[i][j] == dcn_bw_yes && v->total_available_pipes_support[i][j] == dcn_bw_yes && v->total_available_writeback_support == dcn_bw_yes && v->writeback_latency_support == dcn_bw_yes) {
-				if (v->prefetch_supported_with_immediate_flip[i][j] == dcn_bw_yes && v->v_ratio_in_prefetch_supported_with_immediate_flip[i][j] == dcn_bw_yes) {
-					v->mode_support_with_immediate_flip[i][j] = dcn_bw_yes;
+			if (v->scale_ratio_support == dcn_bw_anal && v->source_format_pixel_and_scan_support == dcn_bw_anal && v->viewport_size_support == dcn_bw_anal && v->bandwidth_support[i] == dcn_bw_anal && v->dio_support[i] == dcn_bw_anal && v->urgent_latency_support[i][j] == dcn_bw_anal && v->rob_support[i] == dcn_bw_anal && v->dispclk_dppclk_support[i][j] == dcn_bw_anal && v->total_available_pipes_support[i][j] == dcn_bw_anal && v->total_available_writeback_support == dcn_bw_anal && v->writeback_latency_support == dcn_bw_anal) {
+				if (v->prefetch_supported_with_immediate_flip[i][j] == dcn_bw_anal && v->v_ratio_in_prefetch_supported_with_immediate_flip[i][j] == dcn_bw_anal) {
+					v->mode_support_with_immediate_flip[i][j] = dcn_bw_anal;
 				}
 				else {
-					v->mode_support_with_immediate_flip[i][j] = dcn_bw_no;
+					v->mode_support_with_immediate_flip[i][j] = dcn_bw_anal;
 				}
-				if (v->prefetch_supported_without_immediate_flip[i][j] == dcn_bw_yes && v->v_ratio_in_prefetch_supported_without_immediate_flip[i][j] == dcn_bw_yes) {
-					v->mode_support_without_immediate_flip[i][j] = dcn_bw_yes;
+				if (v->prefetch_supported_without_immediate_flip[i][j] == dcn_bw_anal && v->v_ratio_in_prefetch_supported_without_immediate_flip[i][j] == dcn_bw_anal) {
+					v->mode_support_without_immediate_flip[i][j] = dcn_bw_anal;
 				}
 				else {
-					v->mode_support_without_immediate_flip[i][j] = dcn_bw_no;
+					v->mode_support_without_immediate_flip[i][j] = dcn_bw_anal;
 				}
 			}
 			else {
-				v->mode_support_with_immediate_flip[i][j] = dcn_bw_no;
-				v->mode_support_without_immediate_flip[i][j] = dcn_bw_no;
+				v->mode_support_with_immediate_flip[i][j] = dcn_bw_anal;
+				v->mode_support_without_immediate_flip[i][j] = dcn_bw_anal;
 			}
 		}
 	}
 	for (i = number_of_states_plus_one; i >= 0; i--) {
-		if ((i == number_of_states_plus_one || v->mode_support_with_immediate_flip[i][1] == dcn_bw_yes || v->mode_support_with_immediate_flip[i][0] == dcn_bw_yes) && i >= v->voltage_override_level) {
+		if ((i == number_of_states_plus_one || v->mode_support_with_immediate_flip[i][1] == dcn_bw_anal || v->mode_support_with_immediate_flip[i][0] == dcn_bw_anal) && i >= v->voltage_override_level) {
 			v->voltage_level_with_immediate_flip = i;
 		}
 	}
 	for (i = number_of_states_plus_one; i >= 0; i--) {
-		if ((i == number_of_states_plus_one || v->mode_support_without_immediate_flip[i][1] == dcn_bw_yes || v->mode_support_without_immediate_flip[i][0] == dcn_bw_yes) && i >= v->voltage_override_level) {
+		if ((i == number_of_states_plus_one || v->mode_support_without_immediate_flip[i][1] == dcn_bw_anal || v->mode_support_without_immediate_flip[i][0] == dcn_bw_anal) && i >= v->voltage_override_level) {
 			v->voltage_level_without_immediate_flip = i;
 		}
 	}
 	if (v->voltage_level_with_immediate_flip == number_of_states_plus_one) {
-		v->immediate_flip_supported = dcn_bw_no;
+		v->immediate_flip_supported = dcn_bw_anal;
 		v->voltage_level = v->voltage_level_without_immediate_flip;
 	}
 	else {
-		v->immediate_flip_supported = dcn_bw_yes;
+		v->immediate_flip_supported = dcn_bw_anal;
 		v->voltage_level = v->voltage_level_with_immediate_flip;
 	}
 	v->dcfclk = v->dcfclk_per_state[v->voltage_level];
@@ -1008,7 +1008,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 	for (j = 0; j <= 1; j++) {
 		v->required_dispclk_per_ratio[j] = v->required_dispclk[v->voltage_level][j];
 		for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-			v->dpp_per_plane_per_ratio[j][k] = v->no_of_dpp[v->voltage_level][j][k];
+			v->dpp_per_plane_per_ratio[j][k] = v->anal_of_dpp[v->voltage_level][j][k];
 		}
 		v->dispclk_dppclk_support_per_ratio[j] = v->dispclk_dppclk_support[v->voltage_level][j];
 	}
@@ -1026,7 +1026,7 @@ void display_pipe_configuration(struct dcn_bw_internal_vars *v)
 			v->total_number_of_active_dpp_per_ratio[j] = v->total_number_of_active_dpp_per_ratio[j] + v->dpp_per_plane_per_ratio[j][k];
 		}
 	}
-	if ((v->dispclk_dppclk_support_per_ratio[0] == dcn_bw_yes && v->dispclk_dppclk_support_per_ratio[1] == dcn_bw_no) || (v->dispclk_dppclk_support_per_ratio[0] == v->dispclk_dppclk_support_per_ratio[1] && (v->total_number_of_active_dpp_per_ratio[0] < v->total_number_of_active_dpp_per_ratio[1] || (((v->total_number_of_active_dpp_per_ratio[0] == v->total_number_of_active_dpp_per_ratio[1]) && v->required_dispclk_per_ratio[0] <= 0.5 * v->required_dispclk_per_ratio[1]))))) {
+	if ((v->dispclk_dppclk_support_per_ratio[0] == dcn_bw_anal && v->dispclk_dppclk_support_per_ratio[1] == dcn_bw_anal) || (v->dispclk_dppclk_support_per_ratio[0] == v->dispclk_dppclk_support_per_ratio[1] && (v->total_number_of_active_dpp_per_ratio[0] < v->total_number_of_active_dpp_per_ratio[1] || (((v->total_number_of_active_dpp_per_ratio[0] == v->total_number_of_active_dpp_per_ratio[1]) && v->required_dispclk_per_ratio[0] <= 0.5 * v->required_dispclk_per_ratio[1]))))) {
 		v->dispclk_dppclk_ratio = 1;
 		v->final_error_message = v->error_message[0];
 	}
@@ -1112,7 +1112,7 @@ void display_pipe_configuration(struct dcn_bw_internal_vars *v)
 			}
 			else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_8 && v->source_scan[k] == dcn_bw_hor) {
 				v->minimum_swath_height_y = v->maximum_swath_height_y / 2.0;
-				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
+				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_anal) {
 					v->minimum_swath_height_c = v->maximum_swath_height_c;
 				}
 				else {
@@ -1121,7 +1121,7 @@ void display_pipe_configuration(struct dcn_bw_internal_vars *v)
 			}
 			else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10 && v->source_scan[k] == dcn_bw_hor) {
 				v->minimum_swath_height_c = v->maximum_swath_height_c / 2.0;
-				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
+				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_anal) {
 					v->minimum_swath_height_y = v->maximum_swath_height_y;
 				}
 				else {
@@ -1202,7 +1202,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 			v->dppclk_using_single_dpp_chroma = v->pixel_clock[k] *dcn_bw_max3(v->vta_pschroma[k] / 6.0 *dcn_bw_min2(1.0, v->h_ratio[k] / 2.0), v->h_ratio[k] * v->v_ratio[k] / 4.0 / v->pscl_throughput_chroma[k], 1.0);
 			v->dppclk_using_single_dpp =dcn_bw_max2(v->dppclk_using_single_dpp_luma, v->dppclk_using_single_dpp_chroma);
 		}
-		if (v->odm_capable == dcn_bw_yes) {
+		if (v->odm_capable == dcn_bw_anal) {
 			v->dispclk_with_ramping =dcn_bw_max2(v->dispclk_with_ramping,dcn_bw_max2(v->dppclk_using_single_dpp / v->dpp_per_plane[k] * v->dispclk_dppclk_ratio, v->pixel_clock[k] / v->dpp_per_plane[k]) * (1.0 + v->downspreading / 100.0) * (1.0 + v->dispclk_ramping_margin / 100.0));
 			v->dispclk_without_ramping =dcn_bw_max2(v->dispclk_without_ramping,dcn_bw_max2(v->dppclk_using_single_dpp / v->dpp_per_plane[k] * v->dispclk_dppclk_ratio, v->pixel_clock[k] / v->dpp_per_plane[k]) * (1.0 + v->downspreading / 100.0));
 		}
@@ -1224,26 +1224,26 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 	/*urgent watermark*/
 
 	v->return_bandwidth_to_dcn =dcn_bw_min2(v->return_bus_width * v->dcfclk, v->fabric_and_dram_bandwidth * 1000.0 * v->percent_of_ideal_drambw_received_after_urg_latency / 100.0);
-	v->dcc_enabled_any_plane = dcn_bw_no;
+	v->dcc_enabled_any_plane = dcn_bw_anal;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if (v->dcc_enable[k] == dcn_bw_yes) {
-			v->dcc_enabled_any_plane = dcn_bw_yes;
+		if (v->dcc_enable[k] == dcn_bw_anal) {
+			v->dcc_enabled_any_plane = dcn_bw_anal;
 		}
 	}
 	v->return_bw = v->return_bandwidth_to_dcn;
-	if (v->dcc_enabled_any_plane == dcn_bw_yes && v->return_bandwidth_to_dcn > v->dcfclk * v->return_bus_width / 4.0) {
+	if (v->dcc_enabled_any_plane == dcn_bw_anal && v->return_bandwidth_to_dcn > v->dcfclk * v->return_bus_width / 4.0) {
 		v->return_bw =dcn_bw_min2(v->return_bw, v->return_bandwidth_to_dcn * 4.0 * (1.0 - v->urgent_latency / ((v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 / (v->return_bandwidth_to_dcn - v->dcfclk * v->return_bus_width / 4.0) + v->urgent_latency)));
 	}
 	v->critical_compression = 2.0 * v->return_bus_width * v->dcfclk * v->urgent_latency / (v->return_bandwidth_to_dcn * v->urgent_latency + (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0);
-	if (v->dcc_enabled_any_plane == dcn_bw_yes && v->critical_compression > 1.0 && v->critical_compression < 4.0) {
+	if (v->dcc_enabled_any_plane == dcn_bw_anal && v->critical_compression > 1.0 && v->critical_compression < 4.0) {
 		v->return_bw =dcn_bw_min2(v->return_bw, dcn_bw_pow(4.0 * v->return_bandwidth_to_dcn * (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 * v->return_bus_width * v->dcfclk * v->urgent_latency / (v->return_bandwidth_to_dcn * v->urgent_latency + (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0), 2));
 	}
 	v->return_bandwidth_to_dcn =dcn_bw_min2(v->return_bus_width * v->dcfclk, v->fabric_and_dram_bandwidth * 1000.0);
-	if (v->dcc_enabled_any_plane == dcn_bw_yes && v->return_bandwidth_to_dcn > v->dcfclk * v->return_bus_width / 4.0) {
+	if (v->dcc_enabled_any_plane == dcn_bw_anal && v->return_bandwidth_to_dcn > v->dcfclk * v->return_bus_width / 4.0) {
 		v->return_bw =dcn_bw_min2(v->return_bw, v->return_bandwidth_to_dcn * 4.0 * (1.0 - v->urgent_latency / ((v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 / (v->return_bandwidth_to_dcn - v->dcfclk * v->return_bus_width / 4.0) + v->urgent_latency)));
 	}
 	v->critical_compression = 2.0 * v->return_bus_width * v->dcfclk * v->urgent_latency / (v->return_bandwidth_to_dcn * v->urgent_latency + (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0);
-	if (v->dcc_enabled_any_plane == dcn_bw_yes && v->critical_compression > 1.0 && v->critical_compression < 4.0) {
+	if (v->dcc_enabled_any_plane == dcn_bw_anal && v->critical_compression > 1.0 && v->critical_compression < 4.0) {
 		v->return_bw =dcn_bw_min2(v->return_bw, dcn_bw_pow(4.0 * v->return_bandwidth_to_dcn * (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0 * v->return_bus_width * v->dcfclk * v->urgent_latency / (v->return_bandwidth_to_dcn * v->urgent_latency + (v->rob_buffer_size_in_kbyte - v->pixel_chunk_size_in_kbyte) * 1024.0), 2));
 	}
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
@@ -1286,7 +1286,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 	v->total_dcc_active_dpp = 0.0;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		v->total_active_dpp = v->total_active_dpp + v->dpp_per_plane[k];
-		if (v->dcc_enable[k] == dcn_bw_yes) {
+		if (v->dcc_enable[k] == dcn_bw_anal) {
 			v->total_dcc_active_dpp = v->total_dcc_active_dpp + v->dpp_per_plane[k];
 		}
 	}
@@ -1316,7 +1316,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 		}
 	}
 	v->urgent_extra_latency = v->urgent_round_trip_and_out_of_order_latency + (v->total_active_dpp * v->pixel_chunk_size_in_kbyte + v->total_dcc_active_dpp * v->meta_chunk_size) * 1024.0 / v->return_bw;
-	if (v->pte_enable == dcn_bw_yes) {
+	if (v->pte_enable == dcn_bw_anal) {
 		v->urgent_extra_latency = v->urgent_extra_latency + v->total_active_dpp * v->pte_chunk_size * 1024.0 / v->return_bw;
 	}
 	v->urgent_watermark = v->urgent_latency + v->last_pixel_of_line_extra_watermark + v->urgent_extra_latency;
@@ -1366,30 +1366,30 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 	}
 	v->average_read_bandwidth_gbyte_per_second = 0.0;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if (v->dcc_enable[k] == dcn_bw_yes) {
+		if (v->dcc_enable[k] == dcn_bw_anal) {
 			v->average_read_bandwidth_gbyte_per_second = v->average_read_bandwidth_gbyte_per_second + v->read_bandwidth_plane_luma[k] / v->dcc_rate[k] / 1000.0 + v->read_bandwidth_plane_chroma[k] / v->dcc_rate[k] / 1000.0;
 		}
 		else {
 			v->average_read_bandwidth_gbyte_per_second = v->average_read_bandwidth_gbyte_per_second + v->read_bandwidth_plane_luma[k] / 1000.0 + v->read_bandwidth_plane_chroma[k] / 1000.0;
 		}
-		if (v->dcc_enable[k] == dcn_bw_yes) {
+		if (v->dcc_enable[k] == dcn_bw_anal) {
 			v->average_read_bandwidth_gbyte_per_second = v->average_read_bandwidth_gbyte_per_second + v->read_bandwidth_plane_luma[k] / 1000.0 / 256.0 + v->read_bandwidth_plane_chroma[k] / 1000.0 / 256.0;
 		}
-		if (v->pte_enable == dcn_bw_yes) {
+		if (v->pte_enable == dcn_bw_anal) {
 			v->average_read_bandwidth_gbyte_per_second = v->average_read_bandwidth_gbyte_per_second + v->read_bandwidth_plane_luma[k] / 1000.0 / 512.0 + v->read_bandwidth_plane_chroma[k] / 1000.0 / 512.0;
 		}
 	}
 	v->part_of_burst_that_fits_in_rob =dcn_bw_min2(v->min_full_det_buffering_time * v->total_data_read_bandwidth, v->rob_buffer_size_in_kbyte * 1024.0 * v->total_data_read_bandwidth / (v->average_read_bandwidth_gbyte_per_second * 1000.0));
 	v->stutter_burst_time = v->part_of_burst_that_fits_in_rob * (v->average_read_bandwidth_gbyte_per_second * 1000.0) / v->total_data_read_bandwidth / v->return_bw + (v->min_full_det_buffering_time * v->total_data_read_bandwidth - v->part_of_burst_that_fits_in_rob) / (v->dcfclk * 64.0);
 	if (v->total_active_writeback == 0.0) {
-		v->stutter_efficiency_not_including_vblank = (1.0 - (v->sr_exit_time + v->stutter_burst_time) / v->min_full_det_buffering_time) * 100.0;
+		v->stutter_efficiency_analt_including_vblank = (1.0 - (v->sr_exit_time + v->stutter_burst_time) / v->min_full_det_buffering_time) * 100.0;
 	}
 	else {
-		v->stutter_efficiency_not_including_vblank = 0.0;
+		v->stutter_efficiency_analt_including_vblank = 0.0;
 	}
 	v->smallest_vblank = 999999.0;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if (v->synchronized_vblank == dcn_bw_yes || v->number_of_active_planes == 1) {
+		if (v->synchronized_vblank == dcn_bw_anal || v->number_of_active_planes == 1) {
 			v->v_blank_time = (v->vtotal[k] - v->vactive[k]) * v->htotal[k] / v->pixel_clock[k];
 		}
 		else {
@@ -1397,7 +1397,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 		}
 		v->smallest_vblank =dcn_bw_min2(v->smallest_vblank, v->v_blank_time);
 	}
-	v->stutter_efficiency = (v->stutter_efficiency_not_including_vblank / 100.0 * (v->frame_time_for_min_full_det_buffering_time - v->smallest_vblank) + v->smallest_vblank) / v->frame_time_for_min_full_det_buffering_time * 100.0;
+	v->stutter_efficiency = (v->stutter_efficiency_analt_including_vblank / 100.0 * (v->frame_time_for_min_full_det_buffering_time - v->smallest_vblank) + v->smallest_vblank) / v->frame_time_for_min_full_det_buffering_time * 100.0;
 	/*dcfclk deep sleep*/
 
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
@@ -1435,9 +1435,9 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		v->min_urgent_latency_support_us =dcn_bw_min2(v->min_urgent_latency_support_us, v->urgent_latency_support_us[k]);
 	}
-	/*non-urgent latency tolerance*/
+	/*analn-urgent latency tolerance*/
 
-	v->non_urgent_latency_tolerance = v->min_urgent_latency_support_us - v->urgent_watermark;
+	v->analn_urgent_latency_tolerance = v->min_urgent_latency_support_us - v->urgent_watermark;
 	/*prefetch*/
 
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
@@ -1467,11 +1467,11 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 				v->block_height256_bytes_c = 8.0;
 			}
 		}
-		if (v->dcc_enable[k] == dcn_bw_yes) {
+		if (v->dcc_enable[k] == dcn_bw_anal) {
 			v->meta_request_width_y = 64.0 * 256.0 /dcn_bw_ceil2(v->byte_per_pixel_dety[k], 1.0) / (8.0 * v->block_height256_bytes_y);
 			v->meta_surf_width_y =dcn_bw_ceil2(v->swath_width_y[k] - 1.0, v->meta_request_width_y) + v->meta_request_width_y;
 			v->meta_surf_height_y =dcn_bw_ceil2(v->viewport_height[k] - 1.0, 8.0 * v->block_height256_bytes_y) + 8.0 * v->block_height256_bytes_y;
-			if (v->pte_enable == dcn_bw_yes) {
+			if (v->pte_enable == dcn_bw_anal) {
 				v->meta_pte_bytes_frame_y = (dcn_bw_ceil2((v->meta_surf_width_y * v->meta_surf_height_y *dcn_bw_ceil2(v->byte_per_pixel_dety[k], 1.0) / 256.0 - 4096.0) / 8.0 / 4096.0, 1.0) + 1) * 64.0;
 			}
 			else {
@@ -1488,7 +1488,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 			v->meta_pte_bytes_frame_y = 0.0;
 			v->meta_row_byte_y = 0.0;
 		}
-		if (v->pte_enable == dcn_bw_yes) {
+		if (v->pte_enable == dcn_bw_anal) {
 			if (v->source_surface_mode[k] == dcn_bw_sw_linear) {
 				v->macro_tile_size_byte_y = 256.0;
 				v->macro_tile_height_y = 1.0;
@@ -1526,11 +1526,11 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 			v->pixel_pte_bytes_per_row_y = 0.0;
 		}
 		if ((v->source_pixel_format[k] != dcn_bw_rgb_sub_64 && v->source_pixel_format[k] != dcn_bw_rgb_sub_32 && v->source_pixel_format[k] != dcn_bw_rgb_sub_16)) {
-			if (v->dcc_enable[k] == dcn_bw_yes) {
+			if (v->dcc_enable[k] == dcn_bw_anal) {
 				v->meta_request_width_c = 64.0 * 256.0 /dcn_bw_ceil2(v->byte_per_pixel_detc[k], 2.0) / (8.0 * v->block_height256_bytes_c);
 				v->meta_surf_width_c =dcn_bw_ceil2(v->swath_width_y[k] / 2.0 - 1.0, v->meta_request_width_c) + v->meta_request_width_c;
 				v->meta_surf_height_c =dcn_bw_ceil2(v->viewport_height[k] / 2.0 - 1.0, 8.0 * v->block_height256_bytes_c) + 8.0 * v->block_height256_bytes_c;
-				if (v->pte_enable == dcn_bw_yes) {
+				if (v->pte_enable == dcn_bw_anal) {
 					v->meta_pte_bytes_frame_c = (dcn_bw_ceil2((v->meta_surf_width_c * v->meta_surf_height_c *dcn_bw_ceil2(v->byte_per_pixel_detc[k], 2.0) / 256.0 - 4096.0) / 8.0 / 4096.0, 1.0) + 1) * 64.0;
 				}
 				else {
@@ -1547,7 +1547,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 				v->meta_pte_bytes_frame_c = 0.0;
 				v->meta_row_byte_c = 0.0;
 			}
-			if (v->pte_enable == dcn_bw_yes) {
+			if (v->pte_enable == dcn_bw_anal) {
 				if (v->source_surface_mode[k] == dcn_bw_sw_linear) {
 					v->macro_tile_size_bytes_c = 256.0;
 					v->macro_tile_height_c = 1.0;
@@ -1622,7 +1622,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 	}
 	v->t_calc = 24.0 / v->dcf_clk_deep_sleep;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if (v->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_yes) {
+		if (v->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_anal) {
 			v->max_vstartup_lines[k] = v->vtotal[k] - v->vactive[k] - 1.0;
 		}
 		else {
@@ -1633,11 +1633,11 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 	do {
 		v->v_startup_lines = 13.0;
 		do {
-			v->planes_with_room_to_increase_vstartup_prefetch_bw_less_than_active_bw = dcn_bw_yes;
-			v->planes_with_room_to_increase_vstartup_vratio_prefetch_more_than4 = dcn_bw_no;
-			v->planes_with_room_to_increase_vstartup_destination_line_times_for_prefetch_less_than2 = dcn_bw_no;
-			v->v_ratio_prefetch_more_than4 = dcn_bw_no;
-			v->destination_line_times_for_prefetch_less_than2 = dcn_bw_no;
+			v->planes_with_room_to_increase_vstartup_prefetch_bw_less_than_active_bw = dcn_bw_anal;
+			v->planes_with_room_to_increase_vstartup_vratio_prefetch_more_than4 = dcn_bw_anal;
+			v->planes_with_room_to_increase_vstartup_destination_line_times_for_prefetch_less_than2 = dcn_bw_anal;
+			v->v_ratio_prefetch_more_than4 = dcn_bw_anal;
+			v->destination_line_times_for_prefetch_less_than2 = dcn_bw_anal;
 			v->prefetch_mode = v->next_prefetch_mode;
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				v->dstx_after_scaler = 90.0 * v->pixel_clock[k] / v->dppclk + 42.0 * v->pixel_clock[k] / v->dispclk;
@@ -1679,14 +1679,14 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 			}
 			v->tot_immediate_flip_bytes = 0.0;
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-				if (v->immediate_flip_supported == dcn_bw_yes && (v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10)) {
+				if (v->immediate_flip_supported == dcn_bw_anal && (v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10)) {
 					v->tot_immediate_flip_bytes = v->tot_immediate_flip_bytes + v->meta_pte_bytes_frame[k] + v->meta_row_byte[k] + v->pixel_pte_bytes_per_row[k];
 				}
 			}
 			v->max_rd_bandwidth = 0.0;
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-				if (v->pte_enable == dcn_bw_yes && v->dcc_enable[k] == dcn_bw_yes) {
-					if (v->immediate_flip_supported == dcn_bw_yes && (v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10)) {
+				if (v->pte_enable == dcn_bw_anal && v->dcc_enable[k] == dcn_bw_anal) {
+					if (v->immediate_flip_supported == dcn_bw_anal && (v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10)) {
 						v->time_for_fetching_meta_pte =dcn_bw_max5(v->meta_pte_bytes_frame[k] / v->prefetch_bandwidth[k], v->meta_pte_bytes_frame[k] * v->tot_immediate_flip_bytes / (v->bandwidth_available_for_immediate_flip * (v->meta_pte_bytes_frame[k] + v->meta_row_byte[k] + v->pixel_pte_bytes_per_row[k])), v->urgent_extra_latency, v->urgent_latency, v->htotal[k] / v->pixel_clock[k] / 4.0);
 					}
 					else {
@@ -1697,8 +1697,8 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 					v->time_for_fetching_meta_pte = v->htotal[k] / v->pixel_clock[k] / 4.0;
 				}
 				v->destination_lines_to_request_vm_inv_blank[k] =dcn_bw_floor2(4.0 * (v->time_for_fetching_meta_pte / (v->htotal[k] / v->pixel_clock[k]) + 0.125), 1.0) / 4;
-				if ((v->pte_enable == dcn_bw_yes || v->dcc_enable[k] == dcn_bw_yes)) {
-					if (v->immediate_flip_supported == dcn_bw_yes && (v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10)) {
+				if ((v->pte_enable == dcn_bw_anal || v->dcc_enable[k] == dcn_bw_anal)) {
+					if (v->immediate_flip_supported == dcn_bw_anal && (v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10)) {
 						v->time_for_fetching_row_in_vblank =dcn_bw_max5((v->meta_row_byte[k] + v->pixel_pte_bytes_per_row[k]) / v->prefetch_bandwidth[k], (v->meta_row_byte[k] + v->pixel_pte_bytes_per_row[k]) * v->tot_immediate_flip_bytes / (v->bandwidth_available_for_immediate_flip * (v->meta_pte_bytes_frame[k] + v->meta_row_byte[k] + v->pixel_pte_bytes_per_row[k])), v->urgent_extra_latency, 2.0 * v->urgent_latency, v->htotal[k] / v->pixel_clock[k] - v->time_for_fetching_meta_pte);
 					}
 					else {
@@ -1747,37 +1747,37 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 					v->required_prefetch_pix_data_bw = 999999.0;
 				}
 				v->max_rd_bandwidth = v->max_rd_bandwidth +dcn_bw_max2(v->read_bandwidth_plane_luma[k] + v->read_bandwidth_plane_chroma[k], v->required_prefetch_pix_data_bw);
-				if (v->immediate_flip_supported == dcn_bw_yes && (v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10)) {
+				if (v->immediate_flip_supported == dcn_bw_anal && (v->source_pixel_format[k] != dcn_bw_yuv420_sub_8 && v->source_pixel_format[k] != dcn_bw_yuv420_sub_10)) {
 					v->max_rd_bandwidth = v->max_rd_bandwidth +dcn_bw_max2(v->meta_pte_bytes_frame[k] / (v->destination_lines_to_request_vm_inv_blank[k] * v->htotal[k] / v->pixel_clock[k]), (v->meta_row_byte[k] + v->pixel_pte_bytes_per_row[k]) / (v->destination_lines_to_request_row_in_vblank[k] * v->htotal[k] / v->pixel_clock[k]));
 				}
 				if (v->v_ratio_prefetch_y[k] > 4.0 || v->v_ratio_prefetch_c[k] > 4.0) {
-					v->v_ratio_prefetch_more_than4 = dcn_bw_yes;
+					v->v_ratio_prefetch_more_than4 = dcn_bw_anal;
 				}
 				if (v->destination_lines_for_prefetch[k] < 2.0) {
-					v->destination_line_times_for_prefetch_less_than2 = dcn_bw_yes;
+					v->destination_line_times_for_prefetch_less_than2 = dcn_bw_anal;
 				}
 				if (v->max_vstartup_lines[k] > v->v_startup_lines) {
 					if (v->required_prefetch_pix_data_bw > (v->read_bandwidth_plane_luma[k] + v->read_bandwidth_plane_chroma[k])) {
-						v->planes_with_room_to_increase_vstartup_prefetch_bw_less_than_active_bw = dcn_bw_no;
+						v->planes_with_room_to_increase_vstartup_prefetch_bw_less_than_active_bw = dcn_bw_anal;
 					}
 					if (v->v_ratio_prefetch_y[k] > 4.0 || v->v_ratio_prefetch_c[k] > 4.0) {
-						v->planes_with_room_to_increase_vstartup_vratio_prefetch_more_than4 = dcn_bw_yes;
+						v->planes_with_room_to_increase_vstartup_vratio_prefetch_more_than4 = dcn_bw_anal;
 					}
 					if (v->destination_lines_for_prefetch[k] < 2.0) {
-						v->planes_with_room_to_increase_vstartup_destination_line_times_for_prefetch_less_than2 = dcn_bw_yes;
+						v->planes_with_room_to_increase_vstartup_destination_line_times_for_prefetch_less_than2 = dcn_bw_anal;
 					}
 				}
 			}
-			if (v->max_rd_bandwidth <= v->return_bw && v->v_ratio_prefetch_more_than4 == dcn_bw_no && v->destination_line_times_for_prefetch_less_than2 == dcn_bw_no) {
-				v->prefetch_mode_supported = dcn_bw_yes;
+			if (v->max_rd_bandwidth <= v->return_bw && v->v_ratio_prefetch_more_than4 == dcn_bw_anal && v->destination_line_times_for_prefetch_less_than2 == dcn_bw_anal) {
+				v->prefetch_mode_supported = dcn_bw_anal;
 			}
 			else {
-				v->prefetch_mode_supported = dcn_bw_no;
+				v->prefetch_mode_supported = dcn_bw_anal;
 			}
 			v->v_startup_lines = v->v_startup_lines + 1.0;
-		} while (!(v->prefetch_mode_supported == dcn_bw_yes || (v->planes_with_room_to_increase_vstartup_prefetch_bw_less_than_active_bw == dcn_bw_yes && v->planes_with_room_to_increase_vstartup_vratio_prefetch_more_than4 == dcn_bw_no && v->planes_with_room_to_increase_vstartup_destination_line_times_for_prefetch_less_than2 == dcn_bw_no)));
+		} while (!(v->prefetch_mode_supported == dcn_bw_anal || (v->planes_with_room_to_increase_vstartup_prefetch_bw_less_than_active_bw == dcn_bw_anal && v->planes_with_room_to_increase_vstartup_vratio_prefetch_more_than4 == dcn_bw_anal && v->planes_with_room_to_increase_vstartup_destination_line_times_for_prefetch_less_than2 == dcn_bw_anal)));
 		v->next_prefetch_mode = v->next_prefetch_mode + 1.0;
-	} while (!(v->prefetch_mode_supported == dcn_bw_yes || v->prefetch_mode == 2.0));
+	} while (!(v->prefetch_mode_supported == dcn_bw_anal || v->prefetch_mode == 2.0));
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		if (v->v_ratio_prefetch_y[k] <= 1.0) {
 			v->display_pipe_line_delivery_time_luma_prefetch[k] = v->swath_width_y[k] * v->dpp_per_plane[k] / v->h_ratio[k] / v->pixel_clock[k];
@@ -1801,18 +1801,18 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		if (v->prefetch_mode == 0.0) {
-			v->allow_dram_clock_change_during_vblank[k] = dcn_bw_yes;
-			v->allow_dram_self_refresh_during_vblank[k] = dcn_bw_yes;
+			v->allow_dram_clock_change_during_vblank[k] = dcn_bw_anal;
+			v->allow_dram_self_refresh_during_vblank[k] = dcn_bw_anal;
 			v->min_ttuv_blank[k] = v->t_calc +dcn_bw_max3(v->dram_clock_change_watermark, v->stutter_enter_plus_exit_watermark, v->urgent_watermark);
 		}
 		else if (v->prefetch_mode == 1.0) {
-			v->allow_dram_clock_change_during_vblank[k] = dcn_bw_no;
-			v->allow_dram_self_refresh_during_vblank[k] = dcn_bw_yes;
+			v->allow_dram_clock_change_during_vblank[k] = dcn_bw_anal;
+			v->allow_dram_self_refresh_during_vblank[k] = dcn_bw_anal;
 			v->min_ttuv_blank[k] = v->t_calc +dcn_bw_max2(v->stutter_enter_plus_exit_watermark, v->urgent_watermark);
 		}
 		else {
-			v->allow_dram_clock_change_during_vblank[k] = dcn_bw_no;
-			v->allow_dram_self_refresh_during_vblank[k] = dcn_bw_no;
+			v->allow_dram_clock_change_during_vblank[k] = dcn_bw_anal;
+			v->allow_dram_self_refresh_during_vblank[k] = dcn_bw_anal;
 			v->min_ttuv_blank[k] = v->t_calc + v->urgent_watermark;
 		}
 	}
@@ -1874,7 +1874,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 		}
 	}
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if (v->allow_dram_clock_change_during_vblank[k] == dcn_bw_yes) {
+		if (v->allow_dram_clock_change_during_vblank[k] == dcn_bw_anal) {
 			v->v_blank_dram_clock_change_latency_margin[k] = (v->vtotal[k] - v->scaler_recout_height[k]) * (v->htotal[k] / v->pixel_clock[k]) -dcn_bw_max2(v->dram_clock_change_watermark, v->writeback_dram_clock_change_watermark);
 		}
 		else {
@@ -1900,7 +1900,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 			v->min_vblank_dram_clock_change_margin = v->v_blank_dram_clock_change_latency_margin[k];
 		}
 	}
-	if (v->synchronized_vblank == dcn_bw_yes || v->number_of_active_planes == 1) {
+	if (v->synchronized_vblank == dcn_bw_anal || v->number_of_active_planes == 1) {
 		v->dram_clock_change_margin =dcn_bw_max2(v->min_active_dram_clock_change_margin, v->min_vblank_dram_clock_change_margin);
 	}
 	else if (v->v_blank_of_min_active_dram_clock_change_margin > v->min_active_dram_clock_change_margin) {
@@ -1916,7 +1916,7 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 		v->dram_clock_change_support = dcn_bw_supported_in_v_blank;
 	}
 	else {
-		v->dram_clock_change_support = dcn_bw_not_supported;
+		v->dram_clock_change_support = dcn_bw_analt_supported;
 	}
 	/*maximum bandwidth used*/
 

@@ -74,7 +74,7 @@ enum rtl8723b_h2c_cmd {
 
 	H2C_8723B_RA_MASK = 0x40,
 	H2C_RSSIBE_REPORT = 0x42,
-	/*Not defined CTW CMD for P2P yet*/
+	/*Analt defined CTW CMD for P2P yet*/
 	H2C_8723B_P2P_PS_CTW_CMD,
 	MAX_8723B_H2CCMD
 };

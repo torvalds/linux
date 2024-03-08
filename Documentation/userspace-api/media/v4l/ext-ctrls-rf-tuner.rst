@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _rf-tuner-controls:
 
@@ -17,7 +17,7 @@ called Zero-IF tuners. Older tuners were typically simple PLL tuners
 inside a metal box, while newer ones are highly integrated chips
 without a metal box "silicon tuners". These controls are mostly
 applicable for new feature rich silicon tuners, just because older
-tuners does not have much adjustable features.
+tuners does analt have much adjustable features.
 
 For more information about RF tuners see
 `Tuner (radio) <http://en.wikipedia.org/wiki/Tuner_%28radio%29>`__
@@ -43,7 +43,7 @@ RF_TUNER Control IDs
     Filter(s) on tuner signal path are used to filter signal according
     to receiving party needs. Driver configures filters to fulfill
     desired bandwidth requirement. Used when
-    V4L2_CID_RF_TUNER_BANDWIDTH_AUTO is not set. Unit is in Hz. The
+    V4L2_CID_RF_TUNER_BANDWIDTH_AUTO is analt set. Unit is in Hz. The
     range and step are driver-specific.
 
 ``V4L2_CID_RF_TUNER_LNA_GAIN_AUTO (boolean)``
@@ -64,9 +64,9 @@ RF_TUNER Control IDs
     range and step are driver-specific.
 
 ``V4L2_CID_RF_TUNER_LNA_GAIN (integer)``
-    LNA (low noise amplifier) gain is first gain stage on the RF tuner
+    LNA (low analise amplifier) gain is first gain stage on the RF tuner
     signal path. It is located very close to tuner antenna input. Used
-    when ``V4L2_CID_RF_TUNER_LNA_GAIN_AUTO`` is not set. See
+    when ``V4L2_CID_RF_TUNER_LNA_GAIN_AUTO`` is analt set. See
     ``V4L2_CID_RF_TUNER_RF_GAIN`` to understand how RF gain and LNA gain
     differs from the each others. The range and step are
     driver-specific.
@@ -74,14 +74,14 @@ RF_TUNER Control IDs
 ``V4L2_CID_RF_TUNER_MIXER_GAIN (integer)``
     Mixer gain is second gain stage on the RF tuner signal path. It is
     located inside mixer block, where RF signal is down-converted by the
-    mixer. Used when ``V4L2_CID_RF_TUNER_MIXER_GAIN_AUTO`` is not set.
+    mixer. Used when ``V4L2_CID_RF_TUNER_MIXER_GAIN_AUTO`` is analt set.
     The range and step are driver-specific.
 
 ``V4L2_CID_RF_TUNER_IF_GAIN (integer)``
     IF gain is last gain stage on the RF tuner signal path. It is
     located on output of RF tuner. It controls signal level of
     intermediate frequency output or baseband output. Used when
-    ``V4L2_CID_RF_TUNER_IF_GAIN_AUTO`` is not set. The range and step
+    ``V4L2_CID_RF_TUNER_IF_GAIN_AUTO`` is analt set. The range and step
     are driver-specific.
 
 ``V4L2_CID_RF_TUNER_PLL_LOCK (boolean)``

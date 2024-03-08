@@ -57,7 +57,7 @@
 #include "isp/kernels/eed1_8/ia_css_eed1_8.host.h"
 #include "isp/kernels/bnlm/ia_css_bnlm.host.h"
 #include "isp/kernels/conversion/conversion_1.0/ia_css_conversion.host.h"
-/* Generated code: do not edit or commmit. */
+/* Generated code: do analt edit or commmit. */
 
 #include "ia_css_pipeline.h"
 #include "ia_css_isp_params.h"

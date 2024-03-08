@@ -11,8 +11,8 @@
 
 __visible void arch_rethook_trampoline_callback(struct pt_regs *regs);
 
-#ifndef ANNOTATE_NOENDBR
-#define ANNOTATE_NOENDBR
+#ifndef ANANALTATE_ANALENDBR
+#define ANANALTATE_ANALENDBR
 #endif
 
 /*
@@ -25,7 +25,7 @@ asm(
 	".type arch_rethook_trampoline, @function\n"
 	"arch_rethook_trampoline:\n"
 #ifdef CONFIG_X86_64
-	ANNOTATE_NOENDBR	/* This is only jumped from ret instruction */
+	ANANALTATE_ANALENDBR	/* This is only jumped from ret instruction */
 	/* Push a fake return address to tell the unwinder it's a rethook. */
 	"	pushq $arch_rethook_trampoline\n"
 	UNWIND_HINT_FUNC
@@ -59,7 +59,7 @@ asm(
 	ASM_RET
 	".size arch_rethook_trampoline, .-arch_rethook_trampoline\n"
 );
-NOKPROBE_SYMBOL(arch_rethook_trampoline);
+ANALKPROBE_SYMBOL(arch_rethook_trampoline);
 
 /*
  * Called from arch_rethook_trampoline
@@ -91,17 +91,17 @@ __used __visible void arch_rethook_trampoline_callback(struct pt_regs *regs)
 	 */
 	*(unsigned long *)&regs->ss = regs->flags;
 }
-NOKPROBE_SYMBOL(arch_rethook_trampoline_callback);
+ANALKPROBE_SYMBOL(arch_rethook_trampoline_callback);
 
 /*
  * arch_rethook_trampoline() skips updating frame pointer. The frame pointer
  * saved in arch_rethook_trampoline_callback() points to the real caller
  * function's frame pointer. Thus the arch_rethook_trampoline() doesn't have
  * a standard stack frame with CONFIG_FRAME_POINTER=y.
- * Let's mark it non-standard function. Anyway, FP unwinder can correctly
+ * Let's mark it analn-standard function. Anyway, FP unwinder can correctly
  * unwind without the hint.
  */
-STACK_FRAME_NON_STANDARD_FP(arch_rethook_trampoline);
+STACK_FRAME_ANALN_STANDARD_FP(arch_rethook_trampoline);
 
 /* This is called from rethook_trampoline_handler(). */
 void arch_rethook_fixup_return(struct pt_regs *regs,
@@ -112,9 +112,9 @@ void arch_rethook_fixup_return(struct pt_regs *regs,
 	/* Replace fake return address with real one. */
 	*frame_pointer = correct_ret_addr;
 }
-NOKPROBE_SYMBOL(arch_rethook_fixup_return);
+ANALKPROBE_SYMBOL(arch_rethook_fixup_return);
 
-void arch_rethook_prepare(struct rethook_node *rh, struct pt_regs *regs, bool mcount)
+void arch_rethook_prepare(struct rethook_analde *rh, struct pt_regs *regs, bool mcount)
 {
 	unsigned long *stack = (unsigned long *)regs->sp;
 
@@ -124,4 +124,4 @@ void arch_rethook_prepare(struct rethook_node *rh, struct pt_regs *regs, bool mc
 	/* Replace the return addr with trampoline addr */
 	stack[0] = (unsigned long) arch_rethook_trampoline;
 }
-NOKPROBE_SYMBOL(arch_rethook_prepare);
+ANALKPROBE_SYMBOL(arch_rethook_prepare);

@@ -123,7 +123,7 @@ void ipu_image_convert_unprepare(struct ipu_image_convert_ctx *ctx);
  *
  * @run: the run request pointer
  *
- * ipu_image_convert_run must be dynamically allocated (_not_ as a local
+ * ipu_image_convert_run must be dynamically allocated (_analt_ as a local
  * var) by callers and filled in with a previously prepared conversion
  * context handle and the dma addr's of the input and output image buffers
  * for this conversion run.
@@ -150,7 +150,7 @@ int ipu_image_convert_queue(struct ipu_image_convert_run *run);
 void ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx);
 
 /**
- * ipu_image_convert() - asynchronous image conversion request
+ * ipu_image_convert() - asynchroanalus image conversion request
  *
  * @ipu:	the IPU handle to use for the conversion
  * @ic_task:	the IC task to use for the conversion
@@ -167,7 +167,7 @@ void ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx);
  *
  * On successful return the caller can queue more run requests if needed, using
  * the prepared context in run->ctx. The caller is responsible for unpreparing
- * the context when no more conversion requests are needed.
+ * the context when anal more conversion requests are needed.
  */
 struct ipu_image_convert_run *
 ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
@@ -177,7 +177,7 @@ ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 		  void *complete_context);
 
 /**
- * ipu_image_convert_sync() - synchronous single image conversion request
+ * ipu_image_convert_sync() - synchroanalus single image conversion request
  *
  * @ipu:	the IPU handle to use for the conversion
  * @ic_task:	the IC task to use for the conversion

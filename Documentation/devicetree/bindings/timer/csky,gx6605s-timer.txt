@@ -6,7 +6,7 @@ The timer is used in gx6605s soc as system timer and the driver
 contain clk event and clk source.
 
 ==============================
-timer node bindings definition
+timer analde bindings definition
 ==============================
 
 	Description: Describes gx6605s SOC timer
@@ -24,7 +24,7 @@ timer node bindings definition
 	- clocks
 		Usage: required
 		Value type: phandle + clock specifier cells
-		Definition: must be input clk node
+		Definition: must be input clk analde
 	- interrupt
 		Usage: required
 		Value type: <u32>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright © 2008 Ilya Yanok, Emcraft Systems
+ *  Copyright © 2008 Ilya Yaanalk, Emcraft Systems
  */
 
 #include <linux/slab.h>
@@ -90,7 +90,7 @@ static void socrates_nand_cmd_ctrl(struct nand_chip *nand_chip, int cmd,
 	struct socrates_nand_host *host = nand_get_controller_data(nand_chip);
 	uint32_t val;
 
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (ctrl & NAND_CLE)
@@ -121,7 +121,7 @@ static int socrates_nand_device_ready(struct nand_chip *nand_chip)
 static int socrates_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -144,9 +144,9 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&ofdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	host->io_base = of_iomap(ofdev->dev.of_node, 0);
+	host->io_base = of_iomap(ofdev->dev.of_analde, 0);
 	if (host->io_base == NULL) {
 		dev_err(&ofdev->dev, "ioremap failed\n");
 		return -EIO;
@@ -162,7 +162,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 
 	/* link the private data structures */
 	nand_set_controller_data(nand_chip, host);
-	nand_set_flash_node(nand_chip, ofdev->dev.of_node);
+	nand_set_flash_analde(nand_chip, ofdev->dev.of_analde);
 	mtd->name = "socrates_nand";
 	mtd->dev.parent = &ofdev->dev;
 
@@ -172,7 +172,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->legacy.read_buf = socrates_nand_read_buf;
 	nand_chip->legacy.dev_ready = socrates_nand_device_ready;
 
-	/* TODO: I have no idea what real delay is. */
+	/* TODO: I have anal idea what real delay is. */
 	nand_chip->legacy.chip_delay = 20;	/* 20us command delay time */
 
 	/*
@@ -237,5 +237,5 @@ static struct platform_driver socrates_nand_driver = {
 module_platform_driver(socrates_nand_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ilya Yanok");
+MODULE_AUTHOR("Ilya Yaanalk");
 MODULE_DESCRIPTION("NAND driver for Socrates board");

@@ -41,7 +41,7 @@ static void smc_rx_wake_up(struct sock *sk)
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN | EPOLLPRI |
-						EPOLLRDNORM | EPOLLRDBAND);
+						EPOLLRDANALRM | EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
 	    (sk->sk_state == SMC_CLOSED))
@@ -111,7 +111,7 @@ struct smc_spd_priv {
 	size_t		 len;
 };
 
-static void smc_rx_pipe_buf_release(struct pipe_inode_info *pipe,
+static void smc_rx_pipe_buf_release(struct pipe_ianalde_info *pipe,
 				    struct pipe_buffer *buf)
 {
 	struct smc_spd_priv *priv = (struct smc_spd_priv *)buf->private;
@@ -146,7 +146,7 @@ static void smc_rx_spd_release(struct splice_pipe_desc *spd,
 	put_page(spd->pages[i]);
 }
 
-static int smc_rx_splice(struct pipe_inode_info *pipe, char *src, size_t len,
+static int smc_rx_splice(struct pipe_ianalde_info *pipe, char *src, size_t len,
 			 struct smc_sock *smc)
 {
 	struct smc_link_group *lgr = smc->conn.lgr;
@@ -235,10 +235,10 @@ out_part:
 out_page:
 	kfree(pages);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-static int smc_rx_data_available_and_no_splice_pend(struct smc_connection *conn)
+static int smc_rx_data_available_and_anal_splice_pend(struct smc_connection *conn)
 {
 	return atomic_read(&conn->bytes_to_rcv) &&
 	       !atomic_read(&conn->splice_pending);
@@ -246,11 +246,11 @@ static int smc_rx_data_available_and_no_splice_pend(struct smc_connection *conn)
 
 /* blocks rcvbuf consumer until >=len bytes available or timeout or interrupted
  *   @smc    smc socket
- *   @timeo  pointer to max seconds to wait, pointer to value 0 for no timeout
+ *   @timeo  pointer to max seconds to wait, pointer to value 0 for anal timeout
  *   @fcrit  add'l criterion to evaluate as function pointer
  * Returns:
  * 1 if at least 1 byte available in rcvbuf or if socket error/shutdown.
- * 0 otherwise (nothing in rcvbuf nor timeout, e.g. interrupted).
+ * 0 otherwise (analthing in rcvbuf analr timeout, e.g. interrupted).
  */
 int smc_rx_wait(struct smc_sock *smc, long *timeo,
 		int (*fcrit)(struct smc_connection *conn))
@@ -305,7 +305,7 @@ static int smc_rx_recv_urg(struct smc_sock *smc, struct msghdr *msg, int len,
 					  &conn->urg_curs) > 1)
 				conn->urg_rx_skip_pend = true;
 			/* Urgent Byte was already accounted for, but trigger
-			 * skipping the urgent byte in non-inline case
+			 * skipping the urgent byte in analn-inline case
 			 */
 			if (!(flags & MSG_PEEK))
 				smc_rx_update_consumer(smc, cons, 0);
@@ -342,7 +342,7 @@ static bool smc_rx_recvmsg_data_available(struct smc_sock *smc)
  * Called under sk lock.
  */
 int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
-		   struct pipe_inode_info *pipe, size_t len, int flags)
+		   struct pipe_ianalde_info *pipe, size_t len, int flags)
 {
 	size_t copylen, read_done = 0, read_remaining = len;
 	size_t chunk_len, chunk_off, chunk_len_sum;
@@ -362,7 +362,7 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
 
 	sk = &smc->sk;
 	if (sk->sk_state == SMC_LISTEN)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	if (flags & MSG_OOB)
 		return smc_rx_recv_urg(smc, msg, len, flags);
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
@@ -412,7 +412,7 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
 					/* This occurs when user tries to read
 					 * from never connected socket.
 					 */
-					read_done = -ENOTCONN;
+					read_done = -EANALTCONN;
 					break;
 				}
 				break;
@@ -420,7 +420,7 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
 			if (!timeo)
 				return -EAGAIN;
 			if (signal_pending(current)) {
-				read_done = sock_intr_errno(timeo);
+				read_done = sock_intr_erranal(timeo);
 				break;
 			}
 		}
@@ -437,7 +437,7 @@ copy:
 		splbytes = atomic_read(&conn->splice_pending);
 		if (!readable || (msg && splbytes)) {
 			if (splbytes)
-				func = smc_rx_data_available_and_no_splice_pend;
+				func = smc_rx_data_available_and_anal_splice_pend;
 			else
 				func = smc_rx_data_available;
 			smc_rx_wait(smc, &timeo, func);
@@ -452,7 +452,7 @@ copy:
 		    sock_flag(&smc->sk, SOCK_URGINLINE) &&
 		    readable > 1)
 			readable--;	/* always stop at urgent Byte */
-		/* not more than what user space asked for */
+		/* analt more than what user space asked for */
 		copylen = min_t(size_t, read_remaining, readable);
 		/* determine chunks where to read from rcvbuf */
 		/* either unwrapped case, or 1st chunk of wrapped case */
@@ -506,7 +506,7 @@ out:
 	return read_done;
 }
 
-/* Initialize receive properties on connection establishment. NB: not __init! */
+/* Initialize receive properties on connection establishment. NB: analt __init! */
 void smc_rx_init(struct smc_sock *smc)
 {
 	smc->sk.sk_data_ready = smc_rx_wake_up;

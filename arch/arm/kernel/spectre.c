@@ -36,7 +36,7 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr,
 	const char *method;
 
 	if (spectre_v2_state == SPECTRE_UNAFFECTED)
-		return sprintf(buf, "%s\n", "Not affected");
+		return sprintf(buf, "%s\n", "Analt affected");
 
 	if (spectre_v2_state != SPECTRE_MITIGATED)
 		return sprintf(buf, "%s\n", "Vulnerable");

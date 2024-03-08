@@ -14,7 +14,7 @@
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  */
@@ -167,7 +167,7 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector,
 	weight = cpumask_weight(mask);
 
 	/*
-	 * Do nothing if
+	 * Do analthing if
 	 *   1. the mask is empty
 	 *   2. the mask only contains self when exclude_self is true
 	 */
@@ -311,7 +311,7 @@ void __init hv_apic_init(void)
 		 * accessors since the field layout in the ICR register is
 		 * different in x2apic mode. Furthermore, the architectural
 		 * x2apic MSRs function just as well as the Hyper-V
-		 * synthetic APIC MSRs, so there's no benefit in having
+		 * synthetic APIC MSRs, so there's anal benefit in having
 		 * separate Hyper-V accessors for x2apic mode. The only
 		 * exception is hv_apic_eoi_write, because it benefits from
 		 * lazy EOI when available, but the same accessor works for

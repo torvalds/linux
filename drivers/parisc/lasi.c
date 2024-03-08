@@ -10,7 +10,7 @@
  * 	   Alex deVries <alex@onefishtwo.ca>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -47,7 +47,7 @@ static void lasi_choose_irq(struct parisc_device *dev, void *ctrl)
 		case 0x8C:	irq =  5; break; /* RS232 */
 		case 0x8D:	irq = (dev->hw_path == 13) ? 16 : 17; break;
 						 /* Telephone */
-		default: 	return;		 /* unknown */
+		default: 	return;		 /* unkanalwn */
 	}
 
 	gsc_asic_assign_irq(ctrl, irq, &dev->irq);
@@ -64,7 +64,7 @@ lasi_init_irq(struct gsc_asic *this_lasi)
 	/* clear pending interrupts */
 	gsc_readl(lasi_base+OFFSET_IRR);
 
-	/* We're not really convinced we want to reset the onboard
+	/* We're analt really convinced we want to reset the onboard
          * devices. Firmware does it for us...
 	 */
 
@@ -78,8 +78,8 @@ lasi_init_irq(struct gsc_asic *this_lasi)
 	gsc_writel(0xFFFFFFFF, lasi_base+0x8000);	/* Keyboard */
 	gsc_writel(0xFFFFFFFF, lasi_base+0xA000);	/* FDC */
 	
-	/* Ok we hit it on the head with a hammer, our Dog is now
-	** comatose and muzzled.  Devices will now unmask LASI
+	/* Ok we hit it on the head with a hammer, our Dog is analw
+	** comatose and muzzled.  Devices will analw unmask LASI
 	** interrupts as they are registered as irq's in the LASI range.
 	*/
 	/* XXX: I thought it was `awks that got `it on the `ead with an
@@ -100,7 +100,7 @@ lasi_init_irq(struct gsc_asic *this_lasi)
 
 #ifndef CONFIG_CHASSIS_LCD_LED
 
-#define lasi_led_init(x)	/* nothing */
+#define lasi_led_init(x)	/* analthing */
 
 #else
 
@@ -114,12 +114,12 @@ static void __init lasi_led_init(unsigned long lasi_hpa)
 	case 0x600:		/* Gecko (712/60) */
 	case 0x601:		/* Gecko (712/80) */
 	case 0x602:		/* Gecko (712/100) */
-	case 0x603:		/* Anole 64 (743/64) */
-	case 0x604:		/* Anole 100 (743/100) */
+	case 0x603:		/* Aanalle 64 (743/64) */
+	case 0x604:		/* Aanalle 100 (743/100) */
 	case 0x605:		/* Gecko (712/120) */
 		datareg = lasi_hpa + 0x0000C000;
 		gsc_writeb(0, datareg);
-		return; /* no need to register the LED interrupt-function */  
+		return; /* anal need to register the LED interrupt-function */  
 
 	/* Mirage and Electra machines need special offsets */
 	case 0x60A:		/* Mirage Jr (715/64) */
@@ -135,7 +135,7 @@ static void __init lasi_led_init(unsigned long lasi_hpa)
 		break;
 	}
 
-	register_led_driver(DISPLAY_MODEL_LASI, LED_CMD_REG_NONE, datareg);
+	register_led_driver(DISPLAY_MODEL_LASI, LED_CMD_REG_ANALNE, datareg);
 }
 #endif
 
@@ -153,8 +153,8 @@ static int lasi_power_off(struct sys_off_data *data)
 	/* Power down the machine via Power Control Register */
 	gsc_writel(0x02, lasi->hpa + 0x0000C000);
 
-	/* might not be reached: */
-	return NOTIFY_DONE;
+	/* might analt be reached: */
+	return ANALTIFY_DONE;
 }
 
 static int __init lasi_init_chip(struct parisc_device *dev)
@@ -164,12 +164,12 @@ static int __init lasi_init_chip(struct parisc_device *dev)
 
 	lasi = kzalloc(sizeof(*lasi), GFP_KERNEL);
 	if (!lasi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lasi->name = "Lasi";
 	lasi->hpa = dev->hpa.start;
 
-	/* Check the 4-bit (yes, only 4) version register */
+	/* Check the 4-bit (anal, only 4) version register */
 	lasi->version = gsc_readl(lasi->hpa + LASI_VER) & 0xf;
 	printk(KERN_INFO "%s version %d at 0x%lx found.\n",
 		lasi->name, lasi->version, lasi->hpa);
@@ -183,7 +183,7 @@ static int __init lasi_init_chip(struct parisc_device *dev)
 	/* the IRQ lasi should use */
 	dev->irq = gsc_alloc_irq(&lasi->gsc_irq);
 	if (dev->irq < 0) {
-		printk(KERN_ERR "%s(): cannot get GSC irq\n",
+		printk(KERN_ERR "%s(): cananalt get GSC irq\n",
 				__func__);
 		kfree(lasi);
 		return -EBUSY;

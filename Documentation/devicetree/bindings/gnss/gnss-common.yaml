@@ -15,11 +15,11 @@ description: |
   Satellite System receivers.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^gnss(@.*)?$"
 
   lna-supply:
-    description: A separate regulator supplying power for the Low Noise
+    description: A separate regulator supplying power for the Low Analise
       Amplifier (LNA). This is an amplifier connected between the GNSS
       device and the receiver antenna.
 

@@ -59,7 +59,7 @@ struct cobalt_i2c_regs {
 
 /* SR[7:0] - Status register */
 
-/* Receive acknowledge from slave */
+/* Receive ackanalwledge from slave */
 #define M00018_SR_BITMAP_RXACK_MSK	(1 << 7)
 
 /* Busy, I2C bus busy (as defined by start / stop bits) */
@@ -146,7 +146,7 @@ static int cobalt_tx_bytes(struct cobalt_i2c_regs __iomem *regs,
 
 		/* Verify ACK */
 		if (status & M00018_SR_BITMAP_RXACK_MSK) {
-			/* NO ACK! */
+			/* ANAL ACK! */
 			return -EIO;
 		}
 
@@ -186,7 +186,7 @@ static int cobalt_rx_bytes(struct cobalt_i2c_regs __iomem *regs,
 			cmd = M00018_CR_BITMAP_RD_MSK;
 		}
 
-		/* Last byte to read, no ACK */
+		/* Last byte to read, anal ACK */
 		if (i == len - 1)
 			cmd |= M00018_CR_BITMAP_ACK_MSK;
 
@@ -243,7 +243,7 @@ static int cobalt_xfer(struct i2c_adapter *adap,
 		pmsg = &msgs[i];
 		flags = pmsg->flags;
 
-		if (!(pmsg->flags & I2C_M_NOSTART)) {
+		if (!(pmsg->flags & I2C_M_ANALSTART)) {
 			u8 addr = pmsg->addr << 1;
 
 			if (flags & I2C_M_RD)
@@ -327,7 +327,7 @@ int cobalt_i2c_init(struct cobalt *cobalt)
 		start_time = jiffies;
 		do {
 			if (time_after(jiffies, start_time + HZ)) {
-				if (cobalt_ignore_err) {
+				if (cobalt_iganalre_err) {
 					adap->dev.parent = NULL;
 					return 0;
 				}
@@ -358,7 +358,7 @@ int cobalt_i2c_init(struct cobalt *cobalt)
 		adap->dev.parent = &cobalt->pci_dev->dev;
 		err = i2c_add_adapter(adap);
 		if (err) {
-			if (cobalt_ignore_err) {
+			if (cobalt_iganalre_err) {
 				adap->dev.parent = NULL;
 				return 0;
 			}

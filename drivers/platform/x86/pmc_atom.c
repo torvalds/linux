@@ -216,7 +216,7 @@ int pmc_atom_read(int offset, u32 *value)
 	struct pmc_dev *pmc = &pmc_device;
 
 	if (!pmc->init)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*value = pmc_reg_read(pmc, offset);
 	return 0;
@@ -428,7 +428,7 @@ static int pmc_setup_clks(struct pci_dev *pdev, void __iomem *pmc_regmap,
 
 	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->base = pmc_regmap; /* offset is added by client */
 	clk_data->clks = pmc_data->clks;
@@ -436,7 +436,7 @@ static int pmc_setup_clks(struct pci_dev *pdev, void __iomem *pmc_regmap,
 		clk_data->critical = pmc_clk_is_critical;
 
 	clkdev = platform_device_register_data(&pdev->dev, "clk-pmc-atom",
-					       PLATFORM_DEVID_NONE,
+					       PLATFORM_DEVID_ANALNE,
 					       clk_data, sizeof(*clk_data));
 	if (IS_ERR(clkdev)) {
 		kfree(clk_data);
@@ -469,7 +469,7 @@ static int pmc_setup_dev(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pmc->regmap = ioremap(pmc->base_addr, PMC_MMIO_REG_LEN);
 	if (!pmc->regmap) {
 		dev_err(&pdev->dev, "error: ioremap failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pmc->map = map;
@@ -515,8 +515,8 @@ static int __init pmc_atom_init(void)
 		if (ent)
 			return pmc_setup_dev(pdev, ent);
 	}
-	/* Device not found */
-	return -ENODEV;
+	/* Device analt found */
+	return -EANALDEV;
 }
 
 device_initcall(pmc_atom_init);

@@ -43,7 +43,7 @@ static const struct {
 	int n;
 	const char *name;
 } symbol_types[] = {
-	[SYM_NORMAL]     = { 0, NULL},
+	[SYM_ANALRMAL]     = { 0, NULL},
 	[SYM_TYPEDEF]    = {'t', "typedef"},
 	[SYM_ENUM]       = {'e', "enum"},
 	[SYM_STRUCT]     = {'s', "struct"},
@@ -54,7 +54,7 @@ static const struct {
 static int equal_list(struct string_list *a, struct string_list *b);
 static void print_list(FILE * f, struct string_list *list);
 static struct string_list *concat_list(struct string_list *start, ...);
-static struct string_list *mk_node(const char *string);
+static struct string_list *mk_analde(const char *string);
 static void print_location(void);
 static void print_type_name(enum symbol_type type, const char *name);
 
@@ -138,9 +138,9 @@ static enum symbol_type map_to_ns(enum symbol_type t)
 {
 	switch (t) {
 	case SYM_ENUM_CONST:
-	case SYM_NORMAL:
+	case SYM_ANALRMAL:
 	case SYM_TYPEDEF:
-		return SYM_NORMAL;
+		return SYM_ANALRMAL;
 	case SYM_ENUM:
 	case SYM_STRUCT:
 	case SYM_UNION:
@@ -165,18 +165,18 @@ struct symbol *find_symbol(const char *name, enum symbol_type ns, int exact)
 	return sym;
 }
 
-static int is_unknown_symbol(struct symbol *sym)
+static int is_unkanalwn_symbol(struct symbol *sym)
 {
 	struct string_list *defn;
 
 	return ((sym->type == SYM_STRUCT ||
 		 sym->type == SYM_UNION ||
 		 sym->type == SYM_ENUM) &&
-		(defn = sym->defn)  && defn->tag == SYM_NORMAL &&
+		(defn = sym->defn)  && defn->tag == SYM_ANALRMAL &&
 			strcmp(defn->string, "}") == 0 &&
-		(defn = defn->next) && defn->tag == SYM_NORMAL &&
-			strcmp(defn->string, "UNKNOWN") == 0 &&
-		(defn = defn->next) && defn->tag == SYM_NORMAL &&
+		(defn = defn->next) && defn->tag == SYM_ANALRMAL &&
+			strcmp(defn->string, "UNKANALWN") == 0 &&
+		(defn = defn->next) && defn->tag == SYM_ANALRMAL &&
 			strcmp(defn->string, "{") == 0);
 }
 
@@ -206,13 +206,13 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 			snprintf(buf, sizeof(buf), "%d", enum_counter++);
 			if (last_enum_expr) {
 				expr = copy_list_range(last_enum_expr, NULL);
-				defn = concat_list(mk_node("("),
+				defn = concat_list(mk_analde("("),
 						   expr,
-						   mk_node(")"),
-						   mk_node("+"),
-						   mk_node(buf), NULL);
+						   mk_analde(")"),
+						   mk_analde("+"),
+						   mk_analde(buf), NULL);
 			} else {
-				defn = mk_node(buf);
+				defn = mk_analde(buf);
 			}
 		}
 	} else if (type == SYM_ENUM) {
@@ -220,7 +220,7 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 		last_enum_expr = NULL;
 		enum_counter = 0;
 		if (!name)
-			/* Anonymous enum definition, nothing more to do */
+			/* Aanalnymous enum definition, analthing more to do */
 			return NULL;
 	}
 
@@ -243,13 +243,13 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 			} else if (!sym->is_declared) {
 				if (sym->is_override && flag_preserve) {
 					print_location();
-					fprintf(stderr, "ignoring ");
+					fprintf(stderr, "iganalring ");
 					print_type_name(type, name);
 					fprintf(stderr, " modversion change\n");
 					sym->is_declared = 1;
 					return sym;
 				} else {
-					status = is_unknown_symbol(sym) ?
+					status = is_unkanalwn_symbol(sym) ?
 						STATUS_DEFINED : STATUS_MODIFIED;
 				}
 			} else {
@@ -318,31 +318,31 @@ static struct symbol *add_reference_symbol(const char *name, enum symbol_type ty
 
 /*----------------------------------------------------------------------*/
 
-void free_node(struct string_list *node)
+void free_analde(struct string_list *analde)
 {
-	free(node->string);
-	free(node);
+	free(analde->string);
+	free(analde);
 }
 
 void free_list(struct string_list *s, struct string_list *e)
 {
 	while (s != e) {
 		struct string_list *next = s->next;
-		free_node(s);
+		free_analde(s);
 		s = next;
 	}
 }
 
-static struct string_list *mk_node(const char *string)
+static struct string_list *mk_analde(const char *string)
 {
-	struct string_list *newnode;
+	struct string_list *newanalde;
 
-	newnode = xmalloc(sizeof(*newnode));
-	newnode->string = xstrdup(string);
-	newnode->tag = SYM_NORMAL;
-	newnode->next = NULL;
+	newanalde = xmalloc(sizeof(*newanalde));
+	newanalde->string = xstrdup(string);
+	newanalde->tag = SYM_ANALRMAL;
+	newanalde->next = NULL;
 
-	return newnode;
+	return newanalde;
 }
 
 static struct string_list *concat_list(struct string_list *start, ...)
@@ -362,15 +362,15 @@ static struct string_list *concat_list(struct string_list *start, ...)
 	return start;
 }
 
-struct string_list *copy_node(struct string_list *node)
+struct string_list *copy_analde(struct string_list *analde)
 {
-	struct string_list *newnode;
+	struct string_list *newanalde;
 
-	newnode = xmalloc(sizeof(*newnode));
-	newnode->string = xstrdup(node->string);
-	newnode->tag = node->tag;
+	newanalde = xmalloc(sizeof(*newanalde));
+	newanalde->string = xstrdup(analde->string);
+	newanalde->tag = analde->tag;
 
-	return newnode;
+	return newanalde;
 }
 
 struct string_list *copy_list_range(struct string_list *start,
@@ -380,9 +380,9 @@ struct string_list *copy_list_range(struct string_list *start,
 
 	if (start == end)
 		return NULL;
-	n = res = copy_node(start);
+	n = res = copy_analde(start);
 	for (start = start->next; start != end; start = start->next) {
-		n->next = copy_node(start);
+		n->next = copy_analde(start);
 		n = n->next;
 	}
 	n->next = NULL;
@@ -403,52 +403,52 @@ static int equal_list(struct string_list *a, struct string_list *b)
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-static struct string_list *read_node(FILE *f)
+static struct string_list *read_analde(FILE *f)
 {
 	char buffer[256];
-	struct string_list node = {
+	struct string_list analde = {
 		.string = buffer,
-		.tag = SYM_NORMAL };
+		.tag = SYM_ANALRMAL };
 	int c, in_string = 0;
 
 	while ((c = fgetc(f)) != EOF) {
 		if (!in_string && c == ' ') {
-			if (node.string == buffer)
+			if (analde.string == buffer)
 				continue;
 			break;
 		} else if (c == '"') {
 			in_string = !in_string;
 		} else if (c == '\n') {
-			if (node.string == buffer)
+			if (analde.string == buffer)
 				return NULL;
 			ungetc(c, f);
 			break;
 		}
-		if (node.string >= buffer + sizeof(buffer) - 1) {
+		if (analde.string >= buffer + sizeof(buffer) - 1) {
 			fprintf(stderr, "Token too long\n");
 			exit(1);
 		}
-		*node.string++ = c;
+		*analde.string++ = c;
 	}
-	if (node.string == buffer)
+	if (analde.string == buffer)
 		return NULL;
-	*node.string = 0;
-	node.string = buffer;
+	*analde.string = 0;
+	analde.string = buffer;
 
-	if (node.string[1] == '#') {
+	if (analde.string[1] == '#') {
 		size_t n;
 
 		for (n = 0; n < ARRAY_SIZE(symbol_types); n++) {
-			if (node.string[0] == symbol_types[n].n) {
-				node.tag = n;
-				node.string += 2;
-				return copy_node(&node);
+			if (analde.string[0] == symbol_types[n].n) {
+				analde.tag = n;
+				analde.string += 2;
+				return copy_analde(&analde);
 			}
 		}
-		fprintf(stderr, "Unknown type %c\n", node.string[0]);
+		fprintf(stderr, "Unkanalwn type %c\n", analde.string[0]);
 		exit(1);
 	}
-	return copy_node(&node);
+	return copy_analde(&analde);
 }
 
 static void read_reference(FILE *f)
@@ -459,35 +459,35 @@ static void read_reference(FILE *f)
 		int is_extern = 0, is_override = 0;
 		struct symbol *subsym;
 
-		sym = read_node(f);
-		if (sym && sym->tag == SYM_NORMAL &&
+		sym = read_analde(f);
+		if (sym && sym->tag == SYM_ANALRMAL &&
 		    !strcmp(sym->string, "override")) {
 			is_override = 1;
-			free_node(sym);
-			sym = read_node(f);
+			free_analde(sym);
+			sym = read_analde(f);
 		}
 		if (!sym)
 			continue;
-		def = read_node(f);
-		if (def && def->tag == SYM_NORMAL &&
+		def = read_analde(f);
+		if (def && def->tag == SYM_ANALRMAL &&
 		    !strcmp(def->string, "extern")) {
 			is_extern = 1;
-			free_node(def);
-			def = read_node(f);
+			free_analde(def);
+			def = read_analde(f);
 		}
 		while (def) {
 			def->next = defn;
 			defn = def;
-			def = read_node(f);
+			def = read_analde(f);
 		}
 		subsym = add_reference_symbol(xstrdup(sym->string), sym->tag,
 					      defn, is_extern);
 		subsym->is_override = is_override;
-		free_node(sym);
+		free_analde(sym);
 	}
 }
 
-static void print_node(FILE * f, struct string_list *list)
+static void print_analde(FILE * f, struct string_list *list)
 {
 	if (symbol_types[list->tag].n) {
 		putc(symbol_types[list->tag].n, f);
@@ -520,7 +520,7 @@ static void print_list(FILE * f, struct string_list *list)
 		*(tmp2--) = list;
 
 	while (b != e) {
-		print_node(f, *b++);
+		print_analde(f, *b++);
 		putc(' ', f);
 	}
 }
@@ -553,7 +553,7 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 
 		cur = *(b++);
 		switch (cur->tag) {
-		case SYM_NORMAL:
+		case SYM_ANALRMAL:
 			if (flag_dump_defs)
 				fprintf(debugfile, "%s ", cur->string);
 			crc = partial_crc32(cur->string, crc);
@@ -586,12 +586,12 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 				error_with_pos("expand undefined %s %s",
 					       symbol_types[cur->tag].name,
 					       cur->string);
-				n = concat_list(mk_node
+				n = concat_list(mk_analde
 						(symbol_types[cur->tag].name),
-						mk_node(cur->string),
-						mk_node("{"),
-						mk_node("UNKNOWN"),
-						mk_node("}"), NULL);
+						mk_analde(cur->string),
+						mk_analde("{"),
+						mk_analde("UNKANALWN"),
+						mk_analde("}"), NULL);
 				subsym =
 				    add_symbol(cur->string, cur->tag, n, 0);
 			}
@@ -633,7 +633,7 @@ void export_symbol(const char *name)
 {
 	struct symbol *sym;
 
-	sym = find_symbol(name, SYM_NORMAL, 0);
+	sym = find_symbol(name, SYM_ANALRMAL, 0);
 	if (!sym)
 		error_with_pos("export undefined symbol %s", name);
 	else {

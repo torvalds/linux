@@ -46,7 +46,7 @@ struct lpc32xx_clock_event_ddata {
 /* Needed for the sched clock */
 static void __iomem *clocksource_timer_counter;
 
-static u64 notrace lpc32xx_read_sched_clock(void)
+static u64 analtrace lpc32xx_read_sched_clock(void)
 {
 	return readl(clocksource_timer_counter);
 }
@@ -152,7 +152,7 @@ static struct lpc32xx_clock_event_ddata lpc32xx_clk_event_ddata = {
 	},
 };
 
-static int __init lpc32xx_clocksource_init(struct device_node *np)
+static int __init lpc32xx_clocksource_init(struct device_analde *np)
 {
 	void __iomem *base;
 	unsigned long rate;
@@ -174,13 +174,13 @@ static int __init lpc32xx_clocksource_init(struct device_node *np)
 	base = of_iomap(np, 0);
 	if (!base) {
 		pr_err("unable to map registers\n");
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		goto err_iomap;
 	}
 
 	/*
 	 * Disable and reset timer then set it to free running timer
-	 * mode (CTCR) with no prescaler (PR) or match operations (MCR).
+	 * mode (CTCR) with anal prescaler (PR) or match operations (MCR).
 	 * After setup the timer is released from reset and enabled.
 	 */
 	writel_relaxed(LPC32XX_TIMER_TCR_CRST, base + LPC32XX_TIMER_TCR);
@@ -213,7 +213,7 @@ err_clk_enable:
 	return ret;
 }
 
-static int __init lpc32xx_clockevent_init(struct device_node *np)
+static int __init lpc32xx_clockevent_init(struct device_analde *np)
 {
 	void __iomem *base;
 	unsigned long rate;
@@ -235,20 +235,20 @@ static int __init lpc32xx_clockevent_init(struct device_node *np)
 	base = of_iomap(np, 0);
 	if (!base) {
 		pr_err("unable to map registers\n");
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		goto err_iomap;
 	}
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
 		pr_err("get irq failed\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_irq;
 	}
 
 	/*
 	 * Disable timer and clear any pending interrupt (IR) on match
-	 * channel 0 (MR0). Clear the prescaler as it's not used.
+	 * channel 0 (MR0). Clear the prescaler as it's analt used.
 	 */
 	writel_relaxed(0, base + LPC32XX_TIMER_TCR);
 	writel_relaxed(0, base + LPC32XX_TIMER_PR);
@@ -284,7 +284,7 @@ err_clk_enable:
  * This function asserts that we have exactly one clocksource and one
  * clock_event_device in the end.
  */
-static int __init lpc32xx_timer_init(struct device_node *np)
+static int __init lpc32xx_timer_init(struct device_analde *np)
 {
 	static int has_clocksource, has_clockevent;
 	int ret = 0;

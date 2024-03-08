@@ -46,7 +46,7 @@ static void tps65217_irq_sync_unlock(struct irq_data *data)
 	int ret;
 
 	ret = tps65217_set_bits(tps, TPS65217_REG_INT, TPS65217_INT_MASK,
-				tps->irq_mask, TPS65217_PROTECT_NONE);
+				tps->irq_mask, TPS65217_PROTECT_ANALNE);
 	if (ret != 0)
 		dev_err(tps->dev, "Failed to sync IRQ masks\n");
 
@@ -112,7 +112,7 @@ static irqreturn_t tps65217_irq_thread(int irq, void *data)
 	if (ret < 0) {
 		dev_err(tps->dev, "Failed to read IRQ status: %d\n",
 			ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	for (i = 0; i < TPS65217_NUM_IRQ; i++) {
@@ -125,7 +125,7 @@ static irqreturn_t tps65217_irq_thread(int irq, void *data)
 	if (handled)
 		return IRQ_HANDLED;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int tps65217_irq_map(struct irq_domain *h, unsigned int virq,
@@ -137,7 +137,7 @@ static int tps65217_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_and_handler(virq, &tps65217_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
 	irq_set_parent(virq, tps->irq);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -156,13 +156,13 @@ static int tps65217_irq_init(struct tps65217 *tps, int irq)
 	/* Mask all interrupt sources */
 	tps->irq_mask = TPS65217_INT_MASK;
 	tps65217_set_bits(tps, TPS65217_REG_INT, TPS65217_INT_MASK,
-			  TPS65217_INT_MASK, TPS65217_PROTECT_NONE);
+			  TPS65217_INT_MASK, TPS65217_PROTECT_ANALNE);
 
-	tps->irq_domain = irq_domain_add_linear(tps->dev->of_node,
+	tps->irq_domain = irq_domain_add_linear(tps->dev->of_analde,
 		TPS65217_NUM_IRQ, &tps65217_irq_domain_ops, tps);
 	if (!tps->irq_domain) {
-		dev_err(tps->dev, "Could not create IRQ domain\n");
-		return -ENOMEM;
+		dev_err(tps->dev, "Could analt create IRQ domain\n");
+		return -EANALMEM;
 	}
 
 	ret = devm_request_threaded_irq(tps->dev, irq, NULL,
@@ -208,7 +208,7 @@ int tps65217_reg_write(struct tps65217 *tps, unsigned int reg,
 	unsigned int xor_reg_val;
 
 	switch (level) {
-	case TPS65217_PROTECT_NONE:
+	case TPS65217_PROTECT_ANALNE:
 		return regmap_write(tps->regmap, reg, val);
 	case TPS65217_PROTECT_L1:
 		xor_reg_val = reg ^ TPS65217_PASSWORD_REGS_UNLOCK;
@@ -314,12 +314,12 @@ static int tps65217_probe(struct i2c_client *client)
 	bool status_off = false;
 	int ret;
 
-	status_off = of_property_read_bool(client->dev.of_node,
+	status_off = of_property_read_bool(client->dev.of_analde,
 					   "ti,pmic-shutdown-controller");
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, tps);
 	tps->dev = &client->dev;
@@ -361,7 +361,7 @@ static int tps65217_probe(struct i2c_client *client)
 	if (status_off) {
 		ret = tps65217_set_bits(tps, TPS65217_REG_STATUS,
 				TPS65217_STATUS_OFF, TPS65217_STATUS_OFF,
-				TPS65217_PROTECT_NONE);
+				TPS65217_PROTECT_ANALNE);
 		if (ret)
 			dev_warn(tps->dev, "unable to set the status OFF\n");
 	}

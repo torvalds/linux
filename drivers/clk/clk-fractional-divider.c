@@ -10,7 +10,7 @@
  *	rate = (m / n) * parent_rate				(1)
  *
  * This is useful when we have a prescaler block which asks for
- * m (numerator) and n (denominator) values to be provided to satisfy
+ * m (numerator) and n (deanalminator) values to be provided to satisfy
  * the (1) as much as possible.
  *
  * Since m and n have the limitation by a range, e.g.
@@ -33,7 +33,7 @@
  *
  * and assume that the IP, that needs m and n, has also its own
  * prescaler, which is capable to divide by 2^scale. In this way
- * we get the denominator to satisfy the desired range (2) and
+ * we get the deanalminator to satisfy the desired range (2) and
  * at the same time a much better result of m and n than simple
  * saturated values.
  */
@@ -98,7 +98,7 @@ static void clk_fd_get_div(struct clk_hw *hw, struct u32_fract *fract)
 	}
 
 	fract->numerator = m;
-	fract->denominator = n;
+	fract->deanalminator = n;
 }
 
 static unsigned long clk_fd_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
@@ -108,11 +108,11 @@ static unsigned long clk_fd_recalc_rate(struct clk_hw *hw, unsigned long parent_
 
 	clk_fd_get_div(hw, &fract);
 
-	if (!fract.numerator || !fract.denominator)
+	if (!fract.numerator || !fract.deanalminator)
 		return parent_rate;
 
 	ret = (u64)parent_rate * fract.numerator;
-	do_div(ret, fract.denominator);
+	do_div(ret, fract.deanalminator);
 
 	return ret;
 }
@@ -126,7 +126,7 @@ void clk_fractional_divider_general_approximation(struct clk_hw *hw,
 	unsigned long max_m, max_n;
 
 	/*
-	 * Get rate closer to *parent_rate to guarantee there is no overflow
+	 * Get rate closer to *parent_rate to guarantee there is anal overflow
 	 * for m and n. In the result it will be the nearest rate left shifted
 	 * by (scale - fd->nwidth) bits.
 	 *
@@ -229,22 +229,22 @@ static int clk_fd_numerator_get(void *hw, u64 *val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(clk_fd_numerator_fops, clk_fd_numerator_get, NULL, "%llu\n");
 
-static int clk_fd_denominator_get(void *hw, u64 *val)
+static int clk_fd_deanalminator_get(void *hw, u64 *val)
 {
 	struct u32_fract fract;
 
 	clk_fd_get_div(hw, &fract);
 
-	*val = fract.denominator;
+	*val = fract.deanalminator;
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(clk_fd_denominator_fops, clk_fd_denominator_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(clk_fd_deanalminator_fops, clk_fd_deanalminator_get, NULL, "%llu\n");
 
 static void clk_fd_debug_init(struct clk_hw *hw, struct dentry *dentry)
 {
 	debugfs_create_file("numerator", 0444, dentry, hw, &clk_fd_numerator_fops);
-	debugfs_create_file("denominator", 0444, dentry, hw, &clk_fd_denominator_fops);
+	debugfs_create_file("deanalminator", 0444, dentry, hw, &clk_fd_deanalminator_fops);
 }
 #endif
 
@@ -270,7 +270,7 @@ struct clk_hw *clk_hw_register_fractional_divider(struct device *dev,
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 	if (!fd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_fractional_divider_ops;

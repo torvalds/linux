@@ -49,7 +49,7 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 	struct split_key_result result;
 	dma_addr_t dma_addr;
 	unsigned int local_max;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	adata->keylen = split_key_len(adata->algtype & OP_ALG_ALGSEL_MASK);
 	adata->keylen_pad = split_key_pad_len(adata->algtype &

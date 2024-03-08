@@ -61,7 +61,7 @@
 #define HDCP_2_2_NULL_MSG			1
 #define HDCP_2_2_AKE_INIT			2
 #define HDCP_2_2_AKE_SEND_CERT			3
-#define HDCP_2_2_AKE_NO_STORED_KM		4
+#define HDCP_2_2_AKE_ANAL_STORED_KM		4
 #define HDCP_2_2_AKE_STORED_KM			5
 #define HDCP_2_2_AKE_SEND_HPRIME		7
 #define HDCP_2_2_AKE_SEND_PAIRING_INFO		8
@@ -161,7 +161,7 @@ struct hdcp2_ake_send_cert {
 	u8			rx_caps[HDCP_2_2_RXCAPS_LEN];
 } __packed;
 
-struct hdcp2_ake_no_stored_km {
+struct hdcp2_ake_anal_stored_km {
 	u8	msg_id;
 	u8	e_kpub_km[HDCP_2_2_E_KPUB_KM_LEN];
 } __packed;
@@ -225,7 +225,7 @@ struct hdcp2_rep_stream_ready {
 /* HDCP2.2 TIMEOUTs in mSec */
 #define HDCP_2_2_CERT_TIMEOUT_MS		100
 #define HDCP_2_2_DP_CERT_READ_TIMEOUT_MS	110
-#define HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS	1000
+#define HDCP_2_2_HPRIME_ANAL_PAIRED_TIMEOUT_MS	1000
 #define HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS	200
 #define HDCP_2_2_DP_HPRIME_READ_TIMEOUT_MS	7
 #define HDCP_2_2_PAIRING_TIMEOUT_MS		200
@@ -281,14 +281,14 @@ void drm_hdcp_cpu_to_be24(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN], u32 val)
 #define DRM_HDCP_2_INDICATOR_MASK		0xF
 #define DRM_HDCP_2_VRL_LENGTH_SIZE		3
 #define DRM_HDCP_2_DCP_SIG_SIZE			384
-#define DRM_HDCP_2_NO_OF_DEV_PLUS_RESERVED_SZ	4
+#define DRM_HDCP_2_ANAL_OF_DEV_PLUS_RESERVED_SZ	4
 #define DRM_HDCP_2_KSV_COUNT_2_LSBITS(byte)	(((byte) & 0xC0) >> 6)
 
 struct hdcp_srm_header {
 	u8 srm_id;
 	u8 reserved;
 	__be16 srm_version;
-	u8 srm_gen_no;
+	u8 srm_gen_anal;
 } __packed;
 
 /* Content Type classification for HDCP2.2 vs others */

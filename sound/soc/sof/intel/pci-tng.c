@@ -60,7 +60,7 @@ static int tangier_pci_probe(struct snd_sof_dev *sdev)
 
 	chip = get_chip_info(sdev->pdata);
 	if (!chip) {
-		dev_err(sdev->dev, "error: no such device supported\n");
+		dev_err(sdev->dev, "error: anal such device supported\n");
 		return -EIO;
 	}
 
@@ -82,7 +82,7 @@ static int tangier_pci_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[DSP_BAR]) {
 		dev_err(sdev->dev, "error: failed to ioremap LPE base 0x%x size 0x%x\n",
 			base, size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(sdev->dev, "LPE VADDR %p\n", sdev->bar[DSP_BAR]);
 
@@ -95,7 +95,7 @@ static int tangier_pci_probe(struct snd_sof_dev *sdev)
 
 	/* some BIOSes don't map IMR */
 	if (base == 0x55aa55aa || base == 0x0) {
-		dev_info(sdev->dev, "IMR not set by BIOS. Ignoring\n");
+		dev_info(sdev->dev, "IMR analt set by BIOS. Iganalring\n");
 		goto irq;
 	}
 
@@ -104,7 +104,7 @@ static int tangier_pci_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[IMR_BAR]) {
 		dev_err(sdev->dev, "error: failed to ioremap IMR base 0x%x size 0x%x\n",
 			base, size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(sdev->dev, "IMR VADDR %p\n", sdev->bar[IMR_BAR]);
 
@@ -219,7 +219,7 @@ static const struct sof_dev_desc tng_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-byt.ri",
 	},
-	.nocodec_tplg_filename = "sof-byt.tplg",
+	.analcodec_tplg_filename = "sof-byt.tplg",
 	.ops = &sof_tng_ops,
 };
 

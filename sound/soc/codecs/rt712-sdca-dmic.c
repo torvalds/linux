@@ -196,7 +196,7 @@ static int rt712_sdca_dmic_io_init(struct device *dev, struct sdw_slave *slave)
 		pm_runtime_set_active(&slave->dev);
 	}
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	rt712_sdca_dmic_index_write(rt712, RT712_VENDOR_HDA_CTL,
 		RT712_ADC0A_08_PDE_FLOAT_CTL, 0x1112);
@@ -503,10 +503,10 @@ static const char * const adc_mux_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(
-	rt712_adc25_enum, SND_SOC_NOPM, 0, adc_mux_text);
+	rt712_adc25_enum, SND_SOC_ANALPM, 0, adc_mux_text);
 
 static SOC_ENUM_SINGLE_DECL(
-	rt712_adc26_enum, SND_SOC_NOPM, 0, adc_mux_text);
+	rt712_adc26_enum, SND_SOC_ANALPM, 0, adc_mux_text);
 
 static const struct snd_kcontrol_new rt712_sdca_dmic_adc25_mux =
 	SOC_DAPM_ENUM_EXT("ADC 25 Mux", rt712_adc25_enum,
@@ -565,19 +565,19 @@ static const struct snd_soc_dapm_widget rt712_sdca_dmic_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("DMIC1"),
 	SND_SOC_DAPM_INPUT("DMIC2"),
 
-	SND_SOC_DAPM_SUPPLY("PDE 11", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 11", SND_SOC_ANALPM, 0, 0,
 		rt712_sdca_dmic_pde11_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_ADC_E("FU 1E", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("FU 1E", NULL, SND_SOC_ANALPM, 0, 0,
 		rt712_sdca_dmic_fu1e_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX("ADC 25 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 25 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt712_sdca_dmic_adc25_mux),
-	SND_SOC_DAPM_MUX("ADC 26 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 26 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt712_sdca_dmic_adc26_mux),
 
-	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route rt712_sdca_dmic_audio_map[] = {
@@ -698,7 +698,7 @@ static int rt712_sdca_dmic_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT712_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
+		dev_err(component->dev, "Rate %d is analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -764,7 +764,7 @@ static int rt712_sdca_dmic_init(struct device *dev, struct regmap *regmap,
 
 	rt712 = devm_kzalloc(dev, sizeof(*rt712), GFP_KERNEL);
 	if (!rt712)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt712);
 	rt712->slave = slave;
@@ -795,14 +795,14 @@ static int rt712_sdca_dmic_init(struct device *dev, struct regmap *regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -852,7 +852,7 @@ static int rt712_sdca_dmic_read_prop(struct sdw_slave *slave)
 	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
 		sizeof(*prop->src_dpn_prop), GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -923,7 +923,7 @@ static int __maybe_unused rt712_sdca_dmic_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT712_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

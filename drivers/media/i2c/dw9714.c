@@ -145,7 +145,7 @@ static int dw9714_probe(struct i2c_client *client)
 	dw9714_dev = devm_kzalloc(&client->dev, sizeof(*dw9714_dev),
 				  GFP_KERNEL);
 	if (dw9714_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw9714_dev->vcc = devm_regulator_get(&client->dev, "vcc");
 	if (IS_ERR(dw9714_dev->vcc))
@@ -158,7 +158,7 @@ static int dw9714_probe(struct i2c_client *client)
 	}
 
 	v4l2_i2c_subdev_init(&dw9714_dev->sd, client, &dw9714_ops);
-	dw9714_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	dw9714_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 				V4L2_SUBDEV_FL_HAS_EVENTS;
 	dw9714_dev->sd.internal_ops = &dw9714_int_ops;
 

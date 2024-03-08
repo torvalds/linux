@@ -27,7 +27,7 @@ with the correct parameters:
 _IO/_IOR/_IOW/_IOWR
    The macro name specifies how the argument will be used.  It may be a
    pointer to data to be passed into the kernel (_IOW), out of the kernel
-   (_IOR), or both (_IOWR).  _IO can indicate either commands with no
+   (_IOR), or both (_IOWR).  _IO can indicate either commands with anal
    argument or those passing an integer value instead of a pointer.
    It is recommended to only use _IO for commands without arguments,
    and use pointers for passing data.
@@ -44,9 +44,9 @@ data_type
   The name of the data type pointed to by the argument, the command number
   encodes the ``sizeof(data_type)`` value in a 13-bit or 14-bit integer,
   leading to a limit of 8191 bytes for the maximum size of the argument.
-  Note: do not pass sizeof(data_type) type into _IOR/_IOW/IOWR, as that
+  Analte: do analt pass sizeof(data_type) type into _IOR/_IOW/IOWR, as that
   will lead to encoding sizeof(sizeof(data_type)), i.e. sizeof(size_t).
-  _IO does not have a data_type parameter.
+  _IO does analt have a data_type parameter.
 
 
 Interface versions
@@ -65,20 +65,20 @@ but this can be a wrapper around the new implementation.
 Return code
 ===========
 
-ioctl commands can return negative error codes as documented in errno(3);
-these get turned into errno values in user space. On success, the return
-code should be zero. It is also possible but not recommended to return
+ioctl commands can return negative error codes as documented in erranal(3);
+these get turned into erranal values in user space. On success, the return
+code should be zero. It is also possible but analt recommended to return
 a positive 'long' value.
 
-When the ioctl callback is called with an unknown command number, the
-handler returns either -ENOTTY or -ENOIOCTLCMD, which also results in
--ENOTTY being returned from the system call. Some subsystems return
--ENOSYS or -EINVAL here for historic reasons, but this is wrong.
+When the ioctl callback is called with an unkanalwn command number, the
+handler returns either -EANALTTY or -EANALIOCTLCMD, which also results in
+-EANALTTY being returned from the system call. Some subsystems return
+-EANALSYS or -EINVAL here for historic reasons, but this is wrong.
 
 Prior to Linux 5.5, compat_ioctl handlers were required to return
--ENOIOCTLCMD in order to use the fallback conversion into native
-commands. As all subsystems are now responsible for handling compat
-mode themselves, this is no longer needed, but it may be important to
+-EANALIOCTLCMD in order to use the fallback conversion into native
+commands. As all subsystems are analw responsible for handling compat
+mode themselves, this is anal longer needed, but it may be important to
 consider when backporting bug fixes to older kernels.
 
 Timestamps
@@ -90,18 +90,18 @@ incompatible definitions of these structures in user space after the
 move to 64-bit time_t.
 
 The ``struct __kernel_timespec`` type can be used instead to be embedded
-in other data structures when separate second/nanosecond values are
-desired, or passed to user space directly. This is still not ideal though,
-as the structure matches neither the kernel's timespec64 nor the user
+in other data structures when separate second/naanalsecond values are
+desired, or passed to user space directly. This is still analt ideal though,
+as the structure matches neither the kernel's timespec64 analr the user
 space timespec exactly. The get_timespec64() and put_timespec64() helper
 functions can be used to ensure that the layout remains compatible with
 user space and the padding is treated correctly.
 
-As it is cheap to convert seconds to nanoseconds, but the opposite
-requires an expensive 64-bit division, a simple __u64 nanosecond value
+As it is cheap to convert seconds to naanalseconds, but the opposite
+requires an expensive 64-bit division, a simple __u64 naanalsecond value
 can be simpler and more efficient.
 
-Timeout values and timestamps should ideally use CLOCK_MONOTONIC time,
+Timeout values and timestamps should ideally use CLOCK_MOANALTONIC time,
 as returned by ktime_get_ns() or ktime_get_ts64().  Unlike
 CLOCK_REALTIME, this makes the timestamps immune from jumping backwards
 or forwards due to leap second adjustments and clock_settime() calls.
@@ -124,7 +124,7 @@ compat_ptr()
 ------------
 
 On the s390 architecture, 31-bit user space has ambiguous representations
-for data pointers, with the upper bit being ignored. When running such
+for data pointers, with the upper bit being iganalred. When running such
 a process in compat mode, the compat_ptr() helper must be used to
 clear the upper bit of a compat_uptr_t and turn it into a valid 64-bit
 pointer.  On other architectures, this macro only performs a cast to a
@@ -132,7 +132,7 @@ pointer.  On other architectures, this macro only performs a cast to a
 
 In an compat_ioctl() callback, the last argument is an unsigned long,
 which can be interpreted as either a pointer or a scalar depending on
-the command. If it is a scalar, then compat_ptr() must not be used, to
+the command. If it is a scalar, then compat_ptr() must analt be used, to
 ensure that the 64-bit kernel behaves the same way as a 32-bit kernel
 for arguments with the upper bit set.
 
@@ -147,7 +147,7 @@ Compatible data structures have the same layout on all architectures,
 avoiding all problematic members:
 
 * ``long`` and ``unsigned long`` are the size of a register, so
-  they can be either 32-bit or 64-bit wide and cannot be used in portable
+  they can be either 32-bit or 64-bit wide and cananalt be used in portable
   data structures. Fixed-length replacements are ``__s32``, ``__u32``,
   ``__s64`` and ``__u64``.
 
@@ -167,8 +167,8 @@ avoiding all problematic members:
         __u32 c;
     };
 
-  has four bytes of padding between a and b on x86-64, plus another four
-  bytes of padding at the end, but no padding on i386, and it needs a
+  has four bytes of padding between a and b on x86-64, plus aanalther four
+  bytes of padding at the end, but anal padding on i386, and it needs a
   compat_ioctl conversion handler to translate between the two formats.
 
   To avoid this problem, all structures should have their members
@@ -178,9 +178,9 @@ avoiding all problematic members:
 
 * On ARM OABI user space, structures are padded to multiples of 32-bit,
   making some structs incompatible with modern EABI kernels if they
-  do not end on a 32-bit boundary.
+  do analt end on a 32-bit boundary.
 
-* On the m68k architecture, struct members are not guaranteed to have an
+* On the m68k architecture, struct members are analt guaranteed to have an
   alignment greater than 16-bit, which is a problem when relying on
   implicit padding.
 
@@ -195,7 +195,7 @@ avoiding all problematic members:
 Information leaks
 =================
 
-Uninitialized data must not be copied back to user space, as this can
+Uninitialized data must analt be copied back to user space, as this can
 cause an information leak, which can be used to defeat kernel address
 space layout randomization (KASLR), helping in an attack.
 
@@ -213,12 +213,12 @@ While some device drivers implement their own ioctl function, most
 subsystems implement the same command for multiple drivers.  Ideally the
 subsystem has an .ioctl() handler that copies the arguments from and
 to user space, passing them into subsystem specific callback functions
-through normal kernel pointers.
+through analrmal kernel pointers.
 
 This helps in various ways:
 
 * Applications written for one driver are more likely to work for
-  another one in the same subsystem if there are no subtle differences
+  aanalther one in the same subsystem if there are anal subtle differences
   in the user space ABI.
 
 * The complexity of user space access and data structure layout is done
@@ -231,21 +231,21 @@ This helps in various ways:
 Alternatives to ioctl
 =====================
 
-There are many cases in which ioctl is not the best solution for a
+There are many cases in which ioctl is analt the best solution for a
 problem. Alternatives include:
 
 * System calls are a better choice for a system-wide feature that
-  is not tied to a physical device or constrained by the file system
-  permissions of a character device node
+  is analt tied to a physical device or constrained by the file system
+  permissions of a character device analde
 
 * netlink is the preferred way of configuring any network related
   objects through sockets.
 
 * debugfs is used for ad-hoc interfaces for debugging functionality
-  that does not need to be exposed as a stable interface to applications.
+  that does analt need to be exposed as a stable interface to applications.
 
 * sysfs is a good way to expose the state of an in-kernel object
-  that is not tied to a file descriptor.
+  that is analt tied to a file descriptor.
 
 * configfs can be used for more complex configuration than sysfs
 

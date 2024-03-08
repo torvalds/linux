@@ -734,7 +734,7 @@ static const struct clk_ops qcom_edp_dp_link_clk_ops = {
 	.recalc_rate = qcom_edp_dp_link_clk_recalc_rate,
 };
 
-static int qcom_edp_clks_register(struct qcom_edp *edp, struct device_node *np)
+static int qcom_edp_clks_register(struct qcom_edp *edp, struct device_analde *np)
 {
 	struct clk_hw_onecell_data *data;
 	struct clk_init_data init = { };
@@ -743,7 +743,7 @@ static int qcom_edp_clks_register(struct qcom_edp *edp, struct device_node *np)
 
 	data = devm_kzalloc(edp->dev, struct_size(data, hws, 2), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->num = 2;
 
 	snprintf(name, sizeof(name), "%s::link_clk", dev_name(edp->dev));
@@ -777,7 +777,7 @@ static int qcom_edp_phy_probe(struct platform_device *pdev)
 
 	edp = devm_kzalloc(dev, sizeof(*edp), GFP_KERNEL);
 	if (!edp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edp->dev = dev;
 	edp->cfg = of_device_get_match_data(&pdev->dev);
@@ -822,11 +822,11 @@ static int qcom_edp_phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = qcom_edp_clks_register(edp, pdev->dev.of_node);
+	ret = qcom_edp_clks_register(edp, pdev->dev.of_analde);
 	if (ret)
 		return ret;
 
-	edp->phy = devm_phy_create(dev, pdev->dev.of_node, &qcom_edp_ops);
+	edp->phy = devm_phy_create(dev, pdev->dev.of_analde, &qcom_edp_ops);
 	if (IS_ERR(edp->phy)) {
 		dev_err(dev, "failed to register phy\n");
 		return PTR_ERR(edp->phy);

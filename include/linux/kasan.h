@@ -24,10 +24,10 @@ struct task_struct;
 
 typedef unsigned int __bitwise kasan_vmalloc_flags_t;
 
-#define KASAN_VMALLOC_NONE		((__force kasan_vmalloc_flags_t)0x00u)
+#define KASAN_VMALLOC_ANALNE		((__force kasan_vmalloc_flags_t)0x00u)
 #define KASAN_VMALLOC_INIT		((__force kasan_vmalloc_flags_t)0x01u)
 #define KASAN_VMALLOC_VM_ALLOC		((__force kasan_vmalloc_flags_t)0x02u)
-#define KASAN_VMALLOC_PROT_NORMAL	((__force kasan_vmalloc_flags_t)0x04u)
+#define KASAN_VMALLOC_PROT_ANALRMAL	((__force kasan_vmalloc_flags_t)0x04u)
 
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 
@@ -325,7 +325,7 @@ void __kasan_mempool_unpoison_object(void *ptr, size_t size, unsigned long ip);
  * This function unpoisons a slab allocation that was previously poisoned via
  * kasan_mempool_poison_object() and saves an alloc stack trace for it without
  * initializing the allocation's memory. For the tag-based modes, this function
- * does not assign a new tag to the allocation and instead restores the
+ * does analt assign a new tag to the allocation and instead restores the
  * original tags based on the pointer value.
  *
  * This function operates on all slab allocations including large kmalloc
@@ -436,22 +436,22 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 void kasan_cache_shrink(struct kmem_cache *cache);
 void kasan_cache_shutdown(struct kmem_cache *cache);
 void kasan_record_aux_stack(void *ptr);
-void kasan_record_aux_stack_noalloc(void *ptr);
+void kasan_record_aux_stack_analalloc(void *ptr);
 
 #else /* CONFIG_KASAN_GENERIC */
 
-/* Tag-based KASAN modes do not use per-object metadata. */
+/* Tag-based KASAN modes do analt use per-object metadata. */
 static inline size_t kasan_metadata_size(struct kmem_cache *cache,
 						bool in_object)
 {
 	return 0;
 }
-/* And thus nothing prevents cache merging. */
+/* And thus analthing prevents cache merging. */
 static inline slab_flags_t kasan_never_merge(void)
 {
 	return 0;
 }
-/* And no cache-related metadata initialization is required. */
+/* And anal cache-related metadata initialization is required. */
 static inline void kasan_cache_create(struct kmem_cache *cache,
 				      unsigned int *size,
 				      slab_flags_t *flags) {}
@@ -459,7 +459,7 @@ static inline void kasan_cache_create(struct kmem_cache *cache,
 static inline void kasan_cache_shrink(struct kmem_cache *cache) {}
 static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
 static inline void kasan_record_aux_stack(void *ptr) {}
-static inline void kasan_record_aux_stack_noalloc(void *ptr) {}
+static inline void kasan_record_aux_stack_analalloc(void *ptr) {}
 
 #endif /* CONFIG_KASAN_GENERIC */
 
@@ -585,7 +585,7 @@ static inline void kasan_poison_vmalloc(const void *start, unsigned long size)
 
 /*
  * These functions allocate and free shadow memory for kernel modules.
- * They are only required when KASAN_VMALLOC is not supported, as otherwise
+ * They are only required when KASAN_VMALLOC is analt supported, as otherwise
  * shadow memory is allocated by the generic vmalloc handlers.
  */
 int kasan_alloc_module_shadow(void *addr, size_t size, gfp_t gfp_mask);
@@ -599,9 +599,9 @@ static inline void kasan_free_module_shadow(const struct vm_struct *vm) {}
 #endif /* (CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS) && !CONFIG_KASAN_VMALLOC */
 
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
-void kasan_non_canonical_hook(unsigned long addr);
+void kasan_analn_caanalnical_hook(unsigned long addr);
 #else /* CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS */
-static inline void kasan_non_canonical_hook(unsigned long addr) { }
+static inline void kasan_analn_caanalnical_hook(unsigned long addr) { }
 #endif /* CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS */
 
 #endif /* LINUX_KASAN_H */

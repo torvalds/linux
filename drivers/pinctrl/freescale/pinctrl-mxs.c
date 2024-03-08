@@ -60,8 +60,8 @@ static void mxs_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, " %s", dev_name(pctldev->dev));
 }
 
-static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
-			      struct device_node *np,
+static int mxs_dt_analde_to_map(struct pinctrl_dev *pctldev,
+			      struct device_analde *np,
 			      struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct pinctrl_map *new_map;
@@ -74,7 +74,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	u32 val, reg;
 	int ret, i = 0;
 
-	/* Check for pin config node which has no 'reg' property */
+	/* Check for pin config analde which has anal 'reg' property */
 	if (of_property_read_u32(np, "reg", &reg))
 		purecfg = true;
 
@@ -88,13 +88,13 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!ret)
 		config |= val << PULL_SHIFT | PULL_PRESENT;
 
-	/* Check for group node which has both mux and config settings */
+	/* Check for group analde which has both mux and config settings */
 	if (!purecfg && config)
 		new_num = 2;
 
 	new_map = kcalloc(new_num, sizeof(*new_map), GFP_KERNEL);
 	if (!new_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!purecfg) {
 		new_map[i].type = PIN_MAP_TYPE_MUX_GROUP;
@@ -103,7 +103,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 		/* Compose group name */
 		group = kzalloc(length, GFP_KERNEL);
 		if (!group) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free;
 		}
 		snprintf(group, length, "%s.%d", np->name, reg);
@@ -114,7 +114,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (config) {
 		pconfig = kmemdup(&config, sizeof(config), GFP_KERNEL);
 		if (!pconfig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_group;
 		}
 
@@ -158,7 +158,7 @@ static const struct pinctrl_ops mxs_pinctrl_ops = {
 	.get_group_name = mxs_get_group_name,
 	.get_group_pins = mxs_get_group_pins,
 	.pin_dbg_show = mxs_pin_dbg_show,
-	.dt_node_to_map = mxs_dt_node_to_map,
+	.dt_analde_to_map = mxs_dt_analde_to_map,
 	.dt_free_map = mxs_dt_free_map,
 };
 
@@ -233,14 +233,14 @@ static const struct pinmux_ops mxs_pinmux_ops = {
 static int mxs_pinconf_get(struct pinctrl_dev *pctldev,
 			   unsigned pin, unsigned long *config)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int mxs_pinconf_set(struct pinctrl_dev *pctldev,
 			   unsigned pin, unsigned long *configs,
 			   unsigned num_configs)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int mxs_pinconf_group_get(struct pinctrl_dev *pctldev,
@@ -319,7 +319,7 @@ static int mxs_pinconf_group_set(struct pinctrl_dev *pctldev,
 static void mxs_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 				 struct seq_file *s, unsigned pin)
 {
-	/* Not support */
+	/* Analt support */
 }
 
 static void mxs_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
@@ -348,7 +348,7 @@ static struct pinctrl_desc mxs_pinctrl_desc = {
 };
 
 static int mxs_pinctrl_parse_group(struct platform_device *pdev,
-				   struct device_node *np, int idx,
+				   struct device_analde *np, int idx,
 				   const char **out_name)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
@@ -361,7 +361,7 @@ static int mxs_pinctrl_parse_group(struct platform_device *pdev,
 
 	group = devm_kzalloc(&pdev->dev, length, GFP_KERNEL);
 	if (!group)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (of_property_read_u32(np, "reg", &val))
 		snprintf(group, length, "%s", np->name);
 	else
@@ -376,12 +376,12 @@ static int mxs_pinctrl_parse_group(struct platform_device *pdev,
 	g->pins = devm_kcalloc(&pdev->dev, g->npins, sizeof(*g->pins),
 			       GFP_KERNEL);
 	if (!g->pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	g->muxsel = devm_kcalloc(&pdev->dev, g->npins, sizeof(*g->muxsel),
 				 GFP_KERNEL);
 	if (!g->muxsel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	of_property_read_u32_array(np, propname, g->pins, g->npins);
 	for (i = 0; i < g->npins; i++) {
@@ -395,7 +395,7 @@ static int mxs_pinctrl_parse_group(struct platform_device *pdev,
 	return 0;
 }
 
-static bool is_mxs_gpio(struct device_node *child)
+static bool is_mxs_gpio(struct device_analde *child)
 {
 	return of_device_is_compatible(child, "fsl,imx23-gpio") ||
 	       of_device_is_compatible(child, "fsl,imx28-gpio");
@@ -405,8 +405,8 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 				struct mxs_pinctrl_data *d)
 {
 	struct mxs_pinctrl_soc_data *soc = d->soc;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *child;
 	struct mxs_function *f;
 	const char *fn, *fnull = "";
 	int i = 0, idxf = 0, idxg = 0;
@@ -415,17 +415,17 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 
 	child = of_get_next_child(np, NULL);
 	if (!child) {
-		dev_err(&pdev->dev, "no group is defined\n");
-		return -ENOENT;
+		dev_err(&pdev->dev, "anal group is defined\n");
+		return -EANALENT;
 	}
 
 	/* Count total functions and groups */
 	fn = fnull;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (is_mxs_gpio(child))
 			continue;
 		soc->ngroups++;
-		/* Skip pure pinconf node */
+		/* Skip pure pinconf analde */
 		if (of_property_read_u32(child, "reg", &val))
 			continue;
 		if (strcmp(fn, child->name)) {
@@ -439,37 +439,37 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 				      sizeof(*soc->functions),
 				      GFP_KERNEL);
 	if (!soc->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc->groups = devm_kcalloc(&pdev->dev,
 				   soc->ngroups, sizeof(*soc->groups),
 				   GFP_KERNEL);
 	if (!soc->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Count groups for each function */
 	fn = fnull;
 	f = &soc->functions[idxf];
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (is_mxs_gpio(child))
 			continue;
 		if (of_property_read_u32(child, "reg", &val))
 			continue;
 		if (strcmp(fn, child->name)) {
-			struct device_node *child2;
+			struct device_analde *child2;
 
 			/*
 			 * This reference is dropped by
 			 * of_get_next_child(np, * child)
 			 */
-			of_node_get(child);
+			of_analde_get(child);
 
 			/*
 			 * The logic parsing the functions from dt currently
 			 * doesn't handle if functions with the same name are
-			 * not grouped together. Only the first contiguous
+			 * analt grouped together. Only the first contiguous
 			 * cluster is usable for each function name. This is a
-			 * bug that is not trivial to fix, but at least warn
+			 * bug that is analt trivial to fix, but at least warn
 			 * about it.
 			 */
 			for (child2 = of_get_next_child(np, child);
@@ -477,7 +477,7 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 			     child2 = of_get_next_child(np, child2)) {
 				if (!strcmp(child2->name, fn))
 					dev_warn(&pdev->dev,
-						 "function nodes must be grouped by name (failed for: %s)",
+						 "function analdes must be grouped by name (failed for: %s)",
 						 fn);
 			}
 
@@ -490,14 +490,14 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 	/* Get groups for each function */
 	idxf = 0;
 	fn = fnull;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (is_mxs_gpio(child))
 			continue;
 		if (of_property_read_u32(child, "reg", &val)) {
 			ret = mxs_pinctrl_parse_group(pdev, child,
 						      idxg++, NULL);
 			if (ret) {
-				of_node_put(child);
+				of_analde_put(child);
 				return ret;
 			}
 			continue;
@@ -510,8 +510,8 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 						 sizeof(*f->groups),
 						 GFP_KERNEL);
 			if (!f->groups) {
-				of_node_put(child);
-				return -ENOMEM;
+				of_analde_put(child);
+				return -EANALMEM;
 			}
 			fn = child->name;
 			i = 0;
@@ -519,7 +519,7 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 		ret = mxs_pinctrl_parse_group(pdev, child, idxg++,
 					      &f->groups[i++]);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}
@@ -530,20 +530,20 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 int mxs_pinctrl_probe(struct platform_device *pdev,
 		      struct mxs_pinctrl_soc_data *soc)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mxs_pinctrl_data *d;
 	int ret;
 
 	d = devm_kzalloc(&pdev->dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d->dev = &pdev->dev;
 	d->soc = soc;
 
 	d->base = of_iomap(np, 0);
 	if (!d->base)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	mxs_pinctrl_desc.pins = d->soc->pins;
 	mxs_pinctrl_desc.npins = d->soc->npins;

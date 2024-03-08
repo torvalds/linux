@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 or MIT
 /*
- * Copyright 2018 Noralf Trønnes
+ * Copyright 2018 Analralf Trønnes
  */
 
 #include <linux/iosys-map.h>
@@ -81,7 +81,7 @@ int drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET) || !dev->driver->dumb_create)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	client->dev = dev;
 	client->name = name;
@@ -111,7 +111,7 @@ EXPORT_SYMBOL(drm_client_init);
  *
  * Add the client to the &drm_device client list to activate its callbacks.
  * @client must be initialized by a call to drm_client_init(). After
- * drm_client_register() it is no longer permissible to call drm_client_release()
+ * drm_client_register() it is anal longer permissible to call drm_client_release()
  * directly (outside the unregister callback), instead cleanup will happen
  * automatically on driver unload.
  *
@@ -151,13 +151,13 @@ EXPORT_SYMBOL(drm_client_register);
  * @client: DRM client
  *
  * Releases resources by closing the &drm_file that was opened by drm_client_init().
- * It is called automatically if the &drm_client_funcs.unregister callback is _not_ set.
+ * It is called automatically if the &drm_client_funcs.unregister callback is _analt_ set.
  *
  * This function should only be called from the unregister callback. An exception
- * is fbdev which cannot free the buffer if userspace has open file descriptors.
+ * is fbdev which cananalt free the buffer if userspace has open file descriptors.
  *
- * Note:
- * Clients cannot initiate a release by themselves. This is done to keep the code simple.
+ * Analte:
+ * Clients cananalt initiate a release by themselves. This is done to keep the code simple.
  * The driver has to be unloaded before the client can be unloaded.
  */
 void drm_client_release(struct drm_client_dev *client)
@@ -210,7 +210,7 @@ void drm_client_dev_hotplug(struct drm_device *dev)
 		return;
 
 	if (!dev->mode_config.num_connector) {
-		drm_dbg_kms(dev, "No connectors found, will not send hotplug events!\n");
+		drm_dbg_kms(dev, "Anal connectors found, will analt send hotplug events!\n");
 		return;
 	}
 
@@ -275,7 +275,7 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buffer->client = client;
 
@@ -288,7 +288,7 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
 
 	obj = drm_gem_object_lookup(client->file, dumb_args.handle);
 	if (!obj)  {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_delete;
 	}
 
@@ -312,7 +312,7 @@ err_delete:
  * This function maps a client buffer into kernel address space. If the
  * buffer is already mapped, it returns the existing mapping's address.
  *
- * Client buffer mappings are not ref'counted. Each call to
+ * Client buffer mappings are analt ref'counted. Each call to
  * drm_client_buffer_vmap() should be followed by a call to
  * drm_client_buffer_vunmap(); or the client buffer should be mapped
  * throughout its lifetime.
@@ -322,7 +322,7 @@ err_delete:
  * function. So you can modify it at will during blit and draw operations.
  *
  * Returns:
- *	0 on success, or a negative errno code otherwise.
+ *	0 on success, or a negative erranal code otherwise.
  */
 int
 drm_client_buffer_vmap(struct drm_client_buffer *buffer,
@@ -334,7 +334,7 @@ drm_client_buffer_vmap(struct drm_client_buffer *buffer,
 	/*
 	 * FIXME: The dependency on GEM here isn't required, we could
 	 * convert the driver handle to a dma-buf instead and use the
-	 * backend-agnostic dma-buf vmap support instead. This would
+	 * backend-aganalstic dma-buf vmap support instead. This would
 	 * require that the handle2fd prime ioctl is reworked to pull the
 	 * fd_install step out of the driver backend hooks, to make that
 	 * final step optional for internal users.
@@ -400,7 +400,7 @@ static int drm_client_buffer_addfb(struct drm_client_buffer *buffer,
 
 	buffer->fb = drm_framebuffer_lookup(client->dev, buffer->client->file, fb_req.fb_id);
 	if (WARN_ON(!buffer->fb))
-		return -ENOENT;
+		return -EANALENT;
 
 	/* drop the reference we picked up in framebuffer lookup */
 	drm_framebuffer_put(buffer->fb);

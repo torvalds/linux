@@ -18,8 +18,8 @@
 		EM( P9_RLCREATE,	"P9_RLCREATE" )			\
 		EM( P9_TSYMLINK,	"P9_TSYMLINK" )			\
 		EM( P9_RSYMLINK,	"P9_RSYMLINK" )			\
-		EM( P9_TMKNOD,		"P9_TMKNOD" )			\
-		EM( P9_RMKNOD,		"P9_RMKNOD" )			\
+		EM( P9_TMKANALD,		"P9_TMKANALD" )			\
+		EM( P9_RMKANALD,		"P9_RMKANALD" )			\
 		EM( P9_TRENAME,		"P9_TRENAME" )			\
 		EM( P9_RRENAME,		"P9_RRENAME" )			\
 		EM( P9_TREADLINK,	"P9_TREADLINK" )		\
@@ -108,7 +108,7 @@ enum p9_fid_reftype {
 #endif
 
 /*
- * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * Analw redefine the EM() and EMe() macros to map the enums to the strings
  * that will be printed in the output.
  */
 #undef EM

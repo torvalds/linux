@@ -14,10 +14,10 @@ struct stack_frame_user {
 };
 
 enum stack_type {
-	STACK_TYPE_UNKNOWN,
+	STACK_TYPE_UNKANALWN,
 	STACK_TYPE_TASK,
 	STACK_TYPE_IRQ,
-	STACK_TYPE_NODAT,
+	STACK_TYPE_ANALDAT,
 	STACK_TYPE_RESTART,
 	STACK_TYPE_MCCK,
 };
@@ -34,7 +34,7 @@ int get_stack_info(unsigned long sp, struct task_struct *task,
 static inline bool on_stack(struct stack_info *info,
 			    unsigned long addr, size_t len)
 {
-	if (info->type == STACK_TYPE_UNKNOWN)
+	if (info->type == STACK_TYPE_UNKANALWN)
 		return false;
 	if (addr + len < addr)
 		return false;
@@ -83,7 +83,7 @@ static __always_inline unsigned long get_stack_pointer(struct task_struct *task,
 
 /*
  * To keep this simple mark register 2-6 as being changed (volatile)
- * by the called function, even though register 6 is saved/nonvolatile.
+ * by the called function, even though register 6 is saved/analnvolatile.
  */
 #define CALL_FMT_0 "=&d" (r2)
 #define CALL_FMT_1 "+&d" (r2)
@@ -170,7 +170,7 @@ static __always_inline unsigned long get_stack_pointer(struct task_struct *task,
  * - rettype is the return type of fn.
  * - t1, a1, ... are pairs, where t1 must match the type of the first
  *   argument of fn, t2 the second, etc. a1 is the corresponding
- *   first function argument (not name), etc.
+ *   first function argument (analt name), etc.
  */
 #define call_on_stack(nr, stack, rettype, fn, ...)			\
 ({									\
@@ -197,27 +197,27 @@ static __always_inline unsigned long get_stack_pointer(struct task_struct *task,
 })
 
 /*
- * Use call_nodat() to call a function with DAT disabled.
+ * Use call_analdat() to call a function with DAT disabled.
  * Proper sign and zero extension of function arguments is done.
  * Usage:
  *
- * rc = call_nodat(nr, rettype, fn, t1, a1, t2, a2, ...)
+ * rc = call_analdat(nr, rettype, fn, t1, a1, t2, a2, ...)
  *
  * - nr specifies the number of function arguments of fn.
  * - fn is the function to be called, where fn is a physical address.
  * - rettype is the return type of fn.
  * - t1, a1, ... are pairs, where t1 must match the type of the first
  *   argument of fn, t2 the second, etc. a1 is the corresponding
- *   first function argument (not name), etc.
+ *   first function argument (analt name), etc.
  *
  * fn() is called with standard C function call ABI, with the exception
- * that no useful stackframe or stackpointer is passed via register 15.
- * Therefore the called function must not use r15 to access the stack.
+ * that anal useful stackframe or stackpointer is passed via register 15.
+ * Therefore the called function must analt use r15 to access the stack.
  */
-#define call_nodat(nr, rettype, fn, ...)				\
+#define call_analdat(nr, rettype, fn, ...)				\
 ({									\
 	rettype (*__fn)(CALL_PARM_##nr(__VA_ARGS__)) = (fn);		\
-	/* aligned since psw_leave must not cross page boundary */	\
+	/* aligned since psw_leave must analt cross page boundary */	\
 	psw_t __aligned(16) psw_leave;					\
 	psw_t psw_enter;						\
 	CALL_LARGS_##nr(__VA_ARGS__);					\

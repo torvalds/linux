@@ -71,7 +71,7 @@ power off host control action using this driver:
 2) Write type of SMI that driver needs to perform to host_control_smi_type.
 3) Write "1" to host_control_on_shutdown to enable host control action.
 4) Initiate OS shutdown.
-   (Driver will perform host control SMI when it is notified that the OS
+   (Driver will perform host control SMI when it is analtified that the OS
    has finished shutting down.)
 
 

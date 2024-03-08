@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -134,7 +134,7 @@
 #define regSDMA0_QUEUE0_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE0_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE0_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA0_QUEUE0_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA0_QUEUE0_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA0_QUEUE0_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA0_QUEUE0_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA0_QUEUE0_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -177,7 +177,7 @@
 #define regSDMA0_QUEUE1_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE1_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE1_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA0_QUEUE1_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA0_QUEUE1_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA0_QUEUE1_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA0_QUEUE1_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA0_QUEUE1_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -220,7 +220,7 @@
 #define regSDMA0_QUEUE2_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE2_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE2_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA0_QUEUE2_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA0_QUEUE2_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA0_QUEUE2_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA0_QUEUE2_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA0_QUEUE2_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -263,7 +263,7 @@
 #define regSDMA0_QUEUE3_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE3_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE3_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA0_QUEUE3_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA0_QUEUE3_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA0_QUEUE3_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA0_QUEUE3_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA0_QUEUE3_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -306,7 +306,7 @@
 #define regSDMA0_QUEUE4_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE4_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE4_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA0_QUEUE4_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA0_QUEUE4_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA0_QUEUE4_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA0_QUEUE4_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA0_QUEUE4_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -349,7 +349,7 @@
 #define regSDMA0_QUEUE5_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE5_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE5_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA0_QUEUE5_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA0_QUEUE5_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA0_QUEUE5_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA0_QUEUE5_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA0_QUEUE5_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -392,7 +392,7 @@
 #define regSDMA0_QUEUE6_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE6_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE6_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA0_QUEUE6_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA0_QUEUE6_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA0_QUEUE6_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA0_QUEUE6_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA0_QUEUE6_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -435,7 +435,7 @@
 #define regSDMA0_QUEUE7_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE7_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA0_QUEUE7_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA0_QUEUE7_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA0_QUEUE7_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA0_QUEUE7_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA0_QUEUE7_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA0_QUEUE7_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -561,7 +561,7 @@
 #define regSDMA1_QUEUE0_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE0_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE0_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA1_QUEUE0_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA1_QUEUE0_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA1_QUEUE0_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA1_QUEUE0_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA1_QUEUE0_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -604,7 +604,7 @@
 #define regSDMA1_QUEUE1_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE1_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE1_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA1_QUEUE1_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA1_QUEUE1_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA1_QUEUE1_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA1_QUEUE1_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA1_QUEUE1_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -647,7 +647,7 @@
 #define regSDMA1_QUEUE2_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE2_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE2_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA1_QUEUE2_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA1_QUEUE2_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA1_QUEUE2_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA1_QUEUE2_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA1_QUEUE2_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -690,7 +690,7 @@
 #define regSDMA1_QUEUE3_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE3_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE3_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA1_QUEUE3_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA1_QUEUE3_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA1_QUEUE3_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA1_QUEUE3_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA1_QUEUE3_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -733,7 +733,7 @@
 #define regSDMA1_QUEUE4_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE4_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE4_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA1_QUEUE4_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA1_QUEUE4_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA1_QUEUE4_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA1_QUEUE4_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA1_QUEUE4_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -776,7 +776,7 @@
 #define regSDMA1_QUEUE5_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE5_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE5_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA1_QUEUE5_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA1_QUEUE5_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA1_QUEUE5_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA1_QUEUE5_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA1_QUEUE5_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -819,7 +819,7 @@
 #define regSDMA1_QUEUE6_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE6_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE6_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA1_QUEUE6_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA1_QUEUE6_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA1_QUEUE6_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA1_QUEUE6_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA1_QUEUE6_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -862,7 +862,7 @@
 #define regSDMA1_QUEUE7_RB_WPTR_POLL_ADDR_HI_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE7_RB_WPTR_POLL_ADDR_LO_DEFAULT                              0x00000000
 #define regSDMA1_QUEUE7_RB_AQL_CNTL_DEFAULT                                       0x00004000
-#define regSDMA1_QUEUE7_MINOR_PTR_UPDATE_DEFAULT                                  0x00000000
+#define regSDMA1_QUEUE7_MIANALR_PTR_UPDATE_DEFAULT                                  0x00000000
 #define regSDMA1_QUEUE7_RB_PREEMPT_DEFAULT                                        0x00000000
 #define regSDMA1_QUEUE7_MIDCMD_DATA0_DEFAULT                                      0x00000000
 #define regSDMA1_QUEUE7_MIDCMD_DATA1_DEFAULT                                      0x00000000
@@ -1245,7 +1245,7 @@
 #define regGCMC_VM_LOCAL_FB_ADDRESS_LOCK_CNTL_DEFAULT                             0x00000000
 #define regGCUTCL2_ICG_CTRL_DEFAULT                                               0x00000000
 #define regGCUTCL2_CGTT_BUSY_CTRL_DEFAULT                                         0x00000001
-#define regGCMC_VM_FB_NOALLOC_CNTL_DEFAULT                                        0x00000010
+#define regGCMC_VM_FB_ANALALLOC_CNTL_DEFAULT                                        0x00000010
 #define regGCUTCL2_HARVEST_BYPASS_GROUPS_DEFAULT                                  0x00000000
 #define regGCUTCL2_GROUP_RET_FAULT_STATUS_DEFAULT                                 0x00000000
 
@@ -1296,7 +1296,7 @@
 #define regGCVM_L2_BANK_SELECT_MASKS_DEFAULT                                      0x00000000
 #define regGCUTCL2_CREDIT_SAFETY_GROUP_RET_CDC_DEFAULT                            0x00000000
 #define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_CDC_DEFAULT                 0x00000000
-#define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_NOCDC_DEFAULT               0x00000000
+#define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_ANALCDC_DEFAULT               0x00000000
 #define regGCVML2_CREDIT_SAFETY_IH_FAULT_INTERRUPT_DEFAULT                        0x00000000
 #define regGCVML2_WALKER_CREDIT_SAFETY_FETCH_RDREQ_DEFAULT                        0x00000000
 
@@ -1813,7 +1813,7 @@
 #define regCOMPUTE_USER_DATA_15_DEFAULT                                           0x00000000
 #define regCOMPUTE_DISPATCH_TUNNEL_DEFAULT                                        0x00000000
 #define regCOMPUTE_DISPATCH_END_DEFAULT                                           0x00000000
-#define regCOMPUTE_NOWHERE_DEFAULT                                                0x00000000
+#define regCOMPUTE_ANALWHERE_DEFAULT                                                0x00000000
 #define regSH_RESERVED_REG0_DEFAULT                                               0x00000000
 #define regSH_RESERVED_REG1_DEFAULT                                               0x00000000
 
@@ -2781,7 +2781,7 @@
 
 // addressBlock: gc_pfvf_grbmdec
 #define regGRBM_GFX_CNTL_DEFAULT                                                  0x00000000
-#define regGRBM_NOWHERE_DEFAULT                                                   0x00000000
+#define regGRBM_ANALWHERE_DEFAULT                                                   0x00000000
 
 
 // addressBlock: gc_pfvf_padec
@@ -3305,7 +3305,7 @@
 #define regCP_DB_BUFSZ_DEFAULT                                                    0x00000000
 #define regCP_DB_CMD_BUFSZ_DEFAULT                                                0x00000000
 #define regCP_PFP_COMPLETION_STATUS_DEFAULT                                       0x00000000
-#define regCP_PRED_NOT_VISIBLE_DEFAULT                                            0x00000000
+#define regCP_PRED_ANALT_VISIBLE_DEFAULT                                            0x00000000
 #define regCP_PFP_METADATA_BASE_ADDR_DEFAULT                                      0x00000000
 #define regCP_PFP_METADATA_BASE_ADDR_HI_DEFAULT                                   0x00000000
 #define regCP_DRAW_INDX_INDR_ADDR_DEFAULT                                         0x00000000

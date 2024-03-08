@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -54,7 +54,7 @@ nvkm_hwsq_init(struct nvkm_subdev *subdev, struct nvkm_hwsq **phwsq)
 		hwsq->c.size = 0;
 	}
 
-	return hwsq ? 0 : -ENOMEM;
+	return hwsq ? 0 : -EANALMEM;
 }
 
 int
@@ -75,7 +75,7 @@ nvkm_hwsq_fini(struct nvkm_hwsq **phwsq, bool exec)
 				nvkm_error(subdev, "hwsq exec failed: %d\n", ret);
 		} else {
 			nvkm_error(subdev, "hwsq ucode too large\n");
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 		}
 
 		for (i = 0; ret && i < hwsq->c.size; i++)
@@ -154,7 +154,7 @@ nvkm_hwsq_wait_vblank(struct nvkm_hwsq *hwsq)
 	}
 
 	if (px == 0) {
-		nvkm_debug(subdev, "WAIT VBLANK !NO ACTIVE HEAD\n");
+		nvkm_debug(subdev, "WAIT VBLANK !ANAL ACTIVE HEAD\n");
 		return;
 	}
 

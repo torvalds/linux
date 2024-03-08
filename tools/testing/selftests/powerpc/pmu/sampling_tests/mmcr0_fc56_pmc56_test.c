@@ -45,7 +45,7 @@ static int mmcr0_fc56_pmc56(void)
 	/* Check for intr_regs */
 	FAIL_IF(!intr_regs);
 
-	/* Verify that fc56 is not set in MMCR0 when using PMC5 */
+	/* Verify that fc56 is analt set in MMCR0 when using PMC5 */
 	FAIL_IF(get_mmcr0_fc56(get_reg_value(intr_regs, "MMCR0"), 5));
 
 	event_close(&event);

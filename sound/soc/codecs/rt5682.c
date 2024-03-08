@@ -826,7 +826,7 @@ EXPORT_SYMBOL_GPL(rt5682_reset);
  * @filter_mask: mask of filters.
  * @clk_src: clock source
  *
- * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5682 can
+ * The ASRC function is for asynchroanalus MCLK and LRCK. Also, since RT5682 can
  * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
  * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
  * ASRC function will track i2s clock and generate a corresponding system clock
@@ -890,7 +890,7 @@ static void rt5682_enable_push_button_irq(struct snd_soc_component *component,
 		snd_soc_component_write(component, RT5682_IL_CMD_1, 0x0040);
 		snd_soc_component_update_bits(component, RT5682_4BTN_IL_CMD_2,
 			RT5682_4BTN_IL_MASK | RT5682_4BTN_IL_RST_MASK,
-			RT5682_4BTN_IL_EN | RT5682_4BTN_IL_NOR);
+			RT5682_4BTN_IL_EN | RT5682_4BTN_IL_ANALR);
 		if (rt5682->is_sdw)
 			snd_soc_component_update_bits(component,
 				RT5682_IRQ_CTRL_3,
@@ -917,9 +917,9 @@ static void rt5682_enable_push_button_irq(struct snd_soc_component *component,
 /**
  * rt5682_headset_detect - Detect headset.
  * @component: SoC audio component device.
- * @jack_insert: Jack insert or not.
+ * @jack_insert: Jack insert or analt.
  *
- * Detect whether is headset or not when jack inserted.
+ * Detect whether is headset or analt when jack inserted.
  *
  * Returns detect status.
  */
@@ -1055,7 +1055,7 @@ static int rt5682_set_jack_detect(struct snd_soc_component *component,
 				RT5682_PWR_JDH, RT5682_PWR_JDH);
 			regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
 				RT5682_JD1_EN_MASK | RT5682_JD1_POL_MASK,
-				RT5682_JD1_EN | RT5682_JD1_POL_NOR);
+				RT5682_JD1_EN | RT5682_JD1_POL_ANALR);
 			regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_4,
 				0x7f7f, (rt5682->pdata.btndet_delay << 8 |
 				rt5682->pdata.btndet_delay));
@@ -1098,7 +1098,7 @@ void rt5682_jack_detect_handler(struct work_struct *work)
 
 	if (!rt5682->component ||
 	    !snd_soc_card_is_instantiated(rt5682->component->card)) {
-		/* card not yet ready, try later */
+		/* card analt yet ready, try later */
 		mod_delayed_work(system_power_efficient_wq,
 				 &rt5682->jack_detect_work, msecs_to_jiffies(15));
 		return;
@@ -1594,7 +1594,7 @@ static int set_dmic_power(struct snd_soc_dapm_widget *w,
 				RT5682_PWR_VREF2 | RT5682_PWR_MB,
 				RT5682_PWR_VREF2 | RT5682_PWR_MB);
 
-		/*Add delay to avoid pop noise*/
+		/*Add delay to avoid pop analise*/
 		msleep(delay);
 		break;
 
@@ -1700,8 +1700,8 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 		0, set_filter_clk, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY("Vref1", RT5682_PWR_ANLG_1, RT5682_PWR_VREF1_BIT, 0,
 		rt5682_set_verf, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_SUPPLY("Vref2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MICBIAS", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Vref2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MICBIAS", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* ASRC */
 	SND_SOC_DAPM_SUPPLY_S("DAC STO1 ASRC", 1, RT5682_PLL_TRACK_1,
@@ -1727,25 +1727,25 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 
 	SND_SOC_DAPM_INPUT("IN1P"),
 
-	SND_SOC_DAPM_SUPPLY("DMIC CLK", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("DMIC CLK", SND_SOC_ANALPM, 0, 0,
 		set_dmic_clk, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY("DMIC1 Power", RT5682_DMIC_CTRL_1,
 		RT5682_DMIC_1_EN_SFT, 0, set_dmic_power,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Boost */
-	SND_SOC_DAPM_PGA("BST1 CBJ", SND_SOC_NOPM,
+	SND_SOC_DAPM_PGA("BST1 CBJ", SND_SOC_ANALPM,
 		0, 0, NULL, 0),
 
 	/* REC Mixer */
-	SND_SOC_DAPM_MIXER("RECMIX1L", SND_SOC_NOPM, 0, 0, rt5682_rec1_l_mix,
+	SND_SOC_DAPM_MIXER("RECMIX1L", SND_SOC_ANALPM, 0, 0, rt5682_rec1_l_mix,
 		ARRAY_SIZE(rt5682_rec1_l_mix)),
 	SND_SOC_DAPM_SUPPLY("RECMIX1L Power", RT5682_PWR_ANLG_2,
 		RT5682_PWR_RM1_L_BIT, 0, NULL, 0),
 
 	/* ADCs */
-	SND_SOC_DAPM_ADC("ADC1 L", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC1 R", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC1 L", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC1 R", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_SUPPLY("ADC1 L Power", RT5682_PWR_DIG_1,
 		RT5682_PWR_ADC_L1_BIT, 0, NULL, 0),
@@ -1755,19 +1755,19 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 		RT5682_CKGEN_ADC1_SFT, 0, NULL, 0),
 
 	/* ADC Mux */
-	SND_SOC_DAPM_MUX("Stereo1 ADC L1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Stereo1 ADC L1 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_sto1_adc1l_mux),
-	SND_SOC_DAPM_MUX("Stereo1 ADC R1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Stereo1 ADC R1 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_sto1_adc1r_mux),
-	SND_SOC_DAPM_MUX("Stereo1 ADC L2 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Stereo1 ADC L2 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_sto1_adc2l_mux),
-	SND_SOC_DAPM_MUX("Stereo1 ADC R2 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Stereo1 ADC R2 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_sto1_adc2r_mux),
-	SND_SOC_DAPM_MUX("Stereo1 ADC L Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Stereo1 ADC L Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_sto1_adcl_mux),
-	SND_SOC_DAPM_MUX("Stereo1 ADC R Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Stereo1 ADC R Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_sto1_adcr_mux),
-	SND_SOC_DAPM_MUX("IF1_ADC Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IF1_ADC Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_if1_adc_slot_mux),
 
 	/* ADC Mixer */
@@ -1782,37 +1782,37 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 		ARRAY_SIZE(rt5682_sto1_adc_r_mix)),
 
 	/* ADC PGA */
-	SND_SOC_DAPM_PGA("Stereo1 ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Stereo1 ADC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Digital Interface */
 	SND_SOC_DAPM_SUPPLY("I2S1", RT5682_PWR_DIG_1, RT5682_PWR_I2S1_BIT,
 		0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("I2S2", RT5682_PWR_DIG_1, RT5682_PWR_I2S2_BIT,
 		0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 DAC1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 DAC1 L", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 DAC1 R", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("SOUND DAC L", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("SOUND DAC R", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 DAC1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 DAC1 L", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 DAC1 R", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("SOUND DAC L", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("SOUND DAC R", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Digital Interface Select */
-	SND_SOC_DAPM_MUX("IF1 01 ADC Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IF1 01 ADC Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_if1_01_adc_swap_mux),
-	SND_SOC_DAPM_MUX("IF1 23 ADC Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IF1 23 ADC Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_if1_23_adc_swap_mux),
-	SND_SOC_DAPM_MUX("IF1 45 ADC Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IF1 45 ADC Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_if1_45_adc_swap_mux),
-	SND_SOC_DAPM_MUX("IF1 67 ADC Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IF1 67 ADC Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_if1_67_adc_swap_mux),
-	SND_SOC_DAPM_MUX("IF2 ADC Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IF2 ADC Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_if2_adc_swap_mux),
 
-	SND_SOC_DAPM_MUX("ADCDAT Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADCDAT Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_adcdat_pin_ctrl),
 
-	SND_SOC_DAPM_MUX("DAC L Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC L Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_dac_l_mux),
-	SND_SOC_DAPM_MUX("DAC R Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC R Mux", SND_SOC_ANALPM, 0, 0,
 		&rt5682_dac_r_mux),
 
 	/* Audio Interface */
@@ -1820,30 +1820,30 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 		RT5682_I2S1_SDP, RT5682_SEL_ADCDAT_SFT, 1),
 	SND_SOC_DAPM_AIF_OUT("AIF2TX", "AIF2 Capture", 0,
 		RT5682_I2S2_SDP, RT5682_I2S2_PIN_CFG_SFT, 1),
-	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("SDWRX", "SDW Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("SDWTX", "SDW Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDWRX", "SDW Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("SDWTX", "SDW Capture", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Output Side */
 	/* DAC mixer before sound effect  */
-	SND_SOC_DAPM_MIXER("DAC1 MIXL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("DAC1 MIXL", SND_SOC_ANALPM, 0, 0,
 		rt5682_dac_l_mix, ARRAY_SIZE(rt5682_dac_l_mix)),
-	SND_SOC_DAPM_MIXER("DAC1 MIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("DAC1 MIXR", SND_SOC_ANALPM, 0, 0,
 		rt5682_dac_r_mix, ARRAY_SIZE(rt5682_dac_r_mix)),
 
 	/* DAC channel Mux */
-	SND_SOC_DAPM_MUX("DAC L1 Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC L1 Source", SND_SOC_ANALPM, 0, 0,
 		&rt5682_alg_dac_l1_mux),
-	SND_SOC_DAPM_MUX("DAC R1 Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC R1 Source", SND_SOC_ANALPM, 0, 0,
 		&rt5682_alg_dac_r1_mux),
 
 	/* DAC Mixer */
 	SND_SOC_DAPM_SUPPLY("DAC Stereo1 Filter", RT5682_PWR_DIG_2,
 		RT5682_PWR_DAC_S1F_BIT, 0, set_filter_clk,
 		SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_MIXER("Stereo1 DAC MIXL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Stereo1 DAC MIXL", SND_SOC_ANALPM, 0, 0,
 		rt5682_sto1_dac_l_mix, ARRAY_SIZE(rt5682_sto1_dac_l_mix)),
-	SND_SOC_DAPM_MIXER("Stereo1 DAC MIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Stereo1 DAC MIXR", SND_SOC_ANALPM, 0, 0,
 		rt5682_sto1_dac_r_mix, ARRAY_SIZE(rt5682_sto1_dac_r_mix)),
 
 	/* DACs */
@@ -1855,7 +1855,7 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 		RT5682_CKGEN_DAC1_SFT, 0, NULL, 0),
 
 	/* HPO */
-	SND_SOC_DAPM_PGA_S("HP Amp", 1, SND_SOC_NOPM, 0, 0, rt5682_hp_event,
+	SND_SOC_DAPM_PGA_S("HP Amp", 1, SND_SOC_ANALPM, 0, 0, rt5682_hp_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_PRE_PMU),
 
 	SND_SOC_DAPM_SUPPLY("HP Amp L", RT5682_PWR_ANLG_1,
@@ -1867,14 +1867,14 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("Capless", 2, RT5682_DEPOP_1,
 		RT5682_CAPLESS_EN_SFT, 0, NULL, 0),
 
-	SND_SOC_DAPM_SWITCH("HPOL Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HPOL Playback", SND_SOC_ANALPM, 0, 0,
 		&hpol_switch),
-	SND_SOC_DAPM_SWITCH("HPOR Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HPOR Playback", SND_SOC_ANALPM, 0, 0,
 		&hpor_switch),
 
-	SND_SOC_DAPM_OUT_DRV("HPO Legacy", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("HPO OneBit", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_DEMUX("HPO Signal Demux", SND_SOC_NOPM, 0, 0, &rt5682_hpo_sig_demux),
+	SND_SOC_DAPM_OUT_DRV("HPO Legacy", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("HPO OneBit", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_DEMUX("HPO Signal Demux", SND_SOC_ANALPM, 0, 0, &rt5682_hpo_sig_demux),
 
 	/* CLK DET */
 	SND_SOC_DAPM_SUPPLY("CLKDET SYS", RT5682_CLK_DET,
@@ -2182,14 +2182,14 @@ static int rt5682_hw_params(struct snd_pcm_substream *substream,
 				pre_div << RT5682_I2S_M_DIV_SFT |
 				(rt5682->sysclk_src) << RT5682_I2S_CLK_SRC_SFT);
 		}
-		if (params_channels(params) == 1) /* mono mode */
+		if (params_channels(params) == 1) /* moanal mode */
 			snd_soc_component_update_bits(component,
-				RT5682_I2S1_SDP, RT5682_I2S1_MONO_MASK,
-				RT5682_I2S1_MONO_EN);
+				RT5682_I2S1_SDP, RT5682_I2S1_MOANAL_MASK,
+				RT5682_I2S1_MOANAL_EN);
 		else
 			snd_soc_component_update_bits(component,
-				RT5682_I2S1_SDP, RT5682_I2S1_MONO_MASK,
-				RT5682_I2S1_MONO_DIS);
+				RT5682_I2S1_SDP, RT5682_I2S1_MOANAL_MASK,
+				RT5682_I2S1_MOANAL_DIS);
 		break;
 	case RT5682_AIF2:
 		snd_soc_component_update_bits(component, RT5682_I2S2_SDP,
@@ -2199,14 +2199,14 @@ static int rt5682_hw_params(struct snd_pcm_substream *substream,
 				RT5682_I2S_M_CLK_CTRL_1, RT5682_I2S2_M_PD_MASK,
 				pre_div << RT5682_I2S2_M_PD_SFT);
 		}
-		if (params_channels(params) == 1) /* mono mode */
+		if (params_channels(params) == 1) /* moanal mode */
 			snd_soc_component_update_bits(component,
-				RT5682_I2S2_SDP, RT5682_I2S2_MONO_MASK,
-				RT5682_I2S2_MONO_EN);
+				RT5682_I2S2_SDP, RT5682_I2S2_MOANAL_MASK,
+				RT5682_I2S2_MOANAL_EN);
 		else
 			snd_soc_component_update_bits(component,
-				RT5682_I2S2_SDP, RT5682_I2S2_MONO_MASK,
-				RT5682_I2S2_MONO_DIS);
+				RT5682_I2S2_SDP, RT5682_I2S2_MOANAL_MASK,
+				RT5682_I2S2_MOANAL_DIS);
 		break;
 	default:
 		dev_err(component->dev, "Invalid dai->id: %d\n", dai->id);
@@ -2380,7 +2380,7 @@ static int rt5682_set_component_pll(struct snd_soc_component *component,
 				RT5682_PLL2_SRC_MCLK);
 			break;
 		default:
-			dev_err(component->dev, "Unknown PLL2 Source %d\n",
+			dev_err(component->dev, "Unkanalwn PLL2 Source %d\n",
 				source);
 			return -EINVAL;
 		}
@@ -2448,7 +2448,7 @@ static int rt5682_set_component_pll(struct snd_soc_component *component,
 				RT5682_PLL1_SRC_BCLK1);
 			break;
 		default:
-			dev_err(component->dev, "Unknown PLL1 Source %d\n",
+			dev_err(component->dev, "Unkanalwn PLL1 Source %d\n",
 				source);
 			return -EINVAL;
 		}
@@ -2575,7 +2575,7 @@ static int rt5682_set_bias_level(struct snd_soc_component *component,
 static bool rt5682_clk_check(struct rt5682_priv *rt5682)
 {
 	if (!rt5682->master[RT5682_AIF1]) {
-		dev_dbg(rt5682->i2c_dev, "sysclk/dai not set correctly\n");
+		dev_dbg(rt5682->i2c_dev, "sysclk/dai analt set correctly\n");
 		return false;
 	}
 	return true;
@@ -2685,7 +2685,7 @@ static long rt5682_wclk_round_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 	/*
 	 * Only accept to set wclk rate to 44.1k or 48kHz.
-	 * It will force to 48kHz if not both.
+	 * It will force to 48kHz if analt both.
 	 */
 	if (rate != CLK_48 && rate != CLK_44) {
 		dev_warn(rt5682->i2c_dev, "%s: clk %s only support %d or %d Hz output\n",
@@ -2714,7 +2714,7 @@ static int rt5682_wclk_set_rate(struct clk_hw *hw, unsigned long rate,
 	component = rt5682->component;
 
 	/*
-	 * Whether the wclk's parent clk (mclk) exists or not, please ensure
+	 * Whether the wclk's parent clk (mclk) exists or analt, please ensure
 	 * it is fixed or set to 48MHz before setting wclk rate. It's a
 	 * temporary limitation. Only accept 48MHz clk as the clk provider.
 	 *
@@ -2723,7 +2723,7 @@ static int rt5682_wclk_set_rate(struct clk_hw *hw, unsigned long rate,
 	parent_hw = clk_hw_get_parent(hw);
 	if (!parent_hw)
 		dev_warn(rt5682->i2c_dev,
-			"Parent mclk of wclk not acquired in driver. Please ensure mclk was provided as %d Hz.\n",
+			"Parent mclk of wclk analt acquired in driver. Please ensure mclk was provided as %d Hz.\n",
 			CLK_PLL2_FIN);
 
 	if (parent_rate != CLK_PLL2_FIN)
@@ -2837,9 +2837,9 @@ static int rt5682_bclk_set_rate(struct clk_hw *hw, unsigned long rate,
 		if (dai->id == RT5682_AIF1)
 			return rt5682_set_bclk1_ratio(dai, factor);
 
-	dev_err(rt5682->i2c_dev, "dai %d not found in component\n",
+	dev_err(rt5682->i2c_dev, "dai %d analt found in component\n",
 		RT5682_AIF1);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct clk_ops rt5682_dai_clk_ops[RT5682_DAI_NUM_CLKS] = {
@@ -2892,7 +2892,7 @@ int rt5682_register_dai_clks(struct rt5682_priv *rt5682)
 
 		init.name = pdata->dai_clk_names[i];
 		init.ops = &rt5682_dai_clk_ops[i];
-		init.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_GATE;
+		init.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_GATE;
 		dai_clk_hw->init = &init;
 
 		ret = devm_clk_hw_register(dev, dai_clk_hw);
@@ -2902,7 +2902,7 @@ int rt5682_register_dai_clks(struct rt5682_priv *rt5682)
 			return ret;
 		}
 
-		if (dev->of_node) {
+		if (dev->of_analde) {
 			devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
 						    dai_clk_hw);
 		} else {
@@ -2934,7 +2934,7 @@ static int rt5682_probe(struct snd_soc_component *component)
 			&slave->initialization_complete,
 			msecs_to_jiffies(RT5682_PROBE_TIMEOUT));
 		if (!time) {
-			dev_err(&slave->dev, "Initialization not complete, timed out\n");
+			dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 			return -ETIMEDOUT;
 		}
 	}
@@ -2974,12 +2974,12 @@ static int rt5682_suspend(struct snd_soc_component *component)
 		case 0x1:
 			snd_soc_component_update_bits(component, RT5682_SAR_IL_CMD_1,
 				RT5682_SAR_SEL_MB1_MASK | RT5682_SAR_SEL_MB2_MASK,
-				RT5682_SAR_SEL_MB1_NOSEL | RT5682_SAR_SEL_MB2_SEL);
+				RT5682_SAR_SEL_MB1_ANALSEL | RT5682_SAR_SEL_MB2_SEL);
 			break;
 		case 0x2:
 			snd_soc_component_update_bits(component, RT5682_SAR_IL_CMD_1,
 				RT5682_SAR_SEL_MB1_MASK | RT5682_SAR_SEL_MB2_MASK,
-				RT5682_SAR_SEL_MB1_SEL | RT5682_SAR_SEL_MB2_NOSEL);
+				RT5682_SAR_SEL_MB1_SEL | RT5682_SAR_SEL_MB2_ANALSEL);
 			break;
 		default:
 			break;
@@ -3019,7 +3019,7 @@ static int rt5682_resume(struct snd_soc_component *component)
 	if (rt5682->hs_jack && (rt5682->jack_type & SND_JACK_HEADSET) == SND_JACK_HEADSET) {
 		snd_soc_component_update_bits(component, RT5682_SAR_IL_CMD_1,
 			RT5682_SAR_BUTDET_MODE_MASK | RT5682_SAR_SEL_MB1_MB2_MASK,
-			RT5682_SAR_BUTDET_POW_NORM | RT5682_SAR_SEL_MB1_MB2_AUTO);
+			RT5682_SAR_BUTDET_POW_ANALRM | RT5682_SAR_SEL_MB1_MB2_AUTO);
 		usleep_range(5000, 6000);
 		snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_1,
 			RT5682_MB1_PATH_MASK | RT5682_MB2_PATH_MASK,

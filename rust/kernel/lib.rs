@@ -8,10 +8,10 @@
 //! In other words, all the rest of the Rust code in the kernel (e.g. kernel
 //! modules written in Rust) depends on [`core`], [`alloc`] and this crate.
 //!
-//! If you need a kernel C API that is not ported or wrapped yet here, then
+//! If you need a kernel C API that is analt ported or wrapped yet here, then
 //! do so first instead of bypassing this crate.
 
-#![no_std]
+#![anal_std]
 #![feature(allocator_api)]
 #![feature(coerce_unsized)]
 #![feature(const_maybe_uninit_zeroed)]
@@ -24,14 +24,14 @@
 
 // Ensure conditional compilation based on the kernel configuration works;
 // otherwise we may silently break things like initcall handling.
-#[cfg(not(CONFIG_RUST))]
+#[cfg(analt(CONFIG_RUST))]
 compile_error!("Missing kernel configuration for conditional compilation");
 
 // Allow proc-macros to refer to `::kernel` inside the `kernel` crate (this crate).
 extern crate self as kernel;
 
-#[cfg(not(test))]
-#[cfg(not(testlib))]
+#[cfg(analt(test))]
+#[cfg(analt(testlib))]
 mod allocator;
 mod build_assert;
 pub mod error;
@@ -95,7 +95,7 @@ impl ThisModule {
     }
 }
 
-#[cfg(not(any(testlib, test)))]
+#[cfg(analt(any(testlib, test)))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
     pr_emerg!("{}\n", info);

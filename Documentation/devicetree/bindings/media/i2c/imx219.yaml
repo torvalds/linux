@@ -64,7 +64,7 @@ properties:
               - const: 1
               - const: 2
 
-          clock-noncontinuous: true
+          clock-analncontinuous: true
           link-frequencies: true
 
         required:
@@ -99,7 +99,7 @@ examples:
                 imx219_0: endpoint {
                     remote-endpoint = <&csi1_ep>;
                     data-lanes = <1 2>;
-                    clock-noncontinuous;
+                    clock-analncontinuous;
                     link-frequencies = /bits/ 64 <456000000>;
                 };
             };

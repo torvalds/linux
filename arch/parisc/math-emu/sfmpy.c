@@ -57,7 +57,7 @@ sgl_fmpy(
 	 */
 	if (Sgl_isinfinity_exponent(opnd1)) {
 		if (Sgl_iszero_mantissa(opnd1)) {
-			if (Sgl_isnotnan(opnd2)) {
+			if (Sgl_isanaltnan(opnd2)) {
 				if (Sgl_iszero_exponentmantissa(opnd2)) {
 					/* 
 					 * invalid since operands are infinity 
@@ -68,14 +68,14 @@ sgl_fmpy(
                                 	Set_invalidflag();
                                 	Sgl_makequietnan(result);
 					*dstptr = result;
-					return(NOEXCEPTION);
+					return(ANALEXCEPTION);
 				}
 				/*
 			 	 * return infinity
 			 	 */
 				Sgl_setinfinity_exponentmantissa(result);
 				*dstptr = result;
-				return(NOEXCEPTION);
+				return(ANALEXCEPTION);
 			}
 		}
 		else {
@@ -101,13 +101,13 @@ sgl_fmpy(
                         	Set_invalidflag();
                         	Sgl_set_quiet(opnd2);
                 		*dstptr = opnd2;
-                		return(NOEXCEPTION);
+                		return(ANALEXCEPTION);
 			}
                 	/*
                  	 * return quiet NaN
                  	 */
                 	*dstptr = opnd1;
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
 		}
 	}
 	/*
@@ -122,14 +122,14 @@ sgl_fmpy(
                                 Set_invalidflag();
                                 Sgl_makequietnan(opnd2);
 				*dstptr = opnd2;
-				return(NOEXCEPTION);
+				return(ANALEXCEPTION);
 			}
 			/*
 			 * return infinity
 			 */
 			Sgl_setinfinity_exponentmantissa(result);
 			*dstptr = result;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
                 /*
                  * is NaN; signaling or quiet?
@@ -146,7 +146,7 @@ sgl_fmpy(
                  * return quiet NaN
                  */
                 *dstptr = opnd2;
-                return(NOEXCEPTION);
+                return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate exponent 
@@ -156,7 +156,7 @@ sgl_fmpy(
 	/*
 	 * Generate mantissa
 	 */
-	if (Sgl_isnotzero_exponent(opnd1)) {
+	if (Sgl_isanaltzero_exponent(opnd1)) {
 		/* set hidden bit */
 		Sgl_clear_signexponent_set_hidden(opnd1);
 	}
@@ -165,15 +165,15 @@ sgl_fmpy(
 		if (Sgl_iszero_mantissa(opnd1)) {
 			Sgl_setzero_exponentmantissa(result);
 			*dstptr = result;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
-                /* is denormalized, adjust exponent */
+                /* is deanalrmalized, adjust exponent */
                 Sgl_clear_signexponent(opnd1);
 		Sgl_leftshiftby1(opnd1);
-		Sgl_normalize(opnd1,dest_exponent);
+		Sgl_analrmalize(opnd1,dest_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Sgl_isnotzero_exponent(opnd2)) {
+	if (Sgl_isanaltzero_exponent(opnd2)) {
 		Sgl_clear_signexponent_set_hidden(opnd2);
 	}
 	else {
@@ -181,12 +181,12 @@ sgl_fmpy(
 		if (Sgl_iszero_mantissa(opnd2)) {
 			Sgl_setzero_exponentmantissa(result);
 			*dstptr = result;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
-                /* is denormalized; want to normalize */
+                /* is deanalrmalized; want to analrmalize */
                 Sgl_clear_signexponent(opnd2);
                 Sgl_leftshiftby1(opnd2);
-		Sgl_normalize(opnd2,dest_exponent);
+		Sgl_analrmalize(opnd2,dest_exponent);
 	}
 
 	/* Multiply two source mantissas together */
@@ -214,7 +214,7 @@ sgl_fmpy(
 		/* result mantissa >= 2. */
 		dest_exponent++;
 	}
-	/* check for denormalized result */
+	/* check for deanalrmalized result */
 	while (Sgl_iszero_sign(opnd3)) {
 		Sgl_leftshiftby1(opnd3);
 		dest_exponent--;
@@ -300,7 +300,7 @@ sgl_fmpy(
 			case ROUNDPLUS: 
 				if (Sgl_iszero_sign(result)) {
 					Sgl_increment(opnd3);
-					if (Sgl_isone_hiddenoverflow(opnd3))
+					if (Sgl_isone_hiddeanalverflow(opnd3))
                 			    is_tiny = FALSE;
 					Sgl_decrement(opnd3);
 				}
@@ -308,7 +308,7 @@ sgl_fmpy(
 			case ROUNDMINUS: 
 				if (Sgl_isone_sign(result)) {
 					Sgl_increment(opnd3);
-					if (Sgl_isone_hiddenoverflow(opnd3))
+					if (Sgl_isone_hiddeanalverflow(opnd3))
                 			    is_tiny = FALSE;
 					Sgl_decrement(opnd3);
 				}
@@ -317,7 +317,7 @@ sgl_fmpy(
 				if (guardbit && (stickybit || 
 				    Sgl_isone_lowmantissa(opnd3))) {
 				      	Sgl_increment(opnd3);
-					if (Sgl_isone_hiddenoverflow(opnd3))
+					if (Sgl_isone_hiddeanalverflow(opnd3))
                 			    is_tiny = FALSE;
 					Sgl_decrement(opnd3);
 				}
@@ -326,10 +326,10 @@ sgl_fmpy(
 		}
 
                 /*
-                 * denormalize result or set to signed zero
+                 * deanalrmalize result or set to signed zero
                  */
 		stickybit = inexact;
-		Sgl_denormalize(opnd3,dest_exponent,guardbit,stickybit,inexact);
+		Sgl_deanalrmalize(opnd3,dest_exponent,guardbit,stickybit,inexact);
 
 		/* return zero or smallest number */
 		if (inexact) {
@@ -363,5 +363,5 @@ sgl_fmpy(
 		if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 		else Set_inexactflag();
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }

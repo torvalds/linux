@@ -17,7 +17,7 @@
 #include "intel_display_reg_defs.h"
 #include "intel_fbc.h"
 
-static const struct intel_display_device_info no_display = {};
+static const struct intel_display_device_info anal_display = {};
 
 #define PIPE_A_OFFSET		0x70000
 #define PIPE_B_OFFSET		0x71000
@@ -25,7 +25,7 @@ static const struct intel_display_device_info no_display = {};
 #define PIPE_D_OFFSET		0x73000
 #define CHV_PIPE_C_OFFSET	0x74000
 /*
- * There's actually no pipe EDP. Some pipe registers have
+ * There's actually anal pipe EDP. Some pipe registers have
  * simply shifted from the pipe to the transcoder, while
  * keeping their original offset. Thus we need PIPE_EDP_OFFSET
  * to access such registers in transcoder EDP.
@@ -145,7 +145,7 @@ static const struct intel_display_device_info no_display = {};
 	.color = { .gamma_lut_size = 256 }
 #define I9XX_COLORS \
 	.color = { .gamma_lut_size = 129, \
-		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+		   .gamma_lut_tests = DRM_COLOR_LUT_ANALN_DECREASING, \
 	}
 #define ILK_COLORS \
 	.color = { .gamma_lut_size = 1024 }
@@ -154,21 +154,21 @@ static const struct intel_display_device_info no_display = {};
 #define CHV_COLORS \
 	.color = { \
 		.degamma_lut_size = 65, .gamma_lut_size = 257, \
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
-		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+		.degamma_lut_tests = DRM_COLOR_LUT_ANALN_DECREASING, \
+		.gamma_lut_tests = DRM_COLOR_LUT_ANALN_DECREASING, \
 	}
 #define GLK_COLORS \
 	.color = { \
 		.degamma_lut_size = 33, .gamma_lut_size = 1024, \
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+		.degamma_lut_tests = DRM_COLOR_LUT_ANALN_DECREASING | \
 				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
 	}
 #define ICL_COLORS \
 	.color = { \
 		.degamma_lut_size = 33, .gamma_lut_size = 262145, \
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+		.degamma_lut_tests = DRM_COLOR_LUT_ANALN_DECREASING | \
 				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
-		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+		.gamma_lut_tests = DRM_COLOR_LUT_ANALN_DECREASING, \
 	}
 
 #define I830_DISPLAY \
@@ -648,7 +648,7 @@ static const struct intel_display_device_info adl_s_display = {
 	.abox_mask = GENMASK(1, 0),						\
 	.color = {								\
 		.degamma_lut_size = 129, .gamma_lut_size = 1024,		\
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
+		.degamma_lut_tests = DRM_COLOR_LUT_ANALN_DECREASING |		\
 		DRM_COLOR_LUT_EQUAL_CHANNELS,					\
 	},									\
 	.dbuf.size = 4096,							\
@@ -715,7 +715,7 @@ static const struct intel_display_device_info xe_hpd_display = {
 	.abox_mask = GENMASK(1, 0),						\
 	.color = {								\
 		.degamma_lut_size = 129, .gamma_lut_size = 1024,		\
-		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
+		.degamma_lut_tests = DRM_COLOR_LUT_ANALN_DECREASING |		\
 		DRM_COLOR_LUT_EQUAL_CHANNELS,					\
 	},									\
 	.dbuf.size = 4096,							\
@@ -769,12 +769,12 @@ static const struct intel_display_device_info xe2_lpd_display = {
 };
 
 /*
- * Separate detection for no display cases to keep the display id array simple.
+ * Separate detection for anal display cases to keep the display id array simple.
  *
  * IVB Q requires subvendor and subdevice matching to differentiate from IVB D
  * GT2 server.
  */
-static bool has_no_display(struct pci_dev *pdev)
+static bool has_anal_display(struct pci_dev *pdev)
 {
 	static const struct pci_device_id ids[] = {
 		INTEL_IVB_Q_IDS(0),
@@ -835,7 +835,7 @@ static const struct {
 	INTEL_DG2_IDS(&xe_hpd_display),
 
 	/*
-	 * Do not add any GMD_ID-based platforms to this list.  They will
+	 * Do analt add any GMD_ID-based platforms to this list.  They will
 	 * be probed automatically based on the IP version reported by
 	 * the hardware.
 	 */
@@ -859,8 +859,8 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 	int i;
 
 	/* The caller expects to ver, rel and step to be initialized
-	 * here, and there's no good way to check when there was a
-	 * failure and no_display was returned.  So initialize all these
+	 * here, and there's anal good way to check when there was a
+	 * failure and anal_display was returned.  So initialize all these
 	 * values here zero, to be sure.
 	 */
 	*ver = 0;
@@ -869,8 +869,8 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 
 	addr = pci_iomap_range(pdev, 0, i915_mmio_reg_offset(GMD_ID_DISPLAY), sizeof(u32));
 	if (!addr) {
-		drm_err(&i915->drm, "Cannot map MMIO BAR to read display GMD_ID\n");
-		return &no_display;
+		drm_err(&i915->drm, "Cananalt map MMIO BAR to read display GMD_ID\n");
+		return &anal_display;
 	}
 
 	val = ioread32(addr);
@@ -878,7 +878,7 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 
 	if (val == 0) {
 		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
-		return &no_display;
+		return &anal_display;
 	}
 
 	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
@@ -892,7 +892,7 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 
 	drm_err(&i915->drm, "Unrecognized display IP version %d.%02d; disabling display.\n",
 		*ver, *rel);
-	return &no_display;
+	return &anal_display;
 }
 
 static const struct intel_display_device_info *
@@ -901,9 +901,9 @@ probe_display(struct drm_i915_private *i915)
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int i;
 
-	if (has_no_display(pdev)) {
+	if (has_anal_display(pdev)) {
 		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
-		return &no_display;
+		return &anal_display;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(intel_display_ids); i++) {
@@ -911,10 +911,10 @@ probe_display(struct drm_i915_private *i915)
 			return intel_display_ids[i].info;
 	}
 
-	drm_dbg(&i915->drm, "No display ID found for device ID %04x; disabling display.\n",
+	drm_dbg(&i915->drm, "Anal display ID found for device ID %04x; disabling display.\n",
 		pdev->device);
 
-	return &no_display;
+	return &anal_display;
 }
 
 void intel_display_device_probe(struct drm_i915_private *i915)
@@ -989,7 +989,7 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		/*
 		 * Skylake and Broxton currently don't expose the topmost plane as its
 		 * use is exclusive with the legacy cursor and we only want to expose
-		 * one of those, not both. Until we can safely expose the topmost plane
+		 * one of those, analt both. Until we can safely expose the topmost plane
 		 * as a DRM_PLANE_TYPE_CURSOR with all the features exposed/supported,
 		 * we don't expose the topmost plane at all to prevent ABI breakage
 		 * down the line.
@@ -1008,7 +1008,7 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 
 	if ((IS_DGFX(i915) || DISPLAY_VER(i915) >= 14) &&
 	    !(intel_de_read(i915, GU_CNTL_PROTECTED) & DEPRESENT)) {
-		drm_info(&i915->drm, "Display not present, disabling\n");
+		drm_info(&i915->drm, "Display analt present, disabling\n");
 		goto display_fused_off;
 	}
 
@@ -1109,7 +1109,7 @@ void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 	/* Display may have been disabled by runtime init */
 	if (!HAS_DISPLAY(i915)) {
 		i915->drm.driver_features &= ~(DRIVER_MODESET | DRIVER_ATOMIC);
-		i915->display.info.__device_info = &no_display;
+		i915->display.info.__device_info = &anal_display;
 	}
 
 	/* Disable nuclear pageflip by default on pre-g4x */
@@ -1130,19 +1130,19 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
 		drm_printf(p, "display version: %u\n",
 			   runtime->ip.ver);
 
-#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->name))
+#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_anal_anal(info->name))
 	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
 
-	drm_printf(p, "has_hdcp: %s\n", str_yes_no(runtime->has_hdcp));
-	drm_printf(p, "has_dmc: %s\n", str_yes_no(runtime->has_dmc));
-	drm_printf(p, "has_dsc: %s\n", str_yes_no(runtime->has_dsc));
+	drm_printf(p, "has_hdcp: %s\n", str_anal_anal(runtime->has_hdcp));
+	drm_printf(p, "has_dmc: %s\n", str_anal_anal(runtime->has_dmc));
+	drm_printf(p, "has_dsc: %s\n", str_anal_anal(runtime->has_dsc));
 }
 
 /*
  * Assuming the device has display hardware, should it be enabled?
  *
- * It's an error to call this function if the device does not have display
+ * It's an error to call this function if the device does analt have display
  * hardware.
  *
  * Disabling display means taking over the display hardware, putting it to

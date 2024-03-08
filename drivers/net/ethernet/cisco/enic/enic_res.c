@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -88,18 +88,18 @@ int enic_get_vnic_config(struct enic *enic)
 	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %s/%s "
 		"tso/lro %s/%s rss %s intr mode %s type %s timer %d usec "
 		"loopback tag 0x%04x\n",
-		ENIC_SETTING(enic, TXCSUM) ? "yes" : "no",
-		ENIC_SETTING(enic, RXCSUM) ? "yes" : "no",
-		ENIC_SETTING(enic, TSO) ? "yes" : "no",
-		ENIC_SETTING(enic, LRO) ? "yes" : "no",
-		ENIC_SETTING(enic, RSS) ? "yes" : "no",
+		ENIC_SETTING(enic, TXCSUM) ? "anal" : "anal",
+		ENIC_SETTING(enic, RXCSUM) ? "anal" : "anal",
+		ENIC_SETTING(enic, TSO) ? "anal" : "anal",
+		ENIC_SETTING(enic, LRO) ? "anal" : "anal",
+		ENIC_SETTING(enic, RSS) ? "anal" : "anal",
 		c->intr_mode == VENET_INTR_MODE_INTX ? "INTx" :
 		c->intr_mode == VENET_INTR_MODE_MSI ? "MSI" :
 		c->intr_mode == VENET_INTR_MODE_ANY ? "any" :
-		"unknown",
+		"unkanalwn",
 		c->intr_timer_type == VENET_INTR_TYPE_MIN ? "min" :
 		c->intr_timer_type == VENET_INTR_TYPE_IDLE ? "idle" :
-		"unknown",
+		"unkanalwn",
 		c->intr_timer_usec,
 		c->loop_tag);
 
@@ -216,7 +216,7 @@ void enic_init_vnic_resources(struct enic *enic)
 	 * RQ[0 - n-1] point to CQ[0 - n-1]
 	 * WQ[0 - m-1] point to CQ[n - n+m-1]
 	 *
-	 * Error interrupt is not enabled for MSI.
+	 * Error interrupt is analt enabled for MSI.
 	 */
 
 	switch (intr_mode) {
@@ -279,7 +279,7 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	/* Init INTR resources
 	 *
-	 * mask_on_assertion is not used for INTx due to the level-
+	 * mask_on_assertion is analt used for INTx due to the level-
 	 * triggered nature of INTx
 	 */
 
@@ -316,7 +316,7 @@ int enic_alloc_vnic_resources(struct enic *enic)
 		intr_mode == VNIC_DEV_INTR_MODE_INTX ? "legacy PCI INTx" :
 		intr_mode == VNIC_DEV_INTR_MODE_MSI ? "MSI" :
 		intr_mode == VNIC_DEV_INTR_MODE_MSIX ? "MSI-X" :
-		"unknown");
+		"unkanalwn");
 
 	/* Allocate queue resources
 	 */
@@ -364,7 +364,7 @@ int enic_alloc_vnic_resources(struct enic *enic)
 	if (!enic->legacy_pba && intr_mode == VNIC_DEV_INTR_MODE_INTX) {
 		dev_err(enic_get_dev(enic),
 			"Failed to hook legacy pba resource\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_cleanup;
 	}
 

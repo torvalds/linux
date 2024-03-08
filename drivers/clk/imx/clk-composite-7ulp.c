@@ -81,7 +81,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 	if (mux_present) {
 		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 		if (!mux)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		mux_hw = &mux->hw;
 		mux->reg = reg;
 		mux->shift = PCG_PCS_SHIFT;
@@ -94,7 +94,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 		fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 		if (!fd) {
 			kfree(mux);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		fd_hw = &fd->hw;
 		fd->reg = reg;
@@ -112,7 +112,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 		if (!gate) {
 			kfree(mux);
 			kfree(fd);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		gate_hw = &gate->hw;
 		gate->reg = reg;
@@ -137,7 +137,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 				       mux_hw, &clk_mux_ops, fd_hw,
 				       &clk_fractional_divider_ops, gate_hw,
 				       has_swrst ? &pcc_gate_ops : &clk_gate_ops, CLK_SET_RATE_GATE |
-				       CLK_SET_PARENT_GATE | CLK_SET_RATE_NO_REPARENT);
+				       CLK_SET_PARENT_GATE | CLK_SET_RATE_ANAL_REPARENT);
 	if (IS_ERR(hw)) {
 		kfree(mux);
 		kfree(fd);

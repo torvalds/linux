@@ -5,7 +5,7 @@ BPF drgn tools
 ==============
 
 drgn scripts is a convenient and easy to use mechanism to retrieve arbitrary
-kernel data structures. drgn is not relying on kernel UAPI to read the data.
+kernel data structures. drgn is analt relying on kernel UAPI to read the data.
 Instead it's reading directly from ``/proc/kcore`` or vmcore and pretty prints
 the data based on DWARF debug information from vmlinux.
 
@@ -26,7 +26,7 @@ about these objects, including id, type and name.
 
 The main use-case `bpf_inspect.py`_ covers is to show BPF programs of types
 ``BPF_PROG_TYPE_EXT`` and ``BPF_PROG_TYPE_TRACING`` attached to other BPF
-programs via ``freplace``/``fentry``/``fexit`` mechanisms, since there is no
+programs via ``freplace``/``fentry``/``fexit`` mechanisms, since there is anal
 user-space API to get this information.
 
 Getting started
@@ -72,7 +72,7 @@ that has BTF id 16 in BPF program id 650, name ``test_pkt_access``.
 
 Getting help:
 
-.. code-block:: none
+.. code-block:: analne
 
     % sudo bpf_inspect.py
     usage: bpf_inspect.py [-h] {prog,p,map,m} ...
@@ -98,7 +98,7 @@ information about BPF programs, maps and other objects.
 
 For example, to print ``struct bpf_prog_aux`` for BPF program id 53077:
 
-.. code-block:: none
+.. code-block:: analne
 
     % git diff
     diff --git a/tools/bpf_inspect.py b/tools/bpf_inspect.py
@@ -141,9 +141,9 @@ It produces the output::
             .func_proto_unreliable = (bool)0,
             .trampoline_prog_type = (enum bpf_tramp_prog_type)BPF_TRAMP_FENTRY,
             .trampoline = (struct bpf_trampoline *)0x0,
-            .tramp_hlist = (struct hlist_node){
-                    .next = (struct hlist_node *)0x0,
-                    .pprev = (struct hlist_node **)0x0,
+            .tramp_hlist = (struct hlist_analde){
+                    .next = (struct hlist_analde *)0x0,
+                    .pprev = (struct hlist_analde **)0x0,
             },
             .attach_func_proto = (const struct btf_type *)0x0,
             .attach_func_name = (const char *)0x0,
@@ -151,21 +151,21 @@ It produces the output::
             .jit_data = (void *)0x0,
             .poke_tab = (struct bpf_jit_poke_descriptor *)0x0,
             .size_poke_tab = (u32)0,
-            .ksym_tnode = (struct latch_tree_node){
-                    .node = (struct rb_node [2]){
+            .ksym_tanalde = (struct latch_tree_analde){
+                    .analde = (struct rb_analde [2]){
                             {
                                     .__rb_parent_color = (unsigned long)18446612956263126665,
-                                    .rb_right = (struct rb_node *)0x0,
-                                    .rb_left = (struct rb_node *)0xffff88a0be3d0088,
+                                    .rb_right = (struct rb_analde *)0x0,
+                                    .rb_left = (struct rb_analde *)0xffff88a0be3d0088,
                             },
                             {
                                     .__rb_parent_color = (unsigned long)18446612956263126689,
-                                    .rb_right = (struct rb_node *)0x0,
-                                    .rb_left = (struct rb_node *)0xffff88a0be3d00a0,
+                                    .rb_right = (struct rb_analde *)0x0,
+                                    .rb_left = (struct rb_analde *)0xffff88a0be3d00a0,
                             },
                     },
             },
-            .ksym_lnode = (struct list_head){
+            .ksym_lanalde = (struct list_head){
                     .next = (struct list_head *)0xffff88bf481830b8,
                     .prev = (struct list_head *)0xffff888309f536b8,
             },

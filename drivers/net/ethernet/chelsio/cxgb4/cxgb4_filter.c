@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,20 +55,20 @@ static inline bool unsupported(u32 conf, u32 conf_mask, u32 val, u32 mask)
 
 static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
 			 unsigned int ftid,  u16 word, u64 mask, u64 val,
-			 int no_reply)
+			 int anal_reply)
 {
 	struct cpl_set_tcb_field *req;
 	struct sk_buff *skb;
 
 	skb = alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = (struct cpl_set_tcb_field *)__skb_put_zero(skb, sizeof(*req));
 	INIT_TP_WR_CPL(req, CPL_SET_TCB_FIELD, ftid);
 	req->reply_ctrl = htons(REPLY_CHAN_V(0) |
-				QUEUENO_V(adap->sge.fw_evtq.abs_id) |
-				NO_REPLY_V(no_reply));
+				QUEUEANAL_V(adap->sge.fw_evtq.abs_id) |
+				ANAL_REPLY_V(anal_reply));
 	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(ftid));
 	req->mask = cpu_to_be64(mask);
 	req->val = cpu_to_be64(val);
@@ -81,10 +81,10 @@ static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
  */
 static int set_tcb_tflag(struct adapter *adap, struct filter_entry *f,
 			 unsigned int ftid, unsigned int bit_pos,
-			 unsigned int val, int no_reply)
+			 unsigned int val, int anal_reply)
 {
 	return set_tcb_field(adap, f, ftid,  TCB_T_FLAGS_W, 1ULL << bit_pos,
-			     (unsigned long long)val << bit_pos, no_reply);
+			     (unsigned long long)val << bit_pos, anal_reply);
 }
 
 static void mk_abort_req_ulp(struct cpl_abort_req *abort_req, unsigned int tid)
@@ -99,7 +99,7 @@ static void mk_abort_req_ulp(struct cpl_abort_req *abort_req, unsigned int tid)
 	OPCODE_TID(abort_req) = htonl(MK_OPCODE_TID(CPL_ABORT_REQ, tid));
 	abort_req->rsvd0 = htonl(0);
 	abort_req->rsvd1 = 0;
-	abort_req->cmd = CPL_ABORT_NO_RST;
+	abort_req->cmd = CPL_ABORT_ANAL_RST;
 }
 
 static void mk_abort_rpl_ulp(struct cpl_abort_rpl *abort_rpl, unsigned int tid)
@@ -114,13 +114,13 @@ static void mk_abort_rpl_ulp(struct cpl_abort_rpl *abort_rpl, unsigned int tid)
 	OPCODE_TID(abort_rpl) = htonl(MK_OPCODE_TID(CPL_ABORT_RPL, tid));
 	abort_rpl->rsvd0 = htonl(0);
 	abort_rpl->rsvd1 = 0;
-	abort_rpl->cmd = CPL_ABORT_NO_RST;
+	abort_rpl->cmd = CPL_ABORT_ANAL_RST;
 }
 
 static void mk_set_tcb_ulp(struct filter_entry *f,
 			   struct cpl_set_tcb_field *req,
 			   unsigned int word, u64 mask, u64 val,
-			   u8 cookie, int no_reply)
+			   u8 cookie, int anal_reply)
 {
 	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
 	struct ulptx_idata *sc = (struct ulptx_idata *)(txpkt + 1);
@@ -130,13 +130,13 @@ static void mk_set_tcb_ulp(struct filter_entry *f,
 	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
 	sc->len = htonl(sizeof(*req) - sizeof(struct work_request_hdr));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, f->tid));
-	req->reply_ctrl = htons(NO_REPLY_V(no_reply) | REPLY_CHAN_V(0) |
-				QUEUENO_V(0));
+	req->reply_ctrl = htons(ANAL_REPLY_V(anal_reply) | REPLY_CHAN_V(0) |
+				QUEUEANAL_V(0));
 	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(cookie));
 	req->mask = cpu_to_be64(mask);
 	req->val = cpu_to_be64(val);
 	sc = (struct ulptx_idata *)(req + 1);
-	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_NOOP));
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_ANALOP));
 	sc->len = htonl(0);
 }
 
@@ -273,7 +273,7 @@ static int validate_filter(struct net_device *dev,
 	    unsupported(fconf, VNIC_ID_F, fs->val.encap_vld,
 			fs->mask.encap_vld) ||
 	    unsupported(fconf, VLAN_F, fs->val.ivlan_vld, fs->mask.ivlan_vld))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* T4 inconveniently uses the same FT_VNIC_ID_W bits for both the Outer
 	 * VLAN Tag and PF/VF/VFvld fields based on VNIC_F being set
@@ -288,11 +288,11 @@ static int validate_filter(struct net_device *dev,
 	     is_field_set(fs->val.encap_vld, fs->mask.encap_vld)) ||
 	    (is_field_set(fs->val.ovlan_vld, fs->mask.ovlan_vld) &&
 	     is_field_set(fs->val.encap_vld, fs->mask.encap_vld)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (unsupported(iconf, VNIC_F, fs->val.pfvf_vld, fs->mask.pfvf_vld) ||
 	    (is_field_set(fs->val.ovlan_vld, fs->mask.ovlan_vld) &&
 	     (iconf & VNIC_F)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (fs->val.pf > 0x7 || fs->val.vf > 0x7f)
 		return -ERANGE;
 	fs->mask.pf &= 0x7;
@@ -315,11 +315,11 @@ static int validate_filter(struct net_device *dev,
 	    fs->action == FILTER_SWITCH &&
 	    (fs->newvlan == VLAN_REMOVE ||
 	     fs->newvlan == VLAN_REWRITE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (fs->val.encap_vld &&
 	    CHELSIO_CHIP_VERSION(adapter->params.chip) < CHELSIO_T6)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -455,8 +455,8 @@ static bool cxgb4_filter_prio_in_range(struct tid_info *t, u32 idx, u8 nslots,
 	 */
 
 	/* High Priority (HPFILTER) region always has higher priority
-	 * than normal FILTER region. So, all rules in HPFILTER region
-	 * must have prio value <= rules in normal FILTER region.
+	 * than analrmal FILTER region. So, all rules in HPFILTER region
+	 * must have prio value <= rules in analrmal FILTER region.
 	 */
 	if (idx < t->nhpftids) {
 		/* Don't insert if there's a rule already present at @idx
@@ -468,8 +468,8 @@ static bool cxgb4_filter_prio_in_range(struct tid_info *t, u32 idx, u8 nslots,
 		next_tab = t->hpftid_tab;
 		next_ftid = find_next_bit(t->hpftid_bmap, t->nhpftids, idx);
 		if (next_ftid >= t->nhpftids) {
-			/* No next entry found in HPFILTER region.
-			 * See if there's any next entry in normal
+			/* Anal next entry found in HPFILTER region.
+			 * See if there's any next entry in analrmal
 			 * FILTER region.
 			 */
 			next_ftid = find_first_bit(t->ftid_bmap, t->nftids);
@@ -480,8 +480,8 @@ static bool cxgb4_filter_prio_in_range(struct tid_info *t, u32 idx, u8 nslots,
 		}
 
 		/* Search for the closest previous filter entry in HPFILTER
-		 * region. No need to search in normal FILTER region because
-		 * there can never be any entry in normal FILTER region whose
+		 * region. Anal need to search in analrmal FILTER region because
+		 * there can never be any entry in analrmal FILTER region whose
 		 * prio value is < last entry in HPFILTER region.
 		 */
 		prev_ftid = find_last_bit(t->hpftid_bmap, idx);
@@ -493,7 +493,7 @@ static bool cxgb4_filter_prio_in_range(struct tid_info *t, u32 idx, u8 nslots,
 		idx -= t->nhpftids;
 
 		/* Don't insert if there's a rule already present at @idx
-		 * in normal FILTER region.
+		 * in analrmal FILTER region.
 		 */
 		if (test_bit(idx, t->ftid_bmap))
 			return false;
@@ -501,7 +501,7 @@ static bool cxgb4_filter_prio_in_range(struct tid_info *t, u32 idx, u8 nslots,
 		prev_tab = t->ftid_tab;
 		prev_ftid = find_last_bit(t->ftid_bmap, idx);
 		if (prev_ftid >= idx) {
-			/* No previous entry found in normal FILTER
+			/* Anal previous entry found in analrmal FILTER
 			 * region. See if there's any previous entry
 			 * in HPFILTER region.
 			 */
@@ -512,10 +512,10 @@ static bool cxgb4_filter_prio_in_range(struct tid_info *t, u32 idx, u8 nslots,
 				prev_tab = t->hpftid_tab;
 		}
 
-		/* Search for the closest next filter entry in normal
-		 * FILTER region. No need to search in HPFILTER region
+		/* Search for the closest next filter entry in analrmal
+		 * FILTER region. Anal need to search in HPFILTER region
 		 * because there can never be any entry in HPFILTER
-		 * region whose prio value is > first entry in normal
+		 * region whose prio value is > first entry in analrmal
 		 * FILTER region.
 		 */
 		next_ftid = find_next_bit(t->ftid_bmap, t->nftids, idx);
@@ -570,9 +570,9 @@ int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
 	 *
 	 * 1. High Priority (HPFILTER) region (Highest Priority).
 	 * 2. HASH region.
-	 * 3. Normal FILTER region (Lowest Priority).
+	 * 3. Analrmal FILTER region (Lowest Priority).
 	 *
-	 * Entries in HPFILTER and normal FILTER region have index
+	 * Entries in HPFILTER and analrmal FILTER region have index
 	 * 0 as the highest priority and the rules will be scanned
 	 * in ascending order until either a rule hits or end of
 	 * the region is reached.
@@ -591,7 +591,7 @@ int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
 	 * and uses it as an index to check if there's a rule
 	 * inserted in the HASH region at the specified index. If
 	 * there's a rule inserted, then it's considered as a filter
-	 * hit. Otherwise, it's a filter miss and normal FILTER region
+	 * hit. Otherwise, it's a filter miss and analrmal FILTER region
 	 * is scanned afterwards.
 	 */
 
@@ -604,7 +604,7 @@ int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
 			/* If the new rule wants to get inserted into
 			 * HPFILTER region, but its prio is greater
 			 * than the rule with the highest prio in HASH
-			 * region, or if there's not enough slots
+			 * region, or if there's analt eanalugh slots
 			 * available in HPFILTER region, then skip
 			 * trying to insert this rule into HPFILTER
 			 * region and directly go to the next region.
@@ -629,7 +629,7 @@ int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
 					break;
 			}
 
-			/* Ensure priority is <= first rule in normal
+			/* Ensure priority is <= first rule in analrmal
 			 * FILTER region.
 			 */
 			ftid = find_first_bit(t->ftid_bmap, t->nftids);
@@ -644,7 +644,7 @@ int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
 			goto out_unlock;
 		} else {
 			/* If the new rule wants to get inserted into
-			 * normal FILTER region, but its prio is less
+			 * analrmal FILTER region, but its prio is less
 			 * than the rule with the highest prio in HASH
 			 * region, then reject the rule.
 			 */
@@ -683,7 +683,7 @@ int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
 
 out_unlock:
 	spin_unlock_bh(&t->ftid_lock);
-	return found ? ftid : -ENOMEM;
+	return found ? ftid : -EANALMEM;
 }
 
 static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family,
@@ -771,7 +771,7 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fwr = __skb_put(skb, len);
 	t4_mk_filtdelwr(f->tid, fwr, adapter->sge.fw_evtq.abs_id);
@@ -803,7 +803,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 
 	skb = alloc_skb(sizeof(*fwr), GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* If the new filter requires loopback Destination MAC and/or VLAN
 	 * rewriting then we need to allocate a Layer 2 Table (L2T) entry for
@@ -815,7 +815,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 						f->fs.eport, f->fs.dmac);
 		if (!f->l2t) {
 			kfree_skb(skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -830,7 +830,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 				f->l2t = NULL;
 			}
 			kfree_skb(skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -841,7 +841,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 	 * into the Work Request and the definition of that structure is
 	 * currently in cxgbtool.h which isn't appropriate to pull into the
 	 * common code.  We may eventually try to come up with a more neutral
-	 * filter specification structure but for now it's easiest to simply
+	 * filter specification structure but for analw it's easiest to simply
 	 * put this fairly direct code in line ...
 	 */
 	if (adapter->params.filter2_wr_support)
@@ -852,7 +852,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 	fwr->tid_to_iq =
 		htonl(FW_FILTER_WR_TID_V(f->tid) |
 		      FW_FILTER_WR_RQTYPE_V(f->fs.type) |
-		      FW_FILTER_WR_NOREPLY_V(0) |
+		      FW_FILTER_WR_ANALREPLY_V(0) |
 		      FW_FILTER_WR_IQ_V(f->fs.iq));
 	fwr->del_filter_to_l2tix =
 		htonl(FW_FILTER_WR_RPTTID_V(f->fs.rpttid) |
@@ -918,7 +918,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		fwr->natmode_to_ulp_type =
 			FW_FILTER2_WR_ULP_TYPE_V(f->fs.nat_mode ?
 						 ULP_MODE_TCPDDP :
-						 ULP_MODE_NONE) |
+						 ULP_MODE_ANALNE) |
 			FW_FILTER2_WR_NATMODE_V(f->fs.nat_mode);
 		memcpy(fwr->newlip, f->fs.nat_lip, sizeof(fwr->newlip));
 		memcpy(fwr->newfip, f->fs.nat_fip, sizeof(fwr->newfip));
@@ -948,7 +948,7 @@ int writable_filter(struct filter_entry *f)
 
 /* Delete the filter at the specified index (if valid).  The checks for all
  * the common problems with doing this like the filter being locked, currently
- * pending in another operation, etc.
+ * pending in aanalther operation, etc.
  */
 int delete_filter(struct adapter *adapter, unsigned int fidx)
 {
@@ -1163,7 +1163,7 @@ bool is_filter_exact_match(struct adapter *adap,
 	    (adap->tids.nhash + (adap->tids.stid_base - adap->tids.tid_base)))
 		return false;
 
-	 /* Keep tunnel VNI match disabled for hash-filters for now */
+	 /* Keep tunnel VNI match disabled for hash-filters for analw */
 	if (fs->mask.encap_vld)
 		return false;
 
@@ -1314,10 +1314,10 @@ static void mk_act_open_req6(struct filter_entry *f, struct sk_buff *skb,
 				SMAC_SEL_V((cxgb4_port_viid(f->dev) &
 					    0x7F) << 1) |
 				TX_CHAN_V(f->fs.eport) |
-				NO_CONG_V(f->fs.rpttid) |
+				ANAL_CONG_V(f->fs.rpttid) |
 				ULP_MODE_V(f->fs.nat_mode ?
-					   ULP_MODE_TCPDDP : ULP_MODE_NONE) |
-				TCAM_BYPASS_F | NON_OFFLOAD_F);
+					   ULP_MODE_TCPDDP : ULP_MODE_ANALNE) |
+				TCAM_BYPASS_F | ANALN_OFFLOAD_F);
 	t6req->params = cpu_to_be64(FILTER_TUPLE_V(hash_filter_ntuple(&f->fs,
 								      f->dev)));
 	t6req->opt2 = htonl(RSS_QUEUE_VALID_F |
@@ -1350,10 +1350,10 @@ static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
 				SMAC_SEL_V((cxgb4_port_viid(f->dev) &
 					    0x7F) << 1) |
 				TX_CHAN_V(f->fs.eport) |
-				NO_CONG_V(f->fs.rpttid) |
+				ANAL_CONG_V(f->fs.rpttid) |
 				ULP_MODE_V(f->fs.nat_mode ?
-					   ULP_MODE_TCPDDP : ULP_MODE_NONE) |
-				TCAM_BYPASS_F | NON_OFFLOAD_F);
+					   ULP_MODE_TCPDDP : ULP_MODE_ANALNE) |
+				TCAM_BYPASS_F | ANALN_OFFLOAD_F);
 
 	t6req->params = cpu_to_be64(FILTER_TUPLE_V(hash_filter_ntuple(&f->fs,
 								      f->dev)));
@@ -1390,7 +1390,7 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f->fs = *fs;
 	f->ctx = ctx;
@@ -1406,7 +1406,7 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 		f->l2t = t4_l2t_alloc_switching(adapter, f->fs.vlan,
 						f->fs.eport, f->fs.dmac);
 		if (!f->l2t) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err;
 		}
 	}
@@ -1421,7 +1421,7 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 				cxgb4_l2t_release(f->l2t);
 				f->l2t = NULL;
 			}
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_l2t;
 		}
 	}
@@ -1468,7 +1468,7 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 
 		skb = alloc_skb(size, GFP_KERNEL);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_clip;
 		}
 
@@ -1478,7 +1478,7 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 	} else {
 		skb = alloc_skb(size, GFP_KERNEL);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_mps;
 		}
 
@@ -1568,7 +1568,7 @@ int __cxgb4_set_filter(struct net_device *dev, int ftid,
 
 	/* IPv6 filters occupy four slots and must be aligned on
 	 * four-slot boundaries.  IPv4 filters only occupy a single
-	 * slot and have no alignment requirements but writing a new
+	 * slot and have anal alignment requirements but writing a new
 	 * IPv4 filter into the middle of an existing IPv6 filter
 	 * requires clearing the old IPv6 filter and hence we prevent
 	 * insertion.
@@ -1636,7 +1636,7 @@ int __cxgb4_set_filter(struct net_device *dev, int ftid,
 		}
 	}
 
-	/* Check to make sure that provided filter index is not
+	/* Check to make sure that provided filter index is analt
 	 * already in use by someone else
 	 */
 	f = &tab[filter_id];
@@ -1754,7 +1754,7 @@ static int cxgb4_del_hash_filter(struct net_device *dev, int filter_id,
 
 	f = lookup_tid(t, filter_id);
 	if (!f) {
-		netdev_err(dev, "%s: no filter entry for filter_id = %d",
+		netdev_err(dev, "%s: anal filter entry for filter_id = %d",
 			   __func__, filter_id);
 		return -EINVAL;
 	}
@@ -1772,8 +1772,8 @@ static int cxgb4_del_hash_filter(struct net_device *dev, int filter_id,
 			+ sizeof(*abort_req) + sizeof(*abort_rpl), 16);
 	skb = alloc_skb(wrlen, GFP_KERNEL);
 	if (!skb) {
-		netdev_err(dev, "%s: could not allocate skb ..\n", __func__);
-		return -ENOMEM;
+		netdev_err(dev, "%s: could analt allocate skb ..\n", __func__);
+		return -EANALMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
 	req = (struct cpl_set_tcb_field *)__skb_put(skb, wrlen);
@@ -1978,7 +1978,7 @@ void hash_del_filter_rpl(struct adapter *adap,
 
 	f = lookup_tid(t, tid);
 	if (!f) {
-		dev_err(adap->pdev_dev, "%s:could not find filter entry",
+		dev_err(adap->pdev_dev, "%s:could analt find filter entry",
 			__func__);
 		return;
 	}
@@ -2007,7 +2007,7 @@ void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 
 	f = lookup_atid(t, ftid);
 	if (!f) {
-		dev_err(adap->pdev_dev, "%s:could not find filter entry",
+		dev_err(adap->pdev_dev, "%s:could analt find filter entry",
 			__func__);
 		return;
 	}
@@ -2015,7 +2015,7 @@ void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 	f->ctx = NULL;
 
 	switch (status) {
-	case CPL_ERR_NONE:
+	case CPL_ERR_ANALNE:
 		f->tid = tid;
 		f->pending = 0;
 		f->valid = 1;
@@ -2058,7 +2058,7 @@ void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 
 		if (ctx) {
 			if (status == CPL_ERR_TCAM_FULL)
-				ctx->result = -ENOSPC;
+				ctx->result = -EANALSPC;
 			else
 				ctx->result = -EINVAL;
 		}
@@ -2085,7 +2085,7 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 		if (idx < adap->tids.nhpftids) {
 			f = &adap->tids.hpftid_tab[idx];
 		} else {
-			/* Check this in normal filter region */
+			/* Check this in analrmal filter region */
 			idx = tid - adap->tids.ftid_base;
 			if (idx >= max_fidx)
 				return;

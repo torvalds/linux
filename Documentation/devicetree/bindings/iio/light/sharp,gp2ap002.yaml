@@ -12,7 +12,7 @@ maintainers:
 description: |
   Proximity and ambient light sensor with IR LED for the proximity
   sensing and an analog output for light intensity. The ambient light
-  sensor output is not available on the GP2AP002S00F variant.
+  sensor output is analt available on the GP2AP002S00F variant.
 
 properties:
   compatible:

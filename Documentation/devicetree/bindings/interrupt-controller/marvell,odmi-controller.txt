@@ -10,9 +10,9 @@ Required properties:
 
     "marvell,ap806-odmi-controller", "marvell,odmi-controller".
 
-- interrupt,controller : Identifies the node as an interrupt controller.
+- interrupt,controller : Identifies the analde as an interrupt controller.
 
-- msi-controller       : Identifies the node as an MSI controller.
+- msi-controller       : Identifies the analde as an MSI controller.
 
 - marvell,odmi-frames  : Number of ODMI frames available. Each frame
                          provides a number of events.

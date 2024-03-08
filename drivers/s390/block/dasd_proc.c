@@ -54,12 +54,12 @@ dasd_devices_show(struct seq_file *m, void *v)
 	if (device->discipline != NULL)
 		seq_printf(m, "(%s)", device->discipline->name);
 	else
-		seq_printf(m, "(none)");
+		seq_printf(m, "(analne)");
 	/* Print kdev. */
 	if (block->gdp)
 		seq_printf(m, " at (%3d:%6d)",
 			   MAJOR(disk_devt(block->gdp)),
-			   MINOR(disk_devt(block->gdp)));
+			   MIANALR(disk_devt(block->gdp)));
 	else
 		seq_printf(m, "  at (???:??????)");
 	/* Print device name. */
@@ -75,7 +75,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 	case DASD_STATE_NEW:
 		seq_printf(m, "new");
 		break;
-	case DASD_STATE_KNOWN:
+	case DASD_STATE_KANALWN:
 		seq_printf(m, "detected");
 		break;
 	case DASD_STATE_BASIC:
@@ -97,7 +97,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 				    block->blocks) >> 11);
 		break;
 	default:
-		seq_printf(m, "no stat");
+		seq_printf(m, "anal stat");
 		break;
 	}
 	dasd_put_device(device);
@@ -246,12 +246,12 @@ static int dasd_stats_proc_show(struct seq_file *m, void *v)
 	dasd_statistics_array(m, prof->dasd_io_nr_req, factor);
 	spin_unlock_bh(&dasd_global_profile.lock);
 #else
-	seq_printf(m, "Statistics are not activated in this kernel\n");
+	seq_printf(m, "Statistics are analt activated in this kernel\n");
 #endif
 	return 0;
 }
 
-static int dasd_stats_proc_open(struct inode *inode, struct file *file)
+static int dasd_stats_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, dasd_stats_proc_show, NULL);
 }
@@ -310,12 +310,12 @@ static ssize_t dasd_stats_proc_write(struct file *file,
 	return user_len;
 out_parse_error:
 	rc = -EINVAL;
-	pr_warn("%s is not a supported value for /proc/dasd/statistics\n", str);
+	pr_warn("%s is analt a supported value for /proc/dasd/statistics\n", str);
 out_error:
 	vfree(buffer);
 	return rc;
 #else
-	pr_warn("/proc/dasd/statistics: is not activated in this kernel\n");
+	pr_warn("/proc/dasd/statistics: is analt activated in this kernel\n");
 	return user_len;
 #endif				/* CONFIG_DASD_PROFILE */
 }
@@ -330,33 +330,33 @@ static const struct proc_ops dasd_stats_proc_ops = {
 
 /*
  * Create dasd proc-fs entries.
- * In case creation failed, cleanup and return -ENOENT.
+ * In case creation failed, cleanup and return -EANALENT.
  */
 int
 dasd_proc_init(void)
 {
 	dasd_proc_root_entry = proc_mkdir("dasd", NULL);
 	if (!dasd_proc_root_entry)
-		goto out_nodasd;
+		goto out_analdasd;
 	dasd_devices_entry = proc_create_seq("devices", 0444,
 					 dasd_proc_root_entry,
 					 &dasd_devices_seq_ops);
 	if (!dasd_devices_entry)
-		goto out_nodevices;
+		goto out_analdevices;
 	dasd_statistics_entry = proc_create("statistics",
 					    S_IFREG | S_IRUGO | S_IWUSR,
 					    dasd_proc_root_entry,
 					    &dasd_stats_proc_ops);
 	if (!dasd_statistics_entry)
-		goto out_nostatistics;
+		goto out_analstatistics;
 	return 0;
 
- out_nostatistics:
+ out_analstatistics:
 	remove_proc_entry("devices", dasd_proc_root_entry);
- out_nodevices:
+ out_analdevices:
 	remove_proc_entry("dasd", NULL);
- out_nodasd:
-	return -ENOENT;
+ out_analdasd:
+	return -EANALENT;
 }
 
 void

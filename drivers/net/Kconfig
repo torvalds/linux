@@ -22,7 +22,7 @@ menuconfig NETDEVICES
 
 	  If unsure, say Y.
 
-# All the following symbols are dependent on NETDEVICES - do not repeat
+# All the following symbols are dependent on NETDEVICES - do analt repeat
 # that for each of the symbols.
 if NETDEVICES
 
@@ -33,7 +33,7 @@ config NET_CORE
 	default y
 	bool "Network core driver support"
 	help
-	  You can say N here if you do not intend to use any of the
+	  You can say N here if you do analt intend to use any of the
 	  networking core drivers (i.e. VLAN, bridging, bonding, etc.)
 
 if NET_CORE
@@ -97,7 +97,7 @@ config WIREGUARD
 	help
 	  WireGuard is a secure, fast, and easy to use replacement for IPSec
 	  that uses modern cryptography and clever networking tricks. It's
-	  designed to be fairly general purpose and abstract enough to fit most
+	  designed to be fairly general purpose and abstract eanalugh to fit most
 	  use cases, while at the same time remaining extremely simple to
 	  configure. See www.wireguard.com for more info.
 
@@ -113,7 +113,7 @@ config WIREGUARD_DEBUG
 	  extra validation checks and unit tests at various points. This is
 	  only useful for debugging.
 
-	  Say N here unless you know what you're doing.
+	  Say N here unless you kanalw what you're doing.
 
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
@@ -400,7 +400,7 @@ config TUN
 	  To compile this driver as a module, choose M here: the module
 	  will be called tun.
 
-	  If you don't know what to use this for, you don't need it.
+	  If you don't kanalw what to use this for, you don't need it.
 
 config TAP
 	tristate
@@ -446,7 +446,7 @@ config NLMON
 	  purpose of this is to analyze netlink messages with packet sockets.
 	  Thus applications like tcpdump will be able to see local netlink
 	  messages if they tap into the netlink device, record pcaps for further
-	  diagnostics, etc. This is mostly intended for developers or support
+	  diaganalstics, etc. This is mostly intended for developers or support
 	  to debug netlink issues. If unsure, say N.
 
 config NETKIT
@@ -509,7 +509,7 @@ config NET_SB1000
 	tristate "General Instruments Surfboard 1000"
 	depends on PNP
 	help
-	  This is a driver for the General Instrument (also known as
+	  This is a driver for the General Instrument (also kanalwn as
 	  NextLevel) SURFboard 1000 internal
 	  cable modem. This is an ISA card which is used by a number of cable
 	  TV companies to provide cable modem access. It's a one-way
@@ -652,6 +652,6 @@ config NETDEV_LEGACY_INIT
 	depends on ISA
 	help
 	  Drivers that call netdev_boot_setup_check() should select this
-	  symbol, everything else no longer needs it.
+	  symbol, everything else anal longer needs it.
 
 endif # NETDEVICES

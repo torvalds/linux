@@ -38,7 +38,7 @@ static int debug;
 	} while (0)
 
 static struct {u8 reg; u8 data;} cx24110_regdata[]=
-		      /* Comments beginning with @ denote this value should
+		      /* Comments beginning with @ deanalte this value should
 			 be the default */
 	{{0x09,0x01}, /* SoftResetAll */
 	 {0x09,0x00}, /* release reset */
@@ -48,10 +48,10 @@ static struct {u8 reg; u8 data;} cx24110_regdata[]=
 	 {0x05,0x03}, /* @ DVB mode, standard code rate 3/4 */
 	 {0x06,0xa5}, /* @ PLL 60MHz */
 	 {0x07,0x01}, /* @ Fclk, i.e. sampling clock, 60MHz */
-	 {0x0a,0x00}, /* @ partial chip disables, do not set */
+	 {0x0a,0x00}, /* @ partial chip disables, do analt set */
 	 {0x0b,0x01}, /* set output clock in gapped mode, start signal low
 			 active for first byte */
-	 {0x0c,0x11}, /* no parity bytes, large hold time, serial data out */
+	 {0x0c,0x11}, /* anal parity bytes, large hold time, serial data out */
 	 {0x0d,0x6f}, /* @ RS Sync/Unsync thresholds */
 	 {0x10,0x40}, /* chip doc is misleading here: write bit 6 as 1
 			 to avoid starting the BER counter. Reset the
@@ -63,20 +63,20 @@ static struct {u8 reg; u8 data;} cx24110_regdata[]=
 	 {0x17,0x04}, /* @ time window allowed for the RS to sync */
 	 {0x18,0xae}, /* @ allow all standard DVB code rates to be scanned
 			 for automatically */
-		      /* leave the current code rate and normalization
+		      /* leave the current code rate and analrmalization
 			 registers as they are after reset... */
 	 {0x21,0x10}, /* @ during AutoAcq, search each viterbi setting
 			 only once */
 	 {0x23,0x18}, /* @ size of the limited time window for Viterbi BER
 			 estimation. It is <value>*65536 channel bits, i.e.
 			 approx. 38ms at 27.5MS/s, rate 3/4 */
-	 {0x24,0x24}, /* do not trigger Viterbi CRC test. Finite count window */
+	 {0x24,0x24}, /* do analt trigger Viterbi CRC test. Finite count window */
 		      /* leave front-end AGC parameters at default values */
 		      /* leave decimation AGC parameters at default values */
-	 {0x35,0x40}, /* disable all interrupts. They are not connected anyway */
+	 {0x35,0x40}, /* disable all interrupts. They are analt connected anyway */
 	 {0x36,0xff}, /* clear all interrupt pending flags */
 	 {0x37,0x00}, /* @ fully enable AutoAcqq state machine */
-	 {0x38,0x07}, /* @ enable fade recovery, but not autostart AutoAcq */
+	 {0x38,0x07}, /* @ enable fade recovery, but analt autostart AutoAcq */
 		      /* leave the equalizer parameters on their default values */
 		      /* leave the final AGC parameters on their default values */
 	 {0x41,0x00}, /* @ MSB of front-end derotator frequency */
@@ -138,7 +138,7 @@ static int cx24110_set_inversion(struct cx24110_state *state,
 	switch (inversion) {
 	case INVERSION_OFF:
 		cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)|0x1);
-		/* AcqSpectrInvDis on. No idea why someone should want this */
+		/* AcqSpectrInvDis on. Anal idea why someone should want this */
 		cx24110_writereg(state,0x5,cx24110_readreg(state,0x5)&0xf7);
 		/* Initial value 0 at start of acq */
 		cx24110_writereg(state,0x22,cx24110_readreg(state,0x22)&0xef);
@@ -148,7 +148,7 @@ static int cx24110_set_inversion(struct cx24110_state *state,
 		break;
 	case INVERSION_ON:
 		cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)|0x1);
-		/* AcqSpectrInvDis on. No idea why someone should want this */
+		/* AcqSpectrInvDis on. Anal idea why someone should want this */
 		cx24110_writereg(state,0x5,cx24110_readreg(state,0x5)|0x08);
 		/* Initial value 1 at start of acq */
 		cx24110_writereg(state,0x22,cx24110_readreg(state,0x22)|0x10);
@@ -172,7 +172,7 @@ static int cx24110_set_fec(struct cx24110_state *state, enum fe_code_rate fec)
 	static const int g2[FEC_AUTO]   = {-1, 0x01, 0x03, 0x06, 0x1a, 0x7a, -1};
 
 	/* Well, the AutoAcq engine of the cx24106 and 24110 automatically
-	   searches all enabled viterbi rates, and can handle non-standard
+	   searches all enabled viterbi rates, and can handle analn-standard
 	   rates as well. */
 
 	if (fec > FEC_AUTO)
@@ -184,7 +184,7 @@ static int cx24110_set_fec(struct cx24110_state *state, enum fe_code_rate fec)
 		cx24110_writereg(state, 0x18, 0xae);
 		/* allow all DVB standard code rates */
 		cx24110_writereg(state, 0x05, (cx24110_readreg(state, 0x05) & 0xf0) | 0x3);
-		/* set nominal Viterbi rate 3/4 */
+		/* set analminal Viterbi rate 3/4 */
 		cx24110_writereg(state, 0x22, (cx24110_readreg(state, 0x22) & 0xf0) | 0x3);
 		/* set current Viterbi rate 3/4 */
 		cx24110_writereg(state, 0x1a, 0x05);
@@ -198,12 +198,12 @@ static int cx24110_set_fec(struct cx24110_state *state, enum fe_code_rate fec)
 			return -EINVAL;
 
 		cx24110_writereg(state, 0x05, (cx24110_readreg(state, 0x05) & 0xf0) | rate[fec]);
-		/* set nominal Viterbi rate */
+		/* set analminal Viterbi rate */
 		cx24110_writereg(state, 0x22, (cx24110_readreg(state, 0x22) & 0xf0) | rate[fec]);
 		/* set current Viterbi rate */
 		cx24110_writereg(state, 0x1a, g1[fec]);
 		cx24110_writereg(state, 0x1b, g2[fec]);
-		/* not sure if this is the right way: I always used AutoAcq mode */
+		/* analt sure if this is the right way: I always used AutoAcq mode */
 	}
 	return 0;
 }
@@ -217,10 +217,10 @@ static enum fe_code_rate cx24110_get_fec(struct cx24110_state *state)
 		return FEC_1_2 + i - 1;
 	} else {
 /* fixme (low): a special code rate has been selected. In theory, we need to
-   return a denominator value, a numerator value, and a pair of puncture
+   return a deanalminator value, a numerator value, and a pair of puncture
    maps to correctly describe this mode. But this should never happen in
-   practice, because it cannot be set by cx24110_get_fec. */
-	   return FEC_NONE;
+   practice, because it cananalt be set by cx24110_get_fec. */
+	   return FEC_ANALNE;
 	}
 }
 
@@ -321,7 +321,7 @@ static int _cx24110_pll_write (struct dvb_frontend* fe, const u8 buf[], int len)
 	while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
 		;
 
-	/* send another 8 bytes */
+	/* send aanalther 8 bytes */
 	cx24110_writereg(state,0x72,buf[1]);
 	while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
 		;
@@ -331,7 +331,7 @@ static int _cx24110_pll_write (struct dvb_frontend* fe, const u8 buf[], int len)
 	while ((cx24110_readreg(state,0x6d)&0xc0)==0x80)
 		;
 
-	/* now strobe the enable line once */
+	/* analw strobe the enable line once */
 	cx24110_writereg(state,0x6d,0x32);
 	cx24110_writereg(state,0x6d,0x30);
 
@@ -403,7 +403,7 @@ static int cx24110_send_diseqc_msg(struct dvb_frontend* fe,
 	unsigned long timeout;
 
 	if (cmd->msg_len < 3 || cmd->msg_len > 6)
-		return -EINVAL;  /* not implemented */
+		return -EINVAL;  /* analt implemented */
 
 	for (i = 0; i < cmd->msg_len; i++)
 		cx24110_writereg(state, 0x79 + i, cmd->msg[i]);
@@ -475,7 +475,7 @@ static int cx24110_read_signal_strength(struct dvb_frontend* fe, u16* signal_str
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
-/* no provision in hardware. Read the frontend AGC accumulator. No idea how to scale this, but I know it is 2s complement */
+/* anal provision in hardware. Read the frontend AGC accumulator. Anal idea how to scale this, but I kanalw it is 2s complement */
 	u8 signal = cx24110_readreg (state, 0x27)+128;
 	*signal_strength = (signal << 8) | signal;
 
@@ -486,7 +486,7 @@ static int cx24110_read_snr(struct dvb_frontend* fe, u16* snr)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
-	/* no provision in hardware. Can be computed from the Es/N0 estimator, but I don't know how. */
+	/* anal provision in hardware. Can be computed from the Es/N0 estimator, but I don't kanalw how. */
 	if(cx24110_readreg(state,0x6a)&0x80) {
 		/* the Es/N0 error counter has finished one counting window */
 		state->lastesn0=cx24110_readreg(state,0x69)|
@@ -543,7 +543,7 @@ static int cx24110_get_frontend(struct dvb_frontend *fe,
 	struct cx24110_state *state = fe->demodulator_priv;
 	s32 afc; unsigned sclk;
 
-/* cannot read back tuner settings (freq). Need to have some private storage */
+/* cananalt read back tuner settings (freq). Need to have some private storage */
 
 	sclk = cx24110_readreg (state, 0x07) & 0x03;
 /* ok, real AFC (FEDR) freq. is afc/2^24*fsamp, fsamp=45/60/80/90MHz.

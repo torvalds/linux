@@ -34,7 +34,7 @@ config DRM_I915
 	select IOSF_MBI if X86
 	select CRC32
 	select SND_HDA_I915 if SND_HDA_CORE
-	select CEC_CORE if CEC_NOTIFIER
+	select CEC_CORE if CEC_ANALTIFIER
 	select VMAP_PFN
 	select DRM_TTM
 	select DRM_BUDDY
@@ -50,7 +50,7 @@ config DRM_I915
 	  XFree86 4.4 and above. It replaces the older i830 module that
 	  supported a subset of the hardware in older X.org releases.
 
-	  Note that the older i810/i815 chipsets require the use of the
+	  Analte that the older i810/i815 chipsets require the use of the
 	  i810 driver instead, and the Atom z5xx series has an entirely
 	  different implementation.
 
@@ -64,7 +64,7 @@ config DRM_I915_FORCE_PROBE
 	  parameter. Using the module parameter overrides this option.
 
 	  Force probe the i915 driver for Intel graphics devices that are
-	  recognized but not properly supported by this kernel version. Force
+	  recognized but analt properly supported by this kernel version. Force
 	  probing an unsupported device taints the kernel. It is recommended to
 	  upgrade to a kernel version with proper support as soon as it is
 	  available.
@@ -77,14 +77,14 @@ config DRM_I915_FORCE_PROBE
 	  Use "<pci-id>[,<pci-id>,...]" to force probe the i915 for listed
 	  devices. For example, "4500" or "4500,4571".
 
-	  Use "*" to force probe the driver for all known devices. Not
+	  Use "*" to force probe the driver for all kanalwn devices. Analt
 	  recommended.
 
 	  Use "!" right before the ID to block the probe of the device. For
 	  example, "4500,!4571" forces the probe of 4500 and blocks the probe of
 	  4571.
 
-	  Use "!*" to block the probe of the driver for all known devices.
+	  Use "!*" to block the probe of the driver for all kanalwn devices.
 
 config DRM_I915_CAPTURE_ERROR
 	bool "Enable capturing GPU state following a hang"
@@ -113,10 +113,10 @@ config DRM_I915_COMPRESS_ERROR
 config DRM_I915_USERPTR
 	bool "Always enable userptr support"
 	depends on DRM_I915
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	default y
 	help
-	  This option selects CONFIG_MMU_NOTIFIER if it isn't already
+	  This option selects CONFIG_MMU_ANALTIFIER if it isn't already
 	  selected to enabled full userptr support.
 
 	  If in doubt, say "Y".
@@ -134,11 +134,11 @@ config DRM_I915_GVT_KVMGT
 
 	help
 	  Choose this option if you want to enable Intel GVT-g graphics
-	  virtualization technology host support with integrated graphics.
+	  virtualization techanallogy host support with integrated graphics.
 	  With GVT-g, it's possible to have one integrated graphics
 	  device shared by multiple VMs under KVM.
 
-	  Note that this driver only supports newer device from Broadwell on.
+	  Analte that this driver only supports newer device from Broadwell on.
 	  For further information and setup guide, you can visit:
 	  https://github.com/intel/gvt-linux/wiki.
 

@@ -30,7 +30,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	}
 
 	if (!IS_ALIGNED((u64)_text, SEGMENT_ALIGN))
-		efi_err("FIRMWARE BUG: kernel image not aligned on %dk boundary\n",
+		efi_err("FIRMWARE BUG: kernel image analt aligned on %dk boundary\n",
 			SEGMENT_ALIGN >> 10);
 
 	kernel_size = _edata - _text;
@@ -55,9 +55,9 @@ asmlinkage void primary_entry(void);
 unsigned long primary_entry_offset(void)
 {
 	/*
-	 * When built as part of the kernel, the EFI stub cannot branch to the
+	 * When built as part of the kernel, the EFI stub cananalt branch to the
 	 * kernel proper via the image header, as the PE/COFF header is
-	 * strictly not part of the in-memory presentation of the image, only
+	 * strictly analt part of the in-memory presentation of the image, only
 	 * of the file representation. So instead, we need to jump to the
 	 * actual entrypoint in the .text region of the image.
 	 */

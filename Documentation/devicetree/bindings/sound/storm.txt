@@ -1,6 +1,6 @@
 * Sound complex for Storm boards
 
-Models a soundcard for Storm boards with the Qualcomm Technologies IPQ806x SOC
+Models a soundcard for Storm boards with the Qualcomm Techanallogies IPQ806x SOC
 connected to a MAX98357A DAC via I2S.
 
 Required properties:

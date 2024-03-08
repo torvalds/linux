@@ -25,15 +25,15 @@ static void afs_rx_new_call(struct sock *, struct rxrpc_call *, unsigned long);
 static void afs_rx_discard_new_call(struct rxrpc_call *, unsigned long);
 static int afs_deliver_cm_op_id(struct afs_call *);
 
-/* asynchronous incoming call initial processing */
+/* asynchroanalus incoming call initial processing */
 static const struct afs_call_type afs_RXCMxxxx = {
 	.name		= "CB.xxxx",
 	.deliver	= afs_deliver_cm_op_id,
 };
 
 /*
- * open an RxRPC socket and bind it to be a server for callback notifications
- * - the socket is left in blocking mode and non-blocking ops use MSG_DONTWAIT
+ * open an RxRPC socket and bind it to be a server for callback analtifications
+ * - the socket is left in blocking mode and analn-blocking ops use MSG_DONTWAIT
  */
 int afs_open_socket(struct afs_net *net)
 {
@@ -47,7 +47,7 @@ int afs_open_socket(struct afs_net *net)
 	if (ret < 0)
 		goto error_1;
 
-	socket->sk->sk_allocation = GFP_NOFS;
+	socket->sk->sk_allocation = GFP_ANALFS;
 
 	/* bind the callback manager's address to make this a server socket */
 	memset(&srx, 0, sizeof(srx));
@@ -83,7 +83,7 @@ int afs_open_socket(struct afs_net *net)
 	 * it sends back to us.
 	 */
 
-	rxrpc_kernel_new_call_notification(socket, afs_rx_new_call,
+	rxrpc_kernel_new_call_analtification(socket, afs_rx_new_call,
 					   afs_rx_discard_new_call);
 
 	ret = kernel_listen(socket, INT_MAX);
@@ -120,7 +120,7 @@ void afs_close_socket(struct afs_net *net)
 	_debug("outstanding %u", atomic_read(&net->nr_outstanding_calls));
 	wait_var_event(&net->nr_outstanding_calls,
 		       !atomic_read(&net->nr_outstanding_calls));
-	_debug("no outstanding calls");
+	_debug("anal outstanding calls");
 
 	kernel_sock_shutdown(net->socket, SHUT_RDWR);
 	flush_workqueue(afs_async_calls);
@@ -188,7 +188,7 @@ void afs_put_call(struct afs_call *call)
 		if (call->type->destructor)
 			call->type->destructor(call);
 
-		afs_unuse_server_notime(call->net, call->server, afs_server_trace_put_call);
+		afs_unuse_server_analtime(call->net, call->server, afs_server_trace_put_call);
 		kfree(call->request);
 
 		trace_afs_call(call->debug_id, afs_call_trace_free, 0, o,
@@ -237,22 +237,22 @@ struct afs_call *afs_alloc_flat_call(struct afs_net *net,
 {
 	struct afs_call *call;
 
-	call = afs_alloc_call(net, type, GFP_NOFS);
+	call = afs_alloc_call(net, type, GFP_ANALFS);
 	if (!call)
-		goto nomem_call;
+		goto analmem_call;
 
 	if (request_size) {
 		call->request_size = request_size;
-		call->request = kmalloc(request_size, GFP_NOFS);
+		call->request = kmalloc(request_size, GFP_ANALFS);
 		if (!call->request)
-			goto nomem_free;
+			goto analmem_free;
 	}
 
 	if (reply_max) {
 		call->reply_max = reply_max;
-		call->buffer = kmalloc(reply_max, GFP_NOFS);
+		call->buffer = kmalloc(reply_max, GFP_ANALFS);
 		if (!call->buffer)
-			goto nomem_free;
+			goto analmem_free;
 	}
 
 	afs_extract_to_buf(call, call->reply_max);
@@ -260,9 +260,9 @@ struct afs_call *afs_alloc_flat_call(struct afs_net *net,
 	init_waitqueue_head(&call->waitq);
 	return call;
 
-nomem_free:
+analmem_free:
 	afs_put_call(call);
-nomem_call:
+analmem_call:
 	return NULL;
 }
 
@@ -282,7 +282,7 @@ void afs_flat_call_destructor(struct afs_call *call)
 /*
  * Advance the AFS call state when the RxRPC call ends the transmit phase.
  */
-static void afs_notify_end_request_tx(struct sock *sock,
+static void afs_analtify_end_request_tx(struct sock *sock,
 				      struct rxrpc_call *rxcall,
 				      unsigned long call_user_ID)
 {
@@ -292,7 +292,7 @@ static void afs_notify_end_request_tx(struct sock *sock,
 }
 
 /*
- * Initiate a call and synchronously queue up the parameters for dispatch.  Any
+ * Initiate a call and synchroanalusly queue up the parameters for dispatch.  Any
  * error is stored into the call struct, which the caller must check for.
  */
 void afs_make_call(struct afs_call *call, gfp_t gfp)
@@ -323,8 +323,8 @@ void afs_make_call(struct afs_call *call, gfp_t gfp)
 	if (call->write_iter)
 		tx_total_len += iov_iter_count(call->write_iter);
 
-	/* If the call is going to be asynchronous, we need an extra ref for
-	 * the call to hold itself so the caller need not hang on to its ref.
+	/* If the call is going to be asynchroanalus, we need an extra ref for
+	 * the call to hold itself so the caller need analt hang on to its ref.
 	 */
 	if (call->async) {
 		afs_get_call(call, afs_call_trace_get);
@@ -367,7 +367,7 @@ void afs_make_call(struct afs_call *call, gfp_t gfp)
 
 	ret = rxrpc_kernel_send_data(call->net->socket, rxcall,
 				     &msg, call->request_size,
-				     afs_notify_end_request_tx);
+				     afs_analtify_end_request_tx);
 	if (ret < 0)
 		goto error_do_abort;
 
@@ -379,7 +379,7 @@ void afs_make_call(struct afs_call *call, gfp_t gfp)
 		ret = rxrpc_kernel_send_data(call->net->socket,
 					     call->rxcall, &msg,
 					     iov_iter_count(&msg.msg_iter),
-					     afs_notify_end_request_tx);
+					     afs_analtify_end_request_tx);
 		*call->write_iter = msg.msg_iter;
 
 		trace_afs_sent_data(call, &msg, ret);
@@ -387,11 +387,11 @@ void afs_make_call(struct afs_call *call, gfp_t gfp)
 			goto error_do_abort;
 	}
 
-	/* Note that at this point, we may have received the reply or an abort
-	 * - and an asynchronous call may already have completed.
+	/* Analte that at this point, we may have received the reply or an abort
+	 * - and an asynchroanalus call may already have completed.
 	 *
 	 * afs_wait_for_call_to_complete(call)
-	 * must be called to synchronously clean up.
+	 * must be called to synchroanalusly clean up.
 	 */
 	return;
 
@@ -416,7 +416,7 @@ error_kill_call:
 
 	/* We need to dispose of the extra ref we grabbed for an async call.
 	 * The call, however, might be queued on afs_async_calls and we need to
-	 * make sure we don't get any more notifications that might requeue it.
+	 * make sure we don't get any more analtifications that might requeue it.
 	 */
 	if (call->rxcall)
 		rxrpc_kernel_shutdown_call(call->net->socket, call->rxcall);
@@ -458,7 +458,7 @@ static void afs_log_error(struct afs_call *call, s32 remote_abort)
 	m = max;
 	if (m < 3) {
 		max = m + 1;
-		pr_notice("kAFS: Peer reported %s failure on %s [%pISp]\n",
+		pr_analtice("kAFS: Peer reported %s failure on %s [%pISp]\n",
 			  msg, call->type->name,
 			  rxrpc_kernel_remote_addr(call->peer));
 	}
@@ -525,21 +525,21 @@ static void afs_deliver_to_call(struct afs_call *call)
 			call->responded = true;
 			afs_log_error(call, call->abort_code);
 			goto done;
-		case -ENOTSUPP:
+		case -EANALTSUPP:
 			call->responded = true;
 			abort_code = RXGEN_OPCODE;
 			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
 						abort_code, ret,
-						afs_abort_op_not_supported);
+						afs_abort_op_analt_supported);
 			goto local_abort;
 		case -EIO:
 			pr_err("kAFS: Call %u in bad state %u\n",
 			       call->debug_id, state);
 			fallthrough;
-		case -ENODATA:
+		case -EANALDATA:
 		case -EBADMSG:
 		case -EMSGSIZE:
-		case -ENOMEM:
+		case -EANALMEM:
 		case -EFAULT:
 			abort_code = RXGEN_CC_UNMARSHAL;
 			if (state != AFS_CALL_CL_AWAIT_REPLY)
@@ -573,7 +573,7 @@ call_complete:
 }
 
 /*
- * Wait synchronously for a call to complete.
+ * Wait synchroanalusly for a call to complete.
  */
 void afs_wait_for_call_to_complete(struct afs_call *call)
 {
@@ -640,7 +640,7 @@ static void afs_wake_up_call_waiter(struct sock *sk, struct rxrpc_call *rxcall,
 }
 
 /*
- * wake up an asynchronous call
+ * wake up an asynchroanalus call
  */
 static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 				   unsigned long call_user_ID)
@@ -648,10 +648,10 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 	struct afs_call *call = (struct afs_call *)call_user_ID;
 	int r;
 
-	trace_afs_notify_call(rxcall, call);
+	trace_afs_analtify_call(rxcall, call);
 	call->need_attention = true;
 
-	if (__refcount_inc_not_zero(&call->ref, &r)) {
+	if (__refcount_inc_analt_zero(&call->ref, &r)) {
 		trace_afs_call(call->debug_id, afs_call_trace_wake, r + 1,
 			       atomic_read(&call->net->nr_outstanding_calls),
 			       __builtin_return_address(0));
@@ -662,7 +662,7 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 }
 
 /*
- * Perform I/O processing on an asynchronous call.  The work item carries a ref
+ * Perform I/O processing on an asynchroanalus call.  The work item carries a ref
  * to the call struct that we either need to release or to pass on.
  */
 static void afs_process_async_call(struct work_struct *work)
@@ -734,7 +734,7 @@ static void afs_rx_discard_new_call(struct rxrpc_call *rxcall,
 }
 
 /*
- * Notification of an incoming call.
+ * Analtification of an incoming call.
  */
 static void afs_rx_new_call(struct sock *sk, struct rxrpc_call *rxcall,
 			    unsigned long user_call_ID)
@@ -765,7 +765,7 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
 	/* ask the cache manager to route the call (it'll change the call type
 	 * if successful) */
 	if (!afs_cm_incoming_call(call))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	trace_afs_cb_call(call);
 
@@ -778,7 +778,7 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
  * Advance the AFS call state when an RxRPC service call ends the transmit
  * phase.
  */
-static void afs_notify_end_reply_tx(struct sock *sock,
+static void afs_analtify_end_reply_tx(struct sock *sock,
 				    struct rxrpc_call *rxcall,
 				    unsigned long call_user_ID)
 {
@@ -807,15 +807,15 @@ void afs_send_empty_reply(struct afs_call *call)
 	msg.msg_flags		= 0;
 
 	switch (rxrpc_kernel_send_data(net->socket, call->rxcall, &msg, 0,
-				       afs_notify_end_reply_tx)) {
+				       afs_analtify_end_reply_tx)) {
 	case 0:
 		_leave(" [replied]");
 		return;
 
-	case -ENOMEM:
+	case -EANALMEM:
 		_debug("oom");
 		rxrpc_kernel_abort_call(net->socket, call->rxcall,
-					RXGEN_SS_MARSHAL, -ENOMEM,
+					RXGEN_SS_MARSHAL, -EANALMEM,
 					afs_abort_oom);
 		fallthrough;
 	default:
@@ -848,17 +848,17 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	msg.msg_flags		= 0;
 
 	n = rxrpc_kernel_send_data(net->socket, call->rxcall, &msg, len,
-				   afs_notify_end_reply_tx);
+				   afs_analtify_end_reply_tx);
 	if (n >= 0) {
 		/* Success */
 		_leave(" [replied]");
 		return;
 	}
 
-	if (n == -ENOMEM) {
+	if (n == -EANALMEM) {
 		_debug("oom");
 		rxrpc_kernel_abort_call(net->socket, call->rxcall,
-					RXGEN_SS_MARSHAL, -ENOMEM,
+					RXGEN_SS_MARSHAL, -EANALMEM,
 					afs_abort_oom);
 	}
 	_leave(" [error]");
@@ -910,7 +910,7 @@ int afs_extract_data(struct afs_call *call, bool want_more)
 /*
  * Log protocol error production.
  */
-noinline int afs_protocol_error(struct afs_call *call,
+analinline int afs_protocol_error(struct afs_call *call,
 				enum afs_eproto_cause cause)
 {
 	trace_afs_protocol_error(call, cause);

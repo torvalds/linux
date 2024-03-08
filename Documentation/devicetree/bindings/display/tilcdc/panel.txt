@@ -9,7 +9,7 @@ Required properties:
    - bpp: Bits per pixel
    - fdd: FIFO DMA Request Delay
    - sync-edge: Horizontal and Vertical Sync Edge: 0=rising 1=falling
-   - sync-ctrl: Horizontal and Vertical Sync: Control: 0=ignore
+   - sync-ctrl: Horizontal and Vertical Sync: Control: 0=iganalre
    - raster-order: Raster Data Order Select: 1=Most-to-least 0=Least-to-most
    - fifo-th: DMA FIFO threshold
  - display-timings: typical videomode of lcd panel.  Multiple video modes

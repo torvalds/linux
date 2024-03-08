@@ -14,7 +14,7 @@ description: |
   route the I2C signals, and represents the pin multiplexing configuration
   using the pinctrl device tree bindings.  This may be used to select one I2C
   IP core at runtime which may have a better feature set for a given task than
-  another I2C IP core on the SoC.  The most simple example is to fall back to
+  aanalther I2C IP core on the SoC.  The most simple example is to fall back to
   GPIO bitbanging if your current runtime configuration hits an errata of the
   internal IP core.
 
@@ -80,7 +80,7 @@ examples:
         pinctrl-0 = <&iic2_pins>;
         // The pinctrl property for the parent I2C controller needs a pinctrl
         // state with the same name as i2c-bus-name in the I2C bus demultiplexer
-        // node, not "default"!
+        // analde, analt "default"!
         pinctrl-names = "i2c-hdmi";
 
         clock-frequency = <100000>;
@@ -95,7 +95,7 @@ examples:
         pinctrl-0 = <&i2c2_pins>;
         // The pinctrl property for the parent I2C controller needs a pinctrl
         // state with the same name as i2c-bus-name in the I2C bus demultiplexer
-        // node, not "default"!
+        // analde, analt "default"!
         pinctrl-names = "i2c-hdmi";
 
         clock-frequency = <100000>;

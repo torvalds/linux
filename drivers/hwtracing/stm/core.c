@@ -164,7 +164,7 @@ static int stp_master_alloc(struct stm_device *stm, unsigned int idx)
 				     BITS_TO_LONGS(stm->data->sw_nchannels)),
 			 GFP_ATOMIC);
 	if (!master)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	master->nr_free = stm->data->sw_nchannels;
 	__stm_master(stm, idx) = master;
@@ -215,7 +215,7 @@ stm_output_disclaim(struct stm_device *stm, struct stm_output *output)
 }
 
 /*
- * This is like bitmap_find_free_region(), except it can ignore @start bits
+ * This is like bitmap_find_free_region(), except it can iganalre @start bits
  * at the beginning.
  */
 static int find_free_channels(unsigned long *bitmap, unsigned int start,
@@ -275,11 +275,11 @@ stm_find_master_chan(struct stm_device *stm, unsigned int width,
 		return 0;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int stm_output_assign(struct stm_device *stm, unsigned int width,
-			     struct stp_policy_node *policy_node,
+			     struct stp_policy_analde *policy_analde,
 			     struct stm_output *output)
 {
 	unsigned int midx, cidx, mend, cend;
@@ -288,15 +288,15 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 	if (width > stm->data->sw_nchannels)
 		return -EINVAL;
 
-	/* We no longer accept policy_node==NULL here */
-	if (WARN_ON_ONCE(!policy_node))
+	/* We anal longer accept policy_analde==NULL here */
+	if (WARN_ON_ONCE(!policy_analde))
 		return -EINVAL;
 
 	/*
-	 * Also, the caller holds reference to policy_node, so it won't
+	 * Also, the caller holds reference to policy_analde, so it won't
 	 * disappear on us.
 	 */
-	stp_policy_node_get_ranges(policy_node, &midx, &mend, &cidx, &cend);
+	stp_policy_analde_get_ranges(policy_analde, &midx, &mend, &cidx, &cend);
 
 	spin_lock(&stm->mc_lock);
 	spin_lock(&output->lock);
@@ -312,7 +312,7 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 	output->channel = cidx;
 	output->nr_chans = width;
 	if (stm->pdrv->output_open) {
-		void *priv = stp_policy_node_priv(policy_node);
+		void *priv = stp_policy_analde_priv(policy_analde);
 
 		if (WARN_ON_ONCE(!priv))
 			goto unlock;
@@ -372,7 +372,7 @@ static struct mutex stm_pdrv_mutex;
 struct stm_pdrv_entry {
 	struct list_head			entry;
 	const struct stm_protocol_driver	*pdrv;
-	const struct config_item_type		*node_type;
+	const struct config_item_type		*analde_type;
 };
 
 static const struct stm_pdrv_entry *
@@ -381,7 +381,7 @@ __stm_lookup_protocol(const char *name)
 	struct stm_pdrv_entry *pe;
 
 	/*
-	 * If no name is given (NULL or ""), fall back to "p_basic".
+	 * If anal name is given (NULL or ""), fall back to "p_basic".
 	 */
 	if (!name || !*name)
 		name = "p_basic";
@@ -397,7 +397,7 @@ __stm_lookup_protocol(const char *name)
 int stm_register_protocol(const struct stm_protocol_driver *pdrv)
 {
 	struct stm_pdrv_entry *pe = NULL;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	mutex_lock(&stm_pdrv_mutex);
 
@@ -411,8 +411,8 @@ int stm_register_protocol(const struct stm_protocol_driver *pdrv)
 		goto unlock;
 
 	if (pdrv->policy_attr) {
-		pe->node_type = get_policy_node_type(pdrv->policy_attr);
-		if (!pe->node_type)
+		pe->analde_type = get_policy_analde_type(pdrv->policy_attr);
+		if (!pe->analde_type)
 			goto unlock;
 	}
 
@@ -440,9 +440,9 @@ void stm_unregister_protocol(const struct stm_protocol_driver *pdrv)
 		if (pe->pdrv == pdrv) {
 			list_del(&pe->entry);
 
-			if (pe->node_type) {
-				kfree(pe->node_type->ct_attrs);
-				kfree(pe->node_type);
+			if (pe->analde_type) {
+				kfree(pe->analde_type->ct_attrs);
+				kfree(pe->analde_type);
 			}
 			kfree(pe);
 			break;
@@ -465,7 +465,7 @@ void stm_put_protocol(const struct stm_protocol_driver *pdrv)
 
 int stm_lookup_protocol(const char *name,
 			const struct stm_protocol_driver **pdrv,
-			const struct config_item_type **node_type)
+			const struct config_item_type **analde_type)
 {
 	const struct stm_pdrv_entry *pe;
 
@@ -474,30 +474,30 @@ int stm_lookup_protocol(const char *name,
 	pe = __stm_lookup_protocol(name);
 	if (pe && pe->pdrv && stm_get_protocol(pe->pdrv)) {
 		*pdrv = pe->pdrv;
-		*node_type = pe->node_type;
+		*analde_type = pe->analde_type;
 	}
 
 	mutex_unlock(&stm_pdrv_mutex);
 
-	return pe ? 0 : -ENOENT;
+	return pe ? 0 : -EANALENT;
 }
 
-static int stm_char_open(struct inode *inode, struct file *file)
+static int stm_char_open(struct ianalde *ianalde, struct file *file)
 {
 	struct stm_file *stmf;
 	struct device *dev;
-	unsigned int major = imajor(inode);
-	int err = -ENOMEM;
+	unsigned int major = imajor(ianalde);
+	int err = -EANALMEM;
 
 	dev = class_find_device(&stm_class, NULL, &major, major_match);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stmf = kzalloc(sizeof(*stmf), GFP_KERNEL);
 	if (!stmf)
 		goto err_put_device;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	stm_output_init(&stmf->output);
 	stmf->stm = to_stm_device(dev);
 
@@ -506,7 +506,7 @@ static int stm_char_open(struct inode *inode, struct file *file)
 
 	file->private_data = stmf;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 
 err_free:
 	kfree(stmf);
@@ -517,7 +517,7 @@ err_put_device:
 	return err;
 }
 
-static int stm_char_release(struct inode *inode, struct file *file)
+static int stm_char_release(struct ianalde *ianalde, struct file *file)
 {
 	struct stm_file *stmf = file->private_data;
 	struct stm_device *stm = stmf->stm;
@@ -542,24 +542,24 @@ static int
 stm_assign_first_policy(struct stm_device *stm, struct stm_output *output,
 			char **ids, unsigned int width)
 {
-	struct stp_policy_node *pn;
+	struct stp_policy_analde *pn;
 	int err, n;
 
 	/*
-	 * On success, stp_policy_node_lookup() will return holding the
+	 * On success, stp_policy_analde_lookup() will return holding the
 	 * configfs subsystem mutex, which is then released in
-	 * stp_policy_node_put(). This allows the pdrv->output_open() in
+	 * stp_policy_analde_put(). This allows the pdrv->output_open() in
 	 * stm_output_assign() to serialize against the attribute accessors.
 	 */
 	for (n = 0, pn = NULL; ids[n] && !pn; n++)
-		pn = stp_policy_node_lookup(stm, ids[n]);
+		pn = stp_policy_analde_lookup(stm, ids[n]);
 
 	if (!pn)
 		return -EINVAL;
 
 	err = stm_output_assign(stm, width, pn, output);
 
-	stp_policy_node_put(pn);
+	stp_policy_analde_put(pn);
 
 	return err;
 }
@@ -573,7 +573,7 @@ stm_assign_first_policy(struct stm_device *stm, struct stm_output *output,
  * @buf:	data payload buffer
  * @count:	data payload size
  */
-ssize_t notrace stm_data_write(struct stm_data *data, unsigned int m,
+ssize_t analtrace stm_data_write(struct stm_data *data, unsigned int m,
 			       unsigned int c, bool ts_first, const void *buf,
 			       size_t count)
 {
@@ -598,7 +598,7 @@ ssize_t notrace stm_data_write(struct stm_data *data, unsigned int m,
 }
 EXPORT_SYMBOL_GPL(stm_data_write);
 
-static ssize_t notrace
+static ssize_t analtrace
 stm_write(struct stm_device *stm, struct stm_output *output,
 	  unsigned int chan, const char *buf, size_t count)
 {
@@ -606,7 +606,7 @@ stm_write(struct stm_device *stm, struct stm_output *output,
 
 	/* stm->pdrv is serialized against policy_mutex */
 	if (!stm->pdrv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = stm->pdrv->write(stm->data, output, chan, buf, count);
 	if (err < 0)
@@ -627,7 +627,7 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 		count = PAGE_SIZE - 1;
 
 	/*
-	 * If no m/c have been assigned to this writer up to this
+	 * If anal m/c have been assigned to this writer up to this
 	 * point, try to use the task name and "default" policy entries.
 	 */
 	if (!stmf->output.nr_chans) {
@@ -647,7 +647,7 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 
 	kbuf = kmalloc(count + 1, GFP_KERNEL);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = copy_from_user(kbuf, buf, count);
 	if (err) {
@@ -695,7 +695,7 @@ static int stm_char_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long size, phys;
 
 	if (!stm->data->mmio_addr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vma->vm_pgoff)
 		return -EINVAL;
@@ -714,7 +714,7 @@ static int stm_char_mmap(struct file *file, struct vm_area_struct *vma)
 
 	pm_runtime_get_sync(&stm->dev);
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	vm_flags_set(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &stm_mmap_vmops;
 	vm_iomap_memory(vma, phys, size);
@@ -741,11 +741,11 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 
 	/*
 	 * size + 1 to make sure the .id string at the bottom is terminated,
-	 * which is also why memdup_user() is not useful here
+	 * which is also why memdup_user() is analt useful here
 	 */
 	id = kzalloc(size + 1, GFP_KERNEL);
 	if (!id)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(id, arg, size)) {
 		ret = -EFAULT;
@@ -799,7 +799,7 @@ stm_char_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct stm_file *stmf = file->private_data;
 	struct stm_data *stm_data = stmf->stm->data;
-	int err = -ENOTTY;
+	int err = -EANALTTY;
 	u64 options;
 
 	switch (cmd) {
@@ -839,7 +839,7 @@ static const struct file_operations stm_fops = {
 	.mmap		= stm_char_mmap,
 	.unlocked_ioctl	= stm_char_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static void stm_device_release(struct device *dev)
@@ -854,7 +854,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 {
 	struct stm_device *stm;
 	unsigned int nmasters;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!stm_core_up)
 		return -EPROBE_DEFER;
@@ -865,7 +865,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	nmasters = stm_data->sw_end - stm_data->sw_start + 1;
 	stm = vzalloc(sizeof(*stm) + nmasters * sizeof(void *));
 	if (!stm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stm->major = register_chrdev(0, stm_data->name, &stm_fops);
 	if (stm->major < 0)
@@ -902,7 +902,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	 * on recurring character device writes, with the initial
 	 * delay time of 2 seconds.
 	 */
-	pm_runtime_no_callbacks(&stm->dev);
+	pm_runtime_anal_callbacks(&stm->dev);
 	pm_runtime_use_autosuspend(&stm->dev);
 	pm_runtime_set_autosuspend_delay(&stm->dev, 2000);
 	pm_runtime_set_suspended(&stm->dev);
@@ -938,10 +938,10 @@ void stm_unregister_device(struct stm_data *stm_data)
 	list_for_each_entry_safe(src, iter, &stm->link_list, link_entry) {
 		ret = __stm_source_link_drop(src, stm);
 		/*
-		 * src <-> stm link must not change under the same
+		 * src <-> stm link must analt change under the same
 		 * stm::link_mutex, so complain loudly if it has;
 		 * also in this situation ret!=0 means this src is
-		 * not connected to this stm and it should be otherwise
+		 * analt connected to this stm and it should be otherwise
 		 * safe to proceed with the tear-down of stm.
 		 */
 		WARN_ON_ONCE(ret);
@@ -984,19 +984,19 @@ EXPORT_SYMBOL_GPL(stm_unregister_device);
  * This function establishes a link from stm_source to an stm device so that
  * the former can send out trace data to the latter.
  *
- * Return:	0 on success, -errno otherwise.
+ * Return:	0 on success, -erranal otherwise.
  */
 static int stm_source_link_add(struct stm_source_device *src,
 			       struct stm_device *stm)
 {
 	char *ids[] = { NULL, "default", NULL };
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	mutex_lock(&stm->link_mutex);
 	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 
-	/* src->link is dereferenced under stm_source_srcu but not the list */
+	/* src->link is dereferenced under stm_source_srcu but analt the list */
 	rcu_assign_pointer(src->link, stm);
 	list_add_tail(&src->link_entry, &stm->link_list);
 
@@ -1015,7 +1015,7 @@ static int stm_source_link_add(struct stm_source_device *src,
 	if (err)
 		goto fail_detach;
 
-	/* this is to notify the STM device that a new link has been made */
+	/* this is to analtify the STM device that a new link has been made */
 	if (stm->data->link)
 		err = stm->data->link(stm->data, src->output.master,
 				      src->output.channel);
@@ -1052,7 +1052,7 @@ fail_detach:
  * @src:	stm_source device
  * @stm:	stm device
  *
- * If @stm is @src::link, disconnect them from one another and put the
+ * If @stm is @src::link, disconnect them from one aanalther and put the
  * reference on the @stm device.
  *
  * Caller must hold stm::link_mutex.
@@ -1093,7 +1093,7 @@ unlock:
 	spin_unlock(&stm->link_lock);
 
 	/*
-	 * Call the unlink callbacks for both source and stm, when we know
+	 * Call the unlink callbacks for both source and stm, when we kanalw
 	 * that we have actually performed the unlinking.
 	 */
 	if (!ret) {
@@ -1157,7 +1157,7 @@ static ssize_t stm_source_link_show(struct device *dev,
 	idx = srcu_read_lock(&stm_source_srcu);
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 	ret = sprintf(buf, "%s\n",
-		      stm ? dev_name(&stm->dev) : "<none>");
+		      stm ? dev_name(&stm->dev) : "<analne>");
 	srcu_read_unlock(&stm_source_srcu, idx);
 
 	return ret;
@@ -1218,7 +1218,7 @@ static void stm_source_device_release(struct device *dev)
  * This will create a device of stm_source class that can write
  * data to an stm device once linked.
  *
- * Return:	0 on success, -errno otherwise.
+ * Return:	0 on success, -erranal otherwise.
  */
 int stm_source_register_device(struct device *parent,
 			       struct stm_source_data *data)
@@ -1231,7 +1231,7 @@ int stm_source_register_device(struct device *parent,
 
 	src = kzalloc(sizeof(*src), GFP_KERNEL);
 	if (!src)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_initialize(&src->dev);
 	src->dev.class = &stm_source_class;
@@ -1242,7 +1242,7 @@ int stm_source_register_device(struct device *parent,
 	if (err)
 		goto err;
 
-	pm_runtime_no_callbacks(&src->dev);
+	pm_runtime_anal_callbacks(&src->dev);
 	pm_runtime_forbid(&src->dev);
 
 	err = device_add(&src->dev);
@@ -1280,7 +1280,7 @@ void stm_source_unregister_device(struct stm_source_data *data)
 }
 EXPORT_SYMBOL_GPL(stm_source_unregister_device);
 
-int notrace stm_source_write(struct stm_source_data *data,
+int analtrace stm_source_write(struct stm_source_data *data,
 			     unsigned int chan,
 			     const char *buf, size_t count)
 {
@@ -1289,7 +1289,7 @@ int notrace stm_source_write(struct stm_source_data *data,
 	int idx;
 
 	if (!src->output.nr_chans)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (chan >= src->output.nr_chans)
 		return -EINVAL;
@@ -1300,7 +1300,7 @@ int notrace stm_source_write(struct stm_source_data *data,
 	if (stm)
 		count = stm_write(stm, &src->output, chan, buf, count);
 	else
-		count = -ENODEV;
+		count = -EANALDEV;
 
 	srcu_read_unlock(&stm_source_srcu, idx);
 
@@ -1329,11 +1329,11 @@ static int __init stm_core_init(void)
 	mutex_init(&stm_pdrv_mutex);
 
 	/*
-	 * So as to not confuse existing users with a requirement
-	 * to load yet another module, do it here.
+	 * So as to analt confuse existing users with a requirement
+	 * to load yet aanalther module, do it here.
 	 */
 	if (IS_ENABLED(CONFIG_STM_PROTO_BASIC))
-		(void)request_module_nowait("stm_p_basic");
+		(void)request_module_analwait("stm_p_basic");
 	stm_core_up++;
 
 	return 0;

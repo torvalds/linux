@@ -69,7 +69,7 @@ static void ibm_panel_process_command(struct ibm_panel *panel)
 				 !(panel->command[2] & 0x80));
 		input_sync(panel->input);
 	} else {
-		dev_dbg(&panel->input->dev, "unknown button %u\n",
+		dev_dbg(&panel->input->dev, "unkanalwn button %u\n",
 			button);
 	}
 }
@@ -127,13 +127,13 @@ static int ibm_panel_probe(struct i2c_client *client)
 
 	panel = devm_kzalloc(&client->dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&panel->lock);
 
 	panel->input = devm_input_allocate_device(&client->dev);
 	if (!panel->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	panel->input->name = client->name;
 	panel->input->id.bustype = BUS_I2C;
@@ -147,7 +147,7 @@ static int ibm_panel_probe(struct i2c_client *client)
 		 * Use gamepad buttons as defaults for compatibility with
 		 * existing applications.
 		 */
-		panel->keycodes[0] = BTN_NORTH;
+		panel->keycodes[0] = BTN_ANALRTH;
 		panel->keycodes[1] = BTN_SOUTH;
 		panel->keycodes[2] = BTN_SELECT;
 	}

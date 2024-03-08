@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004-2007 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies Ltd.  All rights reserved.
  * Copyright (c) 2009 HNR Consulting. All rights reserved.
  * Copyright (c) 2014,2018 Intel Corporation.  All rights reserved.
  *
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -99,7 +99,7 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 static void cancel_mads(struct ib_mad_agent_private *mad_agent_priv);
 static void timeout_sends(struct work_struct *work);
 static void local_completions(struct work_struct *work);
-static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
+static int add_analanalui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 			      struct ib_mad_agent_private *agent_priv,
 			      u8 mgmt_class);
 static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
@@ -238,7 +238,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 
 	if ((qp_type == IB_QPT_SMI && !rdma_cap_ib_smi(device, port_num)) ||
 	    (qp_type == IB_QPT_GSI && !rdma_cap_ib_cm(device, port_num)))
-		return ERR_PTR(-EPROTONOSUPPORT);
+		return ERR_PTR(-EPROTOANALSUPPORT);
 
 	/* Validate parameters */
 	qpn = get_spl_qp_index(qp_type);
@@ -266,7 +266,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		}
 		if (!recv_handler) {
 			dev_dbg_ratelimited(&device->dev,
-					    "%s: no recv_handler\n", __func__);
+					    "%s: anal recv_handler\n", __func__);
 			goto error1;
 		}
 		if (mad_reg_req->mgmt_class >= MAX_MGMT_CLASS) {
@@ -293,11 +293,11 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		} else if (is_vendor_class(mad_reg_req->mgmt_class)) {
 			/*
 			 * If class is in "new" vendor range,
-			 * ensure supplied OUI is not zero
+			 * ensure supplied OUI is analt zero
 			 */
 			if (!is_vendor_oui(mad_reg_req->oui)) {
 				dev_dbg_ratelimited(&device->dev,
-					"%s: No OUI specified for class 0x%x\n",
+					"%s: Anal OUI specified for class 0x%x\n",
 					__func__,
 					mad_reg_req->mgmt_class);
 				goto error1;
@@ -307,7 +307,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		if (!ib_is_mad_class_rmpp(mad_reg_req->mgmt_class)) {
 			if (rmpp_version) {
 				dev_dbg_ratelimited(&device->dev,
-					"%s: RMPP version for non-RMPP class 0x%x\n",
+					"%s: RMPP version for analn-RMPP class 0x%x\n",
 					__func__, mad_reg_req->mgmt_class);
 				goto error1;
 			}
@@ -336,7 +336,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 			}
 		}
 	} else {
-		/* No registration request supplied */
+		/* Anal registration request supplied */
 		if (!send_handler)
 			goto error1;
 		if (registration_flags & IB_MAD_USER_RMPP)
@@ -348,36 +348,36 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	if (!port_priv) {
 		dev_dbg_ratelimited(&device->dev, "%s: Invalid port %u\n",
 				    __func__, port_num);
-		ret = ERR_PTR(-ENODEV);
+		ret = ERR_PTR(-EANALDEV);
 		goto error1;
 	}
 
 	/* Verify the QP requested is supported. For example, Ethernet devices
-	 * will not have QP0.
+	 * will analt have QP0.
 	 */
 	if (!port_priv->qp_info[qpn].qp) {
-		dev_dbg_ratelimited(&device->dev, "%s: QP %d not supported\n",
+		dev_dbg_ratelimited(&device->dev, "%s: QP %d analt supported\n",
 				    __func__, qpn);
-		ret = ERR_PTR(-EPROTONOSUPPORT);
+		ret = ERR_PTR(-EPROTOANALSUPPORT);
 		goto error1;
 	}
 
 	/* Allocate structures */
 	mad_agent_priv = kzalloc(sizeof *mad_agent_priv, GFP_KERNEL);
 	if (!mad_agent_priv) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto error1;
 	}
 
 	if (mad_reg_req) {
 		reg_req = kmemdup(mad_reg_req, sizeof *reg_req, GFP_KERNEL);
 		if (!reg_req) {
-			ret = ERR_PTR(-ENOMEM);
+			ret = ERR_PTR(-EANALMEM);
 			goto error3;
 		}
 	}
 
-	/* Now, fill in the various structures */
+	/* Analw, fill in the various structures */
 	mad_agent_priv->qp_info = &port_priv->qp_info[qpn];
 	mad_agent_priv->reg_req = reg_req;
 	mad_agent_priv->agent.rmpp_version = rmpp_version;
@@ -419,7 +419,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 
 	/*
 	 * Make sure MAD registration (if supplied)
-	 * is non overlapping with any existing ones
+	 * is analn overlapping with any existing ones
 	 */
 	spin_lock_irq(&port_priv->reg_lock);
 	if (mad_reg_req) {
@@ -435,7 +435,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 						goto error6;
 				}
 			}
-			ret2 = add_nonoui_reg_req(mad_reg_req, mad_agent_priv,
+			ret2 = add_analanalui_reg_req(mad_reg_req, mad_agent_priv,
 						  mgmt_class);
 		} else {
 			/* "New" vendor class range */
@@ -486,7 +486,7 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 {
 	struct ib_mad_port_private *port_priv;
 
-	/* Note that we could still be handling received MADs */
+	/* Analte that we could still be handling received MADs */
 	trace_ib_mad_unregister_agent(mad_agent_priv);
 
 	/*
@@ -587,7 +587,7 @@ static size_t mad_priv_dma_size(const struct ib_mad_private *mp)
 
 /*
  * Return 0 if SMP is to be sent
- * Return 1 if SMP was consumed locally (whether or not solicited)
+ * Return 1 if SMP was consumed locally (whether or analt solicited)
  * Return < 0 if error
  */
 static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
@@ -673,14 +673,14 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 
 	local = kmalloc(sizeof *local, GFP_ATOMIC);
 	if (!local) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	local->mad_priv = NULL;
 	local->recv_mad_agent = NULL;
 	mad_priv = alloc_mad_private(mad_size, GFP_ATOMIC);
 	if (!mad_priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		kfree(local);
 		goto out;
 	}
@@ -696,7 +696,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 					+ sizeof(struct ib_grh);
 	}
 
-	/* No GRH for DR SMP */
+	/* Anal GRH for DR SMP */
 	ret = device->ops.process_mad(device, 0, port_num, &mad_wc, NULL,
 				      (const struct ib_mad *)smp,
 				      (struct ib_mad *)mad_priv->mad, &mad_size,
@@ -729,7 +729,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		}
 		if (!port_priv || !recv_mad_agent) {
 			/*
-			 * No receiving agent so drop packet and
+			 * Anal receiving agent so drop packet and
 			 * generate send completion.
 			 */
 			kfree(mad_priv);
@@ -803,7 +803,7 @@ static int alloc_send_rmpp_list(struct ib_mad_send_wr_private *send_wr,
 		seg = kmalloc(sizeof(*seg) + seg_size, gfp_mask);
 		if (!seg) {
 			free_send_rmpp_list(send_wr);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		seg->num = ++send_buf->seg_count;
 		list_add_tail(&seg->list, &send_wr->rmpp_list);
@@ -866,7 +866,7 @@ struct ib_mad_send_buf *ib_create_send_mad(struct ib_mad_agent *mad_agent,
 	size = rmpp_active ? hdr_len : mad_size;
 	buf = kzalloc(sizeof *mad_send_wr + size, gfp_mask);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mad_send_wr = buf + size;
 	INIT_LIST_HEAD(&mad_send_wr->rmpp_list);
@@ -1012,7 +1012,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 					sge[0].length,
 					DMA_TO_DEVICE);
 	if (unlikely(ib_dma_mapping_error(mad_agent->device, sge[0].addr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mad_send_wr->header_mapping = sge[0].addr;
 
@@ -1024,7 +1024,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 		ib_dma_unmap_single(mad_agent->device,
 				    mad_send_wr->header_mapping,
 				    sge[0].length, DMA_TO_DEVICE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mad_send_wr->payload_mapping = sge[1].addr;
 
@@ -1198,7 +1198,7 @@ static int allocate_method_table(struct ib_mad_mgmt_method_table **method)
 {
 	/* Allocate management method table */
 	*method = kzalloc(sizeof **method, GFP_ATOMIC);
-	return (*method) ? 0 : (-ENOMEM);
+	return (*method) ? 0 : (-EANALMEM);
 }
 
 /*
@@ -1272,7 +1272,7 @@ static void remove_methods_mad_agent(struct ib_mad_mgmt_method_table *method,
 			method->agent[i] = NULL;
 }
 
-static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
+static int add_analanalui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 			      struct ib_mad_agent_private *agent_priv,
 			      u8 mgmt_class)
 {
@@ -1287,7 +1287,7 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 		/* Allocate management class table for "new" class version */
 		*class = kzalloc(sizeof **class, GFP_ATOMIC);
 		if (!*class) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error1;
 		}
 
@@ -1304,7 +1304,7 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 		}
 	}
 
-	/* Now, make sure methods are not already in use */
+	/* Analw, make sure methods are analt already in use */
 	if (method_in_use(method, mad_reg_req))
 		goto error3;
 
@@ -1317,9 +1317,9 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 error3:
 	/* Remove any methods for this mad agent */
 	remove_methods_mad_agent(*method, agent_priv);
-	/* Now, check to see if there are any methods in use */
+	/* Analw, check to see if there are any methods in use */
 	if (!check_method_table(*method)) {
-		/* If not, release management method table */
+		/* If analt, release management method table */
 		kfree(*method);
 		*method = NULL;
 	}
@@ -1340,7 +1340,7 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 	struct ib_mad_mgmt_vendor_class_table *vendor = NULL;
 	struct ib_mad_mgmt_vendor_class *vendor_class = NULL;
 	struct ib_mad_mgmt_method_table **method;
-	int i, ret = -ENOMEM;
+	int i, ret = -EANALMEM;
 	u8 vclass;
 
 	/* "New" vendor (with OUI) class */
@@ -1396,7 +1396,7 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 	goto error3;
 
 check_in_use:
-	/* Now, make sure methods are not already in use */
+	/* Analw, make sure methods are analt already in use */
 	if (method_in_use(method, mad_reg_req))
 		goto error4;
 
@@ -1409,9 +1409,9 @@ check_in_use:
 error4:
 	/* Remove any methods for this mad agent */
 	remove_methods_mad_agent(*method, agent_priv);
-	/* Now, check to see if there are any methods in use */
+	/* Analw, check to see if there are any methods in use */
 	if (!check_method_table(*method)) {
-		/* If not, release management method table */
+		/* If analt, release management method table */
 		kfree(*method);
 		*method = NULL;
 	}
@@ -1458,14 +1458,14 @@ static void remove_mad_reg_req(struct ib_mad_agent_private *agent_priv)
 	if (method) {
 		/* Remove any methods for this mad agent */
 		remove_methods_mad_agent(method, agent_priv);
-		/* Now, check to see if there are any methods still in use */
+		/* Analw, check to see if there are any methods still in use */
 		if (!check_method_table(method)) {
-			/* If not, release management method table */
+			/* If analt, release management method table */
 			kfree(method);
 			class->method_table[mgmt_class] = NULL;
 			/* Any management classes left ? */
 			if (!check_class_table(class)) {
-				/* If not, release management class table */
+				/* If analt, release management class table */
 				kfree(class);
 				port_priv->version[
 					agent_priv->reg_req->
@@ -1478,7 +1478,7 @@ vendor_check:
 	if (!is_vendor_class(mgmt_class))
 		goto out;
 
-	/* normalize mgmt_class to vendor range 2 */
+	/* analrmalize mgmt_class to vendor range 2 */
 	mgmt_class = vendor_class_index(agent_priv->reg_req->mgmt_class);
 	vendor = port_priv->version[
 			agent_priv->reg_req->mgmt_class_version].vendor;
@@ -1496,17 +1496,17 @@ vendor_check:
 			/* Remove any methods for this mad agent */
 			remove_methods_mad_agent(method, agent_priv);
 			/*
-			 * Now, check to see if there are
+			 * Analw, check to see if there are
 			 * any methods still in use
 			 */
 			if (!check_method_table(method)) {
-				/* If not, release management method table */
+				/* If analt, release management method table */
 				kfree(method);
 				vendor_class->method_table[index] = NULL;
 				memset(vendor_class->oui[index], 0, 3);
 				/* Any OUIs left ? */
 				if (!check_vendor_class(vendor_class)) {
-					/* If not, release vendor class table */
+					/* If analt, release vendor class table */
 					kfree(vendor_class);
 					vendor->vendor_class[mgmt_class] = NULL;
 					/* Any other vendor classes left ? */
@@ -1543,7 +1543,7 @@ find_mad_agent(struct ib_mad_port_private *port_priv,
 		hi_tid = be64_to_cpu(mad_hdr->tid) >> 32;
 		rcu_read_lock();
 		mad_agent = xa_load(&ib_mad_clients, hi_tid);
-		if (mad_agent && !refcount_inc_not_zero(&mad_agent->refcount))
+		if (mad_agent && !refcount_inc_analt_zero(&mad_agent->refcount))
 			mad_agent = NULL;
 		rcu_read_unlock();
 	} else {
@@ -1601,8 +1601,8 @@ out:
 	}
 
 	if (mad_agent && !mad_agent->agent.recv_handler) {
-		dev_notice(&port_priv->device->dev,
-			   "No receive handler for client %p on port %u\n",
+		dev_analtice(&port_priv->device->dev,
+			   "Anal receive handler for client %p on port %u\n",
 			   &mad_agent->agent, port_priv->port_num);
 		deref_mad_agent(mad_agent);
 		mad_agent = NULL;
@@ -1687,12 +1687,12 @@ rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_priv,
 		return 0;
 
 	if (rdma_query_ah(wr->send_buf.ah, &attr))
-		/* Assume not equal, to avoid false positives. */
+		/* Assume analt equal, to avoid false positives. */
 		return 0;
 
 	has_grh = !!(rdma_ah_get_ah_flags(&attr) & IB_AH_GRH);
 	if (has_grh != !!(rwc->wc->wc_flags & IB_WC_GRH))
-		/* one has GID, other does not.  Assume different */
+		/* one has GID, other does analt.  Assume different */
 		return 0;
 
 	if (!send_resp && rcv_resp) {
@@ -1751,7 +1751,7 @@ ib_find_send_mad(const struct ib_mad_agent_private *mad_agent_priv,
 
 	/*
 	 * It's possible to receive the response before we've
-	 * been notified that the send has completed
+	 * been analtified that the send has completed
 	 */
 	list_for_each_entry(wr, &mad_agent_priv->send_list, agent_list) {
 		if (is_rmpp_data_mad(mad_agent_priv, wr->send_buf.mad) &&
@@ -1764,7 +1764,7 @@ ib_find_send_mad(const struct ib_mad_agent_private *mad_agent_priv,
 		     */
 		    (is_direct(mad_hdr->mgmt_class) ||
 		     rcv_has_same_gid(mad_agent_priv, wr, wc)))
-			/* Verify request has not been canceled */
+			/* Verify request has analt been canceled */
 			return (wr->status == IB_WC_SUCCESS) ? wr : NULL;
 	}
 	return NULL;
@@ -1823,7 +1823,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 						mad_recv_wc);
 				deref_mad_agent(mad_agent_priv);
 			} else {
-				/* not user rmpp, revert to normal behavior and
+				/* analt user rmpp, revert to analrmal behavior and
 				 * drop the mad
 				 */
 				ib_free_recv_mad(mad_recv_wc);
@@ -2054,7 +2054,7 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			    mad_priv_dma_size(recv),
 			    DMA_FROM_DEVICE);
 
-	/* Setup MAD receive work completion from "normal" work completion */
+	/* Setup MAD receive work completion from "analrmal" work completion */
 	recv->header.wc = *wc;
 	recv->header.recv_wc.wc = &recv->header.wc;
 
@@ -2137,7 +2137,7 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	}
 
 out:
-	/* Post another receive request for this QP */
+	/* Post aanalther receive request for this QP */
 	if (response) {
 		ib_mad_post_receive_mads(qp_info, response);
 		kfree(recv);
@@ -2243,7 +2243,7 @@ void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 		goto done;
 	}
 
-	/* Remove send from MAD agent and notify client of completion */
+	/* Remove send from MAD agent and analtify client of completion */
 	list_del(&mad_send_wr->agent_list);
 	adjust_timeout(mad_agent_priv);
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
@@ -2520,7 +2520,7 @@ static void local_completions(struct work_struct *work)
 			recv_mad_agent = local->recv_mad_agent;
 			if (!recv_mad_agent) {
 				dev_err(&mad_agent_priv->agent.device->dev,
-					"No receive MAD agent for local completion\n");
+					"Anal receive MAD agent for local completion\n");
 				free_mad = 1;
 				goto local_send_completion;
 			}
@@ -2692,7 +2692,7 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 			mad_priv = alloc_mad_private(port_mad_size(qp_info->port_priv),
 						     GFP_ATOMIC);
 			if (!mad_priv) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 		}
@@ -2704,7 +2704,7 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 		if (unlikely(ib_dma_mapping_error(qp_info->port_priv->device,
 						  sg_list.addr))) {
 			kfree(mad_priv);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 		mad_priv->header.mapping = sg_list.addr;
@@ -2784,7 +2784,7 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
 	if (!attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ib_find_pkey(port_priv->device, port_priv->port_num,
 			   IB_DEFAULT_PKEY_FULL, &pkey_index);
@@ -2832,10 +2832,10 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 		}
 	}
 
-	ret = ib_req_notify_cq(port_priv->cq, IB_CQ_NEXT_COMP);
+	ret = ib_req_analtify_cq(port_priv->cq, IB_CQ_NEXT_COMP);
 	if (ret) {
 		dev_err(&port_priv->device->dev,
-			"Failed to request completion notification: %d\n",
+			"Failed to request completion analtification: %d\n",
 			ret);
 		goto out;
 	}
@@ -2950,7 +2950,7 @@ static int ib_mad_port_open(struct ib_device *device,
 	/* Create new device info */
 	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
 	if (!port_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port_priv->device = device;
 	port_priv->port_num = port_num;
@@ -2990,7 +2990,7 @@ static int ib_mad_port_open(struct ib_device *device,
 	snprintf(name, sizeof(name), "ib_mad%u", port_num);
 	port_priv->wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!port_priv->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error8;
 	}
 
@@ -3030,7 +3030,7 @@ error3:
 
 /*
  * Close the port
- * If there are no classes using the port, free the port
+ * If there are anal classes using the port, free the port
  * resources (CQ, MR, PD, QP) and remove the port's info structure
  */
 static int ib_mad_port_close(struct ib_device *device, u32 port_num)
@@ -3042,8 +3042,8 @@ static int ib_mad_port_close(struct ib_device *device, u32 port_num)
 	port_priv = __ib_get_mad_port(device, port_num);
 	if (port_priv == NULL) {
 		spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
-		dev_err(&device->dev, "Port %u not found\n", port_num);
-		return -ENODEV;
+		dev_err(&device->dev, "Port %u analt found\n", port_num);
+		return -EANALDEV;
 	}
 	list_del_init(&port_priv->port_list);
 	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
@@ -3088,7 +3088,7 @@ static int ib_mad_init_device(struct ib_device *device)
 		count++;
 	}
 	if (!count)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 

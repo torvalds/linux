@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _PARISC_MSGBUF_H
 #define _PARISC_MSGBUF_H
 
@@ -7,7 +7,7 @@
 
 /* 
  * The msqid64_ds structure for parisc architecture, copied from sparc.
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * Pad space is left for:

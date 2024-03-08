@@ -46,8 +46,8 @@
 #define IBMVFC_SCSI_CHANNELS		8
 #define IBMVFC_MAX_SCSI_QUEUES		16
 #define IBMVFC_SCSI_HW_QUEUES		8
-#define IBMVFC_MIG_NO_SUB_TO_CRQ	0
-#define IBMVFC_MIG_NO_N_TO_M		0
+#define IBMVFC_MIG_ANAL_SUB_TO_CRQ	0
+#define IBMVFC_MIG_ANAL_N_TO_M		0
 
 /*
  * Ensure we have resources for ERP and initialization:
@@ -62,8 +62,8 @@
 #define IBMVFC_NUM_INTERNAL_SUBQ_REQ 4
 
 #define IBMVFC_MAD_SUCCESS		0x00
-#define IBMVFC_MAD_NOT_SUPPORTED	0xF1
-#define IBMVFC_MAD_VERSION_NOT_SUPP	0xF2
+#define IBMVFC_MAD_ANALT_SUPPORTED	0xF1
+#define IBMVFC_MAD_VERSION_ANALT_SUPP	0xF2
 #define IBMVFC_MAD_FAILED		0xF7
 #define IBMVFC_MAD_DRIVER_FAILED	0xEE
 #define IBMVFC_MAD_CRQ_ERROR		0xEF
@@ -180,7 +180,7 @@ struct ibmvfc_npiv_login {
 #define IBMVFC_CAN_HANDLE_FPIN		0x04
 #define IBMVFC_CAN_USE_MAD_VERSION	0x08
 #define IBMVFC_CAN_SEND_VF_WWPN		0x10
-	__be64 node_name;
+	__be64 analde_name;
 	struct srp_direct_buf async;
 	u8 partition_name[IBMVFC_MAX_NAME];
 	u8 device_name[IBMVFC_MAX_NAME];
@@ -200,7 +200,7 @@ struct ibmvfc_common_svc_parms {
 struct ibmvfc_service_parms {
 	struct ibmvfc_common_svc_parms common;
 	u8 port_name[8];
-	u8 node_name[8];
+	u8 analde_name[8];
 	__be32 class1_parms[4];
 	__be32 class2_parms[4];
 	__be32 class3_parms[4];
@@ -231,7 +231,7 @@ struct ibmvfc_npiv_login_resp {
 	__be64 max_dma_len;
 	__be64 scsi_id;
 	__be64 port_name;
-	__be64 node_name;
+	__be64 analde_name;
 	__be64 link_speed;
 	u8 partition_name[IBMVFC_MAX_NAME];
 	u8 device_name[IBMVFC_MAX_NAME];
@@ -274,8 +274,8 @@ enum ibmvfc_fc_reason {
 	IBMVFC_LOGICAL_BUSY		= 0x05,
 	IBMVFC_PROTOCOL_ERROR		= 0x07,
 	IBMVFC_UNABLE_TO_PERFORM_REQ	= 0x09,
-	IBMVFC_CMD_NOT_SUPPORTED	= 0x0B,
-	IBMVFC_SERVER_NOT_AVAIL		= 0x0D,
+	IBMVFC_CMD_ANALT_SUPPORTED	= 0x0B,
+	IBMVFC_SERVER_ANALT_AVAIL		= 0x0D,
 	IBMVFC_CMD_IN_PROGRESS		= 0x0E,
 	IBMVFC_VENDOR_SPECIFIC		= 0xFF,
 };
@@ -290,7 +290,7 @@ enum ibmvfc_fc_type {
 };
 
 enum ibmvfc_gs_explain {
-	IBMVFC_PORT_NAME_NOT_REG	= 0x02,
+	IBMVFC_PORT_NAME_ANALT_REG	= 0x02,
 };
 
 struct ibmvfc_port_login {
@@ -316,7 +316,7 @@ struct ibmvfc_move_login {
 	__be64 old_scsi_id;
 	__be64 new_scsi_id;
 	__be64 wwpn;
-	__be64 node_name;
+	__be64 analde_name;
 	__be32 flags;
 #define IBMVFC_MOVE_LOGIN_IMPLICIT_OLD_FAILED	0x01
 #define IBMVFC_MOVE_LOGIN_IMPLICIT_NEW_FAILED	0x02
@@ -327,7 +327,7 @@ struct ibmvfc_move_login {
 	__be32 reserved2;
 	__be16 service_class;
 	__be16 vios_flags;
-#define IBMVFC_MOVE_LOGIN_VF_NOT_SENT_ADAPTER	0x01
+#define IBMVFC_MOVE_LOGIN_VF_ANALT_SENT_ADAPTER	0x01
 	__be64 reserved3;
 } __packed __aligned(8);
 
@@ -400,7 +400,7 @@ struct ibmvfc_tmf {
 } __packed __aligned(8);
 
 enum ibmvfc_fcp_rsp_info_codes {
-	RSP_NO_FAILURE		= 0x00,
+	RSP_ANAL_FAILURE		= 0x00,
 	RSP_TMF_REJECTED		= 0x04,
 	RSP_TMF_FAILED		= 0x05,
 	RSP_TMF_INVALID_LUN	= 0x09,
@@ -441,7 +441,7 @@ struct ibmvfc_fcp_rsp {
 
 enum ibmvfc_cmd_flags {
 	IBMVFC_SCATTERLIST	= 0x0001,
-	IBMVFC_NO_MEM_DESC	= 0x0002,
+	IBMVFC_ANAL_MEM_DESC	= 0x0002,
 	IBMVFC_READ			= 0x0004,
 	IBMVFC_WRITE		= 0x0008,
 	IBMVFC_TMF			= 0x0080,
@@ -545,9 +545,9 @@ struct ibmvfc_passthru_mad {
 struct ibmvfc_channel_enquiry {
 	struct ibmvfc_mad_common common;
 	__be32 flags;
-#define IBMVFC_NO_CHANNELS_TO_CRQ_SUPPORT	0x01
+#define IBMVFC_ANAL_CHANNELS_TO_CRQ_SUPPORT	0x01
 #define IBMVFC_SUPPORT_VARIABLE_SUBQ_MSG	0x02
-#define IBMVFC_NO_N_TO_M_CHANNELS_SUPPORT	0x04
+#define IBMVFC_ANAL_N_TO_M_CHANNELS_SUPPORT	0x04
 	__be32 num_scsi_subq_channels;
 	__be32 num_nvmeof_subq_channels;
 	__be32 num_scsi_vas_channels;
@@ -579,9 +579,9 @@ struct ibmvfc_channel_setup {
 struct ibmvfc_connection_info {
 	struct ibmvfc_mad_common common;
 	__be64 information_bits;
-#define IBMVFC_NO_FC_IO_CHANNEL		0x01
-#define IBMVFC_NO_PHYP_VAS		0x02
-#define IBMVFC_NO_PHYP_SUBQ		0x04
+#define IBMVFC_ANAL_FC_IO_CHANNEL		0x01
+#define IBMVFC_ANAL_PHYP_VAS		0x02
+#define IBMVFC_ANAL_PHYP_SUBQ		0x04
 #define IBMVFC_PHYP_DEPRECATED_SUBQ	0x08
 #define IBMVFC_PHYP_PRESERVED_SUBQ	0x10
 #define IBMVFC_PHYP_FULL_SUBQ		0x20
@@ -682,7 +682,7 @@ struct ibmvfc_async_crq {
 	volatile __be64 event;
 	volatile __be64 scsi_id;
 	volatile __be64 wwpn;
-	volatile __be64 node_name;
+	volatile __be64 analde_name;
 	__be64 reserved;
 } __packed __aligned(8);
 
@@ -705,7 +705,7 @@ union ibmvfc_iu {
 } __packed __aligned(8);
 
 enum ibmvfc_target_action {
-	IBMVFC_TGT_ACTION_NONE = 0,
+	IBMVFC_TGT_ACTION_ANALNE = 0,
 	IBMVFC_TGT_ACTION_INIT,
 	IBMVFC_TGT_ACTION_INIT_WAIT,
 	IBMVFC_TGT_ACTION_LOGOUT_RPORT,
@@ -834,7 +834,7 @@ struct ibmvfc_channels {
 };
 
 enum ibmvfc_host_action {
-	IBMVFC_HOST_ACTION_NONE = 0,
+	IBMVFC_HOST_ACTION_ANALNE = 0,
 	IBMVFC_HOST_ACTION_RESET,
 	IBMVFC_HOST_ACTION_REENABLE,
 	IBMVFC_HOST_ACTION_LOGO,
@@ -850,7 +850,7 @@ enum ibmvfc_host_action {
 };
 
 enum ibmvfc_host_state {
-	IBMVFC_NO_CRQ = 0,
+	IBMVFC_ANAL_CRQ = 0,
 	IBMVFC_INITIALIZING,
 	IBMVFC_ACTIVE,
 	IBMVFC_HALTED,

@@ -53,7 +53,7 @@ properties:
   vcc-supply:
     description:
       Main powersupply voltage for the chips, sometimes referred to as VDD on
-      datasheets.  If there is no separate vref-supply, then this is needed
+      datasheets.  If there is anal separate vref-supply, then this is needed
       to establish channel scaling.
 
   vdrive-supply:
@@ -116,7 +116,7 @@ allOf:
     else:
       properties:
         vref-supply: false
-  # Devices with a vref where it is not optional
+  # Devices with a vref where it is analt optional
   - if:
       properties:
         compatible:

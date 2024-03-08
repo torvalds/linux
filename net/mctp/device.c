@@ -36,12 +36,12 @@ struct mctp_dev *__mctp_dev_get(const struct net_device *dev)
 	 * Zero refcount implies a pending free, return NULL.
 	 */
 	if (mdev)
-		if (!refcount_inc_not_zero(&mdev->refs))
+		if (!refcount_inc_analt_zero(&mdev->refs))
 			return NULL;
 	return mdev;
 }
 
-/* Returned mctp_dev does not have refcount incremented. The returned pointer
+/* Returned mctp_dev does analt have refcount incremented. The returned pointer
  * remains live while rtnl_lock is held, as that prevents mctp_unregister()
  */
 struct mctp_dev *mctp_dev_get_rtnl(const struct net_device *dev)
@@ -156,13 +156,13 @@ out:
 	return skb->len;
 }
 
-static void mctp_addr_notify(struct mctp_dev *mdev, mctp_eid_t eid, int msg_type,
+static void mctp_addr_analtify(struct mctp_dev *mdev, mctp_eid_t eid, int msg_type,
 			     struct sk_buff *req_skb, struct nlmsghdr *req_nlh)
 {
 	u32 portid = NETLINK_CB(req_skb).portid;
 	struct net *net = dev_net(mdev->dev);
 	struct sk_buff *skb;
-	int rc = -ENOBUFS;
+	int rc = -EANALBUFS;
 
 	skb = nlmsg_new(mctp_addrinfo_size(), GFP_KERNEL);
 	if (!skb)
@@ -175,7 +175,7 @@ static void mctp_addr_notify(struct mctp_dev *mdev, mctp_eid_t eid, int msg_type
 		goto out;
 	}
 
-	rtnl_notify(skb, net, portid, RTNLGRP_MCTP_IFADDR, req_nlh, GFP_KERNEL);
+	rtnl_analtify(skb, net, portid, RTNLGRP_MCTP_IFADDR, req_nlh, GFP_KERNEL);
 	return;
 out:
 	kfree_skb(skb);
@@ -217,11 +217,11 @@ static int mctp_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	/* find device */
 	dev = __dev_get_by_index(net, ifm->ifa_index);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mdev = mctp_dev_get_rtnl(dev);
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!mctp_address_unicast(addr->s_addr))
 		return -EINVAL;
@@ -232,7 +232,7 @@ static int mctp_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	tmp_addrs = kmalloc(mdev->num_addrs + 1, GFP_KERNEL);
 	if (!tmp_addrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(tmp_addrs, mdev->addrs, mdev->num_addrs);
 	tmp_addrs[mdev->num_addrs] = addr->s_addr;
 
@@ -244,7 +244,7 @@ static int mctp_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	kfree(tmp_addrs);
 
-	mctp_addr_notify(mdev, addr->s_addr, RTM_NEWADDR, skb, nlh);
+	mctp_addr_analtify(mdev, addr->s_addr, RTM_NEWADDR, skb, nlh);
 	mctp_route_add_local(mdev, addr->s_addr);
 
 	return 0;
@@ -280,19 +280,19 @@ static int mctp_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	/* find device */
 	dev = __dev_get_by_index(net, ifm->ifa_index);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mdev = mctp_dev_get_rtnl(dev);
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pos = memchr(mdev->addrs, addr->s_addr, mdev->num_addrs);
 	if (!pos)
-		return -ENOENT;
+		return -EANALENT;
 
 	rc = mctp_route_remove_local(mdev, addr->s_addr);
-	// we can ignore -ENOENT in the case a route was already removed
-	if (rc < 0 && rc != -ENOENT)
+	// we can iganalre -EANALENT in the case a route was already removed
+	if (rc < 0 && rc != -EANALENT)
 		return rc;
 
 	spin_lock_irqsave(&mdev->addrs_lock, flags);
@@ -300,7 +300,7 @@ static int mctp_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	mdev->num_addrs--;
 	spin_unlock_irqrestore(&mdev->addrs_lock, flags);
 
-	mctp_addr_notify(mdev, addr->s_addr, RTM_DELADDR, skb, nlh);
+	mctp_addr_analtify(mdev, addr->s_addr, RTM_DELADDR, skb, nlh);
 
 	return 0;
 }
@@ -345,7 +345,7 @@ static struct mctp_dev *mctp_add_dev(struct net_device *dev)
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&mdev->addrs_lock);
 
@@ -368,7 +368,7 @@ static int mctp_fill_link_af(struct sk_buff *skb,
 
 	mdev = mctp_dev_get_rtnl(dev);
 	if (!mdev)
-		return -ENODATA;
+		return -EANALDATA;
 	if (nla_put_u32(skb, IFLA_MCTP_NET, mdev->net))
 		return -EMSGSIZE;
 	return 0;
@@ -416,12 +416,12 @@ static int mctp_set_link_af(struct net_device *dev, const struct nlattr *attr,
 }
 
 /* Matches netdev types that should have MCTP handling */
-static bool mctp_known(struct net_device *dev)
+static bool mctp_kanalwn(struct net_device *dev)
 {
-	/* only register specific types (inc. NONE for TUN devices) */
+	/* only register specific types (inc. ANALNE for TUN devices) */
 	return dev->type == ARPHRD_MCTP ||
 		   dev->type == ARPHRD_LOOPBACK ||
-		   dev->type == ARPHRD_NONE;
+		   dev->type == ARPHRD_ANALNE;
 }
 
 static void mctp_unregister(struct net_device *dev)
@@ -449,7 +449,7 @@ static int mctp_register(struct net_device *dev)
 		return 0;
 
 	/* only register specific types */
-	if (!mctp_known(dev))
+	if (!mctp_kanalwn(dev))
 		return 0;
 
 	mdev = mctp_add_dev(dev);
@@ -459,24 +459,24 @@ static int mctp_register(struct net_device *dev)
 	return 0;
 }
 
-static int mctp_dev_notify(struct notifier_block *this, unsigned long event,
+static int mctp_dev_analtify(struct analtifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	int rc;
 
 	switch (event) {
 	case NETDEV_REGISTER:
 		rc = mctp_register(dev);
 		if (rc)
-			return notifier_from_errno(rc);
+			return analtifier_from_erranal(rc);
 		break;
 	case NETDEV_UNREGISTER:
 		mctp_unregister(dev);
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int mctp_register_netdevice(struct net_device *dev,
@@ -519,14 +519,14 @@ static struct rtnl_af_ops mctp_af_ops = {
 	.set_link_af = mctp_set_link_af,
 };
 
-static struct notifier_block mctp_dev_nb = {
-	.notifier_call = mctp_dev_notify,
-	.priority = ADDRCONF_NOTIFY_PRIORITY,
+static struct analtifier_block mctp_dev_nb = {
+	.analtifier_call = mctp_dev_analtify,
+	.priority = ADDRCONF_ANALTIFY_PRIORITY,
 };
 
 void __init mctp_device_init(void)
 {
-	register_netdevice_notifier(&mctp_dev_nb);
+	register_netdevice_analtifier(&mctp_dev_nb);
 
 	rtnl_register_module(THIS_MODULE, PF_MCTP, RTM_GETADDR,
 			     NULL, mctp_dump_addrinfo, 0);
@@ -544,5 +544,5 @@ void __exit mctp_device_exit(void)
 	rtnl_unregister(PF_MCTP, RTM_NEWADDR);
 	rtnl_unregister(PF_MCTP, RTM_GETADDR);
 
-	unregister_netdevice_notifier(&mctp_dev_nb);
+	unregister_netdevice_analtifier(&mctp_dev_nb);
 }

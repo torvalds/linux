@@ -53,7 +53,7 @@ static unsigned char cougar_mapping[][2] = {
 	{ COUGAR_KEY_G4,   KEY_F16 },
 	{ COUGAR_KEY_G5,   KEY_F17 },
 	{ COUGAR_KEY_LOCK, KEY_SCREENLOCK },
-/* The following keys are handled by the hardware itself, so no special
+/* The following keys are handled by the hardware itself, so anal special
  * treatment is required:
 	{ COUGAR_KEY_FN, KEY_RESERVED },
 	{ COUGAR_KEY_MR, KEY_RESERVED },
@@ -97,7 +97,7 @@ static void cougar_fix_g6_mapping(void)
 			return;
 		}
 	}
-	pr_warn("cougar: no mappings defined for G6/spacebar");
+	pr_warn("cougar: anal mappings defined for G6/spacebar");
 }
 
 /*
@@ -154,7 +154,7 @@ static void cougar_remove_shared_data(void *resource)
 
 /*
  * Bind the device group's shared data to this cougar struct.
- * If no shared data exists for this group, create and initialize it.
+ * If anal shared data exists for this group, create and initialize it.
  */
 static int cougar_bind_shared_data(struct hid_device *hdev,
 				   struct cougar *cougar)
@@ -168,7 +168,7 @@ static int cougar_bind_shared_data(struct hid_device *hdev,
 	if (!shared) {
 		shared = kzalloc(sizeof(*shared), GFP_KERNEL);
 		if (!shared) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out;
 		}
 
@@ -200,7 +200,7 @@ static int cougar_probe(struct hid_device *hdev,
 
 	cougar = devm_kzalloc(&hdev->dev, sizeof(*cougar), GFP_KERNEL);
 	if (!cougar)
-		return -ENOMEM;
+		return -EANALMEM;
 	hid_set_drvdata(hdev, cougar);
 
 	error = hid_parse(hdev);
@@ -282,7 +282,7 @@ static int cougar_raw_event(struct hid_device *hdev, struct hid_report *report,
 	}
 	/* Avoid warnings on the same unmapped key twice */
 	if (action != 0)
-		hid_warn(hdev, "unmapped special key code %0x: ignoring\n", code);
+		hid_warn(hdev, "unmapped special key code %0x: iganalring\n", code);
 	return -EPERM;
 }
 

@@ -5,10 +5,10 @@
 #
 # Create a .config file from the spec file.  Run from the kernel source tree.
 # Exits with 0 if all went well, with 1 if all went well but the config
-# did not match, and some other number for other failures.
+# did analt match, and some other number for other failures.
 #
 # The first argument is the .config specification file, which contains
-# desired settings, for example, "CONFIG_NO_HZ=y".  For best results,
+# desired settings, for example, "CONFIG_ANAL_HZ=y".  For best results,
 # this should be a full pathname.
 #
 # Copyright (C) IBM Corporation, 2013
@@ -35,7 +35,7 @@ make $TORTURE_KMAKE_ARG $TORTURE_DEFCONFIG > $resdir/Make.defconfig.out 2>&1
 mv .config .config.sav
 sh $T/upd.sh < .config.sav > .config
 cp .config .config.new
-yes '' | make $TORTURE_KMAKE_ARG oldconfig > $resdir/Make.oldconfig.out 2> $resdir/Make.oldconfig.err
+anal '' | make $TORTURE_KMAKE_ARG oldconfig > $resdir/Make.oldconfig.out 2> $resdir/Make.oldconfig.err
 
 # verify new config matches specification.
 configcheck.sh .config $c

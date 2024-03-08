@@ -12,9 +12,9 @@
  * Driver: c6xdigio
  * Description: Mechatronic Systems Inc. C6x_DIGIO DSP daughter card
  * Author: Dan Block
- * Status: unknown
+ * Status: unkanalwn
  * Devices: [Mechatronic Systems Inc.] C6x_DIGIO DSP daughter card (c6xdigio)
- * Updated: Sun Nov 20 20:18:34 EST 2005
+ * Updated: Sun Analv 20 20:18:34 EST 2005
  *
  * Configuration Options:
  *	[0] - base address
@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/timer.h>
@@ -258,7 +258,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 500;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkanalwn;
 	s->insn_write	= c6xdigio_pwm_insn_write;
 	s->insn_read	= c6xdigio_pwm_insn_read;
 
@@ -268,11 +268,11 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE | SDF_LSAMPL;
 	s->n_chan	= 2;
 	s->maxdata	= 0xffffff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkanalwn;
 	s->insn_read	= c6xdigio_encoder_insn_read;
 
 	/*  I will call this init anyway but more than likely the DSP board */
-	/*  will not be connected when device driver is loaded. */
+	/*  will analt be connected when device driver is loaded. */
 	c6xdigio_init(dev);
 
 	return 0;

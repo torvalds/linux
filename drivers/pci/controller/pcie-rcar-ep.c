@@ -44,7 +44,7 @@ static void rcar_pcie_ep_hw_init(struct rcar_pcie *pcie)
 	rcar_rmw32(pcie, REXPCAP(PCI_EXP_FLAGS),
 		   PCI_EXP_FLAGS_TYPE, PCI_EXP_TYPE_ENDPOINT << 4);
 	rcar_rmw32(pcie, RCONF(PCI_HEADER_TYPE), PCI_HEADER_TYPE_MASK,
-		   PCI_HEADER_TYPE_NORMAL);
+		   PCI_HEADER_TYPE_ANALRMAL);
 
 	/* Write out the physical slot number = 0 */
 	rcar_rmw32(pcie, REXPCAP(PCI_EXP_SLTCAP), PCI_EXP_SLTCAP_PSN, 0);
@@ -108,7 +108,7 @@ static int rcar_pcie_parse_outbound_ranges(struct rcar_pcie_endpoint *ep,
 		if (!devm_request_mem_region(&pdev->dev, res->start,
 					     resource_size(res),
 					     outbound_name)) {
-			dev_err(pcie->dev, "Cannot request memory region %s.\n",
+			dev_err(pcie->dev, "Cananalt request memory region %s.\n",
 				outbound_name);
 			return -EIO;
 		}
@@ -134,7 +134,7 @@ static int rcar_pcie_ep_get_pdata(struct rcar_pcie_endpoint *ep,
 	struct resource res;
 	int err;
 
-	err = of_address_to_resource(dev->of_node, 0, &res);
+	err = of_address_to_resource(dev->of_analde, 0, &res);
 	if (err)
 		return err;
 	pcie->base = devm_ioremap_resource(dev, &res);
@@ -144,11 +144,11 @@ static int rcar_pcie_ep_get_pdata(struct rcar_pcie_endpoint *ep,
 	ep->ob_window = devm_kcalloc(dev, RCAR_PCI_MAX_RESOURCES,
 				     sizeof(*window), GFP_KERNEL);
 	if (!ep->ob_window)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcar_pcie_parse_outbound_ranges(ep, pdev);
 
-	err = of_property_read_u8(dev->of_node, "max-functions",
+	err = of_property_read_u8(dev->of_analde, "max-functions",
 				  &ep->max_functions);
 	if (err < 0 || ep->max_functions > RCAR_EPC_MAX_FUNCTIONS)
 		ep->max_functions = RCAR_EPC_MAX_FUNCTIONS;
@@ -192,14 +192,14 @@ static int rcar_pcie_ep_write_header(struct pci_epc *epc, u8 fn, u8 vfn,
 	return 0;
 }
 
-static int rcar_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
+static int rcar_pcie_ep_set_bar(struct pci_epc *epc, u8 func_anal, u8 vfunc_anal,
 				struct pci_epf_bar *epf_bar)
 {
 	int flags = epf_bar->flags | LAR_ENABLE | LAM_64BIT;
 	struct rcar_pcie_endpoint *ep = epc_get_drvdata(epc);
 	u64 size = 1ULL << fls64(epf_bar->size - 1);
 	dma_addr_t cpu_addr = epf_bar->phys_addr;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baranal bar = epf_bar->baranal;
 	struct rcar_pcie *pcie = &ep->pcie;
 	u32 mask;
 	int idx;
@@ -207,7 +207,7 @@ static int rcar_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 
 	idx = find_first_zero_bit(ep->ib_window_map, ep->num_ib_windows);
 	if (idx >= ep->num_ib_windows) {
-		dev_err(pcie->dev, "no free inbound window\n");
+		dev_err(pcie->dev, "anal free inbound window\n");
 		return -EINVAL;
 	}
 
@@ -236,7 +236,7 @@ static int rcar_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 
 	err = rcar_pcie_wait_for_phyrdy(pcie);
 	if (err) {
-		dev_err(pcie->dev, "phy not ready\n");
+		dev_err(pcie->dev, "phy analt ready\n");
 		return -EINVAL;
 	}
 
@@ -247,7 +247,7 @@ static void rcar_pcie_ep_clear_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 				   struct pci_epf_bar *epf_bar)
 {
 	struct rcar_pcie_endpoint *ep = epc_get_drvdata(epc);
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baranal bar = epf_bar->baranal;
 	u32 atu_index = ep->bar_to_atu[bar];
 
 	rcar_pcie_set_inbound(&ep->pcie, 0x0, 0x0, 0x0, bar, false);
@@ -296,7 +296,7 @@ static int rcar_pcie_ep_map_addr(struct pci_epc *epc, u8 fn, u8 vfn,
 	/* check if we have a link. */
 	err = rcar_pcie_wait_for_dl(pcie);
 	if (err) {
-		dev_err(pcie->dev, "link not up\n");
+		dev_err(pcie->dev, "link analt up\n");
 		return err;
 	}
 
@@ -351,7 +351,7 @@ static int rcar_pcie_ep_assert_intx(struct rcar_pcie_endpoint *ep,
 
 	val = rcar_pci_read_reg(pcie, PCIEMSITXR);
 	if ((val & PCI_MSI_FLAGS_ENABLE)) {
-		dev_err(pcie->dev, "MSI is enabled, cannot assert INTx\n");
+		dev_err(pcie->dev, "MSI is enabled, cananalt assert INTx\n");
 		return -EINVAL;
 	}
 
@@ -436,7 +436,7 @@ static void rcar_pcie_ep_stop(struct pci_epc *epc)
 }
 
 static const struct pci_epc_features rcar_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_analtifier = false,
 	.msi_capable = true,
 	.msix_capable = false,
 	/* use 64-bit BARs so mark BAR[1,3,5] as reserved */
@@ -448,7 +448,7 @@ static const struct pci_epc_features rcar_pcie_epc_features = {
 };
 
 static const struct pci_epc_features*
-rcar_pcie_ep_get_features(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
+rcar_pcie_ep_get_features(struct pci_epc *epc, u8 func_anal, u8 vfunc_anal)
 {
 	return &rcar_pcie_epc_features;
 }
@@ -483,7 +483,7 @@ static int rcar_pcie_ep_probe(struct platform_device *pdev)
 
 	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = &ep->pcie;
 	pcie->dev = dev;
@@ -506,7 +506,7 @@ static int rcar_pcie_ep_probe(struct platform_device *pdev)
 			devm_kcalloc(dev, BITS_TO_LONGS(ep->num_ib_windows),
 				     sizeof(long), GFP_KERNEL);
 	if (!ep->ib_window_map) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(dev, "failed to allocate memory for inbound map\n");
 		goto err_pm_put;
 	}
@@ -515,7 +515,7 @@ static int rcar_pcie_ep_probe(struct platform_device *pdev)
 					  sizeof(*ep->ob_mapped_addr),
 					  GFP_KERNEL);
 	if (!ep->ob_mapped_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(dev, "failed to allocate memory for outbound memory pointers\n");
 		goto err_pm_put;
 	}

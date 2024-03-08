@@ -29,7 +29,7 @@ static const struct ia_css_raw_configuration default_config = {
 	.pipe = (struct sh_css_sp_pipeline *)NULL,
 };
 
-/* MW: These areMIPI / ISYS properties, not camera function properties */
+/* MW: These areMIPI / ISYS properties, analt camera function properties */
 static enum sh_stream_format
 css2isp_stream_format(enum atomisp_input_format from) {
 	switch (from)
@@ -85,7 +85,7 @@ int ia_css_raw_config(struct sh_css_isp_raw_isp_config *to,
 	       (elems_a % to->port_b.elems == 0));
 
 	to->width_a_over_b      = elems_a / to->port_b.elems;
-	to->inout_port_config   = from->pipe->inout_port_config;
+	to->ianalut_port_config   = from->pipe->ianalut_port_config;
 	to->format              = in_info->format;
 	to->required_bds_factor = from->pipe->required_bds_factor;
 	to->two_ppc             = from->two_ppc;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_GENERIC_TERMBITS_COMMON_H
 #define __ASM_GENERIC_TERMBITS_COMMON_H
 
@@ -6,21 +6,21 @@ typedef unsigned char	cc_t;
 typedef unsigned int	speed_t;
 
 /* c_iflag bits */
-#define IGNBRK	0x001			/* Ignore break condition */
+#define IGNBRK	0x001			/* Iganalre break condition */
 #define BRKINT	0x002			/* Signal interrupt on break */
-#define IGNPAR	0x004			/* Ignore characters with parity errors */
+#define IGNPAR	0x004			/* Iganalre characters with parity errors */
 #define PARMRK	0x008			/* Mark parity and framing errors */
 #define INPCK	0x010			/* Enable input parity check */
 #define ISTRIP	0x020			/* Strip 8th bit off characters */
 #define INLCR	0x040			/* Map NL to CR on input */
-#define IGNCR	0x080			/* Ignore CR */
+#define IGNCR	0x080			/* Iganalre CR */
 #define ICRNL	0x100			/* Map CR to NL on input */
 #define IXANY	0x800			/* Any character will restart after stop */
 
 /* c_oflag bits */
 #define OPOST	0x01			/* Perform output processing */
 #define OCRNL	0x08
-#define ONOCR	0x10
+#define OANALCR	0x10
 #define ONLRET	0x20
 #define OFILL	0x40
 #define OFDEL	0x80
@@ -59,8 +59,8 @@ typedef unsigned int	speed_t;
 #define TCION		3		/* Send a START character */
 
 /* tcflush() QUEUE_SELECTOR argument and TCFLSH use these */
-#define TCIFLUSH	0		/* Discard data received but not yet read */
-#define TCOFLUSH	1		/* Discard data written but not yet sent */
+#define TCIFLUSH	0		/* Discard data received but analt yet read */
+#define TCOFLUSH	1		/* Discard data written but analt yet sent */
 #define TCIOFLUSH	2		/* Discard all pending data */
 
 #endif /* __ASM_GENERIC_TERMBITS_COMMON_H */

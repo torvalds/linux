@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
+/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-analte) OR MIT */
 /*
  * Header file for the io_uring interface.
  *
@@ -12,9 +12,9 @@
 #include <linux/types.h>
 /*
  * this file is shared with liburing and that has to autodetect
- * if linux/time_types.h is available or not, it can
+ * if linux/time_types.h is available or analt, it can
  * define UAPI_LINUX_IO_URING_H_SKIP_LINUX_TIME_TYPES_H
- * if linux/time_types.h is not available
+ * if linux/time_types.h is analt available
  */
 #ifndef UAPI_LINUX_IO_URING_H_SKIP_LINUX_TIME_TYPES_H
 #include <linux/time_types.h>
@@ -163,9 +163,9 @@ enum {
  */
 #define IORING_SETUP_COOP_TASKRUN	(1U << 8)
 /*
- * If COOP_TASKRUN is set, get notified if task work is available for
+ * If COOP_TASKRUN is set, get analtified if task work is available for
  * running and a kernel transition would be needed to run it. This sets
- * IORING_SQ_TASKRUN in the sq ring flags. Not valid with COOP_TASKRUN.
+ * IORING_SQ_TASKRUN in the sq ring flags. Analt valid with COOP_TASKRUN.
  */
 #define IORING_SETUP_TASKRUN_FLAG	(1U << 9)
 #define IORING_SETUP_SQE128		(1U << 10) /* SQEs are 128 byte */
@@ -185,7 +185,7 @@ enum {
 /*
  * Application provides the memory for the rings
  */
-#define IORING_SETUP_NO_MMAP		(1U << 14)
+#define IORING_SETUP_ANAL_MMAP		(1U << 14)
 
 /*
  * Register the ring fd in itself for use with
@@ -197,10 +197,10 @@ enum {
 /*
  * Removes indirection through the SQ index array.
  */
-#define IORING_SETUP_NO_SQARRAY		(1U << 16)
+#define IORING_SETUP_ANAL_SQARRAY		(1U << 16)
 
 enum io_uring_op {
-	IORING_OP_NOP,
+	IORING_OP_ANALP,
 	IORING_OP_READV,
 	IORING_OP_WRITEV,
 	IORING_OP_FSYNC,
@@ -293,7 +293,7 @@ enum io_uring_op {
 #define SPLICE_F_FD_IN_FIXED	(1U << 31) /* the last bit of __u32 */
 
 /*
- * POLL_ADD flags. Note that since sqe->poll_events is the flag space, the
+ * POLL_ADD flags. Analte that since sqe->poll_events is the flag space, the
  * command flags for POLL_ADD are stored in sqe->len.
  *
  * IORING_POLL_ADD_MULTI	Multishot poll. Sets IORING_CQE_F_MORE if
@@ -318,7 +318,7 @@ enum io_uring_op {
  *				request 'user_data'
  * IORING_ASYNC_CANCEL_ANY	Match any request
  * IORING_ASYNC_CANCEL_FD_FIXED	'fd' passed in is a fixed descriptor
- * IORING_ASYNC_CANCEL_USERDATA	Match on user_data, default for no other key
+ * IORING_ASYNC_CANCEL_USERDATA	Match on user_data, default for anal other key
  * IORING_ASYNC_CANCEL_OP	Match request based on opcode
  */
 #define IORING_ASYNC_CANCEL_ALL	(1U << 0)
@@ -346,9 +346,9 @@ enum io_uring_op {
  * IORING_SEND_ZC_REPORT_USAGE
  *				If set, SEND[MSG]_ZC should report
  *				the zerocopy usage in cqe.res
- *				for the IORING_CQE_F_NOTIF cqe.
+ *				for the IORING_CQE_F_ANALTIF cqe.
  *				0 is reported if zerocopy was actually possible.
- *				IORING_NOTIF_USAGE_ZC_COPIED if data was copied
+ *				IORING_ANALTIF_USAGE_ZC_COPIED if data was copied
  *				(at least partially).
  */
 #define IORING_RECVSEND_POLL_FIRST	(1U << 0)
@@ -357,13 +357,13 @@ enum io_uring_op {
 #define IORING_SEND_ZC_REPORT_USAGE	(1U << 3)
 
 /*
- * cqe.res for IORING_CQE_F_NOTIF if
+ * cqe.res for IORING_CQE_F_ANALTIF if
  * IORING_SEND_ZC_REPORT_USAGE was requested
  *
  * It should be treated as a flag, all other
  * bits of cqe.res should be treated as reserved!
  */
-#define IORING_NOTIF_USAGE_ZC_COPIED    (1U << 31)
+#define IORING_ANALTIF_USAGE_ZC_COPIED    (1U << 31)
 
 /*
  * accept flags stored in sqe->ioprio
@@ -375,13 +375,13 @@ enum io_uring_op {
  */
 enum {
 	IORING_MSG_DATA,	/* pass sqe->len as 'res' and off as user_data */
-	IORING_MSG_SEND_FD,	/* send a registered fd to another ring */
+	IORING_MSG_SEND_FD,	/* send a registered fd to aanalther ring */
 };
 
 /*
  * IORING_OP_MSG_RING flags (sqe->msg_ring_flags)
  *
- * IORING_MSG_RING_CQE_SKIP	Don't post a CQE to the target ring. Not
+ * IORING_MSG_RING_CQE_SKIP	Don't post a CQE to the target ring. Analt
  *				applicable for IORING_MSG_DATA, obviously.
  */
 #define IORING_MSG_RING_CQE_SKIP	(1U << 0)
@@ -391,9 +391,9 @@ enum {
 /*
  * IORING_OP_FIXED_FD_INSTALL flags (sqe->install_fd_flags)
  *
- * IORING_FIXED_FD_NO_CLOEXEC	Don't mark the fd as O_CLOEXEC
+ * IORING_FIXED_FD_ANAL_CLOEXEC	Don't mark the fd as O_CLOEXEC
  */
-#define IORING_FIXED_FD_NO_CLOEXEC	(1U << 0)
+#define IORING_FIXED_FD_ANAL_CLOEXEC	(1U << 0)
 
 /*
  * IO completion data structure (Completion Queue Entry)
@@ -415,14 +415,14 @@ struct io_uring_cqe {
  *
  * IORING_CQE_F_BUFFER	If set, the upper 16 bits are the buffer ID
  * IORING_CQE_F_MORE	If set, parent SQE will generate more CQE entries
- * IORING_CQE_F_SOCK_NONEMPTY	If set, more data to read after socket recv
- * IORING_CQE_F_NOTIF	Set for notification CQEs. Can be used to distinct
+ * IORING_CQE_F_SOCK_ANALNEMPTY	If set, more data to read after socket recv
+ * IORING_CQE_F_ANALTIF	Set for analtification CQEs. Can be used to distinct
  * 			them from sends.
  */
 #define IORING_CQE_F_BUFFER		(1U << 0)
 #define IORING_CQE_F_MORE		(1U << 1)
-#define IORING_CQE_F_SOCK_NONEMPTY	(1U << 2)
-#define IORING_CQE_F_NOTIF		(1U << 3)
+#define IORING_CQE_F_SOCK_ANALNEMPTY	(1U << 2)
+#define IORING_CQE_F_ANALTIF		(1U << 3)
 
 enum {
 	IORING_CQE_BUFFER_SHIFT		= 16,
@@ -476,7 +476,7 @@ struct io_cqring_offsets {
  * cq_ring->flags
  */
 
-/* disable eventfd notifications */
+/* disable eventfd analtifications */
 #define IORING_CQ_EVENTFD_DISABLED	(1U << 0)
 
 /*
@@ -508,13 +508,13 @@ struct io_uring_params {
  * io_uring_params->features flags
  */
 #define IORING_FEAT_SINGLE_MMAP		(1U << 0)
-#define IORING_FEAT_NODROP		(1U << 1)
+#define IORING_FEAT_ANALDROP		(1U << 1)
 #define IORING_FEAT_SUBMIT_STABLE	(1U << 2)
 #define IORING_FEAT_RW_CUR_POS		(1U << 3)
 #define IORING_FEAT_CUR_PERSONALITY	(1U << 4)
 #define IORING_FEAT_FAST_POLL		(1U << 5)
 #define IORING_FEAT_POLL_32BITS 	(1U << 6)
-#define IORING_FEAT_SQPOLL_NONFIXED	(1U << 7)
+#define IORING_FEAT_SQPOLL_ANALNFIXED	(1U << 7)
 #define IORING_FEAT_EXT_ARG		(1U << 8)
 #define IORING_FEAT_NATIVE_WORKERS	(1U << 9)
 #define IORING_FEAT_RSRC_TAGS		(1U << 10)
@@ -677,7 +677,7 @@ struct io_uring_buf_ring {
  * Flags for IORING_REGISTER_PBUF_RING.
  *
  * IOU_PBUF_RING_MMAP:	If set, kernel will allocate the memory for the ring.
- *			The application must not set a ring_addr in struct
+ *			The application must analt set a ring_addr in struct
  *			io_uring_buf_reg, instead it must subsequently call
  *			mmap(2) with the offset set as:
  *			IORING_OFF_PBUF_RING | (bgid << IORING_OFF_PBUF_SHIFT)

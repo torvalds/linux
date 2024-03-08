@@ -10,11 +10,11 @@ ENTRY(strlen)
 	andi	r1, r0, 3
 	movi	r2, 4
 	movi	r0, 0
-	bnez	r1, .L_start_not_aligned
+	bnez	r1, .L_start_analt_aligned
 
 	LABLE_ALIGN
 .L_start_addr_aligned:
-	/* Check if all the bytes in the word are not zero.  */
+	/* Check if all the bytes in the word are analt zero.  */
 	ldw	r1, (r3)
 	tstnbz	r1
 	bf	.L_string_tail
@@ -84,14 +84,14 @@ ENTRY(strlen)
 .L_return:
 	rts
 
-.L_start_not_aligned:
+.L_start_analt_aligned:
 	sub	r2, r2, r1
-.L_start_not_aligned_loop:
+.L_start_analt_aligned_loop:
 	ldb	r1, (r3)
 	PRE_BNEZAD (r2)
 	addi	r3, 1
 	bez	r1, .L_return
 	addi	r0, 1
-	BNEZAD (r2, .L_start_not_aligned_loop)
+	BNEZAD (r2, .L_start_analt_aligned_loop)
 	br	.L_start_addr_aligned
 ENDPROC(strlen)

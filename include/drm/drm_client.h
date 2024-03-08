@@ -16,7 +16,7 @@ struct drm_device;
 struct drm_file;
 struct drm_framebuffer;
 struct drm_gem_object;
-struct drm_minor;
+struct drm_mianalr;
 struct module;
 
 /**
@@ -42,10 +42,10 @@ struct drm_client_funcs {
 	 * @restore:
 	 *
 	 * Called on drm_lastclose(). The first client instance in the list that
-	 * returns zero gets the privilege to restore and no more clients are
-	 * called. This callback is not called after @unregister has been called.
+	 * returns zero gets the privilege to restore and anal more clients are
+	 * called. This callback is analt called after @unregister has been called.
 	 *
-	 * Note that the core does not guarantee exclusion against concurrent
+	 * Analte that the core does analt guarantee exclusion against concurrent
 	 * drm_open(). Clients need to ensure this themselves, for example by
 	 * using drm_master_internal_acquire() and
 	 * drm_master_internal_release().
@@ -58,7 +58,7 @@ struct drm_client_funcs {
 	 * @hotplug:
 	 *
 	 * Called on drm_kms_helper_hotplug_event().
-	 * This callback is not called after @unregister has been called.
+	 * This callback is analt called after @unregister has been called.
 	 *
 	 * This callback is optional.
 	 */
@@ -111,7 +111,7 @@ struct drm_client_dev {
 	 * @hotplug_failed:
 	 *
 	 * Set by client hotplug helpers if the hotplugging failed
-	 * before. It is usually not tried again.
+	 * before. It is usually analt tried again.
 	 */
 	bool hotplug_failed;
 };

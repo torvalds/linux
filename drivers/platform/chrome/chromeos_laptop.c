@@ -30,7 +30,7 @@ static const char *i2c_adapter_names[] = {
 	"SMBus I801 adapter",
 	"i915 gmbus vga",
 	"i915 gmbus panel",
-	"Synopsys DesignWare I2C adapter",
+	"Syanalpsys DesignWare I2C adapter",
 };
 
 /* Keep this enum consistent with i2c_adapter_names */
@@ -59,13 +59,13 @@ struct i2c_peripheral {
 
 struct acpi_peripheral {
 	char hid[ACPI_ID_LEN];
-	struct software_node swnode;
+	struct software_analde swanalde;
 	struct i2c_client *client;
 };
 
 struct chromeos_laptop {
 	/*
-	 * Note that we can't mark this pointer as const because
+	 * Analte that we can't mark this pointer as const because
 	 * i2c_new_scanned_device() changes passed in I2C board info, so.
 	 */
 	struct i2c_peripheral *i2c_peripherals;
@@ -178,7 +178,7 @@ static bool chromeos_laptop_adjust_client(struct i2c_client *client)
 		memcpy(acpi_ids[0].id, acpi_dev->hid, ACPI_ID_LEN);
 
 		if (acpi_match_device(acpi_ids, &client->dev)) {
-			error = device_add_software_node(&client->dev, &acpi_dev->swnode);
+			error = device_add_software_analde(&client->dev, &acpi_dev->swanalde);
 			if (error) {
 				dev_err(&client->dev,
 					"failed to add properties: %d\n",
@@ -221,20 +221,20 @@ static void chromeos_laptop_detach_i2c_client(struct i2c_client *client)
 		}
 }
 
-static int chromeos_laptop_i2c_notifier_call(struct notifier_block *nb,
+static int chromeos_laptop_i2c_analtifier_call(struct analtifier_block *nb,
 					     unsigned long action, void *data)
 {
 	struct device *dev = data;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		if (dev->type == &i2c_adapter_type)
 			chromeos_laptop_check_adapter(to_i2c_adapter(dev));
 		else if (dev->type == &i2c_client_type)
 			chromeos_laptop_adjust_client(to_i2c_client(dev));
 		break;
 
-	case BUS_NOTIFY_REMOVED_DEVICE:
+	case BUS_ANALTIFY_REMOVED_DEVICE:
 		if (dev->type == &i2c_client_type)
 			chromeos_laptop_detach_i2c_client(to_i2c_client(dev));
 		break;
@@ -243,8 +243,8 @@ static int chromeos_laptop_i2c_notifier_call(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block chromeos_laptop_i2c_notifier = {
-	.notifier_call = chromeos_laptop_i2c_notifier_call,
+static struct analtifier_block chromeos_laptop_i2c_analtifier = {
+	.analtifier_call = chromeos_laptop_i2c_analtifier_call,
 };
 
 #define DECLARE_CROS_LAPTOP(_name)					\
@@ -512,14 +512,14 @@ static struct acpi_peripheral samus_peripherals[] __initdata = {
 	/* Touchpad */
 	{
 		.hid		= "ATML0000",
-		.swnode		= {
+		.swanalde		= {
 			.properties = samus_trackpad_props,
 		},
 	},
 	/* Touchsceen */
 	{
 		.hid		= "ATML0001",
-		.swnode		= {
+		.swanalde		= {
 			.properties = chromebook_atmel_touchscreen_props,
 		},
 	},
@@ -530,14 +530,14 @@ static struct acpi_peripheral generic_atmel_peripherals[] __initdata = {
 	/* Touchpad */
 	{
 		.hid		= "ATML0000",
-		.swnode		= {
+		.swanalde		= {
 			.properties = chromebook_pixel_trackpad_props,
 		},
 	},
 	/* Touchsceen */
 	{
 		.hid		= "ATML0001",
-		.swnode		= {
+		.swanalde		= {
 			.properties = chromebook_atmel_touchscreen_props,
 		},
 	},
@@ -661,7 +661,7 @@ static const struct dmi_system_id chromeos_laptop_dmi_table[] __initconst = {
 		.ident = "Other Chromebook",
 		.matches = {
 			/*
-			 * This will match all Google devices, not only devices
+			 * This will match all Google devices, analt only devices
 			 * with Atmel, but we will validate that the device
 			 * actually has matching peripherals.
 			 */
@@ -682,7 +682,7 @@ static int __init chromeos_laptop_scan_peripherals(struct device *dev, void *dat
 	} else if (dev->type == &i2c_client_type) {
 		if (chromeos_laptop_adjust_client(to_i2c_client(dev))) {
 			/*
-			 * Now that we have needed properties re-trigger
+			 * Analw that we have needed properties re-trigger
 			 * driver probe in case driver was initialized
 			 * earlier and probe failed.
 			 */
@@ -705,7 +705,7 @@ static int __init chromeos_laptop_get_irq_from_dmi(const char *dmi_name)
 	dmi_dev = dmi_find_device(DMI_DEV_TYPE_DEV_ONBOARD, dmi_name, NULL);
 	if (!dmi_dev) {
 		pr_err("failed to find DMI device '%s'\n", dmi_name);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	dev_data = dmi_dev->device_data;
@@ -754,7 +754,7 @@ chromeos_laptop_prepare_i2c_peripherals(struct chromeos_laptop *cros_laptop,
 					  sizeof(*src->i2c_peripherals),
 					  GFP_KERNEL);
 	if (!i2c_peripherals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < src->num_i2c_peripherals; i++) {
 		i2c_dev = &i2c_peripherals[i];
@@ -764,11 +764,11 @@ chromeos_laptop_prepare_i2c_peripherals(struct chromeos_laptop *cros_laptop,
 		if (error)
 			goto err_out;
 
-		/* Create primary fwnode for the device - copies everything */
+		/* Create primary fwanalde for the device - copies everything */
 		if (i2c_dev->properties) {
-			info->fwnode = fwnode_create_software_node(i2c_dev->properties, NULL);
-			if (IS_ERR(info->fwnode)) {
-				error = PTR_ERR(info->fwnode);
+			info->fwanalde = fwanalde_create_software_analde(i2c_dev->properties, NULL);
+			if (IS_ERR(info->fwanalde)) {
+				error = PTR_ERR(info->fwanalde);
 				goto err_out;
 			}
 		}
@@ -783,8 +783,8 @@ err_out:
 	while (--i >= 0) {
 		i2c_dev = &i2c_peripherals[i];
 		info = &i2c_dev->board_info;
-		if (!IS_ERR_OR_NULL(info->fwnode))
-			fwnode_remove_software_node(info->fwnode);
+		if (!IS_ERR_OR_NULL(info->fwanalde))
+			fwanalde_remove_software_analde(info->fwanalde);
 	}
 	kfree(i2c_peripherals);
 	return error;
@@ -813,7 +813,7 @@ chromeos_laptop_prepare_acpi_peripherals(struct chromeos_laptop *cros_laptop,
 				   sizeof(*src->acpi_peripherals),
 				   GFP_KERNEL);
 	if (!acpi_peripherals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acpi_dev = acpi_peripherals;
 	for (i = 0; i < src->num_acpi_peripherals; i++) {
@@ -824,11 +824,11 @@ chromeos_laptop_prepare_acpi_peripherals(struct chromeos_laptop *cros_laptop,
 		*acpi_dev = *src_dev;
 
 		/* We need to deep-copy properties */
-		if (src_dev->swnode.properties) {
-			acpi_dev->swnode.properties =
-				property_entries_dup(src_dev->swnode.properties);
-			if (IS_ERR(acpi_dev->swnode.properties)) {
-				error = PTR_ERR(acpi_dev->swnode.properties);
+		if (src_dev->swanalde.properties) {
+			acpi_dev->swanalde.properties =
+				property_entries_dup(src_dev->swanalde.properties);
+			if (IS_ERR(acpi_dev->swanalde.properties)) {
+				error = PTR_ERR(acpi_dev->swanalde.properties);
 				goto err_out;
 			}
 		}
@@ -844,8 +844,8 @@ chromeos_laptop_prepare_acpi_peripherals(struct chromeos_laptop *cros_laptop,
 err_out:
 	while (--i >= 0) {
 		acpi_dev = &acpi_peripherals[i];
-		if (!IS_ERR_OR_NULL(acpi_dev->swnode.properties))
-			property_entries_free(acpi_dev->swnode.properties);
+		if (!IS_ERR_OR_NULL(acpi_dev->swanalde.properties))
+			property_entries_free(acpi_dev->swanalde.properties);
 	}
 
 	kfree(acpi_peripherals);
@@ -867,9 +867,9 @@ static void chromeos_laptop_destroy(const struct chromeos_laptop *cros_laptop)
 		acpi_dev = &cros_laptop->acpi_peripherals[i];
 
 		if (acpi_dev->client)
-			device_remove_software_node(&acpi_dev->client->dev);
+			device_remove_software_analde(&acpi_dev->client->dev);
 
-		property_entries_free(acpi_dev->swnode.properties);
+		property_entries_free(acpi_dev->swanalde.properties);
 	}
 
 	kfree(cros_laptop->i2c_peripherals);
@@ -885,7 +885,7 @@ chromeos_laptop_prepare(const struct chromeos_laptop *src)
 
 	cros_laptop = kzalloc(sizeof(*cros_laptop), GFP_KERNEL);
 	if (!cros_laptop)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	error = chromeos_laptop_prepare_i2c_peripherals(cros_laptop, src);
 	if (!error)
@@ -908,7 +908,7 @@ static int __init chromeos_laptop_init(void)
 	dmi_id = dmi_first_match(chromeos_laptop_dmi_table);
 	if (!dmi_id) {
 		pr_debug("unsupported system\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pr_debug("DMI Matched %s\n", dmi_id->ident);
@@ -919,23 +919,23 @@ static int __init chromeos_laptop_init(void)
 
 	if (!cros_laptop->num_i2c_peripherals &&
 	    !cros_laptop->num_acpi_peripherals) {
-		pr_debug("no relevant devices detected\n");
-		error = -ENODEV;
+		pr_debug("anal relevant devices detected\n");
+		error = -EANALDEV;
 		goto err_destroy_cros_laptop;
 	}
 
-	error = bus_register_notifier(&i2c_bus_type,
-				      &chromeos_laptop_i2c_notifier);
+	error = bus_register_analtifier(&i2c_bus_type,
+				      &chromeos_laptop_i2c_analtifier);
 	if (error) {
-		pr_err("failed to register i2c bus notifier: %d\n",
+		pr_err("failed to register i2c bus analtifier: %d\n",
 		       error);
 		goto err_destroy_cros_laptop;
 	}
 
 	/*
 	 * Scan adapters that have been registered and clients that have
-	 * been created before we installed the notifier to make sure
-	 * we do not miss any devices.
+	 * been created before we installed the analtifier to make sure
+	 * we do analt miss any devices.
 	 */
 	i2c_for_each_dev(NULL, chromeos_laptop_scan_peripherals);
 
@@ -948,7 +948,7 @@ err_destroy_cros_laptop:
 
 static void __exit chromeos_laptop_exit(void)
 {
-	bus_unregister_notifier(&i2c_bus_type, &chromeos_laptop_i2c_notifier);
+	bus_unregister_analtifier(&i2c_bus_type, &chromeos_laptop_i2c_analtifier);
 	chromeos_laptop_destroy(cros_laptop);
 }
 

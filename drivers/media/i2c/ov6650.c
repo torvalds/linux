@@ -9,7 +9,7 @@
  *
  * Based on ov772x camera driver:
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Based on ov7670 and soc_camera_platform driver,
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
@@ -239,7 +239,7 @@ static const struct v4l2_mbus_framefmt ov6650_def_fmt = {
 	.height		= H_CIF,
 	.code		= MEDIA_BUS_FMT_SBGGR8_1X8,
 	.colorspace	= V4L2_COLORSPACE_SRGB,
-	.field		= V4L2_FIELD_NONE,
+	.field		= V4L2_FIELD_ANALNE,
 	.ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT,
 	.quantization	= V4L2_QUANTIZATION_DEFAULT,
 	.xfer_func	= V4L2_XFER_FUNC_DEFAULT,
@@ -658,7 +658,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, u32 code, bool half_scale)
 		coma_set |= COMA_RAW_RGB | COMA_RGB;
 		break;
 	default:
-		dev_err(&client->dev, "Pixel format not handled: 0x%x\n", code);
+		dev_err(&client->dev, "Pixel format analt handled: 0x%x\n", code);
 		return -EINVAL;
 	}
 
@@ -778,7 +778,7 @@ static int ov6650_enum_frame_interval(struct v4l2_subdev *sd,
 {
 	int i;
 
-	/* enumerate supported frame intervals not exceeding 1 second */
+	/* enumerate supported frame intervals analt exceeding 1 second */
 	if (fie->index > CLKRC_DIV_MASK ||
 	    GET_CLKRC_DIV(fie->index) > FRAME_RATE_MAX)
 		return -EINVAL;
@@ -794,7 +794,7 @@ static int ov6650_enum_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fie->interval.numerator = GET_CLKRC_DIV(fie->index);
-	fie->interval.denominator = FRAME_RATE_MAX;
+	fie->interval.deanalminator = FRAME_RATE_MAX;
 
 	return 0;
 }
@@ -816,7 +816,7 @@ static int ov6650_get_frame_interval(struct v4l2_subdev *sd,
 	ival->interval = priv->tpf;
 
 	dev_dbg(&client->dev, "Frame interval: %u/%u s\n",
-		ival->interval.numerator, ival->interval.denominator);
+		ival->interval.numerator, ival->interval.deanalminator);
 
 	return 0;
 }
@@ -837,10 +837,10 @@ static int ov6650_set_frame_interval(struct v4l2_subdev *sd,
 	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	if (tpf->numerator == 0 || tpf->denominator == 0)
+	if (tpf->numerator == 0 || tpf->deanalminator == 0)
 		div = 1;  /* Reset to full rate */
 	else
-		div = (tpf->numerator * FRAME_RATE_MAX) / tpf->denominator;
+		div = (tpf->numerator * FRAME_RATE_MAX) / tpf->deanalminator;
 
 	if (div == 0)
 		div = 1;
@@ -850,7 +850,7 @@ static int ov6650_set_frame_interval(struct v4l2_subdev *sd,
 	ret = ov6650_reg_rmw(client, REG_CLKRC, to_clkrc(div), CLKRC_DIV_MASK);
 	if (!ret) {
 		priv->tpf.numerator = div;
-		priv->tpf.denominator = FRAME_RATE_MAX;
+		priv->tpf.deanalminator = FRAME_RATE_MAX;
 
 		*tpf = priv->tpf;
 	}
@@ -858,7 +858,7 @@ static int ov6650_set_frame_interval(struct v4l2_subdev *sd,
 	return ret;
 }
 
-/* Soft reset the camera. This has nothing to do with the RESET pin! */
+/* Soft reset the camera. This has analthing to do with the RESET pin! */
 static int ov6650_reset(struct i2c_client *client)
 {
 	int ret;
@@ -955,7 +955,7 @@ static int ov6650_video_probe(struct v4l2_subdev *sd)
 	if ((pidh != OV6650_PIDH) || (pidl != OV6650_PIDL)) {
 		dev_err(&client->dev, "Product ID error 0x%02x:0x%02x\n",
 				pidh, pidl);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -967,7 +967,7 @@ static int ov6650_video_probe(struct v4l2_subdev *sd)
 	if (!ret)
 		ret = ov6650_prog_dflt(client, xclk->clkrc);
 	if (!ret) {
-		/* driver default frame format, no scaling */
+		/* driver default frame format, anal scaling */
 		ret = ov6650_s_fmt(sd, ov6650_def_fmt.code, false);
 	}
 	if (!ret)
@@ -1056,7 +1056,7 @@ static int ov6650_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov6650_subdev_ops);
 	v4l2_ctrl_handler_init(&priv->hdl, 13);
@@ -1106,7 +1106,7 @@ static int ov6650_probe(struct i2c_client *client)
 
 	/* Hardware default frame interval */
 	priv->tpf.numerator   = GET_CLKRC_DIV(DEF_CLKRC);
-	priv->tpf.denominator = FRAME_RATE_MAX;
+	priv->tpf.deanalminator = FRAME_RATE_MAX;
 
 	priv->subdev.internal_ops = &ov6650_internal_ops;
 

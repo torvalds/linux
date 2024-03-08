@@ -79,7 +79,7 @@ static inline void init_sqe(struct nvmetcp_task_params *task_params,
 		SET_FIELD(task_params->sqe->contlen_cdbsize,
 			  NVMETCP_WQE_CDB_SIZE_OR_NVMETCP_CMD, 1);
 		SET_FIELD(task_params->sqe->flags, NVMETCP_WQE_WQE_TYPE,
-			  NVMETCP_WQE_TYPE_NORMAL);
+			  NVMETCP_WQE_TYPE_ANALRMAL);
 		if (task_params->tx_io_size) {
 			if (task_params->send_write_incapsule)
 				buf_size = calc_rw_task_size(task_params, task_type);
@@ -97,7 +97,7 @@ static inline void init_sqe(struct nvmetcp_task_params *task_params,
 
 	case NVMETCP_TASK_TYPE_HOST_READ: {
 		SET_FIELD(task_params->sqe->flags, NVMETCP_WQE_WQE_TYPE,
-			  NVMETCP_WQE_TYPE_NORMAL);
+			  NVMETCP_WQE_TYPE_ANALRMAL);
 		SET_FIELD(task_params->sqe->contlen_cdbsize,
 			  NVMETCP_WQE_CDB_SIZE_OR_NVMETCP_CMD, 1);
 	} break;
@@ -166,7 +166,7 @@ init_default_nvmetcp_task(struct nvmetcp_task_params *task_params,
 				cpu_to_le32(__swab32(((u32 *)nvme_cmd)[dw_index - 2]));
 	} else {
 		for (dw_index = 0;
-		     dw_index < QED_NVMETCP_NON_IO_HDR_SIZE / sizeof(u32);
+		     dw_index < QED_NVMETCP_ANALN_IO_HDR_SIZE / sizeof(u32);
 		     dw_index++)
 			context->ystorm_st_context.pdu_hdr.task_hdr.reg[dw_index] =
 				cpu_to_le32(__swab32(((u32 *)pdu_header)[dw_index]));

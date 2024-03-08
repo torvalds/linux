@@ -49,7 +49,7 @@ static void regex_init(void)
 	int err;
 
 	err = regcomp(&sym_regex_c, regex_sym_kernel,
-			REG_EXTENDED|REG_NOSUB);
+			REG_EXTENDED|REG_ANALSUB);
 
 	if (err) {
 		regerror(err, &sym_regex_c, errbuf, sizeof(errbuf));
@@ -61,7 +61,7 @@ static const char *rel_type(unsigned type)
 {
 	static const char * const type_name[] = {
 #define REL_TYPE(X)[X] = #X
-		REL_TYPE(R_MIPS_NONE),
+		REL_TYPE(R_MIPS_ANALNE),
 		REL_TYPE(R_MIPS_16),
 		REL_TYPE(R_MIPS_32),
 		REL_TYPE(R_MIPS_REL32),
@@ -81,7 +81,7 @@ static const char *rel_type(unsigned type)
 		REL_TYPE(R_MIPS_PC26_S2),
 #undef REL_TYPE
 	};
-	const char *name = "unknown type rel type name";
+	const char *name = "unkanalwn type rel type name";
 
 	if (type < ARRAY_SIZE(type_name) && type_name[type])
 		name = type_name[type];
@@ -101,7 +101,7 @@ static const char *sec_name(unsigned shndx)
 	else if (shndx == SHN_COMMON)
 		name = "COMMON";
 	else
-		name = "<noname>";
+		name = "<analname>";
 	return name;
 }
 
@@ -205,20 +205,20 @@ static uint64_t elf64_to_cpu(uint64_t val)
 static void read_ehdr(FILE *fp)
 {
 	if (fread(&ehdr, sizeof(ehdr), 1, fp) != 1)
-		die("Cannot read ELF header: %s\n", strerror(errno));
+		die("Cananalt read ELF header: %s\n", strerror(erranal));
 
 	if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0)
-		die("No ELF magic\n");
+		die("Anal ELF magic\n");
 
 	if (ehdr.e_ident[EI_CLASS] != ELF_CLASS)
-		die("Not a %d bit executable\n", ELF_BITS);
+		die("Analt a %d bit executable\n", ELF_BITS);
 
 	if ((ehdr.e_ident[EI_DATA] != ELFDATA2LSB) &&
 	    (ehdr.e_ident[EI_DATA] != ELFDATA2MSB))
-		die("Unknown ELF Endianness\n");
+		die("Unkanalwn ELF Endianness\n");
 
 	if (ehdr.e_ident[EI_VERSION] != EV_CURRENT)
-		die("Unknown ELF version\n");
+		die("Unkanalwn ELF version\n");
 
 	/* Convert the fields to native endian */
 	ehdr.e_type      = elf_half_to_cpu(ehdr.e_type);
@@ -239,10 +239,10 @@ static void read_ehdr(FILE *fp)
 		die("Unsupported ELF header type\n");
 
 	if (ehdr.e_machine != ELF_MACHINE)
-		die("Not for %s\n", ELF_MACHINE_NAME);
+		die("Analt for %s\n", ELF_MACHINE_NAME);
 
 	if (ehdr.e_version != EV_CURRENT)
-		die("Unknown ELF version\n");
+		die("Unkanalwn ELF version\n");
 
 	if (ehdr.e_ehsize != sizeof(Elf_Ehdr))
 		die("Bad ELF header size\n");
@@ -267,15 +267,15 @@ static void read_shdrs(FILE *fp)
 		die("Unable to allocate %d section headers\n", ehdr.e_shnum);
 
 	if (fseek(fp, ehdr.e_shoff, SEEK_SET) < 0)
-		die("Seek to %d failed: %s\n", ehdr.e_shoff, strerror(errno));
+		die("Seek to %d failed: %s\n", ehdr.e_shoff, strerror(erranal));
 
 	for (i = 0; i < ehdr.e_shnum; i++) {
 		struct section *sec = &secs[i];
 
 		sec->shdr_offset = ftell(fp);
 		if (fread(&shdr, sizeof(shdr), 1, fp) != 1)
-			die("Cannot read ELF section headers %d/%d: %s\n",
-			    i, ehdr.e_shnum, strerror(errno));
+			die("Cananalt read ELF section headers %d/%d: %s\n",
+			    i, ehdr.e_shnum, strerror(erranal));
 		sec->shdr.sh_name      = elf_word_to_cpu(shdr.sh_name);
 		sec->shdr.sh_type      = elf_word_to_cpu(shdr.sh_type);
 		sec->shdr.sh_flags     = elf_xword_to_cpu(shdr.sh_flags);
@@ -308,11 +308,11 @@ static void read_strtabs(FILE *fp)
 
 		if (fseek(fp, sec->shdr.sh_offset, SEEK_SET) < 0)
 			die("Seek to %d failed: %s\n",
-			    sec->shdr.sh_offset, strerror(errno));
+			    sec->shdr.sh_offset, strerror(erranal));
 
 		if (fread(sec->strtab, 1, sec->shdr.sh_size, fp) !=
 		    sec->shdr.sh_size)
-			die("Cannot read symbol table: %s\n", strerror(errno));
+			die("Cananalt read symbol table: %s\n", strerror(erranal));
 	}
 }
 
@@ -332,11 +332,11 @@ static void read_symtabs(FILE *fp)
 
 		if (fseek(fp, sec->shdr.sh_offset, SEEK_SET) < 0)
 			die("Seek to %d failed: %s\n",
-			    sec->shdr.sh_offset, strerror(errno));
+			    sec->shdr.sh_offset, strerror(erranal));
 
 		if (fread(sec->symtab, 1, sec->shdr.sh_size, fp) !=
 		    sec->shdr.sh_size)
-			die("Cannot read symbol table: %s\n", strerror(errno));
+			die("Cananalt read symbol table: %s\n", strerror(erranal));
 
 		for (j = 0; j < sec->shdr.sh_size/sizeof(Elf_Sym); j++) {
 			Elf_Sym *sym = &sec->symtab[j];
@@ -358,7 +358,7 @@ static void read_relocs(FILE *fp)
 		struct section *sec = sec_lookup(".text");
 
 		if (!sec)
-			die("Could not find .text section\n");
+			die("Could analt find .text section\n");
 
 		base = sec->shdr.sh_addr;
 	}
@@ -376,11 +376,11 @@ static void read_relocs(FILE *fp)
 
 		if (fseek(fp, sec->shdr.sh_offset, SEEK_SET) < 0)
 			die("Seek to %d failed: %s\n",
-			    sec->shdr.sh_offset, strerror(errno));
+			    sec->shdr.sh_offset, strerror(erranal));
 
 		if (fread(sec->reltab, 1, sec->shdr.sh_size, fp) !=
 		    sec->shdr.sh_size)
-			die("Cannot read symbol table: %s\n", strerror(errno));
+			die("Cananalt read symbol table: %s\n", strerror(erranal));
 
 		for (j = 0; j < sec->shdr.sh_size/sizeof(Elf_Rel); j++) {
 			Elf_Rel *rel = &sec->reltab[j];
@@ -417,11 +417,11 @@ static void remove_relocs(FILE *fp)
 
 		if (fseek(fp, sec->shdr_offset, SEEK_SET) < 0)
 			die("Seek to %d failed: %s\n",
-			    sec->shdr_offset, strerror(errno));
+			    sec->shdr_offset, strerror(erranal));
 
 		if (fread(&shdr, sizeof(shdr), 1, fp) != 1)
-			die("Cannot read ELF section headers %d/%d: %s\n",
-			    i, ehdr.e_shnum, strerror(errno));
+			die("Cananalt read ELF section headers %d/%d: %s\n",
+			    i, ehdr.e_shnum, strerror(erranal));
 
 		/* Set relocation section size to 0, effectively removing it.
 		 * This is necessary due to lack of support for relocations
@@ -431,11 +431,11 @@ static void remove_relocs(FILE *fp)
 
 		if (fseek(fp, sec->shdr_offset, SEEK_SET) < 0)
 			die("Seek to %d failed: %s\n",
-			    sec->shdr_offset, strerror(errno));
+			    sec->shdr_offset, strerror(erranal));
 
 		if (fwrite(&shdr, sizeof(shdr), 1, fp) != 1)
-			die("Cannot write ELF section headers %d/%d: %s\n",
-			    i, ehdr.e_shnum, strerror(errno));
+			die("Cananalt write ELF section headers %d/%d: %s\n",
+			    i, ehdr.e_shnum, strerror(erranal));
 	}
 }
 
@@ -512,13 +512,13 @@ static int do_reloc(struct section *sec, Elf_Rel *rel, Elf_Sym *sym,
 		return 0;
 
 	switch (r_type) {
-	case R_MIPS_NONE:
+	case R_MIPS_ANALNE:
 	case R_MIPS_REL32:
 	case R_MIPS_PC16:
 	case R_MIPS_PC21_S2:
 	case R_MIPS_PC26_S2:
 		/*
-		 * NONE can be ignored and PC relative relocations don't
+		 * ANALNE can be iganalred and PC relative relocations don't
 		 * need to be adjusted.
 		 */
 	case R_MIPS_HIGHEST:
@@ -579,7 +579,7 @@ static void emit_relocs(int as_text, int as_bin, FILE *outf)
 
 	sec_reloc = sec_lookup(".data.reloc");
 	if (!sec_reloc)
-		die("Could not find relocation section\n");
+		die("Could analt find relocation section\n");
 
 	size_reserved = sec_reloc->shdr.sh_size;
 
@@ -606,7 +606,7 @@ static void emit_relocs(int as_text, int as_bin, FILE *outf)
 		*/
 		if (fseek(outf, sec_reloc->shdr.sh_offset, SEEK_SET) < 0) {
 			die("Seek to %d failed: %s\n",
-				sec_reloc->shdr.sh_offset, strerror(errno));
+				sec_reloc->shdr.sh_offset, strerror(erranal));
 		}
 	}
 

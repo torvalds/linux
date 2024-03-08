@@ -39,14 +39,14 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	if (IS_ENABLED(CONFIG_CPU_V7M)) {
 		/*
 		 * Cache support for v7m is optional, so can be treated as
-		 * coherent if no cache has been detected. Note that it is not
-		 * enough to check if MPU is in use or not since in absense of
+		 * coherent if anal cache has been detected. Analte that it is analt
+		 * eanalugh to check if MPU is in use or analt since in absense of
 		 * MPU system memory map is used.
 		 */
 		dev->dma_coherent = cacheid ? coherent : true;
 	} else {
 		/*
-		 * Assume coherent DMA in case MMU/MPU has not been set up.
+		 * Assume coherent DMA in case MMU/MPU has analt been set up.
 		 */
 		dev->dma_coherent = (get_cr() & CR_M) ? coherent : true;
 	}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <linux/ethtool.h>
@@ -198,16 +198,16 @@ static const char *const sparx5_stats_layout[] = {
 	"tx_local_drop",
 };
 
-static void sparx5_get_queue_sys_stats(struct sparx5 *sparx5, int portno)
+static void sparx5_get_queue_sys_stats(struct sparx5 *sparx5, int portanal)
 {
 	u64 *portstats;
 	u64 *stats;
 	u32 addr;
 	int idx;
 
-	portstats = &sparx5->stats[portno * sparx5->num_stats];
+	portstats = &sparx5->stats[portanal * sparx5->num_stats];
 	mutex_lock(&sparx5->queue_stats_lock);
-	spx5_wr(XQS_STAT_CFG_STAT_VIEW_SET(portno), sparx5, XQS_STAT_CFG);
+	spx5_wr(XQS_STAT_CFG_STAT_VIEW_SET(portanal), sparx5, XQS_STAT_CFG);
 	addr = 0;
 	stats = &portstats[spx5_stats_green_p0_rx_fwd];
 	for (idx = 0; idx < 2 * SPX5_PRIOS; ++idx, ++addr, ++stats)
@@ -227,12 +227,12 @@ static void sparx5_get_queue_sys_stats(struct sparx5 *sparx5, int portno)
 	mutex_unlock(&sparx5->queue_stats_lock);
 }
 
-static void sparx5_get_ana_ac_stats_stats(struct sparx5 *sparx5, int portno)
+static void sparx5_get_ana_ac_stats_stats(struct sparx5 *sparx5, int portanal)
 {
-	u64 *portstats = &sparx5->stats[portno * sparx5->num_stats];
+	u64 *portstats = &sparx5->stats[portanal * sparx5->num_stats];
 
 	sparx5_update_counter(&portstats[spx5_stats_ana_ac_port_stat_lsb_cnt],
-			      spx5_rd(sparx5, ANA_AC_PORT_STAT_LSB_CNT(portno,
+			      spx5_rd(sparx5, ANA_AC_PORT_STAT_LSB_CNT(portanal,
 								       SPX5_PORT_POLICER_DROPS)));
 }
 
@@ -502,11 +502,11 @@ static void sparx5_get_dev_misc_stats(u64 *portstats, void __iomem *inst, u32
 					   DEV5G_PMAC_RX_XGMII_PROT_ERR_CNT(tinst)));
 }
 
-static void sparx5_get_device_stats(struct sparx5 *sparx5, int portno)
+static void sparx5_get_device_stats(struct sparx5 *sparx5, int portanal)
 {
-	u64 *portstats = &sparx5->stats[portno * sparx5->num_stats];
-	u32 tinst = sparx5_port_dev_index(portno);
-	u32 dev = sparx5_to_high_dev(portno);
+	u64 *portstats = &sparx5->stats[portanal * sparx5->num_stats];
+	u32 tinst = sparx5_port_dev_index(portanal);
+	u32 dev = sparx5_to_high_dev(portanal);
 	void __iomem *inst;
 
 	inst = spx5_inst_get(sparx5, dev, tinst);
@@ -518,283 +518,283 @@ static void sparx5_get_device_stats(struct sparx5 *sparx5, int portno)
 }
 
 static void sparx5_get_asm_phy_stats(u64 *portstats, void __iomem *inst, int
-				     portno)
+				     portanal)
 {
 	sparx5_update_counter(&portstats[spx5_stats_rx_symbol_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_SYMBOL_ERR_CNT(portno)));
+					   ASM_RX_SYMBOL_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_symbol_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_SYMBOL_ERR_CNT(portno)));
+					   ASM_PMAC_RX_SYMBOL_ERR_CNT(portanal)));
 }
 
 static void sparx5_get_asm_mac_stats(u64 *portstats, void __iomem *inst, int
-				     portno)
+				     portanal)
 {
 	sparx5_update_counter(&portstats[spx5_stats_tx_uc_cnt],
-			      spx5_inst_rd(inst, ASM_TX_UC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_UC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_uc_cnt],
-			      spx5_inst_rd(inst, ASM_PMAC_TX_UC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_PMAC_TX_UC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_mc_cnt],
-			      spx5_inst_rd(inst, ASM_TX_MC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_MC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_bc_cnt],
-			      spx5_inst_rd(inst, ASM_TX_BC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_BC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_backoff1_cnt],
-			      spx5_inst_rd(inst, ASM_TX_BACKOFF1_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_BACKOFF1_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_multi_coll_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_MULTI_COLL_CNT(portno)));
+					   ASM_TX_MULTI_COLL_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_uc_cnt],
-			      spx5_inst_rd(inst, ASM_RX_UC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_UC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_uc_cnt],
-			      spx5_inst_rd(inst, ASM_PMAC_RX_UC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_PMAC_RX_UC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_mc_cnt],
-			      spx5_inst_rd(inst, ASM_RX_MC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_MC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_bc_cnt],
-			      spx5_inst_rd(inst, ASM_RX_BC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_BC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_crc_err_cnt],
-			      spx5_inst_rd(inst, ASM_RX_CRC_ERR_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_CRC_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_crc_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_CRC_ERR_CNT(portno)));
+					   ASM_PMAC_RX_CRC_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_alignment_lost_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_ALIGNMENT_LOST_CNT(portno)));
+					   ASM_RX_ALIGNMENT_LOST_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_alignment_lost_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_ALIGNMENT_LOST_CNT(portno)));
+					   ASM_PMAC_RX_ALIGNMENT_LOST_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_ok_bytes_cnt],
-			      spx5_inst_rd(inst, ASM_TX_OK_BYTES_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_OK_BYTES_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_ok_bytes_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_OK_BYTES_CNT(portno)));
+					   ASM_PMAC_TX_OK_BYTES_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_defer_cnt],
-			      spx5_inst_rd(inst, ASM_TX_DEFER_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_DEFER_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_late_coll_cnt],
-			      spx5_inst_rd(inst, ASM_TX_LATE_COLL_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_LATE_COLL_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_xcoll_cnt],
-			      spx5_inst_rd(inst, ASM_TX_XCOLL_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_XCOLL_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_csense_cnt],
-			      spx5_inst_rd(inst, ASM_TX_CSENSE_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_CSENSE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_ok_bytes_cnt],
-			      spx5_inst_rd(inst, ASM_RX_OK_BYTES_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_OK_BYTES_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_ok_bytes_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_OK_BYTES_CNT(portno)));
+					   ASM_PMAC_RX_OK_BYTES_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_mc_cnt],
-			      spx5_inst_rd(inst, ASM_PMAC_TX_MC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_PMAC_TX_MC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_bc_cnt],
-			      spx5_inst_rd(inst, ASM_PMAC_TX_BC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_PMAC_TX_BC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_xdefer_cnt],
-			      spx5_inst_rd(inst, ASM_TX_XDEFER_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_XDEFER_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_mc_cnt],
-			      spx5_inst_rd(inst, ASM_PMAC_RX_MC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_PMAC_RX_MC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_bc_cnt],
-			      spx5_inst_rd(inst, ASM_PMAC_RX_BC_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_PMAC_RX_BC_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_in_range_len_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_IN_RANGE_LEN_ERR_CNT(portno)));
+					   ASM_RX_IN_RANGE_LEN_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_in_range_len_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_IN_RANGE_LEN_ERR_CNT(portno)));
+					   ASM_PMAC_RX_IN_RANGE_LEN_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_out_of_range_len_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_OUT_OF_RANGE_LEN_ERR_CNT(portno)));
+					   ASM_RX_OUT_OF_RANGE_LEN_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_out_of_range_len_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_OUT_OF_RANGE_LEN_ERR_CNT(portno)));
+					   ASM_PMAC_RX_OUT_OF_RANGE_LEN_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_oversize_cnt],
-			      spx5_inst_rd(inst, ASM_RX_OVERSIZE_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_OVERSIZE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_oversize_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_OVERSIZE_CNT(portno)));
+					   ASM_PMAC_RX_OVERSIZE_CNT(portanal)));
 }
 
 static void sparx5_get_asm_mac_ctrl_stats(u64 *portstats, void __iomem *inst,
-					  int portno)
+					  int portanal)
 {
 	sparx5_update_counter(&portstats[spx5_stats_tx_pause_cnt],
-			      spx5_inst_rd(inst, ASM_TX_PAUSE_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_PAUSE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_pause_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_PAUSE_CNT(portno)));
+					   ASM_PMAC_TX_PAUSE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_pause_cnt],
-			      spx5_inst_rd(inst, ASM_RX_PAUSE_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_PAUSE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_pause_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_PAUSE_CNT(portno)));
+					   ASM_PMAC_RX_PAUSE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_unsup_opcode_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_UNSUP_OPCODE_CNT(portno)));
+					   ASM_RX_UNSUP_OPCODE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_unsup_opcode_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_UNSUP_OPCODE_CNT(portno)));
+					   ASM_PMAC_RX_UNSUP_OPCODE_CNT(portanal)));
 }
 
 static void sparx5_get_asm_rmon_stats(u64 *portstats, void __iomem *inst, int
-				      portno)
+				      portanal)
 {
 	sparx5_update_counter(&portstats[spx5_stats_rx_undersize_cnt],
-			      spx5_inst_rd(inst, ASM_RX_UNDERSIZE_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_UNDERSIZE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_undersize_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_UNDERSIZE_CNT(portno)));
+					   ASM_PMAC_RX_UNDERSIZE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_oversize_cnt],
-			      spx5_inst_rd(inst, ASM_RX_OVERSIZE_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_OVERSIZE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_oversize_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_OVERSIZE_CNT(portno)));
+					   ASM_PMAC_RX_OVERSIZE_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_fragments_cnt],
-			      spx5_inst_rd(inst, ASM_RX_FRAGMENTS_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_FRAGMENTS_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_fragments_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_FRAGMENTS_CNT(portno)));
+					   ASM_PMAC_RX_FRAGMENTS_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_jabbers_cnt],
-			      spx5_inst_rd(inst, ASM_RX_JABBERS_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_JABBERS_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_jabbers_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_JABBERS_CNT(portno)));
+					   ASM_PMAC_RX_JABBERS_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_size64_cnt],
-			      spx5_inst_rd(inst, ASM_RX_SIZE64_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_SIZE64_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_size64_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_SIZE64_CNT(portno)));
+					   ASM_PMAC_RX_SIZE64_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_size65to127_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_SIZE65TO127_CNT(portno)));
+					   ASM_RX_SIZE65TO127_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_size65to127_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_SIZE65TO127_CNT(portno)));
+					   ASM_PMAC_RX_SIZE65TO127_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_size128to255_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_SIZE128TO255_CNT(portno)));
+					   ASM_RX_SIZE128TO255_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_size128to255_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_SIZE128TO255_CNT(portno)));
+					   ASM_PMAC_RX_SIZE128TO255_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_size256to511_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_SIZE256TO511_CNT(portno)));
+					   ASM_RX_SIZE256TO511_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_size256to511_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_SIZE256TO511_CNT(portno)));
+					   ASM_PMAC_RX_SIZE256TO511_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_size512to1023_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_SIZE512TO1023_CNT(portno)));
+					   ASM_RX_SIZE512TO1023_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_size512to1023_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_SIZE512TO1023_CNT(portno)));
+					   ASM_PMAC_RX_SIZE512TO1023_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_size1024to1518_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_SIZE1024TO1518_CNT(portno)));
+					   ASM_RX_SIZE1024TO1518_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_size1024to1518_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_SIZE1024TO1518_CNT(portno)));
+					   ASM_PMAC_RX_SIZE1024TO1518_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_size1519tomax_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_SIZE1519TOMAX_CNT(portno)));
+					   ASM_RX_SIZE1519TOMAX_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_size1519tomax_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_SIZE1519TOMAX_CNT(portno)));
+					   ASM_PMAC_RX_SIZE1519TOMAX_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_size64_cnt],
-			      spx5_inst_rd(inst, ASM_TX_SIZE64_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_SIZE64_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_size64_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_SIZE64_CNT(portno)));
+					   ASM_PMAC_TX_SIZE64_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_size65to127_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_SIZE65TO127_CNT(portno)));
+					   ASM_TX_SIZE65TO127_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_size65to127_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_SIZE65TO127_CNT(portno)));
+					   ASM_PMAC_TX_SIZE65TO127_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_size128to255_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_SIZE128TO255_CNT(portno)));
+					   ASM_TX_SIZE128TO255_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_size128to255_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_SIZE128TO255_CNT(portno)));
+					   ASM_PMAC_TX_SIZE128TO255_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_size256to511_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_SIZE256TO511_CNT(portno)));
+					   ASM_TX_SIZE256TO511_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_size256to511_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_SIZE256TO511_CNT(portno)));
+					   ASM_PMAC_TX_SIZE256TO511_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_size512to1023_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_SIZE512TO1023_CNT(portno)));
+					   ASM_TX_SIZE512TO1023_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_size512to1023_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_SIZE512TO1023_CNT(portno)));
+					   ASM_PMAC_TX_SIZE512TO1023_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_size1024to1518_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_SIZE1024TO1518_CNT(portno)));
+					   ASM_TX_SIZE1024TO1518_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_size1024to1518_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_SIZE1024TO1518_CNT(portno)));
+					   ASM_PMAC_TX_SIZE1024TO1518_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_size1519tomax_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_SIZE1519TOMAX_CNT(portno)));
+					   ASM_TX_SIZE1519TOMAX_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_tx_size1519tomax_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_TX_SIZE1519TOMAX_CNT(portno)));
+					   ASM_PMAC_TX_SIZE1519TOMAX_CNT(portanal)));
 }
 
 static void sparx5_get_asm_misc_stats(u64 *portstats, void __iomem *inst, int
-				      portno)
+				      portanal)
 {
 	sparx5_update_counter(&portstats[spx5_stats_mm_rx_assembly_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_MM_RX_ASSEMBLY_ERR_CNT(portno)));
+					   ASM_MM_RX_ASSEMBLY_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_mm_rx_assembly_ok_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_MM_RX_ASSEMBLY_OK_CNT(portno)));
+					   ASM_MM_RX_ASSEMBLY_OK_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_mm_rx_merge_frag_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_MM_RX_MERGE_FRAG_CNT(portno)));
+					   ASM_MM_RX_MERGE_FRAG_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_mm_rx_smd_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_MM_RX_SMD_ERR_CNT(portno)));
+					   ASM_MM_RX_SMD_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_mm_tx_pfragment_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_MM_TX_PFRAGMENT_CNT(portno)));
+					   ASM_MM_TX_PFRAGMENT_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_bad_bytes_cnt],
-			      spx5_inst_rd(inst, ASM_RX_BAD_BYTES_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_BAD_BYTES_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_pmac_rx_bad_bytes_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_PMAC_RX_BAD_BYTES_CNT(portno)));
+					   ASM_PMAC_RX_BAD_BYTES_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_in_bytes_cnt],
-			      spx5_inst_rd(inst, ASM_RX_IN_BYTES_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_RX_IN_BYTES_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_ipg_shrink_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_IPG_SHRINK_CNT(portno)));
+					   ASM_RX_IPG_SHRINK_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_sync_lost_err_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_SYNC_LOST_ERR_CNT(portno)));
+					   ASM_RX_SYNC_LOST_ERR_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_tagged_frms_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_TAGGED_FRMS_CNT(portno)));
+					   ASM_RX_TAGGED_FRMS_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_rx_untagged_frms_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_RX_UNTAGGED_FRMS_CNT(portno)));
+					   ASM_RX_UNTAGGED_FRMS_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_out_bytes_cnt],
-			      spx5_inst_rd(inst, ASM_TX_OUT_BYTES_CNT(portno)));
+			      spx5_inst_rd(inst, ASM_TX_OUT_BYTES_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_tagged_frms_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_TAGGED_FRMS_CNT(portno)));
+					   ASM_TX_TAGGED_FRMS_CNT(portanal)));
 	sparx5_update_counter(&portstats[spx5_stats_tx_untagged_frms_cnt],
 			      spx5_inst_rd(inst,
-					   ASM_TX_UNTAGGED_FRMS_CNT(portno)));
+					   ASM_TX_UNTAGGED_FRMS_CNT(portanal)));
 }
 
-static void sparx5_get_asm_stats(struct sparx5 *sparx5, int portno)
+static void sparx5_get_asm_stats(struct sparx5 *sparx5, int portanal)
 {
-	u64 *portstats = &sparx5->stats[portno * sparx5->num_stats];
+	u64 *portstats = &sparx5->stats[portanal * sparx5->num_stats];
 	void __iomem *inst = spx5_inst_get(sparx5, TARGET_ASM, 0);
 
-	sparx5_get_asm_phy_stats(portstats, inst, portno);
-	sparx5_get_asm_mac_stats(portstats, inst, portno);
-	sparx5_get_asm_mac_ctrl_stats(portstats, inst, portno);
-	sparx5_get_asm_rmon_stats(portstats, inst, portno);
-	sparx5_get_asm_misc_stats(portstats, inst, portno);
+	sparx5_get_asm_phy_stats(portstats, inst, portanal);
+	sparx5_get_asm_mac_stats(portstats, inst, portanal);
+	sparx5_get_asm_mac_ctrl_stats(portstats, inst, portanal);
+	sparx5_get_asm_rmon_stats(portstats, inst, portanal);
+	sparx5_get_asm_misc_stats(portstats, inst, portanal);
 }
 
 static const struct ethtool_rmon_hist_range sparx5_rmon_ranges[] = {
@@ -813,20 +813,20 @@ static void sparx5_get_eth_phy_stats(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	void __iomem *inst;
 	u64 *portstats;
 
-	portstats = &sparx5->stats[portno * sparx5->num_stats];
+	portstats = &sparx5->stats[portanal * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(portanal);
+		u32 dev = sparx5_to_high_dev(portanal);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_phy_stats(portstats, inst, tinst);
 	} else {
 		inst = spx5_inst_get(sparx5, TARGET_ASM, 0);
-		sparx5_get_asm_phy_stats(portstats, inst, portno);
+		sparx5_get_asm_phy_stats(portstats, inst, portanal);
 	}
 	phy_stats->SymbolErrorDuringCarrier =
 		portstats[spx5_stats_rx_symbol_err_cnt] +
@@ -838,20 +838,20 @@ static void sparx5_get_eth_mac_stats(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	void __iomem *inst;
 	u64 *portstats;
 
-	portstats = &sparx5->stats[portno * sparx5->num_stats];
+	portstats = &sparx5->stats[portanal * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(portanal);
+		u32 dev = sparx5_to_high_dev(portanal);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_mac_stats(portstats, inst, tinst);
 	} else {
 		inst = spx5_inst_get(sparx5, TARGET_ASM, 0);
-		sparx5_get_asm_mac_stats(portstats, inst, portno);
+		sparx5_get_asm_mac_stats(portstats, inst, portanal);
 	}
 	mac_stats->FramesTransmittedOK = portstats[spx5_stats_tx_uc_cnt] +
 		portstats[spx5_stats_pmac_tx_uc_cnt] +
@@ -906,20 +906,20 @@ static void sparx5_get_eth_mac_ctrl_stats(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	void __iomem *inst;
 	u64 *portstats;
 
-	portstats = &sparx5->stats[portno * sparx5->num_stats];
+	portstats = &sparx5->stats[portanal * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(portanal);
+		u32 dev = sparx5_to_high_dev(portanal);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_mac_ctrl_stats(portstats, inst, tinst);
 	} else {
 		inst = spx5_inst_get(sparx5, TARGET_ASM, 0);
-		sparx5_get_asm_mac_ctrl_stats(portstats, inst, portno);
+		sparx5_get_asm_mac_ctrl_stats(portstats, inst, portanal);
 	}
 	mac_ctrl_stats->MACControlFramesTransmitted =
 		portstats[spx5_stats_tx_pause_cnt] +
@@ -938,20 +938,20 @@ static void sparx5_get_eth_rmon_stats(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	void __iomem *inst;
 	u64 *portstats;
 
-	portstats = &sparx5->stats[portno * sparx5->num_stats];
+	portstats = &sparx5->stats[portanal * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(portanal);
+		u32 dev = sparx5_to_high_dev(portanal);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_rmon_stats(portstats, inst, tinst);
 	} else {
 		inst = spx5_inst_get(sparx5, TARGET_ASM, 0);
-		sparx5_get_asm_rmon_stats(portstats, inst, portno);
+		sparx5_get_asm_rmon_stats(portstats, inst, portanal);
 	}
 	rmon_stats->undersize_pkts = portstats[spx5_stats_rx_undersize_cnt] +
 		portstats[spx5_stats_pmac_rx_undersize_cnt];
@@ -998,7 +998,7 @@ static int sparx5_get_sset_count(struct net_device *ndev, int sset)
 	struct sparx5  *sparx5 = port->sparx5;
 
 	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return sparx5->num_ethtool_stats;
 }
 
@@ -1020,24 +1020,24 @@ static void sparx5_get_sset_data(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	void __iomem *inst;
 	u64 *portstats;
 	int idx;
 
-	portstats = &sparx5->stats[portno * sparx5->num_stats];
+	portstats = &sparx5->stats[portanal * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(portanal);
+		u32 dev = sparx5_to_high_dev(portanal);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_misc_stats(portstats, inst, tinst);
 	} else {
 		inst = spx5_inst_get(sparx5, TARGET_ASM, 0);
-		sparx5_get_asm_misc_stats(portstats, inst, portno);
+		sparx5_get_asm_misc_stats(portstats, inst, portanal);
 	}
-	sparx5_get_ana_ac_stats_stats(sparx5, portno);
-	sparx5_get_queue_sys_stats(sparx5, portno);
+	sparx5_get_ana_ac_stats_stats(sparx5, portanal);
+	sparx5_get_queue_sys_stats(sparx5, portanal);
 	/* Copy port counters to the ethtool buffer */
 	for (idx = spx5_stats_mm_rx_assembly_err_cnt;
 	     idx < spx5_stats_mm_rx_assembly_err_cnt +
@@ -1054,9 +1054,9 @@ void sparx5_get_stats64(struct net_device *ndev,
 	int idx;
 
 	if (!sparx5->stats)
-		return; /* Not initialized yet */
+		return; /* Analt initialized yet */
 
-	portstats = &sparx5->stats[port->portno * sparx5->num_stats];
+	portstats = &sparx5->stats[port->portanal * sparx5->num_stats];
 
 	stats->rx_packets = portstats[spx5_stats_rx_uc_cnt] +
 		portstats[spx5_stats_pmac_rx_uc_cnt] +
@@ -1108,14 +1108,14 @@ void sparx5_get_stats64(struct net_device *ndev,
 	stats->tx_dropped = portstats[spx5_stats_tx_local_drop];
 }
 
-static void sparx5_update_port_stats(struct sparx5 *sparx5, int portno)
+static void sparx5_update_port_stats(struct sparx5 *sparx5, int portanal)
 {
-	if (sparx5_is_baser(sparx5->ports[portno]->conf.portmode))
-		sparx5_get_device_stats(sparx5, portno);
+	if (sparx5_is_baser(sparx5->ports[portanal]->conf.portmode))
+		sparx5_get_device_stats(sparx5, portanal);
 	else
-		sparx5_get_asm_stats(sparx5, portno);
-	sparx5_get_ana_ac_stats_stats(sparx5, portno);
-	sparx5_get_queue_sys_stats(sparx5, portno);
+		sparx5_get_asm_stats(sparx5, portanal);
+	sparx5_get_ana_ac_stats_stats(sparx5, portanal);
+	sparx5_get_queue_sys_stats(sparx5, portanal);
 }
 
 static void sparx5_update_stats(struct sparx5 *sparx5)
@@ -1165,10 +1165,10 @@ static void sparx5_config_stats(struct sparx5 *sparx5)
 		 ANA_AC_PORT_SGE_CFG(SPX5_PORT_POLICER_DROPS));
 }
 
-static void sparx5_config_port_stats(struct sparx5 *sparx5, int portno)
+static void sparx5_config_port_stats(struct sparx5 *sparx5, int portanal)
 {
 	/* Clear Queue System counters */
-	spx5_wr(XQS_STAT_CFG_STAT_VIEW_SET(portno) |
+	spx5_wr(XQS_STAT_CFG_STAT_VIEW_SET(portanal) |
 		XQS_STAT_CFG_STAT_CLEAR_SHOT_SET(3), sparx5,
 		XQS_STAT_CFG);
 
@@ -1179,7 +1179,7 @@ static void sparx5_config_port_stats(struct sparx5 *sparx5, int portno)
 		 ANA_AC_PORT_STAT_CFG_CFG_CNT_FRM_TYPE |
 		 ANA_AC_PORT_STAT_CFG_CFG_CNT_BYTE |
 		 ANA_AC_PORT_STAT_CFG_CFG_PRIO_MASK,
-		 sparx5, ANA_AC_PORT_STAT_CFG(portno, SPX5_PORT_POLICER_DROPS));
+		 sparx5, ANA_AC_PORT_STAT_CFG(portanal, SPX5_PORT_POLICER_DROPS));
 }
 
 static int sparx5_get_ts_info(struct net_device *dev,
@@ -1209,7 +1209,7 @@ static int sparx5_get_ts_info(struct net_device *dev,
 				 SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON) |
 			 BIT(HWTSTAMP_TX_ONESTEP_SYNC);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
@@ -1232,7 +1232,7 @@ const struct ethtool_ops sparx5_ethtool_ops = {
 int sparx_stats_init(struct sparx5 *sparx5)
 {
 	char queue_name[32];
-	int portno;
+	int portanal;
 
 	sparx5->stats_layout = sparx5_stats_layout;
 	sparx5->num_stats = spx5_stats_count;
@@ -1241,19 +1241,19 @@ int sparx_stats_init(struct sparx5 *sparx5)
 				     SPX5_PORTS_ALL * sparx5->num_stats,
 				     sizeof(u64), GFP_KERNEL);
 	if (!sparx5->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&sparx5->queue_stats_lock);
 	sparx5_config_stats(sparx5);
-	for (portno = 0; portno < SPX5_PORTS; portno++)
-		if (sparx5->ports[portno])
-			sparx5_config_port_stats(sparx5, portno);
+	for (portanal = 0; portanal < SPX5_PORTS; portanal++)
+		if (sparx5->ports[portanal])
+			sparx5_config_port_stats(sparx5, portanal);
 
 	snprintf(queue_name, sizeof(queue_name), "%s-stats",
 		 dev_name(sparx5->dev));
 	sparx5->stats_queue = create_singlethread_workqueue(queue_name);
 	if (!sparx5->stats_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&sparx5->stats_work, sparx5_check_stats_work);
 	queue_delayed_work(sparx5->stats_queue, &sparx5->stats_work,

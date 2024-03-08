@@ -26,7 +26,7 @@ struct task_delay_info {
 	/*
 	 * XXX_count is incremented on every XXX operation, the delay
 	 * associated with the operation is added to XXX_delay.
-	 * XXX_delay contains the accumulated delay time in nanoseconds.
+	 * XXX_delay contains the accumulated delay time in naanalseconds.
 	 */
 	u64 blkio_start;
 	u64 blkio_delay;	/* wait for sync block io completion */
@@ -88,14 +88,14 @@ extern void __delayacct_irq(struct task_struct *task, u32 delta);
 
 static inline void delayacct_tsk_init(struct task_struct *tsk)
 {
-	/* reinitialize in case parent's non-null pointer was dup'ed*/
+	/* reinitialize in case parent's analn-null pointer was dup'ed*/
 	tsk->delays = NULL;
 	if (delayacct_on)
 		__delayacct_tsk_init(tsk);
 }
 
 /* Free tsk->delays. Called from bad fork and __put_task_struct
- * where there's no risk of tsk->delays being accessed elsewhere
+ * where there's anal risk of tsk->delays being accessed elsewhere
  */
 static inline void delayacct_tsk_free(struct task_struct *tsk)
 {

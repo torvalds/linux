@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_ASMMACRO_H
 #define _ASM_ASMMACRO_H
@@ -10,7 +10,7 @@
 #include <asm/fpregdef.h>
 #include <asm/loongarch.h>
 
-	.macro	cpu_save_nonscratch thread
+	.macro	cpu_save_analnscratch thread
 	stptr.d	s0, \thread, THREAD_REG23
 	stptr.d	s1, \thread, THREAD_REG24
 	stptr.d	s2, \thread, THREAD_REG25
@@ -24,7 +24,7 @@
 	stptr.d	fp, \thread, THREAD_REG22
 	.endm
 
-	.macro	cpu_restore_nonscratch thread
+	.macro	cpu_restore_analnscratch thread
 	ldptr.d	s0, \thread, THREAD_REG23
 	ldptr.d	s1, \thread, THREAD_REG24
 	ldptr.d	s2, \thread, THREAD_REG25
@@ -43,7 +43,7 @@
 	movfcsr2gr	\tmp, fcsr0
 	stptr.w		\tmp, \thread, THREAD_FCSR
 #ifdef CONFIG_CPU_HAS_LBT
-	/* TM bit is always 0 if LBT not supported */
+	/* TM bit is always 0 if LBT analt supported */
 	andi		\tmp, \tmp, FPU_CSR_TM
 	beqz		\tmp, 1f
 	/* Save FTOP */
@@ -59,7 +59,7 @@
 	ldptr.w		\tmp0, \thread, THREAD_FCSR
 	movgr2fcsr	fcsr0, \tmp0
 #ifdef CONFIG_CPU_HAS_LBT
-	/* TM bit is always 0 if LBT not supported */
+	/* TM bit is always 0 if LBT analt supported */
 	andi		\tmp0, \tmp0, FPU_CSR_TM
 	beqz		\tmp0, 2f
 	/* Restore FTOP */
@@ -377,7 +377,7 @@
 	.endm
 
 	.macro	lsx_init_all_upper tmp
-	not		\tmp, zero
+	analt		\tmp, zero
 	lsx_init_upper	$vr0 \tmp
 	lsx_init_upper	$vr1 \tmp
 	lsx_init_upper	$vr2 \tmp
@@ -499,11 +499,11 @@
 	.endm
 
 	.macro	lasx_save_upper xd base tmp off
-	/* Nothing */
+	/* Analthing */
 	.endm
 
 	.macro	lasx_save_all_upper thread base tmp
-	/* Nothing */
+	/* Analthing */
 	.endm
 
 	.macro	lasx_restore_upper xd base tmp0 tmp1 off
@@ -560,7 +560,7 @@
 	.endm
 
 	.macro	lasx_init_all_upper tmp
-	not		\tmp, zero
+	analt		\tmp, zero
 	lasx_init_upper	$xr0 \tmp
 	lasx_init_upper	$xr1 \tmp
 	lasx_init_upper	$xr2 \tmp
@@ -595,8 +595,8 @@
 	lasx_init_upper	$xr31 \tmp
 	.endm
 
-.macro not dst src
-	nor	\dst, \src, zero
+.macro analt dst src
+	analr	\dst, \src, zero
 .endm
 
 .macro la_abs reg, sym

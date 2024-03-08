@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel_stat.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -85,7 +85,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 }
 
 /*
- * handle_irq handles all normal device IRQ's (the special
+ * handle_irq handles all analrmal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
@@ -97,7 +97,7 @@ handle_irq(int irq)
 {	
 	/* 
 	 * We ack quickly, we don't want the irq controller
-	 * thinking we're snobs just because some other CPU has
+	 * thinking we're sanalbs just because some other CPU has
 	 * disabled global interrupts (we have already done the
 	 * INT_ACK cycles, it's too late to try to pretend to the
 	 * controller that we aren't taking the interrupt).

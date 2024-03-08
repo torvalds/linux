@@ -5,7 +5,7 @@
  *         source@mvista.com
  *
  * 2002-2007 (c) MontaVista Software, Inc.
- * 2007 (c) Secret Lab Technologies, Ltd.
+ * 2007 (c) Secret Lab Techanallogies, Ltd.
  * 2009 (c) Xilinx Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -66,11 +66,11 @@
 /*
  * The hardware only handles a single mode: 640x480 24 bit true
  * color. Each pixel gets a word (32 bits) of memory.  Within each word,
- * the 8 most significant bits are ignored, the next 8 bits are the red
+ * the 8 most significant bits are iganalred, the next 8 bits are the red
  * level, the next 8 bits are the green level and the 8 least
  * significant bits are the blue level.  Each row of the LCD uses 1024
  * words, but only the first 640 pixels are displayed with the other 384
- * words being ignored.  There are 480 rows.
+ * words being iganalred.  There are 480 rows.
  */
 #define BYTES_PER_PIXEL	4
 #define BITS_PER_PIXEL	(BYTES_PER_PIXEL * 8)
@@ -79,7 +79,7 @@
 #define GREEN_SHIFT	8
 #define BLUE_SHIFT	0
 
-#define PALETTE_ENTRIES_NO	16	/* passed to fb_alloc_cmap() */
+#define PALETTE_ENTRIES_ANAL	16	/* passed to fb_alloc_cmap() */
 
 /* ML300/403 reference design framebuffer driver platform data struct */
 struct xilinxfb_platform_data {
@@ -89,7 +89,7 @@ struct xilinxfb_platform_data {
 	u32 xres, yres;         /* resolution of screen in pixels */
 	u32 xvirt, yvirt;       /* resolution of memory buffer */
 
-	/* Physical address of framebuffer memory; If non-zero, driver
+	/* Physical address of framebuffer memory; If analn-zero, driver
 	 * will use provided memory address instead of allocating one from
 	 * the consistent pool.
 	 */
@@ -113,7 +113,7 @@ static const struct fb_fix_screeninfo xilinx_fb_fix = {
 	.id =		"Xilinx",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
-	.accel =	FB_ACCEL_NONE
+	.accel =	FB_ACCEL_ANALNE
 };
 
 static const struct fb_var_screeninfo xilinx_fb_var = {
@@ -124,7 +124,7 @@ static const struct fb_var_screeninfo xilinx_fb_var = {
 	.blue =		{ BLUE_SHIFT, 8, 0 },
 	.transp =	{ 0, 0, 0 },
 
-	.activate =	FB_ACTIVATE_NOW
+	.activate =	FB_ACTIVATE_ANALW
 };
 
 #define BUS_ACCESS_FLAG		0x1 /* 1 = BUS, 0 = DCR */
@@ -151,7 +151,7 @@ struct xilinxfb_drvdata {
 
 	u32		reg_ctrl_default;
 
-	u32		pseudo_palette[PALETTE_ENTRIES_NO];
+	u32		pseudo_palette[PALETTE_ENTRIES_ANAL];
 					/* Fake palette of 16 colors */
 };
 
@@ -194,12 +194,12 @@ static u32 xilinx_fb_in32(struct xilinxfb_drvdata *drvdata, u32 offset)
 }
 
 static int
-xilinx_fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
+xilinx_fb_setcolreg(unsigned int reganal, unsigned int red, unsigned int green,
 		    unsigned int blue, unsigned int transp, struct fb_info *fbi)
 {
 	u32 *palette = fbi->pseudo_palette;
 
-	if (regno >= PALETTE_ENTRIES_NO)
+	if (reganal >= PALETTE_ENTRIES_ANAL)
 		return -EINVAL;
 
 	if (fbi->var.grayscale) {
@@ -217,7 +217,7 @@ xilinx_fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
-	palette[regno] = (red << RED_SHIFT) | (green << GREEN_SHIFT) |
+	palette[reganal] = (red << RED_SHIFT) | (green << GREEN_SHIFT) |
 			 (blue << BLUE_SHIFT);
 
 	return 0;
@@ -234,7 +234,7 @@ xilinx_fb_blank(int blank_mode, struct fb_info *fbi)
 		xilinx_fb_out32(drvdata, REG_CTRL, drvdata->reg_ctrl_default);
 		break;
 
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
@@ -289,8 +289,8 @@ static int xilinxfb_assign(struct platform_device *pdev,
 	}
 
 	if (!drvdata->fb_virt) {
-		dev_err(dev, "Could not allocate frame buffer memory\n");
-		return -ENOMEM;
+		dev_err(dev, "Could analt allocate frame buffer memory\n");
+		return -EANALMEM;
 	}
 
 	/* Clear (turn to black) the framebuffer */
@@ -330,17 +330,17 @@ static int xilinxfb_assign(struct platform_device *pdev,
 	drvdata->info.var.yres_virtual = pdata->yvirt;
 
 	/* Allocate a colour map */
-	rc = fb_alloc_cmap(&drvdata->info.cmap, PALETTE_ENTRIES_NO, 0);
+	rc = fb_alloc_cmap(&drvdata->info.cmap, PALETTE_ENTRIES_ANAL, 0);
 	if (rc) {
 		dev_err(dev, "Fail to allocate colormap (%d entries)\n",
-			PALETTE_ENTRIES_NO);
+			PALETTE_ENTRIES_ANAL);
 		goto err_cmap;
 	}
 
 	/* Register new frame buffer */
 	rc = register_framebuffer(&drvdata->info);
 	if (rc) {
-		dev_err(dev, "Could not register frame buffer\n");
+		dev_err(dev, "Could analt register frame buffer\n");
 		goto err_regfb;
 	}
 
@@ -411,19 +411,19 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 	int size;
 	struct xilinxfb_drvdata *drvdata;
 
-	/* Copy with the default pdata (not a ptr reference!) */
+	/* Copy with the default pdata (analt a ptr reference!) */
 	pdata = xilinx_fb_default_pdata;
 
 	/* Allocate the driver data region */
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * To check whether the core is connected directly to DCR or BUS
 	 * interface and initialize the tft_access accordingly.
 	 */
-	of_property_read_u32(pdev->dev.of_node, "xlnx,dcr-splb-slave-if",
+	of_property_read_u32(pdev->dev.of_analde, "xlnx,dcr-splb-slave-if",
 			     &tft_access);
 
 	/*
@@ -436,35 +436,35 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 	else {
 		int start;
 
-		start = dcr_resource_start(pdev->dev.of_node, 0);
-		drvdata->dcr_len = dcr_resource_len(pdev->dev.of_node, 0);
-		drvdata->dcr_host = dcr_map(pdev->dev.of_node, start, drvdata->dcr_len);
+		start = dcr_resource_start(pdev->dev.of_analde, 0);
+		drvdata->dcr_len = dcr_resource_len(pdev->dev.of_analde, 0);
+		drvdata->dcr_host = dcr_map(pdev->dev.of_analde, start, drvdata->dcr_len);
 		if (!DCR_MAP_OK(drvdata->dcr_host)) {
 			dev_err(&pdev->dev, "invalid DCR address\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 #endif
 
-	prop = of_get_property(pdev->dev.of_node, "phys-size", &size);
+	prop = of_get_property(pdev->dev.of_analde, "phys-size", &size);
 	if ((prop) && (size >= sizeof(u32) * 2)) {
 		pdata.screen_width_mm = prop[0];
 		pdata.screen_height_mm = prop[1];
 	}
 
-	prop = of_get_property(pdev->dev.of_node, "resolution", &size);
+	prop = of_get_property(pdev->dev.of_analde, "resolution", &size);
 	if ((prop) && (size >= sizeof(u32) * 2)) {
 		pdata.xres = prop[0];
 		pdata.yres = prop[1];
 	}
 
-	prop = of_get_property(pdev->dev.of_node, "virtual-resolution", &size);
+	prop = of_get_property(pdev->dev.of_analde, "virtual-resolution", &size);
 	if ((prop) && (size >= sizeof(u32) * 2)) {
 		pdata.xvirt = prop[0];
 		pdata.yvirt = prop[1];
 	}
 
-	pdata.rotate_screen = of_property_read_bool(pdev->dev.of_node, "rotate-display");
+	pdata.rotate_screen = of_property_read_bool(pdev->dev.of_analde, "rotate-display");
 
 	platform_set_drvdata(pdev, drvdata);
 	return xilinxfb_assign(pdev, drvdata, &pdata);

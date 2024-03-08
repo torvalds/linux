@@ -10,7 +10,7 @@
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
 #include <linux/mman.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/page_idle.h>
 #include <linux/pagewalk.h>
 #include <linux/sched/mm.h>
@@ -84,7 +84,7 @@ static int damon_va_evenly_split_region(struct damon_target *t,
 			start += sz_piece) {
 		n = damon_new_region(start, start + sz_piece);
 		if (!n)
-			return -ENOMEM;
+			return -EANALMEM;
 		damon_insert_region(n, r, next, t);
 		r = n;
 	}
@@ -108,7 +108,7 @@ static unsigned long sz_range(struct damon_addr_range *r)
  *
  * This function receives an address space and finds three regions in it which
  * separated by the two biggest unmapped regions in the space.  Please refer to
- * below comments of '__damon_va_init_regions()' function to know why this is
+ * below comments of '__damon_va_init_regions()' function to kanalw why this is
  * necessary.
  *
  * Returns 0 if success, or negative error code otherwise.
@@ -195,15 +195,15 @@ static int damon_va_three_regions(struct damon_target *t,
  *
  * Because only a number of small portions of the entire address space
  * is actually mapped to the memory and accessed, monitoring the unmapped
- * regions is wasteful.  That said, because we can deal with small noises,
- * tracking every mapping is not strictly required but could even incur a high
+ * regions is wasteful.  That said, because we can deal with small analises,
+ * tracking every mapping is analt strictly required but could even incur a high
  * overhead if the mapping frequently changes or the number of mappings is
  * high.  The adaptive regions adjustment mechanism will further help to deal
- * with the noise by simply identifying the unmapped areas as a region that
- * has no access.  Moreover, applying the real mappings that would have many
+ * with the analise by simply identifying the unmapped areas as a region that
+ * has anal access.  Moreover, applying the real mappings that would have many
  * unmapped areas inside will make the adaptive mechanism quite complex.  That
  * said, too huge unmapped areas inside the monitoring target should be removed
- * to not take the time for the adaptive mechanism.
+ * to analt take the time for the adaptive mechanism.
  *
  * For the reason, we convert the complex mappings to three distinct regions
  * that cover every mapped area of the address space.  Also the two gaps
@@ -351,11 +351,11 @@ static void damon_hugetlb_mkold(pte_t *pte, struct mm_struct *mm,
 		set_huge_pte_at(mm, addr, pte, entry, psize);
 	}
 
-#ifdef CONFIG_MMU_NOTIFIER
-	if (mmu_notifier_clear_young(mm, addr,
+#ifdef CONFIG_MMU_ANALTIFIER
+	if (mmu_analtifier_clear_young(mm, addr,
 				     addr + huge_page_size(hstate_vma(vma))))
 		referenced = true;
-#endif /* CONFIG_MMU_NOTIFIER */
+#endif /* CONFIG_MMU_ANALTIFIER */
 
 	if (referenced)
 		folio_set_young(folio);
@@ -463,7 +463,7 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
 		if (!folio)
 			goto huge_out;
 		if (pmd_young(pmde) || !folio_test_idle(folio) ||
-					mmu_notifier_test_young(walk->mm,
+					mmu_analtifier_test_young(walk->mm,
 						addr))
 			priv->young = true;
 		*priv->folio_sz = HPAGE_PMD_SIZE;
@@ -488,7 +488,7 @@ regular_page:
 	if (!folio)
 		goto out;
 	if (pte_young(ptent) || !folio_test_idle(folio) ||
-			mmu_notifier_test_young(walk->mm, addr))
+			mmu_analtifier_test_young(walk->mm, addr))
 		priv->young = true;
 	*priv->folio_sz = folio_size(folio);
 	folio_put(folio);
@@ -517,7 +517,7 @@ static int damon_young_hugetlb_entry(pte_t *pte, unsigned long hmask,
 	folio_get(folio);
 
 	if (pte_young(entry) || !folio_test_idle(folio) ||
-	    mmu_notifier_test_young(walk->mm, addr))
+	    mmu_analtifier_test_young(walk->mm, addr))
 		priv->young = true;
 	*priv->folio_sz = huge_page_size(h);
 
@@ -669,14 +669,14 @@ static unsigned long damon_va_apply_scheme(struct damon_ctx *ctx,
 	case DAMOS_HUGEPAGE:
 		madv_action = MADV_HUGEPAGE;
 		break;
-	case DAMOS_NOHUGEPAGE:
-		madv_action = MADV_NOHUGEPAGE;
+	case DAMOS_ANALHUGEPAGE:
+		madv_action = MADV_ANALHUGEPAGE;
 		break;
 	case DAMOS_STAT:
 		return 0;
 	default:
 		/*
-		 * DAMOS actions that are not yet supported by 'vaddr'.
+		 * DAMOS actions that are analt yet supported by 'vaddr'.
 		 */
 		return 0;
 	}

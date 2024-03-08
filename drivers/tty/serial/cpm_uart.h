@@ -23,7 +23,7 @@ struct gpio_desc;
 #define DPRAM_BASE	((u8 __iomem *)cpm_muram_addr(0))
 
 #define SERIAL_CPM_MAJOR	204
-#define SERIAL_CPM_MINOR	46
+#define SERIAL_CPM_MIANALR	46
 
 #define IS_SMC(pinfo)		(pinfo->flags & FLAG_SMC)
 #define FLAG_SMC	0x00000002

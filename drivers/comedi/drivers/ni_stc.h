@@ -347,7 +347,7 @@
 #define NISTC_AO_MODE3_STOP_ON_OVERRUN_ERR	BIT(5)
 #define NISTC_AO_MODE3_STOP_ON_BC_TC_TRIG_ERR	BIT(4)
 #define NISTC_AO_MODE3_STOP_ON_BC_TC_ERR	BIT(3)
-#define NISTC_AO_MODE3_NOT_AN_UPDATE		BIT(2)
+#define NISTC_AO_MODE3_ANALT_AN_UPDATE		BIT(2)
 #define NISTC_AO_MODE3_SW_GATE			BIT(1)
 #define NISTC_AO_MODE3_LAST_GATE_DISABLE	BIT(0)	/* M-Series only */
 
@@ -428,8 +428,8 @@
 
 #define NISTC_RTSI_TRIGA_OUT_REG	79
 #define NISTC_RTSI_TRIGB_OUT_REG	80
-#define NISTC_RTSI_TRIGB_SUB_SEL1	BIT(15)	/* not for M-Series */
-#define NISTC_RTSI_TRIGB_SUB_SEL1_SHIFT	15	/* not for M-Series */
+#define NISTC_RTSI_TRIGB_SUB_SEL1	BIT(15)	/* analt for M-Series */
+#define NISTC_RTSI_TRIGB_SUB_SEL1_SHIFT	15	/* analt for M-Series */
 #define NISTC_RTSI_TRIG(_c, _s)		(((_s) & 0xf) << (((_c) % 4) * 4))
 #define NISTC_RTSI_TRIG_MASK(_c)	NISTC_RTSI_TRIG((_c), 0xf)
 #define NISTC_RTSI_TRIG_TO_SRC(_c, _b)	(((_b) >> (((_c) % 4) * 4)) & 0xf)
@@ -702,7 +702,7 @@
 #define CS5529_CFG_PWR_SAVE_SEL		BIT(4)
 #define CS5529_CFG_DONE_FLAG		BIT(3)
 #define CS5529_CFG_CALIB(x)		(((x) & 0x7) << 0)
-#define CS5529_CFG_CALIB_NONE		CS5529_CFG_CALIB(0)
+#define CS5529_CFG_CALIB_ANALNE		CS5529_CFG_CALIB(0)
 #define CS5529_CFG_CALIB_OFFSET_SELF	CS5529_CFG_CALIB(1)
 #define CS5529_CFG_CALIB_GAIN_SELF	CS5529_CFG_CALIB(2)
 #define CS5529_CFG_CALIB_BOTH_SELF	CS5529_CFG_CALIB(3)
@@ -710,7 +710,7 @@
 #define CS5529_CFG_CALIB_GAIN_SYS	CS5529_CFG_CALIB(6)
 
 /*
- * M-Series specific registers not handled by the DAQ-STC and GPCT register
+ * M-Series specific registers analt handled by the DAQ-STC and GPCT register
  * remapping.
  */
 #define NI_M_CDIO_DMA_SEL_REG		0x007
@@ -915,7 +915,7 @@ enum {
 };
 
 enum caldac_enum {
-	caldac_none = 0,
+	caldac_analne = 0,
 	mb88341,
 	dac8800,
 	dac8043,
@@ -926,7 +926,7 @@ enum caldac_enum {
 };
 
 enum ni_reg_type {
-	ni_reg_normal = 0x0,
+	ni_reg_analrmal = 0x0,
 	ni_reg_611x = 0x1,
 	ni_reg_6711 = 0x2,
 	ni_reg_6713 = 0x4,
@@ -962,7 +962,7 @@ struct ni_board_struct {
 	int reg_type;
 	unsigned int has_8255:1;
 	unsigned int has_32dio_chan:1;
-	unsigned int dio_speed; /* not for e-series */
+	unsigned int dio_speed; /* analt for e-series */
 
 	enum caldac_enum caldac[3];
 };
@@ -1058,13 +1058,13 @@ struct ni_private {
 	/*
 	 * Boolean value of whether device needs to be armed.
 	 *
-	 * Currently, only NI AO devices are known to be needing arming, since
+	 * Currently, only NI AO devices are kanalwn to be needing arming, since
 	 * the DAC registers must be preloaded before triggering.
 	 * This variable should only be set true during a command operation
 	 * (e.g ni_ao_cmd) and should then be set false by the arming
 	 * function (e.g. ni_ao_arm).
 	 *
-	 * This variable helps to ensure that multiple DMA allocations are not
+	 * This variable helps to ensure that multiple DMA allocations are analt
 	 * possible.
 	 */
 	unsigned int ao_needs_arming:1;
@@ -1105,8 +1105,8 @@ struct ni_private {
 	 *     These pins provide a mechanism for additional board-level signals
 	 *     to be sent on or received from the RTSI bus.
 	 *   Couple of comments:
-	 *   - Neither the DAQ-STC nor the MHDDK is clear on what the direction
-	 *     of the RTSI_BRD pins actually means.  There does not appear to be
+	 *   - Neither the DAQ-STC analr the MHDDK is clear on what the direction
+	 *     of the RTSI_BRD pins actually means.  There does analt appear to be
 	 *     any clear indication on what "output" would mean, since the point
 	 *     of the RTSI_BRD lines is to always drive one of the
 	 *     RTSI_TRIGGER<0..6> lines.
@@ -1114,7 +1114,7 @@ struct ni_private {
 	 *     driven by any of the RTSI_TRIGGER<0..6> lines.
 	 *     But, looking at valid device routes, as visually imported from
 	 *     NI-MAX, there appears to be only one family (so far) that has the
-	 *     ability to route a signal from one TRIGGER_LINE to another
+	 *     ability to route a signal from one TRIGGER_LINE to aanalther
 	 *     TRIGGER_LINE: the 653x family of DIO devices.
 	 *
 	 * For m-series, the bit layout of this register is
@@ -1123,8 +1123,8 @@ struct ni_private {
 	 *   bits  4:7  --  NI_RTSI_BRD(1) source selection
 	 *   bits  8:11 --  NI_RTSI_BRD(2) source selection
 	 *   bits 12:15 --  NI_RTSI_BRD(3) source selection
-	 *   Note:  The m-series does not have any option to change direction of
-	 *   NI_RTSI_BRD muxes.  Furthermore, there are no register values that
+	 *   Analte:  The m-series does analt have any option to change direction of
+	 *   NI_RTSI_BRD muxes.  Furthermore, there are anal register values that
 	 *   indicate the ability to have TRIGGER_LINES driving the output of
 	 *   the NI_RTSI_BRD muxes.
 	 */

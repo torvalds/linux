@@ -21,21 +21,21 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE
  * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -43,7 +43,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/inetdevice.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -180,7 +180,7 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.query_port = pvrdma_query_port,
 	.query_qp = pvrdma_query_qp,
 	.reg_user_mr = pvrdma_reg_user_mr,
-	.req_notify_cq = pvrdma_req_notify_cq,
+	.req_analtify_cq = pvrdma_req_analtify_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, pvrdma_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, pvrdma_cq, ibcq),
@@ -202,13 +202,13 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 {
 	int ret = -1;
 
-	dev->ib_dev.node_guid = dev->dsr->caps.node_guid;
+	dev->ib_dev.analde_guid = dev->dsr->caps.analde_guid;
 	dev->sys_image_guid = dev->dsr->caps.sys_image_guid;
 	dev->flags = 0;
 	dev->ib_dev.num_comp_vectors = 1;
 	dev->ib_dev.dev.parent = &dev->pdev->dev;
 
-	dev->ib_dev.node_type = RDMA_NODE_IB_CA;
+	dev->ib_dev.analde_type = RDMA_ANALDE_IB_CA;
 	dev->ib_dev.phys_port_cnt = dev->dsr->caps.phys_port_cnt;
 
 	ib_set_device_ops(&dev->ib_dev, &pvrdma_dev_ops);
@@ -272,7 +272,7 @@ static irqreturn_t pvrdma_intr0_handler(int irq, void *dev_id)
 		/* Legacy intr */
 		icr = pvrdma_read_reg(dev, PVRDMA_REG_ICR);
 		if (icr == 0)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	}
 
 	if (icr == PVRDMA_INTR_CAUSE_RESPONSE)
@@ -298,7 +298,7 @@ static void pvrdma_qp_event(struct pvrdma_dev *dev, u32 qpn, int type)
 
 		e.device = ibqp->device;
 		e.element.qp = ibqp;
-		e.event = type; /* 1:1 mapping for now. */
+		e.event = type; /* 1:1 mapping for analw. */
 		ibqp->event_handler(&e, ibqp->qp_context);
 	}
 	if (qp) {
@@ -324,7 +324,7 @@ static void pvrdma_cq_event(struct pvrdma_dev *dev, u32 cqn, int type)
 
 		e.device = ibcq->device;
 		e.element.cq = ibcq;
-		e.event = type; /* 1:1 mapping for now. */
+		e.event = type; /* 1:1 mapping for analw. */
 		ibcq->event_handler(&e, ibcq->cq_context);
 	}
 	if (cq) {
@@ -353,7 +353,7 @@ static void pvrdma_srq_event(struct pvrdma_dev *dev, u32 srqn, int type)
 
 		e.device = ibsrq->device;
 		e.element.srq = ibsrq;
-		e.event = type; /* 1:1 mapping for now. */
+		e.event = type; /* 1:1 mapping for analw. */
 		ibsrq->event_handler(&e, ibsrq->srq_context);
 	}
 	if (srq) {
@@ -589,7 +589,7 @@ static int pvrdma_add_gid_at_index(struct pvrdma_dev *dev,
 	struct pvrdma_cmd_create_bind *cmd_bind = &req.create_bind;
 
 	if (!dev->sgid_tbl) {
-		dev_warn(&dev->pdev->dev, "sgid table not initialized\n");
+		dev_warn(&dev->pdev->dev, "sgid table analt initialized\n");
 		return -EINVAL;
 	}
 
@@ -604,7 +604,7 @@ static int pvrdma_add_gid_at_index(struct pvrdma_dev *dev,
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not create binding, error: %d\n", ret);
+			 "could analt create binding, error: %d\n", ret);
 		return -EFAULT;
 	}
 	memcpy(&dev->sgid_tbl[index], gid, sizeof(*gid));
@@ -628,7 +628,7 @@ static int pvrdma_del_gid_at_index(struct pvrdma_dev *dev, int index)
 
 	/* Update sgid table. */
 	if (!dev->sgid_tbl) {
-		dev_warn(&dev->pdev->dev, "sgid table not initialized\n");
+		dev_warn(&dev->pdev->dev, "sgid table analt initialized\n");
 		return -EINVAL;
 	}
 
@@ -640,7 +640,7 @@ static int pvrdma_del_gid_at_index(struct pvrdma_dev *dev, int index)
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not destroy binding, error: %d\n", ret);
+			 "could analt destroy binding, error: %d\n", ret);
 		return ret;
 	}
 	memset(&dev->sgid_tbl[index], 0, 16);
@@ -702,7 +702,7 @@ static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,
 		break;
 
 	default:
-		dev_dbg(&dev->pdev->dev, "ignore netdevice event %ld on %s\n",
+		dev_dbg(&dev->pdev->dev, "iganalre netdevice event %ld on %s\n",
 			event, dev_name(&dev->ib_dev.dev));
 		break;
 	}
@@ -730,22 +730,22 @@ static void pvrdma_netdevice_event_work(struct work_struct *work)
 	kfree(netdev_work);
 }
 
-static int pvrdma_netdevice_event(struct notifier_block *this,
+static int pvrdma_netdevice_event(struct analtifier_block *this,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *event_netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *event_netdev = netdev_analtifier_info_to_dev(ptr);
 	struct pvrdma_netdevice_work *netdev_work;
 
 	netdev_work = kmalloc(sizeof(*netdev_work), GFP_ATOMIC);
 	if (!netdev_work)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	INIT_WORK(&netdev_work->work, pvrdma_netdevice_event_work);
 	netdev_work->event_netdev = event_netdev;
 	netdev_work->event = event;
 	queue_work(event_wq, &netdev_work->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int pvrdma_pci_probe(struct pci_dev *pdev,
@@ -764,7 +764,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev = ib_alloc_device(pvrdma_dev, ib_dev);
 	if (!dev) {
 		dev_err(&pdev->dev, "failed to allocate IB device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_lock(&pvrdma_device_list_lock);
@@ -780,7 +780,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
+		dev_err(&pdev->dev, "cananalt enable PCI device\n");
 		goto err_free_device;
 	}
 
@@ -799,14 +799,14 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM) ||
 	    !(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "PCI BAR region not MMIO\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "PCI BAR region analt MMIO\n");
+		ret = -EANALMEM;
 		goto err_disable_pdev;
 	}
 
 	ret = pci_request_regions(pdev, DRV_NAME);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot request PCI resources\n");
+		dev_err(&pdev->dev, "cananalt request PCI resources\n");
 		goto err_disable_pdev;
 	}
 
@@ -825,7 +825,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev->regs = ioremap(start, len);
 	if (!dev->regs) {
 		dev_err(&pdev->dev, "register mapping failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_resource;
 	}
 
@@ -838,7 +838,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 		ioremap(dev->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
 	if (!dev->driver_uar.map) {
 		dev_err(&pdev->dev, "failed to remap UAR pages\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap_regs;
 	}
 
@@ -850,7 +850,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 				      &dev->dsrbase, GFP_KERNEL);
 	if (!dev->dsr) {
 		dev_err(&pdev->dev, "failed to allocate shared region\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_uar_unmap;
 	}
 
@@ -871,7 +871,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev->cmd_slot = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
 					   &slot_dma, GFP_KERNEL);
 	if (!dev->cmd_slot) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_dsr;
 	}
 
@@ -881,7 +881,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev->resp_slot = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
 					    &slot_dma, GFP_KERNEL);
 	if (!dev->resp_slot) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_slots;
 	}
 
@@ -896,7 +896,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev->async_ring_state = dev->async_pdir.pages[0];
 	dev->dsr->async_ring_pages.pdir_dma = dev->async_pdir.dir_dma;
 
-	/* CQ notification ring */
+	/* CQ analtification ring */
 	dev->dsr->cq_ring_pages.num_pages = PVRDMA_NUM_RING_PAGES;
 	ret = pvrdma_page_dir_init(dev, &dev->cq_pdir,
 				   dev->dsr->cq_ring_pages.num_pages, true);
@@ -929,7 +929,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	pdev_net = pci_get_slot(pdev->bus, PCI_DEVFN(PCI_SLOT(pdev->devfn), 0));
 	if (!pdev_net) {
 		dev_err(&pdev->dev, "failed to find paired net device\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_cq_ring;
 	}
 
@@ -937,7 +937,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	    pdev_net->device != PCI_DEVICE_ID_VMWARE_VMXNET3) {
 		dev_err(&pdev->dev, "failed to find paired vmxnet3 device\n");
 		pci_dev_put(pdev_net);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_cq_ring;
 	}
 
@@ -945,7 +945,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	pci_dev_put(pdev_net);
 	if (!dev->netdev) {
 		dev_err(&pdev->dev, "failed to get vmxnet3 device\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_cq_ring;
 	}
 	dev_hold(dev->netdev);
@@ -956,7 +956,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	ret = pvrdma_alloc_intrs(dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to allocate interrupts\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_cq_ring;
 	}
 
@@ -964,7 +964,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	ret = pvrdma_uar_table_init(dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to allocate UAR table\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_intrs;
 	}
 
@@ -972,7 +972,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev->sgid_tbl = kcalloc(dev->dsr->caps.gid_tbl_len,
 				sizeof(union ib_gid), GFP_KERNEL);
 	if (!dev->sgid_tbl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_uar_table;
 	}
 	dev_dbg(&pdev->dev, "gid table len %d\n", dev->dsr->caps.gid_tbl_len);
@@ -1000,8 +1000,8 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 		goto err_disable_intr;
 	}
 
-	dev->nb_netdev.notifier_call = pvrdma_netdevice_event;
-	ret = register_netdevice_notifier(&dev->nb_netdev);
+	dev->nb_netdev.analtifier_call = pvrdma_netdevice_event;
+	ret = register_netdevice_analtifier(&dev->nb_netdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register netdevice events\n");
 		goto err_unreg_ibdev;
@@ -1057,8 +1057,8 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 
 	dev_info(&pdev->dev, "detaching from device\n");
 
-	unregister_netdevice_notifier(&dev->nb_netdev);
-	dev->nb_netdev.notifier_call = NULL;
+	unregister_netdevice_analtifier(&dev->nb_netdev);
+	dev->nb_netdev.analtifier_call = NULL;
 
 	flush_workqueue(event_wq);
 
@@ -1120,7 +1120,7 @@ static int __init pvrdma_init(void)
 
 	event_wq = alloc_ordered_workqueue("pvrdma_event_wq", WQ_MEM_RECLAIM);
 	if (!event_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pci_register_driver(&pvrdma_driver);
 	if (err)

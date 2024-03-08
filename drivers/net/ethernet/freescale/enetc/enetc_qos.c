@@ -81,7 +81,7 @@ static int enetc_setup_taprio(struct enetc_ndev_priv *priv,
 	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
 				       &dma, (void *)&gcl_data);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gce = (struct gce *)(gcl_data + 1);
 
@@ -215,7 +215,7 @@ int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
 		enetc_taprio_queue_stats(ndev, &offload->queue_stats);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -251,7 +251,7 @@ int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data)
 
 	/* Support highest prio and second prio tc in cbs mode */
 	if (tc != prio_top && tc != prio_next)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!cbs->enable) {
 		/* Make sure the other TC that are numerically
@@ -273,7 +273,7 @@ int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data)
 
 	if (cbs->idleslope - cbs->sendslope != port_transmit_rate * 1000L ||
 	    cbs->idleslope < 0 || cbs->sendslope > 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	port_frame_max_size = ndev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 
@@ -356,7 +356,7 @@ int enetc_setup_tc_txtime(struct net_device *ndev, void *type_data)
 	int tc;
 
 	if (!tc_nums)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tc = qopt->queue;
 
@@ -405,9 +405,9 @@ struct actions_fwd {
 struct psfp_streamfilter_counters {
 	u64 matching_frames_count;
 	u64 passing_frames_count;
-	u64 not_passing_frames_count;
+	u64 analt_passing_frames_count;
 	u64 passing_sdu_count;
-	u64 not_passing_sdu_count;
+	u64 analt_passing_sdu_count;
 	u64 red_frames_count;
 };
 
@@ -431,7 +431,7 @@ struct enetc_psfp_filter {
 	u32 gate_id;
 	s32 meter_id;
 	refcount_t refcount;
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
 struct enetc_psfp_gate {
@@ -442,11 +442,11 @@ struct enetc_psfp_gate {
 	u64 cycletimext;
 	u32 num_entries;
 	refcount_t refcount;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct action_gate_entry entries[] __counted_by(num_entries);
 };
 
-/* Only enable the green color frame now
+/* Only enable the green color frame analw
  * Will add eir and ebs color blind, couple flag etc when
  * policing action add more offloading parameters
  */
@@ -455,7 +455,7 @@ struct enetc_psfp_meter {
 	u32 cir;
 	u32 cbs;
 	refcount_t refcount;
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
 #define ENETC_PSFP_FLAGS_FMI BIT(0)
@@ -467,7 +467,7 @@ struct enetc_stream_filter {
 	u32 flags;
 	u32 fmi_index;
 	struct flow_stats stats;
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
 struct enetc_psfp {
@@ -530,7 +530,7 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	if (sid->filtertype != STREAMID_TYPE_NULL &&
 	    sid->filtertype != STREAMID_TYPE_SMAC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Disable operation before enable */
 	cbd.index = cpu_to_le16((u16)sid->index);
@@ -541,7 +541,7 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
 				       &dma, (void *)&si_data);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eth_broadcast_addr(si_data->dmac);
 	si_data->vid_vidm_tg = (ENETC_CBDR_SID_VID_MASK
@@ -678,7 +678,7 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
 				       &dma, (void *)&data_buf);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = enetc_send_cmd(priv->si, &cbd);
 	if (err)
@@ -687,19 +687,19 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	cnt->matching_frames_count = ((u64)data_buf->matchh << 32) +
 				     data_buf->matchl;
 
-	cnt->not_passing_sdu_count = ((u64)data_buf->msdu_droph << 32) +
+	cnt->analt_passing_sdu_count = ((u64)data_buf->msdu_droph << 32) +
 				     data_buf->msdu_dropl;
 
 	cnt->passing_sdu_count = cnt->matching_frames_count
-				- cnt->not_passing_sdu_count;
+				- cnt->analt_passing_sdu_count;
 
-	cnt->not_passing_frames_count =
+	cnt->analt_passing_frames_count =
 				((u64)data_buf->stream_gate_droph << 32) +
 				data_buf->stream_gate_dropl;
 
 	cnt->passing_frames_count = cnt->matching_frames_count -
-				    cnt->not_passing_sdu_count -
-				    cnt->not_passing_frames_count;
+				    cnt->analt_passing_sdu_count -
+				    cnt->analt_passing_frames_count;
 
 	cnt->red_frames_count =	((u64)data_buf->flow_meter_droph << 32)	+
 				data_buf->flow_meter_dropl;
@@ -710,25 +710,25 @@ exit:
 	return err;
 }
 
-static u64 get_ptp_now(struct enetc_hw *hw)
+static u64 get_ptp_analw(struct enetc_hw *hw)
 {
-	u64 now_lo, now_hi, now;
+	u64 analw_lo, analw_hi, analw;
 
-	now_lo = enetc_rd(hw, ENETC_SICTR0);
-	now_hi = enetc_rd(hw, ENETC_SICTR1);
-	now = now_lo | now_hi << 32;
+	analw_lo = enetc_rd(hw, ENETC_SICTR0);
+	analw_hi = enetc_rd(hw, ENETC_SICTR1);
+	analw = analw_lo | analw_hi << 32;
 
-	return now;
+	return analw;
 }
 
-static int get_start_ns(u64 now, u64 cycle, u64 *start)
+static int get_start_ns(u64 analw, u64 cycle, u64 *start)
 {
 	u64 n;
 
 	if (!cycle)
 		return -EFAULT;
 
-	n = div64_u64(now, cycle);
+	n = div64_u64(analw, cycle);
 
 	*start = (n + 1) * cycle;
 
@@ -749,7 +749,7 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	u16 data_size;
 	int err, i;
 	void *tmp;
-	u64 now;
+	u64 analw;
 
 	cbd.index = cpu_to_le16(sgi->index);
 	cbd.cmd = 0;
@@ -798,7 +798,7 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
 				       &dma, (void *)&sgcl_data);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sgce = &sgcl_data->sgcl[0];
 
@@ -830,13 +830,13 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 		to->interval = from->interval;
 	}
 
-	/* If basetime is less than now, calculate start time */
-	now = get_ptp_now(&priv->si->hw);
+	/* If basetime is less than analw, calculate start time */
+	analw = get_ptp_analw(&priv->si->hw);
 
-	if (sgi->basetime < now) {
+	if (sgi->basetime < analw) {
 		u64 start;
 
-		err = get_start_ns(now, sgi->cycletime, &start);
+		err = get_start_ns(analw, sgi->cycletime, &start);
 		if (err)
 			goto exit;
 		sgcl_data->btl = lower_32_bits(start);
@@ -902,7 +902,7 @@ static struct enetc_stream_filter *enetc_get_stream_by_index(u32 index)
 {
 	struct enetc_stream_filter *f;
 
-	hlist_for_each_entry(f, &epsfp.stream_list, node)
+	hlist_for_each_entry(f, &epsfp.stream_list, analde)
 		if (f->sid.index == index)
 			return f;
 
@@ -913,7 +913,7 @@ static struct enetc_psfp_gate *enetc_get_gate_by_index(u32 index)
 {
 	struct enetc_psfp_gate *g;
 
-	hlist_for_each_entry(g, &epsfp.psfp_gate_list, node)
+	hlist_for_each_entry(g, &epsfp.psfp_gate_list, analde)
 		if (g->index == index)
 			return g;
 
@@ -924,7 +924,7 @@ static struct enetc_psfp_filter *enetc_get_filter_by_index(u32 index)
 {
 	struct enetc_psfp_filter *s;
 
-	hlist_for_each_entry(s, &epsfp.psfp_filter_list, node)
+	hlist_for_each_entry(s, &epsfp.psfp_filter_list, analde)
 		if (s->index == index)
 			return s;
 
@@ -935,7 +935,7 @@ static struct enetc_psfp_meter *enetc_get_meter_by_index(u32 index)
 {
 	struct enetc_psfp_meter *m;
 
-	hlist_for_each_entry(m, &epsfp.psfp_meter_list, node)
+	hlist_for_each_entry(m, &epsfp.psfp_meter_list, analde)
 		if (m->index == index)
 			return m;
 
@@ -947,7 +947,7 @@ static struct enetc_psfp_filter
 {
 	struct enetc_psfp_filter *s;
 
-	hlist_for_each_entry(s, &epsfp.psfp_filter_list, node)
+	hlist_for_each_entry(s, &epsfp.psfp_filter_list, analde)
 		if (s->gate_id == sfi->gate_id &&
 		    s->prio == sfi->prio &&
 		    s->maxsdu == sfi->maxsdu &&
@@ -980,7 +980,7 @@ static void stream_filter_unref(struct enetc_ndev_priv *priv, u32 index)
 
 	if (z) {
 		enetc_streamfilter_hw_set(priv, sfi, false);
-		hlist_del(&sfi->node);
+		hlist_del(&sfi->analde);
 		kfree(sfi);
 		clear_bit(index, epsfp.psfp_sfi_bitmap);
 	}
@@ -996,7 +996,7 @@ static void stream_gate_unref(struct enetc_ndev_priv *priv, u32 index)
 	z = refcount_dec_and_test(&sgi->refcount);
 	if (z) {
 		enetc_streamgate_hw_set(priv, sgi, false);
-		hlist_del(&sgi->node);
+		hlist_del(&sgi->analde);
 		kfree(sgi);
 	}
 }
@@ -1011,7 +1011,7 @@ static void flow_meter_unref(struct enetc_ndev_priv *priv, u32 index)
 	z = refcount_dec_and_test(&fmi->refcount);
 	if (z) {
 		enetc_flowmeter_hw_set(priv, fmi, false);
-		hlist_del(&fmi->node);
+		hlist_del(&fmi->analde);
 		kfree(fmi);
 	}
 }
@@ -1025,7 +1025,7 @@ static void remove_one_chain(struct enetc_ndev_priv *priv,
 	stream_gate_unref(priv, filter->sgi_index);
 	stream_filter_unref(priv, filter->sfi_index);
 
-	hlist_del(&filter->node);
+	hlist_del(&filter->analde);
 	kfree(filter);
 }
 
@@ -1088,35 +1088,35 @@ static int enetc_psfp_policer_validate(const struct flow_action *action,
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+	if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (act->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.rate_pkt_ps) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "QoS offload not support packets per second");
-		return -EOPNOTSUPP;
+				   "QoS offload analt support packets per second");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1139,8 +1139,8 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	int i, err;
 
 	if (f->common.chain_index >= priv->psfp_cap.max_streamid) {
-		NL_SET_ERR_MSG_MOD(extack, "No Stream identify resource!");
-		return -ENOSPC;
+		NL_SET_ERR_MSG_MOD(extack, "Anal Stream identify resource!");
+		return -EANALSPC;
 	}
 
 	flow_action_for_each(i, entry, &rule->action)
@@ -1149,13 +1149,13 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		else if (entry->id == FLOW_ACTION_POLICE)
 			entryp = entry;
 
-	/* Not support without gate action */
+	/* Analt support without gate action */
 	if (!entryg)
 		return -EINVAL;
 
 	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
 	if (!filter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	filter->sid.index = f->common.chain_index;
 
@@ -1167,7 +1167,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		if (!is_zero_ether_addr(match.mask->dst) &&
 		    !is_zero_ether_addr(match.mask->src)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Cannot match on both source and destination MAC");
+					   "Cananalt match on both source and destination MAC");
 			err = -EINVAL;
 			goto free_filter;
 		}
@@ -1175,7 +1175,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		if (!is_zero_ether_addr(match.mask->dst)) {
 			if (!is_broadcast_ether_addr(match.mask->dst)) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Masked matching on destination MAC not supported");
+						   "Masked matching on destination MAC analt supported");
 				err = -EINVAL;
 				goto free_filter;
 			}
@@ -1186,7 +1186,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		if (!is_zero_ether_addr(match.mask->src)) {
 			if (!is_broadcast_ether_addr(match.mask->src)) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Masked matching on source MAC not supported");
+						   "Masked matching on source MAC analt supported");
 				err = -EINVAL;
 				goto free_filter;
 			}
@@ -1231,21 +1231,21 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	/* parsing gate action */
 	if (entryg->hw_index >= priv->psfp_cap.max_psfp_gate) {
-		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
-		err = -ENOSPC;
+		NL_SET_ERR_MSG_MOD(extack, "Anal Stream Gate resource!");
+		err = -EANALSPC;
 		goto free_filter;
 	}
 
 	if (entryg->gate.num_entries >= priv->psfp_cap.max_psfp_gatelist) {
-		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
-		err = -ENOSPC;
+		NL_SET_ERR_MSG_MOD(extack, "Anal Stream Gate resource!");
+		err = -EANALSPC;
 		goto free_filter;
 	}
 
 	entries_size = struct_size(sgi, entries, entryg->gate.num_entries);
 	sgi = kzalloc(entries_size, GFP_KERNEL);
 	if (!sgi) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_filter;
 	}
 
@@ -1268,7 +1268,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	sfi = kzalloc(sizeof(*sfi), GFP_KERNEL);
 	if (!sfi) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_gate;
 	}
 
@@ -1285,7 +1285,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		if (entryp->police.burst) {
 			fmi = kzalloc(sizeof(*fmi), GFP_KERNEL);
 			if (!fmi) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto free_sfi;
 			}
 			refcount_set(&fmi->refcount, 1);
@@ -1313,8 +1313,8 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 		index = enetc_get_free_index(priv);
 		if (index < 0) {
-			NL_SET_ERR_MSG_MOD(extack, "No Stream Filter resource!");
-			err = -ENOSPC;
+			NL_SET_ERR_MSG_MOD(extack, "Anal Stream Filter resource!");
+			err = -EANALSPC;
 			goto free_fmi;
 		}
 
@@ -1342,25 +1342,25 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			fmi->refcount = old_fmi->refcount;
 			refcount_set(&fmi->refcount,
 				     refcount_read(&old_fmi->refcount) + 1);
-			hlist_del(&old_fmi->node);
+			hlist_del(&old_fmi->analde);
 			kfree(old_fmi);
 		}
-		hlist_add_head(&fmi->node, &epsfp.psfp_meter_list);
+		hlist_add_head(&fmi->analde, &epsfp.psfp_meter_list);
 	}
 
-	/* Remove the old node if exist and update with a new node */
+	/* Remove the old analde if exist and update with a new analde */
 	old_sgi = enetc_get_gate_by_index(filter->sgi_index);
 	if (old_sgi) {
 		refcount_set(&sgi->refcount,
 			     refcount_read(&old_sgi->refcount) + 1);
-		hlist_del(&old_sgi->node);
+		hlist_del(&old_sgi->analde);
 		kfree(old_sgi);
 	}
 
-	hlist_add_head(&sgi->node, &epsfp.psfp_gate_list);
+	hlist_add_head(&sgi->analde, &epsfp.psfp_gate_list);
 
 	if (!old_sfi) {
-		hlist_add_head(&sfi->node, &epsfp.psfp_filter_list);
+		hlist_add_head(&sfi->analde, &epsfp.psfp_filter_list);
 		set_bit(sfi->index, epsfp.psfp_sfi_bitmap);
 	} else {
 		kfree(sfi);
@@ -1372,7 +1372,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 		remove_one_chain(priv, old_filter);
 
 	filter->stats.lastused = jiffies;
-	hlist_add_head(&filter->node, &epsfp.stream_list);
+	hlist_add_head(&filter->analde, &epsfp.stream_list);
 
 	spin_unlock(&epsfp.psfp_lock);
 
@@ -1413,7 +1413,7 @@ static int enetc_config_clsflower(struct enetc_ndev_priv *priv,
 	fwd = enetc_check_flow_actions(actions, dissector->used_keys);
 	if (!fwd) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported filter type!");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (fwd->output & FILTER_ACTION_TYPE_PSFP) {
@@ -1424,7 +1424,7 @@ static int enetc_config_clsflower(struct enetc_ndev_priv *priv,
 		}
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported actions");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1438,8 +1438,8 @@ static int enetc_psfp_destroy_clsflower(struct enetc_ndev_priv *priv,
 	int err;
 
 	if (f->common.chain_index >= priv->psfp_cap.max_streamid) {
-		NL_SET_ERR_MSG_MOD(extack, "No Stream identify resource!");
-		return -ENOSPC;
+		NL_SET_ERR_MSG_MOD(extack, "Anal Stream identify resource!");
+		return -EANALSPC;
 	}
 
 	filter = enetc_get_stream_by_index(f->common.chain_index);
@@ -1479,10 +1479,10 @@ static int enetc_psfp_get_stats(struct enetc_ndev_priv *priv,
 
 	spin_lock(&epsfp.psfp_lock);
 	stats.pkts = counters.matching_frames_count +
-		     counters.not_passing_sdu_count -
+		     counters.analt_passing_sdu_count -
 		     filter->stats.pkts;
-	stats.drops = counters.not_passing_frames_count +
-		      counters.not_passing_sdu_count +
+	stats.drops = counters.analt_passing_frames_count +
+		      counters.analt_passing_sdu_count +
 		      counters.red_frames_count -
 		      filter->stats.drops;
 	stats.lastused = filter->stats.lastused;
@@ -1507,7 +1507,7 @@ static int enetc_setup_tc_cls_flower(struct enetc_ndev_priv *priv,
 	case FLOW_CLS_STATS:
 		return enetc_psfp_get_stats(priv, cls_flower);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1520,10 +1520,10 @@ static inline void clean_psfp_sfi_bitmap(void)
 static void clean_stream_list(void)
 {
 	struct enetc_stream_filter *s;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
-	hlist_for_each_entry_safe(s, tmp, &epsfp.stream_list, node) {
-		hlist_del(&s->node);
+	hlist_for_each_entry_safe(s, tmp, &epsfp.stream_list, analde) {
+		hlist_del(&s->analde);
 		kfree(s);
 	}
 }
@@ -1531,10 +1531,10 @@ static void clean_stream_list(void)
 static void clean_sfi_list(void)
 {
 	struct enetc_psfp_filter *sfi;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
-	hlist_for_each_entry_safe(sfi, tmp, &epsfp.psfp_filter_list, node) {
-		hlist_del(&sfi->node);
+	hlist_for_each_entry_safe(sfi, tmp, &epsfp.psfp_filter_list, analde) {
+		hlist_del(&sfi->analde);
 		kfree(sfi);
 	}
 }
@@ -1542,17 +1542,17 @@ static void clean_sfi_list(void)
 static void clean_sgi_list(void)
 {
 	struct enetc_psfp_gate *sgi;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
-	hlist_for_each_entry_safe(sgi, tmp, &epsfp.psfp_gate_list, node) {
-		hlist_del(&sgi->node);
+	hlist_for_each_entry_safe(sgi, tmp, &epsfp.psfp_gate_list, analde) {
+		hlist_del(&sgi->analde);
 		kfree(sgi);
 	}
 }
 
 static void clean_psfp_all(void)
 {
-	/* Disable all list nodes and free all memory */
+	/* Disable all list analdes and free all memory */
 	clean_sfi_list();
 	clean_sgi_list();
 	clean_stream_list();
@@ -1566,13 +1566,13 @@ int enetc_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	struct net_device *ndev = cb_priv;
 
 	if (!tc_can_offload(ndev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return enetc_setup_tc_cls_flower(netdev_priv(ndev), type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1607,7 +1607,7 @@ int enetc_psfp_init(struct enetc_ndev_priv *priv)
 	epsfp.psfp_sfi_bitmap = bitmap_zalloc(priv->psfp_cap.max_psfp_filter,
 					      GFP_KERNEL);
 	if (!epsfp.psfp_sfi_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&epsfp.psfp_lock);
 
@@ -1684,6 +1684,6 @@ int enetc_qos_query_caps(struct net_device *ndev, void *type_data)
 		return 0;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

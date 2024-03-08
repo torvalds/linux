@@ -15,7 +15,7 @@ Supported chips:
 
     Prefix: 'sch311x'
 
-    Addresses scanned: none, address read from Super-I/O config space
+    Addresses scanned: analne, address read from Super-I/O config space
 
     Datasheet: Available on the Internet
 
@@ -31,7 +31,7 @@ Supported chips:
 
     Prefix: 'sch5127'
 
-    Addresses scanned: none, address read from Super-I/O config space
+    Addresses scanned: analne, address read from Super-I/O config space
 
     Datasheet: Provided by SMSC upon request and under NDA
 
@@ -49,7 +49,7 @@ Module Parameters
 			of this.
 
 * probe_all_addr: bool
-			Include non-standard LPC addresses 0x162e and 0x164e
+			Include analn-standard LPC addresses 0x162e and 0x164e
 			when probing for ISA devices. This is required for the
 			following boards:
 			- VIA EPIA SN18000
@@ -214,7 +214,7 @@ fan either turns completely off or keeps spinning with the low-speed
 duty-cycle. If any of the temperatures rise above the auto_point3_temp value,
 all PWM outputs are set to 100% duty-cycle.
 
-Following is another representation of how the chip sets the output duty-cycle
+Following is aanalther representation of how the chip sets the output duty-cycle
 based on the temperature of the associated thermal zone:
 
 	=============== =============== =================
@@ -348,17 +348,17 @@ Chip Differences
 ======================= ======= ======= ======= =======
 Feature			dme1737	sch311x	sch5027	sch5127
 ======================= ======= ======= ======= =======
-temp[1-3]_offset	yes	yes
-vid			yes
-zone3			yes	yes	yes
-zone[1-3]_hyst		yes	yes
-pwm min/off		yes	yes
-fan3			opt	yes	opt	yes
-pwm3			opt	yes	opt	yes
+temp[1-3]_offset	anal	anal
+vid			anal
+zone3			anal	anal	anal
+zone[1-3]_hyst		anal	anal
+pwm min/off		anal	anal
+fan3			opt	anal	opt	anal
+pwm3			opt	anal	opt	anal
 fan4			opt		opt
 fan5			opt		opt
 pwm5			opt		opt
 fan6			opt		opt
 pwm6			opt		opt
-in7						yes
+in7						anal
 ======================= ======= ======= ======= =======

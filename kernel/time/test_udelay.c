@@ -91,9 +91,9 @@ static int udelay_test_show(struct seq_file *s, void *v)
 	return ret;
 }
 
-static int udelay_test_open(struct inode *inode, struct file *file)
+static int udelay_test_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, udelay_test_show, inode->i_private);
+	return single_open(file, udelay_test_show, ianalde->i_private);
 }
 
 static ssize_t udelay_test_write(struct file *file, const char __user *buf,

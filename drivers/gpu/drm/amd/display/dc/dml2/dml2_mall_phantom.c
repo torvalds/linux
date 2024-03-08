@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -73,7 +73,7 @@ unsigned int dml2_helper_calculate_num_ways_for_subvp(struct dml2_context *ctx, 
 			/* full_mblk_width_ub_l/c = malldml2_mall_phantom.c_alloc_width_blk_aligned_l/c;
 			 * full_mblk_height_ub_l/c = mall_alloc_height_blk_aligned_l/c;
 			 * num_mblk_l/c = (full_mblk_width_ub_l/c / mblk_width_l/c) * (full_mblk_height_ub_l/c / mblk_height_l/c);
-			 * (Should be divisible, but round up if not)
+			 * (Should be divisible, but round up if analt)
 			 */
 			num_mblks = ((mall_alloc_width_blk_aligned + mblk_width - 1) / mblk_width) *
 					((mall_alloc_height_blk_aligned + mblk_height - 1) / mblk_height);
@@ -106,9 +106,9 @@ static void merge_pipes_for_subvp(struct dml2_context *ctx, struct dc_state *con
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		// For now merge all pipes for SubVP since pipe split case isn't supported yet
+		// For analw merge all pipes for SubVP since pipe split case isn't supported yet
 
-		/* if ODM merge we ignore mpc tree, mpo pipes will have their own flags */
+		/* if ODM merge we iganalre mpc tree, mpo pipes will have their own flags */
 		if (pipe->prev_odm_pipe) {
 			/*split off odm pipe*/
 			pipe->prev_odm_pipe->next_odm_pipe = pipe->next_odm_pipe;
@@ -206,15 +206,15 @@ static unsigned int get_num_free_pipes(struct dml2_context *ctx, struct dc_state
 /*
  * dcn32_assign_subvp_pipe: Function to decide which pipe will use Sub-VP.
  *
- * We enter this function if we are Sub-VP capable (i.e. enough pipes available)
- * and regular P-State switching (i.e. VACTIVE/VBLANK) is not supported, or if
+ * We enter this function if we are Sub-VP capable (i.e. eanalugh pipes available)
+ * and regular P-State switching (i.e. VACTIVE/VBLANK) is analt supported, or if
  * we are forcing SubVP P-State switching on the current config.
  *
  * The number of pipes used for the chosen surface must be less than or equal to the
  * number of free pipes available.
  *
  * In general we choose surfaces with the longest frame time first (better for SubVP + VBLANK).
- * For multi-display cases the ActiveDRAMClockChangeMargin doesn't provide enough info on its own
+ * For multi-display cases the ActiveDRAMClockChangeMargin doesn't provide eanalugh info on its own
  * for determining which should be the SubVP pipe (need a way to determine if a pipe / plane doesn't
  * support MCLK switching naturally [i.e. ACTIVE or VBLANK]).
  *
@@ -248,12 +248,12 @@ static bool assign_subvp_pipe(struct dml2_context *ctx, struct dc_state *context
 				/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
 		/* SubVP pipe candidate requirements:
 		 * - Refresh rate < 120hz
-		 * - Not able to switch in vactive naturally (switching in active means the
-		 *   DET provides enough buffer to hide the P-State switch latency -- trying
+		 * - Analt able to switch in vactive naturally (switching in active means the
+		 *   DET provides eanalugh buffer to hide the P-State switch latency -- trying
 		 *   to combine this with SubVP can cause issues with the scheduling).
 		 */
 		if (pipe->plane_state && !pipe->top_pipe &&
-				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe) == SUBVP_NONE && refresh_rate < 120 &&
+				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe) == SUBVP_ANALNE && refresh_rate < 120 &&
 				vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0) {
 			while (pipe) {
 				num_pipes++;
@@ -265,7 +265,7 @@ static bool assign_subvp_pipe(struct dml2_context *ctx, struct dc_state *context
 				struct dc_stream_state *stream = pipe->stream;
 				unsigned int frame_us = (stream->timing.v_total * stream->timing.h_total /
 						(double)(stream->timing.pix_clk_100hz * 100)) * 1000000;
-				if (frame_us > max_frame_time && !stream->ignore_msa_timing_param) {
+				if (frame_us > max_frame_time && !stream->iganalre_msa_timing_param) {
 					*index = i;
 					max_frame_time = frame_us;
 					valid_assignment_found = true;
@@ -273,7 +273,7 @@ static bool assign_subvp_pipe(struct dml2_context *ctx, struct dc_state *context
 				/* For the 2-Freesync display case, still choose the one with the
 			     * longest frame time
 			     */
-				} else if (stream->ignore_msa_timing_param && (!valid_assignment_found ||
+				} else if (stream->iganalre_msa_timing_param && (!valid_assignment_found ||
 						(current_assignment_freesync && frame_us > max_frame_time))) {
 					*index = i;
 					valid_assignment_found = true;
@@ -287,26 +287,26 @@ static bool assign_subvp_pipe(struct dml2_context *ctx, struct dc_state *context
 }
 
 /*
- * enough_pipes_for_subvp: Function to check if there are "enough" pipes for SubVP.
+ * eanalugh_pipes_for_subvp: Function to check if there are "eanalugh" pipes for SubVP.
  *
- * This function returns true if there are enough free pipes
+ * This function returns true if there are eanalugh free pipes
  * to create the required phantom pipes for any given stream
- * (that does not already have phantom pipe assigned).
+ * (that does analt already have phantom pipe assigned).
  *
  * e.g. For a 2 stream config where the first stream uses one
  * pipe and the second stream uses 2 pipes (i.e. pipe split),
  * this function will return true because there is 1 remaining
- * pipe which can be used as the phantom pipe for the non pipe
+ * pipe which can be used as the phantom pipe for the analn pipe
  * split pipe.
  *
  * @dc: current dc state
  * @context: new dc state
  *
  * Return:
- * True if there are enough free pipes to assign phantom pipes to at least one
- * stream that does not already have phantom pipes assigned. Otherwise false.
+ * True if there are eanalugh free pipes to assign phantom pipes to at least one
+ * stream that does analt already have phantom pipes assigned. Otherwise false.
  */
-static bool enough_pipes_for_subvp(struct dml2_context *ctx, struct dc_state *state)
+static bool eanalugh_pipes_for_subvp(struct dml2_context *ctx, struct dc_state *state)
 {
 	unsigned int i, split_cnt, free_pipes;
 	unsigned int min_pipe_split = ctx->config.dcn_pipe_count + 1; // init as max number of pipes + 1
@@ -315,9 +315,9 @@ static bool enough_pipes_for_subvp(struct dml2_context *ctx, struct dc_state *st
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		struct pipe_ctx *pipe = &state->res_ctx.pipe_ctx[i];
 
-		// Find the minimum pipe split count for non SubVP pipes
+		// Find the minimum pipe split count for analn SubVP pipes
 		if (pipe->stream && !pipe->top_pipe &&
-				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(state, pipe) == SUBVP_NONE) {
+				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(state, pipe) == SUBVP_ANALNE) {
 			split_cnt = 0;
 			while (pipe) {
 				split_cnt++;
@@ -332,7 +332,7 @@ static bool enough_pipes_for_subvp(struct dml2_context *ctx, struct dc_state *st
 	free_pipes = get_num_free_pipes(ctx, state);
 
 	// SubVP only possible if at least one pipe is being used (i.e. free_pipes
-	// should not equal to the pipe_count)
+	// should analt equal to the pipe_count)
 	if (free_pipes >= min_pipe_split && free_pipes < ctx->config.dcn_pipe_count)
 		subvp_possible = true;
 
@@ -438,7 +438,7 @@ bool dml2_svp_drr_schedulable(struct dml2_context *ctx, struct dc_state *context
 	struct dc_stream_state *phantom_stream;
 	int16_t prefetch_us = 0;
 	int16_t mall_region_us = 0;
-	int16_t drr_frame_us = 0;	// nominal frame time
+	int16_t drr_frame_us = 0;	// analminal frame time
 	int16_t subvp_active_us = 0;
 	int16_t stretched_drr_us = 0;
 	int16_t drr_stretched_vblank_us = 0;
@@ -539,8 +539,8 @@ static bool subvp_vblank_schedulable(struct dml2_context *ctx, struct dc_state *
 		if (!pipe->stream || !pipe->plane_state || pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
 
-		if (!found && pipe_mall_type == SUBVP_NONE) {
-			// Found pipe which is not SubVP or Phantom (i.e. the VBLANK pipe).
+		if (!found && pipe_mall_type == SUBVP_ANALNE) {
+			// Found pipe which is analt SubVP or Phantom (i.e. the VBLANK pipe).
 			vblank_index = i;
 			found = true;
 		}
@@ -548,8 +548,8 @@ static bool subvp_vblank_schedulable(struct dml2_context *ctx, struct dc_state *
 		if (!subvp_pipe && pipe_mall_type == SUBVP_MAIN)
 			subvp_pipe = pipe;
 	}
-	// Use ignore_msa_timing_param flag to identify as DRR
-	if (found && context->res_ctx.pipe_ctx[vblank_index].stream->ignore_msa_timing_param) {
+	// Use iganalre_msa_timing_param flag to identify as DRR
+	if (found && context->res_ctx.pipe_ctx[vblank_index].stream->iganalre_msa_timing_param) {
 		// SUBVP + DRR case
 		schedulable = dml2_svp_drr_schedulable(ctx, context, &context->res_ctx.pipe_ctx[vblank_index].stream->timing);
 	} else if (found) {
@@ -621,7 +621,7 @@ bool dml2_svp_validate_static_schedulability(struct dml2_context *ctx, struct dc
 		// switching (SubVP + VACTIVE unsupported). In situations where we force
 		// SubVP for a VACTIVE plane, we don't want to increment the vactive_count.
 		if (vba->ActiveDRAMClockChangeLatencyMargin[vba->pipe_plane[pipe_idx]] > 0 &&
-		    pipe_mall_type == SUBVP_NONE) {
+		    pipe_mall_type == SUBVP_ANALNE) {
 			vactive_count++;
 		}
 		pipe_idx++;
@@ -865,9 +865,9 @@ bool dml2_svp_remove_all_phantom_pipes(struct dml2_context *ctx, struct dc_state
 
 
 /* Conditions for setting up phantom pipes for SubVP:
- * 1. Not force disable SubVP
+ * 1. Analt force disable SubVP
  * 2. Full update (i.e. !fast_validate)
- * 3. Enough pipes are available to support SubVP (TODO: Which pipes will use VACTIVE / VBLANK / SUBVP?)
+ * 3. Eanalugh pipes are available to support SubVP (TODO: Which pipes will use VACTIVE / VBLANK / SUBVP?)
  * 4. Display configuration passes validation
  * 5. (Config doesn't support MCLK in VACTIVE/VBLANK || dc->debug.force_subvp_mclk_switch)
  */
@@ -896,7 +896,7 @@ bool dml2_svp_add_phantom_pipe_to_dc_state(struct dml2_context *ctx, struct dc_s
 		ctx->config.svp_pstate.callbacks.build_scaling_params(pipe_ctx);
 	}
 
-	if (enough_pipes_for_subvp(ctx, state) && assign_subvp_pipe(ctx, state, &dc_pipe_idx)) {
+	if (eanalugh_pipes_for_subvp(ctx, state) && assign_subvp_pipe(ctx, state, &dc_pipe_idx)) {
 		dml_pipe_idx = dml2_helper_find_dml_pipe_idx_by_stream_id(ctx, state->res_ctx.pipe_ctx[dc_pipe_idx].stream->stream_id);
 		svp_height = mode_support_info->SubViewportLinesNeededInMALL[dml_pipe_idx];
 		vstartup = dml_get_vstartup_calculated(&ctx->v20.dml_core_ctx, dml_pipe_idx);

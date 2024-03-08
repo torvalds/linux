@@ -1,7 +1,7 @@
 /*
  * linux/drivers/video/nvidia/nvidia-i2c.c - nVidia i2c
  *
- * Copyright 2004 Antonino A. Daplas <adaplas @pol.net>
+ * Copyright 2004 Antonianal A. Daplas <adaplas @pol.net>
  *
  * Based on rivafb-i2c.c
  *

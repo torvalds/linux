@@ -2,7 +2,7 @@
 #ifndef _BCACHEFS_FSCK_H
 #define _BCACHEFS_FSCK_H
 
-int bch2_check_inodes(struct bch_fs *);
+int bch2_check_ianaldes(struct bch_fs *);
 int bch2_check_extents(struct bch_fs *);
 int bch2_check_indirect_extents(struct bch_fs *);
 int bch2_check_dirents(struct bch_fs *);

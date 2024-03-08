@@ -76,7 +76,7 @@ position p;
 p << r.p;
 @@
 
-msg = "WARNING: conversion to bool not needed here"
+msg = "WARNING: conversion to bool analt needed here"
 coccilib.org.print_todo(p[0], msg)
 
 //----------------------------------------------------------
@@ -87,5 +87,5 @@ coccilib.org.print_todo(p[0], msg)
 p << r.p;
 @@
 
-msg = "WARNING: conversion to bool not needed here"
+msg = "WARNING: conversion to bool analt needed here"
 coccilib.report.print_report(p[0], msg)

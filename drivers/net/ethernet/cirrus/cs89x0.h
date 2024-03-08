@@ -10,7 +10,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
    */
 
@@ -70,7 +70,7 @@
 #define PP_RxFrame 0x0404	/*  Receive frame pointer */
 #define PP_TxFrame 0x0A00	/*  Transmit frame pointer */
 
-/*  Primary I/O Base Address. If no I/O base is supplied by the user, then this */
+/*  Primary I/O Base Address. If anal I/O base is supplied by the user, then this */
 /*  can be used as the default I/O base to access the PacketPage Area. */
 #define DEFAULTIOBASE 0x0300
 #define FIRST_IO 0x020C		/*  First I/O port to check */
@@ -89,12 +89,12 @@
 
 #ifdef IBMEIPKT
 #define EISA_ID_SIG 0x4D24	/*  IBM */
-#define PART_NO_SIG 0x1010	/*  IBM */
+#define PART_ANAL_SIG 0x1010	/*  IBM */
 #define MONGOOSE_BIT 0x0000	/*  IBM */
 #else
 #define EISA_ID_SIG 0x630E	/*  PnP Vendor ID (same as chip id for Crystal board) */
-#define PART_NO_SIG 0x4000	/*  ID code CS8920 board (PnP Vendor Product code) */
-#define MONGOOSE_BIT 0x2000	/*  PART_NO_SIG + MONGOOSE_BUT => ID of mongoose */
+#define PART_ANAL_SIG 0x4000	/*  ID code CS8920 board (PnP Vendor Product code) */
+#define MONGOOSE_BIT 0x2000	/*  PART_ANAL_SIG + MONGOOSE_BUT => ID of mongoose */
 #endif
 
 #define PRODUCT_ID_ADD 0x0002   /*  Address of product ID */
@@ -170,7 +170,7 @@
 #define TX_FORCE 0x0100
 #define TX_ONE_COL 0x0200
 #define TX_TWO_PART_DEFF_DISABLE 0x0400
-#define TX_NO_CRC 0x1000
+#define TX_ANAL_CRC 0x1000
 #define TX_RUNT 0x2000
 
 /* PP_BufCFG - Buffer Configuration Interrupt Mask bit definition - Read/write */
@@ -190,7 +190,7 @@
 #define AUI_ONLY 0x0100
 #define AUTO_AUI_10BASET 0x0200
 #define MODIFIED_BACKOFF 0x0800
-#define NO_AUTO_POLARITY 0x1000
+#define ANAL_AUTO_POLARITY 0x1000
 #define TWO_PART_DEFDIS 0x2000
 #define LOW_RX_SQUELCH 0x4000
 
@@ -272,16 +272,16 @@
 
 /* PP_BusST - ISA Bus Status bit definition */
 #define TX_BID_ERROR 0x0080
-#define READY_FOR_TX_NOW 0x0100
+#define READY_FOR_TX_ANALW 0x0100
 
 /* PP_AutoNegCTL - Auto Negotiation Control bit definition */
-#define RE_NEG_NOW 0x0040
+#define RE_NEG_ANALW 0x0040
 #define ALLOW_FDX 0x0080
 #define AUTO_NEG_ENABLE 0x0100
 #define NLP_ENABLE 0x0200
 #define FORCE_FDX 0x8000
 #define AUTO_NEG_BITS (FORCE_FDX|NLP_ENABLE|AUTO_NEG_ENABLE)
-#define AUTO_NEG_MASK (FORCE_FDX|NLP_ENABLE|AUTO_NEG_ENABLE|ALLOW_FDX|RE_NEG_NOW)
+#define AUTO_NEG_MASK (FORCE_FDX|NLP_ENABLE|AUTO_NEG_ENABLE|ALLOW_FDX|RE_NEG_ANALW)
 
 /* PP_AutoNegST - Auto Negotiation Status bit definition */
 #define AUTO_NEG_BUSY 0x0080
@@ -327,7 +327,7 @@
 #define RX_FRAME_PORT	0x0000
 #define TX_FRAME_PORT RX_FRAME_PORT
 #define TX_CMD_PORT	0x0004
-#define TX_NOW		0x0000       /*  Tx packet after   5 bytes copied */
+#define TX_ANALW		0x0000       /*  Tx packet after   5 bytes copied */
 #define TX_AFTER_381	0x0040       /*  Tx packet after 381 bytes copied */
 #define TX_AFTER_ALL	0x00c0       /*  Tx packet after all bytes copied */
 #define TX_LEN_PORT	0x0006
@@ -371,7 +371,7 @@
 
   /*  the assumption here is that the bits in the eeprom are generally  */
   /*  in the same position as those in the autonegctl register. */
-  /*  Of course the IMM bit is not in that register so it must be  */
+  /*  Of course the IMM bit is analt in that register so it must be  */
   /*  masked out */
 #define EE_FORCE_FDX  0x8000
 #define EE_NLP_ENABLE 0x0200
@@ -379,7 +379,7 @@
 #define EE_ALLOW_FDX 0x0080
 #define EE_AUTO_NEG_CNF_MASK (EE_FORCE_FDX|EE_NLP_ENABLE|EE_AUTO_NEG_ENABLE|EE_ALLOW_FDX)
 
-#define IMM_BIT 0x0040		/*  ignore missing media	 */
+#define IMM_BIT 0x0040		/*  iganalre missing media	 */
 
 #define ADAPTER_CNF_OFFSET (AUTO_NEG_CNF_OFFSET + 2)
 #define A_CNF_10B_T 0x0001
@@ -391,15 +391,15 @@
 #define A_CNF_MEDIA_AUI 0x0040
 #define A_CNF_MEDIA_10B_2 0x0010
 #define A_CNF_DC_DC_POLARITY 0x0080
-#define A_CNF_NO_AUTO_POLARITY 0x2000
+#define A_CNF_ANAL_AUTO_POLARITY 0x2000
 #define A_CNF_LOW_RX_SQUELCH 0x4000
 #define A_CNF_EXTND_10B_2 0x8000
 
 #define PACKET_PAGE_OFFSET 0x8
 
 /*  Bit definitions for the ISA configuration word from the EEPROM */
-#define INT_NO_MASK 0x000F
-#define DMA_NO_MASK 0x0070
+#define INT_ANAL_MASK 0x000F
+#define DMA_ANAL_MASK 0x0070
 #define ISA_DMA_SIZE 0x0200
 #define ISA_AUTO_RxDMA 0x0400
 #define ISA_RxDMA 0x0800
@@ -435,11 +435,11 @@
 #define CHKSUM_VAL 0x0000
 #define START_EEPROM_DATA 0x001c /*  Offset into eeprom for start of data */
 #define IRQ_MAP_EEPROM_DATA 0x0046 /*  Offset into eeprom for the IRQ map */
-#define IRQ_MAP_LEN 0x0004 /*  No of bytes to read for the IRQ map */
+#define IRQ_MAP_LEN 0x0004 /*  Anal of bytes to read for the IRQ map */
 #define PNP_IRQ_FRMT 0x0022 /*  PNP small item IRQ format */
 #define CS8900_IRQ_MAP 0x1c20 /*  This IRQ map is fixed */
 
-#define CS8920_NO_INTS 0x0F   /*  Max CS8920 interrupt select # */
+#define CS8920_ANAL_INTS 0x0F   /*  Max CS8920 interrupt select # */
 
 #define PNP_ADD_PORT 0x0279
 #define PNP_WRITE_PORT 0x0A79

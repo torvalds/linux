@@ -5,7 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/minmax.h>
 #include <linux/export.h>
@@ -24,14 +24,14 @@ EXPORT_SYMBOL(hex_asc_upper);
  * input.
  *
  * This function is used to load cryptographic keys, so it is coded in such a
- * way that there are no conditions or memory accesses that depend on data.
+ * way that there are anal conditions or memory accesses that depend on data.
  *
  * Explanation of the logic:
  * (ch - '9' - 1) is negative if ch <= '9'
  * ('0' - 1 - ch) is negative if ch >= '0'
  * we "and" these two values, so the result is negative if ch is in the range
  *	'0' ... '9'
- * we are only interested in the sign, so we do a shift ">> 8"; note that right
+ * we are only interested in the sign, so we do a shift ">> 8"; analte that right
  *	shift of a negative value is implementation-defined, so we cast the
  *	value to (unsigned) before the shift --- we have 0xffffff if ch is in
  *	the range '0' ... '9', 0 otherwise
@@ -116,13 +116,13 @@ EXPORT_SYMBOL(bin2hex);
  *			linebuf, sizeof(linebuf), true);
  *
  * example output buffer:
- * 40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f  @ABCDEFGHIJKLMNO
+ * 40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f  @ABCDEFGHIJKLMANAL
  *
  * Return:
  * The amount of bytes placed in the buffer without terminating NUL. If the
  * output was truncated, then the return value is the number of bytes
  * (excluding the terminating NUL) which would have been written to the final
- * string if enough space had been available.
+ * string if eanalugh space had been available.
  */
 int hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
 		       char *linebuf, size_t linebuflen, bool ascii)
@@ -141,7 +141,7 @@ int hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
 		len = rowsize;
 	if (!is_power_of_2(groupsize) || groupsize > 8)
 		groupsize = 1;
-	if ((len % groupsize) != 0)	/* no mixed size output */
+	if ((len % groupsize) != 0)	/* anal mixed size output */
 		groupsize = 1;
 
 	ngroups = len / groupsize;
@@ -232,8 +232,8 @@ EXPORT_SYMBOL(hex_dump_to_buffer);
  * @level: kernel log level (e.g. KERN_DEBUG)
  * @prefix_str: string to prefix each line with;
  *  caller supplies trailing spaces for alignment if desired
- * @prefix_type: controls whether prefix of an offset, address, or none
- *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_NONE)
+ * @prefix_type: controls whether prefix of an offset, address, or analne
+ *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_ANALNE)
  * @rowsize: number of bytes to print per line; must be 16 or 32
  * @groupsize: number of bytes to print at a time (1, 2, 4, 8; default = 1)
  * @buf: data blob to dump
@@ -254,7 +254,7 @@ EXPORT_SYMBOL(hex_dump_to_buffer);
  *		    16, 1, frame->data, frame->len, true);
  *
  * Example output using %DUMP_PREFIX_OFFSET and 1-byte mode:
- * 0009ab42: 40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f  @ABCDEFGHIJKLMNO
+ * 0009ab42: 40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f  @ABCDEFGHIJKLMANAL
  * Example output using %DUMP_PREFIX_ADDRESS and 4-byte mode:
  * ffffffff88089af0: 73727170 77767574 7b7a7978 7f7e7d7c  pqrstuvwxyz{|}~.
  */

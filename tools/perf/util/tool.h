@@ -35,7 +35,7 @@ typedef int (*event_oe)(struct perf_tool *tool, union perf_event *event,
 			struct ordered_events *oe);
 
 enum show_feature_header {
-	SHOW_FEAT_NO_HEADER = 0,
+	SHOW_FEAT_ANAL_HEADER = 0,
 	SHOW_FEAT_HEADER,
 	SHOW_FEAT_HEADER_FULL_INFO,
 };
@@ -84,7 +84,7 @@ struct perf_tool {
 	bool		ordering_requires_timestamps;
 	bool		namespace_events;
 	bool		cgroup_events;
-	bool		no_warn;
+	bool		anal_warn;
 	enum show_feature_header show_feat_hdr;
 };
 

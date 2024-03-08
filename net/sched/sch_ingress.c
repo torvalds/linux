@@ -84,13 +84,13 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt,
 	int err;
 
 	if (sch->parent != TC_H_INGRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	net_inc_ingress_queue();
 
 	entry = tcx_entry_fetch_or_create(dev, true, &created);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	tcx_miniq_set_active(entry, true);
 	mini_qdisc_pair_init(&q->miniqp, sch, &tcx_entry(entry)->miniq);
 	if (created)
@@ -135,7 +135,7 @@ static int ingress_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -248,14 +248,14 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt,
 	int err;
 
 	if (sch->parent != TC_H_CLSACT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	net_inc_ingress_queue();
 	net_inc_egress_queue();
 
 	entry = tcx_entry_fetch_or_create(dev, true, &created);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	tcx_miniq_set_active(entry, true);
 	mini_qdisc_pair_init(&q->miniqp_ingress, sch, &tcx_entry(entry)->miniq);
 	if (created)
@@ -274,7 +274,7 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt,
 
 	entry = tcx_entry_fetch_or_create(dev, false, &created);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	tcx_miniq_set_active(entry, true);
 	mini_qdisc_pair_init(&q->miniqp_egress, sch, &tcx_entry(entry)->miniq);
 	if (created)

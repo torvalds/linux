@@ -3,7 +3,7 @@
  * at91-sama5d3_eds.dts - Device Tree file for the SAMA5D3 Ethernet
  *    Development System board.
  *
- * Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Jerry Ray <jerry.ray@microchip.com>
  */
@@ -222,13 +222,13 @@
 
 		pinctrl_spi0_cs: spi0-cs-default {
 			atmel,pins =
-				<AT91_PIOD 13 AT91_PERIPH_GPIO AT91_PINCTRL_NONE
-				 AT91_PIOD 16 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+				<AT91_PIOD 13 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE
+				 AT91_PIOD 16 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE>;
 		};
 
 		pinctrl_spi1_cs: spi1-cs-default {
-			atmel,pins = <AT91_PIOC 25 AT91_PERIPH_GPIO AT91_PINCTRL_NONE
-				      AT91_PIOC 28 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+			atmel,pins = <AT91_PIOC 25 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE
+				      AT91_PIOC 28 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE>;
 		};
 
 		pinctrl_usba_vbus: usba-vbus {
@@ -238,8 +238,8 @@
 
 		pinctrl_usb_default: usb-default {
 			atmel,pins =
-				<AT91_PIOE 3 AT91_PERIPH_GPIO AT91_PINCTRL_NONE
-				 AT91_PIOE 4 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+				<AT91_PIOE 3 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE
+				 AT91_PIOE 4 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE>;
 		};
 
 		/* Reserved for VBUS fault interrupt. */

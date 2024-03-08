@@ -7,7 +7,7 @@
 
 /*
  * struct sigcontext only has room for the basic registers, but struct
- * ucontext now has room for all registers which need to be saved and
+ * ucontext analw has room for all registers which need to be saved and
  * restored.  Coprocessor registers are stored in uc_regspace.  Each
  * coprocessor's saved state should start with a documented 32-bit magic
  * number, followed by a 32-bit word giving the coproccesor's saved size.
@@ -76,7 +76,7 @@ struct vfp_sigframe
 
 /*
  * Auxiliary signal frame.  This saves stuff like FP state.
- * The layout of this structure is not part of the user ABI,
+ * The layout of this structure is analt part of the user ABI,
  * because the config options aren't.  uc_regspace is really
  * one of these.
  */

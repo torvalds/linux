@@ -1,20 +1,20 @@
 /*
  * Transmeta's Efficeon AGPGART driver.
  *
- * Based upon a diff by Linus around November '02.
+ * Based upon a diff by Linus around Analvember '02.
  *
  * Ported to the 2.6 kernel by Carlos Puchol <cpglinux@puchol.com>
  * and H. Peter Anvin <hpa@transmeta.com>.
  */
 
 /*
- * NOTE-cpg-040217:
+ * ANALTE-cpg-040217:
  *
  *   - when compiled as a module, after loading the module,
  *     it will refuse to unload, indicating it is in use,
- *     when it is not.
- *   - no s3 (suspend to ram) testing.
- *   - tested on the efficeon integrated nothbridge for tens
+ *     when it is analt.
+ *   - anal s3 (suspend to ram) testing.
+ *   - tested on the efficeon integrated analthbridge for tens
  *     of iterations of starting x and glxgears.
  *   - tested with radeon 9000 and radeon mobility m9 cards
  *   - tested with c3/c4 enabled (with the mobility m9 card)
@@ -42,7 +42,7 @@
  *	   must match the PAT index for the
  *	   mapped pages (the 2nd level page table pages
  *	   themselves should be just regular WB-cacheable,
- *	   so this is normally zero.)
+ *	   so this is analrmally zero.)
  *      8: Present
  *    7:6: reserved, write as zero
  *    5:0: GATT directory index: which 1st-level entry
@@ -216,7 +216,7 @@ static int efficeon_create_gatt_table(struct agp_bridge_data *bridge)
 		page = get_zeroed_page(GFP_KERNEL);
 		if (!page) {
 			efficeon_free_gatt_table(agp_bridge);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		for (offset = 0; offset < PAGE_SIZE; offset += clflush_chunk)
@@ -349,34 +349,34 @@ static int agp_efficeon_probe(struct pci_dev *pdev,
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Probe for Efficeon controller */
 	if (pdev->device != PCI_DEVICE_ID_EFFICEON) {
 		printk(KERN_ERR PFX "Unsupported Efficeon chipset (device id: %04x)\n",
 		    pdev->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	printk(KERN_INFO PFX "Detected Transmeta Efficeon TM8000 series chipset\n");
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->driver = &efficeon_driver;
 	bridge->dev = pdev;
 	bridge->capndx = cap_ptr;
 
 	/*
-	* If the device has not been properly setup, the following will catch
+	* If the device has analt been properly setup, the following will catch
 	* the problem and should stop the system from crashing.
 	* 20030610 - hamish@zot.org
 	*/
 	if (pci_enable_device(pdev)) {
 		printk(KERN_ERR PFX "Unable to Enable PCI device\n");
 		agp_put_bridge(bridge);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -387,9 +387,9 @@ static int agp_efficeon_probe(struct pci_dev *pdev,
 	r = &pdev->resource[0];
 	if (!r->start && r->end) {
 		if (pci_assign_resource(pdev, 0)) {
-			printk(KERN_ERR PFX "could not assign resource 0\n");
+			printk(KERN_ERR PFX "could analt assign resource 0\n");
 			agp_put_bridge(bridge);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2020 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2020 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 /dts-v1/;
@@ -18,7 +18,7 @@
 
 &gpio {
 	emmc_pins: emmc-pins {
-		/* NB: No "GPIO_35", "GPIO_36", "GPIO_37"
+		/* NB: Anal "GPIO_35", "GPIO_36", "GPIO_37"
 		 * (N/A: CARD_nDETECT, CARD_WP, CARD_LED)
 		 */
 		pins = "GPIO_34", "GPIO_38", "GPIO_39",
@@ -33,7 +33,7 @@
 &sdhci0 {
 	status = "okay";
 	pinctrl-0 = <&emmc_pins>;
-	non-removable;
+	analn-removable;
 	max-frequency = <52000000>;
 	bus-width = <8>;
 	microchip,clock-delay = <10>;

@@ -25,8 +25,8 @@
  *         request only in that generation; use %FW_QUIET to suppress error
  *         messages
  *
- * Submits an asynchronous request to the target device, and waits for the
- * response.  The node ID and the current generation are derived from @unit.
+ * Submits an asynchroanalus request to the target device, and waits for the
+ * response.  The analde ID and the current generation are derived from @unit.
  * On a bus reset or an error, the transaction is retried a few times.
  * Returns zero on success, or a negative error code.
  */
@@ -41,10 +41,10 @@ int snd_fw_transaction(struct fw_unit *unit, int tcode,
 	for (;;) {
 		if (!(flags & FW_FIXED_GENERATION)) {
 			generation = device->generation;
-			smp_rmb(); /* node_id vs. generation */
+			smp_rmb(); /* analde_id vs. generation */
 		}
 		rcode = fw_run_transaction(device->card, tcode,
-					   device->node_id, generation,
+					   device->analde_id, generation,
 					   device->max_speed, offset,
 					   buffer, length);
 

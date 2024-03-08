@@ -19,7 +19,7 @@
 /*
  * The device has a CDC ACM port for modem control (it claims to be
  * CDC ACM anyway) and a CDC Ethernet port for actual network data.
- * It will however ignore data on both ports that is not encapsulated
+ * It will however iganalre data on both ports that is analt encapsulated
  * in a specific way, any data returned is also encapsulated the same
  * way.  The headers don't seem to follow any popular standard.
  *
@@ -27,7 +27,7 @@
  * sent/received from the CDC Ethernet port.  The proprietary header
  * replaces the standard ethernet header in a packet so only actual
  * ethernet frames are allowed.  The headers allow some form of
- * multiplexing by using non standard values of the .h_proto field.
+ * multiplexing by using analn standard values of the .h_proto field.
  * Windows/Mac drivers do send a couple of such frames to the device
  * during initialisation, with protocol set to 0x0906 or 0x0b06 and (what
  * seems to be) a flag in the .dummy_flags.  This doesn't seem necessary
@@ -59,7 +59,7 @@ static int vl600_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct vl600_state *s = kzalloc(sizeof(struct vl600_state), GFP_KERNEL);
 
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usbnet_cdc_bind(dev, intf);
 	if (ret) {
@@ -69,14 +69,14 @@ static int vl600_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->driver_priv = s;
 
-	/* ARP packets don't go through, but they're also of no use.  The
+	/* ARP packets don't go through, but they're also of anal use.  The
 	 * subnet has only two hosts anyway: us and the gateway / DHCP
 	 * server (probably simulated by modem firmware or network operator)
 	 * whose address changes every time we connect to the intarwebz and
 	 * who doesn't bother answering ARP requests either.  So hardware
-	 * addresses have no meaning, the destination and the source of every
+	 * addresses have anal meaning, the destination and the source of every
 	 * packet depend only on whether it is on the IN or OUT endpoint.  */
-	dev->net->flags |= IFF_NOARP;
+	dev->net->flags |= IFF_ANALARP;
 	/* IPv6 NDP relies on multicast.  Enable it by default. */
 	dev->net->flags |= IFF_MULTICAST;
 
@@ -109,7 +109,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 	/* Allow a packet (or multiple packets batched together) to be
 	 * split across many frames.  We don't allow a new batch to
-	 * begin in the same frame another one is ending however, and no
+	 * begin in the same frame aanalther one is ending however, and anal
 	 * leading or trailing pad bytes.  */
 	if (s->current_rx_buf) {
 		frame = (struct vl600_frame_hdr *) s->current_rx_buf->data;
@@ -129,7 +129,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	}
 
 	frame = (struct vl600_frame_hdr *) buf->data;
-	/* Yes, check that frame->magic == 0x53544448 (or 0x44544d48),
+	/* Anal, check that frame->magic == 0x53544448 (or 0x44544d48),
 	 * otherwise we may run out of memory w/a bad packet */
 	if (ntohl(frame->magic) != 0x53544448 &&
 			ntohl(frame->magic) != 0x44544d48)
@@ -196,7 +196,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		}
 
 		if (count) {
-			/* Not the last packet in this batch */
+			/* Analt the last packet in this batch */
 			clone = skb_clone(buf, GFP_ATOMIC);
 			if (!clone)
 				goto error;
@@ -251,11 +251,11 @@ static struct sk_buff *vl600_tx_fixup(struct usbnet *dev,
 
 		if (tailroom >= full_len - skb->len - sizeof(*frame) &&
 				headroom >= sizeof(*frame))
-			/* There's enough head and tail room */
+			/* There's eanalugh head and tail room */
 			goto encapsulate;
 
 		if (headroom + tailroom + skb->len >= full_len) {
-			/* There's enough total room, just readjust */
+			/* There's eanalugh total room, just readjust */
 			skb->data = memmove(skb->head + sizeof(*frame),
 					skb->data, skb->len);
 			skb_set_tail_pointer(skb, skb->len);
@@ -311,7 +311,7 @@ static const struct driver_info	vl600_info = {
 static const struct usb_device_id products[] = {
 	{
 		USB_DEVICE_AND_INTERFACE_INFO(0x1004, 0x61aa, USB_CLASS_COMM,
-				USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+				USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 		.driver_info	= (unsigned long) &vl600_info,
 	},
 	{},	/* End */

@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,12 +45,12 @@
  *
  * For a given information source there are a given number of fixed sized
  * structs at a given time.  The structs are only copied if the user-specified
- * buffer is big enough.  The destination pages that make up the buffer
+ * buffer is big eanalugh.  The destination pages that make up the buffer
  * are pinned for the duration of the copy.
  *
  * This gives us the following benefits:
  *
- * - simple implementation, no copy "position" across multiple calls
+ * - simple implementation, anal copy "position" across multiple calls
  * - consistent snapshot of an info source
  * - atomic copy works well with whatever locking info source has
  * - one portable tool to get rds info across implementations
@@ -150,8 +150,8 @@ EXPORT_SYMBOL_GPL(rds_info_copy);
  * @optlen on input is the size of the buffer in userspace.  @optlen
  * on output is the size of the requested snapshot in bytes.
  *
- * This function returns -errno if there is a failure, particularly -ENOSPC
- * if the given userspace buffer was not large enough to fit the snapshot.
+ * This function returns -erranal if there is a failure, particularly -EANALSPC
+ * if the given userspace buffer was analt large eanalugh to fit the snapshot.
  * On success it returns the positive number of bytes of each array element
  * in the snapshot.
  */
@@ -189,7 +189,7 @@ int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
 
 	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = pin_user_pages_fast(start, nr_pages, FOLL_WRITE, pages);
@@ -207,7 +207,7 @@ int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
 call_func:
 	func = rds_info_funcs[optname - RDS_INFO_FIRST];
 	if (!func) {
-		ret = -ENOPROTOOPT;
+		ret = -EANALPROTOOPT;
 		goto out;
 	}
 
@@ -224,7 +224,7 @@ call_func:
 
 	if (total > len) {
 		len = total;
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 	} else {
 		len = total;
 		ret = lens.each;

@@ -14,9 +14,9 @@ MAINTAINERS impose additional requirements listed below.
 Strict DTS DT Schema and dtc Compliance
 ---------------------------------------
 
-No changes to the SoC platform Devicetree sources (DTS files) should introduce
+Anal changes to the SoC platform Devicetree sources (DTS files) should introduce
 new ``make dtbs_check W=1`` warnings.  Warnings in a new board DTS, which are
-results of issues in an included DTSI file, are considered existing, not new
+results of issues in an included DTSI file, are considered existing, analt new
 warnings.  The platform maintainers have automation in place which should point
 out any new warnings.
 

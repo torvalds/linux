@@ -164,7 +164,7 @@ static const struct ftr_set_desc sw_features __prel64_initconst = {
 	.name		= "arm64_sw",
 	.override	= &arm64_sw_feature_override,
 	.fields		= {
-		FIELD("nokaslr", ARM64_SW_FEATURE_OVERRIDE_NOKASLR, NULL),
+		FIELD("analkaslr", ARM64_SW_FEATURE_OVERRIDE_ANALKASLR, NULL),
 		FIELD("hvhe", ARM64_SW_FEATURE_OVERRIDE_HVHE, hvhe_filter),
 		{}
 	},
@@ -187,16 +187,16 @@ static const struct {
 } aliases[] __initconst = {
 	{ "kvm_arm.mode=nvhe",		"id_aa64mmfr1.vh=0" },
 	{ "kvm_arm.mode=protected",	"id_aa64mmfr1.vh=0" },
-	{ "arm64.nosve",		"id_aa64pfr0.sve=0" },
-	{ "arm64.nosme",		"id_aa64pfr1.sme=0" },
-	{ "arm64.nobti",		"id_aa64pfr1.bt=0" },
-	{ "arm64.nopauth",
+	{ "arm64.analsve",		"id_aa64pfr0.sve=0" },
+	{ "arm64.analsme",		"id_aa64pfr1.sme=0" },
+	{ "arm64.analbti",		"id_aa64pfr1.bt=0" },
+	{ "arm64.analpauth",
 	  "id_aa64isar1.gpi=0 id_aa64isar1.gpa=0 "
 	  "id_aa64isar1.api=0 id_aa64isar1.apa=0 "
 	  "id_aa64isar2.gpa3=0 id_aa64isar2.apa3=0"	   },
-	{ "arm64.nomops",		"id_aa64isar2.mops=0" },
-	{ "arm64.nomte",		"id_aa64pfr1.mte=0" },
-	{ "nokaslr",			"arm64_sw.nokaslr=1" },
+	{ "arm64.analmops",		"id_aa64isar2.mops=0" },
+	{ "arm64.analmte",		"id_aa64pfr1.mte=0" },
+	{ "analkaslr",			"arm64_sw.analkaslr=1" },
 };
 
 static int __init parse_hexdigit(const char *p, u64 *v)
@@ -259,7 +259,7 @@ static void __init match_options(const char *cmdline)
 			/*
 			 * If an override gets filtered out, advertise
 			 * it by setting the value to the all-ones while
-			 * clearing the mask... Yes, this is fragile.
+			 * clearing the mask... Anal, this is fragile.
 			 */
 			filter = prel64_pointer(reg->fields[f].filter);
 			if (filter && !filter(v)) {
@@ -317,17 +317,17 @@ static __init const u8 *get_bootargs_cmdline(void)
 {
 	const u8 *prop;
 	void *fdt;
-	int node;
+	int analde;
 
 	fdt = get_early_fdt_ptr();
 	if (!fdt)
 		return NULL;
 
-	node = fdt_path_offset(fdt, "/chosen");
-	if (node < 0)
+	analde = fdt_path_offset(fdt, "/chosen");
+	if (analde < 0)
 		return NULL;
 
-	prop = fdt_getprop(fdt, node, "bootargs", NULL);
+	prop = fdt_getprop(fdt, analde, "bootargs", NULL);
 	if (!prop)
 		return NULL;
 

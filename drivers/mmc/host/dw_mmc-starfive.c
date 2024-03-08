@@ -2,7 +2,7 @@
 /*
  * StarFive Designware Mobile Storage Host Controller Driver
  *
- * Copyright (c) 2022 StarFive Technology Co., Ltd.
+ * Copyright (c) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/bitfield.h>
@@ -80,7 +80,7 @@ static int dw_mci_starfive_execute_tuning(struct dw_mci_slot *slot,
 
 	if (smpl_raise < 0) {
 		smpl_phase = 0;
-		dev_err(host->dev, "No valid delay chain! use default\n");
+		dev_err(host->dev, "Anal valid delay chain! use default\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -118,7 +118,7 @@ static struct platform_driver dw_mci_starfive_driver = {
 	.remove_new = dw_mci_pltfm_remove,
 	.driver = {
 		.name = "dwmmc_starfive",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = dw_mci_starfive_match,
 	},
 };

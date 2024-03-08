@@ -21,9 +21,9 @@ unsigned long socfpga_cpu1start_addr;
 
 static void __init socfpga_sysmgr_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "altr,sys-mgr");
+	np = of_find_compatible_analde(NULL, NULL, "altr,sys-mgr");
 
 	if (of_property_read_u32(np, "cpu1-start-addr",
 			(u32 *) &socfpga_cpu1start_addr))
@@ -35,10 +35,10 @@ static void __init socfpga_sysmgr_init(void)
 
 	sys_manager_base_addr = of_iomap(np, 0);
 
-	np = of_find_compatible_node(NULL, NULL, "altr,rst-mgr");
+	np = of_find_compatible_analde(NULL, NULL, "altr,rst-mgr");
 	rst_manager_base_addr = of_iomap(np, 0);
 
-	np = of_find_compatible_node(NULL, NULL, "altr,sdr-ctl");
+	np = of_find_compatible_analde(NULL, NULL, "altr,sdr-ctl");
 	sdr_ctl_base_addr = of_iomap(np, 0);
 }
 

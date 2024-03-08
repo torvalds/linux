@@ -33,13 +33,13 @@ functions.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration analde".
 
 Following are properties which is needed if GPIO and pinmux functionality
 is required:
     Required properties:
     -------------------
-	- gpio-controller: Marks the device node as a GPIO controller.
+	- gpio-controller: Marks the device analde as a GPIO controller.
 	- #gpio-cells: Number of GPIO cells. Refer to binding document
 			gpio/gpio.txt
 
@@ -50,15 +50,15 @@ is required:
 	- pinctrl-names: A pinctrl state named "default" be defined, using the
 		bindings in pinctrl/pinctrl-bindings.txt.
 	- pinctrl[0...n]: Properties to contain the phandle that refer to
-		different nodes of pin control settings. These nodes represents
+		different analdes of pin control settings. These analdes represents
 		the pin control setting of state 0 to state n. Each of these
-		nodes contains different subnodes to represents some desired
+		analdes contains different subanaldes to represents some desired
 		configuration for a list of pins. This configuration can
 		include the mux function to select on those pin(s), and
 		various pin configuration parameters, such as pull-up,
 		open drain.
 
-		Each subnode have following properties:
+		Each subanalde have following properties:
 		Required properties:
 		    - pins: List of pins. Valid values of pins properties are:
 				gpio0, gpio1, gpio2, gpio3, gpio4, gpio5,
@@ -78,15 +78,15 @@ is required:
 
 Regulators:
 ===========
-Device has multiple DCDC and LDOs. The node "regulators" is require if regulator
+Device has multiple DCDC and LDOs. The analde "regulators" is require if regulator
 functionality is needed.
 
-Following are properties of regulator subnode.
+Following are properties of regulator subanalde.
 
     Optional properties:
     -------------------
 	The input supply of regulators are the optional properties on the
-	regulator node. The input supply of these regulators are provided
+	regulator analde. The input supply of these regulators are provided
 	through following properties:
 		vsup-sd2-supply: Input supply for SD2.
 		vsup-sd3-supply: Input supply for SD3.
@@ -99,23 +99,23 @@ Following are properties of regulator subnode.
 		vin-ldo9-10-supply: Input supply for LDO9 and LDO10.
 		vin-ldo11-supply: Input supply for LDO11.
 
-    Optional sub nodes for regulators:
+    Optional sub analdes for regulators:
     ---------------------------------
-	The subnodes name is the name of regulator and it must be one of:
+	The subanaldes name is the name of regulator and it must be one of:
 	sd[0-6], ldo[0-7], ldo[9-11]
 
-	Each sub-node should contain the constraints and initialization
+	Each sub-analde should contain the constraints and initialization
 	information for that regulator. See regulator.txt for a description
-	of standard properties for these sub-nodes.
+	of standard properties for these sub-analdes.
 	Additional optional custom properties  are listed below.
 		ams,ext-control: External control of the rail. The option of
 			this properties will tell which external input is
 			controlling this rail. Valid values are 0, 1, 2 ad 3.
-			0: There is no external control of this rail.
+			0: There is anal external control of this rail.
 			1: Rail is controlled by ENABLE1 input pin.
 			2: Rail is controlled by ENABLE2 input pin.
 			3: Rail is controlled by ENABLE3 input pin.
-			Missing this property on DT will be assume as no
+			Missing this property on DT will be assume as anal
 			external control. The external control pin macros
 			are defined @dt-bindings/mfd/as3722.h
 
@@ -125,7 +125,7 @@ Following are properties of regulator subnode.
 Power-off:
 =========
 AS3722 supports the system power off by turning off all its rails.
-The device node should have the following properties to enable this
+The device analde should have the following properties to enable this
 functionality
 ams,system-power-controller: Boolean, to enable the power off functionality
         through this device.

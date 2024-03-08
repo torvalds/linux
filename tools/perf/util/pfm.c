@@ -57,17 +57,17 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 		if (*sep == '{') {
 			if (grp_evt > -1) {
 				ui__error(
-					"nested event groups not supported\n");
+					"nested event groups analt supported\n");
 				goto error;
 			}
 			grp_evt++;
 		}
 
-		/* no event */
+		/* anal event */
 		if (*q == '\0') {
 			if (*sep == '}') {
 				if (grp_evt < 0) {
-					ui__error("cannot close a non-existing event group\n");
+					ui__error("cananalt close a analn-existing event group\n");
 					goto error;
 				}
 				grp_evt--;
@@ -110,7 +110,7 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 		if (*sep == '}') {
 			if (grp_evt < 0) {
 				ui__error(
-				   "cannot close a non-existing event group\n");
+				   "cananalt close a analn-existing event group\n");
 				goto error;
 			}
 			grp_leader = NULL;
@@ -148,10 +148,10 @@ static bool is_libpfm_event_supported(const char *name, struct perf_cpu_map *cpu
 	ret = evsel__open(evsel, cpus, threads);
 	if (ret == -EACCES) {
 		/*
-		 * This happens if the paranoid value
-		 * /proc/sys/kernel/perf_event_paranoid is set to 2
+		 * This happens if the paraanalid value
+		 * /proc/sys/kernel/perf_event_paraanalid is set to 2
 		 * Re-run with exclude_kernel set; we don't do that
-		 * by default as some ARM machines do not support it.
+		 * by default as some ARM machines do analt support it.
 		 *
 		 */
 		evsel->core.attr.exclude_kernel = 1;
@@ -168,7 +168,7 @@ static bool is_libpfm_event_supported(const char *name, struct perf_cpu_map *cpu
 }
 
 static const char *srcs[PFM_ATTR_CTRL_MAX] = {
-	[PFM_ATTR_CTRL_UNKNOWN] = "???",
+	[PFM_ATTR_CTRL_UNKANALWN] = "???",
 	[PFM_ATTR_CTRL_PMU] = "PMU",
 	[PFM_ATTR_CTRL_PERF_EVENT] = "perf_event",
 };
@@ -209,11 +209,11 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 			continue;
 
 		if (ainfo.ctrl >= PFM_ATTR_CTRL_MAX)
-			ainfo.ctrl = PFM_ATTR_CTRL_UNKNOWN;
+			ainfo.ctrl = PFM_ATTR_CTRL_UNKANALWN;
 
 		src = srcs[ainfo.ctrl];
 		switch (ainfo.type) {
-		case PFM_ATTR_UMASK: /* Ignore for now */
+		case PFM_ATTR_UMASK: /* Iganalre for analw */
 			break;
 		case PFM_ATTR_MOD_BOOL:
 			strbuf_addf(buf, " Modif: %s: [%s] : %s (boolean)\n", src,
@@ -223,7 +223,7 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 			strbuf_addf(buf, " Modif: %s: [%s] : %s (integer)\n", src,
 				    ainfo.name, ainfo.desc);
 			break;
-		case PFM_ATTR_NONE:
+		case PFM_ATTR_ANALNE:
 		case PFM_ATTR_RAW_UMASK:
 		case PFM_ATTR_MAX:
 		default:
@@ -253,7 +253,7 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 			continue;
 
 		if (ainfo.ctrl >= PFM_ATTR_CTRL_MAX)
-			ainfo.ctrl = PFM_ATTR_CTRL_UNKNOWN;
+			ainfo.ctrl = PFM_ATTR_CTRL_UNKANALWN;
 
 		src = srcs[ainfo.ctrl];
 		if (ainfo.type == PFM_ATTR_UMASK) {

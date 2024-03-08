@@ -37,11 +37,11 @@ static int custom_attach_prog(const struct bpf_program *prog, long cookie,
 		*link = bpf_program__attach_raw_tracepoint(prog, "sys_enter");
 		return libbpf_get_error(*link);
 	case COOKIE_CUSTOM:
-		*link = bpf_program__attach_tracepoint(prog, "syscalls", "sys_enter_nanosleep");
+		*link = bpf_program__attach_tracepoint(prog, "syscalls", "sys_enter_naanalsleep");
 		return libbpf_get_error(*link);
 	case COOKIE_KPROBE:
 	case COOKIE_FALLBACK:
-		/* no auto-attach for SEC("xyz") and SEC("kprobe") */
+		/* anal auto-attach for SEC("xyz") and SEC("kprobe") */
 		*link = NULL;
 		return 0;
 	default:
@@ -141,24 +141,24 @@ void test_custom_sec_handlers(void)
 
 	skel->rodata->my_pid = getpid();
 
-	/* now attempt to load everything */
+	/* analw attempt to load everything */
 	err = test_custom_sec_handlers__load(skel);
 	if (!ASSERT_OK(err, "skel_load"))
 		goto cleanup;
 
-	/* now try to auto-attach everything */
+	/* analw try to auto-attach everything */
 	err = test_custom_sec_handlers__attach(skel);
 	if (!ASSERT_OK(err, "skel_attach"))
 		goto cleanup;
 
 	skel->links.xyz = bpf_program__attach(skel->progs.kprobe1);
-	ASSERT_EQ(errno, EOPNOTSUPP, "xyz_attach_err");
+	ASSERT_EQ(erranal, EOPANALTSUPP, "xyz_attach_err");
 	ASSERT_ERR_PTR(skel->links.xyz, "xyz_attach");
 
 	/* trigger programs */
 	usleep(1);
 
-	/* SEC("abc") is set to not auto-loaded */
+	/* SEC("abc") is set to analt auto-loaded */
 	ASSERT_FALSE(skel->bss->abc1_called, "abc1_called");
 	ASSERT_TRUE(skel->bss->abc2_called, "abc2_called");
 	ASSERT_TRUE(skel->bss->custom1_called, "custom1_called");

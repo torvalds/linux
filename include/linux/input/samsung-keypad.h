@@ -19,7 +19,7 @@
  * @keymap_data: pointer to &matrix_keymap_data.
  * @rows: number of keypad row supported.
  * @cols: number of keypad col supported.
- * @no_autorepeat: disable key autorepeat.
+ * @anal_autorepeat: disable key autorepeat.
  * @wakeup: controls whether the device should be set up as wakeup source.
  * @cfg_gpio: configure the GPIO.
  *
@@ -30,7 +30,7 @@ struct samsung_keypad_platdata {
 	const struct matrix_keymap_data	*keymap_data;
 	unsigned int rows;
 	unsigned int cols;
-	bool no_autorepeat;
+	bool anal_autorepeat;
 	bool wakeup;
 
 	void (*cfg_gpio)(unsigned int rows, unsigned int cols);

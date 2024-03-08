@@ -36,7 +36,7 @@ static struct platform_device bcm63xx_hsspi_device = {
 int __init bcm63xx_hsspi_register(void)
 {
 	if (!BCMCPU_IS_6328() && !BCMCPU_IS_6362())
-		return -ENODEV;
+		return -EANALDEV;
 
 	spi_resources[0].start = bcm63xx_regset_address(RSET_HSSPI);
 	spi_resources[0].end = spi_resources[0].start;

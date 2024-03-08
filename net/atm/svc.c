@@ -7,19 +7,19 @@
 
 #include <linux/string.h>
 #include <linux/net.h>		/* struct socket, struct proto_ops */
-#include <linux/errno.h>	/* error codes */
+#include <linux/erranal.h>	/* error codes */
 #include <linux/kernel.h>	/* printk */
 #include <linux/skbuff.h>
 #include <linux/wait.h>
 #include <linux/sched/signal.h>
-#include <linux/fcntl.h>	/* O_NONBLOCK */
+#include <linux/fcntl.h>	/* O_ANALNBLOCK */
 #include <linux/init.h>
 #include <linux/atm.h>		/* ATM stuff */
 #include <linux/atmsap.h>
 #include <linux/atmsvc.h>
 #include <linux/atmdev.h>
 #include <linux/bitops.h>
-#include <net/sock.h>		/* for sock_no_* */
+#include <net/sock.h>		/* for sock_anal_* */
 #include <linux/uaccess.h>
 #include <linux/export.h>
 
@@ -29,7 +29,7 @@
 #include "addr.h"
 
 #ifdef CONFIG_COMPAT
-/* It actually takes struct sockaddr_atmsvc, not struct atm_iobuf */
+/* It actually takes struct sockaddr_atmsvc, analt struct atm_iobuf */
 #define COMPAT_ATM_ADDPARTY _IOW('a', ATMIOC_SPECIAL + 4, struct compat_atm_iobuf)
 #endif
 
@@ -37,8 +37,8 @@ static int svc_create(struct net *net, struct socket *sock, int protocol,
 		      int kern);
 
 /*
- * Note: since all this is still nicely synchronized with the signaling demon,
- *       there's no need to protect sleep loops with clis. If signaling is
+ * Analte: since all this is still nicely synchronized with the signaling demon,
+ *       there's anal need to protect sleep loops with clis. If signaling is
  *       moved into the kernel, that would change.
  */
 
@@ -88,7 +88,7 @@ static int svc_release(struct socket *sock)
 		clear_bit(ATM_VF_READY, &vcc->flags);
 		/*
 		 * VCC pointer is used as a reference,
-		 * so we must not free it (thereby subjecting it to re-use)
+		 * so we must analt free it (thereby subjecting it to re-use)
 		 * before all pending connections are closed
 		 */
 		svc_disconnect(vcc);
@@ -120,7 +120,7 @@ static int svc_bind(struct socket *sock, struct sockaddr *sockaddr,
 	vcc = ATM_SD(sock);
 	addr = (struct sockaddr_atmsvc *) sockaddr;
 	if (addr->sas_family != AF_ATMSVC) {
-		error = -EAFNOSUPPORT;
+		error = -EAFANALSUPPORT;
 		goto out;
 	}
 	clear_bit(ATM_VF_BOUND, &vcc->flags);
@@ -190,7 +190,7 @@ static int svc_connect(struct socket *sock, struct sockaddr *sockaddr,
 	case SS_UNCONNECTED:
 		addr = (struct sockaddr_atmsvc *) sockaddr;
 		if (addr->sas_family != AF_ATMSVC) {
-			error = -EAFNOSUPPORT;
+			error = -EAFANALSUPPORT;
 			goto out;
 		}
 		if (!test_bit(ATM_VF_HASQOS, &vcc->flags)) {
@@ -210,7 +210,7 @@ static int svc_connect(struct socket *sock, struct sockaddr *sockaddr,
 		vcc->remote = *addr;
 		set_bit(ATM_VF_WAITING, &vcc->flags);
 		sigd_enq(vcc, as_connect, NULL, NULL, &vcc->remote);
-		if (flags & O_NONBLOCK) {
+		if (flags & O_ANALNBLOCK) {
 			sock->state = SS_CONNECTING;
 			error = -EINPROGRESS;
 			goto out;
@@ -253,7 +253,7 @@ static int svc_connect(struct socket *sock, struct sockaddr *sockaddr,
 			clear_bit(ATM_VF_REGIS, &vcc->flags);
 			clear_bit(ATM_VF_RELEASED, &vcc->flags);
 			clear_bit(ATM_VF_CLOSE, &vcc->flags);
-			    /* we're gone now but may connect later */
+			    /* we're gone analw but may connect later */
 			error = -EINTR;
 			break;
 		}
@@ -355,7 +355,7 @@ static int svc_accept(struct socket *sock, struct socket *newsock, int flags,
 				error = -sk->sk_err;
 				break;
 			}
-			if (flags & O_NONBLOCK) {
+			if (flags & O_ANALNBLOCK) {
 				error = -EAGAIN;
 				break;
 			}
@@ -393,7 +393,7 @@ static int svc_accept(struct socket *sock, struct socket *newsock, int flags,
 			error = error == -EAGAIN ? -EBUSY : error;
 			goto out;
 		}
-		/* wait should be short, so we ignore the non-blocking flag */
+		/* wait should be short, so we iganalre the analn-blocking flag */
 		set_bit(ATM_VF_WAITING, &new_vcc->flags);
 		sigd_enq(new_vcc, as_accept, old_vcc, NULL, NULL);
 		for (;;) {
@@ -540,7 +540,7 @@ static int svc_addparty(struct socket *sock, struct sockaddr *sockaddr,
 	set_bit(ATM_VF_WAITING, &vcc->flags);
 	sigd_enq(vcc, as_addparty, NULL, NULL,
 		 (struct sockaddr_atmsvc *) sockaddr);
-	if (flags & O_NONBLOCK) {
+	if (flags & O_ANALNBLOCK) {
 		error = -EINPROGRESS;
 		goto out;
 	}
@@ -638,7 +638,7 @@ static const struct proto_ops svc_proto_ops = {
 	.release =	svc_release,
 	.bind =		svc_bind,
 	.connect =	svc_connect,
-	.socketpair =	sock_no_socketpair,
+	.socketpair =	sock_anal_socketpair,
 	.accept =	svc_accept,
 	.getname =	svc_getname,
 	.poll =		vcc_poll,
@@ -653,7 +653,7 @@ static const struct proto_ops svc_proto_ops = {
 	.getsockopt =	svc_getsockopt,
 	.sendmsg =	vcc_sendmsg,
 	.recvmsg =	vcc_recvmsg,
-	.mmap =		sock_no_mmap,
+	.mmap =		sock_anal_mmap,
 };
 
 
@@ -663,7 +663,7 @@ static int svc_create(struct net *net, struct socket *sock, int protocol,
 	int error;
 
 	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	sock->ops = &svc_proto_ops;
 	error = vcc_create(net, sock, protocol, AF_ATMSVC, kern);

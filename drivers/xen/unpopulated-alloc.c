@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -19,7 +19,7 @@ static unsigned int list_count;
 static struct resource *target_resource;
 
 /*
- * If arch is not happy with system "iomem_resource" being used for
+ * If arch is analt happy with system "iomem_resource" being used for
  * the region allocation it can provide it's own view by creating specific
  * Xen resource with unused regions of guest physical address space provided
  * by the hypervisor.
@@ -42,7 +42,7 @@ static int fill_list(unsigned int nr_pages)
 
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->name = "Xen scratch";
 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
@@ -53,7 +53,7 @@ static int fill_list(unsigned int nr_pages)
 				alloc_pages * PAGE_SIZE, mhp_range.start, mhp_range.end,
 				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
 	if (ret < 0) {
-		pr_err("Cannot allocate new IOMEM resource\n");
+		pr_err("Cananalt allocate new IOMEM resource\n");
 		goto err_resource;
 	}
 
@@ -64,7 +64,7 @@ static int fill_list(unsigned int nr_pages)
 	if (target_resource != &iomem_resource) {
 		tmp_res = kzalloc(sizeof(*tmp_res), GFP_KERNEL);
 		if (!tmp_res) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_insert;
 		}
 
@@ -75,7 +75,7 @@ static int fill_list(unsigned int nr_pages)
 
 		ret = request_resource(&iomem_resource, tmp_res);
 		if (ret < 0) {
-			pr_err("Cannot request resource %pR (%d)\n", tmp_res, ret);
+			pr_err("Cananalt request resource %pR (%d)\n", tmp_res, ret);
 			kfree(tmp_res);
 			goto err_insert;
 		}
@@ -83,7 +83,7 @@ static int fill_list(unsigned int nr_pages)
 
 	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
 	if (!pgmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pgmap;
 	}
 
@@ -99,10 +99,10 @@ static int fill_list(unsigned int nr_pages)
         /*
          * memremap will build page tables for the new memory so
          * the p2m must contain invalid entries so the correct
-         * non-present PTEs will be written.
+         * analn-present PTEs will be written.
          *
          * If a failure occurs, the original (identity) p2m entries
-         * are not restored since this region is now known not to
+         * are analt restored since this region is analw kanalwn analt to
          * conflict with any devices.
          */
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
@@ -110,17 +110,17 @@ static int fill_list(unsigned int nr_pages)
 
 		for (i = 0; i < alloc_pages; i++) {
 			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
-				pr_warn("set_phys_to_machine() failed, no memory added\n");
-				ret = -ENOMEM;
+				pr_warn("set_phys_to_machine() failed, anal memory added\n");
+				ret = -EANALMEM;
 				goto err_memremap;
 			}
                 }
 	}
 #endif
 
-	vaddr = memremap_pages(pgmap, NUMA_NO_NODE);
+	vaddr = memremap_pages(pgmap, NUMA_ANAL_ANALDE);
 	if (IS_ERR(vaddr)) {
-		pr_err("Cannot remap memory range\n");
+		pr_err("Cananalt remap memory range\n");
 		ret = PTR_ERR(vaddr);
 		goto err_memremap;
 	}
@@ -161,7 +161,7 @@ int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 	int ret = 0;
 
 	/*
-	 * Fallback to default behavior if we do not have any suitable resource
+	 * Fallback to default behavior if we do analt have any suitable resource
 	 * to allocate required region from and as the result we won't be able to
 	 * construct pages.
 	 */
@@ -235,11 +235,11 @@ static int __init unpopulated_init(void)
 	int ret;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = arch_xen_unpopulated_init(&target_resource);
 	if (ret) {
-		pr_err("xen:unpopulated: Cannot initialize target resource\n");
+		pr_err("xen:unpopulated: Cananalt initialize target resource\n");
 		target_resource = NULL;
 	}
 

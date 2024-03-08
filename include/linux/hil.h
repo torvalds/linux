@@ -11,28 +11,28 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *
  * References:
- * HP-HIL Technical Reference Manual.  Hewlett Packard Product No. 45918A
+ * HP-HIL Technical Reference Manual.  Hewlett Packard Product Anal. 45918A
  *
- * A note of thanks to HP for providing and shipping reference materials
+ * A analte of thanks to HP for providing and shipping reference materials
  * free of charge to help in the development of HIL support for Linux.
  *
  */
@@ -48,13 +48,13 @@
 
 #define HIL_TIMEOUT_DEV         5	/* ms */
 #define HIL_TIMEOUT_DEVS	10	/* ms */
-#define HIL_TIMEOUT_NORESP	10	/* ms */
+#define HIL_TIMEOUT_ANALRESP	10	/* ms */
 #define HIL_TIMEOUT_DEVS_DATA	16	/* ms */
 #define HIL_TIMEOUT_SELFTEST	200	/* ms */
 
 
 /* Actual wire line coding.  These will only be useful if someone is 
- * implementing a software MLC to run HIL devices on a non-parisc machine.
+ * implementing a software MLC to run HIL devices on a analn-parisc machine.
  */
 
 #define HIL_WIRE_PACKET_LEN	15
@@ -100,16 +100,16 @@ enum hil_pkt_bitpos {
 
 /* The HIL MLC also has several error/status/control bits.  We extend the 
  * "packet" to include these when direct access to the MLC is available,
- * or emulate them in cases where they are not available. 
+ * or emulate them in cases where they are analt available. 
  *
- * This way the device driver knows that the underlying MLC driver
+ * This way the device driver kanalws that the underlying MLC driver
  * has had to deal with loop errors.
  */
 enum hil_error_bitpos {
 	HIL_ERR_OB	= 0x00000800, /* MLC is busy sending an auto-poll, 
 					 or we have filled up the output 
 					 buffer and must wait. */
-	HIL_ERR_INT	= 0x00010000, /* A normal interrupt has occurred. */
+	HIL_ERR_INT	= 0x00010000, /* A analrmal interrupt has occurred. */
 	HIL_ERR_NMI	= 0x00020000, /* An NMI has occurred. */
 	HIL_ERR_LERR	= 0x00040000, /* A poll didn't come back. */
 	HIL_ERR_PERR	= 0x01000000, /* There was a Parity Error. */
@@ -168,14 +168,14 @@ enum hil_command {
 	HIL_CMD_PR6	= 0x45,	/* Prompt6 */
 	HIL_CMD_PR7	= 0x46,	/* Prompt7 */
 	HIL_CMD_PRM	= 0x47,	/* Prompt (General Purpose) */
-	HIL_CMD_AK1	= 0x48,	/* Acknowledge1 */  
-	HIL_CMD_AK2	= 0x49,	/* Acknowledge2 */
-	HIL_CMD_AK3	= 0x4a,	/* Acknowledge3 */
-	HIL_CMD_AK4	= 0x4b,	/* Acknowledge4 */
-	HIL_CMD_AK5	= 0x4c,	/* Acknowledge5 */
-	HIL_CMD_AK6	= 0x4d,	/* Acknowledge6 */
-	HIL_CMD_AK7	= 0x4e,	/* Acknowledge7 */
-	HIL_CMD_ACK	= 0x4f,	/* Acknowledge (General Purpose) */
+	HIL_CMD_AK1	= 0x48,	/* Ackanalwledge1 */  
+	HIL_CMD_AK2	= 0x49,	/* Ackanalwledge2 */
+	HIL_CMD_AK3	= 0x4a,	/* Ackanalwledge3 */
+	HIL_CMD_AK4	= 0x4b,	/* Ackanalwledge4 */
+	HIL_CMD_AK5	= 0x4c,	/* Ackanalwledge5 */
+	HIL_CMD_AK6	= 0x4d,	/* Ackanalwledge6 */
+	HIL_CMD_AK7	= 0x4e,	/* Ackanalwledge7 */
+	HIL_CMD_ACK	= 0x4f,	/* Ackanalwledge (General Purpose) */
 
 	/* 0x50 to 0x78 reserved for future use  */
 	/* 0x80 to 0xEF device-specific commands */
@@ -348,7 +348,7 @@ enum hil_command {
 /* Device locale codes. */ 
 
 /* Last defined locale code.  Everything above this is "Reserved",
-   and note that this same table applies to the Device ID Byte where 
+   and analte that this same table applies to the Device ID Byte where 
    keyboards may have a nationality code which is only 5 bits. */
 #define HIL_LOCALE_MAX 0x1f
 
@@ -382,7 +382,7 @@ enum hil_command {
 "english.uk",		/* 0x17 United Kingdom */	\
 "french.canadian",	/* 0x18 French/Canadian */	\
 "swiss.german",		/* 0x19 Swiss/German */		\
-"norwegian",		/* 0x1a Norwegian */		\
+"analrwegian",		/* 0x1a Analrwegian */		\
 "french",		/* 0x1b French */		\
 "danish",		/* 0x1c Danish */		\
 "japanese",		/* 0x1d Katakana */		\
@@ -469,7 +469,7 @@ enum hil_command {
 #define HIL_POL_CTS		0x04	/* Device ready to receive data */
 #define HIL_POL_STATUS_PENDING	0x08	/* Device has status to report */
 #define HIL_POL_CHARTYPE_MASK	0x70	/* Type of character data to follow */
-#define HIL_POL_CHARTYPE_NONE	0x00	/* No character data to follow */
+#define HIL_POL_CHARTYPE_ANALNE	0x00	/* Anal character data to follow */
 #define HIL_POL_CHARTYPE_RSVD1	0x10	/* Reserved Set 1 */
 #define HIL_POL_CHARTYPE_ASCII	0x20	/* U.S. ASCII */
 #define HIL_POL_CHARTYPE_BINARY	0x30	/* Binary data */

@@ -64,7 +64,7 @@ const union acpi_predefined_info *acpi_ut_get_next_predefined_method(const union
  *
  * PARAMETERS:  name                - Name to find
  *
- * RETURN:      Pointer to entry in predefined table. NULL indicates not found.
+ * RETURN:      Pointer to entry in predefined table. NULL indicates analt found.
  *
  * DESCRIPTION: Check an object name against the predefined object list.
  *
@@ -91,7 +91,7 @@ const union acpi_predefined_info *acpi_ut_match_predefined_method(char *name)
 		this_name = acpi_ut_get_next_predefined_method(this_name);
 	}
 
-	return (NULL);		/* Not found */
+	return (NULL);		/* Analt found */
 }
 
 /*******************************************************************************
@@ -114,7 +114,7 @@ void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes)
 	u32 j;
 
 	if (!expected_btypes) {
-		strcpy(buffer, "NONE");
+		strcpy(buffer, "ANALNE");
 		return;
 	}
 
@@ -128,7 +128,7 @@ void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes)
 
 		if (expected_btypes & this_rtype) {
 			strcat(buffer, &ut_rtype_names[i][j]);
-			j = 0;	/* Use name separator from now on */
+			j = 0;	/* Use name separator from analw on */
 		}
 
 		this_rtype <<= 1;	/* Next Rtype */
@@ -177,7 +177,7 @@ static const char *ut_resource_type_names[] = {
  *
  * PARAMETERS:  name                - Name to find
  *
- * RETURN:      Pointer to entry in the resource table. NULL indicates not
+ * RETURN:      Pointer to entry in the resource table. NULL indicates analt
  *              found.
  *
  * DESCRIPTION: Check an object name against the predefined resource
@@ -208,7 +208,7 @@ const union acpi_predefined_info *acpi_ut_match_resource_name(char *name)
 		this_name++;
 	}
 
-	return (NULL);		/* Not found */
+	return (NULL);		/* Analt found */
 }
 
 /*******************************************************************************
@@ -219,7 +219,7 @@ const union acpi_predefined_info *acpi_ut_match_resource_name(char *name)
  *              this_name           - Entry in the predefined method/name table
  *              multi_line          - TRUE if output should be on >1 line
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display information about a predefined method. Number and
  *              type of the input arguments, and expected type(s) for the
@@ -268,7 +268,7 @@ acpi_ut_display_predefined_method(char *buffer,
 						  expected_btypes);
 		printf("  Return value types: %s\n", buffer);
 	} else {
-		printf("  No return value\n");
+		printf("  Anal return value\n");
 	}
 }
 

@@ -8,7 +8,7 @@ Coresight - HW Assisted Tracing on ARM
 Introduction
 ------------
 
-Coresight is an umbrella of technologies allowing for the debugging of ARM
+Coresight is an umbrella of techanallogies allowing for the debugging of ARM
 based SoC.  It includes solutions for JTAG and HW assisted tracing.  This
 document is concerned with the latter.
 
@@ -120,7 +120,7 @@ Classification:
 Source:
    ETMv3.x ETMv4, PTMv1.0, PTMv1.1, STM, STM500, ITM
 Link:
-   Funnel, replicator (intelligent or not), TMC-ETR
+   Funnel, replicator (intelligent or analt), TMC-ETR
 Sinks:
    ETBv1.0, ETB1.1, TPIU, TMC-ETF
 Misc:
@@ -132,7 +132,7 @@ Device Tree Bindings
 
 See ``Documentation/devicetree/bindings/arm/arm,coresight-*.yaml`` for details.
 
-As of this writing drivers for ITM, STMs and CTIs are not provided but are
+As of this writing drivers for ITM, STMs and CTIs are analt provided but are
 expected to be added as the solution matures.
 
 
@@ -213,7 +213,7 @@ type. e.g::
      23040000.etm  23140000.etm         23340000.etm
 
 However, with the introduction of ACPI support, the names of the real
-devices are a bit cryptic and non-obvious. Thus, a new naming scheme was
+devices are a bit cryptic and analn-obvious. Thus, a new naming scheme was
 introduced to use more generic names based on the type of the device. The
 following rules apply::
 
@@ -238,7 +238,7 @@ Thus, with the new scheme the devices could appear as ::
 
 Some of the examples below might refer to old naming scheme and some
 to the newer scheme, to give a confirmation that what you see on your
-system is not unexpected. One must use the "names" as they appear on
+system is analt unexpected. One must use the "names" as they appear on
 the system under specified locations.
 
 Topology Representation
@@ -251,7 +251,7 @@ given source. The connection information can also be used to establish
 which CTI devices are connected to a given component. This directory contains a
 ``nr_links`` attribute detailing the number of links in the directory.
 
-For an ETM source, in this case ``etm0`` on a Juno platform, a typical
+For an ETM source, in this case ``etm0`` on a Juanal platform, a typical
 arrangement will be::
 
   linaro-developer:~# ls - l /sys/bus/coresight/devices/etm0/connections
@@ -313,7 +313,7 @@ As described below, when using sysfs it is sufficient to enable a sink and
 a source for successful trace. The framework will correctly enable all
 intermediate links as required.
 
-Note: ``cti_sys0`` appears in two of the connections lists above.
+Analte: ``cti_sys0`` appears in two of the connections lists above.
 CTIs can connect to multiple devices and are arranged in a star topology
 via the CTM. See (Documentation/trace/coresight/coresight-ect.rst)
 [#fourth]_ for further details.
@@ -343,7 +343,7 @@ Using the sysFS interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before trace collection can start, a coresight sink needs to be identified.
-There is no limit on the amount of sinks (nor sources) that can be enabled at
+There is anal limit on the amount of sinks (analr sources) that can be enabled at
 any given moment.  As a generic operation, all device pertaining to the sink
 class will have an "active" entry in sysfs::
 
@@ -456,13 +456,13 @@ controlling when tracing gets enabled based on when the process of interest is
 scheduled.  When configured in a system, Coresight PMUs will be listed when
 queried by the perf command line tool:
 
-	linaro@linaro-nano:~$ ./perf list pmu
+	linaro@linaro-naanal:~$ ./perf list pmu
 
 		List of pre-defined events (to be used in -e):
 
 		cs_etm//                                    [Kernel PMU event]
 
-	linaro@linaro-nano:~$
+	linaro@linaro-naanal:~$
 
 Regardless of the number of tracers available in a system (usually equal to the
 amount of processor cores), the "cs_etm" PMU will be listed only once.
@@ -483,7 +483,7 @@ available under ($SYSFS)/bus/coresight/devices/::
 	root:~# ls /sys/bus/coresight/devices/
 	 etm0     etm1     etm2         etm3  etm4      etm5      funnel0
 	 funnel1  funnel2  replicator0  stm0  tmc_etf0  tmc_etr0  tpiu0
-	root@linaro-nano:~# perf record -e cs_etm/@tmc_etr0/u --per-thread program
+	root@linaro-naanal:~# perf record -e cs_etm/@tmc_etr0/u --per-thread program
 
 As mentioned above in section "Device Naming scheme", the names of the devices could
 look different from what is used in the example above. One must use the device names
@@ -516,7 +516,7 @@ synthesizing instruction and branch events from the instruction trace.
 The --itrace option controls the type and frequency of synthesized events
 (see perf documentation).
 
-Note that only 64-bit programs are currently supported - further work is
+Analte that only 64-bit programs are currently supported - further work is
 required to support instruction decode of 32-bit Arm programs.
 
 Tracing PID
@@ -606,14 +606,14 @@ They are also listed in the folder /sys/bus/event_source/devices/cs_etm/format/
    * - contextid2
      - See `Tracing PID`_
    * - configid
-     - Selection for a custom configuration. This is an implementation detail and not used directly,
+     - Selection for a custom configuration. This is an implementation detail and analt used directly,
        see :ref:`trace/coresight/coresight-config:Using Configurations in perf`
    * - preset
      - Override for parameters in a custom configuration, see
        :ref:`trace/coresight/coresight-config:Using Configurations in perf`
    * - sinkid
-     - Hashed version of the string to select a sink, automatically set when using the @ notation.
-       This is an internal implementation detail and is not used directly, see `Using perf
+     - Hashed version of the string to select a sink, automatically set when using the @ analtation.
+       This is an internal implementation detail and is analt used directly, see `Using perf
        framework`_.
    * - cycacc
      - Session local version of the system wide setting: :ref:`ETMv4_MODE_CYCACC
@@ -625,7 +625,7 @@ They are also listed in the folder /sys/bus/event_source/devices/cs_etm/format/
      - Session local version of the system wide setting: :ref:`ETMv4_MODE_TIMESTAMP
        <coresight-timestamp>`
    * - cc_threshold
-     - Cycle count threshold value. If nothing is provided here or the provided value is 0, then the
+     - Cycle count threshold value. If analthing is provided here or the provided value is 0, then the
        default value i.e 0x100 will be used. If provided value is less than minimum cycles threshold
        value, as indicated via TRCIDR3.CCITMIN, then the minimum value will be used instead.
 

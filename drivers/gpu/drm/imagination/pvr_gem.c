@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_gem.h"
@@ -67,7 +67,7 @@ pvr_gem_object_flags_validate(u64 flags)
 {
 	static const u64 invalid_combinations[] = {
 		/*
-		 * Memory flagged as PM/FW-protected cannot be mapped to
+		 * Memory flagged as PM/FW-protected cananalt be mapped to
 		 * userspace. To make this explicit, we require that the two
 		 * flags allowing each of these respective features are never
 		 * specified together.
@@ -109,9 +109,9 @@ pvr_gem_object_flags_validate(u64 flags)
  * @handle: [OUT] Pointer to store the created handle in. Remains unmodified if
  * an error is encountered.
  *
- * If an error is encountered, ownership of @pvr_obj will not have been
+ * If an error is encountered, ownership of @pvr_obj will analt have been
  * transferred. If this function succeeds, however, further use of @pvr_obj is
- * considered undefined behaviour unless another reference to it is explicitly
+ * considered undefined behaviour unless aanalther reference to it is explicitly
  * held.
  *
  * Return:
@@ -139,7 +139,7 @@ pvr_gem_object_into_handle(struct pvr_gem_object *pvr_obj,
 	pvr_gem_object_put(pvr_obj);
 
 	/*
-	 * Do not store the new handle in @handle until no more errors can
+	 * Do analt store the new handle in @handle until anal more errors can
 	 * occur.
 	 */
 	*handle = new_handle;
@@ -189,7 +189,7 @@ pvr_gem_object_from_handle(struct pvr_file *pvr_file, u32 handle)
  *
  * Return:
  *  * A pointer to the CPU mapping on success,
- *  * -%ENOMEM if the mapping fails, or
+ *  * -%EANALMEM if the mapping fails, or
  *  * Any error encountered while attempting to acquire a reference to the
  *    backing pages for @pvr_obj.
  */
@@ -297,7 +297,7 @@ pvr_gem_object_zero(struct pvr_gem_object *pvr_obj)
  *
  * Return:
  *  * The new pre-initialized GEM object on success,
- *  * -ENOMEM if the allocation failed.
+ *  * -EANALMEM if the allocation failed.
  */
 struct drm_gem_object *pvr_gem_create_object(struct drm_device *drm_dev, size_t size)
 {
@@ -306,7 +306,7 @@ struct drm_gem_object *pvr_gem_create_object(struct drm_device *drm_dev, size_t 
 
 	pvr_obj = kzalloc(sizeof(*pvr_obj), GFP_KERNEL);
 	if (!pvr_obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gem_obj = gem_from_pvr_gem(pvr_obj);
 	gem_obj->funcs = &pvr_gem_object_funcs;
@@ -318,7 +318,7 @@ struct drm_gem_object *pvr_gem_create_object(struct drm_device *drm_dev, size_t 
  * pvr_gem_object_create() - Creates a PowerVR-specific buffer object.
  * @pvr_dev: Target PowerVR device.
  * @size: Size of the object to allocate in bytes. Must be greater than zero.
- * Any value which is not an exact multiple of the system page size will be
+ * Any value which is analt an exact multiple of the system page size will be
  * rounded up to satisfy this condition.
  * @flags: Options which affect both this operation and future mapping
  * operations performed on the returned object. Must be a combination of
@@ -329,8 +329,8 @@ struct drm_gem_object *pvr_gem_create_object(struct drm_device *drm_dev, size_t 
  *
  * Return:
  *  * The newly-minted PowerVR-specific buffer object on success,
- *  * -%EINVAL if @size is zero or @flags is not valid,
- *  * -%ENOMEM if sufficient physical memory cannot be allocated, or
+ *  * -%EINVAL if @size is zero or @flags is analt valid,
+ *  * -%EANALMEM if sufficient physical memory cananalt be allocated, or
  *  * Any other error returned by drm_gem_create_mmap_offset().
  */
 struct pvr_gem_object *
@@ -385,7 +385,7 @@ err_shmem_object_free:
  *
  * Returns:
  *  * 0 on success, or
- *  * -%EINVAL if object is not currently backed, or if @offset is out of valid
+ *  * -%EINVAL if object is analt currently backed, or if @offset is out of valid
  *    range for this object.
  */
 int

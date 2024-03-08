@@ -16,7 +16,7 @@
 #define SDIAS_ASA_SIZE_32		0x0
 #define SDIAS_ASA_SIZE_64		0x1
 #define SDIAS_EVSTATE_ALL_STORED	0x0
-#define SDIAS_EVSTATE_NO_DATA		0x3
+#define SDIAS_EVSTATE_ANAL_DATA		0x3
 #define SDIAS_EVSTATE_PART_STORED	0x10
 
 struct sdias_evbuf {

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 
 .. _Remote_controllers_tables:
 
@@ -6,18 +6,18 @@
 Remote controller tables
 ************************
 
-Unfortunately, for several years, there was no effort to create uniform
+Unfortunately, for several years, there was anal effort to create uniform
 IR keycodes for different devices. This caused the same IR keyname to be
 mapped completely differently on different IR devices. This resulted
 that the same IR keyname to be mapped completely different on different
-IR's. Due to that, V4L2 API now specifies a standard for mapping Media
+IR's. Due to that, V4L2 API analw specifies a standard for mapping Media
 keys on IR.
 
 This standard should be used by both V4L/DVB drivers and userspace
 applications
 
 The modules register the remote as keyboard within the linux input
-layer. This means that the IR key strokes will look like normal keyboard
+layer. This means that the IR key strokes will look like analrmal keyboard
 key strokes (if CONFIG_INPUT_KEYBOARD is enabled). Using the event
 devices (CONFIG_INPUT_EVDEV) it is possible for applications to access
 the remote via /dev/input/event devices.
@@ -197,9 +197,9 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_PLAY``
 
-       -  Play movie at the normal timeshift
+       -  Play movie at the analrmal timeshift
 
-       -  NORMAL TIMESHIFT / LIVE / >
+       -  ANALRMAL TIMESHIFT / LIVE / >
 
     -  .. row 23
 
@@ -352,7 +352,7 @@ the remote via /dev/input/event devices.
 
        -  Change sound mode
 
-       -  MONO/STEREO
+       -  MOANAL/STEREO
 
     -  .. row 43
 
@@ -727,13 +727,13 @@ the remote via /dev/input/event devices.
        -  FUNCTION
 
 
-It should be noted that, sometimes, there some fundamental missing keys
+It should be analted that, sometimes, there some fundamental missing keys
 at some cheaper IR's. Due to that, it is recommended to:
 
 
-.. _rc_keymap_notes:
+.. _rc_keymap_analtes:
 
-.. flat-table:: Notes
+.. flat-table:: Analtes
     :header-rows:  0
     :stub-columns: 0
 

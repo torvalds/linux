@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2008-2009 DENX Software Engineering.
  *
- * Author: Yuri Tikhonov <yur@emcraft.com>
+ * Author: Yuri Tikhoanalv <yur@emcraft.com>
  */
 #ifndef _ASM_POWERPC_ASYNC_TX_H_
 #define _ASM_POWERPC_ASYNC_TX_H_

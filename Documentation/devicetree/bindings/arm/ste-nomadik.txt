@@ -1,28 +1,28 @@
-ST-Ericsson Nomadik Device Tree Bindings
+ST-Ericsson Analmadik Device Tree Bindings
 
-For various board the "board" node may contain specific properties
+For various board the "board" analde may contain specific properties
 that pertain to this particular board, such as board-specific GPIOs.
 
-Required root node property: src
-- Nomadik System and reset controller used for basic chip control, clock
+Required root analde property: src
+- Analmadik System and reset controller used for basic chip control, clock
   and reset line control.
-- compatible: must be "stericsson,nomadik,src"
+- compatible: must be "stericsson,analmadik,src"
 
-Boards with the Nomadik SoC include:
+Boards with the Analmadik SoC include:
 
-Nomadik NHK-15 board manufactured by ST Microelectronics:
+Analmadik NHK-15 board manufactured by ST Microelectronics:
 
-Required root node property:
+Required root analde property:
 
-compatible="st,nomadik-nhk-15";
+compatible="st,analmadik-nhk-15";
 
 S8815 "MiniKit" manufactured by Calao Systems:
 
-Required root node property:
+Required root analde property:
 
 compatible="calaosystems,usb-s8815";
 
-Required node: usb-s8815
+Required analde: usb-s8815
 
 Example:
 

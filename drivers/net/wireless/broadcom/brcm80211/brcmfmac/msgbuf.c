@@ -255,8 +255,8 @@ struct brcmf_msgbuf {
 	u32 ioctl_resp_ret_len;
 	u32 ioctl_resp_pktid;
 
-	u16 data_seq_no;
-	u16 ioctl_seq_no;
+	u16 data_seq_anal;
+	u16 ioctl_seq_anal;
 	u32 reqid;
 	wait_queue_head_t ioctl_resp_wait;
 	bool ctl_completed;
@@ -331,7 +331,7 @@ brcmf_msgbuf_alloc_pktid(struct device *dev,
 
 	if (dma_mapping_error(dev, *physaddr)) {
 		brcmf_err("dma_map_single failed !!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*idx = pktids->last_allocated_idx;
@@ -350,7 +350,7 @@ brcmf_msgbuf_alloc_pktid(struct device *dev,
 	if (count == pktids->array_size) {
 		dma_unmap_single(dev, *physaddr, skb->len - data_offset,
 				 pktids->direction);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	array[*idx].data_offset = data_offset;
@@ -384,7 +384,7 @@ brcmf_msgbuf_get_pktid(struct device *dev, struct brcmf_msgbuf_pktids *pktids,
 		pktid->allocated.counter = 0;
 		return skb;
 	} else {
-		brcmf_err("Invalid packet id %d (not in use)\n", idx);
+		brcmf_err("Invalid packet id %d (analt in use)\n", idx);
 	}
 
 	return NULL;
@@ -444,7 +444,7 @@ static int brcmf_msgbuf_tx_ioctl(struct brcmf_pub *drvr, int ifidx,
 	if (!ret_ptr) {
 		bphy_err(drvr, "Failed to reserve space in commonring\n");
 		brcmf_commonring_unlock(commonring);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msgbuf->reqid++;
@@ -537,7 +537,7 @@ static int brcmf_msgbuf_set_dcmd(struct brcmf_pub *drvr, int ifidx,
 static int brcmf_msgbuf_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 				struct sk_buff *skb, struct brcmf_if **ifp)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void brcmf_msgbuf_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb)
@@ -718,7 +718,7 @@ static void brcmf_msgbuf_txflow(struct brcmf_msgbuf *msgbuf, u16 flowid)
 	while (brcmf_flowring_qlen(flow, flowid)) {
 		skb = brcmf_flowring_dequeue(flow, flowid);
 		if (skb == NULL) {
-			bphy_err(drvr, "No SKB, but qlen %d\n",
+			bphy_err(drvr, "Anal SKB, but qlen %d\n",
 				 brcmf_flowring_qlen(flow, flowid));
 			break;
 		}
@@ -727,7 +727,7 @@ static void brcmf_msgbuf_txflow(struct brcmf_msgbuf *msgbuf, u16 flowid)
 					     msgbuf->tx_pktids, skb, ETH_HLEN,
 					     &physaddr, &pktid)) {
 			brcmf_flowring_reinsert(flow, flowid, skb);
-			bphy_err(drvr, "No PKTID available !!\n");
+			bphy_err(drvr, "Anal PKTID available !!\n");
 			break;
 		}
 		ret_ptr = brcmf_commonring_reserve_for_write(commonring);
@@ -811,7 +811,7 @@ static int brcmf_msgbuf_tx_queue_data(struct brcmf_pub *drvr, int ifidx,
 	if (flowid == BRCMF_FLOWRING_INVALID_ID) {
 		flowid = brcmf_msgbuf_flowring_create(msgbuf, ifidx, skb);
 		if (flowid == BRCMF_FLOWRING_INVALID_ID) {
-			return -ENOMEM;
+			return -EANALMEM;
 		} else {
 			brcmf_flowring_enqueue(flow, flowid, skb);
 			return 0;
@@ -940,7 +940,7 @@ static u32 brcmf_msgbuf_rxbuf_data_post(struct brcmf_msgbuf *msgbuf, u32 count)
 					     msgbuf->rx_pktids, skb, 0,
 					     &physaddr, &pktid)) {
 			dev_kfree_skb_any(skb);
-			bphy_err(drvr, "No PKTID available !!\n");
+			bphy_err(drvr, "Anal PKTID available !!\n");
 			brcmf_commonring_write_cancel(commonring, alloced - i);
 			break;
 		}
@@ -1050,7 +1050,7 @@ brcmf_msgbuf_rxbuf_ctrl_post(struct brcmf_msgbuf *msgbuf, bool event_buf,
 					     msgbuf->rx_pktids, skb, 0,
 					     &physaddr, &pktid)) {
 			dev_kfree_skb_any(skb);
-			bphy_err(drvr, "No PKTID available !!\n");
+			bphy_err(drvr, "Anal PKTID available !!\n");
 			brcmf_commonring_write_cancel(commonring, alloced - i);
 			break;
 		}
@@ -1410,7 +1410,7 @@ void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u16 flowid)
 	int err;
 	int retry = BRCMF_MAX_TXSTATUS_WAIT_RETRIES;
 
-	/* make sure it is not in txflow */
+	/* make sure it is analt in txflow */
 	brcmf_commonring_lock(commonring_del);
 	flow->rings[flowid]->status = RING_CLOSING;
 	brcmf_commonring_unlock(commonring_del);
@@ -1425,7 +1425,7 @@ void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u16 flowid)
 		atomic_set(&commonring_del->outstanding_tx, 0);
 	}
 
-	/* no need to submit if firmware can not be reached */
+	/* anal need to submit if firmware can analt be reached */
 	if (drvr->bus_if->state != BRCMF_BUS_UP) {
 		brcmf_dbg(MSGBUF, "bus down, flowring will be removed\n");
 		brcmf_msgbuf_remove_flowring(msgbuf, flowid);
@@ -1534,7 +1534,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	if_msgbuf = drvr->bus_if->msgbuf;
 
 	if (if_msgbuf->max_flowrings >= BRCMF_FLOWRING_HASHSIZE) {
-		bphy_err(drvr, "driver not configured for this many flowrings %d\n",
+		bphy_err(drvr, "driver analt configured for this many flowrings %d\n",
 			 if_msgbuf->max_flowrings);
 		if_msgbuf->max_flowrings = BRCMF_FLOWRING_HASHSIZE - 1;
 	}
@@ -1650,7 +1650,7 @@ fail:
 			destroy_workqueue(msgbuf->txflow_wq);
 		kfree(msgbuf);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 

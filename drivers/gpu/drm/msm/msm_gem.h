@@ -24,16 +24,16 @@
 
 struct msm_gem_address_space {
 	const char *name;
-	/* NOTE: mm managed at the page level, size is in # of pages
-	 * and position mm_node->start is in # of pages:
+	/* ANALTE: mm managed at the page level, size is in # of pages
+	 * and position mm_analde->start is in # of pages:
 	 */
 	struct drm_mm mm;
-	spinlock_t lock; /* Protects drm_mm node allocation/removal */
+	spinlock_t lock; /* Protects drm_mm analde allocation/removal */
 	struct msm_mmu *mmu;
 	struct kref kref;
 
 	/* For address spaces associated with a specific process, this
-	 * will be non-NULL:
+	 * will be analn-NULL:
 	 */
 	struct pid *pid;
 
@@ -59,10 +59,10 @@ msm_gem_address_space_create(struct msm_mmu *mmu, const char *name,
 struct msm_fence_context;
 
 struct msm_gem_vma {
-	struct drm_mm_node node;
+	struct drm_mm_analde analde;
 	uint64_t iova;
 	struct msm_gem_address_space *aspace;
-	struct list_head list;    /* node in msm_gem_object::vmas */
+	struct list_head list;    /* analde in msm_gem_object::vmas */
 	bool mapped;
 };
 
@@ -91,10 +91,10 @@ struct msm_gem_object {
 	uint8_t vmap_count;
 
 	/**
-	 * Node in list of all objects (mainly for debugfs, protected by
+	 * Analde in list of all objects (mainly for debugfs, protected by
 	 * priv->obj_lock
 	 */
-	struct list_head node;
+	struct list_head analde;
 
 	struct page **pages;
 	struct sg_table *sgt;
@@ -105,7 +105,7 @@ struct msm_gem_object {
 	/* For physically contiguous buffers.  Used when we don't have
 	 * an IOMMU.  Also used for stolen/splashscreen buffer.
 	 */
-	struct drm_mm_node *vram_node;
+	struct drm_mm_analde *vram_analde;
 
 	char name[32]; /* Identifier to print for the debugfs files */
 
@@ -205,23 +205,23 @@ msm_gem_assert_locked(struct drm_gem_object *obj)
 {
 	/*
 	 * Destroying the object is a special case.. msm_gem_free_object()
-	 * calls many things that WARN_ON if the obj lock is not held.  But
+	 * calls many things that WARN_ON if the obj lock is analt held.  But
 	 * acquiring the obj lock in msm_gem_free_object() can cause a
 	 * locking order inversion between reservation_ww_class_mutex and
 	 * fs_reclaim.
 	 *
-	 * This deadlock is not actually possible, because no one should
+	 * This deadlock is analt actually possible, because anal one should
 	 * be already holding the lock when msm_gem_free_object() is called.
-	 * Unfortunately lockdep is not aware of this detail.  So when the
+	 * Unfortunately lockdep is analt aware of this detail.  So when the
 	 * refcount drops to zero, we pretend it is already locked.
 	 */
 	lockdep_assert_once(
 		(kref_read(&obj->refcount) == 0) ||
-		(lockdep_is_held(&obj->resv->lock.base) != LOCK_STATE_NOT_HELD)
+		(lockdep_is_held(&obj->resv->lock.base) != LOCK_STATE_ANALT_HELD)
 	);
 }
 
-/* imported/exported objects are not purgeable: */
+/* imported/exported objects are analt purgeable: */
 static inline bool is_unpurgeable(struct msm_gem_object *msm_obj)
 {
 	return msm_obj->base.import_attach || msm_obj->pin_count;
@@ -258,12 +258,12 @@ struct msm_gem_submit {
 	struct drm_device *dev;
 	struct msm_gpu *gpu;
 	struct msm_gem_address_space *aspace;
-	struct list_head node;   /* node in ring submit list */
+	struct list_head analde;   /* analde in ring submit list */
 	struct drm_exec exec;
-	uint32_t seqno;		/* Sequence number of the submit on the ring */
+	uint32_t seqanal;		/* Sequence number of the submit on the ring */
 
 	/* Hw fence, which is created when the scheduler executes the job, and
-	 * is signaled when the hw finishes (via seqno write from cmdstream)
+	 * is signaled when the hw finishes (via seqanal write from cmdstream)
 	 */
 	struct dma_fence *hw_fence;
 

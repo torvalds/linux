@@ -36,7 +36,7 @@ void ovs_ct_free_action(const struct nlattr *a);
 			   OVS_CS_F_INVALID | OVS_CS_F_TRACKED | \
 			   OVS_CS_F_SRC_NAT | OVS_CS_F_DST_NAT)
 #else
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 static inline int ovs_ct_init(struct net *net) { return 0; }
 
@@ -51,13 +51,13 @@ static inline int ovs_ct_copy_action(struct net *net, const struct nlattr *nla,
 				     const struct sw_flow_key *key,
 				     struct sw_flow_actions **acts, bool log)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int ovs_ct_action_to_attr(const struct ovs_conntrack_info *info,
 					struct sk_buff *skb)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int ovs_ct_execute(struct net *net, struct sk_buff *skb,
@@ -65,13 +65,13 @@ static inline int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 				 const struct ovs_conntrack_info *info)
 {
 	kfree_skb(skb);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int ovs_ct_clear(struct sk_buff *skb,
 			       struct sw_flow_key *key)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void ovs_ct_fill_key(const struct sk_buff *skb,
@@ -82,7 +82,7 @@ static inline void ovs_ct_fill_key(const struct sk_buff *skb,
 	key->ct_zone = 0;
 	key->ct.mark = 0;
 	memset(&key->ct.labels, 0, sizeof(key->ct.labels));
-	/* Clear 'ct_orig_proto' to mark the non-existence of original
+	/* Clear 'ct_orig_proto' to mark the analn-existence of original
 	 * direction key fields.
 	 */
 	key->ct_orig_proto = 0;

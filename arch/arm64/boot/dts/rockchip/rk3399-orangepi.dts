@@ -606,7 +606,7 @@
 		};
 
 		phy_rstb: phy-rstb {
-			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -628,63 +628,63 @@
 	sd {
 		sdmmc0_pwr_h: sdmmc0-pwr-h {
 			rockchip,pins =
-				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb2 {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins =
-				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_typec_en: vcc5v0-typec-en {
 			rockchip,pins =
-				<1 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_reg_on_h: wifi-reg-on-h {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	wifi {
 		wifi_host_wake_l: wifi-host-wake-l {
-			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	bluetooth {
 		bt_reg_on_h: bt-enable-h {
-			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
-			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_l: bt-wake-l {
-			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	mpu6500 {
 		gsensor_int_l: gsensor-int-l {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	lsm6ds3 {
 		gyr_int_l: gyr-int-l {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	cm32181 {
 		light_int_l: light-int-l {
-			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -712,7 +712,7 @@
 	bus-width = <8>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -725,7 +725,7 @@
 	keep-power-in-suspend;
 	max-frequency = <50000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
 	sd-uhs-sdr104;

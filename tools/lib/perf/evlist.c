@@ -14,7 +14,7 @@
 #include <internal/lib.h>
 #include <linux/zalloc.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -60,7 +60,7 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 		evsel->cpus = perf_cpu_map__get(evlist->user_requested_cpus);
 	} else if (evsel->cpus != evsel->own_cpus) {
 		/*
-		 * No user requested cpu map but the PMU cpu map doesn't match
+		 * Anal user requested cpu map but the PMU cpu map doesn't match
 		 * the evsel's. Reset it back to the PMU cpu map.
 		 */
 		perf_cpu_map__put(evsel->cpus);
@@ -92,7 +92,7 @@ void perf_evlist__add(struct perf_evlist *evlist,
 		      struct perf_evsel *evsel)
 {
 	evsel->idx = evlist->nr_entries;
-	list_add_tail(&evsel->node, &evlist->entries);
+	list_add_tail(&evsel->analde, &evlist->entries);
 	evlist->nr_entries += 1;
 
 	if (evlist->needs_map_propagation)
@@ -102,7 +102,7 @@ void perf_evlist__add(struct perf_evlist *evlist,
 void perf_evlist__remove(struct perf_evlist *evlist,
 			 struct perf_evsel *evsel)
 {
-	list_del_init(&evsel->node);
+	list_del_init(&evsel->analde);
 	evlist->nr_entries -= 1;
 }
 
@@ -124,13 +124,13 @@ perf_evlist__next(struct perf_evlist *evlist, struct perf_evsel *prev)
 	if (!prev) {
 		next = list_first_entry(&evlist->entries,
 					struct perf_evsel,
-					node);
+					analde);
 	} else {
-		next = list_next_entry(prev, node);
+		next = list_next_entry(prev, analde);
 	}
 
-	/* Empty list is noticed here so don't need checking on entry. */
-	if (&next->node == &evlist->entries)
+	/* Empty list is analticed here so don't need checking on entry. */
+	if (&next->analde == &evlist->entries)
 		return NULL;
 
 	return next;
@@ -141,7 +141,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 	struct perf_evsel *pos, *n;
 
 	perf_evlist__for_each_entry_safe(evlist, n, pos) {
-		list_del_init(&pos->node);
+		list_del_init(&pos->analde);
 		perf_evsel__delete(pos);
 	}
 
@@ -176,10 +176,10 @@ void perf_evlist__set_maps(struct perf_evlist *evlist,
 			   struct perf_thread_map *threads)
 {
 	/*
-	 * Allow for the possibility that one or another of the maps isn't being
-	 * changed i.e. don't put it.  Note we are assuming the maps that are
+	 * Allow for the possibility that one or aanalther of the maps isn't being
+	 * changed i.e. don't put it.  Analte we are assuming the maps that are
 	 * being applied are brand new and evlist is taking ownership of the
-	 * original reference count of 1.  If that is not the case it is up to
+	 * original reference count of 1.  If that is analt the case it is up to
 	 * the caller to increase the reference count.
 	 */
 	if (cpus != evlist->user_requested_cpus) {
@@ -256,7 +256,7 @@ static void perf_evlist__id_hash(struct perf_evlist *evlist,
 	sid->id = id;
 	sid->evsel = evsel;
 	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
-	hlist_add_head(&sid->node, &evlist->heads[hash]);
+	hlist_add_head(&sid->analde, &evlist->heads[hash]);
 }
 
 void perf_evlist__reset_id_hash(struct perf_evlist *evlist)
@@ -288,13 +288,13 @@ int perf_evlist__id_add_fd(struct perf_evlist *evlist,
 	if (!ret)
 		goto add;
 
-	if (errno != ENOTTY)
+	if (erranal != EANALTTY)
 		return -1;
 
 	/* Legacy way to get event id.. All hail to old kernels! */
 
 	/*
-	 * This way does not work with group format read, so bail
+	 * This way does analt work with group format read, so bail
 	 * out in that case.
 	 */
 	if (perf_evlist__read_format(evlist) & PERF_FORMAT_GROUP)
@@ -332,7 +332,7 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 
 	if (fdarray__available_entries(&evlist->pollfd) < nfds &&
 	    fdarray__grow(&evlist->pollfd, nfds) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -344,7 +344,7 @@ int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd,
 
 	if (pos >= 0) {
 		evlist->pollfd.priv[pos].ptr = ptr;
-		fcntl(fd, F_SETFL, O_NONBLOCK);
+		fcntl(fd, F_SETFL, O_ANALNBLOCK);
 	}
 
 	return pos;
@@ -469,7 +469,7 @@ mmap_per_evsel(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 
 		map = ops->get(evlist, overwrite, idx);
 		if (map == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (overwrite) {
 			mp->prot = PROT_READ;
@@ -493,7 +493,7 @@ mmap_per_evsel(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 			 * anymore, but the last events for it are still in the ring buffer,
 			 * waiting to be consumed.
 			 *
-			 * Tools can chose to ignore this at their own discretion, but the
+			 * Tools can chose to iganalre this at their own discretion, but the
 			 * evlist layer can't just drop it when filtering events in
 			 * perf_evlist__filter_pollfd().
 			 */
@@ -522,7 +522,7 @@ mmap_per_evsel(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 
 		revent = !overwrite ? POLLIN : 0;
 
-		flgs = evsel->system_wide ? fdarray_flag__nonfilterable : fdarray_flag__default;
+		flgs = evsel->system_wide ? fdarray_flag__analnfilterable : fdarray_flag__default;
 		if (perf_evlist__add_pollfd(evlist, fd, map, revent, flgs) < 0) {
 			perf_mmap__put(map);
 			return -1;
@@ -647,11 +647,11 @@ int perf_evlist__mmap_ops(struct perf_evlist *evlist,
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
 		    evsel->sample_id == NULL &&
 		    perf_evsel__alloc_id(evsel, evsel->fd->max_x, evsel->fd->max_y) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (perf_cpu_map__has_any_cpu_or_is_empty(cpus))
 		return mmap_per_thread(evlist, ops, mp);
@@ -716,7 +716,7 @@ void perf_evlist__set_leader(struct perf_evlist *evlist)
 {
 	if (evlist->nr_entries) {
 		struct perf_evsel *first = list_entry(evlist->entries.next,
-						struct perf_evsel, node);
+						struct perf_evsel, analde);
 
 		__perf_evlist__set_leader(&evlist->entries, first);
 	}

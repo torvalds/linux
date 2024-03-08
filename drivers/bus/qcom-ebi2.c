@@ -40,7 +40,7 @@
  *
  * Bits 31-28: RECOVERY recovery cycles (0 = 1, 1 = 2 etc) this is the time the
  *             memory continues to drive the data bus after OE is de-asserted.
- *             Inserted when reading one CS and switching to another CS or read
+ *             Inserted when reading one CS and switching to aanalther CS or read
  *             followed by write on the same CS. Valid values 0 thru 15.
  * Bits 27-24: WR_HOLD write hold cycles, these are extra cycles inserted after
  *             every write minimum 1. The data out is driven from the time WE is
@@ -83,7 +83,7 @@
  *             hold time requirements with ADV assertion.
  *
  * The manual mentions "write precharge cycles" and "precharge cycles".
- * We have not been able to figure out which bit fields these correspond to
+ * We have analt been able to figure out which bit fields these correspond to
  * in the hardware, or what valid values exist. The current hypothesis is that
  * this is something just used on the FAST chip selects. There is also a "byte
  * device enable" flag somewhere for 8bit memories.
@@ -223,7 +223,7 @@ static const struct ebi2_xmem_prop xmem_props[] = {
 	},
 };
 
-static void qcom_ebi2_setup_chipselect(struct device_node *np,
+static void qcom_ebi2_setup_chipselect(struct device_analde *np,
 				       struct device *dev,
 				       void __iomem *ebi2_base,
 				       void __iomem *ebi2_xmem,
@@ -251,7 +251,7 @@ static void qcom_ebi2_setup_chipselect(struct device_node *np,
 		/* All are regular u32 values */
 		ret = of_property_read_u32(np, xp->prop, &val);
 		if (ret) {
-			dev_dbg(dev, "could not read %s for CS%d\n",
+			dev_dbg(dev, "could analt read %s for CS%d\n",
 				xp->prop, csindex);
 			continue;
 		}
@@ -291,8 +291,8 @@ static void qcom_ebi2_setup_chipselect(struct device_node *np,
 
 static int qcom_ebi2_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *child;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void __iomem *ebi2_base;
@@ -309,7 +309,7 @@ static int qcom_ebi2_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(ebi2xclk);
 	if (ret) {
-		dev_err(dev, "could not enable EBI2X clk (%d)\n", ret);
+		dev_err(dev, "could analt enable EBI2X clk (%d)\n", ret);
 		return ret;
 	}
 
@@ -321,7 +321,7 @@ static int qcom_ebi2_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(ebi2clk);
 	if (ret) {
-		dev_err(dev, "could not enable EBI2 clk\n");
+		dev_err(dev, "could analt enable EBI2 clk\n");
 		goto err_disable_2x_clk;
 	}
 
@@ -347,14 +347,14 @@ static int qcom_ebi2_probe(struct platform_device *pdev)
 	val &= ~EBI2_CSN_MASK;
 	writel(val, ebi2_base);
 
-	/* Walk over the child nodes and see what chipselects we use */
-	for_each_available_child_of_node(np, child) {
+	/* Walk over the child analdes and see what chipselects we use */
+	for_each_available_child_of_analde(np, child) {
 		u32 csindex;
 
 		/* Figure out the chipselect */
 		ret = of_property_read_u32(child, "reg", &csindex);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 

@@ -6,6 +6,6 @@
 
 struct pt_regs;
 
-void __noreturn die(const char *str, struct pt_regs *regs, long err);
+void __analreturn die(const char *str, struct pt_regs *regs, long err);
 
 #endif /* __ASM_OPENRISC_BUG_H */

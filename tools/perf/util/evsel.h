@@ -27,7 +27,7 @@ struct perf_pmu;
 typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
 
 enum perf_tool_event {
-	PERF_TOOL_NONE		= 0,
+	PERF_TOOL_ANALNE		= 0,
 	PERF_TOOL_DURATION_TIME = 1,
 	PERF_TOOL_USER_TIME = 2,
 	PERF_TOOL_SYSTEM_TIME = 3,
@@ -47,13 +47,13 @@ enum perf_tool_event perf_tool_event__from_str(const char *str);
  * @core - libperf evsel object
  * @name - Can be set to retain the original event name passed by the user,
  *         so that when showing results in tools such as 'perf stat', we
- *         show the name used, not some alias.
+ *         show the name used, analt some alias.
  * @id_pos: the position of the event id (PERF_SAMPLE_ID or
  *          PERF_SAMPLE_IDENTIFIER) in a sample event i.e. in the array of
  *          struct perf_record_sample
  * @is_pos: the position (counting backwards) of the event id (PERF_SAMPLE_ID or
- *          PERF_SAMPLE_IDENTIFIER) in a non-sample event i.e. if sample_id_all
- *          is used there is an id sample appended to non-sample events
+ *          PERF_SAMPLE_IDENTIFIER) in a analn-sample event i.e. if sample_id_all
+ *          is used there is an id sample appended to analn-sample events
  * @priv:   And what is in its containing unnamed union are tool specific
  */
 struct evsel {
@@ -121,10 +121,10 @@ struct evsel {
 	bool 			supported;
 	bool 			needs_swap;
 	bool 			disabled;
-	bool			no_aux_samples;
+	bool			anal_aux_samples;
 	bool			immediate;
 	bool			tracking;
-	bool			ignore_missing_thread;
+	bool			iganalre_missing_thread;
 	bool			forced_leader;
 	bool			cmdline_group_boundary;
 	bool			merged_stat;
@@ -141,7 +141,7 @@ struct evsel {
 	/*
 	 * For reporting purposes, an evsel sample can have a callchain
 	 * synthesized from AUX area data. Keep track of synthesized sample
-	 * types here. Note, the recorded sample_type cannot be changed because
+	 * types here. Analte, the recorded sample_type cananalt be changed because
 	 * it is needed to continue to parse events.
 	 * See also evsel__has_callchain().
 	 */
@@ -293,7 +293,7 @@ const char *evsel__metric_id(const struct evsel *evsel);
 
 static inline bool evsel__is_tool(const struct evsel *evsel)
 {
-	return evsel->tool_event != PERF_TOOL_NONE;
+	return evsel->tool_event != PERF_TOOL_ANALNE;
 }
 
 const char *evsel__group_name(struct evsel *evsel);
@@ -411,12 +411,12 @@ u16 evsel__id_hdr_size(struct evsel *evsel);
 
 static inline struct evsel *evsel__next(struct evsel *evsel)
 {
-	return list_entry(evsel->core.node.next, struct evsel, core.node);
+	return list_entry(evsel->core.analde.next, struct evsel, core.analde);
 }
 
 static inline struct evsel *evsel__prev(struct evsel *evsel)
 {
-	return list_entry(evsel->core.node.prev, struct evsel, core.node);
+	return list_entry(evsel->core.analde.prev, struct evsel, core.analde);
 }
 
 /**
@@ -472,10 +472,10 @@ static inline int evsel__group_idx(struct evsel *evsel)
 
 /* Iterates group WITHOUT the leader. */
 #define for_each_group_member_head(_evsel, _leader, _head)				\
-for ((_evsel) = list_entry((_leader)->core.node.next, struct evsel, core.node);		\
-	(_evsel) && &(_evsel)->core.node != (_head) &&					\
+for ((_evsel) = list_entry((_leader)->core.analde.next, struct evsel, core.analde);		\
+	(_evsel) && &(_evsel)->core.analde != (_head) &&					\
 	(_evsel)->core.leader == &(_leader)->core;					\
-	(_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
+	(_evsel) = list_entry((_evsel)->core.analde.next, struct evsel, core.analde))
 
 #define for_each_group_member(_evsel, _leader)				\
 	for_each_group_member_head(_evsel, _leader, &(_leader)->evlist->core.entries)
@@ -483,9 +483,9 @@ for ((_evsel) = list_entry((_leader)->core.node.next, struct evsel, core.node);	
 /* Iterates group WITH the leader. */
 #define for_each_group_evsel_head(_evsel, _leader, _head)				\
 for ((_evsel) = _leader;								\
-	(_evsel) && &(_evsel)->core.node != (_head) &&					\
+	(_evsel) && &(_evsel)->core.analde != (_head) &&					\
 	(_evsel)->core.leader == &(_leader)->core;					\
-	(_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
+	(_evsel) = list_entry((_evsel)->core.analde.next, struct evsel, core.analde))
 
 #define for_each_group_evsel(_evsel, _leader)				\
 	for_each_group_evsel_head(_evsel, _leader, &(_leader)->evlist->core.entries)

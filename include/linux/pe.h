@@ -15,7 +15,7 @@
  * a bit mask of features supported by the kernel's EFI stub:
  * - 0x1: initrd loading from the LINUX_EFI_INITRD_MEDIA_GUID device path,
  * - 0x2: initrd loading using the initrd= command line option, where the file
- *        may be specified using device path notation, and is not required to
+ *        may be specified using device path analtation, and is analt required to
  *        reside on the same volume as the loaded kernel image.
  *
  * The recommended way of loading and starting v1.0 or later kernels is to use
@@ -26,11 +26,11 @@
  * options (using initrd=, limited to the volume from which the kernel itself
  * was loaded), or only via arch specific means (bootparams, DT, etc).
  *
- * The minor version field must remain 0x0.
+ * The mianalr version field must remain 0x0.
  * (https://lore.kernel.org/all/efd6f2d4-547c-1378-1faa-53c044dbd297@gmail.com/)
  */
 #define LINUX_EFISTUB_MAJOR_VERSION		0x3
-#define LINUX_EFISTUB_MINOR_VERSION		0x0
+#define LINUX_EFISTUB_MIANALR_VERSION		0x0
 
 /*
  * LINUX_PE_MAGIC appears at offset 0x38 into the MS-DOS header of EFI bootable
@@ -47,7 +47,7 @@
 #define PE_OPT_MAGIC_PE32PLUS	0x020b
 
 /* machine type */
-#define	IMAGE_FILE_MACHINE_UNKNOWN	0x0000
+#define	IMAGE_FILE_MACHINE_UNKANALWN	0x0000
 #define	IMAGE_FILE_MACHINE_AM33		0x01d3
 #define	IMAGE_FILE_MACHINE_AMD64	0x8664
 #define	IMAGE_FILE_MACHINE_ARM		0x01c0
@@ -98,7 +98,7 @@
 #define IMAGE_FILE_OPT_PE32_MAGIC	0x10b
 #define IMAGE_FILE_OPT_PE32_PLUS_MAGIC	0x20b
 
-#define IMAGE_SUBSYSTEM_UNKNOWN			 0
+#define IMAGE_SUBSYSTEM_UNKANALWN			 0
 #define IMAGE_SUBSYSTEM_NATIVE			 1
 #define IMAGE_SUBSYSTEM_WINDOWS_GUI		 2
 #define IMAGE_SUBSYSTEM_WINDOWS_CUI		 3
@@ -113,9 +113,9 @@
 #define IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE          0x0040
 #define IMAGE_DLL_CHARACTERISTICS_FORCE_INTEGRITY       0x0080
 #define IMAGE_DLL_CHARACTERISTICS_NX_COMPAT             0x0100
-#define IMAGE_DLLCHARACTERISTICS_NO_ISOLATION           0x0200
-#define IMAGE_DLLCHARACTERISTICS_NO_SEH                 0x0400
-#define IMAGE_DLLCHARACTERISTICS_NO_BIND                0x0800
+#define IMAGE_DLLCHARACTERISTICS_ANAL_ISOLATION           0x0200
+#define IMAGE_DLLCHARACTERISTICS_ANAL_SEH                 0x0400
+#define IMAGE_DLLCHARACTERISTICS_ANAL_BIND                0x0800
 #define IMAGE_DLLCHARACTERISTICS_WDM_DRIVER             0x2000
 #define IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE  0x8000
 
@@ -126,7 +126,7 @@
 #define IMAGE_SCN_RESERVED_0	0x00000001
 #define IMAGE_SCN_RESERVED_1	0x00000002
 #define IMAGE_SCN_RESERVED_2	0x00000004
-#define IMAGE_SCN_TYPE_NO_PAD	0x00000008 /* don't pad - obsolete */
+#define IMAGE_SCN_TYPE_ANAL_PAD	0x00000008 /* don't pad - obsolete */
 #define IMAGE_SCN_RESERVED_3	0x00000010
 #define IMAGE_SCN_CNT_CODE	0x00000020 /* .text */
 #define IMAGE_SCN_CNT_INITIALIZED_DATA 0x00000040 /* .data */
@@ -161,8 +161,8 @@
 #define IMAGE_SCN_ALIGN_8192BYTES 0x00e00000
 #define IMAGE_SCN_LNK_NRELOC_OVFL 0x01000000 /* extended relocations */
 #define IMAGE_SCN_MEM_DISCARDABLE 0x02000000 /* scn can be discarded */
-#define IMAGE_SCN_MEM_NOT_CACHED 0x04000000 /* cannot be cached */
-#define IMAGE_SCN_MEM_NOT_PAGED	0x08000000 /* not pageable */
+#define IMAGE_SCN_MEM_ANALT_CACHED 0x04000000 /* cananalt be cached */
+#define IMAGE_SCN_MEM_ANALT_PAGED	0x08000000 /* analt pageable */
 #define IMAGE_SCN_MEM_SHARED	0x10000000 /* can be shared */
 #define IMAGE_SCN_MEM_EXECUTE	0x20000000 /* can be executed as code */
 #define IMAGE_SCN_MEM_READ	0x40000000 /* readable */
@@ -218,7 +218,7 @@ struct pe32_opt_hdr {
 	/* "standard" header */
 	uint16_t magic;		/* file type */
 	uint8_t  ld_major;	/* linker major version */
-	uint8_t  ld_minor;	/* linker minor version */
+	uint8_t  ld_mianalr;	/* linker mianalr version */
 	uint32_t text_size;	/* size of text section(s) */
 	uint32_t data_size;	/* size of data section(s) */
 	uint32_t bss_size;	/* size of bss section(s) */
@@ -230,11 +230,11 @@ struct pe32_opt_hdr {
 	uint32_t section_align;	/* alignment in bytes */
 	uint32_t file_align;	/* file alignment in bytes */
 	uint16_t os_major;	/* major OS version */
-	uint16_t os_minor;	/* minor OS version */
+	uint16_t os_mianalr;	/* mianalr OS version */
 	uint16_t image_major;	/* major image version */
-	uint16_t image_minor;	/* minor image version */
+	uint16_t image_mianalr;	/* mianalr image version */
 	uint16_t subsys_major;	/* major subsystem version */
-	uint16_t subsys_minor;	/* minor subsystem version */
+	uint16_t subsys_mianalr;	/* mianalr subsystem version */
 	uint32_t win32_version;	/* reserved, must be 0 */
 	uint32_t image_size;	/* image size */
 	uint32_t header_size;	/* header size rounded up to
@@ -253,7 +253,7 @@ struct pe32_opt_hdr {
 struct pe32plus_opt_hdr {
 	uint16_t magic;		/* file type */
 	uint8_t  ld_major;	/* linker major version */
-	uint8_t  ld_minor;	/* linker minor version */
+	uint8_t  ld_mianalr;	/* linker mianalr version */
 	uint32_t text_size;	/* size of text section(s) */
 	uint32_t data_size;	/* size of data section(s) */
 	uint32_t bss_size;	/* size of bss section(s) */
@@ -264,11 +264,11 @@ struct pe32plus_opt_hdr {
 	uint32_t section_align;	/* alignment in bytes */
 	uint32_t file_align;	/* file alignment in bytes */
 	uint16_t os_major;	/* major OS version */
-	uint16_t os_minor;	/* minor OS version */
+	uint16_t os_mianalr;	/* mianalr OS version */
 	uint16_t image_major;	/* major image version */
-	uint16_t image_minor;	/* minor image version */
+	uint16_t image_mianalr;	/* mianalr image version */
 	uint16_t subsys_major;	/* major subsystem version */
-	uint16_t subsys_minor;	/* minor subsystem version */
+	uint16_t subsys_mianalr;	/* mianalr subsystem version */
 	uint32_t win32_version;	/* reserved, must be 0 */
 	uint32_t image_size;	/* image size */
 	uint32_t header_size;	/* header size rounded up to
@@ -301,7 +301,7 @@ struct data_directory {
 	struct data_dirent global_ptr;		/* global pointer reg. Size=0 */
 	struct data_dirent tls;			/* .tls */
 	struct data_dirent load_config;		/* load configuration structure */
-	struct data_dirent bound_imports;	/* no idea */
+	struct data_dirent bound_imports;	/* anal idea */
 	struct data_dirent import_addrs;	/* import address table */
 	struct data_dirent delay_imports;	/* delay-load import table */
 	struct data_dirent clr_runtime_hdr;	/* .cor (object only) */
@@ -377,7 +377,7 @@ enum sh_coff_reloc_type {
 	IMAGE_REL_SHM_RELLO,
 	IMAGE_REL_SHM_RELHALF,
 	IMAGE_REL_SHM_PAIR,
-	IMAGE_REL_SHM_NOMODE,
+	IMAGE_REL_SHM_ANALMODE,
 };
 
 enum ppc_coff_reloc_type {

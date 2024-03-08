@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -122,8 +122,8 @@ enum mlx5e_ext_link_mode {
 };
 
 enum mlx5e_connector_type {
-	MLX5E_PORT_UNKNOWN	= 0,
-	MLX5E_PORT_NONE			= 1,
+	MLX5E_PORT_UNKANALWN	= 0,
+	MLX5E_PORT_ANALNE			= 1,
 	MLX5E_PORT_TP			= 2,
 	MLX5E_PORT_AUI			= 3,
 	MLX5E_PORT_BNC			= 4,
@@ -184,9 +184,9 @@ int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx,
 
 int mlx5_set_port_stall_watermark(struct mlx5_core_dev *dev,
 				  u16 stall_critical_watermark,
-				  u16 stall_minor_watermark);
+				  u16 stall_mianalr_watermark);
 int mlx5_query_port_stall_watermark(struct mlx5_core_dev *dev,
-				    u16 *stall_critical_watermark, u16 *stall_minor_watermark);
+				    u16 *stall_critical_watermark, u16 *stall_mianalr_watermark);
 
 int mlx5_max_tc(struct mlx5_core_dev *mdev);
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * ADIS16203 Programmable 360 Degrees Inclinometer
+ * ADIS16203 Programmable 360 Degrees Inclianalmeter
  *
  * Copyright 2010 Analog Devices Inc.
  */
@@ -70,7 +70,7 @@
 /* Operation, sleep mode control */
 #define ADIS16203_SLP_CNT        0x3A
 
-/* Diagnostics, system status register */
+/* Diaganalstics, system status register */
 #define ADIS16203_DIAG_STAT      0x3C
 
 /* Operation, system command register */
@@ -104,7 +104,7 @@
 /* Alarm 1 status: 1 = alarm active, 0 = alarm inactive */
 #define ADIS16203_DIAG_STAT_ALARM1        BIT(8)
 
-/* Self-test diagnostic error flag */
+/* Self-test diaganalstic error flag */
 #define ADIS16203_DIAG_STAT_SELFTEST_FAIL_BIT 5
 
 /* SPI communications failure */
@@ -210,7 +210,7 @@ static const struct iio_chan_spec adis16203_channels[] = {
 	ADIS_AUX_ADC_CHAN(ADIS16203_AUX_ADC, ADIS16203_SCAN_AUX_ADC, 0, 12),
 	ADIS_INCLI_CHAN(X, ADIS16203_XINCL_OUT, ADIS16203_SCAN_INCLI_X,
 			BIT(IIO_CHAN_INFO_CALIBBIAS), 0, 14),
-	/* Fixme: Not what it appears to be - see data sheet */
+	/* Fixme: Analt what it appears to be - see data sheet */
 	ADIS_INCLI_CHAN(Y, ADIS16203_YINCL_OUT, ADIS16203_SCAN_INCLI_Y,
 			0, 0, 14),
 	ADIS_TEMP_CHAN(ADIS16203_TEMP_OUT, ADIS16203_SCAN_TEMP, 0, 12),
@@ -245,7 +245,7 @@ static const struct adis_data adis16203_data = {
 
 	.self_test_mask = ADIS16203_MSC_CTRL_SELF_TEST_EN,
 	.self_test_reg = ADIS16203_MSC_CTRL,
-	.self_test_no_autoclear = true,
+	.self_test_anal_autoclear = true,
 	.timeouts = &adis16203_timeouts,
 
 	.status_error_msgs = adis16203_status_error_msgs,
@@ -265,7 +265,7 @@ static int adis16203_probe(struct spi_device *spi)
 	/* setup the industrialio driver allocated elements */
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	st = iio_priv(indio_dev);
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
@@ -309,7 +309,7 @@ static struct spi_driver adis16203_driver = {
 module_spi_driver(adis16203_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
-MODULE_DESCRIPTION("Analog Devices ADIS16203 Programmable 360 Degrees Inclinometer");
+MODULE_DESCRIPTION("Analog Devices ADIS16203 Programmable 360 Degrees Inclianalmeter");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:adis16203");
 MODULE_IMPORT_NS(IIO_ADISLIB);

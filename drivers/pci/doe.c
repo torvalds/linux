@@ -151,8 +151,8 @@ static int pci_doe_send_req(struct pci_doe_mb *doe_mb,
 	int i;
 
 	/*
-	 * Check the DOE busy bit is not set. If it is set, this could indicate
-	 * someone other than Linux (e.g. firmware) is using the mailbox. Note
+	 * Check the DOE busy bit is analt set. If it is set, this could indicate
+	 * someone other than Linux (e.g. firmware) is using the mailbox. Analte
 	 * it is expected that firmware and OS will negotiate access rights via
 	 * an, as yet to be defined, method.
 	 */
@@ -305,7 +305,7 @@ static void signal_task_abort(struct pci_doe_task *task, int rv)
 	if (pci_doe_abort(doe_mb)) {
 		/*
 		 * If the device can't process an abort; set the mailbox dead
-		 *	- no more submissions
+		 *	- anal more submissions
 		 */
 		pci_err(pdev, "[%x] Abort failed marking mailbox dead\n",
 			doe_mb->cap_offset);
@@ -334,14 +334,14 @@ static void doe_statemachine_work(struct work_struct *work)
 	rc = pci_doe_send_req(doe_mb, task);
 	if (rc) {
 		/*
-		 * The specification does not provide any guidance on how to
+		 * The specification does analt provide any guidance on how to
 		 * resolve conflicting requests from other entities.
-		 * Furthermore, it is likely that busy will not be detected
+		 * Furthermore, it is likely that busy will analt be detected
 		 * most of the time.  Flag any detection of status busy with an
 		 * error.
 		 */
 		if (rc == -EBUSY)
-			dev_err_ratelimited(&pdev->dev, "[%x] busy detected; another entity is sending conflicting requests\n",
+			dev_err_ratelimited(&pdev->dev, "[%x] busy detected; aanalther entity is sending conflicting requests\n",
 					    offset);
 		signal_task_abort(task, rc);
 		return;
@@ -464,7 +464,7 @@ static void pci_doe_cancel_tasks(struct pci_doe_mb *doe_mb)
  * cap_offset specified.
  *
  * RETURNS: created mailbox object on success
- *	    ERR_PTR(-errno) on failure
+ *	    ERR_PTR(-erranal) on failure
  */
 static struct pci_doe_mb *pci_doe_create_mb(struct pci_dev *pdev,
 					    u16 cap_offset)
@@ -474,7 +474,7 @@ static struct pci_doe_mb *pci_doe_create_mb(struct pci_dev *pdev,
 
 	doe_mb = kzalloc(sizeof(*doe_mb), GFP_KERNEL);
 	if (!doe_mb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	doe_mb->pdev = pdev;
 	doe_mb->cap_offset = cap_offset;
@@ -488,7 +488,7 @@ static struct pci_doe_mb *pci_doe_create_mb(struct pci_dev *pdev,
 	if (!doe_mb->work_queue) {
 		pci_err(pdev, "[%x] failed to allocate work queue\n",
 			doe_mb->cap_offset);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_free;
 	}
 
@@ -501,7 +501,7 @@ static struct pci_doe_mb *pci_doe_create_mb(struct pci_dev *pdev,
 	}
 
 	/*
-	 * The state machine and the mailbox should be in sync now;
+	 * The state machine and the mailbox should be in sync analw;
 	 * Use the mailbox to query protocols.
 	 */
 	rc = pci_doe_cache_protocols(doe_mb);
@@ -580,7 +580,7 @@ static bool pci_doe_supports_prot(struct pci_doe_mb *doe_mb, u16 vid, u8 type)
  *
  * Excess data will be discarded.
  *
- * RETURNS: 0 when task has been successfully queued, -ERRNO on error
+ * RETURNS: 0 when task has been successfully queued, -ERRANAL on error
  */
 static int pci_doe_submit_task(struct pci_doe_mb *doe_mb,
 			       struct pci_doe_task *task)
@@ -609,7 +609,7 @@ static int pci_doe_submit_task(struct pci_doe_mb *doe_mb,
  * @response_sz: Size of response payload (bytes)
  *
  * Submit @request to @doe_mb and store the @response.
- * The DOE exchange is performed synchronously and may therefore sleep.
+ * The DOE exchange is performed synchroanalusly and may therefore sleep.
  *
  * Payloads are treated as opaque byte streams which are transmitted verbatim,
  * without byte-swapping.  If payloads contain little-endian register values,
@@ -620,7 +620,7 @@ static int pci_doe_submit_task(struct pci_doe_mb *doe_mb,
  * (partial) dword is copied with byte granularity and padded with zeroes if
  * necessary.  Callers are thus relieved of using dword-sized bounce buffers.
  *
- * RETURNS: Length of received response or negative errno.
+ * RETURNS: Length of received response or negative erranal.
  * Received data in excess of @response_sz is discarded.
  * The length may be smaller than @response_sz and the caller
  * is responsible for checking that.
@@ -661,7 +661,7 @@ EXPORT_SYMBOL_GPL(pci_doe);
  *
  * Find first DOE mailbox of a PCI device which supports the given protocol.
  *
- * RETURNS: Pointer to the DOE mailbox or NULL if none was found.
+ * RETURNS: Pointer to the DOE mailbox or NULL if analne was found.
  */
 struct pci_doe_mb *pci_find_doe_mailbox(struct pci_dev *pdev, u16 vendor,
 					u8 type)

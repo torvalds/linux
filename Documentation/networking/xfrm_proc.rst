@@ -20,16 +20,16 @@ Inbound errors
 ~~~~~~~~~~~~~~
 
 XfrmInError:
-	All errors which is not matched others
+	All errors which is analt matched others
 
 XfrmInBufferError:
-	No buffer is left
+	Anal buffer is left
 
 XfrmInHdrError:
 	Header error
 
-XfrmInNoStates:
-	No state is found
+XfrmInAnalStates:
+	Anal state is found
 	i.e. Either inbound SPI, address, or IPsec protocol at SA is wrong
 
 XfrmInStateProtoError:
@@ -54,12 +54,12 @@ XfrmInStateInvalid:
 	State is invalid
 
 XfrmInTmplMismatch:
-	No matching template for states
+	Anal matching template for states
 	e.g. Inbound SAs are correct but SP rule is wrong
 
-XfrmInNoPols:
-	No policy is found for states
-	e.g. Inbound SAs are correct but no SP is found
+XfrmInAnalPols:
+	Anal policy is found for states
+	e.g. Inbound SAs are correct but anal SP is found
 
 XfrmInPolBlock:
 	Policy discards
@@ -71,12 +71,12 @@ XfrmAcquireError:
 	State hasn't been fully acquired before use
 
 XfrmFwdHdrError:
-	Forward routing of a packet is not allowed
+	Forward routing of a packet is analt allowed
 
 Outbound errors
 ~~~~~~~~~~~~~~~
 XfrmOutError:
-	All errors which is not matched others
+	All errors which is analt matched others
 
 XfrmOutBundleGenError:
 	Bundle generation error
@@ -84,8 +84,8 @@ XfrmOutBundleGenError:
 XfrmOutBundleCheckError:
 	Bundle check error
 
-XfrmOutNoStates:
-	No state is found
+XfrmOutAnalStates:
+	Anal state is found
 
 XfrmOutStateProtoError:
 	Transformation protocol specific error

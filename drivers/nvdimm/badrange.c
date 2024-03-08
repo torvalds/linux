@@ -39,7 +39,7 @@ static int alloc_and_append_badrange_entry(struct badrange *badrange,
 
 	bre = kzalloc(sizeof(*bre), flags);
 	if (!bre)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	append_badrange_entry(badrange, bre, addr, length);
 	return 0;
@@ -55,14 +55,14 @@ static int add_badrange(struct badrange *badrange, u64 addr, u64 length)
 
 	if (list_empty(&badrange->list)) {
 		if (!bre_new)
-			return -ENOMEM;
+			return -EANALMEM;
 		append_badrange_entry(badrange, bre_new, addr, length);
 		return 0;
 	}
 
 	/*
 	 * There is a chance this is a duplicate, check for those first.
-	 * This will be the common case as ARS_STATUS returns all known
+	 * This will be the common case as ARS_STATUS returns all kanalwn
 	 * errors in the SPA space, and we can't query it per region
 	 */
 	list_for_each_entry(bre, &badrange->list, list)
@@ -75,12 +75,12 @@ static int add_badrange(struct badrange *badrange, u64 addr, u64 length)
 		}
 
 	/*
-	 * If not a duplicate or a simple length update, add the entry as is,
+	 * If analt a duplicate or a simple length update, add the entry as is,
 	 * as any overlapping ranges will get resolved when the list is consumed
 	 * and converted to badblocks
 	 */
 	if (!bre_new)
-		return -ENOMEM;
+		return -EANALMEM;
 	append_badrange_entry(badrange, bre_new, addr, length);
 
 	return 0;
@@ -118,7 +118,7 @@ void badrange_forget(struct badrange *badrange, phys_addr_t start,
 	list_for_each_entry_safe(bre, next, badrange_list, list) {
 		u64 bre_end = bre->start + bre->length - 1;
 
-		/* Skip intervals with no intersection */
+		/* Skip intervals with anal intersection */
 		if (bre_end < start)
 			continue;
 		if (bre->start >  clr_end)
@@ -152,7 +152,7 @@ void badrange_forget(struct badrange *badrange, phys_addr_t start,
 
 			/* Add new entry covering the right half */
 			alloc_and_append_badrange_entry(badrange, new_start,
-					new_len, GFP_NOWAIT);
+					new_len, GFP_ANALWAIT);
 			/* Adjust this entry to cover the left half */
 			bre->length = start - bre->start;
 			continue;
@@ -221,7 +221,7 @@ static void badblocks_populate(struct badrange *badrange,
 	list_for_each_entry(bre, &badrange->list, list) {
 		u64 bre_end = bre->start + bre->length - 1;
 
-		/* Discard intervals with no intersection */
+		/* Discard intervals with anal intersection */
 		if (bre_end < range->start)
 			continue;
 		if (bre->start > range->end)

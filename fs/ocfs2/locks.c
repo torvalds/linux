@@ -17,10 +17,10 @@
 
 #include "dlmglue.h"
 #include "file.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "locks.h"
 
-static int ocfs2_do_flock(struct file *file, struct inode *inode,
+static int ocfs2_do_flock(struct file *file, struct ianalde *ianalde,
 			  int cmd, struct file_lock *fl)
 {
 	int ret = 0, level = 0, trylock = 0;
@@ -46,7 +46,7 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 			goto out;
 
 		/*
-		 * Converting an existing lock is not guaranteed to be
+		 * Converting an existing lock is analt guaranteed to be
 		 * atomic, so we can get away with simply unlocking
 		 * here and allowing the lock code to try at the new
 		 * level.
@@ -65,7 +65,7 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 		if (ret == -EAGAIN && trylock)
 			ret = -EWOULDBLOCK;
 		else
-			mlog_errno(ret);
+			mlog_erranal(ret);
 		goto out;
 	}
 
@@ -97,11 +97,11 @@ static int ocfs2_do_funlock(struct file *file, int cmd, struct file_lock *fl)
  */
 int ocfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ianalde *ianalde = file->f_mapping->host;
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
 
 	if (!(fl->fl_flags & FL_FLOCK))
-		return -ENOLCK;
+		return -EANALLCK;
 
 	if ((osb->s_mount_opt & OCFS2_MOUNT_LOCALFLOCKS) ||
 	    ocfs2_mount_local(osb))
@@ -110,16 +110,16 @@ int ocfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 	if (fl->fl_type == F_UNLCK)
 		return ocfs2_do_funlock(file, cmd, fl);
 	else
-		return ocfs2_do_flock(file, inode, cmd, fl);
+		return ocfs2_do_flock(file, ianalde, cmd, fl);
 }
 
 int ocfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ianalde *ianalde = file->f_mapping->host;
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
 
 	if (!(fl->fl_flags & FL_POSIX))
-		return -ENOLCK;
+		return -EANALLCK;
 
-	return ocfs2_plock(osb->cconn, OCFS2_I(inode)->ip_blkno, file, cmd, fl);
+	return ocfs2_plock(osb->cconn, OCFS2_I(ianalde)->ip_blkanal, file, cmd, fl);
 }

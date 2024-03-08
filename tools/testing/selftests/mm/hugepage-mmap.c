@@ -5,16 +5,16 @@
  * Example of using huge page memory in a user application using the mmap
  * system call.  Before running this application, make sure that the
  * administrator has mounted the hugetlbfs filesystem (on some directory
- * like /mnt) using the command mount -t hugetlbfs nodev /mnt. In this
+ * like /mnt) using the command mount -t hugetlbfs analdev /mnt. In this
  * example, the app is requesting memory of size 256MB that is backed by
  * huge pages.
  *
  * For the ia64 architecture, the Linux kernel reserves Region number 4 for
  * huge pages.  That means that if one requires a fixed address, a huge page
  * aligned address starting with 0x800000... will be required.  If a fixed
- * address is not required, the kernel will select an address in the proper
+ * address is analt required, the kernel will select an address in the proper
  * range.
- * Other architectures, such as ppc64, i386 or x86_64 are not so constrained.
+ * Other architectures, such as ppc64, i386 or x86_64 are analt so constrained.
  */
 #define _GNU_SOURCE
 #include <stdlib.h>
@@ -72,12 +72,12 @@ int main(void)
 
 	fd = memfd_create("hugepage-mmap", MFD_HUGETLB);
 	if (fd < 0)
-		ksft_exit_fail_msg("memfd_create() failed: %s\n", strerror(errno));
+		ksft_exit_fail_msg("memfd_create() failed: %s\n", strerror(erranal));
 
 	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, fd, 0);
 	if (addr == MAP_FAILED) {
 		close(fd);
-		ksft_exit_fail_msg("mmap(): %s\n", strerror(errno));
+		ksft_exit_fail_msg("mmap(): %s\n", strerror(erranal));
 	}
 
 	ksft_print_msg("Returned address is %p\n", addr);

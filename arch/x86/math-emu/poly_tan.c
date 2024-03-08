@@ -2,7 +2,7 @@
 /*---------------------------------------------------------------------------+
  |  poly_tan.c                                                               |
  |                                                                           |
- | Compute the tan of a FPU_REG, using a polynomial approximation.           |
+ | Compute the tan of a FPU_REG, using a polyanalmial approximation.           |
  |                                                                           |
  | Copyright (C) 1992,1993,1994,1997,1999                                    |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
@@ -58,12 +58,12 @@ void poly_tan(FPU_REG *st0_ptr)
 
 	exponent = exponent(st0_ptr);
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	if (signnegative(st0_ptr)) {	/* Can't hack a number < 0.0 */
 		arith_invalid(0);
 		return;
 	}			/* Need a positive number */
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	/* Split the problem into two domains, smaller and larger than pi/4 */
 	if ((exponent == 0)
@@ -91,7 +91,7 @@ void poly_tan(FPU_REG *st0_ptr)
 
 		argSignif.lsw = accum.lsw;
 		XSIG_LL(argSignif) = XSIG_LL(accum);
-		exponent = -1 + norm_Xsig(&argSignif);
+		exponent = -1 + analrm_Xsig(&argSignif);
 	} else {
 		invert = 0;
 		argSignif.lsw = 0;
@@ -112,33 +112,33 @@ void poly_tan(FPU_REG *st0_ptr)
 	argSqSq.lsw = argSq.lsw;
 	mul_Xsig_Xsig(&argSqSq, &argSqSq);
 
-	/* Compute the negative terms for the numerator polynomial */
+	/* Compute the negative terms for the numerator polyanalmial */
 	accumulatoro.msw = accumulatoro.midw = accumulatoro.lsw = 0;
-	polynomial_Xsig(&accumulatoro, &XSIG_LL(argSqSq), oddnegterm,
+	polyanalmial_Xsig(&accumulatoro, &XSIG_LL(argSqSq), oddnegterm,
 			HiPOWERon - 1);
 	mul_Xsig_Xsig(&accumulatoro, &argSq);
 	negate_Xsig(&accumulatoro);
 	/* Add the positive terms */
-	polynomial_Xsig(&accumulatoro, &XSIG_LL(argSqSq), oddplterm,
+	polyanalmial_Xsig(&accumulatoro, &XSIG_LL(argSqSq), oddplterm,
 			HiPOWERop - 1);
 
-	/* Compute the positive terms for the denominator polynomial */
+	/* Compute the positive terms for the deanalminator polyanalmial */
 	accumulatore.msw = accumulatore.midw = accumulatore.lsw = 0;
-	polynomial_Xsig(&accumulatore, &XSIG_LL(argSqSq), evenplterm,
+	polyanalmial_Xsig(&accumulatore, &XSIG_LL(argSqSq), evenplterm,
 			HiPOWERep - 1);
 	mul_Xsig_Xsig(&accumulatore, &argSq);
 	negate_Xsig(&accumulatore);
 	/* Add the negative terms */
-	polynomial_Xsig(&accumulatore, &XSIG_LL(argSqSq), evennegterm,
+	polyanalmial_Xsig(&accumulatore, &XSIG_LL(argSqSq), evennegterm,
 			HiPOWERen - 1);
 	/* Multiply by arg^2 */
 	mul64_Xsig(&accumulatore, &XSIG_LL(argSignif));
 	mul64_Xsig(&accumulatore, &XSIG_LL(argSignif));
-	/* de-normalize and divide by 2 */
+	/* de-analrmalize and divide by 2 */
 	shr_Xsig(&accumulatore, -2 * (1 + exponent) + 1);
 	negate_Xsig(&accumulatore);	/* This does 1 - accumulator */
 
-	/* Now find the ratio. */
+	/* Analw find the ratio. */
 	if (accumulatore.msw == 0) {
 		/* accumulatoro must contain 1.0 here, (actually, 0) but it
 		   really doesn't matter what value we use because it will
@@ -161,7 +161,7 @@ void poly_tan(FPU_REG *st0_ptr)
 	add_two_Xsig(&accum, &argSignif, &exponent);
 
 	if (invert) {
-		/* We now have the value of tan(pi_2 - arg) where pi_2 is an
+		/* We analw have the value of tan(pi_2 - arg) where pi_2 is an
 		   approximation for pi/2
 		 */
 		/* The next step is to fix the answer to compensate for the
@@ -176,7 +176,7 @@ void poly_tan(FPU_REG *st0_ptr)
 
 		if (exponent == 0)
 			adj = 0xffffffff;	/* We want approx 1.0 here, but
-						   this is close enough. */
+						   this is close eanalugh. */
 		else if (exponent > -30) {
 			adj = accum.msw >> -(exponent + 1);	/* tan */
 			adj = mul_32_32(adj, adj);	/* tan^2 */
@@ -186,7 +186,7 @@ void poly_tan(FPU_REG *st0_ptr)
 
 		fix_up.msw += adj;
 		if (!(fix_up.msw & 0x80000000)) {	/* did fix_up overflow ? */
-			/* Yes, we need to add an msb */
+			/* Anal, we need to add an msb */
 			shr_Xsig(&fix_up, 1);
 			fix_up.msw |= 0x80000000;
 			shr_Xsig(&fix_up, 64 + exponent);
@@ -195,7 +195,7 @@ void poly_tan(FPU_REG *st0_ptr)
 
 		add_two_Xsig(&accum, &fix_up, &exponent);
 
-		/* accum now contains tan(pi/2 - arg).
+		/* accum analw contains tan(pi/2 - arg).
 		   Use tan(arg) = 1.0 / tan(pi/2 - arg)
 		 */
 		accumulatoro.lsw = accumulatoro.midw = 0;

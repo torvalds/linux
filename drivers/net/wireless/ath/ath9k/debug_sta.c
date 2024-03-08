@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -17,28 +17,28 @@
 #include "ath9k.h"
 
 /*************/
-/* node_aggr */
+/* analde_aggr */
 /*************/
 
-static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
+static ssize_t read_file_analde_aggr(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
-	struct ath_node *an = file->private_data;
+	struct ath_analde *an = file->private_data;
 	struct ath_softc *sc = an->sc;
 	struct ath_atx_tid *tid;
 	struct ath_txq *txq;
 	u32 len = 0, size = 4096;
 	char *buf;
 	size_t retval;
-	int tidno;
+	int tidanal;
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!an->sta->deflink.ht_cap.ht_supported) {
 		len = scnprintf(buf, size, "%s\n",
-				"HT not supported");
+				"HT analt supported");
 		goto exit;
 	}
 
@@ -52,14 +52,14 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 			 "TID", "SEQ_START", "SEQ_NEXT", "BAW_SIZE",
 			 "BAW_HEAD", "BAW_TAIL", "BAR_IDX", "SCHED", "PAUSED");
 
-	for (tidno = 0; tidno < IEEE80211_NUM_TIDS; tidno++) {
-		tid = ath_node_to_tid(an, tidno);
+	for (tidanal = 0; tidanal < IEEE80211_NUM_TIDS; tidanal++) {
+		tid = ath_analde_to_tid(an, tidanal);
 		txq = tid->txq;
 		ath_txq_lock(sc, txq);
 		if (tid->active) {
 			len += scnprintf(buf + len, size - len,
 					 "%3d%11d%10d%10d%10d%10d%9d%6d\n",
-					 tid->tidno,
+					 tid->tidanal,
 					 tid->seq_start,
 					 tid->seq_next,
 					 tid->baw_size,
@@ -77,15 +77,15 @@ exit:
 	return retval;
 }
 
-static const struct file_operations fops_node_aggr = {
-	.read = read_file_node_aggr,
+static const struct file_operations fops_analde_aggr = {
+	.read = read_file_analde_aggr,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
 
 /*************/
-/* node_recv */
+/* analde_recv */
 /*************/
 
 void ath_debug_rate_stats(struct ath_softc *sc,
@@ -97,7 +97,7 @@ void ath_debug_rate_stats(struct ath_softc *sc,
 	struct ieee80211_rx_status *rxs;
 	struct ath_rx_rate_stats *rstats;
 	struct ieee80211_sta *sta;
-	struct ath_node *an;
+	struct ath_analde *an;
 
 	if (!ieee80211_is_data(hdr->frame_control))
 		return;
@@ -108,7 +108,7 @@ void ath_debug_rate_stats(struct ath_softc *sc,
 	if (!sta)
 		goto exit;
 
-	an = (struct ath_node *) sta->drv_priv;
+	an = (struct ath_analde *) sta->drv_priv;
 	rstats = &an->rx_rate_stats;
 	rxs = IEEE80211_SKB_RXCB(skb);
 
@@ -165,10 +165,10 @@ exit:
 			 rstats->ofdm_stats[i].ofdm_cnt);	\
 	} while (0)
 
-static ssize_t read_file_node_recv(struct file *file, char __user *user_buf,
+static ssize_t read_file_analde_recv(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
-	struct ath_node *an = file->private_data;
+	struct ath_analde *an = file->private_data;
 	struct ath_softc *sc = an->sc;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_rx_rate_stats *rstats;
@@ -181,7 +181,7 @@ static ssize_t read_file_node_recv(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	band = ah->curchan->chan->band;
 	rstats = &an->rx_rate_stats;
@@ -235,8 +235,8 @@ legacy:
 #undef PRINT_OFDM_RATE
 #undef PRINT_CCK_RATE
 
-static const struct file_operations fops_node_recv = {
-	.read = read_file_node_recv,
+static const struct file_operations fops_analde_recv = {
+	.read = read_file_analde_recv,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -247,8 +247,8 @@ void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 			   struct ieee80211_sta *sta,
 			   struct dentry *dir)
 {
-	struct ath_node *an = (struct ath_node *)sta->drv_priv;
+	struct ath_analde *an = (struct ath_analde *)sta->drv_priv;
 
-	debugfs_create_file("node_aggr", 0444, dir, an, &fops_node_aggr);
-	debugfs_create_file("node_recv", 0444, dir, an, &fops_node_recv);
+	debugfs_create_file("analde_aggr", 0444, dir, an, &fops_analde_aggr);
+	debugfs_create_file("analde_recv", 0444, dir, an, &fops_analde_recv);
 }

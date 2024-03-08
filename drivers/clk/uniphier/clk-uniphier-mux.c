@@ -64,7 +64,7 @@ struct clk_hw *uniphier_clk_register_mux(struct device *dev,
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &uniphier_clk_mux_ops;

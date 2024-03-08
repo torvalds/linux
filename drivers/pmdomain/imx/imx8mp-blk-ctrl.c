@@ -37,7 +37,7 @@ struct imx8mp_blk_ctrl_domain;
 
 struct imx8mp_blk_ctrl {
 	struct device *dev;
-	struct notifier_block power_nb;
+	struct analtifier_block power_nb;
 	struct device *bus_power_dev;
 	struct regmap *regmap;
 	struct imx8mp_blk_ctrl_domain *domains;
@@ -72,7 +72,7 @@ struct imx8mp_blk_ctrl_domain {
 struct imx8mp_blk_ctrl_data {
 	int max_reg;
 	int (*probe) (struct imx8mp_blk_ctrl *bc);
-	notifier_fn_t power_notifier_fn;
+	analtifier_fn_t power_analtifier_fn;
 	void (*power_off) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
 	void (*power_on) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
 	const struct imx8mp_blk_ctrl_domain_data *domains;
@@ -153,7 +153,7 @@ static int imx8mp_hsio_blk_ctrl_probe(struct imx8mp_blk_ctrl *bc)
 
 	clk_hsio_pll = devm_kzalloc(bc->dev, sizeof(*clk_hsio_pll), GFP_KERNEL);
 	if (!clk_hsio_pll)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.name = "hsio_pll";
 	init.ops = &clk_hsio_pll_ops;
@@ -209,7 +209,7 @@ static void imx8mp_hsio_blk_ctrl_power_off(struct imx8mp_blk_ctrl *bc,
 	}
 }
 
-static int imx8mp_hsio_power_notifier(struct notifier_block *nb,
+static int imx8mp_hsio_power_analtifier(struct analtifier_block *nb,
 				      unsigned long action, void *data)
 {
 	struct imx8mp_blk_ctrl *bc = container_of(nb, struct imx8mp_blk_ctrl,
@@ -219,14 +219,14 @@ static int imx8mp_hsio_power_notifier(struct notifier_block *nb,
 	int ret;
 
 	switch (action) {
-	case GENPD_NOTIFY_ON:
+	case GENPD_ANALTIFY_ON:
 		/*
 		 * enable USB clock for a moment for the power-on ADB handshake
 		 * to proceed
 		 */
 		ret = clk_bulk_prepare_enable(num_clks, usb_clk);
 		if (ret)
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		regmap_set_bits(bc->regmap, GPR_REG0, USB_CLOCK_MODULE_EN);
 
 		udelay(5);
@@ -234,22 +234,22 @@ static int imx8mp_hsio_power_notifier(struct notifier_block *nb,
 		regmap_clear_bits(bc->regmap, GPR_REG0, USB_CLOCK_MODULE_EN);
 		clk_bulk_disable_unprepare(num_clks, usb_clk);
 		break;
-	case GENPD_NOTIFY_PRE_OFF:
+	case GENPD_ANALTIFY_PRE_OFF:
 		/* enable USB clock for the power-down ADB handshake to work */
 		ret = clk_bulk_prepare_enable(num_clks, usb_clk);
 		if (ret)
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 
 		regmap_set_bits(bc->regmap, GPR_REG0, USB_CLOCK_MODULE_EN);
 		break;
-	case GENPD_NOTIFY_OFF:
+	case GENPD_ANALTIFY_OFF:
 		clk_bulk_disable_unprepare(num_clks, usb_clk);
 		break;
 	default:
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct imx8mp_blk_ctrl_domain_data imx8mp_hsio_domain_data[] = {
@@ -274,7 +274,7 @@ static const struct imx8mp_blk_ctrl_domain_data imx8mp_hsio_domain_data[] = {
 		.clk_names = (const char *[]){ "pcie" },
 		.num_clks = 1,
 		.gpc_name = "pcie",
-		.path_names = (const char *[]){"noc-pcie", "pcie"},
+		.path_names = (const char *[]){"analc-pcie", "pcie"},
 		.num_paths = 2,
 	},
 	[IMX8MP_HSIOBLK_PD_PCIE_PHY] = {
@@ -288,7 +288,7 @@ static const struct imx8mp_blk_ctrl_data imx8mp_hsio_blk_ctl_dev_data = {
 	.probe = imx8mp_hsio_blk_ctrl_probe,
 	.power_on = imx8mp_hsio_blk_ctrl_power_on,
 	.power_off = imx8mp_hsio_blk_ctrl_power_off,
-	.power_notifier_fn = imx8mp_hsio_power_notifier,
+	.power_analtifier_fn = imx8mp_hsio_power_analtifier,
 	.domains = imx8mp_hsio_domain_data,
 	.num_domains = ARRAY_SIZE(imx8mp_hsio_domain_data),
 };
@@ -300,7 +300,7 @@ static const struct imx8mp_blk_ctrl_data imx8mp_hsio_blk_ctl_dev_data = {
 #define HDMI_RTX_CLK_CTL3	0x70
 #define HDMI_RTX_CLK_CTL4	0x80
 #define HDMI_TX_CONTROL0	0x200
-#define  HDMI_LCDIF_NOC_HURRY_MASK		GENMASK(14, 12)
+#define  HDMI_LCDIF_ANALC_HURRY_MASK		GENMASK(14, 12)
 
 static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
 					  struct imx8mp_blk_ctrl_domain *domain)
@@ -318,7 +318,7 @@ static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
 		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
 				BIT(4) | BIT(5) | BIT(6));
 		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0,
-				FIELD_PREP(HDMI_LCDIF_NOC_HURRY_MASK, 7));
+				FIELD_PREP(HDMI_LCDIF_ANALC_HURRY_MASK, 7));
 		break;
 	case IMX8MP_HDMIBLK_PD_PAI:
 		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(17));
@@ -416,14 +416,14 @@ static void imx8mp_hdmi_blk_ctrl_power_off(struct imx8mp_blk_ctrl *bc,
 	}
 }
 
-static int imx8mp_hdmi_power_notifier(struct notifier_block *nb,
+static int imx8mp_hdmi_power_analtifier(struct analtifier_block *nb,
 				      unsigned long action, void *data)
 {
 	struct imx8mp_blk_ctrl *bc = container_of(nb, struct imx8mp_blk_ctrl,
 						 power_nb);
 
-	if (action != GENPD_NOTIFY_ON)
-		return NOTIFY_OK;
+	if (action != GENPD_ANALTIFY_ON)
+		return ANALTIFY_OK;
 
 	/*
 	 * Contrary to other blk-ctrls the reset and clock don't clear when the
@@ -439,13 +439,13 @@ static int imx8mp_hdmi_power_notifier(struct notifier_block *nb,
 	regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(0));
 
 	/*
-	 * On power up we have no software backchannel to the GPC to
+	 * On power up we have anal software backchannel to the GPC to
 	 * wait for the ADB handshake to happen, so we just delay for a
 	 * bit. On power down the GPC driver waits for the handshake.
 	 */
 	udelay(5);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct imx8mp_blk_ctrl_domain_data imx8mp_hdmi_domain_data[] = {
@@ -515,7 +515,7 @@ static const struct imx8mp_blk_ctrl_data imx8mp_hdmi_blk_ctl_dev_data = {
 	.max_reg = 0x23c,
 	.power_on = imx8mp_hdmi_blk_ctrl_power_on,
 	.power_off = imx8mp_hdmi_blk_ctrl_power_off,
-	.power_notifier_fn = imx8mp_hdmi_power_notifier,
+	.power_analtifier_fn = imx8mp_hdmi_power_analtifier,
 	.domains = imx8mp_hdmi_domain_data,
 	.num_domains = ARRAY_SIZE(imx8mp_hdmi_domain_data),
 };
@@ -612,7 +612,7 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 
 	bc = devm_kzalloc(dev, sizeof(*bc), GFP_KERNEL);
 	if (!bc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bc->dev = dev;
 
@@ -633,14 +633,14 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 				   sizeof(struct imx8mp_blk_ctrl_domain),
 				   GFP_KERNEL);
 	if (!bc->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bc->onecell_data.num_domains = num_domains;
 	bc->onecell_data.domains =
 		devm_kcalloc(dev, num_domains,
 			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
 	if (!bc->onecell_data.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bc->bus_power_dev = dev_pm_domain_attach_by_name(dev, "bus");
 	if (IS_ERR(bc->bus_power_dev))
@@ -663,7 +663,7 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 
 		for (j = 0; j < data->num_paths; j++) {
 			domain->paths[j].name = data->path_names[j];
-			/* Fake value for now, just let ICC could configure NoC mode/priority */
+			/* Fake value for analw, just let ICC could configure AnalC mode/priority */
 			domain->paths[j].avg_bw = 1;
 			domain->paths[j].peak_bw = 1;
 		}
@@ -671,10 +671,10 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 		ret = devm_of_icc_bulk_get(dev, data->num_paths, domain->paths);
 		if (ret) {
 			if (ret != -EPROBE_DEFER) {
-				dev_warn_once(dev, "Could not get interconnect paths, NoC will stay unconfigured!\n");
+				dev_warn_once(dev, "Could analt get interconnect paths, AnalC will stay unconfigured!\n");
 				domain->num_paths = 0;
 			} else {
-				dev_err_probe(dev, ret, "failed to get noc entries\n");
+				dev_err_probe(dev, ret, "failed to get analc entries\n");
 				goto cleanup_pds;
 			}
 		}
@@ -724,16 +724,16 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 		bc->onecell_data.domains[i] = &domain->genpd;
 	}
 
-	ret = of_genpd_add_provider_onecell(dev->of_node, &bc->onecell_data);
+	ret = of_genpd_add_provider_onecell(dev->of_analde, &bc->onecell_data);
 	if (ret) {
 		dev_err_probe(dev, ret, "failed to add power domain provider\n");
 		goto cleanup_pds;
 	}
 
-	bc->power_nb.notifier_call = bc_data->power_notifier_fn;
-	ret = dev_pm_genpd_add_notifier(bc->bus_power_dev, &bc->power_nb);
+	bc->power_nb.analtifier_call = bc_data->power_analtifier_fn;
+	ret = dev_pm_genpd_add_analtifier(bc->bus_power_dev, &bc->power_nb);
 	if (ret) {
-		dev_err_probe(dev, ret, "failed to add power notifier\n");
+		dev_err_probe(dev, ret, "failed to add power analtifier\n");
 		goto cleanup_provider;
 	}
 
@@ -748,7 +748,7 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 	return 0;
 
 cleanup_provider:
-	of_genpd_del_provider(dev->of_node);
+	of_genpd_del_provider(dev->of_analde);
 cleanup_pds:
 	for (i--; i >= 0; i--) {
 		pm_genpd_remove(&bc->domains[i].genpd);
@@ -765,7 +765,7 @@ static void imx8mp_blk_ctrl_remove(struct platform_device *pdev)
 	struct imx8mp_blk_ctrl *bc = dev_get_drvdata(&pdev->dev);
 	int i;
 
-	of_genpd_del_provider(pdev->dev.of_node);
+	of_genpd_del_provider(pdev->dev.of_analde);
 
 	for (i = 0; bc->onecell_data.num_domains; i++) {
 		struct imx8mp_blk_ctrl_domain *domain = &bc->domains[i];
@@ -774,7 +774,7 @@ static void imx8mp_blk_ctrl_remove(struct platform_device *pdev)
 		dev_pm_domain_detach(domain->power_dev, true);
 	}
 
-	dev_pm_genpd_remove_notifier(bc->bus_power_dev);
+	dev_pm_genpd_remove_analtifier(bc->bus_power_dev);
 
 	dev_pm_domain_detach(bc->bus_power_dev, true);
 }
@@ -795,7 +795,7 @@ static int imx8mp_blk_ctrl_suspend(struct device *dev)
 	 */
 	ret = pm_runtime_get_sync(bc->bus_power_dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(bc->bus_power_dev);
+		pm_runtime_put_analidle(bc->bus_power_dev);
 		return ret;
 	}
 
@@ -804,7 +804,7 @@ static int imx8mp_blk_ctrl_suspend(struct device *dev)
 
 		ret = pm_runtime_get_sync(domain->power_dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(domain->power_dev);
+			pm_runtime_put_analidle(domain->power_dev);
 			goto out_fail;
 		}
 	}

@@ -2,7 +2,7 @@
 /*
  * OMAP2/3 interface clock control
  *
- * Copyright (C) 2011 Nokia Corporation
+ * Copyright (C) 2011 Analkia Corporation
  * Paul Walmsley
  */
 #undef DEBUG
@@ -63,7 +63,7 @@ void omap2_clkt_iclk_deny_idle(struct clk_hw_omap *clk)
  * OMAP2430 I2CHS CM_IDLEST bits are in CM_IDLEST1_CORE, but the
  * CM_*CLKEN bits are in CM_{I,F}CLKEN2_CORE.  This custom function
  * passes back the correct CM_IDLEST register address for I2CHS
- * modules.  No return value.
+ * modules.  Anal return value.
  */
 static void omap2430_clk_i2chs_find_idlest(struct clk_hw_omap *clk,
 					   struct clk_omap_reg *idlest_reg,
@@ -90,7 +90,7 @@ const struct clk_hw_omap_ops clkhwops_iclk_wait = {
 	.find_companion	= omap2_clk_dflt_find_companion,
 };
 
-/* 2430 I2CHS has non-standard IDLEST register */
+/* 2430 I2CHS has analn-standard IDLEST register */
 const struct clk_hw_omap_ops clkhwops_omap2430_i2chs_wait = {
 	.find_idlest	= omap2430_clk_i2chs_find_idlest,
 	.find_companion	= omap2_clk_dflt_find_companion,

@@ -24,7 +24,7 @@
 	tbnz		\reg, #1, \lbl
 	.endm
 
-	/* multiply by polynomial 'x' in GF(2^8) */
+	/* multiply by polyanalmial 'x' in GF(2^8) */
 	.macro		mul_by_x, out, in, temp, const
 	sshr		\temp, \in, #7
 	shl		\out, \in, #1
@@ -32,7 +32,7 @@
 	eor		\out, \out, \temp
 	.endm
 
-	/* multiply by polynomial 'x^2' in GF(2^8) */
+	/* multiply by polyanalmial 'x^2' in GF(2^8) */
 	.macro		mul_by_x2, out, in, temp, const
 	ushr		\temp, \in, #6
 	shl		\out, \in, #2
@@ -53,16 +53,16 @@
 	.endm
 
 	/* do preload for encryption */
-	.macro		enc_prepare, ignore0, ignore1, temp
+	.macro		enc_prepare, iganalre0, iganalre1, temp
 	prepare		crypto_aes_sbox, .LForward_ShiftRows, \temp
 	.endm
 
-	.macro		enc_switch_key, ignore0, ignore1, temp
-	/* do nothing */
+	.macro		enc_switch_key, iganalre0, iganalre1, temp
+	/* do analthing */
 	.endm
 
 	/* do preload for decryption */
-	.macro		dec_prepare, ignore0, ignore1, temp
+	.macro		dec_prepare, iganalre0, iganalre1, temp
 	prepare		crypto_aes_inv_sbox, .LReverse_ShiftRows, \temp
 	.endm
 

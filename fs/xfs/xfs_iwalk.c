@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_ialloc_btree.h"
@@ -24,25 +24,25 @@
 #include "xfs_ag.h"
 
 /*
- * Walking Inodes in the Filesystem
+ * Walking Ianaldes in the Filesystem
  * ================================
  *
- * This iterator function walks a subset of filesystem inodes in increasing
- * order from @startino until there are no more inodes.  For each allocated
- * inode it finds, it calls a walk function with the relevant inode number and
+ * This iterator function walks a subset of filesystem ianaldes in increasing
+ * order from @startianal until there are anal more ianaldes.  For each allocated
+ * ianalde it finds, it calls a walk function with the relevant ianalde number and
  * a pointer to caller-provided data.  The walk function can return the usual
  * negative error code to stop the iteration; 0 to continue the iteration; or
  * -ECANCELED to stop the iteration.  This return value is returned to the
  * caller.
  *
  * Internally, we allow the walk function to do anything, which means that we
- * cannot maintain the inobt cursor or our lock on the AGI buffer.  We
- * therefore cache the inobt records in kernel memory and only call the walk
+ * cananalt maintain the ianalbt cursor or our lock on the AGI buffer.  We
+ * therefore cache the ianalbt records in kernel memory and only call the walk
  * function when our memory buffer is full.  @nr_recs is the number of records
  * that we've cached, and @sz_recs is the size of our cache.
  *
  * It is the responsibility of the walk function to ensure it accesses
- * allocated inodes, as the inobt records may be stale by the time they are
+ * allocated ianaldes, as the ianalbt records may be stale by the time they are
  * acted upon.
  */
 
@@ -55,13 +55,13 @@ struct xfs_iwalk_ag {
 	struct xfs_perag		*pag;
 
 	/* Where do we start the traversal? */
-	xfs_ino_t			startino;
+	xfs_ianal_t			startianal;
 
-	/* What was the last inode number we saw when iterating the inobt? */
-	xfs_ino_t			lastino;
+	/* What was the last ianalde number we saw when iterating the ianalbt? */
+	xfs_ianal_t			lastianal;
 
-	/* Array of inobt records we cache. */
-	struct xfs_inobt_rec_incore	*recs;
+	/* Array of ianalbt records we cache. */
+	struct xfs_ianalbt_rec_incore	*recs;
 
 	/* Number of entries allocated for the @recs array. */
 	unsigned int			sz_recs;
@@ -69,19 +69,19 @@ struct xfs_iwalk_ag {
 	/* Number of entries in the @recs array that are in use. */
 	unsigned int			nr_recs;
 
-	/* Inode walk function and data pointer. */
+	/* Ianalde walk function and data pointer. */
 	xfs_iwalk_fn			iwalk_fn;
-	xfs_inobt_walk_fn		inobt_walk_fn;
+	xfs_ianalbt_walk_fn		ianalbt_walk_fn;
 	void				*data;
 
 	/*
-	 * Make it look like the inodes up to startino are free so that
-	 * bulkstat can start its inode iteration at the correct place without
+	 * Make it look like the ianaldes up to startianal are free so that
+	 * bulkstat can start its ianalde iteration at the correct place without
 	 * needing to special case everywhere.
 	 */
 	unsigned int			trim_start:1;
 
-	/* Skip empty inobt records? */
+	/* Skip empty ianalbt records? */
 	unsigned int			skip_empty:1;
 
 	/* Drop the (hopefully empty) transaction when calling iwalk_fn. */
@@ -89,63 +89,63 @@ struct xfs_iwalk_ag {
 };
 
 /*
- * Loop over all clusters in a chunk for a given incore inode allocation btree
- * record.  Do a readahead if there are any allocated inodes in that cluster.
+ * Loop over all clusters in a chunk for a given incore ianalde allocation btree
+ * record.  Do a readahead if there are any allocated ianaldes in that cluster.
  */
 STATIC void
 xfs_iwalk_ichunk_ra(
 	struct xfs_mount		*mp,
 	struct xfs_perag		*pag,
-	struct xfs_inobt_rec_incore	*irec)
+	struct xfs_ianalbt_rec_incore	*irec)
 {
-	struct xfs_ino_geometry		*igeo = M_IGEO(mp);
-	xfs_agblock_t			agbno;
+	struct xfs_ianal_geometry		*igeo = M_IGEO(mp);
+	xfs_agblock_t			agbanal;
 	struct blk_plug			plug;
-	int				i;	/* inode chunk index */
+	int				i;	/* ianalde chunk index */
 
-	agbno = XFS_AGINO_TO_AGBNO(mp, irec->ir_startino);
+	agbanal = XFS_AGIANAL_TO_AGBANAL(mp, irec->ir_startianal);
 
 	blk_start_plug(&plug);
-	for (i = 0; i < XFS_INODES_PER_CHUNK; i += igeo->inodes_per_cluster) {
-		xfs_inofree_t	imask;
+	for (i = 0; i < XFS_IANALDES_PER_CHUNK; i += igeo->ianaldes_per_cluster) {
+		xfs_ianalfree_t	imask;
 
-		imask = xfs_inobt_maskn(i, igeo->inodes_per_cluster);
+		imask = xfs_ianalbt_maskn(i, igeo->ianaldes_per_cluster);
 		if (imask & ~irec->ir_free) {
-			xfs_btree_reada_bufs(mp, pag->pag_agno, agbno,
+			xfs_btree_reada_bufs(mp, pag->pag_aganal, agbanal,
 					igeo->blocks_per_cluster,
-					&xfs_inode_buf_ops);
+					&xfs_ianalde_buf_ops);
 		}
-		agbno += igeo->blocks_per_cluster;
+		agbanal += igeo->blocks_per_cluster;
 	}
 	blk_finish_plug(&plug);
 }
 
 /*
- * Set the bits in @irec's free mask that correspond to the inodes before
- * @agino so that we skip them.  This is how we restart an inode walk that was
- * interrupted in the middle of an inode record.
+ * Set the bits in @irec's free mask that correspond to the ianaldes before
+ * @agianal so that we skip them.  This is how we restart an ianalde walk that was
+ * interrupted in the middle of an ianalde record.
  */
 STATIC void
 xfs_iwalk_adjust_start(
-	xfs_agino_t			agino,	/* starting inode of chunk */
-	struct xfs_inobt_rec_incore	*irec)	/* btree record */
+	xfs_agianal_t			agianal,	/* starting ianalde of chunk */
+	struct xfs_ianalbt_rec_incore	*irec)	/* btree record */
 {
-	int				idx;	/* index into inode chunk */
+	int				idx;	/* index into ianalde chunk */
 	int				i;
 
-	idx = agino - irec->ir_startino;
+	idx = agianal - irec->ir_startianal;
 
 	/*
-	 * We got a right chunk with some left inodes allocated at it.  Grab
-	 * the chunk record.  Mark all the uninteresting inodes free because
+	 * We got a right chunk with some left ianaldes allocated at it.  Grab
+	 * the chunk record.  Mark all the uninteresting ianaldes free because
 	 * they're before our start point.
 	 */
 	for (i = 0; i < idx; i++) {
-		if (XFS_INOBT_MASK(i) & ~irec->ir_free)
+		if (XFS_IANALBT_MASK(i) & ~irec->ir_free)
 			irec->ir_freecount++;
 	}
 
-	irec->ir_free |= xfs_inobt_maskn(0, idx);
+	irec->ir_free |= xfs_ianalbt_maskn(0, idx);
 }
 
 /* Allocate memory for a walk. */
@@ -158,11 +158,11 @@ xfs_iwalk_alloc(
 	ASSERT(iwag->recs == NULL);
 	iwag->nr_recs = 0;
 
-	/* Allocate a prefetch buffer for inobt records. */
-	size = iwag->sz_recs * sizeof(struct xfs_inobt_rec_incore);
+	/* Allocate a prefetch buffer for ianalbt records. */
+	size = iwag->sz_recs * sizeof(struct xfs_ianalbt_rec_incore);
 	iwag->recs = kmem_alloc(size, KM_MAYFAIL);
 	if (iwag->recs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -176,7 +176,7 @@ xfs_iwalk_free(
 	iwag->recs = NULL;
 }
 
-/* For each inuse inode in each cached inobt record, call our function. */
+/* For each inuse ianalde in each cached ianalbt record, call our function. */
 STATIC int
 xfs_iwalk_ag_recs(
 	struct xfs_iwalk_ag	*iwag)
@@ -184,20 +184,20 @@ xfs_iwalk_ag_recs(
 	struct xfs_mount	*mp = iwag->mp;
 	struct xfs_trans	*tp = iwag->tp;
 	struct xfs_perag	*pag = iwag->pag;
-	xfs_ino_t		ino;
+	xfs_ianal_t		ianal;
 	unsigned int		i, j;
 	int			error;
 
 	for (i = 0; i < iwag->nr_recs; i++) {
-		struct xfs_inobt_rec_incore	*irec = &iwag->recs[i];
+		struct xfs_ianalbt_rec_incore	*irec = &iwag->recs[i];
 
-		trace_xfs_iwalk_ag_rec(mp, pag->pag_agno, irec);
+		trace_xfs_iwalk_ag_rec(mp, pag->pag_aganal, irec);
 
 		if (xfs_pwork_want_abort(&iwag->pwork))
 			return 0;
 
-		if (iwag->inobt_walk_fn) {
-			error = iwag->inobt_walk_fn(mp, tp, pag->pag_agno, irec,
+		if (iwag->ianalbt_walk_fn) {
+			error = iwag->ianalbt_walk_fn(mp, tp, pag->pag_aganal, irec,
 					iwag->data);
 			if (error)
 				return error;
@@ -206,18 +206,18 @@ xfs_iwalk_ag_recs(
 		if (!iwag->iwalk_fn)
 			continue;
 
-		for (j = 0; j < XFS_INODES_PER_CHUNK; j++) {
+		for (j = 0; j < XFS_IANALDES_PER_CHUNK; j++) {
 			if (xfs_pwork_want_abort(&iwag->pwork))
 				return 0;
 
-			/* Skip if this inode is free */
-			if (XFS_INOBT_MASK(j) & irec->ir_free)
+			/* Skip if this ianalde is free */
+			if (XFS_IANALBT_MASK(j) & irec->ir_free)
 				continue;
 
 			/* Otherwise call our function. */
-			ino = XFS_AGINO_TO_INO(mp, pag->pag_agno,
-						irec->ir_startino + j);
-			error = iwag->iwalk_fn(mp, tp, ino, iwag->data);
+			ianal = XFS_AGIANAL_TO_IANAL(mp, pag->pag_aganal,
+						irec->ir_startianal + j);
+			error = iwag->iwalk_fn(mp, tp, ianal, iwag->data);
 			if (error)
 				return error;
 		}
@@ -228,7 +228,7 @@ xfs_iwalk_ag_recs(
 
 /* Delete cursor and let go of AGI. */
 static inline void
-xfs_iwalk_del_inobt(
+xfs_iwalk_del_ianalbt(
 	struct xfs_trans	*tp,
 	struct xfs_btree_cur	**curpp,
 	struct xfs_buf		**agi_bpp,
@@ -245,16 +245,16 @@ xfs_iwalk_del_inobt(
 }
 
 /*
- * Set ourselves up for walking inobt records starting from a given point in
+ * Set ourselves up for walking ianalbt records starting from a given point in
  * the filesystem.
  *
- * If caller passed in a nonzero start inode number, load the record from the
- * inobt and make the record look like all the inodes before agino are free so
- * that we skip them, and then move the cursor to the next inobt record.  This
- * is how we support starting an iwalk in the middle of an inode chunk.
+ * If caller passed in a analnzero start ianalde number, load the record from the
+ * ianalbt and make the record look like all the ianaldes before agianal are free so
+ * that we skip them, and then move the cursor to the next ianalbt record.  This
+ * is how we support starting an iwalk in the middle of an ianalde chunk.
  *
  * If the caller passed in a start number of zero, move the cursor to the first
- * inobt record.
+ * ianalbt record.
  *
  * The caller is responsible for cleaning up the cursor and buffer pointer
  * regardless of the error status.
@@ -262,7 +262,7 @@ xfs_iwalk_del_inobt(
 STATIC int
 xfs_iwalk_ag_start(
 	struct xfs_iwalk_ag	*iwag,
-	xfs_agino_t		agino,
+	xfs_agianal_t		agianal,
 	struct xfs_btree_cur	**curpp,
 	struct xfs_buf		**agi_bpp,
 	int			*has_more)
@@ -270,67 +270,67 @@ xfs_iwalk_ag_start(
 	struct xfs_mount	*mp = iwag->mp;
 	struct xfs_trans	*tp = iwag->tp;
 	struct xfs_perag	*pag = iwag->pag;
-	struct xfs_inobt_rec_incore *irec;
+	struct xfs_ianalbt_rec_incore *irec;
 	int			error;
 
-	/* Set up a fresh cursor and empty the inobt cache. */
+	/* Set up a fresh cursor and empty the ianalbt cache. */
 	iwag->nr_recs = 0;
-	error = xfs_inobt_cur(pag, tp, XFS_BTNUM_INO, curpp, agi_bpp);
+	error = xfs_ianalbt_cur(pag, tp, XFS_BTNUM_IANAL, curpp, agi_bpp);
 	if (error)
 		return error;
 
 	/* Starting at the beginning of the AG?  That's easy! */
-	if (agino == 0)
-		return xfs_inobt_lookup(*curpp, 0, XFS_LOOKUP_GE, has_more);
+	if (agianal == 0)
+		return xfs_ianalbt_lookup(*curpp, 0, XFS_LOOKUP_GE, has_more);
 
 	/*
-	 * Otherwise, we have to grab the inobt record where we left off, stuff
+	 * Otherwise, we have to grab the ianalbt record where we left off, stuff
 	 * the record into our cache, and then see if there are more records.
 	 * We require a lookup cache of at least two elements so that the
 	 * caller doesn't have to deal with tearing down the cursor to walk the
 	 * records.
 	 */
-	error = xfs_inobt_lookup(*curpp, agino, XFS_LOOKUP_LE, has_more);
+	error = xfs_ianalbt_lookup(*curpp, agianal, XFS_LOOKUP_LE, has_more);
 	if (error)
 		return error;
 
 	/*
-	 * If the LE lookup at @agino yields no records, jump ahead to the
-	 * inobt cursor increment to see if there are more records to process.
+	 * If the LE lookup at @agianal yields anal records, jump ahead to the
+	 * ianalbt cursor increment to see if there are more records to process.
 	 */
 	if (!*has_more)
 		goto out_advance;
 
 	/* Get the record, should always work */
 	irec = &iwag->recs[iwag->nr_recs];
-	error = xfs_inobt_get_rec(*curpp, irec, has_more);
+	error = xfs_ianalbt_get_rec(*curpp, irec, has_more);
 	if (error)
 		return error;
 	if (XFS_IS_CORRUPT(mp, *has_more != 1))
 		return -EFSCORRUPTED;
 
-	iwag->lastino = XFS_AGINO_TO_INO(mp, pag->pag_agno,
-				irec->ir_startino + XFS_INODES_PER_CHUNK - 1);
+	iwag->lastianal = XFS_AGIANAL_TO_IANAL(mp, pag->pag_aganal,
+				irec->ir_startianal + XFS_IANALDES_PER_CHUNK - 1);
 
 	/*
-	 * If the LE lookup yielded an inobt record before the cursor position,
-	 * skip it and see if there's another one after it.
+	 * If the LE lookup yielded an ianalbt record before the cursor position,
+	 * skip it and see if there's aanalther one after it.
 	 */
-	if (irec->ir_startino + XFS_INODES_PER_CHUNK <= agino)
+	if (irec->ir_startianal + XFS_IANALDES_PER_CHUNK <= agianal)
 		goto out_advance;
 
 	/*
-	 * If agino fell in the middle of the inode record, make it look like
-	 * the inodes up to agino are free so that we don't return them again.
+	 * If agianal fell in the middle of the ianalde record, make it look like
+	 * the ianaldes up to agianal are free so that we don't return them again.
 	 */
 	if (iwag->trim_start)
-		xfs_iwalk_adjust_start(agino, irec);
+		xfs_iwalk_adjust_start(agianal, irec);
 
 	/*
-	 * The prefetch calculation is supposed to give us a large enough inobt
+	 * The prefetch calculation is supposed to give us a large eanalugh ianalbt
 	 * record cache that grab_ichunk can stage a partial first record and
 	 * the loop body can cache a record without having to check for cache
-	 * space until after it reads an inobt record.
+	 * space until after it reads an ianalbt record.
 	 */
 	iwag->nr_recs++;
 	ASSERT(iwag->nr_recs < iwag->sz_recs);
@@ -340,12 +340,12 @@ out_advance:
 }
 
 /*
- * The inobt record cache is full, so preserve the inobt cursor state and
- * run callbacks on the cached inobt records.  When we're done, restore the
- * cursor state to wherever the cursor would have been had the cache not been
+ * The ianalbt record cache is full, so preserve the ianalbt cursor state and
+ * run callbacks on the cached ianalbt records.  When we're done, restore the
+ * cursor state to wherever the cursor would have been had the cache analt been
  * full (and therefore we could've just incremented the cursor) if *@has_more
- * is true.  On exit, *@has_more will indicate whether or not the caller should
- * try for more inode records.
+ * is true.  On exit, *@has_more will indicate whether or analt the caller should
+ * try for more ianalde records.
  */
 STATIC int
 xfs_iwalk_run_callbacks(
@@ -355,18 +355,18 @@ xfs_iwalk_run_callbacks(
 	int				*has_more)
 {
 	struct xfs_mount		*mp = iwag->mp;
-	struct xfs_inobt_rec_incore	*irec;
-	xfs_agino_t			next_agino;
+	struct xfs_ianalbt_rec_incore	*irec;
+	xfs_agianal_t			next_agianal;
 	int				error;
 
-	next_agino = XFS_INO_TO_AGINO(mp, iwag->lastino) + 1;
+	next_agianal = XFS_IANAL_TO_AGIANAL(mp, iwag->lastianal) + 1;
 
 	ASSERT(iwag->nr_recs > 0);
 
 	/* Delete cursor but remember the last record we cached... */
-	xfs_iwalk_del_inobt(iwag->tp, curpp, agi_bpp, 0);
+	xfs_iwalk_del_ianalbt(iwag->tp, curpp, agi_bpp, 0);
 	irec = &iwag->recs[iwag->nr_recs - 1];
-	ASSERT(next_agino >= irec->ir_startino + XFS_INODES_PER_CHUNK);
+	ASSERT(next_agianal >= irec->ir_startianal + XFS_IANALDES_PER_CHUNK);
 
 	if (iwag->drop_trans) {
 		xfs_trans_cancel(iwag->tp);
@@ -390,15 +390,15 @@ xfs_iwalk_run_callbacks(
 	}
 
 	/* ...and recreate the cursor just past where we left off. */
-	error = xfs_inobt_cur(iwag->pag, iwag->tp, XFS_BTNUM_INO, curpp,
+	error = xfs_ianalbt_cur(iwag->pag, iwag->tp, XFS_BTNUM_IANAL, curpp,
 			agi_bpp);
 	if (error)
 		return error;
 
-	return xfs_inobt_lookup(*curpp, next_agino, XFS_LOOKUP_GE, has_more);
+	return xfs_ianalbt_lookup(*curpp, next_agianal, XFS_LOOKUP_GE, has_more);
 }
 
-/* Walk all inodes in a single AG, from @iwag->startino to the end of the AG. */
+/* Walk all ianaldes in a single AG, from @iwag->startianal to the end of the AG. */
 STATIC int
 xfs_iwalk_ag(
 	struct xfs_iwalk_ag		*iwag)
@@ -407,39 +407,39 @@ xfs_iwalk_ag(
 	struct xfs_perag		*pag = iwag->pag;
 	struct xfs_buf			*agi_bp = NULL;
 	struct xfs_btree_cur		*cur = NULL;
-	xfs_agino_t			agino;
+	xfs_agianal_t			agianal;
 	int				has_more;
 	int				error = 0;
 
-	/* Set up our cursor at the right place in the inode btree. */
-	ASSERT(pag->pag_agno == XFS_INO_TO_AGNO(mp, iwag->startino));
-	agino = XFS_INO_TO_AGINO(mp, iwag->startino);
-	error = xfs_iwalk_ag_start(iwag, agino, &cur, &agi_bp, &has_more);
+	/* Set up our cursor at the right place in the ianalde btree. */
+	ASSERT(pag->pag_aganal == XFS_IANAL_TO_AGANAL(mp, iwag->startianal));
+	agianal = XFS_IANAL_TO_AGIANAL(mp, iwag->startianal);
+	error = xfs_iwalk_ag_start(iwag, agianal, &cur, &agi_bp, &has_more);
 
 	while (!error && has_more) {
-		struct xfs_inobt_rec_incore	*irec;
-		xfs_ino_t			rec_fsino;
+		struct xfs_ianalbt_rec_incore	*irec;
+		xfs_ianal_t			rec_fsianal;
 
 		cond_resched();
 		if (xfs_pwork_want_abort(&iwag->pwork))
 			goto out;
 
-		/* Fetch the inobt record. */
+		/* Fetch the ianalbt record. */
 		irec = &iwag->recs[iwag->nr_recs];
-		error = xfs_inobt_get_rec(cur, irec, &has_more);
+		error = xfs_ianalbt_get_rec(cur, irec, &has_more);
 		if (error || !has_more)
 			break;
 
 		/* Make sure that we always move forward. */
-		rec_fsino = XFS_AGINO_TO_INO(mp, pag->pag_agno, irec->ir_startino);
-		if (iwag->lastino != NULLFSINO &&
-		    XFS_IS_CORRUPT(mp, iwag->lastino >= rec_fsino)) {
+		rec_fsianal = XFS_AGIANAL_TO_IANAL(mp, pag->pag_aganal, irec->ir_startianal);
+		if (iwag->lastianal != NULLFSIANAL &&
+		    XFS_IS_CORRUPT(mp, iwag->lastianal >= rec_fsianal)) {
 			error = -EFSCORRUPTED;
 			goto out;
 		}
-		iwag->lastino = rec_fsino + XFS_INODES_PER_CHUNK - 1;
+		iwag->lastianal = rec_fsianal + XFS_IANALDES_PER_CHUNK - 1;
 
-		/* No allocated inodes in this chunk; skip it. */
+		/* Anal allocated ianaldes in this chunk; skip it. */
 		if (iwag->skip_empty && irec->ir_freecount == irec->ir_count) {
 			error = xfs_btree_increment(cur, 0, &has_more);
 			if (error)
@@ -448,8 +448,8 @@ xfs_iwalk_ag(
 		}
 
 		/*
-		 * Start readahead for this inode chunk in anticipation of
-		 * walking the inodes.
+		 * Start readahead for this ianalde chunk in anticipation of
+		 * walking the ianaldes.
 		 */
 		if (iwag->iwalk_fn)
 			xfs_iwalk_ichunk_ra(mp, pag, irec);
@@ -482,78 +482,78 @@ xfs_iwalk_ag(
 	error = xfs_iwalk_run_callbacks(iwag, &cur, &agi_bp, &has_more);
 
 out:
-	xfs_iwalk_del_inobt(iwag->tp, &cur, &agi_bp, error);
+	xfs_iwalk_del_ianalbt(iwag->tp, &cur, &agi_bp, error);
 	return error;
 }
 
 /*
  * We experimentally determined that the reduction in ioctl call overhead
- * diminishes when userspace asks for more than 2048 inodes, so we'll cap
+ * diminishes when userspace asks for more than 2048 ianaldes, so we'll cap
  * prefetch at this point.
  */
-#define IWALK_MAX_INODE_PREFETCH	(2048U)
+#define IWALK_MAX_IANALDE_PREFETCH	(2048U)
 
 /*
- * Given the number of inodes to prefetch, set the number of inobt records that
- * we cache in memory, which controls the number of inodes we try to read
- * ahead.  Set the maximum if @inodes == 0.
+ * Given the number of ianaldes to prefetch, set the number of ianalbt records that
+ * we cache in memory, which controls the number of ianaldes we try to read
+ * ahead.  Set the maximum if @ianaldes == 0.
  */
 static inline unsigned int
 xfs_iwalk_prefetch(
-	unsigned int		inodes)
+	unsigned int		ianaldes)
 {
-	unsigned int		inobt_records;
+	unsigned int		ianalbt_records;
 
 	/*
-	 * If the caller didn't tell us the number of inodes they wanted,
+	 * If the caller didn't tell us the number of ianaldes they wanted,
 	 * assume the maximum prefetch possible for best performance.
 	 * Otherwise, cap prefetch at that maximum so that we don't start an
 	 * absurd amount of prefetch.
 	 */
-	if (inodes == 0)
-		inodes = IWALK_MAX_INODE_PREFETCH;
-	inodes = min(inodes, IWALK_MAX_INODE_PREFETCH);
+	if (ianaldes == 0)
+		ianaldes = IWALK_MAX_IANALDE_PREFETCH;
+	ianaldes = min(ianaldes, IWALK_MAX_IANALDE_PREFETCH);
 
-	/* Round the inode count up to a full chunk. */
-	inodes = round_up(inodes, XFS_INODES_PER_CHUNK);
+	/* Round the ianalde count up to a full chunk. */
+	ianaldes = round_up(ianaldes, XFS_IANALDES_PER_CHUNK);
 
 	/*
-	 * In order to convert the number of inodes to prefetch into an
-	 * estimate of the number of inobt records to cache, we require a
+	 * In order to convert the number of ianaldes to prefetch into an
+	 * estimate of the number of ianalbt records to cache, we require a
 	 * conversion factor that reflects our expectations of the average
-	 * loading factor of an inode chunk.  Based on data gathered, most
-	 * (but not all) filesystems manage to keep the inode chunks totally
+	 * loading factor of an ianalde chunk.  Based on data gathered, most
+	 * (but analt all) filesystems manage to keep the ianalde chunks totally
 	 * full, so we'll underestimate slightly so that our readahead will
 	 * still deliver the performance we want on aging filesystems:
 	 *
-	 * inobt = inodes / (INODES_PER_CHUNK * (4 / 5));
+	 * ianalbt = ianaldes / (IANALDES_PER_CHUNK * (4 / 5));
 	 *
 	 * The funny math is to avoid integer division.
 	 */
-	inobt_records = (inodes * 5) / (4 * XFS_INODES_PER_CHUNK);
+	ianalbt_records = (ianaldes * 5) / (4 * XFS_IANALDES_PER_CHUNK);
 
 	/*
-	 * Allocate enough space to prefetch at least two inobt records so that
+	 * Allocate eanalugh space to prefetch at least two ianalbt records so that
 	 * we can cache both the record where the iwalk started and the next
-	 * record.  This simplifies the AG inode walk loop setup code.
+	 * record.  This simplifies the AG ianalde walk loop setup code.
 	 */
-	return max(inobt_records, 2U);
+	return max(ianalbt_records, 2U);
 }
 
 /*
- * Walk all inodes in the filesystem starting from @startino.  The @iwalk_fn
- * will be called for each allocated inode, being passed the inode's number and
- * @data.  @max_prefetch controls how many inobt records' worth of inodes we
+ * Walk all ianaldes in the filesystem starting from @startianal.  The @iwalk_fn
+ * will be called for each allocated ianalde, being passed the ianalde's number and
+ * @data.  @max_prefetch controls how many ianalbt records' worth of ianaldes we
  * try to readahead.
  */
 int
 xfs_iwalk(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_ino_t		startino,
+	xfs_ianal_t		startianal,
 	unsigned int		flags,
 	xfs_iwalk_fn		iwalk_fn,
-	unsigned int		inode_records,
+	unsigned int		ianalde_records,
 	void			*data)
 {
 	struct xfs_iwalk_ag	iwag = {
@@ -561,31 +561,31 @@ xfs_iwalk(
 		.tp		= tp,
 		.iwalk_fn	= iwalk_fn,
 		.data		= data,
-		.startino	= startino,
-		.sz_recs	= xfs_iwalk_prefetch(inode_records),
+		.startianal	= startianal,
+		.sz_recs	= xfs_iwalk_prefetch(ianalde_records),
 		.trim_start	= 1,
 		.skip_empty	= 1,
 		.pwork		= XFS_PWORK_SINGLE_THREADED,
-		.lastino	= NULLFSINO,
+		.lastianal	= NULLFSIANAL,
 	};
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
+	xfs_agnumber_t		aganal = XFS_IANAL_TO_AGANAL(mp, startianal);
 	int			error;
 
-	ASSERT(agno < mp->m_sb.sb_agcount);
+	ASSERT(aganal < mp->m_sb.sb_agcount);
 	ASSERT(!(flags & ~XFS_IWALK_FLAGS_ALL));
 
 	error = xfs_iwalk_alloc(&iwag);
 	if (error)
 		return error;
 
-	for_each_perag_from(mp, agno, pag) {
+	for_each_perag_from(mp, aganal, pag) {
 		iwag.pag = pag;
 		error = xfs_iwalk_ag(&iwag);
 		if (error)
 			break;
-		iwag.startino = XFS_AGINO_TO_INO(mp, agno + 1, 0);
-		if (flags & XFS_INOBT_WALK_SAME_AG)
+		iwag.startianal = XFS_AGIANAL_TO_IANAL(mp, aganal + 1, 0);
+		if (flags & XFS_IANALBT_WALK_SAME_AG)
 			break;
 		iwag.pag = NULL;
 	}
@@ -614,7 +614,7 @@ xfs_iwalk_ag_work(
 		goto out;
 	/*
 	 * Grab an empty transaction so that we can use its recursive buffer
-	 * locking abilities to detect cycles in the inobt without deadlocking.
+	 * locking abilities to detect cycles in the ianalbt without deadlocking.
 	 */
 	error = xfs_trans_alloc_empty(mp, &iwag->tp);
 	if (error)
@@ -632,32 +632,32 @@ out:
 }
 
 /*
- * Walk all the inodes in the filesystem using multiple threads to process each
+ * Walk all the ianaldes in the filesystem using multiple threads to process each
  * AG.
  */
 int
 xfs_iwalk_threaded(
 	struct xfs_mount	*mp,
-	xfs_ino_t		startino,
+	xfs_ianal_t		startianal,
 	unsigned int		flags,
 	xfs_iwalk_fn		iwalk_fn,
-	unsigned int		inode_records,
+	unsigned int		ianalde_records,
 	bool			polled,
 	void			*data)
 {
 	struct xfs_pwork_ctl	pctl;
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
+	xfs_agnumber_t		aganal = XFS_IANAL_TO_AGANAL(mp, startianal);
 	int			error;
 
-	ASSERT(agno < mp->m_sb.sb_agcount);
+	ASSERT(aganal < mp->m_sb.sb_agcount);
 	ASSERT(!(flags & ~XFS_IWALK_FLAGS_ALL));
 
 	error = xfs_pwork_init(mp, &pctl, xfs_iwalk_ag_work, "xfs_iwalk");
 	if (error)
 		return error;
 
-	for_each_perag_from(mp, agno, pag) {
+	for_each_perag_from(mp, aganal, pag) {
 		struct xfs_iwalk_ag	*iwag;
 
 		if (xfs_pwork_ctl_want_abort(&pctl))
@@ -673,12 +673,12 @@ xfs_iwalk_threaded(
 		iwag->pag = xfs_perag_hold(pag);
 		iwag->iwalk_fn = iwalk_fn;
 		iwag->data = data;
-		iwag->startino = startino;
-		iwag->sz_recs = xfs_iwalk_prefetch(inode_records);
-		iwag->lastino = NULLFSINO;
+		iwag->startianal = startianal;
+		iwag->sz_recs = xfs_iwalk_prefetch(ianalde_records);
+		iwag->lastianal = NULLFSIANAL;
 		xfs_pwork_queue(&pctl, &iwag->pwork);
-		startino = XFS_AGINO_TO_INO(mp, pag->pag_agno + 1, 0);
-		if (flags & XFS_INOBT_WALK_SAME_AG)
+		startianal = XFS_AGIANAL_TO_IANAL(mp, pag->pag_aganal + 1, 0);
+		if (flags & XFS_IANALBT_WALK_SAME_AG)
 			break;
 	}
 	if (pag)
@@ -689,87 +689,87 @@ xfs_iwalk_threaded(
 }
 
 /*
- * Allow callers to cache up to a page's worth of inobt records.  This reflects
- * the existing inumbers prefetching behavior.  Since the inobt walk does not
- * itself do anything with the inobt records, we can set a fairly high limit
+ * Allow callers to cache up to a page's worth of ianalbt records.  This reflects
+ * the existing inumbers prefetching behavior.  Since the ianalbt walk does analt
+ * itself do anything with the ianalbt records, we can set a fairly high limit
  * here.
  */
-#define MAX_INOBT_WALK_PREFETCH	\
-	(PAGE_SIZE / sizeof(struct xfs_inobt_rec_incore))
+#define MAX_IANALBT_WALK_PREFETCH	\
+	(PAGE_SIZE / sizeof(struct xfs_ianalbt_rec_incore))
 
 /*
- * Given the number of records that the user wanted, set the number of inobt
- * records that we buffer in memory.  Set the maximum if @inobt_records == 0.
+ * Given the number of records that the user wanted, set the number of ianalbt
+ * records that we buffer in memory.  Set the maximum if @ianalbt_records == 0.
  */
 static inline unsigned int
-xfs_inobt_walk_prefetch(
-	unsigned int		inobt_records)
+xfs_ianalbt_walk_prefetch(
+	unsigned int		ianalbt_records)
 {
 	/*
-	 * If the caller didn't tell us the number of inobt records they
+	 * If the caller didn't tell us the number of ianalbt records they
 	 * wanted, assume the maximum prefetch possible for best performance.
 	 */
-	if (inobt_records == 0)
-		inobt_records = MAX_INOBT_WALK_PREFETCH;
+	if (ianalbt_records == 0)
+		ianalbt_records = MAX_IANALBT_WALK_PREFETCH;
 
 	/*
-	 * Allocate enough space to prefetch at least two inobt records so that
+	 * Allocate eanalugh space to prefetch at least two ianalbt records so that
 	 * we can cache both the record where the iwalk started and the next
-	 * record.  This simplifies the AG inode walk loop setup code.
+	 * record.  This simplifies the AG ianalde walk loop setup code.
 	 */
-	inobt_records = max(inobt_records, 2U);
+	ianalbt_records = max(ianalbt_records, 2U);
 
 	/*
 	 * Cap prefetch at that maximum so that we don't use an absurd amount
 	 * of memory.
 	 */
-	return min_t(unsigned int, inobt_records, MAX_INOBT_WALK_PREFETCH);
+	return min_t(unsigned int, ianalbt_records, MAX_IANALBT_WALK_PREFETCH);
 }
 
 /*
- * Walk all inode btree records in the filesystem starting from @startino.  The
- * @inobt_walk_fn will be called for each btree record, being passed the incore
- * record and @data.  @max_prefetch controls how many inobt records we try to
+ * Walk all ianalde btree records in the filesystem starting from @startianal.  The
+ * @ianalbt_walk_fn will be called for each btree record, being passed the incore
+ * record and @data.  @max_prefetch controls how many ianalbt records we try to
  * cache ahead of time.
  */
 int
-xfs_inobt_walk(
+xfs_ianalbt_walk(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_ino_t		startino,
+	xfs_ianal_t		startianal,
 	unsigned int		flags,
-	xfs_inobt_walk_fn	inobt_walk_fn,
-	unsigned int		inobt_records,
+	xfs_ianalbt_walk_fn	ianalbt_walk_fn,
+	unsigned int		ianalbt_records,
 	void			*data)
 {
 	struct xfs_iwalk_ag	iwag = {
 		.mp		= mp,
 		.tp		= tp,
-		.inobt_walk_fn	= inobt_walk_fn,
+		.ianalbt_walk_fn	= ianalbt_walk_fn,
 		.data		= data,
-		.startino	= startino,
-		.sz_recs	= xfs_inobt_walk_prefetch(inobt_records),
+		.startianal	= startianal,
+		.sz_recs	= xfs_ianalbt_walk_prefetch(ianalbt_records),
 		.pwork		= XFS_PWORK_SINGLE_THREADED,
-		.lastino	= NULLFSINO,
+		.lastianal	= NULLFSIANAL,
 	};
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
+	xfs_agnumber_t		aganal = XFS_IANAL_TO_AGANAL(mp, startianal);
 	int			error;
 
-	ASSERT(agno < mp->m_sb.sb_agcount);
-	ASSERT(!(flags & ~XFS_INOBT_WALK_FLAGS_ALL));
+	ASSERT(aganal < mp->m_sb.sb_agcount);
+	ASSERT(!(flags & ~XFS_IANALBT_WALK_FLAGS_ALL));
 
 	error = xfs_iwalk_alloc(&iwag);
 	if (error)
 		return error;
 
-	for_each_perag_from(mp, agno, pag) {
+	for_each_perag_from(mp, aganal, pag) {
 		iwag.pag = pag;
 		error = xfs_iwalk_ag(&iwag);
 		if (error)
 			break;
-		iwag.startino = XFS_AGINO_TO_INO(mp, pag->pag_agno + 1, 0);
-		if (flags & XFS_INOBT_WALK_SAME_AG)
+		iwag.startianal = XFS_AGIANAL_TO_IANAL(mp, pag->pag_aganal + 1, 0);
+		if (flags & XFS_IANALBT_WALK_SAME_AG)
 			break;
 		iwag.pag = NULL;
 	}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/socket.h>
 #include <linux/kernel.h>
 #include <net/dst_metadata.h>
@@ -42,7 +42,7 @@ int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
 			goto error;
 	}
 
-	sock->sk->sk_no_check_tx = !cfg->use_udp_checksums;
+	sock->sk->sk_anal_check_tx = !cfg->use_udp_checksums;
 
 	*sockp = sock;
 	return 0;
@@ -110,8 +110,8 @@ void udp_tunnel_drop_rx_port(struct net_device *dev, struct socket *sock,
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_drop_rx_port);
 
-/* Notify netdevs that UDP port started listening */
-void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type)
+/* Analtify netdevs that UDP port started listening */
+void udp_tunnel_analtify_add_rx_port(struct socket *sock, unsigned short type)
 {
 	struct sock *sk = sock->sk;
 	struct net *net = sock_net(sk);
@@ -128,10 +128,10 @@ void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type)
 	}
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL_GPL(udp_tunnel_notify_add_rx_port);
+EXPORT_SYMBOL_GPL(udp_tunnel_analtify_add_rx_port);
 
-/* Notify netdevs that UDP port is no more listening */
-void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type)
+/* Analtify netdevs that UDP port is anal more listening */
+void udp_tunnel_analtify_del_rx_port(struct socket *sock, unsigned short type)
 {
 	struct sock *sk = sock->sk;
 	struct net *net = sock_net(sk);
@@ -148,12 +148,12 @@ void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type)
 	}
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL_GPL(udp_tunnel_notify_del_rx_port);
+EXPORT_SYMBOL_GPL(udp_tunnel_analtify_del_rx_port);
 
 void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			 __be32 src, __be32 dst, __u8 tos, __u8 ttl,
 			 __be16 df, __be16 src_port, __be16 dst_port,
-			 bool xnet, bool nocheck)
+			 bool xnet, bool analcheck)
 {
 	struct udphdr *uh;
 
@@ -167,7 +167,7 @@ void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb
 
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 
-	udp_set_csum(nocheck, skb, src, dst, skb->len);
+	udp_set_csum(analcheck, skb, src, dst, skb->len);
 
 	iptunnel_xmit(sk, rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df, xnet);
 }
@@ -236,7 +236,7 @@ struct rtable *udp_tunnel_dst_lookup(struct sk_buff *skb,
 
 	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt)) {
-		netdev_dbg(dev, "no route to %pI4\n", &fl4.daddr);
+		netdev_dbg(dev, "anal route to %pI4\n", &fl4.daddr);
 		return ERR_PTR(-ENETUNREACH);
 	}
 	if (rt->dst.dev == dev) { /* is this necessary? */

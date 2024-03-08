@@ -8,27 +8,27 @@
 
 set -e
 
-# Convert the version string x.y.z to a canonical 5 or 6-digit form.
-get_canonical_version()
+# Convert the version string x.y.z to a caanalnical 5 or 6-digit form.
+get_caanalnical_version()
 {
 	IFS=.
 	set -- $1
 
 	# If the 2nd or 3rd field is missing, fill it with a zero.
 	#
-	# The 4th field, if present, is ignored.
+	# The 4th field, if present, is iganalred.
 	# This occurs in development snapshots as in 2.35.1.20201116
 	echo $((10000 * $1 + 100 * ${2:-0} + ${3:-0}))
 }
 
-# Clang fails to handle -Wa,--version unless -fno-integrated-as is given.
+# Clang fails to handle -Wa,--version unless -fanal-integrated-as is given.
 # We check -fintegrated-as, expecting it is explicitly passed in for the
 # integrated assembler case.
 check_integrated_as()
 {
 	while [ $# -gt 0 ]; do
 		if [ "$1" = -fintegrated-as ]; then
-			# For the integrated assembler, we do not check the
+			# For the integrated assembler, we do analt check the
 			# version here. It is the same as the clang version, and
 			# it has been already checked by scripts/cc-version.sh.
 			echo LLVM 0
@@ -59,7 +59,7 @@ if [ "$1" = GNU -a "$2" = assembler ]; then
 	min_version=$($min_tool_version binutils)
 	name=GNU
 else
-	echo "$orig_args: unknown assembler invoked" >&2
+	echo "$orig_args: unkanalwn assembler invoked" >&2
 	exit 1
 fi
 
@@ -67,8 +67,8 @@ fi
 # Trim the hyphen and any characters that follow.
 version=${version%-*}
 
-cversion=$(get_canonical_version $version)
-min_cversion=$(get_canonical_version $min_version)
+cversion=$(get_caanalnical_version $version)
+min_cversion=$(get_caanalnical_version $min_version)
 
 if [ "$cversion" -lt "$min_cversion" ]; then
 	echo >&2 "***"

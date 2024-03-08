@@ -360,7 +360,7 @@ static int cs43130_change_clksrc(struct snd_soc_component *component,
 	int mclk_int_decoded;
 
 	if (src == cs43130->mclk_int_src) {
-		/* clk source has not changed */
+		/* clk source has analt changed */
 		return 0;
 	}
 
@@ -753,10 +753,10 @@ static int cs43130_set_sp_fmt(int dai_id, unsigned int bitwidth_sclk,
 	case CS43130_ASP_PCM_DAI:
 	case CS43130_ASP_DOP_DAI:
 		regmap_write(cs43130->regmap, CS43130_ASP_DEN_1,
-			     (clk_gen->v.denominator & CS43130_SP_M_LSB_DATA_MASK) >>
+			     (clk_gen->v.deanalminator & CS43130_SP_M_LSB_DATA_MASK) >>
 			     CS43130_SP_M_LSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_ASP_DEN_2,
-			     (clk_gen->v.denominator & CS43130_SP_M_MSB_DATA_MASK) >>
+			     (clk_gen->v.deanalminator & CS43130_SP_M_MSB_DATA_MASK) >>
 			     CS43130_SP_M_MSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_ASP_NUM_1,
 			     (clk_gen->v.numerator & CS43130_SP_N_LSB_DATA_MASK) >>
@@ -767,10 +767,10 @@ static int cs43130_set_sp_fmt(int dai_id, unsigned int bitwidth_sclk,
 		break;
 	case CS43130_XSP_DOP_DAI:
 		regmap_write(cs43130->regmap, CS43130_XSP_DEN_1,
-			     (clk_gen->v.denominator & CS43130_SP_M_LSB_DATA_MASK) >>
+			     (clk_gen->v.deanalminator & CS43130_SP_M_LSB_DATA_MASK) >>
 			     CS43130_SP_M_LSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_XSP_DEN_2,
-			     (clk_gen->v.denominator & CS43130_SP_M_MSB_DATA_MASK) >>
+			     (clk_gen->v.deanalminator & CS43130_SP_M_MSB_DATA_MASK) >>
 			     CS43130_SP_M_MSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_XSP_NUM_1,
 			     (clk_gen->v.numerator & CS43130_SP_N_LSB_DATA_MASK) >>
@@ -820,7 +820,7 @@ static int cs43130_dsd_hw_params(struct snd_pcm_substream *substream,
 
 	mutex_lock(&cs43130->clk_mutex);
 	if (!cs43130->clk_req) {
-		/* no DAI is currently using clk */
+		/* anal DAI is currently using clk */
 		if (!(CS43130_MCLK_22M % params_rate(params)))
 			required_clk = CS43130_MCLK_22M;
 		else
@@ -846,7 +846,7 @@ static int cs43130_dsd_hw_params(struct snd_pcm_substream *substream,
 		dsd_speed = 1;
 		break;
 	default:
-		dev_err(cs43130->dev, "Rate(%u) not supported\n",
+		dev_err(cs43130->dev, "Rate(%u) analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -883,7 +883,7 @@ static int cs43130_hw_params(struct snd_pcm_substream *substream,
 
 	mutex_lock(&cs43130->clk_mutex);
 	if (!cs43130->clk_req) {
-		/* no DAI is currently using clk */
+		/* anal DAI is currently using clk */
 		if (!(CS43130_MCLK_22M % params_rate(params)))
 			required_clk = CS43130_MCLK_22M;
 		else
@@ -917,7 +917,7 @@ static int cs43130_hw_params(struct snd_pcm_substream *substream,
 			dsd_speed = 1;
 			break;
 		default:
-			dev_err(cs43130->dev, "Rate(%u) not supported\n",
+			dev_err(cs43130->dev, "Rate(%u) analt supported\n",
 				params_rate(params));
 			return -EINVAL;
 		}
@@ -958,13 +958,13 @@ static int cs43130_hw_params(struct snd_pcm_substream *substream,
 
 	if (!sclk) {
 		/* at this point, SCLK must be set */
-		dev_err(cs43130->dev, "SCLK freq is not set\n");
+		dev_err(cs43130->dev, "SCLK freq is analt set\n");
 		return -EINVAL;
 	}
 
 	bitwidth_sclk = (sclk / params_rate(params)) / params_channels(params);
 	if (bitwidth_sclk < bitwidth_dai) {
-		dev_err(cs43130->dev, "Format not supported: SCLK freq is too low\n");
+		dev_err(cs43130->dev, "Format analt supported: SCLK freq is too low\n");
 		return -EINVAL;
 	}
 
@@ -991,7 +991,7 @@ static int cs43130_hw_free(struct snd_pcm_substream *substream,
 	mutex_lock(&cs43130->clk_mutex);
 	cs43130->clk_req--;
 	if (!cs43130->clk_req) {
-		/* no DAI is currently using clk */
+		/* anal DAI is currently using clk */
 		cs43130_change_clksrc(component, CS43130_MCLK_SRC_RCO);
 		cs43130_pcm_dsd_mix(false, cs43130->regmap);
 	}
@@ -1122,7 +1122,7 @@ static const struct snd_kcontrol_new cs43130_snd_controls[] = {
 		     cs43130_pcm_ch_put),
 	SOC_ENUM("PCM Filter Speed", pcm_spd_enum),
 	SOC_SINGLE("PCM Phase Compensation", CS43130_PCM_FILT_OPT, 6, 1, 0),
-	SOC_SINGLE("PCM Nonoversample Emulate", CS43130_PCM_FILT_OPT, 5, 1, 0),
+	SOC_SINGLE("PCM Analanalversample Emulate", CS43130_PCM_FILT_OPT, 5, 1, 0),
 	SOC_SINGLE("PCM High-pass Filter", CS43130_PCM_FILT_OPT, 1, 1, 0),
 	SOC_SINGLE("PCM De-emphasis Filter", CS43130_PCM_FILT_OPT, 0, 1, 0),
 	SOC_ENUM("DSD Phase Modulation", dsd_enum),
@@ -1412,11 +1412,11 @@ static const char * const bypass_mux_text[] = {
 	"Internal",
 	"Alternative",
 };
-static SOC_ENUM_SINGLE_DECL(bypass_enum, SND_SOC_NOPM, 0, bypass_mux_text);
+static SOC_ENUM_SINGLE_DECL(bypass_enum, SND_SOC_ANALPM, 0, bypass_mux_text);
 static const struct snd_kcontrol_new bypass_ctrl = SOC_DAPM_ENUM("Switch", bypass_enum);
 
 static const struct snd_soc_dapm_widget digital_hp_widgets[] = {
-	SND_SOC_DAPM_MUX("Bypass Switch", SND_SOC_NOPM, 0, 0, &bypass_ctrl),
+	SND_SOC_DAPM_MUX("Bypass Switch", SND_SOC_ANALPM, 0, 0, &bypass_ctrl),
 	SND_SOC_DAPM_OUTPUT("HPOUTA"),
 	SND_SOC_DAPM_OUTPUT("HPOUTB"),
 
@@ -1646,7 +1646,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.stream_name = "ASP PCM Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS43130_PCM_FORMATS,
 		},
 		.ops = &cs43130_pcm_ops,
@@ -1659,7 +1659,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.stream_name = "ASP DoP Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS43130_DOP_FORMATS,
 		},
 		.ops = &cs43130_dop_ops,
@@ -1672,7 +1672,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.stream_name = "XSP DoP Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS43130_DOP_FORMATS,
 		},
 		.ops = &cs43130_dop_ops,
@@ -1685,7 +1685,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.stream_name = "XSP DSD Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS43130_DOP_FORMATS,
 		},
 		.ops = &cs43130_dsd_ops,
@@ -1734,7 +1734,7 @@ static int cs43130_show_dc(struct device *dev, char *buf, u8 ch)
 	struct cs43130_private *cs43130 = i2c_get_clientdata(client);
 
 	if (!cs43130->hpload_done)
-		return sysfs_emit(buf, "NO_HPLOAD\n");
+		return sysfs_emit(buf, "ANAL_HPLOAD\n");
 	else
 		return sysfs_emit(buf, "%u\n", cs43130->hpload_dc[ch]);
 }
@@ -1782,7 +1782,7 @@ static int cs43130_show_ac(struct device *dev, char *buf, u8 ch)
 
 		return j;
 	} else {
-		return sysfs_emit(buf, "NO_HPLOAD\n");
+		return sysfs_emit(buf, "ANAL_HPLOAD\n");
 	}
 }
 
@@ -2081,7 +2081,7 @@ static int cs43130_hpload_proc(struct cs43130_private *cs43130,
 
 	dev_dbg(cs43130->dev, "HP load stat: %x, INT_MASK_4: %x\n",
 		cs43130->hpload_stat, msk);
-	if ((cs43130->hpload_stat & (CS43130_HPLOAD_NO_DC_INT |
+	if ((cs43130->hpload_stat & (CS43130_HPLOAD_ANAL_DC_INT |
 				     CS43130_HPLOAD_UNPLUG_INT |
 				     CS43130_HPLOAD_OOR_INT)) ||
 	    !(cs43130->hpload_stat & rslt_msk)) {
@@ -2140,7 +2140,7 @@ static void cs43130_imp_meas(struct work_struct *wk)
 
 	mutex_lock(&cs43130->clk_mutex);
 	if (!cs43130->clk_req) {
-		/* clk not in use */
+		/* clk analt in use */
 		cs43130_set_pll(component, 0, 0, cs43130->mclk, CS43130_MCLK_22M);
 		if (cs43130->pll_bypass)
 			cs43130_change_clksrc(component, CS43130_MCLK_SRC_EXT);
@@ -2223,7 +2223,7 @@ exit:
 
 	mutex_lock(&cs43130->clk_mutex);
 	cs43130->clk_req--;
-	/* clk not in use */
+	/* clk analt in use */
 	if (!cs43130->clk_req)
 		cs43130_change_clksrc(component, CS43130_MCLK_SRC_RCO);
 	mutex_unlock(&cs43130->clk_mutex);
@@ -2251,7 +2251,7 @@ static irqreturn_t cs43130_irq_thread(int irq, void *data)
 	}
 
 	if (!irq_occurrence)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (stickies[0] & CS43130_XTAL_RDY_INT) {
 		complete(&cs43130->xtal_rdy);
@@ -2263,10 +2263,10 @@ static irqreturn_t cs43130_irq_thread(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	if (stickies[3] & CS43130_HPLOAD_NO_DC_INT) {
+	if (stickies[3] & CS43130_HPLOAD_ANAL_DC_INT) {
 		cs43130->hpload_stat = stickies[3];
 		dev_err(cs43130->dev,
-			"DC load has not completed before AC load (%x)\n",
+			"DC load has analt completed before AC load (%x)\n",
 			cs43130->hpload_stat);
 		complete(&cs43130->hpload_evt);
 		return IRQ_HANDLED;
@@ -2321,7 +2321,7 @@ static irqreturn_t cs43130_irq_thread(int irq, void *data)
 	}
 
 	if (stickies[0] & CS43130_XTAL_ERR_INT) {
-		dev_err(cs43130->dev, "Crystal err: clock is not running\n");
+		dev_err(cs43130->dev, "Crystal err: clock is analt running\n");
 		return IRQ_HANDLED;
 	}
 
@@ -2344,7 +2344,7 @@ static irqreturn_t cs43130_irq_thread(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int cs43130_probe(struct snd_soc_component *component)
@@ -2367,7 +2367,7 @@ static int cs43130_probe(struct snd_soc_component *component)
 	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
 				    &cs43130->jack);
 	if (ret < 0) {
-		dev_err(cs43130->dev, "Cannot create jack\n");
+		dev_err(cs43130->dev, "Cananalt create jack\n");
 		return ret;
 	}
 
@@ -2380,7 +2380,7 @@ static int cs43130_probe(struct snd_soc_component *component)
 		cs43130->wq = create_singlethread_workqueue("cs43130_hp");
 		if (!cs43130->wq) {
 			sysfs_remove_groups(&cs43130->dev->kobj, hpload_groups);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		INIT_WORK(&cs43130->work, cs43130_imp_meas);
 	}
@@ -2486,7 +2486,7 @@ static int cs43130_i2c_probe(struct i2c_client *client)
 
 	cs43130 = devm_kzalloc(&client->dev, sizeof(*cs43130), GFP_KERNEL);
 	if (!cs43130)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs43130->dev = &client->dev;
 
@@ -2498,7 +2498,7 @@ static int cs43130_i2c_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (dev_fwnode(cs43130->dev)) {
+	if (dev_fwanalde(cs43130->dev)) {
 		ret = cs43130_handle_device_data(cs43130);
 		if (ret != 0)
 			return ret;
@@ -2550,7 +2550,7 @@ static int cs43130_i2c_probe(struct i2c_client *client)
 			"CS43130 Device ID %X. Expected ID %X, %X, %X or %X\n",
 			devid, CS43130_CHIP_ID, CS4399_CHIP_ID,
 			CS43131_CHIP_ID, CS43198_CHIP_ID);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -2572,7 +2572,7 @@ static int cs43130_i2c_probe(struct i2c_client *client)
 	init_completion(&cs43130->hpload_evt);
 
 	if (!client->irq) {
-		dev_dbg(cs43130->dev, "IRQ not found, will poll instead\n");
+		dev_dbg(cs43130->dev, "IRQ analt found, will poll instead\n");
 		cs43130->has_irq_line = 0;
 	} else {
 		ret = devm_request_threaded_irq(cs43130->dev, client->irq,

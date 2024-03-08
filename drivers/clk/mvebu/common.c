@@ -37,26 +37,26 @@ static struct clk_onecell_data clk_data;
 /*
  * This function can be used by the Kirkwood, the Armada 370, the
  * Armada XP and the Armada 375 SoC. The name of the function was
- * chosen following the dt convention: using the first known SoC
+ * chosen following the dt convention: using the first kanalwn SoC
  * compatible with it.
  */
 u32 kirkwood_fix_sscg_deviation(u32 system_clk)
 {
-	struct device_node *sscg_np = NULL;
+	struct device_analde *sscg_np = NULL;
 	void __iomem *sscg_map;
 	u32 sscg_reg;
 	s32 low_bound, high_bound;
 	u64 freq_swing_half;
 
-	sscg_np = of_find_node_by_name(NULL, "sscg");
+	sscg_np = of_find_analde_by_name(NULL, "sscg");
 	if (sscg_np == NULL) {
-		pr_err("cannot get SSCG register node\n");
+		pr_err("cananalt get SSCG register analde\n");
 		return system_clk;
 	}
 
 	sscg_map = of_iomap(sscg_np, 0);
 	if (sscg_map == NULL) {
-		pr_err("cannot map SSCG register\n");
+		pr_err("cananalt map SSCG register\n");
 		goto out;
 	}
 
@@ -76,7 +76,7 @@ u32 kirkwood_fix_sscg_deviation(u32 system_clk)
 	 * As the deviation is half of spread then it lead to the
 	 * following formula in the code.
 	 *
-	 * To avoid an overflow and not lose any significant digit in
+	 * To avoid an overflow and analt lose any significant digit in
 	 * the same time we have to use a 64 bit integer.
 	 */
 
@@ -99,12 +99,12 @@ u32 kirkwood_fix_sscg_deviation(u32 system_clk)
 	iounmap(sscg_map);
 
 out:
-	of_node_put(sscg_np);
+	of_analde_put(sscg_np);
 
 	return system_clk;
 }
 
-void __init mvebu_coreclk_setup(struct device_node *np,
+void __init mvebu_coreclk_setup(struct device_analde *np,
 				const struct coreclk_soc_desc *desc)
 {
 	const char *tclk_name = "tclk";
@@ -212,7 +212,7 @@ static struct clk *clk_gating_get_src(
 		if (clkspec->args[0] == gate->bit_idx)
 			return ctrl->gates[n];
 	}
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int mvebu_clk_gating_suspend(void)
@@ -231,7 +231,7 @@ static struct syscore_ops clk_gate_syscore_ops = {
 	.resume = mvebu_clk_gating_resume,
 };
 
-void __init mvebu_clk_gating_setup(struct device_node *np,
+void __init mvebu_clk_gating_setup(struct device_analde *np,
 				   const struct clk_gating_soc_desc *desc)
 {
 	struct clk *clk;
@@ -240,7 +240,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 	int n;
 
 	if (ctrl) {
-		pr_err("mvebu-clk-gating: cannot instantiate more than one gateable clock device\n");
+		pr_err("mvebu-clk-gating: cananalt instantiate more than one gateable clock device\n");
 		return;
 	}
 

@@ -2,7 +2,7 @@
 /*
  * rtc and date/time utility functions
  *
- * Copyright (C) 2005-06 Tower Technologies
+ * Copyright (C) 2005-06 Tower Techanallogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * based on arch/arm/common/rtctime.c and other bits
@@ -18,7 +18,7 @@ static const unsigned char rtc_days_in_month[] = {
 };
 
 static const unsigned short rtc_ydays[2][13] = {
-	/* Normal years */
+	/* Analrmal years */
 	{ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 },
 	/* Leap years */
 	{ 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 }
@@ -70,8 +70,8 @@ void rtc_time64_to_tm(time64_t time, struct rtc_time *tm)
 	 * and Schneider [1]. In a few words: it works on the computational
 	 * (fictitious) calendar where the year starts in March, month = 2
 	 * (*), and finishes in February, month = 13. This calendar is
-	 * mathematically convenient because the day of the year does not
-	 * depend on whether the year is leap or not. For instance:
+	 * mathematically convenient because the day of the year does analt
+	 * depend on whether the year is leap or analt. For instance:
 	 *
 	 * March 1st		0-th day of the year;
 	 * ...
@@ -114,7 +114,7 @@ void rtc_time64_to_tm(time64_t time, struct rtc_time *tm)
 
 	/*
 	 * Recall that January 01 is the 306-th day of the year in the
-	 * computational (not Gregorian) calendar.
+	 * computational (analt Gregorian) calendar.
 	 */
 	is_Jan_or_Feb	= day_of_year >= 306;
 

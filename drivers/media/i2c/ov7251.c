@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define OV7251_SC_MODE_SELECT		0x0100
@@ -127,7 +127,7 @@ struct ov7251 {
 	struct device *dev;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwanalde_endpoint ep;
 	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
 	struct clk *xclk;
@@ -650,7 +650,7 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 		.exposure_def = 504,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 3000
+			.deanalminator = 3000
 		}
 	},
 	{
@@ -663,7 +663,7 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 		.exposure_def = 504,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 6014
+			.deanalminator = 6014
 		}
 	},
 	{
@@ -676,7 +676,7 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 		.exposure_def = 504,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 9043
+			.deanalminator = 9043
 		}
 	},
 };
@@ -686,7 +686,7 @@ static int ov7251_regulators_enable(struct ov7251 *ov7251)
 	int ret;
 
 	/* OV7251 power up sequence requires core regulator
-	 * to be enabled not earlier than io regulator
+	 * to be enabled analt earlier than io regulator
 	 */
 
 	ret = regulator_enable(ov7251->io_regulator);
@@ -1179,7 +1179,7 @@ __ov7251_get_pad_crop(struct ov7251 *ov7251,
 
 static inline u32 avg_fps(const struct v4l2_fract *t)
 {
-	return (t->denominator + (t->numerator >> 1)) / t->numerator;
+	return (t->deanalminator + (t->numerator >> 1)) / t->numerator;
 }
 
 static const struct ov7251_mode_info *
@@ -1267,7 +1267,7 @@ static int ov7251_set_format(struct v4l2_subdev *sd,
 	__format->width = __crop->width;
 	__format->height = __crop->height;
 	__format->code = MEDIA_BUS_FMT_Y10_1X10;
-	__format->field = V4L2_FIELD_NONE;
+	__format->field = V4L2_FIELD_ANALNE;
 	__format->colorspace = V4L2_COLORSPACE_SRGB;
 	__format->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(__format->colorspace);
 	__format->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true,
@@ -1356,14 +1356,14 @@ static int ov7251_s_stream(struct v4l2_subdev *subdev, int enable)
 					ov7251->current_mode->data,
 					ov7251->current_mode->data_size);
 		if (ret < 0) {
-			dev_err(ov7251->dev, "could not set mode %dx%d\n",
+			dev_err(ov7251->dev, "could analt set mode %dx%d\n",
 				ov7251->current_mode->width,
 				ov7251->current_mode->height);
 			goto err_power_down;
 		}
 		ret = __v4l2_ctrl_handler_setup(&ov7251->ctrls);
 		if (ret < 0) {
-			dev_err(ov7251->dev, "could not sync v4l2 controls\n");
+			dev_err(ov7251->dev, "could analt sync v4l2 controls\n");
 			goto err_power_down;
 		}
 		ret = ov7251_write_reg(ov7251, OV7251_SC_MODE_SELECT,
@@ -1476,27 +1476,27 @@ static const struct v4l2_subdev_internal_ops ov7251_internal_ops = {
 
 static int ov7251_check_hwcfg(struct ov7251 *ov7251)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(ov7251->dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *fwanalde = dev_fwanalde(ov7251->dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 	unsigned int i, j;
 	int ret;
 
-	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!endpoint)
 		return -EPROBE_DEFER; /* could be provided by cio2-bridge */
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &bus_cfg);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(endpoint, &bus_cfg);
+	fwanalde_handle_put(endpoint);
 	if (ret)
 		return dev_err_probe(ov7251->dev, ret,
-				     "parsing endpoint node failed\n");
+				     "parsing endpoint analde failed\n");
 
 	if (!bus_cfg.nr_of_link_frequencies) {
 		ret = dev_err_probe(ov7251->dev, -EINVAL,
-				    "no link frequencies defined\n");
+				    "anal link frequencies defined\n");
 		goto out_free_bus_cfg;
 	}
 
@@ -1511,14 +1511,14 @@ static int ov7251_check_hwcfg(struct ov7251 *ov7251)
 
 	if (i == bus_cfg.nr_of_link_frequencies) {
 		ret = dev_err_probe(ov7251->dev, -EINVAL,
-				    "no supported link freq found\n");
+				    "anal supported link freq found\n");
 		goto out_free_bus_cfg;
 	}
 
 	ov7251->link_freq_idx = i;
 
 out_free_bus_cfg:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1530,18 +1530,18 @@ static int ov7251_detect_chip(struct ov7251 *ov7251)
 
 	ret = ov7251_read_reg(ov7251, OV7251_CHIP_ID_HIGH, &chip_id_high);
 	if (ret < 0 || chip_id_high != OV7251_CHIP_ID_HIGH_BYTE)
-		return dev_err_probe(ov7251->dev, -ENODEV,
-				     "could not read ID high\n");
+		return dev_err_probe(ov7251->dev, -EANALDEV,
+				     "could analt read ID high\n");
 
 	ret = ov7251_read_reg(ov7251, OV7251_CHIP_ID_LOW, &chip_id_low);
 	if (ret < 0 || chip_id_low != OV7251_CHIP_ID_LOW_BYTE)
-		return dev_err_probe(ov7251->dev, -ENODEV,
-				     "could not read ID low\n");
+		return dev_err_probe(ov7251->dev, -EANALDEV,
+				     "could analt read ID low\n");
 
 	ret = ov7251_read_reg(ov7251, OV7251_SC_GP_IO_IN1, &chip_rev);
 	if (ret < 0)
-		return dev_err_probe(ov7251->dev, -ENODEV,
-				     "could not read revision\n");
+		return dev_err_probe(ov7251->dev, -EANALDEV,
+				     "could analt read revision\n");
 	chip_rev >>= 4;
 
 	dev_info(ov7251->dev,
@@ -1550,7 +1550,7 @@ static int ov7251_detect_chip(struct ov7251 *ov7251)
 		 chip_rev == 0x4 ? "1A / 1B" :
 		 chip_rev == 0x5 ? "1C / 1D" :
 		 chip_rev == 0x6 ? "1E" :
-		 chip_rev == 0x7 ? "1F" : "unknown",
+		 chip_rev == 0x7 ? "1F" : "unkanalwn",
 		 ov7251->i2c_client->addr);
 
 	return 0;
@@ -1629,7 +1629,7 @@ static int ov7251_probe(struct i2c_client *client)
 
 	ov7251 = devm_kzalloc(dev, sizeof(struct ov7251), GFP_KERNEL);
 	if (!ov7251)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov7251->i2c_client = client;
 	ov7251->dev = dev;
@@ -1642,14 +1642,14 @@ static int ov7251_probe(struct i2c_client *client)
 	ov7251->xclk = devm_clk_get_optional(dev, NULL);
 	if (IS_ERR(ov7251->xclk))
 		return dev_err_probe(dev, PTR_ERR(ov7251->xclk),
-				     "could not get xclk");
+				     "could analt get xclk");
 
 	/*
 	 * We could have either a 24MHz or 19.2MHz clock rate from either DT or
 	 * ACPI. We also need to support the IPU3 case which will have both an
 	 * external clock AND a clock-frequency property.
 	 */
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	ret = fwanalde_property_read_u32(dev_fwanalde(dev), "clock-frequency",
 				       &rate);
 	if (ret && !ov7251->xclk)
 		return dev_err_probe(dev, ret, "invalid clock config\n");
@@ -1680,25 +1680,25 @@ static int ov7251_probe(struct i2c_client *client)
 
 	ov7251->io_regulator = devm_regulator_get(dev, "vdddo");
 	if (IS_ERR(ov7251->io_regulator)) {
-		dev_err(dev, "cannot get io regulator\n");
+		dev_err(dev, "cananalt get io regulator\n");
 		return PTR_ERR(ov7251->io_regulator);
 	}
 
 	ov7251->core_regulator = devm_regulator_get(dev, "vddd");
 	if (IS_ERR(ov7251->core_regulator)) {
-		dev_err(dev, "cannot get core regulator\n");
+		dev_err(dev, "cananalt get core regulator\n");
 		return PTR_ERR(ov7251->core_regulator);
 	}
 
 	ov7251->analog_regulator = devm_regulator_get(dev, "vdda");
 	if (IS_ERR(ov7251->analog_regulator)) {
-		dev_err(dev, "cannot get analog regulator\n");
+		dev_err(dev, "cananalt get analog regulator\n");
 		return PTR_ERR(ov7251->analog_regulator);
 	}
 
 	ov7251->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ov7251->enable_gpio)) {
-		dev_err(dev, "cannot get enable gpio\n");
+		dev_err(dev, "cananalt get enable gpio\n");
 		return PTR_ERR(ov7251->enable_gpio);
 	}
 
@@ -1713,14 +1713,14 @@ static int ov7251_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&ov7251->sd, client, &ov7251_subdev_ops);
 	ov7251->sd.internal_ops = &ov7251_internal_ops;
-	ov7251->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov7251->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov7251->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ov7251->sd.dev = &client->dev;
 	ov7251->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = media_entity_pads_init(&ov7251->sd.entity, 1, &ov7251->pad);
 	if (ret < 0) {
-		dev_err(dev, "could not register media entity\n");
+		dev_err(dev, "could analt register media entity\n");
 		goto free_ctrl;
 	}
 
@@ -1733,30 +1733,30 @@ static int ov7251_probe(struct i2c_client *client)
 		goto power_down;
 
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_enable(&client->dev);
 
 	ret = ov7251_read_reg(ov7251, OV7251_PRE_ISP_00,
 			      &ov7251->pre_isp_00);
 	if (ret < 0) {
-		dev_err(dev, "could not read test pattern value\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read test pattern value\n");
+		ret = -EANALDEV;
 		goto err_pm_runtime;
 	}
 
 	ret = ov7251_read_reg(ov7251, OV7251_TIMING_FORMAT1,
 			      &ov7251->timing_format1);
 	if (ret < 0) {
-		dev_err(dev, "could not read vflip value\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read vflip value\n");
+		ret = -EANALDEV;
 		goto err_pm_runtime;
 	}
 
 	ret = ov7251_read_reg(ov7251, OV7251_TIMING_FORMAT2,
 			      &ov7251->timing_format2);
 	if (ret < 0) {
-		dev_err(dev, "could not read hflip value\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read hflip value\n");
+		ret = -EANALDEV;
 		goto err_pm_runtime;
 	}
 
@@ -1766,7 +1766,7 @@ static int ov7251_probe(struct i2c_client *client)
 
 	ret = v4l2_async_register_subdev(&ov7251->sd);
 	if (ret < 0) {
-		dev_err(dev, "could not register v4l2 device\n");
+		dev_err(dev, "could analt register v4l2 device\n");
 		goto free_entity;
 	}
 
@@ -1776,7 +1776,7 @@ static int ov7251_probe(struct i2c_client *client)
 
 err_pm_runtime:
 	pm_runtime_disable(ov7251->dev);
-	pm_runtime_put_noidle(ov7251->dev);
+	pm_runtime_put_analidle(ov7251->dev);
 power_down:
 	ov7251_set_power_off(ov7251->dev);
 free_entity:

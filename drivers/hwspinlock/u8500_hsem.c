@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010-2011 ST-Ericsson
  *
- * Implements u8500 semaphore handling for protocol 1, no interrupts.
+ * Implements u8500 semaphore handling for protocol 1, anal interrupts.
  *
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
  * Heavily borrowed from the work of :
@@ -92,7 +92,7 @@ static int u8500_hsem_probe(struct platform_device *pdev)
 	ulong val;
 
 	if (!pdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(io_base))
@@ -108,7 +108,7 @@ static int u8500_hsem_probe(struct platform_device *pdev)
 	bank = devm_kzalloc(&pdev->dev, struct_size(bank, lock, num_locks),
 			    GFP_KERNEL);
 	if (!bank)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, bank);
 

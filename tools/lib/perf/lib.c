@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <unistd.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/kernel.h>
 #include <internal/lib.h>
 
@@ -17,7 +17,7 @@ static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 		ssize_t ret = is_read ? read(fd, buf, left) :
 					write(fd, buf, left);
 
-		if (ret < 0 && errno == EINTR)
+		if (ret < 0 && erranal == EINTR)
 			continue;
 		if (ret <= 0)
 			return ret;
@@ -45,7 +45,7 @@ ssize_t preadn(int fd, void *buf, size_t n, off_t offs)
 	while (left) {
 		ssize_t ret = pread(fd, buf, left, offs);
 
-		if (ret < 0 && errno == EINTR)
+		if (ret < 0 && erranal == EINTR)
 			continue;
 		if (ret <= 0)
 			return ret;
@@ -63,6 +63,6 @@ ssize_t preadn(int fd, void *buf, size_t n, off_t offs)
  */
 ssize_t writen(int fd, const void *buf, size_t n)
 {
-	/* ion does not modify buf. */
+	/* ion does analt modify buf. */
 	return ion(false, fd, (void *)buf, n);
 }

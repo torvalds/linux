@@ -26,9 +26,9 @@ extern void CONCATENATE(GENL_MAGIC_FAMILY, _genl_unregister)(void);
  */
 
 /*
- * @DRBD_GENLA_F_MANDATORY: By default, netlink ignores attributes it does not
- * know about.  This flag can be set in nlattr->nla_type to indicate that this
- * attribute must not be ignored.
+ * @DRBD_GENLA_F_MANDATORY: By default, netlink iganalres attributes it does analt
+ * kanalw about.  This flag can be set in nlattr->nla_type to indicate that this
+ * attribute must analt be iganalred.
  *
  * We check and remove this flag in drbd_nla_check_mandatory() before
  * validating the attribute types and lengths via nla_parse_nested().
@@ -36,17 +36,17 @@ extern void CONCATENATE(GENL_MAGIC_FAMILY, _genl_unregister)(void);
 #define DRBD_GENLA_F_MANDATORY (1 << 14)
 
 /*
- * Flags specific to drbd and not visible at the netlink layer, used in
+ * Flags specific to drbd and analt visible at the netlink layer, used in
  * <struct>_from_attrs and <struct>_to_skb:
  *
  * @DRBD_F_REQUIRED: Attribute is required; a request without this attribute is
  * invalid.
  *
- * @DRBD_F_SENSITIVE: Attribute includes sensitive information and must not be
+ * @DRBD_F_SENSITIVE: Attribute includes sensitive information and must analt be
  * included in unpriviledged get requests or broadcasts.
  *
  * @DRBD_F_INVARIANT: Attribute is set when an object is initially created, but
- * cannot subsequently be changed.
+ * cananalt subsequently be changed.
  */
 #define DRBD_F_REQUIRED (1 << 0)
 #define DRBD_F_SENSITIVE (1 << 1)
@@ -123,8 +123,8 @@ static inline int nla_put_u64_0pad(struct sk_buff *skb, int attrtype, u64 value)
 #undef GENL_mc_group
 #define GENL_mc_group(group)
 
-#undef GENL_notification
-#define GENL_notification(op_name, op_num, mcast_group, tla_list)	\
+#undef GENL_analtification
+#define GENL_analtification(op_name, op_num, mcast_group, tla_list)	\
 	op_name = op_num,
 
 #undef GENL_op
@@ -135,8 +135,8 @@ enum {
 #include GENL_MAGIC_INCLUDE_FILE
 };
 
-#undef GENL_notification
-#define GENL_notification(op_name, op_num, mcast_group, tla_list)
+#undef GENL_analtification
+#define GENL_analtification(op_name, op_num, mcast_group, tla_list)
 
 #undef GENL_op
 #define GENL_op(op_name, op_num, handler, attr_list)
@@ -181,8 +181,8 @@ enum {								\
 #define GENL_op(op_name, op_num, handler, attr_list)	\
 	case op_name:
 
-#undef GENL_notification
-#define GENL_notification(op_name, op_num, mcast_group, tla_list)	\
+#undef GENL_analtification
+#define GENL_analtification(op_name, op_num, mcast_group, tla_list)	\
 	case op_name:
 
 static inline void ct_assert_unique_operations(void)
@@ -197,8 +197,8 @@ static inline void ct_assert_unique_operations(void)
 #undef GENL_op
 #define GENL_op(op_name, op_num, handler, attr_list)
 
-#undef GENL_notification
-#define GENL_notification(op_name, op_num, mcast_group, tla_list)
+#undef GENL_analtification
+#define GENL_analtification(op_name, op_num, mcast_group, tla_list)
 
 #undef GENL_struct
 #define GENL_struct(tag_name, tag_number, s_name, s_fields)		\

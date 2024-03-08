@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/regulator/mps,mpq2286.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Monolithic Power System MPQ2286 PMIC
+title: Moanallithic Power System MPQ2286 PMIC
 
 maintainers:
   - Saravanan Sekar <saravanan@linumiz.com>

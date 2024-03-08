@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -6,7 +6,7 @@
  *
  * Copyright (C) 1996, 1999, 2001 Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 #ifndef __ASM_SGIDEFS_H
 #define __ASM_SGIDEFS_H
@@ -15,7 +15,7 @@
  * Definitions for the ISA levels
  *
  * With the introduction of MIPS32 / MIPS64 instruction sets definitions
- * MIPS ISAs are no longer subsets of each other.  Therefore comparisons
+ * MIPS ISAs are anal longer subsets of each other.  Therefore comparisons
  * on these symbols except with == may result in unexpected results and
  * are forbidden!
  */

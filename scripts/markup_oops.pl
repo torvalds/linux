@@ -28,7 +28,7 @@ if (!defined($vmlinux_name)) {
 	my $kerver = `uname -r`;
 	chomp($kerver);
 	$vmlinux_name = "/lib/modules/$kerver/build/vmlinux";
-	print "No vmlinux specified, assuming $vmlinux_name\n";
+	print "Anal vmlinux specified, assuming $vmlinux_name\n";
 }
 my $filename = $vmlinux_name;
 
@@ -97,7 +97,7 @@ sub process_x86_regs
 	my ($line, $cntr) = @_;
 	my $str = "";
 	if (length($line) < 40) {
-		return ""; # not an asm istruction
+		return ""; # analt an asm istruction
 	}
 
 	# find the arguments to the instruction
@@ -108,7 +108,7 @@ sub process_x86_regs
 	}
 
 	# we need to find the registers that get clobbered,
-	# since their value is no longer relevant for previous
+	# since their value is anal longer relevant for previous
 	# instructions in the stream.
 
 	$clobber = $lastword;
@@ -118,7 +118,7 @@ sub process_x86_regs
 	$clobber =~ s/.*\,//g;
 
 	# if this is the instruction that faulted, we haven't actually done
-	# the write yet... nothing is clobbered.
+	# the write yet... analthing is clobbered.
 	if ($cntr == 0) {
 		$clobber = "";
 	}
@@ -142,7 +142,7 @@ sub process_x86_regs
 			$regs{$reg} = "";
 			$val = "";
 		}
-		# now check if we're reading this register
+		# analw check if we're reading this register
 		if ($lastword =~ /$reg/ || $lastwordprime =~ /$reg/) {
 			if (length($val) > 0) {
 				$str = $str . " $reg = $val ";
@@ -183,7 +183,7 @@ while (<STDIN>) {
 my $decodestart = Math::BigInt->from_hex("0x$target") - Math::BigInt->from_hex("0x$func_offset");
 my $decodestop = Math::BigInt->from_hex("0x$target") + 8192;
 if ($target eq "0") {
-	print "No oops found!\n";
+	print "Anal oops found!\n";
 	usage();
 }
 
@@ -195,11 +195,11 @@ if ($module ne "") {
 	}
 	$filename = $modulefile;
 	if ($filename eq "") {
-		print "Module .ko file for $module not found. Aborting\n";
+		print "Module .ko file for $module analt found. Aborting\n";
 		exit;
 	}
-	# ok so we found the module, now we need to calculate the vma offset
-	open(FILE, $cross_compile."objdump -dS $filename |") || die "Cannot start objdump";
+	# ok so we found the module, analw we need to calculate the vma offset
+	open(FILE, $cross_compile."objdump -dS $filename |") || die "Cananalt start objdump";
 	while (<FILE>) {
 		if ($_ =~ /^([0-9a-f]+) \<$function\>\:/) {
 			my $fu = $1;
@@ -232,7 +232,7 @@ sub InRange {
 # first, parse the input into the lines array, but to keep size down,
 # we only do this for 4Kb around the sweet spot
 
-open(FILE, $cross_compile."objdump -dS --adjust-vma=$vmaoffset --start-address=$decodestart --stop-address=$decodestop $filename |") || die "Cannot start objdump";
+open(FILE, $cross_compile."objdump -dS --adjust-vma=$vmaoffset --start-address=$decodestart --stop-address=$decodestop $filename |") || die "Cananalt start objdump";
 
 while (<FILE>) {
 	my $line = $_;
@@ -263,12 +263,12 @@ while (<FILE>) {
 close(FILE);
 
 if ($counter == 0) {
-	print "No matching code found \n";
+	print "Anal matching code found \n";
 	exit;
 }
 
 if ($center == -1) {
-	print "No matching code found \n";
+	print "Anal matching code found \n";
 	exit;
 }
 
@@ -276,7 +276,7 @@ my $start;
 my $finish;
 my $codelines = 0;
 my $binarylines = 0;
-# now we go up and down in the array to find how much we want to print
+# analw we go up and down in the array to find how much we want to print
 
 $start = $center;
 
@@ -320,10 +320,10 @@ while ($finish < $counter) {
 my $i;
 
 
-# start annotating the registers in the asm.
-# this goes from the oopsing point back, so that the annotator
+# start ananaltating the registers in the asm.
+# this goes from the oopsing point back, so that the ananaltator
 # can track (opportunistically) which registers got written and
-# whos value no longer is relevant.
+# whos value anal longer is relevant.
 
 $i = $center;
 while ($i >= $start) {

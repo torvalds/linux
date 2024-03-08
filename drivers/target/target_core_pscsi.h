@@ -44,7 +44,7 @@ struct pscsi_dev_virt {
 
 typedef enum phv_modes {
 	PHV_VIRTUAL_HOST_ID,
-	PHV_LLD_SCSI_HOST_NO
+	PHV_LLD_SCSI_HOST_ANAL
 } phv_modes_t;
 
 struct pscsi_hba_virt {

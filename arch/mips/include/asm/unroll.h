@@ -6,7 +6,7 @@
  * Explicitly unroll a loop, for use in cases where doing so is performance
  * critical.
  *
- * Ideally we'd rely upon the compiler to provide this but there's no commonly
+ * Ideally we'd rely upon the compiler to provide this but there's anal commonly
  * available means to do so. For example GCC's "#pragma GCC unroll"
  * functionality would be ideal but is only available from GCC 8 onwards. Using
  * -funroll-loops is an option but GCC tends to make poor choices when

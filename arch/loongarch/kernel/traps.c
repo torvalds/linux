@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Author: Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
@@ -25,7 +25,7 @@
 #include <linux/ptrace.h>
 #include <linux/kgdb.h>
 #include <linux/kdebug.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/irq.h>
 #include <linux/perf_event.h>
 
@@ -278,7 +278,7 @@ static const char *humanize_exc_name(unsigned int ecode, unsigned int esubcode)
 		}
 		break;
 	/*
-	 * The manual did not mention the EXCCODE_SE case, but print out it
+	 * The manual did analt mention the EXCCODE_SE case, but print out it
 	 * nevertheless.
 	 */
 	case EXCCODE_SE: return "SE";
@@ -377,7 +377,7 @@ void die(const char *str, struct pt_regs *regs)
 
 	oops_enter();
 
-	ret = notify_die(DIE_OOPS, str, regs, 0,
+	ret = analtify_die(DIE_OOPS, str, regs, 0,
 			 current->thread.trap_nr, SIGSEGV);
 
 	console_verbose();
@@ -386,12 +386,12 @@ void die(const char *str, struct pt_regs *regs)
 
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	raw_spin_unlock_irq(&die_lock);
 
 	oops_exit();
 
-	if (ret == NOTIFY_STOP)
+	if (ret == ANALTIFY_STOP)
 		return;
 
 	if (regs && kexec_should_crash(current))
@@ -413,7 +413,7 @@ static inline void setup_vint_size(unsigned int size)
 	vs = ilog2(size/4);
 
 	if (vs == 0 || vs > 7)
-		panic("vint_size %d Not support yet", vs);
+		panic("vint_size %d Analt support yet", vs);
 
 	csr_xchg32(vs<<CSR_ECFG_VS_SHIFT, CSR_ECFG_VS, LOONGARCH_CSR_ECFG);
 }
@@ -478,14 +478,14 @@ static int process_fpemu_return(int sig, void __user *fault_addr, unsigned long 
 /*
  * Delayed fp exceptions when doing a lazy ctx switch
  */
-asmlinkage void noinstr do_fpe(struct pt_regs *regs, unsigned long fcsr)
+asmlinkage void analinstr do_fpe(struct pt_regs *regs, unsigned long fcsr)
 {
 	int sig;
 	void __user *fault_addr;
 	irqentry_state_t state = irqentry_enter(regs);
 
-	if (notify_die(DIE_FP, "FP exception", regs, 0, current->thread.trap_nr,
-		       SIGFPE) == NOTIFY_STOP)
+	if (analtify_die(DIE_FP, "FP exception", regs, 0, current->thread.trap_nr,
+		       SIGFPE) == ANALTIFY_STOP)
 		goto out;
 
 	/* Clear FCSR.Cause before enabling interrupts */
@@ -505,7 +505,7 @@ out:
 	irqentry_exit(regs, state);
 }
 
-asmlinkage void noinstr do_ade(struct pt_regs *regs)
+asmlinkage void analinstr do_ade(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -517,9 +517,9 @@ asmlinkage void noinstr do_ade(struct pt_regs *regs)
 
 /* sysctl hooks */
 int unaligned_enabled __read_mostly = 1;	/* Enabled by default */
-int no_unaligned_warning __read_mostly = 1;	/* Only 1 warning by default */
+int anal_unaligned_warning __read_mostly = 1;	/* Only 1 warning by default */
 
-asmlinkage void noinstr do_ale(struct pt_regs *regs)
+asmlinkage void analinstr do_ale(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -540,7 +540,7 @@ asmlinkage void noinstr do_ale(struct pt_regs *regs)
 		goto sigbus;
 	if (!unaligned_enabled)
 		goto sigbus;
-	if (!no_unaligned_warning)
+	if (!anal_unaligned_warning)
 		show_registers(regs);
 
 	pc = (unsigned int *)exception_era(regs);
@@ -568,7 +568,7 @@ static void bug_handler(struct pt_regs *regs)
 {
 	switch (report_bug(regs->csr_era, regs)) {
 	case BUG_TRAP_TYPE_BUG:
-	case BUG_TRAP_TYPE_NONE:
+	case BUG_TRAP_TYPE_ANALNE:
 		die_if_kernel("Oops - BUG", regs);
 		force_sig(SIGTRAP);
 		break;
@@ -580,7 +580,7 @@ static void bug_handler(struct pt_regs *regs)
 	}
 }
 
-asmlinkage void noinstr do_bce(struct pt_regs *regs)
+asmlinkage void analinstr do_bce(struct pt_regs *regs)
 {
 	bool user = user_mode(regs);
 	unsigned long era = exception_era(regs);
@@ -606,14 +606,14 @@ asmlinkage void noinstr do_bce(struct pt_regs *regs)
 	switch (insn.reg3_format.opcode) {
 	case asrtle_op:
 		if (insn.reg3_format.rd != 0)
-			break;	/* not asrtle */
+			break;	/* analt asrtle */
 		badv = regs->regs[insn.reg3_format.rj];
 		upper = regs->regs[insn.reg3_format.rk];
 		break;
 
 	case asrtgt_op:
 		if (insn.reg3_format.rd != 0)
-			break;	/* not asrtgt */
+			break;	/* analt asrtgt */
 		badv = regs->regs[insn.reg3_format.rj];
 		lower = regs->regs[insn.reg3_format.rk];
 		break;
@@ -662,14 +662,14 @@ out:
 
 bad_era:
 	/*
-	 * Cannot pull out the instruction word, hence cannot provide more
+	 * Cananalt pull out the instruction word, hence cananalt provide more
 	 * info than a regular SIGSEGV in this case.
 	 */
 	force_sig(SIGSEGV);
 	goto out;
 }
 
-asmlinkage void noinstr do_bp(struct pt_regs *regs)
+asmlinkage void analinstr do_bp(struct pt_regs *regs)
 {
 	bool user = user_mode(regs);
 	unsigned int opcode, bcode;
@@ -685,7 +685,7 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	bcode = (opcode & 0x7fff);
 
 	/*
-	 * notify the kprobe handlers, if instruction is likely to
+	 * analtify the kprobe handlers, if instruction is likely to
 	 * pertain to them.
 	 */
 	switch (bcode) {
@@ -716,8 +716,8 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 			break;
 	default:
 		current->thread.trap_nr = read_csr_excode();
-		if (notify_die(DIE_TRAP, "Break", regs, bcode,
-			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+		if (analtify_die(DIE_TRAP, "Break", regs, bcode,
+			       current->thread.trap_nr, SIGTRAP) == ANALTIFY_STOP)
 			goto out;
 		else
 			break;
@@ -753,12 +753,12 @@ out_sigsegv:
 	goto out;
 }
 
-asmlinkage void noinstr do_watch(struct pt_regs *regs)
+asmlinkage void analinstr do_watch(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
-	pr_warn("Hardware watch point handler not implemented!\n");
+	pr_warn("Hardware watch point handler analt implemented!\n");
 #else
 	if (kgdb_breakpoint_handler(regs))
 		goto out;
@@ -781,14 +781,14 @@ asmlinkage void noinstr do_watch(struct pt_regs *regs)
 
 		if (pc == current->thread.single_step) {
 			/*
-			 * Certain insns are occasionally not skipped when CSR.FWPS.Skip is
+			 * Certain insns are occasionally analt skipped when CSR.FWPS.Skip is
 			 * set, such as fld.d/fst.d. So singlestep needs to compare whether
 			 * the csr_era is equal to the value of singlestep which last time set.
 			 */
 			if (!is_self_loop_ins(ip, regs)) {
 				/*
 				 * Check if the given instruction the target pc is equal to the
-				 * current pc, If yes, then we should not set the CSR.FWPS.SKIP
+				 * current pc, If anal, then we should analt set the CSR.FWPS.SKIP
 				 * bit to break the original instruction stream.
 				 */
 				csr_write32(CSR_FWPC_SKIP, LOONGARCH_CSR_FWPS);
@@ -806,7 +806,7 @@ out:
 	irqentry_exit(regs, state);
 }
 
-asmlinkage void noinstr do_ri(struct pt_regs *regs)
+asmlinkage void analinstr do_ri(struct pt_regs *regs)
 {
 	int status = SIGILL;
 	unsigned int __maybe_unused opcode;
@@ -816,8 +816,8 @@ asmlinkage void noinstr do_ri(struct pt_regs *regs)
 	local_irq_enable();
 	current->thread.trap_nr = read_csr_excode();
 
-	if (notify_die(DIE_RI, "RI Fault", regs, 0, current->thread.trap_nr,
-		       SIGILL) == NOTIFY_STOP)
+	if (analtify_die(DIE_RI, "RI Fault", regs, 0, current->thread.trap_nr,
+		       SIGILL) == ANALTIFY_STOP)
 		goto out;
 
 	die_if_kernel("Reserved instruction in kernel code", regs);
@@ -901,7 +901,7 @@ static void init_restore_lasx(void)
 	BUG_ON(!is_lasx_enabled());
 }
 
-asmlinkage void noinstr do_fpu(struct pt_regs *regs)
+asmlinkage void analinstr do_fpu(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -918,7 +918,7 @@ asmlinkage void noinstr do_fpu(struct pt_regs *regs)
 	irqentry_exit(regs, state);
 }
 
-asmlinkage void noinstr do_lsx(struct pt_regs *regs)
+asmlinkage void analinstr do_lsx(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -940,7 +940,7 @@ out:
 	irqentry_exit(regs, state);
 }
 
-asmlinkage void noinstr do_lasx(struct pt_regs *regs)
+asmlinkage void analinstr do_lasx(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -975,7 +975,7 @@ static void init_restore_lbt(void)
 	BUG_ON(!is_lbt_enabled());
 }
 
-asmlinkage void noinstr do_lbt(struct pt_regs *regs)
+asmlinkage void analinstr do_lbt(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -984,7 +984,7 @@ asmlinkage void noinstr do_lbt(struct pt_regs *regs)
 	 * during FP save/restore if TM (Top Mode) is on, which may
 	 * cause irq_enable during 'switch_to'. To avoid this situation
 	 * (including the user using 'MOVGR2GCSR' to turn on TM, which
-	 * will not trigger the BTE), we need to check PRMD first.
+	 * will analt trigger the BTE), we need to check PRMD first.
 	 */
 	if (regs->csr_prmd & CSR_PRMD_PIE)
 		local_irq_enable();
@@ -1006,16 +1006,16 @@ out:
 	irqentry_exit(regs, state);
 }
 
-asmlinkage void noinstr do_reserved(struct pt_regs *regs)
+asmlinkage void analinstr do_reserved(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
 	/*
-	 * Game over - no way to handle this if it ever occurs.	Most probably
-	 * caused by a fatal error after another hardware/software error.
+	 * Game over - anal way to handle this if it ever occurs.	Most probably
+	 * caused by a fatal error after aanalther hardware/software error.
 	 */
-	pr_err("Caught reserved exception %u on pid:%d [%s] - should not happen\n",
+	pr_err("Caught reserved exception %u on pid:%d [%s] - should analt happen\n",
 		read_csr_excode(), current->pid, current->comm);
 	die_if_kernel("do_reserved exception", regs);
 	force_sig(SIGUNUSED);
@@ -1034,7 +1034,7 @@ asmlinkage void cache_parity_error(void)
 	panic("Can't handle the cache error!");
 }
 
-asmlinkage void noinstr handle_loongarch_irq(struct pt_regs *regs)
+asmlinkage void analinstr handle_loongarch_irq(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 
@@ -1045,7 +1045,7 @@ asmlinkage void noinstr handle_loongarch_irq(struct pt_regs *regs)
 	irq_exit_rcu();
 }
 
-asmlinkage void noinstr do_vint(struct pt_regs *regs, unsigned long sp)
+asmlinkage void analinstr do_vint(struct pt_regs *regs, unsigned long sp)
 {
 	register int cpu;
 	register unsigned long stack;
@@ -1067,7 +1067,7 @@ asmlinkage void noinstr do_vint(struct pt_regs *regs, unsigned long sp)
 		"move	$a0, %[regs]		\n"
 		"bl	handle_loongarch_irq	\n"
 		"move	$sp, $s0		\n" /* Restore sp */
-		: /* No outputs */
+		: /* Anal outputs */
 		: [stk] "r" (stack), [regs] "r" (regs)
 		: "$a0", "$a1", "$a2", "$a3", "$a4", "$a5", "$a6", "$a7", "$s0",
 		  "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8",

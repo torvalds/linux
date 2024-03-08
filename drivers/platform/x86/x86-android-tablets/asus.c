@@ -49,31 +49,31 @@ static const struct property_entry asus_me176c_accel_props[] = {
 	{ }
 };
 
-static const struct software_node asus_me176c_accel_node = {
+static const struct software_analde asus_me176c_accel_analde = {
 	.properties = asus_me176c_accel_props,
 };
 
 static const struct property_entry asus_me176c_bq24190_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", tusb1211_chg_det_psy, 1),
-	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
+	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_analde),
 	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
 	PROPERTY_ENTRY_BOOL("disable-reset"),
 	{ }
 };
 
-static const struct software_node asus_me176c_bq24190_node = {
+static const struct software_analde asus_me176c_bq24190_analde = {
 	.properties = asus_me176c_bq24190_props,
 };
 
 static const struct property_entry asus_me176c_ug3105_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", bq24190_psy, 1),
-	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
+	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_analde),
 	PROPERTY_ENTRY_U32("upisemi,rsns-microohm", 10000),
 	{ }
 };
 
-static const struct software_node asus_me176c_ug3105_node = {
+static const struct software_analde asus_me176c_ug3105_analde = {
 	.properties = asus_me176c_ug3105_props,
 };
 
@@ -84,7 +84,7 @@ static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = 
 			.type = "bq24190",
 			.addr = 0x6b,
 			.dev_name = "bq24297",
-			.swnode = &asus_me176c_bq24190_node,
+			.swanalde = &asus_me176c_bq24190_analde,
 			.platform_data = &bq24190_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C1",
@@ -100,7 +100,7 @@ static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = 
 			.type = "ug3105",
 			.addr = 0x70,
 			.dev_name = "ug3105",
-			.swnode = &asus_me176c_ug3105_node,
+			.swanalde = &asus_me176c_ug3105_analde,
 		},
 		.adapter_path = "\\_SB_.I2C1",
 	}, {
@@ -117,7 +117,7 @@ static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = 
 			.type = "kxtj21009",
 			.addr = 0x0f,
 			.dev_name = "kxtj21009",
-			.swnode = &asus_me176c_accel_node,
+			.swanalde = &asus_me176c_accel_analde,
 		},
 		.adapter_path = "\\_SB_.I2C5",
 		.irq_data = {
@@ -177,7 +177,7 @@ const struct x86_dev_info asus_me176c_info __initconst = {
 	.gpio_button = &asus_me176c_tf103c_lid,
 	.gpio_button_count = 1,
 	.gpiod_lookup_tables = asus_me176c_gpios,
-	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
+	.bat_swanalde = &generic_lipo_hv_4v35_battery_analde,
 	.modules = bq24190_modules,
 };
 
@@ -193,7 +193,7 @@ static const struct property_entry asus_tf103c_accel_props[] = {
 	{ }
 };
 
-static const struct software_node asus_tf103c_accel_node = {
+static const struct software_analde asus_tf103c_accel_analde = {
 	.properties = asus_tf103c_accel_props,
 };
 
@@ -202,7 +202,7 @@ static const struct property_entry asus_tf103c_touchscreen_props[] = {
 	{ }
 };
 
-static const struct software_node asus_tf103c_touchscreen_node = {
+static const struct software_analde asus_tf103c_touchscreen_analde = {
 	.properties = asus_tf103c_touchscreen_props,
 };
 
@@ -217,31 +217,31 @@ static const struct property_entry asus_tf103c_battery_props[] = {
 	{ }
 };
 
-static const struct software_node asus_tf103c_battery_node = {
+static const struct software_analde asus_tf103c_battery_analde = {
 	.properties = asus_tf103c_battery_props,
 };
 
 static const struct property_entry asus_tf103c_bq24190_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", tusb1211_chg_det_psy, 1),
-	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
+	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_analde),
 	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
 	PROPERTY_ENTRY_BOOL("disable-reset"),
 	{ }
 };
 
-static const struct software_node asus_tf103c_bq24190_node = {
+static const struct software_analde asus_tf103c_bq24190_analde = {
 	.properties = asus_tf103c_bq24190_props,
 };
 
 static const struct property_entry asus_tf103c_ug3105_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", bq24190_psy, 1),
-	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
+	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_analde),
 	PROPERTY_ENTRY_U32("upisemi,rsns-microohm", 5000),
 	{ }
 };
 
-static const struct software_node asus_tf103c_ug3105_node = {
+static const struct software_analde asus_tf103c_ug3105_analde = {
 	.properties = asus_tf103c_ug3105_props,
 };
 
@@ -252,7 +252,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 			.type = "bq24190",
 			.addr = 0x6b,
 			.dev_name = "bq24297",
-			.swnode = &asus_tf103c_bq24190_node,
+			.swanalde = &asus_tf103c_bq24190_analde,
 			.platform_data = &bq24190_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C1",
@@ -268,7 +268,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 			.type = "ug3105",
 			.addr = 0x70,
 			.dev_name = "ug3105",
-			.swnode = &asus_tf103c_ug3105_node,
+			.swanalde = &asus_tf103c_ug3105_analde,
 		},
 		.adapter_path = "\\_SB_.I2C1",
 	}, {
@@ -285,7 +285,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 			.type = "kxtj21009",
 			.addr = 0x0f,
 			.dev_name = "kxtj21009",
-			.swnode = &asus_tf103c_accel_node,
+			.swanalde = &asus_tf103c_accel_analde,
 		},
 		.adapter_path = "\\_SB_.I2C5",
 	}, {
@@ -294,7 +294,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 			.type = "atmel_mxt_ts",
 			.addr = 0x4a,
 			.dev_name = "atmel_mxt_ts",
-			.swnode = &asus_tf103c_touchscreen_node,
+			.swanalde = &asus_tf103c_touchscreen_analde,
 		},
 		.adapter_path = "\\_SB_.I2C6",
 		.irq_data = {
@@ -321,6 +321,6 @@ const struct x86_dev_info asus_tf103c_info __initconst = {
 	.gpio_button = &asus_me176c_tf103c_lid,
 	.gpio_button_count = 1,
 	.gpiod_lookup_tables = asus_tf103c_gpios,
-	.bat_swnode = &asus_tf103c_battery_node,
+	.bat_swanalde = &asus_tf103c_battery_analde,
 	.modules = bq24190_modules,
 };

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -33,7 +33,7 @@ struct mmio_diff_param {
 };
 
 struct diff_mmio {
-	struct list_head node;
+	struct list_head analde;
 	u32 offset;
 	u32 preg;
 	u32 vreg;
@@ -46,8 +46,8 @@ static int mmio_offset_compare(void *priv,
 	struct diff_mmio *ma;
 	struct diff_mmio *mb;
 
-	ma = container_of(a, struct diff_mmio, node);
-	mb = container_of(b, struct diff_mmio, node);
+	ma = container_of(a, struct diff_mmio, analde);
+	mb = container_of(b, struct diff_mmio, analde);
 	if (ma->offset < mb->offset)
 		return -1;
 	else if (ma->offset > mb->offset)
@@ -59,21 +59,21 @@ static inline int mmio_diff_handler(struct intel_gvt *gvt,
 				    u32 offset, void *data)
 {
 	struct mmio_diff_param *param = data;
-	struct diff_mmio *node;
+	struct diff_mmio *analde;
 	u32 preg, vreg;
 
-	preg = intel_uncore_read_notrace(gvt->gt->uncore, _MMIO(offset));
+	preg = intel_uncore_read_analtrace(gvt->gt->uncore, _MMIO(offset));
 	vreg = vgpu_vreg(param->vgpu, offset);
 
 	if (preg != vreg) {
-		node = kmalloc(sizeof(*node), GFP_ATOMIC);
-		if (!node)
-			return -ENOMEM;
+		analde = kmalloc(sizeof(*analde), GFP_ATOMIC);
+		if (!analde)
+			return -EANALMEM;
 
-		node->offset = offset;
-		node->preg = preg;
-		node->vreg = vreg;
-		list_add(&node->node, &param->diff_mmio_list);
+		analde->offset = offset;
+		analde->preg = preg;
+		analde->vreg = vreg;
+		list_add(&analde->analde, &param->diff_mmio_list);
 		param->diff++;
 	}
 	param->total++;
@@ -90,7 +90,7 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 		.total = 0,
 		.diff = 0,
 	};
-	struct diff_mmio *node, *next;
+	struct diff_mmio *analde, *next;
 
 	INIT_LIST_HEAD(&param.diff_mmio_list);
 
@@ -109,14 +109,14 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 	list_sort(NULL, &param.diff_mmio_list, mmio_offset_compare);
 
 	seq_printf(s, "%-8s %-8s %-8s %-8s\n", "Offset", "HW", "vGPU", "Diff");
-	list_for_each_entry_safe(node, next, &param.diff_mmio_list, node) {
-		u32 diff = node->preg ^ node->vreg;
+	list_for_each_entry_safe(analde, next, &param.diff_mmio_list, analde) {
+		u32 diff = analde->preg ^ analde->vreg;
 
 		seq_printf(s, "%08x %08x %08x %*pbl\n",
-			   node->offset, node->preg, node->vreg,
+			   analde->offset, analde->preg, analde->vreg,
 			   32, &diff);
-		list_del(&node->node);
-		kfree(node);
+		list_del(&analde->analde);
+		kfree(analde);
 	}
 	seq_printf(s, "Total: %d, Diff: %d\n", param.total, param.diff);
 	return 0;
@@ -124,31 +124,31 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(vgpu_mmio_diff);
 
 static int
-vgpu_scan_nonprivbb_get(void *data, u64 *val)
+vgpu_scan_analnprivbb_get(void *data, u64 *val)
 {
 	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
 
-	*val = vgpu->scan_nonprivbb;
+	*val = vgpu->scan_analnprivbb;
 	return 0;
 }
 
 /*
- * set/unset bit engine_id of vgpu->scan_nonprivbb to turn on/off scanning
- * of non-privileged batch buffer. e.g.
- * if vgpu->scan_nonprivbb=3, then it will scan non-privileged batch buffer
+ * set/unset bit engine_id of vgpu->scan_analnprivbb to turn on/off scanning
+ * of analn-privileged batch buffer. e.g.
+ * if vgpu->scan_analnprivbb=3, then it will scan analn-privileged batch buffer
  * on engine 0 and 1.
  */
 static int
-vgpu_scan_nonprivbb_set(void *data, u64 val)
+vgpu_scan_analnprivbb_set(void *data, u64 val)
 {
 	struct intel_vgpu *vgpu = (struct intel_vgpu *)data;
 
-	vgpu->scan_nonprivbb = val;
+	vgpu->scan_analnprivbb = val;
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(vgpu_scan_nonprivbb_fops,
-			 vgpu_scan_nonprivbb_get, vgpu_scan_nonprivbb_set,
+DEFINE_DEBUGFS_ATTRIBUTE(vgpu_scan_analnprivbb_fops,
+			 vgpu_scan_analnprivbb_get, vgpu_scan_analnprivbb_set,
 			 "0x%llx\n");
 
 static int vgpu_status_get(void *data, u64 *val)
@@ -180,8 +180,8 @@ void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 
 	debugfs_create_file("mmio_diff", 0444, vgpu->debugfs, vgpu,
 			    &vgpu_mmio_diff_fops);
-	debugfs_create_file_unsafe("scan_nonprivbb", 0644, vgpu->debugfs, vgpu,
-				   &vgpu_scan_nonprivbb_fops);
+	debugfs_create_file_unsafe("scan_analnprivbb", 0644, vgpu->debugfs, vgpu,
+				   &vgpu_scan_analnprivbb_fops);
 	debugfs_create_file_unsafe("status", 0644, vgpu->debugfs, vgpu,
 				   &vgpu_status_fops);
 }
@@ -193,9 +193,9 @@ void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
-	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+	struct drm_mianalr *mianalr = gvt->gt->i915->drm.primary;
 
-	if (minor->debugfs_root && gvt->debugfs_root) {
+	if (mianalr->debugfs_root && gvt->debugfs_root) {
 		debugfs_remove_recursive(vgpu->debugfs);
 		vgpu->debugfs = NULL;
 	}
@@ -207,9 +207,9 @@ void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_debugfs_init(struct intel_gvt *gvt)
 {
-	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+	struct drm_mianalr *mianalr = gvt->gt->i915->drm.primary;
 
-	gvt->debugfs_root = debugfs_create_dir("gvt", minor->debugfs_root);
+	gvt->debugfs_root = debugfs_create_dir("gvt", mianalr->debugfs_root);
 
 	debugfs_create_ulong("num_tracked_mmio", 0444, gvt->debugfs_root,
 			     &gvt->mmio.num_tracked_mmio);
@@ -221,9 +221,9 @@ void intel_gvt_debugfs_init(struct intel_gvt *gvt)
  */
 void intel_gvt_debugfs_clean(struct intel_gvt *gvt)
 {
-	struct drm_minor *minor = gvt->gt->i915->drm.primary;
+	struct drm_mianalr *mianalr = gvt->gt->i915->drm.primary;
 
-	if (minor->debugfs_root) {
+	if (mianalr->debugfs_root) {
 		debugfs_remove_recursive(gvt->debugfs_root);
 		gvt->debugfs_root = NULL;
 	}

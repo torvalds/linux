@@ -104,9 +104,9 @@ static int attach_tc_prog(struct bpf_tc_hook *hook, int igr_fd, int egr_fd)
 
 static void cleanup(void)
 {
-	SYS_NOFAIL("test -f /var/run/netns/" NS0 " && ip netns delete " NS0);
-	SYS_NOFAIL("test -f /var/run/netns/" NS1 " && ip netns delete " NS1);
-	SYS_NOFAIL("test -f /var/run/netns/" NS2 " && ip netns delete " NS2);
+	SYS_ANALFAIL("test -f /var/run/netns/" NS0 " && ip netns delete " NS0);
+	SYS_ANALFAIL("test -f /var/run/netns/" NS1 " && ip netns delete " NS1);
+	SYS_ANALFAIL("test -f /var/run/netns/" NS2 " && ip netns delete " NS2);
 }
 
 static int config_underlay(void)

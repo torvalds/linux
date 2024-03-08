@@ -2,7 +2,7 @@
 /*
  * Register definition header for NPCM video driver
  *
- * Copyright (C) 2022 Nuvoton Technologies
+ * Copyright (C) 2022 Nuvoton Techanallogies
  */
 
 #ifndef _NPCM_REGS_H

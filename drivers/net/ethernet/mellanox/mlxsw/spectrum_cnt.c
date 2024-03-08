@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
@@ -127,7 +127,7 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	pool = kzalloc(struct_size(pool, sub_pools, sub_pools_count),
 		       GFP_KERNEL);
 	if (!pool)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_sp->counter_pool = pool;
 	pool->sub_pools_count = sub_pools_count;
 	memcpy(pool->sub_pools, mlxsw_sp_counter_sub_pools,
@@ -144,7 +144,7 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 
 	pool->usage = bitmap_zalloc(pool->pool_size, GFP_KERNEL);
 	if (!pool->usage) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_usage_alloc;
 	}
 
@@ -196,14 +196,14 @@ int mlxsw_sp_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 	spin_lock(&pool->counter_pool_lock);
 	entry_index = find_next_zero_bit(pool->usage, stop_index, entry_index);
 	if (entry_index == stop_index) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto err_alloc;
 	}
-	/* The sub-pools can contain non-integer number of entries
+	/* The sub-pools can contain analn-integer number of entries
 	 * so we must check for overflow
 	 */
 	if (entry_index + sub_pool->entry_size > stop_index) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto err_alloc;
 	}
 	for (i = 0; i < sub_pool->entry_size; i++)
@@ -298,7 +298,7 @@ int mlxsw_sp_counter_resources_register(struct mlxsw_core *mlxsw_core)
 		total_bank_config += sub_pool->bank_count;
 	}
 
-	/* Check config is valid, no bank over subscription */
+	/* Check config is valid, anal bank over subscription */
 	if (WARN_ON(total_bank_config > div64_u64(pool_size, bank_size) + 1))
 		return -EINVAL;
 

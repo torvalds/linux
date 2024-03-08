@@ -42,11 +42,11 @@ struct edgeport_product_info {
 	__u8	BoardRev;			/* PCB revision level (chg only if s/w visible) */
 
 	__u8	BootMajorVersion;		/* Boot Firmware version: xx. */
-	__u8	BootMinorVersion;		/*			  yy. */
+	__u8	BootMianalrVersion;		/*			  yy. */
 	__le16	BootBuildNumber;		/*			  zzzz (LE format) */
 
 	__u8	FirmwareMajorVersion;		/* Operational Firmware version:xx. */
-	__u8	FirmwareMinorVersion;		/*				yy. */
+	__u8	FirmwareMianalrVersion;		/*				yy. */
 	__le16	FirmwareBuildNumber;		/*				zzzz (LE format) */
 
 	__u8	ManufactureDescDate[3];		/* MM/DD/YY when descriptor template was compiled */

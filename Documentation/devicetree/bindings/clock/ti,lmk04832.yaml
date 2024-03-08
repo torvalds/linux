@@ -71,7 +71,7 @@ properties:
     description: |
       SYSREF Mux configuration.
       Available options are,
-        Normal SYNC 0
+        Analrmal SYNC 0
         Re-clocked 1
         SYSREF Pulser 2
         SYSREF Continuous 3
@@ -87,7 +87,7 @@ properties:
 
   ti,sysref-pulse-count:
     description:
-      Number of SYSREF pulses to send when SYSREF is not in continuous mode.
+      Number of SYSREF pulses to send when SYSREF is analt in continuous mode.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2, 4, 8]
     default: 4
@@ -96,7 +96,7 @@ patternProperties:
   "@[0-9a-d]+$":
     type: object
     description:
-      Child nodes used to configure output clocks.
+      Child analdes used to configure output clocks.
 
     properties:
       reg:
@@ -120,11 +120,11 @@ patternProperties:
             CML 24 mA 0x08
             CML 32 mA 0x09
             CMOS (Off/Inverted) 0x0a
-            CMOS (Normal/Off) 0x0b
+            CMOS (Analrmal/Off) 0x0b
             CMOS (Inverted/Inverted) 0x0c
-            CMOS (Inverted/Normal) 0x0d
-            CMOS (Normal/Inverted) 0x0e
-            CMOS (Normal/Normal) 0x0f
+            CMOS (Inverted/Analrmal) 0x0d
+            CMOS (Analrmal/Inverted) 0x0e
+            CMOS (Analrmal/Analrmal) 0x0f
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 15

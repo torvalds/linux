@@ -264,7 +264,7 @@ static void snd_serial_generic_parse_dt(struct serdev_device *serdev,
 {
 	int err;
 
-	err = of_property_read_u32(serdev->dev.of_node, "current-speed",
+	err = of_property_read_u32(serdev->dev.of_analde, "current-speed",
 		&drvdata->baudrate);
 	if (err < 0) {
 		dev_dbg(drvdata->card->dev,

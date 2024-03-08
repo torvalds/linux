@@ -213,7 +213,7 @@ int ipu_vdi_init(struct ipu_soc *ipu, struct device *dev,
 
 	vdi = devm_kzalloc(dev, sizeof(*vdi), GFP_KERNEL);
 	if (!vdi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipu->vdi_priv = vdi;
 
@@ -221,7 +221,7 @@ int ipu_vdi_init(struct ipu_soc *ipu, struct device *dev,
 	vdi->module = module;
 	vdi->base = devm_ioremap(dev, base, PAGE_SIZE);
 	if (!vdi->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "VDI base: 0x%08lx remapped to %p\n", base, vdi->base);
 	vdi->ipu = ipu;

@@ -20,7 +20,7 @@
  * Atari Mouse Driver for Linux
  * by Robert de Vries (robert@and.nl) 19Jul93
  *
- * 16 Nov 1994 Andreas Schwab
+ * 16 Analv 1994 Andreas Schwab
  * Compatibility with busmouse
  * Support for three button mouse (shamelessly stolen from MiNT)
  * third button wired to one of the joystick directions on joystick 1
@@ -110,7 +110,7 @@ static int __init atamouse_init(void)
 	int error;
 
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(ST_MFP))
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = atari_keyb_init();
 	if (error)
@@ -118,7 +118,7 @@ static int __init atamouse_init(void)
 
 	atamouse_dev = input_allocate_device();
 	if (!atamouse_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atamouse_dev->name = "Atari mouse";
 	atamouse_dev->phys = "atamouse/input0";

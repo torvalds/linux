@@ -17,14 +17,14 @@ static int otx2_dl_mcam_count_validate(struct devlink *devlink, u32 id,
 
 	if (!pfvf->flow_cfg) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "pfvf->flow_cfg not initialized");
+				   "pfvf->flow_cfg analt initialized");
 		return -EINVAL;
 	}
 
 	flow_cfg = pfvf->flow_cfg;
 	if (flow_cfg && flow_cfg->nr_flows) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot modify count when there are active rules");
+				   "Cananalt modify count when there are active rules");
 		return -EINVAL;
 	}
 
@@ -89,7 +89,7 @@ int otx2_register_dl(struct otx2_nic *pfvf)
 			   sizeof(struct otx2_devlink), pfvf->dev);
 	if (!dl) {
 		dev_warn(pfvf->dev, "devlink_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	otx2_dl = devlink_priv(dl);

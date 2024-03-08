@@ -48,16 +48,16 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count)
  *              initial_table_count - Size of initial_table_array, in number of
  *                                    struct acpi_table_desc structures
  *              allow_resize        - Flag to tell Table Manager if resize of
- *                                    pre-allocated array is allowed. Ignored
+ *                                    pre-allocated array is allowed. Iganalred
  *                                    if initial_table_array is NULL.
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize the table manager, get the RSDP and RSDT/XSDT.
  *
- * NOTE:        Allows static allocation of the initial table array in order
+ * ANALTE:        Allows static allocation of the initial table array in order
  *              to avoid the use of dynamic memory in confined environments
- *              such as the kernel boot sequence where it may not be available.
+ *              such as the kernel boot sequence where it may analt be available.
  *
  *              If the host OS memory managers are initialized, use NULL for
  *              initial_table_array, and the table will be dynamically allocated.
@@ -91,7 +91,7 @@ acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 
 		acpi_gbl_root_table_list.tables = initial_table_array;
 		acpi_gbl_root_table_list.max_table_count = initial_table_count;
-		acpi_gbl_root_table_list.flags = ACPI_ROOT_ORIGIN_UNKNOWN;
+		acpi_gbl_root_table_list.flags = ACPI_ROOT_ORIGIN_UNKANALWN;
 		if (allow_resize) {
 			acpi_gbl_root_table_list.flags |=
 			    ACPI_ROOT_ALLOW_RESIZE;
@@ -102,7 +102,7 @@ acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 
 	rsdp_address = acpi_os_get_root_pointer();
 	if (!rsdp_address) {
-		return_ACPI_STATUS(AE_NOT_FOUND);
+		return_ACPI_STATUS(AE_ANALT_FOUND);
 	}
 
 	/*
@@ -120,7 +120,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_tables)
  *
  * FUNCTION:    acpi_reallocate_root_table
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -161,14 +161,14 @@ acpi_status ACPI_INIT_FUNCTION acpi_reallocate_root_table(void)
 		table_desc = &acpi_gbl_root_table_list.tables[i];
 		if (table_desc->pointer) {
 			ACPI_ERROR((AE_INFO,
-				    "Table [%4.4s] is not invalidated during early boot stage",
+				    "Table [%4.4s] is analt invalidated during early boot stage",
 				    table_desc->signature.ascii));
 		}
 	}
 
 	if (!acpi_gbl_enable_table_validation) {
 		/*
-		 * Now it's safe to do full table validation. We can do deferred
+		 * Analw it's safe to do full table validation. We can do deferred
 		 * table initialization here once the flag is set.
 		 */
 		acpi_gbl_enable_table_validation = TRUE;
@@ -250,7 +250,7 @@ acpi_get_table_header(char *signature,
 						       sizeof(struct
 							      acpi_table_header));
 				if (!header) {
-					return (AE_NO_MEMORY);
+					return (AE_ANAL_MEMORY);
 				}
 
 				memcpy(out_table_header, header,
@@ -259,7 +259,7 @@ acpi_get_table_header(char *signature,
 						     sizeof(struct
 							    acpi_table_header));
 			} else {
-				return (AE_NOT_FOUND);
+				return (AE_ANALT_FOUND);
 			}
 		} else {
 			memcpy(out_table_header,
@@ -269,7 +269,7 @@ acpi_get_table_header(char *signature,
 		return (AE_OK);
 	}
 
-	return (AE_NOT_FOUND);
+	return (AE_ANALT_FOUND);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_table_header)
@@ -286,7 +286,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_table_header)
  *
  * DESCRIPTION: Finds and verifies an ACPI table. Table must be in the
  *              RSDT/XSDT.
- *              Note that an early stage acpi_get_table() call must be paired
+ *              Analte that an early stage acpi_get_table() call must be paired
  *              with an early stage acpi_put_table() call. otherwise the table
  *              pointer mapped by the early stage mapping implementation may be
  *              erroneously unmapped by the late stage unmapping implementation
@@ -299,7 +299,7 @@ acpi_get_table(char *signature,
 {
 	u32 i;
 	u32 j;
-	acpi_status status = AE_NOT_FOUND;
+	acpi_status status = AE_ANALT_FOUND;
 	struct acpi_table_desc *table_desc;
 
 	/* Parameter validation */
@@ -309,7 +309,7 @@ acpi_get_table(char *signature,
 	}
 
 	/*
-	 * Note that the following line is required by some OSPMs, they only
+	 * Analte that the following line is required by some OSPMs, they only
 	 * check if the returned table is NULL instead of the returned status
 	 * to determined if this function is succeeded.
 	 */
@@ -347,12 +347,12 @@ ACPI_EXPORT_SYMBOL(acpi_get_table)
  *
  * PARAMETERS:  table               - The pointer to the table
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Release a table returned by acpi_get_table() and its clones.
- *              Note that it is not safe if this function was invoked after an
+ *              Analte that it is analt safe if this function was invoked after an
  *              uninstallation happened to the original table descriptor.
- *              Currently there is no OSPMs' requirement to handle such
+ *              Currently there is anal OSPMs' requirement to handle such
  *              situations.
  *
  ******************************************************************************/
@@ -415,7 +415,7 @@ acpi_get_table_by_index(u32 table_index, struct acpi_table_header **out_table)
 	}
 
 	/*
-	 * Note that the following line is required by some OSPMs, they only
+	 * Analte that the following line is required by some OSPMs, they only
 	 * check if the returned table is NULL instead of the returned status
 	 * to determined if this function is succeeded.
 	 */

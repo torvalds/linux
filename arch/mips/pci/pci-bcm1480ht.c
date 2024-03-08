@@ -74,13 +74,13 @@ static inline void WRITECFG32(u32 addr, u32 data)
  */
 static int bcm1480ht_can_access(struct pci_bus *bus, int devfn)
 {
-	u32 devno;
+	u32 devanal;
 
 	if (!(bcm1480ht_bus_status & (PCI_BUS_ENABLED | PCI_DEVICE_MODE)))
 		return 0;
 
 	if (bus->number == 0) {
-		devno = PCI_SLOT(devfn);
+		devanal = PCI_SLOT(devfn);
 		if (bcm1480ht_bus_status & PCI_DEVICE_MODE)
 			return 0;
 	}
@@ -148,7 +148,7 @@ static int bcm1480ht_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int bcm1480ht_pcibios_get_busno(void)
+static int bcm1480ht_pcibios_get_busanal(void)
 {
 	return 0;
 }
@@ -177,7 +177,7 @@ struct pci_controller bcm1480ht_controller = {
 	.mem_resource	= &bcm1480ht_mem_resource,
 	.io_resource	= &bcm1480ht_io_resource,
 	.index		= 1,
-	.get_busno	= bcm1480ht_pcibios_get_busno,
+	.get_busanal	= bcm1480ht_pcibios_get_busanal,
 	.io_offset	= A_BCM1480_PHYS_HT_IO_MATCH_BYTES,
 };
 

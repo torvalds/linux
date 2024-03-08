@@ -95,7 +95,7 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 		if (is_media_entity_v4l2_subdev(ved->ent)) {
 			sd = media_entity_to_v4l2_subdev(ved->ent);
 			ret = v4l2_subdev_call(sd, video, s_stream, 1);
-			if (ret && ret != -ENOIOCTLCMD) {
+			if (ret && ret != -EANALIOCTLCMD) {
 				dev_err(ved->dev, "subdev_call error %s\n",
 					ved->ent->name);
 				vimc_streamer_pipeline_terminate(stream);
@@ -109,7 +109,7 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 			/* the first entity of the pipe should be source only */
 			if (!vimc_is_source(ved->ent)) {
 				dev_err(ved->dev,
-					"first entity in the pipe '%s' is not a source\n",
+					"first entity in the pipe '%s' is analt a source\n",
 					ved->ent->name);
 				vimc_streamer_pipeline_terminate(stream);
 				return -EPIPE;
@@ -179,7 +179,7 @@ static int vimc_streamer_thread(void *data)
  * @ved:	pointer to the vimc entity of the entity of the stream
  * @enable:	flag to determine if stream should start/stop
  *
- * When starting, check if there is no ``stream->kthread`` allocated. This
+ * When starting, check if there is anal ``stream->kthread`` allocated. This
  * should indicate that a stream is already running. Then, it initializes the
  * pipeline, creates and runs a kthread to consume buffers through the pipeline.
  * When stopping, analogously check if there is a stream running, stop the
@@ -223,7 +223,7 @@ int vimc_streamer_s_stream(struct vimc_stream *stream,
 		/*
 		 * kthread_stop returns -EINTR in cases when streamon was
 		 * immediately followed by streamoff, and the thread didn't had
-		 * a chance to run. Ignore errors to stop the stream in the
+		 * a chance to run. Iganalre errors to stop the stream in the
 		 * pipeline.
 		 */
 		if (ret)

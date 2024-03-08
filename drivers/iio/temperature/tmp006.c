@@ -220,16 +220,16 @@ static int tmp006_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!tmp006_check_identification(client)) {
-		dev_err(&client->dev, "no TMP006 sensor\n");
-		return -ENODEV;
+		dev_err(&client->dev, "anal TMP006 sensor\n");
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

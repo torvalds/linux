@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	linux/arch/alpha/kernel/pci-noop.c
+ *	linux/arch/alpha/kernel/pci-analop.c
  *
  * Stub PCI interfaces for Jensen-specific kernels.
  */
@@ -11,7 +11,7 @@
 #include <linux/gfp.h>
 #include <linux/capability.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
@@ -67,13 +67,13 @@ SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, bus,
 			if (hose->index == bus)
 				break;
 		if (!hose)
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		/* Special hook for ISA access.  */
 		if (bus == 0 && dfn == 0)
 			hose = pci_isa_hose;
 		else
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	switch (which & ~IOBASE_FROM_HOSE) {
@@ -91,7 +91,7 @@ SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, bus,
 		return hose->bus->number;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 SYSCALL_DEFINE5(pciconfig_read, unsigned long, bus, unsigned long, dfn,
@@ -100,7 +100,7 @@ SYSCALL_DEFINE5(pciconfig_read, unsigned long, bus, unsigned long, dfn,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }
 
 SYSCALL_DEFINE5(pciconfig_write, unsigned long, bus, unsigned long, dfn,
@@ -109,5 +109,5 @@ SYSCALL_DEFINE5(pciconfig_write, unsigned long, bus, unsigned long, dfn,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }

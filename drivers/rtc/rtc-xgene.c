@@ -53,7 +53,7 @@ static int xgene_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	struct xgene_rtc_dev *pdata = dev_get_drvdata(dev);
 
 	/*
-	 * NOTE: After the following write, the RTC_CCVR is only reflected
+	 * ANALTE: After the following write, the RTC_CCVR is only reflected
 	 *       after the update cycle of 1 seconds.
 	 */
 	writel((u32)rtc_tm_to_time64(tm), pdata->csr_base + RTC_CLR);
@@ -123,7 +123,7 @@ static irqreturn_t xgene_rtc_interrupt(int irq, void *id)
 
 	/* Check if interrupt asserted */
 	if (!(readl(pdata->csr_base + RTC_STAT) & RTC_STAT_BIT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear interrupt */
 	readl(pdata->csr_base + RTC_EOI);
@@ -141,7 +141,7 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, pdata);
 
 	pdata->csr_base = devm_platform_ioremap_resource(pdev, 0);
@@ -158,14 +158,14 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, xgene_rtc_interrupt, 0,
 			       dev_name(&pdev->dev), pdata);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could analt request IRQ\n");
 		return ret;
 	}
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
 		dev_err(&pdev->dev, "Couldn't get the clock for RTC\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = clk_prepare_enable(pdata->clk);
 	if (ret)

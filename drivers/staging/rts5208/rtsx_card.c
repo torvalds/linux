@@ -543,7 +543,7 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 
 #ifdef SUPPORT_OCP
 		if (chip->need_release) {
-			if (chip->ocp_stat & (CARD_OC_NOW | CARD_OC_EVER))
+			if (chip->ocp_stat & (CARD_OC_ANALW | CARD_OC_EVER))
 				rtsx_write_register(chip, OCPCLR,
 						    CARD_OC_INT_CLR |
 						    CARD_OC_CLR,
@@ -670,9 +670,9 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, SSC_RSTB);
 	if (sd_vpclk_phase_reset) {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL,
-			     PHASE_NOT_RESET, 0);
+			     PHASE_ANALT_RESET, 0);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL,
-			     PHASE_NOT_RESET, PHASE_NOT_RESET);
+			     PHASE_ANALT_RESET, PHASE_ANALT_RESET);
 	}
 
 	retval = rtsx_send_cmd(chip, 0, WAIT_TIME);
@@ -689,7 +689,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	return STATUS_SUCCESS;
 }
 
-int switch_normal_clock(struct rtsx_chip *chip, int clk)
+int switch_analrmal_clock(struct rtsx_chip *chip, int clk)
 {
 	int retval;
 	u8 sel, div, mcu_cnt;
@@ -780,11 +780,11 @@ int switch_normal_clock(struct rtsx_chip *chip, int clk)
 		return retval;
 	if (sd_vpclk_phase_reset) {
 		retval = rtsx_write_register(chip, SD_VPCLK0_CTL,
-					     PHASE_NOT_RESET, 0);
+					     PHASE_ANALT_RESET, 0);
 		if (retval)
 			return retval;
 		retval = rtsx_write_register(chip, SD_VPCLK1_CTL,
-					     PHASE_NOT_RESET, 0);
+					     PHASE_ANALT_RESET, 0);
 		if (retval)
 			return retval;
 	}
@@ -799,11 +799,11 @@ int switch_normal_clock(struct rtsx_chip *chip, int clk)
 	if (sd_vpclk_phase_reset) {
 		udelay(200);
 		retval = rtsx_write_register(chip, SD_VPCLK0_CTL,
-					     PHASE_NOT_RESET, PHASE_NOT_RESET);
+					     PHASE_ANALT_RESET, PHASE_ANALT_RESET);
 		if (retval)
 			return retval;
 		retval = rtsx_write_register(chip, SD_VPCLK1_CTL,
-					     PHASE_NOT_RESET, PHASE_NOT_RESET);
+					     PHASE_ANALT_RESET, PHASE_ANALT_RESET);
 		if (retval)
 			return retval;
 		udelay(200);
@@ -960,7 +960,7 @@ int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			}
 
 			if (!chip->rw_need_retry) {
-				dev_dbg(rtsx_dev(chip), "RW fail, but no need to retry\n");
+				dev_dbg(rtsx_dev(chip), "RW fail, but anal need to retry\n");
 				break;
 			}
 		} else {

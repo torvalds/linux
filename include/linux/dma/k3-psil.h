@@ -14,12 +14,12 @@ struct device;
 
 /**
  * enum udma_tp_level - Channel Throughput Levels
- * @UDMA_TP_NORMAL:	Normal channel
+ * @UDMA_TP_ANALRMAL:	Analrmal channel
  * @UDMA_TP_HIGH:	High Throughput channel
  * @UDMA_TP_ULTRAHIGH:	Ultra High Throughput channel
  */
 enum udma_tp_level {
-	UDMA_TP_NORMAL = 0,
+	UDMA_TP_ANALRMAL = 0,
 	UDMA_TP_HIGH,
 	UDMA_TP_ULTRAHIGH,
 	UDMA_TP_LAST,
@@ -27,7 +27,7 @@ enum udma_tp_level {
 
 /**
  * enum psil_endpoint_type - PSI-L Endpoint type
- * @PSIL_EP_NATIVE:	Normal channel
+ * @PSIL_EP_NATIVE:	Analrmal channel
  * @PSIL_EP_PDMA_XY:	XY mode PDMA
  * @PSIL_EP_PDMA_MCAN:	MCAN mode PDMA
  * @PSIL_EP_PDMA_AASRC: AASRC mode PDMA
@@ -45,7 +45,7 @@ enum psil_endpoint_type {
  * @channel_tpl:	Desired throughput level for the channel
  * @pkt_mode:		If set, the channel must be in Packet mode, otherwise in
  *			TR mode
- * @notdpkt:		TDCM must be suppressed on the TX channel
+ * @analtdpkt:		TDCM must be suppressed on the TX channel
  * @needs_epib:		Endpoint needs EPIB
  * @pdma_acc32:		ACC32 must be enabled on the PDMA side
  * @pdma_burst:		BURST must be enabled on the PDMA side
@@ -65,7 +65,7 @@ struct psil_endpoint_config {
 	enum udma_tp_level channel_tpl;
 
 	unsigned pkt_mode:1;
-	unsigned notdpkt:1;
+	unsigned analtdpkt:1;
 	unsigned needs_epib:1;
 	/* PDMA properties, valid for PSIL_EP_PDMA_* */
 	unsigned pdma_acc32:1;

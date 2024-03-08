@@ -142,7 +142,7 @@ static void mean_and_variance_test_2(struct kunit *test)
 			d, mean, stddev, weighted_mean, weighted_stddev);
 }
 
-/* Test behaviour where we switch from one steady state to another: */
+/* Test behaviour where we switch from one steady state to aanalther: */
 static void mean_and_variance_test_3(struct kunit *test)
 {
 	s64 d[]			= { 100, 100, 100, 100, 100 };

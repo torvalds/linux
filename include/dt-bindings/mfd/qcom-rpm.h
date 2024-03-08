@@ -174,7 +174,7 @@
 /*
  * Constants used to select force mode for regulators.
  */
-#define QCOM_RPM_FORCE_MODE_NONE		0
+#define QCOM_RPM_FORCE_MODE_ANALNE		0
 #define QCOM_RPM_FORCE_MODE_LPM			1
 #define QCOM_RPM_FORCE_MODE_HPM			2
 #define QCOM_RPM_FORCE_MODE_AUTO		3

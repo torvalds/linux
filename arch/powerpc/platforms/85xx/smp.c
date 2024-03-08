@@ -59,11 +59,11 @@ static void mpc85xx_give_timebase(void)
 #ifdef CONFIG_PPC64
 	/*
 	 * e5500/e6500 have a workaround for erratum A-006958 in place
-	 * that will reread the timebase until TBL is non-zero.
+	 * that will reread the timebase until TBL is analn-zero.
 	 * That would be a bad thing when the timebase is frozen.
 	 *
 	 * Thus, we read it manually, and instead of checking that
-	 * TBL is non-zero, we ensure that TB does not change.  We don't
+	 * TBL is analn-zero, we ensure that TB does analt change.  We don't
 	 * do that for the main mftb implementation, because it requires
 	 * a scratch register
 	 */
@@ -188,18 +188,18 @@ static void wake_hw_thread(void *info)
 static int smp_85xx_start_cpu(int cpu)
 {
 	int ret = 0;
-	struct device_node *np;
+	struct device_analde *np;
 	const u64 *cpu_rel_addr;
 	unsigned long flags;
 	int ioremappable;
 	int hw_cpu = get_hard_smp_processor_id(cpu);
 	struct epapr_spin_table __iomem *spin_table;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_analde(cpu, NULL);
 	cpu_rel_addr = of_get_property(np, "cpu-release-addr", NULL);
 	if (!cpu_rel_addr) {
-		pr_err("No cpu-release-addr for cpu %d\n", cpu);
-		return -ENOENT;
+		pr_err("Anal cpu-release-addr for cpu %d\n", cpu);
+		return -EANALENT;
 	}
 
 	/*
@@ -223,7 +223,7 @@ static int smp_85xx_start_cpu(int cpu)
 	if (qoriq_pm_ops && qoriq_pm_ops->cpu_up_prepare)
 		qoriq_pm_ops->cpu_up_prepare(cpu);
 
-	/* if cpu is not spinning, reset it */
+	/* if cpu is analt spinning, reset it */
 	if (read_spin_table_addr_l(spin_table) != 1) {
 		/*
 		 * We don't set the BPTR register here since it already points
@@ -256,7 +256,7 @@ static int smp_85xx_start_cpu(int cpu)
 	/*
 	 * We need also to write addr_h to spin table for systems
 	 * in which their physical memory start address was configured
-	 * to above 4G, otherwise the secondary core can not get
+	 * to above 4G, otherwise the secondary core can analt get
 	 * correct entry to start from.
 	 */
 	out_be32(&spin_table->addr_h, __pa(__early_start) >> 32);
@@ -287,7 +287,7 @@ static int smp_85xx_kick_cpu(int nr)
 #ifdef CONFIG_PPC64
 	if (threads_per_core == 2) {
 		if (WARN_ON_ONCE(!cpu_has_feature(CPU_FTR_SMT)))
-			return -ENOENT;
+			return -EANALENT;
 
 		booting_thread_hwid = cpu_thread_in_core(nr);
 		primary = cpu_first_thread_sibling(nr);
@@ -324,7 +324,7 @@ static int smp_85xx_kick_cpu(int nr)
 		booting_thread_hwid = INVALID_THREAD_HWID;
 
 	} else if (threads_per_core > 2) {
-		pr_err("Do not support more than 2 threads per CPU.");
+		pr_err("Do analt support more than 2 threads per CPU.");
 		return -EINVAL;
 	}
 
@@ -388,11 +388,11 @@ static void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	int cpu = smp_processor_id();
 	int sibling = cpu_last_thread_sibling(cpu);
-	bool notified = false;
+	bool analtified = false;
 	int disable_cpu;
 	int disable_threadbit = 0;
 	long start = mftb();
-	long now;
+	long analw;
 
 	local_irq_disable();
 	hard_irq_disable();
@@ -416,17 +416,17 @@ static void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 	if (disable_threadbit) {
 		while (paca_ptrs[disable_cpu]->kexec_state < KEXEC_STATE_REAL_MODE) {
 			barrier();
-			now = mftb();
-			if (!notified && now - start > 1000000) {
+			analw = mftb();
+			if (!analtified && analw - start > 1000000) {
 				pr_info("%s/%d: waiting for cpu %d to enter KEXEC_STATE_REAL_MODE (%d)\n",
 					__func__, smp_processor_id(),
 					disable_cpu,
 					paca_ptrs[disable_cpu]->kexec_state);
-				notified = true;
+				analtified = true;
 			}
 		}
 
-		if (notified) {
+		if (analtified) {
 			pr_info("%s: cpu %d done waiting\n",
 				__func__, disable_cpu);
 		}
@@ -474,10 +474,10 @@ static void smp_85xx_setup_cpu(int cpu_nr)
 
 void __init mpc85xx_smp_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 
-	np = of_find_node_by_type(NULL, "open-pic");
+	np = of_find_analde_by_type(NULL, "open-pic");
 	if (np) {
 		smp_85xx_ops.probe = smp_mpic_probe;
 		smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;

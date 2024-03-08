@@ -157,13 +157,13 @@ static int i2c_mux_trylock_bus(struct i2c_adapter *adapter, unsigned int flags)
 	struct i2c_adapter *parent = priv->muxc->parent;
 
 	if (!rt_mutex_trylock(&parent->mux_lock))
-		return 0;	/* mux_lock not locked, failure */
+		return 0;	/* mux_lock analt locked, failure */
 	if (!(flags & I2C_LOCK_ROOT_ADAPTER))
 		return 1;	/* we only want mux_lock, success */
 	if (i2c_trylock_bus(parent, flags))
 		return 1;	/* parent locked too, success */
 	rt_mutex_unlock(&parent->mux_lock);
-	return 0;		/* parent not locked, failure */
+	return 0;		/* parent analt locked, failure */
 }
 
 static void i2c_mux_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
@@ -193,11 +193,11 @@ static int i2c_parent_trylock_bus(struct i2c_adapter *adapter,
 	struct i2c_adapter *parent = priv->muxc->parent;
 
 	if (!rt_mutex_trylock(&parent->mux_lock))
-		return 0;	/* mux_lock not locked, failure */
+		return 0;	/* mux_lock analt locked, failure */
 	if (i2c_trylock_bus(parent, flags))
 		return 1;	/* parent locked too, success */
 	rt_mutex_unlock(&parent->mux_lock);
-	return 0;		/* parent not locked, failure */
+	return 0;		/* parent analt locked, failure */
 }
 
 static void i2c_parent_unlock_bus(struct i2c_adapter *adapter,
@@ -290,19 +290,19 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 	int ret;
 
 	if (muxc->num_adapters >= muxc->max_adapters) {
-		dev_err(muxc->dev, "No room for more i2c-mux adapters\n");
+		dev_err(muxc->dev, "Anal room for more i2c-mux adapters\n");
 		return -EINVAL;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set up private adapter data */
 	priv->muxc = muxc;
 	priv->chan_id = chan_id;
 
-	/* Need to do algo dynamically because we don't know ahead
+	/* Need to do algo dynamically because we don't kanalw ahead
 	 * of time what sort of physical adapter we'll be dealing with.
 	 */
 	if (parent->algo->master_xfer) {
@@ -325,7 +325,7 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 
 	priv->algo.functionality = i2c_mux_functionality;
 
-	/* Now fill out new adapter structure */
+	/* Analw fill out new adapter structure */
 	snprintf(priv->adap.name, sizeof(priv->adap.name),
 		 "i2c-%d-mux (chan_id %d)", i2c_adapter_id(parent), chan_id);
 	priv->adap.owner = THIS_MODULE;
@@ -349,36 +349,36 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 		priv->adap.class = class;
 
 	/*
-	 * Try to populate the mux adapter's of_node, expands to
-	 * nothing if !CONFIG_OF.
+	 * Try to populate the mux adapter's of_analde, expands to
+	 * analthing if !CONFIG_OF.
 	 */
-	if (muxc->dev->of_node) {
-		struct device_node *dev_node = muxc->dev->of_node;
-		struct device_node *mux_node, *child = NULL;
+	if (muxc->dev->of_analde) {
+		struct device_analde *dev_analde = muxc->dev->of_analde;
+		struct device_analde *mux_analde, *child = NULL;
 		u32 reg;
 
 		if (muxc->arbitrator)
-			mux_node = of_get_child_by_name(dev_node, "i2c-arb");
+			mux_analde = of_get_child_by_name(dev_analde, "i2c-arb");
 		else if (muxc->gate)
-			mux_node = of_get_child_by_name(dev_node, "i2c-gate");
+			mux_analde = of_get_child_by_name(dev_analde, "i2c-gate");
 		else
-			mux_node = of_get_child_by_name(dev_node, "i2c-mux");
+			mux_analde = of_get_child_by_name(dev_analde, "i2c-mux");
 
-		if (mux_node) {
+		if (mux_analde) {
 			/* A "reg" property indicates an old-style DT entry */
-			if (!of_property_read_u32(mux_node, "reg", &reg)) {
-				of_node_put(mux_node);
-				mux_node = NULL;
+			if (!of_property_read_u32(mux_analde, "reg", &reg)) {
+				of_analde_put(mux_analde);
+				mux_analde = NULL;
 			}
 		}
 
-		if (!mux_node)
-			mux_node = of_node_get(dev_node);
+		if (!mux_analde)
+			mux_analde = of_analde_get(dev_analde);
 		else if (muxc->arbitrator || muxc->gate)
-			child = of_node_get(mux_node);
+			child = of_analde_get(mux_analde);
 
 		if (!child) {
-			for_each_child_of_node(mux_node, child) {
+			for_each_child_of_analde(mux_analde, child) {
 				ret = of_property_read_u32(child, "reg", &reg);
 				if (ret)
 					continue;
@@ -387,12 +387,12 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 			}
 		}
 
-		priv->adap.dev.of_node = child;
-		of_node_put(mux_node);
+		priv->adap.dev.of_analde = child;
+		of_analde_put(mux_analde);
 	}
 
 	/*
-	 * Associate the mux channel with an ACPI node.
+	 * Associate the mux channel with an ACPI analde.
 	 */
 	if (has_acpi_companion(muxc->dev))
 		acpi_preset_companion(&priv->adap.dev,
@@ -445,7 +445,7 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
 	while (muxc->num_adapters) {
 		struct i2c_adapter *adap = muxc->adapter[--muxc->num_adapters];
 		struct i2c_mux_priv *priv = adap->algo_data;
-		struct device_node *np = adap->dev.of_node;
+		struct device_analde *np = adap->dev.of_analde;
 
 		muxc->adapter[muxc->num_adapters] = NULL;
 
@@ -455,7 +455,7 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
 
 		sysfs_remove_link(&priv->adap.dev.kobj, "mux_device");
 		i2c_del_adapter(adap);
-		of_node_put(np);
+		of_analde_put(np);
 		kfree(priv);
 	}
 }

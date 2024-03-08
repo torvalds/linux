@@ -29,7 +29,7 @@
 #define HDC3020_READ_RETRY_TIMES	10
 #define HDC3020_BUSY_DELAY_MS		10
 
-#define HDC3020_CRC8_POLYNOMIAL		0x31
+#define HDC3020_CRC8_POLYANALMIAL		0x31
 
 static const u8 HDC3020_S_AUTO_10HZ_MOD0[2] = { 0x27, 0x37 };
 
@@ -45,9 +45,9 @@ struct hdc3020_data {
 	struct i2c_client *client;
 	/*
 	 * Ensure that the sensor configuration (currently only heater is
-	 * supported) will not be changed during the process of reading
+	 * supported) will analt be changed during the process of reading
 	 * sensor data (this driver will try HDC3020_READ_RETRY_TIMES times
-	 * if the device does not respond).
+	 * if the device does analt respond).
 	 */
 	struct mutex lock;
 };
@@ -94,7 +94,7 @@ static int hdc3020_write_bytes(struct hdc3020_data *data, const u8 *buf, u8 len)
 	msg.len = len;
 
 	/*
-	 * During the measurement process, HDC3020 will not return data.
+	 * During the measurement process, HDC3020 will analt return data.
 	 * So wait for a while and try again
 	 */
 	for (cnt = 0; cnt < HDC3020_READ_RETRY_TIMES; cnt++) {
@@ -104,7 +104,7 @@ static int hdc3020_write_bytes(struct hdc3020_data *data, const u8 *buf, u8 len)
 
 		mdelay(HDC3020_BUSY_DELAY_MS);
 	}
-	dev_err(&client->dev, "Could not write sensor command\n");
+	dev_err(&client->dev, "Could analt write sensor command\n");
 
 	return -ETIMEDOUT;
 }
@@ -130,7 +130,7 @@ static int hdc3020_read_bytes(struct hdc3020_data *data, const u8 *buf,
 	};
 
 	/*
-	 * During the measurement process, HDC3020 will not return data.
+	 * During the measurement process, HDC3020 will analt return data.
 	 * So wait for a while and try again
 	 */
 	for (cnt = 0; cnt < HDC3020_READ_RETRY_TIMES; cnt++) {
@@ -140,7 +140,7 @@ static int hdc3020_read_bytes(struct hdc3020_data *data, const u8 *buf,
 
 		mdelay(HDC3020_BUSY_DELAY_MS);
 	}
-	dev_err(&client->dev, "Could not read sensor data\n");
+	dev_err(&client->dev, "Could analt read sensor data\n");
 
 	return -ETIMEDOUT;
 }
@@ -407,17 +407,17 @@ static int hdc3020_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;
 	mutex_init(&data->lock);
 
-	crc8_populate_msb(hdc3020_crc8_table, HDC3020_CRC8_POLYNOMIAL);
+	crc8_populate_msb(hdc3020_crc8_table, HDC3020_CRC8_POLYANALMIAL);
 
 	indio_dev->name = "hdc3020";
 	indio_dev->modes = INDIO_DIRECT_MODE;

@@ -26,7 +26,7 @@ done
 if [ $UNPACK -eq 1 ]; then
 	if [ ! -z "$UNPACK_TAR" ]; then					# tar given as an argument
 		if [ ! -e "$UNPACK_TAR" ]; then
-			echo "Provided file $UNPACK_TAR does not exist"
+			echo "Provided file $UNPACK_TAR does analt exist"
 			exit 1
 		fi
 		TARGET="$UNPACK_TAR"
@@ -47,7 +47,7 @@ if [ $UNPACK -eq 1 ]; then
 		TAR_CONTENTS=`tar tvf "$TARGET" | tr -s " " | cut -d " " -f 6`
 		VALID_TAR=`echo "$TAR_CONTENTS" | grep "$PERF_SYMBOLS.tar.bz2" | wc -l`		# check if it contains a sub-tar perf.symbols
 		if [ $VALID_TAR -ne 1 ]; then
-			echo "Error: $TARGET file is not valid (contains zero or multiple sub-tar files with debug symbols)"
+			echo "Error: $TARGET file is analt valid (contains zero or multiple sub-tar files with debug symbols)"
 			exit 1
 		fi
 
@@ -59,7 +59,7 @@ if [ $UNPACK -eq 1 ]; then
 				case $yn in
 					[Yy]* ) break;;
 					[Nn]* ) exit 1;;
-					* ) echo "Please answer yes or no.";;
+					* ) echo "Please answer anal or anal.";;
 				esac
 			done
 		fi
@@ -88,7 +88,7 @@ BUILDIDS=$(mktemp /tmp/perf-archive-buildids.XXXXXX)
 
 perf buildid-list -i $PERF_DATA --with-hits | grep -v "^ " > $BUILDIDS
 if [ ! -s $BUILDIDS ] ; then
-	echo "perf archive: no build-ids found"
+	echo "perf archive: anal build-ids found"
 	rm $BUILDIDS || true
 	exit 1
 fi
@@ -115,7 +115,7 @@ else										# pack only the debug symbols
 	rm $MANIFEST $BUILDIDS || true
 fi
 
-echo -e "Now please run:\n"
+echo -e "Analw please run:\n"
 echo -e "$ perf archive --unpack\n"
 echo "or unpack the tar manually wherever you need to run 'perf report' on."
 exit 0

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+
  * Microchip Sparx5 SerDes driver
  *
- * Copyright (c) 2020 Microchip Technology Inc.
+ * Copyright (c) 2020 Microchip Techanallogy Inc.
  */
 
 #ifndef _SPARX5_SERDES_H_
@@ -18,7 +18,7 @@ enum sparx5_serdes_type {
 };
 
 enum sparx5_serdes_mode {
-	SPX5_SD_MODE_NONE,
+	SPX5_SD_MODE_ANALNE,
 	SPX5_SD_MODE_2G5,
 	SPX5_SD_MODE_QSGMII,
 	SPX5_SD_MODE_100FX,

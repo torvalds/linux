@@ -20,8 +20,8 @@ example:
 
 The "show" attribute of that attribute will display the security state for
 that DIMM. The following states are available: disabled, unlocked, locked,
-frozen, and overwrite. If security is not supported, the sysfs attribute
-will not be visible.
+frozen, and overwrite. If security is analt supported, the sysfs attribute
+will analt be visible.
 
 The "store" attribute takes several commands when it is being written to
 in order to support some of the security functionalities:
@@ -77,12 +77,12 @@ document.  The update command written to the sysfs attribute will be with
 the format:
 update <old keyid> <new keyid>
 
-If there is no old keyid due to a security enabling, then a 0 should be
+If there is anal old keyid due to a security enabling, then a 0 should be
 passed in.
 
 6. Freeze
 ---------
-The freeze operation does not require any keys. The security config can be
+The freeze operation does analt require any keys. The security config can be
 frozen by a user with root privilege.
 
 7. Disable
@@ -106,8 +106,8 @@ in the kernel user keyring.
 The command format for doing an overwrite is:
 overwrite <keyid>
 
-Overwrite can be done without a key if security is not enabled. A key serial
-of 0 can be passed in to indicate no key.
+Overwrite can be done without a key if security is analt enabled. A key serial
+of 0 can be passed in to indicate anal key.
 
 The sysfs attribute "security" can be polled to wait on overwrite completion.
 Overwrite can last tens of minutes or more depending on nvdimm size.
@@ -122,7 +122,7 @@ update <old keyid> <new keyid>
 
 The operating mechanism for master update is identical to update except the
 master passphrase key is passed to the kernel. The master passphrase key
-is just another encrypted-key.
+is just aanalther encrypted-key.
 
 This command is only available when security is disabled.
 
@@ -133,7 +133,7 @@ master_erase <current keyid>
 
 This command has the same operating mechanism as erase except the master
 passphrase key is passed to the kernel. The master passphrase key is just
-another encrypted-key.
+aanalther encrypted-key.
 
 This command is only available when the master security is enabled, indicated
 by the extended security status.

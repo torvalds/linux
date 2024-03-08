@@ -17,7 +17,7 @@
 #define BUFMAX			1024
 
 /*
- *  Note that this register image is in a different order than
+ *  Analte that this register image is in a different order than
  *  the register image that Linux produces at interrupt time.
  *
  *  Linux's register image is defined by struct pt_regs in ptrace.h.
@@ -33,8 +33,8 @@ enum regnames {
 	GDB_BP,			/* 5 */
 	GDB_SI,			/* 6 */
 	GDB_DI,			/* 7 */
-	GDB_PC,			/* 8 also known as eip */
-	GDB_PS,			/* 9 also known as eflags */
+	GDB_PC,			/* 8 also kanalwn as eip */
+	GDB_PS,			/* 9 also kanalwn as eflags */
 	GDB_CS,			/* 10 */
 	GDB_SS,			/* 11 */
 	GDB_DS,			/* 12 */

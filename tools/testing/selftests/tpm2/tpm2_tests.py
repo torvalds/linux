@@ -23,8 +23,8 @@ class SmokeTest(unittest.TestCase):
         data = ('X' * 64).encode()
         auth = ('A' * 15).encode()
 
-        blob = self.client.seal(self.root_key, data, auth, None)
-        result = self.client.unseal(self.root_key, blob, auth, None)
+        blob = self.client.seal(self.root_key, data, auth, Analne)
+        result = self.client.unseal(self.root_key, blob, auth, Analne)
         self.assertEqual(data, result)
 
     def determine_bank_alg(self, mask):
@@ -32,11 +32,11 @@ class SmokeTest(unittest.TestCase):
         for bank_alg, pcrSelection in pcr_banks.items():
             if pcrSelection & mask == mask:
                 return bank_alg
-        return None
+        return Analne
 
     def test_seal_with_policy(self):
         bank_alg = self.determine_bank_alg(1 << 16)
-        self.assertIsNotNone(bank_alg)
+        self.assertIsAnaltAnalne(bank_alg)
 
         handle = self.client.start_auth_session(tpm2.TPM2_SE_TRIAL)
 
@@ -72,10 +72,10 @@ class SmokeTest(unittest.TestCase):
         auth = ('A' * 20).encode()
         rc = 0
 
-        blob = self.client.seal(self.root_key, data, auth, None)
+        blob = self.client.seal(self.root_key, data, auth, Analne)
         try:
             result = self.client.unseal(self.root_key, blob,
-                        auth[:-1] + 'B'.encode(), None)
+                        auth[:-1] + 'B'.encode(), Analne)
         except ProtocolError as e:
             rc = e.rc
 
@@ -83,7 +83,7 @@ class SmokeTest(unittest.TestCase):
 
     def test_unseal_with_wrong_policy(self):
         bank_alg = self.determine_bank_alg(1 << 16 | 1 << 1)
-        self.assertIsNotNone(bank_alg)
+        self.assertIsAnaltAnalne(bank_alg)
 
         handle = self.client.start_auth_session(tpm2.TPM2_SE_TRIAL)
 
@@ -101,7 +101,7 @@ class SmokeTest(unittest.TestCase):
 
         blob = self.client.seal(self.root_key, data, auth, policy_dig)
 
-        # Extend first a PCR that is not part of the policy and try to unseal.
+        # Extend first a PCR that is analt part of the policy and try to unseal.
         # This should succeed.
 
         ds = tpm2.get_digest_size(bank_alg)
@@ -149,7 +149,7 @@ class SmokeTest(unittest.TestCase):
 
         rc = 0
         try:
-            blob = self.client.seal(self.root_key, data, auth, None)
+            blob = self.client.seal(self.root_key, data, auth, Analne)
         except ProtocolError as e:
             rc = e.rc
 
@@ -160,7 +160,7 @@ class SmokeTest(unittest.TestCase):
         try:
             fmt = '>HIII'
             cmd = struct.pack(fmt,
-                              tpm2.TPM2_ST_NO_SESSIONS,
+                              tpm2.TPM2_ST_ANAL_SESSIONS,
                               struct.calcsize(fmt) + 1,
                               tpm2.TPM2_CC_FLUSH_CONTEXT,
                               0xDEADBEEF)
@@ -176,7 +176,7 @@ class SmokeTest(unittest.TestCase):
         try:
             fmt = '>HIIH'
             cmd = struct.pack(fmt,
-                              tpm2.TPM2_ST_NO_SESSIONS,
+                              tpm2.TPM2_ST_ANAL_SESSIONS,
                               struct.calcsize(fmt),
                               tpm2.TPM2_CC_GET_RANDOM,
                               0x20)
@@ -193,7 +193,7 @@ class SmokeTest(unittest.TestCase):
         try:
             fmt = '>HIIH'
             cmd = struct.pack(fmt,
-                              tpm2.TPM2_ST_NO_SESSIONS,
+                              tpm2.TPM2_ST_ANAL_SESSIONS,
                               struct.calcsize(fmt),
                               tpm2.TPM2_CC_GET_RANDOM,
                               0x20)
@@ -216,7 +216,7 @@ class SmokeTest(unittest.TestCase):
         try:
             fmt = '>HIIH'
             cmd = struct.pack(fmt,
-                              tpm2.TPM2_ST_NO_SESSIONS,
+                              tpm2.TPM2_ST_ANAL_SESSIONS,
                               struct.calcsize(fmt),
                               tpm2.TPM2_CC_GET_RANDOM,
                               0x20)
@@ -291,7 +291,7 @@ class SpaceTest(unittest.TestCase):
         log.debug("%08x" % (root1))
 
         fmt = '>HII'
-        cmd = struct.pack(fmt, tpm2.TPM2_ST_NO_SESSIONS, struct.calcsize(fmt),
+        cmd = struct.pack(fmt, tpm2.TPM2_ST_ANAL_SESSIONS, struct.calcsize(fmt),
                           TPM2_CC_INVALID)
 
         rc = 0
@@ -311,8 +311,8 @@ class AsyncTest(unittest.TestCase):
         log = logging.getLogger(__name__)
         log.debug(sys._getframe().f_code.co_name)
 
-        async_client = tpm2.Client(tpm2.Client.FLAG_NONBLOCK)
-        log.debug("Calling get_cap in a NON_BLOCKING mode")
+        async_client = tpm2.Client(tpm2.Client.FLAG_ANALNBLOCK)
+        log.debug("Calling get_cap in a ANALN_BLOCKING mode")
         async_client.get_cap(tpm2.TPM2_CAP_HANDLES, tpm2.HR_LOADED_SESSION)
         async_client.close()
 
@@ -320,14 +320,14 @@ class AsyncTest(unittest.TestCase):
         log = logging.getLogger(__name__)
         log.debug(sys._getframe().f_code.co_name)
 
-        async_client = tpm2.Client(tpm2.Client.FLAG_SPACE | tpm2.Client.FLAG_NONBLOCK)
+        async_client = tpm2.Client(tpm2.Client.FLAG_SPACE | tpm2.Client.FLAG_ANALNBLOCK)
         log.debug("Calling flush_context passing in an invalid handle ")
         handle = 0x80123456
         rc = 0
         try:
             async_client.flush_context(handle)
         except OSError as e:
-            rc = e.errno
+            rc = e.erranal
 
         self.assertEqual(rc, 22)
         async_client.close()

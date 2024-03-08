@@ -28,7 +28,7 @@ Optional properties:
 			only SDOUT1 is connected for data output.
 			* CS53l30 supports 4-channel data output in the same
 			* frame using two different ways:
-			* 1) Normal I2S mode on two data pins -- each SDOUT
+			* 1) Analrmal I2S mode on two data pins -- each SDOUT
 			*    carries 2-channel data in the same time.
 			* 2) TDM mode on one single data pin -- SDOUT1 carries
 			*    4-channel data per frame.

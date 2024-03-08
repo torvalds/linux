@@ -35,7 +35,7 @@ static const struct {
 	QEDE_RQSTAT(rx_hw_errors),
 	QEDE_RQSTAT(rx_alloc_errors),
 	QEDE_RQSTAT(rx_ip_frags),
-	QEDE_RQSTAT(xdp_no_pass),
+	QEDE_RQSTAT(xdp_anal_pass),
 };
 
 #define QEDE_NUM_RQSTATS ARRAY_SIZE(qede_rqstats_arr)
@@ -137,7 +137,7 @@ static const struct {
 	QEDE_PF_BB_STAT(tx_total_collisions),
 	QEDE_PF_STAT(brb_truncates),
 	QEDE_PF_STAT(brb_discards),
-	QEDE_STAT(no_buff_discards),
+	QEDE_STAT(anal_buff_discards),
 	QEDE_PF_STAT(mftag_filter_discards),
 	QEDE_PF_STAT(mac_filter_discards),
 	QEDE_PF_STAT(gft_filter_drop),
@@ -148,7 +148,7 @@ static const struct {
 	QEDE_STAT(coalesced_pkts),
 	QEDE_STAT(coalesced_events),
 	QEDE_STAT(coalesced_aborts_num),
-	QEDE_STAT(non_coalesced_pkts),
+	QEDE_STAT(analn_coalesced_pkts),
 	QEDE_STAT(coalesced_bytes),
 
 	QEDE_STAT(link_change_count),
@@ -327,7 +327,7 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 		}
 	}
 
-	/* Account for non-queue statistics */
+	/* Account for analn-queue statistics */
 	for (i = 0; i < QEDE_NUM_STATS; i++) {
 		if (qede_is_irrelevant_stat(edev, i))
 			continue;
@@ -525,8 +525,8 @@ static int qede_get_link_ksettings(struct net_device *dev,
 		base->speed = current_link.speed;
 		base->duplex = current_link.duplex;
 	} else {
-		base->speed = SPEED_UNKNOWN;
-		base->duplex = DUPLEX_UNKNOWN;
+		base->speed = SPEED_UNKANALWN;
+		base->duplex = DUPLEX_UNKANALWN;
 	}
 
 	__qede_unlock(edev);
@@ -549,8 +549,8 @@ static int qede_set_link_ksettings(struct net_device *dev,
 	u32 i;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
-		DP_INFO(edev, "Link settings are not allowed to be changed\n");
-		return -EOPNOTSUPP;
+		DP_INFO(edev, "Link settings are analt allowed to be changed\n");
+		return -EOPANALTSUPP;
 	}
 	memset(&current_link, 0, sizeof(current_link));
 	memset(&params, 0, sizeof(params));
@@ -561,8 +561,8 @@ static int qede_set_link_ksettings(struct net_device *dev,
 
 	if (base->autoneg == AUTONEG_ENABLE) {
 		if (!phylink_test(current_link.supported_caps, Autoneg)) {
-			DP_INFO(edev, "Auto negotiation is not supported\n");
-			return -EOPNOTSUPP;
+			DP_INFO(edev, "Auto negotiation is analt supported\n");
+			return -EOPANALTSUPP;
 		}
 
 		params.autoneg = true;
@@ -609,7 +609,7 @@ static void qede_get_drvinfo(struct net_device *ndev,
 
 	snprintf(storm, ETHTOOL_FWVERS_LEN, "%d.%d.%d.%d",
 		 edev->dev_info.common.fw_major,
-		 edev->dev_info.common.fw_minor,
+		 edev->dev_info.common.fw_mianalr,
 		 edev->dev_info.common.fw_rev,
 		 edev->dev_info.common.fw_eng);
 
@@ -712,8 +712,8 @@ static int qede_nway_reset(struct net_device *dev)
 	struct qed_link_params link_params;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
-		DP_INFO(edev, "Link settings are not allowed to be changed\n");
-		return -EOPNOTSUPP;
+		DP_INFO(edev, "Link settings are analt allowed to be changed\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (!netif_running(dev))
@@ -791,7 +791,7 @@ static int qede_get_coalesce(struct net_device *dev,
 			fp = &edev->fp_array[i];
 
 			/* All TX queues of given fastpath uses same
-			 * coalescing value, so no need to iterate over
+			 * coalescing value, so anal need to iterate over
 			 * all TCs, TC0 txq should suffice.
 			 */
 			if (fp->type & QEDE_FASTPATH_TX) {
@@ -874,7 +874,7 @@ int qede_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal,
 			struct qede_tx_queue *txq;
 
 			/* All TX queues of given fastpath uses same
-			 * coalescing value, so no need to iterate over
+			 * coalescing value, so anal need to iterate over
 			 * all TCs, TC0 txq should suffice.
 			 */
 			txq = QEDE_FP_TC0_TXQ(fp);
@@ -971,8 +971,8 @@ static int qede_set_pauseparam(struct net_device *dev,
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev,
-			"Pause settings are not allowed to be changed\n");
-		return -EOPNOTSUPP;
+			"Pause settings are analt allowed to be changed\n");
+		return -EOPANALTSUPP;
 	}
 
 	memset(&current_link, 0, sizeof(current_link));
@@ -983,7 +983,7 @@ static int qede_set_pauseparam(struct net_device *dev,
 
 	if (epause->autoneg) {
 		if (!phylink_test(current_link.supported_caps, Autoneg)) {
-			DP_INFO(edev, "autoneg not supported\n");
+			DP_INFO(edev, "autoneg analt supported\n");
 			return -EINVAL;
 		}
 
@@ -1084,7 +1084,7 @@ static int qede_set_channels(struct net_device *dev,
 	/* We don't support `other' channels */
 	if (channels->other_count) {
 		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
-			   "command parameters not supported\n");
+			   "command parameters analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1107,7 +1107,7 @@ static int qede_set_channels(struct net_device *dev,
 	    (channels->tx_count == edev->fp_num_tx) &&
 	    (channels->rx_count == edev->fp_num_rx)) {
 		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
-			   "No change in active parameters\n");
+			   "Anal change in active parameters\n");
 		return 0;
 	}
 
@@ -1224,8 +1224,8 @@ static int qede_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		rc = qede_get_cls_rule_all(edev, info, rule_locs);
 		break;
 	default:
-		DP_ERR(edev, "Command parameters not supported\n");
-		rc = -EOPNOTSUPP;
+		DP_ERR(edev, "Command parameters analt supported\n");
+		rc = -EOPANALTSUPP;
 	}
 
 	return rc;
@@ -1247,7 +1247,7 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		/* For TCP only 4-tuple hash is supported */
 		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST |
 				  RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-			DP_INFO(edev, "Command parameters not supported\n");
+			DP_INFO(edev, "Command parameters analt supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -1285,7 +1285,7 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	case IPV6_FLOW:
 		/* For IP only 2-tuple hash is supported */
 		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST)) {
-			DP_INFO(edev, "Command parameters not supported\n");
+			DP_INFO(edev, "Command parameters analt supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -1299,9 +1299,9 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	case ESP_V6_FLOW:
 	case IP_USER_FLOW:
 	case ETHER_FLOW:
-		/* RSS is not supported for these protocols */
+		/* RSS is analt supported for these protocols */
 		if (info->data) {
-			DP_INFO(edev, "Command parameters not supported\n");
+			DP_INFO(edev, "Command parameters analt supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -1309,7 +1309,7 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		return -EINVAL;
 	}
 
-	/* No action is needed if there is no change in the rss capability */
+	/* Anal action is needed if there is anal change in the rss capability */
 	if (edev->rss_caps == ((edev->rss_caps & ~clr_caps) | set_caps))
 		return 0;
 
@@ -1323,7 +1323,7 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		vport_update_params = vzalloc(sizeof(*vport_update_params));
 		if (!vport_update_params) {
 			__qede_unlock(edev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		qede_fill_rss_params(edev, &vport_update_params->rss_params,
 				     &vport_update_params->update_rss_flg);
@@ -1351,8 +1351,8 @@ static int qede_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 		rc = qede_delete_flow_filter(edev, info->fs.location);
 		break;
 	default:
-		DP_INFO(edev, "Command parameters not supported\n");
-		rc = -EOPNOTSUPP;
+		DP_INFO(edev, "Command parameters analt supported\n");
+		rc = -EOPANALTSUPP;
 	}
 
 	return rc;
@@ -1400,13 +1400,13 @@ static int qede_set_rxfh(struct net_device *dev,
 
 	if (edev->dev_info.common.num_hwfns > 1) {
 		DP_INFO(edev,
-			"RSS configuration is not supported for 100G devices\n");
-		return -EOPNOTSUPP;
+			"RSS configuration is analt supported for 100G devices\n");
+		return -EOPANALTSUPP;
 	}
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rxfh->indir && !rxfh->key)
 		return 0;
@@ -1427,7 +1427,7 @@ static int qede_set_rxfh(struct net_device *dev,
 		vport_update_params = vzalloc(sizeof(*vport_update_params));
 		if (!vport_update_params) {
 			__qede_unlock(edev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		qede_fill_rss_params(edev, &vport_update_params->rss_params,
 				     &vport_update_params->update_rss_flg);
@@ -1485,7 +1485,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	}
 
 	if (!txq) {
-		DP_NOTICE(edev, "Tx path is not available\n");
+		DP_ANALTICE(edev, "Tx path is analt available\n");
 		return -1;
 	}
 
@@ -1504,8 +1504,8 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	mapping = dma_map_single(&edev->pdev->dev, skb->data,
 				 skb_headlen(skb), DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(&edev->pdev->dev, mapping))) {
-		DP_NOTICE(edev, "SKB mapping failed\n");
-		return -ENOMEM;
+		DP_ANALTICE(edev, "SKB mapping failed\n");
+		return -EANALMEM;
 	}
 	BD_SET_UNMAP_ADDR_LEN(first_bd, mapping, skb_headlen(skb));
 
@@ -1530,7 +1530,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	}
 
 	if (!qede_txq_has_work(txq)) {
-		DP_NOTICE(edev, "Tx completion didn't happen\n");
+		DP_ANALTICE(edev, "Tx completion didn't happen\n");
 		return -1;
 	}
 
@@ -1561,13 +1561,13 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 	}
 
 	if (!rxq) {
-		DP_NOTICE(edev, "Rx path is not available\n");
+		DP_ANALTICE(edev, "Rx path is analt available\n");
 		return -1;
 	}
 
 	/* The packet is expected to receive on rx-queue 0 even though RSS is
 	 * enabled. This is because the queue 0 is configured as the default
-	 * queue and that the loopback traffic is not IP.
+	 * queue and that the loopback traffic is analt IP.
 	 */
 	for (iter = 0; iter < QEDE_SELFTEST_POLL_COUNT; iter++) {
 		if (!qede_has_rx_work(rxq)) {
@@ -1601,13 +1601,13 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 			break;
 		}
 
-		DP_INFO(edev, "Not the transmitted packet\n");
+		DP_INFO(edev, "Analt the transmitted packet\n");
 		qede_recycle_rx_bd_ring(rxq, 1);
 		qed_chain_recycle_consumed(&rxq->rx_comp_ring);
 	}
 
 	if (iter == QEDE_SELFTEST_POLL_COUNT) {
-		DP_NOTICE(edev, "Failed to receive the traffic\n");
+		DP_ANALTICE(edev, "Failed to receive the traffic\n");
 		return -1;
 	}
 
@@ -1625,7 +1625,7 @@ static int qede_selftest_run_loopback(struct qede_dev *edev, u32 loopback_mode)
 	u8 *packet;
 
 	if (!netif_running(edev->ndev)) {
-		DP_NOTICE(edev, "Interface is down\n");
+		DP_ANALTICE(edev, "Interface is down\n");
 		return -EINVAL;
 	}
 
@@ -1650,7 +1650,7 @@ static int qede_selftest_run_loopback(struct qede_dev *edev, u32 loopback_mode)
 	skb = netdev_alloc_skb(edev->ndev, pkt_size);
 	if (!skb) {
 		DP_INFO(edev, "Can't allocate skb\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto test_loopback_exit;
 	}
 	packet = skb_put(skb, pkt_size);
@@ -1673,11 +1673,11 @@ static int qede_selftest_run_loopback(struct qede_dev *edev, u32 loopback_mode)
 test_loopback_exit:
 	dev_kfree_skb(skb);
 
-	/* Bring up the link in Normal mode */
+	/* Bring up the link in Analrmal mode */
 	memset(&link_params, 0, sizeof(link_params));
 	link_params.link_up = true;
 	link_params.override_flags = QED_LINK_OVERRIDE_LOOPBACK_MODE;
-	link_params.loopback_mode = QED_LINK_LOOPBACK_NONE;
+	link_params.loopback_mode = QED_LINK_LOOPBACK_ANALNE;
 	edev->ops->common->set_link(edev->cdev, &link_params);
 
 	/* Wait for loopback configuration to apply */
@@ -1754,7 +1754,7 @@ static int qede_set_tunable(struct net_device *dev,
 		edev->rx_copybreak = *(u32 *)data;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1770,7 +1770,7 @@ static int qede_get_tunable(struct net_device *dev,
 		*(u32 *)data = edev->rx_copybreak;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1785,8 +1785,8 @@ static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
 	if (!current_link.eee_supported) {
-		DP_INFO(edev, "EEE is not supported\n");
-		return -EOPNOTSUPP;
+		DP_INFO(edev, "EEE is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (current_link.eee.adv_caps & QED_EEE_1G_ADV)
@@ -1817,16 +1817,16 @@ static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	struct qed_link_params params;
 
 	if (!edev->ops->common->can_link_change(edev->cdev)) {
-		DP_INFO(edev, "Link settings are not allowed to be changed\n");
-		return -EOPNOTSUPP;
+		DP_INFO(edev, "Link settings are analt allowed to be changed\n");
+		return -EOPANALTSUPP;
 	}
 
 	memset(&current_link, 0, sizeof(current_link));
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
 	if (!current_link.eee_supported) {
-		DP_INFO(edev, "EEE is not supported\n");
-		return -EOPNOTSUPP;
+		DP_INFO(edev, "EEE is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	memset(&params, 0, sizeof(params));
@@ -1861,7 +1861,7 @@ static u32 qede_link_to_ethtool_fec(u32 link_fec)
 {
 	u32 eth_fec = 0;
 
-	if (link_fec & QED_FEC_MODE_NONE)
+	if (link_fec & QED_FEC_MODE_ANALNE)
 		eth_fec |= ETHTOOL_FEC_OFF;
 	if (link_fec & QED_FEC_MODE_FIRECODE)
 		eth_fec |= ETHTOOL_FEC_BASER;
@@ -1870,7 +1870,7 @@ static u32 qede_link_to_ethtool_fec(u32 link_fec)
 	if (link_fec & QED_FEC_MODE_AUTO)
 		eth_fec |= ETHTOOL_FEC_AUTO;
 	if (link_fec & QED_FEC_MODE_UNSUPPORTED)
-		eth_fec |= ETHTOOL_FEC_NONE;
+		eth_fec |= ETHTOOL_FEC_ANALNE;
 
 	return eth_fec;
 }
@@ -1880,14 +1880,14 @@ static u32 qede_ethtool_to_link_fec(u32 eth_fec)
 	u32 link_fec = 0;
 
 	if (eth_fec & ETHTOOL_FEC_OFF)
-		link_fec |= QED_FEC_MODE_NONE;
+		link_fec |= QED_FEC_MODE_ANALNE;
 	if (eth_fec & ETHTOOL_FEC_BASER)
 		link_fec |= QED_FEC_MODE_FIRECODE;
 	if (eth_fec & ETHTOOL_FEC_RS)
 		link_fec |= QED_FEC_MODE_RS;
 	if (eth_fec & ETHTOOL_FEC_AUTO)
 		link_fec |= QED_FEC_MODE_AUTO;
-	if (eth_fec & ETHTOOL_FEC_NONE)
+	if (eth_fec & ETHTOOL_FEC_ANALNE)
 		link_fec |= QED_FEC_MODE_UNSUPPORTED;
 
 	return link_fec;
@@ -1915,8 +1915,8 @@ static int qede_set_fecparam(struct net_device *dev,
 	struct qed_link_params params;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
-		DP_INFO(edev, "Link settings are not allowed to be changed\n");
-		return -EOPNOTSUPP;
+		DP_INFO(edev, "Link settings are analt allowed to be changed\n");
+		return -EOPANALTSUPP;
 	}
 
 	memset(&params, 0, sizeof(params));
@@ -1959,7 +1959,7 @@ static int qede_get_module_info(struct net_device *dev,
 		modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
 		break;
 	default:
-		DP_ERR(edev, "Unknown transceiver type 0x%x\n", buf[0]);
+		DP_ERR(edev, "Unkanalwn transceiver type 0x%x\n", buf[0]);
 		return -EINVAL;
 	}
 
@@ -2020,7 +2020,7 @@ static int qede_set_dump(struct net_device *dev, struct ethtool_dump *val)
 	struct qede_dev *edev = netdev_priv(dev);
 	int rc = 0;
 
-	if (edev->dump_info.cmd == QEDE_DUMP_CMD_NONE) {
+	if (edev->dump_info.cmd == QEDE_DUMP_CMD_ANALNE) {
 		if (val->flag > QEDE_DUMP_CMD_MAX) {
 			DP_ERR(edev, "Invalid command %d\n", val->flag);
 			return -EINVAL;
@@ -2057,7 +2057,7 @@ static int qede_get_dump_flag(struct net_device *dev,
 	struct qede_dev *edev = netdev_priv(dev);
 
 	if (!edev->ops || !edev->ops->common) {
-		DP_ERR(edev, "Edev ops not populated\n");
+		DP_ERR(edev, "Edev ops analt populated\n");
 		return -EINVAL;
 	}
 
@@ -2090,7 +2090,7 @@ static int qede_get_dump_data(struct net_device *dev,
 	int rc = 0;
 
 	if (!edev->ops || !edev->ops->common) {
-		DP_ERR(edev, "Edev ops not populated\n");
+		DP_ERR(edev, "Edev ops analt populated\n");
 		rc = -EINVAL;
 		goto err;
 	}
@@ -2119,7 +2119,7 @@ static int qede_get_dump_data(struct net_device *dev,
 	}
 
 err:
-	edev->dump_info.cmd = QEDE_DUMP_CMD_NONE;
+	edev->dump_info.cmd = QEDE_DUMP_CMD_ANALNE;
 	edev->dump_info.num_args = 0;
 	memset(edev->dump_info.args, 0, sizeof(edev->dump_info.args));
 

@@ -515,7 +515,7 @@
 	status = "okay";
 };
 
-&usbphynop1 {
+&usbphyanalp1 {
 	wakeup-source;
 };
 

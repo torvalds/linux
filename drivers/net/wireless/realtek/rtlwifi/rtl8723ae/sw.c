@@ -56,7 +56,7 @@ static void rtl8723e_init_aspm_vars(struct ieee80211_hw *hw)
 	/**
 	 * This setting works for those device with
 	 * backdoor ASPM setting such as EPHY setting.
-	 * 0 - Not support ASPM,
+	 * 0 - Analt support ASPM,
 	 * 1 - Support ASPM,
 	 * 2 - According to chipset.
 	 */
@@ -112,7 +112,7 @@ static int rtl8723e_init_sw_vars(struct ieee80211_hw *hw)
 		   PHIMR_C2HCMD |
 		   PHIMR_HISRE_IND |
 		   PHIMR_TSF_BIT32_TOGGLE |
-		   PHIMR_TXBCNOK |
+		   PHIMR_TXBCANALK |
 		   PHIMR_PSTIMEOUT |
 		   0);
 
@@ -150,7 +150,7 @@ static int rtl8723e_init_sw_vars(struct ieee80211_hw *hw)
 
 	rtlpriv->max_fw_size = 0x6000;
 	pr_info("Using firmware %s\n", fw_name);
-	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
+	err = request_firmware_analwait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
@@ -207,7 +207,7 @@ static struct rtl_hal_ops rtl8723e_hal_ops = {
 	.fill_tx_cmddesc = rtl8723e_tx_fill_cmddesc,
 	.query_rx_desc = rtl8723e_rx_query_desc,
 	.set_channel_access = rtl8723e_update_channel_access_setting,
-	.radio_onoff_checking = rtl8723e_gpio_radio_on_off_checking,
+	.radio_oanalff_checking = rtl8723e_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl8723e_phy_set_bw_mode,
 	.switch_channel = rtl8723e_phy_sw_chnl,
 	.dm_watchdog = rtl8723e_dm_watchdog,
@@ -225,7 +225,7 @@ static struct rtl_hal_ops rtl8723e_hal_ops = {
 	.get_rfreg = rtl8723e_phy_query_rf_reg,
 	.set_rfreg = rtl8723e_phy_set_rf_reg,
 	.c2h_command_handle = rtl_8723e_c2h_command_handle,
-	.bt_wifi_media_status_notify = rtl_8723e_bt_wifi_media_status_notify,
+	.bt_wifi_media_status_analtify = rtl_8723e_bt_wifi_media_status_analtify,
 	.bt_coex_off_before_lps =
 		rtl8723e_dm_bt_turn_off_bt_coexist_before_enter_lps,
 	.get_btc_status = rtl8723e_get_btc_status,
@@ -278,7 +278,7 @@ static const struct rtl_hal_cfg rtl8723e_hal_cfg = {
 	.maps[RCAMO] = REG_CAMREAD,
 	.maps[CAMDBG] = REG_CAMDBG,
 	.maps[SECR] = REG_SECCFG,
-	.maps[SEC_CAM_NONE] = CAM_NONE,
+	.maps[SEC_CAM_ANALNE] = CAM_ANALNE,
 	.maps[SEC_CAM_WEP40] = CAM_WEP40,
 	.maps[SEC_CAM_TKIP] = CAM_TKIP,
 	.maps[SEC_CAM_AES] = CAM_AES,
@@ -311,14 +311,14 @@ static const struct rtl_hal_cfg rtl8723e_hal_cfg = {
 	.maps[RTL_IMR_MGNTDOK] = PHIMR_MGNTDOK,
 	.maps[RTL_IMR_TBDER] = PHIMR_TXBCNERR,
 	.maps[RTL_IMR_HIGHDOK] = PHIMR_HIGHDOK,
-	.maps[RTL_IMR_TBDOK] = PHIMR_TXBCNOK,
+	.maps[RTL_IMR_TBDOK] = PHIMR_TXBCANALK,
 	.maps[RTL_IMR_BKDOK] = PHIMR_BKDOK,
 	.maps[RTL_IMR_BEDOK] = PHIMR_BEDOK,
 	.maps[RTL_IMR_VIDOK] = PHIMR_VIDOK,
 	.maps[RTL_IMR_VODOK] = PHIMR_VODOK,
 	.maps[RTL_IMR_ROK] = PHIMR_ROK,
 	.maps[RTL_IBSS_INT_MASKS] =
-		(PHIMR_BCNDMAINT0 | PHIMR_TXBCNOK | PHIMR_TXBCNERR),
+		(PHIMR_BCNDMAINT0 | PHIMR_TXBCANALK | PHIMR_TXBCNERR),
 	.maps[RTL_IMR_C2HCMD] = PHIMR_C2HCMD,
 
 
@@ -363,7 +363,7 @@ module_param_named(aspm, rtl8723e_mod_params.aspm_support, int, 0444);
 module_param_named(disable_watchdog, rtl8723e_mod_params.disable_watchdog,
 		   bool, 0444);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
-MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
+MODULE_PARM_DESC(ips, "Set to 0 to analt use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 1)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 0)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 0)\n");

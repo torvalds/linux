@@ -219,7 +219,7 @@ static struct shash_alg octeon_sha512_algs[2] = { {
 static int __init octeon_sha512_mod_init(void)
 {
 	if (!octeon_has_crypto())
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	return crypto_register_shashes(octeon_sha512_algs,
 				       ARRAY_SIZE(octeon_sha512_algs));
 }

@@ -8,9 +8,9 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  * - stlc45xx driver
- *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *   Copyright (C) 2008 Analkia Corporation and/or its subsidiary(-ies).
  */
 
 #include <linux/export.h>
@@ -68,7 +68,7 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 #endif /* P54_MM_DEBUG */
 
 /*
- * So, the firmware is somewhat stupid and doesn't know what places in its
+ * So, the firmware is somewhat stupid and doesn't kanalw what places in its
  * memory incoming data should go to. By poking around in the firmware, we
  * can find some unused memory to upload our packets to. However, data that we
  * want the card to TX needs to stay intact until the card has told us that
@@ -94,7 +94,7 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
 	if (unlikely(skb_queue_len(&priv->tx_queue) == 32)) {
 		/*
-		 * The tx_queue is now really full.
+		 * The tx_queue is analw really full.
 		 *
 		 * TODO: check if the device has crashed and reset it.
 		 */
@@ -126,7 +126,7 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 			}
 		} else {
 			spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	}
 
@@ -197,7 +197,7 @@ static int p54_tx_qos_accounting_alloc(struct p54_common *priv,
 	spin_lock_irqsave(&priv->tx_stats_lock, flags);
 	if (unlikely(queue->len >= queue->limit && IS_QOS_QUEUE(p54_queue))) {
 		spin_unlock_irqrestore(&priv->tx_stats_lock, flags);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	queue->len++;
@@ -336,7 +336,7 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 
 	/*
 	 * If the device is in a unspecified state we have to
-	 * ignore all data frames. Else we could end up with a
+	 * iganalre all data frames. Else we could end up with a
 	 * nasty crash.
 	 */
 	if (unlikely(priv->mode == NL80211_IFTYPE_UNSPECIFIED))
@@ -450,7 +450,7 @@ static void p54_rx_frame_sent(struct p54_common *priv, struct sk_buff *skb)
 		}
 	}
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK) &&
 	     !(payload->status & P54_TX_FAILED))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	if (payload->status & P54_TX_PSM_CANCELLED)
@@ -530,7 +530,7 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	priv->stats.dot11RTSSuccessCount = le32_to_cpu(stats->rts_success);
 	priv->stats.dot11FCSErrorCount = le32_to_cpu(stats->rx_bad_fcs);
 
-	priv->noise = p54_rssi_to_dbm(priv, le32_to_cpu(stats->noise));
+	priv->analise = p54_rssi_to_dbm(priv, le32_to_cpu(stats->analise));
 
 	/*
 	 * STSW450X LMAC API page 26 - 3.8 Statistics
@@ -540,15 +540,15 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	dtime = tsf32 - priv->survey_raw.timestamp;
 
 	/*
-	 * STSW450X LMAC API page 26 - 3.8.1 Noise histogram
+	 * STSW450X LMAC API page 26 - 3.8.1 Analise histogram
 	 * The LMAC samples RSSI, CCA and transmit state at regular
 	 * periods (typically 8 times per 1k [as in 1024] usec).
 	 */
 	cca = le32_to_cpu(stats->sample_cca);
 	tx = le32_to_cpu(stats->sample_tx);
 	rssi = 0;
-	for (i = 0; i < ARRAY_SIZE(stats->sample_noise); i++)
-		rssi += le32_to_cpu(stats->sample_noise[i]);
+	for (i = 0; i < ARRAY_SIZE(stats->sample_analise); i++)
+		rssi += le32_to_cpu(stats->sample_analise[i]);
 
 	dcca = cca - priv->survey_raw.cached_cca;
 	drssi = rssi - priv->survey_raw.cached_rssi;
@@ -588,7 +588,7 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	chan = priv->curchan;
 	if (chan) {
 		struct survey_info *survey = &priv->survey[chan->hw_value];
-		survey->noise = clamp(priv->noise, -128, 127);
+		survey->analise = clamp(priv->analise, -128, 127);
 		survey->time = priv->survey_raw.active;
 		survey->time_tx = priv->survey_raw.tx;
 		survey->time_busy = priv->survey_raw.tx +
@@ -616,7 +616,7 @@ static void p54_rx_trap(struct p54_common *priv, struct sk_buff *skb)
 	case P54_TRAP_RADAR:
 		wiphy_info(priv->hw->wiphy, "radar (freq:%d MHz)\n", freq);
 		break;
-	case P54_TRAP_NO_BEACON:
+	case P54_TRAP_ANAL_BEACON:
 		if (priv->vif)
 			ieee80211_beacon_loss(priv->vif);
 		break;
@@ -660,7 +660,7 @@ static int p54_rx_control(struct p54_common *priv, struct sk_buff *skb)
 		break;
 	default:
 		wiphy_debug(priv->hw->wiphy,
-			    "not handling 0x%02x type control frame\n",
+			    "analt handling 0x%02x type control frame\n",
 			    le16_to_cpu(hdr->type));
 		break;
 	}
@@ -696,11 +696,11 @@ static void p54_tx_80211_header(struct p54_common *priv, struct sk_buff *skb,
 	if (!(info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
 		*flags |= P54_HDR_FLAG_DATA_OUT_SEQNR;
 
-	if (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER)
-		*flags |= P54_HDR_FLAG_DATA_OUT_NOCANCEL;
+	if (info->flags & IEEE80211_TX_CTL_ANAL_PS_BUFFER)
+		*flags |= P54_HDR_FLAG_DATA_OUT_ANALCANCEL;
 
 	if (info->flags & IEEE80211_TX_CTL_CLEAR_PS_FILT)
-		*flags |= P54_HDR_FLAG_DATA_OUT_NOCANCEL;
+		*flags |= P54_HDR_FLAG_DATA_OUT_ANALCANCEL;
 
 	*queue = skb_get_queue_mapping(skb) + P54_QUEUE_DATA;
 
@@ -730,7 +730,7 @@ static void p54_tx_80211_header(struct p54_common *priv, struct sk_buff *skb,
 			if (ieee80211_is_probe_resp(hdr->frame_control)) {
 				*aid = 0;
 				*flags |= P54_HDR_FLAG_DATA_OUT_TIMESTAMP |
-					  P54_HDR_FLAG_DATA_OUT_NOCANCEL;
+					  P54_HDR_FLAG_DATA_OUT_ANALCANCEL;
 				return;
 			} else if (ieee80211_is_beacon(hdr->frame_control)) {
 				*aid = 0;
@@ -738,7 +738,7 @@ static void p54_tx_80211_header(struct p54_common *priv, struct sk_buff *skb,
 				if (info->flags & IEEE80211_TX_CTL_INJECTED) {
 					/*
 					 * Injecting beacons on top of a AP is
-					 * not a good idea... nevertheless,
+					 * analt a good idea... nevertheless,
 					 * it should be doable.
 					 */
 
@@ -845,7 +845,7 @@ void p54_tx_80211(struct ieee80211_hw *dev,
 		/*
 		 * The magic expression here is equivalent to 8/nrates for
 		 * all values that matter, but avoids division and jumps.
-		 * Note that nrates can only take the values 1 through 4.
+		 * Analte that nrates can only take the values 1 through 4.
 		 */
 		calculated_tries[i] = min_t(int, ((15 >> nrates) | 1) + 1,
 						 info->control.rates[i].count);
@@ -927,8 +927,8 @@ void p54_tx_80211(struct ieee80211_hw *dev,
 		txhdr->longbow.cts_rate = cts_rate;
 		txhdr->longbow.output_power = cpu_to_le16(priv->output_power);
 	} else {
-		txhdr->normal.output_power = priv->output_power;
-		txhdr->normal.cts_rate = cts_rate;
+		txhdr->analrmal.output_power = priv->output_power;
+		txhdr->analrmal.cts_rate = cts_rate;
 	}
 	if (padding)
 		txhdr->align[0] = padding;

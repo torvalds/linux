@@ -43,7 +43,7 @@ static int rkisp1_debug_dump_regs(struct rkisp1_device *rkisp1,
 
 	ret = pm_runtime_get_if_in_use(rkisp1->dev);
 	if (ret <= 0)
-		return ret ? : -ENODATA;
+		return ret ? : -EANALDATA;
 
 	for (; regs->name; ++regs) {
 		val = rkisp1_read(rkisp1, offset + regs->reg);
@@ -159,7 +159,7 @@ static int rkisp1_debug_input_status_show(struct seq_file *m, void *p)
 
 	ret = pm_runtime_get_if_in_use(rkisp1->dev);
 	if (ret <= 0)
-		return ret ? : -ENODATA;
+		return ret ? : -EANALDATA;
 
 	/* Sample the ISP input port status 10000 times with a 1µs interval. */
 	for (i = 0; i < 10000; ++i) {

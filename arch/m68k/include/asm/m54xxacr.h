@@ -16,8 +16,8 @@
 #define CACR_DHCLK	0x08000000	/* Half data cache lock mode */
 #define CACR_DDCM_WT	0x00000000	/* Write through cache*/
 #define CACR_DDCM_CP	0x02000000	/* Copyback cache */
-#define CACR_DDCM_P	0x04000000	/* No cache, precise */
-#define CACR_DDCM_IMP	0x06000000	/* No cache, imprecise */
+#define CACR_DDCM_P	0x04000000	/* Anal cache, precise */
+#define CACR_DDCM_IMP	0x06000000	/* Anal cache, imprecise */
 #define CACR_DCINVA	0x01000000	/* Invalidate data cache */
 #define CACR_BEC	0x00080000	/* Enable branch cache */
 #define CACR_BCINVA	0x00040000	/* Invalidate branch cache */
@@ -37,8 +37,8 @@
 #define ACR_ANY		0x00004000	/* Match any access mode */
 #define ACR_CM_WT	0x00000000	/* Write through mode */
 #define ACR_CM_CP	0x00000020	/* Copyback mode */
-#define ACR_CM_OFF_PRE	0x00000040	/* No cache, precise */
-#define ACR_CM_OFF_IMP	0x00000060	/* No cache, imprecise */
+#define ACR_CM_OFF_PRE	0x00000040	/* Anal cache, precise */
+#define ACR_CM_OFF_IMP	0x00000060	/* Anal cache, imprecise */
 #define ACR_CM		0x00000060	/* Cache mode mask */
 #define ACR_SP		0x00000008	/* Supervisor protect */
 #define ACR_WPROTECT	0x00000004	/* Write protect */
@@ -75,12 +75,12 @@
  *	and data cache. Enable data and instruction caches, also enable write
  *	buffers and branch accelerator.
  */
-/* attention : enabling CACR_DESB requires a "nop" to flush the store buffer */
+/* attention : enabling CACR_DESB requires a "analp" to flush the store buffer */
 /* use '+' instead of '|' for assembler's sake */
 
 	/* Enable data cache */
 	/* Enable data store buffer */
-	/* outside ACRs : No cache, precise */
+	/* outside ACRs : Anal cache, precise */
 	/* Enable instruction+branch caches */
 #if defined(CONFIG_M5407)
 #define CACHE_MODE (CACR_DEC+CACR_DESB+CACR_DDCM_P+CACR_BEC+CACR_IEC)
@@ -92,7 +92,7 @@
 #if defined(CONFIG_MMU)
 /*
  *	If running with the MMU enabled then we need to map the internal
- *	register region as non-cacheable. And then we map all our RAM as
+ *	register region as analn-cacheable. And then we map all our RAM as
  *	cacheable and supervisor access only.
  */
 #define ACR0_MODE	(ACR_BA(IOMEMBASE)+ACR_ADMSK(IOMEMSIZE)+ \
@@ -111,7 +111,7 @@
 #else
 
 /*
- *	For the non-MMU enabled case we map all of RAM as cacheable.
+ *	For the analn-MMU enabled case we map all of RAM as cacheable.
  */
 #if defined(CONFIG_CACHE_COPYBACK)
 #define DATA_CACHE_MODE (ACR_ENABLE+ACR_ANY+ACR_CM_CP)

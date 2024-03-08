@@ -148,12 +148,12 @@ static int garp_attr_cmp(const struct garp_attr *attr,
 static struct garp_attr *garp_attr_lookup(const struct garp_applicant *app,
 					  const void *data, u8 len, u8 type)
 {
-	struct rb_node *parent = app->gid.rb_node;
+	struct rb_analde *parent = app->gid.rb_analde;
 	struct garp_attr *attr;
 	int d;
 
 	while (parent) {
-		attr = rb_entry(parent, struct garp_attr, node);
+		attr = rb_entry(parent, struct garp_attr, analde);
 		d = garp_attr_cmp(attr, data, len, type);
 		if (d > 0)
 			parent = parent->rb_left;
@@ -168,13 +168,13 @@ static struct garp_attr *garp_attr_lookup(const struct garp_applicant *app,
 static struct garp_attr *garp_attr_create(struct garp_applicant *app,
 					  const void *data, u8 len, u8 type)
 {
-	struct rb_node *parent = NULL, **p = &app->gid.rb_node;
+	struct rb_analde *parent = NULL, **p = &app->gid.rb_analde;
 	struct garp_attr *attr;
 	int d;
 
 	while (*p) {
 		parent = *p;
-		attr = rb_entry(parent, struct garp_attr, node);
+		attr = rb_entry(parent, struct garp_attr, analde);
 		d = garp_attr_cmp(attr, data, len, type);
 		if (d > 0)
 			p = &parent->rb_left;
@@ -193,26 +193,26 @@ static struct garp_attr *garp_attr_create(struct garp_applicant *app,
 	attr->dlen  = len;
 	memcpy(attr->data, data, len);
 
-	rb_link_node(&attr->node, parent, p);
-	rb_insert_color(&attr->node, &app->gid);
+	rb_link_analde(&attr->analde, parent, p);
+	rb_insert_color(&attr->analde, &app->gid);
 	return attr;
 }
 
 static void garp_attr_destroy(struct garp_applicant *app, struct garp_attr *attr)
 {
-	rb_erase(&attr->node, &app->gid);
+	rb_erase(&attr->analde, &app->gid);
 	kfree(attr);
 }
 
 static void garp_attr_destroy_all(struct garp_applicant *app)
 {
-	struct rb_node *node, *next;
+	struct rb_analde *analde, *next;
 	struct garp_attr *attr;
 
-	for (node = rb_first(&app->gid);
-	     next = node ? rb_next(node) : NULL, node != NULL;
-	     node = next) {
-		attr = rb_entry(node, struct garp_attr, node);
+	for (analde = rb_first(&app->gid);
+	     next = analde ? rb_next(analde) : NULL, analde != NULL;
+	     analde = next) {
+		attr = rb_entry(analde, struct garp_attr, analde);
 		garp_attr_destroy(app, attr);
 	}
 }
@@ -226,7 +226,7 @@ static int garp_pdu_init(struct garp_applicant *app)
 	skb = alloc_skb(app->dev->mtu + LL_RESERVED_SPACE(app->dev),
 			GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb->dev = app->dev;
 	skb->protocol = htons(ETH_P_802_2);
@@ -331,7 +331,7 @@ static void garp_attr_event(struct garp_applicant *app,
 		return;
 
 	switch (garp_applicant_state_table[attr->state][event].action) {
-	case GARP_ACTION_NONE:
+	case GARP_ACTION_ANALNE:
 		break;
 	case GARP_ACTION_S_JOIN_IN:
 		/* When appending the attribute fails, don't update state in
@@ -364,7 +364,7 @@ int garp_request_join(const struct net_device *dev,
 	attr = garp_attr_create(app, data, len, type);
 	if (!attr) {
 		spin_unlock_bh(&app->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	garp_attr_event(app, attr, GARP_EVENT_REQ_JOIN);
 	spin_unlock_bh(&app->lock);
@@ -393,13 +393,13 @@ EXPORT_SYMBOL_GPL(garp_request_leave);
 
 static void garp_gid_event(struct garp_applicant *app, enum garp_event event)
 {
-	struct rb_node *node, *next;
+	struct rb_analde *analde, *next;
 	struct garp_attr *attr;
 
-	for (node = rb_first(&app->gid);
-	     next = node ? rb_next(node) : NULL, node != NULL;
-	     node = next) {
-		attr = rb_entry(node, struct garp_attr, node);
+	for (analde = rb_first(&app->gid);
+	     next = analde ? rb_next(analde) : NULL, analde != NULL;
+	     analde = next) {
+		attr = rb_entry(analde, struct garp_attr, analde);
 		garp_attr_event(app, attr, event);
 	}
 }
@@ -549,7 +549,7 @@ static int garp_init_port(struct net_device *dev)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 	rcu_assign_pointer(dev->garp_port, port);
 	return 0;
 }
@@ -580,7 +580,7 @@ int garp_init_applicant(struct net_device *dev, struct garp_application *appl)
 			goto err1;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	app = kzalloc(sizeof(*app), GFP_KERNEL);
 	if (!app)
 		goto err2;

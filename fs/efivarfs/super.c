@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.
- * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@canonical.com>
+ * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@caanalnical.com>
  */
 
 #include <linux/ctype.h>
@@ -15,12 +15,12 @@
 #include <linux/slab.h>
 #include <linux/magic.h>
 #include <linux/statfs.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/printk.h>
 
 #include "internal.h"
 
-static int efivarfs_ops_notifier(struct notifier_block *nb, unsigned long event,
+static int efivarfs_ops_analtifier(struct analtifier_block *nb, unsigned long event,
 				 void *data)
 {
 	struct efivarfs_fs_info *sfi = container_of(nb, struct efivarfs_fs_info, nb);
@@ -33,15 +33,15 @@ static int efivarfs_ops_notifier(struct notifier_block *nb, unsigned long event,
 		sfi->sb->s_flags &= ~SB_RDONLY;
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static void efivarfs_evict_inode(struct inode *inode)
+static void efivarfs_evict_ianalde(struct ianalde *ianalde)
 {
-	clear_inode(inode);
+	clear_ianalde(ianalde);
 }
 
 static int efivarfs_show_options(struct seq_file *m, struct dentry *root)
@@ -61,14 +61,14 @@ static int efivarfs_show_options(struct seq_file *m, struct dentry *root)
 
 static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	const u32 attr = EFI_VARIABLE_NON_VOLATILE |
+	const u32 attr = EFI_VARIABLE_ANALN_VOLATILE |
 			 EFI_VARIABLE_BOOTSERVICE_ACCESS |
 			 EFI_VARIABLE_RUNTIME_ACCESS;
 	u64 storage_space, remaining_space, max_variable_size;
 	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
 	efi_status_t status;
 
-	/* Some UEFI firmware does not implement QueryVariableInfo() */
+	/* Some UEFI firmware does analt implement QueryVariableInfo() */
 	storage_space = remaining_space = 0;
 	if (efi_rt_services_supported(EFI_RT_SUPPORTED_QUERY_VARIABLE_INFO)) {
 		status = efivar_query_variable_info(attr, &storage_space,
@@ -80,7 +80,7 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	}
 
 	/*
-	 * This is not a normal filesystem, so no point in pretending it has a block
+	 * This is analt a analrmal filesystem, so anal point in pretending it has a block
 	 * size; we declare f_bsize to 1, so that we can then report the exact value
 	 * sent by EFI QueryVariableInfo in f_blocks and f_bfree
 	 */
@@ -93,8 +93,8 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	/*
 	 * In f_bavail we declare the free space that the kernel will allow writing
-	 * when the storage_paranoia x86 quirk is active. To use more, users
-	 * should boot the kernel with efi_no_storage_paranoia.
+	 * when the storage_paraanalia x86 quirk is active. To use more, users
+	 * should boot the kernel with efi_anal_storage_paraanalia.
 	 */
 	if (remaining_space > efivar_reserved_space())
 		buf->f_bavail = remaining_space - efivar_reserved_space();
@@ -105,8 +105,8 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 static const struct super_operations efivarfs_ops = {
 	.statfs = efivarfs_statfs,
-	.drop_inode = generic_delete_inode,
-	.evict_inode = efivarfs_evict_inode,
+	.drop_ianalde = generic_delete_ianalde,
+	.evict_ianalde = efivarfs_evict_ianalde,
 	.show_options = efivarfs_show_options,
 };
 
@@ -181,7 +181,7 @@ static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
 	if (d)
 		return d;
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
@@ -190,12 +190,12 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 {
 	struct super_block *sb = (struct super_block *)data;
 	struct efivar_entry *entry;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct dentry *dentry, *root = sb->s_root;
 	unsigned long size = 0;
 	char *name;
 	int len;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	bool is_removable = false;
 
 	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
@@ -229,15 +229,15 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	/* replace invalid slashes like kobject_set_name_vargs does for /sys/firmware/efi/vars. */
 	strreplace(name, '/', '!');
 
-	inode = efivarfs_get_inode(sb, d_inode(root), S_IFREG | 0644, 0,
+	ianalde = efivarfs_get_ianalde(sb, d_ianalde(root), S_IFREG | 0644, 0,
 				   is_removable);
-	if (!inode)
+	if (!ianalde)
 		goto fail_name;
 
 	dentry = efivarfs_alloc_dentry(root, name);
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
-		goto fail_inode;
+		goto fail_ianalde;
 	}
 
 	__efivar_entry_get(entry, NULL, &size, NULL);
@@ -246,16 +246,16 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	/* copied by the above to local storage in the dentry. */
 	kfree(name);
 
-	inode_lock(inode);
-	inode->i_private = entry;
-	i_size_write(inode, size + sizeof(entry->var.Attributes));
-	inode_unlock(inode);
-	d_add(dentry, inode);
+	ianalde_lock(ianalde);
+	ianalde->i_private = entry;
+	i_size_write(ianalde, size + sizeof(entry->var.Attributes));
+	ianalde_unlock(ianalde);
+	d_add(dentry, ianalde);
 
 	return 0;
 
-fail_inode:
-	iput(inode);
+fail_ianalde:
+	iput(ianalde);
 fail_name:
 	kfree(name);
 fail:
@@ -312,7 +312,7 @@ static int efivarfs_parse_param(struct fs_context *fc, struct fs_parameter *para
 static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct efivarfs_fs_info *sfi = sb->s_fs_info;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct dentry *root;
 	int err;
 
@@ -327,19 +327,19 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!efivar_supports_writes())
 		sb->s_flags |= SB_RDONLY;
 
-	inode = efivarfs_get_inode(sb, NULL, S_IFDIR | 0755, 0, true);
-	if (!inode)
-		return -ENOMEM;
-	inode->i_op = &efivarfs_dir_inode_operations;
+	ianalde = efivarfs_get_ianalde(sb, NULL, S_IFDIR | 0755, 0, true);
+	if (!ianalde)
+		return -EANALMEM;
+	ianalde->i_op = &efivarfs_dir_ianalde_operations;
 
-	root = d_make_root(inode);
+	root = d_make_root(ianalde);
 	sb->s_root = root;
 	if (!root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sfi->sb = sb;
-	sfi->nb.notifier_call = efivarfs_ops_notifier;
-	err = blocking_notifier_chain_register(&efivar_ops_nh, &sfi->nb);
+	sfi->nb.analtifier_call = efivarfs_ops_analtifier;
+	err = blocking_analtifier_chain_register(&efivar_ops_nh, &sfi->nb);
 	if (err)
 		return err;
 
@@ -354,7 +354,7 @@ static int efivarfs_get_tree(struct fs_context *fc)
 static int efivarfs_reconfigure(struct fs_context *fc)
 {
 	if (!efivar_supports_writes() && !(fc->sb_flags & SB_RDONLY)) {
-		pr_err("Firmware does not support SetVariableRT. Can not remount with rw\n");
+		pr_err("Firmware does analt support SetVariableRT. Can analt remount with rw\n");
 		return -EINVAL;
 	}
 
@@ -372,11 +372,11 @@ static int efivarfs_init_fs_context(struct fs_context *fc)
 	struct efivarfs_fs_info *sfi;
 
 	if (!efivar_is_available())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sfi = kzalloc(sizeof(*sfi), GFP_KERNEL);
 	if (!sfi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&sfi->efivarfs_list);
 
@@ -392,7 +392,7 @@ static void efivarfs_kill_sb(struct super_block *sb)
 {
 	struct efivarfs_fs_info *sfi = sb->s_fs_info;
 
-	blocking_notifier_chain_unregister(&efivar_ops_nh, &sfi->nb);
+	blocking_analtifier_chain_unregister(&efivar_ops_nh, &sfi->nb);
 	kill_litter_super(sb);
 
 	/* Remove all entries and destroy */

@@ -29,7 +29,7 @@
 
 /* Magic constants in BIOS that tell about buttons */
 enum apanel_devid {
-	APANEL_DEV_NONE	  = 0,
+	APANEL_DEV_ANALNE	  = 0,
 	APANEL_DEV_APPBTN = 1,
 	APANEL_DEV_CDBTN  = 2,
 	APANEL_DEV_LCD	  = 3,
@@ -39,13 +39,13 @@ enum apanel_devid {
 };
 
 enum apanel_chip {
-	CHIP_NONE    = 0,
+	CHIP_ANALNE    = 0,
 	CHIP_OZ992C  = 1,
 	CHIP_OZ163T  = 2,
 	CHIP_OZ711M3 = 4,
 };
 
-/* Result of BIOS snooping/probing -- what features are supported */
+/* Result of BIOS sanaloping/probing -- what features are supported */
 static enum apanel_chip device_chip[APANEL_DEV_MAX];
 
 #define MAX_PANEL_KEYS	12
@@ -97,7 +97,7 @@ static void apanel_poll(struct input_dev *idev)
 
 	data = i2c_smbus_read_word_data(ap->client, cmd);
 	if (data < 0)
-		return;	/* ignore errors (due to ACPI??) */
+		return;	/* iganalre errors (due to ACPI??) */
 
 	/* write back to clear latch */
 	i2c_smbus_write_word_data(ap->client, cmd, 0);
@@ -129,11 +129,11 @@ static int apanel_probe(struct i2c_client *client)
 
 	ap = devm_kzalloc(&client->dev, sizeof(*ap), GFP_KERNEL);
 	if (!ap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = devm_input_allocate_device(&client->dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap->idev = idev;
 	ap->client = client;
@@ -155,7 +155,7 @@ static int apanel_probe(struct i2c_client *client)
 	memcpy(ap->keymap, apanel_keymap, sizeof(apanel_keymap));
 	idev->keycode = ap->keymap;
 	idev->keycodesize = sizeof(ap->keymap[0]);
-	idev->keycodemax = (device_chip[APANEL_DEV_CDBTN] != CHIP_NONE) ? 12 : 4;
+	idev->keycodemax = (device_chip[APANEL_DEV_CDBTN] != CHIP_ANALNE) ? 12 : 4;
 
 	set_bit(EV_KEY, idev->evbit);
 	for (i = 0; i < idev->keycodemax; i++)
@@ -172,7 +172,7 @@ static int apanel_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	if (device_chip[APANEL_DEV_LED] != CHIP_NONE) {
+	if (device_chip[APANEL_DEV_LED] != CHIP_ANALNE) {
 		ap->mail_led.name = "mail:blue";
 		ap->mail_led.brightness_set_blocking = mail_led_set;
 		err = devm_led_classdev_register(&client->dev, &ap->mail_led);
@@ -187,7 +187,7 @@ static void apanel_shutdown(struct i2c_client *client)
 {
 	struct apanel *ap = i2c_get_clientdata(client);
 
-	if (device_chip[APANEL_DEV_LED] != CHIP_NONE)
+	if (device_chip[APANEL_DEV_LED] != CHIP_ANALNE)
 		led_set_brightness(&ap->mail_led, LED_OFF);
 }
 
@@ -217,7 +217,7 @@ static __init const void __iomem *bios_signature(const void __iomem *bios)
 				    sizeof(signature)-1))
 			return bios + offset;
 	}
-	pr_notice(APANEL ": Fujitsu BIOS signature '%s' not found...\n",
+	pr_analtice(APANEL ": Fujitsu BIOS signature '%s' analt found...\n",
 		  signature);
 	return NULL;
 }
@@ -226,7 +226,7 @@ static int __init apanel_init(void)
 {
 	void __iomem *bios;
 	const void __iomem *p;
-	u8 devno;
+	u8 devanal;
 	unsigned char i2c_addr;
 	int found = 0;
 
@@ -235,14 +235,14 @@ static int __init apanel_init(void)
 	p = bios_signature(bios);
 	if (!p) {
 		iounmap(bios);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* just use the first address */
 	p += 8;
 	i2c_addr = readb(p + 3) >> 1;
 
-	for ( ; (devno = readb(p)) & 0x7f; p += 4) {
+	for ( ; (devanal = readb(p)) & 0x7f; p += 4) {
 		unsigned char method, slave, chip;
 
 		method = readb(p + 1);
@@ -250,39 +250,39 @@ static int __init apanel_init(void)
 		slave = readb(p + 3) >> 1;
 
 		if (slave != i2c_addr) {
-			pr_notice(APANEL ": only one SMBus slave "
+			pr_analtice(APANEL ": only one SMBus slave "
 				  "address supported, skipping device...\n");
 			continue;
 		}
 
 		/* translate alternative device numbers */
-		switch (devno) {
+		switch (devanal) {
 		case 6:
-			devno = APANEL_DEV_APPBTN;
+			devanal = APANEL_DEV_APPBTN;
 			break;
 		case 7:
-			devno = APANEL_DEV_LED;
+			devanal = APANEL_DEV_LED;
 			break;
 		}
 
-		if (devno >= APANEL_DEV_MAX)
-			pr_notice(APANEL ": unknown device %u found\n", devno);
-		else if (device_chip[devno] != CHIP_NONE)
-			pr_warn(APANEL ": duplicate entry for devno %u\n",
-				devno);
+		if (devanal >= APANEL_DEV_MAX)
+			pr_analtice(APANEL ": unkanalwn device %u found\n", devanal);
+		else if (device_chip[devanal] != CHIP_ANALNE)
+			pr_warn(APANEL ": duplicate entry for devanal %u\n",
+				devanal);
 
 		else if (method != 1 && method != 2 && method != 4) {
-			pr_notice(APANEL ": unknown method %u for devno %u\n",
-				  method, devno);
+			pr_analtice(APANEL ": unkanalwn method %u for devanal %u\n",
+				  method, devanal);
 		} else {
-			device_chip[devno] = (enum apanel_chip) chip;
+			device_chip[devanal] = (enum apanel_chip) chip;
 			++found;
 		}
 	}
 	iounmap(bios);
 
 	if (found == 0) {
-		pr_info(APANEL ": no input devices reported by BIOS\n");
+		pr_info(APANEL ": anal input devices reported by BIOS\n");
 		return -EIO;
 	}
 

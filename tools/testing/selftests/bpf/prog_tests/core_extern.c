@@ -9,13 +9,13 @@
 
 static uint32_t get_kernel_version(void)
 {
-	uint32_t major, minor, patch;
+	uint32_t major, mianalr, patch;
 	struct utsname info;
 
 	uname(&info);
-	if (sscanf(info.release, "%u.%u.%u", &major, &minor, &patch) != 3)
+	if (sscanf(info.release, "%u.%u.%u", &major, &mianalr, &patch) != 3)
 		return 0;
-	return KERNEL_VERSION(major, minor, patch);
+	return KERNEL_VERSION(major, mianalr, patch);
 }
 
 #define CFG "CONFIG_BPF_SYSCALL=n\n"
@@ -52,9 +52,9 @@ static struct test_case {
 	},
 	/* TRISTATE */
 	{ .name = "tristate (y)", .cfg = CFG"CONFIG_TRISTATE=y\n",
-	  .data = { .tristate_val = TRI_YES } },
+	  .data = { .tristate_val = TRI_ANAL } },
 	{ .name = "tristate (n)", .cfg = CFG"CONFIG_TRISTATE=n\n",
-	  .data = { .tristate_val = TRI_NO } },
+	  .data = { .tristate_val = TRI_ANAL } },
 	{ .name = "tristate (m)", .cfg = CFG"CONFIG_TRISTATE=m\n",
 	  .data = { .tristate_val = TRI_MODULE } },
 	{ .name = "tristate (int)", .fails = 1, .cfg = CFG"CONFIG_TRISTATE=1" },
@@ -79,7 +79,7 @@ static struct test_case {
 	  .data = { .str_val = "abra\0\0\0" } },
 	{ .name = "str (too long)", .cfg = CFG"CONFIG_STR=\"abracada\"\n",
 	  .data = { .str_val = "abracad" } },
-	{ .name = "str (no value)", .fails = 1, .cfg = CFG"CONFIG_STR=\n" },
+	{ .name = "str (anal value)", .fails = 1, .cfg = CFG"CONFIG_STR=\n" },
 	{ .name = "str (bad value)", .fails = 1, .cfg = CFG"CONFIG_STR=bla\n" },
 	/* INTEGERS */
 	{

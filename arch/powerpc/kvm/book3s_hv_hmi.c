@@ -20,11 +20,11 @@ void wait_for_subcore_guest_exit(void)
 
 	/*
 	 * NULL bitmap pointer indicates that KVM module hasn't
-	 * been loaded yet and hence no guests are running, or running
+	 * been loaded yet and hence anal guests are running, or running
 	 * on POWER9 or newer CPU.
 	 *
-	 * If no KVM is in use, no need to co-ordinate among threads
-	 * as all of them will always be in host and no one is going
+	 * If anal KVM is in use, anal need to co-ordinate among threads
+	 * as all of them will always be in host and anal one is going
 	 * to modify TB other than the opal hmi handler.
 	 *
 	 * POWER9 and newer don't need this synchronisation.

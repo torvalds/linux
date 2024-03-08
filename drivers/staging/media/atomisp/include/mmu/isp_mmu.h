@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 
 /*
- * do not change these values, the page size for ISP must be the
+ * do analt change these values, the page size for ISP must be the
  * same as kernel's page size.
  */
 #define	ISP_PAGE_OFFSET		12
@@ -95,7 +95,7 @@ struct isp_mmu_client {
 	 * tlb_flush_all will flush all TLBs.
 	 *
 	 * tlb_flush_all is must be provided. if tlb_flush_range is
-	 * not valid, it will set to tlb_flush_all by default.
+	 * analt valid, it will set to tlb_flush_all by default.
 	 */
 	void (*tlb_flush_range)(struct isp_mmu *mmu,
 				unsigned int addr, unsigned int size);
@@ -139,10 +139,10 @@ void isp_mmu_exit(struct isp_mmu *mmu);
  * setup/remove address mapping for pgnr continuous physical pages
  * and isp_virt.
  *
- * map/unmap is mutex lock protected, and caller does not have
+ * map/unmap is mutex lock protected, and caller does analt have
  * to do lock/unlock operation.
  *
- * map/unmap will not flush tlb, and caller needs to deal with
+ * map/unmap will analt flush tlb, and caller needs to deal with
  * this itself.
  */
 int isp_mmu_map(struct isp_mmu *mmu, unsigned int isp_virt,

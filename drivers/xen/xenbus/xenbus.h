@@ -17,12 +17,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -41,7 +41,7 @@
 struct xen_bus_type {
 	char *root;
 	unsigned int levels;
-	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
+	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *analdename);
 	int (*probe)(struct xen_bus_type *bus, const char *type,
 		     const char *dir);
 	bool (*otherend_will_handle)(struct xenbus_watch *watch,
@@ -52,7 +52,7 @@ struct xen_bus_type {
 };
 
 enum xenstore_init {
-	XS_UNKNOWN,
+	XS_UNKANALWN,
 	XS_PV,
 	XS_HVM,
 	XS_LOCAL,
@@ -111,12 +111,12 @@ int xenbus_register_driver_common(struct xenbus_driver *drv,
 				  struct xen_bus_type *bus,
 				  struct module *owner,
 				  const char *mod_name);
-int xenbus_probe_node(struct xen_bus_type *bus,
+int xenbus_probe_analde(struct xen_bus_type *bus,
 		      const char *type,
-		      const char *nodename);
+		      const char *analdename);
 int xenbus_probe_devices(struct xen_bus_type *bus);
 
-void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
+void xenbus_dev_changed(const char *analde, struct xen_bus_type *bus);
 
 int xenbus_dev_suspend(struct device *dev);
 int xenbus_dev_resume(struct device *dev);
@@ -124,10 +124,10 @@ int xenbus_dev_cancel(struct device *dev);
 
 void xenbus_otherend_changed(struct xenbus_watch *watch,
 			     const char *path, const char *token,
-			     int ignore_on_shutdown);
+			     int iganalre_on_shutdown);
 
 int xenbus_read_otherend_details(struct xenbus_device *xendev,
-				 char *id_node, char *path_node);
+				 char *id_analde, char *path_analde);
 
 void xenbus_ring_ops_init(void);
 

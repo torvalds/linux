@@ -332,7 +332,7 @@ static inline int snand_prepare_bouncebuf(struct mtk_snand *snf, size_t size)
 	kfree(snf->buf);
 	snf->buf = kmalloc(size, GFP_KERNEL);
 	if (!snf->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	snf->buf_len = size;
 	memset(snf->buf, 0xff, snf->buf_len);
 	return 0;
@@ -403,7 +403,7 @@ static int mtk_nfi_reset(struct mtk_snand *snf)
 	ret = readw_poll_timeout(snf->nfi_base + NFI_FIFOSTA, val,
 				 !(val & fifo_mask), 0, SNFI_POLL_INTERVAL);
 	if (ret) {
-		dev_err(snf->dev, "NFI FIFOs are not empty\n");
+		dev_err(snf->dev, "NFI FIFOs are analt empty\n");
 		return ret;
 	}
 
@@ -626,15 +626,15 @@ static int mtk_snand_setup_pagefmt(struct mtk_snand *snf, u32 page_size,
 		snf->caps->sector_size, spare_size, nsectors);
 	return snand_prepare_bouncebuf(snf, page_size + oob_size);
 err:
-	dev_err(snf->dev, "page size %u + %u is not supported\n", page_size,
+	dev_err(snf->dev, "page size %u + %u is analt supported\n", page_size,
 		oob_size);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mtk_snand_ooblayout_ecc(struct mtd_info *mtd, int section,
 				   struct mtd_oob_region *oobecc)
 {
-	// ECC area is not accessible
+	// ECC area is analt accessible
 	return -ERANGE;
 }
 
@@ -677,7 +677,7 @@ static int mtk_snand_ecc_init_ctx(struct nand_device *nand)
 
 	ecc_cfg = kzalloc(sizeof(*ecc_cfg), GFP_KERNEL);
 	if (!ecc_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand->ecc.ctx.priv = ecc_cfg;
 
@@ -1273,7 +1273,7 @@ static int mtk_snand_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 		size_t hl = op->cmd.nbytes + op->addr.nbytes + op->dummy.nbytes;
 
 		if (hl >= SNF_GPRAM_SIZE)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (op->data.nbytes > SNF_GPRAM_SIZE - hl)
 			op->data.nbytes = SNF_GPRAM_SIZE - hl;
 	}
@@ -1316,7 +1316,7 @@ static irqreturn_t mtk_snand_irq(int irq, void *id)
 	ien = nfi_read32(snf, NFI_INTR_EN);
 
 	if (!(sta & ien))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	nfi_write32(snf, NFI_INTR_EN, 0);
 	complete(&snf->op_done);
@@ -1334,7 +1334,7 @@ MODULE_DEVICE_TABLE(of, mtk_snand_ids);
 
 static int mtk_snand_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *dev_id;
 	struct spi_controller *ctlr;
 	struct mtk_snand *ms;
@@ -1342,13 +1342,13 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	u32 val = 0;
 	int ret;
 
-	dev_id = of_match_node(mtk_snand_ids, np);
+	dev_id = of_match_analde(mtk_snand_ids, np);
 	if (!dev_id)
 		return -EINVAL;
 
 	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*ms));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, ctlr);
 
 	ms = spi_controller_get_devdata(ctlr);
@@ -1360,7 +1360,7 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	if (IS_ERR(ms->ecc))
 		return PTR_ERR(ms->ecc);
 	else if (!ms->ecc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ms->nfi_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ms->nfi_base)) {
@@ -1452,7 +1452,7 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	ctlr->mem_caps = &mtk_snand_mem_caps;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
 	ctlr->mode_bits = SPI_RX_DUAL | SPI_RX_QUAD | SPI_TX_DUAL | SPI_TX_QUAD;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 	ret = spi_register_controller(ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "spi_register_controller failed.\n");

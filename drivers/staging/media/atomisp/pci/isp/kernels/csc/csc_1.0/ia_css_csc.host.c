@@ -15,7 +15,7 @@
 
 #include "ia_css_types.h"
 #include "sh_css_defs.h"
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 /* FIXME: See BZ 4427 */
 #include "ia_css_debug.h"
 #endif
@@ -34,7 +34,7 @@ ia_css_encode_cc(
     unsigned int size)
 {
 	(void)size;
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_encode_cc() enter:\n");
 #endif
 
@@ -49,7 +49,7 @@ ia_css_encode_cc(
 	to->m21 = (int16_t)from->matrix[7];
 	to->m22 = (int16_t)from->matrix[8];
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_encode_cc() leave:\n");
 #endif
 }
@@ -63,7 +63,7 @@ ia_css_csc_encode(
 	ia_css_encode_cc(to, from, size);
 }
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_cc_dump(
     const struct sh_css_isp_csc_params *csc,

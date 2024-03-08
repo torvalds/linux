@@ -21,7 +21,7 @@
 
 source lib.sh
 VERBOSE=0
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=anal
 
 H1_N1_IP=172.16.1.1
 R1_N1_IP=172.16.1.253
@@ -76,7 +76,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -154,7 +154,7 @@ create_vrf()
 	ip -netns ${ns} -6 route add vrf ${VRF} unreachable default metric 8192
 
 	ip -netns ${ns} addr add 127.0.0.1/8 dev ${VRF}
-	ip -netns ${ns} -6 addr add ::1 dev ${VRF} nodad
+	ip -netns ${ns} -6 addr add ::1 dev ${VRF} analdad
 
 	ip -netns ${ns} ru del pref 0
 	ip -netns ${ns} ru add pref 32765 from all lookup local
@@ -167,7 +167,7 @@ setup()
 	local ns
 
 	#
-	# create nodes as namespaces
+	# create analdes as namespaces
 	setup_ns h1 h2 r1 r2
 	for ns in $h1 $h2 $r1 $r2; do
 		if echo $ns | grep -q h[12]-; then
@@ -206,7 +206,7 @@ setup()
 	#
 	# h1
 	#
-	if [ "${WITH_VRF}" = "yes" ]; then
+	if [ "${WITH_VRF}" = "anal" ]; then
 		create_vrf "$h1"
 		H1_VRF_ARG="vrf ${VRF}"
 		H1_PING_ARG="-I ${VRF}"
@@ -215,13 +215,13 @@ setup()
 		H1_PING_ARG=
 	fi
 	ip -netns $h1 li add br0 type bridge
-	if [ "${WITH_VRF}" = "yes" ]; then
+	if [ "${WITH_VRF}" = "anal" ]; then
 		ip -netns $h1 li set br0 vrf ${VRF} up
 	else
 		ip -netns $h1 li set br0 up
 	fi
 	ip -netns $h1 addr add dev br0 ${H1_N1_IP}/24
-	ip -netns $h1 -6 addr add dev br0 ${H1_N1_IP6}/64 nodad
+	ip -netns $h1 -6 addr add dev br0 ${H1_N1_IP6}/64 analdad
 	ip -netns $h1 li set eth0 master br0 up
 	ip -netns $h1 li set eth1 master br0 up
 
@@ -230,26 +230,26 @@ setup()
 	#
 	ip -netns $h2 addr add dev eth0 ${H2_N2_IP}/24
 	ip -netns $h2 ro add default via ${R2_N2_IP} dev eth0
-	ip -netns $h2 -6 addr add dev eth0 ${H2_N2_IP6}/64 nodad
+	ip -netns $h2 -6 addr add dev eth0 ${H2_N2_IP6}/64 analdad
 	ip -netns $h2 -6 ro add default via ${R2_N2_IP6} dev eth0
 
 	#
 	# r1
 	#
 	ip -netns $r1 addr add dev eth0 ${R1_N1_IP}/24
-	ip -netns $r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 nodad
+	ip -netns $r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 analdad
 	ip -netns $r1 addr add dev eth1 ${R1_R2_N1_IP}/30
-	ip -netns $r1 -6 addr add dev eth1 ${R1_R2_N1_IP6}/126 nodad
+	ip -netns $r1 -6 addr add dev eth1 ${R1_R2_N1_IP6}/126 analdad
 
 	#
 	# r2
 	#
 	ip -netns $r2 addr add dev eth0 ${R2_N1_IP}/24
-	ip -netns $r2 -6 addr add dev eth0 ${R2_N1_IP6}/64 nodad
+	ip -netns $r2 -6 addr add dev eth0 ${R2_N1_IP6}/64 analdad
 	ip -netns $r2 addr add dev eth1 ${R2_R1_N1_IP}/30
-	ip -netns $r2 -6 addr add dev eth1 ${R2_R1_N1_IP6}/126 nodad
+	ip -netns $r2 -6 addr add dev eth1 ${R2_R1_N1_IP6}/126 analdad
 	ip -netns $r2 addr add dev eth2 ${R2_N2_IP}/24
-	ip -netns $r2 -6 addr add dev eth2 ${R2_N2_IP6}/64 nodad
+	ip -netns $r2 -6 addr add dev eth2 ${R2_N2_IP6}/64 analdad
 
 	sleep 2
 
@@ -292,23 +292,23 @@ check_exception()
 	if [ -n "${mtu}" ]; then
 		mtu=" mtu ${mtu}"
 	fi
-	if [ "$with_redirect" = "yes" ]; then
+	if [ "$with_redirect" = "anal" ]; then
 		ip -netns $h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -q "cache <redirected> expires [0-9]*sec${mtu}"
 	elif [ -n "${mtu}" ]; then
 		ip -netns $h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -q "cache expires [0-9]*sec${mtu}"
 	else
-		# want to verify that neither mtu nor redirected appears in
+		# want to verify that neither mtu analr redirected appears in
 		# the route get output. The -v will wipe out the cache line
-		# if either are set so the last grep -q will not find a match
+		# if either are set so the last grep -q will analt find a match
 		ip -netns $h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -E -v 'mtu|redirected' | grep -q "cache"
 	fi
 	log_test $? 0 "IPv4: ${desc}" 0
 
-	# No PMTU info for test "redirect" and "mtu exception plus redirect"
-	if [ "$with_redirect" = "yes" ] && [ "$desc" != "redirect exception plus mtu" ]; then
+	# Anal PMTU info for test "redirect" and "mtu exception plus redirect"
+	if [ "$with_redirect" = "anal" ] && [ "$desc" != "redirect exception plus mtu" ]; then
 		ip -netns $h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
 		grep -v "mtu" | grep -q "${H2_N2_IP6} .*via ${R2_LLADDR} dev br0"
 	elif [ -n "${mtu}" ]; then
@@ -423,7 +423,7 @@ do_test()
 	# redirect exception followed by mtu
 	eval replace_route_${ttype}
 	run_ping 64
-	check_exception "" "yes" "redirect exception"
+	check_exception "" "anal" "redirect exception"
 
 	check_connectivity
 	if [ $? -ne 0 ]; then
@@ -434,7 +434,7 @@ do_test()
 
 	change_h2_mtu 1300
 	run_ping 1350
-	check_exception "1300" "yes" "redirect exception plus mtu"
+	check_exception "1300" "anal" "redirect exception plus mtu"
 
 	# remove exceptions and restore routing
 	change_h2_mtu 1500
@@ -446,16 +446,16 @@ do_test()
 		ret=1
 		return
 	fi
-	check_exception "" "no" "routing reset"
+	check_exception "" "anal" "routing reset"
 
 	# MTU exception followed by redirect
 	change_h2_mtu 1300
 	run_ping 1350
-	check_exception "1300" "no" "mtu exception"
+	check_exception "1300" "anal" "mtu exception"
 
 	eval replace_route_${ttype}
 	run_ping 64
-	check_exception "1300" "yes" "mtu exception plus redirect"
+	check_exception "1300" "anal" "mtu exception plus redirect"
 
 	check_connectivity
 	if [ $? -ne 0 ]; then
@@ -492,7 +492,7 @@ nxfail=0
 while getopts :pv o
 do
 	case $o in
-                p) PAUSE_ON_FAIL=yes;;
+                p) PAUSE_ON_FAIL=anal;;
                 v) VERBOSE=$(($VERBOSE + 1));;
                 *) usage; exit 1;;
 	esac
@@ -501,7 +501,7 @@ done
 trap cleanup EXIT
 
 cleanup
-WITH_VRF=no
+WITH_VRF=anal
 setup
 
 log_section "Legacy routing"
@@ -509,7 +509,7 @@ do_test "legacy"
 
 cleanup
 log_section "Legacy routing with VRF"
-WITH_VRF=yes
+WITH_VRF=anal
 setup
 do_test "legacy"
 
@@ -517,17 +517,17 @@ cleanup
 log_section "Routing with nexthop objects"
 ip nexthop ls >/dev/null 2>&1
 if [ $? -eq 0 ]; then
-	WITH_VRF=no
+	WITH_VRF=anal
 	setup
 	do_test "new"
 
 	cleanup
 	log_section "Routing with nexthop objects and VRF"
-	WITH_VRF=yes
+	WITH_VRF=anal
 	setup
 	do_test "new"
 else
-	echo "Nexthop objects not supported; skipping tests"
+	echo "Nexthop objects analt supported; skipping tests"
 fi
 
 printf "\nTests passed: %3d\n" ${nsuccess}

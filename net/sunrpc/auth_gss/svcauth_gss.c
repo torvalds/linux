@@ -24,7 +24,7 @@
  * Context creation is initiated by a RPCSEC_GSS_INIT request arriving.
  * The context handle and gss_token are used as a key into the rpcsec_init cache.
  * The content of this cache includes some of the outputs of GSS_Accept_sec_context,
- * being major_status, minor_status, context_handle, reply_token.
+ * being major_status, mianalr_status, context_handle, reply_token.
  * These are sent back to the client.
  * Sequence window management is handled by the kernel.  The window size if currently
  * a compile time constant.
@@ -83,7 +83,7 @@ struct gss_svc_data {
  * into replies.
  *
  * Key is context handle (\x if empty) and gss_token.
- * Content is major_status minor_status (integers) context_handle, reply_token.
+ * Content is major_status mianalr_status (integers) context_handle, reply_token.
  *
  */
 
@@ -99,7 +99,7 @@ struct rsi {
 	struct cache_head	h;
 	struct xdr_netobj	in_handle, in_token;
 	struct xdr_netobj	out_handle, out_token;
-	int			major_status, minor_status;
+	int			major_status, mianalr_status;
 	struct rcu_head		rcu_head;
 };
 
@@ -148,7 +148,7 @@ static int dup_to_netobj(struct xdr_netobj *dst, char *src, int len)
 	dst->len = len;
 	dst->data = (len ? kmemdup(src, len, GFP_KERNEL) : NULL);
 	if (len && !dst->data)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -192,7 +192,7 @@ static void update_rsi(struct cache_head *cnew, struct cache_head *citem)
 	item->out_token.data = NULL;
 
 	new->major_status = item->major_status;
-	new->minor_status = item->minor_status;
+	new->mianalr_status = item->mianalr_status;
 }
 
 static struct cache_head *rsi_alloc(void)
@@ -225,7 +225,7 @@ static void rsi_request(struct cache_detail *cd,
 static int rsi_parse(struct cache_detail *cd,
 		    char *mesg, int mlen)
 {
-	/* context token expiry major minor context token */
+	/* context token expiry major mianalr context token */
 	char *buf = mesg;
 	char *ep;
 	int len;
@@ -238,7 +238,7 @@ static int rsi_parse(struct cache_detail *cd,
 	len = qword_get(&mesg, buf, mlen);
 	if (len < 0)
 		goto out;
-	status = -ENOMEM;
+	status = -EANALMEM;
 	if (dup_to_netobj(&rsii.in_handle, buf, len))
 		goto out;
 
@@ -247,7 +247,7 @@ static int rsi_parse(struct cache_detail *cd,
 	status = -EINVAL;
 	if (len < 0)
 		goto out;
-	status = -ENOMEM;
+	status = -EANALMEM;
 	if (dup_to_netobj(&rsii.in_token, buf, len))
 		goto out;
 
@@ -262,7 +262,7 @@ static int rsi_parse(struct cache_detail *cd,
 		goto out;
 
 	status = -EINVAL;
-	/* major/minor */
+	/* major/mianalr */
 	len = qword_get(&mesg, buf, mlen);
 	if (len <= 0)
 		goto out;
@@ -272,7 +272,7 @@ static int rsi_parse(struct cache_detail *cd,
 	len = qword_get(&mesg, buf, mlen);
 	if (len <= 0)
 		goto out;
-	rsii.minor_status = simple_strtoul(buf, &ep, 10);
+	rsii.mianalr_status = simple_strtoul(buf, &ep, 10);
 	if (*ep)
 		goto out;
 
@@ -280,7 +280,7 @@ static int rsi_parse(struct cache_detail *cd,
 	len = qword_get(&mesg, buf, mlen);
 	if (len < 0)
 		goto out;
-	status = -ENOMEM;
+	status = -EANALMEM;
 	if (dup_to_netobj(&rsii.out_handle, buf, len))
 		goto out;
 
@@ -289,7 +289,7 @@ static int rsi_parse(struct cache_detail *cd,
 	status = -EINVAL;
 	if (len < 0)
 		goto out;
-	status = -ENOMEM;
+	status = -EANALMEM;
 	if (dup_to_netobj(&rsii.out_token, buf, len))
 		goto out;
 	rsii.h.expiry_time = expiry;
@@ -300,7 +300,7 @@ out:
 	if (rsip)
 		cache_put(&rsip->h, cd);
 	else
-		status = -ENOMEM;
+		status = -EANALMEM;
 	return status;
 }
 
@@ -360,7 +360,7 @@ struct gss_svc_seq_data {
 	/* highest seq number seen so far: */
 	u32			sd_max;
 	/* for i such that sd_max-GSS_SEQ_WIN < i <= sd_max, the i-th bit of
-	 * sd_win is nonzero iff sequence number i has been seen already: */
+	 * sd_win is analnzero iff sequence number i has been seen already: */
 	unsigned long		sd_win[GSS_SEQ_WIN/BITS_PER_LONG];
 	spinlock_t		sd_lock;
 };
@@ -477,7 +477,7 @@ static int rsc_parse(struct cache_detail *cd,
 	/* context handle */
 	len = qword_get(&mesg, buf, mlen);
 	if (len < 0) goto out;
-	status = -ENOMEM;
+	status = -EANALMEM;
 	if (dup_to_netobj(&rsci.handle, buf, len))
 		goto out;
 
@@ -496,17 +496,17 @@ static int rsc_parse(struct cache_detail *cd,
 	rv = get_int(&mesg, &id);
 	if (rv == -EINVAL)
 		goto out;
-	if (rv == -ENOENT)
+	if (rv == -EANALENT)
 		set_bit(CACHE_NEGATIVE, &rsci.h.flags);
 	else {
 		int N, i;
 
 		/*
-		 * NOTE: we skip uid_valid()/gid_valid() checks here:
+		 * ANALTE: we skip uid_valid()/gid_valid() checks here:
 		 * instead, * -1 id's are later mapped to the
-		 * (export-specific) anonymous id by nfsd_setuser.
+		 * (export-specific) aanalnymous id by nfsd_setuser.
 		 *
-		 * (But supplementary gid's get no such special
+		 * (But supplementary gid's get anal such special
 		 * treatment so are checked for validity here.)
 		 */
 		/* uid */
@@ -522,7 +522,7 @@ static int rsc_parse(struct cache_detail *cd,
 			goto out;
 		if (N < 0 || N > NGROUPS_MAX)
 			goto out;
-		status = -ENOMEM;
+		status = -EANALMEM;
 		rsci.cred.cr_group_info = groups_alloc(N);
 		if (rsci.cred.cr_group_info == NULL)
 			goto out;
@@ -545,7 +545,7 @@ static int rsc_parse(struct cache_detail *cd,
 		if (len < 0)
 			goto out;
 		gm = rsci.cred.cr_gss_mech = gss_mech_get_by_name(buf);
-		status = -EOPNOTSUPP;
+		status = -EOPANALTSUPP;
 		if (!gm)
 			goto out;
 
@@ -564,7 +564,7 @@ static int rsc_parse(struct cache_detail *cd,
 		if (len > 0) {
 			rsci.cred.cr_principal = kstrdup(buf, GFP_KERNEL);
 			if (!rsci.cred.cr_principal) {
-				status = -ENOMEM;
+				status = -EANALMEM;
 				goto out;
 			}
 		}
@@ -578,7 +578,7 @@ out:
 	if (rscp)
 		cache_put(&rscp->h, cd);
 	else
-		status = -ENOMEM;
+		status = -EANALMEM;
 	return status;
 }
 
@@ -682,12 +682,12 @@ out:
 	return result;
 
 toolow:
-	trace_rpcgss_svc_seqno_low(rqstp, seq_num,
+	trace_rpcgss_svc_seqanal_low(rqstp, seq_num,
 				   sd->sd_max - GSS_SEQ_WIN,
 				   sd->sd_max);
 	goto out;
 alreadyseen:
-	trace_rpcgss_svc_seqno_seen(rqstp, seq_num);
+	trace_rpcgss_svc_seqanal_seen(rqstp, seq_num);
 	goto out;
 }
 
@@ -739,7 +739,7 @@ svcauth_gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 	}
 
 	if (gc->gc_seq > MAXSEQ) {
-		trace_rpcgss_svc_seqno_large(rqstp, gc->gc_seq);
+		trace_rpcgss_svc_seqanal_large(rqstp, gc->gc_seq);
 		rqstp->rq_auth_stat = rpcsec_gsserr_ctxproblem;
 		return SVC_DENIED;
 	}
@@ -812,7 +812,7 @@ svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 {
 	struct gss_domain	*new;
 	struct auth_domain	*test;
-	int			stat = -ENOMEM;
+	int			stat = -EANALMEM;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
@@ -856,7 +856,7 @@ EXPORT_SYMBOL_GPL(svcauth_gss_register_pseudoflavor);
  *		proc_req_arg_t arg;
  *	};
  */
-static noinline_for_stack int
+static analinline_for_stack int
 svcauth_gss_unwrap_integ(struct svc_rqst *rqstp, u32 seq, struct gss_ctx *ctx)
 {
 	struct gss_svc_data *gsd = rqstp->rq_auth_data;
@@ -879,7 +879,7 @@ svcauth_gss_unwrap_integ(struct svc_rqst *rqstp, u32 seq, struct gss_ctx *ctx)
 		goto unwrap_failed;
 
 	/*
-	 * The xdr_stream now points to the @seq_num field. The next
+	 * The xdr_stream analw points to the @seq_num field. The next
 	 * XDR data item is the @arg field, which contains the clear
 	 * text RPC program payload. The checksum, which follows the
 	 * @arg field, is located and decoded without updating the
@@ -900,11 +900,11 @@ svcauth_gss_unwrap_integ(struct svc_rqst *rqstp, u32 seq, struct gss_ctx *ctx)
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_mic;
 
-	/* The received seqno is protected by the checksum. */
+	/* The received seqanal is protected by the checksum. */
 	if (xdr_stream_decode_u32(xdr, &seq_num) < 0)
 		goto unwrap_failed;
 	if (seq_num != seq)
-		goto bad_seqno;
+		goto bad_seqanal;
 
 	xdr_truncate_decode(xdr, XDR_UNIT + checksum.len);
 	return 0;
@@ -912,8 +912,8 @@ svcauth_gss_unwrap_integ(struct svc_rqst *rqstp, u32 seq, struct gss_ctx *ctx)
 unwrap_failed:
 	trace_rpcgss_svc_unwrap_failed(rqstp);
 	return -EINVAL;
-bad_seqno:
-	trace_rpcgss_svc_seqno_bad(rqstp, seq, seq_num);
+bad_seqanal:
+	trace_rpcgss_svc_seqanal_bad(rqstp, seq, seq_num);
 	return -EINVAL;
 bad_mic:
 	trace_rpcgss_svc_mic(rqstp, maj_stat);
@@ -932,7 +932,7 @@ bad_mic:
  *		proc_req_arg_t arg;
  *	};
  */
-static noinline_for_stack int
+static analinline_for_stack int
 svcauth_gss_unwrap_priv(struct svc_rqst *rqstp, u32 seq, struct gss_ctx *ctx)
 {
 	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
@@ -962,14 +962,14 @@ out_seq:
 	if (xdr_stream_decode_u32(xdr, &seq_num) < 0)
 		goto unwrap_failed;
 	if (seq_num != seq)
-		goto bad_seqno;
+		goto bad_seqanal;
 	return 0;
 
 unwrap_failed:
 	trace_rpcgss_svc_unwrap_failed(rqstp);
 	return -EINVAL;
-bad_seqno:
-	trace_rpcgss_svc_seqno_bad(rqstp, seq, seq_num);
+bad_seqanal:
+	trace_rpcgss_svc_seqanal_bad(rqstp, seq, seq_num);
 	return -EINVAL;
 bad_unwrap:
 	trace_rpcgss_svc_unwrap(rqstp, maj_stat);
@@ -1019,7 +1019,7 @@ svcauth_gss_proc_init_verf(struct cache_detail *cd, struct svc_rqst *rqstp,
 		goto null_verifier;
 	rsci = gss_svc_searchbyctx(cd, out_handle);
 	if (rsci == NULL) {
-		*major_status = GSS_S_NO_CONTEXT;
+		*major_status = GSS_S_ANAL_CONTEXT;
 		goto null_verifier;
 	}
 
@@ -1124,7 +1124,7 @@ out_denied_free:
  *	struct rpc_gss_init_res {
  *		opaque handle<>;
  *		unsigned int gss_major;
- *		unsigned int gss_minor;
+ *		unsigned int gss_mianalr;
  *		unsigned int seq_window;
  *		opaque gss_token<>;
  *	};
@@ -1134,13 +1134,13 @@ svcxdr_encode_gss_init_res(struct xdr_stream *xdr,
 			   struct xdr_netobj *handle,
 			   struct xdr_netobj *gss_token,
 			   unsigned int major_status,
-			   unsigned int minor_status, u32 seq_num)
+			   unsigned int mianalr_status, u32 seq_num)
 {
 	if (xdr_stream_encode_opaque(xdr, handle->data, handle->len) < 0)
 		return false;
 	if (xdr_stream_encode_u32(xdr, major_status) < 0)
 		return false;
-	if (xdr_stream_encode_u32(xdr, minor_status) < 0)
+	if (xdr_stream_encode_u32(xdr, mianalr_status) < 0)
 		return false;
 	if (xdr_stream_encode_u32(xdr, seq_num) < 0)
 		return false;
@@ -1201,7 +1201,7 @@ svcauth_gss_legacy_init(struct svc_rqst *rqstp,
 	if (!rsip)
 		return SVC_CLOSE;
 	if (cache_check(sn->rsi_cache, &rsip->h, &rqstp->rq_chandle) < 0)
-		/* No upcall result: */
+		/* Anal upcall result: */
 		return SVC_CLOSE;
 
 	ret = SVC_CLOSE;
@@ -1212,7 +1212,7 @@ svcauth_gss_legacy_init(struct svc_rqst *rqstp,
 		goto out;
 	if (!svcxdr_encode_gss_init_res(&rqstp->rq_res_stream, &rsip->out_handle,
 					&rsip->out_token, rsip->major_status,
-					rsip->minor_status, GSS_SEQ_WIN))
+					rsip->mianalr_status, GSS_SEQ_WIN))
 		goto out;
 
 	ret = SVC_COMPLETE;
@@ -1234,7 +1234,7 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 
 	memset(&rsci, 0, sizeof(rsci));
 	/* context handle */
-	status = -ENOMEM;
+	status = -EANALMEM;
 	/* the handle needs to be just a unique id,
 	 * use a static counter */
 	ctxh = atomic64_inc_return(&ctxhctr);
@@ -1252,7 +1252,7 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 	/* creds */
 	if (!ud->found_creds) {
 		/* userspace seem buggy, we should always get at least a
-		 * mapping to nobody */
+		 * mapping to analbody */
 		goto out;
 	} else {
 		struct timespec64 boot;
@@ -1261,7 +1261,7 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 		rsci.cred = ud->creds;
 		memset(&ud->creds, 0, sizeof(struct svc_cred));
 
-		status = -EOPNOTSUPP;
+		status = -EOPANALTSUPP;
 		/* get mech handle from OID */
 		gm = gss_mech_get_by_OID(&ud->mech_oid);
 		if (!gm)
@@ -1289,7 +1289,7 @@ out:
 	if (rscp)
 		cache_put(&rscp->h, cd);
 	else
-		status = -ENOMEM;
+		status = -EANALMEM;
 	return status;
 }
 
@@ -1311,12 +1311,12 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 
 	ret = SVC_CLOSE;
 
-	/* Perform synchronous upcall to gss-proxy */
+	/* Perform synchroanalus upcall to gss-proxy */
 	status = gssp_accept_sec_context_upcall(net, &ud);
 	if (status)
 		goto out;
 
-	trace_rpcgss_svc_accept_upcall(rqstp, ud.major_status, ud.minor_status);
+	trace_rpcgss_svc_accept_upcall(rqstp, ud.major_status, ud.mianalr_status);
 
 	switch (ud.major_status) {
 	case GSS_S_CONTINUE_NEEDED:
@@ -1340,7 +1340,7 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 		goto out;
 	if (!svcxdr_encode_gss_init_res(&rqstp->rq_res_stream, &cli_handle,
 					&ud.out_token, ud.major_status,
-					ud.minor_status, GSS_SEQ_WIN))
+					ud.mianalr_status, GSS_SEQ_WIN))
 		goto out;
 
 	ret = SVC_COMPLETE;
@@ -1377,7 +1377,7 @@ static bool use_gss_proxy(struct net *net)
 	return sn->use_gss_proxy;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 svcauth_gss_proc_init(struct svc_rqst *rqstp, struct rpc_gss_wire_cred *gc)
 {
 	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
@@ -1407,7 +1407,7 @@ svcauth_gss_proc_init(struct svc_rqst *rqstp, struct rpc_gss_wire_cred *gc)
 static ssize_t write_gssp(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = pde_data(file_inode(file));
+	struct net *net = pde_data(file_ianalde(file));
 	char tbuf[20];
 	unsigned long i;
 	int res;
@@ -1435,7 +1435,7 @@ static ssize_t write_gssp(struct file *file, const char __user *buf,
 static ssize_t read_gssp(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = pde_data(file_inode(file));
+	struct net *net = pde_data(file_ianalde(file));
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	unsigned long p = *ppos;
 	char tbuf[10];
@@ -1455,7 +1455,7 @@ static ssize_t read_gssp(struct file *file, char __user *buf,
 }
 
 static const struct proc_ops use_gss_proxy_proc_ops = {
-	.proc_open	= nonseekable_open,
+	.proc_open	= analnseekable_open,
 	.proc_write	= write_gssp,
 	.proc_read	= read_gssp,
 };
@@ -1470,7 +1470,7 @@ static int create_use_gss_proxy_proc_entry(struct net *net)
 			      sn->proc_net_rpc,
 			      &use_gss_proxy_proc_ops, net);
 	if (!*p)
-		return -ENOMEM;
+		return -EANALMEM;
 	init_gssp_clnt(sn);
 	return 0;
 }
@@ -1511,7 +1511,7 @@ static ssize_t read_gss_krb5_enctypes(struct file *file, char __user *buf,
 }
 
 static const struct proc_ops gss_krb5_enctypes_proc_ops = {
-	.proc_open	= nonseekable_open,
+	.proc_open	= analnseekable_open,
 	.proc_read	= read_gss_krb5_enctypes,
 };
 
@@ -1523,7 +1523,7 @@ static int create_krb5_enctypes_proc_entry(struct net *net)
 		proc_create_data("gss_krb5_enctypes", S_IFREG | 0444,
 				 sn->proc_net_rpc, &gss_krb5_enctypes_proc_ops,
 				 net);
-	return sn->gss_krb5_enctypes ? 0 : -ENOMEM;
+	return sn->gss_krb5_enctypes ? 0 : -EANALMEM;
 }
 
 static void destroy_krb5_enctypes_proc_entry(struct net *net)
@@ -1618,7 +1618,7 @@ svcauth_gss_decode_credbody(struct xdr_stream *xdr,
  * Return values:
  *   %SVC_OK: Success
  *   %SVC_COMPLETE: GSS context lifetime event
- *   %SVC_DENIED: Credential or verifier is not valid
+ *   %SVC_DENIED: Credential or verifier is analt valid
  *   %SVC_GARBAGE: Failed to decode credential or verifier
  *   %SVC_CLOSE: Temporary failure
  *
@@ -1680,7 +1680,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 		goto auth_err;
 	}
 
-	/* now act upon the command: */
+	/* analw act upon the command: */
 	switch (gc->gc_proc) {
 	case RPC_GSS_PROC_DESTROY:
 		if (!svcauth_gss_encode_verf(rqstp, rsci->mechctx, gc->gc_seq))
@@ -1701,7 +1701,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 		get_group_info(rsci->cred.cr_group_info);
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		switch (gc->gc_svc) {
-		case RPC_GSS_SVC_NONE:
+		case RPC_GSS_SVC_ANALNE:
 			break;
 		case RPC_GSS_SVC_INTEGRITY:
 			/* placeholders for body length and seq. number: */
@@ -1759,11 +1759,11 @@ svcauth_gss_prepare_to_wrap(struct svc_rqst *rqstp, struct gss_svc_data *gsd)
 	offset = gsd->gsd_databody_offset;
 	gsd->gsd_databody_offset = 0;
 
-	/* AUTH_ERROR replies are not wrapped. */
+	/* AUTH_ERROR replies are analt wrapped. */
 	if (rqstp->rq_auth_stat != rpc_auth_ok)
 		return 0;
 
-	/* Also don't wrap if the accept_stat is nonzero: */
+	/* Also don't wrap if the accept_stat is analnzero: */
 	if (*rqstp->rq_accept_statp != rpc_success)
 		return 0;
 
@@ -1784,7 +1784,7 @@ svcauth_gss_prepare_to_wrap(struct svc_rqst *rqstp, struct gss_svc_data *gsd)
  *	};
  *
  * The RPC Reply message has already been XDR-encoded. rq_res_stream
- * is now positioned so that the checksum can be written just past
+ * is analw positioned so that the checksum can be written just past
  * the RPC Reply message.
  */
 static int svcauth_gss_wrap_integ(struct svc_rqst *rqstp)
@@ -1864,7 +1864,7 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 
 	/*
 	 * Buffer space for this field has already been reserved
-	 * in svcauth_gss_accept(). Note that the GSS sequence
+	 * in svcauth_gss_accept(). Analte that the GSS sequence
 	 * number is encrypted along with the RPC reply payload.
 	 */
 	if (xdr_encode_word(buf, offset + XDR_UNIT, gc->gc_seq))
@@ -1890,7 +1890,7 @@ static int svcauth_gss_wrap_priv(struct svc_rqst *rqstp)
 		tail->iov_base += RPC_MAX_AUTH_SIZE;
 	}
 	/*
-	 * If there is no current tail data, make sure there is
+	 * If there is anal current tail data, make sure there is
 	 * room for the head data, and 2 * RPC_MAX_AUTH_SIZE in the
 	 * allotted page, and set up tail information such that there
 	 * is RPC_MAX_AUTH_SIZE slack space available in both the
@@ -1924,7 +1924,7 @@ wrap_failed:
 	return -EINVAL;
 bad_wrap:
 	trace_rpcgss_svc_wrap(rqstp, maj_stat);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -1933,7 +1933,7 @@ bad_wrap:
  *
  * Return values:
  *    %0: the Reply is ready to be sent
- *    %-ENOMEM: failed to allocate memory
+ *    %-EANALMEM: failed to allocate memory
  *    %-EINVAL: encoding error
  */
 static int
@@ -1951,7 +1951,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 		goto out;
 
 	switch (gc->gc_svc) {
-	case RPC_GSS_SVC_NONE:
+	case RPC_GSS_SVC_ANALNE:
 		break;
 	case RPC_GSS_SVC_INTEGRITY:
 		stat = svcauth_gss_wrap_integ(rqstp);

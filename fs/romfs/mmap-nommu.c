@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* NOMMU mmap support for RomFS on MTD devices
+/* ANALMMU mmap support for RomFS on MTD devices
  *
  * Copyright © 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -11,7 +11,7 @@
 
 /*
  * try to determine where a shared mapping can be made
- * - only supported for NOMMU at the moment (MMU can't doesn't copy private
+ * - only supported for ANALMMU at the moment (MMU can't doesn't copy private
  *   mappings)
  * - attempts to map through to the underlying MTD device
  */
@@ -21,17 +21,17 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 					     unsigned long pgoff,
 					     unsigned long flags)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct mtd_info *mtd = inode->i_sb->s_mtd;
+	struct ianalde *ianalde = file->f_mapping->host;
+	struct mtd_info *mtd = ianalde->i_sb->s_mtd;
 	unsigned long isize, offset, maxpages, lpages;
 	int ret;
 
 	if (!mtd)
-		return (unsigned long) -ENOSYS;
+		return (unsigned long) -EANALSYS;
 
 	/* the mapping mustn't extend beyond the EOF */
 	lpages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	isize = i_size_read(inode);
+	isize = i_size_read(ianalde);
 	offset = pgoff << PAGE_SHIFT;
 
 	maxpages = (isize + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -44,7 +44,7 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 	if (len > mtd->size || pgoff >= (mtd->size >> PAGE_SHIFT))
 		return (unsigned long) -EINVAL;
 
-	offset += ROMFS_I(inode)->i_dataoffset;
+	offset += ROMFS_I(ianalde)->i_dataoffset;
 	if (offset >= mtd->size)
 		return (unsigned long) -EINVAL;
 	/* the mapping mustn't extend beyond the EOF */
@@ -52,8 +52,8 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 		len = mtd->size - offset;
 
 	ret = mtd_get_unmapped_area(mtd, len, offset, flags);
-	if (ret == -EOPNOTSUPP)
-		ret = -ENOSYS;
+	if (ret == -EOPANALTSUPP)
+		ret = -EANALSYS;
 	return (unsigned long) ret;
 }
 
@@ -63,15 +63,15 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
  */
 static int romfs_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	return is_nommu_shared_mapping(vma->vm_flags) ? 0 : -ENOSYS;
+	return is_analmmu_shared_mapping(vma->vm_flags) ? 0 : -EANALSYS;
 }
 
 static unsigned romfs_mmap_capabilities(struct file *file)
 {
-	struct mtd_info *mtd = file_inode(file)->i_sb->s_mtd;
+	struct mtd_info *mtd = file_ianalde(file)->i_sb->s_mtd;
 
 	if (!mtd)
-		return NOMMU_MAP_COPY;
+		return ANALMMU_MAP_COPY;
 	return mtd_mmap_capabilities(mtd);
 }
 

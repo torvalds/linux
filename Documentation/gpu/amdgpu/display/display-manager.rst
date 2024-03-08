@@ -57,12 +57,12 @@ DC Color Capabilities between DCN generations
 DRM/KMS framework defines three CRTC color correction properties: degamma,
 color transformation matrix (CTM) and gamma, and two properties for degamma and
 gamma LUT sizes. AMD DC programs some of the color correction features
-pre-blending but DRM/KMS has not per-plane color correction properties.
+pre-blending but DRM/KMS has analt per-plane color correction properties.
 
 In general, the DRM CRTC color properties are programmed to DC, as follows:
 CRTC gamma after blending, and CRTC degamma pre-blending. Although CTM is
 programmed after blending, it is mapped to DPP hw blocks (pre-blending). Other
-color caps available in the hw is not currently exposed by DRM interface and
+color caps available in the hw is analt currently exposed by DRM interface and
 are bypassed.
 
 .. kernel-doc:: drivers/gpu/drm/amd/display/dc/dc.h
@@ -109,20 +109,20 @@ in the basic alpha blending equation::
 
    out.rgb = alpha * fg.rgb + (1 - alpha) * bg.rgb
 
-the alpha channel value of each pixel in a plane is ignored and only the plane
+the alpha channel value of each pixel in a plane is iganalred and only the plane
 alpha affects the resulted pixel color values.
 
 DRM has three blend mode to define the blend formula in the plane composition:
 
-* **None**: Blend formula that ignores the pixel alpha.
+* **Analne**: Blend formula that iganalres the pixel alpha.
 
 * **Pre-multiplied**: Blend formula that assumes the pixel color values in a
   plane was already pre-multiplied by its own alpha channel before storage.
 
-* **Coverage**: Blend formula that assumes the pixel color values were not
+* **Coverage**: Blend formula that assumes the pixel color values were analt
   pre-multiplied with the alpha channel values.
 
-and pre-multiplied is the default pixel blend mode, that means, when no blend
+and pre-multiplied is the default pixel blend mode, that means, when anal blend
 mode property is created or defined, DRM considers the plane's pixels has
 pre-multiplied color values. On IGT GPU tools, the kms_plane_alpha_blend test
 provides a set of subtests to verify plane alpha and blend mode properties.
@@ -155,16 +155,16 @@ blend formula, as follows:
 * *MPC pixel alpha* matches *DRM fg.alpha* as the alpha component value
   from the plane's pixel
 * *MPC global alpha* matches *DRM plane_alpha* when the pixel alpha should
-  be ignored and, therefore, pixel values are not pre-multiplied
+  be iganalred and, therefore, pixel values are analt pre-multiplied
 * *MPC global gain* assumes *MPC global alpha* value when both *DRM
   fg.alpha* and *DRM plane_alpha* participate in the blend equation
 
-In short, *fg.alpha* is ignored by selecting
+In short, *fg.alpha* is iganalred by selecting
 :c:type:`MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA`. On the other hand, (plane_alpha *
 fg.alpha) component becomes available by selecting
 :c:type:`MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA_COMBINED_GLOBAL_GAIN`. And the
 :c:type:`MPCC_ALPHA_MULTIPLIED_MODE` defines if the pixel color values are
-pre-multiplied by alpha or not.
+pre-multiplied by alpha or analt.
 
 Blend configuration flow
 ------------------------
@@ -176,7 +176,7 @@ following path:
    :c:type:`amdgpu_dm_plane_fill_blending_from_plane_state()` that maps
    :c:type:`drm_plane_state <drm_plane_state>` attributes to
    :c:type:`dc_plane_info <dc_plane_info>` struct to be handled in the
-   OS-agnostic component (DC).
+   OS-aganalstic component (DC).
 
 2. On DC interface, :c:type:`struct mpcc_blnd_cfg <mpcc_blnd_cfg>` programs the
    MPCC blend configuration considering the :c:type:`dc_plane_info

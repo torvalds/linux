@@ -52,7 +52,7 @@ int qdio_alloc_buffers(struct qdio_buffer **buf, unsigned int count)
 		buf[pos] = (void *) get_zeroed_page(GFP_KERNEL);
 		if (!buf[pos]) {
 			qdio_free_buffers(buf, count);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	for (pos = 0; pos < count; pos++)
@@ -106,14 +106,14 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 		q = kmem_cache_zalloc(qdio_q_cache, GFP_KERNEL);
 		if (!q) {
 			__qdio_free_queues(irq_ptr_qs, i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		q->slib = (struct slib *) __get_free_page(GFP_KERNEL);
 		if (!q->slib) {
 			kmem_cache_free(qdio_q_cache, q);
 			__qdio_free_queues(irq_ptr_qs, i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		irq_ptr_qs[i] = q;
 	}
@@ -212,10 +212,10 @@ static void check_and_setup_qebsm(struct qdio_irq *irq_ptr,
 				  unsigned char qdioac, unsigned long token)
 {
 	if (!(irq_ptr->qib.rflags & QIB_RFLAGS_ENABLE_QEBSM))
-		goto no_qebsm;
+		goto anal_qebsm;
 	if (!(qdioac & AC1_SC_QEBSM_AVAILABLE) ||
 	    (!(qdioac & AC1_SC_QEBSM_ENABLED)))
-		goto no_qebsm;
+		goto anal_qebsm;
 
 	irq_ptr->sch_token = token;
 
@@ -223,10 +223,10 @@ static void check_and_setup_qebsm(struct qdio_irq *irq_ptr,
 	DBF_EVENT("%8lx", irq_ptr->sch_token);
 	return;
 
-no_qebsm:
+anal_qebsm:
 	irq_ptr->sch_token = 0;
 	irq_ptr->qib.rflags &= ~QIB_RFLAGS_ENABLE_QEBSM;
-	DBF_EVENT("noV=V");
+	DBF_EVENT("analV=V");
 }
 
 /*
@@ -240,11 +240,11 @@ int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
 	struct chsc_ssqd_area *ssqd;
 	int rc;
 
-	DBF_EVENT("getssqd:%4x", schid->sch_no);
+	DBF_EVENT("getssqd:%4x", schid->sch_anal);
 	if (!irq_ptr) {
 		ssqd = (struct chsc_ssqd_area *)__get_free_page(GFP_KERNEL);
 		if (!ssqd)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		ssqd = (struct chsc_ssqd_area *)irq_ptr->chsc_page;
 	}
@@ -255,7 +255,7 @@ int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
 
 	if (!(ssqd->qdio_ssqd.flags & CHSC_FLAG_QDIO_CAPABILITY) ||
 	    !(ssqd->qdio_ssqd.flags & CHSC_FLAG_VALIDITY) ||
-	    (ssqd->qdio_ssqd.sch != schid->sch_no))
+	    (ssqd->qdio_ssqd.sch != schid->sch_anal))
 		rc = -EINVAL;
 
 	if (!rc)
@@ -275,7 +275,7 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 
 	rc = qdio_setup_get_ssqd(irq_ptr, &irq_ptr->schid, &irq_ptr->ssqd_desc);
 	if (rc) {
-		DBF_ERROR("%4x ssqd ERR", irq_ptr->schid.sch_no);
+		DBF_ERROR("%4x ssqd ERR", irq_ptr->schid.sch_anal);
 		DBF_ERROR("rc:%x", rc);
 		/* all flags set, worst case */
 		qdioac = AC1_SIGA_INPUT_NEEDED | AC1_SIGA_OUTPUT_NEEDED |
@@ -311,17 +311,17 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 
 	irq_ptr->qdr->qfmt = qdio_init->q_format;
 	irq_ptr->qdr->ac = qdio_init->qdr_ac;
-	irq_ptr->qdr->iqdcnt = qdio_init->no_input_qs;
-	irq_ptr->qdr->oqdcnt = qdio_init->no_output_qs;
+	irq_ptr->qdr->iqdcnt = qdio_init->anal_input_qs;
+	irq_ptr->qdr->oqdcnt = qdio_init->anal_output_qs;
 	irq_ptr->qdr->iqdsz = sizeof(struct qdesfmt0) / 4; /* size in words */
 	irq_ptr->qdr->oqdsz = sizeof(struct qdesfmt0) / 4;
 	irq_ptr->qdr->qiba = virt_to_phys(&irq_ptr->qib);
 	irq_ptr->qdr->qkey = PAGE_DEFAULT_KEY >> 4;
 
-	for (i = 0; i < qdio_init->no_input_qs; i++)
+	for (i = 0; i < qdio_init->anal_input_qs; i++)
 		qdio_fill_qdr_desc(desc++, irq_ptr->input_qs[i]);
 
-	for (i = 0; i < qdio_init->no_output_qs; i++)
+	for (i = 0; i < qdio_init->anal_output_qs; i++)
 		qdio_fill_qdr_desc(desc++, irq_ptr->output_qs[i]);
 }
 
@@ -337,10 +337,10 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 	if (css_general_characteristics.qebsm)
 		irq_ptr->qib.rflags |= QIB_RFLAGS_ENABLE_QEBSM;
 
-	if (init_data->no_input_qs)
+	if (init_data->anal_input_qs)
 		irq_ptr->qib.isliba =
 			(unsigned long)(irq_ptr->input_qs[0]->slib);
-	if (init_data->no_output_qs)
+	if (init_data->anal_output_qs)
 		irq_ptr->qib.osliba =
 			(unsigned long)(irq_ptr->output_qs[0]->slib);
 	memcpy(irq_ptr->qib.ebcnam, dev_name(&irq_ptr->cdev->dev), 8);
@@ -365,8 +365,8 @@ void qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	irq_ptr->error_handler = init_data->input_handler;
 
 	irq_ptr->int_parm = init_data->int_parm;
-	irq_ptr->nr_input_qs = init_data->no_input_qs;
-	irq_ptr->nr_output_qs = init_data->no_output_qs;
+	irq_ptr->nr_input_qs = init_data->anal_input_qs;
+	irq_ptr->nr_output_qs = init_data->anal_output_qs;
 	ccw_device_get_schid(cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 
@@ -378,7 +378,7 @@ void qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	/* fill input and output descriptors */
 	setup_qdr(irq_ptr, init_data);
 
-	/* qdr, qib, sls, slsbs, slibs, sbales are filled now */
+	/* qdr, qib, sls, slsbs, slibs, sbales are filled analw */
 
 	/* set our IRQ handler */
 	spin_lock_irq(get_ccwdev_lock(cdev));
@@ -404,7 +404,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 		 "qdio: %s on SC %x using AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s\n",
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
-		 irq_ptr->schid.sch_no,
+		 irq_ptr->schid.sch_anal,
 		 is_thinint_irq(irq_ptr),
 		 (irq_ptr->sch_token) ? 1 : 0,
 		 pci_out_supported(irq_ptr) ? 1 : 0,
@@ -419,7 +419,7 @@ int __init qdio_setup_init(void)
 	qdio_q_cache = kmem_cache_create("qdio_q", sizeof(struct qdio_q),
 					 256, 0, NULL);
 	if (!qdio_q_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check for OSA/FCP thin interrupts (bit 67). */
 	DBF_EVENT("thinint:%1d",

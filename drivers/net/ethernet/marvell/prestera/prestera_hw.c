@@ -179,7 +179,7 @@ enum {
 };
 
 enum {
-	PRESTERA_FC_NONE,
+	PRESTERA_FC_ANALNE,
 	PRESTERA_FC_SYMMETRIC,
 	PRESTERA_FC_ASYMMETRIC,
 	PRESTERA_FC_SYMM_ASYMM,
@@ -938,7 +938,7 @@ static int prestera_find_event_handler(const struct prestera_switch *sw,
 	if (tmp)
 		*eh = *tmp;
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 	rcu_read_unlock();
 
 	return err;
@@ -957,7 +957,7 @@ static int prestera_evt_recv(struct prestera_device *dev, void *buf, size_t size
 	if (msg_type >= PRESTERA_EVENT_TYPE_MAX)
 		return -EINVAL;
 	if (!fw_event_parsers[msg_type].func)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = prestera_find_event_handler(sw, msg_type, &eh);
 	if (err)
@@ -1348,7 +1348,7 @@ prestera_acl_rule_add_put_action(struct prestera_msg_acl_action *action,
 	case PRESTERA_ACL_RULE_ACTION_ACCEPT:
 	case PRESTERA_ACL_RULE_ACTION_DROP:
 	case PRESTERA_ACL_RULE_ACTION_TRAP:
-		/* just rule action id, no specific data */
+		/* just rule action id, anal specific data */
 		break;
 	case PRESTERA_ACL_RULE_ACTION_JUMP:
 		action->jump.index = __cpu_to_le32(info->jump.index);
@@ -1383,7 +1383,7 @@ int prestera_hw_vtcam_rule_add(struct prestera_switch *sw,
 
 	buff = kzalloc(size, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = buff;
 	req->n_act = __cpu_to_le32(n_act);
@@ -1989,7 +1989,7 @@ static int prestera_iface_to_msg(struct prestera_iface *iface,
 		msg_if->lag_id = __cpu_to_le16(iface->lag_id);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	msg_if->vr_id = __cpu_to_le16(iface->vr_id);
@@ -2261,7 +2261,7 @@ int prestera_hw_event_handler_register(struct prestera_switch *sw,
 
 	eh = kmalloc(sizeof(*eh), GFP_KERNEL);
 	if (!eh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eh->type = type;
 	eh->func = fn;
@@ -2320,7 +2320,7 @@ int prestera_hw_counters_get(struct prestera_switch *sw, u32 idx,
 
 	resp = kmalloc(size, GFP_KERNEL);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = prestera_cmd_ret(sw, PRESTERA_CMD_TYPE_COUNTER_GET,
 			       &req.cmd, sizeof(req), &resp->ret, size);
@@ -2471,7 +2471,7 @@ int prestera_hw_flood_domain_ports_set(struct prestera_flood_domain *domain)
 	int err;
 
 	list_for_each_entry(flood_domain_port, &domain->flood_domain_port_list,
-			    flood_domain_port_node)
+			    flood_domain_port_analde)
 		ports_num++;
 
 	if (!ports_num)
@@ -2481,7 +2481,7 @@ int prestera_hw_flood_domain_ports_set(struct prestera_flood_domain *domain)
 
 	buff = kmalloc(buf_size, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = buff;
 	ports = buff + sizeof(*req);
@@ -2490,7 +2490,7 @@ int prestera_hw_flood_domain_ports_set(struct prestera_flood_domain *domain)
 	req->ports_num = __cpu_to_le32(ports_num);
 
 	list_for_each_entry(flood_domain_port, &domain->flood_domain_port_list,
-			    flood_domain_port_node) {
+			    flood_domain_port_analde) {
 		if (netif_is_lag_master(flood_domain_port->dev)) {
 			if (prestera_lag_id(sw, flood_domain_port->dev,
 					    &lag_id)) {

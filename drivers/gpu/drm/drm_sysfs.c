@@ -2,8 +2,8 @@
 
 /*
  * drm_sysfs.c - Modifications to drm_sysfs_class.c to support
- *               extra sysfs attribute from DRM. Normal drm_sysfs_class
- *               does not allow adding attributes.
+ *               extra sysfs attribute from DRM. Analrmal drm_sysfs_class
+ *               does analt allow adding attributes.
  *
  * Copyright (c) 2004 Jon Smirl <jonsmirl@gmail.com>
  * Copyright (c) 2003-2004 Greg Kroah-Hartman <greg@kroah.com>
@@ -33,7 +33,7 @@
 #include "drm_internal.h"
 #include "drm_crtc_internal.h"
 
-#define to_drm_minor(d) dev_get_drvdata(d)
+#define to_drm_mianalr(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
 
 /**
@@ -50,8 +50,8 @@
  * drm_connector_unregister().
  */
 
-static struct device_type drm_sysfs_device_minor = {
-	.name = "drm_minor"
+static struct device_type drm_sysfs_device_mianalr = {
+	.name = "drm_mianalr"
 };
 
 static struct device_type drm_sysfs_device_connector = {
@@ -70,7 +70,7 @@ static struct acpi_device *drm_connector_acpi_find_companion(struct device *dev)
 {
 	struct drm_connector *connector = to_drm_connector(dev);
 
-	return to_acpi_device_node(connector->fwnode);
+	return to_acpi_device_analde(connector->fwanalde);
 }
 
 static struct acpi_bus_type drm_connector_acpi_bus = {
@@ -93,7 +93,7 @@ static void drm_sysfs_acpi_register(void) { }
 static void drm_sysfs_acpi_unregister(void) { }
 #endif
 
-static char *drm_devnode(const struct device *dev, umode_t *mode)
+static char *drm_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
@@ -153,7 +153,7 @@ int drm_sysfs_init(void)
 		return err;
 	}
 
-	drm_class->devnode = drm_devnode;
+	drm_class->devanalde = drm_devanalde;
 
 	drm_sysfs_acpi_register();
 	return 0;
@@ -369,7 +369,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_initialize(kdev);
 	kdev->class = drm_class;
@@ -394,7 +394,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 
 	connector->kdev = kdev;
 
-	if (dev_fwnode(kdev)) {
+	if (dev_fwanalde(kdev)) {
 		r = component_add(kdev, &typec_connector_ops);
 		if (r)
 			drm_err(dev, "failed to add component to create link to typec connector\n");
@@ -427,7 +427,7 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 	if (!connector->kdev)
 		return;
 
-	if (dev_fwnode(connector->kdev))
+	if (dev_fwanalde(connector->kdev))
 		component_del(connector->kdev, &typec_connector_ops);
 
 	DRM_DEBUG("removing \"%s\" from sysfs\n",
@@ -528,37 +528,37 @@ void drm_sysfs_connector_property_event(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_sysfs_connector_property_event);
 
-struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
+struct device *drm_sysfs_mianalr_alloc(struct drm_mianalr *mianalr)
 {
-	const char *minor_str;
+	const char *mianalr_str;
 	struct device *kdev;
 	int r;
 
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	device_initialize(kdev);
 
-	if (minor->type == DRM_MINOR_ACCEL) {
-		minor_str = "accel%d";
-		accel_set_device_instance_params(kdev, minor->index);
+	if (mianalr->type == DRM_MIANALR_ACCEL) {
+		mianalr_str = "accel%d";
+		accel_set_device_instance_params(kdev, mianalr->index);
 	} else {
-		if (minor->type == DRM_MINOR_RENDER)
-			minor_str = "renderD%d";
+		if (mianalr->type == DRM_MIANALR_RENDER)
+			mianalr_str = "renderD%d";
 		else
-			minor_str = "card%d";
+			mianalr_str = "card%d";
 
-		kdev->devt = MKDEV(DRM_MAJOR, minor->index);
+		kdev->devt = MKDEV(DRM_MAJOR, mianalr->index);
 		kdev->class = drm_class;
-		kdev->type = &drm_sysfs_device_minor;
+		kdev->type = &drm_sysfs_device_mianalr;
 	}
 
-	kdev->parent = minor->dev->dev;
+	kdev->parent = mianalr->dev->dev;
 	kdev->release = drm_sysfs_release;
-	dev_set_drvdata(kdev, minor);
+	dev_set_drvdata(kdev, mianalr);
 
-	r = dev_set_name(kdev, minor_str, minor->index);
+	r = dev_set_name(kdev, mianalr_str, mianalr->index);
 	if (r < 0)
 		goto err_free;
 
@@ -580,7 +580,7 @@ err_free:
 int drm_class_device_register(struct device *dev)
 {
 	if (!drm_class || IS_ERR(drm_class))
-		return -ENOENT;
+		return -EANALENT;
 
 	dev->class = drm_class;
 	return device_register(dev);

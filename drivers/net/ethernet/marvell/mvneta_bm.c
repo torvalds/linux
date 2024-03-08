@@ -105,7 +105,7 @@ int mvneta_bm_construct(struct hwbm_pool *hwbm_pool, void *buf)
 	phys_addr = dma_map_single(&priv->pdev->dev, buf, bm_pool->buf_size,
 				   DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&priv->pdev->dev, phys_addr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mvneta_bm_pool_put_bp(priv, bm_pool, phys_addr);
 	return 0;
@@ -124,14 +124,14 @@ static int mvneta_bm_pool_create(struct mvneta_bm *priv,
 						&bm_pool->phys_addr,
 						GFP_KERNEL);
 	if (!bm_pool->virt_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!IS_ALIGNED((u32)bm_pool->virt_addr, MVNETA_BM_POOL_PTR_ALIGN)) {
 		dma_free_coherent(&pdev->dev, size_bytes, bm_pool->virt_addr,
 				  bm_pool->phys_addr);
-		dev_err(&pdev->dev, "BM pool %d is not %d bytes aligned\n",
+		dev_err(&pdev->dev, "BM pool %d is analt %d bytes aligned\n",
 			bm_pool->id, MVNETA_BM_POOL_PTR_ALIGN);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = mvebu_mbus_get_dram_win_info(bm_pool->phys_addr, &target_id,
@@ -152,7 +152,7 @@ static int mvneta_bm_pool_create(struct mvneta_bm *priv,
 	return 0;
 }
 
-/* Notify the driver that BM pool is being used as specific type and return the
+/* Analtify the driver that BM pool is being used as specific type and return the
  * pool pointer on success
  */
 struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
@@ -165,7 +165,7 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 	if (new_pool->type == MVNETA_BM_LONG &&
 	    new_pool->port_map != 1 << port_id) {
 		dev_err(&priv->pdev->dev,
-			"long pool cannot be shared by the ports\n");
+			"long pool cananalt be shared by the ports\n");
 		return NULL;
 	}
 
@@ -267,7 +267,7 @@ void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
 
 	mvneta_bm_bufs_free(priv, bm_pool, port_map);
 	if (hwbm_pool->buf_num)
-		WARN(1, "cannot free all buffers in pool %d\n", bm_pool->id);
+		WARN(1, "cananalt free all buffers in pool %d\n", bm_pool->id);
 
 	if (bm_pool->virt_addr) {
 		dma_free_coherent(&priv->pdev->dev,
@@ -282,7 +282,7 @@ EXPORT_SYMBOL_GPL(mvneta_bm_pool_destroy);
 
 static void mvneta_bm_pools_init(struct mvneta_bm *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_analde *dn = priv->pdev->dev.of_analde;
 	struct mvneta_bm_pool *bm_pool;
 	char prop[15];
 	u32 size;
@@ -364,25 +364,25 @@ static int mvneta_bm_init(struct mvneta_bm *priv)
 				      sizeof(struct mvneta_bm_pool),
 				      GFP_KERNEL);
 	if (!priv->bm_pools)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mvneta_bm_pools_init(priv);
 
 	return 0;
 }
 
-static int mvneta_bm_get_sram(struct device_node *dn,
+static int mvneta_bm_get_sram(struct device_analde *dn,
 			      struct mvneta_bm *priv)
 {
 	priv->bppi_pool = of_gen_pool_get(dn, "internal-mem", 0);
 	if (!priv->bppi_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->bppi_virt_addr = gen_pool_dma_alloc(priv->bppi_pool,
 						  MVNETA_BM_BPPI_SIZE,
 						  &priv->bppi_phys_addr);
 	if (!priv->bppi_virt_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -393,9 +393,9 @@ static void mvneta_bm_put_sram(struct mvneta_bm *priv)
 		      MVNETA_BM_BPPI_SIZE);
 }
 
-struct mvneta_bm *mvneta_bm_get(struct device_node *node)
+struct mvneta_bm *mvneta_bm_get(struct device_analde *analde)
 {
-	struct platform_device *pdev = of_find_device_by_node(node);
+	struct platform_device *pdev = of_find_device_by_analde(analde);
 
 	return pdev ? platform_get_drvdata(pdev) : NULL;
 }
@@ -409,13 +409,13 @@ EXPORT_SYMBOL_GPL(mvneta_bm_put);
 
 static int mvneta_bm_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	struct mvneta_bm *priv;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct mvneta_bm), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->reg_base))

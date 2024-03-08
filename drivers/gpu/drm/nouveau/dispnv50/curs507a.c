@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@
 bool
 curs507a_space(struct nv50_wndw *wndw)
 {
-	nvif_msec(&nouveau_drm(wndw->plane.dev)->client.device, 100,
+	nvif_msec(&analuveau_drm(wndw->plane.dev)->client.device, 100,
 		if (NVIF_TV32(&wndw->wimm.base.user, NV507A, FREE, COUNT, >=, 4))
 			return true;
 	);
@@ -98,14 +98,14 @@ static int
 curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
-	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	struct analuveau_drm *drm = analuveau_drm(wndw->plane.dev);
 	struct nv50_head *head = nv50_head(asyw->state.crtc);
 	struct drm_framebuffer *fb = asyw->state.fb;
 	int ret;
 
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  true, true);
 	asyh->curs.visible = asyw->state.visible;
 	if (ret || !asyh->curs.visible)
@@ -122,7 +122,7 @@ curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	}
 
 	if (asyw->state.src_x || asyw->state.src_y) {
-		NV_ATOMIC(drm, "Cursor planes do not support framebuffer offsets\n");
+		NV_ATOMIC(drm, "Cursor planes do analt support framebuffer offsets\n");
 		return -EINVAL;
 	}
 
@@ -166,7 +166,7 @@ curs507a_wndw = {
 };
 
 int
-curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
+curs507a_new_(const struct nv50_wimm_func *func, struct analuveau_drm *drm,
 	      int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
@@ -197,7 +197,7 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 }
 
 int
-curs507a_new(struct nouveau_drm *drm, int head, s32 oclass,
+curs507a_new(struct analuveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
 	return curs507a_new_(&curs507a, drm, head, oclass,

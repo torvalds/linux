@@ -8,7 +8,7 @@ int bcm4908_partitions_post_parse(struct mtd_info *mtd, struct mtd_partition *pa
 static inline int bcm4908_partitions_post_parse(struct mtd_info *mtd, struct mtd_partition *parts,
 						int nr_parts)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

@@ -113,7 +113,7 @@ static __inline__ bool local_try_cmpxchg(local_t *l, long *old, long new)
  * @a: the amount to add to l...
  * @u: ...unless l is equal to u.
  *
- * Atomically adds @a to @l, if @v was not already @u.
+ * Atomically adds @a to @l, if @v was analt already @u.
  * Returns true if the addition was done.
  */
 static __inline__ bool
@@ -129,7 +129,7 @@ local_add_unless(local_t *l, long a, long u)
 	return true;
 }
 
-#define local_inc_not_zero(l) local_add_unless((l), 1, 0)
+#define local_inc_analt_zero(l) local_add_unless((l), 1, 0)
 
 #define local_dec_return(l) local_sub_return(1, (l))
 #define local_inc_return(l) local_add_return(1, (l))
@@ -177,8 +177,8 @@ local_add_unless(local_t *l, long a, long u)
 #define local_add_negative(i, l) (local_add_return(i, (l)) < 0)
 
 /* Use these for per-cpu local_t variables: on some archs they are
- * much more efficient than these naive implementations.  Note they take
- * a variable, not an address.
+ * much more efficient than these naive implementations.  Analte they take
+ * a variable, analt an address.
  */
 
 #define __local_inc(l)		((l)->a.counter++)

@@ -7,9 +7,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -24,7 +24,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
@@ -268,9 +268,9 @@ static void cmtp_recv_interopmsg(struct cmtp_session *session, struct sk_buff *s
 
 			if (!info && ctrl) {
 				ctrl->version.majorversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 16);
-				ctrl->version.minorversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 20);
+				ctrl->version.mianalrversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 20);
 				ctrl->version.majormanuversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 24);
-				ctrl->version.minormanuversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 28);
+				ctrl->version.mianalrmanuversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 28);
 			}
 
 			break;
@@ -496,7 +496,7 @@ static u16 cmtp_send_message(struct capi_ctr *ctrl, struct sk_buff *skb)
 
 	cmtp_send_capimsg(session, skb);
 
-	return CAPI_NOERROR;
+	return CAPI_ANALERROR;
 }
 
 static char *cmtp_procinfo(struct capi_ctr *ctrl)
@@ -542,7 +542,7 @@ int cmtp_attach_device(struct cmtp_session *session)
 		return -ETIMEDOUT;
 
 	if (!session->ncontroller)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (session->ncontroller > 1)
 		BT_INFO("Setting up only CAPI controller 1");

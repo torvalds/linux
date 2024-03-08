@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Raw Decoder found in PowerDown Controller.
  *
- * Copyright 2010-2014 Imagination Technologies Ltd.
+ * Copyright 2010-2014 Imagination Techanallogies Ltd.
  */
 
 #ifndef _IMG_IR_RAW_H_
@@ -50,7 +50,7 @@ static inline void img_ir_setup_raw(struct img_ir_priv *priv)
 }
 static inline int img_ir_probe_raw(struct img_ir_priv *priv)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void img_ir_remove_raw(struct img_ir_priv *priv)
 {

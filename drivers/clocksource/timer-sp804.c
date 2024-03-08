@@ -66,7 +66,7 @@ static long __init sp804_get_clock_rate(struct clk *clk, const char *name)
 	if (!clk)
 		clk = clk_get_sys("sp804", name);
 	if (IS_ERR(clk)) {
-		pr_err("%s clock not found: %ld\n", name, PTR_ERR(clk));
+		pr_err("%s clock analt found: %ld\n", name, PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 
@@ -97,7 +97,7 @@ static struct sp804_clkevt * __init sp804_clkevt_get(void __iomem *base)
 
 static struct sp804_clkevt *sched_clkevt;
 
-static u64 notrace sp804_read(void)
+static u64 analtrace sp804_read(void)
 {
 	return ~readl_relaxed(sched_clkevt->value);
 }
@@ -248,7 +248,7 @@ static void __init sp804_clkevt_init(struct sp804_timer *timer, void __iomem *ba
 	}
 }
 
-static int __init sp804_of_init(struct device_node *np, struct sp804_timer *timer)
+static int __init sp804_of_init(struct device_analde *np, struct sp804_timer *timer)
 {
 	static bool initialized = false;
 	void __iomem *base;
@@ -283,7 +283,7 @@ static int __init sp804_of_init(struct device_node *np, struct sp804_timer *time
 	if (of_clk_get_parent_count(np) == 3) {
 		clk2 = of_clk_get(np, 1);
 		if (IS_ERR(clk2)) {
-			pr_err("%pOFn clock not found: %d\n", np,
+			pr_err("%pOFn clock analt found: %d\n", np,
 				(int)PTR_ERR(clk2));
 			clk2 = NULL;
 		}
@@ -326,19 +326,19 @@ err:
 	return ret;
 }
 
-static int __init arm_sp804_of_init(struct device_node *np)
+static int __init arm_sp804_of_init(struct device_analde *np)
 {
 	return sp804_of_init(np, &arm_sp804_timer);
 }
 TIMER_OF_DECLARE(sp804, "arm,sp804", arm_sp804_of_init);
 
-static int __init hisi_sp804_of_init(struct device_node *np)
+static int __init hisi_sp804_of_init(struct device_analde *np)
 {
 	return sp804_of_init(np, &hisi_sp804_timer);
 }
 TIMER_OF_DECLARE(hisi_sp804, "hisilicon,sp804", hisi_sp804_of_init);
 
-static int __init integrator_cp_of_init(struct device_node *np)
+static int __init integrator_cp_of_init(struct device_analde *np)
 {
 	static int init_count = 0;
 	void __iomem *base;

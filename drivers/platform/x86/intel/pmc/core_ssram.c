@@ -10,7 +10,7 @@
 
 #include <linux/cleanup.h>
 #include <linux/pci.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include "core.h"
 #include "../vsec.h"
@@ -68,7 +68,7 @@ static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc)
 					 lpm_size * sizeof(u32),
 					 GFP_KERNEL);
 	if (!pmc->lpm_req_regs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unregister_ep;
 	}
 
@@ -92,7 +92,7 @@ static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc)
 	 *
 	 * Low Power Mode 0 Block
 	 * +----+--------------+-------------+-------------+--------------+
-	 * |  1 |     SUB ID   |     SIZE    |   MAJOR     |   MINOR      |
+	 * |  1 |     SUB ID   |     SIZE    |   MAJOR     |   MIANALR      |
 	 * +----+--------------+-------------+-------------+--------------+
 	 * |  2 |           LPM0 Requirements 0                           |
 	 * +----+---------------------------------------------------------+
@@ -105,7 +105,7 @@ static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc)
 	 *
 	 * Low Power Mode 7 Block
 	 * +----+--------------+-------------+-------------+--------------+
-	 * |    |     SUB ID   |     SIZE    |   MAJOR     |   MINOR      |
+	 * |    |     SUB ID   |     SIZE    |   MAJOR     |   MIANALR      |
 	 * +----+--------------+-------------+-------------+--------------+
 	 * | 60 |           LPM7 Requirements 0                           |
 	 * +----+---------------------------------------------------------+
@@ -146,7 +146,7 @@ int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev)
 	int ret, i;
 
 	if (!pmcdev->ssram_pcidev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
 		if (!pmcdev->pmcs[i])
@@ -224,13 +224,13 @@ pmc_core_pmc_add(struct pmc_dev *pmcdev, u64 pwrm_base,
 	struct pmc *pmc = pmcdev->pmcs[pmc_index];
 
 	if (!pwrm_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Memory for primary PMC has been allocated in core.c */
 	if (!pmc) {
 		pmc = devm_kzalloc(&pmcdev->pdev->dev, sizeof(*pmc), GFP_KERNEL);
 		if (!pmc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pmc->map = reg_map;
@@ -239,7 +239,7 @@ pmc_core_pmc_add(struct pmc_dev *pmcdev, u64 pwrm_base,
 
 	if (!pmc->regbase) {
 		devm_kfree(&pmcdev->pdev->dev, pmc);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pmcdev->pmcs[pmc_index] = pmc;
@@ -258,7 +258,7 @@ pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, int pmc_idx, u32 offset)
 	u16 devid;
 
 	if (!pmcdev->regmap_list)
-		return -ENOENT;
+		return -EANALENT;
 
 	ssram_base = ssram_pcidev->resource[0].start;
 	tmp_ssram = ioremap(ssram_base, SSRAM_HDR_SIZE);
@@ -271,10 +271,10 @@ pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, int pmc_idx, u32 offset)
 		ssram_base = get_base(tmp_ssram, offset);
 		ssram = ioremap(ssram_base, SSRAM_HDR_SIZE);
 		if (!ssram)
-			return -ENOMEM;
+			return -EANALMEM;
 
 	} else {
-		ssram = no_free_ptr(tmp_ssram);
+		ssram = anal_free_ptr(tmp_ssram);
 	}
 
 	pwrm_base = get_base(ssram, SSRAM_PWRM_OFFSET);
@@ -285,7 +285,7 @@ pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, int pmc_idx, u32 offset)
 
 	map = pmc_core_find_regmap(pmcdev->regmap_list, devid);
 	if (!map)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pmc_core_pmc_add(pmcdev, pwrm_base, map, pmc_idx);
 }
@@ -297,7 +297,7 @@ int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func)
 
 	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(20, func));
 	if (!pcidev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pcim_enable_device(pcidev);
 	if (ret)

@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor mediation of files
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #include <linux/tty.h>
@@ -38,8 +38,8 @@ static u32 map_mask_to_chr_mask(u32 mask)
 
 /**
  * file_audit_cb - call back for file specific audit fields
- * @ab: audit_buffer  (NOT NULL)
- * @va: audit struct to audit values of  (NOT NULL)
+ * @ab: audit_buffer  (ANALT NULL)
+ * @va: audit struct to audit values of  (ANALT NULL)
  */
 static void file_audit_cb(struct audit_buffer *ab, void *va)
 {
@@ -78,8 +78,8 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
 /**
  * aa_audit_file - handle the auditing of file operations
  * @subj_cred: cred of the subject
- * @profile: the profile being enforced  (NOT NULL)
- * @perms: the permissions computed for the request (NOT NULL)
+ * @profile: the profile being enforced  (ANALT NULL)
+ * @perms: the permissions computed for the request (ANALT NULL)
  * @op: operation being mediated
  * @request: permissions requested
  * @name: name of object being mediated (MAYBE NULL)
@@ -116,7 +116,7 @@ int aa_audit_file(const struct cred *subj_cred,
 		if (unlikely(AUDIT_MODE(profile) == AUDIT_ALL))
 			mask = 0xffff;
 
-		/* mask off perms that are not being force audited */
+		/* mask off perms that are analt being force audited */
 		ad.request &= mask;
 
 		if (likely(!ad.request))
@@ -130,9 +130,9 @@ int aa_audit_file(const struct cred *subj_cred,
 		if (ad.request & perms->kill)
 			type = AUDIT_APPARMOR_KILL;
 
-		/* quiet known rejects, assumes quiet and kill do not overlap */
+		/* quiet kanalwn rejects, assumes quiet and kill do analt overlap */
 		if ((ad.request & perms->quiet) &&
-		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
+		    AUDIT_MODE(profile) != AUDIT_ANALQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
 			ad.request &= ~perms->quiet;
 
@@ -146,13 +146,13 @@ int aa_audit_file(const struct cred *subj_cred,
 
 /**
  * is_deleted - test if a file has been completely unlinked
- * @dentry: dentry of file to test for deletion  (NOT NULL)
+ * @dentry: dentry of file to test for deletion  (ANALT NULL)
  *
  * Returns: true if deleted else false
  */
 static inline bool is_deleted(struct dentry *dentry)
 {
-	if (d_unlinked(dentry) && d_backing_inode(dentry)->i_nlink == 0)
+	if (d_unlinked(dentry) && d_backing_ianalde(dentry)->i_nlink == 0)
 		return true;
 	return false;
 }
@@ -182,9 +182,9 @@ static int path_name(const char *op, const struct cred *subj_cred,
 struct aa_perms default_perms = {};
 /**
  * aa_lookup_fperms - convert dfa compressed perms to internal perms
- * @file_rules: the aa_policydb to lookup perms for  (NOT NULL)
+ * @file_rules: the aa_policydb to lookup perms for  (ANALT NULL)
  * @state: state in dfa
- * @cond:  conditions to consider  (NOT NULL)
+ * @cond:  conditions to consider  (ANALT NULL)
  *
  * TODO: convert from dfa + state to permission entry
  *
@@ -206,10 +206,10 @@ struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
 
 /**
  * aa_str_perms - find permission that match @name
- * @file_rules: the aa_policydb to match against  (NOT NULL)
+ * @file_rules: the aa_policydb to match against  (ANALT NULL)
  * @start: state to start matching in
- * @name: string to match against dfa  (NOT NULL)
- * @cond: conditions to consider for permission set computation  (NOT NULL)
+ * @name: string to match against dfa  (ANALT NULL)
+ * @cond: conditions to consider for permission set computation  (ANALT NULL)
  * @perms: Returns - the permissions found when matching @name
  *
  * Returns: the final state in @dfa when beginning @start and walking @name
@@ -271,11 +271,11 @@ static int profile_path_perm(const char *op, const struct cred *subj_cred,
  * aa_path_perm - do permissions check & audit for @path
  * @op: operation being checked
  * @subj_cred: subject cred
- * @label: profile being enforced  (NOT NULL)
- * @path: path to check permissions of  (NOT NULL)
+ * @label: profile being enforced  (ANALT NULL)
+ * @path: path to check permissions of  (ANALT NULL)
  * @flags: any additional path flags beyond what the profile specifies
  * @request: requested permissions
- * @cond: conditional info for this request  (NOT NULL)
+ * @cond: conditional info for this request  (ANALT NULL)
  *
  * Returns: %0 else error if access denied or other error
  */
@@ -293,7 +293,7 @@ int aa_path_perm(const char *op, const struct cred *subj_cred,
 								0);
 	buffer = aa_get_buffer(false);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	error = fn_for_each_confined(label, profile,
 			profile_path_perm(op, subj_cred, profile, path, buffer,
 					  request, cond, flags, &perms));
@@ -377,7 +377,7 @@ static int profile_path_link(const struct cred *subj_cred,
 		goto audit;
 	}
 
-	/* done if link subset test is not required */
+	/* done if link subset test is analt required */
 	if (!(perms.allow & AA_LINK_SUBSET))
 		goto done_tests;
 
@@ -387,7 +387,7 @@ static int profile_path_link(const struct cred *subj_cred,
 	aa_str_perms(rules->file, rules->file->start[AA_CLASS_FILE],
 		     tname, cond, &perms);
 
-	/* AA_MAY_LINK is not considered in the subset test */
+	/* AA_MAY_LINK is analt considered in the subset test */
 	request = lperms.allow & ~AA_MAY_LINK;
 	lperms.allow &= perms.allow | AA_MAY_LINK;
 
@@ -398,7 +398,7 @@ static int profile_path_link(const struct cred *subj_cred,
 		   !xindex_is_subset(lperms.xindex, perms.xindex)) {
 		lperms.allow &= ~MAY_EXEC;
 		request |= MAY_EXEC;
-		info = "link not subset of target";
+		info = "link analt subset of target";
 		goto audit;
 	}
 
@@ -414,15 +414,15 @@ audit:
 /**
  * aa_path_link - Handle hard link permission check
  * @subj_cred: subject cred
- * @label: the label being enforced  (NOT NULL)
- * @old_dentry: the target dentry  (NOT NULL)
- * @new_dir: directory the new link will be created in  (NOT NULL)
- * @new_dentry: the link being created  (NOT NULL)
+ * @label: the label being enforced  (ANALT NULL)
+ * @old_dentry: the target dentry  (ANALT NULL)
+ * @new_dir: directory the new link will be created in  (ANALT NULL)
+ * @new_dentry: the link being created  (ANALT NULL)
  *
  * Handle the permission test for a link & target pair.  Permission
  * is encoded as a pair where the link permission is determined
  * first, and if allowed, the target is tested.  The target test
- * is done from the point of the link match (not start of DFA)
+ * is done from the point of the link match (analt start of DFA)
  * making the target permission dependent on the link permission match.
  *
  * The subset test if required forces that permissions granted
@@ -437,8 +437,8 @@ int aa_path_link(const struct cred *subj_cred,
 	struct path link = { .mnt = new_dir->mnt, .dentry = new_dentry };
 	struct path target = { .mnt = new_dir->mnt, .dentry = old_dentry };
 	struct path_cond cond = {
-		d_backing_inode(old_dentry)->i_uid,
-		d_backing_inode(old_dentry)->i_mode
+		d_backing_ianalde(old_dentry)->i_uid,
+		d_backing_ianalde(old_dentry)->i_mode
 	};
 	char *buffer = NULL, *buffer2 = NULL;
 	struct aa_profile *profile;
@@ -447,7 +447,7 @@ int aa_path_link(const struct cred *subj_cred,
 	/* buffer freed below, lname is pointer in buffer */
 	buffer = aa_get_buffer(false);
 	buffer2 = aa_get_buffer(false);
-	error = -ENOMEM;
+	error = -EANALMEM;
 	if (!buffer || !buffer2)
 		goto out;
 
@@ -489,15 +489,15 @@ static int __file_path_perm(const char *op, const struct cred *subj_cred,
 	struct aa_profile *profile;
 	struct aa_perms perms = {};
 	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_idmap(file),
-					    file_inode(file));
+					    file_ianalde(file));
 	struct path_cond cond = {
 		.uid = vfsuid_into_kuid(vfsuid),
-		.mode = file_inode(file)->i_mode
+		.mode = file_ianalde(file)->i_mode
 	};
 	char *buffer;
 	int flags, error;
 
-	/* revalidation due to label out of date. No revocation at this time */
+	/* revalidation due to label out of date. Anal revocation at this time */
 	if (!denied && aa_label_is_subset(flabel, label))
 		/* TODO: check for revocation on stale profiles */
 		return 0;
@@ -505,16 +505,16 @@ static int __file_path_perm(const char *op, const struct cred *subj_cred,
 	flags = PATH_DELEGATE_DELETED | (S_ISDIR(cond.mode) ? PATH_IS_DIR : 0);
 	buffer = aa_get_buffer(in_atomic);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* check every profile in task label not in current cache */
-	error = fn_for_each_not_in_set(flabel, label, profile,
+	/* check every profile in task label analt in current cache */
+	error = fn_for_each_analt_in_set(flabel, label, profile,
 			profile_path_perm(op, subj_cred, profile,
 					  &file->f_path, buffer,
 					  request, &cond, flags, &perms));
 	if (denied && !error) {
 		/*
-		 * check every profile in file label that was not tested
+		 * check every profile in file label that was analt tested
 		 * in the initial check above.
 		 *
 		 * TODO: cache full perms so this only happens because of
@@ -528,7 +528,7 @@ static int __file_path_perm(const char *op, const struct cred *subj_cred,
 						  buffer, request, &cond, flags,
 						  &perms));
 		else
-			error = fn_for_each_not_in_set(label, flabel, profile,
+			error = fn_for_each_analt_in_set(label, flabel, profile,
 				profile_path_perm(op, subj_cred,
 						  profile, &file->f_path,
 						  buffer, request, &cond, flags,
@@ -552,7 +552,7 @@ static int __file_sock_perm(const char *op, const struct cred *subj_cred,
 
 	AA_BUG(!sock);
 
-	/* revalidation due to label out of date. No revocation at this time */
+	/* revalidation due to label out of date. Anal revocation at this time */
 	if (!denied && aa_label_is_subset(flabel, label))
 		return 0;
 
@@ -574,8 +574,8 @@ static int __file_sock_perm(const char *op, const struct cred *subj_cred,
  * aa_file_perm - do permission revalidation check & audit for @file
  * @op: operation being checked
  * @subj_cred: subject cred
- * @label: label being enforced   (NOT NULL)
- * @file: file to revalidate access permissions on  (NOT NULL)
+ * @label: label being enforced   (ANALT NULL)
+ * @file: file to revalidate access permissions on  (ANALT NULL)
  * @request: requested permissions
  * @in_atomic: whether allocations need to be done in atomic context
  *
@@ -603,7 +603,7 @@ int aa_file_perm(const char *op, const struct cred *subj_cred,
 	 * doesn't match or if the request is for more permissions than
 	 * was granted.
 	 *
-	 * Note: the test for !unconfined(flabel) is to handle file
+	 * Analte: the test for !unconfined(flabel) is to handle file
 	 *       delegation from unconfined tasks
 	 */
 	denied = request & ~fctx->allow;
@@ -621,7 +621,7 @@ int aa_file_perm(const char *op, const struct cred *subj_cred,
 		error = __file_path_perm(op, subj_cred, label, flabel, file,
 					 request, denied, in_atomic);
 
-	else if (S_ISSOCK(file_inode(file)->i_mode))
+	else if (S_ISSOCK(file_ianalde(file)->i_mode))
 		error = __file_sock_perm(op, subj_cred, label, flabel, file,
 					 request, denied);
 	aa_put_label(flabel);
@@ -656,7 +656,7 @@ static void revalidate_tty(const struct cred *subj_cred, struct aa_label *label)
 	tty_kref_put(tty);
 
 	if (drop_tty)
-		no_tty();
+		anal_tty();
 }
 
 struct cred_label {
@@ -690,7 +690,7 @@ void aa_inherit_files(const struct cred *cred, struct files_struct *files)
 
 	/* Revalidate access to inherited open files. */
 	n = iterate_fd(files, 0, match_file, &cl);
-	if (!n) /* none found? */
+	if (!n) /* analne found? */
 		goto out;
 
 	devnull = dentry_open(&aa_null, O_RDWR, cred);

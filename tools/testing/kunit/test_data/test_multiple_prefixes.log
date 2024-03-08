@@ -12,20 +12,20 @@
 [    0.060000][    T1] ok 1 - kunit-resource-test
 [    0.060000][    T1] 	# Subtest: kunit-try-catch-test
 [    0.060000][    T1] 	1..2
-[    0.060000][    T1] 	ok 1 - kunit_test_try_catch_successful_try_no_catch
+[    0.060000][    T1] 	ok 1 - kunit_test_try_catch_successful_try_anal_catch
 [    0.060000][    T1] 	ok 2 - kunit_test_try_catch_unsuccessful_try_does_catch
 [    0.060000][    T1] ok 2 - kunit-try-catch-test
 [    0.060000][    T1] 	# Subtest: string-stream-test
 [    0.060000][    T1] 	1..3
 [    0.060000][    T1] 	ok 1 - string_stream_test_empty_on_creation
-[    0.060000][    T1] 	ok 2 - string_stream_test_not_empty_after_add
+[    0.060000][    T1] 	ok 2 - string_stream_test_analt_empty_after_add
 [    0.060000][    T1] 	ok 3 - string_stream_test_get_string
 [    0.060000][    T1] ok 3 - string-stream-test
 [    0.060000][    T1] List of all partitions:
-[    0.060000][    T1] No filesystem could mount root, tried:
+[    0.060000][    T1] Anal filesystem could mount root, tried:
 [    0.060000][    T1]
-[    0.060000][    T1] Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(98,0)
-[    0.060000][    T1] CPU: 0 PID: 1 Comm: swapper Not tainted 5.4.0-rc1-gea2dd7c0875e-dirty #2
+[    0.060000][    T1] Kernel panic - analt syncing: VFS: Unable to mount root fs on unkanalwn-block(98,0)
+[    0.060000][    T1] CPU: 0 PID: 1 Comm: swapper Analt tainted 5.4.0-rc1-gea2dd7c0875e-dirty #2
 [    0.060000][    T1] Stack:
 [    0.060000][    T1]  602086f8 601bc260 705c0000 705c0000
 [    0.060000][    T1]  602086f8 6005fcec 705c0000 6002c6ab

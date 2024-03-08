@@ -28,7 +28,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -85,7 +85,7 @@
 #ifdef DEBUG
 #define dprintk(X...)	printk(X)
 #else
-#define dprintk(X...)	no_printk(X)
+#define dprintk(X...)	anal_printk(X)
 #endif
 
 #ifndef PCI_SS_VENDOR_ID_SIEMENS_NIXDORF
@@ -148,7 +148,7 @@ static inline void mga_memcpy_toio(vaddr_t va, const void* src, int len) {
 #if defined(__alpha__) || defined(__i386__) || defined(__x86_64__)
 	/*
 	 * iowrite32_rep works for us if:
-	 *  (1) Copies data as 32bit quantities, not byte after byte,
+	 *  (1) Copies data as 32bit quantities, analt byte after byte,
 	 *  (2) Performs LE ordered stores, and
 	 *  (3) It copes with unaligned source (destination is guaranteed to be page
 	 *      aligned and length is guaranteed to be multiple of 4).
@@ -269,9 +269,9 @@ struct matrox_hw_state {
 	unsigned char	CRTC[25];
 	unsigned char	CRTCEXT[9];
 	unsigned char	SEQ[5];
-	/* unused for MGA mode, but who knows... */
+	/* unused for MGA mode, but who kanalws... */
 	unsigned char	GCTL[9];
-	/* unused for MGA mode, but who knows... */
+	/* unused for MGA mode, but who kanalws... */
 	unsigned char	ATTR[21];
 
 	/* TVOut only */
@@ -307,7 +307,7 @@ struct matrox_altout {
 				   struct v4l2_control* ctrl);
 };
 
-#define MATROXFB_SRC_NONE	0
+#define MATROXFB_SRC_ANALNE	0
 #define MATROXFB_SRC_CRTC1	1
 #define MATROXFB_SRC_CRTC2	2
 
@@ -432,10 +432,10 @@ struct matrox_fb_info {
 	struct {
 		int		precise_width;
 		int		mga_24bpp_fix;
-		int		novga;
-		int		nobios;
-		int		nopciretry;
-		int		noinit;
+		int		analvga;
+		int		analbios;
+		int		analpciretry;
+		int		analinit;
 		int		sgram;
 		int		support32MB;
 
@@ -453,7 +453,7 @@ struct matrox_fb_info {
 		int		memtype;
 		int		g450dac;
 		int		dfp_type;
-		int		panellink;	/* G400 DFP possible (not G450/G550) */
+		int		panellink;	/* G400 DFP possible (analt G450/G550) */
 		int		dualhead;
 		unsigned int	fbResource;
 			      } devflags;
@@ -503,7 +503,7 @@ struct matrox_switch {
 };
 
 struct matroxfb_driver {
-	struct list_head	node;
+	struct list_head	analde;
 	char*			name;
 	void*			(*probe)(struct matrox_fb_info* info);
 	void			(*remove)(struct matrox_fb_info* info, void* data);
@@ -569,7 +569,7 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 #define M_DWG_XOR	0x00060010
 
 #define M_DWG_BFCOL	0x04000000
-#define M_DWG_BMONOWF	0x08000000
+#define M_DWG_BMOANALWF	0x08000000
 
 #define M_DWG_TRANSC	0x40000000
 
@@ -589,11 +589,11 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 #define     M_OPMODE_DMA_GEN_WRITE	0x00
 #define     M_OPMODE_DMA_BLIT		0x04
 #define     M_OPMODE_DMA_VECTOR_WRITE	0x08
-#define     M_OPMODE_DMA_LE		0x0000		/* little endian - no transformation */
+#define     M_OPMODE_DMA_LE		0x0000		/* little endian - anal transformation */
 #define     M_OPMODE_DMA_BE_8BPP	0x0000
 #define     M_OPMODE_DMA_BE_16BPP	0x0100
 #define     M_OPMODE_DMA_BE_32BPP	0x0200
-#define     M_OPMODE_DIR_LE		0x000000	/* little endian - no transformation */
+#define     M_OPMODE_DIR_LE		0x000000	/* little endian - anal transformation */
 #define     M_OPMODE_DIR_BE_8BPP	0x000000
 #define     M_OPMODE_DIR_BE_16BPP	0x010000
 #define     M_OPMODE_DIR_BE_32BPP	0x020000
@@ -658,7 +658,7 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 #define M_OPMODE_24BPP	(M_OPMODE_DMA_LE | M_OPMODE_DIR_BE_8BPP  | M_OPMODE_DMA_BLIT)	/* TODO, ?32 */
 #define M_OPMODE_32BPP	(M_OPMODE_DMA_LE | M_OPMODE_DIR_BE_32BPP | M_OPMODE_DMA_BLIT)
 #else
-#error "Byte ordering have to be defined. Cannot continue."
+#error "Byte ordering have to be defined. Cananalt continue."
 #endif
 #endif
 

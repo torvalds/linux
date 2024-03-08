@@ -222,7 +222,7 @@ int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir, unsigned int pcm_channels)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
-	unsigned int flags = CIP_NONBLOCKING | CIP_SKIP_DBC_ZERO_CHECK | CIP_UNAWARE_SYT;
+	unsigned int flags = CIP_ANALNBLOCKING | CIP_SKIP_DBC_ZERO_CHECK | CIP_UNAWARE_SYT;
 	struct amdtp_tscm *p;
 	unsigned int fmt;
 	int err;

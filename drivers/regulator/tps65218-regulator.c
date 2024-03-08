@@ -310,7 +310,7 @@ static int tps65218_regulator_probe(struct platform_device *pdev)
 	unsigned int val;
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = tps->dev->of_node;
+	config.dev->of_analde = tps->dev->of_analde;
 	config.driver_data = tps;
 	config.regmap = tps->regmap;
 
@@ -319,7 +319,7 @@ static int tps65218_regulator_probe(struct platform_device *pdev)
 				    TPS65218_NUM_REGULATOR, sizeof(u8),
 				    GFP_KERNEL);
 	if (!tps->strobes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
@@ -349,7 +349,7 @@ MODULE_DEVICE_TABLE(platform, tps65218_regulator_id_table);
 static struct platform_driver tps65218_regulator_driver = {
 	.driver = {
 		.name = "tps65218-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tps65218_regulator_probe,
 	.id_table = tps65218_regulator_id_table,

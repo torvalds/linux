@@ -104,7 +104,7 @@ static int intel_cursor_check_surface(struct intel_plane_state *plane_state)
 
 	if (src_x != 0 || src_y != 0) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Arbitrary cursor panning not supported\n");
+			    "Arbitrary cursor panning analt supported\n");
 		return -EINVAL;
 	}
 
@@ -141,13 +141,13 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	int ret;
 
 	if (fb && fb->modifier != DRM_FORMAT_MOD_LINEAR) {
-		drm_dbg_kms(&i915->drm, "cursor cannot be tiled\n");
+		drm_dbg_kms(&i915->drm, "cursor cananalt be tiled\n");
 		return -EINVAL;
 	}
 
 	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
-						DRM_PLANE_NO_SCALING,
-						DRM_PLANE_NO_SCALING,
+						DRM_PLANE_ANAL_SCALING,
+						DRM_PLANE_ANAL_SCALING,
 						true);
 	if (ret)
 		return ret;
@@ -223,14 +223,14 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	/* if we want to turn off the cursor ignore width and height */
+	/* if we want to turn off the cursor iganalre width and height */
 	if (!fb)
 		return 0;
 
 	/* Check for which cursor types we support */
 	if (!i845_cursor_size_ok(plane_state)) {
 		drm_dbg_kms(&i915->drm,
-			    "Cursor dimension %dx%d not supported\n",
+			    "Cursor dimension %dx%d analt supported\n",
 			    drm_rect_width(&plane_state->uapi.dst),
 			    drm_rect_height(&plane_state->uapi.dst));
 		return -EINVAL;
@@ -256,7 +256,7 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-/* TODO: split into noarm+arm pair */
+/* TODO: split into analarm+arm pair */
 static void i845_cursor_update_arm(struct intel_plane *plane,
 				   const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state)
@@ -412,7 +412,7 @@ static bool i9xx_cursor_size_ok(const struct intel_plane_state *plane_state)
 	/*
 	 * IVB+ have CUR_FBC_CTL which allows an arbitrary cursor
 	 * height from 8 lines up to the cursor width, when the
-	 * cursor is not rotated. Everything else requires square
+	 * cursor is analt rotated. Everything else requires square
 	 * cursors.
 	 */
 	if (HAS_CUR_FBC(dev_priv) &&
@@ -440,14 +440,14 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	/* if we want to turn off the cursor ignore width and height */
+	/* if we want to turn off the cursor iganalre width and height */
 	if (!fb)
 		return 0;
 
 	/* Check for which cursor types we support */
 	if (!i9xx_cursor_size_ok(plane_state)) {
 		drm_dbg(&dev_priv->drm,
-			"Cursor dimension %dx%d not supported\n",
+			"Cursor dimension %dx%d analt supported\n",
 			drm_rect_width(&plane_state->uapi.dst),
 			drm_rect_height(&plane_state->uapi.dst));
 		return -EINVAL;
@@ -478,7 +478,7 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_C &&
 	    plane_state->uapi.visible && plane_state->uapi.dst.x1 < 0) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "CHV cursor C not allowed to straddle the left screen edge\n");
+			    "CHV cursor C analt allowed to straddle the left screen edge\n");
 		return -EINVAL;
 	}
 
@@ -516,7 +516,7 @@ static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
 		i9xx_cursor_disable_sel_fetch_arm(plane, crtc_state);
 }
 
-/* TODO: split into noarm+arm pair */
+/* TODO: split into analarm+arm pair */
 static void i9xx_cursor_update_arm(struct intel_plane *plane,
 				   const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state)
@@ -603,7 +603,7 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 	u32 val;
 
 	/*
-	 * Not 100% correct for planes that can move between pipes,
+	 * Analt 100% correct for planes that can move between pipes,
 	 * but that's only the case for gen2-3 which don't have any
 	 * display power wells.
 	 */
@@ -673,7 +673,7 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	/*
 	 * Don't do an async update if there is an outstanding commit modifying
 	 * the plane.  This prevents our async update's changes from getting
-	 * overridden by a previous synchronous update's state.
+	 * overridden by a previous synchroanalus update's state.
 	 */
 	if (old_plane_state->uapi.commit &&
 	    !try_wait_for_completion(&old_plane_state->uapi.commit->hw_done))
@@ -694,11 +694,11 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 
 	new_plane_state = to_intel_plane_state(intel_plane_duplicate_state(&plane->base));
 	if (!new_plane_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_crtc_state = to_intel_crtc_state(intel_crtc_duplicate_state(&crtc->base));
 	if (!new_crtc_state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -734,7 +734,7 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	plane->base.state = &new_plane_state->uapi;
 
 	/*
-	 * We cannot swap crtc_state as it may be in use by an atomic commit or
+	 * We cananalt swap crtc_state as it may be in use by an atomic commit or
 	 * page flip that's running simultaneously. If we swap crtc_state and
 	 * destroy the old state, we will cause a use-after-free there.
 	 *
@@ -748,13 +748,13 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	/*
 	 * Technically we should do a vblank evasion here to make
 	 * sure all the cursor registers update on the same frame.
-	 * For now just make sure the register writes happen as
+	 * For analw just make sure the register writes happen as
 	 * quickly as possible to minimize the race window.
 	 */
 	local_irq_disable();
 
 	if (new_plane_state->uapi.visible) {
-		intel_plane_update_noarm(plane, crtc_state, new_plane_state);
+		intel_plane_update_analarm(plane, crtc_state, new_plane_state);
 		intel_plane_update_arm(plane, crtc_state, new_plane_state);
 	} else {
 		intel_plane_disable_arm(plane, crtc_state);
@@ -825,7 +825,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv) || HAS_CUR_FBC(dev_priv))
 		cursor->cursor.size = ~0;
 
-	modifiers = intel_fb_plane_get_modifiers(dev_priv, INTEL_PLANE_CAP_NONE);
+	modifiers = intel_fb_plane_get_modifiers(dev_priv, INTEL_PLANE_CAP_ANALNE);
 
 	ret = drm_universal_plane_init(&dev_priv->drm, &cursor->base,
 				       0, &intel_cursor_plane_funcs,

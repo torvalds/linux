@@ -59,15 +59,15 @@ patternProperties:
   '-pins$':
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
-    $ref: pincfg-node.yaml#
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
+    $ref: pincfg-analde.yaml#
 
     properties:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           pattern: '^gp([0-7][0-7])$'
         minItems: 1

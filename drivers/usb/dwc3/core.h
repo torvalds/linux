@@ -352,7 +352,7 @@
 
 /* Global HWPARAMS1 Register */
 #define DWC3_GHWPARAMS1_EN_PWROPT(n)	(((n) & (3 << 24)) >> 24)
-#define DWC3_GHWPARAMS1_EN_PWROPT_NO	0
+#define DWC3_GHWPARAMS1_EN_PWROPT_ANAL	0
 #define DWC3_GHWPARAMS1_EN_PWROPT_CLK	1
 #define DWC3_GHWPARAMS1_EN_PWROPT_HIB	2
 #define DWC3_GHWPARAMS1_PWROPT(n)	((n) << 24)
@@ -468,7 +468,7 @@
 #define DWC3_DCTL_ULSTCHNGREQ_MASK	(0x0f << 5)
 #define DWC3_DCTL_ULSTCHNGREQ(n) (((n) << 5) & DWC3_DCTL_ULSTCHNGREQ_MASK)
 
-#define DWC3_DCTL_ULSTCHNG_NO_ACTION	(DWC3_DCTL_ULSTCHNGREQ(0))
+#define DWC3_DCTL_ULSTCHNG_ANAL_ACTION	(DWC3_DCTL_ULSTCHNGREQ(0))
 #define DWC3_DCTL_ULSTCHNG_SS_DISABLED	(DWC3_DCTL_ULSTCHNGREQ(4))
 #define DWC3_DCTL_ULSTCHNG_RX_DETECT	(DWC3_DCTL_ULSTCHNGREQ(5))
 #define DWC3_DCTL_ULSTCHNG_SS_INACTIVE	(DWC3_DCTL_ULSTCHNGREQ(6))
@@ -534,7 +534,7 @@
 #define DWC3_DGCMD_SET_ENDPOINT_NRDY	0x0c
 #define DWC3_DGCMD_SET_ENDPOINT_PRIME	0x0d
 #define DWC3_DGCMD_RUN_SOC_BUS_LOOPBACK	0x10
-#define DWC3_DGCMD_DEV_NOTIFICATION	0x07
+#define DWC3_DGCMD_DEV_ANALTIFICATION	0x07
 
 #define DWC3_DGCMD_STATUS(n)		(((n) >> 12) & 0x0F)
 #define DWC3_DGCMD_CMDACT		BIT(10)
@@ -615,8 +615,8 @@
 #define DWC3_OEVT_DEVRUNSTPSET		BIT(26)
 #define DWC3_OEVT_HIBENTRY		BIT(25)
 #define DWC3_OEVT_CONIDSTSCHNG		BIT(24)
-#define DWC3_OEVT_HRRCONFNOTIF		BIT(23)
-#define DWC3_OEVT_HRRINITNOTIF		BIT(22)
+#define DWC3_OEVT_HRRCONFANALTIF		BIT(23)
+#define DWC3_OEVT_HRRINITANALTIF		BIT(22)
 #define DWC3_OEVT_ADEVIDLE		BIT(21)
 #define DWC3_OEVT_ADEVBHOSTEND		BIT(20)
 #define DWC3_OEVT_ADEVHOST		BIT(19)
@@ -637,8 +637,8 @@
 #define DWC3_OEVTEN_DEVRUNSTPSETEN	BIT(26)
 #define DWC3_OEVTEN_HIBENTRYEN		BIT(25)
 #define DWC3_OEVTEN_CONIDSTSCHNGEN	BIT(24)
-#define DWC3_OEVTEN_HRRCONFNOTIFEN	BIT(23)
-#define DWC3_OEVTEN_HRRINITNOTIFEN	BIT(22)
+#define DWC3_OEVTEN_HRRCONFANALTIFEN	BIT(23)
+#define DWC3_OEVTEN_HRRINITANALTIFEN	BIT(22)
 #define DWC3_OEVTEN_ADEVIDLEEN		BIT(21)
 #define DWC3_OEVTEN_ADEVBHOSTENDEN	BIT(20)
 #define DWC3_OEVTEN_ADEVHOSTEN		BIT(19)
@@ -723,7 +723,7 @@ struct dwc3_event_buffer {
  * @direction: true for TX, false for RX
  * @stream_capable: true when streams are enabled
  * @combo_num: the test combination BIT[15:14] of the frame number to test
- *		isochronous START TRANSFER command failure workaround
+ *		isochroanalus START TRANSFER command failure workaround
  * @start_cmd_status: the status of testing START TRANSFER command with
  *		combo_num = 'b00
  */
@@ -749,7 +749,7 @@ struct dwc3_ep {
 #define DWC3_EP_PENDING_REQUEST		BIT(5)
 #define DWC3_EP_DELAY_START		BIT(6)
 #define DWC3_EP_WAIT_TRANSFER_COMPLETE	BIT(7)
-#define DWC3_EP_IGNORE_NEXT_NOSTREAM	BIT(8)
+#define DWC3_EP_IGANALRE_NEXT_ANALSTREAM	BIT(8)
 #define DWC3_EP_FORCE_RESTART_STREAM	BIT(9)
 #define DWC3_EP_FIRST_STREAM_PRIMED	BIT(10)
 #define DWC3_EP_PENDING_CLEAR_STALL	BIT(11)
@@ -760,7 +760,7 @@ struct dwc3_ep {
 #define DWC3_EP0_DIR_IN			BIT(31)
 
 	/*
-	 * IMPORTANT: we *know* we have 256 TRBs in our @trb_pool, so we will
+	 * IMPORTANT: we *kanalw* we have 256 TRBs in our @trb_pool, so we will
 	 * use a u8 type here. If anybody decides to increase number of TRBs to
 	 * anything larger than 256 - I can't see why people would want to do
 	 * this though - then this type needs to be changed.
@@ -782,19 +782,19 @@ struct dwc3_ep {
 	unsigned		direction:1;
 	unsigned		stream_capable:1;
 
-	/* For isochronous START TRANSFER workaround only */
+	/* For isochroanalus START TRANSFER workaround only */
 	u8			combo_num;
 	int			start_cmd_status;
 };
 
 enum dwc3_phy {
-	DWC3_PHY_UNKNOWN = 0,
+	DWC3_PHY_UNKANALWN = 0,
 	DWC3_PHY_USB3,
 	DWC3_PHY_USB2,
 };
 
 enum dwc3_ep0_next {
-	DWC3_EP0_UNKNOWN = 0,
+	DWC3_EP0_UNKANALWN = 0,
 	DWC3_EP0_COMPLETE,
 	DWC3_EP0_NRDY_DATA,
 	DWC3_EP0_NRDY_STATUS,
@@ -849,13 +849,13 @@ enum dwc3_link_state {
 #define DWC3_TRB_CTRL_GET_SID_SOFN(n)	(((n) & (0xffff << 14)) >> 14)
 
 #define DWC3_TRBCTL_TYPE(n)		((n) & (0x3f << 4))
-#define DWC3_TRBCTL_NORMAL		DWC3_TRB_CTRL_TRBCTL(1)
+#define DWC3_TRBCTL_ANALRMAL		DWC3_TRB_CTRL_TRBCTL(1)
 #define DWC3_TRBCTL_CONTROL_SETUP	DWC3_TRB_CTRL_TRBCTL(2)
 #define DWC3_TRBCTL_CONTROL_STATUS2	DWC3_TRB_CTRL_TRBCTL(3)
 #define DWC3_TRBCTL_CONTROL_STATUS3	DWC3_TRB_CTRL_TRBCTL(4)
 #define DWC3_TRBCTL_CONTROL_DATA	DWC3_TRB_CTRL_TRBCTL(5)
-#define DWC3_TRBCTL_ISOCHRONOUS_FIRST	DWC3_TRB_CTRL_TRBCTL(6)
-#define DWC3_TRBCTL_ISOCHRONOUS		DWC3_TRB_CTRL_TRBCTL(7)
+#define DWC3_TRBCTL_ISOCHROANALUS_FIRST	DWC3_TRB_CTRL_TRBCTL(6)
+#define DWC3_TRBCTL_ISOCHROANALUS		DWC3_TRB_CTRL_TRBCTL(7)
 #define DWC3_TRBCTL_LINK_TRB		DWC3_TRB_CTRL_TRBCTL(8)
 
 /**
@@ -957,7 +957,7 @@ struct dwc3_request {
 #define DWC3_REQUEST_STATUS_DEQUEUED		3
 #define DWC3_REQUEST_STATUS_STALLED		4
 #define DWC3_REQUEST_STATUS_COMPLETED		5
-#define DWC3_REQUEST_STATUS_UNKNOWN		-1
+#define DWC3_REQUEST_STATUS_UNKANALWN		-1
 
 	u8			epnum;
 	struct dwc3_trb		*trb;
@@ -1026,13 +1026,13 @@ struct dwc3_scratchpad_array {
  * @current_dr_role: current role of operation when in dual-role mode
  * @desired_dr_role: desired role of operation when in dual-role mode
  * @edev: extcon handle
- * @edev_nb: extcon notifier
+ * @edev_nb: extcon analtifier
  * @hsphy_mode: UTMI phy mode, one of following:
  *		- USBPHY_INTERFACE_MODE_UTMI
  *		- USBPHY_INTERFACE_MODE_UTMIW
  * @role_sw: usb_role_switch handle
  * @role_switch_default_mode: default operation mode of controller while
- *			usb role is USB_ROLE_NONE.
+ *			usb role is USB_ROLE_ANALNE.
  * @usb_psy: pointer to power supply interface.
  * @usb2_phy: pointer to USB2 PHY
  * @usb3_phy: pointer to USB3 PHY
@@ -1074,8 +1074,8 @@ struct dwc3_scratchpad_array {
  * @ep0_bounced: true when we used bounce buffer
  * @ep0_expect_in: true when we expect a DATA IN transfer
  * @sysdev_is_parent: true when dwc3 device has a parent driver
- * @has_lpm_erratum: true when core was configured with LPM Erratum. Note that
- *			there's now way for software to detect this in runtime.
+ * @has_lpm_erratum: true when core was configured with LPM Erratum. Analte that
+ *			there's analw way for software to detect this in runtime.
  * @is_utmi_l1_suspend: the core asserts output signal
  *	0	- utmi_sleep_n
  *	1	- utmi_l1_suspend_n
@@ -1086,7 +1086,7 @@ struct dwc3_scratchpad_array {
  * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
  * @three_stage_setup: set if we perform a three phase setup
  * @dis_start_transfer_quirk: set if start_transfer failure SW workaround is
- *			not needed for DWC_usb31 version 1.70a-ea06 and below
+ *			analt needed for DWC_usb31 version 1.70a-ea06 and below
  * @usb3_lpm_capable: set if hadrware supports Link Power Management
  * @usb2_lpm_disable: set to disable usb2 lpm for host
  * @usb2_gadget_lpm_disable: set to disable usb2 lpm for gadget
@@ -1128,7 +1128,7 @@ struct dwc3_scratchpad_array {
  * @tx_de_emphasis: Tx de-emphasis value
  *	0	- -6dB de-emphasis
  *	1	- -3.5dB de-emphasis
- *	2	- No de-emphasis
+ *	2	- Anal de-emphasis
  *	3	- Reserved
  * @dis_metastability_quirk: set to disable metastability quirk.
  * @dis_split_quirk: set to disable split boundary.
@@ -1197,7 +1197,7 @@ struct dwc3 {
 	u32			current_dr_role;
 	u32			desired_dr_role;
 	struct extcon_dev	*edev;
-	struct notifier_block	edev_nb;
+	struct analtifier_block	edev_nb;
 	enum usb_phy_interface	hsphy_mode;
 	struct usb_role_switch	*role_sw;
 	enum usb_dr_mode	role_switch_default_mode;
@@ -1381,20 +1381,20 @@ struct dwc3_event_type {
 
 #define DWC3_DEPEVT_XFERCOMPLETE	0x01
 #define DWC3_DEPEVT_XFERINPROGRESS	0x02
-#define DWC3_DEPEVT_XFERNOTREADY	0x03
+#define DWC3_DEPEVT_XFERANALTREADY	0x03
 #define DWC3_DEPEVT_RXTXFIFOEVT		0x04
 #define DWC3_DEPEVT_STREAMEVT		0x06
 #define DWC3_DEPEVT_EPCMDCMPLT		0x07
 
 /**
  * struct dwc3_event_depevt - Device Endpoint Events
- * @one_bit: indicates this is an endpoint event (not used)
+ * @one_bit: indicates this is an endpoint event (analt used)
  * @endpoint_number: number of the endpoint
  * @endpoint_event: The event we have:
  *	0x00	- Reserved
  *	0x01	- XferComplete
  *	0x02	- XferInProgress
- *	0x03	- XferNotReady
+ *	0x03	- XferAnaltReady
  *	0x04	- RxTxFifoEvt (IN->Underrun, OUT->Overrun)
  *	0x05	- Reserved
  *	0x06	- StreamEvt
@@ -1412,7 +1412,7 @@ struct dwc3_event_depevt {
 	u32	reserved11_10:2;
 	u32	status:4;
 
-/* Within XferNotReady */
+/* Within XferAnaltReady */
 #define DEPEVT_STATUS_TRANSFER_ACTIVE	BIT(3)
 
 /* Within XferComplete or XferInProgress */
@@ -1424,11 +1424,11 @@ struct dwc3_event_depevt {
 
 /* Stream event only */
 #define DEPEVT_STREAMEVT_FOUND		1
-#define DEPEVT_STREAMEVT_NOTFOUND	2
+#define DEPEVT_STREAMEVT_ANALTFOUND	2
 
 /* Stream event parameter */
 #define DEPEVT_STREAM_PRIME		0xfffe
-#define DEPEVT_STREAM_NOSTREAM		0x0
+#define DEPEVT_STREAM_ANALSTREAM		0x0
 
 /* Control-only Status */
 #define DEPEVT_STATUS_CONTROL_DATA	1
@@ -1436,7 +1436,7 @@ struct dwc3_event_depevt {
 #define DEPEVT_STATUS_CONTROL_PHASE(n)	((n) & 3)
 
 /* In response to Start Transfer */
-#define DEPEVT_TRANSFER_NO_RESOURCE	1
+#define DEPEVT_TRANSFER_ANAL_RESOURCE	1
 #define DEPEVT_TRANSFER_BUS_EXPIRY	2
 
 	u32	parameters:16;
@@ -1447,7 +1447,7 @@ struct dwc3_event_depevt {
 
 /**
  * struct dwc3_event_devt - Device Events
- * @one_bit: indicates this is a non-endpoint event (not used)
+ * @one_bit: indicates this is a analn-endpoint event (analt used)
  * @device_event: indicates it's a device event. Should read as 0x00
  * @type: indicates the type of device event.
  *	0	- DisconnEvt
@@ -1463,9 +1463,9 @@ struct dwc3_event_depevt {
  *	10	- CmdCmplt
  *	11	- EvntOverflow
  *	12	- VndrDevTstRcved
- * @reserved15_12: Reserved, not used
+ * @reserved15_12: Reserved, analt used
  * @event_info: Information about this event
- * @reserved31_25: Reserved, not used
+ * @reserved31_25: Reserved, analt used
  */
 struct dwc3_event_devt {
 	u32	one_bit:1;
@@ -1478,10 +1478,10 @@ struct dwc3_event_devt {
 
 /**
  * struct dwc3_event_gevt - Other Core Events
- * @one_bit: indicates this is a non-endpoint event (not used)
+ * @one_bit: indicates this is a analn-endpoint event (analt used)
  * @device_event: indicates it's (0x03) Carkit or (0x04) I2C event.
  * @phy_port_number: self-explanatory
- * @reserved31_12: Reserved, not used.
+ * @reserved31_12: Reserved, analt used.
  */
 struct dwc3_event_gevt {
 	u32	one_bit:1;
@@ -1627,7 +1627,7 @@ int dwc3_drd_init(struct dwc3 *dwc);
 void dwc3_drd_exit(struct dwc3 *dwc);
 void dwc3_otg_init(struct dwc3 *dwc);
 void dwc3_otg_exit(struct dwc3 *dwc);
-void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus);
+void dwc3_otg_update(struct dwc3 *dwc, bool iganalre_idstatus);
 void dwc3_otg_host_init(struct dwc3 *dwc);
 #else
 static inline int dwc3_drd_init(struct dwc3 *dwc)
@@ -1638,7 +1638,7 @@ static inline void dwc3_otg_init(struct dwc3 *dwc)
 { }
 static inline void dwc3_otg_exit(struct dwc3 *dwc)
 { }
-static inline void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
+static inline void dwc3_otg_update(struct dwc3 *dwc, bool iganalre_idstatus)
 { }
 static inline void dwc3_otg_host_init(struct dwc3 *dwc)
 { }

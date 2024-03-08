@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -57,8 +57,8 @@
  */
 static struct rb_root qib_user_sdma_rb_root = RB_ROOT;
 
-struct qib_user_sdma_rb_node {
-	struct rb_node node;
+struct qib_user_sdma_rb_analde {
+	struct rb_analde analde;
 	int refcount;
 	pid_t pid;
 };
@@ -121,9 +121,9 @@ struct qib_user_sdma_queue {
 	/* as packets go on the queued queue, they are counted... */
 	u32 counter;
 	u32 sent_counter;
-	/* pending packets, not sending yet */
+	/* pending packets, analt sending yet */
 	u32 num_pending;
-	/* sending packets, not complete yet */
+	/* sending packets, analt complete yet */
 	u32 num_sending;
 	/* global descq number of entry of last sending packet */
 	u64 added;
@@ -131,51 +131,51 @@ struct qib_user_sdma_queue {
 	/* dma page table */
 	struct rb_root dma_pages_root;
 
-	struct qib_user_sdma_rb_node *sdma_rb_node;
+	struct qib_user_sdma_rb_analde *sdma_rb_analde;
 
 	/* protect everything above... */
 	struct mutex lock;
 };
 
-static struct qib_user_sdma_rb_node *
+static struct qib_user_sdma_rb_analde *
 qib_user_sdma_rb_search(struct rb_root *root, pid_t pid)
 {
-	struct qib_user_sdma_rb_node *sdma_rb_node;
-	struct rb_node *node = root->rb_node;
+	struct qib_user_sdma_rb_analde *sdma_rb_analde;
+	struct rb_analde *analde = root->rb_analde;
 
-	while (node) {
-		sdma_rb_node = rb_entry(node, struct qib_user_sdma_rb_node,
-					node);
-		if (pid < sdma_rb_node->pid)
-			node = node->rb_left;
-		else if (pid > sdma_rb_node->pid)
-			node = node->rb_right;
+	while (analde) {
+		sdma_rb_analde = rb_entry(analde, struct qib_user_sdma_rb_analde,
+					analde);
+		if (pid < sdma_rb_analde->pid)
+			analde = analde->rb_left;
+		else if (pid > sdma_rb_analde->pid)
+			analde = analde->rb_right;
 		else
-			return sdma_rb_node;
+			return sdma_rb_analde;
 	}
 	return NULL;
 }
 
 static int
-qib_user_sdma_rb_insert(struct rb_root *root, struct qib_user_sdma_rb_node *new)
+qib_user_sdma_rb_insert(struct rb_root *root, struct qib_user_sdma_rb_analde *new)
 {
-	struct rb_node **node = &(root->rb_node);
-	struct rb_node *parent = NULL;
-	struct qib_user_sdma_rb_node *got;
+	struct rb_analde **analde = &(root->rb_analde);
+	struct rb_analde *parent = NULL;
+	struct qib_user_sdma_rb_analde *got;
 
-	while (*node) {
-		got = rb_entry(*node, struct qib_user_sdma_rb_node, node);
-		parent = *node;
+	while (*analde) {
+		got = rb_entry(*analde, struct qib_user_sdma_rb_analde, analde);
+		parent = *analde;
 		if (new->pid < got->pid)
-			node = &((*node)->rb_left);
+			analde = &((*analde)->rb_left);
 		else if (new->pid > got->pid)
-			node = &((*node)->rb_right);
+			analde = &((*analde)->rb_right);
 		else
 			return 0;
 	}
 
-	rb_link_node(&new->node, parent, node);
-	rb_insert_color(&new->node, root);
+	rb_link_analde(&new->analde, parent, analde);
+	rb_insert_color(&new->analde, root);
 	return 1;
 }
 
@@ -184,7 +184,7 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 {
 	struct qib_user_sdma_queue *pq =
 		kmalloc(sizeof(struct qib_user_sdma_queue), GFP_KERNEL);
-	struct qib_user_sdma_rb_node *sdma_rb_node;
+	struct qib_user_sdma_rb_analde *sdma_rb_analde;
 
 	if (!pq)
 		goto done;
@@ -194,7 +194,7 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 	pq->num_pending = 0;
 	pq->num_sending = 0;
 	pq->added = 0;
-	pq->sdma_rb_node = NULL;
+	pq->sdma_rb_analde = NULL;
 
 	INIT_LIST_HEAD(&pq->sent);
 	spin_lock_init(&pq->sent_lock);
@@ -220,22 +220,22 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 
 	pq->dma_pages_root = RB_ROOT;
 
-	sdma_rb_node = qib_user_sdma_rb_search(&qib_user_sdma_rb_root,
+	sdma_rb_analde = qib_user_sdma_rb_search(&qib_user_sdma_rb_root,
 					current->pid);
-	if (sdma_rb_node) {
-		sdma_rb_node->refcount++;
+	if (sdma_rb_analde) {
+		sdma_rb_analde->refcount++;
 	} else {
-		sdma_rb_node = kmalloc(sizeof(
-			struct qib_user_sdma_rb_node), GFP_KERNEL);
-		if (!sdma_rb_node)
+		sdma_rb_analde = kmalloc(sizeof(
+			struct qib_user_sdma_rb_analde), GFP_KERNEL);
+		if (!sdma_rb_analde)
 			goto err_rb;
 
-		sdma_rb_node->refcount = 1;
-		sdma_rb_node->pid = current->pid;
+		sdma_rb_analde->refcount = 1;
+		sdma_rb_analde->pid = current->pid;
 
-		qib_user_sdma_rb_insert(&qib_user_sdma_rb_root, sdma_rb_node);
+		qib_user_sdma_rb_insert(&qib_user_sdma_rb_root, sdma_rb_analde);
 	}
-	pq->sdma_rb_node = sdma_rb_node;
+	pq->sdma_rb_analde = sdma_rb_analde;
 
 	goto done;
 
@@ -312,9 +312,9 @@ static int qib_user_sdma_page_to_frags(const struct qib_devdata *dd,
 
 	if (dma_mapping_error(&dd->pcidev->dev, dma_addr)) {
 		/*
-		 * dma mapping error, pkt has not managed
+		 * dma mapping error, pkt has analt managed
 		 * this page yet, return the page here so
-		 * the caller can ignore this page.
+		 * the caller can iganalre this page.
 		 */
 		if (put) {
 			unpin_user_page(page);
@@ -322,7 +322,7 @@ static int qib_user_sdma_page_to_frags(const struct qib_devdata *dd,
 			/* coalesce case */
 			__free_page(page);
 		}
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 	offset = 0;
@@ -345,7 +345,7 @@ next_fragment:
 	 * the last descriptor flag is determined by:
 	 * 1. the current packet is at frag size length.
 	 * 2. the current tid page is done if tid-sdma.
-	 * 3. there is no more byte togo if sdma.
+	 * 3. there is anal more byte togo if sdma.
 	 */
 	lastdesc = 0;
 	if ((pkt->payload_size + newlen) >= pkt->frag_size) {
@@ -374,9 +374,9 @@ next_fragment:
 		goto done;
 	}
 
-	/* If there is no more byte togo. (lastdesc==1) */
+	/* If there is anal more byte togo. (lastdesc==1) */
 	if (pkt->bytes_togo == 0) {
-		/* The packet is done, header is not dma mapped yet.
+		/* The packet is done, header is analt dma mapped yet.
 		 * it should be from kmalloc */
 		if (!pkt->addr[pkt->index].addr) {
 			pkt->addr[pkt->index].addr =
@@ -386,7 +386,7 @@ next_fragment:
 					DMA_TO_DEVICE);
 			if (dma_mapping_error(&dd->pcidev->dev,
 					pkt->addr[pkt->index].addr)) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto done;
 			}
 			pkt->addr[pkt->index].dma_mapped = 1;
@@ -410,8 +410,8 @@ next_fragment:
 	}
 
 	/*
-	 * If this is NOT the last descriptor. (newlen==len)
-	 * the current packet is not done yet, but the current
+	 * If this is ANALT the last descriptor. (newlen==len)
+	 * the current packet is analt done yet, but the current
 	 * send side page is done.
 	 */
 	if (lastdesc == 0)
@@ -419,7 +419,7 @@ next_fragment:
 
 	/*
 	 * If running this driver under PSM with message size
-	 * fitting into one transfer unit, it is not possible
+	 * fitting into one transfer unit, it is analt possible
 	 * to pass this line. otherwise, it is a buggggg.
 	 */
 
@@ -431,7 +431,7 @@ next_fragment:
 	pbclen = pkt->addr[pkt->index].length;
 	pbcvaddr = qib_user_sdma_alloc_header(pq, pbclen, &pbcdaddr);
 	if (!pbcvaddr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 	/* Copy the previous sdma header to new sdma header */
@@ -467,7 +467,7 @@ next_fragment:
 		((vcto>>16)&0xFFFF) - (vcto&0xFFFF) -
 		le16_to_cpu(hdr->iph.pkt_flags));
 
-	/* The packet is done, header is not dma mapped yet.
+	/* The packet is done, header is analt dma mapped yet.
 	 * it should be from kmalloc */
 	if (!pkt->addr[pkt->index].addr) {
 		pkt->addr[pkt->index].addr =
@@ -477,7 +477,7 @@ next_fragment:
 				DMA_TO_DEVICE);
 		if (dma_mapping_error(&dd->pcidev->dev,
 				pkt->addr[pkt->index].addr)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 		pkt->addr[pkt->index].dma_mapped = 1;
@@ -567,7 +567,7 @@ static int qib_user_sdma_coalesce(const struct qib_devdata *dd,
 	int len = 0;
 
 	if (!page) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -643,7 +643,7 @@ static void qib_user_sdma_free_pkt_frag(struct device *dev,
 			dma_pool_free(pq->header_cache,
 			      pkt->addr[i].kvaddr, pkt->addr[i].addr);
 		} else {
-			/* from kmalloc but not dma mapped */
+			/* from kmalloc but analt dma mapped */
 			kfree(pkt->addr[i].kvaddr);
 		}
 	}
@@ -669,7 +669,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
 		if (ret != j) {
 			i = 0;
 			j = ret;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_pages;
 		}
 
@@ -698,7 +698,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
 
 	goto done;
 
-	/* if error, return all pages not managed by pkt */
+	/* if error, return all pages analt managed by pkt */
 free_pages:
 	while (i < j)
 		unpin_user_page(pages[i++]);
@@ -729,13 +729,13 @@ static int qib_user_sdma_pin_pkt(const struct qib_devdata *dd,
 	goto done;
 
 free_pkt:
-	/* we need to ignore the first entry here */
+	/* we need to iganalre the first entry here */
 	for (idx = 1; idx < pkt->naddr; idx++)
 		qib_user_sdma_free_pkt_frag(&dd->pcidev->dev, pq, pkt, idx);
 
 	/* need to dma unmap the first entry, this is to restore to
 	 * the original state so that caller can free the memory in
-	 * error condition. Caller does not know if dma mapped or not*/
+	 * error condition. Caller does analt kanalw if dma mapped or analt*/
 	if (pkt->addr[0].dma_mapped) {
 		dma_unmap_single(&dd->pcidev->dev,
 		       pkt->addr[0].addr,
@@ -835,7 +835,7 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 
 		pbc = qib_user_sdma_alloc_header(pq, len, &dma_addr);
 		if (!pbc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_list;
 		}
 
@@ -854,10 +854,10 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 
 		/*
 		 * pktnw computation yields the number of 32 bit words
-		 * that the caller has indicated in the PBC.  note that
+		 * that the caller has indicated in the PBC.  analte that
 		 * this is one less than the total number of words that
 		 * goes to the send DMA engine as the first 32 bit word
-		 * of the PBC itself is not counted.  Armed with this count,
+		 * of the PBC itself is analt counted.  Armed with this count,
 		 * we can verify that the packet is consistent with the
 		 * iovec lengths.
 		 */
@@ -927,7 +927,7 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 			}
 			pkt = kmalloc(sz, GFP_KERNEL);
 			if (!pkt) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto free_pbc;
 			}
 			pkt->largepkt = 1;
@@ -966,7 +966,7 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 		} else {
 			pkt = kmem_cache_alloc(pq->pkt_slab, GFP_KERNEL);
 			if (!pkt) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto free_pbc;
 			}
 			pkt->largepkt = 0;
@@ -995,20 +995,20 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 			if (ret < 0)
 				goto free_pkt;
 		} else {
-			/* since there is no payload, mark the
+			/* since there is anal payload, mark the
 			 * header as the last desc. */
 			pkt->addr[0].last_desc = 1;
 
 			if (dma_addr == 0) {
 				/*
-				 * the header is not dma mapped yet.
+				 * the header is analt dma mapped yet.
 				 * it should be from kmalloc.
 				 */
 				dma_addr = dma_map_single(&dd->pcidev->dev,
 					pbc, len, DMA_TO_DEVICE);
 				if (dma_mapping_error(&dd->pcidev->dev,
 								dma_addr)) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto free_pkt;
 				}
 				pkt->addr[0].addr = dma_addr;
@@ -1070,7 +1070,7 @@ static int qib_user_sdma_queue_clean(struct qib_pportdata *ppd,
 	/*
 	 * We need this spin lock here because interrupt handler
 	 * might modify this list in qib_user_sdma_send_desc(), also
-	 * we can not get interrupted, otherwise it is a deadlock.
+	 * we can analt get interrupted, otherwise it is a deadlock.
 	 */
 	spin_lock_irqsave(&pq->sent_lock, flags);
 	list_for_each_entry_safe(pkt, pkt_prev, &pq->sent, list) {
@@ -1106,10 +1106,10 @@ void qib_user_sdma_queue_destroy(struct qib_user_sdma_queue *pq)
 	if (!pq)
 		return;
 
-	pq->sdma_rb_node->refcount--;
-	if (pq->sdma_rb_node->refcount == 0) {
-		rb_erase(&pq->sdma_rb_node->node, &qib_user_sdma_rb_root);
-		kfree(pq->sdma_rb_node);
+	pq->sdma_rb_analde->refcount--;
+	if (pq->sdma_rb_analde->refcount == 0) {
+		rb_erase(&pq->sdma_rb_analde->analde, &qib_user_sdma_rb_root);
+		kfree(pq->sdma_rb_analde);
 	}
 	dma_pool_destroy(pq->header_cache);
 	kmem_cache_destroy(pq->pkt_slab);
@@ -1174,7 +1174,7 @@ void qib_user_sdma_queue_drain(struct qib_pportdata *ppd,
 		}
 		spin_unlock_irqrestore(&ppd->sdma_lock, flags);
 
-		qib_dev_err(dd, "user sdma lists not empty: forcing!\n");
+		qib_dev_err(dd, "user sdma lists analt empty: forcing!\n");
 		INIT_LIST_HEAD(&free_list);
 		list_splice_init(&pq->sent, &free_list);
 		pq->num_sending = 0;
@@ -1335,8 +1335,8 @@ static int qib_user_sdma_push_pkts(struct qib_pportdata *ppd,
 	if (unlikely(!(ppd->lflags & QIBL_LINKACTIVE)))
 		return -ECOMM;
 
-	/* non-blocking mode */
-	if (pq->sdma_rb_node->refcount > 1) {
+	/* analn-blocking mode */
+	if (pq->sdma_rb_analde->refcount > 1) {
 		spin_lock_irqsave(&ppd->sdma_lock, flags);
 		if (unlikely(!__qib_sdma_running(ppd))) {
 			spin_unlock_irqrestore(&ppd->sdma_lock, flags);
@@ -1349,7 +1349,7 @@ static int qib_user_sdma_push_pkts(struct qib_pportdata *ppd,
 		return 0;
 	}
 
-	/* In this case, descriptors from this process are not
+	/* In this case, descriptors from this process are analt
 	 * linked to ppd pending queue, interrupt handler
 	 * won't update this process, it is OK to directly
 	 * modify without sdma lock.
@@ -1393,11 +1393,11 @@ int qib_user_sdma_writev(struct qib_ctxtdata *rcd,
 
 	mutex_lock(&pq->lock);
 
-	/* why not -ECOMM like qib_user_sdma_push_pkts() below? */
+	/* why analt -ECOMM like qib_user_sdma_push_pkts() below? */
 	if (!qib_sdma_running(ppd))
 		goto done_unlock;
 
-	/* if I have packets not complete yet */
+	/* if I have packets analt complete yet */
 	if (pq->added > ppd->sdma_descq_removed)
 		qib_user_sdma_hwqueue_clean(ppd);
 	/* if I have complete packets to be freed */

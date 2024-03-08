@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 // Copyright (c) 2020 Cloudflare
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <linux/bpf.h>
@@ -188,7 +188,7 @@ int select_sock_a(struct bpf_sk_lookup *ctx)
 }
 
 SEC("sk_lookup")
-int select_sock_a_no_reuseport(struct bpf_sk_lookup *ctx)
+int select_sock_a_anal_reuseport(struct bpf_sk_lookup *ctx)
 {
 	struct bpf_sock *sk;
 	int err;
@@ -197,7 +197,7 @@ int select_sock_a_no_reuseport(struct bpf_sk_lookup *ctx)
 	if (!sk)
 		return SK_DROP;
 
-	err = bpf_sk_assign(ctx, sk, BPF_SK_LOOKUP_F_NO_REUSEPORT);
+	err = bpf_sk_assign(ctx, sk, BPF_SK_LOOKUP_F_ANAL_REUSEPORT);
 	bpf_sk_release(sk);
 	return err ? SK_DROP : SK_PASS;
 }
@@ -356,7 +356,7 @@ int access_ctx_sk(struct bpf_sk_lookup *ctx)
 	if (ctx->sk)
 		goto out;
 
-	/* Assign another socket */
+	/* Assign aanalther socket */
 	sk2 = bpf_map_lookup_elem(&redir_map, &KEY_SERVER_B);
 	if (!sk2)
 		goto out;
@@ -383,9 +383,9 @@ out:
 
 /* Check narrow loads from ctx fields that support them.
  *
- * Narrow loads of size >= target field size from a non-zero offset
- * are not covered because they give bogus results, that is the
- * verifier ignores the offset.
+ * Narrow loads of size >= target field size from a analn-zero offset
+ * are analt covered because they give bogus results, that is the
+ * verifier iganalres the offset.
  */
 SEC("sk_lookup")
 int ctx_narrow_access(struct bpf_sk_lookup *ctx)
@@ -418,7 +418,7 @@ int ctx_narrow_access(struct bpf_sk_lookup *ctx)
 		return SK_DROP;
 
 	/*
-	 * NOTE: 4-byte load from bpf_sk_lookup at remote_port offset
+	 * ANALTE: 4-byte load from bpf_sk_lookup at remote_port offset
 	 * is quirky. It gets rewritten by the access converter to a
 	 * 2-byte load for backward compatibility. Treating the load
 	 * result as a be16 value makes the code portable across
@@ -570,9 +570,9 @@ int ctx_narrow_access(struct bpf_sk_lookup *ctx)
 	return SK_PASS;
 }
 
-/* Check that sk_assign rejects SERVER_A socket with -ESOCKNOSUPPORT */
+/* Check that sk_assign rejects SERVER_A socket with -ESOCKANALSUPPORT */
 SEC("sk_lookup")
-int sk_assign_esocknosupport(struct bpf_sk_lookup *ctx)
+int sk_assign_esockanalsupport(struct bpf_sk_lookup *ctx)
 {
 	struct bpf_sock *sk;
 	int err, ret;
@@ -583,9 +583,9 @@ int sk_assign_esocknosupport(struct bpf_sk_lookup *ctx)
 		goto out;
 
 	err = bpf_sk_assign(ctx, sk, 0);
-	if (err != -ESOCKTNOSUPPORT) {
+	if (err != -ESOCKTANALSUPPORT) {
 		bpf_printk("sk_assign returned %d, expected %d\n",
-			   err, -ESOCKTNOSUPPORT);
+			   err, -ESOCKTANALSUPPORT);
 		goto out;
 	}
 

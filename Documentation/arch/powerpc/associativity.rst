@@ -7,12 +7,12 @@ domains of substantially similar mean performance relative to resources outside
 of that domain. Resources subsets of a given domain that exhibit better
 performance relative to each other than relative to other resources subsets
 are represented as being members of a sub-grouping domain. This performance
-characteristic is presented in terms of NUMA node distance within the Linux kernel.
+characteristic is presented in terms of NUMA analde distance within the Linux kernel.
 From the platform view, these groups are also referred to as domains.
 
 PAPR interface currently supports different ways of communicating these resource
 grouping details to the OS. These are referred to as Form 0, Form 1 and Form2
-associativity grouping. Form 0 is the oldest format and is now considered deprecated.
+associativity grouping. Form 0 is the oldest format and is analw considered deprecated.
 
 Hypervisor indicates the type/form of associativity used via "ibm,architecture-vec-5 property".
 Bit 0 of byte 5 in the "ibm,architecture-vec-5" property indicates usage of Form 0 or Form 1.
@@ -38,7 +38,7 @@ The list of domainID indexes represents an increasing hierarchy of resource grou
 ex:
 { primary domainID index, secondary domainID index, tertiary domainID index.. }
 
-Linux kernel uses the domainID at the primary domainID index as the NUMA node id.
+Linux kernel uses the domainID at the primary domainID index as the NUMA analde id.
 Linux kernel computes NUMA distance between two domains by recursively comparing
 if they belong to the same higher-level domains. For mismatch at every higher
 level of the resource group, the kernel doubles the NUMA distance between the
@@ -46,9 +46,9 @@ comparing domains.
 
 Form 2
 -------
-Form 2 associativity format adds separate device tree properties representing NUMA node distance
-thereby making the node distance computation flexible. Form 2 also allows flexible primary
-domain numbering. With numa distance computation now detached from the index value in
+Form 2 associativity format adds separate device tree properties representing NUMA analde distance
+thereby making the analde distance computation flexible. Form 2 also allows flexible primary
+domain numbering. With numa distance computation analw detached from the index value in
 "ibm,associativity-reference-points" property, Form 2 allows a large number of primary domain
 ids at the same domainID index representing resource groups of different performance/latency
 characteristics.
@@ -91,7 +91,7 @@ ibm,numa-distace-table = <9>, /bits/ 8 < 10  20  80 20  10 160 80 160  10>;
 	  |
 	40| 80   160  10
 
-A possible "ibm,associativity" property for resources in node 0, 8 and 40
+A possible "ibm,associativity" property for resources in analde 0, 8 and 40
 
 { 3, 6, 7, 0 }
 { 3, 6, 9, 8 }

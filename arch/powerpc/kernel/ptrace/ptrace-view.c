@@ -2,7 +2,7 @@
 
 #include <linux/regset.h>
 #include <linux/elf.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/pkeys.h>
 
 #include "ptrace-decl.h"
@@ -102,7 +102,7 @@ const char *regs_query_register_name(unsigned int offset)
 }
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does analt yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -155,37 +155,37 @@ static __always_inline int set_user_trap(struct task_struct *task, unsigned long
 }
 
 /*
- * Get contents of register REGNO in task TASK.
+ * Get contents of register REGANAL in task TASK.
  */
-int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
+int ptrace_get_reg(struct task_struct *task, int reganal, unsigned long *data)
 {
 	unsigned int regs_max;
 
 	if (task->thread.regs == NULL || !data)
 		return -EIO;
 
-	if (regno == PT_MSR) {
+	if (reganal == PT_MSR) {
 		*data = get_user_msr(task);
 		return 0;
 	}
 
-	if (regno == PT_DSCR)
+	if (reganal == PT_DSCR)
 		return get_user_dscr(task, data);
 
 	/*
 	 * softe copies paca->irq_soft_mask variable state. Since irq_soft_mask is
-	 * no more used as a flag, lets force usr to always see the softe value as 1
-	 * which means interrupts are not soft disabled.
+	 * anal more used as a flag, lets force usr to always see the softe value as 1
+	 * which means interrupts are analt soft disabled.
 	 */
-	if (IS_ENABLED(CONFIG_PPC64) && regno == PT_SOFTE) {
+	if (IS_ENABLED(CONFIG_PPC64) && reganal == PT_SOFTE) {
 		*data = 1;
 		return  0;
 	}
 
 	regs_max = sizeof(struct user_pt_regs) / sizeof(unsigned long);
-	if (regno < regs_max) {
-		regno = array_index_nospec(regno, regs_max);
-		*data = ((unsigned long *)task->thread.regs)[regno];
+	if (reganal < regs_max) {
+		reganal = array_index_analspec(reganal, regs_max);
+		*data = ((unsigned long *)task->thread.regs)[reganal];
 		return 0;
 	}
 
@@ -193,23 +193,23 @@ int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 }
 
 /*
- * Write contents of register REGNO in task TASK.
+ * Write contents of register REGANAL in task TASK.
  */
-int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
+int ptrace_put_reg(struct task_struct *task, int reganal, unsigned long data)
 {
 	if (task->thread.regs == NULL)
 		return -EIO;
 
-	if (regno == PT_MSR)
+	if (reganal == PT_MSR)
 		return set_user_msr(task, data);
-	if (regno == PT_TRAP)
+	if (reganal == PT_TRAP)
 		return set_user_trap(task, data);
-	if (regno == PT_DSCR)
+	if (reganal == PT_DSCR)
 		return set_user_dscr(task, data);
 
-	if (regno <= PT_MAX_PUT_REG) {
-		regno = array_index_nospec(regno, PT_MAX_PUT_REG + 1);
-		((unsigned long *)task->thread.regs)[regno] = data;
+	if (reganal <= PT_MAX_PUT_REG) {
+		reganal = array_index_analspec(reganal, PT_MAX_PUT_REG + 1);
+		((unsigned long *)task->thread.regs)[reganal] = data;
 		return 0;
 	}
 	return -EIO;
@@ -267,7 +267,7 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 					 (PT_MAX_PUT_REG + 1) * sizeof(reg));
 
 	if (PT_MAX_PUT_REG + 1 < PT_TRAP && !ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  (PT_MAX_PUT_REG + 1) * sizeof(reg),
 					  PT_TRAP * sizeof(reg));
 
@@ -280,7 +280,7 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 	}
 
 	if (!ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  (PT_TRAP + 1) * sizeof(reg), -1);
 
 	return ret;
@@ -337,7 +337,7 @@ static int tar_set(struct task_struct *target, const struct user_regset *regset,
 static int ebb_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (target->thread.used_ebb)
 		return regset->n;
@@ -353,10 +353,10 @@ static int ebb_get(struct task_struct *target, const struct user_regset *regset,
 	BUILD_BUG_ON(TSO(ebbhr) + sizeof(unsigned long) != TSO(bescr));
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!target->thread.used_ebb)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return membuf_write(&to, &target->thread.ebbrr, 3 * sizeof(unsigned long));
 }
@@ -372,10 +372,10 @@ static int ebb_set(struct task_struct *target, const struct user_regset *regset,
 	BUILD_BUG_ON(TSO(ebbhr) + sizeof(unsigned long) != TSO(bescr));
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (target->thread.used_ebb)
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &target->thread.ebbrr,
 				 0, sizeof(unsigned long));
@@ -395,7 +395,7 @@ static int ebb_set(struct task_struct *target, const struct user_regset *regset,
 static int pmu_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regset->n;
 }
@@ -410,7 +410,7 @@ static int pmu_get(struct task_struct *target, const struct user_regset *regset,
 	BUILD_BUG_ON(TSO(mmcr2) + sizeof(unsigned long) != TSO(mmcr0));
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return membuf_write(&to, &target->thread.siar, 5 * sizeof(unsigned long));
 }
@@ -428,7 +428,7 @@ static int pmu_set(struct task_struct *target, const struct user_regset *regset,
 	BUILD_BUG_ON(TSO(mmcr2) + sizeof(unsigned long) != TSO(mmcr0));
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &target->thread.siar,
 				 0, sizeof(unsigned long));
@@ -458,7 +458,7 @@ static int pmu_set(struct task_struct *target, const struct user_regset *regset,
 static int dexcr_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_31))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regset->n;
 }
@@ -467,7 +467,7 @@ static int dexcr_get(struct task_struct *target, const struct user_regset *regse
 		     struct membuf to)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_31))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * The DEXCR is currently static across all CPUs, so we don't
@@ -487,7 +487,7 @@ static int dexcr_get(struct task_struct *target, const struct user_regset *regse
 static int hashkeyr_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_31))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regset->n;
 }
@@ -496,7 +496,7 @@ static int hashkeyr_get(struct task_struct *target, const struct user_regset *re
 			struct membuf to)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_31))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return membuf_store(&to, target->thread.hashkeyr);
 }
@@ -506,7 +506,7 @@ static int hashkeyr_set(struct task_struct *target, const struct user_regset *re
 			const void __user *ubuf)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_31))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf, &target->thread.hashkeyr,
 				  0, sizeof(unsigned long));
@@ -518,7 +518,7 @@ static int hashkeyr_set(struct task_struct *target, const struct user_regset *re
 static int pkey_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!arch_pkeys_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regset->n;
 }
@@ -528,7 +528,7 @@ static int pkey_get(struct task_struct *target, const struct user_regset *regset
 {
 
 	if (!arch_pkeys_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	membuf_store(&to, target->thread.regs->amr);
 	membuf_store(&to, target->thread.regs->iamr);
@@ -543,7 +543,7 @@ static int pkey_set(struct task_struct *target, const struct user_regset *regset
 	int ret;
 
 	if (!arch_pkeys_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Only the AMR can be set from userspace */
 	if (pos != 0 || count != sizeof(new_amr))
@@ -573,114 +573,114 @@ static int pkey_set(struct task_struct *target, const struct user_regset *regset
 
 static const struct user_regset native_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		.core_analte_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.regset_get = gpr_get, .set = gpr_set
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		.core_analte_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.regset_get = fpr_get, .set = fpr_set
 	},
 #ifdef CONFIG_ALTIVEC
 	[REGSET_VMX] = {
-		.core_note_type = NT_PPC_VMX, .n = 34,
+		.core_analte_type = NT_PPC_VMX, .n = 34,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = vr_active, .regset_get = vr_get, .set = vr_set
 	},
 #endif
 #ifdef CONFIG_VSX
 	[REGSET_VSX] = {
-		.core_note_type = NT_PPC_VSX, .n = 32,
+		.core_analte_type = NT_PPC_VSX, .n = 32,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = vsr_active, .regset_get = vsr_get, .set = vsr_set
 	},
 #endif
 #ifdef CONFIG_SPE
 	[REGSET_SPE] = {
-		.core_note_type = NT_PPC_SPE, .n = 35,
+		.core_analte_type = NT_PPC_SPE, .n = 35,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.active = evr_active, .regset_get = evr_get, .set = evr_set
 	},
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	[REGSET_TM_CGPR] = {
-		.core_note_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
+		.core_analte_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.active = tm_cgpr_active, .regset_get = tm_cgpr_get, .set = tm_cgpr_set
 	},
 	[REGSET_TM_CFPR] = {
-		.core_note_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
+		.core_analte_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = tm_cfpr_active, .regset_get = tm_cfpr_get, .set = tm_cfpr_set
 	},
 	[REGSET_TM_CVMX] = {
-		.core_note_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
+		.core_analte_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = tm_cvmx_active, .regset_get = tm_cvmx_get, .set = tm_cvmx_set
 	},
 	[REGSET_TM_CVSX] = {
-		.core_note_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
+		.core_analte_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = tm_cvsx_active, .regset_get = tm_cvsx_get, .set = tm_cvsx_set
 	},
 	[REGSET_TM_SPR] = {
-		.core_note_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
+		.core_analte_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_spr_active, .regset_get = tm_spr_get, .set = tm_spr_set
 	},
 	[REGSET_TM_CTAR] = {
-		.core_note_type = NT_PPC_TM_CTAR, .n = 1,
+		.core_analte_type = NT_PPC_TM_CTAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_tar_active, .regset_get = tm_tar_get, .set = tm_tar_set
 	},
 	[REGSET_TM_CPPR] = {
-		.core_note_type = NT_PPC_TM_CPPR, .n = 1,
+		.core_analte_type = NT_PPC_TM_CPPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_ppr_active, .regset_get = tm_ppr_get, .set = tm_ppr_set
 	},
 	[REGSET_TM_CDSCR] = {
-		.core_note_type = NT_PPC_TM_CDSCR, .n = 1,
+		.core_analte_type = NT_PPC_TM_CDSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_dscr_active, .regset_get = tm_dscr_get, .set = tm_dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC64
 	[REGSET_PPR] = {
-		.core_note_type = NT_PPC_PPR, .n = 1,
+		.core_analte_type = NT_PPC_PPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.regset_get = ppr_get, .set = ppr_set
 	},
 	[REGSET_DSCR] = {
-		.core_note_type = NT_PPC_DSCR, .n = 1,
+		.core_analte_type = NT_PPC_DSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.regset_get = dscr_get, .set = dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	[REGSET_TAR] = {
-		.core_note_type = NT_PPC_TAR, .n = 1,
+		.core_analte_type = NT_PPC_TAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.regset_get = tar_get, .set = tar_set
 	},
 	[REGSET_EBB] = {
-		.core_note_type = NT_PPC_EBB, .n = ELF_NEBB,
+		.core_analte_type = NT_PPC_EBB, .n = ELF_NEBB,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = ebb_active, .regset_get = ebb_get, .set = ebb_set
 	},
 	[REGSET_PMR] = {
-		.core_note_type = NT_PPC_PMU, .n = ELF_NPMU,
+		.core_analte_type = NT_PPC_PMU, .n = ELF_NPMU,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = pmu_active, .regset_get = pmu_get, .set = pmu_set
 	},
 	[REGSET_DEXCR] = {
-		.core_note_type = NT_PPC_DEXCR, .n = ELF_NDEXCR,
+		.core_analte_type = NT_PPC_DEXCR, .n = ELF_NDEXCR,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = dexcr_active, .regset_get = dexcr_get
 	},
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	[REGSET_HASHKEYR] = {
-		.core_note_type = NT_PPC_HASHKEYR, .n = ELF_NHASHKEYR,
+		.core_analte_type = NT_PPC_HASHKEYR, .n = ELF_NHASHKEYR,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = hashkeyr_active, .regset_get = hashkeyr_get, .set = hashkeyr_set
 	},
@@ -688,7 +688,7 @@ static const struct user_regset native_regsets[] = {
 #endif
 #ifdef CONFIG_PPC_MEM_KEYS
 	[REGSET_PKEY] = {
-		.core_note_type = NT_PPC_PKEY, .n = ELF_NPKEY,
+		.core_analte_type = NT_PPC_PKEY, .n = ELF_NPKEY,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = pkey_active, .regset_get = pkey_get, .set = pkey_set
 	},
@@ -749,7 +749,7 @@ static int gpr32_set_common_kernel(struct task_struct *target,
 	kbuf = k;
 	pos *= sizeof(compat_ulong_t);
 	count *= sizeof(compat_ulong_t);
-	user_regset_copyin_ignore(&pos, &count, &kbuf, NULL,
+	user_regset_copyin_iganalre(&pos, &count, &kbuf, NULL,
 				  (PT_TRAP + 1) * sizeof(compat_ulong_t), -1);
 	return 0;
 }
@@ -799,7 +799,7 @@ static int gpr32_set_common_user(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 				  (PT_TRAP + 1) * sizeof(reg), -1);
 	return 0;
 
@@ -848,92 +848,92 @@ static int gpr32_set(struct task_struct *target,
  */
 static const struct user_regset compat_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		.core_analte_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(compat_long_t), .align = sizeof(compat_long_t),
 		.regset_get = gpr32_get, .set = gpr32_set
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		.core_analte_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.regset_get = fpr_get, .set = fpr_set
 	},
 #ifdef CONFIG_ALTIVEC
 	[REGSET_VMX] = {
-		.core_note_type = NT_PPC_VMX, .n = 34,
+		.core_analte_type = NT_PPC_VMX, .n = 34,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = vr_active, .regset_get = vr_get, .set = vr_set
 	},
 #endif
 #ifdef CONFIG_SPE
 	[REGSET_SPE] = {
-		.core_note_type = NT_PPC_SPE, .n = 35,
+		.core_analte_type = NT_PPC_SPE, .n = 35,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.active = evr_active, .regset_get = evr_get, .set = evr_set
 	},
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	[REGSET_TM_CGPR] = {
-		.core_note_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
+		.core_analte_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.active = tm_cgpr_active,
 		.regset_get = tm_cgpr32_get, .set = tm_cgpr32_set
 	},
 	[REGSET_TM_CFPR] = {
-		.core_note_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
+		.core_analte_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = tm_cfpr_active, .regset_get = tm_cfpr_get, .set = tm_cfpr_set
 	},
 	[REGSET_TM_CVMX] = {
-		.core_note_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
+		.core_analte_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = tm_cvmx_active, .regset_get = tm_cvmx_get, .set = tm_cvmx_set
 	},
 	[REGSET_TM_CVSX] = {
-		.core_note_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
+		.core_analte_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
 		.size = sizeof(double), .align = sizeof(double),
 		.active = tm_cvsx_active, .regset_get = tm_cvsx_get, .set = tm_cvsx_set
 	},
 	[REGSET_TM_SPR] = {
-		.core_note_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
+		.core_analte_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_spr_active, .regset_get = tm_spr_get, .set = tm_spr_set
 	},
 	[REGSET_TM_CTAR] = {
-		.core_note_type = NT_PPC_TM_CTAR, .n = 1,
+		.core_analte_type = NT_PPC_TM_CTAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_tar_active, .regset_get = tm_tar_get, .set = tm_tar_set
 	},
 	[REGSET_TM_CPPR] = {
-		.core_note_type = NT_PPC_TM_CPPR, .n = 1,
+		.core_analte_type = NT_PPC_TM_CPPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_ppr_active, .regset_get = tm_ppr_get, .set = tm_ppr_set
 	},
 	[REGSET_TM_CDSCR] = {
-		.core_note_type = NT_PPC_TM_CDSCR, .n = 1,
+		.core_analte_type = NT_PPC_TM_CDSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = tm_dscr_active, .regset_get = tm_dscr_get, .set = tm_dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC64
 	[REGSET_PPR] = {
-		.core_note_type = NT_PPC_PPR, .n = 1,
+		.core_analte_type = NT_PPC_PPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.regset_get = ppr_get, .set = ppr_set
 	},
 	[REGSET_DSCR] = {
-		.core_note_type = NT_PPC_DSCR, .n = 1,
+		.core_analte_type = NT_PPC_DSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.regset_get = dscr_get, .set = dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	[REGSET_TAR] = {
-		.core_note_type = NT_PPC_TAR, .n = 1,
+		.core_analte_type = NT_PPC_TAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.regset_get = tar_get, .set = tar_set
 	},
 	[REGSET_EBB] = {
-		.core_note_type = NT_PPC_EBB, .n = ELF_NEBB,
+		.core_analte_type = NT_PPC_EBB, .n = ELF_NEBB,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = ebb_active, .regset_get = ebb_get, .set = ebb_set
 	},

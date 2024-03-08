@@ -50,10 +50,10 @@ $defs:
         enum: [0, 1, 2, 3]
         default: 0
         description: |
-          0: No adjustments
+          0: Anal adjustments
           1: Higher Slew rate (faster edges)
           2: Lower Slew rate (slower edges)
-          3: Reserved (No adjustments)
+          3: Reserved (Anal adjustments)
 
       bias-bus-hold: true
       bias-pull-down: true
@@ -68,8 +68,8 @@ $defs:
       - function
 
     allOf:
-      - $ref: pincfg-node.yaml#
-      - $ref: pinmux-node.yaml#
+      - $ref: pincfg-analde.yaml#
+      - $ref: pinmux-analde.yaml#
 
     additionalProperties: true
 

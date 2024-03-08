@@ -3,7 +3,7 @@
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #include <linux/kernel.h>
@@ -77,7 +77,7 @@ static void wl1251_tx_control(struct tx_double_buffer_desc *tx_hdr,
 	tx_hdr->control.packet_type = 0;
 
 	/* Also disable retry and ACK policy for injected packets */
-	if ((control->flags & IEEE80211_TX_CTL_NO_ACK) ||
+	if ((control->flags & IEEE80211_TX_CTL_ANAL_ACK) ||
 	    (control->flags & IEEE80211_TX_CTL_INJECTED)) {
 		tx_hdr->control.rate_policy = 1;
 		tx_hdr->control.ack_policy = 1;
@@ -194,7 +194,7 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 			sizeof(*tx_hdr) + hdrlen);
 	}
 
-	/* Revisit. This is a workaround for getting non-aligned packets.
+	/* Revisit. This is a workaround for getting analn-aligned packets.
 	   This happens at least with EAPOL packets from the user space.
 	   Our DMA requires packets to be aligned on a 4-byte boundary.
 	*/
@@ -380,7 +380,7 @@ static const char *wl1251_tx_parse_status(u8 status)
 		buf[i++] = 'r';
 	if (status & TX_TIMEOUT)
 		buf[i++] = 't';
-	if (status & TX_KEY_NOT_FOUND)
+	if (status & TX_KEY_ANALT_FOUND)
 		buf[i++] = 'k';
 	if (status & TX_ENCRYPT_FAIL)
 		buf[i++] = 'e';
@@ -408,7 +408,7 @@ static void wl1251_tx_packet_cb(struct wl1251 *wl,
 
 	info = IEEE80211_SKB_CB(skb);
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK) &&
 	    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
 	    (result->status == TX_SUCCESS))
 		info->flags |= IEEE80211_TX_STAT_ACK;
@@ -451,7 +451,7 @@ void wl1251_tx_complete(struct wl1251 *wl)
 
 	result = kmalloc_array(FW_TX_CMPLT_BLOCK_SIZE, sizeof(*result), GFP_KERNEL);
 	if (!result) {
-		wl1251_error("can not allocate result buffer");
+		wl1251_error("can analt allocate result buffer");
 		return;
 	}
 
@@ -497,7 +497,7 @@ void wl1251_tx_complete(struct wl1251 *wl)
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
 
-	/* Every completed frame needs to be acknowledged */
+	/* Every completed frame needs to be ackanalwledged */
 	if (num_complete) {
 		/*
 		 * If we've wrapped, we have to clear

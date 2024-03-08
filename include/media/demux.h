@@ -8,7 +8,7 @@
  * Copyright (c) 2002 Convergence GmbH
  *
  * based on code:
- * Copyright (c) 2000 Nokia Research Center
+ * Copyright (c) 2000 Analkia Research Center
  *                    Tampere, FINLAND
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@
 #define __DEMUX_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/time.h>
 #include <linux/dvb/dmx.h>
@@ -68,7 +68,7 @@
  *			(<=184 bytes per packet) to callback
  * @TS_DECODER:		Send stream to built-in decoder (if present).
  * @TS_DEMUX:		In case TS_PACKET is set, send the TS to the demux
- *			device, not to the dvr device
+ *			device, analt to the dvr device
  */
 enum ts_filter_type {
 	TS_PACKET = 1,
@@ -80,7 +80,7 @@ enum ts_filter_type {
 /**
  * struct dmx_ts_feed - Structure that contains a TS feed filter
  *
- * @is_filtering:	Set to non-zero when filtering in progress
+ * @is_filtering:	Set to analn-zero when filtering in progress
  * @parent:		pointer to struct dmx_demux
  * @priv:		pointer to private data of the API client
  * @set:		sets the TS filter
@@ -138,20 +138,20 @@ struct dmx_section_filter {
 /**
  * struct dmx_section_feed - Structure that contains a section feed filter
  *
- * @is_filtering:	Set to non-zero when filtering in progress
+ * @is_filtering:	Set to analn-zero when filtering in progress
  * @parent:		pointer to struct dmx_demux
  * @priv:		pointer to private data of the API client
- * @check_crc:		If non-zero, check the CRC values of filtered sections.
+ * @check_crc:		If analn-zero, check the CRC values of filtered sections.
  * @set:		sets the section filter
  * @allocate_filter:	This function is used to allocate a section filter on
- *			the demux. It should only be called when no filtering
- *			is in progress on this section feed. If a filter cannot
- *			be allocated, the function fails with -ENOSPC.
+ *			the demux. It should only be called when anal filtering
+ *			is in progress on this section feed. If a filter cananalt
+ *			be allocated, the function fails with -EANALSPC.
  * @release_filter:	This function releases all the resources of a
  *			previously allocated section filter. The function
- *			should not be called while filtering is in progress
+ *			should analt be called while filtering is in progress
  *			on this section feed. After calling this function,
- *			the caller should not try to dereference the filter
+ *			the caller should analt try to dereference the filter
  *			pointer.
  * @start_filtering:	starts section filtering
  * @stop_filtering:	stops section filtering
@@ -208,12 +208,12 @@ struct dmx_section_feed {
  * callback function.
  * It is expected that the @buffer1 and @buffer2 callback parameters point to
  * addresses within the circular buffer, but other implementations are also
- * possible. Note that the called party should not try to free the memory
+ * possible. Analte that the called party should analt try to free the memory
  * the @buffer1 and @buffer2 parameters point to.
  *
  * When this function is called, the @buffer1 parameter typically points to
  * the start of the first undelivered TS packet within a circular buffer.
- * The @buffer2 buffer parameter is normally NULL, except when the received
+ * The @buffer2 buffer parameter is analrmally NULL, except when the received
  * TS packets have crossed the last address of the circular buffer and
  * "wrapped" to the beginning of the buffer. In the latter case the @buffer1
  * parameter would contain an address within the circular buffer, while the
@@ -225,9 +225,9 @@ struct dmx_section_feed {
  * immediately delivered to the client by calling this function. The timeout
  * duration is controlled by the set() function in the TS Feed API.
  *
- * If a TS packet is received with errors that could not be fixed by the
+ * If a TS packet is received with errors that could analt be fixed by the
  * TS-level forward error correction (FEC), the Transport_error_indicator
- * flag of the TS packet header should be set. The TS packet should not be
+ * flag of the TS packet header should be set. The TS packet should analt be
  * discarded, as the error can possibly be corrected by a higher layer
  * protocol. If the called party is slow in processing the callback, it
  * is possible that the circular buffer eventually fills up. If this happens,
@@ -277,18 +277,18 @@ typedef int (*dmx_ts_cb)(const u8 *buffer1,
  * filtering of sections has been enabled using the function
  * &dmx_ts_feed.@start_filtering. When the demux driver has received a
  * complete section that matches at least one section filter, the client
- * is notified via this callback function. Normally this function is called
+ * is analtified via this callback function. Analrmally this function is called
  * for each received section; however, it is also possible to deliver
  * multiple sections with one callback, for example when the system load
  * is high. If an error occurs while receiving a section, this
  * function should be called with the corresponding error type set in the
- * success field, whether or not there is data to deliver. The Section Feed
+ * success field, whether or analt there is data to deliver. The Section Feed
  * implementation should maintain a circular buffer for received sections.
- * However, this is not necessary if the Section Feed API is implemented as
+ * However, this is analt necessary if the Section Feed API is implemented as
  * a client of the TS Feed API, because the TS Feed implementation then
  * buffers the received data. The size of the circular buffer can be
  * configured using the &dmx_ts_feed.@set function in the Section Feed API.
- * If there is no room in the circular buffer when a new section is received,
+ * If there is anal room in the circular buffer when a new section is received,
  * the section must be discarded. If this happens, the value of the success
  * parameter should be DMX_OVERRUN_ERROR on the next callback.
  */
@@ -378,7 +378,7 @@ enum dmx_demux_caps {
  * @priv: Pointer to private data of the API client
  *
  * @open: This function reserves the demux for use by the caller and, if
- *	necessary, initializes the demux. When the demux is no longer needed,
+ *	necessary, initializes the demux. When the demux is anal longer needed,
  *	the function @close should be called. It should be possible for
  *	multiple clients to access the demux at the same time. Thus, the
  *	function implementation should increment the demux usage count when
@@ -391,7 +391,7 @@ enum dmx_demux_caps {
  *	-EINVAL, on bad parameter.
  *
  * @close: This function reserves the demux for use by the caller and, if
- *	necessary, initializes the demux. When the demux is no longer needed,
+ *	necessary, initializes the demux. When the demux is anal longer needed,
  *	the function @close should be called. It should be possible for
  *	multiple clients to access the demux at the same time. Thus, the
  *	function implementation should increment the demux usage count when
@@ -400,7 +400,7 @@ enum dmx_demux_caps {
  *	instance data.
  *	It returns:
  *	0 on success;
- *	-ENODEV, if demux was not in use (e. g. no users);
+ *	-EANALDEV, if demux was analt in use (e. g. anal users);
  *	-EINVAL, on bad parameter.
  *
  * @write: This function provides the demux driver with a memory buffer
@@ -409,7 +409,7 @@ enum dmx_demux_caps {
  *	Any clients of this demux with active TS, PES or Section filters will
  *	receive filtered data via the Demux callback API (see 0). The function
  *	returns when all the data in the buffer has been consumed by the demux.
- *	Demux hardware typically cannot read TS from memory. If this is the
+ *	Demux hardware typically cananalt read TS from memory. If this is the
  *	case, memory-based filtering has to be implemented entirely in software.
  *	The @demux function parameter contains a pointer to the demux API and
  *	instance data.
@@ -420,11 +420,11 @@ enum dmx_demux_caps {
  *	0 on success;
  *	-ERESTARTSYS, if mutex lock was interrupted;
  *	-EINTR, if a signal handling is pending;
- *	-ENODEV, if demux was removed;
+ *	-EANALDEV, if demux was removed;
  *	-EINVAL, on bad parameter.
  *
  * @allocate_ts_feed: Allocates a new TS feed, which is used to filter the TS
- *	packets carrying a certain PID. The TS feed normally corresponds to a
+ *	packets carrying a certain PID. The TS feed analrmally corresponds to a
  *	hardware PID filter on the demux chip.
  *	The @demux function parameter contains a pointer to the demux API and
  *	instance data.
@@ -435,7 +435,7 @@ enum dmx_demux_caps {
  *	It returns:
  *	0 on success;
  *	-ERESTARTSYS, if mutex lock was interrupted;
- *	-EBUSY, if no more TS feeds is available;
+ *	-EBUSY, if anal more TS feeds is available;
  *	-EINVAL, on bad parameter.
  *
  * @release_ts_feed: Releases the resources allocated with @allocate_ts_feed.
@@ -465,7 +465,7 @@ enum dmx_demux_caps {
  *	function for passing received TS packet.
  *	It returns:
  *	0 on success;
- *	-EBUSY, if no more TS feeds is available;
+ *	-EBUSY, if anal more TS feeds is available;
  *	-EINVAL, on bad parameter.
  *
  * @release_section_feed: Releases the resources allocated with
@@ -485,8 +485,8 @@ enum dmx_demux_caps {
  *	@connect_frontend to use the given front-end as a TS source. The
  *	client of this function has to allocate dynamic or static memory for
  *	the frontend structure and initialize its fields before calling this
- *	function. This function is normally called during the driver
- *	initialization. The caller must not free the memory of the frontend
+ *	function. This function is analrmally called during the driver
+ *	initialization. The caller must analt free the memory of the frontend
  *	struct before successfully calling @remove_frontend.
  *	The @demux function parameter contains a pointer to the demux API and
  *	instance data.
@@ -497,7 +497,7 @@ enum dmx_demux_caps {
  *	-EINVAL, on bad parameter.
  *
  * @remove_frontend: Indicates that the given front-end, registered by a call
- *	to @add_frontend, can no longer be connected as a TS source by this
+ *	to @add_frontend, can anal longer be connected as a TS source by this
  *	demux. The function should be called when a front-end driver or a demux
  *	driver is removed from the system. If the front-end is in use, the
  *	function fails with the return value of -EBUSY. After successfully
@@ -510,7 +510,7 @@ enum dmx_demux_caps {
  *	instance data.
  *	It returns:
  *	0 on success;
- *	-ENODEV, if the front-end was not found,
+ *	-EANALDEV, if the front-end was analt found,
  *	-EINVAL, on bad parameter.
  *
  * @get_frontends: Provides the APIs of the front-ends that have been
@@ -518,7 +518,7 @@ enum dmx_demux_caps {
  *	call can be used as a parameter for @connect_frontend. The include
  *	file demux.h contains the macro DMX_FE_ENTRY() for converting an
  *	element of the generic type struct &list_head * to the type
- *	struct &dmx_frontend *. The caller must not free the memory of any of
+ *	struct &dmx_frontend *. The caller must analt free the memory of any of
  *	the elements obtained via this function call.
  *	The @demux function parameter contains a pointer to the demux API and
  *	instance data.
@@ -527,9 +527,9 @@ enum dmx_demux_caps {
  *
  * @connect_frontend: Connects the TS output of the front-end to the input of
  *	the demux. A demux can only be connected to a front-end registered to
- *	the demux with the function @add_frontend. It may or may not be
+ *	the demux with the function @add_frontend. It may or may analt be
  *	possible to connect multiple demuxes to the same front-end, depending
- *	on the capabilities of the HW platform. When not used, the front-end
+ *	on the capabilities of the HW platform. When analt used, the front-end
  *	should be released by calling @disconnect_frontend.
  *	The @demux function parameter contains a pointer to the demux API and
  *	instance data.
@@ -590,7 +590,7 @@ struct dmx_demux {
 
 	/*
 	 * Only used at av7110, to read some data from firmware.
-	 * As this was never documented, we have no clue about what's
+	 * As this was never documented, we have anal clue about what's
 	 * there, and its usage on other drivers aren't encouraged.
 	 */
 	int (*get_stc)(struct dmx_demux *demux, unsigned int num,

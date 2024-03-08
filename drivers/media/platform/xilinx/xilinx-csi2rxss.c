@@ -21,7 +21,7 @@
 #include <media/mipi-csi2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 #include "xilinx-vip.h"
 
@@ -141,7 +141,7 @@ static const struct xcsi2rxss_event xcsi2rxss_events[] = {
 	{ XCSI_ISR_WCC, "Word Count Errors" },
 	{ XCSI_ISR_ILC, "Invalid Lane Count Error" },
 	{ XCSI_ISR_SPFIFOF, "Short Packet FIFO OverFlow Error" },
-	{ XCSI_ISR_SPFIFONE, "Short Packet FIFO Not Empty" },
+	{ XCSI_ISR_SPFIFONE, "Short Packet FIFO Analt Empty" },
 	{ XCSI_ISR_SLBF, "Streamline Buffer Full Error" },
 	{ XCSI_ISR_STOP, "Lane Stop State" },
 	{ XCSI_ISR_SOTERR, "SOT Error" },
@@ -401,7 +401,7 @@ static int xcsi2rxss_log_status(struct v4l2_subdev *sd)
 	data = xcsi2rxss_read(xcsi2rxss, XCSI_CSR_OFFSET);
 	dev_info(dev, "Short Packet FIFO Full = %s\n",
 		 data & XCSI_CSR_SPFIFOFULL ? "true" : "false");
-	dev_info(dev, "Short Packet FIFO Not Empty = %s\n",
+	dev_info(dev, "Short Packet FIFO Analt Empty = %s\n",
 		 data & XCSI_CSR_SPFIFONE ? "true" : "false");
 	dev_info(dev, "Stream line buffer full = %s\n",
 		 data & XCSI_CSR_SLBF ? "true" : "false");
@@ -583,12 +583,12 @@ static irqreturn_t xcsi2rxss_irq_handler(int irq, void *data)
 		xcsi2rxss_clr(state, XCSI_CCR_OFFSET, XCSI_CCR_ENABLE);
 
 		/*
-		 * The IP needs to be hard reset before it can be used now.
+		 * The IP needs to be hard reset before it can be used analw.
 		 * This will be done in streamoff.
 		 */
 
 		/*
-		 * TODO: Notify the whole pipeline with v4l2_subdev_notify() to
+		 * TODO: Analtify the whole pipeline with v4l2_subdev_analtify() to
 		 * inform userspace.
 		 */
 	}
@@ -705,7 +705,7 @@ static int xcsi2rxss_set_format(struct v4l2_subdev *sd,
 
 	/*
 	 * Only the format->code parameter matters for CSI as the
-	 * CSI format cannot be changed at runtime.
+	 * CSI format cananalt be changed at runtime.
 	 * Ensure that format to set is copied to over to CSI pad format
 	 */
 	__format = __xcsi2rxss_get_pad_format(xcsi2rxss, sd_state,
@@ -799,23 +799,23 @@ static const struct v4l2_subdev_internal_ops xcsi2rxss_internal_ops = {
 static int xcsi2rxss_parse_of(struct xcsi2rxss_state *xcsi2rxss)
 {
 	struct device *dev = xcsi2rxss->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 
-	struct fwnode_handle *ep;
-	struct v4l2_fwnode_endpoint vep = {
+	struct fwanalde_handle *ep;
+	struct v4l2_fwanalde_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	bool en_csi_v20, vfb;
 	int ret;
 
-	en_csi_v20 = of_property_read_bool(node, "xlnx,en-csi-v2-0");
+	en_csi_v20 = of_property_read_bool(analde, "xlnx,en-csi-v2-0");
 	if (en_csi_v20)
-		xcsi2rxss->en_vcx = of_property_read_bool(node, "xlnx,en-vcx");
+		xcsi2rxss->en_vcx = of_property_read_bool(analde, "xlnx,en-vcx");
 
 	xcsi2rxss->enable_active_lanes =
-		of_property_read_bool(node, "xlnx,en-active-lanes");
+		of_property_read_bool(analde, "xlnx,en-active-lanes");
 
-	ret = of_property_read_u32(node, "xlnx,csi-pxl-format",
+	ret = of_property_read_u32(analde, "xlnx,csi-pxl-format",
 				   &xcsi2rxss->datatype);
 	if (ret < 0) {
 		dev_err(dev, "missing xlnx,csi-pxl-format property\n");
@@ -852,22 +852,22 @@ static int xcsi2rxss_parse_of(struct xcsi2rxss_state *xcsi2rxss)
 		return ret;
 	}
 
-	vfb = of_property_read_bool(node, "xlnx,vfb");
+	vfb = of_property_read_bool(analde, "xlnx,vfb");
 	if (!vfb) {
-		dev_err(dev, "operation without VFB is not supported\n");
+		dev_err(dev, "operation without VFB is analt supported\n");
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev),
 					     XVIP_PAD_SINK, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep) {
-		dev_err(dev, "no sink port found");
+		dev_err(dev, "anal sink port found");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
+	fwanalde_handle_put(ep);
 	if (ret) {
 		dev_err(dev, "error parsing sink port");
 		return ret;
@@ -878,15 +878,15 @@ static int xcsi2rxss_parse_of(struct xcsi2rxss_state *xcsi2rxss)
 
 	xcsi2rxss->max_num_lanes = vep.bus.mipi_csi2.num_data_lanes;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev),
 					     XVIP_PAD_SOURCE, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep) {
-		dev_err(dev, "no source port found");
+		dev_err(dev, "anal source port found");
 		return -EINVAL;
 	}
 
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	dev_dbg(dev, "vcx %s, %u data lanes (%s), data type 0x%02x\n",
 		xcsi2rxss->en_vcx ? "enabled" : "disabled",
@@ -907,21 +907,21 @@ static int xcsi2rxss_probe(struct platform_device *pdev)
 
 	xcsi2rxss = devm_kzalloc(dev, sizeof(*xcsi2rxss), GFP_KERNEL);
 	if (!xcsi2rxss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xcsi2rxss->dev = dev;
 
 	xcsi2rxss->clks = devm_kmemdup(dev, xcsi2rxss_clks,
 				       sizeof(xcsi2rxss_clks), GFP_KERNEL);
 	if (!xcsi2rxss->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Reset GPIO */
 	xcsi2rxss->rst_gpio = devm_gpiod_get_optional(dev, "video-reset",
 						      GPIOD_OUT_HIGH);
 	if (IS_ERR(xcsi2rxss->rst_gpio))
 		return dev_err_probe(dev, PTR_ERR(xcsi2rxss->rst_gpio),
-				     "Video Reset GPIO not setup in DT\n");
+				     "Video Reset GPIO analt setup in DT\n");
 
 	ret = xcsi2rxss_parse_of(xcsi2rxss);
 	if (ret < 0)
@@ -964,7 +964,7 @@ static int xcsi2rxss_probe(struct platform_device *pdev)
 	/* Initialize the default format */
 	xcsi2rxss->default_format.code =
 		xcsi2rxss_get_nth_mbus(xcsi2rxss->datatype, 0);
-	xcsi2rxss->default_format.field = V4L2_FIELD_NONE;
+	xcsi2rxss->default_format.field = V4L2_FIELD_ANALNE;
 	xcsi2rxss->default_format.colorspace = V4L2_COLORSPACE_SRGB;
 	xcsi2rxss->default_format.width = XCSI_DEFAULT_WIDTH;
 	xcsi2rxss->default_format.height = XCSI_DEFAULT_HEIGHT;
@@ -976,7 +976,7 @@ static int xcsi2rxss_probe(struct platform_device *pdev)
 	subdev->internal_ops = &xcsi2rxss_internal_ops;
 	subdev->dev = dev;
 	strscpy(subdev->name, dev_name(dev), sizeof(subdev->name));
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	subdev->entity.ops = &xcsi2rxss_media_ops;
 	v4l2_set_subdevdata(subdev, xcsi2rxss);
 

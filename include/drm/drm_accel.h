@@ -11,7 +11,7 @@
 #include <drm/drm_file.h>
 
 #define ACCEL_MAJOR		261
-#define ACCEL_MAX_MINORS	256
+#define ACCEL_MAX_MIANALRS	256
 
 /**
  * DRM_ACCEL_FOPS - Default drm accelerators file operations
@@ -27,7 +27,7 @@
 	.compat_ioctl	= drm_compat_ioctl,\
 	.poll		= drm_poll,\
 	.read		= drm_read,\
-	.llseek		= noop_llseek, \
+	.llseek		= analop_llseek, \
 	.mmap		= drm_gem_mmap
 
 /**
@@ -35,12 +35,12 @@
  * @name: name for the generated structure
  *
  * This macro autogenerates a suitable &struct file_operations for accelerators based
- * drivers, which can be assigned to &drm_driver.fops. Note that this structure
- * cannot be shared between drivers, because it contains a reference to the
+ * drivers, which can be assigned to &drm_driver.fops. Analte that this structure
+ * cananalt be shared between drivers, because it contains a reference to the
  * current module using THIS_MODULE.
  *
- * Note that the declaration is already marked as static - if you need a
- * non-static version of this you're probably doing it wrong and will break the
+ * Analte that the declaration is already marked as static - if you need a
+ * analn-static version of this you're probably doing it wrong and will break the
  * THIS_MODULE reference by accident.
  */
 #define DEFINE_DRM_ACCEL_FOPS(name) \
@@ -53,11 +53,11 @@
 
 void accel_core_exit(void);
 int accel_core_init(void);
-void accel_minor_remove(int index);
-int accel_minor_alloc(void);
-void accel_minor_replace(struct drm_minor *minor, int index);
+void accel_mianalr_remove(int index);
+int accel_mianalr_alloc(void);
+void accel_mianalr_replace(struct drm_mianalr *mianalr, int index);
 void accel_set_device_instance_params(struct device *kdev, int index);
-int accel_open(struct inode *inode, struct file *filp);
+int accel_open(struct ianalde *ianalde, struct file *filp);
 void accel_debugfs_init(struct drm_device *dev);
 void accel_debugfs_register(struct drm_device *dev);
 
@@ -73,16 +73,16 @@ static inline int __init accel_core_init(void)
 	return 0;
 }
 
-static inline void accel_minor_remove(int index)
+static inline void accel_mianalr_remove(int index)
 {
 }
 
-static inline int accel_minor_alloc(void)
+static inline int accel_mianalr_alloc(void)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline void accel_minor_replace(struct drm_minor *minor, int index)
+static inline void accel_mianalr_replace(struct drm_mianalr *mianalr, int index)
 {
 }
 

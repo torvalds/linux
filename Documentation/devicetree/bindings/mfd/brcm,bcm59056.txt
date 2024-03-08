@@ -5,18 +5,18 @@ BCM590xx Power Management Units
 Required properties:
 - compatible: "brcm,bcm59056"
 - reg: I2C slave address
-- interrupts: interrupt for the PMU. Generic interrupt client node bindings
+- interrupts: interrupt for the PMU. Generic interrupt client analde bindings
   are described in interrupt-controller/interrupts.txt
 
 ------------------
 Voltage Regulators
 ------------------
 
-Optional child nodes:
-- regulators: container node for regulators following the generic
+Optional child analdes:
+- regulators: container analde for regulators following the generic
   regulator binding in regulator/regulator.txt
 
-  The valid regulator node names for BCM59056 are:
+  The valid regulator analde names for BCM59056 are:
   	rfldo, camldo1, camldo2, simldo1, simldo2, sdldo, sdxldo,
 	mmcldo1, mmcldo2, audldo, micldo, usbldo, vibldo,
 	csr, iosr1, iosr2, msr, sdsr1, sdsr2, vsr,

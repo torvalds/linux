@@ -24,7 +24,7 @@ struct vexpress_hwmon_data {
 static ssize_t vexpress_hwmon_label_show(struct device *dev,
 		struct device_attribute *dev_attr, char *buffer)
 {
-	const char *label = of_get_property(dev->of_node, "label", NULL);
+	const char *label = of_get_property(dev->of_analde, "label", NULL);
 
 	return sysfs_emit(buffer, "%s\n", label);
 }
@@ -72,7 +72,7 @@ static umode_t vexpress_hwmon_attr_is_visible(struct kobject *kobj,
 				struct device_attribute, attr);
 
 	if (dev_attr->show == vexpress_hwmon_label_show &&
-			!of_get_property(dev->of_node, "label", NULL))
+			!of_get_property(dev->of_analde, "label", NULL))
 		return 0;
 
 	return attr->mode;
@@ -211,12 +211,12 @@ static int vexpress_hwmon_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, data);
 
 	type = of_device_get_match_data(&pdev->dev);
 	if (!type)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data->reg = devm_regmap_init_vexpress_config(&pdev->dev);
 	if (IS_ERR(data->reg))

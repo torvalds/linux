@@ -13,10 +13,10 @@
 #include <linux/types.h>
 
 struct device;
-struct device_node;
+struct device_analde;
 struct generic_pm_domain;
 
-void cpg_mstp_add_clk_domain(struct device_node *np);
+void cpg_mstp_add_clk_domain(struct device_analde *np);
 #ifdef CONFIG_CLK_RENESAS_CPG_MSTP
 int cpg_mstp_attach_dev(struct generic_pm_domain *unused, struct device *dev);
 void cpg_mstp_detach_dev(struct generic_pm_domain *unused, struct device *dev);

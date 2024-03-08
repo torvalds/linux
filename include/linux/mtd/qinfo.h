@@ -30,13 +30,13 @@ struct lpddr_private {
 /* qinfo_query_info structure contains request information for
  * each qinfo record
  * @major - major number of qinfo record
- * @major - minor number of qinfo record
+ * @major - mianalr number of qinfo record
  * @id_str - descriptive string to access the record
  * @desc - detailed description for the qinfo record
  */
 struct qinfo_query_info {
 	uint8_t	major;
-	uint8_t	minor;
+	uint8_t	mianalr;
 	char *id_str;
 	char *desc;
 };

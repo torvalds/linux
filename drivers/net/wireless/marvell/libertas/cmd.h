@@ -12,7 +12,7 @@
 
 /* Command & response transfer between host and card */
 
-struct cmd_ctrl_node {
+struct cmd_ctrl_analde {
 	struct list_head list;
 	int result;
 	/* command response */
@@ -48,7 +48,7 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
 	      unsigned long callback_arg);
 
-struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
+struct cmd_ctrl_analde *__lbs_cmd_async(struct lbs_private *priv,
 	uint16_t command, struct cmd_header *in_cmd, int in_cmd_size,
 	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
 	unsigned long callback_arg);
@@ -60,9 +60,9 @@ int lbs_allocate_cmd_buffer(struct lbs_private *priv);
 int lbs_free_cmd_buffer(struct lbs_private *priv);
 
 int lbs_execute_next_command(struct lbs_private *priv);
-void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_analde *cmd,
 			    int result);
-void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_analde *cmd,
 			  int result);
 int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len);
 

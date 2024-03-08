@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/i2c.h>
@@ -42,7 +42,7 @@ enum saa6752hs_videoformat {
 	SAA6752HS_VF_2_3_D1 = 1,/* 2/3D1 video format: 480x576 */
 	SAA6752HS_VF_1_2_D1 = 2,/* 1/2D1 video format: 352x576 */
 	SAA6752HS_VF_SIF = 3,   /* SIF video format: 352x288 */
-	SAA6752HS_VF_UNKNOWN,
+	SAA6752HS_VF_UNKANALWN,
 };
 
 struct saa6752hs_mpeg_params {
@@ -74,7 +74,7 @@ static const struct v4l2_format v4l2_format_table[] =
 		{ .fmt = { .pix = { .width = 352, .height = 576 }}},
 	[SAA6752HS_VF_SIF] =
 		{ .fmt = { .pix = { .width = 352, .height = 288 }}},
-	[SAA6752HS_VF_UNKNOWN] =
+	[SAA6752HS_VF_UNKANALWN] =
 		{ .fmt = { .pix = { .width = 0, .height = 0}}},
 };
 
@@ -325,7 +325,7 @@ static int saa6752hs_set_bitrate(struct i2c_client *client,
 		set_reg16(client, 0x81, params->vi_bitrate_peak);
 		tot_bitrate = params->vi_bitrate_peak;
 	} else {
-		/* set the target bitrate (no max bitrate for CBR) */
+		/* set the target bitrate (anal max bitrate for CBR) */
 		set_reg16(client, 0x81, params->vi_bitrate);
 		tot_bitrate = params->vi_bitrate;
 	}
@@ -342,7 +342,7 @@ static int saa6752hs_set_bitrate(struct i2c_client *client,
 	set_reg8(client, 0x94, is_384k);
 	tot_bitrate += is_384k ? 384 : 256;
 
-	/* Note: the total max bitrate is determined by adding the video and audio
+	/* Analte: the total max bitrate is determined by adding the video and audio
 	   bitrates together and also adding an extra 768kbit/s to stay on the
 	   safe side. If more control should be required, then an extra MPEG control
 	   should be added. */
@@ -362,7 +362,7 @@ static int saa6752hs_try_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		/* peak bitrate shall be >= normal bitrate */
+		/* peak bitrate shall be >= analrmal bitrate */
 		if (ctrl->val == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
 		    h->video_bitrate_peak->val < h->video_bitrate->val)
 			h->video_bitrate_peak->val = h->video_bitrate->val;
@@ -552,7 +552,7 @@ static int saa6752hs_get_fmt(struct v4l2_subdev *sd,
 	if (format->pad)
 		return -EINVAL;
 
-	if (h->video_format == SAA6752HS_VF_UNKNOWN)
+	if (h->video_format == SAA6752HS_VF_UNKANALWN)
 		h->video_format = SAA6752HS_VF_D1;
 	f->width = v4l2_format_table[h->video_format].fmt.pix.width;
 	f->height = v4l2_format_table[h->video_format].fmt.pix.height;
@@ -670,7 +670,7 @@ static int saa6752hs_probe(struct i2c_client *client)
 
 	h = devm_kzalloc(&client->dev, sizeof(*h), GFP_KERNEL);
 	if (h == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &h->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa6752hs_ops);
 

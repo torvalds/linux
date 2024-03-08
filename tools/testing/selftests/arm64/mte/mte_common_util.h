@@ -20,7 +20,7 @@ enum mte_mem_type {
 };
 
 enum mte_mode {
-	MTE_NONE_ERR,
+	MTE_ANALNE_ERR,
 	MTE_SYNC_ERR,
 	MTE_ASYNC_ERR,
 };
@@ -32,7 +32,7 @@ struct mte_fault_cxt {
 	ssize_t trig_range;
 	/* siginfo si code */
 	unsigned long trig_si_code;
-	/* Flag to denote if correct fault caught */
+	/* Flag to deanalte if correct fault caught */
 	bool fault_valid;
 };
 
@@ -86,7 +86,7 @@ static inline void evaluate_test(int err, const char *msg)
 		ksft_test_result_skip(msg);
 		break;
 	default:
-		ksft_test_result_error("Unknown return code %d from %s",
+		ksft_test_result_error("Unkanalwn return code %d from %s",
 				       err, msg);
 		break;
 	}
@@ -101,7 +101,7 @@ static inline int check_allocated_memory(void *ptr, size_t size,
 	}
 
 	if (tags && !MT_FETCH_TAG((uintptr_t)ptr)) {
-		ksft_print_msg("FAIL: tag not found at addr(%p)\n", ptr);
+		ksft_print_msg("FAIL: tag analt found at addr(%p)\n", ptr);
 		mte_free_memory((void *)ptr, size, mem_type, false);
 		return KSFT_FAIL;
 	}
@@ -118,7 +118,7 @@ static inline int check_allocated_memory_range(void *ptr, size_t size, int mem_t
 	}
 
 	if (!MT_FETCH_TAG((uintptr_t)ptr)) {
-		ksft_print_msg("FAIL: tag not found at addr(%p)\n", ptr);
+		ksft_print_msg("FAIL: tag analt found at addr(%p)\n", ptr);
 		mte_free_memory_tag_range((void *)ptr, size, mem_type, range_before,
 					  range_after);
 		return KSFT_FAIL;

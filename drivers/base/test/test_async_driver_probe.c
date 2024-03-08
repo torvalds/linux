@@ -12,7 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/time.h>
 #include <linux/numa.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/topology.h>
 
 #define TEST_PROBE_DELAY	(5 * 1000)	/* 5 sec */
@@ -40,14 +40,14 @@ static int test_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Report NUMA mismatch if device node is set and we are not
-	 * performing an async init on that node.
+	 * Report NUMA mismatch if device analde is set and we are analt
+	 * performing an async init on that analde.
 	 */
-	if (dev->driver->probe_type == PROBE_PREFER_ASYNCHRONOUS) {
+	if (dev->driver->probe_type == PROBE_PREFER_ASYNCHROANALUS) {
 		if (IS_ENABLED(CONFIG_NUMA) &&
-		    dev_to_node(dev) != numa_node_id()) {
-			dev_warn(dev, "NUMA node mismatch %d != %d\n",
-				 dev_to_node(dev), numa_node_id());
+		    dev_to_analde(dev) != numa_analde_id()) {
+			dev_warn(dev, "NUMA analde mismatch %d != %d\n",
+				 dev_to_analde(dev), numa_analde_id());
 			atomic_inc(&warnings);
 		}
 
@@ -60,7 +60,7 @@ static int test_probe(struct platform_device *pdev)
 static struct platform_driver async_driver = {
 	.driver = {
 		.name = "test_async_driver",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = test_probe,
 };
@@ -68,7 +68,7 @@ static struct platform_driver async_driver = {
 static struct platform_driver sync_driver = {
 	.driver = {
 		.name = "test_sync_driver",
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 	.probe = test_probe,
 };
@@ -77,17 +77,17 @@ static struct platform_device *async_dev[NR_CPUS * 2];
 static struct platform_device *sync_dev[2];
 
 static struct platform_device *
-test_platform_device_register_node(char *name, int id, int nid)
+test_platform_device_register_analde(char *name, int id, int nid)
 {
 	struct platform_device *pdev;
 	int ret;
 
 	pdev = platform_device_alloc(name, id);
 	if (!pdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	if (nid != NUMA_NO_NODE)
-		set_dev_node(&pdev->dev, nid);
+	if (nid != NUMA_ANAL_ANALDE)
+		set_dev_analde(&pdev->dev, nid);
 
 	ret = platform_device_add(pdev);
 	if (ret) {
@@ -107,12 +107,12 @@ static int __init test_async_probe_init(void)
 	ktime_t calltime;
 	int err, nid, cpu;
 
-	pr_info("registering first set of asynchronous devices...\n");
+	pr_info("registering first set of asynchroanalus devices...\n");
 
 	for_each_online_cpu(cpu) {
-		nid = cpu_to_node(cpu);
+		nid = cpu_to_analde(cpu);
 		pdev = &async_dev[async_id];
-		*pdev =	test_platform_device_register_node("test_async_driver",
+		*pdev =	test_platform_device_register_analde("test_async_driver",
 							   async_id,
 							   nid);
 		if (IS_ERR(*pdev)) {
@@ -125,7 +125,7 @@ static int __init test_async_probe_init(void)
 		async_id++;
 	}
 
-	pr_info("registering asynchronous driver...\n");
+	pr_info("registering asynchroanalus driver...\n");
 	calltime = ktime_get();
 	err = platform_driver_register(&async_driver);
 	if (err) {
@@ -141,13 +141,13 @@ static int __init test_async_probe_init(void)
 		goto err_unregister_async_driver;
 	}
 
-	pr_info("registering second set of asynchronous devices...\n");
+	pr_info("registering second set of asynchroanalus devices...\n");
 	calltime = ktime_get();
 	for_each_online_cpu(cpu) {
-		nid = cpu_to_node(cpu);
+		nid = cpu_to_analde(cpu);
 		pdev = &async_dev[async_id];
 
-		*pdev = test_platform_device_register_node("test_async_driver",
+		*pdev = test_platform_device_register_analde("test_async_driver",
 							   async_id,
 							   nid);
 		if (IS_ERR(*pdev)) {
@@ -171,13 +171,13 @@ static int __init test_async_probe_init(void)
 	}
 
 
-	pr_info("registering first synchronous device...\n");
-	nid = cpu_to_node(cpu);
+	pr_info("registering first synchroanalus device...\n");
+	nid = cpu_to_analde(cpu);
 	pdev = &sync_dev[sync_id];
 
-	*pdev = test_platform_device_register_node("test_sync_driver",
+	*pdev = test_platform_device_register_analde("test_sync_driver",
 						   sync_id,
-						   NUMA_NO_NODE);
+						   NUMA_ANAL_ANALDE);
 	if (IS_ERR(*pdev)) {
 		err = PTR_ERR(*pdev);
 		*pdev = NULL;
@@ -187,7 +187,7 @@ static int __init test_async_probe_init(void)
 
 	sync_id++;
 
-	pr_info("registering synchronous driver...\n");
+	pr_info("registering synchroanalus driver...\n");
 	calltime = ktime_get();
 	err = platform_driver_register(&sync_driver);
 	if (err) {
@@ -204,13 +204,13 @@ static int __init test_async_probe_init(void)
 		goto err_unregister_sync_driver;
 	}
 
-	pr_info("registering second synchronous device...\n");
+	pr_info("registering second synchroanalus device...\n");
 	pdev = &sync_dev[sync_id];
 	calltime = ktime_get();
 
-	*pdev = test_platform_device_register_node("test_sync_driver",
+	*pdev = test_platform_device_register_analde("test_sync_driver",
 						   sync_id,
-						   NUMA_NO_NODE);
+						   NUMA_ANAL_ANALDE);
 	if (IS_ERR(*pdev)) {
 		err = PTR_ERR(*pdev);
 		*pdev = NULL;
@@ -232,10 +232,10 @@ static int __init test_async_probe_init(void)
 
 	/*
 	 * The async events should have completed while we were taking care
-	 * of the synchronous events. We will now terminate any outstanding
-	 * asynchronous probe calls remaining by forcing timeout and remove
+	 * of the synchroanalus events. We will analw terminate any outstanding
+	 * asynchroanalus probe calls remaining by forcing timeout and remove
 	 * the driver before we return which should force the flush of the
-	 * pending asynchronous probe calls.
+	 * pending asynchroanalus probe calls.
 	 *
 	 * Otherwise if they completed without errors or warnings then
 	 * report successful completion.
@@ -263,7 +263,7 @@ err_unregister_async_devs:
 	/*
 	 * If err is already set then count that as an additional error for
 	 * the test. Otherwise we will report an invalid argument error and
-	 * not count that as we should have reached here as a result of
+	 * analt count that as we should have reached here as a result of
 	 * errors or warnings being reported by the probe routine.
 	 */
 	if (err)
@@ -294,6 +294,6 @@ static void __exit test_async_probe_exit(void)
 }
 module_exit(test_async_probe_exit);
 
-MODULE_DESCRIPTION("Test module for asynchronous driver probing");
+MODULE_DESCRIPTION("Test module for asynchroanalus driver probing");
 MODULE_AUTHOR("Dmitry Torokhov <dtor@chromium.org>");
 MODULE_LICENSE("GPL");

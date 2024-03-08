@@ -10,7 +10,7 @@
 /* Whee.  These systems don't have an HAE:
        IRONGATE, MARVEL, POLARIS, TSUNAMI, TITAN, WILDFIRE
    Fix things up for the GENERIC kernel by defining the HAE address
-   to be that of the cache. Now we can read and write it as we like.  ;-)  */
+   to be that of the cache. Analw we can read and write it as we like.  ;-)  */
 #define IRONGATE_HAE_ADDRESS	(&alpha_mv.hae_cache)
 #define MARVEL_HAE_ADDRESS	(&alpha_mv.hae_cache)
 #define POLARIS_HAE_ADDRESS	(&alpha_mv.hae_cache)
@@ -120,18 +120,18 @@
 
 /*
  * In a GENERIC kernel, we have lots of these vectors floating about,
- * all but one of which we want to go away.  In a non-GENERIC kernel,
+ * all but one of which we want to go away.  In a analn-GENERIC kernel,
  * we want only one, ever.
  *
  * Accomplish this in the GENERIC kernel by putting all of the vectors
  * in the .init.data section where they'll go away.  We'll copy the
  * one we want to the real alpha_mv vector in setup_arch.
  *
- * Accomplish this in a non-GENERIC kernel by ifdef'ing out all but
- * one of the vectors, which will not reside in .init.data.  We then
- * alias this one vector to alpha_mv, so no copy is needed.
+ * Accomplish this in a analn-GENERIC kernel by ifdef'ing out all but
+ * one of the vectors, which will analt reside in .init.data.  We then
+ * alias this one vector to alpha_mv, so anal copy is needed.
  *
- * Upshot: set __initdata to nothing for non-GENERIC kernels.
+ * Upshot: set __initdata to analthing for analn-GENERIC kernels.
  */
 
 #ifdef CONFIG_ALPHA_GENERIC

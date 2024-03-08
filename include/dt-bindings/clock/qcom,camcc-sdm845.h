@@ -12,8 +12,8 @@
 #define CAM_CC_BPS_AXI_CLK				2
 #define CAM_CC_BPS_CLK					3
 #define CAM_CC_BPS_CLK_SRC				4
-#define CAM_CC_CAMNOC_ATB_CLK				5
-#define CAM_CC_CAMNOC_AXI_CLK				6
+#define CAM_CC_CAMANALC_ATB_CLK				5
+#define CAM_CC_CAMANALC_AXI_CLK				6
 #define CAM_CC_CCI_CLK					7
 #define CAM_CC_CCI_CLK_SRC				8
 #define CAM_CC_CPAS_AHB_CLK				9

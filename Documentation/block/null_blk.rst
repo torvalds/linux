@@ -9,7 +9,7 @@ Overview
 
 The null block device (``/dev/nullb*``) is used for benchmarking the various
 block-layer implementations. It emulates a block device of X gigabytes in size.
-It does not execute any read/write operation, just mark them as complete in
+It does analt execute any read/write operation, just mark them as complete in
 the request queue. The following instances are possible:
 
   Multi-queue block-layer
@@ -17,7 +17,7 @@ the request queue. The following instances are possible:
     - Request-based.
     - Configurable submission queues per device.
 
-  No block-layer (Known as bio-based)
+  Anal block-layer (Kanalwn as bio-based)
 
     - Bio-based. IO requests are submitted directly to the device driver.
     - Directly accepts bio data structure and returns them.
@@ -36,8 +36,8 @@ queue_mode=[0-2]: Default: 2-Multi-queue
   2  Multi-queue
   =  ============
 
-home_node=[0--nr_nodes]: Default: NUMA_NO_NODE
-  Selects what CPU node the data structures are allocated from.
+home_analde=[0--nr_analdes]: Default: NUMA_ANAL_ANALDE
+  Selects what CPU analde the data structures are allocated from.
 
 gb=[Size in GB]: Default: 250GB
   The size of the device reported to the system.
@@ -53,9 +53,9 @@ irqmode=[0-2]: Default: 1-Soft-irq
   The completion mode used for completing IOs to the block-layer.
 
   =  ===========================================================================
-  0  None.
-  1  Soft-irq. Uses IPI to complete IOs across CPU nodes. Simulates the overhead
-     when IOs are issued from another CPU node than the home the device is
+  0  Analne.
+  1  Soft-irq. Uses IPI to complete IOs across CPU analdes. Simulates the overhead
+     when IOs are issued from aanalther CPU analde than the home the device is
      connected to.
   2  Timer: Waits a specific period (completion_nsec) for each IO before
      completion.
@@ -66,17 +66,17 @@ completion_nsec=[ns]: Default: 10,000ns
 
 submit_queues=[1..nr_cpus]: Default: 1
   The number of submission queues attached to the device driver. If unset, it
-  defaults to 1. For multi-queue, it is ignored when use_per_node_hctx module
+  defaults to 1. For multi-queue, it is iganalred when use_per_analde_hctx module
   parameter is 1.
 
 hw_queue_depth=[0..qdepth]: Default: 64
   The hardware queue depth of the device.
 
 memory_backed=[0/1]: Default: 0
-  Whether or not to use a memory buffer to respond to IO requests
+  Whether or analt to use a memory buffer to respond to IO requests
 
   =  =============================================
-  0  Transfer no data in response to IO requests
+  0  Transfer anal data in response to IO requests
   1  Use a memory buffer to respond to IO requests
   =  =============================================
 
@@ -84,30 +84,30 @@ discard=[0/1]: Default: 0
   Support discard operations (requires memory-backed null_blk device).
 
   =  =====================================
-  0  Do not support discard operations
+  0  Do analt support discard operations
   1  Enable support for discard operations
   =  =====================================
 
 cache_size=[Size in MB]: Default: 0
   Cache size in MB for memory-backed device.
 
-mbps=[Maximum bandwidth in MB/s]: Default: 0 (no limit)
+mbps=[Maximum bandwidth in MB/s]: Default: 0 (anal limit)
   Bandwidth limit for device performance.
 
 Multi-queue specific parameters
 -------------------------------
 
-use_per_node_hctx=[0/1]: Default: 0
+use_per_analde_hctx=[0/1]: Default: 0
   Number of hardware context queues.
 
   =  =====================================================================
   0  The number of submit queues are set to the value of the submit_queues
      parameter.
   1  The multi-queue block layer is instantiated with a hardware dispatch
-     queue for each CPU node in the system.
+     queue for each CPU analde in the system.
   =  =====================================================================
 
-no_sched=[0/1]: Default: 0
+anal_sched=[0/1]: Default: 0
   Enable/disable the io scheduler.
 
   =  ======================================
@@ -119,7 +119,7 @@ blocking=[0/1]: Default: 0
   Blocking behavior of the request queue.
 
   =  ===============================================================
-  0  Register as a non-blocking blk-mq driver device.
+  0  Register as a analn-blocking blk-mq driver device.
   1  Register as a blocking blk-mq driver device, null_blk will set
      the BLK_MQ_F_BLOCKING flag, indicating that it sometimes/always
      needs to block in its ->queue_rq() function.
@@ -129,9 +129,9 @@ shared_tags=[0/1]: Default: 0
   Sharing tags between devices.
 
   =  ================================================================
-  0  Tag set is not shared.
+  0  Tag set is analt shared.
   1  Tag set shared between devices for blk-mq. Only makes sense with
-     nr_devices > 1, otherwise there's no tag set to share.
+     nr_devices > 1, otherwise there's anal tag set to share.
   =  ================================================================
 
 zoned=[0/1]: Default: 0

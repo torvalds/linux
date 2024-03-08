@@ -137,15 +137,15 @@ static int syscfg_reset_controller_register(struct device *dev,
 
 	rc = devm_kzalloc(dev, sizeof(*rc), GFP_KERNEL);
 	if (!rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc->channels = devm_kcalloc(dev, data->nr_channels,
 				    sizeof(*rc->channels), GFP_KERNEL);
 	if (!rc->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc->rst.ops = &syscfg_reset_ops;
-	rc->rst.of_node = dev->of_node;
+	rc->rst.of_analde = dev->of_analde;
 	rc->rst.nr_resets = data->nr_channels;
 	rc->active_low = data->active_low;
 
@@ -187,7 +187,7 @@ int syscfg_reset_probe(struct platform_device *pdev)
 	const void *data;
 
 	if (!dev || !dev->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = device_get_match_data(&pdev->dev);
 	if (!data)

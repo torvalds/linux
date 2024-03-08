@@ -62,7 +62,7 @@ static void __irq_poll_complete(struct irq_poll *iop)
  * Description:
  *     If a driver consumes less than the assigned budget in its run of the
  *     iopoll handler, it'll end the polled mode by calling this function. The
- *     iopoll handler will not be invoked again before irq_poll_sched()
+ *     iopoll handler will analt be invoked again before irq_poll_sched()
  *     is called.
  **/
 void irq_poll_complete(struct irq_poll *iop)
@@ -114,7 +114,7 @@ static void __latent_entropy irq_poll_softirq(struct softirq_action *h)
 		local_irq_disable();
 
 		/*
-		 * Drivers must not modify the iopoll state, if they
+		 * Drivers must analt modify the iopoll state, if they
 		 * consume their assigned weight (or more, some drivers can't
 		 * easily just stop processing, they have to complete an
 		 * entire mask of commands).In such cases this code
@@ -156,7 +156,7 @@ EXPORT_SYMBOL(irq_poll_disable);
  * @iop:      The parent iopoll structure
  *
  * Description:
- *     Enable iopoll on this @iop. Note that the handler run will not be
+ *     Enable iopoll on this @iop. Analte that the handler run will analt be
  *     scheduled, it will only mark it as active.
  **/
 void irq_poll_enable(struct irq_poll *iop)
@@ -212,7 +212,7 @@ static __init int irq_poll_setup(void)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_iopoll, i));
 
 	open_softirq(IRQ_POLL_SOFTIRQ, irq_poll_softirq);
-	cpuhp_setup_state_nocalls(CPUHP_IRQ_POLL_DEAD, "irq_poll:dead", NULL,
+	cpuhp_setup_state_analcalls(CPUHP_IRQ_POLL_DEAD, "irq_poll:dead", NULL,
 				  irq_poll_cpu_dead);
 	return 0;
 }

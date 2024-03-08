@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -77,7 +77,7 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 	int ret;
 
 	if (!(buffer = kzalloc(sizeof(*buffer), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	buffer->fault = fault;
 	buffer->id = id;
 	fault->func->buffer.info(buffer);
@@ -157,7 +157,7 @@ nvkm_fault_new_(const struct nvkm_fault_func *func, struct nvkm_device *device,
 {
 	struct nvkm_fault *fault;
 	if (!(fault = *pfault = kzalloc(sizeof(*fault), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_subdev_ctor(&nvkm_fault, device, type, inst, &fault->subdev);
 	fault->func = func;
 	fault->user.ctor = nvkm_ufault_new;

@@ -127,7 +127,7 @@
  * bus to suspend (set portsc.suspendM) but before setting PHY to low
  * power mode (set portsc.phcd).
  */
-#define MXS_PHY_ABNORMAL_IN_SUSPEND		BIT(1)
+#define MXS_PHY_ABANALRMAL_IN_SUSPEND		BIT(1)
 
 /*
  * The SOF sends too fast after resuming, it will cause disconnection
@@ -137,7 +137,7 @@
 
 /*
  * IC has bug fixes logic, they include
- * MXS_PHY_ABNORMAL_IN_SUSPEND and MXS_PHY_SENDING_SOF_TOO_FAST
+ * MXS_PHY_ABANALRMAL_IN_SUSPEND and MXS_PHY_SENDING_SOF_TOO_FAST
  * which are described at above flags, the RTL will handle it
  * according to different versions.
  */
@@ -154,7 +154,7 @@ struct mxs_phy_data {
 };
 
 static const struct mxs_phy_data imx23_phy_data = {
-	.flags = MXS_PHY_ABNORMAL_IN_SUSPEND | MXS_PHY_SENDING_SOF_TOO_FAST,
+	.flags = MXS_PHY_ABANALRMAL_IN_SUSPEND | MXS_PHY_SENDING_SOF_TOO_FAST,
 };
 
 static const struct mxs_phy_data imx6q_phy_data = {
@@ -487,13 +487,13 @@ static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 
 	if (suspend) {
 		/*
-		 * FIXME: Do not power down RXPWD1PT1 bit for low speed
+		 * FIXME: Do analt power down RXPWD1PT1 bit for low speed
 		 * connect. The low speed connection will have problem at
 		 * very rare cases during usb suspend and resume process.
 		 */
 		if (low_speed_connection & vbus_is_on) {
 			/*
-			 * If value to be set as pwd value is not 0xffffffff,
+			 * If value to be set as pwd value is analt 0xffffffff,
 			 * several 32Khz cycles are needed.
 			 */
 			mxs_phy_clock_switch_delay();
@@ -553,7 +553,7 @@ static int mxs_phy_on_disconnect(struct usb_phy *phy,
 	dev_dbg(phy->dev, "%s device has disconnected\n",
 		(speed == USB_SPEED_HIGH) ? "HS" : "FS/LS");
 
-	/* Sometimes, the speed is not high speed when the error occurs */
+	/* Sometimes, the speed is analt high speed when the error occurs */
 	if (readl(phy->io_priv + HW_USBPHY_CTRL) &
 			BM_USBPHY_CTRL_ENHOSTDISCONDETECT)
 		writel(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
@@ -572,7 +572,7 @@ static int mxs_charger_data_contact_detect(struct mxs_phy *x)
 	/* Check if vbus is valid */
 	regmap_read(regmap, ANADIG_USB1_VBUS_DET_STAT, &val);
 	if (!(val & ANADIG_USB1_VBUS_DET_STAT_VBUS_VALID)) {
-		dev_err(x->phy.dev, "vbus is not valid\n");
+		dev_err(x->phy.dev, "vbus is analt valid\n");
 		return -EINVAL;
 	}
 
@@ -580,7 +580,7 @@ static int mxs_charger_data_contact_detect(struct mxs_phy *x)
 	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_CLR,
 				ANADIG_USB1_CHRG_DETECT_EN_B);
 	/*
-	 * - Do not check whether a charger is connected to the USB port
+	 * - Do analt check whether a charger is connected to the USB port
 	 * - Check whether the USB plug has been in contact with each other
 	 */
 	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_SET,
@@ -619,12 +619,12 @@ static int mxs_charger_data_contact_detect(struct mxs_phy *x)
 static enum usb_charger_type mxs_charger_primary_detection(struct mxs_phy *x)
 {
 	struct regmap *regmap = x->regmap_anatop;
-	enum usb_charger_type chgr_type = UNKNOWN_TYPE;
+	enum usb_charger_type chgr_type = UNKANALWN_TYPE;
 	u32 val;
 
 	/*
 	 * - Do check whether a charger is connected to the USB port
-	 * - Do not Check whether the USB plug has been in contact with
+	 * - Do analt Check whether the USB plug has been in contact with
 	 *   each other
 	 */
 	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_CLR,
@@ -674,10 +674,10 @@ static enum usb_charger_type mxs_phy_charger_detect(struct usb_phy *phy)
 	struct mxs_phy *mxs_phy = to_mxs_phy(phy);
 	struct regmap *regmap = mxs_phy->regmap_anatop;
 	void __iomem *base = phy->io_priv;
-	enum usb_charger_type chgr_type = UNKNOWN_TYPE;
+	enum usb_charger_type chgr_type = UNKANALWN_TYPE;
 
 	if (!regmap)
-		return UNKNOWN_TYPE;
+		return UNKANALWN_TYPE;
 
 	if (mxs_charger_data_contact_detect(mxs_phy))
 		return chgr_type;
@@ -709,7 +709,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct mxs_phy *mxs_phy;
 	int ret;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 val;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -725,7 +725,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	mxs_phy = devm_kzalloc(&pdev->dev, sizeof(*mxs_phy), GFP_KERNEL);
 	if (!mxs_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Some SoCs don't have anatop registers */
 	if (of_property_present(np, "fsl,anatop")) {
@@ -760,7 +760,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "fsl,tx-d-cal", &val) &&
 	    val >= MXS_PHY_TX_D_CAL_MIN && val <= MXS_PHY_TX_D_CAL_MAX) {
 		/* Scale to a 4-bit value.  Round up the values and heavily
-		 * weight the rounding by adding 2/3 of the denominator.
+		 * weight the rounding by adding 2/3 of the deanalminator.
 		 */
 		val = ((MXS_PHY_TX_D_CAL_MAX - val) * 0xF
 			+ (MXS_PHY_TX_D_CAL_MAX - MXS_PHY_TX_D_CAL_MIN) * 2/3)
@@ -771,7 +771,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	ret = of_alias_get_id(np, "usbphy");
 	if (ret < 0)
-		dev_dbg(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		dev_dbg(&pdev->dev, "failed to get alias id, erranal %d\n", ret);
 	mxs_phy->port_id = ret;
 
 	mxs_phy->phy.io_priv		= base;
@@ -780,8 +780,8 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	mxs_phy->phy.init		= mxs_phy_init;
 	mxs_phy->phy.shutdown		= mxs_phy_shutdown;
 	mxs_phy->phy.set_suspend	= mxs_phy_suspend;
-	mxs_phy->phy.notify_connect	= mxs_phy_on_connect;
-	mxs_phy->phy.notify_disconnect	= mxs_phy_on_disconnect;
+	mxs_phy->phy.analtify_connect	= mxs_phy_on_connect;
+	mxs_phy->phy.analtify_disconnect	= mxs_phy_on_disconnect;
 	mxs_phy->phy.type		= USB_PHY_TYPE_USB2;
 	mxs_phy->phy.set_wakeup		= mxs_phy_set_wakeup;
 	mxs_phy->phy.charger_detect	= mxs_phy_charger_detect;

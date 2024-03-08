@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,10 +32,10 @@
 #define CP_FLAG_UNK03_CLEAR           0
 #define CP_FLAG_UNK03_SET             1
 #define CP_FLAG_USER_SAVE             ((0 * 32) + 5)
-#define CP_FLAG_USER_SAVE_NOT_PENDING 0
+#define CP_FLAG_USER_SAVE_ANALT_PENDING 0
 #define CP_FLAG_USER_SAVE_PENDING     1
 #define CP_FLAG_USER_LOAD             ((0 * 32) + 6)
-#define CP_FLAG_USER_LOAD_NOT_PENDING 0
+#define CP_FLAG_USER_LOAD_ANALT_PENDING 0
 #define CP_FLAG_USER_LOAD_PENDING     1
 #define CP_FLAG_UNK0B                 ((0 * 32) + 0xb)
 #define CP_FLAG_UNK0B_CLEAR           0
@@ -56,10 +56,10 @@
 #define CP_FLAG_STATUS_BUSY           0
 #define CP_FLAG_STATUS_IDLE           1
 #define CP_FLAG_AUTO_SAVE             ((2 * 32) + 4)
-#define CP_FLAG_AUTO_SAVE_NOT_PENDING 0
+#define CP_FLAG_AUTO_SAVE_ANALT_PENDING 0
 #define CP_FLAG_AUTO_SAVE_PENDING     1
 #define CP_FLAG_AUTO_LOAD             ((2 * 32) + 5)
-#define CP_FLAG_AUTO_LOAD_NOT_PENDING 0
+#define CP_FLAG_AUTO_LOAD_ANALT_PENDING 0
 #define CP_FLAG_AUTO_LOAD_PENDING     1
 #define CP_FLAG_NEWCTX                ((2 * 32) + 10)
 #define CP_FLAG_NEWCTX_BUSY           0
@@ -71,7 +71,7 @@
 #define CP_FLAG_ALWAYS_FALSE          0
 #define CP_FLAG_ALWAYS_TRUE           1
 #define CP_FLAG_INTR                  ((2 * 32) + 15)
-#define CP_FLAG_INTR_NOT_PENDING      0
+#define CP_FLAG_INTR_ANALT_PENDING      0
 #define CP_FLAG_INTR_PENDING          1
 
 #define CP_CTX                   0x00100000
@@ -117,20 +117,20 @@
  * This code deals with PGRAPH contexts on NV50 family cards. Like NV40, it's
  * the GPU itself that does context-switching, but it needs a special
  * microcode to do it. And it's the driver's task to supply this microcode,
- * further known as ctxprog, as well as the initial context values, known
+ * further kanalwn as ctxprog, as well as the initial context values, kanalwn
  * as ctxvals.
  *
- * Without ctxprog, you cannot switch contexts. Not even in software, since
+ * Without ctxprog, you cananalt switch contexts. Analt even in software, since
  * the majority of context [xfer strands] isn't accessible directly. You're
  * stuck with a single channel, and you also suffer all the problems resulting
- * from missing ctxvals, since you cannot load them.
+ * from missing ctxvals, since you cananalt load them.
  *
- * Without ctxvals, you're stuck with PGRAPH's default context. It's enough to
+ * Without ctxvals, you're stuck with PGRAPH's default context. It's eanalugh to
  * run 2d operations, but trying to utilise 3d or CUDA will just lock you up,
  * since you don't have... some sort of needed setup.
  *
- * Nouveau will just disable acceleration if not given ctxprog + ctxvals, since
- * it's too much hassle to handle no-ctxprog as a special case.
+ * Analuveau will just disable acceleration if analt given ctxprog + ctxvals, since
+ * it's too much hassle to handle anal-ctxprog as a special case.
  */
 
 /*
@@ -141,7 +141,7 @@
  * area of memory on PGRAPH, and it'll be run when PFIFO wants PGRAPH to
  * switch channel. or when the driver explicitely requests it. Stuff visible
  * to ctxprog consists of: PGRAPH MMIO registers, PGRAPH context strands,
- * the per-channel context save area in VRAM [known as ctxvals or grctx],
+ * the per-channel context save area in VRAM [kanalwn as ctxvals or grctx],
  * 4 flags registers, a scratch register, two grctx pointers, plus many
  * random poorly-understood details.
  *
@@ -224,7 +224,7 @@ nv50_grctx_generate(struct nvkm_grctx *ctx)
 	cp_bra (ctx, SWAP_DIRECTION, SAVE, cp_check_load);
 
 	cp_set (ctx, UNK20, SET);
-	cp_set (ctx, SWAP_DIRECTION, SAVE); /* no idea why this is needed, but fixes at least one lockup. */
+	cp_set (ctx, SWAP_DIRECTION, SAVE); /* anal idea why this is needed, but fixes at least one lockup. */
 	cp_lsr (ctx, ctx->ctxvals_base);
 	cp_out (ctx, CP_SET_XFER_POINTER);
 	cp_lsr (ctx, 4);
@@ -242,12 +242,12 @@ nv50_grctx_generate(struct nvkm_grctx *ctx)
 	cp_out (ctx, CP_NEXT_TO_CURRENT);
 
 	cp_name(ctx, cp_exit);
-	cp_set (ctx, USER_SAVE, NOT_PENDING);
-	cp_set (ctx, USER_LOAD, NOT_PENDING);
+	cp_set (ctx, USER_SAVE, ANALT_PENDING);
+	cp_set (ctx, USER_LOAD, ANALT_PENDING);
 	cp_set (ctx, XFER_SWITCH, DISABLE);
 	cp_set (ctx, STATE, STOPPED);
 	cp_out (ctx, CP_END);
-	ctx->ctxvals_pos += 0x400; /* padding... no idea why you need it */
+	ctx->ctxvals_pos += 0x400; /* padding... anal idea why you need it */
 
 	return 0;
 }
@@ -274,7 +274,7 @@ nv50_grctx_init(struct nvkm_device *device, u32 *size)
 	};
 
 	if (!ctxprog)
-		return -ENOMEM;
+		return -EANALMEM;
 	nv50_grctx_generate(&ctx);
 
 	nvkm_wr32(device, 0x400324, 0);
@@ -286,7 +286,7 @@ nv50_grctx_init(struct nvkm_device *device, u32 *size)
 }
 
 /*
- * Constructs MMIO part of ctxprog and ctxvals. Just a matter of knowing which
+ * Constructs MMIO part of ctxprog and ctxvals. Just a matter of kanalwing which
  * registers to save/restore and the default values for them.
  */
 
@@ -840,9 +840,9 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
 	if (IS_NVA3F(device->chipset))
 		dd_emit(ctx, 1, 0);	/* 00000003 UNK03E8 */
 	dd_emit(ctx, 1, 1);		/* 0000007f BLOCK_ALLOC_HALFWARPS */
-	dd_emit(ctx, 1, 1);		/* 00000007 LOCAL_WARPS_NO_CLAMP */
+	dd_emit(ctx, 1, 1);		/* 00000007 LOCAL_WARPS_ANAL_CLAMP */
 	dd_emit(ctx, 1, 7);		/* 00000007 LOCAL_WARPS_LOG_ALLOC */
-	dd_emit(ctx, 1, 1);		/* 00000007 STACK_WARPS_NO_CLAMP */
+	dd_emit(ctx, 1, 1);		/* 00000007 STACK_WARPS_ANAL_CLAMP */
 	dd_emit(ctx, 1, 7);		/* 00000007 STACK_WARPS_LOG_ALLOC */
 	dd_emit(ctx, 1, 1);		/* 00001fff BLOCK_ALLOC_REGSLOTS_PACKED */
 	dd_emit(ctx, 1, 1);		/* 00001fff BLOCK_ALLOC_REGSLOTS_STRIDED */
@@ -999,7 +999,7 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
 	if (device->chipset != 0x50)
 		dd_emit(ctx, 1, 0);	/* 00000001 FP_CONTROL.MULTIPLE_RESULTS */
 	dd_emit(ctx, 1, 0x12);		/* 000000ff FP_INTERPOLANT_CTRL.COUNT */
-	dd_emit(ctx, 1, 0x10);		/* 000000ff FP_INTERPOLANT_CTRL.COUNT_NONFLAT */
+	dd_emit(ctx, 1, 0x10);		/* 000000ff FP_INTERPOLANT_CTRL.COUNT_ANALNFLAT */
 	dd_emit(ctx, 1, 0xc);		/* 000000ff FP_INTERPOLANT_CTRL.OFFSET */
 	dd_emit(ctx, 1, 1);		/* 00000001 FP_INTERPOLANT_CTRL.UMASK.W */
 	dd_emit(ctx, 1, 0);		/* 00000001 FP_INTERPOLANT_CTRL.UMASK.X */
@@ -1053,8 +1053,8 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
 	dd_emit(ctx, 1, 1);		/* 000000ff VP_REG_ALLOC_TEMP / 4 rounded up */
 	dd_emit(ctx, 1, 1);		/* 00000001 */
 	dd_emit(ctx, 1, 0);		/* 00000001 */
-	dd_emit(ctx, 1, 0);		/* 00000001 VTX_ATTR_MASK_UNK0 nonempty */
-	dd_emit(ctx, 1, 0);		/* 00000001 VTX_ATTR_MASK_UNK1 nonempty */
+	dd_emit(ctx, 1, 0);		/* 00000001 VTX_ATTR_MASK_UNK0 analnempty */
+	dd_emit(ctx, 1, 0);		/* 00000001 VTX_ATTR_MASK_UNK1 analnempty */
 	dd_emit(ctx, 1, 0x200);		/* 0003ffff GP_VERTEX_OUTPUT_COUNT*GP_REG_ALLOC_RESULT */
 	if (IS_NVA3F(device->chipset))
 		dd_emit(ctx, 1, 0x200);
@@ -1124,13 +1124,13 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
  * addresses are unrelated to each other, and data in them is closely
  * packed together. The strand layout varies a bit between cards: here
  * and there, a single word is thrown out in the middle and the whole
- * strand is offset by a bit from corresponding one on another chipset.
+ * strand is offset by a bit from corresponding one on aanalther chipset.
  * For this reason, addresses of stuff in strands are almost useless.
- * Knowing sequence of stuff and size of gaps between them is much more
+ * Kanalwing sequence of stuff and size of gaps between them is much more
  * useful, and that's how we build the strands in our generator.
  *
  * NVA0 takes this mess to a whole new level by cutting the old strands
- * into a few dozen pieces [known as genes], rearranging them randomly,
+ * into a few dozen pieces [kanalwn as genes], rearranging them randomly,
  * and putting them back together to make new strands. Hopefully these
  * genes correspond more or less directly to the same PGRAPH subunits
  * as in 400040 register.
@@ -1140,17 +1140,17 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
  * some of them can be clearly deduced, others can be guessed, and yet
  * others won't be resolved without figuring out the real meaning of
  * given ctxval. For the same reason, ending point of each strand
- * is unknown. Except for strand 0, which is the longest strand and
+ * is unkanalwn. Except for strand 0, which is the longest strand and
  * its end corresponds to end of the whole xfer.
  *
  * An unsolved mystery is the seek instruction: it takes an argument
  * in bits 8-18, and that argument is clearly the place in strands to
  * seek to... but the offsets don't seem to correspond to offsets as
- * seen in grctx. Perhaps there's another, real, not randomly-changing
+ * seen in grctx. Perhaps there's aanalther, real, analt randomly-changing
  * addressing in strands, and the xfer insn just happens to skip over
  * the unused bits? NV10-NV30 PIPE comes to mind...
  *
- * As far as I know, there's no way to access the xfer areas directly
+ * As far as I kanalw, there's anal way to access the xfer areas directly
  * without the help of ctxprog.
  */
 
@@ -1345,7 +1345,7 @@ nv50_gr_construct_xfer1(struct nvkm_grctx *ctx)
 }
 
 /*
- * non-trivial demagiced parts of ctx init go here
+ * analn-trivial demagiced parts of ctx init go here
  */
 
 static void
@@ -1366,9 +1366,9 @@ nv50_gr_construct_gene_dispatch(struct nvkm_grctx *ctx)
 		xf_emit(ctx, 8*3, 0);
 	else
 		xf_emit(ctx, 0x100*3, 0);
-	/* and another bonus slot?!? */
+	/* and aanalther bonus slot?!? */
 	xf_emit(ctx, 3, 0);
-	/* and YET ANOTHER bonus slot? */
+	/* and YET AANALTHER bonus slot? */
 	if (IS_NVA3F(device->chipset))
 		xf_emit(ctx, 3, 0);
 	/* SEEK */
@@ -1413,7 +1413,7 @@ nv50_gr_construct_gene_m2mf(struct nvkm_grctx *ctx)
 	if (device->chipset < 0x92 || device->chipset == 0x98)
 		smallm2mf = 1;
 	/* SEEK */
-	xf_emit (ctx, 1, 0);		/* DMA_NOTIFY instance >> 4 */
+	xf_emit (ctx, 1, 0);		/* DMA_ANALTIFY instance >> 4 */
 	xf_emit (ctx, 1, 0);		/* DMA_BUFFER_IN instance >> 4 */
 	xf_emit (ctx, 1, 0);		/* DMA_BUFFER_OUT instance >> 4 */
 	xf_emit (ctx, 1, 0);		/* OFFSET_IN */
@@ -1653,7 +1653,7 @@ nv50_gr_construct_gene_unk14xx(struct nvkm_grctx *ctx)
 	xf_emit(ctx, 1, 0);			/* ffffffff tesla UNK1A30 */
 	xf_emit(ctx, 1, 1);			/* 00000001 VIEWPORT_TRANSFORM_EN */
 	xf_emit(ctx, 1, 0x8100c12);		/* 1fffffff FP_INTERPOLANT_CTRL */
-	xf_emit(ctx, 4, 0);			/* ffffffff NOPERSPECTIVE_BITMAP */
+	xf_emit(ctx, 4, 0);			/* ffffffff ANALPERSPECTIVE_BITMAP */
 	xf_emit(ctx, 1, 0);			/* 00000001 tesla UNK1900 */
 	xf_emit(ctx, 1, 0);			/* 0000000f */
 	if (device->chipset == 0x50)
@@ -1876,7 +1876,7 @@ nv50_gr_construct_gene_unk24xx(struct nvkm_grctx *ctx)
 	xf_emit(ctx, 1, 0);		/* 00000001 POINT_SPRITE_CTRL */
 	xf_emit(ctx, 1, 1);		/* 00000001 */
 	xf_emit(ctx, 1, 0);		/* ffffffff */
-	xf_emit(ctx, 4, 0);		/* ffffffff NOPERSPECTIVE_BITMAP */
+	xf_emit(ctx, 4, 0);		/* ffffffff ANALPERSPECTIVE_BITMAP */
 	xf_emit(ctx, 0x10, 0);		/* 00ffffff POINT_COORD_REPLACE_MAP */
 	xf_emit(ctx, 1, 0);		/* 00000003 WINDOW_ORIGIN */
 	xf_emit(ctx, 1, 0x8100c12);	/* 1fffffff FP_INTERPOLANT_CTRL */
@@ -2632,9 +2632,9 @@ nv50_gr_construct_gene_ropc(struct nvkm_grctx *ctx)
 	xf_emit(ctx, 1, 0x11);		/* 3f/7f DST_FORMAT */
 	xf_emit(ctx, 1, 1);		/* 00000001 DST_LINEAR */
 	xf_emit(ctx, 1, 0);		/* 00000007 PATTERN_COLOR_FORMAT */
-	xf_emit(ctx, 2, 0);		/* ffffffff PATTERN_MONO_COLOR */
-	xf_emit(ctx, 1, 0);		/* 00000001 PATTERN_MONO_FORMAT */
-	xf_emit(ctx, 2, 0);		/* ffffffff PATTERN_MONO_BITMAP */
+	xf_emit(ctx, 2, 0);		/* ffffffff PATTERN_MOANAL_COLOR */
+	xf_emit(ctx, 1, 0);		/* 00000001 PATTERN_MOANAL_FORMAT */
+	xf_emit(ctx, 2, 0);		/* ffffffff PATTERN_MOANAL_BITMAP */
 	xf_emit(ctx, 1, 0);		/* 00000003 PATTERN_SELECT */
 	xf_emit(ctx, 1, 0);		/* 000000ff ROP */
 	xf_emit(ctx, 1, 0);		/* ffffffff BETA1 */
@@ -3039,7 +3039,7 @@ static void
 nv50_gr_construct_xfer_tex(struct nvkm_grctx *ctx)
 {
 	struct nvkm_device *device = ctx->device;
-	xf_emit(ctx, 2, 0);		/* 1 LINKED_TSC. yes, 2. */
+	xf_emit(ctx, 2, 0);		/* 1 LINKED_TSC. anal, 2. */
 	if (device->chipset != 0x50)
 		xf_emit(ctx, 1, 0);	/* 3 */
 	xf_emit(ctx, 1, 1);		/* 1ffff BLIT_DU_DX_INT */
@@ -3283,7 +3283,7 @@ nv50_gr_construct_xfer2(struct nvkm_grctx *ctx)
 	if (device->chipset < 0xa0) {
 		for (i = 0; i < 8; i++) {
 			ctx->ctxvals_pos = offset + i;
-			/* that little bugger belongs to csched. No idea
+			/* that little bugger belongs to csched. Anal idea
 			 * what it's doing here. */
 			if (i == 0)
 				xf_emit(ctx, 1, 0x08100c12); /* FP_INTERPOLANT_CTRL */
@@ -3295,7 +3295,7 @@ nv50_gr_construct_xfer2(struct nvkm_grctx *ctx)
 	} else {
 		/* Strand 0: TPs 0, 1 */
 		ctx->ctxvals_pos = offset;
-		/* that little bugger belongs to csched. No idea
+		/* that little bugger belongs to csched. Anal idea
 		 * what it's doing here. */
 		xf_emit(ctx, 1, 0x08100c12); /* FP_INTERPOLANT_CTRL */
 		if (units & (1 << 0))

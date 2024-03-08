@@ -15,7 +15,7 @@
 /*
  * The DMABRG is a special DMA unit within the SH7760. It does transfers
  * from USB-SRAM/Audio units to main memory (and also the LCDC; but that
- * part is sensibly placed  in the LCDC  registers and requires no irqs)
+ * part is sensibly placed  in the LCDC  registers and requires anal irqs)
  * It has 3 IRQ lines which trigger 10 events, and works independently
  * from the traditional SH DMAC (although it blocks usage of DMAC 0)
  *
@@ -78,7 +78,7 @@ static inline void dmabrg_call_handler(int i)
 /*
  * main DMABRG irq handler. It acks irqs and then
  * handles every set and unmasked bit sequentially.
- * No locking and no validity checks; it should be
+ * Anal locking and anal validity checks; it should be
  * as fast as possible (audio!)
  */
 static irqreturn_t dmabrg_irq(int irq, void *data)
@@ -88,7 +88,7 @@ static irqreturn_t dmabrg_irq(int irq, void *data)
 
 	dcr = __raw_readl(DMABRGCR);
 	__raw_writel(dcr & ~0x00ff0003, DMABRGCR);	/* ack all */
-	dcr &= dcr >> 8;	/* ignore masked */
+	dcr &= dcr >> 8;	/* iganalre masked */
 
 	/* USB stuff, get it out of the way first */
 	if (dcr & 1)
@@ -126,7 +126,7 @@ int dmabrg_request_irq(unsigned int dmairq, void(*handler)(void*),
 		       void *data)
 {
 	if ((dmairq > 9) || !handler)
-		return -ENOENT;
+		return -EANALENT;
 	if (dmabrg_handlers[dmairq].handler)
 		return -EBUSY;
 
@@ -156,13 +156,13 @@ static int __init dmabrg_init(void)
 	dmabrg_handlers = kcalloc(10, sizeof(struct dmabrg_handler),
 				  GFP_KERNEL);
 	if (!dmabrg_handlers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_SH_DMA
 	/* request DMAC channel 0 before anyone else can get it */
 	ret = request_dma(0, "DMAC 0 (DMABRG)");
 	if (ret < 0)
-		printk(KERN_INFO "DMABRG: DMAC ch0 not reserved!\n");
+		printk(KERN_INFO "DMABRG: DMAC ch0 analt reserved!\n");
 #endif
 
 	__raw_writel(0, DMABRGCR);

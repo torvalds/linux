@@ -37,7 +37,7 @@
 #define RENESAS_ROM_STATUS_ERASE			BIT(1)
 #define RENESAS_ROM_STATUS_RELOAD			BIT(2)
 #define RENESAS_ROM_STATUS_RESULT			GENMASK(6, 4)
-  #define RENESAS_ROM_STATUS_NO_RESULT			0
+  #define RENESAS_ROM_STATUS_ANAL_RESULT			0
   #define RENESAS_ROM_STATUS_SUCCESS			BIT(4)
   #define RENESAS_ROM_STATUS_ERROR			BIT(5)
 #define RENESAS_ROM_STATUS_SET_DATA0			BIT(8)
@@ -77,8 +77,8 @@ static int renesas_fw_download_image(struct pci_dev *dev,
 		err = pci_read_config_byte(dev, status_reg, &fw_status);
 		if (err) {
 			dev_err(&dev->dev, "Read Status failed: %d\n",
-				pcibios_err_to_errno(err));
-			return pcibios_err_to_errno(err);
+				pcibios_err_to_erranal(err));
+			return pcibios_err_to_erranal(err);
 		}
 		if (!(fw_status & BIT(data0_or_data1)))
 			break;
@@ -99,8 +99,8 @@ static int renesas_fw_download_image(struct pci_dev *dev,
 				     (__force u32)cpu_to_le32(fw[step]));
 	if (err) {
 		dev_err(&dev->dev, "Write to DATAX failed: %d\n",
-			pcibios_err_to_errno(err));
-		return pcibios_err_to_errno(err);
+			pcibios_err_to_erranal(err));
+		return pcibios_err_to_erranal(err);
 	}
 
 	udelay(100);
@@ -109,8 +109,8 @@ static int renesas_fw_download_image(struct pci_dev *dev,
 	err = pci_write_config_byte(dev, status_reg, BIT(data0_or_data1));
 	if (err) {
 		dev_err(&dev->dev, "Write config for DATAX failed: %d\n",
-			pcibios_err_to_errno(err));
-		return pcibios_err_to_errno(err);
+			pcibios_err_to_erranal(err));
+		return pcibios_err_to_erranal(err);
 	}
 
 	return 0;
@@ -131,14 +131,14 @@ static int renesas_fw_verify(const void *fw_data,
 	 * assume that's the biggest the firmware can get.
 	 */
 	if (length < 0x1000 || length >= 0x10000) {
-		pr_err("firmware is size %zd is not (4k - 64k).",
+		pr_err("firmware is size %zd is analt (4k - 64k).",
 			length);
 		return -EINVAL;
 	}
 
 	/* The First 2 bytes are fixed value (55aa). "LSB on Left" */
 	if (get_unaligned_le16(fw_data) != 0x55aa) {
-		pr_err("no valid firmware header found.");
+		pr_err("anal valid firmware header found.");
 		return -EINVAL;
 	}
 
@@ -180,7 +180,7 @@ static int renesas_check_rom_state(struct pci_dev *pdev)
 	/* check FW version */
 	err = pci_read_config_dword(pdev, RENESAS_FW_VERSION, &version);
 	if (err)
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 
 	version &= RENESAS_FW_VERSION_FIELD;
 	version = version >> RENESAS_FW_VERSION_OFFSET;
@@ -191,7 +191,7 @@ static int renesas_check_rom_state(struct pci_dev *pdev)
 	 */
 	err = pci_read_config_word(pdev, RENESAS_ROM_STATUS, &rom_state);
 	if (err)
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 
 	if (rom_state & RENESAS_ROM_STATUS_ROM_EXISTS) {
 		/* ROM exists */
@@ -202,9 +202,9 @@ static int renesas_check_rom_state(struct pci_dev *pdev)
 		case RENESAS_ROM_STATUS_SUCCESS:
 			return 0;
 
-		case RENESAS_ROM_STATUS_NO_RESULT: /* No result yet */
-			dev_dbg(&pdev->dev, "Unknown ROM status ...\n");
-			return -ENOENT;
+		case RENESAS_ROM_STATUS_ANAL_RESULT: /* Anal result yet */
+			dev_dbg(&pdev->dev, "Unkanalwn ROM status ...\n");
+			return -EANALENT;
 
 		case RENESAS_ROM_STATUS_ERROR: /* Error State */
 		default: /* All other states are marked as "Reserved states" */
@@ -228,11 +228,11 @@ static int renesas_fw_check_running(struct pci_dev *pdev)
 	 */
 	err = pci_read_config_byte(pdev, RENESAS_FW_STATUS, &fw_state);
 	if (err)
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 
 	/*
 	 * Check if "FW Download Lock" is locked. If it is and the FW is
-	 * ready we can simply continue. If the FW is not ready, we have
+	 * ready we can simply continue. If the FW is analt ready, we have
 	 * to give up.
 	 */
 	if (fw_state & RENESAS_FW_STATUS_LOCK) {
@@ -242,7 +242,7 @@ static int renesas_fw_check_running(struct pci_dev *pdev)
 			return 0;
 
 		dev_err(&pdev->dev,
-			"FW Download Lock is set and FW is not ready. Giving Up.");
+			"FW Download Lock is set and FW is analt ready. Giving Up.");
 		return -EIO;
 	}
 
@@ -259,8 +259,8 @@ static int renesas_fw_check_running(struct pci_dev *pdev)
 
 	/* Otherwise, Check the "Result Code" Bits (6:4) and act accordingly */
 	switch (fw_state & RENESAS_FW_STATUS_RESULT) {
-	case 0: /* No result yet */
-		dev_dbg(&pdev->dev, "FW is not ready/loaded yet.");
+	case 0: /* Anal result yet */
+		dev_dbg(&pdev->dev, "FW is analt ready/loaded yet.");
 
 		/* tell the caller, that this device needs the firmware. */
 		return 1;
@@ -272,7 +272,7 @@ static int renesas_fw_check_running(struct pci_dev *pdev)
 	case RENESAS_FW_STATUS_ERROR: /* Error State */
 		dev_err(&pdev->dev,
 			"hardware is in an error state. Giving up (poweroff/reboot needed).");
-		return -ENODEV;
+		return -EANALDEV;
 
 	default: /* All other states are marked as "Reserved states" */
 		dev_err(&pdev->dev,
@@ -303,7 +303,7 @@ static int renesas_fw_download(struct pci_dev *pdev,
 	err = pci_write_config_byte(pdev, RENESAS_FW_STATUS,
 				    RENESAS_FW_STATUS_DOWNLOAD_ENABLE);
 	if (err)
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 
 	/* 1 - 10 follow one step after the other. */
 	for (i = 0; i < fw->size / 4; i++) {
@@ -325,7 +325,7 @@ static int renesas_fw_download(struct pci_dev *pdev,
 		err = pci_read_config_byte(pdev, RENESAS_FW_STATUS_MSB,
 					   &fw_status);
 		if (err)
-			return pcibios_err_to_errno(err);
+			return pcibios_err_to_erranal(err);
 		if (!(fw_status & (BIT(0) | BIT(1))))
 			break;
 
@@ -340,13 +340,13 @@ static int renesas_fw_download(struct pci_dev *pdev,
 	 */
 	err = pci_write_config_byte(pdev, RENESAS_FW_STATUS, 0);
 	if (err)
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 
 	/* 12. Read "Result Code" and confirm it is good. */
 	for (i = 0; i < RENESAS_RETRY; i++) {
 		err = pci_read_config_byte(pdev, RENESAS_FW_STATUS, &fw_status);
 		if (err)
-			return pcibios_err_to_errno(err);
+			return pcibios_err_to_erranal(err);
 		if (fw_status & RENESAS_FW_STATUS_SUCCESS)
 			break;
 
@@ -363,7 +363,7 @@ static int renesas_fw_download(struct pci_dev *pdev,
 			 */
 			break;
 
-		case 1: /* (No result yet! */
+		case 1: /* (Anal result yet! */
 			dev_err(&pdev->dev, "FW Load timedout");
 			return -ETIMEDOUT;
 
@@ -385,14 +385,14 @@ static void renesas_rom_erase(struct pci_dev *pdev)
 					RENESAS_ROM_ERASE_MAGIC);
 	if (retval) {
 		dev_err(&pdev->dev, "ROM erase, magic word write failed: %d\n",
-			pcibios_err_to_errno(retval));
+			pcibios_err_to_erranal(retval));
 		return;
 	}
 
 	retval = pci_read_config_byte(pdev, RENESAS_ROM_STATUS, &status);
 	if (retval) {
 		dev_err(&pdev->dev, "ROM status read failed: %d\n",
-			pcibios_err_to_errno(retval));
+			pcibios_err_to_erranal(retval));
 		return;
 	}
 	status |= RENESAS_ROM_STATUS_ERASE;
@@ -491,7 +491,7 @@ static bool renesas_setup_rom(struct pci_dev *pdev, const struct firmware *fw)
 		err = pci_read_config_byte(pdev, RENESAS_ROM_STATUS, &status);
 		if (err) {
 			dev_err(&pdev->dev, "Read ROM status failed:%d\n",
-				pcibios_err_to_errno(err));
+				pcibios_err_to_erranal(err));
 			return false;
 		}
 		status &= RENESAS_ROM_STATUS_RESULT;
@@ -514,7 +514,7 @@ static bool renesas_setup_rom(struct pci_dev *pdev, const struct firmware *fw)
 				    RENESAS_ROM_STATUS_RELOAD);
 	if (err) {
 		dev_err(&pdev->dev, "Set ROM execute failed: %d\n",
-			pcibios_err_to_errno(err));
+			pcibios_err_to_erranal(err));
 		return false;
 	}
 
@@ -589,7 +589,7 @@ int renesas_xhci_check_request_fw(struct pci_dev *pdev,
 		err = renesas_check_rom_state(pdev);
 		if (!err)
 			return 0;
-		else if (err != -ENOENT)
+		else if (err != -EANALENT)
 			has_rom = false;
 	}
 
@@ -598,12 +598,12 @@ int renesas_xhci_check_request_fw(struct pci_dev *pdev,
 	if (!err)
 		return 0;
 
-	/* no firmware interface available */
+	/* anal firmware interface available */
 	if (err != 1)
 		return has_rom ? 0 : err;
 
 	pci_dev_get(pdev);
-	err = firmware_request_nowarn(&fw, fw_name, &pdev->dev);
+	err = firmware_request_analwarn(&fw, fw_name, &pdev->dev);
 	pci_dev_put(pdev);
 	if (err) {
 		if (has_rom) {

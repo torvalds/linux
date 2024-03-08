@@ -5,7 +5,7 @@
 #include "buckets.h"
 #include "error.h"
 #include "extents.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "io_misc.h"
 #include "io_write.h"
 #include "rebalance.h"
@@ -61,7 +61,7 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 	struct bkey_s_c_reflink_p r = bkey_s_c_to_reflink_p(_r);
 
 	/*
-	 * Disabled for now, the triggers code needs to be reworked for merging
+	 * Disabled for analw, the triggers code needs to be reworked for merging
 	 * of reflink pointers to work:
 	 */
 	return false;
@@ -85,7 +85,7 @@ static int trans_trigger_reflink_p_segment(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	k = bch2_bkey_get_mut_noupdate(trans, &iter,
+	k = bch2_bkey_get_mut_analupdate(trans, &iter,
 			BTREE_ID_reflink, POS(0, *idx),
 			BTREE_ITER_WITH_UPDATES);
 	ret = PTR_ERR_OR_ZERO(k);
@@ -96,7 +96,7 @@ static int trans_trigger_reflink_p_segment(struct btree_trans *trans,
 	if (!refcount) {
 		bch2_bkey_val_to_text(&buf, c, p.s_c);
 		bch2_trans_inconsistent(trans,
-			"nonexistent indirect extent at %llu while marking\n  %s",
+			"analnexistent indirect extent at %llu while marking\n  %s",
 			*idx, buf.buf);
 		ret = -EIO;
 		goto err;
@@ -154,26 +154,26 @@ static s64 gc_trigger_reflink_p_segment(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 
 	if (r_idx >= c->reflink_gc_nr)
-		goto not_found;
+		goto analt_found;
 
 	r = genradix_ptr(&c->reflink_gc_table, r_idx);
 	next_idx = min(next_idx, r->offset - r->size);
 	if (*idx < next_idx)
-		goto not_found;
+		goto analt_found;
 
 	BUG_ON((s64) r->refcount + add < 0);
 
 	r->refcount += add;
 	*idx = r->offset;
 	return 0;
-not_found:
+analt_found:
 	if (fsck_err(c, reflink_p_to_missing_reflink_v,
 		     "pointer to missing indirect extent\n"
 		     "  %s\n"
 		     "  missing range %llu-%llu",
 		     (bch2_bkey_val_to_text(&buf, c, p.s_c), buf.buf),
 		     *idx, next_idx)) {
-		struct bkey_i *update = bch2_bkey_make_mut_noupdate(trans, p.s_c);
+		struct bkey_i *update = bch2_bkey_make_mut_analupdate(trans, p.s_c);
 		ret = PTR_ERR_OR_ZERO(update);
 		if (ret)
 			goto err;
@@ -190,7 +190,7 @@ not_found:
 			set_bkey_val_u64s(&update->k, 0);
 		}
 
-		ret = bch2_btree_insert_trans(trans, BTREE_ID_extents, update, BTREE_TRIGGER_NORUN);
+		ret = bch2_btree_insert_trans(trans, BTREE_ID_extents, update, BTREE_TRIGGER_ANALRUN);
 	}
 
 	*idx = next_idx;
@@ -379,14 +379,14 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 
 	/*
 	 * orig is in a bkey_buf which statically allocates 5 64s for the val,
-	 * so we know it will be big enough:
+	 * so we kanalw it will be big eanalugh:
 	 */
 	orig->k.type = KEY_TYPE_reflink_p;
 	r_p = bkey_i_to_reflink_p(orig);
 	set_bkey_val_bytes(&r_p->k, sizeof(r_p->v));
 
 	/* FORTIFY_SOURCE is broken here, and doesn't provide unsafe_memset() */
-#if !defined(__NO_FORTIFY) && defined(__OPTIMIZE__) && defined(CONFIG_FORTIFY_SOURCE)
+#if !defined(__ANAL_FORTIFY) && defined(__OPTIMIZE__) && defined(CONFIG_FORTIFY_SOURCE)
 	__underlying_memset(&r_p->v, 0, sizeof(r_p->v));
 #else
 	memset(&r_p->v, 0, sizeof(r_p->v));
@@ -395,7 +395,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	r_p->v.idx = cpu_to_le64(bkey_start_offset(&r_v->k));
 
 	ret = bch2_trans_update(trans, extent_iter, &r_p->k_i,
-				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE);
 err:
 	bch2_trans_iter_exit(trans, &reflink_iter);
 
@@ -407,7 +407,7 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_upto_continue_norestart(*iter, end, 0, k, ret) {
+	for_each_btree_key_upto_continue_analrestart(*iter, end, 0, k, ret) {
 		if (bkey_extent_is_unwritten(k))
 			continue;
 
@@ -440,7 +440,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	int ret = 0, ret2 = 0;
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_reflink))
-		return -BCH_ERR_erofs_no_writes;
+		return -BCH_ERR_erofs_anal_writes;
 
 	bch2_check_set_feature(c, BCH_FEATURE_reflink);
 
@@ -494,7 +494,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 		}
 
 		dst_done = dst_iter.pos.offset - dst_start.offset;
-		src_want = POS(src_start.inode, src_start.offset + dst_done);
+		src_want = POS(src_start.ianalde, src_start.offset + dst_done);
 		bch2_btree_iter_set_pos(&src_iter, src_want);
 
 		src_k = get_next_src(&src_iter, src_end);
@@ -562,23 +562,23 @@ s64 bch2_remap_range(struct bch_fs *c,
 	new_i_size = min(dst_iter.pos.offset << 9, new_i_size);
 
 	do {
-		struct bch_inode_unpacked inode_u;
-		struct btree_iter inode_iter = { NULL };
+		struct bch_ianalde_unpacked ianalde_u;
+		struct btree_iter ianalde_iter = { NULL };
 
 		bch2_trans_begin(trans);
 
-		ret2 = bch2_inode_peek(trans, &inode_iter, &inode_u,
+		ret2 = bch2_ianalde_peek(trans, &ianalde_iter, &ianalde_u,
 				       dst_inum, BTREE_ITER_INTENT);
 
 		if (!ret2 &&
-		    inode_u.bi_size < new_i_size) {
-			inode_u.bi_size = new_i_size;
-			ret2  = bch2_inode_write(trans, &inode_iter, &inode_u) ?:
+		    ianalde_u.bi_size < new_i_size) {
+			ianalde_u.bi_size = new_i_size;
+			ret2  = bch2_ianalde_write(trans, &ianalde_iter, &ianalde_u) ?:
 				bch2_trans_commit(trans, NULL, NULL,
-						  BCH_TRANS_COMMIT_no_enospc);
+						  BCH_TRANS_COMMIT_anal_eanalspc);
 		}
 
-		bch2_trans_iter_exit(trans, &inode_iter);
+		bch2_trans_iter_exit(trans, &ianalde_iter);
 	} while (bch2_err_matches(ret2, BCH_ERR_transaction_restart));
 err:
 	bch2_trans_put(trans);

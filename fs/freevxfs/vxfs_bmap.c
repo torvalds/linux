@@ -11,11 +11,11 @@
 #include <linux/kernel.h>
 
 #include "vxfs.h"
-#include "vxfs_inode.h"
+#include "vxfs_ianalde.h"
 #include "vxfs_extern.h"
 
 
-#ifdef DIAGNOSTIC
+#ifdef DIAGANALSTIC
 static void
 vxfs_typdump(struct vxfs_typed *typ)
 {
@@ -28,22 +28,22 @@ vxfs_typdump(struct vxfs_typed *typ)
 
 /**
  * vxfs_bmap_ext4 - do bmap for ext4 extents
- * @ip:		pointer to the inode we do bmap for
+ * @ip:		pointer to the ianalde we do bmap for
  * @bn:		logical block.
  *
  * Description:
- *   vxfs_bmap_ext4 performs the bmap operation for inodes with
+ *   vxfs_bmap_ext4 performs the bmap operation for ianaldes with
  *   ext4-style extents (which are much like the traditional UNIX
- *   inode organisation).
+ *   ianalde organisation).
  *
  * Returns:
  *   The physical block number on success, else Zero.
  */
 static daddr_t
-vxfs_bmap_ext4(struct inode *ip, long bn)
+vxfs_bmap_ext4(struct ianalde *ip, long bn)
 {
 	struct super_block *sb = ip->i_sb;
-	struct vxfs_inode_info *vip = VXFS_INO(ip);
+	struct vxfs_ianalde_info *vip = VXFS_IANAL(ip);
 	struct vxfs_sb_info *sbi = VXFS_SBI(sb);
 	unsigned long bsize = sb->s_blocksize;
 	u32 indsize = fs32_to_cpu(sbi, vip->vii_ext4.ve4_indsize);
@@ -61,7 +61,7 @@ vxfs_bmap_ext4(struct inode *ip, long bn)
 
 	if ((bn / (indsize * indsize * bsize / 4)) == 0) {
 		struct buffer_head *buf;
-		daddr_t	bno;
+		daddr_t	banal;
 		__fs32 *indir;
 
 		buf = sb_bread(sb,
@@ -70,13 +70,13 @@ vxfs_bmap_ext4(struct inode *ip, long bn)
 			goto fail_buf;
 
 		indir = (__fs32 *)buf->b_data;
-		bno = fs32_to_cpu(sbi, indir[(bn / indsize) % (indsize * bn)]) +
+		banal = fs32_to_cpu(sbi, indir[(bn / indsize) % (indsize * bn)]) +
 			(bn % indsize);
 
 		brelse(buf);
-		return bno;
+		return banal;
 	} else
-		printk(KERN_WARNING "no matching indir?");
+		printk(KERN_WARNING "anal matching indir?");
 
 	return 0;
 
@@ -88,7 +88,7 @@ fail_buf:
 
 /**
  * vxfs_bmap_indir - recursion for vxfs_bmap_typed
- * @ip:		pointer to the inode we do bmap for
+ * @ip:		pointer to the ianalde we do bmap for
  * @indir:	indirect block we start reading at
  * @size:	size of the typed area to search
  * @block:	partially result from further searches
@@ -100,11 +100,11 @@ fail_buf:
  * Returns:
  *   The physical block number on success, else Zero.
  *
- * Note:
+ * Analte:
  *   Kernelstack is rare.  Unrecurse?
  */
 static daddr_t
-vxfs_bmap_indir(struct inode *ip, long indir, int size, long block)
+vxfs_bmap_indir(struct ianalde *ip, long indir, int size, long block)
 {
 	struct vxfs_sb_info		*sbi = VXFS_SBI(ip->i_sb);
 	struct buffer_head		*bp = NULL;
@@ -173,7 +173,7 @@ out:
 
 /**
  * vxfs_bmap_typed - bmap for typed extents
- * @ip:		pointer to the inode we do bmap for
+ * @ip:		pointer to the ianalde we do bmap for
  * @iblock:	logical block
  *
  * Description:
@@ -183,9 +183,9 @@ out:
  *   The physical block number on success, else Zero.
  */
 static daddr_t
-vxfs_bmap_typed(struct inode *ip, long iblock)
+vxfs_bmap_typed(struct ianalde *ip, long iblock)
 {
-	struct vxfs_inode_info		*vip = VXFS_INO(ip);
+	struct vxfs_ianalde_info		*vip = VXFS_IANAL(ip);
 	struct vxfs_sb_info		*sbi = VXFS_SBI(ip->i_sb);
 	daddr_t				pblock = 0;
 	int				i;
@@ -195,7 +195,7 @@ vxfs_bmap_typed(struct inode *ip, long iblock)
 		u64			hdr = fs64_to_cpu(sbi, typ->vt_hdr);
 		int64_t			off = (hdr & VXFS_TYPED_OFFSETMASK);
 
-#ifdef DIAGNOSTIC
+#ifdef DIAGANALSTIC
 		vxfs_typdump(typ);
 #endif
 		if (iblock < off)
@@ -236,7 +236,7 @@ vxfs_bmap_typed(struct inode *ip, long iblock)
 
 /**
  * vxfs_bmap1 - vxfs-internal bmap operation
- * @ip:			pointer to the inode we do bmap for
+ * @ip:			pointer to the ianalde we do bmap for
  * @iblock:		logical block
  *
  * Description:
@@ -247,25 +247,25 @@ vxfs_bmap_typed(struct inode *ip, long iblock)
  *   The physical block number on success, else Zero.
  */
 daddr_t
-vxfs_bmap1(struct inode *ip, long iblock)
+vxfs_bmap1(struct ianalde *ip, long iblock)
 {
-	struct vxfs_inode_info		*vip = VXFS_INO(ip);
+	struct vxfs_ianalde_info		*vip = VXFS_IANAL(ip);
 
 	if (VXFS_ISEXT4(vip))
 		return vxfs_bmap_ext4(ip, iblock);
 	if (VXFS_ISTYPED(vip))
 		return vxfs_bmap_typed(ip, iblock);
-	if (VXFS_ISNONE(vip))
+	if (VXFS_ISANALNE(vip))
 		goto unsupp;
 	if (VXFS_ISIMMED(vip))
 		goto unsupp;
 
-	printk(KERN_WARNING "vxfs: inode %ld has no valid orgtype (%x)\n",
-			ip->i_ino, vip->vii_orgtype);
+	printk(KERN_WARNING "vxfs: ianalde %ld has anal valid orgtype (%x)\n",
+			ip->i_ianal, vip->vii_orgtype);
 	BUG();
 
 unsupp:
-	printk(KERN_WARNING "vxfs: inode %ld has an unsupported orgtype (%x)\n",
-			ip->i_ino, vip->vii_orgtype);
+	printk(KERN_WARNING "vxfs: ianalde %ld has an unsupported orgtype (%x)\n",
+			ip->i_ianal, vip->vii_orgtype);
 	return 0;
 }

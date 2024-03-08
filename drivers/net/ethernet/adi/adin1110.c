@@ -165,7 +165,7 @@ struct adin1110_priv {
 
 struct adin1110_switchdev_event_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_analtifier_fdb_info fdb_info;
 	struct adin1110_port_priv *port_priv;
 	unsigned long event;
 };
@@ -283,7 +283,7 @@ static int adin1110_round_len(int len)
 	/* can read/write only mutiples of 4 bytes of payload */
 	len = ALIGN(len, 4);
 
-	/* NOTE: ADIN1110_WR_HEADER_LEN should be used for write ops. */
+	/* ANALTE: ADIN1110_WR_HEADER_LEN should be used for write ops. */
 	if (len + ADIN1110_RD_HEADER_LEN > ADIN1110_MAX_BUFF)
 		return -EINVAL;
 
@@ -295,7 +295,7 @@ static int adin1110_read_fifo(struct adin1110_port_priv *port_priv)
 	struct adin1110_priv *priv = port_priv->priv;
 	u32 header_len = ADIN1110_RD_HEADER_LEN;
 	struct spi_transfer t = {0};
-	u32 frame_size_no_fcs;
+	u32 frame_size_anal_fcs;
 	struct sk_buff *rxb;
 	u32 frame_size;
 	int round_len;
@@ -324,7 +324,7 @@ static int adin1110_read_fifo(struct adin1110_port_priv *port_priv)
 	if (round_len < 0)
 		return ret;
 
-	frame_size_no_fcs = frame_size - ADIN1110_FRAME_HEADER_LEN - ADIN1110_FEC_LEN;
+	frame_size_anal_fcs = frame_size - ADIN1110_FRAME_HEADER_LEN - ADIN1110_FEC_LEN;
 	memset(priv->data, 0, ADIN1110_RD_HEADER_LEN);
 
 	priv->data[0] = ADIN1110_CD | FIELD_GET(GENMASK(12, 8), reg);
@@ -337,9 +337,9 @@ static int adin1110_read_fifo(struct adin1110_port_priv *port_priv)
 
 	rxb = netdev_alloc_skb(port_priv->netdev, round_len + header_len);
 	if (!rxb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	skb_put(rxb, frame_size_no_fcs + header_len + ADIN1110_FRAME_HEADER_LEN);
+	skb_put(rxb, frame_size_anal_fcs + header_len + ADIN1110_FRAME_HEADER_LEN);
 
 	t.tx_buf = &priv->data[0];
 	t.rx_buf = &rxb->data[0];
@@ -378,7 +378,7 @@ static int adin1110_write_fifo(struct adin1110_port_priv *port_priv,
 	int ret;
 
 	/* Pad frame to 64 byte length,
-	 * MAC nor PHY will otherwise add the
+	 * MAC analr PHY will otherwise add the
 	 * required padding.
 	 * The FEC will be added by the MAC internally.
 	 */
@@ -444,7 +444,7 @@ static int adin1110_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	int ret;
 
 	if (mdio_phy_id_is_c45(phy_id))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	val |= FIELD_PREP(ADIN1110_MDIO_OP, ADIN1110_MDIO_OP_RD);
 	val |= FIELD_PREP(ADIN1110_MDIO_ST, 0x1);
@@ -480,7 +480,7 @@ static int adin1110_mdio_write(struct mii_bus *bus, int phy_id,
 	int ret;
 
 	if (mdio_phy_id_is_c45(phy_id))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	val |= FIELD_PREP(ADIN1110_MDIO_OP, ADIN1110_MDIO_OP_WR);
 	val |= FIELD_PREP(ADIN1110_MDIO_ST, 0x1);
@@ -512,7 +512,7 @@ static int adin1110_register_mdiobus(struct adin1110_priv *priv,
 
 	mii_bus = devm_mdiobus_alloc(dev);
 	if (!mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(priv->mii_bus_name, MII_BUS_ID_SIZE, "%s-%u",
 		 priv->cfg->name, spi_get_chipselect(priv->spidev, 0));
@@ -757,7 +757,7 @@ static int adin1110_set_mac_address(struct net_device *netdev,
 	u32 mac_slot;
 
 	if (!is_valid_ether_addr(dev_addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(netdev, dev_addr);
 	eth_broadcast_addr(mask);
@@ -838,7 +838,7 @@ static bool adin1110_can_offload_forwarding(struct adin1110_priv *priv)
 	if (priv->cfg->id != ADIN2111_MAC)
 		return false;
 
-	/* Can't enable forwarding if ports do not belong to the same bridge */
+	/* Can't enable forwarding if ports do analt belong to the same bridge */
 	if (priv->ports[0]->bridge != priv->ports[1]->bridge || !priv->ports[0]->bridge)
 		return false;
 
@@ -915,7 +915,7 @@ static int adin1110_net_open(struct net_device *net_dev)
 	port_priv->state = BR_STATE_FORWARDING;
 	ret = adin1110_set_mac_address(net_dev, net_dev->dev_addr);
 	if (ret < 0) {
-		netdev_err(net_dev, "Could not set MAC address: %pM, %d\n",
+		netdev_err(net_dev, "Could analt set MAC address: %pM, %d\n",
 			   net_dev->dev_addr, ret);
 		goto out;
 	}
@@ -1189,16 +1189,16 @@ static bool adin1110_port_dev_check(const struct net_device *dev)
 	return dev->netdev_ops == &adin1110_netdev_ops;
 }
 
-static int adin1110_netdevice_event(struct notifier_block *unused,
+static int adin1110_netdevice_event(struct analtifier_block *unused,
 				    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct adin1110_port_priv *port_priv = netdev_priv(dev);
-	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netdev_analtifier_changeupper_info *info = ptr;
 	int ret = 0;
 
 	if (!adin1110_port_dev_check(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
@@ -1213,11 +1213,11 @@ static int adin1110_netdevice_event(struct notifier_block *unused,
 		break;
 	}
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-static struct notifier_block adin1110_netdevice_nb = {
-	.notifier_call = adin1110_netdevice_event,
+static struct analtifier_block adin1110_netdevice_nb = {
+	.analtifier_call = adin1110_netdevice_event,
 };
 
 static void adin1110_disconnect_phy(void *data)
@@ -1281,7 +1281,7 @@ out:
 	return ret;
 }
 
-/* ADIN1110/2111 does not have any native STP support.
+/* ADIN1110/2111 does analt have any native STP support.
  * Listen for bridge core state changes and
  * allow all frames to pass or only the BPDUs.
  */
@@ -1312,15 +1312,15 @@ static int adin1110_port_attr_set(struct net_device *dev, const void *ctx,
 		return adin1110_port_attr_stp_state_set(port_priv,
 							attr->u.stp_state);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
-static int adin1110_switchdev_blocking_event(struct notifier_block *unused,
+static int adin1110_switchdev_blocking_event(struct analtifier_block *unused,
 					     unsigned long event,
 					     void *ptr)
 {
-	struct net_device *netdev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = switchdev_analtifier_info_to_dev(ptr);
 	int ret;
 
 	if (event == SWITCHDEV_PORT_ATTR_SET) {
@@ -1328,30 +1328,30 @@ static int adin1110_switchdev_blocking_event(struct notifier_block *unused,
 						     adin1110_port_dev_check,
 						     adin1110_port_attr_set);
 
-		return notifier_from_errno(ret);
+		return analtifier_from_erranal(ret);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block adin1110_switchdev_blocking_notifier = {
-	.notifier_call = adin1110_switchdev_blocking_event,
+static struct analtifier_block adin1110_switchdev_blocking_analtifier = {
+	.analtifier_call = adin1110_switchdev_blocking_event,
 };
 
-static void adin1110_fdb_offload_notify(struct net_device *netdev,
-					struct switchdev_notifier_fdb_info *rcv)
+static void adin1110_fdb_offload_analtify(struct net_device *netdev,
+					struct switchdev_analtifier_fdb_info *rcv)
 {
-	struct switchdev_notifier_fdb_info info = {};
+	struct switchdev_analtifier_fdb_info info = {};
 
 	info.addr = rcv->addr;
 	info.vid = rcv->vid;
 	info.offloaded = true;
-	call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED,
+	call_switchdev_analtifiers(SWITCHDEV_FDB_OFFLOADED,
 				 netdev, &info.info, NULL);
 }
 
 static int adin1110_fdb_add(struct adin1110_port_priv *port_priv,
-			    struct switchdev_notifier_fdb_info *fdb)
+			    struct switchdev_analtifier_fdb_info *fdb)
 {
 	struct adin1110_priv *priv = port_priv->priv;
 	struct adin1110_port_priv *other_port;
@@ -1382,7 +1382,7 @@ static int adin1110_fdb_add(struct adin1110_port_priv *port_priv,
 	}
 
 	if (mac_nr == ADIN_MAC_MAX_ADDR_SLOTS)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	other_port = priv->ports[!port_priv->nr];
 	port_rules = adin1110_port_rules(other_port, false, true);
@@ -1413,7 +1413,7 @@ static int adin1110_read_mac(struct adin1110_priv *priv, int mac_nr, u8 *addr)
 }
 
 static int adin1110_fdb_del(struct adin1110_port_priv *port_priv,
-			    struct switchdev_notifier_fdb_info *fdb)
+			    struct switchdev_analtifier_fdb_info *fdb)
 {
 	struct adin1110_priv *priv = port_priv->priv;
 	u8 addr[ETH_ALEN];
@@ -1458,7 +1458,7 @@ static void adin1110_switchdev_event_work(struct work_struct *work)
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		ret = adin1110_fdb_add(port_priv, &switchdev_work->fdb_info);
 		if (!ret)
-			adin1110_fdb_offload_notify(port_priv->netdev,
+			adin1110_fdb_offload_analtify(port_priv->netdev,
 						    &switchdev_work->fdb_info);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
@@ -1476,20 +1476,20 @@ static void adin1110_switchdev_event_work(struct work_struct *work)
 }
 
 /* called under rcu_read_lock() */
-static int adin1110_switchdev_event(struct notifier_block *unused,
+static int adin1110_switchdev_event(struct analtifier_block *unused,
 				    unsigned long event, void *ptr)
 {
-	struct net_device *netdev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = switchdev_analtifier_info_to_dev(ptr);
 	struct adin1110_port_priv *port_priv = netdev_priv(netdev);
 	struct adin1110_switchdev_event_work *switchdev_work;
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct switchdev_analtifier_fdb_info *fdb_info = ptr;
 
 	if (!adin1110_port_dev_check(netdev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
 	if (WARN_ON(!switchdev_work))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	INIT_WORK(&switchdev_work->work, adin1110_switchdev_event_work);
 	switchdev_work->port_priv = port_priv;
@@ -1511,52 +1511,52 @@ static int adin1110_switchdev_event(struct notifier_block *unused,
 		break;
 	default:
 		kfree(switchdev_work);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	queue_work(system_long_wq, &switchdev_work->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 
 err_addr_alloc:
 	kfree(switchdev_work);
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
-static struct notifier_block adin1110_switchdev_notifier = {
-	.notifier_call = adin1110_switchdev_event,
+static struct analtifier_block adin1110_switchdev_analtifier = {
+	.analtifier_call = adin1110_switchdev_event,
 };
 
-static void adin1110_unregister_notifiers(void)
+static void adin1110_unregister_analtifiers(void)
 {
-	unregister_switchdev_blocking_notifier(&adin1110_switchdev_blocking_notifier);
-	unregister_switchdev_notifier(&adin1110_switchdev_notifier);
-	unregister_netdevice_notifier(&adin1110_netdevice_nb);
+	unregister_switchdev_blocking_analtifier(&adin1110_switchdev_blocking_analtifier);
+	unregister_switchdev_analtifier(&adin1110_switchdev_analtifier);
+	unregister_netdevice_analtifier(&adin1110_netdevice_nb);
 }
 
-static int adin1110_setup_notifiers(void)
+static int adin1110_setup_analtifiers(void)
 {
 	int ret;
 
-	ret = register_netdevice_notifier(&adin1110_netdevice_nb);
+	ret = register_netdevice_analtifier(&adin1110_netdevice_nb);
 	if (ret < 0)
 		return ret;
 
-	ret = register_switchdev_notifier(&adin1110_switchdev_notifier);
+	ret = register_switchdev_analtifier(&adin1110_switchdev_analtifier);
 	if (ret < 0)
 		goto err_netdev;
 
-	ret = register_switchdev_blocking_notifier(&adin1110_switchdev_blocking_notifier);
+	ret = register_switchdev_blocking_analtifier(&adin1110_switchdev_blocking_analtifier);
 	if (ret < 0)
 		goto err_sdev;
 
 	return 0;
 
 err_sdev:
-	unregister_switchdev_notifier(&adin1110_switchdev_notifier);
+	unregister_switchdev_analtifier(&adin1110_switchdev_analtifier);
 
 err_netdev:
-	unregister_netdevice_notifier(&adin1110_netdevice_nb);
+	unregister_netdevice_analtifier(&adin1110_netdevice_nb);
 
 	return ret;
 }
@@ -1572,7 +1572,7 @@ static int adin1110_probe_netdevs(struct adin1110_priv *priv)
 	for (i = 0; i < priv->cfg->ports_nr; i++) {
 		netdev = devm_alloc_etherdev(dev, sizeof(*port_priv));
 		if (!netdev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		port_priv = netdev_priv(netdev);
 		port_priv->netdev = netdev;
@@ -1601,7 +1601,7 @@ static int adin1110_probe_netdevs(struct adin1110_priv *priv)
 
 		port_priv->phydev = get_phy_device(priv->mii_bus, i + 1, false);
 		if (IS_ERR(port_priv->phydev)) {
-			netdev_err(netdev, "Could not find PHY with device address: %d.\n", i);
+			netdev_err(netdev, "Could analt find PHY with device address: %d.\n", i);
 			return PTR_ERR(port_priv->phydev);
 		}
 
@@ -1610,7 +1610,7 @@ static int adin1110_probe_netdevs(struct adin1110_priv *priv)
 						adin1110_adjust_link,
 						PHY_INTERFACE_MODE_INTERNAL);
 		if (IS_ERR(port_priv->phydev)) {
-			netdev_err(netdev, "Could not connect PHY with device address: %d.\n", i);
+			netdev_err(netdev, "Could analt connect PHY with device address: %d.\n", i);
 			return PTR_ERR(port_priv->phydev);
 		}
 
@@ -1648,7 +1648,7 @@ static int adin1110_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(dev, sizeof(struct adin1110_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->spidev = spi;
 	priv->cfg = &adin1110_cfgs[dev_id->driver_data];
@@ -1675,7 +1675,7 @@ static int adin1110_probe(struct spi_device *spi)
 
 	ret = adin1110_register_mdiobus(priv, dev);
 	if (ret < 0) {
-		dev_err(dev, "Could not register MDIO bus %d\n", ret);
+		dev_err(dev, "Could analt register MDIO bus %d\n", ret);
 		return ret;
 	}
 
@@ -1709,13 +1709,13 @@ static int __init adin1110_driver_init(void)
 {
 	int ret;
 
-	ret = adin1110_setup_notifiers();
+	ret = adin1110_setup_analtifiers();
 	if (ret < 0)
 		return ret;
 
 	ret = spi_register_driver(&adin1110_driver);
 	if (ret < 0) {
-		adin1110_unregister_notifiers();
+		adin1110_unregister_analtifiers();
 		return ret;
 	}
 
@@ -1724,7 +1724,7 @@ static int __init adin1110_driver_init(void)
 
 static void __exit adin1110_exit(void)
 {
-	adin1110_unregister_notifiers();
+	adin1110_unregister_analtifiers();
 	spi_unregister_driver(&adin1110_driver);
 }
 module_init(adin1110_driver_init);

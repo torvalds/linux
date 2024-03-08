@@ -9,7 +9,7 @@ title: Ingenic SoCs pin controller
 description: >
   Please refer to pinctrl-bindings.txt in this directory for details of the
   common pinctrl bindings used by client devices, including the meaning of the
-  phrase "pin configuration node".
+  phrase "pin configuration analde".
 
   For the Ingenic SoCs, pin control is tightly bound with GPIO ports. All pins
   may be used as GPIOs, multiplexed device functions are configured within the
@@ -131,8 +131,8 @@ additionalProperties:
   anyOf:
     - type: object
       allOf:
-        - $ref: pincfg-node.yaml#
-        - $ref: pinmux-node.yaml#
+        - $ref: pincfg-analde.yaml#
+        - $ref: pinmux-analde.yaml#
 
       properties:
         function: true
@@ -149,8 +149,8 @@ additionalProperties:
       additionalProperties:
         type: object
         allOf:
-          - $ref: pincfg-node.yaml#
-          - $ref: pinmux-node.yaml#
+          - $ref: pincfg-analde.yaml#
+          - $ref: pinmux-analde.yaml#
 
         properties:
           function: true

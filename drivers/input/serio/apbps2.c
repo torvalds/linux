@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/serio.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -60,7 +60,7 @@ static irqreturn_t apbps2_isr(int irq, void *dev_id)
 {
 	struct apbps2_priv *priv = dev_id;
 	unsigned long status, data, rxflags;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	while ((status = ioread32be(&priv->regs->status)) & APBPS2_STATUS_DR) {
 		data = ioread32be(&priv->regs->data);
@@ -136,7 +136,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	priv = devm_kzalloc(&ofdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&ofdev->dev, "memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Find Device Address */
@@ -148,7 +148,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	iowrite32be(0, &priv->regs->ctrl);
 
 	/* IRQ */
-	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(ofdev->dev.of_analde, 0);
 	err = devm_request_irq(&ofdev->dev, irq, apbps2_isr,
 				IRQF_SHARED, "apbps2", priv);
 	if (err) {
@@ -157,7 +157,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Get core frequency */
-	if (of_property_read_u32(ofdev->dev.of_node, "freq", &freq_hz)) {
+	if (of_property_read_u32(ofdev->dev.of_analde, "freq", &freq_hz)) {
 		dev_err(&ofdev->dev, "unable to get core frequency\n");
 		return -EINVAL;
 	}
@@ -167,7 +167,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 
 	priv->io = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!priv->io)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->io->id.type = SERIO_8042;
 	priv->io->open = apbps2_open;

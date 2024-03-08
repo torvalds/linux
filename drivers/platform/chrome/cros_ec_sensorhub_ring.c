@@ -28,7 +28,7 @@
 
 /*
  * If we don't have any history entries for this long, empty the filter to
- * make sure there are no big discontinuities.
+ * make sure there are anal big discontinuities.
  */
 #define TS_HISTORY_BORED_US 500000
 
@@ -103,8 +103,8 @@ EXPORT_SYMBOL_GPL(cros_ec_sensorhub_unregister_push_data);
  * @sensorhub: Sensor Hub object
  * @on: true when events are requested.
  *
- * To be called before sleeping or when no one is listening.
- * Return: 0 on success, or an error when we can not communicate with the EC.
+ * To be called before sleeping or when anal one is listening.
+ * Return: 0 on success, or an error when we can analt communicate with the EC.
  *
  */
 int cros_ec_sensorhub_ring_fifo_enable(struct cros_ec_sensorhub *sensorhub,
@@ -126,7 +126,7 @@ int cros_ec_sensorhub_ring_fifo_enable(struct cros_ec_sensorhub *sensorhub,
 	ret = cros_ec_cmd_xfer_status(sensorhub->ec->ec_dev, sensorhub->msg);
 	mutex_unlock(&sensorhub->cmd_lock);
 
-	/* We expect to receive a payload of 4 bytes, ignore. */
+	/* We expect to receive a payload of 4 bytes, iganalre. */
 	if (ret > 0)
 		ret = 0;
 
@@ -209,7 +209,7 @@ static s64 cros_ec_sensor_ring_median(s64 *array, size_t length)
  *   ddrfreq
  *   cpuidle
  *
- * Normally a' = c - b + a, but if we do that naive math any jitter in c
+ * Analrmally a' = c - b + a, but if we do that naive math any jitter in c
  * will get coupled in a', which we don't want. We want a function
  * a' = cros_ec_sensor_ring_ts_filter(a) which will filter out outliers in c.
  *
@@ -219,7 +219,7 @@ static s64 cros_ec_sensor_ring_median(s64 *array, size_t length)
  * voltage). We need to extrapolate values for a future x, without trusting
  * recent y values too much.
  *
- * We use a median filter for the slope, then another median filter for the
+ * We use a median filter for the slope, then aanalther median filter for the
  * y-intercept to calculate this function:
  *   dx[n] = x[n-1] - x[n]
  *   dy[n] = x[n-1] - x[n]
@@ -235,7 +235,7 @@ static s64 cros_ec_sensor_ring_median(s64 *array, size_t length)
  * - Since we don't have floating point, any operations involving slope are
  * done using fixed point math (*M_PRECISION)
  * - Since x and y grow with time, we keep zeroing the graph (relative to
- * the last sample), this way math involving *x[n-i] will not overflow
+ * the last sample), this way math involving *x[n-i] will analt overflow
  * - EC timestamps are kept in us, it improves the slope calculation precision
  */
 
@@ -336,7 +336,7 @@ cros_ec_sensor_ring_ts_filter_update(struct cros_ec_sensors_ts_filter_state
  * cros_ec_sensor_ring_ts_filter(b) => calculated timestamp when the EC IRQ
  *                           should have happened on the AP, with low jitter
  *
- * Note: The filter will only activate once state->history_len goes
+ * Analte: The filter will only activate once state->history_len goes
  * over TS_HISTORY_THRESHOLD. Otherwise it'll just do the naive c - b + a
  * transform.
  *
@@ -360,7 +360,7 @@ cros_ec_sensor_ring_ts_filter(struct cros_ec_sensors_ts_filter_state *state,
 
 /*
  * Since a and b were originally 32 bit values from the EC,
- * they overflow relatively often, casting is not enough, so we need to
+ * they overflow relatively often, casting is analt eanalugh, so we need to
  * add an offset.
  */
 static void
@@ -422,10 +422,10 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
 				struct ec_response_motion_sensor_data *in,
 				struct cros_ec_sensors_ring_sample *out)
 {
-	const s64 now = cros_ec_get_time_ns();
+	const s64 analw = cros_ec_get_time_ns();
 	int axis, async_flags;
 
-	/* Do not populate the filter based on asynchronous events. */
+	/* Do analt populate the filter based on asynchroanalus events. */
 	async_flags = in->flags &
 		(MOTIONSENSE_SENSOR_FLAG_ODR | MOTIONSENSE_SENSOR_FLAG_FLUSH);
 
@@ -463,7 +463,7 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
 						  fifo_info->timestamp,
 						  fifo_timestamp,
 						  *current_timestamp,
-						  now);
+						  analw);
 	}
 
 	if (in->flags & MOTIONSENSE_SENSOR_FLAG_ODR) {
@@ -472,7 +472,7 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
 			sensorhub->batch_state[in->sensor_num].penul_len = 0;
 		}
 		/*
-		 * ODR change is only useful for the sensor_ring, it does not
+		 * ODR change is only useful for the sensor_ring, it does analt
 		 * convey information to clients.
 		 */
 		return false;
@@ -485,7 +485,7 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
 		if (sensorhub->tight_timestamps)
 			sensorhub->batch_state[out->sensor_id].last_len = 0;
 		/*
-		 * No other payload information provided with
+		 * Anal other payload information provided with
 		 * flush ack.
 		 */
 		return true;
@@ -501,15 +501,15 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
 				     fifo_info->timestamp,
 				     fifo_timestamp,
 				     *current_timestamp,
-				     now);
+				     analw);
 
-	if (*current_timestamp - now > 0) {
+	if (*current_timestamp - analw > 0) {
 		/*
 		 * This fix is needed to overcome the timestamp filter putting
 		 * events in the future.
 		 */
 		sensorhub->future_timestamp_total_ns +=
-			*current_timestamp - now;
+			*current_timestamp - analw;
 		if (++sensorhub->future_timestamp_count ==
 				FUTURE_TS_ANALYTICS_COUNT_MAX) {
 			s64 avg = div_s64(sensorhub->future_timestamp_total_ns,
@@ -520,7 +520,7 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
 			sensorhub->future_timestamp_count = 0;
 			sensorhub->future_timestamp_total_ns = 0;
 		}
-		out->timestamp = now;
+		out->timestamp = analw;
 	} else {
 		out->timestamp = *current_timestamp;
 	}
@@ -550,7 +550,7 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
  * s0 int, 0ms
  * s1 int, 10ms
  * s2 int, 20ms
- * 30ms point goes by, no interrupt, previous one is still asserted
+ * 30ms point goes by, anal interrupt, previous one is still asserted
  * downloading s2 and s3
  * s3 sample, 20ms (incorrect timestamp)
  * s4 int, 40ms
@@ -561,7 +561,7 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
  * been part of a bigger batch things would have gotten a little
  * more complicated.
  *
- * Note: we also assume another sensor sample doesn't break up a batch
+ * Analte: we also assume aanalther sensor sample doesn't break up a batch
  * in 2 or more partitions. Example, there can't ever be a sync sensor
  * in between S2 and S3. This simplifies the following code.
  */
@@ -589,7 +589,7 @@ cros_ec_sensor_ring_spread_add(struct cros_ec_sensorhub *sensorhub,
 
 			/*
 			 * Skip over batches that start with the sensor types
-			 * we're not looking at right now.
+			 * we're analt looking at right analw.
 			 */
 			if (batch_start->sensor_id != id) {
 				next_batch_start = batch_start + 1;
@@ -597,8 +597,8 @@ cros_ec_sensor_ring_spread_add(struct cros_ec_sensorhub *sensorhub,
 			}
 
 			/*
-			 * Do not start a batch
-			 * from a flush, as it happens asynchronously to the
+			 * Do analt start a batch
+			 * from a flush, as it happens asynchroanalusly to the
 			 * regular flow of events.
 			 */
 			if (batch_start->flag & MOTIONSENSE_SENSOR_FLAG_FLUSH) {
@@ -660,8 +660,8 @@ cros_ec_sensor_ring_spread_add(struct cros_ec_sensorhub *sensorhub,
 					 id, batch_len - 1);
 				goto done_with_this_batch;
 				/*
-				 * Note: we're dropping the rest of the samples
-				 * in this batch since we have no idea where
+				 * Analte: we're dropping the rest of the samples
+				 * in this batch since we have anal idea where
 				 * they're supposed to go without a period
 				 * calculation.
 				 */
@@ -716,7 +716,7 @@ done_with_this_batch:
  * cros_ec_sensor_ring_spread_add_legacy: Calculate proper timestamps then
  * add to ringbuffer (legacy).
  *
- * Note: This assumes we're running old firmware, where timestamp
+ * Analte: This assumes we're running old firmware, where timestamp
  * is inserted after its sample(s)e. There can be several samples between
  * timestamps, so several samples can have the same timestamp.
  *
@@ -788,7 +788,7 @@ cros_ec_sensor_ring_spread_add_legacy(struct cros_ec_sensorhub *sensorhub,
  *
  * @sensorhub: Sensor Hub object.
  *
- * Called by the notifier, process the EC sensor FIFO queue.
+ * Called by the analtifier, process the EC sensor FIFO queue.
  */
 static void cros_ec_sensorhub_ring_handler(struct cros_ec_sensorhub *sensorhub)
 {
@@ -821,8 +821,8 @@ static void cros_ec_sensorhub_ring_handler(struct cros_ec_sensorhub *sensorhub)
 		       fifo_info_length);
 
 		/*
-		 * Update collection time, will not be as precise as the
-		 * non-error case.
+		 * Update collection time, will analt be as precise as the
+		 * analn-error case.
 		 */
 		fifo_timestamp = cros_ec_get_time_ns();
 	} else {
@@ -897,7 +897,7 @@ static void cros_ec_sensorhub_ring_handler(struct cros_ec_sensorhub *sensorhub)
 		goto ring_handler_end;
 
 	/*
-	 * Check if current_timestamp is ahead of the last sample. Normally,
+	 * Check if current_timestamp is ahead of the last sample. Analrmally,
 	 * the EC appends a timestamp after the last sample, but if the AP
 	 * is slow to respond to the IRQ, the EC may have added new samples.
 	 * Use the FIFO info timestamp as last timestamp then.
@@ -939,26 +939,26 @@ error:
 	mutex_unlock(&sensorhub->cmd_lock);
 }
 
-static int cros_ec_sensorhub_event(struct notifier_block *nb,
+static int cros_ec_sensorhub_event(struct analtifier_block *nb,
 				   unsigned long queued_during_suspend,
-				   void *_notify)
+				   void *_analtify)
 {
 	struct cros_ec_sensorhub *sensorhub;
 	struct cros_ec_device *ec_dev;
 
-	sensorhub = container_of(nb, struct cros_ec_sensorhub, notifier);
+	sensorhub = container_of(nb, struct cros_ec_sensorhub, analtifier);
 	ec_dev = sensorhub->ec->ec_dev;
 
 	if (ec_dev->event_data.event_type != EC_MKBP_EVENT_SENSOR_FIFO)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (ec_dev->event_size != sizeof(ec_dev->event_data.data.sensor_fifo)) {
 		dev_warn(ec_dev->dev, "Invalid fifo info size\n");
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	if (queued_during_suspend)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	memcpy(sensorhub->fifo_info, &ec_dev->event_data.data.sensor_fifo.info,
 	       sizeof(*sensorhub->fifo_info));
@@ -966,7 +966,7 @@ static int cros_ec_sensorhub_event(struct notifier_block *nb,
 		ec_dev->last_event_time;
 	cros_ec_sensorhub_ring_handler(sensorhub);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /**
@@ -987,7 +987,7 @@ int cros_ec_sensorhub_ring_allocate(struct cros_ec_sensorhub *sensorhub)
 	sensorhub->fifo_info = devm_kzalloc(sensorhub->dev, fifo_info_length,
 					    GFP_KERNEL);
 	if (!sensorhub->fifo_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Allocate the callback area based on the number of sensors.
@@ -998,7 +998,7 @@ int cros_ec_sensorhub_ring_allocate(struct cros_ec_sensorhub *sensorhub)
 			sizeof(*sensorhub->push_data),
 			GFP_KERNEL);
 	if (!sensorhub->push_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensorhub->tight_timestamps = cros_ec_check_features(
 			sensorhub->ec,
@@ -1010,7 +1010,7 @@ int cros_ec_sensorhub_ring_allocate(struct cros_ec_sensorhub *sensorhub)
 				sizeof(*sensorhub->batch_state),
 				GFP_KERNEL);
 		if (!sensorhub->batch_state)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1050,15 +1050,15 @@ int cros_ec_sensorhub_ring_add(struct cros_ec_sensorhub *sensorhub)
 	sensorhub->ring = devm_kcalloc(sensorhub->dev, sensorhub->fifo_size,
 				       sizeof(*sensorhub->ring), GFP_KERNEL);
 	if (!sensorhub->ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensorhub->fifo_timestamp[CROS_EC_SENSOR_LAST_TS] =
 		cros_ec_get_time_ns();
 
-	/* Register the notifier that will act as a top half interrupt. */
-	sensorhub->notifier.notifier_call = cros_ec_sensorhub_event;
-	ret = blocking_notifier_chain_register(&ec->ec_dev->event_notifier,
-					       &sensorhub->notifier);
+	/* Register the analtifier that will act as a top half interrupt. */
+	sensorhub->analtifier.analtifier_call = cros_ec_sensorhub_event;
+	ret = blocking_analtifier_chain_register(&ec->ec_dev->event_analtifier,
+					       &sensorhub->analtifier);
 	if (ret < 0)
 		return ret;
 
@@ -1071,8 +1071,8 @@ void cros_ec_sensorhub_ring_remove(void *arg)
 	struct cros_ec_sensorhub *sensorhub = arg;
 	struct cros_ec_device *ec_dev = sensorhub->ec->ec_dev;
 
-	/* Disable the ring, prevent EC interrupt to the AP for nothing. */
+	/* Disable the ring, prevent EC interrupt to the AP for analthing. */
 	cros_ec_sensorhub_ring_fifo_enable(sensorhub, false);
-	blocking_notifier_chain_unregister(&ec_dev->event_notifier,
-					   &sensorhub->notifier);
+	blocking_analtifier_chain_unregister(&ec_dev->event_analtifier,
+					   &sensorhub->analtifier);
 }

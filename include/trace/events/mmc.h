@@ -36,7 +36,7 @@ TRACE_EVENT(mmc_request_start,
 		__field(int,			tag)
 		__field(unsigned int,		can_retune)
 		__field(unsigned int,		doing_retune)
-		__field(unsigned int,		retune_now)
+		__field(unsigned int,		retune_analw)
 		__field(int,			need_retune)
 		__field(int,			hold_retune)
 		__field(unsigned int,		retune_period)
@@ -64,7 +64,7 @@ TRACE_EVENT(mmc_request_start,
 		__entry->tag = mrq->tag;
 		__entry->can_retune = host->can_retune;
 		__entry->doing_retune = host->doing_retune;
-		__entry->retune_now = host->retune_now;
+		__entry->retune_analw = host->retune_analw;
 		__entry->need_retune = host->need_retune;
 		__entry->hold_retune = host->hold_retune;
 		__entry->retune_period = host->retune_period;
@@ -77,7 +77,7 @@ TRACE_EVENT(mmc_request_start,
 		  "stop_opcode=%u stop_arg=0x%x stop_flags=0x%x stop_retries=%u "
 		  "sbc_opcode=%u sbc_arg=0x%x sbc_flags=0x%x sbc_retires=%u "
 		  "blocks=%u block_size=%u blk_addr=%u data_flags=0x%x "
-		  "tag=%d can_retune=%u doing_retune=%u retune_now=%u "
+		  "tag=%d can_retune=%u doing_retune=%u retune_analw=%u "
 		  "need_retune=%d hold_retune=%d retune_period=%u",
 		  __get_str(name), __entry->mrq,
 		  __entry->cmd_opcode, __entry->cmd_arg,
@@ -89,7 +89,7 @@ TRACE_EVENT(mmc_request_start,
 		  __entry->blocks, __entry->blksz,
 		  __entry->blk_addr, __entry->data_flags, __entry->tag,
 		  __entry->can_retune, __entry->doing_retune,
-		  __entry->retune_now, __entry->need_retune,
+		  __entry->retune_analw, __entry->need_retune,
 		  __entry->hold_retune, __entry->retune_period)
 );
 
@@ -117,7 +117,7 @@ TRACE_EVENT(mmc_request_done,
 		__field(int,			tag)
 		__field(unsigned int,		can_retune)
 		__field(unsigned int,		doing_retune)
-		__field(unsigned int,		retune_now)
+		__field(unsigned int,		retune_analw)
 		__field(int,			need_retune)
 		__field(int,			hold_retune)
 		__field(unsigned int,		retune_period)
@@ -152,7 +152,7 @@ TRACE_EVENT(mmc_request_done,
 		__entry->tag = mrq->tag;
 		__entry->can_retune = host->can_retune;
 		__entry->doing_retune = host->doing_retune;
-		__entry->retune_now = host->retune_now;
+		__entry->retune_analw = host->retune_analw;
 		__entry->need_retune = host->need_retune;
 		__entry->hold_retune = host->hold_retune;
 		__entry->retune_period = host->retune_period;
@@ -166,7 +166,7 @@ TRACE_EVENT(mmc_request_done,
 		  "stop_resp=0x%x 0x%x 0x%x 0x%x stop_retries=%u "
 		  "sbc_opcode=%u sbc_err=%d sbc_resp=0x%x 0x%x 0x%x 0x%x "
 		  "sbc_retries=%u bytes_xfered=%u data_err=%d tag=%d "
-		  "can_retune=%u doing_retune=%u retune_now=%u need_retune=%d "
+		  "can_retune=%u doing_retune=%u retune_analw=%u need_retune=%d "
 		  "hold_retune=%d retune_period=%u",
 		  __get_str(name), __entry->mrq,
 		  __entry->cmd_opcode, __entry->cmd_err,
@@ -183,7 +183,7 @@ TRACE_EVENT(mmc_request_done,
 		  __entry->sbc_retries,
 		  __entry->bytes_xfered, __entry->data_err, __entry->tag,
 		  __entry->can_retune, __entry->doing_retune,
-		  __entry->retune_now, __entry->need_retune,
+		  __entry->retune_analw, __entry->need_retune,
 		  __entry->hold_retune, __entry->retune_period)
 );
 

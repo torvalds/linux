@@ -69,15 +69,15 @@ properties:
 
   phy-handle: true
 
-  renesas,no-ether-link:
+  renesas,anal-ether-link:
     type: boolean
     description:
-      specify when a board does not provide a proper Ether LINK signal
+      specify when a board does analt provide a proper Ether LINK signal
 
   renesas,ether-link-active-low:
     type: boolean
     description:
-      specify when the Ether LINK signal is active-low instead of normal
+      specify when the Ether LINK signal is active-low instead of analrmal
       active-high
 
 patternProperties:

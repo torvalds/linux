@@ -4,7 +4,7 @@
 
 #include <uapi/asm/signal.h>
 
-/* Most things should be clean enough to redefine this at will, if care
+/* Most things should be clean eanalugh to redefine this at will, if care
    is taken to make libc match.  */
 
 #define _NSIG		64
@@ -21,7 +21,7 @@ typedef struct {
 
 #include <asm/sigcontext.h>
 
-#ifndef CONFIG_CPU_HAS_NO_BITFIELDS
+#ifndef CONFIG_CPU_HAS_ANAL_BITFIELDS
 #define __HAVE_ARCH_SIG_BITOPS
 
 static inline void sigaddset(sigset_t *set, int _sig)
@@ -61,6 +61,6 @@ static inline int __gen_sigismember(sigset_t *set, int _sig)
 	 __const_sigismember(set,sig) :		\
 	 __gen_sigismember(set,sig))
 
-#endif /* !CONFIG_CPU_HAS_NO_BITFIELDS */
+#endif /* !CONFIG_CPU_HAS_ANAL_BITFIELDS */
 
 #endif /* _M68K_SIGNAL_H */

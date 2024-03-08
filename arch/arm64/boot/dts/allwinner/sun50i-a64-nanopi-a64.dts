@@ -9,8 +9,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "FriendlyARM NanoPi A64";
-	compatible = "friendlyarm,nanopi-a64", "allwinner,sun50i-a64";
+	model = "FriendlyARM NaanalPi A64";
+	compatible = "friendlyarm,naanalpi-a64", "allwinner,sun50i-a64";
 
 	aliases {
 		ethernet0 = &emac;
@@ -36,14 +36,14 @@
 		compatible = "gpio-leds";
 
 		led {
-			label = "nanopi-a64:blue:status";
+			label = "naanalpi-a64:blue:status";
 			gpios = <&pio 3 24 GPIO_ACTIVE_LOW>; /* PD24 */
 		};
 	};
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "ext_clock";
 		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 */
 	};
@@ -126,7 +126,7 @@
 	vqmmc-supply = <&reg_dldo4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	rtl8189etv: wifi@1 {
@@ -233,9 +233,9 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip cananalt work without this regulator off, although
  * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
+ * Maybe we don't still kanalw well about CPUs domain.
  */
 &reg_fldo2 {
 	regulator-always-on;

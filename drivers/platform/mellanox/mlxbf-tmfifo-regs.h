@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2019, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2019, Mellaanalx Techanallogies. All rights reserved.
  */
 
 #ifndef __MLXBF_TMFIFO_REGS_H__

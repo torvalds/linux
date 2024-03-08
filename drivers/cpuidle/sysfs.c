@@ -18,15 +18,15 @@
 
 #include "cpuidle.h"
 
-static ssize_t show_available_governors(struct device *dev,
+static ssize_t show_available_goveranalrs(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
 	ssize_t i = 0;
-	struct cpuidle_governor *tmp;
+	struct cpuidle_goveranalr *tmp;
 
 	mutex_lock(&cpuidle_lock);
-	list_for_each_entry(tmp, &cpuidle_governors, governor_list) {
+	list_for_each_entry(tmp, &cpuidle_goveranalrs, goveranalr_list) {
 		if (i >= (ssize_t) (PAGE_SIZE - (CPUIDLE_NAME_LEN + 2)))
 			goto out;
 
@@ -51,35 +51,35 @@ static ssize_t show_current_driver(struct device *dev,
 	if (drv)
 		ret = sprintf(buf, "%s\n", drv->name);
 	else
-		ret = sprintf(buf, "none\n");
+		ret = sprintf(buf, "analne\n");
 	spin_unlock(&cpuidle_driver_lock);
 
 	return ret;
 }
 
-static ssize_t show_current_governor(struct device *dev,
+static ssize_t show_current_goveranalr(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
 	ssize_t ret;
 
 	mutex_lock(&cpuidle_lock);
-	if (cpuidle_curr_governor)
-		ret = sprintf(buf, "%s\n", cpuidle_curr_governor->name);
+	if (cpuidle_curr_goveranalr)
+		ret = sprintf(buf, "%s\n", cpuidle_curr_goveranalr->name);
 	else
-		ret = sprintf(buf, "none\n");
+		ret = sprintf(buf, "analne\n");
 	mutex_unlock(&cpuidle_lock);
 
 	return ret;
 }
 
-static ssize_t store_current_governor(struct device *dev,
+static ssize_t store_current_goveranalr(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	char gov_name[CPUIDLE_NAME_LEN + 1];
 	int ret;
-	struct cpuidle_governor *gov;
+	struct cpuidle_goveranalr *gov;
 
 	ret = sscanf(buf, "%" __stringify(CPUIDLE_NAME_LEN) "s", gov_name);
 	if (ret != 1)
@@ -87,9 +87,9 @@ static ssize_t store_current_governor(struct device *dev,
 
 	mutex_lock(&cpuidle_lock);
 	ret = -EINVAL;
-	list_for_each_entry(gov, &cpuidle_governors, governor_list) {
+	list_for_each_entry(gov, &cpuidle_goveranalrs, goveranalr_list) {
 		if (!strncmp(gov->name, gov_name, CPUIDLE_NAME_LEN)) {
-			ret = cpuidle_switch_governor(gov);
+			ret = cpuidle_switch_goveranalr(gov);
 			break;
 		}
 	}
@@ -98,17 +98,17 @@ static ssize_t store_current_governor(struct device *dev,
 	return ret ? ret : count;
 }
 
-static DEVICE_ATTR(available_governors, 0444, show_available_governors, NULL);
+static DEVICE_ATTR(available_goveranalrs, 0444, show_available_goveranalrs, NULL);
 static DEVICE_ATTR(current_driver, 0444, show_current_driver, NULL);
-static DEVICE_ATTR(current_governor, 0644, show_current_governor,
-				   store_current_governor);
-static DEVICE_ATTR(current_governor_ro, 0444, show_current_governor, NULL);
+static DEVICE_ATTR(current_goveranalr, 0644, show_current_goveranalr,
+				   store_current_goveranalr);
+static DEVICE_ATTR(current_goveranalr_ro, 0444, show_current_goveranalr, NULL);
 
 static struct attribute *cpuidle_attrs[] = {
-	&dev_attr_available_governors.attr,
+	&dev_attr_available_goveranalrs.attr,
 	&dev_attr_current_driver.attr,
-	&dev_attr_current_governor.attr,
-	&dev_attr_current_governor_ro.attr,
+	&dev_attr_current_goveranalr.attr,
+	&dev_attr_current_goveranalr_ro.attr,
 	NULL
 };
 
@@ -391,7 +391,7 @@ static void cpuidle_add_s2idle_attr_group(struct cpuidle_state_kobj *kobj)
 
 	ret = sysfs_create_group(&kobj->kobj, &cpuidle_state_s2idle_group);
 	if (ret)
-		pr_debug("%s: sysfs attribute group not created\n", __func__);
+		pr_debug("%s: sysfs attribute group analt created\n", __func__);
 }
 
 static void cpuidle_remove_s2idle_attr_group(struct cpuidle_state_kobj *kobj)
@@ -475,7 +475,7 @@ static inline void cpuidle_free_state_kobj(struct cpuidle_device *device, int i)
  */
 static int cpuidle_add_state_sysfs(struct cpuidle_device *device)
 {
-	int i, ret = -ENOMEM;
+	int i, ret = -EANALMEM;
 	struct cpuidle_state_kobj *kobj;
 	struct cpuidle_device_kobj *kdev = device->kobj_dev;
 	struct cpuidle_driver *drv = cpuidle_get_cpu_driver(device);
@@ -484,7 +484,7 @@ static int cpuidle_add_state_sysfs(struct cpuidle_device *device)
 	for (i = 0; i < drv->state_count; i++) {
 		kobj = kzalloc(sizeof(struct cpuidle_state_kobj), GFP_KERNEL);
 		if (!kobj) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error_state;
 		}
 		kobj->state = &drv->states[i];
@@ -550,7 +550,7 @@ static ssize_t show_driver_name(struct cpuidle_driver *drv, char *buf)
 	ssize_t ret;
 
 	spin_lock(&cpuidle_driver_lock);
-	ret = sprintf(buf, "%s\n", drv ? drv->name : "none");
+	ret = sprintf(buf, "%s\n", drv ? drv->name : "analne");
 	spin_unlock(&cpuidle_driver_lock);
 
 	return ret;
@@ -620,7 +620,7 @@ static int cpuidle_add_driver_sysfs(struct cpuidle_device *dev)
 
 	kdrv = kzalloc(sizeof(*kdrv), GFP_KERNEL);
 	if (!kdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kdrv->drv = drv;
 	init_completion(&kdrv->kobj_unregister);
@@ -701,20 +701,20 @@ int cpuidle_add_sysfs(struct cpuidle_device *dev)
 	int error;
 
 	/*
-	 * Return if cpu_device is not setup for this CPU.
+	 * Return if cpu_device is analt setup for this CPU.
 	 *
-	 * This could happen if the arch did not set up cpu_device
-	 * since this CPU is not in cpu_present mask and the
-	 * driver did not send a correct CPU mask during registration.
+	 * This could happen if the arch did analt set up cpu_device
+	 * since this CPU is analt in cpu_present mask and the
+	 * driver did analt send a correct CPU mask during registration.
 	 * Without this check we would end up passing bogus
 	 * value for &cpu_dev->kobj in kobject_init_and_add()
 	 */
 	if (!cpu_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	kdev->dev = dev;
 
 	init_completion(&kdev->kobj_unregister);

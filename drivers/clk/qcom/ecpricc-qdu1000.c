@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -773,14 +773,14 @@ static struct clk_branch ecpri_cc_ecpri_dma_clk = {
 	},
 };
 
-static struct clk_branch ecpri_cc_ecpri_dma_noc_clk = {
+static struct clk_branch ecpri_cc_ecpri_dma_analc_clk = {
 	.halt_reg = 0xf004,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xf004,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "ecpri_cc_ecpri_dma_noc_clk",
+			.name = "ecpri_cc_ecpri_dma_analc_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&ecpri_cc_ecpri_dma_clk_src.clkr.hw,
 			},
@@ -827,14 +827,14 @@ static struct clk_branch ecpri_cc_ecpri_fast_div2_clk = {
 	},
 };
 
-static struct clk_branch ecpri_cc_ecpri_fast_div2_noc_clk = {
+static struct clk_branch ecpri_cc_ecpri_fast_div2_analc_clk = {
 	.halt_reg = 0xf008,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xf008,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "ecpri_cc_ecpri_fast_div2_noc_clk",
+			.name = "ecpri_cc_ecpri_fast_div2_analc_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&ecpri_cc_ecpri_fast_div2_clk_src.clkr.hw,
 			},
@@ -1582,14 +1582,14 @@ static struct clk_branch ecpri_cc_eth_dbg_nfapi_axi_clk = {
 	},
 };
 
-static struct clk_branch ecpri_cc_eth_dbg_noc_axi_clk = {
+static struct clk_branch ecpri_cc_eth_dbg_analc_axi_clk = {
 	.halt_reg = 0x80fc,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x80fc,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "ecpri_cc_eth_dbg_noc_axi_clk",
+			.name = "ecpri_cc_eth_dbg_analc_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&ecpri_cc_mss_emac_clk_src.clkr.hw,
 			},
@@ -2251,12 +2251,12 @@ static struct clk_regmap *ecpri_cc_qdu1000_clocks[] = {
 	[ECPRI_CC_ECPRI_CLK_SRC] = &ecpri_cc_ecpri_clk_src.clkr,
 	[ECPRI_CC_ECPRI_DMA_CLK] = &ecpri_cc_ecpri_dma_clk.clkr,
 	[ECPRI_CC_ECPRI_DMA_CLK_SRC] = &ecpri_cc_ecpri_dma_clk_src.clkr,
-	[ECPRI_CC_ECPRI_DMA_NOC_CLK] = &ecpri_cc_ecpri_dma_noc_clk.clkr,
+	[ECPRI_CC_ECPRI_DMA_ANALC_CLK] = &ecpri_cc_ecpri_dma_analc_clk.clkr,
 	[ECPRI_CC_ECPRI_FAST_CLK] = &ecpri_cc_ecpri_fast_clk.clkr,
 	[ECPRI_CC_ECPRI_FAST_CLK_SRC] = &ecpri_cc_ecpri_fast_clk_src.clkr,
 	[ECPRI_CC_ECPRI_FAST_DIV2_CLK] = &ecpri_cc_ecpri_fast_div2_clk.clkr,
 	[ECPRI_CC_ECPRI_FAST_DIV2_CLK_SRC] = &ecpri_cc_ecpri_fast_div2_clk_src.clkr,
-	[ECPRI_CC_ECPRI_FAST_DIV2_NOC_CLK] = &ecpri_cc_ecpri_fast_div2_noc_clk.clkr,
+	[ECPRI_CC_ECPRI_FAST_DIV2_ANALC_CLK] = &ecpri_cc_ecpri_fast_div2_analc_clk.clkr,
 	[ECPRI_CC_ECPRI_FR_CLK] = &ecpri_cc_ecpri_fr_clk.clkr,
 	[ECPRI_CC_ECPRI_ORAN_CLK_SRC] = &ecpri_cc_ecpri_oran_clk_src.clkr,
 	[ECPRI_CC_ECPRI_ORAN_DIV2_CLK] = &ecpri_cc_ecpri_oran_div2_clk.clkr,
@@ -2342,7 +2342,7 @@ static struct clk_regmap *ecpri_cc_qdu1000_clocks[] = {
 	[ECPRI_CC_ETH_100G_MAC_FH2_HM_REF_CLK] = &ecpri_cc_eth_100g_mac_fh2_hm_ref_clk.branch.clkr,
 	[ECPRI_CC_ETH_100G_MAC_FH2_HM_REF_CLK_SRC] = &ecpri_cc_eth_100g_mac_fh2_hm_ref_clk_src.clkr,
 	[ECPRI_CC_ETH_DBG_NFAPI_AXI_CLK] = &ecpri_cc_eth_dbg_nfapi_axi_clk.clkr,
-	[ECPRI_CC_ETH_DBG_NOC_AXI_CLK] = &ecpri_cc_eth_dbg_noc_axi_clk.clkr,
+	[ECPRI_CC_ETH_DBG_ANALC_AXI_CLK] = &ecpri_cc_eth_dbg_analc_axi_clk.clkr,
 	[ECPRI_CC_ETH_PHY_0_OCK_SRAM_CLK] = &ecpri_cc_eth_phy_0_ock_sram_clk.branch.clkr,
 	[ECPRI_CC_ETH_PHY_1_OCK_SRAM_CLK] = &ecpri_cc_eth_phy_1_ock_sram_clk.branch.clkr,
 	[ECPRI_CC_ETH_PHY_2_OCK_SRAM_CLK] = &ecpri_cc_eth_phy_2_ock_sram_clk.branch.clkr,
@@ -2403,7 +2403,7 @@ static const struct qcom_reset_map ecpri_cc_qdu1000_resets[] = {
 	[ECPRI_CC_CLK_CTL_TOP_ECPRI_CC_ETH_FH2_BCR] = { 0x8070 },
 	[ECPRI_CC_CLK_CTL_TOP_ECPRI_CC_ETH_WRAPPER_TOP_BCR] = { 0x8104 },
 	[ECPRI_CC_CLK_CTL_TOP_ECPRI_CC_MODEM_BCR] = { 0xe000 },
-	[ECPRI_CC_CLK_CTL_TOP_ECPRI_CC_NOC_BCR] = { 0xf000 },
+	[ECPRI_CC_CLK_CTL_TOP_ECPRI_CC_ANALC_BCR] = { 0xf000 },
 };
 
 static const struct regmap_config ecpri_cc_qdu1000_regmap_config = {

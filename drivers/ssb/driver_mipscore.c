@@ -76,7 +76,7 @@ static inline u32 ssb_irqflag(struct ssb_device *dev)
 	if (tpsflag)
 		return ssb_read32(dev, SSB_TPSFLAG) & SSB_TPSFLAG_BPFLAG;
 	else
-		/* not irq supported */
+		/* analt irq supported */
 		return 0x3f;
 }
 
@@ -96,7 +96,7 @@ static struct ssb_device *find_device(struct ssb_device *rdev, int irqflag)
 /* Get the MIPS IRQ assignment for a specified device.
  * If unassigned, 0 is returned.
  * If disabled, 5 is returned.
- * If not supported, 6 is returned.
+ * If analt supported, 6 is returned.
  */
 unsigned int ssb_mips_irq(struct ssb_device *dev)
 {
@@ -217,7 +217,7 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 	struct ssb_sflash *sflash = &mcore->sflash;
 	struct ssb_pflash *pflash = &mcore->pflash;
 
-	/* When there is no chipcommon on the bus there is 4MB flash */
+	/* When there is anal chipcommon on the bus there is 4MB flash */
 	if (!ssb_chipco_available(&bus->chipco)) {
 		pflash->present = true;
 		pflash->buswidth = 2;
@@ -326,7 +326,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 			continue;
 		switch (dev->id.coreid) {
 		case SSB_DEV_USB11_HOST:
-			/* shouldn't need a separate irq line for non-4710, most of them have a proper
+			/* shouldn't need a separate irq line for analn-4710, most of them have a proper
 			 * external usb controller on the pci */
 			if ((bus->chip_id == 0x4710) && (irq <= 4)) {
 				set_irq(dev, irq++);

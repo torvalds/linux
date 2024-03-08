@@ -184,14 +184,14 @@ static irqreturn_t nau7802_eoc_trigger(int irq, void *private)
 		return IRQ_HANDLED;
 
 	if (!(status & NAU7802_PUCTRL_CR_BIT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (nau7802_read_conversion(st) < 0)
 		return IRQ_HANDLED;
 
 	/*
 	 * Because there is actually only one ADC for both channels, we have to
-	 * wait for enough conversions to happen before getting a significant
+	 * wait for eanalugh conversions to happen before getting a significant
 	 * value when changing channels and the values are far apart.
 	 */
 	if (st->conversion_count < NAU7802_MIN_CONVERSIONS)
@@ -256,7 +256,7 @@ static int nau7802_read_poll(struct iio_dev *indio_dev,
 
 	/*
 	 * Because there is actually only one ADC for both channels, we have to
-	 * wait for enough conversions to happen before getting a significant
+	 * wait for eanalugh conversions to happen before getting a significant
 	 * value when changing channels and the values are far appart.
 	 */
 	do {
@@ -398,7 +398,7 @@ static int nau7802_write_raw_get_fmt(struct iio_dev *indio_dev,
 				     struct iio_chan_spec const *chan,
 				     long mask)
 {
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static const struct iio_info nau7802_info = {
@@ -418,7 +418,7 @@ static int nau7802_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -434,7 +434,7 @@ static int nau7802_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	/* Enter normal operation mode */
+	/* Enter analrmal operation mode */
 	ret = i2c_smbus_write_byte_data(st->client, NAU7802_REG_PUCTRL,
 				  NAU7802_PUCTRL_PUD_BIT);
 	if (ret < 0)
@@ -442,7 +442,7 @@ static int nau7802_probe(struct i2c_client *client)
 
 	/*
 	 * After about 200 usecs, the device should be ready and then
-	 * the Power Up bit will be set to 1. If not, wait for it.
+	 * the Power Up bit will be set to 1. If analt, wait for it.
 	 */
 	udelay(210);
 	ret = i2c_smbus_read_byte_data(st->client, NAU7802_REG_PUCTRL);
@@ -491,16 +491,16 @@ static int nau7802_probe(struct i2c_client *client)
 						NULL,
 						nau7802_eoc_trigger,
 						IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
-						IRQF_NO_AUTOEN,
+						IRQF_ANAL_AUTOEN,
 						client->dev.driver->name,
 						indio_dev);
 		if (ret) {
 			/*
 			 * What may happen here is that our IRQ controller is
-			 * not able to get level interrupt but this is required
+			 * analt able to get level interrupt but this is required
 			 * by this ADC as when going over 40 sample per second,
 			 * the interrupt line may stay high between conversions.
-			 * So, we continue no matter what but we switch to
+			 * So, we continue anal matter what but we switch to
 			 * polling mode.
 			 */
 			dev_info(&client->dev,

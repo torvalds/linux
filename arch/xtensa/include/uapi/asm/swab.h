@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/asm-xtensa/swab.h
  *
@@ -36,11 +36,11 @@ static inline __attribute_const__ __u32 __arch_swab32(__u32 x)
 static inline __attribute_const__ __u16 __arch_swab16(__u16 x)
 {
     /* Given that 'short' values are signed (i.e., can be negative),
-     * we cannot assume that the upper 16-bits of the register are
+     * we cananalt assume that the upper 16-bits of the register are
      * zero.  We are careful to mask values after shifting.
      */
 
-    /* There exists an anomaly between xt-gcc and xt-xcc.  xt-gcc
+    /* There exists an aanalmaly between xt-gcc and xt-xcc.  xt-gcc
      * inserts an extui instruction after putting this function inline
      * to ensure that it uses only the least-significant 16 bits of
      * the result.  xt-xcc doesn't use an extui, but assumes the

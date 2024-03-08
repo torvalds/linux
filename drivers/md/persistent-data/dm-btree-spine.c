@@ -16,12 +16,12 @@
 
 #define BTREE_CSUM_XOR 121107
 
-static void node_prepare_for_write(struct dm_block_validator *v,
+static void analde_prepare_for_write(struct dm_block_validator *v,
 				   struct dm_block *b,
 				   size_t block_size)
 {
-	struct btree_node *n = dm_block_data(b);
-	struct node_header *h = &n->header;
+	struct btree_analde *n = dm_block_data(b);
+	struct analde_header *h = &n->header;
 
 	h->blocknr = cpu_to_le64(dm_block_location(b));
 	h->csum = cpu_to_le32(dm_bm_checksum(&h->flags,
@@ -29,12 +29,12 @@ static void node_prepare_for_write(struct dm_block_validator *v,
 					     BTREE_CSUM_XOR));
 }
 
-static int node_check(struct dm_block_validator *v,
+static int analde_check(struct dm_block_validator *v,
 		      struct dm_block *b,
 		      size_t block_size)
 {
-	struct btree_node *n = dm_block_data(b);
-	struct node_header *h = &n->header;
+	struct btree_analde *n = dm_block_data(b);
+	struct analde_header *h = &n->header;
 	size_t value_size;
 	__le32 csum_disk;
 	uint32_t flags, nr_entries, max_entries;
@@ -42,7 +42,7 @@ static int node_check(struct dm_block_validator *v,
 	if (dm_block_location(b) != le64_to_cpu(h->blocknr)) {
 		DMERR_LIMIT("%s failed: blocknr %llu != wanted %llu", __func__,
 			    le64_to_cpu(h->blocknr), dm_block_location(b));
-		return -ENOTBLK;
+		return -EANALTBLK;
 	}
 
 	csum_disk = cpu_to_le32(dm_bm_checksum(&h->flags,
@@ -58,7 +58,7 @@ static int node_check(struct dm_block_validator *v,
 	max_entries = le32_to_cpu(h->max_entries);
 	value_size = le32_to_cpu(h->value_size);
 
-	if (sizeof(struct node_header) +
+	if (sizeof(struct analde_header) +
 	    (sizeof(__le64) + value_size) * max_entries > block_size) {
 		DMERR_LIMIT("%s failed: max_entries too large", __func__);
 		return -EILSEQ;
@@ -70,21 +70,21 @@ static int node_check(struct dm_block_validator *v,
 	}
 
 	/*
-	 * The node must be either INTERNAL or LEAF.
+	 * The analde must be either INTERNAL or LEAF.
 	 */
 	flags = le32_to_cpu(h->flags);
-	if (!(flags & INTERNAL_NODE) && !(flags & LEAF_NODE)) {
-		DMERR_LIMIT("%s failed: node is neither INTERNAL or LEAF", __func__);
+	if (!(flags & INTERNAL_ANALDE) && !(flags & LEAF_ANALDE)) {
+		DMERR_LIMIT("%s failed: analde is neither INTERNAL or LEAF", __func__);
 		return -EILSEQ;
 	}
 
 	return 0;
 }
 
-struct dm_block_validator btree_node_validator = {
-	.name = "btree_node",
-	.prepare_for_write = node_prepare_for_write,
-	.check = node_check
+struct dm_block_validator btree_analde_validator = {
+	.name = "btree_analde",
+	.prepare_for_write = analde_prepare_for_write,
+	.check = analde_check
 };
 
 /*----------------------------------------------------------------*/
@@ -92,7 +92,7 @@ struct dm_block_validator btree_node_validator = {
 int bn_read_lock(struct dm_btree_info *info, dm_block_t b,
 		 struct dm_block **result)
 {
-	return dm_tm_read_lock(info->tm, b, &btree_node_validator, result);
+	return dm_tm_read_lock(info->tm, b, &btree_analde_validator, result);
 }
 
 static int bn_shadow(struct dm_btree_info *info, dm_block_t orig,
@@ -101,7 +101,7 @@ static int bn_shadow(struct dm_btree_info *info, dm_block_t orig,
 {
 	int r, inc;
 
-	r = dm_tm_shadow_block(info->tm, orig, &btree_node_validator,
+	r = dm_tm_shadow_block(info->tm, orig, &btree_analde_validator,
 			       result, &inc);
 	if (!r && inc)
 		inc_children(info->tm, dm_block_data(*result), vt);
@@ -111,7 +111,7 @@ static int bn_shadow(struct dm_btree_info *info, dm_block_t orig,
 
 int new_block(struct dm_btree_info *info, struct dm_block **result)
 {
-	return dm_tm_new_block(info->tm, &btree_node_validator, result);
+	return dm_tm_new_block(info->tm, &btree_analde_validator, result);
 }
 
 void unlock_block(struct dm_btree_info *info, struct dm_block *b)
@@ -125,8 +125,8 @@ void init_ro_spine(struct ro_spine *s, struct dm_btree_info *info)
 {
 	s->info = info;
 	s->count = 0;
-	s->nodes[0] = NULL;
-	s->nodes[1] = NULL;
+	s->analdes[0] = NULL;
+	s->analdes[1] = NULL;
 }
 
 void exit_ro_spine(struct ro_spine *s)
@@ -134,7 +134,7 @@ void exit_ro_spine(struct ro_spine *s)
 	int i;
 
 	for (i = 0; i < s->count; i++)
-		unlock_block(s->info, s->nodes[i]);
+		unlock_block(s->info, s->analdes[i]);
 }
 
 int ro_step(struct ro_spine *s, dm_block_t new_child)
@@ -142,12 +142,12 @@ int ro_step(struct ro_spine *s, dm_block_t new_child)
 	int r;
 
 	if (s->count == 2) {
-		unlock_block(s->info, s->nodes[0]);
-		s->nodes[0] = s->nodes[1];
+		unlock_block(s->info, s->analdes[0]);
+		s->analdes[0] = s->analdes[1];
 		s->count--;
 	}
 
-	r = bn_read_lock(s->info, new_child, s->nodes + s->count);
+	r = bn_read_lock(s->info, new_child, s->analdes + s->count);
 	if (!r)
 		s->count++;
 
@@ -158,15 +158,15 @@ void ro_pop(struct ro_spine *s)
 {
 	BUG_ON(!s->count);
 	--s->count;
-	unlock_block(s->info, s->nodes[s->count]);
+	unlock_block(s->info, s->analdes[s->count]);
 }
 
-struct btree_node *ro_node(struct ro_spine *s)
+struct btree_analde *ro_analde(struct ro_spine *s)
 {
 	struct dm_block *block;
 
 	BUG_ON(!s->count);
-	block = s->nodes[s->count - 1];
+	block = s->analdes[s->count - 1];
 
 	return dm_block_data(block);
 }
@@ -184,7 +184,7 @@ void exit_shadow_spine(struct shadow_spine *s)
 	int i;
 
 	for (i = 0; i < s->count; i++)
-		unlock_block(s->info, s->nodes[i]);
+		unlock_block(s->info, s->analdes[i]);
 }
 
 int shadow_step(struct shadow_spine *s, dm_block_t b,
@@ -193,15 +193,15 @@ int shadow_step(struct shadow_spine *s, dm_block_t b,
 	int r;
 
 	if (s->count == 2) {
-		unlock_block(s->info, s->nodes[0]);
-		s->nodes[0] = s->nodes[1];
+		unlock_block(s->info, s->analdes[0]);
+		s->analdes[0] = s->analdes[1];
 		s->count--;
 	}
 
-	r = bn_shadow(s->info, b, vt, s->nodes + s->count);
+	r = bn_shadow(s->info, b, vt, s->analdes + s->count);
 	if (!r) {
 		if (!s->count)
-			s->root = dm_block_location(s->nodes[0]);
+			s->root = dm_block_location(s->analdes[0]);
 
 		s->count++;
 	}
@@ -213,14 +213,14 @@ struct dm_block *shadow_current(struct shadow_spine *s)
 {
 	BUG_ON(!s->count);
 
-	return s->nodes[s->count - 1];
+	return s->analdes[s->count - 1];
 }
 
 struct dm_block *shadow_parent(struct shadow_spine *s)
 {
 	BUG_ON(s->count != 2);
 
-	return s->count == 2 ? s->nodes[0] : NULL;
+	return s->count == 2 ? s->analdes[0] : NULL;
 }
 
 int shadow_has_parent(struct shadow_spine *s)

@@ -11,7 +11,7 @@
 
 /*
  * Return the number of slots covered by this entry, i.e., the number of
- * addresses it covers that are suitably aligned and supply enough room
+ * addresses it covers that are suitably aligned and supply eanalugh room
  * for the allocation.
  */
 static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
@@ -95,7 +95,7 @@ efi_status_t efi_random_alloc(unsigned long size,
 	target_slot = (total_slots * (u64)(random_seed & U32_MAX)) >> 32;
 
 	/*
-	 * target_slot is now a value in the range [0, total_slots), and so
+	 * target_slot is analw a value in the range [0, total_slots), and so
 	 * it corresponds with exactly one of the suitable slots we recorded
 	 * when iterating over the memory map the first time around.
 	 *

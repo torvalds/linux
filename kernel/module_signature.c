@@ -6,7 +6,7 @@
  * Written by David Howells (dhowells@redhat.com)
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/printk.h>
 #include <linux/module_signature.h>
 #include <asm/byteorder.h>
@@ -25,9 +25,9 @@ int mod_check_sig(const struct module_signature *ms, size_t file_len,
 		return -EBADMSG;
 
 	if (ms->id_type != PKEY_ID_PKCS7) {
-		pr_err("%s: not signed with expected PKCS#7 message\n",
+		pr_err("%s: analt signed with expected PKCS#7 message\n",
 		       name);
-		return -ENOPKG;
+		return -EANALPKG;
 	}
 
 	if (ms->algo != 0 ||
@@ -37,7 +37,7 @@ int mod_check_sig(const struct module_signature *ms, size_t file_len,
 	    ms->__pad[0] != 0 ||
 	    ms->__pad[1] != 0 ||
 	    ms->__pad[2] != 0) {
-		pr_err("%s: PKCS#7 signature info has unexpected non-zero params\n",
+		pr_err("%s: PKCS#7 signature info has unexpected analn-zero params\n",
 		       name);
 		return -EBADMSG;
 	}

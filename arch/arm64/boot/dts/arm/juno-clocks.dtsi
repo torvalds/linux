@@ -1,5 +1,5 @@
 /*
- * ARM Juno Platform clocks
+ * ARM Juanal Platform clocks
  *
  * Copyright (c) 2013-2014 ARM Ltd
  *
@@ -12,7 +12,7 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <7372800>;
-		clock-output-names = "juno:uartclk";
+		clock-output-names = "juanal:uartclk";
 	};
 
 	soc_usb48mhz: clk48mhz {

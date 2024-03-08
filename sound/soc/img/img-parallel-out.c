@@ -2,7 +2,7 @@
 /*
  * IMG parallel output controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -215,7 +215,7 @@ static int img_prl_out_probe(struct platform_device *pdev)
 
 	prl = devm_kzalloc(&pdev->dev, sizeof(*prl), GFP_KERNEL);
 	if (!prl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, prl);
 
@@ -230,7 +230,7 @@ static int img_prl_out_probe(struct platform_device *pdev)
 	prl->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
 	if (IS_ERR(prl->rst))
 		return dev_err_probe(&pdev->dev, PTR_ERR(prl->rst),
-				     "No top level reset found\n");
+				     "Anal top level reset found\n");
 
 	prl->clk_sys = devm_clk_get(&pdev->dev, "sys");
 	if (IS_ERR(prl->clk_sys))

@@ -19,7 +19,7 @@
 #include <linux/moduleparam.h>
 
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/in.h>
 #include <linux/uio.h>
 #include <linux/smp.h>
@@ -71,7 +71,7 @@ static unsigned long		nlm_grace_period;
 static unsigned long		nlm_timeout = LOCKD_DFLT_TIMEO;
 static int			nlm_udpport, nlm_tcpport;
 
-/* RLIM_NOFILE defaults to 1024. That seems like a reasonable default here. */
+/* RLIM_ANALFILE defaults to 1024. That seems like a reasonable default here. */
 static unsigned int		nlm_max_connections = 1024;
 
 /*
@@ -89,7 +89,7 @@ static struct ctl_table_header * nlm_sysctl_table;
 
 static unsigned long get_lockd_grace_period(void)
 {
-	/* Note: nlm_timeout should always be nonzero */
+	/* Analte: nlm_timeout should always be analnzero */
 	if (nlm_grace_period)
 		return roundup(nlm_grace_period, nlm_timeout) * HZ;
 	else
@@ -187,10 +187,10 @@ static int create_lockd_family(struct svc_serv *serv, struct net *net,
  *
  * Even if we have only TCP NFS mounts and/or TCP NFSDs, some
  * local services (such as rpc.statd) still require UDP, and
- * some NFS servers do not yet support NLM over TCP.
+ * some NFS servers do analt yet support NLM over TCP.
  *
  * Returns zero if all listeners are available; otherwise a
- * negative errno value is returned.
+ * negative erranal value is returned.
  */
 static int make_socks(struct svc_serv *serv, struct net *net,
 		const struct cred *cred)
@@ -203,7 +203,7 @@ static int make_socks(struct svc_serv *serv, struct net *net,
 		goto out_err;
 
 	err = create_lockd_family(serv, net, PF_INET6, cred);
-	if (err < 0 && err != -EAFNOSUPPORT)
+	if (err < 0 && err != -EAFANALSUPPORT)
 		goto out_err;
 
 	warned = 0;
@@ -256,13 +256,13 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 			svc_rpcb_cleanup(serv, net);
 		}
 	} else {
-		pr_err("%s: no users! net=%x\n",
+		pr_err("%s: anal users! net=%x\n",
 			__func__, net->ns.inum);
 		BUG();
 	}
 }
 
-static int lockd_inetaddr_event(struct notifier_block *this,
+static int lockd_inetaddr_event(struct analtifier_block *this,
 	unsigned long event, void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
@@ -276,19 +276,19 @@ static int lockd_inetaddr_event(struct notifier_block *this,
 			&ifa->ifa_local);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = ifa->ifa_local;
-		svc_age_temp_xprts_now(nlmsvc_serv, (struct sockaddr *)&sin);
+		svc_age_temp_xprts_analw(nlmsvc_serv, (struct sockaddr *)&sin);
 	}
 
 out:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block lockd_inetaddr_notifier = {
-	.notifier_call = lockd_inetaddr_event,
+static struct analtifier_block lockd_inetaddr_analtifier = {
+	.analtifier_call = lockd_inetaddr_event,
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int lockd_inet6addr_event(struct notifier_block *this,
+static int lockd_inet6addr_event(struct analtifier_block *this,
 	unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
@@ -303,15 +303,15 @@ static int lockd_inet6addr_event(struct notifier_block *this,
 		sin6.sin6_addr = ifa->addr;
 		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
-		svc_age_temp_xprts_now(nlmsvc_serv, (struct sockaddr *)&sin6);
+		svc_age_temp_xprts_analw(nlmsvc_serv, (struct sockaddr *)&sin6);
 	}
 
 out:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block lockd_inet6addr_notifier = {
-	.notifier_call = lockd_inet6addr_event,
+static struct analtifier_block lockd_inet6addr_analtifier = {
+	.analtifier_call = lockd_inet6addr_event,
 };
 #endif
 
@@ -326,12 +326,12 @@ static int lockd_get(void)
 	}
 
 	/*
-	 * Sanity check: if there's no pid,
+	 * Sanity check: if there's anal pid,
 	 * we should be the first user ...
 	 */
 	if (nlmsvc_users)
 		printk(KERN_WARNING
-			"lockd_up: no pid, %d users??\n", nlmsvc_users);
+			"lockd_up: anal pid, %d users??\n", nlmsvc_users);
 
 	if (!nlm_timeout)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
@@ -340,7 +340,7 @@ static int lockd_get(void)
 	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, lockd);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	serv->sv_maxconn = nlm_max_connections;
@@ -351,9 +351,9 @@ static int lockd_get(void)
 	}
 
 	nlmsvc_serv = serv;
-	register_inetaddr_notifier(&lockd_inetaddr_notifier);
+	register_inetaddr_analtifier(&lockd_inetaddr_analtifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	register_inet6addr_notifier(&lockd_inet6addr_notifier);
+	register_inet6addr_analtifier(&lockd_inet6addr_analtifier);
 #endif
 	dprintk("lockd_up: service created\n");
 	nlmsvc_users++;
@@ -362,14 +362,14 @@ static int lockd_get(void)
 
 static void lockd_put(void)
 {
-	if (WARN(nlmsvc_users <= 0, "lockd_down: no users!\n"))
+	if (WARN(nlmsvc_users <= 0, "lockd_down: anal users!\n"))
 		return;
 	if (--nlmsvc_users)
 		return;
 
-	unregister_inetaddr_notifier(&lockd_inetaddr_notifier);
+	unregister_inetaddr_analtifier(&lockd_inetaddr_analtifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
+	unregister_inet6addr_analtifier(&lockd_inet6addr_analtifier);
 #endif
 
 	svc_set_num_threads(nlmsvc_serv, NULL, 0);
@@ -379,7 +379,7 @@ static void lockd_put(void)
 }
 
 /*
- * Bring up the lockd process if it's not already up.
+ * Bring up the lockd process if it's analt already up.
  */
 int lockd_up(struct net *net, const struct cred *cred)
 {
@@ -500,7 +500,7 @@ static inline int is_callback(u32 proc)
 		|| proc == NLMPROC_LOCK_RES
 		|| proc == NLMPROC_CANCEL_RES
 		|| proc == NLMPROC_UNLOCK_RES
-		|| proc == NLMPROC_NSM_NOTIFY;
+		|| proc == NLMPROC_NSM_ANALTIFY;
 }
 
 
@@ -563,13 +563,13 @@ static void lockd_exit_net(struct net *net)
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	WARN_ONCE(!list_empty(&ln->lockd_manager.list),
-		  "net %x %s: lockd_manager.list is not empty\n",
+		  "net %x %s: lockd_manager.list is analt empty\n",
 		  net->ns.inum, __func__);
 	WARN_ONCE(!list_empty(&ln->nsm_handles),
-		  "net %x %s: nsm_handles list is not empty\n",
+		  "net %x %s: nsm_handles list is analt empty\n",
 		  net->ns.inum, __func__);
 	WARN_ONCE(delayed_work_pending(&ln->grace_period_end),
-		  "net %x %s: grace_period_end was not cancelled\n",
+		  "net %x %s: grace_period_end was analt cancelled\n",
 		  net->ns.inum, __func__);
 }
 
@@ -590,7 +590,7 @@ static int __init init_nlm(void)
 	int err;
 
 #ifdef CONFIG_SYSCTL
-	err = -ENOMEM;
+	err = -EANALMEM;
 	nlm_sysctl_table = register_sysctl("fs/nfs", nlm_sysctls);
 	if (nlm_sysctl_table == NULL)
 		goto err_sysctl;
@@ -634,7 +634,7 @@ module_exit(exit_nlm);
  * @rqstp: incoming request
  *
  * Return values:
- *  %0: Processing complete; do not send a Reply
+ *  %0: Processing complete; do analt send a Reply
  *  %1: Processing complete; send Reply in rqstp->rq_res
  */
 static int nlmsvc_dispatch(struct svc_rqst *rqstp)

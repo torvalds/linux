@@ -150,17 +150,17 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 		if (machine_is_omap_osk()) {
 			ohci_to_hcd(ohci)->power_budget = 250;
 
-			rh &= ~RH_A_NOCP;
+			rh &= ~RH_A_ANALCP;
 
 			/* gpio9 for overcurrent detction */
 			omap_cfg_reg(W8_1610_GPIO9);
 
-			/* for paranoia's sake:  disable USB.PUEN */
+			/* for paraanalia's sake:  disable USB.PUEN */
 			omap_cfg_reg(W4_USB_HIGHZ);
 		}
 		ohci_writel(ohci, rh, &ohci->regs->roothub.a);
 		ohci->flags &= ~OHCI_QUIRK_HUB_POWER;
-	} else if (machine_is_nokia770()) {
+	} else if (machine_is_analkia770()) {
 		/* We require a self-powered hub, which should have
 		 * plenty of power. */
 		ohci_to_hcd(ohci)->power_budget = 0;
@@ -175,7 +175,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 
 	/* board init will have already handled HMC and mux setup.
 	 * any external transceiver should already be initialized
-	 * too, so all configured ports use the right signaling now.
+	 * too, so all configured ports use the right signaling analw.
 	 */
 
 	return 0;
@@ -202,19 +202,19 @@ static int ohci_hcd_omap_probe(struct platform_device *pdev)
 	if (pdev->num_resources != 2) {
 		dev_err(&pdev->dev, "invalid num_resources: %i\n",
 		       pdev->num_resources);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pdev->resource[0].flags != IORESOURCE_MEM
 			|| pdev->resource[1].flags != IORESOURCE_IRQ) {
 		dev_err(&pdev->dev, "invalid resource type\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hcd = usb_create_hcd(&ohci_omap_hc_driver, &pdev->dev,
 			dev_name(&pdev->dev));
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcd->rsrc_start = pdev->resource[0].start;
 	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
@@ -276,7 +276,7 @@ static int ohci_hcd_omap_probe(struct platform_device *pdev)
 	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs) {
 		dev_err(&pdev->dev, "can't ioremap OHCI HCD\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err2;
 	}
 
@@ -319,7 +319,7 @@ err_put_hcd:
  *
  * Reverses the effect of ohci_hcd_omap_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, analrmally "rmmod", "apmd", or something similar.
  */
 static void ohci_hcd_omap_remove(struct platform_device *pdev)
 {
@@ -410,7 +410,7 @@ static const struct ohci_driver_overrides omap_overrides __initconst = {
 static int __init ohci_omap_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ohci_init_driver(&ohci_omap_hc_driver, &omap_overrides);
 	return platform_driver_register(&ohci_hcd_omap_driver);

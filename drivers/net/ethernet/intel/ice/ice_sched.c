@@ -5,18 +5,18 @@
 #include "ice_sched.h"
 
 /**
- * ice_sched_add_root_node - Insert the Tx scheduler root node in SW DB
+ * ice_sched_add_root_analde - Insert the Tx scheduler root analde in SW DB
  * @pi: port information structure
  * @info: Scheduler element information from firmware
  *
- * This function inserts the root node of the scheduling tree topology
+ * This function inserts the root analde of the scheduling tree topology
  * to the SW DB.
  */
 static int
-ice_sched_add_root_node(struct ice_port_info *pi,
+ice_sched_add_root_analde(struct ice_port_info *pi,
 			struct ice_aqc_txsched_elem_data *info)
 {
-	struct ice_sched_node *root;
+	struct ice_sched_analde *root;
 	struct ice_hw *hw;
 
 	if (!pi)
@@ -26,14 +26,14 @@ ice_sched_add_root_node(struct ice_port_info *pi,
 
 	root = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*root), GFP_KERNEL);
 	if (!root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* coverity[suspicious_sizeof] */
 	root->children = devm_kcalloc(ice_hw_to_dev(hw), hw->max_children[0],
 				      sizeof(*root), GFP_KERNEL);
 	if (!root->children) {
 		devm_kfree(ice_hw_to_dev(hw), root);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(&root->info, info, sizeof(*info));
@@ -42,41 +42,41 @@ ice_sched_add_root_node(struct ice_port_info *pi,
 }
 
 /**
- * ice_sched_find_node_by_teid - Find the Tx scheduler node in SW DB
- * @start_node: pointer to the starting ice_sched_node struct in a sub-tree
- * @teid: node TEID to search
+ * ice_sched_find_analde_by_teid - Find the Tx scheduler analde in SW DB
+ * @start_analde: pointer to the starting ice_sched_analde struct in a sub-tree
+ * @teid: analde TEID to search
  *
- * This function searches for a node matching the TEID in the scheduling tree
+ * This function searches for a analde matching the TEID in the scheduling tree
  * from the SW DB. The search is recursive and is restricted by the number of
  * layers it has searched through; stopping at the max supported layer.
  *
  * This function needs to be called when holding the port_info->sched_lock
  */
-struct ice_sched_node *
-ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid)
+struct ice_sched_analde *
+ice_sched_find_analde_by_teid(struct ice_sched_analde *start_analde, u32 teid)
 {
 	u16 i;
 
-	/* The TEID is same as that of the start_node */
-	if (ICE_TXSCHED_GET_NODE_TEID(start_node) == teid)
-		return start_node;
+	/* The TEID is same as that of the start_analde */
+	if (ICE_TXSCHED_GET_ANALDE_TEID(start_analde) == teid)
+		return start_analde;
 
-	/* The node has no children or is at the max layer */
-	if (!start_node->num_children ||
-	    start_node->tx_sched_layer >= ICE_AQC_TOPO_MAX_LEVEL_NUM ||
-	    start_node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF)
+	/* The analde has anal children or is at the max layer */
+	if (!start_analde->num_children ||
+	    start_analde->tx_sched_layer >= ICE_AQC_TOPO_MAX_LEVEL_NUM ||
+	    start_analde->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF)
 		return NULL;
 
-	/* Check if TEID matches to any of the children nodes */
-	for (i = 0; i < start_node->num_children; i++)
-		if (ICE_TXSCHED_GET_NODE_TEID(start_node->children[i]) == teid)
-			return start_node->children[i];
+	/* Check if TEID matches to any of the children analdes */
+	for (i = 0; i < start_analde->num_children; i++)
+		if (ICE_TXSCHED_GET_ANALDE_TEID(start_analde->children[i]) == teid)
+			return start_analde->children[i];
 
 	/* Search within each child's sub-tree */
-	for (i = 0; i < start_node->num_children; i++) {
-		struct ice_sched_node *tmp;
+	for (i = 0; i < start_analde->num_children; i++) {
+		struct ice_sched_analde *tmp;
 
-		tmp = ice_sched_find_node_by_teid(start_node->children[i],
+		tmp = ice_sched_find_analde_by_teid(start_analde->children[i],
 						  teid);
 		if (tmp)
 			return tmp;
@@ -139,22 +139,22 @@ ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
 }
 
 /**
- * ice_sched_add_node - Insert the Tx scheduler node in SW DB
+ * ice_sched_add_analde - Insert the Tx scheduler analde in SW DB
  * @pi: port information structure
- * @layer: Scheduler layer of the node
+ * @layer: Scheduler layer of the analde
  * @info: Scheduler element information from firmware
- * @prealloc_node: preallocated ice_sched_node struct for SW DB
+ * @prealloc_analde: preallocated ice_sched_analde struct for SW DB
  *
- * This function inserts a scheduler node to the SW DB.
+ * This function inserts a scheduler analde to the SW DB.
  */
 int
-ice_sched_add_node(struct ice_port_info *pi, u8 layer,
+ice_sched_add_analde(struct ice_port_info *pi, u8 layer,
 		   struct ice_aqc_txsched_elem_data *info,
-		   struct ice_sched_node *prealloc_node)
+		   struct ice_sched_analde *prealloc_analde)
 {
 	struct ice_aqc_txsched_elem_data elem;
-	struct ice_sched_node *parent;
-	struct ice_sched_node *node;
+	struct ice_sched_analde *parent;
+	struct ice_sched_analde *analde;
 	struct ice_hw *hw;
 	int status;
 
@@ -163,44 +163,44 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 
 	hw = pi->hw;
 
-	/* A valid parent node should be there */
-	parent = ice_sched_find_node_by_teid(pi->root,
+	/* A valid parent analde should be there */
+	parent = ice_sched_find_analde_by_teid(pi->root,
 					     le32_to_cpu(info->parent_teid));
 	if (!parent) {
-		ice_debug(hw, ICE_DBG_SCHED, "Parent Node not found for parent_teid=0x%x\n",
+		ice_debug(hw, ICE_DBG_SCHED, "Parent Analde analt found for parent_teid=0x%x\n",
 			  le32_to_cpu(info->parent_teid));
 		return -EINVAL;
 	}
 
-	/* query the current node information from FW before adding it
+	/* query the current analde information from FW before adding it
 	 * to the SW DB
 	 */
-	status = ice_sched_query_elem(hw, le32_to_cpu(info->node_teid), &elem);
+	status = ice_sched_query_elem(hw, le32_to_cpu(info->analde_teid), &elem);
 	if (status)
 		return status;
 
-	if (prealloc_node)
-		node = prealloc_node;
+	if (prealloc_analde)
+		analde = prealloc_analde;
 	else
-		node = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+		analde = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*analde), GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 	if (hw->max_children[layer]) {
 		/* coverity[suspicious_sizeof] */
-		node->children = devm_kcalloc(ice_hw_to_dev(hw),
+		analde->children = devm_kcalloc(ice_hw_to_dev(hw),
 					      hw->max_children[layer],
-					      sizeof(*node), GFP_KERNEL);
-		if (!node->children) {
-			devm_kfree(ice_hw_to_dev(hw), node);
-			return -ENOMEM;
+					      sizeof(*analde), GFP_KERNEL);
+		if (!analde->children) {
+			devm_kfree(ice_hw_to_dev(hw), analde);
+			return -EANALMEM;
 		}
 	}
 
-	node->in_use = true;
-	node->parent = parent;
-	node->tx_sched_layer = layer;
-	parent->children[parent->num_children++] = node;
-	node->info = elem;
+	analde->in_use = true;
+	analde->parent = parent;
+	analde->tx_sched_layer = layer;
+	parent->children[parent->num_children++] = analde;
+	analde->info = elem;
 	return 0;
 }
 
@@ -226,58 +226,58 @@ ice_aq_delete_sched_elems(struct ice_hw *hw, u16 grps_req,
 }
 
 /**
- * ice_sched_remove_elems - remove nodes from HW
+ * ice_sched_remove_elems - remove analdes from HW
  * @hw: pointer to the HW struct
- * @parent: pointer to the parent node
- * @node_teid: node teid to be deleted
+ * @parent: pointer to the parent analde
+ * @analde_teid: analde teid to be deleted
  *
- * This function remove nodes from HW
+ * This function remove analdes from HW
  */
 static int
-ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_node *parent,
-		       u32 node_teid)
+ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_analde *parent,
+		       u32 analde_teid)
 {
 	DEFINE_FLEX(struct ice_aqc_delete_elem, buf, teid, 1);
 	u16 buf_size = __struct_size(buf);
 	u16 num_groups_removed = 0;
 	int status;
 
-	buf->hdr.parent_teid = parent->info.node_teid;
+	buf->hdr.parent_teid = parent->info.analde_teid;
 	buf->hdr.num_elems = cpu_to_le16(1);
-	buf->teid[0] = cpu_to_le32(node_teid);
+	buf->teid[0] = cpu_to_le32(analde_teid);
 
 	status = ice_aq_delete_sched_elems(hw, 1, buf, buf_size,
 					   &num_groups_removed, NULL);
 	if (status || num_groups_removed != 1)
-		ice_debug(hw, ICE_DBG_SCHED, "remove node failed FW error %d\n",
+		ice_debug(hw, ICE_DBG_SCHED, "remove analde failed FW error %d\n",
 			  hw->adminq.sq_last_status);
 
 	return status;
 }
 
 /**
- * ice_sched_get_first_node - get the first node of the given layer
+ * ice_sched_get_first_analde - get the first analde of the given layer
  * @pi: port information structure
- * @parent: pointer the base node of the subtree
+ * @parent: pointer the base analde of the subtree
  * @layer: layer number
  *
- * This function retrieves the first node of the given layer from the subtree
+ * This function retrieves the first analde of the given layer from the subtree
  */
-static struct ice_sched_node *
-ice_sched_get_first_node(struct ice_port_info *pi,
-			 struct ice_sched_node *parent, u8 layer)
+static struct ice_sched_analde *
+ice_sched_get_first_analde(struct ice_port_info *pi,
+			 struct ice_sched_analde *parent, u8 layer)
 {
 	return pi->sib_head[parent->tc_num][layer];
 }
 
 /**
- * ice_sched_get_tc_node - get pointer to TC node
+ * ice_sched_get_tc_analde - get pointer to TC analde
  * @pi: port information structure
  * @tc: TC number
  *
- * This function returns the TC node pointer
+ * This function returns the TC analde pointer
  */
-struct ice_sched_node *ice_sched_get_tc_node(struct ice_port_info *pi, u8 tc)
+struct ice_sched_analde *ice_sched_get_tc_analde(struct ice_port_info *pi, u8 tc)
 {
 	u8 i;
 
@@ -290,44 +290,44 @@ struct ice_sched_node *ice_sched_get_tc_node(struct ice_port_info *pi, u8 tc)
 }
 
 /**
- * ice_free_sched_node - Free a Tx scheduler node from SW DB
+ * ice_free_sched_analde - Free a Tx scheduler analde from SW DB
  * @pi: port information structure
- * @node: pointer to the ice_sched_node struct
+ * @analde: pointer to the ice_sched_analde struct
  *
- * This function frees up a node from SW DB as well as from HW
+ * This function frees up a analde from SW DB as well as from HW
  *
  * This function needs to be called with the port_info->sched_lock held
  */
-void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node)
+void ice_free_sched_analde(struct ice_port_info *pi, struct ice_sched_analde *analde)
 {
-	struct ice_sched_node *parent;
+	struct ice_sched_analde *parent;
 	struct ice_hw *hw = pi->hw;
 	u8 i, j;
 
-	/* Free the children before freeing up the parent node
-	 * The parent array is updated below and that shifts the nodes
+	/* Free the children before freeing up the parent analde
+	 * The parent array is updated below and that shifts the analdes
 	 * in the array. So always pick the first child if num children > 0
 	 */
-	while (node->num_children)
-		ice_free_sched_node(pi, node->children[0]);
+	while (analde->num_children)
+		ice_free_sched_analde(pi, analde->children[0]);
 
-	/* Leaf, TC and root nodes can't be deleted by SW */
-	if (node->tx_sched_layer >= hw->sw_entry_point_layer &&
-	    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
-	    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT &&
-	    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF) {
-		u32 teid = le32_to_cpu(node->info.node_teid);
+	/* Leaf, TC and root analdes can't be deleted by SW */
+	if (analde->tx_sched_layer >= hw->sw_entry_point_layer &&
+	    analde->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
+	    analde->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT &&
+	    analde->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF) {
+		u32 teid = le32_to_cpu(analde->info.analde_teid);
 
-		ice_sched_remove_elems(hw, node->parent, teid);
+		ice_sched_remove_elems(hw, analde->parent, teid);
 	}
-	parent = node->parent;
-	/* root has no parent */
+	parent = analde->parent;
+	/* root has anal parent */
 	if (parent) {
-		struct ice_sched_node *p;
+		struct ice_sched_analde *p;
 
 		/* update the parent */
 		for (i = 0; i < parent->num_children; i++)
-			if (parent->children[i] == node) {
+			if (parent->children[i] == analde) {
 				for (j = i + 1; j < parent->num_children; j++)
 					parent->children[j - 1] =
 						parent->children[j];
@@ -335,25 +335,25 @@ void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node)
 				break;
 			}
 
-		p = ice_sched_get_first_node(pi, node, node->tx_sched_layer);
+		p = ice_sched_get_first_analde(pi, analde, analde->tx_sched_layer);
 		while (p) {
-			if (p->sibling == node) {
-				p->sibling = node->sibling;
+			if (p->sibling == analde) {
+				p->sibling = analde->sibling;
 				break;
 			}
 			p = p->sibling;
 		}
 
 		/* update the sibling head if head is getting removed */
-		if (pi->sib_head[node->tc_num][node->tx_sched_layer] == node)
-			pi->sib_head[node->tc_num][node->tx_sched_layer] =
-				node->sibling;
+		if (pi->sib_head[analde->tc_num][analde->tx_sched_layer] == analde)
+			pi->sib_head[analde->tc_num][analde->tx_sched_layer] =
+				analde->sibling;
 	}
 
-	devm_kfree(ice_hw_to_dev(hw), node->children);
-	kfree(node->name);
-	xa_erase(&pi->sched_node_ids, node->id);
-	devm_kfree(ice_hw_to_dev(hw), node);
+	devm_kfree(ice_hw_to_dev(hw), analde->children);
+	kfree(analde->name);
+	xa_erase(&pi->sched_analde_ids, analde->id);
+	devm_kfree(ice_hw_to_dev(hw), analde);
 }
 
 /**
@@ -506,39 +506,39 @@ ice_aq_query_sched_res(struct ice_hw *hw, u16 buf_size,
 }
 
 /**
- * ice_sched_suspend_resume_elems - suspend or resume HW nodes
+ * ice_sched_suspend_resume_elems - suspend or resume HW analdes
  * @hw: pointer to the HW struct
- * @num_nodes: number of nodes
- * @node_teids: array of node teids to be suspended or resumed
+ * @num_analdes: number of analdes
+ * @analde_teids: array of analde teids to be suspended or resumed
  * @suspend: true means suspend / false means resume
  *
- * This function suspends or resumes HW nodes
+ * This function suspends or resumes HW analdes
  */
 int
-ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
+ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_analdes, u32 *analde_teids,
 			       bool suspend)
 {
 	u16 i, buf_size, num_elem_ret = 0;
 	__le32 *buf;
 	int status;
 
-	buf_size = sizeof(*buf) * num_nodes;
+	buf_size = sizeof(*buf) * num_analdes;
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for (i = 0; i < num_nodes; i++)
-		buf[i] = cpu_to_le32(node_teids[i]);
+	for (i = 0; i < num_analdes; i++)
+		buf[i] = cpu_to_le32(analde_teids[i]);
 
 	if (suspend)
-		status = ice_aq_suspend_sched_elems(hw, num_nodes, buf,
+		status = ice_aq_suspend_sched_elems(hw, num_analdes, buf,
 						    buf_size, &num_elem_ret,
 						    NULL);
 	else
-		status = ice_aq_resume_sched_elems(hw, num_nodes, buf,
+		status = ice_aq_resume_sched_elems(hw, num_analdes, buf,
 						   buf_size, &num_elem_ret,
 						   NULL);
-	if (status || num_elem_ret != num_nodes)
+	if (status || num_elem_ret != num_analdes)
 		ice_debug(hw, ICE_DBG_SCHED, "suspend/resume failed\n");
 
 	devm_kfree(ice_hw_to_dev(hw), buf);
@@ -567,7 +567,7 @@ ice_alloc_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 		q_ctx = devm_kcalloc(ice_hw_to_dev(hw), new_numqs,
 				     sizeof(*q_ctx), GFP_KERNEL);
 		if (!q_ctx)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (idx = 0; idx < new_numqs; idx++) {
 			q_ctx[idx].q_handle = ICE_INVAL_Q_HANDLE;
@@ -585,7 +585,7 @@ ice_alloc_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 		q_ctx = devm_kcalloc(ice_hw_to_dev(hw), new_numqs,
 				     sizeof(*q_ctx), GFP_KERNEL);
 		if (!q_ctx)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(q_ctx, vsi_ctx->lan_q_ctx[tc],
 		       prev_num * sizeof(*q_ctx));
@@ -625,7 +625,7 @@ ice_alloc_rdma_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 						       sizeof(*q_ctx),
 						       GFP_KERNEL);
 		if (!vsi_ctx->rdma_q_ctx[tc])
-			return -ENOMEM;
+			return -EANALMEM;
 		vsi_ctx->num_rdma_q_entries[tc] = new_numqs;
 		return 0;
 	}
@@ -636,7 +636,7 @@ ice_alloc_rdma_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 		q_ctx = devm_kcalloc(ice_hw_to_dev(hw), new_numqs,
 				     sizeof(*q_ctx), GFP_KERNEL);
 		if (!q_ctx)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(q_ctx, vsi_ctx->rdma_q_ctx[tc],
 		       prev_num * sizeof(*q_ctx));
 		devm_kfree(ice_hw_to_dev(hw), vsi_ctx->rdma_q_ctx[tc]);
@@ -724,7 +724,7 @@ ice_aq_remove_rl_profile(struct ice_hw *hw, u16 num_profiles,
  * @hw: pointer to the HW struct
  * @rl_info: rate limit profile information
  *
- * If the profile ID is not referenced anymore, it removes profile ID with
+ * If the profile ID is analt referenced anymore, it removes profile ID with
  * its associated parameters from HW DB,and locally. The caller needs to
  * hold scheduler lock.
  */
@@ -747,7 +747,7 @@ ice_sched_del_rl_profile(struct ice_hw *hw,
 	if (status || num_profiles_removed != num_profiles)
 		return -EIO;
 
-	/* Delete stale entry now */
+	/* Delete stale entry analw */
 	list_del(&rl_info->list_entry);
 	devm_kfree(ice_hw_to_dev(hw), rl_info);
 	return status;
@@ -811,10 +811,10 @@ void ice_sched_clear_agg(struct ice_hw *hw)
 }
 
 /**
- * ice_sched_clear_tx_topo - clears the scheduler tree nodes
+ * ice_sched_clear_tx_topo - clears the scheduler tree analdes
  * @pi: port information structure
  *
- * This function removes all the nodes from HW as well as from SW DB.
+ * This function removes all the analdes from HW as well as from SW DB.
  */
 static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
 {
@@ -823,7 +823,7 @@ static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
 	/* remove RL profiles related lists */
 	ice_sched_clear_rl_prof(pi);
 	if (pi->root) {
-		ice_free_sched_node(pi, pi->root);
+		ice_free_sched_analde(pi, pi->root);
 		pi->root = NULL;
 	}
 }
@@ -869,25 +869,25 @@ void ice_sched_cleanup_all(struct ice_hw *hw)
 }
 
 /**
- * ice_sched_add_elems - add nodes to HW and SW DB
+ * ice_sched_add_elems - add analdes to HW and SW DB
  * @pi: port information structure
- * @tc_node: pointer to the branch node
- * @parent: pointer to the parent node
- * @layer: layer number to add nodes
- * @num_nodes: number of nodes
- * @num_nodes_added: pointer to num nodes added
- * @first_node_teid: if new nodes are added then return the TEID of first node
- * @prealloc_nodes: preallocated nodes struct for software DB
+ * @tc_analde: pointer to the branch analde
+ * @parent: pointer to the parent analde
+ * @layer: layer number to add analdes
+ * @num_analdes: number of analdes
+ * @num_analdes_added: pointer to num analdes added
+ * @first_analde_teid: if new analdes are added then return the TEID of first analde
+ * @prealloc_analdes: preallocated analdes struct for software DB
  *
- * This function add nodes to HW as well as to SW DB for a given layer
+ * This function add analdes to HW as well as to SW DB for a given layer
  */
 int
-ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
-		    struct ice_sched_node *parent, u8 layer, u16 num_nodes,
-		    u16 *num_nodes_added, u32 *first_node_teid,
-		    struct ice_sched_node **prealloc_nodes)
+ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_analde *tc_analde,
+		    struct ice_sched_analde *parent, u8 layer, u16 num_analdes,
+		    u16 *num_analdes_added, u32 *first_analde_teid,
+		    struct ice_sched_analde **prealloc_analdes)
 {
-	struct ice_sched_node *prev, *new_node;
+	struct ice_sched_analde *prev, *new_analde;
 	struct ice_aqc_add_elem *buf;
 	u16 i, num_groups_added = 0;
 	struct ice_hw *hw = pi->hw;
@@ -895,15 +895,15 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	int status = 0;
 	u32 teid;
 
-	buf_size = struct_size(buf, generic, num_nodes);
+	buf_size = struct_size(buf, generic, num_analdes);
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	buf->hdr.parent_teid = parent->info.node_teid;
-	buf->hdr.num_elems = cpu_to_le16(num_nodes);
-	for (i = 0; i < num_nodes; i++) {
-		buf->generic[i].parent_teid = parent->info.node_teid;
+	buf->hdr.parent_teid = parent->info.analde_teid;
+	buf->hdr.num_elems = cpu_to_le16(num_analdes);
+	for (i = 0; i < num_analdes; i++) {
+		buf->generic[i].parent_teid = parent->info.analde_teid;
 		buf->generic[i].data.elem_type = ICE_AQC_ELEM_TYPE_SE_GENERIC;
 		buf->generic[i].data.valid_sections =
 			ICE_AQC_ELEM_VALID_GENERIC | ICE_AQC_ELEM_VALID_CIR |
@@ -922,67 +922,67 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	status = ice_aq_add_sched_elems(hw, 1, buf, buf_size,
 					&num_groups_added, NULL);
 	if (status || num_groups_added != 1) {
-		ice_debug(hw, ICE_DBG_SCHED, "add node failed FW Error %d\n",
+		ice_debug(hw, ICE_DBG_SCHED, "add analde failed FW Error %d\n",
 			  hw->adminq.sq_last_status);
 		devm_kfree(ice_hw_to_dev(hw), buf);
 		return -EIO;
 	}
 
-	*num_nodes_added = num_nodes;
-	/* add nodes to the SW DB */
-	for (i = 0; i < num_nodes; i++) {
-		if (prealloc_nodes)
-			status = ice_sched_add_node(pi, layer, &buf->generic[i], prealloc_nodes[i]);
+	*num_analdes_added = num_analdes;
+	/* add analdes to the SW DB */
+	for (i = 0; i < num_analdes; i++) {
+		if (prealloc_analdes)
+			status = ice_sched_add_analde(pi, layer, &buf->generic[i], prealloc_analdes[i]);
 		else
-			status = ice_sched_add_node(pi, layer, &buf->generic[i], NULL);
+			status = ice_sched_add_analde(pi, layer, &buf->generic[i], NULL);
 
 		if (status) {
-			ice_debug(hw, ICE_DBG_SCHED, "add nodes in SW DB failed status =%d\n",
+			ice_debug(hw, ICE_DBG_SCHED, "add analdes in SW DB failed status =%d\n",
 				  status);
 			break;
 		}
 
-		teid = le32_to_cpu(buf->generic[i].node_teid);
-		new_node = ice_sched_find_node_by_teid(parent, teid);
-		if (!new_node) {
-			ice_debug(hw, ICE_DBG_SCHED, "Node is missing for teid =%d\n", teid);
+		teid = le32_to_cpu(buf->generic[i].analde_teid);
+		new_analde = ice_sched_find_analde_by_teid(parent, teid);
+		if (!new_analde) {
+			ice_debug(hw, ICE_DBG_SCHED, "Analde is missing for teid =%d\n", teid);
 			break;
 		}
 
-		new_node->sibling = NULL;
-		new_node->tc_num = tc_node->tc_num;
-		new_node->tx_weight = ICE_SCHED_DFLT_BW_WT;
-		new_node->tx_share = ICE_SCHED_DFLT_BW;
-		new_node->tx_max = ICE_SCHED_DFLT_BW;
-		new_node->name = kzalloc(SCHED_NODE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!new_node->name)
-			return -ENOMEM;
+		new_analde->sibling = NULL;
+		new_analde->tc_num = tc_analde->tc_num;
+		new_analde->tx_weight = ICE_SCHED_DFLT_BW_WT;
+		new_analde->tx_share = ICE_SCHED_DFLT_BW;
+		new_analde->tx_max = ICE_SCHED_DFLT_BW;
+		new_analde->name = kzalloc(SCHED_ANALDE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!new_analde->name)
+			return -EANALMEM;
 
-		status = xa_alloc(&pi->sched_node_ids, &new_node->id, NULL, XA_LIMIT(0, UINT_MAX),
+		status = xa_alloc(&pi->sched_analde_ids, &new_analde->id, NULL, XA_LIMIT(0, UINT_MAX),
 				  GFP_KERNEL);
 		if (status) {
-			ice_debug(hw, ICE_DBG_SCHED, "xa_alloc failed for sched node status =%d\n",
+			ice_debug(hw, ICE_DBG_SCHED, "xa_alloc failed for sched analde status =%d\n",
 				  status);
 			break;
 		}
 
-		snprintf(new_node->name, SCHED_NODE_NAME_MAX_LEN, "node_%u", new_node->id);
+		snprintf(new_analde->name, SCHED_ANALDE_NAME_MAX_LEN, "analde_%u", new_analde->id);
 
-		/* add it to previous node sibling pointer */
-		/* Note: siblings are not linked across branches */
-		prev = ice_sched_get_first_node(pi, tc_node, layer);
-		if (prev && prev != new_node) {
+		/* add it to previous analde sibling pointer */
+		/* Analte: siblings are analt linked across branches */
+		prev = ice_sched_get_first_analde(pi, tc_analde, layer);
+		if (prev && prev != new_analde) {
 			while (prev->sibling)
 				prev = prev->sibling;
-			prev->sibling = new_node;
+			prev->sibling = new_analde;
 		}
 
 		/* initialize the sibling head */
-		if (!pi->sib_head[tc_node->tc_num][layer])
-			pi->sib_head[tc_node->tc_num][layer] = new_node;
+		if (!pi->sib_head[tc_analde->tc_num][layer])
+			pi->sib_head[tc_analde->tc_num][layer] = new_analde;
 
 		if (i == 0)
-			*first_node_teid = teid;
+			*first_analde_teid = teid;
 	}
 
 	devm_kfree(ice_hw_to_dev(hw), buf);
@@ -990,113 +990,113 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 }
 
 /**
- * ice_sched_add_nodes_to_hw_layer - Add nodes to HW layer
+ * ice_sched_add_analdes_to_hw_layer - Add analdes to HW layer
  * @pi: port information structure
- * @tc_node: pointer to TC node
- * @parent: pointer to parent node
- * @layer: layer number to add nodes
- * @num_nodes: number of nodes to be added
- * @first_node_teid: pointer to the first node TEID
- * @num_nodes_added: pointer to number of nodes added
+ * @tc_analde: pointer to TC analde
+ * @parent: pointer to parent analde
+ * @layer: layer number to add analdes
+ * @num_analdes: number of analdes to be added
+ * @first_analde_teid: pointer to the first analde TEID
+ * @num_analdes_added: pointer to number of analdes added
  *
- * Add nodes into specific HW layer.
+ * Add analdes into specific HW layer.
  */
 static int
-ice_sched_add_nodes_to_hw_layer(struct ice_port_info *pi,
-				struct ice_sched_node *tc_node,
-				struct ice_sched_node *parent, u8 layer,
-				u16 num_nodes, u32 *first_node_teid,
-				u16 *num_nodes_added)
+ice_sched_add_analdes_to_hw_layer(struct ice_port_info *pi,
+				struct ice_sched_analde *tc_analde,
+				struct ice_sched_analde *parent, u8 layer,
+				u16 num_analdes, u32 *first_analde_teid,
+				u16 *num_analdes_added)
 {
-	u16 max_child_nodes;
+	u16 max_child_analdes;
 
-	*num_nodes_added = 0;
+	*num_analdes_added = 0;
 
-	if (!num_nodes)
+	if (!num_analdes)
 		return 0;
 
 	if (!parent || layer < pi->hw->sw_entry_point_layer)
 		return -EINVAL;
 
-	/* max children per node per layer */
-	max_child_nodes = pi->hw->max_children[parent->tx_sched_layer];
+	/* max children per analde per layer */
+	max_child_analdes = pi->hw->max_children[parent->tx_sched_layer];
 
-	/* current number of children + required nodes exceed max children */
-	if ((parent->num_children + num_nodes) > max_child_nodes) {
-		/* Fail if the parent is a TC node */
-		if (parent == tc_node)
+	/* current number of children + required analdes exceed max children */
+	if ((parent->num_children + num_analdes) > max_child_analdes) {
+		/* Fail if the parent is a TC analde */
+		if (parent == tc_analde)
 			return -EIO;
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
-	return ice_sched_add_elems(pi, tc_node, parent, layer, num_nodes,
-				   num_nodes_added, first_node_teid, NULL);
+	return ice_sched_add_elems(pi, tc_analde, parent, layer, num_analdes,
+				   num_analdes_added, first_analde_teid, NULL);
 }
 
 /**
- * ice_sched_add_nodes_to_layer - Add nodes to a given layer
+ * ice_sched_add_analdes_to_layer - Add analdes to a given layer
  * @pi: port information structure
- * @tc_node: pointer to TC node
- * @parent: pointer to parent node
- * @layer: layer number to add nodes
- * @num_nodes: number of nodes to be added
- * @first_node_teid: pointer to the first node TEID
- * @num_nodes_added: pointer to number of nodes added
+ * @tc_analde: pointer to TC analde
+ * @parent: pointer to parent analde
+ * @layer: layer number to add analdes
+ * @num_analdes: number of analdes to be added
+ * @first_analde_teid: pointer to the first analde TEID
+ * @num_analdes_added: pointer to number of analdes added
  *
- * This function add nodes to a given layer.
+ * This function add analdes to a given layer.
  */
 int
-ice_sched_add_nodes_to_layer(struct ice_port_info *pi,
-			     struct ice_sched_node *tc_node,
-			     struct ice_sched_node *parent, u8 layer,
-			     u16 num_nodes, u32 *first_node_teid,
-			     u16 *num_nodes_added)
+ice_sched_add_analdes_to_layer(struct ice_port_info *pi,
+			     struct ice_sched_analde *tc_analde,
+			     struct ice_sched_analde *parent, u8 layer,
+			     u16 num_analdes, u32 *first_analde_teid,
+			     u16 *num_analdes_added)
 {
-	u32 *first_teid_ptr = first_node_teid;
-	u16 new_num_nodes = num_nodes;
+	u32 *first_teid_ptr = first_analde_teid;
+	u16 new_num_analdes = num_analdes;
 	int status = 0;
 
-	*num_nodes_added = 0;
-	while (*num_nodes_added < num_nodes) {
-		u16 max_child_nodes, num_added = 0;
+	*num_analdes_added = 0;
+	while (*num_analdes_added < num_analdes) {
+		u16 max_child_analdes, num_added = 0;
 		u32 temp;
 
-		status = ice_sched_add_nodes_to_hw_layer(pi, tc_node, parent,
-							 layer,	new_num_nodes,
+		status = ice_sched_add_analdes_to_hw_layer(pi, tc_analde, parent,
+							 layer,	new_num_analdes,
 							 first_teid_ptr,
 							 &num_added);
 		if (!status)
-			*num_nodes_added += num_added;
-		/* added more nodes than requested ? */
-		if (*num_nodes_added > num_nodes) {
-			ice_debug(pi->hw, ICE_DBG_SCHED, "added extra nodes %d %d\n", num_nodes,
-				  *num_nodes_added);
+			*num_analdes_added += num_added;
+		/* added more analdes than requested ? */
+		if (*num_analdes_added > num_analdes) {
+			ice_debug(pi->hw, ICE_DBG_SCHED, "added extra analdes %d %d\n", num_analdes,
+				  *num_analdes_added);
 			status = -EIO;
 			break;
 		}
-		/* break if all the nodes are added successfully */
-		if (!status && (*num_nodes_added == num_nodes))
+		/* break if all the analdes are added successfully */
+		if (!status && (*num_analdes_added == num_analdes))
 			break;
-		/* break if the error is not max limit */
-		if (status && status != -ENOSPC)
+		/* break if the error is analt max limit */
+		if (status && status != -EANALSPC)
 			break;
 		/* Exceeded the max children */
-		max_child_nodes = pi->hw->max_children[parent->tx_sched_layer];
-		/* utilize all the spaces if the parent is not full */
-		if (parent->num_children < max_child_nodes) {
-			new_num_nodes = max_child_nodes - parent->num_children;
+		max_child_analdes = pi->hw->max_children[parent->tx_sched_layer];
+		/* utilize all the spaces if the parent is analt full */
+		if (parent->num_children < max_child_analdes) {
+			new_num_analdes = max_child_analdes - parent->num_children;
 		} else {
 			/* This parent is full, try the next sibling */
 			parent = parent->sibling;
-			/* Don't modify the first node TEID memory if the
-			 * first node was added already in the above call.
+			/* Don't modify the first analde TEID memory if the
+			 * first analde was added already in the above call.
 			 * Instead send some temp memory for all other
 			 * recursive calls.
 			 */
 			if (num_added)
 				first_teid_ptr = &temp;
 
-			new_num_nodes = num_nodes - *num_nodes_added;
+			new_num_analdes = num_analdes - *num_analdes_added;
 		}
 	}
 	return status;
@@ -1160,59 +1160,59 @@ u8 ice_sched_get_agg_layer(struct ice_hw *hw)
 }
 
 /**
- * ice_rm_dflt_leaf_node - remove the default leaf node in the tree
+ * ice_rm_dflt_leaf_analde - remove the default leaf analde in the tree
  * @pi: port information structure
  *
- * This function removes the leaf node that was created by the FW
+ * This function removes the leaf analde that was created by the FW
  * during initialization
  */
-static void ice_rm_dflt_leaf_node(struct ice_port_info *pi)
+static void ice_rm_dflt_leaf_analde(struct ice_port_info *pi)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 
-	node = pi->root;
-	while (node) {
-		if (!node->num_children)
+	analde = pi->root;
+	while (analde) {
+		if (!analde->num_children)
 			break;
-		node = node->children[0];
+		analde = analde->children[0];
 	}
-	if (node && node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF) {
-		u32 teid = le32_to_cpu(node->info.node_teid);
+	if (analde && analde->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF) {
+		u32 teid = le32_to_cpu(analde->info.analde_teid);
 		int status;
 
-		/* remove the default leaf node */
-		status = ice_sched_remove_elems(pi->hw, node->parent, teid);
+		/* remove the default leaf analde */
+		status = ice_sched_remove_elems(pi->hw, analde->parent, teid);
 		if (!status)
-			ice_free_sched_node(pi, node);
+			ice_free_sched_analde(pi, analde);
 	}
 }
 
 /**
- * ice_sched_rm_dflt_nodes - free the default nodes in the tree
+ * ice_sched_rm_dflt_analdes - free the default analdes in the tree
  * @pi: port information structure
  *
- * This function frees all the nodes except root and TC that were created by
+ * This function frees all the analdes except root and TC that were created by
  * the FW during initialization
  */
-static void ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
+static void ice_sched_rm_dflt_analdes(struct ice_port_info *pi)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 
-	ice_rm_dflt_leaf_node(pi);
+	ice_rm_dflt_leaf_analde(pi);
 
-	/* remove the default nodes except TC and root nodes */
-	node = pi->root;
-	while (node) {
-		if (node->tx_sched_layer >= pi->hw->sw_entry_point_layer &&
-		    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
-		    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT) {
-			ice_free_sched_node(pi, node);
+	/* remove the default analdes except TC and root analdes */
+	analde = pi->root;
+	while (analde) {
+		if (analde->tx_sched_layer >= pi->hw->sw_entry_point_layer &&
+		    analde->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
+		    analde->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT) {
+			ice_free_sched_analde(pi, analde);
 			break;
 		}
 
-		if (!node->num_children)
+		if (!analde->num_children)
 			break;
-		node = node->children[0];
+		analde = analde->children[0];
 	}
 }
 
@@ -1240,7 +1240,7 @@ int ice_sched_init_port(struct ice_port_info *pi)
 	/* Query the Default Topology from FW */
 	buf = kzalloc(ICE_AQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Query default scheduling tree topology */
 	status = ice_aq_get_dflt_topo(hw, pi->lport, buf, ICE_AQ_MAX_BUF_LEN,
@@ -1267,19 +1267,19 @@ int ice_sched_init_port(struct ice_port_info *pi)
 		goto err_init_port;
 	}
 
-	/* If the last node is a leaf node then the index of the queue group
+	/* If the last analde is a leaf analde then the index of the queue group
 	 * layer is two less than the number of elements.
 	 */
 	if (num_elems > 2 && buf[0].generic[num_elems - 1].data.elem_type ==
 	    ICE_AQC_ELEM_TYPE_LEAF)
-		pi->last_node_teid =
-			le32_to_cpu(buf[0].generic[num_elems - 2].node_teid);
+		pi->last_analde_teid =
+			le32_to_cpu(buf[0].generic[num_elems - 2].analde_teid);
 	else
-		pi->last_node_teid =
-			le32_to_cpu(buf[0].generic[num_elems - 1].node_teid);
+		pi->last_analde_teid =
+			le32_to_cpu(buf[0].generic[num_elems - 1].analde_teid);
 
-	/* Insert the Tx Sched root node */
-	status = ice_sched_add_root_node(pi, &buf[0].generic[0]);
+	/* Insert the Tx Sched root analde */
+	status = ice_sched_add_root_analde(pi, &buf[0].generic[0]);
 	if (status)
 		goto err_init_port;
 
@@ -1294,15 +1294,15 @@ int ice_sched_init_port(struct ice_port_info *pi)
 			    ICE_AQC_ELEM_TYPE_ENTRY_POINT)
 				hw->sw_entry_point_layer = j;
 
-			status = ice_sched_add_node(pi, j, &buf[i].generic[j], NULL);
+			status = ice_sched_add_analde(pi, j, &buf[i].generic[j], NULL);
 			if (status)
 				goto err_init_port;
 		}
 	}
 
-	/* Remove the default nodes. */
+	/* Remove the default analdes. */
 	if (pi->root)
-		ice_sched_rm_dflt_nodes(pi);
+		ice_sched_rm_dflt_analdes(pi);
 
 	/* initialize the port for handling the scheduler tree */
 	pi->port_state = ICE_SCHED_PORT_STATE_READY;
@@ -1312,7 +1312,7 @@ int ice_sched_init_port(struct ice_port_info *pi)
 
 err_init_port:
 	if (status && pi->root) {
-		ice_free_sched_node(pi, pi->root);
+		ice_free_sched_analde(pi, pi->root);
 		pi->root = NULL;
 	}
 
@@ -1338,7 +1338,7 @@ int ice_sched_query_res_alloc(struct ice_hw *hw)
 
 	buf = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = ice_aq_query_sched_res(hw, sizeof(*buf), buf, NULL);
 	if (status)
@@ -1351,11 +1351,11 @@ int ice_sched_query_res_alloc(struct ice_hw *hw)
 	hw->max_cgds = buf->sched_props.max_pf_cgds;
 
 	/* max sibling group size of current layer refers to the max children
-	 * of the below layer node.
-	 * layer 1 node max children will be layer 2 max sibling group size
-	 * layer 2 node max children will be layer 3 max sibling group size
+	 * of the below layer analde.
+	 * layer 1 analde max children will be layer 2 max sibling group size
+	 * layer 2 analde max children will be layer 3 max sibling group size
 	 * and so on. This array will be populated from root (index 0) to
-	 * qgroup layer 7. Leaf node has no children.
+	 * qgroup layer 7. Leaf analde has anal children.
 	 */
 	for (i = 0; i < hw->num_tx_sched_layers - 1; i++) {
 		max_sibl = buf->layer_props[i + 1].max_sibl_grp_sz;
@@ -1367,7 +1367,7 @@ int ice_sched_query_res_alloc(struct ice_hw *hw)
 				       sizeof(*hw->layer_info)),
 				      GFP_KERNEL);
 	if (!hw->layer_info) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto sched_query_out;
 	}
 
@@ -1416,99 +1416,99 @@ void ice_sched_get_psm_clk_freq(struct ice_hw *hw)
 }
 
 /**
- * ice_sched_find_node_in_subtree - Find node in part of base node subtree
+ * ice_sched_find_analde_in_subtree - Find analde in part of base analde subtree
  * @hw: pointer to the HW struct
- * @base: pointer to the base node
- * @node: pointer to the node to search
+ * @base: pointer to the base analde
+ * @analde: pointer to the analde to search
  *
- * This function checks whether a given node is part of the base node
- * subtree or not
+ * This function checks whether a given analde is part of the base analde
+ * subtree or analt
  */
 static bool
-ice_sched_find_node_in_subtree(struct ice_hw *hw, struct ice_sched_node *base,
-			       struct ice_sched_node *node)
+ice_sched_find_analde_in_subtree(struct ice_hw *hw, struct ice_sched_analde *base,
+			       struct ice_sched_analde *analde)
 {
 	u8 i;
 
 	for (i = 0; i < base->num_children; i++) {
-		struct ice_sched_node *child = base->children[i];
+		struct ice_sched_analde *child = base->children[i];
 
-		if (node == child)
+		if (analde == child)
 			return true;
 
-		if (child->tx_sched_layer > node->tx_sched_layer)
+		if (child->tx_sched_layer > analde->tx_sched_layer)
 			return false;
 
 		/* this recursion is intentional, and wouldn't
 		 * go more than 8 calls
 		 */
-		if (ice_sched_find_node_in_subtree(hw, child, node))
+		if (ice_sched_find_analde_in_subtree(hw, child, analde))
 			return true;
 	}
 	return false;
 }
 
 /**
- * ice_sched_get_free_qgrp - Scan all queue group siblings and find a free node
+ * ice_sched_get_free_qgrp - Scan all queue group siblings and find a free analde
  * @pi: port information structure
- * @vsi_node: software VSI handle
- * @qgrp_node: first queue group node identified for scanning
+ * @vsi_analde: software VSI handle
+ * @qgrp_analde: first queue group analde identified for scanning
  * @owner: LAN or RDMA
  *
- * This function retrieves a free LAN or RDMA queue group node by scanning
- * qgrp_node and its siblings for the queue group with the fewest number
+ * This function retrieves a free LAN or RDMA queue group analde by scanning
+ * qgrp_analde and its siblings for the queue group with the fewest number
  * of queues currently assigned.
  */
-static struct ice_sched_node *
+static struct ice_sched_analde *
 ice_sched_get_free_qgrp(struct ice_port_info *pi,
-			struct ice_sched_node *vsi_node,
-			struct ice_sched_node *qgrp_node, u8 owner)
+			struct ice_sched_analde *vsi_analde,
+			struct ice_sched_analde *qgrp_analde, u8 owner)
 {
-	struct ice_sched_node *min_qgrp;
+	struct ice_sched_analde *min_qgrp;
 	u8 min_children;
 
-	if (!qgrp_node)
-		return qgrp_node;
-	min_children = qgrp_node->num_children;
+	if (!qgrp_analde)
+		return qgrp_analde;
+	min_children = qgrp_analde->num_children;
 	if (!min_children)
-		return qgrp_node;
-	min_qgrp = qgrp_node;
-	/* scan all queue groups until find a node which has less than the
-	 * minimum number of children. This way all queue group nodes get
+		return qgrp_analde;
+	min_qgrp = qgrp_analde;
+	/* scan all queue groups until find a analde which has less than the
+	 * minimum number of children. This way all queue group analdes get
 	 * equal number of shares and active. The bandwidth will be equally
 	 * distributed across all queues.
 	 */
-	while (qgrp_node) {
-		/* make sure the qgroup node is part of the VSI subtree */
-		if (ice_sched_find_node_in_subtree(pi->hw, vsi_node, qgrp_node))
-			if (qgrp_node->num_children < min_children &&
-			    qgrp_node->owner == owner) {
-				/* replace the new min queue group node */
-				min_qgrp = qgrp_node;
+	while (qgrp_analde) {
+		/* make sure the qgroup analde is part of the VSI subtree */
+		if (ice_sched_find_analde_in_subtree(pi->hw, vsi_analde, qgrp_analde))
+			if (qgrp_analde->num_children < min_children &&
+			    qgrp_analde->owner == owner) {
+				/* replace the new min queue group analde */
+				min_qgrp = qgrp_analde;
 				min_children = min_qgrp->num_children;
-				/* break if it has no children, */
+				/* break if it has anal children, */
 				if (!min_children)
 					break;
 			}
-		qgrp_node = qgrp_node->sibling;
+		qgrp_analde = qgrp_analde->sibling;
 	}
 	return min_qgrp;
 }
 
 /**
- * ice_sched_get_free_qparent - Get a free LAN or RDMA queue group node
+ * ice_sched_get_free_qparent - Get a free LAN or RDMA queue group analde
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc: branch number
  * @owner: LAN or RDMA
  *
- * This function retrieves a free LAN or RDMA queue group node
+ * This function retrieves a free LAN or RDMA queue group analde
  */
-struct ice_sched_node *
+struct ice_sched_analde *
 ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			   u8 owner)
 {
-	struct ice_sched_node *vsi_node, *qgrp_node;
+	struct ice_sched_analde *vsi_analde, *qgrp_analde;
 	struct ice_vsi_ctx *vsi_ctx;
 	u16 max_children;
 	u8 qgrp_layer;
@@ -1519,98 +1519,98 @@ ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 	vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
 	if (!vsi_ctx)
 		return NULL;
-	vsi_node = vsi_ctx->sched.vsi_node[tc];
+	vsi_analde = vsi_ctx->sched.vsi_analde[tc];
 	/* validate invalid VSI ID */
-	if (!vsi_node)
+	if (!vsi_analde)
 		return NULL;
 
-	/* get the first queue group node from VSI sub-tree */
-	qgrp_node = ice_sched_get_first_node(pi, vsi_node, qgrp_layer);
-	while (qgrp_node) {
-		/* make sure the qgroup node is part of the VSI subtree */
-		if (ice_sched_find_node_in_subtree(pi->hw, vsi_node, qgrp_node))
-			if (qgrp_node->num_children < max_children &&
-			    qgrp_node->owner == owner)
+	/* get the first queue group analde from VSI sub-tree */
+	qgrp_analde = ice_sched_get_first_analde(pi, vsi_analde, qgrp_layer);
+	while (qgrp_analde) {
+		/* make sure the qgroup analde is part of the VSI subtree */
+		if (ice_sched_find_analde_in_subtree(pi->hw, vsi_analde, qgrp_analde))
+			if (qgrp_analde->num_children < max_children &&
+			    qgrp_analde->owner == owner)
 				break;
-		qgrp_node = qgrp_node->sibling;
+		qgrp_analde = qgrp_analde->sibling;
 	}
 
 	/* Select the best queue group */
-	return ice_sched_get_free_qgrp(pi, vsi_node, qgrp_node, owner);
+	return ice_sched_get_free_qgrp(pi, vsi_analde, qgrp_analde, owner);
 }
 
 /**
- * ice_sched_get_vsi_node - Get a VSI node based on VSI ID
+ * ice_sched_get_vsi_analde - Get a VSI analde based on VSI ID
  * @pi: pointer to the port information structure
- * @tc_node: pointer to the TC node
+ * @tc_analde: pointer to the TC analde
  * @vsi_handle: software VSI handle
  *
- * This function retrieves a VSI node for a given VSI ID from a given
+ * This function retrieves a VSI analde for a given VSI ID from a given
  * TC branch
  */
-static struct ice_sched_node *
-ice_sched_get_vsi_node(struct ice_port_info *pi, struct ice_sched_node *tc_node,
+static struct ice_sched_analde *
+ice_sched_get_vsi_analde(struct ice_port_info *pi, struct ice_sched_analde *tc_analde,
 		       u16 vsi_handle)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 	u8 vsi_layer;
 
 	vsi_layer = ice_sched_get_vsi_layer(pi->hw);
-	node = ice_sched_get_first_node(pi, tc_node, vsi_layer);
+	analde = ice_sched_get_first_analde(pi, tc_analde, vsi_layer);
 
 	/* Check whether it already exists */
-	while (node) {
-		if (node->vsi_handle == vsi_handle)
-			return node;
-		node = node->sibling;
+	while (analde) {
+		if (analde->vsi_handle == vsi_handle)
+			return analde;
+		analde = analde->sibling;
 	}
 
-	return node;
+	return analde;
 }
 
 /**
- * ice_sched_get_agg_node - Get an aggregator node based on aggregator ID
+ * ice_sched_get_agg_analde - Get an aggregator analde based on aggregator ID
  * @pi: pointer to the port information structure
- * @tc_node: pointer to the TC node
+ * @tc_analde: pointer to the TC analde
  * @agg_id: aggregator ID
  *
- * This function retrieves an aggregator node for a given aggregator ID from
+ * This function retrieves an aggregator analde for a given aggregator ID from
  * a given TC branch
  */
-struct ice_sched_node *
-ice_sched_get_agg_node(struct ice_port_info *pi, struct ice_sched_node *tc_node,
+struct ice_sched_analde *
+ice_sched_get_agg_analde(struct ice_port_info *pi, struct ice_sched_analde *tc_analde,
 		       u32 agg_id)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 	struct ice_hw *hw = pi->hw;
 	u8 agg_layer;
 
 	if (!hw)
 		return NULL;
 	agg_layer = ice_sched_get_agg_layer(hw);
-	node = ice_sched_get_first_node(pi, tc_node, agg_layer);
+	analde = ice_sched_get_first_analde(pi, tc_analde, agg_layer);
 
 	/* Check whether it already exists */
-	while (node) {
-		if (node->agg_id == agg_id)
-			return node;
-		node = node->sibling;
+	while (analde) {
+		if (analde->agg_id == agg_id)
+			return analde;
+		analde = analde->sibling;
 	}
 
-	return node;
+	return analde;
 }
 
 /**
- * ice_sched_calc_vsi_child_nodes - calculate number of VSI child nodes
+ * ice_sched_calc_vsi_child_analdes - calculate number of VSI child analdes
  * @hw: pointer to the HW struct
  * @num_qs: number of queues
- * @num_nodes: num nodes array
+ * @num_analdes: num analdes array
  *
- * This function calculates the number of VSI child nodes based on the
+ * This function calculates the number of VSI child analdes based on the
  * number of queues.
  */
 static void
-ice_sched_calc_vsi_child_nodes(struct ice_hw *hw, u16 num_qs, u16 *num_nodes)
+ice_sched_calc_vsi_child_analdes(struct ice_hw *hw, u16 num_qs, u16 *num_analdes)
 {
 	u16 num = num_qs;
 	u8 i, qgl, vsil;
@@ -1618,64 +1618,64 @@ ice_sched_calc_vsi_child_nodes(struct ice_hw *hw, u16 num_qs, u16 *num_nodes)
 	qgl = ice_sched_get_qgrp_layer(hw);
 	vsil = ice_sched_get_vsi_layer(hw);
 
-	/* calculate num nodes from queue group to VSI layer */
+	/* calculate num analdes from queue group to VSI layer */
 	for (i = qgl; i > vsil; i--) {
 		/* round to the next integer if there is a remainder */
 		num = DIV_ROUND_UP(num, hw->max_children[i]);
 
-		/* need at least one node */
-		num_nodes[i] = num ? num : 1;
+		/* need at least one analde */
+		num_analdes[i] = num ? num : 1;
 	}
 }
 
 /**
- * ice_sched_add_vsi_child_nodes - add VSI child nodes to tree
+ * ice_sched_add_vsi_child_analdes - add VSI child analdes to tree
  * @pi: port information structure
  * @vsi_handle: software VSI handle
- * @tc_node: pointer to the TC node
- * @num_nodes: pointer to the num nodes that needs to be added per layer
- * @owner: node owner (LAN or RDMA)
+ * @tc_analde: pointer to the TC analde
+ * @num_analdes: pointer to the num analdes that needs to be added per layer
+ * @owner: analde owner (LAN or RDMA)
  *
- * This function adds the VSI child nodes to tree. It gets called for
+ * This function adds the VSI child analdes to tree. It gets called for
  * LAN and RDMA separately.
  */
 static int
-ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
-			      struct ice_sched_node *tc_node, u16 *num_nodes,
+ice_sched_add_vsi_child_analdes(struct ice_port_info *pi, u16 vsi_handle,
+			      struct ice_sched_analde *tc_analde, u16 *num_analdes,
 			      u8 owner)
 {
-	struct ice_sched_node *parent, *node;
+	struct ice_sched_analde *parent, *analde;
 	struct ice_hw *hw = pi->hw;
-	u32 first_node_teid;
+	u32 first_analde_teid;
 	u16 num_added = 0;
 	u8 i, qgl, vsil;
 
 	qgl = ice_sched_get_qgrp_layer(hw);
 	vsil = ice_sched_get_vsi_layer(hw);
-	parent = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
+	parent = ice_sched_get_vsi_analde(pi, tc_analde, vsi_handle);
 	for (i = vsil + 1; i <= qgl; i++) {
 		int status;
 
 		if (!parent)
 			return -EIO;
 
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent, i,
-						      num_nodes[i],
-						      &first_node_teid,
+		status = ice_sched_add_analdes_to_layer(pi, tc_analde, parent, i,
+						      num_analdes[i],
+						      &first_analde_teid,
 						      &num_added);
-		if (status || num_nodes[i] != num_added)
+		if (status || num_analdes[i] != num_added)
 			return -EIO;
 
-		/* The newly added node can be a new parent for the next
-		 * layer nodes
+		/* The newly added analde can be a new parent for the next
+		 * layer analdes
 		 */
 		if (num_added) {
-			parent = ice_sched_find_node_by_teid(tc_node,
-							     first_node_teid);
-			node = parent;
-			while (node) {
-				node->owner = owner;
-				node = node->sibling;
+			parent = ice_sched_find_analde_by_teid(tc_analde,
+							     first_analde_teid);
+			analde = parent;
+			while (analde) {
+				analde->owner = owner;
+				analde = analde->sibling;
 			}
 		} else {
 			parent = parent->children[0];
@@ -1686,69 +1686,69 @@ ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 }
 
 /**
- * ice_sched_calc_vsi_support_nodes - calculate number of VSI support nodes
+ * ice_sched_calc_vsi_support_analdes - calculate number of VSI support analdes
  * @pi: pointer to the port info structure
- * @tc_node: pointer to TC node
- * @num_nodes: pointer to num nodes array
+ * @tc_analde: pointer to TC analde
+ * @num_analdes: pointer to num analdes array
  *
- * This function calculates the number of supported nodes needed to add this
- * VSI into Tx tree including the VSI, parent and intermediate nodes in below
+ * This function calculates the number of supported analdes needed to add this
+ * VSI into Tx tree including the VSI, parent and intermediate analdes in below
  * layers
  */
 static void
-ice_sched_calc_vsi_support_nodes(struct ice_port_info *pi,
-				 struct ice_sched_node *tc_node, u16 *num_nodes)
+ice_sched_calc_vsi_support_analdes(struct ice_port_info *pi,
+				 struct ice_sched_analde *tc_analde, u16 *num_analdes)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 	u8 vsil;
 	int i;
 
 	vsil = ice_sched_get_vsi_layer(pi->hw);
 	for (i = vsil; i >= pi->hw->sw_entry_point_layer; i--)
-		/* Add intermediate nodes if TC has no children and
-		 * need at least one node for VSI
+		/* Add intermediate analdes if TC has anal children and
+		 * need at least one analde for VSI
 		 */
-		if (!tc_node->num_children || i == vsil) {
-			num_nodes[i]++;
+		if (!tc_analde->num_children || i == vsil) {
+			num_analdes[i]++;
 		} else {
-			/* If intermediate nodes are reached max children
+			/* If intermediate analdes are reached max children
 			 * then add a new one.
 			 */
-			node = ice_sched_get_first_node(pi, tc_node, (u8)i);
+			analde = ice_sched_get_first_analde(pi, tc_analde, (u8)i);
 			/* scan all the siblings */
-			while (node) {
-				if (node->num_children < pi->hw->max_children[i])
+			while (analde) {
+				if (analde->num_children < pi->hw->max_children[i])
 					break;
-				node = node->sibling;
+				analde = analde->sibling;
 			}
 
-			/* tree has one intermediate node to add this new VSI.
-			 * So no need to calculate supported nodes for below
+			/* tree has one intermediate analde to add this new VSI.
+			 * So anal need to calculate supported analdes for below
 			 * layers.
 			 */
-			if (node)
+			if (analde)
 				break;
-			/* all the nodes are full, allocate a new one */
-			num_nodes[i]++;
+			/* all the analdes are full, allocate a new one */
+			num_analdes[i]++;
 		}
 }
 
 /**
- * ice_sched_add_vsi_support_nodes - add VSI supported nodes into Tx tree
+ * ice_sched_add_vsi_support_analdes - add VSI supported analdes into Tx tree
  * @pi: port information structure
  * @vsi_handle: software VSI handle
- * @tc_node: pointer to TC node
- * @num_nodes: pointer to num nodes array
+ * @tc_analde: pointer to TC analde
+ * @num_analdes: pointer to num analdes array
  *
- * This function adds the VSI supported nodes into Tx tree including the
- * VSI, its parent and intermediate nodes in below layers
+ * This function adds the VSI supported analdes into Tx tree including the
+ * VSI, its parent and intermediate analdes in below layers
  */
 static int
-ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
-				struct ice_sched_node *tc_node, u16 *num_nodes)
+ice_sched_add_vsi_support_analdes(struct ice_port_info *pi, u16 vsi_handle,
+				struct ice_sched_analde *tc_analde, u16 *num_analdes)
 {
-	struct ice_sched_node *parent = tc_node;
-	u32 first_node_teid;
+	struct ice_sched_analde *parent = tc_analde;
+	u32 first_analde_teid;
 	u16 num_added = 0;
 	u8 i, vsil;
 
@@ -1759,19 +1759,19 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
 	for (i = pi->hw->sw_entry_point_layer; i <= vsil; i++) {
 		int status;
 
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent,
-						      i, num_nodes[i],
-						      &first_node_teid,
+		status = ice_sched_add_analdes_to_layer(pi, tc_analde, parent,
+						      i, num_analdes[i],
+						      &first_analde_teid,
 						      &num_added);
-		if (status || num_nodes[i] != num_added)
+		if (status || num_analdes[i] != num_added)
 			return -EIO;
 
-		/* The newly added node can be a new parent for the next
-		 * layer nodes
+		/* The newly added analde can be a new parent for the next
+		 * layer analdes
 		 */
 		if (num_added)
-			parent = ice_sched_find_node_by_teid(tc_node,
-							     first_node_teid);
+			parent = ice_sched_find_analde_by_teid(tc_analde,
+							     first_analde_teid);
 		else
 			parent = parent->children[0];
 
@@ -1796,63 +1796,63 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
 static int
 ice_sched_add_vsi_to_topo(struct ice_port_info *pi, u16 vsi_handle, u8 tc)
 {
-	u16 num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
-	struct ice_sched_node *tc_node;
+	u16 num_analdes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
+	struct ice_sched_analde *tc_analde;
 
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_analde = ice_sched_get_tc_analde(pi, tc);
+	if (!tc_analde)
 		return -EINVAL;
 
-	/* calculate number of supported nodes needed for this VSI */
-	ice_sched_calc_vsi_support_nodes(pi, tc_node, num_nodes);
+	/* calculate number of supported analdes needed for this VSI */
+	ice_sched_calc_vsi_support_analdes(pi, tc_analde, num_analdes);
 
-	/* add VSI supported nodes to TC subtree */
-	return ice_sched_add_vsi_support_nodes(pi, vsi_handle, tc_node,
-					       num_nodes);
+	/* add VSI supported analdes to TC subtree */
+	return ice_sched_add_vsi_support_analdes(pi, vsi_handle, tc_analde,
+					       num_analdes);
 }
 
 /**
- * ice_sched_update_vsi_child_nodes - update VSI child nodes
+ * ice_sched_update_vsi_child_analdes - update VSI child analdes
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc: TC number
  * @new_numqs: new number of max queues
  * @owner: owner of this subtree
  *
- * This function updates the VSI child nodes based on the number of queues
+ * This function updates the VSI child analdes based on the number of queues
  */
 static int
-ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
+ice_sched_update_vsi_child_analdes(struct ice_port_info *pi, u16 vsi_handle,
 				 u8 tc, u16 new_numqs, u8 owner)
 {
-	u16 new_num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
-	struct ice_sched_node *vsi_node;
-	struct ice_sched_node *tc_node;
+	u16 new_num_analdes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
+	struct ice_sched_analde *vsi_analde;
+	struct ice_sched_analde *tc_analde;
 	struct ice_vsi_ctx *vsi_ctx;
 	struct ice_hw *hw = pi->hw;
 	u16 prev_numqs;
 	int status = 0;
 
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_analde = ice_sched_get_tc_analde(pi, tc);
+	if (!tc_analde)
 		return -EIO;
 
-	vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
-	if (!vsi_node)
+	vsi_analde = ice_sched_get_vsi_analde(pi, tc_analde, vsi_handle);
+	if (!vsi_analde)
 		return -EIO;
 
 	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
 	if (!vsi_ctx)
 		return -EINVAL;
 
-	if (owner == ICE_SCHED_NODE_OWNER_LAN)
+	if (owner == ICE_SCHED_ANALDE_OWNER_LAN)
 		prev_numqs = vsi_ctx->sched.max_lanq[tc];
 	else
 		prev_numqs = vsi_ctx->sched.max_rdmaq[tc];
-	/* num queues are not changed or less than the previous number */
+	/* num queues are analt changed or less than the previous number */
 	if (new_numqs <= prev_numqs)
 		return status;
-	if (owner == ICE_SCHED_NODE_OWNER_LAN) {
+	if (owner == ICE_SCHED_ANALDE_OWNER_LAN) {
 		status = ice_alloc_lan_q_ctx(hw, vsi_handle, tc, new_numqs);
 		if (status)
 			return status;
@@ -1863,19 +1863,19 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 	}
 
 	if (new_numqs)
-		ice_sched_calc_vsi_child_nodes(hw, new_numqs, new_num_nodes);
+		ice_sched_calc_vsi_child_analdes(hw, new_numqs, new_num_analdes);
 	/* Keep the max number of queue configuration all the time. Update the
 	 * tree only if number of queues > previous number of queues. This may
-	 * leave some extra nodes in the tree if number of queues < previous
-	 * number but that wouldn't harm anything. Removing those extra nodes
-	 * may complicate the code if those nodes are part of SRL or
+	 * leave some extra analdes in the tree if number of queues < previous
+	 * number but that wouldn't harm anything. Removing those extra analdes
+	 * may complicate the code if those analdes are part of SRL or
 	 * individually rate limited.
 	 */
-	status = ice_sched_add_vsi_child_nodes(pi, vsi_handle, tc_node,
-					       new_num_nodes, owner);
+	status = ice_sched_add_vsi_child_analdes(pi, vsi_handle, tc_analde,
+					       new_num_analdes, owner);
 	if (status)
 		return status;
-	if (owner == ICE_SCHED_NODE_OWNER_LAN)
+	if (owner == ICE_SCHED_ANALDE_OWNER_LAN)
 		vsi_ctx->sched.max_lanq[tc] = new_numqs;
 	else
 		vsi_ctx->sched.max_rdmaq[tc] = new_numqs;
@@ -1892,74 +1892,74 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
  * @owner: LAN or RDMA
  * @enable: TC enabled or disabled
  *
- * This function adds/updates VSI nodes based on the number of queues. If TC is
+ * This function adds/updates VSI analdes based on the number of queues. If TC is
  * enabled and VSI is in suspended state then resume the VSI back. If TC is
- * disabled then suspend the VSI if it is not already.
+ * disabled then suspend the VSI if it is analt already.
  */
 int
 ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		  u8 owner, bool enable)
 {
-	struct ice_sched_node *vsi_node, *tc_node;
+	struct ice_sched_analde *vsi_analde, *tc_analde;
 	struct ice_vsi_ctx *vsi_ctx;
 	struct ice_hw *hw = pi->hw;
 	int status = 0;
 
 	ice_debug(pi->hw, ICE_DBG_SCHED, "add/config VSI %d\n", vsi_handle);
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_analde = ice_sched_get_tc_analde(pi, tc);
+	if (!tc_analde)
 		return -EINVAL;
 	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
 	if (!vsi_ctx)
 		return -EINVAL;
-	vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
+	vsi_analde = ice_sched_get_vsi_analde(pi, tc_analde, vsi_handle);
 
-	/* suspend the VSI if TC is not enabled */
+	/* suspend the VSI if TC is analt enabled */
 	if (!enable) {
-		if (vsi_node && vsi_node->in_use) {
-			u32 teid = le32_to_cpu(vsi_node->info.node_teid);
+		if (vsi_analde && vsi_analde->in_use) {
+			u32 teid = le32_to_cpu(vsi_analde->info.analde_teid);
 
 			status = ice_sched_suspend_resume_elems(hw, 1, &teid,
 								true);
 			if (!status)
-				vsi_node->in_use = false;
+				vsi_analde->in_use = false;
 		}
 		return status;
 	}
 
 	/* TC is enabled, if it is a new VSI then add it to the tree */
-	if (!vsi_node) {
+	if (!vsi_analde) {
 		status = ice_sched_add_vsi_to_topo(pi, vsi_handle, tc);
 		if (status)
 			return status;
 
-		vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
-		if (!vsi_node)
+		vsi_analde = ice_sched_get_vsi_analde(pi, tc_analde, vsi_handle);
+		if (!vsi_analde)
 			return -EIO;
 
-		vsi_ctx->sched.vsi_node[tc] = vsi_node;
-		vsi_node->in_use = true;
+		vsi_ctx->sched.vsi_analde[tc] = vsi_analde;
+		vsi_analde->in_use = true;
 		/* invalidate the max queues whenever VSI gets added first time
 		 * into the scheduler tree (boot or after reset). We need to
-		 * recreate the child nodes all the time in these cases.
+		 * recreate the child analdes all the time in these cases.
 		 */
 		vsi_ctx->sched.max_lanq[tc] = 0;
 		vsi_ctx->sched.max_rdmaq[tc] = 0;
 	}
 
-	/* update the VSI child nodes */
-	status = ice_sched_update_vsi_child_nodes(pi, vsi_handle, tc, maxqs,
+	/* update the VSI child analdes */
+	status = ice_sched_update_vsi_child_analdes(pi, vsi_handle, tc, maxqs,
 						  owner);
 	if (status)
 		return status;
 
 	/* TC is enabled, resume the VSI if it is in the suspend state */
-	if (!vsi_node->in_use) {
-		u32 teid = le32_to_cpu(vsi_node->info.node_teid);
+	if (!vsi_analde->in_use) {
+		u32 teid = le32_to_cpu(vsi_analde->info.analde_teid);
 
 		status = ice_sched_suspend_resume_elems(hw, 1, &teid, false);
 		if (!status)
-			vsi_node->in_use = true;
+			vsi_analde->in_use = true;
 	}
 
 	return status;
@@ -1995,29 +1995,29 @@ static void ice_sched_rm_agg_vsi_info(struct ice_port_info *pi, u16 vsi_handle)
 }
 
 /**
- * ice_sched_is_leaf_node_present - check for a leaf node in the sub-tree
- * @node: pointer to the sub-tree node
+ * ice_sched_is_leaf_analde_present - check for a leaf analde in the sub-tree
+ * @analde: pointer to the sub-tree analde
  *
- * This function checks for a leaf node presence in a given sub-tree node.
+ * This function checks for a leaf analde presence in a given sub-tree analde.
  */
-static bool ice_sched_is_leaf_node_present(struct ice_sched_node *node)
+static bool ice_sched_is_leaf_analde_present(struct ice_sched_analde *analde)
 {
 	u8 i;
 
-	for (i = 0; i < node->num_children; i++)
-		if (ice_sched_is_leaf_node_present(node->children[i]))
+	for (i = 0; i < analde->num_children; i++)
+		if (ice_sched_is_leaf_analde_present(analde->children[i]))
 			return true;
-	/* check for a leaf node */
-	return (node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF);
+	/* check for a leaf analde */
+	return (analde->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF);
 }
 
 /**
- * ice_sched_rm_vsi_cfg - remove the VSI and its children nodes
+ * ice_sched_rm_vsi_cfg - remove the VSI and its children analdes
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @owner: LAN or RDMA
  *
- * This function removes the VSI and its LAN or RDMA children nodes from the
+ * This function removes the VSI and its LAN or RDMA children analdes from the
  * scheduler tree.
  */
 static int
@@ -2036,43 +2036,43 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 		goto exit_sched_rm_vsi_cfg;
 
 	ice_for_each_traffic_class(i) {
-		struct ice_sched_node *vsi_node, *tc_node;
+		struct ice_sched_analde *vsi_analde, *tc_analde;
 		u8 j = 0;
 
-		tc_node = ice_sched_get_tc_node(pi, i);
-		if (!tc_node)
+		tc_analde = ice_sched_get_tc_analde(pi, i);
+		if (!tc_analde)
 			continue;
 
-		vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
-		if (!vsi_node)
+		vsi_analde = ice_sched_get_vsi_analde(pi, tc_analde, vsi_handle);
+		if (!vsi_analde)
 			continue;
 
-		if (ice_sched_is_leaf_node_present(vsi_node)) {
-			ice_debug(pi->hw, ICE_DBG_SCHED, "VSI has leaf nodes in TC %d\n", i);
+		if (ice_sched_is_leaf_analde_present(vsi_analde)) {
+			ice_debug(pi->hw, ICE_DBG_SCHED, "VSI has leaf analdes in TC %d\n", i);
 			status = -EBUSY;
 			goto exit_sched_rm_vsi_cfg;
 		}
-		while (j < vsi_node->num_children) {
-			if (vsi_node->children[j]->owner == owner) {
-				ice_free_sched_node(pi, vsi_node->children[j]);
+		while (j < vsi_analde->num_children) {
+			if (vsi_analde->children[j]->owner == owner) {
+				ice_free_sched_analde(pi, vsi_analde->children[j]);
 
 				/* reset the counter again since the num
-				 * children will be updated after node removal
+				 * children will be updated after analde removal
 				 */
 				j = 0;
 			} else {
 				j++;
 			}
 		}
-		/* remove the VSI if it has no children */
-		if (!vsi_node->num_children) {
-			ice_free_sched_node(pi, vsi_node);
-			vsi_ctx->sched.vsi_node[i] = NULL;
+		/* remove the VSI if it has anal children */
+		if (!vsi_analde->num_children) {
+			ice_free_sched_analde(pi, vsi_analde);
+			vsi_ctx->sched.vsi_analde[i] = NULL;
 
 			/* clean up aggregator related VSI info if any */
 			ice_sched_rm_agg_vsi_info(pi, vsi_handle);
 		}
-		if (owner == ICE_SCHED_NODE_OWNER_LAN)
+		if (owner == ICE_SCHED_ANALDE_OWNER_LAN)
 			vsi_ctx->sched.max_lanq[i] = 0;
 		else
 			vsi_ctx->sched.max_rdmaq[i] = 0;
@@ -2085,29 +2085,29 @@ exit_sched_rm_vsi_cfg:
 }
 
 /**
- * ice_rm_vsi_lan_cfg - remove VSI and its LAN children nodes
+ * ice_rm_vsi_lan_cfg - remove VSI and its LAN children analdes
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  *
- * This function clears the VSI and its LAN children nodes from scheduler tree
+ * This function clears the VSI and its LAN children analdes from scheduler tree
  * for all TCs.
  */
 int ice_rm_vsi_lan_cfg(struct ice_port_info *pi, u16 vsi_handle)
 {
-	return ice_sched_rm_vsi_cfg(pi, vsi_handle, ICE_SCHED_NODE_OWNER_LAN);
+	return ice_sched_rm_vsi_cfg(pi, vsi_handle, ICE_SCHED_ANALDE_OWNER_LAN);
 }
 
 /**
- * ice_rm_vsi_rdma_cfg - remove VSI and its RDMA children nodes
+ * ice_rm_vsi_rdma_cfg - remove VSI and its RDMA children analdes
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  *
- * This function clears the VSI and its RDMA children nodes from scheduler tree
+ * This function clears the VSI and its RDMA children analdes from scheduler tree
  * for all TCs.
  */
 int ice_rm_vsi_rdma_cfg(struct ice_port_info *pi, u16 vsi_handle)
 {
-	return ice_sched_rm_vsi_cfg(pi, vsi_handle, ICE_SCHED_NODE_OWNER_RDMA);
+	return ice_sched_rm_vsi_cfg(pi, vsi_handle, ICE_SCHED_ANALDE_OWNER_RDMA);
 }
 
 /**
@@ -2131,41 +2131,41 @@ ice_get_agg_info(struct ice_hw *hw, u32 agg_id)
 }
 
 /**
- * ice_sched_get_free_vsi_parent - Find a free parent node in aggregator subtree
+ * ice_sched_get_free_vsi_parent - Find a free parent analde in aggregator subtree
  * @hw: pointer to the HW struct
- * @node: pointer to a child node
- * @num_nodes: num nodes count array
+ * @analde: pointer to a child analde
+ * @num_analdes: num analdes count array
  *
  * This function walks through the aggregator subtree to find a free parent
- * node
+ * analde
  */
-struct ice_sched_node *
-ice_sched_get_free_vsi_parent(struct ice_hw *hw, struct ice_sched_node *node,
-			      u16 *num_nodes)
+struct ice_sched_analde *
+ice_sched_get_free_vsi_parent(struct ice_hw *hw, struct ice_sched_analde *analde,
+			      u16 *num_analdes)
 {
-	u8 l = node->tx_sched_layer;
+	u8 l = analde->tx_sched_layer;
 	u8 vsil, i;
 
 	vsil = ice_sched_get_vsi_layer(hw);
 
 	/* Is it VSI parent layer ? */
 	if (l == vsil - 1)
-		return (node->num_children < hw->max_children[l]) ? node : NULL;
+		return (analde->num_children < hw->max_children[l]) ? analde : NULL;
 
-	/* We have intermediate nodes. Let's walk through the subtree. If the
-	 * intermediate node has space to add a new node then clear the count
+	/* We have intermediate analdes. Let's walk through the subtree. If the
+	 * intermediate analde has space to add a new analde then clear the count
 	 */
-	if (node->num_children < hw->max_children[l])
-		num_nodes[l] = 0;
+	if (analde->num_children < hw->max_children[l])
+		num_analdes[l] = 0;
 	/* The below recursive call is intentional and wouldn't go more than
 	 * 2 or 3 iterations.
 	 */
 
-	for (i = 0; i < node->num_children; i++) {
-		struct ice_sched_node *parent;
+	for (i = 0; i < analde->num_children; i++) {
+		struct ice_sched_analde *parent;
 
-		parent = ice_sched_get_free_vsi_parent(hw, node->children[i],
-						       num_nodes);
+		parent = ice_sched_get_free_vsi_parent(hw, analde->children[i],
+						       num_analdes);
 		if (parent)
 			return parent;
 	}
@@ -2175,24 +2175,24 @@ ice_sched_get_free_vsi_parent(struct ice_hw *hw, struct ice_sched_node *node,
 
 /**
  * ice_sched_update_parent - update the new parent in SW DB
- * @new_parent: pointer to a new parent node
- * @node: pointer to a child node
+ * @new_parent: pointer to a new parent analde
+ * @analde: pointer to a child analde
  *
  * This function removes the child from the old parent and adds it to a new
  * parent
  */
 void
-ice_sched_update_parent(struct ice_sched_node *new_parent,
-			struct ice_sched_node *node)
+ice_sched_update_parent(struct ice_sched_analde *new_parent,
+			struct ice_sched_analde *analde)
 {
-	struct ice_sched_node *old_parent;
+	struct ice_sched_analde *old_parent;
 	u8 i, j;
 
-	old_parent = node->parent;
+	old_parent = analde->parent;
 
 	/* update the old parent children */
 	for (i = 0; i < old_parent->num_children; i++)
-		if (old_parent->children[i] == node) {
+		if (old_parent->children[i] == analde) {
 			for (j = i + 1; j < old_parent->num_children; j++)
 				old_parent->children[j - 1] =
 					old_parent->children[j];
@@ -2200,28 +2200,28 @@ ice_sched_update_parent(struct ice_sched_node *new_parent,
 			break;
 		}
 
-	/* now move the node to a new parent */
-	new_parent->children[new_parent->num_children++] = node;
-	node->parent = new_parent;
-	node->info.parent_teid = new_parent->info.node_teid;
+	/* analw move the analde to a new parent */
+	new_parent->children[new_parent->num_children++] = analde;
+	analde->parent = new_parent;
+	analde->info.parent_teid = new_parent->info.analde_teid;
 }
 
 /**
- * ice_sched_move_nodes - move child nodes to a given parent
+ * ice_sched_move_analdes - move child analdes to a given parent
  * @pi: port information structure
- * @parent: pointer to parent node
- * @num_items: number of child nodes to be moved
- * @list: pointer to child node teids
+ * @parent: pointer to parent analde
+ * @num_items: number of child analdes to be moved
+ * @list: pointer to child analde teids
  *
- * This function move the child nodes to a given parent.
+ * This function move the child analdes to a given parent.
  */
 int
-ice_sched_move_nodes(struct ice_port_info *pi, struct ice_sched_node *parent,
+ice_sched_move_analdes(struct ice_port_info *pi, struct ice_sched_analde *parent,
 		     u16 num_items, u32 *list)
 {
 	DEFINE_FLEX(struct ice_aqc_move_elem, buf, teid, 1);
 	u16 buf_len = __struct_size(buf);
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 	u16 i, grps_movd = 0;
 	struct ice_hw *hw;
 	int status = 0;
@@ -2231,21 +2231,21 @@ ice_sched_move_nodes(struct ice_port_info *pi, struct ice_sched_node *parent,
 	if (!parent || !num_items)
 		return -EINVAL;
 
-	/* Does parent have enough space */
+	/* Does parent have eanalugh space */
 	if (parent->num_children + num_items >
 	    hw->max_children[parent->tx_sched_layer])
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (i = 0; i < num_items; i++) {
-		node = ice_sched_find_node_by_teid(pi->root, list[i]);
-		if (!node) {
+		analde = ice_sched_find_analde_by_teid(pi->root, list[i]);
+		if (!analde) {
 			status = -EINVAL;
 			break;
 		}
 
-		buf->hdr.src_parent_teid = node->info.parent_teid;
-		buf->hdr.dest_parent_teid = parent->info.node_teid;
-		buf->teid[0] = node->info.node_teid;
+		buf->hdr.src_parent_teid = analde->info.parent_teid;
+		buf->hdr.dest_parent_teid = parent->info.analde_teid;
+		buf->teid[0] = analde->info.analde_teid;
 		buf->hdr.num_elems = cpu_to_le16(1);
 		status = ice_aq_move_sched_elems(hw, buf, buf_len, &grps_movd);
 		if (status && grps_movd != 1) {
@@ -2254,81 +2254,81 @@ ice_sched_move_nodes(struct ice_port_info *pi, struct ice_sched_node *parent,
 		}
 
 		/* update the SW DB */
-		ice_sched_update_parent(parent, node);
+		ice_sched_update_parent(parent, analde);
 	}
 
 	return status;
 }
 
 /**
- * ice_sched_move_vsi_to_agg - move VSI to aggregator node
+ * ice_sched_move_vsi_to_agg - move VSI to aggregator analde
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @agg_id: aggregator ID
  * @tc: TC number
  *
- * This function moves a VSI to an aggregator node or its subtree.
- * Intermediate nodes may be created if required.
+ * This function moves a VSI to an aggregator analde or its subtree.
+ * Intermediate analdes may be created if required.
  */
 static int
 ice_sched_move_vsi_to_agg(struct ice_port_info *pi, u16 vsi_handle, u32 agg_id,
 			  u8 tc)
 {
-	struct ice_sched_node *vsi_node, *agg_node, *tc_node, *parent;
-	u16 num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
-	u32 first_node_teid, vsi_teid;
-	u16 num_nodes_added;
+	struct ice_sched_analde *vsi_analde, *agg_analde, *tc_analde, *parent;
+	u16 num_analdes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
+	u32 first_analde_teid, vsi_teid;
+	u16 num_analdes_added;
 	u8 aggl, vsil, i;
 	int status;
 
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_analde = ice_sched_get_tc_analde(pi, tc);
+	if (!tc_analde)
 		return -EIO;
 
-	agg_node = ice_sched_get_agg_node(pi, tc_node, agg_id);
-	if (!agg_node)
-		return -ENOENT;
+	agg_analde = ice_sched_get_agg_analde(pi, tc_analde, agg_id);
+	if (!agg_analde)
+		return -EANALENT;
 
-	vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
-	if (!vsi_node)
-		return -ENOENT;
+	vsi_analde = ice_sched_get_vsi_analde(pi, tc_analde, vsi_handle);
+	if (!vsi_analde)
+		return -EANALENT;
 
 	/* Is this VSI already part of given aggregator? */
-	if (ice_sched_find_node_in_subtree(pi->hw, agg_node, vsi_node))
+	if (ice_sched_find_analde_in_subtree(pi->hw, agg_analde, vsi_analde))
 		return 0;
 
 	aggl = ice_sched_get_agg_layer(pi->hw);
 	vsil = ice_sched_get_vsi_layer(pi->hw);
 
-	/* set intermediate node count to 1 between aggregator and VSI layers */
+	/* set intermediate analde count to 1 between aggregator and VSI layers */
 	for (i = aggl + 1; i < vsil; i++)
-		num_nodes[i] = 1;
+		num_analdes[i] = 1;
 
-	/* Check if the aggregator subtree has any free node to add the VSI */
-	for (i = 0; i < agg_node->num_children; i++) {
+	/* Check if the aggregator subtree has any free analde to add the VSI */
+	for (i = 0; i < agg_analde->num_children; i++) {
 		parent = ice_sched_get_free_vsi_parent(pi->hw,
-						       agg_node->children[i],
-						       num_nodes);
+						       agg_analde->children[i],
+						       num_analdes);
 		if (parent)
-			goto move_nodes;
+			goto move_analdes;
 	}
 
-	/* add new nodes */
-	parent = agg_node;
+	/* add new analdes */
+	parent = agg_analde;
 	for (i = aggl + 1; i < vsil; i++) {
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent, i,
-						      num_nodes[i],
-						      &first_node_teid,
-						      &num_nodes_added);
-		if (status || num_nodes[i] != num_nodes_added)
+		status = ice_sched_add_analdes_to_layer(pi, tc_analde, parent, i,
+						      num_analdes[i],
+						      &first_analde_teid,
+						      &num_analdes_added);
+		if (status || num_analdes[i] != num_analdes_added)
 			return -EIO;
 
-		/* The newly added node can be a new parent for the next
-		 * layer nodes
+		/* The newly added analde can be a new parent for the next
+		 * layer analdes
 		 */
-		if (num_nodes_added)
-			parent = ice_sched_find_node_by_teid(tc_node,
-							     first_node_teid);
+		if (num_analdes_added)
+			parent = ice_sched_find_analde_by_teid(tc_analde,
+							     first_analde_teid);
 		else
 			parent = parent->children[0];
 
@@ -2336,9 +2336,9 @@ ice_sched_move_vsi_to_agg(struct ice_port_info *pi, u16 vsi_handle, u32 agg_id,
 			return -EIO;
 	}
 
-move_nodes:
-	vsi_teid = le32_to_cpu(vsi_node->info.node_teid);
-	return ice_sched_move_nodes(pi, parent, 1, &vsi_teid);
+move_analdes:
+	vsi_teid = le32_to_cpu(vsi_analde->info.analde_teid);
+	return ice_sched_move_analdes(pi, parent, 1, &vsi_teid);
 }
 
 /**
@@ -2385,60 +2385,60 @@ ice_move_all_vsi_to_dflt_agg(struct ice_port_info *pi,
 }
 
 /**
- * ice_sched_is_agg_inuse - check whether the aggregator is in use or not
+ * ice_sched_is_agg_inuse - check whether the aggregator is in use or analt
  * @pi: port information structure
- * @node: node pointer
+ * @analde: analde pointer
  *
- * This function checks whether the aggregator is attached with any VSI or not.
+ * This function checks whether the aggregator is attached with any VSI or analt.
  */
 static bool
-ice_sched_is_agg_inuse(struct ice_port_info *pi, struct ice_sched_node *node)
+ice_sched_is_agg_inuse(struct ice_port_info *pi, struct ice_sched_analde *analde)
 {
 	u8 vsil, i;
 
 	vsil = ice_sched_get_vsi_layer(pi->hw);
-	if (node->tx_sched_layer < vsil - 1) {
-		for (i = 0; i < node->num_children; i++)
-			if (ice_sched_is_agg_inuse(pi, node->children[i]))
+	if (analde->tx_sched_layer < vsil - 1) {
+		for (i = 0; i < analde->num_children; i++)
+			if (ice_sched_is_agg_inuse(pi, analde->children[i]))
 				return true;
 		return false;
 	} else {
-		return node->num_children ? true : false;
+		return analde->num_children ? true : false;
 	}
 }
 
 /**
- * ice_sched_rm_agg_cfg - remove the aggregator node
+ * ice_sched_rm_agg_cfg - remove the aggregator analde
  * @pi: port information structure
  * @agg_id: aggregator ID
  * @tc: TC number
  *
- * This function removes the aggregator node and intermediate nodes if any
+ * This function removes the aggregator analde and intermediate analdes if any
  * from the given TC
  */
 static int
 ice_sched_rm_agg_cfg(struct ice_port_info *pi, u32 agg_id, u8 tc)
 {
-	struct ice_sched_node *tc_node, *agg_node;
+	struct ice_sched_analde *tc_analde, *agg_analde;
 	struct ice_hw *hw = pi->hw;
 
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_analde = ice_sched_get_tc_analde(pi, tc);
+	if (!tc_analde)
 		return -EIO;
 
-	agg_node = ice_sched_get_agg_node(pi, tc_node, agg_id);
-	if (!agg_node)
-		return -ENOENT;
+	agg_analde = ice_sched_get_agg_analde(pi, tc_analde, agg_id);
+	if (!agg_analde)
+		return -EANALENT;
 
-	/* Can't remove the aggregator node if it has children */
-	if (ice_sched_is_agg_inuse(pi, agg_node))
+	/* Can't remove the aggregator analde if it has children */
+	if (ice_sched_is_agg_inuse(pi, agg_analde))
 		return -EBUSY;
 
-	/* need to remove the whole subtree if aggregator node is the
+	/* need to remove the whole subtree if aggregator analde is the
 	 * only child.
 	 */
-	while (agg_node->tx_sched_layer > hw->sw_entry_point_layer) {
-		struct ice_sched_node *parent = agg_node->parent;
+	while (agg_analde->tx_sched_layer > hw->sw_entry_point_layer) {
+		struct ice_sched_analde *parent = agg_analde->parent;
 
 		if (!parent)
 			return -EIO;
@@ -2446,10 +2446,10 @@ ice_sched_rm_agg_cfg(struct ice_port_info *pi, u32 agg_id, u8 tc)
 		if (parent->num_children > 1)
 			break;
 
-		agg_node = parent;
+		agg_analde = parent;
 	}
 
-	ice_free_sched_node(pi, agg_node);
+	ice_free_sched_analde(pi, agg_analde);
 	return 0;
 }
 
@@ -2470,7 +2470,7 @@ ice_rm_agg_cfg_tc(struct ice_port_info *pi, struct ice_sched_agg_info *agg_info,
 {
 	int status = 0;
 
-	/* If nothing to remove - return success */
+	/* If analthing to remove - return success */
 	if (!ice_is_tc_ena(agg_info->tc_bitmap[0], tc))
 		goto exit_rm_agg_cfg_tc;
 
@@ -2478,7 +2478,7 @@ ice_rm_agg_cfg_tc(struct ice_port_info *pi, struct ice_sched_agg_info *agg_info,
 	if (status)
 		goto exit_rm_agg_cfg_tc;
 
-	/* Delete aggregator node(s) */
+	/* Delete aggregator analde(s) */
 	status = ice_sched_rm_agg_cfg(pi, agg_info->agg_id, tc);
 	if (status)
 		goto exit_rm_agg_cfg_tc;
@@ -2512,45 +2512,45 @@ ice_save_agg_tc_bitmap(struct ice_port_info *pi, u32 agg_id,
 }
 
 /**
- * ice_sched_add_agg_cfg - create an aggregator node
+ * ice_sched_add_agg_cfg - create an aggregator analde
  * @pi: port information structure
  * @agg_id: aggregator ID
  * @tc: TC number
  *
- * This function creates an aggregator node and intermediate nodes if required
+ * This function creates an aggregator analde and intermediate analdes if required
  * for the given TC
  */
 static int
 ice_sched_add_agg_cfg(struct ice_port_info *pi, u32 agg_id, u8 tc)
 {
-	struct ice_sched_node *parent, *agg_node, *tc_node;
-	u16 num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
+	struct ice_sched_analde *parent, *agg_analde, *tc_analde;
+	u16 num_analdes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
 	struct ice_hw *hw = pi->hw;
-	u32 first_node_teid;
-	u16 num_nodes_added;
+	u32 first_analde_teid;
+	u16 num_analdes_added;
 	int status = 0;
 	u8 i, aggl;
 
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_analde = ice_sched_get_tc_analde(pi, tc);
+	if (!tc_analde)
 		return -EIO;
 
-	agg_node = ice_sched_get_agg_node(pi, tc_node, agg_id);
-	/* Does Agg node already exist ? */
-	if (agg_node)
+	agg_analde = ice_sched_get_agg_analde(pi, tc_analde, agg_id);
+	/* Does Agg analde already exist ? */
+	if (agg_analde)
 		return status;
 
 	aggl = ice_sched_get_agg_layer(hw);
 
-	/* need one node in Agg layer */
-	num_nodes[aggl] = 1;
+	/* need one analde in Agg layer */
+	num_analdes[aggl] = 1;
 
-	/* Check whether the intermediate nodes have space to add the
+	/* Check whether the intermediate analdes have space to add the
 	 * new aggregator. If they are full, then SW needs to allocate a new
-	 * intermediate node on those layers
+	 * intermediate analde on those layers
 	 */
 	for (i = hw->sw_entry_point_layer; i < aggl; i++) {
-		parent = ice_sched_get_first_node(pi, tc_node, i);
+		parent = ice_sched_get_first_analde(pi, tc_analde, i);
 
 		/* scan all the siblings */
 		while (parent) {
@@ -2559,31 +2559,31 @@ ice_sched_add_agg_cfg(struct ice_port_info *pi, u32 agg_id, u8 tc)
 			parent = parent->sibling;
 		}
 
-		/* all the nodes are full, reserve one for this layer */
+		/* all the analdes are full, reserve one for this layer */
 		if (!parent)
-			num_nodes[i]++;
+			num_analdes[i]++;
 	}
 
-	/* add the aggregator node */
-	parent = tc_node;
+	/* add the aggregator analde */
+	parent = tc_analde;
 	for (i = hw->sw_entry_point_layer; i <= aggl; i++) {
 		if (!parent)
 			return -EIO;
 
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent, i,
-						      num_nodes[i],
-						      &first_node_teid,
-						      &num_nodes_added);
-		if (status || num_nodes[i] != num_nodes_added)
+		status = ice_sched_add_analdes_to_layer(pi, tc_analde, parent, i,
+						      num_analdes[i],
+						      &first_analde_teid,
+						      &num_analdes_added);
+		if (status || num_analdes[i] != num_analdes_added)
 			return -EIO;
 
-		/* The newly added node can be a new parent for the next
-		 * layer nodes
+		/* The newly added analde can be a new parent for the next
+		 * layer analdes
 		 */
-		if (num_nodes_added) {
-			parent = ice_sched_find_node_by_teid(tc_node,
-							     first_node_teid);
-			/* register aggregator ID with the aggregator node */
+		if (num_analdes_added) {
+			parent = ice_sched_find_analde_by_teid(tc_analde,
+							     first_analde_teid);
+			/* register aggregator ID with the aggregator analde */
 			if (parent && i == aggl)
 				parent->agg_id = agg_id;
 		} else {
@@ -2595,17 +2595,17 @@ ice_sched_add_agg_cfg(struct ice_port_info *pi, u32 agg_id, u8 tc)
 }
 
 /**
- * ice_sched_cfg_agg - configure aggregator node
+ * ice_sched_cfg_agg - configure aggregator analde
  * @pi: port information structure
  * @agg_id: aggregator ID
  * @agg_type: aggregator type queue, VSI, or aggregator group
  * @tc_bitmap: bits TC bitmap
  *
- * It registers a unique aggregator node into scheduler services. It
+ * It registers a unique aggregator analde into scheduler services. It
  * allows a user to register with a unique ID to track it's resources.
  * The aggregator type determines if this is a queue group, VSI group
- * or aggregator group. It then creates the aggregator node(s) for requested
- * TC(s) or removes an existing aggregator node including its configuration
+ * or aggregator group. It then creates the aggregator analde(s) for requested
+ * TC(s) or removes an existing aggregator analde including its configuration
  * if indicated via tc_bitmap. Call ice_rm_agg_cfg to release aggregator
  * resources and remove aggregator ID.
  * This function needs to be called with scheduler lock held.
@@ -2625,7 +2625,7 @@ ice_sched_cfg_agg(struct ice_port_info *pi, u32 agg_id,
 		agg_info = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*agg_info),
 					GFP_KERNEL);
 		if (!agg_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		agg_info->agg_id = agg_id;
 		agg_info->agg_type = agg_type;
@@ -2637,7 +2637,7 @@ ice_sched_cfg_agg(struct ice_port_info *pi, u32 agg_id,
 		/* Add new entry in aggregator list */
 		list_add(&agg_info->list_entry, &hw->agg_list);
 	}
-	/* Create aggregator node(s) for requested TC(s) */
+	/* Create aggregator analde(s) for requested TC(s) */
 	ice_for_each_traffic_class(tc) {
 		if (!ice_is_tc_ena(*tc_bitmap, tc)) {
 			/* Delete aggregator cfg TC if it exists previously */
@@ -2647,16 +2647,16 @@ ice_sched_cfg_agg(struct ice_port_info *pi, u32 agg_id,
 			continue;
 		}
 
-		/* Check if aggregator node for TC already exists */
+		/* Check if aggregator analde for TC already exists */
 		if (ice_is_tc_ena(agg_info->tc_bitmap[0], tc))
 			continue;
 
-		/* Create new aggregator node for TC */
+		/* Create new aggregator analde for TC */
 		status = ice_sched_add_agg_cfg(pi, agg_id, tc);
 		if (status)
 			break;
 
-		/* Save aggregator node's TC information */
+		/* Save aggregator analde's TC information */
 		set_bit(tc, agg_info->tc_bitmap);
 	}
 
@@ -2664,13 +2664,13 @@ ice_sched_cfg_agg(struct ice_port_info *pi, u32 agg_id,
 }
 
 /**
- * ice_cfg_agg - config aggregator node
+ * ice_cfg_agg - config aggregator analde
  * @pi: port information structure
  * @agg_id: aggregator ID
  * @agg_type: aggregator type queue, VSI, or aggregator group
  * @tc_bitmap: bits TC bitmap
  *
- * This function configures aggregator node(s).
+ * This function configures aggregator analde(s).
  */
 int
 ice_cfg_agg(struct ice_port_info *pi, u32 agg_id, enum ice_agg_type agg_type,
@@ -2767,8 +2767,8 @@ ice_save_agg_vsi_tc_bitmap(struct ice_port_info *pi, u32 agg_id, u16 vsi_handle,
  * @vsi_handle: software VSI handle
  * @tc_bitmap: TC bitmap of enabled TC(s)
  *
- * This function moves VSI to a new or default aggregator node. If VSI is
- * already associated to the aggregator node then no operation is performed on
+ * This function moves VSI to a new or default aggregator analde. If VSI is
+ * already associated to the aggregator analde then anal operation is performed on
  * the tree. This function needs to be called with scheduler lock held.
  */
 static int
@@ -2786,7 +2786,7 @@ ice_sched_assoc_vsi_to_agg(struct ice_port_info *pi, u32 agg_id,
 	agg_info = ice_get_agg_info(hw, agg_id);
 	if (!agg_info)
 		return -EINVAL;
-	/* If the VSI is already part of another aggregator then update
+	/* If the VSI is already part of aanalther aggregator then update
 	 * its VSI info list
 	 */
 	old_agg_info = ice_get_vsi_agg_info(hw, vsi_handle);
@@ -2815,7 +2815,7 @@ ice_sched_assoc_vsi_to_agg(struct ice_port_info *pi, u32 agg_id,
 		agg_vsi_info->vsi_handle = vsi_handle;
 		list_add(&agg_vsi_info->list_entry, &agg_info->agg_vsi_list);
 	}
-	/* Move VSI node to new aggregator node for requested TC(s) */
+	/* Move VSI analde to new aggregator analde for requested TC(s) */
 	ice_for_each_traffic_class(tc) {
 		if (!ice_is_tc_ena(*tc_bitmap, tc))
 			continue;
@@ -2862,16 +2862,16 @@ static void ice_sched_rm_unused_rl_prof(struct ice_port_info *pi)
 /**
  * ice_sched_update_elem - update element
  * @hw: pointer to the HW struct
- * @node: pointer to node
- * @info: node info to update
+ * @analde: pointer to analde
+ * @info: analde info to update
  *
- * Update the HW DB, and local SW DB of node. Update the scheduling
- * parameters of node from argument info data buffer (Info->data buf) and
+ * Update the HW DB, and local SW DB of analde. Update the scheduling
+ * parameters of analde from argument info data buffer (Info->data buf) and
  * returns success or error on config sched element failure. The caller
  * needs to hold scheduler lock.
  */
 static int
-ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_analde *analde,
 		      struct ice_aqc_txsched_elem_data *info)
 {
 	struct ice_aqc_txsched_elem_data buf;
@@ -2888,7 +2888,7 @@ ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
 	buf.data.flags = 0;
 
 	/* Update HW DB */
-	/* Configure element node */
+	/* Configure element analde */
 	status = ice_aq_cfg_sched_elems(hw, num_elems, &buf, sizeof(buf),
 					&elem_cfgd, NULL);
 	if (status || elem_cfgd != num_elems) {
@@ -2897,29 +2897,29 @@ ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
 	}
 
 	/* Config success case */
-	/* Now update local SW DB */
+	/* Analw update local SW DB */
 	/* Only copy the data portion of info buffer */
-	node->info.data = info->data;
+	analde->info.data = info->data;
 	return status;
 }
 
 /**
- * ice_sched_cfg_node_bw_alloc - configure node BW weight/alloc params
+ * ice_sched_cfg_analde_bw_alloc - configure analde BW weight/alloc params
  * @hw: pointer to the HW struct
- * @node: sched node to configure
+ * @analde: sched analde to configure
  * @rl_type: rate limit type CIR, EIR, or shared
  * @bw_alloc: BW weight/allocation
  *
- * This function configures node element's BW allocation.
+ * This function configures analde element's BW allocation.
  */
 static int
-ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_cfg_analde_bw_alloc(struct ice_hw *hw, struct ice_sched_analde *analde,
 			    enum ice_rl_type rl_type, u16 bw_alloc)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
 
-	buf = node->info;
+	buf = analde->info;
 	data = &buf.data;
 	if (rl_type == ICE_MIN_BW) {
 		data->valid_sections |= ICE_AQC_ELEM_VALID_CIR;
@@ -2932,7 +2932,7 @@ ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
 	}
 
 	/* Configure element */
-	return ice_sched_update_elem(hw, node, &buf);
+	return ice_sched_update_elem(hw, analde, &buf);
 }
 
 /**
@@ -2942,7 +2942,7 @@ ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
  * @vsi_handle: software VSI handle
  * @tc_bitmap: TC bitmap of enabled TC(s)
  *
- * Move or associate VSI to a new or default aggregator node.
+ * Move or associate VSI to a new or default aggregator analde.
  */
 int
 ice_move_vsi_to_agg(struct ice_port_info *pi, u32 agg_id, u16 vsi_handle,
@@ -3031,14 +3031,14 @@ static void ice_set_clear_shared_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
 }
 
 /**
- * ice_sched_save_vsi_bw - save VSI node's BW information
+ * ice_sched_save_vsi_bw - save VSI analde's BW information
  * @pi: port information structure
  * @vsi_handle: sw VSI handle
  * @tc: traffic class
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth in Kbps - Kilo bits per sec
  *
- * Save BW information of VSI type node for post replay use.
+ * Save BW information of VSI type analde for post replay use.
  */
 static int
 ice_sched_save_vsi_bw(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
@@ -3169,7 +3169,7 @@ ice_sched_bw_to_rl_profile(struct ice_hw *hw, u32 bw,
 		profile->rl_encode = cpu_to_le16(encode);
 		status = 0;
 	} else {
-		status = -ENOENT;
+		status = -EANALENT;
 	}
 
 	return status;
@@ -3260,22 +3260,22 @@ exit_add_rl_prof:
 }
 
 /**
- * ice_sched_cfg_node_bw_lmt - configure node sched params
+ * ice_sched_cfg_analde_bw_lmt - configure analde sched params
  * @hw: pointer to the HW struct
- * @node: sched node to configure
+ * @analde: sched analde to configure
  * @rl_type: rate limit type CIR, EIR, or shared
  * @rl_prof_id: rate limit profile ID
  *
- * This function configures node element's BW limit.
+ * This function configures analde element's BW limit.
  */
 static int
-ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_cfg_analde_bw_lmt(struct ice_hw *hw, struct ice_sched_analde *analde,
 			  enum ice_rl_type rl_type, u16 rl_prof_id)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
 
-	buf = node->info;
+	buf = analde->info;
 	data = &buf.data;
 	switch (rl_type) {
 	case ICE_MIN_BW:
@@ -3293,7 +3293,7 @@ ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
 		break;
 	case ICE_SHARED_BW:
 		/* Check for removing shared BW */
-		if (rl_prof_id == ICE_SCHED_NO_SHARED_RL_PROF_ID) {
+		if (rl_prof_id == ICE_SCHED_ANAL_SHARED_RL_PROF_ID) {
 			/* remove shared profile */
 			data->valid_sections &= ~ICE_AQC_ELEM_VALID_SHARED;
 			data->srl_id = 0; /* clear SRL field */
@@ -3313,35 +3313,35 @@ ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
 			return -EIO;
 		/* EIR BW is set to default, disable it */
 		data->valid_sections &= ~ICE_AQC_ELEM_VALID_EIR;
-		/* Okay to enable shared BW now */
+		/* Okay to enable shared BW analw */
 		data->valid_sections |= ICE_AQC_ELEM_VALID_SHARED;
 		data->srl_id = cpu_to_le16(rl_prof_id);
 		break;
 	default:
-		/* Unknown rate limit type */
+		/* Unkanalwn rate limit type */
 		return -EINVAL;
 	}
 
 	/* Configure element */
-	return ice_sched_update_elem(hw, node, &buf);
+	return ice_sched_update_elem(hw, analde, &buf);
 }
 
 /**
- * ice_sched_get_node_rl_prof_id - get node's rate limit profile ID
- * @node: sched node
+ * ice_sched_get_analde_rl_prof_id - get analde's rate limit profile ID
+ * @analde: sched analde
  * @rl_type: rate limit type
  *
  * If existing profile matches, it returns the corresponding rate
  * limit profile ID, otherwise it returns an invalid ID as error.
  */
 static u16
-ice_sched_get_node_rl_prof_id(struct ice_sched_node *node,
+ice_sched_get_analde_rl_prof_id(struct ice_sched_analde *analde,
 			      enum ice_rl_type rl_type)
 {
 	u16 rl_prof_id = ICE_SCHED_INVAL_PROF_ID;
 	struct ice_aqc_txsched_elem *data;
 
-	data = &node->info.data;
+	data = &analde->info.data;
 	switch (rl_type) {
 	case ICE_MIN_BW:
 		if (data->valid_sections & ICE_AQC_ELEM_VALID_CIR)
@@ -3407,25 +3407,25 @@ ice_sched_get_rl_prof_layer(struct ice_port_info *pi, enum ice_rl_type rl_type,
 }
 
 /**
- * ice_sched_get_srl_node - get shared rate limit node
- * @node: tree node
+ * ice_sched_get_srl_analde - get shared rate limit analde
+ * @analde: tree analde
  * @srl_layer: shared rate limit layer
  *
- * This function returns SRL node to be used for shared rate limit purpose.
+ * This function returns SRL analde to be used for shared rate limit purpose.
  * The caller needs to hold scheduler lock.
  */
-static struct ice_sched_node *
-ice_sched_get_srl_node(struct ice_sched_node *node, u8 srl_layer)
+static struct ice_sched_analde *
+ice_sched_get_srl_analde(struct ice_sched_analde *analde, u8 srl_layer)
 {
-	if (srl_layer > node->tx_sched_layer)
-		return node->children[0];
-	else if (srl_layer < node->tx_sched_layer)
-		/* Node can't be created without a parent. It will always
-		 * have a valid parent except root node.
+	if (srl_layer > analde->tx_sched_layer)
+		return analde->children[0];
+	else if (srl_layer < analde->tx_sched_layer)
+		/* Analde can't be created without a parent. It will always
+		 * have a valid parent except root analde.
 		 */
-		return node->parent;
+		return analde->parent;
 	else
-		return node;
+		return analde;
 }
 
 /**
@@ -3470,19 +3470,19 @@ ice_sched_rm_rl_profile(struct ice_port_info *pi, u8 layer_num, u8 profile_type,
 }
 
 /**
- * ice_sched_set_node_bw_dflt - set node's bandwidth limit to default
+ * ice_sched_set_analde_bw_dflt - set analde's bandwidth limit to default
  * @pi: port information structure
- * @node: pointer to node structure
+ * @analde: pointer to analde structure
  * @rl_type: rate limit type min, max, or shared
  * @layer_num: layer number where RL profiles are saved
  *
- * This function configures node element's BW rate limit profile ID of
+ * This function configures analde element's BW rate limit profile ID of
  * type CIR, EIR, or SRL to default. This function needs to be called
  * with the scheduler lock held.
  */
 static int
-ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
-			   struct ice_sched_node *node,
+ice_sched_set_analde_bw_dflt(struct ice_port_info *pi,
+			   struct ice_sched_analde *analde,
 			   enum ice_rl_type rl_type, u8 layer_num)
 {
 	struct ice_hw *hw;
@@ -3503,16 +3503,16 @@ ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
 		break;
 	case ICE_SHARED_BW:
 		profile_type = ICE_AQC_RL_PROFILE_TYPE_SRL;
-		/* No SRL is configured for default case */
-		rl_prof_id = ICE_SCHED_NO_SHARED_RL_PROF_ID;
+		/* Anal SRL is configured for default case */
+		rl_prof_id = ICE_SCHED_ANAL_SHARED_RL_PROF_ID;
 		break;
 	default:
 		return -EINVAL;
 	}
 	/* Save existing RL prof ID for later clean up */
-	old_id = ice_sched_get_node_rl_prof_id(node, rl_type);
+	old_id = ice_sched_get_analde_rl_prof_id(analde, rl_type);
 	/* Configure BW scheduling parameters */
-	status = ice_sched_cfg_node_bw_lmt(hw, node, rl_type, rl_prof_id);
+	status = ice_sched_cfg_analde_bw_lmt(hw, analde, rl_type, rl_prof_id);
 	if (status)
 		return status;
 
@@ -3527,42 +3527,42 @@ ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
 /**
  * ice_sched_set_eir_srl_excl - set EIR/SRL exclusiveness
  * @pi: port information structure
- * @node: pointer to node structure
+ * @analde: pointer to analde structure
  * @layer_num: layer number where rate limit profiles are saved
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth value
  *
- * This function prepares node element's bandwidth to SRL or EIR exclusively.
+ * This function prepares analde element's bandwidth to SRL or EIR exclusively.
  * EIR BW and Shared BW profiles are mutually exclusive and hence only one of
  * them may be set for any given element. This function needs to be called
  * with the scheduler lock held.
  */
 static int
 ice_sched_set_eir_srl_excl(struct ice_port_info *pi,
-			   struct ice_sched_node *node,
+			   struct ice_sched_analde *analde,
 			   u8 layer_num, enum ice_rl_type rl_type, u32 bw)
 {
 	if (rl_type == ICE_SHARED_BW) {
-		/* SRL node passed in this case, it may be different node */
+		/* SRL analde passed in this case, it may be different analde */
 		if (bw == ICE_SCHED_DFLT_BW)
-			/* SRL being removed, ice_sched_cfg_node_bw_lmt()
-			 * enables EIR to default. EIR is not set in this
-			 * case, so no additional action is required.
+			/* SRL being removed, ice_sched_cfg_analde_bw_lmt()
+			 * enables EIR to default. EIR is analt set in this
+			 * case, so anal additional action is required.
 			 */
 			return 0;
 
 		/* SRL being configured, set EIR to default here.
-		 * ice_sched_cfg_node_bw_lmt() disables EIR when it
+		 * ice_sched_cfg_analde_bw_lmt() disables EIR when it
 		 * configures SRL
 		 */
-		return ice_sched_set_node_bw_dflt(pi, node, ICE_MAX_BW,
+		return ice_sched_set_analde_bw_dflt(pi, analde, ICE_MAX_BW,
 						  layer_num);
 	} else if (rl_type == ICE_MAX_BW &&
-		   node->info.data.valid_sections & ICE_AQC_ELEM_VALID_SHARED) {
+		   analde->info.data.valid_sections & ICE_AQC_ELEM_VALID_SHARED) {
 		/* Remove Shared profile. Set default shared BW call
-		 * removes shared profile for a node.
+		 * removes shared profile for a analde.
 		 */
-		return ice_sched_set_node_bw_dflt(pi, node,
+		return ice_sched_set_analde_bw_dflt(pi, analde,
 						  ICE_SHARED_BW,
 						  layer_num);
 	}
@@ -3570,19 +3570,19 @@ ice_sched_set_eir_srl_excl(struct ice_port_info *pi,
 }
 
 /**
- * ice_sched_set_node_bw - set node's bandwidth
+ * ice_sched_set_analde_bw - set analde's bandwidth
  * @pi: port information structure
- * @node: tree node
+ * @analde: tree analde
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth in Kbps - Kilo bits per sec
  * @layer_num: layer number
  *
  * This function adds new profile corresponding to requested BW, configures
- * node's RL profile ID of type CIR, EIR, or SRL, and removes old profile
+ * analde's RL profile ID of type CIR, EIR, or SRL, and removes old profile
  * ID from local database. The caller needs to hold scheduler lock.
  */
 int
-ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
+ice_sched_set_analde_bw(struct ice_port_info *pi, struct ice_sched_analde *analde,
 		      enum ice_rl_type rl_type, u32 bw, u8 layer_num)
 {
 	struct ice_aqc_rl_profile_info *rl_prof_info;
@@ -3597,9 +3597,9 @@ ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
 	rl_prof_id = le16_to_cpu(rl_prof_info->profile.profile_id);
 
 	/* Save existing RL prof ID for later clean up */
-	old_id = ice_sched_get_node_rl_prof_id(node, rl_type);
+	old_id = ice_sched_get_analde_rl_prof_id(analde, rl_type);
 	/* Configure BW scheduling parameters */
-	status = ice_sched_cfg_node_bw_lmt(hw, node, rl_type, rl_prof_id);
+	status = ice_sched_cfg_analde_bw_lmt(hw, analde, rl_type, rl_prof_id);
 	if (status)
 		return status;
 
@@ -3618,44 +3618,44 @@ ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
 }
 
 /**
- * ice_sched_set_node_priority - set node's priority
+ * ice_sched_set_analde_priority - set analde's priority
  * @pi: port information structure
- * @node: tree node
+ * @analde: tree analde
  * @priority: number 0-7 representing priority among siblings
  *
- * This function sets priority of a node among it's siblings.
+ * This function sets priority of a analde among it's siblings.
  */
 int
-ice_sched_set_node_priority(struct ice_port_info *pi, struct ice_sched_node *node,
+ice_sched_set_analde_priority(struct ice_port_info *pi, struct ice_sched_analde *analde,
 			    u16 priority)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
 
-	buf = node->info;
+	buf = analde->info;
 	data = &buf.data;
 
 	data->valid_sections |= ICE_AQC_ELEM_VALID_GENERIC;
 	data->generic |= FIELD_PREP(ICE_AQC_ELEM_GENERIC_PRIO_M, priority);
 
-	return ice_sched_update_elem(pi->hw, node, &buf);
+	return ice_sched_update_elem(pi->hw, analde, &buf);
 }
 
 /**
- * ice_sched_set_node_weight - set node's weight
+ * ice_sched_set_analde_weight - set analde's weight
  * @pi: port information structure
- * @node: tree node
+ * @analde: tree analde
  * @weight: number 1-200 representing weight for WFQ
  *
- * This function sets weight of the node for WFQ algorithm.
+ * This function sets weight of the analde for WFQ algorithm.
  */
 int
-ice_sched_set_node_weight(struct ice_port_info *pi, struct ice_sched_node *node, u16 weight)
+ice_sched_set_analde_weight(struct ice_port_info *pi, struct ice_sched_analde *analde, u16 weight)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
 
-	buf = node->info;
+	buf = analde->info;
 	data = &buf.data;
 
 	data->valid_sections = ICE_AQC_ELEM_VALID_CIR | ICE_AQC_ELEM_VALID_EIR |
@@ -3665,24 +3665,24 @@ ice_sched_set_node_weight(struct ice_port_info *pi, struct ice_sched_node *node,
 
 	data->generic |= FIELD_PREP(ICE_AQC_ELEM_GENERIC_SP_M, 0x0);
 
-	return ice_sched_update_elem(pi->hw, node, &buf);
+	return ice_sched_update_elem(pi->hw, analde, &buf);
 }
 
 /**
- * ice_sched_set_node_bw_lmt - set node's BW limit
+ * ice_sched_set_analde_bw_lmt - set analde's BW limit
  * @pi: port information structure
- * @node: tree node
+ * @analde: tree analde
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth in Kbps - Kilo bits per sec
  *
- * It updates node's BW limit parameters like BW RL profile ID of type CIR,
+ * It updates analde's BW limit parameters like BW RL profile ID of type CIR,
  * EIR, or SRL. The caller needs to hold scheduler lock.
  */
 int
-ice_sched_set_node_bw_lmt(struct ice_port_info *pi, struct ice_sched_node *node,
+ice_sched_set_analde_bw_lmt(struct ice_port_info *pi, struct ice_sched_analde *analde,
 			  enum ice_rl_type rl_type, u32 bw)
 {
-	struct ice_sched_node *cfg_node = node;
+	struct ice_sched_analde *cfg_analde = analde;
 	int status;
 
 	struct ice_hw *hw;
@@ -3694,82 +3694,82 @@ ice_sched_set_node_bw_lmt(struct ice_port_info *pi, struct ice_sched_node *node,
 	/* Remove unused RL profile IDs from HW and SW DB */
 	ice_sched_rm_unused_rl_prof(pi);
 	layer_num = ice_sched_get_rl_prof_layer(pi, rl_type,
-						node->tx_sched_layer);
+						analde->tx_sched_layer);
 	if (layer_num >= hw->num_tx_sched_layers)
 		return -EINVAL;
 
 	if (rl_type == ICE_SHARED_BW) {
-		/* SRL node may be different */
-		cfg_node = ice_sched_get_srl_node(node, layer_num);
-		if (!cfg_node)
+		/* SRL analde may be different */
+		cfg_analde = ice_sched_get_srl_analde(analde, layer_num);
+		if (!cfg_analde)
 			return -EIO;
 	}
 	/* EIR BW and Shared BW profiles are mutually exclusive and
 	 * hence only one of them may be set for any given element
 	 */
-	status = ice_sched_set_eir_srl_excl(pi, cfg_node, layer_num, rl_type,
+	status = ice_sched_set_eir_srl_excl(pi, cfg_analde, layer_num, rl_type,
 					    bw);
 	if (status)
 		return status;
 	if (bw == ICE_SCHED_DFLT_BW)
-		return ice_sched_set_node_bw_dflt(pi, cfg_node, rl_type,
+		return ice_sched_set_analde_bw_dflt(pi, cfg_analde, rl_type,
 						  layer_num);
-	return ice_sched_set_node_bw(pi, cfg_node, rl_type, bw, layer_num);
+	return ice_sched_set_analde_bw(pi, cfg_analde, rl_type, bw, layer_num);
 }
 
 /**
- * ice_sched_set_node_bw_dflt_lmt - set node's BW limit to default
+ * ice_sched_set_analde_bw_dflt_lmt - set analde's BW limit to default
  * @pi: port information structure
- * @node: pointer to node structure
+ * @analde: pointer to analde structure
  * @rl_type: rate limit type min, max, or shared
  *
- * This function configures node element's BW rate limit profile ID of
+ * This function configures analde element's BW rate limit profile ID of
  * type CIR, EIR, or SRL to default. This function needs to be called
  * with the scheduler lock held.
  */
 static int
-ice_sched_set_node_bw_dflt_lmt(struct ice_port_info *pi,
-			       struct ice_sched_node *node,
+ice_sched_set_analde_bw_dflt_lmt(struct ice_port_info *pi,
+			       struct ice_sched_analde *analde,
 			       enum ice_rl_type rl_type)
 {
-	return ice_sched_set_node_bw_lmt(pi, node, rl_type,
+	return ice_sched_set_analde_bw_lmt(pi, analde, rl_type,
 					 ICE_SCHED_DFLT_BW);
 }
 
 /**
- * ice_sched_validate_srl_node - Check node for SRL applicability
- * @node: sched node to configure
+ * ice_sched_validate_srl_analde - Check analde for SRL applicability
+ * @analde: sched analde to configure
  * @sel_layer: selected SRL layer
  *
- * This function checks if the SRL can be applied to a selected layer node on
- * behalf of the requested node (first argument). This function needs to be
+ * This function checks if the SRL can be applied to a selected layer analde on
+ * behalf of the requested analde (first argument). This function needs to be
  * called with scheduler lock held.
  */
 static int
-ice_sched_validate_srl_node(struct ice_sched_node *node, u8 sel_layer)
+ice_sched_validate_srl_analde(struct ice_sched_analde *analde, u8 sel_layer)
 {
-	/* SRL profiles are not available on all layers. Check if the
-	 * SRL profile can be applied to a node above or below the
-	 * requested node. SRL configuration is possible only if the
-	 * selected layer's node has single child.
+	/* SRL profiles are analt available on all layers. Check if the
+	 * SRL profile can be applied to a analde above or below the
+	 * requested analde. SRL configuration is possible only if the
+	 * selected layer's analde has single child.
 	 */
-	if (sel_layer == node->tx_sched_layer ||
-	    ((sel_layer == node->tx_sched_layer + 1) &&
-	    node->num_children == 1) ||
-	    ((sel_layer == node->tx_sched_layer - 1) &&
-	    (node->parent && node->parent->num_children == 1)))
+	if (sel_layer == analde->tx_sched_layer ||
+	    ((sel_layer == analde->tx_sched_layer + 1) &&
+	    analde->num_children == 1) ||
+	    ((sel_layer == analde->tx_sched_layer - 1) &&
+	    (analde->parent && analde->parent->num_children == 1)))
 		return 0;
 
 	return -EIO;
 }
 
 /**
- * ice_sched_save_q_bw - save queue node's BW information
+ * ice_sched_save_q_bw - save queue analde's BW information
  * @q_ctx: queue context structure
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth in Kbps - Kilo bits per sec
  *
- * Save BW information of queue type node for post replay use.
+ * Save BW information of queue type analde for post replay use.
  */
 static int
 ice_sched_save_q_bw(struct ice_q_ctx *q_ctx, enum ice_rl_type rl_type, u32 bw)
@@ -3799,13 +3799,13 @@ ice_sched_save_q_bw(struct ice_q_ctx *q_ctx, enum ice_rl_type rl_type, u32 bw)
  * @rl_type: min, max, or shared
  * @bw: bandwidth in Kbps
  *
- * This function sets BW limit of queue scheduling node.
+ * This function sets BW limit of queue scheduling analde.
  */
 static int
 ice_sched_set_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		       u16 q_handle, enum ice_rl_type rl_type, u32 bw)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 	struct ice_q_ctx *q_ctx;
 	int status = -EINVAL;
 
@@ -3815,14 +3815,14 @@ ice_sched_set_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 	q_ctx = ice_get_lan_q_ctx(pi->hw, vsi_handle, tc, q_handle);
 	if (!q_ctx)
 		goto exit_q_bw_lmt;
-	node = ice_sched_find_node_by_teid(pi->root, q_ctx->q_teid);
-	if (!node) {
+	analde = ice_sched_find_analde_by_teid(pi->root, q_ctx->q_teid);
+	if (!analde) {
 		ice_debug(pi->hw, ICE_DBG_SCHED, "Wrong q_teid\n");
 		goto exit_q_bw_lmt;
 	}
 
-	/* Return error if it is not a leaf node */
-	if (node->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF)
+	/* Return error if it is analt a leaf analde */
+	if (analde->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF)
 		goto exit_q_bw_lmt;
 
 	/* SRL bandwidth layer selection */
@@ -3830,20 +3830,20 @@ ice_sched_set_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		u8 sel_layer; /* selected layer */
 
 		sel_layer = ice_sched_get_rl_prof_layer(pi, rl_type,
-							node->tx_sched_layer);
+							analde->tx_sched_layer);
 		if (sel_layer >= pi->hw->num_tx_sched_layers) {
 			status = -EINVAL;
 			goto exit_q_bw_lmt;
 		}
-		status = ice_sched_validate_srl_node(node, sel_layer);
+		status = ice_sched_validate_srl_analde(analde, sel_layer);
 		if (status)
 			goto exit_q_bw_lmt;
 	}
 
 	if (bw == ICE_SCHED_DFLT_BW)
-		status = ice_sched_set_node_bw_dflt_lmt(pi, node, rl_type);
+		status = ice_sched_set_analde_bw_dflt_lmt(pi, analde, rl_type);
 	else
-		status = ice_sched_set_node_bw_lmt(pi, node, rl_type, bw);
+		status = ice_sched_set_analde_bw_lmt(pi, analde, rl_type, bw);
 
 	if (!status)
 		status = ice_sched_save_q_bw(q_ctx, rl_type, bw);
@@ -3862,7 +3862,7 @@ exit_q_bw_lmt:
  * @rl_type: min, max, or shared
  * @bw: bandwidth in Kbps
  *
- * This function configures BW limit of queue scheduling node.
+ * This function configures BW limit of queue scheduling analde.
  */
 int
 ice_cfg_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
@@ -3880,7 +3880,7 @@ ice_cfg_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
  * @q_handle: software queue handle
  * @rl_type: min, max, or shared
  *
- * This function configures BW default limit of queue scheduling node.
+ * This function configures BW default limit of queue scheduling analde.
  */
 int
 ice_cfg_q_bw_dflt_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
@@ -3891,21 +3891,21 @@ ice_cfg_q_bw_dflt_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 }
 
 /**
- * ice_sched_get_node_by_id_type - get node from ID type
+ * ice_sched_get_analde_by_id_type - get analde from ID type
  * @pi: port information structure
  * @id: identifier
  * @agg_type: type of aggregator
  * @tc: traffic class
  *
- * This function returns node identified by ID of type aggregator, and
+ * This function returns analde identified by ID of type aggregator, and
  * based on traffic class (TC). This function needs to be called with
  * the scheduler lock held.
  */
-static struct ice_sched_node *
-ice_sched_get_node_by_id_type(struct ice_port_info *pi, u32 id,
+static struct ice_sched_analde *
+ice_sched_get_analde_by_id_type(struct ice_port_info *pi, u32 id,
 			      enum ice_agg_type agg_type, u8 tc)
 {
-	struct ice_sched_node *node = NULL;
+	struct ice_sched_analde *analde = NULL;
 
 	switch (agg_type) {
 	case ICE_AGG_TYPE_VSI: {
@@ -3918,16 +3918,16 @@ ice_sched_get_node_by_id_type(struct ice_port_info *pi, u32 id,
 		vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
 		if (!vsi_ctx)
 			break;
-		node = vsi_ctx->sched.vsi_node[tc];
+		analde = vsi_ctx->sched.vsi_analde[tc];
 		break;
 	}
 
 	case ICE_AGG_TYPE_AGG: {
-		struct ice_sched_node *tc_node;
+		struct ice_sched_analde *tc_analde;
 
-		tc_node = ice_sched_get_tc_node(pi, tc);
-		if (tc_node)
-			node = ice_sched_get_agg_node(pi, tc_node, id);
+		tc_analde = ice_sched_get_tc_analde(pi, tc);
+		if (tc_analde)
+			analde = ice_sched_get_agg_analde(pi, tc_analde, id);
 		break;
 	}
 
@@ -3935,47 +3935,47 @@ ice_sched_get_node_by_id_type(struct ice_port_info *pi, u32 id,
 		break;
 	}
 
-	return node;
+	return analde;
 }
 
 /**
- * ice_sched_set_node_bw_lmt_per_tc - set node BW limit per TC
+ * ice_sched_set_analde_bw_lmt_per_tc - set analde BW limit per TC
  * @pi: port information structure
  * @id: ID (software VSI handle or AGG ID)
- * @agg_type: aggregator type (VSI or AGG type node)
+ * @agg_type: aggregator type (VSI or AGG type analde)
  * @tc: traffic class
  * @rl_type: min or max
  * @bw: bandwidth in Kbps
  *
- * This function sets BW limit of VSI or Aggregator scheduling node
+ * This function sets BW limit of VSI or Aggregator scheduling analde
  * based on TC information from passed in argument BW.
  */
 static int
-ice_sched_set_node_bw_lmt_per_tc(struct ice_port_info *pi, u32 id,
+ice_sched_set_analde_bw_lmt_per_tc(struct ice_port_info *pi, u32 id,
 				 enum ice_agg_type agg_type, u8 tc,
 				 enum ice_rl_type rl_type, u32 bw)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 	int status = -EINVAL;
 
 	if (!pi)
 		return status;
 
-	if (rl_type == ICE_UNKNOWN_BW)
+	if (rl_type == ICE_UNKANALWN_BW)
 		return status;
 
 	mutex_lock(&pi->sched_lock);
-	node = ice_sched_get_node_by_id_type(pi, id, agg_type, tc);
-	if (!node) {
+	analde = ice_sched_get_analde_by_id_type(pi, id, agg_type, tc);
+	if (!analde) {
 		ice_debug(pi->hw, ICE_DBG_SCHED, "Wrong id, agg type, or tc\n");
-		goto exit_set_node_bw_lmt_per_tc;
+		goto exit_set_analde_bw_lmt_per_tc;
 	}
 	if (bw == ICE_SCHED_DFLT_BW)
-		status = ice_sched_set_node_bw_dflt_lmt(pi, node, rl_type);
+		status = ice_sched_set_analde_bw_dflt_lmt(pi, analde, rl_type);
 	else
-		status = ice_sched_set_node_bw_lmt(pi, node, rl_type, bw);
+		status = ice_sched_set_analde_bw_lmt(pi, analde, rl_type, bw);
 
-exit_set_node_bw_lmt_per_tc:
+exit_set_analde_bw_lmt_per_tc:
 	mutex_unlock(&pi->sched_lock);
 	return status;
 }
@@ -3988,7 +3988,7 @@ exit_set_node_bw_lmt_per_tc:
  * @rl_type: min or max
  * @bw: bandwidth in Kbps
  *
- * This function configures BW limit of VSI scheduling node based on TC
+ * This function configures BW limit of VSI scheduling analde based on TC
  * information.
  */
 int
@@ -3997,7 +3997,7 @@ ice_cfg_vsi_bw_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 {
 	int status;
 
-	status = ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
+	status = ice_sched_set_analde_bw_lmt_per_tc(pi, vsi_handle,
 						  ICE_AGG_TYPE_VSI,
 						  tc, rl_type, bw);
 	if (!status) {
@@ -4015,7 +4015,7 @@ ice_cfg_vsi_bw_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
  * @tc: traffic class
  * @rl_type: min or max
  *
- * This function configures default BW limit of VSI scheduling node based on TC
+ * This function configures default BW limit of VSI scheduling analde based on TC
  * information.
  */
 int
@@ -4024,7 +4024,7 @@ ice_cfg_vsi_bw_dflt_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 {
 	int status;
 
-	status = ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
+	status = ice_sched_set_analde_bw_lmt_per_tc(pi, vsi_handle,
 						  ICE_AGG_TYPE_VSI,
 						  tc, rl_type,
 						  ICE_SCHED_DFLT_BW);
@@ -4079,87 +4079,87 @@ int ice_cfg_rl_burst_size(struct ice_hw *hw, u32 bytes)
 }
 
 /**
- * ice_sched_replay_node_prio - re-configure node priority
+ * ice_sched_replay_analde_prio - re-configure analde priority
  * @hw: pointer to the HW struct
- * @node: sched node to configure
+ * @analde: sched analde to configure
  * @priority: priority value
  *
- * This function configures node element's priority value. It
+ * This function configures analde element's priority value. It
  * needs to be called with scheduler lock held.
  */
 static int
-ice_sched_replay_node_prio(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_replay_analde_prio(struct ice_hw *hw, struct ice_sched_analde *analde,
 			   u8 priority)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
 	int status;
 
-	buf = node->info;
+	buf = analde->info;
 	data = &buf.data;
 	data->valid_sections |= ICE_AQC_ELEM_VALID_GENERIC;
 	data->generic = priority;
 
 	/* Configure element */
-	status = ice_sched_update_elem(hw, node, &buf);
+	status = ice_sched_update_elem(hw, analde, &buf);
 	return status;
 }
 
 /**
- * ice_sched_replay_node_bw - replay node(s) BW
+ * ice_sched_replay_analde_bw - replay analde(s) BW
  * @hw: pointer to the HW struct
- * @node: sched node to configure
+ * @analde: sched analde to configure
  * @bw_t_info: BW type information
  *
- * This function restores node's BW from bw_t_info. The caller needs
+ * This function restores analde's BW from bw_t_info. The caller needs
  * to hold the scheduler lock.
  */
 static int
-ice_sched_replay_node_bw(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_replay_analde_bw(struct ice_hw *hw, struct ice_sched_analde *analde,
 			 struct ice_bw_type_info *bw_t_info)
 {
 	struct ice_port_info *pi = hw->port_info;
 	int status = -EINVAL;
 	u16 bw_alloc;
 
-	if (!node)
+	if (!analde)
 		return status;
 	if (bitmap_empty(bw_t_info->bw_t_bitmap, ICE_BW_TYPE_CNT))
 		return 0;
 	if (test_bit(ICE_BW_TYPE_PRIO, bw_t_info->bw_t_bitmap)) {
-		status = ice_sched_replay_node_prio(hw, node,
+		status = ice_sched_replay_analde_prio(hw, analde,
 						    bw_t_info->generic);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_CIR, bw_t_info->bw_t_bitmap)) {
-		status = ice_sched_set_node_bw_lmt(pi, node, ICE_MIN_BW,
+		status = ice_sched_set_analde_bw_lmt(pi, analde, ICE_MIN_BW,
 						   bw_t_info->cir_bw.bw);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_CIR_WT, bw_t_info->bw_t_bitmap)) {
 		bw_alloc = bw_t_info->cir_bw.bw_alloc;
-		status = ice_sched_cfg_node_bw_alloc(hw, node, ICE_MIN_BW,
+		status = ice_sched_cfg_analde_bw_alloc(hw, analde, ICE_MIN_BW,
 						     bw_alloc);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_EIR, bw_t_info->bw_t_bitmap)) {
-		status = ice_sched_set_node_bw_lmt(pi, node, ICE_MAX_BW,
+		status = ice_sched_set_analde_bw_lmt(pi, analde, ICE_MAX_BW,
 						   bw_t_info->eir_bw.bw);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_EIR_WT, bw_t_info->bw_t_bitmap)) {
 		bw_alloc = bw_t_info->eir_bw.bw_alloc;
-		status = ice_sched_cfg_node_bw_alloc(hw, node, ICE_MAX_BW,
+		status = ice_sched_cfg_analde_bw_alloc(hw, analde, ICE_MAX_BW,
 						     bw_alloc);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_SHARED, bw_t_info->bw_t_bitmap))
-		status = ice_sched_set_node_bw_lmt(pi, node, ICE_SHARED_BW,
+		status = ice_sched_set_analde_bw_lmt(pi, analde, ICE_SHARED_BW,
 						   bw_t_info->shared_bw);
 	return status;
 }
@@ -4184,17 +4184,17 @@ ice_sched_get_ena_tc_bitmap(struct ice_port_info *pi,
 	/* Some TC(s) may be missing after reset, adjust for replay */
 	ice_for_each_traffic_class(tc)
 		if (ice_is_tc_ena(*tc_bitmap, tc) &&
-		    (ice_sched_get_tc_node(pi, tc)))
+		    (ice_sched_get_tc_analde(pi, tc)))
 			set_bit(tc, ena_tc_bitmap);
 }
 
 /**
- * ice_sched_replay_agg - recreate aggregator node(s)
+ * ice_sched_replay_agg - recreate aggregator analde(s)
  * @hw: pointer to the HW struct
  *
- * This function recreate aggregator type nodes which are not replayed earlier.
- * It also replay aggregator BW information. These aggregator nodes are not
- * associated with VSI type node yet.
+ * This function recreate aggregator type analdes which are analt replayed earlier.
+ * It also replay aggregator BW information. These aggregator analdes are analt
+ * associated with VSI type analde yet.
  */
 void ice_sched_replay_agg(struct ice_hw *hw)
 {
@@ -4203,7 +4203,7 @@ void ice_sched_replay_agg(struct ice_hw *hw)
 
 	mutex_lock(&pi->sched_lock);
 	list_for_each_entry(agg_info, &hw->agg_list, list_entry)
-		/* replay aggregator (re-create aggregator node) */
+		/* replay aggregator (re-create aggregator analde) */
 		if (!bitmap_equal(agg_info->tc_bitmap, agg_info->replay_tc_bitmap,
 				  ICE_MAX_TRAFFIC_CLASS)) {
 			DECLARE_BITMAP(replay_bitmap, ICE_MAX_TRAFFIC_CLASS);
@@ -4253,12 +4253,12 @@ void ice_sched_replay_agg_vsi_preinit(struct ice_hw *hw)
 }
 
 /**
- * ice_sched_replay_vsi_agg - replay aggregator & VSI to aggregator node(s)
+ * ice_sched_replay_vsi_agg - replay aggregator & VSI to aggregator analde(s)
  * @hw: pointer to the HW struct
  * @vsi_handle: software VSI handle
  *
- * This function replays aggregator node, VSI to aggregator type nodes, and
- * their node bandwidth information. This function needs to be called with
+ * This function replays aggregator analde, VSI to aggregator type analdes, and
+ * their analde bandwidth information. This function needs to be called with
  * scheduler lock held.
  */
 static int ice_sched_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle)
@@ -4274,13 +4274,13 @@ static int ice_sched_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle)
 		return -EINVAL;
 	agg_info = ice_get_vsi_agg_info(hw, vsi_handle);
 	if (!agg_info)
-		return 0; /* Not present in list - default Agg case */
+		return 0; /* Analt present in list - default Agg case */
 	agg_vsi_info = ice_get_agg_vsi_info(agg_info, vsi_handle);
 	if (!agg_vsi_info)
-		return 0; /* Not present in list - default Agg case */
+		return 0; /* Analt present in list - default Agg case */
 	ice_sched_get_ena_tc_bitmap(pi, agg_info->replay_tc_bitmap,
 				    replay_bitmap);
-	/* Replay aggregator node associated to vsi_handle */
+	/* Replay aggregator analde associated to vsi_handle */
 	status = ice_sched_cfg_agg(hw->port_info, agg_info->agg_id,
 				   ICE_AGG_TYPE_AGG, replay_bitmap);
 	if (status)
@@ -4295,12 +4295,12 @@ static int ice_sched_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle)
 }
 
 /**
- * ice_replay_vsi_agg - replay VSI to aggregator node
+ * ice_replay_vsi_agg - replay VSI to aggregator analde
  * @hw: pointer to the HW struct
  * @vsi_handle: software VSI handle
  *
- * This function replays association of VSI to aggregator type nodes, and
- * node bandwidth information.
+ * This function replays association of VSI to aggregator type analdes, and
+ * analde bandwidth information.
  */
 int ice_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle)
 {
@@ -4314,20 +4314,20 @@ int ice_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle)
 }
 
 /**
- * ice_sched_replay_q_bw - replay queue type node BW
+ * ice_sched_replay_q_bw - replay queue type analde BW
  * @pi: port information structure
  * @q_ctx: queue context structure
  *
- * This function replays queue type node bandwidth. This function needs to be
+ * This function replays queue type analde bandwidth. This function needs to be
  * called with scheduler lock held.
  */
 int ice_sched_replay_q_bw(struct ice_port_info *pi, struct ice_q_ctx *q_ctx)
 {
-	struct ice_sched_node *q_node;
+	struct ice_sched_analde *q_analde;
 
-	/* Following also checks the presence of node in tree */
-	q_node = ice_sched_find_node_by_teid(pi->root, q_ctx->q_teid);
-	if (!q_node)
+	/* Following also checks the presence of analde in tree */
+	q_analde = ice_sched_find_analde_by_teid(pi->root, q_ctx->q_teid);
+	if (!q_analde)
 		return -EINVAL;
-	return ice_sched_replay_node_bw(pi->hw, q_node, &q_ctx->bw_t_info);
+	return ice_sched_replay_analde_bw(pi->hw, q_analde, &q_ctx->bw_t_info);
 }

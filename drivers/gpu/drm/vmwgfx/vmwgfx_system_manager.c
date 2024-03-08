@@ -10,13 +10,13 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright analtice and this permission analtice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,7 +39,7 @@ static int vmw_sys_man_alloc(struct ttm_resource_manager *man,
 {
 	*res = kzalloc(sizeof(**res), GFP_KERNEL);
 	if (!*res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttm_resource_init(bo, place, *res);
 	return 0;
@@ -64,7 +64,7 @@ int vmw_sys_man_init(struct vmw_private *dev_priv)
 			kzalloc(sizeof(*man), GFP_KERNEL);
 
 	if (!man)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	man->use_tt = true;
 	man->func = &vmw_sys_manager_func;

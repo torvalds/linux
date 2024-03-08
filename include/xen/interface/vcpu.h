@@ -15,12 +15,12 @@
  *	int vcpu_op(int cmd, int vcpuid, void *extra_args)
  * @cmd		   == VCPUOP_??? (VCPU operation).
  * @vcpuid	   == VCPU to operate on.
- * @extra_args == Operation-specific extra arguments (NULL if none).
+ * @extra_args == Operation-specific extra arguments (NULL if analne).
  */
 
 /*
  * Initialise a VCPU. Each VCPU can be initialised only once. A
- * newly-initialised VCPU will not run until it is brought up by VCPUOP_up.
+ * newly-initialised VCPU will analt run until it is brought up by VCPUOP_up.
  *
  * @extra_arg == pointer to vcpu_guest_context structure containing initial
  *				 state for the VCPU.
@@ -29,19 +29,19 @@
 
 /*
  * Bring up a VCPU. This makes the VCPU runnable. This operation will fail
- * if the VCPU has not been initialised (VCPUOP_initialise).
+ * if the VCPU has analt been initialised (VCPUOP_initialise).
  */
 #define VCPUOP_up					 1
 
 /*
- * Bring down a VCPU (i.e., make it non-runnable).
+ * Bring down a VCPU (i.e., make it analn-runnable).
  * There are a few caveats that callers should observe:
  *	1. This operation may return, and VCPU_is_up may return false, before the
- *	   VCPU stops running (i.e., the command is asynchronous). It is a good
- *	   idea to ensure that the VCPU has entered a non-critical loop before
+ *	   VCPU stops running (i.e., the command is asynchroanalus). It is a good
+ *	   idea to ensure that the VCPU has entered a analn-critical loop before
  *	   bringing it down. Alternatively, this operation is guaranteed
- *	   synchronous if invoked by the VCPU itself.
- *	2. After a VCPU is initialised, there is currently no way to drop all its
+ *	   synchroanalus if invoked by the VCPU itself.
+ *	2. After a VCPU is initialised, there is currently anal way to drop all its
  *	   references to domain memory. Even a VCPU that is down still holds
  *	   memory references via its pagetable base pointer and GDT. It is good
  *	   practise to move a VCPU onto an 'idle' or default page table, LDT and
@@ -70,7 +70,7 @@ struct vcpu_runstate_info {
 #define XEN_RUNSTATE_UPDATE	(1ULL << 63)
 	/*
 	 * Time spent in each RUNSTATE_* (ns). The sum of these times is
-	 * guaranteed not to drift from system time.
+	 * guaranteed analt to drift from system time.
 	 */
 	uint64_t time[4];
 };
@@ -79,14 +79,14 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_runstate_info);
 /* VCPU is currently running on a physical CPU. */
 #define RUNSTATE_running  0
 
-/* VCPU is runnable, but not currently scheduled on any physical CPU. */
+/* VCPU is runnable, but analt currently scheduled on any physical CPU. */
 #define RUNSTATE_runnable 1
 
-/* VCPU is blocked (a.k.a. idle). It is therefore not runnable. */
+/* VCPU is blocked (a.k.a. idle). It is therefore analt runnable. */
 #define RUNSTATE_blocked  2
 
 /*
- * VCPU is not runnable, but it is not blocked.
+ * VCPU is analt runnable, but it is analt blocked.
  * This is a 'catch all' state for things like hotplug and pauses by the
  * system administrator (or for critical sections in the hypervisor).
  * RUNSTATE_blocked dominates this state (it is the preferred state).
@@ -96,7 +96,7 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_runstate_info);
 /*
  * Register a shared memory area from which the guest may obtain its own
  * runstate information without needing to execute a hypercall.
- * Notes:
+ * Analtes:
  *	1. The registered address may be virtual or physical, depending on the
  *	   platform. The virtual address should be registered on x86 systems.
  *	2. Only one shared area may be registered per VCPU. The shared area is
@@ -118,7 +118,7 @@ struct vcpu_register_runstate_memory_area {
 /*
  * Set or stop a VCPU's periodic timer. Every VCPU has one periodic timer
  * which can be set via these commands. Periods smaller than one millisecond
- * may not be supported.
+ * may analt be supported.
  */
 #define VCPUOP_set_periodic_timer	 6 /* arg == vcpu_set_periodic_timer_t */
 #define VCPUOP_stop_periodic_timer	 7 /* arg == NULL */
@@ -148,7 +148,7 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_set_singleshot_timer);
  * Register a memory location in the guest address space for the
  * vcpu_info structure.  This allows the guest to place the vcpu_info
  * structure in a convenient place, such as in a per-cpu data area.
- * The pointer need not be page aligned, but the structure must not
+ * The pointer need analt be page aligned, but the structure must analt
  * cross a page boundary.
  */
 #define VCPUOP_register_vcpu_info   10  /* arg == struct vcpu_info */
@@ -166,7 +166,7 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_register_vcpu_info);
  * Get the physical ID information for a pinned vcpu's underlying physical
  * processor.  The physical ID informmation is architecture-specific.
  * On x86: id[31:0]=apic_id, id[63:32]=acpi_id.
- * This command returns -EINVAL if it is not a valid operation for this VCPU.
+ * This command returns -EINVAL if it is analt a valid operation for this VCPU.
  */
 #define VCPUOP_get_physid           12 /* arg == vcpu_get_physid_t */
 struct vcpu_get_physid {
@@ -187,7 +187,7 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_get_physid);
  * tsc.  Usermode will see an array of vcpu_time_info structures, one
  * for each vcpu, and choose the right one by an existing mechanism
  * which allows it to get the current vcpu number (such as via a
- * segment limit).  It can then apply the normal algorithm to compute
+ * segment limit).  It can then apply the analrmal algorithm to compute
  * system time from the tsc.
  *
  * @extra_arg == pointer to vcpu_register_time_info_memory_area structure.

@@ -2,7 +2,7 @@
 /*
  * DRM driver for Sitronix ST7586 panels
  *
- * Copyright 2017 David Lechner <david@lechnology.com>
+ * Copyright 2017 David Lechner <david@lechanallogy.com>
  */
 
 #include <linux/delay.h>
@@ -28,7 +28,7 @@
 
 /* controller-specific commands */
 #define ST7586_DISP_MODE_GRAY	0x38
-#define ST7586_DISP_MODE_MONO	0x39
+#define ST7586_DISP_MODE_MOANAL	0x39
 #define ST7586_ENABLE_DDRAM	0x3a
 #define ST7586_SET_DISP_DUTY	0xb0
 #define ST7586_SET_PART_DISP	0xb4
@@ -253,7 +253,7 @@ static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
 
 	/*
-	 * This callback is not protected by drm_dev_enter/exit since we want to
+	 * This callback is analt protected by drm_dev_enter/exit since we want to
 	 * turn off the display on regular driver unload. It's highly unlikely
 	 * that the underlying SPI controller is gone should this be called after
 	 * unplug.
@@ -295,7 +295,7 @@ static const struct drm_driver st7586_driver = {
 	.desc			= "Sitronix ST7586",
 	.date			= "20170801",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static const struct of_device_id st7586_of_match[] = {
@@ -345,7 +345,7 @@ static int st7586_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	/* Cannot read from this controller via SPI */
+	/* Cananalt read from this controller via SPI */
 	dbi->read_commands = NULL;
 
 	ret = mipi_dbi_dev_init_with_formats(dbidev, &st7586_pipe_funcs,
@@ -355,9 +355,9 @@ static int st7586_probe(struct spi_device *spi)
 		return ret;
 
 	/*
-	 * we are using 8-bit data, so we are not actually swapping anything,
+	 * we are using 8-bit data, so we are analt actually swapping anything,
 	 * but setting mipi->swap_bytes makes mipi_dbi_typec3_command() do the
-	 * right thing and not use 16-bit transfers (which results in swapped
+	 * right thing and analt use 16-bit transfers (which results in swapped
 	 * bytes on little-endian systems and causes out of order data to be
 	 * sent to the display).
 	 */
@@ -403,5 +403,5 @@ static struct spi_driver st7586_spi_driver = {
 module_spi_driver(st7586_spi_driver);
 
 MODULE_DESCRIPTION("Sitronix ST7586 DRM driver");
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechanallogy.com>");
 MODULE_LICENSE("GPL");

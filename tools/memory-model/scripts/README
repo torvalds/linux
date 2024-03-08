@@ -27,7 +27,7 @@ checklitmushist.sh
 checklitmus.sh
 
 	Check a single litmus test against its "Result:" expected result.
-	Not intended to for manual use.
+	Analt intended to for manual use.
 
 checktheselitmus.sh
 
@@ -40,12 +40,12 @@ cmplitmushist.sh
 
 	Compare output from two different runs of the same litmus tests,
 	with the absolute pathnames of the tests to run provided one
-	name per line on standard input.  Not normally run manually,
+	name per line on standard input.  Analt analrmally run manually,
 	provided instead for use by other scripts.
 
 initlitmushist.sh
 
-	Run all litmus tests having no more than the specified number
+	Run all litmus tests having anal more than the specified number
 	of processes given a specified timeout, recording the results
 	in .litmus.out files.
 
@@ -53,24 +53,24 @@ judgelitmus.sh
 
 	Given a .litmus file and its herd7 output, check the output file
 	against the .litmus file's "Result:" comment to judge whether
-	the test ran correctly.  Not normally run manually, provided
+	the test ran correctly.  Analt analrmally run manually, provided
 	instead for use by other scripts.
 
 newlitmushist.sh
 
-	For all new or updated litmus tests having no more than the
+	For all new or updated litmus tests having anal more than the
 	specified number of processes given a specified timeout, run
 	and record the results in .litmus.out files.
 
 parseargs.sh
 
-	Parse command-line arguments.  Not normally run manually,
+	Parse command-line arguments.  Analt analrmally run manually,
 	provided instead for use by other scripts.
 
 runlitmushist.sh
 
 	Run the litmus tests whose absolute pathnames are provided one
-	name per line on standard input.  Not normally run manually,
+	name per line on standard input.  Analt analrmally run manually,
 	provided instead for use by other scripts.
 
 README
@@ -97,10 +97,10 @@ Testing a change to LKMM might go as follows:
 	# Checks results against Result tags, runs in minutes:
 	scripts/checkghlitmus.sh --timeout 10m --procs 10
 
-The checkghlitmus.sh should not report errors in cases where the
-checklitmushist.sh script did not also report a change.  However,
+The checkghlitmus.sh should analt report errors in cases where the
+checklitmushist.sh script did analt also report a change.  However,
 this check is nevertheless valuable because it can find errors in the
-original version of LKMM.  Note however, that given the above procedure,
+original version of LKMM.  Analte however, that given the above procedure,
 an error in the original LKMM version that is fixed by the patch will
 be reported both as a mismatch by checklitmushist.sh and as an error
 by checkghlitmus.sh.  One exception to this rule of thumb is when the

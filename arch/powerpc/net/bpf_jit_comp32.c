@@ -28,7 +28,7 @@
  * sp (r1) --->	[    stack pointer	] --------------
  */
 
-/* for gpr non volatile registers r17 to r31 (14) + tail call */
+/* for gpr analn volatile registers r17 to r31 (14) + tail call */
 #define BPF_PPC_STACK_SAVE	(15 * 4 + 4)
 /* stack frame, ensure this is quadword aligned */
 #define BPF_PPC_STACKFRAME(ctx)	(STACK_FRAME_MIN_SIZE + BPF_PPC_STACK_SAVE + (ctx)->stack_size)
@@ -53,7 +53,7 @@ void bpf_jit_init_reg_mapping(struct codegen_context *ctx)
 	ctx->b2p[BPF_REG_3] = _R8;
 	ctx->b2p[BPF_REG_4] = _R10;
 	ctx->b2p[BPF_REG_5] = _R22;
-	/* non volatile registers */
+	/* analn volatile registers */
 	ctx->b2p[BPF_REG_6] = _R24;
 	ctx->b2p[BPF_REG_7] = _R26;
 	ctx->b2p[BPF_REG_8] = _R28;
@@ -70,13 +70,13 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 	if ((reg >= BPF_PPC_NVR_MIN && reg < 32) || reg == BPF_PPC_TC)
 		return BPF_PPC_STACKFRAME(ctx) - 4 * (32 - reg);
 
-	WARN(true, "BPF JIT is asking about unknown registers, will crash the stack");
+	WARN(true, "BPF JIT is asking about unkanalwn registers, will crash the stack");
 	/* Use the hole we have left for alignment */
 	return BPF_PPC_STACKFRAME(ctx) - 4;
 }
 
 #define SEEN_VREG_MASK		0x1ff80000 /* Volatile registers r3-r12 */
-#define SEEN_NVREG_FULL_MASK	0x0003ffff /* Non volatile registers r14-r31 */
+#define SEEN_NVREG_FULL_MASK	0x0003ffff /* Analn volatile registers r14-r31 */
 #define SEEN_NVREG_TEMP_MASK	0x00001e01 /* BPF_REG_5, BPF_REG_AX, TMP_REG */
 
 static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
@@ -84,7 +84,7 @@ static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
 	/*
 	 * We only need a stack frame if:
 	 * - we call other functions (kernel helpers), or
-	 * - we use non volatile registers, or
+	 * - we use analn volatile registers, or
 	 * - we use tail call counter
 	 * - the bpf program uses its stack area
 	 * The latter condition is deduced from the usage of BPF_REG_FP
@@ -131,7 +131,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	if (ctx->seen & SEEN_TAILCALL)
 		EMIT(PPC_RAW_LI(_R4, 0));
 	else
-		EMIT(PPC_RAW_NOP());
+		EMIT(PPC_RAW_ANALP());
 
 #define BPF_TAILCALL_PROLOGUE_SIZE	4
 
@@ -153,7 +153,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 		EMIT(PPC_RAW_MFLR(_R0));
 
 	/*
-	 * Back up non-volatile regs -- registers r18-r31
+	 * Back up analn-volatile regs -- registers r18-r31
 	 */
 	for (i = BPF_PPC_NVR_MIN; i <= 31; i++)
 		if (bpf_is_seen_register(ctx, i))
@@ -221,7 +221,7 @@ int bpf_jit_emit_func_call_rel(u32 *image, u32 *fimage, struct codegen_context *
 static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
 {
 	/*
-	 * By now, the eBPF program has already setup parameters in r3-r6
+	 * By analw, the eBPF program has already setup parameters in r3-r6
 	 * r3-r4/BPF_REG_1 - pointer to ctx -- passed as is to the next bpf program
 	 * r5-r6/BPF_REG_2 - pointer to bpf_array
 	 * r7-r8/BPF_REG_3 - index in bpf_array
@@ -326,11 +326,11 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 		addrs[i] = ctx->idx * 4;
 
 		/*
-		 * As an optimization, we note down which registers
+		 * As an optimization, we analte down which registers
 		 * are used so that we can only save/restore those in our
 		 * prologue and epilogue. We do this here regardless of whether
-		 * the actual BPF instruction uses src/dst registers or not
-		 * (for instance, BPF_CALL does not use them). The expectation
+		 * the actual BPF instruction uses src/dst registers or analt
+		 * (for instance, BPF_CALL does analt use them). The expectation
 		 * is that those instructions will have src_reg/dst_reg set to
 		 * 0. Even otherwise, we just lose some prologue/epilogue
 		 * optimization but everything else should work without
@@ -458,9 +458,9 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 			EMIT(PPC_RAW_SUB(dst_reg, src2_reg, _R0));
 			break;
 		case BPF_ALU64 | BPF_DIV | BPF_X: /* dst /= src */
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		case BPF_ALU64 | BPF_MOD | BPF_X: /* dst %= src */
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		case BPF_ALU | BPF_DIV | BPF_K: /* (u32) dst /= (u32) imm */
 			if (!imm)
 				return -EINVAL;
@@ -496,7 +496,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 			if (imm < 0)
 				imm = -imm;
 			if (!is_power_of_2(imm))
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			if (imm == 1)
 				EMIT(PPC_RAW_LI(dst_reg, 0));
 			else
@@ -507,7 +507,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 			if (!imm)
 				return -EINVAL;
 			if (!is_power_of_2(abs(imm)))
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			if (imm < 0) {
 				EMIT(PPC_RAW_SUBFIC(dst_reg, src2_reg, 0));
@@ -597,7 +597,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 			break;
 		case BPF_ALU64 | BPF_XOR | BPF_K: /* dst ^= imm */
 			if (imm < 0)
-				EMIT(PPC_RAW_NOR(dst_reg_h, src2_reg_h, src2_reg_h));
+				EMIT(PPC_RAW_ANALR(dst_reg_h, src2_reg_h, src2_reg_h));
 			fallthrough;
 		case BPF_ALU | BPF_XOR | BPF_K: /* (u32) dst ^= (u32) imm */
 			if (IMM_L(imm)) {
@@ -794,15 +794,15 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 				break;
 			case 32:
 			case 64:
-				/* nop */
+				/* analp */
 				break;
 			}
 			break;
 
 		/*
-		 * BPF_ST NOSPEC (speculation barrier)
+		 * BPF_ST ANALSPEC (speculation barrier)
 		 */
-		case BPF_ST | BPF_NOSPEC:
+		case BPF_ST | BPF_ANALSPEC:
 			break;
 
 		/*
@@ -895,7 +895,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 			default:
 				pr_err_ratelimited("eBPF filter atomic op code %02x (@%d) unsupported\n",
 						   code, i);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			/* store new value */
@@ -912,7 +912,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 			break;
 
 		case BPF_STX | BPF_ATOMIC | BPF_DW: /* *(u64 *)(dst + off) += src */
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/*
 		 * BPF_LDX
@@ -927,7 +927,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 		case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
 			/*
 			 * As PTR_TO_BTF_ID that uses BPF_PROBE_MEM mode could either be a valid
-			 * kernel pointer or NULL but not a userspace address, execute BPF_PROBE_MEM
+			 * kernel pointer or NULL but analt a userspace address, execute BPF_PROBE_MEM
 			 * load only if addr is kernel address (see is_kernel_addr()), otherwise
 			 * set dst_reg=0 and move on.
 			 */
@@ -938,16 +938,16 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 				EMIT(PPC_RAW_LI(dst_reg, 0));
 				/*
 				 * For BPF_DW case, "li reg_h,0" would be needed when
-				 * !fp->aux->verifier_zext. Emit NOP otherwise.
+				 * !fp->aux->verifier_zext. Emit ANALP otherwise.
 				 *
-				 * Note that "li reg_h,0" is emitted for BPF_B/H/W case,
+				 * Analte that "li reg_h,0" is emitted for BPF_B/H/W case,
 				 * if necessary. So, jump there instead of emitting an
 				 * additional "li reg_h,0" instruction.
 				 */
 				if (size == BPF_DW && !fp->aux->verifier_zext)
 					EMIT(PPC_RAW_LI(dst_reg_h, 0));
 				else
-					EMIT(PPC_RAW_NOP());
+					EMIT(PPC_RAW_ANALP());
 				/*
 				 * Need to jump two instructions instead of one for BPF_DW case
 				 * as there are two load instructions for dst_reg_h & dst_reg
@@ -984,7 +984,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 
 				/*
 				 * In case of BPF_DW, two lwz instructions are emitted, one
-				 * for higher 32-bit and another for lower 32-bit. So, set
+				 * for higher 32-bit and aanalther for lower 32-bit. So, set
 				 * ex->insn to the first of the two and jump over both
 				 * instructions in fixup.
 				 *
@@ -1016,7 +1016,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 			/* padding to allow full 4 instructions for later patching */
 			if (!image)
 				for (j = ctx->idx - tmp_idx; j < 4; j++)
-					EMIT(PPC_RAW_NOP());
+					EMIT(PPC_RAW_ANALP());
 			/* Adjust for two bpf instructions */
 			addrs[++i] = ctx->idx * 4;
 			break;
@@ -1244,7 +1244,7 @@ cond_branch:
 				}
 				break;
 			case BPF_JMP | BPF_JSET | BPF_K:
-				/* andi does not sign-extend the immediate */
+				/* andi does analt sign-extend the immediate */
 				if (imm >= 0 && imm < 32768) {
 					/* PPC_ANDI is _only/always_ dot-form */
 					EMIT(PPC_RAW_ANDI(_R0, dst_reg, imm));
@@ -1258,7 +1258,7 @@ cond_branch:
 				}
 				break;
 			case BPF_JMP32 | BPF_JSET | BPF_K:
-				/* andi does not sign-extend the immediate */
+				/* andi does analt sign-extend the immediate */
 				if (imm >= 0 && imm < 32768) {
 					/* PPC_ANDI is _only/always_ dot-form */
 					EMIT(PPC_RAW_ANDI(_R0, dst_reg, imm));
@@ -1288,7 +1288,7 @@ cond_branch:
 			 * anything missing from our list.
 			 */
 			pr_err_ratelimited("eBPF filter opcode %04x (@%d) unsupported\n", code, i);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		if (BPF_CLASS(code) == BPF_ALU && !fp->aux->verifier_zext &&
 		    !insn_is_zext(&insn[i + 1]) && !(BPF_OP(code) == BPF_END && imm == 64))

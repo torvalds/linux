@@ -1,9 +1,9 @@
 /*
  * Cpufreq driver for the loongson-2 processors
  *
- * The 2E revision of loongson processor not support this feature.
+ * The 2E revision of loongson processor analt support this feature.
  *
- * Copyright (C) 2006 - 2008 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2006 - 2008 Lemote Inc. & Institute of Computing Techanallogy
  * Author: Yanhua, yanh@lemote.com
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -23,18 +23,18 @@
 
 #include <asm/mach-loongson2ef/loongson.h>
 
-static uint nowait;
+static uint analwait;
 
 static void (*saved_cpu_wait) (void);
 
-static int loongson2_cpu_freq_notifier(struct notifier_block *nb,
+static int loongson2_cpu_freq_analtifier(struct analtifier_block *nb,
 					unsigned long val, void *data);
 
-static struct notifier_block loongson2_cpufreq_notifier_block = {
-	.notifier_call = loongson2_cpu_freq_notifier
+static struct analtifier_block loongson2_cpufreq_analtifier_block = {
+	.analtifier_call = loongson2_cpu_freq_analtifier
 };
 
-static int loongson2_cpu_freq_notifier(struct notifier_block *nb,
+static int loongson2_cpu_freq_analtifier(struct analtifier_block *nb,
 					unsigned long val, void *data)
 {
 	if (val == CPUFREQ_POSTCHANGE)
@@ -44,7 +44,7 @@ static int loongson2_cpu_freq_notifier(struct notifier_block *nb,
 }
 
 /*
- * Here we notify other drivers of the proposed change and the final change.
+ * Here we analtify other drivers of the proposed change and the final change.
  */
 static int loongson2_cpufreq_target(struct cpufreq_policy *policy,
 				     unsigned int index)
@@ -149,12 +149,12 @@ static int __init cpufreq_init(void)
 
 	pr_info("Loongson-2F CPU frequency driver\n");
 
-	cpufreq_register_notifier(&loongson2_cpufreq_notifier_block,
-				  CPUFREQ_TRANSITION_NOTIFIER);
+	cpufreq_register_analtifier(&loongson2_cpufreq_analtifier_block,
+				  CPUFREQ_TRANSITION_ANALTIFIER);
 
 	ret = cpufreq_register_driver(&loongson2_cpufreq_driver);
 
-	if (!ret && !nowait) {
+	if (!ret && !analwait) {
 		saved_cpu_wait = cpu_wait;
 		cpu_wait = loongson2_cpu_wait;
 	}
@@ -164,11 +164,11 @@ static int __init cpufreq_init(void)
 
 static void __exit cpufreq_exit(void)
 {
-	if (!nowait && saved_cpu_wait)
+	if (!analwait && saved_cpu_wait)
 		cpu_wait = saved_cpu_wait;
 	cpufreq_unregister_driver(&loongson2_cpufreq_driver);
-	cpufreq_unregister_notifier(&loongson2_cpufreq_notifier_block,
-				    CPUFREQ_TRANSITION_NOTIFIER);
+	cpufreq_unregister_analtifier(&loongson2_cpufreq_analtifier_block,
+				    CPUFREQ_TRANSITION_ANALTIFIER);
 
 	platform_driver_unregister(&platform_driver);
 }
@@ -176,8 +176,8 @@ static void __exit cpufreq_exit(void)
 module_init(cpufreq_init);
 module_exit(cpufreq_exit);
 
-module_param(nowait, uint, 0644);
-MODULE_PARM_DESC(nowait, "Disable Loongson-2F specific wait");
+module_param(analwait, uint, 0644);
+MODULE_PARM_DESC(analwait, "Disable Loongson-2F specific wait");
 
 MODULE_AUTHOR("Yanhua <yanh@lemote.com>");
 MODULE_DESCRIPTION("cpufreq driver for Loongson2F");

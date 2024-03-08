@@ -11,7 +11,7 @@ Required properties:
 		controller. The format of the interrupt specifier depends on the
 		parent interrupt controller.
 - num-vectors:	number of vectors, range 1 to 32.
-- msi-controller:	indicates that this is MSI controller node
+- msi-controller:	indicates that this is MSI controller analde
 
 
 Example

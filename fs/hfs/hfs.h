@@ -2,7 +2,7 @@
  *  linux/fs/hfs/hfs.h
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  */
 
@@ -65,7 +65,7 @@
 #define HFS_FIL_DOPEN   0x04  /* data fork open */
 #define HFS_FIL_ROPEN   0x08  /* resource fork open */
 #define HFS_FIL_DIR     0x10  /* directory (always clear) */
-#define HFS_FIL_NOCOPY  0x40  /* copy-protected file */
+#define HFS_FIL_ANALCOPY  0x40  /* copy-protected file */
 #define HFS_FIL_USED	0x80  /* open */
 
 /* bits in hfs_dir_entry.Flags. dirflags is 16 bits. */

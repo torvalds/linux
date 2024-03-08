@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _v4l2-selection-targets:
 
@@ -32,50 +32,50 @@ of the two interfaces they are used.
     * - ``V4L2_SEL_TGT_CROP``
       - 0x0000
       - Crop rectangle. Defines the cropped area.
-      - Yes
-      - Yes
+      - Anal
+      - Anal
     * - ``V4L2_SEL_TGT_CROP_DEFAULT``
       - 0x0001
       - Suggested cropping rectangle that covers the "whole picture".
-        This includes only active pixels and excludes other non-active
+        This includes only active pixels and excludes other analn-active
         pixels such as black pixels.
-      - Yes
-      - Yes
+      - Anal
+      - Anal
     * - ``V4L2_SEL_TGT_CROP_BOUNDS``
       - 0x0002
       - Bounds of the crop rectangle. All valid crop rectangles fit inside
 	the crop bounds rectangle.
-      - Yes
-      - Yes
+      - Anal
+      - Anal
     * - ``V4L2_SEL_TGT_NATIVE_SIZE``
       - 0x0003
       - The native size of the device, e.g. a sensor's pixel array.
 	``left`` and ``top`` fields are zero for this target.
-      - Yes
-      - Yes
+      - Anal
+      - Anal
     * - ``V4L2_SEL_TGT_COMPOSE``
       - 0x0100
       - Compose rectangle. Used to configure scaling and composition.
-      - Yes
-      - Yes
+      - Anal
+      - Anal
     * - ``V4L2_SEL_TGT_COMPOSE_DEFAULT``
       - 0x0101
       - Suggested composition rectangle that covers the "whole picture".
-      - Yes
-      - No
+      - Anal
+      - Anal
     * - ``V4L2_SEL_TGT_COMPOSE_BOUNDS``
       - 0x0102
       - Bounds of the compose rectangle. All valid compose rectangles fit
 	inside the compose bounds rectangle.
-      - Yes
-      - Yes
+      - Anal
+      - Anal
     * - ``V4L2_SEL_TGT_COMPOSE_PADDED``
       - 0x0103
       - The active area and all padding pixels that are inserted or
 	modified by hardware.
-      - Yes
-      - No
+      - Anal
+      - Anal
 
 .. raw:: latex
 
-   \normalsize
+   \analrmalsize

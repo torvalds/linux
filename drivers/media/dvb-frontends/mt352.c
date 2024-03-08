@@ -96,7 +96,7 @@ static int mt352_sleep(struct dvb_frontend* fe)
 	return 0;
 }
 
-static void mt352_calc_nominal_rate(struct mt352_state* state,
+static void mt352_calc_analminal_rate(struct mt352_state* state,
 				    u32 bandwidth,
 				    unsigned char *buf)
 {
@@ -197,9 +197,9 @@ static int mt352_set_parameters(struct dvb_frontend *fe)
 		case FEC_1_2:
 		case FEC_AUTO:
 			break;
-		case FEC_NONE:
+		case FEC_ANALNE:
 			if (op->hierarchy == HIERARCHY_AUTO ||
-			    op->hierarchy == HIERARCHY_NONE)
+			    op->hierarchy == HIERARCHY_ANALNE)
 				break;
 			fallthrough;
 		default:
@@ -250,7 +250,7 @@ static int mt352_set_parameters(struct dvb_frontend *fe)
 
 	switch (op->hierarchy) {
 		case HIERARCHY_AUTO:
-		case HIERARCHY_NONE:
+		case HIERARCHY_ANALNE:
 			break;
 		case HIERARCHY_1:
 			tps |= (1 << 10);
@@ -274,10 +274,10 @@ static int mt352_set_parameters(struct dvb_frontend *fe)
 	buf[3] = 0x50;  // old
 //	buf[3] = 0xf4;  // pinnacle
 
-	mt352_calc_nominal_rate(state, op->bandwidth_hz, buf+4);
+	mt352_calc_analminal_rate(state, op->bandwidth_hz, buf+4);
 	mt352_calc_input_freq(state, buf+6);
 
-	if (state->config.no_tuner) {
+	if (state->config.anal_tuner) {
 		if (fe->ops.tuner_ops.set_params) {
 			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl)
@@ -320,12 +320,12 @@ static int mt352_get_parameters(struct dvb_frontend* fe,
 	if ( (mt352_read_register(state,0x00) & 0xC0) != 0xC0 )
 		return -EINVAL;
 
-	/* Use TPS_RECEIVED-registers, not the TPS_CURRENT-registers because
+	/* Use TPS_RECEIVED-registers, analt the TPS_CURRENT-registers because
 	 * the mt352 sometimes works with the wrong parameters
 	 */
 	tps = (mt352_read_register(state, TPS_RECEIVED_1) << 8) | mt352_read_register(state, TPS_RECEIVED_0);
 	div = (mt352_read_register(state, CHAN_START_1) << 8) | mt352_read_register(state, CHAN_START_0);
-	trl = mt352_read_register(state, TRL_NOMINAL_RATE_1);
+	trl = mt352_read_register(state, TRL_ANALMINAL_RATE_1);
 
 	op->code_rate_HP = tps_fec_to_api[(tps >> 7) & 7];
 	op->code_rate_LP = tps_fec_to_api[(tps >> 4) & 7];
@@ -370,7 +370,7 @@ static int mt352_get_parameters(struct dvb_frontend* fe,
 	switch ( (tps >> 10) & 7)
 	{
 		case 0:
-			op->hierarchy = HIERARCHY_NONE;
+			op->hierarchy = HIERARCHY_ANALNE;
 			break;
 		case 1:
 			op->hierarchy = HIERARCHY_1;
@@ -413,7 +413,7 @@ static int mt352_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	 *
 	 * The MT352 design manual from Zarlink states (page 46-47):
 	 *
-	 * Notes about the TUNER_GO register:
+	 * Analtes about the TUNER_GO register:
 	 *
 	 * If the Read_Tuner_Byte (bit-1) is activated, then the tuner status
 	 * byte is copied from the tuner to the STATUS_3 register and

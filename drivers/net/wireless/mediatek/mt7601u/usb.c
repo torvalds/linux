@@ -68,7 +68,7 @@ int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
 	usb_fill_bulk_urb(buf->urb, usb_dev, pipe, buf->buf, buf->len,
 			  complete_fn, context);
 	buf->urb->transfer_dma = buf->dma;
-	buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	buf->urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	trace_mt_submit_urb(dev, buf->urb);
 	ret = usb_submit_urb(buf->urb, gfp);
@@ -102,9 +102,9 @@ int mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 		trace_mt_vend_req(dev, pipe, req, req_type, val, offset,
 				  buf, buflen, ret);
 
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			set_bit(MT7601U_STATE_REMOVED, &dev->state);
-		if (ret >= 0 || ret == -ENODEV)
+		if (ret >= 0 || ret == -EANALDEV)
 			return ret;
 
 		msleep(5);
@@ -242,7 +242,7 @@ static int mt7601u_assign_pipes(struct usb_interface *usb_intf,
 		    ep_i++ < __MT_EP_IN_MAX) {
 			dev->in_eps[ep_i - 1] = usb_endpoint_num(ep_desc);
 			dev->in_max_packet = usb_endpoint_maxp(ep_desc);
-			/* Note: this is ignored by usb sub-system but vendor
+			/* Analte: this is iganalred by usb sub-system but vendor
 			 *	 code does it. We can drop this at some point.
 			 */
 			dev->in_eps[ep_i - 1] |= USB_DIR_IN;
@@ -272,7 +272,7 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 
 	dev = mt7601u_alloc_device(&usb_intf->dev);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_dev = usb_get_dev(usb_dev);
 	usb_reset_device(usb_dev);
@@ -281,7 +281,7 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 
 	dev->vend_buf = devm_kmalloc(dev->dev, MT_VEND_BUF, GFP_KERNEL);
 	if (!dev->vend_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -297,13 +297,13 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 	dev_info(dev->dev, "ASIC revision: %08x MAC revision: %08x\n",
 		 asic_rev, mac_rev);
 	if ((asic_rev >> 16) != 0x7601) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
-	/* Note: vendor driver skips this check for MT7601U */
+	/* Analte: vendor driver skips this check for MT7601U */
 	if (!(mt7601u_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
-		dev_warn(dev->dev, "Warning: eFUSE not present\n");
+		dev_warn(dev->dev, "Warning: eFUSE analt present\n");
 
 	ret = mt7601u_init_hardware(dev);
 	if (ret)

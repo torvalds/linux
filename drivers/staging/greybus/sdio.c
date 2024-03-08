@@ -61,7 +61,7 @@ static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 	u32 caps = 0;
 	u32 caps2 = 0;
 
-	caps = ((r & GB_SDIO_CAP_NONREMOVABLE) ? MMC_CAP_NONREMOVABLE : 0) |
+	caps = ((r & GB_SDIO_CAP_ANALNREMOVABLE) ? MMC_CAP_ANALNREMOVABLE : 0) |
 		((r & GB_SDIO_CAP_4_BIT_DATA) ? MMC_CAP_4_BIT_DATA : 0) |
 		((r & GB_SDIO_CAP_8_BIT_DATA) ? MMC_CAP_8_BIT_DATA : 0) |
 		((r & GB_SDIO_CAP_MMC_HS) ? MMC_CAP_MMC_HIGHSPEED : 0) |
@@ -86,7 +86,7 @@ static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 	host->mmc->caps = caps;
 	host->mmc->caps2 = caps2 | MMC_CAP2_CORE_RUNTIME_PM;
 
-	if (caps & MMC_CAP_NONREMOVABLE)
+	if (caps & MMC_CAP_ANALNREMOVABLE)
 		host->card_present = true;
 }
 
@@ -171,7 +171,7 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 	u8 state_changed = 0;
 
 	if (event & GB_SDIO_CARD_INSERTED) {
-		if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
+		if (host->mmc->caps & MMC_CAP_ANALNREMOVABLE)
 			return 0;
 		if (host->card_present)
 			return 0;
@@ -180,7 +180,7 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 	}
 
 	if (event & GB_SDIO_CARD_REMOVED) {
-		if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
+		if (host->mmc->caps & MMC_CAP_ANALNREMOVABLE)
 			return 0;
 		if (!(host->card_present))
 			return 0;
@@ -192,7 +192,7 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 		host->read_only = true;
 
 	if (state_changed) {
-		dev_info(mmc_dev(host->mmc), "card %s now event\n",
+		dev_info(mmc_dev(host->mmc), "card %s analw event\n",
 			 (host->card_present ?  "inserted" : "removed"));
 		mmc_detect_change(host->mmc, 0);
 	}
@@ -270,7 +270,7 @@ static int _gb_sdio_send(struct gb_sdio_host *host, struct mmc_data *data,
 					len + sizeof(*request),
 					sizeof(*response), GFP_KERNEL);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	request = operation->request->payload;
 	request->data_flags = data->flags >> 8;
@@ -324,7 +324,7 @@ static int _gb_sdio_recv(struct gb_sdio_host *host, struct mmc_data *data,
 					sizeof(*request),
 					len + sizeof(*response), GFP_KERNEL);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	request = operation->request->payload;
 	request->data_flags = data->flags >> 8;
@@ -416,8 +416,8 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 	int ret;
 
 	switch (mmc_resp_type(cmd)) {
-	case MMC_RSP_NONE:
-		cmd_flags = GB_SDIO_RSP_NONE;
+	case MMC_RSP_ANALNE:
+		cmd_flags = GB_SDIO_RSP_ANALNE;
 		break;
 	case MMC_RSP_R1:
 		cmd_flags = GB_SDIO_RSP_R1_R5_R6_R7;
@@ -462,7 +462,7 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 	request.cmd_flags = cmd_flags;
 	request.cmd_type = cmd_type;
 	request.cmd_arg = cpu_to_le32(cmd->arg);
-	/* some controllers need to know at command time data details */
+	/* some controllers need to kanalw at command time data details */
 	if (data) {
 		request.data_blocks = cpu_to_le16(data->blocks);
 		request.data_blksz = cpu_to_le16(data->blksz);
@@ -477,8 +477,8 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 	if (ret < 0)
 		goto out;
 
-	/* no response expected */
-	if (cmd_flags == GB_SDIO_RSP_NONE)
+	/* anal response expected */
+	if (cmd_flags == GB_SDIO_RSP_ANALNE)
 		goto out;
 
 	/* long response expected */
@@ -570,7 +570,7 @@ static void gb_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto out;
 	}
 	if (!host->card_present) {
-		mrq->cmd->error = -ENOMEDIUM;
+		mrq->cmd->error = -EANALMEDIUM;
 		goto out;
 	}
 
@@ -769,7 +769,7 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 
 	mmc = mmc_alloc_host(sizeof(*host), &gbphy_dev->dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(gbphy_dev->bundle,
 					  le16_to_cpu(gbphy_dev->cport_desc->id),
@@ -800,7 +800,7 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 
 	mmc->max_segs = host->mmc->max_blk_count;
 
-	/* for now we make a map 1:1 between max request and segment size */
+	/* for analw we make a map 1:1 between max request and segment size */
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
@@ -809,7 +809,7 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 	host->mrq_workqueue = alloc_workqueue("mmc-%s", 0, 1,
 					      dev_name(&gbphy_dev->dev));
 	if (!host->mrq_workqueue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_connection_disable;
 	}
 	INIT_WORK(&host->mrqwork, gb_sdio_mrq_work);
@@ -850,7 +850,7 @@ static void gb_sdio_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_analresume(gbphy_dev);
 
 	mutex_lock(&host->lock);
 	host->removed = true;

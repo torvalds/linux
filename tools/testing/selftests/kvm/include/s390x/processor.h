@@ -10,7 +10,7 @@
 /* Bits in the region/segment table entry */
 #define REGION_ENTRY_ORIGIN	~0xfffUL /* region/segment table origin	   */
 #define REGION_ENTRY_PROTECT	0x200	 /* region protection bit	   */
-#define REGION_ENTRY_NOEXEC	0x100	 /* region no-execute bit	   */
+#define REGION_ENTRY_ANALEXEC	0x100	 /* region anal-execute bit	   */
 #define REGION_ENTRY_OFFSET	0xc0	 /* region table offset		   */
 #define REGION_ENTRY_INVALID	0x20	 /* invalid region table entry	   */
 #define REGION_ENTRY_TYPE	0x0c	 /* region/segment table type mask */
@@ -19,7 +19,7 @@
 /* Bits in the page table entry */
 #define PAGE_INVALID	0x400		/* HW invalid bit    */
 #define PAGE_PROTECT	0x200		/* HW read-only bit  */
-#define PAGE_NOEXEC	0x100		/* HW no-execute bit */
+#define PAGE_ANALEXEC	0x100		/* HW anal-execute bit */
 
 /* Is there a portable way to do this? */
 static inline void cpu_relax(void)

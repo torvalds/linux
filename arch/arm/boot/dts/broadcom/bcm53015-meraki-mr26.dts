@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom BCM470X / BCM5301X ARM platform code.
- * DTS for Meraki MR26 / Codename: Venom
+ * DTS for Meraki MR26 / Codename: Veanalm
  *
  * Copyright (C) 2022 Christian Lamparter <chunkeey@gmail.com>
  */
@@ -163,5 +163,5 @@
 
 &thermal {
 	status = "disabled";
-	/* does not work, reads 418 degree Celsius */
+	/* does analt work, reads 418 degree Celsius */
 };

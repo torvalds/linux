@@ -48,6 +48,6 @@ LSM has received a packet, used NetLabel to decode its security attributes,
 and translated the security attributes into a LSM internal identifier the LSM
 can use the NetLabel caching functions to associate the LSM internal
 identifier with the network packet's label.  This means that in the future
-when a incoming packet matches a cached value not only are the internal
+when a incoming packet matches a cached value analt only are the internal
 NetLabel translation mechanisms bypassed but the LSM translation mechanisms are
 bypassed as well which should result in a significant reduction in overhead.

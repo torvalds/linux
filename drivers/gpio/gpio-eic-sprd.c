@@ -9,7 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -73,7 +73,7 @@
  * The debounce range is from 1ms to 4s with a step size of 1ms.
  *
  * The latch EIC is used to latch some special power down signals and
- * generate interrupts, since the latch EIC does not depend on the APB clock
+ * generate interrupts, since the latch EIC does analt depend on the APB clock
  * to capture signals.
  *
  * The async EIC uses a 32k clock to capture the short signals (microsecond
@@ -92,16 +92,16 @@ enum sprd_eic_type {
 
 struct sprd_eic {
 	struct gpio_chip chip;
-	struct notifier_block irq_nb;
+	struct analtifier_block irq_nb;
 	void __iomem *base[SPRD_EIC_MAX_BANK];
 	enum sprd_eic_type type;
 	spinlock_t lock;
 	int irq;
 };
 
-static ATOMIC_NOTIFIER_HEAD(sprd_eic_irq_notifier);
+static ATOMIC_ANALTIFIER_HEAD(sprd_eic_irq_analtifier);
 
-static struct sprd_eic *to_sprd_eic(struct notifier_block *nb)
+static struct sprd_eic *to_sprd_eic(struct analtifier_block *nb)
 {
 	return container_of(nb, struct sprd_eic, irq_nb);
 }
@@ -198,19 +198,19 @@ static int sprd_eic_get(struct gpio_chip *chip, unsigned int offset)
 	case SPRD_EIC_SYNC:
 		return sprd_eic_read(chip, offset, SPRD_EIC_SYNC_DATA);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
 static int sprd_eic_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
-	/* EICs are always input, nothing need to do here. */
+	/* EICs are always input, analthing need to do here. */
 	return 0;
 }
 
 static void sprd_eic_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
-	/* EICs are always input, nothing need to do here. */
+	/* EICs are always input, analthing need to do here. */
 }
 
 static int sprd_eic_set_debounce(struct gpio_chip *chip, unsigned int offset,
@@ -237,7 +237,7 @@ static int sprd_eic_set_config(struct gpio_chip *chip, unsigned int offset,
 	if (param == PIN_CONFIG_INPUT_DEBOUNCE)
 		return sprd_eic_set_debounce(chip, offset, arg);
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static void sprd_eic_irq_mask(struct irq_data *data)
@@ -353,7 +353,7 @@ static int sprd_eic_irq_set_type(struct irq_data *data, unsigned int flow_type)
 			}
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		irq_set_handler_locked(data, handle_level_irq);
@@ -385,7 +385,7 @@ static int sprd_eic_irq_set_type(struct irq_data *data, unsigned int flow_type)
 			}
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		irq_set_handler_locked(data, handle_level_irq);
@@ -427,7 +427,7 @@ static int sprd_eic_irq_set_type(struct irq_data *data, unsigned int flow_type)
 			irq_set_handler_locked(data, handle_level_irq);
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		break;
 	case SPRD_EIC_SYNC:
@@ -467,12 +467,12 @@ static int sprd_eic_irq_set_type(struct irq_data *data, unsigned int flow_type)
 			irq_set_handler_locked(data, handle_level_irq);
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		break;
 	default:
 		dev_err(chip->parent, "Unsupported EIC type.\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -577,22 +577,22 @@ static void sprd_eic_irq_handler(struct irq_desc *desc)
 
 	/*
 	 * Since the digital-chip EIC 4 sub-modules (debounce, latch, async
-	 * and sync) share one same interrupt line, we should notify all of
+	 * and sync) share one same interrupt line, we should analtify all of
 	 * them to let them check if there are EIC interrupts were triggered.
 	 */
-	atomic_notifier_call_chain(&sprd_eic_irq_notifier, 0, NULL);
+	atomic_analtifier_call_chain(&sprd_eic_irq_analtifier, 0, NULL);
 
 	chained_irq_exit(ic, desc);
 }
 
-static int sprd_eic_irq_notify(struct notifier_block *nb, unsigned long action,
+static int sprd_eic_irq_analtify(struct analtifier_block *nb, unsigned long action,
 			       void *data)
 {
 	struct sprd_eic *sprd_eic = to_sprd_eic(nb);
 
 	sprd_eic_handle_one_type(&sprd_eic->chip);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct irq_chip sprd_eic_irq = {
@@ -605,11 +605,11 @@ static const struct irq_chip sprd_eic_irq = {
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
-static void sprd_eic_unregister_notifier(void *data)
+static void sprd_eic_unregister_analtifier(void *data)
 {
-	struct notifier_block *nb = data;
+	struct analtifier_block *nb = data;
 
-	atomic_notifier_chain_unregister(&sprd_eic_irq_notifier, nb);
+	atomic_analtifier_chain_unregister(&sprd_eic_irq_analtifier, nb);
 }
 
 static int sprd_eic_probe(struct platform_device *pdev)
@@ -623,13 +623,13 @@ static int sprd_eic_probe(struct platform_device *pdev)
 
 	pdata = of_device_get_match_data(dev);
 	if (!pdata) {
-		dev_err(dev, "No matching driver data found.\n");
+		dev_err(dev, "Anal matching driver data found.\n");
 		return -EINVAL;
 	}
 
 	sprd_eic = devm_kzalloc(dev, sizeof(*sprd_eic), GFP_KERNEL);
 	if (!sprd_eic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&sprd_eic->lock);
 	sprd_eic->type = pdata->type;
@@ -678,7 +678,7 @@ static int sprd_eic_probe(struct platform_device *pdev)
 	irq = &sprd_eic->chip.irq;
 	gpio_irq_chip_set_chip(irq, &sprd_eic_irq);
 	irq->handler = handle_bad_irq;
-	irq->default_type = IRQ_TYPE_NONE;
+	irq->default_type = IRQ_TYPE_ANALNE;
 	irq->parent_handler = sprd_eic_irq_handler;
 	irq->parent_handler_data = sprd_eic;
 	irq->num_parents = 1;
@@ -686,18 +686,18 @@ static int sprd_eic_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(dev, &sprd_eic->chip, sprd_eic);
 	if (ret < 0) {
-		dev_err(dev, "Could not register gpiochip %d.\n", ret);
+		dev_err(dev, "Could analt register gpiochip %d.\n", ret);
 		return ret;
 	}
 
-	sprd_eic->irq_nb.notifier_call = sprd_eic_irq_notify;
-	ret = atomic_notifier_chain_register(&sprd_eic_irq_notifier,
+	sprd_eic->irq_nb.analtifier_call = sprd_eic_irq_analtify;
+	ret = atomic_analtifier_chain_register(&sprd_eic_irq_analtifier,
 					     &sprd_eic->irq_nb);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "Failed to register with the interrupt notifier");
+				     "Failed to register with the interrupt analtifier");
 
-	return devm_add_action_or_reset(dev, sprd_eic_unregister_notifier,
+	return devm_add_action_or_reset(dev, sprd_eic_unregister_analtifier,
 					&sprd_eic->irq_nb);
 }
 

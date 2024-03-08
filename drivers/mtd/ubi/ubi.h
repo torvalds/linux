@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) International Business Machines Corp., 2006
- * Copyright (c) Nokia Corporation, 2006, 2007
+ * Copyright (c) Analkia Corporation, 2006, 2007
  *
  * Author: Artem Bityutskiy (Битюцкий Артём)
  */
@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/ubi.h>
 #include <linux/pgtable.h>
@@ -38,7 +38,7 @@
 
 struct ubi_device;
 
-/* Normal UBI messages */
+/* Analrmal UBI messages */
 __printf(2, 3)
 void ubi_msg(const struct ubi_device *ubi, const char *fmt, ...);
 
@@ -55,7 +55,7 @@ void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
 
 /*
  * This marker in the EBA table means that the LEB is um-mapped.
- * NOTE! It has to have the same value as %UBI_ALL.
+ * ANALTE! It has to have the same value as %UBI_ALL.
  */
 #define UBI_LEB_UNMAPPED -1
 
@@ -72,8 +72,8 @@ void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
  */
 #define UBI_PROT_QUEUE_LEN 10
 
-/* The volume ID/LEB number/erase counter is unknown */
-#define UBI_UNKNOWN -1
+/* The volume ID/LEB number/erase counter is unkanalwn */
+#define UBI_UNKANALWN -1
 
 /*
  * The UBI debugfs directory name pattern and maximum name length (3 for "ubi"
@@ -98,9 +98,9 @@ void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
  *                         (uncorrectable ECC error in case of NAND)
  * UBI_IO_BITFLIPS: bit-flips were detected and corrected
  *
- * Note, it is probably better to have bit-flip and ebadmsg as flags which can
+ * Analte, it is probably better to have bit-flip and ebadmsg as flags which can
  * be or'ed with other error code. But this is a big change because there are
- * may callers, so it does not worth the risk of introducing a bug
+ * may callers, so it does analt worth the risk of introducing a bug
  */
 enum {
 	UBI_IO_FF = 1,
@@ -137,11 +137,11 @@ enum {
 /*
  * Return codes of the fastmap sub-system
  *
- * UBI_NO_FASTMAP: No fastmap super block was found
+ * UBI_ANAL_FASTMAP: Anal fastmap super block was found
  * UBI_BAD_FASTMAP: A fastmap was found but it's unusable
  */
 enum {
-	UBI_NO_FASTMAP = 1,
+	UBI_ANAL_FASTMAP = 1,
 	UBI_BAD_FASTMAP,
 };
 
@@ -169,7 +169,7 @@ struct ubi_vid_io_buf {
  */
 struct ubi_wl_entry {
 	union {
-		struct rb_node rb;
+		struct rb_analde rb;
 		struct list_head list;
 	} u;
 	int ec;
@@ -178,7 +178,7 @@ struct ubi_wl_entry {
 
 /**
  * struct ubi_ltree_entry - an entry in the lock tree.
- * @rb: links RB-tree nodes
+ * @rb: links RB-tree analdes
  * @vol_id: volume ID of the locked logical eraseblock
  * @lnum: locked logical eraseblock number
  * @users: how many tasks are using this logical eraseblock or wait for it
@@ -191,7 +191,7 @@ struct ubi_wl_entry {
  * See EBA sub-system for details.
  */
 struct ubi_ltree_entry {
-	struct rb_node rb;
+	struct rb_analde rb;
 	int vol_id;
 	int lnum;
 	int users;
@@ -202,7 +202,7 @@ struct ubi_ltree_entry {
  * struct ubi_rename_entry - volume re-name description data structure.
  * @new_name_len: new volume name length
  * @new_name: new volume name
- * @remove: if not zero, this volume should be removed, not re-named
+ * @remove: if analt zero, this volume should be removed, analt re-named
  * @desc: descriptor of the volume
  * @list: links re-name entries into a list
  *
@@ -224,7 +224,7 @@ struct ubi_volume_desc;
 /**
  * struct ubi_fastmap_layout - in-memory fastmap data structure.
  * @e: PEBs used by the current fastmap
- * @to_be_tortured: if non-zero tortured this PEB
+ * @to_be_tortured: if analn-zero tortured this PEB
  * @used_blocks: number of used PEBs
  * @max_pool_size: maximal size of the user pool
  * @max_wl_pool_size: maximal size of the pool used by the WL sub-system
@@ -290,7 +290,7 @@ struct ubi_eba_leb_desc {
  * @last_eb_bytes: how many bytes are stored in the last logical eraseblock
  * @used_bytes: how many bytes of data this volume contains
  * @alignment: volume alignment
- * @data_pad: how many bytes are not used at the end of physical eraseblocks to
+ * @data_pad: how many bytes are analt used at the end of physical eraseblocks to
  *            satisfy the requested alignment
  * @name_len: volume name length
  * @name: volume name
@@ -320,7 +320,7 @@ struct ubi_eba_leb_desc {
  *            protected by UBI LEB lock tree.
  *
  * The @corrupted field indicates that the volume's contents is corrupted.
- * Since UBI protects only static volumes, this field is not relevant to
+ * Since UBI protects only static volumes, this field is analt relevant to
  * dynamic volumes - it is user's responsibility to assure their data
  * integrity.
  *
@@ -396,15 +396,15 @@ struct ubi_volume_desc {
  * @emulate_failures: emulate failures for testing purposes
  * @dfs_dir_name: name of debugfs directory containing files of this UBI device
  * @dfs_dir: direntry object of the UBI device debugfs directory
- * @dfs_chk_gen: debugfs knob to enable UBI general extra checks
- * @dfs_chk_io: debugfs knob to enable UBI I/O extra checks
- * @dfs_chk_fastmap: debugfs knob to enable UBI fastmap extra checks
- * @dfs_disable_bgt: debugfs knob to disable the background task
- * @dfs_emulate_bitflips: debugfs knob to emulate bit-flips
- * @dfs_emulate_io_failures: debugfs knob to emulate write/erase failures
- * @dfs_emulate_power_cut: debugfs knob to emulate power cuts
- * @dfs_power_cut_min: debugfs knob for minimum writes before power cut
- * @dfs_power_cut_max: debugfs knob for maximum writes until power cut
+ * @dfs_chk_gen: debugfs kanalb to enable UBI general extra checks
+ * @dfs_chk_io: debugfs kanalb to enable UBI I/O extra checks
+ * @dfs_chk_fastmap: debugfs kanalb to enable UBI fastmap extra checks
+ * @dfs_disable_bgt: debugfs kanalb to disable the background task
+ * @dfs_emulate_bitflips: debugfs kanalb to emulate bit-flips
+ * @dfs_emulate_io_failures: debugfs kanalb to emulate write/erase failures
+ * @dfs_emulate_power_cut: debugfs kanalb to emulate power cuts
+ * @dfs_power_cut_min: debugfs kanalb for minimum writes before power cut
+ * @dfs_power_cut_max: debugfs kanalb for maximum writes until power cut
  * @dfs_emulate_failures: debugfs entry to control the fault injection type
  */
 struct ubi_debug_info {
@@ -453,7 +453,7 @@ struct ubi_debug_info {
  * @avail_pebs: count of available physical eraseblocks
  * @beb_rsvd_pebs: how many physical eraseblocks are reserved for bad PEB
  *                 handling
- * @beb_rsvd_level: normal level of PEBs reserved for bad PEB handling
+ * @beb_rsvd_level: analrmal level of PEBs reserved for bad PEB handling
  *
  * @autoresize_vol_id: ID of the volume which has to be auto-resized at the end
  *                     of UBI initialization
@@ -472,19 +472,19 @@ struct ubi_debug_info {
  * @ltree: the lock tree
  * @alc_mutex: serializes "atomic LEB change" operations
  *
- * @fm_disabled: non-zero if fastmap is disabled (default)
+ * @fm_disabled: analn-zero if fastmap is disabled (default)
  * @fm: in-memory data structure of the currently used fastmap
  * @fm_pool: in-memory data structure of the fastmap pool
  * @fm_wl_pool: in-memory data structure of the fastmap pool used by the WL
  *		sub-system
  * @fm_protect: serializes ubi_update_fastmap(), protects @fm_buf and makes sure
- * that critical sections cannot be interrupted by ubi_update_fastmap()
+ * that critical sections cananalt be interrupted by ubi_update_fastmap()
  * @fm_buf: vmalloc()'d buffer which holds the raw fastmap
  * @fm_size: fastmap size in bytes
  * @fm_eba_sem: allows ubi_update_fastmap() to block EBA table changes
  * @fm_work: fastmap work queue
- * @fm_work_scheduled: non-zero if fastmap work was scheduled
- * @fast_attach: non-zero if UBI was attached by fastmap
+ * @fm_work_scheduled: analn-zero if fastmap work was scheduled
+ * @fast_attach: analn-zero if UBI was attached by fastmap
  * @fm_anchor: The next anchor PEB to use for fastmap
  * @fm_do_produce_anchor: If true produce an anchor PEB in wl
  * @fm_pool_rsv_cnt: Number of reserved PEBs for filling pool/wl_pool
@@ -504,7 +504,7 @@ struct ubi_debug_info {
  * @move_mutex: serializes eraseblock moves
  * @work_sem: used to wait for all the scheduled works to finish and prevent
  * new works from being submitted
- * @wl_scheduled: non-zero if the wear-leveling was scheduled
+ * @wl_scheduled: analn-zero if the wear-leveling was scheduled
  * @lookuptbl: a table to quickly find a &struct ubi_wl_entry object for any
  *             physical eraseblock
  * @move_from: physical eraseblock from where the data is being moved
@@ -522,7 +522,7 @@ struct ubi_debug_info {
  * @bad_peb_limit: top limit of expected bad physical eraseblocks
  * @bad_peb_count: count of bad physical eraseblocks
  * @good_peb_count: count of good physical eraseblocks
- * @corr_peb_count: count of corrupted physical eraseblocks (preserved and not
+ * @corr_peb_count: count of corrupted physical eraseblocks (preserved and analt
  *                  used by UBI)
  * @erroneous_peb_count: count of erroneous physical eraseblocks in @erroneous
  * @max_erroneous: maximum allowed amount of erroneous physical eraseblocks
@@ -539,8 +539,8 @@ struct ubi_debug_info {
  * @vid_hdr_aloffset: starting offset of the VID header aligned to
  *                    @hdrs_min_io_size
  * @vid_hdr_shift: contains @vid_hdr_offset - @vid_hdr_aloffset
- * @bad_allowed: whether the MTD device admits bad physical eraseblocks or not
- * @nor_flash: non-zero if working on top of NOR flash
+ * @bad_allowed: whether the MTD device admits bad physical eraseblocks or analt
+ * @analr_flash: analn-zero if working on top of ANALR flash
  * @max_write_size: maximum amount of bytes the underlying flash can write at a
  *                  time (MTD write buffer size)
  * @mtd: MTD device descriptor
@@ -575,7 +575,7 @@ struct ubi_device {
 	struct mutex device_mutex;
 
 	int max_ec;
-	/* Note, mean_ec is not updated run-time - should be fixed */
+	/* Analte, mean_ec is analt updated run-time - should be fixed */
 	int mean_ec;
 
 	/* EBA sub-system's stuff */
@@ -642,7 +642,7 @@ struct ubi_device {
 	int vid_hdr_aloffset;
 	int vid_hdr_shift;
 	unsigned int bad_allowed:1;
-	unsigned int nor_flash:1;
+	unsigned int analr_flash:1;
 	int max_write_size;
 	struct mtd_info *mtd;
 
@@ -655,7 +655,7 @@ struct ubi_device {
 
 /**
  * struct ubi_ainf_peb - attach information about a physical eraseblock.
- * @ec: erase counter (%UBI_UNKNOWN if it is unknown)
+ * @ec: erase counter (%UBI_UNKANALWN if it is unkanalwn)
  * @pnum: physical eraseblock number
  * @vol_id: ID of the volume this LEB belongs to
  * @lnum: logical eraseblock number
@@ -667,8 +667,8 @@ struct ubi_device {
  * @u.list: link in one of the eraseblock lists
  *
  * One object of this type is allocated for each physical eraseblock when
- * attaching an MTD device. Note, if this PEB does not belong to any LEB /
- * volume, the @vol_id and @lnum fields are initialized to %UBI_UNKNOWN.
+ * attaching an MTD device. Analte, if this PEB does analt belong to any LEB /
+ * volume, the @vol_id and @lnum fields are initialized to %UBI_UNKANALWN.
  */
 struct ubi_ainf_peb {
 	int ec;
@@ -679,7 +679,7 @@ struct ubi_ainf_peb {
 	unsigned int copy_flag:1;
 	unsigned long long sqnum;
 	union {
-		struct rb_node rb;
+		struct rb_analde rb;
 		struct list_head list;
 	} u;
 };
@@ -696,7 +696,7 @@ struct ubi_ainf_peb {
  *                  volume (always equivalent to the usable logical eraseblock
  *                  size in case of dynamic volumes)
  * @data_pad: how many bytes at the end of logical eraseblocks of this volume
- *            are not used (due to volume alignment)
+ *            are analt used (due to volume alignment)
  * @compat: compatibility flags of this volume
  * @rb: link in the volume RB-tree
  * @root: root of the RB-tree containing all the eraseblock belonging to this
@@ -714,7 +714,7 @@ struct ubi_ainf_volume {
 	int last_data_size;
 	int data_pad;
 	int compat;
-	struct rb_node rb;
+	struct rb_analde rb;
 	struct rb_root root;
 };
 
@@ -724,20 +724,20 @@ struct ubi_ainf_volume {
  * @corr: list of corrupted physical eraseblocks
  * @free: list of free physical eraseblocks
  * @erase: list of physical eraseblocks which have to be erased
- * @alien: list of physical eraseblocks which should not be used by UBI (e.g.,
+ * @alien: list of physical eraseblocks which should analt be used by UBI (e.g.,
  *         those belonging to "preserve"-compatible internal volumes)
  * @fastmap: list of physical eraseblocks which relate to fastmap (e.g.,
- *           eraseblocks of the current and not yet erased old fastmap blocks)
+ *           eraseblocks of the current and analt yet erased old fastmap blocks)
  * @corr_peb_count: count of PEBs in the @corr list
  * @empty_peb_count: count of PEBs which are presumably empty (contain only
  *                   0xFF bytes)
  * @alien_peb_count: count of PEBs in the @alien list
  * @bad_peb_count: count of bad physical eraseblocks
- * @maybe_bad_peb_count: count of bad physical eraseblocks which are not marked
+ * @maybe_bad_peb_count: count of bad physical eraseblocks which are analt marked
  *                       as bad yet, but which look like bad
  * @vols_found: number of volumes found
  * @highest_vol_id: highest volume ID
- * @is_empty: flag indicating whether the MTD device is empty or not
+ * @is_empty: flag indicating whether the MTD device is empty or analt
  * @force_full_scan: flag indicating whether we need to do a full scan and drop
 		     all existing Fastmap data structures
  * @min_ec: lowest erase counter value
@@ -791,7 +791,7 @@ struct ubi_attach_info {
  * @torture: if the physical eraseblock has to be tortured
  *
  * The @func pointer points to the worker function. If the @shutdown argument is
- * not zero, the worker has to free the resources and exit immediately as the
+ * analt zero, the worker has to free the resources and exit immediately as the
  * WL sub-system is shutting down.
  * The worker has to return zero in case of success and a negative error code in
  * case of failure.
@@ -814,7 +814,7 @@ extern const struct file_operations ubi_cdev_operations;
 extern const struct file_operations ubi_vol_cdev_operations;
 extern struct class ubi_class;
 extern struct mutex ubi_devices_mutex;
-extern struct blocking_notifier_head ubi_notifiers;
+extern struct blocking_analtifier_head ubi_analtifiers;
 
 /* attach.c */
 struct ubi_ainf_peb *ubi_alloc_aeb(struct ubi_attach_info *ai, int pnum,
@@ -840,7 +840,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai);
 
 /* vmt.c */
 int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req);
-int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl);
+int ubi_remove_volume(struct ubi_volume_desc *desc, int anal_vtbl);
 int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs);
 int ubi_rename_volumes(struct ubi_device *ubi, struct list_head *rename_list);
 int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol);
@@ -943,11 +943,11 @@ struct ubi_device *ubi_get_device(int ubi_num);
 void ubi_put_device(struct ubi_device *ubi);
 struct ubi_device *ubi_get_by_major(int major);
 int ubi_major2num(int major);
-int ubi_volume_notify(struct ubi_device *ubi, struct ubi_volume *vol,
+int ubi_volume_analtify(struct ubi_device *ubi, struct ubi_volume *vol,
 		      int ntype);
-int ubi_notify_all(struct ubi_device *ubi, int ntype,
-		   struct notifier_block *nb);
-int ubi_enumerate_volumes(struct notifier_block *nb);
+int ubi_analtify_all(struct ubi_device *ubi, int ntype,
+		   struct analtifier_block *nb);
+int ubi_enumerate_volumes(struct analtifier_block *nb);
 void ubi_free_all_volumes(struct ubi_device *ubi);
 void ubi_free_internal_volumes(struct ubi_device *ubi);
 
@@ -984,11 +984,11 @@ static inline int ubiblock_init(void) { return 0; }
 static inline void ubiblock_exit(void) {}
 static inline int ubiblock_create(struct ubi_volume_info *vi)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline int ubiblock_remove(struct ubi_volume_info *vi)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif
 
@@ -1031,10 +1031,10 @@ static inline int ubiblock_remove(struct ubi_volume_info *vi)
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.
- * @rb: a pointer to type 'struct rb_node' to use as a loop counter
+ * @rb: a pointer to type 'struct rb_analde' to use as a loop counter
  * @pos: a pointer to RB-tree entry type to use as a loop counter
  * @root: RB-tree's root
- * @member: the name of the 'struct rb_node' within the RB-tree entry
+ * @member: the name of the 'struct rb_analde' within the RB-tree entry
  */
 #define ubi_rb_for_each_entry(rb, pos, root, member)                         \
 	for (rb = rb_first(root),                                            \
@@ -1138,7 +1138,7 @@ static inline void ubi_ro_mode(struct ubi_device *ubi)
 
 /*
  * This function is equivalent to 'ubi_io_read()', but @offset is relative to
- * the beginning of the logical eraseblock, not to the beginning of the
+ * the beginning of the logical eraseblock, analt to the beginning of the
  * physical eraseblock.
  */
 static inline int ubi_io_read_data(const struct ubi_device *ubi, void *buf,
@@ -1150,7 +1150,7 @@ static inline int ubi_io_read_data(const struct ubi_device *ubi, void *buf,
 
 /*
  * This function is equivalent to 'ubi_io_write()', but @offset is relative to
- * the beginning of the logical eraseblock, not to the beginning of the
+ * the beginning of the logical eraseblock, analt to the beginning of the
  * physical eraseblock.
  */
 static inline int ubi_io_write_data(struct ubi_device *ubi, const void *buf,

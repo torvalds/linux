@@ -66,7 +66,7 @@ static irqreturn_t hts221_trigger_handler_thread(int irq, void *private)
 	 * is set in status register
 	 */
 	if (!(status & HTS221_RH_DRDY_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iio_trigger_poll_nested(hw->trig);
 
@@ -132,7 +132,7 @@ int hts221_allocate_trigger(struct iio_dev *iio_dev)
 	hw->trig = devm_iio_trigger_alloc(hw->dev, "%s-trigger",
 					  iio_dev->name);
 	if (!hw->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iio_trigger_set_drvdata(hw->trig, iio_dev);
 	hw->trig->ops = &hts221_trigger_ops;
@@ -187,7 +187,7 @@ static irqreturn_t hts221_buffer_handler_thread(int irq, void *p)
 					   iio_get_time_ns(iio_dev));
 
 out:
-	iio_trigger_notify_done(hw->trig);
+	iio_trigger_analtify_done(hw->trig);
 
 	return IRQ_HANDLED;
 }

@@ -5,7 +5,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -15,7 +15,7 @@
 
 static void vexpress_reset_do(struct device *dev, const char *what)
 {
-	int err = -ENOENT;
+	int err = -EANALENT;
 	struct regmap *reg = dev_get_drvdata(dev);
 
 	if (reg) {
@@ -37,16 +37,16 @@ static void vexpress_power_off(void)
 
 static struct device *vexpress_restart_device;
 
-static int vexpress_restart(struct notifier_block *this, unsigned long mode,
+static int vexpress_restart(struct analtifier_block *this, unsigned long mode,
 			     void *cmd)
 {
 	vexpress_reset_do(vexpress_restart_device, "restart");
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block vexpress_restart_nb = {
-	.notifier_call = vexpress_restart,
+static struct analtifier_block vexpress_restart_nb = {
+	.analtifier_call = vexpress_restart,
 	.priority = 128,
 };
 
@@ -96,7 +96,7 @@ static int _vexpress_register_restart_handler(struct device *dev)
 	if (atomic_inc_return(&vexpress_restart_nb_refcnt) == 1) {
 		err = register_restart_handler(&vexpress_restart_nb);
 		if (err) {
-			dev_err(dev, "cannot register restart handler (err=%d)\n", err);
+			dev_err(dev, "cananalt register restart handler (err=%d)\n", err);
 			atomic_dec(&vexpress_restart_nb_refcnt);
 			return err;
 		}

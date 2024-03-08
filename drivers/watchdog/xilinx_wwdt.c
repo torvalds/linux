@@ -138,7 +138,7 @@ static int xwwdt_probe(struct platform_device *pdev)
 
 	xdev = devm_kzalloc(dev, sizeof(*xdev), GFP_KERNEL);
 	if (!xdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xilinx_wwdt_wdd = &xdev->xilinx_wwdt_wdd;
 	xilinx_wwdt_wdd->info = &xilinx_wwdt_ident;
@@ -169,7 +169,7 @@ static int xwwdt_probe(struct platform_device *pdev)
 	watchdog_init_timeout(xilinx_wwdt_wdd, wwdt_timeout, &pdev->dev);
 	spin_lock_init(&xdev->spinlock);
 	watchdog_set_drvdata(xilinx_wwdt_wdd, xdev);
-	watchdog_set_nowayout(xilinx_wwdt_wdd, 1);
+	watchdog_set_analwayout(xilinx_wwdt_wdd, 1);
 
 	ret = devm_watchdog_register_device(dev, xilinx_wwdt_wdd);
 	if (ret)

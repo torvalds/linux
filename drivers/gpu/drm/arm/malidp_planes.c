@@ -70,7 +70,7 @@
 
 /*
  * Replicate what the default ->reset hook does: free the state pointer and
- * allocate a new empty object. We just need enough space to store
+ * allocate a new empty object. We just need eanalugh space to store
  * a malidp_plane_state instead of a drm_plane_state.
  */
 static void malidp_plane_reset(struct drm_plane *plane)
@@ -120,7 +120,7 @@ static void malidp_destroy_plane_state(struct drm_plane *plane,
 }
 
 static const char * const prefetch_mode_names[] = {
-	[MALIDP_PREFETCH_MODE_NONE] = "MMU_PREFETCH_NONE",
+	[MALIDP_PREFETCH_MODE_ANALNE] = "MMU_PREFETCH_ANALNE",
 	[MALIDP_PREFETCH_MODE_PARTIAL] = "MMU_PREFETCH_PARTIAL",
 	[MALIDP_PREFETCH_MODE_FULL] = "MMU_PREFETCH_FULL",
 };
@@ -159,7 +159,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 	}
 
 	if (!fourcc_mod_is_vendor(modifier, ARM)) {
-		DRM_ERROR("Unknown modifier (not Arm)\n");
+		DRM_ERROR("Unkanalwn modifier (analt Arm)\n");
 		return false;
 	}
 
@@ -186,7 +186,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 		modifiers++;
 	}
 
-	/* return false, if the modifier was not found */
+	/* return false, if the modifier was analt found */
 	if (*modifiers == DRM_FORMAT_MOD_INVALID) {
 		DRM_DEBUG_KMS("Unsupported modifier\n");
 		return false;
@@ -206,7 +206,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 	}
 
 	/*
-	 * RGB formats need to provide YTR modifier and YUV formats should not
+	 * RGB formats need to provide YTR modifier and YUV formats should analt
 	 * provide YTR modifier.
 	 */
 	if (!(info->is_yuv) != !!(modifier & AFBC_FORMAT_MOD_YTR)) {
@@ -219,7 +219,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 	if (modifier & AFBC_SPLIT) {
 		if (!info->is_yuv) {
 			if (info->cpp[0] <= 2) {
-				DRM_DEBUG_KMS("RGB formats <= 16bpp are not supported with SPLIT\n");
+				DRM_DEBUG_KMS("RGB formats <= 16bpp are analt supported with SPLIT\n");
 				return false;
 			}
 		}
@@ -235,7 +235,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 
 	if (modifier & AFBC_CBR) {
 		if ((info->hsub == 1) || (info->vsub == 1)) {
-			DRM_DEBUG_KMS("Formats which are not sub-sampled should not have CBR set\n");
+			DRM_DEBUG_KMS("Formats which are analt sub-sampled should analt have CBR set\n");
 			return false;
 		}
 	}
@@ -287,7 +287,7 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 	}
 
 	if ((state->crtc_w == src_w) && (state->crtc_h == src_h)) {
-		/* Scaling not necessary for this plane. */
+		/* Scaling analt necessary for this plane. */
 		mc->scaled_planes_mask &= ~(mp->layer->id);
 		return 0;
 	}
@@ -366,7 +366,7 @@ static bool malidp_partial_prefetch_supported(u32 format, u64 modifier,
 {
 	bool afbc, sparse;
 
-	/* rotation and horizontal flip not supported for partial prefetch */
+	/* rotation and horizontal flip analt supported for partial prefetch */
 	if (rotation & (DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
 			DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_X))
 		return false;
@@ -399,14 +399,14 @@ static bool malidp_partial_prefetch_supported(u32 format, u64 modifier,
 		return (!afbc) || (afbc && sparse);
 
 	case DRM_FORMAT_BGR888:
-		/* supported, but not for AFBC */
+		/* supported, but analt for AFBC */
 		return !afbc;
 
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_YUV420:
-		/* not supported */
+		/* analt supported */
 		return false;
 
 	default:
@@ -450,7 +450,7 @@ static enum mmu_prefetch_mode malidp_mmu_prefetch_select_mode
 		return MALIDP_PREFETCH_MODE_PARTIAL;
 	}
 	*pgsize_bitmap = 0;
-	return MALIDP_PREFETCH_MODE_NONE;
+	return MALIDP_PREFETCH_MODE_ANALNE;
 }
 
 static u32 malidp_calc_mmu_control_value(enum mmu_prefetch_mode mode,
@@ -458,7 +458,7 @@ static u32 malidp_calc_mmu_control_value(enum mmu_prefetch_mode mode,
 {
 	u32 mmu_ctrl = 0;
 
-	if (mode != MALIDP_PREFETCH_MODE_NONE) {
+	if (mode != MALIDP_PREFETCH_MODE_ANALNE) {
 		mmu_ctrl |= MALIDP_MMU_CTRL_EN;
 
 		if (mode == MALIDP_PREFETCH_MODE_PARTIAL) {
@@ -558,7 +558,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 	/* validate the rotation constraints for each layer */
 	if (new_plane_state->rotation != DRM_MODE_ROTATE_0) {
-		if (mp->layer->rot == ROTATE_NONE)
+		if (mp->layer->rot == ROTATE_ANALNE)
 			return -EINVAL;
 		if ((mp->layer->rot == ROTATE_COMPRESSED) && !(fb->modifier))
 			return -EINVAL;
@@ -571,9 +571,9 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 			return -EINVAL;
 	}
 
-	/* SMART layer does not support AFBC */
+	/* SMART layer does analt support AFBC */
 	if (mp->layer->id == DE_SMART && fb->modifier) {
-		DRM_ERROR("AFBC framebuffer not supported in SMART layer");
+		DRM_ERROR("AFBC framebuffer analt supported in SMART layer");
 		return -EINVAL;
 	}
 
@@ -593,7 +593,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 	/* HW can't support plane + pixel blending */
 	if ((new_plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE) &&
-	    (pixel_alpha != DRM_MODE_BLEND_PIXEL_NONE) &&
+	    (pixel_alpha != DRM_MODE_BLEND_PIXEL_ANALNE) &&
 	    fb->format->has_alpha)
 		return -EINVAL;
 
@@ -716,7 +716,7 @@ static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
 	 * drm_fb_dma_get_gem_addr() alters the physical base address of the
 	 * framebuffer as per the plane's src_x, src_y co-ordinates (ie to
 	 * take care of source cropping).
-	 * For AFBC, this is not needed as the cropping is handled by _AD_CROP_H
+	 * For AFBC, this is analt needed as the cropping is handled by _AD_CROP_H
 	 * and _AD_CROP_V registers.
 	 */
 	if (!afbc) {
@@ -744,7 +744,7 @@ static void malidp_de_set_plane_afbc(struct drm_plane *plane)
 
 	mp = to_malidp_plane(plane);
 
-	/* no afbc_decoder_offset means AFBC is not supported on this plane */
+	/* anal afbc_decoder_offset means AFBC is analt supported on this plane */
 	if (!mp->layer->afbc_decoder_offset)
 		return;
 
@@ -929,7 +929,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 	unsigned long crtcs = BIT(drm->mode_config.num_crtc);
 	unsigned long flags = DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
 			      DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
-	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 				  BIT(DRM_MODE_BLEND_PREMULTI)   |
 				  BIT(DRM_MODE_BLEND_COVERAGE);
 	u32 *formats;
@@ -941,7 +941,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 
 	if (!(map->features & MALIDP_DEVICE_AFBC_SUPPORT_SPLIT)) {
 		/*
-		 * Since our hardware does not support SPLIT, so build the list
+		 * Since our hardware does analt support SPLIT, so build the list
 		 * of supported modifiers excluding SPLIT ones.
 		 */
 		while (*modifiers != DRM_FORMAT_MOD_INVALID) {
@@ -956,7 +956,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 
 	formats = kcalloc(map->n_pixel_formats, sizeof(*formats), GFP_KERNEL);
 	if (!formats) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 

@@ -24,7 +24,7 @@ int check_version(const struct load_info *info,
 	if (!crc)
 		return 1;
 
-	/* No versions at all?  modprobe --force does this. */
+	/* Anal versions at all?  modprobe --force does this. */
 	if (versindex == 0)
 		return try_to_force_load(mod, symname) == 0;
 
@@ -47,7 +47,7 @@ int check_version(const struct load_info *info,
 	}
 
 	/* Broken toolchain. Warn once, then let it go.. */
-	pr_warn_once("%s: no symbol version for %s\n", info->name, symname);
+	pr_warn_once("%s: anal symbol version for %s\n", info->name, symname);
 	return 1;
 
 bad_version:
@@ -64,7 +64,7 @@ int check_modstruct_version(const struct load_info *info,
 	};
 
 	/*
-	 * Since this should be found in kernel (which can't be removed), no
+	 * Since this should be found in kernel (which can't be removed), anal
 	 * locking is necessary -- use preempt_disable() to placate lockdep.
 	 */
 	preempt_disable();
@@ -76,7 +76,7 @@ int check_modstruct_version(const struct load_info *info,
 	return check_version(info, "module_layout", mod, fsa.crc);
 }
 
-/* First part is kernel version, which we ignore if module has crcs. */
+/* First part is kernel version, which we iganalre if module has crcs. */
 int same_magic(const char *amagic, const char *bmagic,
 	       bool has_crcs)
 {

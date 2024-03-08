@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/log2.h>
 #include <net/net_namespace.h>
@@ -21,35 +21,35 @@ static int mlxsw_sp_policer_validate(const struct flow_action *action,
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+	if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (act->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.rate_pkt_ps) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "QoS offload not support packets per second");
-		return -EOPNOTSUPP;
+				   "QoS offload analt support packets per second");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -70,11 +70,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	if (!flow_action_has_entries(flow_action))
 		return 0;
 	if (!flow_action_mixed_hw_stats_check(flow_action, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	act = flow_action_first_entry_get(flow_action);
 	if (act->hw_stats & FLOW_ACTION_HW_STATS_DISABLED) {
-		/* Nothing to do */
+		/* Analthing to do */
 	} else if (act->hw_stats & FLOW_ACTION_HW_STATS_IMMEDIATE) {
 		/* Count action is inserted first */
 		err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei, extack);
@@ -82,7 +82,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			return err;
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported action HW stats type");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	flow_action_for_each(i, act, flow_action) {
@@ -90,7 +90,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		case FLOW_ACTION_ACCEPT:
 			err = mlxsw_sp_acl_rulei_act_terminate(rulei);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append terminate action");
+				NL_SET_ERR_MSG_MOD(extack, "Cananalt append terminate action");
 				return err;
 			}
 			break;
@@ -98,14 +98,14 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			bool ingress;
 
 			if (mlxsw_sp_flow_block_is_mixed_bound(block)) {
-				NL_SET_ERR_MSG_MOD(extack, "Drop action is not supported when block is bound to ingress and egress");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Drop action is analt supported when block is bound to ingress and egress");
+				return -EOPANALTSUPP;
 			}
 			ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 			err = mlxsw_sp_acl_rulei_act_drop(rulei, ingress,
 							  act->user_cookie, extack);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append drop action");
+				NL_SET_ERR_MSG_MOD(extack, "Cananalt append drop action");
 				return err;
 			}
 
@@ -122,7 +122,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		case FLOW_ACTION_TRAP:
 			err = mlxsw_sp_acl_rulei_act_trap(rulei);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append trap action");
+				NL_SET_ERR_MSG_MOD(extack, "Cananalt append trap action");
 				return err;
 			}
 			break;
@@ -140,7 +140,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			group_id = mlxsw_sp_acl_ruleset_group_id(ruleset);
 			err = mlxsw_sp_acl_rulei_act_jump(rulei, group_id);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append jump action");
+				NL_SET_ERR_MSG_MOD(extack, "Cananalt append jump action");
 				return err;
 			}
 			}
@@ -151,8 +151,8 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			u16 fid_index;
 
 			if (mlxsw_sp_flow_block_is_egress_bound(block)) {
-				NL_SET_ERR_MSG_MOD(extack, "Redirect action is not supported on egress");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Redirect action is analt supported on egress");
+				return -EOPANALTSUPP;
 			}
 
 			/* Forbid block with this rulei to be bound
@@ -160,13 +160,13 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			 */
 			rulei->egress_bind_blocker = 1;
 
-			/* Ignore learning and security lookup as redirection
+			/* Iganalre learning and security lookup as redirection
 			 * using ingress filters happens before the bridge.
 			 */
-			err = mlxsw_sp_acl_rulei_act_ignore(mlxsw_sp, rulei,
+			err = mlxsw_sp_acl_rulei_act_iganalre(mlxsw_sp, rulei,
 							    true, true);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append ignore action");
+				NL_SET_ERR_MSG_MOD(extack, "Cananalt append iganalre action");
 				return err;
 			}
 
@@ -188,8 +188,8 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			struct net_device *out_dev = act->dev;
 
 			if (mirror_act_count++) {
-				NL_SET_ERR_MSG_MOD(extack, "Multiple mirror actions per rule are not supported");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Multiple mirror actions per rule are analt supported");
+				return -EOPANALTSUPP;
 			}
 
 			err = mlxsw_sp_acl_rulei_act_mirror(mlxsw_sp, rulei,
@@ -237,8 +237,8 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			u32 burst;
 
 			if (police_act_count++) {
-				NL_SET_ERR_MSG_MOD(extack, "Multiple police actions per rule are not supported");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Multiple police actions per rule are analt supported");
+				return -EOPANALTSUPP;
 			}
 
 			err = mlxsw_sp_policer_validate(flow_action, act, extack);
@@ -246,7 +246,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return err;
 
 			/* The kernel might adjust the requested burst size so
-			 * that it is not exactly a power of two. Re-adjust it
+			 * that it is analt exactly a power of two. Re-adjust it
 			 * here since the hardware only supports burst sizes
 			 * that are a power of two.
 			 */
@@ -261,8 +261,8 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			}
 		case FLOW_ACTION_SAMPLE: {
 			if (sample_act_count++) {
-				NL_SET_ERR_MSG_MOD(extack, "Multiple sample actions per rule are not supported");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Multiple sample actions per rule are analt supported");
+				return -EOPANALTSUPP;
 			}
 
 			err = mlxsw_sp_acl_rulei_act_sample(mlxsw_sp, rulei,
@@ -279,13 +279,13 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported action\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
 	if (rulei->ipv6_valid) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -316,7 +316,7 @@ mlxsw_sp_flower_parse_meta_iif(struct mlxsw_sp_acl_rule_info *rulei,
 	}
 
 	if (!mlxsw_sp_port_dev_check(ingress_dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "Can't match on non-mlxsw ingress port");
+		NL_SET_ERR_MSG_MOD(extack, "Can't match on analn-mlxsw ingress port");
 		return -EINVAL;
 	}
 
@@ -510,8 +510,8 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 	flow_rule_match_tcp(rule, &match);
 
 	if (match.mask->flags & htons(0x0E00)) {
-		NL_SET_ERR_MSG_MOD(f->common.extack, "TCP flags match not supported on reserved bits");
-		dev_err(mlxsw_sp->bus_info->dev, "TCP flags match not supported on reserved bits\n");
+		NL_SET_ERR_MSG_MOD(f->common.extack, "TCP flags match analt supported on reserved bits");
+		dev_err(mlxsw_sp->bus_info->dev, "TCP flags match analt supported on reserved bits\n");
 		return -EINVAL;
 	}
 
@@ -581,7 +581,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN))) {
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported key\n");
 		NL_SET_ERR_MSG_MOD(f->common.extack, "Unsupported key");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mlxsw_sp_acl_rulei_priority(rulei, f->common.prio);
@@ -647,8 +647,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 		flow_rule_match_vlan(rule, &match);
 		if (mlxsw_sp_flow_block_is_egress_bound(block) &&
 		    match.mask->vlan_id) {
-			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is analt supported on egress");
+			return -EOPANALTSUPP;
 		}
 
 		/* Forbid block with this rulei to be bound
@@ -706,19 +706,19 @@ static int mlxsw_sp_flower_mall_prio_check(struct mlxsw_sp_flow_block *block,
 	err = mlxsw_sp_mall_prio_get(block, f->common.chain_index,
 				     &mall_min_prio, &mall_max_prio);
 	if (err) {
-		if (err == -ENOENT)
-			/* No matchall filters installed on this chain. */
+		if (err == -EANALENT)
+			/* Anal matchall filters installed on this chain. */
 			return 0;
 		NL_SET_ERR_MSG(f->common.extack, "Failed to get matchall priorities");
 		return err;
 	}
 	if (ingress && f->common.prio <= mall_min_prio) {
 		NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing matchall rules");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (!ingress && f->common.prio >= mall_max_prio) {
 		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind of existing matchall rules");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -883,8 +883,8 @@ int mlxsw_sp_flower_prio_get(struct mlxsw_sp *mlxsw_sp,
 					      chain_index,
 					      MLXSW_SP_ACL_PROFILE_FLOWER);
 	if (IS_ERR(ruleset))
-		/* In case there are no flower rules, the caller
-		 * receives -ENOENT to indicate there is no need
+		/* In case there are anal flower rules, the caller
+		 * receives -EANALENT to indicate there is anal need
 		 * to check the priorities.
 		 */
 		return PTR_ERR(ruleset);

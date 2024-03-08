@@ -44,8 +44,8 @@ static const struct regmap_range pca9450_status_range = {
 };
 
 static const struct regmap_access_table pca9450_volatile_regs = {
-	.yes_ranges = &pca9450_status_range,
-	.n_yes_ranges = 1,
+	.anal_ranges = &pca9450_status_range,
+	.n_anal_ranges = 1,
 };
 
 static const struct regmap_config pca9450_regmap_config = {
@@ -150,7 +150,7 @@ static const struct linear_range pca9450_ldo5_volts[] = {
 };
 
 static int buck_set_dvs(const struct regulator_desc *desc,
-			struct device_node *np, struct regmap *regmap,
+			struct device_analde *np, struct regmap *regmap,
 			char *prop, unsigned int reg, unsigned int mask)
 {
 	int ret, i;
@@ -184,7 +184,7 @@ static int buck_set_dvs(const struct regulator_desc *desc,
 	return ret;
 }
 
-static int pca9450_set_dvs_levels(struct device_node *np,
+static int pca9450_set_dvs_levels(struct device_analde *np,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *cfg)
 {
@@ -224,7 +224,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "buck1",
 			.of_match = of_match_ptr("BUCK1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK1,
 			.ops = &pca9450_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -253,7 +253,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "buck2",
 			.of_match = of_match_ptr("BUCK2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK2,
 			.ops = &pca9450_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -282,7 +282,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "buck3",
 			.of_match = of_match_ptr("BUCK3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK3,
 			.ops = &pca9450_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -311,7 +311,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "buck4",
 			.of_match = of_match_ptr("BUCK4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK4,
 			.ops = &pca9450_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -329,7 +329,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "buck5",
 			.of_match = of_match_ptr("BUCK5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK5,
 			.ops = &pca9450_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -347,7 +347,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "buck6",
 			.of_match = of_match_ptr("BUCK6"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK6,
 			.ops = &pca9450_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -365,7 +365,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "ldo1",
 			.of_match = of_match_ptr("LDO1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO1,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -383,7 +383,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "ldo2",
 			.of_match = of_match_ptr("LDO2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO2,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -401,7 +401,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "ldo3",
 			.of_match = of_match_ptr("LDO3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO3,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -419,7 +419,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "ldo4",
 			.of_match = of_match_ptr("LDO4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO4,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -437,7 +437,7 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 		.desc = {
 			.name = "ldo5",
 			.of_match = of_match_ptr("LDO5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO5,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -455,14 +455,14 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 
 /*
  * Buck3 removed on PCA9450B and connected with Buck1 internal for dual phase
- * on PCA9450C as no Buck3.
+ * on PCA9450C as anal Buck3.
  */
 static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 	{
 		.desc = {
 			.name = "buck1",
 			.of_match = of_match_ptr("BUCK1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK1,
 			.ops = &pca9450_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -491,7 +491,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "buck2",
 			.of_match = of_match_ptr("BUCK2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK2,
 			.ops = &pca9450_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -520,7 +520,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "buck4",
 			.of_match = of_match_ptr("BUCK4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK4,
 			.ops = &pca9450_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -538,7 +538,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "buck5",
 			.of_match = of_match_ptr("BUCK5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK5,
 			.ops = &pca9450_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -556,7 +556,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "buck6",
 			.of_match = of_match_ptr("BUCK6"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_BUCK6,
 			.ops = &pca9450_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -574,7 +574,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "ldo1",
 			.of_match = of_match_ptr("LDO1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO1,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -592,7 +592,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "ldo2",
 			.of_match = of_match_ptr("LDO2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO2,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -610,7 +610,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "ldo3",
 			.of_match = of_match_ptr("LDO3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO3,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -628,7 +628,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "ldo4",
 			.of_match = of_match_ptr("LDO4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO4,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -646,7 +646,7 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 		.desc = {
 			.name = "ldo5",
 			.of_match = of_match_ptr("LDO5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = PCA9450_LDO5,
 			.ops = &pca9450_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -673,7 +673,7 @@ static irqreturn_t pca9450_irq_handler(int irq, void *data)
 	if (ret < 0) {
 		dev_err(pca9450->dev,
 			"Failed to read INT1(%d)\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (status & IRQ_PWRON)
@@ -712,13 +712,13 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 	int ret;
 
 	if (!i2c->irq) {
-		dev_err(&i2c->dev, "No IRQ configured?\n");
+		dev_err(&i2c->dev, "Anal IRQ configured?\n");
 		return -EINVAL;
 	}
 
 	pca9450 = devm_kzalloc(&i2c->dev, sizeof(struct pca9450), GFP_KERNEL);
 	if (!pca9450)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (type) {
 	case PCA9450_TYPE_PCA9450A:
@@ -730,7 +730,7 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 		pca9450->rcnt = ARRAY_SIZE(pca9450bc_regulators);
 		break;
 	default:
-		dev_err(&i2c->dev, "Unknown device type");
+		dev_err(&i2c->dev, "Unkanalwn device type");
 		return -EINVAL;
 	}
 
@@ -809,7 +809,7 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	if (of_property_read_bool(i2c->dev.of_node, "nxp,wdog_b-warm-reset"))
+	if (of_property_read_bool(i2c->dev.of_analde, "nxp,wdog_b-warm-reset"))
 		reset_ctrl = WDOG_B_CFG_WARM;
 	else
 		reset_ctrl = WDOG_B_CFG_COLD_LDO12;
@@ -822,7 +822,7 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	if (of_property_read_bool(i2c->dev.of_node, "nxp,i2c-lt-enable")) {
+	if (of_property_read_bool(i2c->dev.of_analde, "nxp,i2c-lt-enable")) {
 		/* Enable I2C Level Translator */
 		ret = regmap_update_bits(pca9450->regmap, PCA9450_REG_CONFIG2,
 					 I2C_LT_MASK, I2C_LT_ON_STANDBY_RUN);
@@ -871,7 +871,7 @@ MODULE_DEVICE_TABLE(of, pca9450_of_match);
 static struct i2c_driver pca9450_i2c_driver = {
 	.driver = {
 		.name = "nxp-pca9450",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = pca9450_of_match,
 	},
 	.probe = pca9450_i2c_probe,

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * CXL IOCTLs for Memory Devices
  */
@@ -11,7 +11,7 @@
 /**
  * DOC: UAPI
  *
- * Not all of the commands that the driver supports are available for use by
+ * Analt all of the commands that the driver supports are available for use by
  * userspace at all times.  Userspace can check the result of the QUERY command
  * to determine the live set of commands.  Alternatively, it can issue the
  * command and check for failure.
@@ -21,7 +21,7 @@
 #define CXL_MEM_SEND_COMMAND _IOWR(0xCE, 2, struct cxl_send_command)
 
 /*
- * NOTE: New defines must be added to the end of the list to preserve
+ * ANALTE: New defines must be added to the end of the list to preserve
  * compatibility because this enum is exported to user space.
  */
 #define CXL_CMDS                                                          \
@@ -109,7 +109,7 @@ static const __u8 cxl_deprecated_commands[]
  *
  *         Requests with the given command id will terminate with EBUSY as the
  *         kernel actively owns management of the given resource. For example,
- *         the label-storage-area can not be written while the kernel is
+ *         the label-storage-area can analt be written while the kernel is
  *         actively managing that space.
  *
  * @size_in: Expected input size, or ~0 if variable length.
@@ -150,7 +150,7 @@ struct cxl_command_info {
  *
  * Allow userspace to query the available commands supported by both the driver,
  * and the hardware. Commands that aren't supported by either the driver, or the
- * hardware are not returned in the query.
+ * hardware are analt returned in the query.
  *
  * Examples:
  *
@@ -166,7 +166,7 @@ struct cxl_mem_query_commands {
 	 * Output: Number of commands supported by the driver/hardware
 	 *
 	 * If n_commands is 0, kernel will only return number of commands and
-	 * not try to populate commands[], thus allowing userspace to know how
+	 * analt try to populate commands[], thus allowing userspace to kanalw how
 	 * much space to allocate
 	 */
 	__u32 n_commands;
@@ -191,15 +191,15 @@ struct cxl_mem_query_commands {
  * @in.payload: Pointer to memory for payload input, payload is little endian.
  * @out: Parameters associated with output payload.
  * @out.size: Size of the payload received from the device (input/output). This
- *	      field is filled in by userspace to let the driver know how much
+ *	      field is filled in by userspace to let the driver kanalw how much
  *	      space was allocated for output. It is populated by the driver to
- *	      let userspace know how large the output payload actually was.
+ *	      let userspace kanalw how large the output payload actually was.
  * @out.rsvd: Must be zero.
  * @out.payload: Pointer to memory for payload output, payload is little endian.
  *
  * Mechanism for userspace to send a command to the hardware for processing. The
  * driver will do basic validation on the command sizes. In some cases even the
- * payload may be introspected. Userspace is required to allocate large enough
+ * payload may be introspected. Userspace is required to allocate large eanalugh
  * buffers for size_out which can be variable length in certain situations.
  */
 struct cxl_send_command {

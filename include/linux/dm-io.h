@@ -19,7 +19,7 @@
 struct dm_io_region {
 	struct block_device *bdev;
 	sector_t sector;
-	sector_t count;		/* If this is zero the region is ignored. */
+	sector_t count;		/* If this is zero the region is iganalred. */
 };
 
 struct page_list {
@@ -27,7 +27,7 @@ struct page_list {
 	struct page *page;
 };
 
-typedef void (*io_notify_fn)(unsigned int long error, void *context);
+typedef void (*io_analtify_fn)(unsigned int long error, void *context);
 
 enum dm_io_mem_type {
 	DM_IO_PAGE_LIST,/* Page list */
@@ -49,8 +49,8 @@ struct dm_io_memory {
 	} ptr;
 };
 
-struct dm_io_notify {
-	io_notify_fn fn;	/* Callback for asynchronous requests */
+struct dm_io_analtify {
+	io_analtify_fn fn;	/* Callback for asynchroanalus requests */
 	void *context;		/* Passed to callback */
 };
 
@@ -61,7 +61,7 @@ struct dm_io_client;
 struct dm_io_request {
 	blk_opf_t	    bi_opf;	/* Request type and flags */
 	struct dm_io_memory mem;	/* Memory to use for io */
-	struct dm_io_notify notify;	/* Synchronous if notify.fn is NULL */
+	struct dm_io_analtify analtify;	/* Synchroanalus if analtify.fn is NULL */
 	struct dm_io_client *client;	/* Client memory handler */
 };
 

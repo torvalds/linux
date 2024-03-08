@@ -69,7 +69,7 @@ Description:
 		mediated device that will get created of type <type-id>.
 		This is optional attribute. For example: "Grid M60-0Q"
 Users:
-		Userspace applications interested in knowing the name of
+		Userspace applications interested in kanalwing the name of
 		a particular <type-id> that can help in understanding the
 		type of mediated device.
 
@@ -82,7 +82,7 @@ Description:
 		This is optional attribute. For example:
 		"2 heads, 512M FB, 2560x1600 maximum resolution"
 Users:
-		Userspace applications interested in knowing the details of
+		Userspace applications interested in kanalwing the details of
 		a particular <type-id> that can help in understanding the
 		features provided by that type of mediated device.
 

@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -63,7 +63,7 @@
 
 #define SCIC_SDS_DUMMY_PORT   0xFF
 
-#define PF_NOTIFY (1 << 0)
+#define PF_ANALTIFY (1 << 0)
 #define PF_RESUME (1 << 1)
 
 struct isci_phy;
@@ -82,7 +82,7 @@ enum isci_status {
  * struct isci_port - isci direct attached sas port object
  * @ready_exit: several states constitute 'ready'. When exiting ready we
  *              need to take extra port-teardown actions that are
- *              skipped when exiting to another 'ready' state.
+ *              skipped when exiting to aanalther 'ready' state.
  * @logical_port_index: software port index
  * @physical_port_index: hardware port index
  * @active_phy_mask: identifies phy members
@@ -91,7 +91,7 @@ enum isci_status {
  * @reserved_tag:
  * @reserved_rni: reserver for port task scheduler workaround
  * @started_request_count: reference count for outstanding commands
- * @not_ready_reason: set during state transitions and notified
+ * @analt_ready_reason: set during state transitions and analtified
  * @timer: timeout start/stop operations
  */
 struct isci_port {
@@ -112,23 +112,23 @@ struct isci_port {
 	u32 started_request_count;
 	u32 assigned_device_count;
 	u32 hang_detect_users;
-	u32 not_ready_reason;
+	u32 analt_ready_reason;
 	struct isci_phy *phy_table[SCI_MAX_PHYS];
 	struct isci_host *owning_controller;
 	struct sci_timer timer;
 	struct scu_port_task_scheduler_registers __iomem *port_task_scheduler_registers;
-	/* XXX rework: only one register, no need to replicate per-port */
+	/* XXX rework: only one register, anal need to replicate per-port */
 	u32 __iomem *port_pe_configuration_register;
 	struct scu_viit_entry __iomem *viit_registers;
 };
 
-enum sci_port_not_ready_reason_code {
-	SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS,
-	SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED,
-	SCIC_PORT_NOT_READY_INVALID_PORT_CONFIGURATION,
-	SCIC_PORT_NOT_READY_RECONFIGURING,
+enum sci_port_analt_ready_reason_code {
+	SCIC_PORT_ANALT_READY_ANAL_ACTIVE_PHYS,
+	SCIC_PORT_ANALT_READY_HARD_RESET_REQUESTED,
+	SCIC_PORT_ANALT_READY_INVALID_PORT_CONFIGURATION,
+	SCIC_PORT_ANALT_READY_RECONFIGURING,
 
-	SCIC_PORT_NOT_READY_REASON_CODE_MAX
+	SCIC_PORT_ANALT_READY_REASON_CODE_MAX
 };
 
 struct sci_port_end_point_properties {
@@ -146,16 +146,16 @@ struct sci_port_properties {
 /**
  * enum sci_port_states - port state machine states
  * @SCI_PORT_STOPPED: port has successfully been stopped.  In this state
- *		      no new IO operations are permitted.  This state is
+ *		      anal new IO operations are permitted.  This state is
  *		      entered from the STOPPING state.
  * @SCI_PORT_STOPPING: port is in the process of stopping.  In this
- *		       state no new IO operations are permitted, but
+ *		       state anal new IO operations are permitted, but
  *		       existing IO operations are allowed to complete.
  *		       This state is entered from the READY state.
- * @SCI_PORT_READY: port is now ready.  Thus, the user is able to
+ * @SCI_PORT_READY: port is analw ready.  Thus, the user is able to
  *		    perform IO operations on this port. This state is
  *		    entered from the STARTING state.
- * @SCI_PORT_SUB_WAITING: port is started and ready but has no active
+ * @SCI_PORT_SUB_WAITING: port is started and ready but has anal active
  *			  phys.
  * @SCI_PORT_SUB_OPERATIONAL: port is started and ready and there is at
  *			      least one phy operational.
@@ -224,7 +224,7 @@ void isci_port_bcn_enable(struct isci_host *, struct isci_port *);
 void sci_port_deactivate_phy(
 	struct isci_port *iport,
 	struct isci_phy *iphy,
-	bool do_notify_user);
+	bool do_analtify_user);
 
 bool sci_port_link_detected(
 	struct isci_port *iport,

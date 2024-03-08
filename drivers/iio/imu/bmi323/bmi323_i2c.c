@@ -18,7 +18,7 @@ struct bmi323_i2c_priv {
 };
 
 /*
- * From BMI323 datasheet section 4: Notes on the Serial Interface Support.
+ * From BMI323 datasheet section 4: Analtes on the Serial Interface Support.
  * Each I2C register read operation requires to read two dummy bytes before
  * the actual payload.
  */
@@ -81,7 +81,7 @@ static int bmi323_i2c_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->i2c = i2c;
 	regmap = devm_regmap_init(dev, &bmi323_regmap_bus, priv,

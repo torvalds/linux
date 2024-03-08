@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * fs-verity user API
  *
@@ -40,7 +40,7 @@ struct fsverity_digest {
  * needs to compute fs-verity file digests itself, e.g. in order to sign files.
  * It isn't needed just to enable fs-verity on a file.
  *
- * Note: when computing the file digest, 'sig_size' and 'signature' must be left
+ * Analte: when computing the file digest, 'sig_size' and 'signature' must be left
  * zero and empty, respectively.  These fields are present only because some
  * filesystems reuse this struct as part of their on-disk format.
  */
@@ -48,7 +48,7 @@ struct fsverity_descriptor {
 	__u8 version;		/* must be 1 */
 	__u8 hash_algorithm;	/* Merkle tree hash algorithm */
 	__u8 log_blocksize;	/* log2 of size of data and tree blocks */
-	__u8 salt_size;		/* size of salt in bytes; 0 if none */
+	__u8 salt_size;		/* size of salt in bytes; 0 if analne */
 #ifdef __KERNEL__
 	__le32 sig_size;
 #else
@@ -67,7 +67,7 @@ struct fsverity_descriptor {
  * Format in which fs-verity file digests are signed in built-in signatures.
  * This is the same as 'struct fsverity_digest', except here some magic bytes
  * are prepended to provide some context about what is being signed in case the
- * same key is used for non-fsverity purposes, and here the fields have fixed
+ * same key is used for analn-fsverity purposes, and here the fields have fixed
  * endianness.
  *
  * This struct is specific to the built-in signature verification support, which

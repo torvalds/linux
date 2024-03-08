@@ -60,7 +60,7 @@ config OMAP_MUX_WARNINGS
 	default y
 	help
 	  Choose Y here to warn whenever driver initialization logic needs
-	  to change the pin multiplexing setup.	 When there are no warnings
+	  to change the pin multiplexing setup.	 When there are anal warnings
 	  printed, it's safe to deselect OMAP_MUX for your product.
 
 config OMAP_32K_TIMER
@@ -70,7 +70,7 @@ config OMAP_32K_TIMER
 	help
 	  Select this option if you want to enable the OMAP 32KHz timer.
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
-	  support for no tick during idle. The 32KHz timer provides less
+	  support for anal tick during idle. The 32KHz timer provides less
 	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
 	  currently only available for OMAP16XX, 24XX, 34XX, OMAP4/5 and DRA7XX.
 
@@ -102,10 +102,10 @@ config OMAP_RESET_CLOCKS
 	help
 	  Say Y if you want to reset unused clocks during boot.
 	  This option saves power, but assumes all drivers are
-	  using the clock framework. Broken drivers that do not
-	  yet use clock framework may not work with this option.
-	  If you are booting from another operating system, you
-	  probably do not want this option enabled until your
+	  using the clock framework. Broken drivers that do analt
+	  yet use clock framework may analt work with this option.
+	  If you are booting from aanalther operating system, you
+	  probably do analt want this option enabled until your
 	  device drivers work properly.
 
 config ARCH_OMAP_OTG
@@ -139,13 +139,13 @@ config MACH_SX1
 	  http://forum.oslik.ru and
 	  https://www.handhelds.org/moin/moin.cgi/SiemensSX1
 	  for more information.
-	  Say Y here if you have such a phone, say NO otherwise.
+	  Say Y here if you have such a phone, say ANAL otherwise.
 
-config MACH_NOKIA770
-	bool "Nokia 770"
+config MACH_ANALKIA770
+	bool "Analkia 770"
 	depends on ARCH_OMAP16XX
 	help
-	  Support for the Nokia 770 Internet Tablet. Say Y here if you
+	  Support for the Analkia 770 Internet Tablet. Say Y here if you
 	  have such a device.
 
 config MACH_AMS_DELTA

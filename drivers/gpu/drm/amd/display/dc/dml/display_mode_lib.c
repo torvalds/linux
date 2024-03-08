@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -137,7 +137,7 @@ const char *dml_get_status_message(enum dm_validation_status status)
 	case DML_FAIL_VIEWPORT_SIZE:              return "Viewport size";
 	case DML_FAIL_TOTAL_V_ACTIVE_BW:          return "Total vertical active bandwidth";
 	case DML_FAIL_DIO_SUPPORT:                return "DIO support";
-	case DML_FAIL_NOT_ENOUGH_DSC:             return "Not enough DSC Units";
+	case DML_FAIL_ANALT_EANALUGH_DSC:             return "Analt eanalugh DSC Units";
 	case DML_FAIL_DSC_CLK_REQUIRED:           return "DSC clock required";
 	case DML_FAIL_URGENT_LATENCY:             return "Urgent latency";
 	case DML_FAIL_REORDERING_BUFFER:          return "Re-ordering buffer";
@@ -153,7 +153,7 @@ const char *dml_get_status_message(enum dm_validation_status status)
 	case DML_FAIL_DSC_INPUT_BPC:              return "DSC input bpc";
 	case DML_FAIL_PREFETCH_SUPPORT:           return "Prefetch support";
 	case DML_FAIL_V_RATIO_PREFETCH:           return "Vertical ratio prefetch";
-	default:                                  return "Unknown Status";
+	default:                                  return "Unkanalwn Status";
 	}
 }
 
@@ -291,29 +291,29 @@ void dml_log_mode_support_params(struct display_mode_lib *mode_lib)
 	for (i = mode_lib->vba.soc.num_states; i >= 0; i--) {
 		dml_print("DML SUPPORT: ===============================================\n");
 		dml_print("DML SUPPORT: Voltage State %d\n", i);
-		dml_print("DML SUPPORT:     Mode Supported              : %s\n", mode_lib->vba.ModeSupport[i][0] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Mode Supported (pipe split) : %s\n", mode_lib->vba.ModeSupport[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Scale Ratio And Taps                : %s\n", mode_lib->vba.ScaleRatioAndTapsSupport ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Source Format Pixel And Scan        : %s\n", mode_lib->vba.SourceFormatPixelAndScanSupport ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Viewport Size                       : [%s, %s]\n", mode_lib->vba.ViewportSizeSupport[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.ViewportSizeSupport[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     DIO Support                         : %s\n", mode_lib->vba.DIOSupport[i] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     ODM Combine 4To1 Support Check      : %s\n", mode_lib->vba.ODMCombine4To1SupportCheckOK[i] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     DSC Units                           : %s\n", mode_lib->vba.NotEnoughDSCUnits[i] ? "Not Supported" : "Supported");
-		dml_print("DML SUPPORT:     DSCCLK Required                     : %s\n", mode_lib->vba.DSCCLKRequiredMoreThanSupported[i] ? "Not Supported" : "Supported");
-		dml_print("DML SUPPORT:     DTBCLK Required                     : %s\n", mode_lib->vba.DTBCLKRequiredMoreThanSupported[i] ? "Not Supported" : "Supported");
-		dml_print("DML SUPPORT:     Re-ordering Buffer                  : [%s, %s]\n", mode_lib->vba.ROBSupport[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.ROBSupport[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     DISPCLK and DPPCLK                  : [%s, %s]\n", mode_lib->vba.DISPCLK_DPPCLK_Support[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.DISPCLK_DPPCLK_Support[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Total Available Pipes               : [%s, %s]\n", mode_lib->vba.TotalAvailablePipesSupport[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.TotalAvailablePipesSupport[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Writeback Latency                   : %s\n", mode_lib->vba.WritebackLatencySupport ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Writeback Scale Ratio And Taps      : %s\n", mode_lib->vba.WritebackScaleRatioAndTapsSupport ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Cursor                              : %s\n", mode_lib->vba.CursorSupport ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Pitch                               : %s\n", mode_lib->vba.PitchSupport ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Prefetch                            : [%s, %s]\n", mode_lib->vba.PrefetchSupported[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.PrefetchSupported[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Dynamic Metadata                    : [%s, %s]\n", mode_lib->vba.DynamicMetadataSupported[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.DynamicMetadataSupported[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     Total Vertical Active Bandwidth     : [%s, %s]\n", mode_lib->vba.TotalVerticalActiveBandwidthSupport[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.TotalVerticalActiveBandwidthSupport[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     VRatio In Prefetch                  : [%s, %s]\n", mode_lib->vba.VRatioInPrefetchSupported[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.VRatioInPrefetchSupported[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     PTE Buffer Size Not Exceeded        : [%s, %s]\n", mode_lib->vba.PTEBufferSizeNotExceeded[i][0] ? "Supported" : "NOT Supported", mode_lib->vba.PTEBufferSizeNotExceeded[i][1] ? "Supported" : "NOT Supported");
-		dml_print("DML SUPPORT:     DSC Input BPC                       : %s\n", mode_lib->vba.NonsupportedDSCInputBPC ? "Not Supported" : "Supported");
+		dml_print("DML SUPPORT:     Mode Supported              : %s\n", mode_lib->vba.ModeSupport[i][0] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Mode Supported (pipe split) : %s\n", mode_lib->vba.ModeSupport[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Scale Ratio And Taps                : %s\n", mode_lib->vba.ScaleRatioAndTapsSupport ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Source Format Pixel And Scan        : %s\n", mode_lib->vba.SourceFormatPixelAndScanSupport ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Viewport Size                       : [%s, %s]\n", mode_lib->vba.ViewportSizeSupport[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.ViewportSizeSupport[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     DIO Support                         : %s\n", mode_lib->vba.DIOSupport[i] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     ODM Combine 4To1 Support Check      : %s\n", mode_lib->vba.ODMCombine4To1SupportCheckOK[i] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     DSC Units                           : %s\n", mode_lib->vba.AnaltEanalughDSCUnits[i] ? "Analt Supported" : "Supported");
+		dml_print("DML SUPPORT:     DSCCLK Required                     : %s\n", mode_lib->vba.DSCCLKRequiredMoreThanSupported[i] ? "Analt Supported" : "Supported");
+		dml_print("DML SUPPORT:     DTBCLK Required                     : %s\n", mode_lib->vba.DTBCLKRequiredMoreThanSupported[i] ? "Analt Supported" : "Supported");
+		dml_print("DML SUPPORT:     Re-ordering Buffer                  : [%s, %s]\n", mode_lib->vba.ROBSupport[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.ROBSupport[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     DISPCLK and DPPCLK                  : [%s, %s]\n", mode_lib->vba.DISPCLK_DPPCLK_Support[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.DISPCLK_DPPCLK_Support[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Total Available Pipes               : [%s, %s]\n", mode_lib->vba.TotalAvailablePipesSupport[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.TotalAvailablePipesSupport[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Writeback Latency                   : %s\n", mode_lib->vba.WritebackLatencySupport ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Writeback Scale Ratio And Taps      : %s\n", mode_lib->vba.WritebackScaleRatioAndTapsSupport ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Cursor                              : %s\n", mode_lib->vba.CursorSupport ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Pitch                               : %s\n", mode_lib->vba.PitchSupport ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Prefetch                            : [%s, %s]\n", mode_lib->vba.PrefetchSupported[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.PrefetchSupported[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Dynamic Metadata                    : [%s, %s]\n", mode_lib->vba.DynamicMetadataSupported[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.DynamicMetadataSupported[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     Total Vertical Active Bandwidth     : [%s, %s]\n", mode_lib->vba.TotalVerticalActiveBandwidthSupport[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.TotalVerticalActiveBandwidthSupport[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     VRatio In Prefetch                  : [%s, %s]\n", mode_lib->vba.VRatioInPrefetchSupported[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.VRatioInPrefetchSupported[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     PTE Buffer Size Analt Exceeded        : [%s, %s]\n", mode_lib->vba.PTEBufferSizeAnaltExceeded[i][0] ? "Supported" : "ANALT Supported", mode_lib->vba.PTEBufferSizeAnaltExceeded[i][1] ? "Supported" : "ANALT Supported");
+		dml_print("DML SUPPORT:     DSC Input BPC                       : %s\n", mode_lib->vba.AnalnsupportedDSCInputBPC ? "Analt Supported" : "Supported");
 		dml_print("DML SUPPORT:     HostVMEnable                        : %d\n", mode_lib->vba.HostVMEnable);
 		dml_print("DML SUPPORT:     ImmediateFlipSupportedForState      : [%d, %d]\n", mode_lib->vba.ImmediateFlipSupportedForState[i][0], mode_lib->vba.ImmediateFlipSupportedForState[i][1]);
 	}

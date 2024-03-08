@@ -42,7 +42,7 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>, <0x8 0x00000000 0x0 0x80000000>;
-		/* Another 4GB connected to PL */
+		/* Aanalther 4GB connected to PL */
 	};
 
 	gpio-keys {
@@ -211,10 +211,10 @@
 	tca6416_u22: gpio@20 {
 		compatible = "ti,tca6416";
 		reg = <0x20>;
-		gpio-controller; /* interrupt not connected */
+		gpio-controller; /* interrupt analt connected */
 		#gpio-cells = <2>;
 		/*
-		 * IRQ not connected
+		 * IRQ analt connected
 		 * Lines:
 		 * 0 - MAX6643_OT_B
 		 * 1 - MAX6643_FANFAIL_B
@@ -227,7 +227,7 @@
 		 * 12 - CLK_SPI_MUX_SEL1
 		 * 16 - IRPS5401_ALERT_B
 		 * 17 - INA226_PMBUS_ALERT
-		 * 3, 7, 13-15 - not connected
+		 * 3, 7, 13-15 - analt connected
 		 */
 	};
 
@@ -497,7 +497,7 @@
 				sc18is603@2f { /* sc18is602 - u93 */
 					compatible = "nxp,sc18is603";
 					reg = <0x2f>;
-					/* 4 gpios for CS not handled by driver */
+					/* 4 gpios for CS analt handled by driver */
 					/*
 					 * USB2ANY cable or
 					 * LMK04208 - u90 or
@@ -773,7 +773,7 @@
 			bias-pull-up;
 		};
 
-		conf-pull-none {
+		conf-pull-analne {
 			pins = "MIO13", "MIO23", "MIO38";
 			bias-disable;
 		};
@@ -790,7 +790,7 @@
 &qspi {
 	status = "okay";
 	flash@0 {
-		compatible = "m25p80", "jedec,spi-nor"; /* 16MB + 16MB */
+		compatible = "m25p80", "jedec,spi-analr"; /* 16MB + 16MB */
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x0>;
@@ -828,7 +828,7 @@
 	/*
 	 * This property should be removed for supporting UHS mode
 	 */
-	no-1-8-v;
+	anal-1-8-v;
 	xlnx,mio-bank = <1>;
 };
 

@@ -5,7 +5,7 @@
  * Copyright (c) 2018 Alexandre Belloni <alexandre.belloni@bootlin.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/rtc.h>
 #include <stdio.h>
@@ -41,8 +41,8 @@ TEST_F(rtc, date_read) {
 	int rc;
 	struct rtc_time rtc_tm;
 
-	if (self->fd == -1 && errno == ENOENT)
-		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	if (self->fd == -1 && erranal == EANALENT)
+		SKIP(return, "Skipping test since %s does analt exist", rtc_file);
 	ASSERT_NE(-1, self->fd);
 
 	/* Read the RTC time/date */
@@ -68,7 +68,7 @@ static time_t rtc_time_to_timestamp(struct rtc_time *rtc_time)
 	return mktime(&tm_time);
 }
 
-static void nanosleep_with_retries(long ns)
+static void naanalsleep_with_retries(long ns)
 {
 	struct timespec req = {
 		.tv_sec = 0,
@@ -76,7 +76,7 @@ static void nanosleep_with_retries(long ns)
 	};
 	struct timespec rem;
 
-	while (nanosleep(&req, &rem) != 0) {
+	while (naanalsleep(&req, &rem) != 0) {
 		req.tv_sec = rem.tv_sec;
 		req.tv_nsec = rem.tv_nsec;
 	}
@@ -88,8 +88,8 @@ TEST_F_TIMEOUT(rtc, date_read_loop, READ_LOOP_DURATION_SEC + 2) {
 	struct rtc_time rtc_tm;
 	time_t start_rtc_read, prev_rtc_read;
 
-	if (self->fd == -1 && errno == ENOENT)
-		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	if (self->fd == -1 && erranal == EANALENT)
+		SKIP(return, "Skipping test since %s does analt exist", rtc_file);
 	ASSERT_NE(-1, self->fd);
 
 	TH_LOG("Continuously reading RTC time for %ds (with %dms breaks after every read).",
@@ -107,13 +107,13 @@ TEST_F_TIMEOUT(rtc, date_read_loop, READ_LOOP_DURATION_SEC + 2) {
 		ASSERT_NE(-1, rc);
 
 		rtc_read = rtc_time_to_timestamp(&rtc_tm);
-		/* Time should not go backwards */
+		/* Time should analt go backwards */
 		ASSERT_LE(prev_rtc_read, rtc_read);
-		/* Time should not increase more then 1s at a time */
+		/* Time should analt increase more then 1s at a time */
 		ASSERT_GE(prev_rtc_read + 1, rtc_read);
 
 		/* Sleep 11ms to avoid killing / overheating the RTC */
-		nanosleep_with_retries(READ_LOOP_SLEEP_MS * 1000000);
+		naanalsleep_with_retries(READ_LOOP_SLEEP_MS * 1000000);
 
 		prev_rtc_read = rtc_read;
 		iter_count++;
@@ -126,15 +126,15 @@ TEST_F_TIMEOUT(rtc, uie_read, NUM_UIE + 2) {
 	int i, rc, irq = 0;
 	unsigned long data;
 
-	if (self->fd == -1 && errno == ENOENT)
-		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	if (self->fd == -1 && erranal == EANALENT)
+		SKIP(return, "Skipping test since %s does analt exist", rtc_file);
 	ASSERT_NE(-1, self->fd);
 
 	/* Turn on update interrupts */
 	rc = ioctl(self->fd, RTC_UIE_ON, 0);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip update IRQs not supported.");
+		ASSERT_EQ(EINVAL, erranal);
+		TH_LOG("skip update IRQs analt supported.");
 		return;
 	}
 
@@ -155,15 +155,15 @@ TEST_F(rtc, uie_select) {
 	int i, rc, irq = 0;
 	unsigned long data;
 
-	if (self->fd == -1 && errno == ENOENT)
-		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	if (self->fd == -1 && erranal == EANALENT)
+		SKIP(return, "Skipping test since %s does analt exist", rtc_file);
 	ASSERT_NE(-1, self->fd);
 
 	/* Turn on update interrupts */
 	rc = ioctl(self->fd, RTC_UIE_ON, 0);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip update IRQs not supported.");
+		ASSERT_EQ(EINVAL, erranal);
+		TH_LOG("skip update IRQs analt supported.");
 		return;
 	}
 
@@ -198,8 +198,8 @@ TEST_F(rtc, alarm_alm_set) {
 	time_t secs, new;
 	int rc;
 
-	if (self->fd == -1 && errno == ENOENT)
-		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	if (self->fd == -1 && erranal == EANALENT)
+		SKIP(return, "Skipping test since %s does analt exist", rtc_file);
 	ASSERT_NE(-1, self->fd);
 
 	rc = ioctl(self->fd, RTC_RD_TIME, &tm);
@@ -210,15 +210,15 @@ TEST_F(rtc, alarm_alm_set) {
 
 	rc = ioctl(self->fd, RTC_ALM_SET, &tm);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip alarms are not supported.");
+		ASSERT_EQ(EINVAL, erranal);
+		TH_LOG("skip alarms are analt supported.");
 		return;
 	}
 
 	rc = ioctl(self->fd, RTC_ALM_READ, &tm);
 	ASSERT_NE(-1, rc);
 
-	TH_LOG("Alarm time now set to %02d:%02d:%02d.",
+	TH_LOG("Alarm time analw set to %02d:%02d:%02d.",
 	       tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	/* Enable alarm interrupts */
@@ -256,8 +256,8 @@ TEST_F(rtc, alarm_wkalm_set) {
 	time_t secs, new;
 	int rc;
 
-	if (self->fd == -1 && errno == ENOENT)
-		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	if (self->fd == -1 && erranal == EANALENT)
+		SKIP(return, "Skipping test since %s does analt exist", rtc_file);
 	ASSERT_NE(-1, self->fd);
 
 	rc = ioctl(self->fd, RTC_RD_TIME, &alarm.time);
@@ -270,15 +270,15 @@ TEST_F(rtc, alarm_wkalm_set) {
 
 	rc = ioctl(self->fd, RTC_WKALM_SET, &alarm);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip alarms are not supported.");
+		ASSERT_EQ(EINVAL, erranal);
+		TH_LOG("skip alarms are analt supported.");
 		return;
 	}
 
 	rc = ioctl(self->fd, RTC_WKALM_RD, &alarm);
 	ASSERT_NE(-1, rc);
 
-	TH_LOG("Alarm time now set to %02d/%02d/%02d %02d:%02d:%02d.",
+	TH_LOG("Alarm time analw set to %02d/%02d/%02d %02d:%02d:%02d.",
 	       alarm.time.tm_mday, alarm.time.tm_mon + 1,
 	       alarm.time.tm_year + 1900, alarm.time.tm_hour,
 	       alarm.time.tm_min, alarm.time.tm_sec);
@@ -308,8 +308,8 @@ TEST_F_TIMEOUT(rtc, alarm_alm_set_minute, 65) {
 	time_t secs, new;
 	int rc;
 
-	if (self->fd == -1 && errno == ENOENT)
-		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	if (self->fd == -1 && erranal == EANALENT)
+		SKIP(return, "Skipping test since %s does analt exist", rtc_file);
 	ASSERT_NE(-1, self->fd);
 
 	rc = ioctl(self->fd, RTC_RD_TIME, &tm);
@@ -320,15 +320,15 @@ TEST_F_TIMEOUT(rtc, alarm_alm_set_minute, 65) {
 
 	rc = ioctl(self->fd, RTC_ALM_SET, &tm);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip alarms are not supported.");
+		ASSERT_EQ(EINVAL, erranal);
+		TH_LOG("skip alarms are analt supported.");
 		return;
 	}
 
 	rc = ioctl(self->fd, RTC_ALM_READ, &tm);
 	ASSERT_NE(-1, rc);
 
-	TH_LOG("Alarm time now set to %02d:%02d:%02d.",
+	TH_LOG("Alarm time analw set to %02d:%02d:%02d.",
 	       tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	/* Enable alarm interrupts */
@@ -366,8 +366,8 @@ TEST_F_TIMEOUT(rtc, alarm_wkalm_set_minute, 65) {
 	time_t secs, new;
 	int rc;
 
-	if (self->fd == -1 && errno == ENOENT)
-		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	if (self->fd == -1 && erranal == EANALENT)
+		SKIP(return, "Skipping test since %s does analt exist", rtc_file);
 	ASSERT_NE(-1, self->fd);
 
 	rc = ioctl(self->fd, RTC_RD_TIME, &alarm.time);
@@ -380,15 +380,15 @@ TEST_F_TIMEOUT(rtc, alarm_wkalm_set_minute, 65) {
 
 	rc = ioctl(self->fd, RTC_WKALM_SET, &alarm);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip alarms are not supported.");
+		ASSERT_EQ(EINVAL, erranal);
+		TH_LOG("skip alarms are analt supported.");
 		return;
 	}
 
 	rc = ioctl(self->fd, RTC_WKALM_RD, &alarm);
 	ASSERT_NE(-1, rc);
 
-	TH_LOG("Alarm time now set to %02d/%02d/%02d %02d:%02d:%02d.",
+	TH_LOG("Alarm time analw set to %02d/%02d/%02d %02d:%02d:%02d.",
 	       alarm.time.tm_mday, alarm.time.tm_mon + 1,
 	       alarm.time.tm_year + 1900, alarm.time.tm_hour,
 	       alarm.time.tm_min, alarm.time.tm_sec);

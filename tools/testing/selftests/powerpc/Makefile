@@ -7,7 +7,7 @@ ARCH := $(shell echo $(ARCH) | sed -e s/ppc.*/powerpc/)
 
 ifeq ($(ARCH),powerpc)
 
-GIT_VERSION = $(shell git describe --always --long --dirty || echo "unknown")
+GIT_VERSION = $(shell git describe --always --long --dirty || echo "unkanalwn")
 
 CFLAGS := -std=gnu99 -O2 -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CURDIR)/include $(CFLAGS)
 

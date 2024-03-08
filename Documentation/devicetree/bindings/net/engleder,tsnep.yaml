@@ -64,7 +64,7 @@ properties:
     type: object
     $ref: mdio.yaml#
     unevaluatedProperties: false
-    description: optional node for embedded MDIO controller
+    description: optional analde for embedded MDIO controller
 
 required:
   - compatible

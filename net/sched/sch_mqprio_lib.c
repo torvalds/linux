@@ -27,7 +27,7 @@ static int mqprio_validate_queue_counts(struct net_device *dev,
 		unsigned int last = qopt->offset[i] + qopt->count[i];
 
 		if (!qopt->count[i]) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "No queues for TC %d",
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Anal queues for TC %d",
 					       i);
 			return -EINVAL;
 		}
@@ -47,7 +47,7 @@ static int mqprio_validate_queue_counts(struct net_device *dev,
 		if (allow_overlapping_txqs)
 			continue;
 
-		/* Verify that the offset and counts do not overlap */
+		/* Verify that the offset and counts do analt overlap */
 		for (j = i + 1; j < qopt->num_tc; j++) {
 			if (intervals_overlap(qopt->offset[i], last,
 					      qopt->offset[j],
@@ -72,7 +72,7 @@ int mqprio_validate_qopt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
 {
 	int i, err;
 
-	/* Verify num_tc is not out of max range */
+	/* Verify num_tc is analt out of max range */
 	if (qopt->num_tc > TC_MAX_QUEUE) {
 		NL_SET_ERR_MSG(extack,
 			       "Number of traffic classes is outside valid range");

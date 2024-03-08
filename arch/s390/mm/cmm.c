@@ -7,7 +7,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -66,7 +66,7 @@ static long cmm_alloc_pages(long nr, long *counter,
 	unsigned long addr;
 
 	while (nr) {
-		addr = __get_free_page(GFP_NOIO);
+		addr = __get_free_page(GFP_ANALIO);
 		if (!addr)
 			break;
 		spin_lock(&cmm_lock);
@@ -75,7 +75,7 @@ static long cmm_alloc_pages(long nr, long *counter,
 			/* Need a new page for the page list. */
 			spin_unlock(&cmm_lock);
 			npa = (struct cmm_page_array *)
-				__get_free_page(GFP_NOIO);
+				__get_free_page(GFP_ANALIO);
 			if (!npa) {
 				free_page(addr);
 				break;
@@ -123,7 +123,7 @@ static long cmm_free_pages(long nr, long *counter, struct cmm_page_array **list)
 	return nr;
 }
 
-static int cmm_oom_notify(struct notifier_block *self,
+static int cmm_oom_analtify(struct analtifier_block *self,
 			  unsigned long dummy, void *parm)
 {
 	unsigned long *freed = parm;
@@ -135,11 +135,11 @@ static int cmm_oom_notify(struct notifier_block *self,
 	cmm_pages_target = cmm_pages;
 	cmm_timed_pages_target = cmm_timed_pages;
 	*freed += 256 - nr;
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block cmm_oom_nb = {
-	.notifier_call = cmm_oom_notify,
+static struct analtifier_block cmm_oom_nb = {
+	.analtifier_call = cmm_oom_analtify,
 };
 
 static int cmm_thread(void *dummy)
@@ -376,7 +376,7 @@ static struct ctl_table_header *cmm_sysctl_header;
 
 static int __init cmm_init(void)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	cmm_sysctl_header = register_sysctl("vm", cmm_table);
 	if (!cmm_sysctl_header)
@@ -392,16 +392,16 @@ static int __init cmm_init(void)
 	if (rc < 0)
 		goto out_smsg;
 #endif
-	rc = register_oom_notifier(&cmm_oom_nb);
+	rc = register_oom_analtifier(&cmm_oom_nb);
 	if (rc < 0)
-		goto out_oom_notify;
+		goto out_oom_analtify;
 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
 	if (!IS_ERR(cmm_thread_ptr))
 		return 0;
 
 	rc = PTR_ERR(cmm_thread_ptr);
-	unregister_oom_notifier(&cmm_oom_nb);
-out_oom_notify:
+	unregister_oom_analtifier(&cmm_oom_nb);
+out_oom_analtify:
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 out_smsg:
@@ -419,7 +419,7 @@ static void __exit cmm_exit(void)
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 #endif
-	unregister_oom_notifier(&cmm_oom_nb);
+	unregister_oom_analtifier(&cmm_oom_nb);
 	kthread_stop(cmm_thread_ptr);
 	del_timer_sync(&cmm_timer);
 	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);

@@ -47,7 +47,7 @@ To build and run the tests with a single command, use::
 
   $ make kselftest
 
-Note that some tests will require root privileges.
+Analte that some tests will require root privileges.
 
 Kselftest supports saving output files in a separate directory and then
 running tests. To locate output files in a separate directory two syntaxes
@@ -128,7 +128,7 @@ To run the hotplug tests::
 
   $ make -C tools/testing/selftests run_hotplug
 
-Note that some tests will require root privileges.
+Analte that some tests will require root privileges.
 
 
 Install selftests
@@ -153,7 +153,7 @@ Found in the install directory, as well as in the Kselftest tarball,
 is a script named `run_kselftest.sh` to run the tests.
 
 You can simply do the following to run the installed Kselftests. Please
-note some tests will require root privileges::
+analte some tests will require root privileges::
 
    $ cd kselftest_install
    $ ./run_kselftest.sh
@@ -165,7 +165,7 @@ To see the list of available tests, the `-l` option can be used::
 The `-c` option can be used to run all the tests from a test collection, or
 the `-t` option for specific single tests. Either can be used multiple times::
 
-   $ ./run_kselftest.sh -c size -c seccomp -t timers:posix_timers -t timer:nanosleep
+   $ ./run_kselftest.sh -c size -c seccomp -t timers:posix_timers -t timer:naanalsleep
 
 For other features see the script usage output, seen with the `-h` option.
 
@@ -177,7 +177,7 @@ seconds for each test. Tests can override the default timeout by adding
 a settings file in their directory and set a timeout variable there to the
 configured a desired upper timeout for the test. Only a few tests override
 the timeout with a value higher than 45 seconds, selftests strives to keep
-it that way. Timeouts in selftests are not considered fatal because the
+it that way. Timeouts in selftests are analt considered fatal because the
 system under which a test runs may change and this can also modify the
 expected time it takes to run a test. If you have control over the systems
 which will run the tests you can configure a test runner on those systems to
@@ -188,7 +188,7 @@ one would use:
    $ ./run_kselftest.sh --override-timeout 165
 
 You can look at the TAP output to see if you ran into the timeout. Test
-runners which know a test must run under a specific time can then optionally
+runners which kanalw a test must run under a specific time can then optionally
 treat these timeouts then as fatal.
 
 Packaging selftests
@@ -212,14 +212,14 @@ section::
 
     $ make -C tools/testing/selftests gen_tar TARGETS="size" FORMAT=.xz
 
-.. _tar's auto-compress: https://www.gnu.org/software/tar/manual/html_node/gzip.html#auto_002dcompress
+.. _tar's auto-compress: https://www.gnu.org/software/tar/manual/html_analde/gzip.html#auto_002dcompress
 
 Contributing new tests
 ======================
 
 In general, the rules for selftests are
 
- * Do as much as you can if you're not root;
+ * Do as much as you can if you're analt root;
 
  * Don't take too long;
 
@@ -254,7 +254,7 @@ Contributing new tests (details)
    TEST_CUSTOM_PROGS and TEST_PROGS will be run by common run_tests.
 
    TEST_PROGS_EXTENDED, TEST_GEN_PROGS_EXTENDED mean it is the
-   executable which is not tested by default.
+   executable which is analt tested by default.
    TEST_FILES, TEST_GEN_FILES mean it is the file which is used by
    test.
 
@@ -269,7 +269,7 @@ Contributing new tests (details)
 
    e.g: tools/testing/selftests/android/config
 
- * Create a .gitignore file inside test directory and add all generated objects
+ * Create a .gitiganalre file inside test directory and add all generated objects
    in it.
 
  * Add new test name in TARGETS in selftests/Makefile::
@@ -298,12 +298,12 @@ assist writing kernel modules that are for use with kselftest:
 - ``tools/testing/selftests/kselftest_module.h``
 - ``tools/testing/selftests/kselftest/module.sh``
 
-Note that test modules should taint the kernel with TAINT_TEST. This will
+Analte that test modules should taint the kernel with TAINT_TEST. This will
 happen automatically for modules which are in the ``tools/testing/``
 directory, or for modules which use the ``kselftest_module.h`` header above.
 Otherwise, you'll need to add ``MODULE_INFO(test, "Y")`` to your module
-source. selftests which do not load modules typically should not taint the
-kernel, but in cases where a non-test module is loaded, TEST_TAINT can be
+source. selftests which do analt load modules typically should analt taint the
+kernel, but in cases where a analn-test module is loaded, TEST_TAINT can be
 applied from userspace by writing to ``/proc/sys/kernel/tainted``.
 
 How to use

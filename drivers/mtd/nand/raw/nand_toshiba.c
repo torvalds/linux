@@ -44,7 +44,7 @@ static int toshiba_nand_benand_read_eccstatus_op(struct nand_chip *chip,
 		return nand_exec_op(chip, &op);
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int toshiba_nand_benand_eccstatus(struct nand_chip *chip)
@@ -126,7 +126,7 @@ static void toshiba_nand_benand_init(struct nand_chip *chip)
 	/*
 	 * On BENAND, the entire OOB region can be used by the MTD user.
 	 * The calculated ECC bytes are stored into other isolated
-	 * area which is not accessible to users.
+	 * area which is analt accessible to users.
 	 * This is why chip->ecc.bytes = 0.
 	 */
 	chip->ecc.bytes = 0;
@@ -135,8 +135,8 @@ static void toshiba_nand_benand_init(struct nand_chip *chip)
 	chip->ecc.read_page = toshiba_nand_read_page_benand;
 	chip->ecc.read_subpage = toshiba_nand_read_subpage_benand;
 	chip->ecc.write_page = nand_write_page_raw;
-	chip->ecc.read_page_raw = nand_read_page_raw_notsupp;
-	chip->ecc.write_page_raw = nand_write_page_raw_notsupp;
+	chip->ecc.read_page_raw = nand_read_page_raw_analtsupp;
+	chip->ecc.write_page_raw = nand_write_page_raw_analtsupp;
 
 	chip->options |= NAND_SUBPAGE_READ;
 
@@ -155,7 +155,7 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 	nand_decode_ext_id(chip);
 
 	/*
-	 * Toshiba 24nm raw SLC (i.e., not BENAND) have 32B OOB per
+	 * Toshiba 24nm raw SLC (i.e., analt BENAND) have 32B OOB per
 	 * 512B page. For Toshiba SLC, we decode the 5th/6th byte as
 	 * follows:
 	 * - ID byte 6, bits[2:0]: 100b -> 43nm, 101b -> 32nm,
@@ -189,7 +189,7 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 			requirements.strength = 8;
 			break;
 		default:
-			WARN(1, "Could not get ECC info");
+			WARN(1, "Could analt get ECC info");
 			requirements.step_size = 0;
 			break;
 		}
@@ -236,7 +236,7 @@ th58nvg2s3hbai4_choose_interface_config(struct nand_chip *chip,
 	sdr->tRHZ_max = 60000;
 	sdr->tWHR_min = 60000;
 
-	/* Patch timings not part of onfi timing mode. */
+	/* Patch timings analt part of onfi timing mode. */
 	sdr->tPROG_max = 700000000;
 	sdr->tBERS_max = 5000000000;
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_QMI_H
@@ -15,7 +15,7 @@
 #define ATH12K_QMI_MAX_BDF_FILE_NAME_SIZE	64
 #define ATH12K_QMI_CALDB_ADDRESS		0x4BA00000
 #define ATH12K_QMI_WLANFW_MAX_BUILD_ID_LEN_V01	128
-#define ATH12K_QMI_WLFW_NODE_ID_BASE		0x07
+#define ATH12K_QMI_WLFW_ANALDE_ID_BASE		0x07
 #define ATH12K_QMI_WLFW_SERVICE_ID_V01		0x45
 #define ATH12K_QMI_WLFW_SERVICE_VERS_V01	0x01
 #define ATH12K_QMI_WLFW_SERVICE_INS_ID_V01	0x02
@@ -189,7 +189,7 @@ struct wlfw_host_mlo_chip_info_s_v01 {
 enum ath12k_qmi_cnss_feature {
 	CNSS_FEATURE_MIN_ENUM_VAL_V01 = INT_MIN,
 	CNSS_QDSS_CFG_MISS_V01 = 3,
-	CNSS_PCIE_PERST_NO_PULL_V01 = 4,
+	CNSS_PCIE_PERST_ANAL_PULL_V01 = 4,
 	CNSS_MAX_FEATURE_V01 = 64,
 	CNSS_FEATURE_MAX_ENUM_VAL_V01 = INT_MAX,
 };
@@ -358,10 +358,10 @@ struct qmi_wlanfw_fw_ready_ind_msg_v01 {
 #define QMI_WLANFW_CAP_RESP_V01			0x0024
 
 enum qmi_wlanfw_pipedir_enum_v01 {
-	QMI_WLFW_PIPEDIR_NONE_V01 = 0,
+	QMI_WLFW_PIPEDIR_ANALNE_V01 = 0,
 	QMI_WLFW_PIPEDIR_IN_V01 = 1,
 	QMI_WLFW_PIPEDIR_OUT_V01 = 2,
-	QMI_WLFW_PIPEDIR_INOUT_V01 = 3,
+	QMI_WLFW_PIPEDIR_IANALUT_V01 = 3,
 };
 
 struct qmi_wlanfw_ce_tgt_pipe_cfg_s_v01 {

@@ -42,7 +42,7 @@
 		   "%s: " fmt "\n", __func__, ##args)
 #else
 #define SMSC_WARN(pdata, nlevel, fmt, args...)			\
-	no_printk(fmt "\n", ##args)
+	anal_printk(fmt "\n", ##args)
 #endif
 
 #if USE_DEBUG >= 2
@@ -50,7 +50,7 @@
 	netif_info(pdata, nlevel, pdata->dev, fmt "\n", ##args)
 #else
 #define SMSC_TRACE(pdata, nlevel, fmt, args...)			\
-	no_printk(fmt "\n", ##args)
+	anal_printk(fmt "\n", ##args)
 #endif
 
 #ifdef CONFIG_DEBUG_SPINLOCK
@@ -90,7 +90,7 @@
 #define TX_STATUS_FIFO			0x48
 #define TX_STS_ES_			0x00008000
 #define TX_STS_LOST_CARRIER_		0x00000800
-#define TX_STS_NO_CARRIER_		0x00000400
+#define TX_STS_ANAL_CARRIER_		0x00000400
 #define TX_STS_LATE_COL_		0x00000200
 #define TX_STS_EXCESS_COL_		0x00000100
 
@@ -230,7 +230,7 @@
 #define PMT_CTRL_ED_EN_			0x00000100
 #define PMT_CTRL_PME_TYPE_		0x00000040
 #define PMT_CTRL_WUPS_			0x00000030
-#define PMT_CTRL_WUPS_NOWAKE_		0x00000000
+#define PMT_CTRL_WUPS_ANALWAKE_		0x00000000
 #define PMT_CTRL_WUPS_ED_		0x00000010
 #define PMT_CTRL_WUPS_WOL_		0x00000020
 #define PMT_CTRL_WUPS_MULTI_		0x00000030
@@ -274,7 +274,7 @@
 
 #define MAC_CSR_CMD			0xA4
 #define MAC_CSR_CMD_CSR_BUSY_		0x80000000
-#define MAC_CSR_CMD_R_NOT_W_		0x40000000
+#define MAC_CSR_CMD_R_ANALT_W_		0x40000000
 #define MAC_CSR_CMD_CSR_ADDR_		0x000000FF
 
 #define MAC_CSR_DATA			0xA8

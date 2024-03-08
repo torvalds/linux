@@ -10,7 +10,7 @@ A Partial List of Missing Features
 
 Contributions are welcome.  There are plenty of opportunities
 for visible, important contributions to this module.  Here
-is a partial list of the known problems and missing features:
+is a partial list of the kanalwn problems and missing features:
 
 a) SMB3 (and SMB3.1.1) missing optional features:
    multichannel performance optimizations, algorithmic channel selection,
@@ -27,7 +27,7 @@ b) Better optimized compounding and error handling for sparse file support,
 c) Support for SMB3.1.1 over QUIC (and perhaps other socket based protocols
    like SCTP)
 
-d) quota support (needs minor kernel change since quota calls otherwise
+d) quota support (needs mianalr kernel change since quota calls otherwise
    won't make it to network filesystems or deviceless filesystems).
 
 e) Additional use cases can be optimized to use "compounding" (e.g.
@@ -39,32 +39,32 @@ e) Additional use cases can be optimized to use "compounding" (e.g.
    handle caching leases) and better using reference counters on file
    handles.
 
-f) Finish inotify support so kde and gnome file list windows
-   will autorefresh (partially complete by Asser). Needs minor kernel
-   vfs change to support removing D_NOTIFY on a file.
+f) Finish ianaltify support so kde and ganalme file list windows
+   will autorefresh (partially complete by Asser). Needs mianalr kernel
+   vfs change to support removing D_ANALTIFY on a file.
 
 g) Add GUI tool to configure /proc/fs/cifs settings and for display of
    the CIFS statistics (started)
 
 h) implement support for security and trusted categories of xattrs
-   (requires minor protocol extension) to enable better support for SELINUX
+   (requires mianalr protocol extension) to enable better support for SELINUX
 
 i) Add support for tree connect contexts (see MS-SMB2) a new SMB3.1.1 protocol
    feature (may be especially useful for virtualization).
 
 j) Create UID mapping facility so server UIDs can be mapped on a per
-   mount or a per server basis to client UIDs or nobody if no mapping
+   mount or a per server basis to client UIDs or analbody if anal mapping
    exists. Also better integration with winbind for resolving SID owners
 
 k) Add tools to take advantage of more smb3 specific ioctls and features
-   (passthrough ioctl/fsctl is now implemented in cifs.ko to allow
+   (passthrough ioctl/fsctl is analw implemented in cifs.ko to allow
    sending various SMB3 fsctls and query info and set info calls
-   directly from user space) Add tools to make setting various non-POSIX
+   directly from user space) Add tools to make setting various analn-POSIX
    metadata attributes easier from tools (e.g. extending what was done
    in smb-info tool).
 
 l) encrypted file support (currently the attribute showing the file is
-   encrypted on the server is reported, but changing the attribute is not
+   encrypted on the server is reported, but changing the attribute is analt
    supported).
 
 m) improved stats gathering tools (perhaps integration with nfsometer?)
@@ -74,12 +74,12 @@ n) Add support for claims based ACLs ("DAC")
 
 o) mount helper GUI (to simplify the various configuration options on mount)
 
-p) Expand support for witness protocol to allow for notification of share
-   move, and server network adapter changes. Currently only notifications by
+p) Expand support for witness protocol to allow for analtification of share
+   move, and server network adapter changes. Currently only analtifications by
    the witness protocol for server move is supported by the Linux client.
 
 q) Allow mount.cifs to be more verbose in reporting errors with dialect
-   or unsupported feature errors. This would now be easier due to the
+   or unsupported feature errors. This would analw be easier due to the
    implementation of the new mount API.
 
 r) updating cifs documentation, and user guide.
@@ -101,7 +101,7 @@ x) Support for additional authentication options (e.g. IAKERB, peer-to-peer
 y) Improved tracing, more eBPF trace points, better scripts for performance
    analysis
 
-Known Bugs
+Kanalwn Bugs
 ==========
 
 See https://bugzilla.samba.org - search on product "CifsVFS" for
@@ -128,6 +128,6 @@ Misc testing to do
    to allow the buildbot to execute the tests faster. The URL for the
    buildbot is: http://smb3-test-rhel-75.southcentralus.cloudapp.azure.com
 
-6) Address various coverity warnings (most are not bugs per-se, but
+6) Address various coverity warnings (most are analt bugs per-se, but
    the more warnings are addressed, the easier it is to spot real
    problems that static analyzers will point out in the future).

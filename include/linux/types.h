@@ -19,7 +19,7 @@ typedef u32 __kernel_dev_t;
 
 typedef __kernel_fd_set		fd_set;
 typedef __kernel_dev_t		dev_t;
-typedef __kernel_ulong_t	ino_t;
+typedef __kernel_ulong_t	ianal_t;
 typedef __kernel_mode_t		mode_t;
 typedef unsigned short		umode_t;
 typedef u32			nlink_t;
@@ -120,7 +120,7 @@ typedef s64			int64_t;
 #define aligned_be64		__aligned_be64
 #define aligned_le64		__aligned_le64
 
-/* Nanosecond scalar representation for kernel time values */
+/* Naanalsecond scalar representation for kernel time values */
 typedef s64	ktime_t;
 
 /**
@@ -129,7 +129,7 @@ typedef s64	ktime_t;
  * Linux always considers sectors to be 512 bytes long independently
  * of the devices real block size.
  *
- * blkcnt_t is the type of the inode's block count.
+ * blkcnt_t is the type of the ianalde's block count.
  */
 typedef u64 sector_t;
 typedef u64 blkcnt_t;
@@ -168,7 +168,7 @@ typedef phys_addr_t resource_size_t;
 
 /*
  * This type is the placeholder for a hardware interrupt number. It has to be
- * big enough to enclose whatever representation is used by a given platform.
+ * big eanalugh to enclose whatever representation is used by a given platform.
  */
 typedef unsigned long irq_hw_number_t;
 
@@ -195,19 +195,19 @@ struct list_head {
 };
 
 struct hlist_head {
-	struct hlist_node *first;
+	struct hlist_analde *first;
 };
 
-struct hlist_node {
-	struct hlist_node *next, **pprev;
+struct hlist_analde {
+	struct hlist_analde *next, **pprev;
 };
 
 struct ustat {
 	__kernel_daddr_t	f_tfree;
-#ifdef CONFIG_ARCH_32BIT_USTAT_F_TINODE
-	unsigned int		f_tinode;
+#ifdef CONFIG_ARCH_32BIT_USTAT_F_TIANALDE
+	unsigned int		f_tianalde;
 #else
-	unsigned long		f_tinode;
+	unsigned long		f_tianalde;
 #endif
 	char			f_fname[6];
 	char			f_fpack[6];
@@ -223,7 +223,7 @@ struct ustat {
  * weird ABI and we need to ask it explicitly.
  *
  * The alignment is required to guarantee that bit 0 of @next will be
- * clear under normal conditions -- as long as we use call_rcu() or
+ * clear under analrmal conditions -- as long as we use call_rcu() or
  * call_srcu() to queue the callback.
  *
  * This guarantee is important for few reasons:

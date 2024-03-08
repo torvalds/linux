@@ -13,9 +13,9 @@
 #include "qed_ptp.h"
 #include "qed_reg_addr.h"
 
-/* 16 nano second time quantas to wait before making a Drift adjustment */
+/* 16 naanal second time quantas to wait before making a Drift adjustment */
 #define QED_DRIFT_CNTR_TIME_QUANTA_SHIFT	0
-/* Nano seconds to add/subtract when making a Drift adjustment */
+/* Naanal seconds to add/subtract when making a Drift adjustment */
 #define QED_DRIFT_CNTR_ADJUSTMENT_SHIFT		28
 /* Add/subtract the Adjustment_Value when making a Drift adjustment */
 #define QED_DRIFT_CNTR_DIRECTION_SHIFT		31
@@ -176,7 +176,7 @@ static int qed_ptp_hw_cfg_filters(struct qed_dev *cdev,
 	u32 rule_mask, enable_cfg = 0x0;
 
 	switch (rx_type) {
-	case QED_PTP_FILTER_NONE:
+	case QED_PTP_FILTER_ANALNE:
 		enable_cfg = 0x0;
 		rule_mask = 0x3FFF;
 		break;
@@ -246,7 +246,7 @@ static int qed_ptp_hw_cfg_filters(struct qed_dev *cdev,
 
 /* Adjust the HW clock by a rate given in parts-per-billion (ppb) units.
  * FW/HW accepts the adjustment value in terms of 3 parameters:
- *   Drift period - adjustment happens once in certain number of nano seconds.
+ *   Drift period - adjustment happens once in certain number of naanal seconds.
  *   Drift value - time is adjusted by a certain value, for example by 5 ns.
  *   Drift direction - add or subtract the adjustment value.
  * The routine translates ppb into the adjustment triplet in an optimal manner.
@@ -327,7 +327,7 @@ static int qed_ptp_hw_adjfreq(struct qed_dev *cdev, s32 ppb)
 		qed_wr(p_hwfn, p_ptt, NIG_REG_TSGEN_DRIFT_CNTR_CONF,
 		       drift_ctr_cfg);
 	} else {
-		DP_INFO(p_hwfn, "Drift counter is not reset\n");
+		DP_INFO(p_hwfn, "Drift counter is analt reset\n");
 		return -EINVAL;
 	}
 
@@ -344,7 +344,7 @@ static int qed_ptp_hw_enable(struct qed_dev *cdev)
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt) {
-		DP_NOTICE(p_hwfn, "Failed to acquire PTT for PTP\n");
+		DP_ANALTICE(p_hwfn, "Failed to acquire PTT for PTP\n");
 		return -EBUSY;
 	}
 

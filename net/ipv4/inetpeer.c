@@ -25,30 +25,30 @@
 
 /*
  *  Theory of operations.
- *  We keep one entry for each peer IP address.  The nodes contains long-living
+ *  We keep one entry for each peer IP address.  The analdes contains long-living
  *  information about the peer which doesn't depend on routes.
  *
- *  Nodes are removed only when reference counter goes to 0.
- *  When it's happened the node may be removed when a sufficient amount of
+ *  Analdes are removed only when reference counter goes to 0.
+ *  When it's happened the analde may be removed when a sufficient amount of
  *  time has been passed since its last use.  The less-recently-used entry can
  *  also be removed if the pool is overloaded i.e. if the total amount of
  *  entries is greater-or-equal than the threshold.
  *
- *  Node pool is organised as an RB tree.
- *  Such an implementation has been chosen not just for fun.  It's a way to
+ *  Analde pool is organised as an RB tree.
+ *  Such an implementation has been chosen analt just for fun.  It's a way to
  *  prevent easy and efficient DoS attacks by creating hash collisions.  A huge
- *  amount of long living nodes in a single hash slot would significantly delay
+ *  amount of long living analdes in a single hash slot would significantly delay
  *  lookups performed with disabled BHs.
  *
  *  Serialisation issues.
- *  1.  Nodes may appear in the tree only with the pool lock held.
- *  2.  Nodes may disappear from the tree only with the pool lock held
+ *  1.  Analdes may appear in the tree only with the pool lock held.
+ *  2.  Analdes may disappear from the tree only with the pool lock held
  *      AND reference count being 0.
  *  3.  Global variable peer_total is modified under the pool lock.
  *  4.  struct inet_peer fields modification:
- *		rb_node: pool lock
+ *		rb_analde: pool lock
  *		refcnt: atomically against modifications on other CPU;
- *		   usually under some other lock to prevent node disappearing
+ *		   usually under some other lock to prevent analde disappearing
  *		daddr: unchangeable
  */
 
@@ -93,13 +93,13 @@ static struct inet_peer *lookup(const struct inetpeer_addr *daddr,
 				unsigned int seq,
 				struct inet_peer *gc_stack[],
 				unsigned int *gc_cnt,
-				struct rb_node **parent_p,
-				struct rb_node ***pp_p)
+				struct rb_analde **parent_p,
+				struct rb_analde ***pp_p)
 {
-	struct rb_node **pp, *parent, *next;
+	struct rb_analde **pp, *parent, *next;
 	struct inet_peer *p;
 
-	pp = &base->rb_root.rb_node;
+	pp = &base->rb_root.rb_analde;
 	parent = NULL;
 	while (1) {
 		int cmp;
@@ -108,10 +108,10 @@ static struct inet_peer *lookup(const struct inetpeer_addr *daddr,
 		if (!next)
 			break;
 		parent = next;
-		p = rb_entry(parent, struct inet_peer, rb_node);
+		p = rb_entry(parent, struct inet_peer, rb_analde);
 		cmp = inetpeer_addr_cmp(daddr, &p->daddr);
 		if (cmp == 0) {
-			if (!refcount_inc_not_zero(&p->refcnt))
+			if (!refcount_inc_analt_zero(&p->refcnt))
 				break;
 			return p;
 		}
@@ -169,7 +169,7 @@ static void inet_peer_gc(struct inet_peer_base *base,
 	for (i = 0; i < gc_cnt; i++) {
 		p = gc_stack[i];
 		if (p) {
-			rb_erase(&p->rb_node, &base->rb_root);
+			rb_erase(&p->rb_analde, &base->rb_root);
 			base->total--;
 			call_rcu(&p->rcu, inetpeer_free_rcu);
 		}
@@ -181,12 +181,12 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 			       int create)
 {
 	struct inet_peer *p, *gc_stack[PEER_MAX_GC];
-	struct rb_node **pp, *parent;
+	struct rb_analde **pp, *parent;
 	unsigned int gc_cnt, seq;
 	int invalidated;
 
 	/* Attempt a lockless lookup first.
-	 * Because of a concurrent writer, we might not find an existing entry.
+	 * Because of a concurrent writer, we might analt find an existing entry.
 	 */
 	rcu_read_lock();
 	seq = read_seqbegin(&base->lock);
@@ -197,12 +197,12 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 	if (p)
 		return p;
 
-	/* If no writer did a change during our lookup, we can return early. */
+	/* If anal writer did a change during our lookup, we can return early. */
 	if (!create && !invalidated)
 		return NULL;
 
 	/* retry an exact lookup, taking the lock before.
-	 * At least, nodes should be hot in our cache.
+	 * At least, analdes should be hot in our cache.
 	 */
 	parent = NULL;
 	write_seqlock_bh(&base->lock);
@@ -219,13 +219,13 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 			p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 			p->rate_tokens = 0;
 			p->n_redirects = 0;
-			/* 60*HZ is arbitrary, but chosen enough high so that the first
+			/* 60*HZ is arbitrary, but chosen eanalugh high so that the first
 			 * calculation of tokens is at its maximum.
 			 */
 			p->rate_last = jiffies - 60*HZ;
 
-			rb_link_node(&p->rb_node, parent, pp);
-			rb_insert_color(&p->rb_node, &base->rb_root);
+			rb_link_analde(&p->rb_analde, parent, pp);
+			rb_insert_color(&p->rb_analde, &base->rb_root);
 			base->total++;
 		}
 	}
@@ -251,11 +251,11 @@ EXPORT_SYMBOL_GPL(inet_putpeer);
 
 /*
  *	Check transmit rate limitation for given message.
- *	The rate information is held in the inet_peer entries now.
+ *	The rate information is held in the inet_peer entries analw.
  *	This function is generic and could be used for other purposes
  *	too. It uses a Token bucket filter as suggested by Alexey Kuznetsov.
  *
- *	Note that the same inet_peer fields are modified by functions in
+ *	Analte that the same inet_peer fields are modified by functions in
  *	route.c too, but these work for packet destinations while xrlim_allow
  *	works for icmp destinations. This means the rate limiting information
  *	for one "ip object" is shared - and these ICMPs are twice limited:
@@ -269,16 +269,16 @@ EXPORT_SYMBOL_GPL(inet_putpeer);
 #define XRLIM_BURST_FACTOR 6
 bool inet_peer_xrlim_allow(struct inet_peer *peer, int timeout)
 {
-	unsigned long now, token;
+	unsigned long analw, token;
 	bool rc = false;
 
 	if (!peer)
 		return true;
 
 	token = peer->rate_tokens;
-	now = jiffies;
-	token += now - peer->rate_last;
-	peer->rate_last = now;
+	analw = jiffies;
+	token += analw - peer->rate_last;
+	peer->rate_last = analw;
 	if (token > XRLIM_BURST_FACTOR * timeout)
 		token = XRLIM_BURST_FACTOR * timeout;
 	if (token >= timeout) {
@@ -292,13 +292,13 @@ EXPORT_SYMBOL(inet_peer_xrlim_allow);
 
 void inetpeer_invalidate_tree(struct inet_peer_base *base)
 {
-	struct rb_node *p = rb_first(&base->rb_root);
+	struct rb_analde *p = rb_first(&base->rb_root);
 
 	while (p) {
-		struct inet_peer *peer = rb_entry(p, struct inet_peer, rb_node);
+		struct inet_peer *peer = rb_entry(p, struct inet_peer, rb_analde);
 
 		p = rb_next(p);
-		rb_erase(&peer->rb_node, &base->rb_root);
+		rb_erase(&peer->rb_analde, &base->rb_root);
 		inet_putpeer(peer);
 		cond_resched();
 	}

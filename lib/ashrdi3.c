@@ -6,7 +6,7 @@
 
 #include <linux/libgcc.h>
 
-long long notrace __ashrdi3(long long u, word_type b)
+long long analtrace __ashrdi3(long long u, word_type b)
 {
 	DWunion uu, w;
 	word_type bm;

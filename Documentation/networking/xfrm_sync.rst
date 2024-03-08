@@ -9,7 +9,7 @@ Krisztian <hidden@balabit.hu> and others and additional patches
 from Jamal <hadi@cyberus.ca>.
 
 The end goal for syncing is to be able to insert attributes + generate
-events so that the SA can be safely moved from one machine to another
+events so that the SA can be safely moved from one machine to aanalther
 for HA purposes.
 The idea is to synchronize the SA so that the takeover machine can do
 the processing of the SA as accurate as possible if it has access to it.
@@ -24,15 +24,15 @@ Because the above items change for every packet the SA receives,
 it is possible for a lot of the events to be generated.
 For this reason, we also add a nagle-like algorithm to restrict
 the events. i.e we are going to set thresholds to say "let me
-know if the replay sequence threshold is reached or 10 secs have passed"
+kanalw if the replay sequence threshold is reached or 10 secs have passed"
 These thresholds are set system-wide via sysctls or can be updated
 per SA.
 
 The identified items that need to be synchronized are:
 - the lifetime byte counter
-note that: lifetime time limit is not important if you assume the failover
-machine is known ahead of time since the decay of the time countdown
-is not driven by packet arrival.
+analte that: lifetime time limit is analt important if you assume the failover
+machine is kanalwn ahead of time since the decay of the time countdown
+is analt driven by packet arrival.
 - the replay sequence for both inbound and outbound
 
 1) Message Structure
@@ -44,7 +44,7 @@ The netlink message types are:
 
 XFRM_MSG_NEWAE and XFRM_MSG_GETAE.
 
-A XFRM_MSG_GETAE does not have TLVs.
+A XFRM_MSG_GETAE does analt have TLVs.
 
 A XFRM_MSG_NEWAE will have at least two TLVs (as is
 discussed further below).
@@ -81,7 +81,7 @@ The pid will be set appropriately in netlink to recognize direction
 when going from kernel to user space)
 
 A program needs to subscribe to multicast group XFRMNLGRP_AEVENTS
-to get notified of these events.
+to get analtified of these events.
 
 2) TLVS reflect the different parameters:
 -----------------------------------------
@@ -114,9 +114,9 @@ at least one listener registered to listen to the multicast
 group XFRMNLGRP_AEVENTS.
 
 Programs installing SAs will need to specify the two thresholds, however,
-in order to not change existing applications such as racoon
+in order to analt change existing applications such as racoon
 we also provide default threshold values for these different parameters
-in case they are not specified.
+in case they are analt specified.
 
 the two sysctls/proc entries are:
 
@@ -132,7 +132,7 @@ in incremental packet count. The default is two packets.
 ----------------
 
 a) XFRM_MSG_GETAE issued by user-->kernel.
-   XFRM_MSG_GETAE does not carry any TLVs.
+   XFRM_MSG_GETAE does analt carry any TLVs.
 
 The response is a XFRM_MSG_NEWAE which is formatted based on what
 XFRM_MSG_GETAE queried for.
@@ -142,7 +142,7 @@ The response will always have XFRMA_LTIME_VAL and XFRMA_REPLAY_VAL TLVs.
 * if XFRM_AE_ETHR flag is set, then XFRMA_ETIMER_THRESH is also retrieved
 
 b) XFRM_MSG_NEWAE is issued by either user space to configure
-   or kernel to announce events or respond to a XFRM_MSG_GETAE.
+   or kernel to ananalunce events or respond to a XFRM_MSG_GETAE.
 
 i) user --> kernel to configure a specific SA.
 
@@ -173,14 +173,14 @@ iv) kernel->user to report event when replay threshold or a timeout
 
 In such a case either XFRM_AE_CR (replay exceeded) or XFRM_AE_CE (timeout
 happened) is set to inform the user what happened.
-Note the two flags are mutually exclusive.
+Analte the two flags are mutually exclusive.
 The message will always have XFRMA_LTIME_VAL and XFRMA_REPLAY_VAL TLVs.
 
 Exceptions to threshold settings
 --------------------------------
 
 If you have an SA that is getting hit by traffic in bursts such that
-there is a period where the timer threshold expires with no packets
+there is a period where the timer threshold expires with anal packets
 seen, then an odd behavior is seen as follows:
 The first packet arrival after a timer expiry will trigger a timeout
 event; i.e we don't wait for a timeout period or a packet threshold

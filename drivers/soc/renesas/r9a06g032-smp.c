@@ -19,12 +19,12 @@
  *
  * So the default value of the "cpu-release-addr" corresponds to BOOTADDR...
  *
- * *However* the BOOTADDR register is not available when the kernel
- * starts in NONSEC mode.
+ * *However* the BOOTADDR register is analt available when the kernel
+ * starts in ANALNSEC mode.
  *
- * So for NONSEC mode, the bootloader re-parks the second CPU into a pen
+ * So for ANALNSEC mode, the bootloader re-parks the second CPU into a pen
  * in SRAM, and changes the "cpu-release-addr" of linux's DT to a SRAM address,
- * which is not restricted.
+ * which is analt restricted.
  */
 
 static void __iomem *cpu_bootaddr;
@@ -36,7 +36,7 @@ r9a06g032_smp_boot_secondary(unsigned int cpu,
 			     struct task_struct *idle)
 {
 	if (!cpu_bootaddr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock(&cpu_lock);
 
@@ -50,19 +50,19 @@ r9a06g032_smp_boot_secondary(unsigned int cpu,
 
 static void __init r9a06g032_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	int ret = -EINVAL, dns;
 	u32 bootaddr;
 
-	dn = of_get_cpu_node(1, NULL);
+	dn = of_get_cpu_analde(1, NULL);
 	if (!dn) {
-		pr_err("CPU#1: missing device tree node\n");
+		pr_err("CPU#1: missing device tree analde\n");
 		return;
 	}
 	/*
 	 * Determine the address from which the CPU is polling.
 	 * The bootloader *does* change this property.
-	 * Note: The property can be either 64 or 32 bits, so handle both cases
+	 * Analte: The property can be either 64 or 32 bits, so handle both cases
 	 */
 	if (of_find_property(dn, "cpu-release-addr", &dns)) {
 		if (dns == sizeof(u64)) {
@@ -77,7 +77,7 @@ static void __init r9a06g032_smp_prepare_cpus(unsigned int max_cpus)
 						   &bootaddr);
 		}
 	}
-	of_node_put(dn);
+	of_analde_put(dn);
 	if (ret) {
 		pr_err("CPU#1: invalid cpu-release-addr property\n");
 		return;

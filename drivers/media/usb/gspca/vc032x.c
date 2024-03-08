@@ -54,53 +54,53 @@ enum sensors {
 
 
 static const struct v4l2_pix_format vc0321_mode[] = {
-	{320, 240, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_YVYU, V4L2_FIELD_ANALNE,
 		.bytesperline = 320 * 2,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_YVYU, V4L2_FIELD_ANALNE,
 		.bytesperline = 640 * 2,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
 static const struct v4l2_pix_format vc0323_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
-	{1280, 960, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE, /* mi1310_soc only */
+	{1280, 960, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE, /* mi1310_soc only */
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 960 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
 };
 static const struct v4l2_pix_format bi_mode[] = {
-	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_ANALNE,
 		.bytesperline = 320 * 2,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_ANALNE,
 		.bytesperline = 640 * 2,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{1280, 1024, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_YUYV, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280 * 2,
 		.sizeimage = 1280 * 1024 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
 static const struct v4l2_pix_format svga_mode[] = {
-	{800, 600, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{800, 600, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 600 * 1 / 4 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -1796,7 +1796,7 @@ static const u8 ov7660_60HZ[][4] = {
 	{}
 };
 
-static const u8 ov7660_NoFlicker[][4] = {
+static const u8 ov7660_AnalFlicker[][4] = {
 	{0x00, 0x13, 0x87, 0xaa},
 	{}
 };
@@ -2882,7 +2882,7 @@ static const struct sensor_info vc0323_probe_data[] = {
 /* ?? */
 	{-1,		    0x80 | 0x56, 0x01, 0x0000, 0x64, 0x67, 0x01},
 	{SENSOR_MI1320_SOC, 0x80 | 0x48, 0x00, 0x148c, 0x64, 0x67, 0x01},
-/*fixme: not in the ms-win probe - may be found before? */
+/*fixme: analt in the ms-win probe - may be found before? */
 	{SENSOR_OV7670,     0x80 | 0x21, 0x0a, 0x7673, 0x66, 0x67, 0x05},
 };
 
@@ -3103,7 +3103,7 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 		switch (data[i][3]) {
 		default:
 			return;
-		case 0xcc:			/* normal write */
+		case 0xcc:			/* analrmal write */
 			reg_w(gspca_dev, 0xa0, data[i][2],
 					(data[i][0]) << 8 | data[i][1]);
 			break;
@@ -3119,7 +3119,7 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 		}
 		i++;
 	}
-	/*not reached*/
+	/*analt reached*/
 }
 
 
@@ -3134,7 +3134,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (id->idVendor == 0x046d &&
 	    (id->idProduct == 0x0892 || id->idProduct == 0x0896))
-		sd->sensor = SENSOR_POxxxx;	/* no probe */
+		sd->sensor = SENSOR_POxxxx;	/* anal probe */
 
 	return 0;
 }
@@ -3166,7 +3166,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	switch (sensor) {
 	case -1:
-		pr_err("Unknown sensor...\n");
+		pr_err("Unkanalwn sensor...\n");
 		return -EINVAL;
 	case SENSOR_HV7131R:
 		gspca_dbg(gspca_dev, D_PROBE, "Find Sensor HV7131R\n");
@@ -3320,7 +3320,7 @@ static void setlightfreq(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	static const u8 (*ov7660_freq_tb[3])[4] = {
-		ov7660_NoFlicker, ov7660_50HZ, ov7660_60HZ};
+		ov7660_AnalFlicker, ov7660_50HZ, ov7660_60HZ};
 
 	if (sd->sensor != SENSOR_OV7660)
 		return;
@@ -3633,7 +3633,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 
 	/* The vc0321 sends some additional data after sending the complete
-	 * frame, we ignore this. */
+	 * frame, we iganalre this. */
 	if (sd->bridge == BRIDGE_VC0321) {
 		int size, l;
 
@@ -3773,7 +3773,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_BACKLIGHT_COMPENSATION, 0, 15, 1, 15);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	if (sd->hflip)

@@ -40,8 +40,8 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 			}
 		else
 			switch (card->options.sbp.role) {
-			case QETH_SBP_ROLE_NONE:
-				word = "none"; break;
+			case QETH_SBP_ROLE_ANALNE:
+				word = "analne"; break;
 			case QETH_SBP_ROLE_PRIMARY:
 				word = "primary"; break;
 			case QETH_SBP_ROLE_SECONDARY:
@@ -82,8 +82,8 @@ static ssize_t qeth_bridge_port_role_store(struct device *dev,
 		role = QETH_SBP_ROLE_PRIMARY;
 	else if (sysfs_streq(buf, "secondary"))
 		role = QETH_SBP_ROLE_SECONDARY;
-	else if (sysfs_streq(buf, "none"))
-		role = QETH_SBP_ROLE_NONE;
+	else if (sysfs_streq(buf, "analne"))
+		role = QETH_SBP_ROLE_ANALNE;
 	else
 		return -EINVAL;
 
@@ -125,7 +125,7 @@ static ssize_t qeth_bridge_port_state_show(struct device *dev,
 static DEVICE_ATTR(bridge_state, 0444, qeth_bridge_port_state_show,
 		   NULL);
 
-static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
+static ssize_t qeth_bridgeport_hostanaltification_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
@@ -134,12 +134,12 @@ static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
 	if (!qeth_bridgeport_allowed(card))
 		return sysfs_emit(buf, "n/a (VNIC characteristics)\n");
 
-	enabled = card->options.sbp.hostnotification;
+	enabled = card->options.sbp.hostanaltification;
 
 	return sysfs_emit(buf, "%d\n", enabled);
 }
 
-static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
+static ssize_t qeth_bridgeport_hostanaltification_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
@@ -157,11 +157,11 @@ static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
 		rc = -EBUSY;
 	else if (qeth_card_hw_is_reachable(card)) {
 		rc = qeth_bridgeport_an_set(card, enable);
-		/* sbp_lock ensures ordering vs notifications-stopped events */
+		/* sbp_lock ensures ordering vs analtifications-stopped events */
 		if (!rc)
-			card->options.sbp.hostnotification = enable;
+			card->options.sbp.hostanaltification = enable;
 	} else
-		card->options.sbp.hostnotification = enable;
+		card->options.sbp.hostanaltification = enable;
 
 	mutex_unlock(&card->sbp_lock);
 	mutex_unlock(&card->conf_mutex);
@@ -169,9 +169,9 @@ static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
 	return rc ? rc : count;
 }
 
-static DEVICE_ATTR(bridge_hostnotify, 0644,
-			qeth_bridgeport_hostnotification_show,
-			qeth_bridgeport_hostnotification_store);
+static DEVICE_ATTR(bridge_hostanaltify, 0644,
+			qeth_bridgeport_hostanaltification_show,
+			qeth_bridgeport_hostanaltification_store);
 
 static ssize_t qeth_bridgeport_reflect_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -188,7 +188,7 @@ static ssize_t qeth_bridgeport_reflect_show(struct device *dev,
 		else
 			state = "secondary";
 	} else
-		state = "none";
+		state = "analne";
 
 	return sysfs_emit(buf, "%s\n", state);
 }
@@ -200,7 +200,7 @@ static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
 	int enable, primary;
 	int rc = 0;
 
-	if (sysfs_streq(buf, "none")) {
+	if (sysfs_streq(buf, "analne")) {
 		enable = 0;
 		primary = 0;
 	} else if (sysfs_streq(buf, "primary")) {
@@ -217,7 +217,7 @@ static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
 
 	if (!qeth_bridgeport_allowed(card))
 		rc = -EBUSY;
-	else if (card->options.sbp.role != QETH_SBP_ROLE_NONE)
+	else if (card->options.sbp.role != QETH_SBP_ROLE_ANALNE)
 		rc = -EPERM;
 	else {
 		card->options.sbp.reflect_promisc = enable;
@@ -238,7 +238,7 @@ static DEVICE_ATTR(bridge_reflect_promisc, 0644,
 static struct attribute *qeth_l2_bridgeport_attrs[] = {
 	&dev_attr_bridge_role.attr,
 	&dev_attr_bridge_state.attr,
-	&dev_attr_bridge_hostnotify.attr,
+	&dev_attr_bridge_hostanaltify.attr,
 	&dev_attr_bridge_reflect_promisc.attr,
 	NULL,
 };
@@ -281,7 +281,7 @@ static ssize_t qeth_vnicc_timeout_show(struct device *dev,
 	rc = qeth_l2_vnicc_get_timeout(card, &timeout);
 	if (rc == -EBUSY)
 		return sysfs_emit(buf, "n/a (BridgePort)\n");
-	if (rc == -EOPNOTSUPP)
+	if (rc == -EOPANALTSUPP)
 		return sysfs_emit(buf, "n/a\n");
 	return rc ? rc : sysfs_emit(buf, "%d\n", timeout);
 }
@@ -319,7 +319,7 @@ static ssize_t qeth_vnicc_char_show(struct device *dev,
 
 	if (rc == -EBUSY)
 		return sysfs_emit(buf, "n/a (BridgePort)\n");
-	if (rc == -EOPNOTSUPP)
+	if (rc == -EOPANALTSUPP)
 		return sysfs_emit(buf, "n/a\n");
 	return rc ? rc : sysfs_emit(buf, "%d\n", state);
 }

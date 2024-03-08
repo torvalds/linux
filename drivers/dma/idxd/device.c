@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/dmaengine.h>
 #include <linux/irq.h>
 #include <uapi/linux/idxd.h>
@@ -52,19 +52,19 @@ static int alloc_hw_descs(struct idxd_wq *wq, int num)
 {
 	struct device *dev = &wq->idxd->pdev->dev;
 	int i;
-	int node = dev_to_node(dev);
+	int analde = dev_to_analde(dev);
 
-	wq->hw_descs = kcalloc_node(num, sizeof(struct dsa_hw_desc *),
-				    GFP_KERNEL, node);
+	wq->hw_descs = kcalloc_analde(num, sizeof(struct dsa_hw_desc *),
+				    GFP_KERNEL, analde);
 	if (!wq->hw_descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
-		wq->hw_descs[i] = kzalloc_node(sizeof(*wq->hw_descs[i]),
-					       GFP_KERNEL, node);
+		wq->hw_descs[i] = kzalloc_analde(sizeof(*wq->hw_descs[i]),
+					       GFP_KERNEL, analde);
 		if (!wq->hw_descs[i]) {
 			free_hw_descs(wq);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -85,19 +85,19 @@ static int alloc_descs(struct idxd_wq *wq, int num)
 {
 	struct device *dev = &wq->idxd->pdev->dev;
 	int i;
-	int node = dev_to_node(dev);
+	int analde = dev_to_analde(dev);
 
-	wq->descs = kcalloc_node(num, sizeof(struct idxd_desc *),
-				 GFP_KERNEL, node);
+	wq->descs = kcalloc_analde(num, sizeof(struct idxd_desc *),
+				 GFP_KERNEL, analde);
 	if (!wq->descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
-		wq->descs[i] = kzalloc_node(sizeof(*wq->descs[i]),
-					    GFP_KERNEL, node);
+		wq->descs[i] = kzalloc_analde(sizeof(*wq->descs[i]),
+					    GFP_KERNEL, analde);
 		if (!wq->descs[i]) {
 			free_descs(wq);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -124,7 +124,7 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	wq->compls_size = num_descs * idxd->data->compl_size;
 	wq->compls = dma_alloc_coherent(dev, wq->compls_size, &wq->compls_addr, GFP_KERNEL);
 	if (!wq->compls) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_alloc_compls;
 	}
 
@@ -132,8 +132,8 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	if (rc < 0)
 		goto fail_alloc_descs;
 
-	rc = sbitmap_queue_init_node(&wq->sbq, num_descs, -1, false, GFP_KERNEL,
-				     dev_to_node(dev));
+	rc = sbitmap_queue_init_analde(&wq->sbq, num_descs, -1, false, GFP_KERNEL,
+				     dev_to_analde(dev));
 	if (rc < 0)
 		goto fail_sbitmap_init;
 
@@ -275,7 +275,7 @@ int idxd_wq_map_portal(struct idxd_wq *wq)
 
 	wq->portal = devm_ioremap(dev, start, IDXD_PORTAL_SIZE);
 	if (!wq->portal)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -367,7 +367,7 @@ static void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	lockdep_assert_held(&wq->wq_lock);
 	wq->state = IDXD_WQ_DISABLED;
 	memset(wq->wqcfg, 0, idxd->wqcfg_size);
-	wq->type = IDXD_WQT_NONE;
+	wq->type = IDXD_WQT_ANALNE;
 	wq->threshold = 0;
 	wq->priority = 0;
 	wq->enqcmds_retries = IDXD_ENQCMDS_RETRIES;
@@ -556,7 +556,7 @@ int idxd_device_disable(struct idxd_device *idxd)
 	u32 status;
 
 	if (!idxd_is_enabled(idxd)) {
-		dev_dbg(dev, "Device is not enabled\n");
+		dev_dbg(dev, "Device is analt enabled\n");
 		return 0;
 	}
 
@@ -600,7 +600,7 @@ int idxd_device_request_int_handle(struct idxd_device *idxd, int idx, int *handl
 	u32 operand, status;
 
 	if (!(idxd->hw.cmd_cap & BIT(IDXD_CMD_REQUEST_INT_HANDLE)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev_dbg(dev, "get int handle, idx %d\n", idx);
 
@@ -631,7 +631,7 @@ int idxd_device_release_int_handle(struct idxd_device *idxd, int handle,
 	union idxd_command_reg cmd;
 
 	if (!(idxd->hw.cmd_cap & BIT(IDXD_CMD_RELEASE_INT_HANDLE)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev_dbg(dev, "release int handle, handle %d\n", handle);
 
@@ -726,7 +726,7 @@ void idxd_device_clear_state(struct idxd_device *idxd)
 	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags)) {
 		/*
 		 * Clearing wq state is protected by wq lock.
-		 * So no need to be protected by device lock.
+		 * So anal need to be protected by device lock.
 		 */
 		idxd_device_wqs_clear_state(idxd);
 
@@ -761,17 +761,17 @@ static int idxd_device_evl_setup(struct idxd_device *idxd)
 
 	bmap = bitmap_zalloc(size, GFP_KERNEL);
 	if (!bmap) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_bmap;
 	}
 
 	/*
 	 * Address needs to be page aligned. However, dma_alloc_coherent() provides
-	 * at minimal page size aligned address. No manual alignment required.
+	 * at minimal page size aligned address. Anal manual alignment required.
 	 */
 	addr = dma_alloc_coherent(dev, size, &dma_addr, GFP_KERNEL);
 	if (!addr) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -927,7 +927,7 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 		wq->wqcfg->bits[i] |= ioread32(idxd->reg_base + wq_offset);
 	}
 
-	if (wq->size == 0 && wq->type != IDXD_WQT_NONE)
+	if (wq->size == 0 && wq->type != IDXD_WQT_ANALNE)
 		wq->size = WQ_DEFAULT_QUEUE_DEPTH;
 
 	/* byte 0-3 */
@@ -948,14 +948,14 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	 * Privileged Mode Enable field of the PCI Express PASID capability
 	 * is 0, this field must be 0.
 	 *
-	 * In the case of a dedicated kernel WQ that is not able to support
+	 * In the case of a dedicated kernel WQ that is analt able to support
 	 * the PASID cap, then the configuration will be rejected.
 	 */
 	if (wq_dedicated(wq) && wq->wqcfg->pasid_en &&
 	    !idxd_device_pasid_priv_enabled(idxd) &&
 	    wq->type == IDXD_WQT_KERNEL) {
-		idxd->cmd_status = IDXD_SCMD_WQ_NO_PRIV;
-		return -EOPNOTSUPP;
+		idxd->cmd_status = IDXD_SCMD_WQ_ANAL_PRIV;
+		return -EOPANALTSUPP;
 	}
 
 	wq->wqcfg->priority = wq->priority;
@@ -1086,8 +1086,8 @@ static int idxd_wqs_setup(struct idxd_device *idxd)
 			continue;
 
 		if (wq_shared(wq) && !wq_shared_supported(wq)) {
-			idxd->cmd_status = IDXD_SCMD_WQ_NO_SWQ_SUPPORT;
-			dev_warn(dev, "No shared wq support but configured.\n");
+			idxd->cmd_status = IDXD_SCMD_WQ_ANAL_SWQ_SUPPORT;
+			dev_warn(dev, "Anal shared wq support but configured.\n");
 			return -EINVAL;
 		}
 
@@ -1096,7 +1096,7 @@ static int idxd_wqs_setup(struct idxd_device *idxd)
 	}
 
 	if (configured == 0) {
-		idxd->cmd_status = IDXD_SCMD_WQ_NONE_CONFIGURED;
+		idxd->cmd_status = IDXD_SCMD_WQ_ANALNE_CONFIGURED;
 		return -EINVAL;
 	}
 
@@ -1142,9 +1142,9 @@ static int idxd_wq_load_config(struct idxd_wq *wq)
 	wq->size = wq->wqcfg->wq_size;
 	wq->threshold = wq->wqcfg->wq_thresh;
 
-	/* The driver does not support shared WQ mode in read-only config yet */
+	/* The driver does analt support shared WQ mode in read-only config yet */
 	if (wq->wqcfg->mode == 0 || wq->wqcfg->pasid_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	set_bit(WQ_FLAG_DEDICATED, &wq->flags);
 
@@ -1186,7 +1186,7 @@ static void idxd_group_load_config(struct idxd_group *group)
 		for (j = 0; j < 64; j++) {
 			int id = i * 64 + j;
 
-			/* No need to check beyond max wqs */
+			/* Anal need to check beyond max wqs */
 			if (id >= idxd->max_wqs)
 				break;
 
@@ -1249,14 +1249,14 @@ int idxd_device_load_config(struct idxd_device *idxd)
 static void idxd_flush_pending_descs(struct idxd_irq_entry *ie)
 {
 	struct idxd_desc *desc, *itr;
-	struct llist_node *head;
+	struct llist_analde *head;
 	LIST_HEAD(flist);
 	enum idxd_complete_type ctype;
 
 	spin_lock(&ie->list_lock);
 	head = llist_del_all(&ie->pending_llist);
 	if (head) {
-		llist_for_each_entry_safe(desc, itr, head, llnode)
+		llist_for_each_entry_safe(desc, itr, head, llanalde)
 			list_add_tail(&desc->list, &ie->work_list);
 	}
 
@@ -1268,11 +1268,11 @@ static void idxd_flush_pending_descs(struct idxd_irq_entry *ie)
 		struct dma_async_tx_descriptor *tx;
 
 		list_del(&desc->list);
-		ctype = desc->completion->status ? IDXD_COMPLETE_NORMAL : IDXD_COMPLETE_ABORT;
+		ctype = desc->completion->status ? IDXD_COMPLETE_ANALRMAL : IDXD_COMPLETE_ABORT;
 		/*
 		 * wq is being disabled. Any remaining descriptors are
 		 * likely to be stuck and can be dropped. callback could
-		 * point to code that is no longer accessible, for example
+		 * point to code that is anal longer accessible, for example
 		 * if dmatest module has been unloaded.
 		 */
 		tx = &desc->txd;
@@ -1371,7 +1371,7 @@ int idxd_drv_enable_wq(struct idxd_wq *wq)
 	lockdep_assert_held(&wq->wq_lock);
 
 	if (idxd->state != IDXD_DEV_ENABLED) {
-		idxd->cmd_status = IDXD_SCMD_DEV_NOT_ENABLED;
+		idxd->cmd_status = IDXD_SCMD_DEV_ANALT_ENABLED;
 		goto err;
 	}
 
@@ -1383,34 +1383,34 @@ int idxd_drv_enable_wq(struct idxd_wq *wq)
 	}
 
 	if (!wq->group) {
-		dev_dbg(dev, "wq %d not attached to group.\n", wq->id);
-		idxd->cmd_status = IDXD_SCMD_WQ_NO_GRP;
+		dev_dbg(dev, "wq %d analt attached to group.\n", wq->id);
+		idxd->cmd_status = IDXD_SCMD_WQ_ANAL_GRP;
 		goto err;
 	}
 
 	if (strlen(wq->name) == 0) {
-		idxd->cmd_status = IDXD_SCMD_WQ_NO_NAME;
-		dev_dbg(dev, "wq %d name not set.\n", wq->id);
+		idxd->cmd_status = IDXD_SCMD_WQ_ANAL_NAME;
+		dev_dbg(dev, "wq %d name analt set.\n", wq->id);
 		goto err;
 	}
 
 	/* Shared WQ checks */
 	if (wq_shared(wq)) {
 		if (!wq_shared_supported(wq)) {
-			idxd->cmd_status = IDXD_SCMD_WQ_NO_SVM;
-			dev_dbg(dev, "PASID not enabled and shared wq.\n");
+			idxd->cmd_status = IDXD_SCMD_WQ_ANAL_SVM;
+			dev_dbg(dev, "PASID analt enabled and shared wq.\n");
 			goto err;
 		}
 		/*
 		 * Shared wq with the threshold set to 0 means the user
-		 * did not set the threshold or transitioned from a
-		 * dedicated wq but did not set threshold. A value
+		 * did analt set the threshold or transitioned from a
+		 * dedicated wq but did analt set threshold. A value
 		 * of 0 would effectively disable the shared wq. The
-		 * driver does not allow a value of 0 to be set for
+		 * driver does analt allow a value of 0 to be set for
 		 * threshold via sysfs.
 		 */
 		if (wq->threshold == 0) {
-			idxd->cmd_status = IDXD_SCMD_WQ_NO_THRESH;
+			idxd->cmd_status = IDXD_SCMD_WQ_ANAL_THRESH;
 			dev_dbg(dev, "Shared wq and threshold 0.\n");
 			goto err;
 		}
@@ -1419,10 +1419,10 @@ int idxd_drv_enable_wq(struct idxd_wq *wq)
 	/*
 	 * In the event that the WQ is configurable for pasid, the driver
 	 * should setup the pasid, pasid_en bit. This is true for both kernel
-	 * and user shared workqueues. There is no need to setup priv bit in
+	 * and user shared workqueues. There is anal need to setup priv bit in
 	 * that in-kernel DMA will also do user privileged requests.
-	 * A dedicated wq that is not 'kernel' type will configure pasid and
-	 * pasid_en later on so there is no need to setup.
+	 * A dedicated wq that is analt 'kernel' type will configure pasid and
+	 * pasid_en later on so there is anal need to setup.
 	 */
 	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags)) {
 		if (wq_pasid_enabled(wq)) {
@@ -1513,7 +1513,7 @@ void idxd_drv_disable_wq(struct idxd_wq *wq)
 	idxd_wq_reset(wq);
 	idxd_wq_free_resources(wq);
 	percpu_ref_exit(&wq->wq_active);
-	wq->type = IDXD_WQT_NONE;
+	wq->type = IDXD_WQT_ANALNE;
 	wq->client_count = 0;
 }
 EXPORT_SYMBOL_NS_GPL(idxd_drv_disable_wq, IDXD);
@@ -1602,7 +1602,7 @@ void idxd_device_drv_remove(struct idxd_dev *idxd_dev)
 static enum idxd_dev_type dev_types[] = {
 	IDXD_DEV_DSA,
 	IDXD_DEV_IAX,
-	IDXD_DEV_NONE,
+	IDXD_DEV_ANALNE,
 };
 
 struct idxd_device_driver idxd_drv = {

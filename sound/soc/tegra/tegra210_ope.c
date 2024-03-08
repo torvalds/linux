@@ -166,7 +166,7 @@ static struct snd_soc_dai_driver tegra210_ope_dais[] = {
 };
 
 static const struct snd_soc_dapm_widget tegra210_ope_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("RX", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX", NULL, 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("TX", NULL, 0, TEGRA210_OPE_ENABLE,
 			     TEGRA210_OPE_EN_SHIFT, 0),
 };
@@ -304,7 +304,7 @@ static int tegra210_ope_probe(struct platform_device *pdev)
 
 	ope = devm_kzalloc(dev, sizeof(*ope), GFP_KERNEL);
 	if (!ope)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))

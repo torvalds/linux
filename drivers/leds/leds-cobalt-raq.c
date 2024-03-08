@@ -74,7 +74,7 @@ static int cobalt_raq_led_probe(struct platform_device *pdev)
 
 	led_port = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!led_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = led_classdev_register(&pdev->dev, &raq_power_off_led);
 	if (retval)

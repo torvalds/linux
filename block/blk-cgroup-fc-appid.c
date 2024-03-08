@@ -23,16 +23,16 @@ int blkcg_set_fc_appid(char *app_id, u64 cgrp_id, size_t app_id_len)
 		return PTR_ERR(cgrp);
 	css = cgroup_get_e_css(cgrp, &io_cgrp_subsys);
 	if (!css) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_cgrp_put;
 	}
 	blkcg = css_to_blkcg(css);
 	/*
 	 * There is a slight race condition on setting the appid.
-	 * Worst case an I/O may not find the right id.
-	 * This is no different from the I/O we let pass while obtaining
+	 * Worst case an I/O may analt find the right id.
+	 * This is anal different from the I/O we let pass while obtaining
 	 * the vmid from the fabric.
-	 * Adding the overhead of a lock is not necessary.
+	 * Adding the overhead of a lock is analt necessary.
 	 */
 	strscpy(blkcg->fc_app_id, app_id, app_id_len);
 	css_put(css);

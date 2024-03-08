@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -680,8 +680,8 @@ union cvmx_lmcx_control {
 		uint64_t max_write_batch:4;
 		uint64_t nxm_write_en:1;
 		uint64_t elev_prio_dis:1;
-		uint64_t inorder_wr:1;
-		uint64_t inorder_rd:1;
+		uint64_t ianalrder_wr:1;
+		uint64_t ianalrder_rd:1;
 		uint64_t throttle_wr:1;
 		uint64_t throttle_rd:1;
 		uint64_t fprch2:2;
@@ -697,8 +697,8 @@ union cvmx_lmcx_control {
 		uint64_t fprch2:2;
 		uint64_t throttle_rd:1;
 		uint64_t throttle_wr:1;
-		uint64_t inorder_rd:1;
-		uint64_t inorder_wr:1;
+		uint64_t ianalrder_rd:1;
+		uint64_t ianalrder_wr:1;
 		uint64_t elev_prio_dis:1;
 		uint64_t nxm_write_en:1;
 		uint64_t max_write_batch:4;
@@ -731,8 +731,8 @@ union cvmx_lmcx_control {
 		uint64_t max_write_batch:4;
 		uint64_t nxm_write_en:1;
 		uint64_t elev_prio_dis:1;
-		uint64_t inorder_wr:1;
-		uint64_t inorder_rd:1;
+		uint64_t ianalrder_wr:1;
+		uint64_t ianalrder_rd:1;
 		uint64_t throttle_wr:1;
 		uint64_t throttle_rd:1;
 		uint64_t fprch2:2;
@@ -748,8 +748,8 @@ union cvmx_lmcx_control {
 		uint64_t fprch2:2;
 		uint64_t throttle_rd:1;
 		uint64_t throttle_wr:1;
-		uint64_t inorder_rd:1;
-		uint64_t inorder_wr:1;
+		uint64_t ianalrder_rd:1;
+		uint64_t ianalrder_wr:1;
 		uint64_t elev_prio_dis:1;
 		uint64_t nxm_write_en:1;
 		uint64_t max_write_batch:4;
@@ -777,8 +777,8 @@ union cvmx_lmcx_control {
 		uint64_t max_write_batch:4;
 		uint64_t nxm_write_en:1;
 		uint64_t elev_prio_dis:1;
-		uint64_t inorder_wr:1;
-		uint64_t inorder_rd:1;
+		uint64_t ianalrder_wr:1;
+		uint64_t ianalrder_rd:1;
 		uint64_t throttle_wr:1;
 		uint64_t throttle_rd:1;
 		uint64_t fprch2:2;
@@ -794,8 +794,8 @@ union cvmx_lmcx_control {
 		uint64_t fprch2:2;
 		uint64_t throttle_rd:1;
 		uint64_t throttle_wr:1;
-		uint64_t inorder_rd:1;
-		uint64_t inorder_wr:1;
+		uint64_t ianalrder_rd:1;
+		uint64_t ianalrder_wr:1;
 		uint64_t elev_prio_dis:1;
 		uint64_t nxm_write_en:1;
 		uint64_t max_write_batch:4;
@@ -829,8 +829,8 @@ union cvmx_lmcx_control {
 		uint64_t max_write_batch:4;
 		uint64_t nxm_write_en:1;
 		uint64_t elev_prio_dis:1;
-		uint64_t inorder_wr:1;
-		uint64_t inorder_rd:1;
+		uint64_t ianalrder_wr:1;
+		uint64_t ianalrder_rd:1;
 		uint64_t throttle_wr:1;
 		uint64_t throttle_rd:1;
 		uint64_t fprch2:2;
@@ -846,8 +846,8 @@ union cvmx_lmcx_control {
 		uint64_t fprch2:2;
 		uint64_t throttle_rd:1;
 		uint64_t throttle_wr:1;
-		uint64_t inorder_rd:1;
-		uint64_t inorder_wr:1;
+		uint64_t ianalrder_rd:1;
+		uint64_t ianalrder_wr:1;
 		uint64_t elev_prio_dis:1;
 		uint64_t nxm_write_en:1;
 		uint64_t max_write_batch:4;
@@ -883,8 +883,8 @@ union cvmx_lmcx_ctl {
 		uint64_t pll_bypass:1;
 		uint64_t rdimm_ena:1;
 		uint64_t r2r_slot:1;
-		uint64_t inorder_mwf:1;
-		uint64_t inorder_mrf:1;
+		uint64_t ianalrder_mwf:1;
+		uint64_t ianalrder_mrf:1;
 		uint64_t reserved_10_11:2;
 		uint64_t fprch2:1;
 		uint64_t bprch:1;
@@ -900,8 +900,8 @@ union cvmx_lmcx_ctl {
 		uint64_t bprch:1;
 		uint64_t fprch2:1;
 		uint64_t reserved_10_11:2;
-		uint64_t inorder_mrf:1;
-		uint64_t inorder_mwf:1;
+		uint64_t ianalrder_mrf:1;
+		uint64_t ianalrder_mwf:1;
 		uint64_t r2r_slot:1;
 		uint64_t rdimm_ena:1;
 		uint64_t pll_bypass:1;
@@ -926,8 +926,8 @@ union cvmx_lmcx_ctl {
 		uint64_t pll_bypass:1;
 		uint64_t rdimm_ena:1;
 		uint64_t r2r_slot:1;
-		uint64_t inorder_mwf:1;
-		uint64_t inorder_mrf:1;
+		uint64_t ianalrder_mwf:1;
+		uint64_t ianalrder_mrf:1;
 		uint64_t dreset:1;
 		uint64_t mode32b:1;
 		uint64_t fprch2:1;
@@ -945,8 +945,8 @@ union cvmx_lmcx_ctl {
 		uint64_t fprch2:1;
 		uint64_t mode32b:1;
 		uint64_t dreset:1;
-		uint64_t inorder_mrf:1;
-		uint64_t inorder_mwf:1;
+		uint64_t ianalrder_mrf:1;
+		uint64_t ianalrder_mwf:1;
 		uint64_t r2r_slot:1;
 		uint64_t rdimm_ena:1;
 		uint64_t pll_bypass:1;
@@ -970,8 +970,8 @@ union cvmx_lmcx_ctl {
 		uint64_t reserved_16_17:2;
 		uint64_t rdimm_ena:1;
 		uint64_t r2r_slot:1;
-		uint64_t inorder_mwf:1;
-		uint64_t inorder_mrf:1;
+		uint64_t ianalrder_mwf:1;
+		uint64_t ianalrder_mrf:1;
 		uint64_t set_zero:1;
 		uint64_t mode128b:1;
 		uint64_t fprch2:1;
@@ -989,8 +989,8 @@ union cvmx_lmcx_ctl {
 		uint64_t fprch2:1;
 		uint64_t mode128b:1;
 		uint64_t set_zero:1;
-		uint64_t inorder_mrf:1;
-		uint64_t inorder_mwf:1;
+		uint64_t ianalrder_mrf:1;
+		uint64_t ianalrder_mwf:1;
 		uint64_t r2r_slot:1;
 		uint64_t rdimm_ena:1;
 		uint64_t reserved_16_17:2;
@@ -1014,8 +1014,8 @@ union cvmx_lmcx_ctl {
 		uint64_t pll_bypass:1;
 		uint64_t rdimm_ena:1;
 		uint64_t r2r_slot:1;
-		uint64_t inorder_mwf:1;
-		uint64_t inorder_mrf:1;
+		uint64_t ianalrder_mwf:1;
+		uint64_t ianalrder_mrf:1;
 		uint64_t dreset:1;
 		uint64_t mode32b:1;
 		uint64_t fprch2:1;
@@ -1033,8 +1033,8 @@ union cvmx_lmcx_ctl {
 		uint64_t fprch2:1;
 		uint64_t mode32b:1;
 		uint64_t dreset:1;
-		uint64_t inorder_mrf:1;
-		uint64_t inorder_mwf:1;
+		uint64_t ianalrder_mrf:1;
+		uint64_t ianalrder_mwf:1;
 		uint64_t r2r_slot:1;
 		uint64_t rdimm_ena:1;
 		uint64_t pll_bypass:1;
@@ -1058,8 +1058,8 @@ union cvmx_lmcx_ctl {
 		uint64_t reserved_16_17:2;
 		uint64_t rdimm_ena:1;
 		uint64_t r2r_slot:1;
-		uint64_t inorder_mwf:1;
-		uint64_t inorder_mrf:1;
+		uint64_t ianalrder_mwf:1;
+		uint64_t ianalrder_mrf:1;
 		uint64_t dreset:1;
 		uint64_t mode32b:1;
 		uint64_t fprch2:1;
@@ -1077,8 +1077,8 @@ union cvmx_lmcx_ctl {
 		uint64_t fprch2:1;
 		uint64_t mode32b:1;
 		uint64_t dreset:1;
-		uint64_t inorder_mrf:1;
-		uint64_t inorder_mwf:1;
+		uint64_t ianalrder_mrf:1;
+		uint64_t ianalrder_mwf:1;
 		uint64_t r2r_slot:1;
 		uint64_t rdimm_ena:1;
 		uint64_t reserved_16_17:2;
@@ -1101,8 +1101,8 @@ union cvmx_lmcx_ctl {
 		uint64_t reserved_16_17:2;
 		uint64_t rdimm_ena:1;
 		uint64_t r2r_slot:1;
-		uint64_t inorder_mwf:1;
-		uint64_t inorder_mrf:1;
+		uint64_t ianalrder_mwf:1;
+		uint64_t ianalrder_mrf:1;
 		uint64_t dreset:1;
 		uint64_t mode128b:1;
 		uint64_t fprch2:1;
@@ -1120,8 +1120,8 @@ union cvmx_lmcx_ctl {
 		uint64_t fprch2:1;
 		uint64_t mode128b:1;
 		uint64_t dreset:1;
-		uint64_t inorder_mrf:1;
-		uint64_t inorder_mwf:1;
+		uint64_t ianalrder_mrf:1;
+		uint64_t ianalrder_mwf:1;
 		uint64_t r2r_slot:1;
 		uint64_t rdimm_ena:1;
 		uint64_t reserved_16_17:2;
@@ -1916,25 +1916,25 @@ union cvmx_lmcx_modereg_params1 {
 	struct cvmx_lmcx_modereg_params1_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_48_63:16;
-		uint64_t rtt_nom_11:3;
+		uint64_t rtt_analm_11:3;
 		uint64_t dic_11:2;
 		uint64_t rtt_wr_11:2;
 		uint64_t srt_11:1;
 		uint64_t asr_11:1;
 		uint64_t pasr_11:3;
-		uint64_t rtt_nom_10:3;
+		uint64_t rtt_analm_10:3;
 		uint64_t dic_10:2;
 		uint64_t rtt_wr_10:2;
 		uint64_t srt_10:1;
 		uint64_t asr_10:1;
 		uint64_t pasr_10:3;
-		uint64_t rtt_nom_01:3;
+		uint64_t rtt_analm_01:3;
 		uint64_t dic_01:2;
 		uint64_t rtt_wr_01:2;
 		uint64_t srt_01:1;
 		uint64_t asr_01:1;
 		uint64_t pasr_01:3;
-		uint64_t rtt_nom_00:3;
+		uint64_t rtt_analm_00:3;
 		uint64_t dic_00:2;
 		uint64_t rtt_wr_00:2;
 		uint64_t srt_00:1;
@@ -1946,25 +1946,25 @@ union cvmx_lmcx_modereg_params1 {
 		uint64_t srt_00:1;
 		uint64_t rtt_wr_00:2;
 		uint64_t dic_00:2;
-		uint64_t rtt_nom_00:3;
+		uint64_t rtt_analm_00:3;
 		uint64_t pasr_01:3;
 		uint64_t asr_01:1;
 		uint64_t srt_01:1;
 		uint64_t rtt_wr_01:2;
 		uint64_t dic_01:2;
-		uint64_t rtt_nom_01:3;
+		uint64_t rtt_analm_01:3;
 		uint64_t pasr_10:3;
 		uint64_t asr_10:1;
 		uint64_t srt_10:1;
 		uint64_t rtt_wr_10:2;
 		uint64_t dic_10:2;
-		uint64_t rtt_nom_10:3;
+		uint64_t rtt_analm_10:3;
 		uint64_t pasr_11:3;
 		uint64_t asr_11:1;
 		uint64_t srt_11:1;
 		uint64_t rtt_wr_11:2;
 		uint64_t dic_11:2;
-		uint64_t rtt_nom_11:3;
+		uint64_t rtt_analm_11:3;
 		uint64_t reserved_48_63:16;
 #endif
 	} s;
@@ -2774,7 +2774,7 @@ union cvmx_lmcx_wlevel_ctl {
 	struct cvmx_lmcx_wlevel_ctl_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_22_63:42;
-		uint64_t rtt_nom:3;
+		uint64_t rtt_analm:3;
 		uint64_t bitmask:8;
 		uint64_t or_dis:1;
 		uint64_t sset:1;
@@ -2784,7 +2784,7 @@ union cvmx_lmcx_wlevel_ctl {
 		uint64_t sset:1;
 		uint64_t or_dis:1;
 		uint64_t bitmask:8;
-		uint64_t rtt_nom:3;
+		uint64_t rtt_analm:3;
 		uint64_t reserved_22_63:42;
 #endif
 	} s;

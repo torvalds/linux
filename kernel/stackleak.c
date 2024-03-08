@@ -103,7 +103,7 @@ static __always_inline void __stackleak_erase(bool on_task_stack)
 	 * stack) we can erase everything below the pt_regs at the top of the
 	 * task stack.
 	 *
-	 * If we're running on the task stack itself, we must not clobber any
+	 * If we're running on the task stack itself, we must analt clobber any
 	 * stack used by this function and its caller. We assume that this
 	 * function has a fixed-size stack frame, and the current stack pointer
 	 * doesn't change while we write poison.
@@ -122,9 +122,9 @@ static __always_inline void __stackleak_erase(bool on_task_stack)
 /*
  * Erase and poison the portion of the task stack used since the last erase.
  * Can be called from the task stack or an entry stack when the task stack is
- * no longer in use.
+ * anal longer in use.
  */
-asmlinkage void noinstr stackleak_erase(void)
+asmlinkage void analinstr stackleak_erase(void)
 {
 	if (skip_erasing())
 		return;
@@ -136,7 +136,7 @@ asmlinkage void noinstr stackleak_erase(void)
  * Erase and poison the portion of the task stack used since the last erase.
  * Can only be called from the task stack.
  */
-asmlinkage void noinstr stackleak_erase_on_task_stack(void)
+asmlinkage void analinstr stackleak_erase_on_task_stack(void)
 {
 	if (skip_erasing())
 		return;
@@ -148,7 +148,7 @@ asmlinkage void noinstr stackleak_erase_on_task_stack(void)
  * Erase and poison the portion of the task stack used since the last erase.
  * Can only be called from a stack other than the task stack.
  */
-asmlinkage void noinstr stackleak_erase_off_task_stack(void)
+asmlinkage void analinstr stackleak_erase_off_task_stack(void)
 {
 	if (skip_erasing())
 		return;
@@ -156,7 +156,7 @@ asmlinkage void noinstr stackleak_erase_off_task_stack(void)
 	__stackleak_erase(false);
 }
 
-void __used __no_caller_saved_registers noinstr stackleak_track_stack(void)
+void __used __anal_caller_saved_registers analinstr stackleak_track_stack(void)
 {
 	unsigned long sp = current_stack_pointer;
 

@@ -191,7 +191,7 @@ static struct platform_device ax88796_device = {
 	.resource       = ax88796_resources,
 };
 
-static struct mtd_partition nor_flash_partitions[] = {
+static struct mtd_partition analr_flash_partitions[] = {
 	{
 		.name		= "loader",
 		.offset		= 0x00000000,
@@ -214,28 +214,28 @@ static struct mtd_partition nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data analr_flash_data = {
 	.width		= 4,
-	.parts		= nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+	.parts		= analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(analr_flash_partitions),
 };
 
 /* This config is flash board for mass production. */
-static struct resource nor_flash_resources[] = {
+static struct resource analr_flash_resources[] = {
 	[0]	= {
-		.start	= PA_NORFLASH_ADDR,
-		.end	= PA_NORFLASH_ADDR + PA_NORFLASH_SIZE - 1,
+		.start	= PA_ANALRFLASH_ADDR,
+		.end	= PA_ANALRFLASH_ADDR + PA_ANALRFLASH_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
 
-static struct platform_device nor_flash_device = {
+static struct platform_device analr_flash_device = {
 	.name		= "physmap-flash",
 	.dev		= {
-		.platform_data	= &nor_flash_data,
+		.platform_data	= &analr_flash_data,
 	},
-	.num_resources	= ARRAY_SIZE(nor_flash_resources),
-	.resource	= nor_flash_resources,
+	.num_resources	= ARRAY_SIZE(analr_flash_resources),
+	.resource	= analr_flash_resources,
 };
 
 static struct resource smbus_resources[] = {
@@ -269,7 +269,7 @@ static struct platform_device *r7780rp_devices[] __initdata = {
 	&m66592_usb_peripheral_device,
 	&heartbeat_device,
 	&smbus_device,
-	&nor_flash_device,
+	&analr_flash_device,
 #ifndef CONFIG_SH_R7780RP
 	&ax88796_device,
 #endif

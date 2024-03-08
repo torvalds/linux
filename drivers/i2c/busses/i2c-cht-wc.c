@@ -3,7 +3,7 @@
  * Intel CHT Whiskey Cove PMIC I2C Master driver
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
+ * Based on various analn upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2011 - 2014 Intel Corporation. All rights reserved.
  */
 
@@ -66,7 +66,7 @@ static irqreturn_t cht_wc_i2c_adap_thread_handler(int id, void *data)
 	if (ret) {
 		dev_err(&adap->adapter.dev, "Error reading extchgrirq reg\n");
 		mutex_unlock(&adap->adap_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	reg &= ~adap->irq_mask;
@@ -95,7 +95,7 @@ static irqreturn_t cht_wc_i2c_adap_thread_handler(int id, void *data)
 		wake_up(&adap->wait);
 
 	/*
-	 * Do NOT use handle_nested_irq here, the client irq handler will
+	 * Do ANALT use handle_nested_irq here, the client irq handler will
 	 * likely want to do i2c transfers and the i2c controller uses this
 	 * interrupt handler as well, so running the client irq handler from
 	 * this thread will cause things to lock up.
@@ -175,20 +175,20 @@ static const struct i2c_algorithm cht_wc_i2c_adap_algo = {
 /*
  * We are an i2c-adapter which itself is part of an i2c-client. This means that
  * transfers done through us take adapter->bus_lock twice, once for our parent
- * i2c-adapter and once to take our own bus_lock. Lockdep does not like this
+ * i2c-adapter and once to take our own bus_lock. Lockdep does analt like this
  * nested locking, to make lockdep happy in the case of busses with muxes, the
  * i2c-core's i2c_adapter_lock_bus function calls:
  * rt_mutex_lock_nested(&adapter->bus_lock, i2c_adapter_depth(adapter));
  *
  * But i2c_adapter_depth only works when the direct parent of the adapter is
- * another adapter, as it is only meant for muxes. In our case there is an
+ * aanalther adapter, as it is only meant for muxes. In our case there is an
  * i2c-client and MFD instantiated platform_device in the parent->child chain
  * between the 2 devices.
  *
  * So we override the default i2c_lock_operations and pass a hardcoded
  * depth of 1 to rt_mutex_lock_nested, to make lockdep happy.
  *
- * Note that if there were to be a mux attached to our adapter, this would
+ * Analte that if there were to be a mux attached to our adapter, this would
  * break things again since the i2c-mux code expects the root-adapter to have
  * a locking depth of 0. But we always have only 1 client directly attached
  * in the form of the Charger IC paired with the CHT Whiskey Cove PMIC.
@@ -275,7 +275,7 @@ static const struct property_entry bq24190_props[] = {
 	{ }
 };
 
-static const struct software_node bq24190_node = {
+static const struct software_analde bq24190_analde = {
 	.properties = bq24190_props,
 };
 
@@ -287,7 +287,7 @@ static struct regulator_consumer_supply fusb302_consumer = {
 
 static const struct regulator_init_data bq24190_vbus_init_data = {
 	.constraints = {
-		/* The name is used in intel_cht_int33fe.c do not change. */
+		/* The name is used in intel_cht_int33fe.c do analt change. */
 		.name = "cht_wc_usb_typec_vbus",
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
@@ -303,7 +303,7 @@ static struct i2c_board_info gpd_win_board_info = {
 	.type = "bq24190",
 	.addr = 0x6b,
 	.dev_name = "bq24190",
-	.swnode = &bq24190_node,
+	.swanalde = &bq24190_analde,
 	.platform_data = &bq24190_pdata,
 };
 
@@ -331,7 +331,7 @@ static const struct property_entry xiaomi_mipad2_props[] = {
 	{ }
 };
 
-static const struct software_node xiaomi_mipad2_node = {
+static const struct software_analde xiaomi_mipad2_analde = {
 	.properties = xiaomi_mipad2_props,
 };
 
@@ -339,16 +339,16 @@ static struct i2c_board_info xiaomi_mipad2_board_info = {
 	.type = "bq25890",
 	.addr = 0x6a,
 	.dev_name = "bq25890",
-	.swnode = &xiaomi_mipad2_node,
+	.swanalde = &xiaomi_mipad2_analde,
 	.platform_data = &bq2589x_pdata,
 };
 
-/********** Lenovo Yogabook YB1-X90F/-X91F/-X91L charger settings **********/
-static const char * const lenovo_yb1_bq25892_suppliers[] = { "cht_wcove_pwrsrc" };
+/********** Leanalvo Yogabook YB1-X90F/-X91F/-X91L charger settings **********/
+static const char * const leanalvo_yb1_bq25892_suppliers[] = { "cht_wcove_pwrsrc" };
 
-static const struct property_entry lenovo_yb1_bq25892_props[] = {
+static const struct property_entry leanalvo_yb1_bq25892_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY("supplied-from",
-				    lenovo_yb1_bq25892_suppliers),
+				    leanalvo_yb1_bq25892_suppliers),
 	PROPERTY_ENTRY_U32("linux,pump-express-vbus-max", 12000000),
 	PROPERTY_ENTRY_BOOL("linux,skip-reset"),
 	/*
@@ -368,27 +368,27 @@ static const struct property_entry lenovo_yb1_bq25892_props[] = {
 	{ }
 };
 
-static const struct software_node lenovo_yb1_bq25892_node = {
-	.properties = lenovo_yb1_bq25892_props,
+static const struct software_analde leanalvo_yb1_bq25892_analde = {
+	.properties = leanalvo_yb1_bq25892_props,
 };
 
-static struct i2c_board_info lenovo_yogabook1_board_info = {
+static struct i2c_board_info leanalvo_yogabook1_board_info = {
 	.type = "bq25892",
 	.addr = 0x6b,
 	.dev_name = "bq25892",
-	.swnode = &lenovo_yb1_bq25892_node,
+	.swanalde = &leanalvo_yb1_bq25892_analde,
 	.platform_data = &bq2589x_pdata,
 };
 
-/********** Lenovo Yogabook YT3-X90F charger settings **********/
-static const char * const lenovo_yt3_bq25892_1_suppliers[] = { "cht_wcove_pwrsrc" };
+/********** Leanalvo Yogabook YT3-X90F charger settings **********/
+static const char * const leanalvo_yt3_bq25892_1_suppliers[] = { "cht_wcove_pwrsrc" };
 
 /*
  * bq25892 charger settings for the round li-ion cells in the hinge,
  * this is the main / biggest battery.
  */
-static const struct property_entry lenovo_yt3_bq25892_1_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", lenovo_yt3_bq25892_1_suppliers),
+static const struct property_entry leanalvo_yt3_bq25892_1_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", leanalvo_yt3_bq25892_1_suppliers),
 	PROPERTY_ENTRY_STRING("linux,secondary-charger-name", "bq25890-charger-0"),
 	PROPERTY_ENTRY_U32("linux,iinlim-percentage", 60),
 	PROPERTY_ENTRY_U32("linux,pump-express-vbus-max", 12000000),
@@ -410,16 +410,16 @@ static const struct property_entry lenovo_yt3_bq25892_1_props[] = {
 	{ }
 };
 
-static const struct software_node lenovo_yt3_bq25892_1_node = {
-	.properties = lenovo_yt3_bq25892_1_props,
+static const struct software_analde leanalvo_yt3_bq25892_1_analde = {
+	.properties = leanalvo_yt3_bq25892_1_props,
 };
 
 /* bq25892 charger for the round li-ion cells in the hinge */
-static struct i2c_board_info lenovo_yoga_tab3_board_info = {
+static struct i2c_board_info leanalvo_yoga_tab3_board_info = {
 	.type = "bq25892",
 	.addr = 0x6b,
 	.dev_name = "bq25892_1",
-	.swnode = &lenovo_yt3_bq25892_1_node,
+	.swanalde = &leanalvo_yt3_bq25892_1_analde,
 	.platform_data = &bq2589x_pdata,
 };
 
@@ -436,7 +436,7 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 
 	adap = devm_kzalloc(&pdev->dev, sizeof(*adap), GFP_KERNEL);
 	if (!adap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&adap->wait);
 	mutex_init(&adap->adap_lock);
@@ -469,11 +469,11 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 	/* Alloc and register client IRQ */
 	adap->irq_domain = irq_domain_add_linear(NULL, 1, &irq_domain_simple_ops, NULL);
 	if (!adap->irq_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adap->client_irq = irq_create_mapping(adap->irq_domain, 0);
 	if (!adap->client_irq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto remove_irq_domain;
 	}
 
@@ -499,14 +499,14 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 	case INTEL_CHT_WC_XIAOMI_MIPAD2:
 		board_info = &xiaomi_mipad2_board_info;
 		break;
-	case INTEL_CHT_WC_LENOVO_YOGABOOK1:
-		board_info = &lenovo_yogabook1_board_info;
+	case INTEL_CHT_WC_LEANALVO_YOGABOOK1:
+		board_info = &leanalvo_yogabook1_board_info;
 		break;
-	case INTEL_CHT_WC_LENOVO_YT3_X90:
-		board_info = &lenovo_yoga_tab3_board_info;
+	case INTEL_CHT_WC_LEANALVO_YT3_X90:
+		board_info = &leanalvo_yoga_tab3_board_info;
 		break;
 	default:
-		dev_warn(&pdev->dev, "Unknown model, not instantiating charger device\n");
+		dev_warn(&pdev->dev, "Unkanalwn model, analt instantiating charger device\n");
 		break;
 	}
 

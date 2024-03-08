@@ -17,7 +17,7 @@
  *
  *
  * Configuration Options:
- * none
+ * analne
  */
 
 /*
@@ -462,12 +462,12 @@ static int ni6501_alloc_usb_buffers(struct comedi_device *dev)
 	size = usb_endpoint_maxp(devpriv->ep_rx);
 	devpriv->usb_rx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = usb_endpoint_maxp(devpriv->ep_tx);
 	devpriv->usb_tx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -482,7 +482,7 @@ static int ni6501_find_endpoints(struct comedi_device *dev)
 
 	if (iface_desc->desc.bNumEndpoints != 2) {
 		dev_err(dev->class_dev, "Wrong number of endpoints\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
@@ -502,13 +502,13 @@ static int ni6501_find_endpoints(struct comedi_device *dev)
 	}
 
 	if (!devpriv->ep_rx || !devpriv->ep_tx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (usb_endpoint_maxp(devpriv->ep_rx) < RX_MAX_SIZE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (usb_endpoint_maxp(devpriv->ep_tx) < TX_MAX_SIZE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -523,7 +523,7 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&devpriv->mut);
 	usb_set_intfdata(intf, devpriv);

@@ -61,7 +61,7 @@ int wm831x_otp_init(struct wm831x *wm831x)
 
 	ret = device_create_file(wm831x->dev, &dev_attr_unique_id);
 	if (ret != 0)
-		dev_err(wm831x->dev, "Unique ID attribute not created: %d\n",
+		dev_err(wm831x->dev, "Unique ID attribute analt created: %d\n",
 			ret);
 
 	ret = wm831x_unique_id_read(wm831x, uuid);

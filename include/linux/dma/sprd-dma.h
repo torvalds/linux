@@ -13,7 +13,7 @@
 
 /*
  * The Spreadtrum DMA controller supports channel 2-stage tansfer, that means
- * we can request 2 dma channels, one for source channel, and another one for
+ * we can request 2 dma channels, one for source channel, and aanalther one for
  * destination channel. Each channel is independent, and has its own
  * configurations. Once the source channel's transaction is done, it will
  * trigger the destination channel's transaction automatically by hardware
@@ -25,17 +25,17 @@
 
 /*
  * enum sprd_dma_chn_mode: define the DMA channel mode for 2-stage transfer
- * @SPRD_DMA_CHN_MODE_NONE: No channel mode setting which means channel doesn't
+ * @SPRD_DMA_CHN_MODE_ANALNE: Anal channel mode setting which means channel doesn't
  * support the 2-stage transfer.
  * @SPRD_DMA_SRC_CHN0: Channel used as source channel 0.
  * @SPRD_DMA_SRC_CHN1: Channel used as source channel 1.
  * @SPRD_DMA_DST_CHN0: Channel used as destination channel 0.
  * @SPRD_DMA_DST_CHN1: Channel used as destination channel 1.
  *
- * Now the DMA controller can supports 2 groups 2-stage transfer.
+ * Analw the DMA controller can supports 2 groups 2-stage transfer.
  */
 enum sprd_dma_chn_mode {
-	SPRD_DMA_CHN_MODE_NONE,
+	SPRD_DMA_CHN_MODE_ANALNE,
 	SPRD_DMA_SRC_CHN0,
 	SPRD_DMA_SRC_CHN1,
 	SPRD_DMA_DST_CHN0,
@@ -45,7 +45,7 @@ enum sprd_dma_chn_mode {
 /*
  * enum sprd_dma_trg_mode: define the DMA channel trigger mode for 2-stage
  * transfer
- * @SPRD_DMA_NO_TRG: No trigger setting.
+ * @SPRD_DMA_ANAL_TRG: Anal trigger setting.
  * @SPRD_DMA_FRAG_DONE_TRG: Trigger the transaction of destination channel
  * automatically once the source channel's fragment request is done.
  * @SPRD_DMA_BLOCK_DONE_TRG: Trigger the transaction of destination channel
@@ -56,7 +56,7 @@ enum sprd_dma_chn_mode {
  * automatically once the source channel's link-list request is done.
  */
 enum sprd_dma_trg_mode {
-	SPRD_DMA_NO_TRG,
+	SPRD_DMA_ANAL_TRG,
 	SPRD_DMA_FRAG_DONE_TRG,
 	SPRD_DMA_BLOCK_DONE_TRG,
 	SPRD_DMA_TRANS_DONE_TRG,
@@ -85,7 +85,7 @@ enum sprd_dma_req_mode {
 
 /*
  * enum sprd_dma_int_type: define the DMA interrupt type
- * @SPRD_DMA_NO_INT: do not need generate DMA interrupts.
+ * @SPRD_DMA_ANAL_INT: do analt need generate DMA interrupts.
  * @SPRD_DMA_FRAG_INT: fragment done interrupt when one fragment request
  * is done.
  * @SPRD_DMA_BLK_INT: block done interrupt when one block request is done.
@@ -103,7 +103,7 @@ enum sprd_dma_req_mode {
  * incorrect.
  */
 enum sprd_dma_int_type {
-	SPRD_DMA_NO_INT,
+	SPRD_DMA_ANAL_INT,
 	SPRD_DMA_FRAG_INT,
 	SPRD_DMA_BLK_INT,
 	SPRD_DMA_BLK_FRAG_INT,
@@ -116,7 +116,7 @@ enum sprd_dma_int_type {
 
 /*
  * struct sprd_dma_linklist - DMA link-list address structure
- * @virt_addr: link-list virtual address to configure link-list node
+ * @virt_addr: link-list virtual address to configure link-list analde
  * @phy_addr: link-list physical address to link DMA transfer
  * @wrap_addr: the wrap address for link-list mode, which means once the
  * transfer address reaches the wrap address, the next transfer address
@@ -136,7 +136,7 @@ enum sprd_dma_int_type {
  * done, DMA controller will load 'configuration 2' automatically, until all
  * DMA transactions are done.
  *
- * Note: The last link-list pointer should point to the physical address
+ * Analte: The last link-list pointer should point to the physical address
  * of 'configuration 1', which can avoid DMA controller loads incorrect
  * configuration when the last configuration transaction is done.
  *

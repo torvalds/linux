@@ -253,7 +253,7 @@
 &usdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 
@@ -265,7 +265,7 @@
 	vmmc-supply = <&reg_sd3_vmmc>;
 	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 
@@ -276,8 +276,8 @@
 	pinctrl-2 = <&pinctrl_usdhc4_200mhz>;
 	vmmc-supply = <&reg_sd4_vmmc>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	status = "okay";
 };
 

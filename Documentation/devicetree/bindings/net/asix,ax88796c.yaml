@@ -13,7 +13,7 @@ description: |
   ASIX AX88796C is an Ethernet controller with a built in PHY. This
   describes SPI mode of the chip.
 
-  The node for this driver must be a child node of an SPI controller,
+  The analde for this driver must be a child analde of an SPI controller,
   hence all mandatory properties described in
   ../spi/spi-controller.yaml must be specified.
 

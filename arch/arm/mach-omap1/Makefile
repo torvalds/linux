@@ -31,7 +31,7 @@ obj-y					+= $(usb-fs-m) $(usb-fs-y)
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_OSK)		+= board-osk.o
 obj-$(CONFIG_MACH_OMAP_PALMTE)		+= board-palmte.o
-obj-$(CONFIG_MACH_NOKIA770)		+= board-nokia770.o
+obj-$(CONFIG_MACH_ANALKIA770)		+= board-analkia770.o
 obj-$(CONFIG_MACH_AMS_DELTA)		+= board-ams-delta.o ams-delta-fiq.o \
 					   ams-delta-fiq-handler.o
 obj-$(CONFIG_MACH_SX1)			+= board-sx1.o board-sx1-mmc.o

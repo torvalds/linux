@@ -20,7 +20,7 @@
 #define MAX_WRITE_REGSIZE 10
 
 enum ascot2e_state {
-	STATE_UNKNOWN,
+	STATE_UNKANALWN,
 	STATE_SLEEP,
 	STATE_ACTIVE
 };
@@ -48,7 +48,7 @@ enum ascot2e_tv_system_t {
 	ASCOT2E_DTV_DVBC_8,
 	ASCOT2E_DTV_DVBC2_6,
 	ASCOT2E_DTV_DVBC2_8,
-	ASCOT2E_DTV_UNKNOWN
+	ASCOT2E_DTV_UNKANALWN
 };
 
 struct ascot2e_band_sett {
@@ -267,7 +267,7 @@ static int ascot2e_sleep(struct dvb_frontend *fe)
 
 static enum ascot2e_tv_system_t ascot2e_get_tv_system(struct dvb_frontend *fe)
 {
-	enum ascot2e_tv_system_t system = ASCOT2E_DTV_UNKNOWN;
+	enum ascot2e_tv_system_t system = ASCOT2E_DTV_UNKANALWN;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ascot2e_priv *priv = fe->tuner_priv;
 
@@ -321,8 +321,8 @@ static int ascot2e_set_params(struct dvb_frontend *fe)
 		__func__, p->frequency / 1000);
 	tv_system = ascot2e_get_tv_system(fe);
 
-	if (tv_system == ASCOT2E_DTV_UNKNOWN) {
-		dev_dbg(&priv->i2c->dev, "%s(): unknown DTV system\n",
+	if (tv_system == ASCOT2E_DTV_UNKANALWN) {
+		dev_dbg(&priv->i2c->dev, "%s(): unkanalwn DTV system\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -417,7 +417,7 @@ static int ascot2e_set_params(struct dvb_frontend *fe)
 	data[1] = ascot2e_sett[tv_system].if_bpf_f0;
 	ascot2e_write_regs(priv, 0x49, data, 2);
 	/*
-	 * Tune now
+	 * Tune analw
 	 * RFAGC fast mode / RFAGC auto control enable
 	 * (set bit[7], bit[5:4] only)
 	 * vco_cal = 1, set MIX_OL_CPU_EN
@@ -442,7 +442,7 @@ static int ascot2e_set_params(struct dvb_frontend *fe)
 	ascot2e_write_reg(priv, 0x04, 0x00);
 	/* Logic sleep */
 	ascot2e_write_reg(priv, 0x03, 0xC0);
-	/* RFAGC normal mode (set bit[5:4] only) */
+	/* RFAGC analrmal mode (set bit[5:4] only) */
 	ascot2e_set_reg_bits(priv, 0x0C, 0x00, 0x30);
 	priv->frequency = frequency;
 	return 0;

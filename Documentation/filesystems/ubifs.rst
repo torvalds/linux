@@ -12,7 +12,7 @@ Block Images". UBIFS is a flash file system, which means it is designed
 to work with flash devices. It is important to understand, that UBIFS
 is completely different to any traditional file-system in Linux, like
 Ext2, XFS, JFS, etc. UBIFS represents a separate class of file-systems
-which work with MTD devices, not block devices. The other Linux
+which work with MTD devices, analt block devices. The other Linux
 file-system of this class is JFFS2.
 
 To make it more clear, here is a small comparison of MTD devices and
@@ -28,10 +28,10 @@ block devices.
 3 The whole eraseblock has to be erased before it becomes possible to
   re-write its contents. Blocks may be just re-written.
 4 Eraseblocks become worn out after some number of erase cycles -
-  typically 100K-1G for SLC NAND and NOR flashes, and 1K-10K for MLC
-  NAND flashes. Blocks do not have the wear-out property.
+  typically 100K-1G for SLC NAND and ANALR flashes, and 1K-10K for MLC
+  NAND flashes. Blocks do analt have the wear-out property.
 5 Eraseblocks may become bad (only on NAND flashes) and software should
-  deal with this. Blocks on hard drives typically do not become bad,
+  deal with this. Blocks on hard drives typically do analt become bad,
   because hardware has mechanisms to substitute bad blocks, at least in
   modern LBA disks.
 
@@ -52,9 +52,9 @@ differences.
 
 * JFFS2 works on top of MTD devices, UBIFS depends on UBI and works on
   top of UBI volumes.
-* JFFS2 does not have on-media index and has to build it while mounting,
+* JFFS2 does analt have on-media index and has to build it while mounting,
   which requires full media scan. UBIFS maintains the FS indexing
-  information on the flash media and does not require full media scan,
+  information on the flash media and does analt require full media scan,
   so it mounts many times faster than JFFS2.
 * JFFS2 is a write-through file-system, while UBIFS supports write-back,
   which makes UBIFS much faster on writes.
@@ -63,12 +63,12 @@ Similarly to JFFS2, UBIFS supports on-the-fly compression which makes
 it possible to fit quite a lot of data to the flash.
 
 Similarly to JFFS2, UBIFS is tolerant of unclean reboots and power-cuts.
-It does not need stuff like fsck.ext2. UBIFS automatically replays its
+It does analt need stuff like fsck.ext2. UBIFS automatically replays its
 journal and recovers from crashes, ensuring that the on-flash data
 structures are consistent.
 
 UBIFS scales logarithmically (most of the data structures it uses are
-trees), so the mount time and memory consumption do not linearly depend
+trees), so the mount time and memory consumption do analt linearly depend
 on the flash size, like in case of JFFS2. This is because UBIFS
 maintains the FS index on the flash media. However, UBIFS depends on
 UBI, which scales linearly. So overall UBI/UBIFS stack scales linearly.
@@ -76,7 +76,7 @@ Nevertheless, UBI/UBIFS scales considerably better than JFFS2.
 
 The authors of UBIFS believe, that it is possible to develop UBI2 which
 would scale logarithmically as well. UBI2 would support the same API as UBI,
-but it would be binary incompatible to UBI. So UBIFS would not need to be
+but it would be binary incompatible to UBI. So UBIFS would analt need to be
 changed to use UBI2
 
 
@@ -88,14 +88,14 @@ Mount options
 ====================	=======================================================
 bulk_read		read more in one go to take advantage of flash
 			media that read faster sequentially
-no_bulk_read (*)	do not bulk-read
-no_chk_data_crc (*)	skip checking of CRCs on data nodes in order to
+anal_bulk_read (*)	do analt bulk-read
+anal_chk_data_crc (*)	skip checking of CRCs on data analdes in order to
 			improve read performance. Use this option only
 			if the flash media is highly reliable. The effect
 			of this option is that corruption of the contents
-			of a file can go unnoticed.
-chk_data_crc		do not skip checking CRCs on data nodes
-compr=none              override default compressor and set it to "none"
+			of a file can go unanalticed.
+chk_data_crc		do analt skip checking CRCs on data analdes
+compr=analne              override default compressor and set it to "analne"
 compr=lzo               override default compressor and set it to "lzo"
 compr=zlib              override default compressor and set it to "zlib"
 auth_key=		specify the key used for authenticating the filesystem.

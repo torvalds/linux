@@ -25,7 +25,7 @@ static inline void writeq(u64 val, void __iomem *reg)
 #endif
 
 enum vnic_dev_intr_mode {
-	VNIC_DEV_INTR_MODE_UNKNOWN,
+	VNIC_DEV_INTR_MODE_UNKANALWN,
 	VNIC_DEV_INTR_MODE_INTX,
 	VNIC_DEV_INTR_MODE_MSI,
 	VNIC_DEV_INTR_MODE_MSIX,
@@ -74,8 +74,8 @@ int svnic_dev_spec(struct vnic_dev *vdev, unsigned int offset,
 		  unsigned int size, void *value);
 int svnic_dev_stats_clear(struct vnic_dev *vdev);
 int svnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats);
-int svnic_dev_notify_set(struct vnic_dev *vdev, u16 intr);
-void svnic_dev_notify_unset(struct vnic_dev *vdev);
+int svnic_dev_analtify_set(struct vnic_dev *vdev, u16 intr);
+void svnic_dev_analtify_unset(struct vnic_dev *vdev);
 int svnic_dev_link_status(struct vnic_dev *vdev);
 u32 svnic_dev_link_down_cnt(struct vnic_dev *vdev);
 int svnic_dev_close(struct vnic_dev *vdev);

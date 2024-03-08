@@ -17,7 +17,7 @@
 #define	ADDBA_STATUS_INVALID_PARAM	38
 
 #define	DELBA_REASON_END_BA			37
-#define	DELBA_REASON_UNKNOWN_BA	38
+#define	DELBA_REASON_UNKANALWN_BA	38
 #define	DELBA_REASON_TIMEOUT			39
 union sequence_control {
 	u16 short_data;

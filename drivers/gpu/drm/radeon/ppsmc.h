@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@
 
 #define PPSMC_THERMAL_PROTECT_TYPE_INTERNAL             0x00
 #define PPSMC_THERMAL_PROTECT_TYPE_EXTERNAL             0x01
-#define PPSMC_THERMAL_PROTECT_TYPE_NONE                 0xff
+#define PPSMC_THERMAL_PROTECT_TYPE_ANALNE                 0xff
 
 #define PPSMC_SYSTEMFLAG_GPIO_DC                        0x01
 #define PPSMC_SYSTEMFLAG_STEPVDDC                       0x02
@@ -78,7 +78,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_RunningOnAC               ((uint8_t)0x17)
 #define PPSMC_MSG_SwitchToSwState           ((uint8_t)0x20)
 #define PPSMC_MSG_SwitchToInitialState      ((uint8_t)0x40)
-#define PPSMC_MSG_NoForcedLevel             ((uint8_t)0x41)
+#define PPSMC_MSG_AnalForcedLevel             ((uint8_t)0x41)
 #define PPSMC_MSG_ForceHigh                 ((uint8_t)0x42)
 #define PPSMC_MSG_ForceMediumOrHigh         ((uint8_t)0x43)
 #define PPSMC_MSG_SwitchToMinimumPower      ((uint8_t)0x51)
@@ -89,7 +89,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_TDPClampingInactive           ((uint8_t)0x5A)
 #define PPSMC_StartFanControl               ((uint8_t)0x5B)
 #define PPSMC_StopFanControl                ((uint8_t)0x5C)
-#define PPSMC_MSG_NoDisplay                 ((uint8_t)0x5D)
+#define PPSMC_MSG_AnalDisplay                 ((uint8_t)0x5D)
 #define PPSMC_MSG_HasDisplay                ((uint8_t)0x5E)
 #define PPSMC_MSG_UVDPowerOFF               ((uint8_t)0x60)
 #define PPSMC_MSG_UVDPowerON                ((uint8_t)0x61)
@@ -115,7 +115,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_ACPDPM_SetEnabledMask       ((uint16_t) 0x12F)
 #define PPSMC_MSG_SAMUDPM_SetEnabledMask      ((uint16_t) 0x130)
 #define PPSMC_MSG_MCLKDPM_ForceState          ((uint16_t) 0x131)
-#define PPSMC_MSG_MCLKDPM_NoForcedLevel       ((uint16_t) 0x132)
+#define PPSMC_MSG_MCLKDPM_AnalForcedLevel       ((uint16_t) 0x132)
 #define PPSMC_MSG_Thermal_Cntl_Disable        ((uint16_t) 0x133)
 #define PPSMC_MSG_Voltage_Cntl_Disable        ((uint16_t) 0x135)
 #define PPSMC_MSG_PCIeDPM_Enable              ((uint16_t) 0x136)

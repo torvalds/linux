@@ -11,7 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
@@ -121,12 +121,12 @@ static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos,
 	struct qede_dev *edev = netdev_priv(ndev);
 
 	if (vlan > 4095) {
-		DP_NOTICE(edev, "Illegal vlan value %d\n", vlan);
+		DP_ANALTICE(edev, "Illegal vlan value %d\n", vlan);
 		return -EINVAL;
 	}
 
 	if (vlan_proto != htons(ETH_P_8021Q))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	DP_VERBOSE(edev, QED_MSG_IOV, "Setting Vlan 0x%04x to VF [%d]\n",
 		   vlan, vf);
@@ -157,7 +157,7 @@ static int qede_sriov_configure(struct pci_dev *pdev, int num_vfs_param)
 
 	vport_params = vzalloc(sizeof(*vport_params));
 	if (!vport_params)
-		return -ENOMEM;
+		return -EANALMEM;
 	DP_VERBOSE(edev, QED_MSG_IOV, "Requested %d VFs\n", num_vfs_param);
 
 	rc = edev->ops->iov->configure(edev->cdev, num_vfs_param);
@@ -178,9 +178,9 @@ static int qede_sriov_configure(struct pci_dev *pdev, int num_vfs_param)
 
 static int __maybe_unused qede_suspend(struct device *dev)
 {
-	dev_info(dev, "Device does not support suspend operation\n");
+	dev_info(dev, "Device does analt support suspend operation\n");
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(qede_pm_ops, qede_suspend, NULL);
@@ -217,10 +217,10 @@ static struct qed_eth_cb_ops qede_ll_ops = {
 	.ports_update = qede_udp_ports_update,
 };
 
-static int qede_netdev_event(struct notifier_block *this, unsigned long event,
+static int qede_netdev_event(struct analtifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_analtifier_info_to_dev(ptr);
 	struct ethtool_drvinfo drvinfo;
 	struct qede_dev *edev;
 
@@ -239,7 +239,7 @@ static int qede_netdev_event(struct notifier_block *this, unsigned long event,
 
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		/* Notify qed of the name change */
+		/* Analtify qed of the name change */
 		if (!edev->ops || !edev->ops->common)
 			goto done;
 		edev->ops->common->set_name(edev->cdev, edev->ndev->name);
@@ -251,11 +251,11 @@ static int qede_netdev_event(struct notifier_block *this, unsigned long event,
 	}
 
 done:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block qede_netdev_notifier = {
-	.notifier_call = qede_netdev_event,
+static struct analtifier_block qede_netdev_analtifier = {
+	.analtifier_call = qede_netdev_event,
 };
 
 static
@@ -269,24 +269,24 @@ int __init qede_init(void)
 
 	qed_ops = qed_get_eth_ops();
 	if (!qed_ops) {
-		pr_notice("Failed to get qed ethtool operations\n");
+		pr_analtice("Failed to get qed ethtool operations\n");
 		return -EINVAL;
 	}
 
-	/* Must register notifier before pci ops, since we might miss
+	/* Must register analtifier before pci ops, since we might miss
 	 * interface rename after pci probe and netdev registration.
 	 */
-	ret = register_netdevice_notifier(&qede_netdev_notifier);
+	ret = register_netdevice_analtifier(&qede_netdev_analtifier);
 	if (ret) {
-		pr_notice("Failed to register netdevice_notifier\n");
+		pr_analtice("Failed to register netdevice_analtifier\n");
 		qed_put_eth_ops();
 		return -EINVAL;
 	}
 
 	ret = pci_register_driver(&qede_pci_driver);
 	if (ret) {
-		pr_notice("Failed to register driver\n");
-		unregister_netdevice_notifier(&qede_netdev_notifier);
+		pr_analtice("Failed to register driver\n");
+		unregister_netdevice_analtifier(&qede_netdev_analtifier);
 		qed_put_eth_ops();
 		return -EINVAL;
 	}
@@ -299,7 +299,7 @@ static void __exit qede_cleanup(void)
 	if (debug & QED_LOG_INFO_MASK)
 		pr_info("qede_cleanup called\n");
 
-	unregister_netdevice_notifier(&qede_netdev_notifier);
+	unregister_netdevice_analtifier(&qede_netdev_analtifier);
 	pci_unregister_driver(&qede_pci_driver);
 	qed_put_eth_ops();
 }
@@ -319,7 +319,7 @@ void qede_fill_by_demand_stats(struct qede_dev *edev)
 
 	spin_lock(&edev->stats_lock);
 
-	p_common->no_buff_discards = stats.common.no_buff_discards;
+	p_common->anal_buff_discards = stats.common.anal_buff_discards;
 	p_common->packet_too_big_discard = stats.common.packet_too_big_discard;
 	p_common->ttl0_discard = stats.common.ttl0_discard;
 	p_common->rx_ucast_bytes = stats.common.rx_ucast_bytes;
@@ -342,7 +342,7 @@ void qede_fill_by_demand_stats(struct qede_dev *edev)
 	p_common->coalesced_pkts = stats.common.tpa_coalesced_pkts;
 	p_common->coalesced_events = stats.common.tpa_coalesced_events;
 	p_common->coalesced_aborts_num = stats.common.tpa_aborts_num;
-	p_common->non_coalesced_pkts = stats.common.tpa_not_coalesced_pkts;
+	p_common->analn_coalesced_pkts = stats.common.tpa_analt_coalesced_pkts;
 	p_common->coalesced_bytes = stats.common.tpa_coalesced_bytes;
 
 	p_common->rx_64_byte_packets = stats.common.rx_64_byte_packets;
@@ -443,7 +443,7 @@ static void qede_get_stats64(struct net_device *dev,
 	stats->tx_errors = p_common->tx_err_drop_pkts;
 	stats->multicast = p_common->rx_mcast_pkts + p_common->rx_bcast_pkts;
 
-	stats->rx_fifo_errors = p_common->no_buff_discards;
+	stats->rx_fifo_errors = p_common->anal_buff_discards;
 
 	if (QEDE_IS_BB(edev))
 		stats->collisions = edev->stats.bb.tx_total_collisions;
@@ -519,7 +519,7 @@ static int qede_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	default:
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
 			   "default IOCTL cmd 0x%x\n", cmd);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -533,7 +533,7 @@ static void qede_fp_sb_dump(struct qede_dev *edev, struct qede_fastpath *fp)
 	sb_size = sizeof(struct status_block);
 
 	for (i = 0; i < sb_size; i += 8)
-		DP_NOTICE(edev,
+		DP_ANALTICE(edev,
 			  "%02hhX %02hhX %02hhX %02hhX  %02hhX %02hhX %02hhX %02hhX\n",
 			  p_sb[i], p_sb[i + 1], p_sb[i + 2], p_sb[i + 3],
 			  p_sb[i + 4], p_sb[i + 5], p_sb[i + 6], p_sb[i + 7]);
@@ -546,13 +546,13 @@ qede_txq_fp_log_metadata(struct qede_dev *edev,
 	struct qed_chain *p_chain = &txq->tx_pbl;
 
 	/* Dump txq/fp/sb ids etc. other metadata */
-	DP_NOTICE(edev,
+	DP_ANALTICE(edev,
 		  "fpid 0x%x sbid 0x%x txqid [0x%x] ndev_qid [0x%x] cos [0x%x] p_chain %p cap %d size %d jiffies %lu HZ 0x%x\n",
 		  fp->id, fp->sb_info->igu_sb_id, txq->index, txq->ndev_txq_id, txq->cos,
 		  p_chain, p_chain->capacity, p_chain->size, jiffies, HZ);
 
 	/* Dump all the relevant prod/cons indexes */
-	DP_NOTICE(edev,
+	DP_ANALTICE(edev,
 		  "hw cons %04x sw_tx_prod=0x%x, sw_tx_cons=0x%x, bd_prod 0x%x bd_cons 0x%x\n",
 		  le16_to_cpu(*txq->hw_cons_ptr), txq->sw_tx_prod, txq->sw_tx_cons,
 		  qed_chain_get_prod_idx(p_chain), qed_chain_get_cons_idx(p_chain));
@@ -570,7 +570,7 @@ qede_tx_log_print(struct qede_dev *edev, struct qede_fastpath *fp, struct qede_t
 	memset(&sb_dbg, 0, sizeof(sb_dbg));
 	rc = edev->ops->common->get_sb_info(edev->cdev, fp->sb_info, (u16)fp->id, &sb_dbg);
 
-	DP_NOTICE(edev, "IGU: prod %08x cons %08x CAU Tx %04x\n",
+	DP_ANALTICE(edev, "IGU: prod %08x cons %08x CAU Tx %04x\n",
 		  sb_dbg.igu_prod, sb_dbg.igu_cons, sb_dbg.pi[TX_PI(txq->cos)]);
 
 	/* report to mfw */
@@ -593,7 +593,7 @@ static void qede_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	int i;
 
 	netif_carrier_off(dev);
-	DP_NOTICE(edev, "TX timeout on queue %u!\n", txqueue);
+	DP_ANALTICE(edev, "TX timeout on queue %u!\n", txqueue);
 
 	for_each_queue(i) {
 		struct qede_tx_queue *txq;
@@ -622,7 +622,7 @@ static void qede_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	if (test_and_set_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags) ||
 	    edev->state == QEDE_STATE_RECOVERY) {
 		DP_INFO(edev,
-			"Avoid handling a Tx timeout while another HW error is being handled\n");
+			"Avoid handling a Tx timeout while aanalther HW error is being handled\n");
 		return;
 	}
 
@@ -661,7 +661,7 @@ qede_set_flower(struct qede_dev *edev, struct flow_cls_offload *f,
 	case FLOW_CLS_DESTROY:
 		return qede_delete_flow_filter(edev, f->cookie);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -672,14 +672,14 @@ static int qede_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	struct qede_dev *edev = cb_priv;
 
 	if (!tc_cls_can_offload_and_chain0(edev->ndev, type_data))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		f = type_data;
 		return qede_set_flower(edev, f, f->common.protocol);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -704,7 +704,7 @@ qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
 		mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 		return qede_setup_tc(dev, mqprio->num_tc);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -923,18 +923,18 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 /* This function converts from 32b param to two params of level and module
  * Input 32b decoding:
- * b31 - enable all NOTICE prints. NOTICE prints are for deviation from the
+ * b31 - enable all ANALTICE prints. ANALTICE prints are for deviation from the
  * 'happy' flow, e.g. memory allocation failed.
  * b30 - enable all INFO prints. INFO prints are for major steps in the flow
  * and provide important parameters.
  * b29-b0 - per-module bitmap, where each bit enables VERBOSE prints of that
  * module. VERBOSE prints are for tracking the specific flow in low level.
  *
- * Notice that the level should be that of the lowest required logs.
+ * Analtice that the level should be that of the lowest required logs.
  */
 void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level)
 {
-	*p_dp_level = QED_LEVEL_NOTICE;
+	*p_dp_level = QED_LEVEL_ANALTICE;
 	*p_dp_module = 0;
 
 	if (debug & QED_LOG_VERBOSE_MASK) {
@@ -942,8 +942,8 @@ void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level)
 		*p_dp_module = (debug & 0x3FFFFFFF);
 	} else if (debug & QED_LOG_INFO_MASK) {
 		*p_dp_level = QED_LEVEL_INFO;
-	} else if (debug & QED_LOG_NOTICE_MASK) {
-		*p_dp_level = QED_LEVEL_NOTICE;
+	} else if (debug & QED_LOG_ANALTICE_MASK) {
+		*p_dp_level = QED_LEVEL_ANALTICE;
 	}
 }
 
@@ -984,7 +984,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 	edev->fp_array = kcalloc(QEDE_QUEUE_CNT(edev),
 				 sizeof(*edev->fp_array), GFP_KERNEL);
 	if (!edev->fp_array) {
-		DP_NOTICE(edev, "fp array allocation failed\n");
+		DP_ANALTICE(edev, "fp array allocation failed\n");
 		goto err;
 	}
 
@@ -1010,7 +1010,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 
 		fp->sb_info = kzalloc(sizeof(*fp->sb_info), GFP_KERNEL);
 		if (!fp->sb_info) {
-			DP_NOTICE(edev, "sb info struct allocation failed\n");
+			DP_ANALTICE(edev, "sb info struct allocation failed\n");
 			goto err;
 		}
 
@@ -1049,11 +1049,11 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 	return 0;
 err:
 	qede_free_fp_array(edev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* The qede lock is used to protect driver state change and driver flows that
- * are not reentrant.
+ * are analt reentrant.
  */
 void __qede_lock(struct qede_dev *edev)
 {
@@ -1111,7 +1111,7 @@ static void qede_sp_task(struct work_struct *work)
 
 	/* The locking scheme depends on the specific flag:
 	 * In case of QEDE_SP_RECOVERY, acquiring the RTNL lock is required to
-	 * ensure that ongoing flows are ended and new ones are not started.
+	 * ensure that ongoing flows are ended and new ones are analt started.
 	 * In other cases - only the internal qede lock should be acquired.
 	 */
 
@@ -1119,7 +1119,7 @@ static void qede_sp_task(struct work_struct *work)
 		cancel_delayed_work_sync(&edev->periodic_task);
 #ifdef CONFIG_QED_SRIOV
 		/* SRIOV must be disabled outside the lock to avoid a deadlock.
-		 * The recovery of the active VFs is currently not supported.
+		 * The recovery of the active VFs is currently analt supported.
 		 */
 		if (pci_num_vf(edev->pdev))
 			qede_sriov_configure(edev->pdev, 0);
@@ -1148,7 +1148,7 @@ static void qede_sp_task(struct work_struct *work)
 	if (test_and_clear_bit(QEDE_SP_AER, &edev->sp_flags)) {
 #ifdef CONFIG_QED_SRIOV
 		/* SRIOV must be disabled outside the lock to avoid a deadlock.
-		 * The recovery of the active VFs is currently not supported.
+		 * The recovery of the active VFs is currently analt supported.
 		 */
 		if (pci_num_vf(edev->pdev))
 			qede_sriov_configure(edev->pdev, 0);
@@ -1189,7 +1189,7 @@ static void qede_log_probe(struct qede_dev *edev)
 
 	snprintf(buf, QEDE_FW_VER_STR_SIZE,
 		 "Storm FW %d.%d.%d.%d, Management FW %d.%d.%d.%d",
-		 p_dev_info->fw_major, p_dev_info->fw_minor, p_dev_info->fw_rev,
+		 p_dev_info->fw_major, p_dev_info->fw_mianalr, p_dev_info->fw_rev,
 		 p_dev_info->fw_eng,
 		 (p_dev_info->mfw_rev & QED_MFW_VERSION_3_MASK) >>
 		 QED_MFW_VERSION_3_OFFSET,
@@ -1217,7 +1217,7 @@ static void qede_log_probe(struct qede_dev *edev)
 }
 
 enum qede_probe_mode {
-	QEDE_PROBE_NORMAL,
+	QEDE_PROBE_ANALRMAL,
 	QEDE_PROBE_RECOVERY,
 };
 
@@ -1232,7 +1232,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	int rc;
 
 	if (unlikely(dp_level & QED_LEVEL_INFO))
-		pr_notice("Starting qede probe\n");
+		pr_analtice("Starting qede probe\n");
 
 	memset(&probe_params, 0, sizeof(probe_params));
 	probe_params.protocol = QED_PROTOCOL_ETH;
@@ -1242,7 +1242,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	probe_params.recov_in_prog = (mode == QEDE_PROBE_RECOVERY);
 	cdev = qed_ops->common->probe(pdev, &probe_params);
 	if (!cdev) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err0;
 	}
 
@@ -1254,7 +1254,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	strscpy(sp_params.name, "qede LAN", QED_DRV_VER_STR_SIZE);
 	rc = qed_ops->common->slowpath_start(cdev, &sp_params);
 	if (rc) {
-		pr_notice("Cannot start slowpath\n");
+		pr_analtice("Cananalt start slowpath\n");
 		goto err1;
 	}
 
@@ -1267,13 +1267,13 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 		edev = qede_alloc_etherdev(cdev, pdev, &dev_info, dp_module,
 					   dp_level);
 		if (!edev) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err2;
 		}
 
 		edev->devlink = qed_ops->common->devlink_register(cdev);
 		if (IS_ERR(edev->devlink)) {
-			DP_NOTICE(edev, "Cannot register devlink\n");
+			DP_ANALTICE(edev, "Cananalt register devlink\n");
 			rc = PTR_ERR(edev->devlink);
 			edev->devlink = NULL;
 			goto err3;
@@ -1311,14 +1311,14 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 		rc = register_netdev(edev->ndev);
 		if (rc) {
-			DP_NOTICE(edev, "Cannot register net-device\n");
+			DP_ANALTICE(edev, "Cananalt register net-device\n");
 			goto err4;
 		}
 	}
 
 	edev->ops->common->set_name(cdev, edev->ndev->name);
 
-	/* PTP not supported on VFs */
+	/* PTP analt supported on VFs */
 	if (!is_vf)
 		qede_ptp_enable(edev);
 
@@ -1374,11 +1374,11 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	qede_config_debug(debug, &dp_module, &dp_level);
 
 	return __qede_probe(pdev, dp_module, dp_level, is_vf,
-			    QEDE_PROBE_NORMAL);
+			    QEDE_PROBE_ANALRMAL);
 }
 
 enum qede_remove_mode {
-	QEDE_REMOVE_NORMAL,
+	QEDE_REMOVE_ANALRMAL,
 	QEDE_REMOVE_RECOVERY,
 };
 
@@ -1442,12 +1442,12 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 
 static void qede_remove(struct pci_dev *pdev)
 {
-	__qede_remove(pdev, QEDE_REMOVE_NORMAL);
+	__qede_remove(pdev, QEDE_REMOVE_ANALRMAL);
 }
 
 static void qede_shutdown(struct pci_dev *pdev)
 {
-	__qede_remove(pdev, QEDE_REMOVE_NORMAL);
+	__qede_remove(pdev, QEDE_REMOVE_ANALRMAL);
 }
 
 /* -------------------------------------------------------------------------
@@ -1508,7 +1508,7 @@ static int qede_alloc_mem_sb(struct qede_dev *edev,
 				     sizeof(*sb_virt), &sb_phys, GFP_KERNEL);
 	if (!sb_virt) {
 		DP_ERR(edev, "Status block allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = edev->ops->common->sb_init(edev->cdev, sb_info,
@@ -1564,7 +1564,7 @@ static void qede_set_tpa_param(struct qede_rx_queue *rxq)
 	for (i = 0; i < ETH_TPA_MAX_AGGS_NUM; i++) {
 		struct qede_agg_info *tpa_info = &rxq->tpa_info[i];
 
-		tpa_info->state = QEDE_AGG_STATE_NONE;
+		tpa_info->state = QEDE_AGG_STATE_ANALNE;
 	}
 }
 
@@ -1606,7 +1606,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	rxq->sw_rx_ring = kzalloc(size, GFP_KERNEL);
 	if (!rxq->sw_rx_ring) {
 		DP_ERR(edev, "Rx buffers ring allocation failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -1693,7 +1693,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 err:
 	qede_free_mem_txq(edev, txq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* This function frees all memory of a single fp */
@@ -1802,7 +1802,7 @@ static void qede_empty_tx_queue(struct qede_dev *edev,
 
 		rc = qede_free_tx_pkt(edev, txq, &len);
 		if (rc) {
-			DP_NOTICE(edev,
+			DP_ANALTICE(edev,
 				  "Failed to free a packet on tx queue[%d]: chain_cons 0x%x, chain_prod 0x%x\n",
 				  txq->index,
 				  qed_chain_get_cons_idx(&txq->tx_pbl),
@@ -1868,14 +1868,14 @@ static void qede_init_fp(struct qede_dev *edev)
 				fp->rxq->data_direction = DMA_FROM_DEVICE;
 			fp->rxq->dev = &edev->pdev->dev;
 
-			/* Driver have no error path from here */
+			/* Driver have anal error path from here */
 			WARN_ON(xdp_rxq_info_reg(&fp->rxq->xdp_rxq, edev->ndev,
 						 fp->rxq->rxq_id, 0) < 0);
 
 			if (xdp_rxq_info_reg_mem_model(&fp->rxq->xdp_rxq,
 						       MEM_TYPE_PAGE_ORDER0,
 						       NULL)) {
-				DP_NOTICE(edev,
+				DP_ANALTICE(edev,
 					  "Failed to register XDP memory model\n");
 			}
 		}
@@ -1918,13 +1918,13 @@ static int qede_set_real_num_queues(struct qede_dev *edev)
 					  QEDE_TSS_COUNT(edev) *
 					  edev->dev_info.num_tc);
 	if (rc) {
-		DP_NOTICE(edev, "Failed to set real number of Tx queues\n");
+		DP_ANALTICE(edev, "Failed to set real number of Tx queues\n");
 		return rc;
 	}
 
 	rc = netif_set_real_num_rx_queues(edev->ndev, QEDE_RSS_COUNT(edev));
 	if (rc) {
-		DP_NOTICE(edev, "Failed to set real number of Rx queues\n");
+		DP_ANALTICE(edev, "Failed to set real number of Rx queues\n");
 		return rc;
 	}
 
@@ -2062,7 +2062,7 @@ static int qede_drain_txq(struct qede_dev *edev,
 	while (txq->sw_tx_cons != txq->sw_tx_prod) {
 		if (!cnt) {
 			if (allow_drain) {
-				DP_NOTICE(edev,
+				DP_ANALTICE(edev,
 					  "Tx queue[%d] is stuck, requesting MCP to drain\n",
 					  txq->index);
 				rc = edev->ops->common->drain(edev->cdev);
@@ -2070,11 +2070,11 @@ static int qede_drain_txq(struct qede_dev *edev,
 					return rc;
 				return qede_drain_txq(edev, txq, false);
 			}
-			DP_NOTICE(edev,
+			DP_ANALTICE(edev,
 				  "Timeout waiting for tx queue[%d]: PROD=%d, CONS=%d\n",
 				  txq->index, txq->sw_tx_prod,
 				  txq->sw_tx_cons);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		cnt--;
 		usleep_range(1000, 2000);
@@ -2107,7 +2107,7 @@ static int qede_stop_queues(struct qede_dev *edev)
 	/* Disable the vport */
 	vport_update_params = vzalloc(sizeof(*vport_update_params));
 	if (!vport_update_params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vport_update_params->vport_id = 0;
 	vport_update_params->update_vport_active_flg = 1;
@@ -2250,13 +2250,13 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 
 	if (!edev->num_queues) {
 		DP_ERR(edev,
-		       "Cannot update V-VPORT as active as there are no Rx queues\n");
+		       "Cananalt update V-VPORT as active as there are anal Rx queues\n");
 		return -EINVAL;
 	}
 
 	vport_update_params = vzalloc(sizeof(*vport_update_params));
 	if (!vport_update_params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	start.handle_ptp_pkts = !!(edev->ptp);
 	start.gro_enable = !edev->gro_disable;
@@ -2364,7 +2364,7 @@ out:
 }
 
 enum qede_unload_mode {
-	QEDE_UNLOAD_NORMAL,
+	QEDE_UNLOAD_ANALRMAL,
 	QEDE_UNLOAD_RECOVERY,
 };
 
@@ -2414,7 +2414,7 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 		DP_INFO(edev, "Stopped Queues\n");
 	}
 
-	qede_vlan_mark_nonconfigured(edev);
+	qede_vlan_mark_analnconfigured(edev);
 	edev->ops->fastpath_stop(edev->cdev);
 
 	if (edev->dev_info.common.b_arfs_capable) {
@@ -2439,7 +2439,7 @@ out:
 		__qede_unlock(edev);
 
 	if (mode != QEDE_UNLOAD_RECOVERY)
-		DP_NOTICE(edev, "Link is down\n");
+		DP_ANALTICE(edev, "Link is down\n");
 
 	edev->ptp_skip_txts = 0;
 
@@ -2447,7 +2447,7 @@ out:
 }
 
 enum qede_load_mode {
-	QEDE_LOAD_NORMAL,
+	QEDE_LOAD_ANALRMAL,
 	QEDE_LOAD_RELOAD,
 	QEDE_LOAD_RECOVERY,
 };
@@ -2567,12 +2567,12 @@ void qede_reload(struct qede_dev *edev,
 	 * internal configuration indicates device is up, then reload.
 	 */
 	if (edev->state == QEDE_STATE_OPEN) {
-		qede_unload(edev, QEDE_UNLOAD_NORMAL, true);
+		qede_unload(edev, QEDE_UNLOAD_ANALRMAL, true);
 		if (args)
 			args->func(edev, args);
 		qede_load(edev, QEDE_LOAD_RELOAD, true);
 
-		/* Since no one is going to do it for us, re-configure */
+		/* Since anal one is going to do it for us, re-configure */
 		qede_config_rx_mode(edev->ndev);
 	} else if (args) {
 		args->func(edev, args);
@@ -2592,7 +2592,7 @@ static int qede_open(struct net_device *ndev)
 
 	edev->ops->common->set_power_state(edev->cdev, PCI_D0);
 
-	rc = qede_load(edev, QEDE_LOAD_NORMAL, false);
+	rc = qede_load(edev, QEDE_LOAD_ANALRMAL, false);
 	if (rc)
 		return rc;
 
@@ -2607,7 +2607,7 @@ static int qede_close(struct net_device *ndev)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
 
-	qede_unload(edev, QEDE_UNLOAD_NORMAL, false);
+	qede_unload(edev, QEDE_UNLOAD_ANALRMAL, false);
 
 	if (edev->cdev)
 		edev->ops->common->update_drv_state(edev->cdev, false);
@@ -2620,20 +2620,20 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 	struct qede_dev *edev = dev;
 
 	if (!test_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags)) {
-		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is not ready\n");
+		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is analt ready\n");
 		return;
 	}
 
 	if (link->link_up) {
 		if (!netif_carrier_ok(edev->ndev)) {
-			DP_NOTICE(edev, "Link is up\n");
+			DP_ANALTICE(edev, "Link is up\n");
 			netif_tx_start_all_queues(edev->ndev);
 			netif_carrier_on(edev->ndev);
 			qede_rdma_dev_event_open(edev);
 		}
 	} else {
 		if (netif_carrier_ok(edev->ndev)) {
-			DP_NOTICE(edev, "Link is down\n");
+			DP_ANALTICE(edev, "Link is down\n");
 			netif_tx_disable(edev->ndev);
 			netif_carrier_off(edev->ndev);
 			qede_rdma_dev_event_close(edev);
@@ -2646,7 +2646,7 @@ static void qede_schedule_recovery_handler(void *dev)
 	struct qede_dev *edev = dev;
 
 	if (edev->state == QEDE_STATE_RECOVERY) {
-		DP_NOTICE(edev,
+		DP_ANALTICE(edev,
 			  "Avoid scheduling a recovery handling since already in recovery state\n");
 		return;
 	}
@@ -2672,9 +2672,9 @@ static void qede_recovery_handler(struct qede_dev *edev)
 	u32 curr_state = edev->state;
 	int rc;
 
-	DP_NOTICE(edev, "Starting a recovery process\n");
+	DP_ANALTICE(edev, "Starting a recovery process\n");
 
-	/* No need to acquire first the qede_lock since is done by qede_sp_task
+	/* Anal need to acquire first the qede_lock since is done by qede_sp_task
 	 * before calling this function.
 	 */
 	edev->state = QEDE_STATE_RECOVERY;
@@ -2704,7 +2704,7 @@ static void qede_recovery_handler(struct qede_dev *edev)
 
 	edev->state = curr_state;
 
-	DP_NOTICE(edev, "Recovery handling is done\n");
+	DP_ANALTICE(edev, "Recovery handling is done\n");
 
 	return;
 
@@ -2716,8 +2716,8 @@ static void qede_atomic_hw_err_handler(struct qede_dev *edev)
 {
 	struct qed_dev *cdev = edev->cdev;
 
-	DP_NOTICE(edev,
-		  "Generic non-sleepable HW error handling started - err_flags 0x%lx\n",
+	DP_ANALTICE(edev,
+		  "Generic analn-sleepable HW error handling started - err_flags 0x%lx\n",
 		  edev->err_flags);
 
 	/* Get a call trace of the flow that led to the error */
@@ -2727,23 +2727,23 @@ static void qede_atomic_hw_err_handler(struct qede_dev *edev)
 	if (test_bit(QEDE_ERR_ATTN_CLR_EN, &edev->err_flags))
 		edev->ops->common->attn_clr_enable(cdev, true);
 
-	DP_NOTICE(edev, "Generic non-sleepable HW error handling is done\n");
+	DP_ANALTICE(edev, "Generic analn-sleepable HW error handling is done\n");
 }
 
 static void qede_generic_hw_err_handler(struct qede_dev *edev)
 {
-	DP_NOTICE(edev,
+	DP_ANALTICE(edev,
 		  "Generic sleepable HW error handling started - err_flags 0x%lx\n",
 		  edev->err_flags);
 
 	if (edev->devlink) {
-		DP_NOTICE(edev, "Reporting fatal error to devlink\n");
+		DP_ANALTICE(edev, "Reporting fatal error to devlink\n");
 		edev->ops->common->report_fatal_error(edev->devlink, edev->last_err_type);
 	}
 
 	clear_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags);
 
-	DP_NOTICE(edev, "Generic sleepable HW error handling is done\n");
+	DP_ANALTICE(edev, "Generic sleepable HW error handling is done\n");
 }
 
 static void qede_set_hw_err_flags(struct qede_dev *edev,
@@ -2766,7 +2766,7 @@ static void qede_set_hw_err_flags(struct qede_dev *edev,
 		break;
 
 	default:
-		DP_NOTICE(edev, "Unexpected HW error [%d]\n", err_type);
+		DP_ANALTICE(edev, "Unexpected HW error [%d]\n", err_type);
 		break;
 	}
 
@@ -2778,19 +2778,19 @@ static void qede_schedule_hw_err_handler(void *dev,
 {
 	struct qede_dev *edev = dev;
 
-	/* Fan failure cannot be masked by handling of another HW error or by a
+	/* Fan failure cananalt be masked by handling of aanalther HW error or by a
 	 * concurrent recovery process.
 	 */
 	if ((test_and_set_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags) ||
 	     edev->state == QEDE_STATE_RECOVERY) &&
 	     err_type != QED_HW_ERR_FAN_FAIL) {
 		DP_INFO(edev,
-			"Avoid scheduling an error handling while another HW error is being handled\n");
+			"Avoid scheduling an error handling while aanalther HW error is being handled\n");
 		return;
 	}
 
 	if (err_type >= QED_HW_ERR_LAST) {
-		DP_NOTICE(edev, "Unknown HW error [%d]\n", err_type);
+		DP_ANALTICE(edev, "Unkanalwn HW error [%d]\n", err_type);
 		clear_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags);
 		return;
 	}
@@ -2885,7 +2885,7 @@ static void qede_get_eth_tlv_data(void *dev, void *data)
 				etlv->rxqs_empty = false;
 
 			/* This one is a bit tricky; Firmware might stop
-			 * placing packets if ring is not yet full.
+			 * placing packets if ring is analt yet full.
 			 * Give an approximation.
 			 */
 			if (le16_to_cpu(*fp->rxq->hw_cons_ptr) -
@@ -2920,15 +2920,15 @@ qede_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	struct qede_dev *edev = netdev_priv(dev);
 
 	if (!edev)
-		return PCI_ERS_RESULT_NONE;
+		return PCI_ERS_RESULT_ANALNE;
 
-	DP_NOTICE(edev, "IO error detected [%d]\n", state);
+	DP_ANALTICE(edev, "IO error detected [%d]\n", state);
 
 	__qede_lock(edev);
 	if (edev->state == QEDE_STATE_RECOVERY) {
-		DP_NOTICE(edev, "Device already in the recovery state\n");
+		DP_ANALTICE(edev, "Device already in the recovery state\n");
 		__qede_unlock(edev);
-		return PCI_ERS_RESULT_NONE;
+		return PCI_ERS_RESULT_ANALNE;
 	}
 
 	/* PF handles the recovery of its VFs */

@@ -64,9 +64,9 @@ static bool xfer_ready(struct vivid_dev *dev)
 
 /*
  * If an adapter tries to send successive messages, it must wait for the
- * longest signal-free time between its transmissions. But, if another
+ * longest signal-free time between its transmissions. But, if aanalther
  * adapter sends a message in the interim, then the wait can be reduced
- * because the messages are no longer successive. Make these adjustments
+ * because the messages are anal longer successive. Make these adjustments
  * if necessary. Should be called holding cec_xfers_slock.
  */
 static void adjust_sfts(struct vivid_dev *dev)
@@ -164,7 +164,7 @@ int vivid_cec_bus_thread(void *_dev)
 		} else {
 			first_status = CEC_TX_STATUS_NACK;
 			/*
-			 * A message that is not acknowledged stops transmitting after
+			 * A message that is analt ackanalwledged stops transmitting after
 			 * the header block of 10 bits.
 			 */
 			wait_xfer_us = 10 * CEC_DATA_BIT_US;
@@ -210,9 +210,9 @@ int vivid_cec_bus_thread(void *_dev)
 			usleep_range(retry_us - CEC_MARGIN_US, retry_us);
 		dev->cec_sft = CEC_SIGNAL_FREE_TIME_RETRY;
 		/*
-		 * If there are no messages that need to be retried, check if any
-		 * adapters that did not just transmit a message are ready to
-		 * transmit. If none of these adapters are ready, then increase
+		 * If there are anal messages that need to be retried, check if any
+		 * adapters that did analt just transmit a message are ready to
+		 * transmit. If analne of these adapters are ready, then increase
 		 * the signal-free time so that the bus is available to all
 		 * adapters and go back to waiting for a transmission.
 		 */
@@ -276,7 +276,7 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 	switch (cec_msg_opcode(msg)) {
 	case CEC_MSG_SET_OSD_STRING:
 		if (!cec_is_sink(adap))
-			return -ENOMSG;
+			return -EANALMSG;
 		cec_ops_set_osd_string(msg, &disp_ctl, osd);
 		switch (disp_ctl) {
 		case CEC_OP_DISP_CTL_DEFAULT:
@@ -299,7 +299,7 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 		}
 		break;
 	default:
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 	return 0;
 }

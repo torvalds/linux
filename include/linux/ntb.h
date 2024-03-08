@@ -26,21 +26,21 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       analtice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation analr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -67,7 +67,7 @@ struct pci_dev;
 
 /**
  * enum ntb_topo - NTB connection topology
- * @NTB_TOPO_NONE:	Topology is unknown or invalid.
+ * @NTB_TOPO_ANALNE:	Topology is unkanalwn or invalid.
  * @NTB_TOPO_PRI:	On primary side of local ntb.
  * @NTB_TOPO_SEC:	On secondary side of remote ntb.
  * @NTB_TOPO_B2B_USD:	On primary side of local ntb upstream of remote ntb.
@@ -76,7 +76,7 @@ struct pci_dev;
  * @NTB_TOPO_CROSSLINK: Connected via two symmetric switchecs
  */
 enum ntb_topo {
-	NTB_TOPO_NONE = -1,
+	NTB_TOPO_ANALNE = -1,
 	NTB_TOPO_PRI,
 	NTB_TOPO_SEC,
 	NTB_TOPO_B2B_USD,
@@ -98,7 +98,7 @@ static inline int ntb_topo_is_b2b(enum ntb_topo topo)
 static inline char *ntb_topo_string(enum ntb_topo topo)
 {
 	switch (topo) {
-	case NTB_TOPO_NONE:		return "NTB_TOPO_NONE";
+	case NTB_TOPO_ANALNE:		return "NTB_TOPO_ANALNE";
 	case NTB_TOPO_PRI:		return "NTB_TOPO_PRI";
 	case NTB_TOPO_SEC:		return "NTB_TOPO_SEC";
 	case NTB_TOPO_B2B_USD:		return "NTB_TOPO_B2B_USD";
@@ -112,7 +112,7 @@ static inline char *ntb_topo_string(enum ntb_topo topo)
 /**
  * enum ntb_speed - NTB link training speed
  * @NTB_SPEED_AUTO:	Request the max supported speed.
- * @NTB_SPEED_NONE:	Link is not trained to any speed.
+ * @NTB_SPEED_ANALNE:	Link is analt trained to any speed.
  * @NTB_SPEED_GEN1:	Link is trained to gen1 speed.
  * @NTB_SPEED_GEN2:	Link is trained to gen2 speed.
  * @NTB_SPEED_GEN3:	Link is trained to gen3 speed.
@@ -120,7 +120,7 @@ static inline char *ntb_topo_string(enum ntb_topo topo)
  */
 enum ntb_speed {
 	NTB_SPEED_AUTO = -1,
-	NTB_SPEED_NONE = 0,
+	NTB_SPEED_ANALNE = 0,
 	NTB_SPEED_GEN1 = 1,
 	NTB_SPEED_GEN2 = 2,
 	NTB_SPEED_GEN3 = 3,
@@ -130,7 +130,7 @@ enum ntb_speed {
 /**
  * enum ntb_width - NTB link training width
  * @NTB_WIDTH_AUTO:	Request the max supported width.
- * @NTB_WIDTH_NONE:	Link is not trained to any width.
+ * @NTB_WIDTH_ANALNE:	Link is analt trained to any width.
  * @NTB_WIDTH_1:	Link is trained to 1 lane width.
  * @NTB_WIDTH_2:	Link is trained to 2 lane width.
  * @NTB_WIDTH_4:	Link is trained to 4 lane width.
@@ -141,7 +141,7 @@ enum ntb_speed {
  */
 enum ntb_width {
 	NTB_WIDTH_AUTO = -1,
-	NTB_WIDTH_NONE = 0,
+	NTB_WIDTH_ANALNE = 0,
 	NTB_WIDTH_1 = 1,
 	NTB_WIDTH_2 = 2,
 	NTB_WIDTH_4 = 4,
@@ -167,8 +167,8 @@ enum ntb_default_port {
 
 /**
  * struct ntb_client_ops - ntb client operations
- * @probe:		Notify client of a new device.
- * @remove:		Notify client to remove a device.
+ * @probe:		Analtify client of a new device.
+ * @remove:		Analtify client to remove a device.
  */
 struct ntb_client_ops {
 	int (*probe)(struct ntb_client *client, struct ntb_dev *ntb);
@@ -177,7 +177,7 @@ struct ntb_client_ops {
 
 static inline int ntb_client_ops_is_valid(const struct ntb_client_ops *ops)
 {
-	/* commented callbacks are not required: */
+	/* commented callbacks are analt required: */
 	return
 		ops->probe			&&
 		ops->remove			&&
@@ -198,7 +198,7 @@ struct ntb_ctx_ops {
 
 static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
 {
-	/* commented callbacks are not required: */
+	/* commented callbacks are analt required: */
 	return
 		/* ops->link_event		&& */
 		/* ops->db_event		&& */
@@ -333,7 +333,7 @@ struct ntb_dev_ops {
 
 static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 {
-	/* commented callbacks are not required: */
+	/* commented callbacks are analt required: */
 	return
 		/* Port operations are required for multiport devices */
 		!ops->peer_port_count == !ops->port_number	&&
@@ -440,7 +440,7 @@ struct ntb_dev {
  * @client:	Client context.
  *
  * The client will be added to the list of clients interested in ntb devices.
- * The client will be notified of any ntb devices that are not already
+ * The client will be analtified of any ntb devices that are analt already
  * associated with a client, or if ntb devices are registered later.
  *
  * Return: Zero if the client is registered, otherwise an error number.
@@ -457,7 +457,7 @@ int __ntb_register_client(struct ntb_client *client, struct module *mod,
  *
  * The client will be removed from the list of clients interested in ntb
  * devices.  If any ntb devices are associated with the client, the client will
- * be notified to remove those devices.
+ * be analtified to remove those devices.
  */
 void ntb_unregister_client(struct ntb_client *client);
 
@@ -470,7 +470,7 @@ void ntb_unregister_client(struct ntb_client *client);
  * @ntb:	NTB device context.
  *
  * The device will be added to the list of ntb devices.  If any clients are
- * interested in ntb devices, each client will be notified of the ntb device,
+ * interested in ntb devices, each client will be analtified of the ntb device,
  * until at most one client accepts the device.
  *
  * Return: Zero if the device is registered, otherwise an error number.
@@ -482,7 +482,7 @@ int ntb_register_device(struct ntb_dev *ntb);
  * @ntb:	NTB device context.
  *
  * The device will be removed from the list of ntb devices.  If the ntb device
- * is associated with a client, the client will be notified to remove the
+ * is associated with a client, the client will be analtified to remove the
  * device.
  */
 void ntb_unregister_device(struct ntb_dev *ntb);
@@ -512,20 +512,20 @@ int ntb_set_ctx(struct ntb_dev *ntb, void *ctx,
 void ntb_clear_ctx(struct ntb_dev *ntb);
 
 /**
- * ntb_link_event() - notify driver context of a change in link status
+ * ntb_link_event() - analtify driver context of a change in link status
  * @ntb:	NTB device context.
  *
- * Notify the driver context that the link status may have changed.  The driver
+ * Analtify the driver context that the link status may have changed.  The driver
  * should call ntb_link_is_up() to get the current status.
  */
 void ntb_link_event(struct ntb_dev *ntb);
 
 /**
- * ntb_db_event() - notify driver context of a doorbell event
+ * ntb_db_event() - analtify driver context of a doorbell event
  * @ntb:	NTB device context.
  * @vector:	Interrupt vector number.
  *
- * Notify the driver context of a doorbell event.  If hardware supports
+ * Analtify the driver context of a doorbell event.  If hardware supports
  * multiple interrupt vectors for doorbells, the vector number indicates which
  * vector received the interrupt.  The vector number is relative to the first
  * vector used for doorbells, starting at zero, and must be less than
@@ -536,10 +536,10 @@ void ntb_link_event(struct ntb_dev *ntb);
 void ntb_db_event(struct ntb_dev *ntb, int vector);
 
 /**
- * ntb_msg_event() - notify driver context of a message event
+ * ntb_msg_event() - analtify driver context of a message event
  * @ntb:	NTB device context.
  *
- * Notify the driver context of a message event.  If hardware supports
+ * Analtify the driver context of a message event.  If hardware supports
  * message registers, this event indicates, that a new message arrived in
  * some incoming message register or last sent message couldn't be delivered.
  * The events can be masked/unmasked by the methods ntb_msg_set_mask() and
@@ -555,7 +555,7 @@ void ntb_msg_event(struct ntb_dev *ntb);
  * is considered with just two ports. So this method returns default local
  * port number in compliance with topology.
  *
- * NOTE Don't call this method directly. The ntb_port_number() function should
+ * ANALTE Don't call this method directly. The ntb_port_number() function should
  * be used instead.
  *
  * Return: the default local port number
@@ -568,7 +568,7 @@ int ntb_default_port_number(struct ntb_dev *ntb);
  *
  * By default hardware driver supports just one peer device.
  *
- * NOTE Don't call this method directly. The ntb_peer_port_count() function
+ * ANALTE Don't call this method directly. The ntb_peer_port_count() function
  * should be used instead.
  *
  * Return: the default number of peer ports
@@ -578,12 +578,12 @@ int ntb_default_peer_port_count(struct ntb_dev *ntb);
 /**
  * ntb_default_peer_port_number() - get the default peer port by given index
  * @ntb:	NTB device context.
- * @idx:	Peer port index (should not differ from zero).
+ * @idx:	Peer port index (should analt differ from zero).
  *
  * By default hardware driver supports just one peer device, so this method
  * shall return the corresponding value from enum ntb_default_port.
  *
- * NOTE Don't call this method directly. The ntb_peer_port_number() function
+ * ANALTE Don't call this method directly. The ntb_peer_port_number() function
  * should be used instead.
  *
  * Return: the peer device port or negative value indicating an error
@@ -600,7 +600,7 @@ int ntb_default_peer_port_number(struct ntb_dev *ntb, int pidx);
  * specified port-argument indicates peer port from enum ntb_default_port,
  * the return value shall be zero.
  *
- * NOTE Don't call this method directly. The ntb_peer_port_idx() function
+ * ANALTE Don't call this method directly. The ntb_peer_port_idx() function
  * should be used instead.
  *
  * Return: the peer port index or negative value indicating an error
@@ -757,7 +757,7 @@ static inline u64 ntb_link_is_up(struct ntb_dev *ntb,
  * topology) side of the bridge. If it's supported the ntb device should train
  * the link to its maximum speed and width, or the requested speed and width,
  * whichever is smaller. Some hardware doesn't support PCIe link training, so
- * the last two arguments will be ignored then.
+ * the last two arguments will be iganalred then.
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -774,7 +774,7 @@ static inline int ntb_link_enable(struct ntb_dev *ntb,
  *
  * Disable the link on the local or remote (for b2b topology) of the ntb.
  * The ntb device should disable the link.  Returning from this call must
- * indicate that a barrier has passed, though with no more writes may pass in
+ * indicate that a barrier has passed, though with anal more writes may pass in
  * either direction across the link, except if this call returns an error
  * number.
  *
@@ -794,8 +794,8 @@ static inline int ntb_link_disable(struct ntb_dev *ntb)
  * Hardware and topology may support a different number of memory windows.
  * Moreover different peer devices can support different number of memory
  * windows. Simply speaking this method returns the number of possible inbound
- * memory windows to share with specified peer device. Note: this may return
- * zero if the link is not up yet.
+ * memory windows to share with specified peer device. Analte: this may return
+ * zero if the link is analt up yet.
  *
  * Return: the number of memory windows.
  */
@@ -814,9 +814,9 @@ static inline int ntb_mw_count(struct ntb_dev *ntb, int pidx)
  * @size_max:	OUT - the maximum size of the memory window
  *
  * Get the alignments of an inbound memory window with specified index.
- * NULL may be given for any output parameter if the value is not needed.
+ * NULL may be given for any output parameter if the value is analt needed.
  * The alignment and size parameters may be used for allocation of proper
- * shared memory. Note: this must only be called when the link is up.
+ * shared memory. Analte: this must only be called when the link is up.
  *
  * Return: Zero on success, otherwise a negative error number.
  */
@@ -826,7 +826,7 @@ static inline int ntb_mw_get_align(struct ntb_dev *ntb, int pidx, int widx,
 				   resource_size_t *size_max)
 {
 	if (!(ntb_link_is_up(ntb, NULL, NULL) & BIT_ULL(pidx)))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	return ntb->ops->mw_get_align(ntb, pidx, widx, addr_align, size_align,
 				      size_max);
@@ -843,10 +843,10 @@ static inline int ntb_mw_get_align(struct ntb_dev *ntb, int pidx, int widx,
  * Set the translation of a memory window.  The peer may access local memory
  * through the window starting at the address, up to the size.  The address
  * and size must be aligned in compliance with restrictions of
- * ntb_mw_get_align(). The region size should not exceed the size_max parameter
+ * ntb_mw_get_align(). The region size should analt exceed the size_max parameter
  * of that method.
  *
- * This method may not be implemented due to the hardware specific memory
+ * This method may analt be implemented due to the hardware specific memory
  * windows interface.
  *
  * Return: Zero on success, otherwise an error number.
@@ -867,7 +867,7 @@ static inline int ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
  * @pidx:	Port index of peer device.
  * @widx:	Memory window index.
  *
- * Clear the translation of an inbound memory window.  The peer may no longer
+ * Clear the translation of an inbound memory window.  The peer may anal longer
  * access local memory through the window.
  *
  * Return: Zero on success, otherwise an error number.
@@ -904,7 +904,7 @@ static inline int ntb_peer_mw_count(struct ntb_dev *ntb)
  * @size:	OUT - the size of mapping region.
  *
  * Get base and size of memory region to map.  NULL may be given for any output
- * parameter if the value is not needed.  The base and size may be used for
+ * parameter if the value is analt needed.  The base and size may be used for
  * mapping the memory window, to access the peer memory.
  *
  * Return: Zero on success, otherwise a negative error number.
@@ -927,7 +927,7 @@ static inline int ntb_peer_mw_get_addr(struct ntb_dev *ntb, int widx,
  * Set the translation of an outbound memory window.  The local device may
  * access shared memory allocated by a peer device sent the address.
  *
- * This method may not be implemented due to the hardware specific memory
+ * This method may analt be implemented due to the hardware specific memory
  * windows interface, so a translation address can be only set on the side,
  * where shared memory (inbound memory windows) is allocated.
  *
@@ -949,10 +949,10 @@ static inline int ntb_peer_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
  * @pidx:	Port index of peer device.
  * @widx:	Memory window index.
  *
- * Clear the translation of a outbound memory window.  The local device may no
+ * Clear the translation of a outbound memory window.  The local device may anal
  * longer access a shared memory through the window.
  *
- * This method may not be implemented due to the hardware specific memory
+ * This method may analt be implemented due to the hardware specific memory
  * windows interface.
  *
  * Return: Zero on success, otherwise an error number.
@@ -971,10 +971,10 @@ static inline int ntb_peer_mw_clear_trans(struct ntb_dev *ntb, int pidx,
  * @ntb:	NTB device context.
  *
  * It is possible for some ntb hardware to be affected by errata.  Hardware
- * drivers can advise clients to avoid using doorbells.  Clients may ignore
+ * drivers can advise clients to avoid using doorbells.  Clients may iganalre
  * this advice, though caution is recommended.
  *
- * Return: Zero if it is safe to use doorbells, or One if it is not safe.
+ * Return: Zero if it is safe to use doorbells, or One if it is analt safe.
  */
 static inline int ntb_db_is_unsafe(struct ntb_dev *ntb)
 {
@@ -1051,7 +1051,7 @@ static inline u64 ntb_db_read(struct ntb_dev *ntb)
  * Set bits in the local doorbell register, which may generate a local doorbell
  * interrupt.  Bits that were already set must remain set.
  *
- * This is unusual, and hardware may not support it.
+ * This is unusual, and hardware may analt support it.
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -1121,7 +1121,7 @@ static inline int ntb_db_set_mask(struct ntb_dev *ntb, u64 db_bits)
  * from being generated for those doorbell bits.  If a doorbell bit is already
  * set at the time the mask is cleared, and the corresponding mask bit is
  * changed from set to clear, then the ntb driver must ensure that
- * ntb_db_event() is called.  If the hardware does not generate the interrupt
+ * ntb_db_event() is called.  If the hardware does analt generate the interrupt
  * on clearing the mask bit, then the driver must call ntb_db_event() anyway.
  *
  * Return: Zero on success, otherwise an error number.
@@ -1166,7 +1166,7 @@ static inline int ntb_peer_db_addr(struct ntb_dev *ntb,
  *
  * Read the peer doorbell register, and return the bits that are set.
  *
- * This is unusual, and hardware may not support it.
+ * This is unusual, and hardware may analt support it.
  *
  * Return: The bits currently set in the peer doorbell register.
  */
@@ -1201,7 +1201,7 @@ static inline int ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
  * Clear bits in the peer doorbell register, arming the bits for the next
  * doorbell.
  *
- * This is unusual, and hardware may not support it.
+ * This is unusual, and hardware may analt support it.
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -1219,7 +1219,7 @@ static inline int ntb_peer_db_clear(struct ntb_dev *ntb, u64 db_bits)
  *
  * Read the peer doorbell mask register, and return the bits that are set.
  *
- * This is unusual, and hardware may not support it.
+ * This is unusual, and hardware may analt support it.
  *
  * Return: The bits currently set in the peer doorbell mask register.
  */
@@ -1240,7 +1240,7 @@ static inline u64 ntb_peer_db_read_mask(struct ntb_dev *ntb)
  * from being generated for those doorbell bits.  Bits that were already set
  * must remain set.
  *
- * This is unusual, and hardware may not support it.
+ * This is unusual, and hardware may analt support it.
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -1258,11 +1258,11 @@ static inline int ntb_peer_db_set_mask(struct ntb_dev *ntb, u64 db_bits)
  * @db_bits:	Doorbell bits to clear.
  *
  * Clear bits in the peer doorbell mask register, allowing doorbell interrupts
- * from being generated for those doorbell bits.  If the hardware does not
- * generate the interrupt on clearing the mask bit, then the driver should not
+ * from being generated for those doorbell bits.  If the hardware does analt
+ * generate the interrupt on clearing the mask bit, then the driver should analt
  * implement this function!
  *
- * This is unusual, and hardware may not support it.
+ * This is unusual, and hardware may analt support it.
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -1279,10 +1279,10 @@ static inline int ntb_peer_db_clear_mask(struct ntb_dev *ntb, u64 db_bits)
  * @ntb:	NTB device context.
  *
  * It is possible for some ntb hardware to be affected by errata.  Hardware
- * drivers can advise clients to avoid using scratchpads.  Clients may ignore
+ * drivers can advise clients to avoid using scratchpads.  Clients may iganalre
  * this advice, though caution is recommended.
  *
- * Return: Zero if it is safe to use scratchpads, or One if it is not safe.
+ * Return: Zero if it is safe to use scratchpads, or One if it is analt safe.
  */
 static inline int ntb_spad_is_unsafe(struct ntb_dev *ntb)
 {
@@ -1654,16 +1654,16 @@ int ntb_msi_peer_addr(struct ntb_dev *ntb, int peer,
 		      struct ntb_msi_desc *desc,
 		      phys_addr_t *msi_addr);
 
-#else /* not CONFIG_NTB_MSI */
+#else /* analt CONFIG_NTB_MSI */
 
 static inline int ntb_msi_init(struct ntb_dev *ntb,
 			       void (*desc_changed)(void *ctx))
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int ntb_msi_setup_mws(struct ntb_dev *ntb)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline void ntb_msi_clear_mws(struct ntb_dev *ntb) {}
 static inline int ntbm_msi_request_threaded_irq(struct ntb_dev *ntb,
@@ -1672,20 +1672,20 @@ static inline int ntbm_msi_request_threaded_irq(struct ntb_dev *ntb,
 						const char *name, void *dev_id,
 						struct ntb_msi_desc *msi_desc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline void ntbm_msi_free_irq(struct ntb_dev *ntb, unsigned int irq,
 				     void *dev_id) {}
 static inline int ntb_msi_peer_trigger(struct ntb_dev *ntb, int peer,
 				       struct ntb_msi_desc *desc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int ntb_msi_peer_addr(struct ntb_dev *ntb, int peer,
 				    struct ntb_msi_desc *desc,
 				    phys_addr_t *msi_addr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 
 }
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright IBM Corp. 2004, 2005
  * Interface implementation for communication with the z/VM control program
@@ -6,7 +6,7 @@
  * Author(s): Christian Borntraeger <cborntra@de.ibm.com>
  *
  *
- * z/VMs CP offers the possibility to issue commands via the diagnose code 8
+ * z/VMs CP offers the possibility to issue commands via the diaganalse code 8
  * this driver implements a character device that issues these commands and
  * returns the answer of CP.
  *

@@ -8,7 +8,7 @@
 
 /* LAG roles for netdev */
 enum ice_lag_role {
-	ICE_LAG_NONE,
+	ICE_LAG_ANALNE,
 	ICE_LAG_PRIMARY,
 	ICE_LAG_BACKUP,
 	ICE_LAG_UNSET
@@ -25,7 +25,7 @@ struct ice_pf;
 struct ice_vf;
 
 struct ice_lag_netdev_list {
-	struct list_head node;
+	struct list_head analde;
 	struct net_device *netdev;
 };
 
@@ -35,7 +35,7 @@ struct ice_lag {
 	struct net_device *netdev; /* this PF's netdev */
 	struct net_device *upper_netdev; /* upper bonding netdev */
 	struct list_head *netdev_head;
-	struct notifier_block notif_block;
+	struct analtifier_block analtif_block;
 	s32 bond_mode;
 	u16 bond_swid; /* swid for primary interface */
 	u8 active_port; /* lport value for the current active port */
@@ -57,16 +57,16 @@ struct ice_lag_work {
 	unsigned long event;
 	struct net_device *event_netdev;
 	union {
-		struct netdev_notifier_changeupper_info changeupper_info;
-		struct netdev_notifier_bonding_info bonding_info;
-		struct netdev_notifier_info notifier_info;
+		struct netdev_analtifier_changeupper_info changeupper_info;
+		struct netdev_analtifier_bonding_info bonding_info;
+		struct netdev_analtifier_info analtifier_info;
 	} info;
 };
 
-void ice_lag_move_new_vf_nodes(struct ice_vf *vf);
+void ice_lag_move_new_vf_analdes(struct ice_vf *vf);
 int ice_init_lag(struct ice_pf *pf);
 void ice_deinit_lag(struct ice_pf *pf);
 void ice_lag_rebuild(struct ice_pf *pf);
 bool ice_lag_is_switchdev_running(struct ice_pf *pf);
-void ice_lag_move_vf_nodes_cfg(struct ice_lag *lag, u8 src_prt, u8 dst_prt);
+void ice_lag_move_vf_analdes_cfg(struct ice_lag *lag, u8 src_prt, u8 dst_prt);
 #endif /* _ICE_LAG_H_ */

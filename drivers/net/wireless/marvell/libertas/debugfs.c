@@ -39,7 +39,7 @@ static ssize_t lbs_dev_info(struct file *file, char __user *userbuf,
 	char *buf = (char *)addr;
 	ssize_t res;
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += snprintf(buf+pos, len-pos, "state = %s\n",
 				szStates[priv->connect_status]);
@@ -99,7 +99,7 @@ static ssize_t lbs_sleepparams_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = lbs_cmd_802_11_sleep_params(priv, CMD_ACT_GET, &sp);
 	if (ret)
@@ -141,7 +141,7 @@ static ssize_t lbs_host_sleep_write(struct file *file,
 	else if (host_sleep == 1) {
 		if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
 			netdev_info(priv->dev,
-				    "wake parameters not configured\n");
+				    "wake parameters analt configured\n");
 			ret = -EINVAL;
 			goto out_unlock;
 		}
@@ -168,7 +168,7 @@ static ssize_t lbs_host_sleep_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += snprintf(buf, len, "%d\n", priv->is_host_sleep_activated);
 
@@ -230,11 +230,11 @@ static ssize_t lbs_threshold_read(uint16_t tlv_type, uint16_t event_mask,
 
 	buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	subscribed = kzalloc(sizeof(*subscribed), GFP_KERNEL);
 	if (!subscribed) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_page;
 	}
 
@@ -290,7 +290,7 @@ static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
 	}
 	events = kzalloc(sizeof(*events), GFP_KERNEL);
 	if (!events) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_page;
 	}
 
@@ -308,7 +308,7 @@ static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
 	else
 		new_mask = curr_mask & ~event_mask;
 
-	/* Now everything is set and we can send stuff down to the firmware */
+	/* Analw everything is set and we can send stuff down to the firmware */
 
 	tlv = (void *)events->tlv;
 
@@ -441,7 +441,7 @@ static ssize_t lbs_rdmac_read(struct file *file, char __user *userbuf,
 	u32 val = 0;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = lbs_get_reg(priv, CMD_MAC_REG_ACCESS, priv->mac_offset, &val);
 	mdelay(10);
@@ -511,7 +511,7 @@ static ssize_t lbs_rdbbp_read(struct file *file, char __user *userbuf,
 	u32 val;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = lbs_get_reg(priv, CMD_BBP_REG_ACCESS, priv->bbp_offset, &val);
 	mdelay(10);
@@ -583,7 +583,7 @@ static ssize_t lbs_rdrf_read(struct file *file, char __user *userbuf,
 	u32 val;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = lbs_get_reg(priv, CMD_RF_REG_ACCESS, priv->rf_offset, &val);
 	mdelay(10);
@@ -815,7 +815,7 @@ static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = buf;
 

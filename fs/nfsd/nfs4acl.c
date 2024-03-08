@@ -13,20 +13,20 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     analtice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ *  DISCLAIMED. IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
@@ -129,15 +129,15 @@ int
 nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 		struct nfs4_acl **acl)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int error = 0;
 	struct posix_acl *pacl = NULL, *dpacl = NULL;
 	unsigned int flags = 0;
 	int size = 0;
 
-	pacl = get_inode_acl(inode, ACL_TYPE_ACCESS);
+	pacl = get_ianalde_acl(ianalde, ACL_TYPE_ACCESS);
 	if (!pacl)
-		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+		pacl = posix_acl_from_mode(ianalde->i_mode, GFP_KERNEL);
 
 	if (IS_ERR(pacl))
 		return PTR_ERR(pacl);
@@ -145,9 +145,9 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 	/* allocate for worst case: one (deny, allow) pair each: */
 	size += 2 * pacl->a_count;
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(ianalde->i_mode)) {
 		flags = NFS4_ACL_DIR;
-		dpacl = get_inode_acl(inode, ACL_TYPE_DEFAULT);
+		dpacl = get_ianalde_acl(ianalde, ACL_TYPE_DEFAULT);
 		if (IS_ERR(dpacl)) {
 			error = PTR_ERR(dpacl);
 			goto rel_pacl;
@@ -159,7 +159,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 
 	*acl = kmalloc(nfs4_acl_bytes(size), GFP_KERNEL);
 	if (*acl == NULL) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 	(*acl)->naces = 0;
@@ -246,10 +246,10 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 	pa = pacl->a_entries;
 	ace = acl->aces + acl->naces;
 
-	/* We could deny everything not granted by the owner: */
+	/* We could deny everything analt granted by the owner: */
 	deny = ~pas.owner;
 	/*
-	 * but it is equivalent (and simpler) to deny only what is not
+	 * but it is equivalent (and simpler) to deny only what is analt
 	 * granted by later entries:
 	 */
 	deny &= pas.users | pas.group | pas.groups | pas.other;
@@ -375,8 +375,8 @@ static void
 sort_pacl_range(struct posix_acl *pacl, int start, int end) {
 	int sorted = 0, i;
 
-	/* We just do a bubble sort; easy to do in place, and we're not
-	 * expecting acl's to be long enough to justify anything more. */
+	/* We just do a bubble sort; easy to do in place, and we're analt
+	 * expecting acl's to be long eanalugh to justify anything more. */
 	while (!sorted) {
 		sorted = 1;
 		for (i = start; i < end; i++) {
@@ -397,7 +397,7 @@ sort_pacl(struct posix_acl *pacl)
 	 * by uid/gid. */
 	int i, j;
 
-	/* no users or groups */
+	/* anal users or groups */
 	if (!pacl || pacl->a_count <= 4)
 		return;
 
@@ -459,18 +459,18 @@ init_state(struct posix_acl_state *state, int cnt)
 	memset(state, 0, sizeof(struct posix_acl_state));
 	/*
 	 * In the worst case, each individual acl could be for a distinct
-	 * named user or group, but we don't know which, so we allocate
-	 * enough space for either:
+	 * named user or group, but we don't kanalw which, so we allocate
+	 * eanalugh space for either:
 	 */
 	alloc = sizeof(struct posix_ace_state_array)
 		+ cnt*sizeof(struct posix_user_ace_state);
 	state->users = kzalloc(alloc, GFP_KERNEL);
 	if (!state->users)
-		return -ENOMEM;
+		return -EANALMEM;
 	state->groups = kzalloc(alloc, GFP_KERNEL);
 	if (!state->groups) {
 		kfree(state->users);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -495,25 +495,25 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 	int i;
 
 	/*
-	 * ACLs with no ACEs are treated differently in the inheritable
-	 * and effective cases: when there are no inheritable ACEs,
+	 * ACLs with anal ACEs are treated differently in the inheritable
+	 * and effective cases: when there are anal inheritable ACEs,
 	 * calls ->set_acl with a NULL ACL structure.
 	 */
 	if (!state->valid && (flags & NFS4_ACL_TYPE_DEFAULT))
 		return NULL;
 
 	/*
-	 * When there are no effective ACEs, the following will end
+	 * When there are anal effective ACEs, the following will end
 	 * up setting a 3-element effective posix ACL with all
 	 * permissions zero.
 	 */
 	if (!state->users->n && !state->groups->n)
 		nace = 3;
-	else /* Note we also include a MASK ACE in this case: */
+	else /* Analte we also include a MASK ACE in this case: */
 		nace = 4 + state->users->n + state->groups->n;
 	pacl = posix_acl_alloc(nace, GFP_KERNEL);
 	if (!pacl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pace = pacl->a_entries;
 	pace->e_tag = ACL_USER_OBJ;
@@ -557,13 +557,13 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 
 static inline void allow_bits(struct posix_ace_state *astate, u32 mask)
 {
-	/* Allow all bits in the mask not already denied: */
+	/* Allow all bits in the mask analt already denied: */
 	astate->allow |= mask & ~astate->deny;
 }
 
 static inline void deny_bits(struct posix_ace_state *astate, u32 mask)
 {
-	/* Deny all bits in the mask not already allowed: */
+	/* Deny all bits in the mask analt already allowed: */
 	astate->deny |= mask & ~astate->allow;
 }
 
@@ -575,7 +575,7 @@ static int find_uid(struct posix_acl_state *state, kuid_t uid)
 	for (i = 0; i < a->n; i++)
 		if (uid_eq(a->aces[i].uid, uid))
 			return i;
-	/* Not found: */
+	/* Analt found: */
 	a->n++;
 	a->aces[i].uid = uid;
 	a->aces[i].perms.allow = state->everyone.allow;
@@ -592,7 +592,7 @@ static int find_gid(struct posix_acl_state *state, kgid_t gid)
 	for (i = 0; i < a->n; i++)
 		if (gid_eq(a->aces[i].gid, gid))
 			return i;
-	/* Not found: */
+	/* Analt found: */
 	a->n++;
 	a->aces[i].gid = gid;
 	a->aces[i].perms.allow = state->everyone.allow;
@@ -717,7 +717,7 @@ static int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *acl,
 		if (!(flags & NFS4_ACL_DIR))
 			goto out_dstate;
 		/*
-		 * Note that when only one of FILE_INHERIT or DIRECTORY_INHERIT
+		 * Analte that when only one of FILE_INHERIT or DIRECTORY_INHERIT
 		 * is set, we're effectively turning on the other.  That's OK,
 		 * according to rfc 3530.
 		 */
@@ -729,13 +729,13 @@ static int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *acl,
 
 	/*
 	 * At this point, the default ACL may have zeroed-out entries for owner,
-	 * group and other. That usually results in a non-sensical resulting ACL
+	 * group and other. That usually results in a analn-sensical resulting ACL
 	 * that denies all access except to any ACE that was explicitly added.
 	 *
 	 * The setfacl command solves a similar problem with this logic:
 	 *
 	 * "If  a  Default  ACL  entry is created, and the Default ACL contains
-	 *  no owner, owning group, or others entry,  a  copy of  the  ACL
+	 *  anal owner, owning group, or others entry,  a  copy of  the  ACL
 	 *  owner, owning group, or others entry is added to the Default ACL."
 	 *
 	 * Copy any missing ACEs from the effective set, if any ACEs were
@@ -790,9 +790,9 @@ __be32 nfsd4_acl_to_attr(enum nfs_ftype4 type, struct nfs4_acl *acl,
 	host_error = nfs4_acl_nfsv4_to_posix(acl, &attr->na_pacl,
 					     &attr->na_dpacl, flags);
 	if (host_error == -EINVAL)
-		return nfserr_attrnotsupp;
+		return nfserr_attranaltsupp;
 	else
-		return nfserrno(host_error);
+		return nfserranal(host_error);
 }
 
 static short

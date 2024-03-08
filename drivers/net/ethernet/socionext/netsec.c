@@ -138,7 +138,7 @@
 #define NETSEC_TCP_SEG_LEN_MAX			1460
 #define NETSEC_TCP_JUMBO_SEG_LEN_MAX		8960
 
-#define NETSEC_RX_CKSUM_NOTAVAIL		0
+#define NETSEC_RX_CKSUM_ANALTAVAIL		0
 #define NETSEC_RX_CKSUM_OK			1
 #define NETSEC_RX_CKSUM_NG			2
 
@@ -161,7 +161,7 @@
 #define NETSEC_PKT_CTRL_REG_LOG_CHKSUM_ER	BIT(3)
 #define NETSEC_PKT_CTRL_REG_LOG_HD_INCOMPLETE	BIT(2)
 #define NETSEC_PKT_CTRL_REG_LOG_HD_ER		BIT(1)
-#define NETSEC_PKT_CTRL_REG_DRP_NO_MATCH	BIT(0)
+#define NETSEC_PKT_CTRL_REG_DRP_ANAL_MATCH	BIT(0)
 
 #define NETSEC_CLK_EN_REG_DOM_G			BIT(5)
 #define NETSEC_CLK_EN_REG_DOM_C			BIT(1)
@@ -242,9 +242,9 @@
 #define NETSEC_SKB_PAD (NET_SKB_PAD + NET_IP_ALIGN)
 #define NETSEC_RXBUF_HEADROOM (max(XDP_PACKET_HEADROOM, NET_SKB_PAD) + \
 			       NET_IP_ALIGN)
-#define NETSEC_RX_BUF_NON_DATA (NETSEC_RXBUF_HEADROOM + \
+#define NETSEC_RX_BUF_ANALN_DATA (NETSEC_RXBUF_HEADROOM + \
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
-#define NETSEC_RX_BUF_SIZE	(PAGE_SIZE - NETSEC_RX_BUF_NON_DATA)
+#define NETSEC_RX_BUF_SIZE	(PAGE_SIZE - NETSEC_RX_BUF_ANALN_DATA)
 
 #define DESC_SZ	sizeof(struct netsec_de)
 
@@ -296,7 +296,7 @@ struct netsec_priv {
 	struct napi_struct napi;
 	phy_interface_t phy_interface;
 	struct net_device *ndev;
-	struct device_node *phy_np;
+	struct device_analde *phy_np;
 	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
 	void __iomem *ioaddr;
@@ -684,8 +684,8 @@ next:
 		 */
 		*desc = (struct netsec_desc){};
 
-		/* entry->attr is not going to be accessed by the NIC until
-		 * netsec_set_tx_de() is called. No need for a dma_wmb() here
+		/* entry->attr is analt going to be accessed by the NIC until
+		 * netsec_set_tx_de() is called. Anal need for a dma_wmb() here
 		 */
 		entry->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
 		/* move tail ahead */
@@ -743,13 +743,13 @@ static void *netsec_alloc_rx_data(struct netsec_priv *priv,
 	if (!page)
 		return NULL;
 
-	/* We allocate the same buffer length for XDP and non-XDP cases.
+	/* We allocate the same buffer length for XDP and analn-XDP cases.
 	 * page_pool API will map the whole page, skip what's needed for
 	 * network payloads and/or XDP
 	 */
 	*dma_handle = page_pool_get_dma_addr(page) + NETSEC_RXBUF_HEADROOM;
-	/* Make sure the incoming payload fits in the page for XDP and non-XDP
-	 * cases and reserve enough space for headroom + skb_shared_info
+	/* Make sure the incoming payload fits in the page for XDP and analn-XDP
+	 * cases and reserve eanalugh space for headroom + skb_shared_info
 	 */
 	*desc_len = NETSEC_RX_BUF_SIZE;
 
@@ -854,7 +854,7 @@ static u32 netsec_xdp_queue_one(struct netsec_priv *priv,
 			return NETSEC_XDP_CONSUMED;
 		tx_desc.buf_type = TYPE_NETSEC_XDP_NDO;
 	} else {
-		/* This is the device Rx buffer from page_pool. No need to remap
+		/* This is the device Rx buffer from page_pool. Anal need to remap
 		 * just sync and send it
 		 */
 		struct netsec_desc_ring *rx_ring =
@@ -1030,7 +1030,7 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 				goto next;
 			}
 		}
-		skb = build_skb(desc->addr, desc->len + NETSEC_RX_BUF_NON_DATA);
+		skb = build_skb(desc->addr, desc->len + NETSEC_RX_BUF_ANALN_DATA);
 
 		if (unlikely(!skb)) {
 			/* If skb fails recycle_direct will either unmap and
@@ -1191,7 +1191,7 @@ static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 
 	netsec_set_tx_de(priv, dring, &tx_ctrl, &tx_desc, skb);
 	spin_unlock_bh(&dring->lock);
-	netsec_write(priv, NETSEC_REG_NRM_TX_PKTCNT, 1); /* submit another tx */
+	netsec_write(priv, NETSEC_REG_NRM_TX_PKTCNT, 1); /* submit aanalther tx */
 
 	return NETDEV_TX_OK;
 }
@@ -1268,7 +1268,7 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 err:
 	netsec_free_dring(priv, id);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void netsec_setup_tx_dring(struct netsec_priv *priv)
@@ -1280,9 +1280,9 @@ static void netsec_setup_tx_dring(struct netsec_priv *priv)
 		struct netsec_de *de;
 
 		de = dring->vaddr + (DESC_SZ * i);
-		/* de->attr is not going to be accessed by the NIC
+		/* de->attr is analt going to be accessed by the NIC
 		 * until netsec_set_tx_de() is called.
-		 * No need for a dma_wmb() here
+		 * Anal need for a dma_wmb() here
 		 */
 		de->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
 	}
@@ -1297,7 +1297,7 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 		/* internal DMA mapping in page_pool */
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.pool_size = DESC_NUM,
-		.nid = NUMA_NO_NODE,
+		.nid = NUMA_ANAL_ANALDE,
 		.dev = priv->dev,
 		.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE,
 		.offset = NETSEC_RXBUF_HEADROOM,
@@ -1332,7 +1332,7 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 		buf = netsec_alloc_rx_data(priv, &dma_handle, &len);
 
 		if (!buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 		desc->dma_addr = dma_handle;
@@ -1358,7 +1358,7 @@ static int netsec_netdev_load_ucode_region(struct netsec_priv *priv, u32 reg,
 
 	ucode = ioremap(base, size * sizeof(u32));
 	if (!ucode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < size; i++)
 		netsec_write(priv, reg, readl(ucode + i * 4));
@@ -1439,7 +1439,7 @@ static int netsec_reset_hardware(struct netsec_priv *priv,
 	netsec_write(priv, NETSEC_REG_NRM_TX_DESC_START_LW,
 		     lower_32_bits(priv->desc_ring[NETSEC_RING_TX].desc_dma));
 
-	/* set normal tx dring ring config */
+	/* set analrmal tx dring ring config */
 	netsec_write(priv, NETSEC_REG_NRM_TX_CONFIG,
 		     1 << NETSEC_REG_DESC_ENDIAN);
 	netsec_write(priv, NETSEC_REG_NRM_RX_CONFIG,
@@ -1474,7 +1474,7 @@ static int netsec_reset_hardware(struct netsec_priv *priv,
 	if (priv->ndev->mtu > ETH_DATA_LEN)
 		value |= NETSEC_PKT_CTRL_REG_EN_JUMBO;
 
-	/* change to normal mode */
+	/* change to analrmal mode */
 	netsec_write(priv, NETSEC_REG_DMA_MH_CTRL, MH_CTRL__MODE_TRANS);
 	netsec_write(priv, NETSEC_REG_PKT_CTRL, value);
 
@@ -1635,12 +1635,12 @@ static int netsec_netdev_open(struct net_device *ndev)
 		goto err2;
 	}
 
-	if (dev_of_node(priv->dev)) {
+	if (dev_of_analde(priv->dev)) {
 		if (!of_phy_connect(priv->ndev, priv->phy_np,
 				    netsec_phy_adjust_link, 0,
 				    priv->phy_interface)) {
 			netif_err(priv, link, priv->ndev, "missing PHY\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err3;
 		}
 	} else {
@@ -1707,7 +1707,7 @@ static int netsec_netdev_init(struct net_device *ndev)
 	int ret;
 	u16 data;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(DESC_NUM);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(DESC_NUM);
 
 	ret = netsec_alloc_dring(priv, NETSEC_RING_TX);
 	if (ret)
@@ -1796,10 +1796,10 @@ static int netsec_xdp_setup(struct netsec_priv *priv, struct bpf_prog *prog,
 	struct net_device *dev = priv->ndev;
 	struct bpf_prog *old_prog;
 
-	/* For now just support only the usual MTU sized frames */
+	/* For analw just support only the usual MTU sized frames */
 	if (prog && dev->mtu > 1500) {
-		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames not supported on XDP");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames analt supported on XDP");
+		return -EOPANALTSUPP;
 	}
 
 	if (netif_running(dev))
@@ -1847,7 +1847,7 @@ static int netsec_of_probe(struct platform_device *pdev,
 {
 	int err;
 
-	err = of_get_phy_mode(pdev->dev.of_node, &priv->phy_interface);
+	err = of_get_phy_mode(pdev->dev.of_analde, &priv->phy_interface);
 	if (err) {
 		dev_err(&pdev->dev, "missing required property 'phy-mode'\n");
 		return err;
@@ -1856,7 +1856,7 @@ static int netsec_of_probe(struct platform_device *pdev,
 	/*
 	 * SynQuacer is physically configured with TX and RX delays
 	 * but the standard firmware claimed otherwise for a long
-	 * time, ignore it.
+	 * time, iganalre it.
 	 */
 	if (of_machine_is_compatible("socionext,developer-box") &&
 	    priv->phy_interface != PHY_INTERFACE_MODE_RGMII_ID) {
@@ -1864,7 +1864,7 @@ static int netsec_of_probe(struct platform_device *pdev,
 		priv->phy_interface = PHY_INTERFACE_MODE_RGMII_ID;
 	}
 
-	priv->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
+	priv->phy_np = of_parse_phandle(pdev->dev.of_analde, "phy-handle", 0);
 	if (!priv->phy_np) {
 		dev_err(&pdev->dev, "missing required property 'phy-handle'\n");
 		return -EINVAL;
@@ -1875,7 +1875,7 @@ static int netsec_of_probe(struct platform_device *pdev,
 	priv->clk = devm_clk_get(&pdev->dev, NULL); /* get by 'phy_ref_clk' */
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk),
-				     "phy_ref_clk not found\n");
+				     "phy_ref_clk analt found\n");
 	priv->freq = clk_get_rate(priv->clk);
 
 	return 0;
@@ -1887,13 +1887,13 @@ static int netsec_acpi_probe(struct platform_device *pdev,
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_ACPI))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* ACPI systems are assumed to configure the PHY in firmware, so
-	 * there is really no need to discover the PHY mode from the DSDT.
-	 * Since firmware is known to exist in the field that configures the
+	 * there is really anal need to discover the PHY mode from the DSDT.
+	 * Since firmware is kanalwn to exist in the field that configures the
 	 * PHY correctly but passes the wrong mode string in the phy-mode
-	 * device property, we have no choice but to ignore it.
+	 * device property, we have anal choice but to iganalre it.
 	 */
 	priv->phy_interface = PHY_INTERFACE_MODE_NA;
 
@@ -1915,7 +1915,7 @@ static void netsec_unregister_mdio(struct netsec_priv *priv)
 {
 	struct phy_device *phydev = priv->phydev;
 
-	if (!dev_of_node(priv->dev) && phydev) {
+	if (!dev_of_analde(priv->dev) && phydev) {
 		phy_device_remove(phydev);
 		phy_device_free(phydev);
 	}
@@ -1930,7 +1930,7 @@ static int netsec_register_mdio(struct netsec_priv *priv, u32 phy_addr)
 
 	bus = devm_mdiobus_alloc(priv->dev);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", dev_name(priv->dev));
 	bus->priv = priv;
@@ -1940,21 +1940,21 @@ static int netsec_register_mdio(struct netsec_priv *priv, u32 phy_addr)
 	bus->parent = priv->dev;
 	priv->mii_bus = bus;
 
-	if (dev_of_node(priv->dev)) {
-		struct device_node *mdio_node, *parent = dev_of_node(priv->dev);
+	if (dev_of_analde(priv->dev)) {
+		struct device_analde *mdio_analde, *parent = dev_of_analde(priv->dev);
 
-		mdio_node = of_get_child_by_name(parent, "mdio");
-		if (mdio_node) {
-			parent = mdio_node;
+		mdio_analde = of_get_child_by_name(parent, "mdio");
+		if (mdio_analde) {
+			parent = mdio_analde;
 		} else {
-			/* older f/w doesn't populate the mdio subnode,
+			/* older f/w doesn't populate the mdio subanalde,
 			 * allow relaxed upgrade of f/w in due time.
 			 */
-			dev_info(priv->dev, "Upgrade f/w for mdio subnode!\n");
+			dev_info(priv->dev, "Upgrade f/w for mdio subanalde!\n");
 		}
 
 		ret = of_mdiobus_register(bus, parent);
-		of_node_put(mdio_node);
+		of_analde_put(mdio_analde);
 
 		if (ret) {
 			dev_err(priv->dev, "mdiobus register err(%d)\n", ret);
@@ -1975,7 +1975,7 @@ static int netsec_register_mdio(struct netsec_priv *priv, u32 phy_addr)
 			dev_err(priv->dev, "get_phy_device err(%d)\n", ret);
 			priv->phydev = NULL;
 			mdiobus_unregister(bus);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		ret = phy_device_register(priv->phydev);
@@ -2001,14 +2001,14 @@ static int netsec_probe(struct platform_device *pdev)
 
 	mmio_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mmio_res) {
-		dev_err(&pdev->dev, "No MMIO resource found.\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal MMIO resource found.\n");
+		return -EANALDEV;
 	}
 
 	eeprom_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!eeprom_res) {
-		dev_info(&pdev->dev, "No EEPROM resource found.\n");
-		return -ENODEV;
+		dev_info(&pdev->dev, "Anal EEPROM resource found.\n");
+		return -EANALDEV;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -2017,7 +2017,7 @@ static int netsec_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(*priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = netdev_priv(ndev);
 
@@ -2063,11 +2063,11 @@ static int netsec_probe(struct platform_device *pdev)
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		dev_warn(&pdev->dev, "No MAC address found, using random\n");
+		dev_warn(&pdev->dev, "Anal MAC address found, using random\n");
 		eth_hw_addr_random(ndev);
 	}
 
-	if (dev_of_node(&pdev->dev))
+	if (dev_of_analde(&pdev->dev))
 		ret = netsec_of_probe(pdev, priv, &phy_addr);
 	else
 		ret = netsec_acpi_probe(pdev, priv, &phy_addr);
@@ -2078,7 +2078,7 @@ static int netsec_probe(struct platform_device *pdev)
 
 	if (!priv->freq) {
 		dev_err(&pdev->dev, "missing PHY reference clock frequency\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_ndev;
 	}
 
@@ -2101,7 +2101,7 @@ static int netsec_probe(struct platform_device *pdev)
 	/* this driver only supports F_TAIKI style NETSEC */
 	if (NETSEC_F_NETSEC_VER_MAJOR_NUM(hw_ver) !=
 	    NETSEC_F_NETSEC_VER_MAJOR_NUM(NETSEC_REG_NETSEC_VER_F_TAIKI)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto pm_disable;
 	}
 

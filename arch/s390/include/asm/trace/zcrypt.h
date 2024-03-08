@@ -8,7 +8,7 @@
  * Currently there are two tracepoint events defined here.
  * An s390_zcrypt_req request event occurs as soon as the request is
  * recognized by the zcrypt ioctl function. This event may act as some kind
- * of request-processing-starts-now indication.
+ * of request-processing-starts-analw indication.
  * As late as possible within the zcrypt ioctl function there occurs the
  * s390_zcrypt_rep event which may act as the point in time where the
  * request has been processed by the kernel and the result is about to be
@@ -19,7 +19,7 @@
  *
  * The main purpose of this zcrypt tracepoint api is to get some data for
  * performance measurements together with information about on which card
- * and queue the request has been processed. It is not an ffdc interface as
+ * and queue the request has been processed. It is analt an ffdc interface as
  * there is already code in the zcrypt device driver to serve the s390
  * debug feature interface.
  */

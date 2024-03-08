@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Implements pstore backend driver that write to block (or non-block) storage
+ * Implements pstore backend driver that write to block (or analn-block) storage
  * devices, using the pstore/zone API.
  */
 
@@ -54,7 +54,7 @@ MODULE_PARM_DESC(ftrace_size, "ftrace size in kbytes");
 
 static bool best_effort;
 module_param(best_effort, bool, 0400);
-MODULE_PARM_DESC(best_effort, "use best effort to write (i.e. do not require storage driver pstore support, default: off)");
+MODULE_PARM_DESC(best_effort, "use best effort to write (i.e. do analt require storage driver pstore support, default: off)");
 
 /*
  * blkdev - the block device to use for pstore storage
@@ -109,11 +109,11 @@ static int __register_pstore_device(struct pstore_device_info *dev)
 		return -EINVAL;
 	}
 	if (!dev->zone.read) {
-		pr_err("no read handler for device\n");
+		pr_err("anal read handler for device\n");
 		return -EINVAL;
 	}
 	if (!dev->zone.write) {
-		pr_err("no write handler for device\n");
+		pr_err("anal write handler for device\n");
 		return -EINVAL;
 	}
 
@@ -121,7 +121,7 @@ static int __register_pstore_device(struct pstore_device_info *dev)
 	if (pstore_device_info)
 		return -EBUSY;
 
-	/* zero means not limit on which backends to attempt to store. */
+	/* zero means analt limit on which backends to attempt to store. */
 	if (!dev->flags)
 		dev->flags = UINT_MAX;
 
@@ -143,9 +143,9 @@ static int __register_pstore_device(struct pstore_device_info *dev)
 	return ret;
 }
 /**
- * register_pstore_device() - register non-block device to pstore/blk
+ * register_pstore_device() - register analn-block device to pstore/blk
  *
- * @dev: non-block device information
+ * @dev: analn-block device information
  *
  * Return:
  * * 0		- OK
@@ -173,9 +173,9 @@ static void __unregister_pstore_device(struct pstore_device_info *dev)
 }
 
 /**
- * unregister_pstore_device() - unregister non-block device from pstore/blk
+ * unregister_pstore_device() - unregister analn-block device from pstore/blk
  *
- * @dev: non-block device information
+ * @dev: analn-block device information
  */
 void unregister_pstore_device(struct pstore_device_info *dev)
 {
@@ -200,24 +200,24 @@ static ssize_t psblk_generic_blk_write(const char *buf, size_t bytes,
 }
 
 /*
- * This takes its configuration only from the module parameters now.
+ * This takes its configuration only from the module parameters analw.
  */
 static int __register_pstore_blk(struct pstore_device_info *dev,
 				 const char *devpath)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	lockdep_assert_held(&pstore_blk_lock);
 
-	psblk_file = filp_open(devpath, O_RDWR | O_DSYNC | O_NOATIME | O_EXCL, 0);
+	psblk_file = filp_open(devpath, O_RDWR | O_DSYNC | O_ANALATIME | O_EXCL, 0);
 	if (IS_ERR(psblk_file)) {
 		ret = PTR_ERR(psblk_file);
 		pr_err("failed to open '%s': %d!\n", devpath, ret);
 		goto err;
 	}
 
-	if (!S_ISBLK(file_inode(psblk_file)->i_mode)) {
-		pr_err("'%s' is not block device!\n", devpath);
+	if (!S_ISBLK(file_ianalde(psblk_file)->i_mode)) {
+		pr_err("'%s' is analt block device!\n", devpath);
 		goto err_fput;
 	}
 
@@ -259,7 +259,7 @@ static __init const char *early_boot_devpath(const char *initial_devname)
 {
 	/*
 	 * During early boot the real root file system hasn't been
-	 * mounted yet, and no device nodes are present yet. Use the
+	 * mounted yet, and anal device analdes are present yet. Use the
 	 * same scheme to find the device that we use for mounting
 	 * the root file system.
 	 */
@@ -271,7 +271,7 @@ static __init const char *early_boot_devpath(const char *initial_devname)
 	}
 
 	init_unlink(devname);
-	init_mknod(devname, S_IFBLK | 0600, new_encode_dev(dev));
+	init_mkanald(devname, S_IFBLK | 0600, new_encode_dev(dev));
 
 	return devname;
 }
@@ -287,7 +287,7 @@ static int __init __best_effort_init(void)
 	struct pstore_device_info *best_effort_dev;
 	int ret;
 
-	/* No best-effort mode requested. */
+	/* Anal best-effort mode requested. */
 	if (!best_effort)
 		return 0;
 
@@ -299,7 +299,7 @@ static int __init __best_effort_init(void)
 
 	best_effort_dev = kzalloc(sizeof(*best_effort_dev), GFP_KERNEL);
 	if (!best_effort_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	best_effort_dev->zone.read = psblk_generic_blk_read;
 	best_effort_dev->zone.write = psblk_generic_blk_write;
@@ -309,7 +309,7 @@ static int __init __best_effort_init(void)
 	if (ret)
 		kfree(best_effort_dev);
 	else
-		pr_info("attached %s (%lu) (no dedicated panic_write!)\n",
+		pr_info("attached %s (%lu) (anal dedicated panic_write!)\n",
 			blkdev, best_effort_dev->zone.total_size);
 
 	return ret;

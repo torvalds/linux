@@ -191,7 +191,7 @@ static struct cpu_spec cpu_specs[] __initdata = {
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x00084202,
 		.cpu_name		= "740/750",
-		.cpu_features		= CPU_FTRS_740_NOTAU,
+		.cpu_features		= CPU_FTRS_740_ANALTAU,
 		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.mmu_features		= MMU_FTR_HPTE_TABLE,
 		.icache_bsize		= 32,
@@ -365,11 +365,11 @@ static struct cpu_spec cpu_specs[] __initdata = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
 	},
-	{	/* 7400 rev 1.1 ? (no TAU) */
+	{	/* 7400 rev 1.1 ? (anal TAU) */
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x000c1101,
 		.cpu_name		= "7400 (1.1)",
-		.cpu_features		= CPU_FTRS_7400_NOTAU,
+		.cpu_features		= CPU_FTRS_7400_ANALTAU,
 		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP |
 					  PPC_FEATURE_PPC_LE,
 		.mmu_features		= MMU_FTR_HPTE_TABLE,
@@ -413,7 +413,7 @@ static struct cpu_spec cpu_specs[] __initdata = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7400",
 	},
-	{	/* 7450 2.0 - no doze/nap */
+	{	/* 7450 2.0 - anal doze/nap */
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x80000200,
 		.cpu_name		= "7450",
@@ -589,7 +589,7 @@ static struct cpu_spec cpu_specs[] __initdata = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
-	{	/* default match, we assume split I/D cache & TB (non-601)... */
+	{	/* default match, we assume split I/D cache & TB (analn-601)... */
 		.pvr_mask		= 0x00000000,
 		.pvr_value		= 0x00000000,
 		.cpu_name		= "(generic PPC)",

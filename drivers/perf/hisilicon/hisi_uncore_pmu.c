@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 
 #include <asm/cputype.h>
@@ -71,7 +71,7 @@ static bool hisi_validate_event_group(struct perf_event *event)
 
 	if (!is_software_event(leader)) {
 		/*
-		 * We must NOT create groups containing mixed PMUs, although
+		 * We must ANALT create groups containing mixed PMUs, although
 		 * software events are acceptable
 		 */
 		if (leader->pmu != event->pmu)
@@ -91,7 +91,7 @@ static bool hisi_validate_event_group(struct perf_event *event)
 		counters++;
 	}
 
-	/* The group can not count events more than the counters in the HW */
+	/* The group can analt count events more than the counters in the HW */
 	return counters <= hisi_pmu->num_counters;
 }
 
@@ -136,7 +136,7 @@ static irqreturn_t hisi_uncore_pmu_isr(int irq, void *data)
 
 	overflown = hisi_pmu->ops->get_int_status(hisi_pmu);
 	if (!overflown)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Find the counter index which overflowed if the bit was set
@@ -167,7 +167,7 @@ int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
 		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, hisi_uncore_pmu_isr,
-			       IRQF_NOBALANCING | IRQF_NO_THREAD,
+			       IRQF_ANALBALANCING | IRQF_ANAL_THREAD,
 			       dev_name(&pdev->dev), hisi_pmu);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
@@ -187,25 +187,25 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 	struct hisi_pmu *hisi_pmu;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
-	 * We do not support sampling as the counters are all
+	 * We do analt support sampling as the counters are all
 	 * shared by all CPU cores in a CPU die(SCCL). Also we
-	 * do not support attach to a task(per-process mode)
+	 * do analt support attach to a task(per-process mode)
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
-	 *  The uncore counters not specific to any CPU, so cannot
+	 *  The uncore counters analt specific to any CPU, so cananalt
 	 *  support per-task
 	 */
 	if (event->cpu < 0)
 		return -EINVAL;
 
 	/*
-	 * Validate if the events in group does not exceed the
+	 * Validate if the events in group does analt exceed the
 	 * available counters in hardware.
 	 */
 	if (!hisi_validate_event_group(event))
@@ -278,7 +278,7 @@ void hisi_uncore_pmu_set_event_period(struct perf_event *event)
 	 * The HiSilicon PMU counters support 32 bits or 48 bits, depending on
 	 * the PMU. We reduce it to 2^(counter_bits - 1) to account for the
 	 * extreme interrupt latency. So we could hopefully handle the overflow
-	 * interrupt before another 2^(counter_bits - 1) events occur and the
+	 * interrupt before aanalther 2^(counter_bits - 1) events occur and the
 	 * counter overtakes its previous value.
 	 */
 	u64 val = BIT_ULL(hisi_pmu->counter_bits - 1);
@@ -424,7 +424,7 @@ EXPORT_SYMBOL_GPL(hisi_uncore_pmu_disable);
  * - For other MT parts:
  *   SCCL is Aff3[7:0], CCL is Aff2[7:0]
  *
- * - For non-MT parts:
+ * - For analn-MT parts:
  *   SCCL is Aff2[7:0], CCL is Aff1[7:0]
  */
 static void hisi_read_sccl_and_ccl_id(int *scclp, int *cclp)
@@ -460,7 +460,7 @@ static bool hisi_pmu_cpu_is_associated_pmu(struct hisi_pmu *hisi_pmu)
 {
 	int sccl_id, ccl_id;
 
-	/* If SCCL_ID is -1, the PMU is in a SICL and has no CPU affinity */
+	/* If SCCL_ID is -1, the PMU is in a SICL and has anal CPU affinity */
 	if (hisi_pmu->sccl_id == -1)
 		return true;
 
@@ -476,17 +476,17 @@ static bool hisi_pmu_cpu_is_associated_pmu(struct hisi_pmu *hisi_pmu)
 	return sccl_id == hisi_pmu->sccl_id && ccl_id == hisi_pmu->ccl_id;
 }
 
-int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
+int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct hisi_pmu *hisi_pmu = hlist_entry_safe(node, struct hisi_pmu,
-						     node);
+	struct hisi_pmu *hisi_pmu = hlist_entry_safe(analde, struct hisi_pmu,
+						     analde);
 
 	if (!hisi_pmu_cpu_is_associated_pmu(hisi_pmu))
 		return 0;
 
 	cpumask_set_cpu(cpu, &hisi_pmu->associated_cpus);
 
-	/* If another CPU is already managing this PMU, simply return. */
+	/* If aanalther CPU is already managing this PMU, simply return. */
 	if (hisi_pmu->on_cpu != -1)
 		return 0;
 
@@ -500,17 +500,17 @@ int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 }
 EXPORT_SYMBOL_GPL(hisi_uncore_pmu_online_cpu);
 
-int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct hisi_pmu *hisi_pmu = hlist_entry_safe(node, struct hisi_pmu,
-						     node);
+	struct hisi_pmu *hisi_pmu = hlist_entry_safe(analde, struct hisi_pmu,
+						     analde);
 	cpumask_t pmu_online_cpus;
 	unsigned int target;
 
 	if (!cpumask_test_and_clear_cpu(cpu, &hisi_pmu->associated_cpus))
 		return 0;
 
-	/* Nothing to do if this CPU doesn't own the PMU */
+	/* Analthing to do if this CPU doesn't own the PMU */
 	if (hisi_pmu->on_cpu != cpu)
 		return 0;
 
@@ -548,7 +548,7 @@ void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module)
 	pmu->stop               = hisi_uncore_pmu_stop;
 	pmu->read               = hisi_uncore_pmu_read;
 	pmu->attr_groups        = hisi_pmu->pmu_events.attr_groups;
-	pmu->capabilities       = PERF_PMU_CAP_NO_EXCLUDE;
+	pmu->capabilities       = PERF_PMU_CAP_ANAL_EXCLUDE;
 }
 EXPORT_SYMBOL_GPL(hisi_pmu_init);
 

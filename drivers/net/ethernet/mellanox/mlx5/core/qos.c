@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2020, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include "qos.h"
 
@@ -18,12 +18,12 @@ bool mlx5_qos_is_supported(struct mlx5_core_dev *mdev)
 	return true;
 }
 
-int mlx5_qos_max_leaf_nodes(struct mlx5_core_dev *mdev)
+int mlx5_qos_max_leaf_analdes(struct mlx5_core_dev *mdev)
 {
 	return 1 << MLX5_CAP_QOS(mdev, log_max_qos_nic_queue_group);
 }
 
-int mlx5_qos_create_leaf_node(struct mlx5_core_dev *mdev, u32 parent_id,
+int mlx5_qos_create_leaf_analde(struct mlx5_core_dev *mdev, u32 parent_id,
 			      u32 bw_share, u32 max_avg_bw, u32 *id)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
@@ -38,7 +38,7 @@ int mlx5_qos_create_leaf_node(struct mlx5_core_dev *mdev, u32 parent_id,
 						  sched_ctx, id);
 }
 
-int mlx5_qos_create_inner_node(struct mlx5_core_dev *mdev, u32 parent_id,
+int mlx5_qos_create_inner_analde(struct mlx5_core_dev *mdev, u32 parent_id,
 			       u32 bw_share, u32 max_avg_bw, u32 *id)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
@@ -57,12 +57,12 @@ int mlx5_qos_create_inner_node(struct mlx5_core_dev *mdev, u32 parent_id,
 						  sched_ctx, id);
 }
 
-int mlx5_qos_create_root_node(struct mlx5_core_dev *mdev, u32 *id)
+int mlx5_qos_create_root_analde(struct mlx5_core_dev *mdev, u32 *id)
 {
-	return mlx5_qos_create_inner_node(mdev, MLX5_QOS_DEFAULT_DWRR_UID, 0, 0, id);
+	return mlx5_qos_create_inner_analde(mdev, MLX5_QOS_DEFAULT_DWRR_UID, 0, 0, id);
 }
 
-int mlx5_qos_update_node(struct mlx5_core_dev *mdev,
+int mlx5_qos_update_analde(struct mlx5_core_dev *mdev,
 			 u32 bw_share, u32 max_avg_bw, u32 id)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
@@ -78,7 +78,7 @@ int mlx5_qos_update_node(struct mlx5_core_dev *mdev,
 						  sched_ctx, id, bitmask);
 }
 
-int mlx5_qos_destroy_node(struct mlx5_core_dev *mdev, u32 id)
+int mlx5_qos_destroy_analde(struct mlx5_core_dev *mdev, u32 id)
 {
 	return mlx5_destroy_scheduling_element_cmd(mdev, SCHEDULING_HIERARCHY_NIC, id);
 }

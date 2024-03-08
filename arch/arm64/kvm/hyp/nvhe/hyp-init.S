@@ -23,22 +23,22 @@
 	.align	11
 
 SYM_CODE_START(__kvm_hyp_init)
-	ventry	__invalid		// Synchronous EL2t
+	ventry	__invalid		// Synchroanalus EL2t
 	ventry	__invalid		// IRQ EL2t
 	ventry	__invalid		// FIQ EL2t
 	ventry	__invalid		// Error EL2t
 
-	ventry	__invalid		// Synchronous EL2h
+	ventry	__invalid		// Synchroanalus EL2h
 	ventry	__invalid		// IRQ EL2h
 	ventry	__invalid		// FIQ EL2h
 	ventry	__invalid		// Error EL2h
 
-	ventry	__do_hyp_init		// Synchronous 64-bit EL1
+	ventry	__do_hyp_init		// Synchroanalus 64-bit EL1
 	ventry	__invalid		// IRQ 64-bit EL1
 	ventry	__invalid		// FIQ 64-bit EL1
 	ventry	__invalid		// Error 64-bit EL1
 
-	ventry	__invalid		// Synchronous 32-bit EL1
+	ventry	__invalid		// Synchroanalus 32-bit EL1
 	ventry	__invalid		// IRQ 32-bit EL1
 	ventry	__invalid		// FIQ 32-bit EL1
 	ventry	__invalid		// Error 32-bit EL1
@@ -47,7 +47,7 @@ __invalid:
 	b	.
 
 	/*
-	 * Only uses x0..x3 so as to not clobber callee-saved SMCCC registers.
+	 * Only uses x0..x3 so as to analt clobber callee-saved SMCCC registers.
 	 *
 	 * x0: SMCCC function ID
 	 * x1: struct kvm_nvhe_init_params PA
@@ -62,7 +62,7 @@ __do_hyp_init:
 	cmp	x0, x3
 	b.eq	1f
 
-	mov	x0, #SMCCC_RET_NOT_SUPPORTED
+	mov	x0, #SMCCC_RET_ANALT_SUPPORTED
 	eret
 
 1:	mov	x0, x1
@@ -78,7 +78,7 @@ SYM_CODE_END(__kvm_hyp_init)
 /*
  * Initialize the hypervisor in EL2.
  *
- * Only uses x0..x2 so as to not clobber callee-saved SMCCC registers
+ * Only uses x0..x2 so as to analt clobber callee-saved SMCCC registers
  * and leave x3 for the caller.
  *
  * x0: struct kvm_nvhe_init_params PA
@@ -119,7 +119,7 @@ SYM_CODE_START_LOCAL(___kvm_hyp_init)
 	phys_to_ttbr x2, x1
 alternative_if ARM64_HAS_CNP
 	orr	x2, x2, #TTBR_CNP_BIT
-alternative_else_nop_endif
+alternative_else_analp_endif
 	msr	ttbr0_el2, x2
 
 	ldr	x0, [x0, #NVHE_INIT_TCR_EL2]
@@ -137,12 +137,12 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 	mov_q	x1, (SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
 		     SCTLR_ELx_ENDA | SCTLR_ELx_ENDB)
 	orr	x0, x0, x1
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 #ifdef CONFIG_ARM64_BTI_KERNEL
 alternative_if ARM64_BTI
 	orr	x0, x0, #SCTLR_EL2_BT
-alternative_else_nop_endif
+alternative_else_analp_endif
 #endif /* CONFIG_ARM64_BTI_KERNEL */
 
 	msr	sctlr_el2, x0
@@ -191,7 +191,7 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 	cmp	x0, #CurrentEL_EL2
 	b.eq	2f
 
-	/* The core booted in EL1. KVM cannot be initialized on it. */
+	/* The core booted in EL1. KVM cananalt be initialized on it. */
 1:	wfe
 	wfi
 	b	1b
@@ -238,7 +238,7 @@ SYM_CODE_START(__kvm_handle_stub_hvc)
 
 	/*
 	 * Set the HVC_RESET_VECTORS return code before entering the common
-	 * path so that we do not clobber x0-x2 in case we are coming via
+	 * path so that we do analt clobber x0-x2 in case we are coming via
 	 * HVC_SOFT_RESTART.
 	 */
 	mov	x0, xzr
@@ -252,7 +252,7 @@ reset:
 alternative_if ARM64_KVM_PROTECTED_MODE
 	mov_q	x5, HCR_HOST_NVHE_FLAGS
 	msr	hcr_el2, x5
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 	/* Install stub vectors */
 	adr_l	x5, __hyp_stub_vectors
@@ -280,7 +280,7 @@ SYM_FUNC_START(__pkvm_init_switch_pgd)
 	phys_to_ttbr x4, x3
 alternative_if ARM64_HAS_CNP
 	orr	x4, x4, #TTBR_CNP_BIT
-alternative_else_nop_endif
+alternative_else_analp_endif
 	msr	ttbr0_el2, x4
 
 	/* Set the new stack pointer */

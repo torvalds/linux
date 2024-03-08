@@ -49,7 +49,7 @@ EXPORT_SYMBOL_GPL(klp_get_state);
  * Checks whether already installed livepatches modify the given
  * system state.
  *
- * The same system state can be modified by more non-cumulative
+ * The same system state can be modified by more analn-cumulative
  * livepatches. It is expected that the latest livepatch has
  * the most up-to-date information.
  *
@@ -59,7 +59,7 @@ EXPORT_SYMBOL_GPL(klp_get_state);
  * callbacks.
  *
  * Return: pointer to the latest struct klp_state from already
- *	installed livepatches, NULL when not found.
+ *	installed livepatches, NULL when analt found.
  */
 struct klp_state *klp_get_prev_state(unsigned long id)
 {
@@ -99,9 +99,9 @@ static bool klp_is_state_compatible(struct klp_patch *patch,
 }
 
 /*
- * Check that the new livepatch will not break the existing system states.
+ * Check that the new livepatch will analt break the existing system states.
  * Cumulative patches must handle all already modified states.
- * Non-cumulative patches can touch already modified states.
+ * Analn-cumulative patches can touch already modified states.
  */
 bool klp_is_patch_compatible(struct klp_patch *patch)
 {

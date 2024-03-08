@@ -43,9 +43,9 @@ static bool host1x_syncpt_fence_enable_signaling(struct dma_fence *f)
 	/*
 	 * The dma_fence framework requires the fence driver to keep a
 	 * reference to any fences for which 'enable_signaling' has been
-	 * called (and that have not been signalled).
+	 * called (and that have analt been signalled).
 	 *
-	 * We cannot currently always guarantee that all fences get signalled
+	 * We cananalt currently always guarantee that all fences get signalled
 	 * or cancelled. As such, for such situations, set up a timeout, so
 	 * that long-lasting fences will get reaped eventually.
 	 */
@@ -85,8 +85,8 @@ void host1x_fence_signal(struct host1x_syncpt_fence *f)
 
 	if (f->timeout && cancel_delayed_work(&f->timeout_work)) {
 		/*
-		 * We know that the timeout path will not be entered.
-		 * Safe to drop the timeout path's reference now.
+		 * We kanalw that the timeout path will analt be entered.
+		 * Safe to drop the timeout path's reference analw.
 		 */
 		dma_fence_put(&f->base);
 	}
@@ -129,7 +129,7 @@ struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold,
 
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
 	if (!fence)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fence->sp = sp;
 	fence->threshold = threshold;

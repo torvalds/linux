@@ -5,10 +5,10 @@ void convert_to_tag_list(struct tag *tags);
 const struct machine_desc *setup_machine_tags(void *__atags_vaddr,
 	unsigned int machine_nr);
 #else
-static inline const struct machine_desc * __init __noreturn
+static inline const struct machine_desc * __init __analreturn
 setup_machine_tags(void *__atags_vaddr, unsigned int machine_nr)
 {
-	early_print("no ATAGS support: can't continue\n");
+	early_print("anal ATAGS support: can't continue\n");
 	while (true);
 	unreachable();
 }

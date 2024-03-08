@@ -13,9 +13,9 @@ properties:
   compatible:
     enum:
       - samsung,s5pv210-rotator
-      - samsung,exynos4210-rotator
-      - samsung,exynos4212-rotator
-      - samsung,exynos5250-rotator
+      - samsung,exyanals4210-rotator
+      - samsung,exyanals4212-rotator
+      - samsung,exyanals5250-rotator
 
   reg:
     maxItems: 1
@@ -48,7 +48,7 @@ additionalProperties: false
 examples:
   - |
     rotator@12810000 {
-        compatible = "samsung,exynos4210-rotator";
+        compatible = "samsung,exyanals4210-rotator";
         reg = <0x12810000 0x1000>;
         interrupts = <0 83 0>;
         clocks = <&clock 278>;

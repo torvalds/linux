@@ -297,7 +297,7 @@ static int mtk_pcie_set_trans_table(struct mtk_gen3_pcie *pcie,
 	}
 
 	if (remaining)
-		dev_warn(pcie->dev, "not enough translate table for addr: %#llx, limited to [%d]\n",
+		dev_warn(pcie->dev, "analt eanalugh translate table for addr: %#llx, limited to [%d]\n",
 			 (unsigned long long)cpu_addr, PCIE_MAX_TRANS_TABLES);
 
 	return 0;
@@ -348,7 +348,7 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
 	/* Set class code */
 	val = readl_relaxed(pcie->base + PCIE_PCI_IDS_1);
 	val &= ~GENMASK(31, 8);
-	val |= PCI_CLASS(PCI_CLASS_BRIDGE_PCI_NORMAL);
+	val |= PCI_CLASS(PCI_CLASS_BRIDGE_PCI_ANALRMAL);
 	writel_relaxed(val, pcie->base + PCIE_PCI_IDS_1);
 
 	/* Mask all INTx interrupts */
@@ -378,7 +378,7 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
 	val &= ~(PCIE_MAC_RSTB | PCIE_PHY_RSTB | PCIE_BRG_RSTB | PCIE_PE_RSTB);
 	writel_relaxed(val, pcie->base + PCIE_RST_CTRL_REG);
 
-	/* Check if the link is up or not */
+	/* Check if the link is up or analt */
 	err = readl_poll_timeout(pcie->base + PCIE_LINK_STATUS_REG, val,
 				 !!(val & PCIE_PORT_LINKUP), 20,
 				 PCI_PM_D3COLD_WAIT * USEC_PER_MSEC);
@@ -389,7 +389,7 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
 		val = readl_relaxed(pcie->base + PCIE_LTSSM_STATUS_REG);
 		ltssm_index = PCIE_LTSSM_STATE(val);
 		ltssm_state = ltssm_index >= ARRAY_SIZE(ltssm_str) ?
-			      "Unknown state" : ltssm_str[ltssm_index];
+			      "Unkanalwn state" : ltssm_str[ltssm_index];
 		dev_err(pcie->dev,
 			"PCIe link down, current LTSSM state: %s (%#x)\n",
 			ltssm_state, val);
@@ -537,7 +537,7 @@ static int mtk_msi_bottom_domain_alloc(struct irq_domain *domain,
 	mutex_unlock(&pcie->lock);
 
 	if (hwirq < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	set_idx = hwirq / PCIE_MSI_IRQS_PER_SET;
 	msi_set = &pcie->msi_sets[set_idx];
@@ -638,55 +638,55 @@ static const struct irq_domain_ops intx_domain_ops = {
 static int mtk_pcie_init_irq_domains(struct mtk_gen3_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *intc_node, *node = dev->of_node;
+	struct device_analde *intc_analde, *analde = dev->of_analde;
 	int ret;
 
 	raw_spin_lock_init(&pcie->irq_lock);
 
 	/* Setup INTx */
-	intc_node = of_get_child_by_name(node, "interrupt-controller");
-	if (!intc_node) {
-		dev_err(dev, "missing interrupt-controller node\n");
-		return -ENODEV;
+	intc_analde = of_get_child_by_name(analde, "interrupt-controller");
+	if (!intc_analde) {
+		dev_err(dev, "missing interrupt-controller analde\n");
+		return -EANALDEV;
 	}
 
-	pcie->intx_domain = irq_domain_add_linear(intc_node, PCI_NUM_INTX,
+	pcie->intx_domain = irq_domain_add_linear(intc_analde, PCI_NUM_INTX,
 						  &intx_domain_ops, pcie);
 	if (!pcie->intx_domain) {
 		dev_err(dev, "failed to create INTx IRQ domain\n");
-		ret = -ENODEV;
-		goto out_put_node;
+		ret = -EANALDEV;
+		goto out_put_analde;
 	}
 
 	/* Setup MSI */
 	mutex_init(&pcie->lock);
 
-	pcie->msi_bottom_domain = irq_domain_add_linear(node, PCIE_MSI_IRQS_NUM,
+	pcie->msi_bottom_domain = irq_domain_add_linear(analde, PCIE_MSI_IRQS_NUM,
 				  &mtk_msi_bottom_domain_ops, pcie);
 	if (!pcie->msi_bottom_domain) {
 		dev_err(dev, "failed to create MSI bottom domain\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_msi_bottom_domain;
 	}
 
-	pcie->msi_domain = pci_msi_create_irq_domain(dev->fwnode,
+	pcie->msi_domain = pci_msi_create_irq_domain(dev->fwanalde,
 						     &mtk_msi_domain_info,
 						     pcie->msi_bottom_domain);
 	if (!pcie->msi_domain) {
 		dev_err(dev, "failed to create MSI domain\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_msi_domain;
 	}
 
-	of_node_put(intc_node);
+	of_analde_put(intc_analde);
 	return 0;
 
 err_msi_domain:
 	irq_domain_remove(pcie->msi_bottom_domain);
 err_msi_bottom_domain:
 	irq_domain_remove(pcie->intx_domain);
-out_put_node:
-	of_node_put(intc_node);
+out_put_analde:
+	of_analde_put(intc_analde);
 	return ret;
 }
 
@@ -934,7 +934,7 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 
 	host = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = pci_host_bridge_priv(host);
 
@@ -1023,7 +1023,7 @@ static int mtk_pcie_turn_off_link(struct mtk_gen3_pcie *pcie)
 				   50 * USEC_PER_MSEC);
 }
 
-static int mtk_pcie_suspend_noirq(struct device *dev)
+static int mtk_pcie_suspend_analirq(struct device *dev)
 {
 	struct mtk_gen3_pcie *pcie = dev_get_drvdata(dev);
 	int err;
@@ -1032,7 +1032,7 @@ static int mtk_pcie_suspend_noirq(struct device *dev)
 	/* Trigger link to L2 state */
 	err = mtk_pcie_turn_off_link(pcie);
 	if (err) {
-		dev_err(pcie->dev, "cannot enter L2 state\n");
+		dev_err(pcie->dev, "cananalt enter L2 state\n");
 		return err;
 	}
 
@@ -1049,7 +1049,7 @@ static int mtk_pcie_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int mtk_pcie_resume_noirq(struct device *dev)
+static int mtk_pcie_resume_analirq(struct device *dev)
 {
 	struct mtk_gen3_pcie *pcie = dev_get_drvdata(dev);
 	int err;
@@ -1070,8 +1070,8 @@ static int mtk_pcie_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops mtk_pcie_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_pcie_suspend_noirq,
-				  mtk_pcie_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(mtk_pcie_suspend_analirq,
+				  mtk_pcie_resume_analirq)
 };
 
 static const struct of_device_id mtk_pcie_of_match[] = {

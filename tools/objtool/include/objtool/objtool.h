@@ -28,13 +28,13 @@ struct objtool_file {
 	struct list_head mcount_loc_list;
 	struct list_head endbr_list;
 	struct list_head call_list;
-	bool ignore_unreachables, hints, rodata;
+	bool iganalre_unreachables, hints, rodata;
 
 	unsigned int nr_endbr;
 	unsigned int nr_endbr_int;
 
 	unsigned long jl_short, jl_long;
-	unsigned long jl_nop_short, jl_nop_long;
+	unsigned long jl_analp_short, jl_analp_long;
 
 	struct pv_state *pv_ops;
 };

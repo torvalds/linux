@@ -24,7 +24,7 @@
 	 * parameter list.
 	 */
 
-/* Make sure we have enough space for the 'uncompressor' */
+/* Make sure we have eanalugh space for the 'uncompressor' */
 
 #define STACK_SIZE 32768
 #define HEAP_SIZE (131072*4)
@@ -37,7 +37,7 @@
 	.globl __start
 	/* this must be the first byte of the loader! */
 __start:
-	abi_entry(32)		# we do not intend to return
+	abi_entry(32)		# we do analt intend to return
 	_call0	_start
 __start_a0:
 	.align 4
@@ -70,14 +70,14 @@ _start:
 KABI_C0	mov	abi_saved0, abi_arg0
 
 	/* copy the loader to its address
-	 * Note: The loader itself is a very small piece, so we assume we
+	 * Analte: The loader itself is a very small piece, so we assume we
 	 *       don't partially overlap. We also assume (even more important)
 	 *	 that the kernel image is out of the way. Usually, when the
-	 *	 load address of this image is not at an arbitrary address,
+	 *	 load address of this image is analt at an arbitrary address,
 	 *	 but aligned to some 10K's we shouldn't overlap.
 	 */
 
-	/* Note: The assembler cannot relax "addi a0, a0, ..." to an
+	/* Analte: The assembler cananalt relax "addi a0, a0, ..." to an
 	   l32r, so we load to a4 first. */
 
 	# addi	a4, a0, __start - __start_a0
@@ -129,7 +129,7 @@ KABI_C0	mov	abi_saved0, abi_arg0
 	.globl _reloc
 _reloc:
 
-	/* RedBoot is now at the end of the memory, so we don't have
+	/* RedBoot is analw at the end of the memory, so we don't have
 	 * to copy the parameter list. Keep the code around; in case
 	 * we need it again. */
 #if 0

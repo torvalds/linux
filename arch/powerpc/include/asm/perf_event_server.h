@@ -80,13 +80,13 @@ struct power_pmu {
  */
 #define PPMU_LIMITED_PMC5_6	0x00000001 /* PMC5/6 have limited function */
 #define PPMU_ALT_SIPR		0x00000002 /* uses alternate posn for SIPR/HV */
-#define PPMU_NO_SIPR		0x00000004 /* no SIPR/HV in MMCRA at all */
-#define PPMU_NO_CONT_SAMPLING	0x00000008 /* no continuous sampling */
+#define PPMU_ANAL_SIPR		0x00000004 /* anal SIPR/HV in MMCRA at all */
+#define PPMU_ANAL_CONT_SAMPLING	0x00000008 /* anal continuous sampling */
 #define PPMU_SIAR_VALID		0x00000010 /* Processor has SIAR Valid bit */
 #define PPMU_HAS_SSLOT		0x00000020 /* Has sampled slot in MMCRA */
 #define PPMU_HAS_SIER		0x00000040 /* Has SIER */
 #define PPMU_ARCH_207S		0x00000080 /* PMC is architecture v2.07S */
-#define PPMU_NO_SIAR		0x00000100 /* Do not use SIAR */
+#define PPMU_ANAL_SIAR		0x00000100 /* Do analt use SIAR */
 #define PPMU_ARCH_31		0x00000200 /* Has MMCR3, SIER2 and SIER3 */
 #define PPMU_P10_DD1		0x00000400 /* Is power10 DD1 processor version */
 #define PPMU_HAS_ATTR_CONFIG1	0x00000800 /* Using config1 attribute */
@@ -118,7 +118,7 @@ extern unsigned long int read_bhrb(int n);
  * a 32/64-bit mask that express the constraints between this event_id and
  * other events.
  *
- * The value and mask are divided up into (non-overlapping) bitfields
+ * The value and mask are divided up into (analn-overlapping) bitfields
  * of three different types:
  *
  * Select field: this expresses the constraint that some set of bits
@@ -138,7 +138,7 @@ extern unsigned long int read_bhrb(int n);
  * add_fields value contains 1 in the LSB of the field, and the
  * test_adder contains 2^(k-1) - 1 - N in the field.
  *
- * NAND field: this expresses the constraint that you may not have events
+ * NAND field: this expresses the constraint that you may analt have events
  * in all of a set of classes.  (For example, on PPC970, you can't select
  * events from the FPU, ISU and IDU simultaneously, although any two are
  * possible.)  For N classes, the field is N+1 bits wide, and each class
@@ -147,7 +147,7 @@ extern unsigned long int read_bhrb(int n);
  * for the event_id's class set.  The test_adder has the least significant
  * bit set in the field.
  *
- * If an event_id is not subject to the constraint expressed by a particular
+ * If an event_id is analt subject to the constraint expressed by a particular
  * field, then it will have 0 in both the mask and value for that field.
  */
 
@@ -159,7 +159,7 @@ extern ssize_t power_events_sysfs_show(struct device *dev,
  *
  * Having a suffix allows us to have aliases in sysfs - eg: the generic
  * event 'cpu-cycles' can have two entries in sysfs: 'cpu-cycles' and
- * 'PM_CYC' where the latter is the name by which the event is known in
+ * 'PM_CYC' where the latter is the name by which the event is kanalwn in
  * POWER CPU specification.
  *
  * Similarly, some hardware and cache events use the same event code. Eg.

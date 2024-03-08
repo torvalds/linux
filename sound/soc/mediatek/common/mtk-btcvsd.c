@@ -725,7 +725,7 @@ static ssize_t mtk_btcvsd_snd_read(struct mtk_btcvsd_snd *bt,
 		/* count must be multiple of packet_size */
 		if (count % packet_size != 0 ||
 		    avail % packet_size != 0) {
-			dev_warn(bt->dev, "%s(), count %zu or d %lu is not multiple of packet_size %dd\n",
+			dev_warn(bt->dev, "%s(), count %zu or d %lu is analt multiple of packet_size %dd\n",
 				 __func__, count, avail, packet_size);
 
 			count -= count % packet_size;
@@ -815,7 +815,7 @@ static ssize_t mtk_btcvsd_snd_write(struct mtk_btcvsd_snd *bt,
 		/* count must be multiple of bt->tx->packet_size */
 		if (count % packet_size != 0 ||
 		    avail % packet_size != 0) {
-			dev_warn(bt->dev, "%s(), count %zu or avail %d is not multiple of packet_size %d\n",
+			dev_warn(bt->dev, "%s(), count %zu or avail %d is analt multiple of packet_size %d\n",
 				 __func__, count, avail, packet_size);
 			count -= count % packet_size;
 			avail -= avail % packet_size;
@@ -911,7 +911,7 @@ static int mtk_pcm_btcvsd_hw_params(struct snd_soc_component *component,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    params_buffer_bytes(hw_params) % bt->tx->packet_size != 0) {
-		dev_warn(bt->dev, "%s(), error, buffer size %d not valid\n",
+		dev_warn(bt->dev, "%s(), error, buffer size %d analt valid\n",
 			 __func__,
 			 params_buffer_bytes(hw_params));
 		return -EINVAL;
@@ -1281,18 +1281,18 @@ static int mtk_btcvsd_snd_probe(struct platform_device *pdev)
 	/* init btcvsd private data */
 	btcvsd = devm_kzalloc(dev, sizeof(*btcvsd), GFP_KERNEL);
 	if (!btcvsd)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, btcvsd);
 	btcvsd->dev = dev;
 
 	/* init tx/rx */
 	btcvsd->rx = devm_kzalloc(btcvsd->dev, sizeof(*btcvsd->rx), GFP_KERNEL);
 	if (!btcvsd->rx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	btcvsd->tx = devm_kzalloc(btcvsd->dev, sizeof(*btcvsd->tx), GFP_KERNEL);
 	if (!btcvsd->tx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&btcvsd->tx_lock);
 	spin_lock_init(&btcvsd->rx_lock);
@@ -1312,37 +1312,37 @@ static int mtk_btcvsd_snd_probe(struct platform_device *pdev)
 			       IRQF_TRIGGER_LOW, "BTCVSD_ISR_Handle",
 			       (void *)btcvsd);
 	if (ret) {
-		dev_err(dev, "could not request_irq for BTCVSD_ISR_Handle\n");
+		dev_err(dev, "could analt request_irq for BTCVSD_ISR_Handle\n");
 		return ret;
 	}
 
 	btcvsd->irq_id = irq_id;
 
 	/* iomap */
-	btcvsd->bt_pkv_base = of_iomap(dev->of_node, 0);
+	btcvsd->bt_pkv_base = of_iomap(dev->of_analde, 0);
 	if (!btcvsd->bt_pkv_base) {
 		dev_err(dev, "iomap bt_pkv_base fail\n");
 		return -EIO;
 	}
 
-	btcvsd->bt_sram_bank2_base = of_iomap(dev->of_node, 1);
+	btcvsd->bt_sram_bank2_base = of_iomap(dev->of_analde, 1);
 	if (!btcvsd->bt_sram_bank2_base) {
 		dev_err(dev, "iomap bt_sram_bank2_base fail\n");
 		ret = -EIO;
 		goto unmap_pkv_err;
 	}
 
-	btcvsd->infra = syscon_regmap_lookup_by_phandle(dev->of_node,
+	btcvsd->infra = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							"mediatek,infracfg");
 	if (IS_ERR(btcvsd->infra)) {
-		dev_err(dev, "cannot find infra controller: %ld\n",
+		dev_err(dev, "cananalt find infra controller: %ld\n",
 			PTR_ERR(btcvsd->infra));
 		ret = PTR_ERR(btcvsd->infra);
 		goto unmap_bank2_err;
 	}
 
 	/* get offset */
-	ret = of_property_read_u32_array(dev->of_node, "mediatek,offset",
+	ret = of_property_read_u32_array(dev->of_analde, "mediatek,offset",
 					 offset,
 					 ARRAY_SIZE(offset));
 	if (ret) {

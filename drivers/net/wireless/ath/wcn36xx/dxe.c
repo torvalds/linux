@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -95,7 +95,7 @@ static int wcn36xx_dxe_allocate_ctl_block(struct wcn36xx_dxe_ch *ch)
 
 out_fail:
 	wcn36xx_dxe_free_ctl_block(ch);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int wcn36xx_dxe_alloc_ctl_blks(struct wcn36xx *wcn)
@@ -154,7 +154,7 @@ int wcn36xx_dxe_alloc_ctl_blks(struct wcn36xx *wcn)
 out_err:
 	wcn36xx_err("Failed to allocate DXE control blocks\n");
 	wcn36xx_dxe_free_ctl_blks(wcn);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void wcn36xx_dxe_free_ctl_blks(struct wcn36xx *wcn)
@@ -178,7 +178,7 @@ static int wcn36xx_dxe_init_descs(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *wc
 	wcn_ch->cpu_addr = dma_alloc_coherent(dev, size, &wcn_ch->dma_addr,
 					      GFP_KERNEL);
 	if (!wcn_ch->cpu_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cur_dxe = wcn_ch->cpu_addr;
 	cur_ctl = wcn_ch->head_blk_ctl;
@@ -297,7 +297,7 @@ static int wcn36xx_dxe_fill_skb(struct device *dev,
 
 	skb = alloc_skb(WCN36XX_PKT_SIZE, gfp);
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dxe->dst_addr_l = dma_map_single(dev,
 					 skb_tail_pointer(skb),
@@ -306,7 +306,7 @@ static int wcn36xx_dxe_fill_skb(struct device *dev,
 	if (dma_mapping_error(dev, dxe->dst_addr_l)) {
 		dev_err(dev, "unable to map skb\n");
 		kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ctl->skb = skb;
 
@@ -391,7 +391,7 @@ static void wcn36xx_dxe_tx_timer(struct timer_list *t)
 
 	info = IEEE80211_SKB_CB(skb);
 	info->flags &= ~IEEE80211_TX_STAT_ACK;
-	info->flags &= ~IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+	info->flags &= ~IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 
 	ieee80211_tx_status_irqsafe(wcn->hw, skb);
 	ieee80211_wake_queues(wcn->hw);
@@ -406,7 +406,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	/*
 	 * Make at least one loop of do-while because in case ring is
 	 * completely full head and tail are pointing to the same element
-	 * and while-do will not make any cycles.
+	 * and while-do will analt make any cycles.
 	 */
 	spin_lock_irqsave(&ch->lock, flags);
 	ctl = ch->tail_blk_ctl;
@@ -420,8 +420,8 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 					 ctl->skb->len, DMA_TO_DEVICE);
 			info = IEEE80211_SKB_CB(ctl->skb);
 			if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
-				if (info->flags & IEEE80211_TX_CTL_NO_ACK) {
-					info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+				if (info->flags & IEEE80211_TX_CTL_ANAL_ACK) {
+					info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 					ieee80211_tx_status_irqsafe(wcn->hw, ctl->skb);
 				} else {
 					/* Wait for the TX ack indication or timeout... */
@@ -432,7 +432,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 					mod_timer(&wcn->tx_ack_timer, jiffies + HZ / 10);
 					spin_unlock(&wcn->dxe_lock);
 				}
-				/* do not free, ownership transferred to mac80211 status cb */
+				/* do analt free, ownership transferred to mac80211 status cb */
 			} else {
 				ieee80211_free_txskb(wcn->hw, ctl->skb);
 			}
@@ -622,7 +622,7 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 	dxe = ctl->desc;
 
 	while (!(READ_ONCE(dxe->ctrl) & WCN36xx_DXE_CTRL_VLD)) {
-		/* do not read until we own DMA descriptor */
+		/* do analt read until we own DMA descriptor */
 		dma_rmb();
 
 		/* read/modify DMA descriptor */
@@ -637,7 +637,7 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 					DMA_FROM_DEVICE);
 			wcn36xx_rx_skb(wcn, skb);
 		}
-		/* else keep old skb not submitted and reuse it for rx DMA
+		/* else keep old skb analt submitted and reuse it for rx DMA
 		 * (dropping the packet that it contained)
 		 */
 
@@ -680,7 +680,7 @@ void wcn36xx_dxe_rx_frame(struct wcn36xx *wcn)
 					  WCN36XX_DXE_CH_STATUS_REG_ADDR_RX_H);
 
 	if (!int_src)
-		wcn36xx_warn("No DXE interrupt pending\n");
+		wcn36xx_warn("Anal DXE interrupt pending\n");
 }
 
 int wcn36xx_dxe_allocate_mem_pools(struct wcn36xx *wcn)
@@ -723,7 +723,7 @@ int wcn36xx_dxe_allocate_mem_pools(struct wcn36xx *wcn)
 out_err:
 	wcn36xx_dxe_free_mem_pools(wcn);
 	wcn36xx_err("Failed to allocate BD mempool\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void wcn36xx_dxe_free_mem_pools(struct wcn36xx *wcn)
@@ -761,7 +761,7 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	ctl_skb = ctl_bd->next;
 
 	/*
-	 * If skb is not null that means that we reached the tail of the ring
+	 * If skb is analt null that means that we reached the tail of the ring
 	 * hence ring is full. Stop queues to let mac80211 back off until ring
 	 * has an empty slot again.
 	 */
@@ -773,7 +773,7 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	}
 
 	if (unlikely(ctl_skb->bd_cpu_addr)) {
-		wcn36xx_err("bd_cpu_addr cannot be NULL for skb DXE\n");
+		wcn36xx_err("bd_cpu_addr cananalt be NULL for skb DXE\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -805,7 +805,7 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 					      DMA_TO_DEVICE);
 	if (dma_mapping_error(wcn->dev, desc_skb->src_addr_l)) {
 		dev_err(wcn->dev, "unable to DMA map src_addr_l\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -829,8 +829,8 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 
 	/*
 	 * When connected and trying to send data frame chip can be in sleep
-	 * mode and writing to the register will not wake up the chip. Instead
-	 * notify chip about new frame through SMSM bus.
+	 * mode and writing to the register will analt wake up the chip. Instead
+	 * analtify chip about new frame through SMSM bus.
 	 */
 	if (is_low &&  vif_priv->pw_state == WCN36XX_BMPS) {
 		qcom_smem_state_update_bits(wcn->tx_rings_empty_state,
@@ -859,7 +859,7 @@ static bool _wcn36xx_dxe_tx_channel_is_empty(struct wcn36xx_dxe_ch *ch)
 
 	spin_lock_irqsave(&ch->lock, flags);
 
-	/* Loop through ring buffer looking for nonempty entries. */
+	/* Loop through ring buffer looking for analnempty entries. */
 	ctl_bd_start = ch->head_blk_ctl;
 	ctl_bd = ctl_bd_start;
 	ctl_skb_start = ctl_bd_start->next;

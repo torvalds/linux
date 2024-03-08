@@ -3,7 +3,7 @@ KernelVersion:	5.4
 Contact:	linux-iio@vger.kernel.org
 Description:
 		DMA buffers tend to have a alignment requirement for the
-		buffers. If this alignment requirement is not met samples might
+		buffers. If this alignment requirement is analt met samples might
 		be dropped from the buffer.
 
 		This property reports the alignment requirements in bytes.
@@ -15,5 +15,5 @@ Description:
 		that the alignment requirement in samples sets might change
 		depending on which and how many channels are enabled. Whereas
 		the alignment requirement reported in bytes by this property
-		will remain static and does not depend on which channels are
+		will remain static and does analt depend on which channels are
 		enabled.

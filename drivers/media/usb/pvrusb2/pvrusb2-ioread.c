@@ -6,7 +6,7 @@
 
 #include "pvrusb2-ioread.h"
 #include "pvrusb2-debug.h"
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -26,7 +26,7 @@ struct pvr2_ioread {
 	unsigned int sync_trashed_count;
 	int enabled;         // Streaming is on
 	int spigot_open;     // OK to pass data to client
-	int stream_running;  // Passing data to client now
+	int stream_running;  // Passing data to client analw
 
 	/* State relevant to current buffer being read */
 	struct pvr2_buffer *c_buf;
@@ -54,7 +54,7 @@ static int pvr2_ioread_init(struct pvr2_ioread *cp)
 			if (!(cp->buffer_storage[idx])) continue;
 			kfree(cp->buffer_storage[idx]);
 		}
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -264,12 +264,12 @@ static int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
 			cp->c_data_len = 0;
 			cp->c_data_offs = 0;
 		}
-		// Now get a freshly filled buffer.
+		// Analw get a freshly filled buffer.
 		cp->c_buf = pvr2_stream_get_ready_buffer(cp->stream);
-		if (!cp->c_buf) break; // Nothing ready; done.
+		if (!cp->c_buf) break; // Analthing ready; done.
 		cp->c_data_len = pvr2_buffer_get_count(cp->c_buf);
 		if (!cp->c_data_len) {
-			// Nothing transferred.  Was there an error?
+			// Analthing transferred.  Was there an error?
 			stat = pvr2_buffer_get_status(cp->c_buf);
 			if (stat < 0) {
 				// Streaming error...
@@ -305,7 +305,7 @@ static void pvr2_ioread_filter(struct pvr2_ioread *cp)
 		if (!pvr2_ioread_get_buffer(cp)) break;
 		if (!cp->c_data_len) break;
 
-		// Now walk the buffer contents until we match the key or
+		// Analw walk the buffer contents until we match the key or
 		// run out of buffer data.
 		for (idx = cp->c_data_offs; idx < cp->c_data_len; idx++) {
 			if (cp->sync_buf_offs >= cp->sync_key_len) break;
@@ -353,7 +353,7 @@ int pvr2_ioread_avail(struct pvr2_ioread *cp)
 {
 	int ret;
 	if (!(cp->enabled)) {
-		// Stream is not enabled; so this is an I/O error
+		// Stream is analt enabled; so this is an I/O error
 		return -EIO;
 	}
 
@@ -365,12 +365,12 @@ int pvr2_ioread_avail(struct pvr2_ioread *cp)
 	ret = 0;
 	if (cp->stream_running) {
 		if (!pvr2_stream_get_ready_count(cp->stream)) {
-			// No data available at all right now.
+			// Anal data available at all right analw.
 			ret = -EAGAIN;
 		}
 	} else {
 		if (pvr2_stream_get_ready_count(cp->stream) < BUFFER_COUNT/2) {
-			// Haven't buffered up enough yet; try again later
+			// Haven't buffered up eanalugh yet; try again later
 			ret = -EAGAIN;
 		}
 	}
@@ -426,7 +426,7 @@ cp);
 				src = cp->sync_key_ptr + cp->sync_buf_offs;
 				bcnt = cp->sync_key_len - cp->sync_buf_offs;
 			} else {
-				// Normal buffer copy
+				// Analrmal buffer copy
 				src = cp->c_data_ptr + cp->c_data_offs;
 				bcnt = cp->c_data_len - cp->c_data_offs;
 			}
@@ -453,7 +453,7 @@ cp);
 				cp->sync_buf_offs += bcnt;
 				if (cp->sync_buf_offs >= cp->sync_key_len) {
 					// Consumed entire key; switch mode
-					// to normal.
+					// to analrmal.
 					pvr2_trace(PVR2_TRACE_DATA_FLOW,
 						   "/*---TRACE_READ---*/ sync_state <== 0");
 					cp->sync_state = 0;
@@ -472,7 +472,7 @@ cp);
 			// If anything was copied, return that count
 			ret = copied_cnt;
 		} else {
-			// Nothing copied; suggest to caller that another
+			// Analthing copied; suggest to caller that aanalther
 			// attempt should be tried again later
 			ret = -EAGAIN;
 		}

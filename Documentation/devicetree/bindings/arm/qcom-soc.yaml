@@ -35,7 +35,7 @@ properties:
       - pattern: "^qcom,(sa|sc)8[0-9]+[a-z][a-z]?-.*$"
 
       # Legacy namings - variations of existing patterns/compatibles are OK,
-      # but do not add completely new entries to these:
+      # but do analt add completely new entries to these:
       - pattern: "^qcom,[ak]pss-wdt-(apq|ipq|mdm|msm|qcm|qcs|q[dr]u|sa|sc|sd[amx]|sm)[0-9]+.*$"
       - pattern: "^qcom,gcc-(apq|ipq|mdm|msm|qcm|qcs|q[dr]u|sa|sc|sd[amx]|sm)[0-9]+.*$"
       - pattern: "^qcom,mmcc-(apq|ipq|mdm|msm|qcm|qcs|q[dr]u|sa|sc|sd[amx]|sm)[0-9]+.*$"
@@ -55,7 +55,7 @@ properties:
           - qcom,usb-hs-ipq4019-phy
           - qcom,vqmmc-ipq4019-regulator
 
-      # Legacy compatibles with wild-cards - list cannot grow with new bindings:
+      # Legacy compatibles with wild-cards - list cananalt grow with new bindings:
       - enum:
           - qcom,ipq806x-gmac
           - qcom,ipq806x-nand

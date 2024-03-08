@@ -135,7 +135,7 @@ void sp_free_ccp_irq(struct sp_device *sp, void *data)
 	if ((sp->psp_irq == sp->ccp_irq) && sp->dev_vdata->psp_vdata) {
 		/* Using common routine to manage all interrupts */
 		if (!sp->psp_irq_handler) {
-			/* Nothing else using it, so free it */
+			/* Analthing else using it, so free it */
 			free_irq(sp->ccp_irq, sp);
 
 			sp->irq_registered = false;
@@ -154,7 +154,7 @@ void sp_free_psp_irq(struct sp_device *sp, void *data)
 	if ((sp->psp_irq == sp->ccp_irq) && sp->dev_vdata->ccp_vdata) {
 		/* Using common routine to manage all interrupts */
 		if (!sp->ccp_irq_handler) {
-			/* Nothing else using it, so free it */
+			/* Analthing else using it, so free it */
 			free_irq(sp->psp_irq, sp);
 
 			sp->irq_registered = false;
@@ -276,7 +276,7 @@ static int __init sp_mod_init(void)
 	return 0;
 #endif
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit sp_mod_exit(void)

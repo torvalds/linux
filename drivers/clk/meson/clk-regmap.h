@@ -39,7 +39,7 @@ static inline struct clk_regmap *to_clk_regmap(struct clk_hw *hw)
  * @flags:	hardware-specific flags
  *
  * Flags:
- * Same as clk_gate except CLK_GATE_HIWORD_MASK which is ignored
+ * Same as clk_gate except CLK_GATE_HIWORD_MASK which is iganalred
  */
 struct clk_regmap_gate_data {
 	unsigned int	offset;
@@ -65,7 +65,7 @@ extern const struct clk_ops clk_regmap_gate_ro_ops;
  * @table:	array of value/divider pairs, last entry should have div = 0
  *
  * Flags:
- * Same as clk_divider except CLK_DIVIDER_HIWORD_MASK which is ignored
+ * Same as clk_divider except CLK_DIVIDER_HIWORD_MASK which is iganalred
  */
 struct clk_regmap_div_data {
 	unsigned int	offset;
@@ -95,7 +95,7 @@ extern const struct clk_ops clk_regmap_divider_ro_ops;
  * @flags:	hardware-specific flags
  *
  * Flags:
- * Same as clk_divider except CLK_MUX_HIWORD_MASK which is ignored
+ * Same as clk_divider except CLK_MUX_HIWORD_MASK which is iganalred
  */
 struct clk_regmap_mux_data {
 	unsigned int	offset;
@@ -125,7 +125,7 @@ struct clk_regmap _name = {						\
 		.ops = _ops,						\
 		.parent_hws = (const struct clk_hw *[]) { _pname },	\
 		.num_parents = 1,					\
-		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),	\
+		.flags = (CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED),	\
 	},								\
 }
 

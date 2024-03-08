@@ -27,7 +27,7 @@
 
 struct max77503_dev {
 	struct device *dev;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct regulator_desc desc;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
@@ -91,7 +91,7 @@ static int max77503_regulator_probe(struct i2c_client *client)
 	struct regulator_dev *rdev;
 
 	config.dev = dev;
-	config.of_node = dev->of_node;
+	config.of_analde = dev->of_analde;
 	config.regmap = devm_regmap_init_i2c(client, &max77503_regmap_config);
 	if (IS_ERR(config.regmap)) {
 		dev_err(dev, "Failed to init regmap");

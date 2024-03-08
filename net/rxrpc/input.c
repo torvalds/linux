@@ -23,7 +23,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 					struct rxrpc_ack_summary *summary,
 					rxrpc_serial_t acked_serial)
 {
-	enum rxrpc_congest_change change = rxrpc_cong_no_change;
+	enum rxrpc_congest_change change = rxrpc_cong_anal_change;
 	unsigned int cumulative_acks = call->cong_cumul_acks;
 	unsigned int cwnd = call->cong_cwnd;
 	bool resend = false;
@@ -77,7 +77,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		if (ktime_before(skb->tstamp,
 				 ktime_add_us(call->cong_tstamp,
 					      call->peer->srtt_us >> 3)))
-			goto out_no_clear_ca;
+			goto out_anal_clear_ca;
 		change = rxrpc_cong_rtt_window_end;
 		call->cong_tstamp = skb->tstamp;
 		if (cumulative_acks >= cwnd)
@@ -86,7 +86,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 
 	case RXRPC_CALL_PACKET_LOSS:
 		if (!summary->saw_nacks)
-			goto resume_normality;
+			goto resume_analrmality;
 
 		if (summary->new_low_nack) {
 			change = rxrpc_cong_new_low_nack;
@@ -124,7 +124,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 			change = rxrpc_cong_progress;
 			cwnd = call->cong_ssthresh;
 			if (!summary->saw_nacks)
-				goto resume_normality;
+				goto resume_analrmality;
 		}
 		goto out;
 
@@ -133,7 +133,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		goto out;
 	}
 
-resume_normality:
+resume_analrmality:
 	change = rxrpc_cong_cleared_nacks;
 	call->cong_dup_acks = 0;
 	call->cong_extra = 0;
@@ -144,7 +144,7 @@ resume_normality:
 		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
 out:
 	cumulative_acks = 0;
-out_no_clear_ca:
+out_anal_clear_ca:
 	if (cwnd >= RXRPC_TX_MAX_WINDOW)
 		cwnd = RXRPC_TX_MAX_WINDOW;
 	call->cong_cwnd = cwnd;
@@ -170,7 +170,7 @@ send_extra_data:
 		call->cong_extra++;
 		wake_up(&call->waitq);
 	}
-	goto out_no_clear_ca;
+	goto out_anal_clear_ca;
 }
 
 /*
@@ -178,7 +178,7 @@ send_extra_data:
  */
 void rxrpc_congestion_degrade(struct rxrpc_call *call)
 {
-	ktime_t rtt, now;
+	ktime_t rtt, analw;
 
 	if (call->cong_mode != RXRPC_CALL_SLOW_START &&
 	    call->cong_mode != RXRPC_CALL_CONGEST_AVOIDANCE)
@@ -187,13 +187,13 @@ void rxrpc_congestion_degrade(struct rxrpc_call *call)
 		return;
 
 	rtt = ns_to_ktime(call->peer->srtt_us * (1000 / 8));
-	now = ktime_get_real();
-	if (!ktime_before(ktime_add(call->tx_last_sent, rtt), now))
+	analw = ktime_get_real();
+	if (!ktime_before(ktime_add(call->tx_last_sent, rtt), analw))
 		return;
 
-	trace_rxrpc_reset_cwnd(call, now);
+	trace_rxrpc_reset_cwnd(call, analw);
 	rxrpc_inc_stat(call->rxnet, stat_tx_data_cwnd_reset);
-	call->tx_last_sent = now;
+	call->tx_last_sent = analw;
 	call->cong_mode = RXRPC_CALL_SLOW_START;
 	call->cong_ssthresh = max_t(unsigned int, call->cong_ssthresh,
 				    call->cong_cwnd * 3 / 4);
@@ -288,15 +288,15 @@ static void rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 {
 	struct rxrpc_ack_summary summary = { 0 };
-	unsigned long now, timo;
+	unsigned long analw, timo;
 	rxrpc_seq_t top = READ_ONCE(call->tx_top);
 
 	if (call->ackr_reason) {
-		now = jiffies;
-		timo = now + MAX_JIFFY_OFFSET;
+		analw = jiffies;
+		timo = analw + MAX_JIFFY_OFFSET;
 
 		WRITE_ONCE(call->delay_ack_at, timo);
-		trace_rxrpc_timer(call, rxrpc_timer_init_for_reply, now);
+		trace_rxrpc_timer(call, rxrpc_timer_init_for_reply, analw);
 	}
 
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags)) {
@@ -366,7 +366,7 @@ static void rxrpc_input_queue_data(struct rxrpc_call *call, struct sk_buff *skb,
  * Process a DATA packet.
  */
 static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
-				 bool *_notify)
+				 bool *_analtify)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct sk_buff *oos;
@@ -424,7 +424,7 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 
 		window++;
 		if (after(window, wtop)) {
-			trace_rxrpc_sack(call, seq, sack, rxrpc_sack_none);
+			trace_rxrpc_sack(call, seq, sack, rxrpc_sack_analne);
 			wtop = window;
 		} else {
 			trace_rxrpc_sack(call, seq, sack, rxrpc_sack_advance);
@@ -436,7 +436,7 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 
 		spin_lock(&call->recvmsg_queue.lock);
 		rxrpc_input_queue_data(call, skb, window, wtop, rxrpc_receive_queue);
-		*_notify = true;
+		*_analtify = true;
 
 		while ((oos = skb_peek(&call->rx_oos_queue))) {
 			struct rxrpc_skb_priv *osp = rxrpc_skb(oos);
@@ -516,7 +516,7 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 	struct sk_buff *jskb;
 	unsigned int offset = sizeof(struct rxrpc_wire_header);
 	unsigned int len = skb->len - offset;
-	bool notify = false;
+	bool analtify = false;
 
 	while (sp->hdr.flags & RXRPC_JUMBO_PACKET) {
 		if (len < RXRPC_JUMBO_SUBPKTLEN)
@@ -527,7 +527,7 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 				  &jhdr, sizeof(jhdr)) < 0)
 			goto protocol_error;
 
-		jskb = skb_clone(skb, GFP_NOFS);
+		jskb = skb_clone(skb, GFP_ANALFS);
 		if (!jskb) {
 			kdebug("couldn't clone");
 			return false;
@@ -536,7 +536,7 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 		jsp = rxrpc_skb(jskb);
 		jsp->offset = offset;
 		jsp->len = RXRPC_JUMBO_DATALEN;
-		rxrpc_input_data_one(call, jskb, &notify);
+		rxrpc_input_data_one(call, jskb, &analtify);
 		rxrpc_free_skb(jskb, rxrpc_skb_put_jumbo_subpacket);
 
 		sp->hdr.flags = jhdr.flags;
@@ -549,10 +549,10 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 
 	sp->offset = offset;
 	sp->len    = len;
-	rxrpc_input_data_one(call, skb, &notify);
-	if (notify) {
-		trace_rxrpc_notify_socket(call->debug_id, sp->hdr.serial);
-		rxrpc_notify_socket(call);
+	rxrpc_input_data_one(call, skb, &analtify);
+	if (analtify) {
+		trace_rxrpc_analtify_socket(call->debug_id, sp->hdr.serial);
+		rxrpc_analtify_socket(call);
 	}
 	return true;
 
@@ -584,18 +584,18 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 		 * packets we sent when we're acting as a client.
 		 */
 		if (!rxrpc_receiving_reply(call))
-			goto out_notify;
+			goto out_analtify;
 		break;
 
 	case RXRPC_CALL_SERVER_RECV_REQUEST: {
 		unsigned long timo = READ_ONCE(call->next_req_timo);
-		unsigned long now, expect_req_by;
+		unsigned long analw, expect_req_by;
 
 		if (timo) {
-			now = jiffies;
-			expect_req_by = now + timo;
+			analw = jiffies;
+			expect_req_by = analw + timo;
 			WRITE_ONCE(call->expect_req_by, expect_req_by);
-			rxrpc_reduce_call_timer(call, expect_req_by, now,
+			rxrpc_reduce_call_timer(call, expect_req_by, analw,
 						rxrpc_timer_set_for_idle);
 		}
 		break;
@@ -607,13 +607,13 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 
 	if (!rxrpc_input_split_jumbo(call, skb)) {
 		rxrpc_proto_abort(call, sp->hdr.seq, rxrpc_badmsg_bad_jumbo);
-		goto out_notify;
+		goto out_analtify;
 	}
 	return;
 
-out_notify:
-	trace_rxrpc_notify_socket(call->debug_id, serial);
-	rxrpc_notify_socket(call);
+out_analtify:
+	trace_rxrpc_analtify_socket(call->debug_id, serial);
+	rxrpc_analtify_socket(call);
 	_leave(" [queued]");
 }
 
@@ -706,7 +706,7 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 }
 
 /*
- * Determine how many nacks from the previous ACK have now been satisfied.
+ * Determine how many nacks from the previous ACK have analw been satisfied.
  */
 static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
 					      struct rxrpc_ack_summary *summary,
@@ -748,7 +748,7 @@ static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
  * Each ACK in the array corresponds to one packet and can be either an ACK or
  * a NAK.  If we get find an explicitly NAK'd packet we resend immediately;
  * packets that lie beyond the end of the ACK list are scheduled for resend by
- * the timer on the basis that the peer might just not have processed them at
+ * the timer on the basis that the peer might just analt have processed them at
  * the time the ACK was sent.
  */
 static void rxrpc_input_soft_acks(struct rxrpc_call *call,
@@ -956,7 +956,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (first_soft_ack == 0)
 		return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_zero);
 
-	/* Ignore ACKs unless we are or have just been transmitting. */
+	/* Iganalre ACKs unless we are or have just been transmitting. */
 	switch (__rxrpc_call_state(call)) {
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
 	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
@@ -1048,12 +1048,12 @@ void rxrpc_input_call_packet(struct rxrpc_call *call, struct sk_buff *skb)
 
 	timo = READ_ONCE(call->next_rx_timo);
 	if (timo) {
-		unsigned long now = jiffies, expect_rx_by;
+		unsigned long analw = jiffies, expect_rx_by;
 
-		expect_rx_by = now + timo;
+		expect_rx_by = analw + timo;
 		WRITE_ONCE(call->expect_rx_by, expect_rx_by);
-		rxrpc_reduce_call_timer(call, expect_rx_by, now,
-					rxrpc_timer_set_for_normal);
+		rxrpc_reduce_call_timer(call, expect_rx_by, analw,
+					rxrpc_timer_set_for_analrmal);
 	}
 
 	switch (sp->hdr.type) {
@@ -1064,7 +1064,7 @@ void rxrpc_input_call_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		return rxrpc_input_ack(call, skb);
 
 	case RXRPC_PACKET_TYPE_BUSY:
-		/* Just ignore BUSY packets from the server; the retry and
+		/* Just iganalre BUSY packets from the server; the retry and
 		 * lifespan timers will take care of business.  BUSY packets
 		 * from the client don't make sense.
 		 */
@@ -1083,7 +1083,7 @@ void rxrpc_input_call_packet(struct rxrpc_call *call, struct sk_buff *skb)
 
 /*
  * Handle a new service call on a channel implicitly completing the preceding
- * call on that channel.  This does not apply to client conns.
+ * call on that channel.  This does analt apply to client conns.
  *
  * TODO: If callNumber > call_id + 1, renegotiate security.
  */

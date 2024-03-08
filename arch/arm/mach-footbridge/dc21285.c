@@ -242,20 +242,20 @@ static irqreturn_t dc21285_parity_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int dc21285_pci_bus_notifier(struct notifier_block *nb,
+static int dc21285_pci_bus_analtifier(struct analtifier_block *nb,
 				    unsigned long action,
 				    void *data)
 {
-	if (action != BUS_NOTIFY_ADD_DEVICE)
-		return NOTIFY_DONE;
+	if (action != BUS_ANALTIFY_ADD_DEVICE)
+		return ANALTIFY_DONE;
 
 	dma_direct_set_offset(data, PHYS_OFFSET, BUS_OFFSET, SZ_256M);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block dc21285_pci_bus_nb = {
-	.notifier_call = dc21285_pci_bus_notifier,
+static struct analtifier_block dc21285_pci_bus_nb = {
+	.analtifier_call = dc21285_pci_bus_analtifier,
 };
 
 int __init dc21285_setup(int nr, struct pci_sys_data *sys)
@@ -269,7 +269,7 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 	}
 
 	res[0].flags = IORESOURCE_MEM;
-	res[0].name  = "Footbridge non-prefetch";
+	res[0].name  = "Footbridge analn-prefetch";
 	res[1].flags = IORESOURCE_MEM | IORESOURCE_PREFETCH;
 	res[1].name  = "Footbridge prefetch";
 
@@ -283,7 +283,7 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 	pci_add_resource_offset(&sys->resources, &res[0], sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
 
-	bus_register_notifier(&pci_bus_type, &dc21285_pci_bus_nb);
+	bus_register_analtifier(&pci_bus_type, &dc21285_pci_bus_nb);
 
 	return 1;
 }
@@ -304,7 +304,7 @@ void __init dc21285_preinit(void)
 
 	/*
 	 * These registers need to be set up whether we're the
-	 * central function or not.
+	 * central function or analt.
 	 */
 	*CSR_SDRAMBASEMASK    = (mem_mask - 1) & 0x0ffc0000;
 	*CSR_SDRAMBASEOFFSET  = 0;
@@ -341,8 +341,8 @@ void __init dc21285_preinit(void)
 			    "PCI data parity", NULL);
 
 	/*
-	 * Map our SDRAM at a known address in PCI space, just in case
-	 * the firmware had other ideas.  Using a nonzero base is
+	 * Map our SDRAM at a kanalwn address in PCI space, just in case
+	 * the firmware had other ideas.  Using a analnzero base is
 	 * necessary, since some VGA cards forcefully use PCI addresses
 	 * in the range 0x000a0000 to 0x000c0000. (eg, S3 cards).
 	 */

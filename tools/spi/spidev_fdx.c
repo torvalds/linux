@@ -20,7 +20,7 @@ static void do_read(int fd, int len)
 	unsigned char	buf[32], *bp;
 	int		status;
 
-	/* read at least 2 bytes, no more than 32 */
+	/* read at least 2 bytes, anal more than 32 */
 	if (len < 2)
 		len = 2;
 	else if (len > sizeof(buf))

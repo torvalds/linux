@@ -511,7 +511,7 @@ static int e4000_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		ret = e4000_pll_lock(dev->fe);
 		break;
 	default:
-		dev_dbg(&client->dev, "unknown ctrl: id=%d name=%s\n",
+		dev_dbg(&client->dev, "unkanalwn ctrl: id=%d name=%s\n",
 			ctrl->id, ctrl->name);
 		ret = -EINVAL;
 	}
@@ -532,8 +532,8 @@ static int e4000_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_RF_TUNER_BANDWIDTH_AUTO:
 	case V4L2_CID_RF_TUNER_BANDWIDTH:
 		/*
-		 * TODO: Auto logic does not work 100% correctly as tuner driver
-		 * do not have information to calculate maximum suitable
+		 * TODO: Auto logic does analt work 100% correctly as tuner driver
+		 * do analt have information to calculate maximum suitable
 		 * bandwidth. Calculating it is responsible of master driver.
 		 */
 		dev->f_bandwidth = dev->bandwidth->val;
@@ -552,7 +552,7 @@ static int e4000_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = e4000_set_if_gain(dev->fe);
 		break;
 	default:
-		dev_dbg(&client->dev, "unknown ctrl: id=%d name=%s\n",
+		dev_dbg(&client->dev, "unkanalwn ctrl: id=%d name=%s\n",
 			ctrl->id, ctrl->name);
 		ret = -EINVAL;
 	}
@@ -623,7 +623,7 @@ static int e4000_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -644,11 +644,11 @@ static int e4000_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "chip id=%02x\n", uitmp);
 
 	if (uitmp != 0x40) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree;
 	}
 
-	/* put sleep as chip seems to be in normal mode by default */
+	/* put sleep as chip seems to be in analrmal mode by default */
 	ret = regmap_write(dev->regmap, 0x00, 0x00);
 	if (ret)
 		goto err_kfree;
@@ -680,7 +680,7 @@ static int e4000_probe(struct i2c_client *client)
 			V4L2_CID_RF_TUNER_PLL_LOCK,  0, 1, 1, 0);
 	if (dev->hdl.error) {
 		ret = dev->hdl.error;
-		dev_err(&client->dev, "Could not initialize controls\n");
+		dev_err(&client->dev, "Could analt initialize controls\n");
 		v4l2_ctrl_handler_free(&dev->hdl);
 		goto err_kfree;
 	}

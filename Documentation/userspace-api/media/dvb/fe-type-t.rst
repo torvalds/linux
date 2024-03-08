@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 *************
 Frontend type
@@ -70,7 +70,7 @@ fe_type_t type, defined as:
        -  ``SYS_ATSC`` (terrestrial) or ``SYS_DVBC_ANNEX_B`` (cable)
 
 
-Newer formats like DVB-S2, ISDB-T, ISDB-S and DVB-T2 are not described
+Newer formats like DVB-S2, ISDB-T, ISDB-S and DVB-T2 are analt described
 at the above, as they're supported via the new
 :ref:`FE_GET_PROPERTY/FE_GET_SET_PROPERTY <FE_GET_PROPERTY>`
 ioctl's, using the :ref:`DTV_DELIVERY_SYSTEM <DTV-DELIVERY-SYSTEM>`

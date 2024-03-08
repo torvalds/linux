@@ -3,7 +3,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -20,11 +20,11 @@
 #include <net/rtnetlink.h>
 #include <uapi/linux/wwan.h>
 
-/* Maximum number of minors in use */
-#define WWAN_MAX_MINORS		(1 << MINORBITS)
+/* Maximum number of mianalrs in use */
+#define WWAN_MAX_MIANALRS		(1 << MIANALRBITS)
 
 static DEFINE_MUTEX(wwan_register_lock); /* WWAN device create|remove lock */
-static DEFINE_IDA(minors); /* minors for WWAN port chardevs */
+static DEFINE_IDA(mianalrs); /* mianalrs for WWAN port chardevs */
 static DEFINE_IDA(wwan_dev_ids); /* for unique WWAN device IDs */
 static struct class *wwan_class;
 static int wwan_major;
@@ -132,7 +132,7 @@ static struct wwan_device *wwan_dev_get_by_parent(struct device *parent)
 
 	dev = class_find_device(wwan_class, NULL, parent, wwan_dev_parent_match);
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return to_wwan_dev(dev);
 }
@@ -149,7 +149,7 @@ static struct wwan_device *wwan_dev_get_by_name(const char *name)
 
 	dev = class_find_device(wwan_class, NULL, name, wwan_dev_name_match);
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return to_wwan_dev(dev);
 }
@@ -185,7 +185,7 @@ static struct wwan_device *wwan_dev_get_by_debugfs(struct dentry *dir)
 
 	dev = class_find_device(wwan_class, NULL, dir, wwan_dev_debugfs_match);
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return to_wwan_dev(dev);
 }
@@ -206,7 +206,7 @@ EXPORT_SYMBOL_GPL(wwan_put_debugfs_dir);
 
 /* This function allocates and registers a new WWAN device OR if a WWAN device
  * already exist for the given parent, it gets a reference and return it.
- * This function is not exported (for now), it is called indirectly via
+ * This function is analt exported (for analw), it is called indirectly via
  * wwan_create_port().
  */
 static struct wwan_device *wwan_create_dev(struct device *parent)
@@ -233,7 +233,7 @@ static struct wwan_device *wwan_create_dev(struct device *parent)
 
 	wwandev = kzalloc(sizeof(*wwandev), GFP_KERNEL);
 	if (!wwandev) {
-		wwandev = ERR_PTR(-ENOMEM);
+		wwandev = ERR_PTR(-EANALMEM);
 		ida_free(&wwan_dev_ids, id);
 		goto done_unlock;
 	}
@@ -279,7 +279,7 @@ static void wwan_remove_dev(struct wwan_device *wwandev)
 	 * child port, and subsequent port registrations only grab a reference
 	 * (get). The WWAN device must then be unregistered (del+put) along with
 	 * its last port, and reference simply dropped (put) otherwise. In the
-	 * same fashion, we must not unregister it when the ops are still there.
+	 * same fashion, we must analt unregister it when the ops are still there.
 	 */
 	if (wwandev->ops)
 		ret = 1;
@@ -349,7 +349,7 @@ static void wwan_port_destroy(struct device *dev)
 {
 	struct wwan_port *port = to_wwan_port(dev);
 
-	ida_free(&minors, MINOR(port->dev.devt));
+	ida_free(&mianalrs, MIANALR(port->dev.devt));
 	mutex_destroy(&port->data_lock);
 	mutex_destroy(&port->ops_lock);
 	kfree(port);
@@ -361,19 +361,19 @@ static const struct device_type wwan_port_dev_type = {
 	.groups = wwan_port_groups,
 };
 
-static int wwan_port_minor_match(struct device *dev, const void *minor)
+static int wwan_port_mianalr_match(struct device *dev, const void *mianalr)
 {
 	return (dev->type == &wwan_port_dev_type &&
-		MINOR(dev->devt) == *(unsigned int *)minor);
+		MIANALR(dev->devt) == *(unsigned int *)mianalr);
 }
 
-static struct wwan_port *wwan_port_get_by_minor(unsigned int minor)
+static struct wwan_port *wwan_port_get_by_mianalr(unsigned int mianalr)
 {
 	struct device *dev;
 
-	dev = class_find_device(wwan_class, NULL, &minor, wwan_port_minor_match);
+	dev = class_find_device(wwan_class, NULL, &mianalr, wwan_port_mianalr_match);
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return to_wwan_port(dev);
 }
@@ -398,7 +398,7 @@ static int __wwan_port_dev_assign_name(struct wwan_port *port, const char *fmt)
 
 	idmap = bitmap_zalloc(max_ports, GFP_KERNEL);
 	if (!idmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Collect ids of same name format ports */
 	class_dev_iter_init(&iter, wwan_class, NULL, &wwan_port_dev_type);
@@ -437,7 +437,7 @@ struct wwan_port *wwan_create_port(struct device *parent,
 	struct wwan_device *wwandev;
 	struct wwan_port *port;
 	char namefmt[0x20];
-	int minor, err;
+	int mianalr, err;
 
 	if (type > WWAN_PORT_MAX || !ops)
 		return ERR_PTR(-EINVAL);
@@ -449,17 +449,17 @@ struct wwan_port *wwan_create_port(struct device *parent,
 	if (IS_ERR(wwandev))
 		return ERR_CAST(wwandev);
 
-	/* A port is exposed as character device, get a minor */
-	minor = ida_alloc_range(&minors, 0, WWAN_MAX_MINORS - 1, GFP_KERNEL);
-	if (minor < 0) {
-		err = minor;
+	/* A port is exposed as character device, get a mianalr */
+	mianalr = ida_alloc_range(&mianalrs, 0, WWAN_MAX_MIANALRS - 1, GFP_KERNEL);
+	if (mianalr < 0) {
+		err = mianalr;
 		goto error_wwandev_remove;
 	}
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port) {
-		err = -ENOMEM;
-		ida_free(&minors, minor);
+		err = -EANALMEM;
+		ida_free(&mianalrs, mianalr);
 		goto error_wwandev_remove;
 	}
 
@@ -475,7 +475,7 @@ struct wwan_port *wwan_create_port(struct device *parent,
 	port->dev.parent = &wwandev->dev;
 	port->dev.class = wwan_class;
 	port->dev.type = &wwan_port_dev_type;
-	port->dev.devt = MKDEV(wwan_major, minor);
+	port->dev.devt = MKDEV(wwan_major, mianalr);
 	dev_set_drvdata(&port->dev, drvdata);
 
 	/* allocate unique name based on wwan device id, port type and number */
@@ -560,7 +560,7 @@ static int wwan_port_op_start(struct wwan_port *port)
 
 	mutex_lock(&port->ops_lock);
 	if (!port->ops) { /* Port got unplugged */
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -590,17 +590,17 @@ static void wwan_port_op_stop(struct wwan_port *port)
 }
 
 static int wwan_port_op_tx(struct wwan_port *port, struct sk_buff *skb,
-			   bool nonblock)
+			   bool analnblock)
 {
 	int ret;
 
 	mutex_lock(&port->ops_lock);
 	if (!port->ops) { /* Port got unplugged */
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
-	if (nonblock || !port->ops->tx_blocking)
+	if (analnblock || !port->ops->tx_blocking)
 		ret = port->ops->tx(port, skb);
 	else
 		ret = port->ops->tx_blocking(port, skb);
@@ -621,12 +621,12 @@ static bool is_write_blocked(struct wwan_port *port)
 	return test_bit(WWAN_PORT_TX_OFF, &port->flags) && port->ops;
 }
 
-static int wwan_wait_rx(struct wwan_port *port, bool nonblock)
+static int wwan_wait_rx(struct wwan_port *port, bool analnblock)
 {
 	if (!is_read_blocked(port))
 		return 0;
 
-	if (nonblock)
+	if (analnblock)
 		return -EAGAIN;
 
 	if (wait_event_interruptible(port->waitqueue, !is_read_blocked(port)))
@@ -635,12 +635,12 @@ static int wwan_wait_rx(struct wwan_port *port, bool nonblock)
 	return 0;
 }
 
-static int wwan_wait_tx(struct wwan_port *port, bool nonblock)
+static int wwan_wait_tx(struct wwan_port *port, bool analnblock)
 {
 	if (!is_write_blocked(port))
 		return 0;
 
-	if (nonblock)
+	if (analnblock)
 		return -EAGAIN;
 
 	if (wait_event_interruptible(port->waitqueue, !is_write_blocked(port)))
@@ -649,17 +649,17 @@ static int wwan_wait_tx(struct wwan_port *port, bool nonblock)
 	return 0;
 }
 
-static int wwan_port_fops_open(struct inode *inode, struct file *file)
+static int wwan_port_fops_open(struct ianalde *ianalde, struct file *file)
 {
 	struct wwan_port *port;
 	int err = 0;
 
-	port = wwan_port_get_by_minor(iminor(inode));
+	port = wwan_port_get_by_mianalr(imianalr(ianalde));
 	if (IS_ERR(port))
 		return PTR_ERR(port);
 
 	file->private_data = port;
-	stream_open(inode, file);
+	stream_open(ianalde, file);
 
 	err = wwan_port_op_start(port);
 	if (err)
@@ -668,7 +668,7 @@ static int wwan_port_fops_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int wwan_port_fops_release(struct inode *inode, struct file *filp)
+static int wwan_port_fops_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct wwan_port *port = filp->private_data;
 
@@ -686,7 +686,7 @@ static ssize_t wwan_port_fops_read(struct file *filp, char __user *buf,
 	size_t copied;
 	int ret;
 
-	ret = wwan_wait_rx(port, !!(filp->f_flags & O_NONBLOCK));
+	ret = wwan_wait_rx(port, !!(filp->f_flags & O_ANALNBLOCK));
 	if (ret)
 		return ret;
 
@@ -701,7 +701,7 @@ static ssize_t wwan_port_fops_read(struct file *filp, char __user *buf,
 	}
 	skb_pull(skb, copied);
 
-	/* skb is not fully consumed, keep it in the queue */
+	/* skb is analt fully consumed, keep it in the queue */
 	if (skb->len)
 		skb_queue_head(&port->rxq, skb);
 	else
@@ -718,7 +718,7 @@ static ssize_t wwan_port_fops_write(struct file *filp, const char __user *buf,
 	size_t frag_len, remain = count;
 	int ret;
 
-	ret = wwan_wait_tx(port, !!(filp->f_flags & O_NONBLOCK));
+	ret = wwan_wait_tx(port, !!(filp->f_flags & O_ANALNBLOCK));
 	if (ret)
 		return ret;
 
@@ -726,7 +726,7 @@ static ssize_t wwan_port_fops_write(struct file *filp, const char __user *buf,
 		frag_len = min(remain, port->frag_len);
 		skb = alloc_skb(frag_len + port->headroom_len, GFP_KERNEL);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto freeskb;
 		}
 		skb_reserve(skb, port->headroom_len);
@@ -753,7 +753,7 @@ static ssize_t wwan_port_fops_write(struct file *filp, const char __user *buf,
 		}
 	} while (remain -= frag_len);
 
-	ret = wwan_port_op_tx(port, head, !!(filp->f_flags & O_NONBLOCK));
+	ret = wwan_port_op_tx(port, head, !!(filp->f_flags & O_ANALNBLOCK));
 	if (!ret)
 		return count;
 
@@ -773,9 +773,9 @@ static __poll_t wwan_port_fops_poll(struct file *filp, poll_table *wait)
 	if (port->ops && port->ops->tx_poll)
 		mask |= port->ops->tx_poll(port, filp, wait);
 	else if (!is_write_blocked(port))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 	if (!is_read_blocked(port))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (!port->ops)
 		mask |= EPOLLHUP | EPOLLERR;
 	mutex_unlock(&port->ops_lock);
@@ -848,7 +848,7 @@ static long wwan_port_fops_at_ioctl(struct wwan_port *port, unsigned int cmd,
 	}
 
 	default:
-		ret = -ENOIOCTLCMD;
+		ret = -EANALIOCTLCMD;
 	}
 
 	mutex_unlock(&port->data_lock);
@@ -864,7 +864,7 @@ static long wwan_port_fops_ioctl(struct file *filp, unsigned int cmd,
 
 	if (port->type == WWAN_PORT_AT) {	/* AT port specific IOCTLs */
 		res = wwan_port_fops_at_ioctl(port, cmd, arg);
-		if (res != -ENOIOCTLCMD)
+		if (res != -EANALIOCTLCMD)
 			return res;
 	}
 
@@ -883,7 +883,7 @@ static long wwan_port_fops_ioctl(struct file *filp, unsigned int cmd,
 	}
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -898,7 +898,7 @@ static const struct file_operations wwan_port_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_ptr_ioctl,
 #endif
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static int wwan_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -932,9 +932,9 @@ static struct net_device *wwan_rtnl_alloc(struct nlattr *tb[],
 	if (IS_ERR(wwandev))
 		return ERR_CAST(wwandev);
 
-	/* only supported if ops were registered (not just ports) */
+	/* only supported if ops were registered (analt just ports) */
 	if (!wwandev->ops) {
-		dev = ERR_PTR(-EOPNOTSUPP);
+		dev = ERR_PTR(-EOPANALTSUPP);
 		goto out;
 	}
 
@@ -967,7 +967,7 @@ static int wwan_rtnl_newlink(struct net *src_net, struct net_device *dev,
 
 	/* shouldn't have a netdev (left) with us as parent so WARN */
 	if (WARN_ON(!wwandev->ops)) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -1077,7 +1077,7 @@ static void wwan_create_default_link(struct wwan_device *wwandev,
 
 	nlmsg_end(msg, nlh);
 
-	/* The next three parsing calls can not fail */
+	/* The next three parsing calls can analt fail */
 	nlmsg_parse_deprecated(nlh, 0, tb, IFLA_MAX, NULL, NULL);
 	nla_parse_nested_deprecated(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO],
 				    NULL, NULL);
@@ -1096,7 +1096,7 @@ static void wwan_create_default_link(struct wwan_device *wwandev,
 		goto unlock;
 	}
 
-	rtnl_configure_link(dev, NULL, 0, NULL); /* Link initialized, notify new link */
+	rtnl_configure_link(dev, NULL, 0, NULL); /* Link initialized, analtify new link */
 
 unlock:
 	rtnl_unlock();
@@ -1112,8 +1112,8 @@ free_attrs:
  * @ops: operations to register
  * @ctxt: context to pass to operations
  * @def_link_id: id of the default link that will be automatically created by
- *	the WWAN core for the WWAN device. The default link will not be created
- *	if the passed value is WWAN_NO_DEFAULT_LINK.
+ *	the WWAN core for the WWAN device. The default link will analt be created
+ *	if the passed value is WWAN_ANAL_DEFAULT_LINK.
  *
  * Returns: 0 on success, a negative error code on failure
  */
@@ -1137,13 +1137,13 @@ int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
 	wwandev->ops = ops;
 	wwandev->ops_ctxt = ctxt;
 
-	/* NB: we do not abort ops registration in case of default link
+	/* NB: we do analt abort ops registration in case of default link
 	 * creation failure. Link ops is the management interface, while the
-	 * default link creation is a service option. And we should not prevent
+	 * default link creation is a service option. And we should analt prevent
 	 * a user from manually creating a link latter if service option failed
-	 * now.
+	 * analw.
 	 */
-	if (def_link_id != WWAN_NO_DEFAULT_LINK)
+	if (def_link_id != WWAN_ANAL_DEFAULT_LINK)
 		wwan_create_default_link(wwandev, def_link_id);
 
 	return 0;
@@ -1180,7 +1180,7 @@ void wwan_unregister_ops(struct device *parent)
 
 	/* put the reference obtained by wwan_dev_get_by_parent(),
 	 * we should still have one (that the owner is giving back
-	 * now) due to the ops being assigned.
+	 * analw) due to the ops being assigned.
 	 */
 	put_device(&wwandev->dev);
 
@@ -1215,7 +1215,7 @@ static int __init wwan_init(void)
 	}
 
 	/* chrdev used for wwan ports */
-	wwan_major = __register_chrdev(0, 0, WWAN_MAX_MINORS, "wwan_port",
+	wwan_major = __register_chrdev(0, 0, WWAN_MAX_MIANALRS, "wwan_port",
 				       &wwan_port_fops);
 	if (wwan_major < 0) {
 		err = wwan_major;
@@ -1238,7 +1238,7 @@ unregister:
 static void __exit wwan_exit(void)
 {
 	debugfs_remove_recursive(wwan_debugfs_dir);
-	__unregister_chrdev(wwan_major, 0, WWAN_MAX_MINORS, "wwan_port");
+	__unregister_chrdev(wwan_major, 0, WWAN_MAX_MIANALRS, "wwan_port");
 	rtnl_link_unregister(&wwan_rtnl_link_ops);
 	class_destroy(wwan_class);
 }

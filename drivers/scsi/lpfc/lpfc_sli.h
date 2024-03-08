@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -95,8 +95,8 @@ struct lpfc_iocbq {
 
 	u32 cmd_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
-#define LPFC_IO_WAKE		2	/* Synchronous I/O completed */
-#define LPFC_IO_WAKE_TMO	LPFC_IO_WAKE /* Synchronous I/O timed out */
+#define LPFC_IO_WAKE		2	/* Synchroanalus I/O completed */
+#define LPFC_IO_WAKE_TMO	LPFC_IO_WAKE /* Synchroanalus I/O timed out */
 #define LPFC_IO_FCP		4	/* FCP command -- iocbq in scsi_buf */
 #define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 #define LPFC_IO_FABRIC		0x10	/* Iocb send using fabric scheduler */
@@ -110,7 +110,7 @@ struct lpfc_iocbq {
 #define LPFC_IO_DIF_INSERT	0x1000	/* T10 DIF IO insert prot */
 #define LPFC_IO_CMD_OUTSTANDING	0x2000 /* timeout handler abort window */
 
-#define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, non-shifted mask */
+#define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, analn-shifted mask */
 #define LPFC_FIP_ELS_ID_SHIFT	14
 
 #define LPFC_IO_OAS		0x10000 /* OAS FCP IO */
@@ -133,7 +133,7 @@ struct lpfc_iocbq {
 	union {
 		wait_queue_head_t    *wait_queue;
 		struct lpfcMboxq     *mbox;
-		struct lpfc_node_rrq *rrq;
+		struct lpfc_analde_rrq *rrq;
 		struct nvmefc_ls_req *nvme_lsreq;
 		struct lpfc_async_xchg_ctx *axchg;
 		struct bsg_job_data *dd_data;
@@ -141,7 +141,7 @@ struct lpfc_iocbq {
 
 	struct lpfc_io_buf *io_buf;
 	struct lpfc_iocbq *rsp_iocb;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	union lpfc_vmid_tag vmid_tag;
 	void (*fabric_cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
 				struct lpfc_iocbq *rsp);
@@ -159,7 +159,7 @@ struct lpfc_iocbq {
 #define IOCB_TIMEDOUT       3
 #define IOCB_ABORTED        4
 #define IOCB_ABORTING	    5
-#define IOCB_NORESOURCE	    6
+#define IOCB_ANALRESOURCE	    6
 
 #define SLI_WQE_RET_WQE    1    /* Return WQE if cmd ring full */
 
@@ -169,7 +169,7 @@ struct lpfc_iocbq {
 #define WQE_TIMEDOUT       3
 #define WQE_ABORTED        4
 #define WQE_ABORTING	   5
-#define WQE_NORESOURCE	   6
+#define WQE_ANALRESOURCE	   6
 
 #define LPFC_MBX_WAKE		1
 #define LPFC_MBX_IMED_UNREG	2
@@ -182,7 +182,7 @@ typedef struct lpfcMboxq {
 		struct lpfc_mqe mqe;
 	} u;
 	struct lpfc_vport *vport; /* virtual port pointer */
-	void *ctx_ndlp;		  /* an lpfc_nodelist pointer */
+	void *ctx_ndlp;		  /* an lpfc_analdelist pointer */
 	void *ctx_buf;		  /* an lpfc_dmabuf pointer */
 	void *context3;           /* a generic pointer.  Code must
 				   * accommodate the actual datatype.
@@ -199,7 +199,7 @@ typedef struct lpfcMboxq {
 
 #define MBX_POLL        1	/* poll mailbox till command done, then
 				   return */
-#define MBX_NOWAIT      2	/* issue command then return immediately */
+#define MBX_ANALWAIT      2	/* issue command then return immediately */
 
 #define LPFC_MAX_RING_MASK  5	/* max num of rctl/type masks allowed per
 				   ring */
@@ -228,7 +228,7 @@ struct lpfc_sli_ring_stat {
 	uint64_t iocb_rsp;	 /* IOCB rsp received */
 	uint64_t iocb_cmd_delay; /* IOCB cmd ring delay */
 	uint64_t iocb_cmd_full;	 /* IOCB cmd ring full */
-	uint64_t iocb_cmd_empty; /* IOCB cmd ring is now empty */
+	uint64_t iocb_cmd_empty; /* IOCB cmd ring is analw empty */
 	uint64_t iocb_rsp_full;	 /* IOCB rsp ring full */
 };
 
@@ -259,7 +259,7 @@ struct lpfc_sli_ring {
 	uint16_t abtsiotag;	/* tracks next iotag to use for ABTS */
 
 	uint8_t rsvd;
-	uint8_t ringno;		/* ring number */
+	uint8_t ringanal;		/* ring number */
 
 	spinlock_t ring_lock;	/* lock for issuing commands */
 
@@ -299,16 +299,16 @@ struct lpfc_sli_ring {
 
 /* Structure used for configuring rings to a specific profile or rctl / type */
 struct lpfc_hbq_init {
-	uint32_t rn;		/* Receive buffer notification */
+	uint32_t rn;		/* Receive buffer analtification */
 	uint32_t entry_count;	/* max # of entries in HBQ */
-	uint32_t headerLen;	/* 0 if not profile 4 or 5 */
+	uint32_t headerLen;	/* 0 if analt profile 4 or 5 */
 	uint32_t logEntry;	/* Set to 1 if this HBQ used for LogEntry */
 	uint32_t profile;	/* Selection profile 0=all, 7=logentry */
 	uint32_t ring_mask;	/* Binds HBQ to a ring e.g. Ring0=b0001,
 				 * ring2=b0100 */
 	uint32_t hbq_index;	/* index of this hbq in ring .HBQs[] */
 
-	uint32_t seqlenoff;
+	uint32_t seqleanalff;
 	uint32_t maxlen;
 	uint32_t seqlenbcnt;
 	uint32_t cmdcodeoff;
@@ -316,7 +316,7 @@ struct lpfc_hbq_init {
 	uint32_t mask_count;	/* number of mask entries in prt array */
 	struct hbq_mask hbqMasks[6];
 
-	/* Non-config rings fields to keep track of buffer allocations */
+	/* Analn-config rings fields to keep track of buffer allocations */
 	uint32_t buffer_count;	/* number of buffers allocated */
 	uint32_t init_count;	/* number to allocate when initialized */
 	uint32_t add_count;	/* number to allocate when starved */
@@ -385,9 +385,9 @@ struct lpfc_sli {
 	struct lpfc_lnk_stat lnk_stat_offsets;
 };
 
-/* Timeout for normal outstanding mbox command (Seconds) */
+/* Timeout for analrmal outstanding mbox command (Seconds) */
 #define LPFC_MBOX_TMO				30
-/* Timeout for non-flash-based outstanding sli_config mbox command (Seconds) */
+/* Timeout for analn-flash-based outstanding sli_config mbox command (Seconds) */
 #define LPFC_MBOX_SLI4_CONFIG_TMO		60
 /* Timeout for flash-based outstanding sli_config mbox command (Seconds) */
 #define LPFC_MBOX_SLI4_CONFIG_EXTENDED_TMO	300
@@ -412,18 +412,18 @@ struct lpfc_io_buf {
 
 	struct lpfc_iocbq cur_iocbq;
 	struct lpfc_sli4_hdw_queue *hdwq;
-	uint16_t hdwq_no;
+	uint16_t hdwq_anal;
 	uint16_t cpu;
 
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	uint32_t timeout;
 	uint16_t flags;
 #define LPFC_SBUF_XBUSY		0x1	/* SLI4 hba reported XB on WCQE cmpl */
 #define LPFC_SBUF_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
 					/* External DIF device IO conversions */
-#define LPFC_SBUF_NORMAL_DIF	0x4	/* normal mode to insert/strip */
+#define LPFC_SBUF_ANALRMAL_DIF	0x4	/* analrmal mode to insert/strip */
 #define LPFC_SBUF_PASS_DIF	0x8	/* insert/strip mode to passthru */
-#define LPFC_SBUF_NOT_POSTED    0x10    /* SGL failed post to FW. */
+#define LPFC_SBUF_ANALT_POSTED    0x10    /* SGL failed post to FW. */
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */
 	uint32_t result;	/* From IOCB Word 4. */
 

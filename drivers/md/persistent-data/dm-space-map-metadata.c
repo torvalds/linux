@@ -73,7 +73,7 @@ static void check_threshold(struct threshold *t, dm_block_t value)
  * The low level disk format is written using the standard btree and
  * transaction manager.  This means that performing disk operations may
  * cause us to recurse into the space map in order to allocate new blocks.
- * For this reason we have a pool of pre-allocated blocks large enough to
+ * For this reason we have a pool of pre-allocated blocks large eanalugh to
  * service any metadata_ll_disk operation.
  */
 
@@ -129,7 +129,7 @@ static int brb_push(struct bop_ring_buffer *brb,
 	 * differentiate between full and empty.
 	 */
 	if (next == brb->begin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bop = brb->bops + brb->end;
 	bop->type = type;
@@ -146,7 +146,7 @@ static int brb_peek(struct bop_ring_buffer *brb, struct block_op *result)
 	struct block_op *bop;
 
 	if (brb_empty(brb))
-		return -ENODATA;
+		return -EANALDATA;
 
 	bop = brb->bops + brb->begin;
 	memcpy(result, bop, sizeof(*result));
@@ -156,7 +156,7 @@ static int brb_peek(struct bop_ring_buffer *brb, struct block_op *result)
 static int brb_pop(struct bop_ring_buffer *brb)
 {
 	if (brb_empty(brb))
-		return -ENODATA;
+		return -EANALDATA;
 
 	brb->begin = brb_next(brb, brb->begin);
 
@@ -186,7 +186,7 @@ static int add_bop(struct sm_metadata *smm, enum block_op_type type, dm_block_t 
 
 	if (r) {
 		DMERR("too many recursive allocations");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -243,11 +243,11 @@ static int out(struct sm_metadata *smm)
 	int r = 0;
 
 	/*
-	 * If we're not recursing then very bad things are happening.
+	 * If we're analt recursing then very bad things are happening.
 	 */
 	if (!smm->recursion_count) {
 		DMERR("lost track of recursion depth");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (smm->recursion_count == 1)
@@ -399,7 +399,7 @@ static int sm_metadata_set_count(struct dm_space_map *sm, dm_block_t b,
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 
 	if (smm->recursion_count) {
-		DMERR("cannot recurse set_count()");
+		DMERR("cananalt recurse set_count()");
 		return -EINVAL;
 	}
 
@@ -456,9 +456,9 @@ static int sm_metadata_new_block_(struct dm_space_map *sm, dm_block_t *b)
 	 * Any block we allocate has to be free in both the old and current ll.
 	 */
 	r = sm_ll_find_common_free_block(&smm->old_ll, &smm->ll, smm->begin, smm->ll.nr_blocks, b);
-	if (r == -ENOSPC) {
+	if (r == -EANALSPC) {
 		/*
-		 * There's no free block between smm->begin and the end of the metadata device.
+		 * There's anal free block between smm->begin and the end of the metadata device.
 		 * We search before smm->begin in case something has been freed.
 		 */
 		r = sm_ll_find_common_free_block(&smm->old_ll, &smm->ll, 0, smm->begin, b);
@@ -551,7 +551,7 @@ static int sm_metadata_copy_root(struct dm_space_map *sm, void *where_le, size_t
 	root_le.ref_count_root = cpu_to_le64(smm->ll.ref_count_root);
 
 	if (max < sizeof(root_le))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memcpy(where_le, &root_le, sizeof(root_le));
 
@@ -643,10 +643,10 @@ static int sm_bootstrap_new_block(struct dm_space_map *sm, dm_block_t *b)
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 
 	/*
-	 * We know the entire device is unused.
+	 * We kanalw the entire device is unused.
 	 */
 	if (smm->begin == smm->ll.nr_blocks)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	*b = smm->begin++;
 
@@ -760,7 +760,7 @@ static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 
 out:
 	/*
-	 * Switch back to normal behaviour.
+	 * Switch back to analrmal behaviour.
 	 */
 	memcpy(sm, &ops, sizeof(*sm));
 	return r;
@@ -774,7 +774,7 @@ struct dm_space_map *dm_sm_metadata_init(void)
 
 	smm = kmalloc(sizeof(*smm), GFP_KERNEL);
 	if (!smm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memcpy(&smm->sm, &ops, sizeof(smm->sm));
 
@@ -808,7 +808,7 @@ int dm_sm_metadata_create(struct dm_space_map *sm,
 		return r;
 
 	/*
-	 * Now we need to update the newly created data structures with the
+	 * Analw we need to update the newly created data structures with the
 	 * allocated blocks that they were built from.
 	 */
 	r = add_bop(smm, BOP_INC, superblock, smm->begin);

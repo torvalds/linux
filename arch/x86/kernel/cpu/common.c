@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* cpu_feature_enabled() cannot be used this early */
+/* cpu_feature_enabled() cananalt be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/memblock.h>
@@ -124,7 +124,7 @@ static void ppin_init(struct cpuinfo_x86 *c)
 		return;
 
 	/*
-	 * Testing the presence of the MSR is not enough. Need to check
+	 * Testing the presence of the MSR is analt eanalugh. Need to check
 	 * that the PPIN_CTL allows reading of the PPIN.
 	 */
 	info = (struct ppin_info *)id->driver_data;
@@ -159,10 +159,10 @@ static void default_init(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_64
 	cpu_detect_cache_sizes(c);
 #else
-	/* Not much we can do here... */
+	/* Analt much we can do here... */
 	/* Check if at least it has cpuid */
 	if (c->cpuid_level == -1) {
-		/* No cpuid. It must be an ancient CPU */
+		/* Anal cpuid. It must be an ancient CPU */
 		if (c->x86 == 4)
 			strcpy(c->x86_model_id, "486");
 		else if (c->x86 == 3)
@@ -173,8 +173,8 @@ static void default_init(struct cpuinfo_x86 *c)
 
 static const struct cpu_dev default_cpu = {
 	.c_init		= default_init,
-	.c_vendor	= "Unknown",
-	.c_x86_vendor	= X86_VENDOR_UNKNOWN,
+	.c_vendor	= "Unkanalwn",
+	.c_x86_vendor	= X86_VENDOR_UNKANALWN,
 };
 
 static const struct cpu_dev *this_cpu = &default_cpu;
@@ -187,7 +187,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 	 * Also sysret mandates a special GDT layout
 	 *
 	 * TLS descriptors are currently at a different place compared to i386.
-	 * Hopefully nobody expects them at a fixed place (Wine?)
+	 * Hopefully analbody expects them at a fixed place (Wine?)
 	 */
 	[GDT_ENTRY_KERNEL32_CS]		= GDT_ENTRY_INIT(DESC_CODE32, 0, 0xfffff),
 	[GDT_ENTRY_KERNEL_CS]		= GDT_ENTRY_INIT(DESC_CODE64, 0, 0xfffff),
@@ -225,38 +225,38 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 
 #ifdef CONFIG_X86_64
-static int __init x86_nopcid_setup(char *s)
+static int __init x86_analpcid_setup(char *s)
 {
-	/* nopcid doesn't accept parameters */
+	/* analpcid doesn't accept parameters */
 	if (s)
 		return -EINVAL;
 
-	/* do not emit a message if the feature is not present */
+	/* do analt emit a message if the feature is analt present */
 	if (!boot_cpu_has(X86_FEATURE_PCID))
 		return 0;
 
 	setup_clear_cpu_cap(X86_FEATURE_PCID);
-	pr_info("nopcid: PCID feature disabled\n");
+	pr_info("analpcid: PCID feature disabled\n");
 	return 0;
 }
-early_param("nopcid", x86_nopcid_setup);
+early_param("analpcid", x86_analpcid_setup);
 #endif
 
-static int __init x86_noinvpcid_setup(char *s)
+static int __init x86_analinvpcid_setup(char *s)
 {
-	/* noinvpcid doesn't accept parameters */
+	/* analinvpcid doesn't accept parameters */
 	if (s)
 		return -EINVAL;
 
-	/* do not emit a message if the feature is not present */
+	/* do analt emit a message if the feature is analt present */
 	if (!boot_cpu_has(X86_FEATURE_INVPCID))
 		return 0;
 
 	setup_clear_cpu_cap(X86_FEATURE_INVPCID);
-	pr_info("noinvpcid: INVPCID feature disabled\n");
+	pr_info("analinvpcid: INVPCID feature disabled\n");
 	return 0;
 }
-early_param("noinvpcid", x86_noinvpcid_setup);
+early_param("analinvpcid", x86_analinvpcid_setup);
 
 #ifdef CONFIG_X86_32
 static int cachesize_override = -1;
@@ -278,7 +278,7 @@ static inline int flag_is_changeable_p(u32 flag)
 	 * Cyrix and IDT cpus allow disabling of CPUID
 	 * so the code below may return different results
 	 * when it is executed before and after enabling
-	 * the CPUID. Add "volatile" to not allow gcc to
+	 * the CPUID. Add "volatile" to analt allow gcc to
 	 * optimize the subsequent calls to this function.
 	 */
 	asm volatile ("pushfl		\n\t"
@@ -317,7 +317,7 @@ static void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 	lo |= 0x200000;
 	wrmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
 
-	pr_notice("CPU serial number disabled.\n");
+	pr_analtice("CPU serial number disabled.\n");
 	clear_cpu_cap(c, X86_FEATURE_PN);
 
 	/* Disabling the serial number may affect the cpuid level */
@@ -381,7 +381,7 @@ out:
 	cr4_clear_bits(X86_CR4_UMIP);
 }
 
-/* These bits should not change their value after CPU init is finished. */
+/* These bits should analt change their value after CPU init is finished. */
 static const unsigned long cr4_pinned_mask =
 	X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_UMIP |
 	X86_CR4_FSGSBASE | X86_CR4_CET;
@@ -407,7 +407,7 @@ set_register:
 }
 EXPORT_SYMBOL(native_write_cr0);
 
-void __no_profile native_write_cr4(unsigned long val)
+void __anal_profile native_write_cr4(unsigned long val)
 {
 	unsigned long bits_changed = 0;
 
@@ -476,13 +476,13 @@ static void __init setup_cr_pinning(void)
 	static_key_enable(&cr_pinning.key);
 }
 
-static __init int x86_nofsgsbase_setup(char *arg)
+static __init int x86_analfsgsbase_setup(char *arg)
 {
 	/* Require an exact match without trailing characters. */
 	if (strlen(arg))
 		return 0;
 
-	/* Do not emit a message if the feature is not present. */
+	/* Do analt emit a message if the feature is analt present. */
 	if (!boot_cpu_has(X86_FEATURE_FSGSBASE))
 		return 1;
 
@@ -490,10 +490,10 @@ static __init int x86_nofsgsbase_setup(char *arg)
 	pr_info("FSGSBASE disabled via kernel command line\n");
 	return 1;
 }
-__setup("nofsgsbase", x86_nofsgsbase_setup);
+__setup("analfsgsbase", x86_analfsgsbase_setup);
 
 /*
- * Protection Keys are not available in 32-bit mode.
+ * Protection Keys are analt available in 32-bit mode.
  */
 static bool pku_disabled;
 
@@ -521,26 +521,26 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 static __init int setup_disable_pku(char *arg)
 {
 	/*
-	 * Do not clear the X86_FEATURE_PKU bit.  All of the
+	 * Do analt clear the X86_FEATURE_PKU bit.  All of the
 	 * runtime checks are against OSPKE so clearing the
-	 * bit does nothing.
+	 * bit does analthing.
 	 *
-	 * This way, we will see "pku" in cpuinfo, but not
+	 * This way, we will see "pku" in cpuinfo, but analt
 	 * "ospke", which is exactly what we want.  It shows
-	 * that the CPU has PKU, but the OS has not enabled it.
+	 * that the CPU has PKU, but the OS has analt enabled it.
 	 * This happens to be exactly how a system would look
 	 * if we disabled the config option.
 	 */
-	pr_info("x86: 'nopku' specified, disabling Memory Protection Keys\n");
+	pr_info("x86: 'analpku' specified, disabling Memory Protection Keys\n");
 	pku_disabled = true;
 	return 1;
 }
-__setup("nopku", setup_disable_pku);
+__setup("analpku", setup_disable_pku);
 #endif
 
 #ifdef CONFIG_X86_KERNEL_IBT
 
-__noendbr u64 ibt_save(bool disable)
+__analendbr u64 ibt_save(bool disable)
 {
 	u64 msr = 0;
 
@@ -553,7 +553,7 @@ __noendbr u64 ibt_save(bool disable)
 	return msr;
 }
 
-__noendbr void ibt_restore(u64 save)
+__analendbr void ibt_restore(u64 save)
 {
 	u64 msr;
 
@@ -598,7 +598,7 @@ static __always_inline void setup_cet(struct cpuinfo_x86 *c)
 	}
 }
 
-__noendbr void cet_disable(void)
+__analendbr void cet_disable(void)
 {
 	if (!(cpu_feature_enabled(X86_FEATURE_IBT) ||
 	      cpu_feature_enabled(X86_FEATURE_SHSTK)))
@@ -609,7 +609,7 @@ __noendbr void cet_disable(void)
 }
 
 /*
- * Some CPU features depend on higher CPUID levels, which may not always
+ * Some CPU features depend on higher CPUID levels, which may analt always
  * be available due to CPUID level capping or broken virtualization
  * software.  Add those features to this table to auto-disable them.
  */
@@ -635,7 +635,7 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		if (!cpu_has(c, df->feature))
 			continue;
 		/*
-		 * Note: cpuid_level is set to -1 if unavailable, but
+		 * Analte: cpuid_level is set to -1 if unavailable, but
 		 * extended_extended_level is set to 0 if unavailable
 		 * and the legitimate extended levels are all negative
 		 * when signed; hence the weird messing around with
@@ -650,7 +650,7 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		if (!warn)
 			continue;
 
-		pr_warn("CPU: CPU feature " X86_CAP_FMT " disabled, no CPUID level 0x%x\n",
+		pr_warn("CPU: CPU feature " X86_CAP_FMT " disabled, anal CPUID level 0x%x\n",
 			x86_cap_flag(df->feature), df->level);
 	}
 }
@@ -682,7 +682,7 @@ static const char *table_lookup_model(struct cpuinfo_x86 *c)
 		info++;
 	}
 #endif
-	return NULL;		/* Not found */
+	return NULL;		/* Analt found */
 }
 
 /* Aligned to unsigned long to avoid split lock in atomic bitmap ops */
@@ -731,14 +731,14 @@ void __init switch_gdt_and_percpu_base(int cpu)
 
 #ifdef CONFIG_X86_64
 	/*
-	 * No need to load %gs. It is already correct.
+	 * Anal need to load %gs. It is already correct.
 	 *
 	 * Writing %gs on 64bit would zero GSBASE which would make any per
 	 * CPU operation up to the point of the wrmsrl() fault.
 	 *
 	 * Set GSBASE to the new offset. Until the wrmsrl() happens the
 	 * early mapping is still valid. That means the GSBASE update will
-	 * lose any prior per CPU data which was not copied over in
+	 * lose any prior per CPU data which was analt copied over in
 	 * setup_per_cpu_areas().
 	 *
 	 * This works even with stackprotector enabled because the
@@ -751,7 +751,7 @@ void __init switch_gdt_and_percpu_base(int cpu)
 	 * it is required to load FS again so that the 'hidden' part is
 	 * updated from the new GDT. Up to this point the early per CPU
 	 * translation is active. Any content of the early per CPU data
-	 * which was not copied over in setup_per_cpu_areas() is lost.
+	 * which was analt copied over in setup_per_cpu_areas() is lost.
 	 */
 	loadsegment(fs, __KERNEL_PERCPU);
 #endif
@@ -780,7 +780,7 @@ static void get_model_name(struct cpuinfo_x86 *c)
 		p++;
 
 	while (*p) {
-		/* Note the last non-whitespace index */
+		/* Analte the last analn-whitespace index */
 		if (!isspace(*p))
 			s = q;
 
@@ -836,7 +836,7 @@ void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
 		l2size = cachesize_override;
 
 	if (l2size == 0)
-		return;		/* Again, no L2 cache is possible */
+		return;		/* Again, anal L2 cache is possible */
 #endif
 
 	c->x86_cache_size = l2size;
@@ -928,10 +928,10 @@ static void get_cpu_vendor(struct cpuinfo_x86 *c)
 		}
 	}
 
-	pr_err_once("CPU: vendor_id '%s' unknown, using generic init.\n" \
+	pr_err_once("CPU: vendor_id '%s' unkanalwn, using generic init.\n" \
 		    "CPU: Your system may be unstable.\n", v);
 
-	c->x86_vendor = X86_VENDOR_UNKNOWN;
+	c->x86_vendor = X86_VENDOR_UNKANALWN;
 	this_cpu = &default_cpu;
 }
 
@@ -1152,17 +1152,17 @@ static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
 #endif
 }
 
-#define NO_SPECULATION		BIT(0)
-#define NO_MELTDOWN		BIT(1)
-#define NO_SSB			BIT(2)
-#define NO_L1TF			BIT(3)
-#define NO_MDS			BIT(4)
+#define ANAL_SPECULATION		BIT(0)
+#define ANAL_MELTDOWN		BIT(1)
+#define ANAL_SSB			BIT(2)
+#define ANAL_L1TF			BIT(3)
+#define ANAL_MDS			BIT(4)
 #define MSBDS_ONLY		BIT(5)
-#define NO_SWAPGS		BIT(6)
-#define NO_ITLB_MULTIHIT	BIT(7)
-#define NO_SPECTRE_V2		BIT(8)
-#define NO_MMIO			BIT(9)
-#define NO_EIBRS_PBRSB		BIT(10)
+#define ANAL_SWAPGS		BIT(6)
+#define ANAL_ITLB_MULTIHIT	BIT(7)
+#define ANAL_SPECTRE_V2		BIT(8)
+#define ANAL_MMIO			BIT(9)
+#define ANAL_EIBRS_PBRSB		BIT(10)
 
 #define VULNWL(vendor, family, model, whitelist)	\
 	X86_MATCH_VENDOR_FAM_MODEL(vendor, family, model, whitelist)
@@ -1177,66 +1177,66 @@ static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
 	VULNWL(HYGON, family, X86_MODEL_ANY, whitelist)
 
 static const __initconst struct x86_cpu_id cpu_vuln_whitelist[] = {
-	VULNWL(ANY,	4, X86_MODEL_ANY,	NO_SPECULATION),
-	VULNWL(CENTAUR,	5, X86_MODEL_ANY,	NO_SPECULATION),
-	VULNWL(INTEL,	5, X86_MODEL_ANY,	NO_SPECULATION),
-	VULNWL(NSC,	5, X86_MODEL_ANY,	NO_SPECULATION),
-	VULNWL(VORTEX,	5, X86_MODEL_ANY,	NO_SPECULATION),
-	VULNWL(VORTEX,	6, X86_MODEL_ANY,	NO_SPECULATION),
+	VULNWL(ANY,	4, X86_MODEL_ANY,	ANAL_SPECULATION),
+	VULNWL(CENTAUR,	5, X86_MODEL_ANY,	ANAL_SPECULATION),
+	VULNWL(INTEL,	5, X86_MODEL_ANY,	ANAL_SPECULATION),
+	VULNWL(NSC,	5, X86_MODEL_ANY,	ANAL_SPECULATION),
+	VULNWL(VORTEX,	5, X86_MODEL_ANY,	ANAL_SPECULATION),
+	VULNWL(VORTEX,	6, X86_MODEL_ANY,	ANAL_SPECULATION),
 
 	/* Intel Family 6 */
-	VULNWL_INTEL(TIGERLAKE,			NO_MMIO),
-	VULNWL_INTEL(TIGERLAKE_L,		NO_MMIO),
-	VULNWL_INTEL(ALDERLAKE,			NO_MMIO),
-	VULNWL_INTEL(ALDERLAKE_L,		NO_MMIO),
+	VULNWL_INTEL(TIGERLAKE,			ANAL_MMIO),
+	VULNWL_INTEL(TIGERLAKE_L,		ANAL_MMIO),
+	VULNWL_INTEL(ALDERLAKE,			ANAL_MMIO),
+	VULNWL_INTEL(ALDERLAKE_L,		ANAL_MMIO),
 
-	VULNWL_INTEL(ATOM_SALTWELL,		NO_SPECULATION | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(ATOM_SALTWELL_TABLET,	NO_SPECULATION | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(ATOM_SALTWELL_MID,		NO_SPECULATION | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(ATOM_BONNELL,		NO_SPECULATION | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(ATOM_BONNELL_MID,		NO_SPECULATION | NO_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_SALTWELL,		ANAL_SPECULATION | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_SALTWELL_TABLET,	ANAL_SPECULATION | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_SALTWELL_MID,		ANAL_SPECULATION | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_BONNELL,		ANAL_SPECULATION | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_BONNELL_MID,		ANAL_SPECULATION | ANAL_ITLB_MULTIHIT),
 
-	VULNWL_INTEL(ATOM_SILVERMONT,		NO_SSB | NO_L1TF | MSBDS_ONLY | NO_SWAPGS | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(ATOM_SILVERMONT_D,		NO_SSB | NO_L1TF | MSBDS_ONLY | NO_SWAPGS | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(ATOM_SILVERMONT_MID,	NO_SSB | NO_L1TF | MSBDS_ONLY | NO_SWAPGS | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(ATOM_AIRMONT,		NO_SSB | NO_L1TF | MSBDS_ONLY | NO_SWAPGS | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(XEON_PHI_KNL,		NO_SSB | NO_L1TF | MSBDS_ONLY | NO_SWAPGS | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(XEON_PHI_KNM,		NO_SSB | NO_L1TF | MSBDS_ONLY | NO_SWAPGS | NO_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_SILVERMONT,		ANAL_SSB | ANAL_L1TF | MSBDS_ONLY | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_SILVERMONT_D,		ANAL_SSB | ANAL_L1TF | MSBDS_ONLY | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_SILVERMONT_MID,	ANAL_SSB | ANAL_L1TF | MSBDS_ONLY | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_AIRMONT,		ANAL_SSB | ANAL_L1TF | MSBDS_ONLY | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(XEON_PHI_KNL,		ANAL_SSB | ANAL_L1TF | MSBDS_ONLY | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(XEON_PHI_KNM,		ANAL_SSB | ANAL_L1TF | MSBDS_ONLY | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT),
 
-	VULNWL_INTEL(CORE_YONAH,		NO_SSB),
+	VULNWL_INTEL(CORE_YONAH,		ANAL_SSB),
 
-	VULNWL_INTEL(ATOM_AIRMONT_MID,		NO_L1TF | MSBDS_ONLY | NO_SWAPGS | NO_ITLB_MULTIHIT),
-	VULNWL_INTEL(ATOM_AIRMONT_NP,		NO_L1TF | NO_SWAPGS | NO_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_AIRMONT_MID,		ANAL_L1TF | MSBDS_ONLY | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT),
+	VULNWL_INTEL(ATOM_AIRMONT_NP,		ANAL_L1TF | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT),
 
-	VULNWL_INTEL(ATOM_GOLDMONT,		NO_MDS | NO_L1TF | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO),
-	VULNWL_INTEL(ATOM_GOLDMONT_D,		NO_MDS | NO_L1TF | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO),
-	VULNWL_INTEL(ATOM_GOLDMONT_PLUS,	NO_MDS | NO_L1TF | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO | NO_EIBRS_PBRSB),
+	VULNWL_INTEL(ATOM_GOLDMONT,		ANAL_MDS | ANAL_L1TF | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO),
+	VULNWL_INTEL(ATOM_GOLDMONT_D,		ANAL_MDS | ANAL_L1TF | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO),
+	VULNWL_INTEL(ATOM_GOLDMONT_PLUS,	ANAL_MDS | ANAL_L1TF | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO | ANAL_EIBRS_PBRSB),
 
 	/*
 	 * Technically, swapgs isn't serializing on AMD (despite it previously
 	 * being documented as such in the APM).  But according to AMD, %gs is
-	 * updated non-speculatively, and the issuing of %gs-relative memory
+	 * updated analn-speculatively, and the issuing of %gs-relative memory
 	 * operands will be blocked until the %gs update completes, which is
-	 * good enough for our purposes.
+	 * good eanalugh for our purposes.
 	 */
 
-	VULNWL_INTEL(ATOM_TREMONT,		NO_EIBRS_PBRSB),
-	VULNWL_INTEL(ATOM_TREMONT_L,		NO_EIBRS_PBRSB),
-	VULNWL_INTEL(ATOM_TREMONT_D,		NO_ITLB_MULTIHIT | NO_EIBRS_PBRSB),
+	VULNWL_INTEL(ATOM_TREMONT,		ANAL_EIBRS_PBRSB),
+	VULNWL_INTEL(ATOM_TREMONT_L,		ANAL_EIBRS_PBRSB),
+	VULNWL_INTEL(ATOM_TREMONT_D,		ANAL_ITLB_MULTIHIT | ANAL_EIBRS_PBRSB),
 
 	/* AMD Family 0xf - 0x12 */
-	VULNWL_AMD(0x0f,	NO_MELTDOWN | NO_SSB | NO_L1TF | NO_MDS | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO),
-	VULNWL_AMD(0x10,	NO_MELTDOWN | NO_SSB | NO_L1TF | NO_MDS | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO),
-	VULNWL_AMD(0x11,	NO_MELTDOWN | NO_SSB | NO_L1TF | NO_MDS | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO),
-	VULNWL_AMD(0x12,	NO_MELTDOWN | NO_SSB | NO_L1TF | NO_MDS | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO),
+	VULNWL_AMD(0x0f,	ANAL_MELTDOWN | ANAL_SSB | ANAL_L1TF | ANAL_MDS | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO),
+	VULNWL_AMD(0x10,	ANAL_MELTDOWN | ANAL_SSB | ANAL_L1TF | ANAL_MDS | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO),
+	VULNWL_AMD(0x11,	ANAL_MELTDOWN | ANAL_SSB | ANAL_L1TF | ANAL_MDS | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO),
+	VULNWL_AMD(0x12,	ANAL_MELTDOWN | ANAL_SSB | ANAL_L1TF | ANAL_MDS | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO),
 
 	/* FAMILY_ANY must be last, otherwise 0x0f - 0x12 matches won't work */
-	VULNWL_AMD(X86_FAMILY_ANY,	NO_MELTDOWN | NO_L1TF | NO_MDS | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO | NO_EIBRS_PBRSB),
-	VULNWL_HYGON(X86_FAMILY_ANY,	NO_MELTDOWN | NO_L1TF | NO_MDS | NO_SWAPGS | NO_ITLB_MULTIHIT | NO_MMIO | NO_EIBRS_PBRSB),
+	VULNWL_AMD(X86_FAMILY_ANY,	ANAL_MELTDOWN | ANAL_L1TF | ANAL_MDS | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO | ANAL_EIBRS_PBRSB),
+	VULNWL_HYGON(X86_FAMILY_ANY,	ANAL_MELTDOWN | ANAL_L1TF | ANAL_MDS | ANAL_SWAPGS | ANAL_ITLB_MULTIHIT | ANAL_MMIO | ANAL_EIBRS_PBRSB),
 
 	/* Zhaoxin Family 7 */
-	VULNWL(CENTAUR,	7, X86_MODEL_ANY,	NO_SPECTRE_V2 | NO_SWAPGS | NO_MMIO),
-	VULNWL(ZHAOXIN,	7, X86_MODEL_ANY,	NO_SPECTRE_V2 | NO_SWAPGS | NO_MMIO),
+	VULNWL(CENTAUR,	7, X86_MODEL_ANY,	ANAL_SPECTRE_V2 | ANAL_SWAPGS | ANAL_MMIO),
+	VULNWL(ZHAOXIN,	7, X86_MODEL_ANY,	ANAL_SPECTRE_V2 | ANAL_SWAPGS | ANAL_MMIO),
 	{}
 };
 
@@ -1259,7 +1259,7 @@ static const __initconst struct x86_cpu_id cpu_vuln_whitelist[] = {
 #define MMIO		BIT(1)
 /* CPU is affected by Shared Buffers Data Sampling (SBDS), a variant of X86_BUG_MMIO_STALE_DATA */
 #define MMIO_SBDS	BIT(2)
-/* CPU is affected by RETbleed, speculating where you would not expect it */
+/* CPU is affected by RETbleed, speculating where you would analt expect it */
 #define RETBLEED	BIT(3)
 /* CPU is affected by SMT (cross-thread) return predictions */
 #define SMT_RSB		BIT(4)
@@ -1283,7 +1283,7 @@ static const struct x86_cpu_id cpu_vuln_blacklist[] __initconst = {
 	VULNBL_INTEL_STEPPINGS(SKYLAKE,		X86_STEPPING_ANY,		MMIO | RETBLEED | GDS | SRBDS),
 	VULNBL_INTEL_STEPPINGS(KABYLAKE_L,	X86_STEPPING_ANY,		MMIO | RETBLEED | GDS | SRBDS),
 	VULNBL_INTEL_STEPPINGS(KABYLAKE,	X86_STEPPING_ANY,		MMIO | RETBLEED | GDS | SRBDS),
-	VULNBL_INTEL_STEPPINGS(CANNONLAKE_L,	X86_STEPPING_ANY,		RETBLEED),
+	VULNBL_INTEL_STEPPINGS(CANANALNLAKE_L,	X86_STEPPING_ANY,		RETBLEED),
 	VULNBL_INTEL_STEPPINGS(ICELAKE_L,	X86_STEPPING_ANY,		MMIO | MMIO_SBDS | RETBLEED | GDS),
 	VULNBL_INTEL_STEPPINGS(ICELAKE_D,	X86_STEPPING_ANY,		MMIO | GDS),
 	VULNBL_INTEL_STEPPINGS(ICELAKE_X,	X86_STEPPING_ANY,		MMIO | GDS),
@@ -1325,31 +1325,31 @@ u64 x86_read_arch_cap_msr(void)
 
 static bool arch_cap_mmio_immune(u64 ia32_cap)
 {
-	return (ia32_cap & ARCH_CAP_FBSDP_NO &&
-		ia32_cap & ARCH_CAP_PSDP_NO &&
-		ia32_cap & ARCH_CAP_SBDR_SSDP_NO);
+	return (ia32_cap & ARCH_CAP_FBSDP_ANAL &&
+		ia32_cap & ARCH_CAP_PSDP_ANAL &&
+		ia32_cap & ARCH_CAP_SBDR_SSDP_ANAL);
 }
 
 static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 {
 	u64 ia32_cap = x86_read_arch_cap_msr();
 
-	/* Set ITLB_MULTIHIT bug if cpu is not in the whitelist and not mitigated */
-	if (!cpu_matches(cpu_vuln_whitelist, NO_ITLB_MULTIHIT) &&
-	    !(ia32_cap & ARCH_CAP_PSCHANGE_MC_NO))
+	/* Set ITLB_MULTIHIT bug if cpu is analt in the whitelist and analt mitigated */
+	if (!cpu_matches(cpu_vuln_whitelist, ANAL_ITLB_MULTIHIT) &&
+	    !(ia32_cap & ARCH_CAP_PSCHANGE_MC_ANAL))
 		setup_force_cpu_bug(X86_BUG_ITLB_MULTIHIT);
 
-	if (cpu_matches(cpu_vuln_whitelist, NO_SPECULATION))
+	if (cpu_matches(cpu_vuln_whitelist, ANAL_SPECULATION))
 		return;
 
 	setup_force_cpu_bug(X86_BUG_SPECTRE_V1);
 
-	if (!cpu_matches(cpu_vuln_whitelist, NO_SPECTRE_V2))
+	if (!cpu_matches(cpu_vuln_whitelist, ANAL_SPECTRE_V2))
 		setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
 
-	if (!cpu_matches(cpu_vuln_whitelist, NO_SSB) &&
-	    !(ia32_cap & ARCH_CAP_SSB_NO) &&
-	   !cpu_has(c, X86_FEATURE_AMD_SSB_NO))
+	if (!cpu_matches(cpu_vuln_whitelist, ANAL_SSB) &&
+	    !(ia32_cap & ARCH_CAP_SSB_ANAL) &&
+	   !cpu_has(c, X86_FEATURE_AMD_SSB_ANAL))
 		setup_force_cpu_bug(X86_BUG_SPEC_STORE_BYPASS);
 
 	/*
@@ -1358,32 +1358,32 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	 */
 	if ((ia32_cap & ARCH_CAP_IBRS_ALL) || cpu_has(c, X86_FEATURE_AUTOIBRS)) {
 		setup_force_cpu_cap(X86_FEATURE_IBRS_ENHANCED);
-		if (!cpu_matches(cpu_vuln_whitelist, NO_EIBRS_PBRSB) &&
-		    !(ia32_cap & ARCH_CAP_PBRSB_NO))
+		if (!cpu_matches(cpu_vuln_whitelist, ANAL_EIBRS_PBRSB) &&
+		    !(ia32_cap & ARCH_CAP_PBRSB_ANAL))
 			setup_force_cpu_bug(X86_BUG_EIBRS_PBRSB);
 	}
 
-	if (!cpu_matches(cpu_vuln_whitelist, NO_MDS) &&
-	    !(ia32_cap & ARCH_CAP_MDS_NO)) {
+	if (!cpu_matches(cpu_vuln_whitelist, ANAL_MDS) &&
+	    !(ia32_cap & ARCH_CAP_MDS_ANAL)) {
 		setup_force_cpu_bug(X86_BUG_MDS);
 		if (cpu_matches(cpu_vuln_whitelist, MSBDS_ONLY))
 			setup_force_cpu_bug(X86_BUG_MSBDS_ONLY);
 	}
 
-	if (!cpu_matches(cpu_vuln_whitelist, NO_SWAPGS))
+	if (!cpu_matches(cpu_vuln_whitelist, ANAL_SWAPGS))
 		setup_force_cpu_bug(X86_BUG_SWAPGS);
 
 	/*
-	 * When the CPU is not mitigated for TAA (TAA_NO=0) set TAA bug when:
+	 * When the CPU is analt mitigated for TAA (TAA_ANAL=0) set TAA bug when:
 	 *	- TSX is supported or
 	 *	- TSX_CTRL is present
 	 *
 	 * TSX_CTRL check is needed for cases when TSX could be disabled before
 	 * the kernel boot e.g. kexec.
-	 * TSX_CTRL check alone is not sufficient for cases when the microcode
-	 * update is not present or running as guest that don't get TSX_CTRL.
+	 * TSX_CTRL check alone is analt sufficient for cases when the microcode
+	 * update is analt present or running as guest that don't get TSX_CTRL.
 	 */
-	if (!(ia32_cap & ARCH_CAP_TAA_NO) &&
+	if (!(ia32_cap & ARCH_CAP_TAA_ANAL) &&
 	    (cpu_has(c, X86_FEATURE_RTM) ||
 	     (ia32_cap & ARCH_CAP_TSX_CTRL_MSR)))
 		setup_force_cpu_bug(X86_BUG_TAA);
@@ -1404,21 +1404,21 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	/*
 	 * Processor MMIO Stale Data bug enumeration
 	 *
-	 * Affected CPU list is generally enough to enumerate the vulnerability,
+	 * Affected CPU list is generally eanalugh to enumerate the vulnerability,
 	 * but for virtualization case check for ARCH_CAP MSR bits also, VMM may
-	 * not want the guest to enumerate the bug.
+	 * analt want the guest to enumerate the bug.
 	 *
-	 * Set X86_BUG_MMIO_UNKNOWN for CPUs that are neither in the blacklist,
-	 * nor in the whitelist and also don't enumerate MSR ARCH_CAP MMIO bits.
+	 * Set X86_BUG_MMIO_UNKANALWN for CPUs that are neither in the blacklist,
+	 * analr in the whitelist and also don't enumerate MSR ARCH_CAP MMIO bits.
 	 */
 	if (!arch_cap_mmio_immune(ia32_cap)) {
 		if (cpu_matches(cpu_vuln_blacklist, MMIO))
 			setup_force_cpu_bug(X86_BUG_MMIO_STALE_DATA);
-		else if (!cpu_matches(cpu_vuln_whitelist, NO_MMIO))
-			setup_force_cpu_bug(X86_BUG_MMIO_UNKNOWN);
+		else if (!cpu_matches(cpu_vuln_whitelist, ANAL_MMIO))
+			setup_force_cpu_bug(X86_BUG_MMIO_UNKANALWN);
 	}
 
-	if (!cpu_has(c, X86_FEATURE_BTC_NO)) {
+	if (!cpu_has(c, X86_FEATURE_BTC_ANAL)) {
 		if (cpu_matches(cpu_vuln_blacklist, RETBLEED) || (ia32_cap & ARCH_CAP_RSBA))
 			setup_force_cpu_bug(X86_BUG_RETBLEED);
 	}
@@ -1426,7 +1426,7 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	if (cpu_matches(cpu_vuln_blacklist, SMT_RSB))
 		setup_force_cpu_bug(X86_BUG_SMT_RSB);
 
-	if (!cpu_has(c, X86_FEATURE_SRSO_NO)) {
+	if (!cpu_has(c, X86_FEATURE_SRSO_ANAL)) {
 		if (cpu_matches(cpu_vuln_blacklist, SRSO))
 			setup_force_cpu_bug(X86_BUG_SRSO);
 	}
@@ -1437,40 +1437,40 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	 * disabling AVX2. The only way to do this in HW is to clear XCR0[2],
 	 * which means that AVX will be disabled.
 	 */
-	if (cpu_matches(cpu_vuln_blacklist, GDS) && !(ia32_cap & ARCH_CAP_GDS_NO) &&
+	if (cpu_matches(cpu_vuln_blacklist, GDS) && !(ia32_cap & ARCH_CAP_GDS_ANAL) &&
 	    boot_cpu_has(X86_FEATURE_AVX))
 		setup_force_cpu_bug(X86_BUG_GDS);
 
-	if (cpu_matches(cpu_vuln_whitelist, NO_MELTDOWN))
+	if (cpu_matches(cpu_vuln_whitelist, ANAL_MELTDOWN))
 		return;
 
-	/* Rogue Data Cache Load? No! */
-	if (ia32_cap & ARCH_CAP_RDCL_NO)
+	/* Rogue Data Cache Load? Anal! */
+	if (ia32_cap & ARCH_CAP_RDCL_ANAL)
 		return;
 
 	setup_force_cpu_bug(X86_BUG_CPU_MELTDOWN);
 
-	if (cpu_matches(cpu_vuln_whitelist, NO_L1TF))
+	if (cpu_matches(cpu_vuln_whitelist, ANAL_L1TF))
 		return;
 
 	setup_force_cpu_bug(X86_BUG_L1TF);
 }
 
 /*
- * The NOPL instruction is supposed to exist on all CPUs of family >= 6;
- * unfortunately, that's not true in practice because of early VIA
- * chips and (more importantly) broken virtualizers that are not easy
+ * The ANALPL instruction is supposed to exist on all CPUs of family >= 6;
+ * unfortunately, that's analt true in practice because of early VIA
+ * chips and (more importantly) broken virtualizers that are analt easy
  * to detect. In the latter case it doesn't even *fail* reliably, so
  * probing for it doesn't even work. Disable it completely on 32-bit
  * unless we can find a reliable way to detect all the broken cases.
- * Enable it explicitly on 64-bit for non-constant inputs of cpu_has().
+ * Enable it explicitly on 64-bit for analn-constant inputs of cpu_has().
  */
-static void detect_nopl(void)
+static void detect_analpl(void)
 {
 #ifdef CONFIG_X86_32
-	setup_clear_cpu_cap(X86_FEATURE_NOPL);
+	setup_clear_cpu_cap(X86_FEATURE_ANALPL);
 #else
-	setup_force_cpu_cap(X86_FEATURE_NOPL);
+	setup_force_cpu_cap(X86_FEATURE_ANALPL);
 #endif
 }
 
@@ -1485,27 +1485,27 @@ static void __init cpu_parse_early_param(void)
 	int arglen, taint = 0;
 
 #ifdef CONFIG_X86_32
-	if (cmdline_find_option_bool(boot_command_line, "no387"))
+	if (cmdline_find_option_bool(boot_command_line, "anal387"))
 #ifdef CONFIG_MATH_EMULATION
 		setup_clear_cpu_cap(X86_FEATURE_FPU);
 #else
-		pr_err("Option 'no387' required CONFIG_MATH_EMULATION enabled.\n");
+		pr_err("Option 'anal387' required CONFIG_MATH_EMULATION enabled.\n");
 #endif
 
-	if (cmdline_find_option_bool(boot_command_line, "nofxsr"))
+	if (cmdline_find_option_bool(boot_command_line, "analfxsr"))
 		setup_clear_cpu_cap(X86_FEATURE_FXSR);
 #endif
 
-	if (cmdline_find_option_bool(boot_command_line, "noxsave"))
+	if (cmdline_find_option_bool(boot_command_line, "analxsave"))
 		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 
-	if (cmdline_find_option_bool(boot_command_line, "noxsaveopt"))
+	if (cmdline_find_option_bool(boot_command_line, "analxsaveopt"))
 		setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
 
-	if (cmdline_find_option_bool(boot_command_line, "noxsaves"))
+	if (cmdline_find_option_bool(boot_command_line, "analxsaves"))
 		setup_clear_cpu_cap(X86_FEATURE_XSAVES);
 
-	if (cmdline_find_option_bool(boot_command_line, "nousershstk"))
+	if (cmdline_find_option_bool(boot_command_line, "analusershstk"))
 		setup_clear_cpu_cap(X86_FEATURE_USER_SHSTK);
 
 	arglen = cmdline_find_option(boot_command_line, "clearcpuid", arg, sizeof(arg));
@@ -1537,7 +1537,7 @@ static void __init cpu_parse_early_param(void)
 				taint++;
 			}
 			/*
-			 * The assumption is that there are no feature names with only
+			 * The assumption is that there are anal feature names with only
 			 * numbers in the name thus go to the next argument.
 			 */
 			continue;
@@ -1558,7 +1558,7 @@ static void __init cpu_parse_early_param(void)
 		}
 
 		if (!found)
-			pr_cont(" (unknown: %s)", opt);
+			pr_cont(" (unkanalwn: %s)", opt);
 	}
 	pr_cont("\n");
 
@@ -1570,7 +1570,7 @@ static void __init cpu_parse_early_param(void)
  * Do minimum CPU detection early.
  * Fields really needed: vendor, cpuid_level, family, model, mask,
  * cache alignment.
- * The others are not touched to avoid unwanted side effects.
+ * The others are analt touched to avoid unwanted side effects.
  *
  * WARNING: this function is only called on the boot CPU.  Don't add code
  * here that is supposed to run on all CPUs.
@@ -1621,7 +1621,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	/*
 	 * Later in the boot process pgtable_l5_enabled() relies on
-	 * cpu_feature_enabled(X86_FEATURE_LA57). If 5-level paging is not
+	 * cpu_feature_enabled(X86_FEATURE_LA57). If 5-level paging is analt
 	 * enabled by this point we need to clear the feature bit to avoid
 	 * false-positives at the later stage.
 	 *
@@ -1629,12 +1629,12 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	 *  - 5-level paging is disabled compile-time;
 	 *  - it's 32-bit kernel;
 	 *  - machine doesn't support 5-level paging;
-	 *  - user specified 'no5lvl' in kernel command line.
+	 *  - user specified 'anal5lvl' in kernel command line.
 	 */
 	if (!pgtable_l5_enabled())
 		setup_clear_cpu_cap(X86_FEATURE_LA57);
 
-	detect_nopl();
+	detect_analpl();
 }
 
 void __init early_cpu_init(void)
@@ -1674,7 +1674,7 @@ static bool detect_null_seg_behavior(void)
 {
 	/*
 	 * Empirically, writing zero to a segment selector on AMD does
-	 * not clear the base, whereas writing zero to a segment
+	 * analt clear the base, whereas writing zero to a segment
 	 * selector on Intel does clear the base.  Intel's behavior
 	 * allows slightly faster context switches in the common case
 	 * where GS is unused by the prev and next threads.
@@ -1707,7 +1707,7 @@ void check_null_seg_clears_base(struct cpuinfo_x86 *c)
 
 	/*
 	 * CPUID bit above wasn't set. If this kernel is still running
-	 * as a HV guest, then the HV has decided not to advertize
+	 * as a HV guest, then the HV has decided analt to advertize
 	 * that CPUID bit for whatever reason.	For example, one
 	 * member of the migration pool might be vulnerable.  Which
 	 * means, the bug is present: set the BUG flag and return.
@@ -1718,7 +1718,7 @@ void check_null_seg_clears_base(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * Zen2 CPUs also have this behaviour, but no CPUID bit.
+	 * Zen2 CPUs also have this behaviour, but anal CPUID bit.
 	 * 0x18 is the respective family for Hygon.
 	 */
 	if ((c->x86 == 0x17 || c->x86 == 0x18) &&
@@ -1764,15 +1764,15 @@ static void generic_identify(struct cpuinfo_x86 *c)
 
 	/*
 	 * ESPFIX is a strange bug.  All real CPUs have it.  Paravirt
-	 * systems that run Linux at CPL > 0 may or may not have the
+	 * systems that run Linux at CPL > 0 may or may analt have the
 	 * issue, but, even if they have the issue, there's absolutely
-	 * nothing we can do about it because we can't use the real IRET
+	 * analthing we can do about it because we can't use the real IRET
 	 * instruction.
 	 *
 	 * NB: For the time being, only 32-bit kernels support
 	 * X86_BUG_ESPFIX as such.  64-bit kernels directly choose
 	 * whether to apply espfix using paravirt hooks.  If any
-	 * non-paravirt system ever shows up that does *not* have the
+	 * analn-paravirt system ever shows up that does *analt* have the
 	 * ESPFIX issue, we can change this.
 	 */
 #ifdef CONFIG_X86_32
@@ -1812,8 +1812,8 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 
 	c->loops_per_jiffy = loops_per_jiffy;
 	c->x86_cache_size = 0;
-	c->x86_vendor = X86_VENDOR_UNKNOWN;
-	c->x86_model = c->x86_stepping = 0;	/* So far unknown... */
+	c->x86_vendor = X86_VENDOR_UNKANALWN;
+	c->x86_model = c->x86_stepping = 0;	/* So far unkanalwn... */
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
 	c->x86_max_cores = 1;
@@ -1826,7 +1826,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_phys_bits = 36;
 	c->x86_virt_bits = 48;
 #else
-	c->cpuid_level = -1;	/* CPUID not detected */
+	c->cpuid_level = -1;	/* CPUID analt detected */
 	c->x86_clflush_size = 32;
 	c->x86_phys_bits = 32;
 	c->x86_virt_bits = 32;
@@ -1858,7 +1858,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 
 	/*
 	 * Vendor-specific initialization.  In this section we
-	 * canonicalize the feature flags, meaning if there are
+	 * caanalnicalize the feature flags, meaning if there are
 	 * features a certain CPU supports which CPUID doesn't
 	 * tell us, CPUID claiming incorrect flags, or other bugs,
 	 * we handle them here.
@@ -1885,7 +1885,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 
 	/*
 	 * The vendor-specific functions might have changed features.
-	 * Now we do "generic changes."
+	 * Analw we do "generic changes."
 	 */
 
 	/* Filter out anything that depends on CPUID levels we don't have */
@@ -2059,15 +2059,15 @@ EXPORT_PER_CPU_SYMBOL_GPL(fixed_percpu_data);
 static void wrmsrl_cstar(unsigned long val)
 {
 	/*
-	 * Intel CPUs do not support 32-bit SYSCALL. Writing to MSR_CSTAR
-	 * is so far ignored by the CPU, but raises a #VE trap in a TDX
+	 * Intel CPUs do analt support 32-bit SYSCALL. Writing to MSR_CSTAR
+	 * is so far iganalred by the CPU, but raises a #VE trap in a TDX
 	 * guest. Avoid the pointless write on all Intel CPUs.
 	 */
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		wrmsrl(MSR_CSTAR, val);
 }
 
-/* May not be marked __init: used by software suspend */
+/* May analt be marked __init: used by software suspend */
 void syscall_init(void)
 {
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
@@ -2078,7 +2078,7 @@ void syscall_init(void)
 		/*
 		 * This only works on Intel CPUs.
 		 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
-		 * This does not cause SYSENTER to jump to the wrong location, because
+		 * This does analt cause SYSENTER to jump to the wrong location, because
 		 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
 		 */
 		wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
@@ -2086,7 +2086,7 @@ void syscall_init(void)
 			    (unsigned long)(cpu_entry_stack(smp_processor_id()) + 1));
 		wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 	} else {
-		wrmsrl_cstar((unsigned long)entry_SYSCALL32_ignore);
+		wrmsrl_cstar((unsigned long)entry_SYSCALL32_iganalre);
 		wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
 		wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
 		wrmsrl_safe(MSR_IA32_SYSENTER_EIP, 0ULL);
@@ -2121,7 +2121,7 @@ static void clear_all_debug_regs(void)
 	int i;
 
 	for (i = 0; i < 8; i++) {
-		/* Ignore db4, db5 */
+		/* Iganalre db4, db5 */
 		if ((i == 4) || (i == 5))
 			continue;
 
@@ -2145,23 +2145,23 @@ static void dbg_restore_debug_regs(void)
 
 static inline void setup_getcpu(int cpu)
 {
-	unsigned long cpudata = vdso_encode_cpunode(cpu, early_cpu_to_node(cpu));
+	unsigned long cpudata = vdso_encode_cpuanalde(cpu, early_cpu_to_analde(cpu));
 	struct desc_struct d = { };
 
 	if (boot_cpu_has(X86_FEATURE_RDTSCP) || boot_cpu_has(X86_FEATURE_RDPID))
 		wrmsr(MSR_TSC_AUX, cpudata, 0);
 
-	/* Store CPU and node number in limit. */
+	/* Store CPU and analde number in limit. */
 	d.limit0 = cpudata;
 	d.limit1 = cpudata >> 16;
 
 	d.type = 5;		/* RO data, expand down, accessed */
 	d.dpl = 3;		/* Visible to user code */
-	d.s = 1;		/* Not a system segment */
+	d.s = 1;		/* Analt a system segment */
 	d.p = 1;		/* Present */
 	d.d = 1;		/* 32-bit */
 
-	write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_CPUNODE, &d, DESCTYPE_S);
+	write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_CPUANALDE, &d, DESCTYPE_S);
 }
 
 #ifdef CONFIG_X86_64
@@ -2197,14 +2197,14 @@ static inline void tss_setup_io_bitmap(struct tss_struct *tss)
 
 /*
  * Setup everything needed to handle exceptions from the IDT, including the IST
- * exceptions which use paranoid_entry().
+ * exceptions which use paraanalid_entry().
  */
 void cpu_init_exception_handling(void)
 {
 	struct tss_struct *tss = this_cpu_ptr(&cpu_tss_rw);
 	int cpu = raw_smp_processor_id();
 
-	/* paranoid_entry() gets the CPU number from the GDT */
+	/* paraanalid_entry() gets the CPU number from the GDT */
 	setup_getcpu(cpu);
 
 	/* IST vectors need TSS to be set up. */
@@ -2225,7 +2225,7 @@ void cpu_init_exception_handling(void)
  * cpu_init() initializes state that is per-CPU. Some data is already
  * initialized (naturally) in the bootstrap process, such as the GDT.  We
  * reload it nevertheless, this function acts as a 'CPU state barrier',
- * nothing should get across.
+ * analthing should get across.
  */
 void cpu_init(void)
 {
@@ -2233,9 +2233,9 @@ void cpu_init(void)
 	int cpu = raw_smp_processor_id();
 
 #ifdef CONFIG_NUMA
-	if (this_cpu_read(numa_node) == 0 &&
-	    early_cpu_to_node(cpu) != NUMA_NO_NODE)
-		set_numa_node(early_cpu_to_node(cpu));
+	if (this_cpu_read(numa_analde) == 0 &&
+	    early_cpu_to_analde(cpu) != NUMA_ANAL_ANALDE)
+		set_numa_analde(early_cpu_to_analde(cpu));
 #endif
 	pr_debug("Initializing CPU#%d\n", cpu);
 
@@ -2285,7 +2285,7 @@ void cpu_init(void)
  * store_cpu_caps() - Store a snapshot of CPU capabilities
  * @curr_info: Pointer where to store it
  *
- * Returns: None
+ * Returns: Analne
  */
 void store_cpu_caps(struct cpuinfo_x86 *curr_info)
 {
@@ -2307,7 +2307,7 @@ void store_cpu_caps(struct cpuinfo_x86 *curr_info)
  * The microcode loader calls this upon late microcode load to recheck features,
  * only when microcode has been updated. Caller holds and CPU hotplug lock.
  *
- * Return: None
+ * Return: Analne
  */
 void microcode_check(struct cpuinfo_x86 *prev_info)
 {
@@ -2323,7 +2323,7 @@ void microcode_check(struct cpuinfo_x86 *prev_info)
 		    sizeof(prev_info->x86_capability)))
 		return;
 
-	pr_warn("x86/CPU: CPU features have changed after loading microcode, but might not take effect.\n");
+	pr_warn("x86/CPU: CPU features have changed after loading microcode, but might analt take effect.\n");
 	pr_warn("x86/CPU: Please consider either early loading through initrd/built-in or a potential BIOS update.\n");
 }
 #endif
@@ -2345,7 +2345,7 @@ void __init arch_cpu_finalize_init(void)
 
 	/*
 	 * identify_boot_cpu() initialized SMT support information, let the
-	 * core code know.
+	 * core code kanalw.
 	 */
 	cpu_smt_set_num_threads(smp_num_siblings, smp_num_siblings);
 
@@ -2360,7 +2360,7 @@ void __init arch_cpu_finalize_init(void)
 
 	if (IS_ENABLED(CONFIG_X86_32)) {
 		/*
-		 * Check whether this is a real i386 which is not longer
+		 * Check whether this is a real i386 which is analt longer
 		 * supported and fixup the utsname.
 		 */
 		if (boot_cpu_data.x86 < 4)
@@ -2381,11 +2381,11 @@ void __init arch_cpu_finalize_init(void)
 
 	if (IS_ENABLED(CONFIG_X86_64)) {
 		/*
-		 * Make sure the first 2MB area is not mapped by huge pages
+		 * Make sure the first 2MB area is analt mapped by huge pages
 		 * There are typically fixed size MTRRs in there and overlapping
 		 * MTRRs into large pages causes slow downs.
 		 *
-		 * Right now we don't do that with gbpages because there seems
+		 * Right analw we don't do that with gbpages because there seems
 		 * very little benefit for that case.
 		 */
 		if (!direct_gbpages)
@@ -2398,7 +2398,7 @@ void __init arch_cpu_finalize_init(void)
 	 * This needs to be called before any devices perform DMA
 	 * operations that might use the SWIOTLB bounce buffers. It will
 	 * mark the bounce buffers as decrypted so that their usage will
-	 * not cause "plain-text" data to be decrypted when accessed. It
+	 * analt cause "plain-text" data to be decrypted when accessed. It
 	 * must be called after late_time_init() so that Hyper-V x86/x64
 	 * hypercalls work when the SWIOTLB bounce buffers are decrypted.
 	 */

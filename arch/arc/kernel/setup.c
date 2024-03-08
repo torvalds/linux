@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/seq_file.h>
@@ -142,7 +142,7 @@ arcompact_mumbojumbo(int c, struct cpuinfo_arc *info, char *buf, int len)
 	}
 
 	/* ARCompact ISA specific sanity checks */
-	present = fpu_dp.ver;	/* SP has no arch visible regs */
+	present = fpu_dp.ver;	/* SP has anal arch visible regs */
 	CHK_OPT_STRICT(CONFIG_ARC_FPU_SAVE_RESTORE, present);
 #endif
 	return n;
@@ -367,25 +367,25 @@ void chk_opt_strict(char *opt_name, bool hw_exists, bool opt_ena)
 	if (hw_exists && !opt_ena)
 		pr_warn(" ! Enable %s for working apps\n", opt_name);
 	else if (!hw_exists && opt_ena)
-		panic("Disable %s, hardware NOT present\n", opt_name);
+		panic("Disable %s, hardware ANALT present\n", opt_name);
 }
 
 void chk_opt_weak(char *opt_name, bool hw_exists, bool opt_ena)
 {
 	if (!hw_exists && opt_ena)
-		panic("Disable %s, hardware NOT present\n", opt_name);
+		panic("Disable %s, hardware ANALT present\n", opt_name);
 }
 
 /*
- * ISA agnostic sanity checks
+ * ISA aganalstic sanity checks
  */
 static void arc_chk_core_config(struct cpuinfo_arc *info)
 {
 	if (!info->t0)
-		panic("Timer0 is not present!\n");
+		panic("Timer0 is analt present!\n");
 
 	if (!info->t1)
-		panic("Timer1 is not present!\n");
+		panic("Timer1 is analt present!\n");
 
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
@@ -407,7 +407,7 @@ static void arc_chk_core_config(struct cpuinfo_arc *info)
 
 /*
  * Initialize and setup the processor core
- * This is called by all the CPUs thus should not do special case stuff
+ * This is called by all the CPUs thus should analt do special case stuff
  *    such as only for boot CPU etc
  */
 
@@ -431,8 +431,8 @@ void setup_processor(void)
 static inline bool uboot_arg_invalid(unsigned long addr)
 {
 	/*
-	 * Check that it is a untranslated address (although MMU is not enabled
-	 * yet, it being a high address ensures this is not by fluke)
+	 * Check that it is a untranslated address (although MMU is analt enabled
+	 * yet, it being a high address ensures this is analt by fluke)
 	 */
 	if (addr < PAGE_OFFSET)
 		return true;
@@ -441,10 +441,10 @@ static inline bool uboot_arg_invalid(unsigned long addr)
 	return addr >= (unsigned long)_stext && addr <= (unsigned long)_end;
 }
 
-#define IGNORE_ARGS		"Ignore U-boot args: "
+#define IGANALRE_ARGS		"Iganalre U-boot args: "
 
 /* uboot_tag values for U-boot - kernel ABI revision 0; see head.S */
-#define UBOOT_TAG_NONE		0
+#define UBOOT_TAG_ANALNE		0
 #define UBOOT_TAG_CMDLINE	1
 #define UBOOT_TAG_DTB		2
 /* We always pass 0 as magic from U-boot */
@@ -455,23 +455,23 @@ void __init handle_uboot_args(void)
 	bool use_embedded_dtb = true;
 	bool append_cmdline = false;
 
-	/* check that we know this tag */
-	if (uboot_tag != UBOOT_TAG_NONE &&
+	/* check that we kanalw this tag */
+	if (uboot_tag != UBOOT_TAG_ANALNE &&
 	    uboot_tag != UBOOT_TAG_CMDLINE &&
 	    uboot_tag != UBOOT_TAG_DTB) {
-		pr_warn(IGNORE_ARGS "invalid uboot tag: '%08x'\n", uboot_tag);
-		goto ignore_uboot_args;
+		pr_warn(IGANALRE_ARGS "invalid uboot tag: '%08x'\n", uboot_tag);
+		goto iganalre_uboot_args;
 	}
 
 	if (uboot_magic != UBOOT_MAGIC_VALUE) {
-		pr_warn(IGNORE_ARGS "non zero uboot magic\n");
-		goto ignore_uboot_args;
+		pr_warn(IGANALRE_ARGS "analn zero uboot magic\n");
+		goto iganalre_uboot_args;
 	}
 
-	if (uboot_tag != UBOOT_TAG_NONE &&
+	if (uboot_tag != UBOOT_TAG_ANALNE &&
             uboot_arg_invalid((unsigned long)uboot_arg)) {
-		pr_warn(IGNORE_ARGS "invalid uboot arg: '%px'\n", uboot_arg);
-		goto ignore_uboot_args;
+		pr_warn(IGANALRE_ARGS "invalid uboot arg: '%px'\n", uboot_arg);
+		goto iganalre_uboot_args;
 	}
 
 	/* see if U-boot passed an external Device Tree blob */
@@ -485,7 +485,7 @@ void __init handle_uboot_args(void)
 	if (uboot_tag == UBOOT_TAG_CMDLINE)
 		append_cmdline = true;
 
-ignore_uboot_args:
+iganalre_uboot_args:
 
 	if (use_embedded_dtb) {
 		machine_desc = setup_machine_fdt(__dtb_start);
@@ -494,7 +494,7 @@ ignore_uboot_args:
 	}
 
 	/*
-	 * NOTE: @boot_command_line is populated by setup_machine_fdt() so this
+	 * ANALTE: @boot_command_line is populated by setup_machine_fdt() so this
 	 * append processing can only happen after.
 	 */
 	if (append_cmdline) {
@@ -589,7 +589,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	cpu_clk = clk_get(cpu_dev, NULL);
 	if (IS_ERR(cpu_clk)) {
-		seq_printf(m, "CPU speed \t: Cannot get clock for processor [%d]\n",
+		seq_printf(m, "CPU speed \t: Cananalt get clock for processor [%d]\n",
 			   cpu_id);
 	} else {
 		freq = clk_get_rate(cpu_clk);

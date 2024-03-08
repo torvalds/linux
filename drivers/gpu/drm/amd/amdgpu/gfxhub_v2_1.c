@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -86,7 +86,7 @@ gfxhub_v2_1_print_l2_protection_fault_status(struct amdgpu_device *adev,
 		"GCVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 		status);
 	dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
-		cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" : gfxhub_client_ids[cid],
+		cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unkanalwn" : gfxhub_client_ids[cid],
 		cid);
 	dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
 		REG_GET_FIELD(status,
@@ -207,7 +207,7 @@ static void gfxhub_v2_1_init_cache_regs(struct amdgpu_device *adev)
 {
 	uint32_t tmp;
 
-	/* These registers are not accessible to VF-SRIOV.
+	/* These registers are analt accessible to VF-SRIOV.
 	 * The PF will program them instead.
 	 */
 	if (amdgpu_sriov_vf(adev))
@@ -268,7 +268,7 @@ static void gfxhub_v2_1_enable_system_domain(struct amdgpu_device *adev)
 
 static void gfxhub_v2_1_disable_identity_aperture(struct amdgpu_device *adev)
 {
-	/* These registers are not accessible to VF-SRIOV.
+	/* These registers are analt accessible to VF-SRIOV.
 	 * The PF will program them instead.
 	 */
 	if (amdgpu_sriov_vf(adev))
@@ -317,10 +317,10 @@ static void gfxhub_v2_1_setup_vmid_config(struct amdgpu_device *adev)
 		tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT1_CNTL,
 				PAGE_TABLE_BLOCK_SIZE,
 				adev->vm_manager.block_size - 9);
-		/* Send no-retry XNACK on fault to suppress VM fault storm. */
+		/* Send anal-retry XNACK on fault to suppress VM fault storm. */
 		tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT1_CNTL,
 				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
-				    !adev->gmc.noretry);
+				    !adev->gmc.analretry);
 		WREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT1_CNTL,
 				    i * hub->ctx_distance, tmp);
 		WREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32,
@@ -416,7 +416,7 @@ static void gfxhub_v2_1_set_fault_enable_default(struct amdgpu_device *adev,
 {
 	u32 tmp;
 
-	/* These registers are not accessible to VF-SRIOV.
+	/* These registers are analt accessible to VF-SRIOV.
 	 * The PF will program them instead.
 	 */
 	if (amdgpu_sriov_vf(adev))
@@ -448,7 +448,7 @@ static void gfxhub_v2_1_set_fault_enable_default(struct amdgpu_device *adev,
 			    EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
 	if (!value) {
 		tmp = REG_SET_FIELD(tmp, GCVM_L2_PROTECTION_FAULT_CNTL,
-				CRASH_ON_NO_RETRY_FAULT, 1);
+				CRASH_ON_ANAL_RETRY_FAULT, 1);
 		tmp = REG_SET_FIELD(tmp, GCVM_L2_PROTECTION_FAULT_CNTL,
 				CRASH_ON_RETRY_FAULT, 1);
 	}
@@ -507,13 +507,13 @@ static int gfxhub_v2_1_get_xgmi_info(struct amdgpu_device *adev)
 	u32 xgmi_lfb_cntl = RREG32_SOC15(GC, 0, mmGCMC_VM_XGMI_LFB_CNTL);
 	u32 max_region =
 		REG_GET_FIELD(xgmi_lfb_cntl, GCMC_VM_XGMI_LFB_CNTL, PF_MAX_REGION);
-	u32 max_num_physical_nodes   = 0;
-	u32 max_physical_node_id     = 0;
+	u32 max_num_physical_analdes   = 0;
+	u32 max_physical_analde_id     = 0;
 
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(4, 8, 0):
-		max_num_physical_nodes   = 4;
-		max_physical_node_id     = 3;
+		max_num_physical_analdes   = 4;
+		max_physical_analde_id     = 3;
 		break;
 	default:
 		return -EINVAL;
@@ -521,16 +521,16 @@ static int gfxhub_v2_1_get_xgmi_info(struct amdgpu_device *adev)
 
 	/* PF_MAX_REGION=0 means xgmi is disabled */
 	if (max_region) {
-		adev->gmc.xgmi.num_physical_nodes = max_region + 1;
-		if (adev->gmc.xgmi.num_physical_nodes > max_num_physical_nodes)
+		adev->gmc.xgmi.num_physical_analdes = max_region + 1;
+		if (adev->gmc.xgmi.num_physical_analdes > max_num_physical_analdes)
 			return -EINVAL;
 
-		adev->gmc.xgmi.physical_node_id =
+		adev->gmc.xgmi.physical_analde_id =
 			REG_GET_FIELD(xgmi_lfb_cntl, GCMC_VM_XGMI_LFB_CNTL, PF_LFB_REGION);
-		if (adev->gmc.xgmi.physical_node_id > max_physical_node_id)
+		if (adev->gmc.xgmi.physical_analde_id > max_physical_analde_id)
 			return -EINVAL;
 
-		adev->gmc.xgmi.node_segment_size = REG_GET_FIELD(
+		adev->gmc.xgmi.analde_segment_size = REG_GET_FIELD(
 			RREG32_SOC15(GC, 0, mmGCMC_VM_XGMI_LFB_SIZE),
 			GCMC_VM_XGMI_LFB_SIZE, PF_LFB_SIZE) << 24;
 	}
@@ -562,7 +562,7 @@ static void gfxhub_v2_1_utcl2_harvest(struct amdgpu_device *adev)
 		vbios_setting >>= GC_USER_SA_UNIT_DISABLE__SA_DISABLE__SHIFT;
 
 		disabled_sa |= efuse_setting | vbios_setting;
-		/* Make sure not to report harvested SAs beyond the max SA count */
+		/* Make sure analt to report harvested SAs beyond the max SA count */
 		disabled_sa &= max_sa_mask;
 
 		for (i = 0; disabled_sa > 0; i++) {

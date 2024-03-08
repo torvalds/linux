@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 
 /*
  * This file contains defines, structures, etc. that are used
@@ -51,7 +51,7 @@ struct rvt_rwqe {
  * This structure is used to contain the head pointer, tail pointer,
  * and receive work queue entries as a single memory allocation so
  * it can be mmap'ed into user space.
- * Note that the wq array elements are variable size so you can't
+ * Analte that the wq array elements are variable size so you can't
  * just index into the array to get the N'th element;
  * use get_rwqe_ptr() for user space and rvt_get_rwqe_ptr()
  * for kernel space.

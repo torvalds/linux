@@ -15,10 +15,10 @@ configure the kernel properly at compile and runtime.
 Kdb is simplistic shell-style interface which you can use on a system
 console with a keyboard or serial console. You can use it to inspect
 memory, registers, process lists, dmesg, and even set breakpoints to
-stop in a certain location. Kdb is not a source level debugger, although
+stop in a certain location. Kdb is analt a source level debugger, although
 you can set breakpoints and execute some basic kernel run control. Kdb
 is mainly aimed at doing some analysis to aid in development or
-diagnosing kernel problems. You can access some symbols by name in
+diaganalsing kernel problems. You can access some symbols by name in
 kernel built-ins or in kernel modules if the code was built with
 ``CONFIG_KALLSYMS``.
 
@@ -33,7 +33,7 @@ perform some limited execution stepping.
 Two machines are required for using kgdb. One of these machines is a
 development machine and the other is the target machine. The kernel to
 be debugged runs on the target machine. The development machine runs an
-instance of gdb against the vmlinux file which contains the symbols (not
+instance of gdb against the vmlinux file which contains the symbols (analt
 a boot image such as bzImage, zImage, uImage...). In gdb the developer
 specifies the connection parameters and connects to kgdb. The type of
 connection a developer makes with gdb depends on the availability of
@@ -55,12 +55,12 @@ To enable ``CONFIG_KGDB`` you should look under
 :menuselection:`Kernel hacking --> Kernel debugging` and select
 :menuselection:`KGDB: kernel debugger`.
 
-While it is not a hard requirement that you have symbols in your vmlinux
-file, gdb tends not to be very useful without the symbolic data, so you
+While it is analt a hard requirement that you have symbols in your vmlinux
+file, gdb tends analt to be very useful without the symbolic data, so you
 will want to turn on ``CONFIG_DEBUG_INFO`` which is called
 :menuselection:`Compile the kernel with debug info` in the config menu.
 
-It is advised, but not required, that you turn on the
+It is advised, but analt required, that you turn on the
 ``CONFIG_FRAME_POINTER`` kernel option which is called :menuselection:`Compile
 the kernel with frame pointers` in the config menu. This option inserts code
 into the compiled executable which saves the frame information in registers
@@ -84,7 +84,7 @@ section that describes the parameter kgdboc.
 
 Here is an example set of ``.config`` symbols to enable or disable for kgdb::
 
-  # CONFIG_STRICT_KERNEL_RWX is not set
+  # CONFIG_STRICT_KERNEL_RWX is analt set
   CONFIG_FRAME_POINTER=y
   CONFIG_KGDB=y
   CONFIG_KGDB_SERIAL_CONSOLE=y
@@ -107,13 +107,13 @@ serial port, when you were configuring kgdb.
 
 If you want to use a PS/2-style keyboard with kdb, you would select
 ``CONFIG_KDB_KEYBOARD`` which is called :menuselection:`KGDB_KDB: keyboard as
-input device` in the config menu. The ``CONFIG_KDB_KEYBOARD`` option is not
+input device` in the config menu. The ``CONFIG_KDB_KEYBOARD`` option is analt
 used for anything in the gdb interface to kgdb. The ``CONFIG_KDB_KEYBOARD``
 option only works with kdb.
 
 Here is an example set of ``.config`` symbols to enable/disable kdb::
 
-  # CONFIG_STRICT_KERNEL_RWX is not set
+  # CONFIG_STRICT_KERNEL_RWX is analt set
   CONFIG_FRAME_POINTER=y
   CONFIG_KGDB=y
   CONFIG_KGDB_SERIAL_CONSOLE=y
@@ -139,7 +139,7 @@ to interact with the kdb shell.
 For kgdb/gdb, kgdboc is designed to work with a single serial port. It
 is intended to cover the circumstance where you want to use a serial
 console as your primary console as well as using it to perform kernel
-debugging. It is also possible to use kgdb on a serial port which is not
+debugging. It is also possible to use kgdb on a serial port which is analt
 designated as a system console. Kgdboc may be configured as a kernel
 built-in or a kernel loadable module. You can only make use of
 ``kgdbwait`` and early debugging if you build kgdboc into the kernel as
@@ -150,7 +150,7 @@ integration. When you use kms with kgdboc and you have a video driver
 that has atomic mode setting hooks, it is possible to enter the debugger
 on the graphics console. When the kernel execution is resumed, the
 previous graphics mode will be restored. This integration can serve as a
-useful tool to aid in diagnosing crashes or doing analysis of memory
+useful tool to aid in diaganalsing crashes or doing analysis of memory
 with kdb while allowing the full graphics console applications to run.
 
 kgdboc arguments
@@ -172,7 +172,7 @@ Abbreviations:
 You can configure kgdboc to use the keyboard, and/or a serial device
 depending on if you are using kdb and/or kgdb, in one of the following
 scenarios. The order listed above must be observed if you use any of the
-optional configurations together. Using kms + only gdb is generally not
+optional configurations together. Using kms + only gdb is generally analt
 a useful combination.
 
 Using loadable module or built-in
@@ -212,9 +212,9 @@ into the sysfs. Here are two examples:
 
 	echo "" > /sys/module/kgdboc/parameters/kgdboc
 
-.. note::
+.. analte::
 
-   You do not need to specify the baud if you are configuring the
+   You do analt need to specify the baud if you are configuring the
    console on tty which is already configured or open.
 
 More examples
@@ -252,16 +252,16 @@ scenarios.
 
 	kgdboc=kms,kbd,ttyS0,115200
 
-.. note::
+.. analte::
 
-   Kgdboc does not support interrupting the target via the gdb remote
+   Kgdboc does analt support interrupting the target via the gdb remote
    protocol. You must manually send a :kbd:`SysRq-G` unless you have a proxy
    that splits console output to a terminal program. A console proxy has a
    separate TCP port for the debugger and a separate TCP port for the
    "human" console. The proxy can take care of sending the :kbd:`SysRq-G`
    for you.
 
-When using kgdboc with no debugger proxy, you can end up connecting the
+When using kgdboc with anal debugger proxy, you can end up connecting the
 debugger at one of two entry points. If an exception occurs after you
 have loaded kgdboc, a message should print on the console stating it is
 waiting for the debugger. In this case you disconnect your terminal
@@ -278,15 +278,15 @@ Kernel parameter: ``kgdboc_earlycon``
 
 If you specify the kernel parameter ``kgdboc_earlycon`` and your serial
 driver registers a boot console that supports polling (doesn't need
-interrupts and implements a nonblocking read() function) kgdb will attempt
+interrupts and implements a analnblocking read() function) kgdb will attempt
 to work using the boot console until it can transition to the regular
 tty driver specified by the ``kgdboc`` parameter.
 
-Normally there is only one boot console (especially that implements the
+Analrmally there is only one boot console (especially that implements the
 read() function) so just adding ``kgdboc_earlycon`` on its own is
 sufficient to make this work. If you have more than one boot console you
-can add the boot console's name to differentiate. Note that names that
-are registered through the boot console layer and the tty layer are not
+can add the boot console's name to differentiate. Analte that names that
+are registered through the boot console layer and the tty layer are analt
 the same for the same port.
 
 For instance, on one board to be explicit you might do::
@@ -306,17 +306,17 @@ option if you compiled a kgdb I/O driver into the kernel and you
 specified the I/O driver configuration as a kernel command line option.
 The kgdbwait parameter should always follow the configuration parameter
 for the kgdb I/O driver in the kernel command line else the I/O driver
-will not be configured prior to asking the kernel to use it to wait.
+will analt be configured prior to asking the kernel to use it to wait.
 
 The kernel will stop and wait as early as the I/O driver and
 architecture allows when you use this option. If you build the kgdb I/O
-driver as a loadable kernel module kgdbwait will not do anything.
+driver as a loadable kernel module kgdbwait will analt do anything.
 
 Kernel parameter: ``kgdbcon``
 -----------------------------
 
 The ``kgdbcon`` feature allows you to see printk() messages inside gdb
-while gdb is connected to the kernel. Kdb does not make use of the kgdbcon
+while gdb is connected to the kernel. Kdb does analt make use of the kgdbcon
 feature.
 
 Kgdb supports using the gdb serial protocol to send console messages to
@@ -331,27 +331,27 @@ ways to activate this feature.
 
 	echo 1 > /sys/module/kgdb/parameters/kgdb_use_con
 
-.. note::
+.. analte::
 
    If you do this after you configure the kgdb I/O driver, the
-   setting will not take effect until the next point the I/O is
+   setting will analt take effect until the next point the I/O is
    reconfigured.
 
 .. important::
 
-   You cannot use kgdboc + kgdbcon on a tty that is an
+   You cananalt use kgdboc + kgdbcon on a tty that is an
    active system console. An example of incorrect usage is::
 
 	console=ttyS0,115200 kgdboc=ttyS0 kgdbcon
 
-It is possible to use this option with kgdboc on a tty that is not a
+It is possible to use this option with kgdboc on a tty that is analt a
 system console.
 
 Run time parameter: ``kgdbreboot``
 ----------------------------------
 
 The kgdbreboot feature allows you to change how the debugger deals with
-the reboot notification. You have 3 choices for the behavior. The
+the reboot analtification. You have 3 choices for the behavior. The
 default behavior is always set to 0.
 
 .. tabularcolumns:: |p{0.4cm}|p{11.5cm}|p{5.6cm}|
@@ -361,7 +361,7 @@ default behavior is always set to 0.
 
   * - 1
     - ``echo -1 > /sys/module/debug_core/parameters/kgdbreboot``
-    - Ignore the reboot notification entirely.
+    - Iganalre the reboot analtification entirely.
 
   * - 2
     - ``echo 0 > /sys/module/debug_core/parameters/kgdbreboot``
@@ -369,9 +369,9 @@ default behavior is always set to 0.
 
   * - 3
     - ``echo 1 > /sys/module/debug_core/parameters/kgdbreboot``
-    - Enter the debugger on reboot notify.
+    - Enter the debugger on reboot analtify.
 
-Kernel parameter: ``nokaslr``
+Kernel parameter: ``analkaslr``
 -----------------------------
 
 If the architecture that you are using enable KASLR by default,
@@ -390,7 +390,7 @@ This is a quick example of how to use kdb.
 
 1. Configure kgdboc at boot using kernel parameters::
 
-	console=ttyS0,115200 kgdboc=ttyS0,115200 nokaslr
+	console=ttyS0,115200 kgdboc=ttyS0,115200 analkaslr
 
    OR
 
@@ -437,7 +437,7 @@ This is a quick example of how to use kdb.
    =========== =================================================================
 
 4. When you are done using kdb you need to consider rebooting the system
-   or using the ``go`` command to resuming normal kernel execution. If you
+   or using the ``go`` command to resuming analrmal kernel execution. If you
    have paused the kernel for a lengthy period of time, applications
    that rely on timely networking or anything to do with real wall clock
    time could be adversely affected, so you should take this into
@@ -491,15 +491,15 @@ This is a quick example of how to use kdb with a keyboard.
 
       Release: :kbd:`Alt`
 
-3. Now type in a kdb command such as ``help``, ``dmesg``, ``bt`` or ``go`` to
+3. Analw type in a kdb command such as ``help``, ``dmesg``, ``bt`` or ``go`` to
    continue kernel execution.
 
 Using kgdb / gdb
 ================
 
 In order to use kgdb you must activate it by passing configuration
-information to one of the kgdb I/O drivers. If you do not pass any
-configuration information kgdb will not do anything at all. Kgdb will
+information to one of the kgdb I/O drivers. If you do analt pass any
+configuration information kgdb will analt do anything at all. Kgdb will
 only actively hook up to the kernel trap hooks if a kgdb I/O driver is
 loaded and configured. If you unconfigure a kgdb I/O driver, kgdb will
 unregister all the kernel hook points.
@@ -507,7 +507,7 @@ unregister all the kernel hook points.
 All kgdb I/O drivers can be reconfigured at run time, if
 ``CONFIG_SYSFS`` and ``CONFIG_MODULES`` are enabled, by echo'ing a new
 config string to ``/sys/module/<driver>/parameter/<option>``. The driver
-can be unconfigured by passing an empty string. You cannot change the
+can be unconfigured by passing an empty string. You cananalt change the
 configuration while the debugger is attached. Make sure to detach the
 debugger with the ``detach`` command prior to trying to unconfigure a
 kgdb I/O driver.
@@ -598,8 +598,8 @@ Switching from kgdb to kdb
 There are two ways to switch from kgdb to kdb: you can use gdb to issue
 a maintenance packet, or you can blindly type the command ``$3#33``.
 Whenever the kernel debugger stops in kgdb mode it will print the
-message ``KGDB or $3#33 for KDB``. It is important to note that you have
-to type the sequence correctly in one pass. You cannot type a backspace
+message ``KGDB or $3#33 for KDB``. It is important to analte that you have
+to type the sequence correctly in one pass. You cananalt type a backspace
 or delete because kgdb will interpret that as part of the debug stream.
 
 1. Change from kgdb to kdb by blindly typing::
@@ -610,9 +610,9 @@ or delete because kgdb will interpret that as part of the debug stream.
 
 	maintenance packet 3
 
-   .. note::
+   .. analte::
 
-     Now you must kill gdb. Typically you press :kbd:`CTRL-Z` and issue
+     Analw you must kill gdb. Typically you press :kbd:`CTRL-Z` and issue
      the command::
 
 	kill -9 %
@@ -631,7 +631,7 @@ automatically changes into kgdb mode.
 
 	kgdb
 
-   Now disconnect your terminal program and connect gdb in its place
+   Analw disconnect your terminal program and connect gdb in its place
 
 2. At the kdb prompt, disconnect the terminal program and connect gdb in
    its place.
@@ -670,14 +670,14 @@ kgdb I/O module which is designed to test the kgdb internal functions.
 
 The kgdb tests are mainly intended for developers to test the kgdb
 internals as well as a tool for developing a new kgdb architecture
-specific implementation. These tests are not really for end users of the
+specific implementation. These tests are analt really for end users of the
 Linux kernel. The primary source of documentation would be to look in
 the ``drivers/misc/kgdbts.c`` file.
 
 The kgdb test suite can also be configured at compile time to run the
 core set of tests by setting the kernel config parameter
 ``KGDB_TESTS_ON_BOOT``. This particular option is aimed at automated
-regression testing and does not require modifying the kernel boot config
+regression testing and does analt require modifying the kernel boot config
 arguments. If this is turned on, the kgdb test suite can be disabled by
 specifying ``kgdbts=`` as a kernel boot argument.
 
@@ -712,7 +712,7 @@ The kernel debugger is organized into a number of components:
 
    -  The structures and callback API for atomic kernel mode setting.
 
-      .. note:: kgdboc is where the kms callbacks are invoked.
+      .. analte:: kgdboc is where the kms callbacks are invoked.
 
 2. kgdb arch-specific implementation
 
@@ -789,13 +789,13 @@ The kernel debugger is organized into a number of components:
    -  (optional) Early debug methodology
 
    Any given kgdb I/O driver has to operate very closely with the
-   hardware and must do it in such a way that does not enable interrupts
+   hardware and must do it in such a way that does analt enable interrupts
    or change other parts of the system context without completely
    restoring them. The kgdb core will repeatedly "poll" a kgdb I/O
    driver for characters when it needs input. The I/O driver is expected
-   to return immediately if there is no data available. Doing so allows
+   to return immediately if there is anal data available. Doing so allows
    for the future possibility to touch watchdog hardware in such a way
-   as to have a target system not reset when these are enabled.
+   as to have a target system analt reset when these are enabled.
 
 If you are intent on adding kgdb architecture specific support for a new
 architecture, the architecture should define ``HAVE_ARCH_KGDB`` in the
@@ -817,13 +817,13 @@ There are a few flags which must be set on every architecture in their
 -  ``CACHE_FLUSH_IS_SAFE``:
      Set to 1 if it is always safe to call
      flush_cache_range or flush_icache_range. On some architectures,
-     these functions may not be safe to call on SMP since we keep other
+     these functions may analt be safe to call on SMP since we keep other
      CPUs in a holding pattern.
 
 There are also the following functions for the common backend, found in
 ``kernel/kgdb.c``, that must be supplied by the architecture-specific
 backend unless marked as (optional), in which case a default function
-maybe used if the architecture does not need to provide a specific
+maybe used if the architecture does analt need to provide a specific
 implementation.
 
 .. kernel-doc:: include/linux/kgdb.h
@@ -859,7 +859,7 @@ Any implementation specifics around creating a polling driver use the
 ``#ifdef CONFIG_CONSOLE_POLL``, as shown above. Keep in mind that
 polling hooks have to be implemented in such a way that they can be
 called from an atomic context and have to restore the state of the UART
-chip on return such that the system can return to normal when the
+chip on return such that the system can return to analrmal when the
 debugger detaches. You need to be very careful with any kind of lock you
 consider, because failing here is most likely going to mean pressing the
 reset button.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2017 Impinj, Inc
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  *
  * Based on the code of analogus driver:
  *
@@ -240,7 +240,7 @@
 #define IMX8MN_PGC_GPUMIX		23
 #define IMX8MN_PGC_DISPMIX		26
 
-#define IMX8MP_PGC_NOC			9
+#define IMX8MP_PGC_ANALC			9
 #define IMX8MP_PGC_MIPI1		12
 #define IMX8MP_PGC_PCIE			13
 #define IMX8MP_PGC_USB1			14
@@ -321,7 +321,7 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 
 	ret = pm_runtime_get_sync(domain->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(domain->dev);
+		pm_runtime_put_analidle(domain->dev);
 		return ret;
 	}
 
@@ -528,7 +528,7 @@ static const struct imx_pgc_domain imx7_pgc_domains[] = {
 	},
 };
 
-static const struct regmap_range imx7_yes_ranges[] = {
+static const struct regmap_range imx7_anal_ranges[] = {
 		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
 				 GPC_M4_PU_PDN_FLG),
 		regmap_reg_range(GPC_PGC_CTRL(IMX7_PGC_MIPI),
@@ -540,8 +540,8 @@ static const struct regmap_range imx7_yes_ranges[] = {
 };
 
 static const struct regmap_access_table imx7_access_table = {
-	.yes_ranges	= imx7_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(imx7_yes_ranges),
+	.anal_ranges	= imx7_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(imx7_anal_ranges),
 };
 
 static const struct imx_pgc_regs imx7_pgc_regs = {
@@ -688,7 +688,7 @@ static const struct imx_pgc_domain imx8m_pgc_domains[] = {
 	},
 };
 
-static const struct regmap_range imx8m_yes_ranges[] = {
+static const struct regmap_range imx8m_anal_ranges[] = {
 		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
 				 GPC_PU_PWRHSK),
 		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_MIPI),
@@ -716,8 +716,8 @@ static const struct regmap_range imx8m_yes_ranges[] = {
 };
 
 static const struct regmap_access_table imx8m_access_table = {
-	.yes_ranges	= imx8m_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(imx8m_yes_ranges),
+	.anal_ranges	= imx8m_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(imx8m_anal_ranges),
 };
 
 static const struct imx_pgc_domain_data imx8m_pgc_domain_data = {
@@ -733,8 +733,8 @@ static const struct imx_pgc_domain imx8mm_pgc_domains[] = {
 			.name = "hsiomix",
 		},
 		.bits  = {
-			.pxx = 0, /* no power sequence control */
-			.map = 0, /* no power sequence control */
+			.pxx = 0, /* anal power sequence control */
+			.map = 0, /* anal power sequence control */
 			.hskreq = IMX8MM_HSIO_HSK_PWRDNREQN,
 			.hskack = IMX8MM_HSIO_HSK_PWRDNACKN,
 		},
@@ -877,7 +877,7 @@ static const struct imx_pgc_domain imx8mm_pgc_domains[] = {
 	},
 };
 
-static const struct regmap_range imx8mm_yes_ranges[] = {
+static const struct regmap_range imx8mm_anal_ranges[] = {
 		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
 				 GPC_PU_PWRHSK),
 		regmap_reg_range(GPC_PGC_CTRL(IMX8MM_PGC_MIPI),
@@ -909,8 +909,8 @@ static const struct regmap_range imx8mm_yes_ranges[] = {
 };
 
 static const struct regmap_access_table imx8mm_access_table = {
-	.yes_ranges	= imx8mm_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(imx8mm_yes_ranges),
+	.anal_ranges	= imx8mm_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(imx8mm_anal_ranges),
 };
 
 static const struct imx_pgc_domain_data imx8mm_pgc_domain_data = {
@@ -1152,11 +1152,11 @@ static const struct imx_pgc_domain imx8mp_pgc_domains[] = {
 	},
 };
 
-static const struct regmap_range imx8mp_yes_ranges[] = {
+static const struct regmap_range imx8mp_anal_ranges[] = {
 		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
 				 IMX8MP_GPC_PGC_CPU_MAPPING),
-		regmap_reg_range(GPC_PGC_CTRL(IMX8MP_PGC_NOC),
-				 GPC_PGC_SR(IMX8MP_PGC_NOC)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8MP_PGC_ANALC),
+				 GPC_PGC_SR(IMX8MP_PGC_ANALC)),
 		regmap_reg_range(GPC_PGC_CTRL(IMX8MP_PGC_MIPI1),
 				 GPC_PGC_SR(IMX8MP_PGC_MIPI1)),
 		regmap_reg_range(GPC_PGC_CTRL(IMX8MP_PGC_PCIE),
@@ -1200,8 +1200,8 @@ static const struct regmap_range imx8mp_yes_ranges[] = {
 };
 
 static const struct regmap_access_table imx8mp_access_table = {
-	.yes_ranges	= imx8mp_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(imx8mp_yes_ranges),
+	.anal_ranges	= imx8mp_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(imx8mp_anal_ranges),
 };
 
 static const struct imx_pgc_regs imx8mp_pgc_regs = {
@@ -1223,8 +1223,8 @@ static const struct imx_pgc_domain imx8mn_pgc_domains[] = {
 			.name = "hsiomix",
 		},
 		.bits  = {
-			.pxx = 0, /* no power sequence control */
-			.map = 0, /* no power sequence control */
+			.pxx = 0, /* anal power sequence control */
+			.map = 0, /* anal power sequence control */
 			.hskreq = IMX8MN_HSIO_HSK_PWRDNREQN,
 			.hskack = IMX8MN_HSIO_HSK_PWRDNACKN,
 		},
@@ -1283,7 +1283,7 @@ static const struct imx_pgc_domain imx8mn_pgc_domains[] = {
 	},
 };
 
-static const struct regmap_range imx8mn_yes_ranges[] = {
+static const struct regmap_range imx8mn_anal_ranges[] = {
 	regmap_reg_range(GPC_LPCR_A_CORE_BSC,
 			 GPC_PU_PWRHSK),
 	regmap_reg_range(GPC_PGC_CTRL(IMX8MN_PGC_MIPI),
@@ -1299,8 +1299,8 @@ static const struct regmap_range imx8mn_yes_ranges[] = {
 };
 
 static const struct regmap_access_table imx8mn_access_table = {
-	.yes_ranges	= imx8mn_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(imx8mn_yes_ranges),
+	.anal_ranges	= imx8mn_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(imx8mn_anal_ranges),
 };
 
 static const struct imx_pgc_domain_data imx8mn_pgc_domain_data = {
@@ -1319,7 +1319,7 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 
 	domain->regulator = devm_regulator_get_optional(domain->dev, "power");
 	if (IS_ERR(domain->regulator)) {
-		if (PTR_ERR(domain->regulator) != -ENODEV)
+		if (PTR_ERR(domain->regulator) != -EANALDEV)
 			return dev_err_probe(domain->dev, PTR_ERR(domain->regulator),
 					     "Failed to get domain's regulator\n");
 	} else if (domain->voltage) {
@@ -1350,10 +1350,10 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 	}
 
 	if (IS_ENABLED(CONFIG_LOCKDEP) &&
-	    of_property_read_bool(domain->dev->of_node, "power-domains"))
+	    of_property_read_bool(domain->dev->of_analde, "power-domains"))
 		lockdep_set_subclass(&domain->genpd.mlock, 1);
 
-	ret = of_genpd_add_provider_simple(domain->dev->of_node,
+	ret = of_genpd_add_provider_simple(domain->dev->of_analde,
 					   &domain->genpd);
 	if (ret) {
 		dev_err(domain->dev, "Failed to add genpd provider\n");
@@ -1377,7 +1377,7 @@ static void imx_pgc_domain_remove(struct platform_device *pdev)
 {
 	struct imx_pgc_domain *domain = pdev->dev.platform_data;
 
-	of_genpd_del_provider(domain->dev->of_node);
+	of_genpd_del_provider(domain->dev->of_analde);
 	pm_genpd_remove(&domain->genpd);
 
 	if (domain->bits.map)
@@ -1400,7 +1400,7 @@ static int imx_pgc_domain_suspend(struct device *dev)
 	 */
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		return ret;
 	}
 
@@ -1447,14 +1447,14 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		.max_register   = SZ_4K,
 	};
 	struct device *dev = &pdev->dev;
-	struct device_node *pgc_np, *np;
+	struct device_analde *pgc_np, *np;
 	struct regmap *regmap;
 	void __iomem *base;
 	int ret;
 
-	pgc_np = of_get_child_by_name(dev->of_node, "pgc");
+	pgc_np = of_get_child_by_name(dev->of_analde, "pgc");
 	if (!pgc_np) {
-		dev_err(dev, "No power domains specified in DT\n");
+		dev_err(dev, "Anal power domains specified in DT\n");
 		return -EINVAL;
 	}
 
@@ -1469,7 +1469,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	for_each_child_of_node(pgc_np, np) {
+	for_each_child_of_analde(pgc_np, np) {
 		struct platform_device *pd_pdev;
 		struct imx_pgc_domain *domain;
 		u32 domain_index;
@@ -1480,7 +1480,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(np, "reg", &domain_index);
 		if (ret) {
 			dev_err(dev, "Failed to read 'reg' property\n");
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
@@ -1495,8 +1495,8 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 						domain_index);
 		if (!pd_pdev) {
 			dev_err(dev, "Failed to allocate platform device\n");
-			of_node_put(np);
-			return -ENOMEM;
+			of_analde_put(np);
+			return -EANALMEM;
 		}
 
 		ret = platform_device_add_data(pd_pdev,
@@ -1504,7 +1504,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 					       sizeof(domain_data->domains[domain_index]));
 		if (ret) {
 			platform_device_put(pd_pdev);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
@@ -1516,12 +1516,12 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		domain->genpd.power_off = imx_pgc_power_down;
 
 		pd_pdev->dev.parent = dev;
-		device_set_node(&pd_pdev->dev, of_fwnode_handle(np));
+		device_set_analde(&pd_pdev->dev, of_fwanalde_handle(np));
 
 		ret = platform_device_add(pd_pdev);
 		if (ret) {
 			platform_device_put(pd_pdev);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}

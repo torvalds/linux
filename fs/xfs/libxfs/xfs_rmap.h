@@ -9,12 +9,12 @@
 struct xfs_perag;
 
 static inline void
-xfs_rmap_ino_bmbt_owner(
+xfs_rmap_ianal_bmbt_owner(
 	struct xfs_owner_info	*oi,
-	xfs_ino_t		ino,
+	xfs_ianal_t		ianal,
 	int			whichfork)
 {
-	oi->oi_owner = ino;
+	oi->oi_owner = ianal;
 	oi->oi_offset = 0;
 	oi->oi_flags = XFS_OWNER_INFO_BMBT_BLOCK;
 	if (whichfork == XFS_ATTR_FORK)
@@ -22,13 +22,13 @@ xfs_rmap_ino_bmbt_owner(
 }
 
 static inline void
-xfs_rmap_ino_owner(
+xfs_rmap_ianal_owner(
 	struct xfs_owner_info	*oi,
-	xfs_ino_t		ino,
+	xfs_ianal_t		ianal,
 	int			whichfork,
 	xfs_fileoff_t		offset)
 {
-	oi->oi_owner = ino;
+	oi->oi_owner = ianal;
 	oi->oi_offset = offset;
 	oi->oi_flags = 0;
 	if (whichfork == XFS_ATTR_FORK)
@@ -116,19 +116,19 @@ xfs_owner_info_pack(
 }
 
 int xfs_rmap_alloc(struct xfs_trans *tp, struct xfs_buf *agbp,
-		   struct xfs_perag *pag, xfs_agblock_t bno, xfs_extlen_t len,
+		   struct xfs_perag *pag, xfs_agblock_t banal, xfs_extlen_t len,
 		   const struct xfs_owner_info *oinfo);
 int xfs_rmap_free(struct xfs_trans *tp, struct xfs_buf *agbp,
-		  struct xfs_perag *pag, xfs_agblock_t bno, xfs_extlen_t len,
+		  struct xfs_perag *pag, xfs_agblock_t banal, xfs_extlen_t len,
 		  const struct xfs_owner_info *oinfo);
 
-int xfs_rmap_lookup_le(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+int xfs_rmap_lookup_le(struct xfs_btree_cur *cur, xfs_agblock_t banal,
 		uint64_t owner, uint64_t offset, unsigned int flags,
 		struct xfs_rmap_irec *irec, int *stat);
-int xfs_rmap_lookup_eq(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+int xfs_rmap_lookup_eq(struct xfs_btree_cur *cur, xfs_agblock_t banal,
 		xfs_extlen_t len, uint64_t owner, uint64_t offset,
 		unsigned int flags, int *stat);
-int xfs_rmap_insert(struct xfs_btree_cur *rcur, xfs_agblock_t agbno,
+int xfs_rmap_insert(struct xfs_btree_cur *rcur, xfs_agblock_t agbanal,
 		xfs_extlen_t len, uint64_t owner, uint64_t offset,
 		unsigned int flags);
 int xfs_rmap_get_rec(struct xfs_btree_cur *cur, struct xfs_rmap_irec *irec,
@@ -170,24 +170,24 @@ void xfs_rmap_update_get_group(struct xfs_mount *mp,
 		struct xfs_rmap_intent *ri);
 
 /* functions for updating the rmapbt based on bmbt map/unmap operations */
-void xfs_rmap_map_extent(struct xfs_trans *tp, struct xfs_inode *ip,
+void xfs_rmap_map_extent(struct xfs_trans *tp, struct xfs_ianalde *ip,
 		int whichfork, struct xfs_bmbt_irec *imap);
-void xfs_rmap_unmap_extent(struct xfs_trans *tp, struct xfs_inode *ip,
+void xfs_rmap_unmap_extent(struct xfs_trans *tp, struct xfs_ianalde *ip,
 		int whichfork, struct xfs_bmbt_irec *imap);
 void xfs_rmap_convert_extent(struct xfs_mount *mp, struct xfs_trans *tp,
-		struct xfs_inode *ip, int whichfork,
+		struct xfs_ianalde *ip, int whichfork,
 		struct xfs_bmbt_irec *imap);
-void xfs_rmap_alloc_extent(struct xfs_trans *tp, xfs_agnumber_t agno,
-		xfs_agblock_t bno, xfs_extlen_t len, uint64_t owner);
-void xfs_rmap_free_extent(struct xfs_trans *tp, xfs_agnumber_t agno,
-		xfs_agblock_t bno, xfs_extlen_t len, uint64_t owner);
+void xfs_rmap_alloc_extent(struct xfs_trans *tp, xfs_agnumber_t aganal,
+		xfs_agblock_t banal, xfs_extlen_t len, uint64_t owner);
+void xfs_rmap_free_extent(struct xfs_trans *tp, xfs_agnumber_t aganal,
+		xfs_agblock_t banal, xfs_extlen_t len, uint64_t owner);
 
 void xfs_rmap_finish_one_cleanup(struct xfs_trans *tp,
 		struct xfs_btree_cur *rcur, int error);
 int xfs_rmap_finish_one(struct xfs_trans *tp, struct xfs_rmap_intent *ri,
 		struct xfs_btree_cur **pcur);
 
-int xfs_rmap_lookup_le_range(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+int xfs_rmap_lookup_le_range(struct xfs_btree_cur *cur, xfs_agblock_t banal,
 		uint64_t owner, uint64_t offset, unsigned int flags,
 		struct xfs_rmap_irec *irec, int	*stat);
 int xfs_rmap_compare(const struct xfs_rmap_irec *a,
@@ -198,24 +198,24 @@ xfs_failaddr_t xfs_rmap_btrec_to_irec(const union xfs_btree_rec *rec,
 xfs_failaddr_t xfs_rmap_check_irec(struct xfs_btree_cur *cur,
 		const struct xfs_rmap_irec *irec);
 
-int xfs_rmap_has_records(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+int xfs_rmap_has_records(struct xfs_btree_cur *cur, xfs_agblock_t banal,
 		xfs_extlen_t len, enum xbtree_recpacking *outcome);
 
 struct xfs_rmap_matches {
 	/* Number of owner matches. */
 	unsigned long long	matches;
 
-	/* Number of non-owner matches. */
-	unsigned long long	non_owner_matches;
+	/* Number of analn-owner matches. */
+	unsigned long long	analn_owner_matches;
 
-	/* Number of non-owner matches that conflict with the owner matches. */
-	unsigned long long	bad_non_owner_matches;
+	/* Number of analn-owner matches that conflict with the owner matches. */
+	unsigned long long	bad_analn_owner_matches;
 };
 
-int xfs_rmap_count_owners(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+int xfs_rmap_count_owners(struct xfs_btree_cur *cur, xfs_agblock_t banal,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo,
 		struct xfs_rmap_matches *rmatch);
-int xfs_rmap_has_other_keys(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+int xfs_rmap_has_other_keys(struct xfs_btree_cur *cur, xfs_agblock_t banal,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo,
 		bool *has_other);
 int xfs_rmap_map_raw(struct xfs_btree_cur *cur, struct xfs_rmap_irec *rmap);
@@ -225,8 +225,8 @@ extern const struct xfs_owner_info XFS_RMAP_OINFO_ANY_OWNER;
 extern const struct xfs_owner_info XFS_RMAP_OINFO_FS;
 extern const struct xfs_owner_info XFS_RMAP_OINFO_LOG;
 extern const struct xfs_owner_info XFS_RMAP_OINFO_AG;
-extern const struct xfs_owner_info XFS_RMAP_OINFO_INOBT;
-extern const struct xfs_owner_info XFS_RMAP_OINFO_INODES;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_IANALBT;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_IANALDES;
 extern const struct xfs_owner_info XFS_RMAP_OINFO_REFC;
 extern const struct xfs_owner_info XFS_RMAP_OINFO_COW;
 

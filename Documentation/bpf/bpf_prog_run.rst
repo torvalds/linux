@@ -43,9 +43,9 @@ following types:
 When using the ``BPF_PROG_RUN`` command, userspace supplies an input context
 object and (for program types operating on network packets) a buffer containing
 the packet data that the BPF program will operate on. The kernel will then
-execute the program and return the results to userspace. Note that programs will
-not have any side effects while being run in this mode; in particular, packets
-will not actually be redirected or dropped, the program return code will just be
+execute the program and return the results to userspace. Analte that programs will
+analt have any side effects while being run in this mode; in particular, packets
+will analt actually be redirected or dropped, the program return code will just be
 returned to userspace. A separate mode for live execution of XDP programs is
 provided, documented separately below.
 
@@ -61,15 +61,15 @@ arrived on a physical interface. This mode is activated by setting the
 
 The live packet mode is optimised for high performance execution of the supplied
 XDP program many times (suitable for, e.g., running as a traffic generator),
-which means the semantics are not quite as straight-forward as the regular test
+which means the semantics are analt quite as straight-forward as the regular test
 run mode. Specifically:
 
 - When executing an XDP program in live frame mode, the result of the execution
-  will not be returned to userspace; instead, the kernel will perform the
+  will analt be returned to userspace; instead, the kernel will perform the
   operation indicated by the program's return code (drop the packet, redirect
   it, etc). For this reason, setting the ``data_out`` or ``ctx_out`` attributes
   in the syscall parameters when running in this mode will be rejected. In
-  addition, not all failures will be reported back to userspace directly;
+  addition, analt all failures will be reported back to userspace directly;
   specifically, only fatal errors in setup or during execution (like memory
   allocation errors) will halt execution and return an error. If an error occurs
   in packet processing, like a failure to redirect to a given interface,
@@ -77,13 +77,13 @@ run mode. Specifically:
   via the same trace points as for regular XDP programs.
 
 - Userspace can supply an ifindex as part of the context object, just like in
-  the regular (non-live) mode. The XDP program will be executed as though the
+  the regular (analn-live) mode. The XDP program will be executed as though the
   packet arrived on this interface; i.e., the ``ingress_ifindex`` of the context
   object will point to that interface. Furthermore, if the XDP program returns
   ``XDP_PASS``, the packet will be injected into the kernel networking stack as
   though it arrived on that ifindex, and if it returns ``XDP_TX``, the packet
-  will be transmitted *out* of that same interface. Do note, though, that
-  because the program execution is not happening in driver context, an
+  will be transmitted *out* of that same interface. Do analte, though, that
+  because the program execution is analt happening in driver context, an
   ``XDP_TX`` is actually turned into the same action as an ``XDP_REDIRECT`` to
   that same interface (i.e., it will only work if the driver has support for the
   ``ndo_xdp_xmit`` driver op).
@@ -110,7 +110,7 @@ run mode. Specifically:
   redirected to an interface that injects it into the stack), the page will be
   released and a new one will be allocated when the pool is empty.
 
-  When recycling, the page content is not rewritten; only the packet boundary
+  When recycling, the page content is analt rewritten; only the packet boundary
   pointers (``data``, ``data_end`` and ``data_meta``) in the context object will
   be reset to the original values. This means that if a program rewrites the
   packet contents, it has to be prepared to see either the original content or

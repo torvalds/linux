@@ -26,7 +26,7 @@ for Linux.
 
 (a) Check your PC card is true "NinjaSCSI-3" card.
 
-    If you installed pcmcia-cs already, pcmcia reports your card as UNKNOWN
+    If you installed pcmcia-cs already, pcmcia reports your card as UNKANALWN
     card, and write ["WBT", "NinjaSCSI-3", "R1.0"] or some other string to
     your console or log file.
 
@@ -42,7 +42,7 @@ for Linux.
 	...
 	# cardctl ident
 	Socket 0:
-	  no product info available
+	  anal product info available
 	Socket 1:
 	  product info: "IO DATA", "CBSC16       ", "1"
 
@@ -136,10 +136,10 @@ See README.nin_cs .
 If you eject card when doing some operation for your SCSI device or suspend
 your computer, you encount some *BAD* error like disk crash.
 
-It works good when I using this driver right way. But I'm not guarantee
+It works good when I using this driver right way. But I'm analt guarantee
 your data. Please backup your data when you use this driver.
 
-6. Known Bugs
+6. Kanalwn Bugs
 =============
 
 In 2.4 kernel, you can't use 640MB Optical disk. This error comes from

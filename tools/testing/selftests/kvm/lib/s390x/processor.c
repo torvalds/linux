@@ -53,7 +53,7 @@ void virt_arch_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa)
 	uint64_t *entry;
 
 	TEST_ASSERT((gva % vm->page_size) == 0,
-		"Virtual address not on page boundary,\n"
+		"Virtual address analt on page boundary,\n"
 		"  vaddr: 0x%lx vm->page_size: 0x%x",
 		gva, vm->page_size);
 	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
@@ -61,7 +61,7 @@ void virt_arch_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa)
 		"Invalid virtual address, vaddr: 0x%lx",
 		gva);
 	TEST_ASSERT((gpa % vm->page_size) == 0,
-		"Physical address not on page boundary,\n"
+		"Physical address analt on page boundary,\n"
 		"  paddr: 0x%lx vm->page_size: 0x%x",
 		gva, vm->page_size);
 	TEST_ASSERT((gpa >> vm->page_shift) <= vm->max_gfn,
@@ -98,7 +98,7 @@ vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	for (ri = 1; ri <= 4; ri++) {
 		idx = (gva >> (64 - 11 * ri)) & 0x7ffu;
 		TEST_ASSERT(!(entry[idx] & REGION_ENTRY_INVALID),
-			    "No region mapping for vm virtual address 0x%lx",
+			    "Anal region mapping for vm virtual address 0x%lx",
 			    gva);
 		entry = addr_gpa2hva(vm, entry[idx] & REGION_ENTRY_ORIGIN);
 	}
@@ -106,7 +106,7 @@ vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	idx = (gva >> 12) & 0x0ffu;		/* page index */
 
 	TEST_ASSERT(!(entry[idx] & PAGE_INVALID),
-		    "No page mapping for vm virtual address 0x%lx", gva);
+		    "Anal page mapping for vm virtual address 0x%lx", gva);
 
 	return (entry[idx] & ~0xffful) + (gva & 0xffful);
 }

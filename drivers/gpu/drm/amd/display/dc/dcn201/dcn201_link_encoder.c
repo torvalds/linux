@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -128,7 +128,7 @@ void dcn201_link_encoder_construct(
 	enc10->base.hpd_source = init_data->hpd_source;
 	enc10->base.connector = init_data->connector;
 
-	enc10->base.preferred_engine = ENGINE_ID_UNKNOWN;
+	enc10->base.preferred_engine = ENGINE_ID_UNKANALWN;
 
 	enc10->base.features = *enc_features;
 
@@ -154,13 +154,13 @@ void dcn201_link_encoder_construct(
 		SIGNAL_TYPE_HDMI_TYPE_A;
 
 	/* For DCE 8.0 and 8.1, by design, UNIPHY is hardwired to DIG_BE.
-	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for non-MST UNIPHY.
-	 * SW assign DIG_FE to non-MST UNIPHY first and MST last. So prefer
+	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for analn-MST UNIPHY.
+	 * SW assign DIG_FE to analn-MST UNIPHY first and MST last. So prefer
 	 * DIG is per UNIPHY and used by SST DP, eDP, HDMI, DVI and LVDS.
 	 * Prefer DIG assignment is decided by board design.
 	 * For DCE 8.0, there are only max 6 UNIPHYs, we assume board design
 	 * and VBIOS will filter out 7 UNIPHY for DCE 8.0.
-	 * By this, adding DIGG should not hurt DCE 8.0.
+	 * By this, adding DIGG should analt hurt DCE 8.0.
 	 * This will let DCE 8.1 share DCE 8.0 as much as possible
 	 */
 
@@ -179,7 +179,7 @@ void dcn201_link_encoder_construct(
 	break;
 	default:
 		ASSERT_CRITICAL(false);
-		enc10->base.preferred_engine = ENGINE_ID_UNKNOWN;
+		enc10->base.preferred_engine = ENGINE_ID_UNKANALWN;
 	}
 
 	/* default to one to mirror Windows behavior */

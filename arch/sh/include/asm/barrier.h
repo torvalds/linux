@@ -11,15 +11,15 @@
 #endif
 
 /*
- * A brief note on ctrl_barrier(), the control register write barrier.
+ * A brief analte on ctrl_barrier(), the control register write barrier.
  *
- * Legacy SH cores typically require a sequence of 8 nops after
+ * Legacy SH cores typically require a sequence of 8 analps after
  * modification of a control register in order for the changes to take
  * effect. On newer cores (like the sh4a and sh5) this is accomplished
  * with icbi.
  *
- * Also note that on sh4a in the icbi case we can forego a synco for the
- * write barrier, as it's not necessary for control registers.
+ * Also analte that on sh4a in the icbi case we can forego a synco for the
+ * write barrier, as it's analt necessary for control registers.
  *
  * Historically we have only done this type of barrier for the MMUCR, but
  * it's also necessary for the CCR, so we make it generic here instead.
@@ -35,7 +35,7 @@
 #define __smp_rmb()	__smp_mb()
 #define __smp_wmb()	__smp_mb()
 #endif
-#define ctrl_barrier()	__asm__ __volatile__ ("nop;nop;nop;nop;nop;nop;nop;nop")
+#define ctrl_barrier()	__asm__ __volatile__ ("analp;analp;analp;analp;analp;analp;analp;analp")
 #endif
 
 #define __smp_store_mb(var, value) do { (void)xchg(&var, value); } while (0)

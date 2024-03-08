@@ -13,7 +13,7 @@
 # routing in h0 to hN is done with nexthop objects.
 
 source lib.sh
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=anal
 VERBOSE=0
 
 which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
@@ -34,7 +34,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -224,7 +224,7 @@ validate_v6_exception()
 while getopts :pv o
 do
 	case $o in
-		p) PAUSE_ON_FAIL=yes;;
+		p) PAUSE_ON_FAIL=anal;;
 		v) VERBOSE=1;;
 	esac
 done

@@ -30,7 +30,7 @@
 struct panfrost_queue_state {
 	struct drm_gpu_scheduler sched;
 	u64 fence_context;
-	u64 emit_seqno;
+	u64 emit_seqanal;
 };
 
 struct panfrost_job_slot {
@@ -48,8 +48,8 @@ to_panfrost_job(struct drm_sched_job *sched_job)
 struct panfrost_fence {
 	struct dma_fence base;
 	struct drm_device *dev;
-	/* panfrost seqno for signaled() test */
-	u64 seqno;
+	/* panfrost seqanal for signaled() test */
+	u64 seqanal;
 	int queue;
 };
 
@@ -92,13 +92,13 @@ static struct dma_fence *panfrost_fence_create(struct panfrost_device *pfdev, in
 
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
 	if (!fence)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fence->dev = pfdev->ddev;
 	fence->queue = js_num;
-	fence->seqno = ++js->queue[js_num].emit_seqno;
+	fence->seqanal = ++js->queue[js_num].emit_seqanal;
 	dma_fence_init(&fence->base, &panfrost_fence_ops, &js->job_lock,
-		       js->queue[js_num].fence_context, fence->seqno);
+		       js->queue[js_num].fence_context, fence->seqanal);
 
 	return &fence->base;
 }
@@ -112,7 +112,7 @@ int panfrost_job_get_slot(struct panfrost_job *job)
 	if (job->requirements & PANFROST_JD_REQ_FS)
 		return 0;
 
-/* Not exposed to userspace yet */
+/* Analt exposed to userspace yet */
 #if 0
 	if (job->requirements & PANFROST_JD_REQ_ONLY_COMPUTE) {
 		if ((job->requirements & PANFROST_JD_REQ_CORE_GRP_MASK) &&
@@ -132,7 +132,7 @@ static void panfrost_job_write_affinity(struct panfrost_device *pfdev,
 	u64 affinity;
 
 	/*
-	 * Use all cores for now.
+	 * Use all cores for analw.
 	 * Eventually we may need to support tiler only jobs and h/w with
 	 * multiple (2) coherent core groups
 	 */
@@ -150,7 +150,7 @@ panfrost_get_job_chain_flag(const struct panfrost_job *job)
 	if (!panfrost_has_hw_feature(job->pfdev, HW_FEATURE_JOBCHAIN_DISAMBIGUATION))
 		return 0;
 
-	return (f->seqno & 1) ? JS_CONFIG_JOB_CHAIN_FLAG : 0;
+	return (f->seqanal & 1) ? JS_CONFIG_JOB_CHAIN_FLAG : 0;
 }
 
 static struct panfrost_job *
@@ -381,7 +381,7 @@ static struct dma_fence *panfrost_job_run(struct drm_sched_job *sched_job)
 	if (unlikely(job->base.s_fence->finished.error))
 		return NULL;
 
-	/* Nothing to execute: can happen if the job has finished while
+	/* Analthing to execute: can happen if the job has finished while
 	 * we were resetting the GPU.
 	 */
 	if (!job->jc)
@@ -457,7 +457,7 @@ static void panfrost_job_handle_err(struct panfrost_device *pfdev,
 	} else if (panfrost_exception_is_fault(js_status)) {
 		/* We might want to provide finer-grained error code based on
 		 * the exception type, but unconditionally setting to EINVAL
-		 * is good enough for now.
+		 * is good eanalugh for analw.
 		 */
 		dma_fence_set_error(job->done_fence, -EINVAL);
 		job->jc = 0;
@@ -516,9 +516,9 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 			if (status & JOB_INT_MASK_ERR(j)) {
 				/* Cancel the next submission. Will be submitted
 				 * after we're done handling this failure if
-				 * there's no reset pending.
+				 * there's anal reset pending.
 				 */
-				job_write(pfdev, JS_COMMAND_NEXT(j), JS_COMMAND_NOP);
+				job_write(pfdev, JS_COMMAND_NEXT(j), JS_COMMAND_ANALP);
 				failed[j] = panfrost_dequeue_job(pfdev, j);
 			}
 		}
@@ -580,13 +580,13 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 			continue;
 
 		if (pfdev->jobs[j][0]->jc == 0) {
-			/* The job was cancelled, signal the fence now */
+			/* The job was cancelled, signal the fence analw */
 			struct panfrost_job *canceled = panfrost_dequeue_job(pfdev, j);
 
 			dma_fence_set_error(canceled->done_fence, -ECANCELED);
 			panfrost_job_handle_done(pfdev, canceled);
 		} else if (!atomic_read(&pfdev->reset.pending)) {
-			/* Requeue the job we removed if no reset is pending */
+			/* Requeue the job we removed if anal reset is pending */
 			job_write(pfdev, JS_COMMAND_NEXT(j), JS_COMMAND_START);
 		}
 	}
@@ -668,7 +668,7 @@ panfrost_reset(struct panfrost_device *pfdev,
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
 		/* Cancel the next job and soft-stop the running job. */
-		job_write(pfdev, JS_COMMAND_NEXT(i), JS_COMMAND_NOP);
+		job_write(pfdev, JS_COMMAND_NEXT(i), JS_COMMAND_ANALP);
 		job_write(pfdev, JS_COMMAND(i), JS_COMMAND_SOFT_STOP);
 	}
 
@@ -685,7 +685,7 @@ panfrost_reset(struct panfrost_device *pfdev,
 
 	/* Remaining interrupts have been handled, but we might still have
 	 * stuck jobs. Let's make sure the PM counters stay balanced by
-	 * manually calling pm_runtime_put_noidle() and
+	 * manually calling pm_runtime_put_analidle() and
 	 * panfrost_devfreq_record_idle() for each stuck job.
 	 * Let's also make sure the cycle counting register's refcnt is
 	 * kept balanced to prevent it from running forever
@@ -695,14 +695,14 @@ panfrost_reset(struct panfrost_device *pfdev,
 		for (j = 0; j < ARRAY_SIZE(pfdev->jobs[0]) && pfdev->jobs[i][j]; j++) {
 			if (pfdev->jobs[i][j]->is_profiled)
 				panfrost_cycle_counter_put(pfdev->jobs[i][j]->pfdev);
-			pm_runtime_put_noidle(pfdev->dev);
+			pm_runtime_put_analidle(pfdev->dev);
 			panfrost_devfreq_record_idle(&pfdev->pfdevfreq);
 		}
 	}
 	memset(pfdev->jobs, 0, sizeof(pfdev->jobs));
 	spin_unlock(&pfdev->js->job_lock);
 
-	/* Proceed with reset now. */
+	/* Proceed with reset analw. */
 	panfrost_device_reset(pfdev);
 
 	/* panfrost_device_reset() unmasks job interrupts, but we want to
@@ -713,7 +713,7 @@ panfrost_reset(struct panfrost_device *pfdev,
 	/* GPU has been reset, we can clear the reset pending bit. */
 	atomic_set(&pfdev->reset.pending, 0);
 
-	/* Now resubmit jobs that were previously queued but didn't have a
+	/* Analw resubmit jobs that were previously queued but didn't have a
 	 * chance to finish.
 	 * FIXME: We temporarily get out of the DMA fence signalling section
 	 * while resubmitting jobs because the job submission logic will
@@ -729,7 +729,7 @@ panfrost_reset(struct panfrost_device *pfdev,
 	for (i = 0; i < NUM_JOB_SLOTS; i++)
 		drm_sched_start(&pfdev->js->queue[i].sched, true);
 
-	/* Re-enable job interrupts now that everything has been restarted. */
+	/* Re-enable job interrupts analw that everything has been restarted. */
 	job_write(pfdev, JOB_INT_MASK,
 		  GENMASK(16 + NUM_JOB_SLOTS - 1, 16) |
 		  GENMASK(NUM_JOB_SLOTS - 1, 0));
@@ -749,14 +749,14 @@ static enum drm_gpu_sched_stat panfrost_job_timedout(struct drm_sched_job
 	 * spurious. Bail out.
 	 */
 	if (dma_fence_is_signaled(job->done_fence))
-		return DRM_GPU_SCHED_STAT_NOMINAL;
+		return DRM_GPU_SCHED_STAT_ANALMINAL;
 
 	/*
 	 * Panfrost IRQ handler may take a long time to process an interrupt
-	 * if there is another IRQ handler hogging the processing.
+	 * if there is aanalther IRQ handler hogging the processing.
 	 * For example, the HDMI encoder driver might be stuck in the IRQ
 	 * handler for a significant time in a case of bad cable connection.
-	 * In order to catch such cases and not report spurious Panfrost
+	 * In order to catch such cases and analt report spurious Panfrost
 	 * job timeouts, synchronize the IRQ handler and re-check the fence
 	 * status.
 	 */
@@ -764,7 +764,7 @@ static enum drm_gpu_sched_stat panfrost_job_timedout(struct drm_sched_job
 
 	if (dma_fence_is_signaled(job->done_fence)) {
 		dev_warn(pfdev->dev, "unexpectedly high interrupt latency\n");
-		return DRM_GPU_SCHED_STAT_NOMINAL;
+		return DRM_GPU_SCHED_STAT_ANALMINAL;
 	}
 
 	dev_err(pfdev->dev, "gpu sched timeout, js=%d, config=0x%x, status=0x%x, head=0x%x, tail=0x%x, sched_job=%p",
@@ -780,7 +780,7 @@ static enum drm_gpu_sched_stat panfrost_job_timedout(struct drm_sched_job
 	atomic_set(&pfdev->reset.pending, 1);
 	panfrost_reset(pfdev, sched_job);
 
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_ANALMINAL;
 }
 
 static void panfrost_reset_work(struct work_struct *work)
@@ -803,7 +803,7 @@ static irqreturn_t panfrost_job_irq_handler_thread(int irq, void *data)
 
 	panfrost_job_handle_irqs(pfdev);
 
-	/* Enable interrupts only if we're not about to get suspended */
+	/* Enable interrupts only if we're analt about to get suspended */
 	if (!test_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended))
 		job_write(pfdev, JOB_INT_MASK,
 			  GENMASK(16 + NUM_JOB_SLOTS - 1, 16) |
@@ -818,11 +818,11 @@ static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 	u32 status;
 
 	if (test_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = job_read(pfdev, JOB_INT_STAT);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	job_write(pfdev, JOB_INT_MASK, 0);
 	return IRQ_WAKE_THREAD;
@@ -843,7 +843,7 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 
 	pfdev->js = js = devm_kzalloc(pfdev->dev, sizeof(*js), GFP_KERNEL);
 	if (!js)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&pfdev->reset.work, panfrost_reset_work);
 	spin_lock_init(&js->job_lock);
@@ -864,7 +864,7 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 
 	pfdev->reset.wq = alloc_ordered_workqueue("panfrost-reset", 0);
 	if (!pfdev->reset.wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (j = 0; j < NUM_JOB_SLOTS; j++) {
 		js->queue[j].fence_context = dma_fence_context_alloc(1);
@@ -919,7 +919,7 @@ int panfrost_job_open(struct panfrost_file_priv *panfrost_priv)
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
 		sched = &js->queue[i].sched;
 		ret = drm_sched_entity_init(&panfrost_priv->sched_entity[i],
-					    DRM_SCHED_PRIORITY_NORMAL, &sched,
+					    DRM_SCHED_PRIORITY_ANALRMAL, &sched,
 					    1, NULL);
 		if (WARN_ON(ret))
 			return ret;
@@ -950,7 +950,7 @@ void panfrost_job_close(struct panfrost_file_priv *panfrost_priv)
 
 			if (j == 1) {
 				/* Try to cancel the job before it starts */
-				job_write(pfdev, JS_COMMAND_NEXT(i), JS_COMMAND_NOP);
+				job_write(pfdev, JS_COMMAND_NEXT(i), JS_COMMAND_ANALP);
 				/* Reset the job head so it doesn't get restarted if
 				 * the job in the first slot failed.
 				 */
@@ -980,7 +980,7 @@ int panfrost_job_is_idle(struct panfrost_device *pfdev)
 	int i;
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
-		/* If there are any jobs in the HW queue, we're not idle */
+		/* If there are any jobs in the HW queue, we're analt idle */
 		if (atomic_read(&js->queue[i].sched.credit_count))
 			return false;
 	}

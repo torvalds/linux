@@ -156,7 +156,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	mmc-pwrseq = <&emmc_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	status = "okay";
@@ -198,7 +198,7 @@
 		reg = <0x51>;
 		#clock-cells = <0>;
 		clock-output-names = "xin32k";
-		/* rtc_int is not connected */
+		/* rtc_int is analt connected */
 	};
 };
 
@@ -219,7 +219,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_clk &sdio0_cmd &sdio0_bus4>;
 	vmmc-supply = <&vcc_io>;
@@ -228,7 +228,7 @@
 };
 
 &pinctrl {
-	pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
+	pcfg_pull_analne_drv_8ma: pcfg-pull-analne-drv-8ma {
 		bias-disable;
 		drive-strength = <8>;
 	};
@@ -251,7 +251,7 @@
 		};
 
 		emmc-clk {
-			rockchip,pins = <2 RK_PA4 2 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <2 RK_PA4 2 &pcfg_pull_analne_drv_8ma>;
 		};
 
 		emmc-cmd {
@@ -259,7 +259,7 @@
 		};
 
 		emmc_reset: emmc-reset {
-			rockchip,pins = <2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -277,27 +277,27 @@
 
 	leds {
 		stby_pwren: stby-pwren {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		led_ctl: led-ctl {
-			rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdio {
 		wifi_reg_on: wifi-reg-on {
-			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_rst: bt-rst {
-			rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

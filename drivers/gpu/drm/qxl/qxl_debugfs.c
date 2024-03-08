@@ -9,14 +9,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -38,8 +38,8 @@
 static int
 qxl_debugfs_irq_received(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct qxl_device *qdev = to_qxl(node->minor->dev);
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct qxl_device *qdev = to_qxl(analde->mianalr->dev);
 
 	seq_printf(m, "%d\n", atomic_read(&qdev->irq_received));
 	seq_printf(m, "%d\n", atomic_read(&qdev->irq_received_display));
@@ -52,8 +52,8 @@ qxl_debugfs_irq_received(struct seq_file *m, void *data)
 static int
 qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct qxl_device *qdev = to_qxl(node->minor->dev);
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct qxl_device *qdev = to_qxl(analde->mianalr->dev);
 	struct qxl_bo *bo;
 
 	list_for_each_entry(bo, &qdev->gem.objects, list) {
@@ -84,13 +84,13 @@ static struct drm_info_list qxl_debugfs_list[] = {
 #endif
 
 void
-qxl_debugfs_init(struct drm_minor *minor)
+qxl_debugfs_init(struct drm_mianalr *mianalr)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct qxl_device *dev = to_qxl(minor->dev);
+	struct qxl_device *dev = to_qxl(mianalr->dev);
 
 	drm_debugfs_create_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 
 	qxl_ttm_debugfs_init(dev);
 #endif

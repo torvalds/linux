@@ -67,11 +67,11 @@ vchiq_device_register(struct device *parent, const char *name)
 	device->dev.dma_mask = &device->dev.coherent_dma_mask;
 	device->dev.release = vchiq_device_release;
 
-	of_dma_configure(&device->dev, parent->of_node, true);
+	of_dma_configure(&device->dev, parent->of_analde, true);
 
 	ret = device_register(&device->dev);
 	if (ret) {
-		dev_err(parent, "Cannot register %s: %d\n", name, ret);
+		dev_err(parent, "Cananalt register %s: %d\n", name, ret);
 		put_device(&device->dev);
 		return NULL;
 	}

@@ -51,8 +51,8 @@ struct goku_udc_regs {
 #define MST_RD_EOPB		0x0080		/* write-only */
 #define MST_RD_RESET		0x0040
 #define MST_WR_RESET		0x0020
-#define MST_RD_ENA		0x0004		/* 1:start, 0:ignore */
-#define MST_WR_ENA		0x0002		/* 1:start, 0:ignore */
+#define MST_RD_ENA		0x0004		/* 1:start, 0:iganalre */
+#define MST_WR_ENA		0x0002		/* 1:start, 0:iganalre */
 #define MST_CONNECTION		0x0001		/* 0 for ep1out/ep2in */
 
 #define MST_R_BITS		(MST_EOPB_DIS|MST_EOPB_ENA \
@@ -227,7 +227,7 @@ struct goku_request {
 };
 
 enum ep0state {
-	EP0_DISCONNECT,		/* no host */
+	EP0_DISCONNECT,		/* anal host */
 	EP0_IDLE,		/* between STATUS ack and SETUP report */
 	EP0_IN, EP0_OUT,	/* data stage */
 	EP0_STATUS,		/* status stage */

@@ -4,7 +4,7 @@
 #
 
 ifdef CONFIG_PPC64
-CFLAGS_prom_init.o	+= $(NO_MINIMAL_TOC)
+CFLAGS_prom_init.o	+= $(ANAL_MINIMAL_TOC)
 endif
 ifdef CONFIG_PPC32
 CFLAGS_prom_init.o      += -fPIC
@@ -17,13 +17,13 @@ CFLAGS_prom_init.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
 CFLAGS_btext.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
 CFLAGS_prom.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
 
-CFLAGS_prom_init.o += -fno-stack-protector
+CFLAGS_prom_init.o += -fanal-stack-protector
 CFLAGS_prom_init.o += -DDISABLE_BRANCH_PROFILING
 CFLAGS_prom_init.o += -ffreestanding
 CFLAGS_prom_init.o += $(call cc-option, -ftrivial-auto-var-init=uninitialized)
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not trace early boot code
+# Do analt trace early boot code
 CFLAGS_REMOVE_cputable.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_prom_init.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_btext.o = $(CC_FLAGS_FTRACE)
@@ -42,7 +42,7 @@ KASAN_SANITIZE_udbg.o := n
 KASAN_SANITIZE_udbg_16550.o := n
 
 # we have to be particularly careful in ppc64 to exclude code that
-# runs with translations off, as we cannot access the shadow with
+# runs with translations off, as we cananalt access the shadow with
 # translations off. However, ppc32 can sanitize this.
 ifdef CONFIG_PPC64
 KASAN_SANITIZE_traps.o := n
@@ -65,7 +65,7 @@ KCSAN_SANITIZE_setup_64.o := n
 # Remove stack protector to avoid triggering unneeded stack canary
 # checks due to randomize_kstack_offset.
 CFLAGS_REMOVE_syscall.o = -fstack-protector -fstack-protector-strong
-CFLAGS_syscall.o += -fno-stack-protector
+CFLAGS_syscall.o += -fanal-stack-protector
 #endif
 
 obj-y				:= cputable.o syscalls.o switch.o \
@@ -79,7 +79,7 @@ obj-y				:= cputable.o syscalls.o switch.o \
 				   kdebugfs.o stacktrace.o syscall.o
 obj-y				+= ptrace/
 obj-$(CONFIG_PPC64)		+= setup_64.o irq_64.o\
-				   paca.o nvram_64.o note.o
+				   paca.o nvram_64.o analte.o
 obj-$(CONFIG_PPC32)		+= sys_ppc32.o
 obj-$(CONFIG_COMPAT)		+= sys_ppc32.o signal_32.o
 obj-$(CONFIG_VDSO32)		+= vdso32_wrapper.o
@@ -90,7 +90,7 @@ obj-$(CONFIG_PPC_BOOK3S_64)	+= cpu_setup_ppc970.o cpu_setup_pa6t.o
 obj-$(CONFIG_PPC_BOOK3S_64)	+= cpu_setup_power.o
 obj-$(CONFIG_PPC_BOOK3S_64)	+= mce.o mce_power.o
 obj-$(CONFIG_PPC_BOOK3E_64)	+= exceptions-64e.o idle_64e.o
-obj-$(CONFIG_PPC_BARRIER_NOSPEC) += security.o
+obj-$(CONFIG_PPC_BARRIER_ANALSPEC) += security.o
 obj-$(CONFIG_PPC64)		+= vdso64_wrapper.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o
 obj-$(CONFIG_PPC_BOOK3S_IDLE)	+= idle_book3s.o
@@ -201,8 +201,8 @@ KCOV_INSTRUMENT_cputable.o := n
 KCOV_INSTRUMENT_setup_64.o := n
 KCOV_INSTRUMENT_paca.o := n
 
-CFLAGS_setup_64.o		+= -fno-stack-protector
-CFLAGS_paca.o			+= -fno-stack-protector
+CFLAGS_setup_64.o		+= -fanal-stack-protector
+CFLAGS_paca.o			+= -fanal-stack-protector
 
 obj-$(CONFIG_PPC_FPU)		+= fpu.o
 obj-$(CONFIG_ALTIVEC)		+= vector.o

@@ -101,7 +101,7 @@ static void qat_comp_resubmit(struct work_struct *work)
 	qat_comp_override_dst(req, dfbuf, dlen);
 
 	ret = qat_alg_send_dc_message(qat_req, inst, &areq->base);
-	if (ret != -ENOSPC)
+	if (ret != -EANALSPC)
 		return;
 
 err:
@@ -144,7 +144,7 @@ static void qat_comp_generic_callback(struct qat_compression_req *qat_req,
 		if (cmp_err == ERR_CODE_OVERFLOW_ERROR) {
 			if (qat_req->dst.resubmitted) {
 				dev_dbg(&GET_DEV(accel_dev),
-					"Output does not fit destination buffer\n");
+					"Output does analt fit destination buffer\n");
 				res = -EOVERFLOW;
 				goto end;
 			}
@@ -162,7 +162,7 @@ static void qat_comp_generic_callback(struct qat_compression_req *qat_req,
 		cnv = qat_comp_get_cmp_cnv_flag(resp);
 		if (unlikely(!cnv)) {
 			dev_err(&GET_DEV(accel_dev),
-				"Verified compression not supported\n");
+				"Verified compression analt supported\n");
 			goto end;
 		}
 
@@ -203,15 +203,15 @@ static int qat_comp_alg_init_tfm(struct crypto_acomp *acomp_tfm)
 	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp_tfm);
 	struct qat_compression_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct qat_compression_instance *inst;
-	int node;
+	int analde;
 
-	if (tfm->node == NUMA_NO_NODE)
-		node = numa_node_id();
+	if (tfm->analde == NUMA_ANAL_ANALDE)
+		analde = numa_analde_id();
 	else
-		node = tfm->node;
+		analde = tfm->analde;
 
 	memset(ctx, 0, sizeof(*ctx));
-	inst = qat_compression_get_instance_node(node);
+	inst = qat_compression_get_instance_analde(analde);
 	if (!inst)
 		return -EINVAL;
 	ctx->inst = inst;
@@ -270,7 +270,7 @@ static int qat_comp_alg_compress_decompress(struct acomp_req *areq, enum directi
 		dlen = round_up(2 * slen, PAGE_SIZE);
 		areq->dst = sgl_alloc(dlen, f, NULL);
 		if (!areq->dst)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dlen -= dhdr + dftr;
 		areq->dlen = dlen;
@@ -309,7 +309,7 @@ static int qat_comp_alg_compress_decompress(struct acomp_req *areq, enum directi
 	}
 
 	ret = qat_alg_send_dc_message(qat_req, inst, &areq->base);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		qat_bl_free_bufl(inst->accel_dev, &qat_req->buf);
 
 	return ret;

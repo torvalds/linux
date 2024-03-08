@@ -412,7 +412,7 @@ static uint32_t gk104_grgpc_code[] = {
 	0x18fe051e,
 	0x0121f500,
 	0xd90ef406,
-/* 0x0538: main_not_ctx_xfer */
+/* 0x0538: main_analt_ctx_xfer */
 	0xf010ef94,
 	0x21f501f5,
 	0x0ef4037e,
@@ -437,7 +437,7 @@ static uint32_t gk104_grgpc_code[] = {
 	0x0007f101,
 	0x0003f01d,
 	0xbd000ed0,
-/* 0x0595: ih_no_fifo */
+/* 0x0595: ih_anal_fifo */
 	0x0007f104,
 	0x0003f001,
 	0xbd000ad0,
@@ -474,7 +474,7 @@ static uint32_t gk104_grgpc_code[] = {
 	0xbd000fd0,
 	0x0711f404,
 	0x05d321f5,
-/* 0x0614: ctx_xfer_not_load */
+/* 0x0614: ctx_xfer_analt_load */
 	0x026a21f5,
 	0x07f124bd,
 	0x03f047fc,

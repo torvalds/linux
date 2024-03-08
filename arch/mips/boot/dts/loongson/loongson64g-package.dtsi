@@ -45,7 +45,7 @@
 			clock-frequency = <100000000>;
 			interrupt-parent = <&liointc>;
 			interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		cpu_uart1: serial@1fe00110 {
@@ -55,7 +55,7 @@
 			clock-frequency = <100000000>;
 			interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-parent = <&liointc>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 	};
 };

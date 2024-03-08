@@ -441,7 +441,7 @@ static int populate_cedt(void)
 
 		res = alloc_mock_res(size, size);
 		if (!res)
-			return -ENOMEM;
+			return -EANALMEM;
 		chbs->base = res->range.start;
 		chbs->length = size;
 	}
@@ -451,7 +451,7 @@ static int populate_cedt(void)
 
 		res = alloc_mock_res(window->window_size, SZ_256M);
 		if (!res)
-			return -ENOMEM;
+			return -EANALMEM;
 		window->base_hpa = res->range.start;
 	}
 
@@ -632,7 +632,7 @@ static struct cxl_hdm *mock_cxl_setup_hdm(struct cxl_port *port,
 	struct cxl_hdm *cxlhdm = devm_kzalloc(&port->dev, sizeof(*cxlhdm), GFP_KERNEL);
 
 	if (!cxlhdm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cxlhdm->port = port;
 	return cxlhdm;
@@ -641,7 +641,7 @@ static struct cxl_hdm *mock_cxl_setup_hdm(struct cxl_port *port,
 static int mock_cxl_add_passthrough_decoder(struct cxl_port *port)
 {
 	dev_err(&port->dev, "unexpected passthrough decoder for cxl_test\n");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 
@@ -803,7 +803,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 	cxld->reset = mock_decoder_reset;
 
 	/*
-	 * Now that endpoint decoder is set up, walk up the hierarchy
+	 * Analw that endpoint decoder is set up, walk up the hierarchy
 	 * and setup the switch and root port decoders targeting @cxlmd.
 	 */
 	iter = port;
@@ -933,7 +933,7 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 			array_size = ARRAY_SIZE(cxl_root_single);
 			array = cxl_root_single;
 		} else {
-			dev_dbg(&port->dev, "%s: unknown bridge type\n",
+			dev_dbg(&port->dev, "%s: unkanalwn bridge type\n",
 				dev_name(port->uport_dev));
 			return -ENXIO;
 		}
@@ -947,7 +947,7 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 			array_size = ARRAY_SIZE(cxl_swd_single);
 			array = cxl_swd_single;
 		} else {
-			dev_dbg(&port->dev, "%s: unknown bridge type\n",
+			dev_dbg(&port->dev, "%s: unkanalwn bridge type\n",
 				dev_name(port->uport_dev));
 			return -ENXIO;
 		}
@@ -969,7 +969,7 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 		}
 
 		dport = devm_cxl_add_dport(port, &pdev->dev, pdev->id,
-					   CXL_RESOURCE_NONE);
+					   CXL_RESOURCE_ANALNE);
 
 		if (IS_ERR(dport))
 			return PTR_ERR(dport);
@@ -1040,9 +1040,9 @@ static struct cxl_mock_ops cxl_mock_ops = {
 static void mock_companion(struct acpi_device *adev, struct device *dev)
 {
 	device_initialize(&adev->dev);
-	fwnode_init(&adev->fwnode, NULL);
-	dev->fwnode = &adev->fwnode;
-	adev->fwnode.dev = dev;
+	fwanalde_init(&adev->fwanalde, NULL);
+	dev->fwanalde = &adev->fwanalde;
+	adev->fwanalde.dev = dev;
 }
 
 #ifndef SZ_64G
@@ -1072,7 +1072,7 @@ static __init int cxl_rch_init(void)
 		cxl_rch[i] = pdev;
 		mock_pci_bus[idx].bridge = &pdev->dev;
 		rc = sysfs_create_link(&pdev->dev.kobj, &pdev->dev.kobj,
-				       "firmware_node");
+				       "firmware_analde");
 		if (rc)
 			goto err_bridge;
 	}
@@ -1086,7 +1086,7 @@ static __init int cxl_rch_init(void)
 		if (!pdev)
 			goto err_mem;
 		pdev->dev.parent = &rch->dev;
-		set_dev_node(&pdev->dev, i % 2);
+		set_dev_analde(&pdev->dev, i % 2);
 
 		rc = platform_device_add(pdev);
 		if (rc) {
@@ -1107,7 +1107,7 @@ err_bridge:
 
 		if (!pdev)
 			continue;
-		sysfs_remove_link(&pdev->dev.kobj, "firmware_node");
+		sysfs_remove_link(&pdev->dev.kobj, "firmware_analde");
 		platform_device_unregister(cxl_rch[i]);
 	}
 
@@ -1125,7 +1125,7 @@ static void cxl_rch_exit(void)
 
 		if (!pdev)
 			continue;
-		sysfs_remove_link(&pdev->dev.kobj, "firmware_node");
+		sysfs_remove_link(&pdev->dev.kobj, "firmware_analde");
 		platform_device_unregister(cxl_rch[i]);
 	}
 }
@@ -1154,7 +1154,7 @@ static __init int cxl_single_init(void)
 		cxl_hb_single[i] = pdev;
 		mock_pci_bus[i + NR_CXL_HOST_BRIDGES].bridge = &pdev->dev;
 		rc = sysfs_create_link(&pdev->dev.kobj, &pdev->dev.kobj,
-				       "physical_node");
+				       "physical_analde");
 		if (rc)
 			goto err_bridge;
 	}
@@ -1223,7 +1223,7 @@ static __init int cxl_single_init(void)
 		if (!pdev)
 			goto err_mem;
 		pdev->dev.parent = &dport->dev;
-		set_dev_node(&pdev->dev, i % 2);
+		set_dev_analde(&pdev->dev, i % 2);
 
 		rc = platform_device_add(pdev);
 		if (rc) {
@@ -1253,7 +1253,7 @@ err_bridge:
 
 		if (!pdev)
 			continue;
-		sysfs_remove_link(&pdev->dev.kobj, "physical_node");
+		sysfs_remove_link(&pdev->dev.kobj, "physical_analde");
 		platform_device_unregister(cxl_hb_single[i]);
 	}
 
@@ -1277,7 +1277,7 @@ static void cxl_single_exit(void)
 
 		if (!pdev)
 			continue;
-		sysfs_remove_link(&pdev->dev.kobj, "physical_node");
+		sysfs_remove_link(&pdev->dev.kobj, "physical_analde");
 		platform_device_unregister(cxl_hb_single[i]);
 	}
 }
@@ -1294,14 +1294,14 @@ static __init int cxl_test_init(void)
 
 	register_cxl_mock_ops(&cxl_mock_ops);
 
-	cxl_mock_pool = gen_pool_create(ilog2(SZ_2M), NUMA_NO_NODE);
+	cxl_mock_pool = gen_pool_create(ilog2(SZ_2M), NUMA_ANAL_ANALDE);
 	if (!cxl_mock_pool) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_gen_pool_create;
 	}
 
 	rc = gen_pool_add(cxl_mock_pool, iomem_resource.end + 1 - SZ_64G,
-			  SZ_64G, NUMA_NO_NODE);
+			  SZ_64G, NUMA_ANAL_ANALDE);
 	if (rc)
 		goto err_gen_pool_add;
 
@@ -1335,7 +1335,7 @@ static __init int cxl_test_init(void)
 		cxl_host_bridge[i] = pdev;
 		mock_pci_bus[i].bridge = &pdev->dev;
 		rc = sysfs_create_link(&pdev->dev.kobj, &pdev->dev.kobj,
-				       "physical_node");
+				       "physical_analde");
 		if (rc)
 			goto err_bridge;
 	}
@@ -1402,7 +1402,7 @@ static __init int cxl_test_init(void)
 		if (!pdev)
 			goto err_mem;
 		pdev->dev.parent = &dport->dev;
-		set_dev_node(&pdev->dev, i % 2);
+		set_dev_analde(&pdev->dev, i % 2);
 
 		rc = platform_device_add(pdev);
 		if (rc) {
@@ -1457,7 +1457,7 @@ err_bridge:
 
 		if (!pdev)
 			continue;
-		sysfs_remove_link(&pdev->dev.kobj, "physical_node");
+		sysfs_remove_link(&pdev->dev.kobj, "physical_analde");
 		platform_device_unregister(cxl_host_bridge[i]);
 	}
 err_populate:
@@ -1489,7 +1489,7 @@ static __exit void cxl_test_exit(void)
 
 		if (!pdev)
 			continue;
-		sysfs_remove_link(&pdev->dev.kobj, "physical_node");
+		sysfs_remove_link(&pdev->dev.kobj, "physical_analde");
 		platform_device_unregister(cxl_host_bridge[i]);
 	}
 	depopulate_all_mock_resources();

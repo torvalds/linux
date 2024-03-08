@@ -11,12 +11,12 @@ directly present in its group.
 
 Accounting groups can be created by first mounting the cgroup filesystem::
 
-  # mount -t cgroup -ocpuacct none /sys/fs/cgroup
+  # mount -t cgroup -ocpuacct analne /sys/fs/cgroup
 
 With the above step, the initial or the parent accounting group becomes
 visible at /sys/fs/cgroup. At bootup, this group includes all the tasks in
 the system. /sys/fs/cgroup/tasks lists the tasks in this cgroup.
-/sys/fs/cgroup/cpuacct.usage gives the CPU time (in nanoseconds) obtained
+/sys/fs/cgroup/cpuacct.usage gives the CPU time (in naanalseconds) obtained
 by this group which is essentially the CPU time obtained by all the tasks
 in the system.
 

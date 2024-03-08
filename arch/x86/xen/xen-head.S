@@ -4,7 +4,7 @@
 
 #ifdef CONFIG_XEN
 
-#include <linux/elfnote.h>
+#include <linux/elfanalte.h>
 #include <linux/init.h>
 
 #include <asm/boot.h>
@@ -14,19 +14,19 @@
 #include <asm/percpu.h>
 #include <asm/unwind_hints.h>
 
-#include <xen/interface/elfnote.h>
+#include <xen/interface/elfanalte.h>
 #include <xen/interface/features.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/xen-mca.h>
 #include <asm/xen/interface.h>
 
-.pushsection .noinstr.text, "ax"
+.pushsection .analinstr.text, "ax"
 	.balign PAGE_SIZE
 SYM_CODE_START(hypercall_page)
 	.rept (PAGE_SIZE / 32)
 		UNWIND_HINT_FUNC
-		ANNOTATE_NOENDBR
-		ANNOTATE_UNRET_SAFE
+		ANANALTATE_ANALENDBR
+		ANANALTATE_UNRET_SAFE
 		ret
 		/*
 		 * Xen will write the hypercall page, and sort out ENDBR.
@@ -46,7 +46,7 @@ SYM_CODE_END(hypercall_page)
 	__INIT
 SYM_CODE_START(startup_xen)
 	UNWIND_HINT_END_OF_STACK
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	cld
 
 	leaq	(__end_init_task - PTREGS_SIZE)(%rip), %rsp
@@ -55,7 +55,7 @@ SYM_CODE_START(startup_xen)
 	 *
 	 * The base of %gs always points to fixed_percpu_data.  If the
 	 * stack protector canary is enabled, it is located at %gs:40.
-	 * Note that, on SMP, the boot cpu uses init data section until
+	 * Analte that, on SMP, the boot cpu uses init data section until
 	 * the per cpu areas are set up.
 	 */
 	movl	$MSR_GS_BASE,%ecx
@@ -87,20 +87,20 @@ SYM_CODE_END(xen_cpu_bringup_again)
 #endif
 #endif
 
-	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
-	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz "2.6")
-	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz "xen-3.0")
+	ELFANALTE(Xen, XEN_ELFANALTE_GUEST_OS,       .asciz "linux")
+	ELFANALTE(Xen, XEN_ELFANALTE_GUEST_VERSION,  .asciz "2.6")
+	ELFANALTE(Xen, XEN_ELFANALTE_XEN_VERSION,    .asciz "xen-3.0")
 #ifdef CONFIG_XEN_PV
-	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      _ASM_PTR __START_KERNEL_map)
+	ELFANALTE(Xen, XEN_ELFANALTE_VIRT_BASE,      _ASM_PTR __START_KERNEL_map)
 	/* Map the p2m table to a 512GB-aligned user address. */
-	ELFNOTE(Xen, XEN_ELFNOTE_INIT_P2M,       .quad (PUD_SIZE * PTRS_PER_PUD))
-	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          _ASM_PTR startup_xen)
-	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .ascii "!writable_page_tables")
-	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "yes")
-	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,
+	ELFANALTE(Xen, XEN_ELFANALTE_INIT_P2M,       .quad (PUD_SIZE * PTRS_PER_PUD))
+	ELFANALTE(Xen, XEN_ELFANALTE_ENTRY,          _ASM_PTR startup_xen)
+	ELFANALTE(Xen, XEN_ELFANALTE_FEATURES,       .ascii "!writable_page_tables")
+	ELFANALTE(Xen, XEN_ELFANALTE_PAE_MODE,       .asciz "anal")
+	ELFANALTE(Xen, XEN_ELFANALTE_L1_MFN_VALID,
 		.quad _PAGE_PRESENT; .quad _PAGE_PRESENT)
-	ELFNOTE(Xen, XEN_ELFNOTE_MOD_START_PFN,  .long 1)
-	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   _ASM_PTR 0)
+	ELFANALTE(Xen, XEN_ELFANALTE_MOD_START_PFN,  .long 1)
+	ELFANALTE(Xen, XEN_ELFANALTE_PADDR_OFFSET,   _ASM_PTR 0)
 # define FEATURES_PV (1 << XENFEAT_writable_page_tables)
 #else
 # define FEATURES_PV 0
@@ -115,10 +115,10 @@ SYM_CODE_END(xen_cpu_bringup_again)
 #else
 # define FEATURES_DOM0 0
 #endif
-	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, _ASM_PTR hypercall_page)
-	ELFNOTE(Xen, XEN_ELFNOTE_SUPPORTED_FEATURES,
+	ELFANALTE(Xen, XEN_ELFANALTE_HYPERCALL_PAGE, _ASM_PTR hypercall_page)
+	ELFANALTE(Xen, XEN_ELFANALTE_SUPPORTED_FEATURES,
 		.long FEATURES_PV | FEATURES_PVH | FEATURES_DOM0)
-	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
-	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long 1)
+	ELFANALTE(Xen, XEN_ELFANALTE_LOADER,         .asciz "generic")
+	ELFANALTE(Xen, XEN_ELFANALTE_SUSPEND_CANCEL, .long 1)
 
 #endif /*CONFIG_XEN */

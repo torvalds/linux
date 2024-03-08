@@ -120,7 +120,7 @@ static int fops_vcodec_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&dev->dev_mutex);
 	/*
@@ -157,7 +157,7 @@ static int fops_vcodec_open(struct file *file)
 	if (v4l2_fh_is_singular(&ctx->fh)) {
 		/*
 		 * load fireware to checks if it was loaded already and
-		 * does nothing in that case
+		 * does analthing in that case
 		 */
 		ret = mtk_vcodec_fw_load_firmware(dev->fw_handler);
 		if (ret < 0) {
@@ -237,20 +237,20 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&dev->ctx_list);
 	dev->plat_dev = pdev;
 
-	if (!of_property_read_u32(pdev->dev.of_node, "mediatek,vpu",
+	if (!of_property_read_u32(pdev->dev.of_analde, "mediatek,vpu",
 				  &rproc_phandle)) {
 		fw_type = VPU;
-	} else if (!of_property_read_u32(pdev->dev.of_node, "mediatek,scp",
+	} else if (!of_property_read_u32(pdev->dev.of_analde, "mediatek,scp",
 					 &rproc_phandle)) {
 		fw_type = SCP;
 	} else {
-		dev_err(&pdev->dev, "[MTK VCODEC] Could not get venc IPI device");
-		return -ENODEV;
+		dev_err(&pdev->dev, "[MTK VCODEC] Could analt get venc IPI device");
+		return -EANALDEV;
 	}
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
@@ -280,7 +280,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 
-	irq_set_status_flags(dev->enc_irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(dev->enc_irq, IRQ_ANALAUTOEN);
 	ret = devm_request_irq(&pdev->dev, dev->enc_irq,
 			       mtk_vcodec_enc_irq_handler,
 			       0, pdev->name, dev);
@@ -309,7 +309,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	vfd_enc = video_device_alloc();
 	if (!vfd_enc) {
 		dev_err(&pdev->dev, "[MTK VCODEC] Failed to allocate video device");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_enc_alloc;
 	}
 	vfd_enc->fops           = &mtk_vcodec_fops;

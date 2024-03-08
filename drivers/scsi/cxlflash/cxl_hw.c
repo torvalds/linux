@@ -143,9 +143,9 @@ static int cxlflash_fd_mmap(struct file *file, struct vm_area_struct *vm)
 	return cxl_fd_mmap(file, vm);
 }
 
-static int cxlflash_fd_release(struct inode *inode, struct file *file)
+static int cxlflash_fd_release(struct ianalde *ianalde, struct file *file)
 {
-	return cxl_fd_release(inode, file);
+	return cxl_fd_release(ianalde, file);
 }
 
 const struct cxlflash_backend_ops cxlflash_cxl_ops = {

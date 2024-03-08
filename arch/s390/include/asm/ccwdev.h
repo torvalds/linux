@@ -98,10 +98,10 @@ struct ccw_device {
 };
 
 /*
- * Possible events used by the path_event notifier.
+ * Possible events used by the path_event analtifier.
  */
-#define PE_NONE				0x0
-#define PE_PATH_GONE			0x1 /* A path is no longer available. */
+#define PE_ANALNE				0x0
+#define PE_PATH_GONE			0x1 /* A path is anal longer available. */
 #define PE_PATH_AVAILABLE		0x2 /* A path has become available and
 					       was successfully verified. */
 #define PE_PATHGROUP_ESTABLISHED	0x4 /* A pathgroup was reset and had
@@ -125,8 +125,8 @@ enum uc_todo {
  * @remove: function called on remove
  * @set_online: called when setting device online
  * @set_offline: called when setting device offline
- * @notify: notify driver of device state changes
- * @path_event: notify driver of channel path events
+ * @analtify: analtify driver of device state changes
+ * @path_event: analtify driver of channel path events
  * @shutdown: called at device shutdown
  * @uc_handler: callback for unit check handler
  * @driver: embedded device driver structure
@@ -138,7 +138,7 @@ struct ccw_driver {
 	void (*remove) (struct ccw_device *);
 	int (*set_online) (struct ccw_device *);
 	int (*set_offline) (struct ccw_device *);
-	int (*notify) (struct ccw_device *, int);
+	int (*analtify) (struct ccw_device *, int);
 	void (*path_event) (struct ccw_device *, int *);
 	void (*shutdown) (struct ccw_device *);
 	enum uc_todo (*uc_handler) (struct ccw_device *, struct irb *);
@@ -160,8 +160,8 @@ extern void ccw_device_clear_options(struct ccw_device *, unsigned long);
 int ccw_device_is_pathgroup(struct ccw_device *cdev);
 int ccw_device_is_multipath(struct ccw_device *cdev);
 
-/* Allow for i/o completion notification after primary interrupt status. */
-#define CCWDEV_EARLY_NOTIFICATION	0x0001
+/* Allow for i/o completion analtification after primary interrupt status. */
+#define CCWDEV_EARLY_ANALTIFICATION	0x0001
 /* Report all interrupt conditions. */
 #define CCWDEV_REPORT_ALL	 	0x0002
 /* Try to perform path grouping. */

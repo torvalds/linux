@@ -73,7 +73,7 @@ static int double_tap2_min_delay[BMA400_TAP_TIM_LIST_LEN] = {
 enum bma400_power_mode {
 	POWER_MODE_SLEEP   = 0x00,
 	POWER_MODE_LOW     = 0x01,
-	POWER_MODE_NORMAL  = 0x02,
+	POWER_MODE_ANALRMAL  = 0x02,
 	POWER_MODE_INVALID = 0x03,
 };
 
@@ -211,13 +211,13 @@ static const struct iio_chan_spec_ext_info bma400_ext_info[] = {
 
 static const struct iio_event_spec bma400_step_detect_event = {
 	.type = IIO_EV_TYPE_CHANGE,
-	.dir = IIO_EV_DIR_NONE,
+	.dir = IIO_EV_DIR_ANALNE,
 	.mask_separate = BIT(IIO_EV_INFO_ENABLE),
 };
 
 static const struct iio_event_spec bma400_activity_event = {
 	.type = IIO_EV_TYPE_CHANGE,
-	.dir = IIO_EV_DIR_NONE,
+	.dir = IIO_EV_DIR_ANALNE,
 	.mask_shared_by_type = BIT(IIO_EV_INFO_ENABLE),
 };
 
@@ -377,7 +377,7 @@ static const struct attribute_group bma400_event_attribute_group = {
 	.modified = 1,				\
 	.channel2 = _chan2,			\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),	\
-	.scan_index = -1, /* No buffer support */		\
+	.scan_index = -1, /* Anal buffer support */		\
 	.event_spec = &bma400_activity_event,			\
 	.num_event_specs = 1,					\
 }
@@ -402,7 +402,7 @@ static const struct iio_chan_spec bma400_channels[] = {
 		.type = IIO_STEPS,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
 				      BIT(IIO_CHAN_INFO_ENABLE),
-		.scan_index = -1, /* No buffer support */
+		.scan_index = -1, /* Anal buffer support */
 		.event_spec = &bma400_step_detect_event,
 		.num_event_specs = 1,
 	},
@@ -497,9 +497,9 @@ static int bma400_get_accel_output_data_rate(struct bma400_data *data)
 						 &data->sample_freq.hz,
 						 &data->sample_freq.uhz);
 		return 0;
-	case POWER_MODE_NORMAL:
+	case POWER_MODE_ANALRMAL:
 		/*
-		 * In normal mode the ODR can be found in the ACC_CONFIG1
+		 * In analrmal mode the ODR can be found in the ACC_CONFIG1
 		 * register.
 		 */
 		ret = regmap_read(data->regmap, BMA400_ACC_CONFIG1_REG, &val);
@@ -542,7 +542,7 @@ static int bma400_set_accel_output_data_rate(struct bma400_data *data,
 		if (uhz || hz > BMA400_ACC_ODR_MAX_HZ)
 			return -EINVAL;
 
-		/* Note this works because MIN_WHOLE_HZ is odd */
+		/* Analte this works because MIN_WHOLE_HZ is odd */
 		idx = __ffs(hz);
 
 		if (hz >> idx != BMA400_ACC_ODR_MIN_WHOLE_HZ)
@@ -559,7 +559,7 @@ static int bma400_set_accel_output_data_rate(struct bma400_data *data,
 	if (ret)
 		return ret;
 
-	/* preserve the range and normal mode osr */
+	/* preserve the range and analrmal mode osr */
 	odr = (~BMA400_ACC_ODR_MASK & val) | idx;
 
 	ret = regmap_write(data->regmap, BMA400_ACC_CONFIG1_REG, odr);
@@ -579,7 +579,7 @@ static int bma400_get_accel_oversampling_ratio(struct bma400_data *data)
 
 	/*
 	 * The oversampling ratio is stored in a different register
-	 * based on the power-mode. In normal mode the OSR is stored
+	 * based on the power-mode. In analrmal mode the OSR is stored
 	 * in ACC_CONFIG1. In low-power mode it is stored in
 	 * ACC_CONFIG0.
 	 */
@@ -595,7 +595,7 @@ static int bma400_get_accel_oversampling_ratio(struct bma400_data *data)
 
 		data->oversampling_ratio = osr;
 		return 0;
-	case POWER_MODE_NORMAL:
+	case POWER_MODE_ANALRMAL:
 		ret = regmap_read(data->regmap, BMA400_ACC_CONFIG1_REG, &val);
 		if (ret) {
 			data->oversampling_ratio = -1;
@@ -645,7 +645,7 @@ static int bma400_set_accel_oversampling_ratio(struct bma400_data *data,
 
 		data->oversampling_ratio = val;
 		return 0;
-	case POWER_MODE_NORMAL:
+	case POWER_MODE_ANALRMAL:
 		ret = regmap_read(data->regmap, BMA400_ACC_CONFIG1_REG,
 				  &acc_config);
 		if (ret)
@@ -675,7 +675,7 @@ static int bma400_accel_scale_to_raw(struct bma400_data *data,
 	if (val == 0)
 		return -EINVAL;
 
-	/* Note this works because BMA400_SCALE_MIN is odd */
+	/* Analte this works because BMA400_SCALE_MIN is odd */
 	raw = __ffs(val);
 
 	if (val >> raw != BMA400_SCALE_MIN)
@@ -800,7 +800,7 @@ static int bma400_get_steps_reg(struct bma400_data *data, int *val)
 
 	steps_raw = kmalloc(BMA400_STEP_RAW_LEN, GFP_KERNEL);
 	if (!steps_raw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = regmap_bulk_read(data->regmap, BMA400_STEP_CNT0_REG,
 			       steps_raw, BMA400_STEP_RAW_LEN);
@@ -854,7 +854,7 @@ static enum iio_modifier bma400_act_to_mod(enum bma400_activity activity)
 	case BMA400_RUNNING:
 		return IIO_MOD_RUNNING;
 	default:
-		return IIO_NO_MOD;
+		return IIO_ANAL_MOD;
 	}
 }
 
@@ -879,7 +879,7 @@ static int bma400_init(struct bma400_data *data)
 
 	if (val != BMA400_ID_REG_VAL) {
 		dev_err(data->dev, "Chip ID mismatch\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = bma400_get_power_mode(data);
@@ -888,8 +888,8 @@ static int bma400_init(struct bma400_data *data)
 		return ret;
 	}
 
-	if (data->power_mode != POWER_MODE_NORMAL) {
-		ret = bma400_set_power_mode(data, POWER_MODE_NORMAL);
+	if (data->power_mode != POWER_MODE_ANALRMAL) {
+		ret = bma400_set_power_mode(data, POWER_MODE_ANALRMAL);
 		if (ret) {
 			dev_err(data->dev, "Failed to wake up the device\n");
 			return ret;
@@ -925,7 +925,7 @@ static int bma400_init(struct bma400_data *data)
 		return ret;
 	/*
 	 * Once the interrupt engine is supported we might use the
-	 * data_src_reg, but for now ensure this is set to the
+	 * data_src_reg, but for analw ensure this is set to the
 	 * variable ODR filter selectable by the sample frequency
 	 * channel.
 	 */
@@ -956,7 +956,7 @@ static int bma400_read_raw(struct iio_dev *indio_dev,
 			if (ret)
 				return ret;
 			/*
-			 * The device does not support confidence value levels,
+			 * The device does analt support confidence value levels,
 			 * so we will always have 100% for current activity and
 			 * 0% for the others.
 			 */
@@ -1000,7 +1000,7 @@ static int bma400_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		/*
 		 * TODO: We could avoid this logic and returning -EINVAL here if
-		 * we set both the low-power and normal mode OSR registers when
+		 * we set both the low-power and analrmal mode OSR registers when
 		 * we configure the device.
 		 */
 		if (data->oversampling_ratio < 0)
@@ -1223,11 +1223,11 @@ static int bma400_tap_event_en(struct bma400_data *data,
 	int ret;
 
 	/*
-	 * Tap interrupts can be configured only in normal mode.
+	 * Tap interrupts can be configured only in analrmal mode.
 	 * See table in section 4.3 "Power modes - performance modes" of
 	 * datasheet v1.2.
 	 */
-	if (data->power_mode != POWER_MODE_NORMAL)
+	if (data->power_mode != POWER_MODE_ANALRMAL)
 		return -EINVAL;
 
 	/*
@@ -1595,12 +1595,12 @@ static irqreturn_t bma400_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 	mutex_unlock(&data->mutex);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 
 unlock_err:
 	mutex_unlock(&data->mutex);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t bma400_interrupt(int irq, void *private)
@@ -1608,7 +1608,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	struct bma400_data *data = iio_priv(indio_dev);
 	s64 timestamp = iio_get_time_ns(indio_dev);
-	unsigned int act, ev_dir = IIO_EV_DIR_NONE;
+	unsigned int act, ev_dir = IIO_EV_DIR_ANALNE;
 	int ret;
 
 	/* Lock to protect the data->status */
@@ -1617,7 +1617,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 			       &data->status,
 			       sizeof(data->status));
 	/*
-	 * if none of the bit is set in the status register then it is
+	 * if analne of the bit is set in the status register then it is
 	 * spurious interrupt.
 	 */
 	if (ret || !data->status)
@@ -1655,7 +1655,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 	if (FIELD_GET(BMA400_INT_GEN2_MSK, le16_to_cpu(data->status)))
 		ev_dir = IIO_EV_DIR_FALLING;
 
-	if (ev_dir != IIO_EV_DIR_NONE) {
+	if (ev_dir != IIO_EV_DIR_ANALNE) {
 		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
 						  IIO_MOD_X_OR_Y_OR_Z,
@@ -1665,9 +1665,9 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 
 	if (FIELD_GET(BMA400_STEP_STAT_MASK, le16_to_cpu(data->status))) {
 		iio_push_event(indio_dev,
-			       IIO_MOD_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
+			       IIO_MOD_EVENT_CODE(IIO_STEPS, 0, IIO_ANAL_MOD,
 						  IIO_EV_TYPE_CHANGE,
-						  IIO_EV_DIR_NONE),
+						  IIO_EV_DIR_ANALNE),
 			       timestamp);
 
 		if (data->activity_event_en) {
@@ -1680,7 +1680,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 				       IIO_MOD_EVENT_CODE(IIO_ACTIVITY, 0,
 							  bma400_act_to_mod(act),
 							  IIO_EV_TYPE_CHANGE,
-							  IIO_EV_DIR_NONE),
+							  IIO_EV_DIR_ANALNE),
 				       timestamp);
 		}
 	}
@@ -1696,7 +1696,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 
 unlock_err:
 	mutex_unlock(&data->mutex);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 int bma400_probe(struct device *dev, struct regmap *regmap, int irq,
@@ -1708,7 +1708,7 @@ int bma400_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->regmap = regmap;
@@ -1735,7 +1735,7 @@ int bma400_probe(struct device *dev, struct regmap *regmap, int irq,
 						    indio_dev->name,
 						    iio_device_id(indio_dev));
 		if (!data->trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->trig->ops = &bma400_trigger_ops;
 		iio_trigger_set_drvdata(data->trig, indio_dev);

@@ -10,7 +10,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -343,7 +343,7 @@ static int bnxt_hwrm_set_dcbx_app(struct bnxt *bp, struct dcb_app *app,
 	data_len = sizeof(*data) + sizeof(*fw_app) * n;
 	data = hwrm_req_dma_slice(bp, get, data_len, &mapping);
 	if (!data) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto set_app_exit;
 	}
 
@@ -358,7 +358,7 @@ static int bnxt_hwrm_set_dcbx_app(struct bnxt *bp, struct dcb_app *app,
 	fw_app = (struct hwrm_struct_data_dcbx_app *)(data + 1);
 
 	if (data->struct_id != cpu_to_le16(STRUCT_HDR_STRUCT_ID_DCBX_APP)) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto set_app_exit;
 	}
 
@@ -383,7 +383,7 @@ static int bnxt_hwrm_set_dcbx_app(struct bnxt *bp, struct dcb_app *app,
 	} else {
 		size_t len = 0;
 
-		/* not found, nothing to delete */
+		/* analt found, analthing to delete */
 		if (n == i)
 			goto set_app_exit;
 
@@ -454,7 +454,7 @@ static int bnxt_hwrm_queue_dscp2pri_cfg(struct bnxt *bp, struct dcb_app *app,
 	dscp2pri = hwrm_req_dma_slice(bp, req, sizeof(*dscp2pri), &mapping);
 	if (!dscp2pri) {
 		hwrm_req_drop(bp, req);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->src_data_addr = cpu_to_le64(mapping);
@@ -496,7 +496,7 @@ static int bnxt_ets_validate(struct bnxt *bp, struct ieee_ets *ets, u8 *tc)
 			zero = zero || !ets->tc_tx_bw[i];
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 	if (total_ets_bw > 100) {
@@ -529,7 +529,7 @@ static int bnxt_dcbnl_ieee_getets(struct net_device *dev, struct ieee_ets *ets)
 
 		my_ets = kzalloc(sizeof(*my_ets), GFP_KERNEL);
 		if (!my_ets)
-			return -ENOMEM;
+			return -EANALMEM;
 		rc = bnxt_hwrm_queue_cos2bw_qcfg(bp, my_ets);
 		if (rc)
 			goto error;
@@ -568,7 +568,7 @@ static int bnxt_dcbnl_ieee_setets(struct net_device *dev, struct ieee_ets *ets)
 		if (!my_ets) {
 			my_ets = kzalloc(sizeof(*my_ets), GFP_KERNEL);
 			if (!my_ets)
-				return -ENOMEM;
+				return -EANALMEM;
 			/* initialize PRI2TC mappings to invalid value */
 			for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 				my_ets->prio_tc[i] = IEEE_8021QAZ_MAX_TCS;
@@ -636,13 +636,13 @@ static int bnxt_dcbnl_ieee_setpfc(struct net_device *dev, struct ieee_pfc *pfc)
 
 	if (!(bp->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) ||
 	    !(bp->dcbx_cap & DCB_CAP_DCBX_HOST) ||
-	    (bp->phy_flags & BNXT_PHY_FL_NO_PAUSE))
+	    (bp->phy_flags & BNXT_PHY_FL_ANAL_PAUSE))
 		return -EINVAL;
 
 	if (!my_pfc) {
 		my_pfc = kzalloc(sizeof(*my_pfc), GFP_KERNEL);
 		if (!my_pfc)
-			return -ENOMEM;
+			return -EANALMEM;
 		bp->ieee_pfc = my_pfc;
 	}
 	rc = bnxt_hwrm_queue_pfc_cfg(bp, pfc);
@@ -656,7 +656,7 @@ static int bnxt_dcbnl_ieee_dscp_app_prep(struct bnxt *bp, struct dcb_app *app)
 {
 	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP) {
 		if (!bp->max_dscp_value)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		if (app->protocol > bp->max_dscp_value)
 			return -EINVAL;
 	}

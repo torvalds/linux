@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -83,7 +83,7 @@ int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_
 	return dc->res_pool->hubbub->funcs->init_dchub_sys_ctx(dc->res_pool->hubbub, &config);
 }
 
-// work around for Renoir s0i3, if register is programmed, bypass golden init.
+// work around for Reanalir s0i3, if register is programmed, bypass golden init.
 
 bool dcn21_s0i3_golden_init_wa(struct dc *dc)
 {
@@ -224,12 +224,12 @@ void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
 	if (abm->funcs && abm->funcs->set_pipe_ex) {
 		abm->funcs->set_pipe_ex(abm,
 					otg_inst,
-					SET_ABM_PIPE_NORMAL,
+					SET_ABM_PIPE_ANALRMAL,
 					panel_cntl->inst,
 					panel_cntl->pwrseq_inst);
 	} else {
 		dmub_abm_set_pipe(abm, otg_inst,
-				  SET_ABM_PIPE_NORMAL,
+				  SET_ABM_PIPE_ANALRMAL,
 				  panel_cntl->inst,
 				  panel_cntl->pwrseq_inst);
 	}
@@ -258,13 +258,13 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	if (abm->funcs && abm->funcs->set_pipe_ex) {
 		abm->funcs->set_pipe_ex(abm,
 					otg_inst,
-					SET_ABM_PIPE_NORMAL,
+					SET_ABM_PIPE_ANALRMAL,
 					panel_cntl->inst,
 					panel_cntl->pwrseq_inst);
 	} else {
 		dmub_abm_set_pipe(abm,
 				  otg_inst,
-				  SET_ABM_PIPE_NORMAL,
+				  SET_ABM_PIPE_ANALRMAL,
 				  panel_cntl->inst,
 				  panel_cntl->pwrseq_inst);
 	}

@@ -2,7 +2,7 @@
 #include "drxk_map.h"
 
 #define DRXK_VERSION_MAJOR 0
-#define DRXK_VERSION_MINOR 9
+#define DRXK_VERSION_MIANALR 9
 #define DRXK_VERSION_PATCH 4300
 
 #define HI_I2C_DELAY        42
@@ -15,7 +15,7 @@
 #define DRXX_J_JTAGID 0x239310D9
 #define DRXX_K_JTAGID 0x039210D9
 
-#define DRX_UNKNOWN     254
+#define DRX_UNKANALWN     254
 #define DRX_AUTO        255
 
 #define DRX_SCU_READY   0
@@ -48,7 +48,7 @@
 #define     IQM_RC_ADJ_SEL_B_VSB                                            0x2
 
 enum operation_mode {
-	OM_NONE,
+	OM_ANALNE,
 	OM_QAM_ITU_A,
 	OM_QAM_ITU_B,
 	OM_QAM_ITU_C,
@@ -106,7 +106,7 @@ enum e_drxk_state {
 	DRXK_DTV_STARTED,
 	DRXK_ATV_STARTED,
 	DRXK_POWERED_DOWN,
-	DRXK_NO_DEV			/* If drxk init failed */
+	DRXK_ANAL_DEV			/* If drxk init failed */
 };
 
 enum e_drxk_coef_array_index {
@@ -136,32 +136,32 @@ enum e_drxk_constellation {
 	DRX_CONSTELLATION_QAM256,
 	DRX_CONSTELLATION_QAM512,
 	DRX_CONSTELLATION_QAM1024,
-	DRX_CONSTELLATION_UNKNOWN = DRX_UNKNOWN,
+	DRX_CONSTELLATION_UNKANALWN = DRX_UNKANALWN,
 	DRX_CONSTELLATION_AUTO    = DRX_AUTO
 };
 enum e_drxk_interleave_mode {
 	DRXK_QAM_I12_J17    = 16,
-	DRXK_QAM_I_UNKNOWN  = DRX_UNKNOWN
+	DRXK_QAM_I_UNKANALWN  = DRX_UNKANALWN
 };
 enum {
 	DRXK_SPIN_A1 = 0,
 	DRXK_SPIN_A2,
 	DRXK_SPIN_A3,
-	DRXK_SPIN_UNKNOWN
+	DRXK_SPIN_UNKANALWN
 };
 
 enum drxk_cfg_dvbt_sqi_speed {
 	DRXK_DVBT_SQI_SPEED_FAST = 0,
 	DRXK_DVBT_SQI_SPEED_MEDIUM,
 	DRXK_DVBT_SQI_SPEED_SLOW,
-	DRXK_DVBT_SQI_SPEED_UNKNOWN = DRX_UNKNOWN
+	DRXK_DVBT_SQI_SPEED_UNKANALWN = DRX_UNKANALWN
 } ;
 
 enum drx_fftmode_t {
 	DRX_FFTMODE_2K = 0,
 	DRX_FFTMODE_4K,
 	DRX_FFTMODE_8K,
-	DRX_FFTMODE_UNKNOWN = DRX_UNKNOWN,
+	DRX_FFTMODE_UNKANALWN = DRX_UNKANALWN,
 	DRX_FFTMODE_AUTO    = DRX_AUTO
 };
 
@@ -171,7 +171,7 @@ enum drxmpeg_str_width_t {
 };
 
 enum drx_qam_lock_range_t {
-	DRX_QAM_LOCKRANGE_NORMAL,
+	DRX_QAM_LOCKRANGE_ANALRMAL,
 	DRX_QAM_LOCKRANGE_EXTENDED
 };
 
@@ -253,7 +253,7 @@ struct drxk_state {
 	bool   m_smart_ant_inverted;
 	bool   m_b_debug_enable_bridge;
 	bool   m_b_p_down_open_bridge;  /* only open DRXK bridge before power-down once it has been accessed */
-	bool   m_b_power_down;        /* Power down when not used */
+	bool   m_b_power_down;        /* Power down when analt used */
 
 	u32    m_iqm_fs_rate_ofs;      /* frequency shift as written to DRXK register (28bit fixpoint) */
 
@@ -295,7 +295,7 @@ struct drxk_state {
 	struct s_cfg_pre_saw m_atv_pre_saw_cfg; /* settings for ATV pre SAW sense */
 	bool              m_phase_correction_bypass;
 	s16               m_atv_top_vid_peak;
-	u16               m_atv_top_noise_th;
+	u16               m_atv_top_analise_th;
 	enum e_drxk_sif_attenuation m_sif_attenuation;
 	bool              m_enable_cvbs_output;
 	bool              m_enable_sif_output;
@@ -347,7 +347,7 @@ struct drxk_state {
 
 	bool	enable_merr_cfg;
 	bool	single_master;
-	bool	no_i2c_bridge;
+	bool	anal_i2c_bridge;
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
 
@@ -361,7 +361,7 @@ struct drxk_state {
 };
 
 #define NEVER_LOCK 0
-#define NOT_LOCKED 1
+#define ANALT_LOCKED 1
 #define DEMOD_LOCK 2
 #define FEC_LOCK   3
 #define MPEG_LOCK  4

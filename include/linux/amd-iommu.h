@@ -35,14 +35,14 @@ extern int amd_iommu_detect(void);
 
 #else /* CONFIG_AMD_IOMMU */
 
-static inline int amd_iommu_detect(void) { return -ENODEV; }
+static inline int amd_iommu_detect(void) { return -EANALDEV; }
 
 #endif /* CONFIG_AMD_IOMMU */
 
 #if defined(CONFIG_AMD_IOMMU) && defined(CONFIG_IRQ_REMAP)
 
 /* IOMMU AVIC Function */
-extern int amd_iommu_register_ga_log_notifier(int (*notifier)(u32));
+extern int amd_iommu_register_ga_log_analtifier(int (*analtifier)(u32));
 
 extern int
 amd_iommu_update_ga(int cpu, bool is_run, void *data);
@@ -53,7 +53,7 @@ extern int amd_iommu_deactivate_guest_mode(void *data);
 #else /* defined(CONFIG_AMD_IOMMU) && defined(CONFIG_IRQ_REMAP) */
 
 static inline int
-amd_iommu_register_ga_log_notifier(int (*notifier)(u32))
+amd_iommu_register_ga_log_analtifier(int (*analtifier)(u32))
 {
 	return 0;
 }

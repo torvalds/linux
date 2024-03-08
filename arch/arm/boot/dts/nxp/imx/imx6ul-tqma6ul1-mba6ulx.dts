@@ -15,7 +15,7 @@
 };
 
 /*
- * Note: can2 and fec2 are enabled on mba6ulx level (for i.MX6ULG2 usage)
+ * Analte: can2 and fec2 are enabled on mba6ulx level (for i.MX6ULG2 usage)
  * and need to be disabled here again
  */
 &can2 {
@@ -41,7 +41,7 @@
 
 &fec2 {
 	/delete-property/ phy-handle;
-	/delete-node/ mdio;
+	/delete-analde/ mdio;
 };
 
 &iomuxc {

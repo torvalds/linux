@@ -195,7 +195,7 @@ static int vfe_enable_output(struct vfe_line *line)
 	ops->reg_update_clear(vfe, line->id);
 
 	if (output->state > VFE_OUTPUT_RESERVED) {
-		dev_err(vfe->camss->dev, "Output is not in reserved state %d\n", output->state);
+		dev_err(vfe->camss->dev, "Output is analt in reserved state %d\n", output->state);
 		spin_unlock_irqrestore(&vfe->output_lock, flags);
 		return -EINVAL;
 	}
@@ -312,7 +312,7 @@ static int vfe_get_output(struct vfe_line *line)
 	for (i = 0; i < output->wm_num; i++) {
 		wm_idx = vfe_reserve_wm(vfe, line->id);
 		if (wm_idx < 0) {
-			dev_err(vfe->camss->dev, "Can not reserve wm\n");
+			dev_err(vfe->camss->dev, "Can analt reserve wm\n");
 			goto error_get_wm;
 		}
 		output->wm_idx[i] = wm_idx;
@@ -619,7 +619,7 @@ static void vfe_isr_wm_done(struct vfe_device *vfe, u8 wm)
 
 	spin_lock_irqsave(&vfe->output_lock, flags);
 
-	if (vfe->wm_output_map[wm] == VFE_LINE_NONE) {
+	if (vfe->wm_output_map[wm] == VFE_LINE_ANALNE) {
 		dev_err_ratelimited(vfe->camss->dev,
 				    "Received wm done for unmapped index\n");
 		goto out_unlock;
@@ -647,7 +647,7 @@ static void vfe_isr_wm_done(struct vfe_device *vfe, u8 wm)
 	/* Get next buffer */
 	output->buf[!active_index] = vfe_buf_get_pending(output);
 	if (!output->buf[!active_index]) {
-		/* No next buffer - set same address */
+		/* Anal next buffer - set same address */
 		new_addr = ready_buf->addr;
 		vfe_buf_update_wm_on_last(vfe, output);
 	} else {

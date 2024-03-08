@@ -1,7 +1,7 @@
 What: 		/kvd/
 Date:		08-Jan-2018
 KernelVersion:	v4.16
-Contact:	mlxsw@mellanox.com
+Contact:	mlxsw@mellaanalx.com
 Description:	The main database in the Spectrum device is a centralized
 		KVD database used for many of the tables used to configure
 		the chip including L2 FDB, L3 LPM, ECMP and more. The KVD
@@ -13,14 +13,14 @@ Description:	The main database in the Spectrum device is a centralized
 What: 		/kvd/linear
 Date:		08-Jan-2018
 KernelVersion:	v4.16
-Contact:	mlxsw@mellanox.com
+Contact:	mlxsw@mellaanalx.com
 Description:	The linear section of the KVD is managed by software as a
 		flat memory accessed using an index.
 
 What: 		/kvd/hash_single
 Date:		08-Jan-2018
 KernelVersion:	v4.16
-Contact:	mlxsw@mellanox.com
+Contact:	mlxsw@mellaanalx.com
 Description:	The hash based section of the KVD is managed by the switch
 		device. Used in case the key size is smaller or equal to
 		64bit.
@@ -28,6 +28,6 @@ Description:	The hash based section of the KVD is managed by the switch
 What: 		/kvd/hash_double
 Date:		08-Jan-2018
 KernelVersion:	v4.16
-Contact:	mlxsw@mellanox.com
+Contact:	mlxsw@mellaanalx.com
 Description:	The hash based section of the KVD is managed by the switch
 		device. Used in case the key is larger than 64 bit.

@@ -1,6 +1,6 @@
 perf.data directory format
 
-DISCLAIMER This is not ABI yet and is subject to possible change
+DISCLAIMER This is analt ABI yet and is subject to possible change
            in following versions of perf. We will remove this
            disclaimer once the directory format soaks in.
 
@@ -48,7 +48,7 @@ e.g.
   build id event received for vmlinux: 1eaa285996affce2d74d8e66dcea09a80c9941de
   build id event received for [vdso]: 8bbaf5dc62a9b644b4d4e4539737e104e4a84541
   build id event received for /lib/x86_64-linux-gnu/libc-2.28.so: 5b157f49586a3ca84d55837f97ff466767dd3445
-  Samples for 'cycles' event do not have CPU attribute set. Skipping 'cpu' field.
+  Samples for 'cycles' event do analt have CPU attribute set. Skipping 'cpu' field.
   Using CPUID GenuineIntel-6-8E-A
   Using perf.data/kcore_dir/kcore for kernel data
   Using perf.data/kcore_dir/kallsyms for symbols

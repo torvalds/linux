@@ -1,15 +1,15 @@
-# List of files in the vdso, has to be asm only for now
+# List of files in the vdso, has to be asm only for analw
 
-obj-vdso32 = note.o sigtramp.o restart_syscall.o
+obj-vdso32 = analte.o sigtramp.o restart_syscall.o
 
 # Build rules
 
 targets := $(obj-vdso32) vdso32.so
 obj-vdso32 := $(addprefix $(obj)/, $(obj-vdso32))
 
-ccflags-y := -shared -fno-common -fbuiltin -mno-fast-indirect-calls -O2 -mno-long-calls
+ccflags-y := -shared -fanal-common -fbuiltin -manal-fast-indirect-calls -O2 -manal-long-calls
 #  -march=1.1 -mschedule=7100LC
-ccflags-y += -nostdlib -Wl,-soname=linux-vdso32.so.1 \
+ccflags-y += -analstdlib -Wl,-soname=linux-vdso32.so.1 \
 		$(call ld-option, -Wl$(comma)--hash-style=sysv)
 asflags-y := -D__VDSO32__ -s
 
@@ -42,7 +42,7 @@ quiet_cmd_vdso32ld = VDSO32L $@
 quiet_cmd_vdso32as = VDSO32A $@
       cmd_vdso32as = $(CROSS32CC) $(a_flags) -c -o $@ $<
 quiet_cmd_vdso32cc = VDSO32C $@
-      cmd_vdso32cc = $(CROSS32CC) $(c_flags) -c -fPIC -mno-fast-indirect-calls -o $@ $<
+      cmd_vdso32cc = $(CROSS32CC) $(c_flags) -c -fPIC -manal-fast-indirect-calls -o $@ $<
 
 # Generate VDSO offsets using helper script
 gen-vdsosym := $(srctree)/$(src)/gen_vdso_offsets.sh

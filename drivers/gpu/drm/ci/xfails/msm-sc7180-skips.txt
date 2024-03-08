@@ -2,6 +2,6 @@
 .*suspend.*
 
 # Test incorrectly assumes that CTM support implies gamma/degamma
-# LUT support.  None of the subtests handle the case of only having
+# LUT support.  Analne of the subtests handle the case of only having
 # CTM support
 #kms_color.*

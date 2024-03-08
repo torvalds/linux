@@ -2,7 +2,7 @@
 //
 // aw88261.c  --  AW88261 ALSA SoC Audio driver
 //
-// Copyright (c) 2023 awinic Technology CO., LTD
+// Copyright (c) 2023 awinic Techanallogy CO., LTD
 //
 // Author: Jimmy Zhang <zhangjianming@awinic.com>
 // Author: Weidong Wang <wangweidong.a@awinic.com>
@@ -558,7 +558,7 @@ static int aw88261_dev_start(struct aw88261 *aw88261)
 
 	ret = aw88261_dev_check_syspll(aw_dev);
 	if (ret) {
-		dev_err(aw_dev->dev, "pll check failed cannot start");
+		dev_err(aw_dev->dev, "pll check failed cananalt start");
 		goto pll_check_fail;
 	}
 
@@ -873,7 +873,7 @@ static int aw88261_profile_set(struct snd_kcontrol *kcontrol,
 	mutex_lock(&aw88261->lock);
 	ret = aw88261_dev_set_profile_index(aw88261->aw_pa, ucontrol->value.integer.value[0]);
 	if (ret) {
-		dev_dbg(codec->dev, "profile index does not change");
+		dev_dbg(codec->dev, "profile index does analt change");
 		mutex_unlock(&aw88261->lock);
 		return 0;
 	}
@@ -1001,7 +1001,7 @@ static const struct snd_soc_dapm_widget aw88261_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("DAC Output"),
 
 	/* capture */
-	SND_SOC_DAPM_AIF_OUT("AIF_TX", "Speaker_Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF_TX", "Speaker_Capture", 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_INPUT("ADC Input"),
 };
 
@@ -1109,7 +1109,7 @@ static int aw88261_request_firmware_file(struct aw88261 *aw88261)
 	aw88261->aw_cfg = devm_kzalloc(aw88261->aw_pa->dev, cont->size + sizeof(int), GFP_KERNEL);
 	if (!aw88261->aw_cfg) {
 		release_firmware(cont);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	aw88261->aw_cfg->len = (int)cont->size;
 	memcpy(aw88261->aw_cfg->data, cont->data, cont->size);
@@ -1177,7 +1177,7 @@ static const struct snd_soc_component_driver soc_codec_dev_aw88261 = {
 static void aw88261_parse_channel_dt(struct aw88261 *aw88261)
 {
 	struct aw_device *aw_dev = aw88261->aw_pa;
-	struct device_node *np = aw_dev->dev->of_node;
+	struct device_analde *np = aw_dev->dev->of_analde;
 	u32 channel_value = AW88261_DEV_DEFAULT_CH;
 
 	of_property_read_u32(np, "awinic,audio-channel", &channel_value);
@@ -1207,7 +1207,7 @@ static int aw88261_init(struct aw88261 **aw88261, struct i2c_client *i2c, struct
 
 	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
 	if (!aw_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*aw88261)->aw_pa = aw_dev;
 	aw_dev->i2c = i2c;
@@ -1217,7 +1217,7 @@ static int aw88261_init(struct aw88261 **aw88261, struct i2c_client *i2c, struct
 	aw_dev->acf = NULL;
 	aw_dev->prof_info.prof_desc = NULL;
 	aw_dev->prof_info.count = 0;
-	aw_dev->prof_info.prof_type = AW88395_DEV_NONE_TYPE_ID;
+	aw_dev->prof_info.prof_type = AW88395_DEV_ANALNE_TYPE_ID;
 	aw_dev->channel = 0;
 	aw_dev->fw_status = AW88261_DEV_FW_FAILED;
 	aw_dev->fade_step = AW88261_VOLUME_STEP_DB;
@@ -1239,7 +1239,7 @@ static int aw88261_i2c_probe(struct i2c_client *i2c)
 
 	aw88261 = devm_kzalloc(&i2c->dev, sizeof(*aw88261), GFP_KERNEL);
 	if (!aw88261)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&aw88261->lock);
 

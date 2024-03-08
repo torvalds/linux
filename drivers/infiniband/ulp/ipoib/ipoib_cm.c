@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Mellanox Technologies. All rights reserved
+ * Copyright (c) 2006 Mellaanalx Techanallogies. All rights reserved
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,10 +45,10 @@
 
 int ipoib_max_conn_qp = 128;
 
-module_param_named(max_nonsrq_conn_qp, ipoib_max_conn_qp, int, 0444);
-MODULE_PARM_DESC(max_nonsrq_conn_qp,
+module_param_named(max_analnsrq_conn_qp, ipoib_max_conn_qp, int, 0444);
+MODULE_PARM_DESC(max_analnsrq_conn_qp,
 		 "Max number of connected-mode QPs per interface "
-		 "(applied only if shared receive queue is not available)");
+		 "(applied only if shared receive queue is analt available)");
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG_DATA
 static int data_debug_level;
@@ -113,7 +113,7 @@ static int ipoib_cm_post_receive_srq(struct net_device *dev, int id)
 	return ret;
 }
 
-static int ipoib_cm_post_receive_nonsrq(struct net_device *dev,
+static int ipoib_cm_post_receive_analnsrq(struct net_device *dev,
 					struct ipoib_cm_rx *rx,
 					struct ib_recv_wr *wr,
 					struct ib_sge *sge, int id)
@@ -256,7 +256,7 @@ static struct ib_qp *ipoib_cm_create_rx_qp(struct net_device *dev,
 		.recv_cq = priv->recv_cq,
 		.srq = priv->cm.srq,
 		.cap.max_send_wr = 1, /* For drain WR */
-		.cap.max_send_sge = 1, /* FIXME: 0 Seems not to work */
+		.cap.max_send_sge = 1, /* FIXME: 0 Seems analt to work */
 		.sq_sig_type = IB_SIGNAL_ALL_WR,
 		.qp_type = IB_QPT_RC,
 		.qp_context = p,
@@ -303,11 +303,11 @@ static int ipoib_cm_modify_rx_qp(struct net_device *dev,
 	}
 
 	/*
-	 * Current Mellanox HCA firmware won't generate completions
+	 * Current Mellaanalx HCA firmware won't generate completions
 	 * with error for drain WRs unless the QP has been moved to
 	 * RTS first. This work-around leaves a window where a QP has
-	 * moved to error asynchronously, but this will eventually get
-	 * fixed in firmware, so let's not error out if modify QP
+	 * moved to error asynchroanalusly, but this will eventually get
+	 * fixed in firmware, so let's analt error out if modify QP
 	 * fails.
 	 */
 	qp_attr.qp_state = IB_QPS_RTS;
@@ -344,7 +344,7 @@ static void ipoib_cm_init_rx_wr(struct net_device *dev,
 	wr->num_sge = priv->cm.num_frags;
 }
 
-static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_id,
+static int ipoib_cm_analnsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_id,
 				   struct ipoib_cm_rx *rx)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
@@ -358,11 +358,11 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 	rx->rx_ring = vzalloc(array_size(ipoib_recvq_size,
 					 sizeof(*rx->rx_ring)));
 	if (!rx->rx_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t = kmalloc(sizeof(*t), GFP_KERNEL);
 	if (!t) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_1;
 	}
 
@@ -370,13 +370,13 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 
 	spin_lock_irq(&priv->lock);
 
-	if (priv->cm.nonsrq_conn_qp >= ipoib_max_conn_qp) {
+	if (priv->cm.analnsrq_conn_qp >= ipoib_max_conn_qp) {
 		spin_unlock_irq(&priv->lock);
-		ib_send_cm_rej(cm_id, IB_CM_REJ_NO_QP, NULL, 0, NULL, 0);
+		ib_send_cm_rej(cm_id, IB_CM_REJ_ANAL_QP, NULL, 0, NULL, 0);
 		ret = -EINVAL;
 		goto err_free;
 	} else
-		++priv->cm.nonsrq_conn_qp;
+		++priv->cm.analnsrq_conn_qp;
 
 	spin_unlock_irq(&priv->lock);
 
@@ -385,12 +385,12 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 					   rx->rx_ring[i].mapping,
 					   GFP_KERNEL)) {
 			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_count;
 		}
-		ret = ipoib_cm_post_receive_nonsrq(dev, rx, &t->wr, t->sge, i);
+		ret = ipoib_cm_post_receive_analnsrq(dev, rx, &t->wr, t->sge, i);
 		if (ret) {
-			ipoib_warn(priv, "ipoib_cm_post_receive_nonsrq "
+			ipoib_warn(priv, "ipoib_cm_post_receive_analnsrq "
 				   "failed for buf %d\n", i);
 			ret = -EIO;
 			goto err_count;
@@ -405,7 +405,7 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 
 err_count:
 	spin_lock_irq(&priv->lock);
-	--priv->cm.nonsrq_conn_qp;
+	--priv->cm.analnsrq_conn_qp;
 	spin_unlock_irq(&priv->lock);
 
 err_free:
@@ -451,7 +451,7 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id,
 	ipoib_dbg(priv, "REQ arrived\n");
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	p->dev = dev;
 	p->id = cm_id;
 	cm_id->context = p;
@@ -471,7 +471,7 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id,
 		goto err_modify;
 
 	if (!ipoib_cm_has_srq(dev)) {
-		ret = ipoib_cm_nonsrq_init_rx(dev, cm_id, p);
+		ret = ipoib_cm_analnsrq_init_rx(dev, cm_id, p);
 		if (ret)
 			goto err_modify;
 	}
@@ -479,7 +479,7 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id,
 	spin_lock_irq(&priv->lock);
 	queue_delayed_work(priv->wq,
 			   &priv->cm.stale_task, IPOIB_CM_RX_DELAY);
-	/* Add this entry to passive ids list head, but do not re-add it
+	/* Add this entry to passive ids list head, but do analt re-add it
 	 * if IB_EVENT_QP_LAST_WQE_REACHED has moved it to flush list. */
 	p->jiffies = jiffies;
 	if (p->state == IPOIB_CM_RX_LIVE)
@@ -615,7 +615,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		if (p && time_after_eq(jiffies, p->jiffies + IPOIB_CM_RX_UPDATE_TIME)) {
 			spin_lock_irqsave(&priv->lock, flags);
 			p->jiffies = jiffies;
-			/* Move this entry to list head, but do not re-add it
+			/* Move this entry to list head, but do analt re-add it
 			 * if it has been moved out of list. */
 			if (p->state == IPOIB_CM_RX_LIVE)
 				list_move(&p->list, &priv->cm.passive_ids);
@@ -682,12 +682,12 @@ repost:
 			ipoib_warn(priv, "ipoib_cm_post_receive_srq failed "
 				   "for buf %d\n", wr_id);
 	} else {
-		if (unlikely(ipoib_cm_post_receive_nonsrq(dev, p,
+		if (unlikely(ipoib_cm_post_receive_analnsrq(dev, p,
 							  &priv->cm.rx_wr,
 							  priv->cm.rx_sge,
 							  wr_id))) {
 			--p->recv_count;
-			ipoib_warn(priv, "ipoib_cm_post_receive_nonsrq failed "
+			ipoib_warn(priv, "ipoib_cm_post_receive_analnsrq failed "
 				   "for buf %d\n", wr_id);
 		}
 	}
@@ -722,7 +722,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	}
 	if (skb_shinfo(skb)->nr_frags > usable_sge) {
 		if (skb_linearize(skb) < 0) {
-			ipoib_warn(priv, "skb could not be linearized\n");
+			ipoib_warn(priv, "skb could analt be linearized\n");
 			++dev->stats.tx_dropped;
 			++dev->stats.tx_errors;
 			dev_kfree_skb_any(skb);
@@ -767,10 +767,10 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	skb_dst_drop(skb);
 
 	if (netif_queue_stopped(dev)) {
-		rc = ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
+		rc = ib_req_analtify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
 				      IB_CQ_REPORT_MISSED_EVENTS);
 		if (unlikely(rc < 0))
-			ipoib_warn(priv, "IPoIB/CM:request notify on send CQ failed\n");
+			ipoib_warn(priv, "IPoIB/CM:request analtify on send CQ failed\n");
 		else if (rc)
 			napi_schedule(&priv->send_napi);
 	}
@@ -917,7 +917,7 @@ static void ipoib_cm_free_rx_reap_list(struct net_device *dev)
 		if (!ipoib_cm_has_srq(dev)) {
 			ipoib_cm_free_rx_ring(priv->dev, rx->rx_ring);
 			spin_lock_irq(&priv->lock);
-			--priv->cm.nonsrq_conn_qp;
+			--priv->cm.analnsrq_conn_qp;
 			spin_unlock_irq(&priv->lock);
 		}
 		kfree(rx);
@@ -1141,19 +1141,19 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 			    struct sa_path_rec *pathrec)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(p->dev);
-	unsigned int noio_flag;
+	unsigned int analio_flag;
 	int ret;
 
-	noio_flag = memalloc_noio_save();
+	analio_flag = memalloc_analio_save();
 	p->tx_ring = vzalloc(array_size(ipoib_sendq_size, sizeof(*p->tx_ring)));
 	if (!p->tx_ring) {
-		memalloc_noio_restore(noio_flag);
-		ret = -ENOMEM;
+		memalloc_analio_restore(analio_flag);
+		ret = -EANALMEM;
 		goto err_tx;
 	}
 
 	p->qp = ipoib_cm_create_tx_qp(p->dev, p);
-	memalloc_noio_restore(noio_flag);
+	memalloc_analio_restore(analio_flag);
 	if (IS_ERR(p->qp)) {
 		ret = PTR_ERR(p->qp);
 		ipoib_warn(priv, "failed to create tx qp: %d\n", ret);
@@ -1213,7 +1213,7 @@ static void ipoib_cm_tx_destroy(struct ipoib_cm_tx *p)
 		begin = jiffies;
 		while ((int) p->tx_tail - (int) p->tx_head < 0) {
 			if (time_after(jiffies, begin + 5 * HZ)) {
-				ipoib_warn(priv, "timing out; %d sends not completed\n",
+				ipoib_warn(priv, "timing out; %d sends analt completed\n",
 					   p->tx_head - p->tx_tail);
 				goto timeout;
 			}
@@ -1363,7 +1363,7 @@ static void ipoib_cm_tx_start(struct work_struct *work)
 		 */
 		path = __path_find(dev, neigh->daddr + QPN_AND_OPTIONS_OFFSET);
 		if (!path) {
-			pr_info("%s ignore not valid path %pI6\n",
+			pr_info("%s iganalre analt valid path %pI6\n",
 				__func__,
 				neigh->daddr + QPN_AND_OPTIONS_OFFSET);
 			goto free_neigh;
@@ -1533,8 +1533,8 @@ static ssize_t mode_store(struct device *d, struct device_attribute *attr,
 	ret = ipoib_set_mode(dev, buf);
 
 	/* The assumption is that the function ipoib_set_mode returned
-	 * with the rtnl held by it, if not the value -EBUSY returned,
-	 * then no need to rtnl_unlock
+	 * with the rtnl held by it, if analt the value -EBUSY returned,
+	 * then anal need to rtnl_unlock
 	 */
 	if (ret != -EBUSY)
 		rtnl_unlock();
@@ -1562,7 +1562,7 @@ static void ipoib_cm_create_srq(struct net_device *dev, int max_sge)
 
 	priv->cm.srq = ib_create_srq(priv->pd, &srq_init_attr);
 	if (IS_ERR(priv->cm.srq)) {
-		if (PTR_ERR(priv->cm.srq) != -EOPNOTSUPP)
+		if (PTR_ERR(priv->cm.srq) != -EOPANALTSUPP)
 			pr_warn("%s: failed to allocate SRQ, error %ld\n",
 			       priv->ca->name, PTR_ERR(priv->cm.srq));
 		priv->cm.srq = NULL;
@@ -1625,7 +1625,7 @@ int ipoib_cm_dev_init(struct net_device *dev)
 				ipoib_warn(priv, "failed to allocate "
 					   "receive buffer %d\n", i);
 				ipoib_cm_dev_cleanup(dev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			if (ipoib_cm_post_receive_srq(dev, i)) {

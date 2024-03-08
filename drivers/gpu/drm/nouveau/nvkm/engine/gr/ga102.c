@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -139,14 +139,14 @@ ga102_gr_oneinit_intr(struct gf100_gr *gr, enum nvkm_intr_type *pvector)
 }
 
 static int
-ga102_gr_nonstall(struct gf100_gr *gr)
+ga102_gr_analnstall(struct gf100_gr *gr)
 {
 	return nvkm_rd32(gr->base.engine.subdev.device, 0x400160) & 0x00000fff;
 }
 
 static const struct gf100_gr_func
 ga102_gr = {
-	.nonstall = ga102_gr_nonstall,
+	.analnstall = ga102_gr_analnstall,
 	.oneinit_intr = ga102_gr_oneinit_intr,
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
 	.oneinit_sm_id = gv100_gr_oneinit_sm_id,
@@ -248,7 +248,7 @@ ga102_gr_av64_to_init(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
 	nent = (blob->size / sizeof(struct netlist_av64));
 	pack = vzalloc((sizeof(*pack) * 2) + (sizeof(*init) * (nent + 1)));
 	if (!pack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init = (void *)(pack + 2);
 	pack[0].init = init;
@@ -308,10 +308,10 @@ ga102_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 		case  7: gk20a_gr_av_to_method(&blob, &gr->method); break;
 		case 28: tu102_gr_av_to_init_veid(&blob, &gr->bundle_veid); break;
 		case 34: ga102_gr_av64_to_init(&blob, &gr->bundle64); break;
-		case 48: gk20a_gr_av_to_init(&blob, &gr->sw_nonctx1); break;
-		case 49: gk20a_gr_av_to_init(&blob, &gr->sw_nonctx2); break;
-		case 50: gk20a_gr_av_to_init(&blob, &gr->sw_nonctx3); break;
-		case 51: gk20a_gr_av_to_init(&blob, &gr->sw_nonctx4); break;
+		case 48: gk20a_gr_av_to_init(&blob, &gr->sw_analnctx1); break;
+		case 49: gk20a_gr_av_to_init(&blob, &gr->sw_analnctx2); break;
+		case 50: gk20a_gr_av_to_init(&blob, &gr->sw_analnctx3); break;
+		case 51: gk20a_gr_av_to_init(&blob, &gr->sw_analnctx4); break;
 		default:
 			break;
 		}
@@ -344,7 +344,7 @@ ga102_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 static const struct gf100_gr_fwif
 ga102_gr_fwif[] = {
 	{  0, ga102_gr_load, &ga102_gr, &ga102_gr_fecs_acr, &ga102_gr_gpccs_acr },
-	{ -1, gm200_gr_nofw },
+	{ -1, gm200_gr_analfw },
 	{}
 };
 

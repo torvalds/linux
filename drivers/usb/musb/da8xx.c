@@ -74,7 +74,7 @@ struct da8xx_glue {
 
 /*
  * Because we don't set CTRL.UINT, it's "important" to:
- *	- not read/write INTRUSB/INTRUSBE (except during
+ *	- analt read/write INTRUSB/INTRUSBE (except during
  *	  initial setup, as a workaround);
  *	- use INTSET/INTCLR instead.
  */
@@ -167,15 +167,15 @@ static void otg_timer(struct timer_list *t)
 		break;
 	case OTG_STATE_B_IDLE:
 		/*
-		 * There's no ID-changed IRQ, so we have no good way to tell
+		 * There's anal ID-changed IRQ, so we have anal good way to tell
 		 * when to switch to the A-Default state machine (by setting
 		 * the DEVCTL.Session bit).
 		 *
 		 * Workaround:  whenever we're in B_IDLE, try setting the
 		 * session flag every few seconds.  If it works, ID was
-		 * grounded and we're now in the A-Default state machine.
+		 * grounded and we're analw in the A-Default state machine.
 		 *
-		 * NOTE: setting the session flag is _supposed_ to trigger
+		 * ANALTE: setting the session flag is _supposed_ to trigger
 		 * SRP but clearly it doesn't.
 		 */
 		musb_writeb(mregs, MUSB_DEVCTL, devctl | MUSB_DEVCTL_SESSION);
@@ -198,7 +198,7 @@ static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 	if (timeout == 0)
 		timeout = jiffies + msecs_to_jiffies(3);
 
-	/* Never idle if active, or when VBUS timeout is not set as host */
+	/* Never idle if active, or when VBUS timeout is analt set as host */
 	if (musb->is_active || (musb->a_wait_bcon == 0 &&
 				musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
@@ -209,7 +209,7 @@ static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 	}
 
 	if (time_after(last_timer, timeout) && timer_pending(&musb->dev_timer)) {
-		dev_dbg(musb->controller, "Longer idle timer already pending, ignoring...\n");
+		dev_dbg(musb->controller, "Longer idle timer already pending, iganalring...\n");
 		return;
 	}
 	last_timer = timeout;
@@ -225,17 +225,17 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 	struct musb		*musb = hci;
 	void __iomem		*reg_base = musb->ctrl_base;
 	unsigned long		flags;
-	irqreturn_t		ret = IRQ_NONE;
+	irqreturn_t		ret = IRQ_ANALNE;
 	u32			status;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
 	/*
-	 * NOTE: DA8XX shadows the Mentor IRQs.  Don't manage them through
+	 * ANALTE: DA8XX shadows the Mentor IRQs.  Don't manage them through
 	 * the Mentor registers (except for setup), use the TI ones and EOI.
 	 */
 
-	/* Acknowledge and handle non-CPPI interrupts */
+	/* Ackanalwledge and handle analn-CPPI interrupts */
 	status = musb_readl(reg_base, DA8XX_USB_INTR_SRC_MASKED_REG);
 	if (!status)
 		goto eoi;
@@ -251,9 +251,9 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 	 * DRVVBUS IRQs are the only proxy we have (a very poor one!) for
 	 * DA8xx's missing ID change IRQ.  We need an ID change IRQ to
 	 * switch appropriately between halves of the OTG state machine.
-	 * Managing DEVCTL.Session per Mentor docs requires that we know its
+	 * Managing DEVCTL.Session per Mentor docs requires that we kanalw its
 	 * value but DEVCTL.BDevice is invalid without DEVCTL.Session set.
-	 * Also, DRVVBUS pulses for SRP (but not at 5 V)...
+	 * Also, DRVVBUS pulses for SRP (but analt at 5 V)...
 	 */
 	if (status & (DA8XX_INTR_DRVVBUS << DA8XX_INTR_USB_SHIFT)) {
 		int drvvbus = musb_readl(reg_base, DA8XX_USB_STAT_REG);
@@ -266,7 +266,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 			/*
 			 * The Mentor core doesn't debounce VBUS as needed
 			 * to cope with device connect current spikes. This
-			 * means it's not uncommon for bus-powered devices
+			 * means it's analt uncommon for bus-powered devices
 			 * to get VBUS errors during enumeration.
 			 *
 			 * This is a workaround, but newer RTL from Mentor
@@ -286,11 +286,11 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 		} else if (!(musb->int_usb & MUSB_INTR_BABBLE)) {
 			/*
 			 * When babble condition happens, drvvbus interrupt
-			 * is also generated. Ignore this drvvbus interrupt
+			 * is also generated. Iganalre this drvvbus interrupt
 			 * and let babble interrupt handler recovers the
 			 * controller; otherwise, the host-mode flag is lost
 			 * due to the MUSB_DEV_MODE() call below and babble
-			 * recovery logic will not be called.
+			 * recovery logic will analt be called.
 			 */
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
@@ -330,7 +330,7 @@ static int da8xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 
 	/*
 	 * The PHY has some issues when it is forced in device or host mode.
-	 * Unless the user request another mode, configure the PHY in OTG mode.
+	 * Unless the user request aanalther mode, configure the PHY in OTG mode.
 	 */
 	if (!musb->is_initialized)
 		return phy_set_mode(glue->phy, PHY_MODE_USB_OTG);
@@ -357,7 +357,7 @@ static int da8xx_musb_init(struct musb *musb)
 	struct da8xx_glue *glue = dev_get_drvdata(musb->controller->parent);
 	void __iomem *reg_base = musb->ctrl_base;
 	u32 rev;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	musb->mregs += DA8XX_MENTOR_CORE_OFFSET;
 
@@ -367,10 +367,10 @@ static int da8xx_musb_init(struct musb *musb)
 		return ret;
 	}
 
-	/* Returns zero if e.g. not clocked */
+	/* Returns zero if e.g. analt clocked */
 	rev = musb_readl(reg_base, DA8XX_USB_REVISION_REG);
 	if (!rev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -400,7 +400,7 @@ static int da8xx_musb_init(struct musb *musb)
 
 	msleep(5);
 
-	/* NOTE: IRQs are in mixed mode, not bypass to pure MUSB */
+	/* ANALTE: IRQs are in mixed mode, analt bypass to pure MUSB */
 	pr_debug("DA8xx OTG revision %08x, control %02x\n", rev,
 		 musb_readb(reg_base, DA8XX_USB_CTRL_REG));
 
@@ -512,12 +512,12 @@ static int da8xx_probe(struct platform_device *pdev)
 	struct da8xx_glue		*glue;
 	struct platform_device_info	pinfo;
 	struct clk			*clk;
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_analde		*np = pdev->dev.of_analde;
 	int				ret;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
@@ -536,7 +536,7 @@ static int da8xx_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pdata->config	= &da8xx_config;
 		pdata->mode	= musb_get_mode(&pdev->dev);
@@ -553,7 +553,7 @@ static int da8xx_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, glue);
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL,
+	ret = of_platform_populate(pdev->dev.of_analde, NULL,
 				   da8xx_auxdata_lookup, &pdev->dev);
 	if (ret)
 		return ret;
@@ -564,8 +564,8 @@ static int da8xx_probe(struct platform_device *pdev)
 	pinfo.num_res = pdev->num_resources;
 	pinfo.data = pdata;
 	pinfo.size_data = sizeof(*pdata);
-	pinfo.fwnode = of_fwnode_handle(np);
-	pinfo.of_node_reused = true;
+	pinfo.fwanalde = of_fwanalde_handle(np);
+	pinfo.of_analde_reused = true;
 
 	glue->musb = platform_device_register_full(&pinfo);
 	ret = PTR_ERR_OR_ZERO(glue->musb);

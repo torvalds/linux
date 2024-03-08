@@ -15,7 +15,7 @@
  * Copyright 2004 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
  *
- * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Copyright (c) 2004, 2005 Zultys Techanallogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  */
 

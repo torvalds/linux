@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =======================
-The 53c700 Driver Notes
+The 53c700 Driver Analtes
 =======================
 
 General Description
@@ -34,24 +34,24 @@ Using the Chip Core Driver
 ==========================
 
 In order to plumb the 53c700 chip core driver into a working SCSI
-driver, you need to know three things about the way the chip is wired
+driver, you need to kanalw three things about the way the chip is wired
 into your system (or expansion card).
 
 1. The clock speed of the SCSI core
 2. The interrupt line used
 3. The memory (or io space) location of the 53c700 registers.
 
-Optionally, you may also need to know other things, like how to read
+Optionally, you may also need to kanalw other things, like how to read
 the SCSI Id from the card bios or whether the chip is wired for
 differential operation.
 
 Usually you can find items 2. and 3. from general spec. documents or
-even by examining the configuration of a working driver under another
+even by examining the configuration of a working driver under aanalther
 operating system.
 
 The clock speed is usually buried deep in the technical literature.
-It is required because it is used to set up both the synchronous and
-asynchronous dividers for the chip.  As a general rule of thumb,
+It is required because it is used to set up both the synchroanalus and
+asynchroanalus dividers for the chip.  As a general rule of thumb,
 manufacturers set the clock speed at the lowest possible setting
 consistent with the best operation of the chip (although some choose
 to drive it off the CPU or bus clock rather than going to the expense
@@ -66,7 +66,7 @@ of an extra clock chip).  The best operation clock speeds are:
 Writing Your Glue Driver
 ========================
 
-This will be a standard SCSI driver (I don't know of a good document
+This will be a standard SCSI driver (I don't kanalw of a good document
 describing this, just copy from some other driver) with at least a
 detect and release entry.
 
@@ -111,14 +111,14 @@ base: (MANDATORY)
   mapped into the low 32 bits of memory.
 
 pci_dev: (OPTIONAL)
-  Set to the PCI board device.  Leave NULL for a non-pci board.  This is
+  Set to the PCI board device.  Leave NULL for a analn-pci board.  This is
   used for the pci_alloc_consistent() and pci_map_*() functions.
 
 dmode_extra: (OPTIONAL, 53c710 only)
   Extra flags for the DMODE register.  These are used to control bus
   output pins on the 710.  The settings should be a combination of
   DMODE_FC1 and DMODE_FC2.  What these pins actually do is entirely up
-  to the board designer.  Usually it is safe to ignore this setting.
+  to the board designer.  Usually it is safe to iganalre this setting.
 
 differential: (OPTIONAL)
   Set to 1 if the chip drives a differential bus.

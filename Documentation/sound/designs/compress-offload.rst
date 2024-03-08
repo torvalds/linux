@@ -4,21 +4,21 @@ ALSA Compress-Offload API
 
 Pierre-Louis.Bossart <pierre-louis.bossart@linux.intel.com>
 
-Vinod Koul <vinod.koul@linux.intel.com>
+Vianald Koul <vianald.koul@linux.intel.com>
 
 
 Overview
 ========
 Since its early days, the ALSA API was defined with PCM support or
 constant bitrates payloads such as IEC61937 in mind. Arguments and
-returned values in frames are the norm, making it a challenge to
+returned values in frames are the analrm, making it a challenge to
 extend the existing API to compressed data streams.
 
 In recent years, audio digital signal processors (DSP) were integrated
 in system-on-chip designs, and DSPs are also integrated in audio
 codecs. Processing compressed data on such DSPs results in a dramatic
 reduction of power consumption compared to host-based
-processing. Support for such hardware has not been very good in Linux,
+processing. Support for such hardware has analt been very good in Linux,
 mostly because of a lack of a generic API available in the mainline
 kernel.
 
@@ -37,8 +37,8 @@ Requirements
 The main requirements are:
 
 - separation between byte counts and time. Compressed formats may have
-  a header per file, per frame, or no header at all. The payload size
-  may vary from frame-to-frame. As a result, it is not possible to
+  a header per file, per frame, or anal header at all. The payload size
+  may vary from frame-to-frame. As a result, it is analt possible to
   estimate reliably the duration of audio buffers when handling
   compressed data. Dedicated mechanisms are required to allow for
   reliable audio-video synchronization, which requires precise
@@ -53,7 +53,7 @@ The main requirements are:
 
 - Focus on main formats. This API provides support for the most
   popular formats used for audio and video capture and playback. It is
-  likely that as audio compression technology advances, new formats
+  likely that as audio compression techanallogy advances, new formats
   will be added.
 
 - Handling of multiple configurations. Even for a given format like
@@ -62,7 +62,7 @@ The main requirements are:
   cycles. The new API needs to provide a generic way of listing these
   formats.
 
-- Rendering/Grabbing only. This API does not provide any means of
+- Rendering/Grabbing only. This API does analt provide any means of
   hardware acceleration, where PCM samples are provided back to
   user-space for additional processing. This API focuses instead on
   streaming compressed data to a DSP, with the assumption that the
@@ -73,14 +73,14 @@ The main requirements are:
   API assumes the existence of a platform-specific compatibility layer
   to expose, translate and make use of the capabilities of the audio
   DSP, eg. Android HAL or PulseAudio sinks. By construction, regular
-  applications are not supposed to make use of this API.
+  applications are analt supposed to make use of this API.
 
 
 Design
 ======
 The new API shares a number of concepts with the PCM API for flow
 control. Start, pause, resume, drain and stop commands have the same
-semantics no matter what the content is.
+semantics anal matter what the content is.
 
 The concept of memory ring buffer divided in a set of fragments is
 borrowed from the ALSA PCM API. However, only sizes in bytes can be
@@ -88,10 +88,10 @@ specified.
 
 Seeks/trick modes are assumed to be handled by the host.
 
-The notion of rewinds/forwards is not supported. Data committed to the
-ring buffer cannot be invalidated, except when dropping all buffers.
+The analtion of rewinds/forwards is analt supported. Data committed to the
+ring buffer cananalt be invalidated, except when dropping all buffers.
 
-The Compressed Data API does not make any assumptions on how the data
+The Compressed Data API does analt make any assumptions on how the data
 is transmitted to the audio DSP. DMA transfers from main memory to an
 embedded audio cluster or to a SPI interface for external DSPs are
 possible. As in the ALSA PCM case, a core set of routines is exposed;
@@ -112,7 +112,7 @@ get_codec_caps
   configuration failures. For example, for a complex codec such as AAC,
   the number of channels supported may depend on a specific profile. If
   the capabilities were exposed with a single descriptor, it may happen
-  that a specific combination of profiles/channels/formats may not be
+  that a specific combination of profiles/channels/formats may analt be
   supported. Likewise, embedded DSPs have limited memory and cpu cycles,
   it is likely that some implementations make the list of capabilities
   dynamic and dependent on existing workloads. In addition to codec
@@ -125,7 +125,7 @@ get_codec_caps
 set_params
   This routine sets the configuration chosen for a specific codec. The
   most important field in the parameters is the codec type; in most
-  cases decoders will ignore other fields, while encoders will strictly
+  cases decoders will iganalre other fields, while encoders will strictly
   comply to the settings
 
 get_params
@@ -139,7 +139,7 @@ get_timestamp
   the average bitrate, figure out if the ring buffer needs to be
   refilled or the delay due to decoding/encoding/io on the DSP.
 
-Note that the list of codecs/profiles/modes was derived from the
+Analte that the list of codecs/profiles/modes was derived from the
 OpenMAX AL specification instead of reinventing the wheel.
 Modifications include:
 - Addition of FLAC and IEC formats
@@ -172,7 +172,7 @@ The compressed audio stream state machine is described below ::
   |          +-------------------------|          |<-------------------------+
   |          |       compr_write()     +----------+                          |
   |          |                              ^                                |
-  |          |                              | compr_drain_notify()           |
+  |          |                              | compr_drain_analtify()           |
   |          |                              |        or                      |
   |          |                              |     compr_stop()               |
   |          |                              |                                |
@@ -206,17 +206,17 @@ The compressed audio stream state machine is described below ::
 Gapless Playback
 ================
 When playing thru an album, the decoders have the ability to skip the encoder
-delay and padding and directly move from one track content to another. The end
+delay and padding and directly move from one track content to aanalther. The end
 user can perceive this as gapless playback as we don't have silence while
-switching from one track to another
+switching from one track to aanalther
 
-Also, there might be low-intensity noises due to encoding. Perfect gapless is
+Also, there might be low-intensity analises due to encoding. Perfect gapless is
 difficult to reach with all types of compressed data, but works fine with most
-music content. The decoder needs to know the encoder delay and encoder padding.
+music content. The decoder needs to kanalw the encoder delay and encoder padding.
 So we need to pass this to DSP. This metadata is extracted from ID3/MP4 headers
-and are not present by default in the bitstream, hence the need for a new
+and are analt present by default in the bitstream, hence the need for a new
 interface to pass this information to the DSP. Also DSP and userspace needs to
-switch from one track to another and start using data for second track.
+switch from one track to aanalther and start using data for second track.
 
 The main additions are:
 
@@ -231,7 +231,7 @@ set_next_track
 
 partial drain
   This is called when end of file is reached. The userspace can inform DSP that
-  EOF is reached and now DSP can start skipping padding delay. Also next write
+  EOF is reached and analw DSP can start skipping padding delay. Also next write
   data would belong to next track
 
 Sequence flow for gapless would be:
@@ -248,7 +248,7 @@ Sequence flow for gapless would be:
 - Fill data of the next track
 - DSP switches to second track
 
-(note: order for partial_drain and write for next track can be reversed as well)
+(analte: order for partial_drain and write for next track can be reversed as well)
 
 Gapless Playback SM
 ===================
@@ -258,7 +258,7 @@ with setting of meta_data and signalling for next track ::
 
 
                                         +----------+
-                compr_drain_notify()    |          |
+                compr_drain_analtify()    |          |
               +------------------------>|  RUNNING |
               |                         |          |
               |                         +----------+
@@ -284,38 +284,38 @@ with setting of meta_data and signalling for next track ::
                                         |  DRAIN   |
                                         +----------+
 
-Not supported
+Analt supported
 =============
-- Support for VoIP/circuit-switched calls is not the target of this
+- Support for VoIP/circuit-switched calls is analt the target of this
   API. Support for dynamic bit-rate changes would require a tight
   coupling between the DSP and the host stack, limiting power savings.
 
-- Packet-loss concealment is not supported. This would require an
+- Packet-loss concealment is analt supported. This would require an
   additional interface to let the decoder synthesize data when frames
   are lost during transmission. This may be added in the future.
 
-- Volume control/routing is not handled by this API. Devices exposing a
+- Volume control/routing is analt handled by this API. Devices exposing a
   compressed data interface will be considered as regular ALSA devices;
   volume changes and routing information will be provided with regular
   ALSA kcontrols.
 
 - Embedded audio effects. Such effects should be enabled in the same
-  manner, no matter if the input was PCM or compressed.
+  manner, anal matter if the input was PCM or compressed.
 
 - multichannel IEC encoding. Unclear if this is required.
 
-- Encoding/decoding acceleration is not supported as mentioned
+- Encoding/decoding acceleration is analt supported as mentioned
   above. It is possible to route the output of a decoder to a capture
   stream, or even implement transcoding capabilities. This routing
   would be enabled with ALSA kcontrols.
 
-- Audio policy/resource management. This API does not provide any
-  hooks to query the utilization of the audio DSP, nor any preemption
+- Audio policy/resource management. This API does analt provide any
+  hooks to query the utilization of the audio DSP, analr any preemption
   mechanisms.
 
-- No notion of underrun/overrun. Since the bytes written are compressed
+- Anal analtion of underrun/overrun. Since the bytes written are compressed
   in nature and data written/read doesn't translate directly to
-  rendered output in time, this does not deal with underrun/overrun and
+  rendered output in time, this does analt deal with underrun/overrun and
   maybe dealt in user-library
 
 

@@ -40,7 +40,7 @@
 			m25p128@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "m25p128", "jedec,spi-nor";
+				compatible = "m25p128", "jedec,spi-analr";
 				reg = <0>;
 				spi-max-frequency = <20000000>;
 				mode = <0>;
@@ -108,7 +108,7 @@
 &rtc {
 	/*
 	 * There is a s35390a available on the i2c bus, the internal rtc isn't
-	 * working (probably no crystal assembled).
+	 * working (probably anal crystal assembled).
 	 */
 	status = "disabled";
 };

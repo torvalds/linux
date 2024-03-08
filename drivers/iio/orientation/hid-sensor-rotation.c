@@ -239,7 +239,7 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(&pdev->dev,
 					  sizeof(struct dev_rot_state));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -276,7 +276,7 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 					   GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = dev_rot_parse_report(pdev, hsdev,

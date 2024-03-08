@@ -34,12 +34,12 @@ MODULE_LICENSE("GPL");
 /* VERSION register */
 #define IF_MAJOR_VER_SHIFT	12
 #define IF_MAJOR_VER_MASK	0xf
-#define IF_MINOR_VER_SHIFT	8
-#define IF_MINOR_VER_MASK	0xf
+#define IF_MIANALR_VER_SHIFT	8
+#define IF_MIANALR_VER_MASK	0xf
 #define FPGA_MAJOR_VER_SHIFT	4
 #define FPGA_MAJOR_VER_MASK	0xf
-#define FPGA_MINOR_VER_SHIFT	0
-#define FPGA_MINOR_VER_MASK	0xf
+#define FPGA_MIANALR_VER_SHIFT	0
+#define FPGA_MIANALR_VER_MASK	0xf
 
 /* INT_STAT register */
 #define RX_INTR_STATUS_3	BIT(5)
@@ -162,7 +162,7 @@ struct ines_clock {
 	struct ines_port		port[INES_N_PORTS];
 	struct ines_global_regs __iomem	*regs;
 	void __iomem			*base;
-	struct device_node		*node;
+	struct device_analde		*analde;
 	struct device			*dev;
 	struct list_head		list;
 };
@@ -191,13 +191,13 @@ static void ines_clock_cleanup(struct ines_clock *clock)
 static int ines_clock_init(struct ines_clock *clock, struct device *device,
 			   void __iomem *addr)
 {
-	struct device_node *node = device->of_node;
+	struct device_analde *analde = device->of_analde;
 	unsigned long port_addr;
 	struct ines_port *port;
 	int i, j;
 
 	INIT_LIST_HEAD(&clock->list);
-	clock->node = node;
+	clock->analde = analde;
 	clock->dev  = device;
 	clock->base = addr;
 	clock->regs = clock->base;
@@ -233,7 +233,7 @@ static int ines_clock_init(struct ines_clock *clock, struct device *device,
 	return 0;
 }
 
-static struct ines_port *ines_find_port(struct device_node *node, u32 index)
+static struct ines_port *ines_find_port(struct device_analde *analde, u32 index)
 {
 	struct ines_port *port = NULL;
 	struct ines_clock *clock;
@@ -242,7 +242,7 @@ static struct ines_port *ines_find_port(struct device_node *node, u32 index)
 	mutex_lock(&ines_clocks_lock);
 	list_for_each(this, &ines_clocks) {
 		clock = list_entry(this, struct ines_clock, list);
-		if (clock->node == node) {
+		if (clock->analde == analde) {
 			port = &clock->port[index];
 			break;
 		}
@@ -258,7 +258,7 @@ static u64 ines_find_rxts(struct ines_port *port, struct sk_buff *skb, int type)
 	unsigned long flags;
 	u64 ns = 0;
 
-	if (type == PTP_CLASS_NONE)
+	if (type == PTP_CLASS_ANALNE)
 		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -352,7 +352,7 @@ static int ines_hwtstamp(struct mii_timestamper *mii_ts,
 	}
 
 	switch (cfg->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		ts_stat_rx = 0;
 		break;
 	case HWTSTAMP_FILTER_ALL:
@@ -574,7 +574,7 @@ static int ines_ts_info(struct mii_timestamper *mii_ts,
 		(1 << HWTSTAMP_TX_ONESTEP_P2P);
 
 	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 	return 0;
@@ -699,17 +699,17 @@ static u8 tag_to_msgtype(u8 tag)
 static struct mii_timestamper *ines_ptp_probe_channel(struct device *device,
 						      unsigned int index)
 {
-	struct device_node *node = device->of_node;
+	struct device_analde *analde = device->of_analde;
 	struct ines_port *port;
 
 	if (index > INES_N_PORTS - 1) {
 		dev_err(device, "bad port index %u\n", index);
 		return ERR_PTR(-EINVAL);
 	}
-	port = ines_find_port(node, index);
+	port = ines_find_port(analde, index);
 	if (!port) {
 		dev_err(device, "missing port index %u\n", index);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 	port->mii_ts.rxtstamp = ines_rxtstamp;
 	port->mii_ts.txtstamp = ines_txtstamp;
@@ -743,12 +743,12 @@ static int ines_ptp_ctrl_probe(struct platform_device *pld)
 	}
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
 	if (!clock) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	if (ines_clock_init(clock, &pld->dev, addr)) {
 		kfree(clock);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	err = register_mii_tstamp_controller(&pld->dev, &ines_ctrl);

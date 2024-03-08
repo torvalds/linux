@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -814,7 +814,7 @@ void rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, boo
 	/* update pitch */
 	WREG32(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
 	       fb->pitches[0] / fb->format->cpp[0]);
-	/* update the scanout addresses */
+	/* update the scaanalut addresses */
 	if (radeon_crtc->crtc_id) {
 		WREG32(D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, upper_32_bits(crtc_base));
 		WREG32(D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, upper_32_bits(crtc_base));
@@ -833,7 +833,7 @@ void rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, boo
 			break;
 		udelay(1);
 	}
-	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
+	DRM_DEBUG("Update pending analw high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
@@ -897,7 +897,7 @@ static int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	int r, i;
 
 	if (rdev->gart.robj == NULL) {
-		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		dev_err(rdev->dev, "Anal VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = radeon_gart_table_vram_pin(rdev);
@@ -911,7 +911,7 @@ static int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(VM_L2_CNTL3, BANK_SELECT(0) | CACHE_UPDATE_MODE(2));
 	/* Setup TLB control */
 	tmp = ENABLE_L1_TLB | ENABLE_L1_FRAGMENT_PROCESSING |
-		SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+		SYSTEM_ACCESS_MODE_ANALT_IN_SYS |
 		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU |
 		EFFECTIVE_L1_TLB_SIZE(5) | EFFECTIVE_L1_QUEUE_SIZE(5);
 	WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
@@ -988,7 +988,7 @@ static void rv770_agp_enable(struct radeon_device *rdev)
 	WREG32(VM_L2_CNTL3, BANK_SELECT(0) | CACHE_UPDATE_MODE(2));
 	/* Setup TLB control */
 	tmp = ENABLE_L1_TLB | ENABLE_L1_FRAGMENT_PROCESSING |
-		SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+		SYSTEM_ACCESS_MODE_ANALT_IN_SYS |
 		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU |
 		EFFECTIVE_L1_TLB_SIZE(5) | EFFECTIVE_L1_QUEUE_SIZE(5);
 	WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
@@ -1052,9 +1052,9 @@ static void rv770_mc_program(struct radeon_device *rdev)
 	tmp = ((rdev->mc.vram_end >> 24) & 0xFFFF) << 16;
 	tmp |= ((rdev->mc.vram_start >> 24) & 0xFFFF);
 	WREG32(MC_VM_FB_LOCATION, tmp);
-	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
-	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
-	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
+	WREG32(HDP_ANALNSURFACE_BASE, (rdev->mc.vram_start >> 8));
+	WREG32(HDP_ANALNSURFACE_INFO, (2 << 7));
+	WREG32(HDP_ANALNSURFACE_SIZE, 0x3FFFFFFF);
 	if (rdev->flags & RADEON_IS_AGP) {
 		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 16);
 		WREG32(MC_VM_AGP_BOT, rdev->mc.gtt_start >> 16);
@@ -1099,7 +1099,7 @@ static int rv770_cp_load_microcode(struct radeon_device *rdev)
 #ifdef __BIG_ENDIAN
 	       BUF_SWAP_32BIT |
 #endif
-	       RB_NO_UPDATE | RB_BLKSZ(15) | RB_BUFSZ(3));
+	       RB_ANAL_UPDATE | RB_BLKSZ(15) | RB_BUFSZ(3));
 
 	/* Reset cp */
 	WREG32(GRBM_SOFT_RESET, SOFT_RESET_CP);
@@ -1353,21 +1353,21 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	if (rdev->family == CHIP_RV770)
 		gb_tiling_config |= BANK_TILING(1);
 	else {
-		if ((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT)
+		if ((mc_arb_ramcfg & ANALOFBANK_MASK) >> ANALOFBANK_SHIFT)
 			gb_tiling_config |= BANK_TILING(1);
 		else
 			gb_tiling_config |= BANK_TILING(0);
 	}
 	rdev->config.rv770.tiling_nbanks = 4 << ((gb_tiling_config >> 4) & 0x3);
 	gb_tiling_config |= GROUP_SIZE((mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT);
-	if (((mc_arb_ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT) > 3) {
+	if (((mc_arb_ramcfg & ANALOFROWS_MASK) >> ANALOFROWS_SHIFT) > 3) {
 		gb_tiling_config |= ROW_TILING(3);
 		gb_tiling_config |= SAMPLE_SPLIT(3);
 	} else {
 		gb_tiling_config |=
-			ROW_TILING(((mc_arb_ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT));
+			ROW_TILING(((mc_arb_ramcfg & ANALOFROWS_MASK) >> ANALOFROWS_SHIFT));
 		gb_tiling_config |=
-			SAMPLE_SPLIT(((mc_arb_ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT));
+			SAMPLE_SPLIT(((mc_arb_ramcfg & ANALOFROWS_MASK) >> ANALOFROWS_SHIFT));
 	}
 
 	gb_tiling_config |= BANK_SWAPS(1);
@@ -1490,7 +1490,7 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 		      GS_PRIO(2) |
 		      ES_PRIO(3));
 	if (rdev->family == CHIP_RV710)
-		/* no vertex cache */
+		/* anal vertex cache */
 		sq_config &= ~VC_ENABLE;
 
 	WREG32(SQ_CONFIG, sq_config);
@@ -1655,7 +1655,7 @@ static int rv770_mc_init(struct radeon_device *rdev)
 		chansize = 32;
 	}
 	tmp = RREG32(MC_SHARED_CHMAP);
-	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	switch ((tmp & ANALOFCHAN_MASK) >> ANALOFCHAN_SHIFT) {
 	case 0:
 	default:
 		numchan = 1;
@@ -1696,7 +1696,7 @@ static void rv770_uvd_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
 		/*
 		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
-		 * to early fails uvd_v2_2_resume() and thus nothing happens
+		 * to early fails uvd_v2_2_resume() and thus analthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
@@ -1739,7 +1739,7 @@ static void rv770_uvd_resume(struct radeon_device *rdev)
 		return;
 
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, PACKET0(UVD_NO_OP, 0));
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, PACKET0(UVD_ANAL_OP, 0));
 	if (r) {
 		dev_err(rdev->dev, "failed initializing UVD ring (%d).\n", r);
 		return;
@@ -1818,7 +1818,7 @@ static int rv770_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
+			     DMA_PACKET(DMA_PACKET_ANALP, 0, 0, 0));
 	if (r)
 		return r;
 
@@ -1854,7 +1854,7 @@ int rv770_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
+	/* Do analt reset GPU before posting, on rv770 hw unlike on r500 hw,
 	 * posting will perform necessary task to bring back GPU into good
 	 * shape.
 	 */
@@ -1898,7 +1898,7 @@ int rv770_suspend(struct radeon_device *rdev)
 
 /* Plan is to move initialization in that function and use
  * helper function so that radeon_device_init pretty much
- * do nothing more than calling asic specific function. This
+ * do analthing more than calling asic specific function. This
  * should also allow to remove a bunch of callback function
  * like vram_info.
  */
@@ -1922,10 +1922,10 @@ int rv770_init(struct radeon_device *rdev)
 	/* Post card if necessary */
 	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
-			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(rdev->dev, "Card analt posted and anal BIOS - iganalring\n");
 			return -EINVAL;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU analt posted. posting analw...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* init golden registers */
@@ -2050,7 +2050,7 @@ static void rv770_pcie_gen2_enable(struct radeon_device *rdev)
 		lanes = (link_width_cntl & LC_LINK_WIDTH_RD_MASK) >> LC_LINK_WIDTH_RD_SHIFT;
 		link_width_cntl &= ~(LC_LINK_WIDTH_MASK |
 				     LC_RECONFIG_ARC_MISSING_ESCAPE);
-		link_width_cntl |= lanes | LC_RECONFIG_NOW |
+		link_width_cntl |= lanes | LC_RECONFIG_ANALW |
 			LC_RENEGOTIATE_EN | LC_UPCONFIGURE_SUPPORT;
 		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	} else {

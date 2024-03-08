@@ -8,7 +8,7 @@
  * Timer code by Wim Van Sebroeck <wim@iguana.be>
  *
  * Caveat: PnP must be enabled in BIOS to allow full access to watchdog
- * control registers. If not, the watchdog must be configured in BIOS manually.
+ * control registers. If analt, the watchdog must be configured in BIOS manually.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -58,10 +58,10 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds, between 1 and 1023 "
 	"(default = " __MODULE_STRING(WDT_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-	"(default = " __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+	"(default = " __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static struct watchdog_device wdt_dev;
 static struct resource wdt_res;
@@ -84,7 +84,7 @@ static inline void wdt_reset(void)
  * is being reset in time. The conditions to do this are:
  *  1) the watchdog timer has been started and /dev/watchdog is open
  *     and there is still time left before userspace should send the
- *     next heartbeat/ping. (note: the internal heartbeat is much smaller
+ *     next heartbeat/ping. (analte: the internal heartbeat is much smaller
  *     then the external/userspace heartbeat).
  *  2) the watchdog timer has been stopped by userspace.
  */
@@ -159,18 +159,18 @@ static int wdt_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
 	unsigned char conf;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (pci_enable_device(pdev)) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "cananalt enable PCI device\n");
+		return -EANALDEV;
 	}
 
 	/*
 	 * Allocate a MMIO region which contains watchdog control register
 	 * and counter, then configure the watchdog to use this region.
 	 * This is possible only if PnP is properly enabled in BIOS.
-	 * If not, the watchdog must be configured in BIOS manually.
+	 * If analt, the watchdog must be configured in BIOS manually.
 	 */
 	if (allocate_resource(&iomem_resource, &wdt_res, VIA_WDT_MMIO_LEN,
 			      0xf0000000, 0xffffff00, 0xff, NULL, NULL)) {
@@ -198,7 +198,7 @@ static int wdt_probe(struct pci_dev *pdev,
 
 	wdt_mem = ioremap(mmio, VIA_WDT_MMIO_LEN);
 	if (wdt_mem == NULL) {
-		dev_err(&pdev->dev, "cannot remap VIA wdt MMIO registers\n");
+		dev_err(&pdev->dev, "cananalt remap VIA wdt MMIO registers\n");
 		goto err_out_release;
 	}
 
@@ -207,7 +207,7 @@ static int wdt_probe(struct pci_dev *pdev,
 
 	wdt_dev.timeout = timeout;
 	wdt_dev.parent = &pdev->dev;
-	watchdog_set_nowayout(&wdt_dev, nowayout);
+	watchdog_set_analwayout(&wdt_dev, analwayout);
 	if (readl(wdt_mem) & VIA_WDT_FIRED)
 		wdt_dev.bootstatus |= WDIOF_CARDRESET;
 

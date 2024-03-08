@@ -34,7 +34,7 @@ properties:
   '#size-cells':
     enum: [ 1, 2 ]
 
-# Required child node:
+# Required child analde:
 
 patternProperties:
   "^usb@[0-9a-f]+$":

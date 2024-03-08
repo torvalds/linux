@@ -27,7 +27,7 @@ static irqreturn_t tps6594_esm_isr(int irq, void *dev_id)
 		}
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int tps6594_esm_probe(struct platform_device *pdev)
@@ -42,7 +42,7 @@ static int tps6594_esm_probe(struct platform_device *pdev)
 	/*
 	 * Due to a bug in revision 1 of the PMIC, the GPIO3 used for the
 	 * SoC ESM function is used to power the load switch instead.
-	 * As a consequence, ESM can not be used on those PMIC.
+	 * As a consequence, ESM can analt be used on those PMIC.
 	 * Check the version and return an error in case of revision 1.
 	 */
 	ret = regmap_read(tps->regmap, TPS6594_REG_DEV_REV, &rev);
@@ -50,8 +50,8 @@ static int tps6594_esm_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret,
 				     "Failed to read PMIC revision\n");
 	if (rev == TPS6594_DEV_REV_1)
-		return dev_err_probe(dev, -ENODEV,
-			      "ESM not supported for revision 1 PMIC\n");
+		return dev_err_probe(dev, -EANALDEV,
+			      "ESM analt supported for revision 1 PMIC\n");
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		irq = platform_get_irq_byname(pdev, pdev->resource[i].name);

@@ -3,9 +3,9 @@
  * Copyright 2015, Cyril Bur, IBM Corp.
  *
  * This test attempts to see if the VMX registers change across preemption.
- * Two things should be noted here a) The check_vmx function in asm only checks
- * the non volatile registers as it is reused from the syscall test b) There is
- * no way to be sure preemption happened so this test just uses many threads
+ * Two things should be analted here a) The check_vmx function in asm only checks
+ * the analn volatile registers as it is reused from the syscall test b) There is
+ * anal way to be sure preemption happened so this test just uses many threads
  * and a long wait. As such, a successful test doesn't mean much but a failure
  * is bad.
  */
@@ -74,7 +74,7 @@ int test_preempt_vmx(void)
 	}
 
 	setbuf(stdout, NULL);
-	/* Not really nessesary but nice to wait for every thread to start */
+	/* Analt really nessesary but nice to wait for every thread to start */
 	printf("\tWaiting for all workers to start...");
 	while(threads_starting)
 		asm volatile("": : :"memory");

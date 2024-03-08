@@ -24,7 +24,7 @@ struct ps_t { /* _Dynamic_Power_Saving_ */
 
 #define dm_RF_Saving ODM_RF_Saving
 
-void ODM_RF_Saving(void *pDM_VOID, u8 bForceInNormal);
+void ODM_RF_Saving(void *pDM_VOID, u8 bForceInAnalrmal);
 
 void odm_DynamicBBPowerSavingInit(void *pDM_VOID);
 

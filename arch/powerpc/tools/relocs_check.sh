@@ -19,19 +19,19 @@ bad_relocs=$(
 ${srctree}/scripts/relocs_check.sh "$@" |
 	# These relocations are okay
 	# On PPC64:
-	#	R_PPC64_RELATIVE, R_PPC64_NONE
+	#	R_PPC64_RELATIVE, R_PPC64_ANALNE
 	# On PPC:
 	#	R_PPC_RELATIVE, R_PPC_ADDR16_HI,
 	#	R_PPC_ADDR16_HA,R_PPC_ADDR16_LO,
-	#	R_PPC_NONE
+	#	R_PPC_ANALNE
 	grep -F -w -v 'R_PPC64_RELATIVE
-R_PPC64_NONE
+R_PPC64_ANALNE
 R_PPC64_UADDR64
 R_PPC_ADDR16_LO
 R_PPC_ADDR16_HI
 R_PPC_ADDR16_HA
 R_PPC_RELATIVE
-R_PPC_NONE'
+R_PPC_ANALNE'
 )
 
 if [ -z "$bad_relocs" ]; then

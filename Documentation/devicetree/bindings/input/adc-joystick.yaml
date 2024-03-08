@@ -53,7 +53,7 @@ patternProperties:
     $ref: input.yaml#
     description: >
       Represents a joystick axis bound to the given ADC channel.
-      For each entry in the io-channels list, one axis subnode with a matching
+      For each entry in the io-channels list, one axis subanalde with a matching
       reg property must be specified.
 
     properties:
@@ -80,7 +80,7 @@ patternProperties:
       abs-fuzz:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: >
-          Amount of noise in the input value.
+          Amount of analise in the input value.
           Omitting this property indicates the axis is precise.
 
       abs-flat:

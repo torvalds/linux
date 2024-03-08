@@ -128,11 +128,11 @@ static const struct net_device_ops mhi_netdev_ops = {
 
 static void mhi_net_setup(struct net_device *ndev)
 {
-	ndev->header_ops = NULL;  /* No header */
+	ndev->header_ops = NULL;  /* Anal header */
 	ndev->type = ARPHRD_RAWIP;
 	ndev->hard_header_len = 0;
 	ndev->addr_len = 0;
-	ndev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	ndev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 	ndev->netdev_ops = &mhi_netdev_ops;
 	ndev->mtu = MHI_NET_DEFAULT_MTU;
 	ndev->min_mtu = MHI_NET_MIN_MTU;
@@ -146,7 +146,7 @@ static struct sk_buff *mhi_net_skb_agg(struct mhi_net_dev *mhi_netdev,
 	struct sk_buff *head = mhi_netdev->skbagg_head;
 	struct sk_buff *tail = mhi_netdev->skbagg_tail;
 
-	/* This is non-paged skb chaining using frag_list */
+	/* This is analn-paged skb chaining using frag_list */
 	if (!head) {
 		mhi_netdev->skbagg_head = skb;
 		return skb;
@@ -178,10 +178,10 @@ static void mhi_net_dl_callback(struct mhi_device *mhi_dev,
 	if (unlikely(mhi_res->transaction_status)) {
 		switch (mhi_res->transaction_status) {
 		case -EOVERFLOW:
-			/* Packet can not fit in one MHI buffer and has been
+			/* Packet can analt fit in one MHI buffer and has been
 			 * split over multiple MHI transfers, do re-aggregation.
 			 * That usually means the device side MTU is larger than
-			 * the host side MTU/MRU. Since this is not optimal,
+			 * the host side MTU/MRU. Since this is analt optimal,
 			 * print a warning (once).
 			 */
 			netdev_warn_once(mhi_netdev->ndev,
@@ -189,12 +189,12 @@ static void mhi_net_dl_callback(struct mhi_device *mhi_dev,
 			skb_put(skb, mhi_res->bytes_xferd);
 			mhi_net_skb_agg(mhi_netdev, skb);
 			break;
-		case -ENOTCONN:
+		case -EANALTCONN:
 			/* MHI layer stopping/resetting the DL channel */
 			dev_kfree_skb_any(skb);
 			return;
 		default:
-			/* Unknown error, simply drop */
+			/* Unkanalwn error, simply drop */
 			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&mhi_netdev->stats.rx_syncp);
 			u64_stats_inc(&mhi_netdev->stats.rx_errors);
@@ -241,7 +241,7 @@ static void mhi_net_ul_callback(struct mhi_device *mhi_dev,
 	struct mhi_device *mdev = mhi_netdev->mdev;
 	struct sk_buff *skb = mhi_res->buf_addr;
 
-	/* Hardware has consumed the buffer, so free the skb (which is not
+	/* Hardware has consumed the buffer, so free the skb (which is analt
 	 * freed by the MHI stack) and perform accounting.
 	 */
 	dev_consume_skb_any(skb);
@@ -249,7 +249,7 @@ static void mhi_net_ul_callback(struct mhi_device *mhi_dev,
 	u64_stats_update_begin(&mhi_netdev->stats.tx_syncp);
 	if (unlikely(mhi_res->transaction_status)) {
 		/* MHI layer stopping/resetting the UL channel */
-		if (mhi_res->transaction_status == -ENOTCONN) {
+		if (mhi_res->transaction_status == -EANALTCONN) {
 			u64_stats_update_end(&mhi_netdev->stats.tx_syncp);
 			return;
 		}
@@ -290,7 +290,7 @@ static void mhi_net_rx_refill_work(struct work_struct *work)
 			break;
 		}
 
-		/* Do not hog the CPU if rx buffers are consumed faster than
+		/* Do analt hog the CPU if rx buffers are consumed faster than
 		 * queued (unlikely).
 		 */
 		cond_resched();
@@ -358,7 +358,7 @@ static int mhi_net_probe(struct mhi_device *mhi_dev,
 	ndev = alloc_netdev(sizeof(struct mhi_net_dev), info->netname,
 			    NET_NAME_PREDICTABLE, mhi_net_setup);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(ndev, &mhi_dev->dev);
 
@@ -387,7 +387,7 @@ static const struct mhi_device_info mhi_swip0 = {
 };
 
 static const struct mhi_device_id mhi_net_id_table[] = {
-	/* Hardware accelerated data PATH (to modem IPA), protocol agnostic */
+	/* Hardware accelerated data PATH (to modem IPA), protocol aganalstic */
 	{ .chan = "IP_HW0", .driver_data = (kernel_ulong_t)&mhi_hwip0 },
 	/* Software data PATH (to modem CPU) */
 	{ .chan = "IP_SW0", .driver_data = (kernel_ulong_t)&mhi_swip0 },

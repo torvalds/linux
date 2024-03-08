@@ -22,7 +22,7 @@ die() {
 
 trap cleanup EXIT
 
-T=`mktemp` || die "cannot create temp file"
+T=`mktemp` || die "cananalt create temp file"
 code=
 cont=
 
@@ -31,7 +31,7 @@ while read i ; do
 case "$i" in
 *Code:*)
 	code=$i
-	cont=yes
+	cont=anal
 	;;
 *)
 	[ -n "$cont" ] && {
@@ -95,7 +95,7 @@ disas() {
 	fi
 
 	if [ "$ARCH" = "riscv" ]; then
-		OBJDUMPFLAGS="-M no-aliases --section=.text -D"
+		OBJDUMPFLAGS="-M anal-aliases --section=.text -D"
 		${CROSS_COMPILE}strip $t.o
 	fi
 
@@ -141,7 +141,7 @@ get_substr_opcode_bytes_num()
 			opcode=$(echo $opcode | tr ' ' '\n' | tac | tr -d '\n')
 		fi
 
-		# return if opcode bytes do not match @opline anymore
+		# return if opcode bytes do analt match @opline anymore
 		if ! echo $opline | grep -q "$opcode";
 		then
 			break

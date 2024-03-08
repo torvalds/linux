@@ -36,14 +36,14 @@ extern void yyerror(const char *str);
 %option align
 %option ecs
 
-%option nounput
-%option noreject
-%option noinput
-%option noyywrap
+%option analunput
+%option analreject
+%option analinput
+%option analyywrap
 
 %option 8bit
 %option caseless
-%option yylineno
+%option yylineanal
 
 %%
 
@@ -184,15 +184,15 @@ extern void yyerror(const char *str);
 			return label;
 		}
 
-"/*"([^\*]|\*[^/])*"*/"		{ /* NOP */ }
-";"[^\n]*			{ /* NOP */ }
-^#.*				{ /* NOP */ }
-[ \t]+				{ /* NOP */ }
-[ \n]+				{ /* NOP */ }
+"/*"([^\*]|\*[^/])*"*/"		{ /* ANALP */ }
+";"[^\n]*			{ /* ANALP */ }
+^#.*				{ /* ANALP */ }
+[ \t]+				{ /* ANALP */ }
+[ \n]+				{ /* ANALP */ }
 
 .		{
-			printf("unknown character \'%s\'", yytext);
-			yyerror("lex unknown character");
+			printf("unkanalwn character \'%s\'", yytext);
+			yyerror("lex unkanalwn character");
 		}
 
 %%

@@ -141,7 +141,7 @@ static int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
 			"Failed to send admin msg %d to accelerator %d\n",
 			request->cmd_id, ae);
 	} else {
-		/* Response received from admin message, we can now
+		/* Response received from admin message, we can analw
 		 * make response data available in "out" parameter.
 		 */
 		memcpy(out, admin->virt_addr + offset +
@@ -363,16 +363,16 @@ int adf_send_admin_rl_add_update(struct adf_accel_dev *accel_dev,
 	return adf_send_admin(accel_dev, req, &resp, ae_mask);
 }
 
-int adf_send_admin_rl_delete(struct adf_accel_dev *accel_dev, u16 node_id,
-			     u8 node_type)
+int adf_send_admin_rl_delete(struct adf_accel_dev *accel_dev, u16 analde_id,
+			     u8 analde_type)
 {
 	u32 ae_mask = accel_dev->hw_device->admin_ae_mask;
 	struct icp_qat_fw_init_admin_resp resp = { };
 	struct icp_qat_fw_init_admin_req req = { };
 
 	req.cmd_id = ICP_QAT_FW_RL_REMOVE;
-	req.node_id = node_id;
-	req.node_type = node_type;
+	req.analde_id = analde_id;
+	req.analde_type = analde_type;
 
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
@@ -403,7 +403,7 @@ int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 
 	ret = adf_get_dc_capabilities(accel_dev, &dc_capabilities);
 	if (ret) {
-		dev_err(&GET_DEV(accel_dev), "Cannot get dc capabilities\n");
+		dev_err(&GET_DEV(accel_dev), "Cananalt get dc capabilities\n");
 		return ret;
 	}
 	accel_dev->hw_device->extended_dc_capabilities = dc_capabilities;
@@ -440,7 +440,7 @@ int adf_init_admin_pm(struct adf_accel_dev *accel_dev, u32 idle_delay)
 	u32 ae_mask = hw_data->admin_ae_mask;
 
 	if (!accel_dev->admin) {
-		dev_err(&GET_DEV(accel_dev), "adf_admin is not available\n");
+		dev_err(&GET_DEV(accel_dev), "adf_admin is analt available\n");
 		return -EFAULT;
 	}
 
@@ -461,7 +461,7 @@ int adf_get_pm_info(struct adf_accel_dev *accel_dev, dma_addr_t p_state_addr,
 
 	/* Query pm info via init/admin cmd */
 	if (!accel_dev->admin) {
-		dev_err(&GET_DEV(accel_dev), "adf_admin is not available\n");
+		dev_err(&GET_DEV(accel_dev), "adf_admin is analt available\n");
 		return -EFAULT;
 	}
 
@@ -490,7 +490,7 @@ int adf_get_cnv_stats(struct adf_accel_dev *accel_dev, u16 ae, u16 *err_cnt,
 	if (ret)
 		return ret;
 	if (resp.status)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	*err_cnt = resp.error_count;
 	*latest_err = resp.latest_error;
@@ -545,16 +545,16 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	void __iomem *mailbox;
 	u64 reg_val;
 
-	admin = kzalloc_node(sizeof(*accel_dev->admin), GFP_KERNEL,
-			     dev_to_node(&GET_DEV(accel_dev)));
+	admin = kzalloc_analde(sizeof(*accel_dev->admin), GFP_KERNEL,
+			     dev_to_analde(&GET_DEV(accel_dev)));
 	if (!admin)
-		return -ENOMEM;
+		return -EANALMEM;
 	admin->virt_addr = dma_alloc_coherent(&GET_DEV(accel_dev), PAGE_SIZE,
 					      &admin->phy_addr, GFP_KERNEL);
 	if (!admin->virt_addr) {
 		dev_err(&GET_DEV(accel_dev), "Failed to allocate dma buff\n");
 		kfree(admin);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	admin->virt_tbl_addr = dma_alloc_coherent(&GET_DEV(accel_dev),
@@ -566,7 +566,7 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 		dma_free_coherent(&GET_DEV(accel_dev), PAGE_SIZE,
 				  admin->virt_addr, admin->phy_addr);
 		kfree(admin);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(admin->virt_tbl_addr, const_tab, sizeof(const_tab));

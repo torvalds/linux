@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -28,7 +28,7 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  *
- * While no substantial code is shared, the prime code is inspired by
+ * While anal substantial code is shared, the prime code is inspired by
  * drm_prime.c, with
  * Authors:
  *      Dave Airlie <airlied@redhat.com>
@@ -203,7 +203,7 @@ int ttm_base_object_init(struct ttm_object_file *tfile,
 	kref_init(&base->refcount);
 	idr_preload(GFP_KERNEL);
 	spin_lock(&tdev->object_lock);
-	ret = idr_alloc(&tdev->idr, base, 1, 0, GFP_NOWAIT);
+	ret = idr_alloc(&tdev->idr, base, 1, 0, GFP_ANALWAIT);
 	spin_unlock(&tdev->object_lock);
 	idr_preload_end();
 	if (ret < 0)
@@ -235,7 +235,7 @@ static void ttm_release_base(struct kref *kref)
 	spin_unlock(&tdev->object_lock);
 
 	/*
-	 * Note: We don't use synchronize_rcu() here because it's far
+	 * Analte: We don't use synchronize_rcu() here because it's far
 	 * too slow. It's up to the user to free the object using
 	 * call_rcu() or ttm_base_object_kfree().
 	 */
@@ -323,7 +323,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 
 		ref = kmalloc(sizeof(*ref), GFP_KERNEL);
 		if (unlikely(ref == NULL)) {
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ref->hash.key = base->handle;
@@ -463,19 +463,19 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 /**
  * get_dma_buf_unless_doomed - get a dma_buf reference if possible.
  *
- * @dmabuf: Non-refcounted pointer to a struct dma-buf.
+ * @dmabuf: Analn-refcounted pointer to a struct dma-buf.
  *
  * Obtain a file reference from a lookup structure that doesn't refcount
  * the file, but synchronizes with its release method to make sure it has
- * not been freed yet. See for example kref_get_unless_zero documentation.
+ * analt been freed yet. See for example kref_get_unless_zero documentation.
  * Returns true if refcounting succeeds, false otherwise.
  *
- * Nobody really wants this as a public API yet, so let it mature here
+ * Analbody really wants this as a public API yet, so let it mature here
  * for some time...
  */
 static bool __must_check get_dma_buf_unless_doomed(struct dma_buf *dmabuf)
 {
-	return atomic_long_inc_not_zero(&dmabuf->file->f_count) != 0L;
+	return atomic_long_inc_analt_zero(&dmabuf->file->f_count) != 0L;
 }
 
 /**
@@ -535,8 +535,8 @@ static void ttm_prime_dmabuf_release(struct dma_buf *dma_buf)
  * @handle: The returned handle.
  *
  * This function returns a handle to an object that previously exported
- * a dma-buf. Note that we don't handle imports yet, because we simply
- * have no consumers of that implementation.
+ * a dma-buf. Analte that we don't handle imports yet, because we simply
+ * have anal consumers of that implementation.
  */
 int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
 			   int fd, u32 *handle)
@@ -552,7 +552,7 @@ int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
 		return PTR_ERR(dma_buf);
 
 	if (dma_buf->ops != &tdev->ops)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	prime = (struct ttm_prime_object *) dma_buf->priv;
 	base = &prime->base;
@@ -586,7 +586,7 @@ int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 	base = ttm_base_object_lookup(tfile, handle);
 	if (unlikely(base == NULL ||
 		     base->object_type != ttm_prime_type)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_unref;
 	}
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# Copyright (C) 2022 StarFive Technology Co., Ltd.
+# Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/net/starfive,jh7110-dwmac.yaml#
@@ -115,7 +115,7 @@ examples:
         rx-fifo-depth = <2048>;
         tx-fifo-depth = <2048>;
         snps,fixed-burst;
-        snps,no-pbl-x8;
+        snps,anal-pbl-x8;
         snps,tso;
         snps,force_thresh_dma_mode;
         snps,axi-config = <&stmmac_axi_setup>;

@@ -19,38 +19,38 @@
 
 /* driver quirks (capabilities) */
 /* bits 0-7 are used for indicating driver type */
-#define AZX_DCAPS_NO_TCSEL	(1 << 8)	/* No Intel TCSEL bit */
-#define AZX_DCAPS_NO_MSI	(1 << 9)	/* No MSI support */
-#define AZX_DCAPS_SNOOP_MASK	(3 << 10)	/* snoop type mask */
-#define AZX_DCAPS_SNOOP_OFF	(1 << 12)	/* snoop default off */
+#define AZX_DCAPS_ANAL_TCSEL	(1 << 8)	/* Anal Intel TCSEL bit */
+#define AZX_DCAPS_ANAL_MSI	(1 << 9)	/* Anal MSI support */
+#define AZX_DCAPS_SANALOP_MASK	(3 << 10)	/* sanalop type mask */
+#define AZX_DCAPS_SANALOP_OFF	(1 << 12)	/* sanalop default off */
 #ifdef CONFIG_SND_HDA_I915
 #define AZX_DCAPS_I915_COMPONENT (1 << 13)	/* bind with i915 gfx */
 #else
-#define AZX_DCAPS_I915_COMPONENT 0		/* NOP */
+#define AZX_DCAPS_I915_COMPONENT 0		/* ANALP */
 #endif
 /* 14 unused */
 #define AZX_DCAPS_CTX_WORKAROUND (1 << 15)	/* X-Fi workaround */
 #define AZX_DCAPS_POSFIX_LPIB	(1 << 16)	/* Use LPIB as default */
 #define AZX_DCAPS_AMD_WORKAROUND (1 << 17)	/* AMD-specific workaround */
-#define AZX_DCAPS_NO_64BIT	(1 << 18)	/* No 64bit address */
+#define AZX_DCAPS_ANAL_64BIT	(1 << 18)	/* Anal 64bit address */
 /* 19 unused */
 #define AZX_DCAPS_OLD_SSYNC	(1 << 20)	/* Old SSYNC reg for ICH */
-#define AZX_DCAPS_NO_ALIGN_BUFSIZE (1 << 21)	/* no buffer size alignment */
+#define AZX_DCAPS_ANAL_ALIGN_BUFSIZE (1 << 21)	/* anal buffer size alignment */
 /* 22 unused */
 #define AZX_DCAPS_4K_BDLE_BOUNDARY (1 << 23)	/* BDLE in 4k boundary */
 /* 24 unused */
 #define AZX_DCAPS_COUNT_LPIB_DELAY  (1 << 25)	/* Take LPIB as delay */
 #define AZX_DCAPS_PM_RUNTIME	(1 << 26)	/* runtime PM support */
-#define AZX_DCAPS_RETRY_PROBE	(1 << 27)	/* retry probe if no codec is configured */
+#define AZX_DCAPS_RETRY_PROBE	(1 << 27)	/* retry probe if anal codec is configured */
 #define AZX_DCAPS_CORBRP_SELF_CLEAR (1 << 28)	/* CORBRP clears itself after reset */
-#define AZX_DCAPS_NO_MSI64      (1 << 29)	/* Stick to 32-bit MSIs */
+#define AZX_DCAPS_ANAL_MSI64      (1 << 29)	/* Stick to 32-bit MSIs */
 #define AZX_DCAPS_SEPARATE_STREAM_TAG	(1 << 30) /* capture and playback use separate stream tag */
 
 enum {
-	AZX_SNOOP_TYPE_NONE,
-	AZX_SNOOP_TYPE_SCH,
-	AZX_SNOOP_TYPE_ATI,
-	AZX_SNOOP_TYPE_NVIDIA,
+	AZX_SANALOP_TYPE_ANALNE,
+	AZX_SANALOP_TYPE_SCH,
+	AZX_SANALOP_TYPE_ATI,
+	AZX_SANALOP_TYPE_NVIDIA,
 };
 
 struct azx_dev {
@@ -60,7 +60,7 @@ struct azx_dev {
 	/*
 	 * For VIA:
 	 *  A flag to ensure DMA position is 0
-	 *  when link position is not greater than FIFO size
+	 *  when link position is analt greater than FIFO size
 	 */
 	unsigned int insufficient:1;
 };
@@ -137,8 +137,8 @@ struct azx {
 	unsigned int single_cmd:1;
 	unsigned int msi:1;
 	unsigned int probing:1; /* codec probing phase */
-	unsigned int snoop:1;
-	unsigned int uc_buffer:1; /* non-cached pages for stream buffers */
+	unsigned int sanalop:1;
+	unsigned int uc_buffer:1; /* analn-cached pages for stream buffers */
 	unsigned int align_buffer_size:1;
 	unsigned int disabled:1; /* disabled by vga_switcheroo */
 	unsigned int pm_prepared:1;
@@ -154,9 +154,9 @@ struct azx {
 #define azx_bus(chip)	(&(chip)->bus.core)
 #define bus_to_azx(_bus)	container_of(_bus, struct azx, bus.core)
 
-static inline bool azx_snoop(struct azx *chip)
+static inline bool azx_sanalop(struct azx *chip)
 {
-	return !IS_ENABLED(CONFIG_X86) || chip->snoop;
+	return !IS_ENABLED(CONFIG_X86) || chip->sanalop;
 }
 
 /*

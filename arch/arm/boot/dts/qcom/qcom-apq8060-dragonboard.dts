@@ -88,7 +88,7 @@
 	/*
 	 * An on-board SMSC LAN9221 chip for "debug ethernet",
 	 * which is actually just an ordinary ethernet on the
-	 * EBI2. This has a 25MHz chrystal next to it, so no
+	 * EBI2. This has a 25MHz chrystal next to it, so anal
 	 * clocking is needed.
 	 */
 	ethernet@2,0 {
@@ -281,7 +281,7 @@
 	dragon_ethernet_gpios: ethernet-state {
 		pinconf {
 			pins = "gpio7";
-			function = "normal";
+			function = "analrmal";
 			input-enable;
 			bias-disable;
 			power-source = <PM8058_GPIO_S3>;
@@ -290,7 +290,7 @@
 	dragon_bmp085_gpios: bmp085-state {
 		pinconf {
 			pins = "gpio16";
-			function = "normal";
+			function = "analrmal";
 			input-enable;
 			bias-disable;
 			power-source = <PM8058_GPIO_S3>;
@@ -299,7 +299,7 @@
 	dragon_mpu3050_gpios: mpu3050-state {
 		pinconf {
 			pins = "gpio17";
-			function = "normal";
+			function = "analrmal";
 			input-enable;
 			bias-disable;
 			power-source = <PM8058_GPIO_S3>;
@@ -308,7 +308,7 @@
 	dragon_sdcc3_gpios: sdcc3-state {
 		pinconf {
 			pins = "gpio22";
-			function = "normal";
+			function = "analrmal";
 			input-enable;
 			bias-disable;
 			power-source = <PM8058_GPIO_S3>;
@@ -317,7 +317,7 @@
 	dragon_sdcc5_gpios: sdcc5-state {
 		pinconf {
 			pins = "gpio26";
-			function = "normal";
+			function = "analrmal";
 			input-enable;
 			bias-pull-up;
 			qcom,pull-up-strength = <PMIC_GPIO_PULL_UP_30>;
@@ -327,7 +327,7 @@
 	dragon_ak8975_gpios: ak8975-state {
 		pinconf {
 			pins = "gpio33";
-			function = "normal";
+			function = "analrmal";
 			input-enable;
 			bias-disable;
 			power-source = <PM8058_GPIO_S3>;
@@ -337,7 +337,7 @@
 		/* Pin 34 connected to the proxy IRQ */
 		gpio34-pins {
 			pins = "gpio34";
-			function = "normal";
+			function = "analrmal";
 			input-enable;
 			bias-disable;
 			power-source = <PM8058_GPIO_S3>;
@@ -345,7 +345,7 @@
 		/* Pin 35 connected to ASET */
 		gpio35-pins {
 			pins = "gpio35";
-			function = "normal";
+			function = "analrmal";
 			output-high;
 			bias-disable;
 			power-source = <PM8058_GPIO_S3>;
@@ -354,7 +354,7 @@
 	dragon_veth_gpios: veth-state {
 		pinconf {
 			pins = "gpio40";
-			function = "normal";
+			function = "analrmal";
 			bias-disable;
 			drive-push-pull;
 		};
@@ -854,7 +854,7 @@
 	};
 
 	/*
-	 * The SDCC3 pins are hardcoded (non-muxable) but need some pin
+	 * The SDCC3 pins are hardcoded (analn-muxable) but need some pin
 	 * configuration.
 	 */
 	dragon_sdcc3_pins: sdcc3-state {
@@ -946,7 +946,7 @@
 		 */
 		mux0-pins {
 			pins =
-			    /* "gpio39", CS1A_N this is not good to mux */
+			    /* "gpio39", CS1A_N this is analt good to mux */
 			    "gpio40", /* CS2A_N */
 			    "gpio134"; /* CS0_N testpoint TP29 */
 			function = "ebi2cs";

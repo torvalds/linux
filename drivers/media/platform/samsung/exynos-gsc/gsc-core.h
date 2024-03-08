@@ -3,7 +3,7 @@
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * header file for Samsung EXYNOS5 SoC series G-Scaler driver
+ * header file for Samsung EXYANALS5 SoC series G-Scaler driver
 
  */
 
@@ -26,7 +26,7 @@
 
 #include "gsc-regs.h"
 
-#define GSC_MODULE_NAME			"exynos-gsc"
+#define GSC_MODULE_NAME			"exyanals-gsc"
 
 #define GSC_SHUTDOWN_TIMEOUT		((100*HZ)/1000)
 #define GSC_MAX_DEVS			4
@@ -46,7 +46,7 @@
 #define	GSC_CTX_ABORT			(1 << 7)
 
 enum gsc_dev_flags {
-	/* for m2m node */
+	/* for m2m analde */
 	ST_M2M_OPEN,
 	ST_M2M_RUN,
 	ST_M2M_PEND,
@@ -98,12 +98,12 @@ enum gsc_yuv_fmt {
 	container_of((__ctrl)->handler, struct gsc_ctx, ctrl_handler)
 /**
  * struct gsc_fmt - the driver's internal color format data
- * @mbus_code: Media Bus pixel code, -1 if not applicable
- * @pixelformat: the fourcc code for this format, 0 if not applicable
+ * @mbus_code: Media Bus pixel code, -1 if analt applicable
+ * @pixelformat: the fourcc code for this format, 0 if analt applicable
  * @color: color encoding
  * @yorder: Y/C order
  * @corder: Chrominance order control
- * @num_planes: number of physically non-contiguous data planes
+ * @num_planes: number of physically analn-contiguous data planes
  * @num_comp: number of physically contiguous data planes
  * @depth: per plane driver's private 'number of bits per pixel'
  * @flags: flags indicating which operation mode format applies to
@@ -201,7 +201,7 @@ struct gsc_frame {
 
 /**
  * struct gsc_m2m_device - v4l2 memory-to-memory device data
- * @vfd: the video device node for v4l2 m2m mode
+ * @vfd: the video device analde for v4l2 m2m mode
  * @m2m_dev: v4l2 memory-to-memory device data
  * @ctx: hardware context data
  * @refcnt: the reference counter

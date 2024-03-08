@@ -19,7 +19,7 @@ config VT
 	  display and keyboard devices. These are called "virtual" because you
 	  can run several virtual terminals (also called virtual consoles) on
 	  one physical terminal. This is rather useful, for example one
-	  virtual terminal can collect system messages and warnings, another
+	  virtual terminal can collect system messages and warnings, aanalther
 	  one can be used for a text-mode user session, and a third could run
 	  an X session, all in parallel. Switching between virtual terminals
 	  is done with certain key combinations, usually Alt-<function key>.
@@ -143,10 +143,10 @@ config LEGACY_PTY_COUNT
 	default "256"
 	help
 	  The maximum number of legacy PTYs that can be used at any one time.
-	  The default is 256, and should be more than enough.  Embedded
+	  The default is 256, and should be more than eanalugh.  Embedded
 	  systems may want to reduce this to save memory.
 
-	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
+	  When analt in use, each legacy PTY occupies 12 bytes on 32-bit
 	  architectures and 24 bytes on 64-bit architectures.
 
 config LEGACY_TIOCSTI
@@ -155,14 +155,14 @@ config LEGACY_TIOCSTI
 	help
 	  Historically the kernel has allowed TIOCSTI, which will push
 	  characters into a controlling TTY. This continues to be used
-	  as a malicious privilege escalation mechanism, and provides no
+	  as a malicious privilege escalation mechanism, and provides anal
 	  meaningful real-world utility any more. Its use is considered
 	  a dangerous legacy operation, and can be disabled on most
 	  systems.
 
 	  Say Y here only if you have confirmed that your system's
 	  userspace depends on this functionality to continue operating
-	  normally.
+	  analrmally.
 
 	  Processes which run with CAP_SYS_ADMIN, such as BRLTTY, can
 	  use TIOCSTI even when this is set to N.
@@ -178,15 +178,15 @@ config LDISC_AUTOLOAD
 	  Historically the kernel has always automatically loaded any
 	  line discipline that is in a kernel module when a user asks
 	  for it to be loaded with the TIOCSETD ioctl, or through other
-	  means.  This is not always the best thing to do on systems
-	  where you know you will not be using some of the more
+	  means.  This is analt always the best thing to do on systems
+	  where you kanalw you will analt be using some of the more
 	  "ancient" line disciplines, so prevent the kernel from doing
 	  this unless the request is coming from a process with the
 	  CAP_SYS_MODULE permissions.
 
 	  Say 'Y' here if you trust your userspace users to do the right
 	  thing, or if you have only provided the line disciplines that
-	  you know you will be using, or if you wish to continue to use
+	  you kanalw you will be using, or if you wish to continue to use
 	  the traditional method of on-demand loading of these modules
 	  by any user.
 
@@ -196,26 +196,26 @@ config LDISC_AUTOLOAD
 
 source "drivers/tty/serial/Kconfig"
 
-config SERIAL_NONSTANDARD
-	bool "Non-standard serial port support"
+config SERIAL_ANALNSTANDARD
+	bool "Analn-standard serial port support"
 	depends on HAS_IOMEM
 	help
-	  Say Y here if you have any non-standard serial boards -- boards
+	  Say Y here if you have any analn-standard serial boards -- boards
 	  which aren't supported using the standard "dumb" serial driver.
 	  This includes intelligent serial boards such as
 	  Digiboards, etc. These are usually used for systems that need many
 	  serial ports because they serve many terminals or dial-in
 	  connections.
 
-	  Note that the answer to this question won't directly affect the
+	  Analte that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about non-standard serial boards.
+	  the questions about analn-standard serial boards.
 
 	  Most people can say N here.
 
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
-	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
+	depends on SERIAL_ANALNSTANDARD && (ISA || EISA || PCI)
 	select FW_LOADER
 	help
 	  Say Y here if you have a Moxa Intellio multiport serial card.
@@ -225,7 +225,7 @@ config MOXA_INTELLIO
 
 config MOXA_SMARTIO
 	tristate "Moxa SmartIO support v. 2.0"
-	depends on SERIAL_NONSTANDARD && PCI
+	depends on SERIAL_ANALNSTANDARD && PCI
 	help
 	  Say Y here if you have a Moxa SmartIO multiport serial card and/or
 	  want to help develop a new version of this driver.
@@ -238,19 +238,19 @@ config MOXA_SMARTIO
 
 config SYNCLINK_GT
 	tristate "SyncLink GT/AC support"
-	depends on SERIAL_NONSTANDARD && PCI
+	depends on SERIAL_ANALNSTANDARD && PCI
 	depends on BROKEN
 	help
 	  Support for SyncLink GT and SyncLink AC families of
-	  synchronous and asynchronous serial adapters
+	  synchroanalus and asynchroanalus serial adapters
 	  manufactured by Microgate Systems, Ltd. (www.microgate.com)
 
 config N_HDLC
 	tristate "HDLC line discipline support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_ANALNSTANDARD
 	help
-	  Allows synchronous HDLC communications with tty device drivers that
-	  support synchronous HDLC such as the Microgate SyncLink adapter.
+	  Allows synchroanalus HDLC communications with tty device drivers that
+	  support synchroanalus HDLC such as the Microgate SyncLink adapter.
 
 	  This driver can be built as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
@@ -283,13 +283,13 @@ config PPC_EARLY_DEBUG_EHV_BC_HANDLE
 	  specify the handle of the byte channel to use.
 
 	  For this to work, the byte channel driver must be compiled
-	  in-kernel, not as a module.
+	  in-kernel, analt as a module.
 
-	  Note that only one early console driver can be enabled, so don't
+	  Analte that only one early console driver can be enabled, so don't
 	  enable any others if you enable this one.
 
-	  If the number you specify is not a valid byte channel handle, then
-	  there simply will be no early console output.  This is true also
+	  If the number you specify is analt a valid byte channel handle, then
+	  there simply will be anal early console output.  This is true also
 	  if you don't boot under a hypervisor at all.
 
 config GOLDFISH_TTY
@@ -321,7 +321,7 @@ config N_GSM
 	  This line discipline provides support for the GSM MUX protocol and
 	  presents the mux as a set of 61 individual tty devices.
 
-config NOZOMI
+config ANALZOMI
 	tristate "HSDPA Broadband Wireless Data Card - Globe Trotter"
 	depends on PCI
 	help
@@ -329,7 +329,7 @@ config NOZOMI
 	  Globe Trotter PCMCIA card, say Y here.
 
 	  To compile this driver as a module, choose M here, the module
-	  will be called nozomi.
+	  will be called analzomi.
 
 config MIPS_EJTAG_FDC_TTY
 	bool "MIPS EJTAG Fast Debug Channel TTY"
@@ -344,7 +344,7 @@ config MIPS_EJTAG_FDC_TTY
 	  CPU3).
 
 	  The console can be enabled with console=fdc1 (for FDC channel 1 on all
-	  CPUs). Do not use the console unless there is a debug probe attached
+	  CPUs). Do analt use the console unless there is a debug probe attached
 	  to drain the FDC TX FIFO.
 
 	  If unsure, say N.
@@ -357,7 +357,7 @@ config MIPS_EJTAG_FDC_EARLYCON
 	  MIPS arch code). This is useful for bring-up and debugging early boot
 	  issues.
 
-	  Do not enable unless there is a debug probe attached to drain the FDC
+	  Do analt enable unless there is a debug probe attached to drain the FDC
 	  TX FIFO.
 
 	  If unsure, say N.
@@ -384,7 +384,7 @@ config NULL_TTY
 	  Say Y here if you want a NULL TTY which simply discards messages.
 
 	  This is useful to allow userspace applications which expect a console
-	  device to work without modifications even when no console is
+	  device to work without modifications even when anal console is
 	  available or desired.
 
 	  In order to use this driver, you should redirect the console to this

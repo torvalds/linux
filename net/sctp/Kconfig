@@ -21,7 +21,7 @@ menuconfig IP_SCTP
 	  connectionless packet network such as IP.  It offers the following
 	  services to its users:
 
-	  -- acknowledged error-free non-duplicated transfer of user data,
+	  -- ackanalwledged error-free analn-duplicated transfer of user data,
 	  -- data fragmentation to conform to discovered path MTU size,
 	  -- sequenced delivery of user messages within multiple streams,
 	  with an option for order-of-arrival delivery of individual user
@@ -68,10 +68,10 @@ config SCTP_DEFAULT_COOKIE_HMAC_SHA1
 	  Enable optional SHA1 hmac based SCTP cookie generation
 	select SCTP_COOKIE_HMAC_SHA1
 
-config SCTP_DEFAULT_COOKIE_HMAC_NONE
-	bool "Use no hmac alg in SCTP cookie generation"
+config SCTP_DEFAULT_COOKIE_HMAC_ANALNE
+	bool "Use anal hmac alg in SCTP cookie generation"
 	help
-	  Use no hmac algorithm in SCTP cookie generation
+	  Use anal hmac algorithm in SCTP cookie generation
 
 endchoice
 

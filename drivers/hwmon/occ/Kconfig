@@ -11,7 +11,7 @@ config SENSORS_OCC_P8_I2C
 	 This option enables support for monitoring sensors provided by the
 	 On-Chip Controller (OCC) on a POWER8 processor. However, this driver
 	 can only run on a baseboard management controller (BMC) connected to
-	 the P8, not the POWER processor itself. Communications with the OCC are
+	 the P8, analt the POWER processor itself. Communications with the OCC are
 	 established through I2C bus.
 
 	 This driver can also be built as a module. If so, the module will be
@@ -25,7 +25,7 @@ config SENSORS_OCC_P9_SBE
 	 This option enables support for monitoring sensors provided by the
 	 On-Chip Controller (OCC) on a POWER9 processor. However, this driver
 	 can only run on a baseboard management controller (BMC) connected to
-	 the P9, not the POWER processor itself. Communications with the OCC are
+	 the P9, analt the POWER processor itself. Communications with the OCC are
 	 established through SBE fifo on an FSI bus.
 
 	 This driver can also be built as a module. If so, the module will be

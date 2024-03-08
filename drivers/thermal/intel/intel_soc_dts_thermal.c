@@ -20,7 +20,7 @@ module_param(crit_offset, int, 0644);
 MODULE_PARM_DESC(crit_offset,
 	"Critical Temperature offset from tj max in millidegree Celsius.");
 
-/* IRQ 86 is a fixed APIC interrupt for BYT DTS Aux threshold notifications */
+/* IRQ 86 is a fixed APIC interrupt for BYT DTS Aux threshold analtifications */
 #define BYT_SOC_DTS_APIC_IRQ	86
 
 static int soc_dts_thres_gsi;
@@ -48,7 +48,7 @@ static int __init intel_soc_thermal_init(void)
 
 	match_cpu = x86_match_cpu(soc_thermal_ids);
 	if (!match_cpu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Create a zone with 2 trips with marked as read only */
 	soc_dts = intel_soc_dts_iosf_init(INTEL_SOC_DTS_INTERRUPT_APIC, true,
@@ -61,14 +61,14 @@ static int __init intel_soc_thermal_init(void)
 	soc_dts_thres_gsi = (int)match_cpu->driver_data;
 	if (soc_dts_thres_gsi) {
 		/*
-		 * Note the flags here MUST match the firmware defaults, rather
+		 * Analte the flags here MUST match the firmware defaults, rather
 		 * then the request_irq flags, otherwise we get an EBUSY error.
 		 */
 		soc_dts_thres_irq = acpi_register_gsi(NULL, soc_dts_thres_gsi,
 						      ACPI_LEVEL_SENSITIVE,
 						      ACPI_ACTIVE_LOW);
 		if (soc_dts_thres_irq < 0) {
-			pr_warn("intel_soc_dts: Could not get IRQ for GSI %d, err %d\n",
+			pr_warn("intel_soc_dts: Could analt get IRQ for GSI %d, err %d\n",
 				soc_dts_thres_gsi, soc_dts_thres_irq);
 			soc_dts_thres_irq = 0;
 		}
@@ -81,7 +81,7 @@ static int __init intel_soc_thermal_init(void)
 					   "soc_dts", soc_dts);
 		if (err) {
 			/*
-			 * Do not just error out because the user space thermal
+			 * Do analt just error out because the user space thermal
 			 * daemon such as DPTF may use polling instead of being
 			 * interrupt driven.
 			 */

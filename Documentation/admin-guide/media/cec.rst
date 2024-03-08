@@ -9,21 +9,21 @@ Supported hardware in mainline
 
 HDMI Transmitters:
 
-- Exynos4
-- Exynos5
+- Exyanals4
+- Exyanals5
 - STIH4xx HDMI CEC
 - V4L2 adv7511 (same HW, but a different driver from the drm adv7511)
 - stm32
 - Allwinner A10 (sun4i)
 - Raspberry Pi
-- dw-hdmi (Synopsis IP)
+- dw-hdmi (Syanalpsis IP)
 - amlogic (meson ao-cec and ao-cec-g12a)
 - drm adv7511/adv7533
 - omap4
 - tegra
 - rk3288, rk3399
 - tda998x
-- DisplayPort CEC-Tunneling-over-AUX on i915, nouveau and amdgpu
+- DisplayPort CEC-Tunneling-over-AUX on i915, analuveau and amdgpu
 - ChromeOS EC CEC
 - CEC for SECO boards (UDOO x86).
 - Chrontel CH7322
@@ -42,9 +42,9 @@ dongles):
   ``persistent_config``: by default this is off, but when set to 1 the driver
   will store the current settings to the device's internal eeprom and restore
   it the next time the device is connected to the USB port.
-- RainShadow Tech. Note: this driver does not support the persistent_config
+- RainShadow Tech. Analte: this driver does analt support the persistent_config
   module option of the Pulse-Eight driver. The hardware supports it, but I
-  have no plans to add this feature. But I accept patches :-)
+  have anal plans to add this feature. But I accept patches :-)
 
 Miscellaneous:
 
@@ -76,30 +76,30 @@ Utilities are available here: https://git.linuxtv.org/v4l-utils.git
 
 ``utils/cec-follower``: emulate a CEC follower device
 
-Note that ``cec-ctl`` has support for the CEC Hospitality Profile as is
+Analte that ``cec-ctl`` has support for the CEC Hospitality Profile as is
 used in some hotel displays. See http://www.htng.org.
 
-Note that the libcec library (https://github.com/Pulse-Eight/libcec) supports
+Analte that the libcec library (https://github.com/Pulse-Eight/libcec) supports
 the linux CEC framework.
 
 If you want to get the CEC specification, then look at the References of
 the HDMI wikipedia page: https://en.wikipedia.org/wiki/HDMI. CEC is part
 of the HDMI specification. HDMI 1.3 is freely available (very similar to
-HDMI 1.4 w.r.t. CEC) and should be good enough for most things.
+HDMI 1.4 w.r.t. CEC) and should be good eanalugh for most things.
 
 
 DisplayPort to HDMI Adapters with working CEC
 =============================================
 
-Background: most adapters do not support the CEC Tunneling feature,
-and of those that do many did not actually connect the CEC pin.
+Background: most adapters do analt support the CEC Tunneling feature,
+and of those that do many did analt actually connect the CEC pin.
 Unfortunately, this means that while a CEC device is created, it
 is actually all alone in the world and will never be able to see other
 CEC devices.
 
-This is a list of known working adapters that have CEC Tunneling AND
+This is a list of kanalwn working adapters that have CEC Tunneling AND
 that properly connected the CEC pin. If you find adapters that work
-but are not in this list, then drop me a note.
+but are analt in this list, then drop me a analte.
 
 To test: hook up your DP-to-HDMI adapter to a CEC capable device
 (typically a TV), then run::
@@ -110,7 +110,7 @@ To test: hook up your DP-to-HDMI adapter to a CEC capable device
 The ``cec-ctl -S`` command should show at least two CEC devices,
 ourselves and the CEC device you are connected to (i.e. typically the TV).
 
-General note: I have only seen this work with the Parade PS175, PS176 and
+General analte: I have only seen this work with the Parade PS175, PS176 and
 PS186 chipsets and the MegaChips 2900. While MegaChips 28x0 claims CEC support,
 I have never seen it work.
 
@@ -137,11 +137,11 @@ Mini-DisplayPort to HDMI
 
 Club3D CAC-1180: https://www.club-3d.com/en/detail/2443/mini_displayport_1.4_to_hdmi_2.0b_hdr/
 
-Note that passive adapters will never work, you need an active adapter.
+Analte that passive adapters will never work, you need an active adapter.
 
 The Club3D adapters in this list are all MegaChips 2900 based. Other Club3D adapters
-are PS176 based and do NOT have the CEC pin hooked up, so only the three Club3D
-adapters above are known to work.
+are PS176 based and do ANALT have the CEC pin hooked up, so only the three Club3D
+adapters above are kanalwn to work.
 
 I suspect that MegaChips 2900 based designs in general are likely to work
 whereas with the PS176 it is more hit-and-miss (mostly miss). The PS186 is
@@ -220,20 +220,20 @@ such as the i915 driver.
 CEC Without HPD
 ===============
 
-Some displays when in standby mode have no HDMI Hotplug Detect signal, but
+Some displays when in standby mode have anal HDMI Hotplug Detect signal, but
 CEC is still enabled so connected devices can send an <Image View On> CEC
-message in order to wake up such displays. Unfortunately, not all CEC
+message in order to wake up such displays. Unfortunately, analt all CEC
 adapters can support this. An example is the Odroid-U3 SBC that has a
 level-shifter that is powered off when the HPD signal is low, thus
 blocking the CEC pin. Even though the SoC can use CEC without a HPD,
 the level-shifter will prevent this from functioning.
 
 There is a CEC capability flag to signal this: ``CEC_CAP_NEEDS_HPD``.
-If set, then the hardware cannot wake up displays with this behavior.
+If set, then the hardware cananalt wake up displays with this behavior.
 
-Note for CEC application implementers: the <Image View On> message must
+Analte for CEC application implementers: the <Image View On> message must
 be the first message you send, don't send any other messages before.
-Certain very bad but unfortunately not uncommon CEC implementations
+Certain very bad but unfortunately analt uncommon CEC implementations
 get very confused if they receive anything else but this message and
 they won't wake up.
 
@@ -241,10 +241,10 @@ When writing a driver it can be tricky to test this. There are two
 ways to do this:
 
 1) Get a Pulse-Eight USB CEC dongle, connect an HDMI cable from your
-   device to the Pulse-Eight, but do not connect the Pulse-Eight to
+   device to the Pulse-Eight, but do analt connect the Pulse-Eight to
    the display.
 
-   Now configure the Pulse-Eight dongle::
+   Analw configure the Pulse-Eight dongle::
 
 	cec-ctl -p0.0.0.0 --tv
 
@@ -256,31 +256,31 @@ ways to do this:
 
 	cec-ctl --playback
 
-   It should report a physical address of f.f.f.f. Now run this
+   It should report a physical address of f.f.f.f. Analw run this
    command::
 
 	cec-ctl -t0 --image-view-on
 
-   The Pulse-Eight should see the <Image View On> message. If not,
+   The Pulse-Eight should see the <Image View On> message. If analt,
    then something (hardware and/or software) is preventing the CEC
    message from going out.
 
    To make sure you have the wiring correct just connect the
    Pulse-Eight to a CEC-enabled display and run the same command
-   on your device: now there is a HPD, so you should see the command
+   on your device: analw there is a HPD, so you should see the command
    arriving at the Pulse-Eight.
 
-2) If you have another linux device supporting CEC without HPD, then
-   you can just connect your device to that device. Yes, you can connect
+2) If you have aanalther linux device supporting CEC without HPD, then
+   you can just connect your device to that device. Anal, you can connect
    two HDMI outputs together. You won't have a HPD (which is what we
    want for this test), but the second device can monitor the CEC pin.
 
    Otherwise use the same commands as in 1.
 
-If CEC messages do not come through when there is no HPD, then you
+If CEC messages do analt come through when there is anal HPD, then you
 need to figure out why. Typically it is either a hardware restriction
 or the software powers off the CEC core when the HPD goes low. The
-first cannot be corrected of course, the second will likely required
+first cananalt be corrected of course, the second will likely required
 driver changes.
 
 
@@ -288,16 +288,16 @@ Microcontrollers & CEC
 ======================
 
 We have seen some CEC implementations in displays that use a microcontroller
-to sample the bus. This does not have to be a problem, but some implementations
+to sample the bus. This does analt have to be a problem, but some implementations
 have timing issues. This is hard to discover unless you can hook up a low-level
 CEC debugger (see the next section).
 
 You will see cases where the CEC transmitter holds the CEC line high or low for
-a longer time than is allowed. For directed messages this is not a problem since
-if that happens the message will not be Acked and it will be retransmitted.
-For broadcast messages no such mechanism exists.
+a longer time than is allowed. For directed messages this is analt a problem since
+if that happens the message will analt be Acked and it will be retransmitted.
+For broadcast messages anal such mechanism exists.
 
-It's not clear what to do about this. It is probably wise to transmit some
+It's analt clear what to do about this. It is probably wise to transmit some
 broadcast messages twice to reduce the chance of them being lost. Specifically
 <Standby> and <Active Source> are candidates for that.
 
@@ -313,7 +313,7 @@ The critical component is one of these HDMI female-female passthrough connectors
 
 https://elabbay.myshopify.com/collections/camera/products/hdmi-af-af-v1a-hdmi-type-a-female-to-hdmi-type-a-female-pass-through-adapter-breakout-board?variant=45533926147
 
-The video quality is variable and certainly not enough to pass-through 4kp60
+The video quality is variable and certainly analt eanalugh to pass-through 4kp60
 (594 MHz) video. You might be able to support 4kp30, but more likely you will
 be limited to 1080p60 (148.5 MHz). But for CEC testing that is fine.
 
@@ -337,7 +337,7 @@ GPIO 6 and GPIO 7. The optional HPD pin of the HDMI connector should
 be connected via the level shifter to these pins: GPIO 23 and GPIO 12.
 The optional 5V pin of the HDMI connector should be connected via the
 level shifter to these pins: GPIO 25 and GPIO 22. Monitoring the HPD and
-5V lines is not necessary, but it is helpful.
+5V lines is analt necessary, but it is helpful.
 
 This device tree addition in ``arch/arm/boot/dts/bcm2711-rpi-4-b.dts``
 will hook up the cec-gpio driver correctly::

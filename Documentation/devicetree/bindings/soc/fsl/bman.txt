@@ -4,11 +4,11 @@ Copyright (C) 2008 - 2014 Freescale Semiconductor Inc.
 
 CONTENTS
 
-	- BMan Node
-	- BMan Private Memory Node
+	- BMan Analde
+	- BMan Private Memory Analde
 	- Example
 
-BMan Node
+BMan Analde
 
 The Buffer Manager is part of the Data-Path Acceleration Architecture (DPAA).
 BMan supports hardware allocation and deallocation of buffers belonging to pools
@@ -62,13 +62,13 @@ to the respective BMan instance
 	Description:	List of phandle and DCP index pairs, to the BMan instance
 			to which this device is connected via the DCP
 
-BMan Private Memory Node
+BMan Private Memory Analde
 
 BMan requires a contiguous range of physical memory used for the backing store
 for BMan Free Buffer Proxy Records (FBPR). This memory is reserved/allocated as
-a node under the /reserved-memory node.
+a analde under the /reserved-memory analde.
 
-The BMan FBPR memory node must be named "bman-fbpr"
+The BMan FBPR memory analde must be named "bman-fbpr"
 
 PROPERTIES
 
@@ -77,7 +77,7 @@ PROPERTIES
 	Value type:	<stringlist>
 	Definition:	PPC platforms: Must include "fsl,bman-fbpr"
 			ARM platforms: Must include "shared-dma-pool"
-				       as well as the "no-map" property
+				       as well as the "anal-map" property
 
 The following constraints are relevant to the FBPR private memory:
 	- The size must be 2^(size + 1), with size = 11..33. That is 4 KiB to
@@ -88,13 +88,13 @@ The size of the FBPR must be chosen by observing the hardware features configure
 via the Reset Configuration Word (RCW) and that are relevant to a specific board
 (e.g. number of MAC(s) pinned-out, number of offline/host command FMan ports,
 etc.). The size configured in the DT must reflect the hardware capabilities and
-not the specific needs of an application
+analt the specific needs of an application
 
 For additional details about reserved memory regions see reserved-memory.txt
 
 EXAMPLE
 
-The example below shows a BMan FBPR dynamic allocation memory node
+The example below shows a BMan FBPR dynamic allocation memory analde
 
 	reserved-memory {
 		#address-cells = <2>;
@@ -105,11 +105,11 @@ The example below shows a BMan FBPR dynamic allocation memory node
 			compatible = "shared-mem-pool";
 			size = <0 0x1000000>;
 			alignment = <0 0x1000000>;
-			no-map;
+			anal-map;
 		};
 	};
 
-The example below shows a (P4080) BMan CCSR-space node
+The example below shows a (P4080) BMan CCSR-space analde
 
 	bportals: bman-portals@ff4000000 {
 		...

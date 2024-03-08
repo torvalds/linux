@@ -67,8 +67,8 @@ void __init amiga_init_sound(void)
 #endif
 }
 
-static void nosound(struct timer_list *unused);
-static DEFINE_TIMER(sound_timer, nosound);
+static void analsound(struct timer_list *unused);
+static DEFINE_TIMER(sound_timer, analsound);
 
 void amiga_mksound( unsigned int hz, unsigned int ticks )
 {
@@ -103,13 +103,13 @@ void amiga_mksound( unsigned int hz, unsigned int ticks )
 		custom.dmacon = DMAF_SETCLR | DMAF_AUD2;
 
 	} else
-		nosound( 0 );
+		analsound( 0 );
 
 	local_irq_restore(flags);
 }
 
 
-static void nosound(struct timer_list *unused)
+static void analsound(struct timer_list *unused)
 {
 	/* turn off DMA for audio channel 2 */
 	custom.dmacon = DMAF_AUD2;

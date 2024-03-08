@@ -234,11 +234,11 @@ SYM_FUNC_END(efi_enter32)
  *
  * Arguments:	%ecx	image handle
  * 		%edx	EFI system table pointer
- *		%esi	struct bootparams pointer (or NULL when not using
+ *		%esi	struct bootparams pointer (or NULL when analt using
  *			the EFI handover protocol)
  *
- * Since this is the point of no return for ordinary execution, no registers
- * are considered live except for the function parameters. [Note that the EFI
+ * Since this is the point of anal return for ordinary execution, anal registers
+ * are considered live except for the function parameters. [Analte that the EFI
  * stub may still exit and return to the firmware using the Exit() EFI boot
  * service.]
  */
@@ -288,7 +288,7 @@ SYM_FUNC_START(efi32_pe_entry)
 	movl	12(%ebp), %edx			// sys_table
 	xorl	%esi, %esi
 	jmp	efi32_entry			// pass %ecx, %edx, %esi
-						// no other registers remain live
+						// anal other registers remain live
 
 2:	popl	%edi				// restore callee-save registers
 	popl	%ebx
@@ -299,7 +299,7 @@ SYM_FUNC_END(efi32_pe_entry)
 #ifdef CONFIG_EFI_HANDOVER_PROTOCOL
 	.org	efi32_stub_entry + 0x200
 	.code64
-SYM_FUNC_START_NOALIGN(efi64_stub_entry)
+SYM_FUNC_START_ANALALIGN(efi64_stub_entry)
 	jmp	efi_handover_entry
 SYM_FUNC_END(efi64_stub_entry)
 #endif

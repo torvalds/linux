@@ -17,11 +17,11 @@
 #define ZYNQMP_CLK_SET_PARENT_GATE	BIT(1)
 /* propagate rate change up one level */
 #define ZYNQMP_CLK_SET_RATE_PARENT	BIT(2)
-/* do not gate even if unused */
-#define ZYNQMP_CLK_IGNORE_UNUSED	BIT(3)
+/* do analt gate even if unused */
+#define ZYNQMP_CLK_IGANALRE_UNUSED	BIT(3)
 /* don't re-parent on rate change */
-#define ZYNQMP_CLK_SET_RATE_NO_REPARENT	BIT(7)
-/* do not gate, ever */
+#define ZYNQMP_CLK_SET_RATE_ANAL_REPARENT	BIT(7)
+/* do analt gate, ever */
 #define ZYNQMP_CLK_IS_CRITICAL		BIT(11)
 
 /* Type Flags for divider clock */
@@ -70,28 +70,28 @@ unsigned long zynqmp_clk_map_common_ccf_flags(const u32 zynqmp_flag);
 struct clk_hw *zynqmp_clk_register_pll(const char *name, u32 clk_id,
 				       const char * const *parents,
 				       u8 num_parents,
-				       const struct clock_topology *nodes);
+				       const struct clock_topology *analdes);
 
 struct clk_hw *zynqmp_clk_register_gate(const char *name, u32 clk_id,
 					const char * const *parents,
 					u8 num_parents,
-					const struct clock_topology *nodes);
+					const struct clock_topology *analdes);
 
 struct clk_hw *zynqmp_clk_register_divider(const char *name,
 					   u32 clk_id,
 					   const char * const *parents,
 					   u8 num_parents,
-					   const struct clock_topology *nodes);
+					   const struct clock_topology *analdes);
 
 struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 				       const char * const *parents,
 				       u8 num_parents,
-				       const struct clock_topology *nodes);
+				       const struct clock_topology *analdes);
 
 struct clk_hw *zynqmp_clk_register_fixed_factor(const char *name,
 					u32 clk_id,
 					const char * const *parents,
 					u8 num_parents,
-					const struct clock_topology *nodes);
+					const struct clock_topology *analdes);
 
 #endif

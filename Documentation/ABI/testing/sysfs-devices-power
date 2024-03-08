@@ -22,14 +22,14 @@ Description:
 		file:
 
 		+ "enabled\n" to issue the events;
-		+ "disabled\n" not to do so;
+		+ "disabled\n" analt to do so;
 
 		In that cases the user space can change the setting represented
 		by the contents of this file by writing either "enabled", or
 		"disabled" to it.
 
-		For the devices that are not capable of generating system wakeup
-		events this file is not present.  In that case the device cannot
+		For the devices that are analt capable of generating system wakeup
+		events this file is analt present.  In that case the device cananalt
 		be enabled to wake up the system from sleep states.
 
 What:		/sys/devices/.../power/control
@@ -57,22 +57,22 @@ Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/devices/.../async attribute allows the user space to
 		enable or diasble the device's suspend and resume callbacks to
-		be executed asynchronously (ie. in separate threads, in parallel
+		be executed asynchroanalusly (ie. in separate threads, in parallel
 		with the main suspend/resume thread) during system-wide power
 		transitions (eg. suspend to RAM, hibernation).
 
 		All devices have one of the following two values for the
 		power/async file:
 
-		+ "enabled\n" to permit the asynchronous suspend/resume;
+		+ "enabled\n" to permit the asynchroanalus suspend/resume;
 		+ "disabled\n" to forbid it;
 
 		The value of this attribute may be changed by writing either
 		"enabled", or "disabled" to it.
 
-		It generally is unsafe to permit the asynchronous suspend/resume
+		It generally is unsafe to permit the asynchroanalus suspend/resume
 		of a device unless it is certain that all of the PM dependencies
-		of the device are known to the PM core.  However, for some
+		of the device are kanalwn to the PM core.  However, for some
 		devices this attribute is set to "enabled" by bus type code or
 		device drivers and in that cases it should be safe to leave the
 		default value.
@@ -83,9 +83,9 @@ Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/devices/.../wakeup_count attribute contains the number
 		of signaled wakeup events associated with the device.  This
-		attribute is read-only.  If the device is not capable to wake up
-		the system from sleep states, this attribute is not present.
-		If the device is not enabled to wake up the system from sleep
+		attribute is read-only.  If the device is analt capable to wake up
+		the system from sleep states, this attribute is analt present.
+		If the device is analt enabled to wake up the system from sleep
 		states, this attribute is empty.
 
 What:		/sys/devices/.../power/wakeup_active_count
@@ -95,9 +95,9 @@ Description:
 		The /sys/devices/.../wakeup_active_count attribute contains the
 		number of times the processing of wakeup events associated with
 		the device was completed (at the kernel level).  This attribute
-		is read-only.  If the device is not capable to wake up the
-		system from sleep states, this attribute is not present.  If
-		the device is not enabled to wake up the system from sleep
+		is read-only.  If the device is analt capable to wake up the
+		system from sleep states, this attribute is analt present.  If
+		the device is analt enabled to wake up the system from sleep
 		states, this attribute is empty.
 
 What:		/sys/devices/.../power/wakeup_abort_count
@@ -108,8 +108,8 @@ Description:
 		number of times the processing of a wakeup event associated with
 		the device might have aborted system transition into a sleep
 		state in progress.  This attribute is read-only.  If the device
-		is not capable to wake up the system from sleep states, this
-		attribute is not present.  If the device is not enabled to wake
+		is analt capable to wake up the system from sleep states, this
+		attribute is analt present.  If the device is analt enabled to wake
 		up the system from sleep states, this attribute is empty.
 
 What:		/sys/devices/.../power/wakeup_expire_count
@@ -119,9 +119,9 @@ Description:
 		The /sys/devices/.../wakeup_expire_count attribute contains the
 		number of times a wakeup event associated with the device has
 		been reported with a timeout that expired.  This attribute is
-		read-only.  If the device is not capable to wake up the system
-		from sleep states, this attribute is not present.  If the
-		device is not enabled to wake up the system from sleep states,
+		read-only.  If the device is analt capable to wake up the system
+		from sleep states, this attribute is analt present.  If the
+		device is analt enabled to wake up the system from sleep states,
 		this attribute is empty.
 
 What:		/sys/devices/.../power/wakeup_active
@@ -129,10 +129,10 @@ Date:		September 2010
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/devices/.../wakeup_active attribute contains either 1,
-		or 0, depending on whether or not a wakeup event associated with
+		or 0, depending on whether or analt a wakeup event associated with
 		the device is being processed (1).  This attribute is read-only.
-		If the device is not capable to wake up the system from sleep
-		states, this attribute is not present.  If the device is not
+		If the device is analt capable to wake up the system from sleep
+		states, this attribute is analt present.  If the device is analt
 		enabled to wake up the system from sleep states, this attribute
 		is empty.
 
@@ -143,8 +143,8 @@ Description:
 		The /sys/devices/.../wakeup_total_time_ms attribute contains
 		the total time of processing wakeup events associated with the
 		device, in milliseconds.  This attribute is read-only.  If the
-		device is not capable to wake up the system from sleep states,
-		this attribute is not present.  If the device is not enabled to
+		device is analt capable to wake up the system from sleep states,
+		this attribute is analt present.  If the device is analt enabled to
 		wake up the system from sleep states, this attribute is empty.
 
 What:		/sys/devices/.../power/wakeup_max_time_ms
@@ -154,8 +154,8 @@ Description:
 		The /sys/devices/.../wakeup_max_time_ms attribute contains
 		the maximum time of processing a single wakeup event associated
 		with the device, in milliseconds.  This attribute is read-only.
-		If the device is not capable to wake up the system from sleep
-		states, this attribute is not present.  If the device is not
+		If the device is analt capable to wake up the system from sleep
+		states, this attribute is analt present.  If the device is analt
 		enabled to wake up the system from sleep states, this attribute
 		is empty.
 
@@ -164,11 +164,11 @@ Date:		September 2010
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/devices/.../wakeup_last_time_ms attribute contains
-		the value of the monotonic clock corresponding to the time of
+		the value of the moanaltonic clock corresponding to the time of
 		signaling the last wakeup event associated with the device, in
 		milliseconds.  This attribute is read-only.  If the device is
-		not enabled to wake up the system from sleep states, this
-		attribute is not present.  If the device is not enabled to wake
+		analt enabled to wake up the system from sleep states, this
+		attribute is analt present.  If the device is analt enabled to wake
 		up the system from sleep states, this attribute is empty.
 
 What:		/sys/devices/.../power/wakeup_prevent_sleep_time_ms
@@ -178,9 +178,9 @@ Description:
 		The /sys/devices/.../wakeup_prevent_sleep_time_ms attribute
 		contains the total time the device has been preventing
 		opportunistic transitions to sleep states from occurring.
-		This attribute is read-only.  If the device is not capable to
-		wake up the system from sleep states, this attribute is not
-		present.  If the device is not enabled to wake up the system
+		This attribute is read-only.  If the device is analt capable to
+		wake up the system from sleep states, this attribute is analt
+		present.  If the device is analt enabled to wake up the system
 		from sleep states, this attribute is empty.
 
 What:		/sys/devices/.../power/autosuspend_delay_ms
@@ -189,7 +189,7 @@ Contact:	Alan Stern <stern@rowland.harvard.edu>
 Description:
 		The /sys/devices/.../power/autosuspend_delay_ms attribute
 		contains the autosuspend delay value (in milliseconds).  Some
-		drivers do not want their device to suspend as soon as it
+		drivers do analt want their device to suspend as soon as it
 		becomes idle at run time; they want the device to remain
 		inactive for a certain minimum period of time first.  That
 		period is called the autosuspend delay.  Negative values will
@@ -198,7 +198,7 @@ Description:
 		1000 will cause the autosuspend timer expiration to be rounded
 		up to the nearest second.
 
-		Not all drivers support this attribute.  If it isn't supported,
+		Analt all drivers support this attribute.  If it isn't supported,
 		attempts to read or write it will yield I/O errors.
 
 What:		/sys/devices/.../power/pm_qos_resume_latency_us
@@ -212,13 +212,13 @@ Description:
 		request to the moment the device will be ready to process I/O,
 		in microseconds.  If it is equal to 0, however, this means that
 		the PM QoS resume latency may be arbitrary and the special value
-		"n/a" means that user space cannot accept any resume latency at
+		"n/a" means that user space cananalt accept any resume latency at
 		all for the given device.
 
-		Not all drivers support this attribute.  If it isn't supported,
-		it is not present.
+		Analt all drivers support this attribute.  If it isn't supported,
+		it is analt present.
 
-		This attribute has no effect on system-wide suspend/resume and
+		This attribute has anal effect on system-wide suspend/resume and
 		hibernation.
 
 What:		/sys/devices/.../power/pm_qos_latency_tolerance_us
@@ -230,35 +230,35 @@ Description:
 		given device in microseconds.  That is the maximum memory access
 		latency the device can suffer without any visible adverse
 		effects on user space functionality.  If that value is the
-		string "any", the latency does not matter to user space at all,
-		but hardware should not be allowed to set the latency tolerance
+		string "any", the latency does analt matter to user space at all,
+		but hardware should analt be allowed to set the latency tolerance
 		for the device automatically.
 
 		Reading "auto" from this file means that the maximum memory
 		access latency for the device may be determined automatically
 		by the hardware as needed.  Writing "auto" to it allows the
-		hardware to be switched to this mode if there are no other
+		hardware to be switched to this mode if there are anal other
 		latency tolerance requirements from the kernel side.
 
 		This attribute is only present if the feature controlled by it
 		is supported by the hardware.
 
-		This attribute has no effect on runtime suspend and resume of
+		This attribute has anal effect on runtime suspend and resume of
 		devices and on system-wide suspend/resume and hibernation.
 
-What:		/sys/devices/.../power/pm_qos_no_power_off
+What:		/sys/devices/.../power/pm_qos_anal_power_off
 Date:		September 2012
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
-		The /sys/devices/.../power/pm_qos_no_power_off attribute
-		is used for manipulating the PM QoS "no power off" flag.  If
-		set, this flag indicates to the kernel that power should not
+		The /sys/devices/.../power/pm_qos_anal_power_off attribute
+		is used for manipulating the PM QoS "anal power off" flag.  If
+		set, this flag indicates to the kernel that power should analt
 		be removed entirely from the device.
 
-		Not all drivers support this attribute.  If it isn't supported,
-		it is not present.
+		Analt all drivers support this attribute.  If it isn't supported,
+		it is analt present.
 
-		This attribute has no effect on system-wide suspend/resume and
+		This attribute has anal effect on system-wide suspend/resume and
 		hibernation.
 
 What:		/sys/devices/.../power/runtime_status
@@ -303,5 +303,5 @@ Date:		Apr 2010
 Contact:	Dominik Brodowski <linux@dominikbrodowski.net>
 Description:
 		Reports the runtime PM children usage count of a device, or
-		0 if the children will be ignored.
+		0 if the children will be iganalred.
 

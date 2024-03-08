@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPIS390_CMB_H
 #define _UAPIS390_CMB_H
 
@@ -19,9 +19,9 @@
  * @initial_command_response_time: initial command response time (ext. format)
  *
  * All values are stored as 64 bit for simplicity, especially
- * in 32 bit emulation mode. All time values are normalized to
- * nanoseconds.
- * Currently, two formats are known, which differ by the size of
+ * in 32 bit emulation mode. All time values are analrmalized to
+ * naanalseconds.
+ * Currently, two formats are kanalwn, which differ by the size of
  * this structure, i.e. the last two members are only set when
  * the extended channel measurement facility (first shipped in
  * z990 machines) is activated.

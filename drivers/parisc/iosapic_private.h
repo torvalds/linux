@@ -9,7 +9,7 @@
 
 /*
 ** This file is private to iosapic driver.
-** If stuff needs to be used by another driver, move it to a common file.
+** If stuff needs to be used by aanalther driver, move it to a common file.
 **
 ** WARNING: fields most data structures here are ordered to make sure
 **          they pack nicely for 64-bit compilation. (ie sizeof(long) == 8)
@@ -53,7 +53,7 @@ struct irt_entry {
 	u8 polarity_trigger;
 
 	/* 
-	** IRQ and DEVNO
+	** IRQ and DEVANAL
 	** irq identifies PCI interrupt signal where
 	**    0x0 corresponds to INT_A#, 
 	**    0x1 corresponds to INT_B#, 
@@ -61,7 +61,7 @@ struct irt_entry {
 	**    0x3 corresponds to INT_D# 
 	** PCI device number where interrupt originates 
 	*/
-	u8 src_bus_irq_devno;
+	u8 src_bus_irq_devanal;
 
 	/* Source Bus ID identifies the bus where interrupt signal comes from */
 	u8 src_bus_id;
@@ -104,7 +104,7 @@ struct irt_entry {
 #define IRT_DEV_MASK       0x1f
 #define IRT_DEV_SHIFT      2
 
-#define IRT_IRQ_DEVNO_MASK	((IRT_DEV_MASK << IRT_DEV_SHIFT) | IRT_IRQ_MASK)
+#define IRT_IRQ_DEVANAL_MASK	((IRT_DEV_MASK << IRT_DEV_SHIFT) | IRT_IRQ_MASK)
 
 #ifdef SUPPORT_MULTI_CELL
 struct iosapic_irt {
@@ -142,7 +142,7 @@ struct iosapic_info {
 
 #ifdef __IA64__
 /*
-** PA risc does NOT have any local sapics. IA64 does.
+** PA risc does ANALT have any local sapics. IA64 does.
 ** PIB (Processor Interrupt Block) is handled by Astro or Dew (Stretch CEC).
 **
 ** PA: Get id_eid from IRT and hardcode PIB to 0xfeeNNNN0

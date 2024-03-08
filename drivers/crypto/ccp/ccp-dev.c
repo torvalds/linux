@@ -102,7 +102,7 @@ void ccp_log_error(struct ccp_device *d, unsigned int e)
 	if (e < ARRAY_SIZE(ccp_error_codes))
 		dev_err(d->dev, "CCP error %d: %s\n", e, ccp_error_codes[e]);
 	else
-		dev_err(d->dev, "CCP error %d: Unknown Error\n", e);
+		dev_err(d->dev, "CCP error %d: Unkanalwn Error\n", e);
 }
 
 /* List of CCPs, CCP count, read-write access lock, and access functions
@@ -113,7 +113,7 @@ void ccp_log_error(struct ccp_device *d, unsigned int e)
  * must be acquired before the RR lock.
  *
  * If the unit-lock is acquired for writing, we have total control over
- * the list, so there's no value in getting the RR lock.
+ * the list, so there's anal value in getting the RR lock.
  */
 static DEFINE_RWLOCK(ccp_unit_lock);
 static LIST_HEAD(ccp_units);
@@ -130,7 +130,7 @@ static struct ccp_device *ccp_rr;
  * Put this CCP on the unit list, which makes it available
  * for use.
  *
- * Returns zero if a CCP device is present, -ENODEV otherwise.
+ * Returns zero if a CCP device is present, -EANALDEV otherwise.
  */
 void ccp_add_device(struct ccp_device *ccp)
 {
@@ -227,7 +227,7 @@ static struct ccp_device *ccp_get_device(void)
 /**
  * ccp_present - check if a CCP device is present
  *
- * Returns zero if a CCP device is present, -ENODEV otherwise.
+ * Returns zero if a CCP device is present, -EANALDEV otherwise.
  */
 int ccp_present(void)
 {
@@ -238,7 +238,7 @@ int ccp_present(void)
 	ret = list_empty(&ccp_units);
 	read_unlock_irqrestore(&ccp_unit_lock, flags);
 
-	return ret ? -ENODEV : 0;
+	return ret ? -EANALDEV : 0;
 }
 EXPORT_SYMBOL_GPL(ccp_present);
 
@@ -246,7 +246,7 @@ EXPORT_SYMBOL_GPL(ccp_present);
  * ccp_version - get the version of the CCP device
  *
  * Returns the version from the first unit on the list;
- * otherwise a zero if no CCP device is present
+ * otherwise a zero if anal CCP device is present
  */
 unsigned int ccp_version(void)
 {
@@ -276,7 +276,7 @@ EXPORT_SYMBOL_GPL(ccp_version);
  * result in a return code of -EBUSY.
  *
  * The callback routine specified in the ccp_cmd struct will be
- * called to notify the caller of completion (if the cmd was not
+ * called to analtify the caller of completion (if the cmd was analt
  * backlogged) or advancement out of the backlog. If the cmd has
  * advanced out of the backlog the "err" value of the callback
  * will be -EINPROGRESS. Any other "err" value during callback is
@@ -297,7 +297,7 @@ int ccp_enqueue_cmd(struct ccp_cmd *cmd)
 	ccp = cmd->ccp ? cmd->ccp : ccp_get_device();
 
 	if (!ccp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Caller must supply a callback routine */
 	if (!cmd->callback)
@@ -314,7 +314,7 @@ int ccp_enqueue_cmd(struct ccp_cmd *cmd)
 			ret = -EBUSY;
 			list_add_tail(&cmd->entry, &ccp->backlog);
 		} else {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 		}
 	} else {
 		ret = -EINPROGRESS;
@@ -514,7 +514,7 @@ int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	 */
 	trng_value = ioread32(ccp->io_regs + TRNG_OUT_REG);
 	if (!trng_value) {
-		/* Zero is returned if not data is available or if a
+		/* Zero is returned if analt data is available or if a
 		 * bad-entropy error is present. Assume an error if
 		 * we exceed TRNG_RETRIES reads of zero.
 		 */
@@ -554,7 +554,7 @@ void ccp_dev_suspend(struct sp_device *sp)
 	unsigned long flags;
 	unsigned int i;
 
-	/* If there's no device there's nothing to do */
+	/* If there's anal device there's analthing to do */
 	if (!ccp)
 		return;
 
@@ -580,7 +580,7 @@ void ccp_dev_resume(struct sp_device *sp)
 	unsigned long flags;
 	unsigned int i;
 
-	/* If there's no device there's nothing to do */
+	/* If there's anal device there's analthing to do */
 	if (!ccp)
 		return;
 
@@ -610,7 +610,7 @@ int ccp_dev_init(struct sp_device *sp)
 	if (atomic_inc_return(&dev_count) > max_devs)
 		return 0; /* don't fail the load */
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ccp = ccp_alloc_struct(sp);
 	if (!ccp)
 		goto e_err;
@@ -623,7 +623,7 @@ int ccp_dev_init(struct sp_device *sp)
 
 	ccp->vdata = (struct ccp_vdata *)sp->dev_vdata->ccp_vdata;
 	if (!ccp->vdata || !ccp->vdata->version) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "missing driver data\n");
 		goto e_err;
 	}
@@ -636,8 +636,8 @@ int ccp_dev_init(struct sp_device *sp)
 
 	ret = ccp->vdata->perform->init(ccp);
 	if (ret) {
-		/* A positive number means that the device cannot be initialized,
-		 * but no additional message is required.
+		/* A positive number means that the device cananalt be initialized,
+		 * but anal additional message is required.
 		 */
 		if (ret > 0)
 			goto e_quiet;
@@ -646,12 +646,12 @@ int ccp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	dev_notice(dev, "ccp enabled\n");
+	dev_analtice(dev, "ccp enabled\n");
 
 	return 0;
 
 e_err:
-	dev_notice(dev, "ccp initialization failed\n");
+	dev_analtice(dev, "ccp initialization failed\n");
 
 e_quiet:
 	sp->ccp_data = NULL;

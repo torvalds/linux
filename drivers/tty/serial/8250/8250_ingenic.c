@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010 Lars-Peter Clausen <lars@metafoo.de>
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  *
  * Ingenic SoC UART support
  */
@@ -94,10 +94,10 @@ static int __init ingenic_earlycon_setup_tail(struct earlycon_device *dev,
 	int baud = 115200;
 
 	if (!dev->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (opt) {
-		unsigned int parity, bits, flow; /* unused for now */
+		unsigned int parity, bits, flow; /* unused for analw */
 
 		uart_parse_options(opt, &baud, &parity, &bits, &flow);
 	}
@@ -212,7 +212,7 @@ static unsigned int ingenic_uart_serial_in(struct uart_port *p, int offset)
 
 	value = readb(p->membase + (offset << p->regshift));
 
-	/* Hide non-16550 compliant bits from higher levels */
+	/* Hide analn-16550 compliant bits from higher levels */
 	switch (offset) {
 	case UART_FCR:
 		value &= ~UART_FCR_UME;
@@ -238,8 +238,8 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 
 	cdata = of_device_get_match_data(&pdev->dev);
 	if (!cdata) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Error: Anal device match found\n");
+		return -EANALDEV;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -248,13 +248,13 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_err(&pdev->dev, "no registers defined\n");
+		dev_err(&pdev->dev, "anal registers defined\n");
 		return -EINVAL;
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&uart.port.lock);
 	uart.port.type = PORT_16550A;
@@ -271,14 +271,14 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 	uart.capabilities = UART_CAP_FIFO | UART_CAP_RTOIE;
 
 	/* Check for a fixed line number */
-	line = of_alias_get_id(pdev->dev.of_node, "serial");
+	line = of_alias_get_id(pdev->dev.of_analde, "serial");
 	if (line >= 0)
 		uart.port.line = line;
 
 	uart.port.membase = devm_ioremap(&pdev->dev, regs->start,
 					 resource_size(regs));
 	if (!uart.port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->clk_module = devm_clk_get(&pdev->dev, "module");
 	if (IS_ERR(data->clk_module))
@@ -292,13 +292,13 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 
 	err = clk_prepare_enable(data->clk_module);
 	if (err) {
-		dev_err(&pdev->dev, "could not enable module clock: %d\n", err);
+		dev_err(&pdev->dev, "could analt enable module clock: %d\n", err);
 		goto out;
 	}
 
 	err = clk_prepare_enable(data->clk_baud);
 	if (err) {
-		dev_err(&pdev->dev, "could not enable baud clock: %d\n", err);
+		dev_err(&pdev->dev, "could analt enable baud clock: %d\n", err);
 		goto out_disable_moduleclk;
 	}
 	uart.port.uartclk = clk_get_rate(data->clk_baud);

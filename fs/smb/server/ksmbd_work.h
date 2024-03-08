@@ -69,12 +69,12 @@ struct ksmbd_work {
 	void				*tr_buf;
 
 	unsigned char			state;
-	/* No response for cancelled request */
-	bool                            send_no_response:1;
+	/* Anal response for cancelled request */
+	bool                            send_anal_response:1;
 	/* Request is encrypted */
 	bool                            encrypted:1;
 	/* Is this SYNC or ASYNC ksmbd_work */
-	bool                            asynchronous:1;
+	bool                            asynchroanalus:1;
 	bool                            need_invalidate_rkey:1;
 
 	unsigned int                    remote_key;

@@ -12,7 +12,7 @@
 #define UTIL_STR_LEN	16
 
 /*
- * Do not use the first word of the DMB bits to ensure 8 byte aligned access.
+ * Do analt use the first word of the DMB bits to ensure 8 byte aligned access.
  */
 #define ISM_DMB_WORD_OFFSET	1
 #define ISM_DMB_BIT_OFFSET	(ISM_DMB_WORD_OFFSET * 32)

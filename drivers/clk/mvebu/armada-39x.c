@@ -124,7 +124,7 @@ static const struct coreclk_soc_desc armada_39x_coreclks = {
 	.num_ratios = ARRAY_SIZE(armada_39x_coreclk_ratios),
 };
 
-static void __init armada_39x_coreclk_init(struct device_node *np)
+static void __init armada_39x_coreclk_init(struct device_analde *np)
 {
 	mvebu_coreclk_setup(np, &armada_39x_coreclks);
 }
@@ -148,7 +148,7 @@ static const struct clk_gating_soc_desc armada_39x_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init armada_39x_clk_gating_init(struct device_node *np)
+static void __init armada_39x_clk_gating_init(struct device_analde *np)
 {
 	mvebu_clk_gating_setup(np, armada_39x_gating_desc);
 }

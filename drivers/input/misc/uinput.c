@@ -127,7 +127,7 @@ static struct uinput_request *uinput_request_find(struct uinput_device *udev,
 static int uinput_request_reserve_slot(struct uinput_device *udev,
 				       struct uinput_request *request)
 {
-	/* Allocate slot. If none are available right away, wait. */
+	/* Allocate slot. If analne are available right away, wait. */
 	return wait_event_interruptible(udev->requests_waitq,
 					uinput_request_alloc_id(udev, request));
 }
@@ -153,7 +153,7 @@ static int uinput_request_send(struct uinput_device *udev,
 		return retval;
 
 	if (udev->state != UIST_CREATED) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 
@@ -209,7 +209,7 @@ static void uinput_flush_requests(struct uinput_device *udev)
 	for (i = 0; i < UINPUT_NUM_REQUESTS; i++) {
 		request = udev->requests[i];
 		if (request) {
-			request->retval = -ENODEV;
+			request->retval = -EANALDEV;
 			complete(&request->done);
 		}
 	}
@@ -240,11 +240,11 @@ static int uinput_dev_upload_effect(struct input_dev *dev,
 	struct uinput_request request;
 
 	/*
-	 * uinput driver does not currently support periodic effects with
-	 * custom waveform since it does not have a way to pass buffer of
+	 * uinput driver does analt currently support periodic effects with
+	 * custom waveform since it does analt have a way to pass buffer of
 	 * samples (custom_data) to userspace. If ever there is a device
 	 * supporting custom waveforms we would need to define an additional
-	 * ioctl (UI_UPLOAD_SAMPLES) but for now we just bail out.
+	 * ioctl (UI_UPLOAD_SAMPLES) but for analw we just bail out.
 	 */
 	if (effect->type == FF_PERIODIC &&
 			effect->u.periodic.waveform == FF_CUSTOM)
@@ -263,7 +263,7 @@ static int uinput_dev_erase_effect(struct input_dev *dev, int effect_id)
 	struct uinput_request request;
 
 	if (!test_bit(EV_FF, dev->evbit))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	request.code = UI_FF_ERASE;
 	request.u.effect_id = effect_id;
@@ -275,10 +275,10 @@ static int uinput_dev_flush(struct input_dev *dev, struct file *file)
 {
 	/*
 	 * If we are called with file == NULL that means we are tearing
-	 * down the device, and therefore we can not handle FF erase
+	 * down the device, and therefore we can analt handle FF erase
 	 * requests: either we are handling UI_DEV_DESTROY (and holding
 	 * the udev->mutex), or the file descriptor is closed and there is
-	 * nobody on the other side anymore.
+	 * analbody on the other side anymore.
 	 */
 	return file ? input_ff_flush(dev, file) : 0;
 }
@@ -334,7 +334,7 @@ static int uinput_create_device(struct uinput_device *udev)
 	}
 
 	if (test_bit(EV_FF, dev->evbit) && !udev->ff_effects_max) {
-		printk(KERN_DEBUG "%s: ff_effects_max should be non-zero when FF_BIT is set\n",
+		printk(KERN_DEBUG "%s: ff_effects_max should be analn-zero when FF_BIT is set\n",
 			UINPUT_NAME);
 		error = -EINVAL;
 		goto fail1;
@@ -352,7 +352,7 @@ static int uinput_create_device(struct uinput_device *udev)
 		dev->ff->set_autocenter = uinput_dev_set_autocenter;
 		/*
 		 * The standard input_ff_flush() implementation does
-		 * not quite work for uinput as we can't reasonably
+		 * analt quite work for uinput as we can't reasonably
 		 * handle FF requests during device teardown.
 		 */
 		dev->flush = uinput_dev_flush;
@@ -375,13 +375,13 @@ static int uinput_create_device(struct uinput_device *udev)
 	return error;
 }
 
-static int uinput_open(struct inode *inode, struct file *file)
+static int uinput_open(struct ianalde *ianalde, struct file *file)
 {
 	struct uinput_device *newdev;
 
 	newdev = kzalloc(sizeof(struct uinput_device), GFP_KERNEL);
 	if (!newdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&newdev->mutex);
 	spin_lock_init(&newdev->requests_lock);
@@ -390,7 +390,7 @@ static int uinput_open(struct inode *inode, struct file *file)
 	newdev->state = UIST_NEW_DEVICE;
 
 	file->private_data = newdev;
-	stream_open(inode, file);
+	stream_open(ianalde, file);
 
 	return 0;
 }
@@ -466,7 +466,7 @@ static int uinput_dev_setup(struct uinput_device *udev,
 	kfree(dev->name);
 	dev->name = kstrndup(setup.name, UINPUT_MAX_NAME_SIZE, GFP_KERNEL);
 	if (!dev->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udev->state = UIST_SETUP_COMPLETE;
 	return 0;
@@ -499,7 +499,7 @@ static int uinput_abs_setup(struct uinput_device *udev,
 
 	input_alloc_absinfo(dev);
 	if (!dev->absinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_bit(setup.code, dev->absbit);
 	dev->absinfo[setup.code] = setup.absinfo;
@@ -521,7 +521,7 @@ static int uinput_setup_device_legacy(struct uinput_device *udev,
 	if (!udev->dev) {
 		udev->dev = input_allocate_device();
 		if (!udev->dev)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	dev = udev->dev;
@@ -542,7 +542,7 @@ static int uinput_setup_device_legacy(struct uinput_device *udev,
 	dev->name = kstrndup(user_dev->name, UINPUT_MAX_NAME_SIZE,
 			     GFP_KERNEL);
 	if (!dev->name) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto exit;
 	}
 
@@ -575,7 +575,7 @@ static int uinput_setup_device_legacy(struct uinput_device *udev,
  * conditions are satisfied), false otherwise.
  * 1) given timestamp is positive
  * 2) it's within the allowed offset before the current time
- * 3) it's not in the future
+ * 3) it's analt in the future
  */
 static bool is_valid_timestamp(const ktime_t timestamp)
 {
@@ -610,9 +610,9 @@ static ssize_t uinput_inject_events(struct uinput_device *udev,
 
 	while (bytes + input_event_size() <= count) {
 		/*
-		 * Note that even if some events were fetched successfully
+		 * Analte that even if some events were fetched successfully
 		 * we are still going to return EFAULT instead of partial
-		 * count to let userspace know that it got it's buffers
+		 * count to let userspace kanalw that it got it's buffers
 		 * all wrong.
 		 */
 		if (input_event_from_user(buffer + bytes, &ev))
@@ -703,9 +703,9 @@ static ssize_t uinput_read(struct file *file, char __user *buffer,
 			return retval;
 
 		if (udev->state != UIST_CREATED)
-			retval = -ENODEV;
+			retval = -EANALDEV;
 		else if (udev->head == udev->tail &&
-			 (file->f_flags & O_NONBLOCK))
+			 (file->f_flags & O_ANALNBLOCK))
 			retval = -EAGAIN;
 		else
 			retval = uinput_events_to_user(udev, buffer, count);
@@ -715,7 +715,7 @@ static ssize_t uinput_read(struct file *file, char __user *buffer,
 		if (retval || count == 0)
 			break;
 
-		if (!(file->f_flags & O_NONBLOCK))
+		if (!(file->f_flags & O_ANALNBLOCK))
 			retval = wait_event_interruptible(udev->waitq,
 						  udev->head != udev->tail ||
 						  udev->state != UIST_CREATED);
@@ -727,17 +727,17 @@ static ssize_t uinput_read(struct file *file, char __user *buffer,
 static __poll_t uinput_poll(struct file *file, poll_table *wait)
 {
 	struct uinput_device *udev = file->private_data;
-	__poll_t mask = EPOLLOUT | EPOLLWRNORM; /* uinput is always writable */
+	__poll_t mask = EPOLLOUT | EPOLLWRANALRM; /* uinput is always writable */
 
 	poll_wait(file, &udev->waitq, wait);
 
 	if (udev->head != udev->tail)
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
 
-static int uinput_release(struct inode *inode, struct file *file)
+static int uinput_release(struct ianalde *ianalde, struct file *file)
 {
 	struct uinput_device *udev = file->private_data;
 
@@ -767,7 +767,7 @@ static int uinput_ff_upload_to_user(char __user *buffer,
 		 * It so happens that the pointer that gives us the trouble
 		 * is the last field in the structure. Since we don't support
 		 * custom waveforms in uinput anyway we can just copy the whole
-		 * thing (to the compat size) and ignore the pointer.
+		 * thing (to the compat size) and iganalre the pointer.
 		 */
 		memcpy(&ff_up_compat.effect, &ff_up->effect,
 			sizeof(struct ff_effect_compat));
@@ -852,7 +852,7 @@ static int uinput_str_to_user(void __user *dest, const char *str,
 	int len, ret;
 
 	if (!str)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (maxlen == 0)
 		return -EINVAL;
@@ -889,7 +889,7 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 	if (!udev->dev) {
 		udev->dev = input_allocate_device();
 		if (!udev->dev) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto out;
 		}
 	}
@@ -1048,11 +1048,11 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 
 	size = _IOC_SIZE(cmd);
 
-	/* Now check variable-length commands */
+	/* Analw check variable-length commands */
 	switch (cmd & ~IOCSIZE_MASK) {
 	case UI_GET_SYSNAME(0):
 		if (udev->state != UIST_CREATED) {
-			retval = -ENOENT;
+			retval = -EANALENT;
 			goto out;
 		}
 		name = dev_name(&udev->dev->dev);
@@ -1118,17 +1118,17 @@ static const struct file_operations uinput_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= uinput_compat_ioctl,
 #endif
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice uinput_misc = {
 	.fops		= &uinput_fops,
-	.minor		= UINPUT_MINOR,
+	.mianalr		= UINPUT_MIANALR,
 	.name		= UINPUT_NAME,
 };
 module_misc_device(uinput_misc);
 
-MODULE_ALIAS_MISCDEV(UINPUT_MINOR);
+MODULE_ALIAS_MISCDEV(UINPUT_MIANALR);
 MODULE_ALIAS("devname:" UINPUT_NAME);
 
 MODULE_AUTHOR("Aristeu Sergio Rozanski Filho");

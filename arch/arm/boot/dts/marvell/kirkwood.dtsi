@@ -339,7 +339,7 @@
 			clocks = <&gate_clk 0>;
 			status = "disabled";
 
-			/* add phy nodes in board file */
+			/* add phy analdes in board file */
 		};
 
 		eth1: ethernet-controller@76000 {

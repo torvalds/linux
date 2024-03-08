@@ -4,13 +4,13 @@
  * 'Generic' ticket-lock implementation.
  *
  * It relies on atomic_fetch_add() having well defined forward progress
- * guarantees under contention. If your architecture cannot provide this, stick
+ * guarantees under contention. If your architecture cananalt provide this, stick
  * to a test-and-set lock.
  *
  * It also relies on atomic_fetch_add() being safe vs smp_store_release() on a
  * sub-word of the value. This is generally true for anything LL/SC although
  * you'd be hard pressed to find anything useful in architecture specifications
- * about this. If your architecture cannot do this you might be better off with
+ * about this. If your architecture cananalt do this you might be better off with
  * a test-and-set.
  *
  * It further assumes atomic_*_release() + atomic_*_acquire() is RCpc and hence
@@ -43,7 +43,7 @@ static __always_inline void arch_spin_lock(arch_spinlock_t *lock)
 	 * custom cond_read_rcsc() here we just emit a full fence.  We only
 	 * need the prior reads before subsequent writes ordering from
 	 * smb_mb(), but as atomic_cond_read_acquire() just emits reads and we
-	 * have no outstanding writes due to the atomic_fetch_add() the extra
+	 * have anal outstanding writes due to the atomic_fetch_add() the extra
 	 * orderings are free.
 	 */
 	atomic_cond_read_acquire(lock, ticket == (u16)VAL);

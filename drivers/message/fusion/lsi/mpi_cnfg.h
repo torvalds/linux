@@ -44,7 +44,7 @@
  *  12-04-00  01.01.03  Config page changes to match MPI rev 1.00.01.
  *  12-05-00  01.01.04  Modified config page actions.
  *  01-09-01  01.01.05  Added defines for page address formats.
- *                      Data size for Manufacturing pages 2 and 3 no longer
+ *                      Data size for Manufacturing pages 2 and 3 anal longer
  *                      defined here.
  *                      Io Unit Page 2 size is fixed at 4 adapters and some
  *                      flags were changed.
@@ -62,7 +62,7 @@
  *                      Added definitions and structures for IOC Page 2 and
  *                      RAID Volume Page 2.
  *  03-27-01  01.01.10  Added CONFIG_PAGE_FC_PORT_8 and CONFIG_PAGE_FC_PORT_9.
- *                      CONFIG_PAGE_FC_PORT_3 now supports persistent by DID.
+ *                      CONFIG_PAGE_FC_PORT_3 analw supports persistent by DID.
  *                      Added VendorId and ProductRevLevel fields to
  *                      RAIDVOL2_IM_PHYS_ID struct.
  *                      Modified values for MPI_FCPORTPAGE0_FLAGS_ATTACH_
@@ -284,15 +284,15 @@
  *                      CapabilitiesFlags field of IOC Page 6.
  *                      Added defines for metadata size bits in VolumeSettings
  *                      field of RAID Volume Page 0.
- *                      Added SATA Link Reset settings, Enable SATA Asynchronous
- *                      Notification bit, and HideNonZeroAttachedPhyIdentifiers
+ *                      Added SATA Link Reset settings, Enable SATA Asynchroanalus
+ *                      Analtification bit, and HideAnalnZeroAttachedPhyIdentifiers
  *                      bit to AdditionalControlFlags field of SAS IO Unit
  *                      Page 1.
  *                      Added defines for Enclosure Devices Unmapped and
  *                      Device Limit Exceeded bits in Status field of SAS IO
  *                      Unit Page 2.
  *                      Added more AccessStatus values for SAS Device Page 0.
- *                      Added bit for SATA Asynchronous Notification Support in
+ *                      Added bit for SATA Asynchroanalus Analtification Support in
  *                      Flags field of SAS Device Page 0.
  *  02-28-07  01.05.14  Added ExtFlags field to Manufacturing Page 4.
  *                      Added Disable SMART Polling for CapabilitiesFlags of
@@ -303,7 +303,7 @@
  *                      of SAS IO Unit Page.
  *                      Added Multi-Port Domain Illegal flag for SAS IO Unit
  *                      Page 1 AdditionalControlFlags field.
- *  05-24-07  01.05.15  Added Hide Physical Disks with Non-Integrated RAID
+ *  05-24-07  01.05.15  Added Hide Physical Disks with Analn-Integrated RAID
  *                      Metadata bit to Manufacturing Page 4 ExtFlags field.
  *                      Added Internal Connector to End Device Present bit to
  *                      Expander Page 0 Flags field.
@@ -699,7 +699,7 @@ typedef struct _CONFIG_PAGE_MANUFACTURING_4
 #define MPI_MANPAGE4_IS_DISABLE                         (0x08)
 #define MPI_MANPAGE4_IR_MODEPAGE8_DISABLE               (0x04)
 #define MPI_MANPAGE4_IM_RESYNC_CACHE_ENABLE             (0x02)
-#define MPI_MANPAGE4_IR_NO_MIX_SAS_SATA                 (0x01)
+#define MPI_MANPAGE4_IR_ANAL_MIX_SAS_SATA                 (0x01)
 
 /* defines for the ExtFlags field */
 #define MPI_MANPAGE4_EXTFLAGS_MASK_COERCION_SIZE        (0x0180)
@@ -707,10 +707,10 @@ typedef struct _CONFIG_PAGE_MANUFACTURING_4
 #define MPI_MANPAGE4_EXTFLAGS_1GB_COERCION_SIZE         (0)
 #define MPI_MANPAGE4_EXTFLAGS_128MB_COERCION_SIZE       (1)
 
-#define MPI_MANPAGE4_EXTFLAGS_NO_MIX_SSD_SAS_SATA       (0x0040)
-#define MPI_MANPAGE4_EXTFLAGS_MIX_SSD_AND_NON_SSD       (0x0020)
+#define MPI_MANPAGE4_EXTFLAGS_ANAL_MIX_SSD_SAS_SATA       (0x0040)
+#define MPI_MANPAGE4_EXTFLAGS_MIX_SSD_AND_ANALN_SSD       (0x0020)
 #define MPI_MANPAGE4_EXTFLAGS_DUAL_PORT_SUPPORT         (0x0010)
-#define MPI_MANPAGE4_EXTFLAGS_HIDE_NON_IR_METADATA      (0x0008)
+#define MPI_MANPAGE4_EXTFLAGS_HIDE_ANALN_IR_METADATA      (0x0008)
 #define MPI_MANPAGE4_EXTFLAGS_SAS_CACHE_DISABLE         (0x0004)
 #define MPI_MANPAGE4_EXTFLAGS_SATA_CACHE_DISABLE        (0x0002)
 #define MPI_MANPAGE4_EXTFLAGS_LEGACY_MODE               (0x0001)
@@ -751,7 +751,7 @@ typedef struct _CONFIG_PAGE_MANUFACTURING_6
 
 typedef struct _MPI_MANPAGE7_CONNECTOR_INFO
 {
-    U32                         Pinout;                 /* 00h */
+    U32                         Pianalut;                 /* 00h */
     U8                          Connector[16];          /* 04h */
     U8                          Location;               /* 14h */
     U8                          Reserved1;              /* 15h */
@@ -760,26 +760,26 @@ typedef struct _MPI_MANPAGE7_CONNECTOR_INFO
 } MPI_MANPAGE7_CONNECTOR_INFO, MPI_POINTER PTR_MPI_MANPAGE7_CONNECTOR_INFO,
   MpiManPage7ConnectorInfo_t, MPI_POINTER pMpiManPage7ConnectorInfo_t;
 
-/* defines for the Pinout field */
-#define MPI_MANPAGE7_PINOUT_SFF_8484_L4                 (0x00080000)
-#define MPI_MANPAGE7_PINOUT_SFF_8484_L3                 (0x00040000)
-#define MPI_MANPAGE7_PINOUT_SFF_8484_L2                 (0x00020000)
-#define MPI_MANPAGE7_PINOUT_SFF_8484_L1                 (0x00010000)
-#define MPI_MANPAGE7_PINOUT_SFF_8470_L4                 (0x00000800)
-#define MPI_MANPAGE7_PINOUT_SFF_8470_L3                 (0x00000400)
-#define MPI_MANPAGE7_PINOUT_SFF_8470_L2                 (0x00000200)
-#define MPI_MANPAGE7_PINOUT_SFF_8470_L1                 (0x00000100)
-#define MPI_MANPAGE7_PINOUT_SFF_8482                    (0x00000002)
-#define MPI_MANPAGE7_PINOUT_CONNECTION_UNKNOWN          (0x00000001)
+/* defines for the Pianalut field */
+#define MPI_MANPAGE7_PIANALUT_SFF_8484_L4                 (0x00080000)
+#define MPI_MANPAGE7_PIANALUT_SFF_8484_L3                 (0x00040000)
+#define MPI_MANPAGE7_PIANALUT_SFF_8484_L2                 (0x00020000)
+#define MPI_MANPAGE7_PIANALUT_SFF_8484_L1                 (0x00010000)
+#define MPI_MANPAGE7_PIANALUT_SFF_8470_L4                 (0x00000800)
+#define MPI_MANPAGE7_PIANALUT_SFF_8470_L3                 (0x00000400)
+#define MPI_MANPAGE7_PIANALUT_SFF_8470_L2                 (0x00000200)
+#define MPI_MANPAGE7_PIANALUT_SFF_8470_L1                 (0x00000100)
+#define MPI_MANPAGE7_PIANALUT_SFF_8482                    (0x00000002)
+#define MPI_MANPAGE7_PIANALUT_CONNECTION_UNKANALWN          (0x00000001)
 
 /* defines for the Location field */
-#define MPI_MANPAGE7_LOCATION_UNKNOWN                   (0x01)
+#define MPI_MANPAGE7_LOCATION_UNKANALWN                   (0x01)
 #define MPI_MANPAGE7_LOCATION_INTERNAL                  (0x02)
 #define MPI_MANPAGE7_LOCATION_EXTERNAL                  (0x04)
 #define MPI_MANPAGE7_LOCATION_SWITCHABLE                (0x08)
 #define MPI_MANPAGE7_LOCATION_AUTO                      (0x10)
-#define MPI_MANPAGE7_LOCATION_NOT_PRESENT               (0x20)
-#define MPI_MANPAGE7_LOCATION_NOT_CONNECTED             (0x80)
+#define MPI_MANPAGE7_LOCATION_ANALT_PRESENT               (0x20)
+#define MPI_MANPAGE7_LOCATION_ANALT_CONNECTED             (0x80)
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
@@ -988,7 +988,7 @@ typedef struct _CONFIG_PAGE_IOC_1
 #define MPI_IOCPAGE1_INITIATOR_CONTEXT_REPLY_DISABLE    (0x00000010)
 #define MPI_IOCPAGE1_REPLY_COALESCING                   (0x00000001)
 
-#define MPI_IOCPAGE1_PCISLOTNUM_UNKNOWN                 (0xFF)
+#define MPI_IOCPAGE1_PCISLOTNUM_UNKANALWN                 (0xFF)
 
 
 typedef struct _CONFIG_PAGE_IOC_2_RAID_VOL
@@ -1012,7 +1012,7 @@ typedef struct _CONFIG_PAGE_IOC_2_RAID_VOL
 #define MPI_RAID_VOL_TYPE_RAID_6                    (0x04)
 #define MPI_RAID_VOL_TYPE_RAID_10                   (0x05)
 #define MPI_RAID_VOL_TYPE_RAID_50                   (0x06)
-#define MPI_RAID_VOL_TYPE_UNKNOWN                   (0xFF)
+#define MPI_RAID_VOL_TYPE_UNKANALWN                   (0xFF)
 
 /* IOC Page 2 Volume Flags values */
 
@@ -1208,7 +1208,7 @@ typedef struct _CONFIG_PAGE_BIOS_1
     U16                     NumberOfDevices;            /* 14h */
     U8                      ExpanderSpinup;             /* 16h */
     U8                      Reserved2;                  /* 17h */
-    U16                     IOTimeoutBlockDevicesNonRM; /* 18h */
+    U16                     IOTimeoutBlockDevicesAnalnRM; /* 18h */
     U16                     IOTimeoutSequential;        /* 1Ah */
     U16                     IOTimeoutOther;             /* 1Ch */
     U16                     IOTimeoutBlockDevicesRM;    /* 1Eh */
@@ -1244,12 +1244,12 @@ typedef struct _CONFIG_PAGE_BIOS_1
 #define MPI_BIOSPAGE1_IOCSET_SHIFT_SPINUP_DELAY         (8)
 
 #define MPI_BIOSPAGE1_IOCSET_MASK_RM_SETTING            (0x000000C0)
-#define MPI_BIOSPAGE1_IOCSET_NONE_RM_SETTING            (0x00000000)
+#define MPI_BIOSPAGE1_IOCSET_ANALNE_RM_SETTING            (0x00000000)
 #define MPI_BIOSPAGE1_IOCSET_BOOT_RM_SETTING            (0x00000040)
 #define MPI_BIOSPAGE1_IOCSET_MEDIA_RM_SETTING           (0x00000080)
 
 #define MPI_BIOSPAGE1_IOCSET_MASK_ADAPTER_SUPPORT       (0x00000030)
-#define MPI_BIOSPAGE1_IOCSET_NO_SUPPORT                 (0x00000000)
+#define MPI_BIOSPAGE1_IOCSET_ANAL_SUPPORT                 (0x00000000)
 #define MPI_BIOSPAGE1_IOCSET_BIOS_SUPPORT               (0x00000010)
 #define MPI_BIOSPAGE1_IOCSET_OS_SUPPORT                 (0x00000020)
 #define MPI_BIOSPAGE1_IOCSET_ALL_SUPPORT                (0x00000030)
@@ -1260,7 +1260,7 @@ typedef struct _CONFIG_PAGE_BIOS_1
 #define MPI_BIOSPAGE1_DEVSET_DISABLE_SMART_POLLING      (0x00000010)
 #define MPI_BIOSPAGE1_DEVSET_DISABLE_SEQ_LUN            (0x00000008)
 #define MPI_BIOSPAGE1_DEVSET_DISABLE_RM_LUN             (0x00000004)
-#define MPI_BIOSPAGE1_DEVSET_DISABLE_NON_RM_LUN         (0x00000002)
+#define MPI_BIOSPAGE1_DEVSET_DISABLE_ANALN_RM_LUN         (0x00000002)
 #define MPI_BIOSPAGE1_DEVSET_DISABLE_OTHER_LUN          (0x00000001)
 
 /* defines for the ExpanderSpinup field */
@@ -1490,7 +1490,7 @@ typedef struct _CONFIG_PAGE_SCSI_PORT_0
 #define MPI_SCSIPORTPAGE0_SYNC_40                       (0x0A)
 #define MPI_SCSIPORTPAGE0_SYNC_80                       (0x09)
 #define MPI_SCSIPORTPAGE0_SYNC_160                      (0x08)
-#define MPI_SCSIPORTPAGE0_SYNC_UNKNOWN                  (0xFF)
+#define MPI_SCSIPORTPAGE0_SYNC_UNKANALWN                  (0xFF)
 
 #define MPI_SCSIPORTPAGE0_CAP_SHIFT_MIN_SYNC_PERIOD     (8)
 #define MPI_SCSIPORTPAGE0_CAP_GET_MIN_SYNC_PERIOD(Cap)      \
@@ -1514,7 +1514,7 @@ typedef struct _CONFIG_PAGE_SCSI_PORT_0
 #define MPI_SCSIPORTPAGE0_PHY_MASK_CONNECTED_ID         (0xFF000000)
 #define MPI_SCSIPORTPAGE0_PHY_SHIFT_CONNECTED_ID        (24)
 #define MPI_SCSIPORTPAGE0_PHY_BUS_FREE_CONNECTED_ID     (0xFE)
-#define MPI_SCSIPORTPAGE0_PHY_UNKNOWN_CONNECTED_ID      (0xFF)
+#define MPI_SCSIPORTPAGE0_PHY_UNKANALWN_CONNECTED_ID      (0xFF)
 
 
 typedef struct _CONFIG_PAGE_SCSI_PORT_1
@@ -1579,14 +1579,14 @@ typedef struct _CONFIG_PAGE_SCSI_PORT_2
 #define MPI_SCSIPORTPAGE2_PORT_OS_INIT_HBA                  (0x00000020)
 #define MPI_SCSIPORTPAGE2_PORT_BIOS_OS_INIT_HBA             (0x00000030)
 #define MPI_SCSIPORTPAGE2_PORT_REMOVABLE_MEDIA              (0x000000C0)
-#define MPI_SCSIPORTPAGE2_PORT_RM_NONE                      (0x00000000)
+#define MPI_SCSIPORTPAGE2_PORT_RM_ANALNE                      (0x00000000)
 #define MPI_SCSIPORTPAGE2_PORT_RM_BOOT_ONLY                 (0x00000040)
 #define MPI_SCSIPORTPAGE2_PORT_RM_WITH_MEDIA                (0x00000080)
 #define MPI_SCSIPORTPAGE2_PORT_SPINUP_DELAY_MASK            (0x00000F00)
 #define MPI_SCSIPORTPAGE2_PORT_SHIFT_SPINUP_DELAY           (8)
 #define MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS    (0x00003000)
 #define MPI_SCSIPORTPAGE2_PORT_NEGO_MASTER_SETTINGS         (0x00000000)
-#define MPI_SCSIPORTPAGE2_PORT_NONE_MASTER_SETTINGS         (0x00001000)
+#define MPI_SCSIPORTPAGE2_PORT_ANALNE_MASTER_SETTINGS         (0x00001000)
 #define MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS          (0x00003000)
 
 #define MPI_SCSIPORTPAGE2_DEVICE_DISCONNECT_ENABLE          (0x0001)
@@ -1766,7 +1766,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_0
 #define MPI_FCPORTPAGE0_FLAGS_FABRIC_WWN_VALID          (0x00000040)
 
 #define MPI_FCPORTPAGE0_FLAGS_ATTACH_TYPE_MASK          (0x00000F00)
-#define MPI_FCPORTPAGE0_FLAGS_ATTACH_NO_INIT            (0x00000000)
+#define MPI_FCPORTPAGE0_FLAGS_ATTACH_ANAL_INIT            (0x00000000)
 #define MPI_FCPORTPAGE0_FLAGS_ATTACH_POINT_TO_POINT     (0x00000100)
 #define MPI_FCPORTPAGE0_FLAGS_ATTACH_PRIVATE_LOOP       (0x00000200)
 #define MPI_FCPORTPAGE0_FLAGS_ATTACH_FABRIC_DIRECT      (0x00000400)
@@ -1774,7 +1774,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_0
 
 #define MPI_FCPORTPAGE0_LTYPE_RESERVED                  (0x00)
 #define MPI_FCPORTPAGE0_LTYPE_OTHER                     (0x01)
-#define MPI_FCPORTPAGE0_LTYPE_UNKNOWN                   (0x02)
+#define MPI_FCPORTPAGE0_LTYPE_UNKANALWN                   (0x02)
 #define MPI_FCPORTPAGE0_LTYPE_COPPER                    (0x03)
 #define MPI_FCPORTPAGE0_LTYPE_SINGLE_1300               (0x04)
 #define MPI_FCPORTPAGE0_LTYPE_SINGLE_1500               (0x05)
@@ -1789,11 +1789,11 @@ typedef struct _CONFIG_PAGE_FC_PORT_0
 #define MPI_FCPORTPAGE0_LTYPE_1300_LONG_WAVE            (0x0E)
 #define MPI_FCPORTPAGE0_LTYPE_1500_LONG_WAVE            (0x0F)
 
-#define MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN               (0x01)      /*(SNIA)HBA_PORTSTATE_UNKNOWN       1 Unknown */
+#define MPI_FCPORTPAGE0_PORTSTATE_UNKANALWN               (0x01)      /*(SNIA)HBA_PORTSTATE_UNKANALWN       1 Unkanalwn */
 #define MPI_FCPORTPAGE0_PORTSTATE_ONLINE                (0x02)      /*(SNIA)HBA_PORTSTATE_ONLINE        2 Operational */
 #define MPI_FCPORTPAGE0_PORTSTATE_OFFLINE               (0x03)      /*(SNIA)HBA_PORTSTATE_OFFLINE       3 User Offline */
 #define MPI_FCPORTPAGE0_PORTSTATE_BYPASSED              (0x04)      /*(SNIA)HBA_PORTSTATE_BYPASSED      4 Bypassed */
-#define MPI_FCPORTPAGE0_PORTSTATE_DIAGNOST              (0x05)      /*(SNIA)HBA_PORTSTATE_DIAGNOSTICS   5 In diagnostics mode */
+#define MPI_FCPORTPAGE0_PORTSTATE_DIAGANALST              (0x05)      /*(SNIA)HBA_PORTSTATE_DIAGANALSTICS   5 In diaganalstics mode */
 #define MPI_FCPORTPAGE0_PORTSTATE_LINKDOWN              (0x06)      /*(SNIA)HBA_PORTSTATE_LINKDOWN      6 Link Down */
 #define MPI_FCPORTPAGE0_PORTSTATE_ERROR                 (0x07)      /*(SNIA)HBA_PORTSTATE_ERROR         7 Port Error */
 #define MPI_FCPORTPAGE0_PORTSTATE_LOOPBACK              (0x08)      /*(SNIA)HBA_PORTSTATE_LOOPBACK      8 Loopback */
@@ -1802,26 +1802,26 @@ typedef struct _CONFIG_PAGE_FC_PORT_0
 #define MPI_FCPORTPAGE0_SUPPORT_CLASS_2                 (0x00000002)
 #define MPI_FCPORTPAGE0_SUPPORT_CLASS_3                 (0x00000004)
 
-#define MPI_FCPORTPAGE0_SUPPORT_SPEED_UNKNOWN           (0x00000000) /* (SNIA)HBA_PORTSPEED_UNKNOWN 0   Unknown - transceiver incapable of reporting */
+#define MPI_FCPORTPAGE0_SUPPORT_SPEED_UNKANALWN           (0x00000000) /* (SNIA)HBA_PORTSPEED_UNKANALWN 0   Unkanalwn - transceiver incapable of reporting */
 #define MPI_FCPORTPAGE0_SUPPORT_1GBIT_SPEED             (0x00000001) /* (SNIA)HBA_PORTSPEED_1GBIT   1   1 GBit/sec */
 #define MPI_FCPORTPAGE0_SUPPORT_2GBIT_SPEED             (0x00000002) /* (SNIA)HBA_PORTSPEED_2GBIT   2   2 GBit/sec */
 #define MPI_FCPORTPAGE0_SUPPORT_10GBIT_SPEED            (0x00000004) /* (SNIA)HBA_PORTSPEED_10GBIT  4  10 GBit/sec */
 #define MPI_FCPORTPAGE0_SUPPORT_4GBIT_SPEED             (0x00000008) /* (SNIA)HBA_PORTSPEED_4GBIT   8   4 GBit/sec */
 
-#define MPI_FCPORTPAGE0_CURRENT_SPEED_UNKNOWN           MPI_FCPORTPAGE0_SUPPORT_SPEED_UNKNOWN
+#define MPI_FCPORTPAGE0_CURRENT_SPEED_UNKANALWN           MPI_FCPORTPAGE0_SUPPORT_SPEED_UNKANALWN
 #define MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT             MPI_FCPORTPAGE0_SUPPORT_1GBIT_SPEED
 #define MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT             MPI_FCPORTPAGE0_SUPPORT_2GBIT_SPEED
 #define MPI_FCPORTPAGE0_CURRENT_SPEED_10GBIT            MPI_FCPORTPAGE0_SUPPORT_10GBIT_SPEED
 #define MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT             MPI_FCPORTPAGE0_SUPPORT_4GBIT_SPEED
-#define MPI_FCPORTPAGE0_CURRENT_SPEED_NOT_NEGOTIATED    (0x00008000)        /* (SNIA)HBA_PORTSPEED_NOT_NEGOTIATED (1<<15) Speed not established */
+#define MPI_FCPORTPAGE0_CURRENT_SPEED_ANALT_NEGOTIATED    (0x00008000)        /* (SNIA)HBA_PORTSPEED_ANALT_NEGOTIATED (1<<15) Speed analt established */
 
 
 typedef struct _CONFIG_PAGE_FC_PORT_1
 {
     CONFIG_PAGE_HEADER      Header;                     /* 00h */
     U32                     Flags;                      /* 04h */
-    U64                     NoSEEPROMWWNN;              /* 08h */
-    U64                     NoSEEPROMWWPN;              /* 10h */
+    U64                     AnalSEEPROMWWNN;              /* 08h */
+    U64                     AnalSEEPROMWWPN;              /* 10h */
     U8                      HardALPA;                   /* 18h */
     U8                      LinkConfig;                 /* 19h */
     U8                      TopologyConfig;             /* 1Ah */
@@ -1837,7 +1837,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_1
 
 #define MPI_FCPORTPAGE1_FLAGS_EXT_FCP_STATUS_EN         (0x08000000)
 #define MPI_FCPORTPAGE1_FLAGS_IMMEDIATE_ERROR_REPLY     (0x04000000)
-#define MPI_FCPORTPAGE1_FLAGS_FORCE_USE_NOSEEPROM_WWNS  (0x02000000)
+#define MPI_FCPORTPAGE1_FLAGS_FORCE_USE_ANALSEEPROM_WWNS  (0x02000000)
 #define MPI_FCPORTPAGE1_FLAGS_VERBOSE_RESCAN_EVENTS     (0x01000000)
 #define MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID          (0x00800000)
 #define MPI_FCPORTPAGE1_FLAGS_PORT_OFFLINE              (0x00400000)
@@ -1857,12 +1857,12 @@ typedef struct _CONFIG_PAGE_FC_PORT_1
 #define MPI_FCPORTPAGE1_FLAGS_PROT_LAN                  ((U32)MPI_PORTFACTS_PROTOCOL_LAN << MPI_FCPORTPAGE1_FLAGS_PROT_SHIFT)
 #define MPI_FCPORTPAGE1_FLAGS_PROT_LOGBUSADDR           ((U32)MPI_PORTFACTS_PROTOCOL_LOGBUSADDR << MPI_FCPORTPAGE1_FLAGS_PROT_SHIFT)
 
-#define MPI_FCPORTPAGE1_FLAGS_NONE_RR_TOV_UNITS         (0x00000000)
+#define MPI_FCPORTPAGE1_FLAGS_ANALNE_RR_TOV_UNITS         (0x00000000)
 #define MPI_FCPORTPAGE1_FLAGS_THOUSANDTH_RR_TOV_UNITS   (0x00000010)
 #define MPI_FCPORTPAGE1_FLAGS_TENTH_RR_TOV_UNITS        (0x00000030)
 #define MPI_FCPORTPAGE1_FLAGS_TEN_RR_TOV_UNITS          (0x00000050)
 
-#define MPI_FCPORTPAGE1_HARD_ALPA_NOT_USED              (0xFF)
+#define MPI_FCPORTPAGE1_HARD_ALPA_ANALT_USED              (0xFF)
 
 #define MPI_FCPORTPAGE1_LCONFIG_SPEED_MASK              (0x0F)
 #define MPI_FCPORTPAGE1_LCONFIG_SPEED_1GIG              (0x00)
@@ -1876,7 +1876,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_1
 #define MPI_FCPORTPAGE1_TOPOLOGY_NPORT                  (0x02)
 #define MPI_FCPORTPAGE1_TOPOLOGY_AUTO                   (0x0F)
 
-#define MPI_FCPORTPAGE1_ALT_CONN_UNKNOWN                (0x00)
+#define MPI_FCPORTPAGE1_ALT_CONN_UNKANALWN                (0x00)
 
 #define MPI_FCPORTPAGE1_INITIATOR_DEV_TIMEOUT_MASK      (0x7F)
 #define MPI_FCPORTPAGE1_INITIATOR_DEV_UNIT_16           (0x80)
@@ -1998,7 +1998,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_6
     U64                     TxWords;                    /* 20h */
     U64                     RxWords;                    /* 28h */
     U64                     LipCount;                   /* 30h */
-    U64                     NosCount;                   /* 38h */
+    U64                     AnalsCount;                   /* 38h */
     U64                     ErrorFrames;                /* 40h */
     U64                     DumpedFrames;               /* 48h */
     U64                     LinkFailureCount;           /* 50h */
@@ -2043,7 +2043,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_9
     U64                     GlobalWWNN;                 /* 10h */
     U32                     UnitType;                   /* 18h */
     U32                     PhysicalPortNumber;         /* 1Ch */
-    U32                     NumAttachedNodes;           /* 20h */
+    U32                     NumAttachedAnaldes;           /* 20h */
     U16                     IPVersion;                  /* 24h */
     U16                     UDPPortNumber;              /* 26h */
     U8                      IPAddress[16];              /* 28h */
@@ -2082,7 +2082,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_10_BASE_SFP_DATA
   MPI_POINTER PTR_CONFIG_PAGE_FC_PORT_10_BASE_SFP_DATA,
   FCPortPage10BaseSfpData_t, MPI_POINTER pFCPortPage10BaseSfpData_t;
 
-#define MPI_FCPORT10_BASE_ID_UNKNOWN        (0x00)
+#define MPI_FCPORT10_BASE_ID_UNKANALWN        (0x00)
 #define MPI_FCPORT10_BASE_ID_GBIC           (0x01)
 #define MPI_FCPORT10_BASE_ID_FIXED          (0x02)
 #define MPI_FCPORT10_BASE_ID_SFP            (0x03)
@@ -2090,7 +2090,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_10_BASE_SFP_DATA
 #define MPI_FCPORT10_BASE_ID_SFP_MAX        (0x7F)
 #define MPI_FCPORT10_BASE_ID_VEND_SPEC_MASK (0x80)
 
-#define MPI_FCPORT10_BASE_EXTID_UNKNOWN     (0x00)
+#define MPI_FCPORT10_BASE_EXTID_UNKANALWN     (0x00)
 #define MPI_FCPORT10_BASE_EXTID_MODDEF1     (0x01)
 #define MPI_FCPORT10_BASE_EXTID_MODDEF2     (0x02)
 #define MPI_FCPORT10_BASE_EXTID_MODDEF3     (0x03)
@@ -2100,7 +2100,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_10_BASE_SFP_DATA
 #define MPI_FCPORT10_BASE_EXTID_MODDEF7     (0x07)
 #define MPI_FCPORT10_BASE_EXTID_VNDSPC_MASK (0x80)
 
-#define MPI_FCPORT10_BASE_CONN_UNKNOWN      (0x00)
+#define MPI_FCPORT10_BASE_CONN_UNKANALWN      (0x00)
 #define MPI_FCPORT10_BASE_CONN_SC           (0x01)
 #define MPI_FCPORT10_BASE_CONN_COPPER1      (0x02)
 #define MPI_FCPORT10_BASE_CONN_COPPER2      (0x03)
@@ -2170,7 +2170,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_10
 #define MPI_FCPORTPAGE10_FLAGS_MODDEF2                  (0x00000001)
 #define MPI_FCPORTPAGE10_FLAGS_MODDEF1                  (0x00000002)
 #define MPI_FCPORTPAGE10_FLAGS_MODDEF0                  (0x00000004)
-#define MPI_FCPORTPAGE10_FLAGS_MODDEF_NOGBIC            (0x00000007)
+#define MPI_FCPORTPAGE10_FLAGS_MODDEF_ANALGBIC            (0x00000007)
 #define MPI_FCPORTPAGE10_FLAGS_MODDEF_CPR_IEEE_CX       (0x00000006)
 #define MPI_FCPORTPAGE10_FLAGS_MODDEF_COPPER            (0x00000005)
 #define MPI_FCPORTPAGE10_FLAGS_MODDEF_OPTICAL_LW        (0x00000004)
@@ -2226,7 +2226,7 @@ typedef struct _CONFIG_PAGE_FC_DEVICE_0
 #define MPI_FC_DEVICE_PAGE0_PGAD_BUS_SHIFT      (MPI_FC_DEVICE_PGAD_BT_BUS_SHIFT)
 #define MPI_FC_DEVICE_PAGE0_PGAD_TID_MASK       (MPI_FC_DEVICE_PGAD_BT_TID_MASK)
 
-#define MPI_FC_DEVICE_PAGE0_HARD_ALPA_UNKNOWN   (0xFF)
+#define MPI_FC_DEVICE_PAGE0_HARD_ALPA_UNKANALWN   (0xFF)
 
 /****************************************************************************
 *   RAID Volume Config Pages
@@ -2328,7 +2328,7 @@ typedef struct _CONFIG_PAGE_RAID_VOL_0
 #define MPI_RAIDVOLPAGE0_PAGEVERSION                    (0x07)
 
 /* values for RAID Volume Page 0 InactiveStatus field */
-#define MPI_RAIDVOLPAGE0_UNKNOWN_INACTIVE               (0x00)
+#define MPI_RAIDVOLPAGE0_UNKANALWN_INACTIVE               (0x00)
 #define MPI_RAIDVOLPAGE0_STALE_METADATA_INACTIVE        (0x01)
 #define MPI_RAIDVOLPAGE0_FOREIGN_VOLUME_INACTIVE        (0x02)
 #define MPI_RAIDVOLPAGE0_INSUFFICIENT_RESOURCE_INACTIVE (0x03)
@@ -2405,11 +2405,11 @@ typedef struct _RAID_PHYS_DISK0_STATUS
 #define MPI_PHYSDISK0_STATUS_FLAG_QUIESCED              (0x02)
 #define MPI_PHYSDISK0_STATUS_FLAG_INACTIVE_VOLUME       (0x04)
 #define MPI_PHYSDISK0_STATUS_FLAG_OPTIMAL_PREVIOUS      (0x00)
-#define MPI_PHYSDISK0_STATUS_FLAG_NOT_OPTIMAL_PREVIOUS  (0x08)
+#define MPI_PHYSDISK0_STATUS_FLAG_ANALT_OPTIMAL_PREVIOUS  (0x08)
 
 #define MPI_PHYSDISK0_STATUS_ONLINE                     (0x00)
 #define MPI_PHYSDISK0_STATUS_MISSING                    (0x01)
-#define MPI_PHYSDISK0_STATUS_NOT_COMPATIBLE             (0x02)
+#define MPI_PHYSDISK0_STATUS_ANALT_COMPATIBLE             (0x02)
 #define MPI_PHYSDISK0_STATUS_FAILED                     (0x03)
 #define MPI_PHYSDISK0_STATUS_INITIALIZING               (0x04)
 #define MPI_PHYSDISK0_STATUS_OFFLINE_REQUESTED          (0x05)
@@ -2589,7 +2589,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
 #define MPI_SAS_IOUNIT0_PHY_FLAGS_RX_INVERT                 (0x01)
 
 /* values for SAS IO Unit Page 0 NegotiatedLinkRate */
-#define MPI_SAS_IOUNIT0_RATE_UNKNOWN                        (0x00)
+#define MPI_SAS_IOUNIT0_RATE_UNKANALWN                        (0x00)
 #define MPI_SAS_IOUNIT0_RATE_PHY_DISABLED                   (0x01)
 #define MPI_SAS_IOUNIT0_RATE_FAILED_SPEED_NEGOTIATION       (0x02)
 #define MPI_SAS_IOUNIT0_RATE_SATA_OOB_COMPLETE              (0x03)
@@ -2606,7 +2606,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
 #define MPI_SAS_IOUNIT0_DS_EXPANDER_ERR                     (0x00000008)
 #define MPI_SAS_IOUNIT0_DS_SMP_TIMEOUT                      (0x00000010)
 #define MPI_SAS_IOUNIT0_DS_OUT_ROUTE_ENTRIES                (0x00000020)
-#define MPI_SAS_IOUNIT0_DS_INDEX_NOT_EXIST                  (0x00000040)
+#define MPI_SAS_IOUNIT0_DS_INDEX_ANALT_EXIST                  (0x00000040)
 #define MPI_SAS_IOUNIT0_DS_SMP_FUNCTION_FAILED              (0x00000080)
 #define MPI_SAS_IOUNIT0_DS_SMP_CRC_ERROR                    (0x00000100)
 #define MPI_SAS_IOUNIT0_DS_SUBTRACTIVE_LINK                 (0x00000200)
@@ -2678,12 +2678,12 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_1
 
 /* values for SAS IO Unit Page 1 AdditionalControlFlags */
 #define MPI_SAS_IOUNIT1_ACONTROL_MULTI_PORT_DOMAIN_ILLEGAL          (0x0080)
-#define MPI_SAS_IOUNIT1_ACONTROL_SATA_ASYNCHROUNOUS_NOTIFICATION    (0x0040)
-#define MPI_SAS_IOUNIT1_ACONTROL_HIDE_NONZERO_ATTACHED_PHY_IDENT    (0x0020)
+#define MPI_SAS_IOUNIT1_ACONTROL_SATA_ASYNCHROUANALUS_ANALTIFICATION    (0x0040)
+#define MPI_SAS_IOUNIT1_ACONTROL_HIDE_ANALNZERO_ATTACHED_PHY_IDENT    (0x0020)
 #define MPI_SAS_IOUNIT1_ACONTROL_PORT_ENABLE_ONLY_SATA_LINK_RESET   (0x0010)
 #define MPI_SAS_IOUNIT1_ACONTROL_OTHER_AFFILIATION_SATA_LINK_RESET  (0x0008)
 #define MPI_SAS_IOUNIT1_ACONTROL_SELF_AFFILIATION_SATA_LINK_RESET   (0x0004)
-#define MPI_SAS_IOUNIT1_ACONTROL_NO_AFFILIATION_SATA_LINK_RESET     (0x0002)
+#define MPI_SAS_IOUNIT1_ACONTROL_ANAL_AFFILIATION_SATA_LINK_RESET     (0x0002)
 #define MPI_SAS_IOUNIT1_ACONTROL_ALLOW_TABLE_TO_TABLE               (0x0001)
 
 /* defines for SAS IO Unit Page 1 ReportDeviceMissingDelay */
@@ -2738,7 +2738,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_2
 /* Physical Mapping Modes */
 #define MPI_SAS_IOUNIT2_FLAGS_MASK_PHYS_MAP_MODE            (0x0E)
 #define MPI_SAS_IOUNIT2_FLAGS_SHIFT_PHYS_MAP_MODE           (1)
-#define MPI_SAS_IOUNIT2_FLAGS_NO_PHYS_MAP                   (0x00)
+#define MPI_SAS_IOUNIT2_FLAGS_ANAL_PHYS_MAP                   (0x00)
 #define MPI_SAS_IOUNIT2_FLAGS_DIRECT_ATTACH_PHYS_MAP        (0x01)
 #define MPI_SAS_IOUNIT2_FLAGS_ENCLOSURE_SLOT_PHYS_MAP       (0x02)
 #define MPI_SAS_IOUNIT2_FLAGS_HOST_ASSIGNED_PHYS_MAP        (0x07)
@@ -2797,7 +2797,7 @@ typedef struct _CONFIG_PAGE_SAS_EXPANDER_0
 #define MPI_SAS_EXPANDER0_DS_EXPANDER_ERR               (0x00000008)
 #define MPI_SAS_EXPANDER0_DS_SMP_TIMEOUT                (0x00000010)
 #define MPI_SAS_EXPANDER0_DS_OUT_ROUTE_ENTRIES          (0x00000020)
-#define MPI_SAS_EXPANDER0_DS_INDEX_NOT_EXIST            (0x00000040)
+#define MPI_SAS_EXPANDER0_DS_INDEX_ANALT_EXIST            (0x00000040)
 #define MPI_SAS_EXPANDER0_DS_SMP_FUNCTION_FAILED        (0x00000080)
 #define MPI_SAS_EXPANDER0_DS_SMP_CRC_ERROR              (0x00000100)
 #define MPI_SAS_EXPANDER0_DS_SUBTRACTIVE_LINK           (0x00000200)
@@ -2848,10 +2848,10 @@ typedef struct _CONFIG_PAGE_SAS_EXPANDER_1
 /* values for SAS Expander Page 1 DiscoveryInfo field */
 #define MPI_SAS_EXPANDER1_DISCINFO_BAD_PHY_DISABLED     (0x04)
 #define MPI_SAS_EXPANDER1_DISCINFO_LINK_STATUS_CHANGE   (0x02)
-#define MPI_SAS_EXPANDER1_DISCINFO_NO_ROUTING_ENTRIES   (0x01)
+#define MPI_SAS_EXPANDER1_DISCINFO_ANAL_ROUTING_ENTRIES   (0x01)
 
 /* values for SAS Expander Page 1 NegotiatedLinkRate field */
-#define MPI_SAS_EXPANDER1_NEG_RATE_UNKNOWN              (0x00)
+#define MPI_SAS_EXPANDER1_NEG_RATE_UNKANALWN              (0x00)
 #define MPI_SAS_EXPANDER1_NEG_RATE_PHY_DISABLED         (0x01)
 #define MPI_SAS_EXPANDER1_NEG_RATE_FAILED_NEGOTIATION   (0x02)
 #define MPI_SAS_EXPANDER1_NEG_RATE_SATA_OOB_COMPLETE    (0x03)
@@ -2885,13 +2885,13 @@ typedef struct _CONFIG_PAGE_SAS_DEVICE_0
 #define MPI_SASDEVICE0_PAGEVERSION          (0x05)
 
 /* values for SAS Device Page 0 AccessStatus field */
-#define MPI_SAS_DEVICE0_ASTATUS_NO_ERRORS                   (0x00)
+#define MPI_SAS_DEVICE0_ASTATUS_ANAL_ERRORS                   (0x00)
 #define MPI_SAS_DEVICE0_ASTATUS_SATA_INIT_FAILED            (0x01)
 #define MPI_SAS_DEVICE0_ASTATUS_SATA_CAPABILITY_FAILED      (0x02)
 #define MPI_SAS_DEVICE0_ASTATUS_SATA_AFFILIATION_CONFLICT   (0x03)
 #define MPI_SAS_DEVICE0_ASTATUS_SATA_NEEDS_INITIALIZATION   (0x04)
 /* specific values for SATA Init failures */
-#define MPI_SAS_DEVICE0_ASTATUS_SIF_UNKNOWN                 (0x10)
+#define MPI_SAS_DEVICE0_ASTATUS_SIF_UNKANALWN                 (0x10)
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_AFFILIATION_CONFLICT    (0x11)
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_DIAG                    (0x12)
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_IDENTIFICATION          (0x13)
@@ -2900,11 +2900,11 @@ typedef struct _CONFIG_PAGE_SAS_DEVICE_0
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_MDMA_SN                 (0x16)
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_UDMA_SN                 (0x17)
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_ZONING_VIOLATION        (0x18)
-#define MPI_SAS_DEVICE0_ASTATUS_SIF_NOT_ADDRESSABLE         (0x19)
+#define MPI_SAS_DEVICE0_ASTATUS_SIF_ANALT_ADDRESSABLE         (0x19)
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_MAX                     (0x1F)
 
 /* values for SAS Device Page 0 Flags field */
-#define MPI_SAS_DEVICE0_FLAGS_SATA_ASYNCHRONOUS_NOTIFY      (0x0400)
+#define MPI_SAS_DEVICE0_FLAGS_SATA_ASYNCHROANALUS_ANALTIFY      (0x0400)
 #define MPI_SAS_DEVICE0_FLAGS_SATA_SW_PRESERVE              (0x0200)
 #define MPI_SAS_DEVICE0_FLAGS_UNSUPPORTED_DEVICE            (0x0100)
 #define MPI_SAS_DEVICE0_FLAGS_SATA_48BIT_LBA_SUPPORTED      (0x0080)
@@ -2980,11 +2980,11 @@ typedef struct _CONFIG_PAGE_SAS_PHY_0
 
 /* values for SAS PHY Page 0 ProgrammedLinkRate field */
 #define MPI_SAS_PHY0_PRATE_MAX_RATE_MASK                        (0xF0)
-#define MPI_SAS_PHY0_PRATE_MAX_RATE_NOT_PROGRAMMABLE            (0x00)
+#define MPI_SAS_PHY0_PRATE_MAX_RATE_ANALT_PROGRAMMABLE            (0x00)
 #define MPI_SAS_PHY0_PRATE_MAX_RATE_1_5                         (0x80)
 #define MPI_SAS_PHY0_PRATE_MAX_RATE_3_0                         (0x90)
 #define MPI_SAS_PHY0_PRATE_MIN_RATE_MASK                        (0x0F)
-#define MPI_SAS_PHY0_PRATE_MIN_RATE_NOT_PROGRAMMABLE            (0x00)
+#define MPI_SAS_PHY0_PRATE_MIN_RATE_ANALT_PROGRAMMABLE            (0x00)
 #define MPI_SAS_PHY0_PRATE_MIN_RATE_1_5                         (0x08)
 #define MPI_SAS_PHY0_PRATE_MIN_RATE_3_0                         (0x09)
 
@@ -3013,7 +3013,7 @@ typedef struct _CONFIG_PAGE_SAS_PHY_0
 #define MPI_SAS_PHY0_PHYINFO_TABLE_ROUTING                      (0x00000020)
 
 #define MPI_SAS_PHY0_PHYINFO_MASK_LINK_RATE                     (0x0000000F)
-#define MPI_SAS_PHY0_PHYINFO_UNKNOWN_LINK_RATE                  (0x00000000)
+#define MPI_SAS_PHY0_PHYINFO_UNKANALWN_LINK_RATE                  (0x00000000)
 #define MPI_SAS_PHY0_PHYINFO_PHY_DISABLED                       (0x00000001)
 #define MPI_SAS_PHY0_PHYINFO_NEGOTIATION_FAILED                 (0x00000002)
 #define MPI_SAS_PHY0_PHYINFO_SATA_OOB_COMPLETE                  (0x00000003)
@@ -3064,7 +3064,7 @@ typedef struct _CONFIG_PAGE_SAS_ENCLOSURE_0
 #define MPI_SAS_ENCLS0_FLAGS_START_BUS_ID_VALID     (0x0010)
 
 #define MPI_SAS_ENCLS0_FLAGS_MNG_MASK               (0x000F)
-#define MPI_SAS_ENCLS0_FLAGS_MNG_UNKNOWN            (0x0000)
+#define MPI_SAS_ENCLS0_FLAGS_MNG_UNKANALWN            (0x0000)
 #define MPI_SAS_ENCLS0_FLAGS_MNG_IOC_SES            (0x0001)
 #define MPI_SAS_ENCLS0_FLAGS_MNG_IOC_SGPIO          (0x0002)
 #define MPI_SAS_ENCLS0_FLAGS_MNG_EXP_SGPIO          (0x0003)

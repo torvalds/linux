@@ -26,7 +26,7 @@ properties:
   clocks:
     maxItems: 1
     description: >
-      The clock running the watchdog. If no clock is found the driver will
+      The clock running the watchdog. If anal clock is found the driver will
       default to 27000000 Hz.
 
 required:

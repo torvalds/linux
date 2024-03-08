@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_ENUM_FREQ_BANDS:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_ENUM_FREQ_BANDS - Enumerate supported frequency bands
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_ENUM_FREQ_BANDS
@@ -61,7 +61,7 @@ of the corresponding tuner/modulator is set.
       - ``type``
       - The tuner type. This is the same value as in the struct
 	:c:type:`v4l2_tuner` ``type`` field. The type must be
-	set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
+	set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device analdes, and
 	to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
 	``V4L2_TUNER_RADIO`` for modulators (currently only radio
 	modulators are supported). See :c:type:`v4l2_tuner_type`
@@ -75,7 +75,7 @@ of the corresponding tuner/modulator is set.
 	``V4L2_TUNER_CAP_LOW`` or ``V4L2_TUNER_CAP_1HZ`` capability must
 	be the same for all frequency bands of the selected
 	tuner/modulator. So either all bands have that capability set, or
-	none of them have that capability.
+	analne of them have that capability.
     * - __u32
       - ``rangelow``
       - :cspan:`2` The lowest tunable frequency in units of 62.5 kHz, or
@@ -93,7 +93,7 @@ of the corresponding tuner/modulator is set.
       - :cspan:`2` The supported modulation systems of this frequency
 	band. See :ref:`band-modulation`.
 
-	.. note::
+	.. analte::
 
 	   Currently only one modulation system per frequency band
 	   is supported. More work will need to be done if multiple
@@ -130,7 +130,7 @@ of the corresponding tuner/modulator is set.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

@@ -101,7 +101,7 @@
 #define IM5_3(i) IM((i),5)
 #define IM14(i) IM((i),14)
 
-#define ERR_NOTHANDLED	-1
+#define ERR_ANALTHANDLED	-1
 
 int unaligned_enabled __read_mostly = 1;
 
@@ -176,7 +176,7 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 		regs->isr, regs->ior, toreg);
 
 	if (!IS_ENABLED(CONFIG_64BIT) && !flop)
-		return ERR_NOTHANDLED;
+		return ERR_ANALTHANDLED;
 
 #ifdef CONFIG_64BIT
 	__asm__ __volatile__  (
@@ -309,7 +309,7 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 		val,  regs->isr, regs->ior);
 
 	if (!IS_ENABLED(CONFIG_64BIT) && !flop)
-		return ERR_NOTHANDLED;
+		return ERR_ANALTHANDLED;
 
 #ifdef CONFIG_64BIT
 	__asm__ __volatile__ (
@@ -376,7 +376,7 @@ void handle_unaligned(struct pt_regs *regs)
 	static DEFINE_RATELIMIT_STATE(ratelimit, 5 * HZ, 5);
 	unsigned long newbase = R1(regs->iir)?regs->gr[R1(regs->iir)]:0;
 	int modify = 0;
-	int ret = ERR_NOTHANDLED;
+	int ret = ERR_ANALTHANDLED;
 
 	__inc_irq_stat(irq_unaligned_count);
 
@@ -386,7 +386,7 @@ void handle_unaligned(struct pt_regs *regs)
 			goto force_sigbus;
 		}
 
-		if (!(current->thread.flags & PARISC_UAC_NOPRINT) &&
+		if (!(current->thread.flags & PARISC_UAC_ANALPRINT) &&
 			__ratelimit(&ratelimit)) {
 			printk(KERN_WARNING "%s(%d): unaligned access to " RFMT
 				" at ip " RFMT " (iir " RFMT ")\n",
@@ -527,7 +527,7 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_LDCW_I:
 	case OPCODE_LDCD_S:
 	case OPCODE_LDCW_S:
-		ret = ERR_NOTHANDLED;	/* "undefined", but lets kill them. */
+		ret = ERR_ANALTHANDLED;	/* "undefined", but lets kill them. */
 		break;
 	}
 	switch (regs->iir & OPCODE2_MASK)
@@ -585,8 +585,8 @@ void handle_unaligned(struct pt_regs *regs)
 		regs->gr[R1(regs->iir)] = newbase;
 
 
-	if (ret == ERR_NOTHANDLED)
-		printk(KERN_CRIT "Not-handled unaligned insn 0x%08lx\n", regs->iir);
+	if (ret == ERR_ANALTHANDLED)
+		printk(KERN_CRIT "Analt-handled unaligned insn 0x%08lx\n", regs->iir);
 
 	DPRINTF("ret = %d\n", ret);
 
@@ -625,7 +625,7 @@ force_sigbus:
 
 /*
  * NB: check_unaligned() is only used for PCXS processors right
- * now, so we only check for PA1.1 encodings at this point.
+ * analw, so we only check for PA1.1 encodings at this point.
  */
 
 int

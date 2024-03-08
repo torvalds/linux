@@ -41,7 +41,7 @@
 };
 
 /* The MAC provides internal delay for the transmit path ONLY, which is enabled
- * provided no -id/-txid/-rxid suffix is provided to "phy-mode".
+ * provided anal -id/-txid/-rxid suffix is provided to "phy-mode".
  *
  * The receive path is delayed at the PHY. The recommended register settings
  * are 0xf0 for the control bits, and 0x7777 for the data bits. However, the
@@ -269,7 +269,7 @@
 			reg = <6>;
 			multi-master;
 
-			/* All backplanes should have this -- it's how we know they're there. */
+			/* All backplanes should have this -- it's how we kanalw they're there. */
 			at24c08@54 { compatible="atmel,24c08"; reg=<0x54>; };
 			at24cs08@5c { compatible="atmel,24cs08"; reg=<0x5c>; };
 
@@ -437,7 +437,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 

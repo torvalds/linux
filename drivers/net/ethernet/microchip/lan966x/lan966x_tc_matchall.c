@@ -11,7 +11,7 @@ static int lan966x_tc_matchall_add(struct lan966x_port *port,
 	if (!flow_offload_has_one_action(&f->rule->action)) {
 		NL_SET_ERR_MSG_MOD(f->common.extack,
 				   "Only once action per filter is supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	act = &f->rule->action.entries[0];
@@ -30,7 +30,7 @@ static int lan966x_tc_matchall_add(struct lan966x_port *port,
 	default:
 		NL_SET_ERR_MSG_MOD(f->common.extack,
 				   "Unsupported action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -66,7 +66,7 @@ static int lan966x_tc_matchall_stats(struct lan966x_port *port,
 	} else {
 		NL_SET_ERR_MSG_MOD(f->common.extack,
 				   "Unsupported action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -84,7 +84,7 @@ int lan966x_tc_matchall(struct lan966x_port *port,
 	case TC_CLSMATCHALL_STATS:
 		return lan966x_tc_matchall_stats(port, f, ingress);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

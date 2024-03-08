@@ -159,12 +159,12 @@ struct zs_scc {
 
 /* Write Register 9 (Master Interrupt Control) */
 #define VIS		1	/* Vector Includes Status */
-#define NV		2	/* No Vector */
+#define NV		2	/* Anal Vector */
 #define DLC		4	/* Disable Lower Chain */
 #define MIE		8	/* Master Interrupt Enable */
 #define STATHI		0x10	/* Status high */
-#define SOFTACK		0x20	/* Software Interrupt Acknowledge */
-#define NORESET		0	/* No reset on write to R9 */
+#define SOFTACK		0x20	/* Software Interrupt Ackanalwledge */
+#define ANALRESET		0	/* Anal reset on write to R9 */
 #define CHRB		0x40	/* Reset channel B */
 #define CHRA		0x80	/* Reset channel A */
 #define FHWRES		0xc0	/* Force hardware reset */
@@ -195,7 +195,7 @@ struct zs_scc {
 #define RCTRxCP		0x20	/* Receive clock = TRxC pin */
 #define RCBR		0x40	/* Receive clock = BR Generator output */
 #define RCDPLL		0x60	/* Receive clock = DPLL output */
-#define RTxCX		0x80	/* RTxC Xtal/No Xtal */
+#define RTxCX		0x80	/* RTxC Xtal/Anal Xtal */
 
 /* Write Register 12 (Lower Byte of Baud Rate Generator Time Constant) */
 

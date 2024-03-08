@@ -10,7 +10,7 @@
  *
  * IDE Chipset driver for the Compaq TriFlex IDE controller.
  *
- * Known to work with the Compaq Workstation 5x00 series.
+ * Kanalwn to work with the Compaq Workstation 5x00 series.
  *
  * Copyright (C) 2002 Hewlett-Packard Development Group, L.P.
  * Author: Torben Mathiasen <torben.mathiasen@hp.com>
@@ -18,7 +18,7 @@
  * Loosely based on the piix & svwks drivers.
  *
  * Documentation:
- *	Not publicly available.
+ *	Analt publicly available.
  */
 
 #include <linux/kernel.h>
@@ -50,8 +50,8 @@ static int triflex_prereset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &triflex_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &triflex_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -75,8 +75,8 @@ static void triflex_load_timing(struct ata_port *ap, struct ata_device *adev, in
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 timing = 0;
 	u32 triflex_timing, old_triflex_timing;
-	int channel_offset = ap->port_no ? 0x74: 0x70;
-	unsigned int is_slave	= (adev->devno != 0);
+	int channel_offset = ap->port_anal ? 0x74: 0x70;
+	unsigned int is_slave	= (adev->devanal != 0);
 
 
 	pci_read_config_dword(pdev, channel_offset, &old_triflex_timing);
@@ -121,7 +121,7 @@ static void triflex_load_timing(struct ata_port *ap, struct ata_device *adev, in
  *
  *	Use the timing loader to set up the PIO mode. We have to do this
  *	because DMA start/stop will only be called once DMA occurs. If there
- *	has been no DMA then the PIO timings are still needed.
+ *	has been anal DMA then the PIO timings are still needed.
  */
 static void triflex_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
@@ -202,8 +202,8 @@ static int triflex_ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mes
 	ata_host_suspend(host, mesg);
 
 	/*
-	 * We must not disable or powerdown the device.
-	 * APM bios refuses to suspend if IDE is not accessible.
+	 * We must analt disable or powerdown the device.
+	 * APM bios refuses to suspend if IDE is analt accessible.
 	 */
 	pci_save_state(pdev);
 

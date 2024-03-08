@@ -3,19 +3,19 @@
 # Copyright (C) 2017 Luis R. Rodriguez <mcgrof@kernel.org>
 #
 # This is a stress test script for kmod, the kernel module loader. It uses
-# test_kmod which exposes a series of knobs for the API for us so we can
+# test_kmod which exposes a series of kanalbs for the API for us so we can
 # tweak each test in userspace rather than in kernelspace.
 #
 # The way kmod works is it uses the kernel's usermode helper API to eventually
 # call /sbin/modprobe. It has a limit of the number of concurrent calls
 # possible. The kernel interface to load modules is request_module(), however
 # mount uses get_fs_type(). Both behave slightly differently, but the
-# differences are important enough to test each call separately. For this
+# differences are important eanalugh to test each call separately. For this
 # reason test_kmod starts by providing tests for both calls.
 #
 # The test driver test_kmod assumes a series of defaults which you can
 # override by exporting to your environment prior running this script.
-# For instance this script assumes you do not have xfs loaded upon boot.
+# For instance this script assumes you do analt have xfs loaded upon boot.
 # If this is false, export DEFAULT_KMOD_FS="ext4" prior to running this
 # script if the filesystem module you don't have loaded upon bootup
 # is ext4 instead. Refer to allow_user_defaults() for a list of user
@@ -61,7 +61,7 @@ ksft_skip=4
 test_modprobe()
 {
        if [ ! -d $DIR ]; then
-               echo "$0: $DIR not present" >&2
+               echo "$0: $DIR analt present" >&2
                echo "You must have the following enabled in your kernel:" >&2
                cat $TEST_DIR/config >&2
                exit $ksft_skip
@@ -110,7 +110,7 @@ test_reqs()
 	fi
 
 	# kmod 19 has a bad bug where it returns 0 when modprobe
-	# gets called *even* if the module was not loaded due to
+	# gets called *even* if the module was analt loaded due to
 	# some bad heuristics. For details see:
 	#
 	# A work around is possible in-kernel but its rather
@@ -146,19 +146,19 @@ test_finish()
 	echo "Test completed"
 }
 
-errno_name_to_val()
+erranal_name_to_val()
 {
 	case "$1" in
-	# kmod calls modprobe and upon of a module not found
+	# kmod calls modprobe and upon of a module analt found
 	# modprobe returns just 1... However in the kernel we
 	# *sometimes* see 256...
-	MODULE_NOT_FOUND)
+	MODULE_ANALT_FOUND)
 		echo 256;;
 	SUCCESS)
 		echo 0;;
 	-EPERM)
 		echo -1;;
-	-ENOENT)
+	-EANALENT)
 		echo -2;;
 	-EINVAL)
 		echo -22;;
@@ -169,16 +169,16 @@ errno_name_to_val()
 	esac
 }
 
-errno_val_to_name()
+erranal_val_to_name()
 	case "$1" in
 	256)
-		echo MODULE_NOT_FOUND;;
+		echo MODULE_ANALT_FOUND;;
 	0)
 		echo SUCCESS;;
 	-1)
 		echo -EPERM;;
 	-2)
-		echo -ENOENT;;
+		echo -EANALENT;;
 	-22)
 		echo -EINVAL;;
 	-123456)
@@ -292,23 +292,23 @@ config_trigger_want_fail()
 config_expect_result()
 {
 	RC=$(config_get_test_result)
-	RC_NAME=$(errno_val_to_name $RC)
+	RC_NAME=$(erranal_val_to_name $RC)
 
-	ERRNO_NAME=$2
-	ERRNO=$(errno_name_to_val $ERRNO_NAME)
+	ERRANAL_NAME=$2
+	ERRANAL=$(erranal_name_to_val $ERRANAL_NAME)
 
-	if [[ $ERRNO_NAME = "-ERR_ANY" ]]; then
+	if [[ $ERRANAL_NAME = "-ERR_ANY" ]]; then
 		if [[ $RC -ge 0 ]]; then
-			echo "$1: FAIL, test expects $ERRNO_NAME - got $RC_NAME ($RC)" >&2
+			echo "$1: FAIL, test expects $ERRANAL_NAME - got $RC_NAME ($RC)" >&2
 			config_show_config
 			exit 1
 		fi
-	elif [[ $RC != $ERRNO ]]; then
-		echo "$1: FAIL, test expects $ERRNO_NAME ($ERRNO) - got $RC_NAME ($RC)" >&2
+	elif [[ $RC != $ERRANAL ]]; then
+		echo "$1: FAIL, test expects $ERRANAL_NAME ($ERRANAL) - got $RC_NAME ($RC)" >&2
 		config_show_config
 		exit 1
 	fi
-	echo "$1: OK! - Return value: $RC ($RC_NAME), expected $ERRNO_NAME"
+	echo "$1: OK! - Return value: $RC ($RC_NAME), expected $ERRANAL_NAME"
 }
 
 kmod_defaults_driver()
@@ -334,7 +334,7 @@ kmod_test_0001_driver()
 	config_num_threads 1
 	printf $NAME >"$DIR"/config_test_driver
 	config_trigger ${FUNCNAME[0]}
-	config_expect_result ${FUNCNAME[0]} MODULE_NOT_FOUND
+	config_expect_result ${FUNCNAME[0]} MODULE_ANALT_FOUND
 }
 
 kmod_test_0001_fs()
@@ -356,18 +356,18 @@ kmod_test_0001()
 
 kmod_test_0002_driver()
 {
-	NAME="nope-$DEFAULT_KMOD_DRIVER"
+	NAME="analpe-$DEFAULT_KMOD_DRIVER"
 
 	kmod_defaults_driver
 	config_set_driver $NAME
 	config_num_threads 1
 	config_trigger ${FUNCNAME[0]}
-	config_expect_result ${FUNCNAME[0]} MODULE_NOT_FOUND
+	config_expect_result ${FUNCNAME[0]} MODULE_ANALT_FOUND
 }
 
 kmod_test_0002_fs()
 {
-	NAME="nope-$DEFAULT_KMOD_FS"
+	NAME="analpe-$DEFAULT_KMOD_FS"
 
 	kmod_defaults_fs
 	config_set_fs $NAME
@@ -441,9 +441,9 @@ kmod_test_0010()
 {
 	kmod_defaults_driver
 	config_num_threads 1
-	echo "/KMOD_TEST_NONEXISTENT" > /proc/sys/kernel/modprobe
+	echo "/KMOD_TEST_ANALNEXISTENT" > /proc/sys/kernel/modprobe
 	config_trigger ${FUNCNAME[0]}
-	config_expect_result ${FUNCNAME[0]} -ENOENT
+	config_expect_result ${FUNCNAME[0]} -EANALENT
 	echo "$MODPROBE" > /proc/sys/kernel/modprobe
 }
 
@@ -451,13 +451,13 @@ kmod_test_0011()
 {
 	kmod_defaults_driver
 	config_num_threads 1
-	# This causes the kernel to not even try executing modprobe.  The error
-	# code is still -ENOENT like when modprobe doesn't exist, so we can't
+	# This causes the kernel to analt even try executing modprobe.  The error
+	# code is still -EANALENT like when modprobe doesn't exist, so we can't
 	# easily test for the exact difference.  But this still is a useful test
 	# since there was a bug where request_module() returned 0 in this case.
 	echo > /proc/sys/kernel/modprobe
 	config_trigger ${FUNCNAME[0]}
-	config_expect_result ${FUNCNAME[0]} -ENOENT
+	config_expect_result ${FUNCNAME[0]} -EANALENT
 	echo "$MODPROBE" > /proc/sys/kernel/modprobe
 }
 
@@ -502,7 +502,7 @@ list_tests()
 	echo "NUM_TESTS: Number of recommended times to run the test"
 	echo
 	echo "0001 x $(get_test_count 0001) - Simple test - 1 thread  for empty string"
-	echo "0002 x $(get_test_count 0002) - Simple test - 1 thread  for modules/filesystems that do not exist"
+	echo "0002 x $(get_test_count 0002) - Simple test - 1 thread  for modules/filesystems that do analt exist"
 	echo "0003 x $(get_test_count 0003) - Simple test - 1 thread  for get_fs_type() only"
 	echo "0004 x $(get_test_count 0004) - Simple test - 2 threads for get_fs_type() only"
 	echo "0005 x $(get_test_count 0005) - multithreaded tests with default setup - request_module() only"
@@ -510,7 +510,7 @@ list_tests()
 	echo "0007 x $(get_test_count 0007) - multithreaded tests with default setup test request_module() and get_fs_type()"
 	echo "0008 x $(get_test_count 0008) - multithreaded - push kmod_concurrent over max_modprobes for request_module()"
 	echo "0009 x $(get_test_count 0009) - multithreaded - push kmod_concurrent over max_modprobes for get_fs_type()"
-	echo "0010 x $(get_test_count 0010) - test nonexistent modprobe path"
+	echo "0010 x $(get_test_count 0010) - test analnexistent modprobe path"
 	echo "0011 x $(get_test_count 0011) - test completely disabling module autoloading"
 	echo "0012 x $(get_test_count 0012) - test /proc/modules address visibility under CAP_SYSLOG"
 	echo "0013 x $(get_test_count 0013) - test /sys/module/*/sections/* visibility under CAP_SYSLOG"
@@ -627,7 +627,7 @@ function test_case()
 	i=0
 	while [ $i -lt $NUM_TESTS ]; do
 		test_num $1
-		watch_log $i ${TEST_NAME}_test_$1 noclear
+		watch_log $i ${TEST_NAME}_test_$1 analclear
 		RUN_TEST=${TEST_NAME}_test_$1
 		$RUN_TEST
 		let i=$i+1

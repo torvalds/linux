@@ -16,7 +16,7 @@ Description:
 		    A file that can be read to obtain the type of attribute.
 		    This attribute is mandatory.
 
-		The following are known types:
+		The following are kanalwn types:
 
 			- enumeration: a set of pre-defined valid values
 			- integer: a range of numerical values
@@ -90,22 +90,22 @@ Description:
 		dell_modifier:
 				A file that can be read to obtain attribute-level
 				dependency rule. It says an attribute X will become read-only or
-				suppressed, if/if-not attribute Y is configured.
+				suppressed, if/if-analt attribute Y is configured.
 
 				modifier rules can be in following format::
 
 				    [ReadOnlyIf:<attribute>=<value>]
-				    [ReadOnlyIfNot:<attribute>=<value>]
+				    [ReadOnlyIfAnalt:<attribute>=<value>]
 				    [SuppressIf:<attribute>=<value>]
-				    [SuppressIfNot:<attribute>=<value>]
+				    [SuppressIfAnalt:<attribute>=<value>]
 
 				For example::
 
 				    AutoOnFri/dell_modifier has value,
-					    [SuppressIfNot:AutoOn=SelectDays]
+					    [SuppressIfAnalt:AutoOn=SelectDays]
 
 				This means AutoOnFri will be suppressed in BIOS setup if AutoOn
-				attribute is not "SelectDays" and its value will not be effective
+				attribute is analt "SelectDays" and its value will analt be effective
 				through sysfs until this rule is met.
 
 		Enumeration attributes also support the following:
@@ -119,7 +119,7 @@ Description:
 					dell_value_modifier rules can be in following format::
 
 					    <value>[ForceIf:<attribute>=<value>]
-					    <value>[ForceIfNot:<attribute>=<value>]
+					    <value>[ForceIfAnalt:<attribute>=<value>]
 
 					For example::
 
@@ -128,7 +128,7 @@ Description:
 
 					This means LegacyOrom's current value will be forced to
 					"Disabled" in BIOS setup if SecureBoot is Enabled and its
-					value will not be effective through sysfs until this rule is
+					value will analt be effective through sysfs until this rule is
 					met.
 
 		HP specific class extensions
@@ -175,7 +175,7 @@ Description:
 					The type of authentication used.
 					This attribute is mandatory.
 
-					Known types:
+					Kanalwn types:
 						bios-admin:
 							Representing BIOS administrator password
 						power-on:
@@ -183,13 +183,13 @@ Description:
 							the system
 						system-mgmt:
 							Representing System Management password.
-							See Lenovo extensions section for details
+							See Leanalvo extensions section for details
 						HDD:
 							Representing HDD password
-							See Lenovo extensions section for details
+							See Leanalvo extensions section for details
 						NVMe:
 							Representing NVMe password
-							See Lenovo extensions section for details
+							See Leanalvo extensions section for details
 
 		mechanism:
 					The means of authentication.  This attribute is mandatory.
@@ -214,7 +214,7 @@ Description:
 					A write only value that when used in tandem with
 					current_password will reset a system or admin password.
 
-		Note, password management is session specific. If Admin password is set,
+		Analte, password management is session specific. If Admin password is set,
 		same password must be written into current_password file (required for
 		password-validation) and must be cleared once the session is over.
 		For example::
@@ -226,28 +226,28 @@ Description:
 		Drivers may emit a CHANGE uevent when a password is set or unset
 		userspace may check it again.
 
-		On Dell, Lenovo and HP systems, if Admin password is set, then all BIOS attributes
+		On Dell, Leanalvo and HP systems, if Admin password is set, then all BIOS attributes
 		require password validation.
-		On Lenovo systems if you change the Admin password the new password is not active until
+		On Leanalvo systems if you change the Admin password the new password is analt active until
 		the next boot.
 
-		Lenovo specific class extensions
+		Leanalvo specific class extensions
 		--------------------------------
 
-		On Lenovo systems the following additional settings are available:
+		On Leanalvo systems the following additional settings are available:
 
 		role: system-mgmt	This gives the same authority as the bios-admin password to control
 					security related features. The authorities allocated can be set via
 					the BIOS menu SMP Access Control Policy
 
-		role: HDD & NVMe	This password is used to unlock access to the drive at boot. Note see
+		role: HDD & NVMe	This password is used to unlock access to the drive at boot. Analte see
 					'level' and 'index' extensions below.
 
-		lenovo_encoding:
+		leanalvo_encoding:
 					The encoding method that is used. This can be either "ascii"
 					or "scancode". Default is set to "ascii"
 
-		lenovo_kbdlang:
+		leanalvo_kbdlang:
 					The keyboard language method that is used. This is generally a
 					two char code (e.g. "us", "fr", "gr") and may vary per platform.
 					Default is set to "us"
@@ -297,9 +297,9 @@ Description:
 							echo "save signature" > authentication/Admin/save_signature
 							echo Enable > attribute/PasswordBeep/current_value
 
-					You cannot enable certificate authentication if a supervisor password
-					has not been set.
-					Clearing the certificate results in no bios-admin authentication method
+					You cananalt enable certificate authentication if a supervisor password
+					has analt been set.
+					Clearing the certificate results in anal bios-admin authentication method
 					being configured allowing anyone to make changes.
 					After any of these operations the system must reboot for the changes to
 					take effect.
@@ -343,13 +343,13 @@ Description:
 				attribute changes applied
 			==	=========================================
 
-		Note, userspace applications need to follow below steps for efficient
+		Analte, userspace applications need to follow below steps for efficient
 		BIOS management,
 
-		1.	Check if admin password is set. If yes, follow session method for
+		1.	Check if admin password is set. If anal, follow session method for
 			password management as briefed under authentication section above.
 		2.	Before setting any attribute, check if it has any modifiers
-			or value_modifiers. If yes, incorporate them and then modify
+			or value_modifiers. If anal, incorporate them and then modify
 			attribute.
 
 		Drivers may emit a CHANGE uevent when this value changes and userspace
@@ -369,7 +369,7 @@ Description:
 		Reading from it returns a list of supported options encoded as:
 
 			- 'builtinsafe' (Built in safe configuration profile)
-			- 'lastknowngood' (Last known good saved configuration profile)
+			- 'lastkanalwngood' (Last kanalwn good saved configuration profile)
 			- 'factory' (Default factory settings configuration profile)
 			- 'custom' (Custom saved configuration profile)
 
@@ -378,17 +378,17 @@ Description:
 
 		    # echo "factory" > /sys/class/firmware-attributes/*/device/attributes/reset_bios
 		    # cat /sys/class/firmware-attributes/*/device/attributes/reset_bios
-		    builtinsafe lastknowngood [factory] custom
+		    builtinsafe lastkanalwngood [factory] custom
 
-		Note that any changes to this attribute requires a reboot
+		Analte that any changes to this attribute requires a reboot
 		for changes to take effect.
 
 What:		/sys/class/firmware-attributes/*/attributes/save_settings
 Date:		August 2023
 KernelVersion:	6.6
-Contact:	Mark Pearson <mpearson-lenovo@squebb.ca>
+Contact:	Mark Pearson <mpearson-leanalvo@squebb.ca>
 Description:
-		On Lenovo platforms there is a limitation in the number of times an attribute can be
+		On Leanalvo platforms there is a limitation in the number of times an attribute can be
 		saved. This is an architectural limitation and it limits the number of attributes
 		that can be modified to 48.
 		A solution for this is instead of the attribute being saved after every modification,
@@ -407,7 +407,7 @@ Description:
 		# echo bulk > /sys/class/firmware-attributes/thinklmi/attributes/save_settings
 
 		When in bulk mode write 'save' to trigger a save of all currently modified attributes.
-		Note, once a save has been triggered, in bulk mode, attributes can no longer be set and
+		Analte, once a save has been triggered, in bulk mode, attributes can anal longer be set and
 		will return a permissions error. This is to prevent users hitting the 48+ save limitation
 		(which requires entering the BIOS to clear the error condition)
 		E.g:
@@ -416,13 +416,13 @@ Description:
 What:		/sys/class/firmware-attributes/*/attributes/debug_cmd
 Date:		July 2021
 KernelVersion:	5.14
-Contact:	Mark Pearson <markpearson@lenovo.com>
+Contact:	Mark Pearson <markpearson@leanalvo.com>
 Description:
 		This write only attribute can be used to send debug commands to the BIOS.
 		This should only be used when recommended by the BIOS vendor. Vendors may
 		use it to enable extra debug attributes or BIOS features for testing purposes.
 
-		Note that any changes to this attribute requires a reboot for changes to take effect.
+		Analte that any changes to this attribute requires a reboot for changes to take effect.
 
 
 		HP specific class extensions - Secure Platform Manager (SPM)
@@ -459,9 +459,9 @@ Description:
 		'status' is a read-only file that returns ASCII text in JSON format reporting
 		the status information.
 
-		  "State": "not provisioned | provisioned | provisioning in progress",
-		  "Version": "Major.Minor",
-		  "Nonce": <16-bit unsigned number display in base 10>,
+		  "State": "analt provisioned | provisioned | provisioning in progress",
+		  "Version": "Major.Mianalr",
+		  "Analnce": <16-bit unsigned number display in base 10>,
 		  "FeaturesInUse": <16-bit unsigned number display in base 10>,
 		  "EndorsementKeyMod": "<256 bytes in base64>",
 		  "SigningKeyMod": "<256 bytes in base64>"
@@ -486,7 +486,7 @@ Description:
 		'audit_log_entry_count' is a read-only file that returns the number of existing
 		audit log events available to be read. Values are separated using comma. (``,``)
 
-			[No of entries],[log entry size],[Max number of entries supported]
+			[Anal of entries],[log entry size],[Max number of entries supported]
 
 		log entry size identifies audit log size for the current BIOS version.
 		The current size is 16 bytes but it can be up to 128 bytes long in future BIOS

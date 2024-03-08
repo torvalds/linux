@@ -28,7 +28,7 @@ struct sock_common {
 } __attribute__((preserve_access_index));
 
 enum sk_pacing {
-	SK_PACING_NONE		= 0,
+	SK_PACING_ANALNE		= 0,
 	SK_PACING_NEEDED	= 1,
 	SK_PACING_FQ		= 2,
 };
@@ -119,7 +119,7 @@ enum inet_csk_ack_state_t {
 	ICSK_ACK_TIMER  = 2,
 	ICSK_ACK_PUSHED = 4,
 	ICSK_ACK_PUSHED2 = 8,
-	ICSK_ACK_NOW = 16	/* Send the next ACK immediately (once) */
+	ICSK_ACK_ANALW = 16	/* Send the next ACK immediately (once) */
 };
 
 enum tcp_ca_event {
@@ -127,7 +127,7 @@ enum tcp_ca_event {
 	CA_EVENT_CWND_RESTART = 1,
 	CA_EVENT_COMPLETE_CWR = 2,
 	CA_EVENT_LOSS = 3,
-	CA_EVENT_ECN_NO_CE = 4,
+	CA_EVENT_ECN_ANAL_CE = 4,
 	CA_EVENT_ECN_IS_CE = 5,
 };
 
@@ -192,7 +192,7 @@ struct tcp_congestion_ops {
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
-#define min_not_zero(x, y) ({			\
+#define min_analt_zero(x, y) ({			\
 	typeof(x) __x = (x);			\
 	typeof(y) __y = (y);			\
 	__x == 0 ? __y : ((__y == 0) ? __x : min(__x, __y)); })

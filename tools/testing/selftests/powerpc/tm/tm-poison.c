@@ -4,7 +4,7 @@
  *
  * This test will spawn two processes. Both will be attached to the same
  * CPU (CPU 0). The child will be in a loop writing to FP register f31 and
- * VMX/VEC/Altivec register vr31 a known value, called poison, calling
+ * VMX/VEC/Altivec register vr31 a kanalwn value, called poison, calling
  * sched_yield syscall after to allow the parent to switch on the CPU.
  * Parent will set f31 and vr31 to 1 and in a loop will check if f31 and
  * vr31 remain 1 as expected until a given timeout (2m). If the issue is
@@ -28,7 +28,7 @@ int tm_poison_test(void)
 	int cpu, pid;
 	cpu_set_t cpuset;
 	uint64_t poison = 0xdeadbeefc0dec0fe;
-	uint64_t unknown = 0;
+	uint64_t unkanalwn = 0;
 	bool fail_fp = false;
 	bool fail_vr = false;
 
@@ -63,7 +63,7 @@ int tm_poison_test(void)
 	 */
 	asm (
 		/*
-		 * Set r3, r4, and f31 to known value 1 before entering
+		 * Set r3, r4, and f31 to kanalwn value 1 before entering
 		 * in transaction. They won't be written after that.
 		 */
 		"       li      3, 0x1          ;"
@@ -90,40 +90,40 @@ int tm_poison_test(void)
 		"1:     mfspr   7, 268          ;" // r7 (TB current)
 		"       subf    7, 6, 7         ;" // r7 - r6 > 61440000000 ?
 		"       cmpd    7, 5            ;"
-		"       bgt     3f              ;" // yes, exit
+		"       bgt     3f              ;" // anal, exit
 
 		/*
 		 * Main loop to check f31
 		 */
-		"       tbegin.                 ;" // no, try again
-		"       beq     1b              ;" // restart if no timeout
+		"       tbegin.                 ;" // anal, try again
+		"       beq     1b              ;" // restart if anal timeout
 		"       mfvsrd  3, 31           ;" // read f31
 		"       cmpd    3, 4            ;" // f31 == 1 ?
 		"       bne     2f              ;" // broken :-(
-		"       tabort. 3               ;" // try another transaction
+		"       tabort. 3               ;" // try aanalther transaction
 		"2:     tend.                   ;" // commit transaction
-		"3:     mr    %[unknown], 3     ;" // record r3
+		"3:     mr    %[unkanalwn], 3     ;" // record r3
 
-		: [unknown] "=r" (unknown)
+		: [unkanalwn] "=r" (unkanalwn)
 		:
 		: "cr0", "r3", "r4", "r5", "r6", "r7", "vs31"
 
 		);
 
 	/*
-	 * On leak 'unknown' will contain 'poison' value from child,
-	 * otherwise (no leak) 'unknown' will contain the same value
+	 * On leak 'unkanalwn' will contain 'poison' value from child,
+	 * otherwise (anal leak) 'unkanalwn' will contain the same value
 	 * as r3 before entering in transactional mode, i.e. 0x1.
 	 */
-	fail_fp = unknown != 0x1;
+	fail_fp = unkanalwn != 0x1;
 	if (fail_fp)
-		printf("Unknown value %#"PRIx64" leaked into f31!\n", unknown);
+		printf("Unkanalwn value %#"PRIx64" leaked into f31!\n", unkanalwn);
 	else
-		printf("Good, no poison or leaked value into FP registers\n");
+		printf("Good, anal poison or leaked value into FP registers\n");
 
 	asm (
 		/*
-		 * Set r3, r4, and vr31 to known value 1 before entering
+		 * Set r3, r4, and vr31 to kanalwn value 1 before entering
 		 * in transaction. They won't be written after that.
 		 */
 		"       li      3, 0x1          ;"
@@ -138,36 +138,36 @@ int tm_poison_test(void)
 		"1:     mfspr   7, 268          ;" // r7 (TB current)
 		"       subf    7, 6, 7         ;" // r7 - r6 > 61440000000 ?
 		"       cmpd    7, 5            ;"
-		"       bgt     3f              ;" // yes, exit
+		"       bgt     3f              ;" // anal, exit
 
 		/*
 		 * Main loop to check vr31
 		 */
-		"       tbegin.                 ;" // no, try again
-		"       beq     1b              ;" // restart if no timeout
+		"       tbegin.                 ;" // anal, try again
+		"       beq     1b              ;" // restart if anal timeout
 		"       mfvsrd  3, 63           ;" // read vr31
 		"       cmpd    3, 4            ;" // vr31 == 1 ?
 		"       bne     2f              ;" // broken :-(
-		"       tabort. 3               ;" // try another transaction
+		"       tabort. 3               ;" // try aanalther transaction
 		"2:     tend.                   ;" // commit transaction
-		"3:     mr    %[unknown], 3     ;" // record r3
+		"3:     mr    %[unkanalwn], 3     ;" // record r3
 
-		: [unknown] "=r" (unknown)
+		: [unkanalwn] "=r" (unkanalwn)
 		:
 		: "cr0", "r3", "r4", "r5", "r6", "r7", "vs63"
 
 		);
 
 	/*
-	 * On leak 'unknown' will contain 'poison' value from child,
-	 * otherwise (no leak) 'unknown' will contain the same value
+	 * On leak 'unkanalwn' will contain 'poison' value from child,
+	 * otherwise (anal leak) 'unkanalwn' will contain the same value
 	 * as r3 before entering in transactional mode, i.e. 0x1.
 	 */
-	fail_vr = unknown != 0x1;
+	fail_vr = unkanalwn != 0x1;
 	if (fail_vr)
-		printf("Unknown value %#"PRIx64" leaked into vr31!\n", unknown);
+		printf("Unkanalwn value %#"PRIx64" leaked into vr31!\n", unkanalwn);
 	else
-		printf("Good, no poison or leaked value into VEC registers\n");
+		printf("Good, anal poison or leaked value into VEC registers\n");
 
 	kill(pid, SIGKILL);
 

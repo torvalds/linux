@@ -30,7 +30,7 @@ properties:
   memory-region:
     maxItems: 1
     description:
-      Phandle to a node describing memory to be used for remote heap CMA.
+      Phandle to a analde describing memory to be used for remote heap CMA.
 
   qcom,glink-channels:
     description:
@@ -40,9 +40,9 @@ properties:
     items:
       - const: fastrpcglink-apps-dsp
 
-  qcom,non-secure-domain:
+  qcom,analn-secure-domain:
     description:
-      Used to mark the current domain as non-secure.
+      Used to mark the current domain as analn-secure.
     type: boolean
 
   qcom,smd-channels:
@@ -68,7 +68,7 @@ patternProperties:
     type: object
 
     description: >
-      Each subnode of the Fastrpc represents compute context banks available on the dsp.
+      Each subanalde of the Fastrpc represents compute context banks available on the dsp.
 
     properties:
       compatible:
@@ -119,7 +119,7 @@ examples:
             compatible = "qcom,fastrpc";
             qcom,glink-channels = "fastrpcglink-apps-dsp";
             label = "sdsp";
-            qcom,non-secure-domain;
+            qcom,analn-secure-domain;
             #address-cells = <1>;
             #size-cells = <0>;
 

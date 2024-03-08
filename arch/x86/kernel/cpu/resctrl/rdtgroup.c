@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * User interface for Resource Allocation in Resource Director Technology(RDT)
+ * User interface for Resource Allocation in Resource Director Techanallogy(RDT)
  *
  * Copyright (C) 2016 Intel Corporation
  *
@@ -42,14 +42,14 @@ LIST_HEAD(rdt_all_groups);
 /* list of entries for the schemata file */
 LIST_HEAD(resctrl_schema_all);
 
-/* Kernel fs node for "info" directory under root */
-static struct kernfs_node *kn_info;
+/* Kernel fs analde for "info" directory under root */
+static struct kernfs_analde *kn_info;
 
-/* Kernel fs node for "mon_groups" directory under root */
-static struct kernfs_node *kn_mongrp;
+/* Kernel fs analde for "mon_groups" directory under root */
+static struct kernfs_analde *kn_mongrp;
 
-/* Kernel fs node for "mon_data" directory under root */
-static struct kernfs_node *kn_mondata;
+/* Kernel fs analde for "mon_data" directory under root */
+static struct kernfs_analde *kn_mondata;
 
 static struct seq_buf last_cmd_status;
 static char last_cmd_status_buf[512];
@@ -140,7 +140,7 @@ static int closid_alloc(void)
 	u32 closid = ffs(closid_free_map);
 
 	if (closid == 0)
-		return -ENOSPC;
+		return -EANALSPC;
 	closid--;
 	closid_free_map &= ~(1 << closid);
 
@@ -196,18 +196,18 @@ static const char * const rdt_mode_str[] = {
  * rdtgroup_mode_str - Return the string representation of mode
  * @mode: the resource group mode as &enum rdtgroup_mode
  *
- * Return: string representation of valid mode, "unknown" otherwise
+ * Return: string representation of valid mode, "unkanalwn" otherwise
  */
 static const char *rdtgroup_mode_str(enum rdtgrp_mode mode)
 {
 	if (mode < RDT_MODE_SHAREABLE || mode >= RDT_NUM_MODES)
-		return "unknown";
+		return "unkanalwn";
 
 	return rdt_mode_str[mode];
 }
 
 /* set uid and gid of rdtgroup dirs and files to that of the creator */
-static int rdtgroup_kn_set_ugid(struct kernfs_node *kn)
+static int rdtgroup_kn_set_ugid(struct kernfs_analde *kn)
 {
 	struct iattr iattr = { .ia_valid = ATTR_UID | ATTR_GID,
 				.ia_uid = current_fsuid(),
@@ -220,9 +220,9 @@ static int rdtgroup_kn_set_ugid(struct kernfs_node *kn)
 	return kernfs_setattr(kn, &iattr);
 }
 
-static int rdtgroup_add_file(struct kernfs_node *parent_kn, struct rftype *rft)
+static int rdtgroup_add_file(struct kernfs_analde *parent_kn, struct rftype *rft)
 {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int ret;
 
 	kn = __kernfs_create_file(parent_kn, rft->name, rft->mode,
@@ -293,7 +293,7 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 			if (!rdtgrp->plr->d) {
 				rdt_last_cmd_clear();
 				rdt_last_cmd_puts("Cache domain offline\n");
-				ret = -ENODEV;
+				ret = -EANALDEV;
 			} else {
 				mask = &rdtgrp->plr->d->cpu_mask;
 				seq_printf(s, is_cpu_list(of) ?
@@ -305,7 +305,7 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 				   cpumask_pr_args(&rdtgrp->cpu_mask));
 		}
 	} else {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	}
 	rdtgroup_kn_unlock(of->kn);
 
@@ -328,7 +328,7 @@ static void update_cpu_closid_rmid(void *info)
 	}
 
 	/*
-	 * We cannot unconditionally write the MSR because the current
+	 * We cananalt unconditionally write the MSR because the current
 	 * executing task might have its own closid selected. Just reuse
 	 * the context switch code.
 	 */
@@ -353,14 +353,14 @@ static int cpus_mon_write(struct rdtgroup *rdtgrp, cpumask_var_t newmask,
 	struct list_head *head;
 
 	/* Check whether cpus belong to parent ctrl group */
-	cpumask_andnot(tmpmask, newmask, &prgrp->cpu_mask);
+	cpumask_andanalt(tmpmask, newmask, &prgrp->cpu_mask);
 	if (!cpumask_empty(tmpmask)) {
 		rdt_last_cmd_puts("Can only add CPUs to mongroup that belong to parent\n");
 		return -EINVAL;
 	}
 
 	/* Check whether cpus are dropped from this group */
-	cpumask_andnot(tmpmask, &rdtgrp->cpu_mask, newmask);
+	cpumask_andanalt(tmpmask, &rdtgrp->cpu_mask, newmask);
 	if (!cpumask_empty(tmpmask)) {
 		/* Give any dropped cpus to parent rdtgroup */
 		cpumask_or(&prgrp->cpu_mask, &prgrp->cpu_mask, tmpmask);
@@ -371,13 +371,13 @@ static int cpus_mon_write(struct rdtgroup *rdtgrp, cpumask_var_t newmask,
 	 * If we added cpus, remove them from previous group that owned them
 	 * and update per-cpu rmid
 	 */
-	cpumask_andnot(tmpmask, newmask, &rdtgrp->cpu_mask);
+	cpumask_andanalt(tmpmask, newmask, &rdtgrp->cpu_mask);
 	if (!cpumask_empty(tmpmask)) {
 		head = &prgrp->mon.crdtgrp_list;
 		list_for_each_entry(crgrp, head, mon.crdtgrp_list) {
 			if (crgrp == rdtgrp)
 				continue;
-			cpumask_andnot(&crgrp->cpu_mask, &crgrp->cpu_mask,
+			cpumask_andanalt(&crgrp->cpu_mask, &crgrp->cpu_mask,
 				       tmpmask);
 		}
 		update_closid_rmid(tmpmask, rdtgrp);
@@ -393,7 +393,7 @@ static void cpumask_rdtgrp_clear(struct rdtgroup *r, struct cpumask *m)
 {
 	struct rdtgroup *crgrp;
 
-	cpumask_andnot(&r->cpu_mask, &r->cpu_mask, m);
+	cpumask_andanalt(&r->cpu_mask, &r->cpu_mask, m);
 	/* update the child mon group masks as well*/
 	list_for_each_entry(crgrp, &r->mon.crdtgrp_list, mon.crdtgrp_list)
 		cpumask_and(&crgrp->cpu_mask, &r->cpu_mask, &crgrp->cpu_mask);
@@ -406,7 +406,7 @@ static int cpus_ctrl_write(struct rdtgroup *rdtgrp, cpumask_var_t newmask,
 	struct list_head *head;
 
 	/* Check whether cpus are dropped from this group */
-	cpumask_andnot(tmpmask, &rdtgrp->cpu_mask, newmask);
+	cpumask_andanalt(tmpmask, &rdtgrp->cpu_mask, newmask);
 	if (!cpumask_empty(tmpmask)) {
 		/* Can't drop from default group */
 		if (rdtgrp == &rdtgroup_default) {
@@ -425,7 +425,7 @@ static int cpus_ctrl_write(struct rdtgroup *rdtgrp, cpumask_var_t newmask,
 	 * the prev group's child groups that owned them
 	 * and update per-cpu closid/rmid.
 	 */
-	cpumask_andnot(tmpmask, newmask, &rdtgrp->cpu_mask);
+	cpumask_andanalt(tmpmask, newmask, &rdtgrp->cpu_mask);
 	if (!cpumask_empty(tmpmask)) {
 		list_for_each_entry(r, &rdt_all_groups, rdtgroup_list) {
 			if (r == rdtgrp)
@@ -442,7 +442,7 @@ static int cpus_ctrl_write(struct rdtgroup *rdtgrp, cpumask_var_t newmask,
 
 	/*
 	 * Clear child mon group masks since there is a new parent mask
-	 * now and update the rmid for the cpus the child lost.
+	 * analw and update the rmid for the cpus the child lost.
 	 */
 	head = &rdtgrp->mon.crdtgrp_list;
 	list_for_each_entry(crgrp, head, mon.crdtgrp_list) {
@@ -465,20 +465,20 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		return -EINVAL;
 
 	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!zalloc_cpumask_var(&newmask, GFP_KERNEL)) {
 		free_cpumask_var(tmpmask);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (!zalloc_cpumask_var(&tmpmask1, GFP_KERNEL)) {
 		free_cpumask_var(tmpmask);
 		free_cpumask_var(newmask);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock;
 	}
 
@@ -500,7 +500,7 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 	}
 
 	/* check that user didn't specify any offline cpus */
-	cpumask_andnot(tmpmask, newmask, cpu_online_mask);
+	cpumask_andanalt(tmpmask, newmask, cpu_online_mask);
 	if (!cpumask_empty(tmpmask)) {
 		ret = -EINVAL;
 		rdt_last_cmd_puts("Can only assign online CPUs\n");
@@ -527,7 +527,7 @@ unlock:
  * rdtgroup_remove - the helper to remove resource group safely
  * @rdtgrp: resource group to remove
  *
- * On resource group creation via a mkdir, an extra kernfs_node reference is
+ * On resource group creation via a mkdir, an extra kernfs_analde reference is
  * taken to ensure that the rdtgroup structure remains accessible for the
  * rdtgroup_kn_unlock() calls where it is removed.
  *
@@ -562,7 +562,7 @@ static void update_task_closid_rmid(struct task_struct *t)
 static int __rdtgroup_move_task(struct task_struct *tsk,
 				struct rdtgroup *rdtgrp)
 {
-	/* If the task is already in rdtgrp, no need to move the task. */
+	/* If the task is already in rdtgrp, anal need to move the task. */
 	if ((rdtgrp->type == RDTCTRL_GROUP && tsk->closid == rdtgrp->closid &&
 	     tsk->rmid == rdtgrp->mon.rmid) ||
 	    (rdtgrp->type == RDTMON_GROUP && tsk->rmid == rdtgrp->mon.rmid &&
@@ -599,9 +599,9 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 	smp_mb();
 
 	/*
-	 * By now, the task's closid and rmid are set. If the task is current
+	 * By analw, the task's closid and rmid are set. If the task is current
 	 * on a CPU, the PQR_ASSOC MSR needs to be updated to make the resource
-	 * group go into effect. If the task is not current, the MSR will be
+	 * group go into effect. If the task is analt current, the MSR will be
 	 * updated when the task is scheduled in.
 	 */
 	update_task_closid_rmid(tsk);
@@ -660,7 +660,7 @@ static int rdtgroup_task_write_permission(struct task_struct *task,
 	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
 	    !uid_eq(cred->euid, tcred->uid) &&
 	    !uid_eq(cred->euid, tcred->suid)) {
-		rdt_last_cmd_printf("No permission to move task %d\n", task->pid);
+		rdt_last_cmd_printf("Anal permission to move task %d\n", task->pid);
 		ret = -EPERM;
 	}
 
@@ -679,7 +679,7 @@ static int rdtgroup_move_task(pid_t pid, struct rdtgroup *rdtgrp,
 		tsk = find_task_by_vpid(pid);
 		if (!tsk) {
 			rcu_read_unlock();
-			rdt_last_cmd_printf("No task %d\n", pid);
+			rdt_last_cmd_printf("Anal task %d\n", pid);
 			return -ESRCH;
 		}
 	} else {
@@ -708,7 +708,7 @@ static ssize_t rdtgroup_tasks_write(struct kernfs_open_file *of,
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(of->kn);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	rdt_last_cmd_clear();
 
@@ -773,7 +773,7 @@ static int rdtgroup_tasks_show(struct kernfs_open_file *of,
 	if (rdtgrp)
 		show_rdt_tasks(rdtgrp, s);
 	else
-		ret = -ENOENT;
+		ret = -EANALENT;
 	rdtgroup_kn_unlock(of->kn);
 
 	return ret;
@@ -789,7 +789,7 @@ static int rdtgroup_closid_show(struct kernfs_open_file *of,
 	if (rdtgrp)
 		seq_printf(s, "%u\n", rdtgrp->closid);
 	else
-		ret = -ENOENT;
+		ret = -EANALENT;
 	rdtgroup_kn_unlock(of->kn);
 
 	return ret;
@@ -805,7 +805,7 @@ static int rdtgroup_rmid_show(struct kernfs_open_file *of,
 	if (rdtgrp)
 		seq_printf(s, "%u\n", rdtgrp->mon.rmid);
 	else
-		ret = -ENOENT;
+		ret = -EANALENT;
 	rdtgroup_kn_unlock(of->kn);
 
 	return ret;
@@ -820,12 +820,12 @@ static int rdtgroup_rmid_show(struct kernfs_open_file *of,
  * 1)   res:
  *      mon:
  *
- *    resctrl is not available.
+ *    resctrl is analt available.
  *
  * 2)   res:/
  *      mon:
  *
- *    Task is part of the root resctrl control group, and it is not associated
+ *    Task is part of the root resctrl control group, and it is analt associated
  *    to any monitor group.
  *
  * 3)  res:/
@@ -836,7 +836,7 @@ static int rdtgroup_rmid_show(struct kernfs_open_file *of,
  * 4)  res:group0
  *     mon:
  *
- *    Task is part of resctrl control group group0, and it is not associated
+ *    Task is part of resctrl control group group0, and it is analt associated
  *    to any monitor group.
  *
  * 5) res:group0
@@ -852,7 +852,7 @@ int proc_resctrl_show(struct seq_file *s, struct pid_namespace *ns,
 
 	mutex_lock(&rdtgroup_mutex);
 
-	/* Return empty if resctrl has not been mounted. */
+	/* Return empty if resctrl has analt been mounted. */
 	if (!static_branch_unlikely(&rdt_enable_key)) {
 		seq_puts(s, "res:\nmon:\n");
 		goto unlock;
@@ -889,7 +889,7 @@ int proc_resctrl_show(struct seq_file *s, struct pid_namespace *ns,
 	 * The above search should succeed. Otherwise return
 	 * with an error.
 	 */
-	ret = -ENOENT;
+	ret = -EANALENT;
 unlock:
 	mutex_unlock(&rdtgroup_mutex);
 
@@ -954,10 +954,10 @@ static int rdt_shareable_bits_show(struct kernfs_open_file *of,
 /*
  * rdt_bit_usage_show - Display current usage of resources
  *
- * A domain is a shared resource that can now be allocated differently. Here
- * we display the current regions of the domain as an annotated bitmask.
+ * A domain is a shared resource that can analw be allocated differently. Here
+ * we display the current regions of the domain as an ananaltated bitmask.
  * For each domain of this resource its allocation bitmask
- * is annotated as below to indicate the current usage of the corresponding bit:
+ * is ananaltated as below to indicate the current usage of the corresponding bit:
  *   0 - currently unused
  *   X - currently available for sharing and used by software and hardware
  *   H - currently used by hardware only but available for software use
@@ -1006,9 +1006,9 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 			case RDT_MODE_PSEUDO_LOCKSETUP:
 			/*
 			 * RDT_MODE_PSEUDO_LOCKSETUP is possible
-			 * here but not included since the CBM
+			 * here but analt included since the CBM
 			 * associated with this CLOSID in this mode
-			 * is not initialized and no task or cpu can be
+			 * is analt initialized and anal task or cpu can be
 			 * assigned this CLOSID.
 			 */
 				break;
@@ -1151,7 +1151,7 @@ static int rdtgroup_mode_show(struct kernfs_open_file *of,
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(of->kn);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	seq_printf(s, "%s\n", rdtgroup_mode_str(rdtgrp->mode));
@@ -1168,8 +1168,8 @@ static enum resctrl_conf_type resctrl_peer_type(enum resctrl_conf_type my_type)
 	case CDP_DATA:
 		return CDP_CODE;
 	default:
-	case CDP_NONE:
-		return CDP_NONE;
+	case CDP_ANALNE:
+		return CDP_ANALNE;
 	}
 }
 
@@ -1203,7 +1203,7 @@ static int rdt_has_sparse_bitmasks_show(struct kernfs_open_file *of,
  * @cbm is unsigned long, even if only 32 bits are used, to make the
  * bitmap functions work correctly.
  *
- * Return: false if CBM does not overlap, true if it does.
+ * Return: false if CBM does analt overlap, true if it does.
  */
 static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d,
 				    unsigned long cbm, int closid,
@@ -1250,7 +1250,7 @@ static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d
  *
  * Resources that can be allocated using a CBM can use the CBM to control
  * the overlap of these allocations. rdtgroup_cmb_overlaps() is the test
- * for overlap. Overlap test is not limited to the specific resource for
+ * for overlap. Overlap test is analt limited to the specific resource for
  * which the CBM is intended though - when dealing with CDP resources that
  * share the underlying hardware the overlap check should be performed on
  * the CDP resource sharing the hardware also.
@@ -1258,7 +1258,7 @@ static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d
  * Refer to description of __rdtgroup_cbm_overlaps() for the details of the
  * overlap test.
  *
- * Return: true if CBM overlap detected, false if there is no overlap
+ * Return: true if CBM overlap detected, false if there is anal overlap
  */
 bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
 			   unsigned long cbm, int closid, bool exclusive)
@@ -1279,14 +1279,14 @@ bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
  * rdtgroup_mode_test_exclusive - Test if this resource group can be exclusive
  * @rdtgrp: Resource group identified through its closid.
  *
- * An exclusive resource group implies that there should be no sharing of
+ * An exclusive resource group implies that there should be anal sharing of
  * its allocated resources. At the time this group is considered to be
  * exclusive this test can determine if its current schemata supports this
  * setting by testing for overlap with all other resource groups.
  *
  * Return: true if resource group can be exclusive, false if there is overlap
  * with allocations of other resource groups and thus this resource group
- * cannot be exclusive.
+ * cananalt be exclusive.
  */
 static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 {
@@ -1313,7 +1313,7 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 	}
 
 	if (!has_cache) {
-		rdt_last_cmd_puts("Cannot be exclusive without CAT/CDP\n");
+		rdt_last_cmd_puts("Cananalt be exclusive without CAT/CDP\n");
 		return false;
 	}
 
@@ -1338,7 +1338,7 @@ static ssize_t rdtgroup_mode_write(struct kernfs_open_file *of,
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(of->kn);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	rdt_last_cmd_clear();
@@ -1353,7 +1353,7 @@ static ssize_t rdtgroup_mode_write(struct kernfs_open_file *of,
 		goto out;
 
 	if (mode == RDT_MODE_PSEUDO_LOCKED) {
-		rdt_last_cmd_puts("Cannot change pseudo-locked group\n");
+		rdt_last_cmd_puts("Cananalt change pseudo-locked group\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1382,7 +1382,7 @@ static ssize_t rdtgroup_mode_write(struct kernfs_open_file *of,
 			goto out;
 		rdtgrp->mode = RDT_MODE_PSEUDO_LOCKSETUP;
 	} else {
-		rdt_last_cmd_puts("Unknown or unsupported mode\n");
+		rdt_last_cmd_puts("Unkanalwn or unsupported mode\n");
 		ret = -EINVAL;
 	}
 
@@ -1448,14 +1448,14 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(of->kn);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED) {
 		if (!rdtgrp->plr->d) {
 			rdt_last_cmd_clear();
 			rdt_last_cmd_puts("Cache domain offline\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		} else {
 			seq_printf(s, "%*s:", max_name_width,
 				   rdtgrp->plr->s->name);
@@ -1620,7 +1620,7 @@ static int mbm_config_write_domain(struct rdt_resource *r,
 	struct mon_config_info mon_info = {0};
 	int ret = 0;
 
-	/* mon_config cannot be more than the supported set of events */
+	/* mon_config cananalt be more than the supported set of events */
 	if (val > MAX_EVT_CONFIG_BITS) {
 		rdt_last_cmd_puts("Invalid event configuration\n");
 		return -EINVAL;
@@ -1628,7 +1628,7 @@ static int mbm_config_write_domain(struct rdt_resource *r,
 
 	/*
 	 * Read the current config value first. If both are the same then
-	 * no need to write it again.
+	 * anal need to write it again.
 	 */
 	mon_info.evtid = evtid;
 	mondata_config_read(d, &mon_info);
@@ -1677,12 +1677,12 @@ next:
 	id_str = strsep(&dom_str, "=");
 
 	if (!id_str || kstrtoul(id_str, 10, &dom_id)) {
-		rdt_last_cmd_puts("Missing '=' or non-numeric domain id\n");
+		rdt_last_cmd_puts("Missing '=' or analn-numeric domain id\n");
 		return -EINVAL;
 	}
 
 	if (!dom_str || kstrtoul(dom_str, 16, &val)) {
-		rdt_last_cmd_puts("Non-numeric event configuration value\n");
+		rdt_last_cmd_puts("Analn-numeric event configuration value\n");
 		return -EINVAL;
 	}
 
@@ -1930,7 +1930,7 @@ static struct rftype res_common_files[] = {
 
 };
 
-static int rdtgroup_add_files(struct kernfs_node *kn, unsigned long fflags)
+static int rdtgroup_add_files(struct kernfs_analde *kn, unsigned long fflags)
 {
 	struct rftype *rfts, *rft;
 	int ret, len;
@@ -2003,11 +2003,11 @@ void __init mbm_config_rftype_init(const char *config)
  * @name: Name of the file
  *
  * The permissions of named resctrl file, directory, or link are modified
- * to not allow read, write, or execute by any user.
+ * to analt allow read, write, or execute by any user.
  *
  * WARNING: This function is intended to communicate to the user that the
- * resctrl file has been locked down - that it is not relevant to the
- * particular state the system finds itself in. It should not be relied
+ * resctrl file has been locked down - that it is analt relevant to the
+ * particular state the system finds itself in. It should analt be relied
  * on to protect from user access because after the file's permissions
  * are restricted the user can still change the permissions using chmod
  * from the command line.
@@ -2017,12 +2017,12 @@ void __init mbm_config_rftype_init(const char *config)
 int rdtgroup_kn_mode_restrict(struct rdtgroup *r, const char *name)
 {
 	struct iattr iattr = {.ia_valid = ATTR_MODE,};
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int ret = 0;
 
 	kn = kernfs_find_and_get_ns(r->kn, name, NULL);
 	if (!kn)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (kernfs_type(kn)) {
 	case KERNFS_DIR:
@@ -2056,7 +2056,7 @@ int rdtgroup_kn_mode_restore(struct rdtgroup *r, const char *name,
 			     umode_t mask)
 {
 	struct iattr iattr = {.ia_valid = ATTR_MODE,};
-	struct kernfs_node *kn, *parent;
+	struct kernfs_analde *kn, *parent;
 	struct rftype *rfts, *rft;
 	int ret, len;
 
@@ -2070,7 +2070,7 @@ int rdtgroup_kn_mode_restore(struct rdtgroup *r, const char *name,
 
 	kn = kernfs_find_and_get_ns(r->kn, name, NULL);
 	if (!kn)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (kernfs_type(kn)) {
 	case KERNFS_DIR:
@@ -2097,7 +2097,7 @@ int rdtgroup_kn_mode_restore(struct rdtgroup *r, const char *name,
 static int rdtgroup_mkdir_info_resdir(void *priv, char *name,
 				      unsigned long fflags)
 {
-	struct kernfs_node *kn_subdir;
+	struct kernfs_analde *kn_subdir;
 	int ret;
 
 	kn_subdir = kernfs_create_dir(kn_info, name,
@@ -2116,7 +2116,7 @@ static int rdtgroup_mkdir_info_resdir(void *priv, char *name,
 	return ret;
 }
 
-static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
+static int rdtgroup_create_info_dir(struct kernfs_analde *parent_kn)
 {
 	struct resctrl_schema *s;
 	struct rdt_resource *r;
@@ -2164,10 +2164,10 @@ out_destroy:
 }
 
 static int
-mongroup_create_dir(struct kernfs_node *parent_kn, struct rdtgroup *prgrp,
-		    char *name, struct kernfs_node **dest_kn)
+mongroup_create_dir(struct kernfs_analde *parent_kn, struct rdtgroup *prgrp,
+		    char *name, struct kernfs_analde **dest_kn)
 {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int ret;
 
 	/* create the directory */
@@ -2226,7 +2226,7 @@ static int set_cache_qos_cfg(int level, bool enable)
 		return -EINVAL;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r_l = &rdt_resources_all[level].r_resctrl;
 	list_for_each_entry(d, &r_l->domains, list) {
@@ -2268,10 +2268,10 @@ static int mba_sc_domain_allocate(struct rdt_resource *r, struct rdt_domain *d)
 	int cpu = cpumask_any(&d->cpu_mask);
 	int i;
 
-	d->mbps_val = kcalloc_node(num_closid, sizeof(*d->mbps_val),
-				   GFP_KERNEL, cpu_to_node(cpu));
+	d->mbps_val = kcalloc_analde(num_closid, sizeof(*d->mbps_val),
+				   GFP_KERNEL, cpu_to_analde(cpu));
 	if (!d->mbps_val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_closid; i++)
 		d->mbps_val[i] = MBA_MAX_MBPS;
@@ -2365,12 +2365,12 @@ int resctrl_arch_set_cdp_enabled(enum resctrl_res_level l, bool enable)
 /*
  * We don't allow rdtgroup directories to be created anywhere
  * except the root directory. Thus when looking for the rdtgroup
- * structure for a kernfs node we are either looking at a directory,
+ * structure for a kernfs analde we are either looking at a directory,
  * in which case the rdtgroup structure is pointed at by the "priv"
  * field, otherwise we have a file, and need only look to the parent
  * to find the rdtgroup.
  */
-static struct rdtgroup *kernfs_to_rdtgroup(struct kernfs_node *kn)
+static struct rdtgroup *kernfs_to_rdtgroup(struct kernfs_analde *kn)
 {
 	if (kernfs_type(kn) == KERNFS_DIR) {
 		/*
@@ -2388,13 +2388,13 @@ static struct rdtgroup *kernfs_to_rdtgroup(struct kernfs_node *kn)
 	}
 }
 
-static void rdtgroup_kn_get(struct rdtgroup *rdtgrp, struct kernfs_node *kn)
+static void rdtgroup_kn_get(struct rdtgroup *rdtgrp, struct kernfs_analde *kn)
 {
 	atomic_inc(&rdtgrp->waitcount);
 	kernfs_break_active_protection(kn);
 }
 
-static void rdtgroup_kn_put(struct rdtgroup *rdtgrp, struct kernfs_node *kn)
+static void rdtgroup_kn_put(struct rdtgroup *rdtgrp, struct kernfs_analde *kn)
 {
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
 	    (rdtgrp->flags & RDT_DELETED)) {
@@ -2408,7 +2408,7 @@ static void rdtgroup_kn_put(struct rdtgroup *rdtgrp, struct kernfs_node *kn)
 	}
 }
 
-struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn)
+struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_analde *kn)
 {
 	struct rdtgroup *rdtgrp = kernfs_to_rdtgroup(kn);
 
@@ -2426,7 +2426,7 @@ struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn)
 	return rdtgrp;
 }
 
-void rdtgroup_kn_unlock(struct kernfs_node *kn)
+void rdtgroup_kn_unlock(struct kernfs_analde *kn)
 {
 	struct rdtgroup *rdtgrp = kernfs_to_rdtgroup(kn);
 
@@ -2437,9 +2437,9 @@ void rdtgroup_kn_unlock(struct kernfs_node *kn)
 	rdtgroup_kn_put(rdtgrp, kn);
 }
 
-static int mkdir_mondata_all(struct kernfs_node *parent_kn,
+static int mkdir_mondata_all(struct kernfs_analde *parent_kn,
 			     struct rdtgroup *prgrp,
-			     struct kernfs_node **mon_data_kn);
+			     struct kernfs_analde **mon_data_kn);
 
 static void rdt_disable_ctx(void)
 {
@@ -2493,7 +2493,7 @@ static int schemata_list_add(struct rdt_resource *r, enum resctrl_conf_type type
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s->res = r;
 	s->num_closid = resctrl_arch_get_num_closid(r);
@@ -2508,7 +2508,7 @@ static int schemata_list_add(struct rdt_resource *r, enum resctrl_conf_type type
 	case CDP_DATA:
 		suffix = "DATA";
 		break;
-	case CDP_NONE:
+	case CDP_ANALNE:
 		suffix = "";
 		break;
 	}
@@ -2522,9 +2522,9 @@ static int schemata_list_add(struct rdt_resource *r, enum resctrl_conf_type type
 	cl = strlen(s->name);
 
 	/*
-	 * If CDP is supported by this resource, but not enabled,
+	 * If CDP is supported by this resource, but analt enabled,
 	 * include the suffix. This ensures the tabular format of the
-	 * schemata file does not change between mounts of the filesystem.
+	 * schemata file does analt change between mounts of the filesystem.
 	 */
 	if (r->cdp_capable && !resctrl_arch_get_cdp_enabled(r->rid))
 		cl += 4;
@@ -2551,7 +2551,7 @@ static int schemata_list_create(void)
 
 			ret = schemata_list_add(r, CDP_DATA);
 		} else {
-			ret = schemata_list_add(r, CDP_NONE);
+			ret = schemata_list_add(r, CDP_ANALNE);
 		}
 
 		if (ret)
@@ -2745,7 +2745,7 @@ static int rdt_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct rdt_fs_context), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->kfc.magic = RDTGROUP_SUPER_MAGIC;
 	fc->fs_private = &ctx->kfc;
@@ -2766,7 +2766,7 @@ static int reset_all_ctrls(struct rdt_resource *r)
 	int i;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msr_param.res = r;
 	msr_param.low = 0;
@@ -2797,7 +2797,7 @@ static int reset_all_ctrls(struct rdt_resource *r)
  * Move tasks from one to the other group. If @from is NULL, then all tasks
  * in the systems are moved unconditionally (used for teardown).
  *
- * If @mask is not NULL the cpus on which moved tasks are running are set
+ * If @mask is analt NULL the cpus on which moved tasks are running are set
  * in that mask so the update smp function call is restricted to affected
  * cpus.
  */
@@ -2826,7 +2826,7 @@ static void rdt_move_group_tasks(struct rdtgroup *from, struct rdtgroup *to,
 			 * The detection is inaccurate as tasks might move or
 			 * schedule before the smp function call takes place.
 			 * In such a case the function call is pointless, but
-			 * there is no other side effect.
+			 * there is anal other side effect.
 			 */
 			if (IS_ENABLED(CONFIG_SMP) && mask && task_curr(t))
 				cpumask_set_cpu(task_cpu(t), mask);
@@ -2875,7 +2875,7 @@ static void rmdir_all_sub(void)
 			rdtgroup_pseudo_lock_remove(rdtgrp);
 
 		/*
-		 * Give any CPUs back to the default group. We cannot copy
+		 * Give any CPUs back to the default group. We cananalt copy
 		 * cpu_online_mask because a CPU might have executed the
 		 * offline callback already, but is still marked online.
 		 */
@@ -2892,7 +2892,7 @@ static void rmdir_all_sub(void)
 		else
 			rdtgroup_remove(rdtgrp);
 	}
-	/* Notify online CPUs to update per cpu storage and PQR_ASSOC MSR */
+	/* Analtify online CPUs to update per cpu storage and PQR_ASSOC MSR */
 	update_closid_rmid(cpu_online_mask, &rdtgroup_default);
 
 	kernfs_remove(kn_info);
@@ -2932,10 +2932,10 @@ static struct file_system_type rdt_fs_type = {
 	.kill_sb		= rdt_kill_sb,
 };
 
-static int mon_addfile(struct kernfs_node *parent_kn, const char *name,
+static int mon_addfile(struct kernfs_analde *parent_kn, const char *name,
 		       void *priv)
 {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int ret = 0;
 
 	kn = __kernfs_create_file(parent_kn, name, 0444,
@@ -2972,12 +2972,12 @@ static void rmdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
 	}
 }
 
-static int mkdir_mondata_subdir(struct kernfs_node *parent_kn,
+static int mkdir_mondata_subdir(struct kernfs_analde *parent_kn,
 				struct rdt_domain *d,
 				struct rdt_resource *r, struct rdtgroup *prgrp)
 {
 	union mon_data_bits priv;
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	struct mon_evt *mevt;
 	struct rmid_read rr;
 	char name[32];
@@ -3024,7 +3024,7 @@ out_destroy:
 static void mkdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
 					   struct rdt_domain *d)
 {
-	struct kernfs_node *parent_kn;
+	struct kernfs_analde *parent_kn;
 	struct rdtgroup *prgrp, *crgrp;
 	struct list_head *head;
 
@@ -3040,7 +3040,7 @@ static void mkdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
 	}
 }
 
-static int mkdir_mondata_subdir_alldom(struct kernfs_node *parent_kn,
+static int mkdir_mondata_subdir_alldom(struct kernfs_analde *parent_kn,
 				       struct rdt_resource *r,
 				       struct rdtgroup *prgrp)
 {
@@ -3073,12 +3073,12 @@ static int mkdir_mondata_subdir_alldom(struct kernfs_node *parent_kn,
  * llc_occupancy
  *
  */
-static int mkdir_mondata_all(struct kernfs_node *parent_kn,
+static int mkdir_mondata_all(struct kernfs_analde *parent_kn,
 			     struct rdtgroup *prgrp,
-			     struct kernfs_node **dest_kn)
+			     struct kernfs_analde **dest_kn)
 {
 	struct rdt_resource *r;
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int ret;
 
 	/*
@@ -3092,7 +3092,7 @@ static int mkdir_mondata_all(struct kernfs_node *parent_kn,
 		*dest_kn = kn;
 
 	/*
-	 * Create the subdirectories for each domain. Note that all events
+	 * Create the subdirectories for each domain. Analte that all events
 	 * in a domain like L3 are grouped into a resource whose domain is L3
 	 */
 	for_each_mon_capable_rdt_resource(r) {
@@ -3114,13 +3114,13 @@ out_destroy:
  * @r:		RDT resource to which the CBM belongs
  *
  * The provided CBM represents all cache portions available for use. This
- * may be represented by a bitmap that does not consist of contiguous ones
+ * may be represented by a bitmap that does analt consist of contiguous ones
  * and thus be an invalid CBM.
  * Here the provided CBM is forced to be a valid CBM by only considering
  * the first set of contiguous bits as valid and clearing all bits.
  * The intention here is to provide a valid default CBM with which a new
  * resource group is initialized. The user can follow this with a
- * modification to the CBM if the default does not satisfy the
+ * modification to the CBM if the default does analt satisfy the
  * requirements.
  */
 static u32 cbm_ensure_valid(u32 _val, struct rdt_resource *r)
@@ -3175,7 +3175,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 				continue;
 			/*
 			 * If CDP is active include peer domain's
-			 * usage to ensure there is no overlap
+			 * usage to ensure there is anal overlap
 			 * with an exclusive group.
 			 */
 			if (resctrl_arch_get_cdp_enabled(r->rid))
@@ -3202,12 +3202,12 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 	cfg->new_ctrl = cbm_ensure_valid(cfg->new_ctrl, r);
 	/*
 	 * Assign the u32 CBM to an unsigned long to ensure that
-	 * bitmap_weight() does not access out-of-bound memory.
+	 * bitmap_weight() does analt access out-of-bound memory.
 	 */
 	tmp_cbm = cfg->new_ctrl;
 	if (bitmap_weight(&tmp_cbm, r->cache.cbm_len) < r->cache.min_cbm_bits) {
-		rdt_last_cmd_printf("No space on %s:%d\n", s->name, d->id);
-		return -ENOSPC;
+		rdt_last_cmd_printf("Anal space on %s:%d\n", s->name, d->id);
+		return -EANALSPC;
 	}
 	cfg->have_new_ctrl = true;
 
@@ -3221,7 +3221,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
  * supporting system. Set this group up to start off with all usable
  * allocations.
  *
- * If there are no more shareable bits available on any domain then
+ * If there are anal more shareable bits available on any domain then
  * the entire allocation will fail.
  */
 static int rdtgroup_init_cat(struct resctrl_schema *s, u32 closid)
@@ -3250,7 +3250,7 @@ static void rdtgroup_init_mba(struct rdt_resource *r, u32 closid)
 			continue;
 		}
 
-		cfg = &d->staged_config[CDP_NONE];
+		cfg = &d->staged_config[CDP_ANALNE];
 		cfg->new_ctrl = r->default_ctrl;
 		cfg->have_new_ctrl = true;
 	}
@@ -3293,18 +3293,18 @@ out:
 	return ret;
 }
 
-static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
+static int mkdir_rdt_prepare(struct kernfs_analde *parent_kn,
 			     const char *name, umode_t mode,
 			     enum rdt_group_type rtype, struct rdtgroup **r)
 {
 	struct rdtgroup *prdtgrp, *rdtgrp;
 	unsigned long files = 0;
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int ret;
 
 	prdtgrp = rdtgroup_kn_lock_live(parent_kn);
 	if (!prdtgrp) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -3319,7 +3319,7 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	/* allocate the rdtgroup. */
 	rdtgrp = kzalloc(sizeof(*rdtgrp), GFP_KERNEL);
 	if (!rdtgrp) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		rdt_last_cmd_puts("Kernel out of memory\n");
 		goto out_unlock;
 	}
@@ -3410,7 +3410,7 @@ static void mkdir_rdt_prepare_clean(struct rdtgroup *rgrp)
  * and monitor group(ctrl_mon). This is a resource group
  * to monitor a subset of tasks and cpus in its parent ctrl_mon group.
  */
-static int rdtgroup_mkdir_mon(struct kernfs_node *parent_kn,
+static int rdtgroup_mkdir_mon(struct kernfs_analde *parent_kn,
 			      const char *name, umode_t mode)
 {
 	struct rdtgroup *rdtgrp, *prgrp;
@@ -3437,11 +3437,11 @@ static int rdtgroup_mkdir_mon(struct kernfs_node *parent_kn,
  * These are rdtgroups created under the root directory. Can be used
  * to allocate and monitor resources.
  */
-static int rdtgroup_mkdir_ctrl_mon(struct kernfs_node *parent_kn,
+static int rdtgroup_mkdir_ctrl_mon(struct kernfs_analde *parent_kn,
 				   const char *name, umode_t mode)
 {
 	struct rdtgroup *rdtgrp;
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	u32 closid;
 	int ret;
 
@@ -3496,20 +3496,20 @@ out_unlock:
  * "mon_groups" directory.
  *
  * 1. The directory should be named "mon_groups".
- * 2. The mon group itself should "not" be named "mon_groups".
+ * 2. The mon group itself should "analt" be named "mon_groups".
  *   This makes sure "mon_groups" directory always has a ctrl_mon group
  *   as parent.
  */
-static bool is_mon_groups(struct kernfs_node *kn, const char *name)
+static bool is_mon_groups(struct kernfs_analde *kn, const char *name)
 {
 	return (!strcmp(kn->name, "mon_groups") &&
 		strcmp(name, "mon_groups"));
 }
 
-static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
+static int rdtgroup_mkdir(struct kernfs_analde *parent_kn, const char *name,
 			  umode_t mode)
 {
-	/* Do not accept '\n' to avoid unparsable situation. */
+	/* Do analt accept '\n' to avoid unparsable situation. */
 	if (strchr(name, '\n'))
 		return -EINVAL;
 
@@ -3609,15 +3609,15 @@ static int rdtgroup_rmdir_ctrl(struct rdtgroup *rdtgrp, cpumask_var_t tmpmask)
 	return 0;
 }
 
-static int rdtgroup_rmdir(struct kernfs_node *kn)
+static int rdtgroup_rmdir(struct kernfs_analde *kn)
 {
-	struct kernfs_node *parent_kn = kn->parent;
+	struct kernfs_analde *parent_kn = kn->parent;
 	struct rdtgroup *rdtgrp;
 	cpumask_var_t tmpmask;
 	int ret = 0;
 
 	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdtgrp = rdtgroup_kn_lock_live(kn);
 	if (!rdtgrp) {
@@ -3672,7 +3672,7 @@ static void mongrp_reparent(struct rdtgroup *rdtgrp,
 	WARN_ON(rdtgrp->type != RDTMON_GROUP);
 	WARN_ON(new_prdtgrp->type != RDTCTRL_GROUP);
 
-	/* Nothing to do when simply renaming a MON group. */
+	/* Analthing to do when simply renaming a MON group. */
 	if (prdtgrp == new_prdtgrp)
 		return;
 
@@ -3689,8 +3689,8 @@ static void mongrp_reparent(struct rdtgroup *rdtgrp,
 	update_closid_rmid(cpus, NULL);
 }
 
-static int rdtgroup_rename(struct kernfs_node *kn,
-			   struct kernfs_node *new_parent, const char *new_name)
+static int rdtgroup_rename(struct kernfs_analde *kn,
+			   struct kernfs_analde *new_parent, const char *new_name)
 {
 	struct rdtgroup *new_prdtgrp;
 	struct rdtgroup *rdtgrp;
@@ -3700,7 +3700,7 @@ static int rdtgroup_rename(struct kernfs_node *kn,
 	rdtgrp = kernfs_to_rdtgroup(kn);
 	new_prdtgrp = kernfs_to_rdtgroup(new_parent);
 	if (!rdtgrp || !new_prdtgrp)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Release both kernfs active_refs before obtaining rdtgroup mutex. */
 	rdtgroup_kn_get(rdtgrp, kn);
@@ -3712,7 +3712,7 @@ static int rdtgroup_rename(struct kernfs_node *kn,
 
 	/*
 	 * Don't allow kernfs_to_rdtgroup() to return a parent rdtgroup if
-	 * either kernfs_node is a file.
+	 * either kernfs_analde is a file.
 	 */
 	if (kernfs_type(kn) != KERNFS_DIR ||
 	    kernfs_type(new_parent) != KERNFS_DIR) {
@@ -3722,7 +3722,7 @@ static int rdtgroup_rename(struct kernfs_node *kn,
 	}
 
 	if ((rdtgrp->flags & RDT_DELETED) || (new_prdtgrp->flags & RDT_DELETED)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -3741,12 +3741,12 @@ static int rdtgroup_rename(struct kernfs_node *kn,
 
 	/*
 	 * If the MON group is monitoring CPUs, the CPUs must be assigned to the
-	 * current parent CTRL_MON group and therefore cannot be assigned to
+	 * current parent CTRL_MON group and therefore cananalt be assigned to
 	 * the new parent, making the move illegal.
 	 */
 	if (!cpumask_empty(&rdtgrp->cpu_mask) &&
 	    rdtgrp->mon.parent != new_prdtgrp) {
-		rdt_last_cmd_puts("Cannot move a MON group that monitors CPUs\n");
+		rdt_last_cmd_puts("Cananalt move a MON group that monitors CPUs\n");
 		ret = -EPERM;
 		goto out;
 	}
@@ -3757,7 +3757,7 @@ static int rdtgroup_rename(struct kernfs_node *kn,
 	 * succeeded.
 	 */
 	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -3814,7 +3814,7 @@ static int rdtgroup_setup_root(struct rdt_fs_context *ctx)
 		return PTR_ERR(rdt_root);
 
 	ctx->kfc.root = rdt_root;
-	rdtgroup_default.kn = kernfs_root_to_node(rdt_root);
+	rdtgroup_default.kn = kernfs_root_to_analde(rdt_root);
 
 	return 0;
 }
@@ -3868,7 +3868,7 @@ void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
 	if (is_llc_occupancy_enabled() && has_busy_rmid(r, d)) {
 		/*
 		 * When a package is going down, forcefully
-		 * decrement rmid->ebusy. There is no way to know
+		 * decrement rmid->ebusy. There is anal way to kanalw
 		 * that the L3 was flushed and hence may lead to
 		 * incorrect counts in rare scenarios, but leaving
 		 * the RMID as busy creates RMID leaks if the
@@ -3888,14 +3888,14 @@ static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
 	if (is_llc_occupancy_enabled()) {
 		d->rmid_busy_llc = bitmap_zalloc(r->num_rmid, GFP_KERNEL);
 		if (!d->rmid_busy_llc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (is_mbm_total_enabled()) {
 		tsize = sizeof(*d->mbm_total);
 		d->mbm_total = kcalloc(r->num_rmid, tsize, GFP_KERNEL);
 		if (!d->mbm_total) {
 			bitmap_free(d->rmid_busy_llc);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	if (is_mbm_local_enabled()) {
@@ -3904,7 +3904,7 @@ static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
 		if (!d->mbm_local) {
 			bitmap_free(d->rmid_busy_llc);
 			kfree(d->mbm_total);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -3949,7 +3949,7 @@ int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
  * Setup resctrl file system including set up root, create mount point,
  * register rdtgroup filesystem, and initialize files under root directory.
  *
- * Return: 0 on success or -errno
+ * Return: 0 on success or -erranal
  */
 int __init rdtgroup_init(void)
 {
@@ -3969,15 +3969,15 @@ int __init rdtgroup_init(void)
 		goto cleanup_mountpoint;
 
 	/*
-	 * Adding the resctrl debugfs directory here may not be ideal since
+	 * Adding the resctrl debugfs directory here may analt be ideal since
 	 * it would let the resctrl debugfs directory appear on the debugfs
 	 * filesystem before the resctrl filesystem is mounted.
 	 * It may also be ok since that would enable debugging of RDT before
 	 * resctrl is mounted.
-	 * The reason why the debugfs directory is created here and not in
+	 * The reason why the debugfs directory is created here and analt in
 	 * rdt_get_tree() is because rdt_get_tree() takes rdtgroup_mutex and
 	 * during the debugfs directory creation also &sb->s_type->i_mutex_key
-	 * (the lockdep class of inode->i_rwsem). Other filesystem
+	 * (the lockdep class of ianalde->i_rwsem). Other filesystem
 	 * interactions (eg. SyS_getdents) have the lock ordering:
 	 * &sb->s_type->i_mutex_key --> &mm->mmap_lock
 	 * During mmap(), called with &mm->mmap_lock, the rdtgroup_mutex
@@ -3985,8 +3985,8 @@ int __init rdtgroup_init(void)
 	 * &mm->mmap_lock --> rdtgroup_mutex for the latter that can cause
 	 * issues considering the other two lock dependencies.
 	 * By creating the debugfs directory here we avoid a dependency
-	 * that may cause deadlock (even though file operations cannot
-	 * occur until the filesystem is mounted, but I do not know how to
+	 * that may cause deadlock (even though file operations cananalt
+	 * occur until the filesystem is mounted, but I do analt kanalw how to
 	 * tell lockdep that).
 	 */
 	debugfs_resctrl = debugfs_create_dir("resctrl", NULL);

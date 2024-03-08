@@ -68,7 +68,7 @@
 
 		/* 192 KiB reserved for ARM Trusted Firmware (BL31) */
 		bl31_secmon_reserved: secmon@43000000 {
-			no-map;
+			anal-map;
 			reg = <0 0x43000000 0 0x30000>;
 		};
 
@@ -82,7 +82,7 @@
 		 * +-----------------------+ 0x4320_0000
 		 */
 		optee_reserved: optee@43200000 {
-			no-map;
+			anal-map;
 			reg = <0 0x43200000 0 0x00c00000>;
 		};
 	};
@@ -148,9 +148,9 @@
 	max-frequency = <200000000>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	pinctrl-0 = <&mmc0_default_pins>;
 	pinctrl-1 = <&mmc0_uhs_pins>;
 	pinctrl-names = "default", "state_uhs";

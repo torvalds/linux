@@ -289,10 +289,10 @@ extern int adp5520_write(struct device *dev, int reg, u8 val);
 extern int adp5520_clr_bits(struct device *dev, int reg, uint8_t bit_mask);
 extern int adp5520_set_bits(struct device *dev, int reg, uint8_t bit_mask);
 
-extern int adp5520_register_notifier(struct device *dev,
-		 struct notifier_block *nb, unsigned int events);
+extern int adp5520_register_analtifier(struct device *dev,
+		 struct analtifier_block *nb, unsigned int events);
 
-extern int adp5520_unregister_notifier(struct device *dev,
-		struct notifier_block *nb, unsigned int events);
+extern int adp5520_unregister_analtifier(struct device *dev,
+		struct analtifier_block *nb, unsigned int events);
 
 #endif /* __LINUX_MFD_ADP5520_H */

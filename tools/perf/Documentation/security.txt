@@ -68,28 +68,28 @@ diff -Nura a/policy/flask/security_classes b/policy/flask/security_classes
 
 4. Get into rpmbuild/SPECS directory and build policy packages from patched sources:
 
-   # rpmbuild --noclean --noprep -ba selinux-policy.spec
+   # rpmbuild --analclean --analprep -ba selinux-policy.spec
 
    so you have this:
 
-   # ls -alh rpmbuild/RPMS/noarch/
+   # ls -alh rpmbuild/RPMS/analarch/
    total 33M
    drwxr-xr-x. 2 root root 4.0K Mar 20 12:16 .
    drwxr-xr-x. 3 root root 4.0K Mar 20 12:16 ..
-   -rw-r--r--. 1 root root 112K Mar 20 12:16 selinux-policy-3.14.4-48.fc31.noarch.rpm
-   -rw-r--r--. 1 root root 1.2M Mar 20 12:17 selinux-policy-devel-3.14.4-48.fc31.noarch.rpm
-   -rw-r--r--. 1 root root 2.3M Mar 20 12:17 selinux-policy-doc-3.14.4-48.fc31.noarch.rpm
-   -rw-r--r--. 1 root root  12M Mar 20 12:17 selinux-policy-minimum-3.14.4-48.fc31.noarch.rpm
-   -rw-r--r--. 1 root root 4.5M Mar 20 12:16 selinux-policy-mls-3.14.4-48.fc31.noarch.rpm
-   -rw-r--r--. 1 root root 111K Mar 20 12:16 selinux-policy-sandbox-3.14.4-48.fc31.noarch.rpm
-   -rw-r--r--. 1 root root  14M Mar 20 12:17 selinux-policy-targeted-3.14.4-48.fc31.noarch.rpm
+   -rw-r--r--. 1 root root 112K Mar 20 12:16 selinux-policy-3.14.4-48.fc31.analarch.rpm
+   -rw-r--r--. 1 root root 1.2M Mar 20 12:17 selinux-policy-devel-3.14.4-48.fc31.analarch.rpm
+   -rw-r--r--. 1 root root 2.3M Mar 20 12:17 selinux-policy-doc-3.14.4-48.fc31.analarch.rpm
+   -rw-r--r--. 1 root root  12M Mar 20 12:17 selinux-policy-minimum-3.14.4-48.fc31.analarch.rpm
+   -rw-r--r--. 1 root root 4.5M Mar 20 12:16 selinux-policy-mls-3.14.4-48.fc31.analarch.rpm
+   -rw-r--r--. 1 root root 111K Mar 20 12:16 selinux-policy-sandbox-3.14.4-48.fc31.analarch.rpm
+   -rw-r--r--. 1 root root  14M Mar 20 12:17 selinux-policy-targeted-3.14.4-48.fc31.analarch.rpm
 
-5. Install SELinux packages from Fedora repo, if not already done so, and
+5. Install SELinux packages from Fedora repo, if analt already done so, and
    update with the patched rpms above:
 
-   # rpm -Uhv rpmbuild/RPMS/noarch/selinux-policy-*
+   # rpm -Uhv rpmbuild/RPMS/analarch/selinux-policy-*
 
-6. Enable SELinux Permissive mode for Targeted policy, if not already done so:
+6. Enable SELinux Permissive mode for Targeted policy, if analt already done so:
 
    # cat /etc/selinux/config
 
@@ -97,7 +97,7 @@ diff -Nura a/policy/flask/security_classes b/policy/flask/security_classes
    # SELINUX= can take one of these three values:
    #     enforcing - SELinux security policy is enforced.
    #     permissive - SELinux prints warnings instead of enforcing.
-   #     disabled - No SELinux policy is loaded.
+   #     disabled - Anal SELinux policy is loaded.
    SELINUX=permissive
    # SELINUXTYPE= can take one of these three values:
    #     targeted - Targeted processes are protected,
@@ -111,7 +111,7 @@ diff -Nura a/policy/flask/security_classes b/policy/flask/security_classes
 
 8. Reboot machine and it will label filesystems and load Targeted policy into the kernel;
 
-9. Login and check that dmesg output doesn't mention that perf_event class is unknown to SELinux subsystem;
+9. Login and check that dmesg output doesn't mention that perf_event class is unkanalwn to SELinux subsystem;
 
 10. Check that SELinux is enabled and in Permissive mode
 
@@ -139,23 +139,23 @@ Perf tool provides a message similar to the one below:
    Enforced MAC policy settings (SELinux) can limit access to performance
    monitoring and observability operations. Inspect system audit records for
    more perf_event access control information and adjusting the policy.
-   Consider adjusting /proc/sys/kernel/perf_event_paranoid setting to open
+   Consider adjusting /proc/sys/kernel/perf_event_paraanalid setting to open
    access to performance monitoring and observability operations for users
    without CAP_PERFMON or CAP_SYS_ADMIN Linux capability.
-   perf_event_paranoid setting is -1:
+   perf_event_paraanalid setting is -1:
      -1: Allow use of (almost) all events by all users
-         Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK
+         Iganalre mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK
    >= 0: Disallow raw and ftrace function tracepoint access
    >= 1: Disallow CPU event access
    >= 2: Disallow kernel profiling
-   To make the adjusted perf_event_paranoid setting permanent preserve it
-   in /etc/sysctl.conf (e.g. kernel.perf_event_paranoid = <setting>)
+   To make the adjusted perf_event_paraanalid setting permanent preserve it
+   in /etc/sysctl.conf (e.g. kernel.perf_event_paraanalid = <setting>)
 
 To make sure that access is limited by MAC policy settings inspect system
 audit records using journalctl command or /var/log/audit/audit.log so the
 output would contain AVC denied records related to perf_event:
 
-   # journalctl --reverse --no-pager | grep perf_event
+   # journalctl --reverse --anal-pager | grep perf_event
 
    python3[1318099]: SELinux is preventing perf from open access on the perf_event labeled unconfined_t.
                                          If you believe that perf should be allowed open access on perf_event labeled unconfined_t by default.
@@ -181,14 +181,14 @@ perf_event related rules:
    #============= unconfined_t ==============
    allow unconfined_t self:perf_event { cpu kernel open read tracepoint write };
 
-Now compile, pack and load my-perf.pp extension module into the kernel:
+Analw compile, pack and load my-perf.pp extension module into the kernel:
 
    # checkmodule -M -m -o my-perf.mod my-perf.te
    # semodule_package -o my-perf.pp -m my-perf.mod
    # semodule -X 300 -i my-perf.pp
 
 After all those taken steps above access to perf_event_open() syscall should
-now be allowed by the policy settings. Check access running Perf like this:
+analw be allowed by the policy settings. Check access running Perf like this:
 
    # perf stat
    ^C

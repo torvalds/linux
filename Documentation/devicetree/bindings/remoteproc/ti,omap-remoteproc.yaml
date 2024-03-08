@@ -24,12 +24,12 @@ description:
   sub-system usually contains either a Dual-Core Cortex-M3 or Dual-Core
   Cortex-M4 processors.
 
-  Each remote processor sub-system is represented as a single DT node. Each node
+  Each remote processor sub-system is represented as a single DT analde. Each analde
   has a number of required or optional properties that enable the OS running on
   the host processor (MPU) to perform the device management of the remote
   processor and to communicate with the remote processor. The various properties
   can be classified as constant or variable. The constant properties are
-  dictated by the SoC and does not change from one board to another having the
+  dictated by the SoC and does analt change from one board to aanalther having the
   same SoC. Examples of constant properties include 'iommus', 'reg'. The
   variable properties are dictated by the system integration aspects such as
   memory on the board, or configuration used within the corresponding firmware
@@ -50,7 +50,7 @@ properties:
     minItems: 1
     maxItems: 2
     description: |
-      phandles to OMAP IOMMU nodes, that need to be programmed
+      phandles to OMAP IOMMU analdes, that need to be programmed
       for this remote processor to access any external RAM memory or
       other peripheral device address spaces. This property usually
       has only a single phandle. Multiple phandles are used only in
@@ -62,11 +62,11 @@ properties:
     minItems: 1
     maxItems: 2
     description: |
-      OMAP Mailbox specifier denoting the sub-mailbox, to be used for
+      OMAP Mailbox specifier deanalting the sub-mailbox, to be used for
       communication with the remote processor. The specifier format is
       as per the bindings,
       Documentation/devicetree/bindings/mailbox/ti,omap-mailbox.yaml
-      This property should match with the sub-mailbox node used in
+      This property should match with the sub-mailbox analde used in
       the firmware image.
 
   clocks:
@@ -95,9 +95,9 @@ properties:
   memory-region:
     maxItems: 1
     description: |
-      phandle to the reserved memory node to be associated
-      with the remoteproc device. The reserved memory node
-      can be a CMA memory node, and should be defined as
+      phandle to the reserved memory analde to be associated
+      with the remoteproc device. The reserved memory analde
+      can be a CMA memory analde, and should be defined as
       per the bindings,
       Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
 
@@ -106,7 +106,7 @@ properties:
       Address space for any remoteproc memories present on
       the SoC. Should contain an entry for each value in
       'reg-names'. These are mandatory for all DSP and IPU
-      processors that have them (OMAP4/OMAP5 DSPs do not have
+      processors that have them (OMAP4/OMAP5 DSPs do analt have
       any RAMs)
 
   reg-names:
@@ -144,7 +144,7 @@ properties:
     items:
       maxItems: 1
     description: |
-      One or more phandles to OMAP DMTimer nodes, that serve
+      One or more phandles to OMAP DMTimer analdes, that serve
       as System/Tick timers for the OS running on the remote
       processors. This will usually be a single timer if the
       processor sub-system is running in SMP mode, or one per
@@ -162,7 +162,7 @@ properties:
     items:
       maxItems: 1
     description: |
-      One or more phandles to OMAP DMTimer nodes, used to
+      One or more phandles to OMAP DMTimer analdes, used to
       serve as Watchdog timers for the processor cores. This
       will usually be one per executing processor core, even
       if the processor sub-system is running a SMP OS.
@@ -224,7 +224,7 @@ examples:
 
     //Example 1: OMAP4 DSP
 
-    /* DSP Reserved Memory node */
+    /* DSP Reserved Memory analde */
     #include <dt-bindings/clock/omap4.h>
     reserved-memory {
         #address-cells = <1>;
@@ -237,7 +237,7 @@ examples:
         };
     };
 
-    /* DSP node */
+    /* DSP analde */
     ocp {
         dsp: dsp {
             compatible = "ti,omap4-dsp";
@@ -257,7 +257,7 @@ examples:
 
     //Example 2: OMAP5 IPU
 
-    /* IPU Reserved Memory node */
+    /* IPU Reserved Memory analde */
     #include <dt-bindings/clock/omap5.h>
     reserved-memory {
         #address-cells = <2>;
@@ -270,7 +270,7 @@ examples:
         };
     };
 
-    /* IPU node */
+    /* IPU analde */
     ocp {
         #address-cells = <1>;
         #size-cells = <1>;
@@ -294,7 +294,7 @@ examples:
 
     //Example 3: DRA7xx/AM57xx DSP
 
-    /* DSP1 Reserved Memory node */
+    /* DSP1 Reserved Memory analde */
     #include <dt-bindings/clock/dra7.h>
     reserved-memory {
         #address-cells = <2>;
@@ -307,7 +307,7 @@ examples:
         };
     };
 
-    /* DSP1 node */
+    /* DSP1 analde */
     ocp {
         #address-cells = <1>;
         #size-cells = <1>;

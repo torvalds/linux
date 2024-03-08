@@ -11,7 +11,7 @@
 #include "debug.h"
 #include "parse-events.h"
 #include "util/mmap.h"
-#include <errno.h>
+#include <erranal.h>
 #include <linux/string.h>
 #include <perf/mmap.h>
 
@@ -68,7 +68,7 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 	err = evlist__mmap(evlist, mmap_pages);
 	if (err < 0) {
 		pr_debug("evlist__mmap: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		return TEST_FAIL;
 	}
 
@@ -105,13 +105,13 @@ static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, in
 
 	evlist = evlist__new();
 	if (!evlist) {
-		pr_debug("Not enough memory to create evlist\n");
+		pr_debug("Analt eanalugh memory to create evlist\n");
 		return TEST_FAIL;
 	}
 
 	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_debug("Analt eanalugh memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -133,7 +133,7 @@ static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, in
 	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -154,7 +154,7 @@ static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, in
 	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 

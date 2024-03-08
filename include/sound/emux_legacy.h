@@ -29,12 +29,12 @@
 #define _EMUX_OSS_DRUM_CHANNELS		0x0b
 #define _EMUX_OSS_MISC_MODE		0x0c
 #define _EMUX_OSS_RELEASE_ALL		0x0d
-#define _EMUX_OSS_NOTEOFF_ALL		0x0e
+#define _EMUX_OSS_ANALTEOFF_ALL		0x0e
 #define _EMUX_OSS_CHN_PRESSURE		0x0f
 #define _EMUX_OSS_EQUALIZER		0x11
 
 #define _EMUX_OSS_MODE_FLAG		0x80
-#define _EMUX_OSS_COOKED_FLAG		0x40	/* not supported */
+#define _EMUX_OSS_COOKED_FLAG		0x40	/* analt supported */
 #define _EMUX_OSS_MODE_VALUE_MASK	0x3F
 
 
@@ -45,7 +45,7 @@ enum {
 /* 0*/	EMUX_MD_EXCLUSIVE_OFF,	/* obsolete */
 /* 1*/	EMUX_MD_EXCLUSIVE_ON,	/* obsolete */
 /* 2*/	EMUX_MD_VERSION,		/* read only */
-/* 3*/	EMUX_MD_EXCLUSIVE_SOUND,	/* 0/1: exclusive note on (default=1) */
+/* 3*/	EMUX_MD_EXCLUSIVE_SOUND,	/* 0/1: exclusive analte on (default=1) */
 /* 4*/	EMUX_MD_REALTIME_PAN,	/* 0/1: do realtime pan change (default=1) */
 /* 5*/	EMUX_MD_GUS_BANK,	/* bank number for GUS patches (default=0) */
 /* 6*/	EMUX_MD_KEEP_EFFECT,	/* 0/1: keep effect values, (default=0) */

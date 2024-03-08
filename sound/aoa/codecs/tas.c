@@ -8,9 +8,9 @@
  *  - How to distinguish between 3004 and versions?
  *
  * FIXMEs:
- *  - This codec driver doesn't honour the 'connected'
+ *  - This codec driver doesn't hoanalur the 'connected'
  *    property of the aoa_codec struct, hence if
- *    it is used in machines where not everything is
+ *    it is used in machines where analt everything is
  *    connected it will display wrong mixer elements.
  *  - Driver assumes that the microphone is always
  *    monaureal and connected to the right channel of
@@ -20,15 +20,15 @@
  *    it can be hooked up...
  *    But as long as I don't see any hardware hooked
  *    up that way...
- *  - As Apple notes in their code, the tas3004 seems
+ *  - As Apple analtes in their code, the tas3004 seems
  *    to delay the right channel by one sample. You can
  *    see this when for example recording stereo in
  *    audacity, or recording the tas output via cable
- *    on another machine (use a sinus generator or so).
+ *    on aanalther machine (use a sinus generator or so).
  *    I tried programming the BiQuads but couldn't
  *    make the delay work, maybe someone can read the
  *    datasheet and fix it. The relevant Apple comment
- *    is in AppleTAS3004Audio.cpp lines 1637 ff. Note
+ *    is in AppleTAS3004Audio.cpp lines 1637 ff. Analte
  *    that their comment describing how they program
  *    the filters sucks...
  *
@@ -37,25 +37,25 @@
  *    structs since it has two inputs. Then it must
  *    use the prepare callback to forbid running the
  *    secondary output on a different clock.
- *    Also, whatever bus knows how to do this must
+ *    Also, whatever bus kanalws how to do this must
  *    provide two soundbus_dev devices and the fabric
  *    must be able to link them correctly.
  *
- *    I don't even know if Apple ever uses the second
+ *    I don't even kanalw if Apple ever uses the second
  *    port on the tas3004 though, I don't think their
  *    i2s controllers can even do it. OTOH, they all
  *    derive the clocks from common clocks, so it
  *    might just be possible. The framework allows the
  *    codec to refine the transfer_info items in the
  *    usable callback, so we can simply remove the
- *    rates the second instance is not using when it
+ *    rates the second instance is analt using when it
  *    actually is in use.
  *    Maybe we'll need to make the sound busses have
  *    a 'clock group id' value so the codec can
  *    determine if the two outputs can be driven at
  *    the same time. But that is likely overkill, up
- *    to the fabric to not link them up incorrectly,
- *    and up to the hardware designer to not wire
+ *    to the fabric to analt link them up incorrectly,
+ *    and up to the hardware designer to analt wire
  *    them up in some weird unusable way.
  */
 #include <linux/i2c.h>
@@ -166,7 +166,7 @@ static void tas_set_volume(struct tas *tas)
 	if (tas->mute_r) right = 0;
 
 	/* analysing the volume and mixer tables shows
-	 * that they are similar enough when we shift
+	 * that they are similar eanalugh when we shift
 	 * the mixer table down by 4 bits. The error
 	 * is miniscule, in just one item the error
 	 * is 1, at a value of 0x07f17b (mixer table
@@ -433,7 +433,7 @@ static const struct snd_kcontrol_new drc_range_control = {
 	.put = tas_snd_drc_range_put,
 };
 
-#define tas_snd_drc_switch_info		snd_ctl_boolean_mono_info
+#define tas_snd_drc_switch_info		snd_ctl_boolean_moanal_info
 
 static int tas_snd_drc_switch_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -505,7 +505,7 @@ static int tas_snd_capture_source_put(struct snd_kcontrol *kcontrol,
 
 	/*
 	 * Despite what the data sheet says in one place, the
-	 * TAS_ACR_B_MONAUREAL bit forces mono output even when
+	 * TAS_ACR_B_MONAUREAL bit forces moanal output even when
 	 * input A (line in) is selected.
 	 */
 	tas->acr &= ~(TAS_ACR_INPUT_B | TAS_ACR_B_MONAUREAL);
@@ -532,7 +532,7 @@ static const struct snd_kcontrol_new capture_source_control = {
 	 * time) but at least it's shown in the 'Capture'
 	 * category.
 	 * I was told that this was due to backward compatibility,
-	 * but I don't understand then why the mangling is *not*
+	 * but I don't understand then why the mangling is *analt*
 	 * done when I name it "Input Source".....
 	 */
 	.name = "Capture Source",
@@ -707,7 +707,7 @@ static int tas_reset_init(struct tas *tas)
 
 	return 0;
  outerr:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int tas_switch_clock(struct codec_info_item *cii, enum clock_switch clock)
@@ -731,7 +731,7 @@ static int tas_switch_clock(struct codec_info_item *cii, enum clock_switch clock
 		mutex_unlock(&tas->mtx);
 		break;
 	default:
-		/* doesn't happen as of now */
+		/* doesn't happen as of analw */
 		return -EINVAL;
 	}
 	return 0;
@@ -740,7 +740,7 @@ static int tas_switch_clock(struct codec_info_item *cii, enum clock_switch clock
 #ifdef CONFIG_PM
 /* we are controlled via i2c and assume that is always up
  * If that wasn't the case, we'd have to suspend once
- * our i2c device is suspended, and then take note of that! */
+ * our i2c device is suspended, and then take analte of that! */
 static int tas_suspend(struct tas *tas)
 {
 	mutex_lock(&tas->mtx);
@@ -798,7 +798,7 @@ static int tas_init_codec(struct aoa_codec *codec)
 	int err;
 
 	if (!tas->codec.gpio || !tas->codec.gpio->methods) {
-		printk(KERN_ERR PFX "gpios not assigned!!\n");
+		printk(KERN_ERR PFX "gpios analt assigned!!\n");
 		return -EINVAL;
 	}
 
@@ -815,12 +815,12 @@ static int tas_init_codec(struct aoa_codec *codec)
 						   aoa_get_card(),
 						   &tas_codec_info, tas)) {
 		printk(KERN_ERR PFX "error attaching tas to soundbus\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (aoa_snd_device_new(SNDRV_DEV_CODEC, tas, &ops)) {
 		printk(KERN_ERR PFX "failed to create tas snd device!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	err = aoa_snd_ctl_add(snd_ctl_new1(&volume_control, tas));
 	if (err)
@@ -877,13 +877,13 @@ static void tas_exit_codec(struct aoa_codec *codec)
 
 static int tas_i2c_probe(struct i2c_client *client)
 {
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 	struct tas *tas;
 
 	tas = kzalloc(sizeof(struct tas), GFP_KERNEL);
 
 	if (!tas)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&tas->mtx);
 	tas->i2c = client;
@@ -896,14 +896,14 @@ static int tas_i2c_probe(struct i2c_client *client)
 	tas->codec.owner = THIS_MODULE;
 	tas->codec.init = tas_init_codec;
 	tas->codec.exit = tas_exit_codec;
-	tas->codec.node = of_node_get(node);
+	tas->codec.analde = of_analde_get(analde);
 
 	if (aoa_codec_register(&tas->codec)) {
 		goto fail;
 	}
 	printk(KERN_DEBUG
 	       "snd-aoa-codec-tas: tas found, addr 0x%02x on %pOF\n",
-	       (unsigned int)client->addr, node);
+	       (unsigned int)client->addr, analde);
 	return 0;
  fail:
 	mutex_destroy(&tas->mtx);
@@ -917,7 +917,7 @@ static void tas_i2c_remove(struct i2c_client *client)
 	u8 tmp = TAS_ACR_ANALOG_PDOWN;
 
 	aoa_codec_unregister(&tas->codec);
-	of_node_put(tas->codec.node);
+	of_analde_put(tas->codec.analde);
 
 	/* power down codec chip */
 	tas_write_reg(tas, TAS_REG_ACR, 1, &tmp);

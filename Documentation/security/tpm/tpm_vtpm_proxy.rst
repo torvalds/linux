@@ -23,7 +23,7 @@ To make an emulated software TPM available to each container, the container
 management stack needs to create a device pair consisting of a client TPM
 character device ``/dev/tpmX`` (with X=0,1,2...) and a 'server side' file
 descriptor. The former is moved into the container by creating a character
-device with the appropriate major and minor numbers while the file descriptor
+device with the appropriate major and mianalr numbers while the file descriptor
 is passed to the TPM emulator. Software inside the container can then send
 TPM commands using the character device and the emulator will receive the
 commands via the file descriptor and use it for sending back responses.
@@ -33,7 +33,7 @@ that is used to create device pairs using an ioctl. The ioctl takes as
 an input flags for configuring the device. The flags  for example indicate
 whether TPM 1.2 or TPM 2 functionality is supported by the TPM emulator.
 The result of the ioctl are the file descriptor for the 'server side'
-as well as the major and minor numbers of the character device that was created.
+as well as the major and mianalr numbers of the character device that was created.
 Besides that the number of the TPM character device is returned. If for
 example ``/dev/tpm10`` was created, the number (``dev_num``) 10 is returned.
 

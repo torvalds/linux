@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -80,7 +80,7 @@ struct arfs_rule {
 	struct mlx5e_priv	*priv;
 	struct work_struct      arfs_work;
 	struct mlx5_flow_handle *rule;
-	struct hlist_node	hlist;
+	struct hlist_analde	hlist;
 	int			rxq;
 	/* Flow ID passed to ndo_rx_flow_steer */
 	int			flow_id;
@@ -136,9 +136,9 @@ static void arfs_del_rules(struct mlx5e_flow_steering *fs);
 int mlx5e_arfs_disable(struct mlx5e_flow_steering *fs)
 {
 	/* Moving to switchdev mode, fs->arfs is freed by mlx5e_nic_profile
-	 * cleanup_rx callback and it is not recreated when
+	 * cleanup_rx callback and it is analt recreated when
 	 * mlx5e_uplink_rep_profile is loaded as mlx5e_create_flow_steering()
-	 * is not called by the uplink_rep profile init_rx callback. Thus, if
+	 * is analt called by the uplink_rep profile init_rx callback. Thus, if
 	 * ntuple is set, moving to switchdev flow will enter this function
 	 * with fs->arfs nullified.
 	 */
@@ -222,7 +222,7 @@ static int arfs_add_default_rule(struct mlx5e_flow_steering *fs,
 	}
 
 	/* FIXME: Must use mlx5_ttc_get_default_dest(),
-	 * but can't since TTC default is not setup yet !
+	 * but can't since TTC default is analt setup yet !
 	 */
 	dest.tir_num = mlx5e_rx_res_get_tirn_rss(rx_res, tt);
 	arfs_t->default_rule = mlx5_add_flow_rules(arfs_t->ft.t, NULL,
@@ -255,11 +255,11 @@ static int arfs_create_groups(struct mlx5e_flow_table *ft,
 	ft->g = kcalloc(MLX5E_ARFS_NUM_GROUPS,
 			sizeof(*ft->g), GFP_KERNEL);
 	if (!ft->g)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_g;
 	}
 
@@ -378,7 +378,7 @@ int mlx5e_arfs_create_tables(struct mlx5e_flow_steering *fs,
 			     struct mlx5e_rx_res *rx_res, bool ntuple)
 {
 	struct mlx5e_arfs_tables *arfs;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	if (!ntuple)
@@ -386,7 +386,7 @@ int mlx5e_arfs_create_tables(struct mlx5e_flow_steering *fs,
 
 	arfs = kvzalloc(sizeof(*arfs), GFP_KERNEL);
 	if (!arfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&arfs->arfs_lock);
 	arfs->wq = create_singlethread_workqueue("mlx5e_arfs");
@@ -416,7 +416,7 @@ static void arfs_may_expire_flow(struct mlx5e_priv *priv)
 {
 	struct mlx5e_arfs_tables *arfs = mlx5e_fs_get_arfs(priv->fs);
 	struct arfs_rule *arfs_rule;
-	struct hlist_node *htmp;
+	struct hlist_analde *htmp;
 	HLIST_HEAD(del_list);
 	int quota = 0;
 	int i;
@@ -448,7 +448,7 @@ static void arfs_may_expire_flow(struct mlx5e_priv *priv)
 static void arfs_del_rules(struct mlx5e_flow_steering *fs)
 {
 	struct mlx5e_arfs_tables *arfs = mlx5e_fs_get_arfs(fs);
-	struct hlist_node *htmp;
+	struct hlist_analde *htmp;
 	struct arfs_rule *rule;
 	HLIST_HEAD(del_list);
 	int i;
@@ -516,7 +516,7 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		priv->channel_stats[arfs_rule->rxq]->rq.arfs_err++;
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
@@ -526,7 +526,7 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 		 ntohs(tuple->etype));
 	arfs_table = arfs_get_table(arfs, tuple->ip_proto, tuple->etype);
 	if (!arfs_table) {
-		WARN_ONCE(1, "arfs table does not exist for etype %u and ip_proto %u\n",
+		WARN_ONCE(1, "arfs table does analt exist for etype %u and ip_proto %u\n",
 			  tuple->etype, tuple->ip_proto);
 		err = -EINVAL;
 		goto out;
@@ -687,7 +687,7 @@ static struct arfs_rule *arfs_alloc_rule(struct mlx5e_priv *priv,
 	tuple->dst_port = fk->ports.dst;
 
 	rule->flow_id = flow_id;
-	rule->filter_id = arfs->last_filter_id++ % RPS_NO_FILTER;
+	rule->filter_id = arfs->last_filter_id++ % RPS_ANAL_FILTER;
 
 	hlist_add_head(&rule->hlist,
 		       arfs_hash_bucket(arfs_t, tuple->src_port,
@@ -738,18 +738,18 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 
 	arfs =  mlx5e_fs_get_arfs(priv->fs);
 	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (fk.basic.n_proto != htons(ETH_P_IP) &&
 	    fk.basic.n_proto != htons(ETH_P_IPV6))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (skb->encapsulation)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	arfs_t = arfs_get_table(arfs, fk.basic.ip_proto, fk.basic.n_proto);
 	if (!arfs_t)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	spin_lock_bh(&arfs->arfs_lock);
 	arfs_rule = arfs_find_rule(arfs_t, &fk);
@@ -766,7 +766,7 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		arfs_rule = arfs_alloc_rule(priv, arfs_t, &fk, rxq_index, flow_id);
 		if (!arfs_rule) {
 			spin_unlock_bh(&arfs->arfs_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	queue_work(arfs->wq, &arfs_rule->arfs_work);

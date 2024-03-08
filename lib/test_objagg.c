@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -60,7 +60,7 @@ static struct objagg_obj *world_obj_get(struct world *world,
 	if (!world->key_refs[key_id_index(key_id)]) {
 		world->objagg_objs[key_id_index(key_id)] = objagg_obj;
 	} else if (world->objagg_objs[key_id_index(key_id)] != objagg_obj) {
-		pr_err("Key %u: God another object for the same key.\n",
+		pr_err("Key %u: God aanalther object for the same key.\n",
 		       key_id);
 		err = -EINVAL;
 		goto err_key_id_check;
@@ -109,7 +109,7 @@ static void *delta_create(void *priv, void *parent_obj, void *obj)
 
 	delta = kzalloc(sizeof(*delta), GFP_KERNEL);
 	if (!delta)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	delta->key_id_diff = diff;
 	world->delta_count++;
 	return delta;
@@ -132,7 +132,7 @@ static void *root_create(void *priv, void *obj, unsigned int id)
 
 	root = kzalloc(sizeof(*root), GFP_KERNEL);
 	if (!root)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	memcpy(&root->key, key, sizeof(root->key));
 	memcpy(root->buf, world->next_root_buf, sizeof(root->buf));
 	world->root_count++;
@@ -148,7 +148,7 @@ static void root_destroy(void *priv, void *root_priv)
 	kfree(root);
 }
 
-static int test_nodelta_obj_get(struct world *world, struct objagg *objagg,
+static int test_analdelta_obj_get(struct world *world, struct objagg *objagg,
 				unsigned int key_id, bool should_create_root)
 {
 	unsigned int orig_root_count = world->root_count;
@@ -167,7 +167,7 @@ static int test_nodelta_obj_get(struct world *world, struct objagg *objagg,
 	}
 	if (should_create_root) {
 		if (world->root_count != orig_root_count + 1) {
-			pr_err("Key %u: Root was not created\n", key_id);
+			pr_err("Key %u: Root was analt created\n", key_id);
 			err = -EINVAL;
 			goto err_check_root_count;
 		}
@@ -187,7 +187,7 @@ static int test_nodelta_obj_get(struct world *world, struct objagg *objagg,
 	}
 	if (should_create_root &&
 	    memcmp(world->next_root_buf, root->buf, sizeof(root->buf))) {
-		pr_err("Key %u: Buffer does not match the expected content\n",
+		pr_err("Key %u: Buffer does analt match the expected content\n",
 		       key_id);
 		err = -EINVAL;
 		goto err_check_buf;
@@ -201,7 +201,7 @@ err_check_root_count:
 	return err;
 }
 
-static int test_nodelta_obj_put(struct world *world, struct objagg *objagg,
+static int test_analdelta_obj_put(struct world *world, struct objagg *objagg,
 				unsigned int key_id, bool should_destroy_root)
 {
 	unsigned int orig_root_count = world->root_count;
@@ -210,7 +210,7 @@ static int test_nodelta_obj_put(struct world *world, struct objagg *objagg,
 
 	if (should_destroy_root) {
 		if (world->root_count != orig_root_count - 1) {
-			pr_err("Key %u: Root was not destroyed\n", key_id);
+			pr_err("Key %u: Root was analt destroyed\n", key_id);
 			return -EINVAL;
 		}
 	} else {
@@ -233,7 +233,7 @@ static int check_stats_zero(struct objagg *objagg)
 		return PTR_ERR(stats);
 
 	if (stats->stats_info_count != 0) {
-		pr_err("Stats: Object count is not zero while it should be\n");
+		pr_err("Stats: Object count is analt zero while it should be\n");
 		err = -EINVAL;
 	}
 
@@ -241,7 +241,7 @@ static int check_stats_zero(struct objagg *objagg)
 	return err;
 }
 
-static int check_stats_nodelta(struct objagg *objagg)
+static int check_stats_analdelta(struct objagg *objagg)
 {
 	const struct objagg_stats *stats;
 	int i;
@@ -285,14 +285,14 @@ static bool delta_check_dummy(void *priv, const void *parent_obj,
 
 static void *delta_create_dummy(void *priv, void *parent_obj, void *obj)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static void delta_destroy_dummy(void *priv, void *delta_priv)
 {
 }
 
-static const struct objagg_ops nodelta_ops = {
+static const struct objagg_ops analdelta_ops = {
 	.obj_size = sizeof(struct tokey),
 	.delta_check = delta_check_dummy,
 	.delta_create = delta_create_dummy,
@@ -301,14 +301,14 @@ static const struct objagg_ops nodelta_ops = {
 	.root_destroy = root_destroy,
 };
 
-static int test_nodelta(void)
+static int test_analdelta(void)
 {
 	struct world world = {};
 	struct objagg *objagg;
 	int i;
 	int err;
 
-	objagg = objagg_create(&nodelta_ops, NULL, &world);
+	objagg = objagg_create(&analdelta_ops, NULL, &world);
 	if (IS_ERR(objagg))
 		return PTR_ERR(objagg);
 
@@ -318,31 +318,31 @@ static int test_nodelta(void)
 
 	/* First round of gets, the root objects should be created */
 	for (i = 0; i < NUM_KEYS; i++) {
-		err = test_nodelta_obj_get(&world, objagg, i, true);
+		err = test_analdelta_obj_get(&world, objagg, i, true);
 		if (err)
 			goto err_obj_first_get;
 	}
 
 	/* Do the second round of gets, all roots are already created,
-	 * make sure that no new root is created
+	 * make sure that anal new root is created
 	 */
 	for (i = 0; i < NUM_KEYS; i++) {
-		err = test_nodelta_obj_get(&world, objagg, i, false);
+		err = test_analdelta_obj_get(&world, objagg, i, false);
 		if (err)
 			goto err_obj_second_get;
 	}
 
-	err = check_stats_nodelta(objagg);
+	err = check_stats_analdelta(objagg);
 	if (err)
-		goto err_stats_nodelta;
+		goto err_stats_analdelta;
 
 	for (i = NUM_KEYS - 1; i >= 0; i--) {
-		err = test_nodelta_obj_put(&world, objagg, i, false);
+		err = test_analdelta_obj_put(&world, objagg, i, false);
 		if (err)
 			goto err_obj_first_put;
 	}
 	for (i = NUM_KEYS - 1; i >= 0; i--) {
-		err = test_nodelta_obj_put(&world, objagg, i, true);
+		err = test_analdelta_obj_put(&world, objagg, i, true);
 		if (err)
 			goto err_obj_second_put;
 	}
@@ -354,7 +354,7 @@ static int test_nodelta(void)
 	objagg_destroy(objagg);
 	return 0;
 
-err_stats_nodelta:
+err_stats_analdelta:
 err_obj_first_put:
 err_obj_second_get:
 	for (i--; i >= 0; i--)
@@ -577,7 +577,7 @@ static int check_expect(struct world *world,
 		if (WARN_ON(action_item->action == ACTION_PUT))
 			return -EINVAL;
 		if (orig_delta_count + 1 != world->delta_count) {
-			pr_err("Key %u: Delta count was not incremented.\n",
+			pr_err("Key %u: Delta count was analt incremented.\n",
 			       key_id);
 			return -EINVAL;
 		}
@@ -586,7 +586,7 @@ static int check_expect(struct world *world,
 		if (WARN_ON(action_item->action == ACTION_GET))
 			return -EINVAL;
 		if (orig_delta_count - 1 != world->delta_count) {
-			pr_err("Key %u: Delta count was not decremented.\n",
+			pr_err("Key %u: Delta count was analt decremented.\n",
 			       key_id);
 			return -EINVAL;
 		}
@@ -605,7 +605,7 @@ static int check_expect(struct world *world,
 		if (WARN_ON(action_item->action == ACTION_PUT))
 			return -EINVAL;
 		if (orig_root_count + 1 != world->root_count) {
-			pr_err("Key %u: Root count was not incremented.\n",
+			pr_err("Key %u: Root count was analt incremented.\n",
 			       key_id);
 			return -EINVAL;
 		}
@@ -614,7 +614,7 @@ static int check_expect(struct world *world,
 		if (WARN_ON(action_item->action == ACTION_GET))
 			return -EINVAL;
 		if (orig_root_count - 1 != world->root_count) {
-			pr_err("Key %u: Root count was not decremented.\n",
+			pr_err("Key %u: Root count was analt decremented.\n",
 			       key_id);
 			return -EINVAL;
 		}
@@ -797,7 +797,7 @@ static int test_delta_action_item(struct world *world,
 	return 0;
 
 errout:
-	/* This can only happen when action is not inversed.
+	/* This can only happen when action is analt inversed.
 	 * So in case of an error, cleanup by doing inverse action.
 	 */
 	test_delta_action_item(world, objagg, action_item, true);
@@ -866,7 +866,7 @@ static void __pr_debug_stats(const struct objagg_stats *stats)
 			 obj_to_key_id(stats->stats_info[i].objagg_obj),
 			 stats->stats_info[i].stats.user_count,
 			 stats->stats_info[i].stats.delta_user_count,
-			 stats->stats_info[i].is_root ? "root" : "noroot");
+			 stats->stats_info[i].is_root ? "root" : "analroot");
 }
 
 static void pr_debug_stats(struct objagg *objagg)
@@ -1001,7 +1001,7 @@ static int __init test_objagg_init(void)
 {
 	int err;
 
-	err = test_nodelta();
+	err = test_analdelta();
 	if (err)
 		return err;
 	err = test_delta();
@@ -1017,5 +1017,5 @@ static void __exit test_objagg_exit(void)
 module_init(test_objagg_init);
 module_exit(test_objagg_exit);
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellaanalx.com>");
 MODULE_DESCRIPTION("Test module for objagg");

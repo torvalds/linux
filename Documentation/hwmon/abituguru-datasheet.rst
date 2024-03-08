@@ -2,12 +2,12 @@
 uGuru datasheet
 ===============
 
-First of all, what I know about uGuru is no fact based on any help, hints or
+First of all, what I kanalw about uGuru is anal fact based on any help, hints or
 datasheet from Abit. The data I have got on uGuru have I assembled through
-my weak knowledge in "backwards engineering".
-And just for the record, you may have noticed uGuru isn't a chip developed by
+my weak kanalwledge in "backwards engineering".
+And just for the record, you may have analticed uGuru isn't a chip developed by
 Abit, as they claim it to be. It's really just an microprocessor (uC) created by
-Winbond (W83L950D). And no, reading the manual for this specific uC or
+Winbond (W83L950D). And anal, reading the manual for this specific uC or
 mailing  Windbond for help won't give any useful data about uGuru, as it is
 the program inside the uC that is responding to calls.
 
@@ -19,10 +19,10 @@ reverse engineering. This version has been almost fully rewritten for clarity
 and extended with write support and info on more databanks, the write support
 is once again reverse engineered by Olle the additional databanks have been
 reverse engineered by me. I would like to express my thanks to Olle, this
-document and the Linux driver could not have been written without his efforts.
+document and the Linux driver could analt have been written without his efforts.
 
-Note: because of the lack of specs only the sensors part of the uGuru is
-described here and not the CPU / RAM / etc voltage & frequency control.
+Analte: because of the lack of specs only the sensors part of the uGuru is
+described here and analt the CPU / RAM / etc voltage & frequency control.
 
 Hans de Goede <j.w.r.degoede@hhs.nl>, 28-01-2006
 
@@ -30,7 +30,7 @@ Hans de Goede <j.w.r.degoede@hhs.nl>, 28-01-2006
 Detection
 =========
 
-As far as known the uGuru is always placed at and using the (ISA) I/O-ports
+As far as kanalwn the uGuru is always placed at and using the (ISA) I/O-ports
 0xE0 and 0xE4, so we don't have to scan any port-range, just check what the two
 ports are holding for detection. We will refer to 0xE0 as CMD (command-port)
 and 0xE4 as DATA because Abit refers to them with these names.
@@ -64,15 +64,15 @@ The number of bytes is fixed for a given bank, you should always read or write
 that many bytes, reading / writing more will fail, the results when writing
 less then the number of bytes for a given bank are undetermined.
 
-See below for all known bank addresses, numbers of sensors in that bank,
+See below for all kanalwn bank addresses, numbers of sensors in that bank,
 number of bytes data per sensor and contents/meaning of those bytes.
 
 Although both this document and the kernel driver have kept the sensor
-terminology for the addressing within a bank this is not 100% correct, in
-bank 0x24 for example the addressing within the bank selects a PWM output not
+termianallogy for the addressing within a bank this is analt 100% correct, in
+bank 0x24 for example the addressing within the bank selects a PWM output analt
 a sensor.
 
-Notice that some banks have both a read and a write address this is how the
+Analtice that some banks have both a read and a write address this is how the
 uGuru determines if a read from or a write to the bank is taking place, thus
 when reading you should always use the read address and when writing the
 write address. The write address is always one (1) more than the read address.
@@ -92,9 +92,9 @@ first read but sometimes it takes a while before CMD holds 0xAC and thus it
 has to be read a number of times (max 50).
 
 After reading CMD, DATA should hold 0x08 which means that the uGuru is ready
-for input. As above DATA will usually hold 0x08 the first read but not always.
+for input. As above DATA will usually hold 0x08 the first read but analt always.
 This step can be skipped, but it is undetermined what happens if the uGuru has
-not yet reported 0x08 at DATA and you proceed with writing a bank address.
+analt yet reported 0x08 at DATA and you proceed with writing a bank address.
 
 
 Sending bank and sensor addresses to the uGuru
@@ -118,8 +118,8 @@ Then for each byte of data you want to read wait for DATA to hold 0x01
 which indicates that the uGuru is ready to be read (max 250 reads) and once
 DATA holds 0x01 read the byte from CMD.
 
-Once all bytes have been read data will hold 0x09, but there is no reason to
-test for this. Notice that the number of bytes is bank address dependent see
+Once all bytes have been read data will hold 0x09, but there is anal reason to
+test for this. Analtice that the number of bytes is bank address dependent see
 above and below.
 
 After completing a successful read it is advised to put the uGuru back in
@@ -140,7 +140,7 @@ once DATA holds 0x00 write the byte to CMD.
 Once all bytes have been written wait for DATA to hold 0x01 (max 250 reads)
 don't ask why this is the way it is.
 
-Once DATA holds 0x01 read CMD it should hold 0xAC now.
+Once DATA holds 0x01 read CMD it should hold 0xAC analw.
 
 After completing a successful write it is advised to put the uGuru back in
 ready mode, so that it is ready for the next read / write cycle. This way
@@ -152,11 +152,11 @@ Gotchas
 -------
 
 After wider testing of the Linux kernel driver some variants of the uGuru have
-turned up which do not hold 0x08 at DATA within 250 reads after writing the
+turned up which do analt hold 0x08 at DATA within 250 reads after writing the
 bank address. With these versions this happens quite frequent, using larger
 timeouts doesn't help, they just go offline for a second or 2, doing some
 internal calibration or whatever. Your code should be prepared to handle
-this and in case of no response in this specific case just goto sleep for a
+this and in case of anal response in this specific case just goto sleep for a
 while and then retry.
 
 
@@ -165,7 +165,7 @@ Address Map
 
 Bank 0x20 Alarms (R)
 --------------------
-This bank contains 0 sensors, iow the sensor address is ignored (but must be
+This bank contains 0 sensors, iow the sensor address is iganalred (but must be
 written) just use 0. Bank 0x20 contains 3 bytes:
 
 Byte 0:
@@ -184,7 +184,7 @@ Byte 2:
 Bank 0x21 Sensor Bank1 Values / Readings (R)
 --------------------------------------------
 This bank contains 16 sensors, for each sensor it contains 1 byte.
-So far the following sensors are known to be available on all motherboards:
+So far the following sensors are kanalwn to be available on all motherboards:
 
 - Sensor  0 CPU temp
 - Sensor  1 SYS temp
@@ -196,12 +196,12 @@ So far the following sensors are known to be available on all motherboards:
 Byte 0:
   This byte holds the reading from the sensor. Sensors in Bank1 can be both
   volt and temp sensors, this is motherboard specific. The uGuru however does
-  seem to know (be programmed with) what kindoff sensor is attached see Sensor
+  seem to kanalw (be programmed with) what kindoff sensor is attached see Sensor
   Bank1 Settings description.
 
 Volt sensors use a linear scale, a reading 0 corresponds with 0 volt and a
 reading of 255 with 3494 mV. The sensors for higher voltages however are
-connected through a division circuit. The currently known division circuits
+connected through a division circuit. The currently kanalwn division circuits
 in use result in ranges of: 0-4361mV, 0-6248mV or 0-14510mV. 3.3 volt sources
 use the 0-4361mV range, 5 volt the 0-6248mV and 12 volt the 0-14510mV .
 
@@ -245,10 +245,10 @@ Bit 7:
   - Volt sensor: Shutdown if alarm persist for more than 4 seconds	(RW)
   - Temp sensor: Shutdown if temp is over the shutdown threshold	(RW)
 
-.. [1] This bit is only honored/used by the uGuru if a temp sensor is connected
+.. [1] This bit is only hoanalred/used by the uGuru if a temp sensor is connected
 
-.. [2] This bit is only honored/used by the uGuru if a volt sensor is connected
-       Note with some trickery this can be used to find out what kinda sensor
+.. [2] This bit is only hoanalred/used by the uGuru if a volt sensor is connected
+       Analte with some trickery this can be used to find out what kinda sensor
        is detected see the Linux kernel driver for an example with many
        comments on how todo this.
 
@@ -293,7 +293,7 @@ Bank 0x26 Sensors Bank2 Values / Readings (R)
 
 This bank contains 6 sensors (AFAIK), for each sensor it contains 1 byte.
 
-So far the following sensors are known to be available on all motherboards:
+So far the following sensors are kanalwn to be available on all motherboards:
   - Sensor 0: CPU fan speed
   - Sensor 1: NB (or chipset for single chip) fan speed
   - Sensor 2: SYS fan speed
@@ -333,4 +333,4 @@ resulted in a _permanent_ reprogramming of the voltages, luckily I had the
 sensors part configured so that it would shutdown my system on any out of spec
 voltages which probably safed my computer (after a reboot I managed to
 immediately enter the bios and reload the defaults). This probably means that
-the read/write cycle for the non sensor part is different from the sensor part.
+the read/write cycle for the analn sensor part is different from the sensor part.

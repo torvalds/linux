@@ -61,16 +61,16 @@ static const struct regmap_range idi_48_precious_ranges[] = {
 	regmap_reg_range(0x7, 0x7),
 };
 static const struct regmap_access_table idi_48_wr_table = {
-	.no_ranges = idi_48_wr_ranges,
-	.n_no_ranges = ARRAY_SIZE(idi_48_wr_ranges),
+	.anal_ranges = idi_48_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idi_48_wr_ranges),
 };
 static const struct regmap_access_table idi_48_rd_table = {
-	.yes_ranges = idi_48_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idi_48_rd_ranges),
+	.anal_ranges = idi_48_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idi_48_rd_ranges),
 };
 static const struct regmap_access_table idi_48_precious_table = {
-	.yes_ranges = idi_48_precious_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idi_48_precious_ranges),
+	.anal_ranges = idi_48_precious_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idi_48_precious_ranges),
 };
 static const struct regmap_config idi48_regmap_config = {
 	.reg_bits = 8,
@@ -140,7 +140,7 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 
 	regs = devm_ioport_map(dev, base[id], IDI_48_EXTENT);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map = devm_regmap_init_mmio(dev, regs, &idi48_regmap_config);
 	if (IS_ERR(map))
@@ -149,7 +149,7 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->name = name;
 	chip->status_base = IDI48_IRQ_STATUS;

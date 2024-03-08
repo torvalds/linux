@@ -3,7 +3,7 @@
 The cx2341x driver
 ==================
 
-Non-compressed file format
+Analn-compressed file format
 --------------------------
 
 The cx23416 can produce (and the cx23415 can also read) raw YUV output. The
@@ -38,7 +38,7 @@ to separate Y, U and V planes. This code assumes frames of 720x576 (PAL) pixels.
 The width of a frame is always 720 pixels, regardless of the actual specified
 width.
 
-If the height is not a multiple of 32 lines, then the captured video is
+If the height is analt a multiple of 32 lines, then the captured video is
 missing macroblocks at the end and is unusable. So the height must be a
 multiple of 32.
 
@@ -112,7 +112,7 @@ Raw format c example
 	else fin = fopen(argv[1], "r");
 
 	if (fin == NULL) {
-		fprintf(stderr, "cannot open input\n");
+		fprintf(stderr, "cananalt open input\n");
 		exit(-1);
 	}
 	while (fread(frame, sizeof(frame), 1, fin) == 1) {
@@ -148,11 +148,11 @@ header and a 42 bytes payload each. Anything beyond this limit is cut off by
 the cx23415/6 firmware. Besides the data for the VBI lines we also need 36 bits
 for a bitmask determining which lines are captured and 4 bytes for a magic cookie,
 signifying that this data package contains V4L2_MPEG_STREAM_VBI_FMT_IVTV VBI data.
-If all lines are used, then there is no longer room for the bitmask. To solve this
+If all lines are used, then there is anal longer room for the bitmask. To solve this
 two different magic numbers were introduced:
 
 'itv0': After this magic number two unsigned longs follow. Bits 0-17 of the first
-unsigned long denote which lines of the first field are captured. Bits 18-31 of
+unsigned long deanalte which lines of the first field are captured. Bits 18-31 of
 the first unsigned long and bits 0-3 of the second unsigned long are used for the
 second field.
 

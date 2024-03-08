@@ -24,17 +24,17 @@ struct dyn_arch_ftrace { };
 #define MCOUNT_ADDR 0
 #define FTRACE_ADDR ((unsigned long)ftrace_caller)
 
-#define KPROBE_ON_FTRACE_NOP	0
+#define KPROBE_ON_FTRACE_ANALP	0
 #define KPROBE_ON_FTRACE_CALL	1
 
 struct module;
 struct dyn_ftrace;
 
-bool ftrace_need_init_nop(void);
-#define ftrace_need_init_nop ftrace_need_init_nop
+bool ftrace_need_init_analp(void);
+#define ftrace_need_init_analp ftrace_need_init_analp
 
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
-#define ftrace_init_nop ftrace_init_nop
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec);
+#define ftrace_init_analp ftrace_init_analp
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
@@ -116,10 +116,10 @@ static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs, unsi
  * Even though the system call numbers are identical for s390/s390x a
  * different system call table is used for compat tasks. This may lead
  * to e.g. incorrect or missing trace event sysfs files.
- * Therefore simply do not trace compat system calls at all.
+ * Therefore simply do analt trace compat system calls at all.
  * See kernel/trace/trace_syscalls.c.
  */
-#define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS
+#define ARCH_TRACE_IGANALRE_COMPAT_SYSCALLS
 static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
 {
 	return is_compat_task();
@@ -141,7 +141,7 @@ static inline bool arch_syscall_match_sym_name(const char *sym,
 
 #ifdef CONFIG_FUNCTION_TRACER
 
-#define FTRACE_NOP_INSN .word 0xc004, 0x0000, 0x0000 /* brcl 0,0 */
+#define FTRACE_ANALP_INSN .word 0xc004, 0x0000, 0x0000 /* brcl 0,0 */
 
 #ifndef CC_USING_HOTPATCH
 
@@ -156,13 +156,13 @@ static inline bool arch_syscall_match_sym_name(const char *sym,
 
 #endif /* !CC_USING_HOTPATCH */
 
-#define FTRACE_GEN_NOP_ASM(name)		\
+#define FTRACE_GEN_ANALP_ASM(name)		\
 	FTRACE_GEN_MCOUNT_RECORD(name)		\
-	FTRACE_NOP_INSN
+	FTRACE_ANALP_INSN
 
 #else /* CONFIG_FUNCTION_TRACER */
 
-#define FTRACE_GEN_NOP_ASM(name)
+#define FTRACE_GEN_ANALP_ASM(name)
 
 #endif /* CONFIG_FUNCTION_TRACER */
 

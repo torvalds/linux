@@ -17,12 +17,12 @@
 #define __IA_CSS_FPN_TYPES_H
 
 /* @file
-* CSS-API header file for Fixed Pattern Noise parameters.
+* CSS-API header file for Fixed Pattern Analise parameters.
 */
 
-/* Fixed Pattern Noise table.
+/* Fixed Pattern Analise table.
  *
- *  This contains the fixed patterns noise values
+ *  This contains the fixed patterns analise values
  *  obtained from a black frame capture.
  *
  *  "shift" should be set as the smallest value
@@ -34,7 +34,7 @@
  */
 
 struct ia_css_fpn_table {
-	s16 *data;		/** Table content (fixed patterns noise).
+	s16 *data;		/** Table content (fixed patterns analise).
 					u0.[13-shift], [0,63] */
 	u32 width;		/** Table width (in pixels).
 					This is the input frame width. */

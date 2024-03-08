@@ -32,10 +32,10 @@
 
 #define DM_VERITY_MAX_CORRUPTED_ERRS	100
 
-#define DM_VERITY_OPT_LOGGING		"ignore_corruption"
+#define DM_VERITY_OPT_LOGGING		"iganalre_corruption"
 #define DM_VERITY_OPT_RESTART		"restart_on_corruption"
 #define DM_VERITY_OPT_PANIC		"panic_on_corruption"
-#define DM_VERITY_OPT_IGN_ZEROES	"ignore_zero_blocks"
+#define DM_VERITY_OPT_IGN_ZEROES	"iganalre_zero_blocks"
 #define DM_VERITY_OPT_AT_MOST_ONCE	"check_at_most_once"
 #define DM_VERITY_OPT_TASKLET_VERIFY	"try_verify_in_tasklet"
 
@@ -57,12 +57,12 @@ struct dm_verity_prefetch_work {
 
 /*
  * Auxiliary structure appended to each dm-bufio buffer. If the value
- * hash_verified is nonzero, hash of the block has been verified.
+ * hash_verified is analnzero, hash of the block has been verified.
  *
  * The variable hash_verified is set to 0 when allocating the buffer, then
  * it can be changed to 1 and it is never reset to 0 again.
  *
- * There is no lock around this value, a race condition can at worst cause
+ * There is anal lock around this value, a race condition can at worst cause
  * that multiple processes verify the hash of the same buffer simultaneously
  * and write 1 to hash_verified simultaneously.
  * This condition is harmless, so we don't need locking.
@@ -92,8 +92,8 @@ static sector_t verity_map_sector(struct dm_verity *v, sector_t bi_sector)
 /*
  * Return hash position of a specified block at a specified tree level
  * (0 is the lowest level).
- * The lowest "hash_per_block_bits"-bits of the result denote hash position
- * inside a hash block. The remaining bits denote location of the hash block.
+ * The lowest "hash_per_block_bits"-bits of the result deanalte hash position
+ * inside a hash block. The remaining bits deanalte location of the hash block.
  */
 static sector_t verity_position_at_level(struct dm_verity *v, sector_t block,
 					 int level)
@@ -148,7 +148,7 @@ static int verity_hash_init(struct dm_verity *v, struct ahash_request *req,
 	r = crypto_wait_req(crypto_ahash_init(req), wait);
 
 	if (unlikely(r < 0)) {
-		if (r != -ENOMEM)
+		if (r != -EANALMEM)
 			DMERR("crypto_ahash_init failed: %d", r);
 		return r;
 	}
@@ -301,7 +301,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		data = dm_bufio_get(v->bufio, hash_block, &buf);
 		if (data == NULL) {
 			/*
-			 * In tasklet and the hash was not in the bufio cache.
+			 * In tasklet and the hash was analt in the bufio cache.
 			 * Return early and resume execution from a work-queue
 			 * to read the hash from disk.
 			 */
@@ -333,7 +333,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		else if (static_branch_unlikely(&use_tasklet_enabled) &&
 			 io->in_tasklet) {
 			/*
-			 * Error handling code (FEC included) cannot be run in a
+			 * Error handling code (FEC included) cananalt be run in a
 			 * tasklet since it may sleep, so fallback to work-queue.
 			 */
 			r = -EAGAIN;
@@ -491,7 +491,7 @@ static int verity_recheck_copy(struct dm_verity *v, struct dm_verity_io *io,
 	return 0;
 }
 
-static noinline int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
+static analinline int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
 				   struct bvec_iter start, sector_t cur_block)
 {
 	struct page *page;
@@ -500,13 +500,13 @@ static noinline int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
 	struct dm_io_request io_req;
 	struct dm_io_region io_loc;
 
-	page = mempool_alloc(&v->recheck_pool, GFP_NOIO);
+	page = mempool_alloc(&v->recheck_pool, GFP_ANALIO);
 	buffer = page_to_virt(page);
 
 	io_req.bi_opf = REQ_OP_READ;
 	io_req.mem.type = DM_IO_KMEM;
 	io_req.mem.ptr.addr = buffer;
-	io_req.notify.fn = NULL;
+	io_req.analtify.fn = NULL;
 	io_req.client = v->io;
 	io_loc.bdev = v->data_dev->bdev;
 	io_loc.sector = cur_block << (v->data_dev_block_bits - SECTOR_SHIFT);
@@ -634,7 +634,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 		} else if (static_branch_unlikely(&use_tasklet_enabled) &&
 			   io->in_tasklet) {
 			/*
-			 * Error handling code (FEC included) cannot be run in a
+			 * Error handling code (FEC included) cananalt be run in a
 			 * tasklet since it may sleep, so fallback to work-queue.
 			 */
 			return -EAGAIN;
@@ -698,7 +698,7 @@ static void verity_work(struct work_struct *w)
 
 	io->in_tasklet = false;
 
-	verity_finish_io(io, errno_to_blk_status(verity_verify_io(io)));
+	verity_finish_io(io, erranal_to_blk_status(verity_verify_io(io)));
 }
 
 static void verity_end_io(struct bio *bio)
@@ -719,7 +719,7 @@ static void verity_end_io(struct bio *bio)
 
 /*
  * Prefetch buffers for the specified io.
- * The root buffer is not prefetched, it is assumed that it will be cached
+ * The root buffer is analt prefetched, it is assumed that it will be cached
  * all the time.
  */
 static void verity_prefetch_io(struct work_struct *work)
@@ -741,7 +741,7 @@ static void verity_prefetch_io(struct work_struct *work)
 
 			cluster >>= v->data_dev_block_bits;
 			if (unlikely(!cluster))
-				goto no_prefetch_cluster;
+				goto anal_prefetch_cluster;
 
 			if (unlikely(cluster & (cluster - 1)))
 				cluster = 1 << __fls(cluster);
@@ -751,7 +751,7 @@ static void verity_prefetch_io(struct work_struct *work)
 			if (unlikely(hash_block_end >= v->hash_blocks))
 				hash_block_end = v->hash_blocks - 1;
 		}
-no_prefetch_cluster:
+anal_prefetch_cluster:
 		dm_bufio_prefetch(v->bufio, hash_block_start,
 				  hash_block_end - hash_block_start + 1);
 	}
@@ -778,7 +778,7 @@ static void verity_submit_prefetch(struct dm_verity *v, struct dm_verity_io *io)
 	}
 
 	pw = kmalloc(sizeof(struct dm_verity_prefetch_work),
-		GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+		GFP_ANALIO | __GFP_ANALRETRY | __GFP_ANALMEMALLOC | __GFP_ANALWARN);
 
 	if (!pw)
 		return;
@@ -831,7 +831,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 
 	verity_submit_prefetch(v, io);
 
-	submit_bio_noacct(bio);
+	submit_bio_analacct(bio);
 
 	return DM_MAPIO_SUBMITTED;
 }
@@ -932,7 +932,7 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 			for (x = 0; x < v->salt_size; x++)
 				DMEMIT("%02x", v->salt[x]);
 
-		DMEMIT(",ignore_zero_blocks=%c", v->zero_digest ? 'y' : 'n');
+		DMEMIT(",iganalre_zero_blocks=%c", v->zero_digest ? 'y' : 'n');
 		DMEMIT(",check_at_most_once=%c", v->validated_blocks ? 'y' : 'n');
 		if (v->signature_key_desc)
 			DMEMIT(",root_hash_sig_key_desc=%s", v->signature_key_desc);
@@ -1047,7 +1047,7 @@ static int verity_alloc_most_once(struct dm_verity *v)
 				       GFP_KERNEL);
 	if (!v->validated_blocks) {
 		ti->error = "failed to allocate bitset for check_at_most_once";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1055,7 +1055,7 @@ static int verity_alloc_most_once(struct dm_verity *v)
 
 static int verity_alloc_zero_digest(struct dm_verity *v)
 {
-	int r = -ENOMEM;
+	int r = -EANALMEM;
 	struct ahash_request *req;
 	u8 *zero_data;
 
@@ -1145,7 +1145,7 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 				continue;
 			r = verity_alloc_zero_digest(v);
 			if (r) {
-				ti->error = "Cannot allocate zero digest";
+				ti->error = "Cananalt allocate zero digest";
 				return r;
 			}
 			continue;
@@ -1183,9 +1183,9 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 
 		} else if (only_modifier_opts) {
 			/*
-			 * Ignore unrecognized opt, could easily be an extra
+			 * Iganalre unrecognized opt, could easily be an extra
 			 * argument to an option whose parsing was skipped.
-			 * Normal parsing (@only_modifier_opts=false) will
+			 * Analrmal parsing (@only_modifier_opts=false) will
 			 * properly parse all options (and their extra args).
 			 */
 			continue;
@@ -1211,7 +1211,7 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
  *	<hash start block>
  *	<algorithm>
  *	<digest>
- *	<salt>		Hex string or "-" if no salt.
+ *	<salt>		Hex string or "-" if anal salt.
  */
 static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
@@ -1228,8 +1228,8 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	v = kzalloc(sizeof(struct dm_verity), GFP_KERNEL);
 	if (!v) {
-		ti->error = "Cannot allocate verity structure";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate verity structure";
+		return -EANALMEM;
 	}
 	ti->private = v;
 	v->ti = ti;
@@ -1245,7 +1245,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	if (argc < 10) {
-		ti->error = "Not enough arguments";
+		ti->error = "Analt eanalugh arguments";
 		r = -EINVAL;
 		goto bad;
 	}
@@ -1325,15 +1325,15 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	v->alg_name = kstrdup(argv[7], GFP_KERNEL);
 	if (!v->alg_name) {
-		ti->error = "Cannot allocate algorithm name";
-		r = -ENOMEM;
+		ti->error = "Cananalt allocate algorithm name";
+		r = -EANALMEM;
 		goto bad;
 	}
 
 	v->tfm = crypto_alloc_ahash(v->alg_name, 0,
 				    v->use_tasklet ? CRYPTO_ALG_ASYNC : 0);
 	if (IS_ERR(v->tfm)) {
-		ti->error = "Cannot initialize hash function";
+		ti->error = "Cananalt initialize hash function";
 		r = PTR_ERR(v->tfm);
 		v->tfm = NULL;
 		goto bad;
@@ -1358,8 +1358,8 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	v->root_digest = kmalloc(v->digest_size, GFP_KERNEL);
 	if (!v->root_digest) {
-		ti->error = "Cannot allocate root digest";
-		r = -ENOMEM;
+		ti->error = "Cananalt allocate root digest";
+		r = -EANALMEM;
 		goto bad;
 	}
 	if (strlen(argv[8]) != v->digest_size * 2 ||
@@ -1374,8 +1374,8 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		v->salt_size = strlen(argv[9]) / 2;
 		v->salt = kmalloc(v->salt_size, GFP_KERNEL);
 		if (!v->salt) {
-			ti->error = "Cannot allocate salt";
-			r = -ENOMEM;
+			ti->error = "Cananalt allocate salt";
+			r = -EANALMEM;
 			goto bad;
 		}
 		if (strlen(argv[9]) != v->salt_size * 2 ||
@@ -1441,7 +1441,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	r = mempool_init_page_pool(&v->recheck_pool, 1, 0);
 	if (unlikely(r)) {
-		ti->error = "Cannot allocate mempool";
+		ti->error = "Cananalt allocate mempool";
 		goto bad;
 	}
 
@@ -1449,16 +1449,16 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (IS_ERR(v->io)) {
 		r = PTR_ERR(v->io);
 		v->io = NULL;
-		ti->error = "Cannot allocate dm io";
+		ti->error = "Cananalt allocate dm io";
 		goto bad;
 	}
 
 	v->bufio = dm_bufio_client_create(v->hash_dev->bdev,
 		1 << v->hash_dev_block_bits, 1, sizeof(struct buffer_aux),
 		dm_bufio_alloc_callback, NULL,
-		v->use_tasklet ? DM_BUFIO_CLIENT_NO_SLEEP : 0);
+		v->use_tasklet ? DM_BUFIO_CLIENT_ANAL_SLEEP : 0);
 	if (IS_ERR(v->bufio)) {
-		ti->error = "Cannot initialize dm-bufio";
+		ti->error = "Cananalt initialize dm-bufio";
 		r = PTR_ERR(v->bufio);
 		v->bufio = NULL;
 		goto bad;
@@ -1481,8 +1481,8 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 */
 	v->verify_wq = alloc_workqueue("kverityd", WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	if (!v->verify_wq) {
-		ti->error = "Cannot allocate workqueue";
-		r = -ENOMEM;
+		ti->error = "Cananalt allocate workqueue";
+		r = -EANALMEM;
 		goto bad;
 	}
 
@@ -1494,7 +1494,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 
 	ti->per_io_data_size = roundup(ti->per_io_data_size,
-				       __alignof__(struct dm_verity_io));
+				       __aliganalf__(struct dm_verity_io));
 
 	verity_verify_sig_opts_cleanup(&verify_args);
 
@@ -1522,7 +1522,7 @@ bool dm_is_verity_target(struct dm_target *ti)
 /*
  * Get the verity mode (error behavior) of a verity target.
  *
- * Returns the verity mode of the target, or -EINVAL if 'ti' is not a verity
+ * Returns the verity mode of the target, or -EINVAL if 'ti' is analt a verity
  * target.
  */
 int dm_verity_get_mode(struct dm_target *ti)
@@ -1550,7 +1550,7 @@ int dm_verity_get_root_digest(struct dm_target *ti, u8 **root_digest, unsigned i
 
 	*root_digest = kmemdup(v->root_digest, v->digest_size, GFP_KERNEL);
 	if (*root_digest == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*digest_size = v->digest_size;
 

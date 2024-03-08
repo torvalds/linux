@@ -37,7 +37,7 @@ int sun8i_ce_hash_init_tfm(struct crypto_ahash *tfm)
 	op->fallback_tfm = crypto_alloc_ahash(crypto_ahash_alg_name(tfm), 0,
 					      CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(algt->ce->dev, "Fallback driver could no be loaded\n");
+		dev_err(algt->ce->dev, "Fallback driver could anal be loaded\n");
 		return PTR_ERR(op->fallback_tfm);
 	}
 
@@ -56,7 +56,7 @@ int sun8i_ce_hash_init_tfm(struct crypto_ahash *tfm)
 		goto error_pm;
 	return 0;
 error_pm:
-	pm_runtime_put_noidle(op->ce->dev);
+	pm_runtime_put_analidle(op->ce->dev);
 	crypto_free_ahash(op->fallback_tfm);
 	return err;
 }
@@ -364,14 +364,14 @@ int sun8i_ce_hash_run(struct crypto_engine *engine, void *breq)
 	/* the padding could be up to two block. */
 	buf = kzalloc(bs * 2, GFP_KERNEL | GFP_DMA);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto theend;
 	}
 	bf = (__le32 *)buf;
 
 	result = kzalloc(digestsize, GFP_KERNEL | GFP_DMA);
 	if (!result) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto theend;
 	}
 

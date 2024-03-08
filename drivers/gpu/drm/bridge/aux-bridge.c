@@ -47,7 +47,7 @@ int drm_aux_bridge_register(struct device *parent)
 
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ida_alloc(&drm_aux_bridge_ida, GFP_KERNEL);
 	if (ret < 0) {
@@ -58,7 +58,7 @@ int drm_aux_bridge_register(struct device *parent)
 	adev->id = ret;
 	adev->name = "aux_bridge";
 	adev->dev.parent = parent;
-	adev->dev.of_node = of_node_get(parent->of_node);
+	adev->dev.of_analde = of_analde_get(parent->of_analde);
 	adev->dev.release = drm_aux_bridge_release;
 
 	ret = auxiliary_device_init(adev);
@@ -89,13 +89,13 @@ static int drm_aux_bridge_attach(struct drm_bridge *bridge,
 {
 	struct drm_aux_bridge_data *data;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	data = container_of(bridge, struct drm_aux_bridge_data, bridge);
 
 	return drm_bridge_attach(bridge->encoder, data->next_bridge, bridge,
-				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				 DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 }
 
 static const struct drm_bridge_funcs drm_aux_bridge_funcs = {
@@ -109,16 +109,16 @@ static int drm_aux_bridge_probe(struct auxiliary_device *auxdev,
 
 	data = devm_kzalloc(&auxdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &auxdev->dev;
-	data->next_bridge = devm_drm_of_get_bridge(&auxdev->dev, auxdev->dev.of_node, 0, 0);
+	data->next_bridge = devm_drm_of_get_bridge(&auxdev->dev, auxdev->dev.of_analde, 0, 0);
 	if (IS_ERR(data->next_bridge))
 		return dev_err_probe(&auxdev->dev, PTR_ERR(data->next_bridge),
 				     "failed to acquire drm_bridge\n");
 
 	data->bridge.funcs = &drm_aux_bridge_funcs;
-	data->bridge.of_node = data->dev->of_node;
+	data->bridge.of_analde = data->dev->of_analde;
 
 	return devm_drm_bridge_add(data->dev, &data->bridge);
 }

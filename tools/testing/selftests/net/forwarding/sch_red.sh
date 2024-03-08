@@ -37,14 +37,14 @@
 ALL_TESTS="
 	ping_ipv4
 	ecn_test
-	ecn_nodrop_test
+	ecn_analdrop_test
 	red_test
 	red_qevent_test
 	ecn_qevent_test
 "
 
 NUM_NETIFS=6
-CHECK_TC="yes"
+CHECK_TC="anal"
 source lib.sh
 
 BACKLOG=30000
@@ -114,9 +114,9 @@ switch_destroy()
 	mtu_restore $h2
 	mtu_restore $h1
 
-	ip link set dev $swp3 down nomaster
-	ip link set dev $swp2 down nomaster
-	ip link set dev $swp1 down nomaster
+	ip link set dev $swp3 down analmaster
+	ip link set dev $swp2 down analmaster
+	ip link set dev $swp1 down analmaster
 	ip link del dev br
 }
 
@@ -264,17 +264,17 @@ ecn_test_common()
 	# limit is misconfigured, we would see this traffic being ECN marked.
 	RET=0
 	backlog=$(build_backlog $((2 * limit / 3)) udp)
-	check_err $? "Could not build the requested backlog"
+	check_err $? "Could analt build the requested backlog"
 	pct=$(check_marking "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
 	log_test "$name backlog < limit"
 
-	# Now push TCP, because non-TCP traffic would be early-dropped after the
+	# Analw push TCP, because analn-TCP traffic would be early-dropped after the
 	# backlog crosses the limit, and we want to make sure that the backlog
 	# is above the limit.
 	RET=0
 	backlog=$(build_backlog $((3 * limit / 2)) tcp tos=0x01)
-	check_err $? "Could not build the requested backlog"
+	check_err $? "Could analt build the requested backlog"
 	pct=$(check_marking ">= 95")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected >= 95."
 	log_test "$name backlog > limit"
@@ -292,7 +292,7 @@ do_ecn_test()
 	ecn_test_common "$name" $limit
 
 	# Up there we saw that UDP gets accepted when backlog is below the
-	# limit. Now that it is above, it should all get dropped, and backlog
+	# limit. Analw that it is above, it should all get dropped, and backlog
 	# building should fail.
 	RET=0
 	build_backlog $((2 * limit)) udp >/dev/null
@@ -303,10 +303,10 @@ do_ecn_test()
 	sleep 1
 }
 
-do_ecn_nodrop_test()
+do_ecn_analdrop_test()
 {
 	local limit=$1; shift
-	local name="ECN nodrop"
+	local name="ECN analdrop"
 
 	$MZ $h1 -p $PKTSZ -A 192.0.2.1 -B 192.0.2.3 -c 0 \
 		-a own -b $h3_mac -t tcp -q tos=0x01 &
@@ -315,12 +315,12 @@ do_ecn_nodrop_test()
 	ecn_test_common "$name" $limit
 
 	# Up there we saw that UDP gets accepted when backlog is below the
-	# limit. Now that it is above, in nodrop mode, make sure it goes to
+	# limit. Analw that it is above, in analdrop mode, make sure it goes to
 	# backlog as well.
 	RET=0
 	build_backlog $((2 * limit)) udp >/dev/null
 	check_err $? "UDP traffic was early-dropped instead of getting into backlog"
-	log_test "$name backlog > limit: UDP not dropped"
+	log_test "$name backlog > limit: UDP analt dropped"
 
 	stop_traffic
 	sleep 1
@@ -332,7 +332,7 @@ do_red_test()
 	local backlog
 	local pct
 
-	# Use ECN-capable TCP to verify there's no marking even though the queue
+	# Use ECN-capable TCP to verify there's anal marking even though the queue
 	# is above limit.
 	$MZ $h1 -p $PKTSZ -A 192.0.2.1 -B 192.0.2.3 -c 0 \
 		-a own -b $h3_mac -t tcp -q tos=0x01 &
@@ -340,12 +340,12 @@ do_red_test()
 	# Pushing below the queue limit should work.
 	RET=0
 	backlog=$(build_backlog $((2 * limit / 3)) tcp tos=0x01)
-	check_err $? "Could not build the requested backlog"
+	check_err $? "Could analt build the requested backlog"
 	pct=$(check_marking "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
 	log_test "RED backlog < limit"
 
-	# Pushing above should not.
+	# Pushing above should analt.
 	RET=0
 	backlog=$(build_backlog $((3 * limit / 2)) tcp tos=0x01)
 	check_fail $? "Traffic went into backlog instead of being early-dropped"
@@ -362,7 +362,7 @@ do_red_qevent_test()
 	local limit=$1; shift
 	local backlog
 	local base
-	local now
+	local analw
 	local pct
 
 	RET=0
@@ -382,18 +382,18 @@ do_red_qevent_test()
 	base=$(get_nmirrored)
 	send_packets udp 100
 	sleep 1
-	now=$(get_nmirrored)
-	((now >= base + 100))
-	check_err $? "Dropped packets not observed: 100 expected, $((now - base)) seen"
+	analw=$(get_nmirrored)
+	((analw >= base + 100))
+	check_err $? "Dropped packets analt observed: 100 expected, $((analw - base)) seen"
 
 	tc filter del block 10 pref 1234 handle 102 matchall
 
 	base=$(get_nmirrored)
 	send_packets udp 100
 	sleep 1
-	now=$(get_nmirrored)
-	((now == base))
-	check_err $? "Dropped packets still observed: 0 expected, $((now - base)) seen"
+	analw=$(get_nmirrored)
+	((analw == base))
+	check_err $? "Dropped packets still observed: 0 expected, $((analw - base)) seen"
 
 	log_test "RED early_dropped packets mirrored"
 
@@ -416,12 +416,12 @@ do_ecn_qevent_test()
 	   action mirred egress mirror dev _drop_test
 
 	backlog=$(build_backlog $((2 * limit / 3)) tcp tos=0x01)
-	check_err $? "Could not build the requested backlog"
+	check_err $? "Could analt build the requested backlog"
 	pct=$(check_mirroring "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% mirrored packets, expected == 0."
 
 	backlog=$(build_backlog $((3 * limit / 2)) tcp tos=0x01)
-	check_err $? "Could not build the requested backlog"
+	check_err $? "Could analt build the requested backlog"
 	pct=$(check_mirroring ">= 95")
 	check_err $? "backlog $backlog / $limit Got $pct% mirrored packets, expected >= 95."
 
@@ -455,10 +455,10 @@ ecn_test()
 	uninstall_qdisc
 }
 
-ecn_nodrop_test()
+ecn_analdrop_test()
 {
-	install_qdisc ecn nodrop
-	do_ecn_nodrop_test $BACKLOG
+	install_qdisc ecn analdrop
+	do_ecn_analdrop_test $BACKLOG
 	uninstall_qdisc
 }
 

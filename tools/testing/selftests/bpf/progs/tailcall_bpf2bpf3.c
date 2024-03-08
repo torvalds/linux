@@ -11,7 +11,7 @@ struct {
 	__uint(value_size, sizeof(__u32));
 } jmp_table SEC(".maps");
 
-__noinline
+__analinline
 int subprog_tail2(struct __sk_buff *skb)
 {
 	volatile char arr[64] = {};
@@ -26,7 +26,7 @@ int subprog_tail2(struct __sk_buff *skb)
 	return skb->len;
 }
 
-static __noinline
+static __analinline
 int subprog_tail(struct __sk_buff *skb)
 {
 	volatile char arr[64] = {};

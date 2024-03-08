@@ -26,7 +26,7 @@
 #include <net/netfilter/nf_socket.h>
 #include <linux/netfilter/xt_socket.h>
 
-/* "socket" match based redirection (no specific rule)
+/* "socket" match based redirection (anal specific rule)
  * ===================================================
  *
  * There are connections with dynamic endpoints (e.g. FTP data
@@ -40,8 +40,8 @@
  *   - match: if there's a fully established connection matching the
  *     _packet_ tuple
  *
- *   - match: if there's a non-zero bound listener (possibly with a
- *     non-local address) We don't accept zero-bound listeners, since
+ *   - match: if there's a analn-zero bound listener (possibly with a
+ *     analn-local address) We don't accept zero-bound listeners, since
  *     then local services could intercept traffic going through the
  *     box.
  */
@@ -62,14 +62,14 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 		bool wildcard;
 		bool transparent = true;
 
-		/* Ignore sockets listening on INADDR_ANY,
-		 * unless XT_SOCKET_NOWILDCARD is set
+		/* Iganalre sockets listening on INADDR_ANY,
+		 * unless XT_SOCKET_ANALWILDCARD is set
 		 */
-		wildcard = (!(info->flags & XT_SOCKET_NOWILDCARD) &&
+		wildcard = (!(info->flags & XT_SOCKET_ANALWILDCARD) &&
 			    sk_fullsock(sk) &&
 			    inet_sk(sk)->inet_rcv_saddr == 0);
 
-		/* Ignore non-transparent sockets,
+		/* Iganalre analn-transparent sockets,
 		 * if XT_SOCKET_TRANSPARENT is used
 		 */
 		if (info->flags & XT_SOCKET_TRANSPARENT)
@@ -123,14 +123,14 @@ socket_mt6_v1_v2_v3(const struct sk_buff *skb, struct xt_action_param *par)
 		bool wildcard;
 		bool transparent = true;
 
-		/* Ignore sockets listening on INADDR_ANY
-		 * unless XT_SOCKET_NOWILDCARD is set
+		/* Iganalre sockets listening on INADDR_ANY
+		 * unless XT_SOCKET_ANALWILDCARD is set
 		 */
-		wildcard = (!(info->flags & XT_SOCKET_NOWILDCARD) &&
+		wildcard = (!(info->flags & XT_SOCKET_ANALWILDCARD) &&
 			    sk_fullsock(sk) &&
 			    ipv6_addr_any(&sk->sk_v6_rcv_saddr));
 
-		/* Ignore non-transparent sockets,
+		/* Iganalre analn-transparent sockets,
 		 * if XT_SOCKET_TRANSPARENT is used
 		 */
 		if (info->flags & XT_SOCKET_TRANSPARENT)
@@ -161,7 +161,7 @@ static int socket_mt_enable_defrag(struct net *net, int family)
 		return nf_defrag_ipv6_enable(net);
 #endif
 	}
-	WARN_ONCE(1, "Unknown family %d\n", family);
+	WARN_ONCE(1, "Unkanalwn family %d\n", family);
 	return 0;
 }
 
@@ -175,7 +175,7 @@ static int socket_mt_v1_check(const struct xt_mtchk_param *par)
 		return err;
 
 	if (info->flags & ~XT_SOCKET_FLAGS_V1) {
-		pr_info_ratelimited("unknown flags 0x%x\n",
+		pr_info_ratelimited("unkanalwn flags 0x%x\n",
 				    info->flags & ~XT_SOCKET_FLAGS_V1);
 		return -EINVAL;
 	}
@@ -192,7 +192,7 @@ static int socket_mt_v2_check(const struct xt_mtchk_param *par)
 		return err;
 
 	if (info->flags & ~XT_SOCKET_FLAGS_V2) {
-		pr_info_ratelimited("unknown flags 0x%x\n",
+		pr_info_ratelimited("unkanalwn flags 0x%x\n",
 				    info->flags & ~XT_SOCKET_FLAGS_V2);
 		return -EINVAL;
 	}
@@ -209,7 +209,7 @@ static int socket_mt_v3_check(const struct xt_mtchk_param *par)
 	if (err)
 		return err;
 	if (info->flags & ~XT_SOCKET_FLAGS_V3) {
-		pr_info_ratelimited("unknown flags 0x%x\n",
+		pr_info_ratelimited("unkanalwn flags 0x%x\n",
 				    info->flags & ~XT_SOCKET_FLAGS_V3);
 		return -EINVAL;
 	}

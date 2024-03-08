@@ -15,7 +15,7 @@
 
 #include <linux/kernfs.h>
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/kobject_ns.h>
@@ -31,7 +31,7 @@ struct attribute {
 	const char		*name;
 	umode_t			mode;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	bool			ignore_lockdep:1;
+	bool			iganalre_lockdep:1;
 	struct lock_class_key	*key;
 	struct lock_class_key	skey;
 #endif
@@ -65,16 +65,16 @@ do {							\
  *		a new subdirectory with this name.
  * @is_visible:	Optional: Function to return permissions associated with an
  *		attribute of the group. Will be called repeatedly for each
- *		non-binary attribute in the group. Only read/write
+ *		analn-binary attribute in the group. Only read/write
  *		permissions as well as SYSFS_PREALLOC are accepted. Must
- *		return 0 if an attribute is not visible. The returned value
+ *		return 0 if an attribute is analt visible. The returned value
  *		will replace static permissions defined in struct attribute.
  * @is_bin_visible:
  *		Optional: Function to return permissions associated with a
  *		binary attribute of the group. Will be called repeatedly
  *		for each binary attribute in the group. Only read/write
  *		permissions as well as SYSFS_PREALLOC are accepted. Must
- *		return 0 if a binary attribute is not visible. The returned
+ *		return 0 if a binary attribute is analt visible. The returned
  *		value will replace static permissions defined in
  *		struct bin_attribute.
  * @attrs:	Pointer to NULL terminated list of attributes.
@@ -140,14 +140,14 @@ struct attribute_group {
 #define __ATTR_NULL { .attr = { .name = NULL } }
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-#define __ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store) {	\
+#define __ATTR_IGANALRE_LOCKDEP(_name, _mode, _show, _store) {	\
 	.attr = {.name = __stringify(_name), .mode = _mode,	\
-			.ignore_lockdep = true },		\
+			.iganalre_lockdep = true },		\
 	.show		= _show,				\
 	.store		= _store,				\
 }
 #else
-#define __ATTR_IGNORE_LOCKDEP	__ATTR
+#define __ATTR_IGANALRE_LOCKDEP	__ATTR
 #endif
 
 #define __ATTRIBUTE_GROUPS(_name)				\
@@ -279,9 +279,9 @@ int __must_check sysfs_create_files(struct kobject *kobj,
 				   const struct attribute * const *attr);
 int __must_check sysfs_chmod_file(struct kobject *kobj,
 				  const struct attribute *attr, umode_t mode);
-struct kernfs_node *sysfs_break_active_protection(struct kobject *kobj,
+struct kernfs_analde *sysfs_break_active_protection(struct kobject *kobj,
 						  const struct attribute *attr);
-void sysfs_unbreak_active_protection(struct kernfs_node *kn);
+void sysfs_unbreak_active_protection(struct kernfs_analde *kn);
 void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
 			  const void *ns);
 bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr);
@@ -294,7 +294,7 @@ void sysfs_remove_bin_file(struct kobject *kobj,
 
 int __must_check sysfs_create_link(struct kobject *kobj, struct kobject *target,
 				   const char *name);
-int __must_check sysfs_create_link_nowarn(struct kobject *kobj,
+int __must_check sysfs_create_link_analwarn(struct kobject *kobj,
 					  struct kobject *target,
 					  const char *name);
 void sysfs_remove_link(struct kobject *kobj, const char *name);
@@ -335,11 +335,11 @@ int compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 					 const char *target_name,
 					 const char *symlink_name);
 
-void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
+void sysfs_analtify(struct kobject *kobj, const char *dir, const char *attr);
 
 int __must_check sysfs_init(void);
 
-static inline void sysfs_enable_ns(struct kernfs_node *kn)
+static inline void sysfs_enable_ns(struct kernfs_analde *kn)
 {
 	return kernfs_enable_ns(kn);
 }
@@ -414,14 +414,14 @@ static inline int sysfs_chmod_file(struct kobject *kobj,
 	return 0;
 }
 
-static inline struct kernfs_node *
+static inline struct kernfs_analde *
 sysfs_break_active_protection(struct kobject *kobj,
 			      const struct attribute *attr)
 {
 	return NULL;
 }
 
-static inline void sysfs_unbreak_active_protection(struct kernfs_node *kn)
+static inline void sysfs_unbreak_active_protection(struct kernfs_analde *kn)
 {
 }
 
@@ -459,7 +459,7 @@ static inline int sysfs_create_link(struct kobject *kobj,
 	return 0;
 }
 
-static inline int sysfs_create_link_nowarn(struct kobject *kobj,
+static inline int sysfs_create_link_analwarn(struct kobject *kobj,
 					   struct kobject *target,
 					   const char *name)
 {
@@ -558,7 +558,7 @@ static inline int compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 	return 0;
 }
 
-static inline void sysfs_notify(struct kobject *kobj, const char *dir,
+static inline void sysfs_analtify(struct kobject *kobj, const char *dir,
 				const char *attr)
 {
 }
@@ -568,7 +568,7 @@ static inline int __must_check sysfs_init(void)
 	return 0;
 }
 
-static inline void sysfs_enable_ns(struct kernfs_node *kn)
+static inline void sysfs_enable_ns(struct kernfs_analde *kn)
 {
 }
 
@@ -637,24 +637,24 @@ static inline int sysfs_rename_link(struct kobject *kobj, struct kobject *target
 	return sysfs_rename_link_ns(kobj, target, old_name, new_name, NULL);
 }
 
-static inline void sysfs_notify_dirent(struct kernfs_node *kn)
+static inline void sysfs_analtify_dirent(struct kernfs_analde *kn)
 {
-	kernfs_notify(kn);
+	kernfs_analtify(kn);
 }
 
-static inline struct kernfs_node *sysfs_get_dirent(struct kernfs_node *parent,
+static inline struct kernfs_analde *sysfs_get_dirent(struct kernfs_analde *parent,
 						   const char *name)
 {
 	return kernfs_find_and_get(parent, name);
 }
 
-static inline struct kernfs_node *sysfs_get(struct kernfs_node *kn)
+static inline struct kernfs_analde *sysfs_get(struct kernfs_analde *kn)
 {
 	kernfs_get(kn);
 	return kn;
 }
 
-static inline void sysfs_put(struct kernfs_node *kn)
+static inline void sysfs_put(struct kernfs_analde *kn)
 {
 	kernfs_put(kn);
 }

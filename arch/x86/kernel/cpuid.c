@@ -16,14 +16,14 @@
  * and the upper 32 bits of the file position as the incoming %ecx,
  * the latter intended for "counting" eax levels like eax=4.
  *
- * This driver uses /dev/cpu/%d/cpuid where %d is the minor number, and on
+ * This driver uses /dev/cpu/%d/cpuid where %d is the mianalr number, and on
  * an SMP box will direct the access to CPU %d.
  */
 
 #include <linux/module.h>
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -32,7 +32,7 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
 #include <linux/completion.h>
@@ -63,7 +63,7 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 {
 	char __user *tmp = buf;
 	struct cpuid_regs_done cmd;
-	int cpu = iminor(file_inode(file));
+	int cpu = imianalr(file_ianalde(file));
 	u64 pos = *ppos;
 	ssize_t bytes = 0;
 	int err = 0;
@@ -97,18 +97,18 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	return bytes ? bytes : err;
 }
 
-static int cpuid_open(struct inode *inode, struct file *file)
+static int cpuid_open(struct ianalde *ianalde, struct file *file)
 {
 	unsigned int cpu;
 	struct cpuinfo_x86 *c;
 
-	cpu = iminor(file_inode(file));
+	cpu = imianalr(file_ianalde(file));
 	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
-		return -ENXIO;	/* No such CPU */
+		return -ENXIO;	/* Anal such CPU */
 
 	c = &cpu_data(cpu);
 	if (c->cpuid_level < 0)
-		return -EIO;	/* CPUID not supported */
+		return -EIO;	/* CPUID analt supported */
 
 	return 0;
 }
@@ -118,19 +118,19 @@ static int cpuid_open(struct inode *inode, struct file *file)
  */
 static const struct file_operations cpuid_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_seek_end_llseek,
+	.llseek = anal_seek_end_llseek,
 	.read = cpuid_read,
 	.open = cpuid_open,
 };
 
-static char *cpuid_devnode(const struct device *dev, umode_t *mode)
+static char *cpuid_devanalde(const struct device *dev, umode_t *mode)
 {
-	return kasprintf(GFP_KERNEL, "cpu/%u/cpuid", MINOR(dev->devt));
+	return kasprintf(GFP_KERNEL, "cpu/%u/cpuid", MIANALR(dev->devt));
 }
 
 static const struct class cpuid_class = {
 	.name		= "cpuid",
-	.devnode	= cpuid_devnode,
+	.devanalde	= cpuid_devanalde,
 };
 
 static int cpuid_device_create(unsigned int cpu)

@@ -28,7 +28,7 @@ struct bnlm_vmem_params {
 	VMEM_ARRAY(nl_th, ISP_VEC_NELEMS);
 	VMEM_ARRAY(match_quality_max_idx, ISP_VEC_NELEMS);
 	struct bnlm_lut mu_root_lut;
-	struct bnlm_lut sad_norm_lut;
+	struct bnlm_lut sad_analrm_lut;
 	struct bnlm_lut sig_detail_lut;
 	struct bnlm_lut sig_rad_lut;
 	struct bnlm_lut rad_pow_lut;
@@ -42,7 +42,7 @@ struct bnlm_vmem_params {
 
 	VMEM_ARRAY(div_lut_intercepts, ISP_VEC_NELEMS);
 
-	/* 240x does not have an ISP instruction to left shift each element of a
+	/* 240x does analt have an ISP instruction to left shift each element of a
 	 * vector by different shift value. Hence it will be simulated by multiplying
 	 * the elements by required 2^shift. */
 	VMEM_ARRAY(power_of_2, ISP_VEC_NELEMS);

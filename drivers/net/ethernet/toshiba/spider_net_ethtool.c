@@ -66,7 +66,7 @@ spider_net_ethtool_get_drvinfo(struct net_device *netdev,
 	strscpy(drvinfo->driver, spider_net_driver_name,
 		sizeof(drvinfo->driver));
 	strscpy(drvinfo->version, VERSION, sizeof(drvinfo->version));
-	strscpy(drvinfo->fw_version, "no information",
+	strscpy(drvinfo->fw_version, "anal information",
 		sizeof(drvinfo->fw_version));
 	strscpy(drvinfo->bus_info, pci_name(card->pdev),
 		sizeof(drvinfo->bus_info));
@@ -76,7 +76,7 @@ static void
 spider_net_ethtool_get_wol(struct net_device *netdev,
 			   struct ethtool_wolinfo *wolinfo)
 {
-	/* no support for wol */
+	/* anal support for wol */
 	wolinfo->supported = 0;
 	wolinfo->wolopts = 0;
 }
@@ -128,7 +128,7 @@ static int spider_net_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(ethtool_stats_keys);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

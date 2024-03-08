@@ -40,7 +40,7 @@ static int vpu_mbox_request_channel(struct device *dev, struct vpu_mbox *mbox)
 	} else {
 		cl->tx_block = false;
 	}
-	cl->knows_txdone = false;
+	cl->kanalws_txdone = false;
 	cl->rx_callback = vpu_mbox_rx_callback;
 
 	ch = mbox_request_channel_byname(cl, mbox->name);

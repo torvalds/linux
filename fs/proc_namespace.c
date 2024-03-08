@@ -15,7 +15,7 @@
 
 #include "proc/internal.h" /* only for get_proc_task() in ->open() */
 
-#include "pnode.h"
+#include "panalde.h"
 #include "internal.h"
 
 static __poll_t mounts_poll(struct file *file, poll_table *wait)
@@ -23,7 +23,7 @@ static __poll_t mounts_poll(struct file *file, poll_table *wait)
 	struct seq_file *m = file->private_data;
 	struct proc_mounts *p = m->private;
 	struct mnt_namespace *ns = p->ns;
-	__poll_t res = EPOLLIN | EPOLLRDNORM;
+	__poll_t res = EPOLLIN | EPOLLRDANALRM;
 	int event;
 
 	poll_wait(file, &p->ns->poll, wait);
@@ -45,7 +45,7 @@ struct proc_fs_opts {
 static int show_sb_opts(struct seq_file *m, struct super_block *sb)
 {
 	static const struct proc_fs_opts fs_opts[] = {
-		{ SB_SYNCHRONOUS, ",sync" },
+		{ SB_SYNCHROANALUS, ",sync" },
 		{ SB_DIRSYNC, ",dirsync" },
 		{ SB_MANDLOCK, ",mand" },
 		{ SB_LAZYTIME, ",lazytime" },
@@ -64,13 +64,13 @@ static int show_sb_opts(struct seq_file *m, struct super_block *sb)
 static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
 {
 	static const struct proc_fs_opts mnt_opts[] = {
-		{ MNT_NOSUID, ",nosuid" },
-		{ MNT_NODEV, ",nodev" },
-		{ MNT_NOEXEC, ",noexec" },
-		{ MNT_NOATIME, ",noatime" },
-		{ MNT_NODIRATIME, ",nodiratime" },
+		{ MNT_ANALSUID, ",analsuid" },
+		{ MNT_ANALDEV, ",analdev" },
+		{ MNT_ANALEXEC, ",analexec" },
+		{ MNT_ANALATIME, ",analatime" },
+		{ MNT_ANALDIRATIME, ",analdiratime" },
 		{ MNT_RELATIME, ",relatime" },
-		{ MNT_NOSYMFOLLOW, ",nosymfollow" },
+		{ MNT_ANALSYMFOLLOW, ",analsymfollow" },
 		{ 0, NULL }
 	};
 	const struct proc_fs_opts *fs_infop;
@@ -111,7 +111,7 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 		if (err)
 			goto out;
 	} else {
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
+		mangle(m, r->mnt_devname ? r->mnt_devname : "analne");
 	}
 	seq_putc(m, ' ');
 	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
@@ -141,7 +141,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	int err;
 
 	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
-		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
+		   MAJOR(sb->s_dev), MIANALR(sb->s_dev));
 	err = show_path(m, mnt->mnt_root);
 	if (err)
 		goto out;
@@ -177,7 +177,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 		if (err)
 			goto out;
 	} else {
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
+		mangle(m, r->mnt_devname ? r->mnt_devname : "analne");
 	}
 	seq_puts(m, sb_rdonly(sb) ? " ro" : " rw");
 	err = show_sb_opts(m, sb);
@@ -209,7 +209,7 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 			seq_puts(m, "device ");
 			mangle(m, r->mnt_devname);
 		} else
-			seq_puts(m, "no device");
+			seq_puts(m, "anal device");
 	}
 
 	/* mount point */
@@ -235,10 +235,10 @@ out:
 	return err;
 }
 
-static int mounts_open_common(struct inode *inode, struct file *file,
+static int mounts_open_common(struct ianalde *ianalde, struct file *file,
 			      int (*show)(struct seq_file *, struct vfsmount *))
 {
-	struct task_struct *task = get_proc_task(inode);
+	struct task_struct *task = get_proc_task(ianalde);
 	struct nsproxy *nsp;
 	struct mnt_namespace *ns = NULL;
 	struct path root;
@@ -261,7 +261,7 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 	if (!task->fs) {
 		task_unlock(task);
 		put_task_struct(task);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_put_ns;
 	}
 	get_fs_root(task->fs, &root);
@@ -290,28 +290,28 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static int mounts_release(struct inode *inode, struct file *file)
+static int mounts_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	struct proc_mounts *p = m->private;
 	path_put(&p->root);
 	put_mnt_ns(p->ns);
-	return seq_release_private(inode, file);
+	return seq_release_private(ianalde, file);
 }
 
-static int mounts_open(struct inode *inode, struct file *file)
+static int mounts_open(struct ianalde *ianalde, struct file *file)
 {
-	return mounts_open_common(inode, file, show_vfsmnt);
+	return mounts_open_common(ianalde, file, show_vfsmnt);
 }
 
-static int mountinfo_open(struct inode *inode, struct file *file)
+static int mountinfo_open(struct ianalde *ianalde, struct file *file)
 {
-	return mounts_open_common(inode, file, show_mountinfo);
+	return mounts_open_common(ianalde, file, show_mountinfo);
 }
 
-static int mountstats_open(struct inode *inode, struct file *file)
+static int mountstats_open(struct ianalde *ianalde, struct file *file)
 {
-	return mounts_open_common(inode, file, show_vfsstat);
+	return mounts_open_common(ianalde, file, show_vfsstat);
 }
 
 const struct file_operations proc_mounts_operations = {

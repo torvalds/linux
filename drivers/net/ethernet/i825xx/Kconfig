@@ -10,7 +10,7 @@ config NET_VENDOR_I825XX
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question does not directly affect the
+	  Analte that the answer to this question does analt directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about these devices. If you say Y, you will be asked for
 	  your specific card in the following questions.
@@ -61,8 +61,8 @@ config SUN3_82586
 	depends on SUN3
 	help
 	  This driver enables support for the on-board Intel 82586 based
-	  Ethernet adapter found on Sun 3/1xx and 3/2xx motherboards.  Note
-	  that this driver does not support 82586-based adapters on additional
+	  Ethernet adapter found on Sun 3/1xx and 3/2xx motherboards.  Analte
+	  that this driver does analt support 82586-based adapters on additional
 	  VME boards.
 
 endif # NET_VENDOR_I825XX

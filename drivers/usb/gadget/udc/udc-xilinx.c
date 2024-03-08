@@ -134,7 +134,7 @@ struct xusb_req {
  * @buffer0ready: the busy state of first buffer
  * @buffer1ready: the busy state of second buffer
  * @is_in: endpoint direction (IN or OUT)
- * @is_iso: endpoint type(isochronous or non isochronous)
+ * @is_iso: endpoint type(isochroanalus or analn isochroanalus)
  */
 struct xusb_ep {
 	struct usb_ep ep_usb;
@@ -163,7 +163,7 @@ struct xusb_ep {
  * @setup: usb_ctrlrequest structure for control requests
  * @req: pointer to dummy request for get status command
  * @dev: pointer to device structure in gadget
- * @usb_state: device in suspended state or not
+ * @usb_state: device in suspended state or analt
  * @remote_wkp: remote wakeup enabled by host
  * @setupseqtx: tx status
  * @setupseqrx: rx status
@@ -368,7 +368,7 @@ static int xudc_start_dma(struct xusb_ep *ep, dma_addr_t src,
  * @buffer: pointer to data to be sent.
  * @length: number of bytes to send.
  *
- * Return: 0 on success, -EAGAIN if no buffer is free and error
+ * Return: 0 on success, -EAGAIN if anal buffer is free and error
  *	   code on failure.
  *
  * This function sends data using DMA.
@@ -408,7 +408,7 @@ static int xudc_dma_send(struct xusb_ep *ep, struct xusb_req *req,
 		ep->buffer1ready = 1;
 		ep->curbufnum = 0;
 	} else {
-		/* None of ping pong buffers are ready currently .*/
+		/* Analne of ping pong buffers are ready currently .*/
 		return -EAGAIN;
 	}
 
@@ -422,7 +422,7 @@ static int xudc_dma_send(struct xusb_ep *ep, struct xusb_req *req,
  * @buffer: pointer to storage buffer of received data.
  * @length: number of bytes to receive.
  *
- * Return: 0 on success, -EAGAIN if no buffer is free and error
+ * Return: 0 on success, -EAGAIN if anal buffer is free and error
  *	   code on failure.
  *
  * This function receives data using DMA.
@@ -457,7 +457,7 @@ static int xudc_dma_receive(struct xusb_ep *ep, struct xusb_req *req,
 		ep->buffer1ready = 1;
 		ep->curbufnum = 0;
 	} else {
-		/* None of the ping-pong buffers are ready currently */
+		/* Analne of the ping-pong buffers are ready currently */
 		return -EAGAIN;
 	}
 
@@ -471,7 +471,7 @@ static int xudc_dma_receive(struct xusb_ep *ep, struct xusb_req *req,
  * @bufferptr: pointer to buffer containing the data to be sent.
  * @bufferlen: The number of data bytes to be sent.
  *
- * Return: 0 on success, -EAGAIN if no buffer is free.
+ * Return: 0 on success, -EAGAIN if anal buffer is free.
  *
  * This function copies the transmit/receive data to/from the end point buffer
  * and enables the buffer for transmission/reception.
@@ -533,7 +533,7 @@ static int xudc_eptxrx(struct xusb_ep *ep, struct xusb_req *req,
 		ep->buffer1ready = 1;
 		ep->curbufnum = 0;
 	} else {
-		/* None of the ping-pong buffers are ready currently */
+		/* Analne of the ping-pong buffers are ready currently */
 		return -EAGAIN;
 	}
 	return rc;
@@ -579,7 +579,7 @@ static void xudc_done(struct xusb_ep *ep, struct xusb_req *req, int status)
  * @ep: pointer to the usb device endpoint structure.
  * @req: pointer to the usb request structure.
  *
- * Return: 0 if request is completed and -EAGAIN if not completed.
+ * Return: 0 if request is completed and -EAGAIN if analt completed.
  *
  * Pulls OUT packet data from the endpoint buffer.
  */
@@ -594,7 +594,7 @@ static int xudc_read_fifo(struct xusb_ep *ep, struct xusb_req *req)
 	struct xusb_udc *udc = ep->udc;
 
 	if (ep->buffer0ready && ep->buffer1ready) {
-		dev_dbg(udc->dev, "Packet NOT ready!\n");
+		dev_dbg(udc->dev, "Packet ANALT ready!\n");
 		return retval;
 	}
 top:
@@ -669,7 +669,7 @@ top:
  * @ep: pointer to the usb device endpoint structure.
  * @req: pointer to the usb request structure.
  *
- * Return: 0 if request is completed and -EAGAIN if not completed.
+ * Return: 0 if request is completed and -EAGAIN if analt completed.
  *
  * Loads endpoint buffer for an IN packet.
  */
@@ -822,11 +822,11 @@ static int __xudc_ep_enable(struct xusb_ep *ep,
 	switch (tmp) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		dev_dbg(udc->dev, "only one control endpoint\n");
-		/* NON- ISO */
+		/* ANALN- ISO */
 		ep->is_iso = 0;
 		return -EINVAL;
 	case USB_ENDPOINT_XFER_INT:
-		/* NON- ISO */
+		/* ANALN- ISO */
 		ep->is_iso = 0;
 		if (maxpacket > 64) {
 			dev_dbg(udc->dev, "bogus maxpacket %d\n", maxpacket);
@@ -834,7 +834,7 @@ static int __xudc_ep_enable(struct xusb_ep *ep,
 		}
 		break;
 	case USB_ENDPOINT_XFER_BULK:
-		/* NON- ISO */
+		/* ANALN- ISO */
 		ep->is_iso = 0;
 		if (!(is_power_of_2(maxpacket) && maxpacket >= 8 &&
 				maxpacket <= 512)) {
@@ -906,7 +906,7 @@ static int xudc_ep_enable(struct usb_ep *_ep,
 	ep = to_xusb_ep(_ep);
 	udc = ep->udc;
 
-	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKANALWN) {
 		dev_dbg(udc->dev, "bogus device state\n");
 		return -ESHUTDOWN;
 	}
@@ -1004,7 +1004,7 @@ static int __xudc_ep0_queue(struct xusb_ep *ep0, struct xusb_req *req)
 	u32 length;
 	u8 *corebuf;
 
-	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKANALWN) {
 		dev_dbg(udc->dev, "%s, bogus device state\n", __func__);
 		return -EINVAL;
 	}
@@ -1088,7 +1088,7 @@ static int xudc_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 		return -ESHUTDOWN;
 	}
 
-	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKANALWN) {
 		dev_dbg(udc->dev, "%s, bogus device state\n", __func__);
 		return -EINVAL;
 	}
@@ -1168,7 +1168,7 @@ static int xudc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
  *
  * Return: error always.
  *
- * endpoint 0 enable should not be called by gadget layer.
+ * endpoint 0 enable should analt be called by gadget layer.
  */
 static int xudc_ep0_enable(struct usb_ep *ep,
 			   const struct usb_endpoint_descriptor *desc)
@@ -1182,7 +1182,7 @@ static int xudc_ep0_enable(struct usb_ep *ep,
  *
  * Return: error always.
  *
- * endpoint 0 disable should not be called by gadget layer.
+ * endpoint 0 disable should analt be called by gadget layer.
  */
 static int xudc_ep0_disable(struct usb_ep *ep)
 {
@@ -1221,7 +1221,7 @@ static int xudc_get_frame(struct usb_gadget *gadget)
 	int frame;
 
 	if (!gadget)
-		return -ENODEV;
+		return -EANALDEV;
 
 	udc = to_udc(gadget);
 	frame = udc->read_fn(udc->addr + XUSB_FRAMENUM_OFFSET);
@@ -1243,7 +1243,7 @@ static int xudc_wakeup(struct usb_gadget *gadget)
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	/* Remote wake up not enabled by host */
+	/* Remote wake up analt enabled by host */
 	if (!udc->remote_wkp)
 		goto done;
 
@@ -1253,7 +1253,7 @@ static int xudc_wakeup(struct usb_gadget *gadget)
 	udc->write_fn(udc->addr, XUSB_CONTROL_OFFSET, crtlreg);
 	/*
 	 * wait for a while and reset remote wake up bit since this bit
-	 * is not cleared by HW after sending remote wakeup to host.
+	 * is analt cleared by HW after sending remote wakeup to host.
 	 */
 	mdelay(2);
 
@@ -1417,7 +1417,7 @@ static int xudc_stop(struct usb_gadget *gadget)
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->driver = NULL;
 
 	/* Set device address and remote wakeup to 0 */
@@ -1519,7 +1519,7 @@ static void xudc_startup_handler(struct xusb_udc *udc, u32 intrstatus)
 		bool condition = (udc->usb_state != USB_STATE_SUSPENDED);
 
 		dev_WARN_ONCE(udc->dev, condition,
-				"Resume IRQ while not suspended\n");
+				"Resume IRQ while analt suspended\n");
 
 		dev_dbg(udc->dev, "Resume\n");
 
@@ -1794,7 +1794,7 @@ static void xudc_handle_setup(struct xusb_udc *udc)
 		return;
 	case USB_REQ_CLEAR_FEATURE:
 	case USB_REQ_SET_FEATURE:
-		/* Requests with no data phase, status phase from udc */
+		/* Requests with anal data phase, status phase from udc */
 		if ((udc->setup.bRequestType & USB_TYPE_MASK)
 				!= USB_TYPE_STANDARD)
 			break;
@@ -1950,7 +1950,7 @@ static void xudc_ctrl_ep_handler(struct xusb_udc *udc, u32 intrstatus)
 }
 
 /**
- * xudc_nonctrl_ep_handler - Non control endpoint interrupt handler.
+ * xudc_analnctrl_ep_handler - Analn control endpoint interrupt handler.
  * @udc: pointer to the udc structure.
  * @epnum: End point number for which the interrupt is to be processed
  * @intrstatus:	mask value for interrupt sources of endpoints other
@@ -1958,7 +1958,7 @@ static void xudc_ctrl_ep_handler(struct xusb_udc *udc, u32 intrstatus)
  *
  * Processes the buffer completion interrupts.
  */
-static void xudc_nonctrl_ep_handler(struct xusb_udc *udc, u8 epnum,
+static void xudc_analnctrl_ep_handler(struct xusb_udc *udc, u8 epnum,
 				    u32 intrstatus)
 {
 
@@ -2041,7 +2041,7 @@ static irqreturn_t xudc_irq(int irq, void *_udc)
 				  (XUSB_STATUS_EP1_BUFF2_COMP_MASK <<
 				  (index - 1))));
 			if (bufintr) {
-				xudc_nonctrl_ep_handler(udc, index,
+				xudc_analnctrl_ep_handler(udc, index,
 							intrstatus);
 			}
 		}
@@ -2059,7 +2059,7 @@ static irqreturn_t xudc_irq(int irq, void *_udc)
  */
 static int xudc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct resource *res;
 	struct xusb_udc *udc;
 	int irq;
@@ -2069,17 +2069,17 @@ static int xudc_probe(struct platform_device *pdev)
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
 	if (!udc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create a dummy request for GET_STATUS, SET_ADDRESS */
 	udc->req = devm_kzalloc(&pdev->dev, sizeof(struct xusb_req),
 				GFP_KERNEL);
 	if (!udc->req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buff = devm_kzalloc(&pdev->dev, STATUSBUFF_SIZE, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udc->req->usb_req.buf = buff;
 
@@ -2103,13 +2103,13 @@ static int xudc_probe(struct platform_device *pdev)
 	/* Setup gadget structure */
 	udc->gadget.ops = &xusb_udc_ops;
 	udc->gadget.max_speed = USB_SPEED_HIGH;
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->gadget.ep0 = &udc->ep[XUSB_EP_NUMBER_ZERO].ep_usb;
 	udc->gadget.name = driver_name;
 
 	udc->clk = devm_clk_get(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(udc->clk)) {
-		if (PTR_ERR(udc->clk) != -ENOENT) {
+		if (PTR_ERR(udc->clk) != -EANALENT) {
 			ret = PTR_ERR(udc->clk);
 			goto fail;
 		}
@@ -2118,7 +2118,7 @@ static int xudc_probe(struct platform_device *pdev)
 		 * Clock framework support is optional, continue on,
 		 * anyways if we don't find a matching clock
 		 */
-		dev_warn(&pdev->dev, "s_axi_aclk clock property is not found\n");
+		dev_warn(&pdev->dev, "s_axi_aclk clock property is analt found\n");
 		udc->clk = NULL;
 	}
 

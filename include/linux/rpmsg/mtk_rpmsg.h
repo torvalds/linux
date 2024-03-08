@@ -16,7 +16,7 @@ typedef void (*ipi_handler_t)(void *data, unsigned int len, void *priv);
  * @register_ipi: register IPI handler for an IPI id.
  * @unregister_ipi: unregister IPI handler for a registered IPI id.
  * @send_ipi: send IPI to an IPI id. wait is the timeout (in msecs) to wait
- *            until response, or 0 if there's no timeout.
+ *            until response, or 0 if there's anal timeout.
  * @ns_ipi_id: the IPI id used for name service, or -1 if name service isn't
  *             supported.
  */

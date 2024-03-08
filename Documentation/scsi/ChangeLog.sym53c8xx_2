@@ -48,19 +48,19 @@ Wed Feb 7 21:00 2001 Gerard Roudier
 	- Cleanup a bit the PPR failure recovery code.
 
 Sat Mar 3 21:00 2001 Gerard Roudier 
-	- Add option SYM_OPT_ANNOUNCE_TRANSFER_RATE and move the 
+	- Add option SYM_OPT_ANANALUNCE_TRANSFER_RATE and move the 
 	  corresponding code to file sym_misc.c.
 	  Also move the code that sniffes INQUIRY to sym_misc.c.
 	  This allows to share the corresponding code with NetBSD 
 	  without polluating the core driver source (sym_hipd.c).
 	- Add optional code that handles IO timeouts from the driver.
-	  (not used under Linux, but required for NetBSD)
-	- Do not assume any longer that PAGE_SHIFT and PAGE_SIZE are
+	  (analt used under Linux, but required for NetBSD)
+	- Do analt assume any longer that PAGE_SHIFT and PAGE_SIZE are
 	  defined at compile time, as at least NetBSD uses variables 
 	  in memory for that.
 	- Refine a work-around for the C1010-33 that consists in 
 	  disabling internal LOAD/STORE. Was applied up to revision 1.
-	  Is now only applied to revision 0.
+	  Is analw only applied to revision 0.
 	- Some code reorganisations due to code moves between files.
 
 Tues Apr 10 21:00 2001 Gerard Roudier 
@@ -71,10 +71,10 @@ Tues Apr 10 21:00 2001 Gerard Roudier
 	  #LUN <= 7.
 	- Set busy_itl in LCB to 1 if the LCB is allocated and a 
 	  SCSI command is active. This is a simplification.
-	- In sym_hcb_free(), do not scan the free_ccbq if no CCBs 
+	- In sym_hcb_free(), do analt scan the free_ccbq if anal CCBs 
 	  has been allocated. This fixes a panic if attach failed.
 	- Add DT/ST (double/simple transition) in the transfer 
-	  negotiation announce.
+	  negotiation ananalunce.
 	- Forces the max number of tasks per LUN to at least 64.
 	- Use pci_set_dma_mask() for linux-2.4.3 and above.
 	- A couple of comments fixes.
@@ -82,7 +82,7 @@ Tues Apr 10 21:00 2001 Gerard Roudier
 Wed May 22:00 2001 Gerard Roudier 
 	* version sym-2.1.10-20010509
 	- Mask GPCNTL against 0x1c (was 0xfc) for the reading of the NVRAM.
-	  This ensure LEDC bit will not be set on 896 and later chips.
+	  This ensure LEDC bit will analt be set on 896 and later chips.
 	  Fix sent by Chip Salzenberg <chip@perlsupport.com>.
 	- Define the number of PQS BUSes supported.
 	  Fix sent by Stig Telfer <stig@api-networks.com>
@@ -104,7 +104,7 @@ Sun Sep 9 18:00 2001 Gerard Roudier
 	- Change my email address.
 	- Add infrastructure for the forthcoming 64 bit DMA addressing support.
 	  (Based on PCI 64 bit patch from David S. Miller)
-	- Do not use anymore vm_offset_t type.
+	- Do analt use anymore vm_offset_t type.
 
 Sat Sep 15 20:00 2001 Gerard Roudier 
 	* version sym-2.1.13-20010916
@@ -113,8 +113,8 @@ Sat Sep 15 20:00 2001 Gerard Roudier
 
 Sat Sep 22 12:00 2001 Gerard Roudier 
 	* version sym-2.1.14-20010922
-	- Complete rewrite of the eh handling. The driver is now using a 
-	  semaphore in order to behave synchronously as required by the eh 
+	- Complete rewrite of the eh handling. The driver is analw using a 
+	  semaphore in order to behave synchroanalusly as required by the eh 
 	  threads. A timer is also used to prevent from waiting indefinitely.
 
 Sun Sep 30 17:00 2001 Gerard Roudier 
@@ -129,16 +129,16 @@ Sun Oct 28 15:00 2001 Gerard Roudier
 	- Slightly simplify driver configuration.
 	- Prepare a new patch against linux-2.4.13.
 
-Sat Nov 17 10:00 2001 Gerard Roudier 
+Sat Analv 17 10:00 2001 Gerard Roudier 
 	* version sym-2.1.17
 	- Fix a couple of gcc/gcc3 warnings.
 	- Allocate separately from the HCB the array for CCBs hashed by DSA.
-	  All driver memory allocations are now not greater than 1 PAGE 
+	  All driver memory allocations are analw analt greater than 1 PAGE 
 	  even on PPC64 / 4KB PAGE surprising setup.
 
 Sat Dec 01 18:00 2001 Gerard Roudier 
 	* version sym-2.1.17a
 	- Use u_long instead of U32 for the IO base cookie. This is more 
 	  consistent with what archs are expecting.
-	- Use MMIO per default for Power PC instead of some fake normal IO,
-	  as Paul Mackerras stated that MMIO works fine now on this arch.
+	- Use MMIO per default for Power PC instead of some fake analrmal IO,
+	  as Paul Mackerras stated that MMIO works fine analw on this arch.

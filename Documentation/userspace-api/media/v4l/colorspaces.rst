@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _colorspaces:
 
@@ -8,7 +8,7 @@ Colorspaces
 
 'Color' is a very complex concept and depends on physics, chemistry and
 biology. Just because you have three numbers that describe the 'red',
-'green' and 'blue' components of the color of a pixel does not mean that
+'green' and 'blue' components of the color of a pixel does analt mean that
 you can accurately display that color. A colorspace defines what it
 actually *means* to have an RGB value of e.g. (255, 0, 0). That is,
 which color should be reproduced on the screen in a perfectly calibrated
@@ -19,7 +19,7 @@ i.e. some way to uniquely and unambiguously define a color so that
 someone else can reproduce it. Human color vision is trichromatic since
 the human eye has color receptors that are sensitive to three different
 wavelengths of light. Hence the need to use three numbers to describe
-color. Be glad you are not a mantis shrimp as those are sensitive to 12
+color. Be glad you are analt a mantis shrimp as those are sensitive to 12
 different wavelengths, so instead of RGB we would be using the
 ABCDEFGHIJKL colorspace...
 
@@ -40,13 +40,13 @@ between SPDs and the perceived color and that resulted in the CIE 1931
 standard that defines spectral weighting functions that model the
 perception of color. Specifically that standard defines functions that
 can take an SPD and calculate the stimulus for each color receptor.
-After some further mathematical transforms these stimuli are known as
+After some further mathematical transforms these stimuli are kanalwn as
 the *CIE XYZ tristimulus* values and these X, Y and Z values describe a
 color as perceived by a human unambiguously. These X, Y and Z values are
 all in the range [0…1].
 
 The Y value in the CIE XYZ colorspace corresponds to luminance. Often
-the CIE XYZ colorspace is transformed to the normalized CIE xyY
+the CIE XYZ colorspace is transformed to the analrmalized CIE xyY
 colorspace:
 
 	x = X / (X + Y + Z)
@@ -58,7 +58,7 @@ define a color without the luminance component Y. It is very confusing
 to have such similar names for these colorspaces. Just be aware that if
 colors are specified with lower case 'x' and 'y', then the CIE xyY
 colorspace is used. Upper case 'X' and 'Y' refer to the CIE XYZ
-colorspace. Also, y has nothing to do with luminance. Together x and y
+colorspace. Also, y has analthing to do with luminance. Together x and y
 specify a color, and Y the luminance. That is really all you need to
 remember from a practical point of view. At the end of this section you
 will find reading resources that go into much more detail if you are
@@ -72,9 +72,9 @@ phosphors used in the displays. These *color primaries* are part of what
 defines a colorspace.
 
 Different display devices will have different primaries and some
-primaries are more suitable for some display technologies than others.
+primaries are more suitable for some display techanallogies than others.
 This has resulted in a variety of colorspaces that are used for
-different display technologies or uses. To define a colorspace you need
+different display techanallogies or uses. To define a colorspace you need
 to define the three color primaries (these are typically defined as x, y
 chromaticity coordinates from the CIE xyY colorspace) but also the white
 reference: that is the color obtained when all three primaries are at
@@ -90,43 +90,43 @@ colorspace.
 
 Both the CIE XYZ and the RGB colorspace that are derived from the
 specific chromaticity primaries are linear colorspaces. But neither the
-eye, nor display technology is linear. Doubling the values of all
-components in the linear colorspace will not be perceived as twice the
+eye, analr display techanallogy is linear. Doubling the values of all
+components in the linear colorspace will analt be perceived as twice the
 intensity of the color. So each colorspace also defines a transfer
 function that takes a linear color component value and transforms it to
-the non-linear component value, which is a closer match to the
-non-linear performance of both the eye and displays. Linear component
-values are denoted RGB, non-linear are denoted as R'G'B'. In general
+the analn-linear component value, which is a closer match to the
+analn-linear performance of both the eye and displays. Linear component
+values are deanalted RGB, analn-linear are deanalted as R'G'B'. In general
 colors used in graphics are all R'G'B', except in openGL which uses
 linear RGB. Special care should be taken when dealing with openGL to
 provide linear RGB colors or to use the built-in openGL support to apply
 the inverse transfer function.
 
 The final piece that defines a colorspace is a function that transforms
-non-linear R'G'B' to non-linear Y'CbCr. This function is determined by
+analn-linear R'G'B' to analn-linear Y'CbCr. This function is determined by
 the so-called luma coefficients. There may be multiple possible Y'CbCr
 encodings allowed for the same colorspace. Many encodings of color
 prefer to use luma (Y') and chroma (CbCr) instead of R'G'B'. Since the
 human eye is more sensitive to differences in luminance than in color
 this encoding allows one to reduce the amount of color information
-compared to the luma data. Note that the luma (Y') is unrelated to the Y
-in the CIE XYZ colorspace. Also note that Y'CbCr is often called YCbCr
+compared to the luma data. Analte that the luma (Y') is unrelated to the Y
+in the CIE XYZ colorspace. Also analte that Y'CbCr is often called YCbCr
 or YUV even though these are strictly speaking wrong.
 
-Sometimes people confuse Y'CbCr as being a colorspace. This is not
+Sometimes people confuse Y'CbCr as being a colorspace. This is analt
 correct, it is just an encoding of an R'G'B' color into luma and chroma
 values. The underlying colorspace that is associated with the R'G'B'
 color is also associated with the Y'CbCr color.
 
 The final step is how the RGB, R'G'B' or Y'CbCr values are quantized.
 The CIE XYZ colorspace where X, Y and Z are in the range [0…1] describes
-all colors that humans can perceive, but the transform to another
+all colors that humans can perceive, but the transform to aanalther
 colorspace will produce colors that are outside the [0…1] range. Once
-clamped to the [0…1] range those colors can no longer be reproduced in
+clamped to the [0…1] range those colors can anal longer be reproduced in
 that colorspace. This clamping is what reduces the extent or gamut of
 the colorspace. How the range of [0…1] is translated to integer values
 in the range of [0…255] (or higher, depending on the color depth) is
-called the quantization. This is *not* part of the colorspace
+called the quantization. This is *analt* part of the colorspace
 definition. In practice RGB or R'G'B' values are full range, i.e. they
 use the full [0…255] range. Y'CbCr values on the other hand are limited
 range with Y' using [16…235] and Cb and Cr using [16…240].
@@ -135,7 +135,7 @@ Unfortunately, in some cases limited range RGB is also used where the
 components use the range [16…235]. And full range Y'CbCr also exists
 using the [0…255] range.
 
-In order to correctly interpret a color you need to know the
+In order to correctly interpret a color you need to kanalw the
 quantization range, whether it is R'G'B' or Y'CbCr, the used Y'CbCr
 encoding and the colorspace. From that information you can calculate the
 corresponding CIE XYZ color and map that again to whatever colorspace

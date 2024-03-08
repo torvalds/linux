@@ -3,7 +3,7 @@
  * Original all-in-one devicetree:
  * Copyright (C) 2020-2022 - Aldec
  * Rewritten to use includes:
- * Copyright (C) 2022 - Conor Dooley <conor.dooley@microchip.com>
+ * Copyright (C) 2022 - Coanalr Dooley <coanalr.dooley@microchip.com>
  */
 
 /dts-v1/;
@@ -106,7 +106,7 @@
 	max-frequency = <200000000>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
-	no-1-8-v;
+	anal-1-8-v;
 	disable-wp;
 	status = "okay";
 };
@@ -142,7 +142,7 @@
 &spi1 {
 	status = "okay";
 	flash@0 {
-		compatible = "micron,n25q128a11", "jedec,spi-nor";
+		compatible = "micron,n25q128a11", "jedec,spi-analr";
 		reg = <0x0>;
 		spi-max-frequency = <10000000>;
 	};

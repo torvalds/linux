@@ -3,8 +3,8 @@
  * efi.c - EFI subsystem
  *
  * Copyright (C) 2001,2003,2004 Dell <Matt_Domsch@dell.com>
- * Copyright (C) 2004 Intel Corporation <matthew.e.tolentino@intel.com>
- * Copyright (C) 2013 Tom Gundersen <teg@jklm.no>
+ * Copyright (C) 2004 Intel Corporation <matthew.e.tolentianal@intel.com>
+ * Copyright (C) 2013 Tom Gundersen <teg@jklm.anal>
  *
  * This code registers /sys/firmware/efi{,/efivars} when EFI is supported,
  * allowing the efivarfs to be mounted or the efivars module to be loaded.
@@ -32,7 +32,7 @@
 #include <linux/ucs2_string.h>
 #include <linux/memblock.h>
 #include <linux/security.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <asm/early_ioremap.h>
 
@@ -78,12 +78,12 @@ struct mm_struct efi_mm = {
 struct workqueue_struct *efi_rts_wq;
 
 static bool disable_runtime = IS_ENABLED(CONFIG_EFI_DISABLE_RUNTIME);
-static int __init setup_noefi(char *arg)
+static int __init setup_analefi(char *arg)
 {
 	disable_runtime = true;
 	return 0;
 }
-early_param("noefi", setup_noefi);
+early_param("analefi", setup_analefi);
 
 bool efi_runtime_disabled(void)
 {
@@ -92,7 +92,7 @@ bool efi_runtime_disabled(void)
 
 bool __pure __efi_soft_reserve_enabled(void)
 {
-	return !efi_enabled(EFI_MEM_NO_SOFT_RESERVE);
+	return !efi_enabled(EFI_MEM_ANAL_SOFT_RESERVE);
 }
 
 static int __init parse_efi_cmdline(char *str)
@@ -105,14 +105,14 @@ static int __init parse_efi_cmdline(char *str)
 	if (parse_option_str(str, "debug"))
 		set_bit(EFI_DBG, &efi.flags);
 
-	if (parse_option_str(str, "noruntime"))
+	if (parse_option_str(str, "analruntime"))
 		disable_runtime = true;
 
 	if (parse_option_str(str, "runtime"))
 		disable_runtime = false;
 
-	if (parse_option_str(str, "nosoftreserve"))
-		set_bit(EFI_MEM_NO_SOFT_RESERVE, &efi.flags);
+	if (parse_option_str(str, "analsoftreserve"))
+		set_bit(EFI_MEM_ANAL_SOFT_RESERVE, &efi.flags);
 
 	return 0;
 }
@@ -121,9 +121,9 @@ early_param("efi", parse_efi_cmdline);
 struct kobject *efi_kobj;
 
 /*
- * Let's not leave out systab information that snuck into
+ * Let's analt leave out systab information that snuck into
  * the efivars driver
- * Note, do not add more fields in systab sysfs file as it breaks sysfs
+ * Analte, do analt add more fields in systab sysfs file as it breaks sysfs
  * one value per file rule!
  */
 static ssize_t systab_show(struct kobject *kobj,
@@ -188,7 +188,7 @@ static const struct attribute_group efi_subsys_attr_group = {
 	.is_visible = efi_attr_is_visible,
 };
 
-struct blocking_notifier_head efivar_ops_nh;
+struct blocking_analtifier_head efivar_ops_nh;
 EXPORT_SYMBOL_GPL(efivar_ops_nh);
 
 static struct efivars generic_efivars;
@@ -222,7 +222,7 @@ static int generic_ops_register(void)
 
 	if (efi_rt_services_supported(EFI_RT_SUPPORTED_SET_VARIABLE)) {
 		generic_ops.set_variable = efi.set_variable;
-		generic_ops.set_variable_nonblocking = efi.set_variable_nonblocking;
+		generic_ops.set_variable_analnblocking = efi.set_variable_analnblocking;
 	}
 	return efivars_register(&generic_efivars, &generic_ops);
 }
@@ -277,7 +277,7 @@ static __init int efivar_ssdt_load(void)
 
 	name = kzalloc(name_size, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (;;) {
 		char utf8_name[EFIVAR_SSDT_NAME_MAX];
@@ -286,14 +286,14 @@ static __init int efivar_ssdt_load(void)
 		int limit;
 
 		status = efi.get_next_variable(&name_size, name, &guid);
-		if (status == EFI_NOT_FOUND) {
+		if (status == EFI_ANALT_FOUND) {
 			break;
 		} else if (status == EFI_BUFFER_TOO_SMALL) {
 			efi_char16_t *name_tmp =
 				krealloc(name, name_size, GFP_KERNEL);
 			if (!name_tmp) {
 				kfree(name);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			name = name_tmp;
 			continue;
@@ -312,7 +312,7 @@ static __init int efivar_ssdt_load(void)
 
 		data = kmalloc(data_size, GFP_KERNEL);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		status = efi.get_variable(name, &guid, NULL, &data_size, data);
 		if (status == EFI_SUCCESS) {
@@ -422,7 +422,7 @@ static int __init efisubsys_init(void)
 	efi_kobj = kobject_create_and_add("efi", firmware_kobj);
 	if (!efi_kobj) {
 		pr_err("efi: Firmware registration failed.\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_destroy_wq;
 	}
 
@@ -435,7 +435,7 @@ static int __init efisubsys_init(void)
 		platform_device_register_simple("efivars", 0, NULL, 0);
 	}
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&efivar_ops_nh);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&efivar_ops_nh);
 
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
 	if (error) {
@@ -513,7 +513,7 @@ int __efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 	efi_memory_desc_t *md;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
-		pr_err_once("EFI_MEMMAP is not enabled.\n");
+		pr_err_once("EFI_MEMMAP is analt enabled.\n");
 		return -EINVAL;
 	}
 
@@ -539,7 +539,7 @@ int __efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 			return 0;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 extern int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
@@ -571,7 +571,7 @@ void __init __weak efi_arch_mem_reserve(phys_addr_t addr, u64 size) {}
  */
 void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 {
-	/* efi_mem_reserve() does not work under Xen */
+	/* efi_mem_reserve() does analt work under Xen */
 	if (WARN_ON_ONCE(efi_enabled(EFI_PARAVIRT)))
 		return;
 
@@ -583,7 +583,7 @@ void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 	 * until efi_free_boot_services() because of buggy firmware
 	 * implementations. This means the above memblock_reserve() is
 	 * superfluous on x86 and instead what it needs to do is
-	 * ensure the @start, @size is not freed.
+	 * ensure the @start, @size is analt freed.
 	 */
 	efi_arch_mem_reserve(addr, size);
 }
@@ -650,15 +650,15 @@ static __init int match_config_table(const efi_guid_t *guid,
  * @unaccepted: Pointer to unaccepted memory table
  *
  * memblock_add() makes sure that the table is mapped in direct mapping. During
- * normal boot it happens automatically because the table is allocated from
+ * analrmal boot it happens automatically because the table is allocated from
  * usable memory. But during crashkernel boot only memory specifically reserved
  * for crash scenario is mapped. memblock_add() forces the table to be mapped
  * in crashkernel case.
  *
  * Align the range to the nearest page borders. Ranges smaller than page size
- * are not going to be mapped.
+ * are analt going to be mapped.
  *
- * memblock_reserve() makes sure that future allocations will not touch the
+ * memblock_reserve() makes sure that future allocations will analt touch the
  * table.
  */
 
@@ -718,7 +718,7 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 			size = min_t(u32, seed->size, SZ_1K); // sanity check
 			early_memunmap(seed, sizeof(*seed));
 		} else {
-			pr_err("Could not map UEFI random seed!\n");
+			pr_err("Could analt map UEFI random seed!\n");
 		}
 		if (size > 0) {
 			seed = early_memremap(efi_rng_seed,
@@ -728,7 +728,7 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 				memzero_explicit(seed->bits, size);
 				early_memunmap(seed, sizeof(*seed) + size);
 			} else {
-				pr_err("Could not map UEFI random seed!\n");
+				pr_err("Could analt map UEFI random seed!\n");
 			}
 		}
 	}
@@ -748,13 +748,13 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 			/*
 			 * Just map a full page: that is what we will get
 			 * anyway, and it permits us to map the entire entry
-			 * before knowing its size.
+			 * before kanalwing its size.
 			 */
 			p = early_memremap(ALIGN_DOWN(prsv, PAGE_SIZE),
 					   PAGE_SIZE);
 			if (p == NULL) {
-				pr_err("Could not map UEFI memreserve entry!\n");
-				return -ENOMEM;
+				pr_err("Could analt map UEFI memreserve entry!\n");
+				return -EANALMEM;
 			}
 
 			rsv = (void *)(p + prsv % PAGE_SIZE);
@@ -832,7 +832,7 @@ static const efi_char16_t *__init map_fw_vendor(unsigned long fw_vendor,
 
 	ret = early_memremap_ro(fw_vendor, size);
 	if (!ret)
-		pr_err("Could not map the firmware vendor!\n");
+		pr_err("Could analt map the firmware vendor!\n");
 	return ret;
 }
 
@@ -844,7 +844,7 @@ static void __init unmap_fw_vendor(const void *fw_vendor, size_t size)
 void __init efi_systab_report_header(const efi_table_hdr_t *systab_hdr,
 				     unsigned long fw_vendor)
 {
-	char vendor[100] = "unknown";
+	char vendor[100] = "unkanalwn";
 	const efi_char16_t *c16;
 	size_t i;
 	u16 rev;
@@ -979,7 +979,7 @@ int efi_mem_type(unsigned long phys_addr)
 	const efi_memory_desc_t *md;
 
 	if (!efi_enabled(EFI_MEMMAP))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for_each_efi_memory_desc(md) {
 		if ((md->phys_addr <= phys_addr) &&
@@ -1002,7 +1002,7 @@ int efi_status_to_err(efi_status_t status)
 		err = -EINVAL;
 		break;
 	case EFI_OUT_OF_RESOURCES:
-		err = -ENOSPC;
+		err = -EANALSPC;
 		break;
 	case EFI_DEVICE_ERROR:
 		err = -EIO;
@@ -1013,8 +1013,8 @@ int efi_status_to_err(efi_status_t status)
 	case EFI_SECURITY_VIOLATION:
 		err = -EACCES;
 		break;
-	case EFI_NOT_FOUND:
-		err = -ENOENT;
+	case EFI_ANALT_FOUND:
+		err = -EANALENT;
 		break;
 	case EFI_ABORTED:
 		err = -EINTR;
@@ -1033,13 +1033,13 @@ static struct linux_efi_memreserve *efi_memreserve_root __ro_after_init;
 static int __init efi_memreserve_map_root(void)
 {
 	if (mem_reserve == EFI_INVALID_TABLE_ADDR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	efi_memreserve_root = memremap(mem_reserve,
 				       sizeof(*efi_memreserve_root),
 				       MEMREMAP_WB);
 	if (WARN_ON_ONCE(!efi_memreserve_root))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1050,7 +1050,7 @@ static int efi_mem_reserve_iomem(phys_addr_t addr, u64 size)
 
 	res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->name	= "reserved";
 	res->flags	= IORESOURCE_MEM;
@@ -1079,7 +1079,7 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 	int rc, index;
 
 	if (efi_memreserve_root == (void *)ULONG_MAX)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!efi_memreserve_root) {
 		rc = efi_memreserve_map_root();
@@ -1091,7 +1091,7 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 	for (prsv = efi_memreserve_root->next; prsv; ) {
 		rsv = memremap(prsv, sizeof(*rsv), MEMREMAP_WB);
 		if (!rsv)
-			return -ENOMEM;
+			return -EANALMEM;
 		index = atomic_fetch_add_unless(&rsv->count, 1, rsv->size);
 		if (index < rsv->size) {
 			rsv->entry[index].base = addr;
@@ -1104,10 +1104,10 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 		memunmap(rsv);
 	}
 
-	/* no slot found - allocate a new linked list entry */
+	/* anal slot found - allocate a new linked list entry */
 	rsv = (struct linux_efi_memreserve *)__get_free_page(GFP_ATOMIC);
 	if (!rsv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = efi_mem_reserve_iomem(__pa(rsv), SZ_4K);
 	if (rc) {
@@ -1145,21 +1145,21 @@ static int __init efi_memreserve_root_init(void)
 early_initcall(efi_memreserve_root_init);
 
 #ifdef CONFIG_KEXEC
-static int update_efi_random_seed(struct notifier_block *nb,
+static int update_efi_random_seed(struct analtifier_block *nb,
 				  unsigned long code, void *unused)
 {
 	struct linux_efi_random_seed *seed;
 	u32 size = 0;
 
 	if (!kexec_in_progress)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	seed = memremap(efi_rng_seed, sizeof(*seed), MEMREMAP_WB);
 	if (seed != NULL) {
 		size = min(seed->size, EFI_RANDOM_SEED_SIZE);
 		memunmap(seed);
 	} else {
-		pr_err("Could not map UEFI random seed!\n");
+		pr_err("Could analt map UEFI random seed!\n");
 	}
 	if (size > 0) {
 		seed = memremap(efi_rng_seed, sizeof(*seed) + size,
@@ -1169,21 +1169,21 @@ static int update_efi_random_seed(struct notifier_block *nb,
 			get_random_bytes(seed->bits, seed->size);
 			memunmap(seed);
 		} else {
-			pr_err("Could not map UEFI random seed!\n");
+			pr_err("Could analt map UEFI random seed!\n");
 		}
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block efi_random_seed_nb = {
-	.notifier_call = update_efi_random_seed,
+static struct analtifier_block efi_random_seed_nb = {
+	.analtifier_call = update_efi_random_seed,
 };
 
 static int __init register_update_efi_random_seed(void)
 {
 	if (efi_rng_seed == EFI_INVALID_TABLE_ADDR)
 		return 0;
-	return register_reboot_notifier(&efi_random_seed_nb);
+	return register_reboot_analtifier(&efi_random_seed_nb);
 }
 late_initcall(register_update_efi_random_seed);
 #endif

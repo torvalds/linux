@@ -5,22 +5,22 @@
  */
 
 /*
- * Node state machine functions for remote device node sm
+ * Analde state machine functions for remote device analde sm
  */
 
 #ifndef __EFCT_DEVICE_H__
 #define __EFCT_DEVICE_H__
 void
-efc_node_init_device(struct efc_node *node, bool send_plogi);
+efc_analde_init_device(struct efc_analde *analde, bool send_plogi);
 void
-efc_process_prli_payload(struct efc_node *node,
+efc_process_prli_payload(struct efc_analde *analde,
 			 void *prli);
 void
-efc_d_send_prli_rsp(struct efc_node *node, uint16_t ox_id);
+efc_d_send_prli_rsp(struct efc_analde *analde, uint16_t ox_id);
 void
-efc_send_ls_acc_after_attach(struct efc_node *node,
+efc_send_ls_acc_after_attach(struct efc_analde *analde,
 			     struct fc_frame_header *hdr,
-			     enum efc_node_send_ls_acc ls);
+			     enum efc_analde_send_ls_acc ls);
 void
 __efc_d_wait_loop(struct efc_sm_ctx *ctx,
 		  enum efc_sm_event evt, void *arg);
@@ -39,10 +39,10 @@ void
 __efc_d_wait_domain_attach(struct efc_sm_ctx *ctx,
 			   enum efc_sm_event evt, void *arg);
 void
-__efc_d_wait_topology_notify(struct efc_sm_ctx *ctx,
+__efc_d_wait_topology_analtify(struct efc_sm_ctx *ctx,
 			     enum efc_sm_event evt, void *arg);
 void
-__efc_d_wait_node_attach(struct efc_sm_ctx *ctx,
+__efc_d_wait_analde_attach(struct efc_sm_ctx *ctx,
 			 enum efc_sm_event evt, void *arg);
 void
 __efc_d_wait_attach_evt_shutdown(struct efc_sm_ctx *ctx,

@@ -79,7 +79,7 @@ static int cs47l24_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
-static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
+static DECLARE_TLV_DB_SCALE(analise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 #define CS47L24_NG_SRC(name, base) \
@@ -182,8 +182,8 @@ ARIZONA_MIXER_CONTROLS("DSP2R", ARIZONA_DSP2RMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP3L", ARIZONA_DSP3LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP3R", ARIZONA_DSP3RMIX_INPUT_1_SOURCE),
 
-SOC_SINGLE_TLV("Noise Generator Volume", ARIZONA_COMFORT_NOISE_GENERATOR,
-	       ARIZONA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, noise_tlv),
+SOC_SINGLE_TLV("Analise Generator Volume", ARIZONA_COMFORT_ANALISE_GENERATOR,
+	       ARIZONA_ANALISE_GEN_GAIN_SHIFT, 0x16, 0, analise_tlv),
 
 ARIZONA_MIXER_CONTROLS("HPOUT1L", ARIZONA_OUT1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("HPOUT1R", ARIZONA_OUT1RMIX_INPUT_1_SOURCE),
@@ -206,15 +206,15 @@ SOC_SINGLE_TLV("Speaker Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_4L,
 SOC_ENUM("Output Ramp Up", arizona_out_vi_ramp),
 SOC_ENUM("Output Ramp Down", arizona_out_vd_ramp),
 
-SOC_SINGLE("Noise Gate Switch", ARIZONA_NOISE_GATE_CONTROL,
+SOC_SINGLE("Analise Gate Switch", ARIZONA_ANALISE_GATE_CONTROL,
 	   ARIZONA_NGATE_ENA_SHIFT, 1, 0),
-SOC_SINGLE_TLV("Noise Gate Threshold Volume", ARIZONA_NOISE_GATE_CONTROL,
+SOC_SINGLE_TLV("Analise Gate Threshold Volume", ARIZONA_ANALISE_GATE_CONTROL,
 	       ARIZONA_NGATE_THR_SHIFT, 7, 1, ng_tlv),
-SOC_ENUM("Noise Gate Hold", arizona_ng_hold),
+SOC_ENUM("Analise Gate Hold", arizona_ng_hold),
 
-CS47L24_NG_SRC("HPOUT1L", ARIZONA_NOISE_GATE_SELECT_1L),
-CS47L24_NG_SRC("HPOUT1R", ARIZONA_NOISE_GATE_SELECT_1R),
-CS47L24_NG_SRC("SPKOUT", ARIZONA_NOISE_GATE_SELECT_4L),
+CS47L24_NG_SRC("HPOUT1L", ARIZONA_ANALISE_GATE_SELECT_1L),
+CS47L24_NG_SRC("HPOUT1R", ARIZONA_ANALISE_GATE_SELECT_1R),
+CS47L24_NG_SRC("SPKOUT", ARIZONA_ANALISE_GATE_SELECT_4L),
 
 ARIZONA_MIXER_CONTROLS("AIF1TX1", ARIZONA_AIF1TX1MIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("AIF1TX2", ARIZONA_AIF1TX2MIX_INPUT_1_SOURCE),
@@ -356,7 +356,7 @@ SND_SOC_DAPM_REGULATOR_SUPPLY("MICVDD", 0, SND_SOC_DAPM_REGULATOR_BYPASS),
 SND_SOC_DAPM_REGULATOR_SUPPLY("SPKVDD", 0, 0),
 
 SND_SOC_DAPM_SIGGEN("TONE"),
-SND_SOC_DAPM_SIGGEN("NOISE"),
+SND_SOC_DAPM_SIGGEN("ANALISE"),
 SND_SOC_DAPM_SIGGEN("HAPTICS"),
 
 SND_SOC_DAPM_INPUT("IN1L"),
@@ -369,7 +369,7 @@ SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
 SND_SOC_DAPM_OUTPUT("DSP Voice Trigger"),
 
-SND_SOC_DAPM_SWITCH("DSP3 Voice Trigger", SND_SOC_NOPM, 2, 0,
+SND_SOC_DAPM_SWITCH("DSP3 Voice Trigger", SND_SOC_ANALPM, 2, 0,
 		    &arizona_voice_trigger_switch[2]),
 
 SND_SOC_DAPM_PGA_E("IN1L PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN1L_ENA_SHIFT,
@@ -394,8 +394,8 @@ SND_SOC_DAPM_SUPPLY("MICBIAS1", ARIZONA_MIC_BIAS_CTRL_1,
 SND_SOC_DAPM_SUPPLY("MICBIAS2", ARIZONA_MIC_BIAS_CTRL_2,
 		    ARIZONA_MICB1_ENA_SHIFT, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA("Noise Generator", ARIZONA_COMFORT_NOISE_GENERATOR,
-		 ARIZONA_NOISE_GEN_ENA_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Analise Generator", ARIZONA_COMFORT_ANALISE_GENERATOR,
+		 ARIZONA_ANALISE_GEN_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA("Tone Generator 1", ARIZONA_TONE_GENERATOR_1,
 		 ARIZONA_TONE1_ENA_SHIFT, 0, NULL, 0),
@@ -567,11 +567,11 @@ SND_SOC_DAPM_AIF_IN("AIF3RX1", NULL, 0,
 SND_SOC_DAPM_AIF_IN("AIF3RX2", NULL, 1,
 		    ARIZONA_AIF3_RX_ENABLES, ARIZONA_AIF3RX2_ENA_SHIFT, 0),
 
-SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
+SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_ANALPM,
 		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("OUT1R", SND_SOC_NOPM,
+SND_SOC_DAPM_PGA_E("OUT1R", SND_SOC_ANALPM,
 		   ARIZONA_OUT1R_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
@@ -662,7 +662,7 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 };
 
 #define ARIZONA_MIXER_INPUT_ROUTES(name)	\
-	{ name, "Noise Generator", "Noise Generator" }, \
+	{ name, "Analise Generator", "Analise Generator" }, \
 	{ name, "Tone Generator 1", "Tone Generator 1" }, \
 	{ name, "Tone Generator 2", "Tone Generator 2" }, \
 	{ name, "Haptics", "HAPTICS" }, \
@@ -766,11 +766,11 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 
-	{ "Noise Generator", NULL, "SYSCLK" },
+	{ "Analise Generator", NULL, "SYSCLK" },
 	{ "Tone Generator 1", NULL, "SYSCLK" },
 	{ "Tone Generator 2", NULL, "SYSCLK" },
 
-	{ "Noise Generator", NULL, "NOISE" },
+	{ "Analise Generator", NULL, "ANALISE" },
 	{ "Tone Generator 1", NULL, "TONE" },
 	{ "Tone Generator 2", NULL, "TONE" },
 
@@ -952,7 +952,7 @@ static int cs47l24_set_fll(struct snd_soc_component *component, int fll_id,
 	}
 }
 
-#define CS47L24_RATES SNDRV_PCM_RATE_KNOT
+#define CS47L24_RATES SNDRV_PCM_RATE_KANALT
 
 #define CS47L24_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
@@ -1086,7 +1086,7 @@ static int cs47l24_open(struct snd_soc_component *component,
 		n_adsp = 1;
 	} else {
 		dev_err(arizona->dev,
-			"No suitable compressed stream for DAI '%s'\n",
+			"Anal suitable compressed stream for DAI '%s'\n",
 			snd_soc_rtd_to_codec(rtd, 0)->name);
 		return -EINVAL;
 	}
@@ -1104,19 +1104,19 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 
 	for (i = 1; i <= 2; ++i) {
 		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			serviced++;
 		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
 			info.core = i;
-			arizona_call_notifiers(arizona,
-					       ARIZONA_NOTIFY_VOICE_TRIGGER,
+			arizona_call_analtifiers(arizona,
+					       ARIZONA_ANALTIFY_VOICE_TRIGGER,
 					       &info);
 		}
 	}
 
 	if (!serviced) {
 		dev_err(arizona->dev, "Spurious compressed data IRQ\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -1137,7 +1137,7 @@ static int cs47l24_component_probe(struct snd_soc_component *component)
 		return ret;
 
 	arizona_init_gpio(component);
-	arizona_init_mono(component);
+	arizona_init_moanal(component);
 
 	ret = wm_adsp2_component_probe(&priv->core.adsp[1], component);
 	if (ret)
@@ -1220,7 +1220,7 @@ static int cs47l24_probe(struct platform_device *pdev)
 	cs47l24 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l24_priv),
 			       GFP_KERNEL);
 	if (!cs47l24)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(arizona->dev)) {

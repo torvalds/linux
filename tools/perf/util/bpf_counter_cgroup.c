@@ -158,7 +158,7 @@ static int bperf_load_program(struct evlist *evlist)
 	prog_fd = bpf_program__fd(skel->progs.trigger_read);
 	err = bperf_trigger_reading(prog_fd, 0);
 	if (err) {
-		pr_warning("The kernel does not support test_run for raw_tp BPF programs.\n"
+		pr_warning("The kernel does analt support test_run for raw_tp BPF programs.\n"
 			   "Therefore, --for-each-cgroup might show inaccurate readings\n");
 		err = 0;
 	}
@@ -188,7 +188,7 @@ static int bperf_cgrp__load(struct evsel *evsel,
 static int bperf_cgrp__install_pe(struct evsel *evsel __maybe_unused,
 				  int cpu __maybe_unused, int fd __maybe_unused)
 {
-	/* nothing to do */
+	/* analthing to do */
 	return 0;
 }
 
@@ -245,7 +245,7 @@ static int bperf_cgrp__read(struct evsel *evsel)
 
 	values = calloc(total_cpus, sizeof(*values));
 	if (values == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reading_map_fd = bpf_map__fd(skel->maps.cgrp_readings);
 

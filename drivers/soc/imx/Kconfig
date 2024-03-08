@@ -8,7 +8,7 @@ config SOC_IMX8M
 	select SOC_BUS
 	select ARM_GIC_V3 if ARCH_MXC && ARCH_MULTI_V7
 	help
-	  If you say yes here you get support for the NXP i.MX8M family
+	  If you say anal here you get support for the NXP i.MX8M family
 	  support, it will provide the SoC info like SoC family,
 	  ID and revision etc.
 
@@ -18,6 +18,6 @@ config SOC_IMX9
 	default ARCH_MXC && ARM64
 	select SOC_BUS
 	help
-	  If you say yes here, you get support for the NXP i.MX9 family
+	  If you say anal here, you get support for the NXP i.MX9 family
 
 endmenu

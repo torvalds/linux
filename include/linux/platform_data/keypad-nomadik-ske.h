@@ -34,7 +34,7 @@
  * @krow:	maximum number of rows
  * @kcol:	maximum number of columns
  * @debounce_ms: platform specific debounce time
- * @no_autorepeat: flag for auto repetition
+ * @anal_autorepeat: flag for auto repetition
  * @wakeup_enable: allow waking up the system
  */
 struct ske_keypad_platform_data {
@@ -44,7 +44,7 @@ struct ske_keypad_platform_data {
 	u8 krow;
 	u8 kcol;
 	u8 debounce_ms;
-	bool no_autorepeat;
+	bool anal_autorepeat;
 	bool wakeup_enable;
 };
 #endif	/*__SKE_KPD_H*/

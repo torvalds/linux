@@ -31,7 +31,7 @@ properties:
 
   reg:
     description: |
-      Base address and length of the GIC registers space. If not present,
+      Base address and length of the GIC registers space. If analt present,
       the base address reported by the hardware GCR_GIC_BASE will be used.
     maxItems: 1
 
@@ -39,8 +39,8 @@ properties:
 
   mti,reserved-cpu-vectors:
     description: |
-      Specifies the list of CPU interrupt vectors to which the GIC may not
-      route interrupts. This property is ignored if the CPU is started in EIC
+      Specifies the list of CPU interrupt vectors to which the GIC may analt
+      route interrupts. This property is iganalred if the CPU is started in EIC
       mode.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
@@ -54,7 +54,7 @@ properties:
     description: |
       Specifies the range of GIC interrupts that are reserved for IPIs.
       It accepts two values: the 1st is the starting interrupt and the 2nd is
-      the size of the reserved range. If not specified, the driver will
+      the size of the reserved range. If analt specified, the driver will
       allocate the last (2 * number of VPEs in the system).
     $ref: /schemas/types.yaml#/definitions/uint32-array
     items:
@@ -74,8 +74,8 @@ properties:
 
       interrupts:
         description: |
-          Interrupt for the GIC local timer, so normally it's suppose to be of
-          <GIC_LOCAL X IRQ_TYPE_NONE> format.
+          Interrupt for the GIC local timer, so analrmally it's suppose to be of
+          <GIC_LOCAL X IRQ_TYPE_ANALNE> format.
         maxItems: 1
 
       clocks:
@@ -117,7 +117,7 @@ examples:
 
       timer {
         compatible = "mti,gic-timer";
-        interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+        interrupts = <GIC_LOCAL 1 IRQ_TYPE_ANALNE>;
         clock-frequency = <50000000>;
       };
     };
@@ -133,7 +133,7 @@ examples:
 
       timer {
         compatible = "mti,gic-timer";
-        interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+        interrupts = <GIC_LOCAL 1 IRQ_TYPE_ANALNE>;
         clocks = <&cpu_pll>;
       };
     };

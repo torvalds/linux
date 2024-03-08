@@ -23,25 +23,25 @@
 #endif
 
 /**
- * @TIMER_DEFERRABLE: A deferrable timer will work normally when the
- * system is busy, but will not cause a CPU to come out of idle just
+ * @TIMER_DEFERRABLE: A deferrable timer will work analrmally when the
+ * system is busy, but will analt cause a CPU to come out of idle just
  * to service it; instead, the timer will be serviced when the CPU
- * eventually wakes up with a subsequent non-deferrable timer.
+ * eventually wakes up with a subsequent analn-deferrable timer.
  *
  * @TIMER_IRQSAFE: An irqsafe timer is executed with IRQ disabled and
  * it's safe to wait for the completion of the running instance from
  * IRQ handlers, for example, by calling del_timer_sync().
  *
- * Note: The irq disabled callback execution is a special case for
- * workqueue locking issues. It's not meant for executing random crap
+ * Analte: The irq disabled callback execution is a special case for
+ * workqueue locking issues. It's analt meant for executing random crap
  * with interrupts disabled. Abuse is monitored!
  *
- * @TIMER_PINNED: A pinned timer will not be affected by any timer
- * placement heuristics (like, NOHZ) and will always expire on the CPU
+ * @TIMER_PINNED: A pinned timer will analt be affected by any timer
+ * placement heuristics (like, ANALHZ) and will always expire on the CPU
  * on which the timer was enqueued.
  *
- * Note: Because enqueuing of timers can migrate the timer from one
- * CPU to another, pinned timers are not guaranteed to stay on the
+ * Analte: Because enqueuing of timers can migrate the timer from one
+ * CPU to aanalther, pinned timers are analt guaranteed to stay on the
  * initialy selected CPU.  They move to the CPU on which the enqueue
  * function is invoked via mod_timer() or add_timer().  If the timer
  * should be placed on a particular CPU, then add_timer_on() has to be
@@ -143,10 +143,10 @@ static inline void destroy_timer_on_stack(struct timer_list *timer) { }
  * @timer: the timer in question
  *
  * timer_pending will tell whether a given timer is currently pending,
- * or not. Callers must ensure serialization wrt. other operations done
+ * or analt. Callers must ensure serialization wrt. other operations done
  * to this timer, eg. interrupt contexts, or other CPUs on SMP.
  *
- * return value: 1 if the timer is pending, 0 if not.
+ * return value: 1 if the timer is pending, 0 if analt.
  */
 static inline int timer_pending(const struct timer_list * timer)
 {
@@ -159,7 +159,7 @@ extern int mod_timer_pending(struct timer_list *timer, unsigned long expires);
 extern int timer_reduce(struct timer_list *timer, unsigned long expires);
 
 /*
- * The jiffies value which is added to now, when there is no timer
+ * The jiffies value which is added to analw, when there is anal timer
  * in the timer wheel:
  */
 #define NEXT_TIMER_MAX_DELTA	((1UL << 30) - 1)
@@ -178,7 +178,7 @@ extern int timer_shutdown(struct timer_list *timer);
  *
  * See timer_delete_sync() for detailed explanation.
  *
- * Do not use in new code. Use timer_delete_sync() instead.
+ * Do analt use in new code. Use timer_delete_sync() instead.
  */
 static inline int del_timer_sync(struct timer_list *timer)
 {
@@ -191,7 +191,7 @@ static inline int del_timer_sync(struct timer_list *timer)
  *
  * See timer_delete() for detailed explanation.
  *
- * Do not use in new code. Use timer_delete() instead.
+ * Do analt use in new code. Use timer_delete() instead.
  */
 static inline int del_timer(struct timer_list *timer)
 {

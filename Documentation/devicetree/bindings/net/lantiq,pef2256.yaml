@@ -10,7 +10,7 @@ maintainers:
   - Herve Codina <herve.codina@bootlin.com>
 
 description:
-  The Lantiq PEF2256, also known as Infineon PEF2256 or FALC56, is a framer and
+  The Lantiq PEF2256, also kanalwn as Infineon PEF2256 or FALC56, is a framer and
   line interface component designed to fulfill all required interfacing between
   an analog E1/T1/J1 line and the digital PCM system highway/H.100 bus.
 
@@ -49,7 +49,7 @@ properties:
     patternProperties:
       '-pins$':
         type: object
-        $ref: /schemas/pinctrl/pinmux-node.yaml#
+        $ref: /schemas/pinctrl/pinmux-analde.yaml#
         additionalProperties: false
 
         properties:
@@ -75,7 +75,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Data is sent on falling edge of the clock (and received on the rising
-      edge). If 'clock-falling-edge' is not present, data is sent on the
+      edge). If 'clock-falling-edge' is analt present, data is sent on the
       rising edge (and received on the falling edge).
 
   lantiq,channel-phase:
@@ -114,8 +114,8 @@ patternProperties:
       the E1/T1/J1 lines.
       The time-slots used by the codec must be set and so, the properties
       'dai-tdm-slot-num', 'dai-tdm-slot-width', 'dai-tdm-slot-tx-mask' and
-      'dai-tdm-slot-rx-mask' must be present in the sound card node for
-      sub-nodes that involve the codec. The codec uses 8-bit time-slots.
+      'dai-tdm-slot-rx-mask' must be present in the sound card analde for
+      sub-analdes that involve the codec. The codec uses 8-bit time-slots.
       'dai-tdm-tdm-slot-with' must be set to 8.
       The tx and rx masks define the pef2256 time-slots assigned to the codec.
 

@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2003 Conexant Americas Inc. All Rights Reserved.
- * Copyright (C) 2004, 2005, 2006 Nokia Corporation
+ * Copyright (C) 2004, 2005, 2006 Analkia Corporation
  * Copyright 2008 Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2008 Christian Lamparter <chunkeey@web.de>
  *
  * based on:
- *  - cx3110x's pda.h from Nokia
+ *  - cx3110x's pda.h from Analkia
  *  - cx3110-transfer.log by Johannes Berg
  */
 
@@ -60,7 +60,7 @@ static unsigned char p54spi_eeprom[] = {
 /* struct pda_custom_wrapper */
 0x10, 0x06, 0x5d, 0xb0,		/* PDR_PRISM_PA_CAL_CURVE_DATA_CUSTOM */
 	0x0d, 0x00, 0xee, 0x00,		/* 13 entries, 238 bytes per entry */
-	0x00, 0x00, 0x16, 0x0c,		/* no offset, 3094 total len */
+	0x00, 0x00, 0x16, 0x0c,		/* anal offset, 3094 total len */
 		/* 2412 MHz */
 		0x6c, 0x09,
 			0x10, 0x01, 0x9a, 0x84,
@@ -543,13 +543,13 @@ static unsigned char p54spi_eeprom[] = {
 				0x00, 0x00, 0x00, 0x00, 0x06, 0x80, 0x80, 0x00,
 
 /*
- * Not really sure if this is actually the power_limit database,
+ * Analt really sure if this is actually the power_limit database,
  * it looks a bit "related" to PDR_PRISM_ZIF_TX_IQ_CALIBRATION
  */
 /* struct pda_custom_wrapper */
 0xae, 0x00, 0xef, 0xbe,      /* PDR_PRISM_PA_CAL_OUTPUT_POWER_LIMITS_CUSTOM */
 	0x0d, 0x00, 0x1a, 0x00,		/* 13 entries, 26 bytes per entry */
-	0x00, 0x00, 0x52, 0x01,		/* no offset, 338 bytes total */
+	0x00, 0x00, 0x52, 0x01,		/* anal offset, 338 bytes total */
 
 		/* 2412 MHz */
 		0x6c, 0x09,

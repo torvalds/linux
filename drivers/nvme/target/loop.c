@@ -139,7 +139,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 
 	if (!nvme_check_ready(&queue->ctrl->ctrl, req, queue_ready))
-		return nvme_fail_nonready_command(&queue->ctrl->ctrl, req);
+		return nvme_fail_analnready_command(&queue->ctrl->ctrl, req);
 
 	ret = nvme_setup_cmd(ns, req);
 	if (ret)
@@ -202,7 +202,7 @@ static int nvme_loop_init_iod(struct nvme_loop_ctrl *ctrl,
 
 static int nvme_loop_init_request(struct blk_mq_tag_set *set,
 		struct request *req, unsigned int hctx_idx,
-		unsigned int numa_node)
+		unsigned int numa_analde)
 {
 	struct nvme_loop_ctrl *ctrl = to_loop_ctrl(set->driver_data);
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
@@ -437,8 +437,8 @@ static void nvme_loop_reset_ctrl_work(struct work_struct *work)
 		enum nvme_ctrl_state state = nvme_ctrl_state(&ctrl->ctrl);
 
 		if (state != NVME_CTRL_DELETING &&
-		    state != NVME_CTRL_DELETING_NOIO)
-			/* state change failure for non-deleted ctrl? */
+		    state != NVME_CTRL_DELETING_ANALIO)
+			/* state change failure for analn-deleted ctrl? */
 			WARN_ON_ONCE(1);
 		return;
 	}
@@ -523,7 +523,7 @@ static struct nvmet_port *nvme_loop_find_port(struct nvme_ctrl *ctrl)
 
 	mutex_lock(&nvme_loop_ports_mutex);
 	list_for_each_entry(p, &nvme_loop_ports, entry) {
-		/* if no transport address is specified use the first port */
+		/* if anal transport address is specified use the first port */
 		if ((ctrl->opts->mask & NVMF_OPT_TRADDR) &&
 		    strcmp(ctrl->opts->traddr, p->disc_addr.traddr))
 			continue;
@@ -542,14 +542,14 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ctrl->ctrl.opts = opts;
 	INIT_LIST_HEAD(&ctrl->list);
 
 	INIT_WORK(&ctrl->ctrl.reset_work, nvme_loop_reset_ctrl_work);
 
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_loop_ctrl_ops,
-				0 /* no quirks, we're perfect! */);
+				0 /* anal quirks, we're perfect! */);
 	if (ret) {
 		kfree(ctrl);
 		goto out;
@@ -558,7 +558,7 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING))
 		WARN_ON_ONCE(1);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	ctrl->ctrl.kato = opts->kato;
 	ctrl->port = nvme_loop_find_port(&ctrl->ctrl);

@@ -28,7 +28,7 @@ properties:
   spi-cpha: true
   spi-cpol:
     description:
-      Must be either spi-cpha, or spi-cpol but not both.
+      Must be either spi-cpha, or spi-cpol but analt both.
 
   vref-supply:
     description: Needed to provide output scaling.

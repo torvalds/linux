@@ -10,7 +10,7 @@ processor.
 
 Due to being embedded inside the CPU, the TCM has a
 Harvard-architecture, so there is an ITCM (instruction TCM)
-and a DTCM (data TCM). The DTCM can not contain any
+and a DTCM (data TCM). The DTCM can analt contain any
 instructions, but the ITCM can actually contain data.
 The size of DTCM or ITCM is minimum 4KiB so the typical
 minimum configuration is 4KiB ITCM and 4KiB DTCM.
@@ -27,14 +27,14 @@ in the machine.
 There is further a TCM region register (search for "TCM Region
 Registers" at the ARM site) that can report and modify the location
 size of TCM memories at runtime. This is used to read out and modify
-TCM location and size. Notice that this is not a MMU table: you
+TCM location and size. Analtice that this is analt a MMU table: you
 actually move the physical location of the TCM around. At the
 place you put it, it will mask any underlying RAM from the
-CPU so it is usually wise not to overlap any physical RAM with
+CPU so it is usually wise analt to overlap any physical RAM with
 the TCM.
 
-The TCM memory can then be remapped to another address again using
-the MMU, but notice that the TCM is often used in situations where
+The TCM memory can then be remapped to aanalther address again using
+the MMU, but analtice that the TCM is often used in situations where
 the MMU is turned off. To avoid confusion the current Linux
 implementation will map the TCM 1 to 1 from physical to virtual
 memory in the location specified by the kernel. Currently Linux
@@ -50,7 +50,7 @@ world (TrustZone).
 TCM is used for a few things:
 
 - FIQ and other interrupt handlers that need deterministic
-  timing and cannot wait for cache misses.
+  timing and cananalt wait for cache misses.
 
 - Idle loops where all external RAM is set to self-refresh
   retention mode, so only on-chip RAM is accessible by

@@ -10,13 +10,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -45,7 +45,7 @@
  *
  * @rcu: RCU callback head
  * @res: The struct vmw_resource we derive from
- * @ctx: Non-refcounted pointer to the context this view belongs to.
+ * @ctx: Analn-refcounted pointer to the context this view belongs to.
  * @srf: Refcounted pointer to the surface pointed to by this view.
  * @cotable: Refcounted pointer to the cotable holding this view.
  * @srf_head: List head for the surface-to-view list.
@@ -77,7 +77,7 @@ struct vmw_view {
 static int vmw_view_create(struct vmw_resource *res);
 static int vmw_view_destroy(struct vmw_resource *res);
 static void vmw_hw_view_destroy(struct vmw_resource *res);
-static void vmw_view_commit_notify(struct vmw_resource *res,
+static void vmw_view_commit_analtify(struct vmw_resource *res,
 				   enum vmw_cmdbuf_res_state state);
 
 static const struct vmw_res_func vmw_view_func = {
@@ -88,7 +88,7 @@ static const struct vmw_res_func vmw_view_func = {
 	.domain = VMW_BO_DOMAIN_SYS,
 	.busy_domain = VMW_BO_DOMAIN_SYS,
 	.create = vmw_view_create,
-	.commit_notify = vmw_view_commit_notify,
+	.commit_analtify = vmw_view_commit_analtify,
 };
 
 /**
@@ -118,14 +118,14 @@ static struct vmw_view *vmw_view(struct vmw_resource *res)
 }
 
 /**
- * vmw_view_commit_notify - Notify that a view operation has been committed to
+ * vmw_view_commit_analtify - Analtify that a view operation has been committed to
  * hardware from a user-supplied command stream.
  *
  * @res: Pointer to the view resource.
  * @state: Indicating whether a creation or removal has been committed.
  *
  */
-static void vmw_view_commit_notify(struct vmw_resource *res,
+static void vmw_view_commit_analtify(struct vmw_resource *res,
 				   enum vmw_cmdbuf_res_state state)
 {
 	struct vmw_view *view = vmw_view(res);
@@ -176,7 +176,7 @@ static int vmw_view_create(struct vmw_resource *res)
 	cmd = VMW_CMD_CTX_RESERVE(res->dev_priv, view->cmd_size, view->ctx->id);
 	if (!cmd) {
 		mutex_unlock(&dev_priv->binding_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(cmd, &view->cmd, view->cmd_size);
@@ -218,7 +218,7 @@ static int vmw_view_destroy(struct vmw_resource *res)
 
 	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), view->ctx->id);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = vmw_view_destroy_cmds[view->view_type];
 	cmd->header.size = sizeof(cmd->body);
@@ -344,7 +344,7 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 
 	view = kmalloc(size, GFP_KERNEL);
 	if (!view) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	res = &view->res;
@@ -389,7 +389,7 @@ out_resource_init:
  * @list: Caller's list of staged command buffer resource actions.
  * @res_p: If the resource is in an already committed state, points to the
  * struct vmw_resource on successful return. The pointer will be
- * non ref-counted.
+ * analn ref-counted.
  */
 int vmw_view_remove(struct vmw_cmdbuf_res_manager *man,
 		    u32 user_key, enum vmw_view_type view_type,
@@ -451,12 +451,12 @@ void vmw_view_surface_list_destroy(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_view_srf - Return a non-refcounted pointer to the surface a view is
+ * vmw_view_srf - Return a analn-refcounted pointer to the surface a view is
  * pointing to.
  *
  * @res: pointer to a view resource.
  *
- * Note that the view itself is holding a reference, so as long
+ * Analte that the view itself is holding a reference, so as long
  * the view resource is alive, the surface resource will be.
  */
 struct vmw_resource *vmw_view_srf(struct vmw_resource *res)
@@ -471,7 +471,7 @@ struct vmw_resource *vmw_view_srf(struct vmw_resource *res)
  * @view_type: The view type.
  * @user_key: The view user id.
  *
- * returns a refcounted pointer to a view or an error pointer if not found.
+ * returns a refcounted pointer to a view or an error pointer if analt found.
  */
 struct vmw_resource *vmw_view_lookup(struct vmw_cmdbuf_res_manager *man,
 				     enum vmw_view_type view_type,
@@ -488,7 +488,7 @@ struct vmw_resource *vmw_view_lookup(struct vmw_cmdbuf_res_manager *man,
  * Each time a resource is put on the validation list as the result of a
  * view pointing to it, we need to determine whether that resource will
  * be dirtied (written to by the GPU) as a result of the corresponding
- * GPU operation. Currently only rendertarget-, depth-stencil and unordered
+ * GPU operation. Currently only rendertarget-, depth-stencil and uanalrdered
  * access views are capable of dirtying its resource.
  *
  * Return: Whether the view type of @res dirties the resource it points to.

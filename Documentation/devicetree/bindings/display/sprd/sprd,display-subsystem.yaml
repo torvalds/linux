@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The Unisoc DRM master device is a virtual device needed to list all
-  DPU devices or other display interface nodes that comprise the
+  DPU devices or other display interface analdes that comprise the
   graphics subsystem.
 
   Unisoc's display pipeline have several components as below description,

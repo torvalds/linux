@@ -11,7 +11,7 @@ maintainers:
 
 description:
   RT5033 is a multifunction device which includes battery charger, fuel gauge,
-  flash LED current source, LDO and synchronous Buck converter for portable
+  flash LED current source, LDO and synchroanalus Buck converter for portable
   applications. It is interfaced to host controller using I2C interface. The
   battery fuel gauge uses a separate I2C bus.
 
@@ -27,7 +27,7 @@ properties:
 
   regulators:
     description:
-      The regulators of RT5033 have to be instantiated under a sub-node named
+      The regulators of RT5033 have to be instantiated under a sub-analde named
       "regulators". For SAFE_LDO voltage there is only one value of 4.9 V. LDO
       voltage ranges from 1.2 V to 3.0 V in 0.1 V steps. BUCK voltage ranges
       from 1.0 V to 3.0 V in 0.1 V steps.

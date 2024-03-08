@@ -21,15 +21,15 @@
  * Delete following upstream (msm8998.dtsi) reserved
  * memory mappings which are different in this device.
  */
-/delete-node/ &adsp_mem;
-/delete-node/ &mpss_mem;
-/delete-node/ &venus_mem;
-/delete-node/ &mba_mem;
-/delete-node/ &slpi_mem;
-/delete-node/ &ipa_fw_mem;
-/delete-node/ &ipa_gsi_mem;
-/delete-node/ &gpu_mem;
-/delete-node/ &wlan_msa_mem;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &mpss_mem;
+/delete-analde/ &venus_mem;
+/delete-analde/ &mba_mem;
+/delete-analde/ &slpi_mem;
+/delete-analde/ &ipa_fw_mem;
+/delete-analde/ &ipa_gsi_mem;
+/delete-analde/ &gpu_mem;
+/delete-analde/ &wlan_msa_mem;
 
 / {
 	model = "Xiaomi Mi 6";
@@ -41,58 +41,58 @@
 	reserved-memory {
 		/*
 		 * Xiaomi's ADSP firmware requires 30 MiB in total, so increase the adsp_mem
-		 * region by 4 MiB to account for this while relocating the other now
-		 * conflicting memory nodes accordingly.
+		 * region by 4 MiB to account for this while relocating the other analw
+		 * conflicting memory analdes accordingly.
 		 */
 		adsp_mem: memory@8b200000 {
 			reg = <0x0 0x8b200000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: memory@8d000000 {
 			reg = <0x0 0x8d000000 0x0 0x7000000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@94000000 {
 			reg = <0x0 0x94000000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_mem: memory@94500000 {
 			reg = <0x0 0x94500000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		slpi_mem: memory@94700000 {
 			reg = <0x0 0x94700000 0x0 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: memory@95600000 {
 			reg = <0x0 0x95600000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_gsi_mem: memory@95610000 {
 			reg = <0x0 0x95610000 0x0 0x5000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: memory@95615000 {
 			reg = <0x0 0x95615000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: memory@95715000 {
 			reg = <0x0 0x95715000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		/* Bootloader display framebuffer region */
 		cont_splash_mem: memory@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x2400000>;
-			no-map;
+			anal-map;
 		};
 
 		/* For getting crash logs using Android downstream kernels */
@@ -113,13 +113,13 @@
 		ipa_fws_region: memory@f7800000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xf7800000 0x0 0x5000>;
-			no-map;
+			anal-map;
 		};
 
 		zap_shader_region: memory@f7900000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xf7900000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -200,7 +200,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -242,7 +242,7 @@
 		/*
 		 * Configure a pull-up on 46 (RX). This is needed to
 		 * avoid garbage data when the TX pin of the Bluetooth
-		 * module is in tri-state (module powered off or not
+		 * module is in tri-state (module powered off or analt
 		 * driving the signal yet).
 		 */
 		bias-pull-up;
@@ -280,10 +280,10 @@
 &pm8998_gpios {
 	vol_up_key_default: vol-up-key-default-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-up;
 		input-enable;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 
 	audio_mclk_pin: audio-mclk-pin-active-state {

@@ -1,7 +1,7 @@
 What:		/sys/devices/platform/HISI04Bx:00/chipX/all_linked
 What:		/sys/devices/platform/HISI04Bx:00/chipX/linked_full_lane
 What:		/sys/devices/platform/HISI04Bx:00/chipX/crc_err_cnt
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	Huisong Li <lihuisong@huawei.com>
 Description:
@@ -24,7 +24,7 @@ Description:
 What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/all_linked
 What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/linked_full_lane
 What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/crc_err_cnt
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	Huisong Li <lihuisong@huawei.com>
 Description:
@@ -52,7 +52,7 @@ What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/hccsN/cur_lane_num
 What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/hccsN/link_fsm
 What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/hccsN/lane_mask
 What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/hccsN/crc_err_cnt
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	Huisong Li <lihuisong@huawei.com>
 Description:
@@ -64,7 +64,7 @@ Description:
 		chip number on platform is n.
 		The Y in 'dieY' indicates the hardware id of the die to which
 		the hccs port belongs.
-		Note: type, lane_mode and enable are fixed attributes on running
+		Analte: type, lane_mode and enable are fixed attributes on running
 		platform.
 
 		The HCCS port have the following attributes:

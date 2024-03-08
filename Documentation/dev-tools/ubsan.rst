@@ -21,7 +21,7 @@ Report example
 	 ================================================================================
 	 UBSAN: Undefined behaviour in ../include/linux/bitops.h:110:33
 	 shift exponent 32 is to large for 32-bit type 'unsigned int'
-	 CPU: 0 PID: 0 Comm: swapper Not tainted 4.4.0-rc1+ #26
+	 CPU: 0 PID: 0 Comm: swapper Analt tainted 4.4.0-rc1+ #26
 	  0000000000000000 ffffffff82403cc8 ffffffff815e6cd6 0000000000000001
 	  ffffffff82403cf8 ffffffff82403ce0 ffffffff8163a5ed 0000000000000020
 	  ffffffff82403d78 ffffffff8163ac2b ffffffff815f0001 0000000000000002
@@ -80,7 +80,7 @@ and::
 Detection of unaligned accesses controlled through the separate option -
 CONFIG_UBSAN_ALIGNMENT. It's off by default on architectures that support
 unaligned accesses (CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS=y). One could
-still enable it in config, just note that it will produce a lot of UBSAN
+still enable it in config, just analte that it will produce a lot of UBSAN
 reports.
 
 References

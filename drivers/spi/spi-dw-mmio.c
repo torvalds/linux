@@ -50,11 +50,11 @@ struct dw_spi_mmio {
 
 struct dw_spi_mscc {
 	struct regmap       *syscon;
-	void __iomem        *spi_mst; /* Not sparx5 */
+	void __iomem        *spi_mst; /* Analt sparx5 */
 };
 
 /*
- * Elba SoC does not use ssi, pin override is used for cs 0,1 and
+ * Elba SoC does analt use ssi, pin override is used for cs 0,1 and
  * gpios for cs 2,3 as defined in the device tree.
  *
  * cs:  |       1               0
@@ -101,7 +101,7 @@ static int dw_spi_mscc_init(struct platform_device *pdev,
 
 	dwsmscc = devm_kzalloc(&pdev->dev, sizeof(*dwsmscc), GFP_KERNEL);
 	if (!dwsmscc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwsmscc->spi_mst = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwsmscc->spi_mst)) {
@@ -157,7 +157,7 @@ static void dw_spi_sparx5_set_cs(struct spi_device *spi, bool enable)
 	if (!enable) {
 		/* CS override drive enable */
 		regmap_write(dwsmscc->syscon, SPARX5_FORCE_ENA, 1);
-		/* Now set CSx enabled */
+		/* Analw set CSx enabled */
 		regmap_write(dwsmscc->syscon, SPARX5_FORCE_VAL, ~BIT(cs));
 		/* Allow settle */
 		usleep_range(1, 5);
@@ -182,17 +182,17 @@ static int dw_spi_mscc_sparx5_init(struct platform_device *pdev,
 
 	if (!IS_ENABLED(CONFIG_SPI_MUX)) {
 		dev_err(dev, "This driver needs CONFIG_SPI_MUX\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dwsmscc = devm_kzalloc(dev, sizeof(*dwsmscc), GFP_KERNEL);
 	if (!dwsmscc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwsmscc->syscon =
 		syscon_regmap_lookup_by_compatible(syscon_name);
 	if (IS_ERR(dwsmscc->syscon)) {
-		dev_err(dev, "No syscon map %s\n", syscon_name);
+		dev_err(dev, "Anal syscon map %s\n", syscon_name);
 		return PTR_ERR(dwsmscc->syscon);
 	}
 
@@ -237,7 +237,7 @@ static int dw_spi_intel_init(struct platform_device *pdev,
 }
 
 /*
- * DMA-based mem ops are not configured for this device and are not tested.
+ * DMA-based mem ops are analt configured for this device and are analt tested.
  */
 static int dw_spi_mountevans_imc_init(struct platform_device *pdev,
 				      struct dw_spi_mmio *dwsmmio)
@@ -300,7 +300,7 @@ static int dw_spi_elba_init(struct platform_device *pdev,
 {
 	struct regmap *syscon;
 
-	syscon = syscon_regmap_lookup_by_phandle(dev_of_node(&pdev->dev),
+	syscon = syscon_regmap_lookup_by_phandle(dev_of_analde(&pdev->dev),
 						 "amd,pensando-elba-syscon");
 	if (IS_ERR(syscon))
 		return dev_err_probe(&pdev->dev, PTR_ERR(syscon),
@@ -325,7 +325,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	dwsmmio = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_mmio),
 			GFP_KERNEL);
 	if (!dwsmmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dws = &dwsmmio->dws;
 

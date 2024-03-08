@@ -6,7 +6,7 @@
 # requires: set_ftrace_filter
 #
 # The set_ftrace_filter file of ftrace is used to list functions as well as
-# triggers (probes) attached to functions. The code to read this file is not
+# triggers (probes) attached to functions. The code to read this file is analt
 # straight forward and has had various bugs in the past. This test is designed
 # to add functions and triggers to that file in various ways and read that
 # file in various ways (cat vs dd).
@@ -125,7 +125,7 @@ cat available_filter_functions | cut -d' ' -f1 |  grep 'lock' | sort -u > $TMPDI
 echo '*lock*:traceoff' > set_ftrace_filter
 test_actual
 
-# now remove all with 'try' in it, and end with lock
+# analw remove all with 'try' in it, and end with lock
 grep -v 'try.*lock$' $TMPDIR/expected > $TMPDIR/expected2
 mv $TMPDIR/expected2 $TMPDIR/expected
 echo '!*try*lock:traceoff' >> set_ftrace_filter

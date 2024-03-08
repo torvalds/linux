@@ -42,7 +42,7 @@ struct pdata_init {
 
 static struct of_dev_auxdata omap_auxdata_lookup[];
 
-#ifdef CONFIG_MACH_NOKIA_N8X0
+#ifdef CONFIG_MACH_ANALKIA_N8X0
 static void __init omap2420_n8x0_legacy_init(void)
 {
 	omap_auxdata_lookup[0].platform_data = n8x0_legacy_init();
@@ -54,8 +54,8 @@ static void __init omap2420_n8x0_legacy_init(void)
 #ifdef CONFIG_ARCH_OMAP3
 /*
  * Configures GPIOs 126, 127 and 129 to 1.8V mode instead of 3.0V
- * mode for MMC1 in case bootloader did not configure things.
- * Note that if the pins are used for MMC1, pbias-regulator
+ * mode for MMC1 in case bootloader did analt configure things.
+ * Analte that if the pins are used for MMC1, pbias-regulator
  * manages the IO voltage.
  */
 static void __init omap3_gpio126_127_129(void)
@@ -182,7 +182,7 @@ static struct gpiod_lookup_table cm_t3517_wlan_gpio_table = {
 	.table = {
 		GPIO_LOOKUP("gpio-48-53", 8, "power",
 			    GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("gpio-0-15", 4, "noe",
+		GPIO_LOOKUP("gpio-0-15", 4, "anale",
 			    GPIO_ACTIVE_HIGH),
 		{ }
 	},
@@ -203,11 +203,11 @@ static void __init omap3_sbc_t3517_wifi_init(void)
 		gpiod_export(d, 0);
 	}
 
-	d = gpiod_get(NULL, "noe", GPIOD_OUT_HIGH);
+	d = gpiod_get(NULL, "anale", GPIOD_OUT_HIGH);
 	if (IS_ERR(d)) {
-		pr_err("Unable to get CM T3517 WLAN XCVR NOE GPIO descriptor\n");
+		pr_err("Unable to get CM T3517 WLAN XCVR ANALE GPIO descriptor\n");
 	} else {
-		gpiod_set_consumer_name(d, "xcvr noe");
+		gpiod_set_consumer_name(d, "xcvr anale");
 		gpiod_export(d, 0);
 	}
 	msleep(100);
@@ -240,7 +240,7 @@ static void __init am3517_evm_legacy_init(void)
 	am35xx_emac_reset();
 }
 
-static void __init nokia_n900_legacy_init(void)
+static void __init analkia_n900_legacy_init(void)
 {
 	hsmmc2_internal_input_clk();
 	mmc_pdata[0].name = "external";
@@ -252,7 +252,7 @@ static void __init nokia_n900_legacy_init(void)
 			/* set IBE to 1 */
 			rx51_secure_update_aux_cr(BIT(6), 0);
 		} else {
-			pr_warn("RX-51: Not enabling ARM errata 430973 workaround\n");
+			pr_warn("RX-51: Analt enabling ARM errata 430973 workaround\n");
 			pr_warn("Thumb binaries may crash randomly without this workaround\n");
 		}
 	}
@@ -323,8 +323,8 @@ static struct clockdomain *ti_sysc_find_one_clockdomain(struct clk *clk)
  * clkdm_deny_idle() and clkdm_allow_idle() for blocking clockdomain
  * clockdomain idle during reset, enable and idle.
  *
- * Note that we assume interconnect driver manages the clocks
- * and do not need to populate oh->_clk for dynamically
+ * Analte that we assume interconnect driver manages the clocks
+ * and do analt need to populate oh->_clk for dynamically
  * allocated modules.
  */
 static int ti_sysc_clkdm_init(struct device *dev,
@@ -340,7 +340,7 @@ static int ti_sysc_clkdm_init(struct device *dev,
 	if (cookie->clkdm)
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void ti_sysc_clkdm_deny_idle(struct device *dev,
@@ -437,9 +437,9 @@ static void __init omap3_mcbsp_init(void) {}
  */
 static struct pdata_init auxdata_quirks[] __initdata = {
 #ifdef CONFIG_SOC_OMAP2420
-	{ "nokia,n800", omap2420_n8x0_legacy_init, },
-	{ "nokia,n810", omap2420_n8x0_legacy_init, },
-	{ "nokia,n810-wimax", omap2420_n8x0_legacy_init, },
+	{ "analkia,n800", omap2420_n8x0_legacy_init, },
+	{ "analkia,n810", omap2420_n8x0_legacy_init, },
+	{ "analkia,n810-wimax", omap2420_n8x0_legacy_init, },
 #endif
 	{ /* sentinel */ },
 };
@@ -447,7 +447,7 @@ static struct pdata_init auxdata_quirks[] __initdata = {
 struct omap_sr_data __maybe_unused omap_sr_pdata[OMAP_SR_NR];
 
 static struct of_dev_auxdata omap_auxdata_lookup[] = {
-#ifdef CONFIG_MACH_NOKIA_N8X0
+#ifdef CONFIG_MACH_ANALKIA_N8X0
 	OF_DEV_AUXDATA("ti,omap2420-mmc", 0x4809c000, "mmci-omap.0", NULL),
 	OF_DEV_AUXDATA("menelaus", 0x72, "1-0072", &n8x0_menelaus_platform_data),
 #endif
@@ -466,7 +466,7 @@ static struct of_dev_auxdata omap_auxdata_lookup[] = {
 	OF_DEV_AUXDATA("ti,davinci_mdio", 0x5c030000, "davinci_mdio.0", NULL),
 	OF_DEV_AUXDATA("ti,am3517-emac", 0x5c000000, "davinci_emac.0",
 		       &am35xx_emac_pdata),
-	OF_DEV_AUXDATA("nokia,n900-rom-rng", 0, NULL, rx51_secure_rng_call),
+	OF_DEV_AUXDATA("analkia,n900-rom-rng", 0, NULL, rx51_secure_rng_call),
 	/* McBSP modules with sidetone core */
 #if IS_ENABLED(CONFIG_SND_SOC_OMAP_MCBSP)
 	OF_DEV_AUXDATA("ti,omap3-mcbsp", 0x49022000, "49022000.mcbsp", &mcbsp_pdata),
@@ -507,9 +507,9 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "compulab,omap3-sbc-t3517", omap3_sbc_t3517_legacy_init, },
 	{ "compulab,omap3-sbc-t3530", omap3_sbc_t3530_legacy_init, },
 	{ "compulab,omap3-sbc-t3730", omap3_sbc_t3730_legacy_init, },
-	{ "nokia,omap3-n900", nokia_n900_legacy_init, },
-	{ "nokia,omap3-n9", hsmmc2_internal_input_clk, },
-	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
+	{ "analkia,omap3-n900", analkia_n900_legacy_init, },
+	{ "analkia,omap3-n9", hsmmc2_internal_input_clk, },
+	{ "analkia,omap3-n950", hsmmc2_internal_input_clk, },
 	{ "logicpd,dm3730-torpedo-devkit", omap3_logicpd_torpedo_init, },
 	{ "ti,omap3-evm-37xx", omap3_evm_legacy_init, },
 	{ "ti,am3517-evm", am3517_evm_legacy_init, },
@@ -531,7 +531,7 @@ static void pdata_quirks_check(struct pdata_init *quirks)
 	}
 }
 
-static const char * const pdata_quirks_init_nodes[] = {
+static const char * const pdata_quirks_init_analdes[] = {
 	"prcm",
 	"prm",
 };
@@ -539,18 +539,18 @@ static const char * const pdata_quirks_init_nodes[] = {
 static void __init
 pdata_quirks_init_clocks(const struct of_device_id *omap_dt_match_table)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pdata_quirks_init_nodes); i++) {
-		np = of_find_node_by_name(NULL, pdata_quirks_init_nodes[i]);
+	for (i = 0; i < ARRAY_SIZE(pdata_quirks_init_analdes); i++) {
+		np = of_find_analde_by_name(NULL, pdata_quirks_init_analdes[i]);
 		if (!np)
 			continue;
 
 		of_platform_populate(np, omap_dt_match_table,
 				     omap_auxdata_lookup, NULL);
 
-		of_node_put(np);
+		of_analde_put(np);
 	}
 }
 

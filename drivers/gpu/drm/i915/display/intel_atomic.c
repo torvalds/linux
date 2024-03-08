@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -69,7 +69,7 @@ int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
 		*val = intel_conn_state->broadcast_rgb;
 	else {
 		drm_dbg_atomic(&dev_priv->drm,
-			       "Unknown property [PROP:%d:%s]\n",
+			       "Unkanalwn property [PROP:%d:%s]\n",
 			       property->base.id, property->name);
 		return -EINVAL;
 	}
@@ -106,7 +106,7 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 		return 0;
 	}
 
-	drm_dbg_atomic(&dev_priv->drm, "Unknown property [PROP:%d:%s]\n",
+	drm_dbg_atomic(&dev_priv->drm, "Unkanalwn property [PROP:%d:%s]\n",
 		       property->base.id, property->name);
 	return -EINVAL;
 }
@@ -132,7 +132,7 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
 
 	/*
-	 * These properties are handled by fastset, and might not end
+	 * These properties are handled by fastset, and might analt end
 	 * up in a modeset.
 	 */
 	if (new_conn_state->force_audio != old_conn_state->force_audio ||
@@ -341,7 +341,7 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 	drm_atomic_state_default_clear(&state->base);
 	intel_atomic_clear_global_state(state);
 
-	/* state->internal not reset on purpose */
+	/* state->internal analt reset on purpose */
 
 	state->dpll_set = state->modeset = false;
 }

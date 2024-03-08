@@ -94,10 +94,10 @@ static const char * const pcm_states[] =  {
  * symbolic event names
  */
 static const char * const pcm_events[] = {
-	"NONE","PC_START","PC_STOP","PC_LOOP","PC_JOIN","PC_SIGNAL",
+	"ANALNE","PC_START","PC_STOP","PC_LOOP","PC_JOIN","PC_SIGNAL",
 	"PC_REJECT","PC_MAINT","PC_TRACE","PC_PDR",
 	"PC_ENABLE","PC_DISABLE",
-	"PC_QLS","PC_ILS","PC_MLS","PC_HLS","PC_LS_PDR","PC_LS_NONE",
+	"PC_QLS","PC_ILS","PC_MLS","PC_HLS","PC_LS_PDR","PC_LS_ANALNE",
 	"PC_TIMEOUT_TB_MAX","PC_TIMEOUT_TB_MIN",
 	"PC_TIMEOUT_C_MIN","PC_TIMEOUT_T_OUT",
 	"PC_TIMEOUT_TL_MIN","PC_TIMEOUT_T_NEXT","PC_TIMEOUT_LCT",
@@ -163,7 +163,7 @@ static	const struct plt {
 	{ PL_T_OUT, TP_T_OUT },		/* Signaling timeout */
 	{ PL_LC_LENGTH, TP_LC_LENGTH },	/* Link Confidence Test Time */
 	{ PL_T_SCRUB, TP_T_SCRUB },	/* Scrub Time == MAC TVX time ! */
-	{ PL_NS_MAX, TP_NS_MAX },	/* max t. that noise is tolerated */
+	{ PL_NS_MAX, TP_NS_MAX },	/* max t. that analise is tolerated */
 	{ 0,0 }
 } ;
 
@@ -179,7 +179,7 @@ static const int plc_imsk_na = PL_PCM_CODE | PL_TRACE_PROP | PL_PCM_BREAK |
 			PL_PCM_ENABLED | PL_SELF_TEST | PL_EBUF_ERR;
 #else	/* SUPERNET_3 */
 /*
- * We do NOT need the elasticity buffer error during signaling.
+ * We do ANALT need the elasticity buffer error during signaling.
  */
 static int plc_imsk_na = PL_PCM_CODE | PL_TRACE_PROP | PL_PCM_BREAK |
 			PL_PCM_ENABLED | PL_SELF_TEST ;
@@ -249,7 +249,7 @@ void pcm_init(struct s_smc *smc)
 			break;
 #else
 		case SMT_SAS :
-			mib->fddiPORTMy_Type = (np == PS) ? TS : TNONE ;
+			mib->fddiPORTMy_Type = (np == PS) ? TS : TANALNE ;
 			mib->fddiPORTHardwarePresent = (np == PS) ? TRUE :
 					FALSE ;
 #ifndef	SUPERNET_3
@@ -298,7 +298,7 @@ void pcm_init(struct s_smc *smc)
 			mib->fddiPORTPMDClass = MIB_PMDCLASS_SINGLE1 ;
 			break ;
 		case 'H' :
-			mib->fddiPORTPMDClass = MIB_PMDCLASS_UNKNOWN ;
+			mib->fddiPORTPMDClass = MIB_PMDCLASS_UNKANALWN ;
 			break ;
 		case 'I' :
 			mib->fddiPORTPMDClass = MIB_PMDCLASS_TP ;
@@ -307,7 +307,7 @@ void pcm_init(struct s_smc *smc)
 			mib->fddiPORTPMDClass = MIB_PMDCLASS_TP ;
 			break ;
 		default:
-			mib->fddiPORTPMDClass = MIB_PMDCLASS_UNKNOWN ;
+			mib->fddiPORTPMDClass = MIB_PMDCLASS_UNKANALWN ;
 			break ;
 		}
 		/*
@@ -366,7 +366,7 @@ void pcm_init(struct s_smc *smc)
 		mib->fddiPORTLCTFail_Ct = 0 ;
 		mib->fddiPORTBS_Flag = 0 ;
 		mib->fddiPORTCurrentPath = MIB_PATH_ISOLATED ;
-		mib->fddiPORTNeighborType = TNONE ;
+		mib->fddiPORTNeighborType = TANALNE ;
 		phy->ls_flag = 0 ;
 		phy->rc_flag = 0 ;
 		phy->tc_flag = 0 ;
@@ -395,7 +395,7 @@ void init_plc(struct s_smc *smc)
 	 * dummy
 	 * this is an obsolete public entry point that has to remain
 	 * for compat. It is used by various drivers.
-	 * the work is now done in real_init_plc()
+	 * the work is analw done in real_init_plc()
 	 * which is called from pcm_init() ;
 	 */
 }
@@ -452,14 +452,14 @@ static void plc_init(struct s_smc *smc, int p)
 
 	(void)inpw(PLC(p,PL_INTR_EVENT)) ;	/* clear interrupt event reg */
 	plc_clear_irq(smc,p) ;
-	outpw(PLC(p,PL_INTR_MASK),plc_imsk_na); /* enable non active irq's */
+	outpw(PLC(p,PL_INTR_MASK),plc_imsk_na); /* enable analn active irq's */
 
 	/*
-	 * if PCM is configured for class s, it will NOT go to the
+	 * if PCM is configured for class s, it will ANALT go to the
 	 * REMOVE state if offline (page 3-36;)
 	 * in the concentrator, all inactive PHYS always must be in
 	 * the remove state
-	 * there's no real need to use this feature at all ..
+	 * there's anal real need to use this feature at all ..
 	 */
 #ifndef	CONCENTRATOR
 	if ((smc->s.sas == SMT_SAS) && (p == PS)) {
@@ -515,7 +515,7 @@ int sm_pm_get_ls(struct s_smc *smc, int phy)
 		state = PC_LS_PDR ;
 		break ;
 	default :
-		state = PC_LS_NONE ;
+		state = PC_LS_ANALNE ;
 	}
 	return state;
 }
@@ -590,7 +590,7 @@ void pcm(struct s_smc *smc, const int np, int event)
 
 #ifndef	CONCENTRATOR
 	/*
-	 * ignore 2nd PHY if SAS
+	 * iganalre 2nd PHY if SAS
 	 */
 	if ((np != PS) && (smc->s.sas == SMT_SAS))
 		return ;
@@ -748,18 +748,18 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 		 */
 		plc_go_state(smc,np,PL_PCM_STOP) ;
 
-		if (mib->fddiPORTPC_Withhold == PC_WH_NONE)
+		if (mib->fddiPORTPC_Withhold == PC_WH_ANALNE)
 			mib->fddiPORTConnectState = PCM_CONNECTING ;
 		phy->cf_loop = FALSE ;
 		phy->cf_join = FALSE ;
 		queue_event(smc,EVENT_CFM,CF_JOIN+np) ;
 		phy->ls_flag = FALSE ;
-		phy->pc_mode = PM_NONE ;	/* needed by CFM */
+		phy->pc_mode = PM_ANALNE ;	/* needed by CFM */
 		phy->bitn = 0 ;			/* bit signaling start bit */
 		for (i = 0 ; i < 3 ; i++)
 			pc_tcode_actions(smc,i,phy) ;
 
-		/* Set the non-active interrupt mask register */
+		/* Set the analn-active interrupt mask register */
 		outpw(PLC(np,PL_INTR_MASK),plc_imsk_na) ;
 
 		/*
@@ -776,7 +776,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 #endif	/* MOT_ELM */
 		{
 			/*
-			 * No supernet III PLC, so set Xmit verctor and
+			 * Anal supernet III PLC, so set Xmit verctor and
 			 * length BEFORE starting the state machine.
 			 */
 			if (plc_send_bits(smc,phy,3)) {
@@ -785,7 +785,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 		}
 
 		/*
-		 * Now give the Start command.
+		 * Analw give the Start command.
 		 * - The start command shall be done before setting the bits
 		 *   to be signaled. (In PLC-S description and PLCS in SN3.
 		 * - The start command shall be issued AFTER setting the
@@ -795,7 +795,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 		 * the new PLCS inside the SN3.
 		 * For the usual PLCS we try it the way it is done for the
 		 * old PLC and set the XMIT registers again, if the PLC is
-		 * not in SIGNAL state. This is done according to an PLCS
+		 * analt in SIGNAL state. This is done according to an PLCS
 		 * errata workaround.
 		 */
 
@@ -1085,10 +1085,10 @@ static void lem_evaluate(struct s_smc *smc, struct s_phy *phy)
 	 * calculation is called on a intervall of 8 seconds
 	 *	-> this means, that one error in 8 sec. is one of 8*125*10E6
 	 *	the same as BER = 10E-9
-	 * Please note:
+	 * Please analte:
 	 *	-> 9 errors in 8 seconds mean:
 	 *	   BER = 9 * 10E-9  and this is
-	 *	    < 10E-8, so the limit of 10E-8 is not reached!
+	 *	    < 10E-8, so the limit of 10E-8 is analt reached!
 	 */
 
 		if (!errors)		ber = 15 ;
@@ -1221,7 +1221,7 @@ static void sm_ph_lem_start(struct s_smc *smc, int np, int threshold)
 	lem->lem_on = 1 ;
 	lem->lem_errors = 0L ;
 
-	/* Do NOT reset mib->fddiPORTLer_Estimate here. It is called too
+	/* Do ANALT reset mib->fddiPORTLer_Estimate here. It is called too
 	 * often.
 	 */
 
@@ -1282,7 +1282,7 @@ static void pc_rcode_actions(struct s_smc *smc, int bit, struct s_phy *phy)
 			RS_SET(smc,RS_EVENT) ;
 		}
 		else if (phy->t_val[3] || phy->r_val[3]) {
-			mib->fddiPORTPC_Withhold = PC_WH_NONE ;
+			mib->fddiPORTPC_Withhold = PC_WH_ANALNE ;
 			if (mib->fddiPORTMy_Type == TM ||
 			    mib->fddiPORTNeighborType == TM)
 				phy->pc_mode = PM_TREE ;
@@ -1376,7 +1376,7 @@ static void pc_rcode_actions(struct s_smc *smc, int bit, struct s_phy *phy)
 			mib->fddiPORTMacIndicated.R_val = TRUE ;
 		}
 		else {
-			/* neighbor does not intend to have MAC on output */ ;
+			/* neighbor does analt intend to have MAC on output */ ;
 			mib->fddiPORTMacIndicated.R_val = FALSE ;
 		}
 		break ;
@@ -1395,7 +1395,7 @@ static void pc_tcode_actions(struct s_smc *smc, const int bit, struct s_phy *phy
 
 	switch(bit) {
 	case 0:
-		phy->t_val[0] = 0 ;		/* no escape used */
+		phy->t_val[0] = 0 ;		/* anal escape used */
 		break ;
 	case 1:
 		if (mib->fddiPORTMy_Type == TS || mib->fddiPORTMy_Type == TM)
@@ -1470,7 +1470,7 @@ static void pc_tcode_actions(struct s_smc *smc, const int bit, struct s_phy *phy
 		}
 		break ;
 	case 4:
-		if (mib->fddiPORTPC_Withhold == PC_WH_NONE) {
+		if (mib->fddiPORTPC_Withhold == PC_WH_ANALNE) {
 			if (phy->pc_lem_fail) {
 				phy->t_val[4] = 1 ;	/* long */
 				phy->t_val[5] = 0 ;
@@ -1501,7 +1501,7 @@ static void pc_tcode_actions(struct s_smc *smc, const int bit, struct s_phy *phy
 	case 5:
 		break ;
 	case 6:
-		/* we do NOT have a MAC for LCT */
+		/* we do ANALT have a MAC for LCT */
 		phy->t_val[6] = 0 ;
 		break ;
 	case 7:
@@ -1519,7 +1519,7 @@ static void pc_tcode_actions(struct s_smc *smc, const int bit, struct s_phy *phy
 		break ;
 	case 9:
 		phy->cf_loop = 0 ;
-		if ((mib->fddiPORTPC_Withhold != PC_WH_NONE) ||
+		if ((mib->fddiPORTPC_Withhold != PC_WH_ANALNE) ||
 		     ((smc->s.sas == SMT_DAS) && (phy->wc_flag))) {
 			queue_event(smc,EVENT_PCM+np,PC_START) ;
 			break ;
@@ -1581,7 +1581,7 @@ int pcm_status_twisted(struct s_smc *smc)
  *	type
  *	state
  *	remote phy type
- *	remote mac yes/no
+ *	remote mac anal/anal
  */
 void pcm_status_state(struct s_smc *smc, int np, int *type, int *state,
 		      int *remote, int *mac)
@@ -1711,7 +1711,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 		int	j ;
 
 		/*
-		 * note: PL_LINK_ERR_CTR MUST be read to clear it
+		 * analte: PL_LINK_ERR_CTR MUST be read to clear it
 		 */
 		j = inpw(PLC(np,PL_LE_THRESHOLD)) ;
 		i = inpw(PLC(np,PL_LINK_ERR_CTR)) ;
@@ -1722,7 +1722,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 		}
 
 		if (phy->lem.lem_on) {
-			/* Note: Lem errors shall only be counted when
+			/* Analte: Lem errors shall only be counted when
 			 * link is ACTIVE or LCT is active.
 			 */
 			phy->lem.lem_errors += i ;
@@ -1767,13 +1767,13 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 			queue_event(smc,EVENT_PCM+np,PC_START) ;
 		}
 		else {
-			DB_PCMN(1, "PLC %d: NO!! restart (reason %x)",
+			DB_PCMN(1, "PLC %d: ANAL!! restart (reason %x)",
 				np, reason);
 		}
 		return ;
 	}
 	/*
-	 * If both CODE & ENABLE are set ignore enable
+	 * If both CODE & ENABLE are set iganalre enable
 	 */
 	if (cmd & PL_PCM_CODE) { /* receive last sign.-bit | LCT complete */
 		queue_event(smc,EVENT_PCM+np,PC_SIGNAL) ;
@@ -1811,7 +1811,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 			queue_event(smc,EVENT_ECM,EC_PATH_TEST) ;
 		}
 	}
-	if (cmd & PL_TNE_EXPIRED) {	/* TNE: length of noise events */
+	if (cmd & PL_TNE_EXPIRED) {	/* TNE: length of analise events */
 		/* break_required (TNE > NS_Max) */
 		if (phy->mib->fddiPORTPCMState == PC8_ACTIVE) {
 			if (!phy->tr_flag) {
@@ -1906,7 +1906,7 @@ char *get_linestate(struct s_smc *smc, int np)
 	SK_UNUSED(smc) ;
 
 	switch (inpw(PLC(np,PL_STATUS_A)) & PL_LINE_ST) {
-		case PL_L_NLS :	ls = "NOISE" ;	break ;
+		case PL_L_NLS :	ls = "ANALISE" ;	break ;
 		case PL_L_ALS :	ls = "ACTIV" ;	break ;
 		case PL_L_UND :	ls = "UNDEF" ;	break ;
 		case PL_L_ILS4:	ls = "ILS 4" ;	break ;
@@ -1915,7 +1915,7 @@ char *get_linestate(struct s_smc *smc, int np)
 		case PL_L_HLS :	ls = "HLS" ;	break ;
 		case PL_L_ILS16:ls = "ILS16" ;	break ;
 #ifdef	lint
-		default:	ls = "unknown" ; break ;
+		default:	ls = "unkanalwn" ; break ;
 #endif
 	}
 	return ls;
@@ -1938,7 +1938,7 @@ char *get_pcmstate(struct s_smc *smc, int np)
 		case PL_PC7 :	pcs = "VERIFY" ;	break ;
 		case PL_PC8 :	pcs = "ACTIV" ;		break ;
 		case PL_PC9 :	pcs = "MAINT" ;		break ;
-		default :	pcs = "UNKNOWN" ; 	break ;
+		default :	pcs = "UNKANALWN" ; 	break ;
 	}
 	return pcs;
 }
@@ -1963,7 +1963,7 @@ void list_phy(struct s_smc *smc)
 						plc->vsym_ctr,plc->b_ils)  ;
 		printf("\tmingap_ctr: %ld \t\tHLS det. : %ld\n",
 						plc->mini_ctr,plc->b_hls) ;
-		printf("\tnodepr_err: %ld\n",plc->np_err) ;
+		printf("\tanaldepr_err: %ld\n",plc->np_err) ;
 		printf("\tTPC_exp : %ld\n",plc->tpc_exp) ;
 		printf("\tLEM_err : %ld\n",smc->y[np].lem.lem_errors) ;
 	}

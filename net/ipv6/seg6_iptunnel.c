@@ -219,7 +219,7 @@ static int seg6_do_srh_encap_red(struct sk_buff *skb,
 	if (first_seg > 0) {
 		red_hdrlen = hdrlen - sizeof(struct in6_addr);
 	} else {
-		/* NOTE: if tag/flags and/or other TLVs are introduced in the
+		/* ANALTE: if tag/flags and/or other TLVs are introduced in the
 		 * seg6_iptunnel infrastructure, they should be considered when
 		 * deciding to skip the SRH.
 		 */
@@ -255,7 +255,7 @@ static int seg6_do_srh_encap_red(struct sk_buff *skb,
 		IP6CB(skb)->iif = skb->skb_iif;
 	}
 
-	/* no matter if we have to skip the SRH or not, the first segment
+	/* anal matter if we have to skip the SRH or analt, the first segment
 	 * always comes in the pushed IPv6 header.
 	 */
 	hdr->daddr = osrh->segments[first_seg];
@@ -267,14 +267,14 @@ static int seg6_do_srh_encap_red(struct sk_buff *skb,
 		goto out;
 	}
 
-	/* we cannot skip the SRH, slow path */
+	/* we cananalt skip the SRH, slow path */
 
 	hdr->nexthdr = NEXTHDR_ROUTING;
 	isrh = (void *)hdr + sizeof(struct ipv6hdr);
 
 	if (unlikely(!first_seg)) {
 		/* this is a very rare case; we have only one SID but
-		 * we cannot skip the SRH since we are carrying some
+		 * we cananalt skip the SRH since we are carrying some
 		 * other info.
 		 */
 		memcpy(isrh, osrh, hdrlen);
@@ -419,7 +419,7 @@ static int seg6_do_srh(struct sk_buff *skb)
 			return -EINVAL;
 
 		if (pskb_expand_head(skb, skb->mac_len, 0, GFP_ATOMIC) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		skb_mac_header_rebuild(skb);
 		skb_push(skb, skb->mac_len);
@@ -662,7 +662,7 @@ static int seg6_build_state(struct net *net, struct nlattr *nla,
 
 	newts = lwtunnel_state_alloc(tuninfo_len + sizeof(*slwt));
 	if (!newts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slwt = seg6_lwt_lwtunnel(newts);
 

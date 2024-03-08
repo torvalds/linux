@@ -112,7 +112,7 @@
 	{0x2b8, "H_GET_EM_PARMS"},				\
 	{0x2d0, "H_SET_MPP"},					\
 	{0x2d4, "H_GET_MPP"},					\
-	{0x2ec, "H_HOME_NODE_ASSOCIATIVITY"},			\
+	{0x2ec, "H_HOME_ANALDE_ASSOCIATIVITY"},			\
 	{0x2f4, "H_BEST_ENERGY"},				\
 	{0x2fc, "H_XIRR_X"},					\
 	{0x300, "H_RANDOM"},					\

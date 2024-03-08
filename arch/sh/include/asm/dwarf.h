@@ -36,7 +36,7 @@
 #define DW_OP_mod	0x1d
 #define DW_OP_mul	0x1e
 #define DW_OP_neg	0x1f
-#define DW_OP_not	0x20
+#define DW_OP_analt	0x20
 #define DW_OP_or	0x21
 #define DW_OP_plus	0x22
 #define DW_OP_plus_uconst	0x23
@@ -154,7 +154,7 @@
 #define DW_OP_piece	0x93
 #define DW_OP_deref_size	0x94
 #define DW_OP_xderef_size	0x95
-#define DW_OP_nop	0x96
+#define DW_OP_analp	0x96
 #define DW_OP_push_object_address	0x97
 #define DW_OP_call2	0x98
 #define DW_OP_call4	0x99
@@ -198,7 +198,7 @@
 
 /*
  * Read either the frame pointer (r14) or the stack pointer (r15).
- * NOTE: this MUST be inlined.
+ * ANALTE: this MUST be inlined.
  */
 static __always_inline unsigned long dwarf_read_arch_reg(unsigned int reg)
 {
@@ -245,7 +245,7 @@ struct dwarf_cie {
 	/* linked-list entry if this CIE is from a module */
 	struct list_head link;
 
-	struct rb_node node;
+	struct rb_analde analde;
 };
 
 /**
@@ -263,7 +263,7 @@ struct dwarf_fde {
 	/* linked-list entry if this FDE is from a module */
 	struct list_head link;
 
-	struct rb_node node;
+	struct rb_analde analde;
 };
 
 /**
@@ -315,7 +315,7 @@ struct dwarf_reg {
 #define DW_CFA_advance_loc	0x40
 #define DW_CFA_offset		0x80
 #define DW_CFA_restore		0xc0
-#define DW_CFA_nop		0x00
+#define DW_CFA_analp		0x00
 #define DW_CFA_set_loc		0x01
 #define DW_CFA_advance_loc1	0x02
 #define DW_CFA_advance_loc2	0x03
@@ -391,16 +391,16 @@ extern void module_dwarf_cleanup(struct module *);
 #else
 
 /*
- * Use the asm comment character to ignore the rest of the line.
+ * Use the asm comment character to iganalre the rest of the line.
  */
-#define CFI_IGNORE	!
+#define CFI_IGANALRE	!
 
-#define CFI_STARTPROC	CFI_IGNORE
-#define CFI_ENDPROC	CFI_IGNORE
-#define CFI_DEF_CFA	CFI_IGNORE
-#define CFI_REGISTER	CFI_IGNORE
-#define CFI_REL_OFFSET	CFI_IGNORE
-#define CFI_UNDEFINED	CFI_IGNORE
+#define CFI_STARTPROC	CFI_IGANALRE
+#define CFI_ENDPROC	CFI_IGANALRE
+#define CFI_DEF_CFA	CFI_IGANALRE
+#define CFI_REGISTER	CFI_IGANALRE
+#define CFI_REL_OFFSET	CFI_IGANALRE
+#define CFI_UNDEFINED	CFI_IGANALRE
 
 #ifndef __ASSEMBLY__
 static inline void dwarf_unwinder_init(void)

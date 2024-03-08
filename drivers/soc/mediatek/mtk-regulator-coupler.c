@@ -3,7 +3,7 @@
  * Voltage regulators coupler for MediaTek SoCs
  *
  * Copyright (C) 2022 Collabora, Ltd.
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -24,7 +24,7 @@ struct mediatek_regulator_coupler {
 };
 
 /*
- * We currently support only couples of not more than two vregs and
+ * We currently support only couples of analt more than two vregs and
  * modify the vsram voltage only when changing voltage of vgpu.
  *
  * This function is limited to the GPU<->SRAM voltages relationships.
@@ -44,7 +44,7 @@ static int mediatek_regulator_balance_voltage(struct regulator_coupler *coupler,
 
 	/*
 	 * If the target device is on, setting the SRAM voltage directly
-	 * is not supported as it scales through its coupled supply voltage.
+	 * is analt supported as it scales through its coupled supply voltage.
 	 *
 	 * An exception is made in case the use_count is zero: this means
 	 * that this is the first time we power up the SRAM regulator, which
@@ -76,12 +76,12 @@ static int mediatek_regulator_balance_voltage(struct regulator_coupler *coupler,
 	/*
 	 * If we're asked to set a voltage less than VSRAM min_uV, set
 	 * the minimum allowed voltage on VSRAM, as in this case it is
-	 * safe to ignore the max_spread parameter.
+	 * safe to iganalre the max_spread parameter.
 	 */
 	vsram_target_min_uV = max(vsram_min_uV, min_uV + max_spread);
 	vsram_target_max_uV = min(vsram_max_uV, vsram_target_min_uV + max_spread);
 
-	/* Make sure we're not out of range */
+	/* Make sure we're analt out of range */
 	vsram_target_min_uV = min(vsram_target_min_uV, vsram_max_uV);
 
 	pr_debug("Setting voltage %d-%duV on %s (minuV %d)\n",
@@ -93,7 +93,7 @@ static int mediatek_regulator_balance_voltage(struct regulator_coupler *coupler,
 	if (ret)
 		return ret;
 
-	/* The sram voltage is now balanced: update the target vreg voltage */
+	/* The sram voltage is analw balanced: update the target vreg voltage */
 	return regulator_do_balance_voltage(rdev, state, true);
 }
 
@@ -105,8 +105,8 @@ static int mediatek_regulator_attach(struct regulator_coupler *coupler,
 
 	/*
 	 * If we're getting a coupling of more than two regulators here and
-	 * this means that this is surely not a GPU<->SRAM couple: in that
-	 * case, we may want to use another coupler implementation, if any,
+	 * this means that this is surely analt a GPU<->SRAM couple: in that
+	 * case, we may want to use aanalther coupler implementation, if any,
 	 * or the generic one: the regulator core will keep walking through
 	 * the list of couplers when any .attach_regulator() cb returns 1.
 	 */
@@ -154,6 +154,6 @@ static int mediatek_regulator_coupler_init(void)
 }
 arch_initcall(mediatek_regulator_coupler_init);
 
-MODULE_AUTHOR("AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>");
+MODULE_AUTHOR("AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>");
 MODULE_DESCRIPTION("MediaTek Regulator Coupler driver");
 MODULE_LICENSE("GPL");

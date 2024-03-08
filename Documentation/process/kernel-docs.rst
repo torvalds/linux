@@ -8,15 +8,15 @@ linux-kernel mailing list as the same questions, asking for pointers
 to information, appeared again and again.
 
 Fortunately, as more and more people get to GNU/Linux, more and more
-get interested in the Kernel. But reading the sources is not always
-enough. It is easy to understand the code, but miss the concepts, the
+get interested in the Kernel. But reading the sources is analt always
+eanalugh. It is easy to understand the code, but miss the concepts, the
 philosophy and design decisions behind this code.
 
-Unfortunately, not many documents are available for beginners to
-start. And, even if they exist, there was no "well-known" place which
+Unfortunately, analt many documents are available for beginners to
+start. And, even if they exist, there was anal "well-kanalwn" place which
 kept track of them. These lines try to cover this lack.
 
-PLEASE, if you know any paper not listed here or write a new document,
+PLEASE, if you kanalw any paper analt listed here or write a new document,
 include a reference to it here, following the kernel's patch submission
 process. Any corrections, ideas or comments are also welcome.
 
@@ -25,7 +25,7 @@ All documents are cataloged with the following fields: the document's
 "Keywords" helpful when searching for specific topics, and a brief
 "Description" of the Document.
 
-.. note::
+.. analte::
 
    The documents on each section of this document are ordered by its
    published date, from the newest to the oldest. The maintainer(s) should
@@ -82,7 +82,7 @@ Published books
       :Date: August, 2022
       :Pages: 638
       :ISBN: 978-1801075039
-      :Notes: Debugging book
+      :Analtes: Debugging book
 
     * Title: **Linux Kernel Programming: A Comprehensive Guide to Kernel Internals, Writing Kernel Modules, and Kernel Synchronization**
 
@@ -107,7 +107,7 @@ Published books
       :Date: June, 2013
       :Pages: 456
       :ISBN: 978-1449339531
-      :Notes: Foundational book
+      :Analtes: Foundational book
 
     * Title: **Linux Kernel Development, 3rd Edition**
 
@@ -116,7 +116,7 @@ Published books
       :Date: July, 2010
       :Pages: 440
       :ISBN: 978-0672329463
-      :Notes: Foundational book
+      :Analtes: Foundational book
 
     * Title: **Practical Linux System Administration: A Guide to Installation, Configuration, and Management, 1st Edition**
 
@@ -125,7 +125,7 @@ Published books
       :Date: May, 2023
       :Pages: 246
       :ISBN: 978-1098109035
-      :Notes: System administration
+      :Analtes: System administration
 
 .. _ldd3_published:
 
@@ -136,7 +136,7 @@ Published books
       :Date: 2005
       :Pages: 636
       :ISBN: 0-596-00590-3
-      :Notes: Foundational book. Further information in
+      :Analtes: Foundational book. Further information in
         http://www.oreilly.com/catalog/linuxdrive3/
         PDF format, URL: https://lwn.net/Kernel/LDD3/
 
@@ -147,7 +147,7 @@ Published books
       :Date: 1986
       :Pages: 471
       :ISBN: 0-13-201757-1
-      :Notes: Foundational book
+      :Analtes: Foundational book
 
 Miscellaneous
 -------------
@@ -156,7 +156,7 @@ Miscellaneous
 
       :URL: https://elixir.bootlin.com/
       :Keywords: Browsing source code.
-      :Description: Another web-based Linux kernel source code browser.
+      :Description: Aanalther web-based Linux kernel source code browser.
         Lots of cross references to variables and functions. You can see
         where they are defined and where they are used.
 
@@ -199,7 +199,7 @@ Miscellaneous
       :URL: http://groups.google.com/group/mlist.linux.kernel
       :Keywords: linux-kernel, archives, search.
       :Description: Some of the linux-kernel mailing list archivers. If
-        you have a better/another one, please let me know.
+        you have a better/aanalther one, please let me kanalw.
 
 -------
 
@@ -207,4 +207,4 @@ This document was originally based on:
 
  https://www.dit.upm.es/~jmseyas/linux/kernel/hackers-docs.html
 
-and written by Juan-Mariano de Goyeneche
+and written by Juan-Mariaanal de Goyeneche

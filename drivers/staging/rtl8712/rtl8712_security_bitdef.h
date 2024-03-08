@@ -23,7 +23,7 @@
 #define	_SEC_KEYCONTENT_SHT			0
 
 /*SECCFG*/
-#define	_NOSKMC						BIT(5)
+#define	_ANALSKMC						BIT(5)
 #define	_SKBYA2						BIT(4)
 #define	_RXDEC						BIT(3)
 #define	_TXENC						BIT(2)

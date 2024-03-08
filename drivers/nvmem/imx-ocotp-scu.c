@@ -147,7 +147,7 @@ static int imx_scu_ocotp_read(void *context, unsigned int offset,
 
 	p = kzalloc(num_bytes, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&scu_ocotp_mutex);
 
@@ -245,7 +245,7 @@ static int imx_scu_ocotp_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = imx_scu_get_handle(&priv->nvmem_ipc);
 	if (ret)

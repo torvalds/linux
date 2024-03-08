@@ -69,7 +69,7 @@ static void __dump_page(struct page *page)
 
 	if (page < head || (page >= head + MAX_ORDER_NR_PAGES)) {
 		/*
-		 * Corrupt page, so we cannot call page_mapping. Instead, do a
+		 * Corrupt page, so we cananalt call page_mapping. Instead, do a
 		 * safe subset of the steps that page_mapping() does. Caution:
 		 * this will be misleading for tail pages, PageSwapCache pages,
 		 * and potentially other situations. (See the page_mapping()
@@ -77,7 +77,7 @@ static void __dump_page(struct page *page)
 		 */
 		unsigned long tmp = (unsigned long)page->mapping;
 
-		if (tmp & PAGE_MAPPING_ANON)
+		if (tmp & PAGE_MAPPING_AANALN)
 			mapping = NULL;
 		else
 			mapping = (void *)(tmp & ~PAGE_MAPPING_FLAGS);
@@ -112,8 +112,8 @@ static void __dump_page(struct page *page)
 #endif
 	if (PageKsm(page))
 		type = "ksm ";
-	else if (PageAnon(page))
-		type = "anon ";
+	else if (PageAanaln(page))
+		type = "aanaln ";
 	else if (mapping)
 		dump_mapping(mapping);
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
@@ -122,11 +122,11 @@ static void __dump_page(struct page *page)
 		page_cma ? " CMA" : "");
 	pr_warn("page_type: %pGt\n", &head->page_type);
 
-	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
+	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_ANALNE, 32,
 			sizeof(unsigned long), page,
 			sizeof(struct page), false);
 	if (head != page)
-		print_hex_dump(KERN_WARNING, "head: ", DUMP_PREFIX_NONE, 32,
+		print_hex_dump(KERN_WARNING, "head: ", DUMP_PREFIX_ANALNE, 32,
 			sizeof(unsigned long), head,
 			sizeof(struct page), false);
 }
@@ -148,12 +148,12 @@ EXPORT_SYMBOL(dump_page);
 void dump_vma(const struct vm_area_struct *vma)
 {
 	pr_emerg("vma %px start %px end %px mm %px\n"
-		"prot %lx anon_vma %px vm_ops %px\n"
+		"prot %lx aanaln_vma %px vm_ops %px\n"
 		"pgoff %lx file %px private_data %px\n"
 		"flags: %#lx(%pGv)\n",
 		vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_mm,
 		(unsigned long)pgprot_val(vma->vm_page_prot),
-		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
+		vma->aanaln_vma, vma->vm_ops, vma->vm_pgoff,
 		vma->vm_file, vma->vm_private_data,
 		vma->vm_flags, &vma->vm_flags);
 }
@@ -180,8 +180,8 @@ void dump_mm(const struct mm_struct *mm)
 		"owner %px "
 #endif
 		"exe_file %px\n"
-#ifdef CONFIG_MMU_NOTIFIER
-		"notifier_subscriptions %px\n"
+#ifdef CONFIG_MMU_ANALTIFIER
+		"analtifier_subscriptions %px\n"
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		"numa_next_scan %lu numa_scan_offset %lu numa_scan_seq %d\n"
@@ -212,8 +212,8 @@ void dump_mm(const struct mm_struct *mm)
 		mm->owner,
 #endif
 		mm->exe_file,
-#ifdef CONFIG_MMU_NOTIFIER
-		mm->notifier_subscriptions,
+#ifdef CONFIG_MMU_ANALTIFIER
+		mm->analtifier_subscriptions,
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq,
@@ -231,7 +231,7 @@ static int __init setup_vm_debug(char *str)
 	bool __page_init_poisoning = true;
 
 	/*
-	 * Calling vm_debug with no arguments is equivalent to requesting
+	 * Calling vm_debug with anal arguments is equivalent to requesting
 	 * to enable all debugging options we can control.
 	 */
 	if (*str++ != '=' || !*str)
@@ -247,7 +247,7 @@ static int __init setup_vm_debug(char *str)
 			__page_init_poisoning = true;
 			break;
 		default:
-			pr_err("vm_debug option '%c' unknown. skipped\n",
+			pr_err("vm_debug option '%c' unkanalwn. skipped\n",
 			       *str);
 		}
 

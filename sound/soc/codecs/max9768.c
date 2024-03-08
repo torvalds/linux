@@ -174,7 +174,7 @@ static int max9768_i2c_probe(struct i2c_client *client)
 
 	max9768 = devm_kzalloc(&client->dev, sizeof(*max9768), GFP_KERNEL);
 	if (!max9768)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Mute on powerup to avoid clicks */
 	max9768->mute = devm_gpiod_get_optional(&client->dev,

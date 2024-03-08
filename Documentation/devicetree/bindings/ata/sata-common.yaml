@@ -19,10 +19,10 @@ description: |
   defining whether each property is required or optional.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^sata(@.*)?$"
     description:
-      Specifies the host controller node. SATA host controller nodes are named
+      Specifies the host controller analde. SATA host controller analdes are named
       "sata"
 
   "#address-cells":
@@ -37,8 +37,8 @@ patternProperties:
   "^sata-port@[0-9a-e]$":
     $ref: '#/$defs/sata-port'
     description: |
-      DT nodes for ports connected on the SATA host. The SATA port
-      nodes will be named "sata-port".
+      DT analdes for ports connected on the SATA host. The SATA port
+      analdes will be named "sata-port".
 
 additionalProperties: true
 

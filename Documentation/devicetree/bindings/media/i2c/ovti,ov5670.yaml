@@ -57,7 +57,7 @@ properties:
             items:
               enum: [1, 2]
 
-          clock-noncontinuous: true
+          clock-analncontinuous: true
           remote-endpoint: true
 
 required:
@@ -84,7 +84,7 @@ examples:
                 ov5670_ep: endpoint {
                     remote-endpoint = <&csi_ep>;
                     data-lanes = <1 2>;
-                    clock-noncontinuous;
+                    clock-analncontinuous;
                 };
             };
         };

@@ -43,7 +43,7 @@ static void * __init init_pmd(unsigned long vaddr, unsigned long n_pages)
 	for (i = 0; i < n_pages; i += PTRS_PER_PTE, ++pmd) {
 		pte_t *cur_pte = pte + i;
 
-		BUG_ON(!pmd_none(*pmd));
+		BUG_ON(!pmd_analne(*pmd));
 		set_pmd(pmd, __pmd(((unsigned long)cur_pte) & PAGE_MASK));
 		BUG_ON(cur_pte != pte_offset_kernel(pmd, 0));
 		pr_debug("%s: pmd: 0x%p, pte: 0x%p\n",
@@ -79,7 +79,7 @@ void init_mmu(void)
 	 * registers ensure that valid values exist in the register.
 	 *
 	 * For existing PGSZID<w> fields, zero selects the first element
-	 * of the page-size array.  For nonexistent PGSZID<w> fields,
+	 * of the page-size array.  For analnexistent PGSZID<w> fields,
 	 * zero is the best value to write.  Also, when changing PGSZID<w>
 	 * fields, the corresponding TLB must be flushed.
 	 */
@@ -89,12 +89,12 @@ void init_mmu(void)
 	init_kio();
 	local_flush_tlb_all();
 
-	/* Set rasid register to a known value. */
+	/* Set rasid register to a kanalwn value. */
 
 	set_rasid_register(ASID_INSERT(ASID_USER_FIRST));
 
 	/* Set PTEVADDR special register to the start of the page
-	 * table, which is in kernel mappable space (ie. not
+	 * table, which is in kernel mappable space (ie. analt
 	 * statically mapped).  This register's value is undefined on
 	 * reset.
 	 */

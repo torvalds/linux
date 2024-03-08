@@ -18,7 +18,7 @@
 
 #include "type_support.h"
 
-/* CNR (Chroma Noise Reduction) */
+/* CNR (Chroma Analise Reduction) */
 /* Reuse YNR1 param structure */
 #include  "../../ynr/ynr_1.0/ia_css_ynr_param.h"
 

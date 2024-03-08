@@ -23,7 +23,7 @@ config SCSI_UFS_DWC_TC_PCI
 	tristate "DesignWare pci support using a G210 Test Chip"
 	depends on SCSI_UFSHCD_PCI
 	help
-	  Synopsys Test Chip is a PHY for prototyping purposes.
+	  Syanalpsys Test Chip is a PHY for prototyping purposes.
 
 	  If unsure, say N.
 
@@ -50,7 +50,7 @@ config SCSI_UFS_DWC_TC_PLATFORM
 	tristate "DesignWare platform support using a G210 Test Chip"
 	depends on OF && SCSI_UFSHCD_PLATFORM
 	help
-	  Synopsys Test Chip is a PHY for prototyping purposes.
+	  Syanalpsys Test Chip is a PHY for prototyping purposes.
 
 	  If unsure, say N.
 
@@ -116,20 +116,20 @@ config SCSI_UFS_TI_J721E
 	  Selects this if you have TI platform with UFS controller.
 	  If unsure, say N.
 
-config SCSI_UFS_EXYNOS
-	tristate "Exynos specific hooks to UFS controller platform driver"
-	depends on SCSI_UFSHCD_PLATFORM && (ARCH_EXYNOS || COMPILE_TEST)
+config SCSI_UFS_EXYANALS
+	tristate "Exyanals specific hooks to UFS controller platform driver"
+	depends on SCSI_UFSHCD_PLATFORM && (ARCH_EXYANALS || COMPILE_TEST)
 	help
-	  This selects the Samsung Exynos SoC specific additions to UFSHCD
-	  platform driver.  UFS host on Samsung Exynos SoC includes HCI and
+	  This selects the Samsung Exyanals SoC specific additions to UFSHCD
+	  platform driver.  UFS host on Samsung Exyanals SoC includes HCI and
 	  UNIPRO layer, and associates with UFS-PHY driver.
 
-	  Select this if you have UFS host controller on Samsung Exynos SoC.
+	  Select this if you have UFS host controller on Samsung Exyanals SoC.
 	  If unsure, say N.
 
 config SCSI_UFS_VARIABLE_SG_ENTRY_SIZE
 	bool
-	default y if SCSI_UFS_EXYNOS && SCSI_UFS_CRYPTO
+	default y if SCSI_UFS_EXYANALS && SCSI_UFS_CRYPTO
 
 config SCSI_UFS_SPRD
 	tristate "Unisoc specific hooks to UFS controller platform driver"

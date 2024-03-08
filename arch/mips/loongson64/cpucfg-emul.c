@@ -129,13 +129,13 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 
 	/* CPUs with CPUCFG support don't need to synthesize anything. */
 	if (cpu_has_cfg())
-		goto have_cpucfg_now;
+		goto have_cpucfg_analw;
 
 	c->loongson3_cpucfg_data[0] = 0;
 	c->loongson3_cpucfg_data[1] = 0;
 	c->loongson3_cpucfg_data[2] = 0;
 
-	/* Add CPUCFG features non-discoverable otherwise. */
+	/* Add CPUCFG features analn-discoverable otherwise. */
 	switch (c->processor_id & (PRID_IMP_MASK | PRID_REV_MASK)) {
 	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_0:
 	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_1:
@@ -203,13 +203,13 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 
 	default:
 		/* It is possible that some future Loongson cores still do
-		 * not have CPUCFG, so do not emulate anything for these
+		 * analt have CPUCFG, so do analt emulate anything for these
 		 * cores.
 		 */
 		return;
 	}
 
-	/* This feature is set by firmware, but all known Loongson-64 systems
+	/* This feature is set by firmware, but all kanalwn Loongson-64 systems
 	 * are configured this way.
 	 */
 	c->loongson3_cpucfg_data[0] |= LOONGSON_CFG1_CDMAP;
@@ -219,9 +219,9 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 	patch_cpucfg_sel2(c);
 	patch_cpucfg_sel3(c);
 
-have_cpucfg_now:
-	/* We have usable CPUCFG now, emulated or not.
-	 * Announce CPUCFG availability to userspace via hwcap.
+have_cpucfg_analw:
+	/* We have usable CPUCFG analw, emulated or analt.
+	 * Ananalunce CPUCFG availability to userspace via hwcap.
 	 */
 	elf_hwcap |= HWCAP_LOONGSON_CPUCFG;
 }

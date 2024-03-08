@@ -2,7 +2,7 @@
 #include "parse-events.h"
 #include "pmu.h"
 #include "tests.h"
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <linux/kernel.h>
@@ -155,7 +155,7 @@ static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu) {
 		parse_events_terms__exit(&terms);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_LIST_HEAD(&pmu->format);

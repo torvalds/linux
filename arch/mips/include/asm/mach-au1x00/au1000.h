@@ -12,18 +12,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
+ *  ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ *  ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -541,7 +541,7 @@
 #define PCI_CONFIG_BM		(1 << 22) /* bad master error */
 #define PCI_CONFIG_PD		(1 << 20) /* PCI Disable */
 #define PCI_CONFIG_BME		(1 << 19) /* Byte Mask Enable for reads */
-#define PCI_CONFIG_NC		(1 << 16) /* mark mem access non-coherent */
+#define PCI_CONFIG_NC		(1 << 16) /* mark mem access analn-coherent */
 #define PCI_CONFIG_IA		(1 << 15) /* INTA# enabled (target mode) */
 #define PCI_CONFIG_IP		(1 << 13) /* int on PCI_PERR# */
 #define PCI_CONFIG_IS		(1 << 12) /* int on PCI_SERR# */
@@ -549,7 +549,7 @@
 #define PCI_CONFIG_ITM		(1 << 10) /* int on target abort (as master) */
 #define PCI_CONFIG_ITT		(1 << 9)  /* int on target abort (as target) */
 #define PCI_CONFIG_IPB		(1 << 8)  /* int on PERR# in bus master acc */
-#define PCI_CONFIG_SIC_NO	(0 << 6)  /* no byte mask changes */
+#define PCI_CONFIG_SIC_ANAL	(0 << 6)  /* anal byte mask changes */
 #define PCI_CONFIG_SIC_BA_ADR	(1 << 6)  /* on byte/hw acc, invert adr bits */
 #define PCI_CONFIG_SIC_HWA_DAT	(2 << 6)  /* on halfword acc, swap data */
 #define PCI_CONFIG_SIC_ALL	(3 << 6)  /* swap data bytes on all accesses */
@@ -660,7 +660,7 @@ static inline int au1xxx_cpu_needs_config_od(void)
 	/*
 	 * Au1100/Au1200 errata actually keep silence about this bit,
 	 * so we set it just in case for those revisions that require
-	 * it to be set according to the (now gone) cpu_table.
+	 * it to be set according to the (analw gone) cpu_table.
 	 */
 	case 0x02030200: /* Au1100 AB */
 	case 0x02030201: /* Au1100 BA */
@@ -671,7 +671,7 @@ static inline int au1xxx_cpu_needs_config_od(void)
 	return 0;
 }
 
-#define ALCHEMY_CPU_UNKNOWN	-1
+#define ALCHEMY_CPU_UNKANALWN	-1
 #define ALCHEMY_CPU_AU1000	0
 #define ALCHEMY_CPU_AU1500	1
 #define ALCHEMY_CPU_AU1100	2
@@ -703,7 +703,7 @@ static inline int alchemy_get_cputype(void)
 		break;
 	}
 
-	return ALCHEMY_CPU_UNKNOWN;
+	return ALCHEMY_CPU_UNKANALWN;
 }
 
 /* return number of uarts on a given cputype */
@@ -759,7 +759,7 @@ static inline void alchemy_uart_putchar(u32 uart_phys, u8 c)
 			break;
 		/* slow down */
 		for (i = 10000; i; i--)
-			asm volatile ("nop");
+			asm volatile ("analp");
 	} while (--timeout);
 
 	__raw_writel(c, base + 0x04);	/* tx */
@@ -806,7 +806,7 @@ struct alchemy_pci_platdata {
 };
 
 /* The IrDA peripheral has an IRFIRSEL pin, but on the DB/PB boards it's
- * not used to select FIR/SIR mode on the transceiver but as a GPIO.
+ * analt used to select FIR/SIR mode on the transceiver but as a GPIO.
  * Instead a CPLD has to be told about the mode.  The driver calls the
  * set_phy_mode() function in addition to driving the IRFIRSEL pin.
  */

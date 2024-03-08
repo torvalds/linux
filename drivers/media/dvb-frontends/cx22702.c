@@ -119,7 +119,7 @@ static int cx22702_set_inversion(struct cx22702_state *state, int inversion)
 	val = cx22702_readreg(state, 0x0C);
 	switch (inversion) {
 	case INVERSION_AUTO:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case INVERSION_ON:
 		val |= 0x01;
 		break;
@@ -156,7 +156,7 @@ static int cx22702_get_tps(struct cx22702_state *state,
 	}
 	switch (val & 0x07) {
 	case 0:
-		p->hierarchy = HIERARCHY_NONE;
+		p->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		p->hierarchy = HIERARCHY_1;
@@ -280,7 +280,7 @@ static int cx22702_set_tps(struct dvb_frontend *fe)
 	}
 	cx22702_writereg(state, 0x0C, val);
 
-	p->code_rate_LP = FEC_AUTO; /* temp hack as manual not working */
+	p->code_rate_LP = FEC_AUTO; /* temp hack as manual analt working */
 
 	/* use auto configuration? */
 	if ((p->hierarchy == HIERARCHY_AUTO) ||
@@ -319,7 +319,7 @@ static int cx22702_set_tps(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 	switch (p->hierarchy) {	/* mask 0x07 */
-	case HIERARCHY_NONE:
+	case HIERARCHY_ANALNE:
 		break;
 	case HIERARCHY_1:
 		val |= 0x01;
@@ -337,7 +337,7 @@ static int cx22702_set_tps(struct dvb_frontend *fe)
 	cx22702_writereg(state, 0x06, val);
 
 	switch (p->code_rate_HP) {		/* mask 0x38 */
-	case FEC_NONE:
+	case FEC_ANALNE:
 	case FEC_1_2:
 		val = 0x00;
 		break;
@@ -358,7 +358,7 @@ static int cx22702_set_tps(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 	switch (p->code_rate_LP) {		/* mask 0x07 */
-	case FEC_NONE:
+	case FEC_ANALNE:
 	case FEC_1_2:
 		break;
 	case FEC_2_3:
@@ -496,7 +496,7 @@ static int cx22702_read_signal_strength(struct dvb_frontend *fe,
 	 * Experience suggests that the strength signal register works as
 	 * follows:
 	 * - In the absence of signal, value is 0xff.
-	 * - In the presence of a weak signal, bit 7 is set, not sure what
+	 * - In the presence of a weak signal, bit 7 is set, analt sure what
 	 *   the lower 7 bits mean.
 	 * - In the presence of a strong signal, the register holds a 7-bit
 	 *   value (bit 7 is cleared), with greater values standing for

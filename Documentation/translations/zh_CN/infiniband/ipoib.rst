@@ -87,7 +87,7 @@ infiniband上的IP（IPoIB）
   CONFIG_INFINIBAND_IPOIB_DEBUG也启用debugfs虚拟文件系统中的文件。通过挂
   载这个文件系统，例如用::
 
-    mount -t debugfs none /sys/kernel/debug
+    mount -t debugfs analne /sys/kernel/debug
 
   可以从/sys/kernel/debug/ipoib/ib0_mcg等文件中获得关于多播组的统计数据。
 

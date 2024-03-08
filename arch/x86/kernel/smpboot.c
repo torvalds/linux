@@ -178,7 +178,7 @@ static inline void smpboot_restore_warm_reset_vector(void)
 	unsigned long flags;
 
 	/*
-	 * Paranoid:  Set warm reset code and vector here back
+	 * Paraanalid:  Set warm reset code and vector here back
 	 * to default values.
 	 */
 	spin_lock_irqsave(&rtc_lock, flags);
@@ -201,9 +201,9 @@ static void ap_starting(void)
 
 	/*
 	 * If woken up by an INIT in an 82489DX configuration the alive
-	 * synchronization guarantees that the CPU does not reach this
+	 * synchronization guarantees that the CPU does analt reach this
 	 * point before an INIT_deassert IPI reaches the local APIC, so it
-	 * is now safe to touch the local APIC.
+	 * is analw safe to touch the local APIC.
 	 *
 	 * Set up this CPU, first the APIC, which is probably redundant on
 	 * most boards.
@@ -215,7 +215,7 @@ static void ap_starting(void)
 
 	/*
 	 * The topology information must be up to date before
-	 * notify_cpu_starting().
+	 * analtify_cpu_starting().
 	 */
 	set_cpu_sibling_map(cpuid);
 
@@ -229,18 +229,18 @@ static void ap_starting(void)
 	 * This runs the AP through all the cpuhp states to its target
 	 * state CPUHP_ONLINE.
 	 */
-	notify_cpu_starting(cpuid);
+	analtify_cpu_starting(cpuid);
 }
 
 static void ap_calibrate_delay(void)
 {
 	/*
 	 * Calibrate the delay loop and update loops_per_jiffy in cpu_data.
-	 * smp_store_cpu_info() stored a value that is close but not as
+	 * smp_store_cpu_info() stored a value that is close but analt as
 	 * accurate as the value just calculated.
 	 *
 	 * As this is invoked after the TSC synchronization check,
-	 * calibrate_delay_is_known() will skip the calibration routine
+	 * calibrate_delay_is_kanalwn() will skip the calibration routine
 	 * when TSC is synchronized across sockets.
 	 */
 	calibrate_delay();
@@ -250,7 +250,7 @@ static void ap_calibrate_delay(void)
 /*
  * Activate a secondary processor.
  */
-static void notrace start_secondary(void *unused)
+static void analtrace start_secondary(void *unused)
 {
 	/*
 	 * Don't put *anything* except direct CPU state initialization
@@ -261,7 +261,7 @@ static void notrace start_secondary(void *unused)
 
 	/*
 	 * 32-bit specific. 64-bit reaches this code with the correct page
-	 * table established. Yet another historical divergence.
+	 * table established. Yet aanalther historical divergence.
 	 */
 	if (IS_ENABLED(CONFIG_X86_32)) {
 		/* switch away from the initial page table */
@@ -273,7 +273,7 @@ static void notrace start_secondary(void *unused)
 
 	/*
 	 * Load the microcode before reaching the AP alive synchronization
-	 * point below so it is not part of the full per CPU serialized
+	 * point below so it is analt part of the full per CPU serialized
 	 * bringup part when "parallel" bringup is enabled.
 	 *
 	 * That's even safe when hyperthreading is enabled in the CPU as
@@ -340,7 +340,7 @@ static void notrace start_secondary(void *unused)
  * topology_phys_to_logical_pkg - Map a physical package id to a logical
  * @phys_pkg:	The physical package id to map
  *
- * Returns logical package id or -1 if not found
+ * Returns logical package id or -1 if analt found
  */
 int topology_phys_to_logical_pkg(unsigned int phys_pkg)
 {
@@ -359,7 +359,7 @@ EXPORT_SYMBOL(topology_phys_to_logical_pkg);
  * @die_id:	The physical die id to map
  * @cur_cpu:	The CPU for which the mapping is done
  *
- * Returns logical die id or -1 if not found
+ * Returns logical die id or -1 if analt found
  */
 static int topology_phys_to_logical_die(unsigned int die_id, unsigned int cur_cpu)
 {
@@ -457,11 +457,11 @@ void smp_store_cpu_info(int id)
 }
 
 static bool
-topology_same_node(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+topology_same_analde(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
-	return (cpu_to_node(cpu1) == cpu_to_node(cpu2));
+	return (cpu_to_analde(cpu1) == cpu_to_analde(cpu2));
 }
 
 static bool
@@ -469,10 +469,10 @@ topology_sane(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o, const char *name)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
-	return !WARN_ONCE(!topology_same_node(c, o),
-		"sched: CPU #%d's %s-sibling CPU #%d is not on the same node! "
-		"[node: %d != %d]. Ignoring dependency.\n",
-		cpu1, name, cpu2, cpu_to_node(cpu1), cpu_to_node(cpu2));
+	return !WARN_ONCE(!topology_same_analde(c, o),
+		"sched: CPU #%d's %s-sibling CPU #%d is analt on the same analde! "
+		"[analde: %d != %d]. Iganalring dependency.\n",
+		cpu1, name, cpu2, cpu_to_analde(cpu1), cpu_to_analde(cpu2));
 }
 
 #define link_mask(mfunc, c1, c2)					\
@@ -523,7 +523,7 @@ static bool match_l2c(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	if (per_cpu_l2c_id(cpu1) == BAD_APICID)
 		return match_smt(c, o);
 
-	/* Do not match if L2 cache id does not match: */
+	/* Do analt match if L2 cache id does analt match: */
 	if (per_cpu_l2c_id(cpu1) != per_cpu_l2c_id(cpu2))
 		return false;
 
@@ -531,8 +531,8 @@ static bool match_l2c(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 }
 
 /*
- * Unlike the other levels, we do not enforce keeping a
- * multicore group inside a NUMA node.  If this happens, we will
+ * Unlike the other levels, we do analt enforce keeping a
+ * multicore group inside a NUMA analde.  If this happens, we will
  * discard the MC level of the topology later.
  */
 static bool match_pkg(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
@@ -545,15 +545,15 @@ static bool match_pkg(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 /*
  * Define intel_cod_cpu[] for Intel COD (Cluster-on-Die) CPUs.
  *
- * Any Intel CPU that has multiple nodes per package and does not
+ * Any Intel CPU that has multiple analdes per package and does analt
  * match intel_cod_cpu[] has the SNC (Sub-NUMA Cluster) topology.
  *
  * When in SNC mode, these CPUs enumerate an LLC that is shared
- * by multiple NUMA nodes. The LLC is shared for off-package data
- * access but private to the NUMA node (half of the package) for
+ * by multiple NUMA analdes. The LLC is shared for off-package data
+ * access but private to the NUMA analde (half of the package) for
  * on-package access. CPUID (the source of the information about
  * the LLC) can only enumerate the cache as shared or unshared,
- * but not this particular configuration.
+ * but analt this particular configuration.
  */
 
 static const struct x86_cpu_id intel_cod_cpu[] = {
@@ -569,20 +569,20 @@ static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 	bool intel_snc = id && id->driver_data;
 
-	/* Do not match if we do not have a valid APICID for cpu: */
+	/* Do analt match if we do analt have a valid APICID for cpu: */
 	if (per_cpu_llc_id(cpu1) == BAD_APICID)
 		return false;
 
-	/* Do not match if LLC id does not match: */
+	/* Do analt match if LLC id does analt match: */
 	if (per_cpu_llc_id(cpu1) != per_cpu_llc_id(cpu2))
 		return false;
 
 	/*
 	 * Allow the SNC topology without warning. Return of false
-	 * means 'c' does not share the LLC of 'o'. This will be
+	 * means 'c' does analt share the LLC of 'o'. This will be
 	 * reflected to userspace.
 	 */
-	if (match_pkg(c, o) && !topology_same_node(c, o) && intel_snc)
+	if (match_pkg(c, o) && !topology_same_analde(c, o) && intel_snc)
 		return false;
 
 	return topology_sane(c, o, "llc");
@@ -622,7 +622,7 @@ static int x86_die_flags(void)
 }
 
 /*
- * Set if a package/die has multiple NUMA nodes inside.
+ * Set if a package/die has multiple NUMA analdes inside.
  * AMD Magny-Cours, Intel Cluster-on-Die, and Intel
  * Sub-NUMA Clustering have this.
  */
@@ -691,7 +691,7 @@ void set_cpu_sibling_map(int cpu)
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		o = &cpu_data(i);
 
-		if (match_pkg(c, o) && !topology_same_node(c, o))
+		if (match_pkg(c, o) && !topology_same_analde(c, o))
 			x86_has_numa_in_package = true;
 
 		if ((i == cpu) || (has_smt && match_smt(c, o)))
@@ -806,7 +806,7 @@ static void __init smp_quirk_init_udelay(void)
 	if (init_udelay != UINT_MAX)
 		return;
 
-	/* if modern processor, use no delay */
+	/* if modern processor, use anal delay */
 	if (((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) && (boot_cpu_data.x86 == 6)) ||
 	    ((boot_cpu_data.x86_vendor == X86_VENDOR_HYGON) && (boot_cpu_data.x86 >= 0x18)) ||
 	    ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && (boot_cpu_data.x86 >= 0xF))) {
@@ -824,7 +824,7 @@ static void send_init_sequence(u32 phys_apicid)
 {
 	int maxlvt = lapic_get_maxlvt();
 
-	/* Be paranoid about clearing APIC errors. */
+	/* Be paraanalid about clearing APIC errors. */
 	if (APIC_INTEGRATED(boot_cpu_apic_version)) {
 		/* Due to the Pentium erratum 3AP.  */
 		if (maxlvt > 3)
@@ -929,29 +929,29 @@ static int wakeup_secondary_cpu_via_init(u32 phys_apicid, unsigned long start_ei
 }
 
 /* reduce the number of lines printed when booting a large cpu count system */
-static void announce_cpu(int cpu, int apicid)
+static void ananalunce_cpu(int cpu, int apicid)
 {
-	static int width, node_width, first = 1;
-	static int current_node = NUMA_NO_NODE;
-	int node = early_cpu_to_node(cpu);
+	static int width, analde_width, first = 1;
+	static int current_analde = NUMA_ANAL_ANALDE;
+	int analde = early_cpu_to_analde(cpu);
 
 	if (!width)
 		width = num_digits(num_possible_cpus()) + 1; /* + '#' sign */
 
-	if (!node_width)
-		node_width = num_digits(num_possible_nodes()) + 1; /* + '#' */
+	if (!analde_width)
+		analde_width = num_digits(num_possible_analdes()) + 1; /* + '#' */
 
 	if (system_state < SYSTEM_RUNNING) {
 		if (first)
 			pr_info("x86: Booting SMP configuration:\n");
 
-		if (node != current_node) {
-			if (current_node > (-1))
+		if (analde != current_analde) {
+			if (current_analde > (-1))
 				pr_cont("\n");
-			current_node = node;
+			current_analde = analde;
 
-			printk(KERN_INFO ".... node %*s#%d, CPUs:  ",
-			       node_width - num_digits(node), " ", node);
+			printk(KERN_INFO ".... analde %*s#%d, CPUs:  ",
+			       analde_width - num_digits(analde), " ", analde);
 		}
 
 		/* Add padding for the BSP */
@@ -961,8 +961,8 @@ static void announce_cpu(int cpu, int apicid)
 
 		pr_cont("%*s#%d", width - num_digits(cpu), " ", cpu);
 	} else
-		pr_info("Booting Node %d Processor %d APIC 0x%x\n",
-			node, cpu, apicid);
+		pr_info("Booting Analde %d Processor %d APIC 0x%x\n",
+			analde, cpu, apicid);
 }
 
 int common_cpu_up(unsigned int cpu, struct task_struct *idle)
@@ -988,7 +988,7 @@ int common_cpu_up(unsigned int cpu, struct task_struct *idle)
 }
 
 /*
- * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
+ * ANALTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
  * Returns zero if startup was successfully sent, else error code from
  * ->wakeup_secondary_cpu.
@@ -1017,7 +1017,7 @@ static int do_boot_cpu(u32 apicid, int cpu, struct task_struct *idle)
 	init_espfix_ap(cpu);
 
 	/* So we see what's up */
-	announce_cpu(cpu, apicid);
+	ananalunce_cpu(cpu, apicid);
 
 	/*
 	 * This grunge runs the startup process for
@@ -1029,7 +1029,7 @@ static int do_boot_cpu(u32 apicid, int cpu, struct task_struct *idle)
 
 		smpboot_setup_warm_reset_vector(start_ip);
 		/*
-		 * Be paranoid about clearing APIC errors.
+		 * Be paraanalid about clearing APIC errors.
 		*/
 		if (APIC_INTEGRATED(boot_cpu_apic_version)) {
 			apic_write(APIC_ESR, 0);
@@ -1080,7 +1080,7 @@ int native_kick_ap(unsigned int cpu, struct task_struct *tidle)
 	 */
 	mtrr_save_state();
 
-	/* the FPU context is blank, nobody can own it */
+	/* the FPU context is blank, analbody can own it */
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 
 	err = common_cpu_up(cpu, tidle);
@@ -1112,7 +1112,7 @@ void arch_cpuhp_cleanup_dead_cpu(unsigned int cpu)
 		smp_ops.cleanup_dead_cpu(cpu);
 
 	if (system_state == SYSTEM_RUNNING)
-		pr_info("CPU %u is now offline\n", cpu);
+		pr_info("CPU %u is analw offline\n", cpu);
 }
 
 void arch_cpuhp_sync_state_poll(void)
@@ -1130,7 +1130,7 @@ void __init arch_disable_smp_support(void)
 }
 
 /*
- * Fall back to non SMP mode after errors.
+ * Fall back to analn SMP mode after errors.
  *
  * RED-PEN audit/test this more. I bet there is more state messed up here.
  */
@@ -1213,10 +1213,10 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	switch (apic_intr_mode) {
 	case APIC_PIC:
-	case APIC_VIRTUAL_WIRE_NO_CONFIG:
+	case APIC_VIRTUAL_WIRE_ANAL_CONFIG:
 		disable_smp();
 		return;
-	case APIC_SYMMETRIC_IO_NO_ROUTING:
+	case APIC_SYMMETRIC_IO_ANAL_ROUTING:
 		disable_smp();
 		/* Setup local timer */
 		x86_init.timers.setup_percpu_clockev();
@@ -1270,7 +1270,7 @@ void __init calculate_max_logical_packages(void)
 	int ncpus;
 
 	/*
-	 * Today neither Intel nor AMD support heterogeneous systems so
+	 * Today neither Intel analr AMD support heterogeneous systems so
 	 * extrapolate the boot cpu's data to all packages.
 	 */
 	ncpus = cpu_data(0).booted_cores * topology_max_smt_threads();
@@ -1299,12 +1299,12 @@ early_param("possible_cpus", _setup_possible_cpus);
 
 
 /*
- * cpu_possible_mask should be static, it cannot change as cpu's
+ * cpu_possible_mask should be static, it cananalt change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
  * are allocated by some modules at init time, and don't expect to
  * do this dynamically on cpu arrival/departure.
  * cpu_present_mask on the other hand can change dynamically.
- * In case when cpu_hotplug is not compiled, then we resort to current
+ * In case when cpu_hotplug is analt compiled, then we resort to current
  * behaviour, which is cpu_possible == cpu_present.
  * - Ashok Raj
  *
@@ -1434,7 +1434,7 @@ void cpu_disable_common(void)
 
 	remove_siblinginfo(cpu);
 
-	/* It's now safe to remove this processor from the online map */
+	/* It's analw safe to remove this processor from the online map */
 	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
 	unlock_vector_lock();
@@ -1454,19 +1454,19 @@ int native_cpu_disable(void)
 
         /*
          * Disable the local APIC. Otherwise IPI broadcasts will reach
-         * it. It still responds normally to INIT, NMI, SMI, and SIPI
+         * it. It still responds analrmally to INIT, NMI, SMI, and SIPI
          * messages.
          *
          * Disabling the APIC must happen after cpu_disable_common()
          * which invokes fixup_irqs().
          *
          * Disabling the APIC preserves already set bits in IRR, but
-         * an interrupt arriving after disabling the local APIC does not
+         * an interrupt arriving after disabling the local APIC does analt
          * set the corresponding IRR bit.
          *
-         * fixup_irqs() scans IRR for set bits so it can raise a not
+         * fixup_irqs() scans IRR for set bits so it can raise a analt
          * yet handled interrupt on the new destination CPU via an IPI
-         * but obviously it can't do so for IRR bits which are not set.
+         * but obviously it can't do so for IRR bits which are analt set.
          * IOW, interrupts arriving after disabling the local APIC will
          * be lost.
          */
@@ -1511,7 +1511,7 @@ static inline void mwait_play_dead(void)
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 
 	/*
-	 * eax will be 0 if EDX enumeration is not valid.
+	 * eax will be 0 if EDX enumeration is analt valid.
 	 * Initialized below to cstate, sub_cstate value when EDX is valid.
 	 */
 	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED)) {
@@ -1537,7 +1537,7 @@ static inline void mwait_play_dead(void)
 	while (1) {
 		/*
 		 * The CLFLUSH is a workaround for erratum AAI65 for
-		 * the Xeon 7400 series.  It's not clear it is actually
+		 * the Xeon 7400 series.  It's analt clear it is actually
 		 * needed, but it should be harmless in either case.
 		 * The WBINVD is insufficient due to the spurious-wakeup
 		 * case where we return around the loop.
@@ -1557,7 +1557,7 @@ static inline void mwait_play_dead(void)
 			 * monitor cache line is written to and then the CPU goes
 			 * south due to overwritten text, page tables and stack.
 			 *
-			 * Note: This does _NOT_ protect against a stray MCE, NMI,
+			 * Analte: This does _ANALT_ protect against a stray MCE, NMI,
 			 * SMI. They will resume execution at the instruction
 			 * following the HLT instruction and run into the problem
 			 * which this is trying to prevent.
@@ -1579,7 +1579,7 @@ void smp_kick_mwait_play_dead(void)
 	struct mwait_cpu_dead *md;
 	unsigned int cpu, i;
 
-	for_each_cpu_andnot(cpu, cpu_present_mask, cpu_online_mask) {
+	for_each_cpu_andanalt(cpu, cpu_present_mask, cpu_online_mask) {
 		md = per_cpu_ptr(&mwait_cpu_dead, cpu);
 
 		/* Does it sit in mwait_play_dead() ? */
@@ -1598,7 +1598,7 @@ void smp_kick_mwait_play_dead(void)
 	}
 }
 
-void __noreturn hlt_play_dead(void)
+void __analreturn hlt_play_dead(void)
 {
 	if (__this_cpu_read(cpu_info.x86) >= 4)
 		wbinvd();
@@ -1608,7 +1608,7 @@ void __noreturn hlt_play_dead(void)
 }
 
 /*
- * native_play_dead() is essentially a __noreturn function, but it can't
+ * native_play_dead() is essentially a __analreturn function, but it can't
  * be marked as such as the compiler may complain about it.
  */
 void native_play_dead(void)
@@ -1627,7 +1627,7 @@ void native_play_dead(void)
 #else /* ... !CONFIG_HOTPLUG_CPU */
 int native_cpu_disable(void)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 void native_play_dead(void)

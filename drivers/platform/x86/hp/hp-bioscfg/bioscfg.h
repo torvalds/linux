@@ -99,19 +99,19 @@ enum wmi_error_values {
 	INVALID_DATA_SIZE		= 0x05,
 	INVALID_CMD_PARAM		= 0x06,
 	ENCRYP_CMD_REQUIRED		= 0x07,
-	NO_SECURE_SESSION		= 0x08,
+	ANAL_SECURE_SESSION		= 0x08,
 	SECURE_SESSION_FOUND		= 0x09,
 	SECURE_SESSION_FAILED		= 0x0A,
 	AUTH_FAILED			= 0x0B,
 	INVALID_BIOS_AUTH		= 0x0E,
-	NONCE_DID_NOT_MATCH		= 0x18,
+	ANALNCE_DID_ANALT_MATCH		= 0x18,
 	GENERIC_ERROR			= 0x1C,
-	BIOS_ADMIN_POLICY_NOT_MET	= 0x28,
-	BIOS_ADMIN_NOT_SET		= 0x38,
-	P21_NO_PROVISIONED		= 0x1000,
+	BIOS_ADMIN_POLICY_ANALT_MET	= 0x28,
+	BIOS_ADMIN_ANALT_SET		= 0x38,
+	P21_ANAL_PROVISIONED		= 0x1000,
 	P21_PROVISION_IN_PROGRESS	= 0x1001,
 	P21_IN_USE			= 0x1002,
-	HEP_NOT_ACTIVE			= 0x1004,
+	HEP_ANALT_ACTIVE			= 0x1004,
 	HEP_ALREADY_SET			= 0x1006,
 	HEP_CHECK_STATE			= 0x1007,
 };
@@ -178,7 +178,7 @@ struct password_data {
 
 	/*
 	 * 'role' identifies the type of authentication.
-	 * Two known types are bios-admin and power-on.
+	 * Two kanalwn types are bios-admin and power-on.
 	 * 'bios-admin' represents BIOS administrator password
 	 * 'power-on' represents a password required to use the system
 	 */
@@ -323,7 +323,7 @@ enum hp_wmi_data_elements {
 									\
 		attr_value = kstrdup(buf, GFP_KERNEL);			\
 		if (!attr_value)					\
-			return -ENOMEM;					\
+			return -EANALMEM;					\
 									\
 		ret = hp_enforce_single_line_input(attr_value, count);	\
 		if (!ret) {						\

@@ -25,7 +25,7 @@
  *   CP Programming Services book.
  * - Return Code of:
  *   -EINVAL: Invalid value
- *   -ENOMEM: storage allocation failed
+ *   -EANALMEM: storage allocation failed
  */
 
 #include <linux/types.h>
@@ -39,7 +39,7 @@
  *		  parameter list / a message is sent in the parameter list.
  *		  Used for iucv_path_accept, iucv_path_connect,
  *		  iucv_message_reply, iucv_message_send, iucv_message_send2way.
- * IUCV_IPQUSCE	  Indicates that you do not want to receive messages on this
+ * IUCV_IPQUSCE	  Indicates that you do analt want to receive messages on this
  *		  path until an iucv_path_resume is issued.
  *		  Used for iucv_path_accept, iucv_path_connect.
  * IUCV_IPBUFLST  Indicates that an address list is used for the message data.
@@ -48,12 +48,12 @@
  * IUCV_IPPRTY	  Specifies that you want to send priority messages.
  *		  Used for iucv_path_accept, iucv_path_connect,
  *		  iucv_message_reply, iucv_message_send, iucv_message_send2way.
- * IUCV_IPSYNC	  Indicates a synchronous send request.
+ * IUCV_IPSYNC	  Indicates a synchroanalus send request.
  *		  Used for iucv_message_send, iucv_message_send2way.
  * IUCV_IPANSLST  Indicates that an address list is used for the reply data.
  *		  Used for iucv_message_reply, iucv_message_send2way.
  * IUCV_IPLOCAL	  Specifies that the communication partner has to be on the
- *		  local system. If local is specified no target class can be
+ *		  local system. If local is specified anal target class can be
  *		  specified.
  *		  Used for iucv_path_connect.
  *
@@ -196,7 +196,7 @@ struct iucv_handler {
  *
  * Registers a driver with IUCV.
  *
- * Returns 0 on success, -ENOMEM if the memory allocation for the pathid
+ * Returns 0 on success, -EANALMEM if the memory allocation for the pathid
  * table failed, or -EIO if IUCV_DECLARE_BUFFER failed on all cpus.
  */
 int iucv_register(struct iucv_handler *handler, int smp);
@@ -252,7 +252,7 @@ static inline void iucv_path_free(struct iucv_path *path)
  * @private: private data passed to interrupt handlers for this path
  *
  * This function is issued after the user received a connection pending
- * external interrupt and now wishes to complete the IUCV communication path.
+ * external interrupt and analw wishes to complete the IUCV communication path.
  *
  * Returns the result of the CP IUCV call.
  */
@@ -269,7 +269,7 @@ int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
  * @private: private data passed to interrupt handlers for this path
  *
  * This function establishes an IUCV path. Although the connect may complete
- * successfully, you are not able to use the path until you receive an IUCV
+ * successfully, you are analt able to use the path until you receive an IUCV
  * Connection Complete external interrupt.
  *
  * Returns the result of the CP IUCV call.
@@ -359,7 +359,7 @@ int iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
  * established paths. This function will deal with RMDATA messages
  * embedded in struct iucv_message as well.
  *
- * Locking:	no locking.
+ * Locking:	anal locking.
  *
  * Returns the result from the CP IUCV call.
  */
@@ -373,7 +373,7 @@ int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
  * @msg: address of iucv msg structure
  *
  * The reject function refuses a specified message. Between the time you
- * are notified of a message and the time that you complete the message,
+ * are analtified of a message and the time that you complete the message,
  * the message may be rejected.
  *
  * Returns the result from the CP IUCV call.
@@ -407,9 +407,9 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
  * @buffer: address of data buffer or address of struct iucv_array
  * @size: length of send buffer
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to aanalther application. Data to be
  * transmitted is in a buffer and this is a one-way message and the
- * receiver will not reply to the message.
+ * receiver will analt reply to the message.
  *
  * Locking:	local_bh_enable/local_bh_disable
  *
@@ -427,11 +427,11 @@ int iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
  * @buffer: address of data buffer or address of struct iucv_array
  * @size: length of send buffer
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to aanalther application. Data to be
  * transmitted is in a buffer and this is a one-way message and the
- * receiver will not reply to the message.
+ * receiver will analt reply to the message.
  *
- * Locking:	no locking.
+ * Locking:	anal locking.
  *
  * Returns the result from the CP IUCV call.
  */
@@ -450,7 +450,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
  * @ansbuf: address of answer buffer or address of struct iucv_array
  * @asize: size of reply buffer
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to aanalther application. Data to be
  * transmitted is in a buffer. The receiver of the send is expected to
  * reply to the message and a buffer is provided into which IUCV moves
  * the reply to this message.

@@ -44,17 +44,17 @@ static const struct sti_compositor_data stih407_compositor_data = {
 };
 
 void sti_compositor_debugfs_init(struct sti_compositor *compo,
-				 struct drm_minor *minor)
+				 struct drm_mianalr *mianalr)
 {
 	unsigned int i;
 
 	for (i = 0; i < STI_MAX_VID; i++)
 		if (compo->vid[i])
-			vid_debugfs_init(compo->vid[i], minor);
+			vid_debugfs_init(compo->vid[i], mianalr);
 
 	for (i = 0; i < STI_MAX_MIXER; i++)
 		if (compo->mixer[i])
-			sti_mixer_debugfs_init(compo->mixer[i], minor);
+			sti_mixer_debugfs_init(compo->mixer[i], mianalr);
 }
 
 static int sti_compositor_bind(struct device *dev,
@@ -88,10 +88,10 @@ static int sti_compositor_bind(struct device *dev,
 			break;
 		case STI_GPD_SUBDEV:
 		case STI_CURSOR_SUBDEV:
-			/* Nothing to do, wait for the second round */
+			/* Analthing to do, wait for the second round */
 			break;
 		default:
-			DRM_ERROR("Unknown subdev component type\n");
+			DRM_ERROR("Unkanalwn subdev component type\n");
 			return 1;
 		}
 	}
@@ -107,7 +107,7 @@ static int sti_compositor_bind(struct device *dev,
 		case STI_MIXER_MAIN_SUBDEV:
 		case STI_MIXER_AUX_SUBDEV:
 		case STI_VID_SUBDEV:
-			/* Nothing to do, already done at the first round */
+			/* Analthing to do, already done at the first round */
 			break;
 		case STI_CURSOR_SUBDEV:
 			cursor = sti_cursor_create(drm_dev, compo->dev,
@@ -131,7 +131,7 @@ static int sti_compositor_bind(struct device *dev,
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown subdev component type\n");
+			DRM_ERROR("Unkanalwn subdev component type\n");
 			return 1;
 		}
 
@@ -153,7 +153,7 @@ static int sti_compositor_bind(struct device *dev,
 static void sti_compositor_unbind(struct device *dev, struct device *master,
 	void *data)
 {
-	/* do nothing */
+	/* do analthing */
 }
 
 static const struct component_ops sti_compositor_ops = {
@@ -166,7 +166,7 @@ static const struct of_device_id compositor_of_match[] = {
 		.compatible = "st,stih407-compositor",
 		.data = &stih407_compositor_data,
 	}, {
-		/* end node */
+		/* end analde */
 	}
 };
 MODULE_DEVICE_TABLE(of, compositor_of_match);
@@ -174,8 +174,8 @@ MODULE_DEVICE_TABLE(of, compositor_of_match);
 static int sti_compositor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *vtg_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *vtg_np;
 	struct sti_compositor *compo;
 	struct resource *res;
 	unsigned int i;
@@ -183,16 +183,16 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	compo = devm_kzalloc(dev, sizeof(*compo), GFP_KERNEL);
 	if (!compo) {
 		DRM_ERROR("Failed to allocate compositor context\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	compo->dev = dev;
 	for (i = 0; i < STI_MAX_MIXER; i++)
-		compo->vtg_vblank_nb[i].notifier_call = sti_crtc_vblank_cb;
+		compo->vtg_vblank_nb[i].analtifier_call = sti_crtc_vblank_cb;
 
 	/* populate data structure depending on compatibility */
-	BUG_ON(!of_match_node(compositor_of_match, np)->data);
+	BUG_ON(!of_match_analde(compositor_of_match, np)->data);
 
-	memcpy(&compo->data, of_match_node(compositor_of_match, np)->data,
+	memcpy(&compo->data, of_match_analde(compositor_of_match, np)->data,
 	       sizeof(struct sti_compositor_data));
 
 	/* Get Memory ressources */
@@ -210,25 +210,25 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	/* Get clock resources */
 	compo->clk_compo_main = devm_clk_get(dev, "compo_main");
 	if (IS_ERR(compo->clk_compo_main)) {
-		DRM_ERROR("Cannot get compo_main clock\n");
+		DRM_ERROR("Cananalt get compo_main clock\n");
 		return PTR_ERR(compo->clk_compo_main);
 	}
 
 	compo->clk_compo_aux = devm_clk_get(dev, "compo_aux");
 	if (IS_ERR(compo->clk_compo_aux)) {
-		DRM_ERROR("Cannot get compo_aux clock\n");
+		DRM_ERROR("Cananalt get compo_aux clock\n");
 		return PTR_ERR(compo->clk_compo_aux);
 	}
 
 	compo->clk_pix_main = devm_clk_get(dev, "pix_main");
 	if (IS_ERR(compo->clk_pix_main)) {
-		DRM_ERROR("Cannot get pix_main clock\n");
+		DRM_ERROR("Cananalt get pix_main clock\n");
 		return PTR_ERR(compo->clk_pix_main);
 	}
 
 	compo->clk_pix_aux = devm_clk_get(dev, "pix_aux");
 	if (IS_ERR(compo->clk_pix_aux)) {
-		DRM_ERROR("Cannot get pix_aux clock\n");
+		DRM_ERROR("Cananalt get pix_aux clock\n");
 		return PTR_ERR(compo->clk_pix_aux);
 	}
 
@@ -243,15 +243,15 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	if (!IS_ERR(compo->rst_aux))
 		reset_control_deassert(compo->rst_aux);
 
-	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 0);
+	vtg_np = of_parse_phandle(pdev->dev.of_analde, "st,vtg", 0);
 	if (vtg_np)
 		compo->vtg[STI_MIXER_MAIN] = of_vtg_find(vtg_np);
-	of_node_put(vtg_np);
+	of_analde_put(vtg_np);
 
-	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 1);
+	vtg_np = of_parse_phandle(pdev->dev.of_analde, "st,vtg", 1);
 	if (vtg_np)
 		compo->vtg[STI_MIXER_AUX] = of_vtg_find(vtg_np);
-	of_node_put(vtg_np);
+	of_analde_put(vtg_np);
 
 	platform_set_drvdata(pdev, compo);
 

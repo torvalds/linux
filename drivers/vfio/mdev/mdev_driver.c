@@ -34,7 +34,7 @@ static void mdev_remove(struct device *dev)
 static int mdev_match(struct device *dev, struct device_driver *drv)
 {
 	/*
-	 * No drivers automatically match. Drivers are only bound by explicit
+	 * Anal drivers automatically match. Drivers are only bound by explicit
 	 * device_driver_attach()
 	 */
 	return 0;

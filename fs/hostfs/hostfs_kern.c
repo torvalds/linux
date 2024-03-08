@@ -21,30 +21,30 @@
 #include <init.h>
 #include <kern.h>
 
-struct hostfs_inode_info {
+struct hostfs_ianalde_info {
 	int fd;
 	fmode_t mode;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 	struct mutex open_mutex;
 	dev_t dev;
 };
 
-static inline struct hostfs_inode_info *HOSTFS_I(struct inode *inode)
+static inline struct hostfs_ianalde_info *HOSTFS_I(struct ianalde *ianalde)
 {
-	return list_entry(inode, struct hostfs_inode_info, vfs_inode);
+	return list_entry(ianalde, struct hostfs_ianalde_info, vfs_ianalde);
 }
 
-#define FILE_HOSTFS_I(file) HOSTFS_I(file_inode(file))
+#define FILE_HOSTFS_I(file) HOSTFS_I(file_ianalde(file))
 
-static struct kmem_cache *hostfs_inode_cache;
+static struct kmem_cache *hostfs_ianalde_cache;
 
 /* Changed in hostfs_args before the kernel starts running */
-static char *root_ino = "";
+static char *root_ianal = "";
 static int append = 0;
 
-static const struct inode_operations hostfs_iops;
-static const struct inode_operations hostfs_dir_iops;
-static const struct inode_operations hostfs_link_iops;
+static const struct ianalde_operations hostfs_iops;
+static const struct ianalde_operations hostfs_dir_iops;
+static const struct ianalde_operations hostfs_link_iops;
 
 #ifndef MODULE
 static int __init hostfs_args(char *options, int *add)
@@ -55,7 +55,7 @@ static int __init hostfs_args(char *options, int *add)
 	if (ptr != NULL)
 		*ptr++ = '\0';
 	if (*options != '\0')
-		root_ino = options;
+		root_ianal = options;
 
 	options = ptr;
 	while (options) {
@@ -125,12 +125,12 @@ static char *dentry_name(struct dentry *dentry)
 	return __dentry_name(dentry, name);
 }
 
-static char *inode_name(struct inode *ino)
+static char *ianalde_name(struct ianalde *ianal)
 {
 	struct dentry *dentry;
 	char *name;
 
-	dentry = d_find_alias(ino);
+	dentry = d_find_alias(ianal);
 	if (!dentry)
 		return NULL;
 
@@ -148,7 +148,7 @@ static char *follow_link(char *link)
 
 	name = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!name) {
-		n = -ENOMEM;
+		n = -EANALMEM;
 		goto out_free;
 	}
 
@@ -171,7 +171,7 @@ static char *follow_link(char *link)
 
 	resolved = kasprintf(GFP_KERNEL, "%s%s", link, name);
 	if (resolved == NULL) {
-		n = -ENOMEM;
+		n = -EANALMEM;
 		goto out_free;
 	}
 
@@ -212,41 +212,41 @@ static int hostfs_statfs(struct dentry *dentry, struct kstatfs *sf)
 	return 0;
 }
 
-static struct inode *hostfs_alloc_inode(struct super_block *sb)
+static struct ianalde *hostfs_alloc_ianalde(struct super_block *sb)
 {
-	struct hostfs_inode_info *hi;
+	struct hostfs_ianalde_info *hi;
 
-	hi = alloc_inode_sb(sb, hostfs_inode_cache, GFP_KERNEL_ACCOUNT);
+	hi = alloc_ianalde_sb(sb, hostfs_ianalde_cache, GFP_KERNEL_ACCOUNT);
 	if (hi == NULL)
 		return NULL;
 	hi->fd = -1;
 	hi->mode = 0;
 	hi->dev = 0;
-	inode_init_once(&hi->vfs_inode);
+	ianalde_init_once(&hi->vfs_ianalde);
 	mutex_init(&hi->open_mutex);
-	return &hi->vfs_inode;
+	return &hi->vfs_ianalde;
 }
 
-static void hostfs_evict_inode(struct inode *inode)
+static void hostfs_evict_ianalde(struct ianalde *ianalde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-	if (HOSTFS_I(inode)->fd != -1) {
-		close_file(&HOSTFS_I(inode)->fd);
-		HOSTFS_I(inode)->fd = -1;
-		HOSTFS_I(inode)->dev = 0;
+	truncate_ianalde_pages_final(&ianalde->i_data);
+	clear_ianalde(ianalde);
+	if (HOSTFS_I(ianalde)->fd != -1) {
+		close_file(&HOSTFS_I(ianalde)->fd);
+		HOSTFS_I(ianalde)->fd = -1;
+		HOSTFS_I(ianalde)->dev = 0;
 	}
 }
 
-static void hostfs_free_inode(struct inode *inode)
+static void hostfs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(hostfs_inode_cache, HOSTFS_I(inode));
+	kmem_cache_free(hostfs_ianalde_cache, HOSTFS_I(ianalde));
 }
 
 static int hostfs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	const char *root_path = root->d_sb->s_fs_info;
-	size_t offset = strlen(root_ino) + 1;
+	size_t offset = strlen(root_ianal) + 1;
 
 	if (strlen(root_path) > offset)
 		seq_show_option(seq, root_path + offset, NULL);
@@ -258,10 +258,10 @@ static int hostfs_show_options(struct seq_file *seq, struct dentry *root)
 }
 
 static const struct super_operations hostfs_sbops = {
-	.alloc_inode	= hostfs_alloc_inode,
-	.free_inode	= hostfs_free_inode,
-	.drop_inode	= generic_delete_inode,
-	.evict_inode	= hostfs_evict_inode,
+	.alloc_ianalde	= hostfs_alloc_ianalde,
+	.free_ianalde	= hostfs_free_ianalde,
+	.drop_ianalde	= generic_delete_ianalde,
+	.evict_ianalde	= hostfs_evict_ianalde,
 	.statfs		= hostfs_statfs,
 	.show_options	= hostfs_show_options,
 };
@@ -270,21 +270,21 @@ static int hostfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	void *dir;
 	char *name;
-	unsigned long long next, ino;
+	unsigned long long next, ianal;
 	int error, len;
 	unsigned int type;
 
 	name = dentry_name(file->f_path.dentry);
 	if (name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	dir = open_dir(name, &error);
 	__putname(name);
 	if (dir == NULL)
 		return -error;
 	next = ctx->pos;
 	seek_dir(dir, next);
-	while ((name = read_dir(dir, &next, &ino, &len, &type)) != NULL) {
-		if (!dir_emit(ctx, name, len, ino, type))
+	while ((name = read_dir(dir, &next, &ianal, &len, &type)) != NULL) {
+		if (!dir_emit(ctx, name, len, ianal, type))
 			break;
 		ctx->pos = next;
 	}
@@ -292,7 +292,7 @@ static int hostfs_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static int hostfs_open(struct inode *ino, struct file *file)
+static int hostfs_open(struct ianalde *ianal, struct file *file)
 {
 	char *name;
 	fmode_t mode;
@@ -300,10 +300,10 @@ static int hostfs_open(struct inode *ino, struct file *file)
 	int r, w, fd;
 
 	mode = file->f_mode & (FMODE_READ | FMODE_WRITE);
-	if ((mode & HOSTFS_I(ino)->mode) == mode)
+	if ((mode & HOSTFS_I(ianal)->mode) == mode)
 		return 0;
 
-	mode |= HOSTFS_I(ino)->mode;
+	mode |= HOSTFS_I(ianal)->mode;
 
 retry:
 	r = w = 0;
@@ -315,45 +315,45 @@ retry:
 
 	name = dentry_name(file_dentry(file));
 	if (name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fd = open_file(name, r, w, append);
 	__putname(name);
 	if (fd < 0)
 		return fd;
 
-	mutex_lock(&HOSTFS_I(ino)->open_mutex);
+	mutex_lock(&HOSTFS_I(ianal)->open_mutex);
 	/* somebody else had handled it first? */
-	if ((mode & HOSTFS_I(ino)->mode) == mode) {
-		mutex_unlock(&HOSTFS_I(ino)->open_mutex);
+	if ((mode & HOSTFS_I(ianal)->mode) == mode) {
+		mutex_unlock(&HOSTFS_I(ianal)->open_mutex);
 		close_file(&fd);
 		return 0;
 	}
-	if ((mode | HOSTFS_I(ino)->mode) != mode) {
-		mode |= HOSTFS_I(ino)->mode;
-		mutex_unlock(&HOSTFS_I(ino)->open_mutex);
+	if ((mode | HOSTFS_I(ianal)->mode) != mode) {
+		mode |= HOSTFS_I(ianal)->mode;
+		mutex_unlock(&HOSTFS_I(ianal)->open_mutex);
 		close_file(&fd);
 		goto retry;
 	}
-	if (HOSTFS_I(ino)->fd == -1) {
-		HOSTFS_I(ino)->fd = fd;
+	if (HOSTFS_I(ianal)->fd == -1) {
+		HOSTFS_I(ianal)->fd = fd;
 	} else {
-		err = replace_file(fd, HOSTFS_I(ino)->fd);
+		err = replace_file(fd, HOSTFS_I(ianal)->fd);
 		close_file(&fd);
 		if (err < 0) {
-			mutex_unlock(&HOSTFS_I(ino)->open_mutex);
+			mutex_unlock(&HOSTFS_I(ianal)->open_mutex);
 			return err;
 		}
 	}
-	HOSTFS_I(ino)->mode = mode;
-	mutex_unlock(&HOSTFS_I(ino)->open_mutex);
+	HOSTFS_I(ianal)->mode = mode;
+	mutex_unlock(&HOSTFS_I(ianal)->open_mutex);
 
 	return 0;
 }
 
-static int hostfs_file_release(struct inode *inode, struct file *file)
+static int hostfs_file_release(struct ianalde *ianalde, struct file *file)
 {
-	filemap_write_and_wait(inode->i_mapping);
+	filemap_write_and_wait(ianalde->i_mapping);
 
 	return 0;
 }
@@ -361,16 +361,16 @@ static int hostfs_file_release(struct inode *inode, struct file *file)
 static int hostfs_fsync(struct file *file, loff_t start, loff_t end,
 			int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	int ret;
 
 	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
 		return ret;
 
-	inode_lock(inode);
-	ret = fsync_file(HOSTFS_I(inode)->fd, datasync);
-	inode_unlock(inode);
+	ianalde_lock(ianalde);
+	ret = fsync_file(HOSTFS_I(ianalde)->fd, datasync);
+	ianalde_unlock(ianalde);
 
 	return ret;
 }
@@ -398,19 +398,19 @@ static const struct file_operations hostfs_dir_fops = {
 static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct address_space *mapping = page->mapping;
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	char *buffer;
 	loff_t base = page_offset(page);
 	int count = PAGE_SIZE;
-	int end_index = inode->i_size >> PAGE_SHIFT;
+	int end_index = ianalde->i_size >> PAGE_SHIFT;
 	int err;
 
 	if (page->index >= end_index)
-		count = inode->i_size & (PAGE_SIZE-1);
+		count = ianalde->i_size & (PAGE_SIZE-1);
 
 	buffer = kmap_local_page(page);
 
-	err = write_file(HOSTFS_I(inode)->fd, &base, buffer, count);
+	err = write_file(HOSTFS_I(ianalde)->fd, &base, buffer, count);
 	if (err != count) {
 		if (err >= 0)
 			err = -EIO;
@@ -418,8 +418,8 @@ static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
 		goto out;
 	}
 
-	if (base > inode->i_size)
-		inode->i_size = base;
+	if (base > ianalde->i_size)
+		ianalde->i_size = base;
 
 	err = 0;
 
@@ -468,7 +468,7 @@ static int hostfs_write_begin(struct file *file, struct address_space *mapping,
 
 	*pagep = grab_cache_page_write_begin(mapping, index);
 	if (!*pagep)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -476,7 +476,7 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len, unsigned copied,
 			    struct page *page, void *fsdata)
 {
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	void *buffer;
 	unsigned from = pos & (PAGE_SIZE - 1);
 	int err;
@@ -492,8 +492,8 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 	 * If err > 0, write_file has added err to pos, so we are comparing
 	 * i_size against the last byte written.
 	 */
-	if (err > 0 && (pos > inode->i_size))
-		inode->i_size = pos;
+	if (err > 0 && (pos > ianalde->i_size))
+		ianalde->i_size = pos;
 	unlock_page(page);
 	put_page(page);
 
@@ -508,26 +508,26 @@ static const struct address_space_operations hostfs_aops = {
 	.write_end	= hostfs_write_end,
 };
 
-static int hostfs_inode_update(struct inode *ino, const struct hostfs_stat *st)
+static int hostfs_ianalde_update(struct ianalde *ianal, const struct hostfs_stat *st)
 {
-	set_nlink(ino, st->nlink);
-	i_uid_write(ino, st->uid);
-	i_gid_write(ino, st->gid);
-	inode_set_atime_to_ts(ino, (struct timespec64){
+	set_nlink(ianal, st->nlink);
+	i_uid_write(ianal, st->uid);
+	i_gid_write(ianal, st->gid);
+	ianalde_set_atime_to_ts(ianal, (struct timespec64){
 			st->atime.tv_sec,
 			st->atime.tv_nsec,
 		});
-	inode_set_mtime_to_ts(ino, (struct timespec64){
+	ianalde_set_mtime_to_ts(ianal, (struct timespec64){
 			st->mtime.tv_sec,
 			st->mtime.tv_nsec,
 		});
-	inode_set_ctime(ino, st->ctime.tv_sec, st->ctime.tv_nsec);
-	ino->i_size = st->size;
-	ino->i_blocks = st->blocks;
+	ianalde_set_ctime(ianal, st->ctime.tv_sec, st->ctime.tv_nsec);
+	ianal->i_size = st->size;
+	ianal->i_blocks = st->blocks;
 	return 0;
 }
 
-static int hostfs_inode_set(struct inode *ino, void *data)
+static int hostfs_ianalde_set(struct ianalde *ianal, void *data)
 {
 	struct hostfs_stat *st = data;
 	dev_t rdev;
@@ -537,76 +537,76 @@ static int hostfs_inode_set(struct inode *ino, void *data)
 
 	switch (st->mode & S_IFMT) {
 	case S_IFLNK:
-		ino->i_op = &hostfs_link_iops;
+		ianal->i_op = &hostfs_link_iops;
 		break;
 	case S_IFDIR:
-		ino->i_op = &hostfs_dir_iops;
-		ino->i_fop = &hostfs_dir_fops;
+		ianal->i_op = &hostfs_dir_iops;
+		ianal->i_fop = &hostfs_dir_fops;
 		break;
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFIFO:
 	case S_IFSOCK:
-		init_special_inode(ino, st->mode & S_IFMT, rdev);
-		ino->i_op = &hostfs_iops;
+		init_special_ianalde(ianal, st->mode & S_IFMT, rdev);
+		ianal->i_op = &hostfs_iops;
 		break;
 	case S_IFREG:
-		ino->i_op = &hostfs_iops;
-		ino->i_fop = &hostfs_file_fops;
-		ino->i_mapping->a_ops = &hostfs_aops;
+		ianal->i_op = &hostfs_iops;
+		ianal->i_fop = &hostfs_file_fops;
+		ianal->i_mapping->a_ops = &hostfs_aops;
 		break;
 	default:
 		return -EIO;
 	}
 
-	HOSTFS_I(ino)->dev = st->dev;
-	ino->i_ino = st->ino;
-	ino->i_mode = st->mode;
-	return hostfs_inode_update(ino, st);
+	HOSTFS_I(ianal)->dev = st->dev;
+	ianal->i_ianal = st->ianal;
+	ianal->i_mode = st->mode;
+	return hostfs_ianalde_update(ianal, st);
 }
 
-static int hostfs_inode_test(struct inode *inode, void *data)
+static int hostfs_ianalde_test(struct ianalde *ianalde, void *data)
 {
 	const struct hostfs_stat *st = data;
 
-	return inode->i_ino == st->ino && HOSTFS_I(inode)->dev == st->dev;
+	return ianalde->i_ianal == st->ianal && HOSTFS_I(ianalde)->dev == st->dev;
 }
 
-static struct inode *hostfs_iget(struct super_block *sb, char *name)
+static struct ianalde *hostfs_iget(struct super_block *sb, char *name)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct hostfs_stat st;
 	int err = stat_file(name, &st, -1);
 
 	if (err)
 		return ERR_PTR(err);
 
-	inode = iget5_locked(sb, st.ino, hostfs_inode_test, hostfs_inode_set,
+	ianalde = iget5_locked(sb, st.ianal, hostfs_ianalde_test, hostfs_ianalde_set,
 			     &st);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
-	if (inode->i_state & I_NEW) {
-		unlock_new_inode(inode);
+	if (ianalde->i_state & I_NEW) {
+		unlock_new_ianalde(ianalde);
 	} else {
-		spin_lock(&inode->i_lock);
-		hostfs_inode_update(inode, &st);
-		spin_unlock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
+		hostfs_ianalde_update(ianalde, &st);
+		spin_unlock(&ianalde->i_lock);
 	}
 
-	return inode;
+	return ianalde;
 }
 
-static int hostfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int hostfs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 			 struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	char *name;
 	int fd;
 
 	name = dentry_name(dentry);
 	if (name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fd = file_create(name, mode & 0777);
 	if (fd < 0) {
@@ -614,47 +614,47 @@ static int hostfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		return fd;
 	}
 
-	inode = hostfs_iget(dir->i_sb, name);
+	ianalde = hostfs_iget(dir->i_sb, name);
 	__putname(name);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (IS_ERR(ianalde))
+		return PTR_ERR(ianalde);
 
-	HOSTFS_I(inode)->fd = fd;
-	HOSTFS_I(inode)->mode = FMODE_READ | FMODE_WRITE;
-	d_instantiate(dentry, inode);
+	HOSTFS_I(ianalde)->fd = fd;
+	HOSTFS_I(ianalde)->mode = FMODE_READ | FMODE_WRITE;
+	d_instantiate(dentry, ianalde);
 	return 0;
 }
 
-static struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
+static struct dentry *hostfs_lookup(struct ianalde *ianal, struct dentry *dentry,
 				    unsigned int flags)
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	char *name;
 
 	name = dentry_name(dentry);
 	if (name == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	inode = hostfs_iget(ino->i_sb, name);
+	ianalde = hostfs_iget(ianal->i_sb, name);
 	__putname(name);
-	if (inode == ERR_PTR(-ENOENT))
-		inode = NULL;
+	if (ianalde == ERR_PTR(-EANALENT))
+		ianalde = NULL;
 
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
-static int hostfs_link(struct dentry *to, struct inode *ino,
+static int hostfs_link(struct dentry *to, struct ianalde *ianal,
 		       struct dentry *from)
 {
 	char *from_name, *to_name;
 	int err;
 
 	if ((from_name = dentry_name(from)) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	to_name = dentry_name(to);
 	if (to_name == NULL) {
 		__putname(from_name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	err = link_file(to_name, from_name);
 	__putname(from_name);
@@ -662,7 +662,7 @@ static int hostfs_link(struct dentry *to, struct inode *ino,
 	return err;
 }
 
-static int hostfs_unlink(struct inode *ino, struct dentry *dentry)
+static int hostfs_unlink(struct ianalde *ianal, struct dentry *dentry)
 {
 	char *file;
 	int err;
@@ -671,95 +671,95 @@ static int hostfs_unlink(struct inode *ino, struct dentry *dentry)
 		return -EPERM;
 
 	if ((file = dentry_name(dentry)) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = unlink_file(file);
 	__putname(file);
 	return err;
 }
 
-static int hostfs_symlink(struct mnt_idmap *idmap, struct inode *ino,
+static int hostfs_symlink(struct mnt_idmap *idmap, struct ianalde *ianal,
 			  struct dentry *dentry, const char *to)
 {
 	char *file;
 	int err;
 
 	if ((file = dentry_name(dentry)) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = make_symlink(file, to);
 	__putname(file);
 	return err;
 }
 
-static int hostfs_mkdir(struct mnt_idmap *idmap, struct inode *ino,
+static int hostfs_mkdir(struct mnt_idmap *idmap, struct ianalde *ianal,
 			struct dentry *dentry, umode_t mode)
 {
 	char *file;
 	int err;
 
 	if ((file = dentry_name(dentry)) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = do_mkdir(file, mode);
 	__putname(file);
 	return err;
 }
 
-static int hostfs_rmdir(struct inode *ino, struct dentry *dentry)
+static int hostfs_rmdir(struct ianalde *ianal, struct dentry *dentry)
 {
 	char *file;
 	int err;
 
 	if ((file = dentry_name(dentry)) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = hostfs_do_rmdir(file);
 	__putname(file);
 	return err;
 }
 
-static int hostfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int hostfs_mkanald(struct mnt_idmap *idmap, struct ianalde *dir,
 			struct dentry *dentry, umode_t mode, dev_t dev)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	char *name;
 	int err;
 
 	name = dentry_name(dentry);
 	if (name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = do_mknod(name, mode, MAJOR(dev), MINOR(dev));
+	err = do_mkanald(name, mode, MAJOR(dev), MIANALR(dev));
 	if (err) {
 		__putname(name);
 		return err;
 	}
 
-	inode = hostfs_iget(dir->i_sb, name);
+	ianalde = hostfs_iget(dir->i_sb, name);
 	__putname(name);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (IS_ERR(ianalde))
+		return PTR_ERR(ianalde);
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, ianalde);
 	return 0;
 }
 
 static int hostfs_rename2(struct mnt_idmap *idmap,
-			  struct inode *old_dir, struct dentry *old_dentry,
-			  struct inode *new_dir, struct dentry *new_dentry,
+			  struct ianalde *old_dir, struct dentry *old_dentry,
+			  struct ianalde *new_dir, struct dentry *new_dentry,
 			  unsigned int flags)
 {
 	char *old_name, *new_name;
 	int err;
 
-	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+	if (flags & ~(RENAME_ANALREPLACE | RENAME_EXCHANGE))
 		return -EINVAL;
 
 	old_name = dentry_name(old_dentry);
 	if (old_name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	new_name = dentry_name(new_dentry);
 	if (new_name == NULL) {
 		__putname(old_name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (!flags)
 		err = rename_file(old_name, new_name);
@@ -772,43 +772,43 @@ static int hostfs_rename2(struct mnt_idmap *idmap,
 }
 
 static int hostfs_permission(struct mnt_idmap *idmap,
-			     struct inode *ino, int desired)
+			     struct ianalde *ianal, int desired)
 {
 	char *name;
 	int r = 0, w = 0, x = 0, err;
 
-	if (desired & MAY_NOT_BLOCK)
+	if (desired & MAY_ANALT_BLOCK)
 		return -ECHILD;
 
 	if (desired & MAY_READ) r = 1;
 	if (desired & MAY_WRITE) w = 1;
 	if (desired & MAY_EXEC) x = 1;
-	name = inode_name(ino);
+	name = ianalde_name(ianal);
 	if (name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (S_ISCHR(ino->i_mode) || S_ISBLK(ino->i_mode) ||
-	    S_ISFIFO(ino->i_mode) || S_ISSOCK(ino->i_mode))
+	if (S_ISCHR(ianal->i_mode) || S_ISBLK(ianal->i_mode) ||
+	    S_ISFIFO(ianal->i_mode) || S_ISSOCK(ianal->i_mode))
 		err = 0;
 	else
 		err = access_file(name, r, w, x);
 	__putname(name);
 	if (!err)
-		err = generic_permission(&nop_mnt_idmap, ino, desired);
+		err = generic_permission(&analp_mnt_idmap, ianal, desired);
 	return err;
 }
 
 static int hostfs_setattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct hostfs_iattr attrs;
 	char *name;
 	int err;
 
-	int fd = HOSTFS_I(inode)->fd;
+	int fd = HOSTFS_I(ianalde)->fd;
 
-	err = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	err = setattr_prepare(&analp_mnt_idmap, dentry, attr);
 	if (err)
 		return err;
 
@@ -855,27 +855,27 @@ static int hostfs_setattr(struct mnt_idmap *idmap,
 	}
 	name = dentry_name(dentry);
 	if (name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = set_attr(name, &attrs, fd);
 	__putname(name);
 	if (err)
 		return err;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode))
-		truncate_setsize(inode, attr->ia_size);
+	    attr->ia_size != i_size_read(ianalde))
+		truncate_setsize(ianalde, attr->ia_size);
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(&analp_mnt_idmap, ianalde, attr);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
-static const struct inode_operations hostfs_iops = {
+static const struct ianalde_operations hostfs_iops = {
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 };
 
-static const struct inode_operations hostfs_dir_iops = {
+static const struct ianalde_operations hostfs_dir_iops = {
 	.create		= hostfs_create,
 	.lookup		= hostfs_lookup,
 	.link		= hostfs_link,
@@ -883,14 +883,14 @@ static const struct inode_operations hostfs_dir_iops = {
 	.symlink	= hostfs_symlink,
 	.mkdir		= hostfs_mkdir,
 	.rmdir		= hostfs_rmdir,
-	.mknod		= hostfs_mknod,
+	.mkanald		= hostfs_mkanald,
 	.rename		= hostfs_rename2,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 };
 
 static const char *hostfs_get_link(struct dentry *dentry,
-				   struct inode *inode,
+				   struct ianalde *ianalde,
 				   struct delayed_call *done)
 {
 	char *link;
@@ -899,7 +899,7 @@ static const char *hostfs_get_link(struct dentry *dentry,
 	link = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (link) {
 		char *path = dentry_name(dentry);
-		int err = -ENOMEM;
+		int err = -EANALMEM;
 		if (path) {
 			err = hostfs_do_readlink(path, link, PATH_MAX);
 			if (err == PATH_MAX)
@@ -911,20 +911,20 @@ static const char *hostfs_get_link(struct dentry *dentry,
 			return ERR_PTR(err);
 		}
 	} else {
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	set_delayed_call(done, kfree_link, link);
 	return link;
 }
 
-static const struct inode_operations hostfs_link_iops = {
+static const struct ianalde_operations hostfs_link_iops = {
 	.get_link	= hostfs_get_link,
 };
 
 static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 {
-	struct inode *root_inode;
+	struct ianalde *root_ianalde;
 	char *host_root_path, *req_root = d;
 	int err;
 
@@ -943,31 +943,31 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 		req_root = "";
 
 	sb->s_fs_info = host_root_path =
-		kasprintf(GFP_KERNEL, "%s/%s", root_ino, req_root);
+		kasprintf(GFP_KERNEL, "%s/%s", root_ianal, req_root);
 	if (host_root_path == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	root_inode = hostfs_iget(sb, host_root_path);
-	if (IS_ERR(root_inode))
-		return PTR_ERR(root_inode);
+	root_ianalde = hostfs_iget(sb, host_root_path);
+	if (IS_ERR(root_ianalde))
+		return PTR_ERR(root_ianalde);
 
-	if (S_ISLNK(root_inode->i_mode)) {
+	if (S_ISLNK(root_ianalde->i_mode)) {
 		char *name;
 
-		iput(root_inode);
+		iput(root_ianalde);
 		name = follow_link(host_root_path);
 		if (IS_ERR(name))
 			return PTR_ERR(name);
 
-		root_inode = hostfs_iget(sb, name);
+		root_ianalde = hostfs_iget(sb, name);
 		kfree(name);
-		if (IS_ERR(root_inode))
-			return PTR_ERR(root_inode);
+		if (IS_ERR(root_ianalde))
+			return PTR_ERR(root_ianalde);
 	}
 
-	sb->s_root = d_make_root(root_inode);
+	sb->s_root = d_make_root(root_ianalde);
 	if (sb->s_root == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -976,12 +976,12 @@ static struct dentry *hostfs_read_sb(struct file_system_type *type,
 			  int flags, const char *dev_name,
 			  void *data)
 {
-	return mount_nodev(type, flags, data, hostfs_fill_sb_common);
+	return mount_analdev(type, flags, data, hostfs_fill_sb_common);
 }
 
 static void hostfs_kill_sb(struct super_block *s)
 {
-	kill_anon_super(s);
+	kill_aanaln_super(s);
 	kfree(s->s_fs_info);
 }
 
@@ -996,16 +996,16 @@ MODULE_ALIAS_FS("hostfs");
 
 static int __init init_hostfs(void)
 {
-	hostfs_inode_cache = KMEM_CACHE(hostfs_inode_info, 0);
-	if (!hostfs_inode_cache)
-		return -ENOMEM;
+	hostfs_ianalde_cache = KMEM_CACHE(hostfs_ianalde_info, 0);
+	if (!hostfs_ianalde_cache)
+		return -EANALMEM;
 	return register_filesystem(&hostfs_type);
 }
 
 static void __exit exit_hostfs(void)
 {
 	unregister_filesystem(&hostfs_type);
-	kmem_cache_destroy(hostfs_inode_cache);
+	kmem_cache_destroy(hostfs_ianalde_cache);
 }
 
 module_init(init_hostfs)

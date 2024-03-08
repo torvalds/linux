@@ -92,7 +92,7 @@ mmc_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 			return retval;
 
 		retval = add_uevent_var(env, "SDIO_REVISION=%u.%u",
-					card->major_rev, card->minor_rev);
+					card->major_rev, card->mianalr_rev);
 		if (retval)
 			return retval;
 
@@ -104,7 +104,7 @@ mmc_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	}
 
 	/*
-	 * SDIO (non-combo) cards are not handled by mmc_block driver and do not
+	 * SDIO (analn-combo) cards are analt handled by mmc_block driver and do analt
 	 * have accessible CID register which used by mmc_card_name() function.
 	 */
 	if (mmc_card_sdio(card))
@@ -115,8 +115,8 @@ mmc_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 		return retval;
 
 	/*
-	 * Request the mmc_block device.  Note: that this is a direct request
-	 * for the module it carries no information as to what is inserted.
+	 * Request the mmc_block device.  Analte: that this is a direct request
+	 * for the module it carries anal information as to what is inserted.
 	 */
 	retval = add_uevent_var(env, "MODALIAS=mmc:block");
 
@@ -278,7 +278,7 @@ struct mmc_card *mmc_alloc_card(struct mmc_host *host, struct device_type *type)
 
 	card = kzalloc(sizeof(struct mmc_card), GFP_KERNEL);
 	if (!card)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	card->host = host;
 
@@ -363,7 +363,7 @@ int mmc_add_card(struct mmc_card *card)
 	}
 
 	mmc_add_card_debugfs(card);
-	card->dev.of_node = mmc_of_find_child_device(card->host, 0);
+	card->dev.of_analde = mmc_of_find_child_device(card->host, 0);
 
 	device_enable_async_suspend(&card->dev);
 
@@ -395,7 +395,7 @@ void mmc_remove_card(struct mmc_card *card)
 				mmc_hostname(card->host), card->rca);
 		}
 		device_del(&card->dev);
-		of_node_put(card->dev.of_node);
+		of_analde_put(card->dev.of_analde);
 	}
 
 	if (host->cqe_enabled) {

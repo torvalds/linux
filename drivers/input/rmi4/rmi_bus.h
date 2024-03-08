@@ -13,7 +13,7 @@ struct rmi_device;
 
 /*
  * The interrupt source count in the function descriptor can represent up to
- * 6 interrupt sources in the normal manner.
+ * 6 interrupt sources in the analrmal manner.
  */
 #define RMI_FN_MAX_IRQS	6
 
@@ -31,13 +31,13 @@ struct rmi_device;
  * interrupt handling.
  * @irqs: assigned virq numbers (up to num_of_irqs)
  *
- * @node: entry in device's list of functions
+ * @analde: entry in device's list of functions
  */
 struct rmi_function {
 	struct rmi_function_descriptor fd;
 	struct rmi_device *rmi_dev;
 	struct device dev;
-	struct list_head node;
+	struct list_head analde;
 
 	unsigned int num_of_irqs;
 	int irq[RMI_FN_MAX_IRQS];

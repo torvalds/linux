@@ -730,7 +730,7 @@ l0_%=:	r0 = 0;						\
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void reg_pkt_end_in_subprog__1(void)
 {
 	asm volatile ("					\
@@ -777,7 +777,7 @@ __naked void id_in_regsafe_bad_access(void)
 	r2 += 1;					\
 	r3 += r7;					\
 	r3 += 1;					\
-	/* if r6 > r7 goto +1    ; no new information about the state is derived from\
+	/* if r6 > r7 goto +1    ; anal new information about the state is derived from\
 	 *                       ; this check, thus produced verifier states differ\
 	 *                       ; only in 'insn_idx'	\
 	 * r2 = r3               ; optionally share ID between r2 and r3\
@@ -787,7 +787,7 @@ __naked void id_in_regsafe_bad_access(void)
 l1_%=:	/* if r3 > ctx->data_end goto exit */		\
 	if r3 > r4 goto l0_%=;				\
 	/* r5 = *(u8 *) (r2 - 1) ; access packet memory using r2,\
-	 *                       ; this is not always safe\
+	 *                       ; this is analt always safe\
 	 */						\
 	r5 = *(u8*)(r2 - 1);				\
 l0_%=:	/* exit(0) */					\

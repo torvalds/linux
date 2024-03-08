@@ -175,7 +175,7 @@ static int nft_fwd_neigh_init(const struct nft_ctx *ctx,
 		addr_len = sizeof(struct in6_addr);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = nft_parse_register_load(tb[NFTA_FWD_SREG_DEV], &priv->sreg_dev,
@@ -243,7 +243,7 @@ nft_fwd_select_ops(const struct nft_ctx *ctx,
 	if (tb[NFTA_FWD_SREG_DEV])
 		return &nft_fwd_netdev_ops;
 
-        return ERR_PTR(-EOPNOTSUPP);
+        return ERR_PTR(-EOPANALTSUPP);
 }
 
 static struct nft_expr_type nft_fwd_netdev_type __read_mostly = {

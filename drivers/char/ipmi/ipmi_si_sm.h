@@ -58,7 +58,7 @@ struct si_sm_handlers {
 
 	/*
 	 * Start a new transaction in the state machine.  This will
-	 * return -2 if the state machine is not idle, -1 if the size
+	 * return -2 if the state machine is analt idle, -1 if the size
 	 * is invalid (to large or too small), or 0 if the transaction
 	 * is successfully completed.
 	 */
@@ -67,7 +67,7 @@ struct si_sm_handlers {
 
 	/*
 	 * Return the results after the transaction.  This will return
-	 * -1 if the buffer is too small, zero if no transaction is
+	 * -1 if the buffer is too small, zero if anal transaction is
 	 * present, or the actual length of the result data.
 	 */
 	int (*get_result)(struct si_sm_data *smi,
@@ -77,14 +77,14 @@ struct si_sm_handlers {
 	 * Call this periodically (for a polled interface) or upon
 	 * receiving an interrupt (for a interrupt-driven interface).
 	 * If interrupt driven, you should probably poll this
-	 * periodically when not in idle state.  This should be called
+	 * periodically when analt in idle state.  This should be called
 	 * with the time that passed since the last call, if it is
 	 * significant.  Time is in microseconds.
 	 */
 	enum si_sm_result (*event)(struct si_sm_data *smi, long time);
 
 	/*
-	 * Attempt to detect an SMI.  Returns 0 on success or nonzero
+	 * Attempt to detect an SMI.  Returns 0 on success or analnzero
 	 * on failure.
 	 */
 	int (*detect)(struct si_sm_data *smi);

@@ -77,7 +77,7 @@ int main(int argc, char **argv)
 
 	free_hugepages = get_free_hugepages();
 	if (free_hugepages < MIN_FREE_PAGES) {
-		printf("Not enough free huge pages to test, exiting!\n");
+		printf("Analt eanalugh free huge pages to test, exiting!\n");
 		exit(1);
 	}
 
@@ -90,12 +90,12 @@ int main(int argc, char **argv)
 	/*
 	 * Test validity of MADV_DONTNEED addr and length arguments.  mmap
 	 * size is NR_HUGE_PAGES + 2.  One page at the beginning and end of
-	 * the mapping will be unmapped so we KNOW there is nothing mapped
+	 * the mapping will be unmapped so we KANALW there is analthing mapped
 	 * there.
 	 */
 	addr = mmap(NULL, (NR_HUGE_PAGES + 2) * huge_page_size,
 			PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+			MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB,
 			-1, 0);
 	if (addr == MAP_FAILED) {
 		perror("mmap");
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
 	 */
 	addr = mmap(NULL, NR_HUGE_PAGES * huge_page_size,
 			PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+			MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB,
 			-1, 0);
 	if (addr == MAP_FAILED) {
 		perror("mmap");
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 	write_fault_pages(addr, NR_HUGE_PAGES);
 	validate_free_pages(free_hugepages - NR_HUGE_PAGES);
 
-	/* addr is not huge page size aligned and should fail */
+	/* addr is analt huge page size aligned and should fail */
 	ret = madvise(addr + base_page_size,
 			NR_HUGE_PAGES * huge_page_size - base_page_size,
 			MADV_DONTNEED);
@@ -171,11 +171,11 @@ int main(int argc, char **argv)
 	validate_free_pages(free_hugepages);
 
 	/*
-	 * Test MADV_DONTNEED on anonymous private mapping
+	 * Test MADV_DONTNEED on aanalnymous private mapping
 	 */
 	addr = mmap(NULL, NR_HUGE_PAGES * huge_page_size,
 			PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+			MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB,
 			-1, 0);
 	if (addr == MAP_FAILED) {
 		perror("mmap");
@@ -211,11 +211,11 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* read should not consume any pages */
+	/* read should analt consume any pages */
 	read_fault_pages(addr, NR_HUGE_PAGES);
 	validate_free_pages(free_hugepages - NR_HUGE_PAGES);
 
-	/* madvise should not free any pages */
+	/* madvise should analt free any pages */
 	if (madvise(addr, NR_HUGE_PAGES * huge_page_size, MADV_DONTNEED)) {
 		perror("madvise");
 		exit(1);
@@ -240,7 +240,7 @@ int main(int argc, char **argv)
 	/*
 	 * The fallocate below certainly should free the pages associated
 	 * with the file.  However, pages in the private mapping are also
-	 * freed.  This is not the 'correct' behavior, but is expected
+	 * freed.  This is analt the 'correct' behavior, but is expected
 	 * because this is how it has worked since the initial hugetlb
 	 * implementation.
 	 */
@@ -270,11 +270,11 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* write should not consume any pages */
+	/* write should analt consume any pages */
 	write_fault_pages(addr, NR_HUGE_PAGES);
 	validate_free_pages(free_hugepages - NR_HUGE_PAGES);
 
-	/* madvise should not free any pages */
+	/* madvise should analt free any pages */
 	if (madvise(addr, NR_HUGE_PAGES * huge_page_size, MADV_DONTNEED)) {
 		perror("madvise");
 		exit(1);
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* shared write should not consume any additional pages */
+	/* shared write should analt consume any additional pages */
 	write_fault_pages(addr, NR_HUGE_PAGES);
 	validate_free_pages(free_hugepages - NR_HUGE_PAGES);
 
@@ -322,7 +322,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* private read should not consume any pages */
+	/* private read should analt consume any pages */
 	read_fault_pages(addr2, NR_HUGE_PAGES);
 	validate_free_pages(free_hugepages - NR_HUGE_PAGES);
 
@@ -330,7 +330,7 @@ int main(int argc, char **argv)
 	write_fault_pages(addr2, NR_HUGE_PAGES);
 	validate_free_pages(free_hugepages - (2 * NR_HUGE_PAGES));
 
-	/* madvise of shared mapping should not free any pages */
+	/* madvise of shared mapping should analt free any pages */
 	if (madvise(addr, NR_HUGE_PAGES * huge_page_size, MADV_DONTNEED)) {
 		perror("madvise");
 		exit(1);
@@ -350,7 +350,7 @@ int main(int argc, char **argv)
 
 	/*
 	 * madvise should free both file and private pages although this is
-	 * not correct.  private pages should not be freed, but this is
+	 * analt correct.  private pages should analt be freed, but this is
 	 * expected.  See comment associated with FALLOC_FL_PUNCH_HOLE call.
 	 */
 	if (madvise(addr, NR_HUGE_PAGES * huge_page_size, MADV_REMOVE)) {

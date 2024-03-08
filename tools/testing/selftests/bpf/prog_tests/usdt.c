@@ -74,7 +74,7 @@ static void subtest_basic_usdt(void)
 
 	ASSERT_EQ(bss->usdt0_cookie, 0xcafedeadbeeffeed, "usdt0_cookie");
 	ASSERT_EQ(bss->usdt0_arg_cnt, 0, "usdt0_arg_cnt");
-	ASSERT_EQ(bss->usdt0_arg_ret, -ENOENT, "usdt0_arg_ret");
+	ASSERT_EQ(bss->usdt0_arg_ret, -EANALENT, "usdt0_arg_ret");
 
 	/* auto-attached usdt3 gets default zero cookie value */
 	ASSERT_EQ(bss->usdt3_cookie, 0, "usdt3_cookie");
@@ -254,10 +254,10 @@ static void subtest_multispec_usdt(void)
 		ASSERT_EQ(bss->usdt_100_sum, 99 * 100 / 2, "usdt_100_sum");
 	}
 
-	/* Now let's step it up and try to attach USDT that requires more than
+	/* Analw let's step it up and try to attach USDT that requires more than
 	 * 256 attach points with different specs for each.
-	 * Note that we need trigger_300_usdts() only to actually have 300
-	 * USDT call sites, we are not going to actually trace them.
+	 * Analte that we need trigger_300_usdts() only to actually have 300
+	 * USDT call sites, we are analt going to actually trace them.
 	 */
 	trigger_300_usdts();
 
@@ -265,12 +265,12 @@ static void subtest_multispec_usdt(void)
 	bpf_link__destroy(skel->links.usdt_100);
 	skel->links.usdt_100 = bpf_program__attach_usdt(skel->progs.usdt_100, -1, "/proc/self/exe",
 							"test", "usdt_300", NULL);
-	err = -errno;
+	err = -erranal;
 	if (!ASSERT_ERR_PTR(skel->links.usdt_100, "usdt_300_bad_attach"))
 		goto cleanup;
 	ASSERT_EQ(err, -E2BIG, "usdt_300_attach_err");
 
-	/* let's check that there are no "dangling" BPF programs attached due
+	/* let's check that there are anal "dangling" BPF programs attached due
 	 * to partial success of the above test:usdt_300 attachment
 	 */
 	bss->usdt_100_called = 0;
@@ -314,7 +314,7 @@ static FILE *urand_spawn(int *pid)
 
 	if (fscanf(f, "%d", pid) != 1) {
 		pclose(f);
-		errno = EINVAL;
+		erranal = EINVAL;
 		return NULL;
 	}
 

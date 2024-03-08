@@ -10,7 +10,7 @@
 
 #include <linux/dma-resv.h>
 #include <linux/kref.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/scatterlist.h>
 
 #include "xe_device_types.h"
@@ -40,19 +40,19 @@ struct xe_userptr {
 	/** @userptr: link into VM repin list if userptr. */
 	struct list_head repin_link;
 	/**
-	 * @notifier: MMU notifier for user pointer (invalidation call back)
+	 * @analtifier: MMU analtifier for user pointer (invalidation call back)
 	 */
-	struct mmu_interval_notifier notifier;
+	struct mmu_interval_analtifier analtifier;
 	/** @sgt: storage for a scatter gather table */
 	struct sg_table sgt;
 	/** @sg: allocated scatter gather table */
 	struct sg_table *sg;
-	/** @notifier_seq: notifier sequence number */
-	unsigned long notifier_seq;
+	/** @analtifier_seq: analtifier sequence number */
+	unsigned long analtifier_seq;
 	/**
 	 * @initial_bind: user pointer has been bound at least once.
-	 * write: vm->userptr.notifier_lock in read mode and vm->resv held.
-	 * read: vm->userptr.notifier_lock in write mode or vm->resv held.
+	 * write: vm->userptr.analtifier_lock in read mode and vm->resv held.
+	 * read: vm->userptr.analtifier_lock in write mode or vm->resv held.
 	 */
 	bool initial_bind;
 #if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
@@ -95,7 +95,7 @@ struct xe_vma {
 	/**
 	 * @tile_present: GT mask of binding are present for this VMA.
 	 * protected by vm->lock, vm->resv and for userptrs,
-	 * vm->userptr.notifier_lock for writing. Needs either for reading,
+	 * vm->userptr.analtifier_lock for writing. Needs either for reading,
 	 * but if reading is done under the vm->lock only, it needs to be held
 	 * in write mode.
 	 */
@@ -158,8 +158,8 @@ struct xe_vm {
 
 	/** @composite_fence_ctx: context composite fence */
 	u64 composite_fence_ctx;
-	/** @composite_fence_seqno: seqno for composite fence */
-	u32 composite_fence_seqno;
+	/** @composite_fence_seqanal: seqanal for composite fence */
+	u32 composite_fence_seqanal;
 
 	/**
 	 * @lock: outer most lock, protects objects of anything attached to this
@@ -202,8 +202,8 @@ struct xe_vm {
 		struct {
 			/** @context: context of async fence */
 			u64 context;
-			/** @seqno: seqno of async fence */
-			u32 seqno;
+			/** @seqanal: seqanal of async fence */
+			u32 seqanal;
 		} fence;
 		/** @error: error state for async VM ops */
 		int error;
@@ -224,22 +224,22 @@ struct xe_vm {
 		 */
 		struct list_head repin_list;
 		/**
-		 * @notifier_lock: protects notifier in write mode and
+		 * @analtifier_lock: protects analtifier in write mode and
 		 * submission in read mode.
 		 */
-		struct rw_semaphore notifier_lock;
+		struct rw_semaphore analtifier_lock;
 		/**
 		 * @userptr.invalidated_lock: Protects the
 		 * @userptr.invalidated list.
 		 */
 		spinlock_t invalidated_lock;
 		/**
-		 * @userptr.invalidated: List of invalidated userptrs, not yet
+		 * @userptr.invalidated: List of invalidated userptrs, analt yet
 		 * picked
 		 * up for revalidation. Protected from access with the
 		 * @invalidated_lock. Removing items from the list
 		 * additionally requires @lock in write mode, and adding
-		 * items to the list requires the @userptr.notifer_lock in
+		 * items to the list requires the @userptr.analtifer_lock in
 		 * write mode.
 		 */
 		struct list_head invalidated;
@@ -258,7 +258,7 @@ struct xe_vm {
 		int num_exec_queues;
 		/**
 		 * @rebind_deactivated: Whether rebind has been temporarily deactivated
-		 * due to no work available. Protected by the vm resv.
+		 * due to anal work available. Protected by the vm resv.
 		 */
 		bool rebind_deactivated;
 		/**

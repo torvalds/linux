@@ -30,7 +30,7 @@ ACPI_MODULE_NAME("osunixmap")
  *
  * FUNCTION:    acpi_os_get_page_size
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Page size of the platform.
  *
@@ -69,7 +69,7 @@ void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
 
 	fd = open(SYSTEM_MEMORY, O_RDONLY | O_BINARY);
 	if (fd < 0) {
-		fprintf(stderr, "Cannot open %s\n", SYSTEM_MEMORY);
+		fprintf(stderr, "Cananalt open %s\n", SYSTEM_MEMORY);
 		return (NULL);
 	}
 
@@ -83,7 +83,7 @@ void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
 	mapped_memory = mmap(NULL, (length + offset), PROT_READ, MMAP_FLAGS,
 			     fd, (where - offset));
 	if (mapped_memory == MAP_FAILED) {
-		fprintf(stderr, "Cannot map %s\n", SYSTEM_MEMORY);
+		fprintf(stderr, "Cananalt map %s\n", SYSTEM_MEMORY);
 		close(fd);
 		return (NULL);
 	}
@@ -99,7 +99,7 @@ void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
  * PARAMETERS:  where               - Logical address of memory to be unmapped
  *              length              - How much memory to unmap
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Delete a previously created mapping. Where and Length must
  *              correspond to a previous mapping exactly.

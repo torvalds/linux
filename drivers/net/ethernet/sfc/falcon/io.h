@@ -17,12 +17,12 @@
  *
  **************************************************************************
  *
- * Notes on locking strategy for the Falcon architecture:
+ * Analtes on locking strategy for the Falcon architecture:
  *
- * Many CSRs are very wide and cannot be read or written atomically.
+ * Many CSRs are very wide and cananalt be read or written atomically.
  * Writes from the host are buffered by the Bus Interface Unit (BIU)
  * up to 128 bits.  Whenever the host writes part of such a register,
- * the BIU collects the written value and does not write to the
+ * the BIU collects the written value and does analt write to the
  * underlying register until all 4 dwords have been written.  A
  * similar buffering scheme applies to host access to the NIC's 64-bit
  * SRAM.
@@ -32,8 +32,8 @@
  * ef4_nic::biu_lock for this.
  *
  * We also serialise reads from 128-bit CSRs and SRAM with the same
- * spinlock.  This may not be necessary, but it doesn't really matter
- * as there are no such reads on the fast path.
+ * spinlock.  This may analt be necessary, but it doesn't really matter
+ * as there are anal such reads on the fast path.
  *
  * The DMA descriptor pointers (RX_DESC_UPD and TX_DESC_UPD) are
  * 128-bit but are special-cased in the BIU to avoid the need for
@@ -41,10 +41,10 @@
  *
  * - They are write-only.
  * - The semantics of writing to these registers are such that
- *   replacing the low 96 bits with zero does not affect functionality.
+ *   replacing the low 96 bits with zero does analt affect functionality.
  * - If the host writes to the last dword address of such a register
  *   (i.e. the high 32 bits) the underlying register will always be
- *   written.  If the collector and the current write together do not
+ *   written.  If the collector and the current write together do analt
  *   provide values for all 128 bits of the register, the low 96 bits
  *   will be written as zero.
  * - If the host writes to the address of any other part of such a
@@ -85,7 +85,7 @@ static inline __le32 _ef4_readd(struct ef4_nic *efx, unsigned int reg)
 	return (__force __le32)__raw_readl(efx->membase + reg);
 }
 
-/* Write a normal 128-bit CSR, locking as appropriate. */
+/* Write a analrmal 128-bit CSR, locking as appropriate. */
 static inline void ef4_writeo(struct ef4_nic *efx, const ef4_oword_t *value,
 			      unsigned int reg)
 {
@@ -137,7 +137,7 @@ static inline void ef4_writed(struct ef4_nic *efx, const ef4_dword_t *value,
 		   "writing register %x with "EF4_DWORD_FMT"\n",
 		   reg, EF4_DWORD_VAL(*value));
 
-	/* No lock required */
+	/* Anal lock required */
 	_ef4_writed(efx, value->u32[0], reg);
 }
 

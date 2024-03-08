@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -56,7 +56,7 @@ nvkm_umem_search(struct nvkm_client *client, u64 handle)
 		memory = nvkm_memory_ref(umem->memory);
 	}
 
-	return memory ? memory : ERR_PTR(-ENOENT);
+	return memory ? memory : ERR_PTR(-EANALENT);
 }
 
 static int
@@ -147,7 +147,7 @@ nvkm_umem_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		struct nvif_mem_v0 v0;
 	} *args = argv;
 	struct nvkm_umem *umem;
-	int type, ret = -ENOSYS;
+	int type, ret = -EANALSYS;
 	u8  page;
 	u64 size;
 
@@ -162,7 +162,7 @@ nvkm_umem_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		return -EINVAL;
 
 	if (!(umem = kzalloc(sizeof(*umem), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nvkm_umem, oclass, &umem->object);
 	umem->mmu = mmu;
 	umem->type = mmu->type[type].type;

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021 Alvin Šipraga <alsi@bang-olufsen.dk>
  *
- * NOTE: Currently only supports protocol "4" found in the RTL8365MB, hence
+ * ANALTE: Currently only supports protocol "4" found in the RTL8365MB, hence
  * named tag_rtl8_4.
  *
  * This tag has the following format:
@@ -29,7 +29,7 @@
  *    field      | description
  *   ------------+-------------
  *    Realtek    | 0x8899: indicates that this is a proprietary Realtek tag;
- *     EtherType |         note that Realtek uses the same EtherType for
+ *     EtherType |         analte that Realtek uses the same EtherType for
  *               |         other incompatible tag formats (e.g. tag_rtl4_a.c)
  *    Protocol   | 0x04: indicates that this tag conforms to this format
  *    X          | reserved
@@ -38,7 +38,7 @@
  *               | 0: packet was forwarded or flooded to CPU
  *               | 80: packet was trapped to CPU
  *    FID_EN     | 1: packet has an FID
- *               | 0: no FID
+ *               | 0: anal FID
  *    FID        | FID of packet (if FID_EN=1)
  *    PRI_EN     | 1: force priority of packet
  *               | 0: don't force priority
@@ -48,7 +48,7 @@
  *    ALLOW      | 1: treat TX/RX field as an allowance port mask, meaning the
  *               |    packet may only be forwarded to ports specified in the
  *               |    mask
- *               | 0: no allowance port mask, TX/RX field is the forwarding
+ *               | 0: anal allowance port mask, TX/RX field is the forwarding
  *               |    port mask
  *    TX/RX      | TX (switch->CPU): port number the packet was received on
  *               | RX (CPU->switch): forwarding port mask (if ALLOW=0)
@@ -136,7 +136,7 @@ static struct sk_buff *rtl8_4_tag_xmit(struct sk_buff *skb,
 static struct sk_buff *rtl8_4t_tag_xmit(struct sk_buff *skb,
 					struct net_device *dev)
 {
-	/* Calculate the checksum here if not done yet as trailing tags will
+	/* Calculate the checksum here if analt done yet as trailing tags will
 	 * break either software or hardware based checksum
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb))
@@ -162,7 +162,7 @@ static int rtl8_4_read_tag(struct sk_buff *skb, struct net_device *dev,
 	etype = ntohs(tag16[0]);
 	if (unlikely(etype != ETH_P_REALTEK)) {
 		dev_warn_ratelimited(&dev->dev,
-				     "non-realtek ethertype 0x%04x\n", etype);
+				     "analn-realtek ethertype 0x%04x\n", etype);
 		return -EPROTO;
 	}
 
@@ -170,7 +170,7 @@ static int rtl8_4_read_tag(struct sk_buff *skb, struct net_device *dev,
 	proto = FIELD_GET(RTL8_4_PROTOCOL, ntohs(tag16[1]));
 	if (unlikely(proto != RTL8_4_PROTOCOL_RTL8365MB)) {
 		dev_warn_ratelimited(&dev->dev,
-				     "unknown realtek protocol 0x%02x\n",
+				     "unkanalwn realtek protocol 0x%02x\n",
 				     proto);
 		return -EPROTO;
 	}
@@ -183,9 +183,9 @@ static int rtl8_4_read_tag(struct sk_buff *skb, struct net_device *dev,
 	skb->dev = dsa_conduit_find_user(dev, 0, port);
 	if (!skb->dev) {
 		dev_warn_ratelimited(&dev->dev,
-				     "could not find user for port %d\n",
+				     "could analt find user for port %d\n",
 				     port);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (reason != RTL8_4_REASON_TRAP)

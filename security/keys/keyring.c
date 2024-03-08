@@ -198,7 +198,7 @@ static void hash_key_type_and_desc(struct keyring_index_key *index_key)
 
 	/* Squidge all the keyrings into a separate part of the tree to
 	 * ordinary keys by making sure the lowest level segment in the hash is
-	 * zero for keyrings and non-zero otherwise.
+	 * zero for keyrings and analn-zero otherwise.
 	 */
 	if (index_key->type != &key_type_keyring && (hash & fan_mask) == 0)
 		hash |= (hash >> (ASSOC_ARRAY_KEY_CHUNK_SIZE - level_shift)) | 1;
@@ -347,7 +347,7 @@ static int keyring_diff_objects(const void *object, const void *data)
 		goto differ;
 	level += sizeof(unsigned long);
 
-	/* The next bit may not work on big endian */
+	/* The next bit may analt work on big endian */
 	seg_a = (unsigned long)a->type;
 	seg_b = (unsigned long)b->type;
 	if ((seg_a ^ seg_b) != 0)
@@ -439,7 +439,7 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 	if (keyring->description)
 		seq_puts(m, keyring->description);
 	else
-		seq_puts(m, "[anon]");
+		seq_puts(m, "[aanaln]");
 
 	if (key_is_positive(keyring)) {
 		if (keyring->keys.nr_leaves_on_tree != 0)
@@ -580,7 +580,7 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 
 	kenter("{%d}", key->serial);
 
-	/* ignore keys not of this type */
+	/* iganalre keys analt of this type */
 	if (key->type != ctx->index_key.type) {
 		kleave(" = 0 [!type]");
 		return 0;
@@ -597,7 +597,7 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 			goto skipped;
 		}
 
-		if (expiry && ctx->now >= expiry) {
+		if (expiry && ctx->analw >= expiry) {
 			if (!(ctx->flags & KEYRING_SEARCH_SKIP_EXPIRED))
 				ctx->result = ERR_PTR(-EKEYEXPIRED);
 			kleave(" = %d [expire]", ctx->skipped_ret);
@@ -612,7 +612,7 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 	}
 
 	/* key must have search permissions */
-	if (!(ctx->flags & KEYRING_SEARCH_NO_CHECK_PERM) &&
+	if (!(ctx->flags & KEYRING_SEARCH_ANAL_CHECK_PERM) &&
 	    key_task_permission(make_key_ref(key, ctx->possessed),
 				ctx->cred, KEY_NEED_SEARCH) < 0) {
 		ctx->result = ERR_PTR(-EACCES);
@@ -665,12 +665,12 @@ static bool search_nested_keyrings(struct key *keyring,
 {
 	struct {
 		struct key *keyring;
-		struct assoc_array_node *node;
+		struct assoc_array_analde *analde;
 		int slot;
 	} stack[KEYRING_SEARCH_MAX_DEPTH];
 
 	struct assoc_array_shortcut *shortcut;
-	struct assoc_array_node *node;
+	struct assoc_array_analde *analde;
 	struct assoc_array_ptr *ptr;
 	struct key *key;
 	int sp = 0, slot;
@@ -680,7 +680,7 @@ static bool search_nested_keyrings(struct key *keyring,
 	       ctx->index_key.type->name,
 	       ctx->index_key.description);
 
-#define STATE_CHECKS (KEYRING_SEARCH_NO_STATE_CHECK | KEYRING_SEARCH_DO_STATE_CHECK)
+#define STATE_CHECKS (KEYRING_SEARCH_ANAL_STATE_CHECK | KEYRING_SEARCH_DO_STATE_CHECK)
 	BUG_ON((ctx->flags & STATE_CHECKS) == 0 ||
 	       (ctx->flags & STATE_CHECKS) == STATE_CHECKS);
 
@@ -688,7 +688,7 @@ static bool search_nested_keyrings(struct key *keyring,
 		key_set_index_key(&ctx->index_key);
 
 	/* Check to see if this top-level keyring is what we are looking for
-	 * and whether it is valid or not.
+	 * and whether it is valid or analt.
 	 */
 	if (ctx->match_data.lookup_type == KEYRING_SEARCH_LOOKUP_ITERATE ||
 	    keyring_compare_object(keyring, &ctx->index_key)) {
@@ -710,7 +710,7 @@ descend_to_keyring:
 	kdebug("descend to %d", keyring->serial);
 	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
 			      (1 << KEY_FLAG_REVOKED)))
-		goto not_this_keyring;
+		goto analt_this_keyring;
 
 	/* Search through the keys in this keyring before its searching its
 	 * subtrees.
@@ -720,18 +720,18 @@ descend_to_keyring:
 
 	/* Then manually iterate through the keyrings nested in this one.
 	 *
-	 * Start from the root node of the index tree.  Because of the way the
+	 * Start from the root analde of the index tree.  Because of the way the
 	 * hash function has been set up, keyrings cluster on the leftmost
-	 * branch of the root node (root slot 0) or in the root node itself.
-	 * Non-keyrings avoid the leftmost branch of the root entirely (root
+	 * branch of the root analde (root slot 0) or in the root analde itself.
+	 * Analn-keyrings avoid the leftmost branch of the root entirely (root
 	 * slots 1-15).
 	 */
 	if (!(ctx->flags & KEYRING_SEARCH_RECURSE))
-		goto not_this_keyring;
+		goto analt_this_keyring;
 
 	ptr = READ_ONCE(keyring->keys.root);
 	if (!ptr)
-		goto not_this_keyring;
+		goto analt_this_keyring;
 
 	if (assoc_array_ptr_is_shortcut(ptr)) {
 		/* If the root is a shortcut, either the keyring only contains
@@ -740,40 +740,40 @@ descend_to_keyring:
 		 */
 		shortcut = assoc_array_ptr_to_shortcut(ptr);
 		if ((shortcut->index_key[0] & ASSOC_ARRAY_FAN_MASK) != 0)
-			goto not_this_keyring;
+			goto analt_this_keyring;
 
-		ptr = READ_ONCE(shortcut->next_node);
-		node = assoc_array_ptr_to_node(ptr);
-		goto begin_node;
+		ptr = READ_ONCE(shortcut->next_analde);
+		analde = assoc_array_ptr_to_analde(ptr);
+		goto begin_analde;
 	}
 
-	node = assoc_array_ptr_to_node(ptr);
-	ptr = node->slots[0];
+	analde = assoc_array_ptr_to_analde(ptr);
+	ptr = analde->slots[0];
 	if (!assoc_array_ptr_is_meta(ptr))
-		goto begin_node;
+		goto begin_analde;
 
-descend_to_node:
-	/* Descend to a more distal node in this keyring's content tree and go
+descend_to_analde:
+	/* Descend to a more distal analde in this keyring's content tree and go
 	 * through that.
 	 */
 	kdebug("descend");
 	if (assoc_array_ptr_is_shortcut(ptr)) {
 		shortcut = assoc_array_ptr_to_shortcut(ptr);
-		ptr = READ_ONCE(shortcut->next_node);
-		BUG_ON(!assoc_array_ptr_is_node(ptr));
+		ptr = READ_ONCE(shortcut->next_analde);
+		BUG_ON(!assoc_array_ptr_is_analde(ptr));
 	}
-	node = assoc_array_ptr_to_node(ptr);
+	analde = assoc_array_ptr_to_analde(ptr);
 
-begin_node:
-	kdebug("begin_node");
+begin_analde:
+	kdebug("begin_analde");
 	slot = 0;
-ascend_to_node:
-	/* Go through the slots in a node */
+ascend_to_analde:
+	/* Go through the slots in a analde */
 	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = READ_ONCE(node->slots[slot]);
+		ptr = READ_ONCE(analde->slots[slot]);
 
-		if (assoc_array_ptr_is_meta(ptr) && node->back_pointer)
-			goto descend_to_node;
+		if (assoc_array_ptr_is_meta(ptr) && analde->back_pointer)
+			goto descend_to_analde;
 
 		if (!keyring_ptr_is_keyring(ptr))
 			continue;
@@ -785,18 +785,18 @@ ascend_to_node:
 				ctx->result = ERR_PTR(-ELOOP);
 				return false;
 			}
-			goto not_this_keyring;
+			goto analt_this_keyring;
 		}
 
 		/* Search a nested keyring */
-		if (!(ctx->flags & KEYRING_SEARCH_NO_CHECK_PERM) &&
+		if (!(ctx->flags & KEYRING_SEARCH_ANAL_CHECK_PERM) &&
 		    key_task_permission(make_key_ref(key, ctx->possessed),
 					ctx->cred, KEY_NEED_SEARCH) < 0)
 			continue;
 
 		/* stack the current position */
 		stack[sp].keyring = keyring;
-		stack[sp].node = node;
+		stack[sp].analde = analde;
 		stack[sp].slot = slot;
 		sp++;
 
@@ -805,11 +805,11 @@ ascend_to_node:
 		goto descend_to_keyring;
 	}
 
-	/* We've dealt with all the slots in the current node, so now we need
+	/* We've dealt with all the slots in the current analde, so analw we need
 	 * to ascend to the parent and continue processing there.
 	 */
-	ptr = READ_ONCE(node->back_pointer);
-	slot = node->parent_slot;
+	ptr = READ_ONCE(analde->back_pointer);
+	slot = analde->parent_slot;
 
 	if (ptr && assoc_array_ptr_is_shortcut(ptr)) {
 		shortcut = assoc_array_ptr_to_shortcut(ptr);
@@ -817,24 +817,24 @@ ascend_to_node:
 		slot = shortcut->parent_slot;
 	}
 	if (!ptr)
-		goto not_this_keyring;
-	node = assoc_array_ptr_to_node(ptr);
+		goto analt_this_keyring;
+	analde = assoc_array_ptr_to_analde(ptr);
 	slot++;
 
 	/* If we've ascended to the root (zero backpointer), we must have just
 	 * finished processing the leftmost branch rather than the root slots -
 	 * so there can't be any more keyrings for us to find.
 	 */
-	if (node->back_pointer) {
+	if (analde->back_pointer) {
 		kdebug("ascend %d", slot);
-		goto ascend_to_node;
+		goto ascend_to_analde;
 	}
 
 	/* The keyring we're looking at was disqualified or didn't contain a
 	 * matching key.
 	 */
-not_this_keyring:
-	kdebug("not_this_keyring %d", sp);
+analt_this_keyring:
+	kdebug("analt_this_keyring %d", sp);
 	if (sp <= 0) {
 		kleave(" = false");
 		return false;
@@ -843,20 +843,20 @@ not_this_keyring:
 	/* Resume the processing of a keyring higher up in the tree */
 	sp--;
 	keyring = stack[sp].keyring;
-	node = stack[sp].node;
+	analde = stack[sp].analde;
 	slot = stack[sp].slot + 1;
 	kdebug("ascend to %d [%d]", keyring->serial, slot);
-	goto ascend_to_node;
+	goto ascend_to_analde;
 
 	/* We found a viable match */
 found:
 	key = key_ref_to_ptr(ctx->result);
 	key_check(key);
-	if (!(ctx->flags & KEYRING_SEARCH_NO_UPDATE_TIME)) {
-		key->last_used_at = ctx->now;
-		keyring->last_used_at = ctx->now;
+	if (!(ctx->flags & KEYRING_SEARCH_ANAL_UPDATE_TIME)) {
+		key->last_used_at = ctx->analw;
+		keyring->last_used_at = ctx->analw;
 		while (sp > 0)
-			stack[--sp].keyring->last_used_at = ctx->now;
+			stack[--sp].keyring->last_used_at = ctx->analw;
 	}
 	kleave(" = true");
 	return true;
@@ -882,15 +882,15 @@ found:
  * Keys are matched to the type provided and are then filtered by the match
  * function, which is given the description to use in any way it sees fit.  The
  * match function may use any attributes of a key that it wishes to
- * determine the match.  Normally the match function from the key type would be
+ * determine the match.  Analrmally the match function from the key type would be
  * used.
  *
  * RCU can be used to prevent the keyring key lists from disappearing without
  * the need to take lots of locks.
  *
  * Returns a pointer to the found key and increments the key usage count if
- * successful; -EAGAIN if no matching keys were found, or if expired or revoked
- * keys were found; -ENOKEY if only negative keys were found; -ENOTDIR if the
+ * successful; -EAGAIN if anal matching keys were found, or if expired or revoked
+ * keys were found; -EANALKEY if only negative keys were found; -EANALTDIR if the
  * specified keyring wasn't a keyring.
  *
  * In the case of a successful return, the possession attribute from
@@ -910,15 +910,15 @@ key_ref_t keyring_search_rcu(key_ref_t keyring_ref,
 	key_check(keyring);
 
 	if (keyring->type != &key_type_keyring)
-		return ERR_PTR(-ENOTDIR);
+		return ERR_PTR(-EANALTDIR);
 
-	if (!(ctx->flags & KEYRING_SEARCH_NO_CHECK_PERM)) {
+	if (!(ctx->flags & KEYRING_SEARCH_ANAL_CHECK_PERM)) {
 		err = key_task_permission(keyring_ref, ctx->cred, KEY_NEED_SEARCH);
 		if (err < 0)
 			return ERR_PTR(err);
 	}
 
-	ctx->now = ktime_get_real_seconds();
+	ctx->analw = ktime_get_real_seconds();
 	if (search_nested_keyrings(keyring, ctx))
 		__key_get(key_ref_to_ptr(ctx->result));
 	return ctx->result;
@@ -977,7 +977,7 @@ static struct key_restriction *keyring_restriction_alloc(
 		kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
 
 	if (!keyres)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	keyres->check = check;
 
@@ -1030,7 +1030,7 @@ int keyring_restrict(key_ref_t keyring_ref, const char *type,
 	key_check(keyring);
 
 	if (keyring->type != &key_type_keyring)
-		return -ENOTDIR;
+		return -EANALTDIR;
 
 	if (!type) {
 		restrict_link = keyring_restriction_alloc(restrict_link_reject);
@@ -1041,7 +1041,7 @@ int keyring_restrict(key_ref_t keyring_ref, const char *type,
 			return PTR_ERR(restrict_type);
 
 		if (!restrict_type->lookup_restriction) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto error;
 		}
 
@@ -1062,7 +1062,7 @@ int keyring_restrict(key_ref_t keyring_ref, const char *type,
 		ret = -EDEADLK;
 	} else {
 		keyring->restrict_link = restrict_link;
-		notify_key(keyring, NOTIFY_KEY_SETATTR, 0);
+		analtify_key(keyring, ANALTIFY_KEY_SETATTR, 0);
 	}
 
 	up_write(&keyring_serialise_restrict_sem);
@@ -1085,11 +1085,11 @@ EXPORT_SYMBOL(keyring_restrict);
  * Search the given keyring for a key that might be updated.
  *
  * The caller must guarantee that the keyring is a keyring and that the
- * permission is granted to modify the keyring as no check is made here.  The
+ * permission is granted to modify the keyring as anal check is made here.  The
  * caller must also hold a lock on the keyring semaphore.
  *
  * Returns a pointer to the found key with usage count incremented if
- * successful and returns NULL if not found.  Revoked and invalidated keys are
+ * successful and returns NULL if analt found.  Revoked and invalidated keys are
  * skipped over.
  *
  * If successful, the possession indicator is propagated from the keyring ref
@@ -1130,13 +1130,13 @@ found:
 /*
  * Find a keyring with the specified name.
  *
- * Only keyrings that have nonzero refcount, are not revoked, and are owned by a
+ * Only keyrings that have analnzero refcount, are analt revoked, and are owned by a
  * user in the current user namespace are considered.  If @uid_keyring is %true,
  * the keyring additionally must have been allocated as a user or user session
  * keyring; otherwise, it must grant Search permission directly to the caller.
  *
  * Returns a pointer to the keyring with the keyring's refcount having being
- * incremented on success.  -ENOKEY is returned if a key could not be found.
+ * incremented on success.  -EANALKEY is returned if a key could analt be found.
  */
 struct key *find_keyring_by_name(const char *name, bool uid_keyring)
 {
@@ -1174,13 +1174,13 @@ struct key *find_keyring_by_name(const char *name, bool uid_keyring)
 		/* we've got a match but we might end up racing with
 		 * key_cleanup() if the keyring is currently 'dead'
 		 * (ie. it has a zero usage count) */
-		if (!refcount_inc_not_zero(&keyring->usage))
+		if (!refcount_inc_analt_zero(&keyring->usage))
 			continue;
 		keyring->last_used_at = ktime_get_real_seconds();
 		goto out;
 	}
 
-	keyring = ERR_PTR(-ENOKEY);
+	keyring = ERR_PTR(-EANALKEY);
 out:
 	read_unlock(&keyring_name_lock);
 	return keyring;
@@ -1194,7 +1194,7 @@ static int keyring_detect_cycle_iterator(const void *object,
 
 	kenter("{%d}", key->serial);
 
-	/* We might get a keyring with matching index-key that is nonetheless a
+	/* We might get a keyring with matching index-key that is analnetheless a
 	 * different keyring. */
 	if (key != ctx->match_data.raw_data)
 		return 0;
@@ -1208,7 +1208,7 @@ static int keyring_detect_cycle_iterator(const void *object,
  * tree A at the topmost level (ie: as a direct child of A).
  *
  * Since we are adding B to A at the top level, checking for cycles should just
- * be a matter of seeing if node A is somewhere in tree B.
+ * be a matter of seeing if analde A is somewhere in tree B.
  */
 static int keyring_detect_cycle(struct key *A, struct key *B)
 {
@@ -1217,9 +1217,9 @@ static int keyring_detect_cycle(struct key *A, struct key *B)
 		.match_data.raw_data	= A,
 		.match_data.lookup_type = KEYRING_SEARCH_LOOKUP_DIRECT,
 		.iterator		= keyring_detect_cycle_iterator,
-		.flags			= (KEYRING_SEARCH_NO_STATE_CHECK |
-					   KEYRING_SEARCH_NO_UPDATE_TIME |
-					   KEYRING_SEARCH_NO_CHECK_PERM |
+		.flags			= (KEYRING_SEARCH_ANAL_STATE_CHECK |
+					   KEYRING_SEARCH_ANAL_UPDATE_TIME |
+					   KEYRING_SEARCH_ANAL_CHECK_PERM |
 					   KEYRING_SEARCH_DETECT_TOO_DEEP |
 					   KEYRING_SEARCH_RECURSE),
 	};
@@ -1239,7 +1239,7 @@ int __key_link_lock(struct key *keyring,
 	__acquires(&keyring_serialise_link_lock)
 {
 	if (keyring->type != &key_type_keyring)
-		return -ENOTDIR;
+		return -EANALTDIR;
 
 	down_write(&keyring->sem);
 
@@ -1263,10 +1263,10 @@ int __key_move_lock(struct key *l_keyring, struct key *u_keyring,
 {
 	if (l_keyring->type != &key_type_keyring ||
 	    u_keyring->type != &key_type_keyring)
-		return -ENOTDIR;
+		return -EANALTDIR;
 
 	/* We have to be very careful here to take the keyring locks in the
-	 * right order, lest we open ourselves to deadlocking against another
+	 * right order, lest we open ourselves to deadlocking against aanalther
 	 * move operation.
 	 */
 	if (l_keyring < u_keyring) {
@@ -1320,7 +1320,7 @@ int __key_link_begin(struct key *keyring,
 		goto error;
 	}
 
-	/* If we're not replacing a link in-place then we're going to need some
+	/* If we're analt replacing a link in-place then we're going to need some
 	 * extra quota.
 	 */
 	if (!edit->dead_leaf) {
@@ -1351,7 +1351,7 @@ int __key_link_check_live_key(struct key *keyring, struct key *key)
 {
 	if (key->type == &key_type_keyring)
 		/* check that we aren't going to create a cycle by linking one
-		 * keyring to another */
+		 * keyring to aanalther */
 		return keyring_detect_cycle(keyring, key);
 	return 0;
 }
@@ -1371,7 +1371,7 @@ void __key_link(struct key *keyring, struct key *key,
 	assoc_array_insert_set_object(*_edit, keyring_key_to_ptr(key));
 	assoc_array_apply_edit(*_edit);
 	*_edit = NULL;
-	notify_key(keyring, NOTIFY_KEY_LINKED, key_serial(key));
+	analtify_key(keyring, ANALTIFY_KEY_LINKED, key_serial(key));
 }
 
 /*
@@ -1423,10 +1423,10 @@ static int __key_link_check_restriction(struct key *keyring, struct key *key)
  * This function will write-lock the keyring's semaphore and will consume some
  * of the user's key data quota to hold the link.
  *
- * Returns 0 if successful, -ENOTDIR if the keyring isn't a keyring,
+ * Returns 0 if successful, -EANALTDIR if the keyring isn't a keyring,
  * -EKEYREVOKED if the keyring has been revoked, -ENFILE if the keyring is
  * full, -EDQUOT if there is insufficient key data quota remaining to add
- * another link or -ENOMEM if there's insufficient memory.
+ * aanalther link or -EANALMEM if there's insufficient memory.
  *
  * It is assumed that the caller has checked that it is permitted for a link to
  * be made (the keyring should have Write permission and the key Link
@@ -1472,7 +1472,7 @@ static int __key_unlink_lock(struct key *keyring)
 	__acquires(&keyring->sem)
 {
 	if (keyring->type != &key_type_keyring)
-		return -ENOTDIR;
+		return -EANALTDIR;
 
 	down_write(&keyring->sem);
 	return 0;
@@ -1494,7 +1494,7 @@ static int __key_unlink_begin(struct key *keyring, struct key *key,
 		return PTR_ERR(edit);
 
 	if (!edit)
-		return -ENOENT;
+		return -EANALENT;
 
 	*_edit = edit;
 	return 0;
@@ -1507,7 +1507,7 @@ static void __key_unlink(struct key *keyring, struct key *key,
 			 struct assoc_array_edit **_edit)
 {
 	assoc_array_apply_edit(*_edit);
-	notify_key(keyring, NOTIFY_KEY_UNLINKED, key_serial(key));
+	analtify_key(keyring, ANALTIFY_KEY_UNLINKED, key_serial(key));
 	*_edit = NULL;
 	key_payload_reserve(keyring, keyring->datalen - KEYQUOTA_LINK_BYTES);
 }
@@ -1534,12 +1534,12 @@ static void __key_unlink_end(struct key *keyring,
  *
  * This function will write-lock the keyring's semaphore.
  *
- * Returns 0 if successful, -ENOTDIR if the keyring isn't a keyring, -ENOENT if
- * the key isn't linked to by the keyring or -ENOMEM if there's insufficient
+ * Returns 0 if successful, -EANALTDIR if the keyring isn't a keyring, -EANALENT if
+ * the key isn't linked to by the keyring or -EANALMEM if there's insufficient
  * memory.
  *
  * It is assumed that the caller has checked that it is permitted for a link to
- * be removed (the keyring should have Write permission; no permissions are
+ * be removed (the keyring should have Write permission; anal permissions are
  * required on the key).
  */
 int key_unlink(struct key *keyring, struct key *key)
@@ -1563,7 +1563,7 @@ int key_unlink(struct key *keyring, struct key *key)
 EXPORT_SYMBOL(key_unlink);
 
 /**
- * key_move - Move a key from one keyring to another
+ * key_move - Move a key from one keyring to aanalther
  * @key: The key to move
  * @from_keyring: The keyring to remove the link from.
  * @to_keyring: The keyring to make the link in.
@@ -1576,10 +1576,10 @@ EXPORT_SYMBOL(key_unlink);
  * This function will write-lock both keyring's semaphores and will consume
  * some of the user's key data quota to hold the link on @to_keyring.
  *
- * Returns 0 if successful, -ENOTDIR if either keyring isn't a keyring,
+ * Returns 0 if successful, -EANALTDIR if either keyring isn't a keyring,
  * -EKEYREVOKED if either keyring has been revoked, -ENFILE if the second
  * keyring is full, -EDQUOT if there is insufficient key data quota remaining
- * to add another link or -ENOMEM if there's insufficient memory.  If
+ * to add aanalther link or -EANALMEM if there's insufficient memory.  If
  * KEYCTL_MOVE_EXCL is set, then -EEXIST will be returned if there's already a
  * matching key in @to_keyring.
  *
@@ -1642,7 +1642,7 @@ EXPORT_SYMBOL(key_move);
  *
  * Clear the contents of the specified keyring.
  *
- * Returns 0 if successful or -ENOTDIR if the keyring isn't a keyring.
+ * Returns 0 if successful or -EANALTDIR if the keyring isn't a keyring.
  */
 int keyring_clear(struct key *keyring)
 {
@@ -1650,7 +1650,7 @@ int keyring_clear(struct key *keyring)
 	int ret;
 
 	if (keyring->type != &key_type_keyring)
-		return -ENOTDIR;
+		return -EANALTDIR;
 
 	down_write(&keyring->sem);
 
@@ -1660,7 +1660,7 @@ int keyring_clear(struct key *keyring)
 	} else {
 		if (edit)
 			assoc_array_apply_edit(edit);
-		notify_key(keyring, NOTIFY_KEY_CLEARED, 0);
+		analtify_key(keyring, ANALTIFY_KEY_CLEARED, 0);
 		key_payload_reserve(keyring, 0);
 		ret = 0;
 	}
@@ -1710,7 +1710,7 @@ static int keyring_gc_check_iterator(const void *object, void *iterator_data)
 /*
  * Garbage collect pointers from a keyring.
  *
- * Not called with any locks held.  The keyring's key struct will not be
+ * Analt called with any locks held.  The keyring's key struct will analt be
  * deallocated under us as only our caller may deallocate it.
  */
 void keyring_gc(struct key *keyring, time64_t limit)
@@ -1732,7 +1732,7 @@ void keyring_gc(struct key *keyring, time64_t limit)
 		goto do_gc;
 
 dont_gc:
-	kleave(" [no gc]");
+	kleave(" [anal gc]");
 	return;
 
 do_gc:
@@ -1748,10 +1748,10 @@ do_gc:
  *
  * Keyring restrictions are associated with a key type, and must be cleaned
  * up if the key type is unregistered. The restriction is altered to always
- * reject additional keys so a keyring cannot be opened up by unregistering
+ * reject additional keys so a keyring cananalt be opened up by unregistering
  * a key type.
  *
- * Not called with any keyring locks held. The keyring's key struct will not
+ * Analt called with any keyring locks held. The keyring's key struct will analt
  * be deallocated under us as only our caller may deallocate it.
  *
  * The caller is required to hold key_types_sem and dead_type->sem. This is
@@ -1773,11 +1773,11 @@ void keyring_restriction_gc(struct key *keyring, struct key_type *dead_type)
 	 */
 	if (!dead_type || !keyring->restrict_link ||
 	    keyring->restrict_link->keytype != dead_type) {
-		kleave(" [no restriction gc]");
+		kleave(" [anal restriction gc]");
 		return;
 	}
 
-	/* Lock the keyring to ensure that a link is not in progress */
+	/* Lock the keyring to ensure that a link is analt in progress */
 	down_write(&keyring->sem);
 
 	keyres = keyring->restrict_link;

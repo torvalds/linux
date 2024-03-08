@@ -50,29 +50,29 @@ struct xchk_alloc {
 };
 
 /*
- * Ensure there's a corresponding cntbt/bnobt record matching this
- * bnobt/cntbt record, respectively.
+ * Ensure there's a corresponding cntbt/banalbt record matching this
+ * banalbt/cntbt record, respectively.
  */
 STATIC void
 xchk_allocbt_xref_other(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbanal,
 	xfs_extlen_t		len)
 {
 	struct xfs_btree_cur	**pcur;
-	xfs_agblock_t		fbno;
+	xfs_agblock_t		fbanal;
 	xfs_extlen_t		flen;
 	int			has_otherrec;
 	int			error;
 
-	if (sc->sm->sm_type == XFS_SCRUB_TYPE_BNOBT)
+	if (sc->sm->sm_type == XFS_SCRUB_TYPE_BANALBT)
 		pcur = &sc->sa.cnt_cur;
 	else
-		pcur = &sc->sa.bno_cur;
+		pcur = &sc->sa.banal_cur;
 	if (!*pcur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_alloc_lookup_le(*pcur, agbno, len, &has_otherrec);
+	error = xfs_alloc_lookup_le(*pcur, agbanal, len, &has_otherrec);
 	if (!xchk_should_check_xref(sc, &error, pcur))
 		return;
 	if (!has_otherrec) {
@@ -80,7 +80,7 @@ xchk_allocbt_xref_other(
 		return;
 	}
 
-	error = xfs_alloc_get_rec(*pcur, &fbno, &flen, &has_otherrec);
+	error = xfs_alloc_get_rec(*pcur, &fbanal, &flen, &has_otherrec);
 	if (!xchk_should_check_xref(sc, &error, pcur))
 		return;
 	if (!has_otherrec) {
@@ -88,7 +88,7 @@ xchk_allocbt_xref_other(
 		return;
 	}
 
-	if (fbno != agbno || flen != len)
+	if (fbanal != agbanal || flen != len)
 		xchk_btree_xref_set_corrupt(sc, *pcur, 0);
 }
 
@@ -98,17 +98,17 @@ xchk_allocbt_xref(
 	struct xfs_scrub	*sc,
 	const struct xfs_alloc_rec_incore *irec)
 {
-	xfs_agblock_t		agbno = irec->ar_startblock;
+	xfs_agblock_t		agbanal = irec->ar_startblock;
 	xfs_extlen_t		len = irec->ar_blockcount;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
-	xchk_allocbt_xref_other(sc, agbno, len);
-	xchk_xref_is_not_inode_chunk(sc, agbno, len);
-	xchk_xref_has_no_owner(sc, agbno, len);
-	xchk_xref_is_not_shared(sc, agbno, len);
-	xchk_xref_is_not_cow_staging(sc, agbno, len);
+	xchk_allocbt_xref_other(sc, agbanal, len);
+	xchk_xref_is_analt_ianalde_chunk(sc, agbanal, len);
+	xchk_xref_has_anal_owner(sc, agbanal, len);
+	xchk_xref_is_analt_shared(sc, agbanal, len);
+	xchk_xref_is_analt_cow_staging(sc, agbanal, len);
 }
 
 /* Flag failures for records that could be merged. */
@@ -129,7 +129,7 @@ xchk_allocbt_mergeable(
 	memcpy(&ca->prev, irec, sizeof(*irec));
 }
 
-/* Scrub a bnobt/cntbt record. */
+/* Scrub a banalbt/cntbt record. */
 STATIC int
 xchk_allocbt_rec(
 	struct xchk_btree		*bs,
@@ -159,8 +159,8 @@ xchk_allocbt(
 	struct xfs_btree_cur	*cur;
 
 	switch (sc->sm->sm_type) {
-	case XFS_SCRUB_TYPE_BNOBT:
-		cur = sc->sa.bno_cur;
+	case XFS_SCRUB_TYPE_BANALBT:
+		cur = sc->sa.banal_cur;
 		break;
 	case XFS_SCRUB_TYPE_CNTBT:
 		cur = sc->sa.cnt_cur;
@@ -173,22 +173,22 @@ xchk_allocbt(
 	return xchk_btree(sc, cur, xchk_allocbt_rec, &XFS_RMAP_OINFO_AG, &ca);
 }
 
-/* xref check that the extent is not free */
+/* xref check that the extent is analt free */
 void
 xchk_xref_is_used_space(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbanal,
 	xfs_extlen_t		len)
 {
 	enum xbtree_recpacking	outcome;
 	int			error;
 
-	if (!sc->sa.bno_cur || xchk_skip_xref(sc->sm))
+	if (!sc->sa.banal_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_alloc_has_records(sc->sa.bno_cur, agbno, len, &outcome);
-	if (!xchk_should_check_xref(sc, &error, &sc->sa.bno_cur))
+	error = xfs_alloc_has_records(sc->sa.banal_cur, agbanal, len, &outcome);
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.banal_cur))
 		return;
 	if (outcome != XBTREE_RECPACKING_EMPTY)
-		xchk_btree_xref_set_corrupt(sc, sc->sa.bno_cur, 0);
+		xchk_btree_xref_set_corrupt(sc, sc->sa.banal_cur, 0);
 }

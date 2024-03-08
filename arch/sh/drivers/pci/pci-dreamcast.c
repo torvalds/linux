@@ -64,7 +64,7 @@ static int __init gapspci_init(void)
 		idbuf[i] = inb(GAPSPCI_REGS+i);
 
 	if (strncmp(idbuf, "GAPSPCI_BRIDGE_2", 16))
-		return -ENODEV;
+		return -EANALDEV;
 
 	outl(0x5a14a501, GAPSPCI_REGS+0x18);
 

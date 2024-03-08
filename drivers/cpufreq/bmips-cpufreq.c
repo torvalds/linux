@@ -73,7 +73,7 @@ bmips_cpufreq_get_freq_table(const struct cpufreq_policy *policy)
 
 	table = kmalloc_array(priv->max_freqs + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < priv->max_freqs; i++) {
 		table[i].frequency = cpu_freq / (1 << i);
@@ -115,7 +115,7 @@ static int bmips_cpufreq_target_index(struct cpufreq_policy *policy,
 				    (div << BMIPS5_CLK_DIV_SHIFT));
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -159,20 +159,20 @@ static struct cpufreq_driver bmips_cpufreq_driver = {
 static int __init bmips_cpufreq_driver_init(void)
 {
 	struct cpufreq_compat *cc;
-	struct device_node *np;
+	struct device_analde *np;
 
 	for (cc = bmips_cpufreq_compat; cc->compatible; cc++) {
-		np = of_find_compatible_node(NULL, "cpu", cc->compatible);
+		np = of_find_compatible_analde(NULL, "cpu", cc->compatible);
 		if (np) {
-			of_node_put(np);
+			of_analde_put(np);
 			priv = cc;
 			break;
 		}
 	}
 
-	/* We hit the guard element of the array. No compatible CPU found. */
+	/* We hit the guard element of the array. Anal compatible CPU found. */
 	if (!cc->compatible)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cpufreq_register_driver(&bmips_cpufreq_driver);
 }

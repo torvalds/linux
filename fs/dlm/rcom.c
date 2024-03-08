@@ -27,7 +27,7 @@ static int rcom_response(struct dlm_ls *ls)
 	return test_bit(LSFL_RCOM_READY, &ls->ls_flags);
 }
 
-static void _create_rcom(struct dlm_ls *ls, int to_nodeid, int type, int len,
+static void _create_rcom(struct dlm_ls *ls, int to_analdeid, int type, int len,
 			 struct dlm_rcom **rc_ret, char *mb, int mb_len,
 			 uint64_t seq)
 {
@@ -35,9 +35,9 @@ static void _create_rcom(struct dlm_ls *ls, int to_nodeid, int type, int len,
 
 	rc = (struct dlm_rcom *) mb;
 
-	rc->rc_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	rc->rc_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MIANALR);
 	rc->rc_header.u.h_lockspace = cpu_to_le32(ls->ls_global_id);
-	rc->rc_header.h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	rc->rc_header.h_analdeid = cpu_to_le32(dlm_our_analdeid());
 	rc->rc_header.h_length = cpu_to_le16(mb_len);
 	rc->rc_header.h_cmd = DLM_RCOM;
 
@@ -47,7 +47,7 @@ static void _create_rcom(struct dlm_ls *ls, int to_nodeid, int type, int len,
 	*rc_ret = rc;
 }
 
-static int create_rcom(struct dlm_ls *ls, int to_nodeid, int type, int len,
+static int create_rcom(struct dlm_ls *ls, int to_analdeid, int type, int len,
 		       struct dlm_rcom **rc_ret, struct dlm_mhandle **mh_ret,
 		       uint64_t seq)
 {
@@ -55,19 +55,19 @@ static int create_rcom(struct dlm_ls *ls, int to_nodeid, int type, int len,
 	struct dlm_mhandle *mh;
 	char *mb;
 
-	mh = dlm_midcomms_get_mhandle(to_nodeid, mb_len, GFP_NOFS, &mb);
+	mh = dlm_midcomms_get_mhandle(to_analdeid, mb_len, GFP_ANALFS, &mb);
 	if (!mh) {
-		log_print("%s to %d type %d len %d ENOBUFS",
-			  __func__, to_nodeid, type, len);
-		return -ENOBUFS;
+		log_print("%s to %d type %d len %d EANALBUFS",
+			  __func__, to_analdeid, type, len);
+		return -EANALBUFS;
 	}
 
-	_create_rcom(ls, to_nodeid, type, len, rc_ret, mb, mb_len, seq);
+	_create_rcom(ls, to_analdeid, type, len, rc_ret, mb, mb_len, seq);
 	*mh_ret = mh;
 	return 0;
 }
 
-static int create_rcom_stateless(struct dlm_ls *ls, int to_nodeid, int type,
+static int create_rcom_stateless(struct dlm_ls *ls, int to_analdeid, int type,
 				 int len, struct dlm_rcom **rc_ret,
 				 struct dlm_msg **msg_ret, uint64_t seq)
 {
@@ -75,15 +75,15 @@ static int create_rcom_stateless(struct dlm_ls *ls, int to_nodeid, int type,
 	struct dlm_msg *msg;
 	char *mb;
 
-	msg = dlm_lowcomms_new_msg(to_nodeid, mb_len, GFP_NOFS, &mb,
+	msg = dlm_lowcomms_new_msg(to_analdeid, mb_len, GFP_ANALFS, &mb,
 				   NULL, NULL);
 	if (!msg) {
-		log_print("create_rcom to %d type %d len %d ENOBUFS",
-			  to_nodeid, type, len);
-		return -ENOBUFS;
+		log_print("create_rcom to %d type %d len %d EANALBUFS",
+			  to_analdeid, type, len);
+		return -EANALBUFS;
 	}
 
-	_create_rcom(ls, to_nodeid, type, len, rc_ret, mb, mb_len, seq);
+	_create_rcom(ls, to_analdeid, type, len, rc_ret, mb, mb_len, seq);
 	*msg_ret = msg;
 	return 0;
 }
@@ -105,9 +105,9 @@ static void set_rcom_status(struct dlm_ls *ls, struct rcom_status *rs,
 	rs->rs_flags = cpu_to_le32(flags);
 }
 
-/* When replying to a status request, a node also sends back its
-   configuration values.  The requesting node then checks that the remote
-   node is configured the same way as itself. */
+/* When replying to a status request, a analde also sends back its
+   configuration values.  The requesting analde then checks that the remote
+   analde is configured the same way as itself. */
 
 static void set_rcom_config(struct dlm_ls *ls, struct rcom_config *rf,
 			    uint32_t num_slots)
@@ -120,21 +120,21 @@ static void set_rcom_config(struct dlm_ls *ls, struct rcom_config *rf,
 	rf->rf_generation =  cpu_to_le32(ls->ls_generation);
 }
 
-static int check_rcom_config(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
+static int check_rcom_config(struct dlm_ls *ls, struct dlm_rcom *rc, int analdeid)
 {
 	struct rcom_config *rf = (struct rcom_config *) rc->rc_buf;
 
 	if ((le32_to_cpu(rc->rc_header.h_version) & 0xFFFF0000) != DLM_HEADER_MAJOR) {
-		log_error(ls, "version mismatch: %x nodeid %d: %x",
-			  DLM_HEADER_MAJOR | DLM_HEADER_MINOR, nodeid,
+		log_error(ls, "version mismatch: %x analdeid %d: %x",
+			  DLM_HEADER_MAJOR | DLM_HEADER_MIANALR, analdeid,
 			  le32_to_cpu(rc->rc_header.h_version));
 		return -EPROTO;
 	}
 
 	if (le32_to_cpu(rf->rf_lvblen) != ls->ls_lvblen ||
 	    le32_to_cpu(rf->rf_lsflags) != ls->ls_exflags) {
-		log_error(ls, "config mismatch: %d,%x nodeid %d: %d,%x",
-			  ls->ls_lvblen, ls->ls_exflags, nodeid,
+		log_error(ls, "config mismatch: %d,%x analdeid %d: %d,%x",
+			  ls->ls_lvblen, ls->ls_exflags, analdeid,
 			  le32_to_cpu(rf->rf_lvblen),
 			  le32_to_cpu(rf->rf_lsflags));
 		return -EPROTO;
@@ -159,33 +159,33 @@ static void disallow_sync_reply(struct dlm_ls *ls)
 }
 
 /*
- * low nodeid gathers one slot value at a time from each node.
+ * low analdeid gathers one slot value at a time from each analde.
  * it sets need_slots=0, and saves rf_our_slot returned from each
  * rcom_config.
  *
- * other nodes gather all slot values at once from the low nodeid.
- * they set need_slots=1, and ignore the rf_our_slot returned from each
+ * other analdes gather all slot values at once from the low analdeid.
+ * they set need_slots=1, and iganalre the rf_our_slot returned from each
  * rcom_config.  they use the rf_num_slots returned from the low
- * node's rcom_config.
+ * analde's rcom_config.
  */
 
-int dlm_rcom_status(struct dlm_ls *ls, int nodeid, uint32_t status_flags,
+int dlm_rcom_status(struct dlm_ls *ls, int analdeid, uint32_t status_flags,
 		    uint64_t seq)
 {
 	struct dlm_rcom *rc;
 	struct dlm_msg *msg;
 	int error = 0;
 
-	ls->ls_recover_nodeid = nodeid;
+	ls->ls_recover_analdeid = analdeid;
 
-	if (nodeid == dlm_our_nodeid()) {
+	if (analdeid == dlm_our_analdeid()) {
 		rc = ls->ls_recover_buf;
 		rc->rc_result = cpu_to_le32(dlm_recover_status(ls));
 		goto out;
 	}
 
 retry:
-	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_STATUS,
+	error = create_rcom_stateless(ls, analdeid, DLM_RCOM_STATUS,
 				      sizeof(struct rcom_status), &rc, &msg,
 				      seq);
 	if (error)
@@ -209,11 +209,11 @@ retry:
 
 	if (rc->rc_result == cpu_to_le32(-ESRCH)) {
 		/* we pretend the remote lockspace exists with 0 status */
-		log_debug(ls, "remote node %d not ready", nodeid);
+		log_debug(ls, "remote analde %d analt ready", analdeid);
 		rc->rc_result = 0;
 		error = 0;
 	} else {
-		error = check_rcom_config(ls, rc, nodeid);
+		error = check_rcom_config(ls, rc, analdeid);
 	}
 
 	/* the caller looks at rc_result for the remote recovery status */
@@ -228,7 +228,7 @@ static void receive_rcom_status(struct dlm_ls *ls,
 	struct dlm_rcom *rc;
 	struct rcom_status *rs;
 	uint32_t status;
-	int nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
+	int analdeid = le32_to_cpu(rc_in->rc_header.h_analdeid);
 	int len = sizeof(struct rcom_config);
 	struct dlm_msg *msg;
 	int num_slots = 0;
@@ -253,7 +253,7 @@ static void receive_rcom_status(struct dlm_ls *ls,
 	len += num_slots * sizeof(struct rcom_slot);
 
  do_create:
-	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_STATUS_REPLY,
+	error = create_rcom_stateless(ls, analdeid, DLM_RCOM_STATUS_REPLY,
 				      len, &rc, &msg, seq);
 	if (error)
 		return;
@@ -291,7 +291,7 @@ static void receive_sync_reply(struct dlm_ls *ls, const struct dlm_rcom *rc_in)
 	    le64_to_cpu(rc_in->rc_id) != ls->ls_rcom_seq) {
 		log_debug(ls, "reject reply %d from %d seq %llx expect %llx",
 			  le32_to_cpu(rc_in->rc_type),
-			  le32_to_cpu(rc_in->rc_header.h_nodeid),
+			  le32_to_cpu(rc_in->rc_header.h_analdeid),
 			  (unsigned long long)le64_to_cpu(rc_in->rc_id),
 			  (unsigned long long)ls->ls_rcom_seq);
 		goto out;
@@ -305,17 +305,17 @@ static void receive_sync_reply(struct dlm_ls *ls, const struct dlm_rcom *rc_in)
 	spin_unlock(&ls->ls_rcom_spin);
 }
 
-int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name,
+int dlm_rcom_names(struct dlm_ls *ls, int analdeid, char *last_name,
 		   int last_len, uint64_t seq)
 {
 	struct dlm_mhandle *mh;
 	struct dlm_rcom *rc;
 	int error = 0;
 
-	ls->ls_recover_nodeid = nodeid;
+	ls->ls_recover_analdeid = analdeid;
 
 retry:
-	error = create_rcom(ls, nodeid, DLM_RCOM_NAMES, last_len,
+	error = create_rcom(ls, analdeid, DLM_RCOM_NAMES, last_len,
 			    &rc, &mh, seq);
 	if (error)
 		goto out;
@@ -339,14 +339,14 @@ static void receive_rcom_names(struct dlm_ls *ls, const struct dlm_rcom *rc_in,
 {
 	struct dlm_mhandle *mh;
 	struct dlm_rcom *rc;
-	int error, inlen, outlen, nodeid;
+	int error, inlen, outlen, analdeid;
 
-	nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
+	analdeid = le32_to_cpu(rc_in->rc_header.h_analdeid);
 	inlen = le16_to_cpu(rc_in->rc_header.h_length) -
 		sizeof(struct dlm_rcom);
 	outlen = DLM_MAX_APP_BUFSIZE - sizeof(struct dlm_rcom);
 
-	error = create_rcom(ls, nodeid, DLM_RCOM_NAMES_REPLY, outlen,
+	error = create_rcom(ls, analdeid, DLM_RCOM_NAMES_REPLY, outlen,
 			    &rc, &mh, seq);
 	if (error)
 		return;
@@ -354,18 +354,18 @@ static void receive_rcom_names(struct dlm_ls *ls, const struct dlm_rcom *rc_in,
 	rc->rc_seq_reply = rc_in->rc_seq;
 
 	dlm_copy_master_names(ls, rc_in->rc_buf, inlen, rc->rc_buf, outlen,
-			      nodeid);
+			      analdeid);
 	send_rcom(mh, rc);
 }
 
-int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_nodeid, uint64_t seq)
+int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_analdeid, uint64_t seq)
 {
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
 	struct dlm_ls *ls = r->res_ls;
 	int error;
 
-	error = create_rcom(ls, dir_nodeid, DLM_RCOM_LOOKUP, r->res_length,
+	error = create_rcom(ls, dir_analdeid, DLM_RCOM_LOOKUP, r->res_length,
 			    &rc, &mh, seq);
 	if (error)
 		goto out;
@@ -382,27 +382,27 @@ static void receive_rcom_lookup(struct dlm_ls *ls,
 {
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
-	int error, ret_nodeid, nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
+	int error, ret_analdeid, analdeid = le32_to_cpu(rc_in->rc_header.h_analdeid);
 	int len = le16_to_cpu(rc_in->rc_header.h_length) -
 		sizeof(struct dlm_rcom);
 
 	/* Old code would send this special id to trigger a debug dump. */
 	if (rc_in->rc_id == cpu_to_le64(0xFFFFFFFF)) {
-		log_error(ls, "receive_rcom_lookup dump from %d", nodeid);
+		log_error(ls, "receive_rcom_lookup dump from %d", analdeid);
 		dlm_dump_rsb_name(ls, rc_in->rc_buf, len);
 		return;
 	}
 
-	error = create_rcom(ls, nodeid, DLM_RCOM_LOOKUP_REPLY, 0, &rc, &mh,
+	error = create_rcom(ls, analdeid, DLM_RCOM_LOOKUP_REPLY, 0, &rc, &mh,
 			    seq);
 	if (error)
 		return;
 
-	error = dlm_master_lookup(ls, nodeid, rc_in->rc_buf, len,
-				  DLM_LU_RECOVER_MASTER, &ret_nodeid, NULL);
+	error = dlm_master_lookup(ls, analdeid, rc_in->rc_buf, len,
+				  DLM_LU_RECOVER_MASTER, &ret_analdeid, NULL);
 	if (error)
-		ret_nodeid = error;
-	rc->rc_result = cpu_to_le32(ret_nodeid);
+		ret_analdeid = error;
+	rc->rc_result = cpu_to_le32(ret_analdeid);
 	rc->rc_id = rc_in->rc_id;
 	rc->rc_seq_reply = rc_in->rc_seq;
 
@@ -456,7 +456,7 @@ int dlm_send_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb, uint64_t seq)
 	if (lkb->lkb_lvbptr)
 		len += ls->ls_lvblen;
 
-	error = create_rcom(ls, r->res_nodeid, DLM_RCOM_LOCK, len, &rc, &mh,
+	error = create_rcom(ls, r->res_analdeid, DLM_RCOM_LOCK, len, &rc, &mh,
 			    seq);
 	if (error)
 		goto out;
@@ -478,11 +478,11 @@ static void receive_rcom_lock(struct dlm_ls *ls, const struct dlm_rcom *rc_in,
 	struct rcom_lock *rl;
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
-	int error, nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
+	int error, analdeid = le32_to_cpu(rc_in->rc_header.h_analdeid);
 
 	dlm_recover_master_copy(ls, rc_in, &rl_remid, &rl_result);
 
-	error = create_rcom(ls, nodeid, DLM_RCOM_LOCK_REPLY,
+	error = create_rcom(ls, analdeid, DLM_RCOM_LOCK_REPLY,
 			    sizeof(struct rcom_lock), &rc, &mh, seq);
 	if (error)
 		return;
@@ -502,7 +502,7 @@ static void receive_rcom_lock(struct dlm_ls *ls, const struct dlm_rcom *rc_in,
 /* If the lockspace doesn't exist then still send a status message
    back; it's possible that it just doesn't have its global_id yet. */
 
-int dlm_send_ls_not_ready(int nodeid, const struct dlm_rcom *rc_in)
+int dlm_send_ls_analt_ready(int analdeid, const struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
 	struct rcom_config *rf;
@@ -510,15 +510,15 @@ int dlm_send_ls_not_ready(int nodeid, const struct dlm_rcom *rc_in)
 	char *mb;
 	int mb_len = sizeof(struct dlm_rcom) + sizeof(struct rcom_config);
 
-	mh = dlm_midcomms_get_mhandle(nodeid, mb_len, GFP_NOFS, &mb);
+	mh = dlm_midcomms_get_mhandle(analdeid, mb_len, GFP_ANALFS, &mb);
 	if (!mh)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	rc = (struct dlm_rcom *) mb;
 
-	rc->rc_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	rc->rc_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MIANALR);
 	rc->rc_header.u.h_lockspace = rc_in->rc_header.u.h_lockspace;
-	rc->rc_header.h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	rc->rc_header.h_analdeid = cpu_to_le32(dlm_our_analdeid());
 	rc->rc_header.h_length = cpu_to_le16(mb_len);
 	rc->rc_header.h_cmd = DLM_RCOM;
 
@@ -536,27 +536,27 @@ int dlm_send_ls_not_ready(int nodeid, const struct dlm_rcom *rc_in)
 }
 
 /*
- * Ignore messages for stage Y before we set
+ * Iganalre messages for stage Y before we set
  * recover_status bit for stage X:
  *
  * recover_status = 0
  *
  * dlm_recover_members()
- * - send nothing
- * - recv nothing
- * - ignore NAMES, NAMES_REPLY
- * - ignore LOOKUP, LOOKUP_REPLY
- * - ignore LOCK, LOCK_REPLY
+ * - send analthing
+ * - recv analthing
+ * - iganalre NAMES, NAMES_REPLY
+ * - iganalre LOOKUP, LOOKUP_REPLY
+ * - iganalre LOCK, LOCK_REPLY
  *
- * recover_status |= NODES
+ * recover_status |= ANALDES
  *
  * dlm_recover_members_wait()
  *
  * dlm_recover_directory()
  * - send NAMES
  * - recv NAMES_REPLY
- * - ignore LOOKUP, LOOKUP_REPLY
- * - ignore LOCK, LOCK_REPLY
+ * - iganalre LOOKUP, LOOKUP_REPLY
+ * - iganalre LOCK, LOCK_REPLY
  *
  * recover_status |= DIR
  *
@@ -580,7 +580,7 @@ int dlm_send_ls_not_ready(int nodeid, const struct dlm_rcom *rc_in)
 /* Called by dlm_recv; corresponds to dlm_receive_message() but special
    recovery-only comms are sent through here. */
 
-void dlm_receive_rcom(struct dlm_ls *ls, const struct dlm_rcom *rc, int nodeid)
+void dlm_receive_rcom(struct dlm_ls *ls, const struct dlm_rcom *rc, int analdeid)
 {
 	int lock_size = sizeof(struct dlm_rcom) + sizeof(struct rcom_lock);
 	int stop, reply = 0, names = 0, lookup = 0, lock = 0;
@@ -621,16 +621,16 @@ void dlm_receive_rcom(struct dlm_ls *ls, const struct dlm_rcom *rc, int nodeid)
 	spin_unlock(&ls->ls_recover_lock);
 
 	if (stop && (rc->rc_type != cpu_to_le32(DLM_RCOM_STATUS)))
-		goto ignore;
+		goto iganalre;
 
 	if (reply && (le64_to_cpu(rc->rc_seq_reply) != seq))
-		goto ignore;
+		goto iganalre;
 
-	if (!(status & DLM_RS_NODES) && (names || lookup || lock))
-		goto ignore;
+	if (!(status & DLM_RS_ANALDES) && (names || lookup || lock))
+		goto iganalre;
 
 	if (!(status & DLM_RS_DIR) && (lookup || lock))
-		goto ignore;
+		goto iganalre;
 
 	switch (rc->rc_type) {
 	case cpu_to_le32(DLM_RCOM_STATUS):
@@ -675,11 +675,11 @@ void dlm_receive_rcom(struct dlm_ls *ls, const struct dlm_rcom *rc, int nodeid)
 	}
 	return;
 
-ignore:
-	log_limit(ls, "dlm_receive_rcom ignore msg %d "
+iganalre:
+	log_limit(ls, "dlm_receive_rcom iganalre msg %d "
 		  "from %d %llu %llu recover seq %llu sts %x gen %u",
 		   le32_to_cpu(rc->rc_type),
-		   nodeid,
+		   analdeid,
 		   (unsigned long long)le64_to_cpu(rc->rc_seq),
 		   (unsigned long long)le64_to_cpu(rc->rc_seq_reply),
 		   (unsigned long long)seq,
@@ -687,6 +687,6 @@ ignore:
 	return;
 Eshort:
 	log_error(ls, "recovery message %d from %d is too short",
-		  le32_to_cpu(rc->rc_type), nodeid);
+		  le32_to_cpu(rc->rc_type), analdeid);
 }
 

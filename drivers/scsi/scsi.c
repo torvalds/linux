@@ -52,7 +52,7 @@
 #include <linux/spinlock.h>
 #include <linux/kmod.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <asm/unaligned.h>
@@ -77,7 +77,7 @@
  */
 
 /*
- * Note - the initial logging level can be set here to log events at boot time.
+ * Analte - the initial logging level can be set here to log events at boot time.
  * After the system is up, you may enable logging via the /proc interface.
  */
 unsigned int scsi_logging_level;
@@ -93,7 +93,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 	/*
 	 * If ML QUEUE log level is greater than or equal to:
 	 *
-	 * 1: nothing (match completion)
+	 * 1: analthing (match completion)
 	 *
 	 * 2: log opcode + command of all commands + cmd address
 	 *
@@ -120,7 +120,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 	 * If ML COMPLETE log level is greater than or equal to:
 	 *
 	 * 1: log disposition, result, opcode + command, and conditionally
-	 * sense data for failures or non SUCCESS dispositions.
+	 * sense data for failures or analn SUCCESS dispositions.
 	 *
 	 * 2: same as 1 but for all command completions.
 	 *
@@ -166,7 +166,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	scsi_device_unbusy(sdev, cmd);
 
 	/*
-	 * Clear the flags that say that the device/target/host is no longer
+	 * Clear the flags that say that the device/target/host is anal longer
 	 * capable of accepting new commands.
 	 */
 	if (atomic_read(&shost->host_blocked))
@@ -177,7 +177,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 		atomic_set(&sdev->device_blocked, 0);
 
 	SCSI_LOG_MLCOMPLETE(4, sdev_printk(KERN_INFO, sdev,
-				"Notifying upper driver of completion "
+				"Analtifying upper driver of completion "
 				"(result %x)\n", cmd->result));
 
 	good_bytes = scsi_bufflen(cmd);
@@ -187,9 +187,9 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 		if (drv->done)
 			good_bytes = drv->done(cmd);
 		/*
-		 * USB may not give sense identifying bad sector and
+		 * USB may analt give sense identifying bad sector and
 		 * simply return a residue instead, so subtract off the
-		 * residue if drv->done() error processing indicates no
+		 * residue if drv->done() error processing indicates anal
 		 * change to the completion length.
 		 */
 		if (good_bytes == old_good_bytes)
@@ -200,7 +200,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 
 
 /*
- * 4096 is big enough for saturating fast SCSI LUNs.
+ * 4096 is big eanalugh for saturating fast SCSI LUNs.
  */
 int scsi_device_max_queue_depth(struct scsi_device *sdev)
 {
@@ -236,19 +236,19 @@ EXPORT_SYMBOL(scsi_change_queue_depth);
  * scsi_track_queue_full - track QUEUE_FULL events to adjust queue depth
  * @sdev: SCSI Device in question
  * @depth: Current number of outstanding SCSI commands on this device,
- *         not counting the one returned as QUEUE_FULL.
+ *         analt counting the one returned as QUEUE_FULL.
  *
  * Description:	This function will track successive QUEUE_FULL events on a
  * 		specific SCSI device to determine if and when there is a
  * 		need to adjust the queue depth on the device.
  *
- * Returns:	0 - No change needed, >0 - Adjust queue depth to this new depth,
+ * Returns:	0 - Anal change needed, >0 - Adjust queue depth to this new depth,
  * 		-1 - Drop back to untagged operation using host->cmd_per_lun
  * 			as the untagged command depth
  *
- * Lock Status:	None held on entry
+ * Lock Status:	Analne held on entry
  *
- * Notes:	Low level drivers may call this at any time and we will do
+ * Analtes:	Low level drivers may call this at any time and we will do
  * 		"The Right Thing."  We are interrupt context safe.
  */
 int scsi_track_queue_full(struct scsi_device *sdev, int depth)
@@ -306,7 +306,7 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
 	cmd[5] = 0;		/* Control byte */
 
 	/*
-	 * I'm not convinced we need to try quite this hard to get VPD, but
+	 * I'm analt convinced we need to try quite this hard to get VPD, but
 	 * all the existing users tried this hard.
 	 */
 	result = scsi_execute_cmd(sdev, cmd, REQ_OP_DRV_IN, buffer, len,
@@ -316,7 +316,7 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
 
 	/*
 	 * Sanity check that we got the page back that we asked for and that
-	 * the page size is not 0.
+	 * the page size is analt 0.
 	 */
 	if (buffer[1] != page)
 		return -EIO;
@@ -338,7 +338,7 @@ static int scsi_get_vpd_size(struct scsi_device *sdev, u8 page)
 	unsigned char vpd[SCSI_VPD_LIST_SIZE] __aligned(4);
 	int result;
 
-	if (sdev->no_vpd_size)
+	if (sdev->anal_vpd_size)
 		return SCSI_DEFAULT_VPD_LEN;
 
 	/*
@@ -357,7 +357,7 @@ static int scsi_get_vpd_size(struct scsi_device *sdev, u8 page)
 	/*
 	 * Fetch the VPD page header to find out how big the page
 	 * is. This is done to prevent problems on legacy devices
-	 * which can not handle allocation lengths as large as
+	 * which can analt handle allocation lengths as large as
 	 * potentially requested by the caller.
 	 */
 	result = scsi_vpd_inquiry(sdev, vpd, page, SCSI_VPD_HEADER_SIZE);
@@ -384,8 +384,8 @@ static int scsi_get_vpd_size(struct scsi_device *sdev, u8 page)
  * SCSI devices may optionally supply Vital Product Data.  Each 'page'
  * of VPD is defined in the appropriate SCSI document (eg SPC, SBC).
  * If the device supports this VPD page, this routine fills @buf
- * with the data from that page and return 0. If the VPD page is not
- * supported or its content cannot be retrieved, -EINVAL is returned.
+ * with the data from that page and return 0. If the VPD page is analt
+ * supported or its content cananalt be retrieved, -EINVAL is returned.
  */
 int scsi_get_vpd_page(struct scsi_device *sdev, u8 page, unsigned char *buf,
 		      int buf_len)
@@ -403,7 +403,7 @@ int scsi_get_vpd_page(struct scsi_device *sdev, u8 page, unsigned char *buf,
 
 	/*
 	 * Fetch the actual page. Since the appropriate size was reported
-	 * by the device it is now safe to ask for something bigger.
+	 * by the device it is analw safe to ask for something bigger.
 	 */
 	memset(buf, 0, buf_len);
 	result = scsi_vpd_inquiry(sdev, buf, page, vpd_len);
@@ -437,7 +437,7 @@ static struct scsi_vpd *scsi_get_vpd_buf(struct scsi_device *sdev, u8 page)
 retry_pg:
 	/*
 	 * Fetch the actual page. Since the appropriate size was reported
-	 * by the device it is now safe to ask for something bigger.
+	 * by the device it is analw safe to ask for something bigger.
 	 */
 	vpd_buf = kmalloc(sizeof(*vpd_buf) + vpd_len, GFP_KERNEL);
 	if (!vpd_buf)
@@ -530,9 +530,9 @@ void scsi_attach_vpd(struct scsi_device *sdev)
  * @sa:		service action for the command to look up
  *
  * Uses the REPORT SUPPORTED OPERATION CODES to check support for the
- * command identified with @opcode and @sa. If the command does not
+ * command identified with @opcode and @sa. If the command does analt
  * have a service action, @sa must be 0. Returns -EINVAL if RSOC fails,
- * 0 if the command is not supported and 1 if the device claims to
+ * 0 if the command is analt supported and 1 if the device claims to
  * support the command.
  */
 int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
@@ -546,7 +546,7 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 		.sshdr = &sshdr,
 	};
 
-	if (sdev->no_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
+	if (sdev->anal_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
 		return -EINVAL;
 
 	/* RSOC header + size of command we are asking about */
@@ -632,7 +632,7 @@ void scsi_cdl_check(struct scsi_device *sdev)
 	unsigned char *buf;
 
 	/*
-	 * Support for CDL was defined in SPC-5. Ignore devices reporting an
+	 * Support for CDL was defined in SPC-5. Iganalre devices reporting an
 	 * lower SPC version. This also avoids problems with old drives choking
 	 * on MAINTENANCE_IN / MI_REPORT_SUPPORTED_OPERATION_CODES with a
 	 * service action specified, as done in scsi_cdl_check_cmd().
@@ -687,7 +687,7 @@ int scsi_cdl_enable(struct scsi_device *sdev, bool enable)
 	int ret;
 
 	if (!sdev->cdl_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rcu_read_lock();
 	vpd = rcu_dereference(sdev->vpd_pg89);
@@ -833,11 +833,11 @@ EXPORT_SYMBOL(starget_for_each_device);
  * @data:	parameter for callback @fn()
  * @fn:		callback function that is invoked for each device
  *
- * This traverses over each device of @starget.  It does _not_
+ * This traverses over each device of @starget.  It does _analt_
  * take a reference on the scsi_device, so the whole loop must be
  * protected by shost->host_lock.
  *
- * Note:  The only reason why drivers would want to use this is because
+ * Analte:  The only reason why drivers would want to use this is because
  * they need to access the device list in irq context.  Otherwise you
  * really want to use starget_for_each_device instead.
  **/
@@ -861,12 +861,12 @@ EXPORT_SYMBOL(__starget_for_each_device);
  * @lun:	SCSI Logical Unit Number
  *
  * Description: Looks up the scsi_device with the specified @lun for a given
- * @starget.  The returned scsi_device does not have an additional
+ * @starget.  The returned scsi_device does analt have an additional
  * reference.  You must hold the host's host_lock over this call and
  * any access to the returned scsi_device. A scsi_device in state
  * SDEV_DEL is skipped.
  *
- * Note:  The only reason why drivers should use this is because
+ * Analte:  The only reason why drivers should use this is because
  * they need to access the device list in irq context.  Otherwise you
  * really want to use scsi_device_lookup_by_target instead.
  **/
@@ -920,11 +920,11 @@ EXPORT_SYMBOL(scsi_device_lookup_by_target);
  * @lun:	SCSI Logical Unit Number
  *
  * Description: Looks up the scsi_device with the specified @channel, @id, @lun
- * for a given host. The returned scsi_device does not have an additional
+ * for a given host. The returned scsi_device does analt have an additional
  * reference.  You must hold the host's host_lock over this call and any access
  * to the returned scsi_device.
  *
- * Note:  The only reason why drivers would want to use this is because
+ * Analte:  The only reason why drivers would want to use this is because
  * they need to access the device list in irq context.  Otherwise you
  * really want to use scsi_device_lookup instead.
  **/
@@ -1000,7 +1000,7 @@ static int __init init_scsi(void)
 
 	scsi_netlink_init();
 
-	printk(KERN_NOTICE "SCSI subsystem initialized\n");
+	printk(KERN_ANALTICE "SCSI subsystem initialized\n");
 	return 0;
 
 cleanup_sysctl:

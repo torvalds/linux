@@ -17,7 +17,7 @@
  * @integer:	integer to be encoded
  *
  * This is a simplified encoder: it only currently does
- * positive integers, but it should be simple enough to add the
+ * positive integers, but it should be simple eanalugh to add the
  * negative case if a use comes along.
  */
 unsigned char *
@@ -59,11 +59,11 @@ asn1_encode_integer(unsigned char *data, const unsigned char *end_data,
 		 * for a positive number the first byte must have bit
 		 * 7 clear in two's complement (otherwise it's a
 		 * negative number) so prepend a leading zero if
-		 * that's not the case
+		 * that's analt the case
 		 */
 		if (!found && (byte & 0x80)) {
 			/*
-			 * no check needed here, we already know we
+			 * anal check needed here, we already kanalw we
 			 * have len >= 1
 			 */
 			*d++ = 0;
@@ -186,7 +186,7 @@ EXPORT_SYMBOL_GPL(asn1_encode_oid);
  * It will accept a negative length and place a zero length tag
  * instead (to keep the ASN.1 valid).  This convention allows other
  * encoder primitives to accept negative lengths as singalling the
- * sequence will be re-encoded when the length is known.
+ * sequence will be re-encoded when the length is kanalwn.
  */
 static int asn1_encode_length(unsigned char **data, int *data_len, int len)
 {
@@ -248,7 +248,7 @@ static int asn1_encode_length(unsigned char **data, int *data_len, int len)
  * @string:	the data to be tagged
  * @len:	the length of the data to be tagged
  *
- * Note this currently only handles short form tags < 31.
+ * Analte this currently only handles short form tags < 31.
  *
  * Standard usage is to pass in a @tag, @string and @length and the
  * @string will be ASN.1 encoded with @tag and placed into @data.  If
@@ -261,7 +261,7 @@ static int asn1_encode_length(unsigned char **data, int *data_len, int len)
  * is add the current maximum length and update the data pointer to
  * the place where the tag contents should be placed is returned.  The
  * data should be copied in by the calling routine which should then
- * repeat the prior statement but now with the known length.  In order
+ * repeat the prior statement but analw with the kanalwn length.  In order
  * to avoid having to keep both before and after pointers, the repeat
  * expects to be called with @data pointing to where the first encode
  * returned it and still NULL for @string but the real length in @len.
@@ -322,7 +322,7 @@ EXPORT_SYMBOL_GPL(asn1_encode_tag);
  * @string:	string to be encoded
  * @len:	length of string
  *
- * Note ASN.1 octet strings may contain zeros, so the length is obligatory.
+ * Analte ASN.1 octet strings may contain zeros, so the length is obligatory.
  */
 unsigned char *
 asn1_encode_octet_string(unsigned char *data,
@@ -364,7 +364,7 @@ EXPORT_SYMBOL_GPL(asn1_encode_octet_string);
  * @len:	length of the data to be encoded as a sequence
  *
  * Fill in a sequence.  To encode in place, pass NULL for @seq and -1
- * for @len; then call again once the length is known (still with NULL
+ * for @len; then call again once the length is kanalwn (still with NULL
  * for @seq). In order to avoid having to keep both before and after
  * pointers, the repeat expects to be called with @data pointing to
  * where the first encode placed it.

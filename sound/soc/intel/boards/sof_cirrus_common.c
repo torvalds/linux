@@ -149,8 +149,8 @@ static const char * const cs35l41_name_prefixes[] = { "WL", "WR", "TL", "TR" };
  * UID 0x1 -> WR
  * UID 0x2 -> TL
  * UID 0x3 -> TR
- * Note: If there are less than 4 Amps, UIDs still map to WL/WR/TL/TR. Dynamic code will only create
- * dai links for UIDs which exist, and ignore non-existant ones. Only 2 or 4 amps are expected.
+ * Analte: If there are less than 4 Amps, UIDs still map to WL/WR/TL/TR. Dynamic code will only create
+ * dai links for UIDs which exist, and iganalre analn-existant ones. Only 2 or 4 amps are expected.
  * Return number of codecs found.
  */
 static int cs35l41_compute_codec_conf(void)
@@ -163,14 +163,14 @@ static int cs35l41_compute_codec_conf(void)
 	for (uid = 0; uid < CS35L41_MAX_AMPS; uid++) {
 		adev = acpi_dev_get_first_match_dev(CS35L41_HID, uid_strings[uid], -1);
 		if (!adev) {
-			pr_devel("Cannot find match for HID %s UID %u (%s)\n", CS35L41_HID, uid,
+			pr_devel("Cananalt find match for HID %s UID %u (%s)\n", CS35L41_HID, uid,
 				 cs35l41_name_prefixes[uid]);
 			continue;
 		}
-		physdev = get_device(acpi_get_first_physical_node(adev));
+		physdev = get_device(acpi_get_first_physical_analde(adev));
 		acpi_dev_put(adev);
 		if (!physdev) {
-			pr_devel("Cannot find physical node for HID %s UID %u (%s)\n", CS35L41_HID,
+			pr_devel("Cananalt find physical analde for HID %s UID %u (%s)\n", CS35L41_HID,
 					uid, cs35l41_name_prefixes[uid]);
 			return 0;
 		}

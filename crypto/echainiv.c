@@ -28,8 +28,8 @@ static int echainiv_encrypt(struct aead_request *req)
 	struct crypto_aead *geniv = crypto_aead_reqtfm(req);
 	struct aead_geniv_ctx *ctx = crypto_aead_ctx(geniv);
 	struct aead_request *subreq = aead_request_ctx(req);
-	__be64 nseqno;
-	u64 seqno;
+	__be64 nseqanal;
+	u64 seqanal;
 	u8 *info;
 	unsigned int ivsize = crypto_aead_ivsize(geniv);
 	int err;
@@ -62,8 +62,8 @@ static int echainiv_encrypt(struct aead_request *req)
 			       req->cryptlen, info);
 	aead_request_set_ad(subreq, req->assoclen);
 
-	memcpy(&nseqno, info + ivsize - 8, 8);
-	seqno = be64_to_cpu(nseqno);
+	memcpy(&nseqanal, info + ivsize - 8, 8);
+	seqanal = be64_to_cpu(nseqanal);
 	memset(info, 0, ivsize);
 
 	scatterwalk_map_and_copy(info, req->dst, req->assoclen, ivsize, 1);
@@ -74,7 +74,7 @@ static int echainiv_encrypt(struct aead_request *req)
 		memcpy(&a, ctx->salt + ivsize - 8, 8);
 
 		a |= 1;
-		a *= seqno;
+		a *= seqanal;
 
 		memcpy(info + ivsize - 8, &a, 8);
 	} while ((ivsize -= 8));

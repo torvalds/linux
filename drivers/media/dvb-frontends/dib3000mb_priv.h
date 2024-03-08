@@ -136,19 +136,19 @@ static u16 dib3000mb_timing_freq[][2] = {
 	{ 168 , 65164 }, /* 8 MHz */
 };
 
-/* impulse noise parameter */
+/* impulse analise parameter */
 /* 36 ??? */
 
-static u16 dib3000mb_reg_impulse_noise[] = { 10,11,12,15,36 };
+static u16 dib3000mb_reg_impulse_analise[] = { 10,11,12,15,36 };
 
-enum dib3000mb_impulse_noise_type {
-	DIB3000MB_IMPNOISE_OFF,
-	DIB3000MB_IMPNOISE_MOBILE,
-	DIB3000MB_IMPNOISE_FIXED,
-	DIB3000MB_IMPNOISE_DEFAULT
+enum dib3000mb_impulse_analise_type {
+	DIB3000MB_IMPANALISE_OFF,
+	DIB3000MB_IMPANALISE_MOBILE,
+	DIB3000MB_IMPANALISE_FIXED,
+	DIB3000MB_IMPANALISE_DEFAULT
 };
 
-static u16 dib3000mb_impulse_noise_values[][5] = {
+static u16 dib3000mb_impulse_analise_values[][5] = {
 	{ 0x0000, 0x0004, 0x0014, 0x01ff, 0x0399 }, /* off */
 	{ 0x0001, 0x0004, 0x0014, 0x01ff, 0x037b }, /* mobile */
 	{ 0x0001, 0x0004, 0x0020, 0x01bd, 0x0399 }, /* fixed */
@@ -170,11 +170,11 @@ static u16 dib3000mb_default_agc_gain[] =
 	{ 0x0001, 52429,   623, 128, 166, 195, 61,   /* RF ??? */
 	  0x0001, 53766, 38011,   0,  90,  33, 23 }; /* IF ??? */
 
-/* phase noise */
-/* 36 is set when setting the impulse noise */
-static u16 dib3000mb_reg_phase_noise[] = { 33,34,35,37,38 };
+/* phase analise */
+/* 36 is set when setting the impulse analise */
+static u16 dib3000mb_reg_phase_analise[] = { 33,34,35,37,38 };
 
-static u16 dib3000mb_default_noise_phase[] = { 2, 544, 0, 5, 4 };
+static u16 dib3000mb_default_analise_phase[] = { 2, 544, 0, 5, 4 };
 
 /* lock duration */
 static u16 dib3000mb_reg_lock_duration[] = { 39,40 };
@@ -212,7 +212,7 @@ static u16 dib3000mb_agc_bandwidth_high[] =
 /*
  * SEQ ? what was that again ... :)
  * changes when, inversion, guard time and fft is
- * either automatically detected or not
+ * either automatically detected or analt
  */
 #define DIB3000MB_REG_SEQ				(    54)
 
@@ -252,9 +252,9 @@ static u16 dib3000mb_bandwidth_8mhz[] =
 #define DIB3000MB_SYNC_IMPROVE_2K_1_8		(     3)
 #define DIB3000MB_SYNC_IMPROVE_DEFAULT		(     0)
 
-/* phase noise compensation inhibition */
-#define DIB3000MB_REG_PHASE_NOISE		(    87)
-#define DIB3000MB_PHASE_NOISE_DEFAULT	(     0)
+/* phase analise compensation inhibition */
+#define DIB3000MB_REG_PHASE_ANALISE		(    87)
+#define DIB3000MB_PHASE_ANALISE_DEFAULT	(     0)
 
 #define DIB3000MB_REG_UNK_92				(    92)
 #define DIB3000MB_UNK_92						(0x0080)
@@ -345,7 +345,7 @@ static u16 dib3000mb_bandwidth_8mhz[] =
 
 /*
  * pidfilter
- * it is not a hardware pidfilter but a filter which drops all pids
+ * it is analt a hardware pidfilter but a filter which drops all pids
  * except the ones set. Necessary because of the limited USB1.1 bandwidth.
  * regs 153-168
  */
@@ -389,7 +389,7 @@ static u16 dib3000mb_filter_coeffs[] = {
 
 /*
  * mobile algorithm (when you are moving with your device)
- * but not faster than 90 km/h
+ * but analt faster than 90 km/h
  */
 #define DIB3000MB_REG_MOBILE_ALGO		(   195)
 #define DIB3000MB_MOBILE_ALGO_ON			(     0)
@@ -399,11 +399,11 @@ static u16 dib3000mb_filter_coeffs[] = {
 #define DIB3000MB_REG_MULTI_DEMOD_MSB	(   206)
 #define DIB3000MB_REG_MULTI_DEMOD_LSB	(   207)
 
-/* terminator, no more demods */
+/* terminator, anal more demods */
 #define DIB3000MB_MULTI_DEMOD_MSB			( 32767)
 #define DIB3000MB_MULTI_DEMOD_LSB			(  4095)
 
-/* bring the device into a known  */
+/* bring the device into a kanalwn  */
 #define DIB3000MB_REG_RESET_DEVICE		(  1024)
 #define DIB3000MB_RESET_DEVICE				(0x812c)
 #define DIB3000MB_RESET_DEVICE_RST			(     0)
@@ -457,16 +457,16 @@ static u16 dib3000mb_filter_coeffs[] = {
 /* carriers locked (1) */
 #define DIB3000MB_REG_CARRIER_LOCK		(   355)
 
-/* noise power (24) */
-#define DIB3000MB_REG_NOISE_POWER_MSB	(   372)
-#define DIB3000MB_REG_NOISE_POWER_LSB	(   373)
+/* analise power (24) */
+#define DIB3000MB_REG_ANALISE_POWER_MSB	(   372)
+#define DIB3000MB_REG_ANALISE_POWER_LSB	(   373)
 
-#define DIB3000MB_REG_MOBILE_NOISE_MSB	(   374)
-#define DIB3000MB_REG_MOBILE_NOISE_LSB	(   375)
+#define DIB3000MB_REG_MOBILE_ANALISE_MSB	(   374)
+#define DIB3000MB_REG_MOBILE_ANALISE_LSB	(   375)
 
 /*
  * signal power (16), this and the above can be
- * used to calculate the signal/noise - ratio
+ * used to calculate the signal/analise - ratio
  */
 #define DIB3000MB_REG_SIGNAL_POWER		(   380)
 

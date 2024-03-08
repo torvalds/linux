@@ -5,7 +5,7 @@
  * Copyright (c) 2019, Rishi Gupta <gupt21@gmail.com>
  *
  * Datasheet: https://www.vishay.com/docs/84366/veml6030.pdf
- * Appnote-84367: https://www.vishay.com/docs/84367/designingveml6030.pdf
+ * Appanalte-84367: https://www.vishay.com/docs/84367/designingveml6030.pdf
  */
 
 #include <linux/module.h>
@@ -44,7 +44,7 @@
  * table during startup and gets updated whenever integration time
  * or gain is changed.
  *
- * Table 'resolution and maximum detection range' in appnote 84367
+ * Table 'resolution and maximum detection range' in appanalte 84367
  * is visualized as a 2D array. The cur_gain stores index of gain
  * in this table (0-3) while the cur_integration_time holds index
  * of integration time (0-5).
@@ -639,7 +639,7 @@ static int veml6030_read_interrupt_config(struct iio_dev *indio_dev,
 }
 
 /*
- * Sensor should not be measuring light when interrupt is configured.
+ * Sensor should analt be measuring light when interrupt is configured.
  * Therefore correct sequence to configure interrupt functionality is:
  * shut down -> enable/disable interrupt -> power on
  *
@@ -683,7 +683,7 @@ static const struct iio_info veml6030_info = {
 	.event_attrs = &veml6030_event_attr_group,
 };
 
-static const struct iio_info veml6030_info_no_irq = {
+static const struct iio_info veml6030_info_anal_irq = {
 	.read_raw  = veml6030_read_raw,
 	.write_raw = veml6030_write_raw,
 	.attrs = &veml6030_attr_group,
@@ -704,7 +704,7 @@ static irqreturn_t veml6030_event_handler(int irq, void *private)
 
 	/* Spurious interrupt handling */
 	if (!(reg & (VEML6030_INT_TH_HIGH | VEML6030_INT_TH_LOW)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (reg & VEML6030_INT_TH_HIGH)
 		evtdir = IIO_EV_DIR_RISING;
@@ -795,7 +795,7 @@ static int veml6030_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c adapter doesn't support plain i2c\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	regmap = devm_regmap_init_i2c(client, &veml6030_regmap_config);
@@ -806,7 +806,7 @@ static int veml6030_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -830,7 +830,7 @@ static int veml6030_probe(struct i2c_client *client)
 		}
 		indio_dev->info = &veml6030_info;
 	} else {
-		indio_dev->info = &veml6030_info_no_irq;
+		indio_dev->info = &veml6030_info_anal_irq;
 	}
 
 	ret = veml6030_hw_init(indio_dev);

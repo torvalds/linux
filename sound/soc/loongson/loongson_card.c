@@ -2,7 +2,7 @@
 //
 // Loongson ASoC Audio Machine driver
 //
-// Copyright (C) 2023 Loongson Technology Corporation Limited
+// Copyright (C) 2023 Loongson Techanallogy Corporation Limited
 // Author: Yingkun Meng <mengyingkun@loongson.cn>
 //
 
@@ -34,14 +34,14 @@ static int loongson_card_hw_params(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk,
 					     SND_SOC_CLOCK_OUT);
 		if (ret < 0) {
-			dev_err(codec_dai->dev, "cpu_dai clock not set\n");
+			dev_err(codec_dai->dev, "cpu_dai clock analt set\n");
 			return ret;
 		}
 
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					     SND_SOC_CLOCK_IN);
 		if (ret < 0) {
-			dev_err(codec_dai->dev, "codec_dai clock not set\n");
+			dev_err(codec_dai->dev, "codec_dai clock analt set\n");
 			return ret;
 		}
 	}
@@ -71,35 +71,35 @@ static struct snd_soc_dai_link loongson_dai_links[] = {
 static int loongson_card_parse_acpi(struct loongson_card_data *data)
 {
 	struct snd_soc_card *card = &data->snd_card;
-	struct fwnode_handle *fwnode = card->dev->fwnode;
-	struct fwnode_reference_args args;
+	struct fwanalde_handle *fwanalde = card->dev->fwanalde;
+	struct fwanalde_reference_args args;
 	const char *codec_dai_name;
 	struct acpi_device *adev;
 	struct device *phy_dev;
 	int ret, i;
 
-	/* fixup platform name based on reference node */
+	/* fixup platform name based on reference analde */
 	memset(&args, 0, sizeof(args));
-	ret = acpi_node_get_property_reference(fwnode, "cpu", 0, &args);
-	if (ret || !is_acpi_device_node(args.fwnode)) {
-		dev_err(card->dev, "No matching phy in ACPI table\n");
-		return ret ?: -ENOENT;
+	ret = acpi_analde_get_property_reference(fwanalde, "cpu", 0, &args);
+	if (ret || !is_acpi_device_analde(args.fwanalde)) {
+		dev_err(card->dev, "Anal matching phy in ACPI table\n");
+		return ret ?: -EANALENT;
 	}
-	adev = to_acpi_device_node(args.fwnode);
-	phy_dev = acpi_get_first_physical_node(adev);
+	adev = to_acpi_device_analde(args.fwanalde);
+	phy_dev = acpi_get_first_physical_analde(adev);
 	if (!phy_dev)
 		return -EPROBE_DEFER;
 	for (i = 0; i < card->num_links; i++)
 		loongson_dai_links[i].platforms->name = dev_name(phy_dev);
 
-	/* fixup codec name based on reference node */
+	/* fixup codec name based on reference analde */
 	memset(&args, 0, sizeof(args));
-	ret = acpi_node_get_property_reference(fwnode, "codec", 0, &args);
-	if (ret || !is_acpi_device_node(args.fwnode)) {
-		dev_err(card->dev, "No matching phy in ACPI table\n");
-		return ret ?: -ENOENT;
+	ret = acpi_analde_get_property_reference(fwanalde, "codec", 0, &args);
+	if (ret || !is_acpi_device_analde(args.fwanalde)) {
+		dev_err(card->dev, "Anal matching phy in ACPI table\n");
+		return ret ?: -EANALENT;
 	}
-	adev = to_acpi_device_node(args.fwnode);
+	adev = to_acpi_device_analde(args.fwanalde);
 	snprintf(codec_name, sizeof(codec_name), "i2c-%s", acpi_dev_name(adev));
 	for (i = 0; i < card->num_links; i++)
 		loongson_dai_links[i].codecs->name = codec_name;
@@ -114,17 +114,17 @@ static int loongson_card_parse_acpi(struct loongson_card_data *data)
 
 static int loongson_card_parse_of(struct loongson_card_data *data)
 {
-	struct device_node *cpu, *codec;
+	struct device_analde *cpu, *codec;
 	struct snd_soc_card *card = &data->snd_card;
 	struct device *dev = card->dev;
 	int ret, i;
 
-	cpu = of_get_child_by_name(dev->of_node, "cpu");
+	cpu = of_get_child_by_name(dev->of_analde, "cpu");
 	if (!cpu) {
 		dev_err(dev, "platform property missing or invalid\n");
 		return -EINVAL;
 	}
-	codec = of_get_child_by_name(dev->of_node, "codec");
+	codec = of_get_child_by_name(dev->of_analde, "codec");
 	if (!codec) {
 		dev_err(dev, "audio-codec property missing or invalid\n");
 		ret = -EINVAL;
@@ -145,14 +145,14 @@ static int loongson_card_parse_of(struct loongson_card_data *data)
 		}
 	}
 
-	of_node_put(cpu);
-	of_node_put(codec);
+	of_analde_put(cpu);
+	of_analde_put(codec);
 
 	return 0;
 
 err:
-	of_node_put(cpu);
-	of_node_put(codec);
+	of_analde_put(cpu);
+	of_analde_put(codec);
 	return ret;
 }
 
@@ -164,7 +164,7 @@ static int loongson_asoc_card_probe(struct platform_device *pdev)
 
 	ls_priv = devm_kzalloc(&pdev->dev, sizeof(*ls_priv), GFP_KERNEL);
 	if (!ls_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = &ls_priv->snd_card;
 
@@ -214,5 +214,5 @@ static struct platform_driver loongson_audio_driver = {
 module_platform_driver(loongson_audio_driver);
 
 MODULE_DESCRIPTION("Loongson ASoc Sound Card driver");
-MODULE_AUTHOR("Loongson Technology Corporation Limited");
+MODULE_AUTHOR("Loongson Techanallogy Corporation Limited");
 MODULE_LICENSE("GPL");

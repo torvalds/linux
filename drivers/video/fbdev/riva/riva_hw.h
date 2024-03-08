@@ -2,23 +2,23 @@
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
-|*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
+|*     ANALTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a analnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  analtices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
-|*     NVIDIA, CORPORATION MAKES NO REPRESENTATION ABOUT THE SUITABILITY     *|
+|*     NVIDIA, CORPORATION MAKES ANAL REPRESENTATION ABOUT THE SUITABILITY     *|
 |*     OF  THIS SOURCE  CODE  FOR ANY PURPOSE.  IT IS  PROVIDED  "AS IS"     *|
 |*     WITHOUT EXPRESS OR IMPLIED WARRANTY OF ANY KIND.  NVIDIA, CORPOR-     *|
 |*     ATION DISCLAIMS ALL WARRANTIES  WITH REGARD  TO THIS SOURCE CODE,     *|
-|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGE-     *|
-|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN NO EVENT SHALL     *|
+|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, ANALNINFRINGE-     *|
+|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN ANAL EVENT SHALL     *|
 |*     NVIDIA, CORPORATION  BE LIABLE FOR ANY SPECIAL,  INDIRECT,  INCI-     *|
 |*     DENTAL, OR CONSEQUENTIAL DAMAGES,  OR ANY DAMAGES  WHATSOEVER RE-     *|
 |*     SULTING FROM LOSS OF USE,  DATA OR PROFITS,  WHETHER IN AN ACTION     *|
@@ -38,10 +38,10 @@
 \***************************************************************************/
 
 /*
- * GPL licensing note -- nVidia is allowing a liberal interpretation of
+ * GPL licensing analte -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
- * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
+ * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Analv/99 
  */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/riva_hw.h,v 1.21 2002/10/14 18:22:46 mvojkovi Exp $ */
@@ -111,13 +111,13 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BB];
     U032 Rop3;
 } RivaRop;
 /*
- * 8X8 Monochrome pattern.
+ * 8X8 Moanalchrome pattern.
  */
 typedef volatile struct
 {
@@ -126,14 +126,14 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BD];
     U032 Shape;
     U032 reserved03[0x001];
     U032 Color0;
     U032 Color1;
-    U032 Monochrome[2];
+    U032 Moanalchrome[2];
 } RivaPattern;
 /*
  * Scissor clip rectangle.
@@ -145,7 +145,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BB];
     U032 TopLeft;
@@ -161,7 +161,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop[1];
+    U016 Analp[1];
 #endif
     U032 reserved01[0x0BC];
     U032 Color;
@@ -179,7 +179,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BB];
     U032 TopLeftSrc;
@@ -196,7 +196,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop[1];
+    U016 Analp[1];
 #endif
     U032 reserved01[0x0BC];
     U032 TopLeft;
@@ -206,7 +206,7 @@ typedef volatile struct
     U032 Pixels;
 } RivaPixmap;
 /*
- * Filled rectangle combined with monochrome expand.  Useful for glyphs.
+ * Filled rectangle combined with moanalchrome expand.  Useful for glyphs.
  */
 typedef volatile struct
 {
@@ -215,7 +215,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BB];
     U032 reserved03[(0x040)-1];
@@ -246,7 +246,7 @@ typedef volatile struct
     U032 Color1C;
     U032 WidthHeightC;
     U032 PointC;
-    U032 MonochromeData1C;
+    U032 MoanalchromeData1C;
     U032 reserved06[(0x080)+121];
     struct
     {
@@ -257,7 +257,7 @@ typedef volatile struct
     U032 WidthHeightInD;
     U032 WidthHeightOutD;
     U032 PointD;
-    U032 MonochromeData1D;
+    U032 MoanalchromeData1D;
     U032 reserved07[(0x080)+120];
     struct
     {
@@ -269,7 +269,7 @@ typedef volatile struct
     U032 WidthHeightInE;
     U032 WidthHeightOutE;
     U032 PointE;
-    U032 MonochromeData01E;
+    U032 MoanalchromeData01E;
 } RivaBitmap;
 /*
  * 3D textured, Z buffered triangle.
@@ -281,7 +281,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BC];
     U032 TextureOffset;
@@ -311,7 +311,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BB];
     U032 ColorKey;
@@ -349,7 +349,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop[1];
+    U016 Analp[1];
 #endif
     U032 reserved01[0x0BC];
     U032 Color;             /* source color               0304-0307*/
@@ -384,7 +384,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BE];
     U032 Offset;
@@ -396,7 +396,7 @@ typedef volatile struct
     U032 FifoFree;
 #else
     U016 FifoFree;
-    U016 Nop;
+    U016 Analp;
 #endif
     U032 reserved01[0x0BD];
     U032 Pitch;
@@ -439,7 +439,7 @@ typedef struct _riva_hw_inst
     U032 flatPanel;
     Bool twoHeads;
     /*
-     * Non-FIFO registers.
+     * Analn-FIFO registers.
      */
     volatile U032 __iomem *PCRTC0;
     volatile U032 __iomem *PCRTC;

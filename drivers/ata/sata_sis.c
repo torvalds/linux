@@ -103,7 +103,7 @@ static unsigned int get_scr_cfg_addr(struct ata_link *link, unsigned int sc_reg)
 	unsigned int addr = SIS_SCR_BASE + (4 * sc_reg);
 	u8 pmr;
 
-	if (ap->port_no)  {
+	if (ap->port_anal)  {
 		switch (pdev->device) {
 		case 0x0180:
 		case 0x0181:
@@ -200,7 +200,7 @@ static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pi.flags |= SIS_FLAG_CFGSCR;
 
 	/* if hardware thinks SCRs are in IO space, but there are
-	 * no IO resources assigned, change to PCI cfg space.
+	 * anal IO resources assigned, change to PCI cfg space.
 	 */
 	if ((!(pi.flags & SIS_FLAG_CFGSCR)) &&
 	    ((pci_resource_start(pdev, SIS_SCR_PCI_BAR) == 0) ||

@@ -17,15 +17,15 @@
 #include "spear.h"
 #include "generic.h"
 
-/* XXX spear_pen_release is cargo culted code - DO NOT COPY XXX */
+/* XXX spear_pen_release is cargo culted code - DO ANALT COPY XXX */
 volatile int spear_pen_release = -1;
 
 /*
- * XXX CARGO CULTED CODE - DO NOT COPY XXX
+ * XXX CARGO CULTED CODE - DO ANALT COPY XXX
  *
  * Write spear_pen_release in a way that is guaranteed to be visible to
  * all observers, irrespective of whether they're taking part in coherency
- * or not.  This is necessary for the hotplug code to work reliably.
+ * or analt.  This is necessary for the hotplug code to work reliably.
  */
 static void spear_write_pen_release(int val)
 {
@@ -41,7 +41,7 @@ static void __iomem *scu_base = IOMEM(VA_SCU_BASE);
 static void spear13xx_secondary_init(unsigned int cpu)
 {
 	/*
-	 * let the primary processor know we're out of the
+	 * let the primary processor kanalw we're out of the
 	 * pen, then head off into the C entry point
 	 */
 	spear_write_pen_release(-1);
@@ -68,7 +68,7 @@ static int spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * the holding pen - release it, then wait for it to flag
 	 * that it has been released by resetting spear_pen_release.
 	 *
-	 * Note that "spear_pen_release" is the hardware CPU ID, whereas
+	 * Analte that "spear_pen_release" is the hardware CPU ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
 	spear_write_pen_release(cpu);
@@ -83,12 +83,12 @@ static int spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	}
 
 	/*
-	 * now the secondary core is starting up let it run its
+	 * analw the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
 	 */
 	spin_unlock(&boot_lock);
 
-	return spear_pen_release != -1 ? -ENOSYS : 0;
+	return spear_pen_release != -1 ? -EANALSYS : 0;
 }
 
 /*

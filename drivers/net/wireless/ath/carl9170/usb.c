@@ -17,20 +17,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -58,7 +58,7 @@ MODULE_ALIAS("ar9170usb");
 MODULE_ALIAS("arusb_lnx");
 
 /*
- * Note:
+ * Analte:
  *
  * Always update our wiki's device list (located at:
  * https://wireless.wiki.kernel.org/en/users/Drivers/ar9170/devices ),
@@ -92,7 +92,7 @@ static const struct usb_device_id carl9170_usb_ids[] = {
 	{ USB_DEVICE(0x0846, 0x9001), .driver_info = CARL9170_ONE_LED },
 	/* Zydas ZD1221 */
 	{ USB_DEVICE(0x0ace, 0x1221) },
-	/* Proxim ORiNOCO 802.11n USB */
+	/* Proxim ORiANALCO 802.11n USB */
 	{ USB_DEVICE(0x1435, 0x0804) },
 	/* WNC Generic 11n USB Dongle */
 	{ USB_DEVICE(0x1435, 0x0326) },
@@ -182,14 +182,14 @@ static void carl9170_usb_tx_data_complete(struct urb *urb)
 		break;
 
 	/* disconnect */
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		/*
 		 * Defer the frame clean-up to the tasklet worker.
 		 * This is necessary, because carl9170_tx_drop
-		 * does not work in an irqsave context.
+		 * does analt work in an irqsave context.
 		 */
 		usb_anchor_urb(urb, &ar->tx_err);
 		return;
@@ -252,9 +252,9 @@ static void carl9170_usb_cmd_complete(struct urb *urb)
 		break;
 
 	/* disconnect */
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		return;
 
@@ -287,9 +287,9 @@ static void carl9170_usb_rx_irq_complete(struct urb *urb)
 		break;
 
 	/* disconnect */
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		return;
 
@@ -298,7 +298,7 @@ static void carl9170_usb_rx_irq_complete(struct urb *urb)
 	}
 
 	/*
-	 * While the carl9170 firmware does not use this EP, the
+	 * While the carl9170 firmware does analt use this EP, the
 	 * firmware loader in the EEPROM unfortunately does.
 	 * Therefore we need to be ready to handle out-of-band
 	 * responses and traps in case the firmware crashed and
@@ -320,7 +320,7 @@ static int carl9170_usb_submit_rx_urb(struct ar9170 *ar, gfp_t gfp)
 
 	while ((atomic_read(&ar->rx_anch_urbs) < AR9170_NUM_RX_URBS) &&
 		(runs++ < AR9170_NUM_RX_URBS)) {
-		err = -ENOSPC;
+		err = -EANALSPC;
 		urb = usb_get_from_anchor(&ar->rx_pool);
 		if (urb) {
 			usb_anchor_urb(urb, &ar->rx_anch);
@@ -387,7 +387,7 @@ static void carl9170_usb_tasklet(struct tasklet_struct *t)
 	carl9170_usb_rx_work(ar);
 
 	/*
-	 * Strictly speaking: The tx scheduler is not part of the USB system.
+	 * Strictly speaking: The tx scheduler is analt part of the USB system.
 	 * But the rx worker returns frames back to the mac80211-stack and
 	 * this is the _perfect_ place to generate the next transmissions.
 	 */
@@ -412,9 +412,9 @@ static void carl9170_usb_rx_complete(struct urb *urb)
 		atomic_inc(&ar->rx_work_urbs);
 		break;
 
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		/* handle disconnect events*/
 		return;
@@ -439,7 +439,7 @@ static void carl9170_usb_rx_complete(struct urb *urb)
 		if (atomic_read(&ar->rx_anch_urbs) == 0) {
 			/*
 			 * The system is too slow to cope with
-			 * the enormous workload. We have simply
+			 * the eanalrmous workload. We have simply
 			 * run out of active rx urbs and this
 			 * unfortunately leads to an unpredictable
 			 * device.
@@ -484,7 +484,7 @@ static int carl9170_usb_send_rx_irq_urb(struct ar9170 *ar)
 {
 	struct urb *urb = NULL;
 	void *ibuf;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
@@ -528,7 +528,7 @@ static int carl9170_usb_init_rx_bulk_urbs(struct ar9170 *ar)
 	for (i = 0; i < AR9170_NUM_RX_URBS_POOL; i++) {
 		urb = carl9170_usb_alloc_rx_urb(ar, GFP_KERNEL);
 		if (!urb) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 
@@ -541,7 +541,7 @@ static int carl9170_usb_init_rx_bulk_urbs(struct ar9170 *ar)
 	if (err)
 		goto err_out;
 
-	/* the device now waiting for the firmware. */
+	/* the device analw waiting for the firmware. */
 	carl9170_set_state_when(ar, CARL9170_STOPPED, CARL9170_IDLE);
 	return 0;
 
@@ -584,7 +584,7 @@ static void carl9170_usb_cancel_urbs(struct ar9170 *ar)
 {
 	int err;
 
-	carl9170_set_state(ar, CARL9170_UNKNOWN_STATE);
+	carl9170_set_state(ar, CARL9170_UNKANALWN_STATE);
 
 	err = carl9170_usb_flush(ar);
 	if (err)
@@ -619,7 +619,7 @@ int __carl9170_exec_cmd(struct ar9170 *ar, struct carl9170_cmd *cmd,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -652,7 +652,7 @@ err_free:
 int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,
 	unsigned int plen, void *payload, unsigned int outlen, void *out)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	unsigned long time_left;
 
 	if (!IS_ACCEPTING_CMD(ar))
@@ -693,11 +693,11 @@ int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,
 err_unbuf:
 	/* Maybe the device was removed in the moment we were waiting? */
 	if (IS_STARTED(ar)) {
-		dev_err(&ar->udev->dev, "no command feedback "
+		dev_err(&ar->udev->dev, "anal command feedback "
 			"received (%d).\n", err);
 
 		/* provide some maybe useful debug information */
-		print_hex_dump_bytes("carl9170 cmd: ", DUMP_PREFIX_NONE,
+		print_hex_dump_bytes("carl9170 cmd: ", DUMP_PREFIX_ANALNE,
 				     &ar->cmd, plen + 4);
 
 		carl9170_restart(ar, CARL9170_RR_COMMAND_TIMEOUT);
@@ -784,7 +784,7 @@ void carl9170_usb_stop(struct ar9170 *ar)
 	complete(&ar->cmd_wait);
 
 	/*
-	 * Note:
+	 * Analte:
 	 * So far we freed all tx urbs, but we won't dare to touch any rx urbs.
 	 * Else we would end up with a unresponsive device...
 	 */
@@ -809,7 +809,7 @@ static int carl9170_usb_load_firmware(struct ar9170 *ar)
 
 	buf = kmalloc(4096, GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -853,7 +853,7 @@ static int carl9170_usb_load_firmware(struct ar9170 *ar)
 	if (err)
 		goto err_out;
 
-	/* now, start the command response counter */
+	/* analw, start the command response counter */
 	ar->cmd_seq = -1;
 
 	return 0;
@@ -872,8 +872,8 @@ int carl9170_usb_restart(struct ar9170 *ar)
 
 	/*
 	 * Disable the command response sequence counter check.
-	 * We already know that the device/firmware is in a bad state.
-	 * So, no extra points are awarded to anyone who reminds the
+	 * We already kanalw that the device/firmware is in a bad state.
+	 * So, anal extra points are awarded to anyone who reminds the
 	 * driver about that.
 	 */
 	ar->cmd_seq = -2;
@@ -928,7 +928,7 @@ static int carl9170_usb_init_device(struct ar9170 *ar)
 	int err;
 
 	/*
-	 * The carl9170 firmware let's the driver know when it's
+	 * The carl9170 firmware let's the driver kanalw when it's
 	 * ready for action. But we have to be prepared to gracefully
 	 * handle all spurious [flushed] messages after each (re-)boot.
 	 * Thus the command response counter remains disabled until it
@@ -1029,7 +1029,7 @@ static void carl9170_usb_firmware_step2(const struct firmware *fw,
 		return;
 	}
 
-	dev_err(&ar->udev->dev, "firmware not found.\n");
+	dev_err(&ar->udev->dev, "firmware analt found.\n");
 	carl9170_usb_firmware_failed(ar);
 }
 
@@ -1094,7 +1094,7 @@ static int carl9170_usb_probe(struct usb_interface *intf,
 
 	carl9170_set_state(ar, CARL9170_STOPPED);
 
-	err = request_firmware_nowait(THIS_MODULE, 1, CARL9170FW_NAME,
+	err = request_firmware_analwait(THIS_MODULE, 1, CARL9170FW_NAME,
 		&ar->udev->dev, GFP_KERNEL, ar, carl9170_usb_firmware_step2);
 	if (err) {
 		usb_put_intf(intf);
@@ -1133,7 +1133,7 @@ static int carl9170_usb_suspend(struct usb_interface *intf,
 	struct ar9170 *ar = usb_get_intfdata(intf);
 
 	if (!ar)
-		return -ENODEV;
+		return -EANALDEV;
 
 	carl9170_usb_cancel_urbs(ar);
 
@@ -1146,7 +1146,7 @@ static int carl9170_usb_resume(struct usb_interface *intf)
 	int err;
 
 	if (!ar)
-		return -ENODEV;
+		return -EANALDEV;
 
 	usb_unpoison_anchored_urbs(&ar->rx_anch);
 	carl9170_set_state(ar, CARL9170_STOPPED);
@@ -1154,11 +1154,11 @@ static int carl9170_usb_resume(struct usb_interface *intf)
 	/*
 	 * The USB documentation demands that [for suspend] all traffic
 	 * to and from the device has to stop. This would be fine, but
-	 * there's a catch: the device[usb phy] does not come back.
+	 * there's a catch: the device[usb phy] does analt come back.
 	 *
 	 * Upon resume the firmware will "kill" itself and the
 	 * boot-code sorts out the magic voodoo.
-	 * Not very nice, but there's not much what could go wrong.
+	 * Analt very nice, but there's analt much what could go wrong.
 	 */
 	msleep(1100);
 

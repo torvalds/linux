@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -381,7 +381,7 @@ nvif_outp_inherit_lvds(struct nvif_outp *outp, u8 *proto_out)
 	int ret;
 
 	ret = nvif_outp_inherit(outp, NVIF_OUTP_INHERIT_V0_LVDS, &args, proto_out);
-	NVIF_ERRON(ret && ret != -ENODEV, &outp->object, "[INHERIT proto:LVDS] ret:%d", ret);
+	NVIF_ERRON(ret && ret != -EANALDEV, &outp->object, "[INHERIT proto:LVDS] ret:%d", ret);
 	return ret ?: args.head;
 }
 
@@ -392,7 +392,7 @@ nvif_outp_inherit_tmds(struct nvif_outp *outp, u8 *proto_out)
 	int ret;
 
 	ret = nvif_outp_inherit(outp, NVIF_OUTP_INHERIT_V0_TMDS, &args, proto_out);
-	NVIF_ERRON(ret && ret != -ENODEV, &outp->object, "[INHERIT proto:TMDS] ret:%d", ret);
+	NVIF_ERRON(ret && ret != -EANALDEV, &outp->object, "[INHERIT proto:TMDS] ret:%d", ret);
 	return ret ?: args.head;
 }
 
@@ -403,7 +403,7 @@ nvif_outp_inherit_dp(struct nvif_outp *outp, u8 *proto_out)
 	int ret;
 
 	ret = nvif_outp_inherit(outp, NVIF_OUTP_INHERIT_V0_DP, &args, proto_out);
-	NVIF_ERRON(ret && ret != -ENODEV, &outp->object, "[INHERIT proto:DP] ret:%d", ret);
+	NVIF_ERRON(ret && ret != -EANALDEV, &outp->object, "[INHERIT proto:DP] ret:%d", ret);
 
 	// TODO: Get current link info
 
@@ -417,7 +417,7 @@ nvif_outp_inherit_rgb_crt(struct nvif_outp *outp, u8 *proto_out)
 	int ret;
 
 	ret = nvif_outp_inherit(outp, NVIF_OUTP_INHERIT_V0_RGB_CRT, &args, proto_out);
-	NVIF_ERRON(ret && ret != -ENODEV, &outp->object, "[INHERIT proto:RGB_CRT] ret:%d", ret);
+	NVIF_ERRON(ret && ret != -EANALDEV, &outp->object, "[INHERIT proto:RGB_CRT] ret:%d", ret);
 	return ret ?: args.head;
 }
 
@@ -443,7 +443,7 @@ nvif_outp_edid_get(struct nvif_outp *outp, u8 **pedid)
 
 	args = kmalloc(sizeof(*args), GFP_KERNEL);
 	if (!args)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	args->version = 0;
 
@@ -454,7 +454,7 @@ nvif_outp_edid_get(struct nvif_outp *outp, u8 **pedid)
 
 	*pedid = kmalloc(args->size, GFP_KERNEL);
 	if (!*pedid) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -476,18 +476,18 @@ nvif_outp_detect(struct nvif_outp *outp)
 	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_DETECT, &args, sizeof(args));
 	NVIF_ERRON(ret, &outp->object, "[DETECT] status:%02x", args.status);
 	if (ret)
-		return UNKNOWN;
+		return UNKANALWN;
 
 	switch (args.status) {
-	case NVIF_OUTP_DETECT_V0_NOT_PRESENT: return NOT_PRESENT;
+	case NVIF_OUTP_DETECT_V0_ANALT_PRESENT: return ANALT_PRESENT;
 	case NVIF_OUTP_DETECT_V0_PRESENT: return PRESENT;
-	case NVIF_OUTP_DETECT_V0_UNKNOWN: return UNKNOWN;
+	case NVIF_OUTP_DETECT_V0_UNKANALWN: return UNKANALWN;
 	default:
 		WARN_ON(1);
 		break;
 	}
 
-	return UNKNOWN;
+	return UNKANALWN;
 }
 
 void

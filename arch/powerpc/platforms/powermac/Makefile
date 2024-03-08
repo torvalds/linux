@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 CFLAGS_bootx_init.o  		+= -fPIC
-CFLAGS_bootx_init.o		+= -fno-stack-protector
+CFLAGS_bootx_init.o		+= -fanal-stack-protector
 
 KASAN_SANITIZE_bootx_init.o := n
 
@@ -9,7 +9,7 @@ CFLAGS_bootx_init.o  		+= -DDISABLE_BRANCH_PROFILING
 endif
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not trace early boot code
+# Do analt trace early boot code
 CFLAGS_REMOVE_bootx_init.o = $(CC_FLAGS_FTRACE)
 endif
 

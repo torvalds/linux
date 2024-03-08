@@ -23,7 +23,7 @@ struct igt_spinner {
 	struct intel_context *ce;
 	struct i915_vma *hws_vma, *batch_vma;
 	u32 *batch;
-	void *seqno;
+	void *seqanal;
 };
 
 int igt_spinner_init(struct igt_spinner *spin, struct intel_gt *gt);

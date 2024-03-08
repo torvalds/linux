@@ -15,13 +15,13 @@ ns2="ns2-$sfx"
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -100,7 +100,7 @@ table inet filter {
 }
 EOF
 if [ $? -ne 0 ]; then
-	echo "ERROR: Could not load nft rules"
+	echo "ERROR: Could analt load nft rules"
 	exit 1
 fi
 
@@ -123,13 +123,13 @@ table inet nat {
 }
 EOF
 if [ $? -ne 0 ]; then
-	echo "ERROR: Could not load nat redirect"
+	echo "ERROR: Could analt load nat redirect"
 	exit 1
 fi
 
 count=$(ip netns exec $ns2 conntrack -L -p tcp --dport 80 2>/dev/null | wc -l)
 if [ $count -eq 0 ]; then
-	echo "ERROR: $ns2 did not pick up tcp connection from peer"
+	echo "ERROR: $ns2 did analt pick up tcp connection from peer"
 	exit 1
 fi
 
@@ -161,7 +161,7 @@ fi
 if [ $ret -eq 0 ];then
 	echo "PASS: redirection counter has expected values"
 else
-	echo "ERROR: no tcp connection was redirected"
+	echo "ERROR: anal tcp connection was redirected"
 fi
 
 exit $ret

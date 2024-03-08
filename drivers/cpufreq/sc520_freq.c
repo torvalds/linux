@@ -76,7 +76,7 @@ static int sc520_freq_cpu_init(struct cpufreq_policy *policy)
 	/* capability check */
 	if (c->x86_vendor != X86_VENDOR_AMD ||
 	    c->x86 != 4 || c->x86_model != 9)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.transition_latency = 1000000; /* 1ms */
@@ -106,12 +106,12 @@ static int __init sc520_freq_init(void)
 	int err;
 
 	if (!x86_match_cpu(sc520_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpuctl = ioremap((unsigned long)(MMCR_BASE + OFFS_CPUCTL), 1);
 	if (!cpuctl) {
 		pr_err("sc520_freq: error: failed to remap memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = cpufreq_register_driver(&sc520_freq_driver);

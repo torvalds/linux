@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 
 /*
- * RSEQ_SIG uses the trap4 instruction. As Linux does not make use of the
- * access-register mode nor the linkage stack this instruction will always
+ * RSEQ_SIG uses the trap4 instruction. As Linux does analt make use of the
+ * access-register mode analr the linkage stack this instruction will always
  * cause a special-operation exception (the trap-enabled bit in the DUCT
  * is and will stay 0). The instruction pattern is
  *	b2 ff 0f ff	trap4	4095(%r0)
@@ -53,9 +53,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the analrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should analt be
+ * explicitly defined as additional exit points. Kanalwing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)			\
@@ -80,9 +80,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the analrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should analt be
+ * explicitly defined as additional exit points. Kanalwing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)			\
@@ -154,10 +154,10 @@ do {									\
 #undef RSEQ_TEMPLATE_MO_RELEASE
 #undef RSEQ_TEMPLATE_MM_CID
 
-/* APIs which are not based on cpu ids. */
+/* APIs which are analt based on cpu ids. */
 
-#define RSEQ_TEMPLATE_CPU_ID_NONE
+#define RSEQ_TEMPLATE_CPU_ID_ANALNE
 #define RSEQ_TEMPLATE_MO_RELAXED
 #include "rseq-s390-bits.h"
 #undef RSEQ_TEMPLATE_MO_RELAXED
-#undef RSEQ_TEMPLATE_CPU_ID_NONE
+#undef RSEQ_TEMPLATE_CPU_ID_ANALNE

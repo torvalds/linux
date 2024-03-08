@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _M68KNOMMU_CACHEFLUSH_H
-#define _M68KNOMMU_CACHEFLUSH_H
+#ifndef _M68KANALMMU_CACHEFLUSH_H
+#define _M68KANALMMU_CACHEFLUSH_H
 
 /*
  * (C) Copyright 2000-2010, Greg Ungerer <gerg@snapgear.com>
@@ -19,7 +19,7 @@ static inline void __clear_cache_all(void)
 #ifdef CACHE_INVALIDATE
 	__asm__ __volatile__ (
 		"movec	%0, %%CACR\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		: : "r" (CACHE_INVALIDATE) );
 #endif
 }
@@ -42,7 +42,7 @@ static inline void __flush_icache_all(void)
 #ifdef CACHE_INVALIDATEI
 	__asm__ __volatile__ (
 		"movec	%0, %%CACR\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		: : "r" (CACHE_INVALIDATEI) );
 #endif
 }
@@ -55,11 +55,11 @@ static inline void __flush_dcache_all(void)
 #ifdef CACHE_INVALIDATED
 	__asm__ __volatile__ (
 		"movec	%0, %%CACR\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		: : "r" (CACHE_INVALIDATED) );
 #else
 	/* Flush the write buffer */
-	__asm__ __volatile__ ( "nop" );
+	__asm__ __volatile__ ( "analp" );
 #endif
 }
 
@@ -83,4 +83,4 @@ static inline void cache_clear(unsigned long paddr, int len)
 
 #include <asm-generic/cacheflush.h>
 
-#endif /* _M68KNOMMU_CACHEFLUSH_H */
+#endif /* _M68KANALMMU_CACHEFLUSH_H */

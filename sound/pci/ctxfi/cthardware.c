@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	cthardware.c
  *
@@ -29,7 +29,7 @@ int create_hw_obj(struct pci_dev *pci, enum CHIPTYP chip_type,
 		err = create_20k2_hw_obj(rhw);
 		break;
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 		break;
 	}
 	if (err)
@@ -54,7 +54,7 @@ int destroy_hw_obj(struct hw *hw)
 		err = destroy_20k2_hw_obj(hw);
 		break;
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 		break;
 	}
 

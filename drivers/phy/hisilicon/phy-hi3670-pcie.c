@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 HiSilicon Electronics Co., Ltd.
  *		https://www.huawei.com
- * Copyright (C) 2021 Huawei Technologies Co., Ltd.
+ * Copyright (C) 2021 Huawei Techanallogies Co., Ltd.
  *		https://www.huawei.com
  *
  * Authors:
@@ -60,7 +60,7 @@
 #define PCIE_PULL_DOWN_PHY_TEST_POWERDOWN	BIT(22)
 #define PCIE_DEASSERT_CONTROLLER_PERST		BIT(2)
 
-#define EYEPARAM_NOCFG				0xffffffff
+#define EYEPARAM_ANALCFG				0xffffffff
 #define EYE_PARM0_MASK				GENMASK(8, 6)
 #define EYE_PARM1_MASK				GENMASK(11, 8)
 #define EYE_PARM2_MASK				GENMASK(5, 0)
@@ -117,11 +117,11 @@
 #define IO_REF_SOFT_GT_MODE			BIT(13)
 #define IO_REF_HARD_GT_MODE			BIT(0)
 
-/* noc power domain */
-#define NOC_POWER_IDLEREQ_1			0x38c
-#define NOC_POWER_IDLE_1			0x394
-#define NOC_PW_MASK				0x10000
-#define NOC_PW_SET_BIT				0x1
+/* analc power domain */
+#define ANALC_POWER_IDLEREQ_1			0x38c
+#define ANALC_POWER_IDLE_1			0x394
+#define ANALC_PW_MASK				0x10000
+#define ANALC_PW_SET_BIT				0x1
 
 #define NUM_EYEPARAM				5
 
@@ -147,7 +147,7 @@
 #define TIME_CMOS_MAX		105
 #define PIPE_CLK_STABLE_TIME	100
 #define PLL_CTRL_WAIT_TIME	200
-#define NOC_POWER_TIME		100
+#define ANALC_POWER_TIME		100
 
 struct hi3670_pcie_phy {
 	struct device	*dev;
@@ -215,19 +215,19 @@ static void hi3670_pcie_phy_oe_enable(struct hi3670_pcie_phy *phy, bool enable)
 static void hi3670_pcie_get_eyeparam(struct hi3670_pcie_phy *phy)
 {
 	struct device *dev = phy->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret, i;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	ret = of_property_read_u32_array(np, "hisilicon,eye-diagram-param",
 					 phy->eye_param, NUM_EYEPARAM);
 	if (!ret)
 		return;
 
-	/* There's no optional eye_param property. Set array to default */
+	/* There's anal optional eye_param property. Set array to default */
 	for (i = 0; i < NUM_EYEPARAM; i++)
-		phy->eye_param[i] = EYEPARAM_NOCFG;
+		phy->eye_param[i] = EYEPARAM_ANALCFG;
 }
 
 static void hi3670_pcie_set_eyeparam(struct hi3670_pcie_phy *phy)
@@ -236,7 +236,7 @@ static void hi3670_pcie_set_eyeparam(struct hi3670_pcie_phy *phy)
 
 	val = kirin_apb_natural_phy_readl(phy, RAWLANEN_DIG_PCS_XF_TX_OVRD_IN_1);
 
-	if (phy->eye_param[1] != EYEPARAM_NOCFG) {
+	if (phy->eye_param[1] != EYEPARAM_ANALCFG) {
 		val &= ~EYE_PARM1_MASK;
 		val |= FIELD_PREP(EYE_PARM1_MASK, phy->eye_param[1]);
 		val |= EYE_PARM1_EN;
@@ -246,12 +246,12 @@ static void hi3670_pcie_set_eyeparam(struct hi3670_pcie_phy *phy)
 
 	val = kirin_apb_natural_phy_readl(phy, LANEN_DIG_ASIC_TX_OVRD_IN_2);
 	val &= ~(EYE_PARM2_MASK | EYE_PARM3_MASK);
-	if (phy->eye_param[2] != EYEPARAM_NOCFG) {
+	if (phy->eye_param[2] != EYEPARAM_ANALCFG) {
 		val |= FIELD_PREP(EYE_PARM2_MASK, phy->eye_param[2]);
 		val |= EYE_PARM2_EN;
 	}
 
-	if (phy->eye_param[3] != EYEPARAM_NOCFG) {
+	if (phy->eye_param[3] != EYEPARAM_ANALCFG) {
 		val |= FIELD_PREP(EYE_PARM3_MASK, phy->eye_param[3]);
 		val |= EYE_PARM3_EN;
 	}
@@ -259,7 +259,7 @@ static void hi3670_pcie_set_eyeparam(struct hi3670_pcie_phy *phy)
 	kirin_apb_natural_phy_writel(phy, val, LANEN_DIG_ASIC_TX_OVRD_IN_2);
 
 	val = kirin_apb_natural_phy_readl(phy, SUP_DIG_LVL_OVRD_IN);
-	if (phy->eye_param[0] != EYEPARAM_NOCFG) {
+	if (phy->eye_param[0] != EYEPARAM_ANALCFG) {
 		val &= ~EYE_PARM0_MASK;
 		val |= FIELD_PREP(EYE_PARM0_MASK, phy->eye_param[0]);
 		val |= EYE_PARM0_EN;
@@ -267,7 +267,7 @@ static void hi3670_pcie_set_eyeparam(struct hi3670_pcie_phy *phy)
 	kirin_apb_natural_phy_writel(phy, val, SUP_DIG_LVL_OVRD_IN);
 
 	val = kirin_apb_natural_phy_readl(phy, LANEN_DIG_ASIC_TX_OVRD_IN_1);
-	if (phy->eye_param[4] != EYEPARAM_NOCFG) {
+	if (phy->eye_param[4] != EYEPARAM_ANALCFG) {
 		val &= ~EYE_PARM4_MASK;
 		val |= FIELD_PREP(EYE_PARM4_MASK, phy->eye_param[4]);
 		val |= EYE_PARM4_EN;
@@ -511,7 +511,7 @@ static bool is_pipe_clk_stable(struct hi3670_pcie_phy *phy)
 	while (val & pipe_clk_stable) {
 		mdelay(1);
 		if (!time) {
-			dev_err(dev, "PIPE clk is not stable\n");
+			dev_err(dev, "PIPE clk is analt stable\n");
 			return false;
 		}
 		time--;
@@ -521,31 +521,31 @@ static bool is_pipe_clk_stable(struct hi3670_pcie_phy *phy)
 	return true;
 }
 
-static int hi3670_pcie_noc_power(struct hi3670_pcie_phy *phy, bool enable)
+static int hi3670_pcie_analc_power(struct hi3670_pcie_phy *phy, bool enable)
 {
 	struct device *dev = phy->dev;
-	u32 time = NOC_POWER_TIME;
-	unsigned int val = NOC_PW_MASK;
+	u32 time = ANALC_POWER_TIME;
+	unsigned int val = ANALC_PW_MASK;
 	int rst;
 
 	if (enable)
-		val = NOC_PW_MASK | NOC_PW_SET_BIT;
+		val = ANALC_PW_MASK | ANALC_PW_SET_BIT;
 	else
-		val = NOC_PW_MASK;
+		val = ANALC_PW_MASK;
 	rst = enable ? 1 : 0;
 
-	regmap_write(phy->pmctrl, NOC_POWER_IDLEREQ_1, val);
+	regmap_write(phy->pmctrl, ANALC_POWER_IDLEREQ_1, val);
 
-	time = NOC_POWER_TIME;
-	regmap_read(phy->pmctrl, NOC_POWER_IDLE_1, &val);
-	while ((val & NOC_PW_SET_BIT) != rst) {
+	time = ANALC_POWER_TIME;
+	regmap_read(phy->pmctrl, ANALC_POWER_IDLE_1, &val);
+	while ((val & ANALC_PW_SET_BIT) != rst) {
 		udelay(10);
 		if (!time) {
-			dev_err(dev, "Failed to reverse noc power-status\n");
+			dev_err(dev, "Failed to reverse analc power-status\n");
 			return -EINVAL;
 		}
 		time--;
-		regmap_read(phy->pmctrl, NOC_POWER_IDLE_1, &val);
+		regmap_read(phy->pmctrl, ANALC_POWER_IDLE_1, &val);
 	}
 
 	return 0;
@@ -553,21 +553,21 @@ static int hi3670_pcie_noc_power(struct hi3670_pcie_phy *phy, bool enable)
 
 static int hi3670_pcie_get_resources_from_pcie(struct hi3670_pcie_phy *phy)
 {
-	struct device_node *pcie_port;
+	struct device_analde *pcie_port;
 	struct device *dev = phy->dev;
 	struct device *pcie_dev;
 
-	pcie_port = of_get_child_by_name(dev->parent->of_node, "pcie");
+	pcie_port = of_get_child_by_name(dev->parent->of_analde, "pcie");
 	if (!pcie_port) {
-		dev_err(dev, "no pcie node found in %s\n",
-			dev->parent->of_node->full_name);
-		return -ENODEV;
+		dev_err(dev, "anal pcie analde found in %s\n",
+			dev->parent->of_analde->full_name);
+		return -EANALDEV;
 	}
 
-	pcie_dev = bus_find_device_by_of_node(&platform_bus_type, pcie_port);
+	pcie_dev = bus_find_device_by_of_analde(&platform_bus_type, pcie_port);
 	if (!pcie_dev) {
 		dev_err(dev, "Didn't find pcie device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -581,7 +581,7 @@ static int hi3670_pcie_get_resources_from_pcie(struct hi3670_pcie_phy *phy)
 	phy->apb = dev_get_regmap(pcie_dev, "kirin_pcie_apb");
 	if (!phy->apb) {
 		dev_err(dev, "Failed to get APB regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -701,7 +701,7 @@ static int hi3670_pcie_phy_power_on(struct phy *generic_phy)
 
 	hi3670_pcie_set_eyeparam(phy);
 
-	ret = hi3670_pcie_noc_power(phy, false);
+	ret = hi3670_pcie_analc_power(phy, false);
 	if (ret)
 		goto disable_clks;
 
@@ -728,8 +728,8 @@ static int hi3670_pcie_phy_power_off(struct phy *generic_phy)
 	 * kirin_pcie_clk_ctrl(phy, false);
 	 * However, some clocks used at Kirin 970 should be marked as
 	 * CLK_IS_CRITICAL at clk-hi3670 driver, as powering such clocks off
-	 * cause an Asynchronous SError interrupt, which produces panic().
-	 * While clk-hi3670 is not fixed, we cannot risk disabling clocks here.
+	 * cause an Asynchroanalus SError interrupt, which produces panic().
+	 * While clk-hi3670 is analt fixed, we cananalt risk disabling clocks here.
 	 */
 
 	return 0;
@@ -801,7 +801,7 @@ static int hi3670_pcie_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->dev = dev;
 
@@ -809,7 +809,7 @@ static int hi3670_pcie_phy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	generic_phy = devm_phy_create(dev, dev->of_node, &hi3670_phy_ops);
+	generic_phy = devm_phy_create(dev, dev->of_analde, &hi3670_phy_ops);
 	if (IS_ERR(generic_phy)) {
 		dev_err(dev, "failed to create PHY\n");
 		return PTR_ERR(generic_phy);

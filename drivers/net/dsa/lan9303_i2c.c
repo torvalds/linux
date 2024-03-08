@@ -19,14 +19,14 @@ static const struct regmap_config lan9303_i2c_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 1,
 	.can_multi_write = true,
-	.max_register = 0x0ff, /* address bits 0..1 are not used */
+	.max_register = 0x0ff, /* address bits 0..1 are analt used */
 	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
 
 	.volatile_table = &lan9303_register_set,
 	.wr_table = &lan9303_register_set,
 	.rd_table = &lan9303_register_set,
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int lan9303_i2c_probe(struct i2c_client *client)
@@ -37,7 +37,7 @@ static int lan9303_i2c_probe(struct i2c_client *client)
 	sw_dev = devm_kzalloc(&client->dev, sizeof(struct lan9303_i2c),
 			      GFP_KERNEL);
 	if (!sw_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sw_dev->chip.regmap = devm_regmap_init_i2c(client,
 						   &lan9303_i2c_regmap_config);
@@ -55,7 +55,7 @@ static int lan9303_i2c_probe(struct i2c_client *client)
 
 	sw_dev->chip.ops = &lan9303_indirect_phy_ops;
 
-	ret = lan9303_probe(&sw_dev->chip, client->dev.of_node);
+	ret = lan9303_probe(&sw_dev->chip, client->dev.of_analde);
 	if (ret != 0)
 		return ret;
 

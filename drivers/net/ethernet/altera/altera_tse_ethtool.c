@@ -175,7 +175,7 @@ static int tse_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return TSE_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -203,7 +203,7 @@ static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	u32 *buf = regbuf;
 	int i;
 
-	/* Set version to a known value, so ethtool knows
+	/* Set version to a kanalwn value, so ethtool kanalws
 	 * how to do any special formatting of this data.
 	 * This version number will need to change if and
 	 * when this register table is changed.

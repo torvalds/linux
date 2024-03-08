@@ -174,7 +174,7 @@ static struct clk_hw *imx_lpcg_of_clk_src_get(struct of_phandle_args *clkspec,
 }
 
 static int imx_lpcg_parse_clks_from_dt(struct platform_device *pdev,
-				       struct device_node *np)
+				       struct device_analde *np)
 {
 	const char *output_names[IMX_LPCG_MAX_CLKS];
 	const char *parent_names[IMX_LPCG_MAX_CLKS];
@@ -211,7 +211,7 @@ static int imx_lpcg_parse_clks_from_dt(struct platform_device *pdev,
 	clk_data = devm_kzalloc(&pdev->dev, struct_size(clk_data, hws,
 				IMX_LPCG_MAX_CLKS), GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = IMX_LPCG_MAX_CLKS;
 	clk_hws = clk_data->hws;
@@ -236,7 +236,7 @@ static int imx_lpcg_parse_clks_from_dt(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 500);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -287,7 +287,7 @@ unreg:
 static int imx8qxp_lpcg_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct clk_hw_onecell_data *clk_data;
 	const struct imx8qxp_ss_lpcg *ss_lpcg;
 	const struct imx8qxp_lpcg_data *lpcg;
@@ -304,7 +304,7 @@ static int imx8qxp_lpcg_clk_probe(struct platform_device *pdev)
 
 	ss_lpcg = of_device_get_match_data(dev);
 	if (!ss_lpcg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Please don't replace this with devm_platform_ioremap_resource.
@@ -313,7 +313,7 @@ static int imx8qxp_lpcg_clk_probe(struct platform_device *pdev)
 	 * differs from devm_ioremap by also calling devm_request_mem_region
 	 * and preventing other mappings in the same area.
 	 *
-	 * On imx8 the LPCG nodes map entire subsystems and overlap
+	 * On imx8 the LPCG analdes map entire subsystems and overlap
 	 * peripherals, this means that using devm_platform_ioremap_resource
 	 * will cause many devices to fail to probe including serial ports.
 	 */
@@ -322,12 +322,12 @@ static int imx8qxp_lpcg_clk_probe(struct platform_device *pdev)
 		return -EINVAL;
 	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data = devm_kzalloc(&pdev->dev, struct_size(clk_data, hws,
 				ss_lpcg->num_max), GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = ss_lpcg->num_max;
 	clks = clk_data->hws;

@@ -120,7 +120,7 @@ static int snps_gmac5_default_data(struct pci_dev *pdev,
 	/* Axi Configuration */
 	plat->axi = devm_kzalloc(&pdev->dev, sizeof(*plat->axi), GFP_KERNEL);
 	if (!plat->axi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->axi->axi_wr_osr_lmt = 31;
 	plat->axi->axi_rd_osr_lmt = 31;
@@ -145,10 +145,10 @@ static const struct stmmac_pci_info snps_gmac5_pci_info = {
  * @id: pointer to table of device id/id's.
  *
  * Description: This probing function gets called for all PCI devices which
- * match the ID table and are not "owned" by other driver yet. This function
+ * match the ID table and are analt "owned" by other driver yet. This function
  * gets passed a "struct pci_dev *" for each device whose entry in the ID table
  * matches the device. The probe functions returns zero when the driver choose
- * to take "ownership" of the device or an error code(-ve no) otherwise.
+ * to take "ownership" of the device or an error code(-ve anal) otherwise.
  */
 static int stmmac_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
@@ -161,24 +161,24 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(*plat->mdio_bus_data),
 					   GFP_KERNEL);
 	if (!plat->mdio_bus_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*plat->dma_cfg),
 				     GFP_KERNEL);
 	if (!plat->dma_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->safety_feat_cfg = devm_kzalloc(&pdev->dev,
 					     sizeof(*plat->safety_feat_cfg),
 					     GFP_KERNEL);
 	if (!plat->safety_feat_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enable pci device */
 	ret = pcim_enable_device(pdev);
@@ -280,16 +280,16 @@ static int __maybe_unused stmmac_pci_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 
-/* synthetic ID, no official vendor */
+/* synthetic ID, anal official vendor */
 #define PCI_VENDOR_ID_STMMAC		0x0700
 
 #define PCI_DEVICE_ID_STMMAC_STMMAC		0x1108
-#define PCI_DEVICE_ID_SYNOPSYS_GMAC5_ID		0x7102
+#define PCI_DEVICE_ID_SYANALPSYS_GMAC5_ID		0x7102
 
 static const struct pci_device_id stmmac_id_table[] = {
 	{ PCI_DEVICE_DATA(STMMAC, STMMAC, &stmmac_pci_info) },
 	{ PCI_DEVICE_DATA(STMICRO, MAC, &stmmac_pci_info) },
-	{ PCI_DEVICE_DATA(SYNOPSYS, GMAC5_ID, &snps_gmac5_pci_info) },
+	{ PCI_DEVICE_DATA(SYANALPSYS, GMAC5_ID, &snps_gmac5_pci_info) },
 	{}
 };
 

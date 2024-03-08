@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2017 Netronome Systems, Inc.
- * Copyright (C) 2019 Mellanox Technologies. All rights reserved
+/* Copyright (C) 2017 Netroanalme Systems, Inc.
+ * Copyright (C) 2019 Mellaanalx Techanallogies. All rights reserved
  */
 
 #include <linux/completion.h>
@@ -40,7 +40,7 @@ nsim_bus_dev_numvfs_store(struct device *dev, struct device_attribute *attr,
 		return ret;
 
 	device_lock(dev);
-	ret = -ENOENT;
+	ret = -EANALENT;
 	if (dev_get_drvdata(dev))
 		ret = nsim_drv_configure_vfs(nsim_bus_dev, num_vfs);
 	device_unlock(dev);
@@ -212,7 +212,7 @@ del_device_store(const struct bus_type *bus, const char *buf, size_t count)
 		return -EINVAL;
 	}
 
-	err = -ENOENT;
+	err = -EANALENT;
 	mutex_lock(&nsim_bus_dev_list_lock);
 	/* Prevent to use resource before initialization. */
 	if (!smp_load_acquire(&nsim_bus_enable)) {
@@ -279,7 +279,7 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queu
 
 	nsim_bus_dev = kzalloc(sizeof(*nsim_bus_dev), GFP_KERNEL);
 	if (!nsim_bus_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = ida_alloc_range(&nsim_bus_dev_ids, id, id, GFP_KERNEL);
 	if (err < 0)

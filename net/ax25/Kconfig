@@ -12,7 +12,7 @@ menuconfig HAMRADIO
 	  and more specifically about AX.25 on Linux
 	  <https://linux-ax25.in-berlin.de>.
 
-	  Note that the answer to this question won't directly affect the
+	  Analte that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about amateur radio.
 
@@ -27,11 +27,11 @@ config AX25
 	  radio. It is either used by itself for point-to-point links, or to
 	  carry other protocols such as tcp/ip. To use it, you need a device
 	  that connects your Linux box to your amateur radio. You can either
-	  use a low speed TNC (a Terminal Node Controller acts as a kind of
+	  use a low speed TNC (a Terminal Analde Controller acts as a kind of
 	  modem connecting your computer's serial port to your radio's
 	  microphone input and speaker output) supporting the KISS protocol or
 	  one of the various SCC cards that are supported by the generic Z8530
-	  or the DMA SCC driver. Another option are the Baycom modem serial
+	  or the DMA SCC driver. Aanalther option are the Baycom modem serial
 	  and parallel port hacks or the sound card modem (supported by their
 	  own drivers). If you say Y here, you also have to say Y to one of
 	  those drivers.
@@ -58,7 +58,7 @@ config AX25_DAMA_SLAVE
 	  from clients (called "slaves") and redistributes it to other slaves.
 	  If you say Y here, your Linux box will act as a DAMA slave; this is
 	  transparent in that you don't have to do any special DAMA
-	  configuration. Linux cannot yet act as a DAMA server.  This option
+	  configuration. Linux cananalt yet act as a DAMA server.  This option
 	  only compiles DAMA slave support into the kernel.  It still needs to
 	  be enabled at runtime.  For more about DAMA see
 	  <https://linux-ax25.in-berlin.de>.  If unsure, say Y.
@@ -73,7 +73,7 @@ config AX25_DAMA_MASTER
 	  from clients (called "slaves") and redistributes it to other slaves.
 	  If you say Y here, your Linux box will act as a DAMA master; this is
 	  transparent in that you don't have to do any special DAMA
-	  configuration. Linux cannot yet act as a DAMA server.  This option
+	  configuration. Linux cananalt yet act as a DAMA server.  This option
 	  only compiles DAMA slave support into the kernel.  It still needs to
 	  be explicitly enabled, so if unsure, say Y.
 

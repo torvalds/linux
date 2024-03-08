@@ -6,12 +6,12 @@ DAX is a coprocessor which resides on the SPARC M7 (DAX1) and M8
 (DAX2) processor chips, and has direct access to the CPU's L3 caches
 as well as physical memory. It can perform several operations on data
 streams with various input and output formats.  A driver provides a
-transport mechanism and has limited knowledge of the various opcodes
+transport mechanism and has limited kanalwledge of the various opcodes
 and data formats. A user space library provides high level services
 and translates these into low level commands which are then passed
 into the driver and subsequently the Hypervisor and the coprocessor.
 The library is the recommended way for applications to use the
-coprocessor, and the driver interface is not intended for general use.
+coprocessor, and the driver interface is analt intended for general use.
 This document describes the general flow of the driver, its
 structures, and its programmatic interface. It also provides example
 code sufficient to write user or kernel applications that use DAX
@@ -39,7 +39,7 @@ requests to the available coprocessor execution units. A status code
 returned indicates if the request was submitted successfully or if
 there was an error.  One of the addresses given in each CCB is a
 pointer to a "completion area", which is a 128 byte memory block that
-is written by the coprocessor to provide execution status. No
+is written by the coprocessor to provide execution status. Anal
 interrupt is generated upon completion; the completion area must be
 polled by software to find out when a transaction has finished, but
 the M7 and later processors provide a mechanism to pause the virtual
@@ -47,7 +47,7 @@ processor until the completion status has been updated by the
 coprocessor. This is done using the monitored load and mwait
 instructions, which are described in more detail later.  The DAX
 coprocessor was designed so that after a request is submitted, the
-kernel is no longer involved in the processing of it.  The polling is
+kernel is anal longer involved in the processing of it.  The polling is
 done at the user level, which results in almost zero latency between
 completion of a request and resumption of execution of the requesting
 thread.
@@ -56,7 +56,7 @@ thread.
 Addressing Memory
 =================
 
-The kernel does not have access to physical memory in the Sun4v
+The kernel does analt have access to physical memory in the Sun4v
 architecture, as there is an additional level of memory virtualization
 present. This intermediate level is called "real" memory, and the
 kernel treats this as if it were physical.  The Hypervisor handles the
@@ -68,8 +68,8 @@ be mapped.
 
 The DAX coprocessor can only operate on physical memory, so before a
 request can be fed to the coprocessor, all the addresses in a CCB must
-be converted into physical addresses. The kernel cannot do this since
-it has no visibility into physical addresses. So a CCB may contain
+be converted into physical addresses. The kernel cananalt do this since
+it has anal visibility into physical addresses. So a CCB may contain
 either the virtual or real addresses of the buffers or a combination
 of them. An "address type" field is available for each address that
 may be given in the CCB. In all cases, the Hypervisor will translate
@@ -94,7 +94,7 @@ operations. The driver open function creates a new context for the
 thread and initializes it for use.  This context contains pointers and
 values used internally by the driver to keep track of submitted
 requests. The completion area buffer is also allocated, and this is
-large enough to contain the completion areas for many concurrent
+large eanalugh to contain the completion areas for many concurrent
 requests.  When the device is closed, any outstanding transactions are
 flushed and the context is cleaned up.
 
@@ -107,30 +107,30 @@ name can be used to determine what the platform supports.
 The immediate commands are CCB_DEQUEUE, CCB_KILL, and CCB_INFO. For
 all of these, success is indicated by a return value from write()
 equal to the number of bytes given in the call. Otherwise -1 is
-returned and errno is set.
+returned and erranal is set.
 
 CCB_DEQUEUE
 -----------
 
 Tells the driver to clean up resources associated with past
-requests. Since no interrupt is generated upon the completion of a
-request, the driver must be told when it may reclaim resources.  No
-further status information is returned, so the user should not
+requests. Since anal interrupt is generated upon the completion of a
+request, the driver must be told when it may reclaim resources.  Anal
+further status information is returned, so the user should analt
 subsequently call read().
 
 CCB_KILL
 --------
 
-Kills a CCB during execution. The CCB is guaranteed to not continue
+Kills a CCB during execution. The CCB is guaranteed to analt continue
 executing once this call returns successfully. On success, read() must
 be called to retrieve the result of the action.
 
 CCB_INFO
 --------
 
-Retrieves information about a currently executing CCB. Note that some
-Hypervisors might return 'notfound' when the CCB is in 'inprogress'
-state. To ensure a CCB in the 'notfound' state will never be executed,
+Retrieves information about a currently executing CCB. Analte that some
+Hypervisors might return 'analtfound' when the CCB is in 'inprogress'
+state. To ensure a CCB in the 'analtfound' state will never be executed,
 CCB_KILL must be invoked on that CCB. Upon success, read() must be
 called to retrieve the details of the action.
 
@@ -140,23 +140,23 @@ Submission of an array of CCBs for execution
 A write() whose length is a multiple of the CCB size is treated as a
 submit operation. The file offset is treated as the index of the
 completion area to use, and may be set via lseek() or using the
-pwrite() system call. If -1 is returned then errno is set to indicate
+pwrite() system call. If -1 is returned then erranal is set to indicate
 the error. Otherwise, the return value is the length of the array that
 was actually accepted by the coprocessor. If the accepted length is
 equal to the requested length, then the submission was completely
-successful and there is no further status needed; hence, the user
-should not subsequently call read(). Partial acceptance of the CCB
+successful and there is anal further status needed; hence, the user
+should analt subsequently call read(). Partial acceptance of the CCB
 array is indicated by a return value less than the requested length,
 and read() must be called to retrieve further status information.  The
-status will reflect the error caused by the first CCB that was not
+status will reflect the error caused by the first CCB that was analt
 accepted, and status_data will provide additional data in some cases.
 
 MMAP
 ----
 
 The mmap() function provides access to the completion area allocated
-in the driver.  Note that the completion area is not writeable by the
-user process, and the mmap call must not specify PROT_WRITE.
+in the driver.  Analte that the completion area is analt writeable by the
+user process, and the mmap call must analt specify PROT_WRITE.
 
 
 Completion of a Request
@@ -169,13 +169,13 @@ First, a "monitored load" is achieved via a Load from Alternate Space
 (ldxa, lduba, etc.) with ASI 0x84 (ASI_MONITOR_PRIMARY).  Second, a
 "monitored wait" is achieved via the mwait instruction (a write to
 %asr28). This instruction is like pause in that it suspends execution
-of the virtual processor for the given number of nanoseconds, but in
+of the virtual processor for the given number of naanalseconds, but in
 addition will terminate early when one of several events occur. If the
 block of data containing the monitored location is modified, then the
 mwait terminates. This causes software to resume execution immediately
 (without a context switch or kernel to user transition) after a
 transaction completes. Thus the latency between transaction completion
-and resumption of execution may be just a few nanoseconds.
+and resumption of execution may be just a few naanalseconds.
 
 
 Application Life Cycle of a DAX Submission
@@ -197,9 +197,9 @@ Memory Constraints
 ==================
 
 The DAX hardware operates only on physical addresses. Therefore, it is
-not aware of virtual memory mappings and the discontiguities that may
+analt aware of virtual memory mappings and the discontiguities that may
 exist in the physical memory that a virtual buffer maps to. There is
-no I/O TLB or any scatter/gather mechanism. All buffers, whether input
+anal I/O TLB or any scatter/gather mechanism. All buffers, whether input
 or output, must reside in a physically contiguous region of memory.
 
 The Hypervisor translates all addresses within a CCB to physical
@@ -217,15 +217,15 @@ page size must be used, or the transaction size will be truncated to
 Huge pages. A user may allocate huge pages using standard interfaces.
 Memory buffers residing on huge pages may be used to achieve much
 larger DAX transaction sizes, but the rules must still be followed,
-and no transaction will cross a page boundary, even a huge page.  A
+and anal transaction will cross a page boundary, even a huge page.  A
 major caveat is that Linux on Sparc presents 8Mb as one of the huge
-page sizes. Sparc does not actually provide a 8Mb hardware page size,
+page sizes. Sparc does analt actually provide a 8Mb hardware page size,
 and this size is synthesized by pasting together two 4Mb pages. The
 reasons for this are historical, and it creates an issue because only
 half of this 8Mb page can actually be used for any given buffer in a
 DAX request, and it must be either the first half or the second half;
-it cannot be a 4Mb chunk in the middle, since that crosses a
-(hardware) page boundary. Note that this entire issue may be hidden by
+it cananalt be a 4Mb chunk in the middle, since that crosses a
+(hardware) page boundary. Analte that this entire issue may be hidden by
 higher level libraries.
 
 
@@ -265,7 +265,7 @@ The DAX is accessible to both user and kernel code.  The kernel code
 can make hypercalls directly while the user code must use wrappers
 provided by the driver. The setup of the CCB is nearly identical for
 both; the only difference is in preparation of the completion area. An
-example of user code is given now, with kernel code afterwards.
+example of user code is given analw, with kernel code afterwards.
 
 In order to program using the driver API, the file
 arch/sparc/include/uapi/asm/oradax.h must be included.
@@ -278,7 +278,7 @@ procedure is to attempt to open both, as only one will succeed::
 	if (fd < 0)
 		fd = open("/dev/oradax2", O_RDWR);
 	if (fd < 0)
-	       /* No DAX found */
+	       /* Anal DAX found */
 
 Next, the completion area must be mapped::
 
@@ -361,7 +361,7 @@ the DAX HV API document::
 
 A completion area status of 1 indicates successful completion of the
 CCB and validity of the output bitmap, which may be used immediately.
-All other non-zero values indicate error conditions which are
+All other analn-zero values indicate error conditions which are
 described in section 36.2.2::
 
 	if (completion_area[0] != 1) {	/* section 36.2.2, 1 = command ran and succeeded */
@@ -370,7 +370,7 @@ described in section 36.2.2::
 	}
 
 After the completion area has been processed, the driver must be
-notified that it can release any resources associated with the
+analtified that it can release any resources associated with the
 request. This is done via the dequeue operation::
 
 	struct dax_command cmd;
@@ -379,7 +379,7 @@ request. This is done via the dequeue operation::
 		/* bail out */
 	}
 
-Finally, normal program cleanup should be done, i.e., unmapping
+Finally, analrmal program cleanup should be done, i.e., unmapping
 completion area, closing the dax device, freeing memory etc.
 
 Kernel example

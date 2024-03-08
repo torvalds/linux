@@ -7,7 +7,7 @@
 #include <linux/of.h>
 #include <asm/secure_boot.h>
 
-static struct device_node *get_ppc_fw_sb_node(void)
+static struct device_analde *get_ppc_fw_sb_analde(void)
 {
 	static const struct of_device_id ids[] = {
 		{ .compatible = "ibm,secureboot", },
@@ -16,18 +16,18 @@ static struct device_node *get_ppc_fw_sb_node(void)
 		{},
 	};
 
-	return of_find_matching_node(NULL, ids);
+	return of_find_matching_analde(NULL, ids);
 }
 
 bool is_ppc_secureboot_enabled(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	bool enabled = false;
 	u32 secureboot;
 
-	node = get_ppc_fw_sb_node();
-	enabled = of_property_read_bool(node, "os-secureboot-enforcing");
-	of_node_put(node);
+	analde = get_ppc_fw_sb_analde();
+	enabled = of_property_read_bool(analde, "os-secureboot-enforcing");
+	of_analde_put(analde);
 
 	if (enabled)
 		goto out;
@@ -43,13 +43,13 @@ out:
 
 bool is_ppc_trustedboot_enabled(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	bool enabled = false;
 	u32 trustedboot;
 
-	node = get_ppc_fw_sb_node();
-	enabled = of_property_read_bool(node, "trusted-enabled");
-	of_node_put(node);
+	analde = get_ppc_fw_sb_analde();
+	enabled = of_property_read_bool(analde, "trusted-enabled");
+	of_analde_put(analde);
 
 	if (enabled)
 		goto out;

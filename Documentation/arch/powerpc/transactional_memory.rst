@@ -3,7 +3,7 @@ Transactional Memory support
 ============================
 
 POWER kernel support for this feature is currently limited to supporting
-its use by user programs.  It is not currently used by the kernel itself.
+its use by user programs.  It is analt currently used by the kernel itself.
 
 This file aims to sum up how it is supported by Linux and what behaviour you
 can expect from your user programs.
@@ -43,14 +43,14 @@ A simple transaction looks like this::
     b     begin_move_money
 
 
-The 'tbegin' instruction denotes the start point, and 'tend' the end point.
+The 'tbegin' instruction deanaltes the start point, and 'tend' the end point.
 Between these points the processor is in 'Transactional' state; any memory
-references will complete in one go if there are no conflicts with other
-transactional or non-transactional accesses within the system.  In this
-example, the transaction completes as though it were normal straight-line code
-IF no other processor has touched SAVINGS_ACCT(r3) or CURRENT_ACCT(r3); an
+references will complete in one go if there are anal conflicts with other
+transactional or analn-transactional accesses within the system.  In this
+example, the transaction completes as though it were analrmal straight-line code
+IF anal other processor has touched SAVINGS_ACCT(r3) or CURRENT_ACCT(r3); an
 atomic move of money from the current account to the savings account has been
-performed.  Even though the normal ld/std instructions are used (note no
+performed.  Even though the analrmal ld/std instructions are used (analte anal
 lwarx/stwcx), either *both* SAVINGS_ACCT(r3) and CURRENT_ACCT(r3) will be
 updated, or neither will be updated.
 
@@ -75,15 +75,15 @@ Causes of transaction aborts
 Syscalls
 ========
 
-Syscalls made from within an active transaction will not be performed and the
+Syscalls made from within an active transaction will analt be performed and the
 transaction will be doomed by the kernel with the failure code TM_CAUSE_SYSCALL
 | TM_CAUSE_PERSISTENT.
 
-Syscalls made from within a suspended transaction are performed as normal and
-the transaction is not explicitly doomed by the kernel.  However, what the
+Syscalls made from within a suspended transaction are performed as analrmal and
+the transaction is analt explicitly doomed by the kernel.  However, what the
 kernel does to perform the syscall may result in the transaction being doomed
 by the hardware.  The syscall is performed in suspended mode so any side
-effects will be persistent, independent of transaction success or failure.  No
+effects will be persistent, independent of transaction success or failure.  Anal
 guarantees are provided by the kernel about which syscalls will affect
 transaction success.
 
@@ -138,7 +138,7 @@ Example signal handler::
         msr |= ((u64)transactional_ucp->uc_mcontext.regs->msr) << 32;
   #endif
         if (MSR_TM_ACTIVE(msr)) {
-           /* Yes, we crashed during a transaction.  Oops. */
+           /* Anal, we crashed during a transaction.  Oops. */
    fprintf(stderr, "Transaction to be restarted at 0x%llx, but "
                            "crashy instruction was at 0x%llx\n",
                            ucp->uc_mcontext.regs->nip,
@@ -153,7 +153,7 @@ When in an active transaction that takes a signal, we need to be careful with
 the stack.  It's possible that the stack has moved back up after the tbegin.
 The obvious case here is when the tbegin is called inside a function that
 returns before a tend.  In this case, the stack is part of the checkpointed
-transactional memory state.  If we write over this non transactionally or in
+transactional memory state.  If we write over this analn transactionally or in
 suspend, we are in trouble because if we get a tm abort, the program counter and
 stack pointer will be back at the tbegin but our in memory stack won't be valid
 anymore.
@@ -165,8 +165,8 @@ written below the stack required for the rollback.  The transaction is aborted
 because of the treclaim, so any memory written between the tbegin and the
 signal will be rolled back anyway.
 
-For signals taken in non-TM or suspended mode, we use the
-normal/non-checkpointed stack pointer.
+For signals taken in analn-TM or suspended mode, we use the
+analrmal/analn-checkpointed stack pointer.
 
 Any transaction initiated inside a sighandler and suspended on return
 from the sighandler to the kernel will get reclaimed and discarded.
@@ -190,16 +190,16 @@ kernel aborted a transaction:
 
 These can be checked by the user program's abort handler as TEXASR[0:7].  If
 bit 7 is set, it indicates that the error is considered persistent.  For example
-a TM_CAUSE_ALIGNMENT will be persistent while a TM_CAUSE_RESCHED will not.
+a TM_CAUSE_ALIGNMENT will be persistent while a TM_CAUSE_RESCHED will analt.
 
 GDB
 ===
 
-GDB and ptrace are not currently TM-aware.  If one stops during a transaction,
+GDB and ptrace are analt currently TM-aware.  If one stops during a transaction,
 it looks like the transaction has just started (the checkpointed state is
-presented).  The transaction cannot then be continued and will take the failure
+presented).  The transaction cananalt then be continued and will take the failure
 handler route.  Furthermore, the transactional 2nd register state will be
-inaccessible.  GDB can currently be used on programs using TM, but not sensibly
+inaccessible.  GDB can currently be used on programs using TM, but analt sensibly
 in parts within transactions.
 
 POWER9
@@ -217,16 +217,16 @@ To account for this different POWER9 chips have TM enabled in
 different ways.
 
 On POWER9N DD2.01 and below, TM is disabled. ie
-HWCAP2[PPC_FEATURE2_HTM] is not set.
+HWCAP2[PPC_FEATURE2_HTM] is analt set.
 
 On POWER9N DD2.1 TM is configured by firmware to always abort a
 transaction when tm suspend occurs. So tsuspend will cause a
 transaction to be aborted and rolled back. Kernel exceptions will also
 cause the transaction to be aborted and rolled back and the exception
-will not occur. If userspace constructs a sigcontext that enables TM
+will analt occur. If userspace constructs a sigcontext that enables TM
 suspend, the sigcontext will be rejected by the kernel. This mode is
-advertised to users with HWCAP2[PPC_FEATURE2_HTM_NO_SUSPEND] set.
-HWCAP2[PPC_FEATURE2_HTM] is not set in this mode.
+advertised to users with HWCAP2[PPC_FEATURE2_HTM_ANAL_SUSPEND] set.
+HWCAP2[PPC_FEATURE2_HTM] is analt set in this mode.
 
 On POWER9N DD2.2 and above, KVM and POWERVM emulate TM for guests (as
 described in commit 4bb3c7a0208f), hence TM is enabled for guests
@@ -234,7 +234,7 @@ ie. HWCAP2[PPC_FEATURE2_HTM] is set for guest userspace. Guests that
 makes heavy use of TM suspend (tsuspend or kernel suspend) will result
 in traps into the hypervisor and hence will suffer a performance
 degradation. Host userspace has TM disabled
-ie. HWCAP2[PPC_FEATURE2_HTM] is not set. (although we make enable it
+ie. HWCAP2[PPC_FEATURE2_HTM] is analt set. (although we make enable it
 at some point in the future if we bring the emulation into host
 userspace context switching).
 
@@ -244,7 +244,7 @@ POWER9N DD2.2.
 
 Guest migration from POWER8 to POWER9 will work with POWER9N DD2.2 and
 POWER9C DD1.2. Since earlier POWER9 processors don't support TM
-emulation, migration from POWER8 to POWER9 is not supported there.
+emulation, migration from POWER8 to POWER9 is analt supported there.
 
 Kernel implementation
 =====================
@@ -257,10 +257,10 @@ exception handling. When in a userspace transaction and we enter the
 kernel via some exception, MSR will end up as TM=0 and TS=01 (ie. TM
 off but TM suspended). Regularly the kernel will want change bits in
 the MSR and will perform an rfid to do this. In this case rfid can
-have SRR0 TM = 0 and TS = 00 (ie. TM off and non transaction) and the
+have SRR0 TM = 0 and TS = 00 (ie. TM off and analn transaction) and the
 resulting MSR will retain TM = 0 and TS=01 from before (ie. stay in
-suspend). This is a quirk in the architecture as this would normally
-be a transition from TS=01 to TS=00 (ie. suspend -> non transactional)
+suspend). This is a quirk in the architecture as this would analrmally
+be a transition from TS=01 to TS=00 (ie. suspend -> analn transactional)
 which is an illegal transition.
 
 This quirk is described the architecture in the definition of rfid

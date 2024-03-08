@@ -27,10 +27,10 @@
  *
  * - It is write-only.
  * - The semantics of writing to this register is such that
- *   replacing the low 96 bits with zero does not affect functionality.
+ *   replacing the low 96 bits with zero does analt affect functionality.
  * - If the host writes to the last dword address of the register
  *   (i.e. the high 32 bits) the underlying register will always be
- *   written.  If the collector and the current write together do not
+ *   written.  If the collector and the current write together do analt
  *   provide values for all 128 bits of the register, the low 96 bits
  *   will be written as zero.
  */
@@ -40,7 +40,7 @@
 #endif
 
 /* Hardware issue requires that only 64-bit naturally aligned writes
- * are seen by hardware. Its not strictly necessary to restrict to
+ * are seen by hardware. Its analt strictly necessary to restrict to
  * x86_64 arch, but done for safety since unusual write combining behaviour
  * can break PIO.
  */
@@ -78,7 +78,7 @@ static inline __le32 _efx_readd(struct efx_nic *efx, unsigned int reg)
 	return (__force __le32)__raw_readl(efx->membase + reg);
 }
 
-/* Write a normal 128-bit CSR, locking as appropriate. */
+/* Write a analrmal 128-bit CSR, locking as appropriate. */
 static inline void efx_writeo(struct efx_nic *efx, const efx_oword_t *value,
 			      unsigned int reg)
 {
@@ -109,7 +109,7 @@ static inline void efx_writed(struct efx_nic *efx, const efx_dword_t *value,
 		   "writing register %x with "EFX_DWORD_FMT"\n",
 		   reg, EFX_DWORD_VAL(*value));
 
-	/* No lock required */
+	/* Anal lock required */
 	_efx_writed(efx, value->u32[0], reg);
 }
 

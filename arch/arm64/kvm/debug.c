@@ -70,7 +70,7 @@ static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
  *
  * Currently the sole task of this function is to retrieve the initial
  * value of mdcr_el2 so we can preserve MDCR_EL2.HPMN which has
- * presumably been set-up by some knowledgeable bootcode.
+ * presumably been set-up by some kanalwledgeable bootcode.
  *
  * It is called once per-cpu during CPU hyp initialisation.
  */
@@ -116,7 +116,7 @@ static void kvm_arm_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 	 * Trap debug register access when one of the following is true:
 	 *  - Userspace is using the hardware to debug the guest
 	 *  (KVM_GUESTDBG_USE_HW is set).
-	 *  - The guest is not using debug (DEBUG_DIRTY clear).
+	 *  - The guest is analt using debug (DEBUG_DIRTY clear).
 	 *  - The guest has enabled the OS Lock (debug exceptions are blocked).
 	 */
 	if ((vcpu->guest_debug & KVM_GUESTDBG_USE_HW) ||
@@ -159,8 +159,8 @@ void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)
  * debug related registers.
  *
  * Additionally, KVM only traps guest accesses to the debug registers if
- * the guest is not actively using them (see the DEBUG_DIRTY
- * flag on vcpu->arch.iflags).  Since the guest must not interfere
+ * the guest is analt actively using them (see the DEBUG_DIRTY
+ * flag on vcpu->arch.iflags).  Since the guest must analt interfere
  * with the hardware state when debugging the guest, we must ensure that
  * trapping is enabled whenever we are debugging the guest using the
  * debug registers.
@@ -196,14 +196,14 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 		 *
 		 * This confuses guest debuggers which use
 		 * single-step behind the scenes but everything
-		 * returns to normal once the host is no longer
+		 * returns to analrmal once the host is anal longer
 		 * debugging the system.
 		 */
 		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
 			/*
 			 * If the software step state at the last guest exit
 			 * was Active-pending, we don't set DBG_SPSR_SS so
-			 * that the state is maintained (to not run another
+			 * that the state is maintained (to analt run aanalther
 			 * single-step until the pending Software Step
 			 * exception is taken).
 			 */
@@ -318,7 +318,7 @@ void kvm_arch_vcpu_load_debug_state_flags(struct kvm_vcpu *vcpu)
 {
 	u64 dfr0;
 
-	/* For VHE, there is nothing to do */
+	/* For VHE, there is analthing to do */
 	if (has_vhe())
 		return;
 

@@ -10,7 +10,7 @@ maintainers:
   - Geert Uytterhoeven <geert+renesas@glider.be>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -49,7 +49,7 @@ properties:
       - description: R-Mobile A1 (R8A77400)
         items:
           - enum:
-              - renesas,armadillo800eva # Atmark Techno Armadillo-800 EVA
+              - renesas,armadillo800eva # Atmark Techanal Armadillo-800 EVA
           - const: renesas,r8a7740
 
       - description: RZ/G1H (R8A77420)
@@ -212,7 +212,7 @@ properties:
               - renesas,silk # SILK (RTP0RC7794LCB00011S)
           - const: renesas,r8a7794
 
-      # Note: R-Car H3 ES1.* (R8A77950) is not supported upstream anymore!
+      # Analte: R-Car H3 ES1.* (R8A77950) is analt supported upstream anymore!
 
       - description: R-Car H3 ES2.0 and later (R8A77951)
         items:

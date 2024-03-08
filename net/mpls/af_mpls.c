@@ -9,7 +9,7 @@
 #include <linux/ipv6.h>
 #include <linux/mpls.h>
 #include <linux/netconf.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/vmalloc.h>
 #include <linux/percpu.h>
 #include <net/gso.h>
@@ -173,7 +173,7 @@ static u32 mpls_multipath_hash(struct mpls_route *rt, struct sk_buff *skb)
 		hdr = mpls_hdr(skb) + label_index;
 		dec = mpls_entry_decode(hdr);
 
-		/* RFC6790 - reserved labels MUST NOT be used as keys
+		/* RFC6790 - reserved labels MUST ANALT be used as keys
 		 * for the load-balancing function
 		 */
 		if (likely(dec.label >= MPLS_LABEL_FIRST_UNRESERVED)) {
@@ -181,7 +181,7 @@ static u32 mpls_multipath_hash(struct mpls_route *rt, struct sk_buff *skb)
 
 			/* The entropy label follows the entropy label
 			 * indicator, so this means that the entropy
-			 * label was just added to the hash - no need to
+			 * label was just added to the hash - anal need to
 			 * go any deeper either in the label stack or in the
 			 * payload
 			 */
@@ -239,7 +239,7 @@ static const struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
 	int n = 0;
 	u8 alive;
 
-	/* No need to look further into packet if there's only
+	/* Anal need to look further into packet if there's only
 	 * one path
 	 */
 	if (rt->rt_nhn == 1)
@@ -298,7 +298,7 @@ static bool mpls_egress(struct net *net, struct mpls_route *rt,
 
 		/* If propagating TTL, take the decremented TTL from
 		 * the incoming MPLS header, otherwise decrement the
-		 * TTL, but only if not 0 to avoid underflow.
+		 * TTL, but only if analt 0 to avoid underflow.
 		 */
 		if (rt->rt_ttl_propagate == MPLS_TTL_PROP_ENABLED ||
 		    (rt->rt_ttl_propagate == MPLS_TTL_PROP_DEFAULT &&
@@ -320,7 +320,7 @@ static bool mpls_egress(struct net *net, struct mpls_route *rt,
 
 		/* If propagating TTL, take the decremented TTL from
 		 * the incoming MPLS header, otherwise decrement the
-		 * hop limit, but only if not 0 to avoid underflow.
+		 * hop limit, but only if analt 0 to avoid underflow.
 		 */
 		if (rt->rt_ttl_propagate == MPLS_TTL_PROP_ENABLED ||
 		    (rt->rt_ttl_propagate == MPLS_TTL_PROP_DEFAULT &&
@@ -332,7 +332,7 @@ static bool mpls_egress(struct net *net, struct mpls_route *rt,
 		break;
 	}
 	case MPT_UNSPEC:
-		/* Should have decided which protocol it is by now */
+		/* Should have decided which protocol it is by analw */
 		break;
 	}
 
@@ -386,7 +386,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 
 	rt = mpls_route_input_rcu(net, dec.label);
 	if (!rt) {
-		MPLS_INC_STATS(mdev, rx_noroute);
+		MPLS_INC_STATS(mdev, rx_analroute);
 		goto drop;
 	}
 
@@ -424,7 +424,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	if (!out_dev->header_ops)
 		hh_len = 0;
 
-	/* Ensure there is enough space for the headers in the skb */
+	/* Ensure there is eanalugh space for the headers in the skb */
 	if (skb_cow(skb, hh_len + new_header_size))
 		goto tx_err;
 
@@ -520,7 +520,7 @@ static struct mpls_route *mpls_rt_alloc(u8 num_nh, u8 max_alen, u8 max_labels)
 
 	rt = kzalloc(size, GFP_KERNEL);
 	if (!rt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rt->rt_nhn = num_nh;
 	rt->rt_nhn_alive = num_nh;
@@ -536,7 +536,7 @@ static void mpls_rt_free(struct mpls_route *rt)
 		kfree_rcu(rt, rt_rcu);
 }
 
-static void mpls_notify_route(struct net *net, unsigned index,
+static void mpls_analtify_route(struct net *net, unsigned index,
 			      struct mpls_route *old, struct mpls_route *new,
 			      const struct nl_info *info)
 {
@@ -545,7 +545,7 @@ static void mpls_notify_route(struct net *net, unsigned index,
 	int event = new ? RTM_NEWROUTE : RTM_DELROUTE;
 	struct mpls_route *rt = new ? new : old;
 	unsigned nlm_flags = (old && new) ? NLM_F_REPLACE : 0;
-	/* Ignore reserved labels for now */
+	/* Iganalre reserved labels for analw */
 	if (rt && (index >= MPLS_LABEL_FIRST_UNRESERVED))
 		rtmsg_lfib(event, index, rt, nlh, net, portid, nlm_flags);
 }
@@ -563,9 +563,9 @@ static void mpls_route_update(struct net *net, unsigned index,
 	rt = rtnl_dereference(platform_label[index]);
 	rcu_assign_pointer(platform_label[index], new);
 
-	mpls_notify_route(net, index, rt, new, info);
+	mpls_analtify_route(net, index, rt, new, info);
 
-	/* If we removed a route free it now */
+	/* If we removed a route free it analw */
 	mpls_rt_free(rt);
 }
 
@@ -582,7 +582,7 @@ static unsigned find_free_label(struct net *net)
 		if (!rtnl_dereference(platform_label[index]))
 			return index;
 	}
-	return LABEL_NOT_SPECIFIED;
+	return LABEL_ANALT_SPECIFIED;
 }
 
 #if IS_ENABLED(CONFIG_INET)
@@ -609,7 +609,7 @@ static struct net_device *inet_fib_lookup_dev(struct net *net,
 static struct net_device *inet_fib_lookup_dev(struct net *net,
 					      const void *addr)
 {
-	return ERR_PTR(-EAFNOSUPPORT);
+	return ERR_PTR(-EAFANALSUPPORT);
 }
 #endif
 
@@ -622,7 +622,7 @@ static struct net_device *inet6_fib_lookup_dev(struct net *net,
 	struct flowi6 fl6;
 
 	if (!ipv6_stub)
-		return ERR_PTR(-EAFNOSUPPORT);
+		return ERR_PTR(-EAFANALSUPPORT);
 
 	memset(&fl6, 0, sizeof(fl6));
 	memcpy(&fl6.daddr, addr, sizeof(struct in6_addr));
@@ -640,7 +640,7 @@ static struct net_device *inet6_fib_lookup_dev(struct net *net,
 static struct net_device *inet6_fib_lookup_dev(struct net *net,
 					       const void *addr)
 {
-	return ERR_PTR(-EAFNOSUPPORT);
+	return ERR_PTR(-EAFANALSUPPORT);
 }
 #endif
 
@@ -666,7 +666,7 @@ static struct net_device *find_outdev(struct net *net,
 	}
 
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (IS_ERR(dev))
 		return dev;
@@ -681,7 +681,7 @@ static int mpls_nh_assign_dev(struct net *net, struct mpls_route *rt,
 			      struct mpls_nh *nh, int oif)
 {
 	struct net_device *dev = NULL;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	dev = find_outdev(net, rt, nh, oif);
 	if (IS_ERR(dev)) {
@@ -774,7 +774,7 @@ static int mpls_nh_build_from_cfg(struct mpls_route_config *cfg,
 	int i;
 
 	if (!nh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nh->nh_labels = cfg->rc_output_labels;
 	for (i = 0; i < nh->nh_labels; i++)
@@ -802,7 +802,7 @@ static int mpls_nh_build(struct net *net, struct mpls_route *rt,
 			 struct nlattr *newdst, u8 max_labels,
 			 struct netlink_ext_ack *extack)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!nh)
 		goto errout;
@@ -902,7 +902,7 @@ static int mpls_nh_build_multi(struct mpls_route_config *cfg,
 		if (!rtnh_ok(rtnh, remaining))
 			goto errout;
 
-		/* neither weighted multipath nor any flags
+		/* neither weighted multipath analr any flags
 		 * are supported
 		 */
 		if (rtnh->rtnh_hops || rtnh->rtnh_flags)
@@ -942,21 +942,21 @@ static bool mpls_label_ok(struct net *net, unsigned int *index,
 {
 	bool is_ok = true;
 
-	/* Reserved labels may not be set */
+	/* Reserved labels may analt be set */
 	if (*index < MPLS_LABEL_FIRST_UNRESERVED) {
 		NL_SET_ERR_MSG(extack,
 			       "Invalid label - must be MPLS_LABEL_FIRST_UNRESERVED or higher");
 		is_ok = false;
 	}
 
-	/* The full 20 bit range may not be supported. */
+	/* The full 20 bit range may analt be supported. */
 	if (is_ok && *index >= net->mpls.platform_labels) {
 		NL_SET_ERR_MSG(extack,
 			       "Label >= configured maximum in platform_labels");
 		is_ok = false;
 	}
 
-	*index = array_index_nospec(*index, net->mpls.platform_labels);
+	*index = array_index_analspec(*index, net->mpls.platform_labels);
 	return is_ok;
 }
 
@@ -974,8 +974,8 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 
 	index = cfg->rc_label;
 
-	/* If a label was not specified during insert pick one */
-	if ((index == LABEL_NOT_SPECIFIED) &&
+	/* If a label was analt specified during insert pick one */
+	if ((index == LABEL_ANALT_SPECIFIED) &&
 	    (cfg->rc_nlflags & NLM_F_CREATE)) {
 		index = find_free_label(net);
 	}
@@ -983,10 +983,10 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 	if (!mpls_label_ok(net, &index, extack))
 		goto errout;
 
-	/* Append makes no sense with mpls */
-	err = -EOPNOTSUPP;
+	/* Append makes anal sense with mpls */
+	err = -EOPANALTSUPP;
 	if (cfg->rc_nlflags & NLM_F_APPEND) {
-		NL_SET_ERR_MSG(extack, "MPLS does not support route append");
+		NL_SET_ERR_MSG(extack, "MPLS does analt support route append");
 		goto errout;
 	}
 
@@ -1000,7 +1000,7 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 	if (!(cfg->rc_nlflags & NLM_F_REPLACE) && old)
 		goto errout;
 
-	err = -ENOENT;
+	err = -EANALENT;
 	if (!(cfg->rc_nlflags & NLM_F_CREATE) && !old)
 		goto errout;
 
@@ -1016,7 +1016,7 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 	}
 
 	if (nhs == 0) {
-		NL_SET_ERR_MSG(extack, "Route does not contain a nexthop");
+		NL_SET_ERR_MSG(extack, "Route does analt contain a nexthop");
 		goto errout;
 	}
 
@@ -1092,7 +1092,7 @@ static void mpls_get_stats(struct mpls_dev *mdev,
 		stats->tx_errors	+= local.tx_errors;
 		stats->rx_dropped	+= local.rx_dropped;
 		stats->tx_dropped	+= local.tx_dropped;
-		stats->rx_noroute	+= local.rx_noroute;
+		stats->rx_analroute	+= local.rx_analroute;
 	}
 }
 
@@ -1105,7 +1105,7 @@ static int mpls_fill_stats_af(struct sk_buff *skb,
 
 	mdev = mpls_dev_get(dev);
 	if (!mdev)
-		return -ENODATA;
+		return -EANALDATA;
 
 	nla = nla_reserve_64bit(skb, MPLS_STATS_LINK,
 				sizeof(struct mpls_link_stats),
@@ -1180,11 +1180,11 @@ static int mpls_netconf_msgsize_devconf(int type)
 	return size;
 }
 
-static void mpls_netconf_notify_devconf(struct net *net, int event,
+static void mpls_netconf_analtify_devconf(struct net *net, int event,
 					int type, struct mpls_dev *mdev)
 {
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	skb = nlmsg_new(mpls_netconf_msgsize_devconf(type), GFP_KERNEL);
 	if (!skb)
@@ -1198,7 +1198,7 @@ static void mpls_netconf_notify_devconf(struct net *net, int event,
 		goto errout;
 	}
 
-	rtnl_notify(skb, net, 0, RTNLGRP_MPLS_NETCONF, NULL, GFP_KERNEL);
+	rtnl_analtify(skb, net, 0, RTNLGRP_MPLS_NETCONF, NULL, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -1278,7 +1278,7 @@ static int mpls_netconf_get_devconf(struct sk_buff *in_skb,
 	if (!mdev)
 		goto errout;
 
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	skb = nlmsg_new(mpls_netconf_msgsize_devconf(NETCONFA_ALL), GFP_KERNEL);
 	if (!skb)
 		goto errout;
@@ -1377,7 +1377,7 @@ static int mpls_conf_proc(struct ctl_table *ctl, int write,
 
 		if (i == offsetof(struct mpls_dev, input_enabled) &&
 		    val != oval) {
-			mpls_netconf_notify_devconf(net, RTM_NEWNETCONF,
+			mpls_netconf_analtify_devconf(net, RTM_NEWNETCONF,
 						    NETCONFA_INPUT, mdev);
 		}
 	}
@@ -1424,14 +1424,14 @@ static int mpls_dev_sysctl_register(struct net_device *dev,
 	if (!mdev->sysctl)
 		goto free;
 
-	mpls_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL, mdev);
+	mpls_netconf_analtify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL, mdev);
 	return 0;
 
 free:
 	kfree(table);
 out:
 	mdev->sysctl = NULL;
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static void mpls_dev_sysctl_unregister(struct net_device *dev,
@@ -1447,13 +1447,13 @@ static void mpls_dev_sysctl_unregister(struct net_device *dev,
 	unregister_net_sysctl_table(mdev->sysctl);
 	kfree(table);
 
-	mpls_netconf_notify_devconf(net, RTM_DELNETCONF, 0, mdev);
+	mpls_netconf_analtify_devconf(net, RTM_DELNETCONF, 0, mdev);
 }
 
 static struct mpls_dev *mpls_add_dev(struct net_device *dev)
 {
 	struct mpls_dev *mdev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	ASSERT_RTNL();
@@ -1522,7 +1522,7 @@ static int mpls_ifdown(struct net_device *dev, int event)
 					nh_del = true;
 			} endfor_nexthops(rt);
 
-			/* if there are no more nexthops, delete the route */
+			/* if there are anal more nexthops, delete the route */
 			if (deleted == rt->rt_nhn) {
 				mpls_route_update(net, index, NULL, NULL);
 				continue;
@@ -1535,7 +1535,7 @@ static int mpls_ifdown(struct net_device *dev, int event)
 
 				rt = kmemdup(orig, size, GFP_KERNEL);
 				if (!rt)
-					return -ENOMEM;
+					return -EANALMEM;
 			}
 		}
 
@@ -1606,10 +1606,10 @@ static void mpls_ifup(struct net_device *dev, unsigned int flags)
 	}
 }
 
-static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
+static int mpls_dev_analtify(struct analtifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct mpls_dev *mdev;
 	unsigned int flags;
 	int err;
@@ -1617,21 +1617,21 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 	if (event == NETDEV_REGISTER) {
 		mdev = mpls_add_dev(dev);
 		if (IS_ERR(mdev))
-			return notifier_from_errno(PTR_ERR(mdev));
+			return analtifier_from_erranal(PTR_ERR(mdev));
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	mdev = mpls_dev_get(dev);
 	if (!mdev)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	switch (event) {
 
 	case NETDEV_DOWN:
 		err = mpls_ifdown(dev, event);
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 		break;
 	case NETDEV_UP:
 		flags = dev_get_flags(dev);
@@ -1647,13 +1647,13 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		} else {
 			err = mpls_ifdown(dev, event);
 			if (err)
-				return notifier_from_errno(err);
+				return analtifier_from_erranal(err);
 		}
 		break;
 	case NETDEV_UNREGISTER:
 		err = mpls_ifdown(dev, event);
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 		mdev = mpls_dev_get(dev);
 		if (mdev) {
 			mpls_dev_sysctl_unregister(dev, mdev);
@@ -1667,15 +1667,15 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 			mpls_dev_sysctl_unregister(dev, mdev);
 			err = mpls_dev_sysctl_register(dev, mdev);
 			if (err)
-				return notifier_from_errno(err);
+				return analtifier_from_erranal(err);
 		}
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block mpls_dev_notifier = {
-	.notifier_call = mpls_dev_notify,
+static struct analtifier_block mpls_dev_analtifier = {
+	.analtifier_call = mpls_dev_analtify,
 };
 
 static int nla_put_via(struct sk_buff *skb,
@@ -1792,7 +1792,7 @@ int nla_get_labels(const struct nlattr *nla, u8 max_labels, u8 *labels,
 			 * actually appears in the encapsulation.
 			 */
 			NL_SET_ERR_MSG_ATTR(extack, nla,
-					    "Implicit NULL Label (3) can not be used in encapsulation");
+					    "Implicit NULL Label (3) can analt be used in encapsulation");
 			return -EINVAL;
 		}
 
@@ -1864,7 +1864,7 @@ static int rtm_to_route_config(struct sk_buff *skb,
 		goto errout;
 	}
 
-	cfg->rc_label		= LABEL_NOT_SPECIFIED;
+	cfg->rc_label		= LABEL_ANALT_SPECIFIED;
 	cfg->rc_protocol	= rtm->rtm_protocol;
 	cfg->rc_via_table	= MPLS_NEIGH_TABLE_UNSPEC;
 	cfg->rc_ttl_propagate	= MPLS_TTL_PROP_DEFAULT;
@@ -1901,7 +1901,7 @@ static int rtm_to_route_config(struct sk_buff *skb,
 			break;
 		}
 		case RTA_GATEWAY:
-			NL_SET_ERR_MSG(extack, "MPLS does not support RTA_GATEWAY attribute");
+			NL_SET_ERR_MSG(extack, "MPLS does analt support RTA_GATEWAY attribute");
 			goto errout;
 		case RTA_VIA:
 		{
@@ -1932,7 +1932,7 @@ static int rtm_to_route_config(struct sk_buff *skb,
 			break;
 		}
 		default:
-			NL_SET_ERR_MSG_ATTR(extack, nla, "Unknown attribute");
+			NL_SET_ERR_MSG_ATTR(extack, nla, "Unkanalwn attribute");
 			/* Unsupported attribute */
 			goto errout;
 		}
@@ -1951,7 +1951,7 @@ static int mpls_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rtm_to_route_config(skb, nlh, cfg, extack);
 	if (err < 0)
@@ -1973,7 +1973,7 @@ static int mpls_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rtm_to_route_config(skb, nlh, cfg, extack);
 	if (err < 0)
@@ -2043,7 +2043,7 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		u8 linkdown = 0;
 		u8 dead = 0;
 
-		mp = nla_nest_start_noflag(skb, RTA_MULTIPATH);
+		mp = nla_nest_start_analflag(skb, RTA_MULTIPATH);
 		if (!mp)
 			goto nla_put_failure;
 
@@ -2052,7 +2052,7 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			if (!dev)
 				continue;
 
-			rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
+			rtnh = nla_reserve_analhdr(skb, sizeof(*rtnh));
 			if (!rtnh)
 				goto nla_put_failure;
 
@@ -2144,7 +2144,7 @@ static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 			ifindex = nla_get_u32(tb[i]);
 			filter->dev = __dev_get_by_index(net, ifindex);
 			if (!filter->dev)
-				return -ENODEV;
+				return -EANALDEV;
 			filter->filter_set = 1;
 		} else if (tb[i]) {
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported attribute in dump request");
@@ -2194,7 +2194,7 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 			return err;
 
 		/* for MPLS, there is only 1 table with fixed type and flags.
-		 * If either are set in the filter then return nothing.
+		 * If either are set in the filter then return analthing.
 		 */
 		if ((filter.table_id && filter.table_id != RT_TABLE_MAIN) ||
 		    (filter.rt_type && filter.rt_type != RTN_UNICAST) ||
@@ -2276,7 +2276,7 @@ static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
 {
 	struct sk_buff *skb;
 	u32 seq = nlh ? nlh->nlmsg_seq : 0;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	skb = nlmsg_new(lfib_nlmsg_size(rt), GFP_KERNEL);
 	if (skb == NULL)
@@ -2289,7 +2289,7 @@ static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, net, portid, RTNLGRP_MPLS_ROUTE, nlh, GFP_KERNEL);
+	rtnl_analtify(skb, net, portid, RTNLGRP_MPLS_ROUTE, nlh, GFP_KERNEL);
 
 	return;
 errout:
@@ -2360,7 +2360,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 {
 	struct net *net = sock_net(in_skb->sk);
 	u32 portid = NETLINK_CB(in_skb).portid;
-	u32 in_label = LABEL_NOT_SPECIFIED;
+	u32 in_label = LABEL_ANALT_SPECIFIED;
 	struct nlattr *tb[RTA_MAX + 1];
 	u32 labels[MAX_NEW_LABELS];
 	struct mpls_shim_hdr *hdr;
@@ -2404,7 +2404,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 	if (rtm->rtm_flags & RTM_F_FIB_MATCH) {
 		skb = nlmsg_new(lfib_nlmsg_size(rt), GFP_KERNEL);
 		if (!skb) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			goto errout;
 		}
 
@@ -2431,7 +2431,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto errout;
 	}
 
@@ -2442,7 +2442,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 		int i;
 
 		if (skb_cow(skb, hdr_size)) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			goto errout_free;
 		}
 
@@ -2530,7 +2530,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	if (size) {
 		labels = kvzalloc(size, GFP_KERNEL);
 		if (!labels)
-			goto nolabels;
+			goto anallabels;
 	}
 
 	/* In case the predefined labels need to be populated */
@@ -2538,7 +2538,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 		struct net_device *lo = net->loopback_dev;
 		rt0 = mpls_rt_alloc(1, lo->addr_len, 0);
 		if (IS_ERR(rt0))
-			goto nort0;
+			goto analrt0;
 		rt0->rt_nh->nh_dev = lo;
 		rt0->rt_protocol = RTPROT_KERNEL;
 		rt0->rt_payload_type = MPT_IPV4;
@@ -2552,7 +2552,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 		struct net_device *lo = net->loopback_dev;
 		rt2 = mpls_rt_alloc(1, lo->addr_len, 0);
 		if (IS_ERR(rt2))
-			goto nort2;
+			goto analrt2;
 		rt2->rt_nh->nh_dev = lo;
 		rt2->rt_protocol = RTPROT_KERNEL;
 		rt2->rt_payload_type = MPT_IPV6;
@@ -2607,12 +2607,12 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	}
 	return 0;
 
-nort2:
+analrt2:
 	mpls_rt_free(rt0);
-nort0:
+analrt0:
 	kvfree(labels);
-nolabels:
-	return -ENOMEM;
+anallabels:
+	return -EANALMEM;
 }
 
 static int mpls_platform_labels(struct ctl_table *table, int write,
@@ -2682,7 +2682,7 @@ static int mpls_net_init(struct net *net)
 
 	table = kmemdup(mpls_table, sizeof(mpls_table), GFP_KERNEL);
 	if (table == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Table data contains only offsets relative to the base of
 	 * the mdev at this point, so make them absolute.
@@ -2694,7 +2694,7 @@ static int mpls_net_init(struct net *net)
 					       ARRAY_SIZE(mpls_table));
 	if (net->mpls.ctl == NULL) {
 		kfree(table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -2717,7 +2717,7 @@ static void mpls_net_exit(struct net *net)
 	 * unregister_netdevice_many and netdev_run_todo has completed
 	 * for each network device that was in this network namespace.
 	 *
-	 * As such no additional rcu synchronization is necessary when
+	 * As such anal additional rcu synchronization is necessary when
 	 * freeing the platform_label table.
 	 */
 	rtnl_lock();
@@ -2726,7 +2726,7 @@ static void mpls_net_exit(struct net *net)
 	for (index = 0; index < platform_labels; index++) {
 		struct mpls_route *rt = rtnl_dereference(platform_label[index]);
 		RCU_INIT_POINTER(platform_label[index], NULL);
-		mpls_notify_route(net, index, rt, NULL, NULL);
+		mpls_analtify_route(net, index, rt, NULL, NULL);
 		mpls_rt_free(rt);
 	}
 	rtnl_unlock();
@@ -2755,7 +2755,7 @@ static int __init mpls_init(void)
 	if (err)
 		goto out;
 
-	err = register_netdevice_notifier(&mpls_dev_notifier);
+	err = register_netdevice_analtifier(&mpls_dev_analtifier);
 	if (err)
 		goto out_unregister_pernet;
 
@@ -2791,7 +2791,7 @@ static void __exit mpls_exit(void)
 	rtnl_unregister_all(PF_MPLS);
 	rtnl_af_unregister(&mpls_af_ops);
 	dev_remove_pack(&mpls_packet_type);
-	unregister_netdevice_notifier(&mpls_dev_notifier);
+	unregister_netdevice_analtifier(&mpls_dev_analtifier);
 	unregister_pernet_subsys(&mpls_net_ops);
 	ipgre_tunnel_encap_del_mpls_ops();
 }

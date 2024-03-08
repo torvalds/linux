@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,10 +39,10 @@
 #define regUVD_IPX_DLDO_STATUS                             0x0065
 #define regUVD_IPX_DLDO_STATUS_BASE_IDX                    1
 
-#define UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT        0x00000002
-#define UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG_MASK          0x0000000cUL
-#define UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS__SHIFT        0x00000001
-#define UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS_MASK          0x00000002UL
+#define UVD_IPX_DLDO_CONFIG__OANAL0_PWR_CONFIG__SHIFT        0x00000002
+#define UVD_IPX_DLDO_CONFIG__OANAL0_PWR_CONFIG_MASK          0x0000000cUL
+#define UVD_IPX_DLDO_STATUS__OANAL0_PWR_STATUS__SHIFT        0x00000001
+#define UVD_IPX_DLDO_STATUS__OANAL0_PWR_STATUS_MASK          0x00000002UL
 
 static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 {
@@ -62,10 +62,10 @@ static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 
 	if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 5)) {
 		WREG32_SOC15(VCN, 0, regUVD_IPX_DLDO_CONFIG,
-			1 << UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT);
+			1 << UVD_IPX_DLDO_CONFIG__OANAL0_PWR_CONFIG__SHIFT);
 		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_IPX_DLDO_STATUS,
-			0 << UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS__SHIFT,
-			UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS_MASK);
+			0 << UVD_IPX_DLDO_STATUS__OANAL0_PWR_STATUS__SHIFT,
+			UVD_IPX_DLDO_STATUS__OANAL0_PWR_STATUS_MASK);
 	}
 
 	data = RREG32_SOC15(VCN, 0, regUMSCH_MES_RESET_CTRL);
@@ -195,7 +195,7 @@ static void umsch_mm_v4_0_aggregated_doorbell_init(struct amdgpu_umsch_mm *umsch
 
 	data = RREG32_SOC15(VCN, 0, regVCN_AGDB_CTRL2);
 	data = REG_SET_FIELD(data, VCN_AGDB_CTRL2, OFFSET,
-	       umsch->agdb_index[CONTEXT_PRIORITY_LEVEL_NORMAL]);
+	       umsch->agdb_index[CONTEXT_PRIORITY_LEVEL_ANALRMAL]);
 	data = REG_SET_FIELD(data, VCN_AGDB_CTRL2, EN, 1);
 	WREG32_SOC15(VCN, 0, regVCN_AGDB_CTRL2, data);
 
@@ -250,10 +250,10 @@ static int umsch_mm_v4_0_ring_stop(struct amdgpu_umsch_mm *umsch)
 
 	if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 5)) {
 		WREG32_SOC15(VCN, 0, regUVD_IPX_DLDO_CONFIG,
-			2 << UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT);
+			2 << UVD_IPX_DLDO_CONFIG__OANAL0_PWR_CONFIG__SHIFT);
 		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_IPX_DLDO_STATUS,
-			1 << UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS__SHIFT,
-			UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS_MASK);
+			1 << UVD_IPX_DLDO_STATUS__OANAL0_PWR_STATUS__SHIFT,
+			UVD_IPX_DLDO_STATUS__OANAL0_PWR_STATUS_MASK);
 	}
 
 	return 0;

@@ -21,7 +21,7 @@
 #endif
 
 /*
- * if the transfer address ANDed with this results in a non-zero
+ * if the transfer address ANDed with this results in a analn-zero
  * result, then we can't use DMA.
  */
 #define A2091_XFER_MASK		(0xff000001)

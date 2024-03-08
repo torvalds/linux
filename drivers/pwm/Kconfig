@@ -19,13 +19,13 @@ menuconfig PWM
 	  to configure as well as enable and disable them.
 
 	  This generic framework replaces the legacy PWM framework which
-	  allows only a single driver implementing the required API. Not
+	  allows only a single driver implementing the required API. Analt
 	  all legacy implementations have been ported to the framework
 	  yet. The framework provides an API that is backward compatible
 	  with the legacy framework so that existing client drivers
 	  continue to work as expected.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 if PWM
 
@@ -39,7 +39,7 @@ config PWM_DEBUG
 	help
 	  This option enables some additional checks to help lowlevel driver
 	  authors to get their callbacks implemented correctly.
-	  It is expected to introduce some runtime overhead and diagnostic
+	  It is expected to introduce some runtime overhead and diaganalstic
 	  output to the kernel log, so only enable while working on a driver.
 
 config PWM_AB8500
@@ -190,7 +190,7 @@ config PWM_DWC_CORE
 	tristate
 	depends on HAS_IOMEM
 	help
-	  PWM driver for Synopsys DWC PWM Controller.
+	  PWM driver for Syanalpsys DWC PWM Controller.
 
 	  To compile this driver as a module, build the dependecies as
 	  modules, this will be called pwm-dwc-core.
@@ -200,7 +200,7 @@ config PWM_DWC
 	depends on HAS_IOMEM && PCI
 	select PWM_DWC_CORE
 	help
-	  PWM driver for Synopsys DWC PWM Controller attached to a PCI bus.
+	  PWM driver for Syanalpsys DWC PWM Controller attached to a PCI bus.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-dwc.
@@ -238,13 +238,13 @@ config PWM_HIBVT
 	  will be called pwm-hibvt.
 
 config PWM_IMG
-	tristate "Imagination Technologies PWM driver"
+	tristate "Imagination Techanallogies PWM driver"
 	depends on HAS_IOMEM
 	depends on MFD_SYSCON
 	depends on COMMON_CLK
 	depends on MIPS || COMPILE_TEST
 	help
-	  Generic PWM framework driver for Imagination Technologies
+	  Generic PWM framework driver for Imagination Techanallogies
 	  PWM block which supports 4 channels.
 
 	  To compile this driver as a module, choose M here: the module
@@ -440,7 +440,7 @@ config PWM_NTXEC
 	tristate "Netronix embedded controller PWM support"
 	depends on MFD_NTXEC
 	help
-	  Say yes here if you want to support the PWM output of the embedded
+	  Say anal here if you want to support the PWM output of the embedded
 	  controller found in certain e-book readers designed by the original
 	  design manufacturer Netronix.
 
@@ -476,7 +476,7 @@ config PWM_PXA
 
 config PWM_RASPBERRYPI_POE
 	tristate "Raspberry Pi Firwmware PoE Hat PWM support"
-	# Make sure not 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
+	# Make sure analt 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
 	# happen when COMPILE_TEST=y, hence the added !RASPBERRYPI_FIRMWARE.
 	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
 	help
@@ -526,11 +526,11 @@ config PWM_RZ_MTU3
 
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
-	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYANALS || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for Samsung S3C24xx, S3C64xx, S5Pv210
-	  and Exynos SoCs.
+	  and Exyanals SoCs.
 	  Choose Y here only if you build for such Samsung SoC.
 
 	  To compile this driver as a module, choose M here: the module

@@ -39,12 +39,12 @@
 /**
  * enum dmxdev_type - type of demux filter type.
  *
- * @DMXDEV_TYPE_NONE:	no filter set.
+ * @DMXDEV_TYPE_ANALNE:	anal filter set.
  * @DMXDEV_TYPE_SEC:	section filter.
  * @DMXDEV_TYPE_PES:	Program Elementary Stream (PES) filter.
  */
 enum dmxdev_type {
-	DMXDEV_TYPE_NONE,
+	DMXDEV_TYPE_ANALNE,
 	DMXDEV_TYPE_SEC,
 	DMXDEV_TYPE_PES,
 };
@@ -58,7 +58,7 @@ enum dmxdev_type {
  * @DMXDEV_STATE_SET:		indicates that the filter parameters are set.
  * @DMXDEV_STATE_GO:		indicates that the filter is running.
  * @DMXDEV_STATE_DONE:		indicates that a packet was already filtered
- *				and the filter is now disabled.
+ *				and the filter is analw disabled.
  *				Set only if %DMX_ONESHOT. See
  *				&dmx_sct_filter_params.
  * @DMXDEV_STATE_TIMEDOUT:	Indicates a timeout condition.
@@ -155,9 +155,9 @@ struct dmxdev_filter {
  * struct dmxdev - Describes a digital TV demux device.
  *
  * @dvbdev:		pointer to &struct dvb_device associated with
- *			the demux device node.
+ *			the demux device analde.
  * @dvr_dvbdev:		pointer to &struct dvb_device associated with
- *			the dvr device node.
+ *			the dvr device analde.
  * @filter:		pointer to &struct dmxdev_filter.
  * @demux:		pointer to &struct dmx_demux.
  * @filternum:		number of filters.

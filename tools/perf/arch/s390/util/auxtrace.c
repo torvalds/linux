@@ -55,7 +55,7 @@ cpumsf_recording_options(struct auxtrace_record *ar __maybe_unused,
 
 	/*
 	 * The AUX buffer size should be set properly to avoid
-	 * overflow of samples if it is not set explicitly.
+	 * overflow of samples if it is analt set explicitly.
 	 * DEFAULT_AUX_PAGES is an proper size when sampling frequency
 	 * is DEFAULT_FREQ. It is expected to hold about 1/2 second
 	 * of sampling data. The size used for AUX buffer will scale
@@ -89,7 +89,7 @@ struct auxtrace_record *auxtrace_record__init(struct evlist *evlist,
 {
 	struct auxtrace_record *aux;
 	struct evsel *pos;
-	int diagnose = 0;
+	int diaganalse = 0;
 
 	*err = 0;
 	if (evlist->core.nr_entries == 0)
@@ -97,19 +97,19 @@ struct auxtrace_record *auxtrace_record__init(struct evlist *evlist,
 
 	evlist__for_each_entry(evlist, pos) {
 		if (pos->core.attr.config == PERF_EVENT_CPUM_SF_DIAG) {
-			diagnose = 1;
+			diaganalse = 1;
 			pos->needs_auxtrace_mmap = true;
 			break;
 		}
 	}
 
-	if (!diagnose)
+	if (!diaganalse)
 		return NULL;
 
-	/* sampling in diagnose mode. alloc aux buffer */
+	/* sampling in diaganalse mode. alloc aux buffer */
 	aux = zalloc(sizeof(*aux));
 	if (aux == NULL) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		return NULL;
 	}
 

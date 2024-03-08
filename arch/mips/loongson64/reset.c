@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  * Copyright (C) 2009 Lemote, Inc.
  * Author: Zhangjin Wu, wuzhangjin@gmail.com
@@ -46,7 +46,7 @@ static void loongson_poweroff(void)
 
 static void loongson_halt(void)
 {
-	pr_notice("\n\n** You can safely turn off the power now **\n\n");
+	pr_analtice("\n\n** You can safely turn off the power analw **\n\n");
 	while (1) {
 		if (cpu_wait)
 			cpu_wait();
@@ -161,15 +161,15 @@ static int __init mips_reboot_setup(void)
 #ifdef CONFIG_KEXEC_CORE
 	kexec_argv = kmalloc(KEXEC_ARGV_SIZE, GFP_KERNEL);
 	if (WARN_ON(!kexec_argv))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kdump_argv = kmalloc(KEXEC_ARGV_SIZE, GFP_KERNEL);
 	if (WARN_ON(!kdump_argv))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kexec_envp = kmalloc(KEXEC_ENVP_SIZE, GFP_KERNEL);
 	if (WARN_ON(!kexec_envp))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_arg1 = KEXEC_ARGV_ADDR;
 	memcpy(kexec_envp, (void *)fw_arg2, KEXEC_ENVP_SIZE);

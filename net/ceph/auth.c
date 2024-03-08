@@ -9,7 +9,7 @@
 #include <linux/ceph/decode.h>
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/messenger.h>
-#include "auth_none.h"
+#include "auth_analne.h"
 #include "auth_x.h"
 
 
@@ -17,7 +17,7 @@
  * get protocol handler
  */
 static u32 supported_protocols[] = {
-	CEPH_AUTH_NONE,
+	CEPH_AUTH_ANALNE,
 	CEPH_AUTH_CEPHX
 };
 
@@ -26,8 +26,8 @@ static int init_protocol(struct ceph_auth_client *ac, int proto)
 	dout("%s proto %d\n", __func__, proto);
 
 	switch (proto) {
-	case CEPH_AUTH_NONE:
-		return ceph_auth_none_init(ac);
+	case CEPH_AUTH_ANALNE:
+		return ceph_auth_analne_init(ac);
 	case CEPH_AUTH_CEPHX:
 		return ceph_x_init(ac);
 	default:
@@ -59,9 +59,9 @@ struct ceph_auth_client *ceph_auth_init(const char *name,
 {
 	struct ceph_auth_client *ac;
 
-	ac = kzalloc(sizeof(*ac), GFP_NOFS);
+	ac = kzalloc(sizeof(*ac), GFP_ANALFS);
 	if (!ac)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&ac->mutex);
 	ac->negotiating = true;
@@ -100,7 +100,7 @@ void ceph_auth_reset(struct ceph_auth_client *ac)
 }
 
 /*
- * EntityName, not to be confused with entity_name_t
+ * EntityName, analt to be confused with entity_name_t
  */
 int ceph_auth_entity_name_encode(const char *name, void **p, void *end)
 {
@@ -131,7 +131,7 @@ int ceph_auth_build_hello(struct ceph_auth_client *ac, void *buf, size_t len)
 	monhdr->session_mon = cpu_to_le16(-1);
 	monhdr->session_mon_tid = 0;
 
-	ceph_encode_32(&p, CEPH_AUTH_UNKNOWN);  /* no protocol, yet */
+	ceph_encode_32(&p, CEPH_AUTH_UNKANALWN);  /* anal protocol, yet */
 
 	lenp = p;
 	p += sizeof(u32);
@@ -232,7 +232,7 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 	payload_end = payload + payload_len;
 
 	if (ac->negotiating) {
-		/* server does not support our protocols? */
+		/* server does analt support our protocols? */
 		if (!protocol && result < 0) {
 			ret = result;
 			goto out;
@@ -405,8 +405,8 @@ static bool contains(const int *arr, int cnt, int val)
 
 static int encode_con_modes(void **p, void *end, int pref_mode, int fallb_mode)
 {
-	WARN_ON(pref_mode == CEPH_CON_MODE_UNKNOWN);
-	if (fallb_mode != CEPH_CON_MODE_UNKNOWN) {
+	WARN_ON(pref_mode == CEPH_CON_MODE_UNKANALWN);
+	if (fallb_mode != CEPH_CON_MODE_UNKANALWN) {
 		ceph_encode_32_safe(p, end, 2, e_range);
 		ceph_encode_32_safe(p, end, pref_mode, e_range);
 		ceph_encode_32_safe(p, end, fallb_mode, e_range);
@@ -426,14 +426,14 @@ e_range:
  */
 int ceph_auth_get_request(struct ceph_auth_client *ac, void *buf, int buf_len)
 {
-	int proto = ac->key ? CEPH_AUTH_CEPHX : CEPH_AUTH_NONE;
+	int proto = ac->key ? CEPH_AUTH_CEPHX : CEPH_AUTH_ANALNE;
 	void *end = buf + buf_len;
 	void *lenp;
 	void *p;
 	int ret;
 
 	mutex_lock(&ac->mutex);
-	if (ac->protocol == CEPH_AUTH_UNKNOWN) {
+	if (ac->protocol == CEPH_AUTH_UNKANALWN) {
 		ret = init_protocol(ac, proto);
 		if (ret) {
 			pr_err("auth protocol '%s' init failed: %d\n",
@@ -512,34 +512,34 @@ bool ceph_auth_handle_bad_method(struct ceph_auth_client *ac,
 	mutex_lock(&ac->mutex);
 	WARN_ON(used_proto != ac->protocol);
 
-	if (result == -EOPNOTSUPP) {
+	if (result == -EOPANALTSUPP) {
 		if (!contains(allowed_protos, proto_cnt, ac->protocol)) {
-			pr_err("auth protocol '%s' not allowed\n",
+			pr_err("auth protocol '%s' analt allowed\n",
 			       ceph_auth_proto_name(ac->protocol));
-			goto not_allowed;
+			goto analt_allowed;
 		}
 		if (!contains(allowed_modes, mode_cnt, ac->preferred_mode) &&
-		    (ac->fallback_mode == CEPH_CON_MODE_UNKNOWN ||
+		    (ac->fallback_mode == CEPH_CON_MODE_UNKANALWN ||
 		     !contains(allowed_modes, mode_cnt, ac->fallback_mode))) {
-			pr_err("preferred mode '%s' not allowed\n",
+			pr_err("preferred mode '%s' analt allowed\n",
 			       ceph_con_mode_name(ac->preferred_mode));
-			if (ac->fallback_mode == CEPH_CON_MODE_UNKNOWN)
-				pr_err("no fallback mode\n");
+			if (ac->fallback_mode == CEPH_CON_MODE_UNKANALWN)
+				pr_err("anal fallback mode\n");
 			else
-				pr_err("fallback mode '%s' not allowed\n",
+				pr_err("fallback mode '%s' analt allowed\n",
 				       ceph_con_mode_name(ac->fallback_mode));
-			goto not_allowed;
+			goto analt_allowed;
 		}
 	}
 
-	WARN_ON(result == -EOPNOTSUPP || result >= 0);
+	WARN_ON(result == -EOPANALTSUPP || result >= 0);
 	pr_err("auth protocol '%s' msgr authentication failed: %d\n",
 	       ceph_auth_proto_name(ac->protocol), result);
 
 	mutex_unlock(&ac->mutex);
 	return true;
 
-not_allowed:
+analt_allowed:
 	mutex_unlock(&ac->mutex);
 	return false;
 }
@@ -618,30 +618,30 @@ bool ceph_auth_handle_bad_authorizer(struct ceph_auth_client *ac,
 	mutex_lock(&ac->mutex);
 	WARN_ON(used_proto != ac->protocol);
 
-	if (result == -EOPNOTSUPP) {
+	if (result == -EOPANALTSUPP) {
 		if (!contains(allowed_protos, proto_cnt, ac->protocol)) {
-			pr_err("auth protocol '%s' not allowed by %s\n",
+			pr_err("auth protocol '%s' analt allowed by %s\n",
 			       ceph_auth_proto_name(ac->protocol),
 			       ceph_entity_type_name(peer_type));
-			goto not_allowed;
+			goto analt_allowed;
 		}
 		if (!contains(allowed_modes, mode_cnt, ac->preferred_mode) &&
-		    (ac->fallback_mode == CEPH_CON_MODE_UNKNOWN ||
+		    (ac->fallback_mode == CEPH_CON_MODE_UNKANALWN ||
 		     !contains(allowed_modes, mode_cnt, ac->fallback_mode))) {
-			pr_err("preferred mode '%s' not allowed by %s\n",
+			pr_err("preferred mode '%s' analt allowed by %s\n",
 			       ceph_con_mode_name(ac->preferred_mode),
 			       ceph_entity_type_name(peer_type));
-			if (ac->fallback_mode == CEPH_CON_MODE_UNKNOWN)
-				pr_err("no fallback mode\n");
+			if (ac->fallback_mode == CEPH_CON_MODE_UNKANALWN)
+				pr_err("anal fallback mode\n");
 			else
-				pr_err("fallback mode '%s' not allowed by %s\n",
+				pr_err("fallback mode '%s' analt allowed by %s\n",
 				       ceph_con_mode_name(ac->fallback_mode),
 				       ceph_entity_type_name(peer_type));
-			goto not_allowed;
+			goto analt_allowed;
 		}
 	}
 
-	WARN_ON(result == -EOPNOTSUPP || result >= 0);
+	WARN_ON(result == -EOPANALTSUPP || result >= 0);
 	pr_err("auth protocol '%s' authorization to %s failed: %d\n",
 	       ceph_auth_proto_name(ac->protocol),
 	       ceph_entity_type_name(peer_type), result);
@@ -652,7 +652,7 @@ bool ceph_auth_handle_bad_authorizer(struct ceph_auth_client *ac,
 	mutex_unlock(&ac->mutex);
 	return true;
 
-not_allowed:
+analt_allowed:
 	mutex_unlock(&ac->mutex);
 	return false;
 }

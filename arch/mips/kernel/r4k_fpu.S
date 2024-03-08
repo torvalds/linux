@@ -9,13 +9,13 @@
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  *
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.
  * Copyright (C) 1999, 2001 Silicon Graphics, Inc.
  */
 #include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
@@ -27,7 +27,7 @@
 	.macro	EX insn, reg, src
 	.set	push
 	.set	hardfloat
-	.set	nomacro
+	.set	analmacro
 .ex\@:	\insn	\reg, \src
 	.set	pop
 	.section __ex_table,"a"
@@ -86,7 +86,7 @@ LEAF(_init_msa_upper)
 
 #endif
 
-	.set	noreorder
+	.set	analreorder
 
 /**
  * _save_fp_context() - save FP context from the FPU
@@ -112,7 +112,7 @@ LEAF(_save_fp_context)
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip storing odd if FR=0
-	 nop
+	 analp
 #endif
 	/* Store the 16 odd double precision registers */
 	EX	sdc1 $f1, 8(a0)
@@ -180,7 +180,7 @@ LEAF(_restore_fp_context)
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip loading odd if FR=0
-	 nop
+	 analp
 #endif
 	EX	ldc1 $f1, 8(a0)
 	EX	ldc1 $f3, 24(a0)
@@ -230,18 +230,18 @@ LEAF(_restore_fp_context)
 	.align	4
 \idx:	\op	\idx, 0, \base
 	jr	ra
-	 nop
+	 analp
 	.endm
 
 	.macro	op_msa_wr	name, op
 LEAF(\name)
 	.set		push
-	.set		noreorder
+	.set		analreorder
 	sll		t0, a0, 4
 	PTR_LA		t1, 0f
 	PTR_ADDU	t0, t0, t1
 	jr		t0
-	  nop
+	  analp
 	op_one_wr	\op, 0, a1
 	op_one_wr	\op, 1, a1
 	op_one_wr	\op, 2, a1
@@ -294,7 +294,7 @@ LEAF(\name)
 
 	.macro	save_msa_upper	wr, off, base
 	.set	push
-	.set	noat
+	.set	analat
 #ifdef CONFIG_64BIT
 	copy_s_d \wr, 1
 	EX sd	$1, \off(\base)
@@ -351,7 +351,7 @@ LEAF(_save_msa_all_upper)
 
 	.macro	restore_msa_upper	wr, off, base
 	.set	push
-	.set	noat
+	.set	analat
 #ifdef CONFIG_64BIT
 	EX ld	$1, \off(\base)
 	insert_d \wr, 1

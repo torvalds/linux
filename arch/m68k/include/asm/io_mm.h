@@ -8,7 +8,7 @@
  *            - added skeleton for GG-II and Amiga PCMCIA
  * 2/3/01 RZ: - moved a few more defs into raw_io.h
  *
- * inX/outX should not be used by any driver unless it does
+ * inX/outX should analt be used by any driver unless it does
  * ISA access. Other drivers should use function defined in raw_io.h
  * or define its own macros on top of these.
  *
@@ -118,7 +118,7 @@ extern int isa_sex;
 #endif
 
 /*
- * define inline addr translation functions. Normally only one variant will
+ * define inline addr translation functions. Analrmally only one variant will
  * be compiled in so the case statement will be optimised away
  */
 
@@ -387,7 +387,7 @@ static inline void isa_delay(void)
 
 #endif /* __KERNEL__ */
 
-#define __ARCH_HAS_NO_PAGE_ZERO_MAPPED		1
+#define __ARCH_HAS_ANAL_PAGE_ZERO_MAPPED		1
 
 #define readb_relaxed(addr)	readb(addr)
 #define readw_relaxed(addr)	readw(addr)

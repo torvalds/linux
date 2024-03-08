@@ -5,7 +5,7 @@
 
 #include <linux/cpuhotplug.h>
 #include <linux/sched/task.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/asm-extable.h>
@@ -20,12 +20,12 @@
  */
 static int pfault_disable;
 
-static int __init nopfault(char *str)
+static int __init analpfault(char *str)
 {
 	pfault_disable = 1;
 	return 1;
 }
-early_param("nopfault", nopfault);
+early_param("analpfault", analpfault);
 
 struct pfault_refbk {
 	u16 refdiagc;
@@ -51,14 +51,14 @@ static struct pfault_refbk pfault_init_refbk = {
 
 int __pfault_init(void)
 {
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	if (pfault_disable)
 		return rc;
 	diag_stat_inc(DIAG_STAT_X258);
 	asm volatile(
 		"	diag	%[refbk],%[rc],0x258\n"
-		"0:	nopr	%%r7\n"
+		"0:	analpr	%%r7\n"
 		EX_TABLE(0b, 0b)
 		: [rc] "+d" (rc)
 		: [refbk] "a" (&pfault_init_refbk), "m" (pfault_init_refbk)
@@ -80,7 +80,7 @@ void __pfault_fini(void)
 	diag_stat_inc(DIAG_STAT_X258);
 	asm volatile(
 		"	diag	%[refbk],0,0x258\n"
-		"0:	nopr	%%r7\n"
+		"0:	analpr	%%r7\n"
 		EX_TABLE(0b, 0b)
 		:
 		: [refbk] "a" (&pfault_fini_refbk), "m" (pfault_fini_refbk)
@@ -104,7 +104,7 @@ static LIST_HEAD(pfault_list);
  * So when we get such an interrupt then we set the state of the current task
  * to uninterruptible and also set the need_resched flag. Both happens within
  * interrupt context(!). If we later on want to return to user space we
- * recognize the need_resched flag and then call schedule().  It's not very
+ * recognize the need_resched flag and then call schedule().  It's analt very
  * obvious how this works...
  *
  * Of course we have a lot of additional fun with the completion interrupt (->
@@ -158,7 +158,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 			 * Completion interrupt was faster than initial
 			 * interrupt. Set pfault_wait to -1 so the initial
 			 * interrupt doesn't put the task to sleep.
-			 * If the task is not running, ignore the completion
+			 * If the task is analt running, iganalre the completion
 			 * interrupt since it must be a leftover of a PFAULT
 			 * CANCEL operation which didn't remove all pending
 			 * completion interrupts.
@@ -167,7 +167,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 				tsk->thread.pfault_wait = -1;
 		}
 	} else {
-		/* signal bit not set -> a real page is missing. */
+		/* signal bit analt set -> a real page is missing. */
 		if (WARN_ON_ONCE(tsk != current))
 			goto out;
 		if (tsk->thread.pfault_wait == 1) {
@@ -194,7 +194,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 block:
 			/*
 			 * Since this must be a userspace fault, there
-			 * is no kernel task state to trample. Rely on the
+			 * is anal kernel task state to trample. Rely on the
 			 * return to userspace schedule() to block.
 			 */
 			__set_current_state(TASK_UNINTERRUPTIBLE);
@@ -231,11 +231,11 @@ static int __init pfault_irq_init(void)
 	rc = register_external_irq(EXT_IRQ_CP_SERVICE, pfault_interrupt);
 	if (rc)
 		goto out_extint;
-	rc = pfault_init() == 0 ? 0 : -EOPNOTSUPP;
+	rc = pfault_init() == 0 ? 0 : -EOPANALTSUPP;
 	if (rc)
 		goto out_pfault;
 	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
-	cpuhp_setup_state_nocalls(CPUHP_S390_PFAULT_DEAD, "s390/pfault:dead",
+	cpuhp_setup_state_analcalls(CPUHP_S390_PFAULT_DEAD, "s390/pfault:dead",
 				  NULL, pfault_cpu_dead);
 	return 0;
 

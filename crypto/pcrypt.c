@@ -244,9 +244,9 @@ static int pcrypt_create_aead(struct crypto_template *tmpl, struct rtattr **tb,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	ctx = aead_instance_ctx(inst);
 	ctx->psenc = padata_alloc_shell(pencrypt);
@@ -322,7 +322,7 @@ static int pcrypt_sysfs_add(struct padata_instance *pinst, const char *name)
 
 static int pcrypt_init_padata(struct padata_instance **pinst, const char *name)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	*pinst = padata_alloc(name);
 	if (!*pinst)
@@ -343,7 +343,7 @@ static struct crypto_template pcrypt_tmpl = {
 
 static int __init pcrypt_init(void)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	pcrypt_kset = kset_create_and_add("pcrypt", NULL, kernel_kobj);
 	if (!pcrypt_kset)

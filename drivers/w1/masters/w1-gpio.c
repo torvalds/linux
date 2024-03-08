@@ -76,14 +76,14 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	struct w1_bus_master *master;
 	struct w1_gpio_ddata *ddata;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	/* Enforce open drain mode by default */
 	enum gpiod_flags gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
 	int err;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * This parameter means that something else than the gpiolib has
@@ -97,7 +97,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	master = devm_kzalloc(dev, sizeof(struct w1_bus_master),
 			GFP_KERNEL);
 	if (!master)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->gpiod = devm_gpiod_get_index(dev, NULL, 0, gflags);
 	if (IS_ERR(ddata->gpiod)) {

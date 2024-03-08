@@ -9,7 +9,7 @@
 
 #include <sys/ioctl.h>
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 
 #include <linux/tdx-guest.h>
@@ -67,7 +67,7 @@ struct reportmac {
  * @attr: TDX Guest attributes (like debug, spet_disable, etc).
  * @xfam: Extended features allowed mask.
  * @mrtd: Build time measurement register.
- * @mrconfigid: Software-defined ID for non-owner-defined configuration
+ * @mrconfigid: Software-defined ID for analn-owner-defined configuration
  *              of the guest - e.g., run-time or OS configuration.
  * @mrowner: Software-defined ID for the guest owner.
  * @mrownerconfig: Software-defined ID for owner-defined configuration of
@@ -94,7 +94,7 @@ struct td_info {
 /*
  * struct tdreport - Output of TDCALL[TDG.MR.REPORT].
  * @reportmac: Mac protected header of size 256 bytes.
- * @tee_tcb_info: Additional attestable elements in the TCB are not
+ * @tee_tcb_info: Additional attestable elements in the TCB are analt
  *                reflected in the reportmac.
  * @reserved: Added for future extension.
  * @tdinfo: Measurements and configuration data of size 512 bytes.

@@ -10,7 +10,7 @@ maintainers:
   - Paul Cercueil <paul@crapouillou.net>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^memory-controller@[0-9a-f]+$"
 
   compatible:
@@ -72,7 +72,7 @@ examples:
 
       ethernet@6 {
         compatible = "davicom,dm9000";
-        davicom,no-eeprom;
+        davicom,anal-eeprom;
 
         pinctrl-names = "default";
         pinctrl-0 = <&pins_nemc_cs6>;

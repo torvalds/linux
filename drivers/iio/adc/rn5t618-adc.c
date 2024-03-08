@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -111,7 +111,7 @@ static int rn5t618_adc_read(struct iio_dev *iio_dev,
 	if (mask == IIO_CHAN_INFO_SCALE) {
 		*val = RN5T618_REFERENCE_VOLT *
 		       rn5t618_ratios[chan->channel].numerator;
-		*val2 = rn5t618_ratios[chan->channel].denominator * 4095;
+		*val2 = rn5t618_ratios[chan->channel].deanalminator * 4095;
 
 		return IIO_VAL_FRACTIONAL;
 	}
@@ -202,7 +202,7 @@ static int rn5t618_adc_probe(struct platform_device *pdev)
 	iio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!iio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adc = iio_priv(iio_dev);

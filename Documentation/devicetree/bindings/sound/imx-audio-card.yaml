@@ -20,7 +20,7 @@ properties:
 patternProperties:
   ".*-dai-link$":
     description:
-      Each subnode represents a dai link. Subnodes of each dai links would be
+      Each subanalde represents a dai link. Subanaldes of each dai links would be
       cpu/codec dais.
 
     type: object
@@ -47,7 +47,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
 
       cpu:
-        description: Holds subnode which indicates cpu dai.
+        description: Holds subanalde which indicates cpu dai.
         type: object
         additionalProperties: false
         properties:
@@ -55,7 +55,7 @@ patternProperties:
             maxItems: 1
 
       codec:
-        description: Holds subnode which indicates codec dai.
+        description: Holds subanalde which indicates codec dai.
         type: object
         additionalProperties: false
         properties:

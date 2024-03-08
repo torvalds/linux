@@ -22,14 +22,14 @@
 #include <linux/interrupt.h>
 #include <linux/reset.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 /* CEC Registers */
 
 /*
  * [2:1] cntl_clk
  *  - 0 = Disable clk (Power-off mode)
- *  - 1 = Enable gated clock (Normal mode)
+ *  - 1 = Enable gated clock (Analrmal mode)
  *  - 2 = Enable free-run clk (Debug mode)
  */
 #define CEC_GEN_CNTL_REG		0x00
@@ -127,7 +127,7 @@
 #define CEC_LOGICMAXHIGH_2MS8_BIT8	0x39
 #define CEC_LOGICERRLOW_3MS4_BIT7_0	0x3A
 #define CEC_LOGICERRLOW_3MS4_BIT8	0x3B
-#define CEC_NOMSMPPOINT_1MS05		0x3C
+#define CEC_ANALMSMPPOINT_1MS05		0x3C
 #define CEC_DELCNTR_LOGICERR		0x3E
 #define CEC_TXTIME_17MS_BIT7_0		0x40
 #define CEC_TXTIME_17MS_BIT10_8		0x41
@@ -135,26 +135,26 @@
 #define CEC_TXTIME_2BIT_BIT10_8		0x43
 #define CEC_TXTIME_4BIT_BIT7_0		0x44
 #define CEC_TXTIME_4BIT_BIT10_8		0x45
-#define CEC_STARTBITNOML2H_3MS7_BIT7_0	0x46
-#define CEC_STARTBITNOML2H_3MS7_BIT8	0x47
-#define CEC_STARTBITNOMH_0MS8_BIT7_0	0x48
-#define CEC_STARTBITNOMH_0MS8_BIT8	0x49
-#define CEC_LOGIC1NOML2H_0MS6_BIT7_0	0x4A
-#define CEC_LOGIC1NOML2H_0MS6_BIT8	0x4B
-#define CEC_LOGIC0NOML2H_1MS5_BIT7_0	0x4C
-#define CEC_LOGIC0NOML2H_1MS5_BIT8	0x4D
-#define CEC_LOGIC1NOMH_1MS8_BIT7_0	0x4E
-#define CEC_LOGIC1NOMH_1MS8_BIT8	0x4F
-#define CEC_LOGIC0NOMH_0MS9_BIT7_0	0x50
-#define CEC_LOGIC0NOMH_0MS9_BIT8	0x51
+#define CEC_STARTBITANALML2H_3MS7_BIT7_0	0x46
+#define CEC_STARTBITANALML2H_3MS7_BIT8	0x47
+#define CEC_STARTBITANALMH_0MS8_BIT7_0	0x48
+#define CEC_STARTBITANALMH_0MS8_BIT8	0x49
+#define CEC_LOGIC1ANALML2H_0MS6_BIT7_0	0x4A
+#define CEC_LOGIC1ANALML2H_0MS6_BIT8	0x4B
+#define CEC_LOGIC0ANALML2H_1MS5_BIT7_0	0x4C
+#define CEC_LOGIC0ANALML2H_1MS5_BIT8	0x4D
+#define CEC_LOGIC1ANALMH_1MS8_BIT7_0	0x4E
+#define CEC_LOGIC1ANALMH_1MS8_BIT8	0x4F
+#define CEC_LOGIC0ANALMH_0MS9_BIT7_0	0x50
+#define CEC_LOGIC0ANALMH_0MS9_BIT8	0x51
 #define CEC_LOGICERRLOW_3MS6_BIT7_0	0x52
 #define CEC_LOGICERRLOW_3MS6_BIT8	0x53
 #define CEC_CHKCONTENTION_0MS1		0x54
 #define CEC_PREPARENXTBIT_0MS05_BIT7_0	0x56
 #define CEC_PREPARENXTBIT_0MS05_BIT8	0x57
-#define CEC_NOMSMPACKPOINT_0MS45	0x58
-#define CEC_ACK0NOML2H_1MS5_BIT7_0	0x5A
-#define CEC_ACK0NOML2H_1MS5_BIT8	0x5B
+#define CEC_ANALMSMPACKPOINT_0MS45	0x58
+#define CEC_ACK0ANALML2H_1MS5_BIT7_0	0x5A
+#define CEC_ACK0ANALML2H_1MS5_BIT8	0x5B
 #define CEC_BUGFIX_DISABLE_0		0x60
 #define CEC_BUGFIX_DISABLE_1		0x61
 #define CEC_RX_MSG_0_HEADER		0x80
@@ -181,25 +181,25 @@
 
 
 /* CEC_TX_MSG_CMD definition */
-#define TX_NO_OP	0  /* No transaction */
+#define TX_ANAL_OP	0  /* Anal transaction */
 #define TX_REQ_CURRENT	1  /* Transmit earliest message in buffer */
 #define TX_ABORT	2  /* Abort transmitting earliest message */
 #define TX_REQ_NEXT	3  /* Overwrite earliest msg, transmit next */
 
 /* tx_msg_status definition */
-#define TX_IDLE		0  /* No transaction */
+#define TX_IDLE		0  /* Anal transaction */
 #define TX_BUSY		1  /* Transmitter is busy */
 #define TX_DONE		2  /* Message successfully transmitted */
 #define TX_ERROR	3  /* Message transmitted with error */
 
 /* rx_msg_cmd */
-#define RX_NO_OP	0  /* No transaction */
+#define RX_ANAL_OP	0  /* Anal transaction */
 #define RX_ACK_CURRENT	1  /* Read earliest message in buffer */
 #define RX_DISABLE	2  /* Disable receiving latest message */
 #define RX_ACK_NEXT	3  /* Clear earliest msg, read next */
 
 /* rx_msg_status */
-#define RX_IDLE		0  /* No transaction */
+#define RX_IDLE		0  /* Anal transaction */
 #define RX_BUSY		1  /* Receiver is busy */
 #define RX_DONE		2  /* Message has been received successfully */
 #define RX_ERROR	3  /* Message has been received with error */
@@ -220,7 +220,7 @@ struct meson_ao_cec_device {
 	void __iomem			*base;
 	struct clk			*core;
 	spinlock_t			cec_reg_lock;
-	struct cec_notifier		*notify;
+	struct cec_analtifier		*analtify;
 	struct cec_adapter		*adap;
 	struct cec_msg			rx_msg;
 };
@@ -330,8 +330,8 @@ static inline int meson_ao_cec_clear(struct meson_ao_cec_device *ao_cec)
 
 	udelay(100);
 
-	meson_ao_cec_write(ao_cec, CEC_RX_MSG_CMD, RX_NO_OP, &ret);
-	meson_ao_cec_write(ao_cec, CEC_TX_MSG_CMD, TX_NO_OP, &ret);
+	meson_ao_cec_write(ao_cec, CEC_RX_MSG_CMD, RX_ANAL_OP, &ret);
+	meson_ao_cec_write(ao_cec, CEC_TX_MSG_CMD, TX_ANAL_OP, &ret);
 
 	return ret;
 }
@@ -376,7 +376,7 @@ static irqreturn_t meson_ao_cec_irq(int irq, void *data)
 	if (stat)
 		return IRQ_WAKE_THREAD;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void meson_ao_cec_irq_tx(struct meson_ao_cec_device *ao_cec)
@@ -412,7 +412,7 @@ static void meson_ao_cec_irq_tx(struct meson_ao_cec_device *ao_cec)
 	writel_relaxed(CEC_INTR_TX, ao_cec->base + CEC_INTR_CLR_REG);
 
 	/* Stop TX */
-	meson_ao_cec_write(ao_cec, CEC_TX_MSG_CMD, TX_NO_OP, &ret);
+	meson_ao_cec_write(ao_cec, CEC_TX_MSG_CMD, TX_ANAL_OP, &ret);
 	if (ret)
 		goto tx_reg_err;
 
@@ -461,7 +461,7 @@ rx_out:
 
 	/* Ack RX message */
 	meson_ao_cec_write(ao_cec, CEC_RX_MSG_CMD, RX_ACK_CURRENT, &ret);
-	meson_ao_cec_write(ao_cec, CEC_RX_MSG_CMD, RX_NO_OP, &ret);
+	meson_ao_cec_write(ao_cec, CEC_RX_MSG_CMD, RX_ANAL_OP, &ret);
 
 	/* Clear RX buffer */
 	meson_ao_cec_write(ao_cec, CEC_RX_CLEAR_BUF, CLEAR_START, &ret);
@@ -553,7 +553,7 @@ static int meson_ao_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	if (!enable)
 		return 0;
 
-	/* Enable gated clock (Normal mode). */
+	/* Enable gated clock (Analrmal mode). */
 	writel_bits_relaxed(CEC_GEN_CNTL_CLK_CTRL_MASK,
 			    FIELD_PREP(CEC_GEN_CNTL_CLK_CTRL_MASK,
 				       CEC_GEN_CNTL_CLK_ENABLE),
@@ -604,14 +604,14 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 	struct device *hdmi_dev;
 	int ret, irq;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
+	hdmi_dev = cec_analtifier_parse_hdmi_phandle(&pdev->dev);
 
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
 
 	ao_cec = devm_kzalloc(&pdev->dev, sizeof(*ao_cec), GFP_KERNEL);
 	if (!ao_cec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ao_cec->cec_reg_lock);
 
@@ -619,7 +619,7 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 					    "meson_ao_cec",
 					    CEC_CAP_DEFAULTS |
 					    CEC_CAP_CONNECTOR_INFO,
-					    1); /* Use 1 for now */
+					    1); /* Use 1 for analw */
 	if (IS_ERR(ao_cec->adap))
 		return PTR_ERR(ao_cec->adap);
 
@@ -665,16 +665,16 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 	ao_cec->pdev = pdev;
 	platform_set_drvdata(pdev, ao_cec);
 
-	ao_cec->notify = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+	ao_cec->analtify = cec_analtifier_cec_adap_register(hdmi_dev, NULL,
 							ao_cec->adap);
-	if (!ao_cec->notify) {
-		ret = -ENOMEM;
+	if (!ao_cec->analtify) {
+		ret = -EANALMEM;
 		goto out_probe_clk;
 	}
 
 	ret = cec_register_adapter(ao_cec->adap, &pdev->dev);
 	if (ret < 0)
-		goto out_probe_notify;
+		goto out_probe_analtify;
 
 	/* Setup Hardware */
 	writel_relaxed(CEC_GEN_CNTL_RESET,
@@ -682,8 +682,8 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_probe_notify:
-	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
+out_probe_analtify:
+	cec_analtifier_cec_adap_unregister(ao_cec->analtify, ao_cec->adap);
 
 out_probe_clk:
 	clk_disable_unprepare(ao_cec->core);
@@ -702,7 +702,7 @@ static void meson_ao_cec_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ao_cec->core);
 
-	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
+	cec_analtifier_cec_adap_unregister(ao_cec->analtify, ao_cec->adap);
 	cec_unregister_adapter(ao_cec->adap);
 }
 

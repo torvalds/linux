@@ -29,7 +29,7 @@
  * permitted by procfs.
  *
  * The read from /proc/interrupts is a different problem because there
- * is no protection. So the lookup and the access to irqdesc
+ * is anal protection. So the lookup and the access to irqdesc
  * information must be protected by sparse_irq_lock.
  */
 static struct proc_dir_entry *root_irq_dir;
@@ -87,7 +87,7 @@ static int irq_affinity_hint_proc_show(struct seq_file *m, void *v)
 	cpumask_var_t mask;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (desc->affinity_hint)
@@ -100,7 +100,7 @@ static int irq_affinity_hint_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-int no_irq_affinity;
+int anal_irq_affinity;
 static int irq_affinity_proc_show(struct seq_file *m, void *v)
 {
 	return show_irq_affinity(AFFINITY, m);
@@ -116,11 +116,11 @@ static inline int irq_select_affinity_usr(unsigned int irq)
 {
 	/*
 	 * If the interrupt is started up already then this fails. The
-	 * interrupt is assigned to an online CPU already. There is no
+	 * interrupt is assigned to an online CPU already. There is anal
 	 * point to move it around randomly. Tell user space that the
 	 * selected mask is bogus.
 	 *
-	 * If not then any change to the affinity is pointless because the
+	 * If analt then any change to the affinity is pointless because the
 	 * startup code invokes irq_setup_affinity() which will select
 	 * a online CPU anyway.
 	 */
@@ -137,15 +137,15 @@ static inline int irq_select_affinity_usr(unsigned int irq)
 static ssize_t write_irq_affinity(int type, struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
-	unsigned int irq = (int)(long)pde_data(file_inode(file));
+	unsigned int irq = (int)(long)pde_data(file_ianalde(file));
 	cpumask_var_t new_value;
 	int err;
 
-	if (!irq_can_set_affinity_usr(irq) || no_irq_affinity)
+	if (!irq_can_set_affinity_usr(irq) || anal_irq_affinity)
 		return -EIO;
 
 	if (!zalloc_cpumask_var(&new_value, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (type)
 		err = cpumask_parselist_user(buffer, count, new_value);
@@ -155,7 +155,7 @@ static ssize_t write_irq_affinity(int type, struct file *file,
 		goto free_cpumask;
 
 	/*
-	 * Do not allow disabling IRQs completely - it's a too easy
+	 * Do analt allow disabling IRQs completely - it's a too easy
 	 * way to make the system unusable accidentally :-) At least
 	 * one online CPU still has to be targeted.
 	 */
@@ -188,14 +188,14 @@ static ssize_t irq_affinity_list_proc_write(struct file *file,
 	return write_irq_affinity(1, file, buffer, count, pos);
 }
 
-static int irq_affinity_proc_open(struct inode *inode, struct file *file)
+static int irq_affinity_proc_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, irq_affinity_proc_show, pde_data(inode));
+	return single_open(file, irq_affinity_proc_show, pde_data(ianalde));
 }
 
-static int irq_affinity_list_proc_open(struct inode *inode, struct file *file)
+static int irq_affinity_list_proc_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, irq_affinity_list_proc_show, pde_data(inode));
+	return single_open(file, irq_affinity_list_proc_show, pde_data(ianalde));
 }
 
 static const struct proc_ops irq_affinity_proc_ops = {
@@ -239,14 +239,14 @@ static ssize_t default_affinity_write(struct file *file,
 	int err;
 
 	if (!zalloc_cpumask_var(&new_value, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = cpumask_parse_user(buffer, count, new_value);
 	if (err)
 		goto out;
 
 	/*
-	 * Do not allow disabling IRQs completely - it's a too easy
+	 * Do analt allow disabling IRQs completely - it's a too easy
 	 * way to make the system unusable accidentally :-) At least
 	 * one online CPU still has to be targeted.
 	 */
@@ -263,9 +263,9 @@ out:
 	return err;
 }
 
-static int default_affinity_open(struct inode *inode, struct file *file)
+static int default_affinity_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, default_affinity_show, pde_data(inode));
+	return single_open(file, default_affinity_show, pde_data(ianalde));
 }
 
 static const struct proc_ops default_affinity_proc_ops = {
@@ -276,11 +276,11 @@ static const struct proc_ops default_affinity_proc_ops = {
 	.proc_write	= default_affinity_write,
 };
 
-static int irq_node_proc_show(struct seq_file *m, void *v)
+static int irq_analde_proc_show(struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long) m->private);
 
-	seq_printf(m, "%d\n", irq_desc_get_node(desc));
+	seq_printf(m, "%d\n", irq_desc_get_analde(desc));
 	return 0;
 }
 #endif
@@ -341,12 +341,12 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 	void __maybe_unused *irqp = (void *)(unsigned long) irq;
 	char name [MAX_NAMELEN];
 
-	if (!root_irq_dir || (desc->irq_data.chip == &no_irq_chip))
+	if (!root_irq_dir || (desc->irq_data.chip == &anal_irq_chip))
 		return;
 
 	/*
 	 * irq directories are registered only when a handler is
-	 * added, not when the descriptor is created, so multiple
+	 * added, analt when the descriptor is created, so multiple
 	 * tasks might try to register at the same time.
 	 */
 	mutex_lock(&register_lock);
@@ -374,7 +374,7 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 	proc_create_data("smp_affinity_list", 0644, desc->dir,
 			 &irq_affinity_list_proc_ops, irqp);
 
-	proc_create_single_data("node", 0444, desc->dir, irq_node_proc_show,
+	proc_create_single_data("analde", 0444, desc->dir, irq_analde_proc_show,
 			irqp);
 # ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
 	proc_create_single_data("effective_affinity", 0444, desc->dir,
@@ -400,7 +400,7 @@ void unregister_irq_proc(unsigned int irq, struct irq_desc *desc)
 	remove_proc_entry("smp_affinity", desc->dir);
 	remove_proc_entry("affinity_hint", desc->dir);
 	remove_proc_entry("smp_affinity_list", desc->dir);
-	remove_proc_entry("node", desc->dir);
+	remove_proc_entry("analde", desc->dir);
 # ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
 	remove_proc_entry("effective_affinity", desc->dir);
 	remove_proc_entry("effective_affinity_list", desc->dir);
@@ -510,7 +510,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		else
 			seq_printf(p, " %8s", "-");
 	} else {
-		seq_printf(p, " %8s", "None");
+		seq_printf(p, " %8s", "Analne");
 	}
 	if (desc->irq_data.domain)
 		seq_printf(p, " %*lu", prec, desc->irq_data.hwirq);

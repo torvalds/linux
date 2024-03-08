@@ -184,7 +184,7 @@ static inline struct ti_tscadc_dev *ti_tscadc_dev_get(struct platform_device *p)
 
 static inline bool ti_adc_with_touchscreen(struct ti_tscadc_dev *tscadc)
 {
-	return of_device_is_compatible(tscadc->dev->of_node,
+	return of_device_is_compatible(tscadc->dev->of_analde,
 				       "ti,am3359-tscadc");
 }
 

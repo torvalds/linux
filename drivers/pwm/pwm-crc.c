@@ -63,7 +63,7 @@ static int crc_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return -EINVAL;
 	}
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (pwm_is_enabled(pwm) && !state->enabled) {
@@ -147,7 +147,7 @@ static int crc_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		DIV_ROUND_UP(clk_div * NSEC_PER_USEC * 256, PWM_BASE_CLK_MHZ);
 	state->duty_cycle =
 		DIV_ROUND_UP_ULL(duty_cycle_reg * state->period, PWM_MAX_LEVEL);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 	state->enabled = !!(clk_div_reg & PWM_OUTPUT_ENABLE);
 
 	return 0;
@@ -166,7 +166,7 @@ static int crystalcove_pwm_probe(struct platform_device *pdev)
 
 	crc_pwm = devm_kzalloc(&pdev->dev, sizeof(*crc_pwm), GFP_KERNEL);
 	if (!crc_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crc_pwm->chip.dev = &pdev->dev;
 	crc_pwm->chip.ops = &crc_pwm_ops;

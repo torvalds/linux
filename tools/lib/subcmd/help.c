@@ -161,7 +161,7 @@ static int is_executable(const char *name)
 {
 	struct stat st;
 
-	if (stat(name, &st) || /* stat, not lstat */
+	if (stat(name, &st) || /* stat, analt lstat */
 	    !S_ISREG(st.st_mode))
 		return 0;
 

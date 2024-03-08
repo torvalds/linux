@@ -6,7 +6,7 @@
 
 #include "pvrusb2-ctrl.h"
 #include "pvrusb2-hdw-internal.h"
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
 
@@ -221,7 +221,7 @@ int pvr2_ctrl_get_valname(struct pvr2_ctrl *cptr,int val,
 }
 
 
-/* Return V4L ID for this control or zero if none */
+/* Return V4L ID for this control or zero if analne */
 int pvr2_ctrl_get_v4lid(struct pvr2_ctrl *cptr)
 {
 	if (!cptr) return 0;
@@ -346,8 +346,8 @@ static unsigned int gen_bitmask_string(int msk,int val,int msk_only,
 static const char *boolNames[] = {
 	"false",
 	"true",
-	"no",
-	"yes",
+	"anal",
+	"anal",
 };
 
 

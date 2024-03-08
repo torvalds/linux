@@ -5,7 +5,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -112,7 +112,7 @@ static void ipmi_ipmb_check_msg_done(struct ipmi_ipmb_dev *iidev)
 	is_cmd = ((msg[1] >> 2) & 1) == 0;
 
 	if (is_cmd) {
-		/* Ignore commands until we are up. */
+		/* Iganalre commands until we are up. */
 		if (!iidev->ready)
 			goto done;
 
@@ -131,8 +131,8 @@ static void ipmi_ipmb_check_msg_done(struct ipmi_ipmb_dev *iidev)
 			/*
 			 * Responses should carry the sequence we sent
 			 * them with.  If it's a transmitted response,
-			 * ignore it.  And if the message hasn't been
-			 * transmitted, ignore it.
+			 * iganalre it.  And if the message hasn't been
+			 * transmitted, iganalre it.
 			 */
 			if (!xmit_rsp && seq == iidev->curr_seq) {
 				iidev->curr_seq = (iidev->curr_seq + 1) & 0x3f;
@@ -174,8 +174,8 @@ done:
 }
 
 /*
- * The IPMB protocol only supports i2c writes so there is no need to
- * support I2C_SLAVE_READ* events, except to know if the other end has
+ * The IPMB protocol only supports i2c writes so there is anal need to
+ * support I2C_SLAVE_READ* events, except to kanalw if the other end has
  * issued a read without going to stop mode.
  */
 static int ipmi_ipmb_slave_cb(struct i2c_client *client,
@@ -264,7 +264,7 @@ static void ipmi_ipmb_format_for_xmit(struct ipmi_ipmb_dev *iidev,
 		iidev->xmitmsg[4] = ((iidev->xmitmsg[4] & 0x03) |
 				     (iidev->curr_seq << 2));
 
-	/* Now add on the final checksums. */
+	/* Analw add on the final checksums. */
 	iidev->xmitmsg[2] = ipmb_checksum(iidev->xmitmsg, 2);
 	iidev->xmitmsg[iidev->xmitlen] =
 		ipmb_checksum(iidev->xmitmsg + 3, iidev->xmitlen - 3);
@@ -319,7 +319,7 @@ retry:
 
 		if ((msg->data[0] >> 2) & 1) {
 			/*
-			 * It's a response, nothing will be returned
+			 * It's a response, analthing will be returned
 			 * by the other end.
 			 */
 
@@ -349,7 +349,7 @@ retry:
 
 		if (!msg && ret) {
 			/*
-			 * If working_msg is not set and we timed out,
+			 * If working_msg is analt set and we timed out,
 			 * that means the message grabbed by
 			 * check_msg_done before we could grab it
 			 * here.  Wait again for check_msg_done to up
@@ -448,39 +448,39 @@ static int ipmi_ipmb_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ipmi_ipmb_dev *iidev;
-	struct device_node *slave_np;
+	struct device_analde *slave_np;
 	struct i2c_adapter *slave_adap = NULL;
 	struct i2c_client *slave = NULL;
 	int rv;
 
 	iidev = devm_kzalloc(&client->dev, sizeof(*iidev), GFP_KERNEL);
 	if (!iidev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (of_property_read_u8(dev->of_node, "bmcaddr", &iidev->bmcaddr) != 0)
+	if (of_property_read_u8(dev->of_analde, "bmcaddr", &iidev->bmcaddr) != 0)
 		iidev->bmcaddr = bmcaddr;
 	if (iidev->bmcaddr == 0 || iidev->bmcaddr & 1) {
 		/* Can't have the write bit set. */
-		dev_notice(&client->dev,
+		dev_analtice(&client->dev,
 			   "Invalid bmc address value %2.2x\n", iidev->bmcaddr);
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(dev->of_node, "retry-time",
+	if (of_property_read_u32(dev->of_analde, "retry-time",
 				 &iidev->retry_time_ms) != 0)
 		iidev->retry_time_ms = retry_time_ms;
 
-	if (of_property_read_u32(dev->of_node, "max-retries",
+	if (of_property_read_u32(dev->of_analde, "max-retries",
 				 &iidev->max_retries) != 0)
 		iidev->max_retries = max_retries;
 
-	slave_np = of_parse_phandle(dev->of_node, "slave-dev", 0);
+	slave_np = of_parse_phandle(dev->of_analde, "slave-dev", 0);
 	if (slave_np) {
-		slave_adap = of_get_i2c_adapter_by_node(slave_np);
-		of_node_put(slave_np);
+		slave_adap = of_get_i2c_adapter_by_analde(slave_np);
+		of_analde_put(slave_np);
 		if (!slave_adap) {
-			dev_notice(&client->dev,
-				   "Could not find slave adapter\n");
+			dev_analtice(&client->dev,
+				   "Could analt find slave adapter\n");
 			return -EINVAL;
 		}
 	}
@@ -498,8 +498,8 @@ static int ipmi_ipmb_probe(struct i2c_client *client)
 		i2c_put_adapter(slave_adap);
 		if (IS_ERR(slave)) {
 			rv = PTR_ERR(slave);
-			dev_notice(&client->dev,
-				   "Could not allocate slave device: %d\n", rv);
+			dev_analtice(&client->dev,
+				   "Could analt allocate slave device: %d\n", rv);
 			return rv;
 		}
 		i2c_set_clientdata(slave, iidev);
@@ -529,8 +529,8 @@ static int ipmi_ipmb_probe(struct i2c_client *client)
 				    "kipmb%4.4x", client->addr);
 	if (IS_ERR(iidev->thread)) {
 		rv = PTR_ERR(iidev->thread);
-		dev_notice(&client->dev,
-			   "Could not start kernel thread: error %d\n", rv);
+		dev_analtice(&client->dev,
+			   "Could analt start kernel thread: error %d\n", rv);
 		goto out_err;
 	}
 

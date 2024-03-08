@@ -191,7 +191,7 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->rtc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->rtc_base))
@@ -202,7 +202,7 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 	/*
 	 * The RTC is on a separate power domain and can keep it's state
 	 * across a chip power cycle. If the RTC has never been previously
-	 * setup, then set it up now for the first time.
+	 * setup, then set it up analw for the first time.
 	 */
 	tmp = rtc_readl(rtc, LPC32XX_RTC_CTRL);
 	if (rtc_readl(rtc, LPC32XX_RTC_KEY) != LPC32XX_RTC_KEY_ONSW_LOADVAL) {

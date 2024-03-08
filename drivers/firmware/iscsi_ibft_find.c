@@ -5,7 +5,7 @@
  *  Copyright 2007 IBM, Inc.
  *  by Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
  *  Copyright 2008
- *  by Konrad Rzeszutek <ketuzsezr@darnok.org>
+ *  by Konrad Rzeszutek <ketuzsezr@daranalk.org>
  *
  * This code finds the iSCSI Boot Format Table.
  */
@@ -84,7 +84,7 @@ void __init reserve_ibft_region(void)
 				    (unsigned long *)(virt + pos - virt_pos + 4);
 				len = *addr;
 				/* if the length of the table extends past 1M,
-				 * the table cannot be valid. */
+				 * the table cananalt be valid. */
 				if (pos + len <= (IBFT_END-1)) {
 					ibft_phys_addr = pos;
 					memblock_reserve(ibft_phys_addr, PAGE_ALIGN(len));

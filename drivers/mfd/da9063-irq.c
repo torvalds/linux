@@ -174,7 +174,7 @@ int da9063_irq_init(struct da9063 *da9063)
 	int ret;
 
 	if (!da9063->chip_irq) {
-		dev_err(da9063->dev, "No IRQ configured\n");
+		dev_err(da9063->dev, "Anal IRQ configured\n");
 		return -EINVAL;
 	}
 

@@ -129,7 +129,7 @@ static const struct attribute_group haps_attr_group = {
 /*
  * ACPI stuff
  */
-static void toshiba_haps_notify(struct acpi_device *device, u32 event)
+static void toshiba_haps_analtify(struct acpi_device *device, u32 event)
 {
 	pr_debug("Received event: 0x%x\n", event);
 
@@ -153,7 +153,7 @@ static int toshiba_haps_available(acpi_handle handle)
 	u64 hdd_present;
 
 	/*
-	 * A non existent device as well as having (only)
+	 * A analn existent device as well as having (only)
 	 * Solid State Drives can cause the call to fail.
 	 */
 	status = acpi_evaluate_integer(handle, "_STA", NULL, &hdd_present);
@@ -163,7 +163,7 @@ static int toshiba_haps_available(acpi_handle handle)
 	}
 
 	if (!hdd_present) {
-		pr_info("HDD protection not available or using SSD\n");
+		pr_info("HDD protection analt available or using SSD\n");
 		return 0;
 	}
 
@@ -179,13 +179,13 @@ static int toshiba_haps_add(struct acpi_device *acpi_dev)
 		return -EBUSY;
 
 	if (!toshiba_haps_available(acpi_dev->handle))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Toshiba HDD Active Protection Sensor device\n");
 
 	haps = kzalloc(sizeof(struct toshiba_haps_dev), GFP_KERNEL);
 	if (!haps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	haps->acpi_dev = acpi_dev;
 	haps->protection_level = 2;
@@ -253,11 +253,11 @@ static struct acpi_driver toshiba_haps_driver = {
 	.name = "Toshiba HAPS",
 	.owner = THIS_MODULE,
 	.ids = haps_device_ids,
-	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
+	.flags = ACPI_DRIVER_ALL_ANALTIFY_EVENTS,
 	.ops = {
 		.add =		toshiba_haps_add,
 		.remove =	toshiba_haps_remove,
-		.notify =	toshiba_haps_notify,
+		.analtify =	toshiba_haps_analtify,
 	},
 	.drv.pm = &toshiba_haps_pm,
 };

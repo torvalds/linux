@@ -38,7 +38,7 @@ enum {
  * @seq: Timestamp sequence counter.
  * @line_name: HTE allocated line name.
  * @free_attr_name: If set, free the attr name.
- * @cb: A nonsleeping callback function provided by clients.
+ * @cb: A analnsleeping callback function provided by clients.
  * @tcb: A secondary sleeping callback function provided by clients.
  * @dropped_ts: Dropped timestamps.
  * @slock: Spin lock to synchronize between disable/enable,
@@ -73,7 +73,7 @@ struct hte_ts_info {
  * @ts_req: Total number of entities requested.
  * @sdev: Device used at various debug prints.
  * @dbg_root: Root directory for debug fs.
- * @list: List node to store hte_device for each provider.
+ * @list: List analde to store hte_device for each provider.
  * @chip: HTE chip providing this HTE device.
  * @owner: helps prevent removal of modules when in use.
  * @ei: Timestamp information.
@@ -144,7 +144,7 @@ static void hte_ts_dbgfs_init(const char *name, struct hte_ts_info *ei)
  * @desc: timestamp descriptor.
  *
  * Context: debugfs_remove_recursive() function call may use sleeping locks,
- *	    not suitable from atomic context.
+ *	    analt suitable from atomic context.
  * Returns: 0 on success or a negative error code on failure.
  */
 int hte_ts_put(struct hte_ts_desc *desc)
@@ -168,7 +168,7 @@ int hte_ts_put(struct hte_ts_desc *desc)
 
 	if (unlikely(!test_bit(HTE_TS_REQ, &ei->flags) &&
 	    !test_bit(HTE_TS_REGISTERED, &ei->flags))) {
-		dev_info(gdev->sdev, "id:%d is not requested\n",
+		dev_info(gdev->sdev, "id:%d is analt requested\n",
 			 desc->attr.line_id);
 		ret = -EINVAL;
 		goto unlock;
@@ -176,7 +176,7 @@ int hte_ts_put(struct hte_ts_desc *desc)
 
 	if (unlikely(!test_bit(HTE_TS_REQ, &ei->flags) &&
 	    test_bit(HTE_TS_REGISTERED, &ei->flags))) {
-		dev_info(gdev->sdev, "id:%d is registered but not requested\n",
+		dev_info(gdev->sdev, "id:%d is registered but analt requested\n",
 			 desc->attr.line_id);
 		ret = -EINVAL;
 		goto unlock;
@@ -256,7 +256,7 @@ static int hte_ts_dis_en_common(struct hte_ts_desc *desc, bool en)
 	mutex_lock(&ei->req_mlock);
 
 	if (!test_bit(HTE_TS_REGISTERED, &ei->flags)) {
-		dev_dbg(gdev->sdev, "id:%d is not registered", ts_id);
+		dev_dbg(gdev->sdev, "id:%d is analt registered", ts_id);
 		ret = -EUSERS;
 		goto out;
 	}
@@ -307,11 +307,11 @@ out:
 /**
  * hte_disable_ts() - Disable timestamp on given descriptor.
  *
- * The API does not release any resources associated with desc.
+ * The API does analt release any resources associated with desc.
  *
  * @desc: ts descriptor, this is the same as returned by the request API.
  *
- * Context: Holds mutex lock, not suitable from atomic context.
+ * Context: Holds mutex lock, analt suitable from atomic context.
  * Returns: 0 on success or a negative error code on failure.
  */
 int hte_disable_ts(struct hte_ts_desc *desc)
@@ -325,7 +325,7 @@ EXPORT_SYMBOL_GPL(hte_disable_ts);
  *
  * @desc: ts descriptor, this is the same as returned by the request API.
  *
- * Context: Holds mutex lock, not suitable from atomic context.
+ * Context: Holds mutex lock, analt suitable from atomic context.
  * Returns: 0 on success or a negative error code on failure.
  */
 int hte_enable_ts(struct hte_ts_desc *desc)
@@ -431,7 +431,7 @@ out:
 	return ret;
 }
 
-static struct hte_device *of_node_to_htedevice(struct device_node *np)
+static struct hte_device *of_analde_to_htedevice(struct device_analde *np)
 {
 	struct hte_device *gdev;
 
@@ -439,14 +439,14 @@ static struct hte_device *of_node_to_htedevice(struct device_node *np)
 
 	list_for_each_entry(gdev, &hte_devices, list)
 		if (gdev->chip && gdev->chip->dev &&
-		    device_match_of_node(gdev->chip->dev, np)) {
+		    device_match_of_analde(gdev->chip->dev, np)) {
 			spin_unlock(&hte_lock);
 			return gdev;
 		}
 
 	spin_unlock(&hte_lock);
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static struct hte_device *hte_find_dev_from_linedata(struct hte_ts_desc *desc)
@@ -465,7 +465,7 @@ static struct hte_device *hte_find_dev_from_linedata(struct hte_ts_desc *desc)
 
 	spin_unlock(&hte_lock);
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 /**
@@ -476,20 +476,20 @@ static struct hte_device *hte_find_dev_from_linedata(struct hte_ts_desc *desc)
  *
  * @dev: The HTE consumer.
  *
- * Returns: Positive number on success, -ENOENT if no entries,
+ * Returns: Positive number on success, -EANALENT if anal entries,
  * -EINVAL for other errors.
  */
 int of_hte_req_count(struct device *dev)
 {
 	int count;
 
-	if (!dev || !dev->of_node)
+	if (!dev || !dev->of_analde)
 		return -EINVAL;
 
-	count = of_count_phandle_with_args(dev->of_node, "timestamps",
+	count = of_count_phandle_with_args(dev->of_analde, "timestamps",
 					   "#timestamp-cells");
 
-	return count ? count : -ENOENT;
+	return count ? count : -EANALENT;
 }
 EXPORT_SYMBOL_GPL(of_hte_req_count);
 
@@ -505,13 +505,13 @@ static struct hte_device *hte_of_get_dev(struct device *dev,
 					 bool *free_name)
 {
 	int ret;
-	struct device_node *np;
+	struct device_analde *np;
 	char *temp;
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return ERR_PTR(-EINVAL);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	if (!of_property_present(np, "timestamp-names")) {
 		/* Let hte core construct it during request time */
@@ -539,22 +539,22 @@ static struct hte_device *hte_of_get_dev(struct device *dev,
 		return ERR_PTR(ret);
 	}
 
-	of_node_put(args->np);
+	of_analde_put(args->np);
 
-	return of_node_to_htedevice(args->np);
+	return of_analde_to_htedevice(args->np);
 }
 
 /**
  * hte_ts_get() - The function to initialize and obtain HTE desc.
  *
  * The function initializes the consumer provided HTE descriptor. If consumer
- * has device tree node, index is used to parse the line id and other details.
+ * has device tree analde, index is used to parse the line id and other details.
  * The function needs to be called before using any request APIs.
  *
- * @dev: HTE consumer/client device, used in case of parsing device tree node.
+ * @dev: HTE consumer/client device, used in case of parsing device tree analde.
  * @desc: Pre-allocated timestamp descriptor.
  * @index: The index will be used as an index to parse line_id from the
- * device tree node if node is present.
+ * device tree analde if analde is present.
  *
  * Context: Holds mutex lock.
  * Returns: Returns 0 on success or negative error code on failure.
@@ -563,7 +563,7 @@ int hte_ts_get(struct device *dev, struct hte_ts_desc *desc, int index)
 {
 	struct hte_device *gdev;
 	struct hte_ts_info *ei;
-	const struct fwnode_handle *fwnode;
+	const struct fwanalde_handle *fwanalde;
 	struct of_phandle_args args;
 	u32 xlated_id;
 	int ret;
@@ -572,29 +572,29 @@ int hte_ts_get(struct device *dev, struct hte_ts_desc *desc, int index)
 	if (!desc)
 		return -EINVAL;
 
-	fwnode = dev ? dev_fwnode(dev) : NULL;
+	fwanalde = dev ? dev_fwanalde(dev) : NULL;
 
-	if (is_of_node(fwnode))
+	if (is_of_analde(fwanalde))
 		gdev = hte_of_get_dev(dev, desc, index, &args, &free_name);
 	else
 		gdev = hte_get_dev(desc);
 
 	if (IS_ERR(gdev)) {
-		pr_err("%s() no hte dev found\n", __func__);
+		pr_err("%s() anal hte dev found\n", __func__);
 		return PTR_ERR(gdev);
 	}
 
 	if (!try_module_get(gdev->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!gdev->chip) {
-		pr_err("%s(): requested id does not have provider\n",
+		pr_err("%s(): requested id does analt have provider\n",
 		       __func__);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto put;
 	}
 
-	if (is_of_node(fwnode)) {
+	if (is_of_analde(fwanalde)) {
 		if (!gdev->chip->xlate_of)
 			ret = -EINVAL;
 		else
@@ -634,7 +634,7 @@ static void __devm_hte_release_ts(void *res)
 
 /**
  * hte_request_ts_ns() - The API to request and enable hardware timestamp in
- * nanoseconds.
+ * naanalseconds.
  *
  * The entity is provider specific for example, GPIO lines, signals, buses
  * etc...The API allocates necessary resources and enables the timestamp.
@@ -674,7 +674,7 @@ EXPORT_SYMBOL_GPL(hte_request_ts_ns);
 
 /**
  * devm_hte_request_ts_ns() - Resource managed API to request and enable
- * hardware timestamp in nanoseconds.
+ * hardware timestamp in naanalseconds.
  *
  * The entity is provider specific for example, GPIO lines, signals, buses
  * etc...The API allocates necessary resources and enables the timestamp. It
@@ -741,7 +741,7 @@ int hte_init_line_attr(struct hte_ts_desc *desc, u32 line_id,
 	if (name) {
 		name =  kstrdup_const(name, GFP_KERNEL);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	desc->attr.name = name;
@@ -777,14 +777,14 @@ int hte_get_clk_src_info(const struct hte_ts_desc *desc,
 
 	chip = ei->gdev->chip;
 	if (!chip->ops->get_clk_src_info)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->ops->get_clk_src_info(chip, ci);
 }
 EXPORT_SYMBOL_GPL(hte_get_clk_src_info);
 
 /**
- * hte_push_ts_ns() - Push timestamp data in nanoseconds.
+ * hte_push_ts_ns() - Push timestamp data in naanalseconds.
  *
  * It is used by the provider to push timestamp data.
  *
@@ -818,7 +818,7 @@ int hte_push_ts_ns(const struct hte_chip *chip, u32 xlated_id,
 
 	if (!test_bit(HTE_TS_REGISTERED, &ei->flags) ||
 	    test_bit(HTE_TS_DISABLE, &ei->flags)) {
-		dev_dbg(chip->dev, "Unknown timestamp push\n");
+		dev_dbg(chip->dev, "Unkanalwn timestamp push\n");
 		atomic_inc(&ei->dropped_ts);
 		st = -EINVAL;
 		goto unlock;
@@ -842,7 +842,7 @@ static int hte_register_chip(struct hte_chip *chip)
 	struct hte_device *gdev;
 	u32 i;
 
-	if (!chip || !chip->dev || !chip->dev->of_node)
+	if (!chip || !chip->dev || !chip->dev->of_analde)
 		return -EINVAL;
 
 	if (!chip->ops || !chip->ops->request || !chip->ops->release) {
@@ -852,7 +852,7 @@ static int hte_register_chip(struct hte_chip *chip)
 
 	gdev = kzalloc(struct_size(gdev, ei, chip->nlines), GFP_KERNEL);
 	if (!gdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gdev->chip = chip;
 	chip->gdev = gdev;
@@ -870,7 +870,7 @@ static int hte_register_chip(struct hte_chip *chip)
 	else
 		gdev->owner = THIS_MODULE;
 
-	of_node_get(chip->dev->of_node);
+	of_analde_get(chip->dev->of_analde);
 
 	INIT_LIST_HEAD(&gdev->list);
 
@@ -900,7 +900,7 @@ static int hte_unregister_chip(struct hte_chip *chip)
 
 	gdev->chip = NULL;
 
-	of_node_put(chip->dev->of_node);
+	of_analde_put(chip->dev->of_analde);
 	debugfs_remove_recursive(gdev->dbg_root);
 	kfree(gdev);
 

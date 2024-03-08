@@ -15,18 +15,18 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
@@ -129,8 +129,8 @@ struct bnxt_re_pacing {
 #define BNXT_RE_DBR_PACING_TIME 5 /* ms */
 #define BNXT_RE_PACING_ALGO_THRESHOLD 250 /* Entries in DB FIFO */
 #define BNXT_RE_PACING_ALARM_TH_MULTIPLE 2 /* Multiple of pacing algo threshold */
-/* Default do_pacing value when there is no congestion */
-#define BNXT_RE_DBR_DO_PACING_NO_CONGESTION 0x7F /* 1 in 512 probability */
+/* Default do_pacing value when there is anal congestion */
+#define BNXT_RE_DBR_DO_PACING_ANAL_CONGESTION 0x7F /* 1 in 512 probability */
 #define BNXT_RE_DB_FIFO_ROOM_MASK 0x1FFF8000
 #define BNXT_RE_MAX_FIFO_DEPTH 0x2c00
 #define BNXT_RE_DB_FIFO_ROOM_SHIFT 15
@@ -150,8 +150,8 @@ struct bnxt_re_dev {
 #define BNXT_RE_FLAG_ERR_DEVICE_DETACHED       17
 #define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
-	struct notifier_block		nb;
-	unsigned int			version, major, minor;
+	struct analtifier_block		nb;
+	unsigned int			version, major, mianalr;
 	struct bnxt_qplib_chip_ctx	*chip_ctx;
 	struct bnxt_en_dev		*en_dev;
 	int				num_msix;
@@ -161,7 +161,7 @@ struct bnxt_re_dev {
 	struct delayed_work		worker;
 	u8				cur_prio_map;
 
-	/* FP Notification Queue (CQ & SRQ) */
+	/* FP Analtification Queue (CQ & SRQ) */
 	struct tasklet_struct		nq_task;
 
 	/* RCFW Channel */

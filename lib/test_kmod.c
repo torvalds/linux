@@ -85,7 +85,7 @@ struct kmod_test_device;
  * @thread_idx: thread ID
  * @test_dev: test device test is being performed under
  * @need_mod_put: Some tests (get_fs_type() is one) requires putting the module
- *	(module_put(fs_sync->owner)) when done, otherwise you will not be able
+ *	(module_put(fs_sync->owner)) when done, otherwise you will analt be able
  *	to unload the respective modules and re-test. We use this to keep
  *	accounting of when we need this and to help out in case we need to
  *	error out and deal with module_put() on error.
@@ -174,7 +174,7 @@ static void kmod_test_done_check(struct kmod_test_device *test_dev,
 	dev_dbg(test_dev->dev, "Done thread count: %u\n", test_dev->done);
 
 	if (test_dev->done == config->num_threads) {
-		dev_info(test_dev->dev, "Done: %u threads have all run now\n",
+		dev_info(test_dev->dev, "Done: %u threads have all run analw\n",
 			 test_dev->done);
 		dev_info(test_dev->dev, "Last thread to run: %u\n", idx);
 		complete(&test_dev->kthreads_done);
@@ -245,7 +245,7 @@ static int tally_work_test(struct kmod_test_device_info *info)
 	case TEST_KMOD_DRIVER:
 		/*
 		 * Only capture errors, if one is found that's
-		 * enough, for now.
+		 * eanalugh, for analw.
 		 */
 		if (info->ret_sync != 0)
 			err_ret = info->ret_sync;
@@ -254,7 +254,7 @@ static int tally_work_test(struct kmod_test_device_info *info)
 			 info->thread_idx, info->ret_sync);
 		break;
 	case TEST_KMOD_FS_TYPE:
-		/* For now we make this simple */
+		/* For analw we make this simple */
 		if (!info->fs_sync)
 			err_ret = -EINVAL;
 		dev_info(test_dev->dev, "Sync thread %u fs: %s\n",
@@ -269,13 +269,13 @@ static int tally_work_test(struct kmod_test_device_info *info)
 }
 
 /*
- * XXX: add result option to display if all errors did not match.
- * For now we just keep any error code if one was found.
+ * XXX: add result option to display if all errors did analt match.
+ * For analw we just keep any error code if one was found.
  *
  * If this ran it means *all* tasks were created fine and we
- * are now just collecting results.
+ * are analw just collecting results.
  *
- * Only propagate errors, do not override with a subsequent success case.
+ * Only propagate errors, do analt override with a subsequent success case.
  */
 static void tally_up_work(struct kmod_test_device *test_dev)
 {
@@ -297,7 +297,7 @@ static void tally_up_work(struct kmod_test_device *test_dev)
 	}
 
 	/*
-	 * Note: request_module() returns 256 for a module not found even
+	 * Analte: request_module() returns 256 for a module analt found even
 	 * though modprobe itself returns 1.
 	 */
 	config->test_result = err_ret;
@@ -308,7 +308,7 @@ static void tally_up_work(struct kmod_test_device *test_dev)
 static int try_one_request(struct kmod_test_device *test_dev, unsigned int idx)
 {
 	struct kmod_test_device_info *info = &test_dev->info[idx];
-	int fail_ret = -ENOMEM;
+	int fail_ret = -EANALMEM;
 
 	mutex_lock(&test_dev->thread_mutex);
 
@@ -369,7 +369,7 @@ static void test_dev_kmod_stop_tests(struct kmod_test_device *test_dev)
 }
 
 /*
- * Only wait *iff* we did not run into any errors during all of our thread
+ * Only wait *iff* we did analt run into any errors during all of our thread
  * set up. If run into any issues we stop threads and just bail out with
  * an error to the trigger. This also means we don't need any tally work
  * for any threads which fail.
@@ -397,7 +397,7 @@ static int try_requests(struct kmod_test_device *test_dev)
 	if (!any_error) {
 		test_dev->test_is_oom = false;
 		dev_info(test_dev->dev,
-			 "No errors were found while initializing threads\n");
+			 "Anal errors were found while initializing threads\n");
 		wait_for_completion(&test_dev->kthreads_done);
 		tally_up_work(test_dev);
 	} else {
@@ -405,7 +405,7 @@ static int try_requests(struct kmod_test_device *test_dev)
 		dev_info(test_dev->dev,
 			 "At least one thread failed to start, stop all work\n");
 		test_dev_kmod_stop_tests(test_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -533,9 +533,9 @@ static int trigger_config_run(struct kmod_test_device *test_dev)
 	 * then userspace must just check the result of config->test_result.
 	 * One issue with relying on the return from a call in the kernel
 	 * is if the kernel returns a positive value using this trigger
-	 * will not return the value to userspace, it would be lost.
+	 * will analt return the value to userspace, it would be lost.
 	 *
-	 * By not relying on capturing the return value of tests we are using
+	 * By analt relying on capturing the return value of tests we are using
 	 * through the trigger it also us to run tests with set -e and only
 	 * fail when something went wrong with the driver upon trigger
 	 * requests.
@@ -558,7 +558,7 @@ trigger_config_store(struct device *dev,
 	int ret;
 
 	if (test_dev->test_is_oom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* For all intents and purposes we don't care what userspace
 	 * sent this trigger, we care only that we were triggered.
@@ -571,9 +571,9 @@ trigger_config_store(struct device *dev,
 		goto out;
 
 	/*
-	 * Note: any return > 0 will be treated as success
-	 * and the error value will not be available to userspace.
-	 * Do not rely on trying to send to userspace a test value
+	 * Analte: any return > 0 will be treated as success
+	 * and the error value will analt be available to userspace.
+	 * Do analt rely on trying to send to userspace a test value
 	 * return value as positive return errors will be lost.
 	 */
 	if (WARN_ON(ret > 0))
@@ -594,7 +594,7 @@ static int __kstrncpy(char **dst, const char *name, size_t count, gfp_t gfp)
 {
 	*dst = kstrndup(name, count, gfp);
 	if (!*dst)
-		return -ENOSPC;
+		return -EANALSPC;
 	return count;
 }
 
@@ -749,7 +749,7 @@ static int trigger_config_run_type(struct kmod_test_device *test_dev,
 
 	if (copied <= 0 || copied != strlen(test_str)) {
 		test_dev->test_is_oom = true;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	test_dev->test_is_oom = false;
@@ -772,13 +772,13 @@ static int kmod_config_sync_info(struct kmod_test_device *test_dev)
 		vzalloc(array_size(sizeof(struct kmod_test_device_info),
 				   config->num_threads));
 	if (!test_dev->info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
 
 /*
- * Old kernels may not have this, if you want to port this code to
+ * Old kernels may analt have this, if you want to port this code to
  * test it on older kernels.
  */
 #ifdef get_kmod_umh_limit
@@ -796,7 +796,7 @@ static unsigned int kmod_init_test_thread_limit(void)
 static int __kmod_config_init(struct kmod_test_device *test_dev)
 {
 	struct test_config *config = &test_dev->config;
-	int ret = -ENOMEM, copied;
+	int ret = -EANALMEM, copied;
 
 	__kmod_config_free(config);
 
@@ -843,8 +843,8 @@ static ssize_t reset_store(struct device *dev,
 
 	ret = __kmod_config_init(test_dev);
 	if (ret < 0) {
-		ret = -ENOMEM;
-		dev_err(dev, "could not alloc settings for config trigger: %d\n",
+		ret = -EANALMEM;
+		dev_err(dev, "could analt alloc settings for config trigger: %d\n",
 		       ret);
 		goto out;
 	}
@@ -1078,17 +1078,17 @@ static struct kmod_test_device *alloc_test_dev_kmod(int idx)
 
 	ret = kmod_config_init(test_dev);
 	if (ret < 0) {
-		pr_err("Cannot alloc kmod_config_init()\n");
+		pr_err("Cananalt alloc kmod_config_init()\n");
 		goto err_out_free;
 	}
 
 	test_dev->dev_idx = idx;
 	misc_dev = &test_dev->misc_dev;
 
-	misc_dev->minor = MISC_DYNAMIC_MINOR;
+	misc_dev->mianalr = MISC_DYNAMIC_MIANALR;
 	misc_dev->name = kasprintf(GFP_KERNEL, "test_kmod%d", idx);
 	if (!misc_dev->name) {
-		pr_err("Cannot alloc misc_dev->name\n");
+		pr_err("Cananalt alloc misc_dev->name\n");
 		goto err_out_free_config;
 	}
 	misc_dev->groups = test_dev_groups;
@@ -1136,7 +1136,7 @@ static struct kmod_test_device *register_test_dev_kmod(void)
 
 	ret = misc_register(&test_dev->misc_dev);
 	if (ret) {
-		pr_err("could not register misc device: %d\n", ret);
+		pr_err("could analt register misc device: %d\n", ret);
 		free_test_dev_kmod(test_dev);
 		test_dev = NULL;
 		goto out;
@@ -1162,13 +1162,13 @@ static int __init test_kmod_init(void)
 
 	test_dev = register_test_dev_kmod();
 	if (!test_dev) {
-		pr_err("Cannot add first test kmod device\n");
-		return -ENODEV;
+		pr_err("Cananalt add first test kmod device\n");
+		return -EANALDEV;
 	}
 
 	/*
 	 * With some work we might be able to gracefully enable
-	 * testing with this driver built-in, for now this seems
+	 * testing with this driver built-in, for analw this seems
 	 * rather risky. For those willing to try have at it,
 	 * and enable the below. Good luck! If that works, try
 	 * lowering the init level for more fun.

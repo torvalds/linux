@@ -12,7 +12,7 @@
 #include <rdma/mr_pool.h>
 
 struct rdma_rw_ctx {
-	/* number of RDMA READ/WRITE WRs (not counting MR WRs) */
+	/* number of RDMA READ/WRITE WRs (analt counting MR WRs) */
 	u32			nr_ops;
 
 	/* tag for the union below: */

@@ -21,7 +21,7 @@
  * Updated: Mon, 20 Jun 2016 10:57:01 -0700
  * Status: untested
  *
- * Configuration Options: not applicable, uses comedi PCI auto config
+ * Configuration Options: analt applicable, uses comedi PCI auto config
  *
  * This board has the following features:
  *   - 4 or 8 analog output channels
@@ -37,7 +37,7 @@
  * channels used by this driver is determined by reading the EEPROM on
  * the board.
  *
- * The watchdog/timer subdevice is not currently supported.
+ * The watchdog/timer subdevice is analt currently supported.
  */
 
 #include <linux/module.h>
@@ -262,7 +262,7 @@ static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 	unsigned int i;
 
 	if (insn->n) {
-		/* No point reading the same EEPROM location more than once. */
+		/* Anal point reading the same EEPROM location more than once. */
 		val = apci3501_eeprom_readw(devpriv->amcc, 2 * addr);
 		for (i = 0; i < insn->n; i++)
 			data[i] = val;
@@ -290,7 +290,7 @@ static int apci3501_reset(struct comedi_device *dev)
 		ret = apci3501_wait_for_dac(dev);
 		if (ret) {
 			dev_warn(dev->class_dev,
-				 "%s: DAC not-ready for channel %i\n",
+				 "%s: DAC analt-ready for channel %i\n",
 				 __func__, chan);
 		} else {
 			outl(val | APCI3501_AO_DATA_CHAN(chan),
@@ -312,7 +312,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

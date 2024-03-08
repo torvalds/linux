@@ -36,13 +36,13 @@ EXPORT_SYMBOL(os_accept_connection);
 EXPORT_SYMBOL(os_rcv_fd);
 EXPORT_SYMBOL(run_helper);
 EXPORT_SYMBOL(os_major);
-EXPORT_SYMBOL(os_minor);
+EXPORT_SYMBOL(os_mianalr);
 EXPORT_SYMBOL(os_makedev);
 EXPORT_SYMBOL(os_eventfd);
 EXPORT_SYMBOL(os_sendmsg_fds);
 
 EXPORT_SYMBOL(add_sigio_fd);
-EXPORT_SYMBOL(ignore_sigio_fd);
+EXPORT_SYMBOL(iganalre_sigio_fd);
 EXPORT_SYMBOL(sigio_broken);
 
 EXPORT_SYMBOL(syscall);

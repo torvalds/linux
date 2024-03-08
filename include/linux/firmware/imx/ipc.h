@@ -17,7 +17,7 @@
 struct imx_sc_ipc;
 
 enum imx_sc_rpc_svc {
-	IMX_SC_RPC_SVC_UNKNOWN = 0,
+	IMX_SC_RPC_SVC_UNKANALWN = 0,
 	IMX_SC_RPC_SVC_RETURN = 1,
 	IMX_SC_RPC_SVC_PM = 2,
 	IMX_SC_RPC_SVC_RM = 3,
@@ -60,12 +60,12 @@ int imx_scu_get_handle(struct imx_sc_ipc **ipc);
 static inline int imx_scu_call_rpc(struct imx_sc_ipc *ipc, void *msg,
 				   bool have_resp)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int imx_scu_get_handle(struct imx_sc_ipc **ipc)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif
 #endif /* _SC_IPC_H */

@@ -3,12 +3,12 @@
  * imr.c -- Intel Isolated Memory Region driver
  *
  * Copyright(c) 2013 Intel Corporation.
- * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
+ * Copyright(c) 2015 Bryan O'Doanalghue <pure.logic@nexus-software.ie>
  *
  * IMR registers define an isolated region of memory that can
  * be masked to prohibit certain system agents from accessing memory.
- * When a device behind a masked port performs an access - snooped or
- * not, an IMR may optionally prevent that transaction from changing
+ * When a device behind a masked port performs an access - sanaloped or
+ * analt, an IMR may optionally prevent that transaction from changing
  * the state of memory or from getting correct data in response to the
  * operation.
  *
@@ -131,7 +131,7 @@ static int imr_read(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
  * imr_write - write an IMR at a given index.
  *
  * Requires caller to hold imr mutex.
- * Note lock bits need to be written independently of address bits.
+ * Analte lock bits need to be written independently of address bits.
  *
  * @idev:	pointer to imr_device structure.
  * @imr_id:	IMR entry to write.
@@ -166,7 +166,7 @@ static int imr_write(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
 	return 0;
 failed:
 	/*
-	 * If writing to the IOSF failed then we're in an unknown state,
+	 * If writing to the IOSF failed then we're in an unkanalwn state,
 	 * likely a very bad state. An IMR in an invalid state will almost
 	 * certainly lead to a memory access violation.
 	 */
@@ -192,7 +192,7 @@ static int imr_dbgfs_state_show(struct seq_file *s, void *unused)
 	struct imr_device *idev = s->private;
 	struct imr_regs imr;
 	size_t size;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	mutex_lock(&idev->lock);
 
@@ -240,7 +240,7 @@ static void imr_debugfs_register(struct imr_device *idev)
 }
 
 /**
- * imr_check_params - check passed address range IMR alignment and non-zero size
+ * imr_check_params - check passed address range IMR alignment and analn-zero size
  *
  * @base:	base address of intended IMR.
  * @size:	size of intended IMR.
@@ -279,7 +279,7 @@ static inline size_t imr_raw_size(size_t size)
  *
  * @addr:	address to check against an existing IMR.
  * @imr:	imr being checked.
- * @return:	true for overlap false for no overlap.
+ * @return:	true for overlap false for anal overlap.
  */
 static inline int imr_address_overlap(phys_addr_t addr, struct imr_regs *imr)
 {
@@ -306,8 +306,8 @@ int imr_add_range(phys_addr_t base, size_t size,
 	int reg;
 	int ret;
 
-	if (WARN_ONCE(idev->init == false, "driver not initialized"))
-		return -ENODEV;
+	if (WARN_ONCE(idev->init == false, "driver analt initialized"))
+		return -EANALDEV;
 
 	ret = imr_check_params(base, size);
 	if (ret)
@@ -326,13 +326,13 @@ int imr_add_range(phys_addr_t base, size_t size,
 	imr.rmask = rmask;
 	imr.wmask = wmask;
 	if (!imr_is_enabled(&imr))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	mutex_lock(&idev->lock);
 
 	/*
 	 * Find a free IMR while checking for an existing overlapping range.
-	 * Note there's no restriction in silicon to prevent IMR overlaps.
+	 * Analte there's anal restriction in silicon to prevent IMR overlaps.
 	 * For the sake of simplicity and ease in defining/debugging an IMR
 	 * memory map we exclude IMR overlaps.
 	 */
@@ -354,9 +354,9 @@ int imr_add_range(phys_addr_t base, size_t size,
 		}
 	}
 
-	/* Error out if we have no free IMR entries. */
+	/* Error out if we have anal free IMR entries. */
 	if (reg == -1) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed;
 	}
 
@@ -393,15 +393,15 @@ EXPORT_SYMBOL_GPL(imr_add_range);
  *
  * This function allows you to delete an IMR by its index specified by reg or
  * by address range specified by base and size respectively. If you specify an
- * index on its own the base and size parameters are ignored.
- * imr_remove_range(0, base, size); delete IMR at index 0 base/size ignored.
+ * index on its own the base and size parameters are iganalred.
+ * imr_remove_range(0, base, size); delete IMR at index 0 base/size iganalred.
  * imr_remove_range(-1, base, size); delete IMR from base to base+size.
  *
  * @reg:	imr index to remove.
  * @base:	physical base address of region aligned to 1 KiB.
  * @size:	physical size of region in bytes aligned to 1 KiB.
  * @return:	-EINVAL on invalid range or out or range id
- *		-ENODEV if reg is valid but no IMR exists or is locked
+ *		-EANALDEV if reg is valid but anal IMR exists or is locked
  *		0 on success.
  */
 static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
@@ -414,12 +414,12 @@ static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
 	size_t raw_size;
 	int ret = 0;
 
-	if (WARN_ONCE(idev->init == false, "driver not initialized"))
-		return -ENODEV;
+	if (WARN_ONCE(idev->init == false, "driver analt initialized"))
+		return -EANALDEV;
 
 	/*
 	 * Validate address range if deleting by address, else we are
-	 * deleting by index where base and size will be ignored.
+	 * deleting by index where base and size will be iganalred.
 	 */
 	if (reg == -1) {
 		ret = imr_check_params(base, size);
@@ -440,7 +440,7 @@ static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
 			goto failed;
 
 		if (!imr_is_enabled(&imr) || imr.addr_lo & IMR_LOCK) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto failed;
 		}
 		found = true;
@@ -464,7 +464,7 @@ static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
 	}
 
 	if (!found) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto failed;
 	}
 
@@ -493,7 +493,7 @@ failed:
  * @base:	physical base address of region aligned to 1 KiB.
  * @size:	physical size of region in bytes aligned to 1 KiB.
  * @return:	-EINVAL on invalid range or out or range id
- *		-ENODEV if reg is valid but no IMR exists or is locked
+ *		-EANALDEV if reg is valid but anal IMR exists or is locked
  *		0 on success.
  */
 int imr_remove_range(phys_addr_t base, size_t size)
@@ -512,7 +512,7 @@ EXPORT_SYMBOL_GPL(imr_remove_range);
  *
  * @reg:	imr index to remove.
  * @return:	-EINVAL on invalid range or out or range id
- *		-ENODEV if reg is valid but no IMR exists or is locked
+ *		-EANALDEV if reg is valid but anal IMR exists or is locked
  *		0 on success.
  */
 static inline int imr_clear(int reg)
@@ -576,14 +576,14 @@ static const struct x86_cpu_id imr_ids[] __initconst = {
 /**
  * imr_init - entry point for IMR driver.
  *
- * return: -ENODEV for no IMR support 0 if good to go.
+ * return: -EANALDEV for anal IMR support 0 if good to go.
  */
 static int __init imr_init(void)
 {
 	struct imr_device *idev = &imr_dev;
 
 	if (!x86_match_cpu(imr_ids) || !iosf_mbi_available())
-		return -ENODEV;
+		return -EANALDEV;
 
 	idev->max_imr = QUARK_X1000_IMR_MAX;
 	idev->reg_base = QUARK_X1000_IMR_REGBASE;

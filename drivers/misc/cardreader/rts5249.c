@@ -78,7 +78,7 @@ static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		pcr->rtd3_en = rtsx_reg_to_rtd3_uhsii(reg);
 
 	if (rtsx_check_mmc_support(reg))
-		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
+		pcr->extra_caps |= EXTRA_CAPS_ANAL_MMC;
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
 	if (rtsx_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
@@ -460,7 +460,7 @@ static int rtsx_base_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 			return err;
 		break;
 	default:
-		pcr_dbg(pcr, "unknown output voltage %d\n", voltage);
+		pcr_dbg(pcr, "unkanalwn output voltage %d\n", voltage);
 		return -EINVAL;
 	}
 
@@ -568,10 +568,10 @@ void rts5249_init_params(struct rtsx_pcr *pcr)
 	option->ltr_active_latency = LTR_ACTIVE_LATENCY_DEF;
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
-	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
+	option->l1_sanaloze_delay = L1_SANALOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5249_DEF;
-	option->ltr_l1off_snooze_sspwrgate =
-		LTR_L1OFF_SNOOZE_SSPWRGATE_5249_DEF;
+	option->ltr_l1off_sanaloze_sspwrgate =
+		LTR_L1OFF_SANALOZE_SSPWRGATE_5249_DEF;
 }
 
 static int rts524a_write_phy(struct rtsx_pcr *pcr, u8 addr, u16 val)
@@ -674,7 +674,7 @@ static void rts5250_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 	if (active) {
 		/* Run, latency: 60us */
 		if (aspm_L1_1)
-			val = option->ltr_l1off_snooze_sspwrgate;
+			val = option->ltr_l1off_sanaloze_sspwrgate;
 	} else {
 		/* L1off, latency: 300us */
 		if (aspm_L1_2)
@@ -716,8 +716,8 @@ void rts524a_init_params(struct rtsx_pcr *pcr)
 	pcr->aspm_mode = ASPM_MODE_REG;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(27, 29, 11);
 	pcr->option.ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5250_DEF;
-	pcr->option.ltr_l1off_snooze_sspwrgate =
-		LTR_L1OFF_SNOOZE_SSPWRGATE_5250_DEF;
+	pcr->option.ltr_l1off_sanaloze_sspwrgate =
+		LTR_L1OFF_SANALOZE_SSPWRGATE_5250_DEF;
 
 	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;
 	pcr->ops = &rts524a_pcr_ops;
@@ -834,8 +834,8 @@ void rts525a_init_params(struct rtsx_pcr *pcr)
 	pcr->aspm_mode = ASPM_MODE_REG;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(25, 29, 11);
 	pcr->option.ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5250_DEF;
-	pcr->option.ltr_l1off_snooze_sspwrgate =
-		LTR_L1OFF_SNOOZE_SSPWRGATE_5250_DEF;
+	pcr->option.ltr_l1off_sanaloze_sspwrgate =
+		LTR_L1OFF_SANALOZE_SSPWRGATE_5250_DEF;
 
 	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;
 	pcr->ops = &rts525a_pcr_ops;

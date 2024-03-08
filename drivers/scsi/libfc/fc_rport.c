@@ -10,7 +10,7 @@
  *
  * This file contains all processing regarding fc_rports. It contains the
  * rport state machine and does all rport interaction with the transport class.
- * There should be no other places in libfc that interact directly with the
+ * There should be anal other places in libfc that interact directly with the
  * transport class in regards to adding and deleting rports.
  *
  * fc_rport's represent N_Port's within the fabric.
@@ -28,7 +28,7 @@
  * the rport's states and is held and released by the entry points to the rport
  * block. All _enter_* functions correspond to rport states and expect the rport
  * mutex to be locked before calling them. This means that rports only handle
- * one request or response at a time, since they're not critical for the I/O
+ * one request or response at a time, since they're analt critical for the I/O
  * path this potential over-use of the mutex is acceptable.
  */
 
@@ -144,16 +144,16 @@ struct fc_rport_priv *fc_rport_create(struct fc_lport *lport, u32 port_id)
 	if (!rdata)
 		return NULL;
 
-	rdata->ids.node_name = -1;
+	rdata->ids.analde_name = -1;
 	rdata->ids.port_name = -1;
 	rdata->ids.port_id = port_id;
-	rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	rdata->ids.roles = FC_RPORT_ROLE_UNKANALWN;
 
 	kref_init(&rdata->kref);
 	mutex_init(&rdata->rp_mutex);
 	rdata->local_port = lport;
 	rdata->rp_state = RPORT_ST_INIT;
-	rdata->event = RPORT_EV_NONE;
+	rdata->event = RPORT_EV_ANALNE;
 	rdata->flags = FC_RP_FLAGS_REC_SUPPORTED;
 	rdata->e_d_tov = lport->e_d_tov;
 	rdata->r_a_tov = lport->r_a_tov;
@@ -191,7 +191,7 @@ static const char *fc_rport_state(struct fc_rport_priv *rdata)
 
 	cp = fc_rport_state_names[rdata->rp_state];
 	if (!cp)
-		cp = "Unknown";
+		cp = "Unkanalwn";
 	return cp;
 }
 
@@ -279,13 +279,13 @@ static void fc_rport_work(struct work_struct *work)
 	switch (event) {
 	case RPORT_EV_READY:
 		ids = rdata->ids;
-		rdata->event = RPORT_EV_NONE;
+		rdata->event = RPORT_EV_ANALNE;
 		rdata->major_retries = 0;
 		kref_get(&rdata->kref);
 		mutex_unlock(&rdata->rp_mutex);
 
 		if (!rport) {
-			FC_RPORT_DBG(rdata, "No rport!\n");
+			FC_RPORT_DBG(rdata, "Anal rport!\n");
 			rport = fc_remote_port_add(lport->host, 0, &ids);
 		}
 		if (!rport) {
@@ -364,14 +364,14 @@ static void fc_rport_work(struct work_struct *work)
 		mutex_lock(&rdata->rp_mutex);
 		if (rdata->rp_state == RPORT_ST_DELETE) {
 			if (port_id == FC_FID_DIR_SERV) {
-				rdata->event = RPORT_EV_NONE;
+				rdata->event = RPORT_EV_ANALNE;
 				mutex_unlock(&rdata->rp_mutex);
 				kref_put(&rdata->kref, fc_rport_destroy);
 			} else if ((rdata->flags & FC_RP_STARTED) &&
 				   rdata->major_retries <
 				   lport->max_rport_retry_count) {
 				rdata->major_retries++;
-				rdata->event = RPORT_EV_NONE;
+				rdata->event = RPORT_EV_ANALNE;
 				FC_RPORT_DBG(rdata, "work restart\n");
 				fc_rport_enter_flogi(rdata);
 				mutex_unlock(&rdata->rp_mutex);
@@ -387,7 +387,7 @@ static void fc_rport_work(struct work_struct *work)
 			/*
 			 * Re-open for events.  Reissue READY event if ready.
 			 */
-			rdata->event = RPORT_EV_NONE;
+			rdata->event = RPORT_EV_ANALNE;
 			if (rdata->rp_state == RPORT_ST_READY) {
 				FC_RPORT_DBG(rdata, "work reopen\n");
 				fc_rport_enter_ready(rdata);
@@ -415,7 +415,7 @@ static void fc_rport_work(struct work_struct *work)
  * - PRLI
  * - RTV
  *
- * Locking Note: Called without the rport lock held. This
+ * Locking Analte: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
  * function and then unlock the rport.
  *
@@ -464,12 +464,12 @@ EXPORT_SYMBOL(fc_rport_login);
  *
  * Allow state change into DELETE only once.
  *
- * Call queue_work only if there's no event already pending.
- * Set the new event so that the old pending event will not occur.
+ * Call queue_work only if there's anal event already pending.
+ * Set the new event so that the old pending event will analt occur.
  * Since we have the mutex, even if fc_rport_work() is already started,
  * it'll see the new event.
  *
- * Reference counting: does not modify kref
+ * Reference counting: does analt modify kref
  */
 static void fc_rport_enter_delete(struct fc_rport_priv *rdata,
 				  enum fc_rport_event event)
@@ -483,7 +483,7 @@ static void fc_rport_enter_delete(struct fc_rport_priv *rdata,
 
 	fc_rport_state_enter(rdata, RPORT_ST_DELETE);
 
-	if (rdata->event == RPORT_EV_NONE) {
+	if (rdata->event == RPORT_EV_ANALNE) {
 		kref_get(&rdata->kref);
 		if (!queue_work(rport_event_queue, &rdata->event_work))
 			kref_put(&rdata->kref, fc_rport_destroy);
@@ -496,7 +496,7 @@ static void fc_rport_enter_delete(struct fc_rport_priv *rdata,
  * fc_rport_logoff() - Logoff and remove a remote port
  * @rdata: The remote port to be logged off of
  *
- * Locking Note: Called without the rport lock held. This
+ * Locking Analte: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
  * function and then unlock the rport.
  */
@@ -511,7 +511,7 @@ int fc_rport_logoff(struct fc_rport_priv *rdata)
 
 	rdata->flags &= ~FC_RP_STARTED;
 	if (rdata->rp_state == RPORT_ST_DELETE) {
-		FC_RPORT_DBG(rdata, "Port in Delete state, not removing\n");
+		FC_RPORT_DBG(rdata, "Port in Delete state, analt removing\n");
 		goto out;
 	}
 	/*
@@ -540,7 +540,7 @@ EXPORT_SYMBOL(fc_rport_logoff);
  * fc_rport_enter_ready() - Transition to the RPORT_ST_READY state
  * @rdata: The remote port that is ready
  *
- * Reference counting: schedules workqueue, does not modify kref
+ * Reference counting: schedules workqueue, does analt modify kref
  */
 static void fc_rport_enter_ready(struct fc_rport_priv *rdata)
 {
@@ -551,7 +551,7 @@ static void fc_rport_enter_ready(struct fc_rport_priv *rdata)
 	FC_RPORT_DBG(rdata, "Port is Ready\n");
 
 	kref_get(&rdata->kref);
-	if (rdata->event == RPORT_EV_NONE &&
+	if (rdata->event == RPORT_EV_ANALNE &&
 	    !queue_work(rport_event_queue, &rdata->event_work))
 		kref_put(&rdata->kref, fc_rport_destroy);
 
@@ -562,7 +562,7 @@ static void fc_rport_enter_ready(struct fc_rport_priv *rdata)
  * fc_rport_timeout() - Handler for the retry_work timer
  * @work: Handle to the remote port that has timed out
  *
- * Locking Note: Called without the rport lock held. This
+ * Locking Analte: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
  * function and then unlock the rport.
  *
@@ -608,7 +608,7 @@ static void fc_rport_timeout(struct work_struct *work)
  * @rdata: The remote port the error is happened on
  * @err:   The error code
  *
- * Reference counting: does not modify kref
+ * Reference counting: does analt modify kref
  */
 static void fc_rport_error(struct fc_rport_priv *rdata, int err)
 {
@@ -672,7 +672,7 @@ static void fc_rport_error_retry(struct fc_rport_priv *rdata, int err)
 		FC_RPORT_DBG(rdata, "Error %d in state %s, retrying\n",
 			     err, fc_rport_state(rdata));
 		rdata->retries++;
-		/* no additional delay on exchange timeouts */
+		/* anal additional delay on exchange timeouts */
 		if (err == -FC_EX_TIMEOUT)
 			delay = 0;
 		kref_get(&rdata->kref);
@@ -690,8 +690,8 @@ out:
  * @rdata:  The remote port which we logged into or which logged into us.
  * @fp:     The FLOGI or PLOGI request or response frame
  *
- * Returns non-zero error if a problem is detected with the frame.
- * Does not free the frame.
+ * Returns analn-zero error if a problem is detected with the frame.
+ * Does analt free the frame.
  *
  * This is only used in point-to-multipoint mode for FIP currently.
  */
@@ -717,7 +717,7 @@ static int fc_rport_login_complete(struct fc_rport_priv *rdata,
 	} else {
 
 		/*
-		 * E_D_TOV is not valid on an incoming FLOGI request.
+		 * E_D_TOV is analt valid on an incoming FLOGI request.
 		 */
 		e_d_tov = ntohl(flogi->fl_csp.sp_e_d_tov);
 		if (csp_flags & FC_SP_FT_EDTR)
@@ -780,7 +780,7 @@ static void fc_rport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		goto bad;
 	}
 	if (fc_rport_login_complete(rdata, fp)) {
-		FC_RPORT_DBG(rdata, "FLOGI failed, no login\n");
+		FC_RPORT_DBG(rdata, "FLOGI failed, anal login\n");
 		err = -FC_EX_INV_LOGIN;
 		goto bad;
 	}
@@ -867,7 +867,7 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 
 	if (!lport->point_to_multipoint) {
 		rjt_data.reason = ELS_RJT_UNSUP;
-		rjt_data.explan = ELS_EXPL_NONE;
+		rjt_data.explan = ELS_EXPL_ANALNE;
 		goto reject;
 	}
 
@@ -881,7 +881,7 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	rdata = fc_rport_lookup(lport, sid);
 	if (!rdata) {
 		rjt_data.reason = ELS_RJT_FIP;
-		rjt_data.explan = ELS_EXPL_NOT_NEIGHBOR;
+		rjt_data.explan = ELS_EXPL_ANALT_NEIGHBOR;
 		goto reject;
 	}
 	mutex_lock(&rdata->rp_mutex);
@@ -893,13 +893,13 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	case RPORT_ST_INIT:
 		/*
 		 * If received the FLOGI request on RPORT which is INIT state
-		 * (means not transition to FLOGI either fc_rport timeout
+		 * (means analt transition to FLOGI either fc_rport timeout
 		 * function didn;t trigger or this end hasn;t received
 		 * beacon yet from other end. In that case only, allow RPORT
 		 * state machine to continue, otherwise fall through which
 		 * causes the code to send reject response.
-		 * NOTE; Not checking for FIP->state such as VNMP_UP or
-		 * VNMP_CLAIM because if FIP state is not one of those,
+		 * ANALTE; Analt checking for FIP->state such as VNMP_UP or
+		 * VNMP_CLAIM because if FIP state is analt one of those,
 		 * RPORT wouldn;t have created and 'rport_lookup' would have
 		 * failed anyway in that case.
 		 */
@@ -907,7 +907,7 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	case RPORT_ST_DELETE:
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_FIP;
-		rjt_data.explan = ELS_EXPL_NOT_NEIGHBOR;
+		rjt_data.explan = ELS_EXPL_ANALT_NEIGHBOR;
 		goto reject_put;
 	case RPORT_ST_FLOGI:
 	case RPORT_ST_PLOGI_WAIT:
@@ -924,13 +924,13 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 		fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_BUSY;
-		rjt_data.explan = ELS_EXPL_NONE;
+		rjt_data.explan = ELS_EXPL_ANALNE;
 		goto reject_put;
 	}
 	if (fc_rport_login_complete(rdata, fp)) {
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_LOGIC;
-		rjt_data.explan = ELS_EXPL_NONE;
+		rjt_data.explan = ELS_EXPL_ANALNE;
 		goto reject_put;
 	}
 
@@ -946,7 +946,7 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	lport->tt.frame_send(lport, fp);
 
 	/*
-	 * Do not proceed with the state machine if our
+	 * Do analt proceed with the state machine if our
 	 * FLOGI has crossed with an FLOGI from the
 	 * remote port; wait for the FLOGI response instead.
 	 */
@@ -975,7 +975,7 @@ reject:
  * @fp:	       The PLOGI response frame
  * @rdata_arg: The remote port that sent the PLOGI response
  *
- * Locking Note: This function will be called without the rport lock
+ * Locking Analte: This function will be called without the rport lock
  * held, but it will lock, call an _enter_* function or fc_rport_error
  * and then unlock the rport.
  */
@@ -1013,7 +1013,7 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	if (op == ELS_LS_ACC &&
 	    (plp = fc_frame_payload_get(fp, sizeof(*plp))) != NULL) {
 		rdata->ids.port_name = get_unaligned_be64(&plp->fl_wwpn);
-		rdata->ids.node_name = get_unaligned_be64(&plp->fl_wwnn);
+		rdata->ids.analde_name = get_unaligned_be64(&plp->fl_wwnn);
 
 		/* save plogi response sp_features for further reference */
 		rdata->sp_features = ntohs(plp->fl_csp.sp_features);
@@ -1049,7 +1049,7 @@ put:
 static bool
 fc_rport_compatible_roles(struct fc_lport *lport, struct fc_rport_priv *rdata)
 {
-	if (rdata->ids.roles == FC_PORT_ROLE_UNKNOWN)
+	if (rdata->ids.roles == FC_PORT_ROLE_UNKANALWN)
 		return true;
 	if ((rdata->ids.roles & FC_PORT_ROLE_FCP_TARGET) &&
 	    (lport->service_params & FCP_SPPF_INIT_FCN))
@@ -1108,7 +1108,7 @@ static void fc_rport_enter_plogi(struct fc_rport_priv *rdata)
  * @fp:	       The PRLI response frame
  * @rdata_arg: The remote port that sent the PRLI response
  *
- * Locking Note: This function will be called without the rport lock
+ * Locking Analte: This function will be called without the rport lock
  * held, but it will lock, call an _enter_* function or fc_rport_error
  * and then unlock the rport.
  */
@@ -1123,7 +1123,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_els_spp temp_spp;
 	struct fc_els_ls_rjt *rjt;
 	struct fc4_prov *prov;
-	u32 roles = FC_RPORT_ROLE_UNKNOWN;
+	u32 roles = FC_RPORT_ROLE_UNKANALWN;
 	u32 fcp_parm = 0;
 	u8 op;
 	enum fc_els_spp_resp resp_code;
@@ -1149,7 +1149,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	}
 
 	/* reinitialize remote port roles */
-	rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	rdata->ids.roles = FC_RPORT_ROLE_UNKANALWN;
 
 	op = fc_frame_payload_op(fp);
 	if (op == ELS_LS_ACC) {
@@ -1199,7 +1199,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		if (rdata->spp_type != FC_TYPE_FCP ||
 		    !(pp->spp.spp_flags & FC_SPP_EST_IMG_PAIR)) {
 			/*
-			 * Nope; we can't use this port as a target.
+			 * Analpe; we can't use this port as a target.
 			 */
 			fcp_parm &= ~FCP_SPPF_TARG_FCN;
 		}
@@ -1255,7 +1255,7 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 	lockdep_assert_held(&rdata->rp_mutex);
 
 	/*
-	 * If the rport is one of the well known addresses
+	 * If the rport is one of the well kanalwn addresses
 	 * we skip PRLI and RTV and go straight to READY.
 	 */
 	if (rdata->ids.port_id >= FC_FID_DOM_MGR) {
@@ -1264,8 +1264,8 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 	}
 
 	/*
-	 * And if the local port does not support the initiator function
-	 * there's no need to send a PRLI, either.
+	 * And if the local port does analt support the initiator function
+	 * there's anal need to send a PRLI, either.
 	 */
 	if (!(lport->service_params & FCP_SPPF_INIT_FCN)) {
 		    fc_rport_enter_ready(rdata);
@@ -1311,7 +1311,7 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
  *
  * Many targets don't seem to support this.
  *
- * Locking Note: This function will be called without the rport lock
+ * Locking Analte: This function will be called without the rport lock
  * held, but it will lock, call an _enter_* function or fc_rport_error
  * and then unlock the rport.
  */
@@ -1494,7 +1494,7 @@ static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
  * @fp:	       The ADISC response frame
  * @rdata_arg: The remote port that sent the ADISC response
  *
- * Locking Note: This function will be called without the rport lock
+ * Locking Analte: This function will be called without the rport lock
  * held, but it will lock, call an _enter_* function or fc_rport_error
  * and then unlock the rport.
  */
@@ -1535,7 +1535,7 @@ static void fc_rport_adisc_resp(struct fc_seq *sp, struct fc_frame *fp,
 	if (op != ELS_LS_ACC || !adisc ||
 	    ntoh24(adisc->adisc_port_id) != rdata->ids.port_id ||
 	    get_unaligned_be64(&adisc->adisc_wwpn) != rdata->ids.port_name ||
-	    get_unaligned_be64(&adisc->adisc_wwnn) != rdata->ids.node_name) {
+	    get_unaligned_be64(&adisc->adisc_wwnn) != rdata->ids.analde_name) {
 		FC_RPORT_DBG(rdata, "ADISC error or mismatch\n");
 		fc_rport_enter_flogi(rdata);
 	} else {
@@ -1692,7 +1692,7 @@ out:
  * Handle incoming ELS requests that require port login.
  * The ELS opcode has already been validated by the caller.
  *
- * Reference counting: does not modify kref
+ * Reference counting: does analt modify kref
  */
 static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 {
@@ -1704,7 +1704,7 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	rdata = fc_rport_lookup(lport, fc_frame_sid(fp));
 	if (!rdata) {
 		FC_RPORT_ID_DBG(lport, fc_frame_sid(fp),
-				"Received ELS 0x%02x from non-logged-in port\n",
+				"Received ELS 0x%02x from analn-logged-in port\n",
 				fc_frame_payload_op(fp));
 		goto reject;
 	}
@@ -1778,7 +1778,7 @@ reject:
 
 busy:
 	els_data.reason = ELS_RJT_BUSY;
-	els_data.explan = ELS_EXPL_NONE;
+	els_data.explan = ELS_EXPL_ANALNE;
 	fc_seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
 	fc_frame_free(fp);
 	return;
@@ -1789,7 +1789,7 @@ busy:
  * @lport: The local port that received the request
  * @fp:	   The request frame
  *
- * Reference counting: does not modify kref
+ * Reference counting: does analt modify kref
  */
 void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
@@ -1824,7 +1824,7 @@ void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 		break;
 	default:
 		els_data.reason = ELS_RJT_UNSUP;
-		els_data.explan = ELS_EXPL_NONE;
+		els_data.explan = ELS_EXPL_ANALNE;
 		fc_seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
 		fc_frame_free(fp);
 		break;
@@ -1877,7 +1877,7 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	mutex_unlock(&disc->disc_mutex);
 
 	rdata->ids.port_name = get_unaligned_be64(&pl->fl_wwpn);
-	rdata->ids.node_name = get_unaligned_be64(&pl->fl_wwnn);
+	rdata->ids.analde_name = get_unaligned_be64(&pl->fl_wwnn);
 
 	/*
 	 * If the rport was just created, possibly due to the incoming PLOGI,
@@ -1902,7 +1902,7 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 		if (rdata->ids.port_name < lport->wwpn) {
 			mutex_unlock(&rdata->rp_mutex);
 			rjt_data.reason = ELS_RJT_INPROG;
-			rjt_data.explan = ELS_EXPL_NONE;
+			rjt_data.explan = ELS_EXPL_ANALNE;
 			goto reject;
 		}
 		break;
@@ -1911,7 +1911,7 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	case RPORT_ST_READY:
 	case RPORT_ST_ADISC:
 		FC_RPORT_DBG(rdata, "Received PLOGI in logged-in state %d "
-			     "- ignored for now\n", rdata->rp_state);
+			     "- iganalred for analw\n", rdata->rp_state);
 		/* XXX TBD - should reset */
 		break;
 	case RPORT_ST_FLOGI:
@@ -1920,14 +1920,14 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 			     fc_rport_state(rdata));
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_BUSY;
-		rjt_data.explan = ELS_EXPL_NONE;
+		rjt_data.explan = ELS_EXPL_ANALNE;
 		goto reject;
 	}
 	if (!fc_rport_compatible_roles(lport, rdata)) {
 		FC_RPORT_DBG(rdata, "Received PLOGI for incompatible role\n");
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_LOGIC;
-		rjt_data.explan = ELS_EXPL_NONE;
+		rjt_data.explan = ELS_EXPL_ANALNE;
 		goto reject;
 	}
 
@@ -2172,7 +2172,7 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 		kref_put(&rdata->kref, fc_rport_destroy);
 	} else
 		FC_RPORT_ID_DBG(lport, sid,
-				"Received LOGO from non-logged-in port\n");
+				"Received LOGO from analn-logged-in port\n");
 	fc_frame_free(fp);
 }
 
@@ -2193,7 +2193,7 @@ EXPORT_SYMBOL(fc_rport_flush_queue);
  * @spp: response service parameter page
  *
  * Returns the value for the response code to be placed in spp_flags;
- * Returns 0 if not an initiator.
+ * Returns 0 if analt an initiator.
  */
 static int fc_rport_fcp_prli(struct fc_rport_priv *rdata, u32 spp_len,
 			     const struct fc_els_spp *rspp,
@@ -2203,7 +2203,7 @@ static int fc_rport_fcp_prli(struct fc_rport_priv *rdata, u32 spp_len,
 	u32 fcp_parm;
 
 	fcp_parm = ntohl(rspp->spp_params);
-	rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	rdata->ids.roles = FC_RPORT_ROLE_UNKANALWN;
 	if (fcp_parm & FCP_SPPF_INIT_FCN)
 		rdata->ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 	if (fcp_parm & FCP_SPPF_TARG_FCN)
@@ -2265,7 +2265,7 @@ int fc_setup_rport(void)
 {
 	rport_event_queue = create_singlethread_workqueue("fc_rport_eq");
 	if (!rport_event_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

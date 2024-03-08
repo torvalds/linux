@@ -17,19 +17,19 @@
 #define POWERZ_EP_DATA_IN	0x81
 
 struct powerz_sensor_data {
-	u8 _unknown_1[8];
+	u8 _unkanalwn_1[8];
 	__le32 V_bus;
 	__le32 I_bus;
 	__le32 V_bus_avg;
 	__le32 I_bus_avg;
-	u8 _unknown_2[8];
+	u8 _unkanalwn_2[8];
 	u8 temp[2];
 	__le16 V_cc1;
 	__le16 V_cc2;
 	__le16 V_dp;
 	__le16 V_dm;
 	__le16 V_dd;
-	u8 _unknown_3[4];
+	u8 _unkanalwn_3[4];
 } __packed;
 
 struct powerz_priv {
@@ -79,11 +79,11 @@ static int powerz_read_string(struct device *dev, enum hwmon_sensor_types type,
 		else if (channel == 5)
 			*str = "VDD";
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	} else if (type == hwmon_temp && attr == hwmon_temp_label) {
 		*str = "TEMP";
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -167,7 +167,7 @@ static int powerz_read(struct device *dev, enum hwmon_sensor_types type,
 		else if (attr == hwmon_curr_average)
 			*val = ((s32)le32_to_cpu(data->I_bus_avg)) / 1000;
 		else
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 	} else if (type == hwmon_in) {
 		if (attr == hwmon_in_input) {
 			if (channel == 0)
@@ -183,16 +183,16 @@ static int powerz_read(struct device *dev, enum hwmon_sensor_types type,
 			else if (channel == 5)
 				*val = le16_to_cpu(data->V_dd) / 10;
 			else
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 		} else if (attr == hwmon_in_average && channel == 0) {
 			*val = le32_to_cpu(data->V_bus_avg) / 1000;
 		} else {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		}
 	} else if (type == hwmon_temp && attr == hwmon_temp_input) {
 		*val = data->temp[1] * 2000 + data->temp[0] * 1000 / 128;
 	} else {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 out:
@@ -222,11 +222,11 @@ static int powerz_probe(struct usb_interface *intf,
 
 	priv = devm_kzalloc(parent, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&priv->mutex);
 	init_completion(&priv->completion);
 

@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * File: include/linux/omapfb.h
  *
  * Framebuffer driver for TI OMAP boards
  *
- * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Copyright (C) 2004 Analkia Corporation
+ * Author: Imre Deak <imre.deak@analkia.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,7 +18,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if analt, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
@@ -190,7 +190,7 @@ struct omapfb_ovl_colormode {
 	__u8 overlay_idx;
 	__u8 mode_idx;
 	__u32 bits_per_pixel;
-	__u32 nonstd;
+	__u32 analnstd;
 	struct fb_bitfield red;
 	struct fb_bitfield green;
 	struct fb_bitfield blue;

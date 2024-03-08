@@ -44,8 +44,8 @@ struct zr36016 {
 #define ZR016I_NAY_HI     0x07
 #define ZR016I_PAY_LO     0x08
 #define ZR016I_PAY_HI     0x09
-#define ZR016I_NOL_LO     0x0a
-#define ZR016I_NOL_HI     0x0b
+#define ZR016I_ANALL_LO     0x0a
+#define ZR016I_ANALL_HI     0x0b
 
 /* possible values for mode register */
 #define ZR016_RGB444_YUV444  0x00

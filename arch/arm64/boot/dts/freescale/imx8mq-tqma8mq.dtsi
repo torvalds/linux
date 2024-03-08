@@ -130,7 +130,7 @@
 				regulator-always-on;
 			};
 
-			/* 1.8 V for QSPI NOR, e-MMC IO, must not be changed */
+			/* 1.8 V for QSPI ANALR, e-MMC IO, must analt be changed */
 			nvcc_1v8_reg: sw4 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
@@ -152,7 +152,7 @@
 				regulator-always-on;
 			};
 
-			/* not used */
+			/* analt used */
 			vgen1_reg: vgen1 {
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1550000>;
@@ -186,7 +186,7 @@
 				regulator-always-on;
 			};
 
-			/* not used */
+			/* analt used */
 			vgen6_reg: vgen6 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
@@ -249,7 +249,7 @@
 	status = "okay";
 
 	flash0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -265,9 +265,9 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc1v8>;
 	status = "okay";

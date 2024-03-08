@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -33,7 +33,7 @@ enum sdio_interrupt_type {
 	BUFFER_AVAILABLE    = 0x2,
 	FIRMWARE_ASSERT_IND = 0x3,
 	MSDU_PACKET_PENDING = 0x4,
-	UNKNOWN_INT         = 0XE
+	UNKANALWN_INT         = 0XE
 };
 
 /* Buffer status register related info */
@@ -75,7 +75,7 @@ enum sdio_interrupt_type {
 		(_I & (1 << MSDU_PKT_PENDING)) ?   \
 		MSDU_PACKET_PENDING :              \
 		(_I & (1 << FW_ASSERT_IND)) ?      \
-		FIRMWARE_ASSERT_IND : UNKNOWN_INT; \
+		FIRMWARE_ASSERT_IND : UNKANALWN_INT; \
 	}
 
 /* common registers in SDIO function1 */
@@ -102,7 +102,7 @@ struct receive_info {
 	u32 sdio_intr_status_zero;
 	u32 sdio_int_counter;
 	u32 total_sdio_msdu_pending_intr;
-	u32 total_sdio_unknown_intr;
+	u32 total_sdio_unkanalwn_intr;
 	u32 buf_full_counter;
 	u32 buf_available_counter;
 };

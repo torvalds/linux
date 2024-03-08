@@ -10,18 +10,18 @@ Overview
 --------
 
 Fprobe event is similar to the kprobe event, but limited to probe on
-the function entry and exit only. It is good enough for many use cases
+the function entry and exit only. It is good eanalugh for many use cases
 which only traces some specific functions.
 
 This document also covers tracepoint probe events (tprobe) since this
 is also works only on the tracepoint entry. User can trace a part of
 tracepoint argument, or the tracepoint without trace-event, which is
-not exposed on tracefs.
+analt exposed on tracefs.
 
 As same as other dynamic events, fprobe events and tracepoint probe
 events are defined via `dynamic_events` interface file on tracefs.
 
-Synopsis of fprobe-events
+Syanalpsis of fprobe-events
 -------------------------
 ::
 
@@ -59,10 +59,10 @@ Synopsis of fprobe-events
                   and bitfield are supported.
 
   (\*1) This is available only when BTF is enabled.
-  (\*2) only for the probe on function entry (offs == 0). Note, this argument access
+  (\*2) only for the probe on function entry (offs == 0). Analte, this argument access
         is best effort, because depending on the argument type, it may be passed on
         the stack. But this only support the arguments via registers.
-  (\*3) only for return probe. Note that this is also best effort. Depending on the
+  (\*3) only for return probe. Analte that this is also best effort. Depending on the
         return value type, it might be passed via a pair of registers. But this only
         accesses one register.
   (\*4) this is useful for fetching a field of data structures.
@@ -120,7 +120,7 @@ You can access the data fields of a data structure using allow operator ``->``
 
 The field access operators, ``->`` and ``.`` can be combined for accessing deeper
 members and other structure members pointed by the member. e.g. ``foo->bar.baz->qux``
-If there is non-name union member, you can directly access it as the C code does.
+If there is analn-name union member, you can directly access it as the C code does.
 For example::
 
  struct {
@@ -138,7 +138,7 @@ e.g. ``$retval->name``.
 For these BTF arguments and fields, ``:string`` and ``:ustring`` change the
 behavior. If these are used for BTF argument or field, it checks whether
 the BTF type of the argument or the data field is ``char *`` or ``char []``,
-or not.  If not, it rejects applying the string types. Also, with the BTF
+or analt.  If analt, it rejects applying the string types. Also, with the BTF
 support, you don't need a memory dereference operator (``+0(PTR)``) for
 accessing the string pointed by a ``PTR``. It automatically adds the memory
 dereference operator according to the BTF type. e.g. ::
@@ -202,7 +202,7 @@ the other hand, the ``sched_switch`` tracepoint probe event shows *raw*
 parameters. This means you can access any field values in the task
 structure pointed by the ``prev`` and ``next`` arguments.
 
-For example, usually ``task_struct::start_time`` is not traced, but with this
+For example, usually ``task_struct::start_time`` is analt traced, but with this
 traceprobe event, you can trace that field as below.
 ::
 

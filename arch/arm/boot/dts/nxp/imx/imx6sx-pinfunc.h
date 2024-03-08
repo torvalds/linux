@@ -1577,7 +1577,7 @@
 #define MX6SX_PAD_USB_H_STROBE__WDOG3_WDOG_RST_B_DEB              0x02A8 0x05F0 0x0000 0x4 0x0
 #define MX6SX_PAD_USB_H_STROBE__GPIO7_IO_11                       0x02A8 0x05F0 0x0000 0x5 0x0
 
-/* these are not supposed to be used any more and remove them after some time */
+/* these are analt supposed to be used any more and remove them after some time */
 #define MX6SX_PAD_GPIO1_IO04__UART1_RX		MX6SX_PAD_GPIO1_IO04__UART1_DTE_RX
 #define MX6SX_PAD_GPIO1_IO04__UART1_TX		MX6SX_PAD_GPIO1_IO04__UART1_DCE_TX
 #define MX6SX_PAD_GPIO1_IO05__UART1_RX		MX6SX_PAD_GPIO1_IO05__UART1_DCE_RX

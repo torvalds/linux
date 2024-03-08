@@ -13,7 +13,7 @@
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 
 /*
- * When accessing the stack of a non-current task that might exit, use
+ * When accessing the stack of a analn-current task that might exit, use
  * try_get_task_stack() instead.  task_stack_page will return a pointer
  * that could get freed out from under you.
  */
@@ -66,7 +66,7 @@ static inline unsigned long *end_of_stack(struct task_struct *p)
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 static inline void *try_get_task_stack(struct task_struct *tsk)
 {
-	return refcount_inc_not_zero(&tsk->stack_refcount) ?
+	return refcount_inc_analt_zero(&tsk->stack_refcount) ?
 		task_stack_page(tsk) : NULL;
 }
 
@@ -95,7 +95,7 @@ static inline int object_is_on_stack(const void *obj)
 extern void thread_stack_cache_init(void);
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
-static inline unsigned long stack_not_used(struct task_struct *p)
+static inline unsigned long stack_analt_used(struct task_struct *p)
 {
 	unsigned long *n = end_of_stack(p);
 

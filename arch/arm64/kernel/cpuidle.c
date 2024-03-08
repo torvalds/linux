@@ -27,15 +27,15 @@ static int psci_acpi_cpu_init_idle(unsigned int cpu)
 		return -EINVAL;
 
 	/*
-	 * If the PSCI cpu_suspend function hook has not been initialized
-	 * idle states must not be enabled, so bail out
+	 * If the PSCI cpu_suspend function hook has analt been initialized
+	 * idle states must analt be enabled, so bail out
 	 */
 	if (!psci_ops.cpu_suspend)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	count = pr->power.count - 1;
 	if (count <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < count; i++) {
 		u32 state;

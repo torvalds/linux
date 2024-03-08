@@ -255,7 +255,7 @@ struct hix5hd2_priv {
 	struct device *dev;
 	struct net_device *netdev;
 
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	phy_interface_t	phy_mode;
 
 	unsigned long hw_cap;
@@ -306,7 +306,7 @@ static void hix5hd2_config_port(struct net_device *dev, u32 speed, u32 duplex)
 			val = MII_SPEED_10;
 		break;
 	default:
-		netdev_warn(dev, "not supported mode\n");
+		netdev_warn(dev, "analt supported mode\n");
 		val = MII_SPEED_10;
 		break;
 	}
@@ -842,12 +842,12 @@ static int hix5hd2_net_open(struct net_device *dev)
 		return ret;
 	}
 
-	phy = of_phy_connect(dev, priv->phy_node,
+	phy = of_phy_connect(dev, priv->phy_analde,
 			     &hix5hd2_adjust_link, 0, priv->phy_mode);
 	if (!phy) {
 		clk_disable_unprepare(priv->mac_ifc_clk);
 		clk_disable_unprepare(priv->mac_core_clk);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	phy_start(phy);
@@ -947,8 +947,8 @@ static int hix5hd2_mdio_read(struct mii_bus *bus, int phy, int reg)
 
 	val = readl_relaxed(base + MDIO_RDATA_STATUS);
 	if (val & MDIO_R_VALID) {
-		dev_err(bus->parent, "SMI bus read not valid\n");
-		ret = -ENODEV;
+		dev_err(bus->parent, "SMI bus read analt valid\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1017,7 +1017,7 @@ static int hix5hd2_init_hw_desc_queue(struct hix5hd2_priv *priv)
 error_free_pool:
 	hix5hd2_destroy_hw_desc_queue(priv);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int hix5hd2_init_sg_desc_queue(struct hix5hd2_priv *priv)
@@ -1029,7 +1029,7 @@ static int hix5hd2_init_sg_desc_queue(struct hix5hd2_priv *priv)
 				  TX_DESC_NUM * sizeof(struct sg_desc),
 				  &phys_addr, GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->tx_ring.desc = desc;
 	priv->tx_ring.phys_addr = phys_addr;
@@ -1094,7 +1094,7 @@ static const struct of_device_id hix5hd2_of_match[];
 static int hix5hd2_dev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct net_device *ndev;
 	struct hix5hd2_priv *priv;
 	struct mii_bus *bus;
@@ -1102,7 +1102,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct hix5hd2_priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -1127,7 +1127,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	priv->mac_core_clk = devm_clk_get(&pdev->dev, "mac_core");
 	if (IS_ERR(priv->mac_core_clk)) {
 		netdev_err(ndev, "failed to get mac core clk\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free_netdev;
 	}
 
@@ -1160,7 +1160,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->phy_rst)) {
 		priv->phy_rst = NULL;
 	} else {
-		ret = of_property_read_u32_array(node,
+		ret = of_property_read_u32_array(analde,
 						 PHY_RESET_DELAYS_PROPERTY,
 						 priv->phy_reset_delays,
 						 DELAYS_NUM);
@@ -1171,7 +1171,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 
 	bus = mdiobus_alloc();
 	if (bus == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_disable_clk;
 	}
 
@@ -1183,19 +1183,19 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(&pdev->dev));
 	priv->bus = bus;
 
-	ret = of_mdiobus_register(bus, node);
+	ret = of_mdiobus_register(bus, analde);
 	if (ret)
 		goto err_free_mdio;
 
-	ret = of_get_phy_mode(node, &priv->phy_mode);
+	ret = of_get_phy_mode(analde, &priv->phy_mode);
 	if (ret) {
-		netdev_err(ndev, "not find phy-mode\n");
+		netdev_err(ndev, "analt find phy-mode\n");
 		goto err_mdiobus;
 	}
 
-	priv->phy_node = of_parse_phandle(node, "phy-handle", 0);
-	if (!priv->phy_node) {
-		netdev_err(ndev, "not find phy-handle\n");
+	priv->phy_analde = of_parse_phandle(analde, "phy-handle", 0);
+	if (!priv->phy_analde) {
+		netdev_err(ndev, "analt find phy-handle\n");
 		ret = -EINVAL;
 		goto err_mdiobus;
 	}
@@ -1203,17 +1203,17 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	ndev->irq = platform_get_irq(pdev, 0);
 	if (ndev->irq < 0) {
 		ret = ndev->irq;
-		goto out_phy_node;
+		goto out_phy_analde;
 	}
 
 	ret = devm_request_irq(dev, ndev->irq, hix5hd2_interrupt,
 			       0, pdev->name, ndev);
 	if (ret) {
 		netdev_err(ndev, "devm_request_irq failed\n");
-		goto out_phy_node;
+		goto out_phy_analde;
 	}
 
-	ret = of_get_ethdev_address(node, ndev);
+	ret = of_get_ethdev_address(analde, ndev);
 	if (ret) {
 		eth_hw_addr_random(ndev);
 		netdev_warn(ndev, "using random MAC address %pM\n",
@@ -1235,7 +1235,7 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 
 	ret = hix5hd2_init_hw_desc_queue(priv);
 	if (ret)
-		goto out_phy_node;
+		goto out_phy_analde;
 
 	netif_napi_add(ndev, &priv->napi, hix5hd2_poll);
 
@@ -1261,8 +1261,8 @@ out_destroy_queue:
 		hix5hd2_destroy_sg_desc_queue(priv);
 	netif_napi_del(&priv->napi);
 	hix5hd2_destroy_hw_desc_queue(priv);
-out_phy_node:
-	of_node_put(priv->phy_node);
+out_phy_analde:
+	of_analde_put(priv->phy_analde);
 err_mdiobus:
 	mdiobus_unregister(bus);
 err_free_mdio:
@@ -1290,7 +1290,7 @@ static void hix5hd2_dev_remove(struct platform_device *pdev)
 	if (HAS_CAP_TSO(priv->hw_cap))
 		hix5hd2_destroy_sg_desc_queue(priv);
 	hix5hd2_destroy_hw_desc_queue(priv);
-	of_node_put(priv->phy_node);
+	of_analde_put(priv->phy_analde);
 	cancel_work_sync(&priv->tx_timeout_task);
 	free_netdev(ndev);
 }

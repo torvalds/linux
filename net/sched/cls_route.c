@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <net/dst.h>
 #include <net/route.h>
@@ -20,9 +20,9 @@
 #include <net/tc_wrapper.h>
 
 /*
- * 1. For now we assume that route tags < 256.
+ * 1. For analw we assume that route tags < 256.
  *    It allows to use direct table lookups, instead of hash tables.
- * 2. For now we assume that "from TAG" and "fromdev DEV" statements
+ * 2. For analw we assume that "from TAG" and "fromdev DEV" statements
  *    are mutually  exclusive.
  * 3. "to TAG from ANY" has higher priority, than "to ANY from XXX"
  */
@@ -246,7 +246,7 @@ static int route4_init(struct tcf_proto *tp)
 
 	head = kzalloc(sizeof(struct route4_head), GFP_KERNEL);
 	if (head == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	rcu_assign_pointer(tp->root, head);
 	return 0;
@@ -335,7 +335,7 @@ static int route4_delete(struct tcf_proto *tp, void *arg, bool *last,
 			RCU_INIT_POINTER(*fp, rtnl_dereference(f->next));
 
 			/* Remove any fastmap lookups that might ref filter
-			 * notice we unlink'd the filter so we can't get it
+			 * analtice we unlink'd the filter so we can't get it
 			 * back in the fastmap.
 			 */
 			route4_reset_fastmap(head);
@@ -354,7 +354,7 @@ static int route4_delete(struct tcf_proto *tp, void *arg, bool *last,
 					goto out;
 			}
 
-			/* OK, session has no flows */
+			/* OK, session has anal flows */
 			RCU_INIT_POINTER(head->table[to_hash(h)], NULL);
 			kfree_rcu(b, rcu);
 			break;
@@ -440,7 +440,7 @@ static int route4_set_parms(struct net *net, struct tcf_proto *tp,
 	if (!b) {
 		b = kzalloc(sizeof(struct route4_bucket), GFP_KERNEL);
 		if (b == NULL)
-			return -ENOBUFS;
+			return -EANALBUFS;
 
 		rcu_assign_pointer(head->table[h1], b);
 	} else {
@@ -506,7 +506,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	if (fold && fold->handle != handle)
 			return -EINVAL;
 
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	f = kzalloc(sizeof(struct route4_filter), GFP_KERNEL);
 	if (!f)
 		goto errout;
@@ -613,7 +613,7 @@ static int route4_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

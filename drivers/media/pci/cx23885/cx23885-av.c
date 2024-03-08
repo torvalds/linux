@@ -2,7 +2,7 @@
 /*
  *  Driver for the Conexant CX23885/7/8 PCIe bridge
  *
- *  AV device support routines - non-input, non-vl42_subdev routines
+ *  AV device support routines - analn-input, analn-vl42_subdev routines
  *
  *  Copyright (C) 2010  Andy Walls <awalls@md.metrocast.net>
  */
@@ -20,7 +20,7 @@ void cx23885_av_work_handler(struct work_struct *work)
 	v4l2_subdev_call(dev->sd_cx25840, core, interrupt_service_routine,
 			 PCI_MSK_AV_CORE, &handled);
 
-	/* Getting here with the interrupt not handled
+	/* Getting here with the interrupt analt handled
 	   then probbaly flatiron does have pending interrupts.
 	*/
 	if (!handled) {

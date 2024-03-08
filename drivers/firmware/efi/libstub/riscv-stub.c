@@ -14,9 +14,9 @@
 unsigned long stext_offset(void)
 {
 	/*
-	 * When built as part of the kernel, the EFI stub cannot branch to the
+	 * When built as part of the kernel, the EFI stub cananalt branch to the
 	 * kernel proper via the image header, as the PE/COFF header is
-	 * strictly not part of the in-memory presentation of the image, only
+	 * strictly analt part of the in-memory presentation of the image, only
 	 * of the file representation. So instead, we need to jump to the
 	 * actual entrypoint in the .text region of the image.
 	 */

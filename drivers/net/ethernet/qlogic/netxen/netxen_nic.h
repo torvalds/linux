@@ -34,18 +34,18 @@
 #include "netxen_nic_hw.h"
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
-#define _NETXEN_NIC_LINUX_MINOR 0
+#define _NETXEN_NIC_LINUX_MIANALR 0
 #define _NETXEN_NIC_LINUX_SUBVERSION 82
 #define NETXEN_NIC_LINUX_VERSIONID  "4.0.82"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
-#define _minor(v)	(((v) >> 16) & 0xff)
+#define _mianalr(v)	(((v) >> 16) & 0xff)
 #define _build(v)	((v) & 0xffff)
 
 /* version in image has weird encoding:
  *  7:0  - major
- * 15:8  - minor
+ * 15:8  - mianalr
  * 31:16 - build (little endian)
  */
 #define NETXEN_DECODE_VERSION(v) \
@@ -81,16 +81,16 @@
 	(((addr) < (high)) && ((addr) >= (low)))
 
 /*
- * normalize a 64MB crb address to 32MB PCI window
- * To use NETXEN_CRB_NORMALIZE, window _must_ be set to 1
+ * analrmalize a 64MB crb address to 32MB PCI window
+ * To use NETXEN_CRB_ANALRMALIZE, window _must_ be set to 1
  */
-#define NETXEN_CRB_NORMAL(reg)	\
+#define NETXEN_CRB_ANALRMAL(reg)	\
 	((reg) - NETXEN_CRB_PCIX_HOST2 + NETXEN_CRB_PCIX_HOST)
 
-#define NETXEN_CRB_NORMALIZE(adapter, reg) \
-	pci_base_offset(adapter, NETXEN_CRB_NORMAL(reg))
+#define NETXEN_CRB_ANALRMALIZE(adapter, reg) \
+	pci_base_offset(adapter, NETXEN_CRB_ANALRMAL(reg))
 
-#define DB_NORMALIZE(adapter, off) \
+#define DB_ANALRMALIZE(adapter, off) \
 	(adapter->ahw.db_base + (off))
 
 #define NX_P2_C0		0x24
@@ -171,13 +171,13 @@
 #define PHAN_INITIALIZE_FAILED		0xffff
 #define PHAN_INITIALIZE_COMPLETE	0xff01
 
-/* Host writes the following to notify that it has done the init-handshake */
+/* Host writes the following to analtify that it has done the init-handshake */
 #define PHAN_INITIALIZE_ACK	0xf00f
 
 #define NUM_RCV_DESC_RINGS	3
 #define NUM_STS_DESC_RINGS	4
 
-#define RCV_RING_NORMAL	0
+#define RCV_RING_ANALRMAL	0
 #define RCV_RING_JUMBO	1
 #define RCV_RING_LRO	2
 
@@ -338,7 +338,7 @@ struct cmd_desc_type0 {
 
 } __attribute__ ((aligned(64)));
 
-/* Note: sizeof(rcv_desc) should always be a multiple of 2 */
+/* Analte: sizeof(rcv_desc) should always be a multiple of 2 */
 struct rcv_desc {
 	__le16 reference_handle;
 	__le16 reserved;
@@ -439,7 +439,7 @@ struct uni_data_desc{
 /* The version of the main data structure */
 #define	NETXEN_BDINFO_VERSION 1
 
-/* Magic number to let user know flash is programmed */
+/* Magic number to let user kanalw flash is programmed */
 #define	NETXEN_BDINFO_MAGIC 0x12345678
 
 /* Max number of Gig ports on a Phantom board */
@@ -504,7 +504,7 @@ struct uni_data_desc{
 #define NX_P3_MN_ROMIMAGE	2
 #define NX_UNIFIED_ROMIMAGE	3
 #define NX_FLASH_ROMIMAGE	4
-#define NX_UNKNOWN_ROMIMAGE	0xff
+#define NX_UNKANALWN_ROMIMAGE	0xff
 
 #define NX_P2_MN_ROMIMAGE_NAME		"nxromimg.bin"
 #define NX_P3_CT_ROMIMAGE_NAME		"nx3fwct.bin"
@@ -546,7 +546,7 @@ struct netxen_cmd_buffer {
 	u32 frag_count;
 };
 
-/* In rx_buffer, we do not need multiple fragments as is a single buffer */
+/* In rx_buffer, we do analt need multiple fragments as is a single buffer */
 struct netxen_rx_buffer {
 	struct list_head list;
 	struct sk_buff *skb;
@@ -604,7 +604,7 @@ struct netxen_adapter_stats {
 
 /*
  * Rcv Descriptor Context. One such per Rcv Descriptor. There may
- * be one Rcv Descriptor for normal packets, one for jumbo and may be others.
+ * be one Rcv Descriptor for analrmal packets, one for jumbo and may be others.
  */
 struct nx_host_rds_ring {
 	u32 producer;
@@ -739,21 +739,21 @@ struct netxen_cmd_args {
 #define NX_CDRP_CMD_MAX				0x00000020
 
 #define NX_RCODE_SUCCESS		0
-#define NX_RCODE_NO_HOST_MEM		1
-#define NX_RCODE_NO_HOST_RESOURCE	2
-#define NX_RCODE_NO_CARD_CRB		3
-#define NX_RCODE_NO_CARD_MEM		4
-#define NX_RCODE_NO_CARD_RESOURCE	5
+#define NX_RCODE_ANAL_HOST_MEM		1
+#define NX_RCODE_ANAL_HOST_RESOURCE	2
+#define NX_RCODE_ANAL_CARD_CRB		3
+#define NX_RCODE_ANAL_CARD_MEM		4
+#define NX_RCODE_ANAL_CARD_RESOURCE	5
 #define NX_RCODE_INVALID_ARGS		6
 #define NX_RCODE_INVALID_ACTION		7
 #define NX_RCODE_INVALID_STATE		8
-#define NX_RCODE_NOT_SUPPORTED		9
-#define NX_RCODE_NOT_PERMITTED		10
-#define NX_RCODE_NOT_READY		11
-#define NX_RCODE_DOES_NOT_EXIST		12
+#define NX_RCODE_ANALT_SUPPORTED		9
+#define NX_RCODE_ANALT_PERMITTED		10
+#define NX_RCODE_ANALT_READY		11
+#define NX_RCODE_DOES_ANALT_EXIST		12
 #define NX_RCODE_ALREADY_EXISTS		13
 #define NX_RCODE_BAD_SIGNATURE		14
-#define NX_RCODE_CMD_NOT_IMPL		15
+#define NX_RCODE_CMD_ANALT_IMPL		15
 #define NX_RCODE_CMD_INVALID		16
 #define NX_RCODE_TIMEOUT		17
 #define NX_RCODE_CMD_FAILED		18
@@ -918,9 +918,9 @@ typedef struct {
 
 #define NX_HOST_INT_CRB_MODE_UNIQUE	0
 #define NX_HOST_INT_CRB_MODE_SHARED	1
-#define NX_HOST_INT_CRB_MODE_NORX	2
-#define NX_HOST_INT_CRB_MODE_NOTX	3
-#define NX_HOST_INT_CRB_MODE_NORXTX	4
+#define NX_HOST_INT_CRB_MODE_ANALRX	2
+#define NX_HOST_INT_CRB_MODE_ANALTX	3
+#define NX_HOST_INT_CRB_MODE_ANALRXTX	4
 
 
 /* MAC */
@@ -928,7 +928,7 @@ typedef struct {
 #define MC_COUNT_P2	16
 #define MC_COUNT_P3	38
 
-#define NETXEN_MAC_NOOP	0
+#define NETXEN_MAC_ANALOP	0
 #define NETXEN_MAC_ADD	1
 #define NETXEN_MAC_DEL	2
 
@@ -971,7 +971,7 @@ typedef struct {
 	uint16_t			rsvd_1;
 	uint32_t			low_threshold;
 	uint32_t			high_threshold;
-	nx_nic_intr_coalesce_data_t	normal;
+	nx_nic_intr_coalesce_data_t	analrmal;
 	nx_nic_intr_coalesce_data_t	low;
 	nx_nic_intr_coalesce_data_t	high;
 	nx_nic_intr_coalesce_data_t	irq;
@@ -1052,7 +1052,7 @@ typedef struct {
 #define NX_TOE_LRO_REQUEST_TIMER		10
 #define NX_NIC_LRO_REQUEST_LAST			11
 
-#define NX_FW_CAPABILITY_LINK_NOTIFICATION	(1 << 5)
+#define NX_FW_CAPABILITY_LINK_ANALTIFICATION	(1 << 5)
 #define NX_FW_CAPABILITY_SWITCHING		(1 << 6)
 #define NX_FW_CAPABILITY_PEXQ			(1 << 7)
 #define NX_FW_CAPABILITY_BDG			(1 << 8)
@@ -1063,8 +1063,8 @@ typedef struct {
 #define NX_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	(1 << 2)
 
 /* module types */
-#define LINKEVENT_MODULE_NOT_PRESENT			1
-#define LINKEVENT_MODULE_OPTICAL_UNKNOWN		2
+#define LINKEVENT_MODULE_ANALT_PRESENT			1
+#define LINKEVENT_MODULE_OPTICAL_UNKANALWN		2
 #define LINKEVENT_MODULE_OPTICAL_SRLR			3
 #define LINKEVENT_MODULE_OPTICAL_LRM			4
 #define LINKEVENT_MODULE_OPTICAL_SFP_1G			5
@@ -1162,7 +1162,7 @@ typedef struct {
 
 /* Mini Coredump FW supported version */
 #define NX_MD_SUPPORT_MAJOR		4
-#define NX_MD_SUPPORT_MINOR		0
+#define NX_MD_SUPPORT_MIANALR		0
 #define NX_MD_SUPPORT_SUBVERSION	579
 
 #define LSW(x)  ((uint16_t)(x))
@@ -1220,7 +1220,7 @@ typedef struct {
 Entry Type Defines
 */
 
-#define RDNOP	0
+#define RDANALP	0
 #define RDCRB	1
 #define RDMUX	2
 #define QUEUE	3
@@ -1319,7 +1319,7 @@ struct netxen_minidump_template_hdr {
 /* Common Entry Header:  Common to All Entry Types */
 /*
  * Driver Code is for driver to write some info about the entry.
- * Currently not used.
+ * Currently analt used.
  */
 
 struct netxen_common_entry_hdr {
@@ -1798,7 +1798,7 @@ int nx_dev_request_reset(struct netxen_adapter *adapter);
 #define NETXEN_MAX_SHORT_NAME 32
 struct netxen_brdinfo {
 	int brdtype;	/* type of board */
-	long ports;		/* max no of physical ports */
+	long ports;		/* max anal of physical ports */
 	char short_name[NETXEN_MAX_SHORT_NAME];
 };
 
@@ -1845,7 +1845,7 @@ static inline int netxen_nic_get_brd_name_by_type(u32 type, char *name)
 	}
 
 	if (!found) {
-		strcpy(name, "Unknown");
+		strcpy(name, "Unkanalwn");
 		return -EINVAL;
 	}
 

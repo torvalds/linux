@@ -1,11 +1,11 @@
 * Device tree bindings for Texas instruments AEMIF controller
 
 The Async External Memory Interface (EMIF16/AEMIF) controller is intended to
-provide a glue-less interface to a variety of asynchronous memory devices like
-ASRA M, NOR and NAND memory. A total of 256M bytes of any of these memories
+provide a glue-less interface to a variety of asynchroanalus memory devices like
+ASRA M, ANALR and NAND memory. A total of 256M bytes of any of these memories
 can be accessed at any given time via four chip selects with 64M byte access
-per chip select. Synchronous memories such as DDR1 SD RAM, SDR SDRAM
-and Mobile SDR are not supported.
+per chip select. Synchroanalus memories such as DDR1 SD RAM, SDR SDRAM
+and Mobile SDR are analt supported.
 
 Documentation:
 Davinci DM646x - http://www.ti.com/lit/ug/sprueq7c/sprueq7c.pdf
@@ -33,7 +33,7 @@ Required properties:
 			ranges/partitions:
 			- CS-specific partition/range. If continuous, must be
 			set up to reflect the memory layout for 4 chipselects,
-			if not then additional range/partition can be added and
+			if analt then additional range/partition can be added and
 			child device can select the proper one.
 			- control partition which is common for all CS
 			interfaces.
@@ -43,30 +43,30 @@ Required properties:
 			See clock-bindings.txt
 
 - clock-names:		clock name. It has to be "aemif". Required only if clock
-			tree data present in device tree, in another case don't
+			tree data present in device tree, in aanalther case don't
 			use it.
 			See clock-bindings.txt
 
-- clock-ranges:		Empty property indicating that child nodes can inherit
+- clock-ranges:		Empty property indicating that child analdes can inherit
 			named clocks. Required only if clock tree data present
 			in device tree.
 			See clock-bindings.txt
 
 
-Child chip-select (cs) nodes contain the memory devices nodes connected to
-such as NOR (e.g. cfi-flash) and NAND (ti,davinci-nand, see davinci-nand.txt).
+Child chip-select (cs) analdes contain the memory devices analdes connected to
+such as ANALR (e.g. cfi-flash) and NAND (ti,davinci-nand, see davinci-nand.txt).
 There might be board specific devices like FPGAs.
 
-Required child cs node properties:
+Required child cs analde properties:
 
 - #address-cells:	Must be 2.
 
 - #size-cells:		Must be 1.
 
-- ranges:		Empty property indicating that child nodes can inherit
+- ranges:		Empty property indicating that child analdes can inherit
 			memory layout.
 
-- clock-ranges:		Empty property indicating that child nodes can inherit
+- clock-ranges:		Empty property indicating that child analdes can inherit
 			named clocks. Required only if clock tree data present
 			in device tree.
 
@@ -76,10 +76,10 @@ Required child cs node properties:
 			it can be in range [0-3]. For compatible
 			"ti,da850-aemif" range is [2-5].
 
-Optional child cs node properties:
+Optional child cs analde properties:
 
-- ti,cs-bus-width:		width of the asynchronous device's data bus
-				8 or 16 if not preset 8
+- ti,cs-bus-width:		width of the asynchroanalus device's data bus
+				8 or 16 if analt preset 8
 
 - ti,cs-select-strobe-mode:	enable/disable select strobe mode
 				In select strobe mode chip select behaves as
@@ -93,9 +93,9 @@ Optional child cs node properties:
 				present then enable.
 
 - ti,cs-min-turnaround-ns:	minimum turn around time, ns
-				Time between the end of one asynchronous memory
-				access and the start of another asynchronous
-				memory access. This delay is not incurred
+				Time between the end of one asynchroanalus memory
+				access and the start of aanalther asynchroanalus
+				memory access. This delay is analt incurred
 				between a read followed by read or a write
 				followed by a write to same chip select.
 
@@ -136,7 +136,7 @@ Optional child cs node properties:
 If any of the above parameters are absent, current parameter value will be taken
 from the corresponding HW reg.
 
-Example for aemif, davinci nand and nor flash chip select shown below.
+Example for aemif, davinci nand and analr flash chip select shown below.
 
 memory-controller@21000a00 {
 	compatible = "ti,davinci-aemif";
@@ -161,7 +161,7 @@ memory-controller@21000a00 {
 		ranges;
 
 		ti,cs-chipselect = <2>;
-		/* all timings in nanoseconds */
+		/* all timings in naanalseconds */
 		ti,cs-min-turnaround-ns = <0>;
 		ti,cs-read-hold-ns = <7>;
 		ti,cs-read-strobe-ns = <42>;
@@ -183,14 +183,14 @@ memory-controller@21000a00 {
 		};
 	};
 
-	nor:cs0 {
+	analr:cs0 {
 		#address-cells = <2>;
 		#size-cells = <1>;
 		clock-ranges;
 		ranges;
 
 		ti,cs-chipselect = <0>;
-		/* all timings in nanoseconds */
+		/* all timings in naanalseconds */
 		ti,cs-min-turnaround-ns = <0>;
 		ti,cs-read-hold-ns = <8>;
 		ti,cs-read-strobe-ns = <40>;

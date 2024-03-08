@@ -457,7 +457,7 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 		wqe_size = sizeof(*atomic_sqe);
 		goto out;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flags & IB_SEND_INLINE) {
@@ -513,7 +513,7 @@ int erdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *send_wr,
 
 	while (wr) {
 		if ((u16)(sq_pi - qp->kern_qp.sq_ci) >= qp->attrs.sq_size) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			*bad_send_wr = send_wr;
 			break;
 		}

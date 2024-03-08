@@ -89,7 +89,7 @@ void test_bpf_iter_setsockopt_unix(void)
 		goto destroy;
 
 	while ((err = read(iter_fd, &buf, sizeof(buf))) == -1 &&
-	       errno == EAGAIN)
+	       erranal == EAGAIN)
 		;
 	if (!ASSERT_OK(err, "read iter error"))
 		goto destroy;

@@ -19,7 +19,7 @@
 #define	RSSI_MODE		1
 #define	TRAFFIC_LOW	0
 #define	TRAFFIC_HIGH	1
-#define	NONE			0
+#define	ANALNE			0
 
 /* 3 Tx Power Tracking */
 /* 3 ============================================================ */
@@ -35,7 +35,7 @@
 /* 3 PSD Handler */
 /* 3 ============================================================ */
 
-#define	AFH_PSD		1	/* 0:normal PSD scan, 1: only do 20 pts PSD */
+#define	AFH_PSD		1	/* 0:analrmal PSD scan, 1: only do 20 pts PSD */
 #define	MODE_40M		0	/* 0:20M, 1:40M */
 #define	PSD_TH2		3
 #define	PSD_CHMIN		20   /*  Minimum channel number for BT AFH */
@@ -142,12 +142,12 @@ struct swat_t { /* _SW_Antenna_Switch_ */
 	u16 Retry_Counter;
 
 	/*  Before link Antenna Switch check */
-	u8 SWAS_NoLink_State;
-	u32 SWAS_NoLink_BK_Reg860;
-	u32 SWAS_NoLink_BK_Reg92c;
-	u32 SWAS_NoLink_BK_Reg948;
-	bool ANTA_ON;	/* To indicate Ant A is or not */
-	bool ANTB_ON;	/* To indicate Ant B is on or not */
+	u8 SWAS_AnalLink_State;
+	u32 SWAS_AnalLink_BK_Reg860;
+	u32 SWAS_AnalLink_BK_Reg92c;
+	u32 SWAS_AnalLink_BK_Reg948;
+	bool ANTA_ON;	/* To indicate Ant A is or analt */
+	bool ANTB_ON;	/* To indicate Ant B is on or analt */
 	bool Pre_Aux_FailDetec;
 	bool RSSI_AntDect_bResult;
 	u8 Ant2G;
@@ -233,7 +233,7 @@ struct odm_phy_info {
 	s8 rx_power;                   /* in dBm Translate from PWdB */
 
 	/*
-	 * Real power in dBm for this packet, no beautification and
+	 * Real power in dBm for this packet, anal beautification and
 	 * aggregation. Keep this raw info to be used for the other procedures.
 	 */
 	s8 recv_signal_power;
@@ -345,7 +345,7 @@ enum odm_cmninfo_e {
 	ODM_CMNINFO_BT_HS_CONNECT_PROCESS,
 	ODM_CMNINFO_BT_HS_RSSI,
 	ODM_CMNINFO_BT_OPERATION,
-	ODM_CMNINFO_BT_LIMITED_DIG,		/* Need to Limited Dig or not */
+	ODM_CMNINFO_BT_LIMITED_DIG,		/* Need to Limited Dig or analt */
 	ODM_CMNINFO_BT_DISABLE_EDCA,
 /* CALL BY VALUE------------- */
 
@@ -440,7 +440,7 @@ enum { /* tag_ODM_RF_Type_Definition */
 
 /*  ODM_CMNINFO_WM_MODE */
 enum { /* tag_Wireless_Mode_Definition */
-	ODM_WM_UNKNOWN    = 0x0,
+	ODM_WM_UNKANALWN    = 0x0,
 	ODM_WM_B          = BIT0,
 	ODM_WM_G          = BIT1,
 	ODM_WM_N24G       = BIT3,
@@ -566,7 +566,7 @@ struct odm_rf_cal_t { /* ODM_RF_Calibration_Structure */
 	/* for APK */
 	u32 APKoutput[2][2]; /* path A/B; output1_1a/output1_2a */
 	u8 bAPKdone;
-	u8 bAPKThermalMeterIgnore;
+	u8 bAPKThermalMeterIganalre;
 
 	/*  DPK */
 	bool bDPKFail;
@@ -620,7 +620,7 @@ struct fat_t { /* _FAST_ANTENNA_TRAINNING_ */
 };
 
 enum {
-	NO_ANTDIV			= 0xFF,
+	ANAL_ANTDIV			= 0xFF,
 	CG_TRX_HW_ANTDIV		= 0x01,
 	CGCS_RX_HW_ANTDIV	= 0x02,
 	FIXED_HW_ANTDIV		= 0x03,
@@ -674,11 +674,11 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	bool MPDIG_2G;		/* off MPDIG */
 	u8 Times_2G;
 
-/*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
+/*  ODM HANDLE, DRIVER NEEDS ANALT TO HOOK------ */
 	bool bCckHighPower;
 	u8 RFPathRxEnable;		/*  ODM_CMNINFO_RFPATH_ENABLE */
 	u8 ControlChannel;
-/*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
+/*  ODM HANDLE, DRIVER NEEDS ANALT TO HOOK------ */
 
 /* REMOVED COMMON INFO---------- */
 	/* u8 		PseudoMacPhyMode; */
@@ -711,18 +711,18 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	u8 FabVersion;
 	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
 	u8 RFEType;
-	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/... = 0/1/2/3/4/... */
+	/*  Board Type Analrmal/HighPower/MiniCard/SLIM/Combo/... = 0/1/2/3/4/... */
 	u8 BoardType;
 	u8 PackageType;
 	u8 TypeGLNA;
 	u8 TypeGPA;
 	u8 TypeALNA;
 	u8 TypeAPA;
-	/*  with external LNA  NO/Yes = 0/1 */
+	/*  with external LNA  ANAL/Anal = 0/1 */
 	u8 ExtLNA;
-	/*  with external PA  NO/Yes = 0/1 */
+	/*  with external PA  ANAL/Anal = 0/1 */
 	u8 ExtPA;
-	/*  with external TRSW  NO/Yes = 0/1 */
+	/*  with external TRSW  ANAL/Anal = 0/1 */
 	u8 ExtTRSW;
 	u8 PatchID; /* Customer ID */
 	bool bInHctTest;
@@ -808,7 +808,7 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	u64 RSSI_TRSW_iso;
 
 	u8 RxRate;
-	bool bNoisyState;
+	bool bAnalisyState;
 	u8 TxRate;
 	u8 LinkedInterval;
 	u8 preChannel;
@@ -1070,7 +1070,7 @@ enum { /* tag_1R_CCA_Type_Definition */
 
 enum { /* tag_RF_Type_Definition */
 	RF_Save = 0,
-	RF_Normal = 1,
+	RF_Analrmal = 1,
 	RF_MAX = 2,
 };
 
@@ -1091,7 +1091,7 @@ extern	u8 CCKSwingTable_Ch14_New[CCK_TABLE_SIZE][8];
 extern  u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE];
 
 /*  */
-/*  check Sta pointer valid or not */
+/*  check Sta pointer valid or analt */
 /*  */
 #define IS_STA_VALID(pSta)		(pSta)
 /*  20100514 Joseph: Add definition for antenna switching test after link. */

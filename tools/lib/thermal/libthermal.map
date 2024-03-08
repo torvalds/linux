@@ -15,7 +15,7 @@ LIBTHERMAL_0.0.1 {
 		thermal_cmd_get_tz;
 		thermal_cmd_get_cdev;
 		thermal_cmd_get_trip;
-		thermal_cmd_get_governor;
+		thermal_cmd_get_goveranalr;
 		thermal_cmd_get_temp;
 		thermal_sampling_init;
 		thermal_sampling_handle;

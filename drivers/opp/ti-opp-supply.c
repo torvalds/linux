@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
- *	Nishanth Menon <nm@ti.com>
+ *	Nishanth Meanaln <nm@ti.com>
  *	Dave Gerlach <d-gerlach@ti.com>
  *
  * TI OPP supply driver that provides override into the regulator control
@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -24,7 +24,7 @@
 
 /**
  * struct ti_opp_supply_optimum_voltage_table - optimized voltage table
- * @reference_uv:	reference voltage (usually Nominal voltage)
+ * @reference_uv:	reference voltage (usually Analminal voltage)
  * @optimized_uv:	Optimized voltage from efuse
  */
 struct ti_opp_supply_optimum_voltage_table {
@@ -54,12 +54,12 @@ static struct ti_opp_supply_data opp_data;
  * struct ti_opp_supply_of_data - device tree match data
  * @flags:	specific type of opp supply
  * @efuse_voltage_mask: mask required for efuse register representing voltage
- * @efuse_voltage_uv: Are the efuse entries in micro-volts? if not, assume
+ * @efuse_voltage_uv: Are the efuse entries in micro-volts? if analt, assume
  *		milli-volts.
  */
 struct ti_opp_supply_of_data {
 #define OPPDM_EFUSE_CLASS0_OPTIMIZED_VOLTAGE	BIT(1)
-#define OPPDM_HAS_NO_ABB			BIT(2)
+#define OPPDM_HAS_ANAL_ABB			BIT(2)
 	const u8 flags;
 	const u32 efuse_voltage_mask;
 	const bool efuse_voltage_uv;
@@ -91,21 +91,21 @@ static int _store_optimized_voltages(struct device *dev,
 	res = platform_get_resource(to_platform_device(dev), IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "Unable to get IO resource\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_map;
 	}
 
 	base = ioremap(res->start, resource_size(res));
 	if (!base) {
 		dev_err(dev, "Unable to map Efuse registers\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_map;
 	}
 
 	/* Fetch efuse-settings. */
-	prop = of_find_property(dev->of_node, "ti,efuse-settings", NULL);
+	prop = of_find_property(dev->of_analde, "ti,efuse-settings", NULL);
 	if (!prop) {
-		dev_err(dev, "No 'ti,efuse-settings' property found\n");
+		dev_err(dev, "Anal 'ti,efuse-settings' property found\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -119,7 +119,7 @@ static int _store_optimized_voltages(struct device *dev,
 		goto out;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "ti,absolute-max-voltage-uv",
+	ret = of_property_read_u32(dev->of_analde, "ti,absolute-max-voltage-uv",
 				   &data->vdd_absolute_max_voltage_uv);
 	if (ret) {
 		dev_err(dev, "ti,absolute-max-voltage-uv is missing\n");
@@ -130,7 +130,7 @@ static int _store_optimized_voltages(struct device *dev,
 	table = kcalloc(data->num_vdd_table, sizeof(*data->vdd_table),
 			GFP_KERNEL);
 	if (!table) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	data->vdd_table = table;
@@ -155,7 +155,7 @@ static int _store_optimized_voltages(struct device *dev,
 			table->optimized_uv);
 
 		/*
-		 * Some older samples might not have optimized efuse
+		 * Some older samples might analt have optimized efuse
 		 * Use reference voltage for those - just add debug message
 		 * for them.
 		 */
@@ -191,7 +191,7 @@ static void _free_optimized_voltages(struct device *dev,
  * @reference_uv:	reference voltage (OPP voltage) for which we need value
  *
  * Return: if a match is found, return optimized voltage, else return
- * reference_uv, also return reference_uv if no optimization is needed.
+ * reference_uv, also return reference_uv if anal optimization is needed.
  */
 static int _get_optimal_vdd_voltage(struct device *dev,
 				    struct ti_opp_supply_data *data,
@@ -235,7 +235,7 @@ static int _opp_set_voltage(struct device *dev,
 	 * If we do have an absolute max voltage specified, then we should
 	 * use that voltage instead to allow for cases where the voltage rails
 	 * are ganged (example if we set the max for an opp as 1.12v, and
-	 * the absolute max is 1.5v, for another rail to get 1.25v, it cannot
+	 * the absolute max is 1.5v, for aanalther rail to get 1.25v, it cananalt
 	 * be achieved if the regulator is constrainted to max of 1.12v, even
 	 * if it can function at 1.25v
 	 */
@@ -356,7 +356,7 @@ static const struct ti_opp_supply_of_data omap_omap5_of_data = {
 };
 
 static const struct ti_opp_supply_of_data omap_omap5core_of_data = {
-	.flags = OPPDM_EFUSE_CLASS0_OPTIMIZED_VOLTAGE | OPPDM_HAS_NO_ABB,
+	.flags = OPPDM_EFUSE_CLASS0_OPTIMIZED_VOLTAGE | OPPDM_HAS_ANAL_ABB,
 	.efuse_voltage_mask = 0xFFF,
 	.efuse_voltage_uv = false,
 };

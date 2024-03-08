@@ -55,7 +55,7 @@ bool is_regular_file(const char *file)
 	return S_ISREG(st.st_mode);
 }
 
-/* Helper function for filesystems that return a dent->d_type DT_UNKNOWN */
+/* Helper function for filesystems that return a dent->d_type DT_UNKANALWN */
 bool is_directory(const char *base_path, const struct dirent *dent)
 {
 	char path[PATH_MAX];

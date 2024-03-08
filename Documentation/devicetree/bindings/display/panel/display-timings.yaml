@@ -14,18 +14,18 @@ maintainers:
 description: |
   A display panel may be able to handle several display timings,
   with different resolutions.
-  The display-timings node makes it possible to specify the timings
+  The display-timings analde makes it possible to specify the timings
   and to specify the timing that is native for the display.
 
 properties:
-  $nodename:
+  $analdename:
     const: display-timings
 
   native-mode:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       The default display timing is the one specified as native-mode.
-      If no native-mode is specified then the first node is assumed
+      If anal native-mode is specified then the first analde is assumed
       to be the native mode.
 
 patternProperties:

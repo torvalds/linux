@@ -3,7 +3,7 @@
  * It is possible to use SO_REUSEPORT to open multiple sockets bound to
  * equivalent local addresses using AF_INET and AF_INET6 at the same time.  If
  * the AF_INET6 socket has IPV6_V6ONLY set, it's clear which socket should
- * receive a given incoming packet.  However, when it is not set, incoming v4
+ * receive a given incoming packet.  However, when it is analt set, incoming v4
  * packets should prefer the AF_INET socket(s).  This behavior was defined with
  * the original SO_REUSEPORT implementation, but broke with
  * e32ea7e74727 ("soreuseport: fast reuseport UDP socket selection")
@@ -14,7 +14,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <linux/in.h>
 #include <linux/unistd.h>
@@ -55,18 +55,18 @@ static void build_rcv_fd(int family, int proto, int *rcv_fds, int count)
 	for (i = 0; i < count; ++i) {
 		rcv_fds[i] = socket(family, proto, 0);
 		if (rcv_fds[i] < 0)
-			error(1, errno, "failed to create receive socket");
+			error(1, erranal, "failed to create receive socket");
 
 		opt = 1;
 		if (setsockopt(rcv_fds[i], SOL_SOCKET, SO_REUSEPORT, &opt,
 			       sizeof(opt)))
-			error(1, errno, "failed to set SO_REUSEPORT");
+			error(1, erranal, "failed to set SO_REUSEPORT");
 
 		if (bind(rcv_fds[i], (struct sockaddr *)&addr, sizeof(addr)))
-			error(1, errno, "failed to bind receive socket");
+			error(1, erranal, "failed to bind receive socket");
 
 		if (proto == SOCK_STREAM && listen(rcv_fds[i], 10))
-			error(1, errno, "failed to listen on receive port");
+			error(1, erranal, "failed to listen on receive port");
 	}
 }
 
@@ -85,16 +85,16 @@ static void send_from_v4(int proto)
 
 	fd = socket(AF_INET, proto, 0);
 	if (fd < 0)
-		error(1, errno, "failed to create send socket");
+		error(1, erranal, "failed to create send socket");
 
 	if (bind(fd, (struct sockaddr *)&saddr, sizeof(saddr)))
-		error(1, errno, "failed to bind send socket");
+		error(1, erranal, "failed to bind send socket");
 
 	if (connect(fd, (struct sockaddr *)&daddr, sizeof(daddr)))
-		error(1, errno, "failed to connect send socket");
+		error(1, erranal, "failed to connect send socket");
 
 	if (send(fd, "a", 1, 0) < 0)
-		error(1, errno, "failed to send message");
+		error(1, erranal, "failed to send message");
 
 	close(fd);
 }
@@ -107,12 +107,12 @@ static int receive_once(int epfd, int proto)
 
 	i = epoll_wait(epfd, &ev, 1, -1);
 	if (i < 0)
-		error(1, errno, "epoll_wait failed");
+		error(1, erranal, "epoll_wait failed");
 
 	if (proto == SOCK_STREAM) {
 		fd = accept(ev.data.fd, NULL, NULL);
 		if (fd < 0)
-			error(1, errno, "failed to accept");
+			error(1, erranal, "failed to accept");
 		i = recv(fd, buf, sizeof(buf), 0);
 		close(fd);
 	} else {
@@ -120,7 +120,7 @@ static int receive_once(int epfd, int proto)
 	}
 
 	if (i < 0)
-		error(1, errno, "failed to recv");
+		error(1, erranal, "failed to recv");
 
 	return ev.data.fd;
 }
@@ -134,13 +134,13 @@ static void test(int *rcv_fds, int count, int proto)
 
 	epfd = epoll_create(1);
 	if (epfd < 0)
-		error(1, errno, "failed to create epoll");
+		error(1, erranal, "failed to create epoll");
 
 	ev.events = EPOLLIN;
 	for (i = 0; i < count; ++i) {
 		ev.data.fd = rcv_fds[i];
 		if (epoll_ctl(epfd, EPOLL_CTL_ADD, rcv_fds[i], &ev))
-			error(1, errno, "failed to register sock epoll");
+			error(1, erranal, "failed to register sock epoll");
 	}
 
 	send_from_v4(proto);
@@ -148,7 +148,7 @@ static void test(int *rcv_fds, int count, int proto)
 	test_fd = receive_once(epfd, proto);
 	len = sizeof(test_family);
 	if (getsockopt(test_fd, SOL_SOCKET, SO_DOMAIN, &test_family, &len))
-		error(1, errno, "failed to read socket domain");
+		error(1, erranal, "failed to read socket domain");
 	if (test_family != AF_INET)
 		error(1, 0, "expected to receive on v4 socket but got v6 (%d)",
 		      test_family);
@@ -174,7 +174,7 @@ int main(void)
 	for (i = 0; i < 10; ++i)
 		close(rcv_fds[i]);
 
-	/* NOTE: UDP socket lookups traverse a different code path when there
+	/* ANALTE: UDP socket lookups traverse a different code path when there
 	 * are > 10 sockets in a group.
 	 */
 	fprintf(stderr, "---- UDP IPv4 created before IPv6 (large) ----\n");

@@ -6,11 +6,11 @@
  *
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- *  Nov 7, 2000
+ *  Analv 7, 2000
  *  Modified to build and operate in Linux kernel environment.
  *
  *  Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.
+ *  Copyright (C) 2000 MIPS Techanallogies, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -40,20 +40,20 @@ union ieee754dp ieee754dp_dump(char *m, union ieee754dp x)
 	case IEEE754_CLASS_ZERO:
 		printk("%cZero", DPSIGN(x) ? '-' : '+');
 		break;
-	case IEEE754_CLASS_DNORM:
+	case IEEE754_CLASS_DANALRM:
 		printk("%c0.", DPSIGN(x) ? '-' : '+');
 		for (i = DP_FBITS - 1; i >= 0; i--)
 			printk("%c", DPMANT(x) & DP_MBIT(i) ? '1' : '0');
 		printk("e%d", DPBEXP(x) - DP_EBIAS);
 		break;
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_ANALRM:
 		printk("%c1.", DPSIGN(x) ? '-' : '+');
 		for (i = DP_FBITS - 1; i >= 0; i--)
 			printk("%c", DPMANT(x) & DP_MBIT(i) ? '1' : '0');
 		printk("e%d", DPBEXP(x) - DP_EBIAS);
 		break;
 	default:
-		printk("Illegal/Unknown IEEE754 value class");
+		printk("Illegal/Unkanalwn IEEE754 value class");
 	}
 	printk("\n");
 	return x;
@@ -79,20 +79,20 @@ union ieee754sp ieee754sp_dump(char *m, union ieee754sp x)
 	case IEEE754_CLASS_ZERO:
 		printk("%cZero", SPSIGN(x) ? '-' : '+');
 		break;
-	case IEEE754_CLASS_DNORM:
+	case IEEE754_CLASS_DANALRM:
 		printk("%c0.", SPSIGN(x) ? '-' : '+');
 		for (i = SP_FBITS - 1; i >= 0; i--)
 			printk("%c", SPMANT(x) & SP_MBIT(i) ? '1' : '0');
 		printk("e%d", SPBEXP(x) - SP_EBIAS);
 		break;
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_ANALRM:
 		printk("%c1.", SPSIGN(x) ? '-' : '+');
 		for (i = SP_FBITS - 1; i >= 0; i--)
 			printk("%c", SPMANT(x) & SP_MBIT(i) ? '1' : '0');
 		printk("e%d", SPBEXP(x) - SP_EBIAS);
 		break;
 	default:
-		printk("Illegal/Unknown IEEE754 value class");
+		printk("Illegal/Unkanalwn IEEE754 value class");
 	}
 	printk("\n");
 	return x;

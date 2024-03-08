@@ -59,7 +59,7 @@ struct mlx5_vdpa_net {
 	u32 cur_num_vqs;
 	u32 rqt_size;
 	bool nb_registered;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct vdpa_callback config_cb;
 	struct mlx5_vdpa_wq_ent cvq_ent;
 	struct hlist_head macvlan_hash[MLX5V_MACVLAN_SIZE];
@@ -82,8 +82,8 @@ struct mlx5_vdpa_counter {
 	struct mlx5_core_dev *mdev;
 };
 
-struct macvlan_node {
-	struct hlist_node hlist;
+struct macvlan_analde {
+	struct hlist_analde hlist;
 	struct mlx5_flow_handle *ucast_rule;
 	struct mlx5_flow_handle *mcast_rule;
 	u64 macvlan;
@@ -104,14 +104,14 @@ void mlx5_vdpa_add_tirn(struct mlx5_vdpa_net *ndev);
 void mlx5_vdpa_remove_tirn(struct mlx5_vdpa_net *ndev);
 #if defined(CONFIG_MLX5_VDPA_STEERING_DEBUG)
 void mlx5_vdpa_add_rx_counters(struct mlx5_vdpa_net *ndev,
-			       struct macvlan_node *node);
+			       struct macvlan_analde *analde);
 void mlx5_vdpa_remove_rx_counters(struct mlx5_vdpa_net *ndev,
-				  struct macvlan_node *node);
+				  struct macvlan_analde *analde);
 #else
 static inline void mlx5_vdpa_add_rx_counters(struct mlx5_vdpa_net *ndev,
-					     struct macvlan_node *node) {}
+					     struct macvlan_analde *analde) {}
 static inline void mlx5_vdpa_remove_rx_counters(struct mlx5_vdpa_net *ndev,
-						struct macvlan_node *node) {}
+						struct macvlan_analde *analde) {}
 #endif
 
 

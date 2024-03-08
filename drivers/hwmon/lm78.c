@@ -26,7 +26,7 @@
 #endif
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+static const unsigned short analrmal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 enum chips { lm78, lm79 };
 
@@ -339,7 +339,7 @@ static ssize_t fan_div_show(struct device *dev, struct device_attribute *da,
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan divisor.  This follows the principle of
  * least surprise; the user doesn't expect the fan minimum to change just
  * because the divisor changed.
@@ -378,7 +378,7 @@ static ssize_t fan_div_store(struct device *dev, struct device_attribute *da,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			"fan_div value %ld analt supported. Choose one of 1, 2, 4 or 8!\n",
 			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -526,7 +526,7 @@ static int lm78_alias_detect(struct i2c_client *client, u8 chipid)
 	struct lm78_data *isa;
 	int i;
 
-	if (!pdev)	/* No ISA chip */
+	if (!pdev)	/* Anal ISA chip */
 		return 0;
 	isa = platform_get_drvdata(pdev);
 
@@ -578,7 +578,7 @@ static int lm78_i2c_detect(struct i2c_client *client,
 	int address = client->addr;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * We block updates of the ISA device to minimize the risk of
@@ -590,12 +590,12 @@ static int lm78_i2c_detect(struct i2c_client *client,
 
 	if ((i2c_smbus_read_byte_data(client, LM78_REG_CONFIG) & 0x80)
 	 || i2c_smbus_read_byte_data(client, LM78_REG_I2C_ADDR) != address)
-		goto err_nodev;
+		goto err_analdev;
 
 	/* Explicitly prevent the misdetection of Winbond chips */
 	i = i2c_smbus_read_byte_data(client, 0x4f);
 	if (i == 0xa3 || i == 0x5c)
-		goto err_nodev;
+		goto err_analdev;
 
 	/* Determine the chip type. */
 	i = i2c_smbus_read_byte_data(client, LM78_REG_CHIPID);
@@ -605,13 +605,13 @@ static int lm78_i2c_detect(struct i2c_client *client,
 	else if ((i & 0xfe) == 0xc0)
 		client_name = "lm79";
 	else
-		goto err_nodev;
+		goto err_analdev;
 
 	if (lm78_alias_detect(client, i)) {
 		dev_dbg(&adapter->dev,
 			"Device at 0x%02x appears to be the same as ISA device\n",
 			address);
-		goto err_nodev;
+		goto err_analdev;
 	}
 
 	if (isa)
@@ -621,10 +621,10 @@ static int lm78_i2c_detect(struct i2c_client *client,
 
 	return 0;
 
- err_nodev:
+ err_analdev:
 	if (isa)
 		mutex_unlock(&isa->update_lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct i2c_device_id lm78_i2c_id[];
@@ -637,7 +637,7 @@ static int lm78_i2c_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm78_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	data->type = i2c_match_id(lm78_i2c_id, client)->driver_data;
@@ -665,15 +665,15 @@ static struct i2c_driver lm78_driver = {
 	.probe		= lm78_i2c_probe,
 	.id_table	= lm78_i2c_id,
 	.detect		= lm78_i2c_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 /*
  * The SMBus locks itself, but ISA access must be locked explicitly!
  * We don't want to lock the whole ISA bus, so we lock each client
  * separately.
- * We ignore the LM78 BUSY flag at this moment - it could lead to deadlocks,
- * would slow down the LM78 access and should not be necessary.
+ * We iganalre the LM78 BUSY flag at this moment - it could lead to deadlocks,
+ * would slow down the LM78 access and should analt be necessary.
  */
 static int lm78_read_value(struct lm78_data *data, u8 reg)
 {
@@ -798,7 +798,7 @@ static int lm78_isa_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct lm78_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->lock);
 	data->isa_addr = res->start;
@@ -871,14 +871,14 @@ static int __init lm78_isa_found(unsigned short address)
 		goto release;
 	}
 
-	/* We found a device, now see if it could be an LM78 */
+	/* We found a device, analw see if it could be an LM78 */
 	outb_p(LM78_REG_CONFIG, address + LM78_ADDR_REG_OFFSET);
 	val = inb_p(address + LM78_DATA_REG_OFFSET);
 	if (val & 0x80)
 		goto release;
 	outb_p(LM78_REG_I2C_ADDR, address + LM78_ADDR_REG_OFFSET);
 	val = inb_p(address + LM78_DATA_REG_OFFSET);
-	if (val < 0x03 || val > 0x77)	/* Not a valid I2C address */
+	if (val < 0x03 || val > 0x77)	/* Analt a valid I2C address */
 		goto release;
 
 	/* The busy flag should be clear again */
@@ -927,7 +927,7 @@ static int __init lm78_isa_device_add(unsigned short address)
 
 	pdev = platform_device_alloc("lm78", address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}

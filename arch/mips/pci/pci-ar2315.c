@@ -4,7 +4,7 @@
 
 /*
  * Both AR2315 and AR2316 chips have PCI interface unit, which supports DMA
- * and interrupt. PCI interface supports MMIO access method, but does not
+ * and interrupt. PCI interface supports MMIO access method, but does analt
  * seem to support I/O ports.
  *
  * Read/write operation in the region 0x80000000-0xBFFFFFFF causes
@@ -20,7 +20,7 @@
  * Which means that during configuration, IDSEL pin of the chip should be
  * asserted.
  *
- * We know (and support) only one board that uses the PCI interface -
+ * We kanalw (and support) only one board that uses the PCI interface -
  * Fonera 2.0g (FON2202). It has a USB EHCI controller connected to the
  * AR2315 PCI bus. IDSEL pin of USB controller is connected to AD[13] line
  * and IDSEL pin of AR2315 is connected to AD[16] line.
@@ -140,7 +140,7 @@
 #define AR2315_PCI_HOST_DEVID	((0xff18 << 16) | PCI_VENDOR_ID_ATHEROS)
 
 /*
- * We need some arbitrary non-zero value to be programmed to the BAR1 register
+ * We need some arbitrary analn-zero value to be programmed to the BAR1 register
  * of PCI host controller to enable DMA. The same value should be used as the
  * offset to calculate the physical address of DMA buffer for PCI devices.
  */
@@ -221,7 +221,7 @@ static int ar2315_pci_cfg_access(struct ar2315_pci_ctrl *apc, unsigned devfn,
 
 	/* Prevent access past the remapped area */
 	if (addr >= AR2315_PCI_CFG_SIZE || dev > 18)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/* Clear pending errors */
 	ar2315_pci_reg_write(apc, AR2315_PCI_ISR, AR2315_PCI_INT_ABORT);
@@ -260,7 +260,7 @@ exit:
 	ar2315_pci_reg_mask(apc, AR2315_PCI_MISC_CONFIG, AR2315_PCIMISC_CFG_SEL,
 			    0);
 
-	return isr & AR2315_PCI_INT_ABORT ? PCIBIOS_DEVICE_NOT_FOUND :
+	return isr & AR2315_PCI_INT_ABORT ? PCIBIOS_DEVICE_ANALT_FOUND :
 					    PCIBIOS_SUCCESSFUL;
 }
 
@@ -284,7 +284,7 @@ static int ar2315_pci_cfg_read(struct pci_bus *bus, unsigned devfn, int where,
 	struct ar2315_pci_ctrl *apc = ar2315_pci_bus_to_apc(bus);
 
 	if (PCI_SLOT(devfn) == AR2315_PCI_HOST_SLOT)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return ar2315_pci_cfg_access(apc, devfn, where, size, value, false);
 }
@@ -295,7 +295,7 @@ static int ar2315_pci_cfg_write(struct pci_bus *bus, unsigned devfn, int where,
 	struct ar2315_pci_ctrl *apc = ar2315_pci_bus_to_apc(bus);
 
 	if (PCI_SLOT(devfn) == AR2315_PCI_HOST_SLOT)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return ar2315_pci_cfg_access(apc, devfn, where, size, &value, true);
 }
@@ -313,7 +313,7 @@ static int ar2315_pci_host_setup(struct ar2315_pci_ctrl *apc)
 
 	res = ar2315_pci_local_cfg_rd(apc, devfn, PCI_VENDOR_ID, &id);
 	if (res != PCIBIOS_SUCCESSFUL || id != AR2315_PCI_HOST_DEVID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Program MBARs */
 	ar2315_pci_local_cfg_wr(apc, devfn, PCI_BASE_ADDRESS_0,
@@ -415,7 +415,7 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 
 	apc = devm_kzalloc(dev, sizeof(*apc), GFP_KERNEL);
 	if (!apc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -443,7 +443,7 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 					    AR2315_PCI_CFG_SIZE);
 	if (!apc->cfg_mem) {
 		dev_err(dev, "failed to remap PCI config space\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Reset the PCI bus by setting bits 5-4 in PCI_MCFG */
@@ -473,12 +473,12 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 					    &ar2315_pci_irq_domain_ops, apc);
 	if (!apc->domain) {
 		dev_err(dev, "failed to add IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ar2315_pci_irq_init(apc);
 
-	/* PCI controller does not support I/O ports */
+	/* PCI controller does analt support I/O ports */
 	apc->io_res.name = "AR2315 IO space";
 	apc->io_res.start = 0;
 	apc->io_res.end = 0;

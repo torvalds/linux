@@ -45,8 +45,8 @@ struct mx25_gcq_priv {
 	 * read access from userspace. Reading a raw value requires a sequence
 	 * of register writes, then a wait for a completion callback,
 	 * and finally a register read, during which userspace could issue
-	 * another read request. This lock protects a read access from
-	 * ocurring before another one has finished.
+	 * aanalther read request. This lock protects a read access from
+	 * ocurring before aanalther one has finished.
 	 */
 	struct mutex lock;
 };
@@ -94,7 +94,7 @@ static irqreturn_t mx25_gcq_irq(int irq, void *data)
 	/* Disable conversion queue run */
 	regmap_update_bits(priv->regs, MX25_ADCQ_CR, MX25_ADCQ_CR_FQS, 0);
 
-	/* Acknowledge all possible irqs */
+	/* Ackanalwledge all possible irqs */
 	regmap_write(priv->regs, MX25_ADCQ_SR, MX25_ADCQ_SR_FRR |
 		     MX25_ADCQ_SR_FUR | MX25_ADCQ_SR_FOR |
 		     MX25_ADCQ_SR_EOQ | MX25_ADCQ_SR_PD);
@@ -198,8 +198,8 @@ static int mx25_gcq_ext_regulator_setup(struct device *dev,
 static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			       struct mx25_gcq_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *child;
 	struct device *dev = &pdev->dev;
 	int ret, i;
 
@@ -216,7 +216,7 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			     MX25_ADCQ_CFG_IN(i) |
 			     MX25_ADCQ_CFG_REFN_NGND2);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		u32 reg;
 		u32 refp = MX25_ADCQ_CFG_REFP_INT;
 		u32 refn = MX25_ADCQ_CFG_REFN_NGND2;
@@ -224,14 +224,14 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(dev, "Failed to get reg property\n");
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 
 		if (reg >= MX25_NUM_CFGS) {
 			dev_err(dev,
 				"reg value is greater than the number of available configuration registers\n");
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -244,7 +244,7 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 		case MX25_ADC_REFP_YP:
 			ret = mx25_gcq_ext_regulator_setup(&pdev->dev, priv, refp);
 			if (ret) {
-				of_node_put(child);
+				of_analde_put(child);
 				return ret;
 			}
 			priv->channel_vref_mv[reg] =
@@ -257,7 +257,7 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			break;
 		default:
 			dev_err(dev, "Invalid positive reference %d\n", refp);
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -270,12 +270,12 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 
 		if ((refp & MX25_ADCQ_CFG_REFP_MASK) != refp) {
 			dev_err(dev, "Invalid fsl,adc-refp property value\n");
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 		if ((refn & MX25_ADCQ_CFG_REFN_MASK) != refn) {
 			dev_err(dev, "Invalid fsl,adc-refn property value\n");
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -306,7 +306,7 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = iio_priv(indio_dev);
 

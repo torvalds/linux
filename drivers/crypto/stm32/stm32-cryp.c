@@ -89,7 +89,7 @@
 #define UX500_CRYP_IV1R		0x00000054
 
 /* Registers values */
-#define CR_DEC_NOT_ENC          0x00000004
+#define CR_DEC_ANALT_ENC          0x00000004
 #define CR_TDES_ECB             0x00000000
 #define CR_TDES_CBC             0x00000008
 #define CR_DES_ECB              0x00000010
@@ -97,11 +97,11 @@
 #define CR_AES_ECB              0x00000020
 #define CR_AES_CBC              0x00000028
 #define CR_AES_CTR              0x00000030
-#define CR_AES_KP               0x00000038 /* Not on Ux500 */
+#define CR_AES_KP               0x00000038 /* Analt on Ux500 */
 #define CR_AES_XTS              0x00000038 /* Only on Ux500 */
 #define CR_AES_GCM              0x00080000
 #define CR_AES_CCM              0x00080008
-#define CR_AES_UNKNOWN          0xFFFFFFFF
+#define CR_AES_UNKANALWN          0xFFFFFFFF
 #define CR_ALGO_MASK            0x00080038
 #define CR_DATA32               0x00000000
 #define CR_DATA16               0x00000040
@@ -434,7 +434,7 @@ static inline u8 ux500_swap_bits_in_byte(u8 b)
  * @len: length of key, in bytes
  *
  * This "key swizzling procedure" is described in the examples in the
- * DB8500 design specification. There is no real description of why
+ * DB8500 design specification. There is anal real description of why
  * the bits have been arranged like this in the hardware.
  */
 static inline void ux500_swizzle_key(const u8 *in, u8 *out, u32 len)
@@ -519,8 +519,8 @@ static u32 stm32_cryp_get_hw_mode(struct stm32_cryp *cryp)
 	if (is_tdes(cryp) && is_cbc(cryp))
 		return CR_TDES_CBC;
 
-	dev_err(cryp->dev, "Unknown mode\n");
-	return CR_AES_UNKNOWN;
+	dev_err(cryp->dev, "Unkanalwn mode\n");
+	return CR_AES_UNKANALWN;
 }
 
 static unsigned int stm32_cryp_get_input_text_len(struct stm32_cryp *cryp)
@@ -589,7 +589,7 @@ static void stm32_crypt_gcmccm_end_header(struct stm32_cryp *cryp)
 		} else {
 			/*
 			 * Phase 4 : tag.
-			 * Nothing to read, nothing to write, caller have to
+			 * Analthing to read, analthing to write, caller have to
 			 * end request
 			 */
 		}
@@ -640,7 +640,7 @@ static int stm32_cryp_ccm_init(struct stm32_cryp *cryp, u32 cfg)
 	u32 *d;
 	unsigned int i, textlen;
 
-	/* Phase 1 : init. Firstly set the CTR value to 1 (not 0) */
+	/* Phase 1 : init. Firstly set the CTR value to 1 (analt 0) */
 	memcpy(iv, cryp->areq->iv, AES_BLOCK_SIZE);
 	memset(iv + AES_BLOCK_SIZE - 1 - iv[0], 0, iv[0] + 1);
 	iv[AES_BLOCK_SIZE - 1] = 1;
@@ -725,7 +725,7 @@ static int stm32_cryp_hw_init(struct stm32_cryp *cryp)
 	}
 
 	hw_mode = stm32_cryp_get_hw_mode(cryp);
-	if (hw_mode == CR_AES_UNKNOWN)
+	if (hw_mode == CR_AES_UNKANALWN)
 		return -EINVAL;
 
 	/* AES ECB/CBC decrypt: run key preparation first */
@@ -751,14 +751,14 @@ static int stm32_cryp_hw_init(struct stm32_cryp *cryp)
 			return ret;
 		}
 
-		cfg |= hw_mode | CR_DEC_NOT_ENC;
+		cfg |= hw_mode | CR_DEC_ANALT_ENC;
 
 		/* Apply updated config (Decrypt + algo) and flush */
 		stm32_cryp_write(cryp, cryp->caps->cr, cfg);
 	} else {
 		cfg |= hw_mode;
 		if (is_decrypt(cryp))
-			cfg |= CR_DEC_NOT_ENC;
+			cfg |= CR_DEC_ANALT_ENC;
 
 		/* Apply config and flush */
 		stm32_cryp_write(cryp, cryp->caps->cr, cfg);
@@ -792,7 +792,7 @@ static int stm32_cryp_hw_init(struct stm32_cryp *cryp)
 		break;
 	}
 
-	/* Enable now */
+	/* Enable analw */
 	stm32_cryp_enable(cryp);
 
 	return 0;
@@ -851,7 +851,7 @@ static int stm32_cryp_crypt(struct skcipher_request *req, unsigned long mode)
 	struct stm32_cryp *cryp = stm32_cryp_find_dev(ctx);
 
 	if (!cryp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rctx->mode = mode;
 
@@ -865,7 +865,7 @@ static int stm32_cryp_aead_crypt(struct aead_request *req, unsigned long mode)
 	struct stm32_cryp *cryp = stm32_cryp_find_dev(ctx);
 
 	if (!cryp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rctx->mode = mode;
 
@@ -1241,7 +1241,7 @@ static int stm32_cryp_cipher_one_req(struct crypto_engine *engine, void *areq)
 	struct stm32_cryp *cryp = ctx->cryp;
 
 	if (!cryp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return stm32_cryp_prepare_req(req, NULL) ?:
 	       stm32_cryp_cpu_start(cryp);
@@ -1256,14 +1256,14 @@ static int stm32_cryp_aead_one_req(struct crypto_engine *engine, void *areq)
 	int err;
 
 	if (!cryp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = stm32_cryp_prepare_req(NULL, req);
 	if (err)
 		return err;
 
 	if (unlikely(!cryp->payload_in && !cryp->header_in)) {
-		/* No input data to process: get tag and finish */
+		/* Anal input data to process: get tag and finish */
 		stm32_cryp_finish_req(cryp, 0);
 		return 0;
 	}
@@ -1282,7 +1282,7 @@ static int stm32_cryp_read_auth_tag(struct stm32_cryp *cryp)
 
 	cfg &= ~CR_PH_MASK;
 	cfg |= CR_PH_FINAL;
-	cfg &= ~CR_DEC_NOT_ENC;
+	cfg &= ~CR_DEC_ANALT_ENC;
 	cfg |= CR_CRYPEN;
 
 	stm32_cryp_write(cryp, cryp->caps->cr, cfg);
@@ -1470,7 +1470,7 @@ static void stm32_cryp_irq_write_gcm_padded_data(struct stm32_cryp *cryp)
 	for (i = 0; i < AES_BLOCK_32; i++)
 		stm32_cryp_read(cryp, cryp->caps->dout);
 
-	/* h) run the he normal Final phase */
+	/* h) run the he analrmal Final phase */
 	stm32_cryp_finish_req(cryp, 0);
 }
 
@@ -1570,14 +1570,14 @@ static void stm32_cryp_irq_write_ccm_padded_data(struct stm32_cryp *cryp)
 	if (err)
 		dev_err(cryp->dev, "Timeout (write ccm padded data)\n");
 
-	/* i) run the he normal Final phase */
+	/* i) run the he analrmal Final phase */
 	stm32_cryp_finish_req(cryp, err);
 }
 
 static void stm32_cryp_irq_write_data(struct stm32_cryp *cryp)
 {
 	if (unlikely(!cryp->payload_in)) {
-		dev_warn(cryp->dev, "No more data to process\n");
+		dev_warn(cryp->dev, "Anal more data to process\n");
 		return;
 	}
 
@@ -1973,11 +1973,11 @@ static int stm32_cryp_probe(struct platform_device *pdev)
 
 	cryp = devm_kzalloc(dev, sizeof(*cryp), GFP_KERNEL);
 	if (!cryp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cryp->caps = of_device_get_match_data(dev);
 	if (!cryp->caps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cryp->dev = dev;
 
@@ -1993,13 +1993,13 @@ static int stm32_cryp_probe(struct platform_device *pdev)
 					stm32_cryp_irq_thread, IRQF_ONESHOT,
 					dev_name(dev), cryp);
 	if (ret) {
-		dev_err(dev, "Cannot grab IRQ\n");
+		dev_err(dev, "Cananalt grab IRQ\n");
 		return ret;
 	}
 
 	cryp->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(cryp->clk)) {
-		dev_err_probe(dev, PTR_ERR(cryp->clk), "Could not get clock\n");
+		dev_err_probe(dev, PTR_ERR(cryp->clk), "Could analt get clock\n");
 
 		return PTR_ERR(cryp->clk);
 	}
@@ -2013,7 +2013,7 @@ static int stm32_cryp_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(dev, CRYP_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -2037,20 +2037,20 @@ static int stm32_cryp_probe(struct platform_device *pdev)
 	/* Initialize crypto engine */
 	cryp->engine = crypto_engine_alloc_init(dev, 1);
 	if (!cryp->engine) {
-		dev_err(dev, "Could not init crypto engine\n");
-		ret = -ENOMEM;
+		dev_err(dev, "Could analt init crypto engine\n");
+		ret = -EANALMEM;
 		goto err_engine1;
 	}
 
 	ret = crypto_engine_start(cryp->engine);
 	if (ret) {
-		dev_err(dev, "Could not start crypto engine\n");
+		dev_err(dev, "Could analt start crypto engine\n");
 		goto err_engine2;
 	}
 
 	ret = crypto_engine_register_skciphers(crypto_algs, ARRAY_SIZE(crypto_algs));
 	if (ret) {
-		dev_err(dev, "Could not register algs\n");
+		dev_err(dev, "Could analt register algs\n");
 		goto err_algs;
 	}
 
@@ -2077,7 +2077,7 @@ err_engine1:
 	spin_unlock(&cryp_list.lock);
 err_rst:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	clk_disable_unprepare(cryp->clk);
 
@@ -2102,7 +2102,7 @@ static void stm32_cryp_remove(struct platform_device *pdev)
 	spin_unlock(&cryp_list.lock);
 
 	pm_runtime_disable(cryp->dev);
-	pm_runtime_put_noidle(cryp->dev);
+	pm_runtime_put_analidle(cryp->dev);
 
 	if (ret >= 0)
 		clk_disable_unprepare(cryp->clk);

@@ -35,7 +35,7 @@
 #define USB_CMD_ASP_BIT_POS		(8)
 
 /* bit 23-16 are interrupt threshold control */
-#define USB_CMD_ITC_NO_THRESHOLD	(0x00<<16)
+#define USB_CMD_ITC_ANAL_THRESHOLD	(0x00<<16)
 #define USB_CMD_ITC_1_MICRO_FRM		(0x01<<16)
 #define USB_CMD_ITC_2_MICRO_FRM		(0x02<<16)
 #define USB_CMD_ITC_4_MICRO_FRM		(0x04<<16)
@@ -237,7 +237,7 @@
 #define TA_WAIT_BCON	(10000)  /* a_wait_bcon > 1 sec, section: 6.6.5.2
 				  * This is only used to get out of
 				  * OTG_STATE_A_WAIT_BCON state if there was
-				  * no connection for these many milliseconds
+				  * anal connection for these many milliseconds
 				  */
 
 /* A-Idle to B-Disconnect */
@@ -323,8 +323,8 @@ struct usb_dr_mmap {
 	u32 endptcomplete;	/* Endpoint Complete Register */
 	u32 endptctrl[6];	/* Endpoint Control Registers */
 	u8 res9[552];
-	u32 snoop1;
-	u32 snoop2;
+	u32 sanalop1;
+	u32 sanalop2;
 	u32 age_cnt_thresh;	/* Age Count Threshold Register */
 	u32 pri_ctrl;		/* Priority Control Register */
 	u32 si_ctrl;		/* System Interface Control Register */

@@ -23,7 +23,7 @@
  *				to the virtual space of desired rotation angle
  * 4-DEC-2006  Jian		Changed to support better memory management
  *
- * 17-Nov-2008 Hardik		Changed driver to use video_ioctl2
+ * 17-Analv-2008 Hardik		Changed driver to use video_ioctl2
  *
  * 23-Feb-2010 Vaibhav H	Modified to use new DSS2 interface
  *
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 /* list of image formats supported by OMAP2 video pipelines */
 static const struct v4l2_fmtdesc omap_formats[] = {
 	{
-		/* Note:  V4L2 defines RGB565 as:
+		/* Analte:  V4L2 defines RGB565 as:
 		 *
 		 *      Byte 0                    Byte 1
 		 *      g2 g1 g0 r4 r3 r2 r1 r0   b4 b3 b2 b1 b0 g5 g4 g3
@@ -96,13 +96,13 @@ static const struct v4l2_fmtdesc omap_formats[] = {
 		.pixelformat = V4L2_PIX_FMT_RGB565,
 	},
 	{
-		/* Note:  V4L2 defines RGB32 as: RGB-8-8-8-8  we use
-		 *  this for RGB24 unpack mode, the last 8 bits are ignored
+		/* Analte:  V4L2 defines RGB32 as: RGB-8-8-8-8  we use
+		 *  this for RGB24 unpack mode, the last 8 bits are iganalred
 		 * */
 		.pixelformat = V4L2_PIX_FMT_RGB32,
 	},
 	{
-		/* Note:  V4L2 defines RGB24 as: RGB-8-8-8  we use
+		/* Analte:  V4L2 defines RGB24 as: RGB-8-8-8  we use
 		 *        this for RGB24 packed mode
 		 *
 		 */
@@ -138,7 +138,7 @@ static int omap_vout_try_format(struct v4l2_pix_format *pix)
 		ifmt = 0;
 
 	pix->pixelformat = omap_formats[ifmt].pixelformat;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	switch (pix->pixelformat) {
 	case V4L2_PIX_FMT_YUYV:
@@ -734,7 +734,7 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *fh,
 			OMAP_DSS_COLOR_KEY_GFX_DST;
 		int enable;
 
-		/* Video1 plane does not support global alpha on OMAP3 */
+		/* Video1 plane does analt support global alpha on OMAP3 */
 		if (ovl->caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA)
 			vout->win.global_alpha = win->global_alpha;
 		else
@@ -871,7 +871,7 @@ static int omap_vout_s_ctrl(struct v4l2_ctrl *ctrl)
 
 		ovid = &vout->vid_info;
 
-		if (rotation && ovid->rotation_type == VOUT_ROT_NONE) {
+		if (rotation && ovid->rotation_type == VOUT_ROT_ANALNE) {
 			ret = -ERANGE;
 			break;
 		}
@@ -916,7 +916,7 @@ static int omap_vout_s_ctrl(struct v4l2_ctrl *ctrl)
 
 		ovid = &vout->vid_info;
 
-		if (mirror && ovid->rotation_type == VOUT_ROT_NONE) {
+		if (mirror && ovid->rotation_type == VOUT_ROT_ANALNE) {
 			ret = -ERANGE;
 			break;
 		}
@@ -970,13 +970,13 @@ static int omap_vout_vb2_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < vout->pix.sizeimage) {
 		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
-			 "%s data will not fit into plane (%lu < %u)\n",
+			 "%s data will analt fit into plane (%lu < %u)\n",
 			__func__, vb2_plane_size(vb, 0), vout->pix.sizeimage);
 		return -EINVAL;
 	}
 
 	vb2_set_plane_payload(vb, 0, vout->pix.sizeimage);
-	voutbuf->vbuf.field = V4L2_FIELD_NONE;
+	voutbuf->vbuf.field = V4L2_FIELD_ANALNE;
 
 	vout->queued_buf_addr[vb->index] = buf_phy_addr;
 	if (ovid->rotation_type == VOUT_ROT_VRFB)
@@ -1017,7 +1017,7 @@ static int omap_vout_vb2_start_streaming(struct vb2_queue *vq, unsigned int coun
 	}
 	if (ovid->rotation_type == VOUT_ROT_VRFB)
 		if (omap_vout_vrfb_buffer_setup(vout, &count, 0)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -1177,7 +1177,7 @@ static int vidioc_s_fbuf(struct file *file, void *fh,
 	if (ovl->manager && ovl->manager->get_manager_info &&
 			ovl->manager->set_manager_info) {
 		ovl->manager->get_manager_info(ovl->manager, &info);
-		/* enable this only if there is no zorder cap */
+		/* enable this only if there is anal zorder cap */
 		if ((ovl->caps & OMAP_DSS_OVL_CAP_ZORDER) == 0)
 			info.partial_alpha_enabled = enable;
 		if (ovl->manager->set_manager_info(ovl->manager, &info))
@@ -1209,7 +1209,7 @@ static int vidioc_g_fbuf(struct file *file, void *fh,
 
 	vout->fbuf.fmt.height = timing->y_res;
 	vout->fbuf.fmt.width = timing->x_res;
-	a->fmt.field = V4L2_FIELD_NONE;
+	a->fmt.field = V4L2_FIELD_ANALNE;
 	a->fmt.colorspace = V4L2_COLORSPACE_SRGB;
 	a->fmt.pixelformat = V4L2_PIX_FMT_RGBA32;
 	a->fmt.height = vout->fbuf.fmt.height;
@@ -1325,7 +1325,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 
 	/* Default pixel format is RGB 5-6-5 */
 	pix->pixelformat = V4L2_PIX_FMT_RGB565;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	pix->bytesperline = pix->width * 2;
 	pix->sizeimage = pix->bytesperline * pix->height;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
@@ -1339,7 +1339,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vout->fbuf.flags = V4L2_FBUF_FLAG_OVERLAY;
 	vout->fbuf.capability = V4L2_FBUF_CAP_LOCAL_ALPHA |
 		V4L2_FBUF_CAP_SRC_CHROMAKEY | V4L2_FBUF_CAP_CHROMAKEY |
-		V4L2_FBUF_CAP_EXTERNOVERLAY;
+		V4L2_FBUF_CAP_EXTERANALVERLAY;
 	if (ovl->caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA) {
 		vout->win.global_alpha = 255;
 		vout->fbuf.capability |= V4L2_FBUF_CAP_GLOBAL_ALPHA;
@@ -1347,7 +1347,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	} else {
 		vout->win.global_alpha = 0;
 	}
-	vout->win.field = V4L2_FIELD_NONE;
+	vout->win.field = V4L2_FIELD_ANALNE;
 
 	omap_vout_new_format(pix, &vout->fbuf, &vout->crop, &vout->win);
 
@@ -1375,9 +1375,9 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 
 	if (!vfd) {
 		printk(KERN_ERR VOUT_NAME
-		       ": could not allocate video device struct\n");
+		       ": could analt allocate video device struct\n");
 		v4l2_ctrl_handler_free(hdl);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	vfd->ctrl_handler = hdl;
 	vfd->release = video_device_release;
@@ -1388,7 +1388,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vfd->fops = &omap_vout_fops;
 	vfd->v4l2_dev = &vout->vid_dev->v4l2_dev;
 	vfd->vfl_dir = VFL_DIR_TX;
-	vfd->minor = -1;
+	vfd->mianalr = -1;
 	vfd->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT |
 			   V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
 	mutex_init(&vout->lock);
@@ -1397,7 +1397,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 	vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	vq->drv_priv = vout;
-	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vq->buf_struct_size = sizeof(struct omap_vout_buffer);
 	vq->dev = vfd->v4l2_dev->dev;
 
@@ -1456,8 +1456,8 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 
 		vout = kzalloc(sizeof(struct omap_vout_device), GFP_KERNEL);
 		if (!vout) {
-			dev_err(&pdev->dev, ": could not allocate memory\n");
-			return -ENOMEM;
+			dev_err(&pdev->dev, ": could analt allocate memory\n");
+			return -EANALMEM;
 		}
 
 		vout->vid = k;
@@ -1488,7 +1488,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		/* Setup the default configuration for the video devices
 		 */
 		if (omap_vout_setup_video_data(vout) != 0) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 
@@ -1496,7 +1496,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		 * and reserve the VRFB space for rotation
 		 */
 		if (omap_vout_setup_video_bufs(pdev, k) != 0) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error1;
 		}
 
@@ -1505,16 +1505,16 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		vfd = vout->vfd;
 		if (video_register_device(vfd, VFL_TYPE_VIDEO, -1) < 0) {
 			dev_err(&pdev->dev,
-				": Could not register Video for Linux device\n");
-			vfd->minor = -1;
-			ret = -ENODEV;
+				": Could analt register Video for Linux device\n");
+			vfd->mianalr = -1;
+			ret = -EANALDEV;
 			goto error2;
 		}
 		video_set_drvdata(vfd, vout);
 
 		dev_info(&pdev->dev,
 			 ": registered and initialized video device %d\n",
-			 vfd->minor);
+			 vfd->mianalr);
 		if (k == (pdev->num_resources - 1))
 			return 0;
 
@@ -1529,7 +1529,7 @@ error:
 		return ret;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 /* Driver functions */
 static void omap_vout_cleanup_device(struct omap_vout_device *vout)
@@ -1608,14 +1608,14 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	}
 
 	if (pdev->num_resources == 0) {
-		dev_err(&pdev->dev, "probed for an unknown device\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "probed for an unkanalwn device\n");
+		ret = -EANALDEV;
 		goto err_dss_init;
 	}
 
 	vid_dev = kzalloc(sizeof(struct omap2video_device), GFP_KERNEL);
 	if (vid_dev == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dss_init;
 	}
 
@@ -1624,7 +1624,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 		omap_dss_get_device(dssdev);
 
 		if (!dssdev->driver) {
-			dev_warn(&pdev->dev, "no driver for display: %s\n",
+			dev_warn(&pdev->dev, "anal driver for display: %s\n",
 					dssdev->name);
 			omap_dss_put_device(dssdev);
 			continue;
@@ -1634,7 +1634,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	}
 
 	if (vid_dev->num_displays == 0) {
-		dev_err(&pdev->dev, "no displays\n");
+		dev_err(&pdev->dev, "anal displays\n");
 		ret = -EINVAL;
 		goto probe_err0;
 	}
@@ -1657,7 +1657,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 		if (dssdev) {
 			def_display = dssdev;
 		} else {
-			dev_warn(&pdev->dev, "cannot find display\n");
+			dev_warn(&pdev->dev, "cananalt find display\n");
 			def_display = NULL;
 		}
 		if (def_display) {
@@ -1665,7 +1665,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 
 			ret = dssdrv->enable(def_display);
 			if (ret) {
-				/* Here we are not considering a error
+				/* Here we are analt considering a error
 				 *  as display may be enabled by frame
 				 *  buffer driver
 				 */
@@ -1678,7 +1678,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 
 	if (v4l2_device_register(&pdev->dev, &vid_dev->v4l2_dev) < 0) {
 		dev_err(&pdev->dev, "v4l2_device_register failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto probe_err1;
 	}
 
@@ -1727,7 +1727,7 @@ static struct platform_driver omap_vout_driver = {
 static int __init omap_vout_init(void)
 {
 	if (platform_driver_probe(&omap_vout_driver, omap_vout_probe) != 0) {
-		printk(KERN_ERR VOUT_NAME ":Could not register Video driver\n");
+		printk(KERN_ERR VOUT_NAME ":Could analt register Video driver\n");
 		return -EINVAL;
 	}
 	return 0;

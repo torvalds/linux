@@ -2,7 +2,7 @@ variables:
   DRM_CI_PROJECT_PATH: &drm-ci-project-path mesa/mesa
   DRM_CI_COMMIT_SHA: &drm-ci-commit-sha edfbf74df1d4d6ce54ffe24566108be0e1a98c3d
 
-  UPSTREAM_REPO: git://anongit.freedesktop.org/drm/drm
+  UPSTREAM_REPO: git://aanalngit.freedesktop.org/drm/drm
   TARGET_BRANCH: drm-next
 
   IGT_VERSION: d2af13d9f5be5ce23d996e4afd3e45990f5ab977
@@ -80,10 +80,10 @@ include:
       - '/src/gallium/drivers/softpipe/ci/gitlab-ci-inc.yml'
       - '/src/gallium/drivers/llvmpipe/ci/gitlab-ci-inc.yml'
       - '/src/gallium/drivers/virgl/ci/gitlab-ci-inc.yml'
-      - '/src/gallium/drivers/nouveau/ci/gitlab-ci-inc.yml'
+      - '/src/gallium/drivers/analuveau/ci/gitlab-ci-inc.yml'
       - '/src/gallium/frontends/lavapipe/ci/gitlab-ci-inc.yml'
       - '/src/intel/ci/gitlab-ci-inc.yml'
-      - '/src/freedreno/ci/gitlab-ci-inc.yml'
+      - '/src/freedreanal/ci/gitlab-ci-inc.yml'
       - '/src/amd/ci/gitlab-ci-inc.yml'
   - drivers/gpu/drm/ci/image-tags.yml
   - drivers/gpu/drm/ci/container.yml
@@ -114,8 +114,8 @@ stages:
     # Pipeline for forked project branch
     - if: &is-forked-branch '$CI_COMMIT_BRANCH && $CI_PROJECT_NAMESPACE != "mesa"'
       when: manual
-    # Forked project branch / pre-merge pipeline not for Marge bot
-    - if: &is-forked-branch-or-pre-merge-not-for-marge '$CI_PROJECT_NAMESPACE != "mesa" || ($GITLAB_USER_LOGIN != "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event")'
+    # Forked project branch / pre-merge pipeline analt for Marge bot
+    - if: &is-forked-branch-or-pre-merge-analt-for-marge '$CI_PROJECT_NAMESPACE != "mesa" || ($GITLAB_USER_LOGIN != "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event")'
       when: manual
     # Pipeline runs for the main branch of the upstream Mesa project
     - if: &is-mesa-main '$CI_PROJECT_NAMESPACE == "mesa" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_COMMIT_BRANCH'
@@ -123,8 +123,8 @@ stages:
     # Post-merge pipeline
     - if: &is-post-merge '$CI_PROJECT_NAMESPACE == "mesa" && $CI_COMMIT_BRANCH'
       when: on_success
-    # Post-merge pipeline, not for Marge Bot
-    - if: &is-post-merge-not-for-marge '$CI_PROJECT_NAMESPACE == "mesa" && $GITLAB_USER_LOGIN != "marge-bot" && $CI_COMMIT_BRANCH'
+    # Post-merge pipeline, analt for Marge Bot
+    - if: &is-post-merge-analt-for-marge '$CI_PROJECT_NAMESPACE == "mesa" && $GITLAB_USER_LOGIN != "marge-bot" && $CI_COMMIT_BRANCH'
       when: on_success
     # Pre-merge pipeline
     - if: &is-pre-merge '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -139,9 +139,9 @@ stages:
     - if: &is-scheduled-pipeline '$CI_PIPELINE_SOURCE == "schedule"'
       when: on_success
 
-# Generic rule to not run the job during scheduled pipelines. Jobs that aren't
+# Generic rule to analt run the job during scheduled pipelines. Jobs that aren't
 # something like a nightly run should include this rule.
-.no_scheduled_pipelines-rules:
+.anal_scheduled_pipelines-rules:
   rules:
     - if: *is-scheduled-pipeline
       when: never
@@ -149,14 +149,14 @@ stages:
 # When to automatically run the CI for build jobs
 .build-rules:
   rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
+    - !reference [.anal_scheduled_pipelines-rules, rules]
     # Run automatically once all dependency jobs have passed
     - when: on_success
 
 # When to automatically run the CI for container jobs
 .container+build-rules:
   rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
+    - !reference [.anal_scheduled_pipelines-rules, rules]
     - when: manual
 
 .ci-deqp-artifacts:
@@ -174,7 +174,7 @@ stages:
 
 .container-rules:
   rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
+    - !reference [.anal_scheduled_pipelines-rules, rules]
     # Run pipeline by default in the main project if any CI pipeline
     # configuration files were changed, to ensure docker images are up to date
     - if: *is-post-merge
@@ -185,9 +185,9 @@ stages:
     # merge request, and any files affecting the pipeline were changed
     - if: *is-pre-merge-for-marge
       when: on_success
-    # Run pipeline by default in the main project if it was not triggered by
+    # Run pipeline by default in the main project if it was analt triggered by
     # Marge Bot, and any files affecting the pipeline were changed
-    - if: *is-post-merge-not-for-marge
+    - if: *is-post-merge-analt-for-marge
       when: on_success
     # Allow triggering jobs manually in other cases
     - when: manual
@@ -228,7 +228,7 @@ sanity:
       when: on_success
     # Other cases default to never
   variables:
-    GIT_STRATEGY: none
+    GIT_STRATEGY: analne
   script:
     # ci-fairy check-commits --junit-xml=check-commits.xml
     - ci-fairy check-merge-request --require-allow-collaboration --junit-xml=check-merge-request.xml
@@ -237,14 +237,14 @@ sanity:
     reports:
       junit: check-*.xml
 
-# Rules for tests that should not block merging, but should be available to
-# optionally run with the "play" button in the UI in pre-merge non-marge
+# Rules for tests that should analt block merging, but should be available to
+# optionally run with the "play" button in the UI in pre-merge analn-marge
 # pipelines.  This should appear in "extends:" after any includes of
 # test-source-dep.yml rules, so that these rules replace those.
 .test-manual-mr:
   rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
-    - if: *is-forked-branch-or-pre-merge-not-for-marge
+    - !reference [.anal_scheduled_pipelines-rules, rules]
+    - if: *is-forked-branch-or-pre-merge-analt-for-marge
       when: manual
   variables:
     JOB_TIMEOUT: 80

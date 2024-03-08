@@ -141,7 +141,7 @@ static int siena_ptp_set_ts_config(struct efx_nic *efx,
 	int rc;
 
 	switch (init->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		/* if TX timestamping is still requested then leave PTP on */
 		return efx_siena_ptp_change_mode(efx,
 					init->tx_type != HWTSTAMP_TX_OFF,
@@ -157,10 +157,10 @@ static int siena_ptp_set_ts_config(struct efx_nic *efx,
 		init->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
 		rc = efx_siena_ptp_change_mode(efx, true,
 					       MC_CMD_PTP_MODE_V2_ENHANCED);
-		/* bug 33070 - old versions of the firmware do not support the
+		/* bug 33070 - old versions of the firmware do analt support the
 		 * improved UUID filtering option. Similarly old versions of the
-		 * application do not expect it to be enabled. If the firmware
-		 * does not accept the enhanced mode, fall back to the standard
+		 * application do analt expect it to be enabled. If the firmware
+		 * does analt accept the enhanced mode, fall back to the standard
 		 * PTP v2 UUID filtering. */
 		if (rc != 0)
 			rc = efx_siena_ptp_change_mode(efx, true,
@@ -198,14 +198,14 @@ static int siena_map_reset_flags(u32 *flags)
 		return RESET_TYPE_ALL;
 	}
 
-	/* no invisible reset implemented */
+	/* anal invisible reset implemented */
 
 	return -EINVAL;
 }
 
 #ifdef CONFIG_EEH
 /* When a PCI device is isolated from the bus, a subsequent MMIO read is
- * required for the kernel EEH mechanisms to notice. As the Solarflare driver
+ * required for the kernel EEH mechanisms to analtice. As the Solarflare driver
  * was written to minimise MMIO read (for latency) then a periodic call to check
  * the EEH status of the device is required so that device recovery can happen
  * in a timely fashion.
@@ -268,14 +268,14 @@ static int siena_probe_nic(struct efx_nic *efx)
 	/* Allocate storage for hardware specific data */
 	nic_data = kzalloc(sizeof(struct siena_nic_data), GFP_KERNEL);
 	if (!nic_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	nic_data->efx = efx;
 	efx->nic_data = nic_data;
 
 	if (efx_farch_fpga_ver(efx) != 0) {
 		netif_err(efx, probe, efx->net_dev,
-			  "Siena FPGA not supported\n");
-		rc = -ENODEV;
+			  "Siena FPGA analt supported\n");
+		rc = -EANALDEV;
 		goto fail1;
 	}
 
@@ -291,7 +291,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail1;
 
-	/* Now we can reset the NIC */
+	/* Analw we can reset the NIC */
 	rc = efx_siena_mcdi_reset(efx, RESET_TYPE_ALL);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev, "failed to reset NIC\n");
@@ -313,13 +313,13 @@ static int siena_probe_nic(struct efx_nic *efx)
 		  efx->irq_status.addr,
 		  (unsigned long long)virt_to_phys(efx->irq_status.addr));
 
-	/* Read in the non-volatile configuration */
+	/* Read in the analn-volatile configuration */
 	rc = siena_probe_nvconfig(efx);
 	if (rc == -EINVAL) {
 		netif_err(efx, probe, efx->net_dev,
 			  "NVRAM is invalid therefore using defaults\n");
-		efx->phy_type = PHY_TYPE_NONE;
-		efx->mdio.prtad = MDIO_PRTAD_NONE;
+		efx->phy_type = PHY_TYPE_ANALNE;
+		efx->mdio.prtad = MDIO_PRTAD_ANALNE;
 	} else if (rc) {
 		goto fail5;
 	}
@@ -399,7 +399,7 @@ static int siena_rx_push_rss_config(struct efx_nic *efx, bool user,
 
 /* This call performs hardware-specific global initialisation, such as
  * defining the descriptor cache sizes and number of RSS channels.
- * It does not set up any buffers, descriptor rings or event queues.
+ * It does analt set up any buffers, descriptor rings or event queues.
  */
 static int siena_init_nic(struct efx_nic *efx)
 {
@@ -416,11 +416,11 @@ static int siena_init_nic(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_TX_FLUSH_MIN_LEN_EN, 1);
 	efx_writeo(efx, &temp, FR_AZ_TX_RESERVED);
 
-	/* Do not enable TX_NO_EOP_DISC_EN, since it limits packets to 16
+	/* Do analt enable TX_ANAL_EOP_DISC_EN, since it limits packets to 16
 	 * descriptors (which is bad).
 	 */
 	efx_reado(efx, &temp, FR_AZ_TX_CFG);
-	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_NO_EOP_DISC_EN, 0);
+	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_ANAL_EOP_DISC_EN, 0);
 	EFX_SET_OWORD_FIELD(temp, FRF_CZ_TX_FILTER_EN_BIT, 1);
 	efx_writeo(efx, &temp, FR_AZ_TX_CFG);
 
@@ -507,7 +507,7 @@ static const struct efx_hw_stat_desc siena_stat_desc[SIENA_STAT_COUNT] = {
 	SIENA_DMA_STAT(tx_deferred, TX_DEFERRED_PKTS),
 	SIENA_DMA_STAT(tx_late_collision, TX_LATE_COLLISION_PKTS),
 	SIENA_DMA_STAT(tx_excessive_deferred, TX_EXCESSIVE_DEFERRED_PKTS),
-	SIENA_DMA_STAT(tx_non_tcpudp, TX_NON_TCPUDP_PKTS),
+	SIENA_DMA_STAT(tx_analn_tcpudp, TX_ANALN_TCPUDP_PKTS),
 	SIENA_DMA_STAT(tx_mac_src_error, TX_MAC_SRC_ERR_PKTS),
 	SIENA_DMA_STAT(tx_ip_src_error, TX_IP_SRC_ERR_PKTS),
 	SIENA_DMA_STAT(rx_bytes, RX_BYTES),
@@ -537,9 +537,9 @@ static const struct efx_hw_stat_desc siena_stat_desc[SIENA_STAT_COUNT] = {
 	SIENA_DMA_STAT(rx_align_error, RX_ALIGN_ERROR_PKTS),
 	SIENA_DMA_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS),
 	SIENA_DMA_STAT(rx_internal_error, RX_INTERNAL_ERROR_PKTS),
-	SIENA_DMA_STAT(rx_nodesc_drop_cnt, RX_NODESC_DROPS),
-	GENERIC_SW_STAT(rx_nodesc_trunc),
-	GENERIC_SW_STAT(rx_noskb_drops),
+	SIENA_DMA_STAT(rx_analdesc_drop_cnt, RX_ANALDESC_DROPS),
+	GENERIC_SW_STAT(rx_analdesc_trunc),
+	GENERIC_SW_STAT(rx_analskb_drops),
 };
 static const unsigned long siena_stat_mask[] = {
 	[0 ... BITS_TO_LONGS(SIENA_STAT_COUNT) - 1] = ~0UL,
@@ -572,8 +572,8 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 		return -EAGAIN;
 
 	/* Update derived statistics */
-	efx_siena_fix_nodesc_drop_stat(efx,
-				       &stats[SIENA_STAT_rx_nodesc_drop_cnt]);
+	efx_siena_fix_analdesc_drop_stat(efx,
+				       &stats[SIENA_STAT_rx_analdesc_drop_cnt]);
 	efx_update_diff_stat(&stats[SIENA_STAT_tx_good_bytes],
 			     stats[SIENA_STAT_tx_bytes] -
 			     stats[SIENA_STAT_tx_bad_bytes]);
@@ -596,7 +596,7 @@ static size_t siena_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 	u64 *stats = nic_data->stats;
 	int retry;
 
-	/* If we're unlucky enough to read statistics wduring the DMA, wait
+	/* If we're unlucky eanalugh to read statistics wduring the DMA, wait
 	 * up to 10ms for it to finish (typically takes <500us) */
 	for (retry = 0; retry < 100; ++retry) {
 		if (siena_try_update_nic_stats(efx) == 0)
@@ -612,9 +612,9 @@ static size_t siena_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 		core_stats->tx_packets = stats[SIENA_STAT_tx_packets];
 		core_stats->rx_bytes = stats[SIENA_STAT_rx_bytes];
 		core_stats->tx_bytes = stats[SIENA_STAT_tx_bytes];
-		core_stats->rx_dropped = stats[SIENA_STAT_rx_nodesc_drop_cnt] +
-					 stats[GENERIC_STAT_rx_nodesc_trunc] +
-					 stats[GENERIC_STAT_rx_noskb_drops];
+		core_stats->rx_dropped = stats[SIENA_STAT_rx_analdesc_drop_cnt] +
+					 stats[GENERIC_STAT_rx_analdesc_trunc] +
+					 stats[GENERIC_STAT_rx_analskb_drops];
 		core_stats->multicast = stats[SIENA_STAT_rx_multicast];
 		core_stats->collisions = stats[SIENA_STAT_tx_collision];
 		core_stats->rx_length_errors =
@@ -755,7 +755,7 @@ static void siena_mcdi_request(struct efx_nic *efx,
 	unsigned int i;
 	unsigned int inlen_dw = DIV_ROUND_UP(sdu_len, 4);
 
-	EFX_WARN_ON_PARANOID(hdr_len != 4);
+	EFX_WARN_ON_PARAANALID(hdr_len != 4);
 
 	efx_writed(efx, hdr, pdu);
 
@@ -777,7 +777,7 @@ static bool siena_mcdi_poll_response(struct efx_nic *efx)
 	efx_readd(efx, &hdr, pdu);
 
 	/* All 1's indicates that shared memory is in reset (and is
-	 * not a valid hdr). Wait for it to come out reset before
+	 * analt a valid hdr). Wait for it to come out reset before
 	 * completing the command
 	 */
 	return EFX_DWORD_FIELD(hdr, EFX_DWORD_0) != 0xffffffff &&
@@ -864,26 +864,26 @@ static int siena_mtd_probe_partition(struct efx_nic *efx,
 
 	if (type >= ARRAY_SIZE(siena_nvram_types) ||
 	    siena_nvram_types[type].name == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = &siena_nvram_types[type];
 
 	if (info->port != efx_port_num(efx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = efx_siena_mcdi_nvram_info(efx, type, &size, &erase_size,
 				       &protected);
 	if (rc)
 		return rc;
 	if (protected)
-		return -ENODEV; /* hide it */
+		return -EANALDEV; /* hide it */
 
 	part->nvram_type = type;
 	part->common.dev_type_name = "Siena NVRAM manager";
 	part->common.type_name = info->name;
 
-	part->common.mtd.type = MTD_NORFLASH;
-	part->common.mtd.flags = MTD_CAP_NORFLASH;
+	part->common.mtd.type = MTD_ANALRFLASH;
+	part->common.mtd.flags = MTD_CAP_ANALRFLASH;
 	part->common.mtd.size = size;
 	part->common.mtd.erasesize = erase_size;
 
@@ -925,7 +925,7 @@ static int siena_mtd_probe(struct efx_nic *efx)
 
 	parts = kcalloc(hweight32(nvram_types), sizeof(*parts), GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	type = 0;
 	n_parts = 0;
@@ -936,7 +936,7 @@ static int siena_mtd_probe(struct efx_nic *efx)
 						       type);
 			if (rc == 0)
 				n_parts++;
-			else if (rc != -ENODEV)
+			else if (rc != -EANALDEV)
 				goto fail;
 		}
 		type++;
@@ -959,7 +959,7 @@ fail:
 static unsigned int siena_check_caps(const struct efx_nic *efx,
 				     u8 flag, u32 offset)
 {
-	/* Siena did not support MC_CMD_GET_CAPABILITIES */
+	/* Siena did analt support MC_CMD_GET_CAPABILITIES */
 	return 0;
 }
 
@@ -1020,7 +1020,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.mcdi_poll_reboot = siena_mcdi_poll_reboot,
 	.irq_enable_master = efx_farch_irq_enable_master,
 	.irq_test_generate = efx_farch_irq_test_generate,
-	.irq_disable_non_ev = efx_farch_irq_disable_master,
+	.irq_disable_analn_ev = efx_farch_irq_disable_master,
 	.irq_handle_msi = efx_farch_msi_interrupt,
 	.irq_handle_legacy = efx_farch_legacy_interrupt,
 	.tx_probe = efx_farch_tx_probe,
@@ -1103,7 +1103,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
 	.mcdi_max_ver = 1,
 	.max_rx_ip_filters = FR_BZ_RX_FILTER_TBL0_ROWS,
-	.hwtstamp_filters = (1 << HWTSTAMP_FILTER_NONE |
+	.hwtstamp_filters = (1 << HWTSTAMP_FILTER_ANALNE |
 			     1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT |
 			     1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT),
 	.rx_hash_key_size = 16,

@@ -275,7 +275,7 @@
 			clock-latency-ns = <55000>;
 		};
 #if 0
-		/* Not available until CPU deep sleep is implemented */
+		/* Analt available until CPU deep sleep is implemented */
 		opp13 {
 			opp-hz = /bits/ 64 <3096000000>;
 			opp-level = <13>;
@@ -328,7 +328,7 @@
 
 	/*
 	 * This is a fabulated representation of the input clock
-	 * to NCO since we don't know the true clock tree.
+	 * to NCO since we don't kanalw the true clock tree.
 	 */
 	nco_clkref: clock-ref-nco {
 		compatible = "fixed-clock";
@@ -342,7 +342,7 @@
 		#size-cells = <2>;
 
 		ranges;
-		nonposted-mmio;
+		analnposted-mmio;
 
 		cpufreq_e: performance-controller@210e20000 {
 			compatible = "apple,t8103-cluster-cpufreq", "apple,cluster-cpufreq";
@@ -401,7 +401,7 @@
 			pinctrl-names = "default";
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
-			status = "disabled"; /* not used in all devices */
+			status = "disabled"; /* analt used in all devices */
 			power-domains = <&ps_i2c2>;
 		};
 
@@ -691,8 +691,8 @@
 				<AIC_IRQ 584 IRQ_TYPE_LEVEL_HIGH>,
 				<AIC_IRQ 585 IRQ_TYPE_LEVEL_HIGH>,
 				<AIC_IRQ 586 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "send-empty", "send-not-empty",
-				"recv-empty", "recv-not-empty";
+			interrupt-names = "send-empty", "send-analt-empty",
+				"recv-empty", "recv-analt-empty";
 			#mbox-cells = <0>;
 			power-domains = <&ps_ans2>;
 		};

@@ -108,7 +108,7 @@ static int clk_mt8365_apmixed_probe(struct platform_device *pdev)
 {
 	void __iomem *base;
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct clk_hw *hw;
 	int ret;
@@ -119,7 +119,7 @@ static int clk_mt8365_apmixed_probe(struct platform_device *pdev)
 
 	clk_data = mtk_devm_alloc_clk_data(dev, CLK_APMIXED_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw = devm_clk_hw_register_gate(dev, "univ_en", "univpll2", 0,
 				       base + 0x204, 0, 0, NULL);
@@ -133,11 +133,11 @@ static int clk_mt8365_apmixed_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	clk_data->hws[CLK_APMIXED_USB20_EN] = hw;
 
-	ret = mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	ret = mtk_clk_register_plls(analde, plls, ARRAY_SIZE(plls), clk_data);
 	if (ret)
 		return ret;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (ret)
 		goto unregister_plls;
 

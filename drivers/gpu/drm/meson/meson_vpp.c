@@ -15,13 +15,13 @@
 /**
  * DOC: Video Post Processing
  *
- * VPP Handles all the Post Processing after the Scanout from the VIU
+ * VPP Handles all the Post Processing after the Scaanalut from the VIU
  * We handle the following post processings :
  *
  * - Postblend, Blends the OSD1 only
  *	We exclude OSD2, VS1, VS1 and Preblend output
  * - Vertical OSD Scaler for OSD1 only, we disable vertical scaler and
- *	use it only for interlace scanout
+ *	use it only for interlace scaanalut
  * - Intermediate FIFO with default Amlogic values
  *
  * What is missing :

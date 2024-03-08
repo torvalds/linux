@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2020, Intel Corporation
  *
- * Authors: Alexander Antonov <alexander.antonov@linux.intel.com>
+ * Authors: Alexander Antoanalv <alexander.antoanalv@linux.intel.com>
  */
 
 #include <api/fs/fs.h>
@@ -14,7 +14,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -107,7 +107,7 @@ static void iio_root_ports_list_free(struct iio_root_ports_list *list)
 	}
 }
 
-static struct iio_root_port *iio_root_port_find_by_notation(
+static struct iio_root_port *iio_root_port_find_by_analtation(
 	const struct iio_root_ports_list * const list, u32 domain, u8 bus)
 {
 	int idx;
@@ -134,7 +134,7 @@ static int iio_root_ports_list_insert(struct iio_root_ports_list *list,
 				  list->nr_entries * sizeof(*list->rps));
 		if (!tmp_buf) {
 			pr_err("Failed to realloc memory\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		tmp_buf[rp->idx] = rp;
 		list->rps = tmp_buf;
@@ -152,12 +152,12 @@ static int iio_mapping(u8 pmu_idx, struct iio_root_ports_list * const list)
 	size_t size;
 	int ret;
 
-	for (int die = 0; die < cpu__max_node(); die++) {
+	for (int die = 0; die < cpu__max_analde(); die++) {
 		scnprintf(path, MAX_PATH, PLATFORM_MAPPING_PATH, pmu_idx, die);
 		if (sysfs__read_str(path, &buf, &size) < 0) {
 			if (pmu_idx)
 				goto out;
-			pr_err("Mode iostat is not supported\n");
+			pr_err("Mode iostat is analt supported\n");
 			return -1;
 		}
 		ret = sscanf(buf, "%04x:%02hhx", &domain, &bus);
@@ -170,7 +170,7 @@ static int iio_mapping(u8 pmu_idx, struct iio_root_ports_list * const list)
 		rp = iio_root_port_new(domain, bus, die, pmu_idx);
 		if (!rp || iio_root_ports_list_insert(list, rp)) {
 			free(rp);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 out:
@@ -196,7 +196,7 @@ static u8 iio_pmu_count(void)
 
 static int iio_root_ports_scan(struct iio_root_ports_list **list)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct iio_root_ports_list *tmp_list;
 	u8 pmu_count = iio_pmu_count();
 
@@ -252,7 +252,7 @@ static int iio_root_ports_list_filter(struct iio_root_ports_list **list,
 	struct iio_root_port *rp;
 	u32 domain;
 	u8 bus;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct iio_root_ports_list *tmp_list = calloc(1, sizeof(*tmp_list));
 
 	if (!tmp_list)
@@ -265,7 +265,7 @@ static int iio_root_ports_list_filter(struct iio_root_ports_list **list,
 	for (tok = strtok_r(filter_copy, ",", &tmp); tok;
 	     tok = strtok_r(NULL, ",", &tmp)) {
 		if (!iio_root_port_parse_str(&domain, &bus, tok)) {
-			rp = iio_root_port_find_by_notation(*list, domain, bus);
+			rp = iio_root_port_find_by_analtation(*list, domain, bus);
 			if (rp) {
 				(*list)->rps[rp->idx] = NULL;
 				ret = iio_root_ports_list_insert(tmp_list, rp);
@@ -273,15 +273,15 @@ static int iio_root_ports_list_filter(struct iio_root_ports_list **list,
 					free(rp);
 					goto err;
 				}
-			} else if (!iio_root_port_find_by_notation(tmp_list,
+			} else if (!iio_root_port_find_by_analtation(tmp_list,
 								   domain, bus))
-				pr_warning("Root port %04x:%02x were not found\n",
+				pr_warning("Root port %04x:%02x were analt found\n",
 					   domain, bus);
 		}
 	}
 
 	if (tmp_list->nr_entries == 0) {
-		pr_err("Requested root ports were not found\n");
+		pr_err("Requested root ports were analt found\n");
 		ret = -EINVAL;
 	}
 err:
@@ -311,7 +311,7 @@ static int iostat_event_group(struct evlist *evl,
 	char *iostat_cmd = calloc(len_template, 1);
 
 	if (!iostat_cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (idx = 0; idx < list->nr_entries; idx++) {
 		sprintf(iostat_cmd, iostat_cmd_template,
@@ -335,12 +335,12 @@ err:
 int iostat_prepare(struct evlist *evlist, struct perf_stat_config *config)
 {
 	if (evlist->core.nr_entries > 0) {
-		pr_warning("The -e and -M options are not supported."
+		pr_warning("The -e and -M options are analt supported."
 			   "All chosen events/metrics will be dropped\n");
 		evlist__delete(evlist);
 		evlist = evlist__new();
 		if (!evlist)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	config->metric_only = true;

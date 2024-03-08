@@ -13,7 +13,7 @@
 int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh, bool auth_probe)
 {
 	struct nfs_fsinfo fsinfo;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	fsinfo.fattr = nfs_alloc_fattr();
 	if (fsinfo.fattr == NULL)
@@ -29,8 +29,8 @@ int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh, bool auth_p
 	if (!(fsinfo.fattr->valid & NFS_ATTR_FATTR_TYPE)
 			|| !S_ISDIR(fsinfo.fattr->mode)) {
 		printk(KERN_ERR "nfs4_get_rootfh:"
-		       " getroot encountered non-directory\n");
-		ret = -ENOTDIR;
+		       " getroot encountered analn-directory\n");
+		ret = -EANALTDIR;
 		goto out;
 	}
 

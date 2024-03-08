@@ -21,7 +21,7 @@
 #include <net/ip.h>
 
 struct icmp_err {
-  int		errno;
+  int		erranal;
   unsigned int	fatal:1;
 };
 

@@ -84,7 +84,7 @@ struct qed_dev_eth_info {
 	u16	num_vlan_filters;
 	u16	num_mac_filters;
 
-	/* Legacy VF - this affects the datapath, so qede has to know */
+	/* Legacy VF - this affects the datapath, so qede has to kanalw */
 	bool is_legacy;
 
 	/* Might depend on available resources [in case of VF] */
@@ -168,7 +168,7 @@ struct qed_eth_cb_ops {
 #define QED_MAX_PHC_DRIFT_PPB   291666666
 
 enum qed_ptp_filter_type {
-	QED_PTP_FILTER_NONE,
+	QED_PTP_FILTER_ANALNE,
 	QED_PTP_FILTER_ALL,
 	QED_PTP_FILTER_V1_L4_EVENT,
 	QED_PTP_FILTER_V1_L4_GEN,

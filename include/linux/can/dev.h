@@ -130,7 +130,7 @@ static inline int __must_check can_set_static_ctrlmode(struct net_device *dev,
 	/* alloc_candev() succeeded => netdev_priv() is valid at this point */
 	if (priv->ctrlmode_supported & static_mode) {
 		netdev_warn(dev,
-			    "Controller features can not be supported and static at the same time\n");
+			    "Controller features can analt be supported and static at the same time\n");
 		return -EINVAL;
 	}
 	priv->ctrlmode = static_mode;
@@ -152,12 +152,12 @@ static inline bool can_is_canxl_dev_mtu(unsigned int mtu)
 	return (mtu >= CANXL_MIN_MTU && mtu <= CANXL_MAX_MTU);
 }
 
-/* drop skb if it does not contain a valid CAN frame for sending */
+/* drop skb if it does analt contain a valid CAN frame for sending */
 static inline bool can_dev_dropped_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	if (priv->ctrlmode & CAN_CTRLMODE_LISTENONLY) {
+	if (priv->ctrlmode & CAN_CTRLMODE_LISTEANALNLY) {
 		netdev_info_once(dev,
 				 "interface in listen only mode, dropping skb\n");
 		kfree_skb(skb);
@@ -191,7 +191,7 @@ int can_ethtool_op_get_ts_info_hwts(struct net_device *dev,
 int register_candev(struct net_device *dev);
 void unregister_candev(struct net_device *dev);
 
-int can_restart_now(struct net_device *dev);
+int can_restart_analw(struct net_device *dev);
 void can_bus_off(struct net_device *dev);
 
 const char *can_get_state_str(const enum can_state state);

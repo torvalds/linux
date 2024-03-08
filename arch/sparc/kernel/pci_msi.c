@@ -70,7 +70,7 @@ err_set_head:
 	goto err_out;
 
 err_out:
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static u32 pick_msiq(struct pci_pbm_info *pbm)
@@ -103,7 +103,7 @@ static int alloc_msi(struct pci_pbm_info *pbm)
 			return i + pbm->msi_first;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void free_msi(struct pci_pbm_info *pbm, int msi_num)
@@ -132,7 +132,7 @@ static int sparc64_setup_msi_irq(unsigned int *irq_p,
 	u32 msiqid;
 
 	*irq_p = irq_alloc(0, 0);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!*irq_p)
 		goto out_err;
 
@@ -193,7 +193,7 @@ static void sparc64_teardown_msi_irq(unsigned int irq,
 			break;
 	}
 	if (i >= pbm->msi_num) {
-		pci_err(pdev, "%s: teardown: No MSI for irq %u\n", pbm->name,
+		pci_err(pdev, "%s: teardown: Anal MSI for irq %u\n", pbm->name,
 			irq);
 		return;
 	}
@@ -226,7 +226,7 @@ static int msi_bitmap_alloc(struct pci_pbm_info *pbm)
 
 	pbm->msi_bitmap = kzalloc(size, GFP_KERNEL);
 	if (!pbm->msi_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -244,7 +244,7 @@ static int msi_table_alloc(struct pci_pbm_info *pbm)
 	size = pbm->msiq_num * sizeof(struct sparc64_msiq_cookie);
 	pbm->msiq_irq_cookies = kzalloc(size, GFP_KERNEL);
 	if (!pbm->msiq_irq_cookies)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pbm->msiq_num; i++) {
 		struct sparc64_msiq_cookie *p;
@@ -259,7 +259,7 @@ static int msi_table_alloc(struct pci_pbm_info *pbm)
 	if (!pbm->msi_irq_table) {
 		kfree(pbm->msiq_irq_cookies);
 		pbm->msiq_irq_cookies = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -277,19 +277,19 @@ static void msi_table_free(struct pci_pbm_info *pbm)
 static int bringup_one_msi_queue(struct pci_pbm_info *pbm,
 				 const struct sparc64_msiq_ops *ops,
 				 unsigned long msiqid,
-				 unsigned long devino)
+				 unsigned long devianal)
 {
-	int irq = ops->msiq_build_irq(pbm, msiqid, devino);
+	int irq = ops->msiq_build_irq(pbm, msiqid, devianal);
 	int err, nid;
 
 	if (irq < 0)
 		return irq;
 
-	nid = pbm->numa_node;
+	nid = pbm->numa_analde;
 	if (nid != -1) {
 		cpumask_t numa_mask;
 
-		cpumask_copy(&numa_mask, cpumask_of_node(nid));
+		cpumask_copy(&numa_mask, cpumask_of_analde(nid));
 		irq_set_affinity(irq, &numa_mask);
 	}
 	err = request_irq(irq, sparc64_msiq_interrupt, 0,
@@ -308,10 +308,10 @@ static int sparc64_bringup_msi_queues(struct pci_pbm_info *pbm,
 
 	for (i = 0; i < pbm->msiq_num; i++) {
 		unsigned long msiqid = i + pbm->msiq_first;
-		unsigned long devino = i + pbm->msiq_first_devino;
+		unsigned long devianal = i + pbm->msiq_first_devianal;
 		int err;
 
-		err = bringup_one_msi_queue(pbm, ops, msiqid, devino);
+		err = bringup_one_msi_queue(pbm, ops, msiqid, devianal);
 		if (err)
 			return err;
 	}
@@ -325,15 +325,15 @@ void sparc64_pbm_msi_init(struct pci_pbm_info *pbm,
 	const u32 *val;
 	int len;
 
-	val = of_get_property(pbm->op->dev.of_node, "#msi-eqs", &len);
+	val = of_get_property(pbm->op->dev.of_analde, "#msi-eqs", &len);
 	if (!val || len != 4)
-		goto no_msi;
+		goto anal_msi;
 	pbm->msiq_num = *val;
 	if (pbm->msiq_num) {
 		const struct msiq_prop {
 			u32 first_msiq;
 			u32 num_msiq;
-			u32 first_devino;
+			u32 first_devianal;
 		} *mqp;
 		const struct msi_range_prop {
 			u32 first_msi;
@@ -348,47 +348,47 @@ void sparc64_pbm_msi_init(struct pci_pbm_info *pbm,
 			u32 msi64_len;
 		} *arng;
 
-		val = of_get_property(pbm->op->dev.of_node, "msi-eq-size", &len);
+		val = of_get_property(pbm->op->dev.of_analde, "msi-eq-size", &len);
 		if (!val || len != 4)
-			goto no_msi;
+			goto anal_msi;
 
 		pbm->msiq_ent_count = *val;
 
-		mqp = of_get_property(pbm->op->dev.of_node,
-				      "msi-eq-to-devino", &len);
+		mqp = of_get_property(pbm->op->dev.of_analde,
+				      "msi-eq-to-devianal", &len);
 		if (!mqp)
-			mqp = of_get_property(pbm->op->dev.of_node,
-					      "msi-eq-devino", &len);
+			mqp = of_get_property(pbm->op->dev.of_analde,
+					      "msi-eq-devianal", &len);
 		if (!mqp || len != sizeof(struct msiq_prop))
-			goto no_msi;
+			goto anal_msi;
 
 		pbm->msiq_first = mqp->first_msiq;
-		pbm->msiq_first_devino = mqp->first_devino;
+		pbm->msiq_first_devianal = mqp->first_devianal;
 
-		val = of_get_property(pbm->op->dev.of_node, "#msi", &len);
+		val = of_get_property(pbm->op->dev.of_analde, "#msi", &len);
 		if (!val || len != 4)
-			goto no_msi;
+			goto anal_msi;
 		pbm->msi_num = *val;
 
-		mrng = of_get_property(pbm->op->dev.of_node, "msi-ranges", &len);
+		mrng = of_get_property(pbm->op->dev.of_analde, "msi-ranges", &len);
 		if (!mrng || len != sizeof(struct msi_range_prop))
-			goto no_msi;
+			goto anal_msi;
 		pbm->msi_first = mrng->first_msi;
 
-		val = of_get_property(pbm->op->dev.of_node, "msi-data-mask", &len);
+		val = of_get_property(pbm->op->dev.of_analde, "msi-data-mask", &len);
 		if (!val || len != 4)
-			goto no_msi;
+			goto anal_msi;
 		pbm->msi_data_mask = *val;
 
-		val = of_get_property(pbm->op->dev.of_node, "msix-data-width", &len);
+		val = of_get_property(pbm->op->dev.of_analde, "msix-data-width", &len);
 		if (!val || len != 4)
-			goto no_msi;
+			goto anal_msi;
 		pbm->msix_data_width = *val;
 
-		arng = of_get_property(pbm->op->dev.of_node, "msi-address-ranges",
+		arng = of_get_property(pbm->op->dev.of_analde, "msi-address-ranges",
 				       &len);
 		if (!arng || len != sizeof(struct addr_range_prop))
-			goto no_msi;
+			goto anal_msi;
 		pbm->msi32_start = ((u64)arng->msi32_high << 32) |
 			(u64) arng->msi32_low;
 		pbm->msi64_start = ((u64)arng->msi64_high << 32) |
@@ -397,32 +397,32 @@ void sparc64_pbm_msi_init(struct pci_pbm_info *pbm,
 		pbm->msi64_len = arng->msi64_len;
 
 		if (msi_bitmap_alloc(pbm))
-			goto no_msi;
+			goto anal_msi;
 
 		if (msi_table_alloc(pbm)) {
 			msi_bitmap_free(pbm);
-			goto no_msi;
+			goto anal_msi;
 		}
 
 		if (ops->msiq_alloc(pbm)) {
 			msi_table_free(pbm);
 			msi_bitmap_free(pbm);
-			goto no_msi;
+			goto anal_msi;
 		}
 
 		if (sparc64_bringup_msi_queues(pbm, ops)) {
 			ops->msiq_free(pbm);
 			msi_table_free(pbm);
 			msi_bitmap_free(pbm);
-			goto no_msi;
+			goto anal_msi;
 		}
 
 		printk(KERN_INFO "%s: MSI Queue first[%u] num[%u] count[%u] "
-		       "devino[0x%x]\n",
+		       "devianal[0x%x]\n",
 		       pbm->name,
 		       pbm->msiq_first, pbm->msiq_num,
 		       pbm->msiq_ent_count,
-		       pbm->msiq_first_devino);
+		       pbm->msiq_first_devianal);
 		printk(KERN_INFO "%s: MSI first[%u] num[%u] mask[0x%x] "
 		       "width[%u]\n",
 		       pbm->name,
@@ -443,7 +443,7 @@ void sparc64_pbm_msi_init(struct pci_pbm_info *pbm,
 	}
 	return;
 
-no_msi:
+anal_msi:
 	pbm->msiq_num = 0;
-	printk(KERN_INFO "%s: No MSI support.\n", pbm->name);
+	printk(KERN_INFO "%s: Anal MSI support.\n", pbm->name);
 }

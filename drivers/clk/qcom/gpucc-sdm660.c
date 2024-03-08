@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2020, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2020, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  */
 
 #include <linux/bitops.h>
@@ -252,7 +252,7 @@ static struct gdsc gpu_gx_gdsc = {
 	},
 	.parent = &gpu_cx_gdsc.pd,
 	.pwrsts = PWRSTS_OFF | PWRSTS_ON | PWRSTS_RET,
-	.flags = CLAMP_IO | SW_RESET | AON_RESET | NO_RET_PERIPH,
+	.flags = CLAMP_IO | SW_RESET | AON_RESET | ANAL_RET_PERIPH,
 };
 
 static struct gdsc *gpucc_sdm660_gdscs[] = {

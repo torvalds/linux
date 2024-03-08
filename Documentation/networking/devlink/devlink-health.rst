@@ -8,7 +8,7 @@ Background
 ==========
 
 The ``devlink`` health mechanism is targeted for Real Time Alerting, in
-order to know when something bad happened to a PCI device.
+order to kanalw when something bad happened to a PCI device.
 
   * Provide alert debug information.
   * Self healing.
@@ -24,14 +24,14 @@ attributes of the health reporting and recovery procedures.
 
 The ``devlink`` health reporter:
 Device driver creates a "health reporter" per each error/health type.
-Error/Health type can be a known/generic (e.g. PCI error, fw error, rx/tx error)
-or unknown (driver specific).
+Error/Health type can be a kanalwn/generic (e.g. PCI error, fw error, rx/tx error)
+or unkanalwn (driver specific).
 For each registered health reporter a driver can issue error/health reports
-asynchronously. All health reports handling is done by ``devlink``.
+asynchroanalusly. All health reports handling is done by ``devlink``.
 Device driver can provide specific callbacks for each "health reporter", e.g.:
 
   * Recovery procedures
-  * Diagnostics procedures
+  * Diaganalstics procedures
   * Object dump procedures
   * Out Of Box initial parameters
 
@@ -46,7 +46,7 @@ Once an error is reported, devlink health will perform the following actions:
   * A log is being send to the kernel trace events buffer
   * Health status and statistics are being updated for the reporter instance
   * Object dump is being taken and saved at the reporter instance (as long as
-    auto-dump is set and there is no other dump which is already stored)
+    auto-dump is set and there is anal other dump which is already stored)
   * Auto recovery attempt is being done. Depends on:
 
     - Auto-recovery configuration
@@ -55,7 +55,7 @@ Once an error is reported, devlink health will perform the following actions:
 Devlink formatted message
 =========================
 
-To handle devlink health diagnose and health dump requests, devlink creates a
+To handle devlink health diaganalse and health dump requests, devlink creates a
 formatted message structure ``devlink_fmsg`` and send it to the driver's callback
 to fill the data in using the devlink fmsg API.
 
@@ -68,7 +68,7 @@ Driver should use this API to fill the fmsg context in a format which will be
 translated by the devlink to the netlink message later. When it needs to send
 the data using SKBs to the netlink layer, it fragments the data between
 different SKBs. In order to do this fragmentation, it uses virtual nests
-attributes, to avoid actual nesting use which cannot be divided between
+attributes, to avoid actual nesting use which cananalt be divided between
 different SKBs.
 
 User Interface
@@ -79,7 +79,7 @@ via ``devlink``, e.g per error type (per health reporter):
 
   * Configure reporter's generic parameters (like: disable/enable auto recovery)
   * Invoke recovery procedure
-  * Run diagnostics
+  * Run diaganalstics
   * Object dump
 
 .. list-table:: List of devlink health interfaces
@@ -97,11 +97,11 @@ via ``devlink``, e.g per error type (per health reporter):
      - Triggers a fake health event on the reporter. The effects of the test
        event in terms of recovery flow should follow closely that of a real
        event.
-   * - ``DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE``
+   * - ``DEVLINK_CMD_HEALTH_REPORTER_DIAGANALSE``
      - Retrieves current device state related to the reporter.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET``
      - Retrieves the last stored dump. Devlink health
-       saves a single dump. If an dump is not already stored by devlink
+       saves a single dump. If an dump is analt already stored by devlink
        for this reporter, devlink generates a new dump.
        Dump output is defined by the reporter.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR``
@@ -116,7 +116,7 @@ The following diagram provides a general overview of ``devlink-health``::
                                           |            |             |
                                           +--------------------------+
                                                        |request for ops
-                                                       |(diagnose,
+                                                       |(diaganalse,
       driver                               devlink     |recover,
                                                        |dump)
     +--------+                            +--------------------------+

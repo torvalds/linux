@@ -25,7 +25,7 @@
 #define ULI_PIRQF	0x0d
 #define ULI_PIRQG	0x0e
 
-#define ULI_8259_NONE	0x00
+#define ULI_8259_ANALNE	0x00
 #define ULI_8259_IRQ1	0x08
 #define ULI_8259_IRQ3	0x02
 #define ULI_8259_IRQ4	0x04
@@ -47,7 +47,7 @@ static u8 uli_pirq_to_irq[8] = {
 	ULI_8259_IRQ5,		/* PIRQE */
 	ULI_8259_IRQ6,		/* PIRQF */
 	ULI_8259_IRQ7,		/* PIRQG */
-	ULI_8259_NONE,		/* PIRQH */
+	ULI_8259_ANALNE,		/* PIRQH */
 };
 
 static inline bool is_quirk_valid(void)
@@ -164,7 +164,7 @@ static void quirk_final_uli1575(struct pci_dev *dev)
 	CMOS_WRITE(RTC_SET, RTC_CONTROL);
 	CMOS_WRITE(RTC_24H, RTC_CONTROL);
 
-	/* ensure month, date, and week alarm fields are ignored */
+	/* ensure month, date, and week alarm fields are iganalred */
 	CMOS_WRITE(0, RTC_VALID);
 
 	outb_p(0x7c, 0x72);
@@ -289,7 +289,7 @@ static void hpcd_quirk_uli5288(struct pci_dev *dev)
 }
 
 /*
- * Since 8259PIC was disabled on the board, the IDE device can not
+ * Since 8259PIC was disabled on the board, the IDE device can analt
  * use the legacy IRQ, we need to let the IDE device work under
  * native mode and use the interrupt line like other PCI devices.
  * IRQ14 is a sideband interrupt from IDE device to CPU and we use this
@@ -310,7 +310,7 @@ static void hpcd_quirk_uli5229(struct pci_dev *dev)
 /*
  * SATA interrupt pin bug fix
  * There's a chip bug for 5288, The interrupt pin should be 2,
- * not the read only value 1, So it use INTB#, not INTA# which
+ * analt the read only value 1, So it use INTB#, analt INTA# which
  * actually used by the IDE device 5229.
  * As of this bug, during the PCI initialization, 5288 read the
  * irq of IDE device from the device tree, this function fix this
@@ -320,20 +320,20 @@ static void hpcd_quirk_uli5229(struct pci_dev *dev)
 static void hpcd_final_uli5288(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct device_node *hosenode = hose ? hose->dn : NULL;
+	struct device_analde *hoseanalde = hose ? hose->dn : NULL;
 	struct of_phandle_args oirq;
 	u32 laddr[3];
 
 	if (!machine_is(mpc86xx_hpcd))
 		return;
 
-	if (!hosenode)
+	if (!hoseanalde)
 		return;
 
-	oirq.np = hosenode;
+	oirq.np = hoseanalde;
 	oirq.args[0] = 2;
 	oirq.args_count = 1;
-	laddr[0] = (hose->first_busno << 16) | (PCI_DEVFN(31, 0) << 8);
+	laddr[0] = (hose->first_busanal << 16) | (PCI_DEVFN(31, 0) << 8);
 	laddr[1] = laddr[2] = 0;
 	of_irq_parse_raw(laddr, &oirq);
 	dev->irq = irq_create_of_mapping(&oirq);
@@ -346,14 +346,14 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, 0x5288, hpcd_final_uli5288);
 
 static int uli_exclude_device(struct pci_controller *hose, u_char bus, u_char devfn)
 {
-	if (hose->dn == fsl_pci_primary && bus == (hose->first_busno + 2)) {
+	if (hose->dn == fsl_pci_primary && bus == (hose->first_busanal + 2)) {
 		/* exclude Modem controller */
 		if ((PCI_SLOT(devfn) == 29) && (PCI_FUNC(devfn) == 1))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 		/* exclude HD Audio controller */
 		if ((PCI_SLOT(devfn) == 29) && (PCI_FUNC(devfn) == 2))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	return PCIBIOS_SUCCESSFUL;
@@ -361,15 +361,15 @@ static int uli_exclude_device(struct pci_controller *hose, u_char bus, u_char de
 
 void __init uli_init(void)
 {
-	struct device_node *node;
-	struct device_node *pci_with_uli;
+	struct device_analde *analde;
+	struct device_analde *pci_with_uli;
 
 	/* See if we have a ULI under the primary */
 
-	node = of_find_node_by_name(NULL, "uli1575");
-	while ((pci_with_uli = of_get_parent(node))) {
-		of_node_put(node);
-		node = pci_with_uli;
+	analde = of_find_analde_by_name(NULL, "uli1575");
+	while ((pci_with_uli = of_get_parent(analde))) {
+		of_analde_put(analde);
+		analde = pci_with_uli;
 
 		if (pci_with_uli == fsl_pci_primary) {
 			ppc_md.pci_exclude_device = uli_exclude_device;

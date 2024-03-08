@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,8 +29,8 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_hwmon.h"
+#include "analuveau_drv.h"
+#include "analuveau_hwmon.h"
 
 #include <nvkm/subdev/iccsense.h>
 #include <nvkm/subdev/volt.h>
@@ -38,32 +38,32 @@
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 
 static ssize_t
-nouveau_hwmon_show_temp1_auto_point1_pwm(struct device *d,
+analuveau_hwmon_show_temp1_auto_point1_pwm(struct device *d,
 					 struct device_attribute *a, char *buf)
 {
 	return sysfs_emit(buf, "%d\n", 100);
 }
 static SENSOR_DEVICE_ATTR(temp1_auto_point1_pwm, 0444,
-			  nouveau_hwmon_show_temp1_auto_point1_pwm, NULL, 0);
+			  analuveau_hwmon_show_temp1_auto_point1_pwm, NULL, 0);
 
 static ssize_t
-nouveau_hwmon_temp1_auto_point1_temp(struct device *d,
+analuveau_hwmon_temp1_auto_point1_temp(struct device *d,
 				     struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	return sysfs_emit(buf, "%d\n",
 			  therm->attr_get(therm, NVKM_THERM_ATTR_THRS_FAN_BOOST) * 1000);
 }
 static ssize_t
-nouveau_hwmon_set_temp1_auto_point1_temp(struct device *d,
+analuveau_hwmon_set_temp1_auto_point1_temp(struct device *d,
 					 struct device_attribute *a,
 					 const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	long value;
 
@@ -76,27 +76,27 @@ nouveau_hwmon_set_temp1_auto_point1_temp(struct device *d,
 	return count;
 }
 static SENSOR_DEVICE_ATTR(temp1_auto_point1_temp, 0644,
-			  nouveau_hwmon_temp1_auto_point1_temp,
-			  nouveau_hwmon_set_temp1_auto_point1_temp, 0);
+			  analuveau_hwmon_temp1_auto_point1_temp,
+			  analuveau_hwmon_set_temp1_auto_point1_temp, 0);
 
 static ssize_t
-nouveau_hwmon_temp1_auto_point1_temp_hyst(struct device *d,
+analuveau_hwmon_temp1_auto_point1_temp_hyst(struct device *d,
 					  struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	return sysfs_emit(buf, "%d\n",
 			  therm->attr_get(therm, NVKM_THERM_ATTR_THRS_FAN_BOOST_HYST) * 1000);
 }
 static ssize_t
-nouveau_hwmon_set_temp1_auto_point1_temp_hyst(struct device *d,
+analuveau_hwmon_set_temp1_auto_point1_temp_hyst(struct device *d,
 					      struct device_attribute *a,
 					      const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	long value;
 
@@ -109,15 +109,15 @@ nouveau_hwmon_set_temp1_auto_point1_temp_hyst(struct device *d,
 	return count;
 }
 static SENSOR_DEVICE_ATTR(temp1_auto_point1_temp_hyst, 0644,
-			  nouveau_hwmon_temp1_auto_point1_temp_hyst,
-			  nouveau_hwmon_set_temp1_auto_point1_temp_hyst, 0);
+			  analuveau_hwmon_temp1_auto_point1_temp_hyst,
+			  analuveau_hwmon_set_temp1_auto_point1_temp_hyst, 0);
 
 static ssize_t
-nouveau_hwmon_get_pwm1_max(struct device *d,
+analuveau_hwmon_get_pwm1_max(struct device *d,
 			   struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	int ret;
 
@@ -129,11 +129,11 @@ nouveau_hwmon_get_pwm1_max(struct device *d,
 }
 
 static ssize_t
-nouveau_hwmon_get_pwm1_min(struct device *d,
+analuveau_hwmon_get_pwm1_min(struct device *d,
 			   struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	int ret;
 
@@ -145,11 +145,11 @@ nouveau_hwmon_get_pwm1_min(struct device *d,
 }
 
 static ssize_t
-nouveau_hwmon_set_pwm1_min(struct device *d, struct device_attribute *a,
+analuveau_hwmon_set_pwm1_min(struct device *d, struct device_attribute *a,
 			   const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	long value;
 	int ret;
@@ -164,15 +164,15 @@ nouveau_hwmon_set_pwm1_min(struct device *d, struct device_attribute *a,
 	return count;
 }
 static SENSOR_DEVICE_ATTR(pwm1_min, 0644,
-			  nouveau_hwmon_get_pwm1_min,
-			  nouveau_hwmon_set_pwm1_min, 0);
+			  analuveau_hwmon_get_pwm1_min,
+			  analuveau_hwmon_set_pwm1_min, 0);
 
 static ssize_t
-nouveau_hwmon_set_pwm1_max(struct device *d, struct device_attribute *a,
+analuveau_hwmon_set_pwm1_max(struct device *d, struct device_attribute *a,
 			   const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	long value;
 	int ret;
@@ -187,8 +187,8 @@ nouveau_hwmon_set_pwm1_max(struct device *d, struct device_attribute *a,
 	return count;
 }
 static SENSOR_DEVICE_ATTR(pwm1_max, 0644,
-			  nouveau_hwmon_get_pwm1_max,
-			  nouveau_hwmon_set_pwm1_max, 0);
+			  analuveau_hwmon_get_pwm1_max,
+			  analuveau_hwmon_set_pwm1_max, 0);
 
 static struct attribute *pwm_fan_sensor_attrs[] = {
 	&sensor_dev_attr_pwm1_min.dev_attr.attr,
@@ -211,7 +211,7 @@ static const struct attribute_group temp1_auto_point_sensor_group = {
 
 #define N_ATTR_GROUPS   3
 
-static const struct hwmon_channel_info * const nouveau_info[] = {
+static const struct hwmon_channel_info * const analuveau_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
@@ -233,7 +233,7 @@ static const struct hwmon_channel_info * const nouveau_info[] = {
 };
 
 static umode_t
-nouveau_chip_is_visible(const void *data, u32 attr, int channel)
+analuveau_chip_is_visible(const void *data, u32 attr, int channel)
 {
 	switch (attr) {
 	case hwmon_chip_update_interval:
@@ -244,9 +244,9 @@ nouveau_chip_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_power_is_visible(const void *data, u32 attr, int channel)
+analuveau_power_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct analuveau_drm *drm = analuveau_drm((struct drm_device *)data);
 	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
 
 	if (!iccsense || !iccsense->data_valid || list_empty(&iccsense->rails))
@@ -269,9 +269,9 @@ nouveau_power_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_temp_is_visible(const void *data, u32 attr, int channel)
+analuveau_temp_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct analuveau_drm *drm = analuveau_drm((struct drm_device *)data);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_get || nvkm_therm_temp_get(therm) < 0)
@@ -293,9 +293,9 @@ nouveau_temp_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_pwm_is_visible(const void *data, u32 attr, int channel)
+analuveau_pwm_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct analuveau_drm *drm = analuveau_drm((struct drm_device *)data);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_get || !therm->fan_get ||
@@ -312,9 +312,9 @@ nouveau_pwm_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_input_is_visible(const void *data, u32 attr, int channel)
+analuveau_input_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct analuveau_drm *drm = analuveau_drm((struct drm_device *)data);
 	struct nvkm_volt *volt = nvxx_volt(&drm->client.device);
 
 	if (!volt || nvkm_volt_get(volt) < 0)
@@ -332,9 +332,9 @@ nouveau_input_is_visible(const void *data, u32 attr, int channel)
 }
 
 static umode_t
-nouveau_fan_is_visible(const void *data, u32 attr, int channel)
+analuveau_fan_is_visible(const void *data, u32 attr, int channel)
 {
-	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct analuveau_drm *drm = analuveau_drm((struct drm_device *)data);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_get || nvkm_therm_fan_sense(therm) < 0)
@@ -349,29 +349,29 @@ nouveau_fan_is_visible(const void *data, u32 attr, int channel)
 }
 
 static int
-nouveau_chip_read(struct device *dev, u32 attr, int channel, long *val)
+analuveau_chip_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	switch (attr) {
 	case hwmon_chip_update_interval:
 		*val = 1000;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
 static int
-nouveau_temp_read(struct device *dev, u32 attr, int channel, long *val)
+analuveau_temp_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	int ret;
 
 	if (!therm || !therm->attr_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -405,21 +405,21 @@ nouveau_temp_read(struct device *dev, u32 attr, int channel, long *val)
 					* 1000;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
 static int
-nouveau_fan_read(struct device *dev, u32 attr, int channel, long *val)
+analuveau_fan_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_fan_input:
@@ -428,22 +428,22 @@ nouveau_fan_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = nvkm_therm_fan_sense(therm);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
 static int
-nouveau_in_read(struct device *dev, u32 attr, int channel, long *val)
+analuveau_in_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvkm_volt *volt = nvxx_volt(&drm->client.device);
 	int ret;
 
 	if (!volt)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_in_input:
@@ -453,27 +453,27 @@ nouveau_in_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = ret < 0 ? ret : (ret / 1000);
 		break;
 	case hwmon_in_min:
-		*val = volt->min_uv > 0 ? (volt->min_uv / 1000) : -ENODEV;
+		*val = volt->min_uv > 0 ? (volt->min_uv / 1000) : -EANALDEV;
 		break;
 	case hwmon_in_max:
-		*val = volt->max_uv > 0 ? (volt->max_uv / 1000) : -ENODEV;
+		*val = volt->max_uv > 0 ? (volt->max_uv / 1000) : -EANALDEV;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
 static int
-nouveau_pwm_read(struct device *dev, u32 attr, int channel, long *val)
+analuveau_pwm_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_get || !therm->fan_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_pwm_enable:
@@ -485,21 +485,21 @@ nouveau_pwm_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = therm->fan_get(therm);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
 static int
-nouveau_power_read(struct device *dev, u32 attr, int channel, long *val)
+analuveau_power_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
 
 	if (!iccsense)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_power_input:
@@ -514,21 +514,21 @@ nouveau_power_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = iccsense->power_w_crit;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
 static int
-nouveau_temp_write(struct device *dev, u32 attr, int channel, long val)
+analuveau_temp_write(struct device *dev, u32 attr, int channel, long val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_temp_max:
@@ -550,19 +550,19 @@ nouveau_temp_write(struct device *dev, u32 attr, int channel, long val)
 		return therm->attr_set(therm, NVKM_THERM_ATTR_THRS_SHUTDOWN_HYST,
 					val / 1000);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
 static int
-nouveau_pwm_write(struct device *dev, u32 attr, int channel, long val)
+analuveau_pwm_write(struct device *dev, u32 attr, int channel, long val)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
 	if (!therm || !therm->attr_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_pwm_input:
@@ -570,27 +570,27 @@ nouveau_pwm_write(struct device *dev, u32 attr, int channel, long val)
 	case hwmon_pwm_enable:
 		return therm->attr_set(therm, NVKM_THERM_ATTR_FAN_MODE, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
 static umode_t
-nouveau_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
+analuveau_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
 			int channel)
 {
 	switch (type) {
 	case hwmon_chip:
-		return nouveau_chip_is_visible(data, attr, channel);
+		return analuveau_chip_is_visible(data, attr, channel);
 	case hwmon_temp:
-		return nouveau_temp_is_visible(data, attr, channel);
+		return analuveau_temp_is_visible(data, attr, channel);
 	case hwmon_fan:
-		return nouveau_fan_is_visible(data, attr, channel);
+		return analuveau_fan_is_visible(data, attr, channel);
 	case hwmon_in:
-		return nouveau_input_is_visible(data, attr, channel);
+		return analuveau_input_is_visible(data, attr, channel);
 	case hwmon_pwm:
-		return nouveau_pwm_is_visible(data, attr, channel);
+		return analuveau_pwm_is_visible(data, attr, channel);
 	case hwmon_power:
-		return nouveau_power_is_visible(data, attr, channel);
+		return analuveau_power_is_visible(data, attr, channel);
 	default:
 		return 0;
 	}
@@ -599,7 +599,7 @@ nouveau_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
 static const char input_label[] = "GPU core";
 
 static int
-nouveau_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+analuveau_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		    int channel, const char **buf)
 {
 	if (type == hwmon_in && attr == hwmon_in_label) {
@@ -607,68 +607,68 @@ nouveau_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
-nouveau_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+analuveau_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 							int channel, long *val)
 {
 	switch (type) {
 	case hwmon_chip:
-		return nouveau_chip_read(dev, attr, channel, val);
+		return analuveau_chip_read(dev, attr, channel, val);
 	case hwmon_temp:
-		return nouveau_temp_read(dev, attr, channel, val);
+		return analuveau_temp_read(dev, attr, channel, val);
 	case hwmon_fan:
-		return nouveau_fan_read(dev, attr, channel, val);
+		return analuveau_fan_read(dev, attr, channel, val);
 	case hwmon_in:
-		return nouveau_in_read(dev, attr, channel, val);
+		return analuveau_in_read(dev, attr, channel, val);
 	case hwmon_pwm:
-		return nouveau_pwm_read(dev, attr, channel, val);
+		return analuveau_pwm_read(dev, attr, channel, val);
 	case hwmon_power:
-		return nouveau_power_read(dev, attr, channel, val);
+		return analuveau_power_read(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
 static int
-nouveau_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+analuveau_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 							int channel, long val)
 {
 	switch (type) {
 	case hwmon_temp:
-		return nouveau_temp_write(dev, attr, channel, val);
+		return analuveau_temp_write(dev, attr, channel, val);
 	case hwmon_pwm:
-		return nouveau_pwm_write(dev, attr, channel, val);
+		return analuveau_pwm_write(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
-static const struct hwmon_ops nouveau_hwmon_ops = {
-	.is_visible = nouveau_is_visible,
-	.read = nouveau_read,
-	.read_string = nouveau_read_string,
-	.write = nouveau_write,
+static const struct hwmon_ops analuveau_hwmon_ops = {
+	.is_visible = analuveau_is_visible,
+	.read = analuveau_read,
+	.read_string = analuveau_read_string,
+	.write = analuveau_write,
 };
 
-static const struct hwmon_chip_info nouveau_chip_info = {
-	.ops = &nouveau_hwmon_ops,
-	.info = nouveau_info,
+static const struct hwmon_chip_info analuveau_chip_info = {
+	.ops = &analuveau_hwmon_ops,
+	.info = analuveau_info,
 };
 #endif
 
 int
-nouveau_hwmon_init(struct drm_device *dev)
+analuveau_hwmon_init(struct drm_device *dev)
 {
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 	struct nvkm_volt *volt = nvxx_volt(&drm->client.device);
 	const struct attribute_group *special_groups[N_ATTR_GROUPS];
-	struct nouveau_hwmon *hwmon;
+	struct analuveau_hwmon *hwmon;
 	struct device *hwmon_dev;
 	int ret = 0;
 	int i = 0;
@@ -680,7 +680,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 
 	hwmon = drm->hwmon = kzalloc(sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 	hwmon->dev = dev;
 
 	if (therm && therm->attr_get && therm->attr_set) {
@@ -691,8 +691,8 @@ nouveau_hwmon_init(struct drm_device *dev)
 	}
 
 	special_groups[i] = NULL;
-	hwmon_dev = hwmon_device_register_with_info(dev->dev, "nouveau", dev,
-							&nouveau_chip_info,
+	hwmon_dev = hwmon_device_register_with_info(dev->dev, "analuveau", dev,
+							&analuveau_chip_info,
 							special_groups);
 	if (IS_ERR(hwmon_dev)) {
 		ret = PTR_ERR(hwmon_dev);
@@ -708,10 +708,10 @@ nouveau_hwmon_init(struct drm_device *dev)
 }
 
 void
-nouveau_hwmon_fini(struct drm_device *dev)
+analuveau_hwmon_fini(struct drm_device *dev)
 {
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
-	struct nouveau_hwmon *hwmon = nouveau_hwmon(dev);
+	struct analuveau_hwmon *hwmon = analuveau_hwmon(dev);
 
 	if (!hwmon)
 		return;
@@ -719,7 +719,7 @@ nouveau_hwmon_fini(struct drm_device *dev)
 	if (hwmon->hwmon)
 		hwmon_device_unregister(hwmon->hwmon);
 
-	nouveau_drm(dev)->hwmon = NULL;
+	analuveau_drm(dev)->hwmon = NULL;
 	kfree(hwmon);
 #endif
 }

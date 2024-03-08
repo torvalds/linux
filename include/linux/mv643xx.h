@@ -4,7 +4,7 @@
  *
  * Copyright 2002 Momentum Computer, Inc.
  * 	Author: Matthew Dharm <mdharm@momenco.com>
- * Copyright 2002 GALILEO TECHNOLOGY, LTD. 
+ * Copyright 2002 GALILEO TECHANALLOGY, LTD. 
  */
 #ifndef __ASM_MV643XX_H
 #define __ASM_MV643XX_H
@@ -452,8 +452,8 @@
 #define MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG                       0xcfc
 #define MV64340_PCI_1_CONFIG_ADDR 				    0xc78
 #define MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG                       0xc7c
-#define MV64340_PCI_0_INTERRUPT_ACKNOWLEDGE_VIRTUAL_REG	            0xc34
-#define MV64340_PCI_1_INTERRUPT_ACKNOWLEDGE_VIRTUAL_REG	            0xcb4
+#define MV64340_PCI_0_INTERRUPT_ACKANALWLEDGE_VIRTUAL_REG	            0xc34
+#define MV64340_PCI_1_INTERRUPT_ACKANALWLEDGE_VIRTUAL_REG	            0xcb4
 
 /****************************************/
 /*   PCI Error Report Registers         */

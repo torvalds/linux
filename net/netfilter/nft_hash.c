@@ -256,7 +256,7 @@ nft_hash_select_ops(const struct nft_ctx *ctx,
 	default:
 		break;
 	}
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static struct nft_expr_type nft_hash_type __read_mostly = {

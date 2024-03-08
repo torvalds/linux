@@ -11,7 +11,7 @@ Required properties:
 	- second cell is used to specify the gpio polarity:
 		0 = active high
 		1 = active low
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device analde as a GPIO controller.
 
 Example:
 	gpio0: gpio0@1701c000 {

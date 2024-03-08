@@ -35,7 +35,7 @@ static inline void *phys_to_ptr(u64 address)
 
 /*
  * Lock a single line into L2. The line is zeroed before locking
- * to make sure no dram accesses are made.
+ * to make sure anal dram accesses are made.
  */
 static void l2c_lock_line(u64 addr)
 {
@@ -148,7 +148,7 @@ static void octeon_mmc_dmar_fixup_done(struct cvm_mmc_host *host)
 
 static int octeon_mmc_probe(struct platform_device *pdev)
 {
-	struct device_node *cn, *node = pdev->dev.of_node;
+	struct device_analde *cn, *analde = pdev->dev.of_analde;
 	struct cvm_mmc_host *host;
 	void __iomem *base;
 	int mmc_irq[9];
@@ -157,7 +157,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&host->irq_handler_lock);
 	sema_init(&host->mmc_serializer, 1);
@@ -175,7 +175,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 
 	host->sys_freq = octeon_get_io_clock_rate();
 
-	if (of_device_is_compatible(node, "cavium,octeon-7890-mmc")) {
+	if (of_device_is_compatible(analde, "cavium,octeon-7890-mmc")) {
 		host->big_dma_addr = true;
 		host->need_irq_handler_lock = true;
 		host->has_ciu3 = true;
@@ -268,7 +268,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	i = 0;
-	for_each_child_of_node(node, cn) {
+	for_each_child_of_analde(analde, cn) {
 		host->slot_pdev[i] =
 			of_platform_device_create(cn, NULL, &pdev->dev);
 		if (!host->slot_pdev[i]) {
@@ -279,7 +279,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "Error populating slots\n");
 			octeon_mmc_set_shared_power(host, 0);
-			of_node_put(cn);
+			of_analde_put(cn);
 			goto error;
 		}
 		i++;
@@ -329,7 +329,7 @@ static struct platform_driver octeon_mmc_driver = {
 	.remove_new	= octeon_mmc_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = octeon_mmc_match,
 	},
 };

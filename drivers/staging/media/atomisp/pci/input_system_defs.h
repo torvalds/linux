@@ -96,13 +96,13 @@
 #define HIVE_ISYS_IRQ_CSI_EOL_BIT_ID           3
 #define HIVE_ISYS_IRQ_CSI_RECEIVER_BIT_ID      4
 #define HIVE_ISYS_IRQ_CSI_RECEIVER_BE_BIT_ID   5
-#define HIVE_ISYS_IRQ_CAP_UNIT_A_NO_SOP        6
+#define HIVE_ISYS_IRQ_CAP_UNIT_A_ANAL_SOP        6
 #define HIVE_ISYS_IRQ_CAP_UNIT_A_LATE_SOP      7
 /*#define HIVE_ISYS_IRQ_CAP_UNIT_A_UNDEF_PH      7*/
-#define HIVE_ISYS_IRQ_CAP_UNIT_B_NO_SOP        8
+#define HIVE_ISYS_IRQ_CAP_UNIT_B_ANAL_SOP        8
 #define HIVE_ISYS_IRQ_CAP_UNIT_B_LATE_SOP      9
 /*#define HIVE_ISYS_IRQ_CAP_UNIT_B_UNDEF_PH     10*/
-#define HIVE_ISYS_IRQ_CAP_UNIT_C_NO_SOP       10
+#define HIVE_ISYS_IRQ_CAP_UNIT_C_ANAL_SOP       10
 #define HIVE_ISYS_IRQ_CAP_UNIT_C_LATE_SOP     11
 /*#define HIVE_ISYS_IRQ_CAP_UNIT_C_UNDEF_PH     13*/
 #define HIVE_ISYS_IRQ_ACQ_UNIT_SOP_MISMATCH   12
@@ -120,8 +120,8 @@
 #define HIVE_ISYS_DMA_IBUF_DDR_CONN            0
 #define HIVE_ISYS_DMA_HEIGHT                   1
 #define HIVE_ISYS_DMA_ELEMS                    1 /* both master buses of same width */
-#define HIVE_ISYS_DMA_STRIDE                   0 /* no stride required as height is fixed to 1 */
-#define HIVE_ISYS_DMA_CROP                     0 /* no cropping */
-#define HIVE_ISYS_DMA_EXTENSION                0 /* no extension as elem width is same on both side */
+#define HIVE_ISYS_DMA_STRIDE                   0 /* anal stride required as height is fixed to 1 */
+#define HIVE_ISYS_DMA_CROP                     0 /* anal cropping */
+#define HIVE_ISYS_DMA_EXTENSION                0 /* anal extension as elem width is same on both side */
 
 #endif /* _input_system_defs_h */

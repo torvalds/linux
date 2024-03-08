@@ -41,7 +41,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/highmem.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -79,7 +79,7 @@
  * Object location (<PFN>, <obj_idx>) is encoded as
  * a single (unsigned long) handle value.
  *
- * Note that object index <obj_idx> starts from 0.
+ * Analte that object index <obj_idx> starts from 0.
  *
  * This is made more complicated by various memory models and PAE.
  */
@@ -100,7 +100,7 @@
 
 /*
  * Head in allocated object should have OBJ_ALLOCATED_TAG
- * to identify the object was allocated or not.
+ * to identify the object was allocated or analt.
  * It's okay to add the status bit in the least bit because
  * header keeps handle which is 4byte-aligned address so we
  * have room for two bit at least.
@@ -136,7 +136,7 @@
  *    spread across these classes
  *  - Small number of size classes causes large internal fragmentation
  *  - Probably its better to use specific size classes (empirically
- *    determined). NOTE: all those class sizes must be set as multiple of
+ *    determined). ANALTE: all those class sizes must be set as multiple of
  *    ZS_ALIGN to make sure link_free itself never has to span 2 pages.
  *
  *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
@@ -151,7 +151,7 @@
  * of ->inuse objects to all objects that page can store). For example,
  * INUSE_RATIO_10 means that the ratio of used objects is > 0% and <= 10%.
  *
- * The number of fullness groups is not random. It allows us to keep
+ * The number of fullness groups is analt random. It allows us to keep
  * difference between the least busy page in the group (minimum permitted
  * number of ->inuse objects) and the most busy page (maximum permitted
  * number of ->inuse objects) at a reasonable value.
@@ -159,14 +159,14 @@
 enum fullness_group {
 	ZS_INUSE_RATIO_0,
 	ZS_INUSE_RATIO_10,
-	/* NOTE: 8 more fullness groups here */
+	/* ANALTE: 8 more fullness groups here */
 	ZS_INUSE_RATIO_99       = 10,
 	ZS_INUSE_RATIO_100,
 	NR_FULLNESS_GROUPS,
 };
 
 enum class_stat_type {
-	/* NOTE: stats for 12 fullness groups here: from inuse 0 to 100 */
+	/* ANALTE: stats for 12 fullness groups here: from inuse 0 to 100 */
 	ZS_OBJS_ALLOCATED       = NR_FULLNESS_GROUPS,
 	ZS_OBJS_INUSE,
 	NR_CLASS_STAT_TYPES,
@@ -207,7 +207,7 @@ struct link_free {
 	union {
 		/*
 		 * Free object index;
-		 * It's valid for non-allocated object
+		 * It's valid for analn-allocated object
 		 */
 		unsigned long next;
 		/*
@@ -354,7 +354,7 @@ static void record_obj(unsigned long handle, unsigned long obj)
 static void *zs_zpool_create(const char *name, gfp_t gfp)
 {
 	/*
-	 * Ignore global gfp flags: zs_malloc() may be invoked from
+	 * Iganalre global gfp flags: zs_malloc() may be invoked from
 	 * different contexts and its caller must provide a valid
 	 * gfp mask.
 	 */
@@ -505,7 +505,7 @@ static void set_zspage_mapping(struct zspage *zspage,
  * class maintains a list of zspages where each zspage is divided
  * into equal sized chunks. Each allocation falls into one of these
  * classes depending on its size. This function returns index of the
- * size class which has chunk size big enough to hold the given size.
+ * size class which has chunk size big eanalugh to hold the given size.
  */
 static int get_size_class_index(int size)
 {
@@ -540,7 +540,7 @@ static inline unsigned long zs_stat_get(struct size_class *class, int type)
 static void __init zs_stat_init(void)
 {
 	if (!debugfs_initialized()) {
-		pr_warn("debugfs not available, stat dir not created\n");
+		pr_warn("debugfs analt available, stat dir analt created\n");
 		return;
 	}
 
@@ -622,7 +622,7 @@ DEFINE_SHOW_ATTRIBUTE(zs_stats_size);
 static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
 {
 	if (!zs_stat_root) {
-		pr_warn("no root stat dir, not creating <%s> stat dir\n", name);
+		pr_warn("anal root stat dir, analt creating <%s> stat dir\n", name);
 		return;
 	}
 
@@ -883,7 +883,7 @@ static void free_zspage(struct zs_pool *pool, struct size_class *class,
 	VM_BUG_ON(list_empty(&zspage->list));
 
 	/*
-	 * Since zs_free couldn't be sleepable, this function cannot call
+	 * Since zs_free couldn't be sleepable, this function cananalt call
 	 * lock_page. The page locks trylock_zspage got will be released
 	 * by __free_zspage.
 	 */
@@ -919,7 +919,7 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
 		}
 
 		/*
-		 * We now come to the last (full or partial) object on this
+		 * We analw come to the last (full or partial) object on this
 		 * page, which must point to the first object on the next
 		 * page (if present)
 		 */
@@ -929,7 +929,7 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
 		} else {
 			/*
 			 * Reset OBJ_TAG_BITS bit to last link to tell
-			 * whether it's allocated object or not.
+			 * whether it's allocated object or analt.
 			 */
 			link->next = -1UL << OBJ_TAG_BITS;
 		}
@@ -954,7 +954,7 @@ static void create_page_chain(struct size_class *class, struct zspage *zspage,
 	 * 1. all pages are linked together using page->index
 	 * 2. each sub-page point to zspage using page->private
 	 *
-	 * we set PG_private to identify the first page (i.e. no other sub-page
+	 * we set PG_private to identify the first page (i.e. anal other sub-page
 	 * has this flag set).
 	 */
 	for (i = 0; i < nr_pages; i++) {
@@ -1033,14 +1033,14 @@ static struct zspage *find_get_zspage(struct size_class *class)
 static inline int __zs_cpu_up(struct mapping_area *area)
 {
 	/*
-	 * Make sure we don't leak memory if a cpu UP notification
+	 * Make sure we don't leak memory if a cpu UP analtification
 	 * and zs_init() race and both call zs_cpu_up() on the same cpu
 	 */
 	if (area->vm_buf)
 		return 0;
 	area->vm_buf = kmalloc(ZS_MAX_ALLOC_SIZE, GFP_KERNEL);
 	if (!area->vm_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1060,7 +1060,7 @@ static void *__zs_map_object(struct mapping_area *area,
 	/* disable page faults to match kmap_atomic() return conditions */
 	pagefault_disable();
 
-	/* no read fastpath */
+	/* anal read fastpath */
 	if (area->vm_mm == ZS_MM_WO)
 		goto out;
 
@@ -1085,7 +1085,7 @@ static void __zs_unmap_object(struct mapping_area *area,
 	void *addr;
 	char *buf;
 
-	/* no write fastpath */
+	/* anal write fastpath */
 	if (area->vm_mm == ZS_MM_RO)
 		goto out;
 
@@ -1184,7 +1184,7 @@ EXPORT_SYMBOL_GPL(zs_get_total_pages);
  * this function. When done with the object, it must be unmapped using
  * zs_unmap_object.
  *
- * Only one object can be mapped per cpu at a time. There is no protection
+ * Only one object can be mapped per cpu at a time. There is anal protection
  * against nested mappings.
  *
  * This function returns with preemption and page faults disabled.
@@ -1205,7 +1205,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	/*
 	 * Because we use per-cpu mapping areas shared among the
 	 * pools/users, we can't allow mapping in interrupt context
-	 * because it can corrupt another users mappings.
+	 * because it can corrupt aanalther users mappings.
 	 */
 	BUG_ON(in_interrupt());
 
@@ -1216,7 +1216,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	zspage = get_zspage(page);
 
 	/*
-	 * migration cannot move any zpages in this zspage. Here, pool->lock
+	 * migration cananalt move any zpages in this zspage. Here, pool->lock
 	 * is too heavy since callers would take some time until they calls
 	 * zs_unmap_object API so delegate the locking from class to zspage
 	 * which is smaller granularity.
@@ -1368,11 +1368,11 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 		return (unsigned long)ERR_PTR(-EINVAL);
 
 	if (unlikely(size > ZS_MAX_ALLOC_SIZE))
-		return (unsigned long)ERR_PTR(-ENOSPC);
+		return (unsigned long)ERR_PTR(-EANALSPC);
 
 	handle = cache_alloc_handle(pool, gfp);
 	if (!handle)
-		return (unsigned long)ERR_PTR(-ENOMEM);
+		return (unsigned long)ERR_PTR(-EANALMEM);
 
 	/* extra space in chunk to keep the handle */
 	size += ZS_HANDLE_SIZE;
@@ -1383,7 +1383,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 	zspage = find_get_zspage(class);
 	if (likely(zspage)) {
 		obj = obj_malloc(pool, zspage, handle);
-		/* Now move the zspage to another fullness group, if required */
+		/* Analw move the zspage to aanalther fullness group, if required */
 		fix_fullness_group(class, zspage);
 		record_obj(handle, obj);
 		class_stat_inc(class, ZS_OBJS_INUSE, 1);
@@ -1396,7 +1396,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 	zspage = alloc_zspage(pool, class, gfp);
 	if (!zspage) {
 		cache_free_handle(pool, handle);
-		return (unsigned long)ERR_PTR(-ENOMEM);
+		return (unsigned long)ERR_PTR(-EANALMEM);
 	}
 
 	spin_lock(&pool->lock);
@@ -1604,11 +1604,11 @@ static void migrate_zspage(struct zs_pool *pool, struct zspage *src_zspage,
 		record_obj(handle, free_obj);
 		obj_free(class->size, used_obj);
 
-		/* Stop if there is no more space */
+		/* Stop if there is anal more space */
 		if (zspage_full(class, dst_zspage))
 			break;
 
-		/* Stop if there are no more objects to migrate */
+		/* Stop if there are anal more objects to migrate */
 		if (zspage_empty(src_zspage))
 			break;
 	}
@@ -1679,7 +1679,7 @@ static void lock_zspage(struct zspage *zspage)
 	 * Pages we haven't locked yet can be migrated off the list while we're
 	 * trying to lock them, so we need to be careful and only attempt to
 	 * lock each page under migrate_read_lock(). Otherwise, the page we lock
-	 * may no longer belong to the zspage. This means that we may wait for
+	 * may anal longer belong to the zspage. This means that we may wait for
 	 * the wrong page to unlock, so we must take a reference to the page
 	 * prior to waiting for it to unlock outside migrate_read_lock().
 	 */
@@ -1812,11 +1812,11 @@ static int zs_page_migrate(struct page *newpage, struct page *page,
 	unsigned int obj_idx;
 
 	/*
-	 * We cannot support the _NO_COPY case here, because copy needs to
-	 * happen under the zs lock, which does not work with
-	 * MIGRATE_SYNC_NO_COPY workflow.
+	 * We cananalt support the _ANAL_COPY case here, because copy needs to
+	 * happen under the zs lock, which does analt work with
+	 * MIGRATE_SYNC_ANAL_COPY workflow.
 	 */
-	if (mode == MIGRATE_SYNC_NO_COPY)
+	if (mode == MIGRATE_SYNC_ANAL_COPY)
 		return -EINVAL;
 
 	VM_BUG_ON_PAGE(!PageIsolated(page), page);
@@ -1839,7 +1839,7 @@ static int zs_page_migrate(struct page *newpage, struct page *page,
 	s_addr = kmap_atomic(page);
 
 	/*
-	 * Here, any user cannot access all objects in the zspage so let's move.
+	 * Here, any user cananalt access all objects in the zspage so let's move.
 	 */
 	d_addr = kmap_atomic(newpage);
 	copy_page(d_addr, s_addr);
@@ -1901,7 +1901,7 @@ static const struct movable_operations zsmalloc_mops = {
 
 /*
  * Caller should hold page_lock of all pages in the zspage
- * In here, we cannot use zspage meta data.
+ * In here, we cananalt use zspage meta data.
  */
 static void async_free_zspage(struct work_struct *work)
 {
@@ -2129,7 +2129,7 @@ static int zs_register_shrinker(struct zs_pool *pool)
 {
 	pool->shrinker = shrinker_alloc(0, "mm-zspool:%s", pool->name);
 	if (!pool->shrinker)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pool->shrinker->scan_objects = zs_shrinker_scan;
 	pool->shrinker->count_objects = zs_shrinker_count;
@@ -2232,7 +2232,7 @@ struct zs_pool *zs_create_pool(const char *name)
 		}
 
 		/*
-		 * size_class is used for normal zsmalloc operation such
+		 * size_class is used for analrmal zsmalloc operation such
 		 * as alloc/free for that size. Although it is natural that we
 		 * have one size_class for each size, there is a chance that we
 		 * can get more memory utilization if we use one size_class for
@@ -2270,10 +2270,10 @@ struct zs_pool *zs_create_pool(const char *name)
 	zs_pool_stat_create(pool, name);
 
 	/*
-	 * Not critical since shrinker is only used to trigger internal
+	 * Analt critical since shrinker is only used to trigger internal
 	 * defragmentation of the pool which is pretty optional thing.  If
-	 * registration fails we still can use the pool normally and user can
-	 * trigger compaction manually. Thus, ignore return code.
+	 * registration fails we still can use the pool analrmally and user can
+	 * trigger compaction manually. Thus, iganalre return code.
 	 */
 	zs_register_shrinker(pool);
 
@@ -2307,7 +2307,7 @@ void zs_destroy_pool(struct zs_pool *pool)
 			if (list_empty(&class->fullness_list[fg]))
 				continue;
 
-			pr_err("Class-%d fullness group %d is not empty\n",
+			pr_err("Class-%d fullness group %d is analt empty\n",
 			       class->size, fg);
 		}
 		kfree(class);

@@ -26,7 +26,7 @@ static __u64 kprobe_addr;
 #define UPROBE_FILE "/proc/self/exe"
 static ssize_t uprobe_offset;
 /* uprobe attach point */
-static noinline void uprobe_func(void)
+static analinline void uprobe_func(void)
 {
 	asm volatile ("");
 }
@@ -57,7 +57,7 @@ again:
 	case BPF_PERF_EVENT_KRETPROBE:
 		ASSERT_EQ(info.perf_event.kprobe.offset, offset, "kprobe_offset");
 
-		/* In case kernel.kptr_restrict is not permitted or MAX_SYMS is reached */
+		/* In case kernel.kptr_restrict is analt permitted or MAX_SYMS is reached */
 		if (addr)
 			ASSERT_EQ(info.perf_event.kprobe.addr, addr + entry_offset,
 				  "kprobe_addr");
@@ -239,18 +239,18 @@ static void verify_kmulti_invalid_user_buffer(int fd)
 
 	info.kprobe_multi.count = KMULTI_CNT;
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
-	ASSERT_EQ(err, -EINVAL, "no_addr");
+	ASSERT_EQ(err, -EINVAL, "anal_addr");
 
 	info.kprobe_multi.addrs = ptr_to_u64(addrs);
 	info.kprobe_multi.count = 0;
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
-	ASSERT_EQ(err, -EINVAL, "no_cnt");
+	ASSERT_EQ(err, -EINVAL, "anal_cnt");
 
 	for (i = 0; i < KMULTI_CNT; i++)
 		addrs[i] = 0;
 	info.kprobe_multi.count = KMULTI_CNT - 1;
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
-	ASSERT_EQ(err, -ENOSPC, "smaller_cnt");
+	ASSERT_EQ(err, -EANALSPC, "smaller_cnt");
 	for (i = 0; i < KMULTI_CNT - 1; i++)
 		ASSERT_EQ(addrs[i], kmulti_addrs[i], "kmulti_addrs");
 	ASSERT_EQ(addrs[i], 0, "kmulti_addrs");
@@ -307,19 +307,19 @@ static short uprobe_link_info_sema_1 SEC(".probes");
 static short uprobe_link_info_sema_2 SEC(".probes");
 static short uprobe_link_info_sema_3 SEC(".probes");
 
-noinline void uprobe_link_info_func_1(void)
+analinline void uprobe_link_info_func_1(void)
 {
 	asm volatile ("");
 	uprobe_link_info_sema_1++;
 }
 
-noinline void uprobe_link_info_func_2(void)
+analinline void uprobe_link_info_func_2(void)
 {
 	asm volatile ("");
 	uprobe_link_info_sema_2++;
 }
 
-noinline void uprobe_link_info_func_3(void)
+analinline void uprobe_link_info_func_3(void)
 {
 	asm volatile ("");
 	uprobe_link_info_sema_3++;
@@ -393,7 +393,7 @@ static void verify_umulti_invalid_user_buffer(int fd)
 	__u64 buf[3];
 	int err;
 
-	/* upath_size defined, not path */
+	/* upath_size defined, analt path */
 	memset(&info, 0, sizeof(info));
 	info.uprobe_multi.path_size = 3;
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
@@ -419,12 +419,12 @@ static void verify_umulti_invalid_user_buffer(int fd)
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
 	ASSERT_EQ(err, -EINVAL, "failed_count");
 
-	/* offsets not big enough */
+	/* offsets analt big eanalugh */
 	memset(&info, 0, sizeof(info));
 	info.uprobe_multi.offsets = ptr_to_u64(buf);
 	info.uprobe_multi.count = 2;
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
-	ASSERT_EQ(err, -ENOSPC, "failed_small_count");
+	ASSERT_EQ(err, -EANALSPC, "failed_small_count");
 
 	/* offsets has wrong pointer */
 	memset(&info, 0, sizeof(info));

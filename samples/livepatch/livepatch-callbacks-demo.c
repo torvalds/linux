@@ -35,25 +35,25 @@
  * Watch dmesg output to see livepatch enablement, callback execution
  * and patching operations for both vmlinux and module targets.
  *
- * NOTE: swap the insmod order of livepatch-callbacks-mod.ko and
+ * ANALTE: swap the insmod order of livepatch-callbacks-mod.ko and
  *       livepatch-callbacks-demo.ko to observe what happens when a
  *       target module is loaded after a livepatch with callbacks.
  *
- * NOTE: 'pre_patch_ret' is a module parameter that sets the pre-patch
- *       callback return status.  Try setting up a non-zero status
- *       such as -19 (-ENODEV):
+ * ANALTE: 'pre_patch_ret' is a module parameter that sets the pre-patch
+ *       callback return status.  Try setting up a analn-zero status
+ *       such as -19 (-EANALDEV):
  *
  *       # Load demo livepatch, vmlinux is patched
  *       insmod samples/livepatch/livepatch-callbacks-demo.ko
  *
- *       # Setup next pre-patch callback to return -ENODEV
+ *       # Setup next pre-patch callback to return -EANALDEV
  *       echo -19 > /sys/module/livepatch_callbacks_demo/parameters/pre_patch_ret
  *
  *       # Module loader refuses to load the target module
  *       insmod samples/livepatch/livepatch-callbacks-mod.ko
- *       insmod: ERROR: could not insert module samples/livepatch/livepatch-callbacks-mod.ko: No such device
+ *       insmod: ERROR: could analt insert module samples/livepatch/livepatch-callbacks-mod.ko: Anal such device
  *
- * NOTE: There is a second target module,
+ * ANALTE: There is a second target module,
  *       livepatch-callbacks-busymod.ko, available for experimenting
  *       with livepatch (un)patch callbacks.  This module contains
  *       a 'sleep_secs' parameter that parks the module on one of the
@@ -68,7 +68,7 @@
  *       # Meanwhile load the livepatch
  *       insmod samples/livepatch/livepatch-callbacks-demo.ko
  *
- *       # ... then load and unload another target module while the
+ *       # ... then load and unload aanalther target module while the
  *       # transition is in progress
  *       insmod samples/livepatch/livepatch-callbacks-mod.ko
  *       rmmod samples/livepatch/livepatch-callbacks-mod.ko
@@ -89,7 +89,7 @@ module_param(pre_patch_ret, int, 0644);
 MODULE_PARM_DESC(pre_patch_ret, "pre_patch_ret (default=0)");
 
 static const char *const module_state[] = {
-	[MODULE_STATE_LIVE]	= "[MODULE_STATE_LIVE] Normal state",
+	[MODULE_STATE_LIVE]	= "[MODULE_STATE_LIVE] Analrmal state",
 	[MODULE_STATE_COMING]	= "[MODULE_STATE_COMING] Full formed, running module_init",
 	[MODULE_STATE_GOING]	= "[MODULE_STATE_GOING] Going away",
 	[MODULE_STATE_UNFORMED]	= "[MODULE_STATE_UNFORMED] Still setting it up",
@@ -134,7 +134,7 @@ static void patched_work_func(struct work_struct *work)
 	pr_info("%s\n", __func__);
 }
 
-static struct klp_func no_funcs[] = {
+static struct klp_func anal_funcs[] = {
 	{ }
 };
 
@@ -148,7 +148,7 @@ static struct klp_func busymod_funcs[] = {
 static struct klp_object objs[] = {
 	{
 		.name = NULL,	/* vmlinux */
-		.funcs = no_funcs,
+		.funcs = anal_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,
@@ -157,7 +157,7 @@ static struct klp_object objs[] = {
 		},
 	},	{
 		.name = "livepatch_callbacks_mod",
-		.funcs = no_funcs,
+		.funcs = anal_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,

@@ -111,18 +111,18 @@ static int qcom_hfpll_probe(struct platform_device *pdev)
 		.ops = &clk_ops_hfpll,
 		/*
 		 * rather than marking the clock critical and forcing the clock
-		 * to be always enabled, we make sure that the clock is not
+		 * to be always enabled, we make sure that the clock is analt
 		 * disabled: the firmware remains responsible of enabling this
 		 * clock (for more info check the commit log)
 		 */
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	};
 	int ret;
 	struct clk_parent_data pdata = { .index = 0 };
 
 	h = devm_kzalloc(dev, sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(base))
@@ -132,9 +132,9 @@ static int qcom_hfpll_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	if (of_property_read_string_index(dev->of_node, "clock-output-names",
+	if (of_property_read_string_index(dev->of_analde, "clock-output-names",
 					  0, &init.name))
-		return -ENODEV;
+		return -EANALDEV;
 
 	init.parent_data = &pdata;
 

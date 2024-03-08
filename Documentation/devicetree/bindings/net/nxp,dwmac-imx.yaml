@@ -11,7 +11,7 @@ maintainers:
   - Shawn Guo <shawnguo@kernel.org>
   - NXP Linux Team <linux-imx@nxp.com>
 
-# We need a select here so we don't match all nodes with 'snps,dwmac'
+# We need a select here so we don't match all analdes with 'snps,dwmac'
 select:
   properties:
     compatible:
@@ -63,7 +63,7 @@ properties:
           - description: phandle to the GPR syscon
           - description: the offset of the GPR register
     description:
-      Should be phandle/offset pair. The phandle to the syscon node which
+      Should be phandle/offset pair. The phandle to the syscon analde which
       encompases the GPR register, and the offset of the GPR register.
 
   snps,rmii_refclk_ext:

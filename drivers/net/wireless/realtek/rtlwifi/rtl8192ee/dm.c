@@ -174,7 +174,7 @@ static void rtl92ee_dm_dig(struct ieee80211_hw *hw)
 	} else {
 		dm_dig->rx_gain_max = dm_dig_max;
 		dig_min_0 = dm_dig_min;
-		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "no link\n");
+		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "anal link\n");
 	}
 
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
@@ -302,7 +302,7 @@ static void rtl92ee_rssi_dump_to_register(struct ieee80211_hw *hw)
 		       rtlpriv->stats.rx_rssi_percentage[0]);
 	rtl_write_byte(rtlpriv, RB_RSSIDUMP,
 		       rtlpriv->stats.rx_rssi_percentage[1]);
-	/*It seems the following values are not initialized.
+	/*It seems the following values are analt initialized.
 	  *According to Windows code,
 	  *these value will only be valid with JAGUAR chips
 	  */
@@ -335,7 +335,7 @@ static void rtl92ee_dm_find_minimum_rssi(struct ieee80211_hw *hw)
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		rtl_dm_dig->min_undec_pwdb_for_dm = 0;
 		rtl_dbg(rtlpriv, COMP_BB_POWERSAVING, DBG_LOUD,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 	}
 	if (mac->link_state >= MAC80211_LINKED) {
 		if (mac->opmode == NL80211_IFTYPE_AP ||
@@ -458,7 +458,7 @@ void rtl92ee_dm_init_edca_turbo(struct ieee80211_hw *hw)
 
 	rtlpriv->dm.current_turbo_edca = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 }
 
 static void rtl92ee_dm_check_edca_turbo(struct ieee80211_hw *hw)
@@ -470,20 +470,20 @@ static void rtl92ee_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	u64 cur_txok_cnt = 0;
 	u64 cur_rxok_cnt = 0;
 	u32 edca_be_ul = 0x5ea42b;
-	u32 edca_be_dl = 0x5ea42b; /*not sure*/
+	u32 edca_be_dl = 0x5ea42b; /*analt sure*/
 	u32 edca_be = 0x5ea42b;
 	bool is_cur_rdlstate;
 	bool b_edca_turbo_on = false;
 
-	if (rtlpriv->dm.dbginfo.num_non_be_pkt > 0x100)
-		rtlpriv->dm.is_any_nonbepkts = true;
-	rtlpriv->dm.dbginfo.num_non_be_pkt = 0;
+	if (rtlpriv->dm.dbginfo.num_analn_be_pkt > 0x100)
+		rtlpriv->dm.is_any_analnbepkts = true;
+	rtlpriv->dm.dbginfo.num_analn_be_pkt = 0;
 
 	cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 	cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;
 
 	/*b_bias_on_rx = false;*/
-	b_edca_turbo_on = ((!rtlpriv->dm.is_any_nonbepkts) &&
+	b_edca_turbo_on = ((!rtlpriv->dm.is_any_analnbepkts) &&
 			   (!rtlpriv->dm.disable_framebursting)) ?
 			  true : false;
 
@@ -509,7 +509,7 @@ static void rtl92ee_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	}
 
 check_exit:
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -593,7 +593,7 @@ static void rtl92ee_dm_dynamic_primary_cca_check(struct ieee80211_hw *hw)
 
 	if (primarycca->pricca_flag == 0) {
 		/* Primary channel is above
-		 * NOTE: duplicate CTS can remove this condition
+		 * ANALTE: duplicate CTS can remove this condition
 		 */
 		if (sec_ch_offset == 2) {
 			if ((ofdm_cca > OFDMCCA_TH) &&
@@ -819,7 +819,7 @@ static bool _rtl92ee_dm_ra_state_check(struct ieee80211_hw *hw,
 
 	/* Threshold Adjustment:
 	 * when RSSI state trends to go up one or two levels,
-	 * make sure RSSI is high enough.
+	 * make sure RSSI is high eanalugh.
 	 * Here GoUpGap is added to solve
 	 * the boundary's level alternation issue.
 	 */
@@ -872,7 +872,7 @@ static void rtl92ee_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.useramask) {
 		rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
-			"driver does not control rate adaptive mask\n");
+			"driver does analt control rate adaptive mask\n");
 		return;
 	}
 
@@ -943,7 +943,7 @@ static void rtl92ee_dm_common_info_self_update(struct ieee80211_hw *hw)
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_ADHOC ||
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_MESH_POINT) {
 		spin_lock_bh(&rtlpriv->locks.entry_list_lock);
-		cnt = list_count_nodes(&rtlpriv->entry_list);
+		cnt = list_count_analdes(&rtlpriv->entry_list);
 		spin_unlock_bh(&rtlpriv->locks.entry_list_lock);
 
 		if (cnt == 1)

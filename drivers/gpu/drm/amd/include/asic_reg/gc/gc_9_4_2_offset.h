@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -870,42 +870,42 @@
 #define regGCEA_DRAM_WR_PRI_QUANT_PRI2_BASE_IDX                                                         0
 #define regGCEA_DRAM_WR_PRI_QUANT_PRI3                                                                  0x0a18
 #define regGCEA_DRAM_WR_PRI_QUANT_PRI3_BASE_IDX                                                         0
-#define regGCEA_ADDRNORM_BASE_ADDR0                                                                     0x0a34
-#define regGCEA_ADDRNORM_BASE_ADDR0_BASE_IDX                                                            0
-#define regGCEA_ADDRNORM_LIMIT_ADDR0                                                                    0x0a35
-#define regGCEA_ADDRNORM_LIMIT_ADDR0_BASE_IDX                                                           0
-#define regGCEA_ADDRNORM_BASE_ADDR1                                                                     0x0a36
-#define regGCEA_ADDRNORM_BASE_ADDR1_BASE_IDX                                                            0
-#define regGCEA_ADDRNORM_LIMIT_ADDR1                                                                    0x0a37
-#define regGCEA_ADDRNORM_LIMIT_ADDR1_BASE_IDX                                                           0
-#define regGCEA_ADDRNORM_OFFSET_ADDR1                                                                   0x0a38
-#define regGCEA_ADDRNORM_OFFSET_ADDR1_BASE_IDX                                                          0
-#define regGCEA_ADDRNORM_BASE_ADDR2                                                                     0x0a39
-#define regGCEA_ADDRNORM_BASE_ADDR2_BASE_IDX                                                            0
-#define regGCEA_ADDRNORM_LIMIT_ADDR2                                                                    0x0a3a
-#define regGCEA_ADDRNORM_LIMIT_ADDR2_BASE_IDX                                                           0
-#define regGCEA_ADDRNORM_BASE_ADDR3                                                                     0x0a3b
-#define regGCEA_ADDRNORM_BASE_ADDR3_BASE_IDX                                                            0
-#define regGCEA_ADDRNORM_LIMIT_ADDR3                                                                    0x0a3c
-#define regGCEA_ADDRNORM_LIMIT_ADDR3_BASE_IDX                                                           0
-#define regGCEA_ADDRNORM_OFFSET_ADDR3                                                                   0x0a3d
-#define regGCEA_ADDRNORM_OFFSET_ADDR3_BASE_IDX                                                          0
-#define regGCEA_ADDRNORM_MEGABASE_ADDR0                                                                 0x0a3e
-#define regGCEA_ADDRNORM_MEGABASE_ADDR0_BASE_IDX                                                        0
-#define regGCEA_ADDRNORM_MEGALIMIT_ADDR0                                                                0x0a3f
-#define regGCEA_ADDRNORM_MEGALIMIT_ADDR0_BASE_IDX                                                       0
-#define regGCEA_ADDRNORM_MEGABASE_ADDR1                                                                 0x0a40
-#define regGCEA_ADDRNORM_MEGABASE_ADDR1_BASE_IDX                                                        0
-#define regGCEA_ADDRNORM_MEGALIMIT_ADDR1                                                                0x0a41
-#define regGCEA_ADDRNORM_MEGALIMIT_ADDR1_BASE_IDX                                                       0
-#define regGCEA_ADDRNORMDRAM_HOLE_CNTL                                                                  0x0a43
-#define regGCEA_ADDRNORMDRAM_HOLE_CNTL_BASE_IDX                                                         0
-#define regGCEA_ADDRNORMGMI_HOLE_CNTL                                                                   0x0a44
-#define regGCEA_ADDRNORMGMI_HOLE_CNTL_BASE_IDX                                                          0
-#define regGCEA_ADDRNORMDRAM_NP2_CHANNEL_CFG                                                            0x0a45
-#define regGCEA_ADDRNORMDRAM_NP2_CHANNEL_CFG_BASE_IDX                                                   0
-#define regGCEA_ADDRNORMGMI_NP2_CHANNEL_CFG                                                             0x0a46
-#define regGCEA_ADDRNORMGMI_NP2_CHANNEL_CFG_BASE_IDX                                                    0
+#define regGCEA_ADDRANALRM_BASE_ADDR0                                                                     0x0a34
+#define regGCEA_ADDRANALRM_BASE_ADDR0_BASE_IDX                                                            0
+#define regGCEA_ADDRANALRM_LIMIT_ADDR0                                                                    0x0a35
+#define regGCEA_ADDRANALRM_LIMIT_ADDR0_BASE_IDX                                                           0
+#define regGCEA_ADDRANALRM_BASE_ADDR1                                                                     0x0a36
+#define regGCEA_ADDRANALRM_BASE_ADDR1_BASE_IDX                                                            0
+#define regGCEA_ADDRANALRM_LIMIT_ADDR1                                                                    0x0a37
+#define regGCEA_ADDRANALRM_LIMIT_ADDR1_BASE_IDX                                                           0
+#define regGCEA_ADDRANALRM_OFFSET_ADDR1                                                                   0x0a38
+#define regGCEA_ADDRANALRM_OFFSET_ADDR1_BASE_IDX                                                          0
+#define regGCEA_ADDRANALRM_BASE_ADDR2                                                                     0x0a39
+#define regGCEA_ADDRANALRM_BASE_ADDR2_BASE_IDX                                                            0
+#define regGCEA_ADDRANALRM_LIMIT_ADDR2                                                                    0x0a3a
+#define regGCEA_ADDRANALRM_LIMIT_ADDR2_BASE_IDX                                                           0
+#define regGCEA_ADDRANALRM_BASE_ADDR3                                                                     0x0a3b
+#define regGCEA_ADDRANALRM_BASE_ADDR3_BASE_IDX                                                            0
+#define regGCEA_ADDRANALRM_LIMIT_ADDR3                                                                    0x0a3c
+#define regGCEA_ADDRANALRM_LIMIT_ADDR3_BASE_IDX                                                           0
+#define regGCEA_ADDRANALRM_OFFSET_ADDR3                                                                   0x0a3d
+#define regGCEA_ADDRANALRM_OFFSET_ADDR3_BASE_IDX                                                          0
+#define regGCEA_ADDRANALRM_MEGABASE_ADDR0                                                                 0x0a3e
+#define regGCEA_ADDRANALRM_MEGABASE_ADDR0_BASE_IDX                                                        0
+#define regGCEA_ADDRANALRM_MEGALIMIT_ADDR0                                                                0x0a3f
+#define regGCEA_ADDRANALRM_MEGALIMIT_ADDR0_BASE_IDX                                                       0
+#define regGCEA_ADDRANALRM_MEGABASE_ADDR1                                                                 0x0a40
+#define regGCEA_ADDRANALRM_MEGABASE_ADDR1_BASE_IDX                                                        0
+#define regGCEA_ADDRANALRM_MEGALIMIT_ADDR1                                                                0x0a41
+#define regGCEA_ADDRANALRM_MEGALIMIT_ADDR1_BASE_IDX                                                       0
+#define regGCEA_ADDRANALRMDRAM_HOLE_CNTL                                                                  0x0a43
+#define regGCEA_ADDRANALRMDRAM_HOLE_CNTL_BASE_IDX                                                         0
+#define regGCEA_ADDRANALRMGMI_HOLE_CNTL                                                                   0x0a44
+#define regGCEA_ADDRANALRMGMI_HOLE_CNTL_BASE_IDX                                                          0
+#define regGCEA_ADDRANALRMDRAM_NP2_CHANNEL_CFG                                                            0x0a45
+#define regGCEA_ADDRANALRMDRAM_NP2_CHANNEL_CFG_BASE_IDX                                                   0
+#define regGCEA_ADDRANALRMGMI_NP2_CHANNEL_CFG                                                             0x0a46
+#define regGCEA_ADDRANALRMGMI_NP2_CHANNEL_CFG_BASE_IDX                                                    0
 #define regGCEA_ADDRDEC_BANK_CFG                                                                        0x0a47
 #define regGCEA_ADDRDEC_BANK_CFG_BASE_IDX                                                               0
 #define regGCEA_ADDRDEC_MISC_CFG                                                                        0x0a48
@@ -1070,18 +1070,18 @@
 #define regGCEA_ADDRDEC2_RM_SEL_SECCS01_BASE_IDX                                                        0
 #define regGCEA_ADDRDEC2_RM_SEL_SECCS23                                                                 0x0aac
 #define regGCEA_ADDRDEC2_RM_SEL_SECCS23_BASE_IDX                                                        0
-#define regGCEA_ADDRNORMDRAM_GLOBAL_CNTL                                                                0x0aad
-#define regGCEA_ADDRNORMDRAM_GLOBAL_CNTL_BASE_IDX                                                       0
-#define regGCEA_ADDRNORMGMI_GLOBAL_CNTL                                                                 0x0aae
-#define regGCEA_ADDRNORMGMI_GLOBAL_CNTL_BASE_IDX                                                        0
-#define regGCEA_ADDRNORM_MEGACONTROL_ADDR0                                                              0x0ad1
-#define regGCEA_ADDRNORM_MEGACONTROL_ADDR0_BASE_IDX                                                     0
-#define regGCEA_ADDRNORM_MEGACONTROL_ADDR1                                                              0x0ad2
-#define regGCEA_ADDRNORM_MEGACONTROL_ADDR1_BASE_IDX                                                     0
-#define regGCEA_ADDRNORMDRAM_MASKING                                                                    0x0ad3
-#define regGCEA_ADDRNORMDRAM_MASKING_BASE_IDX                                                           0
-#define regGCEA_ADDRNORMGMI_MASKING                                                                     0x0ad4
-#define regGCEA_ADDRNORMGMI_MASKING_BASE_IDX                                                            0
+#define regGCEA_ADDRANALRMDRAM_GLOBAL_CNTL                                                                0x0aad
+#define regGCEA_ADDRANALRMDRAM_GLOBAL_CNTL_BASE_IDX                                                       0
+#define regGCEA_ADDRANALRMGMI_GLOBAL_CNTL                                                                 0x0aae
+#define regGCEA_ADDRANALRMGMI_GLOBAL_CNTL_BASE_IDX                                                        0
+#define regGCEA_ADDRANALRM_MEGACONTROL_ADDR0                                                              0x0ad1
+#define regGCEA_ADDRANALRM_MEGACONTROL_ADDR0_BASE_IDX                                                     0
+#define regGCEA_ADDRANALRM_MEGACONTROL_ADDR1                                                              0x0ad2
+#define regGCEA_ADDRANALRM_MEGACONTROL_ADDR1_BASE_IDX                                                     0
+#define regGCEA_ADDRANALRMDRAM_MASKING                                                                    0x0ad3
+#define regGCEA_ADDRANALRMDRAM_MASKING_BASE_IDX                                                           0
+#define regGCEA_ADDRANALRMGMI_MASKING                                                                     0x0ad4
+#define regGCEA_ADDRANALRMGMI_MASKING_BASE_IDX                                                            0
 #define regGCEA_IO_RD_CLI2GRP_MAP0                                                                      0x0ad5
 #define regGCEA_IO_RD_CLI2GRP_MAP0_BASE_IDX                                                             0
 #define regGCEA_IO_RD_CLI2GRP_MAP1                                                                      0x0ad6
@@ -3027,8 +3027,8 @@
 #define regCP_PFP_COMPLETION_STATUS_BASE_IDX                                                            1
 #define regCP_CE_COMPLETION_STATUS                                                                      0x20ed
 #define regCP_CE_COMPLETION_STATUS_BASE_IDX                                                             1
-#define regCP_PRED_NOT_VISIBLE                                                                          0x20ee
-#define regCP_PRED_NOT_VISIBLE_BASE_IDX                                                                 1
+#define regCP_PRED_ANALT_VISIBLE                                                                          0x20ee
+#define regCP_PRED_ANALT_VISIBLE_BASE_IDX                                                                 1
 #define regCP_PFP_METADATA_BASE_ADDR                                                                    0x20f0
 #define regCP_PFP_METADATA_BASE_ADDR_BASE_IDX                                                           1
 #define regCP_PFP_METADATA_BASE_ADDR_HI                                                                 0x20f1
@@ -3367,8 +3367,8 @@
 #define regGRBM_FENCE_RANGE0_BASE_IDX                                                                   0
 #define regGRBM_FENCE_RANGE1                                                                            0x002b
 #define regGRBM_FENCE_RANGE1_BASE_IDX                                                                   0
-#define regGRBM_NOWHERE                                                                                 0x003f
-#define regGRBM_NOWHERE_BASE_IDX                                                                        0
+#define regGRBM_ANALWHERE                                                                                 0x003f
+#define regGRBM_ANALWHERE_BASE_IDX                                                                        0
 #define regGRBM_SCRATCH_REG0                                                                            0x0040
 #define regGRBM_SCRATCH_REG0_BASE_IDX                                                                   0
 #define regGRBM_SCRATCH_REG1                                                                            0x0041
@@ -4915,10 +4915,10 @@
 #define regRLC_GPM_TIMER_STAT_BASE_IDX                                                                  1
 #define regRLC_GPM_TIMER_INT_3                                                                          0x4c15
 #define regRLC_GPM_TIMER_INT_3_BASE_IDX                                                                 1
-#define regRLC_SERDES_WR_NONCU_MASTER_MASK_1                                                            0x4c16
-#define regRLC_SERDES_WR_NONCU_MASTER_MASK_1_BASE_IDX                                                   1
-#define regRLC_SERDES_NONCU_MASTER_BUSY_1                                                               0x4c17
-#define regRLC_SERDES_NONCU_MASTER_BUSY_1_BASE_IDX                                                      1
+#define regRLC_SERDES_WR_ANALNCU_MASTER_MASK_1                                                            0x4c16
+#define regRLC_SERDES_WR_ANALNCU_MASTER_MASK_1_BASE_IDX                                                   1
+#define regRLC_SERDES_ANALNCU_MASTER_BUSY_1                                                               0x4c17
+#define regRLC_SERDES_ANALNCU_MASTER_BUSY_1_BASE_IDX                                                      1
 #define regRLC_INT_STAT                                                                                 0x4c18
 #define regRLC_INT_STAT_BASE_IDX                                                                        1
 #define regRLC_LB_CNTL                                                                                  0x4c19
@@ -5011,16 +5011,16 @@
 #define regRLC_SERDES_RD_DATA_2_BASE_IDX                                                                1
 #define regRLC_SERDES_WR_CU_MASTER_MASK                                                                 0x4c5d
 #define regRLC_SERDES_WR_CU_MASTER_MASK_BASE_IDX                                                        1
-#define regRLC_SERDES_WR_NONCU_MASTER_MASK                                                              0x4c5e
-#define regRLC_SERDES_WR_NONCU_MASTER_MASK_BASE_IDX                                                     1
+#define regRLC_SERDES_WR_ANALNCU_MASTER_MASK                                                              0x4c5e
+#define regRLC_SERDES_WR_ANALNCU_MASTER_MASK_BASE_IDX                                                     1
 #define regRLC_SERDES_WR_CTRL                                                                           0x4c5f
 #define regRLC_SERDES_WR_CTRL_BASE_IDX                                                                  1
 #define regRLC_SERDES_WR_DATA                                                                           0x4c60
 #define regRLC_SERDES_WR_DATA_BASE_IDX                                                                  1
 #define regRLC_SERDES_CU_MASTER_BUSY                                                                    0x4c61
 #define regRLC_SERDES_CU_MASTER_BUSY_BASE_IDX                                                           1
-#define regRLC_SERDES_NONCU_MASTER_BUSY                                                                 0x4c62
-#define regRLC_SERDES_NONCU_MASTER_BUSY_BASE_IDX                                                        1
+#define regRLC_SERDES_ANALNCU_MASTER_BUSY                                                                 0x4c62
+#define regRLC_SERDES_ANALNCU_MASTER_BUSY_BASE_IDX                                                        1
 #define regRLC_GPM_GENERAL_0                                                                            0x4c63
 #define regRLC_GPM_GENERAL_0_BASE_IDX                                                                   1
 #define regRLC_GPM_GENERAL_1                                                                            0x4c64
@@ -5827,8 +5827,8 @@
 #define regCOMPUTE_USER_DATA_15_BASE_IDX                                                                0
 #define regCOMPUTE_DISPATCH_END                                                                         0x0e7e
 #define regCOMPUTE_DISPATCH_END_BASE_IDX                                                                0
-#define regCOMPUTE_NOWHERE                                                                              0x0e7f
-#define regCOMPUTE_NOWHERE_BASE_IDX                                                                     0
+#define regCOMPUTE_ANALWHERE                                                                              0x0e7f
+#define regCOMPUTE_ANALWHERE_BASE_IDX                                                                     0
 
 
 // addressBlock: gc_shsdec

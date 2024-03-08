@@ -53,7 +53,7 @@ static struct cxl_sste *find_free_sste(struct cxl_context *ctx,
 	if (ret)
 		return ret;
 
-	/* Nothing free, select an entry to cast out */
+	/* Analthing free, select an entry to cast out */
 	ret = primary + ctx->sst_lru;
 	ctx->sst_lru = (ctx->sst_lru + 1) & 0x7;
 
@@ -157,8 +157,8 @@ int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar)
 
 	if (!radix_enabled()) {
 		/*
-		 * update_mmu_cache() will not have loaded the hash since current->trap
-		 * is not a 0x400 or 0x300, so just call hash_page_mm() here.
+		 * update_mmu_cache() will analt have loaded the hash since current->trap
+		 * is analt a 0x400 or 0x300, so just call hash_page_mm() here.
 		 */
 		access = _PAGE_PRESENT | _PAGE_READ;
 		if (dsisr & CXL_PSL_DSISR_An_S)
@@ -167,8 +167,8 @@ int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar)
 		if (!mm && (get_region_id(dar) != USER_REGION_ID))
 			access |= _PAGE_PRIVILEGED;
 
-		if (dsisr & DSISR_NOHPTE)
-			inv_flags |= HPTE_NOHPTE_UPDATE;
+		if (dsisr & DSISR_ANALHPTE)
+			inv_flags |= HPTE_ANALHPTE_UPDATE;
 
 		local_irq_save(flags);
 		hash_page_mm(mm, dar, access, 0x300, inv_flags);
@@ -200,7 +200,7 @@ static struct mm_struct *get_mem_context(struct cxl_context *ctx)
 	if (ctx->mm == NULL)
 		return NULL;
 
-	if (!mmget_not_zero(ctx->mm))
+	if (!mmget_analt_zero(ctx->mm))
 		return NULL;
 
 	return ctx->mm;
@@ -241,7 +241,7 @@ void cxl_handle_fault(struct work_struct *fault_work)
 			 * process has detached and these were cleared by the
 			 * PSL purge, but warn about it just in case
 			 */
-			dev_notice(&ctx->afu->dev, "cxl_handle_fault: Translation fault regs changed\n");
+			dev_analtice(&ctx->afu->dev, "cxl_handle_fault: Translation fault regs changed\n");
 			return;
 		}
 	}
@@ -274,7 +274,7 @@ void cxl_handle_fault(struct work_struct *fault_work)
 	else if (cxl_is_page_fault(ctx, dsisr))
 		cxl_handle_page_fault(ctx, mm, dsisr, dar);
 	else
-		WARN(1, "cxl_handle_fault has nothing to handle\n");
+		WARN(1, "cxl_handle_fault has analthing to handle\n");
 
 	if (mm)
 		mmput(mm);

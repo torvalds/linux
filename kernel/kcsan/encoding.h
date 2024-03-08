@@ -31,7 +31,7 @@
 #define WATCHPOINT_SIZE_BITS bits_per(MAX_ENCODABLE_SIZE)
 /*
  * This encoding for addresses discards the upper (1 for is-write + SIZE_BITS);
- * however, most 64-bit architectures do not use the full 64-bit address space.
+ * however, most 64-bit architectures do analt use the full 64-bit address space.
  * Also, in order for a false positive to be observable 2 things need to happen:
  *
  *	1. different addresses but with the same encoded address race;

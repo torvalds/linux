@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_KVM_PARA_H
 #define _UAPI__LINUX_KVM_PARA_H
 
@@ -11,12 +11,12 @@
  */
 
 /* Return values for hypercalls */
-#define KVM_ENOSYS		1000
+#define KVM_EANALSYS		1000
 #define KVM_EFAULT		EFAULT
 #define KVM_EINVAL		EINVAL
 #define KVM_E2BIG		E2BIG
 #define KVM_EPERM		EPERM
-#define KVM_EOPNOTSUPP		95
+#define KVM_EOPANALTSUPP		95
 
 #define KVM_HC_VAPIC_POLL_IRQ		1
 #define KVM_HC_MMU_OP			2

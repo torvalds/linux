@@ -84,7 +84,7 @@ enum falcon_mux {
 	FALCON_MUX_PCM,
 	FALCON_MUX_MII,
 	FALCON_MUX_PHY,
-	FALCON_MUX_NONE = 0xffff,
+	FALCON_MUX_ANALNE = 0xffff,
 };
 
 static struct pinctrl_pin_desc falcon_pads[PORTS * PINS];
@@ -104,60 +104,60 @@ static void lantiq_load_pin_desc(struct pinctrl_pin_desc *d, int bank, int len)
 
 static struct ltq_mfp_pin falcon_mfp[] = {
 	/*	pin		f0	f1	f2	f3 */
-	MFP_FALCON(GPIO0,	RST,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO1,	GPIO,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO2,	GPIO,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO3,	GPIO,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO4,	NTR,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO5,	NTR,	GPIO,   PPS,    NONE),
-	MFP_FALCON(GPIO6,	RST,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO7,	MDIO,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO8,	MDIO,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO9,	LED,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO10,	LED,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO11,	LED,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO12,	LED,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO13,	LED,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO14,	LED,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO32,	ASC,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO33,	ASC,	GPIO,   NONE,   NONE),
-	MFP_FALCON(GPIO34,	SPI,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO35,	SPI,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO36,	SPI,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO37,	SPI,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO38,	SPI,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO39,	I2C,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO40,	I2C,	GPIO,	NONE,	NONE),
+	MFP_FALCON(GPIO0,	RST,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO1,	GPIO,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO2,	GPIO,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO3,	GPIO,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO4,	NTR,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO5,	NTR,	GPIO,   PPS,    ANALNE),
+	MFP_FALCON(GPIO6,	RST,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO7,	MDIO,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO8,	MDIO,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO9,	LED,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO10,	LED,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO11,	LED,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO12,	LED,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO13,	LED,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO14,	LED,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO32,	ASC,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO33,	ASC,	GPIO,   ANALNE,   ANALNE),
+	MFP_FALCON(GPIO34,	SPI,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO35,	SPI,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO36,	SPI,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO37,	SPI,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO38,	SPI,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO39,	I2C,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO40,	I2C,	GPIO,	ANALNE,	ANALNE),
 	MFP_FALCON(GPIO41,	HOSTIF,	GPIO,	HOSTIF,	JTAG),
-	MFP_FALCON(GPIO42,	HOSTIF,	GPIO,	HOSTIF,	NONE),
-	MFP_FALCON(GPIO43,	SLIC,	GPIO,	NONE,	NONE),
+	MFP_FALCON(GPIO42,	HOSTIF,	GPIO,	HOSTIF,	ANALNE),
+	MFP_FALCON(GPIO43,	SLIC,	GPIO,	ANALNE,	ANALNE),
 	MFP_FALCON(GPIO44,	SLIC,	GPIO,	PCM,	ASC),
 	MFP_FALCON(GPIO45,	SLIC,	GPIO,	PCM,	ASC),
-	MFP_FALCON(GPIO64,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO65,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO66,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO67,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO68,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO69,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO70,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO71,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO72,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO73,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO74,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO75,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO76,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO77,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO78,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO79,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO80,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO81,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO82,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO83,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO84,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO85,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO86,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO87,	MII,	GPIO,	NONE,	NONE),
-	MFP_FALCON(GPIO88,	PHY,	GPIO,	NONE,	NONE),
+	MFP_FALCON(GPIO64,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO65,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO66,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO67,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO68,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO69,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO70,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO71,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO72,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO73,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO74,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO75,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO76,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO77,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO78,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO79,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO80,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO81,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO82,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO83,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO84,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO85,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO86,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO87,	MII,	GPIO,	ANALNE,	ANALNE),
+	MFP_FALCON(GPIO88,	PHY,	GPIO,	ANALNE,	ANALNE),
 };
 
 static const unsigned pins_por[] = {GPIO0};
@@ -228,14 +228,14 @@ static struct ltq_pmx_func falcon_funcs[] = {
 static int falcon_pinconf_group_get(struct pinctrl_dev *pctrldev,
 				unsigned group, unsigned long *config)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int falcon_pinconf_group_set(struct pinctrl_dev *pctrldev,
 				unsigned group, unsigned long *configs,
 				unsigned num_configs)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int falcon_pinconf_get(struct pinctrl_dev *pctrldev,
@@ -267,7 +267,7 @@ static int falcon_pinconf_get(struct pinctrl_dev *pctrldev,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -307,12 +307,12 @@ static int falcon_pinconf_set(struct pinctrl_dev *pctrldev,
 		default:
 			pr_err("%s: Invalid config param %04x\n",
 			pinctrl_dev_get_name(pctrldev), param);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		pad_w32(mem, BIT(PORT_PIN(pin)), reg);
 		if (!(pad_r32(mem, reg) & BIT(PORT_PIN(pin))))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 	} /* for each config */
 
 	return 0;
@@ -350,7 +350,7 @@ static void falcon_pinconf_dbg_show(struct pinctrl_dev *pctrldev,
 		if (desc->gpio_owner)
 			seq_printf(s, " owner: %s", desc->gpio_owner);
 	} else {
-		seq_printf(s, " not registered");
+		seq_printf(s, " analt registered");
 	}
 }
 
@@ -381,7 +381,7 @@ static inline int falcon_mux_apply(struct pinctrl_dev *pctrldev,
 	int port = PORT(info->mfp[mfp].pin);
 
 	if ((port >= PORTS) || (!info->membase[port]))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pad_w32(info->membase[port], mux,
 		LTQ_PADC_MUX(PORT_PIN(info->mfp[mfp].pin)));
@@ -425,12 +425,12 @@ void pinctrl_falcon_add_gpio_range(struct pinctrl_gpio_range *range)
 
 static int pinctrl_falcon_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int pad_count = 0;
 	int ret = 0;
 
 	/* load and remap the pad resources of the different banks */
-	for_each_compatible_node(np, NULL, "lantiq,pad-falcon") {
+	for_each_compatible_analde(np, NULL, "lantiq,pad-falcon") {
 		const __be32 *bank = of_get_property(np, "lantiq,bank", NULL);
 		struct resource res;
 		struct platform_device *ppdev;
@@ -445,7 +445,7 @@ static int pinctrl_falcon_probe(struct platform_device *pdev)
 		if (of_address_to_resource(np, 0, &res))
 			continue;
 
-		ppdev = of_find_device_by_node(np);
+		ppdev = of_find_device_by_analde(np);
 		if (!ppdev) {
 			dev_err(&pdev->dev, "failed to find pad pdev\n");
 			continue;
@@ -455,13 +455,13 @@ static int pinctrl_falcon_probe(struct platform_device *pdev)
 		put_device(&ppdev->dev);
 		if (IS_ERR(falcon_info.clk[*bank])) {
 			dev_err(&ppdev->dev, "failed to get clock\n");
-			of_node_put(np);
+			of_analde_put(np);
 			return PTR_ERR(falcon_info.clk[*bank]);
 		}
 		falcon_info.membase[*bank] = devm_ioremap_resource(&pdev->dev,
 								   &res);
 		if (IS_ERR(falcon_info.membase[*bank])) {
-			of_node_put(np);
+			of_analde_put(np);
 			return PTR_ERR(falcon_info.membase[*bank]);
 		}
 

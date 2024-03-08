@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -244,7 +244,7 @@ static int device_gpadc_init(struct pm80x_chip *chip,
 
 	if (!map) {
 		dev_warn(chip->dev,
-			 "Warning: gpadc regmap is not available!\n");
+			 "Warning: gpadc regmap is analt available!\n");
 		return -EINVAL;
 	}
 	/*
@@ -259,7 +259,7 @@ static int device_gpadc_init(struct pm80x_chip *chip,
 		goto out;
 	/*
 	 * This function configures the ADC as requires for
-	 * CP implementation.CP does not "own" the ADC configuration
+	 * CP implementation.CP does analt "own" the ADC configuration
 	 * registers and relies on AP.
 	 * Reason: enable automatic ADC measurements needed
 	 * for CP to get VBAT and RF temperature readings.
@@ -411,7 +411,7 @@ static int pm800_pages_init(struct pm80x_chip *chip)
 
 	subchip = chip->subchip;
 	if (!subchip || !subchip->power_page_addr || !subchip->gpadc_page_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* PM800 block power page */
 	subchip->power_page = i2c_new_dummy_device(client->adapter,
@@ -547,7 +547,7 @@ static int pm800_probe(struct i2c_client *client)
 	    devm_kzalloc(&client->dev, sizeof(struct pm80x_subchip),
 			 GFP_KERNEL);
 	if (!subchip) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_subchip_alloc;
 	}
 

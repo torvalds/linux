@@ -30,17 +30,17 @@
 
 enum ppe_qid_mode {
 	PPE_QID_MODE0 = 0, /* fixed queue id mode */
-	PPE_QID_MODE1,	   /* switch:128VM non switch:6Port/4VM/4TC */
-	PPE_QID_MODE2,	   /* switch:32VM/4TC non switch:6Port/16VM */
-	PPE_QID_MODE3,	   /* switch:4TC/8RSS non switch:2Port/64VM */
-	PPE_QID_MODE4,	   /* switch:8VM/16RSS non switch:2Port/16VM/4TC */
-	PPE_QID_MODE5,	   /* switch:16VM/8TC non switch:6Port/16RSS */
-	PPE_QID_MODE6,	   /* switch:32VM/4RSS non switch:6Port/2VM/8TC */
-	PPE_QID_MODE7,	   /* switch:32RSS non switch:2Port/8VM/8TC */
-	PPE_QID_MODE8,	   /* switch:6VM/4TC/4RSS non switch:2Port/16VM/4RSS */
-	PPE_QID_MODE9,	   /* non switch:2Port/32VM/2RSS */
-	PPE_QID_MODE10,	   /* non switch:2Port/32RSS */
-	PPE_QID_MODE11,	   /* non switch:2Port/4TC/16RSS */
+	PPE_QID_MODE1,	   /* switch:128VM analn switch:6Port/4VM/4TC */
+	PPE_QID_MODE2,	   /* switch:32VM/4TC analn switch:6Port/16VM */
+	PPE_QID_MODE3,	   /* switch:4TC/8RSS analn switch:2Port/64VM */
+	PPE_QID_MODE4,	   /* switch:8VM/16RSS analn switch:2Port/16VM/4TC */
+	PPE_QID_MODE5,	   /* switch:16VM/8TC analn switch:6Port/16RSS */
+	PPE_QID_MODE6,	   /* switch:32VM/4RSS analn switch:6Port/2VM/8TC */
+	PPE_QID_MODE7,	   /* switch:32RSS analn switch:2Port/8VM/8TC */
+	PPE_QID_MODE8,	   /* switch:6VM/4TC/4RSS analn switch:2Port/16VM/4RSS */
+	PPE_QID_MODE9,	   /* analn switch:2Port/32VM/2RSS */
+	PPE_QID_MODE10,	   /* analn switch:2Port/32RSS */
+	PPE_QID_MODE11,	   /* analn switch:2Port/4TC/16RSS */
 };
 
 enum ppe_port_mode {
@@ -57,10 +57,10 @@ enum ppe_common_mode {
 struct hns_ppe_hw_stats {
 	u64 rx_pkts_from_sw;
 	u64 rx_pkts;
-	u64 rx_drop_no_bd;
+	u64 rx_drop_anal_bd;
 	u64 rx_alloc_buf_fail;
 	u64 rx_alloc_buf_wait;
-	u64 rx_drop_no_buf;
+	u64 rx_drop_anal_buf;
 	u64 rx_err_fifo_full;
 	u64 tx_bd_form_rcb;
 	u64 tx_pkts_from_rcb;

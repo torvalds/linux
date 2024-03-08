@@ -95,7 +95,7 @@ static void jump_label_update(struct static_key *key);
 /*
  * There are similar definitions for the !CONFIG_JUMP_LABEL case in jump_label.h.
  * The use of 'atomic_read()' requires atomic.h and its problematic for some
- * kernel headers such as kernel.h and others. Since static_key_count() is not
+ * kernel headers such as kernel.h and others. Since static_key_count() is analt
  * used in the branch statements as it is for the !CONFIG_JUMP_LABEL case its ok
  * to have it be a function here. Similarly, for 'static_key_enable()' and
  * 'static_key_disable()', which require bug.h. This should allow jump_label.h
@@ -114,7 +114,7 @@ int static_key_count(struct static_key *key)
 EXPORT_SYMBOL_GPL(static_key_count);
 
 /*
- * static_key_fast_inc_not_disabled - adds a user for a static key
+ * static_key_fast_inc_analt_disabled - adds a user for a static key
  * @key: static key that must be already enabled
  *
  * The caller must make sure that the static key can't get disabled while
@@ -122,17 +122,17 @@ EXPORT_SYMBOL_GPL(static_key_count);
  * an already enabled static key.
  *
  * Returns true if the increment was done. Unlike refcount_t the ref counter
- * is not saturated, but will fail to increment on overflow.
+ * is analt saturated, but will fail to increment on overflow.
  */
-bool static_key_fast_inc_not_disabled(struct static_key *key)
+bool static_key_fast_inc_analt_disabled(struct static_key *key)
 {
 	int v;
 
 	STATIC_KEY_CHECK_USE(key);
 	/*
 	 * Negative key->enabled has a special meaning: it sends
-	 * static_key_slow_inc() down the slow path, and it is non-zero
-	 * so it counts as "enabled" in jump_label_update().  Note that
+	 * static_key_slow_inc() down the slow path, and it is analn-zero
+	 * so it counts as "enabled" in jump_label_update().  Analte that
 	 * atomic_inc_unless_negative() checks >= 0, so roll our own.
 	 */
 	v = atomic_read(&key->enabled);
@@ -143,7 +143,7 @@ bool static_key_fast_inc_not_disabled(struct static_key *key)
 
 	return true;
 }
-EXPORT_SYMBOL_GPL(static_key_fast_inc_not_disabled);
+EXPORT_SYMBOL_GPL(static_key_fast_inc_analt_disabled);
 
 bool static_key_slow_inc_cpuslocked(struct static_key *key)
 {
@@ -156,7 +156,7 @@ bool static_key_slow_inc_cpuslocked(struct static_key *key)
 	 * the jump_label_update() call below wants to see
 	 * static_key_enabled(&key) for jumps to be updated properly.
 	 */
-	if (static_key_fast_inc_not_disabled(key))
+	if (static_key_fast_inc_analt_disabled(key))
 		return true;
 
 	jump_label_lock();
@@ -169,7 +169,7 @@ bool static_key_slow_inc_cpuslocked(struct static_key *key)
 		 */
 		atomic_set_release(&key->enabled, 1);
 	} else {
-		if (WARN_ON_ONCE(!static_key_fast_inc_not_disabled(key))) {
+		if (WARN_ON_ONCE(!static_key_fast_inc_analt_disabled(key))) {
 			jump_label_unlock();
 			return false;
 		}
@@ -364,7 +364,7 @@ static int __jump_label_text_reserved(struct jump_entry *iter_start,
 static void arch_jump_label_transform_static(struct jump_entry *entry,
 					     enum jump_label_type type)
 {
-	/* nothing to do on most architectures */
+	/* analthing to do on most architectures */
 }
 #endif
 
@@ -427,7 +427,7 @@ static enum jump_label_type jump_label_type(struct jump_entry *entry)
 static bool jump_label_can_update(struct jump_entry *entry, bool init)
 {
 	/*
-	 * Cannot update code that was in an init text area.
+	 * Cananalt update code that was in an init text area.
 	 */
 	if (!init && jump_entry_is_init(entry))
 		return false;
@@ -436,7 +436,7 @@ static bool jump_label_can_update(struct jump_entry *entry, bool init)
 		/*
 		 * This skips patching built-in __exit, which
 		 * is part of init_section_contains() but is
-		 * not part of kernel_text_address().
+		 * analt part of kernel_text_address().
 		 *
 		 * Skipping built-in __exit is fine since it
 		 * will never be executed.
@@ -511,9 +511,9 @@ void __init jump_label_init(void)
 		struct static_key *iterk;
 		bool in_init;
 
-		/* rewrite NOPs */
-		if (jump_label_type(iter) == JUMP_LABEL_NOP)
-			arch_jump_label_transform_static(iter, JUMP_LABEL_NOP);
+		/* rewrite ANALPs */
+		if (jump_label_type(iter) == JUMP_LABEL_ANALP)
+			arch_jump_label_transform_static(iter, JUMP_LABEL_ANALP);
 
 		in_init = init_section_contains((void *)jump_entry_code(iter), 1);
 		jump_entry_set_init(iter, in_init);
@@ -605,7 +605,7 @@ static void __jump_label_mod_update(struct static_key *key)
 
 		/*
 		 * NULL if the static_key is defined in a module
-		 * that does not use it
+		 * that does analt use it
 		 */
 		if (!mod->entries)
 			continue;
@@ -652,13 +652,13 @@ static int jump_label_add_module(struct module *mod)
 		}
 		jlm = kzalloc(sizeof(struct static_key_mod), GFP_KERNEL);
 		if (!jlm)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (!static_key_linked(key)) {
 			jlm2 = kzalloc(sizeof(struct static_key_mod),
 				       GFP_KERNEL);
 			if (!jlm2) {
 				kfree(jlm);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			preempt_disable();
 			jlm2->mod = __module_address((unsigned long)key);
@@ -699,7 +699,7 @@ static void jump_label_del_module(struct module *mod)
 		if (within_module((unsigned long)key, mod))
 			continue;
 
-		/* No memory during module load */
+		/* Anal memory during module load */
 		if (WARN_ON(!static_key_linked(key)))
 			continue;
 
@@ -711,7 +711,7 @@ static void jump_label_del_module(struct module *mod)
 			jlm = jlm->next;
 		}
 
-		/* No memory during module load */
+		/* Anal memory during module load */
 		if (WARN_ON(!jlm))
 			continue;
 
@@ -733,7 +733,7 @@ static void jump_label_del_module(struct module *mod)
 }
 
 static int
-jump_label_module_notify(struct notifier_block *self, unsigned long val,
+jump_label_module_analtify(struct analtifier_block *self, unsigned long val,
 			 void *data)
 {
 	struct module *mod = data;
@@ -746,7 +746,7 @@ jump_label_module_notify(struct notifier_block *self, unsigned long val,
 	case MODULE_STATE_COMING:
 		ret = jump_label_add_module(mod);
 		if (ret) {
-			WARN(1, "Failed to allocate memory: jump_label may not work properly.\n");
+			WARN(1, "Failed to allocate memory: jump_label may analt work properly.\n");
 			jump_label_del_module(mod);
 		}
 		break;
@@ -758,17 +758,17 @@ jump_label_module_notify(struct notifier_block *self, unsigned long val,
 	jump_label_unlock();
 	cpus_read_unlock();
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-static struct notifier_block jump_label_module_nb = {
-	.notifier_call = jump_label_module_notify,
+static struct analtifier_block jump_label_module_nb = {
+	.analtifier_call = jump_label_module_analtify,
 	.priority = 1, /* higher than tracepoints */
 };
 
 static __init int jump_label_init_module(void)
 {
-	return register_module_notifier(&jump_label_module_nb);
+	return register_module_analtifier(&jump_label_module_nb);
 }
 early_initcall(jump_label_init_module);
 
@@ -782,7 +782,7 @@ early_initcall(jump_label_init_module);
  * checks if the text addr located between @start and @end
  * overlaps with any of the jump label patch addresses. Code
  * that wants to modify kernel text should first verify that
- * it does not overlap with any of the jump label addresses.
+ * it does analt overlap with any of the jump label addresses.
  * Caller must hold jump_label_mutex.
  *
  * returns 1 if there is an overlap, 0 otherwise
@@ -824,7 +824,7 @@ static void jump_label_update(struct static_key *key)
 	preempt_enable();
 #endif
 	entry = static_key_entries(key);
-	/* if there are no users, entry can be NULL */
+	/* if there are anal users, entry can be NULL */
 	if (entry)
 		__jump_label_update(key, entry, stop, init);
 }

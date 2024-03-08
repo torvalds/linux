@@ -211,8 +211,8 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 	tps_board = dev_get_platdata(tps6507x_dev->dev);
 	if (!tps_board) {
 		dev_err(tps6507x_dev->dev,
-			"Could not find tps6507x platform data\n");
-		return -ENODEV;
+			"Could analt find tps6507x platform data\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -224,7 +224,7 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 	tsc = devm_kzalloc(&pdev->dev, sizeof(struct tps6507x_ts), GFP_KERNEL);
 	if (!tsc) {
 		dev_err(tps6507x_dev->dev, "failed to allocate driver data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tsc->mfd = tps6507x_dev;
@@ -238,7 +238,7 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(tsc->dev, "Failed to allocate polled input device.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tsc->input = input_dev;

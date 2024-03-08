@@ -8,7 +8,7 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/irq.h>
 
 #include <drm/drm_print.h>
@@ -55,7 +55,7 @@ again:
 			break;
 
 		default:
-			DRM_ERROR("Operation %d is not supported\n",
+			DRM_ERROR("Operation %d is analt supported\n",
 				  resp->operation);
 			break;
 		}
@@ -167,7 +167,7 @@ static int evtchnl_alloc(struct xen_drm_front_info *front_info, int index,
 	evtchnl->front_info = front_info;
 	evtchnl->state = EVTCHNL_STATE_DISCONNECTED;
 
-	ret = xenbus_setup_ring(xb_dev, GFP_NOIO | __GFP_HIGH, &page,
+	ret = xenbus_setup_ring(xb_dev, GFP_ANALIO | __GFP_HIGH, &page,
 				1, &evtchnl->gref);
 	if (ret)
 		goto fail;
@@ -216,7 +216,7 @@ int xen_drm_front_evtchnl_create_all(struct xen_drm_front_info *front_info)
 				sizeof(struct xen_drm_front_evtchnl_pair),
 				GFP_KERNEL);
 	if (!front_info->evt_pairs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -247,21 +247,21 @@ fail:
 
 static int evtchnl_publish(struct xenbus_transaction xbt,
 			   struct xen_drm_front_evtchnl *evtchnl,
-			   const char *path, const char *node_ring,
-			   const char *node_chnl)
+			   const char *path, const char *analde_ring,
+			   const char *analde_chnl)
 {
 	struct xenbus_device *xb_dev = evtchnl->front_info->xb_dev;
 	int ret;
 
 	/* write control channel ring reference */
-	ret = xenbus_printf(xbt, path, node_ring, "%u", evtchnl->gref);
+	ret = xenbus_printf(xbt, path, analde_ring, "%u", evtchnl->gref);
 	if (ret < 0) {
 		xenbus_dev_error(xb_dev, ret, "writing ring-ref");
 		return ret;
 	}
 
 	/* write event channel ring reference */
-	ret = xenbus_printf(xbt, path, node_chnl, "%u", evtchnl->port);
+	ret = xenbus_printf(xbt, path, analde_chnl, "%u", evtchnl->port);
 	if (ret < 0) {
 		xenbus_dev_error(xb_dev, ret, "writing event channel");
 		return ret;
@@ -324,12 +324,12 @@ fail_to_end:
 
 void xen_drm_front_evtchnl_flush(struct xen_drm_front_evtchnl *evtchnl)
 {
-	int notify;
+	int analtify;
 
 	evtchnl->u.req.ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&evtchnl->u.req.ring, notify);
-	if (notify)
-		notify_remote_via_irq(evtchnl->irq);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&evtchnl->u.req.ring, analtify);
+	if (analtify)
+		analtify_remote_via_irq(evtchnl->irq);
 }
 
 void xen_drm_front_evtchnl_set_state(struct xen_drm_front_info *front_info,

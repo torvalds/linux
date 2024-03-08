@@ -93,14 +93,14 @@ void msg_fetch_response(struct scmi_msg_payld *msg, size_t len,
 }
 
 /**
- * msg_fetch_notification() - Fetch notification payload from transport SDU.
+ * msg_fetch_analtification() - Fetch analtification payload from transport SDU.
  *
- * @msg: transport SDU with notification
+ * @msg: transport SDU with analtification
  * @len: transport SDU size
  * @max_len: maximum SCMI payload size to fetch
- * @xfer: notification message
+ * @xfer: analtification message
  */
-void msg_fetch_notification(struct scmi_msg_payld *msg, size_t len,
+void msg_fetch_analtification(struct scmi_msg_payld *msg, size_t len,
 			    size_t max_len, struct scmi_xfer *xfer)
 {
 	xfer->rx.len = min_t(size_t, max_len,

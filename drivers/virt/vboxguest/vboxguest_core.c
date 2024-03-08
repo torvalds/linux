@@ -30,18 +30,18 @@
 
 #define VBG_KERNEL_REQUEST \
 	(VMMDEV_REQUESTOR_KERNEL | VMMDEV_REQUESTOR_USR_DRV | \
-	 VMMDEV_REQUESTOR_CON_DONT_KNOW | VMMDEV_REQUESTOR_TRUST_NOT_GIVEN)
+	 VMMDEV_REQUESTOR_CON_DONT_KANALW | VMMDEV_REQUESTOR_TRUST_ANALT_GIVEN)
 
 /**
  * vbg_guest_mappings_init - Reserves memory in which the VMM can
  *	relocate any guest mappings that are floating around.
  * @gdev:		The Guest extension device.
  *
- * This operation is a little bit tricky since the VMM might not accept
+ * This operation is a little bit tricky since the VMM might analt accept
  * just any address because of address clashes between the three contexts
  * it operates in, so we try several times.
  *
- * Failure to reserve the guest mappings is ignored.
+ * Failure to reserve the guest mappings is iganalred.
  */
 static void vbg_guest_mappings_init(struct vbg_dev *gdev)
 {
@@ -64,7 +64,7 @@ static void vbg_guest_mappings_init(struct vbg_dev *gdev)
 		goto out;
 
 	/*
-	 * The VMM will report back if there is nothing it wants to map, like
+	 * The VMM will report back if there is analthing it wants to map, like
 	 * for instance in VT-x and AMD-V mode.
 	 */
 	if (req->hypervisor_size == 0)
@@ -86,7 +86,7 @@ static void vbg_guest_mappings_init(struct vbg_dev *gdev)
 		pages[i] = gdev->guest_mappings_dummy_page;
 
 	/*
-	 * Try several times, the VMM might not accept some addresses because
+	 * Try several times, the VMM might analt accept some addresses because
 	 * of address clashes between the three contexts.
 	 */
 	for (i = 0; i < GUEST_MAPPINGS_TRIES; i++) {
@@ -168,7 +168,7 @@ static void vbg_guest_mappings_exit(struct vbg_dev *gdev)
  * vbg_report_guest_info - Report the guest information to the host.
  * @gdev:		The Guest extension device.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_report_guest_info(struct vbg_dev *gdev)
 {
@@ -177,7 +177,7 @@ static int vbg_report_guest_info(struct vbg_dev *gdev)
 	 */
 	struct vmmdev_guest_info *req1 = NULL;
 	struct vmmdev_guest_info2 *req2 = NULL;
-	int rc, ret = -ENOMEM;
+	int rc, ret = -EANALMEM;
 
 	req1 = vbg_req_alloc(sizeof(*req1), VMMDEVREQ_REPORT_GUEST_INFO,
 			     VBG_KERNEL_REQUEST);
@@ -193,7 +193,7 @@ static int vbg_report_guest_info(struct vbg_dev *gdev)
 #endif
 
 	req2->additions_major = VBG_VERSION_MAJOR;
-	req2->additions_minor = VBG_VERSION_MINOR;
+	req2->additions_mianalr = VBG_VERSION_MIANALR;
 	req2->additions_build = VBG_VERSION_BUILD;
 	req2->additions_revision = VBG_SVN_REV;
 	req2->additions_features =
@@ -206,21 +206,21 @@ static int vbg_report_guest_info(struct vbg_dev *gdev)
 	 *      1. INFO2 + INFO1. Supported by >=3.2.51.
 	 *      2. INFO1 and optionally INFO2. The old protocol.
 	 *
-	 * We try protocol 2 first.  It will fail with VERR_NOT_SUPPORTED
-	 * if not supported by the VMMDev (message ordering requirement).
+	 * We try protocol 2 first.  It will fail with VERR_ANALT_SUPPORTED
+	 * if analt supported by the VMMDev (message ordering requirement).
 	 */
 	rc = vbg_req_perform(gdev, req2);
 	if (rc >= 0) {
 		rc = vbg_req_perform(gdev, req1);
-	} else if (rc == VERR_NOT_SUPPORTED || rc == VERR_NOT_IMPLEMENTED) {
+	} else if (rc == VERR_ANALT_SUPPORTED || rc == VERR_ANALT_IMPLEMENTED) {
 		rc = vbg_req_perform(gdev, req1);
 		if (rc >= 0) {
 			rc = vbg_req_perform(gdev, req2);
-			if (rc == VERR_NOT_IMPLEMENTED)
+			if (rc == VERR_ANALT_IMPLEMENTED)
 				rc = VINF_SUCCESS;
 		}
 	}
-	ret = vbg_status_code_to_errno(rc);
+	ret = vbg_status_code_to_erranal(rc);
 
 out_free:
 	vbg_req_free(req2, sizeof(*req2));
@@ -231,9 +231,9 @@ out_free:
 /**
  * vbg_report_driver_status - Report the guest driver status to the host.
  * @gdev:		The Guest extension device.
- * @active:		Flag whether the driver is now active or not.
+ * @active:		Flag whether the driver is analw active or analt.
  *
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  */
 static int vbg_report_driver_status(struct vbg_dev *gdev, bool active)
 {
@@ -243,7 +243,7 @@ static int vbg_report_driver_status(struct vbg_dev *gdev, bool active)
 	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_REPORT_GUEST_STATUS,
 			    VBG_KERNEL_REQUEST);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->facility = VBOXGUEST_FACILITY_TYPE_VBOXGUEST_DRIVER;
 	if (active)
@@ -253,12 +253,12 @@ static int vbg_report_driver_status(struct vbg_dev *gdev, bool active)
 	req->flags = 0;
 
 	rc = vbg_req_perform(gdev, req);
-	if (rc == VERR_NOT_IMPLEMENTED)	/* Compatibility with older hosts. */
+	if (rc == VERR_ANALT_IMPLEMENTED)	/* Compatibility with older hosts. */
 		rc = VINF_SUCCESS;
 
 	vbg_req_free(req, sizeof(*req));
 
-	return vbg_status_code_to_errno(rc);
+	return vbg_status_code_to_erranal(rc);
 }
 
 /**
@@ -267,7 +267,7 @@ static int vbg_report_driver_status(struct vbg_dev *gdev, bool active)
  * @gdev:		The Guest extension device.
  * @chunk_idx:		Index of the chunk.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_balloon_inflate(struct vbg_dev *gdev, u32 chunk_idx)
 {
@@ -277,18 +277,18 @@ static int vbg_balloon_inflate(struct vbg_dev *gdev, u32 chunk_idx)
 
 	pages = kmalloc_array(VMMDEV_MEMORY_BALLOON_CHUNK_PAGES,
 			      sizeof(*pages),
-			      GFP_KERNEL | __GFP_NOWARN);
+			      GFP_KERNEL | __GFP_ANALWARN);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->header.size = sizeof(*req);
 	req->inflate = true;
 	req->pages = VMMDEV_MEMORY_BALLOON_CHUNK_PAGES;
 
 	for (i = 0; i < VMMDEV_MEMORY_BALLOON_CHUNK_PAGES; i++) {
-		pages[i] = alloc_page(GFP_KERNEL | __GFP_NOWARN);
+		pages[i] = alloc_page(GFP_KERNEL | __GFP_ANALWARN);
 		if (!pages[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_error;
 		}
 
@@ -298,7 +298,7 @@ static int vbg_balloon_inflate(struct vbg_dev *gdev, u32 chunk_idx)
 	rc = vbg_req_perform(gdev, req);
 	if (rc < 0) {
 		vbg_err("%s error, rc: %d\n", __func__, rc);
-		ret = vbg_status_code_to_errno(rc);
+		ret = vbg_status_code_to_erranal(rc);
 		goto out_error;
 	}
 
@@ -320,7 +320,7 @@ out_error:
  * @gdev:		The Guest extension device.
  * @chunk_idx:		Index of the chunk.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_balloon_deflate(struct vbg_dev *gdev, u32 chunk_idx)
 {
@@ -338,7 +338,7 @@ static int vbg_balloon_deflate(struct vbg_dev *gdev, u32 chunk_idx)
 	rc = vbg_req_perform(gdev, req);
 	if (rc < 0) {
 		vbg_err("%s error, rc: %d\n", __func__, rc);
-		return vbg_status_code_to_errno(rc);
+		return vbg_status_code_to_erranal(rc);
 	}
 
 	for (i = 0; i < VMMDEV_MEMORY_BALLOON_CHUNK_PAGES; i++)
@@ -432,7 +432,7 @@ static void vbg_heartbeat_timer(struct timer_list *t)
  * @gdev:		The Guest extension device.
  * @enabled:		Set true to enable guest heartbeat checks on host.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_heartbeat_host_config(struct vbg_dev *gdev, bool enabled)
 {
@@ -442,7 +442,7 @@ static int vbg_heartbeat_host_config(struct vbg_dev *gdev, bool enabled)
 	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_HEARTBEAT_CONFIGURE,
 			    VBG_KERNEL_REQUEST);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->enabled = enabled;
 	req->interval_ns = 0;
@@ -451,7 +451,7 @@ static int vbg_heartbeat_host_config(struct vbg_dev *gdev, bool enabled)
 	gdev->heartbeat_interval_ms = req->interval_ns;
 	vbg_req_free(req, sizeof(*req));
 
-	return vbg_status_code_to_errno(rc);
+	return vbg_status_code_to_erranal(rc);
 }
 
 /**
@@ -459,7 +459,7 @@ static int vbg_heartbeat_host_config(struct vbg_dev *gdev, bool enabled)
  * may be disabled by the host.
  * @gdev:		The Guest extension device.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_heartbeat_init(struct vbg_dev *gdev)
 {
@@ -479,7 +479,7 @@ static int vbg_heartbeat_init(struct vbg_dev *gdev)
 					VMMDEVREQ_GUEST_HEARTBEAT,
 					VBG_KERNEL_REQUEST);
 	if (!gdev->guest_heartbeat_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vbg_info("%s: Setting up heartbeat to trigger every %d milliseconds\n",
 		 __func__, gdev->heartbeat_interval_ms);
@@ -507,7 +507,7 @@ static void vbg_heartbeat_exit(struct vbg_dev *gdev)
  * @changed:		The bits to change.
  * @previous:		The previous value of the bits.
  *
- * Return: %true if the mask changed, %false if not.
+ * Return: %true if the mask changed, %false if analt.
  */
 static bool vbg_track_bit_usage(struct vbg_bit_usage_tracker *tracker,
 				u32 changed, u32 previous)
@@ -544,7 +544,7 @@ static bool vbg_track_bit_usage(struct vbg_bit_usage_tracker *tracker,
  * @gdev:		   The Guest extension device.
  * @fixed_events:	   Fixed events (init time).
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_reset_host_event_filter(struct vbg_dev *gdev,
 				       u32 fixed_events)
@@ -555,16 +555,16 @@ static int vbg_reset_host_event_filter(struct vbg_dev *gdev,
 	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_CTL_GUEST_FILTER_MASK,
 			    VBG_KERNEL_REQUEST);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	req->not_mask = U32_MAX & ~fixed_events;
+	req->analt_mask = U32_MAX & ~fixed_events;
 	req->or_mask = fixed_events;
 	rc = vbg_req_perform(gdev, req);
 	if (rc < 0)
 		vbg_err("%s error, rc: %d\n", __func__, rc);
 
 	vbg_req_free(req, sizeof(*req));
-	return vbg_status_code_to_errno(rc);
+	return vbg_status_code_to_erranal(rc);
 }
 
 /**
@@ -573,7 +573,7 @@ static int vbg_reset_host_event_filter(struct vbg_dev *gdev,
  * @gdev:			The Guest extension device.
  * @session:			The session.
  * @or_mask:			The events to add.
- * @not_mask:			The events to remove.
+ * @analt_mask:			The events to remove.
  * @session_termination:	Set if we're called by the session cleanup code.
  *				This tweaks the error handling so we perform
  *				proper session cleanup even if the host
@@ -582,11 +582,11 @@ static int vbg_reset_host_event_filter(struct vbg_dev *gdev,
  * This is called in response to VBG_IOCTL_CHANGE_FILTER_MASK as well as to
  * do session cleanup. Takes the session mutex.
  *
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  */
 static int vbg_set_session_event_filter(struct vbg_dev *gdev,
 					struct vbg_session *session,
-					u32 or_mask, u32 not_mask,
+					u32 or_mask, u32 analt_mask,
 					bool session_termination)
 {
 	struct vmmdev_mask *req;
@@ -603,8 +603,8 @@ static int vbg_set_session_event_filter(struct vbg_dev *gdev,
 						  session->requestor);
 	if (!req) {
 		if (!session_termination)
-			return -ENOMEM;
-		/* Ignore allocation failure, we must do session cleanup. */
+			return -EANALMEM;
+		/* Iganalre allocation failure, we must do session cleanup. */
 	}
 
 	mutex_lock(&gdev->session_mutex);
@@ -612,7 +612,7 @@ static int vbg_set_session_event_filter(struct vbg_dev *gdev,
 	/* Apply the changes to the session mask. */
 	previous = session->event_filter;
 	session->event_filter |= or_mask;
-	session->event_filter &= ~not_mask;
+	session->event_filter &= ~analt_mask;
 
 	/* If anything actually changed, update the global usage counters. */
 	changed = previous ^ session->event_filter;
@@ -627,10 +627,10 @@ static int vbg_set_session_event_filter(struct vbg_dev *gdev,
 
 	gdev->event_filter_host = or_mask;
 	req->or_mask = or_mask;
-	req->not_mask = ~or_mask;
+	req->analt_mask = ~or_mask;
 	rc = vbg_req_perform(gdev, req);
 	if (rc < 0) {
-		ret = vbg_status_code_to_errno(rc);
+		ret = vbg_status_code_to_erranal(rc);
 
 		/* Failed, roll back (unless it's session termination time). */
 		gdev->event_filter_host = U32_MAX;
@@ -654,7 +654,7 @@ out:
  *	guest capabilities to zero on the host.
  * @gdev:		The Guest extension device.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_reset_host_capabilities(struct vbg_dev *gdev)
 {
@@ -664,16 +664,16 @@ static int vbg_reset_host_capabilities(struct vbg_dev *gdev)
 	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_SET_GUEST_CAPABILITIES,
 			    VBG_KERNEL_REQUEST);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	req->not_mask = U32_MAX;
+	req->analt_mask = U32_MAX;
 	req->or_mask = 0;
 	rc = vbg_req_perform(gdev, req);
 	if (rc < 0)
 		vbg_err("%s error, rc: %d\n", __func__, rc);
 
 	vbg_req_free(req, sizeof(*req));
-	return vbg_status_code_to_errno(rc);
+	return vbg_status_code_to_erranal(rc);
 }
 
 /**
@@ -684,7 +684,7 @@ static int vbg_reset_host_capabilities(struct vbg_dev *gdev)
  *
  * Must be called with gdev->session_mutex hold.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_set_host_capabilities(struct vbg_dev *gdev,
 				     struct vbg_session *session,
@@ -707,17 +707,17 @@ static int vbg_set_host_capabilities(struct vbg_dev *gdev,
 						  session->requestor);
 	if (!req) {
 		gdev->guest_caps_host = U32_MAX;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->or_mask = caps;
-	req->not_mask = ~caps;
+	req->analt_mask = ~caps;
 	rc = vbg_req_perform(gdev, req);
 	vbg_req_free(req, sizeof(*req));
 
 	gdev->guest_caps_host = (rc >= 0) ? caps : U32_MAX;
 
-	return vbg_status_code_to_errno(rc);
+	return vbg_status_code_to_erranal(rc);
 }
 
 /**
@@ -727,7 +727,7 @@ static int vbg_set_host_capabilities(struct vbg_dev *gdev,
  * @session:			The session.
  * @flags:			Flags (VBGL_IOC_AGC_FLAGS_XXX).
  * @or_mask:			The capabilities to add.
- * @not_mask:			The capabilities to remove.
+ * @analt_mask:			The capabilities to remove.
  * @session_termination:	Set if we're called by the session cleanup code.
  *				This tweaks the error handling so we perform
  *				proper session cleanup even if the host
@@ -735,11 +735,11 @@ static int vbg_set_host_capabilities(struct vbg_dev *gdev,
  *
  * Takes the session mutex.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_acquire_session_capabilities(struct vbg_dev *gdev,
 					    struct vbg_session *session,
-					    u32 or_mask, u32 not_mask,
+					    u32 or_mask, u32 analt_mask,
 					    u32 flags, bool session_termination)
 {
 	unsigned long irqflags;
@@ -749,14 +749,14 @@ static int vbg_acquire_session_capabilities(struct vbg_dev *gdev,
 	mutex_lock(&gdev->session_mutex);
 
 	if (gdev->set_guest_caps_tracker.mask & or_mask) {
-		vbg_err("%s error: cannot acquire caps which are currently set\n",
+		vbg_err("%s error: cananalt acquire caps which are currently set\n",
 			__func__);
 		ret = -EINVAL;
 		goto out;
 	}
 
 	/*
-	 * Mark any caps in the or_mask as now being in acquire-mode. Note
+	 * Mark any caps in the or_mask as analw being in acquire-mode. Analte
 	 * once caps are in acquire_mode they always stay in this mode.
 	 * This impacts event handling, so we take the event-lock.
 	 */
@@ -768,11 +768,11 @@ static int vbg_acquire_session_capabilities(struct vbg_dev *gdev,
 	if (flags & VBGL_IOC_AGC_FLAGS_CONFIG_ACQUIRE_MODE)
 		goto out;
 
-	not_mask &= ~or_mask; /* or_mask takes priority over not_mask */
-	not_mask &= session->acquired_guest_caps;
+	analt_mask &= ~or_mask; /* or_mask takes priority over analt_mask */
+	analt_mask &= session->acquired_guest_caps;
 	or_mask &= ~session->acquired_guest_caps;
 
-	if (or_mask == 0 && not_mask == 0)
+	if (or_mask == 0 && analt_mask == 0)
 		goto out;
 
 	if (gdev->acquired_guest_caps & or_mask) {
@@ -781,21 +781,21 @@ static int vbg_acquire_session_capabilities(struct vbg_dev *gdev,
 	}
 
 	gdev->acquired_guest_caps |= or_mask;
-	gdev->acquired_guest_caps &= ~not_mask;
+	gdev->acquired_guest_caps &= ~analt_mask;
 	/* session->acquired_guest_caps impacts event handling, take the lock */
 	spin_lock_irqsave(&gdev->event_spinlock, irqflags);
 	session->acquired_guest_caps |= or_mask;
-	session->acquired_guest_caps &= ~not_mask;
+	session->acquired_guest_caps &= ~analt_mask;
 	spin_unlock_irqrestore(&gdev->event_spinlock, irqflags);
 
 	ret = vbg_set_host_capabilities(gdev, session, session_termination);
 	/* Roll back on failure, unless it's session termination time. */
 	if (ret < 0 && !session_termination) {
 		gdev->acquired_guest_caps &= ~or_mask;
-		gdev->acquired_guest_caps |= not_mask;
+		gdev->acquired_guest_caps |= analt_mask;
 		spin_lock_irqsave(&gdev->event_spinlock, irqflags);
 		session->acquired_guest_caps &= ~or_mask;
-		session->acquired_guest_caps |= not_mask;
+		session->acquired_guest_caps |= analt_mask;
 		spin_unlock_irqrestore(&gdev->event_spinlock, irqflags);
 	}
 
@@ -836,17 +836,17 @@ out:
  * @gdev:			The Guest extension device.
  * @session:			The session.
  * @or_mask:			The capabilities to add.
- * @not_mask:			The capabilities to remove.
+ * @analt_mask:			The capabilities to remove.
  * @session_termination:	Set if we're called by the session cleanup code.
  *				This tweaks the error handling so we perform
  *				proper session cleanup even if the host
  *				misbehaves.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_set_session_capabilities(struct vbg_dev *gdev,
 					struct vbg_session *session,
-					u32 or_mask, u32 not_mask,
+					u32 or_mask, u32 analt_mask,
 					bool session_termination)
 {
 	u32 changed, previous;
@@ -855,7 +855,7 @@ static int vbg_set_session_capabilities(struct vbg_dev *gdev,
 	mutex_lock(&gdev->session_mutex);
 
 	if (gdev->acquire_mode_guest_caps & or_mask) {
-		vbg_err("%s error: cannot set caps which are in acquire_mode\n",
+		vbg_err("%s error: cananalt set caps which are in acquire_mode\n",
 			__func__);
 		ret = -EBUSY;
 		goto out;
@@ -864,7 +864,7 @@ static int vbg_set_session_capabilities(struct vbg_dev *gdev,
 	/* Apply the changes to the session mask. */
 	previous = session->set_guest_caps;
 	session->set_guest_caps |= or_mask;
-	session->set_guest_caps &= ~not_mask;
+	session->set_guest_caps &= ~analt_mask;
 
 	/* If anything actually changed, update the global usage counters. */
 	changed = previous ^ session->set_guest_caps;
@@ -891,7 +891,7 @@ out:
  * vbg_query_host_version - get the host feature mask and version information.
  * @gdev:		The Guest extension device.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_query_host_version(struct vbg_dev *gdev)
 {
@@ -901,25 +901,25 @@ static int vbg_query_host_version(struct vbg_dev *gdev)
 	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_GET_HOST_VERSION,
 			    VBG_KERNEL_REQUEST);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = vbg_req_perform(gdev, req);
-	ret = vbg_status_code_to_errno(rc);
+	ret = vbg_status_code_to_erranal(rc);
 	if (ret) {
 		vbg_err("%s error: %d\n", __func__, rc);
 		goto out;
 	}
 
 	snprintf(gdev->host_version, sizeof(gdev->host_version), "%u.%u.%ur%u",
-		 req->major, req->minor, req->build, req->revision);
+		 req->major, req->mianalr, req->build, req->revision);
 	gdev->host_features = req->features;
 
 	vbg_info("vboxguest: host-version: %s %#x\n", gdev->host_version,
 		 gdev->host_features);
 
 	if (!(req->features & VMMDEV_HVF_HGCM_PHYS_PAGE_LIST)) {
-		vbg_err("vboxguest: Error host too old (does not support page-lists)\n");
-		ret = -ENODEV;
+		vbg_err("vboxguest: Error host too old (does analt support page-lists)\n");
+		ret = -EANALDEV;
 	}
 
 out:
@@ -931,7 +931,7 @@ out:
  * vbg_core_init - Initializes the VBoxGuest device extension when the
  *	device driver is loaded.
  * @gdev:		The Guest extension device.
- * @fixed_events:	Events that will be enabled upon init and no client
+ * @fixed_events:	Events that will be enabled upon init and anal client
  *			will ever be allowed to mask.
  *
  * The native code locates the VMMDev on the PCI bus and retrieve
@@ -939,11 +939,11 @@ out:
  * mapping the MMIO memory (if present). Upon successful return
  * the native code should set up the interrupt handler.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 int vbg_core_init(struct vbg_dev *gdev, u32 fixed_events)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	gdev->fixed_events = fixed_events | VMMDEV_EVENT_HGCM;
 	gdev->event_filter_host = U32_MAX;	/* forces a report */
@@ -971,7 +971,7 @@ int vbg_core_init(struct vbg_dev *gdev, u32 fixed_events)
 			      VBG_KERNEL_REQUEST);
 	gdev->ack_events_req =
 		vbg_req_alloc(sizeof(*gdev->ack_events_req),
-			      VMMDEVREQ_ACKNOWLEDGE_EVENTS,
+			      VMMDEVREQ_ACKANALWLEDGE_EVENTS,
 			      VBG_KERNEL_REQUEST);
 	gdev->mouse_status_req =
 		vbg_req_alloc(sizeof(*gdev->mouse_status_req),
@@ -1083,7 +1083,7 @@ struct vbg_session *vbg_core_open_session(struct vbg_dev *gdev, u32 requestor)
 
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	session->gdev = gdev;
 	session->requestor = requestor;
@@ -1280,7 +1280,7 @@ static int vbg_ioctl_interrupt_all_wait_events(struct vbg_dev *gdev,
  * @session:		The calling session.
  * @req:		The request.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_req_allowed(struct vbg_dev *gdev, struct vbg_session *session,
 			   const struct vmmdev_request_header *req)
@@ -1314,7 +1314,7 @@ static int vbg_req_allowed(struct vbg_dev *gdev, struct vbg_session *session,
 	case VMMDEVREQ_IDLE:
 	case VMMDEVREQ_GET_HOST_TIME:
 	case VMMDEVREQ_SET_POWER_STATUS:
-	case VMMDEVREQ_ACKNOWLEDGE_EVENTS:
+	case VMMDEVREQ_ACKANALWLEDGE_EVENTS:
 	case VMMDEVREQ_CTL_GUEST_FILTER_MASK:
 	case VMMDEVREQ_REPORT_GUEST_STATUS:
 	case VMMDEVREQ_GET_DISPLAY_CHANGE_REQ:
@@ -1356,7 +1356,7 @@ static int vbg_req_allowed(struct vbg_dev *gdev, struct vbg_session *session,
 		}
 		break;
 
-	/* Anything else is not allowed. */
+	/* Anything else is analt allowed. */
 	default:
 		vbg_err("Denying userspace vmm call type %#08x\n",
 			req->request_type);
@@ -1365,7 +1365,7 @@ static int vbg_req_allowed(struct vbg_dev *gdev, struct vbg_session *session,
 
 	if (trusted_apps_only &&
 	    (session->requestor & VMMDEV_REQUESTOR_USER_DEVICE)) {
-		vbg_err("Denying userspace vmm call type %#08x through vboxuser device node\n",
+		vbg_err("Denying userspace vmm call type %#08x through vboxuser device analde\n",
 			req->request_type);
 		return -EPERM;
 	}
@@ -1594,18 +1594,18 @@ static int vbg_ioctl_change_filter_mask(struct vbg_dev *gdev,
 					struct vbg_session *session,
 					struct vbg_ioctl_change_filter *filter)
 {
-	u32 or_mask, not_mask;
+	u32 or_mask, analt_mask;
 
 	if (vbg_ioctl_chk(&filter->hdr, sizeof(filter->u.in), 0))
 		return -EINVAL;
 
 	or_mask = filter->u.in.or_mask;
-	not_mask = filter->u.in.not_mask;
+	analt_mask = filter->u.in.analt_mask;
 
-	if ((or_mask | not_mask) & ~VMMDEV_EVENT_VALID_EVENT_MASK)
+	if ((or_mask | analt_mask) & ~VMMDEV_EVENT_VALID_EVENT_MASK)
 		return -EINVAL;
 
-	return vbg_set_session_event_filter(gdev, session, or_mask, not_mask,
+	return vbg_set_session_event_filter(gdev, session, or_mask, analt_mask,
 					    false);
 }
 
@@ -1613,41 +1613,41 @@ static int vbg_ioctl_acquire_guest_capabilities(struct vbg_dev *gdev,
 	     struct vbg_session *session,
 	     struct vbg_ioctl_acquire_guest_caps *caps)
 {
-	u32 flags, or_mask, not_mask;
+	u32 flags, or_mask, analt_mask;
 
 	if (vbg_ioctl_chk(&caps->hdr, sizeof(caps->u.in), 0))
 		return -EINVAL;
 
 	flags = caps->u.in.flags;
 	or_mask = caps->u.in.or_mask;
-	not_mask = caps->u.in.not_mask;
+	analt_mask = caps->u.in.analt_mask;
 
 	if (flags & ~VBGL_IOC_AGC_FLAGS_VALID_MASK)
 		return -EINVAL;
 
-	if ((or_mask | not_mask) & ~VMMDEV_GUEST_CAPABILITIES_MASK)
+	if ((or_mask | analt_mask) & ~VMMDEV_GUEST_CAPABILITIES_MASK)
 		return -EINVAL;
 
 	return vbg_acquire_session_capabilities(gdev, session, or_mask,
-						not_mask, flags, false);
+						analt_mask, flags, false);
 }
 
 static int vbg_ioctl_change_guest_capabilities(struct vbg_dev *gdev,
 	     struct vbg_session *session, struct vbg_ioctl_set_guest_caps *caps)
 {
-	u32 or_mask, not_mask;
+	u32 or_mask, analt_mask;
 	int ret;
 
 	if (vbg_ioctl_chk(&caps->hdr, sizeof(caps->u.in), sizeof(caps->u.out)))
 		return -EINVAL;
 
 	or_mask = caps->u.in.or_mask;
-	not_mask = caps->u.in.not_mask;
+	analt_mask = caps->u.in.analt_mask;
 
-	if ((or_mask | not_mask) & ~VMMDEV_GUEST_CAPABILITIES_MASK)
+	if ((or_mask | analt_mask) & ~VMMDEV_GUEST_CAPABILITIES_MASK)
 		return -EINVAL;
 
-	ret = vbg_set_session_capabilities(gdev, session, or_mask, not_mask,
+	ret = vbg_set_session_capabilities(gdev, session, or_mask, analt_mask,
 					   false);
 	if (ret)
 		return ret;
@@ -1686,7 +1686,7 @@ static int vbg_ioctl_write_core_dump(struct vbg_dev *gdev,
 	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_WRITE_COREDUMP,
 			    session->requestor);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->flags = dump->u.in.flags;
 	dump->hdr.rc = vbg_req_perform(gdev, req);
@@ -1701,11 +1701,11 @@ static int vbg_ioctl_write_core_dump(struct vbg_dev *gdev,
  * @req:	The requested function.
  * @data:	The i/o data buffer, minimum size sizeof(struct vbg_ioctl_hdr).
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 int vbg_core_ioctl(struct vbg_session *session, unsigned int req, void *data)
 {
-	unsigned int req_no_size = req & ~IOCSIZE_MASK;
+	unsigned int req_anal_size = req & ~IOCSIZE_MASK;
 	struct vbg_dev *gdev = session->gdev;
 	struct vbg_ioctl_hdr *hdr = data;
 	bool f32bit = false;
@@ -1720,7 +1720,7 @@ int vbg_core_ioctl(struct vbg_session *session, unsigned int req, void *data)
 	 */
 
 	/* For VMMDEV_REQUEST hdr->type != VBG_IOCTL_HDR_TYPE_DEFAULT */
-	if (req_no_size == VBG_IOCTL_VMMDEV_REQUEST(0) ||
+	if (req_anal_size == VBG_IOCTL_VMMDEV_REQUEST(0) ||
 	    req == VBG_IOCTL_VMMDEV_REQUEST_BIG ||
 	    req == VBG_IOCTL_VMMDEV_REQUEST_BIG_ALT)
 		return vbg_ioctl_vmmrequest(gdev, session, data);
@@ -1753,7 +1753,7 @@ int vbg_core_ioctl(struct vbg_session *session, unsigned int req, void *data)
 	}
 
 	/* Variable sized requests. */
-	switch (req_no_size) {
+	switch (req_anal_size) {
 #ifdef CONFIG_COMPAT
 	case VBG_IOCTL_HGCM_CALL_32(0):
 		f32bit = true;
@@ -1766,8 +1766,8 @@ int vbg_core_ioctl(struct vbg_session *session, unsigned int req, void *data)
 		return vbg_ioctl_log(data);
 	}
 
-	vbg_err_ratelimited("Userspace made an unknown ioctl req %#08x\n", req);
-	return -ENOTTY;
+	vbg_err_ratelimited("Userspace made an unkanalwn ioctl req %#08x\n", req);
+	return -EANALTTY;
 }
 
 /**
@@ -1776,7 +1776,7 @@ int vbg_core_ioctl(struct vbg_session *session, unsigned int req, void *data)
  * @gdev:		The Guest extension device.
  * @features:		The set of features to report to the host.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 int vbg_core_set_mouse_status(struct vbg_dev *gdev, u32 features)
 {
@@ -1786,7 +1786,7 @@ int vbg_core_set_mouse_status(struct vbg_dev *gdev, u32 features)
 	req = vbg_req_alloc(sizeof(*req), VMMDEVREQ_SET_MOUSE_STATUS,
 			    VBG_KERNEL_REQUEST);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->mouse_features = features;
 	req->pointer_pos_x = 0;
@@ -1797,7 +1797,7 @@ int vbg_core_set_mouse_status(struct vbg_dev *gdev, u32 features)
 		vbg_err("%s error, rc: %d\n", __func__, rc);
 
 	vbg_req_free(req, sizeof(*req));
-	return vbg_status_code_to_errno(rc);
+	return vbg_status_code_to_erranal(rc);
 }
 
 /* Core interrupt service routine. */
@@ -1811,15 +1811,15 @@ irqreturn_t vbg_core_isr(int irq, void *dev_id)
 	int rc;
 
 	if (!gdev->mmio->V.V1_04.have_events)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* Get and acknowlegde events. */
+	/* Get and ackanalwlegde events. */
 	req->header.rc = VERR_INTERNAL_ERROR;
 	req->events = 0;
 	rc = vbg_req_perform(gdev, req);
 	if (rc < 0) {
 		vbg_err("Error performing events req, rc: %d\n", rc);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	events = req->events;

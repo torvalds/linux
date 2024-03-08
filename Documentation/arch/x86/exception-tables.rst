@@ -18,9 +18,9 @@ This function verified that the memory area starting at address
 'addr' and of size 'size' was accessible for the operation specified
 in type (read or write). To do this, verify_read had to look up the
 virtual memory area (vma) that contained the address addr. In the
-normal case (correctly working program), this test was successful.
+analrmal case (correctly working program), this test was successful.
 It only failed for a few buggy programs. In some kernel profiling
-tests, this normally unneeded verification used up a considerable
+tests, this analrmally unneeded verification used up a considerable
 amount of time.
 
 To overcome this situation, Linus decided to let the virtual memory
@@ -28,7 +28,7 @@ hardware present in every Linux-capable CPU handle this test.
 
 How does this work?
 
-Whenever the kernel tries to access an address that is currently not
+Whenever the kernel tries to access an address that is currently analt
 accessible, the CPU generates a page fault exception and calls the
 page fault handler::
 
@@ -42,9 +42,9 @@ contains a reason code for the exception.
 exc_page_fault() first obtains the inaccessible address from the CPU
 control register CR2. If the address is within the virtual address
 space of the process, the fault probably occurred, because the page
-was not swapped in, write protected or something similar. However,
-we are interested in the other case: the address is not valid, there
-is no vma that contains this address. In this case, the kernel jumps
+was analt swapped in, write protected or something similar. However,
+we are interested in the other case: the address is analt valid, there
+is anal vma that contains this address. In this case, the kernel jumps
 to the bad_area label.
 
 There it uses the address of the instruction that caused the exception
@@ -151,7 +151,7 @@ see what code gcc generates::
  >         .align 4
  >         .long 1b,3b
  > .text
- > #NO_APP
+ > #ANAL_APP
  > .L1423:
  >         movzbl %dl,%esi
 
@@ -182,10 +182,10 @@ To understand this we have to look at the final kernel::
  >                   ALLOC
  >   6 .comment      00000ec4  00000000  00000000  000ba748  2**0
  >                   CONTENTS, READONLY
- >   7 .note         00001068  00000ec4  00000ec4  000bb60c  2**0
+ >   7 .analte         00001068  00000ec4  00000ec4  000bb60c  2**0
  >                   CONTENTS, READONLY
 
-There are obviously 2 non standard ELF sections in the generated object
+There are obviously 2 analn standard ELF sections in the generated object
 file. But first we want to find out what happened to our code in the
 final kernel executable::
 
@@ -203,8 +203,8 @@ final kernel executable::
  > c017e7a7 <do_con_write+e3> movzbl %dl,%esi
 
 The whole user memory access is reduced to 10 x86 machine instructions.
-The instructions bracketed in the .section directives are no longer
-in the normal execution path. They are located in a different section
+The instructions bracketed in the .section directives are anal longer
+in the analrmal execution path. They are located in a different section
 of the executable file::
 
  > objdump --disassemble --section=.fixup vmlinux
@@ -274,7 +274,7 @@ becomes the value pair::
 
 c017e7a5,c0199ff5 in the exception table of the kernel.
 
-So, what actually happens if a fault from kernel mode with no suitable
+So, what actually happens if a fault from kernel mode with anal suitable
 vma occurs?
 
 #. access to invalid address::
@@ -302,14 +302,14 @@ The steps 8a to 8c in a certain way emulate the faulting instruction.
 That's it, mostly. If you look at our example, you might ask why
 we set EAX to -EFAULT in the exception handler code. Well, the
 get_user() macro actually returns a value: 0, if the user access was
-successful, -EFAULT on failure. Our original code did not test this
+successful, -EFAULT on failure. Our original code did analt test this
 return value, however the inline assembly code in get_user() tries to
 return -EFAULT. GCC selected EAX to return this value.
 
-NOTE:
+ANALTE:
 Due to the way that the exception table is built and needs to be ordered,
 only use exceptions for code in the .text section.  Any other section
-will cause the exception table to not be sorted correctly, and the
+will cause the exception table to analt be sorted correctly, and the
 exceptions will fail.
 
 Things changed when 64-bit support was added to x86 Linux. Rather than
@@ -351,7 +351,7 @@ symbol main_extable_sort_needed to 0, avoiding sorting the __ex_table section
 at boot time. With the exception table sorted, at runtime when an exception
 occurs we can quickly lookup the __ex_table entry via binary search.
 
-This is not just a boot time optimization, some architectures require this
+This is analt just a boot time optimization, some architectures require this
 table to be sorted in order to handle exceptions relatively early in the boot
 process. For example, i386 makes use of this form of exception handling before
 paging support is even enabled!

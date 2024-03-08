@@ -181,7 +181,7 @@ static void owl_mmc_send_cmd(struct owl_mmc_host *owl_host,
 	init_completion(&owl_host->sdc_complete);
 
 	switch (mmc_resp_type(cmd)) {
-	case MMC_RSP_NONE:
+	case MMC_RSP_ANALNE:
 		mode = OWL_SD_CTL_TM(0);
 		break;
 
@@ -214,7 +214,7 @@ static void owl_mmc_send_cmd(struct owl_mmc_host *owl_host,
 		break;
 
 	default:
-		dev_warn(owl_host->dev, "Unknown MMC command\n");
+		dev_warn(owl_host->dev, "Unkanalwn MMC command\n");
 		cmd->error = -EINVAL;
 		return;
 	}
@@ -255,7 +255,7 @@ static void owl_mmc_send_cmd(struct owl_mmc_host *owl_host,
 	if (mmc_resp_type(cmd) & MMC_RSP_PRESENT) {
 		if (cmd_rsp_mask & state) {
 			if (state & OWL_SD_STATE_CLNR) {
-				dev_err(owl_host->dev, "Error CMD_NO_RSP\n");
+				dev_err(owl_host->dev, "Error CMD_ANAL_RSP\n");
 				cmd->error = -EILSEQ;
 				return;
 			}
@@ -414,7 +414,7 @@ static int owl_mmc_set_clk_rate(struct owl_mmc_host *owl_host,
 		       OWL_SD_CTL_WDELAY(OWL_SD_WDELAY_DDR50),
 		       owl_host->base + OWL_REG_SD_CTL);
 	} else {
-		dev_err(owl_host->dev, "SD clock rate not supported\n");
+		dev_err(owl_host->dev, "SD clock rate analt supported\n");
 		return -EINVAL;
 	}
 
@@ -511,7 +511,7 @@ static void owl_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		return;
 
 	default:
-		dev_dbg(owl_host->dev, "Ignoring unknown card power state\n");
+		dev_dbg(owl_host->dev, "Iganalring unkanalwn card power state\n");
 		break;
 	}
 
@@ -535,7 +535,7 @@ static int owl_mmc_start_signal_voltage_switch(struct mmc_host *mmc,
 {
 	struct owl_mmc_host *owl_host = mmc_priv(mmc);
 
-	/* It is enough to change the pad ctrl bit for voltage switch */
+	/* It is eanalugh to change the pad ctrl bit for voltage switch */
 	switch (ios->signal_voltage) {
 	case MMC_SIGNAL_VOLTAGE_330:
 		owl_mmc_update_reg(owl_host->base + OWL_REG_SD_EN,
@@ -546,7 +546,7 @@ static int owl_mmc_start_signal_voltage_switch(struct mmc_host *mmc,
 			       OWL_SD_EN_S18EN, true);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -570,7 +570,7 @@ static int owl_mmc_probe(struct platform_device *pdev)
 	mmc = mmc_alloc_host(sizeof(struct owl_mmc_host), &pdev->dev);
 	if (!mmc) {
 		dev_err(&pdev->dev, "mmc alloc host failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	platform_set_drvdata(pdev, mmc);
 
@@ -587,14 +587,14 @@ static int owl_mmc_probe(struct platform_device *pdev)
 
 	owl_host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(owl_host->clk)) {
-		dev_err(&pdev->dev, "No clock defined\n");
+		dev_err(&pdev->dev, "Anal clock defined\n");
 		ret = PTR_ERR(owl_host->clk);
 		goto err_free_host;
 	}
 
 	owl_host->reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(owl_host->reset)) {
-		dev_err(&pdev->dev, "Could not get reset control\n");
+		dev_err(&pdev->dev, "Could analt get reset control\n");
 		ret = PTR_ERR(owl_host->reset);
 		goto err_free_host;
 	}
@@ -610,7 +610,7 @@ static int owl_mmc_probe(struct platform_device *pdev)
 	mmc->f_max		= 52000000;
 	mmc->caps	       |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 				  MMC_CAP_4_BIT_DATA;
-	mmc->caps2		= (MMC_CAP2_BOOTPART_NOACC | MMC_CAP2_NO_SDIO);
+	mmc->caps2		= (MMC_CAP2_BOOTPART_ANALACC | MMC_CAP2_ANAL_SDIO);
 	mmc->ocr_avail		= MMC_VDD_32_33 | MMC_VDD_33_34 |
 				  MMC_VDD_165_195;
 
@@ -688,7 +688,7 @@ MODULE_DEVICE_TABLE(of, owl_mmc_of_match);
 static struct platform_driver owl_mmc_driver = {
 	.driver = {
 		.name	= "owl_mmc",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = owl_mmc_of_match,
 	},
 	.probe		= owl_mmc_probe,

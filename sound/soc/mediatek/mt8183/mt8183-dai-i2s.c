@@ -24,7 +24,7 @@ enum {
 };
 
 enum {
-	I2S_HD_NORMAL = 0,
+	I2S_HD_ANALRMAL = 0,
 	I2S_HD_LOW_JITTER = 1,
 };
 
@@ -107,7 +107,7 @@ static struct mtk_afe_i2s_priv *get_i2s_priv_by_name(struct mtk_base_afe *afe,
 
 /* low jitter control */
 static const char * const mt8183_i2s_hd_str[] = {
-	"Normal", "Low_Jitter"
+	"Analrmal", "Low_Jitter"
 };
 
 static const struct soc_enum mt8183_i2s_enum[] = {
@@ -325,24 +325,24 @@ static int mtk_mclk_en_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget mtk_dai_i2s_widgets[] = {
-	SND_SOC_DAPM_MIXER("I2S1_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S1_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s1_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s1_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S1_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S1_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s1_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s1_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("I2S3_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S3_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s3_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s3_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S3_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S3_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s3_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s3_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("I2S5_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S5_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s5_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s5_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S5_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S5_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s5_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s5_ch2_mix)),
 
@@ -381,33 +381,33 @@ static const struct snd_soc_dapm_widget mtk_dai_i2s_widgets[] = {
 
 	/* i2s mclk en */
 	SND_SOC_DAPM_SUPPLY_S(I2S0_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S1_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S2_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S3_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S5_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* apll */
 	SND_SOC_DAPM_SUPPLY_S(APLL1_W_NAME, SUPPLY_SEQ_APLL,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_apll_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(APLL2_W_NAME, SUPPLY_SEQ_APLL,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_apll_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
@@ -757,7 +757,7 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 				   0xffffeffe, i2s_con);
 		break;
 	default:
-		dev_warn(afe->dev, "%s(), id %d not support\n",
+		dev_warn(afe->dev, "%s(), id %d analt support\n",
 			 __func__, i2s_id);
 		return -EINVAL;
 	}
@@ -806,7 +806,7 @@ static int mtk_dai_i2s_set_sysclk(struct snd_soc_dai *dai,
 	}
 
 	if (apll_rate % freq != 0) {
-		dev_warn(afe->dev, "%s(), APLL cannot generate freq Hz",
+		dev_warn(afe->dev, "%s(), APLL cananalt generate freq Hz",
 			 __func__);
 		return -EINVAL;
 	}
@@ -845,7 +845,7 @@ static int mtk_dai_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case MT8183_DAI_I2S_5:
 		break;
 	default:
-		dev_warn(afe->dev, "%s(), id %d not support\n",
+		dev_warn(afe->dev, "%s(), id %d analt support\n",
 			 __func__, dai->id);
 		return -EINVAL;
 	}
@@ -859,7 +859,7 @@ static int mtk_dai_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		i2s_priv->use_eiaj = 0;
 		break;
 	default:
-		dev_warn(afe->dev, "%s(), DAI format %d not support\n",
+		dev_warn(afe->dev, "%s(), DAI format %d analt support\n",
 			 __func__, fmt & SND_SOC_DAIFMT_FORMAT_MASK);
 		return -EINVAL;
 	}
@@ -1022,7 +1022,7 @@ static int mt8183_dai_i2s_set_priv(struct mtk_base_afe *afe)
 					sizeof(struct mtk_afe_i2s_priv),
 					GFP_KERNEL);
 		if (!i2s_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(i2s_priv, &mt8183_i2s_priv[i],
 		       sizeof(struct mtk_afe_i2s_priv));
@@ -1040,7 +1040,7 @@ int mt8183_dai_i2s_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

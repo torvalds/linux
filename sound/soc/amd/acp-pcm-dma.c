@@ -251,7 +251,7 @@ static void set_acp_sysmem_dma_descriptors(void __iomem *acp_mmio,
 	config_acp_dma_channel(acp_mmio, ch,
 			       dma_dscr_idx - 1,
 			       NUM_DSCRS_PER_CHANNEL,
-			       ACP_DMA_PRIORITY_LEVEL_NORMAL);
+			       ACP_DMA_PRIORITY_LEVEL_ANALRMAL);
 }
 
 /*
@@ -291,7 +291,7 @@ static void set_acp_to_i2s_dma_descriptors(void __iomem *acp_mmio, u32 size,
 	/* Configure the DMA channel with the above descriptor */
 	config_acp_dma_channel(acp_mmio, ch, dma_dscr_idx - 1,
 			       NUM_DSCRS_PER_CHANNEL,
-			       ACP_DMA_PRIORITY_LEVEL_NORMAL);
+			       ACP_DMA_PRIORITY_LEVEL_ANALRMAL);
 }
 
 /* Create page table entries in ACP SRAM for the allocated memory */
@@ -612,7 +612,7 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 		      mmACP_AXI2DAGB_GARLIC_CNTL);
 
 	sram_pte_offset = ACP_DAGB_GRP_SRAM_BASE_ADDRESS |
-			ACP_DAGB_BASE_ADDR_GRP_1__AXI2DAGBSnoopSel_MASK |
+			ACP_DAGB_BASE_ADDR_GRP_1__AXI2DAGBSanalopSel_MASK |
 			ACP_DAGB_BASE_ADDR_GRP_1__AXI2DAGBTargetMemSel_MASK |
 			ACP_DAGB_BASE_ADDR_GRP_1__AXI2DAGBGrpEnable_MASK;
 	acp_reg_write(sram_pte_offset,  acp_mmio, mmACP_DAGB_BASE_ADDR_GRP_1);
@@ -629,7 +629,7 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 
        /*
 	* When ACP_TILE_P1 is turned on, all SRAM banks get turned on.
-	* Now, turn off all of them. This can't be done in 'poweron' of
+	* Analw, turn off all of them. This can't be done in 'poweron' of
 	* ACP pm domain, as this requires ACP to be initialized.
 	* For Stoney, Memory gating is disabled,i.e SRAM Banks
 	* won't be turned off. The default state for SRAM banks is ON.
@@ -764,7 +764,7 @@ static irqreturn_t dma_irq_handler(int irq, void *arg)
 	if (valid_irq)
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static int acp_dma_open(struct snd_soc_component *component,
@@ -777,7 +777,7 @@ static int acp_dma_open(struct snd_soc_component *component,
 	struct audio_substream_data *adata =
 		kzalloc(sizeof(struct audio_substream_data), GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (intr_data->asic_type) {
@@ -811,8 +811,8 @@ static int acp_dma_open(struct snd_soc_component *component,
 	/*
 	 * Enable ACP irq, when neither playback or capture streams are
 	 * active by the time when a new stream is being opened.
-	 * This enablement is not required for another stream, if current
-	 * stream is not closed
+	 * This enablement is analt required for aanalther stream, if current
+	 * stream is analt closed
 	 */
 	if (!intr_data->play_i2ssp_stream && !intr_data->capture_i2ssp_stream &&
 	    !intr_data->play_i2sbt_stream && !intr_data->capture_i2sbt_stream &&
@@ -1233,7 +1233,7 @@ static int acp_dma_close(struct snd_soc_component *component,
 
 	/*
 	 * Disable ACP irq, when the current stream is being closed and
-	 * another stream is also not active.
+	 * aanalther stream is also analt active.
 	 */
 	if (!adata->play_i2ssp_stream && !adata->capture_i2ssp_stream &&
 	    !adata->play_i2sbt_stream && !adata->capture_i2sbt_stream &&
@@ -1263,13 +1263,13 @@ static int acp_audio_probe(struct platform_device *pdev)
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "Missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	audio_drv_data = devm_kzalloc(&pdev->dev, sizeof(struct audio_drv_data),
 				      GFP_KERNEL);
 	if (!audio_drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	audio_drv_data->acp_mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(audio_drv_data->acp_mmio))
@@ -1291,7 +1291,7 @@ static int acp_audio_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = devm_request_irq(&pdev->dev, irq, dma_irq_handler,
 				  0, "ACP_IRQ", &pdev->dev);

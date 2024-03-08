@@ -31,7 +31,7 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 
 /*
  * Creates a new (reference to a) struct vgic_irq for a given LPI.
- * If this LPI is already mapped on another ITS, we increase its refcount
+ * If this LPI is already mapped on aanalther ITS, we increase its refcount
  * and return a pointer to the existing structure.
  * If this is a "new" LPI, we allocate and initialize a new struct vgic_irq.
  * This function returns a pointer to the _unlocked_ structure.
@@ -44,13 +44,13 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	unsigned long flags;
 	int ret;
 
-	/* In this case there is no put, since we keep the reference. */
+	/* In this case there is anal put, since we keep the reference. */
 	if (irq)
 		return irq;
 
 	irq = kzalloc(sizeof(struct vgic_irq), GFP_KERNEL_ACCOUNT);
 	if (!irq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&irq->lpi_list);
 	INIT_LIST_HEAD(&irq->ap_list);
@@ -65,7 +65,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
 
 	/*
-	 * There could be a race with another vgic_add_lpi(), so we need to
+	 * There could be a race with aanalther vgic_add_lpi(), so we need to
 	 * check that we don't add a second list entry with the same LPI.
 	 */
 	list_for_each_entry(oldirq, &dist->lpi_list_head, lpi_list) {
@@ -125,7 +125,7 @@ struct its_device {
 	u32 device_id;
 };
 
-#define COLLECTION_NOT_MAPPED ((u32)~0)
+#define COLLECTION_ANALT_MAPPED ((u32)~0)
 
 struct its_collection {
 	struct list_head coll_list;
@@ -135,7 +135,7 @@ struct its_collection {
 };
 
 #define its_is_collection_mapped(coll) ((coll) && \
-				((coll)->target_addr != COLLECTION_NOT_MAPPED))
+				((coll)->target_addr != COLLECTION_ANALT_MAPPED))
 
 struct its_ite {
 	struct list_head ite_list;
@@ -274,7 +274,7 @@ static struct its_collection *find_collection(struct vgic_its *its, int coll_id)
 /*
  * Reads the configuration data for a given LPI from guest memory and
  * updates the fields in struct vgic_irq.
- * If filter_vcpu is not NULL, applies only if the IRQ is targeting this
+ * If filter_vcpu is analt NULL, applies only if the IRQ is targeting this
  * VCPU. Unconditionally applies if filter_vcpu is NULL.
  */
 static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
@@ -327,14 +327,14 @@ int vgic_copy_lpi_list(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 **intid_ptr)
 	/*
 	 * There is an obvious race between allocating the array and LPIs
 	 * being mapped/unmapped. If we ended up here as a result of a
-	 * command, we're safe (locks are held, preventing another
-	 * command). If coming from another path (such as enabling LPIs),
-	 * we must be careful not to overrun the array.
+	 * command, we're safe (locks are held, preventing aanalther
+	 * command). If coming from aanalther path (such as enabling LPIs),
+	 * we must be careful analt to overrun the array.
 	 */
 	irq_count = READ_ONCE(dist->lpi_list_count);
 	intids = kmalloc_array(irq_count, sizeof(intids[0]), GFP_KERNEL_ACCOUNT);
 	if (!intids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
 	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
@@ -562,7 +562,7 @@ static struct vgic_irq *__vgic_its_check_cache(struct vgic_dist *dist,
 
 	list_for_each_entry(cte, &dist->lpi_translation_cache, entry) {
 		/*
-		 * If we hit a NULL entry, there is nothing after this
+		 * If we hit a NULL entry, there is analthing after this
 		 * point.
 		 */
 		if (!cte->irq)
@@ -612,7 +612,7 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 	unsigned long flags;
 	phys_addr_t db;
 
-	/* Do not cache a directly injected interrupt */
+	/* Do analt cache a directly injected interrupt */
 	if (irq->hw)
 		return;
 
@@ -622,8 +622,8 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 		goto out;
 
 	/*
-	 * We could have raced with another CPU caching the same
-	 * translation behind our back, so let's check it is not in
+	 * We could have raced with aanalther CPU caching the same
+	 * translation behind our back, so let's check it is analt in
 	 * already
 	 */
 	db = its->vgic_its_base + GITS_TRANSLATER;
@@ -666,7 +666,7 @@ void vgic_its_invalidate_cache(struct kvm *kvm)
 
 	list_for_each_entry(cte, &dist->lpi_translation_cache, entry) {
 		/*
-		 * If we hit a NULL entry, there is nothing after this
+		 * If we hit a NULL entry, there is analthing after this
 		 * point.
 		 */
 		if (!cte->irq)
@@ -712,7 +712,7 @@ struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi)
 	struct vgic_io_device *iodev;
 
 	if (!vgic_has_its(kvm))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (!(msi->flags & KVM_MSI_VALID_DEVID))
 		return ERR_PTR(-EINVAL);
@@ -1025,10 +1025,10 @@ static int vgic_its_alloc_collection(struct vgic_its *its,
 
 	collection = kzalloc(sizeof(*collection), GFP_KERNEL_ACCOUNT);
 	if (!collection)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	collection->collection_id = coll_id;
-	collection->target_addr = COLLECTION_NOT_MAPPED;
+	collection->target_addr = COLLECTION_ANALT_MAPPED;
 
 	list_add_tail(&collection->coll_list, &its->collection_list);
 	*colp = collection;
@@ -1069,7 +1069,7 @@ static struct its_ite *vgic_its_alloc_ite(struct its_device *device,
 
 	ite = kzalloc(sizeof(*ite), GFP_KERNEL_ACCOUNT);
 	if (!ite)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ite->event_id	= event_id;
 	ite->collection = collection;
@@ -1157,7 +1157,7 @@ static void vgic_its_free_device(struct kvm *kvm, struct its_device *device)
 	/*
 	 * The spec says that unmapping a device with still valid
 	 * ITTEs associated is UNPREDICTABLE. We remove all ITTEs,
-	 * since we cannot leave the memory unreferenced.
+	 * since we cananalt leave the memory unreferenced.
 	 */
 	list_for_each_entry_safe(ite, temp, &device->itt_head, ite_list)
 		its_free_ite(kvm, ite);
@@ -1195,7 +1195,7 @@ static struct its_device *vgic_its_alloc_device(struct vgic_its *its,
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL_ACCOUNT);
 	if (!device)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	device->device_id = device_id;
 	device->itt_addr = itt_addr;
@@ -1236,7 +1236,7 @@ static int vgic_its_cmd_handle_mapd(struct kvm *kvm, struct vgic_its *its,
 		vgic_its_free_device(kvm, device);
 
 	/*
-	 * The spec does not say whether unmapping a not-mapped device
+	 * The spec does analt say whether unmapping a analt-mapped device
 	 * is an error, so we are done in any case.
 	 */
 	if (!valid)
@@ -1349,7 +1349,7 @@ static int vgic_its_cmd_handle_inv(struct kvm *kvm, struct vgic_its *its,
  * @vcpu: the vcpu for which the RD is targetted by an invalidation
  *
  * Contrary to the INVALL command, this targets a RD instead of a
- * collection, and we don't need to hold the its_lock, since no ITS is
+ * collection, and we don't need to hold the its_lock, since anal ITS is
  * involved here.
  */
 int vgic_its_invall(struct kvm_vcpu *vcpu)
@@ -1405,10 +1405,10 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 
 /*
  * The MOVALL command moves the pending state of all IRQs targeting one
- * redistributor to another. We don't hold the pending state in the VCPUs,
- * but in the IRQs instead, so there is really not much to do for us here.
- * However the spec says that no IRQ must target the old redistributor
- * afterwards, so we make sure that no LPI is using the associated target_vcpu.
+ * redistributor to aanalther. We don't hold the pending state in the VCPUs,
+ * but in the IRQs instead, so there is really analt much to do for us here.
+ * However the spec says that anal IRQ must target the old redistributor
+ * afterwards, so we make sure that anal LPI is using the associated target_vcpu.
  * This command affects all LPIs in the system that target that redistributor.
  */
 static int vgic_its_cmd_handle_movall(struct kvm *kvm, struct vgic_its *its,
@@ -1469,7 +1469,7 @@ static int vgic_its_cmd_handle_int(struct kvm *kvm, struct vgic_its *its,
 static int vgic_its_handle_command(struct kvm *kvm, struct vgic_its *its,
 				   u64 *its_cmd)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	mutex_lock(&its->its_lock);
 	switch (its_cmd_get_command(its_cmd)) {
@@ -1507,7 +1507,7 @@ static int vgic_its_handle_command(struct kvm *kvm, struct vgic_its *its,
 		ret = vgic_its_cmd_handle_invall(kvm, its, its_cmd);
 		break;
 	case GITS_CMD_SYNC:
-		/* we ignore this command: we are in sync all of the time */
+		/* we iganalre this command: we are in sync all of the time */
 		ret = 0;
 		break;
 	}
@@ -1572,7 +1572,7 @@ static void vgic_mmio_write_its_cbaser(struct kvm *kvm, struct vgic_its *its,
 	its->cbaser = vgic_sanitise_its_cbaser(its->cbaser);
 	its->creadr = 0;
 	/*
-	 * CWRITER is architecturally UNKNOWN on reset, but we need to reset
+	 * CWRITER is architecturally UNKANALWN on reset, but we need to reset
 	 * it to CREADR to make sure we start with an empty command buffer.
 	 */
 	its->cwriter = its->creadr;
@@ -1601,9 +1601,9 @@ static void vgic_its_process_commands(struct kvm *kvm, struct vgic_its *its)
 		/*
 		 * If kvm_read_guest() fails, this could be due to the guest
 		 * programming a bogus value in CBASER or something else going
-		 * wrong from which we cannot easily recover.
+		 * wrong from which we cananalt easily recover.
 		 * According to section 6.3.2 in the GICv3 spec we can just
-		 * ignore that command then.
+		 * iganalre that command then.
 		 */
 		if (!ret)
 			vgic_its_handle_command(kvm, its, cmd_buf);
@@ -1615,7 +1615,7 @@ static void vgic_its_process_commands(struct kvm *kvm, struct vgic_its *its)
 }
 
 /*
- * By writing to CWRITER the guest announces new commands to be processed.
+ * By writing to CWRITER the guest ananalunces new commands to be processed.
  * To avoid any races in the first place, we take the its_cmd lock, which
  * protects our ring buffer variables, so that there is only one user
  * per ITS handling commands at a given time.
@@ -1717,7 +1717,7 @@ static void vgic_mmio_write_its_baser(struct kvm *kvm,
 	u64 entry_size, table_type;
 	u64 reg, *regptr, clearbits = 0;
 
-	/* When GITS_CTLR.Enable is 1, we ignore write accesses. */
+	/* When GITS_CTLR.Enable is 1, we iganalre write accesses. */
 	if (its->enabled)
 		return;
 
@@ -1800,7 +1800,7 @@ static void vgic_mmio_write_its_ctlr(struct kvm *kvm, struct vgic_its *its,
 
 	/*
 	 * Try to process any pending commands. This function bails out early
-	 * if the ITS is disabled or no commands have been queued.
+	 * if the ITS is disabled or anal commands have been queued.
 	 */
 	vgic_its_process_commands(kvm, its);
 
@@ -1830,7 +1830,7 @@ out:
 static void its_mmio_write_wi(struct kvm *kvm, struct vgic_its *its,
 			      gpa_t addr, unsigned int len, unsigned long val)
 {
-	/* Ignore */
+	/* Iganalre */
 }
 
 static struct vgic_register_region its_registers[] = {
@@ -1914,7 +1914,7 @@ void vgic_lpi_translation_cache_init(struct kvm *kvm)
 	for (i = 0; i < sz; i++) {
 		struct vgic_translation_cache_entry *cte;
 
-		/* An allocation failure is not fatal */
+		/* An allocation failure is analt fatal */
 		cte = kzalloc(sizeof(*cte), GFP_KERNEL_ACCOUNT);
 		if (WARN_ON(!cte))
 			break;
@@ -1955,11 +1955,11 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 	struct vgic_its *its;
 
 	if (type != KVM_DEV_TYPE_ARM_VGIC_ITS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	its = kzalloc(sizeof(struct vgic_its), GFP_KERNEL_ACCOUNT);
 	if (!its)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&dev->kvm->arch.config_lock);
 
@@ -2165,11 +2165,11 @@ typedef int (*entry_fn_t)(struct vgic_its *its, u32 id, void *entry,
  * @size: size of the table in bytes
  * @esz: entry size in bytes
  * @start_id: the ID of the first entry in the table
- * (non zero for 2d level tables)
+ * (analn zero for 2d level tables)
  * @fn: function to apply on each entry
  *
  * Return: < 0 on error, 0 if last element was identified, 1 otherwise
- * (the last element may not be found on second level tables)
+ * (the last element may analt be found on second level tables)
  */
 static int scan_its_table(struct vgic_its *its, gpa_t base, int size, u32 esz,
 			  int start_id, entry_fn_t fn, void *opaque)
@@ -2252,7 +2252,7 @@ static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 	lpi_id = (val & KVM_ITS_ITE_PINTID_MASK) >> KVM_ITS_ITE_PINTID_SHIFT;
 
 	if (!lpi_id)
-		return 1; /* invalid entry, no choice but to scan next entry */
+		return 1; /* invalid entry, anal choice but to scan next entry */
 
 	if (lpi_id < VGIC_MIN_LPI)
 		return -EINVAL;
@@ -2312,7 +2312,7 @@ static int vgic_its_save_itt(struct vgic_its *its, struct its_device *device)
 
 		/*
 		 * If an LPI carries the HW bit, this means that this
-		 * interrupt is controlled by GICv4, and we do not
+		 * interrupt is controlled by GICv4, and we do analt
 		 * have direct access to that state without GICv4.1.
 		 * Let's simply fail the save operation...
 		 */
@@ -2587,7 +2587,7 @@ static int vgic_its_restore_cte(struct vgic_its *its, gpa_t gpa, int esz)
 	target_addr = (u32)(val >> KVM_ITS_CTE_RDBASE_SHIFT);
 	coll_id = val & KVM_ITS_CTE_ICID_MASK;
 
-	if (target_addr != COLLECTION_NOT_MAPPED &&
+	if (target_addr != COLLECTION_ANALT_MAPPED &&
 	    !kvm_get_vcpu_by_id(kvm, target_addr))
 		return -EINVAL;
 
@@ -2636,7 +2636,7 @@ static int vgic_its_save_collection_table(struct vgic_its *its)
 		return 0;
 
 	/*
-	 * table is not fully filled, add a last dummy element
+	 * table is analt fully filled, add a last dummy element
 	 * with valid bit unset
 	 */
 	val = 0;
@@ -2779,7 +2779,7 @@ static int vgic_its_ctrl(struct kvm *kvm, struct vgic_its *its, u64 attr)
 	const struct vgic_its_abi *abi = vgic_its_get_abi(its);
 	int ret = 0;
 
-	if (attr == KVM_DEV_ARM_VGIC_CTRL_INIT) /* Nothing to do */
+	if (attr == KVM_DEV_ARM_VGIC_CTRL_INIT) /* Analthing to do */
 		return 0;
 
 	mutex_lock(&kvm->lock);
@@ -2841,7 +2841,7 @@ static int vgic_its_set_attr(struct kvm_device *dev,
 		u64 addr;
 
 		if (type != KVM_VGIC_ITS_ADDR_TYPE)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (copy_from_user(&addr, uaddr, sizeof(addr)))
 			return -EFAULT;
@@ -2879,7 +2879,7 @@ static int vgic_its_get_attr(struct kvm_device *dev,
 		unsigned long type = (unsigned long)attr->attr;
 
 		if (type != KVM_VGIC_ITS_ADDR_TYPE)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (copy_to_user(uaddr, &addr, sizeof(addr)))
 			return -EFAULT;

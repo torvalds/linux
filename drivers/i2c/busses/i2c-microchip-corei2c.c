@@ -5,7 +5,7 @@
  * Copyright (c) 2018-2022 Microchip Corporation. All rights reserved.
  *
  * Author: Daire McNamara <daire.mcnamara@microchip.com>
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  */
 #include <linux/clk.h>
 #include <linux/clkdev.h>
@@ -55,7 +55,7 @@
 #define STATUS_LAST_DATA_ACK			(0xC8)
 #define STATUS_M_SMB_MASTER_RESET		(0xD0)
 #define STATUS_S_SCL_LOW_TIMEOUT		(0xD8) /* 25 ms */
-#define STATUS_NO_STATE_INFO			(0xF8)
+#define STATUS_ANAL_STATE_INFO			(0xF8)
 
 #define CORE_I2C_STATUS		(0x04)
 #define CORE_I2C_DATA		(0x08)
@@ -69,9 +69,9 @@
 #define SMBSUS_INT_ENB		(0x1)
 #define SMBUS_ENB		(0x2)
 #define SMBALERT_NI_STATUS	(0x3)
-#define SMBALERT_NO_CTRL	(0x4)
+#define SMBALERT_ANAL_CTRL	(0x4)
 #define SMBSUS_NI_STATUS	(0x5)
-#define SMBSUS_NO_CTRL		(0x6)
+#define SMBSUS_ANAL_CTRL		(0x6)
 #define SMBUS_RESET		(0x7)
 #define CORE_I2C_FREQ		(0x14)
 #define CORE_I2C_GLITCHREG	(0x18)
@@ -229,7 +229,7 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 	bool last_byte = false, finished = false;
 
 	if (!idev->buf)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	switch (status) {
 	case STATUS_M_START_SENT:
@@ -295,7 +295,7 @@ static irqreturn_t mchp_corei2c_handle_isr(struct mchp_corei2c_dev *idev)
 static irqreturn_t mchp_corei2c_isr(int irq, void *_dev)
 {
 	struct mchp_corei2c_dev *idev = _dev;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u8 ctrl;
 
 	ctrl = readb(idev->base + CORE_I2C_CTRL);
@@ -371,7 +371,7 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(idev->base))
@@ -403,7 +403,7 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 
 	/*
 	 * This driver supports both the hard peripherals & soft FPGA cores.
-	 * The hard peripherals do not have shared IRQs, but we don't have
+	 * The hard peripherals do analt have shared IRQs, but we don't have
 	 * control over what way the interrupts are wired for the soft cores.
 	 */
 	ret = devm_request_irq(&pdev->dev, irq, mchp_corei2c_isr, IRQF_SHARED,
@@ -429,7 +429,7 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 	idev->adapter.owner = THIS_MODULE;
 	idev->adapter.algo = &mchp_corei2c_algo;
 	idev->adapter.dev.parent = &pdev->dev;
-	idev->adapter.dev.of_node = pdev->dev.of_node;
+	idev->adapter.dev.of_analde = pdev->dev.of_analde;
 	idev->adapter.timeout = HZ;
 
 	platform_set_drvdata(pdev, idev);
@@ -473,5 +473,5 @@ module_platform_driver(mchp_corei2c_driver);
 
 MODULE_DESCRIPTION("Microchip CoreI2C bus driver");
 MODULE_AUTHOR("Daire McNamara <daire.mcnamara@microchip.com>");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_LICENSE("GPL");

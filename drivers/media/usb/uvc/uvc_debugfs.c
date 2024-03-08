@@ -24,14 +24,14 @@ struct uvc_debugfs_buffer {
 	char data[UVC_DEBUGFS_BUF_SIZE];
 };
 
-static int uvc_debugfs_stats_open(struct inode *inode, struct file *file)
+static int uvc_debugfs_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	struct uvc_streaming *stream = inode->i_private;
+	struct uvc_streaming *stream = ianalde->i_private;
 	struct uvc_debugfs_buffer *buf;
 
 	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->count = uvc_video_stats_dump(stream, buf->data, sizeof(buf->data));
 
@@ -48,7 +48,7 @@ static ssize_t uvc_debugfs_stats_read(struct file *file, char __user *user_buf,
 				       buf->count);
 }
 
-static int uvc_debugfs_stats_release(struct inode *inode, struct file *file)
+static int uvc_debugfs_stats_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	file->private_data = NULL;
@@ -59,7 +59,7 @@ static int uvc_debugfs_stats_release(struct inode *inode, struct file *file)
 static const struct file_operations uvc_debugfs_stats_fops = {
 	.owner = THIS_MODULE,
 	.open = uvc_debugfs_stats_open,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.read = uvc_debugfs_stats_read,
 	.release = uvc_debugfs_stats_release,
 };

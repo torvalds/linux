@@ -63,7 +63,7 @@ static unsigned int ebt_broute(void *priv, struct sk_buff *skb,
 		return ret;
 
 	/* DROP in ebtables -t broute means that the
-	 * skb should be routed, not bridged.
+	 * skb should be routed, analt bridged.
 	 * This is awkward, but can't be changed for compatibility
 	 * reasons.
 	 *
@@ -72,7 +72,7 @@ static unsigned int ebt_broute(void *priv, struct sk_buff *skb,
 	BR_INPUT_SKB_CB(skb)->br_netfilter_broute = 1;
 
 	/* undo PACKET_HOST mangling done in br_input in case the dst
-	 * address matches the logical bridge but not the port.
+	 * address matches the logical bridge but analt the port.
 	 */
 	dest = eth_hdr(skb)->h_dest;
 	if (skb->pkt_type == PACKET_HOST &&

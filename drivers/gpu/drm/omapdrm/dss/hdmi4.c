@@ -45,7 +45,7 @@ static int hdmi_runtime_get(struct omap_hdmi *hdmi)
 
 	r = pm_runtime_get_sync(&hdmi->pdev->dev);
 	if (WARN_ON(r < 0)) {
-		pm_runtime_put_noidle(&hdmi->pdev->dev);
+		pm_runtime_put_analidle(&hdmi->pdev->dev);
 		return r;
 	}
 	return 0;
@@ -58,7 +58,7 @@ static void hdmi_runtime_put(struct omap_hdmi *hdmi)
 	DSSDBG("hdmi_runtime_put\n");
 
 	r = pm_runtime_put_sync(&hdmi->pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 
 static irqreturn_t hdmi_irq_handler(int irq, void *data)
@@ -75,8 +75,8 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 		/*
 		 * If we get both connect and disconnect interrupts at the same
 		 * time, turn off the PHY, clear interrupts, and restart, which
-		 * raises connect interrupt if a cable is connected, or nothing
-		 * if cable is not connected.
+		 * raises connect interrupt if a cable is connected, or analthing
+		 * if cable is analt connected.
 		 */
 		hdmi_wp_set_phy_pwr(wp, HDMI_PHYPWRCMD_OFF);
 
@@ -318,7 +318,7 @@ static int hdmi4_bridge_attach(struct drm_bridge *bridge,
 {
 	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	return drm_bridge_attach(bridge->encoder, hdmi->output.next_bridge,
@@ -352,7 +352,7 @@ static void hdmi4_bridge_enable(struct drm_bridge *bridge,
 	int ret;
 
 	/*
-	 * None of these should fail, as the bridge can't be enabled without a
+	 * Analne of these should fail, as the bridge can't be enabled without a
 	 * valid CRTC to connector path with fully populated new states.
 	 */
 	connector = drm_atomic_get_new_connector_for_encoder(state,
@@ -427,7 +427,7 @@ static void hdmi4_bridge_disable(struct drm_bridge *bridge,
 	mutex_unlock(&hdmi->lock);
 }
 
-static void hdmi4_bridge_hpd_notify(struct drm_bridge *bridge,
+static void hdmi4_bridge_hpd_analtify(struct drm_bridge *bridge,
 				    enum drm_connector_status status)
 {
 	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
@@ -491,14 +491,14 @@ static const struct drm_bridge_funcs hdmi4_bridge_funcs = {
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.atomic_enable = hdmi4_bridge_enable,
 	.atomic_disable = hdmi4_bridge_disable,
-	.hpd_notify = hdmi4_bridge_hpd_notify,
+	.hpd_analtify = hdmi4_bridge_hpd_analtify,
 	.get_edid = hdmi4_bridge_get_edid,
 };
 
 static void hdmi4_bridge_init(struct omap_hdmi *hdmi)
 {
 	hdmi->bridge.funcs = &hdmi4_bridge_funcs;
-	hdmi->bridge.of_node = hdmi->pdev->dev.of_node;
+	hdmi->bridge.of_analde = hdmi->pdev->dev.of_analde;
 	hdmi->bridge.ops = DRM_BRIDGE_OP_EDID;
 	hdmi->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 
@@ -552,7 +552,7 @@ static int hdmi_audio_start(struct device *dev)
 
 	if (hd->display_enabled) {
 		if (!hdmi_mode_has_audio(&hd->cfg))
-			DSSERR("%s: Video mode does not support audio\n",
+			DSSERR("%s: Video mode does analt support audio\n",
 			       __func__);
 		hdmi_start_audio_stream(hd);
 	}
@@ -734,16 +734,16 @@ static void hdmi4_uninit_output(struct omap_hdmi *hdmi)
 static int hdmi4_probe_of(struct omap_hdmi *hdmi)
 {
 	struct platform_device *pdev = hdmi->pdev;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct device_analde *ep;
 	int r;
 
-	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(analde, 0, 0);
 	if (!ep)
 		return 0;
 
 	r = hdmi_parse_lanes_of(pdev, ep, &hdmi->phy);
-	of_node_put(ep);
+	of_analde_put(ep);
 	return r;
 }
 
@@ -755,7 +755,7 @@ static int hdmi4_probe(struct platform_device *pdev)
 
 	hdmi = kzalloc(sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdmi->pdev = pdev;
 
@@ -783,7 +783,7 @@ static int hdmi4_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		DSSERR("platform_get_irq failed\n");
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err_free;
 	}
 

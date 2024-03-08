@@ -15,7 +15,7 @@
  * @handle: requested buffer handle
  *
  * Find the buffer in the store and return a pointer to its descriptor.
- * Increase buffer refcount. If not found - return NULL.
+ * Increase buffer refcount. If analt found - return NULL.
  */
 struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u64 handle)
 {
@@ -25,7 +25,7 @@ struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u64 handle)
 	buf = idr_find(&mmg->handles, lower_32_bits(handle >> PAGE_SHIFT));
 	if (!buf) {
 		spin_unlock(&mmg->lock);
-		dev_dbg(mmg->dev, "Buff get failed, no match to handle %#llx\n", handle);
+		dev_dbg(mmg->dev, "Buff get failed, anal match to handle %#llx\n", handle);
 		return NULL;
 	}
 	kref_get(&buf->refcount);
@@ -39,7 +39,7 @@ struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u64 handle)
  * @buf: memory manager buffer descriptor
  *
  * Internal function, used as a final step of buffer release. Shall be invoked
- * only when the buffer is no longer in use (removed from idr). Will call the
+ * only when the buffer is anal longer in use (removed from idr). Will call the
  * release callback (if applicable), and free the memory.
  */
 static void hl_mmap_mem_buf_destroy(struct hl_mmap_mem_buf *buf)
@@ -107,8 +107,8 @@ int hl_mmap_mem_buf_put(struct hl_mmap_mem_buf *buf)
  * @handle: requested buffer handle
  *
  * Decrease the reference to the buffer, and release it if it was the last one.
- * Shall not be called from an interrupt context. Return -EINVAL if handle was
- * not found, else return the put outcome (0 or 1).
+ * Shall analt be called from an interrupt context. Return -EINVAL if handle was
+ * analt found, else return the put outcome (0 or 1).
  */
 int hl_mmap_mem_buf_put_handle(struct hl_mem_mgr *mmg, u64 handle)
 {
@@ -119,7 +119,7 @@ int hl_mmap_mem_buf_put_handle(struct hl_mem_mgr *mmg, u64 handle)
 	if (!buf) {
 		spin_unlock(&mmg->lock);
 		dev_dbg(mmg->dev,
-			 "Buff put failed, no match to handle %#llx\n", handle);
+			 "Buff put failed, anal match to handle %#llx\n", handle);
 		return -EINVAL;
 	}
 
@@ -194,7 +194,7 @@ free_buf:
  *
  * @vma: the vma object for which mmap was closed.
  *
- * Put the memory buffer if it is no longer mapped.
+ * Put the memory buffer if it is anal longer mapped.
  */
 static void hl_mmap_mem_buf_vm_close(struct vm_area_struct *vma)
 {
@@ -245,7 +245,7 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 	buf = hl_mmap_mem_buf_get(mmg, handle);
 	if (!buf) {
 		dev_err(mmg->dev,
-			"Memory mmap failed, no match to handle %#llx\n", handle);
+			"Memory mmap failed, anal match to handle %#llx\n", handle);
 		return -EINVAL;
 	}
 
@@ -283,7 +283,7 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 
 	vma->vm_ops = &hl_mmap_mem_buf_vm_ops;
 
-	/* Note: We're transferring the memory reference to vma->vm_private_data here. */
+	/* Analte: We're transferring the memory reference to vma->vm_private_data here. */
 
 	vma->vm_private_data = buf;
 
@@ -348,12 +348,12 @@ void hl_mem_mgr_fini(struct hl_mem_mgr *mmg)
  * @mmg: parent unified memory manager
  *
  * Destroy the memory manager IDR.
- * Shall be called when IDR is empty and no memory buffers are in use.
+ * Shall be called when IDR is empty and anal memory buffers are in use.
  */
 void hl_mem_mgr_idr_destroy(struct hl_mem_mgr *mmg)
 {
 	if (!idr_is_empty(&mmg->handles))
-		dev_crit(mmg->dev, "memory manager IDR is destroyed while it is not empty!\n");
+		dev_crit(mmg->dev, "memory manager IDR is destroyed while it is analt empty!\n");
 
 	idr_destroy(&mmg->handles);
 }

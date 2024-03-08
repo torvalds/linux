@@ -9,7 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define HI556_REG_VALUE_08BIT		1
 #define HI556_REG_VALUE_16BIT		2
@@ -900,7 +900,7 @@ static void hi556_assign_pad_format(const struct hi556_mode *mode,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int hi556_identify_module(struct hi556 *hi556)
@@ -1197,47 +1197,47 @@ static const struct v4l2_subdev_internal_ops hi556_internal_ops = {
 
 static int hi556_check_hwcfg(struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 mclk;
 	int ret = 0;
 	unsigned int i, j;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
+	ret = fwanalde_property_read_u32(fwanalde, "clock-frequency", &mclk);
 	if (ret) {
 		dev_err(dev, "can't get clock frequency");
 		return ret;
 	}
 
 	if (mclk != HI556_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
+		dev_err(dev, "external clock %d is analt supported", mclk);
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -1250,7 +1250,7 @@ static int hi556_check_hwcfg(struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "anal link frequency %lld supported",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -1258,7 +1258,7 @@ static int hi556_check_hwcfg(struct device *dev)
 	}
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1290,7 +1290,7 @@ static int hi556_probe(struct i2c_client *client)
 
 	hi556 = devm_kzalloc(&client->dev, sizeof(*hi556), GFP_KERNEL);
 	if (!hi556)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&hi556->sd, client, &hi556_subdev_ops);
 
@@ -1312,7 +1312,7 @@ static int hi556_probe(struct i2c_client *client)
 	}
 
 	hi556->sd.internal_ops = &hi556_internal_ops;
-	hi556->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	hi556->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	hi556->sd.entity.ops = &hi556_subdev_entity_ops;
 	hi556->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	hi556->pad.flags = MEDIA_PAD_FL_SOURCE;

@@ -49,7 +49,7 @@ static int ___server_conf_set(int idx, char *val)
 	kfree(server_conf.conf[idx]);
 	server_conf.conf[idx] = kstrdup(val, GFP_KERNEL);
 	if (!server_conf.conf[idx])
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -131,8 +131,8 @@ andx_again:
 
 	cmds = &conn->cmds[command];
 	if (!cmds->proc) {
-		ksmbd_debug(SMB, "*** not implemented yet cmd = %x\n", command);
-		conn->ops->set_rsp_status(work, STATUS_NOT_IMPLEMENTED);
+		ksmbd_debug(SMB, "*** analt implemented yet cmd = %x\n", command);
+		conn->ops->set_rsp_status(work, STATUS_ANALT_IMPLEMENTED);
 		return SERVER_HANDLER_CONTINUE;
 	}
 
@@ -155,7 +155,7 @@ andx_again:
 		goto andx_again;
 	}
 
-	if (work->send_no_response)
+	if (work->send_anal_response)
 		return SERVER_HANDLER_ABORT;
 	return SERVER_HANDLER_CONTINUE;
 }
@@ -183,7 +183,7 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 
 	rc = conn->ops->init_rsp_hdr(work);
 	if (rc) {
-		/* either uid or tid is not correct */
+		/* either uid or tid is analt correct */
 		conn->ops->set_rsp_status(work, STATUS_INVALID_HANDLE);
 		goto send;
 	}
@@ -295,7 +295,7 @@ static int queue_ksmbd_work(struct ksmbd_conn *conn)
 	work = ksmbd_alloc_work_struct();
 	if (!work) {
 		pr_err("allocation for work failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	work->conn = conn;
@@ -400,7 +400,7 @@ static void server_ctrl_handle_work(struct work_struct *work)
 		server_ctrl_handle_reset(ctrl);
 		break;
 	default:
-		pr_err("Unknown server work type: %d\n", ctrl->type);
+		pr_err("Unkanalwn server work type: %d\n", ctrl->type);
 	}
 	mutex_unlock(&ctrl_lock);
 	kfree(ctrl);
@@ -413,7 +413,7 @@ static int __queue_ctrl_work(int type)
 
 	ctrl = kmalloc(sizeof(struct server_ctrl_struct), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__module_get(THIS_MODULE);
 	ctrl->type = type;
@@ -437,7 +437,7 @@ static ssize_t stats_show(const struct class *class, const struct class_attribut
 {
 	/*
 	 * Inc this each time you change stats output format,
-	 * so user space will know what to do.
+	 * so user space will kanalw what to do.
 	 */
 	static int stats_version = 2;
 	static const char * const state[] = {
@@ -582,13 +582,13 @@ static int __init ksmbd_server_init(void)
 	if (ret)
 		goto err_ipc_release;
 
-	ret = ksmbd_inode_hash_init();
+	ret = ksmbd_ianalde_hash_init();
 	if (ret)
 		goto err_destroy_file_table;
 
 	ret = ksmbd_crypto_create();
 	if (ret)
-		goto err_release_inode_hash;
+		goto err_release_ianalde_hash;
 
 	ret = ksmbd_workqueue_init();
 	if (ret)
@@ -598,8 +598,8 @@ static int __init ksmbd_server_init(void)
 
 err_crypto_destroy:
 	ksmbd_crypto_destroy();
-err_release_inode_hash:
-	ksmbd_release_inode_hash();
+err_release_ianalde_hash:
+	ksmbd_release_ianalde_hash();
 err_destroy_file_table:
 	ksmbd_free_global_file_table();
 err_ipc_release:
@@ -621,7 +621,7 @@ static void __exit ksmbd_server_exit(void)
 {
 	ksmbd_server_shutdown();
 	rcu_barrier();
-	ksmbd_release_inode_hash();
+	ksmbd_release_ianalde_hash();
 }
 
 MODULE_AUTHOR("Namjae Jeon <linkinjeon@kernel.org>");

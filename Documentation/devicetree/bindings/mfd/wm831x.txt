@@ -29,9 +29,9 @@ Required properties:
     second cell is the flags, encoded as the trigger masks from
     ../interrupt-controller/interrupts.txt
 
-Optional sub-nodes:
+Optional sub-analdes:
   - phys : Contains a phandle to the USB PHY.
-  - regulators : Contains sub-nodes for each of the regulators supplied by
+  - regulators : Contains sub-analdes for each of the regulators supplied by
     the device. The regulators are bound using their names listed below:
 
     dcdc1 : DCDC1

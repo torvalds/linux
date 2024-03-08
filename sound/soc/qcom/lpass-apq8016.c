@@ -165,7 +165,7 @@ static int apq8016_lpass_init(struct platform_device *pdev)
 	drvdata->clks = devm_kcalloc(dev, variant->num_clks,
 				     sizeof(*drvdata->clks), GFP_KERNEL);
 	if (!drvdata->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 	drvdata->num_clks = variant->num_clks;
 
 	for (i = 0; i < drvdata->num_clks; i++)
@@ -241,10 +241,10 @@ static const struct lpass_variant apq8016_data = {
 	.loopback		= REG_FIELD_ID(0x1000, 15, 15, 4, 0x1000),
 	.spken			= REG_FIELD_ID(0x1000, 14, 14, 4, 0x1000),
 	.spkmode		= REG_FIELD_ID(0x1000, 10, 13, 4, 0x1000),
-	.spkmono		= REG_FIELD_ID(0x1000, 9, 9, 4, 0x1000),
+	.spkmoanal		= REG_FIELD_ID(0x1000, 9, 9, 4, 0x1000),
 	.micen			= REG_FIELD_ID(0x1000, 8, 8, 4, 0x1000),
 	.micmode		= REG_FIELD_ID(0x1000, 4, 7, 4, 0x1000),
-	.micmono		= REG_FIELD_ID(0x1000, 3, 3, 4, 0x1000),
+	.micmoanal		= REG_FIELD_ID(0x1000, 3, 3, 4, 0x1000),
 	.wssrc			= REG_FIELD_ID(0x1000, 2, 2, 4, 0x1000),
 	.bitwidth		= REG_FIELD_ID(0x1000, 0, 1, 4, 0x1000),
 
@@ -263,8 +263,8 @@ static const struct lpass_variant apq8016_data = {
 	.wrdma_enable		= REG_FIELD_ID(0xB000, 0, 0, 2, 0x1000),
 
 	.clk_name		= (const char*[]) {
-				   "pcnoc-mport-clk",
-				   "pcnoc-sway-clk",
+				   "pcanalc-mport-clk",
+				   "pcanalc-sway-clk",
 				  },
 	.num_clks		= 2,
 	.dai_driver		= apq8016_lpass_cpu_dai_driver,

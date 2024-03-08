@@ -11,7 +11,7 @@ Required properties:
   Regions 2-18 have registers for the 16 individual queues which are isolated
   both in hardware and within the driver.
 - interrupts: Interrupt specifiers.
-  Refer to interrupt-controller/interrupts.txt for generic interrupt client node
+  Refer to interrupt-controller/interrupts.txt for generic interrupt client analde
   bindings.
   Interrupt 0 is for the SEC unit error queue.
   Interrupt 2N + 1 is the completion interrupt for queue N.

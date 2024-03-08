@@ -15,7 +15,7 @@
 #include <asm/kvm_hyp.h>
 
 /*
- * Non-VHE: Both host and guest must save everything.
+ * Analn-VHE: Both host and guest must save everything.
  */
 
 void __sysreg_save_state_nvhe(struct kvm_cpu_context *ctxt)

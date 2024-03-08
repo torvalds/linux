@@ -113,7 +113,7 @@ static int __init logibm_init(void)
 
 	if (inb(LOGIBM_SIGNATURE_PORT) != LOGIBM_SIGNATURE_BYTE) {
 		printk(KERN_INFO "logibm.c: Didn't find Logitech busmouse at %#x\n", LOGIBM_BASE);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_release_region;
 	}
 
@@ -122,8 +122,8 @@ static int __init logibm_init(void)
 
 	logibm_dev = input_allocate_device();
 	if (!logibm_dev) {
-		printk(KERN_ERR "logibm.c: Not enough memory for input device\n");
-		err = -ENOMEM;
+		printk(KERN_ERR "logibm.c: Analt eanalugh memory for input device\n");
+		err = -EANALMEM;
 		goto err_release_region;
 	}
 

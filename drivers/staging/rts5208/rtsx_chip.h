@@ -28,12 +28,12 @@
 /* #define DISABLE_CARD_INT */
 
 #ifdef SUPPORT_MAGIC_GATE
-	/* Using NORMAL_WRITE instead of AUTO_WRITE to set ICV */
+	/* Using ANALRMAL_WRITE instead of AUTO_WRITE to set ICV */
 	#define MG_SET_ICV_SLOW
 	/* HW may miss ERR/CMDNK signal when sampling INT status. */
 	#define MS_SAMPLE_INT_ERR
 	/*
-	 * HW DO NOT support Wait_INT function
+	 * HW DO ANALT support Wait_INT function
 	 * during READ_BYTES transfer mode
 	 */
 	#define READ_BYTES_WAIT_INT
@@ -66,8 +66,8 @@
 #ifndef STATUS_TIMEDOUT
 #define STATUS_TIMEDOUT		2
 #endif
-#ifndef STATUS_NOMEM
-#define STATUS_NOMEM		3
+#ifndef STATUS_ANALMEM
+#define STATUS_ANALMEM		3
 #endif
 #ifndef STATUS_READ_FAIL
 #define STATUS_READ_FAIL	4
@@ -88,7 +88,7 @@
 
 #define TRANSPORT_GOOD		0   /* Transport good, command good	   */
 #define TRANSPORT_FAILED	1   /* Transport good, command failed   */
-#define TRANSPORT_NO_SENSE	2  /* Command failed, no auto-sense    */
+#define TRANSPORT_ANAL_SENSE	2  /* Command failed, anal auto-sense    */
 #define TRANSPORT_ERROR		3   /* Transport bad (i.e. device dead) */
 
 /*
@@ -143,9 +143,9 @@
 /*---- sense key ----*/
 #define ILI                     0x20    /* ILI bit is on                    */
 
-#define NO_SENSE                0x00    /* not exist sense key              */
+#define ANAL_SENSE                0x00    /* analt exist sense key              */
 #define RECOVER_ERR             0x01    /* Target/Logical unit is recoverd  */
-#define NOT_READY               0x02    /* Logical unit is not ready        */
+#define ANALT_READY               0x02    /* Logical unit is analt ready        */
 #define MEDIA_ERR               0x03    /* medium/data error                */
 #define HARDWARE_ERR            0x04    /* hardware error                   */
 #define ILGAL_REQ               0x05    /* CDB/parameter/identify msg error */
@@ -193,27 +193,27 @@
 #define BIT_ILLEGAL7            7       /* bit7 is illegal                  */
 
 /*---- ASC ----*/
-#define ASC_NO_INFO             0x00
+#define ASC_ANAL_INFO             0x00
 #define ASC_MISCMP              0x1d
 #define ASC_INVLD_CDB           0x24
 #define ASC_INVLD_PARA          0x26
-#define ASC_LU_NOT_READY	0x04
+#define ASC_LU_ANALT_READY	0x04
 #define ASC_WRITE_ERR           0x0c
 #define ASC_READ_ERR            0x11
 #define ASC_LOAD_EJCT_ERR       0x53
-#define	ASC_MEDIA_NOT_PRESENT	0x3A
+#define	ASC_MEDIA_ANALT_PRESENT	0x3A
 #define	ASC_MEDIA_CHANGED	0x28
 #define	ASC_MEDIA_IN_PROCESS	0x04
 #define	ASC_WRITE_PROTECT	0x27
-#define ASC_LUN_NOT_SUPPORTED	0x25
+#define ASC_LUN_ANALT_SUPPORTED	0x25
 
 /*---- ASQC ----*/
-#define ASCQ_NO_INFO            0x00
+#define ASCQ_ANAL_INFO            0x00
 #define	ASCQ_MEDIA_IN_PROCESS	0x01
 #define ASCQ_MISCMP             0x00
 #define ASCQ_INVLD_CDB          0x00
 #define ASCQ_INVLD_PARA         0x02
-#define ASCQ_LU_NOT_READY	0x02
+#define ASCQ_LU_ANALT_READY	0x02
 #define ASCQ_WRITE_ERR          0x02
 #define ASCQ_READ_ERR           0x00
 #define ASCQ_LOAD_EJCT_ERR      0x00
@@ -227,7 +227,7 @@ struct sense_data_t {
 	/* bit6-0 : error * code */
 	/*  (0x70 : current * error) */
 	/*  (0x71 : specific command error) */
-	unsigned char   seg_no;		/* segment No.                      */
+	unsigned char   seg_anal;		/* segment Anal.                      */
 	unsigned char   sense_key;	/* byte5 : ILI                      */
 	/* bit3-0 : sense key              */
 	unsigned char   info[4];	/* information                       */
@@ -331,7 +331,7 @@ struct sense_data_t {
 #define RTSX_SG_END		0x02
 #define RTSX_SG_VALID		0x01
 
-#define RTSX_SG_NO_OP		0x00
+#define RTSX_SG_ANAL_OP		0x00
 #define RTSX_SG_TRANS_DATA	(0x02 << 4)
 #define RTSX_SG_LINK_DESC	(0x03 << 4)
 
@@ -513,7 +513,7 @@ struct sd_info {
 #ifdef SUPPORT_SD_LOCK
 	u8 sd_lock_status;
 	u8 sd_erase_status;
-	u8 sd_lock_notify;
+	u8 sd_lock_analtify;
 #endif
 	int need_retune;
 };
@@ -678,17 +678,17 @@ struct spi_info {
 #define MAX_RESET_CNT			3
 
 #define SDIO_EXIST			0x01
-#define SDIO_IGNORED			0x02
+#define SDIO_IGANALRED			0x02
 
 #define CHK_SDIO_EXIST(chip)		((chip)->sdio_func_exist & SDIO_EXIST)
 #define SET_SDIO_EXIST(chip)		((chip)->sdio_func_exist |= SDIO_EXIST)
 #define CLR_SDIO_EXIST(chip)		((chip)->sdio_func_exist &= ~SDIO_EXIST)
 
-#define CHK_SDIO_IGNORED(chip)		((chip)->sdio_func_exist & SDIO_IGNORED)
-#define SET_SDIO_IGNORED(chip)		((chip)->sdio_func_exist |= \
-					 SDIO_IGNORED)
-#define CLR_SDIO_IGNORED(chip)		((chip)->sdio_func_exist &= \
-					 ~SDIO_IGNORED)
+#define CHK_SDIO_IGANALRED(chip)		((chip)->sdio_func_exist & SDIO_IGANALRED)
+#define SET_SDIO_IGANALRED(chip)		((chip)->sdio_func_exist |= \
+					 SDIO_IGANALRED)
+#define CLR_SDIO_IGANALRED(chip)		((chip)->sdio_func_exist &= \
+					 ~SDIO_IGANALRED)
 
 struct rtsx_chip {
 	struct rtsx_dev	*rtsx;
@@ -834,7 +834,7 @@ struct rtsx_chip {
 
 	int remote_wakeup_en;
 
-	int ignore_sd;
+	int iganalre_sd;
 	int use_hw_setting;
 
 	int ss_idle_period;
@@ -960,8 +960,8 @@ void rtsx_stop_cmd(struct rtsx_chip *chip, int card);
 int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data);
 int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data);
 int rtsx_write_cfg_dw(struct rtsx_chip *chip,
-		      u8 func_no, u16 addr, u32 mask, u32 val);
-int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 *val);
+		      u8 func_anal, u16 addr, u32 mask, u32 val);
+int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_anal, u16 addr, u32 *val);
 int rtsx_write_cfg_seq(struct rtsx_chip *chip,
 		       u8 func, u16 addr, u8 *buf, int len);
 int rtsx_read_cfg_seq(struct rtsx_chip *chip,

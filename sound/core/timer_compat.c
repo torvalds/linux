@@ -108,7 +108,7 @@ static long __snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd,
 	case SNDRV_TIMER_IOCTL_STATUS_COMPAT64:
 		return snd_timer_user_status64(file, argp);
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static long snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd,

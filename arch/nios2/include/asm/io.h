@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <asm/pgtable-bits.h>
 
-/* PCI is not supported in nios2, set this to 0. */
+/* PCI is analt supported in nios2, set this to 0. */
 #define IO_SPACE_LIMIT 0
 
 #define readb_relaxed(addr)	readb(addr)

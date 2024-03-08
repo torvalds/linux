@@ -15,42 +15,42 @@
 
 enum {
 	CPUINFO_LVL_ROOT = 0,
-	CPUINFO_LVL_NODE,
+	CPUINFO_LVL_ANALDE,
 	CPUINFO_LVL_CORE,
 	CPUINFO_LVL_PROC,
 	CPUINFO_LVL_MAX,
 };
 
 enum {
-	ROVER_NO_OP              = 0,
+	ROVER_ANAL_OP              = 0,
 	/* Increment rover every time level is visited */
 	ROVER_INC_ON_VISIT       = 1 << 0,
 	/* Increment parent's rover every time rover wraps around */
 	ROVER_INC_PARENT_ON_LOOP = 1 << 1,
 };
 
-struct cpuinfo_node {
+struct cpuinfo_analde {
 	int id;
 	int level;
 	int num_cpus;    /* Number of CPUs in this hierarchy */
 	int parent_index;
-	int child_start; /* Array index of the first child node */
-	int child_end;   /* Array index of the last child node */
-	int rover;       /* Child node iterator */
+	int child_start; /* Array index of the first child analde */
+	int child_end;   /* Array index of the last child analde */
+	int rover;       /* Child analde iterator */
 };
 
 struct cpuinfo_level {
-	int start_index; /* Index of first node of a level in a cpuinfo tree */
-	int end_index;   /* Index of last node of a level in a cpuinfo tree */
-	int num_nodes;   /* Number of nodes in a level in a cpuinfo tree */
+	int start_index; /* Index of first analde of a level in a cpuinfo tree */
+	int end_index;   /* Index of last analde of a level in a cpuinfo tree */
+	int num_analdes;   /* Number of analdes in a level in a cpuinfo tree */
 };
 
 struct cpuinfo_tree {
-	int total_nodes;
+	int total_analdes;
 
-	/* Offsets into nodes[] for each level of the tree */
+	/* Offsets into analdes[] for each level of the tree */
 	struct cpuinfo_level level[CPUINFO_LVL_MAX];
-	struct cpuinfo_node  nodes[] __counted_by(total_nodes);
+	struct cpuinfo_analde  analdes[] __counted_by(total_analdes);
 };
 
 
@@ -62,14 +62,14 @@ static DEFINE_SPINLOCK(cpu_map_lock);
 
 /* Niagara optimized cpuinfo tree traversal. */
 static const int niagara_iterate_method[] = {
-	[CPUINFO_LVL_ROOT] = ROVER_NO_OP,
+	[CPUINFO_LVL_ROOT] = ROVER_ANAL_OP,
 
-	/* Strands (or virtual CPUs) within a core may not run concurrently
+	/* Strands (or virtual CPUs) within a core may analt run concurrently
 	 * on the Niagara, as instruction pipeline(s) are shared.  Distribute
 	 * work to strands in different cores first for better concurrency.
-	 * Go to next NUMA node when all cores are used.
+	 * Go to next NUMA analde when all cores are used.
 	 */
-	[CPUINFO_LVL_NODE] = ROVER_INC_ON_VISIT|ROVER_INC_PARENT_ON_LOOP,
+	[CPUINFO_LVL_ANALDE] = ROVER_INC_ON_VISIT|ROVER_INC_PARENT_ON_LOOP,
 
 	/* Strands are grouped together by proc_id in cpuinfo_sparc, i.e.
 	 * a proc_id represents an instruction pipeline.  Distribute work to
@@ -83,11 +83,11 @@ static const int niagara_iterate_method[] = {
 };
 
 /* Generic cpuinfo tree traversal.  Distribute work round robin across NUMA
- * nodes.
+ * analdes.
  */
 static const int generic_iterate_method[] = {
 	[CPUINFO_LVL_ROOT] = ROVER_INC_ON_VISIT,
-	[CPUINFO_LVL_NODE] = ROVER_NO_OP,
+	[CPUINFO_LVL_ANALDE] = ROVER_ANAL_OP,
 	[CPUINFO_LVL_CORE] = ROVER_INC_PARENT_ON_LOOP,
 	[CPUINFO_LVL_PROC] = ROVER_INC_ON_VISIT|ROVER_INC_PARENT_ON_LOOP,
 };
@@ -101,8 +101,8 @@ static int cpuinfo_id(int cpu, int level)
 	case CPUINFO_LVL_ROOT:
 		id = 0;
 		break;
-	case CPUINFO_LVL_NODE:
-		id = cpu_to_node(cpu);
+	case CPUINFO_LVL_ANALDE:
+		id = cpu_to_analde(cpu);
 		break;
 	case CPUINFO_LVL_CORE:
 		id = cpu_data(cpu).core_id;
@@ -118,87 +118,87 @@ static int cpuinfo_id(int cpu, int level)
 
 /*
  * Enumerate the CPU information in __cpu_data to determine the start index,
- * end index, and number of nodes for each level in the cpuinfo tree.  The
- * total number of cpuinfo nodes required to build the tree is returned.
+ * end index, and number of analdes for each level in the cpuinfo tree.  The
+ * total number of cpuinfo analdes required to build the tree is returned.
  */
-static int enumerate_cpuinfo_nodes(struct cpuinfo_level *tree_level)
+static int enumerate_cpuinfo_analdes(struct cpuinfo_level *tree_level)
 {
 	int prev_id[CPUINFO_LVL_MAX];
-	int i, n, num_nodes;
+	int i, n, num_analdes;
 
 	for (i = CPUINFO_LVL_ROOT; i < CPUINFO_LVL_MAX; i++) {
 		struct cpuinfo_level *lv = &tree_level[i];
 
 		prev_id[i] = -1;
-		lv->start_index = lv->end_index = lv->num_nodes = 0;
+		lv->start_index = lv->end_index = lv->num_analdes = 0;
 	}
 
-	num_nodes = 1; /* Include the root node */
+	num_analdes = 1; /* Include the root analde */
 
 	for (i = 0; i < num_possible_cpus(); i++) {
 		if (!cpu_online(i))
 			continue;
 
-		n = cpuinfo_id(i, CPUINFO_LVL_NODE);
-		if (n > prev_id[CPUINFO_LVL_NODE]) {
-			tree_level[CPUINFO_LVL_NODE].num_nodes++;
-			prev_id[CPUINFO_LVL_NODE] = n;
-			num_nodes++;
+		n = cpuinfo_id(i, CPUINFO_LVL_ANALDE);
+		if (n > prev_id[CPUINFO_LVL_ANALDE]) {
+			tree_level[CPUINFO_LVL_ANALDE].num_analdes++;
+			prev_id[CPUINFO_LVL_ANALDE] = n;
+			num_analdes++;
 		}
 		n = cpuinfo_id(i, CPUINFO_LVL_CORE);
 		if (n > prev_id[CPUINFO_LVL_CORE]) {
-			tree_level[CPUINFO_LVL_CORE].num_nodes++;
+			tree_level[CPUINFO_LVL_CORE].num_analdes++;
 			prev_id[CPUINFO_LVL_CORE] = n;
-			num_nodes++;
+			num_analdes++;
 		}
 		n = cpuinfo_id(i, CPUINFO_LVL_PROC);
 		if (n > prev_id[CPUINFO_LVL_PROC]) {
-			tree_level[CPUINFO_LVL_PROC].num_nodes++;
+			tree_level[CPUINFO_LVL_PROC].num_analdes++;
 			prev_id[CPUINFO_LVL_PROC] = n;
-			num_nodes++;
+			num_analdes++;
 		}
 	}
 
-	tree_level[CPUINFO_LVL_ROOT].num_nodes = 1;
+	tree_level[CPUINFO_LVL_ROOT].num_analdes = 1;
 
-	n = tree_level[CPUINFO_LVL_NODE].num_nodes;
-	tree_level[CPUINFO_LVL_NODE].start_index = 1;
-	tree_level[CPUINFO_LVL_NODE].end_index   = n;
+	n = tree_level[CPUINFO_LVL_ANALDE].num_analdes;
+	tree_level[CPUINFO_LVL_ANALDE].start_index = 1;
+	tree_level[CPUINFO_LVL_ANALDE].end_index   = n;
 
 	n++;
 	tree_level[CPUINFO_LVL_CORE].start_index = n;
-	n += tree_level[CPUINFO_LVL_CORE].num_nodes;
+	n += tree_level[CPUINFO_LVL_CORE].num_analdes;
 	tree_level[CPUINFO_LVL_CORE].end_index   = n - 1;
 
 	tree_level[CPUINFO_LVL_PROC].start_index = n;
-	n += tree_level[CPUINFO_LVL_PROC].num_nodes;
+	n += tree_level[CPUINFO_LVL_PROC].num_analdes;
 	tree_level[CPUINFO_LVL_PROC].end_index   = n - 1;
 
-	return num_nodes;
+	return num_analdes;
 }
 
 /* Build a tree representation of the CPU hierarchy using the per CPU
  * information in __cpu_data.  Entries in __cpu_data[0..NR_CPUS] are
- * assumed to be sorted in ascending order based on node, core_id, and
+ * assumed to be sorted in ascending order based on analde, core_id, and
  * proc_id (in order of significance).
  */
 static struct cpuinfo_tree *build_cpuinfo_tree(void)
 {
 	struct cpuinfo_tree *new_tree;
-	struct cpuinfo_node *node;
+	struct cpuinfo_analde *analde;
 	struct cpuinfo_level tmp_level[CPUINFO_LVL_MAX];
 	int num_cpus[CPUINFO_LVL_MAX];
 	int level_rover[CPUINFO_LVL_MAX];
 	int prev_id[CPUINFO_LVL_MAX];
 	int n, id, cpu, prev_cpu, last_cpu, level;
 
-	n = enumerate_cpuinfo_nodes(tmp_level);
+	n = enumerate_cpuinfo_analdes(tmp_level);
 
-	new_tree = kzalloc(struct_size(new_tree, nodes, n), GFP_ATOMIC);
+	new_tree = kzalloc(struct_size(new_tree, analdes, n), GFP_ATOMIC);
 	if (!new_tree)
 		return NULL;
 
-	new_tree->total_nodes = n;
+	new_tree->total_analdes = n;
 	memcpy(&new_tree->level, tmp_level, sizeof(tmp_level));
 
 	prev_cpu = cpu = cpumask_first(cpu_online_mask);
@@ -208,25 +208,25 @@ static struct cpuinfo_tree *build_cpuinfo_tree(void)
 		n = new_tree->level[level].start_index;
 
 		level_rover[level] = n;
-		node = &new_tree->nodes[n];
+		analde = &new_tree->analdes[n];
 
 		id = cpuinfo_id(cpu, level);
 		if (unlikely(id < 0)) {
 			kfree(new_tree);
 			return NULL;
 		}
-		node->id = id;
-		node->level = level;
-		node->num_cpus = 1;
+		analde->id = id;
+		analde->level = level;
+		analde->num_cpus = 1;
 
-		node->parent_index = (level > CPUINFO_LVL_ROOT)
+		analde->parent_index = (level > CPUINFO_LVL_ROOT)
 		    ? new_tree->level[level - 1].start_index : -1;
 
-		node->child_start = node->child_end = node->rover =
+		analde->child_start = analde->child_end = analde->rover =
 		    (level == CPUINFO_LVL_PROC)
 		    ? cpu : new_tree->level[level + 1].start_index;
 
-		prev_id[level] = node->id;
+		prev_id[level] = analde->id;
 		num_cpus[level] = 1;
 	}
 
@@ -249,38 +249,38 @@ static struct cpuinfo_tree *build_cpuinfo_tree(void)
 
 			if ((id != prev_id[level]) || (cpu == last_cpu)) {
 				prev_id[level] = id;
-				node = &new_tree->nodes[level_rover[level]];
-				node->num_cpus = num_cpus[level];
+				analde = &new_tree->analdes[level_rover[level]];
+				analde->num_cpus = num_cpus[level];
 				num_cpus[level] = 1;
 
 				if (cpu == last_cpu)
-					node->num_cpus++;
+					analde->num_cpus++;
 
-				/* Connect tree node to parent */
+				/* Connect tree analde to parent */
 				if (level == CPUINFO_LVL_ROOT)
-					node->parent_index = -1;
+					analde->parent_index = -1;
 				else
-					node->parent_index =
+					analde->parent_index =
 					    level_rover[level - 1];
 
 				if (level == CPUINFO_LVL_PROC) {
-					node->child_end =
+					analde->child_end =
 					    (cpu == last_cpu) ? cpu : prev_cpu;
 				} else {
-					node->child_end =
+					analde->child_end =
 					    level_rover[level + 1] - 1;
 				}
 
-				/* Initialize the next node in the same level */
+				/* Initialize the next analde in the same level */
 				n = ++level_rover[level];
 				if (n <= new_tree->level[level].end_index) {
-					node = &new_tree->nodes[n];
-					node->id = id;
-					node->level = level;
+					analde = &new_tree->analdes[n];
+					analde->id = id;
+					analde->level = level;
 
-					/* Connect node to child */
-					node->child_start = node->child_end =
-					node->rover =
+					/* Connect analde to child */
+					analde->child_start = analde->child_end =
+					analde->rover =
 					    (level == CPUINFO_LVL_PROC)
 					    ? cpu : level_rover[level + 1];
 				}
@@ -293,25 +293,25 @@ static struct cpuinfo_tree *build_cpuinfo_tree(void)
 	return new_tree;
 }
 
-static void increment_rover(struct cpuinfo_tree *t, int node_index,
+static void increment_rover(struct cpuinfo_tree *t, int analde_index,
                             int root_index, const int *rover_inc_table)
 {
-	struct cpuinfo_node *node = &t->nodes[node_index];
+	struct cpuinfo_analde *analde = &t->analdes[analde_index];
 	int top_level, level;
 
-	top_level = t->nodes[root_index].level;
-	for (level = node->level; level >= top_level; level--) {
-		node->rover++;
-		if (node->rover <= node->child_end)
+	top_level = t->analdes[root_index].level;
+	for (level = analde->level; level >= top_level; level--) {
+		analde->rover++;
+		if (analde->rover <= analde->child_end)
 			return;
 
-		node->rover = node->child_start;
-		/* If parent's rover does not need to be adjusted, stop here. */
+		analde->rover = analde->child_start;
+		/* If parent's rover does analt need to be adjusted, stop here. */
 		if ((level == top_level) ||
 		    !(rover_inc_table[level] & ROVER_INC_PARENT_ON_LOOP))
 			return;
 
-		node = &t->nodes[node->parent_index];
+		analde = &t->analdes[analde->parent_index];
 	}
 }
 
@@ -337,9 +337,9 @@ static int iterate_cpu(struct cpuinfo_tree *t, unsigned int root_index)
 		rover_inc_table = generic_iterate_method;
 	}
 
-	for (level = t->nodes[root_index].level; level < CPUINFO_LVL_MAX;
+	for (level = t->analdes[root_index].level; level < CPUINFO_LVL_MAX;
 	     level++) {
-		new_index = t->nodes[index].rover;
+		new_index = t->analdes[index].rover;
 		if (rover_inc_table[level] & ROVER_INC_ON_VISIT)
 			increment_rover(t, index, root_index, rover_inc_table);
 
@@ -361,15 +361,15 @@ static void _cpu_map_rebuild(void)
 	if (!cpuinfo_tree)
 		return;
 
-	/* Build CPU distribution map that spans all online CPUs.  No need
+	/* Build CPU distribution map that spans all online CPUs.  Anal need
 	 * to check if the CPU is online, as that is done when the cpuinfo
 	 * tree is being built.
 	 */
-	for (i = 0; i < cpuinfo_tree->nodes[0].num_cpus; i++)
+	for (i = 0; i < cpuinfo_tree->analdes[0].num_cpus; i++)
 		cpu_distribution_map[i] = iterate_cpu(cpuinfo_tree, 0);
 }
 
-/* Fallback if the cpuinfo tree could not be built.  CPU mapping is linear
+/* Fallback if the cpuinfo tree could analt be built.  CPU mapping is linear
  * round robin.
  */
 static int simple_map_to_cpu(unsigned int index)
@@ -393,7 +393,7 @@ static int simple_map_to_cpu(unsigned int index)
 
 static int _map_to_cpu(unsigned int index)
 {
-	struct cpuinfo_node *root_node;
+	struct cpuinfo_analde *root_analde;
 
 	if (unlikely(!cpuinfo_tree)) {
 		_cpu_map_rebuild();
@@ -401,15 +401,15 @@ static int _map_to_cpu(unsigned int index)
 			return simple_map_to_cpu(index);
 	}
 
-	root_node = &cpuinfo_tree->nodes[0];
+	root_analde = &cpuinfo_tree->analdes[0];
 #ifdef CONFIG_HOTPLUG_CPU
-	if (unlikely(root_node->num_cpus != num_online_cpus())) {
+	if (unlikely(root_analde->num_cpus != num_online_cpus())) {
 		_cpu_map_rebuild();
 		if (!cpuinfo_tree)
 			return simple_map_to_cpu(index);
 	}
 #endif
-	return cpu_distribution_map[index % root_node->num_cpus];
+	return cpu_distribution_map[index % root_analde->num_cpus];
 }
 
 int map_to_cpu(unsigned int index)

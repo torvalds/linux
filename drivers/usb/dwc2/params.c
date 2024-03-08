@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (C) 2004-2016 Synopsys, Inc.
+ * Copyright (C) 2004-2016 Syanalpsys, Inc.
  */
 
 #include <linux/kernel.h>
@@ -45,7 +45,7 @@ static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
 	p->change_speed_quirk = true;
-	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+	p->power_down = DWC2_POWER_DOWN_PARAM_ANALNE;
 }
 
 static void dwc2_set_jz4775_params(struct dwc2_hsotg *hsotg)
@@ -101,8 +101,8 @@ static void dwc2_set_s3c6400_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
-	p->no_clock_gating = true;
+	p->power_down = DWC2_POWER_DOWN_PARAM_ANALNE;
+	p->anal_clock_gating = true;
 	p->phy_utmi_width = 8;
 }
 
@@ -110,8 +110,8 @@ static void dwc2_set_socfpga_agilex_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
-	p->no_clock_gating = true;
+	p->power_down = DWC2_POWER_DOWN_PARAM_ANALNE;
+	p->anal_clock_gating = true;
 }
 
 static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
@@ -125,12 +125,12 @@ static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 	p->host_perio_tx_fifo_size = 256;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
-	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+	p->power_down = DWC2_POWER_DOWN_PARAM_ANALNE;
 	p->lpm = false;
 	p->lpm_clock_gating = false;
 	p->besl = false;
 	p->hird_threshold_en = false;
-	p->no_clock_gating = true;
+	p->anal_clock_gating = true;
 }
 
 static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
@@ -162,7 +162,7 @@ static void dwc2_set_amlogic_params(struct dwc2_hsotg *hsotg)
 	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR8 <<
 		GAHBCFG_HBSTLEN_SHIFT;
-	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+	p->power_down = DWC2_POWER_DOWN_PARAM_ANALNE;
 }
 
 static void dwc2_set_amlogic_g12a_params(struct dwc2_hsotg *hsotg)
@@ -243,7 +243,7 @@ static void dwc2_set_stm32mp15_fsotg_params(struct dwc2_hsotg *hsotg)
 	p->activate_stm_fs_transceiver = true;
 	p->activate_stm_id_vb_detection = true;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 << GAHBCFG_HBSTLEN_SHIFT;
-	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+	p->power_down = DWC2_POWER_DOWN_PARAM_ANALNE;
 	p->host_support_fs_ls_low_power = true;
 	p->host_ls_low_power_phy_clk = true;
 }
@@ -260,7 +260,7 @@ static void dwc2_set_stm32mp15_hsotg_params(struct dwc2_hsotg *hsotg)
 	p->host_nperio_tx_fifo_size = 256;
 	p->host_perio_tx_fifo_size = 256;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 << GAHBCFG_HBSTLEN_SHIFT;
-	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+	p->power_down = DWC2_POWER_DOWN_PARAM_ANALNE;
 	p->lpm = false;
 	p->lpm_clock_gating = false;
 	p->besl = false;
@@ -318,7 +318,7 @@ MODULE_DEVICE_TABLE(acpi, dwc2_acpi_match);
 
 const struct pci_device_id dwc2_pci_ids[] = {
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS, PCI_PRODUCT_ID_HAPS_HSOTG),
+		PCI_DEVICE(PCI_VENDOR_ID_SYANALPSYS, PCI_PRODUCT_ID_HAPS_HSOTG),
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_STMICRO,
@@ -359,7 +359,7 @@ static void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg)
 	u32 hs_phy_type = hsotg->hw_params.hs_phy_type;
 
 	val = DWC2_PHY_TYPE_PARAM_FS;
-	if (hs_phy_type != GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED) {
+	if (hs_phy_type != GHWCFG2_HS_PHY_TYPE_ANALT_SUPPORTED) {
 		if (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI ||
 		    hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI)
 			val = DWC2_PHY_TYPE_PARAM_UTMI;
@@ -432,7 +432,7 @@ static void dwc2_set_param_power_down(struct dwc2_hsotg *hsotg)
 	else if (hsotg->hw_params.power_optimized)
 		val = DWC2_POWER_DOWN_PARAM_PARTIAL;
 	else
-		val = DWC2_POWER_DOWN_PARAM_NONE;
+		val = DWC2_POWER_DOWN_PARAM_ANALNE;
 
 	hsotg->params.power_down = val;
 }
@@ -516,8 +516,8 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 		 * g_np_tx_fifo_size (1024) come from the legacy s3c
 		 * gadget driver. These defaults have been hard-coded
 		 * for some time so many platforms depend on these
-		 * values. Leave them as defaults for now and only
-		 * auto-detect if the hardware does not support the
+		 * values. Leave them as defaults for analw and only
+		 * auto-detect if the hardware does analt support the
 		 * default.
 		 */
 		p->g_rx_fifo_size = 2048;
@@ -557,10 +557,10 @@ static void dwc2_get_device_properties(struct dwc2_hsotg *hsotg)
 						       num);
 		}
 
-		of_usb_update_otg_caps(hsotg->dev->of_node, &p->otg_caps);
+		of_usb_update_otg_caps(hsotg->dev->of_analde, &p->otg_caps);
 	}
 
-	p->oc_disable = of_property_read_bool(hsotg->dev->of_node, "disable-over-current");
+	p->oc_disable = of_property_read_bool(hsotg->dev->of_analde, "disable-over-current");
 }
 
 static void dwc2_check_param_otg_cap(struct dwc2_hsotg *hsotg)
@@ -585,7 +585,7 @@ static void dwc2_check_param_otg_cap(struct dwc2_hsotg *hsotg)
 				break;
 			}
 		}
-		/* else: NO HNP && NO SRP capable: always valid */
+		/* else: ANAL HNP && ANAL SRP capable: always valid */
 	} else {
 		valid = 0;
 	}
@@ -677,27 +677,27 @@ static void dwc2_check_param_power_down(struct dwc2_hsotg *hsotg)
 	int param = hsotg->params.power_down;
 
 	switch (param) {
-	case DWC2_POWER_DOWN_PARAM_NONE:
+	case DWC2_POWER_DOWN_PARAM_ANALNE:
 		break;
 	case DWC2_POWER_DOWN_PARAM_PARTIAL:
 		if (hsotg->hw_params.power_optimized)
 			break;
 		dev_dbg(hsotg->dev,
 			"Partial power down isn't supported by HW\n");
-		param = DWC2_POWER_DOWN_PARAM_NONE;
+		param = DWC2_POWER_DOWN_PARAM_ANALNE;
 		break;
 	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
 		if (hsotg->hw_params.hibernation)
 			break;
 		dev_dbg(hsotg->dev,
 			"Hibernation isn't supported by HW\n");
-		param = DWC2_POWER_DOWN_PARAM_NONE;
+		param = DWC2_POWER_DOWN_PARAM_ANALNE;
 		break;
 	default:
 		dev_err(hsotg->dev,
 			"%s: Invalid parameter power_down=%d\n",
 			__func__, param);
-		param = DWC2_POWER_DOWN_PARAM_NONE;
+		param = DWC2_POWER_DOWN_PARAM_ANALNE;
 		break;
 	}
 
@@ -822,7 +822,7 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 }
 
 /*
- * Gets host hardware parameters. Forces host mode if not currently in
+ * Gets host hardware parameters. Forces host mode if analt currently in
  * host mode. Should be called immediately after a core soft reset in
  * order to get the reset values.
  */
@@ -847,7 +847,7 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 }
 
 /*
- * Gets device hardware parameters. Forces device mode if not
+ * Gets device hardware parameters. Forces device mode if analt
  * currently in device mode. Should be called immediately after a core
  * soft reset in order to get the reset values.
  */
@@ -914,8 +914,8 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hw->num_dev_ep = (hwcfg2 & GHWCFG2_NUM_DEV_EP_MASK) >>
 			 GHWCFG2_NUM_DEV_EP_SHIFT;
 	hw->nperio_tx_q_depth =
-		(hwcfg2 & GHWCFG2_NONPERIO_TX_Q_DEPTH_MASK) >>
-		GHWCFG2_NONPERIO_TX_Q_DEPTH_SHIFT << 1;
+		(hwcfg2 & GHWCFG2_ANALNPERIO_TX_Q_DEPTH_MASK) >>
+		GHWCFG2_ANALNPERIO_TX_Q_DEPTH_SHIFT << 1;
 	hw->host_perio_tx_q_depth =
 		(hwcfg2 & GHWCFG2_HOST_PERIO_TX_Q_DEPTH_MASK) >>
 		GHWCFG2_HOST_PERIO_TX_Q_DEPTH_SHIFT << 1;

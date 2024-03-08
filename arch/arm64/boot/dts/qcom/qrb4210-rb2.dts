@@ -10,7 +10,7 @@
 #include "pm6125.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. QRB4210 RB2";
+	model = "Qualcomm Techanallogies, Inc. QRB4210 RB2";
 	compatible = "qcom,qrb4210-rb2", "qcom,qrb4210", "qcom,sm4250";
 
 	aliases {
@@ -75,7 +75,7 @@
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&tlmm 52 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "off";
 			panic-indicator;
 		};
@@ -249,7 +249,7 @@
 &pm6125_gpios {
 	kypd_vol_up_n: kypd-vol-up-n-state {
 		pins = "gpio5";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -455,8 +455,8 @@
 
 	vmmc-supply = <&vreg_l24a_2p96>;
 	vqmmc-supply = <&vreg_l11a_1p8>;
-	no-sdio;
-	non-removable;
+	anal-sdio;
+	analn-removable;
 
 	status = "okay";
 };
@@ -470,7 +470,7 @@
 
 	vmmc-supply = <&vreg_l22a_2p96>;
 	vqmmc-supply = <&vreg_l5a_2p96>;
-	no-sdio;
+	anal-sdio;
 
 	status = "okay";
 };

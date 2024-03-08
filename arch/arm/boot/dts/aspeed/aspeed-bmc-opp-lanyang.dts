@@ -24,7 +24,7 @@
 		ranges;
 
 		flash_memory: region@98000000 {
-			no-map;
+			anal-map;
 			reg = <0x98000000 0x04000000>; /* 64M */
 		};
 	};
@@ -132,7 +132,7 @@
 
 	flash@0 {
 		status = "okay";
-		label = "pnor";
+		label = "panalr";
 		m25p,fast-read;
 	};
 };
@@ -164,9 +164,9 @@
 	flash = <&spi1>;
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>;
+	sanalop-ports = <0x80>;
 };
 
 &uart5 {
@@ -264,7 +264,7 @@
 };
 
 &pinctrl {
-	aspeed,external-nodes = <&gfx &lhc>;
+	aspeed,external-analdes = <&gfx &lhc>;
 };
 
 &gpio {

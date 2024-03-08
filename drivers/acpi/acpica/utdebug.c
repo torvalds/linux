@@ -25,9 +25,9 @@ static const char *acpi_gbl_function_exit_prefix = "----Exit-";
  *
  * FUNCTION:    acpi_ut_init_stack_ptr_trace
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Save the current CPU stack pointer at subsystem startup
  *
@@ -37,21 +37,21 @@ void acpi_ut_init_stack_ptr_trace(void)
 {
 	acpi_size current_sp;
 
-#pragma GCC diagnostic push
+#pragma GCC diaganalstic push
 #if defined(__GNUC__) && __GNUC__ >= 12
-#pragma GCC diagnostic ignored "-Wdangling-pointer="
+#pragma GCC diaganalstic iganalred "-Wdangling-pointer="
 #endif
 	acpi_gbl_entry_stack_pointer = &current_sp;
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_track_stack_ptr
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Save the current CPU stack pointer
  *
@@ -80,7 +80,7 @@ void acpi_ut_track_stack_ptr(void)
  *
  * DESCRIPTION: Remove the "Acpi" prefix from the function name, if present.
  *              This allows compiler macros such as __func__ to be used
- *              with no change to the debug output.
+ *              with anal change to the debug output.
  *
  ******************************************************************************/
 
@@ -91,7 +91,7 @@ static const char *acpi_ut_trim_function_name(const char *function_name)
 
 	if (*(ACPI_CAST_PTR(u32, function_name)) == ACPI_PREFIX_MIXED) {
 
-		/* This is the case where the original source has not been modified */
+		/* This is the case where the original source has analt been modified */
 
 		return (function_name + 4);
 	}
@@ -118,7 +118,7 @@ static const char *acpi_ut_trim_function_name(const char *function_name)
  *              format              - Printf format field
  *              ...                 - Optional printf arguments
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print error message with prefix consisting of the module name,
  *              line number, and component ID.
@@ -145,7 +145,7 @@ acpi_debug_print(u32 requested_debug_level,
 	}
 
 	/*
-	 * Thread tracking and context switch notification
+	 * Thread tracking and context switch analtification
 	 */
 	thread_id = acpi_os_get_thread_id();
 	if (thread_id != acpi_gbl_previous_thread_id) {
@@ -168,7 +168,7 @@ acpi_debug_print(u32 requested_debug_level,
 #ifdef ACPI_APPLICATION
 	/*
 	 * For acpi_exec/iASL only, emit the thread ID and nesting level.
-	 * Note: nesting level is really only useful during a single-thread
+	 * Analte: nesting level is really only useful during a single-thread
 	 * execution. Otherwise, multiple threads will keep resetting the
 	 * level.
 	 */
@@ -211,9 +211,9 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print)
  *              format              - Printf format field
  *              ...                 - Optional printf arguments
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Print message with no headers. Has same interface as
+ * DESCRIPTION: Print message with anal headers. Has same interface as
  *              debug_print so that the same macros can be used.
  *
  ******************************************************************************/
@@ -248,7 +248,7 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print_raw)
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
@@ -285,7 +285,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_trace)
  *              component_id        - Caller's component ID
  *              pointer             - Pointer to display
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
@@ -321,7 +321,7 @@ acpi_ut_trace_ptr(u32 line_number,
  *              component_id        - Caller's component ID
  *              string              - Additional string to display
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
@@ -357,7 +357,7 @@ acpi_ut_trace_str(u32 line_number,
  *              component_id        - Caller's component ID
  *              integer             - Integer to display
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
@@ -392,7 +392,7 @@ acpi_ut_trace_u32(u32 line_number,
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
@@ -431,7 +431,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_exit)
  *              component_id        - Caller's component ID
  *              status              - Exit status code
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit status also.
@@ -480,7 +480,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
  *              component_id        - Caller's component ID
  *              value               - Value to be printed with exit msg
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
@@ -519,7 +519,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
  *              component_id        - Caller's component ID
  *              ptr                 - Pointer to display
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
@@ -555,7 +555,7 @@ acpi_ut_ptr_exit(u32 line_number,
  *              component_id        - Caller's component ID
  *              string              - String to display
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
@@ -592,7 +592,7 @@ acpi_ut_str_exit(u32 line_number,
  *              pathname            - Object path
  *              pointer             - Pointer to the related object
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Interpreter execution trace.
  *

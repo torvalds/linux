@@ -32,7 +32,7 @@
 
 	/*
 	 * OR1K PIC is built into CPU and accessed via special purpose
-	 * registers.  It is not addressable and, hence, has no 'reg'
+	 * registers.  It is analt addressable and, hence, has anal 'reg'
 	 * property.
 	 */
 	pic: pic {

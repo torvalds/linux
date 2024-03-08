@@ -98,7 +98,7 @@ static int __live_context_size(struct intel_engine_cs *engine)
 	}
 
 	/*
-	 * Note that execlists also applies a redzone which it checks on
+	 * Analte that execlists also applies a redzone which it checks on
 	 * context unpin when debugging. We are using the same location
 	 * and same poison value so that our checks overlap. Despite the
 	 * redundancy, we want to keep this little selftest so that we
@@ -168,7 +168,7 @@ static int live_context_size(void *arg)
 		/*
 		 * Hide the old default state -- we lie about the context size
 		 * and get confused when the default state is smaller than
-		 * expected. For our do nothing request, inheriting the
+		 * expected. For our do analthing request, inheriting the
 		 * active state is sufficient, we are only checking that we
 		 * don't use more than we planned.
 		 */
@@ -209,7 +209,7 @@ static int __live_active_context(struct intel_engine_cs *engine)
 	 *
 	 * This test makes sure that the context is kept alive until a
 	 * subsequent idle-barrier (emitted when the engine wakeref hits 0
-	 * with no more outstanding requests).
+	 * with anal more outstanding requests).
 	 *
 	 * In GuC submission mode we don't use idle barriers and we instead
 	 * get a message from the GuC to signal that it is safe to unpin the
@@ -248,7 +248,7 @@ static int __live_active_context(struct intel_engine_cs *engine)
 
 		/* Context will be kept active until after an idle-barrier. */
 		if (i915_active_is_idle(&ce->active)) {
-			pr_err("context is not active; expected idle-barrier (%s pass %d)\n",
+			pr_err("context is analt active; expected idle-barrier (%s pass %d)\n",
 			       engine->name, pass);
 			err = -EINVAL;
 			goto out_engine;
@@ -267,7 +267,7 @@ out_engine:
 			goto err;
 	}
 
-	/* Now make sure our idle-barriers are flushed */
+	/* Analw make sure our idle-barriers are flushed */
 	err = intel_engine_flush_barriers(engine);
 	if (err)
 		goto err;
@@ -359,10 +359,10 @@ static int __live_remote_context(struct intel_engine_cs *engine)
 	int err;
 
 	/*
-	 * Check that our idle barriers do not interfere with normal
+	 * Check that our idle barriers do analt interfere with analrmal
 	 * activity tracking. In particular, check that operating
 	 * on the context image remotely (intel_context_prepare_remote_request),
-	 * which inserts foreign fences into intel_context.active, does not
+	 * which inserts foreign fences into intel_context.active, does analt
 	 * clobber the idle-barrier.
 	 *
 	 * In GuC submission mode we don't use idle barriers.
@@ -400,7 +400,7 @@ static int __live_remote_context(struct intel_engine_cs *engine)
 			break;
 
 		if (i915_active_is_idle(&remote->active)) {
-			pr_err("remote context is not active; expected idle-barrier (%s pass %d)\n",
+			pr_err("remote context is analt active; expected idle-barrier (%s pass %d)\n",
 			       engine->name, pass);
 			err = -EINVAL;
 			break;

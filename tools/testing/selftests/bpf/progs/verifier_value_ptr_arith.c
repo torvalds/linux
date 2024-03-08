@@ -3,7 +3,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
-#include <errno.h>
+#include <erranal.h>
 #include "bpf_misc.h"
 
 #define MAX_ENTRIES 11
@@ -40,11 +40,11 @@ struct {
 } map_hash_48b SEC(".maps");
 
 SEC("socket")
-__description("map access: known scalar += value_ptr unknown vs const")
+__description("map access: kanalwn scalar += value_ptr unkanalwn vs const")
 __success __failure_unpriv
 __msg_unpriv("R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void value_ptr_unknown_vs_const(void)
+__naked void value_ptr_unkanalwn_vs_const(void)
 {
 	asm volatile ("					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
@@ -78,11 +78,11 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr const vs unknown")
+__description("map access: kanalwn scalar += value_ptr const vs unkanalwn")
 __success __failure_unpriv
 __msg_unpriv("R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void value_ptr_const_vs_unknown(void)
+__naked void value_ptr_const_vs_unkanalwn(void)
 {
 	asm volatile ("					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
@@ -116,7 +116,7 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr const vs const (ne)")
+__description("map access: kanalwn scalar += value_ptr const vs const (ne)")
 __success __failure_unpriv
 __msg_unpriv("R1 tried to add from different maps, paths or scalars")
 __retval(1)
@@ -152,7 +152,7 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr const vs const (eq)")
+__description("map access: kanalwn scalar += value_ptr const vs const (eq)")
 __success __success_unpriv __retval(1)
 __naked void ptr_const_vs_const_eq(void)
 {
@@ -186,9 +186,9 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr unknown vs unknown (eq)")
+__description("map access: kanalwn scalar += value_ptr unkanalwn vs unkanalwn (eq)")
 __success __success_unpriv __retval(1)
-__naked void ptr_unknown_vs_unknown_eq(void)
+__naked void ptr_unkanalwn_vs_unkanalwn_eq(void)
 {
 	asm volatile ("					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
@@ -224,11 +224,11 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr unknown vs unknown (lt)")
+__description("map access: kanalwn scalar += value_ptr unkanalwn vs unkanalwn (lt)")
 __success __failure_unpriv
 __msg_unpriv("R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void ptr_unknown_vs_unknown_lt(void)
+__naked void ptr_unkanalwn_vs_unkanalwn_lt(void)
 {
 	asm volatile ("					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
@@ -264,11 +264,11 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr unknown vs unknown (gt)")
+__description("map access: kanalwn scalar += value_ptr unkanalwn vs unkanalwn (gt)")
 __success __failure_unpriv
 __msg_unpriv("R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void ptr_unknown_vs_unknown_gt(void)
+__naked void ptr_unkanalwn_vs_unkanalwn_gt(void)
 {
 	asm volatile ("					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
@@ -304,7 +304,7 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr from different maps")
+__description("map access: kanalwn scalar += value_ptr from different maps")
 __success __success_unpriv __retval(1)
 __naked void value_ptr_from_different_maps(void)
 {
@@ -334,11 +334,11 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr -= known scalar from different maps")
+__description("map access: value_ptr -= kanalwn scalar from different maps")
 __success __failure_unpriv
 __msg_unpriv("R0 min value is outside of the allowed memory range")
 __retval(1)
-__naked void known_scalar_from_different_maps(void)
+__naked void kanalwn_scalar_from_different_maps(void)
 {
 	asm volatile ("					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
@@ -367,7 +367,7 @@ l2_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr from different maps, but same value properties")
+__description("map access: kanalwn scalar += value_ptr from different maps, but same value properties")
 __success __success_unpriv __retval(1)
 __naked void maps_but_same_value_properties(void)
 {
@@ -589,7 +589,7 @@ __naked void alu_with_different_scalars_3(void)
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, upper oob arith, test 1")
+__description("map access: value_ptr += kanalwn scalar, upper oob arith, test 1")
 __success __failure_unpriv
 __msg_unpriv("R0 pointer arithmetic of map value goes out of range")
 __retval(1)
@@ -616,7 +616,7 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, upper oob arith, test 2")
+__description("map access: value_ptr += kanalwn scalar, upper oob arith, test 2")
 __success __failure_unpriv
 __msg_unpriv("R0 pointer arithmetic of map value goes out of range")
 __retval(1)
@@ -643,7 +643,7 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, upper oob arith, test 3")
+__description("map access: value_ptr += kanalwn scalar, upper oob arith, test 3")
 __success __success_unpriv __retval(1)
 __naked void upper_oob_arith_test_3(void)
 {
@@ -668,7 +668,7 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr -= known scalar, lower oob arith, test 1")
+__description("map access: value_ptr -= kanalwn scalar, lower oob arith, test 1")
 __failure __msg("R0 min value is outside of the allowed memory range")
 __failure_unpriv
 __msg_unpriv("R0 pointer arithmetic of map value goes out of range")
@@ -696,7 +696,7 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr -= known scalar, lower oob arith, test 2")
+__description("map access: value_ptr -= kanalwn scalar, lower oob arith, test 2")
 __success __failure_unpriv
 __msg_unpriv("R0 pointer arithmetic of map value goes out of range")
 __retval(1)
@@ -726,7 +726,7 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr -= known scalar, lower oob arith, test 3")
+__description("map access: value_ptr -= kanalwn scalar, lower oob arith, test 3")
 __success __success_unpriv __retval(1)
 __naked void lower_oob_arith_test_3(void)
 {
@@ -752,9 +752,9 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr")
+__description("map access: kanalwn scalar += value_ptr")
 __success __success_unpriv __retval(1)
-__naked void access_known_scalar_value_ptr_1(void)
+__naked void access_kanalwn_scalar_value_ptr_1(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -776,9 +776,9 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, 1")
+__description("map access: value_ptr += kanalwn scalar, 1")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_known_scalar_1(void)
+__naked void value_ptr_kanalwn_scalar_1(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -800,10 +800,10 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, 2")
+__description("map access: value_ptr += kanalwn scalar, 2")
 __failure __msg("invalid access to map value")
 __failure_unpriv
-__naked void value_ptr_known_scalar_2_1(void)
+__naked void value_ptr_kanalwn_scalar_2_1(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -825,10 +825,10 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, 3")
+__description("map access: value_ptr += kanalwn scalar, 3")
 __failure __msg("invalid access to map value")
 __failure_unpriv
-__naked void value_ptr_known_scalar_3(void)
+__naked void value_ptr_kanalwn_scalar_3(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -850,9 +850,9 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, 4")
+__description("map access: value_ptr += kanalwn scalar, 4")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_known_scalar_4(void)
+__naked void value_ptr_kanalwn_scalar_4(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -878,9 +878,9 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, 5")
+__description("map access: value_ptr += kanalwn scalar, 5")
 __success __success_unpriv __retval(0xabcdef12)
-__naked void value_ptr_known_scalar_5(void)
+__naked void value_ptr_kanalwn_scalar_5(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -902,9 +902,9 @@ l0_%=:	exit;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += known scalar, 6")
+__description("map access: value_ptr += kanalwn scalar, 6")
 __success __success_unpriv __retval(0xabcdef12)
-__naked void value_ptr_known_scalar_6(void)
+__naked void value_ptr_kanalwn_scalar_6(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -929,9 +929,9 @@ l0_%=:	exit;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += N, value_ptr -= N known scalar")
+__description("map access: value_ptr += N, value_ptr -= N kanalwn scalar")
 __success __success_unpriv __retval(0x12345678)
-__naked void value_ptr_n_known_scalar(void)
+__naked void value_ptr_n_kanalwn_scalar(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -955,9 +955,9 @@ l0_%=:	exit;						\
 }
 
 SEC("socket")
-__description("map access: unknown scalar += value_ptr, 1")
+__description("map access: unkanalwn scalar += value_ptr, 1")
 __success __success_unpriv __retval(1)
-__naked void unknown_scalar_value_ptr_1(void)
+__naked void unkanalwn_scalar_value_ptr_1(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -980,9 +980,9 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: unknown scalar += value_ptr, 2")
+__description("map access: unkanalwn scalar += value_ptr, 2")
 __success __success_unpriv __retval(0xabcdef12) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void unknown_scalar_value_ptr_2(void)
+__naked void unkanalwn_scalar_value_ptr_2(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1004,11 +1004,11 @@ l0_%=:	exit;						\
 }
 
 SEC("socket")
-__description("map access: unknown scalar += value_ptr, 3")
+__description("map access: unkanalwn scalar += value_ptr, 3")
 __success __failure_unpriv
 __msg_unpriv("R0 pointer arithmetic of map value goes out of range")
 __retval(0xabcdef12) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void unknown_scalar_value_ptr_3(void)
+__naked void unkanalwn_scalar_value_ptr_3(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1034,11 +1034,11 @@ l0_%=:	exit;						\
 }
 
 SEC("socket")
-__description("map access: unknown scalar += value_ptr, 4")
+__description("map access: unkanalwn scalar += value_ptr, 4")
 __failure __msg("R1 max value is outside of the allowed memory range")
 __msg_unpriv("R1 pointer arithmetic of map value goes out of range")
 __flag(BPF_F_ANY_ALIGNMENT)
-__naked void unknown_scalar_value_ptr_4(void)
+__naked void unkanalwn_scalar_value_ptr_4(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1062,9 +1062,9 @@ l0_%=:	exit;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += unknown scalar, 1")
+__description("map access: value_ptr += unkanalwn scalar, 1")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_unknown_scalar_1(void)
+__naked void value_ptr_unkanalwn_scalar_1(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1087,9 +1087,9 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += unknown scalar, 2")
+__description("map access: value_ptr += unkanalwn scalar, 2")
 __success __success_unpriv __retval(0xabcdef12) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void value_ptr_unknown_scalar_2_1(void)
+__naked void value_ptr_unkanalwn_scalar_2_1(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1111,9 +1111,9 @@ l0_%=:	exit;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr += unknown scalar, 3")
+__description("map access: value_ptr += unkanalwn scalar, 3")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_unknown_scalar_3(void)
+__naked void value_ptr_unkanalwn_scalar_3(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1167,10 +1167,10 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: known scalar -= value_ptr")
+__description("map access: kanalwn scalar -= value_ptr")
 __failure __msg("R1 tried to subtract pointer from scalar")
 __failure_unpriv
-__naked void access_known_scalar_value_ptr_2(void)
+__naked void access_kanalwn_scalar_value_ptr_2(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1192,10 +1192,10 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr -= known scalar")
+__description("map access: value_ptr -= kanalwn scalar")
 __failure __msg("R0 min value is outside of the allowed memory range")
 __failure_unpriv
-__naked void access_value_ptr_known_scalar(void)
+__naked void access_value_ptr_kanalwn_scalar(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1217,9 +1217,9 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr -= known scalar, 2")
+__description("map access: value_ptr -= kanalwn scalar, 2")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_known_scalar_2_2(void)
+__naked void value_ptr_kanalwn_scalar_2_2(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1243,10 +1243,10 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: unknown scalar -= value_ptr")
+__description("map access: unkanalwn scalar -= value_ptr")
 __failure __msg("R1 tried to subtract pointer from scalar")
 __failure_unpriv
-__naked void access_unknown_scalar_value_ptr(void)
+__naked void access_unkanalwn_scalar_value_ptr(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1269,10 +1269,10 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr -= unknown scalar")
+__description("map access: value_ptr -= unkanalwn scalar")
 __failure __msg("R0 min value is negative")
 __failure_unpriv
-__naked void access_value_ptr_unknown_scalar(void)
+__naked void access_value_ptr_unkanalwn_scalar(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1295,11 +1295,11 @@ l0_%=:	r0 = 1;						\
 }
 
 SEC("socket")
-__description("map access: value_ptr -= unknown scalar, 2")
+__description("map access: value_ptr -= unkanalwn scalar, 2")
 __success __failure_unpriv
 __msg_unpriv("R0 pointer arithmetic of map value goes out of range")
 __retval(1)
-__naked void value_ptr_unknown_scalar_2_2(void)
+__naked void value_ptr_unkanalwn_scalar_2_2(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -1351,7 +1351,7 @@ l0_%=:	r0 = 1;						\
 
 SEC("socket")
 __description("map access: trying to leak tainted dst reg")
-__failure __msg("math between map_value pointer and 4294967295 is not allowed")
+__failure __msg("math between map_value pointer and 4294967295 is analt allowed")
 __failure_unpriv
 __naked void to_leak_tainted_dst_reg(void)
 {

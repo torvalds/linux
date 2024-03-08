@@ -86,7 +86,7 @@ int hd44780_common_clear_display(struct charlcd *lcd)
 	/*
 	 * The Hitachi HD44780 controller (and compatible ones) reset the DDRAM
 	 * address when executing the DISPLAY_CLEAR command, thus the
-	 * following call is not required. However, other controllers do not
+	 * following call is analt required. However, other controllers do analt
 	 * (e.g. NewHaven NHD-0220DZW-AG5), thus move the cursor to home
 	 * unconditionally to support both.
 	 */
@@ -107,7 +107,7 @@ int hd44780_common_init_display(struct charlcd *lcd)
 	hdc->hd44780_common_flags = ((lcd->height > 1) ? LCD_FLAG_N : 0) |
 		LCD_FLAG_D | LCD_FLAG_C | LCD_FLAG_B;
 
-	long_sleep(20);		/* wait 20 ms after power-up for the paranoid */
+	long_sleep(20);		/* wait 20 ms after power-up for the paraanalid */
 
 	/*
 	 * 8-bit mode, 1 line, small fonts; let's do it 3 times, to make sure
@@ -174,7 +174,7 @@ int hd44780_common_shift_cursor(struct charlcd *lcd, enum charlcd_shift_dir dir)
 	struct hd44780_common *hdc = lcd->drvdata;
 
 	if (dir == CHARLCD_SHIFT_LEFT) {
-		/* back one char if not at end of line */
+		/* back one char if analt at end of line */
 		if (lcd->addr.x < hdc->bwidth)
 			hdc->write_cmd(hdc, LCD_CMD_SHIFT);
 	} else if (dir == CHARLCD_SHIFT_RIGHT) {
@@ -215,7 +215,7 @@ static void hd44780_common_set_mode(struct hd44780_common *hdc)
 			LCD_CMD_BLINK_ON : 0));
 }
 
-int hd44780_common_display(struct charlcd *lcd, enum charlcd_onoff on)
+int hd44780_common_display(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct hd44780_common *hdc = lcd->drvdata;
 
@@ -229,7 +229,7 @@ int hd44780_common_display(struct charlcd *lcd, enum charlcd_onoff on)
 }
 EXPORT_SYMBOL_GPL(hd44780_common_display);
 
-int hd44780_common_cursor(struct charlcd *lcd, enum charlcd_onoff on)
+int hd44780_common_cursor(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct hd44780_common *hdc = lcd->drvdata;
 
@@ -243,7 +243,7 @@ int hd44780_common_cursor(struct charlcd *lcd, enum charlcd_onoff on)
 }
 EXPORT_SYMBOL_GPL(hd44780_common_cursor);
 
-int hd44780_common_blink(struct charlcd *lcd, enum charlcd_onoff on)
+int hd44780_common_blink(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct hd44780_common *hdc = lcd->drvdata;
 

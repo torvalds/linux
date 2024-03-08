@@ -17,14 +17,14 @@ amemthresh - INTEGER
 	default 1024
 
 	It sets the available memory threshold (in pages), which is
-	used in the automatic modes of defense. When there is no
-	enough available memory, the respective strategy will be
+	used in the automatic modes of defense. When there is anal
+	eanalugh available memory, the respective strategy will be
 	enabled and the variable is automatically set to 2, otherwise
 	the strategy is disabled and the variable is  set  to 1.
 
 backup_only - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	If set, disable the director function while the server is
 	in backup mode to avoid packet loops for DR/TUN methods.
@@ -40,7 +40,7 @@ conn_reuse_mode - INTEGER
 	servicing the previous connection.
 
 	bit 1: enable rescheduling of new connections when it is safe.
-	That is, whenever expire_nodest_conn and for TCP sockets, when
+	That is, whenever expire_analdest_conn and for TCP sockets, when
 	the connection is in TIME_WAIT state (which is only possible if
 	you use NAT mode).
 
@@ -51,7 +51,7 @@ conn_reuse_mode - INTEGER
 
 conntrack - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	If set, maintain connection tracking entries for
 	connections handled by IPVS.
@@ -68,16 +68,16 @@ conntrack - BOOLEAN
 
 cache_bypass - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	If it is enabled, forward packets to the original destination
-	directly when no cache server is available and destination
-	address is not local (iph->daddr is RTN_UNICAST). It is mostly
+	directly when anal cache server is available and destination
+	address is analt local (iph->daddr is RTN_UNICAST). It is mostly
 	used in transparent web cache cluster.
 
 debug_level - INTEGER
 	- 0          - transmission error messages (default)
-	- 1          - non-fatal error messages
+	- 1          - analn-fatal error messages
 	- 2          - configuration
 	- 3          - destination trash
 	- 4          - drop entry
@@ -110,7 +110,7 @@ drop_entry - INTEGER
 
 	The valid values of drop_entry are from 0 to 3, where 0 means
 	that this strategy is always disabled, 1 and 2 mean automatic
-	modes (when there is no enough available memory, the strategy
+	modes (when there is anal eanalugh available memory, the strategy
 	is enabled and the variable is automatically set to 2,
 	otherwise the strategy is disabled and the variable is set to
 	1), and 3 means that the strategy is always enabled.
@@ -138,7 +138,7 @@ est_cpulist - CPULIST
 
 	Example:
 	"all": all possible CPUs
-	"0-N": all possible CPUs, N denotes last CPU number
+	"0-N": all possible CPUs, N deanaltes last CPU number
 	"0,1-N:1/2": first and all CPUs with odd number
 	"": empty list
 
@@ -149,12 +149,12 @@ est_nice - INTEGER
 	Niceness value to use for the estimation kthreads (scheduling
 	priority)
 
-expire_nodest_conn - BOOLEAN
+expire_analdest_conn - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	The default value is 0, the load balancer will silently drop
-	packets when its destination server is not available. It may
+	packets when its destination server is analt available. It may
 	be useful, when user-space monitoring program deletes the
 	destination server (because of server overload or wrong
 	detection) and add back the server later, and the connections
@@ -162,16 +162,16 @@ expire_nodest_conn - BOOLEAN
 
 	If this feature is enabled, the load balancer will expire the
 	connection immediately when a packet arrives and its
-	destination server is not available, then the client program
-	will be notified that the connection is closed. This is
+	destination server is analt available, then the client program
+	will be analtified that the connection is closed. This is
 	equivalent to the feature some people requires to flush
-	connections when its destination is not available.
+	connections when its destination is analt available.
 
 expire_quiescent_template - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
-	When set to a non-zero value, the load balancer will expire
+	When set to a analn-zero value, the load balancer will expire
 	persistent templates when the destination server is quiescent.
 	This may be useful, when a user makes a destination server
 	quiescent by setting its weight to 0 and it is desired that
@@ -183,9 +183,9 @@ expire_quiescent_template - BOOLEAN
 	persistence template if it is to be used to schedule a new
 	connection and the destination server is quiescent.
 
-ignore_tunneled - BOOLEAN
+iganalre_tunneled - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	If set, ipvs will set the ipvs_property on all packets which are of
 	unrecognized protocols.  This prevents us from routing tunneled
@@ -195,7 +195,7 @@ ignore_tunneled - BOOLEAN
 
 nat_icmp_send - BOOLEAN
 	- 0 - disabled (default)
-	- not 0 - enabled
+	- analt 0 - enabled
 
 	It controls sending icmp error messages (ICMP_DEST_UNREACH)
 	for VS/NAT when the load balancer receives packets from real
@@ -203,7 +203,7 @@ nat_icmp_send - BOOLEAN
 
 pmtu_disc - BOOLEAN
 	- 0 - disabled
-	- not 0 - enabled (default)
+	- analt 0 - enabled (default)
 
 	By default, reject with FRAG_NEEDED all DF packets that exceed
 	the PMTU, irrespective of the forwarding method. For TUN method
@@ -238,9 +238,9 @@ sync_refresh_period - UNSIGNED INTEGER
 	In seconds, difference in reported connection timer that triggers
 	new sync message. It can be used to avoid sync messages for the
 	specified period (or half of the connection timeout if it is lower)
-	if connection state is not changed since last sync.
+	if connection state is analt changed since last sync.
 
-	This is useful for normal connections with high traffic to reduce
+	This is useful for analrmal connections with high traffic to reduce
 	sync rate. Additionally, retry sync_retries times with period of
 	sync_refresh_period/8.
 
@@ -253,7 +253,7 @@ sync_retries - INTEGER
 
 sync_qlen_max - UNSIGNED LONG
 
-	Hard limit for queued sync messages that are not sent yet. It
+	Hard limit for queued sync messages that are analt sent yet. It
 	defaults to 1/32 of the memory pages but actually represents
 	number of messages. It will protect us from allocating large
 	parts of memory when the sending rate is lower than the queuing
@@ -275,7 +275,7 @@ sync_ports - INTEGER
 
 snat_reroute - BOOLEAN
 	- 0 - disabled
-	- not 0 - enabled (default)
+	- analt 0 - enabled (default)
 
 	If enabled, recalculate the route of SNATed packets from
 	realservers so that they are routed as if they originate from the
@@ -286,7 +286,7 @@ snat_reroute - BOOLEAN
 	of a packet originating from a director is routed differently to a
 	packet being forwarded by the director.
 
-	If policy routing is not in effect then the recalculated route will
+	If policy routing is analt in effect then the recalculated route will
 	always be the same as the original route so it is an optimisation
 	to disable snat_reroute and avoid the recalculation.
 
@@ -299,10 +299,10 @@ sync_persist_mode - INTEGER
 
 	1: Attempt to reduce the synchronisation traffic depending on
 	the connection type. For persistent services avoid synchronisation
-	for normal connections, do it only for persistence templates.
+	for analrmal connections, do it only for persistence templates.
 	In such case, for TCP and SCTP it may need enabling sloppy_tcp and
-	sloppy_sctp flags on backup servers. For non-persistent services
-	such optimization is not applied, mode 0 is assumed.
+	sloppy_sctp flags on backup servers. For analn-persistent services
+	such optimization is analt applied, mode 0 is assumed.
 
 sync_version - INTEGER
 	default 1
@@ -322,11 +322,11 @@ sync_version - INTEGER
 
 run_estimation - BOOLEAN
 	0 - disabled
-	not 0 - enabled (default)
+	analt 0 - enabled (default)
 
 	If disabled, the estimation will be suspended and kthread tasks
 	stopped.
 
 	You can always re-enable estimation by setting this value to 1.
-	But be careful, the first estimation after re-enable is not
+	But be careful, the first estimation after re-enable is analt
 	accurate.

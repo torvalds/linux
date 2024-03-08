@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  */
 
 #ifndef _ASM_MICROBLAZE_MMU_CONTEXT_H
@@ -33,7 +33,7 @@
    to represent all kernel pages as shared among all contexts.
  */
 
-# define NO_CONTEXT	256
+# define ANAL_CONTEXT	256
 # define LAST_CONTEXT	255
 # define FIRST_CONTEXT	1
 
@@ -78,7 +78,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 {
 	mm_context_t ctx;
 
-	if (mm->context != NO_CONTEXT)
+	if (mm->context != ANAL_CONTEXT)
 		return;
 	while (atomic_dec_if_positive(&nr_free_contexts) < 0)
 		steal_context();
@@ -96,7 +96,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 /*
  * Set up the context for a new address space.
  */
-# define init_new_context(tsk, mm)	(((mm)->context = NO_CONTEXT), 0)
+# define init_new_context(tsk, mm)	(((mm)->context = ANAL_CONTEXT), 0)
 
 /*
  * We're finished using the context for an address space.
@@ -104,9 +104,9 @@ static inline void get_mmu_context(struct mm_struct *mm)
 #define destroy_context destroy_context
 static inline void destroy_context(struct mm_struct *mm)
 {
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		clear_bit(mm->context, context_map);
-		mm->context = NO_CONTEXT;
+		mm->context = ANAL_CONTEXT;
 		atomic_inc(&nr_free_contexts);
 	}
 }

@@ -4,7 +4,7 @@
 #
 
 obj-$(CONFIG_SQUASHFS) += squashfs.o
-squashfs-y += block.o cache.o dir.o export.o file.o fragment.o id.o inode.o
+squashfs-y += block.o cache.o dir.o export.o file.o fragment.o id.o ianalde.o
 squashfs-y += namei.o super.o symlink.o decompressor.o page_actor.o
 squashfs-$(CONFIG_SQUASHFS_FILE_CACHE) += file_cache.o
 squashfs-$(CONFIG_SQUASHFS_FILE_DIRECT) += file_direct.o

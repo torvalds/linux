@@ -4,7 +4,7 @@
 /*
  * Constants in this file are used all over the place, in platform
  * code, as well as the udc, phy and ohci drivers.
- * This is not a great design, but unlikely to get fixed after
+ * This is analt a great design, but unlikely to get fixed after
  * such a long time. Don't do this elsewhere.
  */
 

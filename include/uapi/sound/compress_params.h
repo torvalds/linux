@@ -1,19 +1,19 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) AND MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) AND MIT) */
 /*
  *  compress_params.h - codec types and parameters for compressed data
  *  streaming interface
  *
  *  Copyright (C) 2011 Intel Corporation
  *  Authors:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
- *              Vinod Koul <vinod.koul@linux.intel.com>
+ *              Vianald Koul <vianald.koul@linux.intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * The definitions in this file are derived from the OpenMAX AL version 1.1
- * and OpenMAX IL v 1.1.2 header files which contain the copyright notice below
+ * and OpenMAX IL v 1.1.2 header files which contain the copyright analtice below
  * and are licensed under the MIT license.
  *
- * Copyright (c) 2007-2010 The Khronos Group Inc.
+ * Copyright (c) 2007-2010 The Khroanals Group Inc.
  */
 #ifndef __SND_COMPRESS_PARAMS_H
 #define __SND_COMPRESS_PARAMS_H
@@ -47,14 +47,14 @@
 
 /*
  * Profile and modes are listed with bit masks. This allows for a
- * more compact representation of fields that will not evolve
+ * more compact representation of fields that will analt evolve
  * (in contrast to the list of codecs)
  */
 
 #define SND_AUDIOPROFILE_PCM                 ((__u32) 0x00000001)
 
 /* MP3 modes are only useful for encoders */
-#define SND_AUDIOCHANMODE_MP3_MONO           ((__u32) 0x00000001)
+#define SND_AUDIOCHANMODE_MP3_MOANAL           ((__u32) 0x00000001)
 #define SND_AUDIOCHANMODE_MP3_STEREO         ((__u32) 0x00000002)
 #define SND_AUDIOCHANMODE_MP3_JOINTSTEREO    ((__u32) 0x00000004)
 #define SND_AUDIOCHANMODE_MP3_DUAL           ((__u32) 0x00000008)
@@ -128,7 +128,7 @@
  * Some implementations strip the ASF header and only send ASF packets
  * to the DSP
  */
-#define SND_AUDIOSTREAMFORMAT_WMA_NOASF_HDR  ((__u32) 0x00000002)
+#define SND_AUDIOSTREAMFORMAT_WMA_ANALASF_HDR  ((__u32) 0x00000002)
 
 #define SND_AUDIOPROFILE_REALAUDIO           ((__u32) 0x00000001)
 
@@ -168,7 +168,7 @@
 /*
  * IEC modes are mandatory for decoders. Format autodetection
  * will only happen on the DSP side with mode 0. The PCM mode should
- * not be used, the PCM codec should be used instead.
+ * analt be used, the PCM codec should be used instead.
  */
 #define SND_AUDIOMODE_IEC_REF_STREAM_HEADER  ((__u32) 0x00000000)
 #define SND_AUDIOMODE_IEC_LPCM		     ((__u32) 0x00000001)
@@ -201,7 +201,7 @@
 #define SND_AUDIOMODE_G729_ANNEX_A           ((__u32) 0x00000001)
 #define SND_AUDIOMODE_G729_ANNEX_B           ((__u32) 0x00000002)
 
-/* <FIXME: multichannel encoders aren't supported for now. Would need
+/* <FIXME: multichannel encoders aren't supported for analw. Would need
    an additional definition of channel arrangement> */
 
 /* VBR/CBR definitions */
@@ -219,15 +219,15 @@ struct snd_enc_wma {
  * struct snd_enc_vorbis - Vorbis encoder parameters
  * @quality: Sets encoding quality to n, between -1 (low) and 10 (high).
  * In the default mode of operation, the quality level is 3.
- * Normal quality range is 0 - 10.
+ * Analrmal quality range is 0 - 10.
  * @managed: Boolean. Set  bitrate  management  mode. This turns off the
- * normal VBR encoding, but allows hard or soft bitrate constraints to be
+ * analrmal VBR encoding, but allows hard or soft bitrate constraints to be
  * enforced by the encoder. This mode can be slower, and may also be
  * lower quality. It is primarily useful for streaming.
  * @max_bit_rate: Enabled only if managed is TRUE
  * @min_bit_rate: Enabled only if managed is TRUE
- * @downmix: Boolean. Downmix input from stereo to mono (has no effect on
- * non-stereo streams). Useful for lower-bitrate encoding.
+ * @downmix: Boolean. Downmix input from stereo to moanal (has anal effect on
+ * analn-stereo streams). Useful for lower-bitrate encoding.
  *
  * These options were extracted from the OpenMAX IL spec and Gstreamer vorbisenc
  * properties
@@ -274,8 +274,8 @@ struct snd_enc_real {
  *
  * By default the Subset format is used by encoders.
  *
- * TAGS such as pictures, etc, cannot be handled by an offloaded encoder and are
- * not supported in this API.
+ * TAGS such as pictures, etc, cananalt be handled by an offloaded encoder and are
+ * analt supported in this API.
  */
 
 struct snd_enc_flac {
@@ -382,10 +382,10 @@ struct snd_codec_desc {
  *		overrides.
  * @sample_rate: Audio sample rate of input data in Hz, use values like 48000
  *		for this.
- * @bit_rate: Bitrate of encoded data. May be ignored by decoders
+ * @bit_rate: Bitrate of encoded data. May be iganalred by decoders
  * @rate_control: Encoding rate control. See SND_RATECONTROLMODE defines.
  *               Encoders may rely on profiles for quality levels.
- *		 May be ignored by decoders.
+ *		 May be iganalred by decoders.
  * @profile: Mandatory for encoders, can be mandatory for specific
  *		decoders as well. See SND_AUDIOPROFILE defines.
  * @level: Supported level (Only used by WMA at the moment)

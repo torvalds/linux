@@ -4,8 +4,8 @@
 #define _LINUX_DROPREASON_CORE_H
 
 #define DEFINE_DROP_REASON(FN, FNe)	\
-	FN(NOT_SPECIFIED)		\
-	FN(NO_SOCKET)			\
+	FN(ANALT_SPECIFIED)		\
+	FN(ANAL_SOCKET)			\
 	FN(PKT_TOO_SMALL)		\
 	FN(TCP_CSUM)			\
 	FN(SOCKET_FILTER)		\
@@ -17,16 +17,16 @@
 	FN(IP_RPFILTER)			\
 	FN(UNICAST_IN_L2_MULTICAST)	\
 	FN(XFRM_POLICY)			\
-	FN(IP_NOPROTO)			\
+	FN(IP_ANALPROTO)			\
 	FN(SOCKET_RCVBUFF)		\
 	FN(PROTO_MEM)			\
 	FN(TCP_AUTH_HDR)		\
-	FN(TCP_MD5NOTFOUND)		\
+	FN(TCP_MD5ANALTFOUND)		\
 	FN(TCP_MD5UNEXPECTED)		\
 	FN(TCP_MD5FAILURE)		\
-	FN(TCP_AONOTFOUND)		\
+	FN(TCP_AOANALTFOUND)		\
 	FN(TCP_AOUNEXPECTED)		\
-	FN(TCP_AOKEYNOTFOUND)		\
+	FN(TCP_AOKEYANALTFOUND)		\
 	FN(TCP_AOFAILURE)		\
 	FN(SOCKET_BACKLOG)		\
 	FN(TCP_FLAGS)			\
@@ -46,7 +46,7 @@
 	FN(TCP_ACK_UNSENT_DATA)		\
 	FN(TCP_OFO_QUEUE_PRUNE)		\
 	FN(TCP_OFO_DROP)		\
-	FN(IP_OUTNOROUTES)		\
+	FN(IP_OUTANALROUTES)		\
 	FN(BPF_CGROUP_EGRESS)		\
 	FN(IPV6DISABLED)		\
 	FN(NEIGH_CREATEFAIL)		\
@@ -65,14 +65,14 @@
 	FN(DEV_HDR)			\
 	FN(DEV_READY)			\
 	FN(FULL_RING)			\
-	FN(NOMEM)			\
+	FN(ANALMEM)			\
 	FN(HDR_TRUNC)			\
 	FN(TAP_FILTER)			\
 	FN(TAP_TXFILTER)		\
 	FN(ICMP_CSUM)			\
 	FN(INVALID_PROTO)		\
 	FN(IP_INADDRERRORS)		\
-	FN(IP_INNOROUTES)		\
+	FN(IP_INANALROUTES)		\
 	FN(PKT_TOO_BIG)			\
 	FN(DUP_FRAG)			\
 	FN(FRAG_REASM_TIMEOUT)		\
@@ -87,7 +87,7 @@
 	FN(QUEUE_PURGE)			\
 	FN(TC_COOKIE_ERROR)		\
 	FN(PACKET_SOCK_ERROR)		\
-	FN(TC_CHAIN_NOTFOUND)		\
+	FN(TC_CHAIN_ANALTFOUND)		\
 	FN(TC_RECLASSIFY_LOOP)		\
 	FNe(MAX)
 
@@ -98,15 +98,15 @@
  */
 enum skb_drop_reason {
 	/**
-	 * @SKB_NOT_DROPPED_YET: skb is not dropped yet (used for no-drop case)
+	 * @SKB_ANALT_DROPPED_YET: skb is analt dropped yet (used for anal-drop case)
 	 */
-	SKB_NOT_DROPPED_YET = 0,
+	SKB_ANALT_DROPPED_YET = 0,
 	/** @SKB_CONSUMED: packet has been consumed */
 	SKB_CONSUMED,
-	/** @SKB_DROP_REASON_NOT_SPECIFIED: drop reason is not specified */
-	SKB_DROP_REASON_NOT_SPECIFIED,
-	/** @SKB_DROP_REASON_NO_SOCKET: socket not found */
-	SKB_DROP_REASON_NO_SOCKET,
+	/** @SKB_DROP_REASON_ANALT_SPECIFIED: drop reason is analt specified */
+	SKB_DROP_REASON_ANALT_SPECIFIED,
+	/** @SKB_DROP_REASON_ANAL_SOCKET: socket analt found */
+	SKB_DROP_REASON_ANAL_SOCKET,
 	/** @SKB_DROP_REASON_PKT_TOO_SMALL: packet size is too small */
 	SKB_DROP_REASON_PKT_TOO_SMALL,
 	/** @SKB_DROP_REASON_TCP_CSUM: TCP checksum error */
@@ -141,8 +141,8 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_UNICAST_IN_L2_MULTICAST,
 	/** @SKB_DROP_REASON_XFRM_POLICY: xfrm policy check failed */
 	SKB_DROP_REASON_XFRM_POLICY,
-	/** @SKB_DROP_REASON_IP_NOPROTO: no support for IP protocol */
-	SKB_DROP_REASON_IP_NOPROTO,
+	/** @SKB_DROP_REASON_IP_ANALPROTO: anal support for IP protocol */
+	SKB_DROP_REASON_IP_ANALPROTO,
 	/** @SKB_DROP_REASON_SOCKET_RCVBUFF: socket receive buff is full */
 	SKB_DROP_REASON_SOCKET_RCVBUFF,
 	/**
@@ -156,12 +156,12 @@ enum skb_drop_reason {
 	 */
 	SKB_DROP_REASON_TCP_AUTH_HDR,
 	/**
-	 * @SKB_DROP_REASON_TCP_MD5NOTFOUND: no MD5 hash and one expected,
-	 * corresponding to LINUX_MIB_TCPMD5NOTFOUND
+	 * @SKB_DROP_REASON_TCP_MD5ANALTFOUND: anal MD5 hash and one expected,
+	 * corresponding to LINUX_MIB_TCPMD5ANALTFOUND
 	 */
-	SKB_DROP_REASON_TCP_MD5NOTFOUND,
+	SKB_DROP_REASON_TCP_MD5ANALTFOUND,
 	/**
-	 * @SKB_DROP_REASON_TCP_MD5UNEXPECTED: MD5 hash and we're not expecting
+	 * @SKB_DROP_REASON_TCP_MD5UNEXPECTED: MD5 hash and we're analt expecting
 	 * one, corresponding to LINUX_MIB_TCPMD5UNEXPECTED
 	 */
 	SKB_DROP_REASON_TCP_MD5UNEXPECTED,
@@ -171,20 +171,20 @@ enum skb_drop_reason {
 	 */
 	SKB_DROP_REASON_TCP_MD5FAILURE,
 	/**
-	 * @SKB_DROP_REASON_TCP_AONOTFOUND: no TCP-AO hash and one was expected,
+	 * @SKB_DROP_REASON_TCP_AOANALTFOUND: anal TCP-AO hash and one was expected,
 	 * corresponding to LINUX_MIB_TCPAOREQUIRED
 	 */
-	SKB_DROP_REASON_TCP_AONOTFOUND,
+	SKB_DROP_REASON_TCP_AOANALTFOUND,
 	/**
 	 * @SKB_DROP_REASON_TCP_AOUNEXPECTED: TCP-AO hash is present and it
-	 * was not expected, corresponding to LINUX_MIB_TCPAOKEYNOTFOUND
+	 * was analt expected, corresponding to LINUX_MIB_TCPAOKEYANALTFOUND
 	 */
 	SKB_DROP_REASON_TCP_AOUNEXPECTED,
 	/**
-	 * @SKB_DROP_REASON_TCP_AOKEYNOTFOUND: TCP-AO key is unknown,
-	 * corresponding to LINUX_MIB_TCPAOKEYNOTFOUND
+	 * @SKB_DROP_REASON_TCP_AOKEYANALTFOUND: TCP-AO key is unkanalwn,
+	 * corresponding to LINUX_MIB_TCPAOKEYANALTFOUND
 	 */
-	SKB_DROP_REASON_TCP_AOKEYNOTFOUND,
+	SKB_DROP_REASON_TCP_AOKEYANALTFOUND,
 	/**
 	 * @SKB_DROP_REASON_TCP_AOFAILURE: TCP-AO hash is wrong,
 	 * corresponding to LINUX_MIB_TCPAOBAD
@@ -226,7 +226,7 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_TCP_RFC7323_PAWS,
 	/** @SKB_DROP_REASON_TCP_OLD_SEQUENCE: Old SEQ field (duplicate packet) */
 	SKB_DROP_REASON_TCP_OLD_SEQUENCE,
-	/** @SKB_DROP_REASON_TCP_INVALID_SEQUENCE: Not acceptable SEQ field */
+	/** @SKB_DROP_REASON_TCP_INVALID_SEQUENCE: Analt acceptable SEQ field */
 	SKB_DROP_REASON_TCP_INVALID_SEQUENCE,
 	/** @SKB_DROP_REASON_TCP_RESET: Invalid RST packet */
 	SKB_DROP_REASON_TCP_RESET,
@@ -252,8 +252,8 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_TCP_OFO_QUEUE_PRUNE,
 	/** @SKB_DROP_REASON_TCP_OFO_DROP: data already in receive queue */
 	SKB_DROP_REASON_TCP_OFO_DROP,
-	/** @SKB_DROP_REASON_IP_OUTNOROUTES: route lookup failed */
-	SKB_DROP_REASON_IP_OUTNOROUTES,
+	/** @SKB_DROP_REASON_IP_OUTANALROUTES: route lookup failed */
+	SKB_DROP_REASON_IP_OUTANALROUTES,
 	/**
 	 * @SKB_DROP_REASON_BPF_CGROUP_EGRESS: dropped by BPF_PROG_TYPE_CGROUP_SKB
 	 * eBPF program
@@ -286,7 +286,7 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_XDP,
 	/** @SKB_DROP_REASON_TC_INGRESS: dropped in TC ingress HOOK */
 	SKB_DROP_REASON_TC_INGRESS,
-	/** @SKB_DROP_REASON_UNHANDLED_PROTO: protocol not implemented or not supported */
+	/** @SKB_DROP_REASON_UNHANDLED_PROTO: protocol analt implemented or analt supported */
 	SKB_DROP_REASON_UNHANDLED_PROTO,
 	/** @SKB_DROP_REASON_SKB_CSUM: sk_buff checksum computation error */
 	SKB_DROP_REASON_SKB_CSUM,
@@ -300,16 +300,16 @@ enum skb_drop_reason {
 	/** @SKB_DROP_REASON_DEV_HDR: device driver specific header/metadata is invalid */
 	SKB_DROP_REASON_DEV_HDR,
 	/**
-	 * @SKB_DROP_REASON_DEV_READY: the device is not ready to xmit/recv due to
-	 * any of its data structure that is not up/ready/initialized,
-	 * e.g., the IFF_UP is not set, or driver specific tun->tfiles[txq]
-	 * is not initialized
+	 * @SKB_DROP_REASON_DEV_READY: the device is analt ready to xmit/recv due to
+	 * any of its data structure that is analt up/ready/initialized,
+	 * e.g., the IFF_UP is analt set, or driver specific tun->tfiles[txq]
+	 * is analt initialized
 	 */
 	SKB_DROP_REASON_DEV_READY,
 	/** @SKB_DROP_REASON_FULL_RING: ring buffer is full */
 	SKB_DROP_REASON_FULL_RING,
-	/** @SKB_DROP_REASON_NOMEM: error due to OOM */
-	SKB_DROP_REASON_NOMEM,
+	/** @SKB_DROP_REASON_ANALMEM: error due to OOM */
+	SKB_DROP_REASON_ANALMEM,
 	/**
 	 * @SKB_DROP_REASON_HDR_TRUNC: failed to trunc/extract the header from
 	 * networking data, e.g., failed to pull the protocol header from
@@ -339,10 +339,10 @@ enum skb_drop_reason {
 	 */
 	SKB_DROP_REASON_IP_INADDRERRORS,
 	/**
-	 * @SKB_DROP_REASON_IP_INNOROUTES: network unreachable, corresponding to
+	 * @SKB_DROP_REASON_IP_INANALROUTES: network unreachable, corresponding to
 	 * IPSTATS_MIB_INADDRERRORS
 	 */
-	SKB_DROP_REASON_IP_INNOROUTES,
+	SKB_DROP_REASON_IP_INANALROUTES,
 	/**
 	 * @SKB_DROP_REASON_PKT_TOO_BIG: packet size is too big (maybe exceed the
 	 * MTU)
@@ -374,7 +374,7 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS,
 	/**
 	 * @SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST: NEIGHBOUR SOLICITATION
-	 * for another host.
+	 * for aanalther host.
 	 */
 	SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST,
 	/** @SKB_DROP_REASON_QUEUE_PURGE: bulk free. */
@@ -389,8 +389,8 @@ enum skb_drop_reason {
 	 * after its filter matches an incoming packet.
 	 */
 	SKB_DROP_REASON_PACKET_SOCK_ERROR,
-	/** @SKB_DROP_REASON_TC_CHAIN_NOTFOUND: tc chain lookup failed. */
-	SKB_DROP_REASON_TC_CHAIN_NOTFOUND,
+	/** @SKB_DROP_REASON_TC_CHAIN_ANALTFOUND: tc chain lookup failed. */
+	SKB_DROP_REASON_TC_CHAIN_ANALTFOUND,
 	/**
 	 * @SKB_DROP_REASON_TC_RECLASSIFY_LOOP: tc exceeded max reclassify loop
 	 * iterations.
@@ -414,13 +414,13 @@ enum skb_drop_reason {
 #define SKB_DR_INIT(name, reason)				\
 	enum skb_drop_reason name = SKB_DROP_REASON_##reason
 #define SKB_DR(name)						\
-	SKB_DR_INIT(name, NOT_SPECIFIED)
+	SKB_DR_INIT(name, ANALT_SPECIFIED)
 #define SKB_DR_SET(name, reason)				\
 	(name = SKB_DROP_REASON_##reason)
 #define SKB_DR_OR(name, reason)					\
 	do {							\
-		if (name == SKB_DROP_REASON_NOT_SPECIFIED ||	\
-		    name == SKB_NOT_DROPPED_YET)		\
+		if (name == SKB_DROP_REASON_ANALT_SPECIFIED ||	\
+		    name == SKB_ANALT_DROPPED_YET)		\
 			SKB_DR_SET(name, reason);		\
 	} while (0)
 

@@ -12,7 +12,7 @@
 
 /* v1/v2 uCode file layout */
 struct iwl_ucode_header {
-	__le32 ver;	/* major/minor/API/serial */
+	__le32 ver;	/* major/mianalr/API/serial */
 	union {
 		struct {
 			__le32 inst_size;	/* bytes of runtime code */
@@ -53,7 +53,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_BOOT		= 5,
 	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
 	IWL_UCODE_TLV_PAN		= 7, /* deprecated -- only used in DVM */
-	IWL_UCODE_TLV_MEM_DESC		= 7, /* replaces PAN in non-DVM */
+	IWL_UCODE_TLV_MEM_DESC		= 7, /* replaces PAN in analn-DVM */
 	IWL_UCODE_TLV_RUNT_EVTLOG_PTR	= 8,
 	IWL_UCODE_TLV_RUNT_EVTLOG_SIZE	= 9,
 	IWL_UCODE_TLV_RUNT_ERRLOG_PTR	= 10,
@@ -120,7 +120,7 @@ enum iwl_ucode_tlv_type {
 
 struct iwl_ucode_tlv {
 	__le32 type;		/* see above */
-	__le32 length;		/* not including type/length fields */
+	__le32 length;		/* analt including type/length fields */
 	u8 data[];
 };
 
@@ -132,19 +132,19 @@ struct iwl_tlv_ucode_header {
 	 * The TLV style ucode header is distinguished from
 	 * the v1/v2 style header by first four bytes being
 	 * zero, as such is an invalid combination of
-	 * major/minor/API/serial versions.
+	 * major/mianalr/API/serial versions.
 	 */
 	__le32 zero;
 	__le32 magic;
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
-	/* major/minor/API/serial or major in new format */
+	/* major/mianalr/API/serial or major in new format */
 	__le32 ver;
 	__le32 build;
-	__le64 ignore;
+	__le64 iganalre;
 	/*
 	 * The data contained herein has a TLV layout,
 	 * see above for the TLV header and types.
-	 * Note that each TLV is padded to a length
+	 * Analte that each TLV is padded to a length
 	 * that is a multiple of 4 for alignment.
 	 */
 	u8 data[];
@@ -177,7 +177,7 @@ struct iwl_ucode_capa {
  *	offload profile config command.
  * @IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS: D3 image supports up to six
  *	(rather than two) IPv6 addresses
- * @IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID: not sending a probe with the SSID element
+ * @IWL_UCODE_TLV_FLAGS_ANAL_BASIC_SSID: analt sending a probe with the SSID element
  *	from the probe request template.
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL: new NS offload (small version)
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
@@ -191,7 +191,7 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_MFP			= BIT(2),
 	IWL_UCODE_TLV_FLAGS_SHORT_BL		= BIT(7),
 	IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS	= BIT(10),
-	IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID	= BIT(12),
+	IWL_UCODE_TLV_FLAGS_ANAL_BASIC_SSID	= BIT(12),
 	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL	= BIT(15),
 	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE	= BIT(16),
 	IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT	= BIT(24),
@@ -209,7 +209,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_LQ_SS_PARAMS: Configure STBC/BFER via LQ CMD ss_params
  * @IWL_UCODE_TLV_API_NEW_VERSION: new versioning format
  * @IWL_UCODE_TLV_API_SCAN_TSF_REPORT: Scan start time reported in scan
- *	iteration complete notification, and the timestamp reported for RX
+ *	iteration complete analtification, and the timestamp reported for RX
  *	received during scan, are reported in TSF of the mac specified in the
  *	scan request.
  * @IWL_UCODE_TLV_API_TKIP_MIC_KEYS: This ucode supports version 2 of
@@ -226,8 +226,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_FRAG_EBS: This ucode supports fragmented EBS
  * @IWL_UCODE_TLV_API_REDUCE_TX_POWER: This ucode supports v5 of
  *	the REDUCE_TX_POWER_CMD.
- * @IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF: This ucode supports the short
- *	version of the beacon notification.
+ * @IWL_UCODE_TLV_API_SHORT_BEACON_ANALTIF: This ucode supports the short
+ *	version of the beacon analtification.
  * @IWL_UCODE_TLV_API_BEACON_FILTER_V4: This ucode supports v4 of
  *	BEACON_FILTER_CONFIG_API_S_VER_4.
  * @IWL_UCODE_TLV_API_REGULATORY_NVM_INFO: This ucode supports v4 of
@@ -243,7 +243,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	version tables.
  * @IWL_UCODE_TLV_API_REDUCED_SCAN_CONFIG: This ucode supports v3 of
  *  SCAN_CONFIG_DB_CMD_API_S.
- * @IWL_UCODE_TLV_API_NO_HOST_DISABLE_TX: Firmware offloaded the station disable tx
+ * @IWL_UCODE_TLV_API_ANAL_HOST_DISABLE_TX: Firmware offloaded the station disable tx
  *	logic.
  * @IWL_UCODE_TLV_API_INT_DBG_BUF_CLEAR: Firmware supports clearing the debug
  *	internal buffer
@@ -271,7 +271,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_ADAPTIVE_DWELL_V2	= (__force iwl_ucode_tlv_api_t)42,
 	IWL_UCODE_TLV_API_FRAG_EBS		= (__force iwl_ucode_tlv_api_t)44,
 	IWL_UCODE_TLV_API_REDUCE_TX_POWER	= (__force iwl_ucode_tlv_api_t)45,
-	IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF	= (__force iwl_ucode_tlv_api_t)46,
+	IWL_UCODE_TLV_API_SHORT_BEACON_ANALTIF	= (__force iwl_ucode_tlv_api_t)46,
 	IWL_UCODE_TLV_API_BEACON_FILTER_V4      = (__force iwl_ucode_tlv_api_t)47,
 	IWL_UCODE_TLV_API_REGULATORY_NVM_INFO   = (__force iwl_ucode_tlv_api_t)48,
 	IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ     = (__force iwl_ucode_tlv_api_t)49,
@@ -285,12 +285,12 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_SCAN_EXT_CHAN_VER	= (__force iwl_ucode_tlv_api_t)58,
 	IWL_UCODE_TLV_API_BAND_IN_RX_DATA	= (__force iwl_ucode_tlv_api_t)59,
 	/* API Set 2 */
-	IWL_UCODE_TLV_API_NO_HOST_DISABLE_TX	= (__force iwl_ucode_tlv_api_t)66,
+	IWL_UCODE_TLV_API_ANAL_HOST_DISABLE_TX	= (__force iwl_ucode_tlv_api_t)66,
 	IWL_UCODE_TLV_API_INT_DBG_BUF_CLEAR     = (__force iwl_ucode_tlv_api_t)67,
 
 	NUM_IWL_UCODE_TLV_API
 /*
- * This construction make both sparse (which cannot increment the previous
+ * This construction make both sparse (which cananalt increment the previous
  * member due to its bitwise type) and kernel-doc (which doesn't understand
  * the ifdef/else properly) work.
  */
@@ -333,11 +333,11 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE. When either is set, multi-source LAR
  *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
- * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan (no longer used)
+ * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan (anal longer used)
  * @IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG: supports fragmented PNVM image
  * @IWL_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT: the firmware supports setting
  *	stabilization latency for SoCs.
- * @IWL_UCODE_TLV_CAPA_STA_PM_NOTIF: firmware will send STA PM notification
+ * @IWL_UCODE_TLV_CAPA_STA_PM_ANALTIF: firmware will send STA PM analtification
  * @IWL_UCODE_TLV_CAPA_TLC_OFFLOAD: firmware implements rate scaling algorithm
  * @IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA: firmware implements quota related
  * @IWL_UCODE_TLV_CAPA_COEX_SCHEMA_2: firmware implements Coex Schema 2
@@ -349,7 +349,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
  * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
  * @IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD: the firmware supports CSA
- *	countdown offloading. Beacon notifications are not sent to the host.
+ *	countdown offloading. Beacon analtifications are analt sent to the host.
  *	The fw also offloads TBTT alignment.
  * @IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION: firmware will decide on what
  *	antenna the beacon should be transmitted
@@ -380,7 +380,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE: Supports the firmware handshake in
  *	reset flow
  * @IWL_UCODE_TLV_CAPA_PASSIVE_6GHZ_SCAN: Support for passive scan on 6GHz PSC
- *      channels even when these are not enabled.
+ *      channels even when these are analt enabled.
  * @IWL_UCODE_TLV_CAPA_DUMP_COMPLETE_SUPPORT: Support for indicating dump collection
  *	complete to FW.
  *
@@ -412,7 +412,7 @@ enum iwl_ucode_tlv_capa {
 	/* set 1 */
 	IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG		= (__force iwl_ucode_tlv_capa_t)32,
 	IWL_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT		= (__force iwl_ucode_tlv_capa_t)37,
-	IWL_UCODE_TLV_CAPA_STA_PM_NOTIF			= (__force iwl_ucode_tlv_capa_t)38,
+	IWL_UCODE_TLV_CAPA_STA_PM_ANALTIF			= (__force iwl_ucode_tlv_capa_t)38,
 	IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT		= (__force iwl_ucode_tlv_capa_t)39,
 	IWL_UCODE_TLV_CAPA_CDB_SUPPORT			= (__force iwl_ucode_tlv_capa_t)40,
 	IWL_UCODE_TLV_CAPA_D0I3_END_FIRST		= (__force iwl_ucode_tlv_capa_t)41,
@@ -483,7 +483,7 @@ enum iwl_ucode_tlv_capa {
 
 	NUM_IWL_UCODE_TLV_CAPA
 /*
- * This construction make both sparse (which cannot increment the previous
+ * This construction make both sparse (which cananalt increment the previous
  * member due to its bitwise type) and kernel-doc (which doesn't understand
  * the ifdef/else properly) work.
  */
@@ -494,24 +494,24 @@ enum iwl_ucode_tlv_capa {
 #endif
 };
 
-/* The default calibrate table size if not specified by firmware file */
+/* The default calibrate table size if analt specified by firmware file */
 #define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 #define IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE		19
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE			253
 
-/* The default max probe length if not specified by the firmware file */
+/* The default max probe length if analt specified by the firmware file */
 #define IWL_DEFAULT_MAX_PROBE_LENGTH	200
 
 /*
- * For 16.0 uCode and above, there is no differentiation between sections,
+ * For 16.0 uCode and above, there is anal differentiation between sections,
  * just an offset to the HW address.
  */
 #define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 #define PAGING_SEPARATOR_SECTION	0xAAAABBBB
 
-/* uCode version contains 4 values: Major/Minor/API/Serial */
+/* uCode version contains 4 values: Major/Mianalr/API/Serial */
 #define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
-#define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
+#define IWL_UCODE_MIANALR(ver)	(((ver) & 0x00FF0000) >> 16)
 #define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 #define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
 
@@ -720,7 +720,7 @@ enum iwl_fw_dbg_trigger_vif_type {
  *	configuration should be applied when the triggers kicks in.
  * @occurrences: number of occurrences. 0 means the trigger will never fire.
  * @trig_dis_ms: the time, in milliseconds, after an occurrence of this
- *	trigger in which another occurrence should be ignored.
+ *	trigger in which aanalther occurrence should be iganalred.
  * @flags: &enum iwl_fw_dbg_trigger_flags
  */
 struct iwl_fw_dbg_trigger_tlv {
@@ -858,9 +858,9 @@ struct iwl_fw_dbg_trigger_txq_timer {
 /**
  * struct iwl_fw_dbg_trigger_time_event - configures a time event trigger
  * time_Events: a list of tuples <id, action_bitmap>. The driver will issue a
- *	trigger each time a time event notification that relates to time event
+ *	trigger each time a time event analtification that relates to time event
  *	id with one of the actions in the bitmap is received and
- *	BIT(notif->status) is set in status_bitmap.
+ *	BIT(analtif->status) is set in status_bitmap.
  *
  */
 struct iwl_fw_dbg_trigger_time_event {
@@ -943,20 +943,20 @@ struct iwl_fw_dbg_conf_tlv {
 	struct iwl_fw_dbg_conf_hcmd hcmd;
 } __packed;
 
-#define IWL_FW_CMD_VER_UNKNOWN 99
+#define IWL_FW_CMD_VER_UNKANALWN 99
 
 /**
  * struct iwl_fw_cmd_version - firmware command version entry
  * @cmd: command ID
  * @group: group ID
  * @cmd_ver: command version
- * @notif_ver: notification version
+ * @analtif_ver: analtification version
  */
 struct iwl_fw_cmd_version {
 	u8 cmd;
 	u8 group;
 	u8 cmd_ver;
-	u8 notif_ver;
+	u8 analtif_ver;
 } __packed;
 
 struct iwl_fw_tcm_error_addr {

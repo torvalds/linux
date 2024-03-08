@@ -13,7 +13,7 @@
 #include <linux/regmap.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define MAX96712_ID 0x20
@@ -249,7 +249,7 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 	format->format.width = 1920;
 	format->format.height = 1080;
 	format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
-	format->format.field = V4L2_FIELD_NONE;
+	format->format.field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -294,7 +294,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	int ret;
 
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max96712_subdev_ops);
-	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 
 	v4l2_ctrl_handler_init(&priv->ctrl_handler, 2);
@@ -339,24 +339,24 @@ error:
 
 static int max96712_parse_dt(struct max96712_priv *priv)
 {
-	struct fwnode_handle *ep;
-	struct v4l2_fwnode_endpoint v4l2_ep = {
-		.bus_type = V4L2_MBUS_UNKNOWN,
+	struct fwanalde_handle *ep;
+	struct v4l2_fwanalde_endpoint v4l2_ep = {
+		.bus_type = V4L2_MBUS_UNKANALWN,
 	};
 	unsigned int supported_lanes;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev), 4,
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(&priv->client->dev), 4,
 					     0, 0);
 	if (!ep) {
-		dev_err(&priv->client->dev, "Not connected to subdevice\n");
+		dev_err(&priv->client->dev, "Analt connected to subdevice\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &v4l2_ep);
+	fwanalde_handle_put(ep);
 	if (ret) {
-		dev_err(&priv->client->dev, "Could not parse v4l2 endpoint\n");
+		dev_err(&priv->client->dev, "Could analt parse v4l2 endpoint\n");
 		return -EINVAL;
 	}
 
@@ -399,7 +399,7 @@ static int max96712_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
@@ -420,7 +420,7 @@ static int max96712_probe(struct i2c_client *client)
 		usleep_range(4000, 5000);
 
 	if (max96712_read(priv, 0x4a) != MAX96712_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	max96712_reset(priv);
 

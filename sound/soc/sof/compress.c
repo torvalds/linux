@@ -64,7 +64,7 @@ void snd_sof_compr_fragment_elapsed(struct snd_compr_stream *cstream)
 	spcm = snd_sof_find_spcm_dai(component, rtd);
 	if (!spcm) {
 		dev_err(component->dev,
-			"fragment elapsed called for unknown stream!\n");
+			"fragment elapsed called for unkanalwn stream!\n");
 		return;
 	}
 
@@ -103,7 +103,7 @@ static int sof_compr_open(struct snd_soc_component *component,
 
 	sstream = kzalloc(sizeof(*sstream), GFP_KERNEL);
 	if (!sstream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spcm = snd_sof_find_spcm_dai(component, rtd);
 	if (!spcm) {
@@ -147,7 +147,7 @@ static int sof_compr_free(struct snd_soc_component *component,
 	stream.comp_id = spcm->stream[cstream->direction].comp_id;
 
 	if (spcm->prepared[cstream->direction]) {
-		ret = sof_ipc_tx_message_no_reply(sdev->ipc, &stream, sizeof(stream));
+		ret = sof_ipc_tx_message_anal_reply(sdev->ipc, &stream, sizeof(stream));
 		if (!ret)
 			spcm->prepared[cstream->direction] = false;
 	}
@@ -176,9 +176,9 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 
 	if (v->abi_version < SOF_ABI_VER(3, 22, 0)) {
 		dev_err(component->dev,
-			"Compress params not supported with FW ABI version %d:%d:%d\n",
+			"Compress params analt supported with FW ABI version %d:%d:%d\n",
 			SOF_ABI_VERSION_MAJOR(v->abi_version),
-			SOF_ABI_VERSION_MINOR(v->abi_version),
+			SOF_ABI_VERSION_MIANALR(v->abi_version),
 			SOF_ABI_VERSION_PATCH(v->abi_version));
 		return -EINVAL;
 	}
@@ -197,7 +197,7 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 
 	pcm = kzalloc(sizeof(*pcm) + ext_data_size, GFP_KERNEL);
 	if (!pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cstream->dma_buffer.dev.type = SNDRV_DMA_TYPE_DEV_SG;
 	cstream->dma_buffer.dev.dev = sdev->dev;
@@ -259,7 +259,7 @@ out:
 static int sof_compr_get_params(struct snd_soc_component *component,
 				struct snd_compr_stream *cstream, struct snd_codec *params)
 {
-	/* TODO: we don't query the supported codecs for now, if the
+	/* TODO: we don't query the supported codecs for analw, if the
 	 * application asks for an unsupported codec the set_params() will fail.
 	 */
 	return 0;
@@ -299,7 +299,7 @@ static int sof_compr_trigger(struct snd_soc_component *component,
 		break;
 	}
 
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &stream, sizeof(stream));
+	return sof_ipc_tx_message_anal_reply(sdev->ipc, &stream, sizeof(stream));
 }
 
 static int sof_compr_copy_playback(struct snd_compr_runtime *rtd,

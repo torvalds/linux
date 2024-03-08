@@ -21,8 +21,8 @@ properties:
       - ibm,p9-occ-hwmon
       - ibm,p10-occ-hwmon
 
-  ibm,no-poll-on-init:
-    description: This property describes whether or not the OCC should
+  ibm,anal-poll-on-init:
+    description: This property describes whether or analt the OCC should
       be polled during driver initialization.
     type: boolean
 
@@ -35,5 +35,5 @@ examples:
   - |
     hwmon {
         compatible = "ibm,p10-occ-hwmon";
-        ibm,no-poll-on-init;
+        ibm,anal-poll-on-init;
     };

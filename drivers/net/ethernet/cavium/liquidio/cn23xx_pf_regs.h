@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 /*! \file cn23xx_regs.h
  * \brief Host Driver: Register Address and Register Mask values for
@@ -555,8 +555,8 @@
  * Provides control bits for transaction on 8 Queues
  */
 #define    CN23XX_DPI_DMA_REQQ0_CTL       0x0001df0000000180ULL
-#define    CN23XX_DPI_DMA_REQQ_CTL(q_no)	\
-		(CN23XX_DPI_DMA_REQQ0_CTL + ((q_no) * 8))
+#define    CN23XX_DPI_DMA_REQQ_CTL(q_anal)	\
+		(CN23XX_DPI_DMA_REQQ0_CTL + ((q_anal) * 8))
 
 /* 6 register (64-bit) - DPI_ENG(0..5)_BUF
  * Provides DMA Engine FIFO (Queue) Size
@@ -574,7 +574,7 @@
 #define    CN23XX_DPI_DMA_COMMIT_MODE     BIT_ULL(58)
 #define    CN23XX_DPI_DMA_PKT_EN          BIT_ULL(56)
 #define    CN23XX_DPI_DMA_ENB             (0x0FULL << 48)
-/* Set the DMA Control, to update packet count not byte count sent by DMA,
+/* Set the DMA Control, to update packet count analt byte count sent by DMA,
  * when we use Interrupt Coalescing (CA mode)
  */
 #define    CN23XX_DPI_DMA_O_ADD1          BIT(19)

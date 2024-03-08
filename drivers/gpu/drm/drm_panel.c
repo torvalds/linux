@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -148,7 +148,7 @@ EXPORT_SYMBOL(drm_panel_prepare);
  *
  * Calling this function will completely power off a panel (assert the panel's
  * reset, turn off power supplies, ...). After this function has completed, it
- * is usually no longer possible to communicate with the panel until another
+ * is usually anal longer possible to communicate with the panel until aanalther
  * call to drm_panel_prepare().
  *
  * Return: 0 on success or a negative error code on failure.
@@ -286,38 +286,38 @@ int drm_panel_get_modes(struct drm_panel *panel,
 	if (panel->funcs && panel->funcs->get_modes)
 		return panel->funcs->get_modes(panel, connector);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(drm_panel_get_modes);
 
 #ifdef CONFIG_OF
 /**
- * of_drm_find_panel - look up a panel using a device tree node
- * @np: device tree node of the panel
+ * of_drm_find_panel - look up a panel using a device tree analde
+ * @np: device tree analde of the panel
  *
  * Searches the set of registered panels for one that matches the given device
- * tree node. If a matching panel is found, return a pointer to it.
+ * tree analde. If a matching panel is found, return a pointer to it.
  *
  * Return: A pointer to the panel registered for the specified device tree
- * node or an ERR_PTR() if no panel matching the device tree node can be found.
+ * analde or an ERR_PTR() if anal panel matching the device tree analde can be found.
  *
  * Possible error codes returned by this function:
  *
- * - EPROBE_DEFER: the panel device has not been probed yet, and the caller
+ * - EPROBE_DEFER: the panel device has analt been probed yet, and the caller
  *   should retry later
- * - ENODEV: the device is not available (status != "okay" or "ok")
+ * - EANALDEV: the device is analt available (status != "okay" or "ok")
  */
-struct drm_panel *of_drm_find_panel(const struct device_node *np)
+struct drm_panel *of_drm_find_panel(const struct device_analde *np)
 {
 	struct drm_panel *panel;
 
 	if (!of_device_is_available(np))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mutex_lock(&panel_lock);
 
 	list_for_each_entry(panel, &panel_list, list) {
-		if (panel->dev->of_node == np) {
+		if (panel->dev->of_analde == np) {
 			mutex_unlock(&panel_lock);
 			return panel;
 		}
@@ -330,8 +330,8 @@ EXPORT_SYMBOL(of_drm_find_panel);
 
 /**
  * of_drm_get_panel_orientation - look up the orientation of the panel through
- * the "rotation" binding from a device tree node
- * @np: device tree node of the panel
+ * the "rotation" binding from a device tree analde
+ * @np: device tree analde of the panel
  * @orientation: orientation enum to be filled in
  *
  * Looks up the rotation of a panel in the device tree. The orientation of the
@@ -341,15 +341,15 @@ EXPORT_SYMBOL(of_drm_find_panel);
  * Return: 0 when a valid rotation value (0, 90, 180, or 270) is read or the
  * rotation property doesn't exist. Return a negative error code on failure.
  */
-int of_drm_get_panel_orientation(const struct device_node *np,
+int of_drm_get_panel_orientation(const struct device_analde *np,
 				 enum drm_panel_orientation *orientation)
 {
 	int rotation, ret;
 
 	ret = of_property_read_u32(np, "rotation", &rotation);
 	if (ret == -EINVAL) {
-		/* Don't return an error if there's no rotation property. */
-		*orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+		/* Don't return an error if there's anal rotation property. */
+		*orientation = DRM_MODE_PANEL_ORIENTATION_UNKANALWN;
 		return 0;
 	}
 
@@ -357,7 +357,7 @@ int of_drm_get_panel_orientation(const struct device_node *np,
 		return ret;
 
 	if (rotation == 0)
-		*orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+		*orientation = DRM_MODE_PANEL_ORIENTATION_ANALRMAL;
 	else if (rotation == 90)
 		*orientation = DRM_MODE_PANEL_ORIENTATION_RIGHT_UP;
 	else if (rotation == 180)
@@ -387,10 +387,10 @@ bool drm_is_panel_follower(struct device *dev)
 {
 	/*
 	 * The "panel" property is actually a phandle, but for simplicity we
-	 * don't bother trying to parse it here. We just need to know if the
+	 * don't bother trying to parse it here. We just need to kanalw if the
 	 * property is there.
 	 */
-	return of_property_read_bool(dev->of_node, "panel");
+	return of_property_read_bool(dev->of_analde, "panel");
 }
 EXPORT_SYMBOL(drm_is_panel_follower);
 
@@ -410,23 +410,23 @@ EXPORT_SYMBOL(drm_is_panel_follower);
  * At the moment panels can only be followed on device tree enabled systems.
  * The "panel" property of the follower points to the panel to be followed.
  *
- * Return: 0 or an error code. Note that -ENODEV means that we detected that
- *         follower_dev is not actually following a panel. The caller may
- *         choose to ignore this return value if following a panel is optional.
+ * Return: 0 or an error code. Analte that -EANALDEV means that we detected that
+ *         follower_dev is analt actually following a panel. The caller may
+ *         choose to iganalre this return value if following a panel is optional.
  */
 int drm_panel_add_follower(struct device *follower_dev,
 			   struct drm_panel_follower *follower)
 {
-	struct device_node *panel_np;
+	struct device_analde *panel_np;
 	struct drm_panel *panel;
 	int ret;
 
-	panel_np = of_parse_phandle(follower_dev->of_node, "panel", 0);
+	panel_np = of_parse_phandle(follower_dev->of_analde, "panel", 0);
 	if (!panel_np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	panel = of_drm_find_panel(panel_np);
-	of_node_put(panel_np);
+	of_analde_put(panel_np);
 	if (IS_ERR(panel))
 		return PTR_ERR(panel);
 
@@ -509,7 +509,7 @@ EXPORT_SYMBOL(devm_drm_panel_add_follower);
 
 #if IS_REACHABLE(CONFIG_BACKLIGHT_CLASS_DEVICE)
 /**
- * drm_panel_of_backlight - use backlight device node for backlight
+ * drm_panel_of_backlight - use backlight device analde for backlight
  * @panel: DRM panel
  *
  * Use this function to enable backlight handling if your panel

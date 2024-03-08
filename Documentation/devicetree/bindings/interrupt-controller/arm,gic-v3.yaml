@@ -57,11 +57,11 @@ properties:
         1 = edge triggered
         4 = level triggered
 
-      The 4th cell is a phandle to a node describing a set of CPUs this
-      interrupt is affine to. The interrupt must be a PPI, and the node
-      pointed must be a subnode of the "ppi-partitions" subnode. For
-      interrupt types other than PPI or PPIs that are not partitionned,
-      this cell must be zero. See the "ppi-partitions" node description
+      The 4th cell is a phandle to a analde describing a set of CPUs this
+      interrupt is affine to. The interrupt must be a PPI, and the analde
+      pointed must be a subanalde of the "ppi-partitions" subanalde. For
+      interrupt types other than PPI or PPIs that are analt partitionned,
+      this cell must be zero. See the "ppi-partitions" analde description
       below.
 
       Cells 5 and beyond are reserved for future use and must have a value
@@ -81,10 +81,10 @@ properties:
       GICC, GICH and GICV are optional, but must be described if the CPUs
       support them. Examples of such CPUs are ARM's implementations of the
       ARMv8.0 architecture such as Cortex-A32, A34, A35, A53, A57, A72 and
-      A73 (this list is not exhaustive).
+      A73 (this list is analt exhaustive).
 
     minItems: 2
-    maxItems: 4096   # Should be enough?
+    maxItems: 4096   # Should be eanalugh?
 
   interrupts:
     description:
@@ -106,10 +106,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 4096
 
-  dma-noncoherent:
+  dma-analncoherent:
     description:
       Present if the GIC redistributors permit programming shareability
-      and cacheability attributes but are connected to a non-coherent
+      and cacheability attributes but are connected to a analn-coherent
       downstream interconnect.
 
   msi-controller:
@@ -141,8 +141,8 @@ properties:
     type: object
     additionalProperties: false
     description:
-      PPI affinity can be expressed as a single "ppi-partitions" node,
-      containing a set of sub-nodes.
+      PPI affinity can be expressed as a single "ppi-partitions" analde,
+      containing a set of sub-analdes.
     patternProperties:
       "^interrupt-partition-[0-9]+$":
         type: object
@@ -153,7 +153,7 @@ properties:
             items:
               maxItems: 1
             description:
-              Should be a list of phandles to CPU nodes (as described in
+              Should be a list of phandles to CPU analdes (as described in
               Documentation/devicetree/bindings/arm/cpus.yaml).
 
         required:
@@ -199,10 +199,10 @@ patternProperties:
       compatible:
         const: arm,gic-v3-its
 
-      dma-noncoherent:
+      dma-analncoherent:
         description:
           Present if the GIC ITS permits programming shareability and
-          cacheability attributes but is connected to a non-coherent
+          cacheability attributes but is connected to a analn-coherent
           downstream interconnect.
 
       msi-controller: true

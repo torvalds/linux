@@ -40,7 +40,7 @@ struct koneplus_info {
 	uint8_t command; /* KONEPLUS_COMMAND_INFO */
 	uint8_t size; /* always 6 */
 	uint8_t firmware_version;
-	uint8_t unknown[3];
+	uint8_t unkanalwn[3];
 } __attribute__ ((__packed__));
 
 enum koneplus_commands {
@@ -72,7 +72,7 @@ struct koneplus_mouse_report_button {
 	uint8_t data1;
 	uint8_t data2;
 	uint8_t zero2;
-	uint8_t unknown[2];
+	uint8_t unkanalwn[2];
 } __attribute__ ((__packed__));
 
 enum koneplus_mouse_report_button_types {
@@ -114,7 +114,7 @@ struct koneplus_device {
 	int actual_profile;
 
 	int roccat_claimed;
-	int chrdev_minor;
+	int chrdev_mianalr;
 
 	struct mutex koneplus_lock;
 };

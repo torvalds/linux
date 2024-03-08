@@ -71,7 +71,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 */
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "ext_clock";
 	};
 };
@@ -161,7 +161,7 @@
 	vqmmc-supply = <&reg_dldo4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	brcmf: wifi@1 {
@@ -305,9 +305,9 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip cananalt work without this regulator off, although
  * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
+ * Maybe we don't still kanalw well about CPUs domain.
  */
 &reg_fldo2 {
 	regulator-always-on;
@@ -344,7 +344,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "mxicy,mx25l1606e", "jedec,spi-nor";
+		compatible = "mxicy,mx25l1606e", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <80000000>;
 		m25p,fast-read;
@@ -369,7 +369,7 @@
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
 		max-speed = <1500000>;
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_dldo2>;
 		vddio-supply = <&reg_dldo4>;

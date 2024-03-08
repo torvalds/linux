@@ -64,7 +64,7 @@ static int tidss_bridge_atomic_check(struct drm_bridge *bridge,
 		tcrtc_state->bus_format = di->bus_formats[0];
 		tcrtc_state->bus_flags = di->bus_flags;
 	} else {
-		dev_err(tidss->dev, "%s: No bus_formats in connected display\n",
+		dev_err(tidss->dev, "%s: Anal bus_formats in connected display\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -103,7 +103,7 @@ int tidss_encoder_create(struct tidss_device *tidss,
 
 	/* Attaching first bridge to the encoder */
 	ret = drm_bridge_attach(enc, &t_enc->bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret) {
 		dev_err(tidss->dev, "bridge attach failed: %d\n", ret);
 		return ret;

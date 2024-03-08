@@ -13,7 +13,7 @@
 
 #define DRV_MODULE_NAME		"bnxt_en"
 
-/* DO NOT CHANGE DRV_VER_* defines
+/* DO ANALT CHANGE DRV_VER_* defines
  * FIXME: Delete them
  */
 #define DRV_VER_MAJ	1
@@ -29,7 +29,7 @@
 #include <net/dst_metadata.h>
 #include <net/xdp.h>
 #include <linux/dim.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #ifdef CONFIG_TEE_BNXT_FW
 #include <linux/firmware/broadcom/tee_bnxt_fw.h>
 #endif
@@ -44,7 +44,7 @@ struct tx_bd {
 	 #define TX_BD_TYPE_SHORT_TX_BD				 (0x00 << 0)
 	 #define TX_BD_TYPE_LONG_TX_BD				 (0x10 << 0)
 	#define TX_BD_FLAGS_PACKET_END				(1 << 6)
-	#define TX_BD_FLAGS_NO_CMPL				(1 << 7)
+	#define TX_BD_FLAGS_ANAL_CMPL				(1 << 7)
 	#define TX_BD_FLAGS_BD_CNT				(0x1f << 8)
 	 #define TX_BD_FLAGS_BD_CNT_SHIFT			 8
 	#define TX_BD_FLAGS_LHINT				(3 << 13)
@@ -53,7 +53,7 @@ struct tx_bd {
 	 #define TX_BD_FLAGS_LHINT_512_TO_1023			 (1 << 13)
 	 #define TX_BD_FLAGS_LHINT_1024_TO_2047			 (2 << 13)
 	 #define TX_BD_FLAGS_LHINT_2048_AND_LARGER		 (3 << 13)
-	#define TX_BD_FLAGS_COAL_NOW				(1 << 15)
+	#define TX_BD_FLAGS_COAL_ANALW				(1 << 15)
 	#define TX_BD_LEN					(0xffff << 16)
 	 #define TX_BD_LEN_SHIFT				 16
 
@@ -83,7 +83,7 @@ struct tx_bd_ext {
 	__le32 tx_bd_hsize_lflags;
 	#define TX_BD_FLAGS_TCP_UDP_CHKSUM			(1 << 0)
 	#define TX_BD_FLAGS_IP_CKSUM				(1 << 1)
-	#define TX_BD_FLAGS_NO_CRC				(1 << 2)
+	#define TX_BD_FLAGS_ANAL_CRC				(1 << 2)
 	#define TX_BD_FLAGS_STAMP				(1 << 3)
 	#define TX_BD_FLAGS_T_IP_CHKSUM				(1 << 4)
 	#define TX_BD_FLAGS_LSO					(1 << 5)
@@ -165,7 +165,7 @@ struct tx_cmp {
 	__le32 tx_cmp_errors_v;
 	#define TX_CMP_V					(1 << 0)
 	#define TX_CMP_ERRORS_BUFFER_ERROR			(7 << 1)
-	 #define TX_CMP_ERRORS_BUFFER_ERROR_NO_ERROR		 0
+	 #define TX_CMP_ERRORS_BUFFER_ERROR_ANAL_ERROR		 0
 	 #define TX_CMP_ERRORS_BUFFER_ERROR_BAD_FORMAT		 2
 	 #define TX_CMP_ERRORS_BUFFER_ERROR_INVALID_STAG	 4
 	 #define TX_CMP_ERRORS_BUFFER_ERROR_STAG_BOUNDS		 5
@@ -190,7 +190,7 @@ struct rx_cmp {
 	#define RX_CMP_FLAGS_PKT_METADATA_PRESENT		(1 << 11)
 	 #define RX_CMP_FLAGS_ITYPES_SHIFT			 12
 	 #define RX_CMP_FLAGS_ITYPES_MASK			 0xf000
-	 #define RX_CMP_FLAGS_ITYPE_UNKNOWN			 (0 << 12)
+	 #define RX_CMP_FLAGS_ITYPE_UNKANALWN			 (0 << 12)
 	 #define RX_CMP_FLAGS_ITYPE_IP				 (1 << 12)
 	 #define RX_CMP_FLAGS_ITYPE_TCP				 (2 << 12)
 	 #define RX_CMP_FLAGS_ITYPE_UDP				 (3 << 12)
@@ -282,9 +282,9 @@ struct rx_cmp_ext {
 	#define RX_CMPL_ERRORS_MASK				(0x7fff << 1)
 	 #define RX_CMPL_ERRORS_SFT				 1
 	#define RX_CMPL_ERRORS_BUFFER_ERROR_MASK		(0x7 << 1)
-	 #define RX_CMPL_ERRORS_BUFFER_ERROR_NO_BUFFER		 (0x0 << 1)
-	 #define RX_CMPL_ERRORS_BUFFER_ERROR_DID_NOT_FIT	 (0x1 << 1)
-	 #define RX_CMPL_ERRORS_BUFFER_ERROR_NOT_ON_CHIP	 (0x2 << 1)
+	 #define RX_CMPL_ERRORS_BUFFER_ERROR_ANAL_BUFFER		 (0x0 << 1)
+	 #define RX_CMPL_ERRORS_BUFFER_ERROR_DID_ANALT_FIT	 (0x1 << 1)
+	 #define RX_CMPL_ERRORS_BUFFER_ERROR_ANALT_ON_CHIP	 (0x2 << 1)
 	 #define RX_CMPL_ERRORS_BUFFER_ERROR_BAD_FORMAT		 (0x3 << 1)
 	#define RX_CMPL_ERRORS_IP_CS_ERROR			(0x1 << 4)
 	#define RX_CMPL_ERRORS_L4_CS_ERROR			(0x1 << 5)
@@ -292,7 +292,7 @@ struct rx_cmp_ext {
 	#define RX_CMPL_ERRORS_T_L4_CS_ERROR			(0x1 << 7)
 	#define RX_CMPL_ERRORS_CRC_ERROR			(0x1 << 8)
 	#define RX_CMPL_ERRORS_T_PKT_ERROR_MASK			(0x7 << 9)
-	 #define RX_CMPL_ERRORS_T_PKT_ERROR_NO_ERROR		 (0x0 << 9)
+	 #define RX_CMPL_ERRORS_T_PKT_ERROR_ANAL_ERROR		 (0x0 << 9)
 	 #define RX_CMPL_ERRORS_T_PKT_ERROR_T_L3_BAD_VERSION	 (0x1 << 9)
 	 #define RX_CMPL_ERRORS_T_PKT_ERROR_T_L3_BAD_HDR_LEN	 (0x2 << 9)
 	 #define RX_CMPL_ERRORS_T_PKT_ERROR_TUNNEL_TOTAL_ERROR	 (0x3 << 9)
@@ -300,7 +300,7 @@ struct rx_cmp_ext {
 	 #define RX_CMPL_ERRORS_T_PKT_ERROR_T_UDP_TOTAL_ERROR	 (0x5 << 9)
 	 #define RX_CMPL_ERRORS_T_PKT_ERROR_T_L3_BAD_TTL	 (0x6 << 9)
 	#define RX_CMPL_ERRORS_PKT_ERROR_MASK			(0xf << 12)
-	 #define RX_CMPL_ERRORS_PKT_ERROR_NO_ERROR		 (0x0 << 12)
+	 #define RX_CMPL_ERRORS_PKT_ERROR_ANAL_ERROR		 (0x0 << 12)
 	 #define RX_CMPL_ERRORS_PKT_ERROR_L3_BAD_VERSION	 (0x1 << 12)
 	 #define RX_CMPL_ERRORS_PKT_ERROR_L3_BAD_HDR_LEN	 (0x2 << 12)
 	 #define RX_CMPL_ERRORS_PKT_ERROR_L3_BAD_TTL		 (0x3 << 12)
@@ -456,7 +456,7 @@ struct rx_tpa_start_cmp_ext {
 	#define RX_TPA_START_CMP_V2				(0x1 << 0)
 	#define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_MASK	(0x7 << 1)
 	 #define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_SHIFT	 1
-	 #define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_NO_BUFFER	 (0x0 << 1)
+	 #define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_ANAL_BUFFER	 (0x0 << 1)
 	 #define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_BAD_FORMAT (0x3 << 1)
 	 #define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_FLUSH	 (0x5 << 1)
 	#define RX_TPA_START_CMP_CFA_CODE			(0xffff << 16)
@@ -569,8 +569,8 @@ struct rx_tpa_end_cmp_ext {
 	#define RX_TPA_END_CMP_ERRORS				(0x3 << 1)
 	#define RX_TPA_END_CMP_ERRORS_P5			(0x7 << 1)
 	#define RX_TPA_END_CMPL_ERRORS_SHIFT			 1
-	 #define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_NO_BUFFER	 (0x0 << 1)
-	 #define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_NOT_ON_CHIP	 (0x2 << 1)
+	 #define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_ANAL_BUFFER	 (0x0 << 1)
+	 #define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_ANALT_ON_CHIP	 (0x2 << 1)
 	 #define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_BAD_FORMAT	 (0x3 << 1)
 	 #define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_RSV_ERROR	 (0x4 << 1)
 	 #define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_FLUSH	 (0x5 << 1)
@@ -591,19 +591,19 @@ struct rx_tpa_end_cmp_ext {
 	((le32_to_cpu((rx_tpa_end_ext)->rx_tpa_end_cmp_dup_acks) &	\
 	 RX_TPA_END_CMP_AGG_BUFS_P5) >> RX_TPA_END_CMP_AGG_BUFS_SHIFT_P5)
 
-#define EVENT_DATA1_RESET_NOTIFY_FATAL(data1)				\
+#define EVENT_DATA1_RESET_ANALTIFY_FATAL(data1)				\
 	(((data1) &							\
-	  ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_MASK) ==\
-	 ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_FW_EXCEPTION_FATAL)
+	  ASYNC_EVENT_CMPL_RESET_ANALTIFY_EVENT_DATA1_REASON_CODE_MASK) ==\
+	 ASYNC_EVENT_CMPL_RESET_ANALTIFY_EVENT_DATA1_REASON_CODE_FW_EXCEPTION_FATAL)
 
-#define EVENT_DATA1_RESET_NOTIFY_FW_ACTIVATION(data1)			\
+#define EVENT_DATA1_RESET_ANALTIFY_FW_ACTIVATION(data1)			\
 	(((data1) &							\
-	  ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_MASK) ==\
-	ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_FW_ACTIVATION)
+	  ASYNC_EVENT_CMPL_RESET_ANALTIFY_EVENT_DATA1_REASON_CODE_MASK) ==\
+	ASYNC_EVENT_CMPL_RESET_ANALTIFY_EVENT_DATA1_REASON_CODE_FW_ACTIVATION)
 
-#define EVENT_DATA2_RESET_NOTIFY_FW_STATUS_CODE(data2)			\
+#define EVENT_DATA2_RESET_ANALTIFY_FW_STATUS_CODE(data2)			\
 	((data2) &							\
-	ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA2_FW_STATUS_CODE_MASK)
+	ASYNC_EVENT_CMPL_RESET_ANALTIFY_EVENT_DATA2_FW_STATUS_CODE_MASK)
 
 #define EVENT_DATA1_RECOVERY_MASTER_FUNC(data1)				\
 	!!((data1) &							\
@@ -627,8 +627,8 @@ struct nqe_cn {
 	__le16	type;
 	#define NQ_CN_TYPE_MASK           0x3fUL
 	#define NQ_CN_TYPE_SFT            0
-	#define NQ_CN_TYPE_CQ_NOTIFICATION  0x30UL
-	#define NQ_CN_TYPE_LAST            NQ_CN_TYPE_CQ_NOTIFICATION
+	#define NQ_CN_TYPE_CQ_ANALTIFICATION  0x30UL
+	#define NQ_CN_TYPE_LAST            NQ_CN_TYPE_CQ_ANALTIFICATION
 	#define NQ_CN_TOGGLE_MASK         0xc0UL
 	#define NQ_CN_TOGGLE_SFT          6
 	__le16	reserved16;
@@ -1127,7 +1127,7 @@ struct bnxt_cp_ring_info {
 
 	u8			had_work_done:1;
 	u8			has_more_work:1;
-	u8			had_nqe_notify:1;
+	u8			had_nqe_analtify:1;
 	u8			toggle;
 
 	u8			cp_ring_type;
@@ -1333,7 +1333,7 @@ struct bnxt_pf_info {
 };
 
 struct bnxt_filter_base {
-	struct hlist_node	hash;
+	struct hlist_analde	hash;
 	__le64			filter_id;
 	u8			type;
 #define BNXT_FLTR_TYPE_NTUPLE	1
@@ -1342,7 +1342,7 @@ struct bnxt_filter_base {
 #define BNXT_ACT_DROP		1
 #define BNXT_ACT_RING_DST	2
 #define BNXT_ACT_FUNC_DST	4
-#define BNXT_ACT_NO_AGING	8
+#define BNXT_ACT_ANAL_AGING	8
 	u16			sw_id;
 	u16			rxq;
 	u16			fw_vnic_id;
@@ -1405,7 +1405,7 @@ struct bnxt_link_info {
 	u8			transceiver;
 	u8			phy_addr;
 	u8			phy_link_status;
-#define BNXT_LINK_NO_LINK	PORT_PHY_QCFG_RESP_LINK_NO_LINK
+#define BNXT_LINK_ANAL_LINK	PORT_PHY_QCFG_RESP_LINK_ANAL_LINK
 #define BNXT_LINK_SIGNAL	PORT_PHY_QCFG_RESP_LINK_SIGNAL
 #define BNXT_LINK_LINK		PORT_PHY_QCFG_RESP_LINK_LINK
 	u8			wire_speed;
@@ -1414,7 +1414,7 @@ struct bnxt_link_info {
 #define BNXT_PHY_STATE_DISABLED		1
 
 	u8			link_state;
-#define BNXT_LINK_STATE_UNKNOWN	0
+#define BNXT_LINK_STATE_UNKANALWN	0
 #define BNXT_LINK_STATE_DOWN	1
 #define BNXT_LINK_STATE_UP	2
 #define BNXT_LINK_IS_UP(bp)	((bp)->link_info.link_state == BNXT_LINK_STATE_UP)
@@ -1432,9 +1432,9 @@ struct bnxt_link_info {
 	u8			force_pause_setting;
 	u8			duplex_setting;
 	u8			auto_mode;
-#define BNXT_AUTO_MODE(mode)	((mode) > BNXT_LINK_AUTO_NONE && \
+#define BNXT_AUTO_MODE(mode)	((mode) > BNXT_LINK_AUTO_ANALNE && \
 				 (mode) <= BNXT_LINK_AUTO_MSK)
-#define BNXT_LINK_AUTO_NONE     PORT_PHY_QCFG_RESP_AUTO_MODE_NONE
+#define BNXT_LINK_AUTO_ANALNE     PORT_PHY_QCFG_RESP_AUTO_MODE_ANALNE
 #define BNXT_LINK_AUTO_ALLSPDS	PORT_PHY_QCFG_RESP_AUTO_MODE_ALL_SPEEDS
 #define BNXT_LINK_AUTO_ONESPD	PORT_PHY_QCFG_RESP_AUTO_MODE_ONE_SPEED
 #define BNXT_LINK_AUTO_ONEORBELOW PORT_PHY_QCFG_RESP_AUTO_MODE_ONE_OR_BELOW
@@ -1523,7 +1523,7 @@ struct bnxt_link_info {
 	u8			module_status;
 	u8			active_fec_sig_mode;
 	u16			fec_cfg;
-#define BNXT_FEC_NONE		PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED
+#define BNXT_FEC_ANALNE		PORT_PHY_QCFG_RESP_FEC_CFG_FEC_ANALNE_SUPPORTED
 #define BNXT_FEC_AUTONEG_CAP	PORT_PHY_QCFG_RESP_FEC_CFG_FEC_AUTONEG_SUPPORTED
 #define BNXT_FEC_AUTONEG	PORT_PHY_QCFG_RESP_FEC_CFG_FEC_AUTONEG_ENABLED
 #define BNXT_FEC_ENC_BASE_R_CAP	\
@@ -1693,7 +1693,7 @@ struct bnxt_tc_info {
 	struct rhashtable		encap_table;
 	struct rhashtable_params	encap_ht_params;
 
-	/* lock to atomically add/del an l2 node when a flow is
+	/* lock to atomically add/del an l2 analde when a flow is
 	 * added or deleted.
 	 */
 	struct mutex			lock;
@@ -1702,7 +1702,7 @@ struct bnxt_tc_info {
 	struct rhashtable_iter		iter;
 #define BNXT_FLOW_STATS_BATCH_MAX	10
 	struct bnxt_tc_stats_batch {
-		void			  *flow_node;
+		void			  *flow_analde;
 		struct bnxt_tc_flow_stats hw_stats;
 	} stats_batch[BNXT_FLOW_STATS_BATCH_MAX];
 
@@ -1832,7 +1832,7 @@ struct bnxt_ctx_mem_info {
 };
 
 enum bnxt_health_severity {
-	SEVERITY_NORMAL = 0,
+	SEVERITY_ANALRMAL = 0,
 	SEVERITY_WARNING,
 	SEVERITY_RECOVERABLE,
 	SEVERITY_FATAL,
@@ -1850,7 +1850,7 @@ struct bnxt_fw_health {
 	u32 flags;
 	u32 polling_dsecs;
 	u32 master_func_wait_dsecs;
-	u32 normal_func_wait_dsecs;
+	u32 analrmal_func_wait_dsecs;
 	u32 post_reset_wait_dsecs;
 	u32 post_reset_max_wait_dsecs;
 	u32 regs[4];
@@ -1883,7 +1883,7 @@ struct bnxt_fw_health {
 	u32 discoveries;
 	u32 survivals;
 	u32 fatalities;
-	u32 diagnoses;
+	u32 diaganalses;
 };
 
 #define BNXT_FW_HEALTH_REG_TYPE_MASK	3
@@ -2063,8 +2063,8 @@ struct bnxt {
 	 (chip_num) == CHIP_NUM_58808)
 
 #define BNXT_VPD_FLD_LEN	32
-	char			board_partno[BNXT_VPD_FLD_LEN];
-	char			board_serialno[BNXT_VPD_FLD_LEN];
+	char			board_partanal[BNXT_VPD_FLD_LEN];
+	char			board_serialanal[BNXT_VPD_FLD_LEN];
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
@@ -2078,7 +2078,7 @@ struct bnxt {
 #ifdef CONFIG_INET
 	#define BNXT_FLAG_GRO		0x8
 #else
-	/* Cannot support hardware GRO if CONFIG_INET is not set */
+	/* Cananalt support hardware GRO if CONFIG_INET is analt set */
 	#define BNXT_FLAG_GRO		0x0
 #endif
 	#define BNXT_FLAG_TPA		(BNXT_FLAG_LRO | BNXT_FLAG_GRO)
@@ -2096,7 +2096,7 @@ struct bnxt {
 	#define BNXT_FLAG_ROCEV2_CAP	0x10000
 	#define BNXT_FLAG_ROCE_CAP	(BNXT_FLAG_ROCEV1_CAP |	\
 					 BNXT_FLAG_ROCEV2_CAP)
-	#define BNXT_FLAG_NO_AGG_RINGS	0x20000
+	#define BNXT_FLAG_ANAL_AGG_RINGS	0x20000
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
 	#define BNXT_FLAG_CHIP_P7	0x80000
 	#define BNXT_FLAG_MULTI_HOST	0x100000
@@ -2246,11 +2246,11 @@ struct bnxt {
 #define BNXT_STATE_L2_FILTER_RETRY	10
 #define BNXT_STATE_FW_ACTIVATE		11
 #define BNXT_STATE_RECOVER		12
-#define BNXT_STATE_FW_NON_FATAL_COND	13
+#define BNXT_STATE_FW_ANALN_FATAL_COND	13
 #define BNXT_STATE_FW_ACTIVATE_RESET	14
 #define BNXT_STATE_HALF_OPEN		15	/* For offline ethtool tests */
 
-#define BNXT_NO_FW_ACCESS(bp)					\
+#define BNXT_ANAL_FW_ACCESS(bp)					\
 	(test_bit(BNXT_STATE_FW_FATAL_COND, &(bp)->state) ||	\
 	 pci_channel_offline((bp)->pdev))
 
@@ -2377,8 +2377,8 @@ struct bnxt {
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
 #define BNXT_FLOW_STATS_SP_EVENT	15
 #define BNXT_UPDATE_PHY_SP_EVENT	16
-#define BNXT_RING_COAL_NOW_SP_EVENT	17
-#define BNXT_FW_RESET_NOTIFY_SP_EVENT	18
+#define BNXT_RING_COAL_ANALW_SP_EVENT	17
+#define BNXT_FW_RESET_ANALTIFY_SP_EVENT	18
 #define BNXT_FW_EXCEPTION_SP_EVENT	19
 #define BNXT_LINK_CFG_CHANGE_SP_EVENT	21
 #define BNXT_THERMAL_THRESHOLD_SP_EVENT	22
@@ -2452,12 +2452,12 @@ struct bnxt {
 #define BNXT_PHY_FL_EXT_LPBK		PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED
 #define BNXT_PHY_FL_AN_PHY_LPBK		PORT_PHY_QCAPS_RESP_FLAGS_AUTONEG_LPBK_SUPPORTED
 #define BNXT_PHY_FL_SHARED_PORT_CFG	PORT_PHY_QCAPS_RESP_FLAGS_SHARED_PHY_CFG_SUPPORTED
-#define BNXT_PHY_FL_PORT_STATS_NO_RESET	PORT_PHY_QCAPS_RESP_FLAGS_CUMULATIVE_COUNTERS_ON_RESET
-#define BNXT_PHY_FL_NO_PHY_LPBK		PORT_PHY_QCAPS_RESP_FLAGS_LOCAL_LPBK_NOT_SUPPORTED
+#define BNXT_PHY_FL_PORT_STATS_ANAL_RESET	PORT_PHY_QCAPS_RESP_FLAGS_CUMULATIVE_COUNTERS_ON_RESET
+#define BNXT_PHY_FL_ANAL_PHY_LPBK		PORT_PHY_QCAPS_RESP_FLAGS_LOCAL_LPBK_ANALT_SUPPORTED
 #define BNXT_PHY_FL_FW_MANAGED_LKDN	PORT_PHY_QCAPS_RESP_FLAGS_FW_MANAGED_LINK_DOWN
-#define BNXT_PHY_FL_NO_FCS		PORT_PHY_QCAPS_RESP_FLAGS_NO_FCS
-#define BNXT_PHY_FL_NO_PAUSE		(PORT_PHY_QCAPS_RESP_FLAGS2_PAUSE_UNSUPPORTED << 8)
-#define BNXT_PHY_FL_NO_PFC		(PORT_PHY_QCAPS_RESP_FLAGS2_PFC_UNSUPPORTED << 8)
+#define BNXT_PHY_FL_ANAL_FCS		PORT_PHY_QCAPS_RESP_FLAGS_ANAL_FCS
+#define BNXT_PHY_FL_ANAL_PAUSE		(PORT_PHY_QCAPS_RESP_FLAGS2_PAUSE_UNSUPPORTED << 8)
+#define BNXT_PHY_FL_ANAL_PFC		(PORT_PHY_QCAPS_RESP_FLAGS2_PFC_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_BANK_SEL		(PORT_PHY_QCAPS_RESP_FLAGS2_BANK_ADDR_SUPPORTED << 8)
 #define BNXT_PHY_FL_SPEEDS2		(PORT_PHY_QCAPS_RESP_FLAGS2_SPEEDS2_SUPPORTED << 8)
 
@@ -2590,7 +2590,7 @@ static inline void bnxt_writeq_relaxed(struct bnxt *bp, u64 val,
 #endif
 }
 
-/* For TX and RX ring doorbells with no ordering guarantee*/
+/* For TX and RX ring doorbells with anal ordering guarantee*/
 static inline void bnxt_db_write_relaxed(struct bnxt *bp,
 					 struct bnxt_db_info *db, u32 idx)
 {

@@ -1,7 +1,7 @@
 Owner Module/Drivers,Group,Property Name,Type,Property Values,Object attached,Description/Restrictions
-,DVI-I,“subconnector”,ENUM,"{ “Unknown”, “DVI-D”, “DVI-A” }",Connector,TBD
+,DVI-I,“subconnector”,ENUM,"{ “Unkanalwn”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,,“select subconnector”,ENUM,"{ “Automatic”, “DVI-D”, “DVI-A” }",Connector,TBD
-,TV,“subconnector”,ENUM,"{ ""Unknown"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD
+,TV,“subconnector”,ENUM,"{ ""Unkanalwn"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD
 ,,“select subconnector”,ENUM,"{ ""Automatic"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD
 ,,“mode”,ENUM,"{ ""NTSC_M"", ""NTSC_J"", ""NTSC_443"", ""PAL_B"" } etc.",Connector,TBD
 ,,“left margin”,RANGE,"Min=0, Max=100",Connector,TBD
@@ -16,8 +16,8 @@ Owner Module/Drivers,Group,Property Name,Type,Property Values,Object attached,De
 ,,“hue”,RANGE,"Min=0, Max=100",Connector,TBD
 ,Virtual GPU,“suggested X”,RANGE,"Min=0, Max=0xffffffff",Connector,property to suggest an X offset for a connector
 ,,“suggested Y”,RANGE,"Min=0, Max=0xffffffff",Connector,property to suggest an Y offset for a connector
-,Optional,"""aspect ratio""",ENUM,"{ ""None"", ""4:3"", ""16:9"" }",Connector,TDB
-i915,Generic,"""Broadcast RGB""",ENUM,"{ ""Automatic"", ""Full"", ""Limited 16:235"" }",Connector,"When this property is set to Limited 16:235 and CTM is set, the hardware will be programmed with the result of the multiplication of CTM by the limited range matrix to ensure the pixels normally in the range 0..1.0 are remapped to the range 16/255..235/255."
+,Optional,"""aspect ratio""",ENUM,"{ ""Analne"", ""4:3"", ""16:9"" }",Connector,TDB
+i915,Generic,"""Broadcast RGB""",ENUM,"{ ""Automatic"", ""Full"", ""Limited 16:235"" }",Connector,"When this property is set to Limited 16:235 and CTM is set, the hardware will be programmed with the result of the multiplication of CTM by the limited range matrix to ensure the pixels analrmally in the range 0..1.0 are remapped to the range 16/255..235/255."
 ,,“audio”,ENUM,"{ ""force-dvi"", ""off"", ""auto"", ""on"" }",Connector,TBD
 ,SDVO-TV,“mode”,ENUM,"{ ""NTSC_M"", ""NTSC_J"", ""NTSC_443"", ""PAL_B"" } etc.",Connector,TBD
 ,,"""left_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
@@ -69,10 +69,10 @@ armada,CRTC,"""CSC_YUV""",ENUM,"{ ""Auto"" , ""CCIR601"", ""CCIR709"" }",CRTC,TB
 ,,"""brightness""",RANGE,"Min=0, Max=256 + 255",Plane,TBD
 ,,"""contrast""",RANGE,"Min=0, Max=0x7fff",Plane,TBD
 ,,"""saturation""",RANGE,"Min=0, Max=0x7fff",Plane,TBD
-exynos,CRTC,“mode”,ENUM,"{ ""normal"", ""blank"" }",CRTC,TBD
+exyanals,CRTC,“mode”,ENUM,"{ ""analrmal"", ""blank"" }",CRTC,TBD
 i2c/ch7006_drv,Generic,“scale”,RANGE,"Min=0, Max=2",Connector,TBD
 ,TV,“mode”,ENUM,"{ ""PAL"", ""PAL-M"",""PAL-N""}, ”PAL-Nc"" , ""PAL-60"", ""NTSC-M"", ""NTSC-J"" }",Connector,TBD
-nouveau,NV10 Overlay,"""colorkey""",RANGE,"Min=0, Max=0x01ffffff",Plane,TBD
+analuveau,NV10 Overlay,"""colorkey""",RANGE,"Min=0, Max=0x01ffffff",Plane,TBD
 ,,“contrast”,RANGE,"Min=0, Max=8192-1",Plane,TBD
 ,,“brightness”,RANGE,"Min=0, Max=1024",Plane,TBD
 ,,“hue”,RANGE,"Min=0, Max=359",Plane,TBD

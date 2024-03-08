@@ -29,7 +29,7 @@
  * @irq_phys_addr: base address on the AXI bus where the MSI/INTX IRQ
  *		   dedicated outbound regions is mapped.
  * @irq_cpu_addr: base address in the CPU space where a write access triggers
- *		  the sending of a memory write (MSI) / normal message (INTX
+ *		  the sending of a memory write (MSI) / analrmal message (INTX
  *		  IRQ) TLP through the PCIe bus.
  * @irq_pci_addr: used to save the current mapping of the MSI/INTX IRQ
  *		  dedicated outbound region.
@@ -134,7 +134,7 @@ static int rockchip_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 	struct rockchip_pcie_ep *ep = epc_get_drvdata(epc);
 	struct rockchip_pcie *rockchip = &ep->rockchip;
 	dma_addr_t bar_phys = epf_bar->phys_addr;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baranal bar = epf_bar->baranal;
 	int flags = epf_bar->flags;
 	u32 addr0, addr1, reg, cfg, b, aperture, ctrl;
 	u64 sz;
@@ -143,7 +143,7 @@ static int rockchip_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 	sz = max_t(size_t, epf_bar->size, MIN_EP_APERTURE);
 
 	/*
-	 * roundup_pow_of_two() returns an unsigned long, which is not suited
+	 * roundup_pow_of_two() returns an unsigned long, which is analt suited
 	 * for 64bit values.
 	 */
 	sz = 1ULL << fls64(sz - 1);
@@ -202,7 +202,7 @@ static void rockchip_pcie_ep_clear_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 	struct rockchip_pcie_ep *ep = epc_get_drvdata(epc);
 	struct rockchip_pcie *rockchip = &ep->rockchip;
 	u32 reg, cfg, b, ctrl;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baranal bar = epf_bar->baranal;
 
 	if (bar < BAR_4) {
 		reg = ROCKCHIP_PCIE_CORE_EP_FUNC_BAR_CFG0(fn);
@@ -320,7 +320,7 @@ static void rockchip_pcie_ep_assert_intx(struct rockchip_pcie_ep *ep, u8 fn,
 		ep->irq_pending &= ~BIT(intx);
 		rockchip_pcie_write(rockchip,
 				    PCIE_CLIENT_INT_IN_DEASSERT |
-				    PCIE_CLIENT_INT_PEND_ST_NORMAL,
+				    PCIE_CLIENT_INT_PEND_ST_ANALRMAL,
 				    PCIE_CLIENT_LEGACY_INT_CTRL);
 	}
 }
@@ -430,7 +430,7 @@ static int rockchip_pcie_ep_start(struct pci_epc *epc)
 
 	cfg = BIT(0);
 	list_for_each_entry(epf, &epc->pci_epf, list)
-		cfg |= BIT(epf->func_no);
+		cfg |= BIT(epf->func_anal);
 
 	rockchip_pcie_write(rockchip, cfg, PCIE_CORE_PHY_FUNC_CFG);
 
@@ -438,14 +438,14 @@ static int rockchip_pcie_ep_start(struct pci_epc *epc)
 }
 
 static const struct pci_epc_features rockchip_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_analtifier = false,
 	.msi_capable = true,
 	.msix_capable = false,
 	.align = 256,
 };
 
 static const struct pci_epc_features*
-rockchip_pcie_ep_get_features(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
+rockchip_pcie_ep_get_features(struct pci_epc *epc, u8 func_anal, u8 vfunc_anal)
 {
 	return &rockchip_pcie_epc_features;
 }
@@ -477,7 +477,7 @@ static int rockchip_pcie_parse_ep_dt(struct rockchip_pcie *rockchip,
 	if (err)
 		return err;
 
-	err = of_property_read_u32(dev->of_node,
+	err = of_property_read_u32(dev->of_analde,
 				   "rockchip,max-outbound-regions",
 				   &ep->max_regions);
 	if (err < 0 || ep->max_regions > MAX_REGION_LIMIT)
@@ -485,7 +485,7 @@ static int rockchip_pcie_parse_ep_dt(struct rockchip_pcie *rockchip,
 
 	ep->ob_region_map = 0;
 
-	err = of_property_read_u8(dev->of_node, "max-functions",
+	err = of_property_read_u8(dev->of_analde, "max-functions",
 				  &ep->epc->max_functions);
 	if (err < 0)
 		ep->epc->max_functions = 1;
@@ -511,7 +511,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 
 	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rockchip = &ep->rockchip;
 	rockchip->is_rc = false;
@@ -547,7 +547,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 				   GFP_KERNEL);
 
 	if (!ep->ob_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_uninit_port;
 	}
 
@@ -557,7 +557,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	windows = devm_kcalloc(dev, ep->max_regions,
 			       sizeof(struct pci_epc_mem_window), GFP_KERNEL);
 	if (!windows) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_uninit_port;
 	}
 	for (i = 0; i < ep->max_regions; i++) {
@@ -577,20 +577,20 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 						  SZ_1M);
 	if (!ep->irq_cpu_addr) {
 		dev_err(dev, "failed to reserve memory space for MSI\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_epc_mem_exit;
 	}
 
 	ep->irq_pci_addr = ROCKCHIP_PCIE_EP_DUMMY_IRQ_ADDR;
 
 	/*
-	 * MSI-X is not supported but the controller still advertises the MSI-X
+	 * MSI-X is analt supported but the controller still advertises the MSI-X
 	 * capability by default, which can lead to the Root Complex side
-	 * allocating MSI-X vectors which cannot be used. Avoid this by skipping
+	 * allocating MSI-X vectors which cananalt be used. Avoid this by skipping
 	 * the MSI-X capability entry in the PCIe capabilities linked-list: get
 	 * the next pointer from the MSI-X entry and set that in the MSI
 	 * capability entry (which is the previous entry). This way the MSI-X
-	 * entry is skipped (left out of the linked-list) and not advertised.
+	 * entry is skipped (left out of the linked-list) and analt advertised.
 	 */
 	cfg_msi = rockchip_pcie_read(rockchip, PCIE_EP_CONFIG_BASE +
 				     ROCKCHIP_PCIE_EP_MSI_CTRL_REG);

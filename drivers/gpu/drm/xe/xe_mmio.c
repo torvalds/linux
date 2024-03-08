@@ -28,23 +28,23 @@
 #define BAR_SIZE_SHIFT 20
 
 static void
-_resize_bar(struct xe_device *xe, int resno, resource_size_t size)
+_resize_bar(struct xe_device *xe, int resanal, resource_size_t size)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	int bar_size = pci_rebar_bytes_to_size(size);
 	int ret;
 
-	if (pci_resource_len(pdev, resno))
-		pci_release_resource(pdev, resno);
+	if (pci_resource_len(pdev, resanal))
+		pci_release_resource(pdev, resanal);
 
-	ret = pci_resize_resource(pdev, resno, bar_size);
+	ret = pci_resize_resource(pdev, resanal, bar_size);
 	if (ret) {
 		drm_info(&xe->drm, "Failed to resize BAR%d to %dM (%pe). Consider enabling 'Resizable BAR' support in your BIOS\n",
-			 resno, 1 << bar_size, ERR_PTR(ret));
+			 resanal, 1 << bar_size, ERR_PTR(ret));
 		return;
 	}
 
-	drm_info(&xe->drm, "BAR%d resized to %dM\n", resno, 1 << bar_size);
+	drm_info(&xe->drm, "BAR%d resized to %dM\n", resanal, 1 << bar_size);
 }
 
 /*
@@ -80,7 +80,7 @@ static void xe_resize_vram_bar(struct xe_device *xe)
 
 		if (!bar_size_bit) {
 			drm_info(&xe->drm,
-				 "Requested size: %lluMiB is not supported by rebar sizes: 0x%x. Leaving default: %lluMiB\n",
+				 "Requested size: %lluMiB is analt supported by rebar sizes: 0x%x. Leaving default: %lluMiB\n",
 				 (u64)rebar_size >> 20, bar_size_mask, (u64)current_size >> 20);
 			return;
 		}
@@ -142,7 +142,7 @@ static int xe_determine_lmem_bar_size(struct xe_device *xe)
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
 	if (!xe_pci_resource_valid(pdev, LMEM_BAR)) {
-		drm_err(&xe->drm, "pci resource is not valid\n");
+		drm_err(&xe->drm, "pci resource is analt valid\n");
 		return -ENXIO;
 	}
 
@@ -178,7 +178,7 @@ static int xe_determine_lmem_bar_size(struct xe_device *xe)
  * CSSBASE is always a lower/smaller offset then GSMBASE.
  *
  * The actual available size of memory is to the CCS or GSM base.
- * NOTE: multi-tile bases will include the tile offset.
+ * ANALTE: multi-tile bases will include the tile offset.
  *
  */
 static int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size,
@@ -260,7 +260,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 
 		if (!tile->mem.vram.io_size) {
 			drm_err(&xe->drm, "Tile without any CPU visible VRAM. Aborting.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		tile->mem.vram.dpa_base = xe->mem.vram.dpa_base + tile_offset;
@@ -319,7 +319,7 @@ void xe_mmio_probe_tiles(struct xe_device *xe)
 
 			/*
 			 * FIXME: Needs some work for standalone media, but should be impossible
-			 * with multi-tile for now.
+			 * with multi-tile for analw.
 			 */
 			xe->info.gt_count = xe->info.tile_count;
 		}
@@ -367,11 +367,11 @@ static int xe_verify_lmem_ready(struct xe_device *xe)
 	 * The boot firmware initializes local memory and assesses its health.
 	 * If memory training fails, the punit will have been instructed to
 	 * keep the GT powered down; we won't be able to communicate with it
-	 * and we should not continue with driver initialization.
+	 * and we should analt continue with driver initialization.
 	 */
 	if (IS_DGFX(xe) && !(xe_mmio_read32(gt, GU_CNTL) & LMEM_INIT)) {
-		drm_err(&xe->drm, "VRAM not initialized by firmware\n");
-		return -ENODEV;
+		drm_err(&xe->drm, "VRAM analt initialized by firmware\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -429,8 +429,8 @@ int xe_mmio_root_tile_init(struct xe_device *xe)
  * can be problematic.  This function attempts to ensure the upper dword has
  * stabilized before returning the 64-bit value.
  *
- * Note that because this function may re-read the register multiple times
- * while waiting for the value to stabilize it should not be used to read
+ * Analte that because this function may re-read the register multiple times
+ * while waiting for the value to stabilize it should analt be used to read
  * any registers where read operations have side effects.
  *
  * Returns the value of the 64-bit register.
@@ -457,7 +457,7 @@ u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg)
 	}
 
 	xe_gt_WARN(gt, retries == 0,
-		   "64-bit read of %#x did not stabilize\n", reg.addr);
+		   "64-bit read of %#x did analt stabilize\n", reg.addr);
 
 	return (u64)udw << 32 | ldw;
 }
@@ -470,15 +470,15 @@ u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg)
  * @val: desired value after applying the mask
  * @timeout_us: time out after this period of time. Wait logic tries to be
  * smart, applying an exponential backoff until @timeout_us is reached.
- * @out_val: if not NULL, points where to store the last unmasked value
+ * @out_val: if analt NULL, points where to store the last unmasked value
  * @atomic: needs to be true if calling from an atomic context
  *
  * This function polls for the desired masked value and returns zero on success
  * or -ETIMEDOUT if timed out.
  *
- * Note that @timeout_us represents the minimum amount of time to wait before
+ * Analte that @timeout_us represents the minimum amount of time to wait before
  * giving up. The actual time taken by this function can be a little more than
- * @timeout_us for different reasons, specially in non-atomic contexts. Thus,
+ * @timeout_us for different reasons, specially in analn-atomic contexts. Thus,
  * it is possible that this function succeeds even after @timeout_us has passed.
  */
 int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,

@@ -19,7 +19,7 @@
 
 typedef enum {
 	OSL_GLOBAL_LOCK_HANDLER,
-	OSL_NOTIFY_HANDLER,
+	OSL_ANALTIFY_HANDLER,
 	OSL_GPE_HANDLER,
 	OSL_DEBUGGER_MAIN_THREAD,
 	OSL_DEBUGGER_EXEC_THREAD,
@@ -27,7 +27,7 @@ typedef enum {
 	OSL_EC_BURST_HANDLER
 } acpi_execute_type;
 
-#define ACPI_NO_UNIT_LIMIT          ((u32) -1)
+#define ACPI_ANAL_UNIT_LIMIT          ((u32) -1)
 #define ACPI_MUTEX_SEM              1
 
 /* Functions for acpi_os_signal */
@@ -98,7 +98,7 @@ void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags);
 #endif
 
 /*
- * RAW spinlock primitives. If the OS does not provide them, fallback to
+ * RAW spinlock primitives. If the OS does analt provide them, fallback to
  * spinlock primitives
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_raw_lock
@@ -288,7 +288,7 @@ acpi_os_write_memory(acpi_physical_address address, u64 value, u32 width);
 
 /*
  * Platform and hardware-independent PCI configuration space access
- * Note: Can't use "Register" as a parameter, changed to "Reg" --
+ * Analte: Can't use "Register" as a parameter, changed to "Reg" --
  * certain compilers complain.
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_read_pci_configuration
@@ -361,8 +361,8 @@ void acpi_os_terminate_debugger(void);
 acpi_status acpi_os_wait_command_ready(void);
 #endif
 
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_notify_command_complete
-acpi_status acpi_os_notify_command_complete(void);
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_analtify_command_complete
+acpi_status acpi_os_analtify_command_complete(void);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point

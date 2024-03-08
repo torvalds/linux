@@ -7,7 +7,7 @@
 #ifndef __LINUX_IRQCHIP_IRQ_PARTITION_PERCPU_H
 #define __LINUX_IRQCHIP_IRQ_PARTITION_PERCPU_H
 
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/cpumask.h>
 #include <linux/irqdomain.h>
 
@@ -20,7 +20,7 @@ struct partition_desc;
 
 #ifdef CONFIG_PARTITION_PERCPU
 int partition_translate_id(struct partition_desc *desc, void *partition_id);
-struct partition_desc *partition_create_desc(struct fwnode_handle *fwnode,
+struct partition_desc *partition_create_desc(struct fwanalde_handle *fwanalde,
 					     struct partition_affinity *parts,
 					     int nr_parts,
 					     int chained_irq,
@@ -34,7 +34,7 @@ static inline int partition_translate_id(struct partition_desc *desc,
 }
 
 static inline
-struct partition_desc *partition_create_desc(struct fwnode_handle *fwnode,
+struct partition_desc *partition_create_desc(struct fwanalde_handle *fwanalde,
 					     struct partition_affinity *parts,
 					     int nr_parts,
 					     int chained_irq,

@@ -104,7 +104,7 @@
 	};
 };
 
-/* Now include the peripherals for each bus segments */
+/* Analw include the peripherals for each bus segments */
 #include "k3-am65-main.dtsi"
 #include "k3-am65-mcu.dtsi"
 #include "k3-am65-wakeup.dtsi"

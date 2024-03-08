@@ -28,7 +28,7 @@ struct crypto_ccm_ctx {
 
 struct crypto_rfc4309_ctx {
 	struct crypto_aead *child;
-	u8 nonce[3];
+	u8 analnce[3];
 };
 
 struct crypto_rfc4309_req_ctx {
@@ -261,7 +261,7 @@ static int crypto_ccm_init_crypt(struct aead_request *req, u8 *tag)
 
 	pctx->flags = aead_request_flags(req);
 
-	 /* Note: rfc 3610 and NIST 800-38C require counter of
+	 /* Analte: rfc 3610 and NIST 800-38C require counter of
 	 * zero to encrypt auth tag.
 	 */
 	memset(iv + 15 - iv[0], 0, iv[0] + 1);
@@ -461,7 +461,7 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ictx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	ictx = aead_instance_ctx(inst);
 
 	err = crypto_grab_ahash(&ictx->mac, aead_crypto_instance(inst),
@@ -574,7 +574,7 @@ static int crypto_rfc4309_setkey(struct crypto_aead *parent, const u8 *key,
 		return -EINVAL;
 
 	keylen -= 3;
-	memcpy(ctx->nonce, key + keylen, 3);
+	memcpy(ctx->analnce, key + keylen, 3);
 
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
@@ -613,7 +613,7 @@ static struct aead_request *crypto_rfc4309_crypt(struct aead_request *req)
 	/* L' */
 	iv[0] = 3;
 
-	memcpy(iv + 1, ctx->nonce, 3);
+	memcpy(iv + 1, ctx->analnce, 3);
 	memcpy(iv + 4, req->iv, 8);
 
 	scatterwalk_map_and_copy(iv + 16, req->src, 0, req->assoclen - 8, 0);
@@ -716,7 +716,7 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spawn = aead_instance_ctx(inst);
 	err = crypto_grab_aead(spawn, aead_crypto_instance(inst),
@@ -732,7 +732,7 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 	if (crypto_aead_alg_ivsize(alg) != 16)
 		goto err_free_inst;
 
-	/* Not a stream cipher? */
+	/* Analt a stream cipher? */
 	if (alg->base.cra_blocksize != 1)
 		goto err_free_inst;
 
@@ -869,7 +869,7 @@ static int cbcmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	spawn = shash_instance_ctx(inst);
 
 	err = crypto_grab_cipher(spawn, shash_crypto_instance(inst),

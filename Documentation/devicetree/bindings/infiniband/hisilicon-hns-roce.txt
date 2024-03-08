@@ -10,11 +10,11 @@ Required properties:
 - compatible: Should contain "hisilicon,hns-roce-v1".
 - reg: Physical base address of the RoCE driver and
 length of memory mapped region.
-- eth-handle: phandle, specifies a reference to a node
+- eth-handle: phandle, specifies a reference to a analde
 representing a ethernet device.
-- dsaf-handle: phandle, specifies a reference to a node
+- dsaf-handle: phandle, specifies a reference to a analde
 representing a dsaf device.
-- node_guid: a number that uniquely identifies a device or component
+- analde_guid: a number that uniquely identifies a device or component
 - #address-cells: must be 2
 - #size-cells: must be 2
 Optional properties:
@@ -32,7 +32,7 @@ Example:
 			dma-coherent;
 			eth-handle = <&eth2 &eth3 &eth4 &eth5 &eth6 &eth7>;
 			dsaf-handle = <&soc0_dsa>;
-			node-guid = [00 9A CD 00 00 01 02 03];
+			analde-guid = [00 9A CD 00 00 01 02 03];
 			#address-cells = <2>;
 			#size-cells = <2>;
 			interrupt-parent = <&mbigen_dsa>;

@@ -1,7 +1,7 @@
 [
     {
         "id": "8b6e",
-        "name": "Create RED with no flags",
+        "name": "Create RED with anal flags",
         "category": [
             "qdisc",
             "red"
@@ -106,7 +106,7 @@
     },
     {
         "id": "53e8",
-        "name": "Create RED with flags ECN, nodrop",
+        "name": "Create RED with flags ECN, analdrop",
         "category": [
             "qdisc",
             "red"
@@ -116,10 +116,10 @@
         },
         "setup": [
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn nodrop limit 1M avpkt 1500 min 100K max 300K",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn analdrop limit 1M avpkt 1500 min 100K max 300K",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn nodrop $",
+        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn analdrop $",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"
@@ -127,7 +127,7 @@
     },
     {
         "id": "d091",
-        "name": "Fail to create RED with only nodrop flag",
+        "name": "Fail to create RED with only analdrop flag",
         "category": [
             "qdisc",
             "red"
@@ -137,7 +137,7 @@
         },
         "setup": [
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red nodrop limit 1M avpkt 1500 min 100K max 300K",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red analdrop limit 1M avpkt 1500 min 100K max 300K",
         "expExitCode": "2",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc red",
@@ -147,7 +147,7 @@
     },
     {
         "id": "af8e",
-        "name": "Create RED with flags ECN, nodrop, harddrop",
+        "name": "Create RED with flags ECN, analdrop, harddrop",
         "category": [
             "qdisc",
             "red"
@@ -157,10 +157,10 @@
         },
         "setup": [
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn harddrop nodrop limit 1M avpkt 1500 min 100K max 300K",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn harddrop analdrop limit 1M avpkt 1500 min 100K max 300K",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn harddrop nodrop $",
+        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn harddrop analdrop $",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"

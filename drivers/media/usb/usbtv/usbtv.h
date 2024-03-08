@@ -6,20 +6,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -29,7 +29,7 @@
 /*
  * Fushicai USBTV007 Audio-Video Grabber Driver
  *
- * No physical hardware was harmed running Windows during the
+ * Anal physical hardware was harmed running Windows during the
  * reverse-engineering activity
  */
 
@@ -49,7 +49,7 @@
 #define USBTV_CONTROL_REG	11
 #define USBTV_REQUEST_REG	12
 
-/* Number of concurrent isochronous urbs submitted.
+/* Number of concurrent isochroanalus urbs submitted.
  * Higher numbers was seen to overly saturate the USB bus. */
 #define USBTV_ISOC_TRANSFERS	16
 #define USBTV_ISOC_PACKETS	8
@@ -66,14 +66,14 @@
 							== 0x88000000)
 #define USBTV_FRAME_ID(chunk)	((be32_to_cpu(chunk[0]) & 0x00ff0000) >> 16)
 #define USBTV_ODD(chunk)	((be32_to_cpu(chunk[0]) & 0x0000f000) >> 15)
-#define USBTV_CHUNK_NO(chunk)	(be32_to_cpu(chunk[0]) & 0x00000fff)
+#define USBTV_CHUNK_ANAL(chunk)	(be32_to_cpu(chunk[0]) & 0x00000fff)
 
 #define USBTV_TV_STD		(V4L2_STD_525_60 | V4L2_STD_PAL | \
 				 V4L2_STD_PAL_Nc | V4L2_STD_SECAM)
 
-/* parameters for supported TV norms */
-struct usbtv_norm_params {
-	v4l2_std_id norm;
+/* parameters for supported TV analrms */
+struct usbtv_analrm_params {
+	v4l2_std_id analrm;
 	int cap_width, cap_height;
 };
 
@@ -109,7 +109,7 @@ struct usbtv {
 		USBTV_COMPOSITE_INPUT,
 		USBTV_SVIDEO_INPUT,
 	} input;
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 	int width, height;
 	int n_chunks;
 	int iso_size;

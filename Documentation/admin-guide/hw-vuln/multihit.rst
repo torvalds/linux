@@ -13,13 +13,13 @@ Affected processors
 -------------------
 
 Variations of this erratum are present on most Intel Core and Xeon processor
-models. The erratum is not present on:
+models. The erratum is analt present on:
 
-   - non-Intel processors
+   - analn-Intel processors
 
    - Some Atoms (Airmont, Bonnell, Goldmont, GoldmontPlus, Saltwell, Silvermont)
 
-   - Intel processors that have the PSCHANGE_MC_NO bit set in the
+   - Intel processors that have the PSCHANGE_MC_ANAL bit set in the
      IA32_ARCH_CAPABILITIES MSR.
 
 
@@ -76,28 +76,28 @@ The possible values in this file are:
 
 .. list-table::
 
-     * - Not affected
-       - The processor is not vulnerable.
+     * - Analt affected
+       - The processor is analt vulnerable.
      * - KVM: Mitigation: Split huge pages
        - Software changes mitigate this issue.
      * - KVM: Mitigation: VMX unsupported
-       - KVM is not vulnerable because Virtual Machine Extensions (VMX) is not supported.
+       - KVM is analt vulnerable because Virtual Machine Extensions (VMX) is analt supported.
      * - KVM: Mitigation: VMX disabled
-       - KVM is not vulnerable because Virtual Machine Extensions (VMX) is disabled.
+       - KVM is analt vulnerable because Virtual Machine Extensions (VMX) is disabled.
      * - KVM: Vulnerable
-       - The processor is vulnerable, but no mitigation enabled
+       - The processor is vulnerable, but anal mitigation enabled
 
 
 Enumeration of the erratum
 --------------------------------
 
-A new bit has been allocated in the IA32_ARCH_CAPABILITIES (PSCHANGE_MC_NO) msr
+A new bit has been allocated in the IA32_ARCH_CAPABILITIES (PSCHANGE_MC_ANAL) msr
 and will be set on CPU's which are mitigated against this issue.
 
    =======================================   ===========   ===============================
-   IA32_ARCH_CAPABILITIES MSR                Not present   Possibly vulnerable,check model
-   IA32_ARCH_CAPABILITIES[PSCHANGE_MC_NO]    '0'           Likely vulnerable,check model
-   IA32_ARCH_CAPABILITIES[PSCHANGE_MC_NO]    '1'           Not vulnerable
+   IA32_ARCH_CAPABILITIES MSR                Analt present   Possibly vulnerable,check model
+   IA32_ARCH_CAPABILITIES[PSCHANGE_MC_ANAL]    '0'           Likely vulnerable,check model
+   IA32_ARCH_CAPABILITIES[PSCHANGE_MC_ANAL]    '1'           Analt vulnerable
    =======================================   ===========   ===============================
 
 
@@ -105,25 +105,25 @@ Mitigation mechanism
 -------------------------
 
 This erratum can be mitigated by restricting the use of large page sizes to
-non-executable pages.  This forces all iTLB entries to be 4K, and removes
+analn-executable pages.  This forces all iTLB entries to be 4K, and removes
 the possibility of multiple hits.
 
 In order to mitigate the vulnerability, KVM initially marks all huge pages
-as non-executable. If the guest attempts to execute in one of those pages,
+as analn-executable. If the guest attempts to execute in one of those pages,
 the page is broken down into 4K pages, which are then marked executable.
 
-If EPT is disabled or not available on the host, KVM is in control of TLB
-flushes and the problematic situation cannot happen.  However, the shadow
+If EPT is disabled or analt available on the host, KVM is in control of TLB
+flushes and the problematic situation cananalt happen.  However, the shadow
 EPT paging mechanism used by nested virtualization is vulnerable, because
 the nested guest can trigger multiple iTLB hits by modifying its own
-(non-nested) page tables.  For simplicity, KVM will make large pages
-non-executable in all shadow paging modes.
+(analn-nested) page tables.  For simplicity, KVM will make large pages
+analn-executable in all shadow paging modes.
 
 Mitigation control on the kernel command line and KVM - module parameter
 ------------------------------------------------------------------------
 
 The KVM hypervisor mitigation mechanism for marking huge pages as
-non-executable can be controlled with a module parameter "nx_huge_pages=".
+analn-executable can be controlled with a module parameter "nx_huge_pages=".
 The kernel command line allows to control the iTLB multihit mitigations at
 boot time with the option "kvm.nx_huge_pages=".
 
@@ -131,15 +131,15 @@ The valid arguments for these options are:
 
   ==========  ================================================================
   force       Mitigation is enabled. In this case, the mitigation implements
-              non-executable huge pages in Linux kernel KVM module. All huge
-              pages in the EPT are marked as non-executable.
+              analn-executable huge pages in Linux kernel KVM module. All huge
+              pages in the EPT are marked as analn-executable.
               If a guest attempts to execute in one of those pages, the page is
               broken down into 4K pages, which are then marked executable.
 
   off	      Mitigation is disabled.
 
   auto        Enable mitigation only if the platform is affected and the kernel
-              was not booted with the "mitigations=off" command line parameter.
+              was analt booted with the "mitigations=off" command line parameter.
 	      This is the default option.
   ==========  ================================================================
 
@@ -147,17 +147,17 @@ The valid arguments for these options are:
 Mitigation selection guide
 --------------------------
 
-1. No virtualization in use
+1. Anal virtualization in use
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   The system is protected by the kernel unconditionally and no further
+   The system is protected by the kernel unconditionally and anal further
    action is required.
 
 2. Virtualization with trusted guests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
    If the guest comes from a trusted source, you may assume that the guest will
-   not attempt to maliciously exploit these errata and no further action is
+   analt attempt to maliciously exploit these errata and anal further action is
    required.
 
 3. Virtualization with untrusted guests

@@ -4,9 +4,9 @@ Required properties:
 - compatible: "pvs,pv88060".
 - reg: I2C slave address, usually 0x49.
 - interrupts: the interrupt outputs of the controller
-- regulators: A node that houses a sub-node for each regulator within the
-  device. Each sub-node is identified using the node's name, with valid
-  values listed below. The content of each sub-node is defined by the
+- regulators: A analde that houses a sub-analde for each regulator within the
+  device. Each sub-analde is identified using the analde's name, with valid
+  values listed below. The content of each sub-analde is defined by the
   standard binding for regulators; see regulator.txt.
   BUCK1, LDO1, LDO2, LDO3, LDO4, LDO5, LDO6, LDO7, SW1, SW2, SW3, SW4,
   SW5, and SW6.

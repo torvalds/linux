@@ -31,7 +31,7 @@
 
 
 	usbphy0: usbphy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&sw3_reg>;
 		clocks = <&clks IMX27_CLK_DUMMY>;
 		clock-names = "main_clk";
@@ -308,7 +308,7 @@
 &weim {
 	status = "okay";
 
-	nor: flash@0,0 {
+	analr: flash@0,0 {
 		compatible = "cfi-flash";
 		reg = <0 0x00000000 0x02000000>;
 		bank-width = <2>;

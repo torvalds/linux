@@ -438,7 +438,7 @@ static int adau1977_power_enable(struct adau1977 *adau1977)
 		goto err_disable_dvdd;
 
 	/*
-	 * The PLL register is not affected by the software reset. It is
+	 * The PLL register is analt affected by the software reset. It is
 	 * possible that the value of the register was changed to the
 	 * default value while we were in cache only mode. In this case
 	 * regcache_sync will skip over it and we have to manually sync
@@ -502,7 +502,7 @@ static int adau1977_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	int ret;
 
 	if (slots == 0) {
-		/* 0 = No fixed slot width */
+		/* 0 = Anal fixed slot width */
 		adau1977->slot_width = 0;
 		adau1977->max_clock_provider_fs = 192000;
 		return regmap_update_bits(adau1977->regmap,
@@ -755,7 +755,7 @@ static struct snd_soc_dai_driver adau1977_dai = {
 		.stream_name = "Capture",
 		.channels_min = 1,
 		.channels_max = 4,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 		    SNDRV_PCM_FMTBIT_S32_LE,
 		.sig_bits = 24,
@@ -907,7 +907,7 @@ int adau1977_probe(struct device *dev, struct regmap *regmap,
 
 	adau1977 = devm_kzalloc(dev, sizeof(*adau1977), GFP_KERNEL);
 	if (adau1977 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adau1977->dev = dev;
 	adau1977->type = type;
@@ -924,7 +924,7 @@ int adau1977_probe(struct device *dev, struct regmap *regmap,
 
 	adau1977->dvdd_reg = devm_regulator_get_optional(dev, "DVDD");
 	if (IS_ERR(adau1977->dvdd_reg)) {
-		if (PTR_ERR(adau1977->dvdd_reg) != -ENODEV)
+		if (PTR_ERR(adau1977->dvdd_reg) != -EANALDEV)
 			return PTR_ERR(adau1977->dvdd_reg);
 		adau1977->dvdd_reg = NULL;
 	}

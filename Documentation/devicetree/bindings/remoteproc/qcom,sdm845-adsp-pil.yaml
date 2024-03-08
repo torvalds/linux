@@ -11,7 +11,7 @@ maintainers:
 
 description:
   This document defines the binding for a component that loads and boots firmware
-  on the Qualcomm Technology Inc. ADSP.
+  on the Qualcomm Techanallogy Inc. ADSP.
 
 properties:
   compatible:
@@ -29,7 +29,7 @@ properties:
       - description: Fatal interrupt
       - description: Ready interrupt
       - description: Handover interrupt
-      - description: Stop acknowledge interrupt
+      - description: Stop ackanalwledge interrupt
 
   interrupt-names:
     items:

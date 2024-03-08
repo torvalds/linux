@@ -42,7 +42,7 @@ static struct snd_pcm_hardware fifo_spdif_pcm = {
 	.periods_min = 2,
 	.periods_max = UINT_MAX,
 
-	/* No real justification for this */
+	/* Anal real justification for this */
 	.buffer_bytes_max = 1 * 1024 * 1024,
 };
 

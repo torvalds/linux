@@ -15,7 +15,7 @@
  *		Linus Torvalds, <torvalds@cs.helsinki.fi>
  *		Alan Cox, <gw4pts@gw4pts.ampr.org>
  *		Matthew Dillon, <dillon@apollo.west.oic.com>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.anal>
  *		Jorge Cwik, <jorge@laser.satlink.net>
  */
 
@@ -40,7 +40,7 @@ tcp_timewait_check_oow_rate_limit(struct inet_timewait_sock *tw,
 
 	if (!tcp_oow_rate_limited(twsk_net(tw), skb, mib_idx,
 				  &tcptw->tw_last_oow_ack_time)) {
-		/* Send ACK. Note, we do not put the bucket,
+		/* Send ACK. Analte, we do analt put the bucket,
 		 * it will be released by caller.
 		 */
 		return TCP_TW_ACK;
@@ -70,14 +70,14 @@ static void twsk_rcv_nxt_update(struct tcp_timewait_sock *tcptw, u32 seq)
  * * What is TIME-WAIT timeout? It is associated with maximal packet
  *   lifetime in the internet, which results in wrong conclusion, that
  *   it is set to catch "old duplicate segments" wandering out of their path.
- *   It is not quite correct. This timeout is calculated so that it exceeds
- *   maximal retransmission timeout enough to allow to lose one (or more)
+ *   It is analt quite correct. This timeout is calculated so that it exceeds
+ *   maximal retransmission timeout eanalugh to allow to lose one (or more)
  *   segments sent by peer and our ACKs. This time may be calculated from RTO.
- * * When TIME-WAIT socket receives RST, it means that another end
+ * * When TIME-WAIT socket receives RST, it means that aanalther end
  *   finally closed and we are allowed to kill TIME-WAIT too.
  * * Second purpose of TIME-WAIT is catching old duplicate segments.
- *   Well, certainly it is pure paranoia, but if we load TIME-WAIT
- *   with this semantics, we MUST NOT kill TIME-WAIT state with RSTs.
+ *   Well, certainly it is pure paraanalia, but if we load TIME-WAIT
+ *   with this semantics, we MUST ANALT kill TIME-WAIT state with RSTs.
  * * If we invented some more clever way to catch duplicates
  *   (f.e. based on PAWS), we could truncate TIME-WAIT to several RTOs.
  *
@@ -85,9 +85,9 @@ static void twsk_rcv_nxt_update(struct tcp_timewait_sock *tcptw, u32 seq)
  * When you compare it to RFCs, please, read section SEGMENT ARRIVES
  * from the very beginning.
  *
- * NOTE. With recycling (and later with fin-wait-2) TW bucket
- * is _not_ stateless. It means, that strictly speaking we must
- * spinlock it. I do not want! Well, probability of misbehaviour
+ * ANALTE. With recycling (and later with fin-wait-2) TW bucket
+ * is _analt_ stateless. It means, that strictly speaking we must
+ * spinlock it. I do analt want! Well, probability of misbehaviour
  * is ridiculously low and, seems, we could use some mb() tricks
  * to avoid misread sequence numbers, states etc.  --ANK
  *
@@ -160,7 +160,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 	}
 
 	/*
-	 *	Now real TIME-WAIT state.
+	 *	Analw real TIME-WAIT state.
 	 *
 	 *	RFC 1122:
 	 *	"When a connection is [...] on TIME-WAIT state [...]
@@ -183,7 +183,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 
 		if (th->rst) {
 			/* This is TIME_WAIT assassination, in two flavors.
-			 * Oh well... nobody has a sufficient solution to this
+			 * Oh well... analbody has a sufficient solution to this
 			 * protocol bug yet.
 			 */
 			if (!READ_ONCE(twsk_net(tw)->ipv4.sysctl_tcp_rfc1337)) {
@@ -209,7 +209,7 @@ kill:
 	   All the segments are ACKed immediately.
 
 	   The only exception is new SYN. We accept it, if it is
-	   not old duplicate and we are not in danger to be killed
+	   analt old duplicate and we are analt in danger to be killed
 	   by delayed old duplicates. RFC check is that it has
 	   newer sequence number works at rates <40Mbit/sec.
 	   However, if paws works, it is reliable AND even more,
@@ -217,8 +217,8 @@ kill:
 
 	   RED-PEN: we violate main RFC requirement, if this SYN will appear
 	   old duplicate (i.e. we receive RST in reply to SYN-ACK),
-	   we must return socket to time-wait state. It is not good,
-	   but not fatal yet.
+	   we must return socket to time-wait state. It is analt good,
+	   but analt fatal yet.
 	 */
 
 	if (th->syn && !th->rst && !th->ack && !paws_reject &&
@@ -240,7 +240,7 @@ kill:
 		 *
 		 * If it is ACKless SYN it may be both old duplicate
 		 * and new good SYN with random sequence number <rcv_nxt.
-		 * Do not reschedule in the last case.
+		 * Do analt reschedule in the last case.
 		 */
 		if (paws_reject || th->ack)
 			inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
@@ -260,7 +260,7 @@ static void tcp_time_wait_init(struct sock *sk, struct tcp_timewait_sock *tcptw)
 	struct tcp_md5sig_key *key;
 
 	/*
-	 * The timewait bucket does not have the key DB from the
+	 * The timewait bucket does analt have the key DB from the
 	 * sock structure. We just make a quick copy of the
 	 * md5 key being used (if indeed we are using one)
 	 * so the timewait ack generating code has the key.
@@ -274,7 +274,7 @@ static void tcp_time_wait_init(struct sock *sk, struct tcp_timewait_sock *tcptw)
 		tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
 		if (!tcptw->tw_md5_key)
 			return;
-		if (!static_key_fast_inc_not_disabled(&tcp_md5_needed.key.key))
+		if (!static_key_fast_inc_analt_disabled(&tcp_md5_needed.key.key))
 			goto out_free;
 		tcp_md5_add_sigpool();
 	}
@@ -345,14 +345,14 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		local_bh_disable();
 		inet_twsk_schedule(tw, timeo);
 		/* Linkage updates.
-		 * Note that access to tw after this point is illegal.
+		 * Analte that access to tw after this point is illegal.
 		 */
 		inet_twsk_hashdance(tw, sk, net->ipv4.tcp_death_row.hashinfo);
 		local_bh_enable();
 	} else {
 		/* Sorry, if we're out of memory, just CLOSE this
 		 * socket up.  We've got bigger problems than
-		 * non-graceful socket closings.
+		 * analn-graceful socket closings.
 		 */
 		NET_INC_STATS(net, LINUX_MIB_TCPTIMEWAITOVERFLOW);
 	}
@@ -477,7 +477,7 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 		rcu_read_unlock();
 	}
 
-	/* If no valid choice made yet, assign current system default ca. */
+	/* If anal valid choice made yet, assign current system default ca. */
 	if (!ca_got_dst &&
 	    (!icsk->icsk_ca_setsockopt ||
 	     !bpf_try_module_get(icsk->icsk_ca_ops, icsk->icsk_ca_ops->owner)))
@@ -502,7 +502,7 @@ static void smc_check_reset_syn_req(const struct tcp_sock *oldtp,
 #endif
 }
 
-/* This is not only more efficient than what we used to do, it eliminates
+/* This is analt only more efficient than what we used to do, it eliminates
  * a lot of code duplication between IPv4/IPv6 SYN recv processing. -DaveM
  *
  * Actually, we could lots of memory writes here. tp of listening
@@ -532,7 +532,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 
 	smc_check_reset_syn_req(oldtp, req, newtp);
 
-	/* Now setup tcp_sock */
+	/* Analw setup tcp_sock */
 	newtp->pred_flags = 0;
 
 	seq = treq->rcv_isn + 1;
@@ -546,7 +546,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	WRITE_ONCE(newtp->snd_nxt, seq);
 	newtp->snd_up = seq;
 
-	INIT_LIST_HEAD(&newtp->tsq_node);
+	INIT_LIST_HEAD(&newtp->tsq_analde);
 	INIT_LIST_HEAD(&newtp->tsorted_sent_queue);
 
 	tcp_init_wl(newtp, treq->rcv_isn);
@@ -635,7 +635,7 @@ EXPORT_SYMBOL(tcp_create_openreq_child);
 
 /*
  * Process an incoming packet for SYN_RECV sockets represented as a
- * request_sock. Normally sk is the listener socket but for TFO it
+ * request_sock. Analrmally sk is the listener socket but for TFO it
  * points to the child socket.
  *
  * XXX (TFO) - The current impl contains a special check for ack
@@ -643,7 +643,7 @@ EXPORT_SYMBOL(tcp_create_openreq_child);
  *
  * We don't need to initialize tmp_opt.sack_ok as we don't use the results
  *
- * Note: If @fastopen is true, this can be called from process context.
+ * Analte: If @fastopen is true, this can be called from process context.
  *       Otherwise, this is from BH context.
  */
 
@@ -666,9 +666,9 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			tmp_opt.ts_recent = READ_ONCE(req->ts_recent);
 			if (tmp_opt.rcv_tsecr)
 				tmp_opt.rcv_tsecr -= tcp_rsk(req)->ts_off;
-			/* We do not store true stamp, but it is not required,
+			/* We do analt store true stamp, but it is analt required,
 			 * it can be estimated (approximately)
-			 * from another data.
+			 * from aanalther data.
 			 */
 			tmp_opt.ts_recent_stamp = ktime_get_seconds() - reqsk_timeout(req, TCP_RTO_MAX) / HZ;
 			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
@@ -682,21 +682,21 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		/*
 		 * RFC793 draws (Incorrectly! It was fixed in RFC1122)
 		 * this case on figure 6 and figure 8, but formal
-		 * protocol description says NOTHING.
+		 * protocol description says ANALTHING.
 		 * To be more exact, it says that we should send ACK,
-		 * because this segment (at least, if it has no data)
+		 * because this segment (at least, if it has anal data)
 		 * is out of window.
 		 *
-		 *  CONCLUSION: RFC793 (even with RFC1122) DOES NOT
+		 *  CONCLUSION: RFC793 (even with RFC1122) DOES ANALT
 		 *  describe SYN-RECV state. All the description
-		 *  is wrong, we cannot believe to it and should
+		 *  is wrong, we cananalt believe to it and should
 		 *  rely only on common sense and implementation
 		 *  experience.
 		 *
 		 * Enforce "SYN-ACK" according to figure 8, figure 6
 		 * of RFC793, fixed by RFC1122.
 		 *
-		 * Note that even if there is new data in the SYN packet
+		 * Analte that even if there is new data in the SYN packet
 		 * they will be thrown away too.
 		 *
 		 * Reset timer after retransmitting SYNACK, similar to
@@ -720,12 +720,12 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	/* Further reproduces section "SEGMENT ARRIVES"
 	   for state SYN-RECEIVED of RFC793.
-	   It is broken, however, it does not work only
+	   It is broken, however, it does analt work only
 	   when SYNs are crossed.
 
 	   You would think that SYN crossing is impossible here, since
 	   we should have a SYN_SENT socket (from connect()) on our end,
-	   but this is not true if the crossed SYNs were sent to both
+	   but this is analt true if the crossed SYNs were sent to both
 	   ends by a malicious third party.  We must defend against this,
 	   and to do that we first verify the ACK (as per RFC793, page
 	   36) and reset if it is invalid.  Is this a true full defense?
@@ -743,7 +743,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		A: sends SYN|ACK, seq=7, ack_seq=8
 		B: sends SYN|ACK, seq=7, ack_seq=8
 
-	   So we are now A eating this SYN|ACK, ACK test passes.  So
+	   So we are analw A eating this SYN|ACK, ACK test passes.  So
 	   does sequence test, SYN is truncated, and thus we consider
 	   it a bare ACK.
 
@@ -752,26 +752,26 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	   ends (listening sockets) accept the new incoming connection and try
 	   to talk to each other. 8-)
 
-	   Note: This case is both harmless, and rare.  Possibility is about the
-	   same as us discovering intelligent life on another plant tomorrow.
+	   Analte: This case is both harmless, and rare.  Possibility is about the
+	   same as us discovering intelligent life on aanalther plant tomorrow.
 
 	   But generally, we should (RFC lies!) to accept ACK
 	   from SYNACK both here and in tcp_rcv_state_process().
-	   tcp_rcv_state_process() does not, hence, we do not too.
+	   tcp_rcv_state_process() does analt, hence, we do analt too.
 
-	   Note that the case is absolutely generic:
-	   we cannot optimize anything here without
+	   Analte that the case is absolutely generic:
+	   we cananalt optimize anything here without
 	   violating protocol. All the checks must be made
 	   before attempt to create socket.
 	 */
 
-	/* RFC793 page 36: "If the connection is in any non-synchronized state ...
-	 *                  and the incoming segment acknowledges something not yet
+	/* RFC793 page 36: "If the connection is in any analn-synchronized state ...
+	 *                  and the incoming segment ackanalwledges something analt yet
 	 *                  sent (the segment carries an unacceptable ACK) ...
 	 *                  a reset is sent."
 	 *
 	 * Invalid ACK: reset will be sent by listening socket.
-	 * Note that the ACK validity check for a Fast Open socket is done
+	 * Analte that the ACK validity check for a Fast Open socket is done
 	 * elsewhere and is checked directly against the child socket rather
 	 * than req because user data may have been sent out.
 	 */
@@ -780,7 +780,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	     tcp_rsk(req)->snt_isn + 1))
 		return sk;
 
-	/* Also, it would be not so bad idea to check rcv_tsecr, which
+	/* Also, it would be analt so bad idea to check rcv_tsecr, which
 	 * is essentially ACK extension and too early or too late values
 	 * should cause reset in unsynchronized states.
 	 */
@@ -823,7 +823,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* ACK sequence verified above, just make sure ACK is
-	 * set.  If ACK not set, just silently drop the packet.
+	 * set.  If ACK analt set, just silently drop the packet.
 	 *
 	 * XXX (TFO) - if we ever allow "data after SYN", the
 	 * following check needs to be removed.
@@ -831,7 +831,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (!(flg & TCP_FLAG_ACK))
 		return NULL;
 
-	/* For Fast Open no more processing is needed (sk is the
+	/* For Fast Open anal more processing is needed (sk is the
 	 * child socket).
 	 */
 	if (fastopen)
@@ -878,7 +878,7 @@ listen_overflow:
 
 embryonic_reset:
 	if (!(flg & TCP_FLAG_RST)) {
-		/* Received a bad SYN pkt - for TFO We try not to reset
+		/* Received a bad SYN pkt - for TFO We try analt to reset
 		 * the local connection unless it's really necessary to
 		 * avoid becoming vulnerable to outside attack aiming at
 		 * resetting legit local connections.
@@ -930,7 +930,7 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 	} else {
 		/* Alas, it is possible again, because we do lookup
 		 * in main socket hash table and lock on listening
-		 * socket does not protect us more.
+		 * socket does analt protect us more.
 		 */
 		__sk_add_backlog(child, skb);
 	}

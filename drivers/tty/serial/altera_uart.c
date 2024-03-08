@@ -26,7 +26,7 @@
 
 #define DRV_NAME "altera_uart"
 #define SERIAL_ALTERA_MAJOR 204
-#define SERIAL_ALTERA_MINOR 213
+#define SERIAL_ALTERA_MIANALR 213
 
 /*
  * Altera UART register definitions according to the Nios UART datasheet:
@@ -193,7 +193,7 @@ static void altera_uart_set_termios(struct uart_port *port,
 	uart_port_unlock_irqrestore(port, flags);
 
 	/*
-	 * FIXME: port->read_status_mask and port->ignore_status_mask
+	 * FIXME: port->read_status_mask and port->iganalre_status_mask
 	 * need to be initialized based on termios settings for
 	 * INPCK, IGNBRK, IGNPAR, PARMRK, BRKINT
 	 */
@@ -207,7 +207,7 @@ static void altera_uart_rx_chars(struct uart_port *port)
 	while ((status = altera_uart_readl(port, ALTERA_UART_STATUS_REG)) &
 	       ALTERA_UART_STATUS_RRDY_MSK) {
 		ch = altera_uart_readl(port, ALTERA_UART_RXDATA_REG);
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		if (status & ALTERA_UART_STATUS_E_MSK) {
@@ -287,7 +287,7 @@ static void altera_uart_config_port(struct uart_port *port, int flags)
 {
 	port->type = PORT_ALTERA_UART;
 
-	/* Clear mask, so no surprise interrupts. */
+	/* Clear mask, so anal surprise interrupts. */
 	altera_uart_writel(port, 0, ALTERA_UART_CONTROL_REG);
 	/* Clear status register */
 	altera_uart_writel(port, 0, ALTERA_UART_STATUS_REG);
@@ -315,7 +315,7 @@ static int altera_uart_startup(struct uart_port *port)
 
 	uart_port_lock_irqsave(port, &flags);
 
-	/* Enable RX interrupts now */
+	/* Enable RX interrupts analw */
 	pp->imr = ALTERA_UART_CONTROL_RRDY_MSK;
 	altera_uart_update_ctrl_reg(pp);
 
@@ -331,7 +331,7 @@ static void altera_uart_shutdown(struct uart_port *port)
 
 	uart_port_lock_irqsave(port, &flags);
 
-	/* Disable all interrupts now */
+	/* Disable all interrupts analw */
 	pp->imr = 0;
 	altera_uart_update_ctrl_reg(pp);
 
@@ -356,13 +356,13 @@ static int altera_uart_request_port(struct uart_port *port)
 
 static void altera_uart_release_port(struct uart_port *port)
 {
-	/* Nothing to release... */
+	/* Analthing to release... */
 }
 
 static int altera_uart_verify_port(struct uart_port *port,
 				   struct serial_struct *ser)
 {
-	if ((ser->type != PORT_UNKNOWN) && (ser->type != PORT_ALTERA_UART))
+	if ((ser->type != PORT_UNKANALWN) && (ser->type != PORT_ALTERA_UART))
 		return -EINVAL;
 	return 0;
 }
@@ -445,7 +445,7 @@ static int __init altera_uart_console_setup(struct console *co, char *options)
 		return -EINVAL;
 	port = &altera_uart_ports[co->index].port;
 	if (!port->membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -489,9 +489,9 @@ static int __init altera_uart_earlycon_setup(struct earlycon_device *dev,
 	struct uart_port *port = &dev->port;
 
 	if (!port->membase)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Enable RX interrupts now */
+	/* Enable RX interrupts analw */
 	altera_uart_writel(port, ALTERA_UART_CONTROL_RRDY_MSK,
 			   ALTERA_UART_CONTROL_REG);
 
@@ -521,7 +521,7 @@ static struct uart_driver altera_uart_driver = {
 	.driver_name	= DRV_NAME,
 	.dev_name	= "ttyAL",
 	.major		= SERIAL_ALTERA_MAJOR,
-	.minor		= SERIAL_ALTERA_MINOR,
+	.mianalr		= SERIAL_ALTERA_MIANALR,
 	.nr		= CONFIG_SERIAL_ALTERA_UART_MAXPORTS,
 	.cons		= ALTERA_UART_CONSOLE,
 };
@@ -562,11 +562,11 @@ static int altera_uart_probe(struct platform_device *pdev)
 	else if (platp)
 		port->irq = platp->irq;
 
-	/* Check platform data first so we can override device node data */
+	/* Check platform data first so we can override device analde data */
 	if (platp)
 		port->uartclk = platp->uartclk;
 	else {
-		ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+		ret = of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 					   &port->uartclk);
 		if (ret)
 			return ret;
@@ -574,7 +574,7 @@ static int altera_uart_probe(struct platform_device *pdev)
 
 	port->membase = ioremap(port->mapbase, ALTERA_UART_SIZE);
 	if (!port->membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (platp)
 		port->regshift = platp->bus_shift;

@@ -44,7 +44,7 @@ static void *zstd_init(struct squashfs_sb_info *msblk, void *buff)
 failed:
 	ERROR("Failed to allocate zstd workspace\n");
 	kfree(wksp);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 

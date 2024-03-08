@@ -33,11 +33,11 @@ endif
 # For LTO and IBT, objtool doesn't run on individual translation units.
 # Run everything on vmlinux instead.
 
-objtool-enabled := $(or $(delay-objtool),$(CONFIG_NOINSTR_VALIDATION))
+objtool-enabled := $(or $(delay-objtool),$(CONFIG_ANALINSTR_VALIDATION))
 
 vmlinux-objtool-args-$(delay-objtool)			+= $(objtool-args-y)
-vmlinux-objtool-args-$(CONFIG_GCOV_KERNEL)		+= --no-unreachable
-vmlinux-objtool-args-$(CONFIG_NOINSTR_VALIDATION)	+= --noinstr \
+vmlinux-objtool-args-$(CONFIG_GCOV_KERNEL)		+= --anal-unreachable
+vmlinux-objtool-args-$(CONFIG_ANALINSTR_VALIDATION)	+= --analinstr \
 							   $(if $(or $(CONFIG_CPU_UNRET_ENTRY),$(CONFIG_CPU_SRSO)), --unret)
 
 objtool-args = $(vmlinux-objtool-args-y) --link
@@ -49,7 +49,7 @@ quiet_cmd_ld_vmlinux.o = LD      $@
       cmd_ld_vmlinux.o = \
 	$(LD) ${KBUILD_LDFLAGS} -r -o $@ \
 	$(addprefix -T , $(initcalls-lds)) \
-	--whole-archive vmlinux.a --no-whole-archive \
+	--whole-archive vmlinux.a --anal-whole-archive \
 	--start-group $(KBUILD_VMLINUX_LIBS) --end-group \
 	$(cmd_objtool)
 
@@ -95,11 +95,11 @@ FORCE:
 
 # Read all saved command lines and dependencies for the $(targets) we
 # may be building above, using $(if_changed{,_dep}). As an
-# optimization, we don't need to read them if the target does not
+# optimization, we don't need to read them if the target does analt
 # exist, we will rebuild anyway in that case.
 
 existing-targets := $(wildcard $(sort $(targets)))
 
--include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(analtdir $(f)).cmd)
 
 .PHONY: $(PHONY)

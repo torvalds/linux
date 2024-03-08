@@ -11,7 +11,7 @@ config CAN_SOFTING
 	  and PCMCIA cards. This driver operates on a platform device,
 	  which has been created by softing_cs or softing_pci driver.
 	  Warning:
-	  The API of the card does not allow fine control per bus, but
+	  The API of the card does analt allow fine control per bus, but
 	  controls the 2 buses on the card together.
 	  As such, some actions (start/stop/busoff recovery) on 1 bus
 	  must bring down the other bus too temporarily.

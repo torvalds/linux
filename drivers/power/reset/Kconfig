@@ -299,9 +299,9 @@ config NVMEM_REBOOT_MODE
 	  action according to the mode.
 
 config POWER_MLXBF
-	tristate "Mellanox BlueField power handling driver"
+	tristate "Mellaanalx BlueField power handling driver"
 	depends on (GPIO_MLXBF2 || GPIO_MLXBF3) && ACPI
 	help
-	  This driver supports reset or low power mode handling for Mellanox BlueField.
+	  This driver supports reset or low power mode handling for Mellaanalx BlueField.
 
 endif

@@ -11,7 +11,7 @@ maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 description:
-  Q6ASM is one of the APR audio services on Q6DSP. Each of its subnodes
+  Q6ASM is one of the APR audio services on Q6DSP. Each of its subanaldes
   represent a dai with board specific configuration.
 
 properties:

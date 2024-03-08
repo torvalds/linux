@@ -35,8 +35,8 @@ static inline void zynq_core_pm_init(void)
 	asm volatile ("mrc  p15, 0, r12, c15, c0, 0\n"
 		      "orr  r12, r12, #1\n"
 		      "mcr  p15, 0, r12, c15, c0, 0\n"
-		      : /* no outputs */
-		      : /* no inputs */
+		      : /* anal outputs */
+		      : /* anal inputs */
 		      : "r12");
 }
 

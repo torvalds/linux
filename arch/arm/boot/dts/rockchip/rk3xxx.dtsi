@@ -266,7 +266,7 @@
 		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x40>;
-			mode-normal = <BOOT_NORMAL>;
+			mode-analrmal = <BOOT_ANALRMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-bootloader = <BOOT_FASTBOOT>;
 			mode-loader = <BOOT_BL_DOWNLOAD>;
@@ -284,7 +284,7 @@
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 		#dma-cells = <1>;
-		arm,pl330-broken-no-flushp;
+		arm,pl330-broken-anal-flushp;
 		arm,pl330-periph-burst;
 		clocks = <&cru ACLK_DMA1>;
 		clock-names = "apb_pclk";
@@ -296,7 +296,7 @@
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 		#dma-cells = <1>;
-		arm,pl330-broken-no-flushp;
+		arm,pl330-broken-anal-flushp;
 		arm,pl330-periph-burst;
 		clocks = <&cru ACLK_DMA1>;
 		clock-names = "apb_pclk";
@@ -484,7 +484,7 @@
 		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 		#dma-cells = <1>;
-		arm,pl330-broken-no-flushp;
+		arm,pl330-broken-anal-flushp;
 		arm,pl330-periph-burst;
 		clocks = <&cru ACLK_DMA2>;
 		clock-names = "apb_pclk";

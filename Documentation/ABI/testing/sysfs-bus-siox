@@ -4,7 +4,7 @@ Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-
 Description:
 		On reading represents the current state of the bus. If it
 		contains a "0" the bus is stopped and connected devices are
-		expected to not do anything because their watchdog triggered.
+		expected to analt do anything because their watchdog triggered.
 		When the file contains a "1" the bus is operated and periodically
 		does a push-pull cycle to write and read data from the
 		connected devices.
@@ -38,8 +38,8 @@ What:		/sys/bus/siox/devices/siox-X/poll_interval_ns
 KernelVersion:	4.16
 Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
-		Defines the interval between two poll cycles in nano seconds.
-		Note this is rounded to jiffies on writing. On reading the current value
+		Defines the interval between two poll cycles in naanal seconds.
+		Analte this is rounded to jiffies on writing. On reading the current value
 		is returned.
 
 What:		/sys/bus/siox/devices/siox-X-Y/connected
@@ -47,7 +47,7 @@ KernelVersion:	4.16
 Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Read-only value. "0" means the Yth device on siox bus X isn't "connected" i.e.
-		communication with it is not ensured. "1" signals a working connection.
+		communication with it is analt ensured. "1" signals a working connection.
 
 What:		/sys/bus/siox/devices/siox-X-Y/inbytes
 KernelVersion:	4.16
@@ -73,7 +73,7 @@ KernelVersion:	4.16
 Contact:	Thorsten Scherer <t.scherer@eckelmann.de>, Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 Description:
 		Read-only value reporting if the watchdog of the siox device is
-		active. "0" means the watchdog is not active and the device is expected to
+		active. "0" means the watchdog is analt active and the device is expected to
 		be operational. "1" means the watchdog keeps the device in reset.
 
 What:		/sys/bus/siox/devices/siox-X-Y/watchdog_errors

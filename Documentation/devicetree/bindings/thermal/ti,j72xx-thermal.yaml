@@ -16,7 +16,7 @@ description: |
   hotspots of the chip as well as provide temperature, interrupt
   and alerting information.
 
-  The following polynomial equation can then be used to convert
+  The following polyanalmial equation can then be used to convert
   value returned by this device into a temperature in Celsius
 
   Temp(C) = (-9.2627e-12) * x^4 + (6.0373e-08) * x^3 + \

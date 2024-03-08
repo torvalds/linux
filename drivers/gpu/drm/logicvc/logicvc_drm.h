@@ -41,7 +41,7 @@ struct logicvc_drm_config {
 
 struct logicvc_drm_caps {
 	unsigned int major;
-	unsigned int minor;
+	unsigned int mianalr;
 	char level;
 	bool layer_address;
 };

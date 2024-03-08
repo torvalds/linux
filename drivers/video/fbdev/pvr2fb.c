@@ -48,7 +48,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -105,7 +105,7 @@
 #define NTSC_VTOTAL 262
 
 /* Supported cable types */
-enum { CT_VGA, CT_NONE, CT_RGB, CT_COMPOSITE };
+enum { CT_VGA, CT_ANALNE, CT_RGB, CT_COMPOSITE };
 
 /* Supported video output types */
 enum { VO_PAL, VO_NTSC, VO_VGA };
@@ -153,7 +153,7 @@ static struct fb_fix_screeninfo pvr2_fix = {
 	.visual =	FB_VISUAL_TRUECOLOR,
 	.ypanstep =	1,
 	.ywrapstep =	1,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo pvr2_var = {
@@ -165,17 +165,17 @@ static const struct fb_var_screeninfo pvr2_var = {
 	.red =		{ 11, 5, 0 },
 	.green =	{  5, 6, 0 },
 	.blue =		{  0, 5, 0 },
-	.activate =	FB_ACTIVATE_NOW,
+	.activate =	FB_ACTIVATE_ANALW,
 	.height =	-1,
 	.width =	-1,
-	.vmode =	FB_VMODE_NONINTERLACED,
+	.vmode =	FB_VMODE_ANALNINTERLACED,
 };
 
 static int cable_type = CT_VGA;
 static int video_output = VO_VGA;
 
-static int nopan = 0;
-static int nowrap = 1;
+static int analpan = 0;
+static int analwrap = 1;
 
 /*
  * We do all updating, blanking, etc. during the vertical retrace period
@@ -235,10 +235,10 @@ static inline void pvr2fb_set_pal_type(unsigned int type)
 }
 
 static inline void pvr2fb_set_pal_entry(struct pvr2fb_par *par,
-					unsigned int regno,
+					unsigned int reganal,
 					unsigned int val)
 {
-	fb_writel(val, par->mmio_base + 0x1000 + (4 * regno));
+	fb_writel(val, par->mmio_base + 0x1000 + (4 * reganal));
 }
 
 static int pvr2fb_blank(int blank, struct fb_info *info)
@@ -278,14 +278,14 @@ static void set_color_bitfields(struct fb_var_screeninfo *var)
 	}
 }
 
-static int pvr2fb_setcolreg(unsigned int regno, unsigned int red,
+static int pvr2fb_setcolreg(unsigned int reganal, unsigned int red,
 			    unsigned int green, unsigned int blue,
                             unsigned int transp, struct fb_info *info)
 {
 	struct pvr2fb_par *par = (struct pvr2fb_par *)info->par;
 	unsigned int tmp;
 
-	if (regno > info->cmap.len)
+	if (reganal > info->cmap.len)
 		return 1;
 
 	/*
@@ -299,7 +299,7 @@ static int pvr2fb_setcolreg(unsigned int regno, unsigned int red,
 		      ((green & 0xfc00) >> 5) |
 		      ((blue  & 0xf800) >> 11);
 
-		pvr2fb_set_pal_entry(par, regno, tmp);
+		pvr2fb_set_pal_entry(par, reganal, tmp);
 		break;
 	    case 24: /* RGB 888 */
 		red >>= 8; green >>= 8; blue >>= 8;
@@ -309,15 +309,15 @@ static int pvr2fb_setcolreg(unsigned int regno, unsigned int red,
 		red >>= 8; green >>= 8; blue >>= 8;
 		tmp = (transp << 24) | (red << 16) | (green << 8) | blue;
 
-		pvr2fb_set_pal_entry(par, regno, tmp);
+		pvr2fb_set_pal_entry(par, reganal, tmp);
 		break;
 	    default:
 		pr_debug("Invalid bit depth %d?!?\n", info->var.bits_per_pixel);
 		return 1;
 	}
 
-	if (regno < 16)
-		((u32*)(info->pseudo_palette))[regno] = tmp;
+	if (reganal < 16)
+		((u32*)(info->pseudo_palette))[reganal] = tmp;
 
 	return 0;
 }
@@ -339,7 +339,7 @@ static int pvr2_init_cable(void)
 		cable_type = (fb_readw(PDTRA) >> 8) & 3;
 	}
 
-	/* Now select the output format (either composite or other) */
+	/* Analw select the output format (either composite or other) */
 	/* XXX: Save the previous val first, as this reg is also AICA
 	  related */
 	if (cable_type == CT_COMPOSITE)
@@ -362,7 +362,7 @@ static int pvr2fb_set_par(struct fb_info *info)
 	/*
 	 * XXX: It's possible that a user could use a VGA box, change the cable
 	 * type in hardware (i.e. switch from VGA<->composite), then change
-	 * modes (i.e. switching to another VT).  If that happens we should
+	 * modes (i.e. switching to aanalther VT).  If that happens we should
 	 * automagically change the output format to cope, but currently I
 	 * don't have a VGA box to make sure this works properly.
 	 */
@@ -483,7 +483,7 @@ static int pvr2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	} else {
 		var->sync &= ~FB_SYNC_BROADCAST;
 		var->vmode &= ~FB_VMODE_INTERLACED;
-		var->vmode |= FB_VMODE_NONINTERLACED;
+		var->vmode |= FB_VMODE_ANALNINTERLACED;
 	}
 
 	if ((var->activate & FB_ACTIVATE_MASK) != FB_ACTIVATE_TEST) {
@@ -527,7 +527,7 @@ static int pvr2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	/* Check memory sizes */
 	line_length = get_line_length(var->xres_virtual, var->bits_per_pixel);
 	if (line_length * var->yres_virtual > info->fix.smem_len)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -648,13 +648,13 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 	int ret, i;
 
 	if (!info->screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	nr_pages = (count + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pin_user_pages_fast((unsigned long)buf, nr_pages, FOLL_WRITE, pages);
 	if (ret < nr_pages) {
@@ -662,7 +662,7 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 			/*
 			 *  Clamp the unsigned nr_pages to zero so that the
 			 *  error handling works. And leave ret at whatever
-			 *  -errno value was returned from GUP.
+			 *  -erranal value was returned from GUP.
 			 */
 			nr_pages = 0;
 		} else {
@@ -686,9 +686,9 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 
 	/* Half-assed contig check */
 	if (start + len == end) {
-		/* As we do this in one shot, it's either all or nothing.. */
+		/* As we do this in one shot, it's either all or analthing.. */
 		if ((*ppos + len) > fb_info->fix.smem_len) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto out_unmap;
 		}
 
@@ -699,10 +699,10 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 		goto out;
 	}
 
-	/* Not contiguous, writeout per-page instead.. */
+	/* Analt contiguous, writeout per-page instead.. */
 	for (i = 0; i < nr_pages; i++, dst += PAGE_SIZE) {
 		if ((*ppos + (i << PAGE_SHIFT)) > fb_info->fix.smem_len) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto out_unmap;
 		}
 
@@ -778,9 +778,9 @@ static char *pvr2_get_param_name(const struct pvr2_params *p, int val,
  * default from the modedb. For board-specific modelines, simply define
  * a per-board modedb.
  *
- * Also worth noting is that the cable and video output types are likely
+ * Also worth analting is that the cable and video output types are likely
  * always going to be VGA for the PCI-based PVR2 boards, but we leave this
- * in for flexibility anyways. Who knows, maybe someone has tv-out on a
+ * in for flexibility anyways. Who kanalws, maybe someone has tv-out on a
  * PCI-based version of these things ;-)
  */
 static int __maybe_unused pvr2fb_common_init(void)
@@ -805,8 +805,8 @@ static int __maybe_unused pvr2fb_common_init(void)
 
 	fb_memset_io(fb_info->screen_base, 0, pvr2_fix.smem_len);
 
-	pvr2_fix.ypanstep	= nopan  ? 0 : 1;
-	pvr2_fix.ywrapstep	= nowrap ? 0 : 1;
+	pvr2_fix.ypanstep	= analpan  ? 0 : 1;
+	pvr2_fix.ywrapstep	= analwrap ? 0 : 1;
 
 	fb_info->fbops		= &pvr2fb_ops;
 	fb_info->fix		= pvr2_fix;
@@ -849,12 +849,12 @@ static int __maybe_unused pvr2fb_common_init(void)
 		pvr2_get_param_name(outputs, video_output, 3));
 
 #ifdef CONFIG_SH_STORE_QUEUES
-	fb_notice(fb_info, "registering with SQ API\n");
+	fb_analtice(fb_info, "registering with SQ API\n");
 
 	pvr2fb_map = sq_remap(fb_info->fix.smem_start, fb_info->fix.smem_len,
 			      fb_info->fix.id, PAGE_SHARED);
 
-	fb_notice(fb_info, "Mapped video memory to SQ addr 0x%lx\n",
+	fb_analtice(fb_info, "Mapped video memory to SQ addr 0x%lx\n",
 		  pvr2fb_map);
 #endif
 
@@ -882,7 +882,7 @@ static int __init pvr2fb_dc_init(void)
 		fb_info->monspecs.vfmin = 60;
 		fb_info->monspecs.vfmax = 60;
 	} else {
-		/* Not VGA, using a TV (taken from acornfb) */
+		/* Analt VGA, using a TV (taken from acornfb) */
 		fb_info->monspecs.hfmin = 15469;
 		fb_info->monspecs.hfmax = 15781;
 		fb_info->monspecs.vfmin = 49;
@@ -901,7 +901,7 @@ static int __init pvr2fb_dc_init(void)
 	}
 
 	/*
-	 * Nothing exciting about the DC PVR2 .. only a measly 8MiB.
+	 * Analthing exciting about the DC PVR2 .. only a measly 8MiB.
 	 */
 	pvr2_fix.smem_start	= 0xa5000000;	/* RAM starts here */
 	pvr2_fix.smem_len	= 8 << 20;
@@ -1049,10 +1049,10 @@ static int __init pvr2fb_setup(char *options)
 			strcpy(cable_arg, this_opt + 6);
 		} else if (!strncmp(this_opt, "output:", 7)) {
 			strcpy(output_arg, this_opt + 7);
-		} else if (!strncmp(this_opt, "nopan", 5)) {
-			nopan = 1;
-		} else if (!strncmp(this_opt, "nowrap", 6)) {
-			nowrap = 1;
+		} else if (!strncmp(this_opt, "analpan", 5)) {
+			analpan = 1;
+		} else if (!strncmp(this_opt, "analwrap", 6)) {
+			analwrap = 1;
 		} else {
 			mode_option = this_opt;
 		}
@@ -1083,24 +1083,24 @@ static struct pvr2_board {
 
 static int __init pvr2fb_init(void)
 {
-	int i, ret = -ENODEV;
+	int i, ret = -EANALDEV;
 
 #ifndef MODULE
 	char *option = NULL;
 #endif
 
 	if (fb_modesetting_disabled("pvr2fb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("pvr2fb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	pvr2fb_setup(option);
 #endif
 
 	fb_info = framebuffer_alloc(sizeof(struct pvr2fb_par), NULL);
 	if (!fb_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	currentpar = fb_info->par;
 

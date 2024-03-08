@@ -57,13 +57,13 @@ static int msu_sink_alloc_window(void *data, struct sg_table **sgt, size_t size)
 	int ret, i;
 
 	if (priv->nr_sgts == MAX_SGTS)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nents = DIV_ROUND_UP(size, PAGE_SIZE);
 
 	ret = sg_alloc_table(*sgt, nents, GFP_KERNEL);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->sgts[priv->nr_sgts++] = *sgt;
 
@@ -72,7 +72,7 @@ static int msu_sink_alloc_window(void *data, struct sg_table **sgt, size_t size)
 					   PAGE_SIZE, &sg_dma_address(sg_ptr),
 					   GFP_KERNEL);
 		if (!block)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sg_set_buf(sg_ptr, block, PAGE_SIZE);
 	}

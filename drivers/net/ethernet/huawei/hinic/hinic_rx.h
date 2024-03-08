@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_RX_H
@@ -15,7 +15,7 @@
 #include "hinic_hw_qp.h"
 
 #define HINIC_RX_CSUM_OFFLOAD_EN	0xFFF
-#define HINIC_RX_CSUM_HW_CHECK_NONE	BIT(7)
+#define HINIC_RX_CSUM_HW_CHECK_ANALNE	BIT(7)
 #define HINIC_RX_CSUM_IPSU_OTHER_ERR	BIT(8)
 
 struct hinic_rxq_stats {

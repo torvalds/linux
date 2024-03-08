@@ -93,7 +93,7 @@ static int pch_gbe_get_link_ksettings(struct net_device *netdev,
 						advertising);
 
 	if (!netif_carrier_ok(adapter->netdev))
-		ecmd->base.speed = SPEED_UNKNOWN;
+		ecmd->base.speed = SPEED_UNKANALWN;
 
 	return 0;
 }
@@ -237,7 +237,7 @@ static int pch_gbe_set_wol(struct net_device *netdev,
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 
 	if ((wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* these settings will always override what we currently have */
 	adapter->wake_up_evt = 0;
 
@@ -321,12 +321,12 @@ static int pch_gbe_set_ringparam(struct net_device *netdev,
 
 	txdr = kzalloc(tx_ring_size, GFP_KERNEL);
 	if (!txdr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_tx;
 	}
 	rxdr = kzalloc(rx_ring_size, GFP_KERNEL);
 	if (!rxdr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_rx;
 	}
 	adapter->tx_ring = txdr;
@@ -419,7 +419,7 @@ static int pch_gbe_set_pauseparam(struct net_device *netdev,
 	else if ((!pause->rx_pause) && (pause->tx_pause))
 		hw->mac.fc = PCH_GBE_FC_TX_PAUSE;
 	else if ((!pause->rx_pause) && (!pause->tx_pause))
-		hw->mac.fc = PCH_GBE_FC_NONE;
+		hw->mac.fc = PCH_GBE_FC_ANALNE;
 
 	if (hw->mac.fc_autoneg == AUTONEG_ENABLE) {
 		if ((netif_running(adapter->netdev))) {
@@ -486,7 +486,7 @@ static int pch_gbe_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return PCH_GBE_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

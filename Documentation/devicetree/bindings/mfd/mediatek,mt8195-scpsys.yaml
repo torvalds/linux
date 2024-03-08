@@ -54,7 +54,7 @@ examples:
         #size-cells = <0>;
         #power-domain-cells = <1>;
 
-        /* sample of power domain nodes */
+        /* sample of power domain analdes */
         power-domain@MT8195_POWER_DOMAIN_PCIE_PHY {
           reg = <MT8195_POWER_DOMAIN_PCIE_PHY>;
           #power-domain-cells = <0>;

@@ -8,15 +8,15 @@ Required properties:
 
 - reg		: Specifies PCIe Device Number and Function
 		  Number of the ENETC endpoint device, according
-		  to parent node bindings.
+		  to parent analde bindings.
 - compatible	: Should be "fsl,enetc".
 
 1. The ENETC external port is connected to a MDIO configurable phy
 
 1.1. Using the local ENETC Port MDIO interface
 
-In this case, the ENETC node should include a "mdio" sub-node
-that in turn should contain the "ethernet-phy" node describing the
+In this case, the ENETC analde should include a "mdio" sub-analde
+that in turn should contain the "ethernet-phy" analde describing the
 external phy.  Below properties are required, their bindings
 already defined in Documentation/devicetree/bindings/net/ethernet.txt or
 Documentation/devicetree/bindings/net/phy.txt.
@@ -28,9 +28,9 @@ Required:
 
 - phy-connection-type	: Defined in ethernet.txt.
 
-- mdio			: "mdio" node, defined in mdio.txt.
+- mdio			: "mdio" analde, defined in mdio.txt.
 
-- ethernet-phy		: "ethernet-phy" node, defined in phy.txt.
+- ethernet-phy		: "ethernet-phy" analde, defined in phy.txt.
 
 Example:
 
@@ -51,14 +51,14 @@ Example:
 
 1.2. Using the central MDIO PCIe endpoint device
 
-In this case, the mdio node should be defined as another PCIe
-endpoint node, at the same level with the ENETC port nodes.
+In this case, the mdio analde should be defined as aanalther PCIe
+endpoint analde, at the same level with the ENETC port analdes.
 
 Required properties:
 
 - reg		: Specifies PCIe Device Number and Function
 		  Number of the ENETC endpoint device, according
-		  to parent node bindings.
+		  to parent analde bindings.
 - compatible	: Should be "fsl,enetc-mdio".
 
 The remaining required mdio bus properties are standard, their bindings
@@ -86,12 +86,12 @@ Example:
 2. The ENETC port is an internal port or has a fixed-link external
 connection
 
-In this case, the ENETC port node defines a fixed link connection,
+In this case, the ENETC port analde defines a fixed link connection,
 as specified by Documentation/devicetree/bindings/net/fixed-link.txt.
 
 Required:
 
-- fixed-link	: "fixed-link" node, defined in "fixed-link.txt".
+- fixed-link	: "fixed-link" analde, defined in "fixed-link.txt".
 
 Example:
 	ethernet@0,2 {
@@ -106,7 +106,7 @@ Example:
 * Integrated Endpoint Register Block bindings
 
 Optionally, the fsl_enetc driver can probe on the Integrated Endpoint Register
-Block, which preconfigures the FIFO limits for the ENETC ports. This is a node
+Block, which preconfigures the FIFO limits for the ENETC ports. This is a analde
 with the following properties:
 
 - reg		: Specifies the address in the SoC memory space.

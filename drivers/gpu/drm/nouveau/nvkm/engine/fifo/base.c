@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,7 +82,7 @@ nvkm_fifo_class_new(struct nvkm_device *device, const struct nvkm_oclass *oclass
 		return nvkm_uchan_new(fifo, NULL, oclass, argv, argc, pobject);
 
 	WARN_ON(1);
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static const struct nvkm_device_oclass
@@ -234,7 +234,7 @@ nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 		break;
 	}
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int
@@ -258,7 +258,7 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 	if (fifo->func->runq_nr) {
 		for (nr = fifo->func->runq_nr(fifo), i = 0; i < nr; i++) {
 			if (!nvkm_runq_new(fifo, i))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
@@ -276,7 +276,7 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 
 	/* Register interrupt handler. */
 	if (fifo->func->intr) {
-		ret = nvkm_inth_add(&device->mc->intr, NVKM_INTR_SUBDEV, NVKM_INTR_PRIO_NORMAL,
+		ret = nvkm_inth_add(&device->mc->intr, NVKM_INTR_SUBDEV, NVKM_INTR_PRIO_ANALRMAL,
 				    subdev, fifo->func->intr, &subdev->inth);
 		if (ret) {
 			nvkm_error(subdev, "intr %d\n", ret);
@@ -284,20 +284,20 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 		}
 	}
 
-	/* Initialise non-stall intr handling. */
-	if (fifo->func->nonstall) {
-		if (fifo->func->nonstall_ctor) {
-			ret = fifo->func->nonstall_ctor(fifo);
+	/* Initialise analn-stall intr handling. */
+	if (fifo->func->analnstall) {
+		if (fifo->func->analnstall_ctor) {
+			ret = fifo->func->analnstall_ctor(fifo);
 			if (ret < 0) {
-				nvkm_error(subdev, "nonstall %d\n", ret);
+				nvkm_error(subdev, "analnstall %d\n", ret);
 				return ret;
 			}
 		} else {
 			ret = 1;
 		}
 
-		ret = nvkm_event_init(fifo->func->nonstall, &fifo->engine.subdev, 1, ret,
-				      &fifo->nonstall.event);
+		ret = nvkm_event_init(fifo->func->analnstall, &fifo->engine.subdev, 1, ret,
+				      &fifo->analnstall.event);
 		if (ret)
 			return ret;
 	}
@@ -351,7 +351,7 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 
 	mutex_destroy(&fifo->userd.mutex);
 
-	nvkm_event_fini(&fifo->nonstall.event);
+	nvkm_event_fini(&fifo->analnstall.event);
 	mutex_destroy(&fifo->mutex);
 
 	if (fifo->func->dtor)
@@ -378,14 +378,14 @@ nvkm_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	struct nvkm_fifo *fifo;
 
 	if (!(fifo = *pfifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fifo->func = func;
 	INIT_LIST_HEAD(&fifo->runqs);
 	INIT_LIST_HEAD(&fifo->runls);
 	/*TODO: Needs to be >CTXSW_TIMEOUT, so RC can recover before this is hit.
 	 *      CTXSW_TIMEOUT HW default seems to differ between GPUs, so just a
-	 *      large number for now until we support changing it.
+	 *      large number for analw until we support changing it.
 	 */
 	fifo->timeout.chan_msec = 10000;
 	spin_lock_init(&fifo->lock);

@@ -24,14 +24,14 @@
 **						(Kornel Wieliczek's comment)
 ** 1.20.00.07    3/23/2005       Erich Chen     bug fix with arcmsr_scsi_host_template_init
 **						occur segmentation fault,
-**						if RAID adapter does not on PCI slot
+**						if RAID adapter does analt on PCI slot
 **						and modprobe/rmmod this driver twice.
-**						bug fix enormous stack usage (Adrian Bunk's comment)
+**						bug fix eanalrmous stack usage (Adrian Bunk's comment)
 ** 1.20.00.08    6/23/2005       Erich Chen     bug fix with abort command,
 **						in case of heavy loading when sata cable
 **						working on low quality connection
 ** 1.20.00.09    9/12/2005       Erich Chen     bug fix with abort command handling, firmware version check
-**						and firmware update notify for hardware bug fix
+**						and firmware update analtify for hardware bug fix
 ** 1.20.00.10    9/23/2005       Erich Chen     enhance sysfs function for change driver's max tag Q number.
 **						add DMA_64BIT_MASK for backward compatible with all 2.6.x
 **						add some useful message for abort command
@@ -46,7 +46,7 @@
 **						psge += sizeof(struct _SG64ENTRY *) =>
 **						psge += sizeof(struct _SG64ENTRY)
 **						64 bits sg entry would be incorrectly calculated
-**						thanks Kornel Wieliczek give me kindly notify
+**						thanks Kornel Wieliczek give me kindly analtify
 **						and detail description
 ** 1.20.00.13   11/15/2005       Erich Chen     scheduling pending ccb with FIFO
 **						change the architecture of arcmsr command queue list
@@ -88,16 +88,16 @@
 **						3.add the conditional check if arcmsr_build_ccb()
 **						returns FAILED
 ** 1.20.00.15	12/04/2007	 Erich Chen & Nick Cheng
-**						1. modify arcmsr_drain_donequeue() to ignore unknown
+**						1. modify arcmsr_drain_donequeue() to iganalre unkanalwn
 **						command and let kernel process command timeout.
 **						This could handle IO request violating max. segments
 **						while Linux XFS over DM-CRYPT.
 **						Thanks to Milan Broz's comments <mbroz@redhat.com>
 ** 1.20.00.15	12/24/2007	 Erich Chen & Nick Cheng
 **						1.fix the portability problems
-**						2.fix type B where we should _not_ iounmap() acb->pmu;
-**						it's not ioremapped.
-**						3.add return -ENOMEM if ioremap() fails
+**						2.fix type B where we should _analt_ iounmap() acb->pmu;
+**						it's analt ioremapped.
+**						3.add return -EANALMEM if ioremap() fails
 **						4.transfer IS_SG64_ADDR w/ cpu_to_le32()
 **						in arcmsr_build_ccb
 **						5. modify acb->devstate[i][j] as ARECA_RAID_GONE instead of
@@ -113,6 +113,6 @@
 **						1.arcmsr_iop_message_xfer() is called from atomic context under the
 **						queuecommand scsi_host_template handler. James Bottomley pointed out
 **						that the current GFP_KERNEL|GFP_DMA flags are wrong: firstly we are in
-**						atomic context, secondly this memory is not used for DMA.
+**						atomic context, secondly this memory is analt used for DMA.
 **						Also removed some unneeded casts. Thanks to Daniel Drake <dsd@gentoo.org>
 **************************************************************************

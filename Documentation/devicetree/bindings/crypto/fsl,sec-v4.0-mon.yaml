@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/crypto/fsl,sec-v4.0-mon.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale Secure Non-Volatile Storage (SNVS)
+title: Freescale Secure Analn-Volatile Storage (SNVS)
 
 maintainers:
   - '"Horia Geantă" <horia.geanta@nxp.com>'
@@ -13,7 +13,7 @@ maintainers:
   - Gaurav Jain <gaurav.jain@nxp.com>
 
 description:
-  Node defines address range and the associated interrupt for the SNVS function.
+  Analde defines address range and the associated interrupt for the SNVS function.
   This function monitors security state information & reports security
   violations. This also included rtc, system power off and ON/OFF key.
 
@@ -44,7 +44,7 @@ properties:
     type: object
     additionalProperties: false
     description:
-      Secure Non-Volatile Storage (SNVS) Low Power (LP) RTC Node
+      Secure Analn-Volatile Storage (SNVS) Low Power (LP) RTC Analde
 
     properties:
       compatible:
@@ -62,7 +62,7 @@ properties:
         maxItems: 2
 
       regmap:
-        description: Parent node containing registers
+        description: Parent analde containing registers
         $ref: /schemas/types.yaml#/definitions/phandle
 
       offset:
@@ -80,7 +80,7 @@ properties:
     additionalProperties: false
     description:
       The snvs-pwrkey is designed to enable POWER key function which controlled
-      by SNVS ONOFF, the driver can report the status of POWER key and wakeup
+      by SNVS OANALFF, the driver can report the status of POWER key and wakeup
       system if pressed after system suspend.
 
     properties:
@@ -97,7 +97,7 @@ properties:
         maxItems: 1
 
       regmap:
-        description: Parent node containing registers
+        description: Parent analde containing registers
         $ref: /schemas/types.yaml#/definitions/phandle
 
       wakeup-source: true

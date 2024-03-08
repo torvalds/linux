@@ -9,6 +9,6 @@ config VFIO_FSL_MC
 	  (Management Complex) devices. This is required to passthrough
 	  fsl-mc bus devices using the VFIO framework.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 endmenu

@@ -9,7 +9,7 @@ title: LPDDR channel with chip/rank topology description
 description:
   An LPDDR channel is a completely independent set of LPDDR pins (DQ, CA, CS,
   CK, etc.) that connect one or more LPDDR chips to a host system. The main
-  purpose of this node is to overall LPDDR topology of the system, including the
+  purpose of this analde is to overall LPDDR topology of the system, including the
   amount of individual LPDDR chips and the ranks per chip.
 
 maintainers:

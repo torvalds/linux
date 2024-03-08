@@ -499,7 +499,7 @@ static int clk_bcm63xx_probe(struct platform_device *pdev)
 	hw = devm_kzalloc(&pdev->dev, struct_size(hw, data.hws, maxbit),
 			  GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hw);
 
@@ -507,7 +507,7 @@ static int clk_bcm63xx_probe(struct platform_device *pdev)
 
 	hw->data.num = maxbit;
 	for (i = 0; i < maxbit; i++)
-		hw->data.hws[i] = ERR_PTR(-ENODEV);
+		hw->data.hws[i] = ERR_PTR(-EANALDEV);
 
 	hw->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hw->regs))
@@ -527,7 +527,7 @@ static int clk_bcm63xx_probe(struct platform_device *pdev)
 		hw->data.hws[entry->bit] = clk;
 	}
 
-	ret = of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(pdev->dev.of_analde, of_clk_hw_onecell_get,
 				     &hw->data);
 	if (!ret)
 		return 0;
@@ -545,7 +545,7 @@ static void clk_bcm63xx_remove(struct platform_device *pdev)
 	struct clk_bcm63xx_hw *hw = platform_get_drvdata(pdev);
 	int i;
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 
 	for (i = 0; i < hw->data.num; i++) {
 		if (!IS_ERR(hw->data.hws[i]))

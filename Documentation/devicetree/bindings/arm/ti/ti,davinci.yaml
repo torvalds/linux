@@ -7,13 +7,13 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments DaVinci Platforms
 
 maintainers:
-  - Sekhar Nori <nsekhar@ti.com>
+  - Sekhar Analri <nsekhar@ti.com>
 
 description:
   DA850/OMAP-L138/AM18x based boards
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

@@ -188,14 +188,14 @@ int dpio_set_stashing_destination(struct fsl_mc_io *mc_io,
  * @mc_io:	Pointer to MC portal's DPIO object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @major_ver:	Major version of DPIO API
- * @minor_ver:	Minor version of DPIO API
+ * @mianalr_ver:	Mianalr version of DPIO API
  *
  * Return:	'0' on Success; Error code otherwise
  */
 int dpio_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver)
+			 u16 *mianalr_ver)
 {
 	struct fsl_mc_command cmd = { 0 };
 	int err;
@@ -209,7 +209,7 @@ int dpio_get_api_version(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	mc_cmd_read_api_version(&cmd, major_ver, minor_ver);
+	mc_cmd_read_api_version(&cmd, major_ver, mianalr_ver);
 
 	return 0;
 }

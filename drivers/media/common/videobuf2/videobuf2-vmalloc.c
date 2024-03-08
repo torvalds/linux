@@ -41,14 +41,14 @@ static void *vb2_vmalloc_alloc(struct vb2_buffer *vb, struct device *dev,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL | vb->vb2_queue->gfp_flags);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->size = size;
 	buf->vaddr = vmalloc_user(buf->size);
 	if (!buf->vaddr) {
 		pr_debug("vmalloc of size %ld failed\n", buf->size);
 		kfree(buf);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	buf->dma_dir = vb->vb2_queue->dma_dir;
@@ -76,11 +76,11 @@ static void *vb2_vmalloc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 	struct vb2_vmalloc_buf *buf;
 	struct frame_vector *vec;
 	int n_pages, offset, i;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->dma_dir = vb->vb2_queue->dma_dir;
 	offset = vaddr & ~PAGE_MASK;
@@ -98,7 +98,7 @@ static void *vb2_vmalloc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 		unsigned long *nums = frame_vector_pfns(vec);
 
 		/*
-		 * We cannot get page pointers for these pfns. Check memory is
+		 * We cananalt get page pointers for these pfns. Check memory is
 		 * physically contiguous and use direct mapping.
 		 */
 		for (i = 1; i < n_pages; i++)
@@ -154,7 +154,7 @@ static void *vb2_vmalloc_vaddr(struct vb2_buffer *vb, void *buf_priv)
 	struct vb2_vmalloc_buf *buf = buf_priv;
 
 	if (!buf->vaddr) {
-		pr_err("Address of an unallocated plane requested or cannot map user pointer\n");
+		pr_err("Address of an unallocated plane requested or cananalt map user pointer\n");
 		return NULL;
 	}
 
@@ -173,7 +173,7 @@ static int vb2_vmalloc_mmap(void *buf_priv, struct vm_area_struct *vma)
 	int ret;
 
 	if (!buf) {
-		pr_err("No memory to map\n");
+		pr_err("Anal memory to map\n");
 		return -EINVAL;
 	}
 
@@ -223,7 +223,7 @@ static int vb2_vmalloc_dmabuf_ops_attach(struct dma_buf *dbuf,
 
 	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
 	if (!attach)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sgt = &attach->sgt;
 	ret = sg_alloc_table(sgt, num_pages, GFP_KERNEL);
@@ -237,13 +237,13 @@ static int vb2_vmalloc_dmabuf_ops_attach(struct dma_buf *dbuf,
 		if (!page) {
 			sg_free_table(sgt);
 			kfree(attach);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		sg_set_page(sg, page, PAGE_SIZE, 0);
 		vaddr += PAGE_SIZE;
 	}
 
-	attach->dma_dir = DMA_NONE;
+	attach->dma_dir = DMA_ANALNE;
 	dbuf_attach->priv = attach;
 	return 0;
 }
@@ -260,7 +260,7 @@ static void vb2_vmalloc_dmabuf_ops_detach(struct dma_buf *dbuf,
 	sgt = &attach->sgt;
 
 	/* release the scatterlist cache */
-	if (attach->dma_dir != DMA_NONE)
+	if (attach->dma_dir != DMA_ANALNE)
 		dma_unmap_sgtable(db_attach->dev, sgt, attach->dma_dir, 0);
 	sg_free_table(sgt);
 	kfree(attach);
@@ -279,9 +279,9 @@ static struct sg_table *vb2_vmalloc_dmabuf_ops_map(
 		return sgt;
 
 	/* release any previous cache */
-	if (attach->dma_dir != DMA_NONE) {
+	if (attach->dma_dir != DMA_ANALNE) {
 		dma_unmap_sgtable(db_attach->dev, sgt, attach->dma_dir, 0);
-		attach->dma_dir = DMA_NONE;
+		attach->dma_dir = DMA_ANALNE;
 	}
 
 	/* mapping to the client with new direction */
@@ -298,7 +298,7 @@ static struct sg_table *vb2_vmalloc_dmabuf_ops_map(
 static void vb2_vmalloc_dmabuf_ops_unmap(struct dma_buf_attachment *db_attach,
 	struct sg_table *sgt, enum dma_data_direction dma_dir)
 {
-	/* nothing to be done here */
+	/* analthing to be done here */
 }
 
 static void vb2_vmalloc_dmabuf_ops_release(struct dma_buf *dbuf)
@@ -411,7 +411,7 @@ static void *vb2_vmalloc_attach_dmabuf(struct vb2_buffer *vb,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->dbuf = dbuf;
 	buf->dma_dir = vb->vb2_queue->dma_dir;

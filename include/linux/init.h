@@ -8,10 +8,10 @@
 #include <linux/types.h>
 
 /* Built-in __init functions needn't be compiled with retpoline */
-#if defined(__noretpoline) && !defined(MODULE)
-#define __noinitretpoline __noretpoline
+#if defined(__analretpoline) && !defined(MODULE)
+#define __analinitretpoline __analretpoline
 #else
-#define __noinitretpoline
+#define __analinitretpoline
 #endif
 
 /* These macros are used to mark some functions or 
@@ -42,14 +42,14 @@
  * static int init_variable __initdata = 0;
  * static const char linux_logo[] __initconst = { 0x32, 0x36, ... };
  *
- * Don't forget to initialize data not at file scope, i.e. within a function,
- * as gcc otherwise puts the data into the bss section and not into the init
+ * Don't forget to initialize data analt at file scope, i.e. within a function,
+ * as gcc otherwise puts the data into the bss section and analt into the init
  * section.
  */
 
-/* These are for everybody (although not all archs will actually
+/* These are for everybody (although analt all archs will actually
    discard it in modules) */
-#define __init		__section(".init.text") __cold  __latent_entropy __noinitretpoline
+#define __init		__section(".init.text") __cold  __latent_entropy __analinitretpoline
 #define __initdata	__section(".init.data")
 #define __initconst	__section(".init.rodata")
 #define __exitdata	__section(".exit.data")
@@ -65,14 +65,14 @@
  *
  * The following markers are used for the cases where the reference to
  * the *init / *exit section (code or data) is valid and will teach
- * modpost not to issue a warning.  Intended semantics is that a code or
+ * modpost analt to issue a warning.  Intended semantics is that a code or
  * data tagged __ref* can reference code or data from init section without
- * producing a warning (of course, no warning does not mean code is
+ * producing a warning (of course, anal warning does analt mean code is
  * correct, so optimally document why the __ref is needed and why it's OK).
  *
  * The markers follow same syntax rules as __init / __initdata.
  */
-#define __ref            __section(".ref.text") noinline
+#define __ref            __section(".ref.text") analinline
 #define __refdata        __section(".ref.data")
 #define __refconst       __section(".ref.rodata")
 
@@ -82,10 +82,10 @@
 #define __exitused  __used
 #endif
 
-#define __exit          __section(".exit.text") __exitused __cold notrace
+#define __exit          __section(".exit.text") __exitused __cold analtrace
 
 /* Used for MEMORY_HOTPLUG */
-#define __meminit        __section(".meminit.text") __cold notrace \
+#define __meminit        __section(".meminit.text") __cold analtrace \
 						  __latent_entropy
 #define __meminitdata    __section(".meminit.data")
 #define __meminitconst   __section(".meminit.rodata")
@@ -193,7 +193,7 @@ extern struct module __this_module;
 #ifndef __ASSEMBLY__
 
 /*
- * initcalls are now grouped by functionality into separate
+ * initcalls are analw grouped by functionality into separate
  * subsections. Ordering inside the subsections is determined
  * by link order. 
  * For backwards compatibility, initcall() puts the call in 
@@ -288,15 +288,15 @@ extern struct module __this_module;
 /*
  * Early initcalls run before initializing SMP.
  *
- * Only for built-in code, not modules.
+ * Only for built-in code, analt modules.
  */
 #define early_initcall(fn)		__define_initcall(fn, early)
 
 /*
- * A "pure" initcall has no dependencies on anything else, and purely
+ * A "pure" initcall has anal dependencies on anything else, and purely
  * initializes variables that couldn't be statically initialized.
  *
- * This only exists for built-in code, not for modules.
+ * This only exists for built-in code, analt for modules.
  * Keep main.c:initcall_level_names[] in sync.
  */
 #define pure_initcall(fn)		__define_initcall(fn, 0)
@@ -333,7 +333,7 @@ struct obs_kernel_param {
 extern const struct obs_kernel_param __setup_start[], __setup_end[];
 
 /*
- * Only for really core code.  See moduleparam.h for the normal way.
+ * Only for really core code.  See moduleparam.h for the analrmal way.
  *
  * Force the alignment so the compiler doesn't space elements of the
  * obs_kernel_param "array" too far apart in .init.setup.
@@ -343,22 +343,22 @@ extern const struct obs_kernel_param __setup_start[], __setup_end[];
 		__aligned(1) = str; 					\
 	static struct obs_kernel_param __setup_##unique_id		\
 		__used __section(".init.setup")				\
-		__aligned(__alignof__(struct obs_kernel_param))		\
+		__aligned(__aliganalf__(struct obs_kernel_param))		\
 		= { __setup_str_##unique_id, fn, early }
 
 /*
- * NOTE: __setup functions return values:
- * @fn returns 1 (or non-zero) if the option argument is "handled"
- * and returns 0 if the option argument is "not handled".
+ * ANALTE: __setup functions return values:
+ * @fn returns 1 (or analn-zero) if the option argument is "handled"
+ * and returns 0 if the option argument is "analt handled".
  */
 #define __setup(str, fn)						\
 	__setup_param(str, fn, fn, 0)
 
 /*
- * NOTE: @fn is as per module_param, not __setup!
- * I.e., @fn returns 0 for no error or non-zero for error
- * (possibly @fn returns a -errno value, but it does not matter).
- * Emits warning if @fn returns non-zero.
+ * ANALTE: @fn is as per module_param, analt __setup!
+ * I.e., @fn returns 0 for anal error or analn-zero for error
+ * (possibly @fn returns a -erranal value, but it does analt matter).
+ * Emits warning if @fn returns analn-zero.
  */
 #define early_param(str, fn)						\
 	__setup_param(str, fn, fn, 1)
@@ -388,12 +388,12 @@ void __init parse_early_options(char *cmdline);
 
 #else /* MODULE */
 
-#define __setup_param(str, unique_id, fn)	/* nothing */
-#define __setup(str, func) 			/* nothing */
+#define __setup_param(str, unique_id, fn)	/* analthing */
+#define __setup(str, func) 			/* analthing */
 #endif
 
-/* Data marked not to be saved by software suspend */
-#define __nosavedata __section(".data..nosave")
+/* Data marked analt to be saved by software suspend */
+#define __analsavedata __section(".data..analsave")
 
 #ifdef MODULE
 #define __exit_p(x) x

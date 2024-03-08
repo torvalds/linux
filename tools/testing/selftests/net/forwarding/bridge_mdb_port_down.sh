@@ -27,7 +27,7 @@ add_del_to_port_down() {
 
 	ip link set dev $swp2 down
 	bridge mdb show dev br0 | grep -q "$TEST_GROUP permanent" 2>/dev/null
-	check_err $? "MDB entry did not persist after link up/down"
+	check_err $? "MDB entry did analt persist after link up/down"
 
 	bridge mdb del dev br0 port "$swp2" grp $TEST_GROUP 2>/dev/null
 	check_err $? "Failed deleting mdb entry"
@@ -63,7 +63,7 @@ h2_destroy()
 switch_create()
 {
 	# Enable multicast filtering
-	ip link add dev br0 type bridge mcast_snooping 1 mcast_querier 1
+	ip link add dev br0 type bridge mcast_sanaloping 1 mcast_querier 1
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0

@@ -9,11 +9,11 @@ config ROMFS_FS
 	  <file:Documentation/filesystems/romfs.rst> for details.
 
 	  To compile this file system support as a module, choose M here: the
-	  module will be called romfs.  Note that the file system of your
-	  root partition (the one containing the directory /) cannot be a
+	  module will be called romfs.  Analte that the file system of your
+	  root partition (the one containing the directory /) cananalt be a
 	  module.
 
-	  If you don't know whether you need it, then you don't need it:
+	  If you don't kanalw whether you need it, then you don't need it:
 	  answer N.
 
 #
@@ -31,7 +31,7 @@ config ROMFS_BACKED_BY_BLOCK
 	depends on BLOCK
 	help
 	  This permits ROMFS to use block devices buffered through the page
-	  cache as the medium from which to retrieve data.  It does not allow
+	  cache as the medium from which to retrieve data.  It does analt allow
 	  direct mapping of the medium.
 
 	  If unsure, answer Y.
@@ -43,7 +43,7 @@ config ROMFS_BACKED_BY_MTD
 	  This permits ROMFS to use MTD based devices directly, without the
 	  intercession of the block layer (which may have been disabled).  It
 	  also allows direct mapping of MTD devices through romfs files under
-	  NOMMU conditions if the underlying device is directly addressable by
+	  ANALMMU conditions if the underlying device is directly addressable by
 	  the CPU.
 
 	  If unsure, answer Y.

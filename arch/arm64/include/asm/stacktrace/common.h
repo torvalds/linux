@@ -35,7 +35,7 @@ struct unwind_state {
 	int nr_stacks;
 };
 
-static inline struct stack_info stackinfo_get_unknown(void)
+static inline struct stack_info stackinfo_get_unkanalwn(void)
 {
 	return (struct stack_info) {
 		.low = 0,
@@ -57,7 +57,7 @@ static inline bool stackinfo_on_stack(const struct stack_info *info,
 
 static inline void unwind_init_common(struct unwind_state *state)
 {
-	state->stack = stackinfo_get_unknown();
+	state->stack = stackinfo_get_unkanalwn();
 }
 
 static struct stack_info *unwind_find_next_stack(const struct unwind_state *state,
@@ -76,7 +76,7 @@ static struct stack_info *unwind_find_next_stack(const struct unwind_state *stat
 
 /**
  * unwind_consume_stack() - Check if an object is on an accessible stack,
- * updating stack boundaries so that future unwind steps cannot consume this
+ * updating stack boundaries so that future unwind steps cananalt consume this
  * object again.
  *
  * @state: the current unwind state.
@@ -100,23 +100,23 @@ static inline int unwind_consume_stack(struct unwind_state *state,
 
 	/*
 	 * Stack transitions are strictly one-way, and once we've
-	 * transitioned from one stack to another, it's never valid to
+	 * transitioned from one stack to aanalther, it's never valid to
 	 * unwind back to the old stack.
 	 *
-	 * Remove the current stack from the list of stacks so that it cannot
+	 * Remove the current stack from the list of stacks so that it cananalt
 	 * be found on a subsequent transition.
 	 *
-	 * Note that stacks can nest in several valid orders, e.g.
+	 * Analte that stacks can nest in several valid orders, e.g.
 	 *
-	 *   TASK -> IRQ -> OVERFLOW -> SDEI_NORMAL
-	 *   TASK -> SDEI_NORMAL -> SDEI_CRITICAL -> OVERFLOW
+	 *   TASK -> IRQ -> OVERFLOW -> SDEI_ANALRMAL
+	 *   TASK -> SDEI_ANALRMAL -> SDEI_CRITICAL -> OVERFLOW
 	 *   HYP -> OVERFLOW
 	 *
-	 * ... so we do not check the specific order of stack
+	 * ... so we do analt check the specific order of stack
 	 * transitions.
 	 */
 	state->stack = *next;
-	*next = stackinfo_get_unknown();
+	*next = stackinfo_get_unkanalwn();
 
 found:
 	/*

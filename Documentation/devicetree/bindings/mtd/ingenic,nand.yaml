@@ -34,7 +34,7 @@ properties:
     type: object
     deprecated: true
     description:
-      Node containing description of fixed partitions.
+      Analde containing description of fixed partitions.
 
 patternProperties:
   "^nand@[a-f0-9]$":

@@ -355,9 +355,9 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len)
 }
 
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len)
+csum_partial_copy_analcheck(const void *src, void *dst, int len)
 {
 	return __csum_and_copy((__force const void __user *)src,
 						dst, len);
 }
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
+EXPORT_SYMBOL(csum_partial_copy_analcheck);

@@ -12,7 +12,7 @@
 // configurable manner. We mostly treat them as self-contained independent
 // units and don't configure any cross-cluster connections except for the I2S
 // ports. The I2S ports can be routed to any of the clusters (irrespective
-// of their native cluster). We map this onto ASoC's (DPCM) notion of backend
+// of their native cluster). We map this onto ASoC's (DPCM) analtion of backend
 // and frontend DAIs. The 'cluster guts' are frontends which are dynamically
 // routed to backend I2S ports.
 //
@@ -99,7 +99,7 @@
 #define SERDES_CONF_UNK1	BIT(12)
 #define SERDES_CONF_UNK2	BIT(13)
 #define SERDES_CONF_UNK3	BIT(14)
-#define SERDES_CONF_NO_DATA_FEEDBACK	BIT(15)
+#define SERDES_CONF_ANAL_DATA_FEEDBACK	BIT(15)
 #define SERDES_CONF_SYNC_SEL	GENMASK(18, 16)
 #define REG_TX_SERDES_BITSTART	0x08
 #define REG_RX_SERDES_BITSTART	0x0c
@@ -126,7 +126,7 @@
 			   SNDRV_PCM_FMTBIT_S32_LE)
 
 struct mca_cluster {
-	int no;
+	int anal;
 	__iomem void *base;
 	struct mca_data *host;
 	struct device *pd_dev;
@@ -183,9 +183,9 @@ static struct mca_cluster *mca_dai_to_cluster(struct snd_soc_dai *dai)
 	 * FE DAIs are         0 ... nclusters - 1
 	 * BE DAIs are nclusters ... 2*nclusters - 1
 	 */
-	int cluster_no = dai->id % mca->nclusters;
+	int cluster_anal = dai->id % mca->nclusters;
 
-	return &mca->clusters[cluster_no];
+	return &mca->clusters[cluster_anal];
 }
 
 /* called before PCM trigger */
@@ -219,7 +219,7 @@ static void mca_fe_early_trigger(struct snd_pcm_substream *substream, int cmd,
 		mca_modify(cl, serdes_conf, SERDES_CONF_SYNC_SEL,
 			   FIELD_PREP(SERDES_CONF_SYNC_SEL, 0));
 		mca_modify(cl, serdes_conf, SERDES_CONF_SYNC_SEL,
-			   FIELD_PREP(SERDES_CONF_SYNC_SEL, cl->no + 1));
+			   FIELD_PREP(SERDES_CONF_SYNC_SEL, cl->anal + 1));
 		break;
 	default:
 		break;
@@ -265,7 +265,7 @@ static int mca_fe_enable_clocks(struct mca_cluster *cl)
 	if (ret) {
 		dev_err(mca->dev,
 			"cluster %d: unable to enable clock parent: %d\n",
-			cl->no, ret);
+			cl->anal, ret);
 		return ret;
 	}
 
@@ -279,12 +279,12 @@ static int mca_fe_enable_clocks(struct mca_cluster *cl)
 					      DL_FLAG_RPM_ACTIVE);
 	if (!cl->pd_link) {
 		dev_err(mca->dev,
-			"cluster %d: unable to prop-up power domain\n", cl->no);
+			"cluster %d: unable to prop-up power domain\n", cl->anal);
 		clk_disable_unprepare(cl->clk_parent);
 		return -EINVAL;
 	}
 
-	writel_relaxed(cl->no + 1, cl->base + REG_SYNCGEN_MCLK_SEL);
+	writel_relaxed(cl->anal + 1, cl->base + REG_SYNCGEN_MCLK_SEL);
 	mca_modify(cl, REG_SYNCGEN_STATUS, SYNCGEN_STATUS_EN,
 		   SYNCGEN_STATUS_EN);
 	mca_modify(cl, REG_STATUS, STATUS_MCLK_EN, STATUS_MCLK_EN);
@@ -311,7 +311,7 @@ static bool mca_fe_clocks_in_use(struct mca_cluster *cl)
 	for (i = 0; i < mca->nclusters; i++) {
 		be_cl = &mca->clusters[i];
 
-		if (be_cl->port_driver != cl->no)
+		if (be_cl->port_driver != cl->anal)
 			continue;
 
 		for_each_pcm_streams(stream) {
@@ -372,7 +372,7 @@ static int mca_be_hw_free(struct snd_pcm_substream *substream,
 	 */
 	fe_cl = &mca->clusters[cl->port_driver];
 	if (!mca_fe_clocks_in_use(fe_cl))
-		return 0; /* Nothing to do */
+		return 0; /* Analthing to do */
 
 	cl->clocks_in_use[substream->stream] = false;
 
@@ -417,7 +417,7 @@ static int mca_configure_serdes(struct mca_cluster *cl, int serdes_unit,
 	}
 
 	serdes_conf_mask |= SERDES_CONF_SYNC_SEL;
-	serdes_conf |= FIELD_PREP(SERDES_CONF_SYNC_SEL, cl->no + 1);
+	serdes_conf |= FIELD_PREP(SERDES_CONF_SYNC_SEL, cl->anal + 1);
 
 	if (is_tx) {
 		serdes_conf_mask |= SERDES_CONF_UNK1 | SERDES_CONF_UNK2 |
@@ -427,9 +427,9 @@ static int mca_configure_serdes(struct mca_cluster *cl, int serdes_unit,
 	} else {
 		serdes_conf_mask |= SERDES_CONF_UNK1 | SERDES_CONF_UNK2 |
 				    SERDES_CONF_UNK3 |
-				    SERDES_CONF_NO_DATA_FEEDBACK;
+				    SERDES_CONF_ANAL_DATA_FEEDBACK;
 		serdes_conf |= SERDES_CONF_UNK1 | SERDES_CONF_UNK2 |
-			       SERDES_CONF_NO_DATA_FEEDBACK;
+			       SERDES_CONF_ANAL_DATA_FEEDBACK;
 	}
 
 	mca_modify(cl,
@@ -559,7 +559,7 @@ static int mca_fe_get_port(struct snd_pcm_substream *substream)
 	if (!be)
 		return -EINVAL;
 
-	return mca_dai_to_cluster(snd_soc_rtd_to_cpu(be, 0))->no;
+	return mca_dai_to_cluster(snd_soc_rtd_to_cpu(be, 0))->anal;
 }
 
 static int mca_fe_hw_params(struct snd_pcm_substream *substream,
@@ -579,7 +579,7 @@ static int mca_fe_hw_params(struct snd_pcm_substream *substream,
 
 	if (!cl->tdm_slot_width) {
 		/*
-		 * We were not given TDM settings from above, set initial
+		 * We were analt given TDM settings from above, set initial
 		 * guesses which will later be refined.
 		 */
 		tdm_slot_width = params_width(params);
@@ -605,7 +605,7 @@ static int mca_fe_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		if ((bclk_ratio % nchannels) != 0) {
-			dev_err(dev, "BCLK ratio (%ld) not divisible by no. of channels (%d)\n",
+			dev_err(dev, "BCLK ratio (%ld) analt divisible by anal. of channels (%d)\n",
 				bclk_ratio, nchannels);
 			return -EINVAL;
 		}
@@ -647,14 +647,14 @@ static int mca_fe_hw_params(struct snd_pcm_substream *substream,
 		 FIELD_PREP(DMA_ADAPTER_RX_MSB_PAD, pad);
 
 #ifndef USE_RXB_FOR_CAPTURE
-	writel_relaxed(regval, mca->switch_base + REG_DMA_ADAPTER_A(cl->no));
+	writel_relaxed(regval, mca->switch_base + REG_DMA_ADAPTER_A(cl->anal));
 #else
 	if (is_tx)
 		writel_relaxed(regval,
-			       mca->switch_base + REG_DMA_ADAPTER_A(cl->no));
+			       mca->switch_base + REG_DMA_ADAPTER_A(cl->anal));
 	else
 		writel_relaxed(regval,
-			       mca->switch_base + REG_DMA_ADAPTER_B(cl->no));
+			       mca->switch_base + REG_DMA_ADAPTER_B(cl->anal));
 #endif
 
 	if (!mca_fe_clocks_in_use(cl)) {
@@ -671,7 +671,7 @@ static int mca_fe_hw_params(struct snd_pcm_substream *substream,
 		ret = clk_set_rate(cl->clk_parent, bclk_ratio * samp_rate);
 		if (ret) {
 			dev_err(mca->dev, "cluster %d: unable to set clock parent: %d\n",
-				cl->no, ret);
+				cl->anal, ret);
 			return ret;
 		}
 	}
@@ -726,10 +726,10 @@ static int mca_be_startup(struct snd_pcm_substream *substream,
 	if (mca_be_started(cl)) {
 		/*
 		 * Port is already started in the other direction.
-		 * Make sure there isn't a conflict with another cluster
+		 * Make sure there isn't a conflict with aanalther cluster
 		 * driving the port.
 		 */
-		if (cl->port_driver != fe_cl->no)
+		if (cl->port_driver != fe_cl->anal)
 			return -EINVAL;
 
 		cl->port_started[substream->stream] = true;
@@ -738,12 +738,12 @@ static int mca_be_startup(struct snd_pcm_substream *substream,
 
 	writel_relaxed(PORT_ENABLES_CLOCKS | PORT_ENABLES_TX_DATA,
 		       cl->base + REG_PORT_ENABLES);
-	writel_relaxed(FIELD_PREP(PORT_CLOCK_SEL, fe_cl->no + 1),
+	writel_relaxed(FIELD_PREP(PORT_CLOCK_SEL, fe_cl->anal + 1),
 		       cl->base + REG_PORT_CLOCK_SEL);
-	writel_relaxed(PORT_DATA_SEL_TXA(fe_cl->no),
+	writel_relaxed(PORT_DATA_SEL_TXA(fe_cl->anal),
 		       cl->base + REG_PORT_DATA_SEL);
 	mutex_lock(&mca->port_mutex);
-	cl->port_driver = fe_cl->no;
+	cl->port_driver = fe_cl->anal;
 	mutex_unlock(&mca->port_mutex);
 	cl->port_started[substream->stream] = true;
 
@@ -816,7 +816,7 @@ static int mca_pcm_open(struct snd_soc_component *component,
 	struct dma_chan *chan = cl->dma_chans[substream->stream];
 	int ret;
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	ret = mca_set_runtime_hwparams(component, substream, chan);
@@ -835,7 +835,7 @@ static int mca_hw_params(struct snd_soc_component *component,
 	struct dma_slave_config slave_config;
 	int ret;
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	memset(&slave_config, 0, sizeof(slave_config));
@@ -859,7 +859,7 @@ static int mca_close(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	return snd_dmaengine_pcm_close(substream);
@@ -870,7 +870,7 @@ static int mca_trigger(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	/*
@@ -887,8 +887,8 @@ static snd_pcm_uframes_t mca_pointer(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
-	if (rtd->dai_link->no_pcm)
-		return -ENOTSUPP;
+	if (rtd->dai_link->anal_pcm)
+		return -EANALTSUPP;
 
 	return snd_dmaengine_pcm_pointer(substream);
 }
@@ -898,12 +898,12 @@ static struct dma_chan *mca_request_dma_channel(struct mca_cluster *cl, unsigned
 	bool is_tx = (stream == SNDRV_PCM_STREAM_PLAYBACK);
 #ifndef USE_RXB_FOR_CAPTURE
 	char *name = devm_kasprintf(cl->host->dev, GFP_KERNEL,
-				    is_tx ? "tx%da" : "rx%da", cl->no);
+				    is_tx ? "tx%da" : "rx%da", cl->anal);
 #else
 	char *name = devm_kasprintf(cl->host->dev, GFP_KERNEL,
-				    is_tx ? "tx%da" : "rx%db", cl->no);
+				    is_tx ? "tx%da" : "rx%db", cl->anal);
 #endif
-	return of_dma_request_slave_channel(cl->host->dev->of_node, name);
+	return of_dma_request_slave_channel(cl->host->dev->of_analde, name);
 
 }
 
@@ -914,7 +914,7 @@ static void mca_pcm_free(struct snd_soc_component *component,
 	struct mca_cluster *cl = mca_dai_to_cluster(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned int i;
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return;
 
 	for_each_pcm_streams(i) {
@@ -936,7 +936,7 @@ static int mca_pcm_new(struct snd_soc_component *component,
 	struct mca_cluster *cl = mca_dai_to_cluster(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned int i;
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	for_each_pcm_streams(i) {
@@ -956,7 +956,7 @@ static int mca_pcm_new(struct snd_soc_component *component,
 				return PTR_ERR(chan);
 
 			dev_err(component->dev, "unable to obtain DMA channel (stream %d cluster %d): %pe\n",
-				i, cl->no, chan);
+				i, cl->anal, chan);
 
 			if (!chan)
 				return -EINVAL;
@@ -1027,7 +1027,7 @@ static int apple_mca_probe(struct platform_device *pdev)
 	mca = devm_kzalloc(&pdev->dev, struct_size(mca, clusters, nclusters),
 			   GFP_KERNEL);
 	if (!mca)
-		return -ENOMEM;
+		return -EANALMEM;
 	mca->dev = &pdev->dev;
 	mca->nclusters = nclusters;
 	mutex_init(&mca->port_mutex);
@@ -1046,7 +1046,7 @@ static int apple_mca_probe(struct platform_device *pdev)
 	dai_drivers = devm_kzalloc(
 		&pdev->dev, sizeof(*dai_drivers) * 2 * nclusters, GFP_KERNEL);
 	if (!dai_drivers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mca->pd_dev = dev_pm_domain_attach_by_id(&pdev->dev, 0);
 	if (IS_ERR(mca->pd_dev))
@@ -1071,10 +1071,10 @@ static int apple_mca_probe(struct platform_device *pdev)
 		struct snd_soc_dai_driver *be = &dai_drivers[i];
 
 		cl->host = mca;
-		cl->no = i;
+		cl->anal = i;
 		cl->base = base + CLUSTER_STRIDE * i;
 		cl->port_driver = -1;
-		cl->clk_parent = of_clk_get(pdev->dev.of_node, i);
+		cl->clk_parent = of_clk_get(pdev->dev.of_analde, i);
 		if (IS_ERR(cl->clk_parent)) {
 			dev_err(&pdev->dev, "unable to obtain clock %d: %ld\n",
 				i, PTR_ERR(cl->clk_parent));
@@ -1094,7 +1094,7 @@ static int apple_mca_probe(struct platform_device *pdev)
 		fe->name =
 			devm_kasprintf(&pdev->dev, GFP_KERNEL, "mca-pcm-%d", i);
 		if (!fe->name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_release;
 		}
 		fe->ops = &mca_fe_ops;
@@ -1114,14 +1114,14 @@ static int apple_mca_probe(struct platform_device *pdev)
 			devm_kasprintf(&pdev->dev, GFP_KERNEL, "PCM%d RX", i);
 
 		if (!fe->playback.stream_name || !fe->capture.stream_name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_release;
 		}
 
 		be->id = i + nclusters;
 		be->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "mca-i2s-%d", i);
 		if (!be->name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_release;
 		}
 		be->ops = &mca_be_ops;
@@ -1139,7 +1139,7 @@ static int apple_mca_probe(struct platform_device *pdev)
 		be->capture.stream_name =
 			devm_kasprintf(&pdev->dev, GFP_KERNEL, "I2S%d RX", i);
 		if (!be->playback.stream_name || !be->capture.stream_name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_release;
 		}
 	}

@@ -32,12 +32,12 @@ static int vmgenid_add(struct acpi_device *device)
 
 	state = devm_kmalloc(&device->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = acpi_evaluate_object(device->handle, "ADDR", NULL, &parsed);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating ADDR"));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	obj = parsed.pointer;
 	if (!obj || obj->type != ACPI_TYPE_PACKAGE || obj->package.count != 2 ||
@@ -65,7 +65,7 @@ out:
 	return ret;
 }
 
-static void vmgenid_notify(struct acpi_device *device, u32 event)
+static void vmgenid_analtify(struct acpi_device *device, u32 event)
 {
 	struct vmgenid_state *state = acpi_driver_data(device);
 	char *envp[] = { "NEW_VMGENID=1", NULL };
@@ -91,7 +91,7 @@ static struct acpi_driver vmgenid_driver = {
 	.owner = THIS_MODULE,
 	.ops = {
 		.add = vmgenid_add,
-		.notify = vmgenid_notify
+		.analtify = vmgenid_analtify
 	}
 };
 

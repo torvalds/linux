@@ -27,8 +27,8 @@ properties:
     description:
       A two element list indicates which DSA cluster, and position within the
       cluster a switch takes. <0 0> is cluster 0, switch 0. <0 1> is cluster 0,
-      switch 1. <1 0> is cluster 1, switch 0. A switch not part of any cluster
-      (single device hanging off a CPU port) must not specify this property
+      switch 1. <1 0> is cluster 1, switch 0. A switch analt part of any cluster
+      (single device hanging off a CPU port) must analt specify this property
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
 additionalProperties: true

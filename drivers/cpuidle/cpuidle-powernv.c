@@ -11,7 +11,7 @@
 #include <linux/moduleparam.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/clockchips.h>
 #include <linux/of.h>
 #include <linux/slab.h>
@@ -43,17 +43,17 @@ struct stop_psscr_table {
 
 static struct stop_psscr_table stop_psscr_table[CPUIDLE_STATE_MAX] __read_mostly;
 
-static u64 default_snooze_timeout __read_mostly;
-static bool snooze_timeout_en __read_mostly;
+static u64 default_sanaloze_timeout __read_mostly;
+static bool sanaloze_timeout_en __read_mostly;
 
-static u64 get_snooze_timeout(struct cpuidle_device *dev,
+static u64 get_sanaloze_timeout(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv,
 			      int index)
 {
 	int i;
 
-	if (unlikely(!snooze_timeout_en))
-		return default_snooze_timeout;
+	if (unlikely(!sanaloze_timeout_en))
+		return default_sanaloze_timeout;
 
 	for (i = index + 1; i < drv->state_count; i++) {
 		if (dev->states_usage[i].disable)
@@ -62,27 +62,27 @@ static u64 get_snooze_timeout(struct cpuidle_device *dev,
 		return drv->states[i].target_residency * tb_ticks_per_usec;
 	}
 
-	return default_snooze_timeout;
+	return default_sanaloze_timeout;
 }
 
-static int snooze_loop(struct cpuidle_device *dev,
+static int sanaloze_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index)
 {
-	u64 snooze_exit_time;
+	u64 sanaloze_exit_time;
 
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	local_irq_enable();
 
-	snooze_exit_time = get_tb() + get_snooze_timeout(dev, drv, index);
+	sanaloze_exit_time = get_tb() + get_sanaloze_timeout(dev, drv, index);
 	dev->poll_time_limit = false;
 	ppc64_runlatch_off();
 	HMT_very_low();
 	while (!need_resched()) {
-		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time) {
+		if (likely(sanaloze_timeout_en) && get_tb() > sanaloze_exit_time) {
 			/*
-			 * Task has not woken up but we are exiting the polling
+			 * Task has analt woken up but we are exiting the polling
 			 * loop anyway. Require a barrier after polling is
 			 * cleared to order subsequent test of need_resched().
 			 */
@@ -124,7 +124,7 @@ static int fastsleep_loop(struct cpuidle_device *dev,
 		return index;
 
 	new_lpcr = old_lpcr;
-	/* Do not exit powersave upon decrementer as we've setup the timer
+	/* Do analt exit powersave upon decrementer as we've setup the timer
 	 * offload.
 	 */
 	new_lpcr &= ~LPCR_PECE1;
@@ -152,12 +152,12 @@ static int stop_loop(struct cpuidle_device *dev,
  * States for dedicated partition case.
  */
 static struct cpuidle_state powernv_states[CPUIDLE_STATE_MAX] = {
-	{ /* Snooze */
-		.name = "snooze",
-		.desc = "snooze",
+	{ /* Sanaloze */
+		.name = "sanaloze",
+		.desc = "sanaloze",
 		.exit_latency = 0,
 		.target_residency = 0,
-		.enter = snooze_loop,
+		.enter = sanaloze_loop,
 		.flags = CPUIDLE_FLAG_POLLING },
 };
 
@@ -196,7 +196,7 @@ static int powernv_cpuidle_driver_init(void)
 	drv->state_count = 0;
 
 	for (idle_state = 0; idle_state < max_idle_state; ++idle_state) {
-		/* Is the state not enabled? */
+		/* Is the state analt enabled? */
 		if (cpuidle_state_table[idle_state].enter == NULL)
 			continue;
 
@@ -208,15 +208,15 @@ static int powernv_cpuidle_driver_init(void)
 
 	/*
 	 * On the PowerNV platform cpu_present may be less than cpu_possible in
-	 * cases when firmware detects the CPU, but it is not available to the
-	 * OS.  If CONFIG_HOTPLUG_CPU=n, then such CPUs are not hotplugable at
-	 * run time and hence cpu_devices are not created for those CPUs by the
+	 * cases when firmware detects the CPU, but it is analt available to the
+	 * OS.  If CONFIG_HOTPLUG_CPU=n, then such CPUs are analt hotplugable at
+	 * run time and hence cpu_devices are analt created for those CPUs by the
 	 * generic topology_init().
 	 *
 	 * drv->cpumask defaults to cpu_possible_mask in
 	 * __cpuidle_driver_init().  This breaks cpuidle on PowerNV where
-	 * cpu_devices are not created for CPUs in cpu_possible_mask that
-	 * cannot be hot-added later at run time.
+	 * cpu_devices are analt created for CPUs in cpu_possible_mask that
+	 * cananalt be hot-added later at run time.
 	 *
 	 * Trying cpuidle_register_device() on a CPU without a cpu_device is
 	 * incorrect, so pass a correct CPU mask to the generic cpuidle driver.
@@ -250,16 +250,16 @@ static inline void add_powernv_state(int index, const char *name,
 extern u32 pnv_get_supported_cpuidle_states(void);
 static int powernv_add_idle_states(void)
 {
-	int nr_idle_states = 1; /* Snooze */
+	int nr_idle_states = 1; /* Sanaloze */
 	int dt_idle_states;
 	u32 has_stop_states = 0;
 	int i;
 	u32 supported_flags = pnv_get_supported_cpuidle_states();
 
 
-	/* Currently we have snooze statically defined */
+	/* Currently we have sanaloze statically defined */
 	if (nr_pnv_idle_states <= 0) {
-		pr_warn("cpuidle-powernv : Only Snooze is available\n");
+		pr_warn("cpuidle-powernv : Only Sanaloze is available\n");
 		goto out;
 	}
 
@@ -267,7 +267,7 @@ static int powernv_add_idle_states(void)
 	dt_idle_states = nr_pnv_idle_states;
 
 	/*
-	 * Since snooze is used as first idle state, max idle states allowed is
+	 * Since sanaloze is used as first idle state, max idle states allowed is
 	 * CPUIDLE_STATE_MAX -1
 	 */
 	if (nr_pnv_idle_states > CPUIDLE_STATE_MAX - 1) {
@@ -316,11 +316,11 @@ static int powernv_add_idle_states(void)
 		if (state->flags & OPAL_PM_NAP_ENABLED) {
 			/* Add NAP state */
 			add_powernv_state(nr_idle_states, "Nap",
-					  CPUIDLE_FLAG_NONE, nap_loop,
+					  CPUIDLE_FLAG_ANALNE, nap_loop,
 					  target_residency, exit_latency, 0, 0);
 		} else if (has_stop_states && !stops_timebase) {
 			add_powernv_state(nr_idle_states, state->name,
-					  CPUIDLE_FLAG_NONE, stop_loop,
+					  CPUIDLE_FLAG_ANALNE, stop_loop,
 					  target_residency, exit_latency,
 					  state->psscr_val,
 					  state->psscr_mask);
@@ -360,18 +360,18 @@ out:
  */
 static int powernv_idle_probe(void)
 {
-	if (cpuidle_disable != IDLE_NO_OVERRIDE)
-		return -ENODEV;
+	if (cpuidle_disable != IDLE_ANAL_OVERRIDE)
+		return -EANALDEV;
 
 	if (firmware_has_feature(FW_FEATURE_OPAL)) {
 		cpuidle_state_table = powernv_states;
 		/* Device tree can indicate more idle states */
 		max_idle_state = powernv_add_idle_states();
-		default_snooze_timeout = TICK_USEC * tb_ticks_per_usec;
+		default_sanaloze_timeout = TICK_USEC * tb_ticks_per_usec;
 		if (max_idle_state > 1)
-			snooze_timeout_en = true;
+			sanaloze_timeout_en = true;
  	} else
- 		return -ENODEV;
+ 		return -EANALDEV;
 
 	return 0;
 }
@@ -391,11 +391,11 @@ static int __init powernv_processor_idle_init(void)
 		return retval;
 	}
 
-	retval = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	retval = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN,
 					   "cpuidle/powernv:online",
 					   powernv_cpuidle_cpu_online, NULL);
 	WARN_ON(retval < 0);
-	retval = cpuhp_setup_state_nocalls(CPUHP_CPUIDLE_DEAD,
+	retval = cpuhp_setup_state_analcalls(CPUHP_CPUIDLE_DEAD,
 					   "cpuidle/powernv:dead", NULL,
 					   powernv_cpuidle_cpu_dead);
 	WARN_ON(retval < 0);

@@ -76,7 +76,7 @@ static int xen_add_device(struct device *dev)
 #endif
 		if (!handle) {
 			/*
-			 * This device was not listed in the ACPI name space at
+			 * This device was analt listed in the ACPI name space at
 			 * all. Try to get acpi handle of parent pci bus.
 			 */
 			struct pci_bus *pbus;
@@ -105,13 +105,13 @@ static int xen_add_device(struct device *dev)
 #endif /* CONFIG_ACPI */
 
 		r = HYPERVISOR_physdev_op(PHYSDEVOP_pci_device_add, add);
-		if (r != -ENOSYS)
+		if (r != -EANALSYS)
 			return r;
 		pci_seg_supported = false;
 	}
 
 	if (pci_domain_nr(pci_dev->bus))
-		r = -ENOSYS;
+		r = -EANALSYS;
 #ifdef CONFIG_PCI_IOV
 	else if (pci_dev->is_virtfn) {
 		struct physdev_manage_pci_ext manage_pci_ext = {
@@ -163,7 +163,7 @@ static int xen_remove_device(struct device *dev)
 		r = HYPERVISOR_physdev_op(PHYSDEVOP_pci_device_remove,
 					  &device);
 	} else if (pci_domain_nr(pci_dev->bus))
-		r = -ENOSYS;
+		r = -EANALSYS;
 	else {
 		struct physdev_manage_pci manage_pci = {
 			.bus = pci_dev->bus->number,
@@ -177,42 +177,42 @@ static int xen_remove_device(struct device *dev)
 	return r;
 }
 
-static int xen_pci_notifier(struct notifier_block *nb,
+static int xen_pci_analtifier(struct analtifier_block *nb,
 			    unsigned long action, void *data)
 {
 	struct device *dev = data;
 	int r = 0;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		r = xen_add_device(dev);
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		r = xen_remove_device(dev);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	if (r)
 		dev_err(dev, "Failed to %s - passthrough or MSI/MSI-X might fail!\n",
-			action == BUS_NOTIFY_ADD_DEVICE ? "add" :
-			(action == BUS_NOTIFY_DEL_DEVICE ? "delete" : "?"));
-	return NOTIFY_OK;
+			action == BUS_ANALTIFY_ADD_DEVICE ? "add" :
+			(action == BUS_ANALTIFY_DEL_DEVICE ? "delete" : "?"));
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block device_nb = {
-	.notifier_call = xen_pci_notifier,
+static struct analtifier_block device_nb = {
+	.analtifier_call = xen_pci_analtifier,
 };
 
-static int __init register_xen_pci_notifier(void)
+static int __init register_xen_pci_analtifier(void)
 {
 	if (!xen_initial_domain())
 		return 0;
 
-	return bus_register_notifier(&pci_bus_type, &device_nb);
+	return bus_register_analtifier(&pci_bus_type, &device_nb);
 }
 
-arch_initcall(register_xen_pci_notifier);
+arch_initcall(register_xen_pci_analtifier);
 
 #ifdef CONFIG_PCI_MMCONFIG
 static int xen_mcfg_late(void)
@@ -242,7 +242,7 @@ static int xen_mcfg_late(void)
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_pci_mmcfg_reserved, &r);
 		switch (rc) {
 		case 0:
-		case -ENOSYS:
+		case -EANALSYS:
 			continue;
 
 		default:
@@ -280,7 +280,7 @@ static struct xen_device_domain_owner *find_device(struct pci_dev *dev)
 int xen_find_device_domain_owner(struct pci_dev *dev)
 {
 	struct xen_device_domain_owner *owner;
-	int domain = -ENODEV;
+	int domain = -EANALDEV;
 
 	spin_lock(&dev_domain_list_spinlock);
 	owner = find_device(dev);
@@ -297,7 +297,7 @@ int xen_register_device_domain_owner(struct pci_dev *dev, uint16_t domain)
 
 	owner = kzalloc(sizeof(struct xen_device_domain_owner), GFP_KERNEL);
 	if (!owner)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock(&dev_domain_list_spinlock);
 	if (find_device(dev)) {
@@ -321,7 +321,7 @@ int xen_unregister_device_domain_owner(struct pci_dev *dev)
 	owner = find_device(dev);
 	if (!owner) {
 		spin_unlock(&dev_domain_list_spinlock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	list_del(&owner->list);
 	spin_unlock(&dev_domain_list_spinlock);

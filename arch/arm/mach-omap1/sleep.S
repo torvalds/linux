@@ -17,18 +17,18 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if analt, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -53,10 +53,10 @@
  * as arg0 and arg1 from caller. arg0 is stored in register r0 and arg1
  * in register r1.
  *
- * Note: This code get's copied to internal SRAM at boot. When the OMAP
+ * Analte: This code get's copied to internal SRAM at boot. When the OMAP
  *	 wakes up it continues execution at the point it went to sleep.
  *
- * Note: Because of errata work arounds we have processor specific functions
+ * Analte: Because of errata work arounds we have processor specific functions
  *       here. They are mostly the same, but slightly different.
  *
  */
@@ -146,7 +146,7 @@ ENTRY(omap1610_cpu_suspend)
 	@ Drain write cache
 	mov	r4, #0
 	mcr	p15, 0, r0, c7, c10, 4
-	nop
+	analp
 
 	@ Load base address of Traffic Controller
 	mov	r6, #TCMIF_ASM_BASE & 0xff000000
@@ -170,7 +170,7 @@ ENTRY(omap1610_cpu_suspend)
 	orr	r4, r4, #CLKGEN_REG_ASM_BASE & 0x0000ff00
 
 	@ Turn off clock domains
-	@ Do not disable PERCK (0x04)
+	@ Do analt disable PERCK (0x04)
 	mov	r5, #OMAP1610_IDLECT2_SLEEP_VAL & 0xff
 	orr	r5, r5, #OMAP1610_IDLECT2_SLEEP_VAL & 0xff00
 	strh	r5, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
@@ -187,87 +187,87 @@ ENTRY(omap1610_cpu_suspend)
 	mov	r2, #0
 	mcr	p15, 0, r2, c7, c0, 4		@ wait for interrupt
 
-	@ Errata (HEL3SU467, section 1.4.4) specifies nop-instructions
+	@ Errata (HEL3SU467, section 1.4.4) specifies analp-instructions
 	@ according to this formula:
 	@ 2 + (4*DPLL_MULT)/DPLL_DIV/ARMDIV
 	@ Max DPLL_MULT = 18
 	@ DPLL_DIV = 1
 	@ ARMDIV = 1
-	@ => 74 nop-instructions
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@10
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@20
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@30
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@40
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@50
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@60
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@70
-	nop
-	nop
-	nop
-	nop	@74
+	@ => 74 analp-instructions
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp	@10
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp	@20
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp	@30
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp	@40
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp	@50
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp	@60
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp	@70
+	analp
+	analp
+	analp
+	analp	@74
 /*
  * omap1610_cpu_suspend()'s resume point.
  *

@@ -38,7 +38,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(rx_pause_frames)},
 	{DRVSTAT_INFO(rx_control_frames)},
 	/* Received packets dropped when the Ethernet length field
-	 * is not equal to the actual Ethernet data length.
+	 * is analt equal to the actual Ethernet data length.
 	 */
 	{DRVSTAT_INFO(rx_in_range_errors)},
 	/* Received packets dropped when their length field is >= 1501 bytes
@@ -70,7 +70,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(rx_dropped_tcp_length)},
 	{DRVSTAT_INFO(rx_dropped_runt)},
 	/* Number of received packets dropped when a fifo for descriptors going
-	 * into the packet demux block overflows. In normal operation, this
+	 * into the packet demux block overflows. In analrmal operation, this
 	 * fifo must never overflow.
 	 */
 	{DRVSTAT_INFO(rxpp_fifo_overflow_drop)},
@@ -95,18 +95,18 @@ static const struct be_ethtool_stat et_stats[] = {
 	/* Received packets dropped due to lack of available HW packet buffers
 	 * used to temporarily hold the received packets.
 	 */
-	{DRVSTAT_INFO(rx_drops_no_pbuf)},
+	{DRVSTAT_INFO(rx_drops_anal_pbuf)},
 	/* Received packets dropped due to input receive buffer
 	 * descriptor fifo overflowing.
 	 */
-	{DRVSTAT_INFO(rx_drops_no_erx_descr)},
+	{DRVSTAT_INFO(rx_drops_anal_erx_descr)},
 	/* Packets dropped because the internal FIFO to the offloaded TCP
 	 * receive processing block is full. This could happen only for
 	 * offloaded iSCSI or FCoE trarffic.
 	 */
-	{DRVSTAT_INFO(rx_drops_no_tpre_descr)},
+	{DRVSTAT_INFO(rx_drops_anal_tpre_descr)},
 	/* Received packets dropped when they need more than 8
-	 * receive buffers. This cannot happen as the driver configures
+	 * receive buffers. This cananalt happen as the driver configures
 	 * 2048 byte receive buffers.
 	 */
 	{DRVSTAT_INFO(rx_drops_too_many_frags)},
@@ -132,8 +132,8 @@ static const struct be_ethtool_stat et_stats[] = {
  * are first and second members respectively.
  */
 static const struct be_ethtool_stat et_rx_stats[] = {
-	{DRVSTAT_RX_INFO(rx_bytes)},/* If moving this member see above note */
-	{DRVSTAT_RX_INFO(rx_pkts)}, /* If moving this member see above note */
+	{DRVSTAT_RX_INFO(rx_bytes)},/* If moving this member see above analte */
+	{DRVSTAT_RX_INFO(rx_pkts)}, /* If moving this member see above analte */
 	{DRVSTAT_RX_INFO(rx_vxlan_offload_pkts)},
 	{DRVSTAT_RX_INFO(rx_compl)},
 	{DRVSTAT_RX_INFO(rx_compl_err)},
@@ -143,11 +143,11 @@ static const struct be_ethtool_stat et_rx_stats[] = {
 	 */
 	{DRVSTAT_RX_INFO(rx_post_fail)},
 	/* Recevied packets dropped due to skb allocation failure */
-	{DRVSTAT_RX_INFO(rx_drops_no_skbs)},
+	{DRVSTAT_RX_INFO(rx_drops_anal_skbs)},
 	/* Received packets dropped due to lack of available fetched buffers
 	 * posted by the driver.
 	 */
-	{DRVSTAT_RX_INFO(rx_drops_no_frags)}
+	{DRVSTAT_RX_INFO(rx_drops_anal_frags)}
 };
 
 #define ETHTOOL_RXSTATS_NUM (ARRAY_SIZE(et_rx_stats))
@@ -156,7 +156,7 @@ static const struct be_ethtool_stat et_rx_stats[] = {
  * first member
  */
 static const struct be_ethtool_stat et_tx_stats[] = {
-	{DRVSTAT_TX_INFO(tx_compl)}, /* If moving this member see above note */
+	{DRVSTAT_TX_INFO(tx_compl)}, /* If moving this member see above analte */
 	/* This counter is incremented when the HW encounters an error while
 	 * parsing the packet header of an outgoing TX request. This counter is
 	 * applicable only for BE2, BE3 and Skyhawk based adapters.
@@ -177,7 +177,7 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	 */
 	{DRVSTAT_TX_INFO(tx_tso_err)},
 	/* This counter is incremented when the HW detects Q-in-Q style VLAN
-	 * tagging in a packet and such tagging is not expected on the outgoing
+	 * tagging in a packet and such tagging is analt expected on the outgoing
 	 * interface. This counter is applicable only for Lancer adapters.
 	 */
 	{DRVSTAT_TX_INFO(tx_qinq_err)},
@@ -213,7 +213,7 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 #define BE_MAC_LOOPBACK 0x0
 #define BE_PHY_LOOPBACK 0x1
 #define BE_ONE_PORT_EXT_LOOPBACK 0x2
-#define BE_NO_LOOPBACK 0xff
+#define BE_ANAL_LOOPBACK 0xff
 
 static void be_get_drvinfo(struct net_device *netdev,
 			   struct ethtool_drvinfo *drvinfo)
@@ -275,7 +275,7 @@ static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 	if (!read_cmd.va) {
 		dev_err(&adapter->pdev->dev,
 			"Memory allocation failure while reading dump\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	while ((total_read_len < buf_len) && !eof) {
@@ -336,7 +336,7 @@ static int be_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-/* TX attributes are ignored. Only RX attributes are considered
+/* TX attributes are iganalred. Only RX attributes are considered
  * eqd cmd is issued in the worker thread.
  */
 static int be_set_coalesce(struct net_device *netdev,
@@ -671,7 +671,7 @@ static int be_get_link_ksettings(struct net_device *netdev,
 	}
 
 	cmd->base.duplex = netif_carrier_ok(netdev) ?
-		DUPLEX_FULL : DUPLEX_UNKNOWN;
+		DUPLEX_FULL : DUPLEX_UNKANALWN;
 	cmd->base.phy_address = adapter->port_num;
 
 	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
@@ -765,7 +765,7 @@ static int be_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
 
 	if (!lancer_chip(adapter) ||
 	    !check_privilege(adapter, MAX_PRIVILEGES))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (dump->flag) {
 	case LANCER_INITIATE_FW_DUMP:
@@ -809,17 +809,17 @@ static int be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	int status;
 
 	if (wol->wolopts & ~WAKE_MAGIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!(adapter->wol_cap & BE_WOL_CAP)) {
-		dev_warn(&adapter->pdev->dev, "WOL not supported\n");
-		return -EOPNOTSUPP;
+		dev_warn(&adapter->pdev->dev, "WOL analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
 	cmd.va = dma_alloc_coherent(dev, cmd.size, &cmd.dma, GFP_KERNEL);
 	if (!cmd.va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eth_zero_addr(mac);
 
@@ -829,7 +829,7 @@ static int be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
 	if (status) {
-		dev_err(dev, "Could not set Wake-on-lan mac address\n");
+		dev_err(dev, "Could analt set Wake-on-lan mac address\n");
 		status = be_cmd_status(status);
 		goto err;
 	}
@@ -857,7 +857,7 @@ static int be_test_ddr_dma(struct be_adapter *adapter)
 					   ddrdma_cmd.size, &ddrdma_cmd.dma,
 					   GFP_KERNEL);
 	if (!ddrdma_cmd.va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < 2; i++) {
 		ret = be_cmd_ddr_dma_test(adapter, pattern[i],
@@ -886,7 +886,7 @@ static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
 				       loopback_type, 1500, 2, 0xabc);
 
 	ret = be_cmd_set_loopback(adapter, adapter->hba_port_num,
-				  BE_NO_LOOPBACK, 1);
+				  BE_ANAL_LOOPBACK, 1);
 	if (ret)
 		return ret;
 
@@ -901,7 +901,7 @@ static void be_self_test(struct net_device *netdev, struct ethtool_test *test,
 	u8 link_status = 0;
 
 	if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC) {
-		dev_err(&adapter->pdev->dev, "Self test not supported\n");
+		dev_err(&adapter->pdev->dev, "Self test analt supported\n");
 		test->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}
@@ -967,7 +967,7 @@ be_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	if (!check_privilege(adapter, MAX_PRIVILEGES))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dump->len = be_get_dump_len(adapter);
 	dump->version = 1;
@@ -983,7 +983,7 @@ be_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	int status;
 
 	if (!check_privilege(adapter, MAX_PRIVILEGES))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	status = be_read_dump_data(adapter, dump->len, buf);
 	return be_cmd_status(status);
@@ -1037,7 +1037,7 @@ static int be_read_eeprom(struct net_device *netdev,
 					   GFP_KERNEL);
 
 	if (!eeprom_cmd.va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
 
@@ -1300,10 +1300,10 @@ static int be_set_rxfh(struct net_device *netdev,
 	u8 *hkey = rxfh->key;
 	u8 rsstable[RSS_INDIR_TABLE_LEN];
 
-	/* We do not allow change in unsupported parameters */
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	/* We do analt allow change in unsupported parameters */
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rxfh->indir) {
 		struct be_rx_obj *rxo;
@@ -1326,7 +1326,7 @@ static int be_set_rxfh(struct net_device *netdev,
 			       adapter->rss_info.rss_flags,
 			       RSS_INDIR_TABLE_LEN, hkey);
 	if (rc) {
-		adapter->rss_info.rss_flags = RSS_ENABLE_NONE;
+		adapter->rss_info.rss_flags = RSS_ENABLE_ANALNE;
 		return -EIO;
 	}
 	memcpy(adapter->rss_info.rss_hkey, hkey, RSS_HASH_KEY_LEN);
@@ -1343,7 +1343,7 @@ static int be_get_module_info(struct net_device *netdev,
 	int status;
 
 	if (!check_privilege(adapter, MAX_PRIVILEGES))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	status = be_cmd_read_port_transceiver_data(adapter, TR_PAGE_A0,
 						   0, PAGE_DATA_LEN, page_data);
@@ -1367,7 +1367,7 @@ static int be_get_module_eeprom(struct net_device *netdev,
 	u32 begin, end;
 
 	if (!check_privilege(adapter, MAX_PRIVILEGES))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	begin = eeprom->offset;
 	end = eeprom->offset + eeprom->len;

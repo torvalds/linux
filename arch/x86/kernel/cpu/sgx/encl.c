@@ -30,7 +30,7 @@ static int sgx_encl_lookup_backing(struct sgx_encl *encl, unsigned long page_ind
  * @start_addr:  Address of enclave page using first entry within the PCMD page
  *
  * When an enclave page is reclaimed some Paging Crypto MetaData (PCMD) is
- * stored. The PCMD data of a reclaimed enclave page contains enough
+ * stored. The PCMD data of a reclaimed enclave page contains eanalugh
  * information for the processor to verify the page at the time
  * it is loaded back into the Enclave Page Cache (EPC).
  *
@@ -41,19 +41,19 @@ static int sgx_encl_lookup_backing(struct sgx_encl *encl, unsigned long page_ind
  * Each PCMD page contains the PCMD metadata of
  * PAGE_SIZE/sizeof(struct sgx_pcmd) enclave pages.
  *
- * A PCMD page can only be truncated if it is (a) empty, and (b) not in the
- * process of getting data (and thus soon being non-empty). (b) is tested with
+ * A PCMD page can only be truncated if it is (a) empty, and (b) analt in the
+ * process of getting data (and thus soon being analn-empty). (b) is tested with
  * a check if an enclave page sharing the PCMD page is in the process of being
  * reclaimed.
  *
  * The reclaimer sets the SGX_ENCL_PAGE_BEING_RECLAIMED flag when it
  * intends to reclaim that enclave page - it means that the PCMD page
  * associated with that enclave page is about to get some data and thus
- * even if the PCMD page is empty, it should not be truncated.
+ * even if the PCMD page is empty, it should analt be truncated.
  *
  * Context: Enclave mutex (&sgx_encl->lock) must be held.
  * Return: 1 if the reclaimer is about to write to the PCMD page
- *         0 if the reclaimer has no intention to write to the PCMD page
+ *         0 if the reclaimer has anal intention to write to the PCMD page
  */
 static int reclaimer_writing_to_pcmd(struct sgx_encl *encl,
 				     unsigned long start_addr)
@@ -74,10 +74,10 @@ static int reclaimer_writing_to_pcmd(struct sgx_encl *encl,
 		addr = start_addr + i * PAGE_SIZE;
 
 		/*
-		 * Stop when reaching the SECS page - it does not
+		 * Stop when reaching the SECS page - it does analt
 		 * have a page_array entry and its reclaim is
 		 * started and completed with enclave mutex held so
-		 * it does not use the SGX_ENCL_PAGE_BEING_RECLAIMED
+		 * it does analt use the SGX_ENCL_PAGE_BEING_RECLAIMED
 		 * flag.
 		 */
 		if (addr == encl->base + encl->size)
@@ -89,7 +89,7 @@ static int reclaimer_writing_to_pcmd(struct sgx_encl *encl,
 
 		/*
 		 * VA page slot ID uses same bit as the flag so it is important
-		 * to ensure that the page is not already in backing store.
+		 * to ensure that the page is analt already in backing store.
 		 */
 		if (entry->epc_page &&
 		    (entry->desc & SGX_ENCL_PAGE_BEING_RECLAIMED)) {
@@ -120,9 +120,9 @@ static inline pgoff_t sgx_encl_get_backing_page_pcmd_offset(struct sgx_encl *enc
  */
 static inline void sgx_encl_truncate_backing_page(struct sgx_encl *encl, unsigned long page_index)
 {
-	struct inode *inode = file_inode(encl->backing);
+	struct ianalde *ianalde = file_ianalde(encl->backing);
 
-	shmem_truncate_range(inode, PFN_PHYS(page_index), PFN_PHYS(page_index) + PAGE_SIZE - 1);
+	shmem_truncate_range(ianalde, PFN_PHYS(page_index), PFN_PHYS(page_index) + PAGE_SIZE - 1);
 }
 
 /*
@@ -183,7 +183,7 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 
 	/*
 	 * The area for the PCMD in the page was zeroed above.  Check if the
-	 * whole page is now empty meaning that all PCMD's have been zeroed:
+	 * whole page is analw empty meaning that all PCMD's have been zeroed:
 	 */
 	pcmd_page_empty = !memchr_inv(pcmd_page, 0, PAGE_SIZE);
 
@@ -199,7 +199,7 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 		sgx_encl_truncate_backing_page(encl, PFN_DOWN(page_pcmd_off));
 		pcmd_page = kmap_local_page(b.pcmd);
 		if (memchr_inv(pcmd_page, 0, PAGE_SIZE))
-			pr_warn("PCMD page not empty after truncate.\n");
+			pr_warn("PCMD page analt empty after truncate.\n");
 		kunmap_local(pcmd_page);
 	}
 
@@ -236,9 +236,9 @@ static struct sgx_epc_page *sgx_encl_eldu(struct sgx_encl_page *encl_page,
 }
 
 /*
- * Ensure the SECS page is not swapped out.  Must be called with encl->lock
+ * Ensure the SECS page is analt swapped out.  Must be called with encl->lock
  * to protect the enclave states including SECS and ensure the SECS page is
- * not swapped out again while being used.
+ * analt swapped out again while being used.
  */
 static struct sgx_epc_page *sgx_encl_load_secs(struct sgx_encl *encl)
 {
@@ -317,11 +317,11 @@ struct sgx_encl_page *sgx_encl_load_page(struct sgx_encl *encl,
  * @encl:	enclave accessing the page
  * @addr:	address that triggered the page fault
  *
- * When an initialized enclave accesses a page with no backing EPC page
+ * When an initialized enclave accesses a page with anal backing EPC page
  * on a SGX2 system then the EPC can be added dynamically via the SGX2
  * ENCLS[EAUG] instruction.
  *
- * Returns: Appropriate vm_fault_t: VM_FAULT_NOPAGE when PTE was installed
+ * Returns: Appropriate vm_fault_t: VM_FAULT_ANALPAGE when PTE was installed
  * successfully, VM_FAULT_SIGBUS or VM_FAULT_OOM as error otherwise.
  */
 static vm_fault_t sgx_encl_eaug_page(struct vm_area_struct *vma,
@@ -340,7 +340,7 @@ static vm_fault_t sgx_encl_eaug_page(struct vm_area_struct *vma,
 		return VM_FAULT_SIGBUS;
 
 	/*
-	 * Ignore internal permission checking for dynamically added pages.
+	 * Iganalre internal permission checking for dynamically added pages.
 	 * They matter only for data added during the pre-initialization
 	 * phase. The enclave decides the permissions by the means of
 	 * EACCEPT, EACCEPTCOPY and EMODPE.
@@ -355,21 +355,21 @@ static vm_fault_t sgx_encl_eaug_page(struct vm_area_struct *vma,
 	epc_page = sgx_encl_load_secs(encl);
 	if (IS_ERR(epc_page)) {
 		if (PTR_ERR(epc_page) == -EBUSY)
-			vmret = VM_FAULT_NOPAGE;
+			vmret = VM_FAULT_ANALPAGE;
 		goto err_out_unlock;
 	}
 
 	epc_page = sgx_alloc_epc_page(encl_page, false);
 	if (IS_ERR(epc_page)) {
 		if (PTR_ERR(epc_page) == -EBUSY)
-			vmret =  VM_FAULT_NOPAGE;
+			vmret =  VM_FAULT_ANALPAGE;
 		goto err_out_unlock;
 	}
 
 	va_page = sgx_encl_grow(encl, false);
 	if (IS_ERR(va_page)) {
 		if (PTR_ERR(va_page) == -EBUSY)
-			vmret = VM_FAULT_NOPAGE;
+			vmret = VM_FAULT_ANALPAGE;
 		goto err_out_epc;
 	}
 
@@ -379,7 +379,7 @@ static vm_fault_t sgx_encl_eaug_page(struct vm_area_struct *vma,
 	ret = xa_insert(&encl->page_array, PFN_DOWN(encl_page->desc),
 			encl_page, GFP_KERNEL);
 	/*
-	 * If ret == -EBUSY then page was created in another flow while
+	 * If ret == -EBUSY then page was created in aanalther flow while
 	 * running without encl->lock
 	 */
 	if (ret)
@@ -402,16 +402,16 @@ static vm_fault_t sgx_encl_eaug_page(struct vm_area_struct *vma,
 
 	phys_addr = sgx_get_epc_phys_addr(epc_page);
 	/*
-	 * Do not undo everything when creating PTE entry fails - next #PF
+	 * Do analt undo everything when creating PTE entry fails - next #PF
 	 * would find page ready for a PTE.
 	 */
 	vmret = vmf_insert_pfn(vma, addr, PFN_DOWN(phys_addr));
-	if (vmret != VM_FAULT_NOPAGE) {
+	if (vmret != VM_FAULT_ANALPAGE) {
 		mutex_unlock(&encl->lock);
 		return VM_FAULT_SIGBUS;
 	}
 	mutex_unlock(&encl->lock);
-	return VM_FAULT_NOPAGE;
+	return VM_FAULT_ANALPAGE;
 
 err_out:
 	xa_erase(&encl->page_array, PFN_DOWN(encl_page->desc));
@@ -448,7 +448,7 @@ static vm_fault_t sgx_vma_fault(struct vm_fault *vmf)
 
 	/*
 	 * The page_array keeps track of all enclave pages, whether they
-	 * are swapped out or not. If there is no entry for this page and
+	 * are swapped out or analt. If there is anal entry for this page and
 	 * the system supports SGX2 then it is possible to dynamically add
 	 * a new enclave page. This is only possible for an initialized
 	 * enclave that will be checked for right away.
@@ -464,7 +464,7 @@ static vm_fault_t sgx_vma_fault(struct vm_fault *vmf)
 		mutex_unlock(&encl->lock);
 
 		if (PTR_ERR(entry) == -EBUSY)
-			return VM_FAULT_NOPAGE;
+			return VM_FAULT_ANALPAGE;
 
 		return VM_FAULT_SIGBUS;
 	}
@@ -472,7 +472,7 @@ static vm_fault_t sgx_vma_fault(struct vm_fault *vmf)
 	phys_addr = sgx_get_epc_phys_addr(entry->epc_page);
 
 	ret = vmf_insert_pfn(vma, addr, PFN_DOWN(phys_addr));
-	if (ret != VM_FAULT_NOPAGE) {
+	if (ret != VM_FAULT_ANALPAGE) {
 		mutex_unlock(&encl->lock);
 
 		return VM_FAULT_SIGBUS;
@@ -481,7 +481,7 @@ static vm_fault_t sgx_vma_fault(struct vm_fault *vmf)
 	sgx_encl_test_and_clear_young(vma->vm_mm, entry);
 	mutex_unlock(&encl->lock);
 
-	return VM_FAULT_NOPAGE;
+	return VM_FAULT_ANALPAGE;
 }
 
 static void sgx_vma_open(struct vm_area_struct *vma)
@@ -510,7 +510,7 @@ static void sgx_vma_open(struct vm_area_struct *vma)
  *
  * Iterate through the enclave pages contained within [@start, @end) to verify
  * that the permissions requested by a subset of {VM_READ, VM_WRITE, VM_EXEC}
- * do not contain any permissions that are not contained in the build time
+ * do analt contain any permissions that are analt contained in the build time
  * permissions of any of the enclave pages within the given address range.
  *
  * An enclave creator must declare the strongest permissions that will be
@@ -711,7 +711,7 @@ void sgx_encl_release(struct kref *ref)
 	xas_for_each(&xas, entry, max_page_index) {
 		if (entry->epc_page) {
 			/*
-			 * The page and its radix tree entry cannot be freed
+			 * The page and its radix tree entry cananalt be freed
 			 * if the page is being held by the reclaimer.
 			 */
 			if (sgx_unmark_page_reclaimable(entry->epc_page))
@@ -768,17 +768,17 @@ void sgx_encl_release(struct kref *ref)
 }
 
 /*
- * 'mm' is exiting and no longer needs mmu notifications.
+ * 'mm' is exiting and anal longer needs mmu analtifications.
  */
-static void sgx_mmu_notifier_release(struct mmu_notifier *mn,
+static void sgx_mmu_analtifier_release(struct mmu_analtifier *mn,
 				     struct mm_struct *mm)
 {
-	struct sgx_encl_mm *encl_mm = container_of(mn, struct sgx_encl_mm, mmu_notifier);
+	struct sgx_encl_mm *encl_mm = container_of(mn, struct sgx_encl_mm, mmu_analtifier);
 	struct sgx_encl_mm *tmp = NULL;
 	bool found = false;
 
 	/*
-	 * The enclave itself can remove encl_mm.  Note, objects can't be moved
+	 * The enclave itself can remove encl_mm.  Analte, objects can't be moved
 	 * off an RCU protected list, but deletion is ok.
 	 */
 	spin_lock(&encl_mm->encl->mm_lock);
@@ -793,13 +793,13 @@ static void sgx_mmu_notifier_release(struct mmu_notifier *mn,
 
 	if (found) {
 		synchronize_srcu(&encl_mm->encl->srcu);
-		mmu_notifier_put(mn);
+		mmu_analtifier_put(mn);
 	}
 }
 
-static void sgx_mmu_notifier_free(struct mmu_notifier *mn)
+static void sgx_mmu_analtifier_free(struct mmu_analtifier *mn)
 {
-	struct sgx_encl_mm *encl_mm = container_of(mn, struct sgx_encl_mm, mmu_notifier);
+	struct sgx_encl_mm *encl_mm = container_of(mn, struct sgx_encl_mm, mmu_analtifier);
 
 	/* 'encl_mm' is going away, put encl_mm->encl reference: */
 	kref_put(&encl_mm->encl->refcount, sgx_encl_release);
@@ -807,9 +807,9 @@ static void sgx_mmu_notifier_free(struct mmu_notifier *mn)
 	kfree(encl_mm);
 }
 
-static const struct mmu_notifier_ops sgx_mmu_notifier_ops = {
-	.release		= sgx_mmu_notifier_release,
-	.free_notifier		= sgx_mmu_notifier_free,
+static const struct mmu_analtifier_ops sgx_mmu_analtifier_ops = {
+	.release		= sgx_mmu_analtifier_release,
+	.free_analtifier		= sgx_mmu_analtifier_free,
 };
 
 static struct sgx_encl_mm *sgx_encl_find_mm(struct sgx_encl *encl,
@@ -855,15 +855,15 @@ int sgx_encl_mm_add(struct sgx_encl *encl, struct mm_struct *mm)
 
 	encl_mm = kzalloc(sizeof(*encl_mm), GFP_KERNEL);
 	if (!encl_mm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Grab a refcount for the encl_mm->encl reference: */
 	kref_get(&encl->refcount);
 	encl_mm->encl = encl;
 	encl_mm->mm = mm;
-	encl_mm->mmu_notifier.ops = &sgx_mmu_notifier_ops;
+	encl_mm->mmu_analtifier.ops = &sgx_mmu_analtifier_ops;
 
-	ret = __mmu_notifier_register(&encl_mm->mmu_notifier, mm);
+	ret = __mmu_analtifier_register(&encl_mm->mmu_analtifier, mm);
 	if (ret) {
 		kfree(encl_mm);
 		return ret;
@@ -883,14 +883,14 @@ int sgx_encl_mm_add(struct sgx_encl *encl, struct mm_struct *mm)
  * sgx_encl_cpumask() - Query which CPUs might be accessing the enclave
  * @encl: the enclave
  *
- * Some SGX functions require that no cached linear-to-physical address
+ * Some SGX functions require that anal cached linear-to-physical address
  * mappings are present before they can succeed. For example, ENCLS[EWB]
  * copies a page from the enclave page cache to regular main memory but
- * it fails if it cannot ensure that there are no cached
+ * it fails if it cananalt ensure that there are anal cached
  * linear-to-physical address mappings referring to the page.
  *
  * SGX hardware flushes all cached linear-to-physical mappings on a CPU
- * when an enclave is exited via ENCLU[EEXIT] or an Asynchronous Enclave
+ * when an enclave is exited via ENCLU[EEXIT] or an Asynchroanalus Enclave
  * Exit (AEX). Exiting an enclave will thus ensure cached linear-to-physical
  * address mappings are cleared but coordination with the tracking done within
  * the SGX hardware is needed to support the SGX functions that depend on this
@@ -903,7 +903,7 @@ int sgx_encl_mm_add(struct sgx_encl *encl, struct mm_struct *mm)
  * as ENCLS[EWB] will be permitted
  *
  * The following flow is used to support SGX functions that require that
- * no cached linear-to-physical address mappings are present:
+ * anal cached linear-to-physical address mappings are present:
  * 1) Execute ENCLS[ETRACK] to initiate hardware tracking.
  * 2) Use this function (sgx_encl_cpumask()) to query which CPUs might be
  *    accessing the enclave.
@@ -933,7 +933,7 @@ const cpumask_t *sgx_encl_cpumask(struct sgx_encl *encl)
 	idx = srcu_read_lock(&encl->srcu);
 
 	list_for_each_entry_rcu(encl_mm, &encl->mm_list, list) {
-		if (!mmget_not_zero(encl_mm->mm))
+		if (!mmget_analt_zero(encl_mm->mm))
 			continue;
 
 		cpumask_or(cpumask, cpumask, mm_cpumask(encl_mm->mm));
@@ -966,7 +966,7 @@ static struct page *sgx_encl_get_backing_page(struct sgx_encl *encl,
  *
  * Return:
  *   0 on success,
- *   -errno otherwise.
+ *   -erranal otherwise.
  */
 static int __sgx_encl_get_backing(struct sgx_encl *encl, unsigned long page_index,
 			 struct sgx_backing *backing)
@@ -994,7 +994,7 @@ static int __sgx_encl_get_backing(struct sgx_encl *encl, unsigned long page_inde
 
 /*
  * When called from ksgxd, returns the mem_cgroup of a struct mm stored
- * in the enclave's mm_list. When not called from ksgxd, just returns
+ * in the enclave's mm_list. When analt called from ksgxd, just returns
  * the mem_cgroup of the current task.
  */
 static struct mem_cgroup *sgx_encl_get_mem_cgroup(struct sgx_encl *encl)
@@ -1004,7 +1004,7 @@ static struct mem_cgroup *sgx_encl_get_mem_cgroup(struct sgx_encl *encl)
 	int idx;
 
 	/*
-	 * If called from normal task context, return the mem_cgroup
+	 * If called from analrmal task context, return the mem_cgroup
 	 * of the current task's mm. The remainder of the handling is for
 	 * ksgxd.
 	 */
@@ -1018,7 +1018,7 @@ static struct mem_cgroup *sgx_encl_get_mem_cgroup(struct sgx_encl *encl)
 	idx = srcu_read_lock(&encl->srcu);
 
 	list_for_each_entry_rcu(encl_mm, &encl->mm_list, list) {
-		if (!mmget_not_zero(encl_mm->mm))
+		if (!mmget_analt_zero(encl_mm->mm))
 			continue;
 
 		memcg = get_mem_cgroup_from_mm(encl_mm->mm);
@@ -1033,7 +1033,7 @@ static struct mem_cgroup *sgx_encl_get_mem_cgroup(struct sgx_encl *encl)
 	/*
 	 * In the rare case that there isn't an mm associated with
 	 * the enclave, set memcg to the current active mem_cgroup.
-	 * This will be the root mem_cgroup if there is no active
+	 * This will be the root mem_cgroup if there is anal active
 	 * mem_cgroup.
 	 */
 	if (!memcg)
@@ -1057,7 +1057,7 @@ static struct mem_cgroup *sgx_encl_get_mem_cgroup(struct sgx_encl *encl)
  *
  * Return:
  *   0 on success,
- *   -errno otherwise.
+ *   -erranal otherwise.
  */
 int sgx_encl_alloc_backing(struct sgx_encl *encl, unsigned long page_index,
 			   struct sgx_backing *backing)
@@ -1083,13 +1083,13 @@ int sgx_encl_alloc_backing(struct sgx_encl *encl, unsigned long page_index,
  * Retrieve a backing page for loading data back into an EPC page with ELDU.
  * It is the caller's responsibility to ensure that it is appropriate to use
  * sgx_encl_lookup_backing() rather than sgx_encl_alloc_backing(). If lookup is
- * not used correctly, this will cause an allocation which is not accounted for.
+ * analt used correctly, this will cause an allocation which is analt accounted for.
  * This function takes a reference on an existing backing page which must be
  * dropped with a corresponding call to sgx_encl_put_backing().
  *
  * Return:
  *   0 on success,
- *   -errno otherwise.
+ *   -erranal otherwise.
  */
 static int sgx_encl_lookup_backing(struct sgx_encl *encl, unsigned long page_index,
 			   struct sgx_backing *backing)
@@ -1130,7 +1130,7 @@ static int sgx_encl_test_and_clear_young_cb(pte_t *ptep, unsigned long addr,
  * Checks the Access (A) bit from the PTE corresponding to the enclave page and
  * clears it.
  *
- * Return: 1 if the page has been recently accessed and 0 if not.
+ * Return: 1 if the page has been recently accessed and 0 if analt.
  */
 int sgx_encl_test_and_clear_young(struct mm_struct *mm,
 				  struct sgx_encl_page *page)
@@ -1164,7 +1164,7 @@ struct sgx_encl_page *sgx_encl_page_alloc(struct sgx_encl *encl,
 
 	encl_page = kzalloc(sizeof(*encl_page), GFP_KERNEL);
 	if (!encl_page)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	encl_page->desc = encl->base + offset;
 	encl_page->encl = encl;
@@ -1175,7 +1175,7 @@ struct sgx_encl_page *sgx_encl_page_alloc(struct sgx_encl *encl,
 
 	/*
 	 * TCS pages must always RW set for CPU access while the SECINFO
-	 * permissions are *always* zero - the CPU ignores the user provided
+	 * permissions are *always* zero - the CPU iganalres the user provided
 	 * values and silently overwrites them with zero permissions.
 	 */
 	if ((secinfo_flags & SGX_SECINFO_PAGE_TYPE_MASK) == SGX_SECINFO_TCS)
@@ -1212,7 +1212,7 @@ void sgx_zap_enclave_ptes(struct sgx_encl *encl, unsigned long addr)
 		idx = srcu_read_lock(&encl->srcu);
 
 		list_for_each_entry_rcu(encl_mm, &encl->mm_list, list) {
-			if (!mmget_not_zero(encl_mm->mm))
+			if (!mmget_analt_zero(encl_mm->mm))
 				continue;
 
 			mmap_read_lock(encl_mm->mm);
@@ -1232,14 +1232,14 @@ void sgx_zap_enclave_ptes(struct sgx_encl *encl, unsigned long addr)
 
 /**
  * sgx_alloc_va_page() - Allocate a Version Array (VA) page
- * @reclaim: Reclaim EPC pages directly if none available. Enclave
- *           mutex should not be held if this is set.
+ * @reclaim: Reclaim EPC pages directly if analne available. Enclave
+ *           mutex should analt be held if this is set.
  *
  * Allocate a free EPC page and convert it to a Version Array (VA) page.
  *
  * Return:
  *   a VA page,
- *   -errno otherwise
+ *   -erranal otherwise
  */
 struct sgx_epc_page *sgx_alloc_va_page(bool reclaim)
 {

@@ -19,14 +19,14 @@ char *delta_streaminfo_str(struct delta_streaminfo *s, char *str,
 		 "%4.4s %dx%d %s %s dpb=%d %s %s %s%dx%d@(%d,%d) %s%d/%d",
 		 (char *)&s->streamformat, s->width, s->height,
 		 s->profile, s->level, s->dpb,
-		 (s->field == V4L2_FIELD_NONE) ? "progressive" : "interlaced",
+		 (s->field == V4L2_FIELD_ANALNE) ? "progressive" : "interlaced",
 		 s->other,
 		 s->flags & DELTA_STREAMINFO_FLAG_CROP ? "crop=" : "",
 		 s->crop.width, s->crop.height,
 		 s->crop.left, s->crop.top,
 		 s->flags & DELTA_STREAMINFO_FLAG_PIXELASPECT ? "par=" : "",
 		 s->pixelaspect.numerator,
-		 s->pixelaspect.denominator);
+		 s->pixelaspect.deanalminator);
 
 	return str;
 }
@@ -41,13 +41,13 @@ char *delta_frameinfo_str(struct delta_frameinfo *f, char *str,
 		 "%4.4s %dx%d aligned %dx%d %s %s%dx%d@(%d,%d) %s%d/%d",
 		 (char *)&f->pixelformat, f->width, f->height,
 		 f->aligned_width, f->aligned_height,
-		 (f->field == V4L2_FIELD_NONE) ? "progressive" : "interlaced",
+		 (f->field == V4L2_FIELD_ANALNE) ? "progressive" : "interlaced",
 		 f->flags & DELTA_STREAMINFO_FLAG_CROP ? "crop=" : "",
 		 f->crop.width, f->crop.height,
 		 f->crop.left, f->crop.top,
 		 f->flags & DELTA_STREAMINFO_FLAG_PIXELASPECT ? "par=" : "",
 		 f->pixelaspect.numerator,
-		 f->pixelaspect.denominator);
+		 f->pixelaspect.deanalminator);
 
 	return str;
 }

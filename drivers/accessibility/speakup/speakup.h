@@ -101,7 +101,7 @@ extern u_char spk_key_buf[600];
 extern char *spk_characters[];
 extern char *spk_default_chars[];
 extern u_short spk_chartab[];
-extern int spk_no_intr, spk_say_ctrl, spk_say_word_ctl, spk_punc_level;
+extern int spk_anal_intr, spk_say_ctrl, spk_say_word_ctl, spk_punc_level;
 extern int spk_reading_punc, spk_attrib_bleep, spk_bleeps;
 extern int spk_bleep_time, spk_bell_pos;
 extern int spk_spell_delay, spk_key_echo;

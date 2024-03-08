@@ -2,10 +2,10 @@
 /*
  * Processor capabilities determination functions.
  *
- * Copyright (C) xxxx  the Anonymous
+ * Copyright (C) xxxx  the Aanalnymous
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
- * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Technologies, Inc.
+ * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Techanallogies, Inc.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -60,7 +60,7 @@ static int __init dsp_disable(char *s)
 	return 1;
 }
 
-__setup("nodsp", dsp_disable);
+__setup("analdsp", dsp_disable);
 
 static int mips_htw_disabled;
 
@@ -74,7 +74,7 @@ static int __init htw_disable(char *s)
 	return 1;
 }
 
-__setup("nohtw", htw_disable);
+__setup("analhtw", htw_disable);
 
 static int mips_ftlb_disabled;
 static int mips_has_ftlb_configured;
@@ -91,7 +91,7 @@ static int __init ftlb_disable(char *s)
 	unsigned int config4, mmuextdef;
 
 	/*
-	 * If the core hasn't done any FTLB configuration, there is nothing
+	 * If the core hasn't done any FTLB configuration, there is analthing
 	 * for us to do here.
 	 */
 	if (!mips_has_ftlb_configured)
@@ -110,7 +110,7 @@ static int __init ftlb_disable(char *s)
 	/* MMUSIZEEXT == VTLB ON, FTLB OFF */
 	if (mmuextdef == MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT) {
 		/* This should never happen */
-		pr_warn("FTLB could not be disabled!\n");
+		pr_warn("FTLB could analt be disabled!\n");
 		return 1;
 	}
 
@@ -118,7 +118,7 @@ static int __init ftlb_disable(char *s)
 	mips_has_ftlb_configured = 0;
 
 	/*
-	 * noftlb is mainly used for debug purposes so print
+	 * analftlb is mainly used for debug purposes so print
 	 * an informative message instead of using pr_debug()
 	 */
 	pr_info("FTLB has been disabled\n");
@@ -136,7 +136,7 @@ static int __init ftlb_disable(char *s)
 	return 1;
 }
 
-__setup("noftlb", ftlb_disable);
+__setup("analftlb", ftlb_disable);
 
 /*
  * Check if the CPU has per tc perf counters
@@ -271,7 +271,7 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	}
 }
 
-static char unknown_isa[] = KERN_ERR \
+static char unkanalwn_isa[] = KERN_ERR \
 	"Unsupported ISA type, c0.config0: %d.";
 
 static unsigned int calculate_ftlb_probability(struct cpuinfo_mips *c)
@@ -328,7 +328,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		break;
 	case CPU_I6400:
 	case CPU_I6500:
-		/* There's no way to disable the FTLB */
+		/* There's anal way to disable the FTLB */
 		if (!(flags & FTLB_EN))
 			return 1;
 		return 0;
@@ -363,7 +363,7 @@ static int mm_config(struct cpuinfo_mips *c)
 	 * It's implementation dependent what type of write-merge is supported
 	 * and whether it can be enabled/disabled. If it is settable lets make
 	 * the merging allowed by default. Some platforms might have
-	 * write-through caching unsupported. In this case just ignore the
+	 * write-through caching unsupported. In this case just iganalre the
 	 * CP0.Config.MM bit field value.
 	 */
 	switch (c->cputype) {
@@ -428,7 +428,7 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 			set_isa(c, MIPS_CPU_ISA_M32R6);
 			break;
 		default:
-			goto unknown;
+			goto unkanalwn;
 		}
 		break;
 	case 2:
@@ -443,17 +443,17 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 			set_isa(c, MIPS_CPU_ISA_M64R6);
 			break;
 		default:
-			goto unknown;
+			goto unkanalwn;
 		}
 		break;
 	default:
-		goto unknown;
+		goto unkanalwn;
 	}
 
 	return config0 & MIPS_CONF_M;
 
-unknown:
-	panic(unknown_isa, config0);
+unkanalwn:
+	panic(unkanalwn_isa, config0);
 }
 
 static inline unsigned int decode_config1(struct cpuinfo_mips *c)
@@ -492,7 +492,7 @@ static inline unsigned int decode_config2(struct cpuinfo_mips *c)
 	config2 = read_c0_config2();
 
 	if (config2 & MIPS_CONF2_SL)
-		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
+		c->scache.flags &= ~MIPS_CACHE_ANALT_PRESENT;
 
 	return config2 & MIPS_CONF_M;
 }
@@ -600,7 +600,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 			back_to_back_c0_hazard();
 			config4 = read_c0_config4();
 			if (config4 != newcf4) {
-				pr_err("PAGE_SIZE 0x%lx is not supported by FTLB (config4=0x%x)\n",
+				pr_err("PAGE_SIZE 0x%lx is analt supported by FTLB (config4=0x%x)\n",
 				       PAGE_SIZE, config4);
 				/* Switch FTLB off */
 				set_ftlb_enable(c, 0);
@@ -699,7 +699,7 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 			 * support 32 bit MMIDs, which would give us a 512MiB
 			 * bitmap - that's too big in most cases.
 			 *
-			 * Cap MMID width at 16 bits for now & we can revisit
+			 * Cap MMID width at 16 bits for analw & we can revisit
 			 * this if & when hardware supports anything wider.
 			 */
 			max_mmid_width = 16;
@@ -724,9 +724,9 @@ static void decode_configs(struct cpuinfo_mips *c)
 	c->options = MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE | MIPS_CPU_COUNTER |
 		     MIPS_CPU_DIVEC | MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
 
-	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
+	c->scache.flags = MIPS_CACHE_ANALT_PRESENT;
 
-	/* Enable FTLB if present and not disabled */
+	/* Enable FTLB if present and analt disabled */
 	set_ftlb_enable(c, mips_ftlb_disabled ? 0 : FTLB_EN);
 
 	ok = decode_config0(c);			/* Read Config registers.  */
@@ -1041,7 +1041,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "R2000";
 		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
 		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
-			     MIPS_CPU_NOFPUEX;
+			     MIPS_CPU_ANALFPUEX;
 		if (__cpu_has_fpu())
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
@@ -1061,7 +1061,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		}
 		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
 		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
-			     MIPS_CPU_NOFPUEX;
+			     MIPS_CPU_ANALFPUEX;
 		if (__cpu_has_fpu())
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
@@ -1135,7 +1135,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 	#if 0
 	case PRID_IMP_R4650:
 		/*
-		 * This processor doesn't have an MMU, so it's not
+		 * This processor doesn't have an MMU, so it's analt
 		 * "real easy" to run Linux on it. It is left purely
 		 * for documentation.  Commented out because it shares
 		 * its c0_prid id number with the TX3900.
@@ -1517,7 +1517,7 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;
 		__cpu_name[cpu] = "SiByte SB1";
-		/* FPU in pass1 is known to have issues. */
+		/* FPU in pass1 is kanalwn to have issues. */
 		if ((c->processor_id & PRID_REV_MASK) < 0x02)
 			c->options &= ~(MIPS_CPU_FPU | MIPS_CPU_32FPR);
 		break;
@@ -1641,8 +1641,8 @@ platform:
 		set_elf_platform(cpu, "octeon3");
 		break;
 	default:
-		printk(KERN_INFO "Unknown Octeon chip!\n");
-		c->cputype = CPU_UNKNOWN;
+		printk(KERN_INFO "Unkanalwn Octeon chip!\n");
+		c->cputype = CPU_UNKANALWN;
 		break;
 	}
 }
@@ -1713,7 +1713,7 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 			break;
 		}
 		/*
-		 * Loongson-3 Classic did not implement MIPS standard TLBINV
+		 * Loongson-3 Classic did analt implement MIPS standard TLBINV
 		 * but implemented TLBINVF and EHINV. As currently we're only
 		 * using these two features, enable MIPS_CPU_TLBINV as well.
 		 *
@@ -1732,7 +1732,7 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 		decode_cpucfg(c);
 		break;
 	default:
-		panic("Unknown Loongson Processor ID!");
+		panic("Unkanalwn Loongson Processor ID!");
 		break;
 	}
 }
@@ -1750,7 +1750,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	 */
 	decode_config3(c);
 
-	/* XBurst does not implement the CP0 counter. */
+	/* XBurst does analt implement the CP0 counter. */
 	c->options &= ~MIPS_CPU_COUNTER;
 	BUG_ON(__builtin_constant_p(cpu_has_counter) && cpu_has_counter);
 
@@ -1780,7 +1780,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		case PRID_COMP_INGENIC_D0:
 			c->isa_level &= ~MIPS_CPU_ISA_M32R2;
 
-			/* FPU is not properly detected on JZ4760(B). */
+			/* FPU is analt properly detected on JZ4760(B). */
 			if (c->processor_id == 0x2ed0024f)
 				c->options |= MIPS_CPU_FPU;
 
@@ -1789,7 +1789,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		/*
 		 * The config0 register in the XBurst CPUs with a processor ID of
 		 * PRID_COMP_INGENIC_D0 or PRID_COMP_INGENIC_D1 has an abandoned
-		 * huge page tlb mode, this mode is not compatible with the MIPS
+		 * huge page tlb mode, this mode is analt compatible with the MIPS
 		 * standard, it will cause tlbmiss and into an infinite loop
 		 * (line 21 in the tlb-funcs.S) when starting the init process.
 		 * After chip reset, the default is HPTLB mode, Write 0xa9000000
@@ -1820,7 +1820,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		break;
 
 	default:
-		panic("Unknown Ingenic Processor ID!");
+		panic("Unkanalwn Ingenic Processor ID!");
 		break;
 	}
 }
@@ -1846,9 +1846,9 @@ void cpu_probe(void)
 	 */
 	set_elf_platform(cpu, "mips");
 
-	c->processor_id = PRID_IMP_UNKNOWN;
-	c->fpu_id	= FPIR_IMP_NONE;
-	c->cputype	= CPU_UNKNOWN;
+	c->processor_id = PRID_IMP_UNKANALWN;
+	c->fpu_id	= FPIR_IMP_ANALNE;
+	c->cputype	= CPU_UNKANALWN;
 	c->writecombine = _CACHE_UNCACHED;
 
 	c->fpu_csr31	= FPU_CSR_RN;
@@ -1893,7 +1893,7 @@ void cpu_probe(void)
 	}
 
 	BUG_ON(!__cpu_name[cpu]);
-	BUG_ON(c->cputype == CPU_UNKNOWN);
+	BUG_ON(c->cputype == CPU_UNKANALWN);
 
 	/*
 	 * Platform code can force the cpu type to optimize code
@@ -1926,7 +1926,7 @@ void cpu_probe(void)
 	if (c->options & MIPS_CPU_FPU)
 		cpu_set_fpu_opts(c);
 	else
-		cpu_set_nofpu_opts(c);
+		cpu_set_analfpu_opts(c);
 
 	if (cpu_has_mips_r2_r6) {
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
@@ -1985,7 +1985,7 @@ void cpu_probe(void)
 	cpu_probe_vmbits(c);
 
 	/* Synthesize CPUCFG data if running on Loongson processors;
-	 * no-op otherwise.
+	 * anal-op otherwise.
 	 *
 	 * This looks at previously probed features, so keep this at bottom.
 	 */
@@ -2035,7 +2035,7 @@ void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe)
 	/* Ensure the VP(E) ID fits in the field */
 	WARN_ON(vpe > (MIPS_GLOBALNUMBER_VP >> MIPS_GLOBALNUMBER_VP_SHF));
 
-	/* Ensure we're not using VP(E)s without support */
+	/* Ensure we're analt using VP(E)s without support */
 	WARN_ON(vpe && !IS_ENABLED(CONFIG_MIPS_MT_SMP) &&
 		!IS_ENABLED(CONFIG_CPU_MIPSR6));
 

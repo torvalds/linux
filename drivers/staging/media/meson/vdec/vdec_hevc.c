@@ -50,7 +50,7 @@ static int vdec_hevc_load_firmware(struct amvdec_session *sess,
 	mc_addr = dma_alloc_coherent(core->dev, MC_SIZE, &mc_addr_map,
 				     GFP_KERNEL);
 	if (!mc_addr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_firmware;
 	}
 
@@ -68,7 +68,7 @@ static int vdec_hevc_load_firmware(struct amvdec_session *sess,
 
 	if (i == 0) {
 		dev_err(dev, "Firmware load fail (DMA hang?)\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	dma_free_coherent(core->dev, MC_SIZE, mc_addr, mc_addr_map);

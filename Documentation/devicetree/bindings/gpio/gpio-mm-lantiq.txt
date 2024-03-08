@@ -4,7 +4,7 @@ By attaching hardware latches to the EBU it is possible to create output
 only gpios. This driver configures a special memory address, which when
 written to outputs 16 bit to the latches.
 
-The node describing the memory mapped GPIOs needs to be a child of the node
+The analde describing the memory mapped GPIOs needs to be a child of the analde
 describing the "lantiq,localbus".
 
 Required properties:
@@ -13,7 +13,7 @@ Required properties:
 - #gpio-cells : Should be two.  The first cell is the pin number and
   the second cell is used to specify optional parameters (currently
   unused).
-- gpio-controller : Marks the device node as a gpio controller.
+- gpio-controller : Marks the device analde as a gpio controller.
 
 Optional properties:
 - lantiq,shadow : The default value that we shall assume as already set on the

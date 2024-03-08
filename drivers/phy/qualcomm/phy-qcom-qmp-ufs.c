@@ -367,7 +367,7 @@ static const struct qmp_phy_init_tbl sm6115_ufsphy_pcs[] = {
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_UFS_RX_SIGDET_CTRL2, 0x6d),
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_UFS_TX_LARGE_AMP_DRV_LVL, 0x0f),
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_UFS_TX_SMALL_AMP_DRV_LVL, 0x02),
-	QMP_PHY_INIT_CFG(QPHY_V2_PCS_UFS_RX_MIN_STALL_NOCONFIG_TIME_CAP, 0x28),
+	QMP_PHY_INIT_CFG(QPHY_V2_PCS_UFS_RX_MIN_STALL_ANALCONFIG_TIME_CAP, 0x28),
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_UFS_RX_SYM_RESYNC_CTRL, 0x03),
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_UFS_TX_LARGE_AMP_POST_EMP_LVL, 0x12),
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_UFS_TX_SMALL_AMP_POST_EMP_LVL, 0x0f),
@@ -914,8 +914,8 @@ struct qmp_phy_cfg {
 	/* array of registers with different offsets */
 	const unsigned int *regs;
 
-	/* true, if PCS block has no separate SW_RESET register */
-	bool no_pcs_sw_reset;
+	/* true, if PCS block has anal separate SW_RESET register */
+	bool anal_pcs_sw_reset;
 };
 
 struct qmp_ufs {
@@ -1023,7 +1023,7 @@ static const struct qmp_phy_cfg msm8996_ufsphy_cfg = {
 
 	.regs			= ufsphy_v2_regs_layout,
 
-	.no_pcs_sw_reset	= true,
+	.anal_pcs_sw_reset	= true,
 };
 
 static const struct qmp_phy_cfg sa8775p_ufsphy_cfg = {
@@ -1153,7 +1153,7 @@ static const struct qmp_phy_cfg sdm845_ufsphy_cfg = {
 	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
 	.regs			= ufsphy_v3_regs_layout,
 
-	.no_pcs_sw_reset	= true,
+	.anal_pcs_sw_reset	= true,
 };
 
 static const struct qmp_phy_cfg sm6115_ufsphy_cfg = {
@@ -1181,7 +1181,7 @@ static const struct qmp_phy_cfg sm6115_ufsphy_cfg = {
 	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
 	.regs			= ufsphy_v2_regs_layout,
 
-	.no_pcs_sw_reset	= true,
+	.anal_pcs_sw_reset	= true,
 };
 
 static const struct qmp_phy_cfg sm7150_ufsphy_cfg = {
@@ -1209,7 +1209,7 @@ static const struct qmp_phy_cfg sm7150_ufsphy_cfg = {
 	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
 	.regs			= ufsphy_v3_regs_layout,
 
-	.no_pcs_sw_reset	= true,
+	.anal_pcs_sw_reset	= true,
 };
 
 static const struct qmp_phy_cfg sm8150_ufsphy_cfg = {
@@ -1510,9 +1510,9 @@ static int qmp_ufs_init(struct phy *phy)
 	int ret;
 	dev_vdbg(qmp->dev, "Initializing QMP phy\n");
 
-	if (cfg->no_pcs_sw_reset) {
+	if (cfg->anal_pcs_sw_reset) {
 		/*
-		 * Get UFS reset, which is delayed until now to avoid a
+		 * Get UFS reset, which is delayed until analw to avoid a
 		 * circular dependency where UFS needs its PHY, but the PHY
 		 * needs this UFS reset.
 		 */
@@ -1560,7 +1560,7 @@ static int qmp_ufs_power_on(struct phy *phy)
 		return ret;
 
 	/* Pull PHY out of reset state */
-	if (!cfg->no_pcs_sw_reset)
+	if (!cfg->anal_pcs_sw_reset)
 		qphy_clrbits(pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
 
 	/* start SerDes */
@@ -1583,7 +1583,7 @@ static int qmp_ufs_power_off(struct phy *phy)
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
 
 	/* PHY reset */
-	if (!cfg->no_pcs_sw_reset)
+	if (!cfg->anal_pcs_sw_reset)
 		qphy_setbits(qmp->pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
 
 	/* stop SerDes */
@@ -1656,7 +1656,7 @@ static int qmp_ufs_vreg_init(struct qmp_ufs *qmp)
 
 	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
 	if (!qmp->vregs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		qmp->vregs[i].supply = cfg->vreg_list[i];
@@ -1673,7 +1673,7 @@ static int qmp_ufs_clk_init(struct qmp_ufs *qmp)
 
 	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
 	if (!qmp->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		qmp->clks[i].id = cfg->clk_list[i];
@@ -1688,7 +1688,7 @@ static void qmp_ufs_clk_release_provider(void *res)
 
 #define UFS_SYMBOL_CLOCKS 3
 
-static int qmp_ufs_register_clocks(struct qmp_ufs *qmp, struct device_node *np)
+static int qmp_ufs_register_clocks(struct qmp_ufs *qmp, struct device_analde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw *hw;
@@ -1699,7 +1699,7 @@ static int qmp_ufs_register_clocks(struct qmp_ufs *qmp, struct device_node *np)
 				struct_size(clk_data, hws, UFS_SYMBOL_CLOCKS),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = UFS_SYMBOL_CLOCKS;
 
@@ -1729,12 +1729,12 @@ static int qmp_ufs_register_clocks(struct qmp_ufs *qmp, struct device_node *np)
 		return ret;
 
 	/*
-	 * Roll a devm action because the clock provider can be a child node.
+	 * Roll a devm action because the clock provider can be a child analde.
 	 */
 	return devm_add_action_or_reset(qmp->dev, qmp_ufs_clk_release_provider, np);
 }
 
-static int qmp_ufs_parse_dt_legacy(struct qmp_ufs *qmp, struct device_node *np)
+static int qmp_ufs_parse_dt_legacy(struct qmp_ufs *qmp, struct device_analde *np)
 {
 	struct platform_device *pdev = to_platform_device(qmp->dev);
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
@@ -1777,7 +1777,7 @@ static int qmp_ufs_parse_dt_legacy(struct qmp_ufs *qmp, struct device_node *np)
 	}
 
 	if (IS_ERR(qmp->pcs_misc))
-		dev_vdbg(dev, "PHY pcs_misc-reg not used\n");
+		dev_vdbg(dev, "PHY pcs_misc-reg analt used\n");
 
 	return 0;
 }
@@ -1813,13 +1813,13 @@ static int qmp_ufs_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
-	struct device_node *np;
+	struct device_analde *np;
 	struct qmp_ufs *qmp;
 	int ret;
 
 	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
 	if (!qmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmp->dev = dev;
 
@@ -1835,38 +1835,38 @@ static int qmp_ufs_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Check for legacy binding with child node. */
-	np = of_get_next_available_child(dev->of_node, NULL);
+	/* Check for legacy binding with child analde. */
+	np = of_get_next_available_child(dev->of_analde, NULL);
 	if (np) {
 		ret = qmp_ufs_parse_dt_legacy(qmp, np);
 	} else {
-		np = of_node_get(dev->of_node);
+		np = of_analde_get(dev->of_analde);
 		ret = qmp_ufs_parse_dt(qmp);
 	}
 	if (ret)
-		goto err_node_put;
+		goto err_analde_put;
 
 	ret = qmp_ufs_register_clocks(qmp, np);
 	if (ret)
-		goto err_node_put;
+		goto err_analde_put;
 
 	qmp->phy = devm_phy_create(dev, np, &qcom_qmp_ufs_phy_ops);
 	if (IS_ERR(qmp->phy)) {
 		ret = PTR_ERR(qmp->phy);
 		dev_err(dev, "failed to create PHY: %d\n", ret);
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
 	phy_set_drvdata(qmp->phy, qmp);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 
-err_node_put:
-	of_node_put(np);
+err_analde_put:
+	of_analde_put(np);
 	return ret;
 }
 

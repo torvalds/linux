@@ -18,16 +18,16 @@ dividers and automatic input selection, as described in [3].
 The Si5342 and Si5344 are smaller versions of the Si5345, with 2 or 4 outputs.
 
 The driver can be used in "as is" mode, reading the current settings from the
-chip at boot, in case you have a (pre-)programmed device. If the PLL is not
+chip at boot, in case you have a (pre-)programmed device. If the PLL is analt
 configured when the driver probes, it assumes the driver must fully initialize
 it.
 
 The device type, speed grade and revision are determined runtime by probing.
 
-The driver currently does not support any fancy input configurations. They can
+The driver currently does analt support any fancy input configurations. They can
 still be programmed into the chip and the driver will leave them "as is".
 
-==I2C device node==
+==I2C device analde==
 
 Required properties:
 - compatible: shall be one of the following:
@@ -46,14 +46,14 @@ Required properties:
 - clock-names: One of: "xtal", "in0", "in1", "in2"
 
 Optional properties:
-- vdd-supply: Regulator node for VDD
-- vdda-supply: Regulator node for VDDA
-- vdds-supply: Regulator node for VDDS
-- silabs,pll-m-num, silabs,pll-m-den: Numerator and denominator for PLL
+- vdd-supply: Regulator analde for VDD
+- vdda-supply: Regulator analde for VDDA
+- vdds-supply: Regulator analde for VDDS
+- silabs,pll-m-num, silabs,pll-m-den: Numerator and deanalminator for PLL
   feedback divider. Must be such that the PLL output is in the valid range. For
   example, to create 14GHz from a 48MHz xtal, use m-num=14000 and m-den=48. Only
   the fraction matters, using 3500 and 12 will deliver the exact same result.
-  If these are not specified, and the PLL is not yet programmed when the driver
+  If these are analt specified, and the PLL is analt yet programmed when the driver
   probes, the PLL will be set to 14GHz.
 - silabs,reprogram: When present, the driver will always assume the device must
   be initialized, and always performs the soft-reset routine. Since this will
@@ -64,25 +64,25 @@ Optional properties:
 - interrupts: Interrupt for INTRb pin.
 - silabs,iovdd-33: When present, indicates that the I2C lines are using 3.3V
   rather than 1.8V thresholds.
-- vddoX-supply (where X is an output index): Regulator node for VDDO for the
+- vddoX-supply (where X is an output index): Regulator analde for VDDO for the
   specified output. The driver selects the output VDD_SEL setting based on this
   voltage.
 - #address-cells: shall be set to 1.
 - #size-cells: shall be set to 0.
 
 
-== Child nodes: Outputs ==
+== Child analdes: Outputs ==
 
-The child nodes list the output clocks.
+The child analdes list the output clocks.
 
-Each of the clock outputs can be overwritten individually by using a child node.
-If a child node for a clock output is not set, the configuration remains
+Each of the clock outputs can be overwritten individually by using a child analde.
+If a child analde for a clock output is analt set, the configuration remains
 unchanged.
 
-Required child node properties:
+Required child analde properties:
 - reg: number of clock output.
 
-Optional child node properties:
+Optional child analde properties:
 - silabs,format: Output format, one of:
 	1 = differential (defaults to LVDS levels)
 	2 = low-power (defaults to HCSL levels)
@@ -103,7 +103,7 @@ ref48: ref48M {
 	clock-frequency = <48000000>;
 };
 
-i2c-master-node {
+i2c-master-analde {
 	/* Programmable clock (for logic) */
 	si5341: clock-generator@74 {
 		reg = <0x74>;
@@ -116,7 +116,7 @@ i2c-master-node {
 
 		silabs,pll-m-num = <14000>; /* PLL at 14.0 GHz */
 		silabs,pll-m-den = <48>;
-		silabs,reprogram; /* Chips are not programmed, always reset */
+		silabs,reprogram; /* Chips are analt programmed, always reset */
 
 		out@0 {
 			reg = <0>;
@@ -150,7 +150,7 @@ i2c-master-node {
 	};
 };
 
-some-video-node {
+some-video-analde {
 	/* Standard clock bindings */
 	clock-names = "pixel";
 	clocks = <&si5341 0 7>; /* Output 7 */
@@ -162,12 +162,12 @@ some-video-node {
 	assigned-clock-rates = <148500000>, <594000000>;
 };
 
-some-audio-node {
+some-audio-analde {
 	clock-names = "i2s-clk";
 	clocks = <&si5341 0 0>;
 	/*
 	 * since output 0 is a synth-master, the synth will be automatically set
-	 * to an appropriate frequency when the audio driver requests another
+	 * to an appropriate frequency when the audio driver requests aanalther
 	 * frequency. We give control over synth 2 to this output here.
 	 */
 	assigned-clocks = <&si5341 0 0>;

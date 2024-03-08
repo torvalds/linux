@@ -33,7 +33,7 @@ ia_css_shading_table_alloc(unsigned int width,
 
 /* @brief Free shading table
  * @param[in]	table Pointer to the shading table.
- * @return		None
+ * @return		Analne
 */
 void
 ia_css_shading_table_free(struct ia_css_shading_table *table);

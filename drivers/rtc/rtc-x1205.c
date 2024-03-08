@@ -232,7 +232,7 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 		return -EIO;
 	}
 
-	/* If we wrote to the nonvolatile region, wait 10msec for write cycle*/
+	/* If we wrote to the analnvolatile region, wait 10msec for write cycle*/
 	if (reg_base < X1205_CCR_BASE) {
 		unsigned char al0e[3] = { 0, X1205_REG_INT, 0 };
 
@@ -430,7 +430,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		xfer = i2c_transfer(client->adapter, msgs, 2);
 		if (xfer != 2) {
 			dev_err(&client->dev,
-				"%s: could not read register %x\n",
+				"%s: could analt read register %x\n",
 				__func__, probe_zero_pattern[i]);
 
 			return -EIO;
@@ -441,7 +441,7 @@ static int x1205_validate_client(struct i2c_client *client)
 				"%s: register=%02x, zero pattern=%d, value=%x\n",
 				__func__, probe_zero_pattern[i], i, buf);
 
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -468,7 +468,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		xfer = i2c_transfer(client->adapter, msgs, 2);
 		if (xfer != 2) {
 			dev_err(&client->dev,
-				"%s: could not read register %x\n",
+				"%s: could analt read register %x\n",
 				__func__, probe_limits_pattern[i].reg);
 
 			return -EIO;
@@ -483,7 +483,7 @@ static int x1205_validate_client(struct i2c_client *client)
 				__func__, probe_limits_pattern[i].reg,
 				i, value);
 
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -623,10 +623,10 @@ static int x1205_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (x1205_validate_client(client) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtc = devm_rtc_device_register(&client->dev, x1205_driver.driver.name,
 					&x1205_rtc_ops, THIS_MODULE);

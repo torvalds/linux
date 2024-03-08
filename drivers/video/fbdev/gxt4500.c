@@ -121,11 +121,11 @@ static const unsigned char pixsize[] = {
 #define   WAT_FMT_32BIT			3	/* 0 vs. 3 is a guess */
 #define   WAT_FMT_8BIT_332		9
 #define   WAT_FMT_8BIT			0xa
-#define   WAT_FMT_NO_CMAP		4	/* ORd in to other values */
+#define   WAT_FMT_ANAL_CMAP		4	/* ORd in to other values */
 #define WAT_CMAP_OFFSET		0x4104		/* 4-bit value gets << 6 */
 #define WAT_CTRL		0x4108
 #define   WAT_CTRL_SEL_B		1	/* select B buffer if 1 */
-#define   WAT_CTRL_NO_INC		2
+#define   WAT_CTRL_ANAL_INC		2
 #define WAT_GAMMA_CTRL		0x410c
 #define   WAT_GAMMA_DISABLE		1	/* disables gamma cmap */
 #define WAT_OVL_CTRL		0x430c		/* controls overlay */
@@ -172,7 +172,7 @@ static const struct fb_videomode defaultmode = {
 	.lower_margin = 1,
 	.hsync_len = 112,
 	.vsync_len = 3,
-	.vmode = FB_VMODE_NONINTERLACED
+	.vmode = FB_VMODE_ANALNINTERLACED
 };
 
 /* List of supported cards */
@@ -288,7 +288,7 @@ static int gxt4500_var_to_par(struct fb_var_screeninfo *var,
 	    var->yres + var->yoffset > var->yres_virtual ||
 	    var->xres_virtual > 4096)
 		return -EINVAL;
-	if ((var->vmode & FB_VMODE_MASK) != FB_VMODE_NONINTERLACED)
+	if ((var->vmode & FB_VMODE_MASK) != FB_VMODE_ANALNINTERLACED)
 		return -EINVAL;
 
 	if (calc_pll(var->pixclock, par) < 0)
@@ -321,7 +321,7 @@ static int gxt4500_var_to_par(struct fb_var_screeninfo *var,
 }
 
 static const struct fb_bitfield eightbits = {0, 8};
-static const struct fb_bitfield nobits = {0, 0};
+static const struct fb_bitfield analbits = {0, 0};
 
 static void gxt4500_unpack_pixfmt(struct fb_var_screeninfo *var,
 				  int pixfmt)
@@ -330,7 +330,7 @@ static void gxt4500_unpack_pixfmt(struct fb_var_screeninfo *var,
 	var->red = eightbits;
 	var->green = eightbits;
 	var->blue = eightbits;
-	var->transp = nobits;
+	var->transp = analbits;
 
 	switch (pixfmt) {
 	case DFA_PIX_16BIT_565:
@@ -391,7 +391,7 @@ static int gxt4500_set_par(struct fb_info *info)
 		return err;
 	}
 
-	/* turn off DTG for now */
+	/* turn off DTG for analw */
 	ctrlreg = readreg(par, DTG_CONTROL);
 	ctrlreg &= ~(DTG_CTL_ENABLE | DTG_CTL_SCREEN_REFRESH);
 	writereg(par, DTG_CONTROL, ctrlreg);
@@ -626,7 +626,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "gxt4500: cannot enable PCI device: %d\n",
+		dev_err(&pdev->dev, "gxt4500: cananalt enable PCI device: %d\n",
 			err);
 		return err;
 	}
@@ -634,14 +634,14 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	reg_phys = pci_resource_start(pdev, 0);
 	if (!request_mem_region(reg_phys, pci_resource_len(pdev, 0),
 				"gxt4500 regs")) {
-		dev_err(&pdev->dev, "gxt4500: cannot get registers\n");
-		goto err_nodev;
+		dev_err(&pdev->dev, "gxt4500: cananalt get registers\n");
+		goto err_analdev;
 	}
 
 	fb_phys = pci_resource_start(pdev, 1);
 	if (!request_mem_region(fb_phys, pci_resource_len(pdev, 1),
 				"gxt4500 FB")) {
-		dev_err(&pdev->dev, "gxt4500: cannot get framebuffer\n");
+		dev_err(&pdev->dev, "gxt4500: cananalt get framebuffer\n");
 		goto err_free_regs;
 	}
 
@@ -660,7 +660,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	info->fix.mmio_start = reg_phys;
 	par->regs = pci_ioremap_bar(pdev, 0);
 	if (!par->regs) {
-		dev_err(&pdev->dev, "gxt4500: cannot map registers\n");
+		dev_err(&pdev->dev, "gxt4500: cananalt map registers\n");
 		goto err_free_all;
 	}
 
@@ -668,7 +668,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	info->fix.smem_len = pci_resource_len(pdev, 1);
 	info->screen_base = pci_ioremap_wc_bar(pdev, 1);
 	if (!info->screen_base) {
-		dev_err(&pdev->dev, "gxt4500: cannot map framebuffer\n");
+		dev_err(&pdev->dev, "gxt4500: cananalt map framebuffer\n");
 		goto err_unmap_regs;
 	}
 
@@ -681,7 +681,7 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Set byte-swapping for DFA aperture for all pixel sizes */
 	pci_write_config_dword(pdev, CFG_ENDIAN0, 0x333300);
 #else /* __LITTLE_ENDIAN */
-	/* not sure what this means but fgl23 driver does that */
+	/* analt sure what this means but fgl23 driver does that */
 	pci_write_config_dword(pdev, CFG_ENDIAN0, 0x2300);
 /*	pci_write_config_dword(pdev, CFG_ENDIAN0 + 4, 0x400000);*/
 	pci_write_config_dword(pdev, CFG_ENDIAN0 + 8, 0x98530000);
@@ -692,24 +692,24 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (err) {
-		dev_err(&pdev->dev, "gxt4500: cannot allocate cmap\n");
+		dev_err(&pdev->dev, "gxt4500: cananalt allocate cmap\n");
 		goto err_unmap_all;
 	}
 
 	gxt4500_blank(FB_BLANK_UNBLANK, info);
 
 	if (!fb_find_mode(&var, info, mode_option, NULL, 0, &defaultmode, 8)) {
-		dev_err(&pdev->dev, "gxt4500: cannot find valid video mode\n");
+		dev_err(&pdev->dev, "gxt4500: cananalt find valid video mode\n");
 		goto err_free_cmap;
 	}
 	info->var = var;
 	if (gxt4500_set_par(info)) {
-		printk(KERN_ERR "gxt4500: cannot set video mode\n");
+		printk(KERN_ERR "gxt4500: cananalt set video mode\n");
 		goto err_free_cmap;
 	}
 
 	if (register_framebuffer(info) < 0) {
-		dev_err(&pdev->dev, "gxt4500: cannot register framebuffer\n");
+		dev_err(&pdev->dev, "gxt4500: cananalt register framebuffer\n");
 		goto err_free_cmap;
 	}
 	fb_info(info, "%s frame buffer device\n", info->fix.id);
@@ -728,8 +728,8 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	release_mem_region(fb_phys, pci_resource_len(pdev, 1));
  err_free_regs:
 	release_mem_region(reg_phys, pci_resource_len(pdev, 0));
- err_nodev:
-	return -ENODEV;
+ err_analdev:
+	return -EANALDEV;
 }
 
 static void gxt4500_remove(struct pci_dev *pdev)
@@ -777,11 +777,11 @@ static struct pci_driver gxt4500_driver = {
 static int gxt4500_init(void)
 {
 	if (fb_modesetting_disabled("gxt4500"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("gxt4500", &mode_option))
-		return -ENODEV;
+		return -EANALDEV;
 #endif
 
 	return pci_register_driver(&gxt4500_driver);

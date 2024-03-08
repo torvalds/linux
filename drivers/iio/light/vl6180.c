@@ -450,7 +450,7 @@ static int vl6180_init(struct vl6180_data *data)
 
 	if (ret != VL6180_MODEL_ID_VAL) {
 		dev_err(&client->dev, "invalid model ID %02x\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = vl6180_hold(data, true);
@@ -466,7 +466,7 @@ static int vl6180_init(struct vl6180_data *data)
 	 * system comes out of reset.
 	 */
 	if (ret != 0x01)
-		dev_info(&client->dev, "device is not fresh out of reset\n");
+		dev_info(&client->dev, "device is analt fresh out of reset\n");
 
 	/* Enable ALS and Range ready interrupts */
 	ret = vl6180_write_byte(client, VL6180_INTR_CONFIG,
@@ -501,7 +501,7 @@ static int vl6180_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

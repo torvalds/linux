@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _func-close:
@@ -12,7 +12,7 @@ Name
 
 v4l2-close - Close a V4L2 device
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -38,8 +38,8 @@ remain unchanged.
 Return Value
 ============
 
-The function returns 0 on success, -1 on failure and the ``errno`` is
+The function returns 0 on success, -1 on failure and the ``erranal`` is
 set appropriately. Possible error codes:
 
 EBADF
-    ``fd`` is not a valid open file descriptor.
+    ``fd`` is analt a valid open file descriptor.

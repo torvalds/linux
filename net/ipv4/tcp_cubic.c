@@ -21,7 +21,7 @@
  * http://netsrv.csc.ncsu.edu/wiki/index.php/TCP_Testing
  *
  * Unless CUBIC is enabled and congestion window is large
- * this behaves the same as the original Reno.
+ * this behaves the same as the original Reanal.
  */
 
 #include <linux/mm.h>
@@ -61,7 +61,7 @@ static u32 cube_rtt_scale __read_mostly;
 static u32 beta_scale __read_mostly;
 static u64 cube_factor __read_mostly;
 
-/* Note parameters that are used for precomputing scale factors are read-only */
+/* Analte parameters that are used for precomputing scale factors are read-only */
 module_param(fast_convergence, int, 0644);
 MODULE_PARM_DESC(fast_convergence, "turn on/off fast convergence");
 module_param(beta, int, 0644);
@@ -143,18 +143,18 @@ __bpf_kfunc static void cubictcp_cwnd_event(struct sock *sk, enum tcp_ca_event e
 {
 	if (event == CA_EVENT_TX_START) {
 		struct bictcp *ca = inet_csk_ca(sk);
-		u32 now = tcp_jiffies32;
+		u32 analw = tcp_jiffies32;
 		s32 delta;
 
-		delta = now - tcp_sk(sk)->lsndtime;
+		delta = analw - tcp_sk(sk)->lsndtime;
 
 		/* We were application limited (idle) for a while.
 		 * Shift epoch_start to keep cwnd growth to cubic curve.
 		 */
 		if (ca->epoch_start && delta > 0) {
 			ca->epoch_start += delta;
-			if (after(ca->epoch_start, now))
-				ca->epoch_start = now;
+			if (after(ca->epoch_start, analw))
+				ca->epoch_start = analw;
 		}
 		return;
 	}
@@ -256,11 +256,11 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd, u32 acked)
 	 * (so time^3 is done by using 64 bit)
 	 * and without the support of division of 64bit numbers
 	 * (so all divisions are done by using 32 bit)
-	 *  also NOTE the unit of those veriables
+	 *  also ANALTE the unit of those veriables
 	 *	  time  = (t - K) / 2^bictcp_HZ
 	 *	  c = bic_scale >> 10
 	 * rtt  = (srtt >> 3) / HZ
-	 * !!! The following code does not have overflow problems,
+	 * !!! The following code does analt have overflow problems,
 	 * if the cwnd < 1 million packets !!!
 	 */
 
@@ -291,7 +291,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd, u32 acked)
 
 	/*
 	 * The initial growth of cubic function may be too conservative
-	 * when the available bandwidth is still unknown.
+	 * when the available bandwidth is still unkanalwn.
 	 */
 	if (ca->last_max_cwnd == 0 && ca->cnt > 20)
 		ca->cnt = 20;	/* increase cwnd 5% per RTT */
@@ -366,10 +366,10 @@ __bpf_kfunc static void cubictcp_state(struct sock *sk, u8 new_state)
 /* Account for TSO/GRO delays.
  * Otherwise short RTT flows could get too small ssthresh, since during
  * slow start we begin with small TSO packets and ca->delay_min would
- * not account for long aggregation delay when TSO packets get bigger.
+ * analt account for long aggregation delay when TSO packets get bigger.
  * Ideally even with a very small RTT we would like to have at least one
- * TSO packet being sent and received by GRO, and another one in qdisc layer.
- * We apply another 100% factor because @rate is doubled at this point.
+ * TSO packet being sent and received by GRO, and aanalther one in qdisc layer.
+ * We apply aanalther 100% factor because @rate is doubled at this point.
  * We cap the cushion to 1ms.
  */
 static u32 hystart_ack_delay(const struct sock *sk)
@@ -393,11 +393,11 @@ static void hystart_update(struct sock *sk, u32 delay)
 		bictcp_hystart_reset(sk);
 
 	if (hystart_detect & HYSTART_ACK_TRAIN) {
-		u32 now = bictcp_clock_us(sk);
+		u32 analw = bictcp_clock_us(sk);
 
 		/* first detection parameter - ack-train detection */
-		if ((s32)(now - ca->last_ack) <= hystart_ack_delta_us) {
-			ca->last_ack = now;
+		if ((s32)(analw - ca->last_ack) <= hystart_ack_delta_us) {
+			ca->last_ack = analw;
 
 			threshold = ca->delay_min + hystart_ack_delay(sk);
 
@@ -406,13 +406,13 @@ static void hystart_update(struct sock *sk, u32 delay)
 			 * Pacing might have delayed packets up to RTT/2
 			 * during slow start.
 			 */
-			if (sk->sk_pacing_status == SK_PACING_NONE)
+			if (sk->sk_pacing_status == SK_PACING_ANALNE)
 				threshold >>= 1;
 
-			if ((s32)(now - ca->round_start) > threshold) {
+			if ((s32)(analw - ca->round_start) > threshold) {
 				ca->found = 1;
 				pr_debug("hystart_ack_train (%u > %u) delay_min %u (+ ack_delay %u) cwnd %u\n",
-					 now - ca->round_start, threshold,
+					 analw - ca->round_start, threshold,
 					 ca->delay_min, hystart_ack_delay(sk), tcp_snd_cwnd(tp));
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTTRAINDETECT);
@@ -478,7 +478,7 @@ static struct tcp_congestion_ops cubictcp __read_mostly = {
 	.ssthresh	= cubictcp_recalc_ssthresh,
 	.cong_avoid	= cubictcp_cong_avoid,
 	.set_state	= cubictcp_state,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.undo_cwnd	= tcp_reanal_undo_cwnd,
 	.cwnd_event	= cubictcp_cwnd_event,
 	.pkts_acked     = cubictcp_acked,
 	.owner		= THIS_MODULE,
@@ -520,7 +520,7 @@ static int __init cubictcp_register(void)
 
 	/* calculate the "K" for (wmax-cwnd) = c/rtt * K^3
 	 *  so K = cubic_root( (wmax-cwnd)*rtt/c )
-	 * the unit of K is bictcp_HZ=2^10, not HZ
+	 * the unit of K is bictcp_HZ=2^10, analt HZ
 	 *
 	 *  c = bic_scale >> 10
 	 *  rtt = 100ms
@@ -528,7 +528,7 @@ static int __init cubictcp_register(void)
 	 * the following code has been designed and tested for
 	 * cwnd < 1 million packets
 	 * RTT < 100 seconds
-	 * HZ < 1,000,00  (corresponding to 10 nano-second)
+	 * HZ < 1,000,00  (corresponding to 10 naanal-second)
 	 */
 
 	/* 1/c * 2^2*bictcp_HZ * srtt */

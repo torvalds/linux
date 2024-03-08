@@ -42,14 +42,14 @@ struct intel_guc {
 	/** @capture: the error-state-capture module's data and objects */
 	struct intel_guc_state_capture *capture;
 
-	/** @dbgfs_node: debugfs node */
-	struct dentry *dbgfs_node;
+	/** @dbgfs_analde: debugfs analde */
+	struct dentry *dbgfs_analde;
 
 	/** @sched_engine: Global engine used to submit requests to GuC */
 	struct i915_sched_engine *sched_engine;
 	/**
 	 * @stalled_request: if GuC can't process a request for any reason, we
-	 * save it until GuC restarts processing. No other request can be
+	 * save it until GuC restarts processing. Anal other request can be
 	 * submitted until the stalled request is processed.
 	 */
 	struct i915_request *stalled_request;
@@ -57,7 +57,7 @@ struct intel_guc {
 	 * @submission_stall_reason: reason why submission is stalled
 	 */
 	enum {
-		STALL_NONE,
+		STALL_ANALNE,
 		STALL_REGISTER_CONTEXT,
 		STALL_MOVE_LRC_TAIL,
 		STALL_ADD_REQUEST,
@@ -88,8 +88,8 @@ struct intel_guc {
 	 */
 	u32 serial_slot;
 
-	/** @next_seqno: the next id (sequence number) to allocate. */
-	u32 next_seqno;
+	/** @next_seqanal: the next id (sequence number) to allocate. */
+	u32 next_seqanal;
 
 	/** @interrupts: pointers to GuC interrupt-managing functions. */
 	struct {
@@ -127,7 +127,7 @@ struct intel_guc {
 		unsigned long *guc_ids_bitmap;
 		/**
 		 * @submission_state.guc_id_list: list of intel_context
-		 * with valid guc_ids but no refs
+		 * with valid guc_ids but anal refs
 		 */
 		struct list_head guc_id_list;
 		/**
@@ -144,7 +144,7 @@ struct intel_guc {
 		 * @submission_state.destroyed_worker: worker to deregister
 		 * contexts, need as we need to take a GT PM reference and
 		 * can't from destroy function as it might be in an atomic
-		 * context (no sleeping)
+		 * context (anal sleeping)
 		 */
 		struct work_struct destroyed_worker;
 		/**
@@ -230,11 +230,11 @@ struct intel_guc {
 		enum forcewake_domains fw_domains;
 	} send_regs;
 
-	/** @notify_reg: register used to send interrupts to the GuC FW */
-	i915_reg_t notify_reg;
+	/** @analtify_reg: register used to send interrupts to the GuC FW */
+	i915_reg_t analtify_reg;
 
 	/**
-	 * @mmio_msg: notification bitmask that the GuC writes in one of its
+	 * @mmio_msg: analtification bitmask that the GuC writes in one of its
 	 * registers when the CT channel is disabled, to be processed when the
 	 * channel is back up.
 	 */
@@ -288,9 +288,9 @@ struct intel_guc {
 	} timestamp;
 
 	/**
-	 * @dead_guc_worker: Asynchronous worker thread for forcing a GuC reset.
+	 * @dead_guc_worker: Asynchroanalus worker thread for forcing a GuC reset.
 	 * Specifically used when the G2H handler wants to issue a reset. Resets
-	 * require flushing the G2H queue. So, the G2H processing itself must not
+	 * require flushing the G2H queue. So, the G2H processing itself must analt
 	 * trigger a reset directly. Instead, go via this worker.
 	 */
 	struct work_struct dead_guc_worker;
@@ -323,7 +323,7 @@ struct intel_guc_tlb_wait {
  * integer works.
  */
 #define MAKE_GUC_VER(maj, min, pat)	(((maj) << 16) | ((min) << 8) | (pat))
-#define MAKE_GUC_VER_STRUCT(ver)	MAKE_GUC_VER((ver).major, (ver).minor, (ver).patch)
+#define MAKE_GUC_VER_STRUCT(ver)	MAKE_GUC_VER((ver).major, (ver).mianalr, (ver).patch)
 #define GUC_SUBMIT_VER(guc)		MAKE_GUC_VER_STRUCT((guc)->submission_version)
 #define GUC_FIRMWARE_VER(guc)		MAKE_GUC_VER_STRUCT((guc)->fw.file_selected.ver)
 
@@ -362,7 +362,7 @@ static inline int intel_guc_send_busy_loop(struct intel_guc *guc,
 {
 	int err;
 	unsigned int sleep_period_ms = 1;
-	bool not_atomic = !in_atomic() && !irqs_disabled();
+	bool analt_atomic = !in_atomic() && !irqs_disabled();
 
 	/*
 	 * FIXME: Have caller pass in if we are in an atomic context to avoid
@@ -371,13 +371,13 @@ static inline int intel_guc_send_busy_loop(struct intel_guc *guc,
 	 * regardless this should be cleaned up.
 	 */
 
-	/* No sleeping with spin locks, just busy loop */
-	might_sleep_if(loop && not_atomic);
+	/* Anal sleeping with spin locks, just busy loop */
+	might_sleep_if(loop && analt_atomic);
 
 retry:
 	err = intel_guc_send_nb(guc, action, len, g2h_len_dw);
 	if (unlikely(err == -EBUSY && loop)) {
-		if (likely(not_atomic)) {
+		if (likely(analt_atomic)) {
 			if (msleep_interruptible(sleep_period_ms))
 				return -EINTR;
 			sleep_period_ms = sleep_period_ms << 1;
@@ -405,7 +405,7 @@ static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
  * @guc: intel_guc structure.
  * @vma: i915 graphics virtual memory area.
  *
- * GuC does not allow any gfx GGTT address that falls into range
+ * GuC does analt allow any gfx GGTT address that falls into range
  * [0, ggtt.pin_bias), which is reserved for Boot ROM, SRAM and WOPCM.
  * Currently, in order to exclude [0, ggtt.pin_bias) address space from
  * GGTT, all gfx objects used by GuC are allocated with intel_guc_allocate_vma()
@@ -430,7 +430,7 @@ void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_write_params(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
 void intel_guc_fini(struct intel_guc *guc);
-void intel_guc_notify(struct intel_guc *guc);
+void intel_guc_analtify(struct intel_guc *guc);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 			u32 *response_buf, u32 response_buf_size);
 int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,

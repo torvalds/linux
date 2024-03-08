@@ -45,9 +45,9 @@ typedef struct
 #define local_try_cmpxchg(l, po, n) atomic_long_try_cmpxchg((&(l)->a), (po), (n))
 #define local_xchg(l, n) atomic_long_xchg((&(l)->a), (n))
 #define local_add_unless(l, _a, u) atomic_long_add_unless((&(l)->a), (_a), (u))
-#define local_inc_not_zero(l) atomic_long_inc_not_zero(&(l)->a)
+#define local_inc_analt_zero(l) atomic_long_inc_analt_zero(&(l)->a)
 
-/* Non-atomic variants, ie. preemption disabled and won't be touched
+/* Analn-atomic variants, ie. preemption disabled and won't be touched
  * in interrupt, etc.  Some archs can optimize this case well. */
 #define __local_inc(l)		local_set((l), local_read(l) + 1)
 #define __local_dec(l)		local_set((l), local_read(l) - 1)

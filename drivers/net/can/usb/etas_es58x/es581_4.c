@@ -21,7 +21,7 @@
  *	structure of a rx or tx message.
  * @msg: message of variable length, must have a dlc field.
  *
- * Even if RTR frames have actually no payload, the ES58X devices
+ * Even if RTR frames have actually anal payload, the ES58X devices
  * still expect it. Must be a macro in order to accept several types
  * (struct es581_4_tx_can_msg and struct es581_4_rx_can_msg) as an
  * input.
@@ -50,13 +50,13 @@ static int es581_4_echo_msg(struct es58x_device *es58x_dev,
 
 	bulk_echo_msg = &es581_4_urb_cmd->bulk_echo_msg;
 	msg_len = get_unaligned_le16(&es581_4_urb_cmd->msg_len) -
-	    sizeof(bulk_echo_msg->channel_no);
+	    sizeof(bulk_echo_msg->channel_anal);
 	num_element = es58x_msg_num_element(es58x_dev->dev,
 					    bulk_echo_msg->echo_msg, msg_len);
 	if (num_element <= 0)
 		return num_element;
 
-	ret = es58x_get_netdev(es58x_dev, bulk_echo_msg->channel_no,
+	ret = es58x_get_netdev(es58x_dev, bulk_echo_msg->channel_anal,
 			       ES581_4_CHANNEL_IDX_OFFSET, &netdev);
 	if (ret)
 		return ret;
@@ -98,15 +98,15 @@ static int es581_4_rx_can_msg(struct es58x_device *es58x_dev,
 {
 	const struct device *dev = es58x_dev->dev;
 	struct net_device *netdev;
-	int pkts, num_element, channel_no, ret;
+	int pkts, num_element, channel_anal, ret;
 
 	num_element = es58x_msg_num_element(dev, es581_4_urb_cmd->rx_can_msg,
 					    msg_len);
 	if (num_element <= 0)
 		return num_element;
 
-	channel_no = es581_4_urb_cmd->rx_can_msg[0].channel_no;
-	ret = es58x_get_netdev(es58x_dev, channel_no,
+	channel_anal = es581_4_urb_cmd->rx_can_msg[0].channel_anal;
+	ret = es58x_get_netdev(es58x_dev, channel_anal,
 			       ES581_4_CHANNEL_IDX_OFFSET, &netdev);
 	if (ret)
 		return ret;
@@ -126,7 +126,7 @@ static int es581_4_rx_can_msg(struct es58x_device *es58x_dev,
 		u64 tstamp = get_unaligned_le64(&rx_can_msg->timestamp);
 		canid_t can_id = get_unaligned_le32(&rx_can_msg->can_id);
 
-		if (channel_no != rx_can_msg->channel_no)
+		if (channel_anal != rx_can_msg->channel_anal)
 			return -EBADMSG;
 
 		ret = es58x_rx_can_msg(netdev, tstamp, rx_can_msg->data,
@@ -146,7 +146,7 @@ static int es581_4_rx_err_msg(struct es58x_device *es58x_dev,
 	enum es58x_err error = get_unaligned_le32(&rx_err_msg->error);
 	int ret;
 
-	ret = es58x_get_netdev(es58x_dev, rx_err_msg->channel_no,
+	ret = es58x_get_netdev(es58x_dev, rx_err_msg->channel_anal,
 			       ES581_4_CHANNEL_IDX_OFFSET, &netdev);
 	if (ret)
 		return ret;
@@ -162,7 +162,7 @@ static int es581_4_rx_event_msg(struct es58x_device *es58x_dev,
 	enum es58x_event event = get_unaligned_le32(&rx_event_msg->event);
 	int ret;
 
-	ret = es58x_get_netdev(es58x_dev, rx_event_msg->channel_no,
+	ret = es58x_get_netdev(es58x_dev, rx_event_msg->channel_anal,
 			       ES581_4_CHANNEL_IDX_OFFSET, &netdev);
 	if (ret)
 		return ret;
@@ -187,7 +187,7 @@ static int es581_4_rx_cmd_ret_u32(struct es58x_device *es58x_dev,
 
 	rx_cmd_ret = &es581_4_urb_cmd->rx_cmd_ret;
 
-	ret = es58x_get_netdev(es58x_dev, rx_cmd_ret->channel_no,
+	ret = es58x_get_netdev(es58x_dev, rx_cmd_ret->channel_anal,
 			       ES581_4_CHANNEL_IDX_OFFSET, &netdev);
 	if (ret)
 		return ret;
@@ -214,7 +214,7 @@ static int es581_4_tx_ack_msg(struct es58x_device *es58x_dev,
 					   ES58X_RET_TYPE_TX_MSG,
 					   tx_ack_msg->rx_cmd_ret_u8);
 
-	ret = es58x_get_netdev(es58x_dev, tx_ack_msg->channel_no,
+	ret = es58x_get_netdev(es58x_dev, tx_ack_msg->channel_anal,
 			       ES581_4_CHANNEL_IDX_OFFSET, &netdev);
 	if (ret)
 		return ret;
@@ -253,7 +253,7 @@ static int es581_4_dispatch_rx_cmd(struct es58x_device *es58x_dev,
 					    &es581_4_urb_cmd->rx_event_msg);
 
 	default:
-		dev_err(dev, "%s: Unknown rx_type 0x%02X\n", __func__, rx_type);
+		dev_err(dev, "%s: Unkanalwn rx_type 0x%02X\n", __func__, rx_type);
 		return -EBADRQC;
 	}
 }
@@ -269,7 +269,7 @@ static int es581_4_handle_urb_cmd(struct es58x_device *es58x_dev,
 	es581_4_urb_cmd = &urb_cmd->es581_4_urb_cmd;
 
 	if (es581_4_urb_cmd->cmd_type != ES581_4_CAN_COMMAND_TYPE) {
-		dev_err(dev, "%s: Unknown command type (0x%02X)\n",
+		dev_err(dev, "%s: Unkanalwn command type (0x%02X)\n",
 			__func__, es581_4_urb_cmd->cmd_type);
 		return -EBADRQC;
 	}
@@ -376,7 +376,7 @@ static int es581_4_tx_can_msg(struct es58x_priv *priv,
 	put_unaligned_le32(es58x_get_raw_can_id(cf), &tx_can_msg->can_id);
 	put_unaligned_le32(priv->tx_head, &tx_can_msg->packet_idx);
 	put_unaligned_le16((u16)es58x_get_flags(skb), &tx_can_msg->flags);
-	tx_can_msg->channel_no = priv->channel_idx + ES581_4_CHANNEL_IDX_OFFSET;
+	tx_can_msg->channel_anal = priv->channel_idx + ES581_4_CHANNEL_IDX_OFFSET;
 	tx_can_msg->dlc = can_get_cc_dlc(cf, priv->can.ctrlmode);
 
 	memcpy(tx_can_msg->data, cf->data, cf->len);
@@ -406,7 +406,7 @@ static int es581_4_set_bittiming(struct es58x_priv *priv)
 	tx_conf_msg.physical_layer =
 	    cpu_to_le32(ES58X_PHYSICAL_LAYER_HIGH_SPEED);
 	tx_conf_msg.echo_mode = cpu_to_le32(ES58X_ECHO_ON);
-	tx_conf_msg.channel_no = priv->channel_idx + ES581_4_CHANNEL_IDX_OFFSET;
+	tx_conf_msg.channel_anal = priv->channel_idx + ES581_4_CHANNEL_IDX_OFFSET;
 
 	return es58x_send_msg(priv->es58x_dev, ES581_4_CAN_COMMAND_TYPE,
 			      ES581_4_CMD_ID_SET_BITTIMING, &tx_conf_msg,
@@ -450,7 +450,7 @@ static int es581_4_get_timestamp(struct es58x_device *es58x_dev)
 			      ES58X_EMPTY_MSG, 0, ES58X_CHANNEL_IDX_NA);
 }
 
-/* Nominal bittiming constants for ES581.4 as specified in the
+/* Analminal bittiming constants for ES581.4 as specified in the
  * microcontroller datasheet: "Stellaris(R) LM3S5B91 Microcontroller"
  * table 17-4 "CAN Protocol Ranges" from Texas Instruments.
  */

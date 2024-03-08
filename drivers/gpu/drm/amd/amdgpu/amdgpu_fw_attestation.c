@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,14 +55,14 @@ static ssize_t amdgpu_fw_attestation_debugfs_read(struct file *f,
 						  size_t size,
 						  loff_t *pos)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_ianalde(f)->i_private;
 	uint64_t records_addr = 0;
 	uint64_t vram_pos = 0;
 	struct FW_ATT_DB_HEADER fw_att_hdr = {0};
 	struct FW_ATT_RECORD fw_att_record = {0};
 
 	if (size < sizeof(struct FW_ATT_RECORD)) {
-		DRM_WARN("FW attestation input buffer not enough memory");
+		DRM_WARN("FW attestation input buffer analt eanalugh memory");
 		return -EINVAL;
 	}
 

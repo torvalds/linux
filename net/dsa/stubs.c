@@ -2,7 +2,7 @@
 /*
  * Stubs for DSA functionality called by the core network stack.
  * These are necessary because CONFIG_NET_DSA can be a module, and built-in
- * code cannot directly call symbols exported by modules.
+ * code cananalt directly call symbols exported by modules.
  */
 #include <net/dsa_stubs.h>
 

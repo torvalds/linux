@@ -41,11 +41,11 @@
  * %false if it should fall back to buffered I/O.
  *
  * DIO isn't well specified; when it's unsupported (either due to the request
- * being misaligned, or due to the file not supporting DIO at all), filesystems
+ * being misaligned, or due to the file analt supporting DIO at all), filesystems
  * either fall back to buffered I/O or return EINVAL.  For files that don't use
  * any special features like encryption or verity, ext4 has traditionally
  * returned EINVAL for misaligned DIO.  iomap_dio_rw() uses this convention too.
- * In this case, we should attempt the DIO, *not* fall back to buffered I/O.
+ * In this case, we should attempt the DIO, *analt* fall back to buffered I/O.
  *
  * In contrast, in cases where DIO is unsupported due to ext4 features, ext4
  * traditionally falls back to buffered I/O.
@@ -54,8 +54,8 @@
  */
 static bool ext4_should_use_dio(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
-	u32 dio_align = ext4_dio_alignment(inode);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
+	u32 dio_align = ext4_dio_alignment(ianalde);
 
 	if (dio_align == 0)
 		return false;
@@ -69,22 +69,22 @@ static bool ext4_should_use_dio(struct kiocb *iocb, struct iov_iter *iter)
 static ssize_t ext4_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	ssize_t ret;
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock_shared(inode))
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
+		if (!ianalde_trylock_shared(ianalde))
 			return -EAGAIN;
 	} else {
-		inode_lock_shared(inode);
+		ianalde_lock_shared(ianalde);
 	}
 
 	if (!ext4_should_use_dio(iocb, to)) {
-		inode_unlock_shared(inode);
+		ianalde_unlock_shared(ianalde);
 		/*
 		 * Fallback to buffered I/O if the operation being performed on
-		 * the inode is not supported by direct I/O. The IOCB_DIRECT
+		 * the ianalde is analt supported by direct I/O. The IOCB_DIRECT
 		 * flag needs to be cleared here in order to ensure that the
-		 * direct I/O path within generic_file_read_iter() is not
+		 * direct I/O path within generic_file_read_iter() is analt
 		 * taken.
 		 */
 		iocb->ki_flags &= ~IOCB_DIRECT;
@@ -92,7 +92,7 @@ static ssize_t ext4_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	}
 
 	ret = iomap_dio_rw(iocb, to, &ext4_iomap_ops, NULL, 0, NULL, 0);
-	inode_unlock_shared(inode);
+	ianalde_unlock_shared(ianalde);
 
 	file_accessed(iocb->ki_filp);
 	return ret;
@@ -101,26 +101,26 @@ static ssize_t ext4_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 #ifdef CONFIG_FS_DAX
 static ssize_t ext4_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	ssize_t ret;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock_shared(inode))
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
+		if (!ianalde_trylock_shared(ianalde))
 			return -EAGAIN;
 	} else {
-		inode_lock_shared(inode);
+		ianalde_lock_shared(ianalde);
 	}
 	/*
-	 * Recheck under inode lock - at this point we are sure it cannot
+	 * Recheck under ianalde lock - at this point we are sure it cananalt
 	 * change anymore
 	 */
-	if (!IS_DAX(inode)) {
-		inode_unlock_shared(inode);
-		/* Fallback to buffered IO in case we cannot support DAX */
+	if (!IS_DAX(ianalde)) {
+		ianalde_unlock_shared(ianalde);
+		/* Fallback to buffered IO in case we cananalt support DAX */
 		return generic_file_read_iter(iocb, to);
 	}
 	ret = dax_iomap_rw(iocb, to, &ext4_iomap_ops);
-	inode_unlock_shared(inode);
+	ianalde_unlock_shared(ianalde);
 
 	file_accessed(iocb->ki_filp);
 	return ret;
@@ -129,16 +129,16 @@ static ssize_t ext4_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 static ssize_t ext4_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
+	if (unlikely(ext4_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 
 	if (!iov_iter_count(to))
 		return 0; /* skip atime */
 
 #ifdef CONFIG_FS_DAX
-	if (IS_DAX(inode))
+	if (IS_DAX(ianalde))
 		return ext4_dax_read_iter(iocb, to);
 #endif
 	if (iocb->ki_flags & IOCB_DIRECT)
@@ -148,43 +148,43 @@ static ssize_t ext4_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 }
 
 static ssize_t ext4_file_splice_read(struct file *in, loff_t *ppos,
-				     struct pipe_inode_info *pipe,
+				     struct pipe_ianalde_info *pipe,
 				     size_t len, unsigned int flags)
 {
-	struct inode *inode = file_inode(in);
+	struct ianalde *ianalde = file_ianalde(in);
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
+	if (unlikely(ext4_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 	return filemap_splice_read(in, ppos, pipe, len, flags);
 }
 
 /*
- * Called when an inode is released. Note that this is different
+ * Called when an ianalde is released. Analte that this is different
  * from ext4_file_open: open gets called at every open, but release
  * gets called only when /all/ the files are closed.
  */
-static int ext4_release_file(struct inode *inode, struct file *filp)
+static int ext4_release_file(struct ianalde *ianalde, struct file *filp)
 {
-	if (ext4_test_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE)) {
-		ext4_alloc_da_blocks(inode);
-		ext4_clear_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE);
+	if (ext4_test_ianalde_state(ianalde, EXT4_STATE_DA_ALLOC_CLOSE)) {
+		ext4_alloc_da_blocks(ianalde);
+		ext4_clear_ianalde_state(ianalde, EXT4_STATE_DA_ALLOC_CLOSE);
 	}
-	/* if we are the last writer on the inode, drop the block reservation */
+	/* if we are the last writer on the ianalde, drop the block reservation */
 	if ((filp->f_mode & FMODE_WRITE) &&
-			(atomic_read(&inode->i_writecount) == 1) &&
-			!EXT4_I(inode)->i_reserved_data_blocks) {
-		down_write(&EXT4_I(inode)->i_data_sem);
-		ext4_discard_preallocations(inode);
-		up_write(&EXT4_I(inode)->i_data_sem);
+			(atomic_read(&ianalde->i_writecount) == 1) &&
+			!EXT4_I(ianalde)->i_reserved_data_blocks) {
+		down_write(&EXT4_I(ianalde)->i_data_sem);
+		ext4_discard_preallocations(ianalde);
+		up_write(&EXT4_I(ianalde)->i_data_sem);
 	}
-	if (is_dx(inode) && filp->private_data)
+	if (is_dx(ianalde) && filp->private_data)
 		ext4_htree_free_dir_info(filp->private_data);
 
 	return 0;
 }
 
 /*
- * This tests whether the IO in question is block-aligned or not.
+ * This tests whether the IO in question is block-aligned or analt.
  * Ext4 utilizes unwritten extents when hole-filling during direct IO, and they
  * are converted to written only after the IO is complete.  Until they are
  * mapped, these blocks appear as holes, so dio_zero_block() will assume that
@@ -193,9 +193,9 @@ static int ext4_release_file(struct inode *inode, struct file *filp)
  * or one thread will zero the other's data, causing corruption.
  */
 static bool
-ext4_unaligned_io(struct inode *inode, struct iov_iter *from, loff_t pos)
+ext4_unaligned_io(struct ianalde *ianalde, struct iov_iter *from, loff_t pos)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	unsigned long blockmask = sb->s_blocksize - 1;
 
 	if ((pos | iov_iter_alignment(from)) & blockmask)
@@ -205,35 +205,35 @@ ext4_unaligned_io(struct inode *inode, struct iov_iter *from, loff_t pos)
 }
 
 static bool
-ext4_extending_io(struct inode *inode, loff_t offset, size_t len)
+ext4_extending_io(struct ianalde *ianalde, loff_t offset, size_t len)
 {
-	if (offset + len > i_size_read(inode) ||
-	    offset + len > EXT4_I(inode)->i_disksize)
+	if (offset + len > i_size_read(ianalde) ||
+	    offset + len > EXT4_I(ianalde)->i_disksize)
 		return true;
 	return false;
 }
 
 /* Is IO overwriting allocated or initialized blocks? */
-static bool ext4_overwrite_io(struct inode *inode,
+static bool ext4_overwrite_io(struct ianalde *ianalde,
 			      loff_t pos, loff_t len, bool *unwritten)
 {
 	struct ext4_map_blocks map;
-	unsigned int blkbits = inode->i_blkbits;
+	unsigned int blkbits = ianalde->i_blkbits;
 	int err, blklen;
 
-	if (pos + len > i_size_read(inode))
+	if (pos + len > i_size_read(ianalde))
 		return false;
 
 	map.m_lblk = pos >> blkbits;
 	map.m_len = EXT4_MAX_BLOCKS(len, pos, blkbits);
 	blklen = map.m_len;
 
-	err = ext4_map_blocks(NULL, inode, &map, 0);
+	err = ext4_map_blocks(NULL, ianalde, &map, 0);
 	if (err != blklen)
 		return false;
 	/*
 	 * 'err==len' means that all of the blocks have been preallocated,
-	 * regardless of whether they have been initialized or not. We need to
+	 * regardless of whether they have been initialized or analt. We need to
 	 * check m_flags to distinguish the unwritten extents.
 	 */
 	*unwritten = !(map.m_flags & EXT4_MAP_MAPPED);
@@ -243,10 +243,10 @@ static bool ext4_overwrite_io(struct inode *inode,
 static ssize_t ext4_generic_write_checks(struct kiocb *iocb,
 					 struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	ssize_t ret;
 
-	if (unlikely(IS_IMMUTABLE(inode)))
+	if (unlikely(IS_IMMUTABLE(ianalde)))
 		return -EPERM;
 
 	ret = generic_write_checks(iocb, from);
@@ -257,8 +257,8 @@ static ssize_t ext4_generic_write_checks(struct kiocb *iocb,
 	 * If we have encountered a bitmap-format file, the size limit
 	 * is smaller than s_maxbytes, which is for extent-mapped files.
 	 */
-	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
-		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	if (!(ext4_test_ianalde_flag(ianalde, EXT4_IANALDE_EXTENTS))) {
+		struct ext4_sb_info *sbi = EXT4_SB(ianalde->i_sb);
 
 		if (iocb->ki_pos >= sbi->s_bitmap_maxbytes)
 			return -EFBIG;
@@ -286,12 +286,12 @@ static ssize_t ext4_buffered_write_iter(struct kiocb *iocb,
 					struct iov_iter *from)
 {
 	ssize_t ret;
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		return -EOPNOTSUPP;
+	if (iocb->ki_flags & IOCB_ANALWAIT)
+		return -EOPANALTSUPP;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	ret = ext4_write_checks(iocb, from);
 	if (ret <= 0)
 		goto out;
@@ -299,74 +299,74 @@ static ssize_t ext4_buffered_write_iter(struct kiocb *iocb,
 	ret = generic_perform_write(iocb, from);
 
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	if (unlikely(ret <= 0))
 		return ret;
 	return generic_write_sync(iocb, ret);
 }
 
-static ssize_t ext4_handle_inode_extension(struct inode *inode, loff_t offset,
+static ssize_t ext4_handle_ianalde_extension(struct ianalde *ianalde, loff_t offset,
 					   ssize_t count)
 {
 	handle_t *handle;
 
-	lockdep_assert_held_write(&inode->i_rwsem);
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+	lockdep_assert_held_write(&ianalde->i_rwsem);
+	handle = ext4_journal_start(ianalde, EXT4_HT_IANALDE, 2);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
-	if (ext4_update_inode_size(inode, offset + count)) {
-		int ret = ext4_mark_inode_dirty(handle, inode);
+	if (ext4_update_ianalde_size(ianalde, offset + count)) {
+		int ret = ext4_mark_ianalde_dirty(handle, ianalde);
 		if (unlikely(ret)) {
 			ext4_journal_stop(handle);
 			return ret;
 		}
 	}
 
-	if (inode->i_nlink)
-		ext4_orphan_del(handle, inode);
+	if (ianalde->i_nlink)
+		ext4_orphan_del(handle, ianalde);
 	ext4_journal_stop(handle);
 
 	return count;
 }
 
 /*
- * Clean up the inode after DIO or DAX extending write has completed and the
- * inode size has been updated using ext4_handle_inode_extension().
+ * Clean up the ianalde after DIO or DAX extending write has completed and the
+ * ianalde size has been updated using ext4_handle_ianalde_extension().
  */
-static void ext4_inode_extension_cleanup(struct inode *inode, ssize_t count)
+static void ext4_ianalde_extension_cleanup(struct ianalde *ianalde, ssize_t count)
 {
-	lockdep_assert_held_write(&inode->i_rwsem);
+	lockdep_assert_held_write(&ianalde->i_rwsem);
 	if (count < 0) {
-		ext4_truncate_failed_write(inode);
+		ext4_truncate_failed_write(ianalde);
 		/*
-		 * If the truncate operation failed early, then the inode may
+		 * If the truncate operation failed early, then the ianalde may
 		 * still be on the orphan list. In that case, we need to try
-		 * remove the inode from the in-memory linked list.
+		 * remove the ianalde from the in-memory linked list.
 		 */
-		if (inode->i_nlink)
-			ext4_orphan_del(NULL, inode);
+		if (ianalde->i_nlink)
+			ext4_orphan_del(NULL, ianalde);
 		return;
 	}
 	/*
 	 * If i_disksize got extended either due to writeback of delalloc
 	 * blocks or extending truncate while the DIO was running we could fail
-	 * to cleanup the orphan list in ext4_handle_inode_extension(). Do it
-	 * now.
+	 * to cleanup the orphan list in ext4_handle_ianalde_extension(). Do it
+	 * analw.
 	 */
-	if (!list_empty(&EXT4_I(inode)->i_orphan) && inode->i_nlink) {
-		handle_t *handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+	if (!list_empty(&EXT4_I(ianalde)->i_orphan) && ianalde->i_nlink) {
+		handle_t *handle = ext4_journal_start(ianalde, EXT4_HT_IANALDE, 2);
 
 		if (IS_ERR(handle)) {
 			/*
-			 * The write has successfully completed. Not much to
+			 * The write has successfully completed. Analt much to
 			 * do with the error here so just cleanup the orphan
 			 * list and hope for the best.
 			 */
-			ext4_orphan_del(NULL, inode);
+			ext4_orphan_del(NULL, ianalde);
 			return;
 		}
-		ext4_orphan_del(handle, inode);
+		ext4_orphan_del(handle, ianalde);
 		ext4_journal_stop(handle);
 	}
 }
@@ -375,25 +375,25 @@ static int ext4_dio_write_end_io(struct kiocb *iocb, ssize_t size,
 				 int error, unsigned int flags)
 {
 	loff_t pos = iocb->ki_pos;
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
 	if (!error && size && flags & IOMAP_DIO_UNWRITTEN)
-		error = ext4_convert_unwritten_extents(NULL, inode, pos, size);
+		error = ext4_convert_unwritten_extents(NULL, ianalde, pos, size);
 	if (error)
 		return error;
 	/*
-	 * Note that EXT4_I(inode)->i_disksize can get extended up to
-	 * inode->i_size while the I/O was running due to writeback of delalloc
+	 * Analte that EXT4_I(ianalde)->i_disksize can get extended up to
+	 * ianalde->i_size while the I/O was running due to writeback of delalloc
 	 * blocks. But the code in ext4_iomap_alloc() is careful to use
 	 * zeroed/unwritten extents if this is possible; thus we won't leave
 	 * uninitialized blocks in a file even if we didn't succeed in writing
 	 * as much as we intended. Also we can race with truncate or write
 	 * expanding the file so we have to be a bit careful here.
 	 */
-	if (pos + size <= READ_ONCE(EXT4_I(inode)->i_disksize) &&
-	    pos + size <= i_size_read(inode))
+	if (pos + size <= READ_ONCE(EXT4_I(ianalde)->i_disksize) &&
+	    pos + size <= i_size_read(ianalde))
 		return size;
-	return ext4_handle_inode_extension(inode, pos, size);
+	return ext4_handle_ianalde_extension(ianalde, pos, size);
 }
 
 static const struct iomap_dio_ops ext4_dio_write_ops = {
@@ -402,18 +402,18 @@ static const struct iomap_dio_ops ext4_dio_write_ops = {
 
 /*
  * The intention here is to start with shared lock acquired then see if any
- * condition requires an exclusive inode lock. If yes, then we restart the
+ * condition requires an exclusive ianalde lock. If anal, then we restart the
  * whole operation by releasing the shared lock and acquiring exclusive lock.
  *
  * - For unaligned_io we never take shared lock as it may cause data corruption
  *   when two unaligned IO tries to modify the same block e.g. while zeroing.
  *
  * - For extending writes case we don't take the shared lock, since it requires
- *   updating inode i_disksize and/or orphan handling with exclusive lock.
+ *   updating ianalde i_disksize and/or orphan handling with exclusive lock.
  *
  * - shared locking will only be true mostly with overwrites, including
  *   initialized blocks and unwritten blocks. For overwrite unwritten blocks
- *   we protect splitting extents by i_data_sem in ext4_inode_info, so we can
+ *   we protect splitting extents by i_data_sem in ext4_ianalde_info, so we can
  *   also release exclusive i_rwsem lock.
  *
  * - Otherwise we will switch to exclusive i_rwsem lock.
@@ -423,7 +423,7 @@ static ssize_t ext4_dio_write_checks(struct kiocb *iocb, struct iov_iter *from,
 				     bool *unwritten, int *dio_flags)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	loff_t offset;
 	size_t count;
 	ssize_t ret;
@@ -437,48 +437,48 @@ restart:
 	offset = iocb->ki_pos;
 	count = ret;
 
-	unaligned_io = ext4_unaligned_io(inode, from, offset);
-	*extend = ext4_extending_io(inode, offset, count);
-	overwrite = ext4_overwrite_io(inode, offset, count, unwritten);
+	unaligned_io = ext4_unaligned_io(ianalde, from, offset);
+	*extend = ext4_extending_io(ianalde, offset, count);
+	overwrite = ext4_overwrite_io(ianalde, offset, count, unwritten);
 
 	/*
 	 * Determine whether we need to upgrade to an exclusive lock. This is
 	 * required to change security info in file_modified(), for extending
-	 * I/O, any form of non-overwrite I/O, and unaligned I/O to unwritten
+	 * I/O, any form of analn-overwrite I/O, and unaligned I/O to unwritten
 	 * extents (as partial block zeroing may be required).
 	 *
-	 * Note that unaligned writes are allowed under shared lock so long as
+	 * Analte that unaligned writes are allowed under shared lock so long as
 	 * they are pure overwrites. Otherwise, concurrent unaligned writes risk
 	 * data corruption due to partial block zeroing in the dio layer, and so
 	 * the I/O must occur exclusively.
 	 */
 	if (*ilock_shared &&
-	    ((!IS_NOSEC(inode) || *extend || !overwrite ||
+	    ((!IS_ANALSEC(ianalde) || *extend || !overwrite ||
 	     (unaligned_io && *unwritten)))) {
-		if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (iocb->ki_flags & IOCB_ANALWAIT) {
 			ret = -EAGAIN;
 			goto out;
 		}
-		inode_unlock_shared(inode);
+		ianalde_unlock_shared(ianalde);
 		*ilock_shared = false;
-		inode_lock(inode);
+		ianalde_lock(ianalde);
 		goto restart;
 	}
 
 	/*
-	 * Now that locking is settled, determine dio flags and exclusivity
+	 * Analw that locking is settled, determine dio flags and exclusivity
 	 * requirements. We don't use DIO_OVERWRITE_ONLY because we enforce
-	 * behavior already. The inode lock is already held exclusive if the
-	 * write is non-overwrite or extending, so drain all outstanding dio and
+	 * behavior already. The ianalde lock is already held exclusive if the
+	 * write is analn-overwrite or extending, so drain all outstanding dio and
 	 * set the force wait dio flag.
 	 */
 	if (!*ilock_shared && (unaligned_io || *extend)) {
-		if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (iocb->ki_flags & IOCB_ANALWAIT) {
 			ret = -EAGAIN;
 			goto out;
 		}
 		if (unaligned_io && (!overwrite || *unwritten))
-			inode_dio_wait(inode);
+			ianalde_dio_wait(ianalde);
 		*dio_flags = IOMAP_DIO_FORCE_WAIT;
 	}
 
@@ -489,9 +489,9 @@ restart:
 	return count;
 out:
 	if (*ilock_shared)
-		inode_unlock_shared(inode);
+		ianalde_unlock_shared(ianalde);
 	else
-		inode_unlock(inode);
+		ianalde_unlock(ianalde);
 	return ret;
 }
 
@@ -499,7 +499,7 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	ssize_t ret;
 	handle_t *handle;
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	loff_t offset = iocb->ki_pos;
 	size_t count = iov_iter_count(from);
 	const struct iomap_ops *iomap_ops = &ext4_iomap_ops;
@@ -512,41 +512,41 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	 * IO. A more reliable check is done in ext4_dio_write_checks() with
 	 * proper locking in place.
 	 */
-	if (offset + count > i_size_read(inode))
+	if (offset + count > i_size_read(ianalde))
 		ilock_shared = false;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
 		if (ilock_shared) {
-			if (!inode_trylock_shared(inode))
+			if (!ianalde_trylock_shared(ianalde))
 				return -EAGAIN;
 		} else {
-			if (!inode_trylock(inode))
+			if (!ianalde_trylock(ianalde))
 				return -EAGAIN;
 		}
 	} else {
 		if (ilock_shared)
-			inode_lock_shared(inode);
+			ianalde_lock_shared(ianalde);
 		else
-			inode_lock(inode);
+			ianalde_lock(ianalde);
 	}
 
-	/* Fallback to buffered I/O if the inode does not support direct I/O. */
+	/* Fallback to buffered I/O if the ianalde does analt support direct I/O. */
 	if (!ext4_should_use_dio(iocb, from)) {
 		if (ilock_shared)
-			inode_unlock_shared(inode);
+			ianalde_unlock_shared(ianalde);
 		else
-			inode_unlock(inode);
+			ianalde_unlock(ianalde);
 		return ext4_buffered_write_iter(iocb, from);
 	}
 
 	/*
 	 * Prevent inline data from being created since we are going to allocate
-	 * blocks for DIO. We know the inode does not currently have inline data
+	 * blocks for DIO. We kanalw the ianalde does analt currently have inline data
 	 * because ext4_should_use_dio() checked for it, but we have to clear
 	 * the state flag before the write checks because a lock cycle could
 	 * introduce races with other writers.
 	 */
-	ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
+	ext4_clear_ianalde_state(ianalde, EXT4_STATE_MAY_INLINE_DATA);
 
 	ret = ext4_dio_write_checks(iocb, from, &ilock_shared, &extend,
 				    &unwritten, &dio_flags);
@@ -557,13 +557,13 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	count = ret;
 
 	if (extend) {
-		handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+		handle = ext4_journal_start(ianalde, EXT4_HT_IANALDE, 2);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			goto out;
 		}
 
-		ret = ext4_orphan_add(handle, inode);
+		ret = ext4_orphan_add(handle, ianalde);
 		if (ret) {
 			ext4_journal_stop(handle);
 			goto out;
@@ -576,24 +576,24 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		iomap_ops = &ext4_iomap_overwrite_ops;
 	ret = iomap_dio_rw(iocb, from, iomap_ops, &ext4_dio_write_ops,
 			   dio_flags, NULL, 0);
-	if (ret == -ENOTBLK)
+	if (ret == -EANALTBLK)
 		ret = 0;
 	if (extend) {
 		/*
-		 * We always perform extending DIO write synchronously so by
-		 * now the IO is completed and ext4_handle_inode_extension()
-		 * was called. Cleanup the inode in case of error or race with
+		 * We always perform extending DIO write synchroanalusly so by
+		 * analw the IO is completed and ext4_handle_ianalde_extension()
+		 * was called. Cleanup the ianalde in case of error or race with
 		 * writeback of delalloc blocks.
 		 */
 		WARN_ON_ONCE(ret == -EIOCBQUEUED);
-		ext4_inode_extension_cleanup(inode, ret);
+		ext4_ianalde_extension_cleanup(ianalde, ret);
 	}
 
 out:
 	if (ilock_shared)
-		inode_unlock_shared(inode);
+		ianalde_unlock_shared(ianalde);
 	else
-		inode_unlock(inode);
+		ianalde_unlock(ianalde);
 
 	if (ret >= 0 && iov_iter_count(from)) {
 		ssize_t err;
@@ -633,13 +633,13 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	loff_t offset;
 	handle_t *handle;
 	bool extend = false;
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock(inode))
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
+		if (!ianalde_trylock(ianalde))
 			return -EAGAIN;
 	} else {
-		inode_lock(inode);
+		ianalde_lock(ianalde);
 	}
 
 	ret = ext4_write_checks(iocb, from);
@@ -649,14 +649,14 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	offset = iocb->ki_pos;
 	count = iov_iter_count(from);
 
-	if (offset + count > EXT4_I(inode)->i_disksize) {
-		handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+	if (offset + count > EXT4_I(ianalde)->i_disksize) {
+		handle = ext4_journal_start(ianalde, EXT4_HT_IANALDE, 2);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			goto out;
 		}
 
-		ret = ext4_orphan_add(handle, inode);
+		ret = ext4_orphan_add(handle, ianalde);
 		if (ret) {
 			ext4_journal_stop(handle);
 			goto out;
@@ -669,11 +669,11 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ret = dax_iomap_rw(iocb, from, &ext4_iomap_ops);
 
 	if (extend) {
-		ret = ext4_handle_inode_extension(inode, offset, ret);
-		ext4_inode_extension_cleanup(inode, ret);
+		ret = ext4_handle_ianalde_extension(ianalde, offset, ret);
+		ext4_ianalde_extension_cleanup(ianalde, ret);
 	}
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
 	return ret;
@@ -683,13 +683,13 @@ out:
 static ssize_t
 ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
+	if (unlikely(ext4_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 
 #ifdef CONFIG_FS_DAX
-	if (IS_DAX(inode))
+	if (IS_DAX(ianalde))
 		return ext4_dax_write_iter(iocb, from);
 #endif
 	if (iocb->ki_flags & IOCB_DIRECT)
@@ -705,12 +705,12 @@ static vm_fault_t ext4_dax_huge_fault(struct vm_fault *vmf, unsigned int order)
 	vm_fault_t result;
 	int retries = 0;
 	handle_t *handle = NULL;
-	struct inode *inode = file_inode(vmf->vma->vm_file);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(vmf->vma->vm_file);
+	struct super_block *sb = ianalde->i_sb;
 
 	/*
 	 * We have to distinguish real writes from writes which will result in a
-	 * COW page; COW writes should *not* poke the journal (the file will not
+	 * COW page; COW writes should *analt* poke the journal (the file will analt
 	 * be changed). Doing so would cause unintended failures when mounted
 	 * read-only.
 	 *
@@ -743,10 +743,10 @@ retry:
 	if (write) {
 		ext4_journal_stop(handle);
 
-		if ((result & VM_FAULT_ERROR) && error == -ENOSPC &&
+		if ((result & VM_FAULT_ERROR) && error == -EANALSPC &&
 		    ext4_should_retry_alloc(sb, &retries))
 			goto retry;
-		/* Handling synchronous page fault? */
+		/* Handling synchroanalus page fault? */
 		if (result & VM_FAULT_NEEDDSYNC)
 			result = dax_finish_sync_fault(vmf, order, pfn);
 		filemap_invalidate_unlock_shared(mapping);
@@ -781,21 +781,21 @@ static const struct vm_operations_struct ext4_file_vm_ops = {
 
 static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct dax_device *dax_dev = EXT4_SB(inode->i_sb)->s_daxdev;
+	struct ianalde *ianalde = file->f_mapping->host;
+	struct dax_device *dax_dev = EXT4_SB(ianalde->i_sb)->s_daxdev;
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
+	if (unlikely(ext4_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 
 	/*
-	 * We don't support synchronous mappings for non-DAX files and
-	 * for DAX files if underneath dax_device is not synchronous.
+	 * We don't support synchroanalus mappings for analn-DAX files and
+	 * for DAX files if underneath dax_device is analt synchroanalus.
 	 */
 	if (!daxdev_mapping_supported(vma, dax_dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	file_accessed(file);
-	if (IS_DAX(file_inode(file))) {
+	if (IS_DAX(file_ianalde(file))) {
 		vma->vm_ops = &ext4_dax_vm_ops;
 		vm_flags_set(vma, VM_HUGEPAGE);
 	} else {
@@ -840,7 +840,7 @@ static int ext4_sample_last_mounted(struct super_block *sb,
 		goto out;
 	BUFFER_TRACE(sbi->s_sbh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, sb, sbi->s_sbh,
-					    EXT4_JTR_NONE);
+					    EXT4_JTR_ANALNE);
 	if (err)
 		goto out_journal;
 	lock_buffer(sbi->s_sbh);
@@ -856,38 +856,38 @@ out:
 	return err;
 }
 
-static int ext4_file_open(struct inode *inode, struct file *filp)
+static int ext4_file_open(struct ianalde *ianalde, struct file *filp)
 {
 	int ret;
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
+	if (unlikely(ext4_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 
-	ret = ext4_sample_last_mounted(inode->i_sb, filp->f_path.mnt);
+	ret = ext4_sample_last_mounted(ianalde->i_sb, filp->f_path.mnt);
 	if (ret)
 		return ret;
 
-	ret = fscrypt_file_open(inode, filp);
+	ret = fscrypt_file_open(ianalde, filp);
 	if (ret)
 		return ret;
 
-	ret = fsverity_file_open(inode, filp);
+	ret = fsverity_file_open(ianalde, filp);
 	if (ret)
 		return ret;
 
 	/*
-	 * Set up the jbd2_inode if we are opening the inode for
+	 * Set up the jbd2_ianalde if we are opening the ianalde for
 	 * writing and the journal is present
 	 */
 	if (filp->f_mode & FMODE_WRITE) {
-		ret = ext4_inode_attach_jinode(inode);
+		ret = ext4_ianalde_attach_jianalde(ianalde);
 		if (ret < 0)
 			return ret;
 	}
 
-	filp->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC |
+	filp->f_mode |= FMODE_ANALWAIT | FMODE_BUF_RASYNC |
 			FMODE_DIO_PARALLEL_WRITE;
-	return dquot_file_open(inode, filp);
+	return dquot_file_open(ianalde, filp);
 }
 
 /*
@@ -897,29 +897,29 @@ static int ext4_file_open(struct inode *inode, struct file *filp)
  */
 loff_t ext4_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	loff_t maxbytes;
 
-	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
-		maxbytes = EXT4_SB(inode->i_sb)->s_bitmap_maxbytes;
+	if (!(ext4_test_ianalde_flag(ianalde, EXT4_IANALDE_EXTENTS)))
+		maxbytes = EXT4_SB(ianalde->i_sb)->s_bitmap_maxbytes;
 	else
-		maxbytes = inode->i_sb->s_maxbytes;
+		maxbytes = ianalde->i_sb->s_maxbytes;
 
 	switch (whence) {
 	default:
 		return generic_file_llseek_size(file, offset, whence,
-						maxbytes, i_size_read(inode));
+						maxbytes, i_size_read(ianalde));
 	case SEEK_HOLE:
-		inode_lock_shared(inode);
-		offset = iomap_seek_hole(inode, offset,
+		ianalde_lock_shared(ianalde);
+		offset = iomap_seek_hole(ianalde, offset,
 					 &ext4_iomap_report_ops);
-		inode_unlock_shared(inode);
+		ianalde_unlock_shared(ianalde);
 		break;
 	case SEEK_DATA:
-		inode_lock_shared(inode);
-		offset = iomap_seek_data(inode, offset,
+		ianalde_lock_shared(ianalde);
+		offset = iomap_seek_data(ianalde, offset,
 					 &ext4_iomap_report_ops);
-		inode_unlock_shared(inode);
+		ianalde_unlock_shared(ianalde);
 		break;
 	}
 
@@ -948,11 +948,11 @@ const struct file_operations ext4_file_operations = {
 	.fallocate	= ext4_fallocate,
 };
 
-const struct inode_operations ext4_file_inode_operations = {
+const struct ianalde_operations ext4_file_ianalde_operations = {
 	.setattr	= ext4_setattr,
 	.getattr	= ext4_file_getattr,
 	.listxattr	= ext4_listxattr,
-	.get_inode_acl	= ext4_get_acl,
+	.get_ianalde_acl	= ext4_get_acl,
 	.set_acl	= ext4_set_acl,
 	.fiemap		= ext4_fiemap,
 	.fileattr_get	= ext4_fileattr_get,

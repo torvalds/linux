@@ -34,14 +34,14 @@
 #define LATENCY_FILTERED_SSD (0)
 /*
  * For HD, very small latency comes from sequential IO. Such IO is helpless to
- * help determine if its IO is impacted by others, hence we ignore the IO
+ * help determine if its IO is impacted by others, hence we iganalre the IO
  */
 #define LATENCY_FILTERED_HD (1000L) /* 1ms */
 
 /* A workqueue to queue throttle related work */
 static struct workqueue_struct *kthrotld_workqueue;
 
-#define rb_entry_tg(node)	rb_entry((node), struct throtl_grp, rb_node)
+#define rb_entry_tg(analde)	rb_entry((analde), struct throtl_grp, rb_analde)
 
 /* We measure latency for request size from <= 4k to >= 1M */
 #define LATENCY_BUCKET_SIZE 9
@@ -156,7 +156,7 @@ static uint64_t tg_bps_limit(struct throtl_grp *tg, int rw)
 	td = tg->td;
 	ret = tg->bps[rw][td->limit_index];
 	if (ret == 0 && td->limit_index == LIMIT_LOW) {
-		/* intermediate node or iops isn't 0 */
+		/* intermediate analde or iops isn't 0 */
 		if (!list_empty(&blkg->blkcg->css.children) ||
 		    tg->iops[rw][td->limit_index])
 			return U64_MAX;
@@ -186,7 +186,7 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 	td = tg->td;
 	ret = tg->iops[rw][td->limit_index];
 	if (ret == 0 && tg->td->limit_index == LIMIT_LOW) {
-		/* intermediate node or bps isn't 0 */
+		/* intermediate analde or bps isn't 0 */
 		if (!list_empty(&blkg->blkcg->css.children) ||
 		    tg->bps[rw][td->limit_index])
 			return UINT_MAX;
@@ -223,7 +223,7 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 	struct throtl_data *__td = sq_to_td((sq));			\
 									\
 	(void)__td;							\
-	if (likely(!blk_trace_note_message_enabled(__td->queue)))	\
+	if (likely(!blk_trace_analte_message_enabled(__td->queue)))	\
 		break;							\
 	if ((__tg)) {							\
 		blk_add_cgroup_trace_msg(__td->queue,			\
@@ -241,61 +241,61 @@ static inline unsigned int throtl_bio_data_size(struct bio *bio)
 	return bio->bi_iter.bi_size;
 }
 
-static void throtl_qnode_init(struct throtl_qnode *qn, struct throtl_grp *tg)
+static void throtl_qanalde_init(struct throtl_qanalde *qn, struct throtl_grp *tg)
 {
-	INIT_LIST_HEAD(&qn->node);
+	INIT_LIST_HEAD(&qn->analde);
 	bio_list_init(&qn->bios);
 	qn->tg = tg;
 }
 
 /**
- * throtl_qnode_add_bio - add a bio to a throtl_qnode and activate it
+ * throtl_qanalde_add_bio - add a bio to a throtl_qanalde and activate it
  * @bio: bio being added
- * @qn: qnode to add bio to
+ * @qn: qanalde to add bio to
  * @queued: the service_queue->queued[] list @qn belongs to
  *
- * Add @bio to @qn and put @qn on @queued if it's not already on.
+ * Add @bio to @qn and put @qn on @queued if it's analt already on.
  * @qn->tg's reference count is bumped when @qn is activated.  See the
- * comment on top of throtl_qnode definition for details.
+ * comment on top of throtl_qanalde definition for details.
  */
-static void throtl_qnode_add_bio(struct bio *bio, struct throtl_qnode *qn,
+static void throtl_qanalde_add_bio(struct bio *bio, struct throtl_qanalde *qn,
 				 struct list_head *queued)
 {
 	bio_list_add(&qn->bios, bio);
-	if (list_empty(&qn->node)) {
-		list_add_tail(&qn->node, queued);
+	if (list_empty(&qn->analde)) {
+		list_add_tail(&qn->analde, queued);
 		blkg_get(tg_to_blkg(qn->tg));
 	}
 }
 
 /**
- * throtl_peek_queued - peek the first bio on a qnode list
- * @queued: the qnode list to peek
+ * throtl_peek_queued - peek the first bio on a qanalde list
+ * @queued: the qanalde list to peek
  */
 static struct bio *throtl_peek_queued(struct list_head *queued)
 {
-	struct throtl_qnode *qn;
+	struct throtl_qanalde *qn;
 	struct bio *bio;
 
 	if (list_empty(queued))
 		return NULL;
 
-	qn = list_first_entry(queued, struct throtl_qnode, node);
+	qn = list_first_entry(queued, struct throtl_qanalde, analde);
 	bio = bio_list_peek(&qn->bios);
 	WARN_ON_ONCE(!bio);
 	return bio;
 }
 
 /**
- * throtl_pop_queued - pop the first bio form a qnode list
- * @queued: the qnode list to pop a bio from
+ * throtl_pop_queued - pop the first bio form a qanalde list
+ * @queued: the qanalde list to pop a bio from
  * @tg_to_put: optional out argument for throtl_grp to put
  *
- * Pop the first bio from the qnode list @queued.  After popping, the first
- * qnode is removed from @queued if empty or moved to the end of @queued so
+ * Pop the first bio from the qanalde list @queued.  After popping, the first
+ * qanalde is removed from @queued if empty or moved to the end of @queued so
  * that the popping order is round-robin.
  *
- * When the first qnode is removed, its associated throtl_grp should be put
+ * When the first qanalde is removed, its associated throtl_grp should be put
  * too.  If @tg_to_put is NULL, this function automatically puts it;
  * otherwise, *@tg_to_put is set to the throtl_grp to put and the caller is
  * responsible for putting it.
@@ -303,24 +303,24 @@ static struct bio *throtl_peek_queued(struct list_head *queued)
 static struct bio *throtl_pop_queued(struct list_head *queued,
 				     struct throtl_grp **tg_to_put)
 {
-	struct throtl_qnode *qn;
+	struct throtl_qanalde *qn;
 	struct bio *bio;
 
 	if (list_empty(queued))
 		return NULL;
 
-	qn = list_first_entry(queued, struct throtl_qnode, node);
+	qn = list_first_entry(queued, struct throtl_qanalde, analde);
 	bio = bio_list_pop(&qn->bios);
 	WARN_ON_ONCE(!bio);
 
 	if (bio_list_empty(&qn->bios)) {
-		list_del_init(&qn->node);
+		list_del_init(&qn->analde);
 		if (tg_to_put)
 			*tg_to_put = qn->tg;
 		else
 			blkg_put(tg_to_blkg(qn->tg));
 	} else {
-		list_move_tail(&qn->node, queued);
+		list_move_tail(&qn->analde, queued);
 	}
 
 	return bio;
@@ -341,7 +341,7 @@ static struct blkg_policy_data *throtl_pd_alloc(struct gendisk *disk,
 	struct throtl_grp *tg;
 	int rw;
 
-	tg = kzalloc_node(sizeof(*tg), gfp, disk->node_id);
+	tg = kzalloc_analde(sizeof(*tg), gfp, disk->analde_id);
 	if (!tg)
 		return NULL;
 
@@ -354,11 +354,11 @@ static struct blkg_policy_data *throtl_pd_alloc(struct gendisk *disk,
 	throtl_service_queue_init(&tg->service_queue);
 
 	for (rw = READ; rw <= WRITE; rw++) {
-		throtl_qnode_init(&tg->qnode_on_self[rw], tg);
-		throtl_qnode_init(&tg->qnode_on_parent[rw], tg);
+		throtl_qanalde_init(&tg->qanalde_on_self[rw], tg);
+		throtl_qanalde_init(&tg->qanalde_on_parent[rw], tg);
 	}
 
-	RB_CLEAR_NODE(&tg->rb_node);
+	RB_CLEAR_ANALDE(&tg->rb_analde);
 	tg->bps[READ][LIMIT_MAX] = U64_MAX;
 	tg->bps[WRITE][LIMIT_MAX] = U64_MAX;
 	tg->iops[READ][LIMIT_MAX] = UINT_MAX;
@@ -398,7 +398,7 @@ static void throtl_pd_init(struct blkg_policy_data *pd)
 	 * parent group and its subtree groups can't exceed 16M for the
 	 * device.
 	 *
-	 * If not on the default hierarchy, the broken flat hierarchy
+	 * If analt on the default hierarchy, the broken flat hierarchy
 	 * behavior is retained where all throtl_grps are treated as if
 	 * they're all separate root groups right below throtl_data.
 	 * Limits of a group don't interact with limits of other groups
@@ -499,7 +499,7 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
 static struct throtl_grp *
 throtl_rb_first(struct throtl_service_queue *parent_sq)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	n = rb_first_cached(&parent_sq->pending_tree);
 	WARN_ON_ONCE(!n);
@@ -508,11 +508,11 @@ throtl_rb_first(struct throtl_service_queue *parent_sq)
 	return rb_entry_tg(n);
 }
 
-static void throtl_rb_erase(struct rb_node *n,
+static void throtl_rb_erase(struct rb_analde *n,
 			    struct throtl_service_queue *parent_sq)
 {
 	rb_erase_cached(n, &parent_sq->pending_tree);
-	RB_CLEAR_NODE(n);
+	RB_CLEAR_ANALDE(n);
 }
 
 static void update_min_dispatch_time(struct throtl_service_queue *parent_sq)
@@ -529,26 +529,26 @@ static void update_min_dispatch_time(struct throtl_service_queue *parent_sq)
 static void tg_service_queue_add(struct throtl_grp *tg)
 {
 	struct throtl_service_queue *parent_sq = tg->service_queue.parent_sq;
-	struct rb_node **node = &parent_sq->pending_tree.rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **analde = &parent_sq->pending_tree.rb_root.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct throtl_grp *__tg;
 	unsigned long key = tg->disptime;
 	bool leftmost = true;
 
-	while (*node != NULL) {
-		parent = *node;
+	while (*analde != NULL) {
+		parent = *analde;
 		__tg = rb_entry_tg(parent);
 
 		if (time_before(key, __tg->disptime))
-			node = &parent->rb_left;
+			analde = &parent->rb_left;
 		else {
-			node = &parent->rb_right;
+			analde = &parent->rb_right;
 			leftmost = false;
 		}
 	}
 
-	rb_link_node(&tg->rb_node, parent, node);
-	rb_insert_color_cached(&tg->rb_node, &parent_sq->pending_tree,
+	rb_link_analde(&tg->rb_analde, parent, analde);
+	rb_insert_color_cached(&tg->rb_analde, &parent_sq->pending_tree,
 			       leftmost);
 }
 
@@ -567,7 +567,7 @@ static void throtl_dequeue_tg(struct throtl_grp *tg)
 		struct throtl_service_queue *parent_sq =
 			tg->service_queue.parent_sq;
 
-		throtl_rb_erase(&tg->rb_node, parent_sq);
+		throtl_rb_erase(&tg->rb_analde, parent_sq);
 		--parent_sq->nr_pending;
 		tg->flags &= ~THROTL_TG_PENDING;
 	}
@@ -582,9 +582,9 @@ static void throtl_schedule_pending_timer(struct throtl_service_queue *sq,
 	/*
 	 * Since we are adjusting the throttle limit dynamically, the sleep
 	 * time calculated according to previous limit might be invalid. It's
-	 * possible the cgroup sleep time is very long and no other cgroups
-	 * have IO running so notify the limit changes. Make sure the cgroup
-	 * doesn't sleep too long to avoid the missed notification.
+	 * possible the cgroup sleep time is very long and anal other cgroups
+	 * have IO running so analtify the limit changes. Make sure the cgroup
+	 * doesn't sleep too long to avoid the missed analtification.
 	 */
 	if (time_after(expires, max_expire))
 		expires = max_expire;
@@ -600,15 +600,15 @@ static void throtl_schedule_pending_timer(struct throtl_service_queue *sq,
  *
  * Arm @sq->pending_timer so that the next dispatch cycle starts on the
  * dispatch time of the first pending child.  Returns %true if either timer
- * is armed or there's no pending child left.  %false if the current
+ * is armed or there's anal pending child left.  %false if the current
  * dispatch window is still open and the caller should continue
  * dispatching.
  *
  * If @force is %true, the dispatch timer is always scheduled and this
  * function is guaranteed to return %true.  This is to be used when the
  * caller can't dispatch itself and needs to invoke pending_timer
- * unconditionally.  Note that forced scheduling is likely to induce short
- * delay before dispatch starts even if @sq->first_pending_disptime is not
+ * unconditionally.  Analte that forced scheduling is likely to induce short
+ * delay before dispatch starts even if @sq->first_pending_disptime is analt
  * in the future and thus shouldn't be used in hot paths.
  */
 static bool throtl_schedule_next_dispatch(struct throtl_service_queue *sq,
@@ -688,7 +688,7 @@ static inline void throtl_extend_slice(struct throtl_grp *tg, bool rw,
 		   tg->slice_end[rw], jiffies);
 }
 
-/* Determine if previously allocated or extended slice is complete or not */
+/* Determine if previously allocated or extended slice is complete or analt */
 static bool throtl_slice_used(struct throtl_grp *tg, bool rw)
 {
 	if (time_in_range(jiffies, tg->slice_start[rw], tg->slice_end[rw]))
@@ -704,7 +704,7 @@ static unsigned int calculate_io_allowed(u32 iops_limit,
 	u64 tmp;
 
 	/*
-	 * jiffy_elapsed should not be a big value as minimum iops can be
+	 * jiffy_elapsed should analt be a big value as minimum iops can be
 	 * 1 then at max jiffy elapsed should be equivalent of 1 second as we
 	 * will allow dispatch after 1 second and after that slice should
 	 * have been trimmed.
@@ -725,7 +725,7 @@ static u64 calculate_bytes_allowed(u64 bps_limit, unsigned long jiffy_elapsed)
 {
 	/*
 	 * Can result be wider than 64 bits?
-	 * We check against 62, not 64, due to ilog2 truncation.
+	 * We check against 62, analt 64, due to ilog2 truncation.
 	 */
 	if (ilog2(bps_limit) + ilog2(jiffy_elapsed) - ilog2(HZ) > 62)
 		return U64_MAX;
@@ -754,7 +754,7 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 	 * that initially cgroup limit was very low resulting in high
 	 * slice_end, but later limit was bumped up and bio was dispatched
 	 * sooner, then we need to reduce slice_end. A high bogus slice_end
-	 * is bad because it does not allow new slice to start.
+	 * is bad because it does analt allow new slice to start.
 	 */
 
 	throtl_set_slice_end(tg, rw, jiffies + tg->td->throtl_slice);
@@ -841,7 +841,7 @@ static unsigned long tg_within_iops_limit(struct throtl_grp *tg, struct bio *bio
 
 	jiffy_elapsed = jiffies - tg->slice_start[rw];
 
-	/* Round up to the next throttle slice, wait time must be nonzero */
+	/* Round up to the next throttle slice, wait time must be analnzero */
 	jiffy_elapsed_rnd = roundup(jiffy_elapsed + 1, tg->td->throtl_slice);
 	io_allowed = calculate_io_allowed(iops_limit, jiffy_elapsed_rnd) +
 		     tg->carryover_ios[rw];
@@ -862,7 +862,7 @@ static unsigned long tg_within_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	unsigned long jiffy_elapsed, jiffy_wait, jiffy_elapsed_rnd;
 	unsigned int bio_size = throtl_bio_data_size(bio);
 
-	/* no need to throttle if this bio's bytes have been accounted */
+	/* anal need to throttle if this bio's bytes have been accounted */
 	if (bps_limit == U64_MAX || bio_flagged(bio, BIO_BPS_THROTTLED)) {
 		return 0;
 	}
@@ -895,7 +895,7 @@ static unsigned long tg_within_bps_limit(struct throtl_grp *tg, struct bio *bio,
 }
 
 /*
- * Returns whether one can dispatch a bio or not. Also returns approx number
+ * Returns whether one can dispatch a bio or analt. Also returns approx number
  * of jiffies to wait before this bio is with-in IO rate and can be dispatched
  */
 static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
@@ -908,7 +908,7 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 
 	/*
  	 * Currently whole state machine of group depends on first bio
-	 * queued in the group bio list. So one should not be calling
+	 * queued in the group bio list. So one should analt be calling
 	 * this function with a different bio if there are other bios
 	 * queued.
 	 */
@@ -926,7 +926,7 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 	/*
 	 * If previous slice expired, start a new one otherwise renew/extend
 	 * existing slice to make sure it is at least throtl_slice interval
-	 * long since now. New slice is started only for empty throttle group.
+	 * long since analw. New slice is started only for empty throttle group.
 	 * If there is queued bio, that means there should be an active
 	 * slice and it should be extended instead.
 	 */
@@ -976,20 +976,20 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 /**
  * throtl_add_bio_tg - add a bio to the specified throtl_grp
  * @bio: bio to add
- * @qn: qnode to use
+ * @qn: qanalde to use
  * @tg: the target throtl_grp
  *
- * Add @bio to @tg's service_queue using @qn.  If @qn is not specified,
- * tg->qnode_on_self[] is used.
+ * Add @bio to @tg's service_queue using @qn.  If @qn is analt specified,
+ * tg->qanalde_on_self[] is used.
  */
-static void throtl_add_bio_tg(struct bio *bio, struct throtl_qnode *qn,
+static void throtl_add_bio_tg(struct bio *bio, struct throtl_qanalde *qn,
 			      struct throtl_grp *tg)
 {
 	struct throtl_service_queue *sq = &tg->service_queue;
 	bool rw = bio_data_dir(bio);
 
 	if (!qn)
-		qn = &tg->qnode_on_self[rw];
+		qn = &tg->qanalde_on_self[rw];
 
 	/*
 	 * If @tg doesn't currently have any bios queued in the same
@@ -1000,7 +1000,7 @@ static void throtl_add_bio_tg(struct bio *bio, struct throtl_qnode *qn,
 	if (!sq->nr_queued[rw])
 		tg->flags |= THROTL_TG_WAS_EMPTY;
 
-	throtl_qnode_add_bio(bio, qn, &sq->queued[rw]);
+	throtl_qanalde_add_bio(bio, qn, &sq->queued[rw]);
 
 	sq->nr_queued[rw]++;
 	throtl_enqueue_tg(tg);
@@ -1024,7 +1024,7 @@ static void tg_update_disptime(struct throtl_grp *tg)
 	disptime = jiffies + min_wait;
 
 	/* Update dispatch time */
-	throtl_rb_erase(&tg->rb_node, tg->service_queue.parent_sq);
+	throtl_rb_erase(&tg->rb_analde, tg->service_queue.parent_sq);
 	tg->disptime = disptime;
 	tg_service_queue_add(tg);
 
@@ -1062,18 +1062,18 @@ static void tg_dispatch_one_bio(struct throtl_grp *tg, bool rw)
 	throtl_charge_bio(tg, bio);
 
 	/*
-	 * If our parent is another tg, we just need to transfer @bio to
+	 * If our parent is aanalther tg, we just need to transfer @bio to
 	 * the parent using throtl_add_bio_tg().  If our parent is
 	 * @td->service_queue, @bio is ready to be issued.  Put it on its
 	 * bio_lists[] and decrease total number queued.  The caller is
 	 * responsible for issuing these bios.
 	 */
 	if (parent_tg) {
-		throtl_add_bio_tg(bio, &tg->qnode_on_parent[rw], parent_tg);
+		throtl_add_bio_tg(bio, &tg->qanalde_on_parent[rw], parent_tg);
 		start_parent_slice_with_credit(tg, parent_tg, rw);
 	} else {
 		bio_set_flag(bio, BIO_BPS_THROTTLED);
-		throtl_qnode_add_bio(bio, &tg->qnode_on_parent[rw],
+		throtl_qanalde_add_bio(bio, &tg->qanalde_on_parent[rw],
 				     &parent_sq->queued[rw]);
 		BUG_ON(tg->td->nr_queued[rw] <= 0);
 		tg->td->nr_queued[rw]--;
@@ -1163,7 +1163,7 @@ static bool throtl_can_upgrade(struct throtl_data *td,
  * dispatches bio's from the children throtl_grps to the parent
  * service_queue.
  *
- * If the parent's parent is another throtl_grp, dispatching is propagated
+ * If the parent's parent is aanalther throtl_grp, dispatching is propagated
  * by either arming its pending_timer or repeating dispatch directly.  If
  * the top-level service_tree is reached, throtl_data->dispatch_work is
  * kicked so that the ready bio's are issued.
@@ -1220,7 +1220,7 @@ again:
 		goto out_unlock;
 
 	if (parent_sq) {
-		/* @parent_sq is another throl_grp, propagate dispatch */
+		/* @parent_sq is aanalther throl_grp, propagate dispatch */
 		if (tg->flags & THROTL_TG_WAS_EMPTY) {
 			tg_update_disptime(tg);
 			if (!throtl_schedule_next_dispatch(parent_sq, false)) {
@@ -1268,7 +1268,7 @@ static void blk_throtl_dispatch_work_fn(struct work_struct *work)
 	if (!bio_list_empty(&bio_list_on_stack)) {
 		blk_start_plug(&plug);
 		while ((bio = bio_list_pop(&bio_list_on_stack)))
-			submit_bio_noacct_nocheck(bio);
+			submit_bio_analacct_analcheck(bio);
 		blk_finish_plug(&plug);
 	}
 }
@@ -1334,7 +1334,7 @@ static void tg_conf_updated(struct throtl_grp *tg, bool global)
 		struct throtl_grp *parent_tg;
 
 		tg_update_has_rules(this_tg);
-		/* ignore root/second level */
+		/* iganalre root/second level */
 		if (!cgroup_subsys_on_dfl(io_cgrp_subsys) || !blkg->parent ||
 		    !blkg->parent->parent)
 			continue;
@@ -1351,7 +1351,7 @@ static void tg_conf_updated(struct throtl_grp *tg, bool global)
 	rcu_read_unlock();
 
 	/*
-	 * We're already holding queue_lock and know @tg is valid.  Let's
+	 * We're already holding queue_lock and kanalw @tg is valid.  Let's
 	 * apply the new config directly.
 	 *
 	 * Restart the slices for both READ and WRITES. It might happen
@@ -1682,7 +1682,7 @@ static struct cftype throtl_files[] = {
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 	{
 		.name = "low",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.seq_show = tg_print_limit,
 		.write = tg_set_limit,
 		.private = LIMIT_LOW,
@@ -1690,7 +1690,7 @@ static struct cftype throtl_files[] = {
 #endif
 	{
 		.name = "max",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.seq_show = tg_print_limit,
 		.write = tg_set_limit,
 		.private = LIMIT_MAX,
@@ -1724,7 +1724,7 @@ void blk_throtl_cancel_bios(struct gendisk *disk)
 
 	spin_lock_irq(&q->queue_lock);
 	/*
-	 * queue_lock is held, rcu lock is not needed here technically.
+	 * queue_lock is held, rcu lock is analt needed here technically.
 	 * However, rcu lock is still held to emphasize that following
 	 * path need RCU protection and to prevent warning from lockdep.
 	 */
@@ -1740,7 +1740,7 @@ void blk_throtl_cancel_bios(struct gendisk *disk)
 		tg->flags |= THROTL_TG_CANCELING;
 
 		/*
-		 * Do not dispatch cgroup without THROTL_TG_PENDING or cgroup
+		 * Do analt dispatch cgroup without THROTL_TG_PENDING or cgroup
 		 * will be inserted to service queue without THROTL_TG_PENDING
 		 * set in tg_update_disptime below. Then IO dispatched from
 		 * child in tg_dispatch_one_bio will trigger double insertion
@@ -1833,7 +1833,7 @@ static bool throtl_low_limit_reached(struct throtl_grp *tg, int rw)
 
 	/*
 	 * if low limit is zero, low limit is always reached.
-	 * if low limit is non-zero, we can check if there is any request
+	 * if low limit is analn-zero, we can check if there is any request
 	 * is queued to determine if low limit is reached as we throttle
 	 * request according to limit.
 	 */
@@ -1901,17 +1901,17 @@ static bool throtl_can_upgrade(struct throtl_data *td,
 
 static void throtl_upgrade_check(struct throtl_grp *tg)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
 	if (tg->td->limit_index != LIMIT_LOW)
 		return;
 
-	if (time_after(tg->last_check_time + tg->td->throtl_slice, now))
+	if (time_after(tg->last_check_time + tg->td->throtl_slice, analw))
 		return;
 
-	tg->last_check_time = now;
+	tg->last_check_time = analw;
 
-	if (!time_after_eq(now,
+	if (!time_after_eq(analw,
 	     __tg_last_low_overflow_time(tg) + tg->td->throtl_slice))
 		return;
 
@@ -1960,13 +1960,13 @@ static void throtl_downgrade_state(struct throtl_data *td)
 static bool throtl_tg_can_downgrade(struct throtl_grp *tg)
 {
 	struct throtl_data *td = tg->td;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
 	/*
 	 * If cgroup is below low limit, consider downgrade and throttle other
 	 * cgroups
 	 */
-	if (time_after_eq(now, tg_last_low_overflow_time(tg) +
+	if (time_after_eq(analw, tg_last_low_overflow_time(tg) +
 					td->throtl_slice) &&
 	    (!throtl_tg_is_idle(tg) ||
 	     !list_empty(&tg_to_blkg(tg)->blkcg->css.children)))
@@ -1996,20 +1996,20 @@ static void throtl_downgrade_check(struct throtl_grp *tg)
 	uint64_t bps;
 	unsigned int iops;
 	unsigned long elapsed_time;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
 	if (tg->td->limit_index != LIMIT_MAX ||
 	    !tg->td->limit_valid[LIMIT_LOW])
 		return;
 	if (!list_empty(&tg_to_blkg(tg)->blkcg->css.children))
 		return;
-	if (time_after(tg->last_check_time + tg->td->throtl_slice, now))
+	if (time_after(tg->last_check_time + tg->td->throtl_slice, analw))
 		return;
 
-	elapsed_time = now - tg->last_check_time;
-	tg->last_check_time = now;
+	elapsed_time = analw - tg->last_check_time;
+	tg->last_check_time = analw;
 
-	if (time_before(now, tg_last_low_overflow_time(tg) +
+	if (time_before(analw, tg_last_low_overflow_time(tg) +
 			tg->td->throtl_slice))
 		return;
 
@@ -2017,26 +2017,26 @@ static void throtl_downgrade_check(struct throtl_grp *tg)
 		bps = tg->last_bytes_disp[READ] * HZ;
 		do_div(bps, elapsed_time);
 		if (bps >= tg->bps[READ][LIMIT_LOW])
-			tg->last_low_overflow_time[READ] = now;
+			tg->last_low_overflow_time[READ] = analw;
 	}
 
 	if (tg->bps[WRITE][LIMIT_LOW]) {
 		bps = tg->last_bytes_disp[WRITE] * HZ;
 		do_div(bps, elapsed_time);
 		if (bps >= tg->bps[WRITE][LIMIT_LOW])
-			tg->last_low_overflow_time[WRITE] = now;
+			tg->last_low_overflow_time[WRITE] = analw;
 	}
 
 	if (tg->iops[READ][LIMIT_LOW]) {
 		iops = tg->last_io_disp[READ] * HZ / elapsed_time;
 		if (iops >= tg->iops[READ][LIMIT_LOW])
-			tg->last_low_overflow_time[READ] = now;
+			tg->last_low_overflow_time[READ] = analw;
 	}
 
 	if (tg->iops[WRITE][LIMIT_LOW]) {
 		iops = tg->last_io_disp[WRITE] * HZ / elapsed_time;
 		if (iops >= tg->iops[WRITE][LIMIT_LOW])
-			tg->last_low_overflow_time[WRITE] = now;
+			tg->last_low_overflow_time[WRITE] = analw;
 	}
 
 	/*
@@ -2054,18 +2054,18 @@ static void throtl_downgrade_check(struct throtl_grp *tg)
 
 static void blk_throtl_update_idletime(struct throtl_grp *tg)
 {
-	unsigned long now;
+	unsigned long analw;
 	unsigned long last_finish_time = tg->last_finish_time;
 
 	if (last_finish_time == 0)
 		return;
 
-	now = ktime_get_ns() >> 10;
-	if (now <= last_finish_time ||
+	analw = ktime_get_ns() >> 10;
+	if (analw <= last_finish_time ||
 	    last_finish_time == tg->checked_last_finish_time)
 		return;
 
-	tg->avg_idletime = (tg->avg_idletime * 7 + now - last_finish_time) >> 3;
+	tg->avg_idletime = (tg->avg_idletime * 7 + analw - last_finish_time) >> 3;
 	tg->checked_last_finish_time = last_finish_time;
 }
 
@@ -2076,7 +2076,7 @@ static void throtl_update_latency_buckets(struct throtl_data *td)
 	unsigned long last_latency[2] = { 0 };
 	unsigned long latency[2];
 
-	if (!blk_queue_nonrot(td->queue) || !td->limit_valid[LIMIT_LOW])
+	if (!blk_queue_analnrot(td->queue) || !td->limit_valid[LIMIT_LOW])
 		return;
 	if (time_before(jiffies, td->last_calculate_time + HZ))
 		return;
@@ -2177,7 +2177,7 @@ bool __blk_throtl_bio(struct bio *bio)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 	struct blkcg_gq *blkg = bio->bi_blkg;
-	struct throtl_qnode *qn = NULL;
+	struct throtl_qanalde *qn = NULL;
 	struct throtl_grp *tg = blkg_to_tg(blkg);
 	struct throtl_service_queue *sq;
 	bool rw = bio_data_dir(bio);
@@ -2218,15 +2218,15 @@ again:
 		throtl_charge_bio(tg, bio);
 
 		/*
-		 * We need to trim slice even when bios are not being queued
-		 * otherwise it might happen that a bio is not queued for
-		 * a long time and slice keeps on extending and trim is not
-		 * called for a long time. Now if limits are reduced suddenly
+		 * We need to trim slice even when bios are analt being queued
+		 * otherwise it might happen that a bio is analt queued for
+		 * a long time and slice keeps on extending and trim is analt
+		 * called for a long time. Analw if limits are reduced suddenly
 		 * we take into account all the IO dispatched so far at new
 		 * low rate and * newly queued IO gets a really long dispatch
 		 * time.
 		 *
-		 * So keep on trimming slice even if bio is not queued.
+		 * So keep on trimming slice even if bio is analt queued.
 		 */
 		throtl_trim_slice(tg, rw);
 
@@ -2235,7 +2235,7 @@ again:
 		 * Climb up the ladder.  If we're already at the top, it
 		 * can be executed directly.
 		 */
-		qn = &tg->qnode_on_parent[rw];
+		qn = &tg->qanalde_on_parent[rw];
 		sq = sq->parent_sq;
 		tg = sq_to_tg(sq);
 		if (!tg) {
@@ -2262,7 +2262,7 @@ again:
 	 * Update @tg's dispatch time and force schedule dispatch if @tg
 	 * was empty before @bio.  The forced scheduling isn't likely to
 	 * cause undue delay as @bio is likely to be dispatched directly if
-	 * its @tg's disptime is not in the future.
+	 * its @tg's disptime is analt in the future.
 	 */
 	if (tg->flags & THROTL_TG_WAS_EMPTY) {
 		tg_update_disptime(tg);
@@ -2290,7 +2290,7 @@ static void throtl_track_latency(struct throtl_data *td, sector_t size,
 
 	if (!td || td->limit_index != LIMIT_LOW ||
 	    !(op == REQ_OP_READ || op == REQ_OP_WRITE) ||
-	    !blk_queue_nonrot(td->queue))
+	    !blk_queue_analnrot(td->queue))
 		return;
 
 	index = request_bucket_index(size);
@@ -2351,7 +2351,7 @@ void blk_throtl_bio_endio(struct bio *bio)
 		if (lat > threshold)
 			tg->bad_bio_cnt++;
 		/*
-		 * Not race free, could get wrong count, which means cgroups
+		 * Analt race free, could get wrong count, which means cgroups
 		 * will be throttled
 		 */
 		tg->bio_cnt++;
@@ -2371,21 +2371,21 @@ int blk_throtl_init(struct gendisk *disk)
 	struct throtl_data *td;
 	int ret;
 
-	td = kzalloc_node(sizeof(*td), GFP_KERNEL, q->node);
+	td = kzalloc_analde(sizeof(*td), GFP_KERNEL, q->analde);
 	if (!td)
-		return -ENOMEM;
+		return -EANALMEM;
 	td->latency_buckets[READ] = __alloc_percpu(sizeof(struct latency_bucket) *
-		LATENCY_BUCKET_SIZE, __alignof__(u64));
+		LATENCY_BUCKET_SIZE, __aliganalf__(u64));
 	if (!td->latency_buckets[READ]) {
 		kfree(td);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	td->latency_buckets[WRITE] = __alloc_percpu(sizeof(struct latency_bucket) *
-		LATENCY_BUCKET_SIZE, __alignof__(u64));
+		LATENCY_BUCKET_SIZE, __aliganalf__(u64));
 	if (!td->latency_buckets[WRITE]) {
 		free_percpu(td->latency_buckets[READ]);
 		kfree(td);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_WORK(&td->dispatch_work, blk_throtl_dispatch_work_fn);
@@ -2431,7 +2431,7 @@ void blk_throtl_register(struct gendisk *disk)
 	td = q->td;
 	BUG_ON(!td);
 
-	if (blk_queue_nonrot(q)) {
+	if (blk_queue_analnrot(q)) {
 		td->throtl_slice = DFL_THROTL_SLICE_SSD;
 		td->filtered_latency = LATENCY_FILTERED_SSD;
 	} else {
@@ -2443,7 +2443,7 @@ void blk_throtl_register(struct gendisk *disk)
 		}
 	}
 #ifndef CONFIG_BLK_DEV_THROTTLING_LOW
-	/* if no low limit, use previous default */
+	/* if anal low limit, use previous default */
 	td->throtl_slice = DFL_THROTL_SLICE_HD;
 
 #else

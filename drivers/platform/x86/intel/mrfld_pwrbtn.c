@@ -29,7 +29,7 @@ static irqreturn_t mrfld_pwrbtn_interrupt(int irq, void *dev_id)
 
 	ret = regmap_read(regmap, BCOVE_PBSTATUS, &state);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev_dbg(dev, "PBSTATUS=0x%x\n", state);
 	input_report_key(input, KEY_POWER, !(state & BCOVE_PBSTATUS_PBLVL));
@@ -52,7 +52,7 @@ static int mrfld_pwrbtn_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 	input->name = pdev->name;
 	input->phys = "power-button/input0";
 	input->id.bustype = BUS_HOST;

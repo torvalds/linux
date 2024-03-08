@@ -22,7 +22,7 @@ struct max3355_data {
 static const unsigned int max3355_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static irqreturn_t max3355_id_irq(int irq, void *dev_id)
@@ -60,7 +60,7 @@ static int max3355_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct max3355_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpiod = devm_gpiod_get(&pdev->dev, "id", GPIOD_IN);
 	if (IS_ERR(gpiod)) {
@@ -95,7 +95,7 @@ static int max3355_probe(struct platform_device *pdev)
 	}
 
 	err = devm_request_threaded_irq(&pdev->dev, irq, NULL, max3355_id_irq,
-					IRQF_ONESHOT | IRQF_NO_SUSPEND |
+					IRQF_ONESHOT | IRQF_ANAL_SUSPEND |
 					IRQF_TRIGGER_RISING |
 					IRQF_TRIGGER_FALLING,
 					pdev->name, data);

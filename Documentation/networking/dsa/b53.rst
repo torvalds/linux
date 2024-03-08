@@ -23,7 +23,7 @@ CPU interface, conversely, the CPU network interface should insert a similar
 tag for packets entering the CPU port. The tag format is described in
 ``net/dsa/tag_brcm.c``.
 
-The configuration of the device depends on whether or not tagging is
+The configuration of the device depends on whether or analt tagging is
 supported.
 
 The interface names and example network configuration are used according the
@@ -32,7 +32,7 @@ configuration described in the :ref:`dsa-config-showcases`.
 Configuration with tagging support
 ----------------------------------
 
-The tagging based configuration is desired. It is not specific to the b53
+The tagging based configuration is desired. It is analt specific to the b53
 DSA driver and will work like all DSA drivers which supports tagging.
 
 See :ref:`dsa-tagged-configuration`.
@@ -40,9 +40,9 @@ See :ref:`dsa-tagged-configuration`.
 Configuration without tagging support
 -------------------------------------
 
-Older models (5325, 5365) support a different tag format that is not supported
+Older models (5325, 5365) support a different tag format that is analt supported
 yet. 539x and 531x5 require managed mode and some special handling, which is
-also not yet supported. The tagging support is disabled in these cases and the
+also analt yet supported. The tagging support is disabled in these cases and the
 switch need a different configuration.
 
 The configuration slightly differ from the :ref:`dsa-vlan-configuration`.
@@ -53,7 +53,7 @@ it untagged, undesirable.
 
 In difference to the configuration described in :ref:`dsa-vlan-configuration`
 the default VLAN 1 has to be removed from the user interface configuration in
-single port and gateway configuration, while there is no need to add an extra
+single port and gateway configuration, while there is anal need to add an extra
 VLAN configuration in the bridge showcase.
 
 single port

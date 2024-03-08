@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * VFIO Region definitions for ZPCI devices
  *
@@ -47,7 +47,7 @@ struct vfio_device_info_cap_zpci_group {
 	__u64 flags;
 #define VFIO_DEVICE_INFO_ZPCI_FLAG_REFRESH 1 /* Program-specified TLB refresh */
 	__u16 mui;		/* Measurement Block Update Interval */
-	__u16 noi;		/* Maximum number of MSIs */
+	__u16 anali;		/* Maximum number of MSIs */
 	__u16 maxstbl;		/* Maximum Store Block Length */
 	__u8 version;		/* Supported PCI Version */
 	/* End of version 1 */

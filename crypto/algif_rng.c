@@ -3,18 +3,18 @@
  *
  * This file provides the user-space API for random number generators.
  *
- * Copyright (C) 2014, Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2014, Stephan Mueller <smueller@chroanalx.de>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -25,16 +25,16 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, ALL OF
- * WHICH ARE HEREBY DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE
+ * WHICH ARE HEREBY DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT
  * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- * USE OF THIS SOFTWARE, EVEN IF NOT ADVISED OF THE POSSIBILITY OF SUCH
+ * USE OF THIS SOFTWARE, EVEN IF ANALT ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
 
@@ -47,7 +47,7 @@
 #include <net/sock.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroanalx.de>");
 MODULE_DESCRIPTION("User-space interface for random number generators");
 
 struct rng_ctx {
@@ -83,16 +83,16 @@ static int _rng_recvmsg(struct crypto_rng *drng, struct msghdr *msg, size_t len,
 		len = MAXSIZE;
 
 	/*
-	 * although not strictly needed, this is a precaution against coding
+	 * although analt strictly needed, this is a precaution against coding
 	 * errors
 	 */
 	memset(result, 0, len);
 
 	/*
 	 * The enforcement of a proper seeding of an RNG is done within an
-	 * RNG implementation. Some RNGs (DRBG, krng) do not need specific
+	 * RNG implementation. Some RNGs (DRBG, krng) do analt need specific
 	 * seeding as they automatically seed. The X9.31 DRNG will return
-	 * an error if it was not seeded properly.
+	 * an error if it was analt seeded properly.
 	 */
 	genlen = crypto_rng_generate(drng, addtl, addtl_len, result, len);
 	if (genlen < 0)
@@ -145,7 +145,7 @@ static int rng_test_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	rng_reset_addtl(ctx);
 	ctx->addtl = kmalloc(len, GFP_KERNEL);
 	if (!ctx->addtl) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -164,16 +164,16 @@ unlock:
 static struct proto_ops algif_rng_ops = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
-	.sendmsg	=	sock_no_sendmsg,
+	.connect	=	sock_anal_connect,
+	.socketpair	=	sock_anal_socketpair,
+	.getname	=	sock_anal_getname,
+	.ioctl		=	sock_anal_ioctl,
+	.listen		=	sock_anal_listen,
+	.shutdown	=	sock_anal_shutdown,
+	.mmap		=	sock_anal_mmap,
+	.bind		=	sock_anal_bind,
+	.accept		=	sock_anal_accept,
+	.sendmsg	=	sock_anal_sendmsg,
 
 	.release	=	af_alg_release,
 	.recvmsg	=	rng_recvmsg,
@@ -182,15 +182,15 @@ static struct proto_ops algif_rng_ops = {
 static struct proto_ops __maybe_unused algif_rng_test_ops = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
+	.connect	=	sock_anal_connect,
+	.socketpair	=	sock_anal_socketpair,
+	.getname	=	sock_anal_getname,
+	.ioctl		=	sock_anal_ioctl,
+	.listen		=	sock_anal_listen,
+	.shutdown	=	sock_anal_shutdown,
+	.mmap		=	sock_anal_mmap,
+	.bind		=	sock_anal_bind,
+	.accept		=	sock_anal_accept,
 
 	.release	=	af_alg_release,
 	.recvmsg	=	rng_test_recvmsg,
@@ -204,7 +204,7 @@ static void *rng_bind(const char *name, u32 type, u32 mask)
 
 	pctx = kzalloc(sizeof(*pctx), GFP_KERNEL);
 	if (!pctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rng = crypto_alloc_rng(name, type, mask);
 	if (IS_ERR(rng)) {
@@ -246,14 +246,14 @@ static int rng_accept_parent(void *private, struct sock *sk)
 
 	ctx = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->len = len;
 	ctx->addtl = NULL;
 	ctx->addtl_len = 0;
 
 	/*
-	 * No seeding done at that point -- if multiple accepts are
+	 * Anal seeding done at that point -- if multiple accepts are
 	 * done on one RNG instance, each resulting FD points to the same
 	 * state of the RNG.
 	 */
@@ -263,7 +263,7 @@ static int rng_accept_parent(void *private, struct sock *sk)
 	sk->sk_destruct = rng_sock_destruct;
 
 	/*
-	 * Non NULL pctx->entropy means that CAVP test has been initiated on
+	 * Analn NULL pctx->entropy means that CAVP test has been initiated on
 	 * this socket, replace proto_ops algif_rng_ops with algif_rng_test_ops.
 	 */
 	if (IS_ENABLED(CONFIG_CRYPTO_USER_API_RNG_CAVP) && pctx->entropy)
@@ -306,7 +306,7 @@ static int __maybe_unused rng_setentropy(void *private, sockptr_t entropy,
 	crypto_rng_alg(pctx->drng)->set_ent(pctx->drng, kentropy, len);
 	/*
 	 * Since rng doesn't perform any memory management for the entropy
-	 * buffer, save kentropy pointer to pctx now to free it after use.
+	 * buffer, save kentropy pointer to pctx analw to free it after use.
 	 */
 	pctx->entropy = kentropy;
 	return 0;

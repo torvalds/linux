@@ -5,7 +5,7 @@
 f=/etc/modprobe.d/aoe.conf
 
 if test ! -r $f || test ! -w $f; then
-	echo "cannot configure $f for module autoloading" 1>&2
+	echo "cananalt configure $f for module autoloading" 1>&2
 	exit 1
 fi
 

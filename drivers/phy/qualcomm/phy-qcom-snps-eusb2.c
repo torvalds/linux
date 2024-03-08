@@ -16,7 +16,7 @@
 #define USB_PHY_UTMI_CTRL0		(0x3c)
 #define SLEEPM				BIT(0)
 #define OPMODE_MASK			GENMASK(4, 3)
-#define OPMODE_NONDRIVING		BIT(3)
+#define OPMODE_ANALNDRIVING		BIT(3)
 
 #define USB_PHY_UTMI_CTRL5		(0x50)
 #define POR				BIT(1)
@@ -367,7 +367,7 @@ static const struct phy_ops qcom_snps_eusb2_hsphy_ops = {
 static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct qcom_snps_eusb2_hsphy *phy;
 	struct phy_provider *phy_provider;
 	struct phy *generic_phy;
@@ -376,7 +376,7 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy->base))

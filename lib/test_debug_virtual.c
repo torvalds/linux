@@ -31,7 +31,7 @@ static int __init test_debug_virtual_init(void)
 
 	foo = kzalloc(sizeof(*foo), GFP_KERNEL);
 	if (!foo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pa = virt_to_phys(foo);
 	va = foo;

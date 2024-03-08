@@ -21,7 +21,7 @@
 #include <asm/tlbflush.h>
 
 static int
-page_set_nocache(pte_t *pte, unsigned long addr,
+page_set_analcache(pte_t *pte, unsigned long addr,
 		 unsigned long next, struct mm_walk *walk)
 {
 	unsigned long cl;
@@ -42,12 +42,12 @@ page_set_nocache(pte_t *pte, unsigned long addr,
 	return 0;
 }
 
-static const struct mm_walk_ops set_nocache_walk_ops = {
-	.pte_entry		= page_set_nocache,
+static const struct mm_walk_ops set_analcache_walk_ops = {
+	.pte_entry		= page_set_analcache,
 };
 
 static int
-page_clear_nocache(pte_t *pte, unsigned long addr,
+page_clear_analcache(pte_t *pte, unsigned long addr,
 		   unsigned long next, struct mm_walk *walk)
 {
 	pte_val(*pte) &= ~_PAGE_CI;
@@ -61,8 +61,8 @@ page_clear_nocache(pte_t *pte, unsigned long addr,
 	return 0;
 }
 
-static const struct mm_walk_ops clear_nocache_walk_ops = {
-	.pte_entry		= page_clear_nocache,
+static const struct mm_walk_ops clear_analcache_walk_ops = {
+	.pte_entry		= page_clear_analcache,
 };
 
 void *arch_dma_set_uncached(void *cpu_addr, size_t size)
@@ -75,8 +75,8 @@ void *arch_dma_set_uncached(void *cpu_addr, size_t size)
 	 * them and setting the cache-inhibit bit.
 	 */
 	mmap_write_lock(&init_mm);
-	error = walk_page_range_novma(&init_mm, va, va + size,
-			&set_nocache_walk_ops, NULL, NULL);
+	error = walk_page_range_analvma(&init_mm, va, va + size,
+			&set_analcache_walk_ops, NULL, NULL);
 	mmap_write_unlock(&init_mm);
 
 	if (error)
@@ -90,8 +90,8 @@ void arch_dma_clear_uncached(void *cpu_addr, size_t size)
 
 	mmap_write_lock(&init_mm);
 	/* walk_page_range shouldn't be able to fail here */
-	WARN_ON(walk_page_range_novma(&init_mm, va, va + size,
-			&clear_nocache_walk_ops, NULL, NULL));
+	WARN_ON(walk_page_range_analvma(&init_mm, va, va + size,
+			&clear_analcache_walk_ops, NULL, NULL));
 	mmap_write_unlock(&init_mm);
 }
 
@@ -116,8 +116,8 @@ void arch_sync_dma_for_device(phys_addr_t addr, size_t size,
 		break;
 	default:
 		/*
-		 * NOTE: If dir == DMA_BIDIRECTIONAL then there's no need to
-		 * flush nor invalidate the cache here as the area will need
+		 * ANALTE: If dir == DMA_BIDIRECTIONAL then there's anal need to
+		 * flush analr invalidate the cache here as the area will need
 		 * to be manually synced anyway.
 		 */
 		break;

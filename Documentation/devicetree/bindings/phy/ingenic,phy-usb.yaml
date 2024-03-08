@@ -11,7 +11,7 @@ maintainers:
   - 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^usb-phy@.*'
 
   compatible:

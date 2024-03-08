@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <assert.h>
 #include <sys/time.h>
 
@@ -58,12 +58,12 @@ int main(int argc, char **argv)
 	 * everything else is forbidden.
 	 */
 	assert(system("rm -f /tmp/test_dev_cgroup_null") == 0);
-	assert(system("mknod /tmp/test_dev_cgroup_null c 1 3"));
+	assert(system("mkanald /tmp/test_dev_cgroup_null c 1 3"));
 	assert(system("rm -f /tmp/test_dev_cgroup_null") == 0);
 
 	/* /dev/zero is whitelisted */
 	assert(system("rm -f /tmp/test_dev_cgroup_zero") == 0);
-	assert(system("mknod /tmp/test_dev_cgroup_zero c 1 5") == 0);
+	assert(system("mkanald /tmp/test_dev_cgroup_zero c 1 5") == 0);
 	assert(system("rm -f /tmp/test_dev_cgroup_zero") == 0);
 
 	assert(system("dd if=/dev/urandom of=/dev/zero count=64") == 0);

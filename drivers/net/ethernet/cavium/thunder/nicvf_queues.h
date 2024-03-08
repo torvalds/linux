@@ -64,7 +64,7 @@
 #define MAX_SND_QUEUE_LEN	(1ULL << (SND_QUEUE_SIZE6 + 10))
 #define SND_QUEUE_THRESH	2ULL
 #define MIN_SQ_DESC_PER_PKT_XMIT	2
-/* Since timestamp not enabled, otherwise 2 */
+/* Since timestamp analt enabled, otherwise 2 */
 #define MAX_CQE_PER_PKT_XMIT		1
 
 /* Keep CQ and SQ sizes same, if timestamping
@@ -77,7 +77,7 @@
 #define CMP_QUEUE_CQE_THRESH	(NAPI_POLL_WEIGHT / 2)
 #define CMP_QUEUE_TIMER_THRESH	80 /* ~2usec */
 
-/* No of CQEs that might anyway gets used by HW due to pipelining
+/* Anal of CQEs that might anyway gets used by HW due to pipelining
  * effects irrespective of PASS/DROP/LEVELS being configured
  */
 #define CMP_QUEUE_PIPELINE_RSVD 544
@@ -141,7 +141,7 @@ enum CQ_RX_ERRLVL_E {
 };
 
 enum CQ_RX_ERROP_E {
-	CQ_RX_ERROP_RE_NONE = 0x0,
+	CQ_RX_ERROP_RE_ANALNE = 0x0,
 	CQ_RX_ERROP_RE_PARTIAL = 0x1,
 	CQ_RX_ERROP_RE_JABBER = 0x2,
 	CQ_RX_ERROP_RE_FCS = 0x7,
@@ -157,7 +157,7 @@ enum CQ_RX_ERROP_E {
 	CQ_RX_ERROP_L2_UNDERSIZE = 0x26,
 	CQ_RX_ERROP_L2_LENMISM = 0x27,
 	CQ_RX_ERROP_L2_PCLP = 0x28,
-	CQ_RX_ERROP_IP_NOT = 0x41,
+	CQ_RX_ERROP_IP_ANALT = 0x41,
 	CQ_RX_ERROP_IP_CSUM_ERR = 0x42,
 	CQ_RX_ERROP_IP_MAL = 0x43,
 	CQ_RX_ERROP_IP_MALD = 0x44,

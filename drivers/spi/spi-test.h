@@ -26,11 +26,11 @@
 
 /* detection pattern for unfinished reads...
  * - 0x00 or 0xff could be valid levels for tx_buf = NULL,
- * so we do not use either of them
+ * so we do analt use either of them
  */
 #define SPI_TEST_PATTERN_UNWRITTEN 0xAA
-#define SPI_TEST_PATTERN_DO_NOT_WRITE 0x55
-#define SPI_TEST_CHECK_DO_NOT_WRITE 64
+#define SPI_TEST_PATTERN_DO_ANALT_WRITE 0x55
+#define SPI_TEST_CHECK_DO_ANALT_WRITE 64
 
 /**
  * struct spi_test - describes a specific (set of) tests to execute
@@ -66,7 +66,7 @@
  * @fill_option:      define the way how tx_buf is filled
  * @fill_pattern:     fill pattern to apply to the tx_buf
  *                    (used in some of the @fill_options)
- * @elapsed_time:     elapsed time in nanoseconds
+ * @elapsed_time:     elapsed time in naanalseconds
  */
 
 struct spi_test {

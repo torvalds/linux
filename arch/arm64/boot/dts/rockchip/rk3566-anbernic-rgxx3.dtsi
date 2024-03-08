@@ -148,8 +148,8 @@
 
 		button-x {
 			gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_LOW>;
-			label = "NORTH";
-			linux,code = <BTN_NORTH>;
+			label = "ANALRTH";
+			linux,code = <BTN_ANALRTH>;
 		};
 	};
 
@@ -541,7 +541,7 @@
 };
 
 &i2c1 {
-	/* Unknown/unused device at 0x3c */
+	/* Unkanalwn/unused device at 0x3c */
 	status = "disabled";
 };
 
@@ -611,21 +611,21 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	vcc3v3-lcd {
 		vcc_lcd_h: vcc-lcd-h {
 			rockchip,pins =
-				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	vcc-wifi {
 		vcc_wifi_h: vcc-wifi-h {
 			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -697,7 +697,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vcc_wifi>;
@@ -731,7 +731,7 @@
 
 /*
  * Lack the schematics to verify, but port works as a peripheral
- * (and not a host or OTG port).
+ * (and analt a host or OTG port).
  */
 &usb_host0_xhci {
 	dr_mode = "peripheral";

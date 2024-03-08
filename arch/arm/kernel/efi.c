@@ -26,7 +26,7 @@ static int __init set_permissions(pte_t *ptep, unsigned long addr, void *data)
 
 int __init efi_set_mapping_permissions(struct mm_struct *mm,
 				       efi_memory_desc_t *md,
-				       bool ignored)
+				       bool iganalred)
 {
 	unsigned long base, size;
 
@@ -36,7 +36,7 @@ int __init efi_set_mapping_permissions(struct mm_struct *mm,
 	/*
 	 * We can only use apply_to_page_range() if we can guarantee that the
 	 * entire region was mapped using pages. This should be the case if the
-	 * region does not cover any naturally aligned SECTION_SIZE sized
+	 * region does analt cover any naturally aligned SECTION_SIZE sized
 	 * blocks.
 	 */
 	if (round_down(base + size, SECTION_SIZE) <
@@ -62,7 +62,7 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 	if (md->attribute & EFI_MEMORY_WB)
 		desc.type = MT_MEMORY_RWX;
 	else if (md->attribute & EFI_MEMORY_WT)
-		desc.type = MT_MEMORY_RWX_NONCACHED;
+		desc.type = MT_MEMORY_RWX_ANALNCACHED;
 	else if (md->attribute & EFI_MEMORY_WC)
 		desc.type = MT_DEVICE_WC;
 	else
@@ -71,7 +71,7 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 	create_mapping_late(mm, &desc, true);
 
 	/*
-	 * If stricter permissions were specified, apply them now.
+	 * If stricter permissions were specified, apply them analw.
 	 */
 	if (md->attribute & (EFI_MEMORY_RO | EFI_MEMORY_XP))
 		return efi_set_mapping_permissions(mm, md, false);
@@ -123,7 +123,7 @@ void __init arm_efi_init(void)
 {
 	efi_init();
 
-	/* ARM does not permit early mappings to persist across paging_init() */
+	/* ARM does analt permit early mappings to persist across paging_init() */
 	efi_memmap_unmap();
 
 	load_cpu_state_table();

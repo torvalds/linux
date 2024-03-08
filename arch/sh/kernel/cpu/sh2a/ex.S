@@ -4,7 +4,7 @@
  *
  * The SH-2A exception vector table
  *
- * Copyright (C) 2008 Yoshinori Sato
+ * Copyright (C) 2008 Yoshianalri Sato
  */
 
 #include <linux/linkage.h>
@@ -13,14 +13,14 @@
 ! convert Exception Vector to Exception Number
 !
 
-! exception no 0 to 255
+! exception anal 0 to 255
 exception_entry0:
-no	=	0
+anal	=	0
 	.rept	256
 	mov.l	r1,@-sp
 	bra	exception_trampoline0
-	mov	#no,r1
-no	=	no + 1
+	mov	#anal,r1
+anal	=	anal + 1
 	.endr
 exception_trampoline0:
 	mov.l	r0,@-sp
@@ -32,14 +32,14 @@ exception_trampoline0:
 	.align	2
 1:	.long	exception_handler
 
-! exception no 256 to 511
+! exception anal 256 to 511
 exception_entry1:
-no	=	0
+anal	=	0
 	.rept	256
 	mov.l	r1,@-sp
 	bra	exception_trampoline1
-	mov	#no,r1
-no	=	no + 1
+	mov	#anal,r1
+anal	=	anal + 1
 	.endr
 exception_trampoline1:
 	mov.l	r0,@-sp

@@ -49,11 +49,11 @@ MODULE_PARM_DESC(timeout_locked,
 
 module_param(reset_on_lockup, int, 0444);
 MODULE_PARM_DESC(reset_on_lockup,
-	"Do device reset on lockup (0 = no, 1 = yes, default yes)");
+	"Do device reset on lockup (0 = anal, 1 = anal, default anal)");
 
 module_param(memory_scrub, int, 0444);
 MODULE_PARM_DESC(memory_scrub,
-	"Scrub device memory in various states (0 = no, 1 = yes, default no)");
+	"Scrub device memory in various states (0 = anal, 1 = anal, default anal)");
 
 module_param(boot_error_status_mask, ulong, 0444);
 MODULE_PARM_DESC(boot_error_status_mask,
@@ -89,7 +89,7 @@ static const struct file_operations hl_fops = {
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
 	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.mmap = hl_mmap
 };
 
@@ -99,7 +99,7 @@ static const struct drm_driver hl_driver = {
 	.name = HL_NAME,
 	.desc = HL_DRIVER_DESC,
 	.major = LINUX_VERSION_MAJOR,
-	.minor = LINUX_VERSION_PATCHLEVEL,
+	.mianalr = LINUX_VERSION_PATCHLEVEL,
 	.patchlevel = LINUX_VERSION_SUBLEVEL,
 	.date = "20190505",
 
@@ -181,10 +181,10 @@ int hl_device_open(struct drm_device *ddev, struct drm_file *file_priv)
 
 	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hpriv->hdev = hdev;
-	mutex_init(&hpriv->notifier_event.lock);
+	mutex_init(&hpriv->analtifier_event.lock);
 	mutex_init(&hpriv->restore_phase_mutex);
 	mutex_init(&hpriv->ctx_lock);
 	kref_init(&hpriv->refcount);
@@ -220,7 +220,7 @@ int hl_device_open(struct drm_device *ddev, struct drm_file *file_priv)
 
 	if (hdev->compute_ctx_in_release) {
 		dev_dbg_ratelimited(hdev->dev,
-			"Can't open %s because another user is still releasing it\n",
+			"Can't open %s because aanalther user is still releasing it\n",
 			dev_name(hdev->dev));
 		rc = -EAGAIN;
 		goto out_err;
@@ -228,7 +228,7 @@ int hl_device_open(struct drm_device *ddev, struct drm_file *file_priv)
 
 	if (hdev->is_compute_ctx_active) {
 		dev_dbg_ratelimited(hdev->dev,
-			"Can't open %s because another user is working on it\n",
+			"Can't open %s because aanalther user is working on it\n",
 			dev_name(hdev->dev));
 		rc = -EBUSY;
 		goto out_err;
@@ -240,7 +240,7 @@ int hl_device_open(struct drm_device *ddev, struct drm_file *file_priv)
 		goto out_err;
 	}
 
-	list_add(&hpriv->dev_node, &hdev->fpriv_list);
+	list_add(&hpriv->dev_analde, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
 	hdev->asic_funcs->send_device_activity(hdev, true);
@@ -265,7 +265,7 @@ out_err:
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	mutex_destroy(&hpriv->ctx_lock);
 	mutex_destroy(&hpriv->restore_phase_mutex);
-	mutex_destroy(&hpriv->notifier_event.lock);
+	mutex_destroy(&hpriv->analtifier_event.lock);
 	put_pid(hpriv->taskpid);
 
 	kfree(hpriv);
@@ -273,25 +273,25 @@ out_err:
 	return rc;
 }
 
-int hl_device_open_ctrl(struct inode *inode, struct file *filp)
+int hl_device_open_ctrl(struct ianalde *ianalde, struct file *filp)
 {
 	struct hl_device *hdev;
 	struct hl_fpriv *hpriv;
 	int rc;
 
 	mutex_lock(&hl_devs_idr_lock);
-	hdev = idr_find(&hl_devs_idr, iminor(inode));
+	hdev = idr_find(&hl_devs_idr, imianalr(ianalde));
 	mutex_unlock(&hl_devs_idr_lock);
 
 	if (!hdev) {
 		pr_err("Couldn't find device %d:%d\n",
-			imajor(inode), iminor(inode));
+			imajor(ianalde), imianalr(ianalde));
 		return -ENXIO;
 	}
 
 	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Prevent other routines from reading partial hpriv data by
 	 * initializing hpriv fields before inserting it to the list
@@ -299,7 +299,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 
-	nonseekable_open(inode, filp);
+	analnseekable_open(ianalde, filp);
 
 	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 
@@ -313,7 +313,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
-	list_add(&hpriv->dev_node, &hdev->fpriv_ctrl_list);
+	list_add(&hpriv->dev_analde, &hdev->fpriv_ctrl_list);
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 
 	return 0;
@@ -390,7 +390,7 @@ static int fixup_device_params(struct hl_device *hdev)
 		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
 
 	hdev->stop_on_err = true;
-	hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+	hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKANALWN;
 	hdev->reset_info.prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
 
 	/* Enable only after the initialization of the device */
@@ -402,7 +402,7 @@ static int fixup_device_params(struct hl_device *hdev)
 		return -EINVAL;
 	}
 
-	/* If CPU queues not enabled, no way to do heartbeat */
+	/* If CPU queues analt enabled, anal way to do heartbeat */
 	if (!hdev->cpu_queues_enable)
 		hdev->heartbeat = 0;
 	fixup_device_params_per_asic(hdev, tmp_timeout);
@@ -415,11 +415,11 @@ static int allocate_device_id(struct hl_device *hdev)
 	int id;
 
 	mutex_lock(&hl_devs_idr_lock);
-	id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS, GFP_KERNEL);
+	id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MIANALRS, GFP_KERNEL);
 	mutex_unlock(&hl_devs_idr_lock);
 
 	if (id < 0) {
-		if (id == -ENOSPC)
+		if (id == -EANALSPC)
 			pr_err("too many devices in the system\n");
 		return -EBUSY;
 	}
@@ -428,7 +428,7 @@ static int allocate_device_id(struct hl_device *hdev)
 
 	/*
 	 * Firstly initialized with the internal device ID.
-	 * Will be updated later after the DRM device registration to hold the minor ID.
+	 * Will be updated later after the DRM device registration to hold the mianalr ID.
 	 */
 	hdev->cdev_idx = hdev->id;
 
@@ -443,7 +443,7 @@ static int allocate_device_id(struct hl_device *hdev)
  *
  * Allocate memory for habanalabs device and initialize basic fields
  * Identify the ASIC type
- * Allocate ID (minor) for the device (only for real devices)
+ * Allocate ID (mianalr) for the device (only for real devices)
  */
 static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 {
@@ -478,7 +478,7 @@ static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 	hdev->asic_type = get_asic_type(hdev);
 	if (hdev->asic_type == ASIC_INVALID) {
 		dev_err(&pdev->dev, "Unsupported ASIC\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_err;
 	}
 
@@ -571,7 +571,7 @@ static int hl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = hl_device_init(hdev);
 	if (rc) {
 		dev_err(&pdev->dev, "Fatal error during habanalabs device init\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto disable_device;
 	}
 
@@ -610,7 +610,7 @@ static void hl_pci_remove(struct pci_dev *pdev)
  * @pdev: pointer to pci device
  * @state: PCI error type
  *
- * Called by the PCI subsystem whenever a non-correctable
+ * Called by the PCI subsystem whenever a analn-correctable
  * PCI bus error is detected
  */
 static pci_ers_result_t
@@ -620,8 +620,8 @@ hl_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	enum pci_ers_result result;
 
 	switch (state) {
-	case pci_channel_io_normal:
-		dev_warn(hdev->dev, "PCI normal state error detected\n");
+	case pci_channel_io_analrmal:
+		dev_warn(hdev->dev, "PCI analrmal state error detected\n");
 		return PCI_ERS_RESULT_CAN_RECOVER;
 
 	case pci_channel_io_frozen:
@@ -635,7 +635,7 @@ hl_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		break;
 
 	default:
-		result = PCI_ERS_RESULT_NONE;
+		result = PCI_ERS_RESULT_ANALNE;
 	}
 
 	hdev->asic_funcs->halt_engines(hdev, true, false);
@@ -696,7 +696,7 @@ static void hl_pci_reset_done(struct pci_dev *pdev)
 	/*
 	 * Schedule a thread to trigger hard reset.
 	 * The reason for this handler, is for rare cases where the driver is up
-	 * and FLR occurs. This is valid only when working with no VM, so FW handles FLR
+	 * and FLR occurs. This is valid only when working with anal VM, so FW handles FLR
 	 * and resets the device. FW will go back preboot stage, so driver needs to perform
 	 * hard reset in order to load FW fit again.
 	 */
@@ -727,7 +727,7 @@ static struct pci_driver hl_pci_driver = {
 	.driver = {
 		.name = HL_NAME,
 		.pm = &hl_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.err_handler = &hl_pci_err_handler,
 };
@@ -742,7 +742,7 @@ static int __init hl_init(void)
 
 	pr_info("loading driver\n");
 
-	rc = alloc_chrdev_region(&dev, 0, HL_MAX_MINORS, HL_NAME);
+	rc = alloc_chrdev_region(&dev, 0, HL_MAX_MIANALRS, HL_NAME);
 	if (rc < 0) {
 		pr_err("unable to get major\n");
 		return rc;
@@ -761,7 +761,7 @@ static int __init hl_init(void)
 	return 0;
 
 remove_major:
-	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MINORS);
+	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MIANALRS);
 	return rc;
 }
 
@@ -772,7 +772,7 @@ static void __exit hl_exit(void)
 {
 	pci_unregister_driver(&hl_pci_driver);
 
-	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MINORS);
+	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MIANALRS);
 
 	idr_destroy(&hl_devs_idr);
 

@@ -2,7 +2,7 @@
 /*
  * Clock driver for TI Davinci PSC controllers
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechanallogy.com>
  */
 
 #ifndef __CLK_DAVINCI_PSC_H__

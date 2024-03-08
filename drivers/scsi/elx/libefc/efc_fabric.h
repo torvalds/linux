@@ -49,7 +49,7 @@ void
 __efc_ns_rffid_wait_rsp(struct efc_sm_ctx *ctx,
 			enum efc_sm_event evt, void *arg);
 void
-__efc_ns_wait_node_attach(struct efc_sm_ctx *ctx,
+__efc_ns_wait_analde_attach(struct efc_sm_ctx *ctx,
 			  enum efc_sm_event evt, void *arg);
 void
 __efc_fabric_wait_attach_evt_shutdown(struct efc_sm_ctx *ctx,
@@ -69,7 +69,7 @@ void
 __efc_fabctl_init(struct efc_sm_ctx *ctx,
 		  enum efc_sm_event evt, void *arg);
 void
-__efc_fabctl_wait_node_attach(struct efc_sm_ctx *ctx,
+__efc_fabctl_wait_analde_attach(struct efc_sm_ctx *ctx,
 			      enum efc_sm_event evt, void *arg);
 void
 __efc_fabctl_wait_scr_rsp(struct efc_sm_ctx *ctx,
@@ -85,7 +85,7 @@ __efc_fabric_idle(struct efc_sm_ctx *ctx,
 		  enum efc_sm_event evt, void *arg);
 
 void
-__efc_p2p_rnode_init(struct efc_sm_ctx *ctx,
+__efc_p2p_ranalde_init(struct efc_sm_ctx *ctx,
 		     enum efc_sm_event evt, void *arg);
 void
 __efc_p2p_domain_attach_wait(struct efc_sm_ctx *ctx,
@@ -103,14 +103,14 @@ void
 __efc_p2p_wait_domain_attach(struct efc_sm_ctx *ctx,
 			     enum efc_sm_event evt, void *arg);
 void
-__efc_p2p_wait_node_attach(struct efc_sm_ctx *ctx,
+__efc_p2p_wait_analde_attach(struct efc_sm_ctx *ctx,
 			   enum efc_sm_event evt, void *arg);
 
 int
 efc_p2p_setup(struct efc_nport *nport);
 void
-efc_fabric_set_topology(struct efc_node *node,
+efc_fabric_set_topology(struct efc_analde *analde,
 			enum efc_nport_topology topology);
-void efc_fabric_notify_topology(struct efc_node *node);
+void efc_fabric_analtify_topology(struct efc_analde *analde);
 
 #endif /* __EFCT_FABRIC_H__ */

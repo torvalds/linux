@@ -38,8 +38,8 @@
 #define AT24_FLAG_SERIAL	BIT(3)
 /* Factory-programmed mac address. */
 #define AT24_FLAG_MAC		BIT(2)
-/* Does not auto-rollover reads to the next slave address. */
-#define AT24_FLAG_NO_RDROL	BIT(1)
+/* Does analt auto-rollover reads to the next slave address. */
+#define AT24_FLAG_ANAL_RDROL	BIT(1)
 
 /*
  * I2C EEPROMs from most vendors are inexpensive and mostly interchangeable.
@@ -50,7 +50,7 @@
  *
  * However, misconfiguration can lose data. "Set 16-bit memory address"
  * to a part with 8-bit addressing will overwrite data. Writing with too
- * big a page size also loses data. And it's not safe to assume that the
+ * big a page size also loses data. And it's analt safe to assume that the
  * conventional addresses 0x50..0x57 only hold eeproms; a PCF8563 RTC
  * uses 0x51, for just one example.
  *
@@ -72,7 +72,7 @@
 struct at24_data {
 	/*
 	 * Lock protects against activities from other Linux tasks,
-	 * but not from changes by other I2C masters.
+	 * but analt from changes by other I2C masters.
 	 */
 	struct mutex lock;
 
@@ -161,7 +161,7 @@ static void at24_read_post_vaio(unsigned int off, char *buf, size_t count)
 	}
 }
 
-/* needs 8 addresses as A0-A2 are ignored */
+/* needs 8 addresses as A0-A2 are iganalred */
 AT24_CHIP_DATA(at24_data_24c00, 128 / 8, AT24_FLAG_TAKE8ADDR);
 /* old variants can't be handled with this generic entry! */
 AT24_CHIP_DATA(at24_data_24c01, 1024 / 8, 0);
@@ -287,7 +287,7 @@ MODULE_DEVICE_TABLE(acpi, at24_acpi_ids);
  * Assumes that sanity checks for offset happened at sysfs-layer.
  *
  * Slave address and byte offset derive from the offset. Always
- * set the byte address; on a multi-master board, another master
+ * set the byte address; on a multi-master board, aanalther master
  * may have changed the chip's "current" address pointer.
  */
 static struct regmap *at24_translate_offset(struct at24_data *at24,
@@ -322,7 +322,7 @@ static size_t at24_adjust_read_count(struct at24_data *at24,
 	 * the next slave address: truncate the count to the slave boundary,
 	 * so that the read never straddles slaves.
 	 */
-	if (at24->flags & AT24_FLAG_NO_RDROL) {
+	if (at24->flags & AT24_FLAG_ANAL_RDROL) {
 		bits = (at24->flags & AT24_FLAG_ADDR16) ? 16 : 8;
 		remainder = BIT(bits) - offset;
 		if (count > remainder)
@@ -369,8 +369,8 @@ static ssize_t at24_regmap_read(struct at24_data *at24, char *buf,
 }
 
 /*
- * Note that if the hardware write-protect pin is pulled high, the whole
- * chip is normally write protected. But there are plenty of product
+ * Analte that if the hardware write-protect pin is pulled high, the whole
+ * chip is analrmally write protected. But there are plenty of product
  * variants here, including OTP fuses and partial chip protect.
  *
  * We only use page mode writes; the alternative is sloooow. These routines
@@ -445,7 +445,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 		return ret;
 	/*
 	 * Read data from chip, protecting against concurrent updates
-	 * from this host, but not from other I2C masters.
+	 * from this host, but analt from other I2C masters.
 	 */
 	mutex_lock(&at24->lock);
 
@@ -489,7 +489,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 		return ret;
 	/*
 	 * Write data to chip, protecting against concurrent updates
-	 * from this host, but not from other I2C masters.
+	 * from this host, but analt from other I2C masters.
 	 */
 	mutex_lock(&at24->lock);
 
@@ -605,12 +605,12 @@ static int at24_probe(struct i2c_client *client)
 
 	cdata = i2c_get_match_data(client);
 	if (!cdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = device_property_read_u32(dev, "pagesize", &page_size);
 	if (err)
 		/*
-		 * This is slow, but we can't know all eeproms, so we better
+		 * This is slow, but we can't kanalw all eeproms, so we better
 		 * play safe. Specifying custom eeprom-types via device tree
 		 * or properties is recommended anyhow.
 		 */
@@ -619,8 +619,8 @@ static int at24_probe(struct i2c_client *client)
 	flags = cdata->flags;
 	if (device_property_present(dev, "read-only"))
 		flags |= AT24_FLAG_READONLY;
-	if (device_property_present(dev, "no-read-rollover"))
-		flags |= AT24_FLAG_NO_RDROL;
+	if (device_property_present(dev, "anal-read-rollover"))
+		flags |= AT24_FLAG_ANAL_RDROL;
 
 	err = device_property_read_u32(dev, "address-width", &addrw);
 	if (!err) {
@@ -648,12 +648,12 @@ static int at24_probe(struct i2c_client *client)
 		page_size = 1;
 
 	if (!page_size) {
-		dev_err(dev, "page_size must not be 0!\n");
+		dev_err(dev, "page_size must analt be 0!\n");
 		return -EINVAL;
 	}
 
 	if (!is_power_of_2(page_size))
-		dev_warn(dev, "page_size looks suspicious (no power of 2)!\n");
+		dev_warn(dev, "page_size looks suspicious (anal power of 2)!\n");
 
 	err = device_property_read_u32(dev, "num-addresses", &num_addresses);
 	if (err) {
@@ -666,7 +666,7 @@ static int at24_probe(struct i2c_client *client)
 
 	if ((flags & AT24_FLAG_SERIAL) && (flags & AT24_FLAG_MAC)) {
 		dev_err(dev,
-			"invalid device data - cannot have both AT24_FLAG_SERIAL & AT24_FLAG_MAC.");
+			"invalid device data - cananalt have both AT24_FLAG_SERIAL & AT24_FLAG_MAC.");
 		return -EINVAL;
 	}
 
@@ -681,7 +681,7 @@ static int at24_probe(struct i2c_client *client)
 	at24 = devm_kzalloc(dev, struct_size(at24, client_regmaps, num_addresses),
 			    GFP_KERNEL);
 	if (!at24)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&at24->lock);
 	at24->byte_len = byte_len;
@@ -715,7 +715,7 @@ static int at24_probe(struct i2c_client *client)
 	/*
 	 * We initialize nvmem_config.id to NVMEM_DEVID_AUTO even if the
 	 * label property is set as some platform can have multiple eeproms
-	 * with same label and we can not register each of those with same
+	 * with same label and we can analt register each of those with same
 	 * label. Failing to register those eeproms trigger cascade failure
 	 * on such platform.
 	 */
@@ -770,7 +770,7 @@ static int at24_probe(struct i2c_client *client)
 	/*
 	 * Perform a one-byte test read to verify that the chip is functional,
 	 * unless powering on the device is to be avoided during probe (i.e.
-	 * it's powered off right now).
+	 * it's powered off right analw).
 	 */
 	if (full_power) {
 		err = at24_read(at24, 0, &test_byte, 1);
@@ -778,7 +778,7 @@ static int at24_probe(struct i2c_client *client)
 			pm_runtime_disable(dev);
 			if (!pm_runtime_status_suspended(dev))
 				regulator_disable(at24->vcc_reg);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -848,7 +848,7 @@ static struct i2c_driver at24_driver = {
 static int __init at24_init(void)
 {
 	if (!at24_io_limit) {
-		pr_err("at24: at24_io_limit must not be 0!\n");
+		pr_err("at24: at24_io_limit must analt be 0!\n");
 		return -EINVAL;
 	}
 

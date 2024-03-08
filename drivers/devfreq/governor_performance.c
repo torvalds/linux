@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/drivers/devfreq/governor_performance.c
+ *  linux/drivers/devfreq/goveranalr_performance.c
  *
  *  Copyright (C) 2011 Samsung Electronics
  *	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -8,7 +8,7 @@
 
 #include <linux/devfreq.h>
 #include <linux/module.h>
-#include "governor.h"
+#include "goveranalr.h"
 
 static int devfreq_performance_func(struct devfreq *df,
 				    unsigned long *freq)
@@ -35,7 +35,7 @@ static int devfreq_performance_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-static struct devfreq_governor devfreq_performance = {
+static struct devfreq_goveranalr devfreq_performance = {
 	.name = DEVFREQ_GOV_PERFORMANCE,
 	.get_target_freq = devfreq_performance_func,
 	.event_handler = devfreq_performance_handler,
@@ -43,7 +43,7 @@ static struct devfreq_governor devfreq_performance = {
 
 static int __init devfreq_performance_init(void)
 {
-	return devfreq_add_governor(&devfreq_performance);
+	return devfreq_add_goveranalr(&devfreq_performance);
 }
 subsys_initcall(devfreq_performance_init);
 
@@ -51,9 +51,9 @@ static void __exit devfreq_performance_exit(void)
 {
 	int ret;
 
-	ret = devfreq_remove_governor(&devfreq_performance);
+	ret = devfreq_remove_goveranalr(&devfreq_performance);
 	if (ret)
-		pr_err("%s: failed remove governor %d\n", __func__, ret);
+		pr_err("%s: failed remove goveranalr %d\n", __func__, ret);
 
 	return;
 }

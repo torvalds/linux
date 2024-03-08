@@ -367,8 +367,8 @@ static inline struct wm8350_irq_data *irq_to_wm8350_irq(struct wm8350 *wm8350,
 /*
  * This is a threaded IRQ handler so can access I2C/SPI.  Since all
  * interrupts are clear on read the IRQ line will be reasserted and
- * the physical IRQ will be handled again if another interrupt is
- * asserted while we run - in the normal course of events this is a
+ * the physical IRQ will be handled again if aanalther interrupt is
+ * asserted while we run - in the analrmal course of events this is a
  * rare occurrence so we save I2C/SPI reads.  We're also assuming that
  * it's rare to get lots of interrupts firing simultaneously so try to
  * minimise I/O.
@@ -386,7 +386,7 @@ static irqreturn_t wm8350_irq(int irq, void *irq_data)
 		& ~wm8350_reg_read(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK);
 
 	if (!level_one)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	memset(&read_done, 0, sizeof(read_done));
 
@@ -468,7 +468,7 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 	int irq_base = -1;
 
 	if (!irq) {
-		dev_warn(wm8350->dev, "No interrupt support, no core IRQ\n");
+		dev_warn(wm8350->dev, "Anal interrupt support, anal core IRQ\n");
 		return 0;
 	}
 
@@ -521,7 +521,7 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 					 handle_edge_irq);
 		irq_set_nested_thread(cur_irq, 1);
 
-		irq_clear_status_flags(cur_irq, IRQ_NOREQUEST | IRQ_NOPROBE);
+		irq_clear_status_flags(cur_irq, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 	}
 
 	ret = request_threaded_irq(irq, NULL, wm8350_irq, flags,

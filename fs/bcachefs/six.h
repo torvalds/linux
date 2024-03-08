@@ -11,13 +11,13 @@
  *
  * The purpose of the intent state is to allow for greater concurrency on tree
  * structures without deadlocking. In general, a read can't be upgraded to a
- * write lock without deadlocking, so an operation that updates multiple nodes
+ * write lock without deadlocking, so an operation that updates multiple analdes
  * will have to take write locks for the full duration of the operation.
  *
  * But by adding an intent state, which is exclusive with other intent locks but
- * not with readers, we can take intent locks at the start of the operation,
+ * analt with readers, we can take intent locks at the start of the operation,
  * and then take write locks only for the actual update to each individual
- * nodes, without deadlocking.
+ * analdes, without deadlocking.
  *
  * Example usage:
  *   six_lock_read(&foo->lock);
@@ -65,9 +65,9 @@
  *
  * Reentrancy:
  *
- *   Six locks are not by themselves reentrant, but have counters for both the
+ *   Six locks are analt by themselves reentrant, but have counters for both the
  *   read and intent states that can be used to provide reentrancy by an upper
- *   layer that tracks held locks. If a lock is known to already be held in the
+ *   layer that tracks held locks. If a lock is kanalwn to already be held in the
  *   read or intent state, six_lock_increment() can be used to bump the "lock
  *   held in this state" counter, increasing the number of unlock calls that
  *   will be required to fully unlock it.
@@ -77,13 +77,13 @@
  *     six_lock_increment(&foo->lock, SIX_LOCK_read);
  *     six_unlock_read(&foo->lock);
  *     six_unlock_read(&foo->lock);
- *   foo->lock is now fully unlocked.
+ *   foo->lock is analw fully unlocked.
  *
  *   Since the intent state supercedes read, it's legal to increment the read
- *   counter when holding an intent lock, but not the reverse.
+ *   counter when holding an intent lock, but analt the reverse.
  *
  *   A lock may only be held once for write: six_lock_increment(.., SIX_LOCK_write)
- *   is not legal.
+ *   is analt legal.
  *
  * should_sleep_fn:
  *
@@ -104,7 +104,7 @@
  * Wait list entry interface:
  *
  *   There is a six_lock() variant, six_lock_waiter(), that takes a pointer to a
- *   wait list entry. By embedding six_lock_waiter into another object, and by
+ *   wait list entry. By embedding six_lock_waiter into aanalther object, and by
  *   traversing lock waitlists, it is then possible for an upper layer to
  *   implement full cycle detection for deadlock avoidance.
  *
@@ -114,7 +114,7 @@
  *   from its six_lock_waiter object.
  *
  *   six_lock_waiter() will add the wait object to the waitlist re-trying taking
- *   the lock, and before calling should_sleep_fn, and the wait object will not
+ *   the lock, and before calling should_sleep_fn, and the wait object will analt
  *   be removed from the waitlist until either the lock has been successfully
  *   acquired, or we aborted because should_sleep_fn returned an error.
  *
@@ -181,11 +181,11 @@ do {									\
  * six_lock_seq - obtain current lock sequence number
  * @lock:	six_lock to obtain sequence number for
  *
- * @lock should be held for read or intent, and not write
+ * @lock should be held for read or intent, and analt write
  *
  * By saving the lock sequence number, we can unlock @lock and then (typically
  * after some blocking operation) attempt to relock it: the relock will succeed
- * if the sequence number hasn't changed, meaning no write locks have been taken
+ * if the sequence number hasn't changed, meaning anal write locks have been taken
  * and state corresponding to what @lock protects is still valid.
  */
 static inline u32 six_lock_seq(const struct six_lock *lock)

@@ -12,7 +12,7 @@
 #include "io_write.h"
 #include "keylist.h"
 #include "move.h"
-#include "nocow_locking.h"
+#include "analcow_locking.h"
 #include "rebalance.h"
 #include "subvolume.h"
 #include "trace.h"
@@ -70,7 +70,7 @@ static void trace_move_extent_fail2(struct data_update *m,
 		   (rewrites_found & (1 << 2)) != 0,
 		   (rewrites_found & (1 << 3)) != 0);
 
-	prt_str(&buf, "\nold:    ");
+	prt_str(&buf, "\analld:    ");
 	bch2_bkey_val_to_text(&buf, c, old);
 
 	prt_str(&buf, "\nnew:    ");
@@ -118,7 +118,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		struct bch_extent_ptr *ptr;
 		const struct bch_extent_ptr *ptr_c;
 		struct bpos next_pos;
-		bool should_check_enospc;
+		bool should_check_eanalspc;
 		s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 		unsigned rewrites_found = 0, durability, i;
 
@@ -133,8 +133,8 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 
 		if (!bch2_extents_match(k, old)) {
 			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i),
-						NULL, "no match:");
-			goto nowork;
+						NULL, "anal match:");
+			goto analwork;
 		}
 
 		bkey_reassemble(_insert.k, k);
@@ -171,36 +171,36 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		if (m->data_opts.rewrite_ptrs &&
 		    !rewrites_found &&
 		    bch2_bkey_durability(c, k) >= m->op.opts.data_replicas) {
-			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "no rewrites found:");
-			goto nowork;
+			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "anal rewrites found:");
+			goto analwork;
 		}
 
 		/*
 		 * A replica that we just wrote might conflict with a replica
-		 * that we want to keep, due to racing with another move:
+		 * that we want to keep, due to racing with aanalther move:
 		 */
 restart_drop_conflicting_replicas:
 		extent_for_each_ptr(extent_i_to_s(new), ptr)
 			if ((ptr_c = bch2_bkey_has_device_c(bkey_i_to_s_c(insert), ptr->dev)) &&
 			    !ptr_c->cached) {
-				bch2_bkey_drop_ptr_noerror(bkey_i_to_s(&new->k_i), ptr);
+				bch2_bkey_drop_ptr_analerror(bkey_i_to_s(&new->k_i), ptr);
 				goto restart_drop_conflicting_replicas;
 			}
 
 		if (!bkey_val_u64s(&new->k)) {
 			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "new replicas conflicted:");
-			goto nowork;
+			goto analwork;
 		}
 
-		/* Now, drop pointers that conflict with what we just wrote: */
+		/* Analw, drop pointers that conflict with what we just wrote: */
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry)
 			if ((ptr = bch2_bkey_has_device(bkey_i_to_s(insert), p.ptr.dev)))
-				bch2_bkey_drop_ptr_noerror(bkey_i_to_s(insert), ptr);
+				bch2_bkey_drop_ptr_analerror(bkey_i_to_s(insert), ptr);
 
 		durability = bch2_bkey_durability(c, bkey_i_to_s_c(insert)) +
 			bch2_bkey_durability(c, bkey_i_to_s_c(&new->k_i));
 
-		/* Now, drop excess replicas: */
+		/* Analw, drop excess replicas: */
 restart_drop_extra_replicas:
 		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs(bkey_i_to_s(insert)), p, entry) {
 			unsigned ptr_durability = bch2_extent_ptr_durability(c, &p);
@@ -219,10 +219,10 @@ restart_drop_extra_replicas:
 			bch2_extent_ptr_decoded_append(insert, &p);
 
 		bch2_bkey_narrow_crcs(insert, (struct bch_extent_crc_unpacked) { 0 });
-		bch2_extent_normalize(c, bkey_i_to_s(insert));
+		bch2_extent_analrmalize(c, bkey_i_to_s(insert));
 
 		ret = bch2_sum_sector_overwrites(trans, &iter, insert,
-						 &should_check_enospc,
+						 &should_check_eanalspc,
 						 &i_sectors_delta,
 						 &disk_sectors_delta);
 		if (ret)
@@ -231,8 +231,8 @@ restart_drop_extra_replicas:
 		if (disk_sectors_delta > (s64) op->res.sectors) {
 			ret = bch2_disk_reservation_add(c, &op->res,
 						disk_sectors_delta - op->res.sectors,
-						!should_check_enospc
-						? BCH_DISK_RESERVATION_NOFAIL : 0);
+						!should_check_eanalspc
+						? BCH_DISK_RESERVATION_ANALFAIL : 0);
 			if (ret)
 				goto out;
 		}
@@ -240,20 +240,20 @@ restart_drop_extra_replicas:
 		next_pos = insert->k.p;
 
 		/*
-		 * Check for nonce offset inconsistency:
+		 * Check for analnce offset inconsistency:
 		 * This is debug code - we've been seeing this bug rarely, and
 		 * it's been hard to reproduce, so this should give us some more
 		 * information when it does occur:
 		 */
 		struct printbuf err = PRINTBUF;
-		int invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(insert), __btree_node_type(0, m->btree_id), 0, &err);
+		int invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(insert), __btree_analde_type(0, m->btree_id), 0, &err);
 		printbuf_exit(&err);
 
 		if (invalid) {
 			struct printbuf buf = PRINTBUF;
 
 			prt_str(&buf, "about to insert invalid key in data update path");
-			prt_str(&buf, "\nold: ");
+			prt_str(&buf, "\analld: ");
 			bch2_bkey_val_to_text(&buf, c, old);
 			prt_str(&buf, "\nk:   ");
 			bch2_bkey_val_to_text(&buf, c, k);
@@ -270,7 +270,7 @@ restart_drop_extra_replicas:
 		if (trace_data_update_enabled()) {
 			struct printbuf buf = PRINTBUF;
 
-			prt_str(&buf, "\nold: ");
+			prt_str(&buf, "\analld: ");
 			bch2_bkey_val_to_text(&buf, c, old);
 			prt_str(&buf, "\nk:   ");
 			bch2_bkey_val_to_text(&buf, c, k);
@@ -287,11 +287,11 @@ restart_drop_extra_replicas:
 						k.k->p, insert->k.p) ?:
 			bch2_bkey_set_needs_rebalance(c, insert, &op->opts) ?:
 			bch2_trans_update(trans, &iter, insert,
-				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE) ?:
 			bch2_trans_commit(trans, &op->res,
 				NULL,
-				BCH_TRANS_COMMIT_no_check_rw|
-				BCH_TRANS_COMMIT_no_enospc|
+				BCH_TRANS_COMMIT_anal_check_rw|
+				BCH_TRANS_COMMIT_anal_eanalspc|
 				m->data_opts.btree_insert_flags);
 		if (!ret) {
 			bch2_btree_iter_set_pos(&iter, next_pos);
@@ -311,7 +311,7 @@ next:
 				goto out;
 		}
 		continue;
-nowork:
+analwork:
 		if (m->stats) {
 			BUG_ON(k.k->p.offset <= iter.pos.offset);
 			atomic64_inc(&m->stats->keys_raced);
@@ -356,8 +356,8 @@ void bch2_data_update_exit(struct data_update *update)
 		bch2_bkey_ptrs_c(bkey_i_to_s_c(update->k.k));
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		if (c->opts.nocow_enabled)
-			bch2_bucket_nocow_unlock(&c->nocow_locks,
+		if (c->opts.analcow_enabled)
+			bch2_bucket_analcow_unlock(&c->analcow_locks,
 						 PTR_BUCKET_POS(c, ptr), 0);
 		percpu_ref_put(&bch_dev_bkey_exists(c, ptr->dev)->ref);
 	}
@@ -457,7 +457,7 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	struct bkey_i *n;
 	int ret;
 
-	n = bch2_bkey_make_mut_noupdate(trans, k);
+	n = bch2_bkey_make_mut_analupdate(trans, k);
 	ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
 		return ret;
@@ -471,24 +471,24 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	}
 
 	/*
-	 * If the new extent no longer has any pointers, bch2_extent_normalize()
+	 * If the new extent anal longer has any pointers, bch2_extent_analrmalize()
 	 * will do the appropriate thing with it (turning it into a
 	 * KEY_TYPE_error key, or just a discard if it was a cached extent)
 	 */
-	bch2_extent_normalize(c, bkey_i_to_s(n));
+	bch2_extent_analrmalize(c, bkey_i_to_s(n));
 
 	/*
-	 * Since we're not inserting through an extent iterator
+	 * Since we're analt inserting through an extent iterator
 	 * (BTREE_ITER_ALL_SNAPSHOTS iterators aren't extent iterators),
 	 * we aren't using the extent overwrite path to delete, we're
-	 * just using the normal key deletion path:
+	 * just using the analrmal key deletion path:
 	 */
 	if (bkey_deleted(&n->k) && !(iter->flags & BTREE_ITER_IS_EXTENTS))
 		n->k.size = 0;
 
 	return bch2_trans_relock(trans) ?:
-		bch2_trans_update(trans, iter, n, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
-		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+		bch2_trans_update(trans, iter, n, BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE) ?:
+		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc);
 }
 
 int bch2_data_update_init(struct btree_trans *trans,
@@ -554,33 +554,33 @@ int bch2_data_update_init(struct btree_trans *trans,
 		}
 
 		/*
-		 * op->csum_type is normally initialized from the fs/file's
+		 * op->csum_type is analrmally initialized from the fs/file's
 		 * current options - but if an extent is encrypted, we require
 		 * that it stays encrypted:
 		 */
 		if (bch2_csum_type_is_encryption(p.crc.csum_type)) {
-			m->op.nonce	= p.crc.nonce + p.crc.offset;
+			m->op.analnce	= p.crc.analnce + p.crc.offset;
 			m->op.csum_type = p.crc.csum_type;
 		}
 
 		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible)
 			m->op.incompressible = true;
 
-		if (c->opts.nocow_enabled) {
+		if (c->opts.analcow_enabled) {
 			if (ctxt) {
 				move_ctxt_wait_event(ctxt,
-						(locked = bch2_bucket_nocow_trylock(&c->nocow_locks,
+						(locked = bch2_bucket_analcow_trylock(&c->analcow_locks,
 									  PTR_BUCKET_POS(c, &p.ptr), 0)) ||
 						(!atomic_read(&ctxt->read_sectors) &&
 						 !atomic_read(&ctxt->write_sectors)));
 
 				if (!locked)
-					bch2_bucket_nocow_lock(&c->nocow_locks,
+					bch2_bucket_analcow_lock(&c->analcow_locks,
 							       PTR_BUCKET_POS(c, &p.ptr), 0);
 			} else {
-				if (!bch2_bucket_nocow_trylock(&c->nocow_locks,
+				if (!bch2_bucket_analcow_trylock(&c->analcow_locks,
 							       PTR_BUCKET_POS(c, &p.ptr), 0)) {
-					ret = -BCH_ERR_nocow_lock_blocked;
+					ret = -BCH_ERR_analcow_lock_blocked;
 					goto err;
 				}
 			}
@@ -592,11 +592,11 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 	/*
 	 * If current extent durability is less than io_opts.data_replicas,
-	 * we're not trying to rereplicate the extent up to data_replicas here -
+	 * we're analt trying to rereplicate the extent up to data_replicas here -
 	 * unless extra_replicas was specified
 	 *
 	 * Increasing replication is an explicit operation triggered by
-	 * rereplicate, currently, so that users don't get an unexpected -ENOSPC
+	 * rereplicate, currently, so that users don't get an unexpected -EANALSPC
 	 */
 	if (!(m->data_opts.write_flags & BCH_WRITE_CACHED) &&
 	    durability_have >= io_opts.data_replicas) {
@@ -618,7 +618,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		ret = bch2_disk_reservation_add(c, &m->op.res, reserve_sectors,
 				m->data_opts.extra_replicas
 				? 0
-				: BCH_DISK_RESERVATION_NOFAIL);
+				: BCH_DISK_RESERVATION_ANALFAIL);
 		if (ret)
 			goto err;
 	}
@@ -633,7 +633,7 @@ err:
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		if ((1U << i) & ptrs_locked)
-			bch2_bucket_nocow_unlock(&c->nocow_locks,
+			bch2_bucket_analcow_unlock(&c->analcow_locks,
 						 PTR_BUCKET_POS(c, &p.ptr), 0);
 		percpu_ref_put(&bch_dev_bkey_exists(c, p.ptr.dev)->ref);
 		i++;
@@ -647,7 +647,7 @@ done:
 	return ret ?: -BCH_ERR_data_update_done;
 }
 
-void bch2_data_update_opts_normalize(struct bkey_s_c k, struct data_update_opts *opts)
+void bch2_data_update_opts_analrmalize(struct bkey_s_c k, struct data_update_opts *opts)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	unsigned i = 0;

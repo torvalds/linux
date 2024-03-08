@@ -32,7 +32,7 @@
 	status = "okay";
 
 	w25q16dw0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		m25p,fast-read;

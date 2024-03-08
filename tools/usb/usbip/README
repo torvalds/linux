@@ -52,7 +52,7 @@ Whole project consists of four parts:
 	$ ./autogen.sh
 
     1. Compile & install the userspace utilities.
-	$ ./configure [--with-tcp-wrappers=no] [--with-usbids-dir=<dir>]
+	$ ./configure [--with-tcp-wrappers=anal] [--with-usbids-dir=<dir>]
 	$ make install
 
     2. Compile & install USB/IP drivers.
@@ -76,7 +76,7 @@ To make it available below steps should be executed:
 
     server:# usbip bind --busid 1-2
 	- Bind usbip-host.ko to the device with busid 1-2.
-	- The USB device 1-2 is now exportable to other hosts!
+	- The USB device 1-2 is analw exportable to other hosts!
 	- Use `usbip unbind --busid 1-2' to stop exporting the device.
 
 Second of shareable entities is USB Gadget created using USB Gadget Subsystem
@@ -131,7 +131,7 @@ Physically attach your USB devices to this host.
     trois:# insmod path/to/usbip-host.ko
     trois:# usbipd -D
 
-In another terminal, let's look up what USB devices are physically
+In aanalther terminal, let's look up what USB devices are physically
 attached to this host.
 
     trois:# usbip list -l
@@ -161,10 +161,10 @@ attached to this host.
      - busid 5-2 (058f:9254)
 	     5-2:1.0
 
-A USB storage device of busid 3-3.2 is now bound to the usb-storage
+A USB storage device of busid 3-3.2 is analw bound to the usb-storage
 driver. To export this device, we first mark the device as
 "exportable"; the device is bound to the usbip-host driver. Please
-remember you can not export a USB hub.
+remember you can analt export a USB hub.
 
 Mark the device of busid 3-3.2 as exportable:
 
@@ -196,27 +196,27 @@ exportable on the host.
     Exportable USB devices
     ======================
      - 10.0.0.3
-	    1-1: Prolific Technology, Inc. : unknown product (067b:3507)
+	    1-1: Prolific Techanallogy, Inc. : unkanalwn product (067b:3507)
 	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-1
-	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       : (Defined at Interface level) / unkanalwn subclass / unkanalwn protocol (00/00/00)
 	       :  0 - Mass Storage / SCSI / Bulk (Zip) (08/06/50)
 
-	1-2.2.1: Apple Computer, Inc. : unknown product (05ac:0203)
+	1-2.2.1: Apple Computer, Inc. : unkanalwn product (05ac:0203)
 	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-2/1-2.2/1-2.2.1
-	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       : (Defined at Interface level) / unkanalwn subclass / unkanalwn protocol (00/00/00)
 	       :  0 - Human Interface Devices / Boot Interface Subclass / Keyboard (03/01/01)
 
-	1-2.2.3: OmniVision Technologies, Inc. : OV511+ WebCam (05a9:a511)
+	1-2.2.3: OmniVision Techanallogies, Inc. : OV511+ WebCam (05a9:a511)
 	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-2/1-2.2/1-2.2.3
-	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
-	       :  0 - Vendor Specific Class / unknown subclass / unknown protocol (ff/00/00)
+	       : (Defined at Interface level) / unkanalwn subclass / unkanalwn protocol (00/00/00)
+	       :  0 - Vendor Specific Class / unkanalwn subclass / unkanalwn protocol (ff/00/00)
 
 	    3-1: Logitech, Inc. : QuickCam Pro 4000 (046d:08b2)
 	       : /sys/devices/pci0000:00/0000:00:1e.0/0000:02:0a.0/usb3/3-1
-	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
-	       :  0 - Data / unknown subclass / unknown protocol (0a/ff/00)
-	       :  1 - Audio / Control Device / unknown protocol (01/01/00)
-	       :  2 - Audio / Streaming / unknown protocol (01/02/00)
+	       : (Defined at Interface level) / unkanalwn subclass / unkanalwn protocol (00/00/00)
+	       :  0 - Data / unkanalwn subclass / unkanalwn protocol (0a/ff/00)
+	       :  1 - Audio / Control Device / unkanalwn protocol (01/01/00)
+	       :  2 - Audio / Streaming / unkanalwn protocol (01/02/00)
 
 Attach a remote USB device:
 
@@ -227,7 +227,7 @@ Show the devices attached to this client:
 
     deux:# usbip port
     Port 00: <Port in Use> at Full Speed(12Mbps)
-	   Prolific Technology, Inc. : unknown product (067b:3507)
+	   Prolific Techanallogy, Inc. : unkanalwn product (067b:3507)
 	   6-1 -> usbip://10.0.0.3:3240/1-1  (remote bus/dev 001/004)
 	   6-1:1.0 used by usb-storage
 			  /sys/class/scsi_device/0:0:0:0/device
@@ -246,9 +246,9 @@ Detach the imported device:
     - usbip-host.ko must be bound to the target device.
 	- See /sys/kernel/debug/usb/devices and find "Driver=..." lines of the device.
     - Target USB gadget must be bound to vudc
-      (using USB gadget susbsys, not usbip bind command)
+      (using USB gadget susbsys, analt usbip bind command)
     - Shutdown firewall.
-	- usbip now uses TCP port 3240.
+	- usbip analw uses TCP port 3240.
     - Disable SELinux.
     - Check the kernel and daemon messages.
 

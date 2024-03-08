@@ -22,7 +22,7 @@ ACPI_MODULE_NAME("exoparg2")
  *
  * The routines that begin execution of AML opcodes are named with a common
  * convention based upon the number of arguments, the number of target operands,
- * and whether or not a value is returned:
+ * and whether or analt a value is returned:
  *
  *      AcpiExOpcode_xA_yT_zR
  *
@@ -46,7 +46,7 @@ ACPI_MODULE_NAME("exoparg2")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with two arguments, no target, and no return
+ * DESCRIPTION: Execute opcode with two arguments, anal target, and anal return
  *              value.
  *
  * ALLOCATION:  Deletes both operands
@@ -55,7 +55,7 @@ ACPI_MODULE_NAME("exoparg2")
 acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object **operand = &walk_state->operands[0];
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	u32 value;
 	acpi_status status = AE_OK;
 
@@ -65,40 +65,40 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 	/* Examine the opcode */
 
 	switch (walk_state->opcode) {
-	case AML_NOTIFY_OP:	/* Notify (notify_object, notify_value) */
+	case AML_ANALTIFY_OP:	/* Analtify (analtify_object, analtify_value) */
 
-		/* The first operand is a namespace node */
+		/* The first operand is a namespace analde */
 
-		node = (struct acpi_namespace_node *)operand[0];
+		analde = (struct acpi_namespace_analde *)operand[0];
 
-		/* Second value is the notify value */
+		/* Second value is the analtify value */
 
 		value = (u32) operand[1]->integer.value;
 
-		/* Are notifies allowed on this object? */
+		/* Are analtifies allowed on this object? */
 
-		if (!acpi_ev_is_notify_object(node)) {
+		if (!acpi_ev_is_analtify_object(analde)) {
 			ACPI_ERROR((AE_INFO,
-				    "Unexpected notify object type [%s]",
-				    acpi_ut_get_type_name(node->type)));
+				    "Unexpected analtify object type [%s]",
+				    acpi_ut_get_type_name(analde->type)));
 
 			status = AE_AML_OPERAND_TYPE;
 			break;
 		}
 
 		/*
-		 * Dispatch the notify to the appropriate handler
-		 * NOTE: the request is queued for execution after this method
-		 * completes. The notify handlers are NOT invoked synchronously
+		 * Dispatch the analtify to the appropriate handler
+		 * ANALTE: the request is queued for execution after this method
+		 * completes. The analtify handlers are ANALT invoked synchroanalusly
 		 * from this thread -- because handlers may in turn run other
 		 * control methods.
 		 */
-		status = acpi_ev_queue_notify_request(node, value);
+		status = acpi_ev_queue_analtify_request(analde, value);
 		break;
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 	}
@@ -139,14 +139,14 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 		return_desc1 =
 		    acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 		if (!return_desc1) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
 		return_desc2 =
 		    acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 		if (!return_desc2) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -163,7 +163,7 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;
@@ -184,7 +184,7 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 
 cleanup:
 	/*
-	 * Since the remainder is not returned indirectly, remove a reference to
+	 * Since the remainder is analt returned indirectly, remove a reference to
 	 * it. Only the quotient is returned indirectly.
 	 */
 	acpi_ut_remove_reference(return_desc2);
@@ -237,7 +237,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -253,7 +253,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -284,7 +284,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		 * 2) Max length as specified in the to_string operator
 		 * 3) Length of input buffer up to a zero byte (null terminator)
 		 *
-		 * NOTE: A length of zero is ok, and will create a zero-length, null
+		 * ANALTE: A length of zero is ok, and will create a zero-length, null
 		 *       terminated string.
 		 */
 		while ((length < operand[0]->buffer.length) &&	/* Length of input buffer */
@@ -297,12 +297,12 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 		return_desc = acpi_ut_create_string_object(length);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
 		/*
-		 * Copy the raw buffer data with no transform.
+		 * Copy the raw buffer data with anal transform.
 		 * (NULL terminated already)
 		 */
 		memcpy(return_desc->string.pointer,
@@ -325,7 +325,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		return_desc =
 		    acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_REFERENCE);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -415,7 +415,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -425,7 +425,7 @@ store_result_to_target:
 
 	if (ACPI_SUCCESS(status)) {
 		/*
-		 * Store the result of the operation (which is now in return_desc) into
+		 * Store the result of the operation (which is analw in return_desc) into
 		 * the Target descriptor.
 		 */
 		status = acpi_ex_store(return_desc, operand[2], walk_state);
@@ -458,7 +458,7 @@ cleanup:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with 2 arguments, no target, and a return value
+ * DESCRIPTION: Execute opcode with 2 arguments, anal target, and a return value
  *
  ******************************************************************************/
 
@@ -476,7 +476,7 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 
 	return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 	if (!return_desc) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -523,7 +523,7 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;

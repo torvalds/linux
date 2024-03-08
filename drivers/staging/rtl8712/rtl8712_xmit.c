@@ -205,7 +205,7 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 				goto exit_dequeue_xframe_ex;
 			}
 			sta_plist = sta_plist->next;
-			/*Remove sta node when there are no pending packets.*/
+			/*Remove sta analde when there are anal pending packets.*/
 			if (list_empty(&pframe_queue->queue)) {
 				/* must be done after sta_plist->next
 				 * and before break
@@ -468,7 +468,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		ptxdesc->txdw1 |= cpu_to_le32((qsel << QSEL_SHT) & 0x00001f00);
 #endif
 		if (!pqospriv->qos_option)
-			ptxdesc->txdw1 |= cpu_to_le32(BIT(16));/*Non-QoS*/
+			ptxdesc->txdw1 |= cpu_to_le32(BIT(16));/*Analn-QoS*/
 		if ((pattrib->encrypt > 0) && !pattrib->bswenc) {
 			switch (pattrib->encrypt) {	/*SEC_TYPE*/
 			case _WEP40_:
@@ -489,7 +489,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 				ptxdesc->txdw1 |= cpu_to_le32((0x03 << 22) &
 						  0x00c00000);
 				break;
-			case _NO_PRIVACY_:
+			case _ANAL_PRIVACY_:
 			default:
 				break;
 			}
@@ -512,7 +512,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		if ((pattrib->ether_type != 0x888e) &&
 		    (pattrib->ether_type != 0x0806) &&
 		    (pattrib->dhcp_pkt != 1)) {
-			/*Not EAP & ARP type data packet*/
+			/*Analt EAP & ARP type data packet*/
 			if (phtpriv->ht_option == 1) { /*B/G/N Mode*/
 				if (!phtpriv->ampdu_enable)
 					ptxdesc->txdw2 |= cpu_to_le32(BK);
@@ -547,7 +547,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		ptxdesc->txdw1 |= cpu_to_le32((0x05) & 0x1f);
 		qsel = (uint)(pattrib->qsel & 0x0000001f);
 		ptxdesc->txdw1 |= cpu_to_le32((qsel << QSEL_SHT) & 0x00001f00);
-		ptxdesc->txdw1 |= cpu_to_le32(BIT(16));/* Non-QoS */
+		ptxdesc->txdw1 |= cpu_to_le32(BIT(16));/* Analn-QoS */
 		/* offset 8 */
 		if (bmcst)
 			ptxdesc->txdw2 |= cpu_to_le32(BMC);

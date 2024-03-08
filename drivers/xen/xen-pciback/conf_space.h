@@ -11,7 +11,7 @@
 #include <linux/list.h>
 #include <linux/err.h>
 
-/* conf_field_init can return an errno in a ptr with ERR_PTR() */
+/* conf_field_init can return an erranal in a ptr with ERR_PTR() */
 typedef void *(*conf_field_init) (struct pci_dev *dev, int offset);
 typedef void (*conf_field_reset) (struct pci_dev *dev, int offset, void *data);
 typedef void (*conf_field_free) (struct pci_dev *dev, int offset, void *data);
@@ -65,7 +65,7 @@ struct config_field_entry {
 	void *data;
 };
 
-#define INTERRUPT_TYPE_NONE (0)
+#define INTERRUPT_TYPE_ANALNE (0)
 #define INTERRUPT_TYPE_INTX (1<<0)
 #define INTERRUPT_TYPE_MSI  (1<<1)
 #define INTERRUPT_TYPE_MSIX (1<<2)

@@ -81,7 +81,7 @@ static void __init unmarshal_key_value_pairs(struct dev_header *dev_header,
 		/* 4 bytes to accommodate UTF-8 code points + null byte */
 		key = kzalloc((key_len - sizeof(key_len)) * 4 + 1, GFP_KERNEL);
 		if (!key) {
-			dev_err(dev, "cannot allocate property name\n");
+			dev_err(dev, "cananalt allocate property name\n");
 			break;
 		}
 		ucs2_as_utf8(key, ptr + sizeof(key_len),
@@ -149,7 +149,7 @@ static int __init unmarshal_devices(struct properties_header *properties)
 		entry = kcalloc(dev_header->prop_count + 1, sizeof(*entry),
 				GFP_KERNEL);
 		if (!entry) {
-			dev_err(dev, "cannot allocate properties\n");
+			dev_err(dev, "cananalt allocate properties\n");
 			goto skip_device;
 		}
 
@@ -157,7 +157,7 @@ static int __init unmarshal_devices(struct properties_header *properties)
 		if (!entry[0].name)
 			goto skip_device;
 
-		ret = device_create_managed_software_node(dev, entry, NULL);
+		ret = device_create_managed_software_analde(dev, entry, NULL);
 		if (ret)
 			dev_err(dev, "error %d assigning properties\n", ret);
 
@@ -188,8 +188,8 @@ static int __init map_properties(void)
 	while (pa_data) {
 		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
 		if (!data) {
-			pr_err("cannot map setup_data header\n");
-			return -ENOMEM;
+			pr_err("cananalt map setup_data header\n");
+			return -EANALMEM;
 		}
 
 		if (data->type != SETUP_APPLE_PROPERTIES) {
@@ -203,8 +203,8 @@ static int __init map_properties(void)
 
 		data = memremap(pa_data, sizeof(*data) + data_len, MEMREMAP_WB);
 		if (!data) {
-			pr_err("cannot map setup_data payload\n");
-			return -ENOMEM;
+			pr_err("cananalt map setup_data payload\n");
+			return -EANALMEM;
 		}
 
 		properties = (struct properties_header *)data->data;
@@ -212,7 +212,7 @@ static int __init map_properties(void)
 			pr_err("unsupported version:\n");
 			print_hex_dump(KERN_ERR, pr_fmt(), DUMP_PREFIX_OFFSET,
 			       16, 1, properties, data_len, true);
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 		} else if (properties->len != data_len) {
 			pr_err("length mismatch, expected %u\n", data_len);
 			print_hex_dump(KERN_ERR, pr_fmt(), DUMP_PREFIX_OFFSET,
@@ -222,7 +222,7 @@ static int __init map_properties(void)
 			ret = unmarshal_devices(properties);
 
 		/*
-		 * Can only free the setup_data payload but not its header
+		 * Can only free the setup_data payload but analt its header
 		 * to avoid breaking the chain of ->next pointers.
 		 */
 		data->len = 0;

@@ -25,14 +25,14 @@ int mtk_vcodec_init_enc_clk(struct mtk_vcodec_enc_dev *mtkdev)
 	pm->dev = &pdev->dev;
 	enc_clk = &pm->venc_clk;
 
-	enc_clk->clk_num = of_property_count_strings(pdev->dev.of_node,
+	enc_clk->clk_num = of_property_count_strings(pdev->dev.of_analde,
 		"clock-names");
 	if (enc_clk->clk_num > 0) {
 		enc_clk->clk_info = devm_kcalloc(&pdev->dev,
 			enc_clk->clk_num, sizeof(*clk_info),
 			GFP_KERNEL);
 		if (!enc_clk->clk_info)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		dev_err(pm->dev, "[MTK VCODEC] Failed to get venc clock count");
 		return -EINVAL;
@@ -40,7 +40,7 @@ int mtk_vcodec_init_enc_clk(struct mtk_vcodec_enc_dev *mtkdev)
 
 	for (i = 0; i < enc_clk->clk_num; i++) {
 		clk_info = &enc_clk->clk_info[i];
-		ret = of_property_read_string_index(pdev->dev.of_node,
+		ret = of_property_read_string_index(pdev->dev.of_analde,
 			"clock-names", i, &clk_info->clk_name);
 		if (ret) {
 			dev_err(pm->dev, "[MTK VCODEC] venc failed to get clk name %d", i);

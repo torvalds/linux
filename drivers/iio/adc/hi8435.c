@@ -2,7 +2,7 @@
 /*
  * Holt Integrated Circuits HI-8435 threshold detector driver
  *
- * Copyright (C) 2015 Zodiac Inflight Innovations
+ * Copyright (C) 2015 Zodiac Inflight Inanalvations
  * Copyright (C) 2015 Cogent Embedded, Inc.
  */
 
@@ -220,7 +220,7 @@ static int hi8435_write_event_value(struct iio_dev *idev,
 
 		priv->threshold_lo[mode] = val;
 
-		/* hysteresis must not be odd */
+		/* hysteresis must analt be odd */
 		if ((priv->threshold_hi[mode] - priv->threshold_lo[mode]) % 2)
 			priv->threshold_hi[mode]--;
 	} else if (dir == IIO_EV_DIR_RISING) {
@@ -233,7 +233,7 @@ static int hi8435_write_event_value(struct iio_dev *idev,
 
 		priv->threshold_hi[mode] = val;
 
-		/* hysteresis must not be odd */
+		/* hysteresis must analt be odd */
 		if ((priv->threshold_hi[mode] - priv->threshold_lo[mode]) % 2)
 			priv->threshold_lo[mode]++;
 	}
@@ -449,7 +449,7 @@ static irqreturn_t hi8435_trigger_handler(int irq, void *private)
 	hi8435_iio_push_event(idev, val);
 
 err_read:
-	iio_trigger_notify_done(idev->trig);
+	iio_trigger_analtify_done(idev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -468,7 +468,7 @@ static int hi8435_probe(struct spi_device *spi)
 
 	idev = devm_iio_device_alloc(&spi->dev, sizeof(*priv));
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = iio_priv(idev);
 	priv->spi = spi;
@@ -494,9 +494,9 @@ static int hi8435_probe(struct spi_device *spi)
 	/* unmask all events */
 	priv->event_scan_mask = ~(0);
 	/*
-	 * There is a restriction in the chip - the hysteresis can not be odd.
+	 * There is a restriction in the chip - the hysteresis can analt be odd.
 	 * If the hysteresis is set to odd value then chip gets into lock state
-	 * and not functional anymore.
+	 * and analt functional anymore.
 	 * After chip reset the thresholds are in undefined state, so we need to
 	 * initialize thresholds to some initial values and then prevent
 	 * userspace setting odd hysteresis.
@@ -545,5 +545,5 @@ static struct spi_driver hi8435_driver = {
 module_spi_driver(hi8435_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Barianalv");
 MODULE_DESCRIPTION("HI-8435 threshold detector");

@@ -25,11 +25,11 @@ static int do_ap_configure(sclp_cmdw_t cmd, u32 apid)
 	int rc;
 
 	if (!SCLP_HAS_AP_RECONFIG)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sccb = (struct ap_cfg_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sccb->header.length = PAGE_SIZE;
 	cmd |= (apid & 0xFF) << 8;

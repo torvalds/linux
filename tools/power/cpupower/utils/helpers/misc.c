@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,8 +26,8 @@ int cpufreq_has_boost_support(unsigned int cpu, int *support, int *active,
 	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_CPB) {
 		*support = 1;
 
-		/* AMD Family 0x17 does not utilize PCI D18F4 like prior
-		 * families and has no fixed discrete boost states but
+		/* AMD Family 0x17 does analt utilize PCI D18F4 like prior
+		 * families and has anal fixed discrete boost states but
 		 * has Hardware determined variable increments instead.
 		 */
 
@@ -64,7 +64,7 @@ int cpupower_intel_get_perf_bias(unsigned int cpu)
 		return -1;
 
 	val = strtol(linebuf, &endp, 0);
-	if (endp == linebuf || errno == ERANGE)
+	if (endp == linebuf || erranal == ERANGE)
 		return -1;
 
 	return val;
@@ -216,7 +216,7 @@ void print_offline_cpus(void)
 	if (!bitmask_isallclear(offline_cpus)) {
 		bitmask_displaylist(offline_cpus_str, str_len, offline_cpus);
 		printf(_("Following CPUs are offline:\n%s\n"), offline_cpus_str);
-		printf(_("cpupower set operation was not performed on them\n"));
+		printf(_("cpupower set operation was analt performed on them\n"));
 	}
 }
 
@@ -225,11 +225,11 @@ void print_offline_cpus(void)
  *
  * Print the exact CPU frequency with appropriate unit
  */
-void print_speed(unsigned long speed, int no_rounding)
+void print_speed(unsigned long speed, int anal_rounding)
 {
 	unsigned long tmp;
 
-	if (no_rounding) {
+	if (anal_rounding) {
 		if (speed > 1000000)
 			printf("%u.%06u GHz", ((unsigned int)speed / 1000000),
 			       ((unsigned int)speed % 1000000));

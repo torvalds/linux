@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+// Copyright (C) 2012 MIPS Techanallogies, Inc.  All rights reserved.
 
 #define pr_fmt(fmt) "mips-gic-timer: " fmt
 
@@ -8,7 +8,7 @@
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of_irq.h>
 #include <linux/percpu.h>
 #include <linux/sched_clock.h>
@@ -23,7 +23,7 @@ static bool __read_mostly gic_clock_unstable;
 
 static void gic_clocksource_unstable(char *reason);
 
-static u64 notrace gic_read_count_2x32(void)
+static u64 analtrace gic_read_count_2x32(void)
 {
 	unsigned int hi, hi2, lo;
 
@@ -36,12 +36,12 @@ static u64 notrace gic_read_count_2x32(void)
 	return (((u64) hi) << 32) + lo;
 }
 
-static u64 notrace gic_read_count_64(void)
+static u64 analtrace gic_read_count_64(void)
 {
 	return read_gic_counter();
 }
 
-static u64 notrace gic_read_count(void)
+static u64 analtrace gic_read_count(void)
 {
 	if (mips_cm_is64)
 		return gic_read_count_64();
@@ -97,7 +97,7 @@ static void gic_clockevent_cpu_init(unsigned int cpu,
 
 	clockevents_config_and_register(cd, gic_frequency, 0x300, 0x7fffffff);
 
-	enable_percpu_irq(gic_timer_irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(gic_timer_irq, IRQ_TYPE_ANALNE);
 }
 
 static void gic_clockevent_cpu_exit(struct clock_event_device *cd)
@@ -118,17 +118,17 @@ static int gic_starting_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int gic_clk_notifier(struct notifier_block *nb, unsigned long action,
+static int gic_clk_analtifier(struct analtifier_block *nb, unsigned long action,
 			    void *data)
 {
-	struct clk_notifier_data *cnd = data;
+	struct clk_analtifier_data *cnd = data;
 
 	if (action == POST_RATE_CHANGE) {
 		gic_clocksource_unstable("ref clock rate change");
 		on_each_cpu(gic_update_frequency, (void *)cnd->new_rate, 1);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int gic_dying_cpu(unsigned int cpu)
@@ -137,8 +137,8 @@ static int gic_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static struct notifier_block gic_clk_nb = {
-	.notifier_call = gic_clk_notifier,
+static struct analtifier_block gic_clk_nb = {
+	.analtifier_call = gic_clk_analtifier,
 };
 
 static int gic_clockevent_init(void)
@@ -206,18 +206,18 @@ static int __init __gic_clocksource_init(void)
 	return ret;
 }
 
-static int __init gic_clocksource_of_init(struct device_node *node)
+static int __init gic_clocksource_of_init(struct device_analde *analde)
 {
 	struct clk *clk;
 	int ret;
 
-	if (!mips_gic_present() || !node->parent ||
-	    !of_device_is_compatible(node->parent, "mti,gic")) {
-		pr_warn("No DT definition\n");
+	if (!mips_gic_present() || !analde->parent ||
+	    !of_device_is_compatible(analde->parent, "mti,gic")) {
+		pr_warn("Anal DT definition\n");
 		return -ENXIO;
 	}
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(analde, 0);
 	if (!IS_ERR(clk)) {
 		ret = clk_prepare_enable(clk);
 		if (ret < 0) {
@@ -227,14 +227,14 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 		}
 
 		gic_frequency = clk_get_rate(clk);
-	} else if (of_property_read_u32(node, "clock-frequency",
+	} else if (of_property_read_u32(analde, "clock-frequency",
 					&gic_frequency)) {
-		pr_err("Frequency not specified\n");
+		pr_err("Frequency analt specified\n");
 		return -EINVAL;
 	}
-	gic_timer_irq = irq_of_parse_and_map(node, 0);
+	gic_timer_irq = irq_of_parse_and_map(analde, 0);
 	if (!gic_timer_irq) {
-		pr_err("IRQ not specified\n");
+		pr_err("IRQ analt specified\n");
 		return -EINVAL;
 	}
 
@@ -244,8 +244,8 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 
 	ret = gic_clockevent_init();
 	if (!ret && !IS_ERR(clk)) {
-		if (clk_notifier_register(clk, &gic_clk_nb) < 0)
-			pr_warn("Unable to register clock notifier\n");
+		if (clk_analtifier_register(clk, &gic_clk_nb) < 0)
+			pr_warn("Unable to register clock analtifier\n");
 	}
 
 	/* And finally start the counter */

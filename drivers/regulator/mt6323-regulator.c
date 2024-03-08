@@ -14,7 +14,7 @@
 #include <linux/regulator/mt6323-regulator.h>
 #include <linux/regulator/of_regulator.h>
 
-#define MT6323_LDO_MODE_NORMAL	0
+#define MT6323_LDO_MODE_ANALRMAL	0
 #define MT6323_LDO_MODE_LP	1
 
 /*
@@ -184,8 +184,8 @@ static int mt6323_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_STANDBY:
 		val = MT6323_LDO_MODE_LP;
 		break;
-	case REGULATOR_MODE_NORMAL:
-		val = MT6323_LDO_MODE_NORMAL;
+	case REGULATOR_MODE_ANALRMAL:
+		val = MT6323_LDO_MODE_ANALRMAL;
 		break;
 	default:
 		return -EINVAL;
@@ -222,7 +222,7 @@ static unsigned int mt6323_ldo_get_mode(struct regulator_dev *rdev)
 	if (val & 0x1)
 		mode = REGULATOR_MODE_STANDBY;
 	else
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 
 	return mode;
 }
@@ -409,7 +409,7 @@ MODULE_DEVICE_TABLE(platform, mt6323_platform_ids);
 static struct platform_driver mt6323_regulator_driver = {
 	.driver = {
 		.name = "mt6323-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = mt6323_regulator_probe,
 	.id_table = mt6323_platform_ids,

@@ -1,34 +1,34 @@
 Binding for a Clockgen hardware block found on
 certain STMicroelectronics consumer electronics SoC devices.
 
-A Clockgen node can contain pll, diviser or multiplexer nodes.
+A Clockgen analde can contain pll, diviser or multiplexer analdes.
 
 We will find only the base address of the Clockgen, this base
-address is common of all subnode.
+address is common of all subanalde.
 
-	clockgen_node {
+	clockgen_analde {
 		reg = <>;
 
-		pll_node {
+		pll_analde {
 			...
 		};
 
-		quadfs_node {
+		quadfs_analde {
 			...
 		};
 
-		mux_node {
+		mux_analde {
 			...
 		};
 
-		flexgen_node {
+		flexgen_analde {
 			...
 		};
 		...
 	};
 
 This binding uses the common clock binding[1].
-Each subnode should use the binding described in [2]..[7]
+Each subanalde should use the binding described in [2]..[7]
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [3] Documentation/devicetree/bindings/clock/st/st,clkgen-mux.txt

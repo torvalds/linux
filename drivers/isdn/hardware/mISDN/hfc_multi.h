@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * see notice in hfc_multi.c
+ * see analtice in hfc_multi.c
  */
 
 #define DEBUG_HFCMULTI_FIFO	0x00010000
@@ -29,7 +29,7 @@
 #define PB_XHFC_IRQ4	0x00000800	/* PB20 */
 
 /*
- * NOTE: some registers are assigned multiple times due to different modes
+ * ANALTE: some registers are assigned multiple times due to different modes
  *       also registers are assigned differen for HFC-4s/8s and HFC-E1
  */
 
@@ -54,7 +54,7 @@ struct hfc_chan {
 	int		bank_rx;
 	int		conf;	/* conference setting of TX slot */
 	int		txpending;	/* if there is currently data in */
-					/* the FIFO 0=no, 1=yes, 2=splloop */
+					/* the FIFO 0=anal, 1=anal, 2=splloop */
 	int		Zfill;	/* rx-fifo level on last hfcmulti_tx */
 	int		rx_off; /* set to turn fifo receive off */
 	int		coeff_count; /* curren coeff block */
@@ -80,7 +80,7 @@ struct hfcm_hw {
 
 
 /* for each stack these flags are used (cfg) */
-#define	HFC_CFG_NONCAP_TX	1 /* S/T TX interface has less capacity */
+#define	HFC_CFG_ANALNCAP_TX	1 /* S/T TX interface has less capacity */
 #define	HFC_CFG_DIS_ECHANNEL	2 /* disable E-channel processing */
 #define	HFC_CFG_REG_ECHANNEL	3 /* register E-channel */
 #define	HFC_CFG_OPTICAL		4 /* the E1 interface is optical */
@@ -116,7 +116,7 @@ struct hfcm_hw {
 #define	HFC_CHIP_PLXSD		14 /* whether we have a Speech-Design PLX */
 #define	HFC_CHIP_EMBSD          15 /* whether we have a SD Embedded board */
 
-#define HFC_IO_MODE_PCIMEM	0x00 /* normal memory mapped IO */
+#define HFC_IO_MODE_PCIMEM	0x00 /* analrmal memory mapped IO */
 #define HFC_IO_MODE_REGIO	0x01 /* PCI io access */
 #define HFC_IO_MODE_PLXSD	0x02 /* access HFC via PLX9030 */
 #define HFC_IO_MODE_EMBSD	0x03 /* direct access */
@@ -150,31 +150,31 @@ struct hfc_multi {
 #ifdef HFC_REGISTER_DEBUG
 	void		(*HFC_outb)(struct hfc_multi *hc, u_char reg,
 				    u_char val, const char *function, int line);
-	void		(*HFC_outb_nodebug)(struct hfc_multi *hc, u_char reg,
+	void		(*HFC_outb_analdebug)(struct hfc_multi *hc, u_char reg,
 					    u_char val, const char *function, int line);
 	u_char		(*HFC_inb)(struct hfc_multi *hc, u_char reg,
 				   const char *function, int line);
-	u_char		(*HFC_inb_nodebug)(struct hfc_multi *hc, u_char reg,
+	u_char		(*HFC_inb_analdebug)(struct hfc_multi *hc, u_char reg,
 					   const char *function, int line);
 	u_short		(*HFC_inw)(struct hfc_multi *hc, u_char reg,
 				   const char *function, int line);
-	u_short		(*HFC_inw_nodebug)(struct hfc_multi *hc, u_char reg,
+	u_short		(*HFC_inw_analdebug)(struct hfc_multi *hc, u_char reg,
 					   const char *function, int line);
 	void		(*HFC_wait)(struct hfc_multi *hc,
 				    const char *function, int line);
-	void		(*HFC_wait_nodebug)(struct hfc_multi *hc,
+	void		(*HFC_wait_analdebug)(struct hfc_multi *hc,
 					    const char *function, int line);
 #else
 	void		(*HFC_outb)(struct hfc_multi *hc, u_char reg,
 				    u_char val);
-	void		(*HFC_outb_nodebug)(struct hfc_multi *hc, u_char reg,
+	void		(*HFC_outb_analdebug)(struct hfc_multi *hc, u_char reg,
 					    u_char val);
 	u_char		(*HFC_inb)(struct hfc_multi *hc, u_char reg);
-	u_char		(*HFC_inb_nodebug)(struct hfc_multi *hc, u_char reg);
+	u_char		(*HFC_inb_analdebug)(struct hfc_multi *hc, u_char reg);
 	u_short		(*HFC_inw)(struct hfc_multi *hc, u_char reg);
-	u_short		(*HFC_inw_nodebug)(struct hfc_multi *hc, u_char reg);
+	u_short		(*HFC_inw_analdebug)(struct hfc_multi *hc, u_char reg);
 	void		(*HFC_wait)(struct hfc_multi *hc);
-	void		(*HFC_wait_nodebug)(struct hfc_multi *hc);
+	void		(*HFC_wait_analdebug)(struct hfc_multi *hc);
 #endif
 	void		(*read_fifo)(struct hfc_multi *hc, u_char *data,
 				     int len);
@@ -461,9 +461,9 @@ struct hfc_multi {
 #define A_FIFO_DATA0		0x80
 #define A_FIFO_DATA1		0x80
 #define A_FIFO_DATA2		0x80
-#define A_FIFO_DATA0_NOINC	0x84
-#define A_FIFO_DATA1_NOINC	0x84
-#define A_FIFO_DATA2_NOINC	0x84
+#define A_FIFO_DATA0_ANALINC	0x84
+#define A_FIFO_DATA1_ANALINC	0x84
+#define A_FIFO_DATA2_ANALINC	0x84
 #define R_RAM_DATA		0xC0
 
 
@@ -576,7 +576,7 @@ struct hfc_multi {
 /* A_ST_CTRL1 */
 #define V_G2_G3_EN		0x01
 #define V_D_HI			0x04
-#define V_E_IGNO		0x08
+#define V_E_IGANAL		0x08
 #define V_E_LO			0x10
 #define V_B12_SWAP		0x80
 /* A_ST_CTRL2 */
@@ -626,7 +626,7 @@ struct hfc_multi {
 #define V_RX_INV_DATA		0x40
 #define V_AIS_ITU		0x80
 /* R_RX_FR0 */
-#define V_NO_INSYNC		0x01
+#define V_ANAL_INSYNC		0x01
 #define V_AUTO_RESYNC		0x02
 #define V_AUTO_RECO		0x04
 #define V_SWORD_COND		0x08
@@ -705,7 +705,7 @@ struct hfc_multi {
 #define V_SIG_LOS		0x08
 #define V_MFA_STA		0x10
 #define V_AIS			0x40
-#define V_NO_MF_SYNC		0x80
+#define V_ANAL_MF_SYNC		0x80
 /* R_RX_SL0_0 */
 #define V_SI_FAS		0x01
 #define V_SI_NFAS		0x02
@@ -776,7 +776,7 @@ struct hfc_multi {
 #define V_ULAW			0x80
 /* A_CONF */
 #define V_CONF_NUM		0x01
-#define V_NOISE_SUPPR		0x08
+#define V_ANALISE_SUPPR		0x08
 #define V_ATT_LEV		0x20
 #define V_CONF_SL		0x80
 /* R_CONF_OFLOW */
@@ -1158,7 +1158,7 @@ struct hfc_register_names {
 	{"R_BRG_TIM_SEL45",	0x4E},
 	{"R_BRG_TIM_SEL67",	0x4F},
 	{"A_FIFO_DATA0-2",	0x80},
-	{"A_FIFO_DATA0-2_NOINC", 0x84},
+	{"A_FIFO_DATA0-2_ANALINC", 0x84},
 	{"R_RAM_DATA",		0xC0},
 	{"A_SL_CFG",		0xD0},
 	{"A_CONF",		0xD1},
@@ -1221,7 +1221,7 @@ struct hfc_register_names {
 	{"R_GPI_IN2",		0x46},
 	{"R_GPI_IN3",		0x47},
 	{"A_FIFO_DATA0-2",	0x80},
-	{"A_FIFO_DATA0-2_NOINC", 0x84},
+	{"A_FIFO_DATA0-2_ANALINC", 0x84},
 	{"R_INT_DATA",		0x88},
 	{"R_RAM_DATA",		0xC0},
 	{"R_IRQ_FIFO_BL0",	0xC8},

@@ -15,7 +15,7 @@
 #include <linux/if_link.h>
 #include <linux/limits.h>
 #include <net/if.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -27,7 +27,7 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 
-static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_ANALEXIST;
 
 static int do_attach(int idx, int prog_fd, int map_fd, const char *name)
 {
@@ -58,12 +58,12 @@ static int do_detach(int ifindex, const char *ifname, const char *app_name)
 
 	if (bpf_xdp_query_id(ifindex, xdp_flags, &curr_prog_id)) {
 		printf("ERROR: bpf_xdp_query_id failed (%s)\n",
-		       strerror(errno));
+		       strerror(erranal));
 		return err;
 	}
 
 	if (!curr_prog_id) {
-		printf("ERROR: flags(0x%x) xdp prog is not attached to %s\n",
+		printf("ERROR: flags(0x%x) xdp prog is analt attached to %s\n",
 		       xdp_flags, ifname);
 		return err;
 	}
@@ -72,14 +72,14 @@ static int do_detach(int ifindex, const char *ifname, const char *app_name)
 	prog_fd = bpf_prog_get_fd_by_id(curr_prog_id);
 	if (prog_fd < 0) {
 		printf("ERROR: bpf_prog_get_fd_by_id failed (%s)\n",
-		       strerror(errno));
+		       strerror(erranal));
 		return prog_fd;
 	}
 
 	err = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &info_len);
 	if (err) {
 		printf("ERROR: bpf_prog_get_info_by_fd failed (%s)\n",
-		       strerror(errno));
+		       strerror(erranal));
 		goto close_out;
 	}
 	snprintf(prog_name, sizeof(prog_name), "%s_prog", app_name);
@@ -95,7 +95,7 @@ static int do_detach(int ifindex, const char *ifname, const char *app_name)
 	err = bpf_xdp_detach(ifindex, xdp_flags, &opts);
 	if (err < 0)
 		printf("ERROR: failed to detach program from %s (%s)\n",
-		       ifname, strerror(errno));
+		       ifname, strerror(erranal));
 	/* TODO: Remember to cleanup map, when adding use of shared map
 	 *  bpf_map_delete_elem((map_fd, &idx);
 	 */
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
 			xdp_flags |= XDP_FLAGS_SKB_MODE;
 			break;
 		case 'F':
-			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_ANALEXIST;
 			break;
 		case 'D':
 			prog_name = "xdp_fwd_direct";
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 
 		if (access(filename, O_RDONLY) < 0) {
 			printf("error accessing file %s: %s\n",
-				filename, strerror(errno));
+				filename, strerror(erranal));
 			return 1;
 		}
 
@@ -176,8 +176,8 @@ int main(int argc, char **argv)
 		err = bpf_object__load(obj);
 		if (err) {
 			printf("Does kernel support devmap lookup?\n");
-			/* If not, the error message will be:
-			 *  "cannot pass map_type 14 into func bpf_map_lookup_elem#1"
+			/* If analt, the error message will be:
+			 *  "cananalt pass map_type 14 into func bpf_map_lookup_elem#1"
 			 */
 			return 1;
 		}
@@ -191,13 +191,13 @@ int main(int argc, char **argv)
 		}
 		prog_fd = bpf_program__fd(prog);
 		if (prog_fd < 0) {
-			printf("program not found: %s\n", strerror(prog_fd));
+			printf("program analt found: %s\n", strerror(prog_fd));
 			return 1;
 		}
 		map_fd = bpf_map__fd(bpf_object__find_map_by_name(obj,
 							"xdp_tx_ports"));
 		if (map_fd < 0) {
-			printf("map not found: %s\n", strerror(map_fd));
+			printf("map analt found: %s\n", strerror(map_fd));
 			return 1;
 		}
 	}

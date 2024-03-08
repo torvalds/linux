@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef _SFP_MACHINE_H
@@ -61,7 +61,7 @@
 
 /* Obtain the current rounding mode. */
 #define FP_ROUNDMODE	mode
-#define FP_RND_NEAREST	(FPCR_DYN_NORMAL >> FPCR_DYN_SHIFT)
+#define FP_RND_NEAREST	(FPCR_DYN_ANALRMAL >> FPCR_DYN_SHIFT)
 #define FP_RND_ZERO	(FPCR_DYN_CHOPPED >> FPCR_DYN_SHIFT)
 #define FP_RND_PINF	(FPCR_DYN_PLUS >> FPCR_DYN_SHIFT)
 #define FP_RND_MINF	(FPCR_DYN_MINUS >> FPCR_DYN_SHIFT)
@@ -72,9 +72,9 @@
 #define FP_EX_UNDERFLOW		IEEE_TRAP_ENABLE_UNF
 #define FP_EX_DIVZERO		IEEE_TRAP_ENABLE_DZE
 #define FP_EX_INEXACT		IEEE_TRAP_ENABLE_INE
-#define FP_EX_DENORM		IEEE_TRAP_ENABLE_DNO
+#define FP_EX_DEANALRM		IEEE_TRAP_ENABLE_DANAL
 
-#define FP_DENORM_ZERO		(swcr & IEEE_MAP_DMZ)
+#define FP_DEANALRM_ZERO		(swcr & IEEE_MAP_DMZ)
 
 /* We write the results always */
 #define FP_INHIBIT_RESULTS 0

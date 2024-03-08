@@ -208,7 +208,7 @@ static const struct prestera_fec {
 } port_fec_caps[PRESTERA_PORT_FEC_MAX] = {
 	[PRESTERA_PORT_FEC_OFF] = {
 		.eth_fec = ETHTOOL_FEC_OFF,
-		.eth_mode = ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+		.eth_mode = ETHTOOL_LINK_MODE_FEC_ANALNE_BIT,
 		.pr_fec = 1 << PRESTERA_PORT_FEC_OFF,
 	},
 	[PRESTERA_PORT_FEC_BASER] = {
@@ -227,9 +227,9 @@ static const struct prestera_port_type {
 	enum ethtool_link_mode_bit_indices eth_mode;
 	u8 eth_type;
 } port_types[PRESTERA_PORT_TYPE_MAX] = {
-	[PRESTERA_PORT_TYPE_NONE] = {
+	[PRESTERA_PORT_TYPE_ANALNE] = {
 		.eth_mode = __ETHTOOL_LINK_MODE_MASK_NBITS,
-		.eth_type = PORT_NONE,
+		.eth_type = PORT_ANALNE,
 	},
 	[PRESTERA_PORT_TYPE_TP] = {
 		.eth_mode = ETHTOOL_LINK_MODE_TP_BIT,
@@ -337,7 +337,7 @@ static int prestera_port_type_set(const struct ethtool_link_ksettings *ecmd,
 	if (type != port->caps.type && ecmd->base.autoneg == AUTONEG_ENABLE)
 		return -EINVAL;
 	if (type == PRESTERA_PORT_TYPE_MAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (mode = 0; mode < PRESTERA_LINK_MODE_MAX; mode++) {
 		if ((port_link_modes[mode].pr_mask &
@@ -365,7 +365,7 @@ static void prestera_modes_to_eth(unsigned long *eth_modes, u64 link_modes,
 		if ((port_link_modes[mode].pr_mask & link_modes) == 0)
 			continue;
 
-		if (type != PRESTERA_PORT_TYPE_NONE &&
+		if (type != PRESTERA_PORT_TYPE_ANALNE &&
 		    port_link_modes[mode].port_type != type)
 			continue;
 
@@ -444,7 +444,7 @@ static void prestera_port_remote_cap_get(struct ethtool_link_ksettings *ecmd,
 	bitmap = state->lmode_bmap;
 
 	prestera_modes_to_eth(ecmd->link_modes.lp_advertising,
-			      bitmap, 0, PRESTERA_PORT_TYPE_NONE);
+			      bitmap, 0, PRESTERA_PORT_TYPE_ANALNE);
 
 	if (!bitmap_empty(ecmd->link_modes.lp_advertising,
 			  __ETHTOOL_LINK_MODE_MASK_NBITS)) {
@@ -477,12 +477,12 @@ static void prestera_port_link_mode_get(struct ethtool_link_ksettings *ecmd,
 	if (!port->state_mac.oper)
 		return;
 
-	if (state->speed == SPEED_UNKNOWN || state->duplex == DUPLEX_UNKNOWN) {
+	if (state->speed == SPEED_UNKANALWN || state->duplex == DUPLEX_UNKANALWN) {
 		err = prestera_hw_port_mac_mode_get(port, NULL, &speed,
 						    &duplex, NULL);
 		if (err) {
-			state->speed = SPEED_UNKNOWN;
-			state->duplex = DUPLEX_UNKNOWN;
+			state->speed = SPEED_UNKANALWN;
+			state->duplex = DUPLEX_UNKANALWN;
 		} else {
 			state->speed = speed;
 			state->duplex = duplex == PRESTERA_PORT_DUPLEX_FULL ?
@@ -518,8 +518,8 @@ prestera_ethtool_get_link_ksettings(struct net_device *dev,
 	ethtool_link_ksettings_zero_link_mode(ecmd, supported);
 	ethtool_link_ksettings_zero_link_mode(ecmd, advertising);
 	ethtool_link_ksettings_zero_link_mode(ecmd, lp_advertising);
-	ecmd->base.speed = SPEED_UNKNOWN;
-	ecmd->base.duplex = DUPLEX_UNKNOWN;
+	ecmd->base.speed = SPEED_UNKANALWN;
+	ecmd->base.duplex = DUPLEX_UNKANALWN;
 
 	if (port->phy_link)
 		return phylink_ethtool_ksettings_get(port->phy_link, ecmd);
@@ -592,11 +592,11 @@ static int prestera_port_link_mode_set(struct prestera_port *port,
 	int err;
 
 	for (mode = 0; mode < PRESTERA_LINK_MODE_MAX; mode++) {
-		if (speed != SPEED_UNKNOWN &&
+		if (speed != SPEED_UNKANALWN &&
 		    speed != port_link_modes[mode].speed)
 			continue;
 
-		if (duplex != DUPLEX_UNKNOWN &&
+		if (duplex != DUPLEX_UNKANALWN &&
 		    duplex != port_link_modes[mode].duplex)
 			continue;
 
@@ -612,7 +612,7 @@ static int prestera_port_link_mode_set(struct prestera_port *port,
 	}
 
 	if (new_mode == PRESTERA_LINK_MODE_MAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = prestera_hw_port_phy_mode_set(port, port->cfg_phy.admin,
 					    false, new_mode, 0,
@@ -632,9 +632,9 @@ static int
 prestera_port_speed_duplex_set(const struct ethtool_link_ksettings *ecmd,
 			       struct prestera_port *port)
 {
-	u8 duplex = DUPLEX_UNKNOWN;
+	u8 duplex = DUPLEX_UNKANALWN;
 
-	if (ecmd->base.duplex != DUPLEX_UNKNOWN)
+	if (ecmd->base.duplex != DUPLEX_UNKANALWN)
 		duplex = ecmd->base.duplex == DUPLEX_FULL ?
 			 PRESTERA_PORT_DUPLEX_FULL : PRESTERA_PORT_DUPLEX_HALF;
 
@@ -713,12 +713,12 @@ static int prestera_ethtool_set_fecparam(struct net_device *dev,
 	u8 fec;
 
 	if (port->autoneg) {
-		netdev_err(dev, "FEC set is not allowed while autoneg is on\n");
+		netdev_err(dev, "FEC set is analt allowed while autoneg is on\n");
 		return -EINVAL;
 	}
 
 	if (port->caps.transceiver == PRESTERA_PORT_TCVR_SFP) {
-		netdev_err(dev, "FEC set is not allowed on non-SFP ports\n");
+		netdev_err(dev, "FEC set is analt allowed on analn-SFP ports\n");
 		return -EINVAL;
 	}
 
@@ -752,7 +752,7 @@ static int prestera_ethtool_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return PRESTERA_STATS_CNT;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

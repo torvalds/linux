@@ -71,7 +71,7 @@ static struct class mtd_class = {
 static DEFINE_IDR(mtd_idr);
 
 /* These are exported solely for the purpose of mtd_blkdevs.c. You
-   should not use them for _anything_ else */
+   should analt use them for _anything_ else */
 DEFINE_MUTEX(mtd_table_mutex);
 EXPORT_SYMBOL_GPL(mtd_table_mutex);
 
@@ -81,7 +81,7 @@ struct mtd_info *__mtd_next_device(int i)
 }
 EXPORT_SYMBOL_GPL(__mtd_next_device);
 
-static LIST_HEAD(mtd_notifiers);
+static LIST_HEAD(mtd_analtifiers);
 
 
 #define MTD_DEVT(index) MKDEV(MTD_CHAR_MAJOR, (index)*2)
@@ -95,12 +95,12 @@ static void mtd_release(struct device *dev)
 	dev_t index = MTD_DEVT(mtd->index);
 
 	idr_remove(&mtd_idr, mtd->index);
-	of_node_put(mtd_get_of_node(mtd));
+	of_analde_put(mtd_get_of_analde(mtd));
 
 	if (mtd_is_partition(mtd))
 		release_mtd_partition(mtd);
 
-	/* remove /dev/mtdXro node */
+	/* remove /dev/mtdXro analde */
 	device_destroy(&mtd_class, index + 1);
 }
 
@@ -118,7 +118,7 @@ static void mtd_device_release(struct kref *kref)
 
 	/*
 	 *  Clear dev so mtd can be safely re-registered later if desired.
-	 *  Should not be done for partition,
+	 *  Should analt be done for partition,
 	 *  as it was already destroyed in device_unregister().
 	 */
 	if (!is_partition)
@@ -149,8 +149,8 @@ static ssize_t mtd_type_show(struct device *dev,
 	case MTD_ROM:
 		type = "rom";
 		break;
-	case MTD_NORFLASH:
-		type = "nor";
+	case MTD_ANALRFLASH:
+		type = "analr";
 		break;
 	case MTD_NANDFLASH:
 		type = "nand";
@@ -165,7 +165,7 @@ static ssize_t mtd_type_show(struct device *dev,
 		type = "mlc-nand";
 		break;
 	default:
-		type = "unknown";
+		type = "unkanalwn";
 	}
 
 	return sysfs_emit(buf, "%s\n", type);
@@ -375,7 +375,7 @@ bool mtd_check_expert_analysis_mode(void)
 	const char *mtd_expert_analysis_warning =
 		"Bad block checks have been entirely disabled.\n"
 		"This is only reserved for post-mortem forensics and debug purposes.\n"
-		"Never enable this mode if you do not know what you are doing!\n";
+		"Never enable this mode if you do analt kanalw what you are doing!\n";
 
 	return WARN_ONCE(mtd_expert_analysis_mode, mtd_expert_analysis_warning);
 }
@@ -399,27 +399,27 @@ unsigned mtd_mmap_capabilities(struct mtd_info *mtd)
 {
 	switch (mtd->type) {
 	case MTD_RAM:
-		return NOMMU_MAP_COPY | NOMMU_MAP_DIRECT | NOMMU_MAP_EXEC |
-			NOMMU_MAP_READ | NOMMU_MAP_WRITE;
+		return ANALMMU_MAP_COPY | ANALMMU_MAP_DIRECT | ANALMMU_MAP_EXEC |
+			ANALMMU_MAP_READ | ANALMMU_MAP_WRITE;
 	case MTD_ROM:
-		return NOMMU_MAP_COPY | NOMMU_MAP_DIRECT | NOMMU_MAP_EXEC |
-			NOMMU_MAP_READ;
+		return ANALMMU_MAP_COPY | ANALMMU_MAP_DIRECT | ANALMMU_MAP_EXEC |
+			ANALMMU_MAP_READ;
 	default:
-		return NOMMU_MAP_COPY;
+		return ANALMMU_MAP_COPY;
 	}
 }
 EXPORT_SYMBOL_GPL(mtd_mmap_capabilities);
 #endif
 
-static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
+static int mtd_reboot_analtifier(struct analtifier_block *n, unsigned long state,
 			       void *cmd)
 {
 	struct mtd_info *mtd;
 
-	mtd = container_of(n, struct mtd_info, reboot_notifier);
+	mtd = container_of(n, struct mtd_info, reboot_analtifier);
 	mtd->_reboot(mtd);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /**
@@ -432,7 +432,7 @@ static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
  * This is mainly useful when dealing with MLC/TLC NANDs where pages can be
  * paired together, and where programming a page may influence the page it is
  * paired with.
- * The notion of page is replaced by the term wunit (write-unit) to stay
+ * The analtion of page is replaced by the term wunit (write-unit) to stay
  * consistent with the ->writesize field.
  *
  * The @wunit argument can be extracted from an absolute offset using
@@ -546,27 +546,27 @@ static int mtd_nvmem_reg_read(void *priv, unsigned int offset,
 
 static int mtd_nvmem_add(struct mtd_info *mtd)
 {
-	struct device_node *node = mtd_get_of_node(mtd);
+	struct device_analde *analde = mtd_get_of_analde(mtd);
 	struct nvmem_config config = {};
 
-	config.id = NVMEM_DEVID_NONE;
+	config.id = NVMEM_DEVID_ANALNE;
 	config.dev = &mtd->dev;
 	config.name = dev_name(&mtd->dev);
 	config.owner = THIS_MODULE;
-	config.add_legacy_fixed_of_cells = of_device_is_compatible(node, "nvmem-cells");
+	config.add_legacy_fixed_of_cells = of_device_is_compatible(analde, "nvmem-cells");
 	config.reg_read = mtd_nvmem_reg_read;
 	config.size = mtd->size;
 	config.word_size = 1;
 	config.stride = 1;
 	config.read_only = true;
 	config.root_only = true;
-	config.ignore_wp = true;
+	config.iganalre_wp = true;
 	config.priv = mtd;
 
 	mtd->nvmem = nvmem_register(&config);
 	if (IS_ERR(mtd->nvmem)) {
-		/* Just ignore if there is no NVMEM support in the kernel */
-		if (PTR_ERR(mtd->nvmem) == -EOPNOTSUPP)
+		/* Just iganalre if there is anal NVMEM support in the kernel */
+		if (PTR_ERR(mtd->nvmem) == -EOPANALTSUPP)
 			mtd->nvmem = NULL;
 		else
 			return dev_err_probe(&mtd->dev, PTR_ERR(mtd->nvmem),
@@ -576,25 +576,25 @@ static int mtd_nvmem_add(struct mtd_info *mtd)
 	return 0;
 }
 
-static void mtd_check_of_node(struct mtd_info *mtd)
+static void mtd_check_of_analde(struct mtd_info *mtd)
 {
-	struct device_node *partitions, *parent_dn, *mtd_dn = NULL;
+	struct device_analde *partitions, *parent_dn, *mtd_dn = NULL;
 	const char *pname, *prefix = "partition-";
 	int plen, mtd_name_len, offset, prefix_len;
 
-	/* Check if MTD already has a device node */
-	if (mtd_get_of_node(mtd))
+	/* Check if MTD already has a device analde */
+	if (mtd_get_of_analde(mtd))
 		return;
 
 	if (!mtd_is_partition(mtd))
 		return;
 
-	parent_dn = of_node_get(mtd_get_of_node(mtd->parent));
+	parent_dn = of_analde_get(mtd_get_of_analde(mtd->parent));
 	if (!parent_dn)
 		return;
 
 	if (mtd_is_partition(mtd->parent))
-		partitions = of_node_get(parent_dn);
+		partitions = of_analde_get(parent_dn);
 	else
 		partitions = of_get_child_by_name(parent_dn, "partitions");
 	if (!partitions)
@@ -604,9 +604,9 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 	mtd_name_len = strlen(mtd->name);
 
 	/* Search if a partition is defined with the same name */
-	for_each_child_of_node(partitions, mtd_dn) {
-		/* Skip partition with no/wrong prefix */
-		if (!of_node_name_prefix(mtd_dn, prefix))
+	for_each_child_of_analde(partitions, mtd_dn) {
+		/* Skip partition with anal/wrong prefix */
+		if (!of_analde_name_prefix(mtd_dn, prefix))
 			continue;
 
 		/* Label have priority. Check that first */
@@ -620,15 +620,15 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 		plen = strlen(pname) - offset;
 		if (plen == mtd_name_len &&
 		    !strncmp(mtd->name, pname + offset, plen)) {
-			mtd_set_of_node(mtd, mtd_dn);
-			of_node_put(mtd_dn);
+			mtd_set_of_analde(mtd, mtd_dn);
+			of_analde_put(mtd_dn);
 			break;
 		}
 	}
 
-	of_node_put(partitions);
+	of_analde_put(partitions);
 exit_parent:
-	of_node_put(parent_dn);
+	of_analde_put(parent_dn);
 }
 
 /**
@@ -636,15 +636,15 @@ exit_parent:
  *	@mtd: pointer to new MTD device info structure
  *
  *	Add a device to the list of MTD devices present in the system, and
- *	notify each currently active MTD 'user' of its arrival. Returns
- *	zero on success or non-zero on failure.
+ *	analtify each currently active MTD 'user' of its arrival. Returns
+ *	zero on success or analn-zero on failure.
  */
 
 int add_mtd_device(struct mtd_info *mtd)
 {
-	struct device_node *np = mtd_get_of_node(mtd);
+	struct device_analde *np = mtd_get_of_analde(mtd);
 	struct mtd_info *master = mtd_get_master(mtd);
-	struct mtd_notifier *not;
+	struct mtd_analtifier *analt;
 	int i, error, ofidx;
 
 	/*
@@ -659,20 +659,20 @@ int add_mtd_device(struct mtd_info *mtd)
 
 	/*
 	 * MTD drivers should implement ->_{write,read}() or
-	 * ->_{write,read}_oob(), but not both.
+	 * ->_{write,read}_oob(), but analt both.
 	 */
 	if (WARN_ON((mtd->_write && mtd->_write_oob) ||
 		    (mtd->_read && mtd->_read_oob)))
 		return -EINVAL;
 
 	if (WARN_ON((!mtd->erasesize || !master->_erase) &&
-		    !(mtd->flags & MTD_NO_ERASE)))
+		    !(mtd->flags & MTD_ANAL_ERASE)))
 		return -EINVAL;
 
 	/*
 	 * MTD_SLC_ON_MLC_EMULATION can only be set on partitions, when the
 	 * master is an MLC NAND and has a proper pairing scheme defined.
-	 * We also reject masters that implement ->_writev() for now, because
+	 * We also reject masters that implement ->_writev() for analw, because
 	 * NAND controller drivers don't implement this hook, and adding the
 	 * SLC -> MLC address/length conversion to this path is useless if we
 	 * don't have a user.
@@ -699,7 +699,7 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->index = i;
 	kref_init(&mtd->refcnt);
 
-	/* default value if not set by driver */
+	/* default value if analt set by driver */
 	if (mtd->bitflip_threshold == 0)
 		mtd->bitflip_threshold = mtd->ecc_strength;
 
@@ -724,14 +724,14 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->erasesize_mask = (1 << mtd->erasesize_shift) - 1;
 	mtd->writesize_mask = (1 << mtd->writesize_shift) - 1;
 
-	/* Some chips always power up locked. Unlock them now */
+	/* Some chips always power up locked. Unlock them analw */
 	if ((mtd->flags & MTD_WRITEABLE) && (mtd->flags & MTD_POWERUP_LOCK)) {
 		error = mtd_unlock(mtd, 0, mtd->size);
-		if (error && error != -EOPNOTSUPP)
+		if (error && error != -EOPANALTSUPP)
 			printk(KERN_WARNING
-			       "%s: unlock failed, writes may not work\n",
+			       "%s: unlock failed, writes may analt work\n",
 			       mtd->name);
-		/* Ignore unlock failures? */
+		/* Iganalre unlock failures? */
 		error = 0;
 	}
 
@@ -743,8 +743,8 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->dev.devt = MTD_DEVT(i);
 	dev_set_name(&mtd->dev, "mtd%d", i);
 	dev_set_drvdata(&mtd->dev, mtd);
-	mtd_check_of_node(mtd);
-	of_node_get(mtd_get_of_node(mtd));
+	mtd_check_of_analde(mtd);
+	of_analde_get(mtd_get_of_analde(mtd));
 	error = device_register(&mtd->dev);
 	if (error) {
 		put_device(&mtd->dev);
@@ -762,14 +762,14 @@ int add_mtd_device(struct mtd_info *mtd)
 		      "mtd%dro", i);
 
 	pr_debug("mtd: Giving out device %d to %s\n", i, mtd->name);
-	/* No need to get a refcount on the module containing
-	   the notifier, since we hold the mtd_table_mutex */
-	list_for_each_entry(not, &mtd_notifiers, list)
-		not->add(mtd);
+	/* Anal need to get a refcount on the module containing
+	   the analtifier, since we hold the mtd_table_mutex */
+	list_for_each_entry(analt, &mtd_analtifiers, list)
+		analt->add(mtd);
 
 	mutex_unlock(&mtd_table_mutex);
 
-	if (of_property_read_bool(mtd_get_of_node(mtd), "linux,rootfs")) {
+	if (of_property_read_bool(mtd_get_of_analde(mtd), "linux,rootfs")) {
 		if (IS_BUILTIN(CONFIG_MTD)) {
 			pr_info("mtd: setting mtd%d (%s) as root device\n", mtd->index, mtd->name);
 			ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, mtd->index);
@@ -779,9 +779,9 @@ int add_mtd_device(struct mtd_info *mtd)
 		}
 	}
 
-	/* We _know_ we aren't being removed, because
-	   our caller is still holding us here. So none
-	   of this try_ nonsense, and no bitching about it
+	/* We _kanalw_ we aren't being removed, because
+	   our caller is still holding us here. So analne
+	   of this try_ analnsense, and anal bitching about it
 	   either. :) */
 	__module_get(THIS_MODULE);
 	return 0;
@@ -789,7 +789,7 @@ int add_mtd_device(struct mtd_info *mtd)
 fail_nvmem_add:
 	device_unregister(&mtd->dev);
 fail_added:
-	of_node_put(mtd_get_of_node(mtd));
+	of_analde_put(mtd_get_of_analde(mtd));
 	idr_remove(&mtd_idr, i);
 fail_locked:
 	mutex_unlock(&mtd_table_mutex);
@@ -801,27 +801,27 @@ fail_locked:
  *	@mtd: pointer to MTD device info structure
  *
  *	Remove a device from the list of MTD devices present in the system,
- *	and notify each currently active MTD 'user' of its departure.
+ *	and analtify each currently active MTD 'user' of its departure.
  *	Returns zero on success or 1 on failure, which currently will happen
- *	if the requested device does not appear to be present in the list.
+ *	if the requested device does analt appear to be present in the list.
  */
 
 int del_mtd_device(struct mtd_info *mtd)
 {
 	int ret;
-	struct mtd_notifier *not;
+	struct mtd_analtifier *analt;
 
 	mutex_lock(&mtd_table_mutex);
 
 	if (idr_find(&mtd_idr, mtd->index) != mtd) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_error;
 	}
 
-	/* No need to get a refcount on the module containing
-		the notifier, since we hold the mtd_table_mutex */
-	list_for_each_entry(not, &mtd_notifiers, list)
-		not->remove(mtd);
+	/* Anal need to get a refcount on the module containing
+		the analtifier, since we hold the mtd_table_mutex */
+	list_for_each_entry(analt, &mtd_analtifiers, list)
+		analt->remove(mtd);
 
 	kref_put(&mtd->refcnt, mtd_device_release);
 	ret = 0;
@@ -832,7 +832,7 @@ out_error:
 }
 
 /*
- * Set a few defaults based on the parent devices, if not provided by the
+ * Set a few defaults based on the parent devices, if analt provided by the
  * driver
  */
 static void mtd_set_dev_defaults(struct mtd_info *mtd)
@@ -861,7 +861,7 @@ static ssize_t mtd_otp_size(struct mtd_info *mtd, bool is_user)
 
 	info = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (is_user)
 		ret = mtd_get_user_prot_info(mtd, PAGE_SIZE, &retlen, info);
@@ -879,8 +879,8 @@ static ssize_t mtd_otp_size(struct mtd_info *mtd, bool is_user)
 err:
 	kfree(info);
 
-	/* ENODATA means there is no OTP region. */
-	return ret == -ENODATA ? 0 : ret;
+	/* EANALDATA means there is anal OTP region. */
+	return ret == -EANALDATA ? 0 : ret;
 }
 
 static struct nvmem_device *mtd_otp_nvmem_register(struct mtd_info *mtd,
@@ -890,10 +890,10 @@ static struct nvmem_device *mtd_otp_nvmem_register(struct mtd_info *mtd,
 {
 	struct nvmem_device *nvmem = NULL;
 	struct nvmem_config config = {};
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* DT binding is optional */
-	np = of_get_compatible_child(mtd->dev.of_node, compatible);
+	np = of_get_compatible_child(mtd->dev.of_analde, compatible);
 
 	/* OTP nvmem will be registered on the physical device */
 	config.dev = mtd->dev.parent;
@@ -903,18 +903,18 @@ static struct nvmem_device *mtd_otp_nvmem_register(struct mtd_info *mtd,
 	config.add_legacy_fixed_of_cells = true;
 	config.type = NVMEM_TYPE_OTP;
 	config.root_only = true;
-	config.ignore_wp = true;
+	config.iganalre_wp = true;
 	config.reg_read = reg_read;
 	config.size = size;
-	config.of_node = np;
+	config.of_analde = np;
 	config.priv = mtd;
 
 	nvmem = nvmem_register(&config);
-	/* Just ignore if there is no NVMEM support in the kernel */
-	if (IS_ERR(nvmem) && PTR_ERR(nvmem) == -EOPNOTSUPP)
+	/* Just iganalre if there is anal NVMEM support in the kernel */
+	if (IS_ERR(nvmem) && PTR_ERR(nvmem) == -EOPANALTSUPP)
 		nvmem = NULL;
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return nvmem;
 }
@@ -987,7 +987,7 @@ static int mtd_otp_nvmem_add(struct mtd_info *mtd)
 
 			otp = kmalloc(size, GFP_KERNEL);
 			if (!otp) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err;
 			}
 			err = mtd_nvmem_fact_otp_reg_read(mtd, 0, otp, size);
@@ -1025,7 +1025,7 @@ err:
  * @parts: fallback partition information to register, if parsing fails;
  *         only valid if %nr_parts > %0
  * @nr_parts: the number of partitions in parts, if zero then the full
- *            MTD device is registered if no partition info is found
+ *            MTD device is registered if anal partition info is found
  *
  * This function aggregates MTD partitions parsing (done by
  * 'parse_mtd_partitions()') and MTD device and partitions registering. It
@@ -1035,10 +1035,10 @@ err:
  *   registered first.
  * * Then It tries to probe partitions on MTD device @mtd using parsers
  *   specified in @types (if @types is %NULL, then the default list of parsers
- *   is used, see 'parse_mtd_partitions()' for more information). If none are
+ *   is used, see 'parse_mtd_partitions()' for more information). If analne are
  *   found this functions tries to fallback to information specified in
  *   @parts/@nr_parts.
- * * If no partitions were found this function just registers the MTD device
+ * * If anal partitions were found this function just registers the MTD device
  *   @mtd and exits.
  *
  * Returns zero in case of success and a negative error code in case of failure.
@@ -1081,17 +1081,17 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 
 	/*
 	 * FIXME: some drivers unfortunately call this function more than once.
-	 * So we have to check if we've already assigned the reboot notifier.
+	 * So we have to check if we've already assigned the reboot analtifier.
 	 *
 	 * Generally, we can make multiple calls work for most cases, but it
 	 * does cause problems with parse_mtd_partitions() above (e.g.,
 	 * cmdlineparts will register partitions more than once).
 	 */
-	WARN_ONCE(mtd->_reboot && mtd->reboot_notifier.notifier_call,
+	WARN_ONCE(mtd->_reboot && mtd->reboot_analtifier.analtifier_call,
 		  "MTD already registered\n");
-	if (mtd->_reboot && !mtd->reboot_notifier.notifier_call) {
-		mtd->reboot_notifier.notifier_call = mtd_reboot_notifier;
-		register_reboot_notifier(&mtd->reboot_notifier);
+	if (mtd->_reboot && !mtd->reboot_analtifier.analtifier_call) {
+		mtd->reboot_analtifier.analtifier_call = mtd_reboot_analtifier;
+		register_reboot_analtifier(&mtd->reboot_analtifier);
 	}
 
 out:
@@ -1118,8 +1118,8 @@ int mtd_device_unregister(struct mtd_info *master)
 	int err;
 
 	if (master->_reboot) {
-		unregister_reboot_notifier(&master->reboot_notifier);
-		memset(&master->reboot_notifier, 0, sizeof(master->reboot_notifier));
+		unregister_reboot_analtifier(&master->reboot_analtifier);
+		memset(&master->reboot_analtifier, 0, sizeof(master->reboot_analtifier));
 	}
 
 	nvmem_unregister(master->otp_user_nvmem);
@@ -1138,19 +1138,19 @@ EXPORT_SYMBOL_GPL(mtd_device_unregister);
 
 /**
  *	register_mtd_user - register a 'user' of MTD devices.
- *	@new: pointer to notifier info structure
+ *	@new: pointer to analtifier info structure
  *
  *	Registers a pair of callbacks function to be called upon addition
  *	or removal of MTD devices. Causes the 'add' callback to be immediately
  *	invoked for each MTD device currently present in the system.
  */
-void register_mtd_user (struct mtd_notifier *new)
+void register_mtd_user (struct mtd_analtifier *new)
 {
 	struct mtd_info *mtd;
 
 	mutex_lock(&mtd_table_mutex);
 
-	list_add(&new->list, &mtd_notifiers);
+	list_add(&new->list, &mtd_analtifiers);
 
 	__module_get(THIS_MODULE);
 
@@ -1163,14 +1163,14 @@ EXPORT_SYMBOL_GPL(register_mtd_user);
 
 /**
  *	unregister_mtd_user - unregister a 'user' of MTD devices.
- *	@old: pointer to notifier info structure
+ *	@old: pointer to analtifier info structure
  *
  *	Removes a callback function pair from the list of 'users' to be
- *	notified upon addition or removal of MTD devices. Causes the
+ *	analtified upon addition or removal of MTD devices. Causes the
  *	'remove' callback to be immediately invoked for each MTD device
  *	currently present in the system.
  */
-int unregister_mtd_user (struct mtd_notifier *old)
+int unregister_mtd_user (struct mtd_analtifier *old)
 {
 	struct mtd_info *mtd;
 
@@ -1189,19 +1189,19 @@ EXPORT_SYMBOL_GPL(unregister_mtd_user);
 
 /**
  *	get_mtd_device - obtain a validated handle for an MTD device
- *	@mtd: last known address of the required MTD device
+ *	@mtd: last kanalwn address of the required MTD device
  *	@num: internal device number of the required MTD device
  *
  *	Given a number and NULL address, return the num'th entry in the device
  *	table, if any.	Given an address and num == -1, search the device table
  *	for a device with that address and return if it's still present. Given
  *	both, return the num'th driver only if its address matches. Return
- *	error code if not.
+ *	error code if analt.
  */
 struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 {
 	struct mtd_info *ret = NULL, *other;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	mutex_lock(&mtd_table_mutex);
 
@@ -1247,7 +1247,7 @@ int __get_mtd_device(struct mtd_info *mtd)
 	if (!try_module_get(master->owner)) {
 		if (master->_put_device)
 			master->_put_device(master);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	while (mtd) {
@@ -1264,11 +1264,11 @@ int __get_mtd_device(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(__get_mtd_device);
 
 /**
- * of_get_mtd_device_by_node - obtain an MTD device associated with a given node
+ * of_get_mtd_device_by_analde - obtain an MTD device associated with a given analde
  *
- * @np: device tree node
+ * @np: device tree analde
  */
-struct mtd_info *of_get_mtd_device_by_node(struct device_node *np)
+struct mtd_info *of_get_mtd_device_by_analde(struct device_analde *np)
 {
 	struct mtd_info *mtd = NULL;
 	struct mtd_info *tmp;
@@ -1278,7 +1278,7 @@ struct mtd_info *of_get_mtd_device_by_node(struct device_node *np)
 
 	err = -EPROBE_DEFER;
 	mtd_for_each_device(tmp) {
-		if (mtd_get_of_node(tmp) == np) {
+		if (mtd_get_of_analde(tmp) == np) {
 			mtd = tmp;
 			err = __get_mtd_device(mtd);
 			break;
@@ -1289,7 +1289,7 @@ struct mtd_info *of_get_mtd_device_by_node(struct device_node *np)
 
 	return err ? ERR_PTR(err) : mtd;
 }
-EXPORT_SYMBOL_GPL(of_get_mtd_device_by_node);
+EXPORT_SYMBOL_GPL(of_get_mtd_device_by_analde);
 
 /**
  *	get_mtd_device_nm - obtain a validated handle for an MTD device by
@@ -1301,7 +1301,7 @@ EXPORT_SYMBOL_GPL(of_get_mtd_device_by_node);
  */
 struct mtd_info *get_mtd_device_nm(const char *name)
 {
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct mtd_info *mtd = NULL, *other;
 
 	mutex_lock(&mtd_table_mutex);
@@ -1363,9 +1363,9 @@ void __put_mtd_device(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(__put_mtd_device);
 
 /*
- * Erase is an synchronous operation. Device drivers are epected to return a
+ * Erase is an synchroanalus operation. Device drivers are epected to return a
  * negative error code if the operation failed and update instr->fail_addr
- * to point the portion that was not properly erased.
+ * to point the portion that was analt properly erased.
  */
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
@@ -1374,11 +1374,11 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	struct erase_info adjinstr;
 	int ret;
 
-	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
+	instr->fail_addr = MTD_FAIL_ADDR_UNKANALWN;
 	adjinstr = *instr;
 
 	if (!mtd->erasesize || !master->_erase)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (instr->addr >= mtd->size || instr->len > mtd->size - instr->addr)
 		return -EINVAL;
@@ -1402,7 +1402,7 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	ret = master->_erase(master, &adjinstr);
 
-	if (adjinstr.fail_addr != MTD_FAIL_ADDR_UNKNOWN) {
+	if (adjinstr.fail_addr != MTD_FAIL_ADDR_UNKANALWN) {
 		instr->fail_addr = adjinstr.fail_addr - mst_ofs;
 		if (mtd->flags & MTD_SLC_ON_MLC_EMULATION) {
 			instr->fail_addr = mtd_div_by_eb(instr->fail_addr,
@@ -1414,7 +1414,7 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_erase);
-ALLOW_ERROR_INJECTION(mtd_erase, ERRNO);
+ALLOW_ERROR_INJECTION(mtd_erase, ERRANAL);
 
 /*
  * This stuff for eXecute-In-Place. phys is optional and may be set to NULL.
@@ -1429,7 +1429,7 @@ int mtd_point(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	if (phys)
 		*phys = 0;
 	if (!master->_point)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	if (!len)
@@ -1446,7 +1446,7 @@ int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_unpoint)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	if (!len)
@@ -1456,9 +1456,9 @@ int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 EXPORT_SYMBOL_GPL(mtd_unpoint);
 
 /*
- * Allow NOMMU mmap() to directly map the device (if not NULL)
+ * Allow ANALMMU mmap() to directly map the device (if analt NULL)
  * - return the address to which the offset maps
- * - return -ENOSYS to indicate refusal to do the mapping
+ * - return -EANALSYS to indicate refusal to do the mapping
  */
 unsigned long mtd_get_unmapped_area(struct mtd_info *mtd, unsigned long len,
 				    unsigned long offset, unsigned long flags)
@@ -1472,7 +1472,7 @@ unsigned long mtd_get_unmapped_area(struct mtd_info *mtd, unsigned long len,
 		return ret;
 	if (retlen != len) {
 		mtd_unpoint(mtd, offset, retlen);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	return (unsigned long)virt;
 }
@@ -1514,7 +1514,7 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_read);
-ALLOW_ERROR_INJECTION(mtd_read, ERRNO);
+ALLOW_ERROR_INJECTION(mtd_read, ERRANAL);
 
 int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	      const u_char *buf)
@@ -1531,14 +1531,14 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_write);
-ALLOW_ERROR_INJECTION(mtd_write, ERRNO);
+ALLOW_ERROR_INJECTION(mtd_write, ERRANAL);
 
 /*
  * In blackbox flight recorder like scenarios we want to make successful writes
  * in interrupt context. panic_write() is only intended to be called when its
- * known the kernel is about to panic and we need the write to succeed. Since
- * the kernel is not going to be running for much longer, this function can
- * break locks and delay to ensure the write succeeds (but not sleep).
+ * kanalwn the kernel is about to panic and we need the write to succeed. Since
+ * the kernel is analt going to be running for much longer, this function can
+ * break locks and delay to ensure the write succeeds (but analt sleep).
  */
 int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		    const u_char *buf)
@@ -1547,7 +1547,7 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 
 	*retlen = 0;
 	if (!master->_panic_write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (to < 0 || to >= mtd->size || len > mtd->size - to)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
@@ -1706,7 +1706,7 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 
 	/* Check the validity of a potential fallback on mtd->_read */
 	if (!master->_read_oob && (!master->_read || ops->oobbuf))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ops->stats)
 		memset(ops->stats, 0, sizeof(*ops->stats));
@@ -1720,7 +1720,7 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 
 	/*
 	 * In cases where ops->datbuf != NULL, mtd->_read_oob() has semantics
-	 * similar to mtd->_read(), returning a non-negative integer
+	 * similar to mtd->_read(), returning a analn-negative integer
 	 * representing max bitflips. In other cases, mtd->_read_oob() may
 	 * return -EUCLEAN. In all cases, perform similar logic to mtd_read().
 	 */
@@ -1753,7 +1753,7 @@ int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 
 	/* Check the validity of a potential fallback on mtd->_write */
 	if (!master->_write_oob && (!master->_write || ops->oobbuf))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mtd->flags & MTD_SLC_ON_MLC_EMULATION)
 		return mtd_io_emulated_slc(mtd, to, false, ops);
@@ -1789,7 +1789,7 @@ int mtd_ooblayout_ecc(struct mtd_info *mtd, int section,
 		return -EINVAL;
 
 	if (!master->ooblayout || !master->ooblayout->ecc)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return master->ooblayout->ecc(master, section, oobecc);
 }
@@ -1823,7 +1823,7 @@ int mtd_ooblayout_free(struct mtd_info *mtd, int section,
 		return -EINVAL;
 
 	if (!master->ooblayout || !master->ooblayout->free)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return master->ooblayout->free(master, section, oobfree);
 }
@@ -1839,7 +1839,7 @@ EXPORT_SYMBOL_GPL(mtd_ooblayout_free);
  *	  mtd_ooblayout_ecc depending on the region type you're searching for
  *
  * This function returns the section id and oobregion information of a
- * specific byte. For example, say you want to know where the 4th ECC byte is
+ * specific byte. For example, say you want to kanalw where the 4th ECC byte is
  * stored, you'll use:
  *
  * mtd_ooblayout_find_region(mtd, 3, &section, &oobregion, mtd_ooblayout_ecc);
@@ -2137,7 +2137,7 @@ int mtd_get_fact_prot_info(struct mtd_info *mtd, size_t len, size_t *retlen,
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_get_fact_prot_info)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!len)
 		return 0;
 	return master->_get_fact_prot_info(master, len, retlen, buf);
@@ -2151,7 +2151,7 @@ int mtd_read_fact_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
 
 	*retlen = 0;
 	if (!master->_read_fact_prot_reg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!len)
 		return 0;
 	return master->_read_fact_prot_reg(master, from, len, retlen, buf);
@@ -2164,7 +2164,7 @@ int mtd_get_user_prot_info(struct mtd_info *mtd, size_t len, size_t *retlen,
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_get_user_prot_info)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!len)
 		return 0;
 	return master->_get_user_prot_info(master, len, retlen, buf);
@@ -2178,7 +2178,7 @@ int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
 
 	*retlen = 0;
 	if (!master->_read_user_prot_reg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!len)
 		return 0;
 	return master->_read_user_prot_reg(master, from, len, retlen, buf);
@@ -2193,7 +2193,7 @@ int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to, size_t len,
 
 	*retlen = 0;
 	if (!master->_write_user_prot_reg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!len)
 		return 0;
 	ret = master->_write_user_prot_reg(master, to, len, retlen, buf);
@@ -2201,10 +2201,10 @@ int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to, size_t len,
 		return ret;
 
 	/*
-	 * If no data could be written at all, we are out of memory and
-	 * must return -ENOSPC.
+	 * If anal data could be written at all, we are out of memory and
+	 * must return -EANALSPC.
 	 */
-	return (*retlen) ? 0 : -ENOSPC;
+	return (*retlen) ? 0 : -EANALSPC;
 }
 EXPORT_SYMBOL_GPL(mtd_write_user_prot_reg);
 
@@ -2213,7 +2213,7 @@ int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len)
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_lock_user_prot_reg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!len)
 		return 0;
 	return master->_lock_user_prot_reg(master, from, len);
@@ -2225,7 +2225,7 @@ int mtd_erase_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len)
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_erase_user_prot_reg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!len)
 		return 0;
 	return master->_erase_user_prot_reg(master, from, len);
@@ -2238,7 +2238,7 @@ int mtd_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_lock)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
@@ -2258,7 +2258,7 @@ int mtd_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_unlock)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
@@ -2278,7 +2278,7 @@ int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_is_locked)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
@@ -2331,7 +2331,7 @@ int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	int ret;
 
 	if (!master->_block_markbad)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (ofs < 0 || ofs >= mtd->size)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
@@ -2352,7 +2352,7 @@ int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mtd_block_markbad);
-ALLOW_ERROR_INJECTION(mtd_block_markbad, ERRNO);
+ALLOW_ERROR_INJECTION(mtd_block_markbad, ERRANAL);
 
 /*
  * default_mtd_writev - the default writev method
@@ -2423,12 +2423,12 @@ EXPORT_SYMBOL_GPL(mtd_writev);
  * This routine attempts to allocate a contiguous kernel buffer up to
  * the specified size, backing off the size of the request exponentially
  * until the request succeeds or until the allocation size falls below
- * the system page size. This attempts to make sure it does not adversely
+ * the system page size. This attempts to make sure it does analt adversely
  * impact system performance, so when allocating more than one page, we
  * ask the memory allocator to avoid re-trying, swapping, writing back
  * or performing I/O.
  *
- * Note, this function also makes sure that the allocated buffer is aligned to
+ * Analte, this function also makes sure that the allocated buffer is aligned to
  * the MTD device's min. I/O unit, i.e. the "mtd->writesize" value.
  *
  * This is called, for example by mtd_{read,write} and jffs2_scan_medium,
@@ -2440,7 +2440,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
  */
 void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
 {
-	gfp_t flags = __GFP_NOWARN | __GFP_DIRECT_RECLAIM | __GFP_NORETRY;
+	gfp_t flags = __GFP_ANALWARN | __GFP_DIRECT_RECLAIM | __GFP_ANALRETRY;
 	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
 	void *kbuf;
 
@@ -2492,9 +2492,9 @@ static struct backing_dev_info * __init mtd_bdi_init(const char *name)
 	struct backing_dev_info *bdi;
 	int ret;
 
-	bdi = bdi_alloc(NUMA_NO_NODE);
+	bdi = bdi_alloc(NUMA_ANAL_ANALDE);
 	if (!bdi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	bdi->ra_pages = 0;
 	bdi->io_pages = 0;
 

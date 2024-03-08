@@ -84,7 +84,7 @@ struct hclge_ptp_int_cmd {
 };
 
 enum hclge_ptp_udp_type {
-	HCLGE_PTP_UDP_NOT_TYPE,
+	HCLGE_PTP_UDP_ANALT_TYPE,
 	HCLGE_PTP_UDP_P13F_TYPE,
 	HCLGE_PTP_UDP_P140_TYPE,
 	HCLGE_PTP_UDP_FULL_TYPE,

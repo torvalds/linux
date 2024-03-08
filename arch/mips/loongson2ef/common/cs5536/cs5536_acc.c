@@ -93,8 +93,8 @@ u32 pci_acc_read_reg(int reg)
 		break;
 	case PCI_CACHE_LINE_SIZE:
 		conf_data =
-		    CFG_PCI_CACHE_LINE_SIZE(PCI_NORMAL_HEADER_TYPE,
-					    PCI_NORMAL_LATENCY_TIMER);
+		    CFG_PCI_CACHE_LINE_SIZE(PCI_ANALRMAL_HEADER_TYPE,
+					    PCI_ANALRMAL_LATENCY_TIMER);
 		break;
 	case PCI_BAR0_REG:
 		_rdmsr(GLCP_MSR_REG(GLCP_SOFT_COM), &hi, &lo);

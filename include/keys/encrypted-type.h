@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2010 IBM Corporation
- * Copyright (C) 2010 Politecnico di Torino, Italy
+ * Copyright (C) 2010 Politecnico di Torianal, Italy
  *                    TORSEC group -- https://security.polito.it
  *
  * Authors:

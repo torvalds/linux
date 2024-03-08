@@ -2,7 +2,7 @@ Synaptics SoC Device Tree Bindings
 
 According to https://www.synaptics.com/company/news/conexant-marvell
 Synaptics has acquired the Multimedia Solutions Business of Marvell, so
-berlin SoCs are now Synaptics' SoCs now.
+berlin SoCs are analw Synaptics' SoCs analw.
 
 ---------------------------------------------------------------
 
@@ -21,11 +21,11 @@ stable binding/ABI.
 Boards with a SoC of the Marvell Berlin family, e.g. Armada 1500
 shall have the following properties:
 
-* Required root node properties:
+* Required root analde properties:
 compatible: must contain "marvell,berlin"
 
 In addition, the above compatible shall be extended with the specific
-SoC and board used. Currently known SoC compatibles are:
+SoC and board used. Currently kanalwn SoC compatibles are:
     "marvell,berlin2"      for Marvell Armada 1500 (BG2, 88DE3100),
     "marvell,berlin2cd"    for Marvell Armada 1500-mini (BG2CD, 88DE3005)
     "marvell,berlin2ct"    for Marvell Armada ? (BG2CT, 88DE????)
@@ -62,7 +62,7 @@ cpu-ctrl@f7dd0000 {
 Marvell Berlin SoCs have a chip control register set providing several
 individual registers dealing with pinmux, padmux, clock, reset, and secondary
 CPU boot address. Unfortunately, the individual registers are spread among the
-chip control registers, so there should be a single DT node only providing the
+chip control registers, so there should be a single DT analde only providing the
 different functions which are described below.
 
 Required properties:
@@ -90,12 +90,12 @@ chip: chip-control@ea0000 {
 	compatible = "simple-mfd", "syscon";
 	reg = <0xea0000 0x400>;
 
-	/* sub-device nodes */
+	/* sub-device analdes */
 };
 
 sysctrl: system-controller@d000 {
 	compatible = "simple-mfd", "syscon";
 	reg = <0xd000 0x100>;
 
-	/* sub-device nodes */
+	/* sub-device analdes */
 };

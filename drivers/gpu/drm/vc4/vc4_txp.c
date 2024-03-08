@@ -79,7 +79,7 @@
 # define TXP_ALPHA_ENABLE		BIT(20)
 
 /* 4 bits, each enables stores for a channel in each set of 4 bytes.
- * Set to 0xf for normal operation.
+ * Set to 0xf for analrmal operation.
  */
 # define TXP_BYTE_ENABLE_SHIFT		16
 # define TXP_BYTE_ENABLE_MASK		GENMASK(19, 16)
@@ -99,7 +99,7 @@
  */
 # define TXP_ALPHA_INVERT		BIT(12)
 
-/* Note: I've listed the channels here in high bit (in byte 3/2/1) to
+/* Analte: I've listed the channels here in high bit (in byte 3/2/1) to
  * low bit (in byte 0) order.
  */
 # define TXP_FORMAT_SHIFT		8
@@ -110,7 +110,7 @@
 # define TXP_FORMAT_RGBA4444		3
 # define TXP_FORMAT_BGR565		6
 # define TXP_FORMAT_RGB565		7
-/* 888s are non-rotated, raster-only */
+/* 888s are analn-rotated, raster-only */
 # define TXP_FORMAT_BGR888		8
 # define TXP_FORMAT_RGB888		9
 # define TXP_FORMAT_ABGR8888		12
@@ -186,7 +186,7 @@ static int vc4_txp_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
-	return drm_add_modes_noedid(connector, dev->mode_config.max_width,
+	return drm_add_modes_analedid(connector, dev->mode_config.max_width,
 				    dev->mode_config.max_height);
 }
 
@@ -418,7 +418,7 @@ static int vc4_txp_atomic_check(struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	crtc_state->no_vblank = true;
+	crtc_state->anal_vblank = true;
 
 	return 0;
 }
@@ -470,7 +470,7 @@ static irqreturn_t vc4_txp_interrupt(int irq, void *data)
 	/*
 	 * We don't need to protect the register access using
 	 * drm_dev_enter() there because the interrupt handler lifetime
-	 * is tied to the device itself, and not to the DRM device.
+	 * is tied to the device itself, and analt to the DRM device.
 	 *
 	 * So when the device will be gone, one of the first thing we
 	 * will be doing will be to unregister the interrupt handler,
@@ -507,7 +507,7 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 
 	txp = drmm_kzalloc(drm, sizeof(*txp), GFP_KERNEL);
 	if (!txp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txp->pdev = pdev;
 	txp->regs = vc4_ioremap_regs(pdev, 0);

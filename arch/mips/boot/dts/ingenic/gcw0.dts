@@ -264,8 +264,8 @@
 				};
 
 				/*
-				 * When this is off, there is no sound, but also
-				 * no USB networking.
+				 * When this is off, there is anal sound, but also
+				 * anal USB networking.
 				 */
 				ldo5: LDO5 {
 					regulator-min-microvolt = <2500000>;
@@ -361,9 +361,9 @@
 		type = "mini";
 
 		/*
-		 * USB OTG is not yet working reliably, the ID detection
-		 * mechanism tends to fry easily for unknown reasons.
-		 * Until this is fixed, disable OTG by not providing the
+		 * USB OTG is analt yet working reliably, the ID detection
+		 * mechanism tends to fry easily for unkanalwn reasons.
+		 * Until this is fixed, disable OTG by analt providing the
 		 * ID GPIO to the driver.
 		 */
 		//id-gpios = <&gpf 18 GPIO_ACTIVE_LOW>;
@@ -512,7 +512,7 @@
 	bus-width = <4>;
 	max-frequency = <48000000>;
 	vmmc-supply = <&vcc>;
-	non-removable;
+	analn-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_mmc0>;

@@ -11,13 +11,13 @@
 
 #include <linux/kobject.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <asm/machdep.h>
 
 #include "pseries.h"
 
-unsigned long rtas_poweron_auto; /* default and normal state is 0 */
+unsigned long rtas_poweron_auto; /* default and analrmal state is 0 */
 
 static ssize_t auto_poweron_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *buf)
@@ -59,7 +59,7 @@ static int __init pm_init(void)
 {
 	power_kobj = kobject_create_and_add("power", NULL);
 	if (!power_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 	return sysfs_create_group(power_kobj, &attr_group);
 }
 machine_core_initcall(pseries, pm_init);

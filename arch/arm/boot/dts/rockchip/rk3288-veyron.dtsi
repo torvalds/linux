@@ -19,8 +19,8 @@
 	};
 
 	/*
-	 * The default coreboot on veyron devices ignores memory@0 nodes
-	 * and would instead create another memory node.
+	 * The default coreboot on veyron devices iganalres memory@0 analdes
+	 * and would instead create aanalther memory analde.
 	 */
 	memory {
 		device_type = "memory";
@@ -129,7 +129,7 @@
 
 /* rk3288-c used in Veyron Chrome-devices has slightly changed OPPs */
 &cpu_opp_table {
-	/delete-node/ opp-312000000;
+	/delete-analde/ opp-312000000;
 
 	opp-1512000000 {
 		opp-microvolt = <1250000>;
@@ -156,7 +156,7 @@
 	disable-wp;
 	mmc-hs200-1_8v;
 	mmc-pwrseq = <&emmc_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 };
@@ -264,7 +264,7 @@
 			};
 
 			/*
-			 * Note that both vcc33_io and vcc33_pmuio are always
+			 * Analte that both vcc33_io and vcc33_pmuio are always
 			 * powered together. To simplify the logic in the dts
 			 * we just refer to vcc33_io every time something is
 			 * powered from vcc33_pmuio. In fact, on later boards
@@ -334,7 +334,7 @@
 &i2c2 {
 	status = "okay";
 
-	/* 100kHz since 4.7k resistors don't rise fast enough */
+	/* 100kHz since 4.7k resistors don't rise fast eanalugh */
 	clock-frequency = <100000>;
 	i2c-scl-falling-time-ns = <50>;		/* 10ns measured */
 	i2c-scl-rising-time-ns = <800>;		/* 600ns measured */
@@ -372,7 +372,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_clk &sdio0_cmd &sdio0_bus4>;
 	sd-uhs-sdr12;
@@ -389,7 +389,7 @@
 	rx-sample-delay-ns = <12>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
 	};
@@ -456,7 +456,7 @@
 };
 
 &pinctrl {
-	pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
+	pcfg_pull_analne_drv_8ma: pcfg-pull-analne-drv-8ma {
 		bias-disable;
 		drive-strength = <8>;
 	};
@@ -482,7 +482,7 @@
 
 	emmc {
 		emmc_reset: emmc-reset {
-			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		/*
@@ -490,22 +490,22 @@
 		 * We also have external pulls, so disable the internal ones.
 		 */
 		emmc_clk: emmc-clk {
-			rockchip,pins = <3 RK_PC2 2 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <3 RK_PC2 2 &pcfg_pull_analne_drv_8ma>;
 		};
 
 		emmc_cmd: emmc-cmd {
-			rockchip,pins = <3 RK_PC0 2 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <3 RK_PC0 2 &pcfg_pull_analne_drv_8ma>;
 		};
 
 		emmc_bus8: emmc-bus8 {
-			rockchip,pins = <3 RK_PA0 2 &pcfg_pull_none_drv_8ma>,
-					<3 RK_PA1 2 &pcfg_pull_none_drv_8ma>,
-					<3 RK_PA2 2 &pcfg_pull_none_drv_8ma>,
-					<3 RK_PA3 2 &pcfg_pull_none_drv_8ma>,
-					<3 RK_PA4 2 &pcfg_pull_none_drv_8ma>,
-					<3 RK_PA5 2 &pcfg_pull_none_drv_8ma>,
-					<3 RK_PA6 2 &pcfg_pull_none_drv_8ma>,
-					<3 RK_PA7 2 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <3 RK_PA0 2 &pcfg_pull_analne_drv_8ma>,
+					<3 RK_PA1 2 &pcfg_pull_analne_drv_8ma>,
+					<3 RK_PA2 2 &pcfg_pull_analne_drv_8ma>,
+					<3 RK_PA3 2 &pcfg_pull_analne_drv_8ma>,
+					<3 RK_PA4 2 &pcfg_pull_analne_drv_8ma>,
+					<3 RK_PA5 2 &pcfg_pull_analne_drv_8ma>,
+					<3 RK_PA6 2 &pcfg_pull_analne_drv_8ma>,
+					<3 RK_PA7 2 &pcfg_pull_analne_drv_8ma>;
 		};
 	};
 
@@ -517,7 +517,7 @@
 
 	reboot {
 		ap_warm_reset_h: ap-warm-reset-h {
-			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -529,12 +529,12 @@
 
 	sdio0 {
 		wifi_enable_h: wifienable-h {
-			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
-		/* NOTE: mislabelled on schematic; should be bt_enable_h */
+		/* ANALTE: mislabelled on schematic; should be bt_enable_h */
 		bt_enable_l: bt-enable-l {
-			rockchip,pins = <4 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake: bt-host-wake {
@@ -542,7 +542,7 @@
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
-			rockchip,pins = <4 RK_PD7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		/*
@@ -550,23 +550,23 @@
 		 * We also have external pulls, so disable the internal ones.
 		 */
 		sdio0_bus4: sdio0-bus4 {
-			rockchip,pins = <4 RK_PC4 1 &pcfg_pull_none_drv_8ma>,
-					<4 RK_PC5 1 &pcfg_pull_none_drv_8ma>,
-					<4 RK_PC6 1 &pcfg_pull_none_drv_8ma>,
-					<4 RK_PC7 1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <4 RK_PC4 1 &pcfg_pull_analne_drv_8ma>,
+					<4 RK_PC5 1 &pcfg_pull_analne_drv_8ma>,
+					<4 RK_PC6 1 &pcfg_pull_analne_drv_8ma>,
+					<4 RK_PC7 1 &pcfg_pull_analne_drv_8ma>;
 		};
 
 		sdio0_cmd: sdio0-cmd {
-			rockchip,pins = <4 RK_PD0 1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <4 RK_PD0 1 &pcfg_pull_analne_drv_8ma>;
 		};
 
 		sdio0_clk: sdio0-clk {
-			rockchip,pins = <4 RK_PD1 1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <4 RK_PD1 1 &pcfg_pull_analne_drv_8ma>;
 		};
 
 		/*
 		 * These pins are only present on very new veyron boards; on
-		 * older boards bt_dev_wake is simply always high.  Note that
+		 * older boards bt_dev_wake is simply always high.  Analte that
 		 * gpio4_D2 is a NC on old veyron boards, so it doesn't hurt
 		 * to map this pin everywhere
 		 */
@@ -579,19 +579,19 @@
 		};
 
 		bt_dev_wake: bt-dev-wake {
-			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	tpm {
 		tpm_int_h: tpm-int-h {
-			rockchip,pins = <7 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	write-protect {
 		fw_wp_ap: fw-wp-ap {
-			rockchip,pins = <7 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

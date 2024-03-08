@@ -19,7 +19,7 @@
  *
  * Jens:
  * - Rework again to work with bio instead of buffer_heads
- * - loose bi_dev comparisons, partition handling is right now
+ * - loose bi_dev comparisons, partition handling is right analw
  * - completely modularize elevator setup and teardown
  *
  */
@@ -133,7 +133,7 @@ struct elevator_queue *elevator_alloc(struct request_queue *q,
 {
 	struct elevator_queue *eq;
 
-	eq = kzalloc_node(sizeof(*eq), GFP_KERNEL, q->node);
+	eq = kzalloc_analde(sizeof(*eq), GFP_KERNEL, q->analde);
 	if (unlikely(!eq))
 		return NULL;
 
@@ -202,7 +202,7 @@ void elv_rqhash_reposition(struct request_queue *q, struct request *rq)
 struct request *elv_rqhash_find(struct request_queue *q, sector_t offset)
 {
 	struct elevator_queue *e = q->elevator;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct request *rq;
 
 	hash_for_each_possible_safe(e->hash, rq, next, hash, offset) {
@@ -226,13 +226,13 @@ struct request *elv_rqhash_find(struct request_queue *q, sector_t offset)
  */
 void elv_rb_add(struct rb_root *root, struct request *rq)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct request *__rq;
 
 	while (*p) {
 		parent = *p;
-		__rq = rb_entry(parent, struct request, rb_node);
+		__rq = rb_entry(parent, struct request, rb_analde);
 
 		if (blk_rq_pos(rq) < blk_rq_pos(__rq))
 			p = &(*p)->rb_left;
@@ -240,26 +240,26 @@ void elv_rb_add(struct rb_root *root, struct request *rq)
 			p = &(*p)->rb_right;
 	}
 
-	rb_link_node(&rq->rb_node, parent, p);
-	rb_insert_color(&rq->rb_node, root);
+	rb_link_analde(&rq->rb_analde, parent, p);
+	rb_insert_color(&rq->rb_analde, root);
 }
 EXPORT_SYMBOL(elv_rb_add);
 
 void elv_rb_del(struct rb_root *root, struct request *rq)
 {
-	BUG_ON(RB_EMPTY_NODE(&rq->rb_node));
-	rb_erase(&rq->rb_node, root);
-	RB_CLEAR_NODE(&rq->rb_node);
+	BUG_ON(RB_EMPTY_ANALDE(&rq->rb_analde));
+	rb_erase(&rq->rb_analde, root);
+	RB_CLEAR_ANALDE(&rq->rb_analde);
 }
 EXPORT_SYMBOL(elv_rb_del);
 
 struct request *elv_rb_find(struct rb_root *root, sector_t sector)
 {
-	struct rb_node *n = root->rb_node;
+	struct rb_analde *n = root->rb_analde;
 	struct request *rq;
 
 	while (n) {
-		rq = rb_entry(n, struct request, rb_node);
+		rq = rb_entry(n, struct request, rb_analde);
 
 		if (sector < blk_rq_pos(rq))
 			n = n->rb_left;
@@ -281,12 +281,12 @@ enum elv_merge elv_merge(struct request_queue *q, struct request **req,
 
 	/*
 	 * Levels of merges:
-	 * 	nomerges:  No merges at all attempted
-	 * 	noxmerges: Only simple one-hit cache try
+	 * 	analmerges:  Anal merges at all attempted
+	 * 	analxmerges: Only simple one-hit cache try
 	 * 	merges:	   All merge tries attempted
 	 */
-	if (blk_queue_nomerges(q) || !bio_mergeable(bio))
-		return ELEVATOR_NO_MERGE;
+	if (blk_queue_analmerges(q) || !bio_mergeable(bio))
+		return ELEVATOR_ANAL_MERGE;
 
 	/*
 	 * First try one-hit cache.
@@ -294,14 +294,14 @@ enum elv_merge elv_merge(struct request_queue *q, struct request **req,
 	if (q->last_merge && elv_bio_merge_ok(q->last_merge, bio)) {
 		enum elv_merge ret = blk_try_merge(q->last_merge, bio);
 
-		if (ret != ELEVATOR_NO_MERGE) {
+		if (ret != ELEVATOR_ANAL_MERGE) {
 			*req = q->last_merge;
 			return ret;
 		}
 	}
 
-	if (blk_queue_noxmerges(q))
-		return ELEVATOR_NO_MERGE;
+	if (blk_queue_analxmerges(q))
+		return ELEVATOR_ANAL_MERGE;
 
 	/*
 	 * See if our hash lookup can find a potential backmerge.
@@ -318,7 +318,7 @@ enum elv_merge elv_merge(struct request_queue *q, struct request **req,
 	if (e->type->ops.request_merge)
 		return e->type->ops.request_merge(q, req, bio);
 
-	return ELEVATOR_NO_MERGE;
+	return ELEVATOR_ANAL_MERGE;
 }
 
 /*
@@ -335,7 +335,7 @@ bool elv_attempt_insert_merge(struct request_queue *q, struct request *rq,
 	struct request *__rq;
 	bool ret;
 
-	if (blk_queue_nomerges(q))
+	if (blk_queue_analmerges(q))
 		return false;
 
 	/*
@@ -346,7 +346,7 @@ bool elv_attempt_insert_merge(struct request_queue *q, struct request *rq,
 		return true;
 	}
 
-	if (blk_queue_noxmerges(q))
+	if (blk_queue_analxmerges(q))
 		return false;
 
 	ret = false;
@@ -427,7 +427,7 @@ elv_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 
 	e = container_of(kobj, struct elevator_queue, kobj);
 	mutex_lock(&e->sysfs_lock);
-	error = e->type ? entry->show(e, page) : -ENOENT;
+	error = e->type ? entry->show(e, page) : -EANALENT;
 	mutex_unlock(&e->sysfs_lock);
 	return error;
 }
@@ -445,7 +445,7 @@ elv_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	e = container_of(kobj, struct elevator_queue, kobj);
 	mutex_lock(&e->sysfs_lock);
-	error = e->type ? entry->store(e, page, length) : -ENOENT;
+	error = e->type ? entry->store(e, page, length) : -EANALENT;
 	mutex_unlock(&e->sysfs_lock);
 	return error;
 }
@@ -509,7 +509,7 @@ int elv_register(struct elevator_type *e)
 	/* create icq_cache if requested */
 	if (e->icq_size) {
 		if (WARN_ON(e->icq_size < sizeof(struct io_cq)) ||
-		    WARN_ON(e->icq_align < __alignof__(struct io_cq)))
+		    WARN_ON(e->icq_align < __aliganalf__(struct io_cq)))
 			return -EINVAL;
 
 		snprintf(e->icq_cache_name, sizeof(e->icq_cache_name),
@@ -517,7 +517,7 @@ int elv_register(struct elevator_type *e)
 		e->icq_cache = kmem_cache_create(e->icq_cache_name, e->icq_size,
 						 e->icq_align, 0, NULL);
 		if (!e->icq_cache)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* register, don't allow duplicate names */
@@ -558,18 +558,18 @@ EXPORT_SYMBOL_GPL(elv_unregister);
 static inline bool elv_support_iosched(struct request_queue *q)
 {
 	if (!queue_is_mq(q) ||
-	    (q->tag_set && (q->tag_set->flags & BLK_MQ_F_NO_SCHED)))
+	    (q->tag_set && (q->tag_set->flags & BLK_MQ_F_ANAL_SCHED)))
 		return false;
 	return true;
 }
 
 /*
  * For single queue devices, default to using mq-deadline. If we have multiple
- * queues or mq-deadline is not available, default to "none".
+ * queues or mq-deadline is analt available, default to "analne".
  */
 static struct elevator_type *elevator_get_default(struct request_queue *q)
 {
-	if (q->tag_set && q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
+	if (q->tag_set && q->tag_set->flags & BLK_MQ_F_ANAL_SCHED_BY_DEFAULT)
 		return NULL;
 
 	if (q->nr_hw_queues != 1 &&
@@ -581,7 +581,7 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
 
 /*
  * Get the first elevator providing the features required by the request queue.
- * Default to "none" if no matching elevator is found.
+ * Default to "analne" if anal matching elevator is found.
  */
 static struct elevator_type *elevator_get_by_features(struct request_queue *q)
 {
@@ -604,10 +604,10 @@ static struct elevator_type *elevator_get_by_features(struct request_queue *q)
 }
 
 /*
- * For a device queue that has no required features, use the default elevator
+ * For a device queue that has anal required features, use the default elevator
  * settings. Otherwise, use the first elevator available matching the required
- * features. If no suitable elevator is find or if the chosen elevator
- * initialization fails, fall back to the "none" elevator (no elevator).
+ * features. If anal suitable elevator is find or if the chosen elevator
+ * initialization fails, fall back to the "analne" elevator (anal elevator).
  */
 void elevator_init_mq(struct request_queue *q)
 {
@@ -631,9 +631,9 @@ void elevator_init_mq(struct request_queue *q)
 
 	/*
 	 * We are called before adding disk, when there isn't any FS I/O,
-	 * so freezing queue plus canceling dispatch work is enough to
+	 * so freezing queue plus canceling dispatch work is eanalugh to
 	 * drain any dispatch activities originated from passthrough
-	 * requests, then no need to quiesce queue which may add long boot
+	 * requests, then anal need to quiesce queue which may add long boot
 	 * latency, especially when lots of disks are involved.
 	 */
 	blk_mq_freeze_queue(q);
@@ -645,7 +645,7 @@ void elevator_init_mq(struct request_queue *q)
 
 	if (err) {
 		pr_warn("\"%s\" elevator initialization failed, "
-			"falling back to \"none\"\n", e->elevator_name);
+			"falling back to \"analne\"\n", e->elevator_name);
 	}
 
 	elevator_put(e);
@@ -654,8 +654,8 @@ void elevator_init_mq(struct request_queue *q)
 /*
  * Switch to new_e io scheduler.
  *
- * If switching fails, we are most likely running out of memory and not able
- * to restore the old io scheduler, so leaving the io scheduler being none.
+ * If switching fails, we are most likely running out of memory and analt able
+ * to restore the old io scheduler, so leaving the io scheduler being analne.
  */
 int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 {
@@ -687,7 +687,7 @@ out_unfreeze:
 	blk_mq_unfreeze_queue(q);
 
 	if (ret) {
-		pr_warn("elv: switch to \"%s\" failed, falling back to \"none\"\n",
+		pr_warn("elv: switch to \"%s\" failed, falling back to \"analne\"\n",
 			new_e->elevator_name);
 	}
 
@@ -706,7 +706,7 @@ void elevator_disable(struct request_queue *q)
 	blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
 	q->elevator = NULL;
 	q->nr_requests = q->tag_set->queue_depth;
-	blk_add_trace_msg(q, "elv switch: none");
+	blk_add_trace_msg(q, "elv switch: analne");
 
 	blk_mq_unquiesce_queue(q);
 	blk_mq_unfreeze_queue(q);
@@ -720,11 +720,11 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	struct elevator_type *e;
 	int ret;
 
-	/* Make sure queue is not in the middle of being removed */
+	/* Make sure queue is analt in the middle of being removed */
 	if (!blk_queue_registered(q))
-		return -ENOENT;
+		return -EANALENT;
 
-	if (!strncmp(elevator_name, "none", 4)) {
+	if (!strncmp(elevator_name, "analne", 4)) {
 		if (q->elevator)
 			elevator_disable(q);
 		return 0;
@@ -768,12 +768,12 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	int len = 0;
 
 	if (!elv_support_iosched(q))
-		return sprintf(name, "none\n");
+		return sprintf(name, "analne\n");
 
 	if (!q->elevator) {
-		len += sprintf(name+len, "[none] ");
+		len += sprintf(name+len, "[analne] ");
 	} else {
-		len += sprintf(name+len, "none ");
+		len += sprintf(name+len, "analne ");
 		cur = eq->type;
 	}
 
@@ -793,7 +793,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 struct request *elv_rb_former_request(struct request_queue *q,
 				      struct request *rq)
 {
-	struct rb_node *rbprev = rb_prev(&rq->rb_node);
+	struct rb_analde *rbprev = rb_prev(&rq->rb_analde);
 
 	if (rbprev)
 		return rb_entry_rq(rbprev);
@@ -805,7 +805,7 @@ EXPORT_SYMBOL(elv_rb_former_request);
 struct request *elv_rb_latter_request(struct request_queue *q,
 				      struct request *rq)
 {
-	struct rb_node *rbnext = rb_next(&rq->rb_node);
+	struct rb_analde *rbnext = rb_next(&rq->rb_analde);
 
 	if (rbnext)
 		return rb_entry_rq(rbnext);
@@ -816,7 +816,7 @@ EXPORT_SYMBOL(elv_rb_latter_request);
 
 static int __init elevator_setup(char *str)
 {
-	pr_warn("Kernel parameter elevator= does not have any effect anymore.\n"
+	pr_warn("Kernel parameter elevator= does analt have any effect anymore.\n"
 		"Please use sysfs to set IO scheduler for individual devices.\n");
 	return 1;
 }

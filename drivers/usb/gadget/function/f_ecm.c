@@ -3,7 +3,7 @@
  * f_ecm.c -- USB CDC Ethernet (ECM) link function driver
  *
  * Copyright (C) 2003-2005,2008 David Brownell
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 /* #define VERBOSE_DEBUG */
@@ -22,8 +22,8 @@
 /*
  * This function is a "CDC Ethernet Networking Control Model" (CDC ECM)
  * Ethernet link.  The data transfer model is simple (packets sent and
- * received over bulk endpoints using normal short packet termination),
- * and the control model exposes various data and optional notifications.
+ * received over bulk endpoints using analrmal short packet termination),
+ * and the control model exposes various data and optional analtifications.
  *
  * ECM is well standardized and (except for Microsoft) supported by most
  * operating systems with USB host support.  It's the preferred interop
@@ -31,16 +31,16 @@
  * (Hardware solutions tend to be more minimalist.)  A newer and simpler
  * "Ethernet Emulation Model" (CDC EEM) hasn't yet caught on.
  *
- * Note that ECM requires the use of "alternate settings" for its data
+ * Analte that ECM requires the use of "alternate settings" for its data
  * interface.  This means that the set_alt() method has real work to do,
  * and also means that a get_alt() method is required.
  */
 
 
-enum ecm_notify_state {
-	ECM_NOTIFY_NONE,		/* don't notify */
-	ECM_NOTIFY_CONNECT,		/* issue CONNECT next */
-	ECM_NOTIFY_SPEED,		/* issue SPEED_CHANGE next */
+enum ecm_analtify_state {
+	ECM_ANALTIFY_ANALNE,		/* don't analtify */
+	ECM_ANALTIFY_CONNECT,		/* issue CONNECT next */
+	ECM_ANALTIFY_SPEED,		/* issue SPEED_CHANGE next */
 };
 
 struct f_ecm {
@@ -49,10 +49,10 @@ struct f_ecm {
 
 	char				ethaddr[14];
 
-	struct usb_ep			*notify;
-	struct usb_request		*notify_req;
-	u8				notify_state;
-	atomic_t			notify_count;
+	struct usb_ep			*analtify;
+	struct usb_request		*analtify_req;
+	u8				analtify_state;
+	atomic_t			analtify_count;
 	bool				is_open;
 
 	/* FIXME is_open needs some irq-ish locking
@@ -70,12 +70,12 @@ static inline struct f_ecm *func_to_ecm(struct usb_function *f)
 /*
  * Include the status endpoint if we can, even though it's optional.
  *
- * Use wMaxPacketSize big enough to fit CDC_NOTIFY_SPEED_CHANGE in one
+ * Use wMaxPacketSize big eanalugh to fit CDC_ANALTIFY_SPEED_CHANGE in one
  * packet, to simplify cancellation; and a big transfer interval, to
  * waste less bandwidth.
  *
  * Some drivers (like Linux 2.4 cdc-ether!) "need" it to exist even
- * if they ignore the connect/disconnect notifications that real aether
+ * if they iganalre the connect/disconnect analtifications that real aether
  * can provide.  More advanced cdc configurations might want to support
  * encapsulated commands (vendor-specific, using control-OUT).
  */
@@ -95,7 +95,7 @@ ecm_iad_descriptor = {
 	.bInterfaceCount =	2,	/* control + data */
 	.bFunctionClass =	USB_CLASS_COMM,
 	.bFunctionSubClass =	USB_CDC_SUBCLASS_ETHERNET,
-	.bFunctionProtocol =	USB_CDC_PROTO_NONE,
+	.bFunctionProtocol =	USB_CDC_PROTO_ANALNE,
 	/* .iFunction =		DYNAMIC */
 };
 
@@ -109,7 +109,7 @@ static struct usb_interface_descriptor ecm_control_intf = {
 	.bNumEndpoints =	1,
 	.bInterfaceClass =	USB_CLASS_COMM,
 	.bInterfaceSubClass =	USB_CDC_SUBCLASS_ETHERNET,
-	.bInterfaceProtocol =	USB_CDC_PROTO_NONE,
+	.bInterfaceProtocol =	USB_CDC_PROTO_ANALNE,
 	/* .iInterface = DYNAMIC */
 };
 
@@ -136,16 +136,16 @@ static struct usb_cdc_ether_desc ecm_desc = {
 
 	/* this descriptor actually adds value, surprise! */
 	/* .iMACAddress = DYNAMIC */
-	.bmEthernetStatistics =	cpu_to_le32(0), /* no statistics */
+	.bmEthernetStatistics =	cpu_to_le32(0), /* anal statistics */
 	.wMaxSegmentSize =	cpu_to_le16(ETH_FRAME_LEN),
 	.wNumberMCFilters =	cpu_to_le16(0),
 	.bNumberPowerFilters =	0,
 };
 
-/* the default data interface has no endpoints ... */
+/* the default data interface has anal endpoints ... */
 
-static struct usb_interface_descriptor ecm_data_nop_intf = {
-	.bLength =		sizeof ecm_data_nop_intf,
+static struct usb_interface_descriptor ecm_data_analp_intf = {
+	.bLength =		sizeof ecm_data_analp_intf,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
 	.bInterfaceNumber =	1,
@@ -174,7 +174,7 @@ static struct usb_interface_descriptor ecm_data_intf = {
 
 /* full speed support: */
 
-static struct usb_endpoint_descriptor fs_ecm_notify_desc = {
+static struct usb_endpoint_descriptor fs_ecm_analtify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -208,11 +208,11 @@ static struct usb_descriptor_header *ecm_fs_function[] = {
 	(struct usb_descriptor_header *) &ecm_union_desc,
 	(struct usb_descriptor_header *) &ecm_desc,
 
-	/* NOTE: status endpoint might need to be removed */
-	(struct usb_descriptor_header *) &fs_ecm_notify_desc,
+	/* ANALTE: status endpoint might need to be removed */
+	(struct usb_descriptor_header *) &fs_ecm_analtify_desc,
 
 	/* data interface, altsettings 0 and 1 */
-	(struct usb_descriptor_header *) &ecm_data_nop_intf,
+	(struct usb_descriptor_header *) &ecm_data_analp_intf,
 	(struct usb_descriptor_header *) &ecm_data_intf,
 	(struct usb_descriptor_header *) &fs_ecm_in_desc,
 	(struct usb_descriptor_header *) &fs_ecm_out_desc,
@@ -221,7 +221,7 @@ static struct usb_descriptor_header *ecm_fs_function[] = {
 
 /* high speed support: */
 
-static struct usb_endpoint_descriptor hs_ecm_notify_desc = {
+static struct usb_endpoint_descriptor hs_ecm_analtify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -257,11 +257,11 @@ static struct usb_descriptor_header *ecm_hs_function[] = {
 	(struct usb_descriptor_header *) &ecm_union_desc,
 	(struct usb_descriptor_header *) &ecm_desc,
 
-	/* NOTE: status endpoint might need to be removed */
-	(struct usb_descriptor_header *) &hs_ecm_notify_desc,
+	/* ANALTE: status endpoint might need to be removed */
+	(struct usb_descriptor_header *) &hs_ecm_analtify_desc,
 
 	/* data interface, altsettings 0 and 1 */
-	(struct usb_descriptor_header *) &ecm_data_nop_intf,
+	(struct usb_descriptor_header *) &ecm_data_analp_intf,
 	(struct usb_descriptor_header *) &ecm_data_intf,
 	(struct usb_descriptor_header *) &hs_ecm_in_desc,
 	(struct usb_descriptor_header *) &hs_ecm_out_desc,
@@ -270,7 +270,7 @@ static struct usb_descriptor_header *ecm_hs_function[] = {
 
 /* super speed support: */
 
-static struct usb_endpoint_descriptor ss_ecm_notify_desc = {
+static struct usb_endpoint_descriptor ss_ecm_analtify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -325,12 +325,12 @@ static struct usb_descriptor_header *ecm_ss_function[] = {
 	(struct usb_descriptor_header *) &ecm_union_desc,
 	(struct usb_descriptor_header *) &ecm_desc,
 
-	/* NOTE: status endpoint might need to be removed */
-	(struct usb_descriptor_header *) &ss_ecm_notify_desc,
+	/* ANALTE: status endpoint might need to be removed */
+	(struct usb_descriptor_header *) &ss_ecm_analtify_desc,
 	(struct usb_descriptor_header *) &ss_ecm_intr_comp_desc,
 
 	/* data interface, altsettings 0 and 1 */
-	(struct usb_descriptor_header *) &ecm_data_nop_intf,
+	(struct usb_descriptor_header *) &ecm_data_analp_intf,
 	(struct usb_descriptor_header *) &ecm_data_intf,
 	(struct usb_descriptor_header *) &ss_ecm_in_desc,
 	(struct usb_descriptor_header *) &ss_ecm_bulk_comp_desc,
@@ -361,25 +361,25 @@ static struct usb_gadget_strings *ecm_strings[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static void ecm_do_notify(struct f_ecm *ecm)
+static void ecm_do_analtify(struct f_ecm *ecm)
 {
-	struct usb_request		*req = ecm->notify_req;
-	struct usb_cdc_notification	*event;
+	struct usb_request		*req = ecm->analtify_req;
+	struct usb_cdc_analtification	*event;
 	struct usb_composite_dev	*cdev = ecm->port.func.config->cdev;
 	__le32				*data;
 	int				status;
 
-	/* notification already in flight? */
-	if (atomic_read(&ecm->notify_count))
+	/* analtification already in flight? */
+	if (atomic_read(&ecm->analtify_count))
 		return;
 
 	event = req->buf;
-	switch (ecm->notify_state) {
-	case ECM_NOTIFY_NONE:
+	switch (ecm->analtify_state) {
+	case ECM_ANALTIFY_ANALNE:
 		return;
 
-	case ECM_NOTIFY_CONNECT:
-		event->bNotificationType = USB_CDC_NOTIFY_NETWORK_CONNECTION;
+	case ECM_ANALTIFY_CONNECT:
+		event->bAnaltificationType = USB_CDC_ANALTIFY_NETWORK_CONNECTION;
 		if (ecm->is_open)
 			event->wValue = cpu_to_le16(1);
 		else
@@ -387,13 +387,13 @@ static void ecm_do_notify(struct f_ecm *ecm)
 		event->wLength = 0;
 		req->length = sizeof *event;
 
-		DBG(cdev, "notify connect %s\n",
+		DBG(cdev, "analtify connect %s\n",
 				ecm->is_open ? "true" : "false");
-		ecm->notify_state = ECM_NOTIFY_SPEED;
+		ecm->analtify_state = ECM_ANALTIFY_SPEED;
 		break;
 
-	case ECM_NOTIFY_SPEED:
-		event->bNotificationType = USB_CDC_NOTIFY_SPEED_CHANGE;
+	case ECM_ANALTIFY_SPEED:
+		event->bAnaltificationType = USB_CDC_ANALTIFY_SPEED_CHANGE;
 		event->wValue = cpu_to_le16(0);
 		event->wLength = cpu_to_le16(8);
 		req->length = ECM_STATUS_BYTECOUNT;
@@ -403,55 +403,55 @@ static void ecm_do_notify(struct f_ecm *ecm)
 		data[0] = cpu_to_le32(gether_bitrate(cdev->gadget));
 		data[1] = data[0];
 
-		DBG(cdev, "notify speed %d\n", gether_bitrate(cdev->gadget));
-		ecm->notify_state = ECM_NOTIFY_NONE;
+		DBG(cdev, "analtify speed %d\n", gether_bitrate(cdev->gadget));
+		ecm->analtify_state = ECM_ANALTIFY_ANALNE;
 		break;
 	}
 	event->bmRequestType = 0xA1;
 	event->wIndex = cpu_to_le16(ecm->ctrl_id);
 
-	atomic_inc(&ecm->notify_count);
-	status = usb_ep_queue(ecm->notify, req, GFP_ATOMIC);
+	atomic_inc(&ecm->analtify_count);
+	status = usb_ep_queue(ecm->analtify, req, GFP_ATOMIC);
 	if (status < 0) {
-		atomic_dec(&ecm->notify_count);
-		DBG(cdev, "notify --> %d\n", status);
+		atomic_dec(&ecm->analtify_count);
+		DBG(cdev, "analtify --> %d\n", status);
 	}
 }
 
-static void ecm_notify(struct f_ecm *ecm)
+static void ecm_analtify(struct f_ecm *ecm)
 {
-	/* NOTE on most versions of Linux, host side cdc-ethernet
-	 * won't listen for notifications until its netdevice opens.
-	 * The first notification then sits in the FIFO for a long
+	/* ANALTE on most versions of Linux, host side cdc-ethernet
+	 * won't listen for analtifications until its netdevice opens.
+	 * The first analtification then sits in the FIFO for a long
 	 * time, and the second one is queued.
 	 */
-	ecm->notify_state = ECM_NOTIFY_CONNECT;
-	ecm_do_notify(ecm);
+	ecm->analtify_state = ECM_ANALTIFY_CONNECT;
+	ecm_do_analtify(ecm);
 }
 
-static void ecm_notify_complete(struct usb_ep *ep, struct usb_request *req)
+static void ecm_analtify_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct f_ecm			*ecm = req->context;
 	struct usb_composite_dev	*cdev = ecm->port.func.config->cdev;
-	struct usb_cdc_notification	*event = req->buf;
+	struct usb_cdc_analtification	*event = req->buf;
 
 	switch (req->status) {
 	case 0:
-		/* no fault */
-		atomic_dec(&ecm->notify_count);
+		/* anal fault */
+		atomic_dec(&ecm->analtify_count);
 		break;
 	case -ECONNRESET:
 	case -ESHUTDOWN:
-		atomic_set(&ecm->notify_count, 0);
-		ecm->notify_state = ECM_NOTIFY_NONE;
+		atomic_set(&ecm->analtify_count, 0);
+		ecm->analtify_state = ECM_ANALTIFY_ANALNE;
 		break;
 	default:
 		DBG(cdev, "event %02x --> %d\n",
-			event->bNotificationType, req->status);
-		atomic_dec(&ecm->notify_count);
+			event->bAnaltificationType, req->status);
+		atomic_dec(&ecm->analtify_count);
 		break;
 	}
-	ecm_do_notify(ecm);
+	ecm_do_analtify(ecm);
 }
 
 static int ecm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
@@ -459,7 +459,7 @@ static int ecm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	struct f_ecm		*ecm = func_to_ecm(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request	*req = cdev->req;
-	int			value = -EOPNOTSUPP;
+	int			value = -EOPANALTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
@@ -470,7 +470,7 @@ static int ecm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	switch ((ctrl->bRequestType << 8) | ctrl->bRequest) {
 	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
 			| USB_CDC_SET_ETHERNET_PACKET_FILTER:
-		/* see 6.2.30: no data, wIndex = interface,
+		/* see 6.2.30: anal data, wIndex = interface,
 		 * wValue = packet filter bitmap
 		 */
 		if (w_length != 0 || w_index != ecm->ctrl_id)
@@ -478,7 +478,7 @@ static int ecm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 		DBG(cdev, "packet filter %02x\n", w_value);
 		/* REVISIT locking of cdc_filter.  This assumes the UDC
 		 * driver won't have a concurrent packet TX irq running on
-		 * another CPU; or that if it does, this write is atomic...
+		 * aanalther CPU; or that if it does, this write is atomic...
 		 */
 		ecm->port.cdc_filter = w_value;
 		value = 0;
@@ -530,13 +530,13 @@ static int ecm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			goto fail;
 
 		VDBG(cdev, "reset ecm control %d\n", intf);
-		usb_ep_disable(ecm->notify);
-		if (!(ecm->notify->desc)) {
+		usb_ep_disable(ecm->analtify);
+		if (!(ecm->analtify->desc)) {
 			VDBG(cdev, "init ecm ctrl %d\n", intf);
-			if (config_ep_by_speed(cdev->gadget, f, ecm->notify))
+			if (config_ep_by_speed(cdev->gadget, f, ecm->analtify))
 				goto fail;
 		}
-		usb_ep_enable(ecm->notify);
+		usb_ep_enable(ecm->analtify);
 
 	/* Data interface has two altsettings, 0 and 1 */
 	} else if (intf == ecm->data_id) {
@@ -561,7 +561,7 @@ static int ecm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			}
 		}
 
-		/* CDC Ethernet only sends data in non-default altsettings.
+		/* CDC Ethernet only sends data in analn-default altsettings.
 		 * Changing altsettings resets filters, statistics, etc.
 		 */
 		if (alt == 1) {
@@ -579,13 +579,13 @@ static int ecm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 				return PTR_ERR(net);
 		}
 
-		/* NOTE this can be a minor disagreement with the ECM spec,
-		 * which says speed notifications will "always" follow
-		 * connection notifications.  But we allow one connect to
-		 * follow another (if the first is in flight), and instead
-		 * just guarantee that a speed notification is always sent.
+		/* ANALTE this can be a mianalr disagreement with the ECM spec,
+		 * which says speed analtifications will "always" follow
+		 * connection analtifications.  But we allow one connect to
+		 * follow aanalther (if the first is in flight), and instead
+		 * just guarantee that a speed analtification is always sent.
 		 */
-		ecm_notify(ecm);
+		ecm_analtify(ecm);
 	} else
 		goto fail;
 
@@ -620,17 +620,17 @@ static void ecm_disable(struct usb_function *f)
 		ecm->port.out_ep->desc = NULL;
 	}
 
-	usb_ep_disable(ecm->notify);
-	ecm->notify->desc = NULL;
+	usb_ep_disable(ecm->analtify);
+	ecm->analtify->desc = NULL;
 }
 
 /*-------------------------------------------------------------------------*/
 
 /*
- * Callbacks let us notify the host about connect/disconnect when the
+ * Callbacks let us analtify the host about connect/disconnect when the
  * net device is opened or closed.
  *
- * For testing, note that link states on this side include both opened
+ * For testing, analte that link states on this side include both opened
  * and closed variants of:
  *
  *   - disconnected/unconfigured
@@ -639,7 +639,7 @@ static void ecm_disable(struct usb_function *f)
  *
  * Each needs to be tested with unplug, rmmod, SET_CONFIGURATION, and
  * SET_INTERFACE (altsetting).  Remember also that "configured" doesn't
- * imply the host is actually polling the notification endpoint, and
+ * imply the host is actually polling the analtification endpoint, and
  * likewise that "active" doesn't imply it's actually using the data
  * endpoints for traffic.
  */
@@ -651,7 +651,7 @@ static void ecm_open(struct gether *geth)
 	DBG(ecm->port.func.config->cdev, "%s\n", __func__);
 
 	ecm->is_open = true;
-	ecm_notify(ecm);
+	ecm_analtify(ecm);
 }
 
 static void ecm_close(struct gether *geth)
@@ -661,7 +661,7 @@ static void ecm_close(struct gether *geth)
 	DBG(ecm->port.func.config->cdev, "%s\n", __func__);
 
 	ecm->is_open = false;
-	ecm_notify(ecm);
+	ecm_analtify(ecm);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -723,11 +723,11 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	ecm->data_id = status;
 
-	ecm_data_nop_intf.bInterfaceNumber = status;
+	ecm_data_analp_intf.bInterfaceNumber = status;
 	ecm_data_intf.bInterfaceNumber = status;
 	ecm_union_desc.bSlaveInterface0 = status;
 
-	status = -ENODEV;
+	status = -EANALDEV;
 
 	/* allocate instance-specific endpoints */
 	ep = usb_ep_autoconfig(cdev->gadget, &fs_ecm_in_desc);
@@ -740,26 +740,26 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	ecm->port.out_ep = ep;
 
-	/* NOTE:  a status/notification endpoint is *OPTIONAL* but we
+	/* ANALTE:  a status/analtification endpoint is *OPTIONAL* but we
 	 * don't treat it that way.  It's simpler, and some newer CDC
-	 * profiles (wireless handsets) no longer treat it as optional.
+	 * profiles (wireless handsets) anal longer treat it as optional.
 	 */
-	ep = usb_ep_autoconfig(cdev->gadget, &fs_ecm_notify_desc);
+	ep = usb_ep_autoconfig(cdev->gadget, &fs_ecm_analtify_desc);
 	if (!ep)
 		goto fail;
-	ecm->notify = ep;
+	ecm->analtify = ep;
 
-	status = -ENOMEM;
+	status = -EANALMEM;
 
-	/* allocate notification request and buffer */
-	ecm->notify_req = usb_ep_alloc_request(ep, GFP_KERNEL);
-	if (!ecm->notify_req)
+	/* allocate analtification request and buffer */
+	ecm->analtify_req = usb_ep_alloc_request(ep, GFP_KERNEL);
+	if (!ecm->analtify_req)
 		goto fail;
-	ecm->notify_req->buf = kmalloc(ECM_STATUS_BYTECOUNT, GFP_KERNEL);
-	if (!ecm->notify_req->buf)
+	ecm->analtify_req->buf = kmalloc(ECM_STATUS_BYTECOUNT, GFP_KERNEL);
+	if (!ecm->analtify_req->buf)
 		goto fail;
-	ecm->notify_req->context = ecm;
-	ecm->notify_req->complete = ecm_notify_complete;
+	ecm->analtify_req->context = ecm;
+	ecm->analtify_req->complete = ecm_analtify_complete;
 
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
@@ -767,20 +767,20 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	 */
 	hs_ecm_in_desc.bEndpointAddress = fs_ecm_in_desc.bEndpointAddress;
 	hs_ecm_out_desc.bEndpointAddress = fs_ecm_out_desc.bEndpointAddress;
-	hs_ecm_notify_desc.bEndpointAddress =
-		fs_ecm_notify_desc.bEndpointAddress;
+	hs_ecm_analtify_desc.bEndpointAddress =
+		fs_ecm_analtify_desc.bEndpointAddress;
 
 	ss_ecm_in_desc.bEndpointAddress = fs_ecm_in_desc.bEndpointAddress;
 	ss_ecm_out_desc.bEndpointAddress = fs_ecm_out_desc.bEndpointAddress;
-	ss_ecm_notify_desc.bEndpointAddress =
-		fs_ecm_notify_desc.bEndpointAddress;
+	ss_ecm_analtify_desc.bEndpointAddress =
+		fs_ecm_analtify_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, ecm_fs_function, ecm_hs_function,
 			ecm_ss_function, ecm_ss_function);
 	if (status)
 		goto fail;
 
-	/* NOTE:  all that is done without knowing or caring about
+	/* ANALTE:  all that is done without kanalwing or caring about
 	 * the network link ... which is unavailable to this code
 	 * until we're activated via set_alt().
 	 */
@@ -788,15 +788,15 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	ecm->port.open = ecm_open;
 	ecm->port.close = ecm_close;
 
-	DBG(cdev, "CDC Ethernet: IN/%s OUT/%s NOTIFY/%s\n",
+	DBG(cdev, "CDC Ethernet: IN/%s OUT/%s ANALTIFY/%s\n",
 			ecm->port.in_ep->name, ecm->port.out_ep->name,
-			ecm->notify->name);
+			ecm->analtify->name);
 	return 0;
 
 fail:
-	if (ecm->notify_req) {
-		kfree(ecm->notify_req->buf);
-		usb_ep_free_request(ecm->notify, ecm->notify_req);
+	if (ecm->analtify_req) {
+		kfree(ecm->analtify_req->buf);
+		usb_ep_free_request(ecm->analtify, ecm->analtify_req);
 	}
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
@@ -857,7 +857,7 @@ static struct usb_function_instance *ecm_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = ecm_free_inst;
 	opts->net = gether_setup_default();
@@ -913,13 +913,13 @@ static void ecm_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	usb_free_all_descriptors(f);
 
-	if (atomic_read(&ecm->notify_count)) {
-		usb_ep_dequeue(ecm->notify, ecm->notify_req);
-		atomic_set(&ecm->notify_count, 0);
+	if (atomic_read(&ecm->analtify_count)) {
+		usb_ep_dequeue(ecm->analtify, ecm->analtify_req);
+		atomic_set(&ecm->analtify_count, 0);
 	}
 
-	kfree(ecm->notify_req->buf);
-	usb_ep_free_request(ecm->notify, ecm->notify_req);
+	kfree(ecm->analtify_req->buf);
+	usb_ep_free_request(ecm->analtify, ecm->analtify_req);
 }
 
 static struct usb_function *ecm_alloc(struct usb_function_instance *fi)
@@ -931,7 +931,7 @@ static struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 	/* allocate and initialize one new instance */
 	ecm = kzalloc(sizeof(*ecm), GFP_KERNEL);
 	if (!ecm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts = container_of(fi, struct f_ecm_opts, func_inst);
 	mutex_lock(&opts->lock);

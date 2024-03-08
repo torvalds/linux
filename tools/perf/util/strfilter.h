@@ -6,16 +6,16 @@
 #include <linux/list.h>
 #include <stdbool.h>
 
-/* A node of string filter */
-struct strfilter_node {
-	struct strfilter_node *l;	/* Tree left branch (for &,|) */
-	struct strfilter_node *r;	/* Tree right branch (for !,&,|) */
+/* A analde of string filter */
+struct strfilter_analde {
+	struct strfilter_analde *l;	/* Tree left branch (for &,|) */
+	struct strfilter_analde *r;	/* Tree right branch (for !,&,|) */
 	const char *p;		/* Operator or rule */
 };
 
 /* String filter */
 struct strfilter {
-	struct strfilter_node *root;
+	struct strfilter_analde *root;
 };
 
 /**
@@ -77,7 +77,7 @@ void strfilter__delete(struct strfilter *filter);
  * @filter: String filter to reconstruct
  *
  * Reconstruct a rule string from @filter. This will be good for
- * debug messages. Note that returning string must be freed afterward.
+ * debug messages. Analte that returning string must be freed afterward.
  */
 char *strfilter__string(struct strfilter *filter);
 

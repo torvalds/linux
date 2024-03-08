@@ -141,7 +141,7 @@ enum mt7615_reg_base {
 #define MT_MCU_CMD_STOP_PDMA		BIT(2)
 #define MT_MCU_CMD_RESET_DONE		BIT(3)
 #define MT_MCU_CMD_RECOVERY_DONE	BIT(4)
-#define MT_MCU_CMD_NORMAL_STATE		BIT(5)
+#define MT_MCU_CMD_ANALRMAL_STATE		BIT(5)
 #define MT_MCU_CMD_LMAC_ERROR		BIT(24)
 #define MT_MCU_CMD_PSE_ERROR		BIT(25)
 #define MT_MCU_CMD_PLE_ERROR		BIT(26)
@@ -278,8 +278,8 @@ enum mt7615_reg_base {
 #define MT_AGG_ASRCR_RANGE(val, n)	(((val) >> ((n) << 3)) & GENMASK(5, 0))
 
 #define MT_AGG_ACR(_band)		MT_WF_AGG(0x070 + (_band) * 0x100)
-#define MT_AGG_ACR_NO_BA_RULE		BIT(0)
-#define MT_AGG_ACR_NO_BA_AR_RULE	BIT(1)
+#define MT_AGG_ACR_ANAL_BA_RULE		BIT(0)
+#define MT_AGG_ACR_ANAL_BA_AR_RULE	BIT(1)
 #define MT_AGG_ACR_PKT_TIME_EN		BIT(2)
 #define MT_AGG_ACR_CFEND_RATE		GENMASK(15, 4)
 #define MT_AGG_ACR_BAR_RATE		GENMASK(31, 20)
@@ -394,7 +394,7 @@ enum mt7615_reg_base {
 
 #define MT_DMA_RCFR0(_band)		MT_WF_DMA(0x070 + (_band) * 0x40)
 #define MT_DMA_RCFR0_MCU_RX_MGMT	BIT(2)
-#define MT_DMA_RCFR0_MCU_RX_CTL_NON_BAR	BIT(3)
+#define MT_DMA_RCFR0_MCU_RX_CTL_ANALN_BAR	BIT(3)
 #define MT_DMA_RCFR0_MCU_RX_CTL_BAR	BIT(4)
 #define MT_DMA_RCFR0_MCU_RX_TDLS	BIT(19)
 #define MT_DMA_RCFR0_MCU_RX_BYPASS	BIT(21)

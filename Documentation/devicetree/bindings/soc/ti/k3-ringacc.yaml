@@ -15,7 +15,7 @@ description: |
   The Ring Accelerator (RA) is a machine which converts read/write accesses
   from/to a constant address into corresponding read/write accesses from/to a
   circular data structure in memory. The RA eliminates the need for each DMA
-  controller which needs to access ring elements from having to know the current
+  controller which needs to access ring elements from having to kanalw the current
   state of the ring (base address, current offset). The DMA controller
   performs a read or write access to a specific address range (which maps to the
   source interface on the RA) and the RA replaces the address for the transaction

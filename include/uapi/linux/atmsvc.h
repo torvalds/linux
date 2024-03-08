@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* atmsvc.h - ATM signaling kernel-demon interface definitions */
  
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -17,7 +17,7 @@
 
 enum atmsvc_msg_type { as_catch_null, as_bind, as_connect, as_accept, as_reject,
 		       as_listen, as_okay, as_error, as_indicate, as_close,
-		       as_itf_notify, as_modify, as_identify, as_terminate,
+		       as_itf_analtify, as_modify, as_identify, as_terminate,
 		       as_addparty, as_dropparty };
 
 struct atmsvc_msg {
@@ -45,7 +45,7 @@ struct atmsvc_msg {
 /*
  * Some policy stuff for atmsigd and for net/atm/svc.c. Both have to agree on
  * what PCR is used to request bandwidth from the device driver. net/atm/svc.c
- * tries to do better than that, but only if there's no routing decision (i.e.
+ * tries to do better than that, but only if there's anal routing decision (i.e.
  * if signaling only uses one ATM interface).
  */
 

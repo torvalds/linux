@@ -22,8 +22,8 @@ What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_np
 Date:		October 2022
 KernelVersion:	6.1
 Contact:	Yicong Yang <yangyicong@hisilicon.com>
-Description:	(RW) Controls the weight of Tx non-posted TLPs, which influence
-		the proportion of outbound non-posted TLPs on the PCIe link.
+Description:	(RW) Controls the weight of Tx analn-posted TLPs, which influence
+		the proportion of outbound analn-posted TLPs on the PCIe link.
 		The available tune data is [0, 1, 2]. Writing a negative value
 		will return an error, and out of range values will be converted
 		to 2. The value indicates a probable level of the event.

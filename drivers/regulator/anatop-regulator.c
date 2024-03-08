@@ -155,8 +155,8 @@ static const struct regulator_ops anatop_core_rops = {
 static int anatop_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *anatop_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *anatop_np;
 	struct regulator_desc *rdesc;
 	struct regulator_dev *rdev;
 	struct anatop_regulator *sreg;
@@ -174,7 +174,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 
 	sreg = devm_kzalloc(dev, sizeof(*sreg), GFP_KERNEL);
 	if (!sreg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdesc = &sreg->rdesc;
 	rdesc->type = REGULATOR_VOLTAGE;
@@ -188,46 +188,46 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 
 	initdata = of_get_regulator_init_data(dev, np, rdesc);
 	if (!initdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	initdata->supply_regulator = "vin";
 
 	anatop_np = of_get_parent(np);
 	if (!anatop_np)
-		return -ENODEV;
-	regmap = syscon_node_to_regmap(anatop_np);
-	of_node_put(anatop_np);
+		return -EANALDEV;
+	regmap = syscon_analde_to_regmap(anatop_np);
+	of_analde_put(anatop_np);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	ret = of_property_read_u32(np, "anatop-reg-offset", &control_reg);
 	if (ret) {
-		dev_err(dev, "no anatop-reg-offset property set\n");
+		dev_err(dev, "anal anatop-reg-offset property set\n");
 		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-vol-bit-width", &vol_bit_width);
 	if (ret) {
-		dev_err(dev, "no anatop-vol-bit-width property set\n");
+		dev_err(dev, "anal anatop-vol-bit-width property set\n");
 		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-vol-bit-shift", &vol_bit_shift);
 	if (ret) {
-		dev_err(dev, "no anatop-vol-bit-shift property set\n");
+		dev_err(dev, "anal anatop-vol-bit-shift property set\n");
 		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-min-bit-val", &min_bit_val);
 	if (ret) {
-		dev_err(dev, "no anatop-min-bit-val property set\n");
+		dev_err(dev, "anal anatop-min-bit-val property set\n");
 		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-min-voltage", &min_voltage);
 	if (ret) {
-		dev_err(dev, "no anatop-min-voltage property set\n");
+		dev_err(dev, "anal anatop-min-voltage property set\n");
 		return ret;
 	}
 	ret = of_property_read_u32(np, "anatop-max-voltage", &max_voltage);
 	if (ret) {
-		dev_err(dev, "no anatop-max-voltage property set\n");
+		dev_err(dev, "anal anatop-max-voltage property set\n");
 		return ret;
 	}
 
@@ -251,7 +251,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = sreg;
-	config.of_node = pdev->dev.of_node;
+	config.of_analde = pdev->dev.of_analde;
 	config.regmap = regmap;
 
 	/* Only core regulators have the ramp up delay configuration. */
@@ -328,7 +328,7 @@ MODULE_DEVICE_TABLE(of, of_anatop_regulator_match_tbl);
 static struct platform_driver anatop_regulator_driver = {
 	.driver = {
 		.name	= "anatop_regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_anatop_regulator_match_tbl,
 	},
 	.probe	= anatop_regulator_probe,

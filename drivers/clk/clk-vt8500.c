@@ -14,7 +14,7 @@
 
 #define LEGACY_PMC_BASE		0xD8130000
 
-/* All clocks share the same lock as none can be changed concurrently */
+/* All clocks share the same lock as analne can be changed concurrently */
 static DEFINE_SPINLOCK(_lock);
 
 struct clk_device {
@@ -27,7 +27,7 @@ struct clk_device {
 };
 
 /*
- * Add new PLL_TYPE_x definitions here as required. Use the first known model
+ * Add new PLL_TYPE_x definitions here as required. Use the first kanalwn model
  * to support the new type as the name.
  * Add case statements to vtwm_pll_recalc_rate(), vtwm_pll_round_round() and
  * vtwm_pll_set_rate() to handle the new PLL_TYPE_x
@@ -49,14 +49,14 @@ static void __iomem *pmc_base;
 
 static __init void vtwm_set_pmc_base(void)
 {
-	struct device_node *np =
-		of_find_compatible_node(NULL, NULL, "via,vt8500-pmc");
+	struct device_analde *np =
+		of_find_compatible_analde(NULL, NULL, "via,vt8500-pmc");
 
 	if (np)
 		pmc_base = of_iomap(np, 0);
 	else
 		pmc_base = ioremap(LEGACY_PMC_BASE, 0x1000);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!pmc_base)
 		pr_err("%s:of_iomap(pmc) failed\n", __func__);
@@ -220,12 +220,12 @@ static const struct clk_ops vt8500_gated_divisor_clk_ops = {
 #define CLK_INIT_DIVISOR		BIT(1)
 #define CLK_INIT_GATED_DIVISOR		(CLK_INIT_DIVISOR | CLK_INIT_GATED)
 
-static __init void vtwm_device_clk_init(struct device_node *node)
+static __init void vtwm_device_clk_init(struct device_analde *analde)
 {
 	u32 en_reg, div_reg;
 	struct clk_hw *hw;
 	struct clk_device *dev_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parent_name;
 	struct clk_init_data init;
 	int rc;
@@ -240,10 +240,10 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 
 	dev_clk->lock = &_lock;
 
-	rc = of_property_read_u32(node, "enable-reg", &en_reg);
+	rc = of_property_read_u32(analde, "enable-reg", &en_reg);
 	if (!rc) {
 		dev_clk->en_reg = pmc_base + en_reg;
-		rc = of_property_read_u32(node, "enable-bit", &dev_clk->en_bit);
+		rc = of_property_read_u32(analde, "enable-bit", &dev_clk->en_bit);
 		if (rc) {
 			pr_err("%s: enable-bit property required for gated clock\n",
 								__func__);
@@ -252,7 +252,7 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 		clk_init_flags |= CLK_INIT_GATED;
 	}
 
-	rc = of_property_read_u32(node, "divisor-reg", &div_reg);
+	rc = of_property_read_u32(analde, "divisor-reg", &div_reg);
 	if (!rc) {
 		dev_clk->div_reg = pmc_base + div_reg;
 		/*
@@ -261,11 +261,11 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 		 */
 		dev_clk->div_mask = 0x1f;
 
-		of_property_read_u32(node, "divisor-mask", &dev_clk->div_mask);
+		of_property_read_u32(analde, "divisor-mask", &dev_clk->div_mask);
 		clk_init_flags |= CLK_INIT_DIVISOR;
 	}
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	switch (clk_init_flags) {
 	case CLK_INIT_GATED:
@@ -286,7 +286,7 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 
 	init.name = clk_name;
 	init.flags = 0;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(analde, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -298,7 +298,7 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 		kfree(dev_clk);
 		return;
 	}
-	rc = of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
+	rc = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, hw);
 	clk_hw_register_clkdev(hw, clk_name, NULL);
 }
 CLK_OF_DECLARE(vt8500_device, "via,vt8500-device-clock", vtwm_device_clk_init);
@@ -398,7 +398,7 @@ static int wm8650_find_pll_bits(unsigned long rate,
 	*divisor2 = rate <= 75000000 ? 3 : rate <= 150000000 ? 2 :
 					   rate <= 300000000 ? 1 : 0;
 	/*
-	 * Divisor P cannot be calculated. Test all divisors and find where M
+	 * Divisor P cananalt be calculated. Test all divisors and find where M
 	 * will be as close as possible to the requested rate.
 	 */
 	min_err = ULONG_MAX;
@@ -670,12 +670,12 @@ static const struct clk_ops vtwm_pll_ops = {
 	.recalc_rate = vtwm_pll_recalc_rate,
 };
 
-static __init void vtwm_pll_clk_init(struct device_node *node, int pll_type)
+static __init void vtwm_pll_clk_init(struct device_analde *analde, int pll_type)
 {
 	u32 reg;
 	struct clk_hw *hw;
 	struct clk_pll *pll_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parent_name;
 	struct clk_init_data init;
 	int rc;
@@ -683,7 +683,7 @@ static __init void vtwm_pll_clk_init(struct device_node *node, int pll_type)
 	if (!pmc_base)
 		vtwm_set_pmc_base();
 
-	rc = of_property_read_u32(node, "reg", &reg);
+	rc = of_property_read_u32(analde, "reg", &reg);
 	if (WARN_ON(rc))
 		return;
 
@@ -695,12 +695,12 @@ static __init void vtwm_pll_clk_init(struct device_node *node, int pll_type)
 	pll_clk->lock = &_lock;
 	pll_clk->type = pll_type;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = &vtwm_pll_ops;
 	init.flags = 0;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(analde, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -712,33 +712,33 @@ static __init void vtwm_pll_clk_init(struct device_node *node, int pll_type)
 		kfree(pll_clk);
 		return;
 	}
-	rc = of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
+	rc = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, hw);
 	clk_hw_register_clkdev(hw, clk_name, NULL);
 }
 
 
 /* Wrappers for initialization functions */
 
-static void __init vt8500_pll_init(struct device_node *node)
+static void __init vt8500_pll_init(struct device_analde *analde)
 {
-	vtwm_pll_clk_init(node, PLL_TYPE_VT8500);
+	vtwm_pll_clk_init(analde, PLL_TYPE_VT8500);
 }
 CLK_OF_DECLARE(vt8500_pll, "via,vt8500-pll-clock", vt8500_pll_init);
 
-static void __init wm8650_pll_init(struct device_node *node)
+static void __init wm8650_pll_init(struct device_analde *analde)
 {
-	vtwm_pll_clk_init(node, PLL_TYPE_WM8650);
+	vtwm_pll_clk_init(analde, PLL_TYPE_WM8650);
 }
 CLK_OF_DECLARE(wm8650_pll, "wm,wm8650-pll-clock", wm8650_pll_init);
 
-static void __init wm8750_pll_init(struct device_node *node)
+static void __init wm8750_pll_init(struct device_analde *analde)
 {
-	vtwm_pll_clk_init(node, PLL_TYPE_WM8750);
+	vtwm_pll_clk_init(analde, PLL_TYPE_WM8750);
 }
 CLK_OF_DECLARE(wm8750_pll, "wm,wm8750-pll-clock", wm8750_pll_init);
 
-static void __init wm8850_pll_init(struct device_node *node)
+static void __init wm8850_pll_init(struct device_analde *analde)
 {
-	vtwm_pll_clk_init(node, PLL_TYPE_WM8850);
+	vtwm_pll_clk_init(analde, PLL_TYPE_WM8850);
 }
 CLK_OF_DECLARE(wm8850_pll, "wm,wm8850-pll-clock", wm8850_pll_init);

@@ -17,14 +17,14 @@ MODULE_LICENSE("GPL");
 /*
  * Pull in the reference implementations while instructing GCC (through
  * -ftree-vectorize) to attempt to exploit implicit parallelism and emit
- * NEON instructions. Clang does this by default at O2 so no pragma is
+ * NEON instructions. Clang does this by default at O2 so anal pragma is
  * needed.
  */
 #ifdef CONFIG_CC_IS_GCC
 #pragma GCC optimize "tree-vectorize"
 #endif
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diaganalstic iganalred "-Wunused-variable"
 #include <asm-generic/xor.h>
 
 struct xor_block_template const xor_block_neon_inner = {

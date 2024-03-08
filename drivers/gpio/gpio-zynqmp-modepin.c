@@ -55,7 +55,7 @@ static int modepin_gpio_get_value(struct gpio_chip *chip, unsigned int pin)
  * This function reads the state of the specified pin of the GPIO device, mask
  * with the capture state of GPIO pin, and update pin of GPIO device.
  *
- * Return:	None.
+ * Return:	Analne.
  */
 static void modepin_gpio_set_value(struct gpio_chip *chip, unsigned int pin,
 				   int state)
@@ -118,7 +118,7 @@ static int modepin_gpio_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, chip);
 

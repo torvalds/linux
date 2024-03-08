@@ -59,7 +59,7 @@ static int hiface_chip_create(struct usb_interface *intf,
 	ret = snd_card_new(&intf->dev, index[idx], id[idx], THIS_MODULE,
 			   sizeof(*chip), &card);
 	if (ret < 0) {
-		dev_err(&device->dev, "cannot create alsa card.\n");
+		dev_err(&device->dev, "cananalt create alsa card.\n");
 		return ret;
 	}
 
@@ -108,8 +108,8 @@ static int hiface_chip_probe(struct usb_interface *intf,
 			break;
 
 	if (i >= SNDRV_CARDS) {
-		dev_err(&device->dev, "no available " CARD_NAME " audio device\n");
-		ret = -ENODEV;
+		dev_err(&device->dev, "anal available " CARD_NAME " audio device\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -123,7 +123,7 @@ static int hiface_chip_probe(struct usb_interface *intf,
 
 	ret = snd_card_register(chip->card);
 	if (ret < 0) {
-		dev_err(&device->dev, "cannot register " CARD_NAME " card\n");
+		dev_err(&device->dev, "cananalt register " CARD_NAME " card\n");
 		goto err_chip_destroy;
 	}
 
@@ -150,7 +150,7 @@ static void hiface_chip_disconnect(struct usb_interface *intf)
 
 	card = chip->card;
 
-	/* Make sure that the userspace cannot create new request */
+	/* Make sure that the userspace cananalt create new request */
 	snd_card_disconnect(card);
 
 	hiface_pcm_abort(chip);
@@ -174,7 +174,7 @@ static const struct usb_device_id device_table[] = {
 	{
 		USB_DEVICE(0x04b4, 0x931b),
 		.driver_info = (unsigned long)&(const struct hiface_vendor_quirk) {
-			.device_name = "North Star",
+			.device_name = "Analrth Star",
 		}
 	},
 	{
@@ -222,7 +222,7 @@ static const struct usb_device_id device_table[] = {
 	{
 		USB_DEVICE(0x249c, 0x9002),
 		.driver_info = (unsigned long)&(const struct hiface_vendor_quirk) {
-			.device_name = "Metronome",
+			.device_name = "Metroanalme",
 		}
 	},
 	{

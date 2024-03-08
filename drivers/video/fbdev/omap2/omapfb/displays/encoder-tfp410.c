@@ -75,7 +75,7 @@ static int tfp410_enable(struct omap_dss_device *dssdev)
 	int r;
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
@@ -170,12 +170,12 @@ static int tfp410_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev;
 	int r;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddata);
 
@@ -189,7 +189,7 @@ static int tfp410_probe(struct platform_device *pdev)
 
 	gpiod_set_consumer_name(ddata->pd_gpio, "tfp410 PD");
 
-	ddata->in = omapdss_of_find_source_for_first_ep(pdev->dev.of_node);
+	ddata->in = omapdss_of_find_source_for_first_ep(pdev->dev.of_analde);
 	r = PTR_ERR_OR_ZERO(ddata->in);
 	if (r) {
 		dev_err(&pdev->dev, "failed to find video source: %d\n", r);

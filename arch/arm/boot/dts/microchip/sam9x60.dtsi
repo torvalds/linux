@@ -2,7 +2,7 @@
 /*
  * sam9x60.dtsi - Device Tree Include file for Microchip SAM9X60 SoC
  *
- * Copyright (C) 2019 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2019 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Sandeep Sheriker M <sandeepsheriker.mallikarjun@microchip.com>
  */

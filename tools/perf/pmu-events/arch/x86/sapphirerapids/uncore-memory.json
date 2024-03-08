@@ -16,24 +16,24 @@
     {
         "BriefDescription": "Cycles when direct to core mode (which bypasses the CHA) was disabled",
         "EventCode": "0x17",
-        "EventName": "UNC_M2HBM_DIRECT2CORE_NOT_TAKEN_DIRSTATE",
+        "EventName": "UNC_M2HBM_DIRECT2CORE_ANALT_TAKEN_DIRSTATE",
         "PerPkg": "1",
         "UMask": "0x7",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Cycles when direct to core mode, which bypasses the CHA, was disabled : Non Cisgress",
+        "BriefDescription": "Cycles when direct to core mode, which bypasses the CHA, was disabled : Analn Cisgress",
         "EventCode": "0x17",
-        "EventName": "UNC_M2HBM_DIRECT2CORE_NOT_TAKEN_DIRSTATE.NON_CISGRESS",
+        "EventName": "UNC_M2HBM_DIRECT2CORE_ANALT_TAKEN_DIRSTATE.ANALN_CISGRESS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of time non cisgress D2C was not honoured by egress due to directory state constraints",
+        "PublicDescription": "Counts the number of time analn cisgress D2C was analt hoanalured by egress due to directory state constraints",
         "UMask": "0x2",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Counts the time when FM didn't do d2c for fill reads (cross tile case)",
         "EventCode": "0x4a",
-        "EventName": "UNC_M2HBM_DIRECT2CORE_NOT_TAKEN_NOTFORKED",
+        "EventName": "UNC_M2HBM_DIRECT2CORE_ANALT_TAKEN_ANALTFORKED",
         "PerPkg": "1",
         "Unit": "M2HBM"
     },
@@ -56,7 +56,7 @@
     {
         "BriefDescription": "Number of reads in which direct to Intel UPI transactions were overridden",
         "EventCode": "0x1b",
-        "EventName": "UNC_M2HBM_DIRECT2UPI_NOT_TAKEN_CREDITS",
+        "EventName": "UNC_M2HBM_DIRECT2UPI_ANALT_TAKEN_CREDITS",
         "PerPkg": "1",
         "UMask": "0x7",
         "Unit": "M2HBM"
@@ -64,41 +64,41 @@
     {
         "BriefDescription": "Cycles when direct to Intel UPI was disabled",
         "EventCode": "0x1a",
-        "EventName": "UNC_M2HBM_DIRECT2UPI_NOT_TAKEN_DIRSTATE",
+        "EventName": "UNC_M2HBM_DIRECT2UPI_ANALT_TAKEN_DIRSTATE",
         "PerPkg": "1",
         "UMask": "0x7",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Cycles when Direct2UPI was Disabled : Cisgress D2U Ignored",
+        "BriefDescription": "Cycles when Direct2UPI was Disabled : Cisgress D2U Iganalred",
         "EventCode": "0x1A",
-        "EventName": "UNC_M2HBM_DIRECT2UPI_NOT_TAKEN_DIRSTATE.CISGRESS",
+        "EventName": "UNC_M2HBM_DIRECT2UPI_ANALT_TAKEN_DIRSTATE.CISGRESS",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts cisgress d2K that was not honored due to directory constraints",
+        "PublicDescription": "Counts cisgress d2K that was analt hoanalred due to directory constraints",
         "UMask": "0x4",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Cycles when Direct2UPI was Disabled : Egress Ignored D2U",
+        "BriefDescription": "Cycles when Direct2UPI was Disabled : Egress Iganalred D2U",
         "EventCode": "0x1A",
-        "EventName": "UNC_M2HBM_DIRECT2UPI_NOT_TAKEN_DIRSTATE.EGRESS",
+        "EventName": "UNC_M2HBM_DIRECT2UPI_ANALT_TAKEN_DIRSTATE.EGRESS",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts the number of time D2K was not honoured by egress due to directory state constraints",
+        "PublicDescription": "Counts the number of time D2K was analt hoanalured by egress due to directory state constraints",
         "UMask": "0x1",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Cycles when Direct2UPI was Disabled : Non Cisgress D2U Ignored",
+        "BriefDescription": "Cycles when Direct2UPI was Disabled : Analn Cisgress D2U Iganalred",
         "EventCode": "0x1A",
-        "EventName": "UNC_M2HBM_DIRECT2UPI_NOT_TAKEN_DIRSTATE.NON_CISGRESS",
+        "EventName": "UNC_M2HBM_DIRECT2UPI_ANALT_TAKEN_DIRSTATE.ANALN_CISGRESS",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts non cisgress d2K that was not honored due to directory constraints",
+        "PublicDescription": "Counts analn cisgress d2K that was analt hoanalred due to directory constraints",
         "UMask": "0x2",
         "Unit": "M2HBM"
     },
@@ -119,7 +119,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Directory Hit : On NonDirty Line in A State",
+        "BriefDescription": "Directory Hit : On AnalnDirty Line in A State",
         "EventCode": "0x1d",
         "EventName": "UNC_M2HBM_DIRECTORY_HIT.CLEAN_A",
         "PerPkg": "1",
@@ -127,7 +127,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Directory Hit : On NonDirty Line in I State",
+        "BriefDescription": "Directory Hit : On AnalnDirty Line in I State",
         "EventCode": "0x1d",
         "EventName": "UNC_M2HBM_DIRECTORY_HIT.CLEAN_I",
         "PerPkg": "1",
@@ -135,7 +135,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Directory Hit : On NonDirty Line in L State",
+        "BriefDescription": "Directory Hit : On AnalnDirty Line in L State",
         "EventCode": "0x1d",
         "EventName": "UNC_M2HBM_DIRECTORY_HIT.CLEAN_P",
         "PerPkg": "1",
@@ -143,7 +143,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Directory Hit : On NonDirty Line in S State",
+        "BriefDescription": "Directory Hit : On AnalnDirty Line in S State",
         "EventCode": "0x1d",
         "EventName": "UNC_M2HBM_DIRECTORY_HIT.CLEAN_S",
         "PerPkg": "1",
@@ -187,7 +187,7 @@
         "EventCode": "0x20",
         "EventName": "UNC_M2HBM_DIRECTORY_LOOKUP.ANY",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of hit data returns to egress with any directory to non persistent memory",
+        "PublicDescription": "Counts the number of hit data returns to egress with any directory to analn persistent memory",
         "UMask": "0x1",
         "Unit": "M2HBM"
     },
@@ -196,7 +196,7 @@
         "EventCode": "0x20",
         "EventName": "UNC_M2HBM_DIRECTORY_LOOKUP.STATE_A",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of hit data returns to egress with directory A to non persistent memory",
+        "PublicDescription": "Counts the number of hit data returns to egress with directory A to analn persistent memory",
         "UMask": "0x8",
         "Unit": "M2HBM"
     },
@@ -205,7 +205,7 @@
         "EventCode": "0x20",
         "EventName": "UNC_M2HBM_DIRECTORY_LOOKUP.STATE_I",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of hit data returns to egress with directory I to non persistent memory",
+        "PublicDescription": "Counts the number of hit data returns to egress with directory I to analn persistent memory",
         "UMask": "0x2",
         "Unit": "M2HBM"
     },
@@ -214,12 +214,12 @@
         "EventCode": "0x20",
         "EventName": "UNC_M2HBM_DIRECTORY_LOOKUP.STATE_S",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of hit data returns to egress with directory S to non persistent memory",
+        "PublicDescription": "Counts the number of hit data returns to egress with directory S to analn persistent memory",
         "UMask": "0x4",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Directory Miss : On NonDirty Line in A State",
+        "BriefDescription": "Directory Miss : On AnalnDirty Line in A State",
         "EventCode": "0x1e",
         "EventName": "UNC_M2HBM_DIRECTORY_MISS.CLEAN_A",
         "PerPkg": "1",
@@ -227,7 +227,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Directory Miss : On NonDirty Line in I State",
+        "BriefDescription": "Directory Miss : On AnalnDirty Line in I State",
         "EventCode": "0x1e",
         "EventName": "UNC_M2HBM_DIRECTORY_MISS.CLEAN_I",
         "PerPkg": "1",
@@ -235,7 +235,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Directory Miss : On NonDirty Line in L State",
+        "BriefDescription": "Directory Miss : On AnalnDirty Line in L State",
         "EventCode": "0x1e",
         "EventName": "UNC_M2HBM_DIRECTORY_MISS.CLEAN_P",
         "PerPkg": "1",
@@ -243,7 +243,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Directory Miss : On NonDirty Line in S State",
+        "BriefDescription": "Directory Miss : On AnalnDirty Line in S State",
         "EventCode": "0x1e",
         "EventName": "UNC_M2HBM_DIRECTORY_MISS.CLEAN_S",
         "PerPkg": "1",
@@ -309,55 +309,55 @@
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.A_TO_I_HIT_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.A_TO_I_HIT_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from A to I to non persistent memory",
+        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from A to I to analn persistent memory",
         "UMask": "0x120",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.A_TO_I_MISS_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.A_TO_I_MISS_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from A to I to non persistent memory",
+        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from A to I to analn persistent memory",
         "UMask": "0x220",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.A_TO_S_HIT_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.A_TO_S_HIT_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from A to S to non persistent memory",
+        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from A to S to analn persistent memory",
         "UMask": "0x140",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.A_TO_S_MISS_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.A_TO_S_MISS_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from A to S to non persistent memory",
+        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from A to S to analn persistent memory",
         "UMask": "0x240",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.HIT_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.HIT_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts any 1lm or 2lm hit data return that would result in directory update to non persistent memory",
+        "PublicDescription": "Counts any 1lm or 2lm hit data return that would result in directory update to analn persistent memory",
         "UMask": "0x101",
         "Unit": "M2HBM"
     },
@@ -380,55 +380,55 @@
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.I_TO_A_HIT_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.I_TO_A_HIT_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from I to A to non persistent memory",
+        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from I to A to analn persistent memory",
         "UMask": "0x104",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.I_TO_A_MISS_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.I_TO_A_MISS_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from I to A to non persistent memory",
+        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from I to A to analn persistent memory",
         "UMask": "0x204",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.I_TO_S_HIT_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.I_TO_S_HIT_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from I to S to non persistent memory",
+        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from I to S to analn persistent memory",
         "UMask": "0x102",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.I_TO_S_MISS_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.I_TO_S_MISS_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts  2lm miss  data returns that would result in directory update from I to S to non persistent memory",
+        "PublicDescription": "Counts  2lm miss  data returns that would result in directory update from I to S to analn persistent memory",
         "UMask": "0x202",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.MISS_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.MISS_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts any 2lm miss data return that would result in directory update to non persistent memory",
+        "PublicDescription": "Counts any 2lm miss data return that would result in directory update to analn persistent memory",
         "UMask": "0x201",
         "Unit": "M2HBM"
     },
@@ -451,44 +451,44 @@
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.S_TO_A_HIT_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.S_TO_A_HIT_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from S to A to non persistent memory",
+        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from S to A to analn persistent memory",
         "UMask": "0x110",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.S_TO_A_MISS_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.S_TO_A_MISS_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from S to A to non persistent memory",
+        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from S to A to analn persistent memory",
         "UMask": "0x210",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.S_TO_I_HIT_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.S_TO_I_HIT_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from S to I to non persistent memory",
+        "PublicDescription": "Counts 1lm or 2lm hit  data returns that would result in directory update from S to I to analn persistent memory",
         "UMask": "0x108",
         "Unit": "M2HBM"
     },
     {
         "BriefDescription": "Multi-socket cacheline Directory Updates",
         "EventCode": "0x21",
-        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.S_TO_I_MISS_NON_PMM",
+        "EventName": "UNC_M2HBM_DIRECTORY_UPDATE.S_TO_I_MISS_ANALN_PMM",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from S to I to non persistent memory",
+        "PublicDescription": "Counts 2lm miss  data returns that would result in directory update from S to I to analn persistent memory",
         "UMask": "0x208",
         "Unit": "M2HBM"
     },
@@ -551,7 +551,7 @@
     {
         "BriefDescription": "Egress Blocking due to Ordering requirements : Down",
         "EventCode": "0xba",
-        "EventName": "UNC_M2HBM_EGRESS_ORDERING.IV_SNOOPGO_DN",
+        "EventName": "UNC_M2HBM_EGRESS_ORDERING.IV_SANALOPGO_DN",
         "PerPkg": "1",
         "PublicDescription": "Egress Blocking due to Ordering requirements : Down : Counts number of cycles IV was blocked in the TGR Egress due to SNP/GO Ordering requirements",
         "UMask": "0x80000004",
@@ -560,7 +560,7 @@
     {
         "BriefDescription": "Egress Blocking due to Ordering requirements : Up",
         "EventCode": "0xba",
-        "EventName": "UNC_M2HBM_EGRESS_ORDERING.IV_SNOOPGO_UP",
+        "EventName": "UNC_M2HBM_EGRESS_ORDERING.IV_SANALOPGO_UP",
         "PerPkg": "1",
         "PublicDescription": "Egress Blocking due to Ordering requirements : Up : Counts number of cycles IV was blocked in the TGR Egress due to SNP/GO Ordering requirements",
         "UMask": "0x80000001",
@@ -593,9 +593,9 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "UNC_M2HBM_IMC_READS.CH0.NORMAL",
+        "BriefDescription": "UNC_M2HBM_IMC_READS.CH0.ANALRMAL",
         "EventCode": "0x24",
-        "EventName": "UNC_M2HBM_IMC_READS.CH0.NORMAL",
+        "EventName": "UNC_M2HBM_IMC_READS.CH0.ANALRMAL",
         "PerPkg": "1",
         "UMask": "0x101",
         "Unit": "M2HBM"
@@ -627,9 +627,9 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "UNC_M2HBM_IMC_READS.CH0_NORMAL",
+        "BriefDescription": "UNC_M2HBM_IMC_READS.CH0_ANALRMAL",
         "EventCode": "0x24",
-        "EventName": "UNC_M2HBM_IMC_READS.CH0_NORMAL",
+        "EventName": "UNC_M2HBM_IMC_READS.CH0_ANALRMAL",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
@@ -645,9 +645,9 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "UNC_M2HBM_IMC_READS.CH1.NORMAL",
+        "BriefDescription": "UNC_M2HBM_IMC_READS.CH1.ANALRMAL",
         "EventCode": "0x24",
-        "EventName": "UNC_M2HBM_IMC_READS.CH1.NORMAL",
+        "EventName": "UNC_M2HBM_IMC_READS.CH1.ANALRMAL",
         "PerPkg": "1",
         "UMask": "0x201",
         "Unit": "M2HBM"
@@ -679,9 +679,9 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "UNC_M2HBM_IMC_READS.CH1_NORMAL",
+        "BriefDescription": "UNC_M2HBM_IMC_READS.CH1_ANALRMAL",
         "EventCode": "0x24",
-        "EventName": "UNC_M2HBM_IMC_READS.CH1_NORMAL",
+        "EventName": "UNC_M2HBM_IMC_READS.CH1_ANALRMAL",
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
@@ -705,9 +705,9 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "UNC_M2HBM_IMC_READS.NORMAL",
+        "BriefDescription": "UNC_M2HBM_IMC_READS.ANALRMAL",
         "EventCode": "0x24",
-        "EventName": "UNC_M2HBM_IMC_READS.NORMAL",
+        "EventName": "UNC_M2HBM_IMC_READS.ANALRMAL",
         "PerPkg": "1",
         "UMask": "0x301",
         "Unit": "M2HBM"
@@ -780,7 +780,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Non-Inclusive - Ch0",
+        "BriefDescription": "Analn-Inclusive - Ch0",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.CH0_NI",
         "FCMask": "0x00000000",
@@ -789,7 +789,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Non-Inclusive Miss - Ch0",
+        "BriefDescription": "Analn-Inclusive Miss - Ch0",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.CH0_NI_MISS",
         "FCMask": "0x00000000",
@@ -824,7 +824,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Full Line Non-ISOCH - Ch1",
+        "BriefDescription": "Full Line Analn-ISOCH - Ch1",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.CH1.FULL",
         "PerPkg": "1",
@@ -832,7 +832,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Partial Non-ISOCH - Ch1",
+        "BriefDescription": "Partial Analn-ISOCH - Ch1",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.CH1.PARTIAL",
         "PerPkg": "1",
@@ -857,7 +857,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Full Line Non-ISOCH - Ch1",
+        "BriefDescription": "Full Line Analn-ISOCH - Ch1",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.CH1_FULL",
         "FCMask": "0x00000000",
@@ -875,7 +875,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Non-Inclusive - Ch1",
+        "BriefDescription": "Analn-Inclusive - Ch1",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.CH1_NI",
         "FCMask": "0x00000000",
@@ -884,7 +884,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Non-Inclusive Miss - Ch1",
+        "BriefDescription": "Analn-Inclusive Miss - Ch1",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.CH1_NI_MISS",
         "FCMask": "0x00000000",
@@ -893,7 +893,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Partial Non-ISOCH - Ch1",
+        "BriefDescription": "Partial Analn-ISOCH - Ch1",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.CH1_PARTIAL",
         "FCMask": "0x00000000",
@@ -918,7 +918,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Full Non-ISOCH - All Channels",
+        "BriefDescription": "Full Analn-ISOCH - All Channels",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.FULL",
         "PerPkg": "1",
@@ -934,7 +934,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Non-Inclusive - All Channels",
+        "BriefDescription": "Analn-Inclusive - All Channels",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.NI",
         "FCMask": "0x00000000",
@@ -943,7 +943,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Non-Inclusive Miss - All Channels",
+        "BriefDescription": "Analn-Inclusive Miss - All Channels",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.NI_MISS",
         "FCMask": "0x00000000",
@@ -952,7 +952,7 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Partial Non-ISOCH - All Channels",
+        "BriefDescription": "Partial Analn-ISOCH - All Channels",
         "EventCode": "0x25",
         "EventName": "UNC_M2HBM_IMC_WRITES.PARTIAL",
         "PerPkg": "1",
@@ -1039,25 +1039,25 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Demands Not Merged with CAMed Prefetches",
+        "BriefDescription": "Demands Analt Merged with CAMed Prefetches",
         "EventCode": "0x5e",
-        "EventName": "UNC_M2HBM_PREFCAM_DEMAND_NO_MERGE.RD_MERGED",
+        "EventName": "UNC_M2HBM_PREFCAM_DEMAND_ANAL_MERGE.RD_MERGED",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Demands Not Merged with CAMed Prefetches",
+        "BriefDescription": "Demands Analt Merged with CAMed Prefetches",
         "EventCode": "0x5e",
-        "EventName": "UNC_M2HBM_PREFCAM_DEMAND_NO_MERGE.WR_MERGED",
+        "EventName": "UNC_M2HBM_PREFCAM_DEMAND_ANAL_MERGE.WR_MERGED",
         "PerPkg": "1",
         "UMask": "0x20",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Demands Not Merged with CAMed Prefetches",
+        "BriefDescription": "Demands Analt Merged with CAMed Prefetches",
         "EventCode": "0x5e",
-        "EventName": "UNC_M2HBM_PREFCAM_DEMAND_NO_MERGE.WR_SQUASHED",
+        "EventName": "UNC_M2HBM_PREFCAM_DEMAND_ANAL_MERGE.WR_SQUASHED",
         "PerPkg": "1",
         "UMask": "0x10",
         "Unit": "M2HBM"
@@ -1382,7 +1382,7 @@
     {
         "BriefDescription": "M2M and iMC WPQ Cycles w/Credits - Regular : Channel 0",
         "EventCode": "0x37",
-        "EventName": "UNC_M2HBM_WPQ_NO_REG_CRD.CHN0",
+        "EventName": "UNC_M2HBM_WPQ_ANAL_REG_CRD.CHN0",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "M2HBM"
@@ -1390,7 +1390,7 @@
     {
         "BriefDescription": "M2M and iMC WPQ Cycles w/Credits - Regular : Channel 1",
         "EventCode": "0x37",
-        "EventName": "UNC_M2HBM_WPQ_NO_REG_CRD.CHN1",
+        "EventName": "UNC_M2HBM_WPQ_ANAL_REG_CRD.CHN1",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "M2HBM"
@@ -1398,7 +1398,7 @@
     {
         "BriefDescription": "M2M and iMC WPQ Cycles w/Credits - Special : Channel 0",
         "EventCode": "0x38",
-        "EventName": "UNC_M2HBM_WPQ_NO_SPEC_CRD.CHN0",
+        "EventName": "UNC_M2HBM_WPQ_ANAL_SPEC_CRD.CHN0",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "M2HBM"
@@ -1406,7 +1406,7 @@
     {
         "BriefDescription": "M2M and iMC WPQ Cycles w/Credits - Special : Channel 1",
         "EventCode": "0x38",
-        "EventName": "UNC_M2HBM_WPQ_NO_SPEC_CRD.CHN1",
+        "EventName": "UNC_M2HBM_WPQ_ANAL_SPEC_CRD.CHN1",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "M2HBM"
@@ -1428,33 +1428,33 @@
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Write Tracker Non-Posted Inserts : Channel 0",
+        "BriefDescription": "Write Tracker Analn-Posted Inserts : Channel 0",
         "EventCode": "0x4d",
-        "EventName": "UNC_M2HBM_WR_TRACKER_NONPOSTED_INSERTS.CH0",
+        "EventName": "UNC_M2HBM_WR_TRACKER_ANALNPOSTED_INSERTS.CH0",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Write Tracker Non-Posted Inserts : Channel 1",
+        "BriefDescription": "Write Tracker Analn-Posted Inserts : Channel 1",
         "EventCode": "0x4d",
-        "EventName": "UNC_M2HBM_WR_TRACKER_NONPOSTED_INSERTS.CH1",
+        "EventName": "UNC_M2HBM_WR_TRACKER_ANALNPOSTED_INSERTS.CH1",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Write Tracker Non-Posted Occupancy : Channel 0",
+        "BriefDescription": "Write Tracker Analn-Posted Occupancy : Channel 0",
         "EventCode": "0x4c",
-        "EventName": "UNC_M2HBM_WR_TRACKER_NONPOSTED_OCCUPANCY.CH0",
+        "EventName": "UNC_M2HBM_WR_TRACKER_ANALNPOSTED_OCCUPANCY.CH0",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "M2HBM"
     },
     {
-        "BriefDescription": "Write Tracker Non-Posted Occupancy : Channel 1",
+        "BriefDescription": "Write Tracker Analn-Posted Occupancy : Channel 1",
         "EventCode": "0x4c",
-        "EventName": "UNC_M2HBM_WR_TRACKER_NONPOSTED_OCCUPANCY.CH1",
+        "EventName": "UNC_M2HBM_WR_TRACKER_ANALNPOSTED_OCCUPANCY.CH1",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "M2HBM"
@@ -1632,7 +1632,7 @@
         "Unit": "MCHBM"
     },
     {
-        "BriefDescription": "Regular read CAS commands issued (does not include underfills)",
+        "BriefDescription": "Regular read CAS commands issued (does analt include underfills)",
         "EventCode": "0x05",
         "EventName": "UNC_MCHBM_CAS_COUNT.RD_REG",
         "PerPkg": "1",
@@ -1658,7 +1658,7 @@
     {
         "BriefDescription": "HBM RD_CAS and WR_CAS Commands. : HBM WR_CAS commands w/o auto-pre",
         "EventCode": "0x05",
-        "EventName": "UNC_MCHBM_CAS_COUNT.WR_NONPRE",
+        "EventName": "UNC_MCHBM_CAS_COUNT.WR_ANALNPRE",
         "PerPkg": "1",
         "UMask": "0xd0",
         "Unit": "MCHBM"
@@ -1895,7 +1895,7 @@
         "Unit": "MCHBM"
     },
     {
-        "BriefDescription": "Counts the number of cycles where the read buffer has greater than UMASK elements.  NOTE: Umask must be set to the maximum number of elements in the queue (24 entries for SPR).",
+        "BriefDescription": "Counts the number of cycles where the read buffer has greater than UMASK elements.  ANALTE: Umask must be set to the maximum number of elements in the queue (24 entries for SPR).",
         "EventCode": "0x19",
         "EventName": "UNC_MCHBM_RDB_FULL",
         "PerPkg": "1",
@@ -1937,7 +1937,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_MCHBM_RPQ_INSERTS.PCH0",
         "PerPkg": "1",
-        "PublicDescription": "Read Pending Queue Allocations: Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and non-ISOCH requests.",
+        "PublicDescription": "Read Pending Queue Allocations: Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and analn-ISOCH requests.",
         "UMask": "0x1",
         "Unit": "MCHBM"
     },
@@ -1946,7 +1946,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_MCHBM_RPQ_INSERTS.PCH1",
         "PerPkg": "1",
-        "PublicDescription": "Read Pending Queue Allocations: Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and non-ISOCH requests.",
+        "PublicDescription": "Read Pending Queue Allocations: Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and analn-ISOCH requests.",
         "UMask": "0x2",
         "Unit": "MCHBM"
     },
@@ -1955,7 +1955,7 @@
         "EventCode": "0x80",
         "EventName": "UNC_MCHBM_RPQ_OCCUPANCY_PCH0",
         "PerPkg": "1",
-        "PublicDescription": "Read Pending Queue Occupancy: Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
+        "PublicDescription": "Read Pending Queue Occupancy: Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
         "Unit": "MCHBM"
     },
     {
@@ -1963,7 +1963,7 @@
         "EventCode": "0x81",
         "EventName": "UNC_MCHBM_RPQ_OCCUPANCY_PCH1",
         "PerPkg": "1",
-        "PublicDescription": "Read Pending Queue Occupancy: Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
+        "PublicDescription": "Read Pending Queue Occupancy: Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
         "Unit": "MCHBM"
     },
     {
@@ -1989,7 +1989,7 @@
         "EventCode": "0x82",
         "EventName": "UNC_MCHBM_WPQ_OCCUPANCY_PCH0",
         "PerPkg": "1",
-        "PublicDescription": "Write Pending Queue Occupancy: Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to memory.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is not to be confused with actually performing the write.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the not posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
+        "PublicDescription": "Write Pending Queue Occupancy: Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to memory.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is analt to be confused with actually performing the write.  Therefore, the average latency for this queue is actually analt useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or analt.  By using the analt posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
         "Unit": "MCHBM"
     },
     {
@@ -1997,7 +1997,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_MCHBM_WPQ_OCCUPANCY_PCH1",
         "PerPkg": "1",
-        "PublicDescription": "Write Pending Queue Occupancy: Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to memory.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is not to be confused with actually performing the write.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the not posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
+        "PublicDescription": "Write Pending Queue Occupancy: Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to memory.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is analt to be confused with actually performing the write.  Therefore, the average latency for this queue is actually analt useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or analt.  By using the analt posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
         "Unit": "MCHBM"
     },
     {
@@ -2007,7 +2007,7 @@
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "Unit": "MCHBM"
     },
     {
@@ -2015,7 +2015,7 @@
         "EventCode": "0x23",
         "EventName": "UNC_MCHBM_WPQ_READ_HIT.PCH0",
         "PerPkg": "1",
-        "PublicDescription": "Write Pending Queue CAM Match: Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Write Pending Queue CAM Match: Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "UMask": "0x1",
         "Unit": "MCHBM"
     },
@@ -2024,7 +2024,7 @@
         "EventCode": "0x23",
         "EventName": "UNC_MCHBM_WPQ_READ_HIT.PCH1",
         "PerPkg": "1",
-        "PublicDescription": "Write Pending Queue CAM Match: Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Write Pending Queue CAM Match: Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "UMask": "0x2",
         "Unit": "MCHBM"
     },
@@ -2035,7 +2035,7 @@
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "Unit": "MCHBM"
     },
     {
@@ -2043,7 +2043,7 @@
         "EventCode": "0x24",
         "EventName": "UNC_MCHBM_WPQ_WRITE_HIT.PCH0",
         "PerPkg": "1",
-        "PublicDescription": "Write Pending Queue CAM Match: Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Write Pending Queue CAM Match: Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "UMask": "0x1",
         "Unit": "MCHBM"
     },
@@ -2052,7 +2052,7 @@
         "EventCode": "0x24",
         "EventName": "UNC_MCHBM_WPQ_WRITE_HIT.PCH1",
         "PerPkg": "1",
-        "PublicDescription": "Write Pending Queue CAM Match: Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Write Pending Queue CAM Match: Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "UMask": "0x2",
         "Unit": "MCHBM"
     },
@@ -2120,11 +2120,11 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "All DRAM read CAS commands issued (does not include underfills)",
+        "BriefDescription": "All DRAM read CAS commands issued (does analt include underfills)",
         "EventCode": "0x05",
         "EventName": "UNC_M_CAS_COUNT.RD_REG",
         "PerPkg": "1",
-        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM RD_CAS commands w/out auto-pre : DRAM RD_CAS and WR_CAS Commands : Counts the total number or DRAM Read CAS commands issued on this channel.  This includes both regular RD CAS commands as well as those with implicit Precharge.   We do not filter based on major mode, as RD_CAS is not issued during WMM (with the exception of underfills).",
+        "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM RD_CAS commands w/out auto-pre : DRAM RD_CAS and WR_CAS Commands : Counts the total number or DRAM Read CAS commands issued on this channel.  This includes both regular RD CAS commands as well as those with implicit Precharge.   We do analt filter based on major mode, as RD_CAS is analt issued during WMM (with the exception of underfills).",
         "UMask": "0xc1",
         "Unit": "iMC"
     },
@@ -2149,7 +2149,7 @@
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM WR_CAS commands w/o auto-pre",
         "EventCode": "0x05",
-        "EventName": "UNC_M_CAS_COUNT.WR_NONPRE",
+        "EventName": "UNC_M_CAS_COUNT.WR_ANALNPRE",
         "PerPkg": "1",
         "PublicDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM WR_CAS commands w/o auto-pre : DRAM RD_CAS and WR_CAS Commands",
         "UMask": "0xd0",
@@ -2325,7 +2325,7 @@
     {
         "BriefDescription": "PMM Read Pending Queue Occupancy",
         "EventCode": "0xe0",
-        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.NO_GNT_SCH0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.ANAL_GNT_SCH0",
         "PerPkg": "1",
         "PublicDescription": "Accumulates the per cycle occupancy of the PMM Read Pending Queue.",
         "UMask": "0x4",
@@ -2334,14 +2334,14 @@
     {
         "BriefDescription": "PMM Read Pending Queue Occupancy",
         "EventCode": "0xe0",
-        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.NO_GNT_SCH1",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.ANAL_GNT_SCH1",
         "PerPkg": "1",
         "PublicDescription": "Accumulates the per cycle occupancy of the PMM Read Pending Queue.",
         "UMask": "0x8",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "PMM (for IXP) Write Queue Cycles Not Empty",
+        "BriefDescription": "PMM (for IXP) Write Queue Cycles Analt Empty",
         "EventCode": "0xe5",
         "EventName": "UNC_M_PMM_WPQ_CYCLES_NE",
         "PerPkg": "1",
@@ -2405,7 +2405,7 @@
         "EventCode": "0x85",
         "EventName": "UNC_M_POWER_CHANNEL_PPD",
         "PerPkg": "1",
-        "PublicDescription": "Channel PPD Cycles : Number of cycles when all the ranks in the channel are in PPD mode.  If IBT=off is enabled, then this can be used to count those cycles.  If it is not enabled, then this can count the number of cycles when that could have been taken advantage of.",
+        "PublicDescription": "Channel PPD Cycles : Number of cycles when all the ranks in the channel are in PPD mode.  If IBT=off is enabled, then this can be used to count those cycles.  If it is analt enabled, then this can count the number of cycles when that could have been taken advantage of.",
         "Unit": "iMC"
     },
     {
@@ -2413,7 +2413,7 @@
         "EventCode": "0x47",
         "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_0",
         "PerPkg": "1",
-        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -2422,7 +2422,7 @@
         "EventCode": "0x47",
         "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_1",
         "PerPkg": "1",
-        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x2",
         "Unit": "iMC"
     },
@@ -2431,7 +2431,7 @@
         "EventCode": "0x47",
         "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_2",
         "PerPkg": "1",
-        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x4",
         "Unit": "iMC"
     },
@@ -2440,7 +2440,7 @@
         "EventCode": "0x47",
         "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_3",
         "PerPkg": "1",
-        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "CKE_ON_CYCLES by Rank : DIMM ID : Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x8",
         "Unit": "iMC"
     },
@@ -2449,7 +2449,7 @@
         "EventCode": "0x86",
         "EventName": "UNC_M_POWER_CRIT_THROTTLE_CYCLES.SLOT0",
         "PerPkg": "1",
-        "PublicDescription": "Throttle Cycles for Rank 0 : Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1. : Thermal throttling is performed per DIMM.  We support 3 DIMMs per channel.  This ID allows us to filter by ID.",
+        "PublicDescription": "Throttle Cycles for Rank 0 : Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1. : Thermal throttling is performed per DIMM.  We support 3 DIMMs per channel.  This ID allows us to filter by ID.",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -2458,7 +2458,7 @@
         "EventCode": "0x86",
         "EventName": "UNC_M_POWER_CRIT_THROTTLE_CYCLES.SLOT1",
         "PerPkg": "1",
-        "PublicDescription": "Throttle Cycles for Rank 0 : Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
+        "PublicDescription": "Throttle Cycles for Rank 0 : Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
         "UMask": "0x2",
         "Unit": "iMC"
     },
@@ -2467,7 +2467,7 @@
         "EventCode": "0x43",
         "EventName": "UNC_M_POWER_SELF_REFRESH",
         "PerPkg": "1",
-        "PublicDescription": "Clock-Enabled Self-Refresh : Counts the number of cycles when the iMC is in self-refresh and the iMC still has a clock.  This happens in some package C-states.  For example, the PCU may ask the iMC to enter self-refresh even though some of the cores are still processing.  One use of this is for Monroe technology.  Self-refresh is required during package C3 and C6, but there is no clock in the iMC at this time, so it is not possible to count these cases.",
+        "PublicDescription": "Clock-Enabled Self-Refresh : Counts the number of cycles when the iMC is in self-refresh and the iMC still has a clock.  This happens in some package C-states.  For example, the PCU may ask the iMC to enter self-refresh even though some of the cores are still processing.  One use of this is for Monroe techanallogy.  Self-refresh is required during package C3 and C6, but there is anal clock in the iMC at this time, so it is analt possible to count these cases.",
         "Unit": "iMC"
     },
     {
@@ -2588,14 +2588,14 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Counts the number of cycles where the read buffer has greater than UMASK elements.  This includes reads to both DDR and PMEM.  NOTE: Umask must be set to the maximum number of elements in the queue (24 entries for SPR).",
+        "BriefDescription": "Counts the number of cycles where the read buffer has greater than UMASK elements.  This includes reads to both DDR and PMEM.  ANALTE: Umask must be set to the maximum number of elements in the queue (24 entries for SPR).",
         "EventCode": "0x19",
         "EventName": "UNC_M_RDB_FULL",
         "PerPkg": "1",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Counts the number of inserts into the read buffer destined for DDR.  Does not count reads destined for PMEM.",
+        "BriefDescription": "Counts the number of inserts into the read buffer destined for DDR.  Does analt count reads destined for PMEM.",
         "EventCode": "0x17",
         "EventName": "UNC_M_RDB_INSERTS",
         "PerPkg": "1",
@@ -2627,7 +2627,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Read Data Buffer Not Empty",
+        "BriefDescription": "Read Data Buffer Analt Empty",
         "EventCode": "0x18",
         "EventName": "UNC_M_RDB_NE.PCH0",
         "PerPkg": "1",
@@ -2635,7 +2635,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Read Data Buffer Not Empty",
+        "BriefDescription": "Read Data Buffer Analt Empty",
         "EventCode": "0x18",
         "EventName": "UNC_M_RDB_NE.PCH1",
         "PerPkg": "1",
@@ -2645,7 +2645,7 @@
     {
         "BriefDescription": "Counts the number of cycles where there's at least one element in the read buffer.  This includes reads to both DDR and PMEM.",
         "EventCode": "0x18",
-        "EventName": "UNC_M_RDB_NOT_EMPTY",
+        "EventName": "UNC_M_RDB_ANALT_EMPTY",
         "PerPkg": "1",
         "UMask": "0x3",
         "Unit": "iMC"
@@ -2662,7 +2662,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_M_RPQ_INSERTS.PCH0",
         "PerPkg": "1",
-        "PublicDescription": "Read Pending Queue Allocations : Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and non-ISOCH requests.",
+        "PublicDescription": "Read Pending Queue Allocations : Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and analn-ISOCH requests.",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -2671,7 +2671,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_M_RPQ_INSERTS.PCH1",
         "PerPkg": "1",
-        "PublicDescription": "Read Pending Queue Allocations : Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and non-ISOCH requests.",
+        "PublicDescription": "Read Pending Queue Allocations : Counts the number of allocations into the Read Pending Queue.  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This includes both ISOCH and analn-ISOCH requests.",
         "UMask": "0x2",
         "Unit": "iMC"
     },
@@ -2680,7 +2680,7 @@
         "EventCode": "0x80",
         "EventName": "UNC_M_RPQ_OCCUPANCY_PCH0",
         "PerPkg": "1",
-        "PublicDescription": "Read Pending Queue Occupancy : Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
+        "PublicDescription": "Read Pending Queue Occupancy : Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
         "Unit": "iMC"
     },
     {
@@ -2688,7 +2688,7 @@
         "EventCode": "0x81",
         "EventName": "UNC_M_RPQ_OCCUPANCY_PCH1",
         "PerPkg": "1",
-        "PublicDescription": "Read Pending Queue Occupancy : Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
+        "PublicDescription": "Read Pending Queue Occupancy : Accumulates the occupancies of the Read Pending Queue each cycle.  This can then be used to calculate both the average occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC. They deallocate after the CAS command has been issued to memory.",
         "Unit": "iMC"
     },
     {
@@ -2843,7 +2843,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Scoreboard Cycles Not-Empty",
+        "BriefDescription": "Scoreboard Cycles Analt-Empty",
         "EventCode": "0xd0",
         "EventName": "UNC_M_SB_CYCLES_NE",
         "PerPkg": "1",
@@ -3220,7 +3220,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "2LM Tag check miss, no data at this line",
+        "BriefDescription": "2LM Tag check miss, anal data at this line",
         "EventCode": "0xd3",
         "EventName": "UNC_M_TAGCHK.MISS_CLEAN",
         "PerPkg": "1",
@@ -3274,7 +3274,7 @@
         "EventCode": "0x82",
         "EventName": "UNC_M_WPQ_OCCUPANCY_PCH0",
         "PerPkg": "1",
-        "PublicDescription": "Write Pending Queue Occupancy : Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the not posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
+        "PublicDescription": "Write Pending Queue Occupancy : Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is analt to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually analt useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or analt.  By using the analt posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
         "Unit": "iMC"
     },
     {
@@ -3282,7 +3282,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_WPQ_OCCUPANCY_PCH1",
         "PerPkg": "1",
-        "PublicDescription": "Write Pending Queue Occupancy : Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the not posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
+        "PublicDescription": "Write Pending Queue Occupancy : Accumulates the occupancies of the Write Pending Queue each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is analt to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually analt useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or analt.  By using the analt posted filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The posted filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
         "Unit": "iMC"
     },
     {
@@ -3292,7 +3292,7 @@
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "Unit": "iMC"
     },
     {
@@ -3302,7 +3302,7 @@
         "FCMask": "0x00000000",
         "PerPkg": "1",
         "PortMask": "0x00000000",
-        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "Unit": "iMC"
     }
 ]

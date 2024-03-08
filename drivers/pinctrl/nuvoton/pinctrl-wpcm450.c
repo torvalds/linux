@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2016-2018 Nuvoton Technology corporation.
+// Copyright (c) 2016-2018 Nuvoton Techanallogy corporation.
 // Copyright (c) 2016, Dell Inc
 // Copyright (c) 2021-2022 Jonathan Neuschäfer
 //
@@ -10,7 +10,7 @@
 //   block, shared between all GPIO banks
 
 #include <linux/device.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -30,7 +30,7 @@
 /* GCR registers */
 #define WPCM450_GCR_MFSEL1	0x0c
 #define WPCM450_GCR_MFSEL2	0x10
-#define WPCM450_GCR_NONE	0
+#define WPCM450_GCR_ANALNE	0
 
 /* GPIO event (interrupt) registers */
 #define WPCM450_GPEVTYPE	0x00
@@ -204,7 +204,7 @@ static int wpcm450_gpio_get(struct wpcm450_gpio *gpio, int offset)
 }
 
 /*
- * Since the GPIO controller does not support dual-edge triggered interrupts
+ * Since the GPIO controller does analt support dual-edge triggered interrupts
  * (IRQ_TYPE_EDGE_BOTH), they are emulated using rising/falling edge triggered
  * interrupts. wpcm450_gpio_fix_evpol sets the interrupt polarity for the
  * specified emulated dual-edge triggered interrupts, so that the next edge can
@@ -468,9 +468,9 @@ static int hg7_pins[] = { 60 };
 enum {
 #define WPCM450_GRP(x) fn_ ## x
 	WPCM450_GRPS
-	/* add placeholder for none/gpio */
+	/* add placeholder for analne/gpio */
 	WPCM450_GRP(gpio),
-	WPCM450_GRP(none),
+	WPCM450_GRP(analne),
 #undef WPCM450_GRP
 };
 
@@ -632,137 +632,137 @@ struct wpcm450_pincfg {
 
 static const struct wpcm450_pincfg pincfg[] = {
 	/*		PIN	  FUNCTION 1		   FUNCTION 2 */
-	WPCM450_PINCFG(0,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(1,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(2,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(3,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(4,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(5,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(6,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(7,	 none, NONE, 0,		  sdio, MFSEL1, 30),
-	WPCM450_PINCFG(8,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(9,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(10,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(11,	 none, NONE, 0,		  none, NONE, 0),
+	WPCM450_PINCFG(0,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(1,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(2,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(3,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(4,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(5,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(6,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(7,	 analne, ANALNE, 0,		  sdio, MFSEL1, 30),
+	WPCM450_PINCFG(8,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(9,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(10,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(11,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
 	WPCM450_PINCFG(12,	 gspi, MFSEL1, 24,	  sspi, MFSEL1, 31),
 	WPCM450_PINCFG(13,	 gspi, MFSEL1, 24,	  sspi, MFSEL1, 31),
 	WPCM450_PINCFG(14,	 gspi, MFSEL1, 24,	  sspi, MFSEL1, 31),
 	WPCM450_PINCFG(15,	 gspi, MFSEL1, 24,	  sspi, MFSEL1, 31),
-	WPCM450_PINCFG(16,	 none, NONE, 0,		  pwm6, MFSEL2, 22),
-	WPCM450_PINCFG(17,	 none, NONE, 0,		  pwm7, MFSEL2, 23),
-	WPCM450_PINCFG(18,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(19,	 uinc, MFSEL1, 23,	  none, NONE, 0),
+	WPCM450_PINCFG(16,	 analne, ANALNE, 0,		  pwm6, MFSEL2, 22),
+	WPCM450_PINCFG(17,	 analne, ANALNE, 0,		  pwm7, MFSEL2, 23),
+	WPCM450_PINCFG(18,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(19,	 uinc, MFSEL1, 23,	  analne, ANALNE, 0),
 	WPCM450_PINCFG(20,	  hg0, MFSEL2, 24,	  pwm4, MFSEL2, 20),
 	WPCM450_PINCFG(21,	  hg1, MFSEL2, 25,	  pwm5, MFSEL2, 21),
-	WPCM450_PINCFG(22,	  hg2, MFSEL2, 26,	  none, NONE, 0),
-	WPCM450_PINCFG(23,	  hg3, MFSEL2, 27,	  none, NONE, 0),
-	WPCM450_PINCFG(24,	  hg4, MFSEL2, 28,	  none, NONE, 0),
-	WPCM450_PINCFG(25,	  hg5, MFSEL2, 29,	  none, NONE, 0),
-	WPCM450_PINCFG(26,	 smb5, MFSEL1, 2,	  none, NONE, 0),
-	WPCM450_PINCFG(27,	 smb5, MFSEL1, 2,	  none, NONE, 0),
-	WPCM450_PINCFG(28,	 smb4, MFSEL1, 1,	  none, NONE, 0),
-	WPCM450_PINCFG(29,	 smb4, MFSEL1, 1,	  none, NONE, 0),
-	WPCM450_PINCFG(30,	 smb3, MFSEL1, 0,	  none, NONE, 0),
-	WPCM450_PINCFG(31,	 smb3, MFSEL1, 0,	  none, NONE, 0),
+	WPCM450_PINCFG(22,	  hg2, MFSEL2, 26,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(23,	  hg3, MFSEL2, 27,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(24,	  hg4, MFSEL2, 28,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(25,	  hg5, MFSEL2, 29,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(26,	 smb5, MFSEL1, 2,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(27,	 smb5, MFSEL1, 2,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(28,	 smb4, MFSEL1, 1,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(29,	 smb4, MFSEL1, 1,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(30,	 smb3, MFSEL1, 0,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(31,	 smb3, MFSEL1, 0,	  analne, ANALNE, 0),
 
-	WPCM450_PINCFG(32,	 scs1, MFSEL1, 3,	  none, NONE, 0),
-	WPCM450_PINCFG(33,	 scs2, MFSEL1, 4,	  none, NONE, 0),
-	WPCM450_PINCFG(34,	 scs3, MFSEL1, 5 | INV,	  none, NONE, 0),
-	WPCM450_PINCFG(35,	 xcs1, MFSEL1, 29,	  none, NONE, 0),
-	WPCM450_PINCFG(36,	 xcs2, MFSEL1, 28,	  none, NONE, 0),
-	WPCM450_PINCFG(37,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(38,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(39,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(40,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(41,	  bsp, MFSEL1, 9,	  none, NONE, 0),
-	WPCM450_PINCFG(42,	  bsp, MFSEL1, 9,	  none, NONE, 0),
+	WPCM450_PINCFG(32,	 scs1, MFSEL1, 3,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(33,	 scs2, MFSEL1, 4,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(34,	 scs3, MFSEL1, 5 | INV,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(35,	 xcs1, MFSEL1, 29,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(36,	 xcs2, MFSEL1, 28,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(37,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(38,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(39,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(40,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(41,	  bsp, MFSEL1, 9,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(42,	  bsp, MFSEL1, 9,	  analne, ANALNE, 0),
 	WPCM450_PINCFG(43,	 hsp1, MFSEL1, 10,	  sdio, MFSEL1, 30),
 	WPCM450_PINCFG(44,	 hsp1, MFSEL1, 10,	  sdio, MFSEL1, 30),
 	WPCM450_PINCFG(45,	 hsp1, MFSEL1, 10,	  sdio, MFSEL1, 30),
 	WPCM450_PINCFG(46,	 hsp1, MFSEL1, 10,	  sdio, MFSEL1, 30),
 	WPCM450_PINCFG(47,	 hsp1, MFSEL1, 10,	  sdio, MFSEL1, 30),
-	WPCM450_PINCFG(48,	 hsp2, MFSEL1, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(49,	 hsp2, MFSEL1, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(50,	 hsp2, MFSEL1, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(51,	 hsp2, MFSEL1, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(52,	 hsp2, MFSEL1, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(53,	 hsp2, MFSEL1, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(54,	 hsp2, MFSEL1, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(55,	 hsp2, MFSEL1, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(56,	r1err, MFSEL1, 12,	  none, NONE, 0),
-	WPCM450_PINCFG(57,	 r1md, MFSEL1, 13,	  none, NONE, 0),
-	WPCM450_PINCFG(58,	 r1md, MFSEL1, 13,	  none, NONE, 0),
-	WPCM450_PINCFG(59,	  hg6, MFSEL2, 30,	  none, NONE, 0),
+	WPCM450_PINCFG(48,	 hsp2, MFSEL1, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(49,	 hsp2, MFSEL1, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(50,	 hsp2, MFSEL1, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(51,	 hsp2, MFSEL1, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(52,	 hsp2, MFSEL1, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(53,	 hsp2, MFSEL1, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(54,	 hsp2, MFSEL1, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(55,	 hsp2, MFSEL1, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(56,	r1err, MFSEL1, 12,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(57,	 r1md, MFSEL1, 13,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(58,	 r1md, MFSEL1, 13,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(59,	  hg6, MFSEL2, 30,	  analne, ANALNE, 0),
 	WPCM450_PINCFG(60,	  hg7, MFSEL2, 31,	  sdio, MFSEL1, 30),
-	WPCM450_PINCFG(61,	 hsp1, MFSEL1, 10,	  none, NONE, 0),
-	WPCM450_PINCFG(62,	 hsp1, MFSEL1, 10,	  none, NONE, 0),
-	WPCM450_PINCFG(63,	 hsp1, MFSEL1, 10,	  none, NONE, 0),
+	WPCM450_PINCFG(61,	 hsp1, MFSEL1, 10,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(62,	 hsp1, MFSEL1, 10,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(63,	 hsp1, MFSEL1, 10,	  analne, ANALNE, 0),
 
-	WPCM450_PINCFG(64,	  fi0, MFSEL2, 0,	  none, NONE, 0),
-	WPCM450_PINCFG(65,	  fi1, MFSEL2, 1,	  none, NONE, 0),
-	WPCM450_PINCFG(66,	  fi2, MFSEL2, 2,	  none, NONE, 0),
-	WPCM450_PINCFG(67,	  fi3, MFSEL2, 3,	  none, NONE, 0),
-	WPCM450_PINCFG(68,	  fi4, MFSEL2, 4,	  none, NONE, 0),
-	WPCM450_PINCFG(69,	  fi5, MFSEL2, 5,	  none, NONE, 0),
-	WPCM450_PINCFG(70,	  fi6, MFSEL2, 6,	  none, NONE, 0),
-	WPCM450_PINCFG(71,	  fi7, MFSEL2, 7,	  none, NONE, 0),
-	WPCM450_PINCFG(72,	  fi8, MFSEL2, 8,	  none, NONE, 0),
-	WPCM450_PINCFG(73,	  fi9, MFSEL2, 9,	  none, NONE, 0),
-	WPCM450_PINCFG(74,	 fi10, MFSEL2, 10,	  none, NONE, 0),
-	WPCM450_PINCFG(75,	 fi11, MFSEL2, 11,	  none, NONE, 0),
-	WPCM450_PINCFG(76,	 fi12, MFSEL2, 12,	  none, NONE, 0),
-	WPCM450_PINCFG(77,	 fi13, MFSEL2, 13,	  none, NONE, 0),
-	WPCM450_PINCFG(78,	 fi14, MFSEL2, 14,	  none, NONE, 0),
-	WPCM450_PINCFG(79,	 fi15, MFSEL2, 15,	  none, NONE, 0),
-	WPCM450_PINCFG(80,	 pwm0, MFSEL2, 16,	  none, NONE, 0),
-	WPCM450_PINCFG(81,	 pwm1, MFSEL2, 17,	  none, NONE, 0),
-	WPCM450_PINCFG(82,	 pwm2, MFSEL2, 18,	  none, NONE, 0),
-	WPCM450_PINCFG(83,	 pwm3, MFSEL2, 19,	  none, NONE, 0),
-	WPCM450_PINCFG(84,	rmii2, MFSEL1, 14,	  none, NONE, 0),
-	WPCM450_PINCFG(85,	rmii2, MFSEL1, 14,	  none, NONE, 0),
-	WPCM450_PINCFG(86,	rmii2, MFSEL1, 14,	  none, NONE, 0),
-	WPCM450_PINCFG(87,	rmii2, MFSEL1, 14,	  none, NONE, 0),
-	WPCM450_PINCFG(88,	rmii2, MFSEL1, 14,	  none, NONE, 0),
-	WPCM450_PINCFG(89,	rmii2, MFSEL1, 14,	  none, NONE, 0),
-	WPCM450_PINCFG(90,	r2err, MFSEL1, 15,	  none, NONE, 0),
-	WPCM450_PINCFG(91,	 r2md, MFSEL1, 16,	  none, NONE, 0),
-	WPCM450_PINCFG(92,	 r2md, MFSEL1, 16,	  none, NONE, 0),
-	WPCM450_PINCFG(93,	 kbcc, MFSEL1, 17 | INV,  none, NONE, 0),
-	WPCM450_PINCFG(94,	 kbcc, MFSEL1, 17 | INV,  none, NONE, 0),
-	WPCM450_PINCFG(95,	 none, NONE, 0,		  none, NONE, 0),
+	WPCM450_PINCFG(64,	  fi0, MFSEL2, 0,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(65,	  fi1, MFSEL2, 1,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(66,	  fi2, MFSEL2, 2,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(67,	  fi3, MFSEL2, 3,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(68,	  fi4, MFSEL2, 4,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(69,	  fi5, MFSEL2, 5,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(70,	  fi6, MFSEL2, 6,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(71,	  fi7, MFSEL2, 7,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(72,	  fi8, MFSEL2, 8,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(73,	  fi9, MFSEL2, 9,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(74,	 fi10, MFSEL2, 10,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(75,	 fi11, MFSEL2, 11,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(76,	 fi12, MFSEL2, 12,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(77,	 fi13, MFSEL2, 13,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(78,	 fi14, MFSEL2, 14,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(79,	 fi15, MFSEL2, 15,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(80,	 pwm0, MFSEL2, 16,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(81,	 pwm1, MFSEL2, 17,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(82,	 pwm2, MFSEL2, 18,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(83,	 pwm3, MFSEL2, 19,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(84,	rmii2, MFSEL1, 14,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(85,	rmii2, MFSEL1, 14,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(86,	rmii2, MFSEL1, 14,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(87,	rmii2, MFSEL1, 14,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(88,	rmii2, MFSEL1, 14,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(89,	rmii2, MFSEL1, 14,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(90,	r2err, MFSEL1, 15,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(91,	 r2md, MFSEL1, 16,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(92,	 r2md, MFSEL1, 16,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(93,	 kbcc, MFSEL1, 17 | INV,  analne, ANALNE, 0),
+	WPCM450_PINCFG(94,	 kbcc, MFSEL1, 17 | INV,  analne, ANALNE, 0),
+	WPCM450_PINCFG(95,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
 
-	WPCM450_PINCFG(96,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(97,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(98,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(99,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(100,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(101,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(102,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(103,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(104,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(105,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(106,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(107,	 none, NONE, 0,		  none, NONE, 0),
-	WPCM450_PINCFG(108,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(109,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(110,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(111,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(112,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(113,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(114,	 smb0, MFSEL1, 6,	  none, NONE, 0),
-	WPCM450_PINCFG(115,	 smb0, MFSEL1, 6,	  none, NONE, 0),
-	WPCM450_PINCFG(116,	 smb1, MFSEL1, 7,	  none, NONE, 0),
-	WPCM450_PINCFG(117,	 smb1, MFSEL1, 7,	  none, NONE, 0),
-	WPCM450_PINCFG(118,	 smb2, MFSEL1, 8,	  none, NONE, 0),
-	WPCM450_PINCFG(119,	 smb2, MFSEL1, 8,	  none, NONE, 0),
-	WPCM450_PINCFG(120,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(121,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(122,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(123,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(124,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(125,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(126,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
-	WPCM450_PINCFG(127,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
+	WPCM450_PINCFG(96,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(97,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(98,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(99,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(100,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(101,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(102,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(103,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(104,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(105,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(106,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(107,	 analne, ANALNE, 0,		  analne, ANALNE, 0),
+	WPCM450_PINCFG(108,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(109,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(110,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(111,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(112,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(113,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(114,	 smb0, MFSEL1, 6,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(115,	 smb0, MFSEL1, 6,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(116,	 smb1, MFSEL1, 7,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(117,	 smb1, MFSEL1, 7,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(118,	 smb2, MFSEL1, 8,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(119,	 smb2, MFSEL1, 8,	  analne, ANALNE, 0),
+	WPCM450_PINCFG(120,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(121,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(122,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(123,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(124,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(125,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(126,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
+	WPCM450_PINCFG(127,	 analne, ANALNE, 0,		  analne, ANALNE, 0), /* DVO */
 };
 
 #define WPCM450_PIN(n)		PINCTRL_PIN(n, "gpio" #n)
@@ -867,7 +867,7 @@ static const struct pinctrl_ops wpcm450_pinctrl_ops = {
 	.get_groups_count = wpcm450_get_groups_count,
 	.get_group_name = wpcm450_get_group_name,
 	.get_group_pins = wpcm450_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = wpcm450_dt_free_map,
 };
 
@@ -941,7 +941,7 @@ static int wpcm450_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		*config = pinconf_to_config_packed(param, !!(reg & BIT(bit)));
 		return 0;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -969,7 +969,7 @@ static int wpcm450_config_set_one(struct wpcm450_pinctrl *pctrl,
 		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 		return 0;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -1025,7 +1025,7 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 				 struct wpcm450_pinctrl *pctrl)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int ret;
 
 	pctrl->gpio_base = devm_platform_ioremap_resource(pdev, 0);
@@ -1033,7 +1033,7 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 		return dev_err_probe(dev, PTR_ERR(pctrl->gpio_base),
 				     "Resource fail for GPIO controller\n");
 
-	device_for_each_child_node(dev, child)  {
+	device_for_each_child_analde(dev, child)  {
 		void __iomem *dat = NULL;
 		void __iomem *set = NULL;
 		void __iomem *dirout = NULL;
@@ -1044,10 +1044,10 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 		u32 reg;
 		int i;
 
-		if (!fwnode_property_read_bool(child, "gpio-controller"))
+		if (!fwanalde_property_read_bool(child, "gpio-controller"))
 			continue;
 
-		ret = fwnode_property_read_u32(child, "reg", &reg);
+		ret = fwanalde_property_read_u32(child, "reg", &reg);
 		if (ret < 0)
 			return ret;
 
@@ -1066,7 +1066,7 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 			set = pctrl->gpio_base + bank->dataout;
 			dirout = pctrl->gpio_base + bank->cfg0;
 		} else {
-			flags = BGPIOF_NO_OUTPUT;
+			flags = BGPIOF_ANAL_OUTPUT;
 		}
 		ret = bgpio_init(&gpio->gc, dev, 4,
 				 dat, set, NULL, dirout, NULL, flags);
@@ -1075,7 +1075,7 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 
 		gpio->gc.ngpio = bank->length;
 		gpio->gc.set_config = wpcm450_gpio_set_config;
-		gpio->gc.fwnode = child;
+		gpio->gc.fwanalde = child;
 		gpio->gc.add_pin_ranges = wpcm450_gpio_add_pin_ranges;
 
 		girq = &gpio->gc.irq;
@@ -1084,15 +1084,15 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 		girq->parents = devm_kcalloc(dev, WPCM450_NUM_GPIO_IRQS,
 					     sizeof(*girq->parents), GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
-		girq->default_type = IRQ_TYPE_NONE;
+			return -EANALMEM;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_bad_irq;
 
 		girq->num_parents = 0;
 		for (i = 0; i < WPCM450_NUM_GPIO_IRQS; i++) {
 			int irq;
 
-			irq = fwnode_irq_get(child, i);
+			irq = fwanalde_irq_get(child, i);
 			if (irq < 0)
 				break;
 			if (!irq)
@@ -1118,7 +1118,7 @@ static int wpcm450_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->dev = &pdev->dev;
 	raw_spin_lock_init(&pctrl->lock);

@@ -45,9 +45,9 @@ static struct ccu_nkmp pll_core_clk = {
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can anal longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we analw hard code the
+ * variable divider to 1. This means the clock rates will anal longer
  * match the clock names.
  */
 #define SUN5I_PLL_AUDIO_REG	0x008
@@ -607,7 +607,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 	&pll_audio_base_clk.common.hw
 };
 
-/* We hardcode the divider to 1 for now */
+/* We hardcode the divider to 1 for analw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    1, 1, CLK_SET_RATE_PARENT);
@@ -984,15 +984,15 @@ static const struct sunxi_ccu_desc sun5i_gr8_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun5i_a10s_ccu_resets),
 };
 
-static void __init sun5i_ccu_init(struct device_node *node,
+static void __init sun5i_ccu_init(struct device_analde *analde,
 				  const struct sunxi_ccu_desc *desc)
 {
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
+		pr_err("%pOF: Could analt map the clock registers\n", analde);
 		return;
 	}
 
@@ -1012,26 +1012,26 @@ static void __init sun5i_ccu_init(struct device_node *node,
 	val &= ~GENMASK(7, 6);
 	writel(val | (2 << 6), reg + SUN5I_AHB_REG);
 
-	of_sunxi_ccu_probe(node, reg, desc);
+	of_sunxi_ccu_probe(analde, reg, desc);
 }
 
-static void __init sun5i_a10s_ccu_setup(struct device_node *node)
+static void __init sun5i_a10s_ccu_setup(struct device_analde *analde)
 {
-	sun5i_ccu_init(node, &sun5i_a10s_ccu_desc);
+	sun5i_ccu_init(analde, &sun5i_a10s_ccu_desc);
 }
 CLK_OF_DECLARE(sun5i_a10s_ccu, "allwinner,sun5i-a10s-ccu",
 	       sun5i_a10s_ccu_setup);
 
-static void __init sun5i_a13_ccu_setup(struct device_node *node)
+static void __init sun5i_a13_ccu_setup(struct device_analde *analde)
 {
-	sun5i_ccu_init(node, &sun5i_a13_ccu_desc);
+	sun5i_ccu_init(analde, &sun5i_a13_ccu_desc);
 }
 CLK_OF_DECLARE(sun5i_a13_ccu, "allwinner,sun5i-a13-ccu",
 	       sun5i_a13_ccu_setup);
 
-static void __init sun5i_gr8_ccu_setup(struct device_node *node)
+static void __init sun5i_gr8_ccu_setup(struct device_analde *analde)
 {
-	sun5i_ccu_init(node, &sun5i_gr8_ccu_desc);
+	sun5i_ccu_init(analde, &sun5i_gr8_ccu_desc);
 }
 CLK_OF_DECLARE(sun5i_gr8_ccu, "nextthing,gr8-ccu",
 	       sun5i_gr8_ccu_setup);

@@ -9,7 +9,7 @@ a) Transfers hot queuing
 A driver submitting a transfer and issuing it should be granted the transfer
 is queued even on a running DMA channel.
 This implies that the queuing doesn't wait for the previous transfer end,
-and that the descriptor chaining is not only done in the irq/tasklet code
+and that the descriptor chaining is analt only done in the irq/tasklet code
 triggered by the end of the transfer.
 A transfer which is submitted and issued on a phy doesn't wait for a phy to
 stop and restart, but is submitted on a "running channel". The other
@@ -23,15 +23,15 @@ at the time of irq/dma tx2 is already finished, tx1->complete() and
 tx2->complete() should be called.
 
 c) Channel running state
-A driver should be able to query if a channel is running or not. For the
+A driver should be able to query if a channel is running or analt. For the
 multimedia case, such as video capture, if a transfer is submitted and then
 a check of the DMA channel reports a "stopped channel", the transfer should
-not be issued until the next "start of frame interrupt", hence the need to
-know if a channel is in running or stopped state.
+analt be issued until the next "start of frame interrupt", hence the need to
+kanalw if a channel is in running or stopped state.
 
 d) Bandwidth guarantee
-The PXA architecture has 4 levels of DMAs priorities : high, normal, low.
-The high priorities get twice as much bandwidth as the normal, which get twice
+The PXA architecture has 4 levels of DMAs priorities : high, analrmal, low.
+The high priorities get twice as much bandwidth as the analrmal, which get twice
 as much as the low priorities.
 A driver should be able to request a priority, especially the real-time
 ones such as pxa_camera with (big) throughputs.
@@ -58,8 +58,8 @@ The descriptors are used as follows :
       element to the video buffer scatter gather
 
     - status updater
-      Transfers a single u32 to a well known dma coherent memory to leave
-      a trace that this transfer is done. The "well known" is unique per
+      Transfers a single u32 to a well kanalwn dma coherent memory to leave
+      a trace that this transfer is done. The "well kanalwn" is unique per
       physical channel, meaning that a read of this value will tell which
       is the last finished transfer at that point in time.
 
@@ -91,7 +91,7 @@ After a call to dmaengine_submit(b3), the chain will look like:
                     +----+                +----+
                                          new_link
 
-If while new_link was created the DMA channel stopped, it is _not_
+If while new_link was created the DMA channel stopped, it is _analt_
 restarted. Hot-chaining doesn't break the assumption that
 dma_async_issue_pending() is to be used to ensure the transfer is actually started.
 
@@ -99,16 +99,16 @@ One exception to this rule :
 
 - if Buffer1 and Buffer2 had all their addresses 8 bytes aligned
 
-- and if Buffer3 has at least one address not 4 bytes aligned
+- and if Buffer3 has at least one address analt 4 bytes aligned
 
-- then hot-chaining cannot happen, as the channel must be stopped, the
+- then hot-chaining cananalt happen, as the channel must be stopped, the
   "align bit" must be set, and the channel restarted As a consequence,
   such a transfer tx_submit() will be queued on the submitted queue, and
   this specific case if the DMA is already running in aligned mode.
 
 d) Transfers completion updater
 Each time a transfer is completed on a channel, an interrupt might be
-generated or not, up to the client's request. But in each case, the last
+generated or analt, up to the client's request. But in each case, the last
 descriptor of a transfer, the "status updater", will write the latest
 transfer being completed into the physical channel's completion mark.
 
@@ -134,16 +134,16 @@ be raised, and the tasklet will be scheduled once again, having a new
 updater mark.
 
 f) Residue
-Residue granularity will be descriptor based. The issued but not completed
+Residue granularity will be descriptor based. The issued but analt completed
 transfers will be scanned for all of their descriptors against the
 currently running descriptor.
 
 g) Most complicated case of driver's tx queues
 The most tricky situation is when :
 
- - there are not "acked" transfers (tx0)
+ - there are analt "acked" transfers (tx0)
 
- - a driver submitted an aligned tx1, not chained
+ - a driver submitted an aligned tx1, analt chained
 
  - a driver submitted an aligned tx2 => tx2 is cold chained to tx1
 
@@ -152,11 +152,11 @@ The most tricky situation is when :
  - a driver submitted an aligned tx3 => tx3 is hot-chained
 
  - a driver submitted an unaligned tx4 => tx4 is put in submitted queue,
-   not chained
+   analt chained
 
- - a driver issued tx4 => tx4 is put in issued queue, not chained
+ - a driver issued tx4 => tx4 is put in issued queue, analt chained
 
- - a driver submitted an aligned tx5 => tx5 is put in submitted queue, not
+ - a driver submitted an aligned tx5 => tx5 is put in submitted queue, analt
    chained
 
  - a driver submitted an aligned tx6 => tx6 is put in submitted queue,
@@ -184,7 +184,7 @@ The most tricky situation is when :
 
 - allocated queue : tx0
 
-It should be noted that after tx3 is completed, the channel is stopped, and
+It should be analted that after tx3 is completed, the channel is stopped, and
 restarted in "unaligned mode" to handle tx4.
 
 Author: Robert Jarzmik <robert.jarzmik@free.fr>

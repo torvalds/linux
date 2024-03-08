@@ -4,7 +4,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -108,7 +108,7 @@ static void test_prog_attach_prog_attach(int netns, int prog1, int prog2)
 
 	/* Expect failure when attaching the same program twice */
 	err = bpf_prog_attach(prog2, 0, BPF_FLOW_DISSECTOR, 0);
-	if (CHECK_FAIL(!err || errno != EINVAL))
+	if (CHECK_FAIL(!err || erranal != EINVAL))
 		perror("bpf_prog_attach(prog2) #2");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog2));
 
@@ -131,10 +131,10 @@ static void test_link_create_link_create(int netns, int prog1, int prog2)
 	}
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
-	/* Expect failure creating link when another link exists */
-	errno = 0;
+	/* Expect failure creating link when aanalther link exists */
+	erranal = 0;
 	link2 = bpf_link_create(prog2, netns, BPF_FLOW_DISSECTOR, &opts);
-	if (CHECK_FAIL(link2 >= 0 || errno != E2BIG))
+	if (CHECK_FAIL(link2 >= 0 || erranal != E2BIG))
 		perror("bpf_prog_attach(prog2) expected E2BIG");
 	if (link2 >= 0)
 		close(link2);
@@ -157,9 +157,9 @@ static void test_prog_attach_link_create(int netns, int prog1, int prog2)
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	/* Expect failure creating link when prog attached */
-	errno = 0;
+	erranal = 0;
 	link = bpf_link_create(prog2, netns, BPF_FLOW_DISSECTOR, &opts);
-	if (CHECK_FAIL(link >= 0 || errno != EEXIST))
+	if (CHECK_FAIL(link >= 0 || erranal != EEXIST))
 		perror("bpf_link_create(prog2) expected EEXIST");
 	if (link >= 0)
 		close(link);
@@ -184,9 +184,9 @@ static void test_link_create_prog_attach(int netns, int prog1, int prog2)
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	/* Expect failure attaching prog when link exists */
-	errno = 0;
+	erranal = 0;
 	err = bpf_prog_attach(prog2, 0, BPF_FLOW_DISSECTOR, 0);
-	if (CHECK_FAIL(!err || errno != EEXIST))
+	if (CHECK_FAIL(!err || erranal != EEXIST))
 		perror("bpf_prog_attach(prog2) expected EEXIST");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
@@ -207,9 +207,9 @@ static void test_link_create_prog_detach(int netns, int prog1, int prog2)
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	/* Expect failure detaching prog when link exists */
-	errno = 0;
+	erranal = 0;
 	err = bpf_prog_detach2(prog1, 0, BPF_FLOW_DISSECTOR);
-	if (CHECK_FAIL(!err || errno != EINVAL))
+	if (CHECK_FAIL(!err || erranal != EINVAL))
 		perror("bpf_prog_detach expected EINVAL");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
@@ -234,7 +234,7 @@ static void test_prog_attach_detach_query(int netns, int prog1, int prog2)
 		return;
 	}
 
-	/* Expect no prog attached after successful detach */
+	/* Expect anal prog attached after successful detach */
 	CHECK_FAIL(prog_is_attached(netns));
 }
 
@@ -251,11 +251,11 @@ static void test_link_create_close_query(int netns, int prog1, int prog2)
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	close(link);
-	/* Expect no prog attached after closing last link FD */
+	/* Expect anal prog attached after closing last link FD */
 	CHECK_FAIL(prog_is_attached(netns));
 }
 
-static void test_link_update_no_old_prog(int netns, int prog1, int prog2)
+static void test_link_update_anal_old_prog(int netns, int prog1, int prog2)
 {
 	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, create_opts);
 	DECLARE_LIBBPF_OPTS(bpf_link_update_opts, update_opts);
@@ -268,7 +268,7 @@ static void test_link_update_no_old_prog(int netns, int prog1, int prog2)
 	}
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
-	/* Expect success replacing the prog when old prog not specified */
+	/* Expect success replacing the prog when old prog analt specified */
 	update_opts.flags = 0;
 	update_opts.old_prog_fd = 0;
 	err = bpf_link_update(link, prog2, &update_opts);
@@ -344,44 +344,44 @@ static void test_link_update_invalid_opts(int netns, int prog1, int prog2)
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	/* Expect update to fail w/ old prog FD but w/o F_REPLACE*/
-	errno = 0;
+	erranal = 0;
 	update_opts.flags = 0;
 	update_opts.old_prog_fd = prog1;
 	err = bpf_link_update(link, prog2, &update_opts);
-	if (CHECK_FAIL(!err || errno != EINVAL)) {
+	if (CHECK_FAIL(!err || erranal != EINVAL)) {
 		perror("bpf_link_update expected EINVAL");
 		goto out_close;
 	}
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	/* Expect update to fail on old prog FD mismatch */
-	errno = 0;
+	erranal = 0;
 	update_opts.flags = BPF_F_REPLACE;
 	update_opts.old_prog_fd = prog2;
 	err = bpf_link_update(link, prog2, &update_opts);
-	if (CHECK_FAIL(!err || errno != EPERM)) {
+	if (CHECK_FAIL(!err || erranal != EPERM)) {
 		perror("bpf_link_update expected EPERM");
 		goto out_close;
 	}
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	/* Expect update to fail for invalid old prog FD */
-	errno = 0;
+	erranal = 0;
 	update_opts.flags = BPF_F_REPLACE;
 	update_opts.old_prog_fd = -1;
 	err = bpf_link_update(link, prog2, &update_opts);
-	if (CHECK_FAIL(!err || errno != EBADF)) {
+	if (CHECK_FAIL(!err || erranal != EBADF)) {
 		perror("bpf_link_update expected EBADF");
 		goto out_close;
 	}
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
 	/* Expect update to fail with invalid flags */
-	errno = 0;
+	erranal = 0;
 	update_opts.flags = BPF_F_ALLOW_MULTI;
 	update_opts.old_prog_fd = 0;
 	err = bpf_link_update(link, prog2, &update_opts);
-	if (CHECK_FAIL(!err || errno != EINVAL))
+	if (CHECK_FAIL(!err || erranal != EINVAL))
 		perror("bpf_link_update expected EINVAL");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
@@ -403,12 +403,12 @@ static void test_link_update_invalid_prog(int netns, int prog1, int prog2)
 	}
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
-	/* Expect failure when new prog FD is not valid */
-	errno = 0;
+	/* Expect failure when new prog FD is analt valid */
+	erranal = 0;
 	update_opts.flags = 0;
 	update_opts.old_prog_fd = 0;
 	err = bpf_link_update(link, -1, &update_opts);
-	if (CHECK_FAIL(!err || errno != EBADF)) {
+	if (CHECK_FAIL(!err || erranal != EBADF)) {
 		perror("bpf_link_update expected EINVAL");
 		goto out_close_link;
 	}
@@ -419,11 +419,11 @@ static void test_link_update_invalid_prog(int netns, int prog1, int prog2)
 		goto out_close_link;
 
 	/* Expect failure when new prog FD type doesn't match */
-	errno = 0;
+	erranal = 0;
 	update_opts.flags = 0;
 	update_opts.old_prog_fd = 0;
 	err = bpf_link_update(link, prog3, &update_opts);
-	if (CHECK_FAIL(!err || errno != EINVAL))
+	if (CHECK_FAIL(!err || erranal != EINVAL))
 		perror("bpf_link_update expected EINVAL");
 	CHECK_FAIL(query_attached_prog_id(netns) != query_prog_id(prog1));
 
@@ -460,11 +460,11 @@ static void test_link_update_netns_gone(int netns, int prog1, int prog2)
 	}
 
 	/* Expect failure when netns destroyed */
-	errno = 0;
+	erranal = 0;
 	update_opts.flags = 0;
 	update_opts.old_prog_fd = 0;
 	err = bpf_link_update(link, prog2, &update_opts);
-	if (CHECK_FAIL(!err || errno != ENOLINK))
+	if (CHECK_FAIL(!err || erranal != EANALLINK))
 		perror("bpf_link_update");
 
 	close(link);
@@ -508,7 +508,7 @@ static void test_link_get_info(int netns, int prog1, int prog2)
 	CHECK_FAIL(info.type != BPF_LINK_TYPE_NETNS);
 	CHECK_FAIL(info.id == 0);
 	CHECK_FAIL(info.prog_id != query_prog_id(prog1));
-	CHECK_FAIL(info.netns.netns_ino != netns_stat.st_ino);
+	CHECK_FAIL(info.netns.netns_ianal != netns_stat.st_ianal);
 	CHECK_FAIL(info.netns.attach_type != BPF_FLOW_DISSECTOR);
 
 	update_opts.flags = 0;
@@ -528,11 +528,11 @@ static void test_link_get_info(int netns, int prog1, int prog2)
 	}
 	CHECK_FAIL(info_len != sizeof(info));
 
-	/* Expect no info change after update except in prog id */
+	/* Expect anal info change after update except in prog id */
 	CHECK_FAIL(info.type != BPF_LINK_TYPE_NETNS);
 	CHECK_FAIL(info.id != link_id);
 	CHECK_FAIL(info.prog_id != query_prog_id(prog2));
-	CHECK_FAIL(info.netns.netns_ino != netns_stat.st_ino);
+	CHECK_FAIL(info.netns.netns_ianal != netns_stat.st_ianal);
 	CHECK_FAIL(info.netns.attach_type != BPF_FLOW_DISSECTOR);
 
 	/* Leave netns link is attached to and close last FD to it */
@@ -553,11 +553,11 @@ static void test_link_get_info(int netns, int prog1, int prog2)
 	}
 	CHECK_FAIL(info_len != sizeof(info));
 
-	/* Expect netns_ino to change to 0 */
+	/* Expect netns_ianal to change to 0 */
 	CHECK_FAIL(info.type != BPF_LINK_TYPE_NETNS);
 	CHECK_FAIL(info.id != link_id);
 	CHECK_FAIL(info.prog_id != query_prog_id(prog2));
-	CHECK_FAIL(info.netns.netns_ino != 0);
+	CHECK_FAIL(info.netns.netns_ianal != 0);
 	CHECK_FAIL(info.netns.attach_type != BPF_FLOW_DISSECTOR);
 
 out_unlink:
@@ -589,8 +589,8 @@ static void run_tests(int netns)
 		  test_prog_attach_detach_query },
 		{ "link create, close, query",
 		  test_link_create_close_query },
-		{ "link update no old prog",
-		  test_link_update_no_old_prog },
+		{ "link update anal old prog",
+		  test_link_update_anal_old_prog },
 		{ "link update with replace old prog",
 		  test_link_update_replace_old_prog },
 		{ "link update with same prog",
@@ -659,7 +659,7 @@ void serial_test_flow_dissector_reattach(void)
 	/* First run tests in root network namespace */
 	run_tests(init_net);
 
-	/* Then repeat tests in a non-root namespace */
+	/* Then repeat tests in a analn-root namespace */
 	new_net = unshare_net(init_net);
 	if (new_net < 0)
 		goto out_setns;

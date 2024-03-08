@@ -12,21 +12,21 @@
 #define OPLOCK_WAIT_TIME	(35 * HZ)
 
 /* SMB2 Oplock levels */
-#define SMB2_OPLOCK_LEVEL_NONE          0x00
+#define SMB2_OPLOCK_LEVEL_ANALNE          0x00
 #define SMB2_OPLOCK_LEVEL_II            0x01
 #define SMB2_OPLOCK_LEVEL_EXCLUSIVE     0x08
 #define SMB2_OPLOCK_LEVEL_BATCH         0x09
 #define SMB2_OPLOCK_LEVEL_LEASE         0xFF
 
 /* Oplock states */
-#define OPLOCK_STATE_NONE	0x00
+#define OPLOCK_STATE_ANALNE	0x00
 #define OPLOCK_ACK_WAIT		0x01
 #define OPLOCK_CLOSING		0x02
 
 #define OPLOCK_WRITE_TO_READ		0x01
 #define OPLOCK_READ_HANDLE_TO_READ	0x02
-#define OPLOCK_WRITE_TO_NONE		0x04
-#define OPLOCK_READ_TO_NONE		0x08
+#define OPLOCK_WRITE_TO_ANALNE		0x04
+#define OPLOCK_READ_TO_ANALNE		0x08
 
 struct lease_ctx_info {
 	__u8			lease_key[SMB2_LEASE_KEY_SIZE];
@@ -102,8 +102,8 @@ void smb_break_all_levII_oplock(struct ksmbd_work *work,
 				struct ksmbd_file *fp, int is_trunc);
 int opinfo_write_to_read(struct oplock_info *opinfo);
 int opinfo_read_handle_to_read(struct oplock_info *opinfo);
-int opinfo_write_to_none(struct oplock_info *opinfo);
-int opinfo_read_to_none(struct oplock_info *opinfo);
+int opinfo_write_to_analne(struct oplock_info *opinfo);
+int opinfo_read_to_analne(struct oplock_info *opinfo);
 void close_id_del_oplock(struct ksmbd_file *fp);
 void smb_break_all_oplock(struct ksmbd_work *work, struct ksmbd_file *fp);
 struct oplock_info *opinfo_get(struct ksmbd_file *fp);
@@ -124,10 +124,10 @@ void create_posix_rsp_buf(char *cc, struct ksmbd_file *fp);
 struct create_context *smb2_find_context_vals(void *open_req, const char *tag, int tag_len);
 struct oplock_info *lookup_lease_in_table(struct ksmbd_conn *conn,
 					  char *lease_key);
-int find_same_lease_key(struct ksmbd_session *sess, struct ksmbd_inode *ci,
+int find_same_lease_key(struct ksmbd_session *sess, struct ksmbd_ianalde *ci,
 			struct lease_ctx_info *lctx);
 void destroy_lease_table(struct ksmbd_conn *conn);
-void smb_send_parent_lease_break_noti(struct ksmbd_file *fp,
+void smb_send_parent_lease_break_analti(struct ksmbd_file *fp,
 				      struct lease_ctx_info *lctx);
 void smb_lazy_parent_lease_break_close(struct ksmbd_file *fp);
 #endif /* __KSMBD_OPLOCK_H */

@@ -280,7 +280,7 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 		MT_EE_XTAL_TRIM_3_COMP,
 		MT_EE_XTAL_WF_RFCAL,
 
-		/* unknown fields below */
+		/* unkanalwn fields below */
 		WORD(0x24),
 		0x34,
 		0x39,
@@ -320,7 +320,7 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 
 	req = kmalloc(len, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(req, &req_hdr, sizeof(req_hdr));
 	data = (struct req_data *)(req + sizeof(req_hdr));

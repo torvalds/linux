@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2010-2011 Canonical Ltd <jeremy.kerr@canonical.com>
+ * Copyright (C) 2010-2011 Caanalnical Ltd <jeremy.kerr@caanalnical.com>
  * Copyright (C) 2011-2012 Mike Turquette, Linaro Ltd <mturquette@linaro.org>
  *
  * Gated clock implementation
@@ -20,8 +20,8 @@
  * Traits of this clock:
  * prepare - clk_(un)prepare only ensures parent is (un)prepared
  * enable - clk_enable and clk_disable are functional & control gating
- * rate - inherits rate from parent.  No clk_set_rate support
- * parent - fixed parent.  No clk_set_parent support
+ * rate - inherits rate from parent.  Anal clk_set_rate support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 static inline u32 clk_gate_readl(struct clk_gate *gate)
@@ -125,7 +125,7 @@ const struct clk_ops clk_gate_ops = {
 EXPORT_SYMBOL_GPL(clk_gate_ops);
 
 struct clk_hw *__clk_hw_register_gate(struct device *dev,
-		struct device_node *np, const char *name,
+		struct device_analde *np, const char *name,
 		const char *parent_name, const struct clk_hw *parent_hw,
 		const struct clk_parent_data *parent_data,
 		unsigned long flags,
@@ -147,7 +147,7 @@ struct clk_hw *__clk_hw_register_gate(struct device *dev,
 	/* allocate the gate */
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_gate_ops;
@@ -230,7 +230,7 @@ static void devm_clk_hw_release_gate(struct device *dev, void *res)
 }
 
 struct clk_hw *__devm_clk_hw_register_gate(struct device *dev,
-		struct device_node *np, const char *name,
+		struct device_analde *np, const char *name,
 		const char *parent_name, const struct clk_hw *parent_hw,
 		const struct clk_parent_data *parent_data,
 		unsigned long flags,
@@ -241,7 +241,7 @@ struct clk_hw *__devm_clk_hw_register_gate(struct device *dev,
 
 	ptr = devres_alloc(devm_clk_hw_release_gate, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hw = __clk_hw_register_gate(dev, np, name, parent_name, parent_hw,
 				    parent_data, flags, reg, bit_idx,

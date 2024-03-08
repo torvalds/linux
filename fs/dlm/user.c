@@ -81,7 +81,7 @@ struct dlm_lock_result32 {
 	struct dlm_lksb32 lksb;
 	__u8 bast_mode;
 	__u8 unused[3];
-	/* Offsets may be zero if no data is present */
+	/* Offsets may be zero if anal data is present */
 	__u32 lvb_offset;
 };
 
@@ -98,10 +98,10 @@ static void compat_input(struct dlm_write_request *kb,
 	if (kb->cmd == DLM_USER_CREATE_LOCKSPACE ||
 	    kb->cmd == DLM_USER_REMOVE_LOCKSPACE) {
 		kb->i.lspace.flags = kb32->i.lspace.flags;
-		kb->i.lspace.minor = kb32->i.lspace.minor;
+		kb->i.lspace.mianalr = kb32->i.lspace.mianalr;
 		memcpy(kb->i.lspace.name, kb32->i.lspace.name, namelen);
 	} else if (kb->cmd == DLM_USER_PURGE) {
-		kb->i.purge.nodeid = kb32->i.purge.nodeid;
+		kb->i.purge.analdeid = kb32->i.purge.analdeid;
 		kb->i.purge.pid = kb32->i.purge.pid;
 	} else {
 		kb->i.lock.mode = kb32->i.lock.mode;
@@ -163,15 +163,15 @@ void dlm_purge_lkb_callbacks(struct dlm_lkb *lkb)
 	lkb->lkb_last_bast_mode = -1;
 }
 
-/* Figure out if this lock is at the end of its life and no longer
+/* Figure out if this lock is at the end of its life and anal longer
    available for the application to use.  The lkb still exists until
    the final ast is read.  A lock becomes EOL in three situations:
-     1. a noqueue request fails with EAGAIN
+     1. a analqueue request fails with EAGAIN
      2. an unlock completes with EUNLOCK
      3. a cancel of a waiting request completes with ECANCEL/EDEADLK
    An EOL lock needs to be removed from the process's list of locks.
    And we can't allow any new operation on an EOL lock.  This is
-   not related to the lifetime of the lkb struct which is managed
+   analt related to the lifetime of the lkb struct which is managed
    entirely by refcount. */
 
 static int lkb_is_endoflife(int mode, int status)
@@ -250,7 +250,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	spin_unlock(&proc->asts_spin);
 
 	if (test_bit(DLM_IFL_ENDOFLIFE_BIT, &lkb->lkb_iflags)) {
-		/* N.B. spin_lock locks_spin, not asts_spin */
+		/* N.B. spin_lock locks_spin, analt asts_spin */
 		spin_lock(&proc->locks_spin);
 		if (!list_empty(&lkb->lkb_ownqueue)) {
 			list_del_init(&lkb->lkb_ownqueue);
@@ -268,18 +268,18 @@ static int device_user_lock(struct dlm_user_proc *proc,
 	struct dlm_ls *ls;
 	struct dlm_user_args *ua;
 	uint32_t lkid;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	ls = dlm_find_lockspace_local(proc->lockspace);
 	if (!ls)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!params->castaddr || !params->lksb) {
 		error = -EINVAL;
 		goto out;
 	}
 
-	ua = kzalloc(sizeof(struct dlm_user_args), GFP_NOFS);
+	ua = kzalloc(sizeof(struct dlm_user_args), GFP_ANALFS);
 	if (!ua)
 		goto out;
 	ua->proc = proc;
@@ -318,13 +318,13 @@ static int device_user_unlock(struct dlm_user_proc *proc,
 {
 	struct dlm_ls *ls;
 	struct dlm_user_args *ua;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	ls = dlm_find_lockspace_local(proc->lockspace);
 	if (!ls)
-		return -ENOENT;
+		return -EANALENT;
 
-	ua = kzalloc(sizeof(struct dlm_user_args), GFP_NOFS);
+	ua = kzalloc(sizeof(struct dlm_user_args), GFP_ANALFS);
 	if (!ua)
 		goto out;
 	ua->proc = proc;
@@ -350,7 +350,7 @@ static int device_user_deadlock(struct dlm_user_proc *proc,
 
 	ls = dlm_find_lockspace_local(proc->lockspace);
 	if (!ls)
-		return -ENOENT;
+		return -EANALENT;
 
 	error = dlm_user_deadlock(ls, params->flags, params->lkid);
 
@@ -367,16 +367,16 @@ static int dlm_device_register(struct dlm_ls *ls, char *name)
 	if (ls->ls_device.name)
 		return 0;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	len = strlen(name) + strlen(name_prefix) + 2;
-	ls->ls_device.name = kzalloc(len, GFP_NOFS);
+	ls->ls_device.name = kzalloc(len, GFP_ANALFS);
 	if (!ls->ls_device.name)
 		goto fail;
 
 	snprintf((char *)ls->ls_device.name, len, "%s_%s", name_prefix,
 		 name);
 	ls->ls_device.fops = &device_fops;
-	ls->ls_device.minor = MISC_DYNAMIC_MINOR;
+	ls->ls_device.mianalr = MISC_DYNAMIC_MIANALR;
 
 	error = misc_register(&ls->ls_device);
 	if (error) {
@@ -392,7 +392,7 @@ fail:
 
 int dlm_device_deregister(struct dlm_ls *ls)
 {
-	/* The device is not registered.  This happens when the lockspace
+	/* The device is analt registered.  This happens when the lockspace
 	   was never used from userspace, or when device_create_lockspace()
 	   calls dlm_release_lockspace() after the register fails. */
 	if (!ls->ls_device.name)
@@ -411,9 +411,9 @@ static int device_user_purge(struct dlm_user_proc *proc,
 
 	ls = dlm_find_lockspace_local(proc->lockspace);
 	if (!ls)
-		return -ENOENT;
+		return -EANALENT;
 
-	error = dlm_user_purge(ls, proc, params->nodeid, params->pid);
+	error = dlm_user_purge(ls, proc, params->analdeid, params->pid);
 
 	dlm_put_lockspace(ls);
 	return error;
@@ -436,7 +436,7 @@ static int device_create_lockspace(struct dlm_lspace_params *params)
 
 	ls = dlm_find_lockspace_local(lockspace);
 	if (!ls)
-		return -ENOENT;
+		return -EANALENT;
 
 	error = dlm_device_register(ls, params->name);
 	dlm_put_lockspace(ls);
@@ -444,7 +444,7 @@ static int device_create_lockspace(struct dlm_lspace_params *params)
 	if (error)
 		dlm_release_lockspace(lockspace, 0);
 	else
-		error = ls->ls_device.minor;
+		error = ls->ls_device.mianalr;
 
 	return error;
 }
@@ -458,9 +458,9 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ls = dlm_find_lockspace_device(params->minor);
+	ls = dlm_find_lockspace_device(params->mianalr);
 	if (!ls)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (params->flags & DLM_USER_LSFLG_FORCEFREE)
 		force = 2;
@@ -472,8 +472,8 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 	   zero, so all processes will need to close their device for the
 	   ls before the release will proceed.  release also calls the
 	   device_deregister above.  Converting a positive return value
-	   from release to zero means that userspace won't know when its
-	   release was the final one, but it shouldn't need to know. */
+	   from release to zero means that userspace won't kanalw when its
+	   release was the final one, but it shouldn't need to kanalw. */
 
 	error = dlm_release_lockspace(lockspace, force);
 	if (error > 0)
@@ -486,7 +486,7 @@ static int check_version(struct dlm_write_request *req)
 {
 	if (req->version[0] != DLM_DEVICE_VERSION_MAJOR ||
 	    (req->version[0] == DLM_DEVICE_VERSION_MAJOR &&
-	     req->version[1] > DLM_DEVICE_VERSION_MINOR)) {
+	     req->version[1] > DLM_DEVICE_VERSION_MIANALR)) {
 
 		printk(KERN_DEBUG "dlm: process %s (%d) version mismatch "
 		       "user (%d.%d.%d) kernel (%d.%d.%d)\n",
@@ -496,7 +496,7 @@ static int check_version(struct dlm_write_request *req)
 		       req->version[1],
 		       req->version[2],
 		       DLM_DEVICE_VERSION_MAJOR,
-		       DLM_DEVICE_VERSION_MINOR,
+		       DLM_DEVICE_VERSION_MIANALR,
 		       DLM_DEVICE_VERSION_PATCH);
 		return -EINVAL;
 	}
@@ -540,7 +540,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 	/*
 	 * can't compare against COMPAT/dlm_write_request32 because
-	 * we don't yet know if is64bit is zero
+	 * we don't yet kanalw if is64bit is zero
 	 */
 	if (count > sizeof(struct dlm_write_request) + DLM_RESNAME_MAXLEN)
 		return -EINVAL;
@@ -566,10 +566,10 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 		/* add 1 after namelen so that the name string is terminated */
 		kbuf = kzalloc(sizeof(struct dlm_write_request) + namelen + 1,
-			       GFP_NOFS);
+			       GFP_ANALFS);
 		if (!kbuf) {
 			kfree(k32buf);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (proc)
@@ -593,7 +593,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 	{
 	case DLM_USER_LOCK:
 		if (!proc) {
-			log_print("no locking on control device");
+			log_print("anal locking on control device");
 			goto out_free;
 		}
 		error = device_user_lock(proc, &kbuf->i.lock);
@@ -601,7 +601,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 	case DLM_USER_UNLOCK:
 		if (!proc) {
-			log_print("no locking on control device");
+			log_print("anal locking on control device");
 			goto out_free;
 		}
 		error = device_user_unlock(proc, &kbuf->i.lock);
@@ -609,7 +609,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 	case DLM_USER_DEADLOCK:
 		if (!proc) {
-			log_print("no locking on control device");
+			log_print("anal locking on control device");
 			goto out_free;
 		}
 		error = device_user_deadlock(proc, &kbuf->i.lock);
@@ -633,14 +633,14 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 	case DLM_USER_PURGE:
 		if (!proc) {
-			log_print("no locking on control device");
+			log_print("anal locking on control device");
 			goto out_free;
 		}
 		error = device_user_purge(proc, &kbuf->i.purge);
 		break;
 
 	default:
-		log_print("Unknown command passed to DLM device : %d\n",
+		log_print("Unkanalwn command passed to DLM device : %d\n",
 			  kbuf->cmd);
 	}
 
@@ -653,19 +653,19 @@ static ssize_t device_write(struct file *file, const char __user *buf,
    hanging off the open file that's used to keep track of locks owned by the
    process and asts that need to be delivered to the process. */
 
-static int device_open(struct inode *inode, struct file *file)
+static int device_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dlm_user_proc *proc;
 	struct dlm_ls *ls;
 
-	ls = dlm_find_lockspace_device(iminor(inode));
+	ls = dlm_find_lockspace_device(imianalr(ianalde));
 	if (!ls)
-		return -ENOENT;
+		return -EANALENT;
 
-	proc = kzalloc(sizeof(struct dlm_user_proc), GFP_NOFS);
+	proc = kzalloc(sizeof(struct dlm_user_proc), GFP_ANALFS);
 	if (!proc) {
 		dlm_put_lockspace(ls);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	proc->lockspace = ls->ls_local_handle;
@@ -680,21 +680,21 @@ static int device_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int device_close(struct inode *inode, struct file *file)
+static int device_close(struct ianalde *ianalde, struct file *file)
 {
 	struct dlm_user_proc *proc = file->private_data;
 	struct dlm_ls *ls;
 
 	ls = dlm_find_lockspace_local(proc->lockspace);
 	if (!ls)
-		return -ENOENT;
+		return -EANALENT;
 
 	set_bit(DLM_PROC_FLAGS_CLOSING, &proc->flags);
 
 	dlm_clear_proc_locks(ls, proc);
 
-	/* at this point no more lkb's should exist for this lockspace,
-	   so there's no chance of dlm_user_add_ast() being called and
+	/* at this point anal more lkb's should exist for this lockspace,
+	   so there's anal chance of dlm_user_add_ast() being called and
 	   looking for lkb->ua->proc */
 
 	kfree(proc);
@@ -703,7 +703,7 @@ static int device_close(struct inode *inode, struct file *file)
 	dlm_put_lockspace(ls);
 	dlm_put_lockspace(ls);  /* for the find in device_open() */
 
-	/* FIXME: AUTOFREE: if this ls is no longer used do
+	/* FIXME: AUTOFREE: if this ls is anal longer used do
 	   device_remove_lockspace() */
 
 	return 0;
@@ -724,15 +724,15 @@ static int copy_result_to_user(struct dlm_user_args *ua, int compat,
 
 	memset(&result, 0, sizeof(struct dlm_lock_result));
 	result.version[0] = DLM_DEVICE_VERSION_MAJOR;
-	result.version[1] = DLM_DEVICE_VERSION_MINOR;
+	result.version[1] = DLM_DEVICE_VERSION_MIANALR;
 	result.version[2] = DLM_DEVICE_VERSION_PATCH;
 	memcpy(&result.lksb, &ua->lksb, offsetof(struct dlm_lksb, sb_lvbptr));
 	result.user_lksb = ua->user_lksb;
 
-	/* FIXME: dlm1 provides for the user's bastparam/addr to not be updated
+	/* FIXME: dlm1 provides for the user's bastparam/addr to analt be updated
 	   in a conversion unless the conversion is successful.  See code
 	   in dlm_user_convert() for updating ua from ua_tmp.  OpenVMS, though,
-	   notes that a new blocking AST address and parameter are set even if
+	   analtes that a new blocking AST address and parameter are set even if
 	   the conversion fails, so maybe we should just do that. */
 
 	if (flags & DLM_CB_BAST) {
@@ -789,7 +789,7 @@ static int copy_version_to_user(char __user *buf, size_t count)
 
 	memset(&ver, 0, sizeof(struct dlm_device_version));
 	ver.version[0] = DLM_DEVICE_VERSION_MAJOR;
-	ver.version[1] = DLM_DEVICE_VERSION_MINOR;
+	ver.version[1] = DLM_DEVICE_VERSION_MIANALR;
 	ver.version[2] = DLM_DEVICE_VERSION_PATCH;
 
 	if (copy_to_user(buf, &ver, sizeof(struct dlm_device_version)))
@@ -815,7 +815,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	}
 
 	if (!proc) {
-		log_print("non-version read from control device %zu", count);
+		log_print("analn-version read from control device %zu", count);
 		return -EINVAL;
 	}
 
@@ -826,7 +826,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 #endif
 		return -EINVAL;
 
- try_another:
+ try_aanalther:
 
 	/* do we really need this? can a read happen after a close? */
 	if (test_bit(DLM_PROC_FLAGS_CLOSING, &proc->flags))
@@ -834,7 +834,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 
 	spin_lock(&proc->asts_spin);
 	if (list_empty(&proc->asts)) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			spin_unlock(&proc->asts_spin);
 			return -EAGAIN;
 		}
@@ -879,7 +879,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 		/* removes ref for proc->asts, may cause lkb to be freed */
 		dlm_put_lkb(lkb);
 		WARN_ON_ONCE(1);
-		goto try_another;
+		goto try_aanalther;
 	case DLM_DEQUEUE_CALLBACK_LAST:
 		list_del_init(&lkb->lkb_cb_list);
 		clear_bit(DLM_IFL_CB_PENDING_BIT, &lkb->lkb_iflags);
@@ -928,7 +928,7 @@ static __poll_t device_poll(struct file *file, poll_table *wait)
 	spin_lock(&proc->asts_spin);
 	if (!list_empty(&proc->asts)) {
 		spin_unlock(&proc->asts_spin);
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	}
 	spin_unlock(&proc->asts_spin);
 	return 0;
@@ -936,14 +936,14 @@ static __poll_t device_poll(struct file *file, poll_table *wait)
 
 int dlm_user_daemon_available(void)
 {
-	/* dlm_controld hasn't started (or, has started, but not
+	/* dlm_controld hasn't started (or, has started, but analt
 	   properly populated configfs) */
 
-	if (!dlm_our_nodeid())
+	if (!dlm_our_analdeid())
 		return 0;
 
 	/* This is to deal with versions of dlm_controld that don't
-	   know about the monitor device.  We assume that if the
+	   kanalw about the monitor device.  We assume that if the
 	   dlm_controld was started (above), but the monitor device
 	   was never opened, that it's an old version.  dlm_controld
 	   should open the monitor device before populating configfs. */
@@ -954,25 +954,25 @@ int dlm_user_daemon_available(void)
 	return atomic_read(&dlm_monitor_opened) ? 1 : 0;
 }
 
-static int ctl_device_open(struct inode *inode, struct file *file)
+static int ctl_device_open(struct ianalde *ianalde, struct file *file)
 {
 	file->private_data = NULL;
 	return 0;
 }
 
-static int ctl_device_close(struct inode *inode, struct file *file)
+static int ctl_device_close(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
 
-static int monitor_device_open(struct inode *inode, struct file *file)
+static int monitor_device_open(struct ianalde *ianalde, struct file *file)
 {
 	atomic_inc(&dlm_monitor_opened);
 	dlm_monitor_unused = 0;
 	return 0;
 }
 
-static int monitor_device_close(struct inode *inode, struct file *file)
+static int monitor_device_close(struct ianalde *ianalde, struct file *file)
 {
 	if (atomic_dec_and_test(&dlm_monitor_opened))
 		dlm_stop_lockspaces();
@@ -986,7 +986,7 @@ static const struct file_operations device_fops = {
 	.write   = device_write,
 	.poll    = device_poll,
 	.owner   = THIS_MODULE,
-	.llseek  = noop_llseek,
+	.llseek  = analop_llseek,
 };
 
 static const struct file_operations ctl_device_fops = {
@@ -995,26 +995,26 @@ static const struct file_operations ctl_device_fops = {
 	.read    = device_read,
 	.write   = device_write,
 	.owner   = THIS_MODULE,
-	.llseek  = noop_llseek,
+	.llseek  = analop_llseek,
 };
 
 static struct miscdevice ctl_device = {
 	.name  = "dlm-control",
 	.fops  = &ctl_device_fops,
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 };
 
 static const struct file_operations monitor_device_fops = {
 	.open    = monitor_device_open,
 	.release = monitor_device_close,
 	.owner   = THIS_MODULE,
-	.llseek  = noop_llseek,
+	.llseek  = analop_llseek,
 };
 
 static struct miscdevice monitor_device = {
 	.name  = "dlm-monitor",
 	.fops  = &monitor_device_fops,
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 };
 
 int __init dlm_user_init(void)

@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <asm/byteorder.h>
 #include <error.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/icmpv6.h>
@@ -86,7 +86,7 @@ static void do_send(int fd, bool with_flowlabel, uint32_t flowlabel)
 
 	ret = sendmsg(fd, &msg, 0);
 	if (ret == -1)
-		error(1, errno, "send");
+		error(1, erranal, "send");
 
 	if (with_flowlabel)
 		fprintf(stderr, "sent with label %u\n", flowlabel);
@@ -116,7 +116,7 @@ static void do_recv(int fd, bool with_flowlabel, uint32_t expect)
 
 	ret = recvmsg(fd, &msg, 0);
 	if (ret == -1)
-		error(1, errno, "recv");
+		error(1, erranal, "recv");
 	if (use_ping)
 		goto parse_cmsg;
 	if (msg.msg_flags & (MSG_TRUNC | MSG_CTRUNC))
@@ -158,16 +158,16 @@ static bool get_autoflowlabel_enabled(void)
 
 	fd = open("/proc/sys/net/ipv6/auto_flowlabels", O_RDONLY);
 	if (fd == -1)
-		error(1, errno, "open sysctl");
+		error(1, erranal, "open sysctl");
 
 	ret = read(fd, &val, 1);
 	if (ret == -1)
-		error(1, errno, "read sysctl");
+		error(1, erranal, "read sysctl");
 	if (ret == 0)
 		error(1, 0, "read sysctl: 0");
 
 	if (close(fd))
-		error(1, errno, "close sysctl");
+		error(1, erranal, "close sysctl");
 
 	return val == '1';
 }
@@ -181,12 +181,12 @@ static void flowlabel_get(int fd, uint32_t label, uint8_t share, uint16_t flags)
 		.flr_share = share,
 	};
 
-	/* do not pass IPV6_ADDR_ANY or IPV6_ADDR_MAPPED */
+	/* do analt pass IPV6_ADDR_ANY or IPV6_ADDR_MAPPED */
 	req.flr_dst.s6_addr[0] = 0xfd;
 	req.flr_dst.s6_addr[15] = 0x1;
 
 	if (setsockopt(fd, SOL_IPV6, IPV6_FLOWLABEL_MGR, &req, sizeof(req)))
-		error(1, errno, "setsockopt flowlabel get");
+		error(1, erranal, "setsockopt flowlabel get");
 }
 
 static void parse_opts(int argc, char **argv)
@@ -227,28 +227,28 @@ int main(int argc, char **argv)
 
 	fdt = socket(PF_INET6, SOCK_DGRAM, prot);
 	if (fdt == -1)
-		error(1, errno, "socket t");
+		error(1, erranal, "socket t");
 
 	fdr = use_ping ? fdt : socket(PF_INET6, SOCK_DGRAM, 0);
 	if (fdr == -1)
-		error(1, errno, "socket r");
+		error(1, erranal, "socket r");
 
 	if (connect(fdt, (void *)&addr, sizeof(addr)))
-		error(1, errno, "connect");
+		error(1, erranal, "connect");
 	if (!use_ping && bind(fdr, (void *)&addr, sizeof(addr)))
-		error(1, errno, "bind");
+		error(1, erranal, "bind");
 
 	flowlabel_get(fdt, cfg_label, IPV6_FL_S_EXCL, IPV6_FL_F_CREATE);
 
 	if (setsockopt(fdr, SOL_IPV6, IPV6_FLOWINFO, &one, sizeof(one)))
-		error(1, errno, "setsockopt flowinfo");
+		error(1, erranal, "setsockopt flowinfo");
 
 	if (get_autoflowlabel_enabled()) {
-		fprintf(stderr, "send no label: recv auto flowlabel\n");
+		fprintf(stderr, "send anal label: recv auto flowlabel\n");
 		do_send(fdt, false, 0);
 		do_recv(fdr, true, FLOWLABEL_WILDCARD);
 	} else {
-		fprintf(stderr, "send no label: recv no label (auto off)\n");
+		fprintf(stderr, "send anal label: recv anal label (auto off)\n");
 		do_send(fdt, false, 0);
 		do_recv(fdr, false, 0);
 	}
@@ -258,7 +258,7 @@ int main(int argc, char **argv)
 		addr.sin6_flowinfo = htonl(cfg_label);
 		if (setsockopt(fdt, SOL_IPV6, IPV6_FLOWINFO_SEND, &one,
 			       sizeof(one)) == -1)
-			error(1, errno, "setsockopt flowinfo_send");
+			error(1, erranal, "setsockopt flowinfo_send");
 	}
 
 	fprintf(stderr, "send label\n");
@@ -266,9 +266,9 @@ int main(int argc, char **argv)
 	do_recv(fdr, true, cfg_label);
 
 	if (close(fdr))
-		error(1, errno, "close r");
+		error(1, erranal, "close r");
 	if (!use_ping && close(fdt))
-		error(1, errno, "close t");
+		error(1, erranal, "close t");
 
 	return 0;
 }

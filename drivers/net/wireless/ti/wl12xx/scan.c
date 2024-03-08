@@ -29,11 +29,11 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 		    (req->channels[i]->band == band) &&
 		    /*
 		     * In passive scans, we scan all remaining
-		     * channels, even if not marked as such.
-		     * In active scans, we only scan channels not
+		     * channels, even if analt marked as such.
+		     * In active scans, we only scan channels analt
 		     * marked as passive.
 		     */
-		    (passive || !(flags & IEEE80211_CHAN_NO_IR))) {
+		    (passive || !(flags & IEEE80211_CHAN_ANAL_IR))) {
 			wl1271_debug(DEBUG_SCAN, "band %d, center_freq %d ",
 				     req->channels[i]->band,
 				     req->channels[i]->center_freq);
@@ -75,7 +75,7 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 	return j;
 }
 
-#define WL1271_NOTHING_TO_SCAN 1
+#define WL1271_ANALTHING_TO_SCAN 1
 
 static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			    enum nl80211_band band,
@@ -89,12 +89,12 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	/* skip active scans if we don't have SSIDs */
 	if (!passive && wl->scan.req->n_ssids == 0)
-		return WL1271_NOTHING_TO_SCAN;
+		return WL1271_ANALTHING_TO_SCAN;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
 	if (!cmd || !trigger) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -104,7 +104,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
-	/* scan on the dev role if the regular one is not started */
+	/* scan on the dev role if the regular one is analt started */
 	if (wlcore_is_p2p_mgmt(wlvif))
 		cmd->params.role_id = wlvif->dev_role_id;
 	else
@@ -121,7 +121,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 						    cmd->channels,
 						    band, passive);
 	if (cmd->params.n_ch == 0) {
-		ret = WL1271_NOTHING_TO_SCAN;
+		ret = WL1271_ANALTHING_TO_SCAN;
 		goto out;
 	}
 
@@ -186,7 +186,7 @@ int wl12xx_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -214,14 +214,14 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	case WL1271_SCAN_STATE_2GHZ_ACTIVE:
 		band = NL80211_BAND_2GHZ;
 		mask = wlvif->bitrate_masks[band];
-		if (wl->scan.req->no_cck) {
+		if (wl->scan.req->anal_cck) {
 			mask &= ~CONF_TX_CCK_RATES;
 			if (!mask)
 				mask = CONF_TX_RATE_MASK_BASIC_P2P;
 		}
 		rate = wl1271_tx_min_rate_get(wl, mask);
 		ret = wl1271_scan_send(wl, wlvif, band, false, rate);
-		if (ret == WL1271_NOTHING_TO_SCAN) {
+		if (ret == WL1271_ANALTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_2GHZ_PASSIVE;
 			wl1271_scan_stm(wl, wlvif);
 		}
@@ -231,14 +231,14 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	case WL1271_SCAN_STATE_2GHZ_PASSIVE:
 		band = NL80211_BAND_2GHZ;
 		mask = wlvif->bitrate_masks[band];
-		if (wl->scan.req->no_cck) {
+		if (wl->scan.req->anal_cck) {
 			mask &= ~CONF_TX_CCK_RATES;
 			if (!mask)
 				mask = CONF_TX_RATE_MASK_BASIC_P2P;
 		}
 		rate = wl1271_tx_min_rate_get(wl, mask);
 		ret = wl1271_scan_send(wl, wlvif, band, true, rate);
-		if (ret == WL1271_NOTHING_TO_SCAN) {
+		if (ret == WL1271_ANALTHING_TO_SCAN) {
 			if (wl->enable_11a)
 				wl->scan.state = WL1271_SCAN_STATE_5GHZ_ACTIVE;
 			else
@@ -252,7 +252,7 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		band = NL80211_BAND_5GHZ;
 		rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[band]);
 		ret = wl1271_scan_send(wl, wlvif, band, false, rate);
-		if (ret == WL1271_NOTHING_TO_SCAN) {
+		if (ret == WL1271_ANALTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_5GHZ_PASSIVE;
 			wl1271_scan_stm(wl, wlvif);
 		}
@@ -263,7 +263,7 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		band = NL80211_BAND_5GHZ;
 		rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[band]);
 		ret = wl1271_scan_send(wl, wlvif, band, true, rate);
-		if (ret == WL1271_NOTHING_TO_SCAN) {
+		if (ret == WL1271_ANALTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_DONE;
 			wl1271_scan_stm(wl, wlvif);
 		}
@@ -301,7 +301,7 @@ static void wl12xx_adjust_channels(struct wl1271_cmd_sched_scan_config *cmd,
 	       sizeof(cmd->channels_2));
 	memcpy(cmd->channels_5, cmd_channels->channels_5,
 	       sizeof(cmd->channels_5));
-	/* channels_4 are not supported, so no need to copy them */
+	/* channels_4 are analt supported, so anal need to copy them */
 }
 
 int wl1271_scan_sched_scan_config(struct wl1271 *wl,
@@ -319,7 +319,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg->role_id = wlvif->role_id;
 	cfg->rssi_threshold = c->rssi_threshold;
@@ -350,7 +350,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 
 	cfg_channels = kzalloc(sizeof(*cfg_channels), GFP_KERNEL);
 	if (!cfg_channels) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -419,15 +419,15 @@ int wl1271_scan_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	wl1271_debug(DEBUG_CMD, "cmd periodic scan start");
 
 	if (wlvif->bss_type != BSS_TYPE_STA_BSS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if ((wl->quirks & WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN) &&
+	if ((wl->quirks & WLCORE_QUIRK_ANAL_SCHED_SCAN_WHILE_CONN) &&
 	    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 		return -EBUSY;
 
 	start = kzalloc(sizeof(*start), GFP_KERNEL);
 	if (!start)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	start->role_id = wlvif->role_id;
 	start->tag = WL1271_SCAN_DEFAULT_TAG;

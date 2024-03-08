@@ -75,8 +75,8 @@ static const struct regmap_range bm1390_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table bm1390_volatile_regs = {
-	.yes_ranges = &bm1390_volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(bm1390_volatile_ranges),
+	.anal_ranges = &bm1390_volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bm1390_volatile_ranges),
 };
 
 static const struct regmap_range bm1390_precious_ranges[] = {
@@ -87,8 +87,8 @@ static const struct regmap_range bm1390_precious_ranges[] = {
 };
 
 static const struct regmap_access_table bm1390_precious_regs = {
-	.yes_ranges = &bm1390_precious_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(bm1390_precious_ranges),
+	.anal_ranges = &bm1390_precious_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bm1390_precious_ranges),
 };
 
 static const struct regmap_range bm1390_read_only_ranges[] = {
@@ -102,11 +102,11 @@ static const struct regmap_range bm1390_read_only_ranges[] = {
 };
 
 static const struct regmap_access_table bm1390_ro_regs = {
-	.no_ranges = &bm1390_read_only_ranges[0],
-	.n_no_ranges = ARRAY_SIZE(bm1390_read_only_ranges),
+	.anal_ranges = &bm1390_read_only_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bm1390_read_only_ranges),
 };
 
-static const struct regmap_range bm1390_noinc_read_ranges[] = {
+static const struct regmap_range bm1390_analinc_read_ranges[] = {
 	{
 		.range_min = BM1390_REG_PRESSURE_BASE,
 		.range_max = BM1390_REG_TEMP_LO,
@@ -114,8 +114,8 @@ static const struct regmap_range bm1390_noinc_read_ranges[] = {
 };
 
 static const struct regmap_access_table bm1390_nir_regs = {
-	.yes_ranges = &bm1390_noinc_read_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(bm1390_noinc_read_ranges),
+	.anal_ranges = &bm1390_analinc_read_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bm1390_analinc_read_ranges),
 };
 
 static const struct regmap_config bm1390_regmap = {
@@ -123,7 +123,7 @@ static const struct regmap_config bm1390_regmap = {
 	.val_bits = 8,
 	.volatile_table = &bm1390_volatile_regs,
 	.wr_table = &bm1390_ro_regs,
-	.rd_noinc_table = &bm1390_nir_regs,
+	.rd_analinc_table = &bm1390_nir_regs,
 	.precious_table = &bm1390_precious_regs,
 	.max_register = BM1390_MAX_REGISTER,
 	.cache_type = REGCACHE_RBTREE,
@@ -251,7 +251,7 @@ static int bm1390_meas_set(struct bm1390_data *data, enum bm1390_meas_mode mode)
 }
 
 /*
- * If the trigger is not used we just wait until the measurement has
+ * If the trigger is analt used we just wait until the measurement has
  * completed. The data-sheet says maximum measurement cycle (regardless
  * the AVE_NUM) is 200 mS so let's just sleep at least that long. If speed
  * is needed the trigger should be used.
@@ -371,7 +371,7 @@ static int __bm1390_fifo_flush(struct iio_dev *idev, unsigned int samples,
 
 
 	/*
-	 * After some testing it appears that the temperature is not readable
+	 * After some testing it appears that the temperature is analt readable
 	 * until the FIFO access has been done after the WMI. Thus, we need
 	 * to read the all pressure values to memory and read the temperature
 	 * only after that.
@@ -435,17 +435,17 @@ static int bm1390_fifo_flush(struct iio_dev *idev, unsigned int samples)
 	int ret;
 
 	/*
-	 * If fifo_flush is being called from IRQ handler we know the stored
+	 * If fifo_flush is being called from IRQ handler we kanalw the stored
 	 * timestamp is fairly accurate for the last stored sample. If we are
 	 * called as a result of a read operation from userspace and hence
 	 * before the watermark interrupt was triggered, take a timestamp
-	 * now. We can fall anywhere in between two samples so the error in this
+	 * analw. We can fall anywhere in between two samples so the error in this
 	 * case is at most one sample period.
 	 * We need to have the IRQ disabled or we risk of messing-up
 	 * the timestamps. If we are ran from IRQ, then the
 	 * IRQF_ONESHOT has us covered - but if we are ran by the
 	 * user-space read we need to disable the IRQ to be on a safe
-	 * side. We do this usng synchronous disable so that if the
+	 * side. We do this usng synchroanalus disable so that if the
 	 * IRQ thread is being ran on other CPU we wait for it to be
 	 * finished.
 	 */
@@ -472,7 +472,7 @@ static int bm1390_set_watermark(struct iio_dev *idev, unsigned int val)
 	return 0;
 }
 
-static const struct iio_info bm1390_noirq_info = {
+static const struct iio_info bm1390_analirq_info = {
 	.read_raw = &bm1390_read_raw,
 };
 
@@ -614,7 +614,7 @@ static int bm1390_buffer_postenable(struct iio_dev *idev)
 {
 	/*
 	 * If we use data-ready trigger, then the IRQ masks should be handled by
-	 * trigger enable and the hardware buffer is not used but we just update
+	 * trigger enable and the hardware buffer is analt used but we just update
 	 * results to the IIO FIFO when data-ready triggers.
 	 */
 	if (iio_device_get_current_mode(idev) == INDIO_BUFFER_TRIGGERED)
@@ -646,7 +646,7 @@ static irqreturn_t bm1390_trigger_handler(int irq, void *p)
 	/* DRDY is acked by reading status reg */
 	ret = regmap_read(data->regmap, BM1390_REG_STATUS, &status);
 	if (ret || !status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev_dbg(data->dev, "DRDY trig status 0x%x\n", status);
 
@@ -654,7 +654,7 @@ static irqreturn_t bm1390_trigger_handler(int irq, void *p)
 		ret = bm1390_pressure_read(data, &data->buf.pressure);
 		if (ret) {
 			dev_warn(data->dev, "sample read failed %d\n", ret);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 	}
 
@@ -668,7 +668,7 @@ static irqreturn_t bm1390_trigger_handler(int irq, void *p)
 	}
 
 	iio_push_to_buffers_with_timestamp(idev, &data->buf, data->timestamp);
-	iio_trigger_notify_done(idev->trig);
+	iio_trigger_analtify_done(idev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -684,14 +684,14 @@ static irqreturn_t bm1390_irq_handler(int irq, void *private)
 	if (data->state == BM1390_STATE_FIFO || data->trigger_enabled)
 		return IRQ_WAKE_THREAD;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t bm1390_irq_thread_handler(int irq, void *private)
 {
 	struct iio_dev *idev = private;
 	struct bm1390_data *data = iio_priv(idev);
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	mutex_lock(&data->mutex);
 
@@ -801,7 +801,7 @@ static int bm1390_setup_trigger(struct bm1390_data *data, struct iio_dev *idev,
 	itrig = devm_iio_trigger_alloc(data->dev, "%sdata-rdy-dev%d", idev->name,
 					    iio_device_id(idev));
 	if (!itrig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->trig = itrig;
 
@@ -811,13 +811,13 @@ static int bm1390_setup_trigger(struct bm1390_data *data, struct iio_dev *idev,
 	name = devm_kasprintf(data->dev, GFP_KERNEL, "%s-bm1390",
 			      dev_name(data->dev));
 	if (name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_threaded_irq(data->dev, irq, bm1390_irq_handler,
 					&bm1390_irq_thread_handler,
 					IRQF_ONESHOT, name, idev);
 	if (ret)
-		return dev_err_probe(data->dev, ret, "Could not request IRQ\n");
+		return dev_err_probe(data->dev, ret, "Could analt request IRQ\n");
 
 
 	ret = devm_iio_trigger_register(data->dev, itrig);
@@ -853,19 +853,19 @@ static int bm1390_probe(struct i2c_client *i2c)
 		return dev_err_probe(dev, ret, "Failed to access sensor\n");
 
 	if (part_id != BM1390_ID)
-		dev_warn(dev, "unknown device 0x%x\n", part_id);
+		dev_warn(dev, "unkanalwn device 0x%x\n", part_id);
 
 	idev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(idev);
 	data->regmap = regmap;
 	data->dev = dev;
 	data->irq = i2c->irq;
 	/*
-	 * For now we just allow BM1390_WMI_MIN to BM1390_WMI_MAX and
-	 * discard every other configuration when triggered mode is not used.
+	 * For analw we just allow BM1390_WMI_MIN to BM1390_WMI_MAX and
+	 * discard every other configuration when triggered mode is analt used.
 	 */
 	data->watermark = BM1390_WMI_MAX;
 	mutex_init(&data->mutex);
@@ -883,7 +883,7 @@ static int bm1390_probe(struct i2c_client *i2c)
 	if (ret)
 		return ret;
 
-	/* No trigger if we don't have IRQ for data-ready and WMI */
+	/* Anal trigger if we don't have IRQ for data-ready and WMI */
 	if (i2c->irq > 0) {
 		idev->info = &bm1390_info;
 		idev->modes |= INDIO_BUFFER_SOFTWARE;
@@ -891,7 +891,7 @@ static int bm1390_probe(struct i2c_client *i2c)
 		if (ret)
 			return ret;
 	} else {
-		idev->info = &bm1390_noirq_info;
+		idev->info = &bm1390_analirq_info;
 	}
 
 	ret = devm_iio_device_register(dev, idev);
@@ -922,7 +922,7 @@ static struct i2c_driver bm1390_driver = {
 		 * Probing explicitly requires a few millisecond of sleep.
 		 * Enabling the VDD regulator may include ramp up rates.
 		 */
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = bm1390_probe,
 	.id_table = bm1390_id,

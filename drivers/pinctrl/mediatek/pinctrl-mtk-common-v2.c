@@ -83,8 +83,8 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
 		rc = &hw->soc->reg_cal[field];
 	} else {
 		dev_dbg(hw->dev,
-			"Not support field %d for this soc\n", field);
-		return -ENOTSUPP;
+			"Analt support field %d for this soc\n", field);
+		return -EANALTSUPP;
 	}
 
 	end = rc->nranges - 1;
@@ -104,9 +104,9 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
 	}
 
 	if (!found) {
-		dev_dbg(hw->dev, "Not support field %d for pin = %d (%s)\n",
+		dev_dbg(hw->dev, "Analt support field %d for pin = %d (%s)\n",
 			field, desc->number, desc->name);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	c = rc->range + check;
@@ -249,7 +249,7 @@ static int mtk_xt_find_eint_num(struct mtk_pinctrl *hw, unsigned long eint_n)
 }
 
 /*
- * Virtual GPIO only used inside SOC and not being exported to outside SOC.
+ * Virtual GPIO only used inside SOC and analt being exported to outside SOC.
  * Some modules use virtual GPIO as eint (e.g. pmif or usb).
  * In MTK platform, external interrupt (EINT) and GPIO is 1-1 mapping
  * and we can set GPIO as eint.
@@ -264,8 +264,8 @@ bool mtk_is_virt_gpio(struct mtk_pinctrl *hw, unsigned int gpio_n)
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio_n];
 
-	/* if the GPIO is not supported for eint mode */
-	if (desc->eint.eint_m == NO_EINT_SUPPORT)
+	/* if the GPIO is analt supported for eint mode */
+	if (desc->eint.eint_m == ANAL_EINT_SUPPORT)
 		return virt_gpio;
 
 	if (desc->funcs && !desc->funcs[desc->eint.eint_m].name)
@@ -347,12 +347,12 @@ static int mtk_xt_set_gpio_as_eint(void *data, unsigned long eint_n)
 
 	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_SMT, MTK_ENABLE);
 	/* SMT is supposed to be supported by every real GPIO and doesn't
-	 * support virtual GPIOs, so the extra condition err != -ENOTSUPP
+	 * support virtual GPIOs, so the extra condition err != -EANALTSUPP
 	 * is just for adding EINT support to these virtual GPIOs. It should
 	 * add an extra flag in the pin descriptor when more pins with
 	 * distinctive characteristic come out.
 	 */
-	if (err && err != -ENOTSUPP)
+	if (err && err != -EANALTSUPP)
 		return err;
 
 	return 0;
@@ -366,18 +366,18 @@ static const struct mtk_eint_xt mtk_eint_xt = {
 
 int mtk_build_eint(struct mtk_pinctrl *hw, struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_EINT_MTK))
 		return 0;
 
 	if (!of_property_read_bool(np, "interrupt-controller"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	hw->eint = devm_kzalloc(hw->dev, sizeof(*hw->eint), GFP_KERNEL);
 	if (!hw->eint)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->eint->base = devm_platform_ioremap_resource_byname(pdev, "eint");
 	if (IS_ERR(hw->eint->base)) {
@@ -392,7 +392,7 @@ int mtk_build_eint(struct mtk_pinctrl *hw, struct platform_device *pdev)
 	}
 
 	if (!hw->soc->eint_hw) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_eint;
 	}
 
@@ -695,9 +695,9 @@ static int mtk_hw_pin_rsel_lookup(struct mtk_pinctrl *hw,
 	}
 
 	if (!found) {
-		dev_err(hw->dev, "Not support rsel value %d Ohm for pin = %d (%s)\n",
+		dev_err(hw->dev, "Analt support rsel value %d Ohm for pin = %d (%s)\n",
 			arg, desc->number, desc->name);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -741,7 +741,7 @@ int mtk_pinconf_bias_set_combo(struct mtk_pinctrl *hw,
 			       const struct mtk_pin_desc *desc,
 			       u32 pullup, u32 arg)
 {
-	int err = -ENOTSUPP;
+	int err = -EANALTSUPP;
 	u32 try_all_type;
 
 	if (hw->soc->pull_type)
@@ -930,7 +930,7 @@ int mtk_pinconf_bias_get_combo(struct mtk_pinctrl *hw,
 			      const struct mtk_pin_desc *desc,
 			      u32 *pullup, u32 *enable)
 {
-	int err = -ENOTSUPP;
+	int err = -EANALTSUPP;
 	u32 try_all_type;
 
 	if (hw->soc->pull_type)
@@ -969,7 +969,7 @@ int mtk_pinconf_drive_set(struct mtk_pinctrl *hw,
 			  const struct mtk_pin_desc *desc, u32 arg)
 {
 	const struct mtk_drive_desc *tb;
-	int err = -ENOTSUPP;
+	int err = -EANALTSUPP;
 
 	tb = &mtk_drive[desc->drv_n];
 	/* 4mA when (e8, e4) = (0, 0)
@@ -1024,7 +1024,7 @@ int mtk_pinconf_drive_set_rev1(struct mtk_pinctrl *hw,
 			       const struct mtk_pin_desc *desc, u32 arg)
 {
 	const struct mtk_drive_desc *tb;
-	int err = -ENOTSUPP;
+	int err = -EANALTSUPP;
 
 	tb = &mtk_drive[desc->drv_n];
 
@@ -1097,10 +1097,10 @@ int mtk_pinconf_adv_pull_set(struct mtk_pinctrl *hw,
 
 	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PUPD, arg);
 
-	/* If PUPD register is not supported for that pin, let's fallback to
+	/* If PUPD register is analt supported for that pin, let's fallback to
 	 * general bias control.
 	 */
-	if (err == -ENOTSUPP) {
+	if (err == -EANALTSUPP) {
 		if (hw->soc->bias_set) {
 			err = hw->soc->bias_set(hw, desc, pullup);
 			if (err)
@@ -1125,16 +1125,16 @@ int mtk_pinconf_adv_pull_get(struct mtk_pinctrl *hw,
 
 	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PUPD, &t);
 
-	/* If PUPD register is not supported for that pin, let's fallback to
+	/* If PUPD register is analt supported for that pin, let's fallback to
 	 * general bias control.
 	 */
-	if (err == -ENOTSUPP) {
+	if (err == -EANALTSUPP) {
 		if (hw->soc->bias_get) {
 			err = hw->soc->bias_get(hw, desc, pullup, val);
 			if (err)
 				return err;
 		} else {
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	} else {
 		/* t == 0 supposes PULLUP for the customized PULL setup */

@@ -7,14 +7,14 @@
 /*
  * Description:
  *   Driver for the USB-P1K voip usb phone.
- *   This device is produced by Yealink Network Technology Co Ltd
+ *   This device is produced by Yealink Network Techanallogy Co Ltd
  *   but may be branded under several names:
  *	- Yealink usb-p1k
  *	- Tiptel 115
  *	- ...
  *
  * This driver is based on:
- *   - the usbb2k-api	http://savannah.nongnu.org/projects/usbb2k-api/
+ *   - the usbb2k-api	http://savannah.analngnu.org/projects/usbb2k-api/
  *   - information from	http://memeteau.free.fr/usbb2k
  *   - the xpad-driver	drivers/input/joystick/xpad.c
  *
@@ -123,7 +123,7 @@ struct yealink_dev {
 static SEG7_DEFAULT_MAP(map_seg7);
 
  /* Display a char,
-  * char '\9' and '\n' are placeholders and do not overwrite the original text.
+  * char '\9' and '\n' are placeholders and do analt overwrite the original text.
   * A space will always hide an icon.
   */
 static int setChar(struct yealink_dev *yld, int el, int chr)
@@ -294,7 +294,7 @@ static int yealink_set_ringtone(struct yealink_dev *yld, u8 *buf, size_t size)
 	buf++;
 	size--;
 
-	p->cmd = CMD_RING_NOTE;
+	p->cmd = CMD_RING_ANALTE;
 	ix = 0;
 	while (size != ix) {
 		len = size - ix;
@@ -336,7 +336,7 @@ static int yealink_do_idle_tasks(struct yealink_dev *yld)
 			goto send_update;
 	} while (++ix < sizeof(yld->master));
 
-	/* nothing todo, wait a bit and poll for a KEYPRESS */
+	/* analthing todo, wait a bit and poll for a KEYPRESS */
 	yld->stat_ix = 0;
 	/* TODO how can we wait abit. ??
 	 * msleep_interruptible(1000 / YEALINK_POLLING_FREQUENCY);
@@ -508,7 +508,7 @@ static int input_open(struct input_dev *dev)
 	/* force updates to device */
 	for (i = 0; i<sizeof(yld->master); i++)
 		yld->copy.b[i] = ~yld->master.b[i];
-	yld->key_code = -1;	/* no keys pressed */
+	yld->key_code = -1;	/* anal keys pressed */
 
         yealink_set_ringtone(yld, default_ringtone, sizeof(default_ringtone));
 
@@ -587,7 +587,7 @@ static ssize_t show_line(struct device *dev, char *buf, int a, int b)
 	yld = dev_get_drvdata(dev);
 	if (yld == NULL) {
 		up_read(&sysfs_rwsema);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = a; i < b; i++)
@@ -621,10 +621,10 @@ static ssize_t show_line3(struct device *dev, struct device_attribute *attr,
 }
 
 /* Writing to /sys/../lineX will set the coresponding LCD line.
- * - Excess characters are ignored.
+ * - Excess characters are iganalred.
  * - If less characters are written than allowed, the remaining digits are
  *   unchanged.
- * - The '\n' or '\t' char is a placeholder, it does not overwrite the
+ * - The '\n' or '\t' char is a placeholder, it does analt overwrite the
  *   original content.
  */
 static ssize_t store_line(struct device *dev, const char *buf, size_t count,
@@ -637,7 +637,7 @@ static ssize_t store_line(struct device *dev, const char *buf, size_t count,
 	yld = dev_get_drvdata(dev);
 	if (yld == NULL) {
 		up_write(&sysfs_rwsema);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (len > count)
@@ -682,7 +682,7 @@ static ssize_t get_icons(struct device *dev, struct device_attribute *attr,
 	yld = dev_get_drvdata(dev);
 	if (yld == NULL) {
 		up_read(&sysfs_rwsema);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(lcdMap); i++) {
@@ -707,7 +707,7 @@ static ssize_t set_icon(struct device *dev, const char *buf, size_t count,
 	yld = dev_get_drvdata(dev);
 	if (yld == NULL) {
 		up_write(&sysfs_rwsema);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(lcdMap); i++) {
@@ -749,7 +749,7 @@ static ssize_t store_ringtone(struct device *dev,
 	yld = dev_get_drvdata(dev);
 	if (yld == NULL) {
 		up_write(&sysfs_rwsema);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* TODO locking with async usb control interface??? */
@@ -862,46 +862,46 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	interface = intf->cur_altsetting;
 
 	if (interface->desc.bNumEndpoints < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
-		return -ENODEV;
+		return -EANALDEV;
 
 	yld = kzalloc(sizeof(struct yealink_dev), GFP_KERNEL);
 	if (!yld)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	yld->udev = udev;
 	yld->intf = intf;
 
 	yld->idev = input_dev = input_allocate_device();
 	if (!input_dev)
-		return usb_cleanup(yld, -ENOMEM);
+		return usb_cleanup(yld, -EANALMEM);
 
 	/* allocate usb buffers */
 	yld->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
 					   GFP_KERNEL, &yld->irq_dma);
 	if (yld->irq_data == NULL)
-		return usb_cleanup(yld, -ENOMEM);
+		return usb_cleanup(yld, -EANALMEM);
 
 	yld->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
 					   GFP_KERNEL, &yld->ctl_dma);
 	if (!yld->ctl_data)
-		return usb_cleanup(yld, -ENOMEM);
+		return usb_cleanup(yld, -EANALMEM);
 
 	yld->ctl_req = kmalloc(sizeof(*(yld->ctl_req)), GFP_KERNEL);
 	if (yld->ctl_req == NULL)
-		return usb_cleanup(yld, -ENOMEM);
+		return usb_cleanup(yld, -EANALMEM);
 
 	/* allocate urb structures */
 	yld->urb_irq = usb_alloc_urb(0, GFP_KERNEL);
         if (yld->urb_irq == NULL)
-		return usb_cleanup(yld, -ENOMEM);
+		return usb_cleanup(yld, -EANALMEM);
 
 	yld->urb_ctl = usb_alloc_urb(0, GFP_KERNEL);
         if (yld->urb_ctl == NULL)
-		return usb_cleanup(yld, -ENOMEM);
+		return usb_cleanup(yld, -EANALMEM);
 
 	/* get a handle to the interrupt data pipe */
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);
@@ -916,7 +916,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			urb_irq_callback,
 			yld, endpoint->bInterval);
 	yld->urb_irq->transfer_dma = yld->irq_dma;
-	yld->urb_irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	yld->urb_irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	yld->urb_irq->dev = udev;
 
 	/* initialise ctl urb */
@@ -931,7 +931,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			(void *)yld->ctl_req, yld->ctl_data, USB_PKT_LEN,
 			urb_ctl_callback, yld);
 	yld->urb_ctl->transfer_dma	= yld->ctl_dma;
-	yld->urb_ctl->transfer_flags	|= URB_NO_TRANSFER_DMA_MAP;
+	yld->urb_ctl->transfer_flags	|= URB_ANAL_TRANSFER_DMA_MAP;
 	yld->urb_ctl->dev = udev;
 
 	/* find out the physical bus location */

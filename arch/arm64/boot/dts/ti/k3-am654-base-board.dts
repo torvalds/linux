@@ -46,37 +46,37 @@
 		secure_ddr: secure-ddr@9e800000 {
 			reg = <0 0x9e800000 0 0x01800000>; /* for OP-TEE */
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		mcu_r5fss0_core0_dma_memory_region: r5f-dma-memory@a0000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa0000000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mcu_r5fss0_core0_memory_region: r5f-memory@a0100000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa0100000 0 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		mcu_r5fss0_core1_dma_memory_region: r5f-dma-memory@a1000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa1000000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mcu_r5fss0_core1_memory_region: r5f-memory@a1100000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa1100000 0 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		rtos_ipc_memory_region: ipc-memories@a2000000 {
 			reg = <0x00 0xa2000000 0x00 0x00100000>;
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -440,7 +440,7 @@
 	ti,pindir-d0-out-d1-in;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <1>;
@@ -453,7 +453,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc0_pins_default>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };
@@ -546,7 +546,7 @@
 	pinctrl-0 = <&mcu_fss0_ospi0_pins_default>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-tx-bus-width = <8>;
 		spi-rx-bus-width = <8>;

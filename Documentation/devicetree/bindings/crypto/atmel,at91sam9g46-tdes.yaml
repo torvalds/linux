@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+# Copyright (C) 2022 Microchip Techanallogy, Inc. and its subsidiaries
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/crypto/atmel,at91sam9g46-tdes.yaml#

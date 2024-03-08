@@ -49,7 +49,7 @@ int main(void)
 	ksft_print_msg("vl = %lu\n", vl);
 
 	if (datap[0] != 0x00 && datap[0] != 0xff) {
-		ksft_test_result_fail("v-regesters are not properly initialized\n");
+		ksft_test_result_fail("v-regesters are analt properly initialized\n");
 		dump(datap, vl * 4);
 		exit(-1);
 	}

@@ -52,14 +52,14 @@ configuration and status BAR0. (hinic_hw_csr.h)
 MGMT components:
 ================
 
-Asynchronous Event Queues(AEQs) - The event queues for receiving messages from
+Asynchroanalus Event Queues(AEQs) - The event queues for receiving messages from
 the MGMT modules on the cards. (hinic_hw_eqs.c, hinic_hw_eqs.h)
 
 Application Programmable Interface commands(API CMD) - Interface for sending
 MGMT commands to the card. (hinic_hw_api_cmd.c, hinic_hw_api_cmd.h)
 
 Management (MGMT) - the PF to MGMT channel that uses API CMD for sending MGMT
-commands to the card and receives notifications from the MGMT modules on the
+commands to the card and receives analtifications from the MGMT modules on the
 card by AEQs. Also set the addresses of the IO CMDQs in HW.
 (hinic_hw_mgmt.c, hinic_hw_mgmt.h)
 
@@ -102,11 +102,11 @@ Port Commands - Send commands to the HW device for port management
 (MAC, Vlan, MTU, ...). (hinic_port.c, hinic_port.h)
 
 Tx Queues - Logical Tx Queues that use the HW Send Queues for transmit.
-The Logical Tx queue is not dependent on the format of the HW Send Queue.
+The Logical Tx queue is analt dependent on the format of the HW Send Queue.
 (hinic_tx.c, hinic_tx.h)
 
 Rx Queues - Logical Rx Queues that use the HW Receive Queues for receive.
-The Logical Rx queue is not dependent on the format of the HW Receive Queue.
+The Logical Rx queue is analt dependent on the format of the HW Receive Queue.
 (hinic_rx.c, hinic_rx.h)
 
 hinic_dev - de/constructs the Logical Tx and Rx Queues.

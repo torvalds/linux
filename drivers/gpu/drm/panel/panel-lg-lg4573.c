@@ -218,7 +218,7 @@ static int lg4573_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%ux@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -245,7 +245,7 @@ static int lg4573_probe(struct spi_device *spi)
 
 	ctx = devm_kzalloc(&spi->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->spi = spi;
 

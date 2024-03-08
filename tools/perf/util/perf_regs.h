@@ -76,7 +76,7 @@ static inline uint64_t DWARF_MINIMAL_REGS(const char *arch __maybe_unused)
 
 static inline const char *perf_reg_name(int id __maybe_unused, const char *arch __maybe_unused)
 {
-	return "unknown";
+	return "unkanalwn";
 }
 
 static inline int perf_reg_value(u64 *valp __maybe_unused,

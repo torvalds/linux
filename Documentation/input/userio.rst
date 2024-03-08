@@ -43,12 +43,12 @@ The struct used for sending commands to /dev/userio is as follows::
 ``type`` describes the type of command that is being sent. This can be any one
 of the USERIO_CMD macros defined in <linux/userio.h>. ``data`` is the argument
 that goes along with the command. In the event that the command doesn't have an
-argument, this field can be left untouched and will be ignored by the kernel.
+argument, this field can be left untouched and will be iganalred by the kernel.
 Each command should be sent by writing the struct directly to the character
 device. In the event that the command you send is invalid, an error will be
 returned by the character device and a more descriptive error will be printed
 to the kernel log. Only one command can be sent at a time, any additional data
-written to the character device after the initial command will be ignored.
+written to the character device after the initial command will be iganalred.
 
 To close the virtual serio port, just close /dev/userio.
 
@@ -60,14 +60,14 @@ USERIO_CMD_REGISTER
 
 Registers the port with the serio driver and begins transmitting data back and
 forth. Registration can only be performed once a port type is set with
-USERIO_CMD_SET_PORT_TYPE. Has no argument.
+USERIO_CMD_SET_PORT_TYPE. Has anal argument.
 
 USERIO_CMD_SET_PORT_TYPE
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sets the type of port we're emulating, where ``data`` is the port type being
 set. Can be any of the macros from <linux/serio.h>. For example: SERIO_8042
-would set the port type to be a normal PS/2 port.
+would set the port type to be a analrmal PS/2 port.
 
 USERIO_CMD_SEND_INTERRUPT
 ~~~~~~~~~~~~~~~~~~~~~~~~~

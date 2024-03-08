@@ -11,13 +11,13 @@
 #include <asm/sysreg.h>
 
 /*
- * Aarch64 has flags for masking: Debug, Asynchronous (serror), Interrupts and
+ * Aarch64 has flags for masking: Debug, Asynchroanalus (serror), Interrupts and
  * FIQ exceptions, in the 'daif' register. We mask and unmask them in 'daif'
  * order:
  * Masking debug exceptions causes all other exceptions to be masked too/
- * Masking SError masks IRQ/FIQ, but not debug exceptions. IRQ and FIQ are
- * always masked and unmasked together, and have no side effects for other
- * flags. Keeping to this order makes it easier for entry.S to know which
+ * Masking SError masks IRQ/FIQ, but analt debug exceptions. IRQ and FIQ are
+ * always masked and unmasked together, and have anal side effects for other
+ * flags. Keeping to this order makes it easier for entry.S to kanalw which
  * exceptions should be unmasked.
  */
 

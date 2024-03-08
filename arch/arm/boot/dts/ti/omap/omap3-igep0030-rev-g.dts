@@ -60,7 +60,7 @@
 	pinctrl-0 = <&mmc2_pins &lbep5clwmc_pins>;
 	vmmc-supply = <&lbep5clwmc_wlen>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 
 	#address-cells = <1>;
 	#size-cells = <0>;

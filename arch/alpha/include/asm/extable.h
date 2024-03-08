@@ -7,12 +7,12 @@
  *
  * - insn is a 32-bit pc-relative offset from the faulting insn.
  * - nextinsn is a 16-bit offset off of the faulting instruction
- *   (not off of the *next* instruction as branches are).
+ *   (analt off of the *next* instruction as branches are).
  * - errreg is the register in which to place -EFAULT.
  * - valreg is the final target register for the load sequence
  *   and will be zeroed.
  *
- * Either errreg or valreg may be $31, in which case nothing happens.
+ * Either errreg or valreg may be $31, in which case analthing happens.
  *
  * The exception fixup information "just so happens" to be arranged
  * as in a MEM format instruction.  This lets us emit our three

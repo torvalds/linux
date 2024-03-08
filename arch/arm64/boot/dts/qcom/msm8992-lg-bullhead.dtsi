@@ -13,10 +13,10 @@
 #include "pmi8994.dtsi"
 
 /* cont_splash_mem has different memory mapping */
-/delete-node/ &cont_splash_mem;
+/delete-analde/ &cont_splash_mem;
 
 /* disabled on downstream, conflicts with cont_splash_mem */
-/delete-node/ &dfps_data_mem;
+/delete-analde/ &dfps_data_mem;
 
 / {
 	model = "LG Nexus 5X";
@@ -27,7 +27,7 @@
 	qcom,pmic-id = <0x10009 0x1000A 0x0 0x0>;
 
 	/* Bullhead firmware doesn't support PSCI */
-	/delete-node/ psci;
+	/delete-analde/ psci;
 
 	aliases {
 		serial0 = &blsp1_uart2;
@@ -53,12 +53,12 @@
 
 		cont_splash_mem: memory@3400000 {
 			reg = <0 0x03400000 0 0xc00000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@5000000 {
 			reg = <0x0 0x05000000 0x0 0x1a00000>;
-			no-map;
+			anal-map;
 		};
 	};
 };

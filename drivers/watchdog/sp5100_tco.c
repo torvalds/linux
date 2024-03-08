@@ -77,10 +77,10 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (default="
 		 __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started."
-		" (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started."
+		" (default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  * Some TCO specific functions
@@ -262,7 +262,7 @@ static u32 sp5100_tco_prepare_base(struct sp5100_tco *tco,
 	dev_dbg(dev, "Got 0x%08x from SBResource_MMIO register\n", mmio_addr);
 
 	if (!mmio_addr && !alt_mmio_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check for MMIO address and alternate MMIO address conflicts */
 	if (mmio_addr)
@@ -280,7 +280,7 @@ static u32 sp5100_tco_prepare_base(struct sp5100_tco *tco,
 	if (!tco->tcobase) {
 		dev_err(dev, "MMIO address 0x%08x failed mapping\n", mmio_addr);
 		devm_release_mem_region(dev, mmio_addr, SP5100_WDT_MEM_MAP_SIZE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_info(dev, "Using 0x%08x for watchdog MMIO address\n", mmio_addr);
@@ -297,7 +297,7 @@ static int sp5100_tco_timer_init(struct sp5100_tco *tco)
 	val = readl(SP5100_WDT_CONTROL(tco->tcobase));
 	if (val & SP5100_WDT_DISABLED) {
 		dev_err(dev, "Watchdog hardware is disabled\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -373,14 +373,14 @@ static int sp5100_tco_setupdevice_mmio(struct device *dev,
 	addr = ioremap(EFCH_PM_ACPI_MMIO_PM_ADDR, EFCH_PM_ACPI_MMIO_PM_SIZE);
 	if (!addr) {
 		dev_err(dev, "Address mapping failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	/*
 	 * EFCH_PM_DECODEEN_WDT_TMREN is dual purpose. This bitfield
 	 * enables sp5100_tco register MMIO space decoding. The bitfield
-	 * also starts the timer operation. Enable if not already enabled.
+	 * also starts the timer operation. Enable if analt already enabled.
 	 */
 	val = efch_read_pm_reg8(addr, EFCH_PM_DECODEEN);
 	if (!(val & EFCH_PM_DECODEEN_WDT_TMREN)) {
@@ -388,7 +388,7 @@ static int sp5100_tco_setupdevice_mmio(struct device *dev,
 				    EFCH_PM_DECODEEN_WDT_TMREN);
 	}
 
-	/* Error if the timer could not be enabled */
+	/* Error if the timer could analt be enabled */
 	val = efch_read_pm_reg8(addr, EFCH_PM_DECODEEN);
 	if (!(val & EFCH_PM_DECODEEN_WDT_TMREN)) {
 		dev_err(dev, "Failed to enable the timer\n");
@@ -487,7 +487,7 @@ static int sp5100_tco_setupdevice(struct device *dev,
 				EFCH_PM_ACPI_MMIO_WDT_OFFSET;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = sp5100_tco_prepare_base(tco, mmio_addr, alt_mmio_addr, dev_name);
@@ -524,7 +524,7 @@ static int sp5100_tco_probe(struct platform_device *pdev)
 
 	tco = devm_kzalloc(dev, sizeof(*tco), GFP_KERNEL);
 	if (!tco)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tco->tco_reg_layout = tco_reg_layout(sp5100_tco_pci);
 
@@ -537,7 +537,7 @@ static int sp5100_tco_probe(struct platform_device *pdev)
 	wdd->max_timeout = 0xffff;
 
 	watchdog_init_timeout(wdd, heartbeat, NULL);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 	watchdog_stop_on_reboot(wdd);
 	watchdog_stop_on_unregister(wdd);
 	watchdog_set_drvdata(wdd, tco);
@@ -551,8 +551,8 @@ static int sp5100_tco_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Show module parameters */
-	dev_info(dev, "initialized. heartbeat=%d sec (nowayout=%d)\n",
-		 wdd->timeout, nowayout);
+	dev_info(dev, "initialized. heartbeat=%d sec (analwayout=%d)\n",
+		 wdd->timeout, analwayout);
 
 	return 0;
 }
@@ -568,9 +568,9 @@ static struct platform_driver sp5100_tco_driver = {
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do analt actually
  * register a pci_driver, because someone else might
- * want to register another driver on the same PCI id.
+ * want to register aanalther driver on the same PCI id.
  */
 static const struct pci_device_id sp5100_tco_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS, PCI_ANY_ID,
@@ -599,7 +599,7 @@ static int __init sp5100_tco_init(void)
 	}
 
 	if (!sp5100_tco_pci)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("SP5100/SB800 TCO WatchDog Timer Driver\n");
 

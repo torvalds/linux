@@ -53,12 +53,12 @@ int __maybe_unused iostat_info_seq_show(struct seq_file *seq, void *offset)
 	/* print fs write IOs */
 	IOSTAT_INFO_SHOW("fs data", FS_DATA_IO);
 	IOSTAT_INFO_SHOW("fs cdata", FS_CDATA_IO);
-	IOSTAT_INFO_SHOW("fs node", FS_NODE_IO);
+	IOSTAT_INFO_SHOW("fs analde", FS_ANALDE_IO);
 	IOSTAT_INFO_SHOW("fs meta", FS_META_IO);
 	IOSTAT_INFO_SHOW("fs gc data", FS_GC_DATA_IO);
-	IOSTAT_INFO_SHOW("fs gc node", FS_GC_NODE_IO);
+	IOSTAT_INFO_SHOW("fs gc analde", FS_GC_ANALDE_IO);
 	IOSTAT_INFO_SHOW("fs cp data", FS_CP_DATA_IO);
-	IOSTAT_INFO_SHOW("fs cp node", FS_CP_NODE_IO);
+	IOSTAT_INFO_SHOW("fs cp analde", FS_CP_ANALDE_IO);
 	IOSTAT_INFO_SHOW("fs cp meta", FS_CP_META_IO);
 
 	/* print app read IOs */
@@ -73,7 +73,7 @@ int __maybe_unused iostat_info_seq_show(struct seq_file *seq, void *offset)
 	IOSTAT_INFO_SHOW("fs data", FS_DATA_READ_IO);
 	IOSTAT_INFO_SHOW("fs gc data", FS_GDATA_READ_IO);
 	IOSTAT_INFO_SHOW("fs cdata", FS_CDATA_READ_IO);
-	IOSTAT_INFO_SHOW("fs node", FS_NODE_READ_IO);
+	IOSTAT_INFO_SHOW("fs analde", FS_ANALDE_READ_IO);
 	IOSTAT_INFO_SHOW("fs meta", FS_META_READ_IO);
 
 	/* print other IOs */
@@ -165,7 +165,7 @@ static inline void __f2fs_update_iostat(struct f2fs_sb_info *sbi,
 	sbi->iostat_count[type]++;
 }
 
-void f2fs_update_iostat(struct f2fs_sb_info *sbi, struct inode *inode,
+void f2fs_update_iostat(struct f2fs_sb_info *sbi, struct ianalde *ianalde,
 			enum iostat_type type, unsigned long long io_bytes)
 {
 	unsigned long flags;
@@ -183,7 +183,7 @@ void f2fs_update_iostat(struct f2fs_sb_info *sbi, struct inode *inode,
 		__f2fs_update_iostat(sbi, APP_READ_IO, io_bytes);
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
-	if (inode && f2fs_compressed_file(inode)) {
+	if (ianalde && f2fs_compressed_file(ianalde)) {
 		if (type == APP_BUFFERED_IO)
 			__f2fs_update_iostat(sbi, APP_BUFFERED_CDATA_IO, io_bytes);
 
@@ -260,7 +260,7 @@ void iostat_alloc_and_bind_ctx(struct f2fs_sb_info *sbi,
 {
 	struct bio_iostat_ctx *iostat_ctx;
 	/* Due to the mempool, this never fails. */
-	iostat_ctx = mempool_alloc(bio_iostat_ctx_pool, GFP_NOFS);
+	iostat_ctx = mempool_alloc(bio_iostat_ctx_pool, GFP_ANALFS);
 	iostat_ctx->sbi = sbi;
 	iostat_ctx->submit_ts = 0;
 	iostat_ctx->type = 0;
@@ -285,7 +285,7 @@ int __init f2fs_init_iostat_processing(void)
 fail_free_cache:
 	kmem_cache_destroy(bio_iostat_ctx_cache);
 fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void f2fs_destroy_iostat_processing(void)
@@ -304,7 +304,7 @@ int f2fs_init_iostat(struct f2fs_sb_info *sbi)
 	sbi->iostat_io_lat = f2fs_kzalloc(sbi, sizeof(struct iostat_lat_info),
 					GFP_KERNEL);
 	if (!sbi->iostat_io_lat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

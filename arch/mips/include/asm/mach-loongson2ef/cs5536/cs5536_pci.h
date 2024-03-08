@@ -2,8 +2,8 @@
 /*
  * the definition file of cs5536 Virtual Support Module(VSM).
  * pci configuration space can be accessed through the VSM, so
- * there is no need of the MSR read/write now, except the spec.
- * MSR registers which are not implemented yet.
+ * there is anal need of the MSR read/write analw, except the spec.
+ * MSR registers which are analt implemented yet.
  *
  * Copyright (C) 2007 Lemote Inc.
  * Author : jlliu, liujl@lemote.com
@@ -65,14 +65,14 @@ extern u32 cs5536_pci_conf_read4(int function, int reg);
 /* BHLC : BIST HEADER-TYPE LATENCY-TIMER CACHE-LINE-SIZE */
 
 #define CFG_PCI_CACHE_LINE_SIZE(header_type, latency_timer)	\
-	((PCI_NONE_BIST << 24) | ((header_type) << 16) \
-		| ((latency_timer) << 8) | PCI_NORMAL_CACHE_LINE_SIZE);
+	((PCI_ANALNE_BIST << 24) | ((header_type) << 16) \
+		| ((latency_timer) << 8) | PCI_ANALRMAL_CACHE_LINE_SIZE);
 
-#define PCI_NONE_BIST			0x00	/* RO not implemented yet. */
+#define PCI_ANALNE_BIST			0x00	/* RO analt implemented yet. */
 #define PCI_BRIDGE_HEADER_TYPE		0x80	/* RO */
-#define PCI_NORMAL_HEADER_TYPE		0x00
-#define PCI_NORMAL_LATENCY_TIMER	0x00
-#define PCI_NORMAL_CACHE_LINE_SIZE	0x08	/* RW */
+#define PCI_ANALRMAL_HEADER_TYPE		0x00
+#define PCI_ANALRMAL_LATENCY_TIMER	0x00
+#define PCI_ANALRMAL_CACHE_LINE_SIZE	0x08	/* RW */
 
 /* BAR */
 #define PCI_BAR0_REG			0x10

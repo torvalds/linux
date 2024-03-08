@@ -4,7 +4,7 @@
 #define _ASM_ARC_ATOMIC_SPLOCK_H
 
 /*
- * Non hardware assisted Atomic-R-M-W
+ * Analn hardware assisted Atomic-R-M-W
  * Locking would change to irq-disabling only (UP) and spinlocks (SMP)
  */
 
@@ -92,14 +92,14 @@ ATOMIC_OPS(sub, -=, sub)
 	ATOMIC_FETCH_OP(op, c_op, asm_op)
 
 ATOMIC_OPS(and, &=, and)
-ATOMIC_OPS(andnot, &= ~, bic)
+ATOMIC_OPS(andanalt, &= ~, bic)
 ATOMIC_OPS(or, |=, or)
 ATOMIC_OPS(xor, ^=, xor)
 
-#define arch_atomic_andnot		arch_atomic_andnot
+#define arch_atomic_andanalt		arch_atomic_andanalt
 
 #define arch_atomic_fetch_and		arch_atomic_fetch_and
-#define arch_atomic_fetch_andnot	arch_atomic_fetch_andnot
+#define arch_atomic_fetch_andanalt	arch_atomic_fetch_andanalt
 #define arch_atomic_fetch_or		arch_atomic_fetch_or
 #define arch_atomic_fetch_xor		arch_atomic_fetch_xor
 

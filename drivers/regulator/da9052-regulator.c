@@ -288,7 +288,7 @@ static const struct regulator_ops da9052_ldo_ops = {
 	.reg_desc = {\
 		.name = #_name,\
 		.of_match = of_match_ptr(#_name),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_analde = of_match_ptr("regulators"),\
 		.ops = &da9052_ldo_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9052_ID_##_id,\
@@ -310,7 +310,7 @@ static const struct regulator_ops da9052_ldo_ops = {
 	.reg_desc = {\
 		.name = #_name,\
 		.of_match = of_match_ptr(#_name),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_analde = of_match_ptr("regulators"),\
 		.ops = &da9052_dcdc_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9052_ID_##_id,\
@@ -401,7 +401,7 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 	regulator = devm_kzalloc(&pdev->dev, sizeof(struct da9052_regulator),
 				 GFP_KERNEL);
 	if (!regulator)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	da9052 = dev_get_drvdata(pdev->dev.parent);
 	pdata = dev_get_platdata(da9052->dev);
@@ -438,7 +438,7 @@ static struct platform_driver da9052_regulator_driver = {
 	.probe = da9052_regulator_probe,
 	.driver = {
 		.name = "da9052-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

@@ -1362,10 +1362,10 @@ static const struct pinfunction sc8180x_functions[] = {
 	MSM_PIN_FUNCTION(wmss_reset),
 };
 
-/* Every pin is maintained as a single group, and missing or non-existing pin
+/* Every pin is maintained as a single group, and missing or analn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would analt be able to request these dummy pin groups.
  */
 static const struct msm_pingroup sc8180x_groups[] = {
 	[0] = PINGROUP(0, WEST, qup0, cci_i2c, _, _, _, _, _, _, _),
@@ -1627,16 +1627,16 @@ static int sc8180x_pinctrl_add_tile_resources(struct platform_device *pdev)
 	int i, ret;
 
 	/*
-	 * DT already has tiles defined properly, so nothing needs to be done
+	 * DT already has tiles defined properly, so analthing needs to be done
 	 * for DT probe.
 	 */
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		return 0;
 
 	/* Allocate for new resources */
 	nres = devm_kzalloc(&pdev->dev, sizeof(*nres) * nres_num, GFP_KERNEL);
 	if (!nres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = nres;
 

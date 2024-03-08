@@ -33,7 +33,7 @@
 			ARRAY_SIZE(name ## _parents),		\
 			&name ## _mux_hw, &name ## _mux_ops,	\
 			&name ## _rate_hw, &name ## _rate_ops,	\
-			NULL, NULL, CLK_GET_RATE_NOCACHE);	\
+			NULL, NULL, CLK_GET_RATE_ANALCACHE);	\
 	}
 
 #define RATE_RO_OPS(name, clk_name)				\
@@ -48,7 +48,7 @@
 			ARRAY_SIZE(name ## _parents),		\
 			NULL, NULL,				\
 			&name ## _rate_hw, &name ## _rate_ops,	\
-			NULL, NULL, CLK_GET_RATE_NOCACHE);	\
+			NULL, NULL, CLK_GET_RATE_ANALCACHE);	\
 	}
 
 #define RATE_OPS(name, clk_name)				\
@@ -65,7 +65,7 @@
 			ARRAY_SIZE(name ## _parents),		\
 			NULL, NULL,				\
 			&name ## _rate_hw, &name ## _rate_ops,	\
-			NULL, NULL, CLK_GET_RATE_NOCACHE);	\
+			NULL, NULL, CLK_GET_RATE_ANALCACHE);	\
 	}
 
 #define MUX_OPS(name, clk_name, flags)				\
@@ -83,14 +83,14 @@
 			&name ## _mux_hw, &name ## _mux_ops,	\
 			NULL, NULL,				\
 			NULL, NULL,				\
-			CLK_GET_RATE_NOCACHE | flags); \
+			CLK_GET_RATE_ANALCACHE | flags); \
 	}
 
 /*
  * CKEN clock type
  * This clock takes it source from 2 possible parents :
  *  - a low power parent
- *  - a normal parent
+ *  - a analrmal parent
  *
  *  +------------+     +-----------+
  *  |  Low Power | --- | x mult_lp |
@@ -150,7 +150,7 @@ extern void clkdev_pxa_register(int ckid, const char *con_id,
 				const char *dev_id, struct clk *clk);
 extern int clk_pxa_cken_init(const struct desc_clk_cken *clks,
 			     int nb_clks, void __iomem *clk_regs);
-void clk_pxa_dt_common_init(struct device_node *np);
+void clk_pxa_dt_common_init(struct device_analde *np);
 
 void pxa2xx_core_turbo_switch(bool on);
 void pxa2xx_cpll_change(struct pxa2xx_freq *freq,

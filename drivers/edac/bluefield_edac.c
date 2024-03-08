@@ -2,7 +2,7 @@
 /*
  * Bluefield-specific EDAC driver.
  *
- * Copyright (c) 2019 Mellanox Technologies.
+ * Copyright (c) 2019 Mellaanalx Techanallogies.
  */
 
 #include <linux/acpi.h>
@@ -18,7 +18,7 @@
 #define DRIVER_NAME		"bluefield-edac"
 
 /*
- * Mellanox BlueField EMI (External Memory Interface) register definitions.
+ * Mellaanalx BlueField EMI (External Memory Interface) register definitions.
  */
 
 #define MLXBF_ECC_CNT 0x340
@@ -55,11 +55,11 @@
  * Call register usage:
  * a0: MLNX_SIP_GET_DIMM_INFO
  * a1: (Memory controller index) << 16 | (Dimm index in memory controller)
- * a2-7: not used.
+ * a2-7: analt used.
  *
  * Return status:
  * a0: MLXBF_DIMM_INFO defined below describing the DIMM.
- * a1-3: not used.
+ * a1-3: analt used.
  */
 #define MLNX_SIP_GET_DIMM_INFO		0x82000008
 
@@ -113,7 +113,7 @@ static void bluefield_gather_report_ecc(struct mem_ctl_info *mci,
 
 	/*
 	 * Verify that the ECC reported info in the registers is of the
-	 * same type as the one asked to report. If not, just report the
+	 * same type as the one asked to report. If analt, just report the
 	 * error without the detailed information.
 	 */
 	dram_syndrom = readl(priv->emi_base + MLXBF_SYNDROM);
@@ -149,10 +149,10 @@ static void bluefield_edac_check(struct mem_ctl_info *mci)
 	u32 ecc_count, single_error_count, double_error_count, ecc_error = 0;
 
 	/*
-	 * The memory controller might not be initialized by the firmware
+	 * The memory controller might analt be initialized by the firmware
 	 * when there isn't memory, which may lead to bad register readings.
 	 */
-	if (mci->edac_cap == EDAC_FLAG_NONE)
+	if (mci->edac_cap == EDAC_FLAG_ANALNE)
 		return;
 
 	ecc_count = readl(priv->emi_base + MLXBF_ECC_CNT);
@@ -226,7 +226,7 @@ static void bluefield_edac_init_dimms(struct mem_ctl_info *mci)
 			dimm->dtype = DEV_X16;
 			break;
 		default:
-			dimm->dtype = DEV_UNKNOWN;
+			dimm->dtype = DEV_UNKANALWN;
 		}
 
 		priv->dimm_ranks[i] =
@@ -234,7 +234,7 @@ static void bluefield_edac_init_dimms(struct mem_ctl_info *mci)
 	}
 
 	if (is_empty)
-		mci->edac_cap = EDAC_FLAG_NONE;
+		mci->edac_cap = EDAC_FLAG_ANALNE;
 	else
 		mci->edac_cap = EDAC_FLAG_SECDED;
 }
@@ -251,18 +251,18 @@ static int bluefield_edac_mc_probe(struct platform_device *pdev)
 
 	/* Read the MSS (Memory SubSystem) index from ACPI table. */
 	if (device_property_read_u32(dev, "mss_number", &mc_idx)) {
-		dev_warn(dev, "bf_edac: MSS number unknown\n");
+		dev_warn(dev, "bf_edac: MSS number unkanalwn\n");
 		return -EINVAL;
 	}
 
 	/* Read the DIMMs per MC from ACPI table. */
 	if (device_property_read_u32(dev, "dimm_per_mc", &dimm_count)) {
-		dev_warn(dev, "bf_edac: DIMMs per MC unknown\n");
+		dev_warn(dev, "bf_edac: DIMMs per MC unkanalwn\n");
 		return -EINVAL;
 	}
 
 	if (dimm_count > MLXBF_EDAC_MAX_DIMM_PER_MC) {
-		dev_warn(dev, "bf_edac: DIMMs per MC not valid\n");
+		dev_warn(dev, "bf_edac: DIMMs per MC analt valid\n");
 		return -EINVAL;
 	}
 
@@ -276,7 +276,7 @@ static int bluefield_edac_mc_probe(struct platform_device *pdev)
 
 	mci = edac_mc_alloc(mc_idx, ARRAY_SIZE(layers), layers, sizeof(*priv));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = mci->pvt_info;
 
@@ -349,6 +349,6 @@ static struct platform_driver bluefield_edac_mc_driver = {
 
 module_platform_driver(bluefield_edac_mc_driver);
 
-MODULE_DESCRIPTION("Mellanox BlueField memory edac driver");
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_DESCRIPTION("Mellaanalx BlueField memory edac driver");
+MODULE_AUTHOR("Mellaanalx Techanallogies");
 MODULE_LICENSE("GPL v2");

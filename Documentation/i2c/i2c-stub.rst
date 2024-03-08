@@ -12,7 +12,7 @@ word data, (r/w) I2C block data, and (r/w) SMBus block data.
 You need to provide chip addresses as a module parameter when loading this
 driver, which will then only react to SMBus commands to these addresses.
 
-No hardware is needed nor associated with this module.  It will accept write
+Anal hardware is needed analr associated with this module.  It will accept write
 quick commands to the specified addresses; it will respond to the other
 commands (also to the specified addresses) by reading from or writing to
 arrays in memory.  It will also spam the kernel logs for every command it
@@ -62,5 +62,5 @@ Caveats
 If your target driver polls some byte or word waiting for it to change, the
 stub could lock it up.  Use i2cset to unlock it.
 
-If you spam it hard enough, printk can be lossy.  This module really wants
+If you spam it hard eanalugh, printk can be lossy.  This module really wants
 something like relayfs.

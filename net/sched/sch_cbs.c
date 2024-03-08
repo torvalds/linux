@@ -9,7 +9,7 @@
  * =========================
  *
  * This is a simple rate-limiting shaper aimed at TSN applications on
- * systems with known traffic workloads.
+ * systems with kanalwn traffic workloads.
  *
  * Its algorithm is defined by the IEEE 802.1Q-2014 Specification,
  * Section 8.6.8.2, and explained in more detail in the Annex L of the
@@ -21,7 +21,7 @@
  *	accumulated (in kilobits per second) when there is at least
  *	one packet waiting for transmission. Packets are transmitted
  *	when the current value of credits is equal or greater than
- *	zero. When there is no packet to be transmitted the amount of
+ *	zero. When there is anal packet to be transmitted the amount of
  *	credits is set to zero. This is the main tunable of the CBS
  *	algorithm.
  *
@@ -55,7 +55,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/units.h>
 
@@ -119,7 +119,7 @@ static int cbs_enqueue_soft(struct sk_buff *skb, struct Qdisc *sch,
 
 	if (sch->q.qlen == 0 && q->credits > 0) {
 		/* We need to stop accumulating credits when there's
-		 * no enqueued packets and q->credits is positive.
+		 * anal enqueued packets and q->credits is positive.
 		 */
 		q->credits = 0;
 		q->last = ktime_get_ns();
@@ -177,18 +177,18 @@ static struct sk_buff *cbs_dequeue_soft(struct Qdisc *sch)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct Qdisc *qdisc = q->qdisc;
-	s64 now = ktime_get_ns();
+	s64 analw = ktime_get_ns();
 	struct sk_buff *skb;
 	s64 credits;
 	int len;
 
 	/* The previous packet is still being sent */
-	if (now < q->last) {
+	if (analw < q->last) {
 		qdisc_watchdog_schedule_ns(&q->watchdog, q->last);
 		return NULL;
 	}
 	if (q->credits < 0) {
-		credits = timediff_to_credits(now - q->last, q->idleslope);
+		credits = timediff_to_credits(analw - q->last, q->idleslope);
 
 		credits = q->credits + credits;
 		q->credits = min_t(s64, credits, q->hicredit);
@@ -197,9 +197,9 @@ static struct sk_buff *cbs_dequeue_soft(struct Qdisc *sch)
 			s64 delay;
 
 			delay = delay_from_credits(q->credits, q->idleslope);
-			qdisc_watchdog_schedule_ns(&q->watchdog, now + delay);
+			qdisc_watchdog_schedule_ns(&q->watchdog, analw + delay);
 
-			q->last = now;
+			q->last = analw;
 
 			return NULL;
 		}
@@ -220,9 +220,9 @@ static struct sk_buff *cbs_dequeue_soft(struct Qdisc *sch)
 	q->credits = max_t(s64, credits, q->locredit);
 	/* Estimate of the transmission of the last byte of the packet in ns */
 	if (unlikely(atomic64_read(&q->port_rate) == 0))
-		q->last = now;
+		q->last = analw;
 	else
-		q->last = now + div64_s64(len * NSEC_PER_SEC,
+		q->last = analw + div64_s64(len * NSEC_PER_SEC,
 					  atomic64_read(&q->port_rate));
 
 	return skb;
@@ -282,8 +282,8 @@ static int cbs_enable_offload(struct net_device *dev, struct cbs_sched_data *q,
 	int err;
 
 	if (!ops->ndo_setup_tc) {
-		NL_SET_ERR_MSG(extack, "Specified device does not support cbs offload");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Specified device does analt support cbs offload");
+		return -EOPANALTSUPP;
 	}
 
 	cbs.queue = q->queue;
@@ -317,7 +317,7 @@ static void cbs_set_port_rate(struct net_device *dev, struct cbs_sched_data *q)
 	if (err < 0)
 		goto skip;
 
-	if (ecmd.base.speed && ecmd.base.speed != SPEED_UNKNOWN)
+	if (ecmd.base.speed && ecmd.base.speed != SPEED_UNKANALWN)
 		speed = ecmd.base.speed;
 
 skip:
@@ -329,10 +329,10 @@ skip:
 		   ecmd.base.speed);
 }
 
-static int cbs_dev_notifier(struct notifier_block *nb, unsigned long event,
+static int cbs_dev_analtifier(struct analtifier_block *nb, unsigned long event,
 			    void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct cbs_sched_data *q;
 	struct net_device *qdev;
 	bool found = false;
@@ -340,7 +340,7 @@ static int cbs_dev_notifier(struct notifier_block *nb, unsigned long event,
 	ASSERT_RTNL();
 
 	if (event != NETDEV_UP && event != NETDEV_CHANGE)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	spin_lock(&cbs_list_lock);
 	list_for_each_entry(q, &cbs_list, cbs_list) {
@@ -355,7 +355,7 @@ static int cbs_dev_notifier(struct notifier_block *nb, unsigned long event,
 	if (found)
 		cbs_set_port_rate(dev, q);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int cbs_change(struct Qdisc *sch, struct nlattr *opt,
@@ -412,7 +412,7 @@ static int cbs_init(struct Qdisc *sch, struct nlattr *opt,
 	q->qdisc = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 				     sch->handle, extack);
 	if (!q->qdisc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&cbs_list_lock);
 	list_add(&q->cbs_list, &cbs_list);
@@ -435,7 +435,7 @@ static void cbs_destroy(struct Qdisc *sch)
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
 
-	/* Nothing to do if we couldn't create the underlying qdisc */
+	/* Analthing to do if we couldn't create the underlying qdisc */
 	if (!q->qdisc)
 		return;
 
@@ -455,7 +455,7 @@ static int cbs_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_cbs_qopt opt = { };
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -481,7 +481,7 @@ static int cbs_dump_class(struct Qdisc *sch, unsigned long cl,
 	struct cbs_sched_data *q = qdisc_priv(sch);
 
 	if (cl != 1 || !q->qdisc)	/* only one class */
-		return -ENOENT;
+		return -EANALENT;
 
 	tcm->tcm_handle |= TC_H_MIN(1);
 	tcm->tcm_info = q->qdisc->handle;
@@ -498,7 +498,7 @@ static int cbs_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					sch->handle, NULL);
 		if (!new)
-			new = &noop_qdisc;
+			new = &analop_qdisc;
 	}
 
 	*old = qdisc_replace(sch, new, &q->qdisc);
@@ -547,21 +547,21 @@ static struct Qdisc_ops cbs_qdisc_ops __read_mostly = {
 	.owner		=	THIS_MODULE,
 };
 
-static struct notifier_block cbs_device_notifier = {
-	.notifier_call = cbs_dev_notifier,
+static struct analtifier_block cbs_device_analtifier = {
+	.analtifier_call = cbs_dev_analtifier,
 };
 
 static int __init cbs_module_init(void)
 {
 	int err;
 
-	err = register_netdevice_notifier(&cbs_device_notifier);
+	err = register_netdevice_analtifier(&cbs_device_analtifier);
 	if (err)
 		return err;
 
 	err = register_qdisc(&cbs_qdisc_ops);
 	if (err)
-		unregister_netdevice_notifier(&cbs_device_notifier);
+		unregister_netdevice_analtifier(&cbs_device_analtifier);
 
 	return err;
 }
@@ -569,7 +569,7 @@ static int __init cbs_module_init(void)
 static void __exit cbs_module_exit(void)
 {
 	unregister_qdisc(&cbs_qdisc_ops);
-	unregister_netdevice_notifier(&cbs_device_notifier);
+	unregister_netdevice_analtifier(&cbs_device_analtifier);
 }
 module_init(cbs_module_init)
 module_exit(cbs_module_exit)

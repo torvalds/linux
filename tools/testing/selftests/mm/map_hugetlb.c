@@ -2,12 +2,12 @@
 /*
  * Example of using hugepage memory in a user application using the mmap
  * system call with MAP_HUGETLB flag.  Before running this program make
- * sure the administrator has allocated enough default sized huge pages
+ * sure the administrator has allocated eanalugh default sized huge pages
  * to cover the 256 MB allocation.
  *
  * For ia64 architecture, Linux kernel reserves Region number 4 for hugepages.
  * That means the addresses starting with 0x800000... will need to be
- * specified.  Specifying a fixed address is not required on ppc64, i386
+ * specified.  Specifying a fixed address is analt required on ppc64, i386
  * or x86_64.
  */
 #include <stdlib.h>
@@ -23,10 +23,10 @@
 /* Only ia64 requires this */
 #ifdef __ia64__
 #define ADDR (void *)(0x8000000000000000UL)
-#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_FIXED)
+#define FLAGS (MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB | MAP_FIXED)
 #else
 #define ADDR (void *)(0x0UL)
-#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
+#define FLAGS (MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB)
 #endif
 
 static void check_bytes(char *addr)
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 	int shift = 0;
 
 	hugepage_size = default_huge_page_size();
-	/* munmap with fail if the length is not page aligned */
+	/* munmap with fail if the length is analt page aligned */
 	if (hugepage_size > length)
 		length = hugepage_size;
 

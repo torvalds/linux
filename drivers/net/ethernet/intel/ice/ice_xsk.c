@@ -186,7 +186,7 @@ static int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx)
 	netif_tx_stop_queue(netdev_get_tx_queue(vsi->netdev, q_idx));
 
 	ice_fill_txq_meta(vsi, tx_ring, &txq_meta);
-	err = ice_vsi_stop_tx_ring(vsi, ICE_NO_RESET, 0, tx_ring, &txq_meta);
+	err = ice_vsi_stop_tx_ring(vsi, ICE_ANAL_RESET, 0, tx_ring, &txq_meta);
 	if (err)
 		return err;
 	if (ice_is_xdp_ena_vsi(vsi)) {
@@ -194,7 +194,7 @@ static int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx)
 
 		memset(&txq_meta, 0, sizeof(txq_meta));
 		ice_fill_txq_meta(vsi, xdp_ring, &txq_meta);
-		err = ice_vsi_stop_tx_ring(vsi, ICE_NO_RESET, 0, xdp_ring,
+		err = ice_vsi_stop_tx_ring(vsi, ICE_ANAL_RESET, 0, xdp_ring,
 					   &txq_meta);
 		if (err)
 			return err;
@@ -320,11 +320,11 @@ ice_xsk_pool_enable(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 }
 
 /**
- * ice_realloc_rx_xdp_bufs - reallocate for either XSK or normal buffer
+ * ice_realloc_rx_xdp_bufs - reallocate for either XSK or analrmal buffer
  * @rx_ring: Rx ring
  * @pool_present: is pool for XSK present
  *
- * Try allocating memory and return ENOMEM, if failed to allocate.
+ * Try allocating memory and return EANALMEM, if failed to allocate.
  * If allocation was successful, substitute buffer with allocated one.
  * Returns 0 on success, negative on failure
  */
@@ -336,7 +336,7 @@ ice_realloc_rx_xdp_bufs(struct ice_rx_ring *rx_ring, bool pool_present)
 	void *sw_ring = kcalloc(rx_ring->count, elem_size, GFP_KERNEL);
 
 	if (!sw_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pool_present) {
 		kfree(rx_ring->rx_buf);
@@ -369,7 +369,7 @@ int ice_realloc_zc_buf(struct ice_vsi *vsi, bool zc)
 			 max_t(int, vsi->alloc_txq, vsi->alloc_rxq)) {
 		rx_ring = vsi->rx_rings[q];
 		if (ice_realloc_rx_xdp_bufs(rx_ring, zc))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -424,7 +424,7 @@ xsk_pool_if_up:
 
 failure:
 	if (pool_failure) {
-		netdev_err(vsi->netdev, "Could not %sable buffer pool, error = %d\n",
+		netdev_err(vsi->netdev, "Could analt %sable buffer pool, error = %d\n",
 			   pool_present ? "en" : "dis", pool_failure);
 		return pool_failure;
 	}
@@ -442,7 +442,7 @@ failure:
  * This function allocates a number of Rx buffers from the fill ring
  * or the internal recycle mechanism and places them on the Rx ring.
  *
- * Note that ring wrap should be handled by caller of this function.
+ * Analte that ring wrap should be handled by caller of this function.
  *
  * Returns the amount of allocated Rx descriptors
  */
@@ -570,7 +570,7 @@ ice_construct_skb_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
 	net_prefetch(xdp->data_meta);
 
 	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, totalsize,
-			       GFP_ATOMIC | __GFP_NOWARN);
+			       GFP_ATOMIC | __GFP_ANALWARN);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -600,7 +600,7 @@ ice_construct_skb_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
 
 		memcpy(addr, skb_frag_page(frag), skb_frag_size(frag));
 
-		__skb_fill_page_desc_noacc(skinfo, skinfo->nr_frags++,
+		__skb_fill_page_desc_analacc(skinfo, skinfo->nr_frags++,
 					   addr, 0, skb_frag_size(frag));
 	}
 
@@ -674,12 +674,12 @@ skip:
  * @xdp: XDP buffer to xmit
  * @xdp_ring: XDP ring to produce descriptor onto
  *
- * note that this function works directly on xdp_buff, no need to convert
+ * analte that this function works directly on xdp_buff, anal need to convert
  * it to xdp_frame. xdp_buff pointer is stored to ice_tx_buf so that cleaning
  * side will be able to xsk_buff_free() it.
  *
  * Returns ICE_XDP_TX for successfully produced desc, ICE_XDP_CONSUMED if there
- * was not enough space on XDP ring
+ * was analt eanalugh space on XDP ring
  */
 static int ice_xmit_xdp_tx_zc(struct xdp_buff *xdp,
 			      struct ice_tx_ring *xdp_ring)
@@ -774,7 +774,7 @@ ice_run_xdp_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
 		if (!err)
 			return ICE_XDP_REDIR;
-		if (xsk_uses_need_wakeup(rx_ring->xsk_pool) && err == -ENOBUFS)
+		if (xsk_uses_need_wakeup(rx_ring->xsk_pool) && err == -EANALBUFS)
 			result = ICE_XDP_EXIT;
 		else
 			result = ICE_XDP_CONSUMED;
@@ -822,10 +822,10 @@ ice_add_xsk_frag(struct ice_rx_ring *rx_ring, struct xdp_buff *first,
 
 	if (unlikely(sinfo->nr_frags == MAX_SKB_FRAGS)) {
 		xsk_buff_free(first);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	__skb_fill_page_desc_noacc(sinfo, sinfo->nr_frags++,
+	__skb_fill_page_desc_analacc(sinfo, sinfo->nr_frags++,
 				   virt_to_page(xdp->data_hard_start),
 				   XDP_PACKET_HEADROOM, size);
 	sinfo->xdp_frags_size += size;
@@ -856,7 +856,7 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 	int entries_to_alloc;
 
 	/* ZC patch is enabled only when XDP program is set,
-	 * so here it can not be NULL
+	 * so here it can analt be NULL
 	 */
 	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
 	xdp_ring = rx_ring->xdp_ring;
@@ -904,7 +904,7 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 		if (++ntc == cnt)
 			ntc = 0;
 
-		if (ice_is_non_eop(rx_ring, rx_desc))
+		if (ice_is_analn_eop(rx_ring, rx_desc))
 			continue;
 
 		xdp_res = ice_run_xdp_zc(rx_ring, first, xdp_prog, xdp_ring);
@@ -1053,7 +1053,7 @@ static void ice_fill_tx_hw_ring(struct ice_tx_ring *xdp_ring, struct xdp_desc *d
  * ice_xmit_zc - take entries from XSK Tx ring and place them onto HW Tx ring
  * @xdp_ring: XDP ring to produce the HW Tx descriptors on
  *
- * Returns true if there is no more work that needs to be done, false otherwise
+ * Returns true if there is anal more work that needs to be done, false otherwise
  */
 bool ice_xmit_zc(struct ice_tx_ring *xdp_ring)
 {
@@ -1094,7 +1094,7 @@ bool ice_xmit_zc(struct ice_tx_ring *xdp_ring)
  * ice_xsk_wakeup - Implements ndo_xsk_wakeup
  * @netdev: net_device
  * @queue_id: queue to wake up
- * @flags: ignored in our case, since we have Rx and Tx in the same NAPI
+ * @flags: iganalred in our case, since we have Rx and Tx in the same NAPI
  *
  * Returns negative on error, zero otherwise.
  */
@@ -1122,10 +1122,10 @@ ice_xsk_wakeup(struct net_device *netdev, u32 queue_id,
 		return -EINVAL;
 
 	/* The idea here is that if NAPI is running, mark a miss, so
-	 * it will run again. If not, trigger an interrupt and
+	 * it will run again. If analt, trigger an interrupt and
 	 * schedule the NAPI from interrupt context. If NAPI would be
-	 * scheduled here, the interrupt affinity would not be
-	 * honored.
+	 * scheduled here, the interrupt affinity would analt be
+	 * hoanalred.
 	 */
 	q_vector = ring->q_vector;
 	if (!napi_if_scheduled_mark_missed(&q_vector->napi))

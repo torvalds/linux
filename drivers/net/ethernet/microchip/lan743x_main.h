@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Copyright (C) 2018 Microchip Technology Inc. */
+/* Copyright (C) 2018 Microchip Techanallogy Inc. */
 
 #ifndef _LAN743X_H
 #define _LAN743X_H
@@ -28,7 +28,7 @@
 #define ID_REV_CHIP_REV_B0_		(0x00000010)
 
 #define FPGA_REV			(0x04)
-#define FPGA_REV_GET_MINOR_(fpga_rev)	(((fpga_rev) >> 8) & 0x000000FF)
+#define FPGA_REV_GET_MIANALR_(fpga_rev)	(((fpga_rev) >> 8) & 0x000000FF)
 #define FPGA_REV_GET_MAJOR_(fpga_rev)	((fpga_rev) & 0x000000FF)
 #define FPGA_SGMII_OP			BIT(24)
 
@@ -660,7 +660,7 @@
 #define RX_CFG_B(channel)			(0xC44 + ((channel) << 6))
 #define RX_CFG_B_TS_ALL_RX_			BIT(29)
 #define RX_CFG_B_TS_DESCR_EN_			BIT(28)
-#define RX_CFG_B_TS_NONE_			0
+#define RX_CFG_B_TS_ANALNE_			0
 #define RX_CFG_B_TS_MASK_			(0xCFFFFFFF)
 #define RX_CFG_B_RX_PAD_MASK_			(0x03000000)
 #define RX_CFG_B_RX_PAD_0_			(0x00000000)
@@ -1111,7 +1111,7 @@ struct lan743x_tx_descriptor {
 
 #define TX_BUFFER_INFO_FLAG_ACTIVE		BIT(0)
 #define TX_BUFFER_INFO_FLAG_TIMESTAMP_REQUESTED	BIT(1)
-#define TX_BUFFER_INFO_FLAG_IGNORE_SYNC		BIT(2)
+#define TX_BUFFER_INFO_FLAG_IGANALRE_SYNC		BIT(2)
 #define TX_BUFFER_INFO_FLAG_SKB_FRAGMENT	BIT(3)
 struct lan743x_tx_buffer_info {
 	int flags;
@@ -1161,7 +1161,7 @@ struct lan743x_rx_buffer_info {
 
 #define LAN743X_RX_RING_SIZE        (128)
 
-#define RX_PROCESS_RESULT_NOTHING_TO_DO     (0)
+#define RX_PROCESS_RESULT_ANALTHING_TO_DO     (0)
 #define RX_PROCESS_RESULT_BUFFER_RECEIVED   (1)
 
 u32 lan743x_csr_read(struct lan743x_adapter *adapter, int offset);

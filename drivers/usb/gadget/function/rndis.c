@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/idr.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
@@ -41,7 +41,7 @@
 
 
 /* The driver for your USB chip needs to support ep0 OUT to work with
- * RNDIS, plus all three CDC Ethernet endpoints (interrupt not optional).
+ * RNDIS, plus all three CDC Ethernet endpoints (interrupt analt optional).
  *
  * Windows hosts need an INF file like Documentation/usb/linux.inf
  * and will be happier if you provide the host_addr module parameter.
@@ -100,7 +100,7 @@ static const u32 oid_supported_list[] = {
 	RNDIS_OID_GEN_RCV_OK,
 	RNDIS_OID_GEN_XMIT_ERROR,
 	RNDIS_OID_GEN_RCV_ERROR,
-	RNDIS_OID_GEN_RCV_NO_BUFFER,
+	RNDIS_OID_GEN_RCV_ANAL_BUFFER,
 #ifdef	RNDIS_OPTIONAL_STATS
 	RNDIS_OID_GEN_DIRECTED_BYTES_XMIT,
 	RNDIS_OID_GEN_DIRECTED_FRAMES_XMIT,
@@ -146,7 +146,7 @@ static const u32 oid_supported_list[] = {
 	 * confusing and/or ambiguous in this context.  (That is, more
 	 * so than their specs for the other OIDs.)
 	 *
-	 * FIXME someone who knows what these should do, please
+	 * FIXME someone who kanalws what these should do, please
 	 * implement them!
 	 */
 
@@ -169,7 +169,7 @@ static const u32 oid_supported_list[] = {
 static int gen_ndis_query_resp(struct rndis_params *params, u32 OID, u8 *buf,
 			       unsigned buf_len, rndis_resp_t *r)
 {
-	int retval = -ENOTSUPP;
+	int retval = -EANALTSUPP;
 	u32 length = 4;	/* usually */
 	__le32 *outbuf;
 	int i, count;
@@ -178,10 +178,10 @@ static int gen_ndis_query_resp(struct rndis_params *params, u32 OID, u8 *buf,
 	struct rtnl_link_stats64 temp;
 	const struct rtnl_link_stats64 *stats;
 
-	if (!r) return -ENOMEM;
+	if (!r) return -EANALMEM;
 	resp = (rndis_query_cmplt_type *)r->buf;
 
-	if (!resp) return -ENOMEM;
+	if (!resp) return -EANALMEM;
 
 	if (buf_len && rndis_debug > 1) {
 		pr_debug("query OID %08x value, len %d:\n", OID, buf_len);
@@ -392,8 +392,8 @@ static int gen_ndis_query_resp(struct rndis_params *params, u32 OID, u8 *buf,
 		break;
 
 	/* mandatory */
-	case RNDIS_OID_GEN_RCV_NO_BUFFER:
-		pr_debug("%s: RNDIS_OID_GEN_RCV_NO_BUFFER\n", __func__);
+	case RNDIS_OID_GEN_RCV_ANAL_BUFFER:
+		pr_debug("%s: RNDIS_OID_GEN_RCV_ANAL_BUFFER\n", __func__);
 		if (stats) {
 			*outbuf = cpu_to_le32(stats->rx_dropped);
 			retval = 0;
@@ -470,7 +470,7 @@ static int gen_ndis_query_resp(struct rndis_params *params, u32 OID, u8 *buf,
 		break;
 
 	default:
-		pr_warn("%s: query unknown OID 0x%08X\n", __func__, OID);
+		pr_warn("%s: query unkanalwn OID 0x%08X\n", __func__, OID);
 	}
 	if (retval < 0)
 		length = 0;
@@ -485,13 +485,13 @@ static int gen_ndis_set_resp(struct rndis_params *params, u32 OID,
 			     u8 *buf, u32 buf_len, rndis_resp_t *r)
 {
 	rndis_set_cmplt_type *resp;
-	int i, retval = -ENOTSUPP;
+	int i, retval = -EANALTSUPP;
 
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 	resp = (rndis_set_cmplt_type *)r->buf;
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (buf_len && rndis_debug > 1) {
 		pr_debug("set OID %08x value, len %d:\n", OID, buf_len);
@@ -508,7 +508,7 @@ static int gen_ndis_set_resp(struct rndis_params *params, u32 OID,
 	case RNDIS_OID_GEN_CURRENT_PACKET_FILTER:
 
 		/* these NDIS_PACKET_TYPE_* bitflags are shared with
-		 * cdc_filter; it's not RNDIS-specific
+		 * cdc_filter; it's analt RNDIS-specific
 		 * NDIS_PACKET_TYPE_x == USB_CDC_PACKET_TYPE_x for x in:
 		 *	PROMISCUOUS, DIRECTED,
 		 *	MULTICAST, ALL_MULTICAST, BROADCAST
@@ -535,13 +535,13 @@ static int gen_ndis_set_resp(struct rndis_params *params, u32 OID,
 		break;
 
 	case RNDIS_OID_802_3_MULTICAST_LIST:
-		/* I think we can ignore this */
+		/* I think we can iganalre this */
 		pr_debug("%s: RNDIS_OID_802_3_MULTICAST_LIST\n", __func__);
 		retval = 0;
 		break;
 
 	default:
-		pr_warn("%s: set unknown OID 0x%08X, size %d\n",
+		pr_warn("%s: set unkanalwn OID 0x%08X, size %d\n",
 			__func__, OID, buf_len);
 	}
 
@@ -559,11 +559,11 @@ static int rndis_init_response(struct rndis_params *params,
 	rndis_resp_t *r;
 
 	if (!params->dev)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	r = rndis_add_response(params, sizeof(rndis_init_cmplt_type));
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 	resp = (rndis_init_cmplt_type *)r->buf;
 
 	resp->MessageType = cpu_to_le32(RNDIS_MSG_INIT_C);
@@ -571,7 +571,7 @@ static int rndis_init_response(struct rndis_params *params,
 	resp->RequestID = buf->RequestID; /* Still LE in msg buffer */
 	resp->Status = cpu_to_le32(RNDIS_STATUS_SUCCESS);
 	resp->MajorVersion = cpu_to_le32(RNDIS_MAJOR_VERSION);
-	resp->MinorVersion = cpu_to_le32(RNDIS_MINOR_VERSION);
+	resp->MianalrVersion = cpu_to_le32(RNDIS_MIANALR_VERSION);
 	resp->DeviceFlags = cpu_to_le32(RNDIS_DF_CONNECTIONLESS);
 	resp->Medium = cpu_to_le32(RNDIS_MEDIUM_802_3);
 	resp->MaxPacketsPerTransfer = cpu_to_le32(1);
@@ -596,18 +596,18 @@ static int rndis_query_response(struct rndis_params *params,
 
 	/* pr_debug("%s: OID = %08X\n", __func__, cpu_to_le32(buf->OID)); */
 	if (!params->dev)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/*
 	 * we need more memory:
-	 * gen_ndis_query_resp expects enough space for
+	 * gen_ndis_query_resp expects eanalugh space for
 	 * rndis_query_cmplt_type followed by data.
 	 * oid_supported_list is the largest data reply
 	 */
 	r = rndis_add_response(params,
 		sizeof(oid_supported_list) + sizeof(rndis_query_cmplt_type));
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 	resp = (rndis_query_cmplt_type *)r->buf;
 
 	resp->MessageType = cpu_to_le32(RNDIS_MSG_QUERY_C);
@@ -618,8 +618,8 @@ static int rndis_query_response(struct rndis_params *params,
 					+ 8 + (u8 *)buf,
 			le32_to_cpu(buf->InformationBufferLength),
 			r)) {
-		/* OID not supported */
-		resp->Status = cpu_to_le32(RNDIS_STATUS_NOT_SUPPORTED);
+		/* OID analt supported */
+		resp->Status = cpu_to_le32(RNDIS_STATUS_ANALT_SUPPORTED);
 		resp->MessageLength = cpu_to_le32(sizeof *resp);
 		resp->InformationBufferLength = cpu_to_le32(0);
 		resp->InformationBufferOffset = cpu_to_le32(0);
@@ -646,7 +646,7 @@ static int rndis_set_response(struct rndis_params *params,
 
 	r = rndis_add_response(params, sizeof(rndis_set_cmplt_type));
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 	resp = (rndis_set_cmplt_type *)r->buf;
 
 #ifdef	VERBOSE_DEBUG
@@ -666,7 +666,7 @@ static int rndis_set_response(struct rndis_params *params,
 	resp->RequestID = buf->RequestID; /* Still LE in msg buffer */
 	if (gen_ndis_set_resp(params, le32_to_cpu(buf->OID),
 			((u8 *)buf) + 8 + BufOffset, BufLength, r))
-		resp->Status = cpu_to_le32(RNDIS_STATUS_NOT_SUPPORTED);
+		resp->Status = cpu_to_le32(RNDIS_STATUS_ANALT_SUPPORTED);
 	else
 		resp->Status = cpu_to_le32(RNDIS_STATUS_SUCCESS);
 
@@ -688,7 +688,7 @@ static int rndis_reset_response(struct rndis_params *params,
 
 	r = rndis_add_response(params, sizeof(rndis_reset_cmplt_type));
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 	resp = (rndis_reset_cmplt_type *)r->buf;
 
 	resp->MessageType = cpu_to_le32(RNDIS_MSG_RESET_C);
@@ -711,7 +711,7 @@ static int rndis_keepalive_response(struct rndis_params *params,
 
 	r = rndis_add_response(params, sizeof(rndis_keepalive_cmplt_type));
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 	resp = (rndis_keepalive_cmplt_type *)r->buf;
 
 	resp->MessageType = cpu_to_le32(RNDIS_MSG_KEEPALIVE_C);
@@ -733,11 +733,11 @@ static int rndis_indicate_status_msg(struct rndis_params *params, u32 status)
 	rndis_resp_t *r;
 
 	if (params->state == RNDIS_UNINITIALIZED)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	r = rndis_add_response(params, sizeof(rndis_indicate_status_msg_type));
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 	resp = (rndis_indicate_status_msg_type *)r->buf;
 
 	resp->MessageType = cpu_to_le32(RNDIS_MSG_INDICATE);
@@ -794,18 +794,18 @@ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
 	__le32 *tmp;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp = (__le32 *)buf;
 	MsgType   = get_unaligned_le32(tmp++);
 	MsgLength = get_unaligned_le32(tmp++);
 
 	if (!params)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	/* NOTE: RNDIS is *EXTREMELY* chatty ... Windows constantly polls for
+	/* ANALTE: RNDIS is *EXTREMELY* chatty ... Windows constantly polls for
 	 * rx/tx statistics and link status, in addition to KEEPALIVE traffic
-	 * and normal HC level polling to see if there's any IN traffic.
+	 * and analrmal HC level polling to see if there's any IN traffic.
 	 */
 
 	/* For USB: responses may take up to 10 seconds */
@@ -853,7 +853,7 @@ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
 		 * In one case those messages seemed to relate to the host
 		 * suspending itself.
 		 */
-		pr_warn("%s: unknown RNDIS message 0x%08X len %d\n",
+		pr_warn("%s: unkanalwn RNDIS message 0x%08X len %d\n",
 			__func__, MsgType, MsgLength);
 		/* Garbled message can be huge, so limit what we display */
 		if (MsgLength > 16)
@@ -863,7 +863,7 @@ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
 		break;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 EXPORT_SYMBOL_GPL(rndis_msg_parser);
 
@@ -889,14 +889,14 @@ struct rndis_params *rndis_register(void (*resp_avail)(void *v), void *v)
 	if (i < 0) {
 		pr_debug("failed\n");
 
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params) {
 		rndis_put_nr(i);
 
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 #ifdef	CONFIG_USB_GADGET_DEBUG_FILES
@@ -1053,7 +1053,7 @@ static rndis_resp_t *rndis_add_response(struct rndis_params *params, u32 length)
 {
 	rndis_resp_t *r;
 
-	/* NOTE: this gets copied into ether.c USB_BUFSIZ bytes ... */
+	/* ANALTE: this gets copied into ether.c USB_BUFSIZ bytes ... */
 	r = kmalloc(sizeof(rndis_resp_t) + length, GFP_ATOMIC);
 	if (!r) return NULL;
 
@@ -1129,7 +1129,7 @@ static int rndis_proc_show(struct seq_file *m, void *v)
 static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
-	rndis_params *p = pde_data(file_inode(file));
+	rndis_params *p = pde_data(file_ianalde(file));
 	u32 speed = 0;
 	int i, fl_speed = 0;
 
@@ -1161,7 +1161,7 @@ static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
 			break;
 		default:
 			if (fl_speed) p->speed = speed;
-			else pr_debug("%c is not valid\n", c);
+			else pr_debug("%c is analt valid\n", c);
 			break;
 		}
 
@@ -1171,9 +1171,9 @@ static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static int rndis_proc_open(struct inode *inode, struct file *file)
+static int rndis_proc_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, rndis_proc_show, pde_data(inode));
+	return single_open(file, rndis_proc_show, pde_data(ianalde));
 }
 
 static const struct proc_ops rndis_proc_ops = {

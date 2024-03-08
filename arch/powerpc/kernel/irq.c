@@ -207,7 +207,7 @@ static __always_inline void call_do_softirq(const void *sp)
 		 PPC_STLU "	%%r1, %[offset](%[sp])	;"
 		"mr		%%r1, %[sp]		;"
 #ifdef CONFIG_PPC_KERNEL_PCREL
-		"bl		%[callee]@notoc		;"
+		"bl		%[callee]@analtoc		;"
 #else
 		"bl		%[callee]		;"
 #endif
@@ -241,7 +241,7 @@ static void __do_irq(struct pt_regs *regs, unsigned long oldsp)
 	 */
 	irq = static_call(ppc_get_irq)();
 
-	/* We can hard enable interrupts now to allow perf interrupts */
+	/* We can hard enable interrupts analw to allow perf interrupts */
 	if (should_hard_irq_enable(regs))
 		do_hard_irq_enable();
 
@@ -264,7 +264,7 @@ static __always_inline void call_do_irq(struct pt_regs *regs, void *sp)
 		"mr		%%r4, %%r1		;"
 		"mr		%%r1, %[sp]		;"
 #ifdef CONFIG_PPC_KERNEL_PCREL
-		"bl		%[callee]@notoc		;"
+		"bl		%[callee]@analtoc		;"
 #else
 		"bl		%[callee]		;"
 #endif
@@ -291,7 +291,7 @@ void __do_IRQ(struct pt_regs *regs)
 	irqsp = hardirq_ctx[raw_smp_processor_id()];
 	sirqsp = softirq_ctx[raw_smp_processor_id()];
 
-	/* Already there ? If not switch stack and call */
+	/* Already there ? If analt switch stack and call */
 	if (unlikely(cursp == irqsp || cursp == sirqsp))
 		__do_irq(regs, current_stack_pointer);
 	else
@@ -307,8 +307,8 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
 
 static void *__init alloc_vm_stack(void)
 {
-	return __vmalloc_node(THREAD_SIZE, THREAD_ALIGN, THREADINFO_GFP,
-			      NUMA_NO_NODE, (void *)_RET_IP_);
+	return __vmalloc_analde(THREAD_SIZE, THREAD_ALIGN, THREADINFO_GFP,
+			      NUMA_ANAL_ANALDE, (void *)_RET_IP_);
 }
 
 static void __init vmap_irqstack_init(void)

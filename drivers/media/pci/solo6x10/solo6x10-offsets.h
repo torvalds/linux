@@ -40,7 +40,7 @@
  * possible */
 #define SOLO_CAP_PAGE_SIZE			(18 << 16)
 
-/* Always allow the encoder enough for 16 channels, even if we have less. The
+/* Always allow the encoder eanalugh for 16 channels, even if we have less. The
  * exception is if we have card with only 32Megs of memory. */
 #define SOLO_CAP_EXT_SIZE(__solo) \
 	((((__solo->sdram_size <= (32 << 20)) ? 4 : 16) + 1)	\

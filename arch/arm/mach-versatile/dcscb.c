@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/of_address.h>
 #include <linux/vexpress.h>
 #include <linux/arm-cci.h>
@@ -104,18 +104,18 @@ static void dcscb_cluster_cache_disable(void)
 	/*
 	 * A full outer cache flush could be needed at this point
 	 * on platforms with such a cache, depending on where the
-	 * outer cache sits. In some cases the notion of a "last
+	 * outer cache sits. In some cases the analtion of a "last
 	 * cluster standing" would need to be implemented if the
 	 * outer cache is shared across clusters. In any case, when
-	 * the outer cache needs flushing, there is no concurrent
-	 * access to the cache controller to worry about and no
+	 * the outer cache needs flushing, there is anal concurrent
+	 * access to the cache controller to worry about and anal
 	 * special locking besides what is already provided by the
 	 * MCPM state machinery is needed.
 	 */
 
 	/*
 	 * Disable cluster-level coherency by masking
-	 * incoming snoops and DVM messages:
+	 * incoming sanalops and DVM messages:
 	 */
 	cci_disable_port_by_cpu(read_cpuid_mpidr());
 }
@@ -133,20 +133,20 @@ extern void dcscb_power_up_setup(unsigned int affinity_level);
 
 static int __init dcscb_init(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	unsigned int cfg;
 	int ret;
 
 	if (!cci_probed())
-		return -ENODEV;
+		return -EANALDEV;
 
-	node = of_find_compatible_node(NULL, NULL, "arm,rtsm,dcscb");
-	if (!node)
-		return -ENODEV;
-	dcscb_base = of_iomap(node, 0);
-	of_node_put(node);
+	analde = of_find_compatible_analde(NULL, NULL, "arm,rtsm,dcscb");
+	if (!analde)
+		return -EANALDEV;
+	dcscb_base = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!dcscb_base)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	cfg = readl_relaxed(dcscb_base + DCS_CFG_R);
 	dcscb_allcpus_mask[0] = (1 << (((cfg >> 16) >> (0 << 2)) & 0xf)) - 1;
 	dcscb_allcpus_mask[1] = (1 << (((cfg >> 16) >> (1 << 2)) & 0xf)) - 1;
@@ -162,7 +162,7 @@ static int __init dcscb_init(void)
 	pr_info("VExpress DCSCB support installed\n");
 
 	/*
-	 * Future entries into the kernel can now go
+	 * Future entries into the kernel can analw go
 	 * through the cluster entry vectors.
 	 */
 	vexpress_flags_set(__pa_symbol(mcpm_entry_point));

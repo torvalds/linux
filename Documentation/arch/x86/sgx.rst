@@ -40,7 +40,7 @@ Unlike pages used for regular memory, pages can only be accessed from outside of
 the enclave during enclave construction with special, limited SGX instructions.
 
 Only a CPU executing inside an enclave can directly access enclave memory.
-However, a CPU executing inside an enclave may access normal memory outside the
+However, a CPU executing inside an enclave may access analrmal memory outside the
 enclave.
 
 The kernel manages enclave memory similar to how it treats device memory.
@@ -71,10 +71,10 @@ The processor tracks EPC pages in a hardware metadata structure called the
 which describes the owning enclave, access rights and page type among the other
 things.
 
-EPCM permissions are separate from the normal page tables.  This prevents the
+EPCM permissions are separate from the analrmal page tables.  This prevents the
 kernel from, for instance, allowing writes to data which an enclave wishes to
 remain read-only.  EPCM permissions may only impose additional restrictions on
-top of normal x86 page permissions.
+top of analrmal x86 page permissions.
 
 For all intents and purposes, the SGX architecture allows the processor to
 invalidate all EPCM entries at will.  This requires that software be prepared to
@@ -106,7 +106,7 @@ Enclave runtime management
 Systems supporting SGX2 additionally support changes to initialized
 enclaves: modifying enclave page permissions and type, and dynamically
 adding and removing of enclave pages. When an enclave accesses an address
-within its address range that does not have a backing page then a new
+within its address range that does analt have a backing page then a new
 regular page will be dynamically added to the enclave. The enclave is
 still required to run EACCEPT on the new page before it can be used.
 
@@ -119,13 +119,13 @@ Enclave vDSO
 ------------
 
 Entering an enclave can only be done through SGX-specific EENTER and ERESUME
-functions, and is a non-trivial process.  Because of the complexity of
+functions, and is a analn-trivial process.  Because of the complexity of
 transitioning to and from an enclave, enclaves typically utilize a library to
 handle the actual transitions.  This is roughly analogous to how glibc
 implementations are used by most applications to wrap system calls.
 
-Another crucial characteristic of enclaves is that they can generate exceptions
-as part of their normal operation that need to be handled in the enclave or are
+Aanalther crucial characteristic of enclaves is that they can generate exceptions
+as part of their analrmal operation that need to be handled in the enclave or are
 unique to SGX.
 
 Instead of the traditional signal mechanism to handle these exceptions, SGX
@@ -162,7 +162,7 @@ Page reclaimer
 
 Similar to the core kswapd, ksgxd, is responsible for managing the
 overcommitment of enclave memory.  If the system runs out of enclave memory,
-*ksgxd* “swaps” enclave memory to normal memory.
+*ksgxd* “swaps” enclave memory to analrmal memory.
 
 Launch Control
 ==============
@@ -191,13 +191,13 @@ enclave memory.
 In CPUs prior to Ice Lake, the Memory Encryption Engine (MEE) is used to
 encrypt pages leaving the CPU caches. MEE uses a n-ary Merkle tree with root in
 SRAM to maintain integrity of the encrypted data. This provides integrity and
-anti-replay protection but does not scale to large memory sizes because the time
+anti-replay protection but does analt scale to large memory sizes because the time
 required to update the Merkle tree grows logarithmically in relation to the
 memory size.
 
 CPUs starting from Icelake use Total Memory Encryption (TME) in the place of
-MEE. TME-based SGX implementations do not have an integrity Merkle tree, which
-means integrity and replay-attacks are not mitigated.  B, it includes
+MEE. TME-based SGX implementations do analt have an integrity Merkle tree, which
+means integrity and replay-attacks are analt mitigated.  B, it includes
 additional changes to prevent cipher text from being returned and SW memory
 aliases from being created.
 
@@ -262,7 +262,7 @@ because KVM doesn't track how a guest uses EPC pages.
 As a result, the SGX core page reclaimer doesn't support reclaiming EPC
 pages allocated to KVM guests through the virtual EPC driver. If the
 user wants to deploy SGX applications both on the host and in guests
-on the same machine, the user should reserve enough EPC (by taking out
+on the same machine, the user should reserve eanalugh EPC (by taking out
 total virtual EPC size of all SGX VMs from the physical EPC size) for
 host SGX applications so they can run with acceptable performance.
 
@@ -288,7 +288,7 @@ to expected failures and handle them as follows:
    file descriptor in the guest is closed at the same time as
    ``SGX_IOC_VEPC_REMOVE_ALL``; it will also be reported as ``EBUSY``.
    This can be avoided in userspace by serializing calls to the ioctl()
-   and to close(), but in general it should not be a problem.
+   and to close(), but in general it should analt be a problem.
 
 3. Finally, page removal will fail for SECS metadata pages which still
    have child pages.  Child pages can be removed by executing
@@ -296,7 +296,7 @@ to expected failures and handle them as follows:
    mapped into the guest.  This means that the ioctl() must be called
    twice: an initial set of calls to remove child pages and a subsequent
    set of calls to remove SECS pages.  The second set of calls is only
-   required for those mappings that returned a nonzero value from the
+   required for those mappings that returned a analnzero value from the
    first call.  It indicates a bug in the kernel or the userspace client
    if any of the second round of ``SGX_IOC_VEPC_REMOVE_ALL`` calls has
    a return code other than 0.

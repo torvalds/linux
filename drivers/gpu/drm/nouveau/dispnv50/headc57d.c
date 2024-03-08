@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -71,7 +71,7 @@ headc57d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 		  NVVAL(NVC57D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, VSYNC_POLARITY, asyh->or.nvsync) |
 		  NVVAL(NVC57D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, PIXEL_DEPTH, depth) |
 		  NVDEF(NVC57D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, COLOR_SPACE_OVERRIDE, DISABLE) |
-		  NVDEF(NVC57D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, EXT_PACKET_WIN, NONE));
+		  NVDEF(NVC57D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, EXT_PACKET_WIN, ANALNE));
 	return 0;
 }
 
@@ -123,7 +123,7 @@ headc57d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 		  NVVAL(NVC57D, HEAD_SET_OLUT_CONTROL, MODE, asyh->olut.mode) |
 		  NVVAL(NVC57D, HEAD_SET_OLUT_CONTROL, SIZE, asyh->olut.size),
 
-				HEAD_SET_OLUT_FP_NORM_SCALE(i), 0xffffffff,
+				HEAD_SET_OLUT_FP_ANALRM_SCALE(i), 0xffffffff,
 				HEAD_SET_CONTEXT_DMA_OLUT(i), asyh->olut.handle,
 				HEAD_SET_OFFSET_OLUT(i), asyh->olut.offset >> 8);
 	return 0;
@@ -155,7 +155,7 @@ headc57d_olut_load_8(struct drm_color_lut *in, int size, void __iomem *mem)
 	}
 
 	/* INTERPOLATE modes require a "next" entry to interpolate with,
-	 * so we replicate the last entry to deal with this for now.
+	 * so we replicate the last entry to deal with this for analw.
 	 */
 	writew(readw(mem - 8), mem + 0);
 	writew(readw(mem - 6), mem + 2);
@@ -175,7 +175,7 @@ headc57d_olut_load(struct drm_color_lut *in, int size, void __iomem *mem)
 	}
 
 	/* INTERPOLATE modes require a "next" entry to interpolate with,
-	 * so we replicate the last entry to deal with this for now.
+	 * so we replicate the last entry to deal with this for analw.
 	 */
 	writew(readw(mem - 8), mem + 0);
 	writew(readw(mem - 6), mem + 2);

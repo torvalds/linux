@@ -165,10 +165,10 @@ static inline void mte_disable_tco_entry(struct task_struct *task)
 	/*
 	 * Re-enable tag checking (TCO set on exception entry). This is only
 	 * necessary if MTE is enabled in either the kernel or the userspace
-	 * task in synchronous or asymmetric mode (SCTLR_EL1.TCF0 bit 0 is set
+	 * task in synchroanalus or asymmetric mode (SCTLR_EL1.TCF0 bit 0 is set
 	 * for both). With MTE disabled in the kernel and disabled or
-	 * asynchronous in userspace, tag check faults (including in uaccesses)
-	 * are not reported, therefore there is no need to re-enable checking.
+	 * asynchroanalus in userspace, tag check faults (including in uaccesses)
+	 * are analt reported, therefore there is anal need to re-enable checking.
 	 * This is beneficial on microarchitectures where re-enabling TCO is
 	 * expensive.
 	 */
@@ -194,7 +194,7 @@ static inline void mte_check_tfsr_exit(void)
 		return;
 
 	/*
-	 * The asynchronous faults are sync'ed automatically with
+	 * The asynchroanalus faults are sync'ed automatically with
 	 * TFSR_EL1 on kernel entry but for exit an explicit dsb()
 	 * is required.
 	 */

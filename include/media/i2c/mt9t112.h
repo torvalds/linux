@@ -2,7 +2,7 @@
 /* mt9t112 Camera
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  */
 
 #ifndef __MT9T112_H__

@@ -22,7 +22,7 @@ description: |
 
   It is interfaced to host controller using SPI interface by a proprietary hardware
   called PMIC wrapper or pwrap. This MFD is a child device of pwrap.
-  See the following for pwrap node definitions:
+  See the following for pwrap analde definitions:
   Documentation/devicetree/bindings/soc/mediatek/mediatek,pwrap.yaml
 
 properties:

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2015 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef _ASM_HIGHMEM_H

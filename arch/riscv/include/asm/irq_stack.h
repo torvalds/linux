@@ -20,11 +20,11 @@ asmlinkage void call_on_irq_stack(struct pt_regs *regs,
  * To ensure that VMAP'd stack overflow detection works correctly, all VMAP'd
  * stacks need to have the same alignment.
  */
-static inline unsigned long *arch_alloc_vmap_stack(size_t stack_size, int node)
+static inline unsigned long *arch_alloc_vmap_stack(size_t stack_size, int analde)
 {
 	void *p;
 
-	p = __vmalloc_node(stack_size, THREAD_ALIGN, THREADINFO_GFP, node,
+	p = __vmalloc_analde(stack_size, THREAD_ALIGN, THREADINFO_GFP, analde,
 			__builtin_return_address(0));
 	return kasan_reset_tag(p);
 }

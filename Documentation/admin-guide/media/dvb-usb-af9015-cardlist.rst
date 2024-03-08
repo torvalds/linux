@@ -28,11 +28,11 @@ dvb-usb-af9015 cards list
      - 07ca:815a
    * - Conceptronic USB2.0 DVB-T CTVDIGRCU V3.0
      - 1b80:e397
-   * - DigitalNow TinyTwin
+   * - DigitalAnalw TinyTwin
      - 13d3:3226
-   * - DigitalNow TinyTwin v2
+   * - DigitalAnalw TinyTwin v2
      - 1b80:e402
-   * - DigitalNow TinyTwin v3
+   * - DigitalAnalw TinyTwin v3
      - 1f4d:9016
    * - Fujitsu-Siemens Slim Mobile USB DVB-T
      - 07ca:8150

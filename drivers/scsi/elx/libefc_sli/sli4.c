@@ -37,7 +37,7 @@ static char *SLI4_QNAME[] = {
  * @sli4: SLI context pointer.
  * @buf: Destination buffer for the command.
  * @length: Length in bytes of attached command.
- * @dma: DMA buffer for non-embedded commands.
+ * @dma: DMA buffer for analn-embedded commands.
  * Return: Command payload buffer.
  */
 static void *
@@ -75,7 +75,7 @@ sli_config_cmd_init(struct sli4 *sli4, void *buf, u32 length,
 				cpu_to_le32(dma->size & SLI4_SLICONF_PMD_LEN);
 	config->payload_len = cpu_to_le32(dma->size);
 	/* save pointer to DMA for BMBX dumping purposes */
-	sli4->bmbx_non_emb_pmd = dma;
+	sli4->bmbx_analn_emb_pmd = dma;
 	return dma->virt;
 }
 
@@ -152,7 +152,7 @@ sli_cmd_common_create_cq(struct sli4 *sli4, void *buf, struct efc_dma *qmem,
 		cqv2->cqe_count = cpu_to_le16(n_cqe);
 		break;
 	default:
-		efc_log_err(sli4, "num_pages %d not valid\n", num_pages);
+		efc_log_err(sli4, "num_pages %d analt valid\n", num_pages);
 		return -EIO;
 	}
 
@@ -215,7 +215,7 @@ sli_cmd_common_create_eq(struct sli4 *sli4, void *buf, struct efc_dma *qmem)
 		dw6_flags |= SLI4_EQ_CNT_VAL(4096);
 		break;
 	default:
-		efc_log_err(sli4, "num_pages %d not valid\n", num_pages);
+		efc_log_err(sli4, "num_pages %d analt valid\n", num_pages);
 		return -EIO;
 	}
 
@@ -273,7 +273,7 @@ sli_cmd_common_create_mq_ext(struct sli4 *sli4, void *buf, struct efc_dma *qmem,
 		dw6w1_flags |= SLI4_MQE_SIZE_128;
 		break;
 	default:
-		efc_log_info(sli4, "num_pages %d not valid\n", num_pages);
+		efc_log_info(sli4, "num_pages %d analt valid\n", num_pages);
 		return -EIO;
 	}
 
@@ -380,7 +380,7 @@ sli_cmd_rq_create_v1(struct sli4 *sli4, void *buf, struct efc_dma *qmem,
 
 	sli_cmd_fill_hdr(&rq->hdr, SLI4_OPC_RQ_CREATE, SLI4_SUBSYSTEM_FC,
 			 CMD_V1, SLI4_RQST_PYLD_LEN(rq_create_v1));
-	/* Disable "no buffer warnings" to avoid Lancer bug */
+	/* Disable "anal buffer warnings" to avoid Lancer bug */
 	rq->dim_dfd_dnb |= SLI4_RQ_CREATE_V1_DNB;
 
 	/* valid values for number of pages: 1-8 (sec 4.5.6) */
@@ -388,13 +388,13 @@ sli_cmd_rq_create_v1(struct sli4 *sli4, void *buf, struct efc_dma *qmem,
 	rq->num_pages = cpu_to_le16(num_pages);
 	if (!num_pages ||
 	    num_pages > SLI4_RQ_CREATE_V1_MAX_PAGES) {
-		efc_log_info(sli4, "num_pages %d not valid, max %d\n",
+		efc_log_info(sli4, "num_pages %d analt valid, max %d\n",
 			     num_pages, SLI4_RQ_CREATE_V1_MAX_PAGES);
 		return -EIO;
 	}
 
 	/*
-	 * RQE count is the total number of entries (note not lg2(# entries))
+	 * RQE count is the total number of entries (analte analt lg2(# entries))
 	 */
 	rq->rqe_count = cpu_to_le16(qmem->size / SLI4_RQE_SIZE);
 
@@ -664,7 +664,7 @@ sli_res_sli_config(struct sli4 *sli4, void *buf)
 	if (le32_to_cpu(sli_config->dw1_flags) & SLI4_SLICONF_EMB)
 		return sli_config->payload.embed[4];
 
-	efc_log_info(sli4, "external buffers not supported\n");
+	efc_log_info(sli4, "external buffers analt supported\n");
 	return -EIO;
 }
 
@@ -753,7 +753,7 @@ sli_get_queue_entry_size(struct sli4 *sli4, u32 qtype)
 		size = SLI4_RQE_SIZE;
 		break;
 	default:
-		efc_log_info(sli4, "unknown queue type %d\n", qtype);
+		efc_log_info(sli4, "unkanalwn queue type %d\n", qtype);
 		return -1;
 	}
 	return size;
@@ -806,7 +806,7 @@ sli_queue_alloc(struct sli4 *sli4, u32 qtype,
 
 		break;
 	default:
-		efc_log_info(sli4, "unknown queue type %d\n", qtype);
+		efc_log_info(sli4, "unkanalwn queue type %d\n", qtype);
 	}
 
 	__sli_queue_destroy(sli4, q);
@@ -881,7 +881,7 @@ static int sli_cmd_cq_set_create(struct sli4 *sli4,
 		dw6w1_flags |= (n_cqe & SLI4_CREATE_CQSETV0_CQE_COUNT);
 		break;
 	default:
-		efc_log_info(sli4, "num_pages %d not valid\n", num_pages_cq);
+		efc_log_info(sli4, "num_pages %d analt valid\n", num_pages_cq);
 		return -EIO;
 	}
 
@@ -1112,7 +1112,7 @@ sli_queue_arm(struct sli4 *sli4, struct sli4_queue *q, bool arm)
 		q->n_posted = 0;
 		break;
 	default:
-		efc_log_info(sli4, "should only be used for EQ/CQ, not %s\n",
+		efc_log_info(sli4, "should only be used for EQ/CQ, analt %s\n",
 			     SLI4_QNAME[q->type]);
 	}
 
@@ -1310,7 +1310,7 @@ sli_eq_parse(struct sli4 *sli4, u8 *buf, u16 *cq_id)
 	int rc = 0;
 	u16 flags = 0;
 	u16 majorcode;
-	u16 minorcode;
+	u16 mianalrcode;
 
 	if (!buf || !cq_id) {
 		efc_log_err(sli4, "bad parameters sli4=%p buf=%p cq_id=%p\n",
@@ -1320,7 +1320,7 @@ sli_eq_parse(struct sli4 *sli4, u8 *buf, u16 *cq_id)
 
 	flags = le16_to_cpu(eqe->dw0w0_flags);
 	majorcode = (flags & SLI4_EQE_MJCODE) >> 1;
-	minorcode = (flags & SLI4_EQE_MNCODE) >> 4;
+	mianalrcode = (flags & SLI4_EQE_MNCODE) >> 4;
 	switch (majorcode) {
 	case SLI4_MAJOR_CODE_STANDARD:
 		*cq_id = le16_to_cpu(eqe->resource_id);
@@ -1330,8 +1330,8 @@ sli_eq_parse(struct sli4 *sli4, u8 *buf, u16 *cq_id)
 		rc = SLI4_EQE_STATUS_EQ_FULL;
 		break;
 	default:
-		efc_log_info(sli4, "Unsupported EQE: major %x minor %x\n",
-			     majorcode, minorcode);
+		efc_log_info(sli4, "Unsupported EQE: major %x mianalr %x\n",
+			     majorcode, mianalrcode);
 		rc = -EIO;
 	}
 
@@ -1380,7 +1380,7 @@ sli_abort_wqe(struct sli4 *sli, void *buf, enum sli4_abort_type type,
 	case SLI4_ABORT_XRI:
 		abort->criteria = SLI4_ABORT_CRITERIA_XRI_TAG;
 		if (mask) {
-			efc_log_warn(sli, "%#x aborting XRI %#x warning non-zero mask",
+			efc_log_warn(sli, "%#x aborting XRI %#x warning analn-zero mask",
 				     mask, ids);
 			mask = 0;
 		}
@@ -1502,7 +1502,7 @@ sli_els_request64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
 		els->context_tag = cpu_to_le16(params->vpi);
 		/*
 		 * Set SP here ... we haven't done a REG_VPI yet
-		 * need to maybe not set this when we have
+		 * need to maybe analt set this when we have
 		 * completed VFI/VPI registrations ...
 		 *
 		 * Use the FC_ID of the SPORT if it has been allocated,
@@ -1544,7 +1544,7 @@ sli_els_request64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
 	if (is_fabric)
 		els->cmdtype_elsid_byte |= SLI4_ELS_REQUEST64_CMD_FABRIC;
 	else
-		els->cmdtype_elsid_byte |= SLI4_ELS_REQUEST64_CMD_NON_FABRIC;
+		els->cmdtype_elsid_byte |= SLI4_ELS_REQUEST64_CMD_ANALN_FABRIC;
 
 	els->cq_id = cpu_to_le16(SLI4_CQ_DEFAULT);
 
@@ -1561,7 +1561,7 @@ sli_els_request64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
 
 int
 sli_fcp_icmnd64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl, u16 xri,
-		    u16 tag, u16 cq_id, u32 rpi, u32 rnode_fcid, u8 timeout)
+		    u16 tag, u16 cq_id, u32 rpi, u32 ranalde_fcid, u8 timeout)
 {
 	struct sli4_fcp_icmnd64_wqe *icmnd = buf;
 	struct sli4_sge *sge = NULL;
@@ -1627,7 +1627,7 @@ sli_fcp_icmnd64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl, u16 xri,
 int
 sli_fcp_iread64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
 		    u32 first_data_sge, u32 xfer_len, u16 xri, u16 tag,
-		    u16 cq_id, u32 rpi, u32 rnode_fcid,
+		    u16 cq_id, u32 rpi, u32 ranalde_fcid,
 		    u8 dif, u8 bs, u8 timeout)
 {
 	struct sli4_fcp_iread64_wqe *iread = buf;
@@ -1671,7 +1671,7 @@ sli_fcp_iread64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
 
 		/*
 		 * fill out fcp_cmnd buffer len and change resp buffer to be of
-		 * type "skip" (note: response will still be written to sge[1]
+		 * type "skip" (analte: response will still be written to sge[1]
 		 * if necessary)
 		 */
 		len = le32_to_cpu(sge[0].buffer_length);
@@ -1730,7 +1730,7 @@ sli_fcp_iwrite64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
 		     u32 first_data_sge, u32 xfer_len,
 		     u32 first_burst, u16 xri, u16 tag,
 		     u16 cq_id, u32 rpi,
-		     u32 rnode_fcid,
+		     u32 ranalde_fcid,
 		     u8 dif, u8 bs, u8 timeout)
 {
 	struct sli4_fcp_iwrite64_wqe *iwrite = buf;
@@ -1766,7 +1766,7 @@ sli_fcp_iwrite64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
 
 		/*
 		 * fill out fcp_cmnd buffer len and change resp buffer to be of
-		 * type "skip" (note: response will still be written to sge[1]
+		 * type "skip" (analte: response will still be written to sge[1]
 		 * if necessary)
 		 */
 		len = le32_to_cpu(sge[0].buffer_length);
@@ -2280,10 +2280,10 @@ sli_xmit_bls_rsp64_wqe(struct sli4 *sli, void *buf,
 	u32 dw_ridflags = 0;
 
 	/*
-	 * Callers can either specify RPI or S_ID, but not both
+	 * Callers can either specify RPI or S_ID, but analt both
 	 */
 	if (params->rpi_registered && params->s_id != U32_MAX) {
-		efc_log_info(sli, "S_ID specified for attached remote node %d\n",
+		efc_log_info(sli, "S_ID specified for attached remote analde %d\n",
 			     params->rpi);
 		return -EIO;
 	}
@@ -2518,12 +2518,12 @@ sli_fc_process_link_attention(struct sli4 *sli4, void *acqe)
 	case SLI4_LNK_ATTN_TYPE_LINK_DOWN:
 		event.status = SLI4_LINK_STATUS_DOWN;
 		break;
-	case SLI4_LNK_ATTN_TYPE_NO_HARD_ALPA:
-		efc_log_info(sli4, "attn_type: no hard alpa\n");
-		event.status = SLI4_LINK_STATUS_NO_ALPA;
+	case SLI4_LNK_ATTN_TYPE_ANAL_HARD_ALPA:
+		efc_log_info(sli4, "attn_type: anal hard alpa\n");
+		event.status = SLI4_LINK_STATUS_ANAL_ALPA;
 		break;
 	default:
-		efc_log_info(sli4, "attn_type: unknown\n");
+		efc_log_info(sli4, "attn_type: unkanalwn\n");
 		break;
 	}
 
@@ -2534,13 +2534,13 @@ sli_fc_process_link_attention(struct sli4 *sli4, void *acqe)
 		efc_log_info(sli4, "event_type: FC shared link event\n");
 		break;
 	default:
-		efc_log_info(sli4, "event_type: unknown\n");
+		efc_log_info(sli4, "event_type: unkanalwn\n");
 		break;
 	}
 
 	switch (link_attn->topology) {
 	case SLI4_LNK_ATTN_P2P:
-		event.topology = SLI4_LINK_TOPO_NON_FC_AL;
+		event.topology = SLI4_LINK_TOPO_ANALN_FC_AL;
 		break;
 	case SLI4_LNK_ATTN_FC_AL:
 		event.topology = SLI4_LINK_TOPO_FC_AL;
@@ -2554,7 +2554,7 @@ sli_fc_process_link_attention(struct sli4 *sli4, void *acqe)
 		event.topology = SLI4_LINK_TOPO_LOOPBACK_EXTERNAL;
 		break;
 	default:
-		efc_log_info(sli4, "topology: unknown\n");
+		efc_log_info(sli4, "topology: unkanalwn\n");
 		break;
 	}
 
@@ -2672,7 +2672,7 @@ sli_fc_cqe_parse(struct sli4 *sli4, struct sli4_queue *cq,
 		break;
 	}
 	default:
-		efc_log_info(sli4, "CQE completion code %d not handled\n",
+		efc_log_info(sli4, "CQE completion code %d analt handled\n",
 			     code);
 		*etype = SLI4_QENTRY_MAX;
 		*r_id = U16_MAX;
@@ -3086,7 +3086,7 @@ sli_cmd_init_link(struct sli4 *sli4, void *buf, u32 speed, u8 reset_alpa)
 			return -EIO;
 		}
 		break;
-	case SLI4_READ_CFG_TOPO_NON_FC_AL:
+	case SLI4_READ_CFG_TOPO_ANALN_FC_AL:
 		flags |= SLI4_INIT_LINK_F_P2P_ONLY;
 		break;
 	default:
@@ -3098,9 +3098,9 @@ sli_cmd_init_link(struct sli4 *sli4, void *buf, u32 speed, u8 reset_alpa)
 	}
 
 	flags &= ~SLI4_INIT_LINK_F_UNFAIR;
-	flags &= ~SLI4_INIT_LINK_F_NO_LIRP;
+	flags &= ~SLI4_INIT_LINK_F_ANAL_LIRP;
 	flags &= ~SLI4_INIT_LINK_F_LOOP_VALID_CHK;
-	flags &= ~SLI4_INIT_LINK_F_NO_LISA;
+	flags &= ~SLI4_INIT_LINK_F_ANAL_LISA;
 	flags &= ~SLI4_INIT_LINK_F_PICK_HI_ALPA;
 	init_link->flags0 = cpu_to_le32(flags);
 
@@ -3250,7 +3250,7 @@ sli_cmd_read_sparm64(struct sli4 *sli4, void *buf, struct efc_dma *dma, u16 vpi)
 	struct sli4_cmd_read_sparm64 *read_sparm64 = buf;
 
 	if (vpi == U16_MAX) {
-		efc_log_err(sli4, "special VPI not supported!!!\n");
+		efc_log_err(sli4, "special VPI analt supported!!!\n");
 		return -EIO;
 	}
 
@@ -3552,7 +3552,7 @@ sli_cmd_unreg_rpi(struct sli4 *sli4, void *buf, u16 indicator,
 		flags |= SLI4_UNREG_RPI_II_FCFI;
 		break;
 	default:
-		efc_log_info(sli4, "unknown type %#x\n", which);
+		efc_log_info(sli4, "unkanalwn type %#x\n", which);
 		return -EIO;
 	}
 
@@ -3703,19 +3703,19 @@ sli_cmd_common_get_cntl_addl_attributes(struct sli4 *sli4, void *buf,
 }
 
 int
-sli_cmd_common_nop(struct sli4 *sli4, void *buf, uint64_t context)
+sli_cmd_common_analp(struct sli4 *sli4, void *buf, uint64_t context)
 {
-	struct sli4_rqst_cmn_nop *nop = NULL;
+	struct sli4_rqst_cmn_analp *analp = NULL;
 
-	nop = sli_config_cmd_init(sli4, buf, SLI4_CFG_PYLD_LENGTH(cmn_nop),
+	analp = sli_config_cmd_init(sli4, buf, SLI4_CFG_PYLD_LENGTH(cmn_analp),
 				  NULL);
-	if (!nop)
+	if (!analp)
 		return -EIO;
 
-	sli_cmd_fill_hdr(&nop->hdr, SLI4_CMN_NOP, SLI4_SUBSYSTEM_COMMON,
-			 CMD_V0, SLI4_RQST_PYLD_LEN(cmn_nop));
+	sli_cmd_fill_hdr(&analp->hdr, SLI4_CMN_ANALP, SLI4_SUBSYSTEM_COMMON,
+			 CMD_V0, SLI4_RQST_PYLD_LEN(cmn_analp));
 
-	memcpy(&nop->context, &context, sizeof(context));
+	memcpy(&analp->context, &context, sizeof(context));
 
 	return 0;
 }
@@ -3777,7 +3777,7 @@ sli_cmd_common_get_port_name(struct sli4 *sli4, void *buf)
 }
 
 int
-sli_cmd_common_write_object(struct sli4 *sli4, void *buf, u16 noc,
+sli_cmd_common_write_object(struct sli4 *sli4, void *buf, u16 analc,
 			    u16 eof, u32 desired_write_length,
 			    u32 offset, char *obj_name,
 			    struct efc_dma *dma)
@@ -3795,8 +3795,8 @@ sli_cmd_common_write_object(struct sli4 *sli4, void *buf, u16 noc,
 		SLI4_SUBSYSTEM_COMMON, CMD_V0,
 		SLI4_RQST_PYLD_LEN_VAR(cmn_write_object, sizeof(*bde)));
 
-	if (noc)
-		dwflags |= SLI4_RQ_DES_WRITE_LEN_NOC;
+	if (analc)
+		dwflags |= SLI4_RQ_DES_WRITE_LEN_ANALC;
 	if (eof)
 		dwflags |= SLI4_RQ_DES_WRITE_LEN_EOF;
 	dwflags |= (desired_write_length & SLI4_RQ_DES_WRITE_LEN);
@@ -3972,10 +3972,10 @@ sli_cqe_mq(struct sli4 *sli4, void *buf)
 	/*
 	 * Firmware can split mbx completions into two MCQEs: first with only
 	 * the "consumed" bit set and a second with the "complete" bit set.
-	 * Thus, ignore MCQE unless "complete" is set.
+	 * Thus, iganalre MCQE unless "complete" is set.
 	 */
 	if (!(dwflags & SLI4_MCQE_COMPLETED))
-		return SLI4_MCQE_STATUS_NOT_COMPLETED;
+		return SLI4_MCQE_STATUS_ANALT_COMPLETED;
 
 	if (le16_to_cpu(mcqe->completion_status)) {
 		efc_log_info(sli4, "status(st=%#x ext=%#x con=%d cmp=%d ae=%d val=%d)\n",
@@ -4019,7 +4019,7 @@ sli_cqe_async(struct sli4 *sli4, void *buf)
 		rc = sli_fc_process_link_attention(sli4, buf);
 		break;
 	default:
-		efc_log_info(sli4, "ACQE unknown=%#x\n", acqe->event_code);
+		efc_log_info(sli4, "ACQE unkanalwn=%#x\n", acqe->event_code);
 	}
 
 	return rc;
@@ -4076,12 +4076,12 @@ sli_fw_init(struct sli4 *sli4)
 	 * Is firmware ready for operation?
 	 */
 	if (!sli_wait_for_fw_ready(sli4, SLI4_FW_READY_TIMEOUT_MSEC)) {
-		efc_log_crit(sli4, "FW status is NOT ready\n");
+		efc_log_crit(sli4, "FW status is ANALT ready\n");
 		return false;
 	}
 
 	/*
-	 * Reset port to a known state
+	 * Reset port to a kanalwn state
 	 */
 	return sli_sliport_reset(sli4);
 }
@@ -4163,7 +4163,7 @@ sli_get_read_config(struct sli4 *sli4)
 	sli4->params.has_extents =
 	  le32_to_cpu(conf->ext_dword) & SLI4_READ_CFG_RESP_RESOURCE_EXT;
 	if (sli4->params.has_extents) {
-		efc_log_err(sli4, "extents not supported\n");
+		efc_log_err(sli4, "extents analt supported\n");
 		return -EIO;
 	}
 
@@ -4212,9 +4212,9 @@ sli_get_read_config(struct sli4 *sli4)
 			  SLI4_READ_CFG_RESP_TOPOLOGY) >> 24;
 	switch (sli4->topology) {
 	case SLI4_READ_CFG_TOPO_FC:
-		efc_log_info(sli4, "FC (unknown)\n");
+		efc_log_info(sli4, "FC (unkanalwn)\n");
 		break;
-	case SLI4_READ_CFG_TOPO_NON_FC_AL:
+	case SLI4_READ_CFG_TOPO_ANALN_FC_AL:
 		efc_log_info(sli4, "FC (direct attach)\n");
 		break;
 	case SLI4_READ_CFG_TOPO_FC_AL:
@@ -4236,7 +4236,7 @@ sli_get_read_config(struct sli4 *sli4)
 
 	/*
 	 * READ_CONFIG doesn't give the max number of MQ. Applications
-	 * will typically want 1, but we may need another at some future
+	 * will typically want 1, but we may need aanalther at some future
 	 * date. Dummy up a "max" MQ count here.
 	 */
 	sli4->qinfo.max_qcount[SLI4_QTYPE_MQ] = SLI4_USER_MQ_COUNT;
@@ -4332,7 +4332,7 @@ sli_get_sli4_parameters(struct sli4 *sli4)
 	sli4->qinfo.count_method[SLI4_QTYPE_RQ] =
 			GET_Q_CNT_METHOD(dw_rq_pg_cnt);
 
-	/* now calculate max queue entries */
+	/* analw calculate max queue entries */
 	sli_calc_max_qentries(sli4);
 
 	dw_sgl_pg_cnt = le32_to_cpu(parms->dw18_sgl_page_cnt);
@@ -4343,7 +4343,7 @@ sli_get_sli4_parameters(struct sli4 *sli4)
 	/* bit map of available sizes */
 	sli4->sgl_page_sizes = (dw_sgl_pg_cnt &
 				SLI4_PARAM_SGL_PAGE_SZS_MASK) >> 8;
-	/* ignore HLM here. Use value from REQUEST_FEATURES */
+	/* iganalre HLM here. Use value from REQUEST_FEATURES */
 	sli4->sge_supported_length = le32_to_cpu(parms->sge_supported_length);
 	sli4->params.sgl_pre_reg_required = (dw_loopback & SLI4_PARAM_SGLR);
 	/* default to using pre-registered SGL's */
@@ -4595,7 +4595,7 @@ sli_setup(struct sli4 *sli4, void *os, struct pci_dev  *pdev,
 		return -EIO;
 
 	if ((intf & SLI4_INTF_VALID_MASK) != (u32)SLI4_INTF_VALID_VALUE) {
-		efc_log_err(sli4, "SLI_INTF is not valid\n");
+		efc_log_err(sli4, "SLI_INTF is analt valid\n");
 		return -EIO;
 	}
 
@@ -4634,16 +4634,16 @@ sli_setup(struct sli4 *sli4, void *os, struct pci_dev  *pdev,
 			break;
 		}
 	}
-	/* Fail if no matching asic type/rev was found */
+	/* Fail if anal matching asic type/rev was found */
 	if (!sli4->asic_type) {
-		efc_log_err(sli4, "no matching asic family/rev found: %02x/%02x\n",
+		efc_log_err(sli4, "anal matching asic family/rev found: %02x/%02x\n",
 			    family, rev_id);
 		return -EIO;
 	}
 
 	/*
 	 * The bootstrap mailbox is equivalent to a MQ with a single 256 byte
-	 * entry, a CQ with a single 16 byte entry, and no event queue.
+	 * entry, a CQ with a single 16 byte entry, and anal event queue.
 	 * Alignment must be 16 bytes as the low order address bits in the
 	 * address register are also control / status.
 	 */
@@ -4673,7 +4673,7 @@ sli_setup(struct sli4 *sli4, void *os, struct pci_dev  *pdev,
 						 GFP_KERNEL);
 	if (!sli4->vpd_data.virt) {
 		memset(&sli4->vpd_data, 0, sizeof(struct efc_dma));
-		/* Note that failure isn't fatal in this specific case */
+		/* Analte that failure isn't fatal in this specific case */
 		efc_log_info(sli4, "VPD buffer allocation failed\n");
 	}
 
@@ -4710,7 +4710,7 @@ int
 sli_init(struct sli4 *sli4)
 {
 	if (sli4->params.has_extents) {
-		efc_log_info(sli4, "extend allocation not supported\n");
+		efc_log_info(sli4, "extend allocation analt supported\n");
 		return -EIO;
 	}
 
@@ -4753,7 +4753,7 @@ sli_fw_reset(struct sli4 *sli4)
 	 * Firmware must be ready before issuing the reset.
 	 */
 	if (!sli_wait_for_fw_ready(sli4, SLI4_FW_READY_TIMEOUT_MSEC)) {
-		efc_log_crit(sli4, "FW status is NOT ready\n");
+		efc_log_crit(sli4, "FW status is ANALT ready\n");
 		return -EIO;
 	}
 
@@ -4811,7 +4811,7 @@ sli_callback(struct sli4 *sli4, enum sli4_callback which,
 		sli4->link_arg = arg;
 		break;
 	default:
-		efc_log_info(sli4, "unknown callback %#x\n", which);
+		efc_log_info(sli4, "unkanalwn callback %#x\n", which);
 		return -EIO;
 	}
 
@@ -4970,7 +4970,7 @@ int sli_raise_ue(struct sli4 *sli4, u8 dump)
 
 int sli_dump_is_ready(struct sli4 *sli4)
 {
-	int rc = SLI4_DUMP_READY_STATUS_NOT_READY;
+	int rc = SLI4_DUMP_READY_STATUS_ANALT_READY;
 	u32 port_val;
 	u32 bmbx_val;
 
@@ -5061,7 +5061,7 @@ sli_cmd_post_hdr_templates(struct sli4 *sli4, void *buf, struct efc_dma *dma,
 	if (page_count > 16) {
 		/*
 		 * We can't fit more than 16 descriptors into an embedded mbox
-		 * command, it has to be non-embedded
+		 * command, it has to be analn-embedded
 		 */
 		payload_dma->size = payload_size;
 		payload_dma->virt = dma_alloc_coherent(&sli4->pci->dev,
@@ -5151,5 +5151,5 @@ sli_fc_get_status_string(u32 status)
 		if (status == lookup[i].code)
 			return lookup[i].label;
 	}
-	return "unknown";
+	return "unkanalwn";
 }

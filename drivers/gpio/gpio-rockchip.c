@@ -289,18 +289,18 @@ static int rockchip_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 		 * has crippled debounce capability could only be useful
 		 * to prevent any spurious glitches from waking up the system
 		 * if the gpio is conguired as wakeup interrupt source. Let's
-		 * still return -ENOTSUPP as before, to make sure the caller
+		 * still return -EANALTSUPP as before, to make sure the caller
 		 * of gpiod_set_debounce won't change its behaviour.
 		 */
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
 /*
  * gpiod_to_irq() callback function. Creates a mapping between a GPIO pin
- * and a virtual IRQ, if not already present.
+ * and a virtual IRQ, if analt already present.
  */
 static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 {
@@ -510,14 +510,14 @@ static void rockchip_irq_disable(struct irq_data *d)
 
 static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 {
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	unsigned int clr = IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN;
 	struct irq_chip_generic *gc;
 	int ret;
 
-	bank->domain = irq_domain_add_linear(bank->of_node, 32,
+	bank->domain = irq_domain_add_linear(bank->of_analde, 32,
 					&irq_generic_chip_ops, NULL);
 	if (!bank->domain) {
-		dev_warn(bank->dev, "could not init irq domain for bank %s\n",
+		dev_warn(bank->dev, "could analt init irq domain for bank %s\n",
 			 bank->name);
 		return -EINVAL;
 	}
@@ -527,7 +527,7 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 					     handle_level_irq,
 					     clr, 0, 0);
 	if (ret) {
-		dev_err(bank->dev, "could not alloc generic chips for bank %s\n",
+		dev_err(bank->dev, "could analt alloc generic chips for bank %s\n",
 			bank->name);
 		irq_domain_remove(bank->domain);
 		return -EINVAL;
@@ -594,7 +594,7 @@ static int rockchip_gpiolib_register(struct rockchip_pin_bank *bank)
 
 	/*
 	 * For DeviceTree-supported systems, the gpio core checks the
-	 * pinctrl's device node for the "gpio-ranges" property.
+	 * pinctrl's device analde for the "gpio-ranges" property.
 	 * If it is present, it takes care of adding the pin ranges
 	 * for the driver. In this case the driver can skip ahead.
 	 *
@@ -602,17 +602,17 @@ static int rockchip_gpiolib_register(struct rockchip_pin_bank *bank)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(bank->of_node, "gpio-ranges")) {
-		struct device_node *pctlnp = of_get_parent(bank->of_node);
+	if (!of_property_read_bool(bank->of_analde, "gpio-ranges")) {
+		struct device_analde *pctlnp = of_get_parent(bank->of_analde);
 		struct pinctrl_dev *pctldev = NULL;
 
 		if (!pctlnp)
-			return -ENODATA;
+			return -EANALDATA;
 
 		pctldev = of_pinctrl_get(pctlnp);
-		of_node_put(pctlnp);
+		of_analde_put(pctlnp);
 		if (!pctldev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = gpiochip_add_pin_range(gc, dev_name(pctldev->dev), 0,
 					     gc->base, gc->ngpio);
@@ -641,33 +641,33 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank)
 	struct resource res;
 	int id = 0;
 
-	if (of_address_to_resource(bank->of_node, 0, &res)) {
-		dev_err(bank->dev, "cannot find IO resource for bank\n");
-		return -ENOENT;
+	if (of_address_to_resource(bank->of_analde, 0, &res)) {
+		dev_err(bank->dev, "cananalt find IO resource for bank\n");
+		return -EANALENT;
 	}
 
 	bank->reg_base = devm_ioremap_resource(bank->dev, &res);
 	if (IS_ERR(bank->reg_base))
 		return PTR_ERR(bank->reg_base);
 
-	bank->irq = irq_of_parse_and_map(bank->of_node, 0);
+	bank->irq = irq_of_parse_and_map(bank->of_analde, 0);
 	if (!bank->irq)
 		return -EINVAL;
 
-	bank->clk = of_clk_get(bank->of_node, 0);
+	bank->clk = of_clk_get(bank->of_analde, 0);
 	if (IS_ERR(bank->clk))
 		return PTR_ERR(bank->clk);
 
 	clk_prepare_enable(bank->clk);
 	id = readl(bank->reg_base + gpio_regs_v2.version_id);
 
-	/* If not gpio v2, that is default to v1. */
+	/* If analt gpio v2, that is default to v1. */
 	if (id == GPIO_TYPE_V2 || id == GPIO_TYPE_V2_1) {
 		bank->gpio_regs = &gpio_regs_v2;
 		bank->gpio_type = GPIO_TYPE_V2;
-		bank->db_clk = of_clk_get(bank->of_node, 1);
+		bank->db_clk = of_clk_get(bank->of_analde, 1);
 		if (IS_ERR(bank->db_clk)) {
-			dev_err(bank->dev, "cannot find debounce clk\n");
+			dev_err(bank->dev, "cananalt find debounce clk\n");
 			clk_disable_unprepare(bank->clk);
 			return -EINVAL;
 		}
@@ -701,8 +701,8 @@ rockchip_gpio_find_bank(struct pinctrl_dev *pctldev, int id)
 static int rockchip_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *pctlnp = of_get_parent(np);
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *pctlnp = of_get_parent(np);
 	struct pinctrl_dev *pctldev = NULL;
 	struct rockchip_pin_bank *bank = NULL;
 	struct rockchip_pin_deferred *cfg;
@@ -710,7 +710,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 	int id, ret;
 
 	if (!np || !pctlnp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pctldev = of_pinctrl_get(pctlnp);
 	if (!pctldev)
@@ -725,7 +725,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	bank->dev = dev;
-	bank->of_node = np;
+	bank->of_analde = np;
 
 	raw_spin_lock_init(&bank->slock);
 
@@ -764,7 +764,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 				dev_warn(dev, "setting input pin %u failed\n", cfg->pin);
 			break;
 		default:
-			dev_warn(dev, "unknown deferred config param %d\n", cfg->param);
+			dev_warn(dev, "unkanalwn deferred config param %d\n", cfg->param);
 			break;
 		}
 		kfree(cfg);

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -46,9 +46,9 @@ static const u8 txcore_default[5] = {
 
 static void brcms_c_stf_stbc_rx_ht_update(struct brcms_c_info *wlc, int val)
 {
-	/* MIMOPHYs rev3-6 cannot receive STBC with only one rx core active */
+	/* MIMOPHYs rev3-6 cananalt receive STBC with only one rx core active */
 	if (BRCMS_STF_SS_STBC_RX(wlc)) {
-		if ((wlc->stf->rxstreams == 1) && (val != HT_CAP_RX_STBC_NO))
+		if ((wlc->stf->rxstreams == 1) && (val != HT_CAP_RX_STBC_ANAL))
 			return;
 	}
 
@@ -121,7 +121,7 @@ brcms_c_stf_ss_algo_channel_get(struct brcms_c_info *wlc, u16 *ss_algo_channel,
 
 	/*
 	 * STBC is ORed into to algo channel as STBC requires per-packet SCB
-	 * capability check so cannot be default mode of operation. One of
+	 * capability check so cananalt be default mode of operation. One of
 	 * SISO, CDD have to be set
 	 */
 	if (power.target[siso_mcs_id] <= (power.target[stbc_mcs_id] + 12))
@@ -144,12 +144,12 @@ static bool brcms_c_stf_stbc_tx_set(struct brcms_c_info *wlc, s32 int_val)
 
 bool brcms_c_stf_stbc_rx_set(struct brcms_c_info *wlc, s32 int_val)
 {
-	if ((int_val != HT_CAP_RX_STBC_NO)
+	if ((int_val != HT_CAP_RX_STBC_ANAL)
 	    && (int_val != HT_CAP_RX_STBC_ONE_STREAM))
 		return false;
 
 	if (BRCMS_STF_SS_STBC_RX(wlc)) {
-		if ((int_val != HT_CAP_RX_STBC_NO)
+		if ((int_val != HT_CAP_RX_STBC_ANAL)
 		    && (wlc->stf->rxstreams == 1))
 			return false;
 	}
@@ -275,7 +275,7 @@ int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 		return -EINVAL;
 
 	/*
-	 * if nrate override is configured to be non-SISO STF mode, reject
+	 * if nrate override is configured to be analn-SISO STF mode, reject
 	 * reducing txchain to 1
 	 */
 	txstreams = (u8) hweight8(txchain);
@@ -312,7 +312,7 @@ void brcms_c_stf_ss_update(struct brcms_c_info *wlc, struct brcms_band *band)
 	prev_stf_ss = wlc->stf->ss_opmode;
 
 	/*
-	 * NOTE: opmode can only be SISO or CDD as STBC is decided on a
+	 * ANALTE: opmode can only be SISO or CDD as STBC is decided on a
 	 * per-packet basis
 	 */
 	if (BRCMS_STBC_CAP_PHY(wlc) &&
@@ -346,7 +346,7 @@ int brcms_c_stf_attach(struct brcms_c_info *wlc)
 	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_2G_INDEX]);
 	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_5G_INDEX]);
 
-	brcms_c_stf_stbc_rx_ht_update(wlc, HT_CAP_RX_STBC_NO);
+	brcms_c_stf_stbc_rx_ht_update(wlc, HT_CAP_RX_STBC_ANAL);
 	wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = OFF;
 	wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = OFF;
 
@@ -427,7 +427,7 @@ u16 brcms_c_stf_d11hdrs_phyctl_txant(struct brcms_c_info *wlc, u32 rspec)
 	u16 phytxant = wlc->stf->phytxant;
 	u16 mask = PHY_TXC_ANT_MASK;
 
-	/* for non-siso rates or default setting, use the available chains */
+	/* for analn-siso rates or default setting, use the available chains */
 	if (BRCMS_ISNPHY(wlc->band)) {
 		phytxant = _brcms_c_stf_phytxchain_sel(wlc, rspec);
 		mask = PHY_TXC_HTANT_MASK;

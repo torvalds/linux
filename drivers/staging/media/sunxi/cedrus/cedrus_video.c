@@ -107,7 +107,7 @@ void cedrus_prepare_format(struct v4l2_pix_format *pix_fmt)
 	unsigned int sizeimage = pix_fmt->sizeimage;
 	unsigned int bytesperline = pix_fmt->bytesperline;
 
-	pix_fmt->field = V4L2_FIELD_NONE;
+	pix_fmt->field = V4L2_FIELD_ANALNE;
 
 	/* Limit to hardware min/max. */
 	width = clamp(width, CEDRUS_MIN_WIDTH, CEDRUS_MAX_WIDTH);
@@ -475,7 +475,7 @@ static int cedrus_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 

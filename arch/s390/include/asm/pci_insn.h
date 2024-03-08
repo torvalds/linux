@@ -5,15 +5,15 @@
 #include <linux/jump_label.h>
 
 /* Load/Store status codes */
-#define ZPCI_PCI_ST_FUNC_NOT_ENABLED		4
+#define ZPCI_PCI_ST_FUNC_ANALT_ENABLED		4
 #define ZPCI_PCI_ST_FUNC_IN_ERR			8
 #define ZPCI_PCI_ST_BLOCKED			12
 #define ZPCI_PCI_ST_INSUF_RES			16
 #define ZPCI_PCI_ST_INVAL_AS			20
 #define ZPCI_PCI_ST_FUNC_ALREADY_ENABLED	24
-#define ZPCI_PCI_ST_DMA_AS_NOT_ENABLED		28
+#define ZPCI_PCI_ST_DMA_AS_ANALT_ENABLED		28
 #define ZPCI_PCI_ST_2ND_OP_IN_INV_AS		36
-#define ZPCI_PCI_ST_FUNC_NOT_AVAIL		40
+#define ZPCI_PCI_ST_FUNC_ANALT_AVAIL		40
 #define ZPCI_PCI_ST_ALREADY_IN_RQ_STATE		44
 
 /* Load/Store return codes */
@@ -58,7 +58,7 @@
 struct zpci_fib_fmt0 {
 	u32		:  1;
 	u32 isc		:  3;	/* Interrupt subclass */
-	u32 noi		: 12;	/* Number of interrupts */
+	u32 anali		: 12;	/* Number of interrupts */
 	u32		:  2;
 	u32 aibvo	:  6;	/* Adapter interrupt bit vector offset */
 	u32 sum		:  1;	/* Adapter int summary bit enabled */
@@ -71,7 +71,7 @@ struct zpci_fib_fmt0 {
 
 struct zpci_fib_fmt1 {
 	u32		:  4;
-	u32 noi		: 12;
+	u32 anali		: 12;
 	u32		: 16;
 	u32 dibvo	: 16;
 	u32		: 16;

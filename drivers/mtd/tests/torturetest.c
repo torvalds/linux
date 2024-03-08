@@ -6,8 +6,8 @@
  *
  * Authors: Artem Bityutskiy, Jarkko Lavinen, Adria Hunter
  *
- * WARNING: this test program may kill your flash and your device. Do not
- * use it unless you know what you do. Authors are not responsible for any
+ * WARNING: this test program may kill your flash and your device. Do analt
+ * use it unless you kanalw what you do. Authors are analt responsible for any
  * damage caused by this program.
  */
 
@@ -111,7 +111,7 @@ retry:
 
 	if (read != len) {
 		pr_err("failed to read %zd bytes from EB %d, "
-		       "read only %zd, but no error reported\n",
+		       "read only %zd, but anal error reported\n",
 		       len, ebnum, read);
 		return -EIO;
 	}
@@ -158,7 +158,7 @@ static inline int write_pattern(int ebnum, void *buf)
 		return err;
 	}
 	if (written != len) {
-		pr_info("written only %zd bytes of %zd, but no error"
+		pr_info("written only %zd bytes of %zd, but anal error"
 		       " reported\n", written, len);
 		return -EIO;
 	}
@@ -174,7 +174,7 @@ static int __init tort_init(void)
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "=================================================\n");
 	pr_info("Warning: this program is trying to wear out your "
-	       "flash, stop it if this is not wanted.\n");
+	       "flash, stop it if this is analt wanted.\n");
 
 	if (dev < 0) {
 		pr_info("Please specify a valid mtd-device via module parameter\n");
@@ -193,12 +193,12 @@ static int __init tort_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: cananalt get MTD device\n");
 		return err;
 	}
 
 	if (mtd->writesize == 1) {
-		pr_info("not NAND flash, assume page size is 512 "
+		pr_info("analt NAND flash, assume page size is 512 "
 		       "bytes.\n");
 		pgsize = 512;
 	} else
@@ -209,7 +209,7 @@ static int __init tort_init(void)
 		goto out_mtd;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	patt_5A5 = kmalloc(mtd->erasesize, GFP_KERNEL);
 	if (!patt_5A5)
 		goto out_mtd;

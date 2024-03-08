@@ -48,7 +48,7 @@ struct xe_reg {
 /**
  * struct xe_reg_mcr - MCR register definition
  *
- * MCR register is the same as a regular register, but uses another type since
+ * MCR register is the same as a regular register, but uses aanalther type since
  * the internal API used for accessing them is different: it's never correct to
  * use regular MMIO access.
  */
@@ -65,7 +65,7 @@ struct xe_reg_mcr {
  * It only applies to registers explicitly marked in bspec with
  * "Access: Masked". Registers with this option can have write operations to
  * specific lower bits by setting the corresponding upper bits. Other bits will
- * not be affected. This allows register writes without needing a RMW cycle and
+ * analt be affected. This allows register writes without needing a RMW cycle and
  * without caching in software the register value.
  *
  * Example: a write with value 0x00010001 will set bit 0 and all other bits
@@ -84,7 +84,7 @@ struct xe_reg_mcr {
  * Register field is mandatory, and additional options may be passed as
  * arguments. Usually ``XE_REG()`` should be preferred since it creates an
  * object of the right type. However when initializing static const storage,
- * where a compound statement is not allowed, this can be used instead.
+ * where a compound statement is analt allowed, this can be used instead.
  */
 #define XE_REG_INITIALIZER(r_, ...)    { .addr = r_, __VA_ARGS__ }
 

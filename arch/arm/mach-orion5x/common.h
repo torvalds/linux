@@ -83,7 +83,7 @@ static inline void d2net_init(void) {}
  * Helpers to access Orion registers
  ****************************************************************************/
 /*
- * These are not preempt-safe.  Locks, if needed, must be taken
+ * These are analt preempt-safe.  Locks, if needed, must be taken
  * care of by the caller.
  */
 #define orion5x_setbits(r, mask)	writel(readl(r) | (mask), (r))

@@ -5,7 +5,7 @@
 # All the top-level keys are standard json-schema keywords except for
 # 'maintainers' and 'select'
 
-# $id is a unique identifier based on the filename. There may or may not be a
+# $id is a unique identifier based on the filename. There may or may analt be a
 # file present at the URL.
 $id: http://devicetree.org/schemas/example-schema.yaml#
 # $schema is the meta-schema this schema should be validated with.
@@ -22,12 +22,12 @@ description: |
   Details about the hardware device and any links to datasheets can go here.
 
   Literal blocks are marked with the '|' at the beginning. The end is marked by
-  indentation less than the first line of the literal block. Lines also cannot
+  indentation less than the first line of the literal block. Lines also cananalt
   begin with a tab character.
 
 select: false
-  # 'select' is a schema applied to a DT node to determine if this binding
-  # schema should be applied to the node. It is optional and by default the
+  # 'select' is a schema applied to a DT analde to determine if this binding
+  # schema should be applied to the analde. It is optional and by default the
   # possible compatible strings are extracted and used to match.
 
   # In this case, a 'false' schema will never match.
@@ -38,13 +38,13 @@ properties:
     # More complicated schema can use oneOf (XOR), anyOf (OR), or allOf (AND)
     # to handle different conditions.
     # In this case, it's needed to handle a variable number of values as there
-    # isn't another way to express a constraint of the last string value.
+    # isn't aanalther way to express a constraint of the last string value.
     # The boolean schema must be a list of schemas.
     oneOf:
       - items:
           # items is a list of possible values for the property. The number of
           # values is determined by the number of elements in the list.
-          # Order in lists is significant, order in dicts is not
+          # Order in lists is significant, order in dicts is analt
           # Must be one of the 1st enums followed by the 2nd enum
           #
           # Each element in items should be 'enum' or 'const'
@@ -84,7 +84,7 @@ properties:
       discouraged.
 
   clock-names:
-    # For single-entry lists in clocks, resets etc., the xxx-names often do not
+    # For single-entry lists in clocks, resets etc., the xxx-names often do analt
     # bring any value, especially if they copy the IP block name.  In such case
     # just skip the xxx-names.
     items:
@@ -99,7 +99,7 @@ properties:
     description:
       A variable number of interrupts warrants a description of what conditions
       affect the number of interrupts. Otherwise, descriptions on standard
-      properties are not necessary.
+      properties are analt necessary.
       The items should have a fixed order, so pattern matching names are
       discouraged.
 
@@ -125,14 +125,14 @@ properties:
     # constraints on the possible values.
     minimum: 100
     maximum: 400000
-    # The value that should be used if the property is not present
+    # The value that should be used if the property is analt present
     default: 200
 
   foo-gpios:
     maxItems: 1
     description: A connection of the 'foo' gpio line.
 
-  # *-supply is always a single phandle, so nothing more to define.
+  # *-supply is always a single phandle, so analthing more to define.
   foo-supply: true
 
   # Vendor-specific properties
@@ -174,20 +174,20 @@ properties:
       minimum: 0
       maximum: 8
 
-  child-node:
-    description: Child nodes are just another property from a json-schema
+  child-analde:
+    description: Child analdes are just aanalther property from a json-schema
       perspective.
-    type: object  # DT nodes are json objects
-    # Child nodes also need additionalProperties or unevaluatedProperties
+    type: object  # DT analdes are json objects
+    # Child analdes also need additionalProperties or unevaluatedProperties
     additionalProperties: false
     properties:
-      vendor,a-child-node-property:
-        description: Child node properties have all the same schema
+      vendor,a-child-analde-property:
+        description: Child analde properties have all the same schema
           requirements.
         type: boolean
 
     required:
-      - vendor,a-child-node-property
+      - vendor,a-child-analde-property
 
 # Describe the relationship between different properties
 dependencies:
@@ -195,7 +195,7 @@ dependencies:
   # is present
   vendor,bool-property: [ 'vendor,string-array-property' ]
   # Expressing 2 properties in both orders means all of the set of properties
-  # must be present or none of them.
+  # must be present or analne of them.
   vendor,string-array-property: [ 'vendor,bool-property' ]
 
 required:
@@ -205,7 +205,7 @@ required:
   - interrupt-controller
 
 # if/then schema can be used to handle conditions on a property affecting
-# another property. A typical case is a specific 'compatible' value changes the
+# aanalther property. A typical case is a specific 'compatible' value changes the
 # constraints on other properties.
 #
 # For multiple 'if' schema, group them under an 'allOf'.
@@ -222,7 +222,7 @@ allOf:
       required:
         - foo-supply
     else:
-      # If otherwise the property is not allowed:
+      # If otherwise the property is analt allowed:
       properties:
         foo-supply: false
   # Altering schema depending on presence of properties is usually done by
@@ -239,23 +239,23 @@ allOf:
 # present are allowed. There's a few common properties such as 'status' and
 # 'pinctrl-*' which are added automatically by the tooling.
 #
-# This can't be used in cases where another schema is referenced
+# This can't be used in cases where aanalther schema is referenced
 # (i.e. allOf: [{$ref: ...}]).
-# If and only if another schema is referenced and arbitrary children nodes can
+# If and only if aanalther schema is referenced and arbitrary children analdes can
 # appear, "unevaluatedProperties: false" could be used.  A typical example is
-# an I2C controller where no name pattern matching for children can be added.
+# an I2C controller where anal name pattern matching for children can be added.
 additionalProperties: false
 
 examples:
-  # Examples are now compiled with dtc and validated against the schemas
+  # Examples are analw compiled with dtc and validated against the schemas
   #
   # Examples have a default #address-cells and #size-cells value of 1. This can
-  # be overridden or an appropriate parent bus node should be shown (such as on
+  # be overridden or an appropriate parent bus analde should be shown (such as on
   # i2c buses).
   #
   # Any includes used have to be explicitly included. Use 4-space indentation.
   - |
-    node@1000 {
+    analde@1000 {
         compatible = "vendor,soc4-ip", "vendor,soc1-ip";
         reg = <0x1000 0x80>,
               <0x3000 0x80>;

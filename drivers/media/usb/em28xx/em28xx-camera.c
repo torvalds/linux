@@ -35,7 +35,7 @@ static int em28xx_initialize_mt9m111(struct em28xx *dev)
 		{ 0x0d, 0x00, 0x01, },  /* reset and use defaults */
 		{ 0x0d, 0x00, 0x00, },
 		{ 0x0a, 0x00, 0x21, },
-		{ 0x21, 0x04, 0x00, },  /* full readout spd, no row/col skip */
+		{ 0x21, 0x04, 0x00, },  /* full readout spd, anal row/col skip */
 	};
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++)
@@ -87,7 +87,7 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 
 	struct i2c_client *client = &dev->i2c_client[dev->def_i2c_bus];
 
-	dev->em28xx_sensor = EM28XX_NOSENSOR;
+	dev->em28xx_sensor = EM28XX_ANALSENSOR;
 	for (i = 0; micron_sensor_addrs[i] != I2C_CLIENT_END; i++) {
 		client->addr = micron_sensor_addrs[i];
 		/* Read chip ID from register 0x00 */
@@ -143,12 +143,12 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 			break;
 		default:
 			dev_info(&dev->intf->dev,
-				 "unknown Micron sensor detected: 0x%04x\n",
+				 "unkanalwn Micron sensor detected: 0x%04x\n",
 				 id);
 			return 0;
 		}
 
-		if (dev->em28xx_sensor == EM28XX_NOSENSOR)
+		if (dev->em28xx_sensor == EM28XX_ANALSENSOR)
 			dev_info(&dev->intf->dev,
 				 "unsupported sensor detected: %s\n", name);
 		else
@@ -158,7 +158,7 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -172,9 +172,9 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 	u16 id;
 	struct i2c_client *client = &dev->i2c_client[dev->def_i2c_bus];
 
-	dev->em28xx_sensor = EM28XX_NOSENSOR;
+	dev->em28xx_sensor = EM28XX_ANALSENSOR;
 	/*
-	 * NOTE: these devices have the register auto incrementation disabled
+	 * ANALTE: these devices have the register auto incrementation disabled
 	 * by default, so we have to use single byte reads !
 	 */
 	for (i = 0; omnivision_sensor_addrs[i] != I2C_CLIENT_END; i++) {
@@ -256,12 +256,12 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 			break;
 		default:
 			dev_info(&dev->intf->dev,
-				 "unknown OmniVision sensor detected: 0x%04x\n",
+				 "unkanalwn OmniVision sensor detected: 0x%04x\n",
 				id);
 			return 0;
 		}
 
-		if (dev->em28xx_sensor == EM28XX_NOSENSOR)
+		if (dev->em28xx_sensor == EM28XX_ANALSENSOR)
 			dev_info(&dev->intf->dev,
 				 "unsupported sensor detected: %s\n", name);
 		else
@@ -271,7 +271,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int em28xx_detect_sensor(struct em28xx *dev)
@@ -280,18 +280,18 @@ int em28xx_detect_sensor(struct em28xx *dev)
 
 	ret = em28xx_probe_sensor_micron(dev);
 
-	if (dev->em28xx_sensor == EM28XX_NOSENSOR && ret < 0)
+	if (dev->em28xx_sensor == EM28XX_ANALSENSOR && ret < 0)
 		ret = em28xx_probe_sensor_omnivision(dev);
 
 	/*
-	 * NOTE: the Windows driver also probes i2c addresses
+	 * ANALTE: the Windows driver also probes i2c addresses
 	 *       0x22 (Samsung ?) and 0x66 (Kodak ?)
 	 */
 
-	if (dev->em28xx_sensor == EM28XX_NOSENSOR && ret < 0) {
+	if (dev->em28xx_sensor == EM28XX_ANALSENSOR && ret < 0) {
 		dev_info(&dev->intf->dev,
-			 "No sensor detected\n");
-		return -ENODEV;
+			 "Anal sensor detected\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -332,7 +332,7 @@ int em28xx_init_camera(struct em28xx *dev)
 		if (NULL ==
 		    v4l2_i2c_new_subdev_board(&v4l2->v4l2_dev, adap,
 					      &mt9v011_info, NULL))
-			return -ENODEV;
+			return -EANALDEV;
 		v4l2->vinmode = EM28XX_VINMODE_RGB8_GRBG;
 		v4l2->vinctl = 0x00;
 
@@ -387,14 +387,14 @@ int em28xx_init_camera(struct em28xx *dev)
 		     v4l2_i2c_new_subdev_board(&v4l2->v4l2_dev, adap,
 					       &ov2640_info, NULL);
 		if (!subdev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = 640;
 		format.format.height = 480;
 		v4l2_subdev_call(subdev, pad, set_fmt, NULL, &format);
 
-		/* NOTE: for UXGA=1600x1200 switch to 12MHz */
+		/* ANALTE: for UXGA=1600x1200 switch to 12MHz */
 		dev->board.xclk = EM28XX_XCLK_FREQUENCY_24MHZ;
 		em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk);
 		v4l2->vinmode = EM28XX_VINMODE_YUV422_YUYV;
@@ -402,7 +402,7 @@ int em28xx_init_camera(struct em28xx *dev)
 
 		break;
 	}
-	case EM28XX_NOSENSOR:
+	case EM28XX_ANALSENSOR:
 	default:
 		return -EINVAL;
 	}

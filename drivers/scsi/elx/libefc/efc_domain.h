@@ -49,6 +49,6 @@ __efc_domain_attach_internal(struct efc_domain *domain, u32 s_id);
 int
 efc_domain_dispatch_frame(void *arg, struct efc_hw_sequence *seq);
 void
-efc_node_dispatch_frame(void *arg, struct efc_hw_sequence *seq);
+efc_analde_dispatch_frame(void *arg, struct efc_hw_sequence *seq);
 
 #endif /* __EFCT_DOMAIN_H__ */

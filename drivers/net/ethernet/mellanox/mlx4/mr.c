@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,25 +14,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -133,7 +133,7 @@ err_out:
 	kfree(buddy->bits);
 	kfree(buddy->num_free);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mlx4_buddy_cleanup(struct mlx4_buddy *buddy)
@@ -208,7 +208,7 @@ int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
 
 	mtt->offset = mlx4_alloc_mtt_range(dev, mtt->order);
 	if (mtt->offset == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -329,7 +329,7 @@ int mlx4_mr_hw_get_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
 	}
 
 	if (!(*mpt_entry) || !(**mpt_entry)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_mailbox;
 	}
 
@@ -461,7 +461,7 @@ void __mlx4_mpt_release(struct mlx4_dev *dev, u32 index)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	mlx4_bitmap_free(&priv->mr_table.mpt_bitmap, index, MLX4_NO_RR);
+	mlx4_bitmap_free(&priv->mr_table.mpt_bitmap, index, MLX4_ANAL_RR);
 }
 
 static void mlx4_mpt_release(struct mlx4_dev *dev, u32 index)
@@ -532,7 +532,7 @@ int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
 
 	index = mlx4_mpt_reserve(dev);
 	if (index == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx4_mr_alloc_reserved(dev, index, pd, iova, size,
 				     access, npages, page_shift, mr);
@@ -701,7 +701,7 @@ static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 			       start_index, &dma_handle);
 
 	if (!mtts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_sync_single_for_cpu(&dev->persist->pdev->dev, dma_handle,
 				npages * sizeof(u64), DMA_TO_DEVICE);
@@ -796,7 +796,7 @@ int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 
 	page_list = kcalloc(buf->npages, sizeof(*page_list), GFP_KERNEL);
 	if (!page_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < buf->npages; ++i)
 		if (buf->nbufs == 1)
@@ -820,11 +820,11 @@ int mlx4_mw_alloc(struct mlx4_dev *dev, u32 pd, enum mlx4_mw_type type,
 	     !(dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW)) ||
 	     (type == MLX4_MW_TYPE_2 &&
 	     !(dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	index = mlx4_mpt_reserve(dev);
 	if (index == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mw->key	    = hw_index_to_key(index);
 	mw->pd      = pd;
@@ -852,8 +852,8 @@ int mlx4_mw_enable(struct mlx4_dev *dev, struct mlx4_mw *mw)
 	}
 	mpt_entry = mailbox->buf;
 
-	/* Note that the MLX4_MPT_FLAG_REGION bit in mpt_entry->flags is turned
-	 * off, thus creating a memory window and not a memory region.
+	/* Analte that the MLX4_MPT_FLAG_REGION bit in mpt_entry->flags is turned
+	 * off, thus creating a memory window and analt a memory region.
 	 */
 	mpt_entry->key	       = cpu_to_be32(key_to_hw_index(mw->key));
 	mpt_entry->pd_flags    = cpu_to_be32(mw->pd);
@@ -910,7 +910,7 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 	struct mlx4_mr_table *mr_table = &priv->mr_table;
 	int err;
 
-	/* Nothing to do for slaves - all MR handling is forwarded
+	/* Analthing to do for slaves - all MR handling is forwarded
 	* to the master */
 	if (mlx4_is_slave(dev))
 		return 0;
@@ -936,7 +936,7 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 		if (priv->reserved_mtts < 0) {
 			mlx4_warn(dev, "MTT table of order %u is too small\n",
 				  mr_table->mtt_buddy.max_order);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_reserve_mtts;
 		}
 	}

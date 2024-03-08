@@ -54,17 +54,17 @@ u32 mpc885_get_clock(u32 crystal)
 /* Set common device tree fields based on the given clock frequencies. */
 void mpc8xx_set_clocks(u32 sysclk)
 {
-	void *node;
+	void *analde;
 
 	dt_fixup_cpu_clocks(sysclk, sysclk / 16, sysclk);
 
-	node = finddevice("/soc/cpm");
-	if (node)
-		setprop(node, "clock-frequency", &sysclk, 4);
+	analde = finddevice("/soc/cpm");
+	if (analde)
+		setprop(analde, "clock-frequency", &sysclk, 4);
 
-	node = finddevice("/soc/cpm/brg");
-	if (node)
-		setprop(node, "clock-frequency", &sysclk, 4);
+	analde = finddevice("/soc/cpm/brg");
+	if (analde)
+		setprop(analde, "clock-frequency", &sysclk, 4);
 }
 
 int mpc885_fixup_clocks(u32 crystal)

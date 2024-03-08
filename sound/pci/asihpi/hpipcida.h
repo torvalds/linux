@@ -10,7 +10,7 @@
 (C) Copyright AudioScience Inc. 1998-2003
 *******************************************************************************/
 
-/*NOTE: when adding new lines to this header file
+/*ANALTE: when adding new lines to this header file
   they MUST be grouped by HPI entry point.
 */
 

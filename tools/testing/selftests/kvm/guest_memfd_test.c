@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <fcntl.h>
 
@@ -116,7 +116,7 @@ static void test_invalid_punch_hole(int fd, size_t page_size, size_t total_size)
 	for (i = 0; i < ARRAY_SIZE(testcases); i++) {
 		ret = fallocate(fd, FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE,
 				testcases[i].offset, testcases[i].len);
-		TEST_ASSERT(ret == -1 && errno == EINVAL,
+		TEST_ASSERT(ret == -1 && erranal == EINVAL,
 			    "PUNCH_HOLE with !PAGE_SIZE offset (%lx) and/or length (%lx) should fail",
 			    testcases[i].offset, testcases[i].len);
 	}
@@ -131,14 +131,14 @@ static void test_create_guest_memfd_invalid(struct kvm_vm *vm)
 
 	for (size = 1; size < page_size; size++) {
 		fd = __vm_create_guest_memfd(vm, size, 0);
-		TEST_ASSERT(fd == -1 && errno == EINVAL,
-			    "guest_memfd() with non-page-aligned page size '0x%lx' should fail with EINVAL",
+		TEST_ASSERT(fd == -1 && erranal == EINVAL,
+			    "guest_memfd() with analn-page-aligned page size '0x%lx' should fail with EINVAL",
 			    size);
 	}
 
 	for (flag = 0; flag; flag <<= 1) {
 		fd = __vm_create_guest_memfd(vm, page_size, flag);
-		TEST_ASSERT(fd == -1 && errno == EINVAL,
+		TEST_ASSERT(fd == -1 && erranal == EINVAL,
 			    "guest_memfd() with flag '0x%lx' should fail with EINVAL",
 			    flag);
 	}
@@ -166,7 +166,7 @@ static void test_create_guest_memfd_multiple(struct kvm_vm *vm)
 	ret = fstat(fd1, &st1);
 	TEST_ASSERT(ret != -1, "memfd fstat should succeed");
 	TEST_ASSERT(st1.st_size == 4096, "first memfd st_size should still match requested size");
-	TEST_ASSERT(st1.st_ino != st2.st_ino, "different memfd should have different inode numbers");
+	TEST_ASSERT(st1.st_ianal != st2.st_ianal, "different memfd should have different ianalde numbers");
 }
 
 int main(int argc, char *argv[])

@@ -13,7 +13,7 @@
 # Maneesh Soni <maneesh@in.ibm.com>
 #
 
-define bttnobp
+define bttanalbp
 	set $tasks_off=((size_t)&((struct task_struct *)0)->tasks)
 	set $pid_off=((size_t)&((struct task_struct *)0)->thread_group.next)
 	set $init_t=&init_task
@@ -51,7 +51,7 @@ define bttnobp
 		set $next_t=(char *)($next_t->tasks.next) - $tasks_off
 	end
 end
-document bttnobp
+document bttanalbp
 	dump all thread stack traces on a kernel compiled with !CONFIG_FRAME_POINTER
 end
 
@@ -160,7 +160,7 @@ define trapinfo
 		set $next_t=(char *)($next_t->tasks.next) - $tasks_off
 	end
 
-	printf "Trapno %ld, cr2 0x%lx, error_code %ld\n", $pid_task.thread.trap_no, \
+	printf "Trapanal %ld, cr2 0x%lx, error_code %ld\n", $pid_task.thread.trap_anal, \
 				$pid_task.thread.cr2, $pid_task.thread.error_code
 
 end
@@ -305,7 +305,7 @@ define dmesg
 		set var $desc = &prb->desc_ring.descs[$id % $desc_count]
 		set var $info = &prb->desc_ring.infos[$id % $desc_count]
 
-		# skip non-committed record
+		# skip analn-committed record
 		set var $state = 3 & ($desc->state_var.counter >> $desc_flags_shift)
 		if ($state == $desc_committed || $state == $desc_finalized)
 			dump_record $desc $info $prev_flags

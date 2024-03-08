@@ -216,7 +216,7 @@ static void _rtl8723be_config_rf_reg(struct ieee80211_hw *hw, u32 addr,
 				     u32 regaddr)
 {
 	if (addr == 0xfe || addr == 0xffe) {
-		/* In order not to disturb BT music
+		/* In order analt to disturb BT music
 		 *	when wifi init.(1ant NIC only)
 		 */
 		mdelay(50);
@@ -572,7 +572,7 @@ static bool rtl8723be_phy_config_with_headerfile(struct ieee80211_hw *hw,
 					}
 				}
 			} else if (v1 & BIT(30)) { /*negative condition*/
-			/*do nothing*/
+			/*do analthing*/
 			}
 		} else {
 			if (matched)
@@ -747,7 +747,7 @@ bool rtl8723be_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	bool ret = true;
 
-	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio Anal %x\n", rfpath);
 	switch (rfpath) {
 	case RF90_PATH_A:
 		ret =  rtl8723be_phy_config_with_headerfile(hw,
@@ -763,7 +763,7 @@ bool rtl8723be_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 		break;
 	case RF90_PATH_D:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-			"switch case %#x not processed\n", rfpath);
+			"switch case %#x analt processed\n", rfpath);
 		break;
 	}
 	return ret;
@@ -883,9 +883,9 @@ static u8 _rtl8723be_get_txpower_by_rate(struct ieee80211_hw *hw,
 
 	rate_section = _rtl8723be_phy_get_ratesection_intxpower_byrate(rfpath,
 								       rate);
-	tx_num = RF_TX_NUM_NONIMPLEMENT;
+	tx_num = RF_TX_NUM_ANALNIMPLEMENT;
 
-	if (tx_num == RF_TX_NUM_NONIMPLEMENT) {
+	if (tx_num == RF_TX_NUM_ANALNIMPLEMENT) {
 		if (rate >= DESC92C_RATEMCS8 && rate <= DESC92C_RATEMCS15)
 			tx_num = RF_2TX;
 		else
@@ -1172,7 +1172,7 @@ void rtl8723be_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			pr_err("Unknown Scan Backup operation.\n");
+			pr_err("Unkanalwn Scan Backup operation.\n");
 			break;
 		}
 	}
@@ -1213,7 +1213,7 @@ void rtl8723be_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkanalwn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -1238,7 +1238,7 @@ void rtl8723be_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 			       HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkanalwn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -1258,7 +1258,7 @@ void rtl8723be_phy_set_bw_mode(struct ieee80211_hw *hw,
 	if (rtlphy->set_bwmode_inprogress)
 		return;
 	rtlphy->set_bwmode_inprogress = true;
-	if ((!is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
+	if ((!is_hal_stop(rtlhal)) && !(RT_CANANALT_IO(hw))) {
 		rtl8723be_phy_set_bw_mode_callback(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
@@ -1314,7 +1314,7 @@ u8 rtl8723be_phy_sw_chnl(struct ieee80211_hw *hw)
 	rtlphy->sw_chnl_inprogress = true;
 	rtlphy->sw_chnl_stage = 0;
 	rtlphy->sw_chnl_step = 0;
-	if (!(is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
+	if (!(is_hal_stop(rtlhal)) && !(RT_CANANALT_IO(hw))) {
 		rtl8723be_phy_sw_chnl_callback(hw);
 		rtl_dbg(rtlpriv, COMP_CHAN, DBG_LOUD,
 			"sw_chnl_inprogress false schedule workitem current channel %d\n",
@@ -1429,7 +1429,7 @@ static bool _rtl8723be_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n",
+				"switch case %#x analt processed\n",
 				currentcmd->cmdid);
 			break;
 		}
@@ -1495,7 +1495,7 @@ static u8 _rtl8723be_phy_path_a_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000) >> 16) != 0x42))
 		result |= 0x01;
-	else /* if Tx not OK, ignore Rx */
+	else /* if Tx analt OK, iganalre Rx */
 		return result;
 
 	/* Allen 20131125 */
@@ -1508,7 +1508,7 @@ static u8 _rtl8723be_phy_path_a_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) > 0xf0) &&
 	    (tmp < 0xf))
 		result |= 0x01;
-	else /* if Tx not OK, ignore Rx */
+	else /* if Tx analt OK, iganalre Rx */
 		return result;
 
 	return result;
@@ -1574,7 +1574,7 @@ static u8 _rtl8723be_phy_path_a_rx_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000) >> 16) != 0x42))
 		result |= 0x01;
-	else /* if Tx not OK, ignore Rx */
+	else /* if Tx analt OK, iganalre Rx */
 		return result;
 
 	/* Allen 20131125 */
@@ -1587,7 +1587,7 @@ static u8 _rtl8723be_phy_path_a_rx_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) > 0xf0) &&
 	    (tmp < 0xf))
 		result |= 0x01;
-	else /* if Tx not OK, ignore Rx */
+	else /* if Tx analt OK, iganalre Rx */
 		return result;
 
 	u32tmp = 0x80007C00 | (reg_e94 & 0x3FF0000) |
@@ -1793,7 +1793,7 @@ static u8 _rtl8723be_phy_path_b_rx_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000) >> 16) != 0x42))
 		result |= 0x01;
-	else	/* if Tx not OK, ignore Rx */
+	else	/* if Tx analt OK, iganalre Rx */
 		return result;
 
 	/* Allen 20131125 */
@@ -2207,9 +2207,9 @@ static void _rtl8723be_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 	rtl_set_rfreg(hw, RF90_PATH_A, 0xb0, RFREG_OFFSET_MASK, 0xdfbe0);
 	rtl_set_rfreg(hw, RF90_PATH_A, 0x18, MASK12BITS, 0x8c0a);
 
-	/* In order not to disturb BT music when wifi init.(1ant NIC only) */
+	/* In order analt to disturb BT music when wifi init.(1ant NIC only) */
 	/*mdelay(100);*/
-	/* In order not to disturb BT music when wifi init.(1ant NIC only) */
+	/* In order analt to disturb BT music when wifi init.(1ant NIC only) */
 	mdelay(50);
 
 	rtl_set_rfreg(hw, RF90_PATH_A, 0xb0, RFREG_OFFSET_MASK, 0xdffe0);
@@ -2435,7 +2435,7 @@ bool rtl8723be_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n", iotype);
+				"switch case %#x analt processed\n", iotype);
 			break;
 		}
 	} while (false);
@@ -2473,7 +2473,7 @@ static void rtl8723be_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-			"switch case %#x not processed\n",
+			"switch case %#x analt processed\n",
 			rtlphy->current_io_type);
 		break;
 	}
@@ -2538,7 +2538,7 @@ static bool _rtl8723be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		if (mac->link_state == MAC80211_LINKED)
 			rtlpriv->cfg->ops->led_control(hw, LED_CTL_LINK);
 		else
-			rtlpriv->cfg->ops->led_control(hw, LED_CTL_NO_LINK);
+			rtlpriv->cfg->ops->led_control(hw, LED_CTL_ANAL_LINK);
 
 		break;
 
@@ -2547,7 +2547,7 @@ static bool _rtl8723be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		     queue_id < RTL_PCI_MAX_TX_QUEUE_COUNT;) {
 			ring = &pcipriv->dev.tx_ring[queue_id];
 			/* Don't check BEACON Q.
-			 * BEACON Q is always not empty,
+			 * BEACON Q is always analt empty,
 			 * because '_rtl8723be_cmd_send_packet'
 			 */
 			if (queue_id == BEACON_QUEUE ||
@@ -2581,7 +2581,7 @@ static bool _rtl8723be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		} else {
 			if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS) {
 				rtlpriv->cfg->ops->led_control(hw,
-							       LED_CTL_NO_LINK);
+							       LED_CTL_ANAL_LINK);
 			} else {
 				rtlpriv->cfg->ops->led_control(hw,
 							     LED_CTL_POWER_OFF);
@@ -2626,7 +2626,7 @@ static bool _rtl8723be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-			"switch case %#x not processed\n", rfpwr_state);
+			"switch case %#x analt processed\n", rfpwr_state);
 		bresult = false;
 		break;
 	}

@@ -240,7 +240,7 @@ static int acp_card_rt5682_hw_params(struct snd_pcm_substream *substream,
 		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
 		return ret;
 	}
@@ -256,7 +256,7 @@ static int acp_card_rt5682_hw_params(struct snd_pcm_substream *substream,
 		 * As codec supports slot 0 and slot 1 for playback and capture.
 		 */
 		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 8, 16);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
 			return ret;
 		}
@@ -438,7 +438,7 @@ static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
 		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
 		return ret;
 	}
@@ -454,7 +454,7 @@ static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
 		 * As codec supports slot 0 and slot 1 for playback and capture.
 		 */
 		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 8, 16);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
 			return ret;
 		}
@@ -634,7 +634,7 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
 		return ret;
 	}
@@ -644,7 +644,7 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 		 * As codec supports slot 2 and slot 3 for playback.
 		 */
 		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0xC, 0, 8, 16);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
 			return ret;
 		}
@@ -795,7 +795,7 @@ static int acp_card_maxim_hw_params(struct snd_pcm_substream *substream,
 		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
 		return ret;
 	}
@@ -805,7 +805,7 @@ static int acp_card_maxim_hw_params(struct snd_pcm_substream *substream,
 		 * As codec supports slot 2 and slot 3 for playback.
 		 */
 		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0xC, 0, 8, 16);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
 			return ret;
 		}
@@ -1050,7 +1050,7 @@ static int acp_nau8825_hw_params(struct snd_pcm_substream *substream,
 		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
 		return ret;
 	}
@@ -1066,7 +1066,7 @@ static int acp_nau8825_hw_params(struct snd_pcm_substream *substream,
 		 * As codec supports slot 4 and slot 5 for playback and slot 6 for capture.
 		 */
 		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x30, 0xC0, 8, 16);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
 			return ret;
 		}
@@ -1109,7 +1109,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 
 	codec_dai = snd_soc_card_get_codec_dai(card, NAU8821_CODEC_DAI);
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found\n");
+		dev_err(card->dev, "Codec dai analt found\n");
 		return -EIO;
 	}
 
@@ -1154,13 +1154,13 @@ static const struct snd_soc_dapm_widget nau8821_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route nau8821_audio_route[] = {
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkanalwn if we have jack detection */
 	{ "Headphone Jack", NULL, "HPOL" },
 	{ "Headphone Jack", NULL, "HPOR" },
 	{ "MICL", NULL, "Headset Mic" },
@@ -1289,7 +1289,7 @@ SND_SOC_DAILINK_DEF(dmic_codec,
 /* Declare ACP CPU components */
 static struct snd_soc_dai_link_component platform_component[] = {
 	{
-		 .name = "acp_asoc_renoir.0",
+		 .name = "acp_asoc_reanalir.0",
 	}
 };
 
@@ -1398,7 +1398,7 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 
 	links = devm_kcalloc(dev, num_links, sizeof(struct snd_soc_dai_link), GFP_KERNEL);
 	if (!links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (drv_data->hs_cpu_id == I2S_SP) {
 		links[i].name = "acp-headset-codec";
@@ -1409,10 +1409,10 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
 		links[i].dpcm_capture = 1;
-		links[i].nonatomic = true;
-		links[i].no_pcm = 1;
+		links[i].analnatomic = true;
+		links[i].anal_pcm = 1;
 		if (!drv_data->hs_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1446,10 +1446,10 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
 		links[i].dpcm_capture = 1;
-		links[i].nonatomic = true;
-		links[i].no_pcm = 1;
+		links[i].analnatomic = true;
+		links[i].anal_pcm = 1;
 		if (!drv_data->hs_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1471,7 +1471,7 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 	if (drv_data->amp_cpu_id == I2S_SP) {
 		links[i].name = "acp-amp-codec";
 		links[i].id = AMP_BE_ID;
-		if (drv_data->platform == RENOIR) {
+		if (drv_data->platform == REANALIR) {
 			links[i].cpus = sof_sp;
 			links[i].num_cpus = ARRAY_SIZE(sof_sp);
 		} else {
@@ -1481,10 +1481,10 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 		links[i].platforms = sof_component;
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
-		links[i].nonatomic = true;
-		links[i].no_pcm = 1;
+		links[i].analnatomic = true;
+		links[i].anal_pcm = 1;
 		if (!drv_data->amp_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1513,10 +1513,10 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 		links[i].platforms = sof_component;
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
-		links[i].nonatomic = true;
-		links[i].no_pcm = 1;
+		links[i].analnatomic = true;
+		links[i].anal_pcm = 1;
 		if (!drv_data->amp_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1555,10 +1555,10 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
 		links[i].dpcm_capture = 1;
-		links[i].nonatomic = true;
-		links[i].no_pcm = 1;
+		links[i].analnatomic = true;
+		links[i].anal_pcm = 1;
 		if (!drv_data->bt_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1575,8 +1575,8 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 		links[i].platforms = sof_component;
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_capture = 1;
-		links[i].nonatomic = true;
-		links[i].no_pcm = 1;
+		links[i].analnatomic = true;
+		links[i].anal_pcm = 1;
 	}
 
 	card->dai_link = links;
@@ -1604,7 +1604,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 
 	links = devm_kcalloc(dev, num_links, sizeof(struct snd_soc_dai_link), GFP_KERNEL);
 	if (!links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (drv_data->hs_cpu_id == I2S_SP) {
 		links[i].name = "acp-headset-codec";
@@ -1616,7 +1616,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 		links[i].dpcm_playback = 1;
 		links[i].dpcm_capture = 1;
 		if (!drv_data->hs_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1660,7 +1660,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 		links[i].dpcm_playback = 1;
 		links[i].dpcm_capture = 1;
 		if (!drv_data->hs_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1688,7 +1688,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 		links[i].num_platforms = ARRAY_SIZE(platform_component);
 		links[i].dpcm_playback = 1;
 		if (!drv_data->amp_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1726,7 +1726,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 		}
 		links[i].dpcm_playback = 1;
 		if (!drv_data->amp_codec_id) {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}
@@ -1754,7 +1754,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 			links[i].codecs = dmic_codec;
 			links[i].num_codecs = ARRAY_SIZE(dmic_codec);
 		} else {
-			/* Use dummy codec if codec id not specified */
+			/* Use dummy codec if codec id analt specified */
 			links[i].codecs = &snd_soc_dummy_dlc;
 			links[i].num_codecs = 1;
 		}

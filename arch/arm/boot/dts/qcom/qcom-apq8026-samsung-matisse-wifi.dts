@@ -9,8 +9,8 @@
 #include "qcom-msm8226.dtsi"
 #include "pm8226.dtsi"
 
-/delete-node/ &adsp_region;
-/delete-node/ &smem_region;
+/delete-analde/ &adsp_region;
+/delete-analde/ &smem_region;
 
 / {
 	model = "Samsung Galaxy Tab 4 10.1";
@@ -161,58 +161,58 @@
 
 		framebuffer@3200000 {
 			reg = <0x03200000 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss@8400000 {
 			reg = <0x08400000 0x1f00000>;
-			no-map;
+			anal-map;
 		};
 
 		mba@a300000 {
 			reg = <0x0a300000 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@cb00000 {
 			reg = <0x0cb00000 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		wcnss@d200000 {
 			reg = <0x0d200000 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_region: adsp@d900000 {
 			reg = <0x0d900000 0x1800000>;
-			no-map;
+			anal-map;
 		};
 
 		venus@f100000 {
 			reg = <0x0f100000 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_region: smem@fa00000 {
 			reg = <0x0fa00000 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@fb00000 {
 			reg = <0x0fb00000 0x260000>;
-			no-map;
+			anal-map;
 		};
 
 		rfsa@fd60000 {
 			reg = <0x0fd60000 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs@fd80000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0fd80000 0x180000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 		};
@@ -443,7 +443,7 @@
 	vqmmc-supply = <&pm8226_l6>;
 
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 
 	status = "okay";
 };

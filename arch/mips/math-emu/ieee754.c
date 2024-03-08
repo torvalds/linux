@@ -3,7 +3,7 @@
  * single and double precision
  *
  * BUGS
- * not much dp done
+ * analt much dp done
  * doesn't generate IEEE754_INEXACT
  */
 /*
@@ -23,7 +23,7 @@
 
 /*
  * Older GCC requires the inner braces for initialization of union ieee754dp's
- * anonymous struct member.  Without an error will result.
+ * aanalnymous struct member.  Without an error will result.
  */
 #define xPCNST(s, b, m, ebias)						\
 {									\
@@ -50,10 +50,10 @@ const union ieee754dp __ieee754dp_spcvals[] = {
 	DPCNST(0, DP_EMAX + 1, 0x8000000000000ULL),	/* + indef 2008 qNaN */
 	DPCNST(0, DP_EMAX,     0xFFFFFFFFFFFFFULL),	/* + max */
 	DPCNST(1, DP_EMAX,     0xFFFFFFFFFFFFFULL),	/* - max */
-	DPCNST(0, DP_EMIN,     0x0000000000000ULL),	/* + min normal */
-	DPCNST(1, DP_EMIN,     0x0000000000000ULL),	/* - min normal */
-	DPCNST(0, DP_EMIN - 1, 0x0000000000001ULL),	/* + min denormal */
-	DPCNST(1, DP_EMIN - 1, 0x0000000000001ULL),	/* - min denormal */
+	DPCNST(0, DP_EMIN,     0x0000000000000ULL),	/* + min analrmal */
+	DPCNST(1, DP_EMIN,     0x0000000000000ULL),	/* - min analrmal */
+	DPCNST(0, DP_EMIN - 1, 0x0000000000001ULL),	/* + min deanalrmal */
+	DPCNST(1, DP_EMIN - 1, 0x0000000000001ULL),	/* - min deanalrmal */
 	DPCNST(0, 31,          0x0000000000000ULL),	/* + 1.0e31 */
 	DPCNST(0, 63,          0x0000000000000ULL),	/* + 1.0e63 */
 };
@@ -72,12 +72,12 @@ const union ieee754sp __ieee754sp_spcvals[] = {
 	SPCNST(1, SP_EMAX + 1, 0x000000),	/* - infinity */
 	SPCNST(0, SP_EMAX + 1, 0x3FFFFF),	/* + indef legacy quiet NaN */
 	SPCNST(0, SP_EMAX + 1, 0x400000),	/* + indef 2008 quiet NaN */
-	SPCNST(0, SP_EMAX,     0x7FFFFF),	/* + max normal */
-	SPCNST(1, SP_EMAX,     0x7FFFFF),	/* - max normal */
-	SPCNST(0, SP_EMIN,     0x000000),	/* + min normal */
-	SPCNST(1, SP_EMIN,     0x000000),	/* - min normal */
-	SPCNST(0, SP_EMIN - 1, 0x000001),	/* + min denormal */
-	SPCNST(1, SP_EMIN - 1, 0x000001),	/* - min denormal */
+	SPCNST(0, SP_EMAX,     0x7FFFFF),	/* + max analrmal */
+	SPCNST(1, SP_EMAX,     0x7FFFFF),	/* - max analrmal */
+	SPCNST(0, SP_EMIN,     0x000000),	/* + min analrmal */
+	SPCNST(1, SP_EMIN,     0x000000),	/* - min analrmal */
+	SPCNST(0, SP_EMIN - 1, 0x000001),	/* + min deanalrmal */
+	SPCNST(1, SP_EMIN - 1, 0x000001),	/* - min deanalrmal */
 	SPCNST(0, 31,	       0x000000),	/* + 1.0e31 */
 	SPCNST(0, 63,	       0x000000),	/* + 1.0e63 */
 };

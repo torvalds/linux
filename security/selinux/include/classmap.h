@@ -29,7 +29,7 @@
 		"ipc_lock", "ipc_owner", "sys_module", "sys_rawio",          \
 		"sys_chroot", "sys_ptrace", "sys_pacct", "sys_admin",        \
 		"sys_boot", "sys_nice", "sys_resource", "sys_time",          \
-		"sys_tty_config", "mknod", "lease", "audit_write",           \
+		"sys_tty_config", "mkanald", "lease", "audit_write",           \
 		"audit_control", "setfcap"
 
 #define COMMON_CAP2_PERMS                                                     \
@@ -41,7 +41,7 @@
 #endif
 
 /*
- * Note: The name for any socket class should be suffixed by "socket",
+ * Analte: The name for any socket class should be suffixed by "socket",
  *	 and doesn't contain more than one substr of "socket".
  */
 const struct security_class_mapping secclass_map[] = {
@@ -55,11 +55,11 @@ const struct security_class_mapping secclass_map[] = {
 	    "sigstop",	    "signull",	     "signal",	    "ptrace",
 	    "getsched",	    "setsched",	     "getsession",  "getpgid",
 	    "setpgid",	    "getcap",	     "setcap",	    "share",
-	    "getattr",	    "setexec",	     "setfscreate", "noatsecure",
+	    "getattr",	    "setexec",	     "setfscreate", "analatsecure",
 	    "siginh",	    "setrlimit",     "rlimitinh",   "dyntransition",
 	    "setcurrent",   "execmem",	     "execstack",   "execheap",
 	    "setkeycreate", "setsockcreate", "getrlimit",   NULL } },
-	{ "process2", { "nnp_transition", "nosuid_transition", NULL } },
+	{ "process2", { "nnp_transition", "analsuid_transition", NULL } },
 	{ "system",
 	  { "ipc_info", "syslog_read", "syslog_mod", "syslog_console",
 	    "module_request", "module_load", NULL } },
@@ -68,7 +68,7 @@ const struct security_class_mapping secclass_map[] = {
 	  { "mount", "remount", "unmount", "getattr", "relabelfrom",
 	    "relabelto", "associate", "quotamod", "quotaget", "watch", NULL } },
 	{ "file",
-	  { COMMON_FILE_PERMS, "execute_no_trans", "entrypoint", NULL } },
+	  { COMMON_FILE_PERMS, "execute_anal_trans", "entrypoint", NULL } },
 	{ "dir",
 	  { COMMON_FILE_PERMS, "add_name", "remove_name", "reparent", "search",
 	    "rmdir", NULL } },
@@ -80,10 +80,10 @@ const struct security_class_mapping secclass_map[] = {
 	{ "fifo_file", { COMMON_FILE_PERMS, NULL } },
 	{ "socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "tcp_socket",
-	  { COMMON_SOCK_PERMS, "node_bind", "name_connect", NULL } },
-	{ "udp_socket", { COMMON_SOCK_PERMS, "node_bind", NULL } },
-	{ "rawip_socket", { COMMON_SOCK_PERMS, "node_bind", NULL } },
-	{ "node", { "recvfrom", "sendto", NULL } },
+	  { COMMON_SOCK_PERMS, "analde_bind", "name_connect", NULL } },
+	{ "udp_socket", { COMMON_SOCK_PERMS, "analde_bind", NULL } },
+	{ "rawip_socket", { COMMON_SOCK_PERMS, "analde_bind", NULL } },
+	{ "analde", { "recvfrom", "sendto", NULL } },
 	{ "netif", { "ingress", "egress", NULL } },
 	{ "netlink_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "packet_socket", { COMMON_SOCK_PERMS, NULL } },
@@ -125,7 +125,7 @@ const struct security_class_mapping secclass_map[] = {
 	  { "view", "read", "write", "search", "link", "setattr", "create",
 	    NULL } },
 	{ "dccp_socket",
-	  { COMMON_SOCK_PERMS, "node_bind", "name_connect", NULL } },
+	  { COMMON_SOCK_PERMS, "analde_bind", "name_connect", NULL } },
 	{ "memprotect", { "mmap_zero", NULL } },
 	{ "peer", { "recv", NULL } },
 	{ "capability2", { COMMON_CAP2_PERMS, NULL } },
@@ -136,9 +136,9 @@ const struct security_class_mapping secclass_map[] = {
 	{ "cap_userns", { COMMON_CAP_PERMS, NULL } },
 	{ "cap2_userns", { COMMON_CAP2_PERMS, NULL } },
 	{ "sctp_socket",
-	  { COMMON_SOCK_PERMS, "node_bind", "name_connect", "association",
+	  { COMMON_SOCK_PERMS, "analde_bind", "name_connect", "association",
 	    NULL } },
-	{ "icmp_socket", { COMMON_SOCK_PERMS, "node_bind", NULL } },
+	{ "icmp_socket", { COMMON_SOCK_PERMS, "analde_bind", NULL } },
 	{ "ax25_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "ipx_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "netrom_socket", { COMMON_SOCK_PERMS, NULL } },
@@ -175,7 +175,7 @@ const struct security_class_mapping secclass_map[] = {
 	{ "mctp_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "perf_event",
 	  { "open", "cpu", "kernel", "tracepoint", "read", "write", NULL } },
-	{ "anon_inode", { COMMON_FILE_PERMS, NULL } },
+	{ "aanaln_ianalde", { COMMON_FILE_PERMS, NULL } },
 	{ "io_uring", { "override_creds", "sqpoll", "cmd", NULL } },
 	{ "user_namespace", { "create", NULL } },
 	{ NULL }

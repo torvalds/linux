@@ -92,7 +92,7 @@ int ntfs_collate(ntfs_volume *vol, COLLATION_RULE cr,
 	ntfs_debug("Entering.");
 	/*
 	 * FIXME:  At the moment we only support COLLATION_BINARY and
-	 * COLLATION_NTOFS_ULONG, so we BUG() for everything else for now.
+	 * COLLATION_NTOFS_ULONG, so we BUG() for everything else for analw.
 	 */
 	BUG_ON(cr != COLLATION_BINARY && cr != COLLATION_NTOFS_ULONG);
 	i = le32_to_cpu(cr);

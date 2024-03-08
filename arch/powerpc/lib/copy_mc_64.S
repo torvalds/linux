@@ -6,7 +6,7 @@
  */
 #include <linux/export.h>
 #include <asm/ppc_asm.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 	.macro err1
 100:
@@ -102,7 +102,7 @@ err1;	stw	r0,0(r3)
 	srdi	r6,r5,7
 	mtctr	r6
 
-	/* Now do cacheline (128B) sized loads and stores. */
+	/* Analw do cacheline (128B) sized loads and stores. */
 	.align	5
 4:
 err2;	ld	r0,0(r4)

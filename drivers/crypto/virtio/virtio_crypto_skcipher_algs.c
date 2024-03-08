@@ -3,7 +3,7 @@
   *
   * Authors: Gonglei <arei.gonglei@huawei.com>
   *
-  * Copyright 2016 HUAWEI TECHNOLOGIES CO., LTD.
+  * Copyright 2016 HUAWEI TECHANALLOGIES CO., LTD.
   */
 
 #include <crypto/engine.h>
@@ -131,11 +131,11 @@ static int virtio_crypto_alg_skcipher_init_session(
 	uint8_t *cipher_key = kmemdup(key, keylen, GFP_ATOMIC);
 
 	if (!cipher_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vc_ctrl_req = kzalloc(sizeof(*vc_ctrl_req), GFP_KERNEL);
 	if (!vc_ctrl_req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -204,7 +204,7 @@ static int virtio_crypto_alg_skcipher_close_session(
 
 	vc_ctrl_req = kzalloc(sizeof(*vc_ctrl_req), GFP_KERNEL);
 	if (!vc_ctrl_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl_status = &vc_ctrl_req->ctrl_status;
 	ctrl_status->status = VIRTIO_CRYPTO_ERR;
@@ -277,7 +277,7 @@ static int virtio_crypto_alg_skcipher_init_sessions(
 	return 0;
 }
 
-/* Note: kernel crypto API realization */
+/* Analte: kernel crypto API realization */
 static int virtio_crypto_skcipher_setkey(struct crypto_skcipher *tfm,
 					 const uint8_t *key,
 					 unsigned int keylen)
@@ -292,13 +292,13 @@ static int virtio_crypto_skcipher_setkey(struct crypto_skcipher *tfm,
 
 	if (!ctx->vcrypto) {
 		/* New key */
-		int node = virtio_crypto_get_current_node();
+		int analde = virtio_crypto_get_current_analde();
 		struct virtio_crypto *vcrypto =
-				      virtcrypto_get_dev_node(node,
+				      virtcrypto_get_dev_analde(analde,
 				      VIRTIO_CRYPTO_SERVICE_CIPHER, alg);
 		if (!vcrypto) {
-			pr_err("virtio_crypto: Could not find a virtio device in the system or unsupported algo\n");
-			return -ENODEV;
+			pr_err("virtio_crypto: Could analt find a virtio device in the system or unsupported algo\n");
+			return -EANALDEV;
 		}
 
 		ctx->vcrypto = vcrypto;
@@ -353,16 +353,16 @@ __virtio_crypto_skcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 
 	/* Why 3?  outhdr + iv + inhdr */
 	sg_total = src_nents + dst_nents + 3;
-	sgs = kcalloc_node(sg_total, sizeof(*sgs), GFP_KERNEL,
-				dev_to_node(&vcrypto->vdev->dev));
+	sgs = kcalloc_analde(sg_total, sizeof(*sgs), GFP_KERNEL,
+				dev_to_analde(&vcrypto->vdev->dev));
 	if (!sgs)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	req_data = kzalloc_node(sizeof(*req_data), GFP_KERNEL,
-				dev_to_node(&vcrypto->vdev->dev));
+	req_data = kzalloc_analde(sizeof(*req_data), GFP_KERNEL,
+				dev_to_analde(&vcrypto->vdev->dev));
 	if (!req_data) {
 		kfree(sgs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vc_req->req_data = req_data;
@@ -415,10 +415,10 @@ __virtio_crypto_skcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 	 * Avoid to do DMA from the stack, switch to using
 	 * dynamically-allocated for the IV
 	 */
-	iv = kzalloc_node(ivsize, GFP_ATOMIC,
-				dev_to_node(&vcrypto->vdev->dev));
+	iv = kzalloc_analde(ivsize, GFP_ATOMIC,
+				dev_to_analde(&vcrypto->vdev->dev));
 	if (!iv) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free;
 	}
 	memcpy(iv, req->iv, ivsize);

@@ -88,7 +88,7 @@ atomisp-objs += \
 	pci/isp/kernels/macc/macc_1.0/ia_css_macc_table.host.o \
 	pci/isp/kernels/macc/macc1_5/ia_css_macc1_5.host.o \
 	pci/isp/kernels/macc/macc1_5/ia_css_macc1_5_table.host.o \
-	pci/isp/kernels/norm/norm_1.0/ia_css_norm.host.o \
+	pci/isp/kernels/analrm/analrm_1.0/ia_css_analrm.host.o \
 	pci/isp/kernels/ob/ob_1.0/ia_css_ob.host.o \
 	pci/isp/kernels/ob/ob2/ia_css_ob2.host.o \
 	pci/isp/kernels/output/output_1.0/ia_css_output.host.o \
@@ -231,8 +231,8 @@ INCLUDES += \
 	-I$(atomisp)/pci/isp/kernels/macc/ \
 	-I$(atomisp)/pci/isp/kernels/macc/macc_1.0/ \
 	-I$(atomisp)/pci/isp/kernels/macc/macc1_5/ \
-	-I$(atomisp)/pci/isp/kernels/norm/ \
-	-I$(atomisp)/pci/isp/kernels/norm/norm_1.0/ \
+	-I$(atomisp)/pci/isp/kernels/analrm/ \
+	-I$(atomisp)/pci/isp/kernels/analrm/analrm_1.0/ \
 	-I$(atomisp)/pci/isp/kernels/ob/ \
 	-I$(atomisp)/pci/isp/kernels/ob/ob_1.0/ \
 	-I$(atomisp)/pci/isp/kernels/ob/ob2/ \
@@ -301,4 +301,4 @@ DEFINES := -DHRT_HW -DHRT_ISP_CSS_CUSTOM_HOST -DHRT_USE_VIR_ADDRS -D__HOST__
 #DEFINES += -DPUNIT_CAMERA_BUSY
 #DEFINES += -DUSE_KMEM_CACHE
 
-ccflags-y += $(INCLUDES) $(DEFINES) -fno-common
+ccflags-y += $(INCLUDES) $(DEFINES) -fanal-common

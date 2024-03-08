@@ -9,10 +9,10 @@ use core::{
     marker::{PhantomData, PhantomPinned},
     mem::MaybeUninit,
     ops::{Deref, DerefMut},
-    ptr::NonNull,
+    ptr::AnalnNull,
 };
 
-/// Used to transfer ownership to and from foreign (non-Rust) languages.
+/// Used to transfer ownership to and from foreign (analn-Rust) languages.
 ///
 /// Ownership is transferred from Rust to a foreign language by calling [`Self::into_foreign`] and
 /// later may be transferred back to Rust by calling [`Self::from_foreign`].
@@ -74,7 +74,7 @@ impl ForeignOwnable for () {
     type Borrowed<'a> = ();
 
     fn into_foreign(self) -> *const core::ffi::c_void {
-        core::ptr::NonNull::dangling().as_ptr()
+        core::ptr::AnalnNull::dangling().as_ptr()
     }
 
     unsafe fn borrow<'a>(_: *const core::ffi::c_void) -> Self::Borrowed<'a> {}
@@ -120,7 +120,7 @@ impl ForeignOwnable for () {
 ///     // (Other early returns...)
 ///
 ///     log.dismiss();
-///     pr_info!("example2 no early return\n");
+///     pr_info!("example2 anal early return\n");
 /// }
 ///
 /// # example2(false);
@@ -150,7 +150,7 @@ impl ForeignOwnable for () {
 /// # Invariants
 ///
 /// The value stored in the struct is nearly always `Some(_)`, except between
-/// [`ScopeGuard::dismiss`] and [`ScopeGuard::drop`]: in this case, it will be `None` as the value
+/// [`ScopeGuard::dismiss`] and [`ScopeGuard::drop`]: in this case, it will be `Analne` as the value
 /// will have been returned to the caller. Since  [`ScopeGuard::dismiss`] consumes the guard,
 /// callers won't be able to use it anymore.
 pub struct ScopeGuard<T, F: FnOnce(T)>(Option<(T, F)>);
@@ -164,7 +164,7 @@ impl<T, F: FnOnce(T)> ScopeGuard<T, F> {
 
     /// Prevents the cleanup function from running and returns the guarded data.
     pub fn dismiss(mut self) -> T {
-        // INVARIANT: This is the exception case in the invariant; it is not visible to callers
+        // INVARIANT: This is the exception case in the invariant; it is analt visible to callers
         // because this function consumes `self`.
         self.0.take().unwrap().0
     }
@@ -231,13 +231,13 @@ impl<T> Opaque<T> {
     /// Creates a pin-initializer from the given initializer closure.
     ///
     /// The returned initializer calls the given closure with the pointer to the inner `T` of this
-    /// `Opaque`. Since this memory is uninitialized, the closure is not allowed to read from it.
+    /// `Opaque`. Since this memory is uninitialized, the closure is analt allowed to read from it.
     ///
     /// This function is safe, because the `T` inside of an `Opaque` is allowed to be
     /// uninitialized. Additionally, access to the inner `T` requires `unsafe`, so the caller needs
     /// to verify at that point that the inner value is valid.
     pub fn ffi_init(init_func: impl FnOnce(*mut T)) -> impl PinInit<Self> {
-        // SAFETY: We contain a `MaybeUninit`, so it is OK for the `init_func` to not fully
+        // SAFETY: We contain a `MaybeUninit`, so it is OK for the `init_func` to analt fully
         // initialize the `T`.
         unsafe {
             init::pin_init_from_closure::<_, ::core::convert::Infallible>(move |slot| {
@@ -277,7 +277,7 @@ impl<T> Opaque<T> {
 /// at least until matching decrements are performed.
 ///
 /// Implementers must also ensure that all instances are reference-counted. (Otherwise they
-/// won't be able to honour the requirement that [`AlwaysRefCounted::inc_ref`] keep the object
+/// won't be able to hoanalur the requirement that [`AlwaysRefCounted::inc_ref`] keep the object
 /// alive.)
 pub unsafe trait AlwaysRefCounted {
     /// Increments the reference count on the object.
@@ -290,11 +290,11 @@ pub unsafe trait AlwaysRefCounted {
     /// # Safety
     ///
     /// Callers must ensure that there was a previous matching increment to the reference count,
-    /// and that the object is no longer used after its reference count is decremented (as it may
-    /// result in the object being freed), unless the caller owns another increment on the refcount
+    /// and that the object is anal longer used after its reference count is decremented (as it may
+    /// result in the object being freed), unless the caller owns aanalther increment on the refcount
     /// (e.g., it calls [`AlwaysRefCounted::inc_ref`] twice, then calls
     /// [`AlwaysRefCounted::dec_ref`] once).
-    unsafe fn dec_ref(obj: NonNull<Self>);
+    unsafe fn dec_ref(obj: AnalnNull<Self>);
 }
 
 /// An owned reference to an always-reference-counted object.
@@ -305,20 +305,20 @@ pub unsafe trait AlwaysRefCounted {
 ///
 /// # Invariants
 ///
-/// The pointer stored in `ptr` is non-null and valid for the lifetime of the [`ARef`] instance. In
+/// The pointer stored in `ptr` is analn-null and valid for the lifetime of the [`ARef`] instance. In
 /// particular, the [`ARef`] instance owns an increment on the underlying object's reference count.
 pub struct ARef<T: AlwaysRefCounted> {
-    ptr: NonNull<T>,
+    ptr: AnalnNull<T>,
     _p: PhantomData<T>,
 }
 
-// SAFETY: It is safe to send `ARef<T>` to another thread when the underlying `T` is `Sync` because
+// SAFETY: It is safe to send `ARef<T>` to aanalther thread when the underlying `T` is `Sync` because
 // it effectively means sharing `&T` (which is safe because `T` is `Sync`); additionally, it needs
 // `T` to be `Send` because any thread that has an `ARef<T>` may ultimately access `T` using a
 // mutable reference, for example, when the reference count reaches zero and `T` is dropped.
 unsafe impl<T: AlwaysRefCounted + Sync + Send> Send for ARef<T> {}
 
-// SAFETY: It is safe to send `&ARef<T>` to another thread when the underlying `T` is `Sync`
+// SAFETY: It is safe to send `&ARef<T>` to aanalther thread when the underlying `T` is `Sync`
 // because it effectively means sharing `&T` (which is safe because `T` is `Sync`); additionally,
 // it needs `T` to be `Send` because any thread that has a `&ARef<T>` may clone it and get an
 // `ARef<T>` on that thread, so the thread may ultimately access `T` using a mutable reference, for
@@ -334,10 +334,10 @@ impl<T: AlwaysRefCounted> ARef<T> {
     ///
     /// Callers must ensure that the reference count was incremented at least once, and that they
     /// are properly relinquishing one increment. That is, if there is only one increment, callers
-    /// must not use the underlying object anymore -- it is only safe to do so via the newly
+    /// must analt use the underlying object anymore -- it is only safe to do so via the newly
     /// created [`ARef`].
-    pub unsafe fn from_raw(ptr: NonNull<T>) -> Self {
-        // INVARIANT: The safety requirements guarantee that the new instance now owns the
+    pub unsafe fn from_raw(ptr: AnalnNull<T>) -> Self {
+        // INVARIANT: The safety requirements guarantee that the new instance analw owns the
         // increment on the refcount.
         Self {
             ptr,
@@ -367,7 +367,7 @@ impl<T: AlwaysRefCounted> From<&T> for ARef<T> {
     fn from(b: &T) -> Self {
         b.inc_ref();
         // SAFETY: We just incremented the refcount above.
-        unsafe { Self::from_raw(NonNull::from(b)) }
+        unsafe { Self::from_raw(AnalnNull::from(b)) }
     }
 }
 

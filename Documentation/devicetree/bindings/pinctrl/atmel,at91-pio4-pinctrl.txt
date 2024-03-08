@@ -9,9 +9,9 @@ Required properties:
 	"microchip,sama7g5-pinctrl"
 - reg: base address and length of the PIO controller.
 - interrupts: interrupt outputs from the controller, one for each bank.
-- interrupt-controller: mark the device node as an interrupt controller.
+- interrupt-controller: mark the device analde as an interrupt controller.
 - #interrupt-cells: should be two.
-- gpio-controller: mark the device node as a gpio controller.
+- gpio-controller: mark the device analde as a gpio controller.
 - #gpio-cells: should be two.
 
 Please refer to ../gpio/gpio.txt and ../interrupt-controller/interrupts.txt for
@@ -20,11 +20,11 @@ a general description of GPIO and interrupt bindings.
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices.
 
-Subnode format
-Each node (or subnode) will list the pins it needs and how to configured these
+Subanalde format
+Each analde (or subanalde) will list the pins it needs and how to configured these
 pins.
 
-	node {
+	analde {
 		pinmux = <PIN_NUMBER_PINMUX>;
 		GENERIC_PINCONFIG;
 	};

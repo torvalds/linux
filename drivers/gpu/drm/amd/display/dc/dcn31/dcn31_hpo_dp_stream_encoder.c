@@ -8,12 +8,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -148,7 +148,7 @@ static void dcn31_hpo_dp_stream_enc_dp_blank(
 	/* Wait for video stream transmission disabled
 	 * Larger delay to wait until VBLANK - use max retry of
 	 * 10us*5000=50ms. This covers 41.7ms of minimum 24 Hz mode +
-	 * a little more because we may not trust delay accuracy.
+	 * a little more because we may analt trust delay accuracy.
 	 */
 	REG_WAIT(DP_SYM32_ENC_VID_STREAM_CONTROL,
 			VID_STREAM_STATUS, 0,
@@ -206,20 +206,20 @@ static void dcn31_hpo_dp_stream_enc_set_stream_attribute(
 	struct dcn31_hpo_dp_stream_encoder *enc3 = DCN3_1_HPO_DP_STREAM_ENC_FROM_HPO_STREAM_ENC(enc);
 	struct dc_crtc_timing hw_crtc_timing = *crtc_timing;
 
-	/* MISC0[0]   = 0    video and link clocks are asynchronous
-	 * MISC1[0]   = 0    interlace not supported
+	/* MISC0[0]   = 0    video and link clocks are asynchroanalus
+	 * MISC1[0]   = 0    interlace analt supported
 	 * MISC1[2:1] = 0    stereo field is handled by hardware
 	 * MISC1[5:3] = 0    Reserved
 	 */
 
-	/* Interlaced not supported */
+	/* Interlaced analt supported */
 	if (hw_crtc_timing.flags.INTERLACE) {
 		BREAK_TO_DEBUGGER();
 	}
 
 	/* Double buffer enable for MSA and pixel format registers
 	 * Only double buffer for changing stream attributes for active streams
-	 * Do not double buffer when initially enabling a stream
+	 * Do analt double buffer when initially enabling a stream
 	 */
 	REG_UPDATE(DP_SYM32_ENC_VID_MSA_DOUBLE_BUFFER_CONTROL,
 			MSA_DOUBLE_BUFFER_ENABLE, double_buffer_en);
@@ -239,7 +239,7 @@ static void dcn31_hpo_dp_stream_enc_set_stream_attribute(
 		if (hw_crtc_timing.flags.Y_ONLY) {
 			pixel_encoding =  DP_SYM32_ENC_PIXEL_ENCODING_Y_ONLY;
 			if (hw_crtc_timing.display_color_depth != COLOR_DEPTH_666) {
-				/* HW testing only, no use case yet.
+				/* HW testing only, anal use case yet.
 				 * Color depth of Y-only could be
 				 * 8, 10, 12, 16 bits
 				 */
@@ -259,7 +259,7 @@ static void dcn31_hpo_dp_stream_enc_set_stream_attribute(
 
 	/* For YCbCr420 and BT2020 Colorimetry Formats, VSC SDP shall be used.
 	 * When MISC1, bit 6, is Set to 1, a Source device uses a VSC SDP to indicate the
-	 * Pixel Encoding/Colorimetry Format and that a Sink device shall ignore MISC1, bit 7,
+	 * Pixel Encoding/Colorimetry Format and that a Sink device shall iganalre MISC1, bit 7,
 	 * and MISC0, bits 7:1 (MISC1, bit 7, and MISC0, bits 7:1, become "don't care").
 	 */
 	if (use_vsc_sdp_for_colorimetry)
@@ -334,9 +334,9 @@ static void dcn31_hpo_dp_stream_enc_set_stream_attribute(
 	case COLOR_SPACE_DOLBYVISION:
 	case COLOR_SPACE_APPCTRL:
 	case COLOR_SPACE_CUSTOMPOINTS:
-	case COLOR_SPACE_UNKNOWN:
+	case COLOR_SPACE_UNKANALWN:
 	case COLOR_SPACE_YCBCR709_BLACK:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 

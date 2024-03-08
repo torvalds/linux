@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,9 +32,9 @@
 #include "hwmgr.h"
 
 #define ATOM_TONGA_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK 0x0f
-#define ATOM_TONGA_PP_FANPARAMETERS_NOFAN                                 0x80    /* No fan is connected to this controller. */
+#define ATOM_TONGA_PP_FANPARAMETERS_ANALFAN                                 0x80    /* Anal fan is connected to this controller. */
 
-#define ATOM_TONGA_PP_THERMALCONTROLLER_NONE      0
+#define ATOM_TONGA_PP_THERMALCONTROLLER_ANALNE      0
 #define ATOM_TONGA_PP_THERMALCONTROLLER_LM96163   17
 #define ATOM_TONGA_PP_THERMALCONTROLLER_TONGA     21
 #define ATOM_TONGA_PP_THERMALCONTROLLER_FIJI      22
@@ -42,7 +42,7 @@
 /*
  * Thermal controller 'combo type' to use an external controller for Fan control and an internal controller for thermal.
  * We probably should reserve the bit 0x80 for this use.
- * To keep the number of these types low we should also use the same code for all ASICs (i.e. do not distinguish RV6xx and RV7xx Internal here).
+ * To keep the number of these types low we should also use the same code for all ASICs (i.e. do analt distinguish RV6xx and RV7xx Internal here).
  * The driver can pick the correct internal controller based on the ASIC.
  */
 
@@ -52,10 +52,10 @@
 /*/* ATOM_TONGA_POWERPLAYTABLE::ulPlatformCaps */
 #define ATOM_TONGA_PP_PLATFORM_CAP_VDDGFX_CONTROL              0x1            /* This cap indicates whether vddgfx will be a separated power rail. */
 #define ATOM_TONGA_PP_PLATFORM_CAP_POWERPLAY                   0x2            /* This cap indicates whether this is a mobile part and CCC need to show Powerplay page. */
-#define ATOM_TONGA_PP_PLATFORM_CAP_SBIOSPOWERSOURCE            0x4            /* This cap indicates whether power source notificaiton is done by SBIOS directly. */
+#define ATOM_TONGA_PP_PLATFORM_CAP_SBIOSPOWERSOURCE            0x4            /* This cap indicates whether power source analtificaiton is done by SBIOS directly. */
 #define ATOM_TONGA_PP_PLATFORM_CAP_DISABLE_VOLTAGE_ISLAND      0x8            /* Enable the option to overwrite voltage island feature to be disabled, regardless of VddGfx power rail support. */
 #define ____RETIRE16____                                0x10
-#define ATOM_TONGA_PP_PLATFORM_CAP_HARDWAREDC                 0x20            /* This cap indicates whether power source notificaiton is done by GPIO directly. */
+#define ATOM_TONGA_PP_PLATFORM_CAP_HARDWAREDC                 0x20            /* This cap indicates whether power source analtificaiton is done by GPIO directly. */
 #define ____RETIRE64____                                0x40
 #define ____RETIRE128____                               0x80
 #define ____RETIRE256____                              0x100
@@ -73,10 +73,10 @@
 #define ATOM_TONGA_PP_PLATFORM_COMBINE_PCC_WITH_THERMAL_SIGNAL  0x1000000     /* Enable to indicate if thermal and PCC are sharing the same GPIO */
 #define ATOM_TONGA_PLATFORM_LOAD_POST_PRODUCTION_FIRMWARE       0x2000000
 
-/* ATOM_PPLIB_NONCLOCK_INFO::usClassification */
+/* ATOM_PPLIB_ANALNCLOCK_INFO::usClassification */
 #define ATOM_PPLIB_CLASSIFICATION_UI_MASK               0x0007
 #define ATOM_PPLIB_CLASSIFICATION_UI_SHIFT              0
-#define ATOM_PPLIB_CLASSIFICATION_UI_NONE               0
+#define ATOM_PPLIB_CLASSIFICATION_UI_ANALNE               0
 #define ATOM_PPLIB_CLASSIFICATION_UI_BATTERY            1
 #define ATOM_PPLIB_CLASSIFICATION_UI_BALANCED           3
 #define ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE        5
@@ -89,7 +89,7 @@
 #define ATOM_PPLIB_CLASSIFICATION_FORCED                0x0080
 #define ATOM_PPLIB_CLASSIFICATION_ACPI                  0x1000
 
-/* ATOM_PPLIB_NONCLOCK_INFO::usClassification2 */
+/* ATOM_PPLIB_ANALNCLOCK_INFO::usClassification2 */
 #define ATOM_PPLIB_CLASSIFICATION2_LIMITEDPOWERSOURCE_2 0x0001
 
 #define ATOM_Tonga_DISALLOW_ON_DC                       0x00004000
@@ -269,7 +269,7 @@ typedef struct _ATOM_Tonga_Voltage_Lookup_Table {
 } ATOM_Tonga_Voltage_Lookup_Table;
 
 typedef struct _ATOM_Tonga_Fan_Table {
-	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are not the same. */
+	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are analt the same. */
 	UCHAR   ucTHyst;						 /* Temperature hysteresis. Integer. */
 	USHORT  usTMin; 						 /* The temperature, in 0.01 centigrades, below which we just run at a minimal PWM. */
 	USHORT  usTMed; 						 /* The middle temperature where we change slopes. */
@@ -289,7 +289,7 @@ typedef struct _ATOM_Tonga_Fan_Table {
 } ATOM_Tonga_Fan_Table;
 
 typedef struct _ATOM_Fiji_Fan_Table {
-	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are not the same. */
+	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are analt the same. */
 	UCHAR   ucTHyst;						 /* Temperature hysteresis. Integer. */
 	USHORT  usTMin; 						 /* The temperature, in 0.01 centigrades, below which we just run at a minimal PWM. */
 	USHORT  usTMed; 						 /* The middle temperature where we change slopes. */
@@ -316,7 +316,7 @@ typedef struct _ATOM_Fiji_Fan_Table {
 } ATOM_Fiji_Fan_Table;
 
 typedef struct _ATOM_Polaris_Fan_Table {
-	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are not the same. */
+	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are analt the same. */
 	UCHAR   ucTHyst;						 /* Temperature hysteresis. Integer. */
 	USHORT  usTMin; 						 /* The temperature, in 0.01 centigrades, below which we just run at a minimal PWM. */
 	USHORT  usTMed; 						 /* The middle temperature where we change slopes. */

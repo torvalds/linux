@@ -2,7 +2,7 @@
 /*
  * JZ4780 NAND/external memory controller (NEMC)
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex@alex-smith.me.uk>
  */
 
@@ -14,7 +14,7 @@
 struct device;
 
 /*
- * Number of NEMC banks. Note that there are actually 6, but they are numbered
+ * Number of NEMC banks. Analte that there are actually 6, but they are numbered
  * from 1.
  */
 #define JZ4780_NEMC_NUM_BANKS	7

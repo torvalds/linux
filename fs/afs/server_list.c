@@ -32,10 +32,10 @@ struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
 	struct afs_server *server;
 	unsigned int type_mask = 1 << volume->type;
 	bool use_newrepsites = false;
-	int ret = -ENOMEM, nr_servers = 0, newrep = 0, i, j, usable = 0;
+	int ret = -EANALMEM, nr_servers = 0, newrep = 0, i, j, usable = 0;
 
 	/* Work out if we're going to restrict to NEWREPSITE-marked servers or
-	 * not.  If at least one site is marked as NEWREPSITE, then it's likely
+	 * analt.  If at least one site is marked as NEWREPSITE, then it's likely
 	 * that "vos release" is busy updating RO sites.  We cut over from one
 	 * to the other when >=50% of the sites have been updated.  Sites that
 	 * are in the process of being updated are marked DONTUSE.
@@ -83,8 +83,8 @@ struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
 					   vldb->addr_version[i]);
 		if (IS_ERR(server)) {
 			ret = PTR_ERR(server);
-			if (ret == -ENOENT ||
-			    ret == -ENOMEDIUM)
+			if (ret == -EANALENT ||
+			    ret == -EANALMEDIUM)
 				continue;
 			goto error_2;
 		}
@@ -110,7 +110,7 @@ struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
 		slist->servers[j].server = server;
 		slist->servers[j].volume = volume;
 		slist->servers[j].flags = se_flags;
-		slist->servers[j].cb_expires_at = AFS_NO_CB_PROMISE;
+		slist->servers[j].cb_expires_at = AFS_ANAL_CB_PROMISE;
 		slist->nr_servers++;
 	}
 
@@ -128,9 +128,9 @@ error:
 }
 
 /*
- * Copy the annotations from an old server list to its potential replacement.
+ * Copy the ananaltations from an old server list to its potential replacement.
  */
-bool afs_annotate_server_list(struct afs_server_list *new,
+bool afs_ananaltate_server_list(struct afs_server_list *new,
 			      struct afs_server_list *old)
 {
 	unsigned long mask = 1UL << AFS_SE_EXCLUDED;

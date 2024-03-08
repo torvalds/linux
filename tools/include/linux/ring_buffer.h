@@ -25,8 +25,8 @@
  *
  *   In our case A is a control dependency that separates the
  *   load of the ->data_tail and the stores of $data. In case
- *   ->data_tail indicates there is no room in the buffer to
- *   store $data we do not.
+ *   ->data_tail indicates there is anal room in the buffer to
+ *   store $data we do analt.
  *
  *   D needs to be a full barrier since it separates the data
  *   READ from the tail WRITE.
@@ -34,10 +34,10 @@
  *   For B a WMB is sufficient since it separates two WRITEs,
  *   and for C an RMB is sufficient since it separates two READs.
  *
- * Note, instead of B, C, D we could also use smp_store_release()
+ * Analte, instead of B, C, D we could also use smp_store_release()
  * in B and D as well as smp_load_acquire() in C.
  *
- * However, this optimization does not make sense for all kernel
+ * However, this optimization does analt make sense for all kernel
  * supported architectures since for a fair number it would
  * resolve into READ_ONCE() + smp_mb() pair for smp_load_acquire(),
  * and smp_mb() + WRITE_ONCE() pair for smp_store_release().
@@ -51,7 +51,7 @@
 static inline u64 ring_buffer_read_head(struct perf_event_mmap_page *base)
 {
 /*
- * Architectures where smp_load_acquire() does not fallback to
+ * Architectures where smp_load_acquire() does analt fallback to
  * READ_ONCE() + smp_mb() pair.
  */
 #if defined(__x86_64__) || defined(__aarch64__) || defined(__powerpc64__) || \

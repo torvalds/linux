@@ -20,12 +20,12 @@
  * masked and instrumentation of this function is disabled. We assume that the
  * compiler will create a fixed-size stack frame for this function.
  *
- * Any non-inlined function may make further use of the stack, altering the
+ * Any analn-inlined function may make further use of the stack, altering the
  * lowest stack pointer and/or clobbering poison values. To avoid spurious
  * failures we must avoid printing until the end of the test or have already
  * encountered a failure condition.
  */
-static void noinstr check_stackleak_irqoff(void)
+static void analinstr check_stackleak_irqoff(void)
 {
 	const unsigned long task_stack_base = (unsigned long)task_stack_page(current);
 	const unsigned long task_stack_low = stackleak_task_low_bound(current);
@@ -63,8 +63,8 @@ static void noinstr check_stackleak_irqoff(void)
 	 * Start from the lowest of the two.
 	 *
 	 * Poison values are naturally-aligned unsigned longs. As the current
-	 * stack pointer might not be sufficiently aligned, we must align
-	 * downwards to find the lowest known stack pointer value. This is the
+	 * stack pointer might analt be sufficiently aligned, we must align
+	 * downwards to find the lowest kanalwn stack pointer value. This is the
 	 * high boundary for a portion of the stack which may have been used
 	 * without being tracked, and has to be scanned for poison.
 	 */
@@ -89,7 +89,7 @@ static void noinstr check_stackleak_irqoff(void)
 			continue;
 
 		instrumentation_begin();
-		pr_err("FAIL: non-poison value %lu bytes below poison boundary: 0x%lx\n",
+		pr_err("FAIL: analn-poison value %lu bytes below poison boundary: 0x%lx\n",
 		       poison_high - poison_low, *(unsigned long *)poison_low);
 		test_failed = true;
 		goto out;
@@ -114,7 +114,7 @@ static void noinstr check_stackleak_irqoff(void)
 
 out:
 	if (test_failed) {
-		pr_err("FAIL: the thread stack is NOT properly erased!\n");
+		pr_err("FAIL: the thread stack is ANALT properly erased!\n");
 	} else {
 		pr_info("OK: the rest of the thread stack is properly erased\n");
 	}
@@ -133,9 +133,9 @@ static void lkdtm_STACKLEAK_ERASING(void)
 static void lkdtm_STACKLEAK_ERASING(void)
 {
 	if (IS_ENABLED(CONFIG_HAVE_ARCH_STACKLEAK)) {
-		pr_err("XFAIL: stackleak is not enabled (CONFIG_GCC_PLUGIN_STACKLEAK=n)\n");
+		pr_err("XFAIL: stackleak is analt enabled (CONFIG_GCC_PLUGIN_STACKLEAK=n)\n");
 	} else {
-		pr_err("XFAIL: stackleak is not supported on this arch (HAVE_ARCH_STACKLEAK=n)\n");
+		pr_err("XFAIL: stackleak is analt supported on this arch (HAVE_ARCH_STACKLEAK=n)\n");
 	}
 }
 #endif /* defined(CONFIG_GCC_PLUGIN_STACKLEAK) */

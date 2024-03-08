@@ -20,7 +20,7 @@
  * @xprt: transport associated with these backchannel resources
  * @reqs: number of concurrent incoming requests to expect
  *
- * Returns 0 on success; otherwise a negative errno
+ * Returns 0 on success; otherwise a negative erranal
  */
 int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 {
@@ -75,7 +75,7 @@ static int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 	*p = xdr_zero;
 
 	if (rpcrdma_prepare_send_sges(r_xprt, req, RPCRDMA_HDRLEN_MIN,
-				      &rqst->rq_snd_buf, rpcrdma_noch_pullup))
+				      &rqst->rq_snd_buf, rpcrdma_analch_pullup))
 		return -EIO;
 
 	trace_xprtrdma_cb_reply(r_xprt, rqst);
@@ -90,9 +90,9 @@ static int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
  *
  * Returns:
  *	%0 if the RPC message has been sent
- *	%-ENOTCONN if the caller should reconnect and call again
- *	%-EIO if a permanent error occurred and the request was not
- *		sent. Do not try to send this message again.
+ *	%-EANALTCONN if the caller should reconnect and call again
+ *	%-EIO if a permanent error occurred and the request was analt
+ *		sent. Do analt try to send this message again.
  */
 int xprt_rdma_bc_send_reply(struct rpc_rqst *rqst)
 {
@@ -102,7 +102,7 @@ int xprt_rdma_bc_send_reply(struct rpc_rqst *rqst)
 	int rc;
 
 	if (!xprt_connected(xprt))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (!xprt_request_get_cong(xprt, rqst))
 		return -EBADSLT;
@@ -116,17 +116,17 @@ int xprt_rdma_bc_send_reply(struct rpc_rqst *rqst)
 	return 0;
 
 failed_marshal:
-	if (rc != -ENOTCONN)
+	if (rc != -EANALTCONN)
 		return rc;
 drop_connection:
 	xprt_rdma_close(xprt);
-	return -ENOTCONN;
+	return -EANALTCONN;
 }
 
 /**
  * xprt_rdma_bc_destroy - Release resources for handling backchannel requests
  * @xprt: transport associated with these backchannel resources
- * @reqs: number of incoming requests to destroy; ignored
+ * @reqs: number of incoming requests to destroy; iganalred
  */
 void xprt_rdma_bc_destroy(struct rpc_xprt *xprt, unsigned int reqs)
 {
@@ -211,10 +211,10 @@ create_req:
  * @rep: receive buffer containing the call
  *
  * Operational assumptions:
- *    o Backchannel credits are ignored, just as the NFS server
+ *    o Backchannel credits are iganalred, just as the NFS server
  *      forechannel currently does
  *    o The ULP manages a replay cache (eg, NFSv4.1 sessions).
- *      No replay detection is done at the transport level
+ *      Anal replay detection is done at the transport level
  */
 void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 			     struct rpcrdma_rep *rep)
@@ -252,7 +252,7 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 	buf->len = size;
 
 	/* The receive buffer has to be hooked to the rpcrdma_req
-	 * so that it is not released while the req is pointing
+	 * so that it is analt released while the req is pointing
 	 * to its buffer, and so that it can be reposted after
 	 * the Upper Layer is done decoding it.
 	 */

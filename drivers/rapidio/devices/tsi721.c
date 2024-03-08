@@ -2,13 +2,13 @@
 /*
  * RapidIO mport driver for Tsi721 PCIExpress-to-SRIO bridge
  *
- * Copyright 2011 Integrated Device Technology, Inc.
+ * Copyright 2011 Integrated Device Techanallogy, Inc.
  * Alexandre Bounine <alexandre.bounine@idt.com>
  * Chul Kim <chul.kim@idt.com>
  */
 
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -26,7 +26,7 @@
 #ifdef DEBUG
 u32 tsi_dbg_level;
 module_param_named(dbg_level, tsi_dbg_level, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = none)");
+MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = analne)");
 #endif
 
 static int pcie_mrrs = -1;
@@ -186,7 +186,7 @@ static int tsi721_maint_dma(struct tsi721_device *priv, u32 sys_size,
 
 	/*
 	 * Update descriptor status FIFO RD pointer.
-	 * NOTE: Skipping check and clear FIFO entries because we are waiting
+	 * ANALTE: Skipping check and clear FIFO entries because we are waiting
 	 * for transfer to be completed.
 	 */
 	swr_ptr = ioread32(regs + TSI721_DMAC_DSWP);
@@ -420,7 +420,7 @@ static void tsi721_db_dpc(struct work_struct *work)
 		*idb_entry = 0;
 
 		/* Process one doorbell */
-		list_for_each_entry(dbell, &mport->dbells, node) {
+		list_for_each_entry(dbell, &mport->dbells, analde) {
 			if ((dbell->res->start <= DBELL_INF(idb.bytes)) &&
 			    (dbell->res->end >= DBELL_INF(idb.bytes))) {
 				found = 1;
@@ -464,7 +464,7 @@ static void tsi721_db_dpc(struct work_struct *work)
  * Handles Tsi721 interrupts signaled using MSI and INTA. Checks reported
  * interrupt events and calls an event-specific handler(s).
  *
- * Returns: %IRQ_HANDLED or %IRQ_NONE
+ * Returns: %IRQ_HANDLED or %IRQ_ANALNE
  */
 static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 {
@@ -480,7 +480,7 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 
 	dev_int = ioread32(priv->regs + TSI721_DEV_INT);
 	if (!dev_int)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev_ch_int = ioread32(priv->regs + TSI721_DEV_CHAN_INT);
 
@@ -679,7 +679,7 @@ static irqreturn_t tsi721_srio_msix(int irq, void *ptr)
  * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles Tsi721 interrupts from SR2PC Channel.
- * NOTE: At this moment services only one SR2PC channel associated with inbound
+ * ANALTE: At this moment services only one SR2PC channel associated with inbound
  * doorbells.
  *
  * Returns: %IRQ_HANDLED
@@ -710,7 +710,7 @@ static irqreturn_t tsi721_sr2pc_ch_msix(int irq, void *ptr)
  * immediately after mport initialization. Messaging interrupt service routines
  * should be registered during corresponding open requests.
  *
- * Returns: %0 on success or -errno value on failure.
+ * Returns: %0 on success or -erranal value on failure.
  */
 static int tsi721_request_msix(struct tsi721_device *priv)
 {
@@ -740,7 +740,7 @@ static int tsi721_request_msix(struct tsi721_device *priv)
  * Configures MSI-X support for Tsi721. Supports only an exact number
  * of requested vectors.
  *
- * Returns: %0 on success or -errno value on failure.
+ * Returns: %0 on success or -erranal value on failure.
  */
 static int tsi721_enable_msix(struct tsi721_device *priv)
 {
@@ -754,7 +754,7 @@ static int tsi721_enable_msix(struct tsi721_device *priv)
 	/*
 	 * Initialize MSI-X entries for Messaging Engine:
 	 * this driver supports four RIO mailboxes (inbound and outbound)
-	 * NOTE: Inbound message MBOX 0...4 use IB channels 4...7. Therefore
+	 * ANALTE: Inbound message MBOX 0...4 use IB channels 4...7. Therefore
 	 * offset +4 is added to IB MBOX number.
 	 */
 	for (i = 0; i < RIO_MAX_MBOX; i++) {
@@ -923,7 +923,7 @@ tsi721_obw_alloc(struct tsi721_device *priv, struct tsi721_obw_bar *pbar,
 	}
 
 	if (win_base + size > bar_end)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!new_win) {
 		tsi_err(&priv->pdev->dev, "OBW count tracking failed");
@@ -951,7 +951,7 @@ static int tsi721_map_outb_win(struct rio_mport *mport, u16 destid, u64 rstart,
 	u32 rval;
 	u64 rio_addr;
 	u32 zsize;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	tsi_debug(OBW, &priv->pdev->dev,
 		  "did=%d ra=0x%llx sz=0x%x", destid, rstart, size);
@@ -1147,7 +1147,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 
 		map = kzalloc(sizeof(struct tsi721_ib_win_mapping), GFP_ATOMIC);
 		if (map == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 	} else {
 		tsi_debug(IBW, &priv->pdev->dev,
@@ -1192,9 +1192,9 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 			if (rstart >= ib_win->rstart &&
 			    (rstart + size) <= (ib_win->rstart +
 							ib_win->size)) {
-				/* We are in - no further mapping required */
+				/* We are in - anal further mapping required */
 				map->lstart = lstart;
-				list_add_tail(&map->node, &ib_win->mappings);
+				list_add_tail(&map->analde, &ib_win->mappings);
 				return 0;
 			}
 
@@ -1229,7 +1229,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 	 */
 	if (direct) {
 		map->lstart = lstart;
-		list_add_tail(&map->node, &ib_win->mappings);
+		list_add_tail(&map->analde, &ib_win->mappings);
 	}
 
 	iowrite32(TSI721_IBWIN_SIZE(ibw_size) << 8,
@@ -1287,9 +1287,9 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 				int found = 0;
 
 				list_for_each_entry(map,
-						    &ib_win->mappings, node) {
+						    &ib_win->mappings, analde) {
 					if (map->lstart == lstart) {
-						list_del(&map->node);
+						list_del(&map->analde);
 						kfree(map);
 						found = 1;
 						break;
@@ -1313,7 +1313,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 
 	if (i == TSI721_IBWIN_NUM)
 		tsi_debug(IBW, &priv->pdev->dev,
-			"IB window mapped to %pad not found", &lstart);
+			"IB window mapped to %pad analt found", &lstart);
 }
 
 /**
@@ -1358,7 +1358,7 @@ static void tsi721_close_sr2pc_mapping(struct tsi721_device *priv)
  * @priv: pointer to tsi721 private data
  *
  * Initializes inbound port write handler.
- * Returns: %0 on success or %-ENOMEM on failure.
+ * Returns: %0 on success or %-EANALMEM on failure.
  */
 static int tsi721_port_write_init(struct tsi721_device *priv)
 {
@@ -1368,7 +1368,7 @@ static int tsi721_port_write_init(struct tsi721_device *priv)
 	if (kfifo_alloc(&priv->pw_fifo,
 			TSI721_RIO_PW_MSG_SIZE * 32, GFP_KERNEL)) {
 		tsi_err(&priv->pdev->dev, "PW FIFO allocation failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Use reliable port-write capture mode */
@@ -1383,7 +1383,7 @@ static void tsi721_port_write_free(struct tsi721_device *priv)
 
 static int tsi721_doorbell_init(struct tsi721_device *priv)
 {
-	/* Outbound Doorbells do not require any setup.
+	/* Outbound Doorbells do analt require any setup.
 	 * Tsi721 uses dedicated PCI BAR1 to generate doorbells.
 	 * That BAR1 was mapped during the probe routine.
 	 */
@@ -1397,7 +1397,7 @@ static int tsi721_doorbell_init(struct tsi721_device *priv)
 					    IDB_QSIZE * TSI721_IDB_ENTRY_SIZE,
 					    &priv->idb_dma, GFP_KERNEL);
 	if (!priv->idb_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tsi_debug(DBELL, &priv->pdev->dev,
 		  "Allocated IDB buffer @ %p (phys = %pad)",
@@ -1437,7 +1437,7 @@ static void tsi721_doorbell_free(struct tsi721_device *priv)
  * Initialize BDMA channel allocated for RapidIO maintenance read/write
  * request generation
  *
- * Returns: %0 on success or %-ENOMEM on failure.
+ * Returns: %0 on success or %-EANALMEM on failure.
  */
 static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 {
@@ -1463,7 +1463,7 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 				    bd_num * sizeof(struct tsi721_dma_desc),
 				    &bd_phys, GFP_KERNEL);
 	if (!bd_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mdma.bd_num = bd_num;
 	priv->mdma.bd_phys = bd_phys;
@@ -1485,7 +1485,7 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 				  bd_num * sizeof(struct tsi721_dma_desc),
 				  bd_ptr, bd_phys);
 		priv->mdma.bd_base = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->mdma.sts_phys = sts_phys;
@@ -1688,7 +1688,7 @@ tsi721_omsg_interrupt_disable(struct tsi721_device *priv, int ch,
  * @buffer: Message to add to outbound queue
  * @len: Length of message
  *
- * Returns: %0 on success or -errno value on failure.
+ * Returns: %0 on success or -erranal value on failure.
  */
 static int
 tsi721_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
@@ -1800,13 +1800,13 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		}
 
 		if (last_ptr == 0)
-			goto no_sts_update;
+			goto anal_sts_update;
 
 		priv->omsg_ring[ch].sts_rdptr = srd_ptr;
 		iowrite32(srd_ptr, priv->regs + TSI721_OBDMAC_DSRP(ch));
 
 		if (!mport->outb_msg[ch].mcback)
-			goto no_sts_update;
+			goto anal_sts_update;
 
 		/* Inform upper layer about transfer completion */
 
@@ -1815,7 +1815,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 
 		/*
 		 * Check if this is a Link Descriptor (LD).
-		 * If yes, ignore LD and use descriptor processed
+		 * If anal, iganalre LD and use descriptor processed
 		 * before LD.
 		 */
 		if (tx_slot == priv->omsg_ring[ch].size) {
@@ -1824,7 +1824,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 					(u64)priv->omsg_ring[ch].omd_phys)/
 						sizeof(struct tsi721_omsg_desc);
 			else
-				goto no_sts_update;
+				goto anal_sts_update;
 		}
 
 		if (tx_slot >= priv->omsg_ring[ch].size)
@@ -1842,7 +1842,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		do_callback = 1;
 	}
 
-no_sts_update:
+anal_sts_update:
 
 	if (omsg_int & TSI721_OBDMAC_INT_ERROR) {
 		/*
@@ -1897,7 +1897,7 @@ no_sts_update:
  * @mbox: Mailbox to open
  * @entries: Number of entries in the outbound mailbox ring
  *
- * Returns: %0 on success or -errno value on failure.
+ * Returns: %0 on success or -erranal value on failure.
  */
 static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				 int mbox, int entries)
@@ -1914,7 +1914,7 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 	}
 
 	if ((mbox_sel & (1 << mbox)) == 0) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 
@@ -1933,8 +1933,8 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				GFP_KERNEL);
 		if (priv->omsg_ring[mbox].omq_base[i] == NULL) {
 			tsi_debug(OMSG, &priv->pdev->dev,
-				  "ENOMEM for OB_MSG_%d data buffer", mbox);
-			rc = -ENOMEM;
+				  "EANALMEM for OB_MSG_%d data buffer", mbox);
+			rc = -EANALMEM;
 			goto out_buf;
 		}
 	}
@@ -1946,8 +1946,8 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				&priv->omsg_ring[mbox].omd_phys, GFP_KERNEL);
 	if (priv->omsg_ring[mbox].omd_base == NULL) {
 		tsi_debug(OMSG, &priv->pdev->dev,
-			"ENOMEM for OB_MSG_%d descriptor memory", mbox);
-		rc = -ENOMEM;
+			"EANALMEM for OB_MSG_%d descriptor memory", mbox);
+		rc = -EANALMEM;
 		goto out_buf;
 	}
 
@@ -1961,8 +1961,8 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 							    GFP_KERNEL);
 	if (priv->omsg_ring[mbox].sts_base == NULL) {
 		tsi_debug(OMSG, &priv->pdev->dev,
-			"ENOMEM for OB_MSG_%d status FIFO", mbox);
-		rc = -ENOMEM;
+			"EANALMEM for OB_MSG_%d status FIFO", mbox);
+		rc = -EANALMEM;
 		goto out_desc;
 	}
 
@@ -2161,7 +2161,7 @@ static void tsi721_imsg_handler(struct tsi721_device *priv, int ch)
 	/* Clear IB channel interrupts */
 	iowrite32(imsg_int, priv->regs + TSI721_IBDMAC_INT(ch));
 
-	/* If an IB Msg is received notify the upper layer */
+	/* If an IB Msg is received analtify the upper layer */
 	if (imsg_int & TSI721_IBDMAC_INT_DQ_RCV &&
 		mport->inb_msg[mbox].mcback)
 		mport->inb_msg[mbox].mcback(mport,
@@ -2186,7 +2186,7 @@ static void tsi721_imsg_handler(struct tsi721_device *priv, int ch)
  * @mbox: Mailbox to open
  * @entries: Number of entries in the inbound mailbox ring
  *
- * Returns: %0 on success or -errno value on failure.
+ * Returns: %0 on success or -erranal value on failure.
  */
 static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				int mbox, int entries)
@@ -2205,7 +2205,7 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 	}
 
 	if ((mbox_sel & (1 << mbox)) == 0) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 
@@ -2229,7 +2229,7 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 	if (priv->imsg_ring[mbox].buf_base == NULL) {
 		tsi_err(&priv->pdev->dev,
 			"Failed to allocate buffers for IB MBOX%d", mbox);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -2243,7 +2243,7 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 	if (priv->imsg_ring[mbox].imfq_base == NULL) {
 		tsi_err(&priv->pdev->dev,
 			"Failed to allocate free queue for IB MBOX%d", mbox);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_buf;
 	}
 
@@ -2257,7 +2257,7 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 		tsi_err(&priv->pdev->dev,
 			"Failed to allocate descriptor memory for IB MBOX%d",
 			mbox);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_dma;
 	}
 
@@ -2441,7 +2441,7 @@ static void tsi721_close_inb_mbox(struct rio_mport *mport, int mbox)
  * @mbox: Inbound mailbox number
  * @buf: Buffer to add to inbound queue
  *
- * Returns: %0 on success or -errno value on failure.
+ * Returns: %0 on success or -erranal value on failure.
  */
 static int tsi721_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
 {
@@ -2689,7 +2689,7 @@ static void tsi721_mport_release(struct device *dev)
  *
  * Configures Tsi721 as RapidIO master port.
  *
- * Returns: %0 on success or -errno value on failure.
+ * Returns: %0 on success or -erranal value on failure.
  */
 static int tsi721_setup_mport(struct tsi721_device *priv)
 {
@@ -2727,7 +2727,7 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 		priv->flags |= TSI721_USING_MSI;
 	else
 		tsi_debug(MPORT, &pdev->dev,
-			 "MSI/MSI-X is not available. Using legacy INTx.");
+			 "MSI/MSI-X is analt available. Using legacy INTx.");
 #endif /* CONFIG_PCI_MSI */
 
 	err = tsi721_request_irq(priv);
@@ -2776,7 +2776,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	priv = kzalloc(sizeof(struct tsi721_device), GFP_KERNEL);
 	if (!priv) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_exit;
 	}
 
@@ -2807,7 +2807,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	    pci_resource_flags(pdev, BAR_0) & IORESOURCE_MEM_64 ||
 	    pci_resource_len(pdev, BAR_0) < TSI721_REG_SPACE_SIZE) {
 		tsi_err(&pdev->dev, "Missing or misconfigured CSR BAR0");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_disable_pdev;
 	}
 
@@ -2816,14 +2816,14 @@ static int tsi721_probe(struct pci_dev *pdev,
 	    pci_resource_flags(pdev, BAR_1) & IORESOURCE_MEM_64 ||
 	    pci_resource_len(pdev, BAR_1) < TSI721_DB_WIN_SIZE) {
 		tsi_err(&pdev->dev, "Missing or misconfigured Doorbell BAR1");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_disable_pdev;
 	}
 
 	/*
 	 * BAR_2 and BAR_4 (outbound translation) must be in 64-bit PCIe address
 	 * space.
-	 * NOTE: BAR_2 and BAR_4 are not used by this version of driver.
+	 * ANALTE: BAR_2 and BAR_4 are analt used by this version of driver.
 	 * It may be a good idea to keep them disabled using HW configuration
 	 * to save PCI memory space.
 	 */
@@ -2833,7 +2833,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM_64) {
 		if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_PREFETCH)
 			tsi_debug(INIT, &pdev->dev,
-				 "Prefetchable OBW BAR2 will not be used");
+				 "Prefetchable OBW BAR2 will analt be used");
 		else {
 			priv->p2r_bar[0].base = pci_resource_start(pdev, BAR_2);
 			priv->p2r_bar[0].size = pci_resource_len(pdev, BAR_2);
@@ -2843,7 +2843,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_MEM_64) {
 		if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_PREFETCH)
 			tsi_debug(INIT, &pdev->dev,
-				 "Prefetchable OBW BAR4 will not be used");
+				 "Prefetchable OBW BAR4 will analt be used");
 		else {
 			priv->p2r_bar[1].base = pci_resource_start(pdev, BAR_4);
 			priv->p2r_bar[1].size = pci_resource_len(pdev, BAR_4);
@@ -2861,14 +2861,14 @@ static int tsi721_probe(struct pci_dev *pdev,
 	priv->regs = pci_ioremap_bar(pdev, BAR_0);
 	if (!priv->regs) {
 		tsi_err(&pdev->dev, "Unable to map device registers space");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_res;
 	}
 
 	priv->odb_base = pci_ioremap_bar(pdev, BAR_1);
 	if (!priv->odb_base) {
 		tsi_err(&pdev->dev, "Unable to map outbound doorbells space");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_bars;
 	}
 
@@ -2890,9 +2890,9 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	BUG_ON(!pci_is_pcie(pdev));
 
-	/* Clear "no snoop" and "relaxed ordering" bits. */
+	/* Clear "anal sanalop" and "relaxed ordering" bits. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
-		PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
+		PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_ANALSANALOP_EN, 0);
 
 	/* Override PCIe Maximum Read Request Size setting if requested */
 	if (pcie_mrrs >= 0) {
@@ -2926,7 +2926,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	if (tsi721_bdma_maint_init(priv)) {
 		tsi_err(&pdev->dev, "BDMA initialization failed");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_bars;
 	}
 
@@ -3033,5 +3033,5 @@ static struct pci_driver tsi721_driver = {
 module_pci_driver(tsi721_driver);
 
 MODULE_DESCRIPTION("IDT Tsi721 PCIExpress-to-SRIO bridge driver");
-MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_AUTHOR("Integrated Device Techanallogy, Inc.");
 MODULE_LICENSE("GPL");

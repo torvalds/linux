@@ -1,7 +1,7 @@
 /*
  * PCI Register definitions for the MIPS System Controller.
  *
- * Copyright (C) 2002, 2005  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2002, 2005  MIPS Techanallogies, Inc.  All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
  *
@@ -198,7 +198,7 @@
 #define MSC01_PCI_SWAP_MEM_MSK		0x00030000
 #define MSC01_PCI_SWAP_BAR0_SHF		0
 #define MSC01_PCI_SWAP_BAR0_MSK		0x00000003
-#define MSC01_PCI_SWAP_NOSWAP		0
+#define MSC01_PCI_SWAP_ANALSWAP		0
 #define MSC01_PCI_SWAP_BYTESWAP		1
 
 /*

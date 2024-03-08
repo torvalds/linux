@@ -10,7 +10,7 @@
 #include <linux/ip.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_ether.h>
 #include <linux/netlink.h>
 #include <linux/jiffies.h>
@@ -50,7 +50,7 @@ struct bitmap_ipmac {
 	struct timer_list gc;	/* garbage collector */
 	struct ip_set *set;	/* attached to this ip_set */
 	unsigned char extensions[]	/* MAC + data extensions */
-		__aligned(__alignof__(u64));
+		__aligned(__aliganalf__(u64));
 };
 
 /* ADT structure for generic function args */
@@ -63,7 +63,7 @@ struct bitmap_ipmac_adt_elem {
 struct bitmap_ipmac_elem {
 	unsigned char ether[ETH_ALEN];
 	unsigned char filled;
-} __aligned(__alignof__(u64));
+} __aligned(__aliganalf__(u64));
 
 static u32
 ip_to_id(const struct bitmap_ipmac *m, u32 ip)
@@ -102,7 +102,7 @@ bitmap_ipmac_gc_test(u16 id, const struct bitmap_ipmac *map, size_t dsize)
 	if (!test_bit(id, map->members))
 		return 0;
 	elem = get_const_elem(map->extensions, id, dsize);
-	/* Timer not started for the incomplete elements */
+	/* Timer analt started for the incomplete elements */
 	return elem->filled == MAC_FILLED;
 }
 
@@ -122,12 +122,12 @@ bitmap_ipmac_add_timeout(unsigned long *timeout,
 
 	if (mode == IPSET_ADD_START_STORED_TIMEOUT) {
 		if (t == set->timeout)
-			/* Timeout was not specified, get stored one */
+			/* Timeout was analt specified, get stored one */
 			t = *timeout;
 		ip_set_timeout_set(timeout, t);
 	} else {
 		/* If MAC is unset yet, we store plain timeout value
-		 * because the timer is not activated yet
+		 * because the timer is analt activated yet
 		 * and we can reuse it later when MAC is filled out,
 		 * possibly by the kernel
 		 */
@@ -173,7 +173,7 @@ bitmap_ipmac_do_add(const struct bitmap_ipmac_adt_elem *e,
 		return 0;
 	}
 	elem->filled = MAC_UNSET;
-	/* MAC is not stored yet, don't start timer */
+	/* MAC is analt stored yet, don't start timer */
 	return IPSET_ADD_STORE_PLAIN_TIMEOUT;
 }
 
@@ -239,7 +239,7 @@ bitmap_ipmac_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 bitmap_ipmac_uadt(struct ip_set *set, struct nlattr *tb[],
-		  enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		  enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	const struct bitmap_ipmac *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -248,8 +248,8 @@ bitmap_ipmac_uadt(struct ip_set *set, struct nlattr *tb[],
 	u32 ip = 0;
 	int ret = 0;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP]))
 		return -IPSET_ERR_PROTOCOL;
@@ -299,13 +299,13 @@ static bool
 init_map_ipmac(struct ip_set *set, struct bitmap_ipmac *map,
 	       u32 first_ip, u32 last_ip, u32 elements)
 {
-	map->members = bitmap_zalloc(elements, GFP_KERNEL | __GFP_NOWARN);
+	map->members = bitmap_zalloc(elements, GFP_KERNEL | __GFP_ANALWARN);
 	if (!map->members)
 		return false;
 	map->first_ip = first_ip;
 	map->last_ip = last_ip;
 	map->elements = elements;
-	set->timeout = IPSET_NO_TIMEOUT;
+	set->timeout = IPSET_ANAL_TIMEOUT;
 
 	map->set = set;
 	set->data = map;
@@ -355,16 +355,16 @@ bitmap_ipmac_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 
 	set->dsize = ip_set_elem_len(set, tb,
 				     sizeof(struct bitmap_ipmac_elem),
-				     __alignof__(struct bitmap_ipmac_elem));
+				     __aliganalf__(struct bitmap_ipmac_elem));
 	map = ip_set_alloc(sizeof(*map) + elements * set->dsize);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map->memsize = BITS_TO_LONGS(elements) * sizeof(unsigned long);
 	set->variant = &bitmap_ipmac;
 	if (!init_map_ipmac(set, map, first_ip, last_ip, elements)) {
 		ip_set_free(map);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
@@ -394,7 +394,7 @@ static struct ip_set_type bitmap_ipmac_type = {
 		[IPSET_ATTR_ETHER]	= { .type = NLA_BINARY,
 					    .len  = ETH_ALEN },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
-		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINEANAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING,

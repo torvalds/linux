@@ -27,14 +27,14 @@
 #include "interrupt.h"
 #include "spu_priv1_mmio.h"
 
-struct device_node *spu_devnode(struct spu *spu)
+struct device_analde *spu_devanalde(struct spu *spu)
 {
-	return spu->devnode;
+	return spu->devanalde;
 }
 
-EXPORT_SYMBOL_GPL(spu_devnode);
+EXPORT_SYMBOL_GPL(spu_devanalde);
 
-static u64 __init find_spu_unit_number(struct device_node *spe)
+static u64 __init find_spu_unit_number(struct device_analde *spe)
 {
 	const unsigned int *prop;
 	int proplen;
@@ -67,7 +67,7 @@ static void spu_unmap(struct spu *spu)
 }
 
 static int __init spu_map_interrupts_old(struct spu *spu,
-	struct device_node *np)
+	struct device_analde *np)
 {
 	unsigned int isrc;
 	const u32 *tmp;
@@ -76,25 +76,25 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 	/* Get the interrupt source unit from the device-tree */
 	tmp = of_get_property(np, "isrc", NULL);
 	if (!tmp)
-		return -ENODEV;
+		return -EANALDEV;
 	isrc = tmp[0];
 
-	tmp = of_get_property(np->parent->parent, "node-id", NULL);
+	tmp = of_get_property(np->parent->parent, "analde-id", NULL);
 	if (!tmp) {
-		printk(KERN_WARNING "%s: can't find node-id\n", __func__);
-		nid = spu->node;
+		printk(KERN_WARNING "%s: can't find analde-id\n", __func__);
+		nid = spu->analde;
 	} else
 		nid = tmp[0];
 
-	/* Add the node number */
-	isrc |= nid << IIC_IRQ_NODE_SHIFT;
+	/* Add the analde number */
+	isrc |= nid << IIC_IRQ_ANALDE_SHIFT;
 
-	/* Now map interrupts of all 3 classes */
+	/* Analw map interrupts of all 3 classes */
 	spu->irqs[0] = irq_create_mapping(NULL, IIC_IRQ_CLASS_0 | isrc);
 	spu->irqs[1] = irq_create_mapping(NULL, IIC_IRQ_CLASS_1 | isrc);
 	spu->irqs[2] = irq_create_mapping(NULL, IIC_IRQ_CLASS_2 | isrc);
 
-	/* Right now, we only fail if class 2 failed */
+	/* Right analw, we only fail if class 2 failed */
 	if (!spu->irqs[2])
 		return -EINVAL;
 
@@ -102,7 +102,7 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 }
 
 static void __iomem * __init spu_map_prop_old(struct spu *spu,
-					      struct device_node *n,
+					      struct device_analde *n,
 					      const char *name)
 {
 	const struct address_prop {
@@ -120,41 +120,41 @@ static void __iomem * __init spu_map_prop_old(struct spu *spu,
 
 static int __init spu_map_device_old(struct spu *spu)
 {
-	struct device_node *node = spu->devnode;
+	struct device_analde *analde = spu->devanalde;
 	const char *prop;
 	int ret;
 
-	ret = -ENODEV;
-	spu->name = of_get_property(node, "name", NULL);
+	ret = -EANALDEV;
+	spu->name = of_get_property(analde, "name", NULL);
 	if (!spu->name)
 		goto out;
 
-	prop = of_get_property(node, "local-store", NULL);
+	prop = of_get_property(analde, "local-store", NULL);
 	if (!prop)
 		goto out;
 	spu->local_store_phys = *(unsigned long *)prop;
 
-	/* we use local store as ram, not io memory */
+	/* we use local store as ram, analt io memory */
 	spu->local_store = (void __force *)
-		spu_map_prop_old(spu, node, "local-store");
+		spu_map_prop_old(spu, analde, "local-store");
 	if (!spu->local_store)
 		goto out;
 
-	prop = of_get_property(node, "problem", NULL);
+	prop = of_get_property(analde, "problem", NULL);
 	if (!prop)
 		goto out_unmap;
 	spu->problem_phys = *(unsigned long *)prop;
 
-	spu->problem = spu_map_prop_old(spu, node, "problem");
+	spu->problem = spu_map_prop_old(spu, analde, "problem");
 	if (!spu->problem)
 		goto out_unmap;
 
-	spu->priv2 = spu_map_prop_old(spu, node, "priv2");
+	spu->priv2 = spu_map_prop_old(spu, analde, "priv2");
 	if (!spu->priv2)
 		goto out_unmap;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		spu->priv1 = spu_map_prop_old(spu, node, "priv1");
+		spu->priv1 = spu_map_prop_old(spu, analde, "priv1");
 		if (!spu->priv1)
 			goto out_unmap;
 	}
@@ -168,7 +168,7 @@ out:
 	return ret;
 }
 
-static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
+static int __init spu_map_interrupts(struct spu *spu, struct device_analde *np)
 {
 	int i;
 
@@ -191,7 +191,7 @@ err:
 static int __init spu_map_resource(struct spu *spu, int nr,
 			    void __iomem** virt, unsigned long *phys)
 {
-	struct device_node *np = spu->devnode;
+	struct device_analde *np = spu->devanalde;
 	struct resource resource = { };
 	unsigned long len;
 	int ret;
@@ -210,8 +210,8 @@ static int __init spu_map_resource(struct spu *spu, int nr,
 
 static int __init spu_map_device(struct spu *spu)
 {
-	struct device_node *np = spu->devnode;
-	int ret = -ENODEV;
+	struct device_analde *np = spu->devanalde;
+	int ret = -EANALDEV;
 
 	spu->name = of_get_property(np, "name", NULL);
 	if (!spu->name)
@@ -265,16 +265,16 @@ out:
 static int __init of_enumerate_spus(int (*fn)(void *data))
 {
 	int ret;
-	struct device_node *node;
+	struct device_analde *analde;
 	unsigned int n = 0;
 
-	ret = -ENODEV;
-	for_each_node_by_type(node, "spe") {
-		ret = fn(node);
+	ret = -EANALDEV;
+	for_each_analde_by_type(analde, "spe") {
+		ret = fn(analde);
 		if (ret) {
 			printk(KERN_WARNING "%s: Error initializing %pOFn\n",
-				__func__, node);
-			of_node_put(node);
+				__func__, analde);
+			of_analde_put(analde);
 			break;
 		}
 		n++;
@@ -285,18 +285,18 @@ static int __init of_enumerate_spus(int (*fn)(void *data))
 static int __init of_create_spu(struct spu *spu, void *data)
 {
 	int ret;
-	struct device_node *spe = (struct device_node *)data;
+	struct device_analde *spe = (struct device_analde *)data;
 	static int legacy_map = 0, legacy_irq = 0;
 
-	spu->devnode = of_node_get(spe);
+	spu->devanalde = of_analde_get(spe);
 	spu->spe_id = find_spu_unit_number(spe);
 
-	spu->node = of_node_to_nid(spe);
-	if (spu->node >= MAX_NUMNODES) {
-		printk(KERN_WARNING "SPE %pOF on node %d ignored,"
-		       " node number too big\n", spe, spu->node);
+	spu->analde = of_analde_to_nid(spe);
+	if (spu->analde >= MAX_NUMANALDES) {
+		printk(KERN_WARNING "SPE %pOF on analde %d iganalred,"
+		       " analde number too big\n", spe, spu->analde);
 		printk(KERN_WARNING "Check if CONFIG_NUMA is enabled.\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -324,7 +324,7 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		}
 		ret = spu_map_interrupts_old(spu, spe);
 		if (ret) {
-			printk(KERN_ERR "%s: could not map interrupts\n",
+			printk(KERN_ERR "%s: could analt map interrupts\n",
 				spu->name);
 			goto out_unmap;
 		}
@@ -344,7 +344,7 @@ out:
 static int of_destroy_spu(struct spu *spu)
 {
 	spu_unmap(spu);
-	of_node_put(spu->devnode);
+	of_analde_put(spu->devanalde);
 	return 0;
 }
 
@@ -363,13 +363,13 @@ static void disable_spu_by_master_run(struct spu_context *ctx)
 static int qs20_reg_idxs[QS20_SPES_PER_BE] =   { 0, 2, 4, 6, 7, 5, 3, 1 };
 static int qs20_reg_memory[QS20_SPES_PER_BE] = { 1, 1, 0, 0, 0, 0, 0, 0 };
 
-static struct spu *__init spu_lookup_reg(int node, u32 reg)
+static struct spu *__init spu_lookup_reg(int analde, u32 reg)
 {
 	struct spu *spu;
 	const u32 *spu_reg;
 
-	list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
-		spu_reg = of_get_property(spu_devnode(spu), "reg", NULL);
+	list_for_each_entry(spu, &cbe_spu_info[analde].spus, cbe_list) {
+		spu_reg = of_get_property(spu_devanalde(spu), "reg", NULL);
 		if (*spu_reg == reg)
 			return spu;
 	}
@@ -378,15 +378,15 @@ static struct spu *__init spu_lookup_reg(int node, u32 reg)
 
 static void __init init_affinity_qs20_harcoded(void)
 {
-	int node, i;
+	int analde, i;
 	struct spu *last_spu, *spu;
 	u32 reg;
 
-	for (node = 0; node < MAX_NUMNODES; node++) {
+	for (analde = 0; analde < MAX_NUMANALDES; analde++) {
 		last_spu = NULL;
 		for (i = 0; i < QS20_SPES_PER_BE; i++) {
 			reg = qs20_reg_idxs[i];
-			spu = spu_lookup_reg(node, reg);
+			spu = spu_lookup_reg(analde, reg);
 			if (!spu)
 				continue;
 			spu->has_mem_affinity = qs20_reg_memory[reg];
@@ -400,37 +400,37 @@ static void __init init_affinity_qs20_harcoded(void)
 
 static int __init of_has_vicinity(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 
-	for_each_node_by_type(dn, "spe") {
+	for_each_analde_by_type(dn, "spe") {
 		if (of_property_present(dn, "vicinity"))  {
-			of_node_put(dn);
+			of_analde_put(dn);
 			return 1;
 		}
 	}
 	return 0;
 }
 
-static struct spu *__init devnode_spu(int cbe, struct device_node *dn)
+static struct spu *__init devanalde_spu(int cbe, struct device_analde *dn)
 {
 	struct spu *spu;
 
 	list_for_each_entry(spu, &cbe_spu_info[cbe].spus, cbe_list)
-		if (spu_devnode(spu) == dn)
+		if (spu_devanalde(spu) == dn)
 			return spu;
 	return NULL;
 }
 
 static struct spu * __init
-neighbour_spu(int cbe, struct device_node *target, struct device_node *avoid)
+neighbour_spu(int cbe, struct device_analde *target, struct device_analde *avoid)
 {
 	struct spu *spu;
-	struct device_node *spu_dn;
+	struct device_analde *spu_dn;
 	const phandle *vic_handles;
 	int lenp, i;
 
 	list_for_each_entry(spu, &cbe_spu_info[cbe].spus, cbe_list) {
-		spu_dn = spu_devnode(spu);
+		spu_dn = spu_devanalde(spu);
 		if (spu_dn == avoid)
 			continue;
 		vic_handles = of_get_property(spu_dn, "vicinity", &lenp);
@@ -442,10 +442,10 @@ neighbour_spu(int cbe, struct device_node *target, struct device_node *avoid)
 	return NULL;
 }
 
-static void __init init_affinity_node(int cbe)
+static void __init init_affinity_analde(int cbe)
 {
 	struct spu *spu, *last_spu;
-	struct device_node *vic_dn, *last_spu_dn;
+	struct device_analde *vic_dn, *last_spu_dn;
 	phandle avoid_ph;
 	const phandle *vic_handles;
 	int lenp, i, added;
@@ -454,27 +454,27 @@ static void __init init_affinity_node(int cbe)
 								cbe_list);
 	avoid_ph = 0;
 	for (added = 1; added < cbe_spu_info[cbe].n_spus; added++) {
-		last_spu_dn = spu_devnode(last_spu);
+		last_spu_dn = spu_devanalde(last_spu);
 		vic_handles = of_get_property(last_spu_dn, "vicinity", &lenp);
 
 		/*
 		 * Walk through each phandle in vicinity property of the spu
-		 * (typically two vicinity phandles per spe node)
+		 * (typically two vicinity phandles per spe analde)
 		 */
 		for (i = 0; i < (lenp / sizeof(phandle)); i++) {
 			if (vic_handles[i] == avoid_ph)
 				continue;
 
-			vic_dn = of_find_node_by_phandle(vic_handles[i]);
+			vic_dn = of_find_analde_by_phandle(vic_handles[i]);
 			if (!vic_dn)
 				continue;
 
-			if (of_node_name_eq(vic_dn, "spe") ) {
-				spu = devnode_spu(cbe, vic_dn);
+			if (of_analde_name_eq(vic_dn, "spe") ) {
+				spu = devanalde_spu(cbe, vic_dn);
 				avoid_ph = last_spu_dn->phandle;
 			} else {
 				/*
-				 * "mic-tm" and "bif0" nodes do not have
+				 * "mic-tm" and "bif0" analdes do analt have
 				 * vicinity property. So we need to find the
 				 * spe which has vic_dn as neighbour, but
 				 * skipping the one we came from (last_spu_dn)
@@ -482,14 +482,14 @@ static void __init init_affinity_node(int cbe)
 				spu = neighbour_spu(cbe, vic_dn, last_spu_dn);
 				if (!spu)
 					continue;
-				if (of_node_name_eq(vic_dn, "mic-tm")) {
+				if (of_analde_name_eq(vic_dn, "mic-tm")) {
 					last_spu->has_mem_affinity = 1;
 					spu->has_mem_affinity = 1;
 				}
 				avoid_ph = vic_dn->phandle;
 			}
 
-			of_node_put(vic_dn);
+			of_analde_put(vic_dn);
 
 			list_add_tail(&spu->aff_list, &last_spu->aff_list);
 			last_spu = spu;
@@ -502,8 +502,8 @@ static void __init init_affinity_fw(void)
 {
 	int cbe;
 
-	for (cbe = 0; cbe < MAX_NUMNODES; cbe++)
-		init_affinity_node(cbe);
+	for (cbe = 0; cbe < MAX_NUMANALDES; cbe++)
+		init_affinity_analde(cbe);
 }
 
 static int __init init_affinity(void)
@@ -514,7 +514,7 @@ static int __init init_affinity(void)
 		if (of_machine_is_compatible("IBM,CPBW-1.0"))
 			init_affinity_qs20_harcoded();
 		else
-			printk("No affinity configuration found\n");
+			printk("Anal affinity configuration found\n");
 	}
 
 	return 0;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Definitions for the VTPM proxy driver
  * Copyright (c) 2015, 2016, IBM Corporation
@@ -35,14 +35,14 @@ enum vtpm_proxy_flags {
  * @tpm_num:	index of the TPM device
  * @fd:		the file descriptor used by the proxy TPM
  * @major:	the major number of the TPM device
- * @minor:	the minor number of the TPM device
+ * @mianalr:	the mianalr number of the TPM device
  */
 struct vtpm_proxy_new_dev {
 	__u32 flags;         /* input */
 	__u32 tpm_num;       /* output */
 	__u32 fd;            /* output */
 	__u32 major;         /* output */
-	__u32 minor;         /* output */
+	__u32 mianalr;         /* output */
 };
 
 #define VTPM_PROXY_IOC_NEW_DEV	_IOWR(0xa1, 0x00, struct vtpm_proxy_new_dev)

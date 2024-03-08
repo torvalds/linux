@@ -16,7 +16,7 @@ struct rmnet_map_header {
 /* rmnet_map_header flags field:
  *  PAD_LEN:	  number of pad bytes following packet data
  *  CMD:	  1 = packet contains a MAP command; 0 = packet contains data
- *  NEXT_HEADER: 1 = packet contains V5 CSUM header 0 = no V5 CSUM header
+ *  NEXT_HEADER: 1 = packet contains V5 CSUM header 0 = anal V5 CSUM header
  */
 #define MAP_PAD_LEN_MASK		GENMASK(5, 0)
 #define MAP_NEXT_HEADER_FLAG		BIT(6)
@@ -31,7 +31,7 @@ struct rmnet_map_dl_csum_trailer {
 } __aligned(1);
 
 /* rmnet_map_dl_csum_trailer flags field:
- *  VALID:	1 = checksum and length valid; 0 = ignore them
+ *  VALID:	1 = checksum and length valid; 0 = iganalre them
  */
 #define MAP_CSUM_DL_VALID_FLAG		BIT(0)
 
@@ -42,7 +42,7 @@ struct rmnet_map_ul_csum_header {
 
 /* csum_info field:
  *  OFFSET:	where (offset in bytes) to insert computed checksum
- *  UDP:	1 = UDP checksum (zero checkum means no checksum)
+ *  UDP:	1 = UDP checksum (zero checkum means anal checksum)
  *  ENABLED:	1 = checksum computation requested
  */
 #define MAP_CSUM_UL_OFFSET_MASK		GENMASK(13, 0)

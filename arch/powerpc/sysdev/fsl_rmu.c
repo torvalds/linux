@@ -6,7 +6,7 @@
  * Thomas Moll <thomas.moll@sysgo.com>
  * - fixed maintenance access routines, check for aligned access
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009 Integrated Device Techanallogy, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  * - Added Port-Write message handling
  * - Added Machine Check exception handling
@@ -266,7 +266,7 @@ fsl_rio_rx_handler(int irq, void *dev_instance)
 		/*
 		* Can receive messages for any mailbox/letter to that
 		* mailbox destination. So, make the callback with an
-		* unknown/invalid mailbox number argument.
+		* unkanalwn/invalid mailbox number argument.
 		*/
 		if (port->inb_msg[0].mcback != NULL)
 			port->inb_msg[0].mcback(port, rmu->msg_rx_ring.dev_id,
@@ -325,7 +325,7 @@ fsl_rio_dbell_handler(int irq, void *dev_instance)
 		for (i = 0; i < MAX_PORT_NUM; i++) {
 			if (fsl_dbell->mport[i]) {
 				list_for_each_entry(dbell,
-					&fsl_dbell->mport[i]->dbells, node) {
+					&fsl_dbell->mport[i]->dbells, analde) {
 					if ((dbell->res->start
 						<= dmsg->info)
 						&& (dbell->res->end
@@ -362,7 +362,7 @@ out:
 static void msg_unit_error_handler(void)
 {
 
-	/*XXX: Error recovery is not implemented, we just clear errors */
+	/*XXX: Error recovery is analt implemented, we just clear errors */
 	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
 
 	out_be32((u32 *)(rmu_regs_win + RIO_IM0SR), IMSR_CLEAR);
@@ -427,7 +427,7 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 				 pw->port_write_msg.discard_count);
 		}
 		/* Clear interrupt and issue Clear Queue command. This allows
-		 * another port-write to be received.
+		 * aanalther port-write to be received.
 		 */
 		out_be32(&pw->pw_regs->pwsr,	RIO_IPWSR_QFI);
 		out_be32(&pw->pw_regs->pwmr, ipwmr | RIO_IPWMR_CQ);
@@ -537,7 +537,7 @@ int fsl_rio_pw_enable(struct rio_mport *mport, int enable)
  *
  * Initializes port write unit hardware and DMA buffer
  * ring. Called from fsl_rio_setup(). Returns %0 on success
- * or %-ENOMEM on failure.
+ * or %-EANALMEM on failure.
  */
 
 int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
@@ -554,7 +554,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 					&pw->port_write_msg.phys, GFP_KERNEL);
 	if (!pw->port_write_msg.virt) {
 		pr_err("RIO: unable allocate port write queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pw->port_write_msg.err_count = 0;
@@ -572,7 +572,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 	out_be32(&pw->pw_regs->pwsr,
 		 (RIO_IPWSR_TE | RIO_IPWSR_QFI | RIO_IPWSR_PWD));
 
-	/* Configure port write controller for snooping enable all reporting,
+	/* Configure port write controller for sanaloping enable all reporting,
 	   clear queue full */
 	out_be32(&pw->pw_regs->pwmr,
 		 RIO_IPWMR_SEN | RIO_IPWMR_QFIE | RIO_IPWMR_EIE | RIO_IPWMR_CQ);
@@ -592,7 +592,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 	spin_lock_init(&pw->pw_fifo_lock);
 	if (kfifo_alloc(&pw->pw_fifo, RIO_PW_MSG_SIZE * 32, GFP_KERNEL)) {
 		pr_err("FIFO allocation failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_irq;
 	}
 
@@ -689,7 +689,7 @@ fsl_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 	/* Set transfer size aligned to next power of 2 (in double words) */
 	desc->dwcnt = is_power_of_2(len) ? len : 1 << get_bitmask_order(len);
 
-	/* Set snooping and source buffer address */
+	/* Set sanaloping and source buffer address */
 	desc->saddr = 0x00000004
 		| rmu->msg_tx_ring.phys_buffer[rmu->msg_tx_ring.tx_slot];
 
@@ -714,7 +714,7 @@ out:
  *
  * Initializes buffer ring, request the outbound message interrupt,
  * and enables the outbound message unit. Returns %0 on success and
- * %-EINVAL or %-ENOMEM on failure.
+ * %-EINVAL or %-EANALMEM on failure.
  */
 int
 fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
@@ -738,7 +738,7 @@ fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 			dma_alloc_coherent(priv->dev, RIO_MSG_BUFFER_SIZE,
 				&rmu->msg_tx_ring.phys_buffer[i], GFP_KERNEL);
 		if (!rmu->msg_tx_ring.virt_buffer[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			for (j = 0; j < rmu->msg_tx_ring.size; j++)
 				if (rmu->msg_tx_ring.virt_buffer[j])
 					dma_free_coherent(priv->dev,
@@ -757,7 +757,7 @@ fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 						   &rmu->msg_tx_ring.phys,
 						   GFP_KERNEL);
 	if (!rmu->msg_tx_ring.virt) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_dma;
 	}
 	rmu->msg_tx_ring.tx_slot = 0;
@@ -766,7 +766,7 @@ fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 	out_be32(&rmu->msg_regs->odqdpar, rmu->msg_tx_ring.phys);
 	out_be32(&rmu->msg_regs->odqepar, rmu->msg_tx_ring.phys);
 
-	/* Configure for snooping */
+	/* Configure for sanaloping */
 	out_be32(&rmu->msg_regs->osar, 0x00000004);
 
 	/* Clear interrupt status */
@@ -780,7 +780,7 @@ fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 
 	/*
 	 * Configure outbound message unit
-	 *      Snooping
+	 *      Sanaloping
 	 *      Interrupts (all enabled, except QEIE)
 	 *      Chaining mode
 	 *      Disable
@@ -792,7 +792,7 @@ fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 		 in_be32(&rmu->msg_regs->omr) |
 		 ((get_bitmask_order(entries) - 2) << 12));
 
-	/* Now enable the unit */
+	/* Analw enable the unit */
 	out_be32(&rmu->msg_regs->omr, in_be32(&rmu->msg_regs->omr) | 0x1);
 
 out:
@@ -846,7 +846,7 @@ void fsl_close_outb_mbox(struct rio_mport *mport, int mbox)
  *
  * Initializes buffer ring, request the inbound message interrupt,
  * and enables the inbound message unit. Returns %0 on success
- * and %-EINVAL or %-ENOMEM on failure.
+ * and %-EINVAL or %-EANALMEM on failure.
  */
 int
 fsl_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
@@ -873,7 +873,7 @@ fsl_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 				rmu->msg_rx_ring.size * RIO_MAX_MSG_SIZE,
 				&rmu->msg_rx_ring.phys, GFP_KERNEL);
 	if (!rmu->msg_rx_ring.virt) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -896,7 +896,7 @@ fsl_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 
 	/*
 	 * Configure inbound message unit:
-	 *      Snooping
+	 *      Sanaloping
 	 *      4KB max message size
 	 *      Unmask all interrupt sources
 	 *      Disable
@@ -906,7 +906,7 @@ fsl_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 	/* Set number of queue entries */
 	setbits32(&rmu->msg_regs->imr, (get_bitmask_order(entries) - 2) << 12);
 
-	/* Now enable the unit */
+	/* Analw enable the unit */
 	setbits32(&rmu->msg_regs->imr, 0x1);
 
 out:
@@ -988,7 +988,7 @@ void *fsl_get_inb_message(struct rio_mport *mport, int mbox)
 
 	phys_buf = in_be32(&rmu->msg_regs->ifqdpar);
 
-	/* If no more messages, then bail out */
+	/* If anal more messages, then bail out */
 	if (phys_buf == in_be32(&rmu->msg_regs->ifqepar))
 		goto out2;
 
@@ -999,7 +999,7 @@ void *fsl_get_inb_message(struct rio_mport *mport, int mbox)
 
 	if (!buf) {
 		printk(KERN_ERR
-			"RIO: inbound message copy failed, no buffers\n");
+			"RIO: inbound message copy failed, anal buffers\n");
 		goto out1;
 	}
 
@@ -1022,7 +1022,7 @@ out2:
  *
  * Initializes doorbell unit hardware and inbound DMA buffer
  * ring. Called from fsl_rio_setup(). Returns %0 on success
- * or %-ENOMEM on failure.
+ * or %-EANALMEM on failure.
  */
 int fsl_rio_doorbell_init(struct fsl_rio_dbell *dbell)
 {
@@ -1033,7 +1033,7 @@ int fsl_rio_doorbell_init(struct fsl_rio_dbell *dbell)
 		DOORBELL_MESSAGE_SIZE, &dbell->dbell_ring.phys, GFP_KERNEL);
 	if (!dbell->dbell_ring.virt) {
 		printk(KERN_ERR "RIO: unable allocate inbound doorbell ring\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -1055,14 +1055,14 @@ int fsl_rio_doorbell_init(struct fsl_rio_dbell *dbell)
 		goto out;
 	}
 
-	/* Configure doorbells for snooping, 512 entries, and enable */
+	/* Configure doorbells for sanaloping, 512 entries, and enable */
 	out_be32(&dbell->dbell_regs->dmr, 0x00108161);
 
 out:
 	return rc;
 }
 
-int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
+int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_analde *analde)
 {
 	struct rio_priv *priv;
 	struct fsl_rmu *rmu;
@@ -1073,29 +1073,29 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 
 	priv = mport->priv;
 
-	if (!node) {
+	if (!analde) {
 		dev_warn(priv->dev, "Can't get %pOF property 'fsl,rmu'\n",
-			priv->dev->of_node);
+			priv->dev->of_analde);
 		return -EINVAL;
 	}
 
 	rmu = kzalloc(sizeof(struct fsl_rmu), GFP_KERNEL);
 	if (!rmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (of_property_read_reg(node, 0, &msg_start, NULL)) {
+	if (of_property_read_reg(analde, 0, &msg_start, NULL)) {
 		pr_err("%pOF: unable to find 'reg' property of message-unit\n",
-			node);
+			analde);
 		kfree(rmu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rmu->msg_regs = (struct rio_msg_regs *)
 			(rmu_regs_win + (u32)msg_start);
 
-	rmu->txirq = irq_of_parse_and_map(node, 0);
-	rmu->rxirq = irq_of_parse_and_map(node, 1);
+	rmu->txirq = irq_of_parse_and_map(analde, 0);
+	rmu->rxirq = irq_of_parse_and_map(analde, 1);
 	printk(KERN_INFO "%pOF: txirq: %d, rxirq %d\n",
-		node, rmu->txirq, rmu->rxirq);
+		analde, rmu->txirq, rmu->rxirq);
 
 	priv->rmm_handle = rmu;
 

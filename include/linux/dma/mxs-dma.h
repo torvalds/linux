@@ -10,7 +10,7 @@
 /*
  * The mxs dmaengine can do PIO transfers. We pass a pointer to the PIO words
  * in the second argument to dmaengine_prep_slave_sg when the direction is
- * set to DMA_TRANS_NONE. To make this clear and to prevent users from doing
+ * set to DMA_TRANS_ANALNE. To make this clear and to prevent users from doing
  * the error prone casting we have this wrapper function
  */
 static inline struct dma_async_tx_descriptor *mxs_dmaengine_prep_pio(

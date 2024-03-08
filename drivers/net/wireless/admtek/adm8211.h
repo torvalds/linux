@@ -467,7 +467,7 @@ struct adm8211_tx_hdr {
 #define ADM8211_TXHDRCTL_SHORT_PREAMBLE		(1 <<  0)
 #define ADM8211_TXHDRCTL_MORE_FRAG		(1 <<  1)
 #define ADM8211_TXHDRCTL_MORE_DATA		(1 <<  2)
-#define ADM8211_TXHDRCTL_FRAG_NO		(1 <<  3) /* ? */
+#define ADM8211_TXHDRCTL_FRAG_ANAL		(1 <<  3) /* ? */
 #define ADM8211_TXHDRCTL_ENABLE_RTS		(1 <<  4)
 #define ADM8211_TXHDRCTL_ENABLE_WEP_ENGINE	(1 <<  5)
 #define ADM8211_TXHDRCTL_ENABLE_EXTEND_HEADER	(1 << 15) /* ? */
@@ -494,7 +494,7 @@ struct adm8211_tx_hdr {
 struct adm8211_eeprom {
 	__le16	signature;		/* 0x00 */
 	u8	major_version;		/* 0x02 */
-	u8	minor_version;		/* 0x03 */
+	u8	mianalr_version;		/* 0x03 */
 	u8	reserved_1[4];		/* 0x04 */
 	u8	hwaddr[6];		/* 0x08 */
 	u8	reserved_2[8];		/* 0x1E */

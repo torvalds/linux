@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
@@ -51,7 +51,7 @@ static ssize_t __set_signal(struct device *dev,
 	if (sscanf(buf, "%d", &signal) == 1) {
 
 		if (signal < ATM_PHY_SIG_LOST || signal > ATM_PHY_SIG_FOUND)
-			signal = ATM_PHY_SIG_UNKNOWN;
+			signal = ATM_PHY_SIG_UNKANALWN;
 
 		atm_dev_signal_change(atm_dev, signal);
 		return 1;
@@ -152,13 +152,13 @@ static int __init adummy_init(void)
 						   GFP_KERNEL);
 	if (!adummy_dev) {
 		printk(KERN_ERR DEV_LABEL ": kzalloc() failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	atm_dev = atm_dev_register(DEV_LABEL, NULL, &adummy_ops, -1, NULL);
 	if (!atm_dev) {
 		printk(KERN_ERR DEV_LABEL ": atm_dev_register() failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_kfree;
 	}
 
@@ -166,11 +166,11 @@ static int __init adummy_init(void)
 	atm_dev->dev_data = adummy_dev;
 
 	if (sysfs_create_group(&atm_dev->class_dev.kobj, &adummy_group_attrs))
-		dev_err(&atm_dev->class_dev, "Could not register attrs for adummy\n");
+		dev_err(&atm_dev->class_dev, "Could analt register attrs for adummy\n");
 
 	if (adummy_start(atm_dev)) {
 		printk(KERN_ERR DEV_LABEL ": adummy_start() failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unregister;
 	}
 

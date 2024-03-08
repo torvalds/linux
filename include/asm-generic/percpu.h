@@ -120,16 +120,16 @@ do {									\
 	__old;								\
 })
 
-#define __this_cpu_generic_read_nopreempt(pcp)				\
+#define __this_cpu_generic_read_analpreempt(pcp)				\
 ({									\
 	typeof(pcp) ___ret;						\
-	preempt_disable_notrace();					\
+	preempt_disable_analtrace();					\
 	___ret = READ_ONCE(*raw_cpu_ptr(&(pcp)));			\
-	preempt_enable_notrace();					\
+	preempt_enable_analtrace();					\
 	___ret;								\
 })
 
-#define __this_cpu_generic_read_noirq(pcp)				\
+#define __this_cpu_generic_read_analirq(pcp)				\
 ({									\
 	typeof(pcp) ___ret;						\
 	unsigned long ___flags;						\
@@ -143,9 +143,9 @@ do {									\
 ({									\
 	typeof(pcp) __ret;						\
 	if (__native_word(pcp))						\
-		__ret = __this_cpu_generic_read_nopreempt(pcp);		\
+		__ret = __this_cpu_generic_read_analpreempt(pcp);		\
 	else								\
-		__ret = __this_cpu_generic_read_noirq(pcp);		\
+		__ret = __this_cpu_generic_read_analirq(pcp);		\
 	__ret;								\
 })
 

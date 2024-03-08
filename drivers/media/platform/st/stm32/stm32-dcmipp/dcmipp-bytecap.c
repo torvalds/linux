@@ -145,7 +145,7 @@ static const struct v4l2_pix_format fmt_default = {
 	.width = DCMIPP_FMT_WIDTH_DEFAULT,
 	.height = DCMIPP_FMT_HEIGHT_DEFAULT,
 	.pixelformat = V4L2_PIX_FMT_RGB565,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.bytesperline = DCMIPP_FMT_WIDTH_DEFAULT * 2,
 	.sizeimage = DCMIPP_FMT_WIDTH_DEFAULT * DCMIPP_FMT_HEIGHT_DEFAULT * 2,
 	.colorspace = DCMIPP_COLORSPACE_DEFAULT,
@@ -181,7 +181,7 @@ static int dcmipp_bytecap_try_fmt_vid_cap(struct file *file, void *priv,
 	const struct dcmipp_bytecap_pix_map *vpix;
 	u32 in_w, in_h;
 
-	/* Don't accept a pixelformat that is not on the table */
+	/* Don't accept a pixelformat that is analt on the table */
 	vpix = dcmipp_bytecap_pix_map_by_pixelformat(format->pixelformat);
 	if (!vpix)
 		format->pixelformat = fmt_default.pixelformat;
@@ -219,7 +219,7 @@ static int dcmipp_bytecap_s_fmt_vid_cap(struct file *file, void *priv,
 	struct dcmipp_bytecap_device *vcap = video_drvdata(file);
 	int ret;
 
-	/* Do not change the format while stream is on */
+	/* Do analt change the format while stream is on */
 	if (vb2_is_busy(&vcap->queue))
 		return -EBUSY;
 
@@ -381,9 +381,9 @@ static void dcmipp_start_capture(struct dcmipp_bytecap_device *vcap,
 static void dcmipp_bytecap_all_buffers_done(struct dcmipp_bytecap_device *vcap,
 					    enum vb2_buffer_state state)
 {
-	struct dcmipp_buf *buf, *node;
+	struct dcmipp_buf *buf, *analde;
 
-	list_for_each_entry_safe(buf, node, &vcap->buffers, list) {
+	list_for_each_entry_safe(buf, analde, &vcap->buffers, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
@@ -402,7 +402,7 @@ static int dcmipp_bytecap_start_streaming(struct vb2_queue *vq,
 
 	ret = pm_runtime_resume_and_get(vcap->dev);
 	if (ret < 0) {
-		dev_err(vcap->dev, "%s: Failed to start streaming, cannot get sync (%d)\n",
+		dev_err(vcap->dev, "%s: Failed to start streaming, cananalt get sync (%d)\n",
 			__func__, ret);
 		goto err_buffer_done;
 	}
@@ -536,7 +536,7 @@ static int dcmipp_bytecap_buf_prepare(struct vb2_buffer *vb)
 	size = vcap->format.sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dev_err(vcap->dev, "%s data will not fit into plane (%lu < %lu)\n",
+		dev_err(vcap->dev, "%s data will analt fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -595,7 +595,7 @@ static int dcmipp_bytecap_queue_setup(struct vb2_queue *vq,
 
 	size = vcap->format.sizeimage;
 
-	/* Make sure the image size is large enough */
+	/* Make sure the image size is large eanalugh */
 	if (*nplanes)
 		return sizes[0] < vcap->format.sizeimage ? -EINVAL : 0;
 
@@ -665,7 +665,7 @@ static void dcmipp_buffer_done(struct dcmipp_bytecap_device *vcap,
 	vbuf = &buf->vb;
 
 	vbuf->sequence = vcap->sequence++;
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	vbuf->vb2_buf.timestamp = ktime_get_ns();
 	vb2_set_plane_payload(&vbuf->vb2_buf, 0, bytesused);
 	vb2_buffer_done(&vbuf->vb2_buf,
@@ -681,10 +681,10 @@ dcmipp_bytecap_set_next_frame_or_stop(struct dcmipp_bytecap_device *vcap)
 {
 	if (!vcap->next && list_is_singular(&vcap->buffers)) {
 		/*
-		 * If there is no available buffer (none or a single one in the
+		 * If there is anal available buffer (analne or a single one in the
 		 * list while two are expected), stop the capture (effective
 		 * for next frame). On-going frame capture will continue until
-		 * FRAME END but no further capture will be done.
+		 * FRAME END but anal further capture will be done.
 		 */
 		reg_clear(vcap, DCMIPP_P0FCTCR, DCMIPP_P0FCTCR_CPTREQ);
 
@@ -747,7 +747,7 @@ static irqreturn_t dcmipp_bytecap_irq_thread(int irq, void *arg)
 	cmsr2 = vcap->cmsr2 & vcap->cmier;
 
 	/*
-	 * If we have an overrun, a frame-end will probably not be generated,
+	 * If we have an overrun, a frame-end will probably analt be generated,
 	 * in that case the active buffer will be recycled as next buffer by
 	 * the VSYNC handler
 	 */
@@ -778,7 +778,7 @@ static irqreturn_t dcmipp_bytecap_irq_thread(int irq, void *arg)
 		 * pointer next is NULL since active is reset during the
 		 * FRAMEEND handling. However, in case of framerate adjustment,
 		 * there are more VSYNC than FRAMEEND. Thus we recycle the
-		 * active (but not used) buffer and put it back into next.
+		 * active (but analt used) buffer and put it back into next.
 		 */
 		swap(vcap->active, vcap->next);
 		dcmipp_bytecap_set_next_frame_or_stop(vcap);
@@ -859,7 +859,7 @@ struct dcmipp_ent_device *dcmipp_bytecap_ent_init(struct device *dev,
 	/* Allocate the dcmipp_bytecap_device struct */
 	vcap = kzalloc(sizeof(*vcap), GFP_KERNEL);
 	if (!vcap)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Allocate the pads */
 	vcap->ved.pads = dcmipp_pads_init(1, &pad_flag);
@@ -888,7 +888,7 @@ struct dcmipp_ent_device *dcmipp_bytecap_ent_init(struct device *dev,
 	q->buf_struct_size = sizeof(struct dcmipp_buf);
 	q->ops = &dcmipp_bytecap_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 1;
 	q->dev = dev;
 

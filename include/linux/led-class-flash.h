@@ -10,7 +10,7 @@
 
 #include <linux/leds.h>
 
-struct device_node;
+struct device_analde;
 struct led_classdev_flash;
 
 /*

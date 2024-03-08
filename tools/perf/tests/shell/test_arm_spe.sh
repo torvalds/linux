@@ -8,14 +8,14 @@
 # SPDX-License-Identifier: GPL-2.0
 # German Gomez <german.gomez@arm.com>, 2021
 
-skip_if_no_arm_spe_event() {
+skip_if_anal_arm_spe_event() {
 	perf list | grep -E -q 'arm_spe_[0-9]+//' && return 0
 
 	# arm_spe event doesn't exist
 	return 2
 }
 
-skip_if_no_arm_spe_event || exit 2
+skip_if_anal_arm_spe_event || exit 2
 
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 glb_err=0
@@ -97,7 +97,7 @@ arm_spe_system_wide_test() {
 		return
 	fi
 
-	perf record -o ${perfdata} -e arm_spe// -a --no-bpf-event \
+	perf record -o ${perfdata} -e arm_spe// -a --anal-bpf-event \
 		-- dd if=/dev/zero of=/dev/null count=100000 > /dev/null 2>&1
 
 	perf_script_samples dd &&

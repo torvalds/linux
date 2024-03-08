@@ -74,8 +74,8 @@ static const struct mt7530_mib_desc mt7530_mib[] = {
 	MIB_DESC(1, 0xb8, "RxArlDrop"),
 };
 
-/* Since phy_device has not yet been created and
- * phy_{read,write}_mmd_indirect is not available, we provide our own
+/* Since phy_device has analt yet been created and
+ * phy_{read,write}_mmd_indirect is analt available, we provide our own
  * core_{read,write}_mmd_indirect with core_{clear,write,set} wrappers
  * to complete this function.
  */
@@ -95,8 +95,8 @@ core_read_mmd_indirect(struct mt7530_priv *priv, int prtad, int devad)
 	if (ret < 0)
 		goto err;
 
-	/* Select the Function : DATA with no post increment */
-	ret = bus->write(bus, 0, MII_MMD_CTRL, (devad | MII_MMD_CTRL_NOINCR));
+	/* Select the Function : DATA with anal post increment */
+	ret = bus->write(bus, 0, MII_MMD_CTRL, (devad | MII_MMD_CTRL_ANALINCR));
 	if (ret < 0)
 		goto err;
 
@@ -127,8 +127,8 @@ core_write_mmd_indirect(struct mt7530_priv *priv, int prtad,
 	if (ret < 0)
 		goto err;
 
-	/* Select the Function : DATA with no post increment */
-	ret = bus->write(bus, 0, MII_MMD_CTRL, (devad | MII_MMD_CTRL_NOINCR));
+	/* Select the Function : DATA with anal post increment */
+	ret = bus->write(bus, 0, MII_MMD_CTRL, (devad | MII_MMD_CTRL_ANALINCR));
 	if (ret < 0)
 		goto err;
 
@@ -340,7 +340,7 @@ mt7530_fdb_read(struct mt7530_priv *priv, struct mt7530_fdb *fdb)
 	fdb->mac[3] = (reg[0] >> MAC_BYTE_3) & MAC_BYTE_MASK;
 	fdb->mac[4] = (reg[1] >> MAC_BYTE_4) & MAC_BYTE_MASK;
 	fdb->mac[5] = (reg[1] >> MAC_BYTE_5) & MAC_BYTE_MASK;
-	fdb->noarp = ((reg[2] >> ENT_STATUS) & ENT_STATUS_MASK) == STATIC_ENT;
+	fdb->analarp = ((reg[2] >> ENT_STATUS) & ENT_STATUS_MASK) == STATIC_ENT;
 }
 
 static void
@@ -424,7 +424,7 @@ mt7530_pad_clk_setup(struct dsa_switch *ds, phy_interface_t interface)
 
 	if (xtal == HWTRAP_XTAL_20MHZ) {
 		dev_err(priv->dev,
-			"%s: MT7530 with a 20MHz XTAL is not supported!\n",
+			"%s: MT7530 with a 20MHz XTAL is analt supported!\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -453,7 +453,7 @@ mt7530_pad_clk_setup(struct dsa_switch *ds, phy_interface_t interface)
 		}
 		break;
 	default:
-		dev_err(priv->dev, "xMII interface %d not supported\n",
+		dev_err(priv->dev, "xMII interface %d analt supported\n",
 			interface);
 		return -EINVAL;
 	}
@@ -474,7 +474,7 @@ mt7530_pad_clk_setup(struct dsa_switch *ds, phy_interface_t interface)
 			   RG_SYSPLL_DDSFBK_EN | RG_SYSPLL_BIAS_EN |
 			   RG_SYSPLL_BIAS_LPF_EN);
 		core_write(priv, CORE_PLL_GROUP2,
-			   RG_SYSPLL_EN_NORMAL | RG_SYSPLL_VODEN |
+			   RG_SYSPLL_EN_ANALRMAL | RG_SYSPLL_VODEN |
 			   RG_SYSPLL_POSDIV(1));
 		core_write(priv, CORE_PLL_GROUP7,
 			   RG_LCDDS_PCW_NCPO_CHG | RG_LCCDS_C(3) |
@@ -923,7 +923,7 @@ static const char *p5_intf_modes(unsigned int p5_interface)
 	case P5_INTF_SEL_GMAC5_SGMII:
 		return "GMAC5_SGMII";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -1114,7 +1114,7 @@ mt7530_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 
 	/* When a new MTU is set, DSA always set the CPU port's MTU to the
 	 * largest MTU of the user ports. Because the switch only has a global
-	 * RX length register, only allowing CPU port here is enough.
+	 * RX length register, only allowing CPU port here is eanalugh.
 	 */
 	if (!dsa_is_cpu_port(ds, port))
 		return 0;
@@ -1238,7 +1238,7 @@ mt7530_port_bridge_join(struct dsa_switch *ds, int port,
 
 		/* Add this port to the port matrix of the other ports in the
 		 * same bridge. If the port is disabled, port matrix is kept
-		 * and not being setup until the port becomes enabled.
+		 * and analt being setup until the port becomes enabled.
 		 */
 		if (!dsa_port_offloads_bridge(other_dp, &bridge))
 			continue;
@@ -1326,7 +1326,7 @@ mt7530_port_set_vlan_aware(struct dsa_switch *ds, int port)
 		mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
 			   G0_PORT_VID(priv->ports[port].pvid));
 
-		/* Only accept tagged frames if PVID is not set */
+		/* Only accept tagged frames if PVID is analt set */
 		if (!priv->ports[port].pvid)
 			mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
 				   MT7530_VLAN_ACC_TAGGED);
@@ -1370,7 +1370,7 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 
 		/* Remove this port from the port matrix of the other ports
 		 * in the same bridge. If the port is disabled, port matrix
-		 * is kept and not being setup until the port becomes enabled.
+		 * is kept and analt being setup until the port becomes enabled.
 		 */
 		if (!dsa_port_offloads_bridge(other_dp, &bridge))
 			continue;
@@ -1453,7 +1453,7 @@ mt7530_port_fdb_dump(struct dsa_switch *ds, int port,
 		if (rsp & ATC_SRCH_HIT) {
 			mt7530_fdb_read(priv, &_fdb);
 			if (_fdb.port_mask & BIT(port)) {
-				ret = cb(_fdb.mac, _fdb.vid, _fdb.noarp,
+				ret = cb(_fdb.mac, _fdb.vid, _fdb.analarp,
 					 data);
 				if (ret < 0)
 					break;
@@ -1559,7 +1559,7 @@ mt7530_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
 
 	if (vlan_filtering) {
 		/* The port is being kept as VLAN-unaware port when bridge is
-		 * set up with vlan_filtering not being set, Otherwise, the
+		 * set up with vlan_filtering analt being set, Otherwise, the
 		 * port and the corresponding CPU port is required the setup
 		 * for becoming a VLAN-aware port.
 		 */
@@ -1589,7 +1589,7 @@ mt7530_hw_vlan_add(struct mt7530_priv *priv,
 	      VLAN_VALID;
 	mt7530_write(priv, MT7530_VAWD1, val);
 
-	/* Decide whether adding tag or not for those outgoing packets from the
+	/* Decide whether adding tag or analt for those outgoing packets from the
 	 * port inside the VLAN.
 	 * CPU port is always taken as a tagged port for serving more than one
 	 * VLANs across and also being applied with egress type stack mode for
@@ -1619,7 +1619,7 @@ mt7530_hw_vlan_del(struct mt7530_priv *priv,
 	val = mt7530_read(priv, MT7530_VAWD1);
 	if (!(val & VLAN_VALID)) {
 		dev_err(priv->dev,
-			"Cannot be deleted due to invalid entry\n");
+			"Cananalt be deleted due to invalid entry\n");
 		return;
 	}
 
@@ -1911,7 +1911,7 @@ mt7530_setup_gpio(struct mt7530_priv *priv)
 
 	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mt7530_write(priv, MT7530_LED_GPIO_OE, 0);
 	mt7530_write(priv, MT7530_LED_GPIO_DIR, 0);
@@ -2007,7 +2007,7 @@ mt7530_irq_map(struct irq_domain *domain, unsigned int irq,
 	irq_set_chip_data(irq, domain->host_data);
 	irq_set_chip_and_handler(irq, &mt7530_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(irq, true);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -2048,7 +2048,7 @@ mt7988_irq_map(struct irq_domain *domain, unsigned int irq,
 	irq_set_chip_data(irq, domain->host_data);
 	irq_set_chip_and_handler(irq, &mt7988_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(irq, true);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -2078,11 +2078,11 @@ static int
 mt7530_setup_irq(struct mt7530_priv *priv)
 {
 	struct device *dev = priv->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	if (!of_property_read_bool(np, "interrupt-controller")) {
-		dev_info(dev, "no interrupt support\n");
+		dev_info(dev, "anal interrupt support\n");
 		return 0;
 	}
 
@@ -2103,12 +2103,12 @@ mt7530_setup_irq(struct mt7530_priv *priv)
 
 	if (!priv->irq_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* This register must be set for MT7530 to properly fire interrupts */
 	if (priv->id != ID_MT7531)
-		mt7530_set(priv, MT7530_TOP_SIG_CTRL, TOP_SIG_CTRL_NORMAL);
+		mt7530_set(priv, MT7530_TOP_SIG_CTRL, TOP_SIG_CTRL_ANALRMAL);
 
 	ret = request_threaded_irq(priv->irq, NULL, mt7530_irq_thread_fn,
 				   IRQF_ONESHOT, KBUILD_MODNAME, priv);
@@ -2161,7 +2161,7 @@ mt7530_setup_mdio(struct mt7530_priv *priv)
 
 	bus = devm_mdiobus_alloc(dev);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds->user_mii_bus = bus;
 	bus->priv = priv;
@@ -2191,29 +2191,29 @@ static int
 mt7530_setup(struct dsa_switch *ds)
 {
 	struct mt7530_priv *priv = ds->priv;
-	struct device_node *dn = NULL;
-	struct device_node *phy_node;
-	struct device_node *mac_np;
+	struct device_analde *dn = NULL;
+	struct device_analde *phy_analde;
+	struct device_analde *mac_np;
 	struct mt7530_dummy_poll p;
 	phy_interface_t interface;
 	struct dsa_port *cpu_dp;
 	u32 id, val;
 	int ret, i;
 
-	/* The parent node of conduit netdev which holds the common system
-	 * controller also is the container for two GMACs nodes representing
+	/* The parent analde of conduit netdev which holds the common system
+	 * controller also is the container for two GMACs analdes representing
 	 * as two netdev instances.
 	 */
 	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
-		dn = cpu_dp->conduit->dev.of_node->parent;
+		dn = cpu_dp->conduit->dev.of_analde->parent;
 		/* It doesn't matter which CPU port is found first,
-		 * their conduits should share the same parent OF node
+		 * their conduits should share the same parent OF analde
 		 */
 		break;
 	}
 
 	if (!dn) {
-		dev_err(ds->dev, "parent OF node of DSA conduit not found");
+		dev_err(ds->dev, "parent OF analde of DSA conduit analt found");
 		return -EINVAL;
 	}
 
@@ -2264,7 +2264,7 @@ mt7530_setup(struct dsa_switch *ds)
 	id >>= CHIP_NAME_SHIFT;
 	if (id != MT7530_ID) {
 		dev_err(priv->dev, "chip %x can't be supported\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Reset the switch through internal reset */
@@ -2332,11 +2332,11 @@ mt7530_setup(struct dsa_switch *ds)
 	if (!dsa_is_unused_port(ds, 5)) {
 		priv->p5_intf_sel = P5_INTF_SEL_GMAC5;
 		ret = of_get_phy_mode(dsa_to_port(ds, 5)->dn, &interface);
-		if (ret && ret != -ENODEV)
+		if (ret && ret != -EANALDEV)
 			return ret;
 	} else {
-		/* Scan the ethernet nodes. look for GMAC1, lookup used phy */
-		for_each_child_of_node(dn, mac_np) {
+		/* Scan the ethernet analdes. look for GMAC1, lookup used phy */
+		for_each_child_of_analde(dn, mac_np) {
 			if (!of_device_is_compatible(mac_np,
 						     "mediatek,eth-mac"))
 				continue;
@@ -2345,31 +2345,31 @@ mt7530_setup(struct dsa_switch *ds)
 			if (ret < 0 || id != 1)
 				continue;
 
-			phy_node = of_parse_phandle(mac_np, "phy-handle", 0);
-			if (!phy_node)
+			phy_analde = of_parse_phandle(mac_np, "phy-handle", 0);
+			if (!phy_analde)
 				continue;
 
-			if (phy_node->parent == priv->dev->of_node->parent) {
+			if (phy_analde->parent == priv->dev->of_analde->parent) {
 				ret = of_get_phy_mode(mac_np, &interface);
-				if (ret && ret != -ENODEV) {
-					of_node_put(mac_np);
-					of_node_put(phy_node);
+				if (ret && ret != -EANALDEV) {
+					of_analde_put(mac_np);
+					of_analde_put(phy_analde);
 					return ret;
 				}
-				id = of_mdio_parse_addr(ds->dev, phy_node);
+				id = of_mdio_parse_addr(ds->dev, phy_analde);
 				if (id == 0)
 					priv->p5_intf_sel = P5_INTF_SEL_PHY_P0;
 				if (id == 4)
 					priv->p5_intf_sel = P5_INTF_SEL_PHY_P4;
 			}
-			of_node_put(mac_np);
-			of_node_put(phy_node);
+			of_analde_put(mac_np);
+			of_analde_put(phy_analde);
 			break;
 		}
 	}
 
 #ifdef CONFIG_GPIOLIB
-	if (of_property_read_bool(priv->dev->of_node, "gpio-controller")) {
+	if (of_property_read_bool(priv->dev->of_analde, "gpio-controller")) {
 		ret = mt7530_setup_gpio(priv);
 		if (ret)
 			return ret;
@@ -2471,7 +2471,7 @@ mt7531_setup(struct dsa_switch *ds)
 
 	if (id != MT7531_ID) {
 		dev_err(priv->dev, "chip %x can't be supported\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* all MACs must be forced link-down before sw reset */
@@ -2506,7 +2506,7 @@ mt7531_setup(struct dsa_switch *ds)
 	priv->p5_interface = PHY_INTERFACE_MODE_NA;
 	priv->p6_interface = PHY_INTERFACE_MODE_NA;
 
-	/* Enable PHY core PLL, since phy_device has not yet been created
+	/* Enable PHY core PLL, since phy_device has analt yet been created
 	 * provided for phy_[read,write]_mmd_indirect is called, we provide
 	 * our own mt7531_ind_mmd_phy_[read,write] to complete this
 	 * function.
@@ -2642,7 +2642,7 @@ static int mt7531_rgmii_setup(struct mt7530_priv *priv, u32 port,
 	u32 val;
 
 	if (!mt7531_is_rgmii_port(priv, port)) {
-		dev_err(priv->dev, "RGMII mode is not available for port %d\n",
+		dev_err(priv->dev, "RGMII mode is analt available for port %d\n",
 			port);
 		return -EINVAL;
 	}
@@ -2652,24 +2652,24 @@ static int mt7531_rgmii_setup(struct mt7530_priv *priv, u32 port,
 	val &= ~GP_MODE_MASK;
 	val |= GP_MODE(MT7531_GP_MODE_RGMII);
 	val &= ~CLK_SKEW_IN_MASK;
-	val |= CLK_SKEW_IN(MT7531_CLK_SKEW_NO_CHG);
+	val |= CLK_SKEW_IN(MT7531_CLK_SKEW_ANAL_CHG);
 	val &= ~CLK_SKEW_OUT_MASK;
-	val |= CLK_SKEW_OUT(MT7531_CLK_SKEW_NO_CHG);
-	val |= TXCLK_NO_REVERSE | RXCLK_NO_DELAY;
+	val |= CLK_SKEW_OUT(MT7531_CLK_SKEW_ANAL_CHG);
+	val |= TXCLK_ANAL_REVERSE | RXCLK_ANAL_DELAY;
 
-	/* Do not adjust rgmii delay when vendor phy driver presents. */
+	/* Do analt adjust rgmii delay when vendor phy driver presents. */
 	if (!phydev || phy_driver_is_genphy(phydev)) {
-		val &= ~(TXCLK_NO_REVERSE | RXCLK_NO_DELAY);
+		val &= ~(TXCLK_ANAL_REVERSE | RXCLK_ANAL_DELAY);
 		switch (interface) {
 		case PHY_INTERFACE_MODE_RGMII:
-			val |= TXCLK_NO_REVERSE;
-			val |= RXCLK_NO_DELAY;
+			val |= TXCLK_ANAL_REVERSE;
+			val |= RXCLK_ANAL_DELAY;
 			break;
 		case PHY_INTERFACE_MODE_RGMII_RXID:
-			val |= TXCLK_NO_REVERSE;
+			val |= TXCLK_ANAL_REVERSE;
 			break;
 		case PHY_INTERFACE_MODE_RGMII_TXID:
-			val |= RXCLK_NO_DELAY;
+			val |= RXCLK_ANAL_DELAY;
 			break;
 		case PHY_INTERFACE_MODE_RGMII_ID:
 			break;
@@ -2707,7 +2707,7 @@ mt7531_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	struct dsa_port *dp;
 
 	if (!mt753x_is_mac_port(port)) {
-		dev_err(priv->dev, "port %d is not a MAC port\n", port);
+		dev_err(priv->dev, "port %d is analt a MAC port\n", port);
 		return -EINVAL;
 	}
 
@@ -2947,7 +2947,7 @@ static int mt753x_pcs_validate(struct phylink_pcs *pcs,
 			       unsigned long *supported,
 			       const struct phylink_link_state *state)
 {
-	/* Autonegotiation is not supported in TRGMII nor 802.3z modes */
+	/* Autonegotiation is analt supported in TRGMII analr 802.3z modes */
 	if (state->interface == PHY_INTERFACE_MODE_TRGMII ||
 	    phy_interface_mode_is_8023z(state->interface))
 		phylink_clear(supported, Autoneg);
@@ -2979,7 +2979,7 @@ static void mt7530_pcs_get_state(struct phylink_pcs *pcs,
 		state->speed = SPEED_1000;
 		break;
 	default:
-		state->speed = SPEED_UNKNOWN;
+		state->speed = SPEED_UNKANALWN;
 		break;
 	}
 
@@ -3193,12 +3193,12 @@ mt7530_probe_common(struct mt7530_priv *priv)
 
 	priv->ds = devm_kzalloc(dev, sizeof(*priv->ds), GFP_KERNEL);
 	if (!priv->ds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ds->dev = dev;
 	priv->ds->num_ports = MT7530_NUM_PORTS;
 
-	/* Get the hardware identifier from the devicetree node.
+	/* Get the hardware identifier from the devicetree analde.
 	 * We will need it for some of the clock and regulator setup.
 	 */
 	priv->info = of_device_get_match_data(dev);

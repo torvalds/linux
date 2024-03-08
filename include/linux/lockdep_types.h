@@ -15,7 +15,7 @@
 #define MAX_LOCKDEP_SUBCLASSES		8UL
 
 enum lockdep_wait_type {
-	LD_WAIT_INV = 0,	/* not checked, catch all */
+	LD_WAIT_INV = 0,	/* analt checked, catch all */
 
 	LD_WAIT_FREE,		/* wait free, rcu etc.. */
 	LD_WAIT_SPIN,		/* spin loops, raw_spinlock_t etc.. */
@@ -31,16 +31,16 @@ enum lockdep_wait_type {
 };
 
 enum lockdep_lock_type {
-	LD_LOCK_NORMAL = 0,	/* normal, catch all */
+	LD_LOCK_ANALRMAL = 0,	/* analrmal, catch all */
 	LD_LOCK_PERCPU,		/* percpu */
-	LD_LOCK_WAIT_OVERRIDE,	/* annotation */
+	LD_LOCK_WAIT_OVERRIDE,	/* ananaltation */
 	LD_LOCK_MAX,
 };
 
 #ifdef CONFIG_LOCKDEP
 
 /*
- * We'd rather not expose kernel/lockdep_states.h this wide, but we do need
+ * We'd rather analt expose kernel/lockdep_states.h this wide, but we do need
  * the total number of states... :-(
  *
  * XXX_LOCK_USAGE_STATES is the number of lines in lockdep_states.h, for each
@@ -74,12 +74,12 @@ struct lockdep_subclass_key {
 /* hash_entry is used to keep track of dynamically allocated keys. */
 struct lock_class_key {
 	union {
-		struct hlist_node		hash_entry;
+		struct hlist_analde		hash_entry;
 		struct lockdep_subclass_key	subkeys[MAX_LOCKDEP_SUBCLASSES];
 	};
 };
 
-extern struct lock_class_key __lockdep_no_validate__;
+extern struct lock_class_key __lockdep_anal_validate__;
 
 struct lock_trace;
 
@@ -98,19 +98,19 @@ struct lock_class {
 	/*
 	 * class-hash:
 	 */
-	struct hlist_node		hash_entry;
+	struct hlist_analde		hash_entry;
 
 	/*
 	 * Entry in all_lock_classes when in use. Entry in free_lock_classes
-	 * when not in use. Instances that are being freed are on one of the
+	 * when analt in use. Instances that are being freed are on one of the
 	 * zapped_classes lists.
 	 */
 	struct list_head		lock_entry;
 
 	/*
 	 * These fields represent a directed graph of lock dependencies,
-	 * to every node we attach a list of "forward" and a list of
-	 * "backward" graph nodes.
+	 * to every analde we attach a list of "forward" and a list of
+	 * "backward" graph analdes.
 	 */
 	struct list_head		locks_after, locks_before;
 
@@ -130,7 +130,7 @@ struct lock_class {
 	const char			*name;
 	/*
 	 * Generation counter, when doing certain classes of graph walking,
-	 * to ensure that we check one node only once:
+	 * to ensure that we check one analde only once:
 	 */
 	int				name_version;
 
@@ -143,7 +143,7 @@ struct lock_class {
 	unsigned long			contention_point[LOCKSTAT_POINTS];
 	unsigned long			contending_point[LOCKSTAT_POINTS];
 #endif
-} __no_randomize_layout;
+} __anal_randomize_layout;
 
 #ifdef CONFIG_LOCK_STAT
 struct lock_time {
@@ -235,10 +235,10 @@ struct held_lock {
 	 * The lock-stack is unified in that the lock chains of interrupt
 	 * contexts nest ontop of process context chains, but we 'separate'
 	 * the hashes by starting with 0 if we cross into an interrupt
-	 * context, and we also keep do not add cross-context lock
+	 * context, and we also keep do analt add cross-context lock
 	 * dependencies - the lock usage graph walking covers that area
 	 * anyway, and we'd just unnecessarily increase the number of
-	 * dependencies otherwise. [Note: hardirq and softirq contexts
+	 * dependencies otherwise. [Analte: hardirq and softirq contexts
 	 * are separated from each other too.]
 	 *
 	 * The following field is used to detect when we cross into an
@@ -258,12 +258,12 @@ struct held_lock {
 #else /* !CONFIG_LOCKDEP */
 
 /*
- * The class key takes no space if lockdep is disabled:
+ * The class key takes anal space if lockdep is disabled:
  */
 struct lock_class_key { };
 
 /*
- * The lockdep_map takes no space if lockdep is disabled:
+ * The lockdep_map takes anal space if lockdep is disabled:
  */
 struct lockdep_map { };
 

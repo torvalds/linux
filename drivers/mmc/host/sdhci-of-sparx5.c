@@ -150,8 +150,8 @@ static const struct sdhci_ops sdhci_sparx5_ops = {
 
 static const struct sdhci_pltfm_data sdhci_sparx5_pdata = {
 	.quirks  = 0,
-	.quirks2 = SDHCI_QUIRK2_HOST_NO_CMD23 | /* Controller issue */
-		   SDHCI_QUIRK2_NO_1_8_V, /* No sdr104, ddr50, etc */
+	.quirks2 = SDHCI_QUIRK2_HOST_ANAL_CMD23 | /* Controller issue */
+		   SDHCI_QUIRK2_ANAL_1_8_V, /* Anal sdr104, ddr50, etc */
 	.ops = &sdhci_sparx5_ops,
 };
 
@@ -162,7 +162,7 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_sparx5_data *sdhci_sparx5;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 value;
 	u32 extra;
 
@@ -203,7 +203,7 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 
 	sdhci_sparx5->cpu_ctrl = syscon_regmap_lookup_by_compatible(syscon);
 	if (IS_ERR(sdhci_sparx5->cpu_ctrl)) {
-		dev_err(&pdev->dev, "No CPU syscon regmap !\n");
+		dev_err(&pdev->dev, "Anal CPU syscon regmap !\n");
 		ret = PTR_ERR(sdhci_sparx5->cpu_ctrl);
 		goto free_pltfm;
 	}
@@ -217,7 +217,7 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 		/* Update EMMC_CTRL */
 		sdhci_sparx5_set_emmc(host);
 		/* If eMMC, disable SD and SDIO */
-		host->mmc->caps2 |= (MMC_CAP2_NO_SDIO|MMC_CAP2_NO_SD);
+		host->mmc->caps2 |= (MMC_CAP2_ANAL_SDIO|MMC_CAP2_ANAL_SD);
 	}
 
 	ret = sdhci_add_host(host);
@@ -250,7 +250,7 @@ MODULE_DEVICE_TABLE(of, sdhci_sparx5_of_match);
 static struct platform_driver sdhci_sparx5_driver = {
 	.driver = {
 		.name = "sdhci-sparx5",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = sdhci_sparx5_of_match,
 		.pm = &sdhci_pltfm_pmops,
 	},

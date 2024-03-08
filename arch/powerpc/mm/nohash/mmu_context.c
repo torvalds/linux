@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file contains the routines for handling the MMU on those
- * PowerPC implementations where the MMU is not using the hash
+ * PowerPC implementations where the MMU is analt using the hash
  * table, such as 8xx, 4xx, BookE's etc...
  *
  * Copyright 2008 Ben Herrenschmidt <benh@kernel.crashing.org>
@@ -12,7 +12,7 @@
  *
  * TODO:
  *
- *   - The global context lock will not scale very well
+ *   - The global context lock will analt scale very well
  *   - The maps should be dynamically allocated to allow for processors
  *     that support more PID bits at runtime
  *   - Implement flush_tlb_mm() by making the context stale and picking
@@ -26,7 +26,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/memblock.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
 
@@ -48,8 +48,8 @@ void *abatron_pteptrs[2];
  * A better way would be to keep track of tasks that own contexts, and implement
  * an LRU usage. That way very active tasks don't always have to pay the TLB
  * reload overhead. The kernel pages are mapped shared, so the kernel can run on
- * behalf of any task that makes a kernel entry. Shared does not mean they are
- * not protected, just that the ASID comparison is not performed. -- Dan
+ * behalf of any task that makes a kernel entry. Shared does analt mean they are
+ * analt protected, just that the ASID comparison is analt performed. -- Dan
  *
  * The IBM4xx has 256 contexts, so we can just rotate through these as a way of
  * "switching" contexts. If the TID of the TLB is zero, the PID/TID comparison
@@ -57,7 +57,7 @@ void *abatron_pteptrs[2];
  * shared among all contexts. -- Dan
  *
  * The IBM 47x core supports 16-bit PIDs, thus 65535 contexts. We should
- * normally never have to steal though the facility is present if needed.
+ * analrmally never have to steal though the facility is present if needed.
  * -- BenH
  */
 #define FIRST_CONTEXT 1
@@ -107,7 +107,7 @@ static unsigned int steal_context_smp(unsigned int id)
 		mm = context_mm[id];
 
 		/* We have a candidate victim, check if it's active, on SMP
-		 * we cannot steal active contexts
+		 * we cananalt steal active contexts
 		 */
 		if (mm->context.active) {
 			id++;
@@ -116,13 +116,13 @@ static unsigned int steal_context_smp(unsigned int id)
 			continue;
 		}
 
-		/* Mark this mm has having no context anymore */
-		mm->context.id = MMU_NO_CONTEXT;
+		/* Mark this mm has having anal context anymore */
+		mm->context.id = MMU_ANAL_CONTEXT;
 
 		/* Mark it stale on all CPUs that used this mm. For threaded
 		 * implementations, we set it on all threads on each core
 		 * represented in the mask. A future implementation will use
-		 * a core map instead but this will do for now.
+		 * a core map instead but this will do for analw.
 		 */
 		for_each_cpu(cpu, mm_cpumask(mm)) {
 			for (i = cpu_first_thread_sibling(cpu);
@@ -143,7 +143,7 @@ static unsigned int steal_context_smp(unsigned int id)
 	raw_spin_lock(&context_lock);
 
 	/* This will cause the caller to try again */
-	return MMU_NO_CONTEXT;
+	return MMU_ANAL_CONTEXT;
 }
 
 static unsigned int steal_all_contexts(void)
@@ -156,8 +156,8 @@ static unsigned int steal_all_contexts(void)
 		/* Pick up the victim mm */
 		mm = context_mm[id];
 
-		/* Mark this mm as having no context anymore */
-		mm->context.id = MMU_NO_CONTEXT;
+		/* Mark this mm as having anal context anymore */
+		mm->context.id = MMU_ANAL_CONTEXT;
 		if (id != FIRST_CONTEXT) {
 			context_mm[id] = NULL;
 			__clear_bit(id, context_map);
@@ -166,7 +166,7 @@ static unsigned int steal_all_contexts(void)
 			__clear_bit(id, stale_map[cpu]);
 	}
 
-	/* Flush the TLB for all contexts (not to be used on SMP) */
+	/* Flush the TLB for all contexts (analt to be used on SMP) */
 	_tlbil_all();
 
 	nr_free_contexts = LAST_CONTEXT - FIRST_CONTEXT;
@@ -174,7 +174,7 @@ static unsigned int steal_all_contexts(void)
 	return FIRST_CONTEXT;
 }
 
-/* Note that this will also be called on SMP if all other CPUs are
+/* Analte that this will also be called on SMP if all other CPUs are
  * offlined, which means that it may be called for cpu != 0. For
  * this to work, we somewhat assume that CPUs that are onlined
  * come up with a fully clean TLB (or are cleaned when offlined)
@@ -190,8 +190,8 @@ static unsigned int steal_context_up(unsigned int id)
 	/* Flush the TLB for that context */
 	local_flush_tlb_mm(mm);
 
-	/* Mark this mm has having no context anymore */
-	mm->context.id = MMU_NO_CONTEXT;
+	/* Mark this mm has having anal context anymore */
+	mm->context.id = MMU_ANAL_CONTEXT;
 
 	/* XXX This clear should ultimately be part of local_flush_tlb_mm */
 	if (IS_ENABLED(CONFIG_SMP))
@@ -234,11 +234,11 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	unsigned int i, cpu = smp_processor_id();
 	unsigned long *map;
 
-	/* No lockless fast path .. yet */
+	/* Anal lockless fast path .. yet */
 	raw_spin_lock(&context_lock);
 
 	if (IS_ENABLED(CONFIG_SMP)) {
-		/* Mark us active and the previous one not anymore */
+		/* Mark us active and the previous one analt anymore */
 		next->context.active++;
 		if (prev) {
 			WARN_ON(prev->context.active < 1);
@@ -250,7 +250,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 
 	/* If we already have a valid assigned context, skip all that */
 	id = next->context.id;
-	if (likely(id != MMU_NO_CONTEXT))
+	if (likely(id != MMU_ANAL_CONTEXT))
 		goto ctxt_ok;
 
 	/* We really don't have a context, let's try to acquire one */
@@ -259,11 +259,11 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 		id = FIRST_CONTEXT;
 	map = context_map;
 
-	/* No more free contexts, let's try to steal one */
+	/* Anal more free contexts, let's try to steal one */
 	if (nr_free_contexts == 0) {
 		if (num_online_cpus() > 1) {
 			id = steal_context_smp(id);
-			if (id == MMU_NO_CONTEXT)
+			if (id == MMU_ANAL_CONTEXT)
 				goto again;
 			goto stolen;
 		}
@@ -275,7 +275,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	}
 	nr_free_contexts--;
 
-	/* We know there's at least one free context, try to find it */
+	/* We kanalw there's at least one free context, try to find it */
 	while (__test_and_set_bit(id, map)) {
 		id = find_next_zero_bit(map, LAST_CONTEXT+1, id);
 		if (id > LAST_CONTEXT)
@@ -317,7 +317,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
  */
 int init_new_context(struct task_struct *t, struct mm_struct *mm)
 {
-	mm->context.id = MMU_NO_CONTEXT;
+	mm->context.id = MMU_ANAL_CONTEXT;
 	mm->context.active = 0;
 	pte_frag_set(&mm->context, NULL);
 	return 0;
@@ -331,16 +331,16 @@ void destroy_context(struct mm_struct *mm)
 	unsigned long flags;
 	unsigned int id;
 
-	if (mm->context.id == MMU_NO_CONTEXT)
+	if (mm->context.id == MMU_ANAL_CONTEXT)
 		return;
 
 	WARN_ON(mm->context.active != 0);
 
 	raw_spin_lock_irqsave(&context_lock, flags);
 	id = mm->context.id;
-	if (id != MMU_NO_CONTEXT) {
+	if (id != MMU_ANAL_CONTEXT) {
 		__clear_bit(id, context_map);
-		mm->context.id = MMU_NO_CONTEXT;
+		mm->context.id = MMU_ANAL_CONTEXT;
 		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
@@ -403,7 +403,7 @@ void __init mmu_context_init(void)
 			panic("%s: Failed to allocate %zu bytes\n", __func__,
 			      CTX_MAP_SIZE);
 
-		cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
+		cpuhp_setup_state_analcalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
 					  "powerpc/mmu/ctx:prepare",
 					  mmu_ctx_cpu_prepare, mmu_ctx_cpu_dead);
 	}
@@ -415,7 +415,7 @@ void __init mmu_context_init(void)
 
 	/*
 	 * Some processors have too few contexts to reserve one for
-	 * init_mm, and require using context 0 for a normal task.
+	 * init_mm, and require using context 0 for a analrmal task.
 	 * Other processors reserve the use of context zero for the kernel.
 	 * This code assumes FIRST_CONTEXT < 32.
 	 */

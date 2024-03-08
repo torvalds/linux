@@ -16,7 +16,7 @@
  * port effort was started by Stephen.
  *
  * TODO LIST:
- * - fix lirc not showing repeats properly
+ * - fix lirc analt showing repeats properly
  * --
  *
  * The RedRat3 is a USB transceiver with both send & receive,
@@ -61,8 +61,8 @@
 /* Blink the red LED on the device */
 #define RR3_BLINK_LED		0xb9
 /* Read serial number of device */
-#define RR3_READ_SER_NO		0xba
-#define RR3_SER_NO_LEN		4
+#define RR3_READ_SER_ANAL		0xba
+#define RR3_SER_ANAL_LEN		4
 /* Start capture with the RC receiver */
 #define RR3_RC_DET_ENABLE	0xbb
 /* Stop capture with the RC receiver */
@@ -161,11 +161,11 @@ struct redrat3_irdata {
 	__be16 mod_freq_count;
 	__be16 num_periods;
 	__u8 max_lengths;
-	__u8 no_lengths;
+	__u8 anal_lengths;
 	__be16 max_sig_size;
 	__be16 sig_size;
-	__u8 no_repeats;
-	__be16 lens[RR3_DRIVER_MAXLENS]; /* not aligned */
+	__u8 anal_repeats;
+	__be16 lens[RR3_DRIVER_MAXLENS]; /* analt aligned */
 	__u8 sigdata[RR3_MAX_SIG_SIZE];
 } __packed;
 
@@ -240,18 +240,18 @@ static void redrat3_dump_fw_error(struct redrat3_dev *rr3, int code)
 
 	switch (code) {
 	case 0x00:
-		pr_cont("No Error\n");
+		pr_cont("Anal Error\n");
 		break;
 
 	/* Codes 0x20 through 0x2f are IR Firmware Errors */
 	case 0x20:
-		pr_cont("Initial signal pulse not long enough to measure carrier frequency\n");
+		pr_cont("Initial signal pulse analt long eanalugh to measure carrier frequency\n");
 		break;
 	case 0x21:
-		pr_cont("Not enough length values allocated for signal\n");
+		pr_cont("Analt eanalugh length values allocated for signal\n");
 		break;
 	case 0x22:
-		pr_cont("Not enough memory allocated for signal data\n");
+		pr_cont("Analt eanalugh memory allocated for signal data\n");
 		break;
 	case 0x23:
 		pr_cont("Too many signal repeats\n");
@@ -277,14 +277,14 @@ static void redrat3_dump_fw_error(struct redrat3_dev *rr3, int code)
 			pr_cont("Signal capture has been terminated\n");
 		break;
 	case 0x41:
-		pr_cont("Attempt to set/get and unknown signal I/O algorithm parameter\n");
+		pr_cont("Attempt to set/get and unkanalwn signal I/O algorithm parameter\n");
 		break;
 	case 0x42:
 		pr_cont("Signal capture already started\n");
 		break;
 
 	default:
-		pr_cont("Unknown Error\n");
+		pr_cont("Unkanalwn Error\n");
 		break;
 	}
 }
@@ -399,7 +399,7 @@ static int redrat3_send_cmd(int cmd, struct redrat3_dev *rr3)
 
 	data = kzalloc(sizeof(u8), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udev = rr3->udev;
 	res = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), cmd,
@@ -504,7 +504,7 @@ static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutus)
 
 	timeout = kmalloc(sizeof(*timeout), GFP_KERNEL);
 	if (!timeout)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*timeout = cpu_to_be32(redrat3_us_to_len(timeoutus));
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), RR3_SET_IR_PARAM,
@@ -626,7 +626,7 @@ static void redrat3_read_packet_start(struct redrat3_dev *rr3, unsigned len)
 		break;
 
 	default:
-		dev_dbg(rr3->dev, "ignoring packet with type 0x%02x, len of %d, 0x%02x\n",
+		dev_dbg(rr3->dev, "iganalring packet with type 0x%02x, len of %d, 0x%02x\n",
 						pkttype, len, pktlen);
 		break;
 	}
@@ -649,7 +649,7 @@ static void redrat3_read_packet_continue(struct redrat3_dev *rr3, unsigned len)
 				 be16_to_cpu(rr3->irdata.header.length));
 }
 
-/* gather IR data from incoming urb, process it when we have enough */
+/* gather IR data from incoming urb, process it when we have eanalugh */
 static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 {
 	struct device *dev = rr3->dev;
@@ -661,8 +661,8 @@ static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 	} else if (rr3->bytes_read != 0) {
 		redrat3_read_packet_continue(rr3, len);
 	} else if (rr3->bytes_read == 0) {
-		dev_err(dev, "error: no packet data read\n");
-		ret = -ENODATA;
+		dev_err(dev, "error: anal packet data read\n");
+		ret = -EANALDATA;
 		goto out;
 	}
 
@@ -676,7 +676,7 @@ static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 	if (pkttype == RR3_MOD_SIGNAL_IN)
 		redrat3_process_ir_data(rr3);
 	else
-		dev_dbg(dev, "discarding non-signal data packet (type 0x%02x)\n",
+		dev_dbg(dev, "discarding analn-signal data packet (type 0x%02x)\n",
 								pkttype);
 
 out:
@@ -701,7 +701,7 @@ static void redrat3_handle_async(struct urb *urb)
 		}
 
 		if (!ret) {
-			/* no error, prepare to read more */
+			/* anal error, prepare to read more */
 			ret = usb_submit_urb(urb, GFP_ATOMIC);
 			if (ret)
 				dev_err(rr3->dev, "Failed to resubmit urb: %d",
@@ -710,7 +710,7 @@ static void redrat3_handle_async(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		usb_unlink_urb(urb);
 		return;
@@ -772,11 +772,11 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 			      sizeof(*sample_lens),
 			      GFP_KERNEL);
 	if (!sample_lens)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irdata = kzalloc(sizeof(*irdata), GFP_KERNEL);
 	if (!irdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -795,7 +795,7 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 			dev_dbg(dev, "txbuf[%d]=%u, pos %d, enc %u\n",
 				i, txbuf[i], curlencheck, cur_sample_len);
 			if (curlencheck < RR3_DRIVER_MAXLENS) {
-				/* now convert the value to a proper
+				/* analw convert the value to a proper
 				 * rr3 value.. */
 				sample_lens[curlencheck] = cur_sample_len;
 				put_unaligned_be16(cur_sample_len,
@@ -820,7 +820,7 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 	irdata->header.transfer_type = cpu_to_be16(RR3_MOD_SIGNAL_OUT);
 	irdata->pause = cpu_to_be32(redrat3_len_to_us(100));
 	irdata->mod_freq_count = cpu_to_be16(mod_freq_to_val(rr3->carrier));
-	irdata->no_lengths = curlencheck;
+	irdata->anal_lengths = curlencheck;
 	irdata->sig_size = cpu_to_be16(count + RR3_TX_TRAILER_LEN);
 
 	pipe = usb_sndbulkpipe(rr3->udev, rr3->ep_out->bEndpointAddress);
@@ -828,7 +828,7 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 			    sendbuf_len, &ret_len, 10000);
 	dev_dbg(dev, "sent %d bytes, (ret %d)\n", ret_len, ret);
 
-	/* now tell the hardware to transmit what we sent it */
+	/* analw tell the hardware to transmit what we sent it */
 	pipe = usb_rcvctrlpipe(rr3->udev, 0);
 	ret = usb_control_msg(rr3->udev, pipe, RR3_TX_SEND_SIGNAL,
 			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
@@ -890,7 +890,7 @@ static void redrat3_learn_complete(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		usb_unlink_urb(urb);
 		return;
@@ -909,7 +909,7 @@ static void redrat3_led_complete(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		usb_unlink_urb(urb);
 		return;
@@ -983,7 +983,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *ep_out = NULL;
 	u8 addr, attrs;
 	int pipe, i;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	uhi = intf->cur_altsetting;
 
@@ -1017,14 +1017,14 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 
 	if (!ep_narrow || !ep_out || !ep_wide) {
 		dev_err(dev, "Couldn't find all endpoints\n");
-		retval = -ENODEV;
-		goto no_endpoints;
+		retval = -EANALDEV;
+		goto anal_endpoints;
 	}
 
 	/* allocate memory for our device state and initialize it */
 	rr3 = kzalloc(sizeof(*rr3), GFP_KERNEL);
 	if (!rr3)
-		goto no_endpoints;
+		goto anal_endpoints;
 
 	rr3->dev = &intf->dev;
 	rr3->ep_narrow = ep_narrow;
@@ -1051,14 +1051,14 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 		le16_to_cpu(ep_narrow->wMaxPacketSize),
 		redrat3_handle_async, rr3);
 	rr3->narrow_urb->transfer_dma = rr3->dma_in;
-	rr3->narrow_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	rr3->narrow_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	pipe = usb_rcvbulkpipe(udev, ep_wide->bEndpointAddress);
 	usb_fill_bulk_urb(rr3->wide_urb, udev, pipe, rr3->bulk_in_buf,
 		le16_to_cpu(ep_narrow->wMaxPacketSize),
 		redrat3_handle_async, rr3);
 	rr3->wide_urb->transfer_dma = rr3->dma_in;
-	rr3->wide_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	rr3->wide_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	redrat3_reset(rr3);
 	redrat3_get_firmware_rev(rr3);
@@ -1106,7 +1106,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 
 	rr3->rc = redrat3_init_rc_dev(rr3);
 	if (!rr3->rc) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto led_free;
 	}
 
@@ -1115,7 +1115,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	if (retval < 0)
 		goto led_free;
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device analw, as it is ready */
 	usb_set_intfdata(intf, rr3);
 
 	return 0;
@@ -1125,7 +1125,7 @@ led_free:
 redrat_free:
 	redrat3_delete(rr3, rr3->udev);
 
-no_endpoints:
+anal_endpoints:
 	return retval;
 }
 
@@ -1155,9 +1155,9 @@ static int redrat3_dev_resume(struct usb_interface *intf)
 {
 	struct redrat3_dev *rr3 = usb_get_intfdata(intf);
 
-	if (usb_submit_urb(rr3->narrow_urb, GFP_NOIO))
+	if (usb_submit_urb(rr3->narrow_urb, GFP_ANALIO))
 		return -EIO;
-	if (usb_submit_urb(rr3->wide_urb, GFP_NOIO))
+	if (usb_submit_urb(rr3->wide_urb, GFP_ANALIO))
 		return -EIO;
 	led_classdev_resume(&rr3->led);
 	return 0;

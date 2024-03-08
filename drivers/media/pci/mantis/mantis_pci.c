@@ -50,7 +50,7 @@ int mantis_pci_init(struct mantis_pci *mantis)
 
 	err = pci_enable_device(pdev);
 	if (err != 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dprintk(MANTIS_ERROR, 1, "ERROR: PCI enable failed <%i>", err);
 		goto fail0;
 	}
@@ -58,7 +58,7 @@ int mantis_pci_init(struct mantis_pci *mantis)
 	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err != 0) {
 		dprintk(MANTIS_ERROR, 1, "ERROR: Unable to obtain 32 bit DMA <%i>", err);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail1;
 	}
 
@@ -69,7 +69,7 @@ int mantis_pci_init(struct mantis_pci *mantis)
 				DRIVER_NAME)) {
 
 		dprintk(MANTIS_ERROR, 1, "ERROR: BAR0 Request failed !");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail1;
 	}
 
@@ -78,7 +78,7 @@ int mantis_pci_init(struct mantis_pci *mantis)
 
 	if (!mantis->mmio) {
 		dprintk(MANTIS_ERROR, 1, "ERROR: BAR0 remap failed !");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail2;
 	}
 
@@ -107,7 +107,7 @@ int mantis_pci_init(struct mantis_pci *mantis)
 	if (err != 0) {
 
 		dprintk(MANTIS_ERROR, 1, "ERROR: IRQ registration failed ! <%d>", err);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail3;
 	}
 
@@ -139,7 +139,7 @@ void mantis_pci_exit(struct mantis_pci *mantis)
 {
 	struct pci_dev *pdev = mantis->pdev;
 
-	dprintk(MANTIS_NOTICE, 1, " mem: 0x%p", mantis->mmio);
+	dprintk(MANTIS_ANALTICE, 1, " mem: 0x%p", mantis->mmio);
 	free_irq(pdev->irq, mantis);
 	if (mantis->mmio) {
 		iounmap(mantis->mmio);

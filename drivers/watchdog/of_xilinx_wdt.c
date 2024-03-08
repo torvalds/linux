@@ -163,7 +163,7 @@ static int xwdt_probe(struct platform_device *pdev)
 
 	xdev = devm_kzalloc(dev, sizeof(*xdev), GFP_KERNEL);
 	if (!xdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xilinx_wdt_wdd = &xdev->xilinx_wdt_wdd;
 	xilinx_wdt_wdd->info = &xilinx_wdt_ident;
@@ -174,22 +174,22 @@ static int xwdt_probe(struct platform_device *pdev)
 	if (IS_ERR(xdev->base))
 		return PTR_ERR(xdev->base);
 
-	rc = of_property_read_u32(dev->of_node, "xlnx,wdt-interval",
+	rc = of_property_read_u32(dev->of_analde, "xlnx,wdt-interval",
 				  &xdev->wdt_interval);
 	if (rc)
-		dev_warn(dev, "Parameter \"xlnx,wdt-interval\" not found\n");
+		dev_warn(dev, "Parameter \"xlnx,wdt-interval\" analt found\n");
 
-	rc = of_property_read_u32(dev->of_node, "xlnx,wdt-enable-once",
+	rc = of_property_read_u32(dev->of_analde, "xlnx,wdt-enable-once",
 				  &enable_once);
 	if (rc)
 		dev_warn(dev,
-			 "Parameter \"xlnx,wdt-enable-once\" not found\n");
+			 "Parameter \"xlnx,wdt-enable-once\" analt found\n");
 
-	watchdog_set_nowayout(xilinx_wdt_wdd, enable_once);
+	watchdog_set_analwayout(xilinx_wdt_wdd, enable_once);
 
 	xdev->clk = devm_clk_get_prepared(dev, NULL);
 	if (IS_ERR(xdev->clk)) {
-		if (PTR_ERR(xdev->clk) != -ENOENT)
+		if (PTR_ERR(xdev->clk) != -EANALENT)
 			return PTR_ERR(xdev->clk);
 
 		/*
@@ -198,18 +198,18 @@ static int xwdt_probe(struct platform_device *pdev)
 		 */
 		xdev->clk = NULL;
 
-		rc = of_property_read_u32(dev->of_node, "clock-frequency",
+		rc = of_property_read_u32(dev->of_analde, "clock-frequency",
 					  &pfreq);
 		if (rc)
 			dev_warn(dev,
-				 "The watchdog clock freq cannot be obtained\n");
+				 "The watchdog clock freq cananalt be obtained\n");
 	} else {
 		pfreq = clk_get_rate(xdev->clk);
 	}
 
 	/*
 	 * Twice of the 2^wdt_interval / freq  because the first wdt overflow is
-	 * ignored (interrupt), reset is only generated at second wdt overflow
+	 * iganalred (interrupt), reset is only generated at second wdt overflow
 	 */
 	if (pfreq && xdev->wdt_interval)
 		xilinx_wdt_wdd->timeout = 2 * ((1 << xdev->wdt_interval) /
@@ -265,7 +265,7 @@ static int __maybe_unused xwdt_suspend(struct device *dev)
  * xwdt_resume - Resume the device.
  *
  * @dev: handle to the device structure.
- * Return: 0 on success, errno otherwise.
+ * Return: 0 on success, erranal otherwise.
  */
 static int __maybe_unused xwdt_resume(struct device *dev)
 {

@@ -151,9 +151,9 @@ static int ring_show(struct seq_file *s, void *data)
 			char name[10];
 			char sidle[10];
 			/* performance monitoring */
-			cycles_t now = get_cycles();
+			cycles_t analw = get_cycles();
 			uint64_t idle = txdata->idle * 100;
-			uint64_t total = now - txdata->begin;
+			uint64_t total = analw - txdata->begin;
 
 			if (total != 0) {
 				do_div(idle, total);
@@ -162,7 +162,7 @@ static int ring_show(struct seq_file *s, void *data)
 			} else {
 				snprintf(sidle, sizeof(sidle), "N/A");
 			}
-			txdata->begin = now;
+			txdata->begin = analw;
 			txdata->idle = 0ULL;
 
 			snprintf(name, sizeof(name), "tx_%2d", i);
@@ -264,7 +264,7 @@ DEFINE_SHOW_ATTRIBUTE(srings);
 static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
 			    const char *prefix)
 {
-	seq_hex_dump(s, prefix, DUMP_PREFIX_NONE, 16, 1, p, len, false);
+	seq_hex_dump(s, prefix, DUMP_PREFIX_ANALNE, 16, 1, p, len, false);
 }
 
 static void wil_print_mbox_ring(struct seq_file *s, const char *prefix,
@@ -298,7 +298,7 @@ static void wil_print_mbox_ring(struct seq_file *s, const char *prefix,
 	seq_printf(s, "  entry size = %d\n", r.entry_size);
 
 	if (r.size % sizeof(struct wil6210_mbox_ring_desc)) {
-		seq_printf(s, "  ??? size is not multiple of %zd, garbage?\n",
+		seq_printf(s, "  ??? size is analt multiple of %zd, garbage?\n",
 			   sizeof(struct wil6210_mbox_ring_desc));
 		goto out;
 	}
@@ -334,7 +334,7 @@ static void wil_print_mbox_ring(struct seq_file *s, const char *prefix,
 				void __iomem *src = wmi_buffer(wil, d.addr) +
 					sizeof(struct wil6210_mbox_hdr);
 				/*
-				 * No need to check @src for validity -
+				 * Anal need to check @src for validity -
 				 * we already validated @d.addr while
 				 * reading header
 				 */
@@ -641,7 +641,7 @@ static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 
 	buf = kmalloc(aligned_count, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = wil_pm_runtime_get(wil);
 	if (rc < 0) {
@@ -784,7 +784,7 @@ static ssize_t wil_write_back(struct file *file, const char __user *buf,
 	int p1, p2, p3;
 
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
 	if (rc != len) {
@@ -881,7 +881,7 @@ static ssize_t wil_write_pmccfg(struct file *file, const char __user *buf,
 	int num_descs, desc_size;
 
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
 	if (rc != len) {
@@ -897,7 +897,7 @@ static ssize_t wil_write_pmccfg(struct file *file, const char __user *buf,
 		return rc;
 
 	if (rc < 1) {
-		wil_err(wil, "pmccfg: no params given\n");
+		wil_err(wil, "pmccfg: anal params given\n");
 		return -EINVAL;
 	}
 
@@ -909,7 +909,7 @@ static ssize_t wil_write_pmccfg(struct file *file, const char __user *buf,
 		wil_pmc_alloc(wil, num_descs, desc_size);
 	} else if (0 == strcmp(cmd, "free")) {
 		if (rc != 1) {
-			wil_err(wil, "pmccfg: free does not have any params\n");
+			wil_err(wil, "pmccfg: free does analt have any params\n");
 			return -EINVAL;
 		}
 		wil_pmc_free(wil, true);
@@ -949,9 +949,9 @@ static const struct file_operations fops_pmcdata = {
 	.llseek		= wil_pmc_llseek,
 };
 
-static int wil_pmcring_seq_open(struct inode *inode, struct file *file)
+static int wil_pmcring_seq_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, wil_pmcring_read, inode->i_private);
+	return single_open(file, wil_pmcring_read, ianalde->i_private);
 }
 
 static const struct file_operations fops_pmcring = {
@@ -1090,9 +1090,9 @@ static int txdesc_show(struct seq_file *s, void *data)
 
 	if (!ring->va) {
 		if (tx)
-			seq_printf(s, "No Tx[%2d] RING\n", ring_idx);
+			seq_printf(s, "Anal Tx[%2d] RING\n", ring_idx);
 		else
-			seq_puts(s, "No Rx RING\n");
+			seq_puts(s, "Anal Rx RING\n");
 		return 0;
 	}
 
@@ -1172,7 +1172,7 @@ static int status_msg_show(struct seq_file *s, void *data)
 	tx = !sring->is_rx;
 
 	if (!sring->va) {
-		seq_printf(s, "No %cX status ring\n", tx ? 'T' : 'R');
+		seq_printf(s, "Anal %cX status ring\n", tx ? 'T' : 'R');
 		return 0;
 	}
 
@@ -1259,7 +1259,7 @@ static char *wil_bfstatus_str(u32 status)
 
 static bool is_all_zeros(void * const x_, size_t sz)
 {
-	/* if reply is all-0, ignore this CID */
+	/* if reply is all-0, iganalre this CID */
 	u32 *x = x_;
 	int n;
 
@@ -1276,12 +1276,12 @@ static int bf_show(struct seq_file *s, void *data)
 	int i;
 	struct wil6210_priv *wil = s->private;
 	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
-	struct wmi_notify_req_cmd cmd = {
+	struct wmi_analtify_req_cmd cmd = {
 		.interval_usec = 0,
 	};
 	struct {
 		struct wmi_cmd_hdr wmi;
-		struct wmi_notify_req_done_event evt;
+		struct wmi_analtify_req_done_event evt;
 	} __packed reply;
 
 	memset(&reply, 0, sizeof(reply));
@@ -1291,11 +1291,11 @@ static int bf_show(struct seq_file *s, void *data)
 		u8 bf_mcs;
 
 		cmd.cid = i;
-		rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, vif->mid,
+		rc = wmi_call(wil, WMI_ANALTIFY_REQ_CMDID, vif->mid,
 			      &cmd, sizeof(cmd),
-			      WMI_NOTIFY_REQ_DONE_EVENTID, &reply,
+			      WMI_ANALTIFY_REQ_DONE_EVENTID, &reply,
 			      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
-		/* if reply is all-0, ignore this CID */
+		/* if reply is all-0, iganalre this CID */
 		if (rc || is_all_zeros(&reply.evt, sizeof(reply.evt)))
 			continue;
 
@@ -1372,7 +1372,7 @@ static int temp_show(struct seq_file *s, void *data)
 		s32 t_m, t_r;
 
 		wil_dbg_misc(wil,
-			     "WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF is not supported");
+			     "WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF is analt supported");
 		rc = wmi_get_temperature(wil, &t_m, &t_r);
 		if (rc) {
 			seq_puts(s, "Failed\n");
@@ -1394,11 +1394,11 @@ static int link_show(struct seq_file *s, void *data)
 
 	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
 	if (!sinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < wil->max_assoc_sta; i++) {
 		struct wil_sta_info *p = &wil->sta[i];
-		char *status = "unknown";
+		char *status = "unkanalwn";
 		struct wil6210_vif *vif;
 		u8 mid;
 
@@ -1493,7 +1493,7 @@ static ssize_t wil_read_file_recovery(struct file *file, char __user *user_buf,
 	static const char * const sstate[] = {"idle", "pending", "running"};
 
 	n = snprintf(buf, sizeof(buf), "mode = %s\nstate = %s\n",
-		     no_fw_recovery ? "manual" : "auto",
+		     anal_fw_recovery ? "manual" : "auto",
 		     sstate[wil->recovery_state]);
 
 	n = min_t(int, n, sizeof(buf));
@@ -1512,7 +1512,7 @@ static ssize_t wil_write_file_recovery(struct file *file,
 	ssize_t rc;
 
 	if (wil->recovery_state != fw_recovery_pending) {
-		wil_err(wil, "No recovery pending\n");
+		wil_err(wil, "Anal recovery pending\n");
 		return -EINVAL;
 	}
 
@@ -1602,7 +1602,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 
 	for (i = 0; i < wil->max_assoc_sta; i++) {
 		struct wil_sta_info *p = &wil->sta[i];
-		char *status = "unknown";
+		char *status = "unkanalwn";
 		u8 aid = 0;
 		u8 mid;
 		bool sta_connected = false;
@@ -1653,8 +1653,8 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 					       &p->group_crypto_rx);
 			spin_unlock_bh(&p->tid_rx_lock);
 			seq_printf(s,
-				   "Rx invalid frame: non-data %lu, short %lu, large %lu, replay %lu\n",
-				   p->stats.rx_non_data_frame,
+				   "Rx invalid frame: analn-data %lu, short %lu, large %lu, replay %lu\n",
+				   p->stats.rx_analn_data_frame,
 				   p->stats.rx_short_frame,
 				   p->stats.rx_large_frame,
 				   p->stats.rx_replay);
@@ -1711,7 +1711,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 
 	for (i = 0; i < wil->max_assoc_sta; i++) {
 		struct wil_sta_info *p = &wil->sta[i];
-		char *status = "unknown";
+		char *status = "unkanalwn";
 		u8 aid = 0;
 		u8 mid;
 
@@ -1760,10 +1760,10 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 	return 0;
 }
 
-static int wil_tx_latency_seq_open(struct inode *inode, struct file *file)
+static int wil_tx_latency_seq_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, wil_tx_latency_debugfs_show,
-			   inode->i_private);
+			   ianalde->i_private);
 }
 
 static ssize_t wil_tx_latency_write(struct file *file, const char __user *buf,
@@ -1804,7 +1804,7 @@ static ssize_t wil_tx_latency_write(struct file *file, const char __user *buf,
 			kfree(sta->tx_latency_bins);
 			sta->tx_latency_bins = kzalloc(sz, GFP_KERNEL);
 			if (!sta->tx_latency_bins)
-				return -ENOMEM;
+				return -EANALMEM;
 			sta->stats.tx_latency_min_us = U32_MAX;
 			sta->stats.tx_latency_max_us = 0;
 			sta->stats.tx_latency_total_us = 0;
@@ -1860,7 +1860,7 @@ static void wil_link_stats_print_global(struct wil6210_priv *wil,
 		   "BA Frames(rx:tx) %d:%d\n"
 		   "Beacons %d\n"
 		   "Rx Errors (MIC:CRC) %d:%d\n"
-		   "Tx Errors (no ack) %d\n",
+		   "Tx Errors (anal ack) %d\n",
 		   le32_to_cpu(global->rx_frames),
 		   le32_to_cpu(global->tx_frames),
 		   le32_to_cpu(global->rx_ba_frames),
@@ -1868,7 +1868,7 @@ static void wil_link_stats_print_global(struct wil6210_priv *wil,
 		   le32_to_cpu(global->tx_beacons),
 		   le32_to_cpu(global->rx_mic_errors),
 		   le32_to_cpu(global->rx_crc_errors),
-		   le32_to_cpu(global->tx_fail_no_ack));
+		   le32_to_cpu(global->tx_fail_anal_ack));
 }
 
 static void wil_link_stats_debugfs_show_vif(struct wil6210_vif *vif,
@@ -1879,7 +1879,7 @@ static void wil_link_stats_debugfs_show_vif(struct wil6210_vif *vif,
 	int i;
 
 	if (!vif->fw_stats_ready) {
-		seq_puts(s, "no statistics\n");
+		seq_puts(s, "anal statistics\n");
 		return;
 	}
 
@@ -1925,9 +1925,9 @@ static int wil_link_stats_debugfs_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int wil_link_stats_seq_open(struct inode *inode, struct file *file)
+static int wil_link_stats_seq_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, wil_link_stats_debugfs_show, inode->i_private);
+	return single_open(file, wil_link_stats_debugfs_show, ianalde->i_private);
 }
 
 static ssize_t wil_link_stats_write(struct file *file, const char __user *buf,
@@ -1940,7 +1940,7 @@ static ssize_t wil_link_stats_write(struct file *file, const char __user *buf,
 	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
 
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
 	if (rc != len) {
@@ -2002,10 +2002,10 @@ wil_link_stats_global_debugfs_show(struct seq_file *s, void *data)
 }
 
 static int
-wil_link_stats_global_seq_open(struct inode *inode, struct file *file)
+wil_link_stats_global_seq_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, wil_link_stats_global_debugfs_show,
-			   inode->i_private);
+			   ianalde->i_private);
 }
 
 static ssize_t
@@ -2099,7 +2099,7 @@ static ssize_t wil_write_led_blink_time(struct file *file,
 	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
 
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
 	if (rc != len) {
@@ -2201,7 +2201,7 @@ static ssize_t wil_read_suspend_stats(struct file *file,
 
 	text = kmalloc(text_size, GFP_KERNEL);
 	if (!text)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n = snprintf(text, text_size,
 		     "Radio on suspend statistics:\n"
@@ -2256,7 +2256,7 @@ static ssize_t wil_compressed_rx_status_write(struct file *file,
 	}
 
 	if (wil_has_active_ifaces(wil, true, false)) {
-		wil_err(wil, "cannot change edma config after iface is up\n");
+		wil_err(wil, "cananalt change edma config after iface is up\n");
 		return -EPERM;
 	}
 
@@ -2279,10 +2279,10 @@ wil_compressed_rx_status_show(struct seq_file *s, void *data)
 }
 
 static int
-wil_compressed_rx_status_seq_open(struct inode *inode, struct file *file)
+wil_compressed_rx_status_seq_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, wil_compressed_rx_status_show,
-			   inode->i_private);
+			   ianalde->i_private);
 }
 
 static const struct file_operations fops_compressed_rx_status = {
@@ -2439,7 +2439,7 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	struct dentry *dbg = wil->debug = debugfs_create_dir(WIL_NAME,
 			wil_to_wiphy(wil)->debugfsdir);
 	if (IS_ERR_OR_NULL(dbg))
-		return -ENODEV;
+		return -EANALDEV;
 
 	wil->dbg_data.data_arr = kcalloc(dbg_off_count,
 					 sizeof(struct wil_debugfs_iomem_data),
@@ -2447,7 +2447,7 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	if (!wil->dbg_data.data_arr) {
 		debugfs_remove_recursive(dbg);
 		wil->debug = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wil->dbg_data.iomem_data_count = 0;

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -43,7 +43,7 @@
 #include <asm/smp.h>
 
 /*
- * clflushopt is an unordered instruction which needs fencing with mfence or
+ * clflushopt is an uanalrdered instruction which needs fencing with mfence or
  * sfence to avoid ordering issues.  For drm_clflush_page this fencing happens
  * in the caller.
  */
@@ -112,7 +112,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 		kunmap_atomic(page_virtual);
 	}
 #else
-	WARN_ONCE(1, "Architecture has no drm_cache.c support\n");
+	WARN_ONCE(1, "Architecture has anal drm_cache.c support\n");
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_pages);
@@ -142,7 +142,7 @@ drm_clflush_sg(struct sg_table *st)
 	if (wbinvd_on_all_cpus())
 		pr_err("Timed out waiting for cache flush\n");
 #else
-	WARN_ONCE(1, "Architecture has no drm_cache.c support\n");
+	WARN_ONCE(1, "Architecture has anal drm_cache.c support\n");
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_sg);
@@ -175,7 +175,7 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 	if (wbinvd_on_all_cpus())
 		pr_err("Timed out waiting for cache flush\n");
 #else
-	WARN_ONCE(1, "Architecture has no drm_cache.c support\n");
+	WARN_ONCE(1, "Architecture has anal drm_cache.c support\n");
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_virt_range);
@@ -189,7 +189,7 @@ bool drm_need_swiotlb(int dma_bits)
 	 * Xen paravirtual hosts require swiotlb regardless of requested dma
 	 * transfer size.
 	 *
-	 * NOTE: Really, what it requires is use of the dma_alloc_coherent
+	 * ANALTE: Really, what it requires is use of the dma_alloc_coherent
 	 *       allocator used in ttm_dma_populate() instead of
 	 *       ttm_populate_and_map_pages(), which bounce buffers so much in
 	 *       Xen it leads to swiotlb buffer exhaustion.
@@ -223,7 +223,7 @@ static void memcpy_fallback(struct iosys_map *dst,
 		memcpy_fromio(dst->vaddr, src->vaddr_iomem, len);
 	} else {
 		/*
-		 * Bounce size is not performance tuned, but using a
+		 * Bounce size is analt performance tuned, but using a
 		 * bounce buffer like this is significantly faster than
 		 * resorting to ioreadxx() + iowritexx().
 		 */
@@ -280,7 +280,7 @@ static void __memcpy_ntdqa(void *dst, const void *src, unsigned long len)
 
 /*
  * __drm_memcpy_from_wc copies @len bytes from @src to @dst using
- * non-temporal instructions where available. Note that all arguments
+ * analn-temporal instructions where available. Analte that all arguments
  * (@src, @dst) must be aligned to 16 bytes and @len must be a multiple
  * of 16.
  */
@@ -300,7 +300,7 @@ static void __drm_memcpy_from_wc(void *dst, const void *src, unsigned long len)
  * @len: The size of the area o transfer in bytes
  *
  * Tries an arch optimized memcpy for prefetching reading out of a WC region,
- * and if no such beast is available, falls back to a normal memcpy.
+ * and if anal such beast is available, falls back to a analrmal memcpy.
  */
 void drm_memcpy_from_wc(struct iosys_map *dst,
 			const struct iosys_map *src,

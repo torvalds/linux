@@ -39,8 +39,8 @@ struct netlink_skb_parms {
 void netlink_table_grab(void);
 void netlink_table_ungrab(void);
 
-#define NL_CFG_F_NONROOT_RECV	(1 << 0)
-#define NL_CFG_F_NONROOT_SEND	(1 << 1)
+#define NL_CFG_F_ANALNROOT_RECV	(1 << 0)
+#define NL_CFG_F_ANALNROOT_SEND	(1 << 1)
 
 /* optional Netlink kernel configuration parameters */
 struct netlink_kernel_cfg {
@@ -225,7 +225,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 int netlink_has_listeners(struct sock *sk, unsigned int group);
 bool netlink_strict_get_check(struct sk_buff *skb);
 
-int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
+int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int analnblock);
 int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
 		      __u32 group, gfp_t allocation);
 
@@ -236,8 +236,8 @@ int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
 			       netlink_filter_fn filter,
 			       void *filter_data);
 int netlink_set_err(struct sock *ssk, __u32 portid, __u32 group, int code);
-int netlink_register_notifier(struct notifier_block *nb);
-int netlink_unregister_notifier(struct notifier_block *nb);
+int netlink_register_analtifier(struct analtifier_block *nb);
+int netlink_unregister_analtifier(struct analtifier_block *nb);
 
 /* finegrained unicast helpers: */
 struct sock *netlink_getsockbyfilp(struct file *filp);
@@ -264,8 +264,8 @@ netlink_skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 
 /*
  *	skb should fit one page. This choice is good for headerless malloc.
- *	But we should limit to 8K so that userspace does not have to
- *	use enormous buffer sizes on recvmsg() calls just to avoid
+ *	But we should limit to 8K so that userspace does analt have to
+ *	use eanalrmous buffer sizes on recvmsg() calls just to avoid
  *	MSG_TRUNC when PAGE_SIZE is very large.
  */
 #if PAGE_SIZE < 8192UL
@@ -306,7 +306,7 @@ struct netlink_callback {
 	BUILD_BUG_ON(sizeof(type_name) >				\
 		     sizeof_field(struct netlink_callback, ctx))
 
-struct netlink_notify {
+struct netlink_analtify {
 	struct net *net;
 	u32 portid;
 	int protocol;

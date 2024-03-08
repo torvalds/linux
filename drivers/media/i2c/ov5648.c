@@ -15,7 +15,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
 
@@ -651,7 +651,7 @@ struct ov5648_sensor {
 	struct regulator *dovdd;
 	struct clk *xvclk;
 
-	struct v4l2_fwnode_endpoint endpoint;
+	struct v4l2_fwanalde_endpoint endpoint;
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
 
@@ -1866,14 +1866,14 @@ static int ov5648_sensor_power(struct ov5648_sensor *sensor, bool on)
 	int ret = 0;
 
 	/*
-	 * General notes about the power sequence:
+	 * General analtes about the power sequence:
 	 * - power-down GPIO must be active (low) during power-on;
-	 * - reset GPIO state does not matter during power-on;
+	 * - reset GPIO state does analt matter during power-on;
 	 * - XVCLK must be provided 1 ms before register access;
 	 * - 10 ms are needed between power-down deassert and register access.
 	 */
 
-	/* Note that regulator-and-GPIO-based power is untested. */
+	/* Analte that regulator-and-GPIO-based power is untested. */
 	if (on) {
 		gpiod_set_value_cansleep(sensor->reset, 1);
 		gpiod_set_value_cansleep(sensor->powerdown, 1);
@@ -2184,7 +2184,7 @@ static void ov5648_mbus_format_fill(struct v4l2_mbus_framefmt *mbus_format,
 	mbus_format->height = mode->output_size_y;
 	mbus_format->code = mbus_code;
 
-	mbus_format->field = V4L2_FIELD_NONE;
+	mbus_format->field = V4L2_FIELD_ANALNE;
 	mbus_format->colorspace = V4L2_COLORSPACE_RAW;
 	mbus_format->ycbcr_enc =
 		V4L2_MAP_YCBCR_ENC_DEFAULT(mbus_format->colorspace);
@@ -2448,7 +2448,7 @@ complete:
 static int ov5648_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct fwnode_handle *handle;
+	struct fwanalde_handle *handle;
 	struct ov5648_sensor *sensor;
 	struct v4l2_subdev *subdev;
 	struct media_pad *pad;
@@ -2457,25 +2457,25 @@ static int ov5648_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->dev = dev;
 	sensor->i2c_client = client;
 
 	/* Graph Endpoint */
 
-	handle = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	handle = fwanalde_graph_get_next_endpoint(dev_fwanalde(dev), NULL);
 	if (!handle) {
-		dev_err(dev, "unable to find endpoint node\n");
+		dev_err(dev, "unable to find endpoint analde\n");
 		return -EINVAL;
 	}
 
 	sensor->endpoint.bus_type = V4L2_MBUS_CSI2_DPHY;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(handle, &sensor->endpoint);
-	fwnode_handle_put(handle);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(handle, &sensor->endpoint);
+	fwanalde_handle_put(handle);
 	if (ret) {
-		dev_err(dev, "failed to parse endpoint node\n");
+		dev_err(dev, "failed to parse endpoint analde\n");
 		return ret;
 	}
 
@@ -2499,7 +2499,7 @@ static int ov5648_probe(struct i2c_client *client)
 	/* DVDD: digital core */
 	sensor->dvdd = devm_regulator_get(dev, "dvdd");
 	if (IS_ERR(sensor->dvdd)) {
-		dev_err(dev, "cannot get DVDD (digital core) regulator\n");
+		dev_err(dev, "cananalt get DVDD (digital core) regulator\n");
 		ret = PTR_ERR(sensor->dvdd);
 		goto error_endpoint;
 	}
@@ -2507,7 +2507,7 @@ static int ov5648_probe(struct i2c_client *client)
 	/* DOVDD: digital I/O */
 	sensor->dovdd = devm_regulator_get(dev, "dovdd");
 	if (IS_ERR(sensor->dovdd)) {
-		dev_err(dev, "cannot get DOVDD (digital I/O) regulator\n");
+		dev_err(dev, "cananalt get DOVDD (digital I/O) regulator\n");
 		ret = PTR_ERR(sensor->dovdd);
 		goto error_endpoint;
 	}
@@ -2515,7 +2515,7 @@ static int ov5648_probe(struct i2c_client *client)
 	/* AVDD: analog */
 	sensor->avdd = devm_regulator_get_optional(dev, "avdd");
 	if (IS_ERR(sensor->avdd)) {
-		dev_info(dev, "no AVDD regulator provided, using internal\n");
+		dev_info(dev, "anal AVDD regulator provided, using internal\n");
 		sensor->avdd = NULL;
 	}
 
@@ -2540,7 +2540,7 @@ static int ov5648_probe(struct i2c_client *client)
 	subdev = &sensor->subdev;
 	v4l2_i2c_subdev_init(subdev, client, &ov5648_subdev_ops);
 
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	subdev->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	pad = &sensor->pad;
@@ -2590,7 +2590,7 @@ error_entity:
 	media_entity_cleanup(&sensor->subdev.entity);
 
 error_endpoint:
-	v4l2_fwnode_endpoint_free(&sensor->endpoint);
+	v4l2_fwanalde_endpoint_free(&sensor->endpoint);
 
 	return ret;
 }
@@ -2605,7 +2605,7 @@ static void ov5648_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	mutex_destroy(&sensor->mutex);
 	media_entity_cleanup(&subdev->entity);
-	v4l2_fwnode_endpoint_free(&sensor->endpoint);
+	v4l2_fwanalde_endpoint_free(&sensor->endpoint);
 }
 
 static const struct dev_pm_ops ov5648_pm_ops = {

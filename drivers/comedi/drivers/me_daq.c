@@ -14,7 +14,7 @@
  * Author: Michael Hillmann <hillmann@syscongroup.de>
  * Status: experimental
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  *
  * Supports:
  *    Analog Input, Analog Output, Digital I/O
@@ -272,7 +272,7 @@ static int me_ai_insn_read(struct comedi_device *dev,
 		/* start ai conversion */
 		readw(dev->mmio + ME_CTRL1_REG);
 
-		/* wait for ADC fifo not empty flag */
+		/* wait for ADC fifo analt empty flag */
 		ret = comedi_timeout(dev, s, insn, me_ai_eoc, 0);
 		if (ret)
 			break;
@@ -435,13 +435,13 @@ static int me_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(me_boards))
 		board = &me_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -449,11 +449,11 @@ static int me_auto_attach(struct comedi_device *dev,
 
 	devpriv->plx_regbase = pci_ioremap_bar(pcidev, 0);
 	if (!devpriv->plx_regbase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->mmio = pci_ioremap_bar(pcidev, 2);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Download firmware and reset card */
 	if (board->needs_firmware) {

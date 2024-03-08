@@ -18,7 +18,7 @@ struct special_alt {
 	bool group;
 	bool skip_orig;
 	bool skip_alt;
-	bool jump_or_nop;
+	bool jump_or_analp;
 	u8 key_addend;
 
 	struct section *orig_sec;

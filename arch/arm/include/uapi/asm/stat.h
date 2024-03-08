@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASMARM_STAT_H
 #define _ASMARM_STAT_H
 
 struct __old_kernel_stat {
 	unsigned short st_dev;
-	unsigned short st_ino;
+	unsigned short st_ianal;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -25,7 +25,7 @@ struct stat {
 #else
 	unsigned long  st_dev;
 #endif
-	unsigned long  st_ino;
+	unsigned long  st_ianal;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -51,15 +51,15 @@ struct stat {
 
 /* This matches struct stat64 in glibc2.1, hence the absolutely
  * insane amounts of padding around dev_t's.
- * Note: The kernel zero's the padded region because glibc might read them
+ * Analte: The kernel zero's the padded region because glibc might read them
  * in the hope that the kernel has stretched to using larger sizes.
  */
 struct stat64 {
 	unsigned long long	st_dev;
 	unsigned char   __pad0[4];
 
-#define STAT64_HAS_BROKEN_ST_INO	1
-	unsigned long	__st_ino;
+#define STAT64_HAS_BROKEN_ST_IANAL	1
+	unsigned long	__st_ianal;
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 
@@ -82,7 +82,7 @@ struct stat64 {
 	unsigned long	st_ctime;
 	unsigned long	st_ctime_nsec;
 
-	unsigned long long	st_ino;
+	unsigned long long	st_ianal;
 };
 
 #endif

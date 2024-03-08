@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -850,7 +850,7 @@ static bool dce100_validate_bandwidth(
 	}
 
 	if (at_least_one_pipe) {
-		/* TODO implement when needed but for now hardcode max value*/
+		/* TODO implement when needed but for analw hardcode max value*/
 		context->bw_ctx.bw.dce.dispclk_khz = 681000;
 		context->bw_ctx.bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
 	} else {
@@ -953,13 +953,13 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 	 * below can happen in cases when stream encoder is acquired:
 	 * 1) for second MST display in chain, so preferred engine already
 	 * acquired;
-	 * 2) for another link, which preferred engine already acquired by any
+	 * 2) for aanalther link, which preferred engine already acquired by any
 	 * MST configuration.
 	 *
-	 * If signal is of DP type and preferred engine not found, return last available
+	 * If signal is of DP type and preferred engine analt found, return last available
 	 *
 	 * TODO - This is just a patch up and a generic solution is
-	 * required for non DP connectors.
+	 * required for analn DP connectors.
 	 */
 
 	if (j >= 0 && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)
@@ -992,7 +992,7 @@ static bool dce100_resource_construct(
 
 	pool->base.res_cap = &res_cap;
 	pool->base.funcs = &dce100_res_pool_funcs;
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 
 	bp = ctx->dc_bios;
 
@@ -1064,7 +1064,7 @@ static bool dce100_resource_construct(
 	/*************************************************
 	*  Resource + asic cap harcoding                *
 	*************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap.num_timing_generator;
 	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;

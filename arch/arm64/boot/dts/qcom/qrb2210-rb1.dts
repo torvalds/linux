@@ -10,7 +10,7 @@
 #include "pm2250.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. Robotics RB1";
+	model = "Qualcomm Techanallogies, Inc. Robotics RB1";
 	compatible = "qcom,qrb2210-rb1", "qcom,qrb2210", "qcom,qcm2290";
 
 	aliases {
@@ -76,7 +76,7 @@
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&tlmm 52 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "off";
 			panic-indicator;
 		};
@@ -438,10 +438,10 @@
 	pinctrl-0 = <&sdc1_state_on>;
 	pinctrl-1 = <&sdc1_state_off>;
 	pinctrl-names = "default", "sleep";
-	non-removable;
+	analn-removable;
 	supports-cqe;
-	no-sdio;
-	no-sd;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 
@@ -452,8 +452,8 @@
 	pinctrl-0 = <&sdc2_state_on &sd_det_in_on>;
 	pinctrl-1 = <&sdc2_state_off &sd_det_in_off>;
 	pinctrl-names = "default", "sleep";
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 

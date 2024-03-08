@@ -107,8 +107,8 @@ static int ixgbevf_get_link_ksettings(struct net_device *netdev,
 		cmd->base.speed = speed;
 		cmd->base.duplex = DUPLEX_FULL;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	return 0;
@@ -254,7 +254,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	new_rx_count = min_t(u32, new_rx_count, IXGBEVF_MAX_RXD);
 	new_rx_count = ALIGN(new_rx_count, IXGBE_REQ_RX_DESCRIPTOR_MULTIPLE);
 
-	/* if nothing to do return success */
+	/* if analthing to do return success */
 	if ((new_tx_count == adapter->tx_ring_count) &&
 	    (new_rx_count == adapter->rx_ring_count))
 		return 0;
@@ -280,7 +280,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 					     adapter->num_tx_queues +
 						adapter->num_xdp_queues));
 		if (!tx_ring) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto clear_reset;
 		}
 
@@ -325,7 +325,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		rx_ring = vmalloc(array_size(sizeof(*rx_ring),
 					     adapter->num_rx_queues));
 		if (!rx_ring) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto clear_reset;
 		}
 
@@ -580,7 +580,7 @@ struct ixgbevf_reg_test {
 
 #define PATTERN_TEST	1
 #define SET_READ_TEST	2
-#define WRITE_NO_TEST	3
+#define WRITE_ANAL_TEST	3
 #define TABLE32_TEST	4
 #define TABLE64_TEST_LO	5
 #define TABLE64_TEST_HI	6
@@ -590,9 +590,9 @@ static const struct ixgbevf_reg_test reg_test_vf[] = {
 	{ IXGBE_VFRDBAL(0), 2, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFF80 },
 	{ IXGBE_VFRDBAH(0), 2, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_VFRDLEN(0), 2, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
-	{ IXGBE_VFRXDCTL(0), 2, WRITE_NO_TEST, 0, IXGBE_RXDCTL_ENABLE },
+	{ IXGBE_VFRXDCTL(0), 2, WRITE_ANAL_TEST, 0, IXGBE_RXDCTL_ENABLE },
 	{ IXGBE_VFRDT(0), 2, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ IXGBE_VFRXDCTL(0), 2, WRITE_NO_TEST, 0, 0 },
+	{ IXGBE_VFRXDCTL(0), 2, WRITE_ANAL_TEST, 0, 0 },
 	{ IXGBE_VFTDBAL(0), 2, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
 	{ IXGBE_VFTDBAH(0), 2, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_VFTDLEN(0), 2, PATTERN_TEST, 0x000FFF80, 0x000FFF80 },
@@ -687,7 +687,7 @@ static int ixgbevf_reg_test(struct ixgbevf_adapter *adapter, u64 *data)
 						      test->mask,
 						      test->write);
 				break;
-			case WRITE_NO_TEST:
+			case WRITE_ANAL_TEST:
 				ixgbe_write_reg(&adapter->hw,
 						test->reg + (i * 0x40),
 						test->write);
@@ -851,7 +851,7 @@ static int ixgbevf_set_coalesce(struct net_device *netdev,
 	else
 		tx_itr_param = adapter->tx_itr_setting;
 
-	num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	num_vectors = adapter->num_msix_vectors - ANALN_Q_VECTORS;
 
 	for (i = 0; i < num_vectors; i++) {
 		q_vector = adapter->q_vector[i];
@@ -877,8 +877,8 @@ static int ixgbevf_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		info->data = adapter->num_rx_queues;
 		return 0;
 	default:
-		hw_dbg(&adapter->hw, "Command parameters not supported\n");
-		return -EOPNOTSUPP;
+		hw_dbg(&adapter->hw, "Command parameters analt supported\n");
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -917,7 +917,7 @@ static int ixgbevf_get_rxfh(struct net_device *netdev,
 				rxfh->indir[i] = adapter->rss_indir_tbl[i];
 		}
 	} else {
-		/* If neither indirection table nor hash key was requested
+		/* If neither indirection table analr hash key was requested
 		 *  - just return a success avoiding taking any locks.
 		 */
 		if (!rxfh->indir && !rxfh->key)

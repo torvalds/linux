@@ -9,12 +9,12 @@
  * The rotation is done in stages using multiple sockets bound
  * to the same port via SO_REUSEPORT. This simulates key rotation
  * behind say a load balancer. We verify that across the rotation
- * there are no cases in which a cookie is not accepted by verifying
+ * there are anal cases in which a cookie is analt accepted by verifying
  * that TcpExtTCPFastOpenPassiveFail remains 0.
  */
 #define _GNU_SOURCE
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -53,12 +53,12 @@ static void get_keys(int fd, uint32_t *keys)
 
 	if (do_sockopt) {
 		if (getsockopt(fd, SOL_TCP, TCP_FASTOPEN_KEY, keys, &len))
-			error(1, errno, "Unable to get key");
+			error(1, erranal, "Unable to get key");
 		return;
 	}
 	lseek(proc_fd, 0, SEEK_SET);
 	if (read(proc_fd, buf, sizeof(buf)) <= 0)
-		error(1, errno, "Unable to read %s", PROC_FASTOPEN_KEY);
+		error(1, erranal, "Unable to read %s", PROC_FASTOPEN_KEY);
 	if (sscanf(buf, "%x-%x-%x-%x,%x-%x-%x-%x", keys, keys + 1, keys + 2,
 	    keys + 3, keys + 4, keys + 5, keys + 6, keys + 7) != 8)
 		error(1, 0, "Unable to parse %s", PROC_FASTOPEN_KEY);
@@ -71,7 +71,7 @@ static void set_keys(int fd, uint32_t *keys)
 	if (do_sockopt) {
 		if (setsockopt(fd, SOL_TCP, TCP_FASTOPEN_KEY, keys,
 		    key_len))
-			error(1, errno, "Unable to set key");
+			error(1, erranal, "Unable to set key");
 		return;
 	}
 	if (do_rotate)
@@ -83,7 +83,7 @@ static void set_keys(int fd, uint32_t *keys)
 			 keys[0], keys[1], keys[2], keys[3]);
 	lseek(proc_fd, 0, SEEK_SET);
 	if (write(proc_fd, buf, sizeof(buf)) <= 0)
-		error(1, errno, "Unable to write %s", PROC_FASTOPEN_KEY);
+		error(1, erranal, "Unable to write %s", PROC_FASTOPEN_KEY);
 }
 
 static void build_rcv_fd(int family, int proto, int *rcv_fds)
@@ -112,9 +112,9 @@ static void build_rcv_fd(int family, int proto, int *rcv_fds)
 		break;
 	default:
 		error(1, 0, "Unsupported family %d", family);
-		/* clang does not recognize error() above as terminating
+		/* clang does analt recognize error() above as terminating
 		 * the program, so it complains that saddr, sz are
-		 * not initialized when this code path is taken. Silence it.
+		 * analt initialized when this code path is taken. Silence it.
 		 */
 		return;
 	}
@@ -123,18 +123,18 @@ static void build_rcv_fd(int family, int proto, int *rcv_fds)
 	for (i = 0; i < N_LISTEN; i++) {
 		rcv_fds[i] = socket(family, proto, 0);
 		if (rcv_fds[i] < 0)
-			error(1, errno, "failed to create receive socket");
+			error(1, erranal, "failed to create receive socket");
 		if (setsockopt(rcv_fds[i], SOL_SOCKET, SO_REUSEPORT, &opt,
 			       sizeof(opt)))
-			error(1, errno, "failed to set SO_REUSEPORT");
+			error(1, erranal, "failed to set SO_REUSEPORT");
 		if (bind(rcv_fds[i], addr, sz))
-			error(1, errno, "failed to bind receive socket");
+			error(1, erranal, "failed to bind receive socket");
 		if (setsockopt(rcv_fds[i], SOL_TCP, TCP_FASTOPEN, &qlen,
 			       sizeof(qlen)))
-			error(1, errno, "failed to set TCP_FASTOPEN");
+			error(1, erranal, "failed to set TCP_FASTOPEN");
 		set_keys(rcv_fds[i], keys);
 		if (proto == SOCK_STREAM && listen(rcv_fds[i], 10))
-			error(1, errno, "failed to listen on receive port");
+			error(1, erranal, "failed to listen on receive port");
 	}
 }
 
@@ -156,7 +156,7 @@ static int connect_and_send(int family, int proto)
 
 		daddr4.sin_family = AF_INET;
 		if (!inet_pton(family, IP4_ADDR, &daddr4.sin_addr.s_addr))
-			error(1, errno, "inet_pton failed: %s", IP4_ADDR);
+			error(1, erranal, "inet_pton failed: %s", IP4_ADDR);
 		daddr4.sin_port = htons(PORT);
 
 		sz = sizeof(saddr4);
@@ -169,7 +169,7 @@ static int connect_and_send(int family, int proto)
 
 		daddr6.sin6_family = AF_INET6;
 		if (!inet_pton(family, IP6_ADDR, &daddr6.sin6_addr))
-			error(1, errno, "inet_pton failed: %s", IP6_ADDR);
+			error(1, erranal, "inet_pton failed: %s", IP6_ADDR);
 		daddr6.sin6_port = htons(PORT);
 
 		sz = sizeof(saddr6);
@@ -178,21 +178,21 @@ static int connect_and_send(int family, int proto)
 		break;
 	default:
 		error(1, 0, "Unsupported family %d", family);
-		/* clang does not recognize error() above as terminating
+		/* clang does analt recognize error() above as terminating
 		 * the program, so it complains that saddr, daddr, sz are
-		 * not initialized when this code path is taken. Silence it.
+		 * analt initialized when this code path is taken. Silence it.
 		 */
 		return -1;
 	}
 	fd = socket(family, proto, 0);
 	if (fd < 0)
-		error(1, errno, "failed to create send socket");
+		error(1, erranal, "failed to create send socket");
 	if (bind(fd, saddr, sz))
-		error(1, errno, "failed to bind send socket");
+		error(1, erranal, "failed to bind send socket");
 	data[0] = 'a';
 	ret = sendto(fd, data, 1, MSG_FASTOPEN, daddr, sz);
 	if (ret != 1)
-		error(1, errno, "failed to sendto");
+		error(1, erranal, "failed to sendto");
 
 	return fd;
 }
@@ -250,12 +250,12 @@ static void run_one_test(int family)
 	build_rcv_fd(family, SOCK_STREAM, rcv_fds);
 	epfd = epoll_create(1);
 	if (epfd < 0)
-		error(1, errno, "failed to create epoll");
+		error(1, erranal, "failed to create epoll");
 	ev.events = EPOLLIN;
 	for (i = 0; i < N_LISTEN; i++) {
 		ev.data.fd = rcv_fds[i];
 		if (epoll_ctl(epfd, EPOLL_CTL_ADD, rcv_fds[i], &ev))
-			error(1, errno, "failed to register sock epoll");
+			error(1, erranal, "failed to register sock epoll");
 	}
 	while (n_loops--) {
 		send_fd = connect_and_send(family, SOCK_STREAM);
@@ -267,21 +267,21 @@ static void run_one_test(int family)
 		while (1) {
 			i = epoll_wait(epfd, &ev, 1, -1);
 			if (i < 0)
-				error(1, errno, "epoll_wait failed");
+				error(1, erranal, "epoll_wait failed");
 			if (is_listen_fd(ev.data.fd)) {
 				fd = accept(ev.data.fd, NULL, NULL);
 				if (fd < 0)
-					error(1, errno, "failed to accept");
+					error(1, erranal, "failed to accept");
 				ev.data.fd = fd;
 				if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev))
-					error(1, errno, "failed epoll add");
+					error(1, erranal, "failed epoll add");
 				continue;
 			}
 			i = recv(ev.data.fd, buf, sizeof(buf), 0);
 			if (i != 1)
-				error(1, errno, "failed recv data");
+				error(1, erranal, "failed recv data");
 			if (epoll_ctl(epfd, EPOLL_CTL_DEL, ev.data.fd, NULL))
-				error(1, errno, "failed epoll del");
+				error(1, erranal, "failed epoll del");
 			close(ev.data.fd);
 			break;
 		}
@@ -321,7 +321,7 @@ int main(int argc, char **argv)
 	parse_opts(argc, argv);
 	proc_fd = open(PROC_FASTOPEN_KEY, O_RDWR);
 	if (proc_fd < 0)
-		error(1, errno, "Unable to open %s", PROC_FASTOPEN_KEY);
+		error(1, erranal, "Unable to open %s", PROC_FASTOPEN_KEY);
 	srand(time(NULL));
 	if (do_ipv6)
 		run_one_test(AF_INET6);

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,7 +37,7 @@ struct amdgpu_res_cursor {
 	uint64_t		start;
 	uint64_t		size;
 	uint64_t		remaining;
-	void			*node;
+	void			*analde;
 	uint32_t		mem_type;
 };
 
@@ -57,7 +57,7 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 {
 	struct drm_buddy_block *block;
 	struct list_head *head, *next;
-	struct drm_mm_node *node;
+	struct drm_mm_analde *analde;
 
 	if (!res)
 		goto fallback;
@@ -87,18 +87,18 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 		cur->start = amdgpu_vram_mgr_block_start(block) + start;
 		cur->size = min(amdgpu_vram_mgr_block_size(block) - start, size);
 		cur->remaining = size;
-		cur->node = block;
+		cur->analde = block;
 		break;
 	case TTM_PL_TT:
 	case AMDGPU_PL_DOORBELL:
-		node = to_ttm_range_mgr_node(res)->mm_nodes;
-		while (start >= node->size << PAGE_SHIFT)
-			start -= node++->size << PAGE_SHIFT;
+		analde = to_ttm_range_mgr_analde(res)->mm_analdes;
+		while (start >= analde->size << PAGE_SHIFT)
+			start -= analde++->size << PAGE_SHIFT;
 
-		cur->start = (node->start << PAGE_SHIFT) + start;
-		cur->size = min((node->size << PAGE_SHIFT) - start, size);
+		cur->start = (analde->start << PAGE_SHIFT) + start;
+		cur->size = min((analde->size << PAGE_SHIFT) - start, size);
 		cur->remaining = size;
-		cur->node = node;
+		cur->analde = analde;
 		break;
 	default:
 		goto fallback;
@@ -110,7 +110,7 @@ fallback:
 	cur->start = start;
 	cur->size = size;
 	cur->remaining = size;
-	cur->node = NULL;
+	cur->analde = NULL;
 	WARN_ON(res && start + size > res->size);
 }
 
@@ -120,12 +120,12 @@ fallback:
  * @cur: the cursor to advance
  * @size: number of bytes to move forward
  *
- * Move the cursor @size bytes forwrad, walking to the next node if necessary.
+ * Move the cursor @size bytes forwrad, walking to the next analde if necessary.
  */
 static inline void amdgpu_res_next(struct amdgpu_res_cursor *cur, uint64_t size)
 {
 	struct drm_buddy_block *block;
-	struct drm_mm_node *node;
+	struct drm_mm_analde *analde;
 	struct list_head *next;
 
 	BUG_ON(size > cur->remaining);
@@ -142,22 +142,22 @@ static inline void amdgpu_res_next(struct amdgpu_res_cursor *cur, uint64_t size)
 
 	switch (cur->mem_type) {
 	case TTM_PL_VRAM:
-		block = cur->node;
+		block = cur->analde;
 
 		next = block->link.next;
 		block = list_entry(next, struct drm_buddy_block, link);
 
-		cur->node = block;
+		cur->analde = block;
 		cur->start = amdgpu_vram_mgr_block_start(block);
 		cur->size = min(amdgpu_vram_mgr_block_size(block), cur->remaining);
 		break;
 	case TTM_PL_TT:
 	case AMDGPU_PL_DOORBELL:
-		node = cur->node;
+		analde = cur->analde;
 
-		cur->node = ++node;
-		cur->start = node->start << PAGE_SHIFT;
-		cur->size = min(node->size << PAGE_SHIFT, cur->remaining);
+		cur->analde = ++analde;
+		cur->start = analde->start << PAGE_SHIFT;
+		cur->size = min(analde->size << PAGE_SHIFT, cur->remaining);
 		break;
 	default:
 		return;

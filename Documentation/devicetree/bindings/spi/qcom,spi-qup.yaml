@@ -88,7 +88,7 @@ examples:
         dma-names = "tx", "rx";
         power-domains = <&rpmpd MSM8996_VDDCX>;
         operating-points-v2 = <&spi_opp_table>;
-        interconnects = <&pnoc MASTER_BLSP_1 &bimc SLAVE_EBI_CH0>;
+        interconnects = <&panalc MASTER_BLSP_1 &bimc SLAVE_EBI_CH0>;
         #address-cells = <1>;
         #size-cells = <0>;
     };

@@ -51,7 +51,7 @@ static u16 bnxt_flow_get_dst_fid(struct bnxt *pf_bp, struct net_device *dev)
 
 	/* check if dev belongs to the same switch */
 	if (!netdev_port_same_parent_id(pf_bp->dev, dev)) {
-		netdev_info(pf_bp->dev, "dev(ifindex=%d) not on same switch\n",
+		netdev_info(pf_bp->dev, "dev(ifindex=%d) analt on same switch\n",
 			    dev->ifindex);
 		return BNXT_FID_INVALID;
 	}
@@ -71,7 +71,7 @@ static int bnxt_tc_parse_redir(struct bnxt *bp,
 	struct net_device *dev = act->dev;
 
 	if (!dev) {
-		netdev_info(bp->dev, "no dev in mirred action\n");
+		netdev_info(bp->dev, "anal dev in mirred action\n");
 		return -EINVAL;
 	}
 
@@ -94,7 +94,7 @@ static int bnxt_tc_parse_vlan(struct bnxt *bp,
 		actions->push_vlan_tpid = act->vlan.proto;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -108,7 +108,7 @@ static int bnxt_tc_parse_tunnel_set(struct bnxt *bp,
 
 	if (ip_tunnel_info_af(tun_info) != AF_INET) {
 		netdev_info(bp->dev, "only IPv4 tunnel-encap is supported\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	actions->tun_encap_key = *tun_key;
@@ -254,7 +254,7 @@ bnxt_tc_parse_pedit(struct bnxt *bp, struct bnxt_tc_actions *actions,
 		break;
 	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
 	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
-		/* HW does not support L4 rewrite alone without L3
+		/* HW does analt support L4 rewrite alone without L3
 		 * rewrite
 		 */
 		if (!(actions->flags & BNXT_TC_ACTION_FLAG_NAT_XLATE)) {
@@ -297,12 +297,12 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 	int i, rc;
 
 	if (!flow_action_has_entries(flow_action)) {
-		netdev_info(bp->dev, "no actions\n");
+		netdev_info(bp->dev, "anal actions\n");
 		return -EINVAL;
 	}
 
 	if (!flow_action_basic_hw_stats_check(flow_action, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
@@ -375,9 +375,9 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 	/* KEY_CONTROL and KEY_BASIC are needed for forming a meaningful key */
 	if ((dissector->used_keys & BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL)) == 0 ||
 	    (dissector->used_keys & BIT_ULL(FLOW_DISSECTOR_KEY_BASIC)) == 0) {
-		netdev_info(bp->dev, "cannot form TC key: used_keys = 0x%llx\n",
+		netdev_info(bp->dev, "cananalt form TC key: used_keys = 0x%llx\n",
 			    dissector->used_keys);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -473,7 +473,7 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 		flow->tun_mask.u.ipv4.src = match.mask->src;
 	} else if (flow_rule_match_key(rule,
 				      FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
@@ -501,7 +501,7 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 }
 
 static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp,
-				   struct bnxt_tc_flow_node *flow_node)
+				   struct bnxt_tc_flow_analde *flow_analde)
 {
 	struct hwrm_cfa_flow_free_input *req;
 	int rc;
@@ -509,9 +509,9 @@ static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp,
 	rc = hwrm_req_init(bp, req, HWRM_CFA_FLOW_FREE);
 	if (!rc) {
 		if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
-			req->ext_flow_handle = flow_node->ext_flow_handle;
+			req->ext_flow_handle = flow_analde->ext_flow_handle;
 		else
-			req->flow_handle = flow_node->flow_handle;
+			req->flow_handle = flow_analde->flow_handle;
 
 		rc = hwrm_req_send(bp, req);
 	}
@@ -585,7 +585,7 @@ static bool bits_set(void *key, int len)
 static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 				    __le16 ref_flow_handle,
 				    __le32 tunnel_handle,
-				    struct bnxt_tc_flow_node *flow_node)
+				    struct bnxt_tc_flow_analde *flow_analde)
 {
 	struct bnxt_tc_actions *actions = &flow->actions;
 	struct bnxt_tc_l3_key *l3_mask = &flow->l3_mask;
@@ -776,10 +776,10 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 		 * ext_flow_handle  INVALID	     flow handle
 		 * flow_id	    INVALID	     flow counter id
 		 */
-		flow_node->flow_handle = resp->flow_handle;
+		flow_analde->flow_handle = resp->flow_handle;
 		if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE) {
-			flow_node->ext_flow_handle = resp->ext_flow_handle;
-			flow_node->flow_id = resp->flow_id;
+			flow_analde->ext_flow_handle = resp->ext_flow_handle;
+			flow_analde->flow_id = resp->flow_id;
 		}
 	}
 	hwrm_req_drop(bp, req);
@@ -942,56 +942,56 @@ static int hwrm_cfa_encap_record_free(struct bnxt *bp,
 	return rc;
 }
 
-static int bnxt_tc_put_l2_node(struct bnxt *bp,
-			       struct bnxt_tc_flow_node *flow_node)
+static int bnxt_tc_put_l2_analde(struct bnxt *bp,
+			       struct bnxt_tc_flow_analde *flow_analde)
 {
-	struct bnxt_tc_l2_node *l2_node = flow_node->l2_node;
+	struct bnxt_tc_l2_analde *l2_analde = flow_analde->l2_analde;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	int rc;
 
-	/* remove flow_node from the L2 shared flow list */
-	list_del(&flow_node->l2_list_node);
-	if (--l2_node->refcount == 0) {
-		rc =  rhashtable_remove_fast(&tc_info->l2_table, &l2_node->node,
+	/* remove flow_analde from the L2 shared flow list */
+	list_del(&flow_analde->l2_list_analde);
+	if (--l2_analde->refcount == 0) {
+		rc =  rhashtable_remove_fast(&tc_info->l2_table, &l2_analde->analde,
 					     tc_info->l2_ht_params);
 		if (rc)
 			netdev_err(bp->dev,
 				   "Error: %s: rhashtable_remove_fast: %d\n",
 				   __func__, rc);
-		kfree_rcu(l2_node, rcu);
+		kfree_rcu(l2_analde, rcu);
 	}
 	return 0;
 }
 
-static struct bnxt_tc_l2_node *
-bnxt_tc_get_l2_node(struct bnxt *bp, struct rhashtable *l2_table,
+static struct bnxt_tc_l2_analde *
+bnxt_tc_get_l2_analde(struct bnxt *bp, struct rhashtable *l2_table,
 		    struct rhashtable_params ht_params,
 		    struct bnxt_tc_l2_key *l2_key)
 {
-	struct bnxt_tc_l2_node *l2_node;
+	struct bnxt_tc_l2_analde *l2_analde;
 	int rc;
 
-	l2_node = rhashtable_lookup_fast(l2_table, l2_key, ht_params);
-	if (!l2_node) {
-		l2_node = kzalloc(sizeof(*l2_node), GFP_KERNEL);
-		if (!l2_node) {
-			rc = -ENOMEM;
+	l2_analde = rhashtable_lookup_fast(l2_table, l2_key, ht_params);
+	if (!l2_analde) {
+		l2_analde = kzalloc(sizeof(*l2_analde), GFP_KERNEL);
+		if (!l2_analde) {
+			rc = -EANALMEM;
 			return NULL;
 		}
 
-		l2_node->key = *l2_key;
-		rc = rhashtable_insert_fast(l2_table, &l2_node->node,
+		l2_analde->key = *l2_key;
+		rc = rhashtable_insert_fast(l2_table, &l2_analde->analde,
 					    ht_params);
 		if (rc) {
-			kfree_rcu(l2_node, rcu);
+			kfree_rcu(l2_analde, rcu);
 			netdev_err(bp->dev,
 				   "Error: %s: rhashtable_insert_fast: %d\n",
 				   __func__, rc);
 			return NULL;
 		}
-		INIT_LIST_HEAD(&l2_node->common_l2_flows);
+		INIT_LIST_HEAD(&l2_analde->common_l2_flows);
 	}
-	return l2_node;
+	return l2_analde;
 }
 
 /* Get the ref_flow_handle for a flow by checking if there are any other
@@ -999,38 +999,38 @@ bnxt_tc_get_l2_node(struct bnxt *bp, struct rhashtable *l2_table,
  */
 static int
 bnxt_tc_get_ref_flow_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
-			    struct bnxt_tc_flow_node *flow_node,
+			    struct bnxt_tc_flow_analde *flow_analde,
 			    __le16 *ref_flow_handle)
 {
 	struct bnxt_tc_info *tc_info = bp->tc_info;
-	struct bnxt_tc_flow_node *ref_flow_node;
-	struct bnxt_tc_l2_node *l2_node;
+	struct bnxt_tc_flow_analde *ref_flow_analde;
+	struct bnxt_tc_l2_analde *l2_analde;
 
-	l2_node = bnxt_tc_get_l2_node(bp, &tc_info->l2_table,
+	l2_analde = bnxt_tc_get_l2_analde(bp, &tc_info->l2_table,
 				      tc_info->l2_ht_params,
 				      &flow->l2_key);
-	if (!l2_node)
+	if (!l2_analde)
 		return -1;
 
-	/* If any other flow is using this l2_node, use it's flow_handle
+	/* If any other flow is using this l2_analde, use it's flow_handle
 	 * as the ref_flow_handle
 	 */
-	if (l2_node->refcount > 0) {
-		ref_flow_node = list_first_entry(&l2_node->common_l2_flows,
-						 struct bnxt_tc_flow_node,
-						 l2_list_node);
-		*ref_flow_handle = ref_flow_node->flow_handle;
+	if (l2_analde->refcount > 0) {
+		ref_flow_analde = list_first_entry(&l2_analde->common_l2_flows,
+						 struct bnxt_tc_flow_analde,
+						 l2_list_analde);
+		*ref_flow_handle = ref_flow_analde->flow_handle;
 	} else {
 		*ref_flow_handle = cpu_to_le16(0xffff);
 	}
 
-	/* Insert the l2_node into the flow_node so that subsequent flows
+	/* Insert the l2_analde into the flow_analde so that subsequent flows
 	 * with a matching l2 key can use the flow_handle of this flow
 	 * as their ref_flow_handle
 	 */
-	flow_node->l2_node = l2_node;
-	list_add(&flow_node->l2_list_node, &l2_node->common_l2_flows);
-	l2_node->refcount++;
+	flow_analde->l2_analde = l2_analde;
+	list_add(&flow_analde->l2_list_analde, &l2_analde->common_l2_flows);
+	l2_analde->refcount++;
 	return 0;
 }
 
@@ -1044,12 +1044,12 @@ static bool bnxt_tc_can_offload(struct bnxt *bp, struct bnxt_tc_flow *flow)
 	if ((flow->flags & BNXT_TC_FLOW_FLAGS_PORTS) &&
 	    (flow->l4_key.ip_proto != IPPROTO_TCP &&
 	     flow->l4_key.ip_proto != IPPROTO_UDP)) {
-		netdev_info(bp->dev, "Cannot offload non-TCP/UDP (%d) ports\n",
+		netdev_info(bp->dev, "Cananalt offload analn-TCP/UDP (%d) ports\n",
 			    flow->l4_key.ip_proto);
 		return false;
 	}
 
-	/* Currently source/dest MAC cannot be partial wildcard  */
+	/* Currently source/dest MAC cananalt be partial wildcard  */
 	if (bits_set(&flow->l2_key.smac, sizeof(flow->l2_key.smac)) &&
 	    !is_exactmatch(flow->l2_mask.smac, sizeof(flow->l2_mask.smac))) {
 		netdev_info(bp->dev, "Wildcard match unsupported for Source MAC\n");
@@ -1061,7 +1061,7 @@ static bool bnxt_tc_can_offload(struct bnxt *bp, struct bnxt_tc_flow *flow)
 		return false;
 	}
 
-	/* Currently VLAN fields cannot be partial wildcard */
+	/* Currently VLAN fields cananalt be partial wildcard */
 	if (bits_set(&flow->l2_key.inner_vlan_tci,
 		     sizeof(flow->l2_key.inner_vlan_tci)) &&
 	    !is_vlan_tci_allowed(flow->l2_mask.inner_vlan_tci,
@@ -1087,60 +1087,60 @@ static bool bnxt_tc_can_offload(struct bnxt *bp, struct bnxt_tc_flow *flow)
 	return true;
 }
 
-/* Returns the final refcount of the node on success
+/* Returns the final refcount of the analde on success
  * or a -ve error code on failure
  */
-static int bnxt_tc_put_tunnel_node(struct bnxt *bp,
+static int bnxt_tc_put_tunnel_analde(struct bnxt *bp,
 				   struct rhashtable *tunnel_table,
 				   struct rhashtable_params *ht_params,
-				   struct bnxt_tc_tunnel_node *tunnel_node)
+				   struct bnxt_tc_tunnel_analde *tunnel_analde)
 {
 	int rc;
 
-	if (--tunnel_node->refcount == 0) {
-		rc =  rhashtable_remove_fast(tunnel_table, &tunnel_node->node,
+	if (--tunnel_analde->refcount == 0) {
+		rc =  rhashtable_remove_fast(tunnel_table, &tunnel_analde->analde,
 					     *ht_params);
 		if (rc) {
 			netdev_err(bp->dev, "rhashtable_remove_fast rc=%d\n", rc);
 			rc = -1;
 		}
-		kfree_rcu(tunnel_node, rcu);
+		kfree_rcu(tunnel_analde, rcu);
 		return rc;
 	} else {
-		return tunnel_node->refcount;
+		return tunnel_analde->refcount;
 	}
 }
 
-/* Get (or add) either encap or decap tunnel node from/to the supplied
+/* Get (or add) either encap or decap tunnel analde from/to the supplied
  * hash table.
  */
-static struct bnxt_tc_tunnel_node *
-bnxt_tc_get_tunnel_node(struct bnxt *bp, struct rhashtable *tunnel_table,
+static struct bnxt_tc_tunnel_analde *
+bnxt_tc_get_tunnel_analde(struct bnxt *bp, struct rhashtable *tunnel_table,
 			struct rhashtable_params *ht_params,
 			struct ip_tunnel_key *tun_key)
 {
-	struct bnxt_tc_tunnel_node *tunnel_node;
+	struct bnxt_tc_tunnel_analde *tunnel_analde;
 	int rc;
 
-	tunnel_node = rhashtable_lookup_fast(tunnel_table, tun_key, *ht_params);
-	if (!tunnel_node) {
-		tunnel_node = kzalloc(sizeof(*tunnel_node), GFP_KERNEL);
-		if (!tunnel_node) {
-			rc = -ENOMEM;
+	tunnel_analde = rhashtable_lookup_fast(tunnel_table, tun_key, *ht_params);
+	if (!tunnel_analde) {
+		tunnel_analde = kzalloc(sizeof(*tunnel_analde), GFP_KERNEL);
+		if (!tunnel_analde) {
+			rc = -EANALMEM;
 			goto err;
 		}
 
-		tunnel_node->key = *tun_key;
-		tunnel_node->tunnel_handle = INVALID_TUNNEL_HANDLE;
-		rc = rhashtable_insert_fast(tunnel_table, &tunnel_node->node,
+		tunnel_analde->key = *tun_key;
+		tunnel_analde->tunnel_handle = INVALID_TUNNEL_HANDLE;
+		rc = rhashtable_insert_fast(tunnel_table, &tunnel_analde->analde,
 					    *ht_params);
 		if (rc) {
-			kfree_rcu(tunnel_node, rcu);
+			kfree_rcu(tunnel_analde, rcu);
 			goto err;
 		}
 	}
-	tunnel_node->refcount++;
-	return tunnel_node;
+	tunnel_analde->refcount++;
+	return tunnel_analde;
 err:
 	netdev_info(bp->dev, "error rc=%d\n", rc);
 	return NULL;
@@ -1149,75 +1149,75 @@ err:
 static int bnxt_tc_get_ref_decap_handle(struct bnxt *bp,
 					struct bnxt_tc_flow *flow,
 					struct bnxt_tc_l2_key *l2_key,
-					struct bnxt_tc_flow_node *flow_node,
+					struct bnxt_tc_flow_analde *flow_analde,
 					__le32 *ref_decap_handle)
 {
 	struct bnxt_tc_info *tc_info = bp->tc_info;
-	struct bnxt_tc_flow_node *ref_flow_node;
-	struct bnxt_tc_l2_node *decap_l2_node;
+	struct bnxt_tc_flow_analde *ref_flow_analde;
+	struct bnxt_tc_l2_analde *decap_l2_analde;
 
-	decap_l2_node = bnxt_tc_get_l2_node(bp, &tc_info->decap_l2_table,
+	decap_l2_analde = bnxt_tc_get_l2_analde(bp, &tc_info->decap_l2_table,
 					    tc_info->decap_l2_ht_params,
 					    l2_key);
-	if (!decap_l2_node)
+	if (!decap_l2_analde)
 		return -1;
 
-	/* If any other flow is using this decap_l2_node, use it's decap_handle
+	/* If any other flow is using this decap_l2_analde, use it's decap_handle
 	 * as the ref_decap_handle
 	 */
-	if (decap_l2_node->refcount > 0) {
-		ref_flow_node =
-			list_first_entry(&decap_l2_node->common_l2_flows,
-					 struct bnxt_tc_flow_node,
-					 decap_l2_list_node);
-		*ref_decap_handle = ref_flow_node->decap_node->tunnel_handle;
+	if (decap_l2_analde->refcount > 0) {
+		ref_flow_analde =
+			list_first_entry(&decap_l2_analde->common_l2_flows,
+					 struct bnxt_tc_flow_analde,
+					 decap_l2_list_analde);
+		*ref_decap_handle = ref_flow_analde->decap_analde->tunnel_handle;
 	} else {
 		*ref_decap_handle = INVALID_TUNNEL_HANDLE;
 	}
 
-	/* Insert the l2_node into the flow_node so that subsequent flows
+	/* Insert the l2_analde into the flow_analde so that subsequent flows
 	 * with a matching decap l2 key can use the decap_filter_handle of
 	 * this flow as their ref_decap_handle
 	 */
-	flow_node->decap_l2_node = decap_l2_node;
-	list_add(&flow_node->decap_l2_list_node,
-		 &decap_l2_node->common_l2_flows);
-	decap_l2_node->refcount++;
+	flow_analde->decap_l2_analde = decap_l2_analde;
+	list_add(&flow_analde->decap_l2_list_analde,
+		 &decap_l2_analde->common_l2_flows);
+	decap_l2_analde->refcount++;
 	return 0;
 }
 
-static void bnxt_tc_put_decap_l2_node(struct bnxt *bp,
-				      struct bnxt_tc_flow_node *flow_node)
+static void bnxt_tc_put_decap_l2_analde(struct bnxt *bp,
+				      struct bnxt_tc_flow_analde *flow_analde)
 {
-	struct bnxt_tc_l2_node *decap_l2_node = flow_node->decap_l2_node;
+	struct bnxt_tc_l2_analde *decap_l2_analde = flow_analde->decap_l2_analde;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	int rc;
 
-	/* remove flow_node from the decap L2 sharing flow list */
-	list_del(&flow_node->decap_l2_list_node);
-	if (--decap_l2_node->refcount == 0) {
+	/* remove flow_analde from the decap L2 sharing flow list */
+	list_del(&flow_analde->decap_l2_list_analde);
+	if (--decap_l2_analde->refcount == 0) {
 		rc =  rhashtable_remove_fast(&tc_info->decap_l2_table,
-					     &decap_l2_node->node,
+					     &decap_l2_analde->analde,
 					     tc_info->decap_l2_ht_params);
 		if (rc)
 			netdev_err(bp->dev, "rhashtable_remove_fast rc=%d\n", rc);
-		kfree_rcu(decap_l2_node, rcu);
+		kfree_rcu(decap_l2_analde, rcu);
 	}
 }
 
 static void bnxt_tc_put_decap_handle(struct bnxt *bp,
-				     struct bnxt_tc_flow_node *flow_node)
+				     struct bnxt_tc_flow_analde *flow_analde)
 {
-	__le32 decap_handle = flow_node->decap_node->tunnel_handle;
+	__le32 decap_handle = flow_analde->decap_analde->tunnel_handle;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	int rc;
 
-	if (flow_node->decap_l2_node)
-		bnxt_tc_put_decap_l2_node(bp, flow_node);
+	if (flow_analde->decap_l2_analde)
+		bnxt_tc_put_decap_l2_analde(bp, flow_analde);
 
-	rc = bnxt_tc_put_tunnel_node(bp, &tc_info->decap_table,
+	rc = bnxt_tc_put_tunnel_analde(bp, &tc_info->decap_table,
 				     &tc_info->decap_ht_params,
-				     flow_node->decap_node);
+				     flow_analde->decap_analde);
 	if (!rc && decap_handle != INVALID_TUNNEL_HANDLE)
 		hwrm_cfa_decap_filter_free(bp, decap_handle);
 }
@@ -1240,8 +1240,8 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 
 	rt = ip_route_output_key(dev_net(real_dst_dev), &flow);
 	if (IS_ERR(rt)) {
-		netdev_info(bp->dev, "no route to %pI4b\n", &flow.daddr);
-		return -EOPNOTSUPP;
+		netdev_info(bp->dev, "anal route to %pI4b\n", &flow.daddr);
+		return -EOPANALTSUPP;
 	}
 
 	/* The route must either point to the real_dst_dev or a dst_dev that
@@ -1257,7 +1257,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 				    "dst_dev(%s) doesn't use PF-if(%s)\n",
 				    netdev_name(dst_dev),
 				    netdev_name(real_dst_dev));
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			goto put_rt;
 		}
 		l2_info->inner_vlan_tci = htons(vlan->vlan_id);
@@ -1266,10 +1266,10 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 #endif
 	} else if (dst_dev != real_dst_dev) {
 		netdev_info(bp->dev,
-			    "dst_dev(%s) for %pI4b is not PF-if(%s)\n",
+			    "dst_dev(%s) for %pI4b is analt PF-if(%s)\n",
 			    netdev_name(dst_dev), &flow.daddr,
 			    netdev_name(real_dst_dev));
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto put_rt;
 	}
 
@@ -1277,7 +1277,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 	if (!nbr) {
 		netdev_info(bp->dev, "can't lookup neighbor for %pI4b\n",
 			    &flow.daddr);
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto put_rt;
 	}
 
@@ -1293,38 +1293,38 @@ put_rt:
 	ip_rt_put(rt);
 	return rc;
 #else
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 #endif
 }
 
 static int bnxt_tc_get_decap_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
-				    struct bnxt_tc_flow_node *flow_node,
+				    struct bnxt_tc_flow_analde *flow_analde,
 				    __le32 *decap_filter_handle)
 {
 	struct ip_tunnel_key *decap_key = &flow->tun_key;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	struct bnxt_tc_l2_key l2_info = { {0} };
-	struct bnxt_tc_tunnel_node *decap_node;
+	struct bnxt_tc_tunnel_analde *decap_analde;
 	struct ip_tunnel_key tun_key = { 0 };
 	struct bnxt_tc_l2_key *decap_l2_info;
 	__le32 ref_decap_handle;
 	int rc;
 
-	/* Check if there's another flow using the same tunnel decap.
-	 * If not, add this tunnel to the table and resolve the other
-	 * tunnel header fileds. Ignore src_port in the tunnel_key,
-	 * since it is not required for decap filters.
+	/* Check if there's aanalther flow using the same tunnel decap.
+	 * If analt, add this tunnel to the table and resolve the other
+	 * tunnel header fileds. Iganalre src_port in the tunnel_key,
+	 * since it is analt required for decap filters.
 	 */
 	decap_key->tp_src = 0;
-	decap_node = bnxt_tc_get_tunnel_node(bp, &tc_info->decap_table,
+	decap_analde = bnxt_tc_get_tunnel_analde(bp, &tc_info->decap_table,
 					     &tc_info->decap_ht_params,
 					     decap_key);
-	if (!decap_node)
-		return -ENOMEM;
+	if (!decap_analde)
+		return -EANALMEM;
 
-	flow_node->decap_node = decap_node;
+	flow_analde->decap_analde = decap_analde;
 
-	if (decap_node->tunnel_handle != INVALID_TUNNEL_HANDLE)
+	if (decap_analde->tunnel_handle != INVALID_TUNNEL_HANDLE)
 		goto done;
 
 	/* Resolve the L2 fields for tunnel decap
@@ -1337,7 +1337,7 @@ static int bnxt_tc_get_decap_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	if (rc)
 		goto put_decap;
 
-	decap_l2_info = &decap_node->l2_info;
+	decap_l2_info = &decap_analde->l2_info;
 	/* decap smac is wildcarded */
 	ether_addr_copy(decap_l2_info->dmac, l2_info.smac);
 	if (l2_info.num_vlans) {
@@ -1352,7 +1352,7 @@ static int bnxt_tc_get_decap_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	 * key and if so, pass that flow's decap_filter_handle as the
 	 * ref_decap_handle for this flow.
 	 */
-	rc = bnxt_tc_get_ref_decap_handle(bp, flow, decap_l2_info, flow_node,
+	rc = bnxt_tc_get_ref_decap_handle(bp, flow, decap_l2_info, flow_analde,
 					  &ref_decap_handle);
 	if (rc)
 		goto put_decap;
@@ -1360,135 +1360,135 @@ static int bnxt_tc_get_decap_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	/* Issue the hwrm cmd to allocate a decap filter handle */
 	rc = hwrm_cfa_decap_filter_alloc(bp, flow, decap_l2_info,
 					 ref_decap_handle,
-					 &decap_node->tunnel_handle);
+					 &decap_analde->tunnel_handle);
 	if (rc)
 		goto put_decap_l2;
 
 done:
-	*decap_filter_handle = decap_node->tunnel_handle;
+	*decap_filter_handle = decap_analde->tunnel_handle;
 	return 0;
 
 put_decap_l2:
-	bnxt_tc_put_decap_l2_node(bp, flow_node);
+	bnxt_tc_put_decap_l2_analde(bp, flow_analde);
 put_decap:
-	bnxt_tc_put_tunnel_node(bp, &tc_info->decap_table,
+	bnxt_tc_put_tunnel_analde(bp, &tc_info->decap_table,
 				&tc_info->decap_ht_params,
-				flow_node->decap_node);
+				flow_analde->decap_analde);
 	return rc;
 }
 
 static void bnxt_tc_put_encap_handle(struct bnxt *bp,
-				     struct bnxt_tc_tunnel_node *encap_node)
+				     struct bnxt_tc_tunnel_analde *encap_analde)
 {
-	__le32 encap_handle = encap_node->tunnel_handle;
+	__le32 encap_handle = encap_analde->tunnel_handle;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	int rc;
 
-	rc = bnxt_tc_put_tunnel_node(bp, &tc_info->encap_table,
-				     &tc_info->encap_ht_params, encap_node);
+	rc = bnxt_tc_put_tunnel_analde(bp, &tc_info->encap_table,
+				     &tc_info->encap_ht_params, encap_analde);
 	if (!rc && encap_handle != INVALID_TUNNEL_HANDLE)
 		hwrm_cfa_encap_record_free(bp, encap_handle);
 }
 
 /* Lookup the tunnel encap table and check if there's an encap_handle
  * alloc'd already.
- * If not, query L2 info via a route lookup and issue an encap_record_alloc
+ * If analt, query L2 info via a route lookup and issue an encap_record_alloc
  * cmd to FW.
  */
 static int bnxt_tc_get_encap_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
-				    struct bnxt_tc_flow_node *flow_node,
+				    struct bnxt_tc_flow_analde *flow_analde,
 				    __le32 *encap_handle)
 {
 	struct ip_tunnel_key *encap_key = &flow->actions.tun_encap_key;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
-	struct bnxt_tc_tunnel_node *encap_node;
+	struct bnxt_tc_tunnel_analde *encap_analde;
 	int rc;
 
-	/* Check if there's another flow using the same tunnel encap.
-	 * If not, add this tunnel to the table and resolve the other
+	/* Check if there's aanalther flow using the same tunnel encap.
+	 * If analt, add this tunnel to the table and resolve the other
 	 * tunnel header fileds
 	 */
-	encap_node = bnxt_tc_get_tunnel_node(bp, &tc_info->encap_table,
+	encap_analde = bnxt_tc_get_tunnel_analde(bp, &tc_info->encap_table,
 					     &tc_info->encap_ht_params,
 					     encap_key);
-	if (!encap_node)
-		return -ENOMEM;
+	if (!encap_analde)
+		return -EANALMEM;
 
-	flow_node->encap_node = encap_node;
+	flow_analde->encap_analde = encap_analde;
 
-	if (encap_node->tunnel_handle != INVALID_TUNNEL_HANDLE)
+	if (encap_analde->tunnel_handle != INVALID_TUNNEL_HANDLE)
 		goto done;
 
-	rc = bnxt_tc_resolve_tunnel_hdrs(bp, encap_key, &encap_node->l2_info);
+	rc = bnxt_tc_resolve_tunnel_hdrs(bp, encap_key, &encap_analde->l2_info);
 	if (rc)
 		goto put_encap;
 
 	/* Allocate a new tunnel encap record */
-	rc = hwrm_cfa_encap_record_alloc(bp, encap_key, &encap_node->l2_info,
-					 &encap_node->tunnel_handle);
+	rc = hwrm_cfa_encap_record_alloc(bp, encap_key, &encap_analde->l2_info,
+					 &encap_analde->tunnel_handle);
 	if (rc)
 		goto put_encap;
 
 done:
-	*encap_handle = encap_node->tunnel_handle;
+	*encap_handle = encap_analde->tunnel_handle;
 	return 0;
 
 put_encap:
-	bnxt_tc_put_tunnel_node(bp, &tc_info->encap_table,
-				&tc_info->encap_ht_params, encap_node);
+	bnxt_tc_put_tunnel_analde(bp, &tc_info->encap_table,
+				&tc_info->encap_ht_params, encap_analde);
 	return rc;
 }
 
 static void bnxt_tc_put_tunnel_handle(struct bnxt *bp,
 				      struct bnxt_tc_flow *flow,
-				      struct bnxt_tc_flow_node *flow_node)
+				      struct bnxt_tc_flow_analde *flow_analde)
 {
 	if (flow->actions.flags & BNXT_TC_ACTION_FLAG_TUNNEL_DECAP)
-		bnxt_tc_put_decap_handle(bp, flow_node);
+		bnxt_tc_put_decap_handle(bp, flow_analde);
 	else if (flow->actions.flags & BNXT_TC_ACTION_FLAG_TUNNEL_ENCAP)
-		bnxt_tc_put_encap_handle(bp, flow_node->encap_node);
+		bnxt_tc_put_encap_handle(bp, flow_analde->encap_analde);
 }
 
 static int bnxt_tc_get_tunnel_handle(struct bnxt *bp,
 				     struct bnxt_tc_flow *flow,
-				     struct bnxt_tc_flow_node *flow_node,
+				     struct bnxt_tc_flow_analde *flow_analde,
 				     __le32 *tunnel_handle)
 {
 	if (flow->actions.flags & BNXT_TC_ACTION_FLAG_TUNNEL_DECAP)
-		return bnxt_tc_get_decap_handle(bp, flow, flow_node,
+		return bnxt_tc_get_decap_handle(bp, flow, flow_analde,
 						tunnel_handle);
 	else if (flow->actions.flags & BNXT_TC_ACTION_FLAG_TUNNEL_ENCAP)
-		return bnxt_tc_get_encap_handle(bp, flow, flow_node,
+		return bnxt_tc_get_encap_handle(bp, flow, flow_analde,
 						tunnel_handle);
 	else
 		return 0;
 }
 static int __bnxt_tc_del_flow(struct bnxt *bp,
-			      struct bnxt_tc_flow_node *flow_node)
+			      struct bnxt_tc_flow_analde *flow_analde)
 {
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	int rc;
 
 	/* send HWRM cmd to free the flow-id */
-	bnxt_hwrm_cfa_flow_free(bp, flow_node);
+	bnxt_hwrm_cfa_flow_free(bp, flow_analde);
 
 	mutex_lock(&tc_info->lock);
 
-	/* release references to any tunnel encap/decap nodes */
-	bnxt_tc_put_tunnel_handle(bp, &flow_node->flow, flow_node);
+	/* release references to any tunnel encap/decap analdes */
+	bnxt_tc_put_tunnel_handle(bp, &flow_analde->flow, flow_analde);
 
-	/* release reference to l2 node */
-	bnxt_tc_put_l2_node(bp, flow_node);
+	/* release reference to l2 analde */
+	bnxt_tc_put_l2_analde(bp, flow_analde);
 
 	mutex_unlock(&tc_info->lock);
 
-	rc = rhashtable_remove_fast(&tc_info->flow_table, &flow_node->node,
+	rc = rhashtable_remove_fast(&tc_info->flow_table, &flow_analde->analde,
 				    tc_info->flow_ht_params);
 	if (rc)
 		netdev_err(bp->dev, "Error: %s: rhashtable_remove_fast rc=%d\n",
 			   __func__, rc);
 
-	kfree_rcu(flow_node, rcu);
+	kfree_rcu(flow_analde, rcu);
 	return 0;
 }
 
@@ -1508,7 +1508,7 @@ static void bnxt_tc_set_src_fid(struct bnxt *bp, struct bnxt_tc_flow *flow,
 }
 
 /* Add a new flow or replace an existing flow.
- * Notes on locking:
+ * Analtes on locking:
  * There are essentially two critical sections here.
  * 1. while adding a new flow
  *    a) lookup l2-key
@@ -1523,65 +1523,65 @@ static void bnxt_tc_set_src_fid(struct bnxt *bp, struct bnxt_tc_flow *flow,
 static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 			    struct flow_cls_offload *tc_flow_cmd)
 {
-	struct bnxt_tc_flow_node *new_node, *old_node;
+	struct bnxt_tc_flow_analde *new_analde, *old_analde;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	struct bnxt_tc_flow *flow;
 	__le32 tunnel_handle = 0;
 	__le16 ref_flow_handle;
 	int rc;
 
-	/* allocate memory for the new flow and it's node */
-	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
-	if (!new_node) {
-		rc = -ENOMEM;
+	/* allocate memory for the new flow and it's analde */
+	new_analde = kzalloc(sizeof(*new_analde), GFP_KERNEL);
+	if (!new_analde) {
+		rc = -EANALMEM;
 		goto done;
 	}
-	new_node->cookie = tc_flow_cmd->cookie;
-	flow = &new_node->flow;
+	new_analde->cookie = tc_flow_cmd->cookie;
+	flow = &new_analde->flow;
 
 	rc = bnxt_tc_parse_flow(bp, tc_flow_cmd, flow);
 	if (rc)
-		goto free_node;
+		goto free_analde;
 
 	bnxt_tc_set_src_fid(bp, flow, src_fid);
 	bnxt_tc_set_flow_dir(bp, flow, flow->src_fid);
 
 	if (!bnxt_tc_can_offload(bp, flow)) {
-		rc = -EOPNOTSUPP;
-		kfree_rcu(new_node, rcu);
+		rc = -EOPANALTSUPP;
+		kfree_rcu(new_analde, rcu);
 		return rc;
 	}
 
 	/* If a flow exists with the same cookie, delete it */
-	old_node = rhashtable_lookup_fast(&tc_info->flow_table,
+	old_analde = rhashtable_lookup_fast(&tc_info->flow_table,
 					  &tc_flow_cmd->cookie,
 					  tc_info->flow_ht_params);
-	if (old_node)
-		__bnxt_tc_del_flow(bp, old_node);
+	if (old_analde)
+		__bnxt_tc_del_flow(bp, old_analde);
 
 	/* Check if the L2 part of the flow has been offloaded already.
 	 * If so, bump up it's refcnt and get it's reference handle.
 	 */
 	mutex_lock(&tc_info->lock);
-	rc = bnxt_tc_get_ref_flow_handle(bp, flow, new_node, &ref_flow_handle);
+	rc = bnxt_tc_get_ref_flow_handle(bp, flow, new_analde, &ref_flow_handle);
 	if (rc)
 		goto unlock;
 
 	/* If the flow involves tunnel encap/decap, get tunnel_handle */
-	rc = bnxt_tc_get_tunnel_handle(bp, flow, new_node, &tunnel_handle);
+	rc = bnxt_tc_get_tunnel_handle(bp, flow, new_analde, &tunnel_handle);
 	if (rc)
 		goto put_l2;
 
 	/* send HWRM cmd to alloc the flow */
 	rc = bnxt_hwrm_cfa_flow_alloc(bp, flow, ref_flow_handle,
-				      tunnel_handle, new_node);
+				      tunnel_handle, new_analde);
 	if (rc)
 		goto put_tunnel;
 
 	flow->lastused = jiffies;
 	spin_lock_init(&flow->stats_lock);
 	/* add new flow to flow-table */
-	rc = rhashtable_insert_fast(&tc_info->flow_table, &new_node->node,
+	rc = rhashtable_insert_fast(&tc_info->flow_table, &new_analde->analde,
 				    tc_info->flow_ht_params);
 	if (rc)
 		goto hwrm_flow_free;
@@ -1590,15 +1590,15 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 	return 0;
 
 hwrm_flow_free:
-	bnxt_hwrm_cfa_flow_free(bp, new_node);
+	bnxt_hwrm_cfa_flow_free(bp, new_analde);
 put_tunnel:
-	bnxt_tc_put_tunnel_handle(bp, flow, new_node);
+	bnxt_tc_put_tunnel_handle(bp, flow, new_analde);
 put_l2:
-	bnxt_tc_put_l2_node(bp, new_node);
+	bnxt_tc_put_l2_analde(bp, new_analde);
 unlock:
 	mutex_unlock(&tc_info->lock);
-free_node:
-	kfree_rcu(new_node, rcu);
+free_analde:
+	kfree_rcu(new_analde, rcu);
 done:
 	netdev_err(bp->dev, "Error: %s: cookie=0x%lx error=%d\n",
 		   __func__, tc_flow_cmd->cookie, rc);
@@ -1609,15 +1609,15 @@ static int bnxt_tc_del_flow(struct bnxt *bp,
 			    struct flow_cls_offload *tc_flow_cmd)
 {
 	struct bnxt_tc_info *tc_info = bp->tc_info;
-	struct bnxt_tc_flow_node *flow_node;
+	struct bnxt_tc_flow_analde *flow_analde;
 
-	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
+	flow_analde = rhashtable_lookup_fast(&tc_info->flow_table,
 					   &tc_flow_cmd->cookie,
 					   tc_info->flow_ht_params);
-	if (!flow_node)
+	if (!flow_analde)
 		return -EINVAL;
 
-	return __bnxt_tc_del_flow(bp, flow_node);
+	return __bnxt_tc_del_flow(bp, flow_analde);
 }
 
 static int bnxt_tc_get_flow_stats(struct bnxt *bp,
@@ -1625,17 +1625,17 @@ static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 {
 	struct bnxt_tc_flow_stats stats, *curr_stats, *prev_stats;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
-	struct bnxt_tc_flow_node *flow_node;
+	struct bnxt_tc_flow_analde *flow_analde;
 	struct bnxt_tc_flow *flow;
 	unsigned long lastused;
 
-	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
+	flow_analde = rhashtable_lookup_fast(&tc_info->flow_table,
 					   &tc_flow_cmd->cookie,
 					   tc_info->flow_ht_params);
-	if (!flow_node)
+	if (!flow_analde)
 		return -1;
 
-	flow = &flow_node->flow;
+	flow = &flow_analde->flow;
 	curr_stats = &flow->stats;
 	prev_stats = &flow->prev_stats;
 
@@ -1652,20 +1652,20 @@ static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 }
 
 static void bnxt_fill_cfa_stats_req(struct bnxt *bp,
-				    struct bnxt_tc_flow_node *flow_node,
+				    struct bnxt_tc_flow_analde *flow_analde,
 				    __le16 *flow_handle, __le32 *flow_id)
 {
 	u16 handle;
 
 	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE) {
-		*flow_id = flow_node->flow_id;
+		*flow_id = flow_analde->flow_id;
 
 		/* If flow_id is used to fetch flow stats then:
 		 * 1. lower 12 bits of flow_handle must be set to all 1s.
 		 * 2. 15th bit of flow_handle must specify the flow
 		 *    direction (TX/RX).
 		 */
-		if (flow_node->flow.l2_key.dir == BNXT_DIR_RX)
+		if (flow_analde->flow.l2_key.dir == BNXT_DIR_RX)
 			handle = CFA_FLOW_INFO_REQ_FLOW_HANDLE_DIR_RX |
 				 CFA_FLOW_INFO_REQ_FLOW_HANDLE_MAX_MASK;
 		else
@@ -1673,7 +1673,7 @@ static void bnxt_fill_cfa_stats_req(struct bnxt *bp,
 
 		*flow_handle = cpu_to_le16(handle);
 	} else {
-		*flow_handle = flow_node->flow_handle;
+		*flow_handle = flow_analde->flow_handle;
 	}
 }
 
@@ -1696,9 +1696,9 @@ bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 
 	req->num_flows = cpu_to_le16(num_flows);
 	for (i = 0; i < num_flows; i++) {
-		struct bnxt_tc_flow_node *flow_node = stats_batch[i].flow_node;
+		struct bnxt_tc_flow_analde *flow_analde = stats_batch[i].flow_analde;
 
-		bnxt_fill_cfa_stats_req(bp, flow_node,
+		bnxt_fill_cfa_stats_req(bp, flow_analde,
 					&req_flow_handles[i], &req_flow_ids[i]);
 	}
 
@@ -1728,7 +1728,7 @@ exit:
 
 /* Add val to accum while handling a possible wraparound
  * of val. Eventhough val is of type u64, its actual width
- * is denoted by mask and will wrap-around beyond that width.
+ * is deanalted by mask and will wrap-around beyond that width.
  */
 static void accumulate_val(u64 *accum, u64 val, u64 mask)
 {
@@ -1765,8 +1765,8 @@ bnxt_tc_flow_stats_batch_update(struct bnxt *bp, int num_flows,
 		return rc;
 
 	for (i = 0; i < num_flows; i++) {
-		struct bnxt_tc_flow_node *flow_node = stats_batch[i].flow_node;
-		struct bnxt_tc_flow *flow = &flow_node->flow;
+		struct bnxt_tc_flow_analde *flow_analde = stats_batch[i].flow_analde;
+		struct bnxt_tc_flow *flow = &flow_analde->flow;
 
 		spin_lock(&flow->stats_lock);
 		bnxt_flow_stats_accum(tc_info, &flow->stats,
@@ -1786,29 +1786,29 @@ bnxt_tc_flow_stats_batch_prep(struct bnxt *bp,
 {
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	struct rhashtable_iter *iter = &tc_info->iter;
-	void *flow_node;
+	void *flow_analde;
 	int rc, i;
 
 	rhashtable_walk_start(iter);
 
 	rc = 0;
 	for (i = 0; i < BNXT_FLOW_STATS_BATCH_MAX; i++) {
-		flow_node = rhashtable_walk_next(iter);
-		if (IS_ERR(flow_node)) {
+		flow_analde = rhashtable_walk_next(iter);
+		if (IS_ERR(flow_analde)) {
 			i = 0;
-			if (PTR_ERR(flow_node) == -EAGAIN) {
+			if (PTR_ERR(flow_analde) == -EAGAIN) {
 				continue;
 			} else {
-				rc = PTR_ERR(flow_node);
+				rc = PTR_ERR(flow_analde);
 				goto done;
 			}
 		}
 
-		/* No more flows */
-		if (!flow_node)
+		/* Anal more flows */
+		if (!flow_analde)
 			goto done;
 
-		stats_batch[i].flow_node = flow_node;
+		stats_batch[i].flow_analde = flow_analde;
 	}
 done:
 	rhashtable_walk_stop(iter);
@@ -1857,7 +1857,7 @@ int bnxt_tc_setup_flower(struct bnxt *bp, u16 src_fid,
 	case FLOW_CLS_STATS:
 		return bnxt_tc_get_flow_stats(bp, cls_flower);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1869,13 +1869,13 @@ static int bnxt_tc_setup_indr_block_cb(enum tc_setup_type type,
 	struct bnxt *bp = priv->bp;
 
 	if (!tc_cls_can_offload_and_chain0(bp->dev, type_data))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return bnxt_tc_setup_flower(bp, bp->pf.fw_fid, flower);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1907,13 +1907,13 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct Qdisc *sch
 	struct flow_block_cb *block_cb;
 
 	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
 		cb_priv = kmalloc(sizeof(*cb_priv), GFP_KERNEL);
 		if (!cb_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb_priv->tunnel_netdev = netdev;
 		cb_priv->bp = bp;
@@ -1935,19 +1935,19 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct Qdisc *sch
 	case FLOW_BLOCK_UNBIND:
 		cb_priv = bnxt_tc_indr_block_cb_lookup(bp, netdev);
 		if (!cb_priv)
-			return -ENOENT;
+			return -EANALENT;
 
 		block_cb = flow_block_cb_lookup(f->block,
 						bnxt_tc_setup_indr_block_cb,
 						cb_priv);
 		if (!block_cb)
-			return -ENOENT;
+			return -EANALENT;
 
 		flow_indr_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -1963,7 +1963,7 @@ static int bnxt_tc_setup_indr_cb(struct net_device *netdev, struct Qdisc *sch, v
 				 void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	if (!netdev || !bnxt_is_netdev_indr_offload(netdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
@@ -1972,33 +1972,33 @@ static int bnxt_tc_setup_indr_cb(struct net_device *netdev, struct Qdisc *sch, v
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct rhashtable_params bnxt_tc_flow_ht_params = {
-	.head_offset = offsetof(struct bnxt_tc_flow_node, node),
-	.key_offset = offsetof(struct bnxt_tc_flow_node, cookie),
-	.key_len = sizeof(((struct bnxt_tc_flow_node *)0)->cookie),
+	.head_offset = offsetof(struct bnxt_tc_flow_analde, analde),
+	.key_offset = offsetof(struct bnxt_tc_flow_analde, cookie),
+	.key_len = sizeof(((struct bnxt_tc_flow_analde *)0)->cookie),
 	.automatic_shrinking = true
 };
 
 static const struct rhashtable_params bnxt_tc_l2_ht_params = {
-	.head_offset = offsetof(struct bnxt_tc_l2_node, node),
-	.key_offset = offsetof(struct bnxt_tc_l2_node, key),
+	.head_offset = offsetof(struct bnxt_tc_l2_analde, analde),
+	.key_offset = offsetof(struct bnxt_tc_l2_analde, key),
 	.key_len = BNXT_TC_L2_KEY_LEN,
 	.automatic_shrinking = true
 };
 
 static const struct rhashtable_params bnxt_tc_decap_l2_ht_params = {
-	.head_offset = offsetof(struct bnxt_tc_l2_node, node),
-	.key_offset = offsetof(struct bnxt_tc_l2_node, key),
+	.head_offset = offsetof(struct bnxt_tc_l2_analde, analde),
+	.key_offset = offsetof(struct bnxt_tc_l2_analde, key),
 	.key_len = BNXT_TC_L2_KEY_LEN,
 	.automatic_shrinking = true
 };
 
 static const struct rhashtable_params bnxt_tc_tunnel_ht_params = {
-	.head_offset = offsetof(struct bnxt_tc_tunnel_node, node),
-	.key_offset = offsetof(struct bnxt_tc_tunnel_node, key),
+	.head_offset = offsetof(struct bnxt_tc_tunnel_analde, analde),
+	.key_offset = offsetof(struct bnxt_tc_tunnel_analde, key),
 	.key_len = sizeof(struct ip_tunnel_key),
 	.automatic_shrinking = true
 };
@@ -2016,7 +2016,7 @@ int bnxt_init_tc(struct bnxt *bp)
 
 	tc_info = kzalloc(sizeof(*tc_info), GFP_KERNEL);
 	if (!tc_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&tc_info->lock);
 
 	/* Counter widths are programmed by FW */
@@ -2056,7 +2056,7 @@ int bnxt_init_tc(struct bnxt *bp)
 	bp->dev->features |= NETIF_F_HW_TC;
 	bp->tc_info = tc_info;
 
-	/* init indirect block notifications */
+	/* init indirect block analtifications */
 	INIT_LIST_HEAD(&bp->tc_indr_block_list);
 
 	rc = flow_indr_dev_register(bnxt_tc_setup_indr_cb, bp);

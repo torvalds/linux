@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _planar-apis:
 
@@ -12,7 +12,7 @@ has to be addressed using more than one memory address, i.e. one pointer
 per "plane". A plane is a sub-buffer of the current frame. For examples
 of such formats see :ref:`pixfmt`.
 
-Initially, V4L2 API did not support multi-planar buffers and a set of
+Initially, V4L2 API did analt support multi-planar buffers and a set of
 extensions has been introduced to handle them. Those extensions
 constitute what is being referred to as the "multi-planar API".
 
@@ -32,7 +32,7 @@ Multi-planar API introduces new multi-planar formats. Those formats use
 a separate set of FourCC codes. It is important to distinguish between
 the multi-planar API and a multi-planar format. Multi-planar API calls
 can handle all single-planar formats as well (as long as they are passed
-in multi-planar API structures), while the single-planar API cannot
+in multi-planar API structures), while the single-planar API cananalt
 handle multi-planar formats.
 
 
@@ -41,7 +41,7 @@ Calls that distinguish between single and multi-planar APIs
 
 :ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>`
     Two additional multi-planar capabilities are added. They can be set
-    together with non-multi-planar ones for devices that handle both
+    together with analn-multi-planar ones for devices that handle both
     single- and multi-planar formats.
 
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`, :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`

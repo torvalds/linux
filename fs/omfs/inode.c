@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Optimized MPEG FS - inode and super operations.
+ * Optimized MPEG FS - ianalde and super operations.
  * Copyright (C) 2006 Bob Copeland <me@bobcopeland.com>
  */
 #include <linux/module.h>
@@ -30,57 +30,57 @@ struct buffer_head *omfs_bread(struct super_block *sb, sector_t block)
 	return sb_bread(sb, clus_to_blk(sbi, block));
 }
 
-struct inode *omfs_new_inode(struct inode *dir, umode_t mode)
+struct ianalde *omfs_new_ianalde(struct ianalde *dir, umode_t mode)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	u64 new_block;
 	int err;
 	int len;
 	struct omfs_sb_info *sbi = OMFS_SB(dir->i_sb);
 
-	inode = new_inode(dir->i_sb);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	ianalde = new_ianalde(dir->i_sb);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
 	err = omfs_allocate_range(dir->i_sb, sbi->s_mirrors, sbi->s_mirrors,
 			&new_block, &len);
 	if (err)
 		goto fail;
 
-	inode->i_ino = new_block;
-	inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
-	inode->i_mapping->a_ops = &omfs_aops;
+	ianalde->i_ianal = new_block;
+	ianalde_init_owner(&analp_mnt_idmap, ianalde, NULL, mode);
+	ianalde->i_mapping->a_ops = &omfs_aops;
 
-	simple_inode_init_ts(inode);
+	simple_ianalde_init_ts(ianalde);
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
-		inode->i_op = &omfs_dir_inops;
-		inode->i_fop = &omfs_dir_operations;
-		inode->i_size = sbi->s_sys_blocksize;
-		inc_nlink(inode);
+		ianalde->i_op = &omfs_dir_ianalps;
+		ianalde->i_fop = &omfs_dir_operations;
+		ianalde->i_size = sbi->s_sys_blocksize;
+		inc_nlink(ianalde);
 		break;
 	case S_IFREG:
-		inode->i_op = &omfs_file_inops;
-		inode->i_fop = &omfs_file_operations;
-		inode->i_size = 0;
+		ianalde->i_op = &omfs_file_ianalps;
+		ianalde->i_fop = &omfs_file_operations;
+		ianalde->i_size = 0;
 		break;
 	}
 
-	insert_inode_hash(inode);
-	mark_inode_dirty(inode);
-	return inode;
+	insert_ianalde_hash(ianalde);
+	mark_ianalde_dirty(ianalde);
+	return ianalde;
 fail:
-	make_bad_inode(inode);
-	iput(inode);
+	make_bad_ianalde(ianalde);
+	iput(ianalde);
 	return ERR_PTR(err);
 }
 
 /*
- * Update the header checksums for a dirty inode based on its contents.
+ * Update the header checksums for a dirty ianalde based on its contents.
  * Caller is expected to hold the buffer head underlying oi and mark it
  * dirty.
  */
-static void omfs_update_checksums(struct omfs_inode *oi)
+static void omfs_update_checksums(struct omfs_ianalde *oi)
 {
 	int xor, i, ofs = 0, count;
 	u16 crc = 0;
@@ -99,43 +99,43 @@ static void omfs_update_checksums(struct omfs_inode *oi)
 	oi->i_head.h_check_xor = xor;
 }
 
-static int __omfs_write_inode(struct inode *inode, int wait)
+static int __omfs_write_ianalde(struct ianalde *ianalde, int wait)
 {
-	struct omfs_inode *oi;
-	struct omfs_sb_info *sbi = OMFS_SB(inode->i_sb);
+	struct omfs_ianalde *oi;
+	struct omfs_sb_info *sbi = OMFS_SB(ianalde->i_sb);
 	struct buffer_head *bh, *bh2;
 	u64 ctime;
 	int i;
 	int ret = -EIO;
 	int sync_failed = 0;
 
-	/* get current inode since we may have written sibling ptrs etc. */
-	bh = omfs_bread(inode->i_sb, inode->i_ino);
+	/* get current ianalde since we may have written sibling ptrs etc. */
+	bh = omfs_bread(ianalde->i_sb, ianalde->i_ianal);
 	if (!bh)
 		goto out;
 
-	oi = (struct omfs_inode *) bh->b_data;
+	oi = (struct omfs_ianalde *) bh->b_data;
 
-	oi->i_head.h_self = cpu_to_be64(inode->i_ino);
-	if (S_ISDIR(inode->i_mode))
+	oi->i_head.h_self = cpu_to_be64(ianalde->i_ianal);
+	if (S_ISDIR(ianalde->i_mode))
 		oi->i_type = OMFS_DIR;
-	else if (S_ISREG(inode->i_mode))
+	else if (S_ISREG(ianalde->i_mode))
 		oi->i_type = OMFS_FILE;
 	else {
-		printk(KERN_WARNING "omfs: unknown file type: %d\n",
-			inode->i_mode);
+		printk(KERN_WARNING "omfs: unkanalwn file type: %d\n",
+			ianalde->i_mode);
 		goto out_brelse;
 	}
 
 	oi->i_head.h_body_size = cpu_to_be32(sbi->s_sys_blocksize -
 		sizeof(struct omfs_header));
 	oi->i_head.h_version = 1;
-	oi->i_head.h_type = OMFS_INODE_NORMAL;
+	oi->i_head.h_type = OMFS_IANALDE_ANALRMAL;
 	oi->i_head.h_magic = OMFS_IMAGIC;
-	oi->i_size = cpu_to_be64(inode->i_size);
+	oi->i_size = cpu_to_be64(ianalde->i_size);
 
-	ctime = inode_get_ctime_sec(inode) * 1000LL +
-		((inode_get_ctime_nsec(inode) + 999)/1000);
+	ctime = ianalde_get_ctime_sec(ianalde) * 1000LL +
+		((ianalde_get_ctime_nsec(ianalde) + 999)/1000);
 	oi->i_ctime = cpu_to_be64(ctime);
 
 	omfs_update_checksums(oi);
@@ -149,7 +149,7 @@ static int __omfs_write_inode(struct inode *inode, int wait)
 
 	/* if mirroring writes, copy to next fsblock */
 	for (i = 1; i < sbi->s_mirrors; i++) {
-		bh2 = omfs_bread(inode->i_sb, inode->i_ino + i);
+		bh2 = omfs_bread(ianalde->i_sb, ianalde->i_ianal + i);
 		if (!bh2)
 			goto out_brelse;
 
@@ -169,94 +169,94 @@ out:
 	return ret;
 }
 
-static int omfs_write_inode(struct inode *inode, struct writeback_control *wbc)
+static int omfs_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc)
 {
-	return __omfs_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+	return __omfs_write_ianalde(ianalde, wbc->sync_mode == WB_SYNC_ALL);
 }
 
-int omfs_sync_inode(struct inode *inode)
+int omfs_sync_ianalde(struct ianalde *ianalde)
 {
-	return __omfs_write_inode(inode, 1);
+	return __omfs_write_ianalde(ianalde, 1);
 }
 
 /*
  * called when an entry is deleted, need to clear the bits in the
  * bitmaps.
  */
-static void omfs_evict_inode(struct inode *inode)
+static void omfs_evict_ianalde(struct ianalde *ianalde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
+	truncate_ianalde_pages_final(&ianalde->i_data);
+	clear_ianalde(ianalde);
 
-	if (inode->i_nlink)
+	if (ianalde->i_nlink)
 		return;
 
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_size = 0;
-		omfs_shrink_inode(inode);
+	if (S_ISREG(ianalde->i_mode)) {
+		ianalde->i_size = 0;
+		omfs_shrink_ianalde(ianalde);
 	}
 
-	omfs_clear_range(inode->i_sb, inode->i_ino, 2);
+	omfs_clear_range(ianalde->i_sb, ianalde->i_ianal, 2);
 }
 
-struct inode *omfs_iget(struct super_block *sb, ino_t ino)
+struct ianalde *omfs_iget(struct super_block *sb, ianal_t ianal)
 {
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
-	struct omfs_inode *oi;
+	struct omfs_ianalde *oi;
 	struct buffer_head *bh;
 	u64 ctime;
 	unsigned long nsecs;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	ianalde = iget_locked(sb, ianal);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
 
-	bh = omfs_bread(inode->i_sb, ino);
+	bh = omfs_bread(ianalde->i_sb, ianal);
 	if (!bh)
 		goto iget_failed;
 
-	oi = (struct omfs_inode *)bh->b_data;
+	oi = (struct omfs_ianalde *)bh->b_data;
 
 	/* check self */
-	if (ino != be64_to_cpu(oi->i_head.h_self))
+	if (ianal != be64_to_cpu(oi->i_head.h_self))
 		goto fail_bh;
 
-	inode->i_uid = sbi->s_uid;
-	inode->i_gid = sbi->s_gid;
+	ianalde->i_uid = sbi->s_uid;
+	ianalde->i_gid = sbi->s_gid;
 
 	ctime = be64_to_cpu(oi->i_ctime);
 	nsecs = do_div(ctime, 1000) * 1000L;
 
-	inode_set_atime(inode, ctime, nsecs);
-	inode_set_mtime(inode, ctime, nsecs);
-	inode_set_ctime(inode, ctime, nsecs);
+	ianalde_set_atime(ianalde, ctime, nsecs);
+	ianalde_set_mtime(ianalde, ctime, nsecs);
+	ianalde_set_ctime(ianalde, ctime, nsecs);
 
-	inode->i_mapping->a_ops = &omfs_aops;
+	ianalde->i_mapping->a_ops = &omfs_aops;
 
 	switch (oi->i_type) {
 	case OMFS_DIR:
-		inode->i_mode = S_IFDIR | (S_IRWXUGO & ~sbi->s_dmask);
-		inode->i_op = &omfs_dir_inops;
-		inode->i_fop = &omfs_dir_operations;
-		inode->i_size = sbi->s_sys_blocksize;
-		inc_nlink(inode);
+		ianalde->i_mode = S_IFDIR | (S_IRWXUGO & ~sbi->s_dmask);
+		ianalde->i_op = &omfs_dir_ianalps;
+		ianalde->i_fop = &omfs_dir_operations;
+		ianalde->i_size = sbi->s_sys_blocksize;
+		inc_nlink(ianalde);
 		break;
 	case OMFS_FILE:
-		inode->i_mode = S_IFREG | (S_IRWXUGO & ~sbi->s_fmask);
-		inode->i_fop = &omfs_file_operations;
-		inode->i_size = be64_to_cpu(oi->i_size);
+		ianalde->i_mode = S_IFREG | (S_IRWXUGO & ~sbi->s_fmask);
+		ianalde->i_fop = &omfs_file_operations;
+		ianalde->i_size = be64_to_cpu(oi->i_size);
 		break;
 	}
 	brelse(bh);
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_ianalde(ianalde);
+	return ianalde;
 fail_bh:
 	brelse(bh);
 iget_failed:
-	iget_failed(inode);
+	iget_failed(ianalde);
 	return ERR_PTR(-EIO);
 }
 
@@ -316,8 +316,8 @@ static int omfs_show_options(struct seq_file *m, struct dentry *root)
 }
 
 static const struct super_operations omfs_sops = {
-	.write_inode	= omfs_write_inode,
-	.evict_inode	= omfs_evict_inode,
+	.write_ianalde	= omfs_write_ianalde,
+	.evict_ianalde	= omfs_evict_ianalde,
 	.put_super	= omfs_put_super,
 	.statfs		= omfs_statfs,
 	.show_options	= omfs_show_options,
@@ -325,8 +325,8 @@ static const struct super_operations omfs_sops = {
 
 /*
  * For Rio Karma, there is an on-disk free bitmap whose location is
- * stored in the root block.  For ReplayTV, there is no such free bitmap
- * so we have to walk the tree.  Both inodes and file data are allocated
+ * stored in the root block.  For ReplayTV, there is anal such free bitmap
+ * so we have to walk the tree.  Both ianaldes and file data are allocated
  * from the same map.  This array can be big (300k) so we allocate
  * in units of the blocksize.
  */
@@ -342,27 +342,27 @@ static int omfs_get_imap(struct super_block *sb)
 	bitmap_size = DIV_ROUND_UP(sbi->s_num_blocks, 8);
 	array_size = DIV_ROUND_UP(bitmap_size, sb->s_blocksize);
 
-	if (sbi->s_bitmap_ino == ~0ULL)
+	if (sbi->s_bitmap_ianal == ~0ULL)
 		goto out;
 
 	sbi->s_imap_size = array_size;
 	sbi->s_imap = kcalloc(array_size, sizeof(unsigned long *), GFP_KERNEL);
 	if (!sbi->s_imap)
-		goto nomem;
+		goto analmem;
 
-	block = clus_to_blk(sbi, sbi->s_bitmap_ino);
+	block = clus_to_blk(sbi, sbi->s_bitmap_ianal);
 	if (block >= sbi->s_num_blocks)
-		goto nomem;
+		goto analmem;
 
 	ptr = sbi->s_imap;
 	for (count = bitmap_size; count > 0; count -= sb->s_blocksize) {
 		bh = sb_bread(sb, block++);
 		if (!bh)
-			goto nomem_free;
+			goto analmem_free;
 		*ptr = kmemdup(bh->b_data, sb->s_blocksize, GFP_KERNEL);
 		if (!*ptr) {
 			brelse(bh);
-			goto nomem_free;
+			goto analmem_free;
 		}
 		if (count < sb->s_blocksize)
 			memset((void *)*ptr + count, 0xff,
@@ -373,15 +373,15 @@ static int omfs_get_imap(struct super_block *sb)
 out:
 	return 0;
 
-nomem_free:
+analmem_free:
 	for (count = 0; count < array_size; count++)
 		kfree(sbi->s_imap[count]);
 
 	kfree(sbi->s_imap);
-nomem:
+analmem:
 	sbi->s_imap = NULL;
 	sbi->s_imap_size = 0;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 enum {
@@ -455,12 +455,12 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct omfs_super_block *omfs_sb;
 	struct omfs_root_block *omfs_rb;
 	struct omfs_sb_info *sbi;
-	struct inode *root;
+	struct ianalde *root;
 	int ret = -EINVAL;
 
 	sbi = kzalloc(sizeof(struct omfs_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->s_fs_info = sbi;
 
@@ -496,7 +496,7 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_num_blocks = be64_to_cpu(omfs_sb->s_num_blocks);
 	sbi->s_blocksize = be32_to_cpu(omfs_sb->s_blocksize);
 	sbi->s_mirrors = be32_to_cpu(omfs_sb->s_mirrors);
-	sbi->s_root_ino = be64_to_cpu(omfs_sb->s_root_block);
+	sbi->s_root_ianal = be64_to_cpu(omfs_sb->s_root_block);
 	sbi->s_sys_blocksize = be32_to_cpu(omfs_sb->s_sys_blocksize);
 	mutex_init(&sbi->s_bitmap_lock);
 
@@ -538,7 +538,7 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	omfs_rb = (struct omfs_root_block *)bh2->b_data;
 
-	sbi->s_bitmap_ino = be64_to_cpu(omfs_rb->r_bitmap);
+	sbi->s_bitmap_ianal = be64_to_cpu(omfs_rb->r_bitmap);
 	sbi->s_clustersize = be32_to_cpu(omfs_rb->r_clustersize);
 
 	if (sbi->s_num_blocks != be64_to_cpu(omfs_rb->r_num_blocks)) {
@@ -549,11 +549,11 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_brelse_bh2;
 	}
 
-	if (sbi->s_bitmap_ino != ~0ULL &&
-	    sbi->s_bitmap_ino > sbi->s_num_blocks) {
+	if (sbi->s_bitmap_ianal != ~0ULL &&
+	    sbi->s_bitmap_ianal > sbi->s_num_blocks) {
 		printk(KERN_ERR "omfs: free space bitmap location is corrupt "
 			"(%llx, total blocks %llx)\n",
-			(unsigned long long) sbi->s_bitmap_ino,
+			(unsigned long long) sbi->s_bitmap_ianal,
 			(unsigned long long) sbi->s_num_blocks);
 		goto out_brelse_bh2;
 	}
@@ -578,7 +578,7 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_brelse_bh2;
 	}
 	printk(KERN_DEBUG "omfs: Mounted volume %s\n", omfs_rb->r_name);

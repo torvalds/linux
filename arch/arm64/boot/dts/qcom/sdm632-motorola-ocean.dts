@@ -8,8 +8,8 @@
 #include "pm8953.dtsi"
 #include <dt-bindings/leds/common.h>
 
-/delete-node/ &cont_splash_mem;
-/delete-node/ &qseecom_mem;
+/delete-analde/ &cont_splash_mem;
+/delete-analde/ &qseecom_mem;
 
 / {
 	model = "Motorola G7 Power";
@@ -66,17 +66,17 @@
 	reserved-memory {
 		qseecom_mem: qseecom@84300000 {
 			reg = <0x0 0x84300000 0x0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: cont-splash@90001000 {
 			reg = <0x0 0x90001000 0x0 (720 * 1520 * 3)>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@eefa1800 {
 			reg = <0x00 0xeefa1800 0x00 0x5e800>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ef000000 {

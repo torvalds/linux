@@ -21,7 +21,7 @@ int i2sbus_control_init(struct macio_dev* dev, struct i2sbus_control **c)
 {
 	*c = kzalloc(sizeof(struct i2sbus_control), GFP_KERNEL);
 	if (!*c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&(*c)->list);
 
@@ -38,17 +38,17 @@ void i2sbus_control_destroy(struct i2sbus_control *c)
 int i2sbus_control_add_dev(struct i2sbus_control *c,
 			   struct i2sbus_dev *i2sdev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = i2sdev->sound.ofdev.dev.of_node;
+	np = i2sdev->sound.ofdev.dev.of_analde;
 	i2sdev->enable = pmf_find_function(np, "enable");
 	i2sdev->cell_enable = pmf_find_function(np, "cell-enable");
 	i2sdev->clock_enable = pmf_find_function(np, "clock-enable");
 	i2sdev->cell_disable = pmf_find_function(np, "cell-disable");
 	i2sdev->clock_disable = pmf_find_function(np, "clock-disable");
 
-	/* if the bus number is not 0 or 1 we absolutely need to use
-	 * the platform functions -- there's nothing in Darwin that
+	/* if the bus number is analt 0 or 1 we absolutely need to use
+	 * the platform functions -- there's analthing in Darwin that
 	 * would allow seeing a system behind what the FCRs are then,
 	 * and I don't want to go parsing a bunch of platform functions
 	 * by hand to try finding a system... */
@@ -61,7 +61,7 @@ int i2sbus_control_add_dev(struct i2sbus_control *c,
 		pmf_put_function(i2sdev->clock_enable);
 		pmf_put_function(i2sdev->cell_disable);
 		pmf_put_function(i2sdev->clock_disable);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	list_add(&i2sdev->item, &c->list);
@@ -88,7 +88,7 @@ int i2sbus_control_enable(struct i2sbus_control *c,
 		return pmf_call_one(i2sdev->enable, &args);
 
 	if (macio == NULL || macio->base == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (i2sdev->bus_number) {
 	case 0:
@@ -100,7 +100,7 @@ int i2sbus_control_enable(struct i2sbus_control *c,
 		MACIO_BIS(KEYLARGO_FCR1, KL1_I2S1_ENABLE);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -123,11 +123,11 @@ int i2sbus_control_cell(struct i2sbus_control *c,
 		break;
 	default:
 		printk(KERN_ERR "i2sbus: INVALID CELL ENABLE VALUE\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (macio == NULL || macio->base == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (i2sdev->bus_number) {
 	case 0:
@@ -143,7 +143,7 @@ int i2sbus_control_cell(struct i2sbus_control *c,
 			MACIO_BIC(KEYLARGO_FCR1, KL1_I2S1_CELL_ENABLE);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -166,11 +166,11 @@ int i2sbus_control_clock(struct i2sbus_control *c,
 		break;
 	default:
 		printk(KERN_ERR "i2sbus: INVALID CLOCK ENABLE VALUE\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (macio == NULL || macio->base == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (i2sdev->bus_number) {
 	case 0:
@@ -186,7 +186,7 @@ int i2sbus_control_clock(struct i2sbus_control *c,
 			MACIO_BIC(KEYLARGO_FCR1, KL1_I2S1_CLK_ENABLE_BIT);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

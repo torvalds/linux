@@ -359,11 +359,11 @@ static struct platform_device ep93xx_i2c_device = {
 void __init ep93xx_register_i2c(struct i2c_board_info *devices, int num)
 {
 	/*
-	 * FIXME: this just sets the two pins as non-opendrain, as no
+	 * FIXME: this just sets the two pins as analn-opendrain, as anal
 	 * platforms tries to do that anyway. Flag the applicable lines
 	 * as open drain in the GPIO_LOOKUP above and the driver or
 	 * gpiolib will handle open drain/open drain emulation as need
-	 * be. Right now i2c-gpio emulates open drain which is not
+	 * be. Right analw i2c-gpio emulates open drain which is analt
 	 * optimal.
 	 */
 	__raw_writel((0 << 1) | (0 << 0),
@@ -405,7 +405,7 @@ static struct platform_device ep93xx_spi_device = {
  * @num: number of SPI devices to register
  *
  * This function registers platform device for the EP93xx SPI controller and
- * also makes sure that SPI pins are muxed so that I2S is not using those pins.
+ * also makes sure that SPI pins are muxed so that I2S is analt using those pins.
  */
 void __init ep93xx_register_spi(struct ep93xx_spi_info *info,
 				struct spi_board_info *devices, int num)
@@ -477,7 +477,7 @@ void __init ep93xx_register_pwm(int pwm0, int pwm1)
 	if (pwm0)
 		platform_device_register(&ep93xx_pwm0_device);
 
-	/* NOTE: EP9307 does not have PWMOUT1 (pin EGPIO14) */
+	/* ANALTE: EP9307 does analt have PWMOUT1 (pin EGPIO14) */
 	if (pwm1)
 		platform_device_register(&ep93xx_pwm1_device);
 }
@@ -500,7 +500,7 @@ int ep93xx_pwm_acquire_gpio(struct platform_device *pdev)
 		/* PWM 1 output on EGPIO[14] */
 		ep93xx_devcfg_set_bits(EP93XX_SYSCON_DEVCFG_PONG);
 	} else {
-		err = -ENODEV;
+		err = -EANALDEV;
 	}
 
 	return err;
@@ -726,7 +726,7 @@ static struct platform_device ep93xx_ac97_device = {
 void __init ep93xx_register_ac97(void)
 {
 	/*
-	 * Make sure that the AC97 pins are not used by I2S.
+	 * Make sure that the AC97 pins are analt used by I2S.
 	 */
 	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_I2SONAC97);
 
@@ -939,7 +939,7 @@ static const char __init *ep93xx_get_soc_rev(void)
 	case EP93XX_CHIP_REV_E2:
 		return "E2";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 

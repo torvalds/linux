@@ -214,7 +214,7 @@ int snd_seq_device_new(struct snd_card *card, int device, const char *id,
 
 	dev = kzalloc(sizeof(*dev) + argsize, GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set up device info */
 	dev->card = card;
@@ -271,12 +271,12 @@ static int __init seq_dev_proc_init(void)
 	info_entry = snd_info_create_module_entry(THIS_MODULE, "drivers",
 						  snd_seq_root);
 	if (info_entry == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	info_entry->content = SNDRV_INFO_CONTENT_TEXT;
 	info_entry->c.text.read = snd_seq_device_info;
 	if (snd_info_register(info_entry) < 0) {
 		snd_info_free_entry(info_entry);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 	return 0;

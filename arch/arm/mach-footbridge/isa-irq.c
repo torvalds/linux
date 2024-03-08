@@ -114,8 +114,8 @@ void __init isa_init_irq(unsigned int host_irq)
 
 	/*
 	 * Setup, and then probe for an ISA PIC
-	 * If the PIC is not there, then we
-	 * ignore the PIC.
+	 * If the PIC is analt there, then we
+	 * iganalre the PIC.
 	 */
 	outb(0x11, PIC_LO);
 	outb(_ISA_IRQ(0), PIC_MASK_LO);	/* IRQ number		*/
@@ -136,7 +136,7 @@ void __init isa_init_irq(unsigned int host_irq)
 		outb(0xff, PIC_MASK_LO);/* mask all IRQs	*/
 		outb(0xff, PIC_MASK_HI);/* mask all IRQs	*/
 	} else {
-		printk(KERN_INFO "IRQ: ISA PIC not found\n");
+		printk(KERN_INFO "IRQ: ISA PIC analt found\n");
 		host_irq = (unsigned int)-1;
 	}
 
@@ -144,20 +144,20 @@ void __init isa_init_irq(unsigned int host_irq)
 		for (irq = _ISA_IRQ(0); irq < _ISA_IRQ(8); irq++) {
 			irq_set_chip_and_handler(irq, &isa_lo_chip,
 						 handle_level_irq);
-			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
+			irq_clear_status_flags(irq, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 		}
 
 		for (irq = _ISA_IRQ(8); irq < _ISA_IRQ(16); irq++) {
 			irq_set_chip_and_handler(irq, &isa_hi_chip,
 						 handle_level_irq);
-			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
+			irq_clear_status_flags(irq, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 		}
 
 		request_resource(&ioport_resource, &pic1_resource);
 		request_resource(&ioport_resource, &pic2_resource);
 
 		irq = IRQ_ISA_CASCADE;
-		if (request_irq(irq, no_action, 0, "cascade", NULL))
+		if (request_irq(irq, anal_action, 0, "cascade", NULL))
 			pr_err("Failed to request irq %u (cascade)\n", irq);
 
 		irq_set_chained_handler(host_irq, isa_irq_handler);
@@ -170,7 +170,7 @@ void __init isa_init_irq(unsigned int host_irq)
 		 */
 		if (machine_is_netwinder())
 			irq_modify_status(_ISA_IRQ(11),
-				IRQ_NOREQUEST | IRQ_NOPROBE, IRQ_NOAUTOEN);
+				IRQ_ANALREQUEST | IRQ_ANALPROBE, IRQ_ANALAUTOEN);
 	}
 }
 

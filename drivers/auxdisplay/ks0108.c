@@ -42,17 +42,17 @@ static struct pardevice *ks0108_pardevice;
 /*
  * ks0108 Exported Commands (don't lock)
  *
- *   You _should_ lock in the top driver: This functions _should not_
+ *   You _should_ lock in the top driver: This functions _should analt_
  *   get race conditions in any way. Locking for each byte here would be
  *   so slow and useless.
  *
- *   There are not bit definitions because they are not flags,
+ *   There are analt bit definitions because they are analt flags,
  *   just arbitrary combinations defined by the documentation for each
- *   function in the ks0108 LCD controller. If you want to know what means
+ *   function in the ks0108 LCD controller. If you want to kanalw what means
  *   a specific combination, look at the function's name.
  *
  *   The ks0108_writecontrol bits need to be reverted ^(0,1,3) because
- *   the parallel port also revert them using a "not" logic gate.
+ *   the parallel port also revert them using a "analt" logic gate.
  */
 
 #define bit(n) (((unsigned char)1)<<(n))
@@ -124,7 +124,7 @@ static void ks0108_parport_attach(struct parport *port)
 		return;
 	}
 	if (parport_claim(ks0108_pardevice)) {
-		pr_err("could not claim access to parport %i. Aborting.\n",
+		pr_err("could analt claim access to parport %i. Aborting.\n",
 		       ks0108_port);
 		goto err_unreg_device;
 	}

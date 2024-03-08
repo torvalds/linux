@@ -28,7 +28,7 @@ const char *mei_dev_state_str(int state)
 	MEI_DEV_STATE(POWER_DOWN);
 	MEI_DEV_STATE(POWER_UP);
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 #undef MEI_DEV_STATE
 }
@@ -40,7 +40,7 @@ const char *mei_pg_state_str(enum mei_pg_state state)
 	MEI_PG_STATE(OFF);
 	MEI_PG_STATE(ON);
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 #undef MEI_PG_STATE
 }
@@ -152,13 +152,13 @@ int mei_reset(struct mei_device *dev)
 	if (dev->reset_count > MEI_MAX_CONSEC_RESET) {
 		dev_err(dev->dev, "reset: reached maximal consecutive resets: disabling the device\n");
 		mei_set_devstate(dev, MEI_DEV_DISABLED);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = mei_hw_reset(dev, interrupts_enabled);
 	/* fall through and remove the sw state even if hw reset has failed */
 
-	/* no need to clean up software state in case of power up */
+	/* anal need to clean up software state in case of power up */
 	if (state != MEI_DEV_INITIALIZING && state != MEI_DEV_POWER_UP)
 		mei_cl_all_disconnect(dev);
 
@@ -221,7 +221,7 @@ int mei_start(struct mei_device *dev)
 
 	mutex_lock(&dev->device_lock);
 
-	/* acknowledge interrupt and stop interrupts */
+	/* ackanalwledge interrupt and stop interrupts */
 	mei_clear_interrupts(dev);
 
 	ret = mei_hw_config(dev);
@@ -235,7 +235,7 @@ int mei_start(struct mei_device *dev)
 		mei_set_devstate(dev, MEI_DEV_INITIALIZING);
 		ret = mei_reset(dev);
 
-		if (ret == -ENODEV || dev->dev_state == MEI_DEV_DISABLED) {
+		if (ret == -EANALDEV || dev->dev_state == MEI_DEV_DISABLED) {
 			dev_err(dev->dev, "reset failed ret = %d", ret);
 			goto err;
 		}
@@ -259,7 +259,7 @@ err:
 	dev_err(dev->dev, "link layer initialization failed.\n");
 	mei_set_devstate(dev, MEI_DEV_DISABLED);
 	mutex_unlock(&dev->device_lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(mei_start);
 
@@ -268,7 +268,7 @@ EXPORT_SYMBOL_GPL(mei_start);
  *
  * @dev: the device structure
  *
- * Return: 0 on success or -ENODEV if the restart hasn't succeeded
+ * Return: 0 on success or -EANALDEV if the restart hasn't succeeded
  */
 int mei_restart(struct mei_device *dev)
 {
@@ -283,9 +283,9 @@ int mei_restart(struct mei_device *dev)
 
 	mutex_unlock(&dev->device_lock);
 
-	if (err == -ENODEV || dev->dev_state == MEI_DEV_DISABLED) {
+	if (err == -EANALDEV || dev->dev_state == MEI_DEV_DISABLED) {
 		dev_err(dev->dev, "device disabled = %d\n", err);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* try to start again */
@@ -356,7 +356,7 @@ EXPORT_SYMBOL_GPL(mei_stop);
  *
  * @dev: the device structure
  *
- * Return: true of there is no pending write
+ * Return: true of there is anal pending write
  */
 bool mei_write_is_idle(struct mei_device *dev)
 {

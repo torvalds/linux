@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef _UAPI_SPI_H
 #define _UAPI_SPI_H
 
@@ -17,7 +17,7 @@
 #define	SPI_LSB_FIRST		_BITUL(3)	/* per-word bits-on-wire */
 #define	SPI_3WIRE		_BITUL(4)	/* SI/SO signals shared */
 #define	SPI_LOOP		_BITUL(5)	/* loopback mode */
-#define	SPI_NO_CS		_BITUL(6)	/* 1 dev/bus, no chipselect */
+#define	SPI_ANAL_CS		_BITUL(6)	/* 1 dev/bus, anal chipselect */
 #define	SPI_READY		_BITUL(7)	/* slave pulls low to pause */
 #define	SPI_TX_DUAL		_BITUL(8)	/* transmit with 2 wires */
 #define	SPI_TX_QUAD		_BITUL(9)	/* transmit with 4 wires */
@@ -35,7 +35,7 @@
  * The SPI_MODE_USER_MASK has the SPI_MODE_KERNEL_MASK counterpart in
  * 'include/linux/spi/spi.h'. The bits defined here are from bit 0 upwards
  * while in SPI_MODE_KERNEL_MASK they are from the other end downwards.
- * These bits must not overlap. A static assert check should make sure of that.
+ * These bits must analt overlap. A static assert check should make sure of that.
  * If adding extra bits, make sure to increase the bit index below as well.
  */
 #define SPI_MODE_USER_MASK	(_BITUL(18) - 1)

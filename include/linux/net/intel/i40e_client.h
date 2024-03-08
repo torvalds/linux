@@ -12,22 +12,22 @@
  * existing APIs or data structures.
  */
 #define I40E_CLIENT_VERSION_MAJOR 0
-#define I40E_CLIENT_VERSION_MINOR 01
+#define I40E_CLIENT_VERSION_MIANALR 01
 #define I40E_CLIENT_VERSION_BUILD 00
 #define I40E_CLIENT_VERSION_STR     \
 	__stringify(I40E_CLIENT_VERSION_MAJOR) "." \
-	__stringify(I40E_CLIENT_VERSION_MINOR) "." \
+	__stringify(I40E_CLIENT_VERSION_MIANALR) "." \
 	__stringify(I40E_CLIENT_VERSION_BUILD)
 
 struct i40e_client_version {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 build;
 	u8 rsvd;
 };
 
 enum i40e_client_instance_state {
-	__I40E_CLIENT_INSTANCE_NONE,
+	__I40E_CLIENT_INSTANCE_ANALNE,
 	__I40E_CLIENT_INSTANCE_OPENED,
 };
 
@@ -94,7 +94,7 @@ struct i40e_info {
 	struct msix_entry *msix_entries;
 	u16 itr_index; /* Which ITR index the PE driver is suppose to use */
 	u16 fw_maj_ver;                 /* firmware major version */
-	u16 fw_min_ver;                 /* firmware minor version */
+	u16 fw_min_ver;                 /* firmware mianalr version */
 	u32 fw_build;                   /* firmware build number */
 };
 

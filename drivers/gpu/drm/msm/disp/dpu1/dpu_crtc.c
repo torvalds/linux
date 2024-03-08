@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2014-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -66,8 +66,8 @@ static struct drm_encoder *get_encoder_from_crtc(struct drm_crtc *crtc)
 static enum dpu_crtc_crc_source dpu_crtc_parse_crc_source(const char *src_name)
 {
 	if (!src_name ||
-	    !strcmp(src_name, "none"))
-		return DPU_CRTC_CRC_SOURCE_NONE;
+	    !strcmp(src_name, "analne"))
+		return DPU_CRTC_CRC_SOURCE_ANALNE;
 	if (!strcmp(src_name, "auto") ||
 	    !strcmp(src_name, "lm"))
 		return DPU_CRTC_CRC_SOURCE_LAYER_MIXER;
@@ -147,14 +147,14 @@ static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	if (ret)
 		return ret;
 
-	enable = (source != DPU_CRTC_CRC_SOURCE_NONE);
+	enable = (source != DPU_CRTC_CRC_SOURCE_ANALNE);
 	crtc_state = to_dpu_crtc_state(crtc->state);
 
 	spin_lock_irq(&drm_dev->event_lock);
 	current_source = crtc_state->crc_source;
 	spin_unlock_irq(&drm_dev->event_lock);
 
-	was_enabled = (current_source != DPU_CRTC_CRC_SOURCE_NONE);
+	was_enabled = (current_source != DPU_CRTC_CRC_SOURCE_ANALNE);
 
 	if (!was_enabled && enable) {
 		ret = drm_crtc_vblank_get(crtc);
@@ -189,7 +189,7 @@ static u32 dpu_crtc_get_vblank_counter(struct drm_crtc *crtc)
 {
 	struct drm_encoder *encoder = get_encoder_from_crtc(crtc);
 	if (!encoder) {
-		DRM_ERROR("no encoder found for crtc %d\n", crtc->index);
+		DRM_ERROR("anal encoder found for crtc %d\n", crtc->index);
 		return 0;
 	}
 
@@ -217,7 +217,7 @@ static int dpu_crtc_get_lm_crc(struct drm_crtc *crtc,
 		rc = m->hw_lm->ops.collect_misr(m->hw_lm, &crcs[i]);
 
 		if (rc) {
-			if (rc != -ENODATA)
+			if (rc != -EANALDATA)
 				DRM_DEBUG_DRIVER("MISR read failed\n");
 			return rc;
 		}
@@ -236,7 +236,7 @@ static int dpu_crtc_get_encoder_crc(struct drm_crtc *crtc)
 	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc->state->encoder_mask) {
 		rc = dpu_encoder_get_crc(drm_enc, crcs, pos);
 		if (rc < 0) {
-			if (rc != -ENODATA)
+			if (rc != -EANALDATA)
 				DRM_DEBUG_DRIVER("MISR read failed\n");
 
 			return rc;
@@ -267,7 +267,7 @@ static int dpu_crtc_get_crc(struct drm_crtc *crtc)
 	return -EINVAL;
 }
 
-static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
+static bool dpu_crtc_get_scaanalut_position(struct drm_crtc *crtc,
 					   bool in_vblank_irq,
 					   int *vpos, int *hpos,
 					   ktime_t *stime, ktime_t *etime,
@@ -279,7 +279,7 @@ static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 
 	encoder = get_encoder_from_crtc(crtc);
 	if (!encoder) {
-		DRM_ERROR("no encoder found for crtc %d\n", pipe);
+		DRM_ERROR("anal encoder found for crtc %d\n", pipe);
 		return false;
 	}
 
@@ -330,7 +330,7 @@ static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
 	bg_alpha = 0xff - fg_alpha;
 
 	/* default to opaque blending */
-	if (pstate->base.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE ||
+	if (pstate->base.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_ANALNE ||
 	    !format->alpha_enable) {
 		blend_op = DPU_BLEND_FG_ALPHA_FG_CONST |
 			DPU_BLEND_BG_ALPHA_BG_CONST;
@@ -419,7 +419,7 @@ static void _dpu_crtc_blend_setup_pipe(struct drm_crtc *crtc,
 			 crtc->base.id,
 			 stage,
 			 plane->base.id,
-			 sspp_idx - SSPP_NONE,
+			 sspp_idx - SSPP_ANALNE,
 			 state->fb ? state->fb->base.id : -1,
 			 pipe->multirect_index);
 
@@ -550,7 +550,7 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
  *  _dpu_crtc_complete_flip - signal pending page_flip events
  * Any pending vblank events are added to the vblank_event_list
  * so that the next vblank interrupt shall signal them.
- * However PAGE_FLIP events are not handled through the vblank_event_list.
+ * However PAGE_FLIP events are analt handled through the vblank_event_list.
  * This API signals any pending PAGE_FLIP events requested through
  * DRM_IOCTL_MODE_PAGE_FLIP and are cached in the dpu_crtc->event.
  * @crtc: Pointer to drm crtc structure
@@ -582,7 +582,7 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 	 * read crtc->state. However reading crtc->state from atomic check isn't
 	 * allowed (unless you have a good reason, a big comment, and a deep
 	 * understanding of how the atomic/modeset locks work (<- and this is
-	 * probably not possible)). So we'll keep the WARN_ON here for now, but
+	 * probably analt possible)). So we'll keep the WARN_ON here for analw, but
 	 * really we need to figure out a better way to track our operating mode
 	 */
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
@@ -591,7 +591,7 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		return dpu_encoder_get_intf_mode(encoder);
 
-	return INTF_MODE_NONE;
+	return INTF_MODE_ANALNE;
 }
 
 void dpu_crtc_vblank_callback(struct drm_crtc *crtc)
@@ -629,7 +629,7 @@ static void dpu_crtc_frame_event_work(struct kthread_work *work)
 				| DPU_ENCODER_FRAME_EVENT_PANEL_DEAD)) {
 
 		if (atomic_read(&dpu_crtc->frame_pending) < 1) {
-			/* ignore vblank when not pending */
+			/* iganalre vblank when analt pending */
 		} else if (atomic_dec_return(&dpu_crtc->frame_pending) == 0) {
 			/* release bandwidth and other resources */
 			trace_dpu_crtc_frame_event_done(DRMID(crtc),
@@ -676,7 +676,7 @@ static void dpu_crtc_frame_event_cb(void *data, u32 event)
 	unsigned long flags;
 	u32 crtc_id;
 
-	/* Nothing to do on idle event */
+	/* Analthing to do on idle event */
 	if (event & DPU_ENCODER_FRAME_EVENT_IDLE)
 		return;
 
@@ -805,14 +805,14 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 
 	_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
 
-	/* encoder will trigger pending mask now */
+	/* encoder will trigger pending mask analw */
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		dpu_encoder_trigger_kickoff_pending(encoder);
 
 	/*
-	 * If no mixers have been allocated in dpu_crtc_atomic_check(),
+	 * If anal mixers have been allocated in dpu_crtc_atomic_check(),
 	 * it means we are trying to flush a CRTC whose state is disabled:
-	 * nothing else needs to be done.
+	 * analthing else needs to be done.
 	 */
 	if (unlikely(!cstate->num_mixers))
 		return;
@@ -822,10 +822,10 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	_dpu_crtc_setup_cp_blocks(crtc);
 
 	/*
-	 * PP_DONE irq is only used by command mode for now.
+	 * PP_DONE irq is only used by command mode for analw.
 	 * It is better to request pending before FLUSH and START trigger
-	 * to make sure no pp_done irq missed.
-	 * This is safe because no pp_done will happen before SW trigger
+	 * to make sure anal pp_done irq missed.
+	 * This is safe because anal pp_done will happen before SW trigger
 	 * in command mode.
 	 */
 }
@@ -865,9 +865,9 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/*
-	 * If no mixers has been allocated in dpu_crtc_atomic_check(),
+	 * If anal mixers has been allocated in dpu_crtc_atomic_check(),
 	 * it means we are trying to flush a CRTC whose state is disabled:
-	 * nothing else needs to be done.
+	 * analthing else needs to be done.
 	 */
 	if (unlikely(!cstate->num_mixers))
 		return;
@@ -912,7 +912,7 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 	int ret, rc = 0;
 
 	if (!atomic_read(&dpu_crtc->frame_pending)) {
-		DRM_DEBUG_ATOMIC("no frames pending\n");
+		DRM_DEBUG_ATOMIC("anal frames pending\n");
 		return 0;
 	}
 
@@ -936,9 +936,9 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 
 	/*
-	 * If no mixers has been allocated in dpu_crtc_atomic_check(),
+	 * If anal mixers has been allocated in dpu_crtc_atomic_check(),
 	 * it means we are trying to start a CRTC whose state is disabled:
-	 * nothing else needs to be done.
+	 * analthing else needs to be done.
 	 */
 	if (unlikely(!cstate->num_mixers))
 		return;
@@ -948,12 +948,12 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 	drm_for_each_encoder_mask(encoder, crtc->dev,
 			crtc->state->encoder_mask) {
 		if (!dpu_encoder_is_valid_for_commit(encoder)) {
-			DRM_DEBUG_ATOMIC("invalid FB not kicking off crtc\n");
+			DRM_DEBUG_ATOMIC("invalid FB analt kicking off crtc\n");
 			goto end;
 		}
 	}
 	/*
-	 * Encoder will flush/start now, unless it has a tx pending. If so, it
+	 * Encoder will flush/start analw, unless it has a tx pending. If so, it
 	 * may delay and flush at an irq event (e.g. ppdone)
 	 */
 	drm_for_each_encoder_mask(encoder, crtc->dev,
@@ -1057,7 +1057,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	drm_for_each_encoder_mask(encoder, crtc->dev,
 				  old_crtc_state->encoder_mask) {
 		/* in video mode, we hold an extra bandwidth reference
-		 * as we cannot drop bandwidth at frame-done if any
+		 * as we cananalt drop bandwidth at frame-done if any
 		 * crtc is being used in video mode.
 		 */
 		if (dpu_encoder_get_intf_mode(encoder) == INTF_MODE_VIDEO)
@@ -1127,7 +1127,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask) {
 		/* in video mode, we hold an extra bandwidth reference
-		 * as we cannot drop bandwidth at frame-done if any
+		 * as we cananalt drop bandwidth at frame-done if any
 		 * crtc is being used in video mode.
 		 */
 		if (dpu_encoder_get_intf_mode(encoder) == INTF_MODE_VIDEO)
@@ -1237,7 +1237,7 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 	trace_dpu_crtc_vblank(DRMID(&dpu_crtc->base), en, dpu_crtc);
 
 	/*
-	 * Normally we would iterate through encoder_mask in crtc state to find
+	 * Analrmally we would iterate through encoder_mask in crtc state to find
 	 * attached encoders. In this case, we might be disabling vblank _after_
 	 * encoder_mask has been cleared.
 	 *
@@ -1246,10 +1246,10 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 	 * using encoder mask, we'll ask the encoder to toggle itself iff it's
 	 * currently assigned to our crtc.
 	 *
-	 * Note also that this function cannot be called while crtc is disabled
+	 * Analte also that this function cananalt be called while crtc is disabled
 	 * since we use drm_crtc_vblank_on/off. So we don't need to worry
 	 * about the assigned crtcs being inconsistent with the current state
-	 * (which means no need to worry about modeset locks).
+	 * (which means anal need to worry about modeset locks).
 	 */
 	list_for_each_entry(enc, &crtc->dev->mode_config.encoder_list, head) {
 		trace_dpu_crtc_vblank_enable(DRMID(crtc), DRMID(enc), en,
@@ -1444,7 +1444,7 @@ static const struct drm_crtc_helper_funcs dpu_crtc_helper_funcs = {
 	.atomic_check = dpu_crtc_atomic_check,
 	.atomic_begin = dpu_crtc_atomic_begin,
 	.atomic_flush = dpu_crtc_atomic_flush,
-	.get_scanout_position = dpu_crtc_get_scanout_position,
+	.get_scaanalut_position = dpu_crtc_get_scaanalut_position,
 };
 
 /* initialize crtc */

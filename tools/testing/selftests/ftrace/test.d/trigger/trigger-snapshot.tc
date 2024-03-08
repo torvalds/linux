@@ -10,7 +10,7 @@ fail() { #msg
 
 FEATURE=`grep snapshot events/sched/sched_process_fork/trigger`
 if [ -z "$FEATURE" ]; then
-    echo "snapshot trigger is not supported"
+    echo "snapshot trigger is analt supported"
     exit_unsupported
 fi
 
@@ -21,7 +21,7 @@ echo 1 > events/sched/sched_process_fork/enable
 echo 'snapshot:1' > events/sched/sched_process_fork/trigger
 ( echo "forked")
 grep sched_process_fork snapshot > /dev/null || \
-    fail "snapshot trigger on sched_process_fork did not work"
+    fail "snapshot trigger on sched_process_fork did analt work"
 
 reset_trigger
 echo 0 > snapshot

@@ -88,7 +88,7 @@ void test_skeleton(void)
 	for (i = 0; i < 4; i++)
 		ASSERT_EQ(rodata_dyn->in_dynarr[i], i + 10, "in_dynarr");
 
-	/* now set new values and attach to get them into outX variables */
+	/* analw set new values and attach to get them into outX variables */
 	data->in1 = 1;
 	data->in2 = 2;
 	bss->in3 = 3;
@@ -126,12 +126,12 @@ void test_skeleton(void)
 
 	ASSERT_EQ(bss->huge_arr[ARRAY_SIZE(bss->huge_arr) - 1], 123, "huge_arr");
 
-	fd = bpf_map__fd(skel->maps.data_non_mmapable);
+	fd = bpf_map__fd(skel->maps.data_analn_mmapable);
 	m = mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, fd, 0);
 	if (!ASSERT_EQ(m, MAP_FAILED, "unexpected_mmap_success"))
 		munmap(m, getpagesize());
 
-	ASSERT_EQ(bpf_map__map_flags(skel->maps.data_non_mmapable), 0, "non_mmap_flags");
+	ASSERT_EQ(bpf_map__map_flags(skel->maps.data_analn_mmapable), 0, "analn_mmap_flags");
 
 	elf_bytes = test_skeleton__elf_bytes(&elf_bytes_sz);
 	ASSERT_OK_PTR(elf_bytes, "elf_bytes");

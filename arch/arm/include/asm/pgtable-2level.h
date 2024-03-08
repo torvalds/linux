@@ -51,7 +51,7 @@
  * iff the page is marked "writable" and "dirty" in the Linux PTE.  This
  * means that a write to a clean page will cause a permission fault, and
  * the Linux MM layer will mark the page dirty via handle_pte_fault().
- * For the hardware to notice the permission change, the TLB entry must
+ * For the hardware to analtice the permission change, the TLB entry must
  * be flushed, and ptep_set_access_flags() does that for us.
  *
  * The "accessed" or "young" bit is emulated by a similar method; we only
@@ -62,7 +62,7 @@
  * up to date.
  *
  * However, when the "young" bit is cleared, we deny access to the page
- * by clearing the hardware PTE.  Currently Linux does not flush the TLB
+ * by clearing the hardware PTE.  Currently Linux does analt flush the TLB
  * for us in this case, which means the TLB will retain the transation
  * until either the TLB entry is evicted under pressure, or a context
  * switch which changes the user space mapping occurs.
@@ -124,7 +124,7 @@
 #define L_PTE_USER		(_AT(pteval_t, 1) << 8)
 #define L_PTE_XN		(_AT(pteval_t, 1) << 9)
 #define L_PTE_SHARED		(_AT(pteval_t, 1) << 10)	/* shared(v6), coherent(xsc3) */
-#define L_PTE_NONE		(_AT(pteval_t, 1) << 11)
+#define L_PTE_ANALNE		(_AT(pteval_t, 1) << 11)
 
 /* We borrow bit 7 to store the exclusive marker in swap PTEs. */
 #define L_PTE_SWP_EXCLUSIVE	L_PTE_RDONLY
@@ -137,28 +137,28 @@
  *
  * MT type		Pre-ARMv6	ARMv6+ type / cacheable status
  * UNCACHED		Uncached	Strongly ordered
- * BUFFERABLE		Bufferable	Normal memory / non-cacheable
- * WRITETHROUGH		Writethrough	Normal memory / write through
- * WRITEBACK		Writeback	Normal memory / write back, read alloc
+ * BUFFERABLE		Bufferable	Analrmal memory / analn-cacheable
+ * WRITETHROUGH		Writethrough	Analrmal memory / write through
+ * WRITEBACK		Writeback	Analrmal memory / write back, read alloc
  * MINICACHE		Minicache	N/A
- * WRITEALLOC		Writeback	Normal memory / write back, write alloc
+ * WRITEALLOC		Writeback	Analrmal memory / write back, write alloc
  * DEV_SHARED		Uncached	Device memory (shared)
- * DEV_NONSHARED	Uncached	Device memory (non-shared)
- * DEV_WC		Bufferable	Normal memory / non-cacheable
- * DEV_CACHED		Writeback	Normal memory / write back, read alloc
- * VECTORS		Variable	Normal memory / variable
+ * DEV_ANALNSHARED	Uncached	Device memory (analn-shared)
+ * DEV_WC		Bufferable	Analrmal memory / analn-cacheable
+ * DEV_CACHED		Writeback	Analrmal memory / write back, read alloc
+ * VECTORS		Variable	Analrmal memory / variable
  *
- * All normal memory mappings have the following properties:
- * - reads can be repeated with no side effects
+ * All analrmal memory mappings have the following properties:
+ * - reads can be repeated with anal side effects
  * - repeated reads return the last value written
  * - reads can fetch additional locations without side effects
- * - writes can be repeated (in certain cases) with no side effects
+ * - writes can be repeated (in certain cases) with anal side effects
  * - writes can be merged before accessing the target
  * - unaligned accesses can be supported
  *
  * All device mappings have the following properties:
- * - no access speculation
- * - no repetition (eg, on return from an exception)
+ * - anal access speculation
+ * - anal repetition (eg, on return from an exception)
  * - number, order and size of accesses are maintained
  * - unaligned accesses are "unpredictable"
  */
@@ -169,7 +169,7 @@
 #define L_PTE_MT_MINICACHE	(_AT(pteval_t, 0x06) << 2)	/* 0110 (sa1100, xscale) */
 #define L_PTE_MT_WRITEALLOC	(_AT(pteval_t, 0x07) << 2)	/* 0111 */
 #define L_PTE_MT_DEV_SHARED	(_AT(pteval_t, 0x04) << 2)	/* 0100 */
-#define L_PTE_MT_DEV_NONSHARED	(_AT(pteval_t, 0x0c) << 2)	/* 1100 */
+#define L_PTE_MT_DEV_ANALNSHARED	(_AT(pteval_t, 0x0c) << 2)	/* 1100 */
 #define L_PTE_MT_DEV_WC		(_AT(pteval_t, 0x09) << 2)	/* 1001 */
 #define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 0x0b) << 2)	/* 1011 */
 #define L_PTE_MT_VECTORS	(_AT(pteval_t, 0x0f) << 2)	/* 1111 */
@@ -182,7 +182,7 @@
  * the pud: the pud entry is never bad, always exists, and can't be set or
  * cleared.
  */
-static inline int pud_none(pud_t pud)
+static inline int pud_analne(pud_t pud)
 {
 	return 0;
 }

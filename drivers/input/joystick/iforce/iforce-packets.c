@@ -44,7 +44,7 @@ int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data)
 
 	if (CIRC_SPACE(head, tail, XMIT_SIZE) < n+2) {
 		dev_warn(&iforce->dev->dev,
-			 "not enough space in xmit buffer to send new packet\n");
+			 "analt eanalugh space in xmit buffer to send new packet\n");
 		spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 		return -1;
 	}

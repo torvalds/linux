@@ -41,7 +41,7 @@ static void armpmu_free_pmuirq(unsigned int irq, int cpu, void __percpu *devid)
 
 static const struct pmu_irq_ops pmuirq_ops = {
 	.enable_pmuirq = enable_irq,
-	.disable_pmuirq = disable_irq_nosync,
+	.disable_pmuirq = disable_irq_analsync,
 	.free_pmuirq = armpmu_free_pmuirq
 };
 
@@ -52,13 +52,13 @@ static void armpmu_free_pmunmi(unsigned int irq, int cpu, void __percpu *devid)
 
 static const struct pmu_irq_ops pmunmi_ops = {
 	.enable_pmuirq = enable_nmi,
-	.disable_pmuirq = disable_nmi_nosync,
+	.disable_pmuirq = disable_nmi_analsync,
 	.free_pmuirq = armpmu_free_pmunmi
 };
 
 static void armpmu_enable_percpu_pmuirq(unsigned int irq)
 {
-	enable_percpu_irq(irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(irq, IRQ_TYPE_ANALNE);
 }
 
 static void armpmu_free_percpu_pmuirq(unsigned int irq, int cpu,
@@ -77,7 +77,7 @@ static const struct pmu_irq_ops percpu_pmuirq_ops = {
 static void armpmu_enable_percpu_pmunmi(unsigned int irq)
 {
 	if (!prepare_percpu_nmi(irq))
-		enable_percpu_nmi(irq, IRQ_TYPE_NONE);
+		enable_percpu_nmi(irq, IRQ_TYPE_ANALNE);
 }
 
 static void armpmu_disable_percpu_pmunmi(unsigned int irq)
@@ -139,12 +139,12 @@ armpmu_map_cache_event(const unsigned (*cache_map)
 		return -EINVAL;
 
 	if (!cache_map)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = (int)(*cache_map)[cache_type][cache_op][cache_result];
 
 	if (ret == CACHE_OP_UNSUPPORTED)
-		return -ENOENT;
+		return -EANALENT;
 
 	return ret;
 }
@@ -158,10 +158,10 @@ armpmu_map_hw_event(const unsigned (*event_map)[PERF_COUNT_HW_MAX], u64 config)
 		return -EINVAL;
 
 	if (!event_map)
-		return -ENOENT;
+		return -EANALENT;
 
 	mapping = (*event_map)[config];
-	return mapping == HW_OP_UNSUPPORTED ? -ENOENT : mapping;
+	return mapping == HW_OP_UNSUPPORTED ? -EANALENT : mapping;
 }
 
 static int
@@ -194,7 +194,7 @@ armpmu_map_event(struct perf_event *event,
 		return armpmu_map_raw_event(raw_event_mask, config);
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int armpmu_event_set_period(struct perf_event *event)
@@ -275,7 +275,7 @@ armpmu_stop(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 
 	/*
-	 * ARM pmu always has to update the counter, so ignore
+	 * ARM pmu always has to update the counter, so iganalre
 	 * PERF_EF_UPDATE, see comments in armpmu_start().
 	 */
 	if (!(hwc->state & PERF_HES_STOPPED)) {
@@ -291,7 +291,7 @@ static void armpmu_start(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 
 	/*
-	 * ARM pmu always has to reprogram the period, so ignore
+	 * ARM pmu always has to reprogram the period, so iganalre
 	 * PERF_EF_RELOAD, see the comment below.
 	 */
 	if (flags & PERF_EF_RELOAD)
@@ -335,7 +335,7 @@ armpmu_add(struct perf_event *event, int flags)
 
 	/* An event following a process won't be stopped earlier */
 	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
-		return -ENOENT;
+		return -EANALENT;
 
 	/* If we don't have a space for the counter then finish early. */
 	idx = armpmu->get_event_idx(hw_events, event);
@@ -430,7 +430,7 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 	 */
 	armpmu = *(void **)dev;
 	if (WARN_ON_ONCE(!armpmu))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	start_clock = sched_clock();
 	ret = armpmu->handle_irq(armpmu);
@@ -451,7 +451,7 @@ __hw_perf_event_init(struct perf_event *event)
 	mapping = armpmu->map_event(event);
 
 	if (mapping < 0) {
-		pr_debug("event %x:%llx not supported\n", event->attr.type,
+		pr_debug("event %x:%llx analt supported\n", event->attr.type,
 			 event->attr.config);
 		return mapping;
 	}
@@ -483,7 +483,7 @@ __hw_perf_event_init(struct perf_event *event)
 
 	if (!is_sampling_event(event)) {
 		/*
-		 * For non-sampling runs, limit the sample_period to half
+		 * For analn-sampling runs, limit the sample_period to half
 		 * of the counter width. That way, the new counter value
 		 * is far less likely to overtake the previous one unless
 		 * you have some serious IRQ latency issues.
@@ -509,11 +509,11 @@ static int armpmu_event_init(struct perf_event *event)
 	 */
 	if (event->cpu != -1 &&
 		!cpumask_test_cpu(event->cpu, &armpmu->supported_cpus))
-		return -ENOENT;
+		return -EANALENT;
 
-	/* does not support taken branch sampling */
+	/* does analt support taken branch sampling */
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return __hw_perf_event_init(event);
 }
@@ -545,7 +545,7 @@ static void armpmu_disable(struct pmu *pmu)
 
 /*
  * In heterogeneous systems, events are specific to a particular
- * microarchitecture, and aren't suitable for another. Thus, only match CPUs of
+ * microarchitecture, and aren't suitable for aanalther. Thus, only match CPUs of
  * the same microarchitecture.
  */
 static bool armpmu_filter(struct pmu *pmu, int cpu)
@@ -635,13 +635,13 @@ int armpmu_request_irq(int irq, int cpu)
 		}
 
 		irq_flags = IRQF_PERCPU |
-			    IRQF_NOBALANCING | IRQF_NO_AUTOEN |
-			    IRQF_NO_THREAD;
+			    IRQF_ANALBALANCING | IRQF_ANAL_AUTOEN |
+			    IRQF_ANAL_THREAD;
 
 		err = request_nmi(irq, handler, irq_flags, "arm-pmu",
 				  per_cpu_ptr(&cpu_armpmu, cpu));
 
-		/* If cannot get an NMI, get a normal interrupt */
+		/* If cananalt get an NMI, get a analrmal interrupt */
 		if (err) {
 			err = request_irq(irq, handler, irq_flags, "arm-pmu",
 					  per_cpu_ptr(&cpu_armpmu, cpu));
@@ -653,7 +653,7 @@ int armpmu_request_irq(int irq, int cpu)
 	} else if (armpmu_count_irq_users(irq) == 0) {
 		err = request_percpu_nmi(irq, handler, "arm-pmu", &cpu_armpmu);
 
-		/* If cannot get an NMI, get a normal interrupt */
+		/* If cananalt get an NMI, get a analrmal interrupt */
 		if (err) {
 			err = request_percpu_irq(irq, handler, "arm-pmu",
 						 &cpu_armpmu);
@@ -663,7 +663,7 @@ int armpmu_request_irq(int irq, int cpu)
 			irq_ops = &percpu_pmunmi_ops;
 		}
 	} else {
-		/* Per cpudevid irq was already requested by another CPU */
+		/* Per cpudevid irq was already requested by aanalther CPU */
 		irq_ops = armpmu_find_irq_ops(irq);
 
 		if (WARN_ON(!irq_ops))
@@ -696,12 +696,12 @@ bool arm_pmu_irq_is_nmi(void)
 /*
  * PMU hardware loses all context when a CPU goes offline.
  * When a CPU is hotplugged back in, since some hardware registers are
- * UNKNOWN at reset, the PMU must be explicitly reset to avoid reading
+ * UNKANALWN at reset, the PMU must be explicitly reset to avoid reading
  * junk values out of them.
  */
-static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
+static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct arm_pmu *pmu = hlist_entry_safe(node, struct arm_pmu, node);
+	struct arm_pmu *pmu = hlist_entry_safe(analde, struct arm_pmu, analde);
 	int irq;
 
 	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
@@ -718,9 +718,9 @@ static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int arm_perf_teardown_cpu(unsigned int cpu, struct hlist_node *node)
+static int arm_perf_teardown_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct arm_pmu *pmu = hlist_entry_safe(node, struct arm_pmu, node);
+	struct arm_pmu *pmu = hlist_entry_safe(analde, struct arm_pmu, analde);
 	int irq;
 
 	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
@@ -767,7 +767,7 @@ static void cpu_pm_pmu_setup(struct arm_pmu *armpmu, unsigned long cmd)
 	}
 }
 
-static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
+static int cpu_pm_pmu_analtify(struct analtifier_block *b, unsigned long cmd,
 			     void *v)
 {
 	struct arm_pmu *armpmu = container_of(b, struct arm_pmu, cpu_pm_nb);
@@ -775,17 +775,17 @@ static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 	bool enabled = !bitmap_empty(hw_events->used_mask, armpmu->num_events);
 
 	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/*
 	 * Always reset the PMU registers on power-up even if
-	 * there are no events running.
+	 * there are anal events running.
 	 */
 	if (cmd == CPU_PM_EXIT && armpmu->reset)
 		armpmu->reset(armpmu);
 
 	if (!enabled)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	switch (cmd) {
 	case CPU_PM_ENTER:
@@ -798,21 +798,21 @@ static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 		armpmu->start(armpmu);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int cpu_pm_pmu_register(struct arm_pmu *cpu_pmu)
 {
-	cpu_pmu->cpu_pm_nb.notifier_call = cpu_pm_pmu_notify;
-	return cpu_pm_register_notifier(&cpu_pmu->cpu_pm_nb);
+	cpu_pmu->cpu_pm_nb.analtifier_call = cpu_pm_pmu_analtify;
+	return cpu_pm_register_analtifier(&cpu_pmu->cpu_pm_nb);
 }
 
 static void cpu_pm_pmu_unregister(struct arm_pmu *cpu_pmu)
 {
-	cpu_pm_unregister_notifier(&cpu_pmu->cpu_pm_nb);
+	cpu_pm_unregister_analtifier(&cpu_pmu->cpu_pm_nb);
 }
 #else
 static inline int cpu_pm_pmu_register(struct arm_pmu *cpu_pmu) { return 0; }
@@ -824,7 +824,7 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	int err;
 
 	err = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_STARTING,
-				       &cpu_pmu->node);
+				       &cpu_pmu->analde);
 	if (err)
 		goto out;
 
@@ -835,8 +835,8 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 
 out_unregister:
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
-					    &cpu_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_STARTING,
+					    &cpu_pmu->analde);
 out:
 	return err;
 }
@@ -844,8 +844,8 @@ out:
 static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 {
 	cpu_pm_pmu_unregister(cpu_pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
-					    &cpu_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_STARTING,
+					    &cpu_pmu->analde);
 }
 
 struct arm_pmu *armpmu_alloc(void)
@@ -918,7 +918,7 @@ int armpmu_register(struct arm_pmu *pmu)
 		return ret;
 
 	if (!pmu->set_event_filter)
-		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
+		pmu->pmu.capabilities |= PERF_PMU_CAP_ANAL_EXCLUDE;
 
 	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
 	if (ret)
@@ -946,7 +946,7 @@ static int arm_pmu_hp_init(void)
 				      arm_perf_starting_cpu,
 				      arm_perf_teardown_cpu);
 	if (ret)
-		pr_err("CPU hotplug notifier for ARM PMU could not be registered: %d\n",
+		pr_err("CPU hotplug analtifier for ARM PMU could analt be registered: %d\n",
 		       ret);
 	return ret;
 }

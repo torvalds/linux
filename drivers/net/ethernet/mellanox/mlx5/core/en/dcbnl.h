@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020 Mellanox Technologies. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5E_DCBNL_H__
 #define __MLX5E_DCBNL_H__
@@ -21,7 +21,7 @@ struct mlx5e_dcbx {
 	struct mlx5e_cee_config    cee_cfg; /* pending configuration */
 	u8                         dscp_app_cnt;
 
-	/* The only setting that cannot be read from FW */
+	/* The only setting that cananalt be read from FW */
 	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
 	u8                         cap;
 

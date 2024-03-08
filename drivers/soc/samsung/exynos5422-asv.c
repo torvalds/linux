@@ -3,17 +3,17 @@
  * Copyright (c) 2019 Samsung Electronics Co., Ltd.
  *	      http://www.samsung.com/
  *
- * Samsung Exynos 5422 SoC Adaptive Supply Voltage support
+ * Samsung Exyanals 5422 SoC Adaptive Supply Voltage support
  */
 
 #include <linux/bitrev.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/regmap.h>
-#include <linux/soc/samsung/exynos-chipid.h>
+#include <linux/soc/samsung/exyanals-chipid.h>
 #include <linux/slab.h>
 
-#include "exynos-asv.h"
-#include "exynos5422-asv.h"
+#include "exyanals-asv.h"
+#include "exyanals5422-asv.h"
 
 #define ASV_GROUPS_NUM		14
 #define ASV_ARM_DVFS_NUM	20
@@ -335,30 +335,30 @@ static const struct asv_limit_entry __asv_limits[ASV_GROUPS_NUM] = {
 	{ 999, 999 },
 };
 
-static int exynos5422_asv_get_group(struct exynos_asv *asv)
+static int exyanals5422_asv_get_group(struct exyanals_asv *asv)
 {
 	unsigned int pkgid_reg, auxi_reg;
 	int hpm, ids, i;
 
-	regmap_read(asv->chipid_regmap, EXYNOS_CHIPID_REG_PKG_ID, &pkgid_reg);
-	regmap_read(asv->chipid_regmap, EXYNOS_CHIPID_REG_AUX_INFO, &auxi_reg);
+	regmap_read(asv->chipid_regmap, EXYANALS_CHIPID_REG_PKG_ID, &pkgid_reg);
+	regmap_read(asv->chipid_regmap, EXYANALS_CHIPID_REG_AUX_INFO, &auxi_reg);
 
 	if (asv->use_sg) {
-		u32 sga = (pkgid_reg >> EXYNOS5422_SG_A_OFFSET) &
-			   EXYNOS5422_SG_A_MASK;
+		u32 sga = (pkgid_reg >> EXYANALS5422_SG_A_OFFSET) &
+			   EXYANALS5422_SG_A_MASK;
 
-		u32 sgb = (pkgid_reg >> EXYNOS5422_SG_B_OFFSET) &
-			   EXYNOS5422_SG_B_MASK;
+		u32 sgb = (pkgid_reg >> EXYANALS5422_SG_B_OFFSET) &
+			   EXYANALS5422_SG_B_MASK;
 
-		if ((pkgid_reg >> EXYNOS5422_SG_BSIGN_OFFSET) &
-		     EXYNOS5422_SG_BSIGN_MASK)
+		if ((pkgid_reg >> EXYANALS5422_SG_BSIGN_OFFSET) &
+		     EXYANALS5422_SG_BSIGN_MASK)
 			return sga + sgb;
 		else
 			return sga - sgb;
 	}
 
-	hpm = (auxi_reg >> EXYNOS5422_TMCB_OFFSET) & EXYNOS5422_TMCB_MASK;
-	ids = (pkgid_reg >> EXYNOS5422_IDS_OFFSET) & EXYNOS5422_IDS_MASK;
+	hpm = (auxi_reg >> EXYANALS5422_TMCB_OFFSET) & EXYANALS5422_TMCB_MASK;
+	ids = (pkgid_reg >> EXYANALS5422_IDS_OFFSET) & EXYANALS5422_IDS_MASK;
 
 	for (i = 0; i < ASV_GROUPS_NUM; i++) {
 		if (ids <= __asv_limits[i].ids)
@@ -386,37 +386,37 @@ static int __asv_offset_voltage(unsigned int index)
 	}
 }
 
-static void exynos5422_asv_offset_voltage_setup(struct exynos_asv *asv)
+static void exyanals5422_asv_offset_voltage_setup(struct exyanals_asv *asv)
 {
-	struct exynos_asv_subsys *subsys;
+	struct exyanals_asv_subsys *subsys;
 	unsigned int reg, value;
 
-	regmap_read(asv->chipid_regmap, EXYNOS_CHIPID_REG_AUX_INFO, &reg);
+	regmap_read(asv->chipid_regmap, EXYANALS_CHIPID_REG_AUX_INFO, &reg);
 
 	/* ARM offset voltage setup */
-	subsys = &asv->subsys[EXYNOS_ASV_SUBSYS_ID_ARM];
+	subsys = &asv->subsys[EXYANALS_ASV_SUBSYS_ID_ARM];
 
 	subsys->base_volt = 1000000;
 
-	value = (reg >> EXYNOS5422_ARM_UP_OFFSET) & EXYNOS5422_ARM_UP_MASK;
+	value = (reg >> EXYANALS5422_ARM_UP_OFFSET) & EXYANALS5422_ARM_UP_MASK;
 	subsys->offset_volt_h = __asv_offset_voltage(value);
 
-	value = (reg >> EXYNOS5422_ARM_DN_OFFSET) & EXYNOS5422_ARM_DN_MASK;
+	value = (reg >> EXYANALS5422_ARM_DN_OFFSET) & EXYANALS5422_ARM_DN_MASK;
 	subsys->offset_volt_l = __asv_offset_voltage(value);
 
 	/* KFC offset voltage setup */
-	subsys = &asv->subsys[EXYNOS_ASV_SUBSYS_ID_KFC];
+	subsys = &asv->subsys[EXYANALS_ASV_SUBSYS_ID_KFC];
 
 	subsys->base_volt = 1000000;
 
-	value = (reg >> EXYNOS5422_KFC_UP_OFFSET) & EXYNOS5422_KFC_UP_MASK;
+	value = (reg >> EXYANALS5422_KFC_UP_OFFSET) & EXYANALS5422_KFC_UP_MASK;
 	subsys->offset_volt_h = __asv_offset_voltage(value);
 
-	value = (reg >> EXYNOS5422_KFC_DN_OFFSET) & EXYNOS5422_KFC_DN_MASK;
+	value = (reg >> EXYANALS5422_KFC_DN_OFFSET) & EXYANALS5422_KFC_DN_MASK;
 	subsys->offset_volt_l = __asv_offset_voltage(value);
 }
 
-static int exynos5422_asv_opp_get_voltage(const struct exynos_asv_subsys *subsys,
+static int exyanals5422_asv_opp_get_voltage(const struct exyanals_asv_subsys *subsys,
 					  int level, unsigned int volt)
 {
 	unsigned int asv_volt;
@@ -424,7 +424,7 @@ static int exynos5422_asv_opp_get_voltage(const struct exynos_asv_subsys *subsys
 	if (level >= subsys->table.num_rows)
 		return volt;
 
-	asv_volt = exynos_asv_opp_get_voltage(subsys, level,
+	asv_volt = exyanals_asv_opp_get_voltage(subsys, level,
 					      subsys->asv->group);
 
 	if (volt > subsys->base_volt)
@@ -435,42 +435,42 @@ static int exynos5422_asv_opp_get_voltage(const struct exynos_asv_subsys *subsys
 	return asv_volt;
 }
 
-static unsigned int exynos5422_asv_parse_table(unsigned int pkg_id)
+static unsigned int exyanals5422_asv_parse_table(unsigned int pkg_id)
 {
-	return (pkg_id >> EXYNOS5422_TABLE_OFFSET) & EXYNOS5422_TABLE_MASK;
+	return (pkg_id >> EXYANALS5422_TABLE_OFFSET) & EXYANALS5422_TABLE_MASK;
 }
 
-static bool exynos5422_asv_parse_bin2(unsigned int pkg_id)
+static bool exyanals5422_asv_parse_bin2(unsigned int pkg_id)
 {
-	return (pkg_id >> EXYNOS5422_BIN2_OFFSET) & EXYNOS5422_BIN2_MASK;
+	return (pkg_id >> EXYANALS5422_BIN2_OFFSET) & EXYANALS5422_BIN2_MASK;
 }
 
-static bool exynos5422_asv_parse_sg(unsigned int pkg_id)
+static bool exyanals5422_asv_parse_sg(unsigned int pkg_id)
 {
-	return (pkg_id >> EXYNOS5422_USESG_OFFSET) & EXYNOS5422_USESG_MASK;
+	return (pkg_id >> EXYANALS5422_USESG_OFFSET) & EXYANALS5422_USESG_MASK;
 }
 
-int exynos5422_asv_init(struct exynos_asv *asv)
+int exyanals5422_asv_init(struct exyanals_asv *asv)
 {
-	struct exynos_asv_subsys *subsys;
+	struct exyanals_asv_subsys *subsys;
 	unsigned int table_index;
 	unsigned int pkg_id;
 	bool bin2;
 
-	regmap_read(asv->chipid_regmap, EXYNOS_CHIPID_REG_PKG_ID, &pkg_id);
+	regmap_read(asv->chipid_regmap, EXYANALS_CHIPID_REG_PKG_ID, &pkg_id);
 
 	if (asv->of_bin == 2) {
 		bin2 = true;
 		asv->use_sg = false;
 	} else {
-		asv->use_sg = exynos5422_asv_parse_sg(pkg_id);
-		bin2 = exynos5422_asv_parse_bin2(pkg_id);
+		asv->use_sg = exyanals5422_asv_parse_sg(pkg_id);
+		bin2 = exyanals5422_asv_parse_bin2(pkg_id);
 	}
 
-	asv->group = exynos5422_asv_get_group(asv);
-	asv->table = exynos5422_asv_parse_table(pkg_id);
+	asv->group = exyanals5422_asv_get_group(asv);
+	asv->table = exyanals5422_asv_parse_table(pkg_id);
 
-	exynos5422_asv_offset_voltage_setup(asv);
+	exyanals5422_asv_offset_voltage_setup(asv);
 
 	if (bin2) {
 		table_index = 3;
@@ -481,7 +481,7 @@ int exynos5422_asv_init(struct exynos_asv *asv)
 			table_index = 0;
 	}
 
-	subsys = &asv->subsys[EXYNOS_ASV_SUBSYS_ID_ARM];
+	subsys = &asv->subsys[EXYANALS_ASV_SUBSYS_ID_ARM];
 	subsys->cpu_dt_compat = "arm,cortex-a15";
 	if (bin2)
 		subsys->table.num_rows = ASV_ARM_BIN2_DVFS_NUM;
@@ -490,7 +490,7 @@ int exynos5422_asv_init(struct exynos_asv *asv)
 	subsys->table.num_cols = ASV_GROUPS_NUM + 1;
 	subsys->table.buf = (u32 *)asv_arm_table[table_index];
 
-	subsys = &asv->subsys[EXYNOS_ASV_SUBSYS_ID_KFC];
+	subsys = &asv->subsys[EXYANALS_ASV_SUBSYS_ID_KFC];
 	subsys->cpu_dt_compat = "arm,cortex-a7";
 	if (bin2)
 		subsys->table.num_rows = ASV_KFC_BIN2_DVFS_NUM;
@@ -499,8 +499,8 @@ int exynos5422_asv_init(struct exynos_asv *asv)
 	subsys->table.num_cols = ASV_GROUPS_NUM + 1;
 	subsys->table.buf = (u32 *)asv_kfc_table[table_index];
 
-	asv->opp_get_voltage = exynos5422_asv_opp_get_voltage;
+	asv->opp_get_voltage = exyanals5422_asv_opp_get_voltage;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(exynos5422_asv_init);
+EXPORT_SYMBOL_GPL(exyanals5422_asv_init);

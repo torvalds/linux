@@ -8,7 +8,7 @@
 #define H_SUCCESS	0
 #define H_BUSY		1	/* Hardware busy -- retry later */
 #define H_CLOSED	2	/* Resource closed */
-#define H_NOT_AVAILABLE 3
+#define H_ANALT_AVAILABLE 3
 #define H_CONSTRAINED	4	/* Resource request constrained to max allowed */
 #define H_PARTIAL       5
 #define H_IN_PROGRESS	14	/* Kind of like busy */
@@ -31,18 +31,18 @@
 						 is a good time to retry */
 #define H_LONG_BUSY_END_RANGE		9905  /* End of long busy range */
 
-/* Internal value used in book3s_hv kvm support; not returned to guests */
+/* Internal value used in book3s_hv kvm support; analt returned to guests */
 #define H_TOO_HARD	9999
 
 #define H_HARDWARE	-1	/* Hardware error */
-#define H_FUNCTION	-2	/* Function not supported */
-#define H_PRIVILEGE	-3	/* Caller not privileged */
+#define H_FUNCTION	-2	/* Function analt supported */
+#define H_PRIVILEGE	-3	/* Caller analt privileged */
 #define H_PARAMETER	-4	/* Parameter invalid, out-of-range or conflicting */
 #define H_BAD_MODE	-5	/* Illegal msr value */
 #define H_PTEG_FULL	-6	/* PTEG is full */
-#define H_NOT_FOUND	-7	/* PTE was not found" */
+#define H_ANALT_FOUND	-7	/* PTE was analt found" */
 #define H_RESERVED_DABR	-8	/* DABR address is reserved by the hypervisor on this processor" */
-#define H_NO_MEM	-9
+#define H_ANAL_MEM	-9
 #define H_AUTHORITY	-10
 #define H_PERMISSION	-11
 #define H_DROPPED	-12
@@ -76,7 +76,7 @@
 #define H_TABLE_FULL    -41
 #define H_ALT_TABLE     -42
 #define H_MR_CONDITION  -43
-#define H_NOT_ENOUGH_RESOURCES -44
+#define H_ANALT_EANALUGH_RESOURCES -44
 #define H_R_STATE       -45
 #define H_RESCINDED     -46
 #define H_ABORTED	-54
@@ -88,13 +88,13 @@
 #define H_P7		-60
 #define H_P8		-61
 #define H_P9		-62
-#define H_NOOP		-63
+#define H_ANALOP		-63
 #define H_TOO_BIG	-64
 #define H_UNSUPPORTED	-67
 #define H_OVERLAP	-68
 #define H_INTERRUPT	-69
 #define H_BAD_DATA	-70
-#define H_NOT_ACTIVE	-71
+#define H_ANALT_ACTIVE	-71
 #define H_SG_LIST	-72
 #define H_OP_MODE	-73
 #define H_COP_HW	-74
@@ -104,12 +104,12 @@
 #define H_INVALID_ELEMENT_ID			-79
 #define H_INVALID_ELEMENT_SIZE			-80
 #define H_INVALID_ELEMENT_VALUE			-81
-#define H_INPUT_BUFFER_NOT_DEFINED		-82
+#define H_INPUT_BUFFER_ANALT_DEFINED		-82
 #define H_INPUT_BUFFER_TOO_SMALL		-83
-#define H_OUTPUT_BUFFER_NOT_DEFINED		-84
+#define H_OUTPUT_BUFFER_ANALT_DEFINED		-84
 #define H_OUTPUT_BUFFER_TOO_SMALL		-85
-#define H_PARTITION_PAGE_TABLE_NOT_DEFINED	-86
-#define H_GUEST_VCPU_STATE_NOT_HV_OWNED		-87
+#define H_PARTITION_PAGE_TABLE_ANALT_DEFINED	-86
+#define H_GUEST_VCPU_STATE_ANALT_HV_OWNED		-87
 
 
 #define H_UNSUPPORTED_FLAG_START	-256
@@ -119,9 +119,9 @@
 
 
 /* Long Busy is a condition that can be returned by the firmware
- * when a call cannot be completed now, but the identical call
+ * when a call cananalt be completed analw, but the identical call
  * should be retried later.  This prevents calls blocking in the
- * firmware for long periods of time.  Annoyingly the firmware can return
+ * firmware for long periods of time.  Ananalyingly the firmware can return
  * a range of return codes, hinting at how long we should wait before
  * retrying.  If you don't care for the hint, the macro below is a good
  * way to check for the long_busy return codes
@@ -142,10 +142,10 @@
 #define H_AVPN			(1UL<<(63-32))	/* An avpn is provided as a sanity test */
 #define H_ANDCOND		(1UL<<(63-33))
 #define H_LOCAL			(1UL<<(63-35))
-#define H_ICACHE_INVALIDATE	(1UL<<(63-40))	/* icbi, etc.  (ignored for IO pages) */
-#define H_ICACHE_SYNCHRONIZE	(1UL<<(63-41))	/* dcbst, icbi, etc (ignored for IO pages */
+#define H_ICACHE_INVALIDATE	(1UL<<(63-40))	/* icbi, etc.  (iganalred for IO pages) */
+#define H_ICACHE_SYNCHRONIZE	(1UL<<(63-41))	/* dcbst, icbi, etc (iganalred for IO pages */
 #define H_COALESCE_CAND	(1UL<<(63-42))	/* page is a good candidate for coalescing */
-#define H_ZERO_PAGE		(1UL<<(63-48))	/* zero the page before mapping (ignored for IO pages) */
+#define H_ZERO_PAGE		(1UL<<(63-48))	/* zero the page before mapping (iganalred for IO pages) */
 #define H_COPY_PAGE		(1UL<<(63-49))
 #define H_N			(1UL<<(63-61))
 #define H_PP1			(1UL<<(63-62))
@@ -292,7 +292,7 @@
 #define H_SET_MPP		0x2D0
 #define H_GET_MPP		0x2D4
 #define H_REG_SUB_CRQ		0x2DC
-#define H_HOME_NODE_ASSOCIATIVITY 0x2EC
+#define H_HOME_ANALDE_ASSOCIATIVITY 0x2EC
 #define H_FREE_SUB_CRQ		0x2E0
 #define H_SEND_SUB_CRQ		0x2E4
 #define H_SEND_SUB_CRQ_INDIRECT	0x2E8
@@ -385,7 +385,7 @@
 #define H_RTAS			0xf000
 
 /*
- * Platform specific hcalls, used by QEMU/SLOF. These are ignored by
+ * Platform specific hcalls, used by QEMU/SLOF. These are iganalred by
  * KVM and only kept here so we can identify them during tracing.
  */
 #define H_LOGICAL_MEMOP  0xF001
@@ -431,7 +431,7 @@
 #define H_CPU_CHAR_L1D_FLUSH_ORI30	(1ull << 61) // IBM bit 2
 #define H_CPU_CHAR_L1D_FLUSH_TRIG2	(1ull << 60) // IBM bit 3
 #define H_CPU_CHAR_L1D_THREAD_PRIV	(1ull << 59) // IBM bit 4
-#define H_CPU_CHAR_BRANCH_HINTS_HONORED	(1ull << 58) // IBM bit 5
+#define H_CPU_CHAR_BRANCH_HINTS_HOANALRED	(1ull << 58) // IBM bit 5
 #define H_CPU_CHAR_THREAD_RECONFIG_CTRL	(1ull << 57) // IBM bit 6
 #define H_CPU_CHAR_COUNT_CACHE_DISABLED	(1ull << 56) // IBM bit 7
 #define H_CPU_CHAR_BCCTR_FLUSH_ASSIST	(1ull << 54) // IBM bit 9
@@ -443,9 +443,9 @@
 #define H_CPU_BEHAV_FAVOUR_SECURITY_H	(1ull << 60) // IBM bit 3
 #define H_CPU_BEHAV_FLUSH_COUNT_CACHE	(1ull << 58) // IBM bit 5
 #define H_CPU_BEHAV_FLUSH_LINK_STACK	(1ull << 57) // IBM bit 6
-#define H_CPU_BEHAV_NO_L1D_FLUSH_ENTRY	(1ull << 56) // IBM bit 7
-#define H_CPU_BEHAV_NO_L1D_FLUSH_UACCESS (1ull << 55) // IBM bit 8
-#define H_CPU_BEHAV_NO_STF_BARRIER	(1ull << 54) // IBM bit 9
+#define H_CPU_BEHAV_ANAL_L1D_FLUSH_ENTRY	(1ull << 56) // IBM bit 7
+#define H_CPU_BEHAV_ANAL_L1D_FLUSH_UACCESS (1ull << 55) // IBM bit 8
+#define H_CPU_BEHAV_ANAL_STF_BARRIER	(1ull << 54) // IBM bit 9
 
 /* Flag values used in H_REGISTER_PROC_TBL hcall */
 #define PROC_TABLE_OP_MASK	0x18
@@ -501,17 +501,17 @@
 #include <linux/types.h>
 
 /**
- * plpar_hcall_norets: - Make a pseries hypervisor call with no return arguments
+ * plpar_hcall_analrets: - Make a pseries hypervisor call with anal return arguments
  * @opcode: The hypervisor call to make.
  *
  * This call supports up to 7 arguments and only returns the status of
  * the hcall. Use this version where possible, its slightly faster than
  * the other plpar_hcalls.
  */
-long plpar_hcall_norets(unsigned long opcode, ...);
+long plpar_hcall_analrets(unsigned long opcode, ...);
 
-/* Variant which does not do hcall tracing */
-long plpar_hcall_norets_notrace(unsigned long opcode, ...);
+/* Variant which does analt do hcall tracing */
+long plpar_hcall_analrets_analtrace(unsigned long opcode, ...);
 
 /**
  * plpar_hcall: - Make a pseries hypervisor call
@@ -535,7 +535,7 @@ long plpar_hcall(unsigned long opcode, unsigned long *retbuf, ...);
  * PLPAR_HCALL_BUFSIZE to size the return argument buffer.
  *
  * Used when phyp interface needs to be called in real mode. Similar to
- * plpar_hcall, but plpar_hcall_raw works in real mode and does not
+ * plpar_hcall, but plpar_hcall_raw works in real mode and does analt
  * calculate hypervisor call statistics.
  */
 long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);
@@ -672,7 +672,7 @@ struct hv_get_perf_counter_info_params {
 	__be32 starting_index;  /* IO */
 	__be16 secondary_index; /* IO */
 	__be16 returned_values; /* O */
-	__be32 detail_rc; /* O, only needed when called via *_norets() */
+	__be32 detail_rc; /* O, only needed when called via *_analrets() */
 
 	/*
 	 * O, size each of counter_value element in bytes, only set for version

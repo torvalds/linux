@@ -38,7 +38,7 @@ etnaviv_cmdbuf_suballoc_new(struct device *dev)
 
 	suballoc = kzalloc(sizeof(*suballoc), GFP_KERNEL);
 	if (!suballoc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	suballoc->dev = dev;
 	mutex_init(&suballoc->lock);
@@ -48,7 +48,7 @@ etnaviv_cmdbuf_suballoc_new(struct device *dev)
 	suballoc->vaddr = dma_alloc_wc(dev, SUBALLOC_SIZE,
 				       &suballoc->paddr, GFP_KERNEL);
 	if (!suballoc->vaddr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_suballoc;
 	}
 

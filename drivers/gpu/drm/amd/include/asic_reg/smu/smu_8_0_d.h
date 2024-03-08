@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -498,7 +498,7 @@
 #define ixUNBPM_VOLTAGE_STATUS                                                  0xd02110a4
 #define ixNUM_BOOST_STATES                                                      0xd02110a8
 #define ixWARM_RESET_NB_CONTROL                                                 0xd02110ac
-#define ixONION_NO_STREAMS_PEND                                                 0xd02110b0
+#define ixONION_ANAL_STREAMS_PEND                                                 0xd02110b0
 #define ixSPR_PROGRAMMABLE_CTRL                                                 0xd02110b4
 #define ixPHN_FUSERX_MISC_FUSES                                                 0xd02110b8
 #define ixUNBPM_PWRCTRL_MISC                                                    0xd02110bc

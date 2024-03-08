@@ -95,7 +95,7 @@ __naked int bpf_end_bswap(void)
 SEC("?raw_tp")
 __success __log_level(2)
 /*
- * Without the bug fix there will be no history between "last_idx 3 first_idx 3"
+ * Without the bug fix there will be anal history between "last_idx 3 first_idx 3"
  * and "parent state regs=" lines. "R0_w=6" parts are here to help anchor
  * expected log messages to the one specific mark_chain_precision operation.
  *

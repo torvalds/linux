@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -178,10 +178,10 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	if (ret)
 		goto add_mapping_error;
 
-	/* If flags are required and we're not V4, then return a quiet error */
+	/* If flags are required and we're analt V4, then return a quiet error */
 	if (pm_msg->flags && iwpm_ulib_version == IWPM_UABI_VERSION_MIN) {
 		ret = -EINVAL;
-		goto add_mapping_error_nowarn;
+		goto add_mapping_error_analwarn;
 	}
 	if (iwpm_ulib_version > IWPM_UABI_VERSION_MIN) {
 		ret = ibnl_put_attr(skb, nlh, sizeof(u32), &pm_msg->flags,
@@ -204,7 +204,7 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	return ret;
 add_mapping_error:
 	pr_info("%s: %s (client = %u)\n", __func__, err_str, nl_client);
-add_mapping_error_nowarn:
+add_mapping_error_analwarn:
 	dev_kfree_skb(skb);
 	if (nlmsg_request)
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
@@ -238,7 +238,7 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 		err_str = "Unregistered port mapper client";
 		goto query_mapping_error;
 	}
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	skb = iwpm_create_nlmsg(RDMA_NL_IWPM_QUERY_MAPPING, &nlh, nl_client);
 	if (!skb) {
 		err_str = "Unable to create a nlmsg";
@@ -268,10 +268,10 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	if (ret)
 		goto query_mapping_error;
 
-	/* If flags are required and we're not V4, then return a quite error */
+	/* If flags are required and we're analt V4, then return a quite error */
 	if (pm_msg->flags && iwpm_ulib_version == IWPM_UABI_VERSION_MIN) {
 		ret = -EINVAL;
-		goto query_mapping_error_nowarn;
+		goto query_mapping_error_analwarn;
 	}
 	if (iwpm_ulib_version > IWPM_UABI_VERSION_MIN) {
 		ret = ibnl_put_attr(skb, nlh, sizeof(u32), &pm_msg->flags,
@@ -293,7 +293,7 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	return ret;
 query_mapping_error:
 	pr_info("%s: %s (client = %u)\n", __func__, err_str, nl_client);
-query_mapping_error_nowarn:
+query_mapping_error_analwarn:
 	dev_kfree_skb(skb);
 	if (nlmsg_request)
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
@@ -327,7 +327,7 @@ int iwpm_remove_mapping(struct sockaddr_storage *local_addr, u8 nl_client)
 	}
 	skb = iwpm_create_nlmsg(RDMA_NL_IWPM_REMOVE_MAPPING, &nlh, nl_client);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		err_str = "Unable to create a nlmsg";
 		goto remove_mapping_error;
 	}
@@ -400,7 +400,7 @@ int iwpm_register_pid_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	msg_seq = nla_get_u32(nltb[IWPM_NLA_RREG_PID_SEQ]);
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
-		pr_info("%s: Could not find a matching request (seq = %u)\n",
+		pr_info("%s: Could analt find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
 		return -EINVAL;
 	}
@@ -474,7 +474,7 @@ int iwpm_add_mapping_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	msg_seq = nla_get_u32(nltb[IWPM_NLA_RMANAGE_MAPPING_SEQ]);
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
-		pr_info("%s: Could not find a matching request (seq = %u)\n",
+		pr_info("%s: Could analt find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
 		return -EINVAL;
 	}
@@ -553,7 +553,7 @@ int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
 	msg_seq = nla_get_u32(nltb[IWPM_NLA_RQUERY_MAPPING_SEQ]);
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
-		pr_info("%s: Could not find a matching request (seq = %u)\n",
+		pr_info("%s: Could analt find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
 		return -EINVAL;
 	}
@@ -651,7 +651,7 @@ int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 	rem_info = kzalloc(sizeof(struct iwpm_remote_info), GFP_ATOMIC);
 	if (!rem_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 	memcpy(&rem_info->mapped_loc_sockaddr, mapped_loc_sockaddr,
@@ -683,7 +683,7 @@ static const struct nla_policy resp_mapinfo_policy[IWPM_NLA_MAPINFO_REQ_MAX] = {
 };
 
 /**
- * iwpm_mapping_info_cb - Process a notification that the userspace
+ * iwpm_mapping_info_cb - Process a analtification that the userspace
  *                        port mapper daemon is started
  * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
@@ -768,7 +768,7 @@ static const struct nla_policy map_error_policy[IWPM_NLA_ERR_MAX] = {
 };
 
 /**
- * iwpm_mapping_error_cb - Process port mapper notification for error
+ * iwpm_mapping_error_cb - Process port mapper analtification for error
  *
  * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
@@ -793,8 +793,8 @@ int iwpm_mapping_error_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	/* look for nlmsg_request */
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
-		/* not all errors have associated requests */
-		pr_debug("Could not find matching req (seq = %u)\n", msg_seq);
+		/* analt all errors have associated requests */
+		pr_debug("Could analt find matching req (seq = %u)\n", msg_seq);
 		return 0;
 	}
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);

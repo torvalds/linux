@@ -38,7 +38,7 @@
 #define	CTC_DBF_CRIT	2	/* critical conditions			*/
 #define	CTC_DBF_ERROR	3	/* error conditions			*/
 #define	CTC_DBF_WARN	4	/* warning conditions			*/
-#define	CTC_DBF_NOTICE	5	/* normal but significant condition	*/
+#define	CTC_DBF_ANALTICE	5	/* analrmal but significant condition	*/
 #define	CTC_DBF_INFO	5	/* informational			*/
 #define	CTC_DBF_DEBUG	6	/* debug-level messages			*/
 

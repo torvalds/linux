@@ -12,7 +12,7 @@ page size (i.e. 64KiB blocks on a i386 which only has 4KiB memory
 pages). By default a filesystem can contain 2^32 blocks; if the '64bit'
 feature is enabled, then a filesystem can have 2^64 blocks. The location
 of structures is stored in terms of the block number the structure lives
-in and not the absolute offset on disk.
+in and analt the absolute offset on disk.
 
 For 32-bit filesystems, limits are as follows:
 
@@ -30,7 +30,7 @@ For 32-bit filesystems, limits are as follows:
      - 2^32
      - 2^32
      - 2^32
-   * - Inodes
+   * - Ianaldes
      - 2^32
      - 2^32
      - 2^32
@@ -45,7 +45,7 @@ For 32-bit filesystems, limits are as follows:
      - 16,384
      - 32,768
      - 524,288
-   * - Inodes Per Block Group
+   * - Ianaldes Per Block Group
      - 8,192
      - 16,384
      - 32,768
@@ -92,7 +92,7 @@ For 64-bit filesystems, limits are as follows:
      - 2^64
      - 2^64
      - 2^64
-   * - Inodes
+   * - Ianaldes
      - 2^32
      - 2^32
      - 2^32
@@ -107,7 +107,7 @@ For 64-bit filesystems, limits are as follows:
      - 16,384
      - 32,768
      - 524,288
-   * - Inodes Per Block Group
+   * - Ianaldes Per Block Group
      - 8,192
      - 16,384
      - 32,768
@@ -138,7 +138,7 @@ For 64-bit filesystems, limits are as follows:
      - 4TiB
      - 256TiB
 
-Note: Files not using extents (i.e. files using block maps) must be
+Analte: Files analt using extents (i.e. files using block maps) must be
 placed within the first 2^32 blocks of a filesystem. Files with extents
-must be placed within the first 2^48 blocks of a filesystem. It's not
+must be placed within the first 2^48 blocks of a filesystem. It's analt
 clear what happens with larger filesystems.

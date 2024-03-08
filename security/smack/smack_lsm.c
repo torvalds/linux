@@ -11,7 +11,7 @@
  *  Copyright (C) 2007 Casey Schaufler <casey@schaufler-ca.com>
  *  Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  *                Paul Moore <paul@paul-moore.com>
- *  Copyright (C) 2010 Nokia Corporation
+ *  Copyright (C) 2010 Analkia Corporation
  *  Copyright (C) 2011 Intel Corporation.
  */
 
@@ -58,10 +58,10 @@
  * Smack uses multiple xattrs.
  * SMACK64 - for access control,
  * SMACK64TRANSMUTE - label initialization,
- * Not saved on files - SMACK64IPIN and SMACK64IPOUT,
+ * Analt saved on files - SMACK64IPIN and SMACK64IPOUT,
  * Must be set explicitly - SMACK64EXEC and SMACK64MMAP
  */
-#define SMACK_INODE_INIT_XATTRS 2
+#define SMACK_IANALDE_INIT_XATTRS 2
 
 #ifdef SMACK_IPV6_PORT_LABELING
 static DEFINE_MUTEX(smack_ipv6_lock);
@@ -128,8 +128,8 @@ static void smk_bu_mode(int mode, char *s)
 #endif
 
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
-static int smk_bu_note(char *note, struct smack_known *sskp,
-		       struct smack_known *oskp, int mode, int rc)
+static int smk_bu_analte(char *analte, struct smack_kanalwn *sskp,
+		       struct smack_kanalwn *oskp, int mode, int rc)
 {
 	char acc[SMK_NUM_ACCESS_TYPE + 1];
 
@@ -140,15 +140,15 @@ static int smk_bu_note(char *note, struct smack_known *sskp,
 
 	smk_bu_mode(mode, acc);
 	pr_info("Smack %s: (%s %s %s) %s\n", smk_bu_mess[rc],
-		sskp->smk_known, oskp->smk_known, acc, note);
+		sskp->smk_kanalwn, oskp->smk_kanalwn, acc, analte);
 	return 0;
 }
 #else
-#define smk_bu_note(note, sskp, oskp, mode, RC) (RC)
+#define smk_bu_analte(analte, sskp, oskp, mode, RC) (RC)
 #endif
 
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
-static int smk_bu_current(char *note, struct smack_known *oskp,
+static int smk_bu_current(char *analte, struct smack_kanalwn *oskp,
 			  int mode, int rc)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
@@ -161,19 +161,19 @@ static int smk_bu_current(char *note, struct smack_known *oskp,
 
 	smk_bu_mode(mode, acc);
 	pr_info("Smack %s: (%s %s %s) %s %s\n", smk_bu_mess[rc],
-		tsp->smk_task->smk_known, oskp->smk_known,
-		acc, current->comm, note);
+		tsp->smk_task->smk_kanalwn, oskp->smk_kanalwn,
+		acc, current->comm, analte);
 	return 0;
 }
 #else
-#define smk_bu_current(note, oskp, mode, RC) (RC)
+#define smk_bu_current(analte, oskp, mode, RC) (RC)
 #endif
 
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
 static int smk_bu_task(struct task_struct *otp, int mode, int rc)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
-	struct smack_known *smk_task = smk_of_task_struct_obj(otp);
+	struct smack_kanalwn *smk_task = smk_of_task_struct_obj(otp);
 	char acc[SMK_NUM_ACCESS_TYPE + 1];
 
 	if (rc <= 0)
@@ -183,7 +183,7 @@ static int smk_bu_task(struct task_struct *otp, int mode, int rc)
 
 	smk_bu_mode(mode, acc);
 	pr_info("Smack %s: (%s %s %s) %s to %s\n", smk_bu_mess[rc],
-		tsp->smk_task->smk_known, smk_task->smk_known, acc,
+		tsp->smk_task->smk_kanalwn, smk_task->smk_kanalwn, acc,
 		current->comm, otp->comm);
 	return 0;
 }
@@ -192,15 +192,15 @@ static int smk_bu_task(struct task_struct *otp, int mode, int rc)
 #endif
 
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
-static int smk_bu_inode(struct inode *inode, int mode, int rc)
+static int smk_bu_ianalde(struct ianalde *ianalde, int mode, int rc)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
-	struct inode_smack *isp = smack_inode(inode);
+	struct ianalde_smack *isp = smack_ianalde(ianalde);
 	char acc[SMK_NUM_ACCESS_TYPE + 1];
 
-	if (isp->smk_flags & SMK_INODE_IMPURE)
-		pr_info("Smack Unconfined Corruption: inode=(%s %ld) %s\n",
-			inode->i_sb->s_id, inode->i_ino, current->comm);
+	if (isp->smk_flags & SMK_IANALDE_IMPURE)
+		pr_info("Smack Unconfined Corruption: ianalde=(%s %ld) %s\n",
+			ianalde->i_sb->s_id, ianalde->i_ianal, current->comm);
 
 	if (rc <= 0)
 		return rc;
@@ -208,31 +208,31 @@ static int smk_bu_inode(struct inode *inode, int mode, int rc)
 		rc = 0;
 	if (rc == SMACK_UNCONFINED_SUBJECT &&
 	    (mode & (MAY_WRITE | MAY_APPEND)))
-		isp->smk_flags |= SMK_INODE_IMPURE;
+		isp->smk_flags |= SMK_IANALDE_IMPURE;
 
 	smk_bu_mode(mode, acc);
 
-	pr_info("Smack %s: (%s %s %s) inode=(%s %ld) %s\n", smk_bu_mess[rc],
-		tsp->smk_task->smk_known, isp->smk_inode->smk_known, acc,
-		inode->i_sb->s_id, inode->i_ino, current->comm);
+	pr_info("Smack %s: (%s %s %s) ianalde=(%s %ld) %s\n", smk_bu_mess[rc],
+		tsp->smk_task->smk_kanalwn, isp->smk_ianalde->smk_kanalwn, acc,
+		ianalde->i_sb->s_id, ianalde->i_ianal, current->comm);
 	return 0;
 }
 #else
-#define smk_bu_inode(inode, mode, RC) (RC)
+#define smk_bu_ianalde(ianalde, mode, RC) (RC)
 #endif
 
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
 static int smk_bu_file(struct file *file, int mode, int rc)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
-	struct smack_known *sskp = tsp->smk_task;
-	struct inode *inode = file_inode(file);
-	struct inode_smack *isp = smack_inode(inode);
+	struct smack_kanalwn *sskp = tsp->smk_task;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ianalde_smack *isp = smack_ianalde(ianalde);
 	char acc[SMK_NUM_ACCESS_TYPE + 1];
 
-	if (isp->smk_flags & SMK_INODE_IMPURE)
-		pr_info("Smack Unconfined Corruption: inode=(%s %ld) %s\n",
-			inode->i_sb->s_id, inode->i_ino, current->comm);
+	if (isp->smk_flags & SMK_IANALDE_IMPURE)
+		pr_info("Smack Unconfined Corruption: ianalde=(%s %ld) %s\n",
+			ianalde->i_sb->s_id, ianalde->i_ianal, current->comm);
 
 	if (rc <= 0)
 		return rc;
@@ -241,8 +241,8 @@ static int smk_bu_file(struct file *file, int mode, int rc)
 
 	smk_bu_mode(mode, acc);
 	pr_info("Smack %s: (%s %s %s) file=(%s %ld %pD) %s\n", smk_bu_mess[rc],
-		sskp->smk_known, smk_of_inode(inode)->smk_known, acc,
-		inode->i_sb->s_id, inode->i_ino, file,
+		sskp->smk_kanalwn, smk_of_ianalde(ianalde)->smk_kanalwn, acc,
+		ianalde->i_sb->s_id, ianalde->i_ianal, file,
 		current->comm);
 	return 0;
 }
@@ -255,14 +255,14 @@ static int smk_bu_credfile(const struct cred *cred, struct file *file,
 				int mode, int rc)
 {
 	struct task_smack *tsp = smack_cred(cred);
-	struct smack_known *sskp = tsp->smk_task;
-	struct inode *inode = file_inode(file);
-	struct inode_smack *isp = smack_inode(inode);
+	struct smack_kanalwn *sskp = tsp->smk_task;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ianalde_smack *isp = smack_ianalde(ianalde);
 	char acc[SMK_NUM_ACCESS_TYPE + 1];
 
-	if (isp->smk_flags & SMK_INODE_IMPURE)
-		pr_info("Smack Unconfined Corruption: inode=(%s %ld) %s\n",
-			inode->i_sb->s_id, inode->i_ino, current->comm);
+	if (isp->smk_flags & SMK_IANALDE_IMPURE)
+		pr_info("Smack Unconfined Corruption: ianalde=(%s %ld) %s\n",
+			ianalde->i_sb->s_id, ianalde->i_ianal, current->comm);
 
 	if (rc <= 0)
 		return rc;
@@ -271,8 +271,8 @@ static int smk_bu_credfile(const struct cred *cred, struct file *file,
 
 	smk_bu_mode(mode, acc);
 	pr_info("Smack %s: (%s %s %s) file=(%s %ld %pD) %s\n", smk_bu_mess[rc],
-		sskp->smk_known, smk_of_inode(inode)->smk_known, acc,
-		inode->i_sb->s_id, inode->i_ino, file,
+		sskp->smk_kanalwn, smk_of_ianalde(ianalde)->smk_kanalwn, acc,
+		ianalde->i_sb->s_id, ianalde->i_ianal, file,
 		current->comm);
 	return 0;
 }
@@ -283,25 +283,25 @@ static int smk_bu_credfile(const struct cred *cred, struct file *file,
 /**
  * smk_fetch - Fetch the smack label from a file.
  * @name: type of the label (attribute)
- * @ip: a pointer to the inode
+ * @ip: a pointer to the ianalde
  * @dp: a pointer to the dentry
  *
  * Returns a pointer to the master list entry for the Smack label,
- * NULL if there was no label to fetch, or an error code.
+ * NULL if there was anal label to fetch, or an error code.
  */
-static struct smack_known *smk_fetch(const char *name, struct inode *ip,
+static struct smack_kanalwn *smk_fetch(const char *name, struct ianalde *ip,
 					struct dentry *dp)
 {
 	int rc;
 	char *buffer;
-	struct smack_known *skp = NULL;
+	struct smack_kanalwn *skp = NULL;
 
 	if (!(ip->i_opflags & IOP_XATTR))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
-	buffer = kzalloc(SMK_LONGLABEL, GFP_NOFS);
+	buffer = kzalloc(SMK_LONGLABEL, GFP_ANALFS);
 	if (buffer == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rc = __vfs_getxattr(dp, ip, name, buffer, SMK_LONGLABEL);
 	if (rc < 0)
@@ -317,16 +317,16 @@ static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 }
 
 /**
- * init_inode_smack - initialize an inode security blob
- * @inode: inode to extract the info from
+ * init_ianalde_smack - initialize an ianalde security blob
+ * @ianalde: ianalde to extract the info from
  * @skp: a pointer to the Smack label entry to use in the blob
  *
  */
-static void init_inode_smack(struct inode *inode, struct smack_known *skp)
+static void init_ianalde_smack(struct ianalde *ianalde, struct smack_kanalwn *skp)
 {
-	struct inode_smack *isp = smack_inode(inode);
+	struct ianalde_smack *isp = smack_ianalde(ianalde);
 
-	isp->smk_inode = skp;
+	isp->smk_ianalde = skp;
 	isp->smk_flags = 0;
 }
 
@@ -337,8 +337,8 @@ static void init_inode_smack(struct inode *inode, struct smack_known *skp)
  * @forked: a pointer to the Smack label for the forked task
  *
  */
-static void init_task_smack(struct task_smack *tsp, struct smack_known *task,
-					struct smack_known *forked)
+static void init_task_smack(struct task_smack *tsp, struct smack_kanalwn *task,
+					struct smack_kanalwn *forked)
 {
 	tsp->smk_task = task;
 	tsp->smk_forked = forked;
@@ -353,7 +353,7 @@ static void init_task_smack(struct task_smack *tsp, struct smack_known *task,
  * @ohead: old rules header pointer
  * @gfp: type of the memory for the allocation
  *
- * Returns 0 on success, -ENOMEM on error
+ * Returns 0 on success, -EANALMEM on error
  */
 static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 				gfp_t gfp)
@@ -365,7 +365,7 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 	list_for_each_entry_rcu(orp, ohead, list) {
 		nrp = kmem_cache_zalloc(smack_rule_cache, gfp);
 		if (nrp == NULL) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			break;
 		}
 		*nrp = *orp;
@@ -380,19 +380,19 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
  * @ohead: old rules header pointer
  * @gfp: type of the memory for the allocation
  *
- * Returns 0 on success, -ENOMEM on error
+ * Returns 0 on success, -EANALMEM on error
  */
 static int smk_copy_relabel(struct list_head *nhead, struct list_head *ohead,
 				gfp_t gfp)
 {
-	struct smack_known_list_elem *nklep;
-	struct smack_known_list_elem *oklep;
+	struct smack_kanalwn_list_elem *nklep;
+	struct smack_kanalwn_list_elem *oklep;
 
 	list_for_each_entry(oklep, ohead, list) {
-		nklep = kzalloc(sizeof(struct smack_known_list_elem), gfp);
+		nklep = kzalloc(sizeof(struct smack_kanalwn_list_elem), gfp);
 		if (nklep == NULL) {
 			smk_destroy_label_list(nhead);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		nklep->smk_label = oklep->smk_label;
 		list_add(&nklep->list, nhead);
@@ -420,23 +420,23 @@ static inline unsigned int smk_ptrace_mode(unsigned int mode)
 /**
  * smk_ptrace_rule_check - helper for ptrace access
  * @tracer: tracer process
- * @tracee_known: label entry of the process that's about to be traced
+ * @tracee_kanalwn: label entry of the process that's about to be traced
  * @mode: ptrace attachment mode (PTRACE_MODE_*)
  * @func: name of the function that called us, used for audit
  *
  * Returns 0 on access granted, -error on error
  */
 static int smk_ptrace_rule_check(struct task_struct *tracer,
-				 struct smack_known *tracee_known,
+				 struct smack_kanalwn *tracee_kanalwn,
 				 unsigned int mode, const char *func)
 {
 	int rc;
 	struct smk_audit_info ad, *saip = NULL;
 	struct task_smack *tsp;
-	struct smack_known *tracer_known;
+	struct smack_kanalwn *tracer_kanalwn;
 	const struct cred *tracercred;
 
-	if ((mode & PTRACE_MODE_NOAUDIT) == 0) {
+	if ((mode & PTRACE_MODE_ANALAUDIT) == 0) {
 		smk_ad_init(&ad, func, LSM_AUDIT_DATA_TASK);
 		smk_ad_setfield_u_tsk(&ad, tracer);
 		saip = &ad;
@@ -445,12 +445,12 @@ static int smk_ptrace_rule_check(struct task_struct *tracer,
 	rcu_read_lock();
 	tracercred = __task_cred(tracer);
 	tsp = smack_cred(tracercred);
-	tracer_known = smk_of_task(tsp);
+	tracer_kanalwn = smk_of_task(tsp);
 
 	if ((mode & PTRACE_MODE_ATTACH) &&
 	    (smack_ptrace_rule == SMACK_PTRACE_EXACT ||
 	     smack_ptrace_rule == SMACK_PTRACE_DRACONIAN)) {
-		if (tracer_known->smk_known == tracee_known->smk_known)
+		if (tracer_kanalwn->smk_kanalwn == tracee_kanalwn->smk_kanalwn)
 			rc = 0;
 		else if (smack_ptrace_rule == SMACK_PTRACE_DRACONIAN)
 			rc = -EACCES;
@@ -460,8 +460,8 @@ static int smk_ptrace_rule_check(struct task_struct *tracer,
 			rc = -EACCES;
 
 		if (saip)
-			smack_log(tracer_known->smk_known,
-				  tracee_known->smk_known,
+			smack_log(tracer_kanalwn->smk_kanalwn,
+				  tracee_kanalwn->smk_kanalwn,
 				  0, rc, saip);
 
 		rcu_read_unlock();
@@ -469,7 +469,7 @@ static int smk_ptrace_rule_check(struct task_struct *tracer,
 	}
 
 	/* In case of rule==SMACK_PTRACE_DEFAULT or mode==PTRACE_MODE_READ */
-	rc = smk_tskacc(tsp, tracee_known, smk_ptrace_mode(mode), saip);
+	rc = smk_tskacc(tsp, tracee_kanalwn, smk_ptrace_mode(mode), saip);
 
 	rcu_read_unlock();
 	return rc;
@@ -491,7 +491,7 @@ static int smk_ptrace_rule_check(struct task_struct *tracer,
  */
 static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 {
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 
 	skp = smk_of_task_struct_obj(ctp);
 
@@ -508,7 +508,7 @@ static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
  */
 static int smack_ptrace_traceme(struct task_struct *ptp)
 {
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 
 	skp = smk_of_task(smack_cred(current_cred()));
 
@@ -524,7 +524,7 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
 static int smack_syslog(int typefrom_file)
 {
 	int rc = 0;
-	struct smack_known *skp = smk_of_current();
+	struct smack_kanalwn *skp = smk_of_current();
 
 	if (smack_privileged(CAP_MAC_OVERRIDE))
 		return 0;
@@ -543,16 +543,16 @@ static int smack_syslog(int typefrom_file)
  * smack_sb_alloc_security - allocate a superblock blob
  * @sb: the superblock getting the blob
  *
- * Returns 0 on success or -ENOMEM on error.
+ * Returns 0 on success or -EANALMEM on error.
  */
 static int smack_sb_alloc_security(struct super_block *sb)
 {
 	struct superblock_smack *sbsp = smack_superblock(sb);
 
-	sbsp->smk_root = &smack_known_floor;
-	sbsp->smk_default = &smack_known_floor;
-	sbsp->smk_floor = &smack_known_floor;
-	sbsp->smk_hat = &smack_known_hat;
+	sbsp->smk_root = &smack_kanalwn_floor;
+	sbsp->smk_default = &smack_kanalwn_floor;
+	sbsp->smk_floor = &smack_kanalwn_floor;
+	sbsp->smk_hat = &smack_kanalwn_hat;
 	/*
 	 * SMK_SB_INITIALIZED will be zero from kzalloc.
 	 */
@@ -576,16 +576,16 @@ static void smack_free_mnt_opts(void *mnt_opts)
 static int smack_add_opt(int token, const char *s, void **mnt_opts)
 {
 	struct smack_mnt_opts *opts = *mnt_opts;
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 
 	if (!opts) {
 		opts = kzalloc(sizeof(struct smack_mnt_opts), GFP_KERNEL);
 		if (!opts)
-			return -ENOMEM;
+			return -EANALMEM;
 		*mnt_opts = opts;
 	}
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skp = smk_import_entry(s, 0);
 	if (IS_ERR(skp))
@@ -595,27 +595,27 @@ static int smack_add_opt(int token, const char *s, void **mnt_opts)
 	case Opt_fsdefault:
 		if (opts->fsdefault)
 			goto out_opt_err;
-		opts->fsdefault = skp->smk_known;
+		opts->fsdefault = skp->smk_kanalwn;
 		break;
 	case Opt_fsfloor:
 		if (opts->fsfloor)
 			goto out_opt_err;
-		opts->fsfloor = skp->smk_known;
+		opts->fsfloor = skp->smk_kanalwn;
 		break;
 	case Opt_fshat:
 		if (opts->fshat)
 			goto out_opt_err;
-		opts->fshat = skp->smk_known;
+		opts->fshat = skp->smk_kanalwn;
 		break;
 	case Opt_fsroot:
 		if (opts->fsroot)
 			goto out_opt_err;
-		opts->fsroot = skp->smk_known;
+		opts->fsroot = skp->smk_kanalwn;
 		break;
 	case Opt_fstransmute:
 		if (opts->fstransmute)
 			goto out_opt_err;
-		opts->fstransmute = skp->smk_known;
+		opts->fstransmute = skp->smk_kanalwn;
 		break;
 	}
 	return 0;
@@ -630,46 +630,46 @@ out_opt_err:
  * @fc: The filesystem context.
  * @reference: reference superblock
  *
- * Returns 0 on success or -ENOMEM on error.
+ * Returns 0 on success or -EANALMEM on error.
  */
 static int smack_fs_context_submount(struct fs_context *fc,
 				 struct super_block *reference)
 {
 	struct superblock_smack *sbsp;
 	struct smack_mnt_opts *ctx;
-	struct inode_smack *isp;
+	struct ianalde_smack *isp;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	fc->security = ctx;
 
 	sbsp = smack_superblock(reference);
-	isp = smack_inode(reference->s_root->d_inode);
+	isp = smack_ianalde(reference->s_root->d_ianalde);
 
 	if (sbsp->smk_default) {
-		ctx->fsdefault = kstrdup(sbsp->smk_default->smk_known, GFP_KERNEL);
+		ctx->fsdefault = kstrdup(sbsp->smk_default->smk_kanalwn, GFP_KERNEL);
 		if (!ctx->fsdefault)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (sbsp->smk_floor) {
-		ctx->fsfloor = kstrdup(sbsp->smk_floor->smk_known, GFP_KERNEL);
+		ctx->fsfloor = kstrdup(sbsp->smk_floor->smk_kanalwn, GFP_KERNEL);
 		if (!ctx->fsfloor)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (sbsp->smk_hat) {
-		ctx->fshat = kstrdup(sbsp->smk_hat->smk_known, GFP_KERNEL);
+		ctx->fshat = kstrdup(sbsp->smk_hat->smk_kanalwn, GFP_KERNEL);
 		if (!ctx->fshat)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
-	if (isp->smk_flags & SMK_INODE_TRANSMUTE) {
+	if (isp->smk_flags & SMK_IANALDE_TRANSMUTE) {
 		if (sbsp->smk_root) {
-			ctx->fstransmute = kstrdup(sbsp->smk_root->smk_known, GFP_KERNEL);
+			ctx->fstransmute = kstrdup(sbsp->smk_root->smk_kanalwn, GFP_KERNEL);
 			if (!ctx->fstransmute)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 	return 0;
@@ -680,7 +680,7 @@ static int smack_fs_context_submount(struct fs_context *fc,
  * @fc: The new filesystem context.
  * @src_fc: The source filesystem context being duplicated.
  *
- * Returns 0 on success or -ENOMEM on error.
+ * Returns 0 on success or -EANALMEM on error.
  */
 static int smack_fs_context_dup(struct fs_context *fc,
 				struct fs_context *src_fc)
@@ -692,7 +692,7 @@ static int smack_fs_context_dup(struct fs_context *fc,
 
 	fc->security = kzalloc(sizeof(struct smack_mnt_opts), GFP_KERNEL);
 	if (!fc->security)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dst = fc->security;
 	dst->fsdefault = src->fsdefault;
@@ -719,7 +719,7 @@ static const struct fs_parameter_spec smack_fs_parameters[] = {
  * @fc: The new filesystem context being constructed.
  * @param: The parameter.
  *
- * Returns 0 on success, -ENOPARAM to pass the parameter on or anything else on
+ * Returns 0 on success, -EANALPARAM to pass the parameter on or anything else on
  * error.
  */
 static int smack_fs_context_parse_param(struct fs_context *fc,
@@ -800,10 +800,10 @@ static int smack_set_mnt_opts(struct super_block *sb,
 		unsigned long *set_kern_flags)
 {
 	struct dentry *root = sb->s_root;
-	struct inode *inode = d_backing_inode(root);
+	struct ianalde *ianalde = d_backing_ianalde(root);
 	struct superblock_smack *sp = smack_superblock(sb);
-	struct inode_smack *isp;
-	struct smack_known *skp;
+	struct ianalde_smack *isp;
+	struct smack_kanalwn *skp;
 	struct smack_mnt_opts *opts = mnt_opts;
 	bool transmute = false;
 
@@ -823,7 +823,7 @@ static int smack_set_mnt_opts(struct super_block *sb,
 		sp->smk_root = skp;
 		sp->smk_default = skp;
 		/*
-		 * For a handful of fs types with no user-controlled
+		 * For a handful of fs types with anal user-controlled
 		 * backing store it's okay to trust security labels
 		 * in the filesystem. The rest are untrusted.
 		 */
@@ -872,13 +872,13 @@ static int smack_set_mnt_opts(struct super_block *sb,
 	}
 
 	/*
-	 * Initialize the root inode.
+	 * Initialize the root ianalde.
 	 */
-	init_inode_smack(inode, sp->smk_root);
+	init_ianalde_smack(ianalde, sp->smk_root);
 
 	if (transmute) {
-		isp = smack_inode(inode);
-		isp->smk_flags |= SMK_INODE_TRANSMUTE;
+		isp = smack_ianalde(ianalde);
+		isp->smk_flags |= SMK_IANALDE_TRANSMUTE;
 	}
 
 	return 0;
@@ -913,21 +913,21 @@ static int smack_sb_statfs(struct dentry *dentry)
  * smack_bprm_creds_for_exec - Update bprm->cred if needed for exec
  * @bprm: the exec information
  *
- * Returns 0 if it gets a blob, -EPERM if exec forbidden and -ENOMEM otherwise
+ * Returns 0 if it gets a blob, -EPERM if exec forbidden and -EANALMEM otherwise
  */
 static int smack_bprm_creds_for_exec(struct linux_binprm *bprm)
 {
-	struct inode *inode = file_inode(bprm->file);
+	struct ianalde *ianalde = file_ianalde(bprm->file);
 	struct task_smack *bsp = smack_cred(bprm->cred);
-	struct inode_smack *isp;
+	struct ianalde_smack *isp;
 	struct superblock_smack *sbsp;
 	int rc;
 
-	isp = smack_inode(inode);
+	isp = smack_ianalde(ianalde);
 	if (isp->smk_task == NULL || isp->smk_task == bsp->smk_task)
 		return 0;
 
-	sbsp = smack_superblock(inode->i_sb);
+	sbsp = smack_superblock(ianalde->i_sb);
 	if ((sbsp->smk_flags & SMK_SB_UNTRUSTED) &&
 	    isp->smk_task != sbsp->smk_root)
 		return 0;
@@ -962,52 +962,52 @@ static int smack_bprm_creds_for_exec(struct linux_binprm *bprm)
 }
 
 /*
- * Inode hooks
+ * Ianalde hooks
  */
 
 /**
- * smack_inode_alloc_security - allocate an inode blob
- * @inode: the inode in need of a blob
+ * smack_ianalde_alloc_security - allocate an ianalde blob
+ * @ianalde: the ianalde in need of a blob
  *
  * Returns 0
  */
-static int smack_inode_alloc_security(struct inode *inode)
+static int smack_ianalde_alloc_security(struct ianalde *ianalde)
 {
-	struct smack_known *skp = smk_of_current();
+	struct smack_kanalwn *skp = smk_of_current();
 
-	init_inode_smack(inode, skp);
+	init_ianalde_smack(ianalde, skp);
 	return 0;
 }
 
 /**
- * smack_inode_init_security - copy out the smack from an inode
- * @inode: the newly created inode
+ * smack_ianalde_init_security - copy out the smack from an ianalde
+ * @ianalde: the newly created ianalde
  * @dir: containing directory object
  * @qstr: unused
  * @xattrs: where to put the attributes
  * @xattr_count: current number of LSM-provided xattrs (updated)
  *
- * Returns 0 if it all works out, -ENOMEM if there's no memory
+ * Returns 0 if it all works out, -EANALMEM if there's anal memory
  */
-static int smack_inode_init_security(struct inode *inode, struct inode *dir,
+static int smack_ianalde_init_security(struct ianalde *ianalde, struct ianalde *dir,
 				     const struct qstr *qstr,
 				     struct xattr *xattrs, int *xattr_count)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
-	struct smack_known *skp = smk_of_task(tsp);
-	struct smack_known *isp = smk_of_inode(inode);
-	struct smack_known *dsp = smk_of_inode(dir);
+	struct smack_kanalwn *skp = smk_of_task(tsp);
+	struct smack_kanalwn *isp = smk_of_ianalde(ianalde);
+	struct smack_kanalwn *dsp = smk_of_ianalde(dir);
 	struct xattr *xattr = lsm_get_xattr_slot(xattrs, xattr_count);
 	int may;
 
 	if (xattr) {
 		/*
 		 * If equal, transmuting already occurred in
-		 * smack_dentry_create_files_as(). No need to check again.
+		 * smack_dentry_create_files_as(). Anal need to check again.
 		 */
 		if (tsp->smk_task != tsp->smk_transmuted) {
 			rcu_read_lock();
-			may = smk_access_entry(skp->smk_known, dsp->smk_known,
+			may = smk_access_entry(skp->smk_kanalwn, dsp->smk_kanalwn,
 					       &skp->smk_rules);
 			rcu_read_unlock();
 		}
@@ -1016,18 +1016,18 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 		 * In addition to having smk_task equal to smk_transmuted,
 		 * if the access rule allows transmutation and the directory
 		 * requests transmutation then by all means transmute.
-		 * Mark the inode as changed.
+		 * Mark the ianalde as changed.
 		 */
 		if ((tsp->smk_task == tsp->smk_transmuted) ||
 		    (may > 0 && ((may & MAY_TRANSMUTE) != 0) &&
-		     smk_inode_transmutable(dir))) {
+		     smk_ianalde_transmutable(dir))) {
 			struct xattr *xattr_transmute;
 
 			/*
 			 * The caller of smack_dentry_create_files_as()
 			 * should have overridden the current cred, so the
-			 * inode label was already set correctly in
-			 * smack_inode_alloc_security().
+			 * ianalde label was already set correctly in
+			 * smack_ianalde_alloc_security().
 			 */
 			if (tsp->smk_task != tsp->smk_transmuted)
 				isp = dsp;
@@ -1036,20 +1036,20 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 			if (xattr_transmute) {
 				xattr_transmute->value = kmemdup(TRANS_TRUE,
 								 TRANS_TRUE_SIZE,
-								 GFP_NOFS);
+								 GFP_ANALFS);
 				if (!xattr_transmute->value)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				xattr_transmute->value_len = TRANS_TRUE_SIZE;
 				xattr_transmute->name = XATTR_SMACK_TRANSMUTE;
 			}
 		}
 
-		xattr->value = kstrdup(isp->smk_known, GFP_NOFS);
+		xattr->value = kstrdup(isp->smk_kanalwn, GFP_ANALFS);
 		if (!xattr->value)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		xattr->value_len = strlen(isp->smk_known);
+		xattr->value_len = strlen(isp->smk_kanalwn);
 		xattr->name = XATTR_SMACK_SUFFIX;
 	}
 
@@ -1057,48 +1057,48 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 }
 
 /**
- * smack_inode_link - Smack check on link
+ * smack_ianalde_link - Smack check on link
  * @old_dentry: the existing object
  * @dir: unused
  * @new_dentry: the new object
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_link(struct dentry *old_dentry, struct inode *dir,
+static int smack_ianalde_link(struct dentry *old_dentry, struct ianalde *dir,
 			    struct dentry *new_dentry)
 {
-	struct smack_known *isp;
+	struct smack_kanalwn *isp;
 	struct smk_audit_info ad;
 	int rc;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, old_dentry);
 
-	isp = smk_of_inode(d_backing_inode(old_dentry));
+	isp = smk_of_ianalde(d_backing_ianalde(old_dentry));
 	rc = smk_curacc(isp, MAY_WRITE, &ad);
-	rc = smk_bu_inode(d_backing_inode(old_dentry), MAY_WRITE, rc);
+	rc = smk_bu_ianalde(d_backing_ianalde(old_dentry), MAY_WRITE, rc);
 
 	if (rc == 0 && d_is_positive(new_dentry)) {
-		isp = smk_of_inode(d_backing_inode(new_dentry));
+		isp = smk_of_ianalde(d_backing_ianalde(new_dentry));
 		smk_ad_setfield_u_fs_path_dentry(&ad, new_dentry);
 		rc = smk_curacc(isp, MAY_WRITE, &ad);
-		rc = smk_bu_inode(d_backing_inode(new_dentry), MAY_WRITE, rc);
+		rc = smk_bu_ianalde(d_backing_ianalde(new_dentry), MAY_WRITE, rc);
 	}
 
 	return rc;
 }
 
 /**
- * smack_inode_unlink - Smack check on inode deletion
+ * smack_ianalde_unlink - Smack check on ianalde deletion
  * @dir: containing directory object
  * @dentry: file to unlink
  *
  * Returns 0 if current can write the containing directory
  * and the object, error code otherwise
  */
-static int smack_inode_unlink(struct inode *dir, struct dentry *dentry)
+static int smack_ianalde_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *ip = d_backing_inode(dentry);
+	struct ianalde *ip = d_backing_ianalde(dentry);
 	struct smk_audit_info ad;
 	int rc;
 
@@ -1108,29 +1108,29 @@ static int smack_inode_unlink(struct inode *dir, struct dentry *dentry)
 	/*
 	 * You need write access to the thing you're unlinking
 	 */
-	rc = smk_curacc(smk_of_inode(ip), MAY_WRITE, &ad);
-	rc = smk_bu_inode(ip, MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_ianalde(ip), MAY_WRITE, &ad);
+	rc = smk_bu_ianalde(ip, MAY_WRITE, rc);
 	if (rc == 0) {
 		/*
 		 * You also need write access to the containing directory
 		 */
-		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
-		smk_ad_setfield_u_fs_inode(&ad, dir);
-		rc = smk_curacc(smk_of_inode(dir), MAY_WRITE, &ad);
-		rc = smk_bu_inode(dir, MAY_WRITE, rc);
+		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IANALDE);
+		smk_ad_setfield_u_fs_ianalde(&ad, dir);
+		rc = smk_curacc(smk_of_ianalde(dir), MAY_WRITE, &ad);
+		rc = smk_bu_ianalde(dir, MAY_WRITE, rc);
 	}
 	return rc;
 }
 
 /**
- * smack_inode_rmdir - Smack check on directory deletion
+ * smack_ianalde_rmdir - Smack check on directory deletion
  * @dir: containing directory object
  * @dentry: directory to unlink
  *
  * Returns 0 if current can write the containing directory
  * and the directory, error code otherwise
  */
-static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
+static int smack_ianalde_rmdir(struct ianalde *dir, struct dentry *dentry)
 {
 	struct smk_audit_info ad;
 	int rc;
@@ -1141,26 +1141,26 @@ static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
 	/*
 	 * You need write access to the thing you're removing
 	 */
-	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
-	rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_ianalde(d_backing_ianalde(dentry)), MAY_WRITE, &ad);
+	rc = smk_bu_ianalde(d_backing_ianalde(dentry), MAY_WRITE, rc);
 	if (rc == 0) {
 		/*
 		 * You also need write access to the containing directory
 		 */
-		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
-		smk_ad_setfield_u_fs_inode(&ad, dir);
-		rc = smk_curacc(smk_of_inode(dir), MAY_WRITE, &ad);
-		rc = smk_bu_inode(dir, MAY_WRITE, rc);
+		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IANALDE);
+		smk_ad_setfield_u_fs_ianalde(&ad, dir);
+		rc = smk_curacc(smk_of_ianalde(dir), MAY_WRITE, &ad);
+		rc = smk_bu_ianalde(dir, MAY_WRITE, rc);
 	}
 
 	return rc;
 }
 
 /**
- * smack_inode_rename - Smack check on rename
- * @old_inode: unused
+ * smack_ianalde_rename - Smack check on rename
+ * @old_ianalde: unused
  * @old_dentry: the old object
- * @new_inode: unused
+ * @new_ianalde: unused
  * @new_dentry: the new object
  *
  * Read and write access is required on both the old and
@@ -1168,77 +1168,77 @@ static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_rename(struct inode *old_inode,
+static int smack_ianalde_rename(struct ianalde *old_ianalde,
 			      struct dentry *old_dentry,
-			      struct inode *new_inode,
+			      struct ianalde *new_ianalde,
 			      struct dentry *new_dentry)
 {
 	int rc;
-	struct smack_known *isp;
+	struct smack_kanalwn *isp;
 	struct smk_audit_info ad;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, old_dentry);
 
-	isp = smk_of_inode(d_backing_inode(old_dentry));
+	isp = smk_of_ianalde(d_backing_ianalde(old_dentry));
 	rc = smk_curacc(isp, MAY_READWRITE, &ad);
-	rc = smk_bu_inode(d_backing_inode(old_dentry), MAY_READWRITE, rc);
+	rc = smk_bu_ianalde(d_backing_ianalde(old_dentry), MAY_READWRITE, rc);
 
 	if (rc == 0 && d_is_positive(new_dentry)) {
-		isp = smk_of_inode(d_backing_inode(new_dentry));
+		isp = smk_of_ianalde(d_backing_ianalde(new_dentry));
 		smk_ad_setfield_u_fs_path_dentry(&ad, new_dentry);
 		rc = smk_curacc(isp, MAY_READWRITE, &ad);
-		rc = smk_bu_inode(d_backing_inode(new_dentry), MAY_READWRITE, rc);
+		rc = smk_bu_ianalde(d_backing_ianalde(new_dentry), MAY_READWRITE, rc);
 	}
 	return rc;
 }
 
 /**
- * smack_inode_permission - Smack version of permission()
- * @inode: the inode in question
+ * smack_ianalde_permission - Smack version of permission()
+ * @ianalde: the ianalde in question
  * @mask: the access requested
  *
  * This is the important Smack hook.
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_permission(struct inode *inode, int mask)
+static int smack_ianalde_permission(struct ianalde *ianalde, int mask)
 {
-	struct superblock_smack *sbsp = smack_superblock(inode->i_sb);
+	struct superblock_smack *sbsp = smack_superblock(ianalde->i_sb);
 	struct smk_audit_info ad;
-	int no_block = mask & MAY_NOT_BLOCK;
+	int anal_block = mask & MAY_ANALT_BLOCK;
 	int rc;
 
 	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
 	/*
-	 * No permission to check. Existence test. Yup, it's there.
+	 * Anal permission to check. Existence test. Yup, it's there.
 	 */
 	if (mask == 0)
 		return 0;
 
 	if (sbsp->smk_flags & SMK_SB_UNTRUSTED) {
-		if (smk_of_inode(inode) != sbsp->smk_root)
+		if (smk_of_ianalde(ianalde) != sbsp->smk_root)
 			return -EACCES;
 	}
 
 	/* May be droppable after audit */
-	if (no_block)
+	if (anal_block)
 		return -ECHILD;
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
-	smk_ad_setfield_u_fs_inode(&ad, inode);
-	rc = smk_curacc(smk_of_inode(inode), mask, &ad);
-	rc = smk_bu_inode(inode, mask, rc);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IANALDE);
+	smk_ad_setfield_u_fs_ianalde(&ad, ianalde);
+	rc = smk_curacc(smk_of_ianalde(ianalde), mask, &ad);
+	rc = smk_bu_ianalde(ianalde, mask, rc);
 	return rc;
 }
 
 /**
- * smack_inode_setattr - Smack check for setting attributes
+ * smack_ianalde_setattr - Smack check for setting attributes
  * @dentry: the object
  * @iattr: for the force flag
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
+static int smack_ianalde_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct smk_audit_info ad;
 	int rc;
@@ -1251,32 +1251,32 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
-	rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_ianalde(d_backing_ianalde(dentry)), MAY_WRITE, &ad);
+	rc = smk_bu_ianalde(d_backing_ianalde(dentry), MAY_WRITE, rc);
 	return rc;
 }
 
 /**
- * smack_inode_getattr - Smack check for getting attributes
+ * smack_ianalde_getattr - Smack check for getting attributes
  * @path: path to extract the info from
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_getattr(const struct path *path)
+static int smack_ianalde_getattr(const struct path *path)
 {
 	struct smk_audit_info ad;
-	struct inode *inode = d_backing_inode(path->dentry);
+	struct ianalde *ianalde = d_backing_ianalde(path->dentry);
 	int rc;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, *path);
-	rc = smk_curacc(smk_of_inode(inode), MAY_READ, &ad);
-	rc = smk_bu_inode(inode, MAY_READ, rc);
+	rc = smk_curacc(smk_of_ianalde(ianalde), MAY_READ, &ad);
+	rc = smk_bu_ianalde(ianalde, MAY_READ, rc);
 	return rc;
 }
 
 /**
- * smack_inode_setxattr - Smack check for setting xattrs
+ * smack_ianalde_setxattr - Smack check for setting xattrs
  * @idmap: idmap of the mount
  * @dentry: the object
  * @name: name of the attribute
@@ -1288,12 +1288,12 @@ static int smack_inode_getattr(const struct path *path)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_setxattr(struct mnt_idmap *idmap,
+static int smack_ianalde_setxattr(struct mnt_idmap *idmap,
 				struct dentry *dentry, const char *name,
 				const void *value, size_t size, int flags)
 {
 	struct smk_audit_info ad;
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 	int check_priv = 0;
 	int check_import = 0;
 	int check_star = 0;
@@ -1318,7 +1318,7 @@ static int smack_inode_setxattr(struct mnt_idmap *idmap,
 		    strncmp(value, TRANS_TRUE, TRANS_TRUE_SIZE) != 0)
 			rc = -EINVAL;
 	} else
-		rc = cap_inode_setxattr(dentry, name, value, size, flags);
+		rc = cap_ianalde_setxattr(dentry, name, value, size, flags);
 
 	if (check_priv && !smack_privileged(CAP_MAC_ADMIN))
 		rc = -EPERM;
@@ -1328,7 +1328,7 @@ static int smack_inode_setxattr(struct mnt_idmap *idmap,
 		if (IS_ERR(skp))
 			rc = PTR_ERR(skp);
 		else if (skp == NULL || (check_star &&
-		    (skp == &smack_known_star || skp == &smack_known_web)))
+		    (skp == &smack_kanalwn_star || skp == &smack_kanalwn_web)))
 			rc = -EINVAL;
 	}
 
@@ -1336,39 +1336,39 @@ static int smack_inode_setxattr(struct mnt_idmap *idmap,
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	if (rc == 0) {
-		rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
-		rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
+		rc = smk_curacc(smk_of_ianalde(d_backing_ianalde(dentry)), MAY_WRITE, &ad);
+		rc = smk_bu_ianalde(d_backing_ianalde(dentry), MAY_WRITE, rc);
 	}
 
 	return rc;
 }
 
 /**
- * smack_inode_post_setxattr - Apply the Smack update approved above
+ * smack_ianalde_post_setxattr - Apply the Smack update approved above
  * @dentry: object
  * @name: attribute name
  * @value: attribute value
  * @size: attribute size
  * @flags: unused
  *
- * Set the pointer in the inode blob to the entry found
+ * Set the pointer in the ianalde blob to the entry found
  * in the master label list.
  */
-static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
+static void smack_ianalde_post_setxattr(struct dentry *dentry, const char *name,
 				      const void *value, size_t size, int flags)
 {
-	struct smack_known *skp;
-	struct inode_smack *isp = smack_inode(d_backing_inode(dentry));
+	struct smack_kanalwn *skp;
+	struct ianalde_smack *isp = smack_ianalde(d_backing_ianalde(dentry));
 
 	if (strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0) {
-		isp->smk_flags |= SMK_INODE_TRANSMUTE;
+		isp->smk_flags |= SMK_IANALDE_TRANSMUTE;
 		return;
 	}
 
 	if (strcmp(name, XATTR_NAME_SMACK) == 0) {
 		skp = smk_import_entry(value, size);
 		if (!IS_ERR(skp))
-			isp->smk_inode = skp;
+			isp->smk_ianalde = skp;
 	} else if (strcmp(name, XATTR_NAME_SMACKEXEC) == 0) {
 		skp = smk_import_entry(value, size);
 		if (!IS_ERR(skp))
@@ -1383,13 +1383,13 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 }
 
 /**
- * smack_inode_getxattr - Smack check on getxattr
+ * smack_ianalde_getxattr - Smack check on getxattr
  * @dentry: the object
  * @name: unused
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_getxattr(struct dentry *dentry, const char *name)
+static int smack_ianalde_getxattr(struct dentry *dentry, const char *name)
 {
 	struct smk_audit_info ad;
 	int rc;
@@ -1397,13 +1397,13 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_READ, &ad);
-	rc = smk_bu_inode(d_backing_inode(dentry), MAY_READ, rc);
+	rc = smk_curacc(smk_of_ianalde(d_backing_ianalde(dentry)), MAY_READ, &ad);
+	rc = smk_bu_ianalde(d_backing_ianalde(dentry), MAY_READ, rc);
 	return rc;
 }
 
 /**
- * smack_inode_removexattr - Smack check on removexattr
+ * smack_ianalde_removexattr - Smack check on removexattr
  * @idmap: idmap of the mount
  * @dentry: the object
  * @name: name of the attribute
@@ -1412,10 +1412,10 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_removexattr(struct mnt_idmap *idmap,
+static int smack_ianalde_removexattr(struct mnt_idmap *idmap,
 				   struct dentry *dentry, const char *name)
 {
-	struct inode_smack *isp;
+	struct ianalde_smack *isp;
 	struct smk_audit_info ad;
 	int rc = 0;
 
@@ -1428,7 +1428,7 @@ static int smack_inode_removexattr(struct mnt_idmap *idmap,
 		if (!smack_privileged(CAP_MAC_ADMIN))
 			rc = -EPERM;
 	} else
-		rc = cap_inode_removexattr(idmap, dentry, name);
+		rc = cap_ianalde_removexattr(idmap, dentry, name);
 
 	if (rc != 0)
 		return rc;
@@ -1436,12 +1436,12 @@ static int smack_inode_removexattr(struct mnt_idmap *idmap,
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
-	rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_ianalde(d_backing_ianalde(dentry)), MAY_WRITE, &ad);
+	rc = smk_bu_ianalde(d_backing_ianalde(dentry), MAY_WRITE, rc);
 	if (rc != 0)
 		return rc;
 
-	isp = smack_inode(d_backing_inode(dentry));
+	isp = smack_ianalde(d_backing_ianalde(dentry));
 	/*
 	 * Don't do anything special for these.
 	 *	XATTR_NAME_SMACKIPIN
@@ -1451,19 +1451,19 @@ static int smack_inode_removexattr(struct mnt_idmap *idmap,
 		struct super_block *sbp = dentry->d_sb;
 		struct superblock_smack *sbsp = smack_superblock(sbp);
 
-		isp->smk_inode = sbsp->smk_default;
+		isp->smk_ianalde = sbsp->smk_default;
 	} else if (strcmp(name, XATTR_NAME_SMACKEXEC) == 0)
 		isp->smk_task = NULL;
 	else if (strcmp(name, XATTR_NAME_SMACKMMAP) == 0)
 		isp->smk_mmap = NULL;
 	else if (strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0)
-		isp->smk_flags &= ~SMK_INODE_TRANSMUTE;
+		isp->smk_flags &= ~SMK_IANALDE_TRANSMUTE;
 
 	return 0;
 }
 
 /**
- * smack_inode_set_acl - Smack check for setting posix acls
+ * smack_ianalde_set_acl - Smack check for setting posix acls
  * @idmap: idmap of the mnt this request came from
  * @dentry: the object
  * @acl_name: name of the posix acl
@@ -1471,7 +1471,7 @@ static int smack_inode_removexattr(struct mnt_idmap *idmap,
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_set_acl(struct mnt_idmap *idmap,
+static int smack_ianalde_set_acl(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *acl_name,
 			       struct posix_acl *kacl)
 {
@@ -1481,20 +1481,20 @@ static int smack_inode_set_acl(struct mnt_idmap *idmap,
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
-	rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_ianalde(d_backing_ianalde(dentry)), MAY_WRITE, &ad);
+	rc = smk_bu_ianalde(d_backing_ianalde(dentry), MAY_WRITE, rc);
 	return rc;
 }
 
 /**
- * smack_inode_get_acl - Smack check for getting posix acls
+ * smack_ianalde_get_acl - Smack check for getting posix acls
  * @idmap: idmap of the mnt this request came from
  * @dentry: the object
  * @acl_name: name of the posix acl
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_get_acl(struct mnt_idmap *idmap,
+static int smack_ianalde_get_acl(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *acl_name)
 {
 	struct smk_audit_info ad;
@@ -1503,20 +1503,20 @@ static int smack_inode_get_acl(struct mnt_idmap *idmap,
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_READ, &ad);
-	rc = smk_bu_inode(d_backing_inode(dentry), MAY_READ, rc);
+	rc = smk_curacc(smk_of_ianalde(d_backing_ianalde(dentry)), MAY_READ, &ad);
+	rc = smk_bu_ianalde(d_backing_ianalde(dentry), MAY_READ, rc);
 	return rc;
 }
 
 /**
- * smack_inode_remove_acl - Smack check for getting posix acls
+ * smack_ianalde_remove_acl - Smack check for getting posix acls
  * @idmap: idmap of the mnt this request came from
  * @dentry: the object
  * @acl_name: name of the posix acl
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_remove_acl(struct mnt_idmap *idmap,
+static int smack_ianalde_remove_acl(struct mnt_idmap *idmap,
 				  struct dentry *dentry, const char *acl_name)
 {
 	struct smk_audit_info ad;
@@ -1525,39 +1525,39 @@ static int smack_inode_remove_acl(struct mnt_idmap *idmap,
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
-	rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_ianalde(d_backing_ianalde(dentry)), MAY_WRITE, &ad);
+	rc = smk_bu_ianalde(d_backing_ianalde(dentry), MAY_WRITE, rc);
 	return rc;
 }
 
 /**
- * smack_inode_getsecurity - get smack xattrs
+ * smack_ianalde_getsecurity - get smack xattrs
  * @idmap: idmap of the mount
- * @inode: the object
+ * @ianalde: the object
  * @name: attribute name
  * @buffer: where to put the result
  * @alloc: duplicate memory
  *
  * Returns the size of the attribute or an error code
  */
-static int smack_inode_getsecurity(struct mnt_idmap *idmap,
-				   struct inode *inode, const char *name,
+static int smack_ianalde_getsecurity(struct mnt_idmap *idmap,
+				   struct ianalde *ianalde, const char *name,
 				   void **buffer, bool alloc)
 {
 	struct socket_smack *ssp;
 	struct socket *sock;
 	struct super_block *sbp;
-	struct inode *ip = inode;
-	struct smack_known *isp;
-	struct inode_smack *ispp;
+	struct ianalde *ip = ianalde;
+	struct smack_kanalwn *isp;
+	struct ianalde_smack *ispp;
 	size_t label_len;
 	char *label = NULL;
 
 	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0) {
-		isp = smk_of_inode(inode);
+		isp = smk_of_ianalde(ianalde);
 	} else if (strcmp(name, XATTR_SMACK_TRANSMUTE) == 0) {
-		ispp = smack_inode(inode);
-		if (ispp->smk_flags & SMK_INODE_TRANSMUTE)
+		ispp = smack_ianalde(ianalde);
+		if (ispp->smk_flags & SMK_IANALDE_TRANSMUTE)
 			label = TRANS_TRUE;
 		else
 			label = "";
@@ -1567,11 +1567,11 @@ static int smack_inode_getsecurity(struct mnt_idmap *idmap,
 		 */
 		sbp = ip->i_sb;
 		if (sbp->s_magic != SOCKFS_MAGIC)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		sock = SOCKET_I(ip);
 		if (sock == NULL || sock->sk == NULL)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		ssp = sock->sk->sk_security;
 
@@ -1580,18 +1580,18 @@ static int smack_inode_getsecurity(struct mnt_idmap *idmap,
 		else if (strcmp(name, XATTR_SMACK_IPOUT) == 0)
 			isp = ssp->smk_out;
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	if (!label)
-		label = isp->smk_known;
+		label = isp->smk_kanalwn;
 
 	label_len = strlen(label);
 
 	if (alloc) {
 		*buffer = kstrdup(label, GFP_KERNEL);
 		if (*buffer == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return label_len;
@@ -1599,12 +1599,12 @@ static int smack_inode_getsecurity(struct mnt_idmap *idmap,
 
 
 /**
- * smack_inode_listsecurity - list the Smack attributes
- * @inode: the object
+ * smack_ianalde_listsecurity - list the Smack attributes
+ * @ianalde: the object
  * @buffer: where they go
  * @buffer_size: size of buffer
  */
-static int smack_inode_listsecurity(struct inode *inode, char *buffer,
+static int smack_ianalde_listsecurity(struct ianalde *ianalde, char *buffer,
 				    size_t buffer_size)
 {
 	int len = sizeof(XATTR_NAME_SMACK);
@@ -1616,13 +1616,13 @@ static int smack_inode_listsecurity(struct inode *inode, char *buffer,
 }
 
 /**
- * smack_inode_getsecid - Extract inode's security id
- * @inode: inode to extract the info from
+ * smack_ianalde_getsecid - Extract ianalde's security id
+ * @ianalde: ianalde to extract the info from
  * @secid: where result will be saved
  */
-static void smack_inode_getsecid(struct inode *inode, u32 *secid)
+static void smack_ianalde_getsecid(struct ianalde *ianalde, u32 *secid)
 {
-	struct smack_known *skp = smk_of_inode(inode);
+	struct smack_kanalwn *skp = smk_of_ianalde(ianalde);
 
 	*secid = skp->smk_secid;
 }
@@ -1632,13 +1632,13 @@ static void smack_inode_getsecid(struct inode *inode, u32 *secid)
  */
 
 /*
- * There is no smack_file_permission hook
+ * There is anal smack_file_permission hook
  *
  * Should access checks be done on each read or write?
- * UNICOS and SELinux say yes.
- * Trusted Solaris, Trusted Irix, and just about everyone else says no.
+ * UNICOS and SELinux say anal.
+ * Trusted Solaris, Trusted Irix, and just about everyone else says anal.
  *
- * I'll say no for now. Smack does not do the frequent
+ * I'll say anal for analw. Smack does analt do the frequent
  * label changing that SELinux does.
  */
 
@@ -1647,7 +1647,7 @@ static void smack_inode_getsecid(struct inode *inode, u32 *secid)
  * @file: the object
  *
  * The security blob for a file is a pointer to the master
- * label list, so no allocation is done.
+ * label list, so anal allocation is done.
  *
  * f_security is the owner security information. It
  * isn't used on file access checks, it's for send_sigio.
@@ -1656,7 +1656,7 @@ static void smack_inode_getsecid(struct inode *inode, u32 *secid)
  */
 static int smack_file_alloc_security(struct file *file)
 {
-	struct smack_known **blob = smack_file(file);
+	struct smack_kanalwn **blob = smack_file(file);
 
 	*blob = smk_of_current();
 	return 0;
@@ -1677,21 +1677,21 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
 {
 	int rc = 0;
 	struct smk_audit_info ad;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(ianalde)))
 		return 0;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		rc = smk_curacc(smk_of_inode(inode), MAY_WRITE, &ad);
+		rc = smk_curacc(smk_of_ianalde(ianalde), MAY_WRITE, &ad);
 		rc = smk_bu_file(file, MAY_WRITE, rc);
 	}
 
 	if (rc == 0 && (_IOC_DIR(cmd) & _IOC_READ)) {
-		rc = smk_curacc(smk_of_inode(inode), MAY_READ, &ad);
+		rc = smk_curacc(smk_of_ianalde(ianalde), MAY_READ, &ad);
 		rc = smk_bu_file(file, MAY_READ, rc);
 	}
 
@@ -1709,14 +1709,14 @@ static int smack_file_lock(struct file *file, unsigned int cmd)
 {
 	struct smk_audit_info ad;
 	int rc;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(ianalde)))
 		return 0;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	rc = smk_curacc(smk_of_inode(inode), MAY_LOCK, &ad);
+	rc = smk_curacc(smk_of_ianalde(ianalde), MAY_LOCK, &ad);
 	rc = smk_bu_file(file, MAY_LOCK, rc);
 	return rc;
 }
@@ -1738,9 +1738,9 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 {
 	struct smk_audit_info ad;
 	int rc = 0;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(ianalde)))
 		return 0;
 
 	switch (cmd) {
@@ -1750,14 +1750,14 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 	case F_SETLKW:
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 		smk_ad_setfield_u_fs_path(&ad, file->f_path);
-		rc = smk_curacc(smk_of_inode(inode), MAY_LOCK, &ad);
+		rc = smk_curacc(smk_of_ianalde(ianalde), MAY_LOCK, &ad);
 		rc = smk_bu_file(file, MAY_LOCK, rc);
 		break;
 	case F_SETOWN:
 	case F_SETSIG:
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 		smk_ad_setfield_u_fs_path(&ad, file->f_path);
-		rc = smk_curacc(smk_of_inode(inode), MAY_WRITE, &ad);
+		rc = smk_curacc(smk_of_ianalde(ianalde), MAY_WRITE, &ad);
 		rc = smk_bu_file(file, MAY_WRITE, rc);
 		break;
 	default:
@@ -1774,7 +1774,7 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
  * @prot: contains the protection that will be applied by the kernel.
  * @flags: contains the operational flags.
  *
- * The @file may be NULL, e.g. if mapping anonymous memory.
+ * The @file may be NULL, e.g. if mapping aanalnymous memory.
  *
  * Return 0 if permission is granted.
  */
@@ -1782,12 +1782,12 @@ static int smack_mmap_file(struct file *file,
 			   unsigned long reqprot, unsigned long prot,
 			   unsigned long flags)
 {
-	struct smack_known *skp;
-	struct smack_known *mkp;
+	struct smack_kanalwn *skp;
+	struct smack_kanalwn *mkp;
 	struct smack_rule *srp;
 	struct task_smack *tsp;
-	struct smack_known *okp;
-	struct inode_smack *isp;
+	struct smack_kanalwn *okp;
+	struct ianalde_smack *isp;
 	struct superblock_smack *sbsp;
 	int may;
 	int mmay;
@@ -1797,13 +1797,13 @@ static int smack_mmap_file(struct file *file,
 	if (file == NULL)
 		return 0;
 
-	if (unlikely(IS_PRIVATE(file_inode(file))))
+	if (unlikely(IS_PRIVATE(file_ianalde(file))))
 		return 0;
 
-	isp = smack_inode(file_inode(file));
+	isp = smack_ianalde(file_ianalde(file));
 	if (isp->smk_mmap == NULL)
 		return 0;
-	sbsp = smack_superblock(file_inode(file)->i_sb);
+	sbsp = smack_superblock(file_ianalde(file)->i_sb);
 	if (sbsp->smk_flags & SMK_SB_UNTRUSTED &&
 	    isp->smk_mmap != sbsp->smk_root)
 		return -EACCES;
@@ -1824,16 +1824,16 @@ static int smack_mmap_file(struct file *file,
 		/*
 		 * Matching labels always allows access.
 		 */
-		if (mkp->smk_known == okp->smk_known)
+		if (mkp->smk_kanalwn == okp->smk_kanalwn)
 			continue;
 		/*
 		 * If there is a matching local rule take
 		 * that into account as well.
 		 */
-		may = smk_access_entry(srp->smk_subject->smk_known,
-				       okp->smk_known,
+		may = smk_access_entry(srp->smk_subject->smk_kanalwn,
+				       okp->smk_kanalwn,
 				       &tsp->smk_rules);
-		if (may == -ENOENT)
+		if (may == -EANALENT)
 			may = srp->smk_access;
 		else
 			may &= srp->smk_access;
@@ -1849,9 +1849,9 @@ static int smack_mmap_file(struct file *file,
 		 * If there isn't one a SMACK64MMAP subject
 		 * can't have as much access as current.
 		 */
-		mmay = smk_access_entry(mkp->smk_known, okp->smk_known,
+		mmay = smk_access_entry(mkp->smk_kanalwn, okp->smk_kanalwn,
 					&mkp->smk_rules);
-		if (mmay == -ENOENT) {
+		if (mmay == -EANALENT) {
 			rc = -EACCES;
 			break;
 		}
@@ -1859,14 +1859,14 @@ static int smack_mmap_file(struct file *file,
 		 * If there is a local entry it modifies the
 		 * potential access, too.
 		 */
-		tmay = smk_access_entry(mkp->smk_known, okp->smk_known,
+		tmay = smk_access_entry(mkp->smk_kanalwn, okp->smk_kanalwn,
 					&tsp->smk_rules);
-		if (tmay != -ENOENT)
+		if (tmay != -EANALENT)
 			mmay &= tmay;
 
 		/*
 		 * If there is any access available to current that is
-		 * not available to a SMACK64MMAP subject
+		 * analt available to a SMACK64MMAP subject
 		 * deny access.
 		 */
 		if ((may | mmay) != mmay) {
@@ -1887,7 +1887,7 @@ static int smack_mmap_file(struct file *file,
  */
 static void smack_file_set_fowner(struct file *file)
 {
-	struct smack_known **blob = smack_file(file);
+	struct smack_kanalwn **blob = smack_file(file);
 
 	*blob = smk_of_current();
 }
@@ -1906,9 +1906,9 @@ static void smack_file_set_fowner(struct file *file)
 static int smack_file_send_sigiotask(struct task_struct *tsk,
 				     struct fown_struct *fown, int signum)
 {
-	struct smack_known **blob;
-	struct smack_known *skp;
-	struct smack_known *tkp = smk_of_task(smack_cred(tsk->cred));
+	struct smack_kanalwn **blob;
+	struct smack_kanalwn *skp;
+	struct smack_kanalwn *tkp = smk_of_task(smack_cred(tsk->cred));
 	const struct cred *tcred;
 	struct file *file;
 	int rc;
@@ -1923,7 +1923,7 @@ static int smack_file_send_sigiotask(struct task_struct *tsk,
 	blob = smack_file(file);
 	skp = *blob;
 	rc = smk_access(skp, tkp, MAY_DELIVER, NULL);
-	rc = smk_bu_note("sigiotask", skp, tkp, MAY_DELIVER, rc);
+	rc = smk_bu_analte("sigiotask", skp, tkp, MAY_DELIVER, rc);
 
 	rcu_read_lock();
 	tcred = __task_cred(tsk);
@@ -1933,7 +1933,7 @@ static int smack_file_send_sigiotask(struct task_struct *tsk,
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, tsk);
-	smack_log(skp->smk_known, tkp->smk_known, MAY_DELIVER, rc, &ad);
+	smack_log(skp->smk_kanalwn, tkp->smk_kanalwn, MAY_DELIVER, rc, &ad);
 	return rc;
 }
 
@@ -1948,19 +1948,19 @@ static int smack_file_receive(struct file *file)
 	int rc;
 	int may = 0;
 	struct smk_audit_info ad;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct socket *sock;
 	struct task_smack *tsp;
 	struct socket_smack *ssp;
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(ianalde)))
 		return 0;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
-	if (inode->i_sb->s_magic == SOCKFS_MAGIC) {
-		sock = SOCKET_I(inode);
+	if (ianalde->i_sb->s_magic == SOCKFS_MAGIC) {
+		sock = SOCKET_I(ianalde);
 		ssp = sock->sk->sk_security;
 		tsp = smack_cred(current_cred());
 		/*
@@ -1985,7 +1985,7 @@ static int smack_file_receive(struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		may |= MAY_WRITE;
 
-	rc = smk_curacc(smk_of_inode(inode), may, &ad);
+	rc = smk_curacc(smk_of_ianalde(ianalde), may, &ad);
 	rc = smk_bu_file(file, may, rc);
 	return rc;
 }
@@ -2004,13 +2004,13 @@ static int smack_file_receive(struct file *file)
 static int smack_file_open(struct file *file)
 {
 	struct task_smack *tsp = smack_cred(file->f_cred);
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct smk_audit_info ad;
 	int rc;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	rc = smk_tskacc(tsp, smk_of_inode(inode), MAY_READ, &ad);
+	rc = smk_tskacc(tsp, smk_of_ianalde(ianalde), MAY_READ, &ad);
 	rc = smk_bu_credfile(file->f_cred, file, MAY_READ, rc);
 
 	return rc;
@@ -2088,7 +2088,7 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
  * @new: the new credentials
  * @old: the original credentials
  *
- * Fill in a set of blank credentials from another set of credentials.
+ * Fill in a set of blank credentials from aanalther set of credentials.
  */
 static void smack_cred_transfer(struct cred *new, const struct cred *old)
 {
@@ -2112,7 +2112,7 @@ static void smack_cred_transfer(struct cred *new, const struct cred *old)
  */
 static void smack_cred_getsecid(const struct cred *cred, u32 *secid)
 {
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 
 	rcu_read_lock();
 	skp = smk_of_task(smack_cred(cred));
@@ -2138,18 +2138,18 @@ static int smack_kernel_act_as(struct cred *new, u32 secid)
 /**
  * smack_kernel_create_files_as - Set the file creation label in a set of creds
  * @new: points to the set of credentials to be modified
- * @inode: points to the inode to use as a reference
+ * @ianalde: points to the ianalde to use as a reference
  *
  * Set the file creation context in a set of credentials to the same
- * as the objective context of the specified inode
+ * as the objective context of the specified ianalde
  */
 static int smack_kernel_create_files_as(struct cred *new,
-					struct inode *inode)
+					struct ianalde *ianalde)
 {
-	struct inode_smack *isp = smack_inode(inode);
+	struct ianalde_smack *isp = smack_ianalde(ianalde);
 	struct task_smack *tsp = smack_cred(new);
 
-	tsp->smk_forked = isp->smk_inode;
+	tsp->smk_forked = isp->smk_ianalde;
 	tsp->smk_task = tsp->smk_forked;
 	return 0;
 }
@@ -2166,7 +2166,7 @@ static int smk_curacc_on_task(struct task_struct *p, int access,
 				const char *caller)
 {
 	struct smk_audit_info ad;
-	struct smack_known *skp = smk_of_task_struct_obj(p);
+	struct smack_kanalwn *skp = smk_of_task_struct_obj(p);
 	int rc;
 
 	smk_ad_init(&ad, caller, LSM_AUDIT_DATA_TASK);
@@ -2218,7 +2218,7 @@ static int smack_task_getsid(struct task_struct *p)
  */
 static void smack_current_getsecid_subj(u32 *secid)
 {
-	struct smack_known *skp = smk_of_current();
+	struct smack_kanalwn *skp = smk_of_current();
 
 	*secid = skp->smk_secid;
 }
@@ -2232,7 +2232,7 @@ static void smack_current_getsecid_subj(u32 *secid)
  */
 static void smack_task_getsecid_obj(struct task_struct *p, u32 *secid)
 {
-	struct smack_known *skp = smk_of_task_struct_obj(p);
+	struct smack_kanalwn *skp = smk_of_task_struct_obj(p);
 
 	*secid = skp->smk_secid;
 }
@@ -2319,8 +2319,8 @@ static int smack_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 			   int sig, const struct cred *cred)
 {
 	struct smk_audit_info ad;
-	struct smack_known *skp;
-	struct smack_known *tkp = smk_of_task_struct_obj(p);
+	struct smack_kanalwn *skp;
+	struct smack_kanalwn *tkp = smk_of_task_struct_obj(p);
 	int rc;
 
 	if (!sig)
@@ -2339,29 +2339,29 @@ static int smack_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 	}
 	/*
 	 * If the cred isn't NULL we're dealing with some USB IO
-	 * specific behavior. This is not clean. For one thing
+	 * specific behavior. This is analt clean. For one thing
 	 * we can't take privilege into account.
 	 */
 	skp = smk_of_task(smack_cred(cred));
 	rc = smk_access(skp, tkp, MAY_DELIVER, &ad);
-	rc = smk_bu_note("USB signal", skp, tkp, MAY_DELIVER, rc);
+	rc = smk_bu_analte("USB signal", skp, tkp, MAY_DELIVER, rc);
 	return rc;
 }
 
 /**
- * smack_task_to_inode - copy task smack into the inode blob
+ * smack_task_to_ianalde - copy task smack into the ianalde blob
  * @p: task to copy from
- * @inode: inode to copy to
+ * @ianalde: ianalde to copy to
  *
- * Sets the smack pointer in the inode security blob
+ * Sets the smack pointer in the ianalde security blob
  */
-static void smack_task_to_inode(struct task_struct *p, struct inode *inode)
+static void smack_task_to_ianalde(struct task_struct *p, struct ianalde *ianalde)
 {
-	struct inode_smack *isp = smack_inode(inode);
-	struct smack_known *skp = smk_of_task_struct_obj(p);
+	struct ianalde_smack *isp = smack_ianalde(ianalde);
+	struct smack_kanalwn *skp = smk_of_task_struct_obj(p);
 
-	isp->smk_inode = skp;
-	isp->smk_flags |= SMK_INODE_INSTANT;
+	isp->smk_ianalde = skp;
+	isp->smk_flags |= SMK_IANALDE_INSTANT;
 }
 
 /*
@@ -2376,23 +2376,23 @@ static void smack_task_to_inode(struct task_struct *p, struct inode *inode)
  *
  * Assign Smack pointers to current
  *
- * Returns 0 on success, -ENOMEM is there's no memory
+ * Returns 0 on success, -EANALMEM is there's anal memory
  */
 static int smack_sk_alloc_security(struct sock *sk, int family, gfp_t gfp_flags)
 {
-	struct smack_known *skp = smk_of_current();
+	struct smack_kanalwn *skp = smk_of_current();
 	struct socket_smack *ssp;
 
 	ssp = kzalloc(sizeof(struct socket_smack), gfp_flags);
 	if (ssp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Sockets created by kernel threads receive web label.
 	 */
 	if (unlikely(current->flags & PF_KTHREAD)) {
-		ssp->smk_in = &smack_known_web;
-		ssp->smk_out = &smack_known_web;
+		ssp->smk_in = &smack_kanalwn_web;
+		ssp->smk_out = &smack_kanalwn_web;
 	} else {
 		ssp->smk_in = skp;
 		ssp->smk_out = skp;
@@ -2454,9 +2454,9 @@ static void smack_sk_clone_security(const struct sock *sk, struct sock *newsk)
 * hosts.  The caller is responsible for ensuring that the RCU read lock is
 * taken before calling this function.
 *
-* Returns the label of the far end or NULL if it's not special.
+* Returns the label of the far end or NULL if it's analt special.
 */
-static struct smack_known *smack_ipv4host_label(struct sockaddr_in *sip)
+static struct smack_kanalwn *smack_ipv4host_label(struct sockaddr_in *sip)
 {
 	struct smk_net4addr *snp;
 	struct in_addr *siap = &sip->sin_addr;
@@ -2504,9 +2504,9 @@ static bool smk_ipv6_localhost(struct sockaddr_in6 *sip)
 * hosts.  The caller is responsible for ensuring that the RCU read lock is
 * taken before calling this function.
 *
-* Returns the label of the far end or NULL if it's not special.
+* Returns the label of the far end or NULL if it's analt special.
 */
-static struct smack_known *smack_ipv6host_label(struct sockaddr_in6 *sip)
+static struct smack_kanalwn *smack_ipv6host_label(struct sockaddr_in6 *sip)
 {
 	struct smk_net6addr *snp;
 	struct in6_addr *sap = &sip->sin6_addr;
@@ -2522,7 +2522,7 @@ static struct smack_known *smack_ipv6host_label(struct sockaddr_in6 *sip)
 	list_for_each_entry_rcu(snp, &smk_net6addr_list, list) {
 		/*
 		 * If the label is NULL the entry has
-		 * been renounced. Ignore it.
+		 * been reanalunced. Iganalre it.
 		 */
 		if (snp->smk_label == NULL)
 			continue;
@@ -2556,7 +2556,7 @@ static struct smack_known *smack_ipv6host_label(struct sockaddr_in6 *sip)
 static int smack_netlbl_add(struct sock *sk)
 {
 	struct socket_smack *ssp = sk->sk_security;
-	struct smack_known *skp = ssp->smk_out;
+	struct smack_kanalwn *skp = ssp->smk_out;
 	int rc;
 
 	local_bh_disable();
@@ -2616,9 +2616,9 @@ static void smack_netlbl_delete(struct sock *sk)
  */
 static int smk_ipv4_check(struct sock *sk, struct sockaddr_in *sap)
 {
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 	int rc = 0;
-	struct smack_known *hkp;
+	struct smack_kanalwn *hkp;
 	struct socket_smack *ssp = sk->sk_security;
 	struct smk_audit_info ad;
 
@@ -2635,7 +2635,7 @@ static int smk_ipv4_check(struct sock *sk, struct sockaddr_in *sap)
 #endif
 		skp = ssp->smk_out;
 		rc = smk_access(skp, hkp, MAY_WRITE, &ad);
-		rc = smk_bu_note("IPv4 host check", skp, hkp, MAY_WRITE, rc);
+		rc = smk_bu_analte("IPv4 host check", skp, hkp, MAY_WRITE, rc);
 		/*
 		 * Clear the socket netlabel if it's set.
 		 */
@@ -2656,8 +2656,8 @@ static int smk_ipv4_check(struct sock *sk, struct sockaddr_in *sap)
  *
  * Check an IPv6 access
  */
-static int smk_ipv6_check(struct smack_known *subject,
-				struct smack_known *object,
+static int smk_ipv6_check(struct smack_kanalwn *subject,
+				struct smack_kanalwn *object,
 				struct sockaddr_in6 *address, int act)
 {
 #ifdef CONFIG_AUDIT
@@ -2676,7 +2676,7 @@ static int smk_ipv6_check(struct smack_known *subject,
 		ad.a.u.net->v6info.daddr = address->sin6_addr;
 #endif
 	rc = smk_access(subject, object, MAY_WRITE, &ad);
-	rc = smk_bu_note("IPv6 check", subject, object, MAY_WRITE, rc);
+	rc = smk_bu_analte("IPv6 check", subject, object, MAY_WRITE, rc);
 	return rc;
 }
 
@@ -2722,7 +2722,7 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	addr6 = (struct sockaddr_in6 *)address;
 	port = ntohs(addr6->sin6_port);
 	/*
-	 * This is a special case that is safely ignored.
+	 * This is a special case that is safely iganalred.
 	 */
 	if (port == 0)
 		return;
@@ -2781,9 +2781,9 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 {
 	struct smk_port_label *spp;
 	struct socket_smack *ssp = sk->sk_security;
-	struct smack_known *skp = NULL;
+	struct smack_kanalwn *skp = NULL;
 	unsigned short port;
-	struct smack_known *object;
+	struct smack_kanalwn *object;
 
 	if (act == SMK_RECEIVING) {
 		skp = smack_ipv6host_label(address);
@@ -2804,7 +2804,7 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 		object = smack_net_ambient;
 
 	/*
-	 * It's remote, so port lookup does no good.
+	 * It's remote, so port lookup does anal good.
 	 */
 	if (!smk_ipv6_localhost(address))
 		return smk_ipv6_check(skp, object, address, act);
@@ -2832,8 +2832,8 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 #endif
 
 /**
- * smack_inode_setsecurity - set smack xattrs
- * @inode: the object
+ * smack_ianalde_setsecurity - set smack xattrs
+ * @ianalde: the object
  * @name: attribute name
  * @value: attribute value
  * @size: size of the attribute
@@ -2843,11 +2843,11 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
  *
  * Returns 0 on success, or an error code
  */
-static int smack_inode_setsecurity(struct inode *inode, const char *name,
+static int smack_ianalde_setsecurity(struct ianalde *ianalde, const char *name,
 				   const void *value, size_t size, int flags)
 {
-	struct smack_known *skp;
-	struct inode_smack *nsp = smack_inode(inode);
+	struct smack_kanalwn *skp;
+	struct ianalde_smack *nsp = smack_ianalde(ianalde);
 	struct socket_smack *ssp;
 	struct socket *sock;
 	int rc = 0;
@@ -2860,19 +2860,19 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		return PTR_ERR(skp);
 
 	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0) {
-		nsp->smk_inode = skp;
-		nsp->smk_flags |= SMK_INODE_INSTANT;
+		nsp->smk_ianalde = skp;
+		nsp->smk_flags |= SMK_IANALDE_INSTANT;
 		return 0;
 	}
 	/*
 	 * The rest of the Smack xattrs are only on sockets.
 	 */
-	if (inode->i_sb->s_magic != SOCKFS_MAGIC)
-		return -EOPNOTSUPP;
+	if (ianalde->i_sb->s_magic != SOCKFS_MAGIC)
+		return -EOPANALTSUPP;
 
-	sock = SOCKET_I(inode);
+	sock = SOCKET_I(ianalde);
 	if (sock == NULL || sock->sk == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ssp = sock->sk->sk_security;
 
@@ -2888,7 +2888,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 					__func__, -rc);
 		}
 	} else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 #ifdef SMACK_IPV6_PORT_LABELING
 	if (sock->sk->sk_family == PF_INET6)
@@ -2923,8 +2923,8 @@ static int smack_socket_post_create(struct socket *sock, int family,
 	 */
 	if (unlikely(current->flags & PF_KTHREAD)) {
 		ssp = sock->sk->sk_security;
-		ssp->smk_in = &smack_known_web;
-		ssp->smk_out = &smack_known_web;
+		ssp->smk_in = &smack_kanalwn_web;
+		ssp->smk_out = &smack_kanalwn_web;
 	}
 
 	if (family != PF_INET)
@@ -2938,7 +2938,7 @@ static int smack_socket_post_create(struct socket *sock, int family,
 /**
  * smack_socket_socketpair - create socket pair
  * @socka: one socket
- * @sockb: another socket
+ * @sockb: aanalther socket
  *
  * Cross reference the peer labels for SO_PEERSEC
  *
@@ -3004,7 +3004,7 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 		return 0;
 	if (IS_ENABLED(CONFIG_IPV6) && sap->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sip = (struct sockaddr_in6 *)sap;
-		struct smack_known *rsp = NULL;
+		struct smack_kanalwn *rsp = NULL;
 
 		if (addrlen < SIN6_LEN_RFC2133)
 			return 0;
@@ -3056,7 +3056,7 @@ static int smack_flags_to_may(int flags)
  */
 static int smack_msg_msg_alloc_security(struct msg_msg *msg)
 {
-	struct smack_known **blob = smack_msg_msg(msg);
+	struct smack_kanalwn **blob = smack_msg_msg(msg);
 
 	*blob = smk_of_current();
 	return 0;
@@ -3068,9 +3068,9 @@ static int smack_msg_msg_alloc_security(struct msg_msg *msg)
  *
  * Returns a pointer to the smack value
  */
-static struct smack_known *smack_of_ipc(struct kern_ipc_perm *isp)
+static struct smack_kanalwn *smack_of_ipc(struct kern_ipc_perm *isp)
 {
-	struct smack_known **blob = smack_ipc(isp);
+	struct smack_kanalwn **blob = smack_ipc(isp);
 
 	return *blob;
 }
@@ -3083,7 +3083,7 @@ static struct smack_known *smack_of_ipc(struct kern_ipc_perm *isp)
  */
 static int smack_ipc_alloc_security(struct kern_ipc_perm *isp)
 {
-	struct smack_known **blob = smack_ipc(isp);
+	struct smack_kanalwn **blob = smack_ipc(isp);
 
 	*blob = smk_of_current();
 	return 0;
@@ -3098,7 +3098,7 @@ static int smack_ipc_alloc_security(struct kern_ipc_perm *isp)
  */
 static int smk_curacc_shm(struct kern_ipc_perm *isp, int access)
 {
-	struct smack_known *ssp = smack_of_ipc(isp);
+	struct smack_kanalwn *ssp = smack_of_ipc(isp);
 	struct smk_audit_info ad;
 	int rc;
 
@@ -3187,7 +3187,7 @@ static int smack_shm_shmat(struct kern_ipc_perm *isp, char __user *shmaddr,
  */
 static int smk_curacc_sem(struct kern_ipc_perm *isp, int access)
 {
-	struct smack_known *ssp = smack_of_ipc(isp);
+	struct smack_kanalwn *ssp = smack_of_ipc(isp);
 	struct smk_audit_info ad;
 	int rc;
 
@@ -3282,7 +3282,7 @@ static int smack_sem_semop(struct kern_ipc_perm *isp, struct sembuf *sops,
  */
 static int smk_curacc_msq(struct kern_ipc_perm *isp, int access)
 {
-	struct smack_known *msp = smack_of_ipc(isp);
+	struct smack_kanalwn *msp = smack_of_ipc(isp);
 	struct smk_audit_info ad;
 	int rc;
 
@@ -3388,8 +3388,8 @@ static int smack_msg_queue_msgrcv(struct kern_ipc_perm *isp,
  */
 static int smack_ipc_permission(struct kern_ipc_perm *ipp, short flag)
 {
-	struct smack_known **blob = smack_ipc(ipp);
-	struct smack_known *iskp = *blob;
+	struct smack_kanalwn **blob = smack_ipc(ipp);
+	struct smack_kanalwn *iskp = *blob;
 	int may = smack_flags_to_may(flag);
 	struct smk_audit_info ad;
 	int rc;
@@ -3410,54 +3410,54 @@ static int smack_ipc_permission(struct kern_ipc_perm *ipp, short flag)
  */
 static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
 {
-	struct smack_known **blob = smack_ipc(ipp);
-	struct smack_known *iskp = *blob;
+	struct smack_kanalwn **blob = smack_ipc(ipp);
+	struct smack_kanalwn *iskp = *blob;
 
 	*secid = iskp->smk_secid;
 }
 
 /**
- * smack_d_instantiate - Make sure the blob is correct on an inode
- * @opt_dentry: dentry where inode will be attached
- * @inode: the object
+ * smack_d_instantiate - Make sure the blob is correct on an ianalde
+ * @opt_dentry: dentry where ianalde will be attached
+ * @ianalde: the object
  *
- * Set the inode's security blob if it hasn't been done already.
+ * Set the ianalde's security blob if it hasn't been done already.
  */
-static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
+static void smack_d_instantiate(struct dentry *opt_dentry, struct ianalde *ianalde)
 {
 	struct super_block *sbp;
 	struct superblock_smack *sbsp;
-	struct inode_smack *isp;
-	struct smack_known *skp;
-	struct smack_known *ckp = smk_of_current();
-	struct smack_known *final;
+	struct ianalde_smack *isp;
+	struct smack_kanalwn *skp;
+	struct smack_kanalwn *ckp = smk_of_current();
+	struct smack_kanalwn *final;
 	char trattr[TRANS_TRUE_SIZE];
 	int transflag = 0;
 	int rc;
 	struct dentry *dp;
 
-	if (inode == NULL)
+	if (ianalde == NULL)
 		return;
 
-	isp = smack_inode(inode);
+	isp = smack_ianalde(ianalde);
 
 	/*
-	 * If the inode is already instantiated
+	 * If the ianalde is already instantiated
 	 * take the quick way out
 	 */
-	if (isp->smk_flags & SMK_INODE_INSTANT)
+	if (isp->smk_flags & SMK_IANALDE_INSTANT)
 		return;
 
-	sbp = inode->i_sb;
+	sbp = ianalde->i_sb;
 	sbsp = smack_superblock(sbp);
 	/*
 	 * We're going to use the superblock default label
-	 * if there's no label on the file.
+	 * if there's anal label on the file.
 	 */
 	final = sbsp->smk_default;
 
 	/*
-	 * If this is the root inode the superblock
+	 * If this is the root ianalde the superblock
 	 * may be in the process of initialization.
 	 * If that is the case use the root value out
 	 * of the superblock.
@@ -3468,35 +3468,35 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		case CGROUP2_SUPER_MAGIC:
 			/*
 			 * The cgroup filesystem is never mounted,
-			 * so there's no opportunity to set the mount
+			 * so there's anal opportunity to set the mount
 			 * options.
 			 */
-			sbsp->smk_root = &smack_known_star;
-			sbsp->smk_default = &smack_known_star;
-			isp->smk_inode = sbsp->smk_root;
+			sbsp->smk_root = &smack_kanalwn_star;
+			sbsp->smk_default = &smack_kanalwn_star;
+			isp->smk_ianalde = sbsp->smk_root;
 			break;
 		case TMPFS_MAGIC:
 			/*
-			 * What about shmem/tmpfs anonymous files with dentry
+			 * What about shmem/tmpfs aanalnymous files with dentry
 			 * obtained from d_alloc_pseudo()?
 			 */
-			isp->smk_inode = smk_of_current();
+			isp->smk_ianalde = smk_of_current();
 			break;
 		case PIPEFS_MAGIC:
-			isp->smk_inode = smk_of_current();
+			isp->smk_ianalde = smk_of_current();
 			break;
 		case SOCKFS_MAGIC:
 			/*
 			 * Socket access is controlled by the socket
 			 * structures associated with the task involved.
 			 */
-			isp->smk_inode = &smack_known_star;
+			isp->smk_ianalde = &smack_kanalwn_star;
 			break;
 		default:
-			isp->smk_inode = sbsp->smk_root;
+			isp->smk_ianalde = sbsp->smk_root;
 			break;
 		}
-		isp->smk_flags |= SMK_INODE_INSTANT;
+		isp->smk_flags |= SMK_IANALDE_INSTANT;
 		return;
 	}
 
@@ -3517,7 +3517,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 *
 		 * Cgroupfs is special
 		 */
-		final = &smack_known_star;
+		final = &smack_kanalwn_star;
 		break;
 	case DEVPTS_SUPER_MAGIC:
 		/*
@@ -3529,7 +3529,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		break;
 	case PROC_SUPER_MAGIC:
 		/*
-		 * Casey says procfs appears not to care.
+		 * Casey says procfs appears analt to care.
 		 * The superblock default suffices.
 		 */
 		break;
@@ -3539,7 +3539,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 * but watch out, because they're volitile,
 		 * getting recreated on every reboot.
 		 */
-		final = &smack_known_star;
+		final = &smack_kanalwn_star;
 		/*
 		 * If a smack value has been set we want to use it,
 		 * but since tmpfs isn't giving us the opportunity
@@ -3556,60 +3556,60 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		/*
 		 * UNIX domain sockets use lower level socket data.
 		 */
-		if (S_ISSOCK(inode->i_mode)) {
-			final = &smack_known_star;
+		if (S_ISSOCK(ianalde->i_mode)) {
+			final = &smack_kanalwn_star;
 			break;
 		}
 		/*
-		 * No xattr support means, alas, no SMACK label.
+		 * Anal xattr support means, alas, anal SMACK label.
 		 * Use the aforeapplied default.
 		 * It would be curious if the label of the task
-		 * does not match that assigned.
+		 * does analt match that assigned.
 		 */
-		if (!(inode->i_opflags & IOP_XATTR))
+		if (!(ianalde->i_opflags & IOP_XATTR))
 		        break;
 		/*
 		 * Get the dentry for xattr.
 		 */
 		dp = dget(opt_dentry);
-		skp = smk_fetch(XATTR_NAME_SMACK, inode, dp);
+		skp = smk_fetch(XATTR_NAME_SMACK, ianalde, dp);
 		if (!IS_ERR_OR_NULL(skp))
 			final = skp;
 
 		/*
 		 * Transmuting directory
 		 */
-		if (S_ISDIR(inode->i_mode)) {
+		if (S_ISDIR(ianalde->i_mode)) {
 			/*
 			 * If this is a new directory and the label was
-			 * transmuted when the inode was initialized
+			 * transmuted when the ianalde was initialized
 			 * set the transmute attribute on the directory
-			 * and mark the inode.
+			 * and mark the ianalde.
 			 *
 			 * If there is a transmute attribute on the
-			 * directory mark the inode.
+			 * directory mark the ianalde.
 			 */
-			rc = __vfs_getxattr(dp, inode,
+			rc = __vfs_getxattr(dp, ianalde,
 					    XATTR_NAME_SMACKTRANSMUTE, trattr,
 					    TRANS_TRUE_SIZE);
 			if (rc >= 0 && strncmp(trattr, TRANS_TRUE,
 					       TRANS_TRUE_SIZE) != 0)
 				rc = -EINVAL;
 			if (rc >= 0)
-				transflag = SMK_INODE_TRANSMUTE;
+				transflag = SMK_IANALDE_TRANSMUTE;
 		}
 		/*
 		 * Don't let the exec or mmap label be "*" or "@".
 		 */
-		skp = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
-		if (IS_ERR(skp) || skp == &smack_known_star ||
-		    skp == &smack_known_web)
+		skp = smk_fetch(XATTR_NAME_SMACKEXEC, ianalde, dp);
+		if (IS_ERR(skp) || skp == &smack_kanalwn_star ||
+		    skp == &smack_kanalwn_web)
 			skp = NULL;
 		isp->smk_task = skp;
 
-		skp = smk_fetch(XATTR_NAME_SMACKMMAP, inode, dp);
-		if (IS_ERR(skp) || skp == &smack_known_star ||
-		    skp == &smack_known_web)
+		skp = smk_fetch(XATTR_NAME_SMACKMMAP, ianalde, dp);
+		if (IS_ERR(skp) || skp == &smack_kanalwn_star ||
+		    skp == &smack_kanalwn_web)
 			skp = NULL;
 		isp->smk_mmap = skp;
 
@@ -3618,11 +3618,11 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	}
 
 	if (final == NULL)
-		isp->smk_inode = ckp;
+		isp->smk_ianalde = ckp;
 	else
-		isp->smk_inode = final;
+		isp->smk_ianalde = final;
 
-	isp->smk_flags |= (SMK_INODE_INSTANT | transflag);
+	isp->smk_flags |= (SMK_IANALDE_INSTANT | transflag);
 
 	return;
 }
@@ -3644,14 +3644,14 @@ static int smack_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
 			     size_t *size, u32 flags)
 {
 	int rc;
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 
 	if (attr != LSM_ATTR_CURRENT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skp = smk_of_current();
 	rc = lsm_fill_user_ctx(ctx, size,
-			       skp->smk_known, strlen(skp->smk_known) + 1,
+			       skp->smk_kanalwn, strlen(skp->smk_kanalwn) + 1,
 			       LSM_ID_SMACK, 0);
 	return (!rc ? 1 : rc);
 }
@@ -3668,16 +3668,16 @@ static int smack_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
  */
 static int smack_getprocattr(struct task_struct *p, const char *name, char **value)
 {
-	struct smack_known *skp = smk_of_task_struct_obj(p);
+	struct smack_kanalwn *skp = smk_of_task_struct_obj(p);
 	char *cp;
 	int slen;
 
 	if (strcmp(name, "current") != 0)
 		return -EINVAL;
 
-	cp = kstrdup(skp->smk_known, GFP_KERNEL);
+	cp = kstrdup(skp->smk_kanalwn, GFP_KERNEL);
 	if (cp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slen = strlen(cp);
 	*value = cp;
@@ -3699,8 +3699,8 @@ static int do_setattr(u64 attr, void *value, size_t size)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
 	struct cred *new;
-	struct smack_known *skp;
-	struct smack_known_list_elem *sklep;
+	struct smack_kanalwn *skp;
+	struct smack_kanalwn_list_elem *sklep;
 	int rc;
 
 	if (!smack_privileged(CAP_MAC_ADMIN) && list_empty(&tsp->smk_relabel))
@@ -3710,17 +3710,17 @@ static int do_setattr(u64 attr, void *value, size_t size)
 		return -EINVAL;
 
 	if (attr != LSM_ATTR_CURRENT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skp = smk_import_entry(value, size);
 	if (IS_ERR(skp))
 		return PTR_ERR(skp);
 
 	/*
-	 * No process is ever allowed the web ("@") label
+	 * Anal process is ever allowed the web ("@") label
 	 * and the star ("*") label.
 	 */
-	if (skp == &smack_known_web || skp == &smack_known_star)
+	if (skp == &smack_kanalwn_web || skp == &smack_kanalwn_star)
 		return -EINVAL;
 
 	if (!smack_privileged(CAP_MAC_ADMIN)) {
@@ -3736,7 +3736,7 @@ static int do_setattr(u64 attr, void *value, size_t size)
 
 	new = prepare_creds();
 	if (new == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tsp = smack_cred(new);
 	tsp->smk_task = skp;
@@ -3804,8 +3804,8 @@ static int smack_setprocattr(const char *name, void *value, size_t size)
 static int smack_unix_stream_connect(struct sock *sock,
 				     struct sock *other, struct sock *newsk)
 {
-	struct smack_known *skp;
-	struct smack_known *okp;
+	struct smack_kanalwn *skp;
+	struct smack_kanalwn *okp;
 	struct socket_smack *ssp = sock->sk_security;
 	struct socket_smack *osp = other->sk_security;
 	struct socket_smack *nsp = newsk->sk_security;
@@ -3823,12 +3823,12 @@ static int smack_unix_stream_connect(struct sock *sock,
 		smk_ad_setfield_u_net_sk(&ad, other);
 #endif
 		rc = smk_access(skp, okp, MAY_WRITE, &ad);
-		rc = smk_bu_note("UDS connect", skp, okp, MAY_WRITE, rc);
+		rc = smk_bu_analte("UDS connect", skp, okp, MAY_WRITE, rc);
 		if (rc == 0) {
 			okp = osp->smk_out;
 			skp = ssp->smk_in;
 			rc = smk_access(okp, skp, MAY_WRITE, &ad);
-			rc = smk_bu_note("UDS connect", okp, skp,
+			rc = smk_bu_analte("UDS connect", okp, skp,
 						MAY_WRITE, rc);
 		}
 	}
@@ -3870,7 +3870,7 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
 		return 0;
 
 	rc = smk_access(ssp->smk_out, osp->smk_in, MAY_WRITE, &ad);
-	rc = smk_bu_note("UDS send", ssp->smk_out, osp->smk_in, MAY_WRITE, rc);
+	rc = smk_bu_analte("UDS send", ssp->smk_out, osp->smk_in, MAY_WRITE, rc);
 	return rc;
 }
 
@@ -3893,7 +3893,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 #endif
 #ifdef SMACK_IPV6_SECMARK_LABELING
 	struct socket_smack *ssp = sock->sk->sk_security;
-	struct smack_known *rsp;
+	struct smack_kanalwn *rsp;
 #endif
 	int rc = 0;
 
@@ -3937,10 +3937,10 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
  *
  * Returns a pointer to a Smack label entry found on the label list.
  */
-static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
+static struct smack_kanalwn *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 						struct socket_smack *ssp)
 {
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 	int found = 0;
 	int acat;
 	int kcat;
@@ -3949,7 +3949,7 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 	 * Netlabel found it in the cache.
 	 */
 	if ((sap->flags & NETLBL_SECATTR_CACHE) != 0)
-		return (struct smack_known *)sap->cache->data;
+		return (struct smack_kanalwn *)sap->cache->data;
 
 	if ((sap->flags & NETLBL_SECATTR_SECID) != 0)
 		/*
@@ -3960,7 +3960,7 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 	if ((sap->flags & NETLBL_SECATTR_MLS_LVL) != 0) {
 		/*
 		 * Looks like a CIPSO packet.
-		 * If there are flags but no level netlabel isn't
+		 * If there are flags but anal level netlabel isn't
 		 * behaving the way we expect it to.
 		 *
 		 * Look it up in the label table
@@ -3969,7 +3969,7 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 		 * ambient value.
 		 */
 		rcu_read_lock();
-		list_for_each_entry_rcu(skp, &smack_known_list, list) {
+		list_for_each_entry_rcu(skp, &smack_kanalwn_list, list) {
 			if (sap->attr.mls.lvl != skp->smk_netlabel.attr.mls.lvl)
 				continue;
 			/*
@@ -4000,9 +4000,9 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 		if (found)
 			return skp;
 
-		if (ssp != NULL && ssp->smk_in == &smack_known_star)
-			return &smack_known_web;
-		return &smack_known_star;
+		if (ssp != NULL && ssp->smk_in == &smack_kanalwn_star)
+			return &smack_kanalwn_web;
+		return &smack_kanalwn_star;
 	}
 	/*
 	 * Without guidance regarding the smack value
@@ -4066,10 +4066,10 @@ static int smk_skb_to_addr_ipv6(struct sk_buff *skb, struct sockaddr_in6 *sip)
  * smack_from_skb - Smack data from the secmark in an skb
  * @skb: packet
  *
- * Returns smack_known of the secmark or NULL if that won't work.
+ * Returns smack_kanalwn of the secmark or NULL if that won't work.
  */
 #ifdef CONFIG_NETWORK_SECMARK
-static struct smack_known *smack_from_skb(struct sk_buff *skb)
+static struct smack_kanalwn *smack_from_skb(struct sk_buff *skb)
 {
 	if (skb == NULL || skb->secmark == 0)
 		return NULL;
@@ -4077,7 +4077,7 @@ static struct smack_known *smack_from_skb(struct sk_buff *skb)
 	return smack_from_secid(skb->secmark);
 }
 #else
-static inline struct smack_known *smack_from_skb(struct sk_buff *skb)
+static inline struct smack_kanalwn *smack_from_skb(struct sk_buff *skb)
 {
 	return NULL;
 }
@@ -4092,14 +4092,14 @@ static inline struct smack_known *smack_from_skb(struct sk_buff *skb)
  * Find the Smack label in the IP options. If it hasn't been
  * added to the netlabel cache, add it here.
  *
- * Returns smack_known of the IP options or NULL if that won't work.
+ * Returns smack_kanalwn of the IP options or NULL if that won't work.
  */
-static struct smack_known *smack_from_netlbl(const struct sock *sk, u16 family,
+static struct smack_kanalwn *smack_from_netlbl(const struct sock *sk, u16 family,
 					     struct sk_buff *skb)
 {
 	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = NULL;
-	struct smack_known *skp = NULL;
+	struct smack_kanalwn *skp = NULL;
 
 	netlbl_secattr_init(&secattr);
 
@@ -4127,7 +4127,7 @@ static struct smack_known *smack_from_netlbl(const struct sock *sk, u16 family,
 static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct socket_smack *ssp = sk->sk_security;
-	struct smack_known *skp = NULL;
+	struct smack_kanalwn *skp = NULL;
 	int rc = 0;
 	struct smk_audit_info ad;
 	u16 family = sk->sk_family;
@@ -4146,7 +4146,7 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	case PF_INET:
 		/*
 		 * If there is a secmark use it rather than the CIPSO label.
-		 * If there is no secmark fall back to CIPSO.
+		 * If there is anal secmark fall back to CIPSO.
 		 * The secmark is assumed to reflect policy better.
 		 */
 		skp = smack_from_skb(skb);
@@ -4164,12 +4164,12 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 #endif
 		/*
 		 * Receiving a packet requires that the other end
-		 * be able to write here. Read access is not required.
+		 * be able to write here. Read access is analt required.
 		 * This is the simplist possible security model
 		 * for networking.
 		 */
 		rc = smk_access(skp, ssp->smk_in, MAY_WRITE, &ad);
-		rc = smk_bu_note("IPv4 delivery", skp, ssp->smk_in,
+		rc = smk_bu_analte("IPv4 delivery", skp, ssp->smk_in,
 					MAY_WRITE, rc);
 		if (rc != 0)
 			netlbl_skbuff_err(skb, family, rc, 0);
@@ -4196,7 +4196,7 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		ipv6_skb_to_auditdata(skb, &ad.a, NULL);
 #endif /* CONFIG_AUDIT */
 		rc = smk_access(skp, ssp->smk_in, MAY_WRITE, &ad);
-		rc = smk_bu_note("IPv6 delivery", skp, ssp->smk_in,
+		rc = smk_bu_analte("IPv6 delivery", skp, ssp->smk_in,
 					MAY_WRITE, rc);
 #endif /* SMACK_IPV6_SECMARK_LABELING */
 #ifdef SMACK_IPV6_PORT_LABELING
@@ -4232,7 +4232,7 @@ static int smack_socket_getpeersec_stream(struct socket *sock,
 
 	ssp = sock->sk->sk_security;
 	if (ssp->smk_packet != NULL) {
-		rcp = ssp->smk_packet->smk_known;
+		rcp = ssp->smk_packet->smk_kanalwn;
 		slen = strlen(rcp) + 1;
 	}
 	if (slen > len) {
@@ -4262,7 +4262,7 @@ static int smack_socket_getpeersec_dgram(struct socket *sock,
 
 {
 	struct socket_smack *ssp = NULL;
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 	struct sock *sk = NULL;
 	int family = PF_UNSPEC;
 	u32 s = 0;	/* 0 is the invalid secid */
@@ -4323,7 +4323,7 @@ static int smack_socket_getpeersec_dgram(struct socket *sock,
 static void smack_sock_graft(struct sock *sk, struct socket *parent)
 {
 	struct socket_smack *ssp;
-	struct smack_known *skp = smk_of_current();
+	struct smack_kanalwn *skp = smk_of_current();
 
 	if (sk == NULL ||
 	    (sk->sk_family != PF_INET && sk->sk_family != PF_INET6))
@@ -4348,11 +4348,11 @@ static int smack_inet_conn_request(const struct sock *sk, struct sk_buff *skb,
 				   struct request_sock *req)
 {
 	u16 family = sk->sk_family;
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 	struct socket_smack *ssp = sk->sk_security;
 	struct sockaddr_in addr;
 	struct iphdr *hdr;
-	struct smack_known *hskp;
+	struct smack_kanalwn *hskp;
 	int rc;
 	struct smk_audit_info ad;
 #ifdef CONFIG_AUDIT
@@ -4375,14 +4375,14 @@ static int smack_inet_conn_request(const struct sock *sk, struct sk_buff *skb,
 
 	/*
 	 * If there is a secmark use it rather than the CIPSO label.
-	 * If there is no secmark fall back to CIPSO.
+	 * If there is anal secmark fall back to CIPSO.
 	 * The secmark is assumed to reflect policy better.
 	 */
 	skp = smack_from_skb(skb);
 	if (skp == NULL) {
 		skp = smack_from_netlbl(sk, family, skb);
 		if (skp == NULL)
-			skp = &smack_known_huh;
+			skp = &smack_kanalwn_huh;
 	}
 
 #ifdef CONFIG_AUDIT
@@ -4393,10 +4393,10 @@ static int smack_inet_conn_request(const struct sock *sk, struct sk_buff *skb,
 #endif
 	/*
 	 * Receiving a packet requires that the other end be able to write
-	 * here. Read access is not required.
+	 * here. Read access is analt required.
 	 */
 	rc = smk_access(skp, ssp->smk_in, MAY_WRITE, &ad);
-	rc = smk_bu_note("IPv4 connect", skp, ssp->smk_in, MAY_WRITE, rc);
+	rc = smk_bu_analte("IPv4 connect", skp, ssp->smk_in, MAY_WRITE, rc);
 	if (rc != 0)
 		return rc;
 
@@ -4436,7 +4436,7 @@ static void smack_inet_csk_clone(struct sock *sk,
 				 const struct request_sock *req)
 {
 	struct socket_smack *ssp = sk->sk_security;
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 
 	if (req->peer_secid != 0) {
 		skp = smack_from_secid(req->peer_secid);
@@ -4448,7 +4448,7 @@ static void smack_inet_csk_clone(struct sock *sk,
 /*
  * Key management security hooks
  *
- * Casey has not tested key support very heavily.
+ * Casey has analt tested key support very heavily.
  * The permission check is most likely too restrictive.
  * If you care about keys please have a look.
  */
@@ -4460,14 +4460,14 @@ static void smack_inet_csk_clone(struct sock *sk,
  * @cred: the credentials to use
  * @flags: unused
  *
- * No allocation required
+ * Anal allocation required
  *
  * Returns 0
  */
 static int smack_key_alloc(struct key *key, const struct cred *cred,
 			   unsigned long flags)
 {
-	struct smack_known *skp = smk_of_task(smack_cred(cred));
+	struct smack_kanalwn *skp = smk_of_task(smack_cred(cred));
 
 	key->security = skp;
 	return 0;
@@ -4499,7 +4499,7 @@ static int smack_key_permission(key_ref_t key_ref,
 {
 	struct key *keyp;
 	struct smk_audit_info ad;
-	struct smack_known *tkp = smk_of_task(smack_cred(cred));
+	struct smack_kanalwn *tkp = smk_of_task(smack_cred(cred));
 	int request = 0;
 	int rc;
 
@@ -4537,7 +4537,7 @@ static int smack_key_permission(key_ref_t key_ref,
 	if (keyp->security == NULL)
 		return 0;
 	/*
-	 * This should not occur
+	 * This should analt occur
 	 */
 	if (tkp == NULL)
 		return -EACCES;
@@ -4551,7 +4551,7 @@ static int smack_key_permission(key_ref_t key_ref,
 	ad.a.u.key_struct.key_desc = keyp->description;
 #endif
 	rc = smk_access(tkp, keyp->security, request, &ad);
-	rc = smk_bu_note("key access", tkp, keyp->security, request, rc);
+	rc = smk_bu_analte("key access", tkp, keyp->security, request, rc);
 	return rc;
 }
 
@@ -4559,14 +4559,14 @@ static int smack_key_permission(key_ref_t key_ref,
  * smack_key_getsecurity - Smack label tagging the key
  * @key points to the key to be queried
  * @_buffer points to a pointer that should be set to point to the
- * resulting string (if no label or an error occurs).
+ * resulting string (if anal label or an error occurs).
  * Return the length of the string (including terminating NUL) or -ve if
  * an error.
- * May also return 0 (and a NULL buffer pointer) if there is no label.
+ * May also return 0 (and a NULL buffer pointer) if there is anal label.
  */
 static int smack_key_getsecurity(struct key *key, char **_buffer)
 {
-	struct smack_known *skp = key->security;
+	struct smack_kanalwn *skp = key->security;
 	size_t length;
 	char *copy;
 
@@ -4575,9 +4575,9 @@ static int smack_key_getsecurity(struct key *key, char **_buffer)
 		return 0;
 	}
 
-	copy = kstrdup(skp->smk_known, GFP_KERNEL);
+	copy = kstrdup(skp->smk_kanalwn, GFP_KERNEL);
 	if (copy == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	length = strlen(copy) + 1;
 
 	*_buffer = copy;
@@ -4585,9 +4585,9 @@ static int smack_key_getsecurity(struct key *key, char **_buffer)
 }
 
 
-#ifdef CONFIG_KEY_NOTIFICATIONS
+#ifdef CONFIG_KEY_ANALTIFICATIONS
 /**
- * smack_watch_key - Smack access to watch a key for notifications.
+ * smack_watch_key - Smack access to watch a key for analtifications.
  * @key: The key to be watched
  *
  * Return 0 if the @watch->cred has permission to read from the key object and
@@ -4596,7 +4596,7 @@ static int smack_key_getsecurity(struct key *key, char **_buffer)
 static int smack_watch_key(struct key *key)
 {
 	struct smk_audit_info ad;
-	struct smack_known *tkp = smk_of_current();
+	struct smack_kanalwn *tkp = smk_of_current();
 	int rc;
 
 	if (key == NULL)
@@ -4608,7 +4608,7 @@ static int smack_watch_key(struct key *key)
 	if (key->security == NULL)
 		return 0;
 	/*
-	 * This should not occur
+	 * This should analt occur
 	 */
 	if (tkp == NULL)
 		return -EACCES;
@@ -4622,28 +4622,28 @@ static int smack_watch_key(struct key *key)
 	ad.a.u.key_struct.key_desc = key->description;
 #endif
 	rc = smk_access(tkp, key->security, MAY_READ, &ad);
-	rc = smk_bu_note("key watch", tkp, key->security, MAY_READ, rc);
+	rc = smk_bu_analte("key watch", tkp, key->security, MAY_READ, rc);
 	return rc;
 }
-#endif /* CONFIG_KEY_NOTIFICATIONS */
+#endif /* CONFIG_KEY_ANALTIFICATIONS */
 #endif /* CONFIG_KEYS */
 
 #ifdef CONFIG_WATCH_QUEUE
 /**
- * smack_post_notification - Smack access to post a notification to a queue
+ * smack_post_analtification - Smack access to post a analtification to a queue
  * @w_cred: The credentials of the watcher.
  * @cred: The credentials of the event source (may be NULL).
- * @n: The notification message to be posted.
+ * @n: The analtification message to be posted.
  */
-static int smack_post_notification(const struct cred *w_cred,
+static int smack_post_analtification(const struct cred *w_cred,
 				   const struct cred *cred,
-				   struct watch_notification *n)
+				   struct watch_analtification *n)
 {
 	struct smk_audit_info ad;
-	struct smack_known *subj, *obj;
+	struct smack_kanalwn *subj, *obj;
 	int rc;
 
-	/* Always let maintenance notifications through. */
+	/* Always let maintenance analtifications through. */
 	if (n->type == WATCH_TYPE_META)
 		return 0;
 
@@ -4652,9 +4652,9 @@ static int smack_post_notification(const struct cred *w_cred,
 	subj = smk_of_task(smack_cred(cred));
 	obj = smk_of_task(smack_cred(w_cred));
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NOTIFICATION);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_ANALTIFICATION);
 	rc = smk_access(subj, obj, MAY_WRITE, &ad);
-	rc = smk_bu_note("notification", subj, obj, MAY_WRITE, rc);
+	rc = smk_bu_analte("analtification", subj, obj, MAY_WRITE, rc);
 	return rc;
 }
 #endif /* CONFIG_WATCH_QUEUE */
@@ -4668,7 +4668,7 @@ static int smack_post_notification(const struct cred *w_cred,
  * works as a glue between the audit hooks.
  *
  * Since repository entries are added but never deleted, we'll use
- * the smack_known label address related to the given audit rule as
+ * the smack_kanalwn label address related to the given audit rule as
  * the needed unique representation. This also better fits the smack
  * model where nearly everything is a label.
  */
@@ -4686,34 +4686,34 @@ static int smack_post_notification(const struct cred *w_cred,
  */
 static int smack_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 {
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 	char **rule = (char **)vrule;
 	*rule = NULL;
 
 	if (field != AUDIT_SUBJ_USER && field != AUDIT_OBJ_USER)
 		return -EINVAL;
 
-	if (op != Audit_equal && op != Audit_not_equal)
+	if (op != Audit_equal && op != Audit_analt_equal)
 		return -EINVAL;
 
 	skp = smk_import_entry(rulestr, 0);
 	if (IS_ERR(skp))
 		return PTR_ERR(skp);
 
-	*rule = skp->smk_known;
+	*rule = skp->smk_kanalwn;
 
 	return 0;
 }
 
 /**
- * smack_audit_rule_known - Distinguish Smack audit rules
+ * smack_audit_rule_kanalwn - Distinguish Smack audit rules
  * @krule: rule of interest, in Audit kernel representation format
  *
  * This is used to filter Smack rules from remaining Audit ones.
  * If it's proved that this rule belongs to us, the
  * audit_rule_match hook will be called to do the final judgement.
  */
-static int smack_audit_rule_known(struct audit_krule *krule)
+static int smack_audit_rule_kanalwn(struct audit_krule *krule)
 {
 	struct audit_field *f;
 	int i;
@@ -4736,16 +4736,16 @@ static int smack_audit_rule_known(struct audit_krule *krule)
  * @vrule: smack internal rule presentation
  *
  * The core Audit hook. It's used to take the decision of
- * whether to audit or not to audit a given object.
+ * whether to audit or analt to audit a given object.
  */
 static int smack_audit_rule_match(u32 secid, u32 field, u32 op, void *vrule)
 {
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 	char *rule = vrule;
 
 	if (unlikely(!rule)) {
 		WARN_ONCE(1, "Smack: missing rule\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (field != AUDIT_SUBJ_USER && field != AUDIT_OBJ_USER)
@@ -4754,21 +4754,21 @@ static int smack_audit_rule_match(u32 secid, u32 field, u32 op, void *vrule)
 	skp = smack_from_secid(secid);
 
 	/*
-	 * No need to do string comparisons. If a match occurs,
-	 * both pointers will point to the same smack_known
+	 * Anal need to do string comparisons. If a match occurs,
+	 * both pointers will point to the same smack_kanalwn
 	 * label.
 	 */
 	if (op == Audit_equal)
-		return (rule == skp->smk_known);
-	if (op == Audit_not_equal)
-		return (rule != skp->smk_known);
+		return (rule == skp->smk_kanalwn);
+	if (op == Audit_analt_equal)
+		return (rule != skp->smk_kanalwn);
 
 	return 0;
 }
 
 /*
- * There is no need for a smack_audit_rule_free hook.
- * No memory was allocated.
+ * There is anal need for a smack_audit_rule_free hook.
+ * Anal memory was allocated.
  */
 
 #endif /* CONFIG_AUDIT */
@@ -4793,11 +4793,11 @@ static int smack_ismaclabel(const char *name)
  */
 static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
-	struct smack_known *skp = smack_from_secid(secid);
+	struct smack_kanalwn *skp = smack_from_secid(secid);
 
 	if (secdata)
-		*secdata = skp->smk_known;
-	*seclen = strlen(skp->smk_known);
+		*secdata = skp->smk_kanalwn;
+	*seclen = strlen(skp->smk_kanalwn);
 	return 0;
 }
 
@@ -4811,7 +4811,7 @@ static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
  */
 static int smack_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
-	struct smack_known *skp = smk_find_entry(secdata);
+	struct smack_kanalwn *skp = smk_find_entry(secdata);
 
 	if (skp)
 		*secid = skp->smk_secid;
@@ -4822,58 +4822,58 @@ static int smack_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 
 /*
  * There used to be a smack_release_secctx hook
- * that did nothing back when hooks were in a vector.
- * Now that there's a list such a hook adds cost.
+ * that did analthing back when hooks were in a vector.
+ * Analw that there's a list such a hook adds cost.
  */
 
-static int smack_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+static int smack_ianalde_analtifysecctx(struct ianalde *ianalde, void *ctx, u32 ctxlen)
 {
-	return smack_inode_setsecurity(inode, XATTR_SMACK_SUFFIX, ctx,
+	return smack_ianalde_setsecurity(ianalde, XATTR_SMACK_SUFFIX, ctx,
 				       ctxlen, 0);
 }
 
-static int smack_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+static int smack_ianalde_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return __vfs_setxattr_noperm(&nop_mnt_idmap, dentry, XATTR_NAME_SMACK,
+	return __vfs_setxattr_analperm(&analp_mnt_idmap, dentry, XATTR_NAME_SMACK,
 				     ctx, ctxlen, 0);
 }
 
-static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+static int smack_ianalde_getsecctx(struct ianalde *ianalde, void **ctx, u32 *ctxlen)
 {
-	struct smack_known *skp = smk_of_inode(inode);
+	struct smack_kanalwn *skp = smk_of_ianalde(ianalde);
 
-	*ctx = skp->smk_known;
-	*ctxlen = strlen(skp->smk_known);
+	*ctx = skp->smk_kanalwn;
+	*ctxlen = strlen(skp->smk_kanalwn);
 	return 0;
 }
 
-static int smack_inode_copy_up(struct dentry *dentry, struct cred **new)
+static int smack_ianalde_copy_up(struct dentry *dentry, struct cred **new)
 {
 
 	struct task_smack *tsp;
-	struct smack_known *skp;
-	struct inode_smack *isp;
+	struct smack_kanalwn *skp;
+	struct ianalde_smack *isp;
 	struct cred *new_creds = *new;
 
 	if (new_creds == NULL) {
 		new_creds = prepare_creds();
 		if (new_creds == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	tsp = smack_cred(new_creds);
 
 	/*
-	 * Get label from overlay inode and set it in create_sid
+	 * Get label from overlay ianalde and set it in create_sid
 	 */
-	isp = smack_inode(d_inode(dentry));
-	skp = isp->smk_inode;
+	isp = smack_ianalde(d_ianalde(dentry));
+	skp = isp->smk_ianalde;
 	tsp->smk_task = skp;
 	*new = new_creds;
 	return 0;
 }
 
-static int smack_inode_copy_up_xattr(const char *name)
+static int smack_ianalde_copy_up_xattr(const char *name)
 {
 	/*
 	 * Return 1 if this is the smack access Smack attribute.
@@ -4881,7 +4881,7 @@ static int smack_inode_copy_up_xattr(const char *name)
 	if (strcmp(name, XATTR_NAME_SMACK) == 0)
 		return 1;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int smack_dentry_create_files_as(struct dentry *dentry, int mode,
@@ -4891,7 +4891,7 @@ static int smack_dentry_create_files_as(struct dentry *dentry, int mode,
 {
 	struct task_smack *otsp = smack_cred(old);
 	struct task_smack *ntsp = smack_cred(new);
-	struct inode_smack *isp;
+	struct ianalde_smack *isp;
 	int may;
 
 	/*
@@ -4903,12 +4903,12 @@ static int smack_dentry_create_files_as(struct dentry *dentry, int mode,
 	/*
 	 * the attribute of the containing directory
 	 */
-	isp = smack_inode(d_inode(dentry->d_parent));
+	isp = smack_ianalde(d_ianalde(dentry->d_parent));
 
-	if (isp->smk_flags & SMK_INODE_TRANSMUTE) {
+	if (isp->smk_flags & SMK_IANALDE_TRANSMUTE) {
 		rcu_read_lock();
-		may = smk_access_entry(otsp->smk_task->smk_known,
-				       isp->smk_inode->smk_known,
+		may = smk_access_entry(otsp->smk_task->smk_kanalwn,
+				       isp->smk_ianalde->smk_kanalwn,
 				       &otsp->smk_task->smk_rules);
 		rcu_read_unlock();
 
@@ -4918,7 +4918,7 @@ static int smack_dentry_create_files_as(struct dentry *dentry, int mode,
 		 * directory label instead of the process label.
 		 */
 		if (may > 0 && (may & MAY_TRANSMUTE)) {
-			ntsp->smk_task = isp->smk_inode;
+			ntsp->smk_task = isp->smk_ianalde;
 			ntsp->smk_transmuted = ntsp->smk_task;
 		}
 	}
@@ -4978,18 +4978,18 @@ static int smack_uring_cmd(struct io_uring_cmd *ioucmd)
 	struct file *file = ioucmd->file;
 	struct smk_audit_info ad;
 	struct task_smack *tsp;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int rc;
 
 	if (!file)
 		return -EINVAL;
 
 	tsp = smack_cred(file->f_cred);
-	inode = file_inode(file);
+	ianalde = file_ianalde(file);
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	rc = smk_tskacc(tsp, smk_of_inode(inode), MAY_READ, &ad);
+	rc = smk_tskacc(tsp, smk_of_ianalde(ianalde), MAY_READ, &ad);
 	rc = smk_bu_credfile(file->f_cred, file, MAY_READ, rc);
 
 	return rc;
@@ -4999,12 +4999,12 @@ static int smack_uring_cmd(struct io_uring_cmd *ioucmd)
 
 struct lsm_blob_sizes smack_blob_sizes __ro_after_init = {
 	.lbs_cred = sizeof(struct task_smack),
-	.lbs_file = sizeof(struct smack_known *),
-	.lbs_inode = sizeof(struct inode_smack),
-	.lbs_ipc = sizeof(struct smack_known *),
-	.lbs_msg_msg = sizeof(struct smack_known *),
+	.lbs_file = sizeof(struct smack_kanalwn *),
+	.lbs_ianalde = sizeof(struct ianalde_smack),
+	.lbs_ipc = sizeof(struct smack_kanalwn *),
+	.lbs_msg_msg = sizeof(struct smack_kanalwn *),
 	.lbs_superblock = sizeof(struct superblock_smack),
-	.lbs_xattr_count = SMACK_INODE_INIT_XATTRS,
+	.lbs_xattr_count = SMACK_IANALDE_INIT_XATTRS,
 };
 
 static const struct lsm_id smack_lsmid = {
@@ -5029,26 +5029,26 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 
 	LSM_HOOK_INIT(bprm_creds_for_exec, smack_bprm_creds_for_exec),
 
-	LSM_HOOK_INIT(inode_alloc_security, smack_inode_alloc_security),
-	LSM_HOOK_INIT(inode_init_security, smack_inode_init_security),
-	LSM_HOOK_INIT(inode_link, smack_inode_link),
-	LSM_HOOK_INIT(inode_unlink, smack_inode_unlink),
-	LSM_HOOK_INIT(inode_rmdir, smack_inode_rmdir),
-	LSM_HOOK_INIT(inode_rename, smack_inode_rename),
-	LSM_HOOK_INIT(inode_permission, smack_inode_permission),
-	LSM_HOOK_INIT(inode_setattr, smack_inode_setattr),
-	LSM_HOOK_INIT(inode_getattr, smack_inode_getattr),
-	LSM_HOOK_INIT(inode_setxattr, smack_inode_setxattr),
-	LSM_HOOK_INIT(inode_post_setxattr, smack_inode_post_setxattr),
-	LSM_HOOK_INIT(inode_getxattr, smack_inode_getxattr),
-	LSM_HOOK_INIT(inode_removexattr, smack_inode_removexattr),
-	LSM_HOOK_INIT(inode_set_acl, smack_inode_set_acl),
-	LSM_HOOK_INIT(inode_get_acl, smack_inode_get_acl),
-	LSM_HOOK_INIT(inode_remove_acl, smack_inode_remove_acl),
-	LSM_HOOK_INIT(inode_getsecurity, smack_inode_getsecurity),
-	LSM_HOOK_INIT(inode_setsecurity, smack_inode_setsecurity),
-	LSM_HOOK_INIT(inode_listsecurity, smack_inode_listsecurity),
-	LSM_HOOK_INIT(inode_getsecid, smack_inode_getsecid),
+	LSM_HOOK_INIT(ianalde_alloc_security, smack_ianalde_alloc_security),
+	LSM_HOOK_INIT(ianalde_init_security, smack_ianalde_init_security),
+	LSM_HOOK_INIT(ianalde_link, smack_ianalde_link),
+	LSM_HOOK_INIT(ianalde_unlink, smack_ianalde_unlink),
+	LSM_HOOK_INIT(ianalde_rmdir, smack_ianalde_rmdir),
+	LSM_HOOK_INIT(ianalde_rename, smack_ianalde_rename),
+	LSM_HOOK_INIT(ianalde_permission, smack_ianalde_permission),
+	LSM_HOOK_INIT(ianalde_setattr, smack_ianalde_setattr),
+	LSM_HOOK_INIT(ianalde_getattr, smack_ianalde_getattr),
+	LSM_HOOK_INIT(ianalde_setxattr, smack_ianalde_setxattr),
+	LSM_HOOK_INIT(ianalde_post_setxattr, smack_ianalde_post_setxattr),
+	LSM_HOOK_INIT(ianalde_getxattr, smack_ianalde_getxattr),
+	LSM_HOOK_INIT(ianalde_removexattr, smack_ianalde_removexattr),
+	LSM_HOOK_INIT(ianalde_set_acl, smack_ianalde_set_acl),
+	LSM_HOOK_INIT(ianalde_get_acl, smack_ianalde_get_acl),
+	LSM_HOOK_INIT(ianalde_remove_acl, smack_ianalde_remove_acl),
+	LSM_HOOK_INIT(ianalde_getsecurity, smack_ianalde_getsecurity),
+	LSM_HOOK_INIT(ianalde_setsecurity, smack_ianalde_setsecurity),
+	LSM_HOOK_INIT(ianalde_listsecurity, smack_ianalde_listsecurity),
+	LSM_HOOK_INIT(ianalde_getsecid, smack_ianalde_getsecid),
 
 	LSM_HOOK_INIT(file_alloc_security, smack_file_alloc_security),
 	LSM_HOOK_INIT(file_ioctl, smack_file_ioctl),
@@ -5082,7 +5082,7 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(task_getscheduler, smack_task_getscheduler),
 	LSM_HOOK_INIT(task_movememory, smack_task_movememory),
 	LSM_HOOK_INIT(task_kill, smack_task_kill),
-	LSM_HOOK_INIT(task_to_inode, smack_task_to_inode),
+	LSM_HOOK_INIT(task_to_ianalde, smack_task_to_ianalde),
 
 	LSM_HOOK_INIT(ipc_permission, smack_ipc_permission),
 	LSM_HOOK_INIT(ipc_getsecid, smack_ipc_getsecid),
@@ -5138,30 +5138,30 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(key_free, smack_key_free),
 	LSM_HOOK_INIT(key_permission, smack_key_permission),
 	LSM_HOOK_INIT(key_getsecurity, smack_key_getsecurity),
-#ifdef CONFIG_KEY_NOTIFICATIONS
+#ifdef CONFIG_KEY_ANALTIFICATIONS
 	LSM_HOOK_INIT(watch_key, smack_watch_key),
 #endif
 #endif /* CONFIG_KEYS */
 
 #ifdef CONFIG_WATCH_QUEUE
-	LSM_HOOK_INIT(post_notification, smack_post_notification),
+	LSM_HOOK_INIT(post_analtification, smack_post_analtification),
 #endif
 
  /* Audit hooks */
 #ifdef CONFIG_AUDIT
 	LSM_HOOK_INIT(audit_rule_init, smack_audit_rule_init),
-	LSM_HOOK_INIT(audit_rule_known, smack_audit_rule_known),
+	LSM_HOOK_INIT(audit_rule_kanalwn, smack_audit_rule_kanalwn),
 	LSM_HOOK_INIT(audit_rule_match, smack_audit_rule_match),
 #endif /* CONFIG_AUDIT */
 
 	LSM_HOOK_INIT(ismaclabel, smack_ismaclabel),
 	LSM_HOOK_INIT(secid_to_secctx, smack_secid_to_secctx),
 	LSM_HOOK_INIT(secctx_to_secid, smack_secctx_to_secid),
-	LSM_HOOK_INIT(inode_notifysecctx, smack_inode_notifysecctx),
-	LSM_HOOK_INIT(inode_setsecctx, smack_inode_setsecctx),
-	LSM_HOOK_INIT(inode_getsecctx, smack_inode_getsecctx),
-	LSM_HOOK_INIT(inode_copy_up, smack_inode_copy_up),
-	LSM_HOOK_INIT(inode_copy_up_xattr, smack_inode_copy_up_xattr),
+	LSM_HOOK_INIT(ianalde_analtifysecctx, smack_ianalde_analtifysecctx),
+	LSM_HOOK_INIT(ianalde_setsecctx, smack_ianalde_setsecctx),
+	LSM_HOOK_INIT(ianalde_getsecctx, smack_ianalde_getsecctx),
+	LSM_HOOK_INIT(ianalde_copy_up, smack_ianalde_copy_up),
+	LSM_HOOK_INIT(ianalde_copy_up_xattr, smack_ianalde_copy_up_xattr),
 	LSM_HOOK_INIT(dentry_create_files_as, smack_dentry_create_files_as),
 #ifdef CONFIG_IO_URING
 	LSM_HOOK_INIT(uring_override_creds, smack_uring_override_creds),
@@ -5171,38 +5171,38 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 };
 
 
-static __init void init_smack_known_list(void)
+static __init void init_smack_kanalwn_list(void)
 {
 	/*
 	 * Initialize rule list locks
 	 */
-	mutex_init(&smack_known_huh.smk_rules_lock);
-	mutex_init(&smack_known_hat.smk_rules_lock);
-	mutex_init(&smack_known_floor.smk_rules_lock);
-	mutex_init(&smack_known_star.smk_rules_lock);
-	mutex_init(&smack_known_web.smk_rules_lock);
+	mutex_init(&smack_kanalwn_huh.smk_rules_lock);
+	mutex_init(&smack_kanalwn_hat.smk_rules_lock);
+	mutex_init(&smack_kanalwn_floor.smk_rules_lock);
+	mutex_init(&smack_kanalwn_star.smk_rules_lock);
+	mutex_init(&smack_kanalwn_web.smk_rules_lock);
 	/*
 	 * Initialize rule lists
 	 */
-	INIT_LIST_HEAD(&smack_known_huh.smk_rules);
-	INIT_LIST_HEAD(&smack_known_hat.smk_rules);
-	INIT_LIST_HEAD(&smack_known_star.smk_rules);
-	INIT_LIST_HEAD(&smack_known_floor.smk_rules);
-	INIT_LIST_HEAD(&smack_known_web.smk_rules);
+	INIT_LIST_HEAD(&smack_kanalwn_huh.smk_rules);
+	INIT_LIST_HEAD(&smack_kanalwn_hat.smk_rules);
+	INIT_LIST_HEAD(&smack_kanalwn_star.smk_rules);
+	INIT_LIST_HEAD(&smack_kanalwn_floor.smk_rules);
+	INIT_LIST_HEAD(&smack_kanalwn_web.smk_rules);
 	/*
-	 * Create the known labels list
+	 * Create the kanalwn labels list
 	 */
-	smk_insert_entry(&smack_known_huh);
-	smk_insert_entry(&smack_known_hat);
-	smk_insert_entry(&smack_known_star);
-	smk_insert_entry(&smack_known_floor);
-	smk_insert_entry(&smack_known_web);
+	smk_insert_entry(&smack_kanalwn_huh);
+	smk_insert_entry(&smack_kanalwn_hat);
+	smk_insert_entry(&smack_kanalwn_star);
+	smk_insert_entry(&smack_kanalwn_floor);
+	smk_insert_entry(&smack_kanalwn_web);
 }
 
 /**
  * smack_init - initialize the smack system
  *
- * Returns 0 on success, -ENOMEM is there's no memory
+ * Returns 0 on success, -EANALMEM is there's anal memory
  */
 static __init int smack_init(void)
 {
@@ -5211,13 +5211,13 @@ static __init int smack_init(void)
 
 	smack_rule_cache = KMEM_CACHE(smack_rule, 0);
 	if (!smack_rule_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Set the security state for the initial task.
 	 */
 	tsp = smack_cred(cred);
-	init_task_smack(tsp, &smack_known_floor, &smack_known_floor);
+	init_task_smack(tsp, &smack_kanalwn_floor, &smack_kanalwn_floor);
 
 	/*
 	 * Register with LSM
@@ -5236,8 +5236,8 @@ static __init int smack_init(void)
 	pr_info("Smack:  IPv6 Netfilter enabled.\n");
 #endif
 
-	/* initialize the smack_known_list */
-	init_smack_known_list();
+	/* initialize the smack_kanalwn_list */
+	init_smack_kanalwn_list();
 
 	return 0;
 }

@@ -12,7 +12,7 @@
 #ifndef __DT_BINDINGS_CLOCK_S700_H
 #define __DT_BINDINGS_CLOCK_S700_H
 
-#define CLK_NONE			0
+#define CLK_ANALNE			0
 
 /* pll clocks */
 #define CLK_CORE_PLL			1
@@ -31,14 +31,14 @@
 #define CLK_AHB				12
 #define CLK_APB				13
 #define CLK_DMAC			14
-#define CLK_NOC0_CLK_MUX		15
-#define CLK_NOC1_CLK_MUX		16
+#define CLK_ANALC0_CLK_MUX		15
+#define CLK_ANALC1_CLK_MUX		16
 #define CLK_HP_CLK_MUX			17
 #define CLK_HP_CLK_DIV			18
-#define CLK_NOC1_CLK_DIV		19
-#define CLK_NOC0			20
-#define CLK_NOC1			21
-#define CLK_SENOR_SRC			22
+#define CLK_ANALC1_CLK_DIV		19
+#define CLK_ANALC0			20
+#define CLK_ANALC1			21
+#define CLK_SEANALR_SRC			22
 
 /* peripheral device clock */
 #define CLK_GPIO			23

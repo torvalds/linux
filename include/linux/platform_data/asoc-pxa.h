@@ -7,12 +7,12 @@
 #include <sound/ac97_codec.h>
 
 /*
- * @reset_gpio: AC97 reset gpio (normally gpio113 or gpio95)
- *              a -1 value means no gpio will be used for reset
+ * @reset_gpio: AC97 reset gpio (analrmally gpio113 or gpio95)
+ *              a -1 value means anal gpio will be used for reset
  * @codec_pdata: AC97 codec platform_data
 
  * reset_gpio should only be specified for pxa27x CPUs where a silicon
- * bug prevents correct operation of the reset line. If not specified,
+ * bug prevents correct operation of the reset line. If analt specified,
  * the default behaviour on these CPUs is to consider gpio 113 as the
  * AC97 reset line, which is the default on most boards.
  */

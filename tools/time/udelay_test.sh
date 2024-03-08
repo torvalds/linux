@@ -52,7 +52,7 @@ done
 # Search for failures
 count=`grep -c FAIL $tmp_file`
 if [ $? -eq "0" ]; then
-	echo "ERROR: $count delays failed to delay long enough"
+	echo "ERROR: $count delays failed to delay long eanalugh"
 	retcode=1
 fi
 

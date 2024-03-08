@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Basic HP/COMPAQ MSA 1000 support. This is only needed if your HW cannot be
+ * Basic HP/COMPAQ MSA 1000 support. This is only needed if your HW cananalt be
  * upgraded.
  *
  * Copyright (C) 2006 Red Hat, Inc.  All rights reserved.
@@ -49,10 +49,10 @@ static int tur_done(struct scsi_device *sdev, struct hp_sw_dh_data *h,
 	case UNIT_ATTENTION:
 		ret = SCSI_DH_IMM_RETRY;
 		break;
-	case NOT_READY:
+	case ANALT_READY:
 		if (sshdr->asc == 0x04 && sshdr->ascq == 2) {
 			/*
-			 * LUN not ready - Initialization command required
+			 * LUN analt ready - Initialization command required
 			 *
 			 * This is the passive path
 			 */
@@ -137,15 +137,15 @@ retry:
 	} else if (res < 0 || !scsi_sense_valid(&sshdr)) {
 		sdev_printk(KERN_WARNING, sdev,
 			    "%s: sending start_stop_unit failed, "
-			    "no sense available\n", HP_SW_NAME);
+			    "anal sense available\n", HP_SW_NAME);
 		return SCSI_DH_IO;
 	}
 
 	switch (sshdr.sense_key) {
-	case NOT_READY:
+	case ANALT_READY:
 		if (sshdr.asc == 0x04 && sshdr.ascq == 3) {
 			/*
-			 * LUN not ready - manual intervention required
+			 * LUN analt ready - manual intervention required
 			 *
 			 * Switch-over in progress, retry.
 			 */
@@ -183,7 +183,7 @@ static blk_status_t hp_sw_prep_fn(struct scsi_device *sdev, struct request *req)
  * @sdev: sdev on the path to be activated
  *
  * The HP Active/Passive firmware is pretty simple;
- * the passive path reports NOT READY with sense codes
+ * the passive path reports ANALT READY with sense codes
  * 0x04/0x02; a START STOP UNIT command will then
  * activate the passive path (and deactivate the
  * previously active one).
@@ -211,7 +211,7 @@ static int hp_sw_bus_attach(struct scsi_device *sdev)
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return SCSI_DH_NOMEM;
+		return SCSI_DH_ANALMEM;
 	h->path_state = HP_SW_PATH_UNINITIALIZED;
 	h->retries = HP_SW_RETRIES;
 	h->sdev = sdev;
@@ -220,7 +220,7 @@ static int hp_sw_bus_attach(struct scsi_device *sdev)
 	if (ret != SCSI_DH_OK)
 		goto failed;
 	if (h->path_state == HP_SW_PATH_UNINITIALIZED) {
-		ret = SCSI_DH_NOSYS;
+		ret = SCSI_DH_ANALSYS;
 		goto failed;
 	}
 

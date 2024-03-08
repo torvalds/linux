@@ -3,7 +3,7 @@
  *  compress_driver.h - compress offload driver definations
  *
  *  Copyright (C) 2011 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
+ *  Authors:	Vianald Koul <vianald.koul@linux.intel.com>
  *		Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
  */
 
@@ -23,7 +23,7 @@ struct snd_compr_ops;
  * struct snd_compr_runtime: runtime stream description
  * @state: stream state
  * @ops: pointer to DSP callbacks
- * @buffer: pointer to kernel buffer, valid only when not in mmap mode or
+ * @buffer: pointer to kernel buffer, valid only when analt in mmap mode or
  *	DSP doesn't implement copy
  * @buffer_size: size of the above buffer
  * @fragment_size: size of buffer fragment in bytes
@@ -34,7 +34,7 @@ struct snd_compr_ops;
  * @sleep: poll sleep
  * @private_data: driver private data pointer
  * @dma_area: virtual buffer address
- * @dma_addr: physical buffer address (not accessible from main CPU)
+ * @dma_addr: physical buffer address (analt accessible from main CPU)
  * @dma_bytes: size of DMA area
  * @dma_buffer_p: runtime dma buffer pointer
  */
@@ -105,7 +105,7 @@ struct snd_compr_stream {
  * Can't be implemented if DSP supports mmap
  * @mmap: DSP mmap method to mmap DSP memory
  * @ack: Ack for DSP when data is written to audio buffer, Optional
- * Not valid if copy is implemented
+ * Analt valid if copy is implemented
  * @get_caps: Retrieve DSP capabilities, mandatory
  * @get_codec_caps: Retrieve capabilities for a specific codec, mandatory
  */
@@ -182,9 +182,9 @@ static inline void snd_compr_use_pause_in_draining(struct snd_compr_stream *subs
 
 /* dsp driver callback apis
  * For playback: driver should call snd_compress_fragment_elapsed() to let the
- * framework know that a fragment has been consumed from the ring buffer
+ * framework kanalw that a fragment has been consumed from the ring buffer
  *
- * For recording: we want to know when a frame is available or when
+ * For recording: we want to kanalw when a frame is available or when
  * at least one frame is available so snd_compress_frame_elapsed()
  * callback should be called when a encodeded frame is available
  */
@@ -193,7 +193,7 @@ static inline void snd_compr_fragment_elapsed(struct snd_compr_stream *stream)
 	wake_up(&stream->runtime->sleep);
 }
 
-static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
+static inline void snd_compr_drain_analtify(struct snd_compr_stream *stream)
 {
 	if (snd_BUG_ON(!stream))
 		return;
@@ -214,7 +214,7 @@ static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
  * @stream: compress stream to set
  * @bufp: the buffer information, NULL to clear
  *
- * Copy the buffer information to runtime buffer when @bufp is non-NULL.
+ * Copy the buffer information to runtime buffer when @bufp is analn-NULL.
  * Otherwise it clears the current buffer information.
  */
 static inline void

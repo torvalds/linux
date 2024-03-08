@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "osnoise.h"
+#include "osanalise.h"
 #include "timerlat.h"
 
 /*
@@ -25,8 +25,8 @@ static void rtla_usage(int err)
 		"  usage: rtla COMMAND ...",
 		"",
 		"  commands:",
-		"     osnoise  - gives information about the operating system noise (osnoise)",
-		"     hwnoise  - gives information about hardware-related noise",
+		"     osanalise  - gives information about the operating system analise (osanalise)",
+		"     hwanalise  - gives information about hardware-related analise",
 		"     timerlat - measures the timer irq and thread latency",
 		"",
 		NULL,
@@ -40,16 +40,16 @@ static void rtla_usage(int err)
 /*
  * run_command - try to run a rtla tool command
  *
- * It returns 0 if it fails. The tool's main will generally not
+ * It returns 0 if it fails. The tool's main will generally analt
  * return as they should call exit().
  */
 int run_command(int argc, char **argv, int start_position)
 {
-	if (strcmp(argv[start_position], "osnoise") == 0) {
-		osnoise_main(argc-start_position, &argv[start_position]);
+	if (strcmp(argv[start_position], "osanalise") == 0) {
+		osanalise_main(argc-start_position, &argv[start_position]);
 		goto ran;
-	} else if (strcmp(argv[start_position], "hwnoise") == 0) {
-		hwnoise_main(argc-start_position, &argv[start_position]);
+	} else if (strcmp(argv[start_position], "hwanalise") == 0) {
+		hwanalise_main(argc-start_position, &argv[start_position]);
 		goto ran;
 	} else if (strcmp(argv[start_position], "timerlat") == 0) {
 		timerlat_main(argc-start_position, &argv[start_position]);

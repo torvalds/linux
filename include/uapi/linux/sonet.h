@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* sonet.h - SONET/SHD physical layer control */
  
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -54,7 +54,7 @@ struct sonet_stats {
 #define SONET_FRAME_SONET 0		/* SONET STS-3 framing */
 #define SONET_FRAME_SDH   1		/* SDH STM-1 framing */
 
-#define SONET_FRSENSE_SIZE 6		/* C1[3],H1[3] (0xff for unknown) */
+#define SONET_FRSENSE_SIZE 6		/* C1[3],H1[3] (0xff for unkanalwn) */
 
 
 

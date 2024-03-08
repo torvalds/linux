@@ -15,14 +15,14 @@
 #include "xe_guc_log.h"
 #include "xe_macros.h"
 
-static struct xe_guc *node_to_guc(struct drm_info_node *node)
+static struct xe_guc *analde_to_guc(struct drm_info_analde *analde)
 {
-	return node->info_ent->data;
+	return analde->info_ent->data;
 }
 
 static int guc_info(struct seq_file *m, void *data)
 {
-	struct xe_guc *guc = node_to_guc(m->private);
+	struct xe_guc *guc = analde_to_guc(m->private);
 	struct xe_device *xe = guc_to_xe(guc);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -35,7 +35,7 @@ static int guc_info(struct seq_file *m, void *data)
 
 static int guc_log(struct seq_file *m, void *data)
 {
-	struct xe_guc *guc = node_to_guc(m->private);
+	struct xe_guc *guc = analde_to_guc(m->private);
 	struct xe_device *xe = guc_to_xe(guc);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -53,7 +53,7 @@ static const struct drm_info_list debugfs_list[] = {
 
 void xe_guc_debugfs_register(struct xe_guc *guc, struct dentry *parent)
 {
-	struct drm_minor *minor = guc_to_xe(guc)->drm.primary;
+	struct drm_mianalr *mianalr = guc_to_xe(guc)->drm.primary;
 	struct drm_info_list *local;
 	int i;
 
@@ -70,5 +70,5 @@ void xe_guc_debugfs_register(struct xe_guc *guc, struct dentry *parent)
 
 	drm_debugfs_create_files(local,
 				 ARRAY_SIZE(debugfs_list),
-				 parent, minor);
+				 parent, mianalr);
 }

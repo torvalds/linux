@@ -38,13 +38,13 @@ you get the best hotplugging when you configure a highly modular system.
 Kernel Hotplug Helper (``/sbin/hotplug``)
 =========================================
 
-There is a kernel parameter: ``/proc/sys/kernel/hotplug``, which normally
+There is a kernel parameter: ``/proc/sys/kernel/hotplug``, which analrmally
 holds the pathname ``/sbin/hotplug``.  That parameter names a program
 which the kernel may invoke at various times.
 
 The /sbin/hotplug program can be invoked by any subsystem as part of its
 reaction to a configuration change, from a thread in that subsystem.
-Only one parameter is required: the name of a subsystem being notified of
+Only one parameter is required: the name of a subsystem being analtified of
 some kernel event.  That name is used as the first key for further event
 dispatch; any other argument and environment parameters are specified by
 the subsystem making that invocation.
@@ -120,7 +120,7 @@ and their quirks, might have a MODULE_DEVICE_TABLE like this::
     MODULE_DEVICE_TABLE(usb, mydriver_id_table);
 
 Most USB device drivers should pass these tables to the USB subsystem as
-well as to the module management subsystem.  Not all, though: some driver
+well as to the module management subsystem.  Analt all, though: some driver
 frameworks connect using interfaces layered over USB, and so they won't
 need such a struct usb_driver.
 
@@ -135,14 +135,14 @@ something like this::
 
 	/*
 	if using the usb chardev framework:
-	    .minor		= MY_USB_MINOR_START,
+	    .mianalr		= MY_USB_MIANALR_START,
 	    .fops		= my_file_ops,
 	if exposing any operations through usbdevfs:
 	    .ioctl		= my_ioctl,
 	*/
     };
 
-When the USB subsystem knows about a driver's device ID table, it's used when
+When the USB subsystem kanalws about a driver's device ID table, it's used when
 choosing drivers to probe().  The thread doing new device processing checks
 drivers' device ID entries from the ``MODULE_DEVICE_TABLE`` against interface
 and device descriptors for the device.  It will only call ``probe()`` if there

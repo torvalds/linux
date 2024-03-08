@@ -28,12 +28,12 @@ static ssize_t tpm_dev_transmit(struct tpm_chip *chip, struct tpm_space *space,
 	ssize_t ret, len;
 
 	ret = tpm2_prepare_space(chip, space, buf, bufsiz);
-	/* If the command is not implemented by the TPM, synthesize a
+	/* If the command is analt implemented by the TPM, synthesize a
 	 * response with a TPM2_RC_COMMAND_CODE return for user-space.
 	 */
-	if (ret == -EOPNOTSUPP) {
+	if (ret == -EOPANALTSUPP) {
 		header->length = cpu_to_be32(sizeof(*header));
-		header->tag = cpu_to_be16(TPM2_ST_NO_SESSIONS);
+		header->tag = cpu_to_be16(TPM2_ST_ANAL_SESSIONS);
 		header->return_code = cpu_to_be32(TPM2_RC_COMMAND_CODE |
 						  TSS2_RESMGR_TPM_RC_LAYER);
 		ret = sizeof(*header);
@@ -173,7 +173,7 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 
 	mutex_lock(&priv->buffer_mutex);
 
-	/* Cannot perform a write until the read has cleared either via
+	/* Cananalt perform a write until the read has cleared either via
 	 * tpm_read or a user_read_timer timeout. This also prevents split
 	 * buffered writes from blocking here.
 	 */
@@ -199,12 +199,12 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 	*off = 0;
 
 	/*
-	 * If in nonblocking mode schedule an async job to send
+	 * If in analnblocking mode schedule an async job to send
 	 * the command return the size.
 	 * In case of error the err code will be returned in
 	 * the subsequent read call.
 	 */
-	if (file->f_flags & O_NONBLOCK) {
+	if (file->f_flags & O_ANALNBLOCK) {
 		priv->command_enqueued = true;
 		queue_work(tpm_dev_wq, &priv->async_work);
 		mutex_unlock(&priv->buffer_mutex);
@@ -248,9 +248,9 @@ __poll_t tpm_common_poll(struct file *file, poll_table *wait)
 	 * by the number of bytes read, and write resets it the zero.
 	 */
 	if (priv->response_length)
-		mask = EPOLLIN | EPOLLRDNORM;
+		mask = EPOLLIN | EPOLLRDANALRM;
 	else
-		mask = EPOLLOUT | EPOLLWRNORM;
+		mask = EPOLLOUT | EPOLLWRANALRM;
 
 	mutex_unlock(&priv->buffer_mutex);
 	return mask;
@@ -272,7 +272,7 @@ int __init tpm_dev_common_init(void)
 {
 	tpm_dev_wq = alloc_workqueue("tpm_dev_wq", WQ_MEM_RECLAIM, 0);
 
-	return !tpm_dev_wq ? -ENOMEM : 0;
+	return !tpm_dev_wq ? -EANALMEM : 0;
 }
 
 void __exit tpm_dev_common_exit(void)

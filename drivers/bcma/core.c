@@ -128,7 +128,7 @@ void bcma_core_pll_ctl(struct bcma_device *core, u32 req, u32 status, bool on)
 	} else {
 		/*
 		 * Mask the PLL but don't wait for it to be disabled. PLL may be
-		 * shared between cores and will be still up if there is another
+		 * shared between cores and will be still up if there is aanalther
 		 * core using it.
 		 */
 		bcma_mask32(core, BCMA_CLKCTLST, ~req);
@@ -148,9 +148,9 @@ u32 bcma_core_dma_translation(struct bcma_device *core)
 		else
 			return BCMA_DMA_TRANSLATION_DMA32_CMT;
 	default:
-		bcma_err(core->bus, "DMA translation unknown for host %d\n",
+		bcma_err(core->bus, "DMA translation unkanalwn for host %d\n",
 			 core->bus->hosttype);
 	}
-	return BCMA_DMA_TRANSLATION_NONE;
+	return BCMA_DMA_TRANSLATION_ANALNE;
 }
 EXPORT_SYMBOL(bcma_core_dma_translation);

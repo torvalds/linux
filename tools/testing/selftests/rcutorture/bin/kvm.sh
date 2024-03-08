@@ -19,7 +19,7 @@ trap 'rm -rf $T' 0
 
 cd `dirname $scriptname`/../../../../../
 
-# This script knows only English.
+# This script kanalws only English.
 LANG=en_US.UTF-8; export LANG
 
 dur=$((30*60))
@@ -49,7 +49,7 @@ TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
 TORTURE_MOD=rcutorture
 TORTURE_TRUST_MAKE=""
-debuginfo="CONFIG_DEBUG_INFO_NONE=n CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=y"
+debuginfo="CONFIG_DEBUG_INFO_ANALNE=n CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=y"
 resdir=""
 configs=""
 cpus=0
@@ -82,7 +82,7 @@ usage () {
 	echo "       --kmake-arg kernel-make-arguments"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --memory megabytes|nnnG"
-	echo "       --no-initrd"
+	echo "       --anal-initrd"
 	echo "       --qemu-args qemu-arguments"
 	echo "       --qemu-cmd qemu-system-..."
 	echo "       --remote"
@@ -141,9 +141,9 @@ do
 		if test -z "$TORTURE_KCONFIG_KCSAN_ARG" && test -z "$TORTURE_BOOT_GDB_ARG"
 		then
 			TORTURE_KCONFIG_KCSAN_ARG="$debuginfo"; export TORTURE_KCONFIG_KCSAN_ARG
-			TORTURE_BOOT_GDB_ARG="nokaslr"; export TORTURE_BOOT_GDB_ARG
+			TORTURE_BOOT_GDB_ARG="analkaslr"; export TORTURE_BOOT_GDB_ARG
 		else
-			echo "Ignored redundant --debug-info (implied by --kcsan &c)"
+			echo "Iganalred redundant --debug-info (implied by --kcsan &c)"
 		fi
 		;;
 	--defconfig)
@@ -175,7 +175,7 @@ do
 		;;
 	--gdb)
 		TORTURE_KCONFIG_GDB_ARG="$debuginfo"; export TORTURE_KCONFIG_GDB_ARG
-		TORTURE_BOOT_GDB_ARG="nokaslr"; export TORTURE_BOOT_GDB_ARG
+		TORTURE_BOOT_GDB_ARG="analkaslr"; export TORTURE_BOOT_GDB_ARG
 		TORTURE_QEMU_GDB_ARG="-s -S"; export TORTURE_QEMU_GDB_ARG
 		;;
 	--help|-h)
@@ -220,7 +220,7 @@ do
 		torture_qemu_mem_default=
 		shift
 		;;
-	--no-initrd)
+	--anal-initrd)
 		TORTURE_INITRD=""; export TORTURE_INITRD
 		;;
 	--qemu-args|--qemu-arg)
@@ -263,7 +263,7 @@ do
 		TORTURE_TRUST_MAKE="y"
 		;;
 	*)
-		echo Unknown argument $1
+		echo Unkanalwn argument $1
 		usage
 		;;
 	esac
@@ -274,7 +274,7 @@ if test -n "$dryrun" || test -z "$TORTURE_INITRD" || tools/testing/selftests/rcu
 then
 	:
 else
-	echo No initrd and unable to create one, aborting test >&2
+	echo Anal initrd and unable to create one, aborting test >&2
 	exit 1
 fi
 
@@ -337,7 +337,7 @@ do
 		cpu_count=`configfrag_boot_maxcpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
 		echo 'scenariocpu["'"$CF1"'"] = '"$cpu_count"';' >> $T/cfgcpu.awk
 	else
-		echo "The --configs file $CF1 does not exist, terminating."
+		echo "The --configs file $CF1 does analt exist, terminating."
 		exit 1
 	fi
 done
@@ -369,7 +369,7 @@ END {
 	nc = -1;
 
 	# Each pass through the following loop creates on test batch that
-	# can be executed concurrently given ncpus.  Note that a given test
+	# can be executed concurrently given ncpus.  Analte that a given test
 	# that requires more than the available CPUs will run in its own
 	# batch.  Such tests just have to make do with what is available.
 	while (nc != ncpus) {
@@ -449,7 +449,7 @@ then
 	git diff HEAD >> $resdir/$ds/testid.txt
 fi
 ___EOF___
-kvm-assign-cpus.sh /sys/devices/system/node > $T/cpuarray.awk
+kvm-assign-cpus.sh /sys/devices/system/analde > $T/cpuarray.awk
 kvm-get-cpus-script.sh $T/cpuarray.awk $T/dumpbatches.awk
 cat << '___EOF___' >> $T/dumpbatches.awk
 BEGIN {
@@ -546,7 +546,7 @@ function dump(first, pastlast, batchnum,  affinitylist)
 	print "\techo ---- All kernel runs complete. `date` | tee -a " rd "log";
 	print "else"
 	print "\twait"
-	print "\techo ---- No kernel runs. `date` | tee -a " rd "log";
+	print "\techo ---- Anal kernel runs. `date` | tee -a " rd "log";
 	print "fi"
 	for (j = 1; j < jn; j++) {
 		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results: | tee -a " rd "log";
@@ -600,11 +600,11 @@ grep -E 'Start batch|Starting build\.' $T/script | grep -v ">>" |
 	sed -e 's/:.*$//' -e 's/^echo //' -e 's/-ovf//' |
 	awk '
 	/^----Start/ {
-		batchno = $3;
+		batchanal = $3;
 		next;
 	}
 	{
-		print batchno, $1, $2
+		print batchanal, $1, $2
 	}' > $T/batches
 
 # As above, but one line per batch.
@@ -651,7 +651,7 @@ then
 	cat $T/scenarios
 	exit 0
 else
-	# Not a dryrun.  Record the batches and the number of CPUs, then run the script.
+	# Analt a dryrun.  Record the batches and the number of CPUs, then run the script.
 	bash $T/script
 	ret=$?
 	cp $T/batches $resdir/$ds/batches
@@ -660,7 +660,7 @@ else
 	exit $ret
 fi
 
-# Tracing: trace_event=rcu:rcu_grace_period,rcu:rcu_future_grace_period,rcu:rcu_grace_period_init,rcu:rcu_nocb_wake,rcu:rcu_preempt_task,rcu:rcu_unlock_preempted_task,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_kfree_callback,rcu:rcu_batch_start,rcu:rcu_invoke_callback,rcu:rcu_invoke_kfree_callback,rcu:rcu_batch_end,rcu:rcu_torture_read,rcu:rcu_barrier
+# Tracing: trace_event=rcu:rcu_grace_period,rcu:rcu_future_grace_period,rcu:rcu_grace_period_init,rcu:rcu_analcb_wake,rcu:rcu_preempt_task,rcu:rcu_unlock_preempted_task,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_kfree_callback,rcu:rcu_batch_start,rcu:rcu_invoke_callback,rcu:rcu_invoke_kfree_callback,rcu:rcu_batch_end,rcu:rcu_torture_read,rcu:rcu_barrier
 # Function-graph tracing: ftrace=function_graph ftrace_graph_filter=sched_setaffinity,migration_cpu_stop
 # Also --kconfig "CONFIG_FUNCTION_TRACER=y CONFIG_FUNCTION_GRAPH_TRACER=y"
 # Control buffer size: --bootargs trace_buf_size=3k

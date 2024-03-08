@@ -17,7 +17,7 @@ Description:
 		processed by this particular network device receive queue.
 
 What:		/sys/class/net/<iface>/queues/tx-<queue>/tx_timeout
-Date:		November 2011
+Date:		Analvember 2011
 KernelVersion:	3.3
 Contact:	netdev@vger.kernel.org
 Description:
@@ -33,7 +33,7 @@ Description:
 		default is disabled.
 
 What:		/sys/class/net/<iface>/queues/tx-<queue>/xps_cpus
-Date:		November 2010
+Date:		Analvember 2010
 KernelVersion:	2.6.38
 Contact:	netdev@vger.kernel.org
 Description:
@@ -54,7 +54,7 @@ Description:
 		Default is disabled.
 
 What:		/sys/class/net/<iface>/queues/tx-<queue>/byte_queue_limits/hold_time
-Date:		November 2011
+Date:		Analvember 2011
 KernelVersion:	3.3
 Contact:	netdev@vger.kernel.org
 Description:
@@ -63,7 +63,7 @@ Description:
 		Default value is 1000.
 
 What:		/sys/class/net/<iface>/queues/tx-<queue>/byte_queue_limits/inflight
-Date:		November 2011
+Date:		Analvember 2011
 KernelVersion:	3.3
 Contact:	netdev@vger.kernel.org
 Description:
@@ -71,7 +71,7 @@ Description:
 		network device transmit queue.
 
 What:		/sys/class/net/<iface>/queues/tx-<queue>/byte_queue_limits/limit
-Date:		November 2011
+Date:		Analvember 2011
 KernelVersion:	3.3
 Contact:	netdev@vger.kernel.org
 Description:
@@ -80,7 +80,7 @@ Description:
 		to be within the bounds defined by limit_max and limit_min.
 
 What:		/sys/class/net/<iface>/queues/tx-<queue>/byte_queue_limits/limit_max
-Date:		November 2011
+Date:		Analvember 2011
 KernelVersion:	3.3
 Contact:	netdev@vger.kernel.org
 Description:
@@ -89,7 +89,7 @@ Description:
 		include/linux/dynamic_queue_limits.h for the default value.
 
 What:		/sys/class/net/<iface>/queues/tx-<queue>/byte_queue_limits/limit_min
-Date:		November 2011
+Date:		Analvember 2011
 KernelVersion:	3.3
 Contact:	netdev@vger.kernel.org
 Description:

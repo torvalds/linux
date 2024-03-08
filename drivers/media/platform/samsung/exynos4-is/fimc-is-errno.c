@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung Exynos4 SoC series FIMC-IS slave interface driver
+ * Samsung Exyanals4 SoC series FIMC-IS slave interface driver
  *
  * Error log interface functions
  *
@@ -10,7 +10,7 @@
  *          Sylwester Nawrocki <s.nawrocki@samsung.com>
  */
 
-#include "fimc-is-errno.h"
+#include "fimc-is-erranal.h"
 
 const char *fimc_is_param_strerr(unsigned int error)
 {
@@ -28,11 +28,11 @@ const char *fimc_is_param_strerr(unsigned int error)
 	case ERROR_COMMON_INPUT_PATH:
 		return "ERROR_COMMON_INPUT_PATH: Input path can be changed in ready state";
 	case ERROR_COMMON_INPUT_INIT:
-		return "ERROR_COMMON_INPUT_INIT: IP can not start if input path is not set";
+		return "ERROR_COMMON_INPUT_INIT: IP can analt start if input path is analt set";
 	case ERROR_COMMON_OUTPUT_PATH:
 		return "ERROR_COMMON_OUTPUT_PATH: Output path can be changed in ready state (stop)";
 	case ERROR_COMMON_OUTPUT_INIT:
-		return "ERROR_COMMON_OUTPUT_INIT: IP can not start if output path is not set";
+		return "ERROR_COMMON_OUTPUT_INIT: IP can analt start if output path is analt set";
 	case ERROR_CONTROL_BYPASS:
 		return "ERROR_CONTROL_BYPASS";
 	case ERROR_OTF_INPUT_FORMAT:
@@ -52,7 +52,7 @@ const char *fimc_is_param_strerr(unsigned int error)
 	case ERROR_DMA_INPUT_BIT_WIDTH:
 		return "ERROR_DMA_INPUT_BIT_WIDTH: Invalid bit-width (DRC: 8~12bits, FD: 8bit)";
 	case ERROR_DMA_INPUT_ORDER:
-		return "ERROR_DMA_INPUT_ORDER: Invalid order(DRC: YYCbCr,YCbYCr,FD:NO,YYCbCr,YCbYCr,CbCr,CrCb)";
+		return "ERROR_DMA_INPUT_ORDER: Invalid order(DRC: YYCbCr,YCbYCr,FD:ANAL,YYCbCr,YCbYCr,CbCr,CrCb)";
 	case ERROR_DMA_INPUT_PLANE:
 		return "ERROR_DMA_INPUT_PLANE: Invalid plane (DRC: 3, FD: 1, 2, 3)";
 	case ERROR_OTF_OUTPUT_WIDTH:
@@ -124,8 +124,8 @@ const char *fimc_is_param_strerr(unsigned int error)
 		return "ERROR_FD_CONFIG_SMILE_MODE_INVALID";
 	case ERROR_FD_CONFIG_BLINK_MODE_INVALID:
 		return "ERROR_FD_CONFIG_BLINK_MODE_INVALID";
-	case ERROR_FD_CONFIG_EYES_DETECT_INVALID:
-		return "ERROR_FD_CONFIG_EYES_DETECT_INVALID";
+	case ERROR_FD_CONFIG_EANAL_DETECT_INVALID:
+		return "ERROR_FD_CONFIG_EANAL_DETECT_INVALID";
 	case ERROR_FD_CONFIG_MOUTH_DETECT_INVALID:
 		return "ERROR_FD_CONFIG_MOUTH_DETECT_INVALID";
 	case ERROR_FD_CONFIG_ORIENTATION_STATE:
@@ -139,7 +139,7 @@ const char *fimc_is_param_strerr(unsigned int error)
 	case ERROR_FD_MODE:
 		return "ERROR_FD_MODE";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -173,24 +173,24 @@ const char *fimc_is_strerr(unsigned int error)
 		return "IS_ERROR_OPEN_SENSOR_FAIL";
 	case IS_ERROR_ENTRY_MSG_THREAD_DOWN:
 		return "IS_ERROR_ENTRY_MSG_THREAD_DOWN";
-	case IS_ERROR_ISP_FRAME_END_NOT_DONE:
-		return "IS_ERROR_ISP_FRAME_END_NOT_DONE";
-	case IS_ERROR_DRC_FRAME_END_NOT_DONE:
-		return "IS_ERROR_DRC_FRAME_END_NOT_DONE";
-	case IS_ERROR_SCALERC_FRAME_END_NOT_DONE:
-		return "IS_ERROR_SCALERC_FRAME_END_NOT_DONE";
-	case IS_ERROR_ODC_FRAME_END_NOT_DONE:
-		return "IS_ERROR_ODC_FRAME_END_NOT_DONE";
-	case IS_ERROR_DIS_FRAME_END_NOT_DONE:
-		return "IS_ERROR_DIS_FRAME_END_NOT_DONE";
-	case IS_ERROR_TDNR_FRAME_END_NOT_DONE:
-		return "IS_ERROR_TDNR_FRAME_END_NOT_DONE";
-	case IS_ERROR_SCALERP_FRAME_END_NOT_DONE:
-		return "IS_ERROR_SCALERP_FRAME_END_NOT_DONE";
-	case IS_ERROR_WAIT_STREAM_OFF_NOT_DONE:
-		return "IS_ERROR_WAIT_STREAM_OFF_NOT_DONE";
-	case IS_ERROR_NO_MSG_IS_RECEIVED:
-		return "IS_ERROR_NO_MSG_IS_RECEIVED";
+	case IS_ERROR_ISP_FRAME_END_ANALT_DONE:
+		return "IS_ERROR_ISP_FRAME_END_ANALT_DONE";
+	case IS_ERROR_DRC_FRAME_END_ANALT_DONE:
+		return "IS_ERROR_DRC_FRAME_END_ANALT_DONE";
+	case IS_ERROR_SCALERC_FRAME_END_ANALT_DONE:
+		return "IS_ERROR_SCALERC_FRAME_END_ANALT_DONE";
+	case IS_ERROR_ODC_FRAME_END_ANALT_DONE:
+		return "IS_ERROR_ODC_FRAME_END_ANALT_DONE";
+	case IS_ERROR_DIS_FRAME_END_ANALT_DONE:
+		return "IS_ERROR_DIS_FRAME_END_ANALT_DONE";
+	case IS_ERROR_TDNR_FRAME_END_ANALT_DONE:
+		return "IS_ERROR_TDNR_FRAME_END_ANALT_DONE";
+	case IS_ERROR_SCALERP_FRAME_END_ANALT_DONE:
+		return "IS_ERROR_SCALERP_FRAME_END_ANALT_DONE";
+	case IS_ERROR_WAIT_STREAM_OFF_ANALT_DONE:
+		return "IS_ERROR_WAIT_STREAM_OFF_ANALT_DONE";
+	case IS_ERROR_ANAL_MSG_IS_RECEIVED:
+		return "IS_ERROR_ANAL_MSG_IS_RECEIVED";
 	case IS_ERROR_SENSOR_MSG_FAIL:
 		return "IS_ERROR_SENSOR_MSG_FAIL";
 	case IS_ERROR_ISP_MSG_FAIL:
@@ -199,8 +199,8 @@ const char *fimc_is_strerr(unsigned int error)
 		return "IS_ERROR_DRC_MSG_FAIL";
 	case IS_ERROR_LHFD_MSG_FAIL:
 		return "IS_ERROR_LHFD_MSG_FAIL";
-	case IS_ERROR_UNKNOWN:
-		return "IS_ERROR_UNKNOWN";
+	case IS_ERROR_UNKANALWN:
+		return "IS_ERROR_UNKANALWN";
 
 	/* Sensor */
 	case IS_ERROR_SENSOR_PWRDN_FAIL:
@@ -215,8 +215,8 @@ const char *fimc_is_strerr(unsigned int error)
 		return "IS_ERROR_ISP_ABSENT_INPUT";
 	case IS_ERROR_ISP_ABSENT_OUTPUT:
 		return "IS_ERROR_ISP_ABSENT_OUTPUT";
-	case IS_ERROR_ISP_NONADJACENT_OUTPUT:
-		return "IS_ERROR_ISP_NONADJACENT_OUTPUT";
+	case IS_ERROR_ISP_ANALNADJACENT_OUTPUT:
+		return "IS_ERROR_ISP_ANALNADJACENT_OUTPUT";
 	case IS_ERROR_ISP_FORMAT_MISMATCH:
 		return "IS_ERROR_ISP_FORMAT_MISMATCH";
 	case IS_ERROR_ISP_WIDTH_MISMATCH:
@@ -235,12 +235,12 @@ const char *fimc_is_strerr(unsigned int error)
 		return "IS_ERROR_DRC_MULTIPLE_INPUT";
 	case IS_ERROR_DRC_ABSENT_INPUT:
 		return "IS_ERROR_DRC_ABSENT_INPUT";
-	case IS_ERROR_DRC_NONADJACENT_INPUT:
-		return "IS_ERROR_DRC_NONADJACENT_INPUT";
+	case IS_ERROR_DRC_ANALNADJACENT_INPUT:
+		return "IS_ERROR_DRC_ANALNADJACENT_INPUT";
 	case IS_ERROR_DRC_ABSENT_OUTPUT:
 		return "IS_ERROR_DRC_ABSENT_OUTPUT";
-	case IS_ERROR_DRC_NONADJACENT_OUTPUT:
-		return "IS_ERROR_DRC_NONADJACENT_OUTPUT";
+	case IS_ERROR_DRC_ANALNADJACENT_OUTPUT:
+		return "IS_ERROR_DRC_ANALNADJACENT_OUTPUT";
 	case IS_ERROR_DRC_FORMAT_MISMATCH:
 		return "IS_ERROR_DRC_FORMAT_MISMATCH";
 	case IS_ERROR_DRC_WIDTH_MISMATCH:
@@ -259,11 +259,11 @@ const char *fimc_is_strerr(unsigned int error)
 		return "IS_ERROR_FD_MULTIPLE_INPUT";
 	case IS_ERROR_FD_ABSENT_INPUT:
 		return "IS_ERROR_FD_ABSENT_INPUT";
-	case IS_ERROR_FD_NONADJACENT_INPUT:
-		return "IS_ERROR_FD_NONADJACENT_INPUT";
+	case IS_ERROR_FD_ANALNADJACENT_INPUT:
+		return "IS_ERROR_FD_ANALNADJACENT_INPUT";
 	case IS_ERROR_LHFD_FRAME_END_TIME_OUT:
 		return "IS_ERROR_LHFD_FRAME_END_TIME_OUT";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }

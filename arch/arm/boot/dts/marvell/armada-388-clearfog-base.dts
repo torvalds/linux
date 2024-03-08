@@ -46,7 +46,7 @@
 	pinctrl-0 = <&mdio_pins &microsom_phy_clk_pins &clearfog_phy_pins>;
 	phy1: ethernet-phy@1 {
 		/*
-		 * Annoyingly, the marvell phy driver configures the LED
+		 * Ananalyingly, the marvell phy driver configures the LED
 		 * register, rather than preserving reset-loaded setting.
 		 * We undo that rubbish here.
 		 */

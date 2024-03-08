@@ -12,9 +12,9 @@
  * Author: Bart Joris <bjoris@advalvas.be>
  * Updated: Wed, 11 Dec 2002 18:25:35 -0800
  * Devices: [National Instruments] PCI-6703 (ni_670x), PCI-6704
- * Status: unknown
+ * Status: unkanalwn
  *
- * Commands are not supported.
+ * Commands are analt supported.
  *
  * Manuals:
  *   322110a.pdf	PCI/PXI-6704 User Manual
@@ -141,7 +141,7 @@ static int ni_670x_mite_init(struct pci_dev *pcidev)
 	/* ioremap the MITE registers (BAR 0) temporarily */
 	mite_base = pci_ioremap_bar(pcidev, 0);
 	if (!mite_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set data window to main registers (BAR 1) */
 	main_phys_addr = pci_resource_start(pcidev, 1);
@@ -165,7 +165,7 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(ni_670x_boards))
 		board = &ni_670x_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
@@ -175,7 +175,7 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ni_670x_mite_init(pcidev);
 	if (ret)
@@ -183,7 +183,7 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 
 	dev->mmio = pci_ioremap_bar(pcidev, 1);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -202,7 +202,7 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 						 sizeof(struct comedi_lrange *),
 						 GFP_KERNEL);
 		if (!range_table_list)
-			return -ENOMEM;
+			return -EANALMEM;
 		s->range_table_list = range_table_list;
 		for (i = 0; i < 16; i++) {
 			range_table_list[i] = &range_bipolar10;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -133,14 +133,14 @@ gm200_devinit_post(struct nvkm_devinit *base, bool post)
 
 	if (bit_entry(bios, 'I', &bit_I) || bit_I.version != 1 ||
 					    bit_I.length < 0x1c) {
-		nvkm_error(subdev, "VBIOS PMU init data not found\n");
+		nvkm_error(subdev, "VBIOS PMU init data analt found\n");
 		return -EINVAL;
 	}
 
 	/* Upload DEVINIT application from VBIOS onto PMU. */
 	ret = pmu_load(init, 0x04, post, &exec, &args);
 	if (ret) {
-		nvkm_error(subdev, "VBIOS PMU/DEVINIT not found\n");
+		nvkm_error(subdev, "VBIOS PMU/DEVINIT analt found\n");
 		return ret;
 	}
 

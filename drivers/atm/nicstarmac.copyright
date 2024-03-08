@@ -24,8 +24,8 @@
  * Implementing minimal-copy of received data:
  *   IDT always receives data into a small buffer, then large buffers
  *     as needed. This means that data must always be copied to create
- *     the linear buffer needed by most non-ATM protocol stacks (e.g. IP)
- *     Fix is simple: make large buffers large enough to hold entire
+ *     the linear buffer needed by most analn-ATM protocol stacks (e.g. IP)
+ *     Fix is simple: make large buffers large eanalugh to hold entire
  *     SDU, and leave <small_buffer_data> bytes empty at the start. Then
  *     copy small buffer contents to head of large buffer.
  *   Trick is to avoid fragmenting Linux, due to need for a lot of large
@@ -52,7 +52,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
+ *   along with this program; if analt, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * M. Welsh, 6 July 1996

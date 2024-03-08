@@ -79,7 +79,7 @@ Greg给出了一个拉取请求的例子::
 	Char/Misc patches for 4.15-rc1
 
 	Here is the big char/misc patch set for the 4.15-rc1 merge window.
-	Contained in here is the normal set of new functions added to all
+	Contained in here is the analrmal set of new functions added to all
 	of these crazy drivers, as well as the following brand new
 	subsystems:
 		- time_travel_controller: Finally a set of drivers for the
@@ -93,7 +93,7 @@ Greg给出了一个拉取请求的例子::
 		  threaten to suck CPUs into them.  This subsystem handles
 		  this in a way to successfully neutralize the problems.
 		  There is a Kconfig option to force these to be enabled
-		  when needed, so problems should not occur.
+		  when needed, so problems should analt occur.
 
 	All of these patches have been successfully tested in the latest
 	linux-next releases, and the original problems that it found have

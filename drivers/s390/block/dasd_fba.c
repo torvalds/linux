@@ -71,7 +71,7 @@ static struct ccw_driver dasd_fba_driver = {
 	.remove      = dasd_generic_remove,
 	.set_offline = dasd_generic_set_offline,
 	.set_online  = dasd_fba_set_online,
-	.notify      = dasd_generic_notify,
+	.analtify      = dasd_generic_analtify,
 	.path_event  = dasd_generic_path_event,
 	.int_class   = IRQIO_DAS,
 };
@@ -129,7 +129,7 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 			dev_warn(&device->cdev->dev,
 				 "Allocating memory for private DASD "
 				 "data failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		device->private = private;
 	} else {
@@ -137,7 +137,7 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	}
 	block = dasd_alloc_block();
 	if (IS_ERR(block)) {
-		DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s", "could not allocate "
+		DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s", "could analt allocate "
 				"dasd block structure");
 		device->private = NULL;
 		kfree(private);
@@ -191,7 +191,7 @@ static int dasd_fba_do_analysis(struct dasd_block *block)
 
 	rc = dasd_check_blocksize(private->rdc_data.blk_size);
 	if (rc) {
-		DBF_DEV_EVENT(DBF_WARNING, block->base, "unknown blocksize %d",
+		DBF_DEV_EVENT(DBF_WARNING, block->base, "unkanalwn blocksize %d",
 			    private->rdc_data.blk_size);
 		return rc;
 	}
@@ -226,7 +226,7 @@ dasd_fba_erp_postaction(struct dasd_ccw_req * cqr)
 	if (cqr->function == dasd_default_erp_action)
 		return dasd_default_erp_postaction;
 
-	DBF_DEV_EVENT(DBF_WARNING, cqr->startdev, "unknown ERP action %p",
+	DBF_DEV_EVENT(DBF_WARNING, cqr->startdev, "unkanalwn ERP action %p",
 		    cqr->function);
 	return NULL;
 }
@@ -245,9 +245,9 @@ static void dasd_fba_check_for_device_change(struct dasd_device *device,
 
 
 /*
- * Builds a CCW with no data payload
+ * Builds a CCW with anal data payload
  */
-static void ccw_write_no_data(struct ccw1 *ccw)
+static void ccw_write_anal_data(struct ccw1 *ccw)
 {
 	ccw->cmd_code = DASD_FBA_CCW_WRITE;
 	ccw->flags |= CCW_FLAG_SLI;
@@ -306,9 +306,9 @@ static int count_ccws(sector_t first_rec, sector_t last_rec,
  * This function builds a CCW request for block layer discard requests.
  * Each page in the z/VM hypervisor that represents certain records of an FBA
  * device will be padded with zeros. This is a special behaviour of the WRITE
- * command which is triggered when no data payload is added to the CCW.
+ * command which is triggered when anal data payload is added to the CCW.
  *
- * Note: Due to issues in some z/VM versions, we can't fully utilise this
+ * Analte: Due to issues in some z/VM versions, we can't fully utilise this
  * special behaviour. We have to keep a 4k (or 8 block) alignment in mind to
  * work around those issues and write actual zeroes to the unaligned parts in
  * the request. This workaround might be removed in the future.
@@ -358,7 +358,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_discard(
 	define_extent(ccw++, cqr->data, WRITE, blksize, first_rec, count);
 	LO_data = cqr->data + sizeof(struct DE_fba_data);
 
-	/* First part is not aligned. Calculate range to write zeroes. */
+	/* First part is analt aligned. Calculate range to write zeroes. */
 	if (first_rec % blocks_per_page != 0) {
 		wz_stop = first_rec + blocks_per_page -
 			(first_rec % blocks_per_page) - 1;
@@ -390,7 +390,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_discard(
 		locate_record(ccw++, LO_data++, WRITE, cur_pos, d_count);
 
 		ccw[-1].flags |= CCW_FLAG_CC;
-		ccw_write_no_data(ccw++);
+		ccw_write_anal_data(ccw++);
 
 		cur_pos += d_count;
 	}
@@ -411,7 +411,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_discard(
 		ccw_write_zero(ccw++, wz_count * blksize);
 	}
 
-	if (blk_noretry_request(req) ||
+	if (blk_analretry_request(req) ||
 	    block->base->features & DASD_FEATURE_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 
@@ -466,7 +466,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 		if (idal_is_needed (page_address(bv.bv_page), bv.bv_len))
 			cidaw += bv.bv_len / blksize;
 	}
-	/* Paranoia. */
+	/* Paraanalia. */
 	if (count != last_rec - first_rec + 1)
 		return ERR_PTR(-EINVAL);
 	/* 1x define extent + 1x locate record + number of blocks */
@@ -504,7 +504,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 		dst = bvec_virt(&bv);
 		if (dasd_page_cache) {
 			char *copy = kmem_cache_alloc(dasd_page_cache,
-						      GFP_DMA | __GFP_NOWARN);
+						      GFP_DMA | __GFP_ANALWARN);
 			if (copy && rq_data_dir(req) == WRITE)
 				memcpy(copy + bv.bv_offset, dst, bv.bv_len);
 			if (copy)
@@ -540,7 +540,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 			recid++;
 		}
 	}
-	if (blk_noretry_request(req) ||
+	if (blk_analretry_request(req) ||
 	    block->base->features & DASD_FEATURE_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->startdev = memdev;
@@ -651,7 +651,7 @@ dasd_fba_dump_sense_dbf(struct dasd_device *device, struct irb *irb,
 			      sense[2], sense[3]);
 	} else {
 		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
-			      "SORRY - NO VALID SENSE AVAILABLE\n");
+			      "SORRY - ANAL VALID SENSE AVAILABLE\n");
 	}
 }
 
@@ -667,7 +667,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 	page = (char *) get_zeroed_page(GFP_ATOMIC);
 	if (page == NULL) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			    "No memory to dump sense data");
+			    "Anal memory to dump sense data");
 		return;
 	}
 	len = sprintf(page, PRINTK_HEADER
@@ -694,7 +694,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		}
 	} else {
 		len += sprintf(page + len, PRINTK_HEADER
-			       " SORRY - NO VALID SENSE AVAILABLE\n");
+			       " SORRY - ANAL VALID SENSE AVAILABLE\n");
 	}
 	printk(KERN_ERR "%s", page);
 
@@ -772,7 +772,7 @@ static void dasd_fba_setup_blk_queue(struct dasd_block *block)
 	int max;
 
 	max = DASD_FBA_MAX_BLOCKS << block->s2b_shift;
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, q);
 	q->limits.max_dev_sectors = max;
 	blk_queue_logical_block_size(q, logical_block_size);
 	blk_queue_max_hw_sectors(q, max);
@@ -829,7 +829,7 @@ dasd_fba_init(void)
 
 	dasd_fba_zero_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!dasd_fba_zero_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ccw_driver_register(&dasd_fba_driver);
 	if (!ret)

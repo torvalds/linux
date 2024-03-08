@@ -2,7 +2,7 @@
 /*
  * Helper module for board specific I2C bus registration
  *
- * Copyright (C) 2009 Nokia Corporation.
+ * Copyright (C) 2009 Analkia Corporation.
  */
 
 #ifndef __MACH_OMAP2_I2C_H

@@ -4,16 +4,16 @@
  *
  * Minimal OCP bus support for omap16xx
  *
- * Copyright (C) 2003 - 2005 Nokia Corporation
+ * Copyright (C) 2003 - 2005 Analkia Corporation
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Written by Tony Lindgren <tony@atomide.com>
  *
- * Modified for clock framework by Paul Mundt <paul.mundt@nokia.com>.
+ * Modified for clock framework by Paul Mundt <paul.mundt@analkia.com>.
  */
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -48,7 +48,7 @@ int ocpi_enable(void)
 	unsigned int val;
 
 	if (!cpu_is_omap16xx())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Enable access for OHCI in OCPI */
 	val = omap_readl(OCPI_PROT);
@@ -67,7 +67,7 @@ EXPORT_SYMBOL(ocpi_enable);
 static int __init omap_ocpi_init(void)
 {
 	if (!cpu_is_omap16xx())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ocpi_ck = clk_get(NULL, "l3_ocpi_ck");
 	if (IS_ERR(ocpi_ck))

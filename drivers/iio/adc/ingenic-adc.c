@@ -319,8 +319,8 @@ static int jz4725b_adc_init_clk_div(struct device *dev, struct ingenic_adc *adc)
 
 	parent_clk = clk_get_parent(adc->clk);
 	if (!parent_clk) {
-		dev_err(dev, "ADC clock has no parent\n");
-		return -ENODEV;
+		dev_err(dev, "ADC clock has anal parent\n");
+		return -EANALDEV;
 	}
 	parent_rate = clk_get_rate(parent_clk);
 
@@ -333,7 +333,7 @@ static int jz4725b_adc_init_clk_div(struct device *dev, struct ingenic_adc *adc)
 	div_main = clamp(div_main, 1u, 64u);
 	rate = parent_rate / div_main;
 	if (rate < 500000 || rate > 8000000) {
-		dev_err(dev, "No valid divider for ADC main clock\n");
+		dev_err(dev, "Anal valid divider for ADC main clock\n");
 		return -EINVAL;
 	}
 
@@ -355,8 +355,8 @@ static int jz4770_adc_init_clk_div(struct device *dev, struct ingenic_adc *adc)
 
 	parent_clk = clk_get_parent(adc->clk);
 	if (!parent_clk) {
-		dev_err(dev, "ADC clock has no parent\n");
-		return -ENODEV;
+		dev_err(dev, "ADC clock has anal parent\n");
+		return -EANALDEV;
 	}
 	parent_rate = clk_get_rate(parent_clk);
 
@@ -368,13 +368,13 @@ static int jz4770_adc_init_clk_div(struct device *dev, struct ingenic_adc *adc)
 	div_main = clamp(div_main, 1u, 256u);
 	rate = parent_rate / div_main;
 	if (rate < 20000 || rate > 200000) {
-		dev_err(dev, "No valid divider for ADC main clock\n");
+		dev_err(dev, "Anal valid divider for ADC main clock\n");
 		return -EINVAL;
 	}
 
 	/* We also need a divider that produces a 10us clock. */
 	div_10us = DIV_ROUND_UP(rate, 10000);
-	/* And another, which produces a 1ms clock. */
+	/* And aanalther, which produces a 1ms clock. */
 	div_ms = DIV_ROUND_UP(rate, 1000);
 
 	writel(((div_ms - 1) << JZ4770_ADC_REG_ADCLK_CLKDIVMS_LSB) |
@@ -572,7 +572,7 @@ static const struct ingenic_adc_soc_data jz4740_adc_soc_data = {
 	.has_aux_md = false,
 	.channels = jz4740_channels,
 	.num_channels = ARRAY_SIZE(jz4740_channels),
-	.init_clk_div = NULL, /* no ADCLK register on JZ4740 */
+	.init_clk_div = NULL, /* anal ADCLK register on JZ4740 */
 };
 
 static const struct ingenic_adc_soc_data jz4760_adc_soc_data = {
@@ -642,7 +642,7 @@ static int ingenic_adc_read_chan_info_raw(struct iio_dev *iio_dev,
 		return ret;
 	}
 
-	/* We cannot sample the aux channels in parallel. */
+	/* We cananalt sample the aux channels in parallel. */
 	mutex_lock(&adc->aux_lock);
 	if (adc->soc_data->has_aux_md && engine == 0) {
 		switch (chan->channel) {
@@ -719,8 +719,8 @@ static int ingenic_adc_read_raw(struct iio_dev *iio_dev,
 	}
 }
 
-static int ingenic_adc_fwnode_xlate(struct iio_dev *iio_dev,
-				    const struct fwnode_reference_args *iiospec)
+static int ingenic_adc_fwanalde_xlate(struct iio_dev *iio_dev,
+				    const struct fwanalde_reference_args *iiospec)
 {
 	int i;
 
@@ -738,7 +738,7 @@ static const struct iio_info ingenic_adc_info = {
 	.write_raw = ingenic_adc_write_raw,
 	.read_raw = ingenic_adc_read_raw,
 	.read_avail = ingenic_adc_read_avail,
-	.fwnode_xlate = ingenic_adc_fwnode_xlate,
+	.fwanalde_xlate = ingenic_adc_fwanalde_xlate,
 };
 
 static int ingenic_adc_buffer_enable(struct iio_dev *iio_dev)
@@ -831,7 +831,7 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 
 	iio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!iio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(iio_dev);
 	mutex_init(&adc->lock);
@@ -874,7 +874,7 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Put hardware in a known passive state. */
+	/* Put hardware in a kanalwn passive state. */
 	writeb(0x00, adc->base + JZ_ADC_REG_ENABLE);
 	writeb(0xff, adc->base + JZ_ADC_REG_CTRL);
 

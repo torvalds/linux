@@ -232,7 +232,7 @@ void cnf10kb_mcs_bbe_intr_handler(struct mcs *mcs, u64 intr,
 		if (!(intr & BIT_ULL(i)))
 			continue;
 
-		/* Lower nibble denotes data fifo overflow interrupts and
+		/* Lower nibble deanaltes data fifo overflow interrupts and
 		 * upper nibble indicates policy fifo overflow interrupts.
 		 */
 		if (intr & 0xFULL)
@@ -244,7 +244,7 @@ void cnf10kb_mcs_bbe_intr_handler(struct mcs *mcs, u64 intr,
 					  MCS_BBE_RX_PLFIFO_OVERFLOW_INT :
 					  MCS_BBE_TX_PLFIFO_OVERFLOW_INT;
 
-		/* Notify the lmac_id info which ran into BBE fatal error */
+		/* Analtify the lmac_id info which ran into BBE fatal error */
 		event.lmac_id = i & 0x3ULL;
 		mcs_add_intr_wq_entry(mcs, &event);
 	}
@@ -270,7 +270,7 @@ void cnf10kb_mcs_pab_intr_handler(struct mcs *mcs, u64 intr,
 				  MCS_PAB_RX_CHAN_OVERFLOW_INT :
 				  MCS_PAB_TX_CHAN_OVERFLOW_INT;
 
-		/* Notify the lmac_id info which ran into PAB fatal error */
+		/* Analtify the lmac_id info which ran into PAB fatal error */
 		event.lmac_id = i;
 		mcs_add_intr_wq_entry(mcs, &event);
 	}

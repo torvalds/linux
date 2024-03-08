@@ -152,20 +152,20 @@ Description:
 		Indicates the current network interface state.
 Users:
 
-What:		/sys/class/most/mostcore/devices/<mdev>/dci/node_address
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/analde_address
 Date:		June 2016
 KernelVersion:	4.9
 Contact:	Christian Gromm <christian.gromm@microchip.com>
 Description:
-		Indicates the current node address.
+		Indicates the current analde address.
 Users:
 
-What:		/sys/class/most/mostcore/devices/<mdev>/dci/node_position
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/analde_position
 Date:		June 2016
 KernelVersion:	4.9
 Contact:	Christian Gromm <christian.gromm@microchip.com>
 Description:
-		Indicates the current node position.
+		Indicates the current analde position.
 Users:
 
 What:		/sys/class/most/mostcore/devices/<mdev>/dci/packet_bandwidth

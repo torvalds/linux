@@ -86,7 +86,7 @@ static void vx_write_one_cbit(struct vx_core *chip, int index, int val)
  * vx_read_uer_status - read the current UER status
  * @mode: pointer to store the UER mode, VX_UER_MODE_XXX
  *
- * returns the frequency of UER, or 0 if not sync,
+ * returns the frequency of UER, or 0 if analt sync,
  * or a negative error code.
  */
 static int vx_read_uer_status(struct vx_core *chip, unsigned int *mode)
@@ -122,7 +122,7 @@ static int vx_read_uer_status(struct vx_core *chip, unsigned int *mode)
 		*mode = vx_read_one_cbit(chip, 0) ?
 			VX_UER_MODE_PROFESSIONAL : VX_UER_MODE_CONSUMER;
 	else
-		*mode = VX_UER_MODE_NOT_PRESENT;
+		*mode = VX_UER_MODE_ANALT_PRESENT;
 
 	return freq;
 }

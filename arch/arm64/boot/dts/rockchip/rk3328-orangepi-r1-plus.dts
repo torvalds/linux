@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Based on rk3328-nanopi-r2s.dts, which is:
+ * Based on rk3328-naanalpi-r2s.dts, which is:
  *   Copyright (c) 2020 David Bauer <mail@david-bauer.net>
  */
 
@@ -276,21 +276,21 @@
 
 	leds {
 		lan_led_pin: lan-led-pin {
-			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		sys_led_pin: sys-led-pin {
-			rockchip,pins = <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wan_led_pin: wan-led-pin {
-			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	lan {
 		lan_vdd_pin: lan-vdd-pin {
-			rockchip,pins = <2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -319,7 +319,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 	};

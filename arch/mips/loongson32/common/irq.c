@@ -94,7 +94,7 @@ static int ls1x_irq_settype(struct irq_data *d, unsigned int type)
 		__raw_writel(__raw_readl(LS1X_INTC_INTEDGE(n))
 			| (1 << bit), LS1X_INTC_INTEDGE(n));
 		break;
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		break;
 	default:
 		return -EINVAL;
@@ -170,16 +170,16 @@ static void __init ls1x_irq_init(int base)
 					 handle_level_irq);
 	}
 
-	if (request_irq(INT0_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+	if (request_irq(INT0_IRQ, anal_action, IRQF_ANAL_THREAD, "cascade", NULL))
 		pr_err("Failed to request irq %d (cascade)\n", INT0_IRQ);
-	if (request_irq(INT1_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+	if (request_irq(INT1_IRQ, anal_action, IRQF_ANAL_THREAD, "cascade", NULL))
 		pr_err("Failed to request irq %d (cascade)\n", INT1_IRQ);
-	if (request_irq(INT2_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+	if (request_irq(INT2_IRQ, anal_action, IRQF_ANAL_THREAD, "cascade", NULL))
 		pr_err("Failed to request irq %d (cascade)\n", INT2_IRQ);
-	if (request_irq(INT3_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+	if (request_irq(INT3_IRQ, anal_action, IRQF_ANAL_THREAD, "cascade", NULL))
 		pr_err("Failed to request irq %d (cascade)\n", INT3_IRQ);
 #if defined(CONFIG_LOONGSON1_LS1C)
-	if (request_irq(INT4_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+	if (request_irq(INT4_IRQ, anal_action, IRQF_ANAL_THREAD, "cascade", NULL))
 		pr_err("Failed to request irq %d (cascade)\n", INT4_IRQ);
 #endif
 }

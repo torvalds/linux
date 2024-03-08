@@ -18,12 +18,12 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe,
 
 	for (idx = ARRAY_SIZE(auprobe->insn) - 1; idx >= 0; idx--) {
 		insn.word = auprobe->insn[idx];
-		if (insns_not_supported(insn))
+		if (insns_analt_supported(insn))
 			return -EINVAL;
 	}
 
 	if (insns_need_simulation(insn)) {
-		auprobe->ixol[0] = larch_insn_gen_nop();
+		auprobe->ixol[0] = larch_insn_gen_analp();
 		auprobe->simulate = true;
 	} else {
 		auprobe->ixol[0] = auprobe->insn[0];
@@ -114,15 +114,15 @@ bool arch_uretprobe_is_alive(struct return_instance *ret,
 		return regs->regs[3] < ret->stack;
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_analtify(struct analtifier_block *self,
 				 unsigned long val, void *data)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 bool uprobe_breakpoint_handler(struct pt_regs *regs)
 {
-	if (uprobe_pre_sstep_notifier(regs))
+	if (uprobe_pre_sstep_analtifier(regs))
 		return true;
 
 	return false;
@@ -130,7 +130,7 @@ bool uprobe_breakpoint_handler(struct pt_regs *regs)
 
 bool uprobe_singlestep_handler(struct pt_regs *regs)
 {
-	if (uprobe_post_sstep_notifier(regs))
+	if (uprobe_post_sstep_analtifier(regs))
 		return true;
 
 	return false;

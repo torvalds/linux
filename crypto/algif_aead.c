@@ -2,7 +2,7 @@
 /*
  * algif_aead: User-space interface for AEAD algorithms
  *
- * Copyright (C) 2014, Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2014, Stephan Mueller <smueller@chroanalx.de>
  *
  * This file provides the user-space API for AEAD ciphers.
  *
@@ -10,7 +10,7 @@
  *
  * The kernel maintains two SGLs, the TX SGL and the RX SGL. The TX SGL is
  * filled by user space with the data submitted via sendmsg (maybe with
- * MSG_SPLICE_PAGES).  Filling up the TX SGL does not cause a crypto operation
+ * MSG_SPLICE_PAGES).  Filling up the TX SGL does analt cause a crypto operation
  * -- the data will only be tracked by the kernel. Upon receipt of one recvmsg
  * call, the caller must provide a buffer which is tracked with the RX SGL.
  *
@@ -86,7 +86,7 @@ static int crypto_aead_copy_sgl(struct crypto_sync_skcipher *null_tfm,
 }
 
 static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
-			 size_t ignored, int flags)
+			 size_t iganalred, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -113,17 +113,17 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	}
 
 	/*
-	 * Data length provided by caller via sendmsg that has not yet been
+	 * Data length provided by caller via sendmsg that has analt yet been
 	 * processed.
 	 */
 	used = ctx->used;
 
 	/*
-	 * Make sure sufficient data is present -- note, the same check is also
+	 * Make sure sufficient data is present -- analte, the same check is also
 	 * present in sendmsg. The checks in sendmsg shall provide an
 	 * information to the data sender that something is wrong, but they are
 	 * irrelevant to maintain the kernel integrity.  We need this check
-	 * here too in case user space decides to not honor the error message
+	 * here too in case user space decides to analt hoanalr the error message
 	 * in sendmsg and still call recvmsg. This check here protects the
 	 * kernel integrity.
 	 */
@@ -201,7 +201,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	 *
 	 * The AAD is copied to the destination buffer without change. Even
 	 * when user space uses an in-place cipher operation, the kernel
-	 * will copy the data as it does not see whether such in-place operation
+	 * will copy the data as it does analt see whether such in-place operation
 	 * is initiated.
 	 *
 	 * To ensure efficiency, the following implementation ensure that the
@@ -257,7 +257,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 							 areq->tsgl_entries),
 					  GFP_KERNEL);
 		if (!areq->tsgl) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free;
 		}
 		sg_init_table(areq->tsgl, areq->tsgl_entries);
@@ -274,7 +274,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 			sg_unmark_end(sg + sgl_prev->sgt.nents - 1);
 			sg_chain(sg, sgl_prev->sgt.nents + 1, areq->tsgl);
 		} else
-			/* no RX SGL present (e.g. authentication only) */
+			/* anal RX SGL present (e.g. authentication only) */
 			rsgl_src = areq->tsgl;
 	}
 
@@ -304,7 +304,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 		sock_put(sk);
 	} else {
-		/* Synchronous operation */
+		/* Synchroanalus operation */
 		aead_request_set_callback(&areq->cra_u.aead_req,
 					  CRYPTO_TFM_REQ_MAY_SLEEP |
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
@@ -323,14 +323,14 @@ free:
 }
 
 static int aead_recvmsg(struct socket *sock, struct msghdr *msg,
-			size_t ignored, int flags)
+			size_t iganalred, int flags)
 {
 	struct sock *sk = sock->sk;
 	int ret = 0;
 
 	lock_sock(sk);
 	while (msg_data_left(msg)) {
-		int err = _aead_recvmsg(sock, msg, ignored, flags);
+		int err = _aead_recvmsg(sock, msg, iganalred, flags);
 
 		/*
 		 * This error covers -EIOCBQUEUED which implies that we can
@@ -338,7 +338,7 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 * multiple AIO requests in parallel, he must make multiple
 		 * separate AIO calls.
 		 *
-		 * Also return the error if no data has been processed so far.
+		 * Also return the error if anal data has been processed so far.
 		 */
 		if (err <= 0) {
 			if (err == -EIOCBQUEUED || err == -EBADMSG || !ret)
@@ -358,15 +358,15 @@ out:
 static struct proto_ops algif_aead_ops = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
+	.connect	=	sock_anal_connect,
+	.socketpair	=	sock_anal_socketpair,
+	.getname	=	sock_anal_getname,
+	.ioctl		=	sock_anal_ioctl,
+	.listen		=	sock_anal_listen,
+	.shutdown	=	sock_anal_shutdown,
+	.mmap		=	sock_anal_mmap,
+	.bind		=	sock_anal_bind,
+	.accept		=	sock_anal_accept,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	aead_sendmsg,
@@ -384,20 +384,20 @@ static int aead_check_key(struct socket *sock)
 	struct alg_sock *ask = alg_sk(sk);
 
 	lock_sock(sk);
-	if (!atomic_read(&ask->nokey_refcnt))
+	if (!atomic_read(&ask->analkey_refcnt))
 		goto unlock_child;
 
 	psk = ask->parent;
 	pask = alg_sk(ask->parent);
 	tfm = pask->private;
 
-	err = -ENOKEY;
+	err = -EANALKEY;
 	lock_sock_nested(psk, SINGLE_DEPTH_NESTING);
 	if (crypto_aead_get_flags(tfm->aead) & CRYPTO_TFM_NEED_KEY)
 		goto unlock;
 
-	atomic_dec(&pask->nokey_refcnt);
-	atomic_set(&ask->nokey_refcnt, 0);
+	atomic_dec(&pask->analkey_refcnt);
+	atomic_set(&ask->analkey_refcnt, 0);
 
 	err = 0;
 
@@ -409,7 +409,7 @@ unlock_child:
 	return err;
 }
 
-static int aead_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
+static int aead_sendmsg_analkey(struct socket *sock, struct msghdr *msg,
 				  size_t size)
 {
 	int err;
@@ -421,8 +421,8 @@ static int aead_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
 	return aead_sendmsg(sock, msg, size);
 }
 
-static int aead_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
-				  size_t ignored, int flags)
+static int aead_recvmsg_analkey(struct socket *sock, struct msghdr *msg,
+				  size_t iganalred, int flags)
 {
 	int err;
 
@@ -430,25 +430,25 @@ static int aead_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
 	if (err)
 		return err;
 
-	return aead_recvmsg(sock, msg, ignored, flags);
+	return aead_recvmsg(sock, msg, iganalred, flags);
 }
 
-static struct proto_ops algif_aead_ops_nokey = {
+static struct proto_ops algif_aead_ops_analkey = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
+	.connect	=	sock_anal_connect,
+	.socketpair	=	sock_anal_socketpair,
+	.getname	=	sock_anal_getname,
+	.ioctl		=	sock_anal_ioctl,
+	.listen		=	sock_anal_listen,
+	.shutdown	=	sock_anal_shutdown,
+	.mmap		=	sock_anal_mmap,
+	.bind		=	sock_anal_bind,
+	.accept		=	sock_anal_accept,
 
 	.release	=	af_alg_release,
-	.sendmsg	=	aead_sendmsg_nokey,
-	.recvmsg	=	aead_recvmsg_nokey,
+	.sendmsg	=	aead_sendmsg_analkey,
+	.recvmsg	=	aead_recvmsg_analkey,
 	.poll		=	af_alg_poll,
 };
 
@@ -460,7 +460,7 @@ static void *aead_bind(const char *name, u32 type, u32 mask)
 
 	tfm = kzalloc(sizeof(*tfm), GFP_KERNEL);
 	if (!tfm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	aead = crypto_alloc_aead(name, type, mask);
 	if (IS_ERR(aead)) {
@@ -520,7 +520,7 @@ static void aead_sock_destruct(struct sock *sk)
 	af_alg_release_parent(sk);
 }
 
-static int aead_accept_parent_nokey(void *private, struct sock *sk)
+static int aead_accept_parent_analkey(void *private, struct sock *sk)
 {
 	struct af_alg_ctx *ctx;
 	struct alg_sock *ask = alg_sk(sk);
@@ -531,13 +531,13 @@ static int aead_accept_parent_nokey(void *private, struct sock *sk)
 
 	ctx = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(ctx, 0, len);
 
 	ctx->iv = sock_kmalloc(sk, ivlen, GFP_KERNEL);
 	if (!ctx->iv) {
 		sock_kfree_s(sk, ctx, len);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memset(ctx->iv, 0, ivlen);
 
@@ -557,9 +557,9 @@ static int aead_accept_parent(void *private, struct sock *sk)
 	struct aead_tfm *tfm = private;
 
 	if (crypto_aead_get_flags(tfm->aead) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
+		return -EANALKEY;
 
-	return aead_accept_parent_nokey(private, sk);
+	return aead_accept_parent_analkey(private, sk);
 }
 
 static const struct af_alg_type algif_type_aead = {
@@ -568,9 +568,9 @@ static const struct af_alg_type algif_type_aead = {
 	.setkey		=	aead_setkey,
 	.setauthsize	=	aead_setauthsize,
 	.accept		=	aead_accept_parent,
-	.accept_nokey	=	aead_accept_parent_nokey,
+	.accept_analkey	=	aead_accept_parent_analkey,
 	.ops		=	&algif_aead_ops,
-	.ops_nokey	=	&algif_aead_ops_nokey,
+	.ops_analkey	=	&algif_aead_ops_analkey,
 	.name		=	"aead",
 	.owner		=	THIS_MODULE
 };
@@ -589,5 +589,5 @@ static void __exit algif_aead_exit(void)
 module_init(algif_aead_init);
 module_exit(algif_aead_exit);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroanalx.de>");
 MODULE_DESCRIPTION("AEAD kernel crypto API user space interface");

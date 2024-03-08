@@ -82,8 +82,8 @@ static struct snd_soc_card atmel_asoc_wm8904_card = {
 
 static int atmel_asoc_wm8904_dt_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *codec_np, *cpu_np;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *codec_np, *cpu_np;
 	struct snd_soc_card *card = &atmel_asoc_wm8904_card;
 	struct snd_soc_dai_link *dailink = &atmel_asoc_wm8904_dailink;
 	int ret;
@@ -111,9 +111,9 @@ static int atmel_asoc_wm8904_dt_init(struct platform_device *pdev)
 		ret = -EINVAL;
 		return ret;
 	}
-	dailink->cpus->of_node = cpu_np;
-	dailink->platforms->of_node = cpu_np;
-	of_node_put(cpu_np);
+	dailink->cpus->of_analde = cpu_np;
+	dailink->platforms->of_analde = cpu_np;
+	of_analde_put(cpu_np);
 
 	codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
 	if (!codec_np) {
@@ -121,8 +121,8 @@ static int atmel_asoc_wm8904_dt_init(struct platform_device *pdev)
 		ret = -EINVAL;
 		return ret;
 	}
-	dailink->codecs->of_node = codec_np;
-	of_node_put(codec_np);
+	dailink->codecs->of_analde = codec_np;
+	of_analde_put(codec_np);
 
 	return 0;
 }
@@ -140,7 +140,7 @@ static int atmel_asoc_wm8904_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	id = of_alias_get_id((struct device_node *)dailink->cpus->of_node, "ssc");
+	id = of_alias_get_id((struct device_analde *)dailink->cpus->of_analde, "ssc");
 	ret = atmel_ssc_set_audio(id);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to set SSC %d for audio\n", id);
@@ -166,7 +166,7 @@ static void atmel_asoc_wm8904_remove(struct platform_device *pdev)
 	struct snd_soc_dai_link *dailink = &atmel_asoc_wm8904_dailink;
 	int id;
 
-	id = of_alias_get_id((struct device_node *)dailink->cpus->of_node, "ssc");
+	id = of_alias_get_id((struct device_analde *)dailink->cpus->of_analde, "ssc");
 
 	snd_soc_unregister_card(card);
 	atmel_ssc_put_audio(id);

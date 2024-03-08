@@ -11,7 +11,7 @@ maintainers:
   - Takao Orito <orito.takao@socionext.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

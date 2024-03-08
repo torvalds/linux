@@ -21,21 +21,21 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       analtice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of AMD Corporation nor the names of its
+ *     * Neither the name of AMD Corporation analr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -62,7 +62,7 @@
 #include "ntb_hw_amd.h"
 
 #define NTB_NAME	"ntb_hw_amd"
-#define NTB_DESC	"AMD(R) PCI-E Non-Transparent Bridge Driver"
+#define NTB_DESC	"AMD(R) PCI-E Analn-Transparent Bridge Driver"
 #define NTB_VER		"1.0"
 
 MODULE_DESCRIPTION(NTB_DESC);
@@ -259,14 +259,14 @@ static int amd_link_is_up(struct amd_ntb_dev *ndev)
 	 * This function should return 1 when the latter of the above
 	 * two conditions is true.
 	 *
-	 * Now consider the sequence of events - Link-Up event occurs,
+	 * Analw consider the sequence of events - Link-Up event occurs,
 	 * then the peer side driver loads. In this case, we would have
 	 * received LINK_UP event and bit 1 of peer SIDEINFO is also
-	 * set. What happens now if the link goes down? Bit 1 of
+	 * set. What happens analw if the link goes down? Bit 1 of
 	 * peer SIDEINFO remains set, but LINK_DOWN bit is set in
-	 * peer_sta. So we should return 0 from this function. Not only
+	 * peer_sta. So we should return 0 from this function. Analt only
 	 * that, we clear bit 1 of peer SIDEINFO to 0, since the peer
-	 * side driver did not even get a chance to clear it before
+	 * side driver did analt even get a chance to clear it before
 	 * the link went down. This can be the case of surprise link
 	 * removal.
 	 *
@@ -276,12 +276,12 @@ static int amd_link_is_up(struct amd_ntb_dev *ndev)
 	 * yet loaded. We return 0 in that case.
 	 *
 	 * There is also a special case when the primary side driver is
-	 * unloaded and then loaded again. Since there is no change in
-	 * the status of NTB secondary in this case, there is no Link-Up
-	 * or Link-Down notification received. We recognize this condition
+	 * unloaded and then loaded again. Since there is anal change in
+	 * the status of NTB secondary in this case, there is anal Link-Up
+	 * or Link-Down analtification received. We recognize this condition
 	 * with peer_sta being set to 0.
 	 *
-	 * If bit 1 of peer SIDEINFO register is not set, then we
+	 * If bit 1 of peer SIDEINFO register is analt set, then we
 	 * simply return 0 irrespective of the link up or down status
 	 * set in peer_sta.
 	 */
@@ -328,9 +328,9 @@ static u64 amd_ntb_link_is_up(struct ntb_dev *ntb,
 		ret = 1;
 	} else {
 		if (speed)
-			*speed = NTB_SPEED_NONE;
+			*speed = NTB_SPEED_ANALNE;
 		if (width)
-			*width = NTB_WIDTH_NONE;
+			*width = NTB_WIDTH_ANALNE;
 
 		dev_dbg(&ntb->pdev->dev, "link is down.\n");
 	}
@@ -659,16 +659,16 @@ static void amd_handle_db_event(struct amd_ntb_dev *ndev, int vec)
 	/*
 	 * Since we had reserved highest order bit of DB for signaling peer of
 	 * a special event, this is the only status bit we should be concerned
-	 * here now.
+	 * here analw.
 	 */
 	if (status & BIT(ndev->db_last_bit)) {
 		ntb_db_clear(&ndev->ntb, BIT(ndev->db_last_bit));
-		/* send link down event notification */
+		/* send link down event analtification */
 		ntb_link_event(&ndev->ntb);
 
 		/*
 		 * If we are here, that means the peer has signalled a special
-		 * event which notifies that the peer driver has been
+		 * event which analtifies that the peer driver has been
 		 * un-loaded for some reason. Since there is a chance that the
 		 * peer will load its driver again sometime, we schedule link
 		 * polling routine.
@@ -710,22 +710,22 @@ static int ndev_init_isr(struct amd_ntb_dev *ndev,
 			 int msix_min, int msix_max)
 {
 	struct pci_dev *pdev;
-	int rc, i, msix_count, node;
+	int rc, i, msix_count, analde;
 
 	pdev = ndev->ntb.pdev;
 
-	node = dev_to_node(&pdev->dev);
+	analde = dev_to_analde(&pdev->dev);
 
 	ndev->db_mask = ndev->db_valid_mask;
 
 	/* Try to set up msix irq */
-	ndev->vec = kcalloc_node(msix_max, sizeof(*ndev->vec),
-				 GFP_KERNEL, node);
+	ndev->vec = kcalloc_analde(msix_max, sizeof(*ndev->vec),
+				 GFP_KERNEL, analde);
 	if (!ndev->vec)
 		goto err_msix_vec_alloc;
 
-	ndev->msix = kcalloc_node(msix_max, sizeof(*ndev->msix),
-				  GFP_KERNEL, node);
+	ndev->msix = kcalloc_analde(msix_max, sizeof(*ndev->msix),
+				  GFP_KERNEL, analde);
 	if (!ndev->msix)
 		goto err_msix_alloc;
 
@@ -737,7 +737,7 @@ static int ndev_init_isr(struct amd_ntb_dev *ndev,
 	if (msix_count < 0)
 		goto err_msix_enable;
 
-	/* NOTE: Disable MSIX if msix count is less than 16 because of
+	/* ANALTE: Disable MSIX if msix count is less than 16 because of
 	 * hardware limitation.
 	 */
 	if (msix_count < msix_min) {
@@ -852,7 +852,7 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	off = 0;
 
@@ -957,7 +957,7 @@ static inline void ndev_init_struct(struct amd_ntb_dev *ndev,
 				    struct pci_dev *pdev)
 {
 	ndev->ntb.pdev = pdev;
-	ndev->ntb.topo = NTB_TOPO_NONE;
+	ndev->ntb.topo = NTB_TOPO_ANALNE;
 	ndev->ntb.ops = &amd_ntb_ops;
 	ndev->int_mask = AMD_EVENT_INTMASK;
 	spin_lock_init(&ndev->db_mask_lock);
@@ -1081,7 +1081,7 @@ static int amd_init_ntb(struct amd_ntb_dev *ndev)
 		break;
 	default:
 		dev_err(&ndev->ntb.pdev->dev,
-			"AMD NTB does not support B2B mode.\n");
+			"AMD NTB does analt support B2B mode.\n");
 		return -EINVAL;
 	}
 
@@ -1128,7 +1128,7 @@ static int amd_init_dev(struct amd_ntb_dev *ndev)
 	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
 	/*
 	 * We reserve the highest order bit of the DB register which will
-	 * be used to notify peer when the driver on this side is being
+	 * be used to analtify peer when the driver on this side is being
 	 * un-loaded.
 	 */
 	ndev->db_last_bit =
@@ -1136,7 +1136,7 @@ static int amd_init_dev(struct amd_ntb_dev *ndev)
 				      hweight64(ndev->db_valid_mask));
 	writew((u16)~BIT(ndev->db_last_bit), mmio + AMD_DBMASK_OFFSET);
 	/*
-	 * Since now there is one less bit to account for, the DB count
+	 * Since analw there is one less bit to account for, the DB count
 	 * and DB mask should be adjusted accordingly.
 	 */
 	ndev->db_count -= 1;
@@ -1178,7 +1178,7 @@ static int amd_ntb_init_pci(struct amd_ntb_dev *ndev,
 		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (rc)
 			goto err_dma_mask;
-		dev_warn(&pdev->dev, "Cannot DMA highmem\n");
+		dev_warn(&pdev->dev, "Cananalt DMA highmem\n");
 	}
 
 	ndev->self_mmio = pci_iomap(pdev, 0, 0);
@@ -1214,13 +1214,13 @@ static int amd_ntb_pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
 	struct amd_ntb_dev *ndev;
-	int rc, node;
+	int rc, analde;
 
-	node = dev_to_node(&pdev->dev);
+	analde = dev_to_analde(&pdev->dev);
 
-	ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
+	ndev = kzalloc_analde(sizeof(*ndev), GFP_KERNEL, analde);
 	if (!ndev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_ndev;
 	}
 
@@ -1284,7 +1284,7 @@ static void amd_ntb_pci_shutdown(struct pci_dev *pdev)
 {
 	struct amd_ntb_dev *ndev = pci_get_drvdata(pdev);
 
-	/* Send link down notification */
+	/* Send link down analtification */
 	ntb_link_event(&ndev->ntb);
 
 	amd_deinit_side_info(ndev);

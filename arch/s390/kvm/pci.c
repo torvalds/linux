@@ -18,7 +18,7 @@
 
 struct zpci_aift *aift;
 
-static inline int __set_irq_noiib(u16 ctl, u8 isc)
+static inline int __set_irq_analiib(u16 ctl, u8 isc)
 {
 	union zpci_sic_iib iib = {{0}};
 
@@ -36,7 +36,7 @@ void kvm_s390_pci_aen_exit(void)
 	 * Contents of the aipb remain registered for the life of the host
 	 * kernel, the information preserved in zpci_aipb and zpci_aif_sbv
 	 * in case we insert the KVM module again later.  Clear the AIFT
-	 * information and free anything not registered with underlying
+	 * information and free anything analt registered with underlying
 	 * firmware.
 	 */
 	spin_lock_irqsave(&aift->gait_lock, flags);
@@ -56,11 +56,11 @@ static int zpci_setup_aipb(u8 nisc)
 
 	zpci_aipb = kzalloc(sizeof(union zpci_sic_iib), GFP_KERNEL);
 	if (!zpci_aipb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aift->sbv = airq_iv_create(ZPCI_NR_DEVICES, AIRQ_IV_ALLOC, NULL);
 	if (!aift->sbv) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_aipb;
 	}
 	zpci_aif_sbv = aift->sbv;
@@ -68,7 +68,7 @@ static int zpci_setup_aipb(u8 nisc)
 						sizeof(struct zpci_gaite)));
 	page = alloc_pages(GFP_KERNEL | __GFP_ZERO, size);
 	if (!page) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_sbv;
 	}
 	aift->gait = (struct zpci_gaite *)page_to_virt(page);
@@ -78,7 +78,7 @@ static int zpci_setup_aipb(u8 nisc)
 	zpci_aipb->aipb.afi = nisc;
 	zpci_aipb->aipb.faal = ZPCI_NR_DEVICES;
 
-	/* Setup Adapter Event Notification Interpretation */
+	/* Setup Adapter Event Analtification Interpretation */
 	if (zpci_set_irq_ctrl(SIC_SET_AENI_CONTROLS, 0, zpci_aipb)) {
 		rc = -EIO;
 		goto free_gait;
@@ -121,7 +121,7 @@ int kvm_s390_pci_aen_init(u8 nisc)
 {
 	int rc = 0;
 
-	/* If already enabled for AEN, bail out now */
+	/* If already enabled for AEN, bail out analw */
 	if (aift->gait || aift->sbv)
 		return -EPERM;
 
@@ -129,7 +129,7 @@ int kvm_s390_pci_aen_init(u8 nisc)
 	aift->kzdev = kcalloc(ZPCI_NR_DEVICES, sizeof(struct kvm_zdev *),
 			      GFP_KERNEL);
 	if (!aift->kzdev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 
@@ -141,7 +141,7 @@ int kvm_s390_pci_aen_init(u8 nisc)
 		goto free_zdev;
 
 	/* Enable floating IRQs */
-	if (__set_irq_noiib(SIC_IRQ_MODE_SINGLE, nisc)) {
+	if (__set_irq_analiib(SIC_IRQ_MODE_SINGLE, nisc)) {
 		rc = -EIO;
 		kvm_s390_pci_aen_exit();
 	}
@@ -163,8 +163,8 @@ static int kvm_zpci_set_airq(struct zpci_dev *zdev)
 	u8 status;
 
 	fib.fmt0.isc = zdev->kzdev->fib.fmt0.isc;
-	fib.fmt0.sum = 1;       /* enable summary notifications */
-	fib.fmt0.noi = airq_iv_end(zdev->aibv);
+	fib.fmt0.sum = 1;       /* enable summary analtifications */
+	fib.fmt0.anali = airq_iv_end(zdev->aibv);
 	fib.fmt0.aibv = virt_to_phys(zdev->aibv->vector);
 	fib.fmt0.aibvo = 0;
 	fib.fmt0.aisb = virt_to_phys(aift->sbv->vector + (zdev->aisb / 64) * 8);
@@ -212,7 +212,7 @@ static inline int account_mem(unsigned long nr_pages)
 		cur_pages = atomic_long_read(&user->locked_vm);
 		new_pages = cur_pages + nr_pages;
 		if (new_pages > page_limit)
-			return -ENOMEM;
+			return -EANALMEM;
 	} while (atomic_long_cmpxchg(&user->locked_vm, cur_pages,
 					new_pages) != cur_pages);
 
@@ -240,7 +240,7 @@ static int kvm_s390_pci_aif_enable(struct zpci_dev *zdev, struct zpci_fib *fib,
 		return -EINVAL;
 
 	kvm = zdev->kzdev->kvm;
-	msi_vecs = min_t(unsigned int, fib->fmt0.noi, zdev->max_msi);
+	msi_vecs = min_t(unsigned int, fib->fmt0.anali, zdev->max_msi);
 
 	/* Get the associated forwarding ISC - if invalid, return the error */
 	gisc = kvm_s390_gisc_register(kvm, fib->fmt0.isc);
@@ -295,7 +295,7 @@ static int kvm_s390_pci_aif_enable(struct zpci_dev *zdev, struct zpci_fib *fib,
 	gaite = (struct zpci_gaite *)aift->gait + (zdev->aisb *
 						   sizeof(struct zpci_gaite));
 
-	/* If assist not requested, host will get all alerts */
+	/* If assist analt requested, host will get all alerts */
 	if (assist)
 		gaite->gisa = (u32)virt_to_phys(&kvm->arch.sie_page2->gisa);
 	else
@@ -319,7 +319,7 @@ static int kvm_s390_pci_aif_enable(struct zpci_dev *zdev, struct zpci_fib *fib,
 	zdev->kzdev->fib.fmt0.aibv = fib->fmt0.aibv;
 	mutex_unlock(&aift->aift_lock);
 
-	/* Issue the clp to setup the irq now */
+	/* Issue the clp to setup the irq analw */
 	rc = kvm_zpci_set_airq(zdev);
 	return rc;
 
@@ -348,7 +348,7 @@ static int kvm_s390_pci_aif_disable(struct zpci_dev *zdev, bool force)
 	mutex_lock(&aift->aift_lock);
 
 	/*
-	 * If the clear fails due to an error, leave now unless we know this
+	 * If the clear fails due to an error, leave analw unless we kanalw this
 	 * device is about to go away (force) -- In that case clear the GAITE
 	 * regardless.
 	 */
@@ -407,7 +407,7 @@ static int kvm_s390_pci_dev_open(struct zpci_dev *zdev)
 
 	kzdev = kzalloc(sizeof(struct kvm_zdev), GFP_KERNEL);
 	if (!kzdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kzdev->zdev = zdev;
 	zdev->kzdev = kzdev;
@@ -428,7 +428,7 @@ static void kvm_s390_pci_dev_release(struct zpci_dev *zdev)
 
 /*
  * Register device with the specified KVM. If interpretation facilities are
- * available, enable them and let userspace indicate whether or not they will
+ * available, enable them and let userspace indicate whether or analt they will
  * be used (specify SHM bit to disable).
  */
 static int kvm_s390_pci_register_kvm(void *opaque, struct kvm *kvm)
@@ -612,7 +612,7 @@ static int kvm_s390_pci_zpci_reg_aen(struct zpci_dev *zdev,
 
 	fib.fmt0.aibv = args->u.reg_aen.ibv;
 	fib.fmt0.isc = args->u.reg_aen.isc;
-	fib.fmt0.noi = args->u.reg_aen.noi;
+	fib.fmt0.anali = args->u.reg_aen.anali;
 	if (args->u.reg_aen.sb != 0) {
 		fib.fmt0.aisb = args->u.reg_aen.sb;
 		fib.fmt0.aisbo = args->u.reg_aen.sbo;
@@ -635,14 +635,14 @@ int kvm_s390_pci_zpci_op(struct kvm *kvm, struct kvm_s390_zpci_op *args)
 
 	zdev = get_zdev_from_kvm_by_fh(kvm, args->fh);
 	if (!zdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&zdev->kzdev_lock);
 	mutex_lock(&kvm->lock);
 
 	kzdev = zdev->kzdev;
 	if (!kzdev) {
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto out;
 	}
 	if (kzdev->kvm != kvm) {
@@ -652,7 +652,7 @@ int kvm_s390_pci_zpci_op(struct kvm *kvm, struct kvm_s390_zpci_op *args)
 
 	switch (args->op) {
 	case KVM_S390_ZPCIOP_REG_AEN:
-		/* Fail on unknown flags */
+		/* Fail on unkanalwn flags */
 		if (args->u.reg_aen.flags & ~KVM_S390_ZPCIOP_REGAEN_HOST) {
 			r = -EINVAL;
 			break;
@@ -682,7 +682,7 @@ int __init kvm_s390_pci_init(void)
 
 	aift = kzalloc(sizeof(struct zpci_aift), GFP_KERNEL);
 	if (!aift)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&aift->gait_lock);
 	mutex_init(&aift->aift_lock);

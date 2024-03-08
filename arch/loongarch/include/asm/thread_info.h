@@ -2,7 +2,7 @@
 /*
  * thread_info.h: LoongArch low-level thread information
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef _ASM_THREAD_INFO_H
@@ -68,10 +68,10 @@ register unsigned long current_stack_pointer __asm__("$sp");
  */
 #define TIF_SIGPENDING		1	/* signal pending */
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
-#define TIF_NOTIFY_RESUME	3	/* callback before returning to user */
-#define TIF_NOTIFY_SIGNAL	4	/* signal notifications exist */
+#define TIF_ANALTIFY_RESUME	3	/* callback before returning to user */
+#define TIF_ANALTIFY_SIGNAL	4	/* signal analtifications exist */
 #define TIF_RESTORE_SIGMASK	5	/* restore signal mask in do_signal() */
-#define TIF_NOHZ		6	/* in adaptive nohz mode */
+#define TIF_ANALHZ		6	/* in adaptive analhz mode */
 #define TIF_UPROBE		7	/* breakpointed or singlestepping */
 #define TIF_USEDFPU		8	/* FPU was used by this task this quantum (SMP) */
 #define TIF_USEDSIMD		9	/* SIMD has been used this quantum */
@@ -89,9 +89,9 @@ register unsigned long current_stack_pointer __asm__("$sp");
 
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
-#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
-#define _TIF_NOHZ		(1<<TIF_NOHZ)
+#define _TIF_ANALTIFY_RESUME	(1<<TIF_ANALTIFY_RESUME)
+#define _TIF_ANALTIFY_SIGNAL	(1<<TIF_ANALTIFY_SIGNAL)
+#define _TIF_ANALHZ		(1<<TIF_ANALHZ)
 #define _TIF_UPROBE		(1<<TIF_UPROBE)
 #define _TIF_USEDFPU		(1<<TIF_USEDFPU)
 #define _TIF_USEDSIMD		(1<<TIF_USEDSIMD)

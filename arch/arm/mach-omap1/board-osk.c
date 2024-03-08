@@ -11,18 +11,18 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/gpio/consumer.h>
@@ -122,7 +122,7 @@ static struct platform_device osk5912_flash_device = {
 };
 
 static struct smc91x_platdata osk5912_smc91x_info = {
-	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.flags	= SMC91X_USE_16BIT | SMC91X_ANALWAIT,
 	.leda	= RPC_LED_100_10,
 	.ledb	= RPC_LED_TX_RX,
 };
@@ -171,8 +171,8 @@ static struct platform_device *osk5912_devices[] __initdata = {
 };
 
 static const struct gpio_led tps_leds[] = {
-	/* NOTE:  D9 and D2 have hardware blink support.
-	 * Also, D9 requires non-battery power.
+	/* ANALTE:  D9 and D2 have hardware blink support.
+	 * Also, D9 requires analn-battery power.
 	 */
 	{ .name = "d9", .default_trigger = "disk-activity", },
 	{ .name = "d2", },
@@ -209,7 +209,7 @@ static int osk_tps_setup(struct i2c_client *client, struct gpio_chip *gc)
 {
 	struct gpio_desc *d;
 	if (!IS_BUILTIN(CONFIG_TPS65010))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	/* Set GPIO 1 HIGH to disable VBUS power supply;
 	 * OHCI driver powers it up/down as needed.
@@ -297,7 +297,7 @@ static void __init osk_init_cf(int seg)
 	omap_cfg_reg(M7_1610_GPIO62);
 
 	switch (seg) {
-	/* NOTE: CS0 could be configured too ... */
+	/* ANALTE: CS0 could be configured too ... */
 	case 1:
 		res->start = OMAP_CS1_PHYS;
 		break;
@@ -312,8 +312,8 @@ static void __init osk_init_cf(int seg)
 	res->end = res->start + SZ_8K - 1;
 	osk5912_cf_device.dev.platform_data = (void *)(uintptr_t)seg;
 
-	/* NOTE:  better EMIFS setup might support more cards; but the
-	 * TRM only shows how to affect regular flash signals, not their
+	/* ANALTE:  better EMIFS setup might support more cards; but the
+	 * TRM only shows how to affect regular flash signals, analt their
 	 * CF/PCMCIA variants...
 	 */
 	pr_debug("%s: cs%d, previous ccs %08x acs %08x\n", __func__,
@@ -336,7 +336,7 @@ static struct gpiod_lookup_table osk_usb_gpio_table = {
 
 static struct omap_usb_config osk_usb_config __initdata = {
 	/* has usb host connector (A) ... for development it can also
-	 * be used, with a NONSTANDARD gender-bending cable/dongle, as
+	 * be used, with a ANALNSTANDARD gender-bending cable/dongle, as
 	 * a peripheral.
 	 */
 #if IS_ENABLED(CONFIG_USB_OMAP)
@@ -383,10 +383,10 @@ static void __init osk_init(void)
 	osk_init_smc91x();
 	osk_init_cf(2); /* CS2 */
 
-	/* Workaround for wrong CS3 (NOR flash) timing
+	/* Workaround for wrong CS3 (ANALR flash) timing
 	 * There are some U-Boot versions out there which configure
 	 * wrong CS3 memory timings. This mainly leads to CRC
-	 * or similar errors if you use NOR flash (e.g. with JFFS2)
+	 * or similar errors if you use ANALR flash (e.g. with JFFS2)
 	 */
 	l = omap_readl(EMIFS_CCS(3));
 	if (l != EMIFS_CS3_VAL)

@@ -36,18 +36,18 @@
 #define SPRD_EFUSE_BLOCK_WIDTH		4
 
 /*
- * The Spreadtrum AP efuse contains 2 parts: normal efuse and secure efuse,
- * and we can only access the normal efuse in kernel. So define the normal
- * block offset index and normal block numbers.
+ * The Spreadtrum AP efuse contains 2 parts: analrmal efuse and secure efuse,
+ * and we can only access the analrmal efuse in kernel. So define the analrmal
+ * block offset index and analrmal block numbers.
  */
-#define SPRD_EFUSE_NORMAL_BLOCK_NUMS	24
-#define SPRD_EFUSE_NORMAL_BLOCK_OFFSET	72
+#define SPRD_EFUSE_ANALRMAL_BLOCK_NUMS	24
+#define SPRD_EFUSE_ANALRMAL_BLOCK_OFFSET	72
 
 /* Timeout (ms) for the trylock of hardware spinlocks */
 #define SPRD_EFUSE_HWLOCK_TIMEOUT	5000
 
 /*
- * Since different Spreadtrum SoC chip can have different normal block numbers
+ * Since different Spreadtrum SoC chip can have different analrmal block numbers
  * and offset. And some SoC can support block double feature, which means
  * when reading or writing data to efuse memory, the controller can save double
  * data in case one data become incorrect after a long period.
@@ -70,8 +70,8 @@ struct sprd_efuse {
 };
 
 static const struct sprd_efuse_variant_data ums312_data = {
-	.blk_nums = SPRD_EFUSE_NORMAL_BLOCK_NUMS,
-	.blk_offset = SPRD_EFUSE_NORMAL_BLOCK_OFFSET,
+	.blk_nums = SPRD_EFUSE_ANALRMAL_BLOCK_NUMS,
+	.blk_offset = SPRD_EFUSE_ANALRMAL_BLOCK_OFFSET,
 	.blk_double = false,
 };
 
@@ -338,7 +338,7 @@ static int sprd_efuse_write(void *context, u32 offset, void *val, size_t bytes)
 
 	/*
 	 * If the writing bytes are equal with the block width, which means the
-	 * whole block will be programmed. For this case, we should not allow
+	 * whole block will be programmed. For this case, we should analt allow
 	 * this block to be programmed again by locking this block.
 	 *
 	 * If the block was programmed partially, we should allow this block to
@@ -360,7 +360,7 @@ unlock:
 
 static int sprd_efuse_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct nvmem_device *nvmem;
 	struct nvmem_config econfig = { };
 	struct sprd_efuse *efuse;
@@ -369,13 +369,13 @@ static int sprd_efuse_probe(struct platform_device *pdev)
 
 	pdata = of_device_get_match_data(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "No matching driver data found\n");
+		dev_err(&pdev->dev, "Anal matching driver data found\n");
 		return -EINVAL;
 	}
 
 	efuse = devm_kzalloc(&pdev->dev, sizeof(*efuse), GFP_KERNEL);
 	if (!efuse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	efuse->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(efuse->base))

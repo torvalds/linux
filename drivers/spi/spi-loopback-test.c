@@ -25,7 +25,7 @@
 /* flag to only simulate transfers */
 static int simulate_only;
 module_param(simulate_only, int, 0);
-MODULE_PARM_DESC(simulate_only, "if not 0 do not execute the spi message");
+MODULE_PARM_DESC(simulate_only, "if analt 0 do analt execute the spi message");
 
 /* dump spi messages */
 static int dump_messages;
@@ -48,10 +48,10 @@ MODULE_PARM_DESC(loop_req,
 		 "if set controller will be asked to enable test loop mode. " \
 		 "If controller supported it, MISO and MOSI will be connected");
 
-static int no_cs;
-module_param(no_cs, int, 0);
-MODULE_PARM_DESC(no_cs,
-		 "if set Chip Select (CS) will not be used");
+static int anal_cs;
+module_param(anal_cs, int, 0);
+MODULE_PARM_DESC(anal_cs,
+		 "if set Chip Select (CS) will analt be used");
 
 /* run tests only for a specific length */
 static int run_only_iter_len = -1;
@@ -251,7 +251,7 @@ static struct spi_test spi_tests[] = {
 			},
 			{
 				/* making sure we align without overwrite
-				 * the reason we can not use ITERATE_MAX_LEN
+				 * the reason we can analt use ITERATE_MAX_LEN
 				 */
 				.tx_buf = TX(SPI_TEST_MAX_SIZE_HALF),
 				.rx_buf = RX(SPI_TEST_MAX_SIZE_HALF),
@@ -328,7 +328,7 @@ static struct spi_test spi_tests[] = {
 		.description	= "three tx+rx transfers with overlapping cache lines",
 		.fill_option	= FILL_COUNT_8,
 		/*
-		 * This should be large enough for the controller driver to
+		 * This should be large eanalugh for the controller driver to
 		 * choose to transfer it with DMA.
 		 */
 		.iterate_len    = { 512, -1 },
@@ -359,12 +359,12 @@ static int spi_loopback_test_probe(struct spi_device *spi)
 {
 	int ret;
 
-	if (loop_req || no_cs) {
+	if (loop_req || anal_cs) {
 		spi->mode |= loop_req ? SPI_LOOP : 0;
-		spi->mode |= no_cs ? SPI_NO_CS : 0;
+		spi->mode |= anal_cs ? SPI_ANAL_CS : 0;
 		ret = spi_setup(spi);
 		if (ret) {
-			dev_err(&spi->dev, "SPI setup with SPI_LOOP or SPI_NO_CS failed (%d)\n",
+			dev_err(&spi->dev, "SPI setup with SPI_LOOP or SPI_ANAL_CS failed (%d)\n",
 				ret);
 			return ret;
 		}
@@ -380,7 +380,7 @@ static int spi_loopback_test_probe(struct spi_device *spi)
 	return ret;
 }
 
-/* non const match table to permit to change via a module parameter */
+/* analn const match table to permit to change via a module parameter */
 static struct of_device_id spi_loopback_test_of_match[] = {
 	{ .compatible	= "linux,spi-loopback-test", },
 	{ }
@@ -518,7 +518,7 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 
 	/* loop over all transfers to fill in the rx_ranges */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		/* if there is no rx, then no check is needed */
+		/* if there is anal rx, then anal check is needed */
 		if (!xfer->rx_buf)
 			continue;
 		/* fill in the rx_range */
@@ -531,7 +531,7 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 		}
 	}
 
-	/* if no ranges, then we can return and avoid the checks...*/
+	/* if anal ranges, then we can return and avoid the checks...*/
 	if (!i)
 		return 0;
 
@@ -540,10 +540,10 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 
 	/* and iterate over all the rx addresses */
 	for (addr = rx; addr < (u8 *)rx + SPI_TEST_MAX_SIZE_PLUS; addr++) {
-		/* if we are the DO not write pattern,
+		/* if we are the DO analt write pattern,
 		 * then continue with the loop...
 		 */
-		if (*addr == SPI_TEST_PATTERN_DO_NOT_WRITE)
+		if (*addr == SPI_TEST_PATTERN_DO_ANALT_WRITE)
 			continue;
 
 		/* check if we are inside a range */
@@ -553,15 +553,15 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 				addr = r->end;
 		}
 		/* second test after a (hopefull) translation */
-		if (*addr == SPI_TEST_PATTERN_DO_NOT_WRITE)
+		if (*addr == SPI_TEST_PATTERN_DO_ANALT_WRITE)
 			continue;
 
-		/* if still not found then something has modified too much */
+		/* if still analt found then something has modified too much */
 		/* we could list the "closest" transfer here... */
 		dev_err(&spi->dev,
 			"loopback strangeness - rx changed outside of allowed range at: %pK\n",
 			addr);
-		/* do not return, only set ret,
+		/* do analt return, only set ret,
 		 * so that we list all addresses
 		 */
 		ret = -ERANGE;
@@ -616,13 +616,13 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 			return ret;
 	}
 
-	/* if we run without loopback, then return now */
+	/* if we run without loopback, then return analw */
 	if (!loopback)
 		return 0;
 
 	/* if applicable to transfer check that rx_buf is equal to tx_buf */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		/* if there is no rx, then no check is needed */
+		/* if there is anal rx, then anal check is needed */
 		if (!xfer->len || !xfer->rx_buf)
 			continue;
 		/* so depending on tx_buf we need to handle things */
@@ -639,7 +639,7 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 			/* first byte may be 0 or xff */
 			if (!((txb == 0) || (txb == 0xff))) {
 				dev_err(&spi->dev,
-					"loopback strangeness - we expect 0x00 or 0xff, but not 0x%02x\n",
+					"loopback strangeness - we expect 0x00 or 0xff, but analt 0x%02x\n",
 					txb);
 				return -EINVAL;
 			}
@@ -697,7 +697,7 @@ static int spi_test_translate(struct spi_device *spi,
 	}
 
 	dev_err(&spi->dev,
-		"PointerRange [%pK:%pK[ not in range [%pK:%pK[ or [%pK:%pK[\n",
+		"PointerRange [%pK:%pK[ analt in range [%pK:%pK[ or [%pK:%pK[\n",
 		*ptr, *ptr + len,
 		RX(0), RX(SPI_TEST_MAX_SIZE),
 		TX(0), TX(SPI_TEST_MAX_SIZE));
@@ -798,10 +798,10 @@ static int _spi_test_run_iter(struct spi_device *spi,
 	int i, ret;
 
 	/* initialize message - zero-filled via static initialization */
-	spi_message_init_no_memset(msg);
+	spi_message_init_anal_memset(msg);
 
-	/* fill rx with the DO_NOT_WRITE pattern */
-	memset(rx, SPI_TEST_PATTERN_DO_NOT_WRITE, SPI_TEST_MAX_SIZE_PLUS);
+	/* fill rx with the DO_ANALT_WRITE pattern */
+	memset(rx, SPI_TEST_PATTERN_DO_ANALT_WRITE, SPI_TEST_MAX_SIZE_PLUS);
 
 	/* add the individual transfers */
 	for (i = 0; i < test->transfer_count; i++) {
@@ -865,7 +865,7 @@ static int spi_test_run_iter(struct spi_device *spi,
 	/* copy the test template to test */
 	memcpy(&test, testtemplate, sizeof(test));
 
-	/* if iterate_transfer_mask is not set,
+	/* if iterate_transfer_mask is analt set,
 	 * then set it to first transfer only
 	 */
 	if (!(test.iterate_transfer_mask & (BIT(test.transfer_count) - 1)))
@@ -881,17 +881,17 @@ static int spi_test_run_iter(struct spi_device *spi,
 	}
 
 	/* in some iteration cases warn and exit early,
-	 * as there is nothing to do, that has not been tested already...
+	 * as there is analthing to do, that has analt been tested already...
 	 */
 	if (tx_off && (!tx_count)) {
 		dev_warn_once(&spi->dev,
-			      "%s: iterate_tx_off configured with tx_buf==NULL - ignoring\n",
+			      "%s: iterate_tx_off configured with tx_buf==NULL - iganalring\n",
 			      test.description);
 		return 0;
 	}
 	if (rx_off && (!rx_count)) {
 		dev_warn_once(&spi->dev,
-			      "%s: iterate_rx_off configured with rx_buf==NULL - ignoring\n",
+			      "%s: iterate_rx_off configured with rx_buf==NULL - iganalring\n",
 			      test.description);
 		return 0;
 	}
@@ -938,7 +938,7 @@ int spi_test_execute_msg(struct spi_device *spi, struct spi_test *test,
 	int ret = 0;
 	int i;
 
-	/* only if we do not simulate */
+	/* only if we do analt simulate */
 	if (!simulate_only) {
 		ktime_t start;
 
@@ -1082,7 +1082,7 @@ int spi_test_run_tests(struct spi_device *spi,
 	else
 		rx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
 	if (!rx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	if (use_vmalloc)
@@ -1090,11 +1090,11 @@ int spi_test_run_tests(struct spi_device *spi,
 	else
 		tx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
 	if (!tx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_tx;
 	}
 
-	/* now run the individual tests in the table */
+	/* analw run the individual tests in the table */
 	for (test = tests, count = 0; test->description[0];
 	     test++, count++) {
 		/* only run test if requested */

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
 
 #define SMU7_MAX_HARDWARE_POWERLEVELS   2
 
-#define SMU7_VOLTAGE_CONTROL_NONE                   0x0
+#define SMU7_VOLTAGE_CONTROL_ANALNE                   0x0
 #define SMU7_VOLTAGE_CONTROL_BY_GPIO                0x1
 #define SMU7_VOLTAGE_CONTROL_BY_SVID2               0x2
 #define SMU7_VOLTAGE_CONTROL_MERGED                 0x3
@@ -228,7 +228,7 @@ struct smu7_hwmgr {
 
 	bool                           is_memory_gddr5;
 	uint16_t                       acpi_vddc;
-	bool                           pspp_notify_required;
+	bool                           pspp_analtify_required;
 	uint16_t                       force_pcie_gen;
 	uint16_t                       acpi_pcie_gen;
 	uint32_t                       pcie_gen_cap;
@@ -250,7 +250,7 @@ struct smu7_hwmgr {
 
 	bool                           pcie_performance_request;
 	bool                           battery_state;
-	bool                           mclk_ignore_signal;
+	bool                           mclk_iganalre_signal;
 	bool                           is_tlu_enabled;
 	bool                           disable_handshake;
 	bool                           smc_voltage_control_enabled;

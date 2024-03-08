@@ -154,9 +154,9 @@ static int xrx200_open(struct net_device *net_dev)
 
 	napi_enable(&priv->chan_rx.napi);
 	ltq_dma_open(&priv->chan_rx.dma);
-	/* The boot loader does not always deactivate the receiving of frames
+	/* The boot loader does analt always deactivate the receiving of frames
 	 * on the ports and then some packets queue up in the PPE buffers.
-	 * They already passed the PMAC so they do not have the tags
+	 * They already passed the PMAC so they do analt have the tags
 	 * configured here. Read the these packets here and drop them.
 	 * The HW should have written them into memory after 10us
 	 */
@@ -194,7 +194,7 @@ static int xrx200_alloc_buf(struct xrx200_chan *ch, void *(*alloc)(unsigned int 
 	ch->rx_buff[ch->dma.desc] = alloc(priv->rx_skb_size);
 	if (!ch->rx_buff[ch->dma.desc]) {
 		ch->rx_buff[ch->dma.desc] = buf;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto skip;
 	}
 
@@ -203,7 +203,7 @@ static int xrx200_alloc_buf(struct xrx200_chan *ch, void *(*alloc)(unsigned int 
 	if (unlikely(dma_mapping_error(priv->dev, mapping))) {
 		skb_free_frag(ch->rx_buff[ch->dma.desc]);
 		ch->rx_buff[ch->dma.desc] = buf;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto skip;
 	}
 
@@ -243,7 +243,7 @@ static int xrx200_hw_receive(struct xrx200_chan *ch)
 	if (!skb) {
 		skb_free_frag(buf);
 		net_dev->stats.rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_reserve(skb, NET_SKB_PAD);
@@ -556,7 +556,7 @@ static void xrx200_hw_cleanup(struct xrx200_priv *priv)
 static int xrx200_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct xrx200_priv *priv;
 	struct net_device *net_dev;
 	int err;
@@ -564,7 +564,7 @@ static int xrx200_probe(struct platform_device *pdev)
 	/* alloc the network device */
 	net_dev = devm_alloc_etherdev(dev, sizeof(struct xrx200_priv));
 	if (!net_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = netdev_priv(net_dev);
 	priv->net_dev = net_dev;
@@ -584,10 +584,10 @@ static int xrx200_probe(struct platform_device *pdev)
 
 	priv->chan_rx.dma.irq = platform_get_irq_byname(pdev, "rx");
 	if (priv->chan_rx.dma.irq < 0)
-		return -ENOENT;
+		return -EANALENT;
 	priv->chan_tx.dma.irq = platform_get_irq_byname(pdev, "tx");
 	if (priv->chan_tx.dma.irq < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* get the clock */
 	priv->clk = devm_clk_get(dev, NULL);

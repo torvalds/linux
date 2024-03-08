@@ -248,7 +248,7 @@ static void gss_krb5_prepare_enctype_priority_list(void)
  * gss_krb5_lookup_enctype - Retrieve profile information for a given enctype
  * @etype: ENCTYPE value
  *
- * Returns a pointer to a gss_krb5_enctype structure, or NULL if no
+ * Returns a pointer to a gss_krb5_enctype structure, or NULL if anal
  * matching etype is found.
  */
 VISIBLE_IF_KUNIT
@@ -305,7 +305,7 @@ gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 
 	keyout.data = kmalloc(GSS_KRB5_MAX_KEYLEN, gfp_mask);
 	if (!keyout.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initiator seal encryption */
 	keyout.len = ctx->gk5e->Ke_length;
@@ -445,7 +445,7 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	ctx->mech_used.data = kmemdup(gss_kerberos_mech.gm_oid.data,
 				      gss_kerberos_mech.gm_oid.len, gfp_mask);
 	if (unlikely(ctx->mech_used.data == NULL)) {
-		p = ERR_PTR(-ENOMEM);
+		p = ERR_PTR(-EANALMEM);
 		goto out_err;
 	}
 	ctx->mech_used.len = gss_kerberos_mech.gm_oid.len;
@@ -466,7 +466,7 @@ gss_krb5_import_sec_context(const void *p, size_t len, struct gss_ctx *ctx_id,
 
 	ctx = kzalloc(sizeof(*ctx), gfp_mask);
 	if (ctx == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gss_import_v2_context(p, end, ctx, gfp_mask);
 	memzero_explicit(&ctx->Ksess, sizeof(ctx->Ksess));
@@ -508,8 +508,8 @@ gss_krb5_delete_sec_context(void *internal_ctx)
  *
  * Return values:
  *    %GSS_S_COMPLETE - success, and @token is filled in
- *    %GSS_S_FAILURE - checksum could not be generated
- *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is no longer valid
+ *    %GSS_S_FAILURE - checksum could analt be generated
+ *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is anal longer valid
  */
 static u32 gss_krb5_get_mic(struct gss_ctx *gctx, struct xdr_buf *text,
 			    struct xdr_netobj *token)
@@ -527,10 +527,10 @@ static u32 gss_krb5_get_mic(struct gss_ctx *gctx, struct xdr_buf *text,
  *
  * Return values:
  *    %GSS_S_COMPLETE - computed and received checksums match
- *    %GSS_S_DEFECTIVE_TOKEN - received checksum is not valid
- *    %GSS_S_BAD_SIG - computed and received checksums do not match
- *    %GSS_S_FAILURE - received checksum could not be checked
- *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is no longer valid
+ *    %GSS_S_DEFECTIVE_TOKEN - received checksum is analt valid
+ *    %GSS_S_BAD_SIG - computed and received checksums do analt match
+ *    %GSS_S_FAILURE - received checksum could analt be checked
+ *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is anal longer valid
  */
 static u32 gss_krb5_verify_mic(struct gss_ctx *gctx,
 			       struct xdr_buf *message_buffer,
@@ -550,8 +550,8 @@ static u32 gss_krb5_verify_mic(struct gss_ctx *gctx,
  *
  * Return values:
  *    %GSS_S_COMPLETE - success, @buf has been updated
- *    %GSS_S_FAILURE - @buf could not be wrapped
- *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is no longer valid
+ *    %GSS_S_FAILURE - @buf could analt be wrapped
+ *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is anal longer valid
  */
 static u32 gss_krb5_wrap(struct gss_ctx *gctx, int offset,
 			 struct xdr_buf *buf, struct page **pages)
@@ -570,10 +570,10 @@ static u32 gss_krb5_wrap(struct gss_ctx *gctx, int offset,
  *
  * Return values:
  *    %GSS_S_COMPLETE - success, @buf has been updated
- *    %GSS_S_DEFECTIVE_TOKEN - received blob is not valid
- *    %GSS_S_BAD_SIG - computed and received checksums do not match
- *    %GSS_S_FAILURE - @buf could not be unwrapped
- *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is no longer valid
+ *    %GSS_S_DEFECTIVE_TOKEN - received blob is analt valid
+ *    %GSS_S_BAD_SIG - computed and received checksums do analt match
+ *    %GSS_S_FAILURE - @buf could analt be unwrapped
+ *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is anal longer valid
  */
 static u32 gss_krb5_unwrap(struct gss_ctx *gctx, int offset,
 			   int len, struct xdr_buf *buf)
@@ -597,7 +597,7 @@ static struct pf_desc gss_kerberos_pfs[] = {
 	[0] = {
 		.pseudoflavor = RPC_AUTH_GSS_KRB5,
 		.qop = GSS_C_QOP_DEFAULT,
-		.service = RPC_GSS_SVC_NONE,
+		.service = RPC_GSS_SVC_ANALNE,
 		.name = "krb5",
 	},
 	[1] = {

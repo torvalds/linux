@@ -39,7 +39,7 @@
  * (*)	GP1_25/SL_SW2_V is used as TPU
  * (@)	Connect to pin5 (DATIN = playback) or pin15 (DATOUT = capture)
  * (v)	These are just sample pins. You can find many 3v3 / GND pins on
- *	White Hawk board, not only CN4. You can use other pins for it.
+ *	White Hawk board, analt only CN4. You can use other pins for it.
  *
  * [How to enable]
  *

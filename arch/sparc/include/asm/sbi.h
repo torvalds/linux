@@ -29,7 +29,7 @@ struct sbi_regs {
 
 /* 0x0030 */	u32		intr_state;	/* Interrupt state */
 /* 0x0034 */	u32		intr_tid;	/* Interrupt target ID */
-/* 0x0038 */	u32		intr_diag;	/* Interrupt diagnostics */
+/* 0x0038 */	u32		intr_diag;	/* Interrupt diaganalstics */
 };
 
 #define SBI_CID			0x02800000
@@ -50,8 +50,8 @@ struct sbi_regs {
 /* Burst bits for 8, 16, 32, 64 are in cfgX registers at bits 2, 3, 4, 5 respectively */
 #define SBI_CFG_BURST_MASK	0x0000001e
 
-/* How to make devid from sbi no */
-#define SBI2DEVID(sbino) ((sbino<<4)|2)
+/* How to make devid from sbi anal */
+#define SBI2DEVID(sbianal) ((sbianal<<4)|2)
 
 /* intr_state has 4 bits for slots 0 .. 3 and these bits are repeated for each sbus irq level
  *
@@ -92,22 +92,22 @@ static inline void set_sbi_tid(int devid, int targetid)
 			      "i" (ASI_M_CTL));
 }
 
-static inline int get_sbi_ctl(int devid, int cfgno)
+static inline int get_sbi_ctl(int devid, int cfganal)
 {
 	int cfg;
 	
 	__asm__ __volatile__ ("lda [%1] %2, %0" :
 			      "=r" (cfg) :
-			      "r" ((ECSR_DEV_BASE(devid) | SBI_CFG0) + (cfgno<<2)),
+			      "r" ((ECSR_DEV_BASE(devid) | SBI_CFG0) + (cfganal<<2)),
 			      "i" (ASI_M_CTL));
 	return cfg;
 }
 
-static inline void set_sbi_ctl(int devid, int cfgno, int cfg)
+static inline void set_sbi_ctl(int devid, int cfganal, int cfg)
 {
 	__asm__ __volatile__ ("sta %0, [%1] %2" : :
 			      "r" (cfg),
-			      "r" ((ECSR_DEV_BASE(devid) | SBI_CFG0) + (cfgno<<2)),
+			      "r" ((ECSR_DEV_BASE(devid) | SBI_CFG0) + (cfganal<<2)),
 			      "i" (ASI_M_CTL));
 }
 

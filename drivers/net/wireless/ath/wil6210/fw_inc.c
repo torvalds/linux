@@ -32,7 +32,7 @@ static bool wil_fw_addr_check(struct wil6210_priv *wil,
  * wil_fw_verify - verify firmware file validity
  *
  * perform various checks for the firmware file header.
- * records are not validated.
+ * records are analt validated.
  *
  * Return file size or negative error
  */
@@ -45,10 +45,10 @@ static int wil_fw_verify(struct wil6210_priv *wil, const u8 *data, size_t size)
 	u32 dlen;
 
 	if (size % 4) {
-		wil_err_fw(wil, "image size not aligned: %zu\n", size);
+		wil_err_fw(wil, "image size analt aligned: %zu\n", size);
 		return -EINVAL;
 	}
-	/* have enough data for the file header? */
+	/* have eanalugh data for the file header? */
 	if (size < sizeof(*hdr) + sizeof(fh)) {
 		wil_err_fw(wil, "file too short: %zu bytes\n", size);
 		return -EINVAL;
@@ -56,7 +56,7 @@ static int wil_fw_verify(struct wil6210_priv *wil, const u8 *data, size_t size)
 
 	/* start with the file header? */
 	if (le16_to_cpu(hdr->type) != wil_fw_type_file_header) {
-		wil_err_fw(wil, "no file header\n");
+		wil_err_fw(wil, "anal file header\n");
 		return -EINVAL;
 	}
 
@@ -64,7 +64,7 @@ static int wil_fw_verify(struct wil6210_priv *wil, const u8 *data, size_t size)
 	fh_ = (struct wil_fw_record_file_header *)&hdr[1];
 	dlen = le32_to_cpu(fh_->data_len);
 	if (dlen % 4) {
-		wil_err_fw(wil, "data length not aligned: %lu\n", (ulong)dlen);
+		wil_err_fw(wil, "data length analt aligned: %lu\n", (ulong)dlen);
 		return -EINVAL;
 	}
 	if (size < dlen) {
@@ -111,7 +111,7 @@ static int wil_fw_verify(struct wil6210_priv *wil, const u8 *data, size_t size)
 	return (int)dlen;
 }
 
-static int fw_ignore_section(struct wil6210_priv *wil, const void *data,
+static int fw_iganalre_section(struct wil6210_priv *wil, const void *data,
 			     size_t size)
 {
 	return 0;
@@ -163,7 +163,7 @@ fw_handle_brd_file(struct wil6210_priv *wil, const void *data,
 	wil->brd_info = kcalloc(max_num_ent, sizeof(struct wil_brd_info),
 				GFP_KERNEL);
 	if (!wil->brd_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < max_num_ent; i++) {
 		wil->brd_info[i].file_addr =
@@ -185,7 +185,7 @@ fw_handle_brd_file(struct wil6210_priv *wil, const void *data,
 		kfree(wil->brd_info);
 		wil->brd_info = NULL;
 		wil_dbg_fw(wil,
-			   "no valid brd info entries, using brd file addr\n");
+			   "anal valid brd info entries, using brd file addr\n");
 
 	} else {
 		wil_dbg_fw(wil, "num of brd info entries %d\n",
@@ -315,7 +315,7 @@ static int fw_handle_fill(struct wil6210_priv *wil, const void *data,
 	}
 
 	if (s % sizeof(u32)) {
-		wil_err_fw(wil, "fill size not aligned: %zu\n", s);
+		wil_err_fw(wil, "fill size analt aligned: %zu\n", s);
 		return -EINVAL;
 	}
 
@@ -364,7 +364,7 @@ static int fw_handle_direct_write(struct wil6210_priv *wil, const void *data,
 	int n, i;
 
 	if (size % sizeof(*block)) {
-		wil_err_fw(wil, "record size not aligned on %zu: %zu\n",
+		wil_err_fw(wil, "record size analt aligned on %zu: %zu\n",
 			   sizeof(*block), size);
 		return -EINVAL;
 	}
@@ -432,7 +432,7 @@ static int fw_handle_gateway_data(struct wil6210_priv *wil, const void *data,
 
 	if ((size - sizeof(*d)) % sizeof(*block)) {
 		wil_err_fw(wil, "gateway record data size"
-			   " not aligned on %zu: %zu\n",
+			   " analt aligned on %zu: %zu\n",
 			   sizeof(*block), size - sizeof(*d));
 		return -EINVAL;
 	}
@@ -496,7 +496,7 @@ static int fw_handle_gateway_data4(struct wil6210_priv *wil, const void *data,
 
 	if ((size - sizeof(*d)) % sizeof(*block)) {
 		wil_err_fw(wil, "gateway4 record data size"
-			   " not aligned on %zu: %zu\n",
+			   " analt aligned on %zu: %zu\n",
 			   sizeof(*block), size - sizeof(*d));
 		return -EINVAL;
 	}
@@ -525,7 +525,7 @@ static int fw_handle_gateway_data4(struct wil6210_priv *wil, const void *data,
 		   le32_to_cpu(d->gateway_addr_addr),
 		   le32_to_cpu(d->gateway_cmd_addr),
 		   le32_to_cpu(d->gateway_ctrl_address));
-	wil_hex_dump_fw("val addresses: ", DUMP_PREFIX_NONE, 16, 4,
+	wil_hex_dump_fw("val addresses: ", DUMP_PREFIX_ANALNE, 16, 4,
 			d->gateway_value_addr, sizeof(d->gateway_value_addr),
 			false);
 
@@ -538,7 +538,7 @@ static int fw_handle_gateway_data4(struct wil6210_priv *wil, const void *data,
 			v[k] = le32_to_cpu(block[i].value[k]);
 
 		wil_dbg_fw(wil, "  gw4 write[%3d] [0x%08x] <==\n", i, a);
-		wil_hex_dump_fw("    val ", DUMP_PREFIX_NONE, 16, 4, v,
+		wil_hex_dump_fw("    val ", DUMP_PREFIX_ANALNE, 16, 4, v,
 				sizeof(v), false);
 
 		for (k = 0; k < ARRAY_SIZE(block->value); k++)
@@ -559,16 +559,16 @@ static const struct {
 			     size_t size);
 } wil_fw_handlers[] = {
 	{wil_fw_type_comment, fw_handle_comment, fw_handle_comment},
-	{wil_fw_type_data, fw_handle_data, fw_ignore_section},
-	{wil_fw_type_fill, fw_handle_fill, fw_ignore_section},
+	{wil_fw_type_data, fw_handle_data, fw_iganalre_section},
+	{wil_fw_type_fill, fw_handle_fill, fw_iganalre_section},
 	/* wil_fw_type_action */
 	/* wil_fw_type_verify */
 	{wil_fw_type_file_header, fw_handle_file_header,
 		fw_handle_file_header},
-	{wil_fw_type_direct_write, fw_handle_direct_write, fw_ignore_section},
-	{wil_fw_type_gateway_data, fw_handle_gateway_data, fw_ignore_section},
+	{wil_fw_type_direct_write, fw_handle_direct_write, fw_iganalre_section},
+	{wil_fw_type_gateway_data, fw_handle_gateway_data, fw_iganalre_section},
 	{wil_fw_type_gateway_data4, fw_handle_gateway_data4,
-		fw_ignore_section},
+		fw_iganalre_section},
 };
 
 static int wil_fw_handle_record(struct wil6210_priv *wil, int type,
@@ -584,7 +584,7 @@ static int wil_fw_handle_record(struct wil6210_priv *wil, int type,
 				wil_fw_handlers[i].parse_handler(
 					wil, data, size);
 
-	wil_err_fw(wil, "unknown record type: %d\n", type);
+	wil_err_fw(wil, "unkanalwn record type: %d\n", type);
 	return -EINVAL;
 }
 
@@ -824,6 +824,6 @@ bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name)
 	if (!rc)
 		release_firmware(fw);
 	else
-		wil_dbg_fw(wil, "<%s> not available: %d\n", name, rc);
+		wil_dbg_fw(wil, "<%s> analt available: %d\n", name, rc);
 	return !rc;
 }

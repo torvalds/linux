@@ -44,7 +44,7 @@ static int bcm590xx_i2c_probe(struct i2c_client *i2c_pri)
 
 	bcm590xx = devm_kzalloc(&i2c_pri->dev, sizeof(*bcm590xx), GFP_KERNEL);
 	if (!bcm590xx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c_pri, bcm590xx);
 	bcm590xx->dev = &i2c_pri->dev;

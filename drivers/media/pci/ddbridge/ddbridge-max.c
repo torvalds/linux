@@ -136,7 +136,7 @@ static int lnb_set_tone(struct ddb *dev, u32 link, u32 input,
 		break;
 	}
 	if (!s)
-		s = lnb_command(dev, link, input, LNB_CMD_NOP);
+		s = lnb_command(dev, link, input, LNB_CMD_ANALP);
 	return s;
 }
 
@@ -419,13 +419,13 @@ int ddb_fe_attach_mxl5xx(struct ddb_input *input)
 			     demod, tuner, &dvb->set_input);
 
 	if (!dvb->fe) {
-		dev_err(dev->dev, "No MXL5XX found!\n");
-		return -ENODEV;
+		dev_err(dev->dev, "Anal MXL5XX found!\n");
+		return -EANALDEV;
 	}
 
 	if (!dvb->set_input) {
-		dev_err(dev->dev, "No mxl5xx_set_input function pointer!\n");
-		return -ENODEV;
+		dev_err(dev->dev, "Anal mxl5xx_set_input function pointer!\n");
+		return -EANALDEV;
 	}
 
 	if (input->nr < 4) {
@@ -470,12 +470,12 @@ int ddb_fe_attach_mci(struct ddb_input *input, u32 type)
 	}
 	dvb->fe = ddb_mci_attach(input, &cfg, demod, &dvb->set_input);
 	if (!dvb->fe) {
-		dev_err(dev->dev, "No MCI card found!\n");
-		return -ENODEV;
+		dev_err(dev->dev, "Anal MCI card found!\n");
+		return -EANALDEV;
 	}
 	if (!dvb->set_input) {
-		dev_err(dev->dev, "No MCI set_input function pointer!\n");
-		return -ENODEV;
+		dev_err(dev->dev, "Anal MCI set_input function pointer!\n");
+		return -EANALDEV;
 	}
 	if (input->nr < 4) {
 		lnb_command(dev, port->lnr, input->nr, LNB_CMD_INIT);

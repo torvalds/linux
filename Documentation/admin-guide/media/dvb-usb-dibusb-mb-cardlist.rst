@@ -36,7 +36,7 @@ dvb-usb-dibusb-mb cards list
      - 06e1:a333, 06e1:a334
    * - TwinhanDTV USB-Ter USB1.1 / Magic Box I / HAMA USB1.1 DVB-T device
      - 13d3:3201, 1822:3201, 13d3:3202, 1822:3202
-   * - Unknown USB1.1 DVB-T device ???? please report the name to the author
+   * - Unkanalwn USB1.1 DVB-T device ???? please report the name to the author
      - 1025:005e, 1025:005f
    * - VideoWalker DVB-T USB
      - 0458:701e, 0458:701f

@@ -42,8 +42,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_bss_conf *info, u64 changed);
 int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif, struct ieee80211_sta *sta);
 int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif, struct ieee80211_sta *sta);
-void wfx_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    enum sta_notify_cmd cmd, struct ieee80211_sta *sta);
+void wfx_sta_analtify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		    enum sta_analtify_cmd cmd, struct ieee80211_sta *sta);
 int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set);
 int wfx_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     struct ieee80211_ampdu_params *params);
@@ -59,8 +59,8 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif
 
 /* Hardware API Callbacks */
 void wfx_cooling_timeout_work(struct work_struct *work);
-void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd);
-void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd cmd);
+void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_analtify_cmd cmd);
+void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_analtify_cmd cmd);
 void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi);
 int wfx_update_pm(struct wfx_vif *wvif);
 

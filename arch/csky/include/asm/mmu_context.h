@@ -9,7 +9,7 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <abi/ckmmu.h>
 

@@ -3,8 +3,8 @@
  * DRM driver for the HX8357D LCD controller
  *
  * Copyright 2018 Broadcom
- * Copyright 2018 David Lechner <david@lechnology.com>
- * Copyright 2016 Noralf Trønnes
+ * Copyright 2018 David Lechner <david@lechanallogy.com>
+ * Copyright 2016 Analralf Trønnes
  * Copyright (C) 2015 Adafruit Industries
  * Copyright (C) 2013 Christian Vogelgsang
  */
@@ -74,14 +74,14 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 	/* -1.52V */
 	mipi_dbi_command(dbi, HX8357D_SETCOM, 0x25);
 
-	/* Normal mode 70Hz, Idle mode 55 Hz */
+	/* Analrmal mode 70Hz, Idle mode 55 Hz */
 	mipi_dbi_command(dbi, HX8357D_SETOSC, 0x68);
 
 	/* Set Panel - BGR, Gate direction swapped */
 	mipi_dbi_command(dbi, HX8357D_SETPANEL, 0x05);
 
 	mipi_dbi_command(dbi, HX8357D_SETPOWER,
-			 0x00,  /* Not deep standby */
+			 0x00,  /* Analt deep standby */
 			 0x15,  /* BT */
 			 0x1C,  /* VSPR */
 			 0x1C,  /* VSNR */
@@ -89,7 +89,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			 0xAA);  /* FS */
 
 	mipi_dbi_command(dbi, HX8357D_SETSTBA,
-			 0x50,  /* OPON normal */
+			 0x50,  /* OPON analrmal */
 			 0x50,  /* OPON idle */
 			 0x01,  /* STBA */
 			 0x3C,  /* STBA */
@@ -199,7 +199,7 @@ static const struct drm_driver hx8357d_driver = {
 	.desc			= "HX8357D",
 	.date			= "20181023",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static const struct of_device_id hx8357d_of_match[] = {

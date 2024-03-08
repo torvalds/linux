@@ -13,7 +13,7 @@ static __init int pci_arch_init(void)
 
 	type = pci_direct_probe();
 
-	if (!(pci_probe & PCI_PROBE_NOEARLY))
+	if (!(pci_probe & PCI_PROBE_ANALEARLY))
 		pci_mmcfg_early_init();
 
 	if (x86_init.pci.arch_init)
@@ -40,7 +40,7 @@ static __init int pci_arch_init(void)
 
 	if (!raw_pci_ops && !raw_pci_ext_ops)
 		printk(KERN_ERR
-		"PCI: Fatal: No config space access function found\n");
+		"PCI: Fatal: Anal config space access function found\n");
 
 	dmi_check_pciprobe();
 

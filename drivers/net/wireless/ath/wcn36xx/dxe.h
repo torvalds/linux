@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -134,7 +134,7 @@ H2H_TEST_RX_TX = DMA2
 	WCN36xx_DXE_CTRL_INT | WCN36xx_DXE_CTRL_SWAP | \
 	WCN36xx_DXE_CTRL_ENDIANNESS)
 
-/* TODO This must calculated properly but not hardcoded */
+/* TODO This must calculated properly but analt hardcoded */
 #define WCN36XX_DXE_WQ_TX_L(wcn)    ((wcn)->is_pronto_v3 ? 0x6 : 0x17)
 #define WCN36XX_DXE_WQ_TX_H(wcn)    ((wcn)->is_pronto_v3 ? 0x6 : 0x17)
 #define WCN36XX_DXE_WQ_RX_L			0xB
@@ -399,7 +399,7 @@ enum wcn36xx_dxe_ch_desc_num {
  *				    //requires re-enabling after this
  *	u32	intr		:1; //Interrupt on Descriptor Done
  *	u32	rsvd		:1; //reserved
- *	u32	size		:14;//14 bits used - ignored for BMU transfers,
+ *	u32	size		:14;//14 bits used - iganalred for BMU transfers,
  *				    //only used for host to host transfers?
  * } ctrl;
  */

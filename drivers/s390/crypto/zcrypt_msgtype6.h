@@ -16,7 +16,7 @@
 
 #define MSGTYPE06_NAME			"zcrypt_msgtype6"
 #define MSGTYPE06_VARIANT_DEFAULT	0
-#define MSGTYPE06_VARIANT_NORNG		1
+#define MSGTYPE06_VARIANT_ANALRNG		1
 #define MSGTYPE06_VARIANT_EP11		2
 
 /**
@@ -25,7 +25,7 @@
  * It contains a message header followed by a CPRB, both of which
  * are described below.
  *
- * Note that all reserved fields must be zeroes.
+ * Analte that all reserved fields must be zeroes.
  */
 struct type6_hdr {
 	unsigned char reserved1;	/* 0x00				*/
@@ -61,12 +61,12 @@ struct type6_hdr {
  * It contains a message header followed by a CPRB.  The CPRB is
  * the same as the request CPRB, which is described above.
  *
- * If format is 1, an error condition exists and no data beyond
+ * If format is 1, an error condition exists and anal data beyond
  * the 8-byte message header is of interest.
  *
- * The non-error message is shown below.
+ * The analn-error message is shown below.
  *
- * Note that all reserved fields must be zeroes.
+ * Analte that all reserved fields must be zeroes.
  */
 struct type86_hdr {
 	unsigned char reserved1;	/* 0x00				*/

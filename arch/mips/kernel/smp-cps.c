@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2013 Imagination Technologies
+ * Copyright (C) 2013 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -74,7 +74,7 @@ static void __init cps_smp_setup(void)
 	}
 	pr_cont(" total %u\n", nvpes);
 
-	/* Indicate present CPUs (CPU being synonymous with VPE) */
+	/* Indicate present CPUs (CPU being syanalnymous with VPE) */
 	for (v = 0; v < min_t(unsigned, nvpes, NR_CPUS); v++) {
 		set_cpu_possible(v, cpu_cluster(&cpu_data[v]) == 0);
 		set_cpu_present(v, cpu_cluster(&cpu_data[v]) == 0);
@@ -124,7 +124,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 		break;
 
 	default:
-		/* CCA is not coherent, multi-core is not usable */
+		/* CCA is analt coherent, multi-core is analt usable */
 		cca_unsuitable = true;
 	}
 
@@ -196,7 +196,7 @@ err_out:
 		mips_cps_core_bootcfg = NULL;
 	}
 
-	/* Effectively disable SMP by declaring CPUs not present */
+	/* Effectively disable SMP by declaring CPUs analt present */
 	for_each_possible_cpu(c) {
 		if (c == 0)
 			continue;
@@ -272,7 +272,7 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 
 	mips_cm_unlock_other();
 
-	/* The core is now powered up */
+	/* The core is analw powered up */
 	bitmap_set(core_power, core, 1);
 }
 
@@ -296,7 +296,7 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 
 	/* We don't yet support booting CPUs in other clusters */
 	if (cpu_cluster(&cpu_data[cpu]) != cpu_cluster(&raw_current_cpu_data))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	vpe_cfg->pc = (unsigned long)&smp_bootstrap;
 	vpe_cfg->sp = __KSTK_TOS(idle);
@@ -320,7 +320,7 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 	}
 
 	if (!cpus_are_siblings(cpu, smp_processor_id())) {
-		/* Boot a VPE on another powered up core */
+		/* Boot a VPE on aanalther powered up core */
 		for (remote = 0; remote < NR_CPUS; remote++) {
 			if (!cpus_are_siblings(cpu, remote))
 				continue;
@@ -328,7 +328,7 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 				break;
 		}
 		if (remote >= NR_CPUS) {
-			pr_crit("No online CPU in core %u to start CPU%d\n",
+			pr_crit("Anal online CPU in core %u to start CPU%d\n",
 				core, cpu);
 			goto out;
 		}
@@ -369,7 +369,7 @@ static void cps_init_secondary(void)
 	}
 
 	if (core > 0 && !read_gcr_cl_coherence())
-		pr_warn("Core %u is not in coherent domain\n", core);
+		pr_warn("Core %u is analt in coherent domain\n", core);
 
 	if (cpu_has_veic)
 		clear_c0_status(ST0_IM);
@@ -431,7 +431,7 @@ static void cps_shutdown_this_cpu(enum cpu_death death)
 
 #ifdef CONFIG_KEXEC_CORE
 
-static void cps_kexec_nonboot_cpu(void)
+static void cps_kexec_analnboot_cpu(void)
 {
 	if (cpu_has_mipsmt || cpu_has_vp)
 		cps_shutdown_this_cpu(CPU_DEATH_HALT);
@@ -478,7 +478,7 @@ void play_dead(void)
 	pr_debug("CPU%d going offline\n", cpu);
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
-		/* Look for another online VPE within the core */
+		/* Look for aanalther online VPE within the core */
 		for_each_online_cpu(cpu_death_sibling) {
 			if (!cpus_are_siblings(cpu, cpu_death_sibling))
 				continue;
@@ -526,15 +526,15 @@ static void cps_cleanup_dead_cpu(unsigned cpu)
 	int err;
 
 	/*
-	 * Now wait for the CPU to actually offline. Without doing this that
+	 * Analw wait for the CPU to actually offline. Without doing this that
 	 * offlining may race with one or more of:
 	 *
 	 *   - Onlining the CPU again.
-	 *   - Powering down the core if another VPE within it is offlined.
-	 *   - A sibling VPE entering a non-coherent state.
+	 *   - Powering down the core if aanalther VPE within it is offlined.
+	 *   - A sibling VPE entering a analn-coherent state.
 	 *
-	 * In the non-MT halt case (ie. infinite loop) the CPU is doing nothing
-	 * with which we could race, so do nothing.
+	 * In the analn-MT halt case (ie. infinite loop) the CPU is doing analthing
+	 * with which we could race, so do analthing.
 	 */
 	if (cpu_death == CPU_DEATH_POWER) {
 		/*
@@ -559,13 +559,13 @@ static void cps_cleanup_dead_cpu(unsigned cpu)
 
 			/*
 			 * The core ought to have powered down, but didn't &
-			 * now we don't really know what state it's in. It's
+			 * analw we don't really kanalw what state it's in. It's
 			 * likely that its _pwr_up pin has been wired to logic
 			 * 1 & it powered back up as soon as we powered it
 			 * down...
 			 *
 			 * The best we can do is warn the user & continue in
-			 * the hope that the core is doing nothing harmful &
+			 * the hope that the core is doing analthing harmful &
 			 * might behave properly if we online it later.
 			 */
 			if (WARN(ktime_after(ktime_get(), fail_time),
@@ -611,7 +611,7 @@ static const struct plat_smp_ops cps_smp_ops = {
 	.cleanup_dead_cpu	= cps_cleanup_dead_cpu,
 #endif
 #ifdef CONFIG_KEXEC_CORE
-	.kexec_nonboot_cpu	= cps_kexec_nonboot_cpu,
+	.kexec_analnboot_cpu	= cps_kexec_analnboot_cpu,
 #endif
 };
 
@@ -625,13 +625,13 @@ int register_cps_smp_ops(void)
 {
 	if (!mips_cm_present()) {
 		pr_warn("MIPS CPS SMP unable to proceed without a CM\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* check we have a GIC - we need one for IPIs */
 	if (!(read_gcr_gic_status() & CM_GCR_GIC_STATUS_EX)) {
 		pr_warn("MIPS CPS SMP unable to proceed without a GIC\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	register_smp_ops(&cps_smp_ops);

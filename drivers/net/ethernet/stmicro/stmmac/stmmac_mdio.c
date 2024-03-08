@@ -64,8 +64,8 @@ static void stmmac_xgmac2_c22_format(struct stmmac_priv *priv, int phyaddr,
 {
 	u32 tmp = 0;
 
-	if (priv->synopsys_id < DWXGMAC_CORE_2_20) {
-		/* Until ver 2.20 XGMAC does not support C22 addr >= 4. Those
+	if (priv->syanalpsys_id < DWXGMAC_CORE_2_20) {
+		/* Until ver 2.20 XGMAC does analt support C22 addr >= 4. Those
 		 * bits above bit 3 of XGMAC_MDIO_C22P register are reserved.
 		 */
 		tmp = readl(priv->ioaddr + XGMAC_MDIO_C22P);
@@ -137,10 +137,10 @@ static int stmmac_xgmac2_mdio_read_c22(struct mii_bus *bus, int phyaddr,
 
 	priv = netdev_priv(ndev);
 
-	/* Until ver 2.20 XGMAC does not support C22 addr >= 4 */
-	if (priv->synopsys_id < DWXGMAC_CORE_2_20 &&
+	/* Until ver 2.20 XGMAC does analt support C22 addr >= 4 */
+	if (priv->syanalpsys_id < DWXGMAC_CORE_2_20 &&
 	    phyaddr > MII_XGMAC_MAX_C22ADDR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stmmac_xgmac2_c22_format(priv, phyaddr, phyreg, &addr);
 
@@ -215,10 +215,10 @@ static int stmmac_xgmac2_mdio_write_c22(struct mii_bus *bus, int phyaddr,
 
 	priv = netdev_priv(ndev);
 
-	/* Until ver 2.20 XGMAC does not support C22 addr >= 4 */
-	if (priv->synopsys_id < DWXGMAC_CORE_2_20 &&
+	/* Until ver 2.20 XGMAC does analt support C22 addr >= 4 */
+	if (priv->syanalpsys_id < DWXGMAC_CORE_2_20 &&
 	    phyaddr > MII_XGMAC_MAX_C22ADDR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stmmac_xgmac2_c22_format(priv, phyaddr, phyreg, &addr);
 
@@ -270,7 +270,7 @@ static int stmmac_mdio_read(struct stmmac_priv *priv, int data, u32 value)
  * Description: it reads data from the MII register from within the phy device.
  * For the 7111 GMAC, we must set the bit 0 in the MII address register while
  * accessing the PHY registers.
- * Fortunately, it seems this has no drawback for the 7109 MAC.
+ * Fortunately, it seems this has anal drawback for the 7109 MAC.
  */
 static int stmmac_mdio_read_c22(struct mii_bus *bus, int phyaddr, int phyreg)
 {
@@ -307,7 +307,7 @@ static int stmmac_mdio_read_c22(struct mii_bus *bus, int phyaddr, int phyreg)
  * Description: it reads data from the MII register from within the phy device.
  * For the 7111 GMAC, we must set the bit 0 in the MII address register while
  * accessing the PHY registers.
- * Fortunately, it seems this has no drawback for the 7109 MAC.
+ * Fortunately, it seems this has anal drawback for the 7109 MAC.
  */
 static int stmmac_mdio_read_c45(struct mii_bus *bus, int phyaddr, int devad,
 				int phyreg)
@@ -319,7 +319,7 @@ static int stmmac_mdio_read_c45(struct mii_bus *bus, int phyaddr, int devad,
 
 	data = pm_runtime_get_sync(priv->device);
 	if (data < 0) {
-		pm_runtime_put_noidle(priv->device);
+		pm_runtime_put_analidle(priv->device);
 		return data;
 	}
 
@@ -419,7 +419,7 @@ static int stmmac_mdio_write_c45(struct mii_bus *bus, int phyaddr,
 
 	ret = pm_runtime_get_sync(priv->device);
 	if (ret < 0) {
-		pm_runtime_put_noidle(priv->device);
+		pm_runtime_put_analidle(priv->device);
 		return ret;
 	}
 
@@ -457,7 +457,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	unsigned int mii_address = priv->hw->mii.addr;
 
 #ifdef CONFIG_OF
-	if (priv->device->of_node) {
+	if (priv->device->of_analde) {
 		struct gpio_desc *reset_gpio;
 		u32 delays[3] = { 0, 0, 0 };
 
@@ -516,8 +516,8 @@ int stmmac_xpcs_setup(struct mii_bus *bus)
 	}
 
 	if (!priv->hw->xpcs) {
-		dev_warn(priv->device, "No xPCS found\n");
-		return -ENODEV;
+		dev_warn(priv->device, "Anal xPCS found\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -534,10 +534,10 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct mii_bus *new_bus;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
-	struct device_node *mdio_node = priv->plat->mdio_node;
+	struct device_analde *mdio_analde = priv->plat->mdio_analde;
 	struct device *dev = ndev->dev.parent;
-	struct fwnode_handle *fixed_node;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fixed_analde;
+	struct fwanalde_handle *fwanalde;
 	int addr, found, max_addr;
 
 	if (!mdio_bus_data)
@@ -545,7 +545,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	new_bus = mdiobus_alloc();
 	if (!new_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mdio_bus_data->irqs)
 		memcpy(new_bus->irq, mdio_bus_data->irqs, sizeof(new_bus->irq));
@@ -558,8 +558,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 		new_bus->read_c45 = &stmmac_xgmac2_mdio_read_c45;
 		new_bus->write_c45 = &stmmac_xgmac2_mdio_write_c45;
 
-		if (priv->synopsys_id < DWXGMAC_CORE_2_20) {
-			/* Right now only C22 phys are supported */
+		if (priv->syanalpsys_id < DWXGMAC_CORE_2_20) {
+			/* Right analw only C22 phys are supported */
 			max_addr = MII_XGMAC_MAX_C22ADDR + 1;
 
 			/* Check if DT specified an unsupported phy addr */
@@ -590,13 +590,13 @@ int stmmac_mdio_register(struct net_device *ndev)
 	new_bus->phy_mask = mdio_bus_data->phy_mask;
 	new_bus->parent = priv->device;
 
-	err = of_mdiobus_register(new_bus, mdio_node);
-	if (err == -ENODEV) {
+	err = of_mdiobus_register(new_bus, mdio_analde);
+	if (err == -EANALDEV) {
 		err = 0;
 		dev_info(dev, "MDIO bus is disabled\n");
 		goto bus_register_fail;
 	} else if (err) {
-		dev_err_probe(dev, err, "Cannot register the MDIO bus\n");
+		dev_err_probe(dev, err, "Cananalt register the MDIO bus\n");
 		goto bus_register_fail;
 	}
 
@@ -605,19 +605,19 @@ int stmmac_mdio_register(struct net_device *ndev)
 		stmmac_xgmac2_mdio_read_c45(new_bus, 0, 0, 0);
 
 	/* If fixed-link is set, skip PHY scanning */
-	fwnode = priv->plat->port_node;
-	if (!fwnode)
-		fwnode = dev_fwnode(priv->device);
+	fwanalde = priv->plat->port_analde;
+	if (!fwanalde)
+		fwanalde = dev_fwanalde(priv->device);
 
-	if (fwnode) {
-		fixed_node = fwnode_get_named_child_node(fwnode, "fixed-link");
-		if (fixed_node) {
-			fwnode_handle_put(fixed_node);
+	if (fwanalde) {
+		fixed_analde = fwanalde_get_named_child_analde(fwanalde, "fixed-link");
+		if (fixed_analde) {
+			fwanalde_handle_put(fixed_analde);
 			goto bus_register_done;
 		}
 	}
 
-	if (priv->plat->phy_node || mdio_node)
+	if (priv->plat->phy_analde || mdio_analde)
 		goto bus_register_done;
 
 	found = 0;
@@ -639,7 +639,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 		/*
 		 * If we're going to bind the MAC to this PHY bus,
-		 * and no PHY number was provided to the MAC,
+		 * and anal PHY number was provided to the MAC,
 		 * use the one probed here.
 		 */
 		if (priv->plat->phy_addr == -1)
@@ -649,10 +649,10 @@ int stmmac_mdio_register(struct net_device *ndev)
 		found = 1;
 	}
 
-	if (!found && !mdio_node) {
-		dev_warn(dev, "No PHY found\n");
-		err = -ENODEV;
-		goto no_phy_found;
+	if (!found && !mdio_analde) {
+		dev_warn(dev, "Anal PHY found\n");
+		err = -EANALDEV;
+		goto anal_phy_found;
 	}
 
 bus_register_done:
@@ -660,7 +660,7 @@ bus_register_done:
 
 	return 0;
 
-no_phy_found:
+anal_phy_found:
 	mdiobus_unregister(new_bus);
 bus_register_fail:
 	mdiobus_free(new_bus);

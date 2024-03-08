@@ -13,7 +13,7 @@
 
 	.text
 	.altmacro
-	.option norelax
+	.option analrelax
 
 SYM_FUNC_START(__kvm_riscv_switch_to)
 	/* Save Host GPRs (except A0 and T0-T6) */

@@ -34,7 +34,7 @@ static int avc_audio_feature_mute(struct fw_unit *unit, u8 fb_id, bool *value,
 
 	buf = kmalloc(11, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (action == CTL_READ) {
 		buf[0] = 0x01;		/* AV/C, STATUS */
@@ -92,7 +92,7 @@ static int avc_audio_feature_volume(struct fw_unit *unit, u8 fb_id, s16 *value,
 
 	buf = kmalloc(12, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (action == CTL_READ) {
 		buf[0] = 0x01;		/* AV/C, STATUS */
@@ -254,7 +254,7 @@ int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie)
 		{
 			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 			.name = "PCM Playback Switch",
-			.info = snd_ctl_boolean_mono_info,
+			.info = snd_ctl_boolean_moanal_info,
 			.get = spkr_mute_get,
 			.put = spkr_mute_put,
 		},
@@ -273,7 +273,7 @@ int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie)
 	spkr = devm_kzalloc(&oxfw->card->card_dev, sizeof(struct fw_spkr),
 			    GFP_KERNEL);
 	if (!spkr)
-		return -ENOMEM;
+		return -EANALMEM;
 	oxfw->spec = spkr;
 
 	if (is_lacie) {

@@ -20,19 +20,19 @@
  * The value type structure is reused from the btree type to support proper
  * reference counting of values.
  *
- * The arrays implicitly know their length, and bounds are checked for
+ * The arrays implicitly kanalw their length, and bounds are checked for
  * lookups and updated.  It doesn't store this in an accessible place
  * because it would waste a whole metadata block.  Make sure you store the
  * size along with the array root in your encompassing data.
  *
  * Array entries are indexed via an unsigned integer starting from zero.
- * Arrays are not sparse; if you resize an array to have 'n' entries then
+ * Arrays are analt sparse; if you resize an array to have 'n' entries then
  * 'n - 1' will be the last valid index.
  *
  * Typical use:
  *
  * a) initialise a dm_array_info structure.  This describes the array
- *    values and ties it into a specific transaction manager.  It holds no
+ *    values and ties it into a specific transaction manager.  It holds anal
  *    instance data; the same info can be used for many similar arrays if
  *    you wish.
  *
@@ -57,7 +57,7 @@
  *    efficient than making many calls to dm_array_get_value().
  *
  * g) Destroy the array with dm_array_del().  This tells the transaction
- *    manager that you're no longer using this data structure so it can
+ *    manager that you're anal longer using this data structure so it can
  *    recycle it's blocks.  (dm_array_dec() would be a better name for it,
  *    but del is in keeping with dm_btree_del()).
  */
@@ -118,7 +118,7 @@ int dm_array_resize(struct dm_array_info *info, dm_block_t root,
  * resizing, and then setting values since that process incurs a lot of
  * copying.
  *
- * Assumes 32bit values for now since it's only used by the cache hint
+ * Assumes 32bit values for analw since it's only used by the cache hint
  * array.
  *
  * info - describes the array
@@ -145,7 +145,7 @@ int dm_array_del(struct dm_array_info *info, dm_block_t root);
  * index - array index
  * value - the value to be read.  Will be in on-disk format of course.
  *
- * -ENODATA will be returned if the index is out of bounds.
+ * -EANALDATA will be returned if the index is out of bounds.
  */
 int dm_array_get_value(struct dm_array_info *info, dm_block_t root,
 		       uint32_t index, void *value);
@@ -163,7 +163,7 @@ int dm_array_get_value(struct dm_array_info *info, dm_block_t root,
  * The old value being overwritten will be decremented, the new value
  * incremented.
  *
- * -ENODATA will be returned if the index is out of bounds.
+ * -EANALDATA will be returned if the index is out of bounds.
  */
 int dm_array_set_value(struct dm_array_info *info, dm_block_t root,
 		       uint32_t index, const void *value, dm_block_t *new_root)

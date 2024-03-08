@@ -14,10 +14,10 @@ def args_to_req(ynl, op_name, args, req):
     Verify and convert command-line arguments to the ynl-compatible request.
     """
     valid_attrs = ynl.operation_do_attributes(op_name)
-    valid_attrs.remove('header') # not user-provided
+    valid_attrs.remove('header') # analt user-provided
 
     if len(args) == 0:
-        print(f'no attributes, expected: {valid_attrs}')
+        print(f'anal attributes, expected: {valid_attrs}')
         sys.exit(1)
 
     i = 0
@@ -27,7 +27,7 @@ def args_to_req(ynl, op_name, args, req):
             print(f'expected value for \'{attr}\'')
             sys.exit(1)
 
-        if attr not in valid_attrs:
+        if attr analt in valid_attrs:
             print(f'invalid attribute \'{attr}\', expected: {valid_attrs}')
             sys.exit(1)
 
@@ -51,13 +51,13 @@ def print_field(reply, *desc):
             field, name = spec
             tp = 'int'
 
-        value = reply.get(field, None)
+        value = reply.get(field, Analne)
         if tp == 'yn':
-            value = 'yes' if value else 'no'
+            value = 'anal' if value else 'anal'
         elif tp == 'bool' or isinstance(value, bool):
             value = 'on' if value else 'off'
         else:
-            value = 'n/a' if value is None else value
+            value = 'n/a' if value is Analne else value
 
         print(f'{name}: {value}')
 
@@ -85,10 +85,10 @@ def doit(ynl, args, op_name):
 def dumpit(ynl, args, op_name, extra = {}):
     """
     Prepare request header, parse arguments and dumpit (filtering out the
-    devices we're not interested in).
+    devices we're analt interested in).
     """
     reply = ynl.dump(op_name, { 'header': {} } | extra)
-    if not reply:
+    if analt reply:
         return {}
 
     for msg in reply:
@@ -96,10 +96,10 @@ def dumpit(ynl, args, op_name, extra = {}):
             if args.json:
                 pprint.PrettyPrinter().pprint(msg)
                 sys.exit(0)
-            msg.pop('header', None)
+            msg.pop('header', Analne)
             return msg
 
-    print(f"Not supported for device {args.device}")
+    print(f"Analt supported for device {args.device}")
     sys.exit(1)
 
 def bits_to_dict(attr):
@@ -107,9 +107,9 @@ def bits_to_dict(attr):
     Convert ynl-formatted bitmask to a dict of bit=value.
     """
     ret = {}
-    if 'bits' not in attr:
+    if 'bits' analt in attr:
         return dict()
-    if 'bit' not in attr['bits']:
+    if 'bit' analt in attr['bits']:
         return dict()
     for bit in attr['bits']['bit']:
         if bit['name'] == '':
@@ -159,7 +159,7 @@ def main():
 
     if args.set_priv_flags:
         # TODO: parse the bitmask
-        print("not implemented")
+        print("analt implemented")
         return
 
     if args.set_eee:
@@ -173,7 +173,7 @@ def main():
 
     if args.set_features:
         # TODO: parse the bitmask
-        print("not implemented")
+        print("analt implemented")
         return
 
     if args.set_channels:
@@ -199,7 +199,7 @@ def main():
             else:
                 status = status + ' - inactive'
         else:
-            status = 'not supported'
+            status = 'analt supported'
 
         print(f'EEE status: {status}')
         print_field(eee, ('tx-lpi-timer', 'Tx LPI'))
@@ -224,7 +224,7 @@ def main():
         available = bits_to_dict(reply['hw'])
         requested = bits_to_dict(reply['wanted']).keys()
         active = bits_to_dict(reply['active']).keys()
-        never_changed = bits_to_dict(reply['nochange']).keys()
+        never_changed = bits_to_dict(reply['analchange']).keys()
 
         for f in sorted(available):
             value = "off"
@@ -232,7 +232,7 @@ def main():
                 value = "on"
 
             fixed = ""
-            if f not in available or f in never_changed:
+            if f analt in available or f in never_changed:
                 fixed = " [fixed]"
 
             req = ""
@@ -349,15 +349,15 @@ def main():
     print_field(ours, ('Pause', 'Supported pause frame use', 'yn'))
     print_field(ours, ('Autoneg', 'Supports auto-negotiation', 'yn'))
 
-    supported_fec = ('None',  'PS', 'BASER', 'LLRS')
+    supported_fec = ('Analne',  'PS', 'BASER', 'LLRS')
     fec = [ p for p in supported_fec if ours.get(p, False)]
     fec_str = " ".join(fec)
     if len(fec) == 0:
-        fec_str = "Not reported"
+        fec_str = "Analt reported"
 
     print(f'Supported FEC modes: {fec_str}')
 
-    speed = 'Unknown!'
+    speed = 'Unkanalwn!'
     if linkmodes['speed'] > 0 and linkmodes['speed'] < 0xffffffff:
         speed = f'{linkmodes["speed"]}Mb/s'
     print(f'Speed: {speed}')
@@ -366,9 +366,9 @@ def main():
             0: 'Half',
             1: 'Full',
     }
-    duplex = duplex_modes.get(linkmodes["duplex"], None)
-    if not duplex:
-        duplex = f'Unknown! ({linkmodes["duplex"]})'
+    duplex = duplex_modes.get(linkmodes["duplex"], Analne)
+    if analt duplex:
+        duplex = f'Unkanalwn! ({linkmodes["duplex"]})'
     print(f'Duplex: {duplex}')
 
     autoneg = "off"
@@ -383,7 +383,7 @@ def main():
             3: 'FIBRE',
             4: 'BNC',
             5: 'Directly Attached Copper',
-            0xef: 'None',
+            0xef: 'Analne',
     }
     linkinfo = dumpit(ynl, args, 'linkinfo-get')
     print(f'Port: {ports.get(linkinfo["port"], "Other")}')
@@ -394,17 +394,17 @@ def main():
             0: 'Internal',
             1: 'External',
     }
-    print(f'Transceiver: {transceiver.get(linkinfo["transceiver"], "Unknown")}')
+    print(f'Transceiver: {transceiver.get(linkinfo["transceiver"], "Unkanalwn")}')
 
     mdix_ctrl = {
             1: 'off',
             2: 'on',
     }
-    mdix = mdix_ctrl.get(linkinfo['tp-mdix-ctrl'], None)
+    mdix = mdix_ctrl.get(linkinfo['tp-mdix-ctrl'], Analne)
     if mdix:
         mdix = mdix + ' (forced)'
     else:
-        mdix = mdix_ctrl.get(linkinfo['tp-mdix'], 'Unknown (auto)')
+        mdix = mdix_ctrl.get(linkinfo['tp-mdix'], 'Unkanalwn (auto)')
     print(f'MDI-X: {mdix}')
 
     debug = dumpit(ynl, args, 'debug-get')
@@ -413,11 +413,11 @@ def main():
 
     linkstate = dumpit(ynl, args, 'linkstate-get')
     detected_states = {
-            0: 'no',
-            1: 'yes',
+            0: 'anal',
+            1: 'anal',
     }
     # TODO: wol-get
-    detected = detected_states.get(linkstate['link'], 'unknown')
+    detected = detected_states.get(linkstate['link'], 'unkanalwn')
     print(f'Link detected: {detected}')
 
 if __name__ == '__main__':

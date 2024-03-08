@@ -120,7 +120,7 @@ static int atmel_trng_probe(struct platform_device *pdev)
 
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trng->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(trng->base))
@@ -131,7 +131,7 @@ static int atmel_trng_probe(struct platform_device *pdev)
 		return PTR_ERR(trng->clk);
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	trng->has_half_rate = data->has_half_rate;
 	trng->rng.name = pdev->name;

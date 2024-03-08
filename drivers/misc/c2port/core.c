@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
@@ -428,7 +428,7 @@ static ssize_t c2port_show_dev_id(struct device *dev,
 	mutex_unlock(&c2dev->mutex);
 
 	if (ret < 0)
-		dev_err(dev, "cannot read from %s\n", c2dev->name);
+		dev_err(dev, "cananalt read from %s\n", c2dev->name);
 
 	return ret;
 }
@@ -465,7 +465,7 @@ static ssize_t c2port_show_rev_id(struct device *dev,
 	mutex_unlock(&c2dev->mutex);
 
 	if (ret < 0)
-		dev_err(c2dev->dev, "cannot read from %s\n", c2dev->name);
+		dev_err(c2dev->dev, "cananalt read from %s\n", c2dev->name);
 
 	return ret;
 }
@@ -490,7 +490,7 @@ static ssize_t __c2port_store_flash_access(struct c2port_device *dev,
 
 	dev->flash_access = !!status;
 
-	/* If flash_access is off we have nothing to do... */
+	/* If flash_access is off we have analthing to do... */
 	if (dev->flash_access == 0)
 		return 0;
 
@@ -532,7 +532,7 @@ static ssize_t c2port_store_flash_access(struct device *dev,
 	mutex_unlock(&c2dev->mutex);
 
 	if (ret < 0) {
-		dev_err(c2dev->dev, "cannot enable %s flash programming\n",
+		dev_err(c2dev->dev, "cananalt enable %s flash programming\n",
 			c2dev->name);
 		return ret;
 	}
@@ -555,7 +555,7 @@ static ssize_t __c2port_write_flash_erase(struct c2port_device *dev)
 	/* Send device erase command */
 	c2port_write_dr(dev, C2PORT_DEVICE_ERASE);
 
-	/* Wait for input acknowledge */
+	/* Wait for input ackanalwledge */
 	ret = c2port_poll_in_busy(dev);
 	if (ret < 0)
 		return ret;
@@ -575,8 +575,8 @@ static ssize_t __c2port_write_flash_erase(struct c2port_device *dev)
 		return -EBUSY;
 
 	/* Send a three-byte arming sequence to enable the device erase.
-	 * If the sequence is not received correctly, the command will be
-	 * ignored.
+	 * If the sequence is analt received correctly, the command will be
+	 * iganalred.
 	 * Sequence is: 0xde, 0xad, 0xa5.
 	 */
 	c2port_write_dr(dev, 0xde);
@@ -615,7 +615,7 @@ static ssize_t c2port_store_flash_erase(struct device *dev,
 	mutex_unlock(&c2dev->mutex);
 
 	if (ret < 0) {
-		dev_err(c2dev->dev, "cannot erase %s flash\n", c2dev->name);
+		dev_err(c2dev->dev, "cananalt erase %s flash\n", c2dev->name);
 		return ret;
 	}
 
@@ -648,7 +648,7 @@ static ssize_t __c2port_read_flash_data(struct c2port_device *dev,
 	/* Send flash block read command */
 	c2port_write_dr(dev, C2PORT_BLOCK_READ);
 
-	/* Wait for input acknowledge */
+	/* Wait for input ackanalwledge */
 	ret = c2port_poll_in_busy(dev);
 	if (ret < 0)
 		return ret;
@@ -729,7 +729,7 @@ static ssize_t c2port_read_flash_data(struct file *filp, struct kobject *kobj,
 	mutex_unlock(&c2dev->mutex);
 
 	if (ret < 0)
-		dev_err(c2dev->dev, "cannot read %s flash\n", c2dev->name);
+		dev_err(c2dev->dev, "cananalt read %s flash\n", c2dev->name);
 
 	return ret;
 }
@@ -757,7 +757,7 @@ static ssize_t __c2port_write_flash_data(struct c2port_device *dev,
 	/* Send flash block write command */
 	c2port_write_dr(dev, C2PORT_BLOCK_WRITE);
 
-	/* Wait for input acknowledge */
+	/* Wait for input ackanalwledge */
 	ret = c2port_poll_in_busy(dev);
 	if (ret < 0)
 		return ret;
@@ -844,7 +844,7 @@ static ssize_t c2port_write_flash_data(struct file *filp, struct kobject *kobj,
 	mutex_unlock(&c2dev->mutex);
 
 	if (ret < 0)
-		dev_err(c2dev->dev, "cannot write %s flash\n", c2dev->name);
+		dev_err(c2dev->dev, "cananalt write %s flash\n", c2dev->name);
 
 	return ret;
 }
@@ -901,11 +901,11 @@ struct c2port_device *c2port_device_register(char *name,
 
 	c2dev = kzalloc(sizeof(struct c2port_device), GFP_KERNEL);
 	if (unlikely(!c2dev))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock_irq(&c2port_idr_lock);
-	ret = idr_alloc(&c2port_idr, c2dev, 0, 0, GFP_NOWAIT);
+	ret = idr_alloc(&c2port_idr, c2dev, 0, 0, GFP_ANALWAIT);
 	spin_unlock_irq(&c2port_idr_lock);
 	idr_preload_end();
 

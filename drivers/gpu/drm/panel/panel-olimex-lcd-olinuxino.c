@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * LCD-OLinuXino support for panel driver
+ * LCD-OLinuXianal support for panel driver
  *
  * Copyright (C) 2018 Olimex Ltd.
  *   Author: Stefan Mavrodiev <stefan@olimex.com>
@@ -21,10 +21,10 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
-#define LCD_OLINUXINO_HEADER_MAGIC	0x4F4CB727
-#define LCD_OLINUXINO_DATA_LEN		256
+#define LCD_OLINUXIANAL_HEADER_MAGIC	0x4F4CB727
+#define LCD_OLINUXIANAL_DATA_LEN		256
 
-struct lcd_olinuxino_mode {
+struct lcd_olinuxianal_mode {
 	u32 pixelclock;
 	u32 hactive;
 	u32 hfp;
@@ -38,7 +38,7 @@ struct lcd_olinuxino_mode {
 	u32 flags;
 };
 
-struct lcd_olinuxino_info {
+struct lcd_olinuxianal_info {
 	char name[32];
 	u32 width_mm;
 	u32 height_mm;
@@ -47,18 +47,18 @@ struct lcd_olinuxino_info {
 	u32 bus_flag;
 } __attribute__((__packed__));
 
-struct lcd_olinuxino_eeprom {
+struct lcd_olinuxianal_eeprom {
 	u32 header;
 	u32 id;
 	char revision[4];
 	u32 serial;
-	struct lcd_olinuxino_info info;
+	struct lcd_olinuxianal_info info;
 	u32 num_modes;
 	u8 reserved[180];
 	u32 checksum;
 } __attribute__((__packed__));
 
-struct lcd_olinuxino {
+struct lcd_olinuxianal {
 	struct drm_panel panel;
 	struct device *dev;
 	struct i2c_client *client;
@@ -70,17 +70,17 @@ struct lcd_olinuxino {
 	struct regulator *supply;
 	struct gpio_desc *enable_gpio;
 
-	struct lcd_olinuxino_eeprom eeprom;
+	struct lcd_olinuxianal_eeprom eeprom;
 };
 
-static inline struct lcd_olinuxino *to_lcd_olinuxino(struct drm_panel *panel)
+static inline struct lcd_olinuxianal *to_lcd_olinuxianal(struct drm_panel *panel)
 {
-	return container_of(panel, struct lcd_olinuxino, panel);
+	return container_of(panel, struct lcd_olinuxianal, panel);
 }
 
-static int lcd_olinuxino_disable(struct drm_panel *panel)
+static int lcd_olinuxianal_disable(struct drm_panel *panel)
 {
-	struct lcd_olinuxino *lcd = to_lcd_olinuxino(panel);
+	struct lcd_olinuxianal *lcd = to_lcd_olinuxianal(panel);
 
 	if (!lcd->enabled)
 		return 0;
@@ -90,9 +90,9 @@ static int lcd_olinuxino_disable(struct drm_panel *panel)
 	return 0;
 }
 
-static int lcd_olinuxino_unprepare(struct drm_panel *panel)
+static int lcd_olinuxianal_unprepare(struct drm_panel *panel)
 {
-	struct lcd_olinuxino *lcd = to_lcd_olinuxino(panel);
+	struct lcd_olinuxianal *lcd = to_lcd_olinuxianal(panel);
 
 	if (!lcd->prepared)
 		return 0;
@@ -105,9 +105,9 @@ static int lcd_olinuxino_unprepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int lcd_olinuxino_prepare(struct drm_panel *panel)
+static int lcd_olinuxianal_prepare(struct drm_panel *panel)
 {
-	struct lcd_olinuxino *lcd = to_lcd_olinuxino(panel);
+	struct lcd_olinuxianal *lcd = to_lcd_olinuxianal(panel);
 	int ret;
 
 	if (lcd->prepared)
@@ -123,9 +123,9 @@ static int lcd_olinuxino_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int lcd_olinuxino_enable(struct drm_panel *panel)
+static int lcd_olinuxianal_enable(struct drm_panel *panel)
 {
-	struct lcd_olinuxino *lcd = to_lcd_olinuxino(panel);
+	struct lcd_olinuxianal *lcd = to_lcd_olinuxianal(panel);
 
 	if (lcd->enabled)
 		return 0;
@@ -135,17 +135,17 @@ static int lcd_olinuxino_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int lcd_olinuxino_get_modes(struct drm_panel *panel,
+static int lcd_olinuxianal_get_modes(struct drm_panel *panel,
 				   struct drm_connector *connector)
 {
-	struct lcd_olinuxino *lcd = to_lcd_olinuxino(panel);
-	struct lcd_olinuxino_info *lcd_info = &lcd->eeprom.info;
-	struct lcd_olinuxino_mode *lcd_mode;
+	struct lcd_olinuxianal *lcd = to_lcd_olinuxianal(panel);
+	struct lcd_olinuxianal_info *lcd_info = &lcd->eeprom.info;
+	struct lcd_olinuxianal_mode *lcd_mode;
 	struct drm_display_mode *mode;
 	u32 i, num = 0;
 
 	for (i = 0; i < lcd->eeprom.num_modes; i++) {
-		lcd_mode = (struct lcd_olinuxino_mode *)
+		lcd_mode = (struct lcd_olinuxianal_mode *)
 			   &lcd->eeprom.reserved[i * sizeof(*lcd_mode)];
 
 		mode = drm_mode_create(connector->dev);
@@ -194,28 +194,28 @@ static int lcd_olinuxino_get_modes(struct drm_panel *panel,
 	return num;
 }
 
-static const struct drm_panel_funcs lcd_olinuxino_funcs = {
-	.disable = lcd_olinuxino_disable,
-	.unprepare = lcd_olinuxino_unprepare,
-	.prepare = lcd_olinuxino_prepare,
-	.enable = lcd_olinuxino_enable,
-	.get_modes = lcd_olinuxino_get_modes,
+static const struct drm_panel_funcs lcd_olinuxianal_funcs = {
+	.disable = lcd_olinuxianal_disable,
+	.unprepare = lcd_olinuxianal_unprepare,
+	.prepare = lcd_olinuxianal_prepare,
+	.enable = lcd_olinuxianal_enable,
+	.get_modes = lcd_olinuxianal_get_modes,
 };
 
-static int lcd_olinuxino_probe(struct i2c_client *client)
+static int lcd_olinuxianal_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct lcd_olinuxino *lcd;
+	struct lcd_olinuxianal *lcd;
 	u32 checksum, i;
 	int ret = 0;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK))
-		return -ENODEV;
+		return -EANALDEV;
 
 	lcd = devm_kzalloc(dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, lcd);
 	lcd->dev = dev;
@@ -224,7 +224,7 @@ static int lcd_olinuxino_probe(struct i2c_client *client)
 	mutex_init(&lcd->mutex);
 
 	/* Copy data into buffer */
-	for (i = 0; i < LCD_OLINUXINO_DATA_LEN; i += I2C_SMBUS_BLOCK_MAX) {
+	for (i = 0; i < LCD_OLINUXIANAL_DATA_LEN; i += I2C_SMBUS_BLOCK_MAX) {
 		mutex_lock(&lcd->mutex);
 		ret = i2c_smbus_read_i2c_block_data(client,
 						    i,
@@ -240,13 +240,13 @@ static int lcd_olinuxino_probe(struct i2c_client *client)
 	/* Check configuration checksum */
 	checksum = ~crc32(~0, (u8 *)&lcd->eeprom, 252);
 	if (checksum != lcd->eeprom.checksum) {
-		dev_err(dev, "configuration checksum does not match!\n");
+		dev_err(dev, "configuration checksum does analt match!\n");
 		return -EINVAL;
 	}
 
 	/* Check magic header */
-	if (lcd->eeprom.header != LCD_OLINUXINO_HEADER_MAGIC) {
-		dev_err(dev, "magic header does not match\n");
+	if (lcd->eeprom.header != LCD_OLINUXIANAL_HEADER_MAGIC) {
+		dev_err(dev, "magic header does analt match\n");
 		return -EINVAL;
 	}
 
@@ -275,7 +275,7 @@ static int lcd_olinuxino_probe(struct i2c_client *client)
 	if (IS_ERR(lcd->enable_gpio))
 		return PTR_ERR(lcd->enable_gpio);
 
-	drm_panel_init(&lcd->panel, dev, &lcd_olinuxino_funcs,
+	drm_panel_init(&lcd->panel, dev, &lcd_olinuxianal_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
 	ret = drm_panel_of_backlight(&lcd->panel);
@@ -287,9 +287,9 @@ static int lcd_olinuxino_probe(struct i2c_client *client)
 	return 0;
 }
 
-static void lcd_olinuxino_remove(struct i2c_client *client)
+static void lcd_olinuxianal_remove(struct i2c_client *client)
 {
-	struct lcd_olinuxino *panel = i2c_get_clientdata(client);
+	struct lcd_olinuxianal *panel = i2c_get_clientdata(client);
 
 	drm_panel_remove(&panel->panel);
 
@@ -297,23 +297,23 @@ static void lcd_olinuxino_remove(struct i2c_client *client)
 	drm_panel_unprepare(&panel->panel);
 }
 
-static const struct of_device_id lcd_olinuxino_of_ids[] = {
-	{ .compatible = "olimex,lcd-olinuxino" },
+static const struct of_device_id lcd_olinuxianal_of_ids[] = {
+	{ .compatible = "olimex,lcd-olinuxianal" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, lcd_olinuxino_of_ids);
+MODULE_DEVICE_TABLE(of, lcd_olinuxianal_of_ids);
 
-static struct i2c_driver lcd_olinuxino_driver = {
+static struct i2c_driver lcd_olinuxianal_driver = {
 	.driver = {
-		.name = "lcd_olinuxino",
-		.of_match_table = lcd_olinuxino_of_ids,
+		.name = "lcd_olinuxianal",
+		.of_match_table = lcd_olinuxianal_of_ids,
 	},
-	.probe = lcd_olinuxino_probe,
-	.remove = lcd_olinuxino_remove,
+	.probe = lcd_olinuxianal_probe,
+	.remove = lcd_olinuxianal_remove,
 };
 
-module_i2c_driver(lcd_olinuxino_driver);
+module_i2c_driver(lcd_olinuxianal_driver);
 
 MODULE_AUTHOR("Stefan Mavrodiev <stefan@olimex.com>");
-MODULE_DESCRIPTION("LCD-OLinuXino driver");
+MODULE_DESCRIPTION("LCD-OLinuXianal driver");
 MODULE_LICENSE("GPL");

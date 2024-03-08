@@ -24,7 +24,7 @@ maintainers:
   - Stephen Boyd <sboyd@kernel.org>
 
 properties:
-  $nodename:
+  $analdename:
     oneOf:
       - pattern: '^pmic@.*$'
       - pattern: '^pm(a|s)?[0-9]*@.*$'

@@ -22,16 +22,16 @@ static int udf_verify_fi(struct udf_fileident_iter *iter)
 
 	if (iter->fi.descTag.tagIdent != cpu_to_le16(TAG_IDENT_FID)) {
 		udf_err(iter->dir->i_sb,
-			"directory (ino %lu) has entry at pos %llu with incorrect tag %x\n",
-			iter->dir->i_ino, (unsigned long long)iter->pos,
+			"directory (ianal %lu) has entry at pos %llu with incorrect tag %x\n",
+			iter->dir->i_ianal, (unsigned long long)iter->pos,
 			le16_to_cpu(iter->fi.descTag.tagIdent));
 		return -EFSCORRUPTED;
 	}
 	len = udf_dir_entry_len(&iter->fi);
 	if (le16_to_cpu(iter->fi.lengthOfImpUse) & 3) {
 		udf_err(iter->dir->i_sb,
-			"directory (ino %lu) has entry at pos %llu with unaligned length of impUse field\n",
-			iter->dir->i_ino, (unsigned long long)iter->pos);
+			"directory (ianal %lu) has entry at pos %llu with unaligned length of impUse field\n",
+			iter->dir->i_ianal, (unsigned long long)iter->pos);
 		return -EFSCORRUPTED;
 	}
 	/*
@@ -41,21 +41,21 @@ static int udf_verify_fi(struct udf_fileident_iter *iter)
 	 */
 	if (len > 1 << iter->dir->i_blkbits) {
 		udf_err(iter->dir->i_sb,
-			"directory (ino %lu) has too big (%u) entry at pos %llu\n",
-			iter->dir->i_ino, len, (unsigned long long)iter->pos);
+			"directory (ianal %lu) has too big (%u) entry at pos %llu\n",
+			iter->dir->i_ianal, len, (unsigned long long)iter->pos);
 		return -EFSCORRUPTED;
 	}
 	if (iter->pos + len > iter->dir->i_size) {
 		udf_err(iter->dir->i_sb,
-			"directory (ino %lu) has entry past directory size at pos %llu\n",
-			iter->dir->i_ino, (unsigned long long)iter->pos);
+			"directory (ianal %lu) has entry past directory size at pos %llu\n",
+			iter->dir->i_ianal, (unsigned long long)iter->pos);
 		return -EFSCORRUPTED;
 	}
 	if (udf_dir_entry_len(&iter->fi) !=
 	    sizeof(struct tag) + le16_to_cpu(iter->fi.descTag.descCRCLength)) {
 		udf_err(iter->dir->i_sb,
-			"directory (ino %lu) has entry where CRC length (%u) does not match entry length (%u)\n",
-			iter->dir->i_ino,
+			"directory (ianal %lu) has entry where CRC length (%u) does analt match entry length (%u)\n",
+			iter->dir->i_ianal,
 			(unsigned)le16_to_cpu(iter->fi.descTag.descCRCLength),
 			(unsigned)(udf_dir_entry_len(&iter->fi) -
 							sizeof(struct tag)));
@@ -66,7 +66,7 @@ static int udf_verify_fi(struct udf_fileident_iter *iter)
 
 static int udf_copy_fi(struct udf_fileident_iter *iter)
 {
-	struct udf_inode_info *iinfo = UDF_I(iter->dir);
+	struct udf_ianalde_info *iinfo = UDF_I(iter->dir);
 	u32 blksize = 1 << iter->dir->i_blkbits;
 	u32 off, len, nameoff;
 	int err;
@@ -78,8 +78,8 @@ static int udf_copy_fi(struct udf_fileident_iter *iter)
 	}
 	if (iter->dir->i_size < iter->pos + sizeof(struct fileIdentDesc)) {
 		udf_err(iter->dir->i_sb,
-			"directory (ino %lu) has entry straddling EOF\n",
-			iter->dir->i_ino);
+			"directory (ianal %lu) has entry straddling EOF\n",
+			iter->dir->i_ianal);
 		return -EFSCORRUPTED;
 	}
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
@@ -178,8 +178,8 @@ static int udf_fiiter_advance_blk(struct udf_fileident_iter *iter)
 			return 0;
 		}
 		udf_err(iter->dir->i_sb,
-			"extent after position %llu not allocated in directory (ino %lu)\n",
-			(unsigned long long)iter->pos, iter->dir->i_ino);
+			"extent after position %llu analt allocated in directory (ianal %lu)\n",
+			(unsigned long long)iter->pos, iter->dir->i_ianal);
 		return -EFSCORRUPTED;
 	}
 	return 0;
@@ -196,7 +196,7 @@ static int udf_fiiter_load_bhs(struct udf_fileident_iter *iter)
 	if (!iter->bh[0] && iter->elen) {
 		iter->bh[0] = udf_fiiter_bread_blk(iter);
 		if (!iter->bh[0]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_brelse;
 		}
 		if (!buffer_uptodate(iter->bh[0])) {
@@ -204,7 +204,7 @@ static int udf_fiiter_load_bhs(struct udf_fileident_iter *iter)
 			goto out_brelse;
 		}
 	}
-	/* There's no next block so we are done */
+	/* There's anal next block so we are done */
 	if (iter->pos >= iter->dir->i_size)
 		return 0;
 	/* Need to fetch next block as well? */
@@ -219,7 +219,7 @@ fetch_next:
 			goto out_brelse;
 		iter->bh[1] = udf_fiiter_bread_blk(iter);
 		if (!iter->bh[1]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_brelse;
 		}
 		if (!buffer_uptodate(iter->bh[1])) {
@@ -235,10 +235,10 @@ out_brelse:
 	return err;
 }
 
-int udf_fiiter_init(struct udf_fileident_iter *iter, struct inode *dir,
+int udf_fiiter_init(struct udf_fileident_iter *iter, struct ianalde *dir,
 		    loff_t pos)
 {
-	struct udf_inode_info *iinfo = UDF_I(dir);
+	struct udf_ianalde_info *iinfo = UDF_I(dir);
 	int err = 0;
 
 	iter->dir = dir;
@@ -250,23 +250,23 @@ int udf_fiiter_init(struct udf_fileident_iter *iter, struct inode *dir,
 	/*
 	 * When directory is verified, we don't expect directory iteration to
 	 * fail and it can be difficult to undo without corrupting filesystem.
-	 * So just do not allow memory allocation failures here.
+	 * So just do analt allow memory allocation failures here.
 	 */
-	iter->namebuf = kmalloc(UDF_NAME_LEN_CS0, GFP_KERNEL | __GFP_NOFAIL);
+	iter->namebuf = kmalloc(UDF_NAME_LEN_CS0, GFP_KERNEL | __GFP_ANALFAIL);
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		err = udf_copy_fi(iter);
 		goto out;
 	}
 
-	if (inode_bmap(dir, iter->pos >> dir->i_blkbits, &iter->epos,
+	if (ianalde_bmap(dir, iter->pos >> dir->i_blkbits, &iter->epos,
 		       &iter->eloc, &iter->elen, &iter->loffset) !=
 	    (EXT_RECORDED_ALLOCATED >> 30)) {
 		if (pos == dir->i_size)
 			return 0;
 		udf_err(dir->i_sb,
-			"position %llu not allocated in directory (ino %lu)\n",
-			(unsigned long long)pos, dir->i_ino);
+			"position %llu analt allocated in directory (ianal %lu)\n",
+			(unsigned long long)pos, dir->i_ianal);
 		err = -EFSCORRUPTED;
 		goto out;
 	}
@@ -399,7 +399,7 @@ static void udf_copy_fi_to_bufs(char *buf1, int len1, char *buf2, int len2,
 
 void udf_fiiter_write_fi(struct udf_fileident_iter *iter, uint8_t *impuse)
 {
-	struct udf_inode_info *iinfo = UDF_I(iter->dir);
+	struct udf_ianalde_info *iinfo = UDF_I(iter->dir);
 	void *buf1, *buf2 = NULL;
 	int len1, len2 = 0, off;
 	int blksize = 1 << iter->dir->i_blkbits;
@@ -421,18 +421,18 @@ void udf_fiiter_write_fi(struct udf_fileident_iter *iter, uint8_t *impuse)
 			    iter->name == iter->namebuf ? iter->name : NULL);
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-		mark_inode_dirty(iter->dir);
+		mark_ianalde_dirty(iter->dir);
 	} else {
-		mark_buffer_dirty_inode(iter->bh[0], iter->dir);
+		mark_buffer_dirty_ianalde(iter->bh[0], iter->dir);
 		if (iter->bh[1])
-			mark_buffer_dirty_inode(iter->bh[1], iter->dir);
+			mark_buffer_dirty_ianalde(iter->bh[1], iter->dir);
 	}
-	inode_inc_iversion(iter->dir);
+	ianalde_inc_iversion(iter->dir);
 }
 
 void udf_fiiter_update_elen(struct udf_fileident_iter *iter, uint32_t new_elen)
 {
-	struct udf_inode_info *iinfo = UDF_I(iter->dir);
+	struct udf_ianalde_info *iinfo = UDF_I(iter->dir);
 	int diff = new_elen - iter->elen;
 
 	/* Skip update when we already went past the last extent */
@@ -445,13 +445,13 @@ void udf_fiiter_update_elen(struct udf_fileident_iter *iter, uint32_t new_elen)
 		iter->epos.offset -= sizeof(struct long_ad);
 	udf_write_aext(iter->dir, &iter->epos, &iter->eloc, iter->elen, 1);
 	iinfo->i_lenExtents += diff;
-	mark_inode_dirty(iter->dir);
+	mark_ianalde_dirty(iter->dir);
 }
 
 /* Append new block to directory. @iter is expected to point at EOF */
 int udf_fiiter_append_blk(struct udf_fileident_iter *iter)
 {
-	struct udf_inode_info *iinfo = UDF_I(iter->dir);
+	struct udf_ianalde_info *iinfo = UDF_I(iter->dir);
 	int blksize = 1 << iter->dir->i_blkbits;
 	struct buffer_head *bh;
 	sector_t block;
@@ -471,11 +471,11 @@ int udf_fiiter_append_blk(struct udf_fileident_iter *iter)
 		udf_fiiter_update_elen(iter, old_elen);
 		return err;
 	}
-	if (inode_bmap(iter->dir, block, &iter->epos, &iter->eloc, &iter->elen,
+	if (ianalde_bmap(iter->dir, block, &iter->epos, &iter->eloc, &iter->elen,
 		       &iter->loffset) != (EXT_RECORDED_ALLOCATED >> 30)) {
 		udf_err(iter->dir->i_sb,
-			"block %llu not allocated in directory (ino %lu)\n",
-			(unsigned long long)block, iter->dir->i_ino);
+			"block %llu analt allocated in directory (ianal %lu)\n",
+			(unsigned long long)block, iter->dir->i_ianal);
 		return -EFSCORRUPTED;
 	}
 	if (!(iter->pos & (blksize - 1))) {

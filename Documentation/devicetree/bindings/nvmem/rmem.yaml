@@ -23,7 +23,7 @@ properties:
   reg:
     maxItems: 1
 
-  no-map:
+  anal-map:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Avoid creating a virtual mapping of the region as part of the OS'
@@ -31,7 +31,7 @@ properties:
 
 required:
   - compatible
-  - no-map
+  - anal-map
 
 unevaluatedProperties: false
 
@@ -46,7 +46,7 @@ examples:
                         #address-cells = <1>;
                         #size-cells = <1>;
                         reg = <0x10000000 0x1000>;
-                        no-map;
+                        anal-map;
                 };
         };
 

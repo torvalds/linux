@@ -185,13 +185,13 @@ struct tcpci;
  *		Optional; Callback to perform chip specific operations when FRS
  *		is sourcing vbus.
  * @auto_discharge_disconnect:
- *		Optional; Enables TCPC to autonously discharge vbus on disconnect.
+ *		Optional; Enables TCPC to autoanalusly discharge vbus on disconnect.
  * @vbus_vsafe0v:
  *		optional; Set when TCPC can detect whether vbus is at VSAFE0V.
  * @set_partner_usb_comm_capable:
  *		Optional; The USB Communications Capable bit indicates if port
  *		partner is capable of communication over the USB data lines
- *		(e.g. D+/- or SS Tx/Rx). Called to notify the status of the bit.
+ *		(e.g. D+/- or SS Tx/Rx). Called to analtify the status of the bit.
  * @check_contaminant:
  *		Optional; The callback is invoked when chiplevel drivers indicated
  *		that the USB port needs to be checked for contaminant presence.

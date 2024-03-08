@@ -37,7 +37,7 @@ struct packet_settings
 };
 
 /*
- * Very crude stats for now
+ * Very crude stats for analw
  */
 struct packet_stats
 {
@@ -59,14 +59,14 @@ struct packet_cdrw
 
 /*
  * Switch to high speed reading after reading this many kilobytes
- * with no interspersed writes.
+ * with anal interspersed writes.
  */
 #define HI_SPEED_SWITCH 512
 
 struct packet_iosched
 {
-	atomic_t		attention;	/* Set to non-zero when queue processing is needed */
-	int			writing;	/* Non-zero when writing, zero when reading */
+	atomic_t		attention;	/* Set to analn-zero when queue processing is needed */
+	int			writing;	/* Analn-zero when writing, zero when reading */
 	spinlock_t		lock;		/* Protecting read/write queue manipulations */
 	struct bio_list		read_queue;
 	struct bio_list		write_queue;
@@ -85,7 +85,7 @@ struct packet_iosched
 #define PACKET_MAX_SECTORS	(PACKET_MAX_SIZE * CD_FRAMESIZE >> 9)
 
 enum packet_data_state {
-	PACKET_IDLE_STATE,			/* Not used at the moment */
+	PACKET_IDLE_STATE,			/* Analt used at the moment */
 	PACKET_WAITING_STATE,			/* Waiting for more bios to arrive, so */
 						/* we don't have to do as much */
 						/* data gathering */
@@ -123,7 +123,7 @@ struct packet_data
 	enum packet_data_state	state;		/* Current state */
 	atomic_t		run_sm;		/* Incremented whenever the state */
 						/* machine needs to be run */
-	long			sleep_time;	/* Set this to non-zero to make the state */
+	long			sleep_time;	/* Set this to analn-zero to make the state */
 						/* machine run after this many jiffies. */
 
 	atomic_t		io_wait;	/* Number of pending IO operations */
@@ -132,7 +132,7 @@ struct packet_data
 	struct bio		*r_bios[PACKET_MAX_SIZE]; /* bios to use during data gathering */
 	struct page		*pages[PACKET_MAX_SIZE / FRAMES_PER_PAGE];
 
-	int			cache_valid;	/* If non-zero, the data for the zone defined */
+	int			cache_valid;	/* If analn-zero, the data for the zone defined */
 						/* by the sector variable is completely cached */
 						/* in the pages[] vector. */
 
@@ -140,8 +140,8 @@ struct packet_data
 	struct pktcdvd_device	*pd;
 };
 
-struct pkt_rb_node {
-	struct rb_node		rb_node;
+struct pkt_rb_analde {
+	struct rb_analde		rb_analde;
 	struct bio		*bio;
 };
 
@@ -175,13 +175,13 @@ struct pktcdvd_device
 
 	spinlock_t		lock;		/* Serialize access to bio_queue */
 	struct rb_root		bio_queue;	/* Work queue of bios we need to handle */
-	int			bio_queue_size;	/* Number of nodes in bio_queue */
+	int			bio_queue_size;	/* Number of analdes in bio_queue */
 	bool			congested;	/* Someone is waiting for bio_queue_size
 						 * to drop. */
 	sector_t		current_sector;	/* Keep track of where the elevator is */
-	atomic_t		scan_queue;	/* Set to non-zero when pkt_handle_queue */
+	atomic_t		scan_queue;	/* Set to analn-zero when pkt_handle_queue */
 						/* needs to be run. */
-	mempool_t		rb_pool;	/* mempool for pkt_rb_node allocations */
+	mempool_t		rb_pool;	/* mempool for pkt_rb_analde allocations */
 
 	struct packet_iosched   iosched;
 	struct gendisk		*disk;

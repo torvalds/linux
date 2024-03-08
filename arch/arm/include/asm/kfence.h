@@ -15,7 +15,7 @@ static inline int split_pmd_page(pmd_t *pmd, unsigned long addr)
 	pte_t *pte = pte_alloc_one_kernel(&init_mm);
 
 	if (!pte)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < PTRS_PER_PTE; i++)
 		set_pte_ext(pte + i, pfn_pte(pfn + i, PAGE_KERNEL), 0);

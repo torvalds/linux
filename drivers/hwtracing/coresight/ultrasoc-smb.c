@@ -21,11 +21,11 @@ DEFINE_CORESIGHT_DEVLIST(sink_devs, "ultra_smb");
 
 #define ULTRASOC_SMB_DSM_UUID	"82ae1283-7f6a-4cbe-aa06-53e8fb24db18"
 
-static bool smb_buffer_not_empty(struct smb_drv_data *drvdata)
+static bool smb_buffer_analt_empty(struct smb_drv_data *drvdata)
 {
 	u32 buf_status = readl(drvdata->base + SMB_LB_INT_STS_REG);
 
-	return FIELD_GET(SMB_LB_INT_STS_NOT_EMPTY_MSK, buf_status);
+	return FIELD_GET(SMB_LB_INT_STS_ANALT_EMPTY_MSK, buf_status);
 }
 
 static void smb_update_data_size(struct smb_drv_data *drvdata)
@@ -37,7 +37,7 @@ static void smb_update_data_size(struct smb_drv_data *drvdata)
 			  sdb->buf_hw_base;
 
 	/* Buffer is full */
-	if (buf_wrptr == sdb->buf_rdptr && smb_buffer_not_empty(drvdata)) {
+	if (buf_wrptr == sdb->buf_rdptr && smb_buffer_analt_empty(drvdata)) {
 		sdb->data_size = sdb->buf_size;
 		return;
 	}
@@ -72,7 +72,7 @@ static void smb_reset_buffer(struct smb_drv_data *drvdata)
 	/*
 	 * We must flush and discard any data left in hardware path
 	 * to avoid corrupting the next session.
-	 * Note: The write pointer will never exceed the read pointer.
+	 * Analte: The write pointer will never exceed the read pointer.
 	 */
 	writel(SMB_LB_PURGE_PURGED, drvdata->base + SMB_LB_PURGE_REG);
 
@@ -81,7 +81,7 @@ static void smb_reset_buffer(struct smb_drv_data *drvdata)
 
 	write_ptr = readl(drvdata->base + SMB_LB_WR_ADDR_REG);
 
-	/* Do nothing, not data left in hardware path */
+	/* Do analthing, analt data left in hardware path */
 	if (!write_ptr || write_ptr == sdb->buf_rdptr + sdb->buf_hw_base)
 		return;
 
@@ -93,7 +93,7 @@ static void smb_reset_buffer(struct smb_drv_data *drvdata)
 	sdb->buf_rdptr = write_ptr - sdb->buf_hw_base;
 }
 
-static int smb_open(struct inode *inode, struct file *file)
+static int smb_open(struct ianalde *ianalde, struct file *file)
 {
 	struct smb_drv_data *drvdata = container_of(file->private_data,
 					struct smb_drv_data, miscdev);
@@ -147,7 +147,7 @@ static ssize_t smb_read(struct file *file, char __user *data, size_t len,
 	return to_copy;
 }
 
-static int smb_release(struct inode *inode, struct file *file)
+static int smb_release(struct ianalde *ianalde, struct file *file)
 {
 	struct smb_drv_data *drvdata = container_of(file->private_data,
 					struct smb_drv_data, miscdev);
@@ -163,7 +163,7 @@ static const struct file_operations smb_fops = {
 	.open		= smb_open,
 	.read		= smb_read,
 	.release	= smb_release,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static ssize_t buf_size_show(struct device *dev, struct device_attribute *attr,
@@ -248,11 +248,11 @@ static int smb_enable(struct coresight_device *csdev, enum cs_mode mode,
 
 	guard(spinlock)(&drvdata->spinlock);
 
-	/* Do nothing, the trace data is reading by other interface now */
+	/* Do analthing, the trace data is reading by other interface analw */
 	if (drvdata->reading)
 		return -EBUSY;
 
-	/* Do nothing, the SMB is already enabled as other mode */
+	/* Do analthing, the SMB is already enabled as other mode */
 	if (drvdata->mode != CS_MODE_DISABLED && drvdata->mode != mode)
 		return -EBUSY;
 
@@ -306,10 +306,10 @@ static void *smb_alloc_buffer(struct coresight_device *csdev,
 			      int nr_pages, bool overwrite)
 {
 	struct cs_buffers *buf;
-	int node;
+	int analde;
 
-	node = (event->cpu == -1) ? NUMA_NO_NODE : cpu_to_node(event->cpu);
-	buf = kzalloc_node(sizeof(struct cs_buffers), GFP_KERNEL, node);
+	analde = (event->cpu == -1) ? NUMA_ANAL_ANALDE : cpu_to_analde(event->cpu);
+	buf = kzalloc_analde(sizeof(struct cs_buffers), GFP_KERNEL, analde);
 	if (!buf)
 		return NULL;
 
@@ -379,7 +379,7 @@ static unsigned long smb_update_buffer(struct coresight_device *csdev,
 
 	guard(spinlock)(&drvdata->spinlock);
 
-	/* Don't do anything if another tracer is using this sink. */
+	/* Don't do anything if aanalther tracer is using this sink. */
 	if (atomic_read(&csdev->refcnt) != 1)
 		return 0;
 
@@ -479,7 +479,7 @@ static int smb_register_sink(struct platform_device *pdev,
 	desc.name = coresight_alloc_device_name(&sink_devs, &pdev->dev);
 	if (!desc.name) {
 		dev_err(&pdev->dev, "Failed to alloc coresight device name");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	desc.access = CSDEV_ACCESS_IOMEM(drvdata->base);
 
@@ -488,7 +488,7 @@ static int smb_register_sink(struct platform_device *pdev,
 		return PTR_ERR(drvdata->csdev);
 
 	drvdata->miscdev.name = desc.name;
-	drvdata->miscdev.minor = MISC_DYNAMIC_MINOR;
+	drvdata->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	drvdata->miscdev.fops = &smb_fops;
 	ret = misc_register(&drvdata->miscdev);
 	if (ret) {
@@ -524,7 +524,7 @@ static int smb_config_inport(struct device *dev, bool enable)
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &guid, rev, func, NULL);
 	if (!obj) {
 		dev_err(dev, "ACPI handle failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ACPI_FREE(obj);
@@ -540,7 +540,7 @@ static int smb_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->base = devm_platform_ioremap_resource(pdev, SMB_REG_ADDR_RES);
 	if (IS_ERR(drvdata->base)) {

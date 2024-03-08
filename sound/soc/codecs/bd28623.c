@@ -30,7 +30,7 @@ struct bd28623_priv {
 };
 
 static const struct snd_soc_dapm_widget bd28623_widgets[] = {
-	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("OUT1P"),
 	SND_SOC_DAPM_OUTPUT("OUT1N"),
 	SND_SOC_DAPM_OUTPUT("OUT2P"),
@@ -186,7 +186,7 @@ static int bd28623_probe(struct platform_device *pdev)
 
 	bd = devm_kzalloc(&pdev->dev, sizeof(struct bd28623_priv), GFP_KERNEL);
 	if (!bd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(bd->supplies); i++)
 		bd->supplies[i].supply = bd28623_supply_names[i];

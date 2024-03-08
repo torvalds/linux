@@ -44,10 +44,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions change action simple sdata \"Not changed\" index 60",
+        "cmdUnderTest": "$TC actions change action simple sdata \"Analt changed\" index 60",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action simple",
-        "matchPattern": "action order [0-9]*: Simple <Not changed>.*index 60 ref",
+        "matchPattern": "action order [0-9]*: Simple <Analt changed>.*index 60 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action simple"

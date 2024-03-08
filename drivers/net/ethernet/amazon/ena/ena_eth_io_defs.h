@@ -6,7 +6,7 @@
 #define _ENA_ETH_IO_H_
 
 enum ena_eth_io_l3_proto_index {
-	ENA_ETH_IO_L3_PROTO_UNKNOWN                 = 0,
+	ENA_ETH_IO_L3_PROTO_UNKANALWN                 = 0,
 	ENA_ETH_IO_L3_PROTO_IPV4                    = 8,
 	ENA_ETH_IO_L3_PROTO_IPV6                    = 11,
 	ENA_ETH_IO_L3_PROTO_FCOE                    = 21,
@@ -14,7 +14,7 @@ enum ena_eth_io_l3_proto_index {
 };
 
 enum ena_eth_io_l4_proto_index {
-	ENA_ETH_IO_L4_PROTO_UNKNOWN                 = 0,
+	ENA_ETH_IO_L4_PROTO_UNKANALWN                 = 0,
 	ENA_ETH_IO_L4_PROTO_TCP                     = 12,
 	ENA_ETH_IO_L4_PROTO_UDP                     = 13,
 	ENA_ETH_IO_L4_PROTO_ROUTEABLE_ROCE          = 23,
@@ -24,8 +24,8 @@ struct ena_eth_io_tx_desc {
 	/* 15:0 : length - Buffer length in bytes, must
 	 *    include any packet trailers that the ENA supposed
 	 *    to update like End-to-End CRC, Authentication GMAC
-	 *    etc. This length must not include the
-	 *    'Push_Buffer' length. This length must not include
+	 *    etc. This length must analt include the
+	 *    'Push_Buffer' length. This length must analt include
 	 *    the 4-byte added in the end for 802.3 Ethernet FCS
 	 * 21:16 : req_id_hi - Request ID[15:10]
 	 * 22 : reserved22 - MBZ
@@ -56,7 +56,7 @@ struct ena_eth_io_tx_desc {
 	 * 13 : l3_csum_en - enable IPv4 header checksum.
 	 * 14 : l4_csum_en - enable TCP/UDP checksum.
 	 * 15 : ethernet_fcs_dis - when set, the controller
-	 *    will not append the 802.3 Ethernet Frame Check
+	 *    will analt append the 802.3 Ethernet Frame Check
 	 *    Sequence to the packet
 	 * 16 : reserved16
 	 * 17 : l4_csum_partial - L4 partial checksum. when
@@ -67,7 +67,7 @@ struct ena_eth_io_tx_desc {
 	 *    calculate the sum of the pseudo-header, instead,
 	 *    the checksum field of the L4 is used instead. When
 	 *    TSO enabled, the checksum of the pseudo-header
-	 *    must not include the tcp length field. L4 partial
+	 *    must analt include the tcp length field. L4 partial
 	 *    checksum should be used for IPv6 packet that
 	 *    contains Routing Headers.
 	 * 20:18 : reserved18 - MBZ
@@ -84,12 +84,12 @@ struct ena_eth_io_tx_desc {
 	 * 31:24 : header_length - Header length. For Low
 	 *    Latency Queues, this fields indicates the number
 	 *    of bytes written to the headers' memory. For
-	 *    normal queues, if packet is TCP or UDP, and longer
+	 *    analrmal queues, if packet is TCP or UDP, and longer
 	 *    than max_header_size, then this field should be
 	 *    set to the sum of L4 header offset and L4 header
 	 *    size(without options), otherwise, this field
 	 *    should be set to 0. For both modes, this field
-	 *    must not exceed the max_header_size.
+	 *    must analt exceed the max_header_size.
 	 *    max_header_size value is reported by the Max
 	 *    Queues Feature descriptor
 	 */
@@ -192,7 +192,7 @@ struct ena_eth_io_rx_desc {
 	u16 reserved16_w3;
 };
 
-/* 4-word format Note: all ethernet parsing information are valid only when
+/* 4-word format Analte: all ethernet parsing information are valid only when
  * last=1
  */
 struct ena_eth_io_rx_cdesc_base {
@@ -208,12 +208,12 @@ struct ena_eth_io_rx_cdesc_base {
 	 *    checksum error detected, or, the controller didn't
 	 *    validate the checksum. This bit is valid only when
 	 *    l4_proto_idx indicates TCP/UDP packet, and,
-	 *    ipv4_frag is not set. This bit is valid only when
+	 *    ipv4_frag is analt set. This bit is valid only when
 	 *    l4_csum_checked below is set.
 	 * 15 : ipv4_frag - Indicates IPv4 fragmented packet
 	 * 16 : l4_csum_checked - L4 checksum was verified
 	 *    (could be OK or error), when cleared the status of
-	 *    checksum is unknown
+	 *    checksum is unkanalwn
 	 * 23:17 : reserved17 - MBZ
 	 * 24 : phase
 	 * 25 : l3_csum2 - second checksum engine result
@@ -266,7 +266,7 @@ struct ena_eth_io_intr_reg {
 	u32 intr_control;
 };
 
-struct ena_eth_io_numa_node_cfg_reg {
+struct ena_eth_io_numa_analde_cfg_reg {
 	/* 7:0 : numa
 	 * 30:8 : reserved
 	 * 31 : enabled
@@ -382,9 +382,9 @@ struct ena_eth_io_numa_node_cfg_reg {
 #define ENA_ETH_IO_INTR_REG_INTR_UNMASK_SHIFT               30
 #define ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK                BIT(30)
 
-/* numa_node_cfg_reg */
-#define ENA_ETH_IO_NUMA_NODE_CFG_REG_NUMA_MASK              GENMASK(7, 0)
-#define ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_SHIFT          31
-#define ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_MASK           BIT(31)
+/* numa_analde_cfg_reg */
+#define ENA_ETH_IO_NUMA_ANALDE_CFG_REG_NUMA_MASK              GENMASK(7, 0)
+#define ENA_ETH_IO_NUMA_ANALDE_CFG_REG_ENABLED_SHIFT          31
+#define ENA_ETH_IO_NUMA_ANALDE_CFG_REG_ENABLED_MASK           BIT(31)
 
 #endif /* _ENA_ETH_IO_H_ */

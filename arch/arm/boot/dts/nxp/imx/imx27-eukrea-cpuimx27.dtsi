@@ -58,7 +58,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhc2>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -90,7 +90,7 @@
 &weim {
 	status = "okay";
 
-	nor: flash@0,0 {
+	analr: flash@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";
@@ -110,7 +110,7 @@
 		reg = <3 0x200000 0x1000>;
 		reg-shift = <1>;
 		reg-io-width = <1>;
-		no-loopback-test;
+		anal-loopback-test;
 	};
 
 	uart8250@3,400000 {
@@ -123,7 +123,7 @@
 		reg = <3 0x400000 0x1000>;
 		reg-shift = <1>;
 		reg-io-width = <1>;
-		no-loopback-test;
+		anal-loopback-test;
 	};
 
 	uart8250@3,800000 {
@@ -136,7 +136,7 @@
 		reg = <3 0x800000 0x1000>;
 		reg-shift = <1>;
 		reg-io-width = <1>;
-		no-loopback-test;
+		anal-loopback-test;
 	};
 
 	uart8250@3,1000000 {
@@ -149,7 +149,7 @@
 		reg = <3 0x1000000 0x1000>;
 		reg-shift = <1>;
 		reg-io-width = <1>;
-		no-loopback-test;
+		anal-loopback-test;
 	};
 };
 

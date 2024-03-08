@@ -35,7 +35,7 @@ static void slip_init(struct net_device *dev, void *data)
 	dev->addr_len = 0;
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 256;
-	dev->flags = IFF_NOARP;
+	dev->flags = IFF_ANALARP;
 	printk("SLIP backend - SLIP IP = %s\n", spri->gate_addr);
 }
 

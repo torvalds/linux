@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2020 Intel Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -72,7 +72,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
  * This helper is intended for HW that support multiple page
  * sizes but can do only a single page size in an MR.
  *
- * Returns 0 if the umem requires page sizes not supported by
+ * Returns 0 if the umem requires page sizes analt supported by
  * the driver to be mapped. Drivers always supporting PAGE_SIZE
  * or smaller will never see a 0 result.
  */
@@ -165,11 +165,11 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 		return ERR_PTR(-EPERM);
 
 	if (access & IB_ACCESS_ON_DEMAND)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
 	if (!umem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	umem->ibdev      = device;
 	umem->length     = size;
 	umem->address    = addr;
@@ -184,7 +184,7 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
 	if (!page_list) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto umem_kfree;
 	}
 
@@ -199,7 +199,7 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 	new_pinned = atomic64_add_return(npages, &mm->pinned_vm);
 	if (new_pinned > lock_limit && !capable(CAP_IPC_LOCK)) {
 		atomic64_sub(npages, &mm->pinned_vm);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -293,7 +293,7 @@ int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
 	int ret;
 
 	if (offset > umem->length || length > umem->length - offset) {
-		pr_err("%s not in range. offset: %zd umem length: %zd end: %zd\n",
+		pr_err("%s analt in range. offset: %zd umem length: %zd end: %zd\n",
 		       __func__, offset, umem->length, end);
 		return -EINVAL;
 	}

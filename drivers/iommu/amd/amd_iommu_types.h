@@ -114,7 +114,7 @@
 #define FEATURE_SNPAVICSUP_GAM(x) \
 	((x & FEATURE_SNPAVICSUP_MASK) >> FEATURE_SNPAVICSUP_SHIFT == 0x1)
 
-/* Note:
+/* Analte:
  * The current driver only support 16-bit PASID.
  * Currently, hardware only implement upto 16-bit PASID
  * even though the spec says it could have upto 20 bits.
@@ -183,7 +183,7 @@
 #define CONTROL_SNPAVIC_EN	61
 
 #define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
-#define CTRL_INV_TO_NONE	0
+#define CTRL_INV_TO_ANALNE	0
 #define CTRL_INV_TO_1MS		1
 #define CTRL_INV_TO_10MS	2
 #define CTRL_INV_TO_100MS	3
@@ -218,7 +218,7 @@
 #define DEV_ENTRY_PPR           0x34
 #define DEV_ENTRY_IR            0x3d
 #define DEV_ENTRY_IW            0x3e
-#define DEV_ENTRY_NO_PAGE_FAULT	0x62
+#define DEV_ENTRY_ANAL_PAGE_FAULT	0x62
 #define DEV_ENTRY_EX            0x67
 #define DEV_ENTRY_SYSMGT1       0x68
 #define DEV_ENTRY_SYSMGT2       0x69
@@ -283,7 +283,7 @@
  * physically contiguous memory regions it is mapping into page sizes
  * that we support.
  *
- * 512GB Pages are not supported due to a hardware bug
+ * 512GB Pages are analt supported due to a hardware bug
  */
 #define AMD_IOMMU_PGSIZES	((~0xFFFUL) & ~(2ULL << 38))
 /* 4K, 2MB, 1G page sizes are supported */
@@ -305,7 +305,7 @@
 #define DTE_INTTABLEN_MASK      (0xfULL << 1)
 #define MAX_IRQS_PER_TABLE      (1 << DTE_INTTABLEN_VALUE)
 
-#define PAGE_MODE_NONE    0x00
+#define PAGE_MODE_ANALNE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
 #define PAGE_MODE_2_LEVEL 0x02
 #define PAGE_MODE_3_LEVEL 0x03
@@ -354,7 +354,7 @@
 		((address) & ~((pagesize) - 1))
 /*
  * Creates an IOMMU PTE for an address and a given pagesize
- * The PTE has no permission bits set
+ * The PTE has anal permission bits set
  * Pagesize is expected to be a power-of-two larger than 4096
  */
 #define PAGE_SIZE_PTE(address, pagesize)		\
@@ -457,7 +457,7 @@
 #define PD_DMA_OPS_MASK		BIT(0) /* domain used for dma_ops */
 #define PD_DEFAULT_MASK		BIT(1) /* domain is a default dma_ops
 					      domain for an IOMMU */
-#define PD_PASSTHROUGH_MASK	BIT(2) /* domain has no page
+#define PD_PASSTHROUGH_MASK	BIT(2) /* domain has anal page
 					      translation */
 #define PD_IOMMUV2_MASK		BIT(3) /* domain has gcr3 table */
 #define PD_GIOV_MASK		BIT(4) /* domain enable GIOV support */
@@ -473,7 +473,7 @@ extern bool amd_iommu_dump;
 			pr_info("AMD-Vi: " format, ## arg);	\
 	} while(0);
 
-/* global flag if IOMMUs cache non-present entries */
+/* global flag if IOMMUs cache analn-present entries */
 extern bool amd_iommu_np_cache;
 /* Only true if all IOMMUs support device IOTLBs */
 extern bool amd_iommu_iotlb_sup;
@@ -561,7 +561,7 @@ struct protection_domain {
 	spinlock_t lock;	/* mostly used to lock the page table*/
 	u16 id;			/* the domain id written to the device table */
 	int glx;		/* Number of levels for GCR3 table */
-	int nid;		/* Node ID */
+	int nid;		/* Analde ID */
 	u64 *gcr3_tbl;		/* Guest CR3 table */
 	unsigned long flags;	/* flags to find out type of domain */
 	bool dirty_tracking;	/* dirty tracking is enabled in the domain */
@@ -631,7 +631,7 @@ struct amd_iommu_pci_seg {
 	u16 *alias_table;
 
 	/*
-	 * A list of required unity mappings we find in ACPI. It is not locked
+	 * A list of required unity mappings we find in ACPI. It is analt locked
 	 * because as runtime it is only read. It is created at ACPI table
 	 * parsing time.
 	 */
@@ -814,7 +814,7 @@ struct iommu_dev_data {
 	spinlock_t lock;
 
 	struct list_head list;		  /* For domain->dev_list */
-	struct llist_node dev_data_list;  /* For global dev_data_list */
+	struct llist_analde dev_data_list;  /* For global dev_data_list */
 	struct protection_domain *domain; /* Domain the device is bound to */
 	struct device *dev;
 	u16 devid;			  /* PCI Device ID */
@@ -839,13 +839,13 @@ extern struct list_head hpet_map;
 extern struct list_head acpihid_map;
 
 /*
- * List with all PCI segments in the system. This list is not locked because
+ * List with all PCI segments in the system. This list is analt locked because
  * it is only written at driver initialization time
  */
 extern struct list_head amd_iommu_pci_seg_list;
 
 /*
- * List with all IOMMUs in the system. This list is not locked because it is
+ * List with all IOMMUs in the system. This list is analt locked because it is
  * only written and read at driver initialization or suspend time
  */
 extern struct list_head amd_iommu_list;
@@ -929,8 +929,8 @@ static inline int get_hpet_devid(int id)
 enum amd_iommu_intr_mode_type {
 	AMD_IOMMU_GUEST_IR_LEGACY,
 
-	/* This mode is not visible to users. It is used when
-	 * we cannot fully enable vAPIC and fallback to only support
+	/* This mode is analt visible to users. It is used when
+	 * we cananalt fully enable vAPIC and fallback to only support
 	 * legacy interrupt remapping via 128-bit IRTE.
 	 */
 	AMD_IOMMU_GUEST_IR_LEGACY_GA,
@@ -946,7 +946,7 @@ union irte {
 	u32 val;
 	struct {
 		u32 valid	: 1,
-		    no_fault	: 1,
+		    anal_fault	: 1,
 		    int_type	: 3,
 		    rq_eoi	: 1,
 		    dm		: 1,
@@ -966,7 +966,7 @@ union irte_ga_lo {
 	/* For int remapping */
 	struct {
 		u64 valid	: 1,
-		    no_fault	: 1,
+		    anal_fault	: 1,
 		    /* ------ */
 		    int_type	: 3,
 		    rq_eoi	: 1,
@@ -980,7 +980,7 @@ union irte_ga_lo {
 	/* For guest vAPIC */
 	struct {
 		u64 valid	: 1,
-		    no_fault	: 1,
+		    anal_fault	: 1,
 		    /* ------ */
 		    ga_log_intr	: 1,
 		    rsvd1	: 3,

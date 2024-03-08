@@ -4,7 +4,7 @@
  * Copyright (C) 2006 David S. Miller (davem@davemloft.net)
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/thread_info.h>
 #include <linux/perf_event.h>
 
@@ -79,37 +79,37 @@
 /* 000000000 - Eight 8-bit edge boundary processing  */
 #define EDGE8_OPF	0x000
 
-/* 000000001 - Eight 8-bit edge boundary processing, no CC */
+/* 000000001 - Eight 8-bit edge boundary processing, anal CC */
 #define EDGE8N_OPF	0x001
 
 /* 000000010 - Eight 8-bit edge boundary processing, little-endian  */
 #define EDGE8L_OPF	0x002
 
-/* 000000011 - Eight 8-bit edge boundary processing, little-endian, no CC  */
+/* 000000011 - Eight 8-bit edge boundary processing, little-endian, anal CC  */
 #define EDGE8LN_OPF	0x003
 
 /* 000000100 - Four 16-bit edge boundary processing  */
 #define EDGE16_OPF	0x004
 
-/* 000000101 - Four 16-bit edge boundary processing, no CC  */
+/* 000000101 - Four 16-bit edge boundary processing, anal CC  */
 #define EDGE16N_OPF	0x005
 
 /* 000000110 - Four 16-bit edge boundary processing, little-endian  */
 #define EDGE16L_OPF	0x006
 
-/* 000000111 - Four 16-bit edge boundary processing, little-endian, no CC  */
+/* 000000111 - Four 16-bit edge boundary processing, little-endian, anal CC  */
 #define EDGE16LN_OPF	0x007
 
 /* 000001000 - Two 32-bit edge boundary processing  */
 #define EDGE32_OPF	0x008
 
-/* 000001001 - Two 32-bit edge boundary processing, no CC  */
+/* 000001001 - Two 32-bit edge boundary processing, anal CC  */
 #define EDGE32N_OPF	0x009
 
 /* 000001010 - Two 32-bit edge boundary processing, little-endian  */
 #define EDGE32L_OPF	0x00a
 
-/* 000001011 - Two 32-bit edge boundary processing, little-endian, no CC  */
+/* 000001011 - Two 32-bit edge boundary processing, little-endian, anal CC  */
 #define EDGE32LN_OPF	0x00b
 
 /* 000111110 - distance between 8 8-bit components  */
@@ -798,7 +798,7 @@ static void pcmp(struct pt_regs *regs, unsigned int insn, unsigned int opf)
 	store_reg(regs, rd_val, RD(insn));
 }
 
-/* Emulate the VIS instructions which are not implemented in
+/* Emulate the VIS instructions which are analt implemented in
  * hardware on Niagara.
  */
 int vis_emul(struct pt_regs *regs, unsigned int insn)

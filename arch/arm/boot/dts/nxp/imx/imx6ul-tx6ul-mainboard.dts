@@ -2,8 +2,8 @@
  * Copyright 2015 Lothar Waßmann <LW@KARO-electronics.de>
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -26,13 +26,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -54,7 +54,7 @@
 		serial2 = &uart3;
 		serial4 = &uart5;
 	};
-	/delete-node/ sound;
+	/delete-analde/ sound;
 };
 
 &can1 {
@@ -71,7 +71,7 @@
 
 &fec1 {
 	pinctrl-0 = <&pinctrl_enet1 &pinctrl_etnphy0_rst>;
-	/delete-node/ mdio;
+	/delete-analde/ mdio;
 };
 
 &fec2 {
@@ -116,8 +116,8 @@
 };
 
 &i2c2 {
-	/delete-node/ codec@a;
-	/delete-node/ touchscreen@48;
+	/delete-analde/ codec@a;
+	/delete-analde/ touchscreen@48;
 
 	rtc: rtc@6f {
 		compatible = "microchip,mcp7940x";
@@ -139,7 +139,7 @@
 
 &usdhc1 {
 	pinctrl-0 = <&pinctrl_usdhc1>;
-	non-removable;
+	analn-removable;
 	/delete-property/ cd-gpios;
 	cap-sdio-irq;
 };
@@ -210,14 +210,14 @@
 			MX6UL_PAD_LCD_DATA05__LCDIF_DATA05	0x10
 			MX6UL_PAD_LCD_DATA06__LCDIF_DATA06	0x10
 			MX6UL_PAD_LCD_DATA07__LCDIF_DATA07	0x10
-			/* LCD_DATA08..09 not wired */
+			/* LCD_DATA08..09 analt wired */
 			MX6UL_PAD_LCD_DATA10__LCDIF_DATA10	0x10
 			MX6UL_PAD_LCD_DATA11__LCDIF_DATA11	0x10
 			MX6UL_PAD_LCD_DATA12__LCDIF_DATA12	0x10
 			MX6UL_PAD_LCD_DATA13__LCDIF_DATA13	0x10
 			MX6UL_PAD_LCD_DATA14__LCDIF_DATA14	0x10
 			MX6UL_PAD_LCD_DATA15__LCDIF_DATA15	0x10
-			/* LCD_DATA16..17 not wired */
+			/* LCD_DATA16..17 analt wired */
 			MX6UL_PAD_LCD_DATA18__LCDIF_DATA18	0x10
 			MX6UL_PAD_LCD_DATA19__LCDIF_DATA19	0x10
 			MX6UL_PAD_LCD_DATA20__LCDIF_DATA20	0x10

@@ -8,7 +8,7 @@
 
 #define _GNU_SOURCE
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <limits.h>
 #include <linux/futex.h>
@@ -140,7 +140,7 @@ static void bench_thread(void)
 
 	rc = pthread_attr_init(&attr);
 	if (rc) {
-		errno = rc;
+		erranal = rc;
 		perror("pthread_attr_init");
 		exit(1);
 	}
@@ -151,7 +151,7 @@ static void bench_thread(void)
 
 		rc = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
 		if (rc) {
-			errno = rc;
+			erranal = rc;
 			perror("pthread_attr_setaffinity_np");
 			exit(1);
 		}
@@ -160,13 +160,13 @@ static void bench_thread(void)
 	while (1) {
 		rc = pthread_create(&tid, &attr, null_fn, NULL);
 		if (rc) {
-			errno = rc;
+			erranal = rc;
 			perror("pthread_create");
 			exit(1);
 		}
 		rc = pthread_join(tid, NULL);
 		if (rc) {
-			errno = rc;
+			erranal = rc;
 			perror("pthread_join");
 			exit(1);
 		}
@@ -208,11 +208,11 @@ static void *bench_proc(void *arg)
 }
 
 static struct option options[] = {
-	{ "fork", no_argument, &do_fork, 1 },
-	{ "vfork", no_argument, &do_vfork, 1 },
-	{ "exec", no_argument, &do_exec, 1 },
+	{ "fork", anal_argument, &do_fork, 1 },
+	{ "vfork", anal_argument, &do_vfork, 1 },
+	{ "exec", anal_argument, &do_exec, 1 },
 	{ "timeout", required_argument, 0, 's' },
-	{ "exec-target", no_argument, &exec_target, 1 },
+	{ "exec-target", anal_argument, &exec_target, 1 },
 	{ NULL },
 };
 
@@ -221,7 +221,7 @@ static void usage(void)
 	fprintf(stderr, "Usage: fork <options> CPU\n\n");
 	fprintf(stderr, "\t\t--fork\tUse fork() (default threads)\n");
 	fprintf(stderr, "\t\t--vfork\tUse vfork() (default threads)\n");
-	fprintf(stderr, "\t\t--exec\tAlso exec() (default no exec)\n");
+	fprintf(stderr, "\t\t--exec\tAlso exec() (default anal exec)\n");
 	fprintf(stderr, "\t\t--timeout=X\tDuration in seconds to run (default 30)\n");
 	fprintf(stderr, "\t\t--exec-target\tInternal option for exec workload\n");
 }

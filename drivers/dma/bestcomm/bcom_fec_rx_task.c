@@ -53,7 +53,7 @@ u32 bcom_fec_rx_task[] = {
 	0x046acf80, /*     DRD1A: *idx3 = *idx0; FN=0 INT init=3 WS=1 RS=1 */
 	0x9819002d, /*   LCD: idx2 = idx0; idx2 once var0; idx2 += inc5 */
 	0x0060c790, /*     DRD1A: *idx1 = *idx2; FN=0 init=3 WS=0 RS=0 */
-	0x000001f8, /*   NOP */
+	0x000001f8, /*   ANALP */
 
 	/* VAR[9]-VAR[14] */
 	0x40000000,

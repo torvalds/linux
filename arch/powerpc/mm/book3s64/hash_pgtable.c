@@ -29,14 +29,14 @@
  * struct pages are allocated for all possible PFNs present on the system
  * including holes and bad memory (hence sparse). These virtual struct
  * pages are stored in sequence in this virtual address space irrespective
- * of the fact whether the corresponding PFN is valid or not. This achieves
+ * of the fact whether the corresponding PFN is valid or analt. This achieves
  * constant relationship between address of struct page and its PFN.
  *
  * During boot or memory hotplug operation when a new memory section is
  * added, physical memory allocation (including hash table bolting) will
  * be performed for the set of struct pages which are part of the memory
- * section. This saves memory by not allocating struct pages for PFNs
- * which are not valid.
+ * section. This saves memory by analt allocating struct pages for PFNs
+ * which are analt valid.
  *
  *		----------------------------------------------
  *		| PHYSICAL ALLOCATION OF VIRTUAL STRUCT PAGES|
@@ -64,9 +64,9 @@
  *  |      +--------------+             |
  *  |      |  page struct | +-----------+
  *  |      +--------------+
- *  |      |  page struct | No mapping
+ *  |      |  page struct | Anal mapping
  *  |      +--------------+
- *  |      |  page struct | No mapping
+ *  |      |  page struct | Anal mapping
  *  v      +--------------+
  *
  *		-----------------------------------------
@@ -121,7 +121,7 @@ int __meminit hash__vmemmap_create_mapping(unsigned long start,
 		int rc2 = htab_remove_mapping(start, start + page_size,
 					      mmu_vmemmap_psize,
 					      mmu_kernel_ssize);
-		BUG_ON(rc2 && (rc2 != -ENOENT));
+		BUG_ON(rc2 && (rc2 != -EANALENT));
 	}
 	return rc;
 }
@@ -133,8 +133,8 @@ void hash__vmemmap_remove_mapping(unsigned long start,
 	int rc = htab_remove_mapping(start, start + page_size,
 				     mmu_vmemmap_psize,
 				     mmu_kernel_ssize);
-	BUG_ON((rc < 0) && (rc != -ENOENT));
-	WARN_ON(rc == -ENOENT);
+	BUG_ON((rc < 0) && (rc != -EANALENT));
+	WARN_ON(rc == -EANALENT);
 }
 #endif
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
@@ -158,17 +158,17 @@ int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 		p4dp = p4d_offset(pgdp, ea);
 		pudp = pud_alloc(&init_mm, p4dp, ea);
 		if (!pudp)
-			return -ENOMEM;
+			return -EANALMEM;
 		pmdp = pmd_alloc(&init_mm, pudp, ea);
 		if (!pmdp)
-			return -ENOMEM;
+			return -EANALMEM;
 		ptep = pte_alloc_kernel(pmdp, ea);
 		if (!ptep)
-			return -ENOMEM;
+			return -EANALMEM;
 		set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT, prot));
 	} else {
 		/*
-		 * If the mm subsystem is not fully up, we cannot create a
+		 * If the mm subsystem is analt fully up, we cananalt create a
 		 * linux page table entry for this mapping.  Simply bolt an
 		 * entry in the hardware page table.
 		 *
@@ -177,7 +177,7 @@ int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 				      mmu_io_psize, mmu_kernel_ssize)) {
 			printk(KERN_ERR "Failed to do bolted mapping IO "
 			       "memory at %016lx !\n", pa);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -233,13 +233,13 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	pmd_clear(pmdp);
 	/*
 	 * Wait for all pending hash_page to finish. This is needed
-	 * in case of subpage collapse. When we collapse normal pages
+	 * in case of subpage collapse. When we collapse analrmal pages
 	 * to hugepage, we first clear the pmd, then invalidate all
 	 * the PTE entries. The assumption here is that any low level
-	 * page fault will see a none pmd and take the slow path that
+	 * page fault will see a analne pmd and take the slow path that
 	 * will wait on mmap_lock. But we could very well be in a
 	 * hash_page with local ptep pointer value. Such a hash page
-	 * can result in adding new HPTE entries for normal subpages.
+	 * can result in adding new HPTE entries for analrmal subpages.
 	 * That means we could be modifying the page content as we
 	 * copy them to a huge page. So wait for parallel hash_page
 	 * to finish before invalidating HPTE entries. We can do this
@@ -248,9 +248,9 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 */
 	serialize_against_pte_lookup(vma->vm_mm);
 	/*
-	 * Now invalidate the hpte entries in the range
+	 * Analw invalidate the hpte entries in the range
 	 * covered by pmd. This make sure we take a
-	 * fault and will find the pmd as none, which will
+	 * fault and will find the pmd as analne, which will
 	 * result in a major fault which takes mmap_lock and
 	 * hence wait for collapse to complete. Without this
 	 * the __collapse_huge_page_copy can result in copying
@@ -353,7 +353,7 @@ pmd_t hash__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	old = pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
 	old_pmd = __pmd(old);
 	/*
-	 * We have pmd == none and we are holding page_table_lock.
+	 * We have pmd == analne and we are holding page_table_lock.
 	 * So we can safely go and clear the pgtable hash
 	 * index info.
 	 */
@@ -424,12 +424,12 @@ static void change_memory_range(unsigned long start, unsigned long end,
 		 start, end, newpp, step);
 
 	for (idx = start; idx < end; idx += step)
-		/* Not sure if we can do much with the return value */
+		/* Analt sure if we can do much with the return value */
 		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
 							mmu_kernel_ssize);
 }
 
-static int notrace chmem_secondary_loop(struct change_memory_parms *parms)
+static int analtrace chmem_secondary_loop(struct change_memory_parms *parms)
 {
 	unsigned long msr, tmp, flags;
 	int *p;

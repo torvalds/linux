@@ -247,7 +247,7 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <4>;
 	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 

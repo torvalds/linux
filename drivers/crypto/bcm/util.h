@@ -27,7 +27,7 @@ extern int debug_logging_sleep;
 #define flow_dump(msg, var, var_len)	   \
 	do {	                                 \
 		if (flow_debug_logging) {	           \
-			print_hex_dump(KERN_ALERT, msg, DUMP_PREFIX_NONE,  \
+			print_hex_dump(KERN_ALERT, msg, DUMP_PREFIX_ANALNE,  \
 					16, 1, var, var_len, false); \
 				if (debug_logging_sleep)	       \
 					msleep(debug_logging_sleep);   \
@@ -45,7 +45,7 @@ extern int debug_logging_sleep;
 #define packet_dump(msg, var, var_len)   \
 	do {                                   \
 		if (packet_debug_logging) {          \
-			print_hex_dump(KERN_ALERT, msg, DUMP_PREFIX_NONE,  \
+			print_hex_dump(KERN_ALERT, msg, DUMP_PREFIX_ANALNE,  \
 					16, 1, var, var_len, false); \
 			if (debug_logging_sleep)           \
 				msleep(debug_logging_sleep);     \

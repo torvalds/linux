@@ -17,8 +17,8 @@ description:
   macros defined in include/dt-bindings/clock/sifive-fu540-prci.h.
   These macros begin with PRCI_CLK_.
 
-  The hfclk and rtcclk nodes are required, and represent physical
-  crystals or resonators located on the PCB.  These nodes should be present
+  The hfclk and rtcclk analdes are required, and represent physical
+  crystals or resonators located on the PCB.  These analdes should be present
   underneath /, rather than /soc.
 
 properties:

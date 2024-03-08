@@ -9,15 +9,15 @@ title: RISC-V CPUs
 maintainers:
   - Paul Walmsley <paul.walmsley@sifive.com>
   - Palmer Dabbelt <palmer@sifive.com>
-  - Conor Dooley <conor@kernel.org>
+  - Coanalr Dooley <coanalr@kernel.org>
 
 description: |
-  This document uses some terminology common to the RISC-V community
-  that is not widely used, the definitions of which are listed here:
+  This document uses some termianallogy common to the RISC-V community
+  that is analt widely used, the definitions of which are listed here:
 
   hart: A hardware execution context, which contains all the state
   mandated by the RISC-V ISA: a PC and some registers.  This
-  terminology is designed to disambiguate software's view of execution
+  termianallogy is designed to disambiguate software's view of execution
   contexts from any particular microarchitectural implementation
   strategy.  For example, an Intel laptop containing one socket with
   two cores, each of which has two hyperthreads, could be described as
@@ -73,7 +73,7 @@ properties:
       - riscv,sv39
       - riscv,sv48
       - riscv,sv57
-      - riscv,none
+      - riscv,analne
 
   riscv,cbom-block-size:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -120,7 +120,7 @@ properties:
     items:
       maxItems: 1
     description: |
-      List of phandles to idle state nodes supported
+      List of phandles to idle state analdes supported
       by this hart (see ./idle-states.yaml).
 
   capacity-dmips-mhz:

@@ -22,7 +22,7 @@
 #define RANDOM_BATCH -1
 
 /* Unused */
-void *__kmalloc_fake, *__kfree_ignore_start, *__kfree_ignore_end;
+void *__kmalloc_fake, *__kfree_iganalre_start, *__kfree_iganalre_end;
 
 struct vq_info {
 	int kick;
@@ -46,11 +46,11 @@ struct vdev_info {
 	struct vhost_memory *mem;
 };
 
-static const struct vhost_vring_file no_backend = { .fd = -1 },
+static const struct vhost_vring_file anal_backend = { .fd = -1 },
 				     backend = { .fd = 1 };
 static const struct vhost_vring_state null_state = {};
 
-bool vq_notify(struct virtqueue *vq)
+bool vq_analtify(struct virtqueue *vq)
 {
 	struct vq_info *info = vq->priv;
 	unsigned long long v = 1;
@@ -103,7 +103,7 @@ static void vq_reset(struct vq_info *info, int num, struct virtio_device *vdev)
 	memset(info->ring, 0, vring_size(num, 4096));
 	vring_init(&info->vring, num, info->ring, 4096);
 	info->vq = vring_new_virtqueue(info->idx, num, 4096, vdev, true, false,
-				       info->ring, vq_notify, vq_callback, "test");
+				       info->ring, vq_analtify, vq_callback, "test");
 	assert(info->vq);
 	info->vq->priv = info;
 }
@@ -113,8 +113,8 @@ static void vq_info_add(struct vdev_info *dev, int num)
 	struct vq_info *info = &dev->vqs[dev->nvqs];
 	int r;
 	info->idx = dev->nvqs;
-	info->kick = eventfd(0, EFD_NONBLOCK);
-	info->call = eventfd(0, EFD_NONBLOCK);
+	info->kick = eventfd(0, EFD_ANALNBLOCK);
+	info->call = eventfd(0, EFD_ANALNBLOCK);
 	r = posix_memalign(&info->ring, 4096, vring_size(num, 4096));
 	assert(r >= 0);
 	vq_reset(info, num, &dev->vdev);
@@ -152,7 +152,7 @@ static void vdev_info_init(struct vdev_info* dev, unsigned long long features)
 }
 
 /* TODO: this is pretty bad: we get a cache line bounce
- * for the wait queue on poll and another one on read,
+ * for the wait queue on poll and aanalther one on read,
  * plus the read which is there just to clear the
  * current state. */
 static void wait_for_interrupt(struct vdev_info *dev)
@@ -199,7 +199,7 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 							 dev->buf + started,
 							 GFP_ATOMIC);
 				if (unlikely(r != 0)) {
-					if (r == -ENOSPC &&
+					if (r == -EANALSPC &&
 					    started > started_before)
 						r = 0;
 					else
@@ -220,7 +220,7 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 
 			if (reset) {
 				r = ioctl(dev->control, VHOST_TEST_SET_BACKEND,
-					  &no_backend);
+					  &anal_backend);
 				assert(!r);
 			}
 
@@ -286,7 +286,7 @@ const struct option longopts[] = {
 		.val = 'E',
 	},
 	{
-		.name = "no-event-idx",
+		.name = "anal-event-idx",
 		.val = 'e',
 	},
 	{
@@ -294,7 +294,7 @@ const struct option longopts[] = {
 		.val = 'I',
 	},
 	{
-		.name = "no-indirect",
+		.name = "anal-indirect",
 		.val = 'i',
 	},
 	{
@@ -302,7 +302,7 @@ const struct option longopts[] = {
 		.val = '1',
 	},
 	{
-		.name = "no-virtio-1",
+		.name = "anal-virtio-1",
 		.val = '0',
 	},
 	{
@@ -310,7 +310,7 @@ const struct option longopts[] = {
 		.val = 'D',
 	},
 	{
-		.name = "no-delayed-interrupt",
+		.name = "anal-delayed-interrupt",
 		.val = 'd',
 	},
 	{
@@ -330,9 +330,9 @@ const struct option longopts[] = {
 static void help(int status)
 {
 	fprintf(stderr, "Usage: virtio_test [--help]"
-		" [--no-indirect]"
-		" [--no-event-idx]"
-		" [--no-virtio-1]"
+		" [--anal-indirect]"
+		" [--anal-event-idx]"
+		" [--anal-virtio-1]"
 		" [--delayed-interrupt]"
 		" [--batch=random/N]"
 		" [--reset=N]"

@@ -13,7 +13,7 @@ config MAC802154
 	  networking stack for SoftMAC devices (the ones implementing
 	  only PHY level of IEEE 802.15.4 standard).
 
-	  Note: this implementation is neither certified, nor feature
+	  Analte: this implementation is neither certified, analr feature
 	  complete! Compatibility with other implementations hasn't
 	  been tested yet!
 

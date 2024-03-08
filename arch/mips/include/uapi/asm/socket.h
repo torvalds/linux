@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -33,7 +33,7 @@
 #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 
 #define SO_TYPE		0x1008	/* Compatible name for SO_STYLE.  */
-#define SO_STYLE	SO_TYPE /* Synonym */
+#define SO_STYLE	SO_TYPE /* Syanalnym */
 #define SO_ERROR	0x1007	/* get error status and clear */
 #define SO_SNDBUF	0x1001	/* Send buffer size. */
 #define SO_RCVBUF	0x1002	/* Receive buffer. */
@@ -46,7 +46,7 @@
 #define SO_DOMAIN	0x1029	/* domain/socket family */
 
 /* linux-specific, might as well be the same as on i386 */
-#define SO_NO_CHECK	11
+#define SO_ANAL_CHECK	11
 #define SO_PRIORITY	12
 #define SO_BSDCOMPAT	14
 
@@ -81,7 +81,7 @@
 #define SO_PEEK_OFF		42
 
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
-#define SO_NOFCS		43
+#define SO_ANALFCS		43
 
 #define SO_LOCK_FILTER		44
 

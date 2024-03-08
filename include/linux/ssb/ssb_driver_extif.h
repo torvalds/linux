@@ -6,8 +6,8 @@
  * The External Interface core supports a total of three external chip selects
  * supporting external interfaces. One of the external chip selects is
  * used for Flash, one is used for PCMCIA, and the other may be
- * programmed to support either a synchronous interface or an
- * asynchronous interface. The asynchronous interface can be used to
+ * programmed to support either a synchroanalus interface or an
+ * asynchroanalus interface. The asynchroanalus interface can be used to
  * support external devices such as UARTs and the BCM2019 Bluetooth
  * baseband processor.
  * The external interface core also contains 2 on-chip 16550 UARTs, clock
@@ -27,7 +27,7 @@
 #define	SSB_EXTIF_FLASH_BASE(x)		((x) + 0xc00000)
 
 #define SSB_EXTIF_NR_GPIOOUT		5
-/* GPIO NOTE:
+/* GPIO ANALTE:
  * The multiple instances of output and output enable registers
  * are present to allow driver software for multiple cores to control
  * gpio outputs without needing to share a single register pair.
@@ -85,8 +85,8 @@
 #define	SSB_EXTCFG_EN			(1 << 0)	/* enable */
 #define	SSB_EXTCFG_MODE			0xE		/* mode */
 #define	SSB_EXTCFG_MODE_SHIFT		1
-#define	 SSB_EXTCFG_MODE_FLASH		0x0		/* flash/asynchronous mode */
-#define	 SSB_EXTCFG_MODE_SYNC		0x2		/* synchronous mode */
+#define	 SSB_EXTCFG_MODE_FLASH		0x0		/* flash/asynchroanalus mode */
+#define	 SSB_EXTCFG_MODE_SYNC		0x2		/* synchroanalus mode */
 #define	 SSB_EXTCFG_MODE_PCMCIA		0x4		/* pcmcia mode */
 #define	SSB_EXTCFG_DS16			(1 << 4)	/* destsize:  0=8bit, 1=16bit */
 #define	SSB_EXTCFG_BSWAP		(1 << 5)	/* byteswap */

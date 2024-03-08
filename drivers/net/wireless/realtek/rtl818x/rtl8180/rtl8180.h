@@ -143,7 +143,7 @@ struct rtl8180_priv {
 	u8 antenna_diversity_en;
 	u8 antenna_diversity_default;
 	/* sequence # */
-	u16 seqno;
+	u16 seqanal;
 };
 
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data);

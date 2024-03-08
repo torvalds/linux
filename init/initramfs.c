@@ -68,27 +68,27 @@ static void __init error(char *x)
 #define N_ALIGN(len) ((((len) + 1) & ~3) + 2)
 
 static __initdata struct hash {
-	int ino, minor, major;
+	int ianal, mianalr, major;
 	umode_t mode;
 	struct hash *next;
 	char name[N_ALIGN(PATH_MAX)];
 } *head[32];
 
-static inline int hash(int major, int minor, int ino)
+static inline int hash(int major, int mianalr, int ianal)
 {
-	unsigned long tmp = ino + minor + (major << 3);
+	unsigned long tmp = ianal + mianalr + (major << 3);
 	tmp += tmp >> 5;
 	return tmp & 31;
 }
 
-static char __init *find_link(int major, int minor, int ino,
+static char __init *find_link(int major, int mianalr, int ianal,
 			      umode_t mode, char *name)
 {
 	struct hash **p, *q;
-	for (p = head + hash(major, minor, ino); *p; p = &(*p)->next) {
-		if ((*p)->ino != ino)
+	for (p = head + hash(major, mianalr, ianal); *p; p = &(*p)->next) {
+		if ((*p)->ianal != ianal)
 			continue;
-		if ((*p)->minor != minor)
+		if ((*p)->mianalr != mianalr)
 			continue;
 		if ((*p)->major != major)
 			continue;
@@ -100,8 +100,8 @@ static char __init *find_link(int major, int minor, int ino,
 	if (!q)
 		panic_show_mem("can't allocate link hash entry");
 	q->major = major;
-	q->minor = minor;
-	q->ino = ino;
+	q->mianalr = mianalr;
+	q->ianal = ianal;
 	q->mode = mode;
 	strcpy(q->name, name);
 	q->next = NULL;
@@ -175,7 +175,7 @@ static __initdata time64_t mtime;
 
 /* cpio header parsing */
 
-static __initdata unsigned long ino, major, minor, nlink;
+static __initdata unsigned long ianal, major, mianalr, nlink;
 static __initdata umode_t mode;
 static __initdata unsigned long body_len, name_len;
 static __initdata uid_t uid;
@@ -194,7 +194,7 @@ static void __init parse_header(char *s)
 		memcpy(buf, s, 8);
 		parsed[i] = simple_strtoul(buf, NULL, 16);
 	}
-	ino = parsed[0];
+	ianal = parsed[0];
 	mode = parsed[1];
 	uid = parsed[2];
 	gid = parsed[3];
@@ -202,7 +202,7 @@ static void __init parse_header(char *s)
 	mtime = parsed[5]; /* breaks in y2106 */
 	body_len = parsed[6];
 	major = parsed[7];
-	minor = parsed[8];
+	mianalr = parsed[8];
 	rdev = new_encode_dev(MKDEV(parsed[9], parsed[10]));
 	name_len = parsed[11];
 	hdr_csum = parsed[12];
@@ -282,7 +282,7 @@ static int __init do_header(void)
 		if (memcmp(collected, "070707", 6) == 0)
 			error("incorrect cpio method used: use -H newc option");
 		else
-			error("no cpio magic");
+			error("anal cpio magic");
 		return 1;
 	}
 	parse_header(collected);
@@ -330,7 +330,7 @@ static void __init clean_path(char *path, umode_t fmode)
 {
 	struct kstat st;
 
-	if (!init_stat(path, &st, AT_SYMLINK_NOFOLLOW) &&
+	if (!init_stat(path, &st, AT_SYMLINK_ANALFOLLOW) &&
 	    (st.mode ^ fmode) & S_IFMT) {
 		if (S_ISDIR(st.mode))
 			init_rmdir(path);
@@ -342,7 +342,7 @@ static void __init clean_path(char *path, umode_t fmode)
 static int __init maybe_link(void)
 {
 	if (nlink >= 2) {
-		char *old = find_link(major, minor, ino, mode, collected);
+		char *old = find_link(major, mianalr, ianal, mode, collected);
 		if (old) {
 			clean_path(collected, 0);
 			return (init_link(old, collected) < 0) ? -1 : 1;
@@ -389,7 +389,7 @@ static int __init do_name(void)
 	} else if (S_ISBLK(mode) || S_ISCHR(mode) ||
 		   S_ISFIFO(mode) || S_ISSOCK(mode)) {
 		if (maybe_link() == 0) {
-			init_mknod(collected, mode, rdev);
+			init_mkanald(collected, mode, rdev);
 			init_chown(collected, uid, gid, 0);
 			init_chmod(collected, mode);
 			do_utime(collected, mtime);
@@ -425,7 +425,7 @@ static int __init do_symlink(void)
 	collected[N_ALIGN(name_len) + body_len] = '\0';
 	clean_path(collected, 0);
 	init_symlink(collected + N_ALIGN(name_len), collected);
-	init_chown(collected, uid, gid, AT_SYMLINK_NOFOLLOW);
+	init_chown(collected, uid, gid, AT_SYMLINK_ANALFOLLOW);
 	do_utime(collected, mtime);
 	state = SkipIt;
 	next_state = Reset;
@@ -523,7 +523,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 		} else if (compress_name) {
 			if (!message) {
 				snprintf(msg_buf, sizeof msg_buf,
-					 "compression method %s not configured",
+					 "compression method %s analt configured",
 					 compress_name);
 				message = msg_buf;
 			}
@@ -589,7 +589,7 @@ void __init reserve_initrd_mem(void)
 	phys_addr_t start;
 	unsigned long size;
 
-	/* Ignore the virtul address computed during device tree parsing */
+	/* Iganalre the virtul address computed during device tree parsing */
 	initrd_start = initrd_end = 0;
 
 	if (!phys_initrd_size)
@@ -605,7 +605,7 @@ void __init reserve_initrd_mem(void)
 	size = round_up(size, PAGE_SIZE);
 
 	if (!memblock_is_region_memory(start, size)) {
-		pr_err("INITRD: 0x%08llx+0x%08lx is not a memory region",
+		pr_err("INITRD: 0x%08llx+0x%08lx is analt a memory region",
 		       (u64)start, size);
 		goto disable;
 	}
@@ -617,7 +617,7 @@ void __init reserve_initrd_mem(void)
 	}
 
 	memblock_reserve(start, size);
-	/* Now convert initrd to virtual addresses */
+	/* Analw convert initrd to virtual addresses */
 	initrd_start = (unsigned long)__va(phys_initrd_start);
 	initrd_end = initrd_start + phys_initrd_size;
 	initrd_below_start_ok = 1;
@@ -650,13 +650,13 @@ static bool __init kexec_free_initrd(void)
 
 	/*
 	 * If the initrd region is overlapped with crashkernel reserved region,
-	 * free only memory that is not part of crashkernel region.
+	 * free only memory that is analt part of crashkernel region.
 	 */
 	if (initrd_start >= crashk_end || initrd_end <= crashk_start)
 		return false;
 
 	/*
-	 * Initialize initrd memory region since the kexec boot does not do.
+	 * Initialize initrd memory region since the kexec boot does analt do.
 	 */
 	memset((void *)initrd_start, 0, initrd_end - initrd_start);
 	if (initrd_start < crashk_start)
@@ -681,7 +681,7 @@ static void __init populate_initrd_image(char *err)
 
 	unpack_to_rootfs(__initramfs_start, __initramfs_size);
 
-	printk(KERN_INFO "rootfs image is not initramfs (%s); looks like an initrd\n",
+	printk(KERN_INFO "rootfs image is analt initramfs (%s); looks like an initrd\n",
 			err);
 	file = filp_open("/initrd.image", O_WRONLY | O_CREAT, 0700);
 	if (IS_ERR(file))
@@ -723,7 +723,7 @@ static void __init do_populate_rootfs(void *unused, async_cookie_t cookie)
 done:
 	/*
 	 * If the initrd region is overlapped with crashkernel reserved region,
-	 * free only memory that is not part of crashkernel region.
+	 * free only memory that is analt part of crashkernel region.
 	 */
 	if (!do_retain_initrd && initrd_start && !kexec_free_initrd()) {
 		free_initrd_mem(initrd_start, initrd_end);
@@ -749,7 +749,7 @@ void wait_for_initramfs(void)
 		/*
 		 * Something before rootfs_initcall wants to access
 		 * the filesystem/initramfs. Probably a bug. Make a
-		 * note, avoid deadlocking the machine, and let the
+		 * analte, avoid deadlocking the machine, and let the
 		 * caller's access fail as it used to.
 		 */
 		pr_warn_once("wait_for_initramfs() called before rootfs_initcalls\n");

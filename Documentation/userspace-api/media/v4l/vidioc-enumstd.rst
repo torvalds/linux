@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_ENUMSTD:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_ENUMSTD - VIDIOC_SUBDEV_ENUMSTD - Enumerate supported video standards
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_ENUMSTD
@@ -62,9 +62,9 @@ or output. [#f1]_
       - The bits in this field identify the standard as one of the common
 	standards listed in :ref:`v4l2-std-id`, or if bits 32 to 63 are
 	set as custom standards. Multiple bits can be set if the hardware
-	does not distinguish between these standards, however separate
-	indices do not indicate the opposite. The ``id`` must be unique.
-	No other enumerated struct :c:type:`v4l2_standard` structure,
+	does analt distinguish between these standards, however separate
+	indices do analt indicate the opposite. The ``id`` must be unique.
+	Anal other enumerated struct :c:type:`v4l2_standard` structure,
 	for this input or output anyway, can contain the same set of bits.
     * - __u8
       - ``name``\ [24]
@@ -73,7 +73,7 @@ or output. [#f1]_
 	user.
     * - struct :c:type:`v4l2_fract`
       - ``frameperiod``
-      - The frame period (not field period) is numerator / denominator.
+      - The frame period (analt field period) is numerator / deanalminator.
 	For example M/NTSC has a frame period of 1001 / 30000 seconds.
     * - __u32
       - ``framelines``
@@ -97,7 +97,7 @@ or output. [#f1]_
       - ``numerator``
       -
     * - __u32
-      - ``denominator``
+      - ``deanalminator``
       -
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
@@ -111,7 +111,7 @@ or output. [#f1]_
 
     * - __u64
       - ``v4l2_std_id``
-      - This type is a set, each bit representing another video standard
+      - This type is a set, each bit representing aanalther video standard
 	as listed below and in :ref:`video-standards`. The 32 most
 	significant bits are reserved for custom (driver defined) video
 	standards.
@@ -136,7 +136,7 @@ or output. [#f1]_
 ``V4L2_STD_PAL_60`` is a hybrid standard with 525 lines, 60 Hz refresh
 rate, and PAL color modulation with a 4.43 MHz color subcarrier. Some
 PAL video recorders can play back NTSC tapes in this mode for display on
-a 50/60 Hz agnostic PAL TV.
+a 50/60 Hz aganalstic PAL TV.
 
 .. code-block:: c
 
@@ -165,7 +165,7 @@ rate, and NTSC color modulation with a 4.43 MHz color subcarrier.
     #define V4L2_STD_ATSC_16_VSB    ((v4l2_std_id)0x02000000)
 
 ``V4L2_STD_ATSC_8_VSB`` and ``V4L2_STD_ATSC_16_VSB`` are U.S.
-terrestrial digital TV standards. Presently the V4L2 API does not
+terrestrial digital TV standards. Presently the V4L2 API does analt
 support digital TV. See also the Linux DVB API at
 `https://linuxtv.org <https://linuxtv.org>`__.
 
@@ -217,7 +217,7 @@ support digital TV. See also the Linux DVB API at
 		     V4L2_STD_PAL_Nc        |
 		     V4L2_STD_SECAM)
 
-    #define V4L2_STD_UNKNOWN        0
+    #define V4L2_STD_UNKANALWN        0
     #define V4L2_STD_ALL            (V4L2_STD_525_60        |
 		     V4L2_STD_625_50)
 
@@ -265,7 +265,7 @@ support digital TV. See also the Linux DVB API at
       - :cspan:`2` f\ :sub:`OR` = 4406250 ± 2000,
 
 	f\ :sub:`OB` = 4250000 ± 2000
-    * - Nominal radio-frequency channel bandwidth (MHz)
+    * - Analminal radio-frequency channel bandwidth (MHz)
       - 6
       - 6
       - 6
@@ -298,7 +298,7 @@ support digital TV. See also the Linux DVB API at
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -306,8 +306,8 @@ EINVAL
     The struct :c:type:`v4l2_standard` ``index`` is out
     of bounds.
 
-ENODATA
-    Standard video timings are not supported for this input or output.
+EANALDATA
+    Standard video timings are analt supported for this input or output.
 
 .. [#f1]
    The supported standards may overlap and we need an unambiguous set to
@@ -333,7 +333,7 @@ ENODATA
 
 .. [#f6]
    In Denmark, Finland, New Zealand, Sweden and Spain a system of two
-   sound carriers is used. In Iceland, Norway and Poland the same system
+   sound carriers is used. In Iceland, Analrway and Poland the same system
    is being introduced. The second carrier is 5.85 MHz above the vision
    carrier and is DQPSK modulated with 728 kbit/s sound and data
    multiplex. (NICAM system)

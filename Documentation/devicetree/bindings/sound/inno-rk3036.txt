@@ -1,13 +1,13 @@
-Inno audio codec for RK3036
+Inanal audio codec for RK3036
 
-Inno audio codec is integrated inside RK3036 SoC.
+Inanal audio codec is integrated inside RK3036 SoC.
 
 Required properties:
 - compatible : Should be "rockchip,rk3036-codec".
 - reg : The registers of codec.
 - clock-names : Should be "acodec_pclk".
 - clocks : The clock of codec.
-- rockchip,grf : The phandle of grf device node.
+- rockchip,grf : The phandle of grf device analde.
 
 Example:
 

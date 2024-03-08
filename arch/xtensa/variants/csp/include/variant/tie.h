@@ -1,7 +1,7 @@
 /* 
  * tie.h -- compile-time HAL definitions dependent on CORE & TIE configuration
  *
- *  NOTE:  This header file is not meant to be included directly.
+ *  ANALTE:  This header file is analt meant to be included directly.
  */
 
 /* This header file describes this specific Xtensa processor's TIE extensions
@@ -18,13 +18,13 @@
    permit persons to whom the Software is furnished to do so, subject to
    the following conditions:
 
-   The above copyright notice and this permission notice shall be included
+   The above copyright analtice and this permission analtice shall be included
    in all copies or substantial portions of the Software.
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+   EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+   IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
@@ -33,7 +33,7 @@
 #define _XTENSA_CORE_TIE_H
 
 #define XCHAL_CP_NUM			1	/* number of coprocessors */
-#define XCHAL_CP_MAX			8	/* max CP ID + 1 (0 if none) */
+#define XCHAL_CP_MAX			8	/* max CP ID + 1 (0 if analne) */
 #define XCHAL_CP_MASK			0x80	/* bitmask of all CPs by ID */
 #define XCHAL_CP_PORT_MASK		0x80	/* bitmask of only port CPs */
 
@@ -60,7 +60,7 @@
 #define XCHAL_CP6_SA_SIZE		0
 #define XCHAL_CP6_SA_ALIGN		1
 
-/*  Save area for non-coprocessor optional and custom (TIE) state:  */
+/*  Save area for analn-coprocessor optional and custom (TIE) state:  */
 #define XCHAL_NCP_SA_SIZE		36
 #define XCHAL_NCP_SA_ALIGN		4
 
@@ -70,7 +70,7 @@
 
 /*
  * Detailed contents of save areas.
- * NOTE:  caller must define the XCHAL_SA_REG macro (not defined here)
+ * ANALTE:  caller must define the XCHAL_SA_REG macro (analt defined here)
  * before expanding the XCHAL_xxx_SA_LIST() macros.
  *
  * XCHAL_SA_REG(s,ccused,abikind,kind,opt,name,galign,align,asize,
@@ -81,21 +81,21 @@
  *	abikind = 0 (caller-saved), 1 (callee-saved), or 2 (thread-global)
  *	kind = 0 (special reg), 1 (TIE user reg), or 2 (TIE regfile reg)
  *	opt = 0 (custom TIE extension or coprocessor), or 1 (optional reg)
- *	name = lowercase reg name (no quotes)
+ *	name = lowercase reg name (anal quotes)
  *	galign = group byte alignment (power of 2) (galign >= align)
  *	align = register byte alignment (power of 2)
  *	asize = allocated size in bytes (asize*8 == bitsz + gapsz + padsz)
- *	  (not including any pad bytes required to galign this or next reg)
+ *	  (analt including any pad bytes required to galign this or next reg)
  *	dbnum = unique target number f/debug (see <xtensa-libdb-macros.h>)
  *	base = reg shortname w/o index (or sr=special, ur=TIE user reg)
  *	regnum = reg index in regfile, or special/TIE-user reg number
  *	bitsz = number of significant bits (regfile width, or ur/sr mask bits)
- *	gapsz = intervening bits, if bitsz bits not stored contiguously
+ *	gapsz = intervening bits, if bitsz bits analt stored contiguously
  *	(padsz = pad bits at end [TIE regfile] or at msbits [ur,sr] of asize)
  *	reset = register reset value (or 0 if undefined at reset)
  *	x = reserved for future use (0 until then)
  *
- *  To filter out certain registers, e.g. to expand only the non-global
+ *  To filter out certain registers, e.g. to expand only the analn-global
  *  registers used by the compiler, you can do something like this:
  *
  *  #define XCHAL_SA_REG(s,ccused,p...)	SELCC##ccused(p)

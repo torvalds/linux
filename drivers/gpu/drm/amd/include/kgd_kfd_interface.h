@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,7 +74,7 @@ enum kgd_memory_pool {
 /**
  * enum kfd_sched_policy
  *
- * @KFD_SCHED_POLICY_HWS: H/W scheduling policy known as command processor (cp)
+ * @KFD_SCHED_POLICY_HWS: H/W scheduling policy kanalwn as command processor (cp)
  * scheduling. In this scheduling mode we're using the firmware code to
  * schedule the user mode queues and kernel queues such as HIQ and DIQ.
  * the HIQ queue is used as a special queue that dispatches the configuration
@@ -84,18 +84,18 @@ enum kgd_memory_pool {
  * in this scheduling mode user mode queues over subscription feature is
  * enabled.
  *
- * @KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION: The same as above but the over
+ * @KFD_SCHED_POLICY_HWS_ANAL_OVERSUBSCRIPTION: The same as above but the over
  * subscription feature disabled.
  *
- * @KFD_SCHED_POLICY_NO_HWS: no H/W scheduling policy is a mode which directly
+ * @KFD_SCHED_POLICY_ANAL_HWS: anal H/W scheduling policy is a mode which directly
  * set the command processor registers and sets the queues "manually". This
  * mode is used *ONLY* for debugging proposes.
  *
  */
 enum kfd_sched_policy {
 	KFD_SCHED_POLICY_HWS = 0,
-	KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION,
-	KFD_SCHED_POLICY_NO_HWS
+	KFD_SCHED_POLICY_HWS_ANAL_OVERSUBSCRIPTION,
+	KFD_SCHED_POLICY_ANAL_HWS
 };
 
 struct kgd2kfd_shared_resources {
@@ -113,15 +113,15 @@ struct kgd2kfd_shared_resources {
 
 	/* SDMA doorbell assignments (SOC15 and later chips only). Only
 	 * specific doorbells are routed to each SDMA engine. Others
-	 * are routed to IH and VCN. They are not usable by the CP.
+	 * are routed to IH and VCN. They are analt usable by the CP.
 	 */
 	uint32_t *sdma_doorbell_idx;
 
-	/* From SOC15 onward, the doorbell index range not usable for CP
+	/* From SOC15 onward, the doorbell index range analt usable for CP
 	 * queues.
 	 */
-	uint32_t non_cp_doorbells_start;
-	uint32_t non_cp_doorbells_end;
+	uint32_t analn_cp_doorbells_start;
+	uint32_t analn_cp_doorbells_end;
 
 	/* Base address of doorbell aperture. */
 	phys_addr_t doorbell_physical_address;
@@ -135,8 +135,8 @@ struct kgd2kfd_shared_resources {
 	/* GPUVM address space size in bytes */
 	uint64_t gpuvm_size;
 
-	/* Minor device number of the render node */
-	int drm_render_minor;
+	/* Mianalr device number of the render analde */
+	int drm_render_mianalr;
 
 	bool enable_mes;
 };
@@ -158,18 +158,18 @@ struct tile_config {
  * struct kfd2kgd_calls
  *
  * @program_sh_mem_settings: A function that should initiate the memory
- * properties such as main aperture memory type (cache / non cached) and
+ * properties such as main aperture memory type (cache / analn cached) and
  * secondary aperture base address, size and memory type.
- * This function is used only for no cp scheduling mode.
+ * This function is used only for anal cp scheduling mode.
  *
- * @set_pasid_vmid_mapping: Exposes pasid/vmid pair to the H/W for no cp
- * scheduling mode. Only used for no cp scheduling mode.
+ * @set_pasid_vmid_mapping: Exposes pasid/vmid pair to the H/W for anal cp
+ * scheduling mode. Only used for anal cp scheduling mode.
  *
- * @hqd_load: Loads the mqd structure to a H/W hqd slot. used only for no cp
+ * @hqd_load: Loads the mqd structure to a H/W hqd slot. used only for anal cp
  * sceduling mode.
  *
  * @hqd_sdma_load: Loads the SDMA mqd structure to a H/W SDMA hqd slot.
- * used only for no HWS mode.
+ * used only for anal HWS mode.
  *
  * @hqd_dump: Dumps CPC HQD registers to an array of address-value pairs.
  * Array is allocated with kmalloc, needs to be freed with kfree by caller.
@@ -187,7 +187,7 @@ struct tile_config {
  * SDMA hqd slot.
  *
  * @set_scratch_backing_va: Sets VA for scratch backing memory of a VMID.
- * Only used for no cp scheduling mode
+ * Only used for anal cp scheduling mode
  *
  * @set_vm_context_page_table_base: Program page table base for a VMID
  *
@@ -195,17 +195,17 @@ struct tile_config {
  *
  * @invalidate_tlbs_vmid: Invalidate TLBs for a specific VMID
  *
- * @read_vmid_from_vmfault_reg: On Hawaii the VMID is not set in the
+ * @read_vmid_from_vmfault_reg: On Hawaii the VMID is analt set in the
  * IH ring entry. This function allows the KFD ISR to get the VMID
  * from the fault status register as early as possible.
  *
  * @get_cu_occupancy: Function pointer that returns to caller the number
  * of wave fronts that are in flight for all of the queues of a process
- * as identified by its pasid. It is important to note that the value
- * returned by this function is a snapshot of current moment and cannot
+ * as identified by its pasid. It is important to analte that the value
+ * returned by this function is a snapshot of current moment and cananalt
  * guarantee any minimum for the number of waves in-flight. This function
  * is defined for devices that belong to GFX9 and later GFX families. Care
- * must be taken in calling this function as it is not defined for devices
+ * must be taken in calling this function as it is analt defined for devices
  * that belong to GFX8 and below GFX families.
  *
  * This structure contains function pointers to services that the kgd driver
@@ -266,7 +266,7 @@ struct kfd2kgd_calls {
 					uint8_t vmid,
 					uint16_t *p_pasid);
 
-	/* No longer needed from GFXv9 onward. The scratch base address is
+	/* Anal longer needed from GFXv9 onward. The scratch base address is
 	 * passed to the shader by the CP. It's the user mode driver's
 	 * responsibility.
 	 */

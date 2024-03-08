@@ -218,7 +218,7 @@ static int intel_cbphy_set_mode(struct intel_combo_phy *cbphy)
 
 	case PHY_SATA_MODE:
 		if (aggr == PHY_DL_MODE) {
-			dev_err(dev, "Mode:%u not support dual lane!\n", mode);
+			dev_err(dev, "Mode:%u analt support dual lane!\n", mode);
 			return -EINVAL;
 		}
 
@@ -403,12 +403,12 @@ static int intel_cbphy_calibrate(struct phy *phy)
 	return ret;
 }
 
-static int intel_cbphy_fwnode_parse(struct intel_combo_phy *cbphy)
+static int intel_cbphy_fwanalde_parse(struct intel_combo_phy *cbphy)
 {
 	struct device *dev = cbphy->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct fwnode_reference_args ref;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct fwanalde_reference_args ref;
 	int ret;
 	u32 val;
 
@@ -450,25 +450,25 @@ static int intel_cbphy_fwnode_parse(struct intel_combo_phy *cbphy)
 	 * in which ComboPhy subsystem specific registers are subset. Using
 	 * Register map framework to access the registers set.
 	 */
-	ret = fwnode_property_get_reference_args(fwnode, "intel,syscfg", NULL,
+	ret = fwanalde_property_get_reference_args(fwanalde, "intel,syscfg", NULL,
 						 1, 0, &ref);
 	if (ret < 0)
 		return ret;
 
 	cbphy->id = ref.args[0];
-	cbphy->syscfg = device_node_to_regmap(to_of_node(ref.fwnode));
-	fwnode_handle_put(ref.fwnode);
+	cbphy->syscfg = device_analde_to_regmap(to_of_analde(ref.fwanalde));
+	fwanalde_handle_put(ref.fwanalde);
 
-	ret = fwnode_property_get_reference_args(fwnode, "intel,hsio", NULL, 1,
+	ret = fwanalde_property_get_reference_args(fwanalde, "intel,hsio", NULL, 1,
 						 0, &ref);
 	if (ret < 0)
 		return ret;
 
 	cbphy->bid = ref.args[0];
-	cbphy->hsiocfg = device_node_to_regmap(to_of_node(ref.fwnode));
-	fwnode_handle_put(ref.fwnode);
+	cbphy->hsiocfg = device_analde_to_regmap(to_of_analde(ref.fwanalde));
+	fwanalde_handle_put(ref.fwanalde);
 
-	ret = fwnode_property_read_u32_array(fwnode, "intel,phy-mode", &val, 1);
+	ret = fwanalde_property_read_u32_array(fwanalde, "intel,phy-mode", &val, 1);
 	if (ret)
 		return ret;
 
@@ -492,7 +492,7 @@ static int intel_cbphy_fwnode_parse(struct intel_combo_phy *cbphy)
 
 	cbphy->clk_rate = intel_iphy_clk_rates[cbphy->phy_mode];
 
-	if (fwnode_property_present(fwnode, "intel,aggregation"))
+	if (fwanalde_property_present(fwanalde, "intel,aggregation"))
 		cbphy->aggr_mode = PHY_DL_MODE;
 	else
 		cbphy->aggr_mode = PHY_SL_MODE;
@@ -575,12 +575,12 @@ static int intel_cbphy_probe(struct platform_device *pdev)
 
 	cbphy = devm_kzalloc(dev, sizeof(*cbphy), GFP_KERNEL);
 	if (!cbphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cbphy->dev = dev;
 	cbphy->init_cnt = 0;
 	mutex_init(&cbphy->lock);
-	ret = intel_cbphy_fwnode_parse(cbphy);
+	ret = intel_cbphy_fwanalde_parse(cbphy);
 	if (ret)
 		return ret;
 

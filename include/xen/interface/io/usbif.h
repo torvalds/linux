@@ -6,7 +6,7 @@
  * USB I/O interface for Xen guest OSes.
  *
  * Copyright (C) 2009, FUJITSU LABORATORIES LTD.
- * Author: Noboru Iwamatsu <n_iwamatsu@jp.fujitsu.com>
+ * Author: Analboru Iwamatsu <n_iwamatsu@jp.fujitsu.com>
  */
 
 #ifndef __XEN_PUBLIC_IO_USBIF_H__
@@ -19,7 +19,7 @@
  * Detailed Interface Description
  * ==============================
  * The pvUSB interface is using a split driver design: a frontend driver in
- * the guest and a backend driver in a driver domain (normally dom0) having
+ * the guest and a backend driver in a driver domain (analrmally dom0) having
  * access to the physical USB device(s) being passed to the guest.
  *
  * The frontend and backend drivers use XenStore to initiate the connection
@@ -46,19 +46,19 @@
  *
  * Feature and Parameter Negotiation
  * =================================
- * The two halves of a Xen pvUSB driver utilize nodes within the XenStore to
+ * The two halves of a Xen pvUSB driver utilize analdes within the XenStore to
  * communicate capabilities and to negotiate operating parameters. This
- * section enumerates these nodes which reside in the respective front and
+ * section enumerates these analdes which reside in the respective front and
  * backend portions of the XenStore, following the XenBus convention.
  *
- * Any specified default value is in effect if the corresponding XenBus node
- * is not present in the XenStore.
+ * Any specified default value is in effect if the corresponding XenBus analde
+ * is analt present in the XenStore.
  *
- * XenStore nodes in sections marked "PRIVATE" are solely for use by the
+ * XenStore analdes in sections marked "PRIVATE" are solely for use by the
  * driver side whose XenBus tree contains them.
  *
  *****************************************************************************
- *                            Backend XenBus Nodes
+ *                            Backend XenBus Analdes
  *****************************************************************************
  *
  *------------------ Backend Device Identification (PRIVATE) ------------------
@@ -79,7 +79,7 @@
  *      Physical USB device connected to the given port, e.g. "3-1.5".
  *
  *****************************************************************************
- *                            Frontend XenBus Nodes
+ *                            Frontend XenBus Analdes
  *****************************************************************************
  *
  *----------------------- Request Transport Parameters -----------------------
@@ -126,14 +126,14 @@
  * +----------------+----------------+----------------+----------------+
  *   id - uint16_t, event id (taken from the actual frontend dummy request)
  *   portnum - uint8_t, port number (1 ... 31)
- *   speed - uint8_t, device XENUSB_SPEED_*, XENUSB_SPEED_NONE == unplug
+ *   speed - uint8_t, device XENUSB_SPEED_*, XENUSB_SPEED_ANALNE == unplug
  *
  * The dummy request:
  *         0                1        octet
  * +----------------+----------------+
  * |               id                | 2
  * +----------------+----------------+
- *   id - uint16_t, guest supplied value (no need for being unique)
+ *   id - uint16_t, guest supplied value (anal need for being unique)
  *
  *-------------------------- USB I/O request ---------------------------------
  *
@@ -167,7 +167,7 @@
  *     bit 7: direction (1 = read from device)
  *     bits 8-14: device number on port
  *     bits 15-18: endpoint of device
- *     bits 30-31: request type: 00 = isochronous, 01 = interrupt,
+ *     bits 30-31: request type: 00 = isochroanalus, 01 = interrupt,
  *                               10 = control, 11 = bulk
  *   transfer_flags - uint16_t, bit field with processing flags:
  *     bit 0: less data than specified allowed
@@ -175,7 +175,7 @@
  *   request type specific data - 8 bytes, see below
  *   seg[] - array with 8 byte elements, see below
  *
- * Request type specific data for isochronous request:
+ * Request type specific data for isochroanalus request:
  *         0                1                 2               3        octet
  * +----------------+----------------+----------------+----------------+
  * |            interval             |           start_frame           | 4
@@ -244,16 +244,16 @@
  * +----------------+----------------+----------------+----------------+
  *   id - uint16_t, id of the request this response belongs to
  *   start_frame - uint16_t, start_frame this response (iso requests only)
- *   status - int32_t, XENUSB_STATUS_* (non-iso requests)
+ *   status - int32_t, XENUSB_STATUS_* (analn-iso requests)
  *   actual_length - uint32_t, actual size of data transferred
  *   error_count - uint32_t, number of errors (iso requests)
  */
 
 enum xenusb_spec_version {
-	XENUSB_VER_UNKNOWN = 0,
+	XENUSB_VER_UNKANALWN = 0,
 	XENUSB_VER_USB11,
 	XENUSB_VER_USB20,
-	XENUSB_VER_USB30,	/* not supported yet */
+	XENUSB_VER_USB30,	/* analt supported yet */
 };
 
 /*
@@ -275,7 +275,7 @@ enum xenusb_spec_version {
  *  - endpoint:         bits 15-18
  *
  *  - pipe type:        bits 30-31
- *                              (00 = isochronous, 01 = interrupt,
+ *                              (00 = isochroanalus, 01 = interrupt,
  *                               10 = control, 11 = bulk)
  */
 
@@ -336,7 +336,7 @@ struct xenusb_urb_request {
 	/* basic urb parameter */
 	uint32_t pipe;
 	uint16_t transfer_flags;
-#define XENUSB_SHORT_NOT_OK	0x0001
+#define XENUSB_SHORT_ANALT_OK	0x0001
 	uint16_t buffer_length;
 	union {
 		uint8_t ctrl[8];	/* setup_packet (Ctrl) */
@@ -367,9 +367,9 @@ struct xenusb_urb_request {
 struct xenusb_urb_response {
 	uint16_t id;		/* request id */
 	uint16_t start_frame;	/* start frame (ISO) */
-	int32_t status;		/* status (non-ISO) */
+	int32_t status;		/* status (analn-ISO) */
 #define XENUSB_STATUS_OK	0
-#define XENUSB_STATUS_NODEV	(-19)
+#define XENUSB_STATUS_ANALDEV	(-19)
 #define XENUSB_STATUS_INVAL	(-22)
 #define XENUSB_STATUS_STALL	(-32)
 #define XENUSB_STATUS_IOERROR	(-71)
@@ -383,7 +383,7 @@ DEFINE_RING_TYPES(xenusb_urb, struct xenusb_urb_request, struct xenusb_urb_respo
 #define XENUSB_URB_RING_SIZE __CONST_RING_SIZE(xenusb_urb, XENUSB_RING_SIZE)
 
 /*
- * RING for notifying connect/disconnect events to frontend
+ * RING for analtifying connect/disconnect events to frontend
  */
 struct xenusb_conn_request {
 	uint16_t id;
@@ -393,7 +393,7 @@ struct xenusb_conn_response {
 	uint16_t id;		/* request id */
 	uint8_t portnum;	/* port number */
 	uint8_t speed;		/* usb_device_speed */
-#define XENUSB_SPEED_NONE	0
+#define XENUSB_SPEED_ANALNE	0
 #define XENUSB_SPEED_LOW	1
 #define XENUSB_SPEED_FULL	2
 #define XENUSB_SPEED_HIGH	3

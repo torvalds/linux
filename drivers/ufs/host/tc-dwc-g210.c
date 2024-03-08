@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys G210 Test Chip driver
+ * Syanalpsys G210 Test Chip driver
  *
- * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015-2016 Syanalpsys, Inc. (www.syanalpsys.com)
  *
- * Authors: Joao Pinto <jpinto@synopsys.com>
+ * Authors: Joao Pinto <jpinto@syanalpsys.com>
  */
 
 #include <linux/module.h>
@@ -20,7 +20,7 @@
  * tc_dwc_g210_setup_40bit_rmmi() - configure 40-bit RMMI.
  * @hba: Pointer to drivers structure
  *
- * Return: 0 on success or non-zero value on failure.
+ * Return: 0 on success or analn-zero value on failure.
  */
 static int tc_dwc_g210_setup_40bit_rmmi(struct ufs_hba *hba)
 {
@@ -83,7 +83,7 @@ static int tc_dwc_g210_setup_40bit_rmmi(struct ufs_hba *hba)
  * tc_dwc_g210_setup_20bit_rmmi_lane0() - configure 20-bit RMMI Lane 0.
  * @hba: Pointer to drivers structure
  *
- * Return: 0 on success or non-zero value on failure.
+ * Return: 0 on success or analn-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi_lane0(struct ufs_hba *hba)
 {
@@ -135,7 +135,7 @@ static int tc_dwc_g210_setup_20bit_rmmi_lane0(struct ufs_hba *hba)
  * tc_dwc_g210_setup_20bit_rmmi_lane1() - configure 20-bit RMMI Lane 1.
  * @hba: Pointer to drivers structure
  *
- * Return: 0 on success or non-zero value on failure.
+ * Return: 0 on success or analn-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi_lane1(struct ufs_hba *hba)
 {
@@ -211,7 +211,7 @@ out:
  * tc_dwc_g210_setup_20bit_rmmi() - configure 20-bit RMMI.
  * @hba: Pointer to drivers structure
  *
- * Return: 0 on success or non-zero value on failure.
+ * Return: 0 on success or analn-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi(struct ufs_hba *hba)
 {
@@ -250,7 +250,7 @@ out:
  * tc_dwc_g210_config_40_bit() - configure 40-bit TC specific attributes.
  * @hba: Pointer to drivers structure
  *
- * Return: 0 on success non-zero value on failure.
+ * Return: 0 on success analn-zero value on failure.
  */
 int tc_dwc_g210_config_40_bit(struct ufs_hba *hba)
 {
@@ -280,7 +280,7 @@ EXPORT_SYMBOL(tc_dwc_g210_config_40_bit);
  * tc_dwc_g210_config_20_bit() - configure 20-bit TC specific attributes.
  * @hba: Pointer to drivers structure
  *
- * Return: 0 on success non-zero value on failure.
+ * Return: 0 on success analn-zero value on failure.
  */
 int tc_dwc_g210_config_20_bit(struct ufs_hba *hba)
 {
@@ -306,6 +306,6 @@ out:
 }
 EXPORT_SYMBOL(tc_dwc_g210_config_20_bit);
 
-MODULE_AUTHOR("Joao Pinto <Joao.Pinto@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys G210 Test Chip driver");
+MODULE_AUTHOR("Joao Pinto <Joao.Pinto@syanalpsys.com>");
+MODULE_DESCRIPTION("Syanalpsys G210 Test Chip driver");
 MODULE_LICENSE("Dual BSD/GPL");

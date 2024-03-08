@@ -64,7 +64,7 @@ struct gdt_ptr {
 
 static void setup_gdt(void)
 {
-	/* There are machines which are known to not boot with the GDT
+	/* There are machines which are kanalwn to analt boot with the GDT
 	   being 8-byte unaligned.  Intel recommends 16 byte alignment. */
 	static const u64 boot_gdt[] __attribute__((aligned(16))) = {
 		/* CS: code, read/execute, 4 GB, base 0 */
@@ -78,7 +78,7 @@ static void setup_gdt(void)
 	};
 	/* Xen HVM incorrectly stores a pointer to the gdt_ptr, instead
 	   of the gdt_ptr contents.  Thus, make it static so it will
-	   stay in memory, at least long enough that we switch to the
+	   stay in memory, at least long eanalugh that we switch to the
 	   proper kernel GDT. */
 	static struct gdt_ptr gdt;
 
@@ -107,7 +107,7 @@ void go_to_protected_mode(void)
 
 	/* Enable the A20 gate */
 	if (enable_a20()) {
-		puts("A20 gate not responding, unable to boot...\n");
+		puts("A20 gate analt responding, unable to boot...\n");
 		die();
 	}
 

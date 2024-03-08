@@ -10,8 +10,8 @@ struct posix_acl;
 #define BCH_CREATE_SNAPSHOT_RO		(1U << 3)
 
 int bch2_create_trans(struct btree_trans *, subvol_inum,
-		      struct bch_inode_unpacked *,
-		      struct bch_inode_unpacked *,
+		      struct bch_ianalde_unpacked *,
+		      struct bch_ianalde_unpacked *,
 		      const struct qstr *,
 		      uid_t, gid_t, umode_t, dev_t,
 		      struct posix_acl *,
@@ -19,25 +19,25 @@ int bch2_create_trans(struct btree_trans *, subvol_inum,
 		      subvol_inum, unsigned);
 
 int bch2_link_trans(struct btree_trans *,
-		    subvol_inum, struct bch_inode_unpacked *,
-		    subvol_inum, struct bch_inode_unpacked *,
+		    subvol_inum, struct bch_ianalde_unpacked *,
+		    subvol_inum, struct bch_ianalde_unpacked *,
 		    const struct qstr *);
 
 int bch2_unlink_trans(struct btree_trans *, subvol_inum,
-		      struct bch_inode_unpacked *,
-		      struct bch_inode_unpacked *,
+		      struct bch_ianalde_unpacked *,
+		      struct bch_ianalde_unpacked *,
 		      const struct qstr *, bool);
 
 int bch2_rename_trans(struct btree_trans *,
-		      subvol_inum, struct bch_inode_unpacked *,
-		      subvol_inum, struct bch_inode_unpacked *,
-		      struct bch_inode_unpacked *,
-		      struct bch_inode_unpacked *,
+		      subvol_inum, struct bch_ianalde_unpacked *,
+		      subvol_inum, struct bch_ianalde_unpacked *,
+		      struct bch_ianalde_unpacked *,
+		      struct bch_ianalde_unpacked *,
 		      const struct qstr *,
 		      const struct qstr *,
 		      enum bch_rename_mode);
 
-bool bch2_reinherit_attrs(struct bch_inode_unpacked *,
-			  struct bch_inode_unpacked *);
+bool bch2_reinherit_attrs(struct bch_ianalde_unpacked *,
+			  struct bch_ianalde_unpacked *);
 
 #endif /* _BCACHEFS_FS_COMMON_H */

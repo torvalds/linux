@@ -21,7 +21,7 @@ int handler(const void *ctx)
 	if (active) {
 		/* READ_ONCE */
 		*(volatile int *)active;
-		/* !rq has not been tested, so verifier should reject. */
+		/* !rq has analt been tested, so verifier should reject. */
 		*(volatile int *)(&rq->cpu);
 	}
 

@@ -35,7 +35,7 @@ struct spi_transport_attrs {
 	unsigned int initial_dv:1; /* DV done to this target yet  */
 	unsigned long flags;	/* flags field for drivers to use */
 	/* Device Properties fields */
-	unsigned int support_sync:1; /* synchronous support */
+	unsigned int support_sync:1; /* synchroanalus support */
 	unsigned int support_wide:1; /* wide support */
 	unsigned int support_dt:1; /* allows DT phases */
 	unsigned int support_dt_only; /* disallows ST phases */
@@ -48,7 +48,7 @@ struct spi_transport_attrs {
 };
 
 enum spi_signal_type {
-	SPI_SIGNAL_UNKNOWN = 1,
+	SPI_SIGNAL_UNKANALWN = 1,
 	SPI_SIGNAL_SE,
 	SPI_SIGNAL_LVD,
 	SPI_SIGNAL_HVD,
@@ -119,7 +119,7 @@ struct spi_function_template {
 	int	(*deny_binding)(struct scsi_target *);
 	/* The driver sets these to tell the transport class it
 	 * wants the attributes displayed in sysfs.  If the show_ flag
-	 * is not set, the attribute will be private to the transport
+	 * is analt set, the attribute will be private to the transport
 	 * class */
 	unsigned long	show_period:1;
 	unsigned long	show_offset:1;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Driver for Nuvoton Technology Corporation w83667hg/w83677hg-i CIR
+ * Driver for Nuvoton Techanallogy Corporation w83667hg/w83677hg-i CIR
  *
  * Copyright (C) 2010 Jarod Wilson <jarod@redhat.com>
  * Copyright (C) 2009 Nuvoton PS Team
@@ -42,7 +42,7 @@ static int debug;
 #define SIO_ID_MASK 0xfff0
 
 enum nvt_chip_ver {
-	NVT_UNKNOWN	= 0,
+	NVT_UNKANALWN	= 0,
 	NVT_W83667HG	= 0xa510,
 	NVT_6775F	= 0xb470,
 	NVT_6776F	= 0xc330,
@@ -76,7 +76,7 @@ struct nvt_dev {
 	enum nvt_chip_ver chip_ver;
 	/* hardware id */
 	u8 chip_major;
-	u8 chip_minor;
+	u8 chip_mianalr;
 
 	/* carrier period = 1 / frequency */
 	u32 carrier;
@@ -200,7 +200,7 @@ struct nvt_dev {
 #define CIR_WAKE_WR_FIFO_DATA		0x0b
 #define CIR_WAKE_RD_FIFO_ONLY		0x0c
 #define CIR_WAKE_RD_FIFO_ONLY_IDX	0x0d
-#define CIR_WAKE_FIFO_IGNORE		0x0e
+#define CIR_WAKE_FIFO_IGANALRE		0x0e
 #define CIR_WAKE_IRFSM			0x0f
 
 /* CIR WAKE UP IRCON settings */

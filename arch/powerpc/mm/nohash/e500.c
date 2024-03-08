@@ -23,7 +23,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -73,7 +73,7 @@ phys_addr_t v_block_mapped(unsigned long va)
 }
 
 /*
- * Return VA for a given PA or 0 if not mapped
+ * Return VA for a given PA or 0 if analt mapped
  */
 unsigned long p_block_mapped(phys_addr_t pa)
 {
@@ -88,10 +88,10 @@ unsigned long p_block_mapped(phys_addr_t pa)
 #endif
 
 /*
- * Set up a variable-size TLB entry (tlbcam). The parameters are not checked;
+ * Set up a variable-size TLB entry (tlbcam). The parameters are analt checked;
  * in particular size must be a power of 4 between 4k and the max supported by
  * an implementation; max may further be limited by what can be represented in
- * an unsigned long (for example, 32-bit implementations cannot support a 4GB
+ * an unsigned long (for example, 32-bit implementations cananalt support a 4GB
  * size).
  */
 static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
@@ -102,7 +102,7 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 	tsize = __ilog2(size) - 10;
 
 #if defined(CONFIG_SMP) || defined(CONFIG_PPC_E500MC)
-	if ((flags & _PAGE_NO_CACHE) == 0)
+	if ((flags & _PAGE_ANAL_CACHE) == 0)
 		flags |= _PAGE_COHERENT;
 #endif
 
@@ -111,7 +111,7 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 	TLBCAM[index].MAS2 = virt & PAGE_MASK;
 
 	TLBCAM[index].MAS2 |= (flags & _PAGE_WRITETHRU) ? MAS2_W : 0;
-	TLBCAM[index].MAS2 |= (flags & _PAGE_NO_CACHE) ? MAS2_I : 0;
+	TLBCAM[index].MAS2 |= (flags & _PAGE_ANAL_CACHE) ? MAS2_I : 0;
 	TLBCAM[index].MAS2 |= (flags & _PAGE_COHERENT) ? MAS2_M : 0;
 	TLBCAM[index].MAS2 |= (flags & _PAGE_GUARDED) ? MAS2_G : 0;
 	TLBCAM[index].MAS2 |= (flags & _PAGE_ENDIAN) ? MAS2_E : 0;
@@ -311,7 +311,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 
 #ifdef CONFIG_RELOCATABLE
 int __initdata is_second_reloc;
-notrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
+analtrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
 {
 	unsigned long base = kernstart_virt_addr;
 	phys_addr_t size;
@@ -345,9 +345,9 @@ notrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
 	virt_phys_offset = base - start;
 	early_get_first_memblock_info(__va(dt_ptr), &size);
 	/*
-	 * We now get the memstart_addr, then we should check if this
-	 * address is the same as what the PAGE_OFFSET map to now. If
-	 * not we have to change the map of PAGE_OFFSET to memstart_addr
+	 * We analw get the memstart_addr, then we should check if this
+	 * address is the same as what the PAGE_OFFSET map to analw. If
+	 * analt we have to change the map of PAGE_OFFSET to memstart_addr
 	 * and do a second relocation.
 	 */
 	if (start != memstart_addr) {

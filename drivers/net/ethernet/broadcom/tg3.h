@@ -110,7 +110,7 @@
 #define TG3PCI_SUBDEVICE_ID_IBM_5703SAX2	0x0281
 #define TG3PCI_SUBDEVICE_ID_ACER_57780_A	0x0601
 #define TG3PCI_SUBDEVICE_ID_ACER_57780_B	0x0612
-#define TG3PCI_SUBDEVICE_ID_LENOVO_5787M	0x3056
+#define TG3PCI_SUBDEVICE_ID_LEANALVO_5787M	0x3056
 
 /* 0x30 --> 0x64 unused */
 #define TG3PCI_MSI_DATA			0x00000064
@@ -254,7 +254,7 @@
 #define  DMA_RWCTRL_WRITE_BNDRY_DISAB_PCIE 0x70000000
 #define TG3PCI_PCISTATE			0x00000070
 #define  PCISTATE_FORCE_RESET		 0x00000001
-#define  PCISTATE_INT_NOT_ACTIVE	 0x00000002
+#define  PCISTATE_INT_ANALT_ACTIVE	 0x00000002
 #define  PCISTATE_CONV_PCI_MODE		 0x00000004
 #define  PCISTATE_BUS_SPEED_HIGH	 0x00000008
 #define  PCISTATE_BUS_32BIT		 0x00000010
@@ -381,7 +381,7 @@
 #define  MAC_MODE_PORT_MODE_TBI		 0x0000000c
 #define  MAC_MODE_PORT_MODE_GMII	 0x00000008
 #define  MAC_MODE_PORT_MODE_MII		 0x00000004
-#define  MAC_MODE_PORT_MODE_NONE	 0x00000000
+#define  MAC_MODE_PORT_MODE_ANALNE	 0x00000000
 #define  MAC_MODE_PORT_INT_LPBACK	 0x00000010
 #define  MAC_MODE_TAGGED_MAC_CTRL	 0x00000080
 #define  MAC_MODE_TX_BURSTING		 0x00000100
@@ -458,10 +458,10 @@
 #define MAC_ADDR_3_LOW			0x0000042c /* lower 4 bytes */
 #define MAC_ACPI_MBUF_PTR		0x00000430
 #define MAC_ACPI_LEN_OFFSET		0x00000434
-#define  ACPI_LENOFF_LEN_MASK		 0x0000ffff
-#define  ACPI_LENOFF_LEN_SHIFT		 0
-#define  ACPI_LENOFF_OFF_MASK		 0x0fff0000
-#define  ACPI_LENOFF_OFF_SHIFT		 16
+#define  ACPI_LEANALFF_LEN_MASK		 0x0000ffff
+#define  ACPI_LEANALFF_LEN_SHIFT		 0
+#define  ACPI_LEANALFF_OFF_MASK		 0x0fff0000
+#define  ACPI_LEANALFF_OFF_SHIFT		 16
 #define MAC_TX_BACKOFF_SEED		0x00000438
 #define  TX_BACKOFF_SEED_MASK		 0x000003ff
 #define MAC_RX_MTU_SIZE			0x0000043c
@@ -534,7 +534,7 @@
 #define  RX_MODE_ACCEPT_RUNTS		 0x00000040
 #define  RX_MODE_LEN_CHECK		 0x00000080
 #define  RX_MODE_PROMISC		 0x00000100
-#define  RX_MODE_NO_CRC_CHECK		 0x00000200
+#define  RX_MODE_ANAL_CRC_CHECK		 0x00000200
 #define  RX_MODE_KEEP_VLAN_TAG		 0x00000400
 #define  RX_MODE_RSS_IPV4_HASH_EN	 0x00010000
 #define  RX_MODE_RSS_TCP_IPV4_HASH_EN	 0x00020000
@@ -825,7 +825,7 @@
 #define TG3_RX_PTP_CTL_FOLLOW_UP	0x00000100
 #define TG3_RX_PTP_CTL_DELAY_RES	0x00000200
 #define TG3_RX_PTP_CTL_PDRES_FLW_UP	0x00000400
-#define TG3_RX_PTP_CTL_ANNOUNCE		0x00000800
+#define TG3_RX_PTP_CTL_ANANALUNCE		0x00000800
 #define TG3_RX_PTP_CTL_SIGNALING	0x00001000
 #define TG3_RX_PTP_CTL_MANAGEMENT	0x00002000
 #define TG3_RX_PTP_CTL_RX_PTP_V2_L2_EN	0x00800000
@@ -1011,8 +1011,8 @@
 #define  RCVLPC_LOCK_REQ_SHIFT		 0
 #define  RCVLPC_LOCK_GRANT_MASK		 0xffff0000
 #define  RCVLPC_LOCK_GRANT_SHIFT	 16
-#define RCVLPC_NON_EMPTY_BITS		0x0000200c
-#define  RCVLPC_NON_EMPTY_BITS_MASK	 0x0000ffff
+#define RCVLPC_ANALN_EMPTY_BITS		0x0000200c
+#define  RCVLPC_ANALN_EMPTY_BITS_MASK	 0x0000ffff
 #define RCVLPC_CONFIG			0x00002010
 #define RCVLPC_STATSCTRL		0x00002014
 #define  RCVLPC_STATSCTRL_ENABLE	 0x00000001
@@ -1031,7 +1031,7 @@
 #define RCVLPC_DROP_FILTER_CNT		0x00002240
 #define RCVLPC_DMA_WQ_FULL_CNT		0x00002244
 #define RCVLPC_DMA_HIPRIO_WQ_FULL_CNT	0x00002248
-#define RCVLPC_NO_RCV_BD_CNT		0x0000224c
+#define RCVLPC_ANAL_RCV_BD_CNT		0x0000224c
 #define RCVLPC_IN_DISCARDS_CNT		0x00002250
 #define RCVLPC_IN_ERRORS_CNT		0x00002254
 #define RCVLPC_RCV_THRESH_HIT_CNT	0x00002258
@@ -1219,15 +1219,15 @@
 #define  HOSTCC_MODE_RESET		 0x00000001
 #define  HOSTCC_MODE_ENABLE		 0x00000002
 #define  HOSTCC_MODE_ATTN		 0x00000004
-#define  HOSTCC_MODE_NOW		 0x00000008
+#define  HOSTCC_MODE_ANALW		 0x00000008
 #define  HOSTCC_MODE_FULL_STATUS	 0x00000000
 #define  HOSTCC_MODE_64BYTE		 0x00000080
 #define  HOSTCC_MODE_32BYTE		 0x00000100
 #define  HOSTCC_MODE_CLRTICK_RXBD	 0x00000200
 #define  HOSTCC_MODE_CLRTICK_TXBD	 0x00000400
-#define  HOSTCC_MODE_NOINT_ON_NOW	 0x00000800
-#define  HOSTCC_MODE_NOINT_ON_FORCE	 0x00001000
-#define  HOSTCC_MODE_COAL_VEC1_NOW	 0x00002000
+#define  HOSTCC_MODE_ANALINT_ON_ANALW	 0x00000800
+#define  HOSTCC_MODE_ANALINT_ON_FORCE	 0x00001000
+#define  HOSTCC_MODE_COAL_VEC1_ANALW	 0x00002000
 #define HOSTCC_STATUS			0x00003c04
 #define  HOSTCC_STATUS_ERROR_ATTN	 0x00000004
 #define HOSTCC_RXCOL_TICKS		0x00003c08
@@ -1341,7 +1341,7 @@
 #define  BUFMGR_MODE_ATTN_ENABLE	 0x00000004
 #define  BUFMGR_MODE_BM_TEST		 0x00000008
 #define  BUFMGR_MODE_MBLOW_ATTN_ENAB	 0x00000010
-#define  BUFMGR_MODE_NO_TX_UNDERRUN	 0x80000000
+#define  BUFMGR_MODE_ANAL_TX_UNDERRUN	 0x80000000
 #define BUFMGR_STATUS			0x00004404
 #define  BUFMGR_STATUS_ERROR		 0x00000004
 #define  BUFMGR_STATUS_MBLOW		 0x00000010
@@ -1619,10 +1619,10 @@
 /* Flow Through queues */
 #define FTQ_RESET			0x00005c00
 /* 0x5c04 --> 0x5c10 unused */
-#define FTQ_DMA_NORM_READ_CTL		0x00005c10
-#define FTQ_DMA_NORM_READ_FULL_CNT	0x00005c14
-#define FTQ_DMA_NORM_READ_FIFO_ENQDEQ	0x00005c18
-#define FTQ_DMA_NORM_READ_WRITE_PEEK	0x00005c1c
+#define FTQ_DMA_ANALRM_READ_CTL		0x00005c10
+#define FTQ_DMA_ANALRM_READ_FULL_CNT	0x00005c14
+#define FTQ_DMA_ANALRM_READ_FIFO_ENQDEQ	0x00005c18
+#define FTQ_DMA_ANALRM_READ_WRITE_PEEK	0x00005c1c
 #define FTQ_DMA_HIGH_READ_CTL		0x00005c20
 #define FTQ_DMA_HIGH_READ_FULL_CNT	0x00005c24
 #define FTQ_DMA_HIGH_READ_FIFO_ENQDEQ	0x00005c28
@@ -1639,10 +1639,10 @@
 #define FTQ_SEND_DATA_INIT_FULL_CNT	0x00005c54
 #define FTQ_SEND_DATA_INIT_FIFO_ENQDEQ	0x00005c58
 #define FTQ_SEND_DATA_INIT_WRITE_PEEK	0x00005c5c
-#define FTQ_DMA_NORM_WRITE_CTL		0x00005c60
-#define FTQ_DMA_NORM_WRITE_FULL_CNT	0x00005c64
-#define FTQ_DMA_NORM_WRITE_FIFO_ENQDEQ	0x00005c68
-#define FTQ_DMA_NORM_WRITE_WRITE_PEEK	0x00005c6c
+#define FTQ_DMA_ANALRM_WRITE_CTL		0x00005c60
+#define FTQ_DMA_ANALRM_WRITE_FULL_CNT	0x00005c64
+#define FTQ_DMA_ANALRM_WRITE_FIFO_ENQDEQ	0x00005c68
+#define FTQ_DMA_ANALRM_WRITE_WRITE_PEEK	0x00005c6c
 #define FTQ_DMA_HIGH_WRITE_CTL		0x00005c70
 #define FTQ_DMA_HIGH_WRITE_FULL_CNT	0x00005c74
 #define FTQ_DMA_HIGH_WRITE_FIFO_ENQDEQ	0x00005c78
@@ -1709,29 +1709,29 @@
 /* GRC registers */
 #define GRC_MODE			0x00006800
 #define  GRC_MODE_UPD_ON_COAL		0x00000001
-#define  GRC_MODE_BSWAP_NONFRM_DATA	0x00000002
-#define  GRC_MODE_WSWAP_NONFRM_DATA	0x00000004
+#define  GRC_MODE_BSWAP_ANALNFRM_DATA	0x00000002
+#define  GRC_MODE_WSWAP_ANALNFRM_DATA	0x00000004
 #define  GRC_MODE_BSWAP_DATA		0x00000010
 #define  GRC_MODE_WSWAP_DATA		0x00000020
 #define  GRC_MODE_BYTE_SWAP_B2HRX_DATA	0x00000040
 #define  GRC_MODE_WORD_SWAP_B2HRX_DATA	0x00000080
 #define  GRC_MODE_SPLITHDR		0x00000100
-#define  GRC_MODE_NOFRM_CRACKING	0x00000200
+#define  GRC_MODE_ANALFRM_CRACKING	0x00000200
 #define  GRC_MODE_INCL_CRC		0x00000400
 #define  GRC_MODE_ALLOW_BAD_FRMS	0x00000800
-#define  GRC_MODE_NOIRQ_ON_SENDS	0x00002000
-#define  GRC_MODE_NOIRQ_ON_RCV		0x00004000
+#define  GRC_MODE_ANALIRQ_ON_SENDS	0x00002000
+#define  GRC_MODE_ANALIRQ_ON_RCV		0x00004000
 #define  GRC_MODE_FORCE_PCI32BIT	0x00008000
 #define  GRC_MODE_B2HRX_ENABLE		0x00008000
 #define  GRC_MODE_HOST_STACKUP		0x00010000
 #define  GRC_MODE_HOST_SENDBDS		0x00020000
 #define  GRC_MODE_HTX2B_ENABLE		0x00040000
 #define  GRC_MODE_TIME_SYNC_ENABLE	0x00080000
-#define  GRC_MODE_NO_TX_PHDR_CSUM	0x00100000
+#define  GRC_MODE_ANAL_TX_PHDR_CSUM	0x00100000
 #define  GRC_MODE_NVRAM_WR_ENABLE	0x00200000
 #define  GRC_MODE_PCIE_TL_SEL		0x00000000
 #define  GRC_MODE_PCIE_PL_SEL		0x00400000
-#define  GRC_MODE_NO_RX_PHDR_CSUM	0x00800000
+#define  GRC_MODE_ANAL_RX_PHDR_CSUM	0x00800000
 #define  GRC_MODE_IRQ_ON_TX_CPU_ATTN	0x01000000
 #define  GRC_MODE_IRQ_ON_RX_CPU_ATTN	0x02000000
 #define  GRC_MODE_IRQ_ON_MAC_ATTN	0x04000000
@@ -2173,7 +2173,7 @@
 #define  NIC_SRAM_DATA_CFG_LED_MODE_PHY_1	 0x00000004
 #define  NIC_SRAM_DATA_CFG_LED_MODE_PHY_2	 0x00000008
 #define  NIC_SRAM_DATA_CFG_PHY_TYPE_MASK	 0x00000030
-#define  NIC_SRAM_DATA_CFG_PHY_TYPE_UNKNOWN	 0x00000000
+#define  NIC_SRAM_DATA_CFG_PHY_TYPE_UNKANALWN	 0x00000000
 #define  NIC_SRAM_DATA_CFG_PHY_TYPE_COPPER	 0x00000010
 #define  NIC_SRAM_DATA_CFG_PHY_TYPE_FIBER	 0x00000020
 #define  NIC_SRAM_DATA_CFG_WOL_ENABLE		 0x00000040
@@ -2181,7 +2181,7 @@
 #define  NIC_SRAM_DATA_CFG_EEPROM_WP		 0x00000100
 #define  NIC_SRAM_DATA_CFG_MINI_PCI		 0x00001000
 #define  NIC_SRAM_DATA_CFG_FIBER_WOL		 0x00004000
-#define  NIC_SRAM_DATA_CFG_NO_GPIO2		 0x00100000
+#define  NIC_SRAM_DATA_CFG_ANAL_GPIO2		 0x00100000
 #define  NIC_SRAM_DATA_CFG_APE_ENABLE		 0x00200000
 
 #define NIC_SRAM_DATA_VER			0x00000b5c
@@ -2283,7 +2283,7 @@
 
 /*** Tigon3 specific PHY MII registers. ***/
 #define MII_TG3_MMD_CTRL		0x0d /* MMD Access Control register */
-#define MII_TG3_MMD_CTRL_DATA_NOINC	0x4000
+#define MII_TG3_MMD_CTRL_DATA_ANALINC	0x4000
 #define MII_TG3_MMD_ADDRESS		0x0e /* MMD Address Data register */
 
 #define MII_TG3_EXT_CTRL		0x10 /* Extended control register */
@@ -2304,7 +2304,7 @@
 #define MII_TG3_DSP_TAP1		0x0001
 #define  MII_TG3_DSP_TAP1_AGCTGT_DFLT	0x0007
 #define MII_TG3_DSP_TAP26		0x001a
-#define  MII_TG3_DSP_TAP26_ALNOKO	0x0001
+#define  MII_TG3_DSP_TAP26_ALANALKO	0x0001
 #define  MII_TG3_DSP_TAP26_RMRXSTO	0x0002
 #define  MII_TG3_DSP_TAP26_OPCSINPT	0x0004
 #define MII_TG3_DSP_AADJ1CH0		0x001f
@@ -2472,7 +2472,7 @@
 #define  APE_HOST_DRIVER_ID_MAGIC(maj, min)	\
 	(APE_HOST_DRIVER_ID_LINUX | (maj & 0xff) << 16 | (min & 0xff) << 8)
 #define TG3_APE_HOST_BEHAVIOR		0x4210
-#define  APE_HOST_BEHAV_NO_PHYLOCK	 0x00000001
+#define  APE_HOST_BEHAV_ANAL_PHYLOCK	 0x00000001
 #define TG3_APE_HOST_HEARTBEAT_INT_MS	0x4214
 #define  APE_HOST_HEARTBEAT_INT_DISABLE	 0
 #define  APE_HOST_HEARTBEAT_INT_5SEC	 5000
@@ -2517,7 +2517,7 @@
 /* There are two ways to manage the TX descriptors on the tigon3.
  * Either the descriptors are in host DMA'able memory, or they
  * exist only in the cards on-chip SRAM.  All 16 send bds are under
- * the same mode, they may not be configured individually.
+ * the same mode, they may analt be configured individually.
  *
  * This driver always uses host memory TX descriptors.
  *
@@ -2543,11 +2543,11 @@
  *	   b) Set TG3_BDINFO_NIC_ADDR to NIC_SRAM_TX_BUFFER_DESC
  *	   c) TG3_BDINFO_MAXLEN_FLAGS is don't care.
  *	3) Access TX descriptors directly in on-chip SRAM
- *	   using normal {read,write}l().  (and not using
+ *	   using analrmal {read,write}l().  (and analt using
  *         pointer dereferencing of ioremap()'d memory like
  *	   the broken Broadcom driver does)
  *
- * Note that BDINFO_FLAGS_DISABLED should be set in the flags field of
+ * Analte that BDINFO_FLAGS_DISABLED should be set in the flags field of
  * TG3_BDINFO_MAXLEN_FLAGS of all unused SEND_RCB indices.
  */
 struct tg3_tx_buffer_desc {
@@ -2563,12 +2563,12 @@ struct tg3_tx_buffer_desc {
 #define TXD_FLAG_IP_FRAG_END		0x0010
 #define TXD_FLAG_HWTSTAMP		0x0020
 #define TXD_FLAG_VLAN			0x0040
-#define TXD_FLAG_COAL_NOW		0x0080
+#define TXD_FLAG_COAL_ANALW		0x0080
 #define TXD_FLAG_CPU_PRE_DMA		0x0100
 #define TXD_FLAG_CPU_POST_DMA		0x0200
 #define TXD_FLAG_ADD_SRC_ADDR		0x1000
 #define TXD_FLAG_CHOOSE_SRC_ADDR	0x6000
-#define TXD_FLAG_NO_CRC			0x8000
+#define TXD_FLAG_ANAL_CRC			0x8000
 #define TXD_LEN_SHIFT			16
 
 	u32				vlan_tag;
@@ -2624,13 +2624,13 @@ struct tg3_rx_buffer_desc {
 #define RXD_ERR_ODD_NIBBLE_RCVD_MII	0x00100000
 #define RXD_ERR_MAC_ABRT		0x00200000
 #define RXD_ERR_TOO_SMALL		0x00400000
-#define RXD_ERR_NO_RESOURCES		0x00800000
+#define RXD_ERR_ANAL_RESOURCES		0x00800000
 #define RXD_ERR_HUGE_FRAME		0x01000000
 
 #define RXD_ERR_MASK	(RXD_ERR_BAD_CRC | RXD_ERR_COLLISION |		\
 			 RXD_ERR_LINK_LOST | RXD_ERR_PHY_DECODE |	\
 			 RXD_ERR_MAC_ABRT | RXD_ERR_TOO_SMALL |		\
-			 RXD_ERR_NO_RESOURCES | RXD_ERR_HUGE_FRAME)
+			 RXD_ERR_ANAL_RESOURCES | RXD_ERR_HUGE_FRAME)
 
 	u32				reserved;
 	u32				opaque;
@@ -2809,7 +2809,7 @@ struct tg3_hw_stats {
 	tg3_stat64_t			nic_avoided_irqs;
 	tg3_stat64_t			nic_tx_threshold_hit;
 
-	/* NOT a part of the hardware statistics block format.
+	/* ANALT a part of the hardware statistics block format.
 	 * These stats are here as storage for tg3_periodic_fetch_stats().
 	 */
 	tg3_stat64_t			mbuf_lwm_thresh_hit;
@@ -2851,9 +2851,9 @@ struct tg3_ocir {
 };
 
 
-/* 'mapping' is superfluous as the chip does not write into
+/* 'mapping' is superfluous as the chip does analt write into
  * the tx/rx post rings so we could just fetch it from there.
- * But the cache behavior is better how we are doing it now.
+ * But the cache behavior is better how we are doing it analw.
  *
  * This driver uses new build_skb() API :
  * RX ring buffer contains pointer to kmalloc() data only,
@@ -3010,7 +3010,7 @@ struct tg3_napi {
 	u32				last_tag;
 	u32				last_irq_tag;
 	u32				int_mbox;
-	u32				coal_now;
+	u32				coal_analw;
 
 	u32				consmbox ____cacheline_aligned;
 	u32				rx_rcb_ptr;
@@ -3085,8 +3085,8 @@ enum TG3_FLAGS {
 	TG3_FLAG_TSO_BUG,
 	TG3_FLAG_ICH_WORKAROUND,
 	TG3_FLAG_1SHOT_MSI,
-	TG3_FLAG_NO_FWARE_REPORTED,
-	TG3_FLAG_NO_NVRAM_ADDR_TRANS,
+	TG3_FLAG_ANAL_FWARE_REPORTED,
+	TG3_FLAG_ANAL_NVRAM_ADDR_TRANS,
 	TG3_FLAG_ENABLE_APE,
 	TG3_FLAG_PROTECTED_NVRAM,
 	TG3_FLAG_5701_DMA_BUG,
@@ -3097,7 +3097,7 @@ enum TG3_FLAGS {
 	TG3_FLAG_RGMII_EXT_IBND_RX_EN,
 	TG3_FLAG_RGMII_EXT_IBND_TX_EN,
 	TG3_FLAG_CLKREQ_BUG,
-	TG3_FLAG_NO_NVRAM,
+	TG3_FLAG_ANAL_NVRAM,
 	TG3_FLAG_ENABLE_RSS,
 	TG3_FLAG_ENABLE_TSS,
 	TG3_FLAG_SHORT_DMA_BUG,
@@ -3139,15 +3139,15 @@ struct tg3 {
 
 	/* If the IRQ handler (which runs lockless) needs to be
 	 * quiesced, the following bitmask state is used.  The
-	 * SYNC flag is set by non-IRQ context code to initiate
+	 * SYNC flag is set by analn-IRQ context code to initiate
 	 * the quiescence.
 	 *
-	 * When the IRQ handler notices that SYNC is set, it
+	 * When the IRQ handler analtices that SYNC is set, it
 	 * disables interrupts and returns.
 	 *
 	 * When all outstanding IRQ handlers have returned after
 	 * the SYNC flag has been set, the setter can be assured
-	 * that interrupts will no longer get run.
+	 * that interrupts will anal longer get run.
 	 *
 	 * In this way all SMP driver locks are never acquired
 	 * in hw IRQ context, only sw IRQ context or lower.
@@ -3186,7 +3186,7 @@ struct tg3 {
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
 
-	u32				coal_now;
+	u32				coal_analw;
 	u32				msg_enable;
 
 	struct ptp_clock_info		ptp_info;
@@ -3316,7 +3316,7 @@ struct tg3 {
 	/* This macro assumes the passed PHY ID is
 	 * already masked with TG3_PHY_ID_MASK.
 	 */
-#define TG3_KNOWN_PHY_ID(X)		\
+#define TG3_KANALWN_PHY_ID(X)		\
 	((X) == TG3_PHY_ID_BCM5400 || (X) == TG3_PHY_ID_BCM5401 || \
 	 (X) == TG3_PHY_ID_BCM5411 || (X) == TG3_PHY_ID_BCM5701 || \
 	 (X) == TG3_PHY_ID_BCM5703 || (X) == TG3_PHY_ID_BCM5704 || \
@@ -3343,7 +3343,7 @@ struct tg3 {
 #define TG3_PHYFLG_10_100_ONLY		0x00000080
 #define TG3_PHYFLG_ENABLE_APD		0x00000100
 #define TG3_PHYFLG_CAPACITIVE_COUPLING	0x00000200
-#define TG3_PHYFLG_NO_ETH_WIRE_SPEED	0x00000400
+#define TG3_PHYFLG_ANAL_ETH_WIRE_SPEED	0x00000400
 #define TG3_PHYFLG_JITTER_BUG		0x00000800
 #define TG3_PHYFLG_ADJUST_TRIM		0x00001000
 #define TG3_PHYFLG_ADC_BUG		0x00002000

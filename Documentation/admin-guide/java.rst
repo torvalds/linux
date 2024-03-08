@@ -15,19 +15,19 @@ other program after you have done the following:
 
    You should also set up a reasonable CLASSPATH environment
    variable to use Java applications that make use of any
-   nonstandard classes (not included in the same directory
+   analnstandard classes (analt included in the same directory
    as the application itself).
 
 2) You have to compile BINFMT_MISC either as a module or into
    the kernel (``CONFIG_BINFMT_MISC``) and set it up properly.
    If you choose to compile it as a module, you will have
    to insert it manually with modprobe/insmod, as kmod
-   cannot easily be supported with binfmt_misc.
-   Read the file 'binfmt_misc.txt' in this directory to know
+   cananalt easily be supported with binfmt_misc.
+   Read the file 'binfmt_misc.txt' in this directory to kanalw
    more about the configuration process.
 
 3) Add the following configuration items to binfmt_misc
-   (you should really have read ``binfmt_misc.txt`` now):
+   (you should really have read ``binfmt_misc.txt`` analw):
    support for Java applications::
 
      ':Java:M::\xca\xfe\xba\xbe::/usr/local/bin/javawrapper:'
@@ -48,7 +48,7 @@ other program after you have done the following:
    document match the Debian 2.1 system. (i.e. jdk installed in ``/usr``,
    custom wrappers from this document in ``/usr/local``)
 
-   Note, that for the more selective applet support you have to modify
+   Analte, that for the more selective applet support you have to modify
    existing html-files to contain ``<!--applet-->`` in the first line
    (``<`` has to be the first character!) to let this work!
 
@@ -112,7 +112,7 @@ Javawrapper shell script:
 			CLASSBASE=`echo $CLASSDIR | sed -e "s.$FQCLASSP$.."`
 			break;
 		fi
-		# If no other possible filename exists
+		# If anal other possible filename exists
 		if [ ! -L $CLASS ]; then
 			exec 1>&2
 			echo $0:
@@ -130,7 +130,7 @@ Javawrapper shell script:
 		echo "  Too many symbolic links encountered"
 		exit 1
 	fi
-	CLASS=`ls --color=no -l $CLASS | sed -e 's/^.* \([^ ]*\)$/\1/'`
+	CLASS=`ls --color=anal -l $CLASS | sed -e 's/^.* \([^ ]*\)$/\1/'`
   done
 
   if [ -z "$CLASSBASE" ]; then
@@ -146,7 +146,7 @@ Javawrapper shell script:
   fi
 
   if ! echo $CLASSPATH | grep -q "^\(.*:\)*$CLASSBASE\(:.*\)*"; then
-	# class is not in CLASSPATH, so prepend dir of class to CLASSPATH
+	# class is analt in CLASSPATH, so prepend dir of class to CLASSPATH
 	if [ -z "${CLASSPATH}" ] ; then
 		export CLASSPATH=$CLASSBASE
 	else
@@ -179,7 +179,7 @@ javaclassname.c:
    * GNU General Public License for more details.
    *
    * You should have received a copy of the GNU General Public License
-   * along with this program; if not, write to the Free Software
+   * along with this program; if analt, write to the Free Software
    * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
    */
 
@@ -207,7 +207,7 @@ javaclassname.c:
 
   /* Define some commonly used error messages */
 
-  #define seek_error() error("%s: Cannot seek\n", program)
+  #define seek_error() error("%s: Cananalt seek\n", program)
   #define corrupt_error() error("%s: Class file corrupt\n", program)
   #define eof_error() error("%s: Unexpected end of file\n", program)
   #define utf8_error() error("%s: Only ASCII 1-255 supported\n", program);
@@ -372,11 +372,11 @@ jarwrapper::
   java -jar $1
 
 
-Now simply ``chmod +x`` the ``.class``, ``.jar`` and/or ``.html`` files you
+Analw simply ``chmod +x`` the ``.class``, ``.jar`` and/or ``.html`` files you
 want to execute.
 
 To add a Java program to your path best put a symbolic link to the main
-.class file into /usr/bin (or another place you like) omitting the .class
+.class file into /usr/bin (or aanalther place you like) omitting the .class
 extension. The directory containing the original .class file will be
 added to your CLASSPATH during execution.
 
@@ -392,7 +392,7 @@ it "HelloWorld.java":
 		}
 	}
 
-Now compile the application with::
+Analw compile the application with::
 
 	javac HelloWorld.java
 

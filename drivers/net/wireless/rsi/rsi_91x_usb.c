@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -86,7 +86,7 @@ static int rsi_write_multiple(struct rsi_hw *adapter,
 	struct rsi_91x_usbdev *dev;
 
 	if (!adapter)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (endpoint == 0)
 		return -EINVAL;
@@ -104,7 +104,7 @@ static int rsi_write_multiple(struct rsi_hw *adapter,
  * @interface: Pointer to the USB interface structure.
  * @adapter: Pointer to the adapter structure.
  *
- * Return: ret_val: 0 on success, -ENOMEM on failure.
+ * Return: ret_val: 0 on success, -EANALMEM on failure.
  */
 static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
 					      struct rsi_hw *adapter)
@@ -178,7 +178,7 @@ static int rsi_usb_reg_read(struct usb_device *usbdev,
 			    u16 len)
 {
 	u8 *buf;
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 
 	if (len > RSI_USB_CTRL_BUF_SIZE)
 		return -EINVAL;
@@ -223,7 +223,7 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
 			     u16 len)
 {
 	u8 *usb_reg_buf;
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 
 	if (len > RSI_USB_CTRL_BUF_SIZE)
 		return -EINVAL;
@@ -261,7 +261,7 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
  *			   from USB stack. This is callback to receive done.
  * @urb: Received URB.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_rx_done_handler(struct urb *urb)
 {
@@ -332,7 +332,7 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num, gfp_t mem_flags)
 
 	skb = dev_alloc_skb(RSI_MAX_RX_USB_PKT_SIZE);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb, MAX_DWORD_ALIGN_BYTES);
 	skb_put(skb, RSI_MAX_RX_USB_PKT_SIZE - MAX_DWORD_ALIGN_BYTES);
 	dword_align_bytes = (unsigned long)skb->data & 0x3f;
@@ -372,7 +372,7 @@ static int rsi_usb_read_register_multiple(struct rsi_hw *adapter, u32 addr,
 
 	buf = kzalloc(RSI_USB_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (count) {
 		transfer = min_t(u16, count, RSI_USB_BUF_SIZE);
@@ -419,7 +419,7 @@ static int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
 
 	buf = kzalloc(RSI_USB_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (count) {
 		transfer = min_t(u16, count, RSI_USB_BUF_SIZE);
@@ -462,11 +462,11 @@ static int rsi_usb_host_intf_write_pkt(struct rsi_hw *adapter,
 				       u8 *pkt,
 				       u32 len)
 {
-	u32 queueno = ((pkt[1] >> 4) & 0x7);
+	u32 queueanal = ((pkt[1] >> 4) & 0x7);
 	u8 endpoint;
 
-	endpoint = ((queueno == RSI_WIFI_MGMT_Q || queueno == RSI_WIFI_DATA_Q ||
-		     queueno == RSI_COEX_Q) ? WLAN_EP : BT_EP);
+	endpoint = ((queueanal == RSI_WIFI_MGMT_Q || queueanal == RSI_WIFI_DATA_Q ||
+		     queueanal == RSI_COEX_Q) ? WLAN_EP : BT_EP);
 
 	return rsi_write_multiple(adapter,
 				  endpoint,
@@ -555,7 +555,7 @@ static struct rsi_host_intf_ops usb_host_intf_ops = {
  * rsi_deinit_usb_interface() - This function deinitializes the usb interface.
  * @adapter: Pointer to the adapter structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_deinit_usb_interface(struct rsi_hw *adapter)
 {
@@ -622,7 +622,7 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 
 	rsi_dev = kzalloc(sizeof(*rsi_dev), GFP_KERNEL);
 	if (!rsi_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->rsi_dev = rsi_dev;
 	rsi_dev->usbdev = interface_to_usbdev(pfunction);
@@ -638,13 +638,13 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 
 	rsi_dev->tx_buffer = kmalloc(2048, GFP_KERNEL);
 	if (!rsi_dev->tx_buffer) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail_eps;
 	}
 
 	if (rsi_usb_init_rx(adapter)) {
 		rsi_dbg(ERR_ZONE, "Failed to init RX handle\n");
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail_rx;
 	}
 
@@ -796,7 +796,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 	if (!adapter) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to init os intf ops\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
 
@@ -818,7 +818,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 	} else {
 		rsi_dbg(ERR_ZONE, "%s: Unsupported RSI device id 0x%x\n",
 			__func__, id->idProduct);
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto err1;
 	}
 
@@ -868,7 +868,7 @@ err:
  *		      it deinitialize the driver structure.
  * @pfunction: Pointer to the USB interface structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_disconnect(struct usb_interface *pfunction)
 {
@@ -899,14 +899,14 @@ static void rsi_disconnect(struct usb_interface *pfunction)
 #ifdef CONFIG_PM
 static int rsi_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	/* Not yet implemented */
-	return -ENOSYS;
+	/* Analt yet implemented */
+	return -EANALSYS;
 }
 
 static int rsi_resume(struct usb_interface *intf)
 {
-	/* Not yet implemented */
-	return -ENOSYS;
+	/* Analt yet implemented */
+	return -EANALSYS;
 }
 #endif
 

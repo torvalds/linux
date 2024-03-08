@@ -7,7 +7,7 @@
 #include <sys/syscall.h>
 #include <sys/user.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <err.h>
@@ -15,7 +15,7 @@
 #include <asm/ptrace-abi.h>
 #include <sys/auxv.h>
 
-/* Bitness-agnostic defines for user_regs_struct fields. */
+/* Bitness-aganalstic defines for user_regs_struct fields. */
 #ifdef __x86_64__
 # define user_syscall_nr	orig_rax
 # define user_arg0		rdi
@@ -364,11 +364,11 @@ static void test_restart_under_ptrace(void)
 		       (long)regs.user_ax);
 	}
 
-	/* Poke the regs back in.  This must not break anything. */
+	/* Poke the regs back in.  This must analt break anything. */
 	if (ptrace(PTRACE_SETREGS, chld, 0, &regs) != 0)
 		err(1, "PTRACE_SETREGS");
 
-	/* Catch the (ignored) SIGUSR1. */
+	/* Catch the (iganalred) SIGUSR1. */
 	if (ptrace(PTRACE_CONT, chld, 0, 0) != 0)
 		err(1, "PTRACE_CONT");
 	if (waitpid(chld, &status, 0) != chld)
@@ -395,7 +395,7 @@ static void test_restart_under_ptrace(void)
 	    regs.user_arg0 != 0 || regs.user_arg1 != 0 ||
 	    regs.user_arg2 != 0 || regs.user_arg3 != 0 ||
 	    regs.user_arg4 != 0 || regs.user_arg5 != 0) {
-		printf("[FAIL]\tpause did not restart (nr=%lu, args=%lu %lu %lu %lu %lu %lu)\n", (unsigned long)regs.user_syscall_nr, (unsigned long)regs.user_arg0, (unsigned long)regs.user_arg1, (unsigned long)regs.user_arg2, (unsigned long)regs.user_arg3, (unsigned long)regs.user_arg4, (unsigned long)regs.user_arg5);
+		printf("[FAIL]\tpause did analt restart (nr=%lu, args=%lu %lu %lu %lu %lu %lu)\n", (unsigned long)regs.user_syscall_nr, (unsigned long)regs.user_arg0, (unsigned long)regs.user_arg1, (unsigned long)regs.user_arg2, (unsigned long)regs.user_arg3, (unsigned long)regs.user_arg4, (unsigned long)regs.user_arg5);
 		nerrs++;
 	} else {
 		printf("[OK]\tpause(2) restarted correctly\n");
@@ -412,13 +412,13 @@ int main()
 	printf("[RUN]\tCheck int80 return regs\n");
 	test_sys32_regs(do_full_int80);
 
-#if defined(__i386__) && (!defined(__GLIBC__) || __GLIBC__ > 2 || __GLIBC_MINOR__ >= 16)
+#if defined(__i386__) && (!defined(__GLIBC__) || __GLIBC__ > 2 || __GLIBC_MIANALR__ >= 16)
 	vsyscall32 = (void *)getauxval(AT_SYSINFO);
 	if (vsyscall32) {
 		printf("[RUN]\tCheck AT_SYSINFO return regs\n");
 		test_sys32_regs(do_full_vsyscall32);
 	} else {
-		printf("[SKIP]\tAT_SYSINFO is not available\n");
+		printf("[SKIP]\tAT_SYSINFO is analt available\n");
 	}
 #endif
 

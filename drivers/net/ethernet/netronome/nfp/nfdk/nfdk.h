@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #ifndef _NFP_DP_NFDK_H_
 #define _NFP_DP_NFDK_H_
@@ -31,7 +31,7 @@
 #define NFDK_DESC_TX_DMA_LEN_HEAD	GENMASK(11, 0)
 #define NFDK_DESC_TX_TYPE_HEAD		GENMASK(15, 12)
 #define NFDK_DESC_TX_DMA_LEN		GENMASK(13, 0)
-#define NFDK_DESC_TX_TYPE_NOP		0
+#define NFDK_DESC_TX_TYPE_ANALP		0
 #define NFDK_DESC_TX_TYPE_GATHER	1
 #define NFDK_DESC_TX_TYPE_TSO		2
 #define NFDK_DESC_TX_TYPE_SIMPLE	8
@@ -74,7 +74,7 @@ struct nfp_nfdk_tx_desc {
  * due to alignment constraints. The driver can make use of those bits to carry
  * information about the buffer before giving it to the device.
  *
- * NOTE: The driver must clear the lower bits before handing the buffer to the
+ * ANALTE: The driver must clear the lower bits before handing the buffer to the
  * device.
  *
  * - NFDK_TX_BUF_INFO_SOP - Start of a packet

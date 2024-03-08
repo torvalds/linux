@@ -121,7 +121,7 @@ struct xdbc_ring {
 };
 
 /*
- * These are the "Endpoint ID" (also known as "Context Index") values for the
+ * These are the "Endpoint ID" (also kanalwn as "Context Index") values for the
  * OUT Transfer Ring and the IN Transfer Ring of a Debug Capability Context data
  * structure.
  * According to the "eXtensible Host Controller Interface for Universal Serial

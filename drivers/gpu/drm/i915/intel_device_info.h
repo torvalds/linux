@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -39,7 +39,7 @@ struct drm_printer;
 struct drm_i915_private;
 struct intel_gt_definition;
 
-/* Keep in gen based order, and chronological order within a gen */
+/* Keep in gen based order, and chroanallogical order within a gen */
 enum intel_platform {
 	INTEL_PLATFORM_UNINITIALIZED = 0,
 	/* gen2 */
@@ -130,7 +130,7 @@ enum intel_platform {
 #define INTEL_SUBPLATFORM_RPLU  2
 
 enum intel_ppgtt_type {
-	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
+	INTEL_PPGTT_ANALNE = I915_GEM_PPGTT_ANALNE,
 	INTEL_PPGTT_ALIASING = I915_GEM_PPGTT_ALIASING,
 	INTEL_PPGTT_FULL = I915_GEM_PPGTT_FULL,
 };
@@ -170,7 +170,7 @@ enum intel_ppgtt_type {
 	func(has_rc6p); \
 	func(has_rps); \
 	func(has_runtime_pm); \
-	func(has_snoop); \
+	func(has_sanalop); \
 	func(has_coherent_ggtt); \
 	func(tuning_thread_rr_after_dep); \
 	func(unfenced_needs_alignment); \
@@ -235,7 +235,7 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 
 	/*
-	 * Initial runtime info. Do not access outside of i915_driver_create().
+	 * Initial runtime info. Do analt access outside of i915_driver_create().
 	 */
 	const struct intel_runtime_info __runtime;
 

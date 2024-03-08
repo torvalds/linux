@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * machine_kexec.c - handle transition of Linux booting another kernel
+ * machine_kexec.c - handle transition of Linux booting aanalther kernel
  */
 #include <linux/compiler.h>
 #include <linux/kexec.h>
@@ -34,7 +34,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
 
 typedef void (*relocate_kernel_t)(unsigned long ptr,
 				  unsigned long start,
-				  unsigned long cpu_mmu_flags) __noreturn;
+				  unsigned long cpu_mmu_flags) __analreturn;
 
 void machine_kexec(struct kimage *image)
 {
@@ -47,7 +47,7 @@ void machine_kexec(struct kimage *image)
 	       relocate_new_kernel_size);
 
 	/*
-	 * we do not want to be bothered.
+	 * we do analt want to be bothered.
 	 */
 	local_irq_disable();
 

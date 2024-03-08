@@ -28,7 +28,7 @@
 #include <asm/extable.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/set_memory.h>
 #include <asm/text-patching.h>
 #include "bpf_jit.h"
@@ -333,7 +333,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 /*
  * Return whether this is the first pass. The first pass is special, since we
- * don't know any sizes yet, and thus must be conservative.
+ * don't kanalw any sizes yet, and thus must be conservative.
  */
 static bool is_first_pass(struct bpf_jit *jit)
 {
@@ -474,7 +474,7 @@ static void save_restore_regs(struct bpf_jit *jit, int op, u32 stack_depth)
 
 	if (is_first_pass(jit)) {
 		/*
-		 * We don't know yet which registers are used. Reserve space
+		 * We don't kanalw yet which registers are used. Reserve space
 		 * conservatively.
 		 */
 		jit->prg += (last - re + 1) * save_restore_size;
@@ -551,7 +551,7 @@ static void bpf_jit_plt(void *plt, void *ret, void *target)
 static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp,
 			     u32 stack_depth)
 {
-	/* No-op for hotpatching */
+	/* Anal-op for hotpatching */
 	/* brcl 0,prologue_plt */
 	EMIT6_PCREL_RILC(0xc0040000, 0, jit->prologue_plt);
 	jit->prologue_plt_ret = jit->prg;
@@ -563,7 +563,7 @@ static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp,
 	} else {
 		/*
 		 * Skip the tail call counter initialization in subprograms.
-		 * Insert nops in order to have tail_call_start at a
+		 * Insert analps in order to have tail_call_start at a
 		 * predictable offset.
 		 */
 		bpf_skip(jit, 6);
@@ -617,7 +617,7 @@ static void emit_expoline(struct bpf_jit *jit)
  */
 static void emit_r1_thunk(struct bpf_jit *jit)
 {
-	if (nospec_uses_trampoline()) {
+	if (analspec_uses_trampoline()) {
 		jit->r1_thunk_ip = jit->prg;
 		emit_expoline(jit);
 		/* br %r1 */
@@ -630,7 +630,7 @@ static void emit_r1_thunk(struct bpf_jit *jit)
  */
 static void call_r1(struct bpf_jit *jit)
 {
-	if (nospec_uses_trampoline())
+	if (analspec_uses_trampoline())
 		/* brasl %r14,__s390_indirect_jump_r1 */
 		EMIT6_PCREL_RILB(0xc0050000, REG_14, jit->r1_thunk_ip);
 	else
@@ -648,7 +648,7 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	EMIT4(0xb9040000, REG_2, BPF_REG_0);
 	/* Restore registers */
 	save_restore_regs(jit, REGS_RESTORE, stack_depth);
-	if (nospec_uses_trampoline()) {
+	if (analspec_uses_trampoline()) {
 		jit->r14_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r14 thunk */
 		emit_expoline(jit);
@@ -667,7 +667,7 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	jit->prg += BPF_PLT_SIZE;
 }
 
-static int get_probe_mem_regno(const u8 *insn)
+static int get_probe_mem_reganal(const u8 *insn)
 {
 	/*
 	 * insn must point to llgc, llgh, llgf, lg, lgb, lgh or lgf, which have
@@ -694,7 +694,7 @@ bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
 }
 
 static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
-			     int probe_prg, int nop_prg)
+			     int probe_prg, int analp_prg)
 {
 	struct exception_table_entry *ex;
 	int reg, prg;
@@ -703,33 +703,33 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 	int i;
 
 	if (!fp->aux->extable)
-		/* Do nothing during early JIT passes. */
+		/* Do analthing during early JIT passes. */
 		return 0;
 	insn = jit->prg_buf + probe_prg;
-	reg = get_probe_mem_regno(insn);
+	reg = get_probe_mem_reganal(insn);
 	if (WARN_ON_ONCE(reg < 0))
 		/* JIT bug - unexpected probe instruction. */
 		return -1;
-	if (WARN_ON_ONCE(probe_prg + insn_length(*insn) != nop_prg))
-		/* JIT bug - gap between probe and nop instructions. */
+	if (WARN_ON_ONCE(probe_prg + insn_length(*insn) != analp_prg))
+		/* JIT bug - gap between probe and analp instructions. */
 		return -1;
 	for (i = 0; i < 2; i++) {
 		if (WARN_ON_ONCE(jit->excnt >= fp->aux->num_exentries))
-			/* Verifier bug - not enough entries. */
+			/* Verifier bug - analt eanalugh entries. */
 			return -1;
 		ex = &fp->aux->extable[jit->excnt];
-		/* Add extable entries for probe and nop instructions. */
-		prg = i == 0 ? probe_prg : nop_prg;
+		/* Add extable entries for probe and analp instructions. */
+		prg = i == 0 ? probe_prg : analp_prg;
 		delta = jit->prg_buf + prg - (u8 *)&ex->insn;
 		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
 			/* JIT bug - code and extable must be close. */
 			return -1;
 		ex->insn = delta;
 		/*
-		 * Always land on the nop. Note that extable infrastructure
-		 * ignores fixup field, it is handled by ex_handler_bpf().
+		 * Always land on the analp. Analte that extable infrastructure
+		 * iganalres fixup field, it is handled by ex_handler_bpf().
 		 */
-		delta = jit->prg_buf + nop_prg - (u8 *)&ex->fixup;
+		delta = jit->prg_buf + analp_prg - (u8 *)&ex->fixup;
 		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
 			/* JIT bug - landing pad and extable must be close. */
 			return -1;
@@ -772,10 +772,10 @@ static int sign_extend(struct bpf_jit *jit, int r, u8 size, u8 flags)
 /*
  * Compile one eBPF instruction into s390x code
  *
- * NOTE: Use noinline because for gcov (-fprofile-arcs) gcc allocates a lot of
+ * ANALTE: Use analinline because for gcov (-fprofile-arcs) gcc allocates a lot of
  * stack space for the large switch statement.
  */
-static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
+static analinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 				 int i, bool extra_pass, u32 stack_depth)
 {
 	struct bpf_insn *insn = &fp->insnsi[i];
@@ -788,7 +788,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	s16 off = insn->off;
 	int probe_prg = -1;
 	unsigned int mask;
-	int nop_prg;
+	int analp_prg;
 	int err;
 
 	if (BPF_CLASS(insn->code) == BPF_LDX &&
@@ -1358,9 +1358,9 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		}
 		break;
 	/*
-	 * BPF_NOSPEC (speculation barrier)
+	 * BPF_ANALSPEC (speculation barrier)
 	 */
-	case BPF_ST | BPF_NOSPEC:
+	case BPF_ST | BPF_ANALSPEC:
 		break;
 	/*
 	 * BPF_ST(X)
@@ -1472,7 +1472,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 				      BPF_REG_0, src_reg, dst_reg, off);
 			break;
 		default:
-			pr_err("Unknown atomic operation %02x\n", insn->imm);
+			pr_err("Unkanalwn atomic operation %02x\n", insn->imm);
 			return -1;
 		}
 
@@ -1550,11 +1550,11 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		/*
 		 * Copy the tail call counter to where the callee expects it.
 		 *
-		 * Note 1: The callee can increment the tail call counter, but
-		 * we do not load it back, since the x86 JIT does not do this
+		 * Analte 1: The callee can increment the tail call counter, but
+		 * we do analt load it back, since the x86 JIT does analt do this
 		 * either.
 		 *
-		 * Note 2: We assume that the verifier does not let us call the
+		 * Analte 2: We assume that the verifier does analt let us call the
 		 * main program, which clears the tail call counter on entry.
 		 */
 		/* mvc STK_OFF_TCCNT(4,%r15),N(%r15) */
@@ -1652,7 +1652,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		/* lg %r1,bpf_func(%r1) */
 		EMIT6_DISP_LH(0xe3000000, 0x0004, REG_1, REG_1, REG_0,
 			      offsetof(struct bpf_prog, bpf_func));
-		if (nospec_uses_trampoline()) {
+		if (analspec_uses_trampoline()) {
 			jit->seen |= SEEN_FUNC;
 			/* aghi %r1,tail_call_start */
 			EMIT4_IMM(0xa70b0000, REG_1, jit->tail_call_start);
@@ -1889,7 +1889,7 @@ branch_oc:
 		break;
 	}
 	default: /* too complex, give up */
-		pr_err("Unknown opcode %02x\n", insn->code);
+		pr_err("Unkanalwn opcode %02x\n", insn->code);
 		return -1;
 	}
 
@@ -1897,14 +1897,14 @@ branch_oc:
 		/*
 		 * Handlers of certain exceptions leave psw.addr pointing to
 		 * the instruction directly after the failing one. Therefore,
-		 * create two exception table entries and also add a nop in
+		 * create two exception table entries and also add a analp in
 		 * case two probing instructions come directly after each
 		 * other.
 		 */
-		nop_prg = jit->prg;
+		analp_prg = jit->prg;
 		/* bcr 0,%0 */
 		_EMIT2(0x0700);
-		err = bpf_jit_probe_mem(jit, fp, probe_prg, nop_prg);
+		err = bpf_jit_probe_mem(jit, fp, probe_prg, analp_prg);
 		if (err < 0)
 			return err;
 	}
@@ -1913,7 +1913,7 @@ branch_oc:
 }
 
 /*
- * Return whether new i-th instruction address does not violate any invariant
+ * Return whether new i-th instruction address does analt violate any invariant
  */
 static bool bpf_is_new_addr_sane(struct bpf_jit *jit, int i)
 {
@@ -1921,11 +1921,11 @@ static bool bpf_is_new_addr_sane(struct bpf_jit *jit, int i)
 	if (is_first_pass(jit))
 		return true;
 
-	/* The codegen pass must not change anything */
+	/* The codegen pass must analt change anything */
 	if (is_codegen_pass(jit))
 		return jit->addrs[i] == jit->prg;
 
-	/* Passes in between must not increase code size */
+	/* Passes in between must analt increase code size */
 	return jit->addrs[i] >= jit->prg;
 }
 
@@ -2014,7 +2014,7 @@ static struct bpf_binary_header *bpf_jit_alloc(struct bpf_jit *jit,
 	fp->aux->num_exentries *= 2;
 
 	code_size = roundup(jit->size,
-			    __alignof__(struct exception_table_entry));
+			    __aliganalf__(struct exception_table_entry));
 	extable_size = fp->aux->num_exentries *
 		sizeof(struct exception_table_entry);
 	header = bpf_jit_binary_alloc(code_size + extable_size, &jit->prg_buf,
@@ -2160,7 +2160,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 	int err;
 
 	/* Verify the branch to be patched. */
-	err = copy_from_kernel_nofault(&insn, ip, sizeof(insn));
+	err = copy_from_kernel_analfault(&insn, ip, sizeof(insn));
 	if (err < 0)
 		return err;
 	if (insn.opc != (0xc004 | (old_addr ? 0xf0 : 0)))
@@ -2170,12 +2170,12 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 	    insn.disp == ((char *)new_addr - (char *)ip) >> 1) {
 		/*
 		 * The branch already points to the destination,
-		 * there is no PLT.
+		 * there is anal PLT.
 		 */
 	} else {
 		/* Verify the PLT. */
 		plt = (char *)ip + (insn.disp << 1);
-		err = copy_from_kernel_nofault(current_plt, plt, BPF_PLT_SIZE);
+		err = copy_from_kernel_analfault(current_plt, plt, BPF_PLT_SIZE);
 		if (err < 0)
 			return err;
 		ret = (char *)ip + 6;
@@ -2337,7 +2337,7 @@ static int alloc_stack(struct bpf_tramp_jit *tjit, size_t size)
 #define MAX_MVC_SIZE 256
 #define MAX_NR_STACK_ARGS (MAX_MVC_SIZE / sizeof(u64))
 
-/* -mfentry generates a 6-byte nop on s390x. */
+/* -mfentry generates a 6-byte analp on s390x. */
 #define S390X_PATCH_SIZE 6
 
 static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
@@ -2359,9 +2359,9 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	nr_reg_args = min_t(int, m->nr_args, MAX_NR_REG_ARGS);
 	nr_stack_args = m->nr_args - nr_reg_args;
 	if (nr_stack_args > MAX_NR_STACK_ARGS)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	/* Return to %r14, since func_addr and %r0 are not available. */
+	/* Return to %r14, since func_addr and %r0 are analt available. */
 	if ((!func_addr && !(flags & BPF_TRAMP_F_ORIG_STACK)) ||
 	    (flags & BPF_TRAMP_F_INDIRECT))
 		flags |= BPF_TRAMP_F_SKIP_FRAME;
@@ -2382,7 +2382,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		else if (m->arg_size[i] <= 16)
 			nr_bpf_args += 2;
 		else
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 	}
 
 	/*
@@ -2472,7 +2472,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		 * The ftrace trampoline puts the return address (which is the
 		 * address of the original function + S390X_PATCH_SIZE) into
 		 * %r0; see ftrace_shared_hotpatch_trampoline_br and
-		 * ftrace_init_nop() for details.
+		 * ftrace_init_analp() for details.
 		 */
 
 		/* lgr %r8,%r0 */
@@ -2573,7 +2573,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		im->ip_after_call = jit->prg_buf + jit->prg;
 
 		/*
-		 * The following nop will be patched by bpf_tramp_image_put().
+		 * The following analp will be patched by bpf_tramp_image_put().
 		 */
 
 		/* brcl 0,im->ip_epilogue */
@@ -2624,7 +2624,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	/* aghi %r15,stack_size */
 	EMIT4_IMM(0xa70b0000, REG_15, tjit->stack_size);
 	/* Emit an expoline for the following indirect jump. */
-	if (nospec_uses_trampoline())
+	if (analspec_uses_trampoline())
 		emit_expoline(jit);
 	if (flags & BPF_TRAMP_F_SKIP_FRAME)
 		/* br %r14 */

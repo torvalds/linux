@@ -31,7 +31,7 @@
  * The caller owns the string returned in @option and is
  * responsible for releasing the memory.
  *
- * NOTE: Needed to maintain backwards compatibility
+ * ANALTE: Needed to maintain backwards compatibility
  */
 int fb_get_options(const char *name, char **option)
 {

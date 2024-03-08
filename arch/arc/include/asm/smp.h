@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_ARC_SMP_H
@@ -45,7 +45,7 @@ extern int smp_ipi_irq_setup(int cpu, irq_hw_number_t hwirq);
  *
  * @info:		SoC SMP specific info for /proc/cpuinfo etc
  * @init_early_smp:	A SMP specific h/w block can init itself
- * 			Could be common across platforms so not covered by
+ * 			Could be common across platforms so analt covered by
  * 			mach_desc->init_early()
  * @init_per_cpu:	Called for each core so SMP h/w block driver can do
  * 			any needed setup per cpu (e.g. IPI request)
@@ -86,18 +86,18 @@ static inline const char *arc_platform_smp_cpuinfo(void)
  *	support needed.
  *
  * (2) In a SMP setup, the LLOCK/SCOND atomicity across CPUs needs to be
- *	gaurantted by the platform (not something which core handles).
+ *	gaurantted by the platform (analt something which core handles).
  *	Assuming a platform won't, SMP Linux needs to use spinlocks + local IRQ
  *	disabling for atomicity.
  *
- *	However exported spinlock API is not usable due to cyclic hdr deps
+ *	However exported spinlock API is analt usable due to cyclic hdr deps
  *	(even after system.h disintegration upstream)
  *	asm/bitops.h -> linux/spinlock.h -> linux/preempt.h
  *		-> linux/thread_info.h -> linux/bitops.h -> asm/bitops.h
  *
  *	So the workaround is to use the lowest level arch spinlock API.
- *	The exported spinlock API is smart enough to be NOP for !CONFIG_SMP,
- *	but same is not true for ARCH backend, hence the need for 2 variants
+ *	The exported spinlock API is smart eanalugh to be ANALP for !CONFIG_SMP,
+ *	but same is analt true for ARCH backend, hence the need for 2 variants
  */
 #ifndef CONFIG_ARC_HAS_LLSC
 

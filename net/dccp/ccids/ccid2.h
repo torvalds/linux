@@ -50,7 +50,7 @@ struct ccid2_seq {
  * @tx_expected_wnd:	     moving average of @tx_cwnd_used
  * @tx_cwnd_stamp:	     to track idle periods in CWV
  * @tx_lsndtime:	     last time (in jiffies) a data packet was sent
- * @tx_rpseq:		     last consecutive seqno
+ * @tx_rpseq:		     last consecutive seqanal
  * @tx_rpdupack:	     dupacks since rpseq
  * @tx_av_chunks:	     list of Ack Vectors received on current skb
  */

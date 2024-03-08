@@ -24,14 +24,14 @@
  */
 
 #define LIMA_DUMP_MAJOR 1
-#define LIMA_DUMP_MINOR 0
+#define LIMA_DUMP_MIANALR 0
 
 #define LIMA_DUMP_MAGIC 0x414d494c
 
 struct lima_dump_head {
 	__u32 magic;
 	__u16 version_major;
-	__u16 version_minor;
+	__u16 version_mianalr;
 	__u32 num_tasks;
 	__u32 size;
 	__u32 reserved[4];

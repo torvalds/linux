@@ -12,7 +12,7 @@
 
 #include "bus_numa.h"
 
-#define AMD_NB_F0_NODE_ID			0x60
+#define AMD_NB_F0_ANALDE_ID			0x60
 #define AMD_NB_F0_UNIT_ID			0x64
 #define AMD_NB_F1_CONFIG_MAP_REG		0xe0
 
@@ -26,7 +26,7 @@ struct amd_hostbridge {
 };
 
 /*
- * IMPORTANT NOTE:
+ * IMPORTANT ANALTE:
  * hb_probes[] and early_root_info_init() is in maintenance mode.
  * It only supports K8, Fam10h, Fam11h, and Fam15h_00h-0fh .
  * Future processor will rely on information in ACPI.
@@ -39,13 +39,13 @@ static struct amd_hostbridge hb_probes[] __initdata = {
 	{ 0, 0x18, 0x1600 }, /* Family15h */
 };
 
-static struct pci_root_info __init *find_pci_root_info(int node, int link)
+static struct pci_root_info __init *find_pci_root_info(int analde, int link)
 {
 	struct pci_root_info *info;
 
 	/* find the position */
 	list_for_each_entry(info, &pci_root_infos, list)
-		if (info->node == node && info->link == link)
+		if (info->analde == analde && info->link == link)
 			return info;
 
 	return NULL;
@@ -63,16 +63,16 @@ static inline resource_size_t cap_resource(u64 val)
  * early_root_info_init()
  * called before pcibios_scan_root and pci_scan_bus
  * fills the mp_bus_to_cpumask array based according
- * to the LDT Bus Number Registers found in the northbridge.
+ * to the LDT Bus Number Registers found in the analrthbridge.
  */
 static int __init early_root_info_init(void)
 {
 	int i;
 	unsigned bus;
 	unsigned slot;
-	int node;
+	int analde;
 	int link;
-	int def_node;
+	int def_analde;
 	int def_link;
 	struct pci_root_info *info;
 	u32 reg;
@@ -116,7 +116,7 @@ static int __init early_root_info_init(void)
 
 	/*
 	 * We should learn topology and routing information from _PXM and
-	 * _CRS methods in the ACPI namespace.  We extract node numbers
+	 * _CRS methods in the ACPI namespace.  We extract analde numbers
 	 * here to work around BIOSes that don't supply _PXM.
 	 */
 	for (i = 0; i < AMD_NB_F1_CONFIG_MAP_RANGES; i++) {
@@ -131,26 +131,26 @@ static int __init early_root_info_init(void)
 
 		min_bus = (reg >> 16) & 0xff;
 		max_bus = (reg >> 24) & 0xff;
-		node = (reg >> 4) & 0x07;
+		analde = (reg >> 4) & 0x07;
 		link = (reg >> 8) & 0x03;
 
-		alloc_pci_root_info(min_bus, max_bus, node, link);
+		alloc_pci_root_info(min_bus, max_bus, analde, link);
 	}
 
 	/*
 	 * The following code extracts routing information for use on old
 	 * systems where Linux doesn't automatically use host bridge _CRS
-	 * methods (or when the user specifies "pci=nocrs").
+	 * methods (or when the user specifies "pci=analcrs").
 	 *
-	 * We only do this through Fam11h, because _CRS should be enough on
+	 * We only do this through Fam11h, because _CRS should be eanalugh on
 	 * newer systems.
 	 */
 	if (boot_cpu_data.x86 > 0x11)
 		return 0;
 
-	/* get the default node and link for left over res */
-	reg = read_pci_config(bus, slot, 0, AMD_NB_F0_NODE_ID);
-	def_node = (reg >> 8) & 0x07;
+	/* get the default analde and link for left over res */
+	reg = read_pci_config(bus, slot, 0, AMD_NB_F0_ANALDE_ID);
+	def_analde = (reg >> 8) & 0x07;
 	reg = read_pci_config(bus, slot, 0, AMD_NB_F0_UNIT_ID);
 	def_link = (reg >> 8) & 0x03;
 
@@ -164,16 +164,16 @@ static int __init early_root_info_init(void)
 
 		start = reg & 0xfff000;
 		reg = read_pci_config(bus, slot, 1, 0xc4 + (i << 3));
-		node = reg & 0x07;
+		analde = reg & 0x07;
 		link = (reg >> 4) & 0x03;
 		end = (reg & 0xfff000) | 0xfff;
 
-		info = find_pci_root_info(node, link);
+		info = find_pci_root_info(analde, link);
 		if (!info)
-			continue; /* not found */
+			continue; /* analt found */
 
-		printk(KERN_DEBUG "node %d link %d: io port [%llx, %llx]\n",
-		       node, link, start, end);
+		printk(KERN_DEBUG "analde %d link %d: io port [%llx, %llx]\n",
+		       analde, link, start, end);
 
 		/* kernel only handle 16 bit only */
 		if (end > 0xffff)
@@ -181,9 +181,9 @@ static int __init early_root_info_init(void)
 		update_res(info, start, end, IORESOURCE_IO, 1);
 		subtract_range(range, RANGE_NUM, start, end + 1);
 	}
-	/* add left over io port range to def node/link, [0, 0xffff] */
+	/* add left over io port range to def analde/link, [0, 0xffff] */
 	/* find the position */
-	info = find_pci_root_info(def_node, def_link);
+	info = find_pci_root_info(def_analde, def_link);
 	if (info) {
 		for (i = 0; i < RANGE_NUM; i++) {
 			if (!range[i].end)
@@ -231,19 +231,19 @@ static int __init early_root_info_init(void)
 		start = reg & 0xffffff00; /* 39:16 on 31:8*/
 		start <<= 8;
 		reg = read_pci_config(bus, slot, 1, 0x84 + (i << 3));
-		node = reg & 0x07;
+		analde = reg & 0x07;
 		link = (reg >> 4) & 0x03;
 		end = (reg & 0xffffff00);
 		end <<= 8;
 		end |= 0xffff;
 
-		info = find_pci_root_info(node, link);
+		info = find_pci_root_info(analde, link);
 
 		if (!info)
 			continue;
 
-		printk(KERN_DEBUG "node %d link %d: mmio [%llx, %llx]",
-		       node, link, start, end);
+		printk(KERN_DEBUG "analde %d link %d: mmio [%llx, %llx]",
+		       analde, link, start, end);
 		/*
 		 * some sick allocation would have range overlap with fam10h
 		 * mmconf range, so need to update start and end.
@@ -278,7 +278,7 @@ static int __init early_root_info_init(void)
 				if (start <= end) {
 					printk(KERN_CONT " %s [%llx, %llx]", endx ? "and" : "==>", start, end);
 				} else {
-					printk(KERN_CONT "%s\n", endx?"":" ==> none");
+					printk(KERN_CONT "%s\n", endx?"":" ==> analne");
 					continue;
 				}
 			}
@@ -305,10 +305,10 @@ static int __init early_root_info_init(void)
 	}
 
 	/*
-	 * add left over mmio range to def node/link ?
+	 * add left over mmio range to def analde/link ?
 	 * that is tricky, just record range in from start_min to 4G
 	 */
-	info = find_pci_root_info(def_node, def_link);
+	info = find_pci_root_info(def_analde, def_link);
 	if (info) {
 		for (i = 0; i < RANGE_NUM; i++) {
 			if (!range[i].end)
@@ -325,8 +325,8 @@ static int __init early_root_info_init(void)
 		struct pci_root_res *root_res;
 
 		busnum = info->busn.start;
-		printk(KERN_DEBUG "bus: %pR on node %x link %x\n",
-		       &info->busn, info->node, info->link);
+		printk(KERN_DEBUG "bus: %pR on analde %x link %x\n",
+		       &info->busn, info->analde, info->link);
 		list_for_each_entry(root_res, &info->resources, list)
 			printk(KERN_DEBUG "bus: %02x %pR\n",
 				       busnum, &root_res->res);

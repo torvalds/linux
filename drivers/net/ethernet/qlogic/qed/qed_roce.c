@@ -9,7 +9,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -72,7 +72,7 @@ void qed_roce_stop(struct qed_hwfn *p_hwfn)
 	int wait_count = 0;
 
 	/* when destroying a_RoCE QP the control is returned to the user after
-	 * the synchronous part. The asynchronous part may take a little longer.
+	 * the synchroanalus part. The asynchroanalus part may take a little longer.
 	 * We delay for a short while if an async destroy QP is still expected.
 	 * Beyond the added delay we clear the bitmap anyway.
 	 */
@@ -87,7 +87,7 @@ void qed_roce_stop(struct qed_hwfn *p_hwfn)
 
 		msleep(100);
 		if (wait_count++ > 20) {
-			DP_NOTICE(p_hwfn, "cid bitmap wait timed out\n");
+			DP_ANALTICE(p_hwfn, "cid bitmap wait timed out\n");
 			break;
 		}
 	}
@@ -161,7 +161,7 @@ int qed_roce_alloc_cid(struct qed_hwfn *p_hwfn, u16 *cid)
 
 	/* the two icid's should be adjacent */
 	if ((requester_icid - responder_icid) != 1) {
-		DP_NOTICE(p_hwfn, "Failed to allocate two adjacent qp's'\n");
+		DP_ANALTICE(p_hwfn, "Failed to allocate two adjacent qp's'\n");
 		rc = -EINVAL;
 		goto err;
 	}
@@ -242,9 +242,9 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 				     RDMA_RING_PAGE_SIZE,
 				     &qp->irq_phys_addr, GFP_KERNEL);
 	if (!qp->irq) {
-		rc = -ENOMEM;
-		DP_NOTICE(p_hwfn,
-			  "qed create responder failed: cannot allocate memory (irq). rc = %d\n",
+		rc = -EANALMEM;
+		DP_ANALTICE(p_hwfn,
+			  "qed create responder failed: cananalt allocate memory (irq). rc = %d\n",
 			  rc);
 		return rc;
 	}
@@ -349,7 +349,7 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	return rc;
 
 err:
-	DP_NOTICE(p_hwfn, "create responder - failed, rc = %d\n", rc);
+	DP_ANALTICE(p_hwfn, "create responder - failed, rc = %d\n", rc);
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  qp->irq_num_pages * RDMA_RING_PAGE_SIZE,
 			  qp->irq, qp->irq_phys_addr);
@@ -380,9 +380,9 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 				     RDMA_RING_PAGE_SIZE,
 				     &qp->orq_phys_addr, GFP_KERNEL);
 	if (!qp->orq) {
-		rc = -ENOMEM;
-		DP_NOTICE(p_hwfn,
-			  "qed create requester failed: cannot allocate memory (orq). rc = %d\n",
+		rc = -EANALMEM;
+		DP_ANALTICE(p_hwfn,
+			  "qed create requester failed: cananalt allocate memory (orq). rc = %d\n",
 			  rc);
 		return rc;
 	}
@@ -480,7 +480,7 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	return rc;
 
 err:
-	DP_NOTICE(p_hwfn, "Create requested - failed, rc = %d\n", rc);
+	DP_ANALTICE(p_hwfn, "Create requested - failed, rc = %d\n", rc);
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  qp->orq_num_pages * RDMA_RING_PAGE_SIZE,
 			  qp->orq, qp->orq_phys_addr);
@@ -515,7 +515,7 @@ static int qed_roce_sp_modify_responder(struct qed_hwfn *p_hwfn,
 				 ROCE_EVENT_MODIFY_QP,
 				 PROTOCOLID_ROCE, &init_data);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "rc = %d\n", rc);
+		DP_ANALTICE(p_hwfn, "rc = %d\n", rc);
 		return rc;
 	}
 
@@ -603,7 +603,7 @@ static int qed_roce_sp_modify_requester(struct qed_hwfn *p_hwfn,
 				 ROCE_EVENT_MODIFY_QP,
 				 PROTOCOLID_ROCE, &init_data);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "rc = %d\n", rc);
+		DP_ANALTICE(p_hwfn, "rc = %d\n", rc);
 		return rc;
 	}
 
@@ -613,7 +613,7 @@ static int qed_roce_sp_modify_requester(struct qed_hwfn *p_hwfn,
 	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG,
 		  !!move_to_sqd);
 
-	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY,
+	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_ANALTIFY,
 		  qp->sqd_async);
 
 	SET_FIELD(flags, ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG,
@@ -713,9 +713,9 @@ static int qed_roce_sp_destroy_qp_responder(struct qed_hwfn *p_hwfn,
 					  &ramrod_res_phys, GFP_KERNEL);
 
 	if (!p_ramrod_res) {
-		rc = -ENOMEM;
-		DP_NOTICE(p_hwfn,
-			  "qed destroy responder failed: cannot allocate memory (ramrod). rc = %d\n",
+		rc = -EANALMEM;
+		DP_ANALTICE(p_hwfn,
+			  "qed destroy responder failed: cananalt allocate memory (ramrod). rc = %d\n",
 			  rc);
 		qed_sp_destroy_request(p_hwfn, p_ent);
 		return rc;
@@ -755,7 +755,7 @@ static int qed_roce_sp_destroy_qp_requester(struct qed_hwfn *p_hwfn,
 	struct qed_sp_init_data init_data;
 	struct qed_spq_entry *p_ent;
 	dma_addr_t ramrod_res_phys;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if (!qp->has_req)
 		return 0;
@@ -769,8 +769,8 @@ static int qed_roce_sp_destroy_qp_requester(struct qed_hwfn *p_hwfn,
 					  sizeof(*p_ramrod_res),
 					  &ramrod_res_phys, GFP_KERNEL);
 	if (!p_ramrod_res) {
-		DP_NOTICE(p_hwfn,
-			  "qed destroy requester failed: cannot allocate memory (ramrod)\n");
+		DP_ANALTICE(p_hwfn,
+			  "qed destroy requester failed: cananalt allocate memory (ramrod)\n");
 		return rc;
 	}
 
@@ -823,7 +823,7 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 	bool rq_err_state;
 	bool sq_err_state;
 	bool sq_draining;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if ((!(qp->resp_offloaded)) && (!(qp->req_offloaded))) {
 		/* We can't send ramrod to the fw since this qp wasn't offloaded
@@ -834,12 +834,12 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 		out_params->sq_psn = qp->sq_psn;
 		out_params->state = qp->cur_state;
 
-		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "No QPs as no offload\n");
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Anal QPs as anal offload\n");
 		return 0;
 	}
 
 	if (!(qp->resp_offloaded)) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "The responder's qp should be offloaded before requester's\n");
 		return -EINVAL;
 	}
@@ -850,8 +850,8 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 				   sizeof(*p_resp_ramrod_res),
 				   &resp_ramrod_res_phys, GFP_KERNEL);
 	if (!p_resp_ramrod_res) {
-		DP_NOTICE(p_hwfn,
-			  "qed query qp failed: cannot allocate memory (ramrod)\n");
+		DP_ANALTICE(p_hwfn,
+			  "qed query qp failed: cananalt allocate memory (ramrod)\n");
 		return rc;
 	}
 
@@ -898,9 +898,9 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 					      &req_ramrod_res_phys,
 					      GFP_KERNEL);
 	if (!p_req_ramrod_res) {
-		rc = -ENOMEM;
-		DP_NOTICE(p_hwfn,
-			  "qed query qp failed: cannot allocate memory (ramrod)\n");
+		rc = -EANALMEM;
+		DP_ANALTICE(p_hwfn,
+			  "qed query qp failed: cananalt allocate memory (ramrod)\n");
 		return rc;
 	}
 
@@ -957,7 +957,7 @@ int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 	if ((qp->cur_state != QED_ROCE_QP_STATE_RESET) &&
 	    (qp->cur_state != QED_ROCE_QP_STATE_ERR) &&
 	    (qp->cur_state != QED_ROCE_QP_STATE_INIT)) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "QP must be in error, reset or init state before destroying it\n");
 		return -EINVAL;
 	}
@@ -1110,7 +1110,7 @@ void qed_roce_dpm_dcbx(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	 * update. Otherwise enable it.
 	 */
 	val = qed_rdma_allocated_qps(p_hwfn) ? true : false;
-	p_hwfn->dcbx_no_edpm = (u8)val;
+	p_hwfn->dcbx_anal_edpm = (u8)val;
 
 	qed_rdma_dpm_conf(p_hwfn, p_ptt);
 }
@@ -1134,7 +1134,7 @@ int qed_roce_init_hw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	       (ll2_ethertype_en | 0x01));
 
 	if (qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_ROCE) % 2) {
-		DP_NOTICE(p_hwfn, "The first RoCE's cid should be even\n");
+		DP_ANALTICE(p_hwfn, "The first RoCE's cid should be even\n");
 		return -EINVAL;
 	}
 

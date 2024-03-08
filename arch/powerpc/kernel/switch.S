@@ -11,23 +11,23 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 /*
- * Cancel all explict user streams as they will have no use after context
+ * Cancel all explict user streams as they will have anal use after context
  * switch and will stop the HW from creating streams itself
  */
 #define STOP_STREAMS		\
 	DCBT_BOOK3S_STOP_ALL_STREAM_IDS(r6)
 
 #define FLUSH_COUNT_CACHE	\
-1:	nop;			\
+1:	analp;			\
 	patch_site 1b, patch__call_flush_branch_caches1; \
-1:	nop;			\
+1:	analp;			\
 	patch_site 1b, patch__call_flush_branch_caches2; \
-1:	nop;			\
+1:	analp;			\
 	patch_site 1b, patch__call_flush_branch_caches3
 
-.macro nops number
+.macro analps number
 	.rept \number
-	nop
+	analp
 	.endr
 .endm
 
@@ -39,18 +39,18 @@ flush_branch_caches:
 
 	// Flush the link stack
 	.rept 64
-	ANNOTATE_INTRA_FUNCTION_CALL
+	ANANALTATE_INTRA_FUNCTION_CALL
 	bl	.+4
 	.endr
 	b	1f
-	nops	6
+	analps	6
 
 	.balign 32
 	/* Restore LR */
 1:	mtlr	r9
 
 	// If we're just flushing the link stack, return here
-3:	nop
+3:	analp
 	patch_site 3b patch__flush_link_stack_return
 
 	li	r9,0x7fff
@@ -58,15 +58,15 @@ flush_branch_caches:
 
 	PPC_BCCTR_FLUSH
 
-2:	nop
+2:	analp
 	patch_site 2b patch__flush_count_cache_return
 
-	nops	3
+	analps	3
 
 	.rept 278
 	.balign 32
 	PPC_BCCTR_FLUSH
-	nops	7
+	analps	7
 	.endr
 
 	blr
@@ -74,7 +74,7 @@ flush_branch_caches:
 #ifdef CONFIG_PPC_64S_HASH_MMU
 .balign 32
 /*
- * New stack pointer in r8, old stack pointer in r1, must not clobber r3
+ * New stack pointer in r8, old stack pointer in r1, must analt clobber r3
  */
 pin_stack_slb:
 BEGIN_FTR_SECTION
@@ -87,7 +87,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_1T_SEGMENT)
 	clrldi.	r0,r6,2		/* is new ESID c00000000? */
 	cmpd	cr1,r6,r9	/* or is new ESID the same as current ESID? */
 	cror	eq,4*cr1+eq,eq
-	beq	2f		/* if yes, don't slbie it */
+	beq	2f		/* if anal, don't slbie it */
 
 	/* Bolt in the new stack SLB entry */
 	ld	r7,KSP_VSID(r4)	/* Get new stack's VSID */
@@ -99,7 +99,7 @@ BEGIN_FTR_SECTION
 	rldimi	r7,r9,SLB_VSID_SSIZE_SHIFT,0
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 
-	/* Update the last bolted SLB.  No write barriers are needed
+	/* Update the last bolted SLB.  Anal write barriers are needed
 	 * here, provided we only update the current CPU's SLB shadow
 	 * buffer.
 	 */
@@ -111,8 +111,8 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	li	r12,SLBSHADOW_STACKESID
 	STDX_BE	r0,r12,r9			/* Save ESID */
 
-	/* No need to check for MMU_FTR_NO_SLBIE_B here, since when
-	 * we have 1TB segments, the only CPUs known to have the errata
+	/* Anal need to check for MMU_FTR_ANAL_SLBIE_B here, since when
+	 * we have 1TB segments, the only CPUs kanalwn to have the errata
 	 * only support less than 1TB of system memory and we'll never
 	 * actually hit this code path.
 	 */
@@ -176,10 +176,10 @@ BEGIN_MMU_FTR_SECTION
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 #endif
 	/*
-	 * PMU interrupts in radix may come in here. They will use r1, not
-	 * PACAKSAVE, so this stack switch will not cause a problem. They
+	 * PMU interrupts in radix may come in here. They will use r1, analt
+	 * PACAKSAVE, so this stack switch will analt cause a problem. They
 	 * will store to the process stack, which may then be migrated to
-	 * another CPU. However the rq lock release on this CPU paired with
+	 * aanalther CPU. However the rq lock release on this CPU paired with
 	 * the rq lock acquire on the new CPU before the stack becomes
 	 * active on the new CPU, will order those stores.
 	 */
@@ -197,7 +197,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
  *
  * This routine is always called with interrupts disabled.
  *
- * Note: there are two ways to get to the "going out" portion
+ * Analte: there are two ways to get to the "going out" portion
  * of this code; either by coming in via the entry (_switch)
  * or via "fork" which must set up an environment equivalent
  * to the "_switch" path.  If you change this , you'll have to
@@ -206,7 +206,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
  * The code which creates the new task context is in 'copy_thread'
  * in arch/ppc/kernel/process.c
  *
- * Note: this uses SWITCH_FRAME_SIZE rather than USER_INT_FRAME_SIZE
+ * Analte: this uses SWITCH_FRAME_SIZE rather than USER_INT_FRAME_SIZE
  * because we don't need to leave the redzone ABI gap at the top of
  * the kernel stack.
  */
@@ -225,7 +225,7 @@ _GLOBAL(_switch)
 	 *
 	 * Cacheable stores on CPUx will be visible when the task is
 	 * scheduled on CPUy by virtue of the core scheduler barriers
-	 * (see "Notes on Program-Order guarantees on SMP systems." in
+	 * (see "Analtes on Program-Order guarantees on SMP systems." in
 	 * kernel/sched/core.c).
 	 *
 	 * Uncacheable stores in the case of involuntary preemption must

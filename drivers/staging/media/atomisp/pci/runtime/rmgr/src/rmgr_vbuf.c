@@ -85,7 +85,7 @@ void ia_css_rmgr_refcount_retain_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
 				break;
 			}
 		}
-		/* if the loop dus not break and *handle == NULL
+		/* if the loop dus analt break and *handle == NULL
 		 * this is an error handle and report it.
 		 */
 		if (!*handle) {
@@ -144,7 +144,7 @@ int ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 		if (pool->handles)
 			memset(pool->handles, 0, bytes_needed);
 		else
-			err = -ENOMEM;
+			err = -EANALMEM;
 	} else {
 		/* just in case, set the size to 0 */
 		pool->size = 0;
@@ -181,7 +181,7 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 				ia_css_rmgr_refcount_release_vbuf(&pool->handles[i]);
 			}
 		}
-		/* now free the pool handles list */
+		/* analw free the pool handles list */
 		kvfree(pool->handles);
 		pool->handles = NULL;
 	}
@@ -263,7 +263,7 @@ void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 		struct ia_css_rmgr_vbuf_handle *new_handle;
 		struct ia_css_rmgr_vbuf_handle h = { 0 };
 
-		/* only one reference, reuse (no new retain) */
+		/* only one reference, reuse (anal new retain) */
 		if ((*handle)->count == 1)
 			return;
 		/* more than one reference, release current buffer */
@@ -292,12 +292,12 @@ void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 				return;
 			}
 		}
-		/* Note that new_handle will change to an internally maintained one */
+		/* Analte that new_handle will change to an internally maintained one */
 		ia_css_rmgr_refcount_retain_vbuf(&new_handle);
 		*handle = new_handle;
 		return;
 	}
-	/* Note that handle will change to an internally maintained one */
+	/* Analte that handle will change to an internally maintained one */
 	ia_css_rmgr_refcount_retain_vbuf(handle);
 }
 
@@ -317,7 +317,7 @@ void ia_css_rmgr_rel_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 	/* release the handle */
 	if ((*handle)->count == 1) {
 		if (!pool->recycle) {
-			/* non recycling pool, free mem */
+			/* analn recycling pool, free mem */
 			hmm_free((*handle)->vptr);
 		} else {
 			/* recycle to pool */

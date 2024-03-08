@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: MAC Data structure
@@ -80,7 +80,7 @@
 
 #define DUPLICATE_RX_CACHE_LENGTH       5
 
-#define AUTO_FB_NONE            0
+#define AUTO_FB_ANALNE            0
 #define AUTO_FB_0               1
 #define AUTO_FB_1               2
 
@@ -93,7 +93,7 @@
 #define ANT_DIVERSITY           2
 #define ANT_RXD_TXA             3
 #define ANT_RXD_TXB             4
-#define ANT_UNKNOWN             0xFF
+#define ANT_UNKANALWN             0xFF
 #define ANT_TXA                 0
 #define ANT_TXB                 1
 #define ANT_RXA                 2
@@ -123,7 +123,7 @@
 #define EEP_OFS_CALIB_RX_IQ	0x26
 
 #define EEP_OFS_MAJOR_VER	0x2e
-#define EEP_OFS_MINOR_VER	0x2f
+#define EEP_OFS_MIANALR_VER	0x2f
 
 #define EEP_OFS_CCK_PWR_TBL	0x30
 #define EEP_OFS_OFDM_PWR_TBL	0x40
@@ -238,7 +238,7 @@ struct vnt_usb_send_context {
 	u16 tx_hdr_size;
 	u16 tx_rate;
 	u8 type;
-	u8 pkt_no;
+	u8 pkt_anal;
 	u8 pkt_type;
 	bool in_use;
 };

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -186,8 +186,8 @@ nvkm_i2c_bus_probe(struct nvkm_i2c_bus *bus, const char *what,
 		}
 	}
 
-	BUS_DBG(bus, "no devices found.");
-	return -ENODEV;
+	BUS_DBG(bus, "anal devices found.");
+	return -EANALDEV;
 }
 
 void
@@ -211,7 +211,7 @@ nvkm_i2c_bus_ctor(const struct nvkm_i2c_bus_func *func,
 {
 	struct nvkm_device *device = pad->i2c->subdev.device;
 	struct i2c_algo_bit_data *bit;
-#ifndef CONFIG_NOUVEAU_I2C_INTERNAL_DEFAULT
+#ifndef CONFIG_ANALUVEAU_I2C_INTERNAL_DEFAULT
 	const bool internal = false;
 #else
 	const bool internal = true;
@@ -233,7 +233,7 @@ nvkm_i2c_bus_ctor(const struct nvkm_i2c_bus_func *func,
 	if ( bus->func->drive_scl &&
 	    !nvkm_boolopt(device->cfgopt, "NvI2C", internal)) {
 		if (!(bit = kzalloc(sizeof(*bit), GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 		bit->udelay = 10;
 		bit->timeout = usecs_to_jiffies(2200);
 		bit->data = bus;
@@ -259,6 +259,6 @@ nvkm_i2c_bus_new_(const struct nvkm_i2c_bus_func *func,
 		  struct nvkm_i2c_bus **pbus)
 {
 	if (!(*pbus = kzalloc(sizeof(**pbus), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return nvkm_i2c_bus_ctor(func, pad, id, *pbus);
 }

@@ -58,10 +58,10 @@ int squashfs_get_id(struct super_block *sb, unsigned int index,
  * Read uncompressed id lookup table indexes from disk into memory
  */
 __le64 *squashfs_read_id_index_table(struct super_block *sb,
-		u64 id_table_start, u64 next_table, unsigned short no_ids)
+		u64 id_table_start, u64 next_table, unsigned short anal_ids)
 {
-	unsigned int length = SQUASHFS_ID_BLOCK_BYTES(no_ids);
-	unsigned int indexes = SQUASHFS_ID_BLOCKS(no_ids);
+	unsigned int length = SQUASHFS_ID_BLOCK_BYTES(anal_ids);
+	unsigned int indexes = SQUASHFS_ID_BLOCKS(anal_ids);
 	int n;
 	__le64 *table;
 	u64 start, end;
@@ -71,7 +71,7 @@ __le64 *squashfs_read_id_index_table(struct super_block *sb,
 	/* Sanity check values */
 
 	/* there should always be at least one id */
-	if (no_ids == 0)
+	if (anal_ids == 0)
 		return ERR_PTR(-EINVAL);
 
 	/*

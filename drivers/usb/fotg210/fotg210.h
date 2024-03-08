@@ -3,7 +3,7 @@
 #define __FOTG210_H
 
 enum gemini_port {
-	GEMINI_PORT_NONE = 0,
+	GEMINI_PORT_ANALNE = 0,
 	GEMINI_PORT_0,
 	GEMINI_PORT_1,
 };

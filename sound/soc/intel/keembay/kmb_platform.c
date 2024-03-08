@@ -71,7 +71,7 @@ static const struct snd_pcm_hardware kmb_pcm_hardware = {
  *     26    = channel status
  *     27    = block start
  *     28-31 = 0
- * MSB to LSB bit reverse by software as hardware not supporting it.
+ * MSB to LSB bit reverse by software as hardware analt supporting it.
  */
 static void hdmi_reformat_iec958(struct snd_pcm_runtime *runtime,
 				 struct kmb_i2s_info *kmb_i2s,
@@ -296,7 +296,7 @@ static irqreturn_t kmb_i2s_irq_handler(int irq, void *dev_id)
 {
 	struct kmb_i2s_info *kmb_i2s = dev_id;
 	struct i2s_clk_config_data *config = &kmb_i2s->config;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 tx_enabled = 0;
 	u32 isr[4];
 	int i;
@@ -621,7 +621,7 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 	case 8:
 	case 4:
 		/*
-		 * Platform is not capable of providing clocks for
+		 * Platform is analt capable of providing clocks for
 		 * multi channel audio
 		 */
 		if (kmb_i2s->clock_provider)
@@ -648,7 +648,7 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 		writel(write_val, kmb_i2s->pss_base + I2S_GEN_CFG_0);
 		break;
 	default:
-		dev_dbg(kmb_i2s->dev, "channel not supported\n");
+		dev_dbg(kmb_i2s->dev, "channel analt supported\n");
 		return -EINVAL;
 	}
 
@@ -817,7 +817,7 @@ static const struct of_device_id kmb_plat_of_match[] = {
 
 static int kmb_plat_dai_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct snd_soc_dai_driver *kmb_i2s_dai;
 	struct device *dev = &pdev->dev;
 	struct kmb_i2s_info *kmb_i2s;
@@ -827,7 +827,7 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 
 	kmb_i2s = devm_kzalloc(dev, sizeof(*kmb_i2s), GFP_KERNEL);
 	if (!kmb_i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kmb_i2s_dai = (struct snd_soc_dai_driver *)device_get_match_data(&pdev->dev);
 
@@ -888,7 +888,7 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 		ret = snd_dmaengine_pcm_register(&pdev->dev,
 						 NULL, 0);
 		if (ret) {
-			dev_err(&pdev->dev, "could not register dmaengine: %d\n",
+			dev_err(&pdev->dev, "could analt register dmaengine: %d\n",
 				ret);
 			return ret;
 		}
@@ -897,11 +897,11 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 	}
 
 	if (ret) {
-		dev_err(dev, "not able to register dai\n");
+		dev_err(dev, "analt able to register dai\n");
 		return ret;
 	}
 
-	/* To ensure none of the channels are enabled at boot up */
+	/* To ensure analne of the channels are enabled at boot up */
 	kmb_i2s_disable_channels(kmb_i2s, SNDRV_PCM_STREAM_PLAYBACK);
 	kmb_i2s_disable_channels(kmb_i2s, SNDRV_PCM_STREAM_CAPTURE);
 

@@ -89,14 +89,14 @@ efc_nport_send_evt(struct efc_nport *nport, int evt, void *data)
 {
 	struct efc *efc = nport->efc;
 
-	/* Now inform the registered callbacks */
+	/* Analw inform the registered callbacks */
 	efc_nport_cb(efc, evt, nport);
 
 	/* Set the nport attached flag */
 	if (evt == EFC_EVT_NPORT_ATTACH_OK)
 		nport->attached = true;
 
-	/* If there is a pending free request, then handle it now */
+	/* If there is a pending free request, then handle it analw */
 	if (nport->free_req_pending)
 		efc_nport_free_unreg_vpi(nport);
 }
@@ -122,7 +122,7 @@ efc_nport_alloc_init_vpi(struct efc_nport *nport)
 	u8 data[SLI4_BMBX_SIZE];
 	int rc;
 
-	/* If there is a pending free request, then handle it now */
+	/* If there is a pending free request, then handle it analw */
 	if (nport->free_req_pending) {
 		efc_nport_free_resources(nport, EFC_EVT_NPORT_FREE_OK, data);
 		return;
@@ -234,7 +234,7 @@ efc_cmd_nport_alloc(struct efc *efc, struct efc_nport *nport,
 		else
 			efc_nport_alloc_init_vpi(nport);
 	} else if (!wwpn) {
-		/* domain NULL and wwpn non-NULL */
+		/* domain NULL and wwpn analn-NULL */
 		efc_log_err(efc, "need WWN for physical port\n");
 		sli_resource_free(efc->sli, SLI4_RSRC_VPI, nport->indicator);
 		return -EIO;
@@ -358,7 +358,7 @@ efc_domain_send_nport_evt(struct efc_domain *domain,
 	/* Send alloc/attach ok to the physical nport */
 	efc_nport_send_evt(domain->nport, port_evt, NULL);
 
-	/* Now inform the registered callbacks */
+	/* Analw inform the registered callbacks */
 	efc_domain_cb(efc, domain_evt, domain);
 }
 
@@ -603,37 +603,37 @@ efc_cmd_domain_free(struct efc *efc, struct efc_domain *domain)
 }
 
 int
-efc_cmd_node_alloc(struct efc *efc, struct efc_remote_node *rnode, u32 fc_addr,
+efc_cmd_analde_alloc(struct efc *efc, struct efc_remote_analde *ranalde, u32 fc_addr,
 		   struct efc_nport *nport)
 {
 	/* Check for invalid indicator */
-	if (rnode->indicator != U32_MAX) {
+	if (ranalde->indicator != U32_MAX) {
 		efc_log_err(efc,
 			    "RPI allocation failure addr=%#x rpi=%#x\n",
-			    fc_addr, rnode->indicator);
+			    fc_addr, ranalde->indicator);
 		return -EIO;
 	}
 
-	/* NULL SLI port indicates an unallocated remote node */
-	rnode->nport = NULL;
+	/* NULL SLI port indicates an unallocated remote analde */
+	ranalde->nport = NULL;
 
 	if (sli_resource_alloc(efc->sli, SLI4_RSRC_RPI,
-			       &rnode->indicator, &rnode->index)) {
+			       &ranalde->indicator, &ranalde->index)) {
 		efc_log_err(efc, "RPI allocation failure addr=%#x\n",
 			    fc_addr);
 		return -EIO;
 	}
 
-	rnode->fc_id = fc_addr;
-	rnode->nport = nport;
+	ranalde->fc_id = fc_addr;
+	ranalde->nport = nport;
 
 	return 0;
 }
 
 static int
-efc_cmd_node_attach_cb(struct efc *efc, int status, u8 *mqe, void *arg)
+efc_cmd_analde_attach_cb(struct efc *efc, int status, u8 *mqe, void *arg)
 {
-	struct efc_remote_node *rnode = arg;
+	struct efc_remote_analde *ranalde = arg;
 	struct sli4_mbox_command_header *hdr =
 				(struct sli4_mbox_command_header *)mqe;
 	int evt = 0;
@@ -641,74 +641,74 @@ efc_cmd_node_attach_cb(struct efc *efc, int status, u8 *mqe, void *arg)
 	if (status || le16_to_cpu(hdr->status)) {
 		efc_log_debug(efc, "bad status cqe=%#x mqe=%#x\n", status,
 			      le16_to_cpu(hdr->status));
-		rnode->attached = false;
-		evt = EFC_EVT_NODE_ATTACH_FAIL;
+		ranalde->attached = false;
+		evt = EFC_EVT_ANALDE_ATTACH_FAIL;
 	} else {
-		rnode->attached = true;
-		evt = EFC_EVT_NODE_ATTACH_OK;
+		ranalde->attached = true;
+		evt = EFC_EVT_ANALDE_ATTACH_OK;
 	}
 
-	efc_remote_node_cb(efc, evt, rnode);
+	efc_remote_analde_cb(efc, evt, ranalde);
 
 	return 0;
 }
 
 int
-efc_cmd_node_attach(struct efc *efc, struct efc_remote_node *rnode,
+efc_cmd_analde_attach(struct efc *efc, struct efc_remote_analde *ranalde,
 		    struct efc_dma *sparms)
 {
 	int rc = -EIO;
 	u8 buf[SLI4_BMBX_SIZE];
 
-	if (!rnode || !sparms) {
-		efc_log_err(efc, "bad parameter(s) rnode=%p sparms=%p\n",
-			    rnode, sparms);
+	if (!ranalde || !sparms) {
+		efc_log_err(efc, "bad parameter(s) ranalde=%p sparms=%p\n",
+			    ranalde, sparms);
 		return -EIO;
 	}
 
 	/*
-	 * If the attach count is non-zero, this RPI has already been reg'd.
+	 * If the attach count is analn-zero, this RPI has already been reg'd.
 	 * Otherwise, register the RPI
 	 */
-	if (rnode->index == U32_MAX) {
-		efc_log_err(efc, "bad parameter rnode->index invalid\n");
+	if (ranalde->index == U32_MAX) {
+		efc_log_err(efc, "bad parameter ranalde->index invalid\n");
 		return -EIO;
 	}
 
-	/* Update a remote node object with the remote port's service params */
-	if (!sli_cmd_reg_rpi(efc->sli, buf, rnode->indicator,
-			     rnode->nport->indicator, rnode->fc_id, sparms, 0, 0))
+	/* Update a remote analde object with the remote port's service params */
+	if (!sli_cmd_reg_rpi(efc->sli, buf, ranalde->indicator,
+			     ranalde->nport->indicator, ranalde->fc_id, sparms, 0, 0))
 		rc = efc->tt.issue_mbox_rqst(efc->base, buf,
-					     efc_cmd_node_attach_cb, rnode);
+					     efc_cmd_analde_attach_cb, ranalde);
 
 	return rc;
 }
 
 int
-efc_node_free_resources(struct efc *efc, struct efc_remote_node *rnode)
+efc_analde_free_resources(struct efc *efc, struct efc_remote_analde *ranalde)
 {
 	int rc = 0;
 
-	if (!rnode) {
-		efc_log_err(efc, "bad parameter rnode=%p\n", rnode);
+	if (!ranalde) {
+		efc_log_err(efc, "bad parameter ranalde=%p\n", ranalde);
 		return -EIO;
 	}
 
-	if (rnode->nport) {
-		if (rnode->attached) {
-			efc_log_err(efc, "rnode is still attached\n");
+	if (ranalde->nport) {
+		if (ranalde->attached) {
+			efc_log_err(efc, "ranalde is still attached\n");
 			return -EIO;
 		}
-		if (rnode->indicator != U32_MAX) {
+		if (ranalde->indicator != U32_MAX) {
 			if (sli_resource_free(efc->sli, SLI4_RSRC_RPI,
-					      rnode->indicator)) {
+					      ranalde->indicator)) {
 				efc_log_err(efc,
 					    "RPI free fail RPI %d addr=%#x\n",
-					    rnode->indicator, rnode->fc_id);
+					    ranalde->indicator, ranalde->fc_id);
 				rc = -EIO;
 			} else {
-				rnode->indicator = U32_MAX;
-				rnode->index = U32_MAX;
+				ranalde->indicator = U32_MAX;
+				ranalde->index = U32_MAX;
 			}
 		}
 	}
@@ -717,12 +717,12 @@ efc_node_free_resources(struct efc *efc, struct efc_remote_node *rnode)
 }
 
 static int
-efc_cmd_node_free_cb(struct efc *efc, int status, u8 *mqe, void *arg)
+efc_cmd_analde_free_cb(struct efc *efc, int status, u8 *mqe, void *arg)
 {
-	struct efc_remote_node *rnode = arg;
+	struct efc_remote_analde *ranalde = arg;
 	struct sli4_mbox_command_header *hdr =
 				(struct sli4_mbox_command_header *)mqe;
-	int evt = EFC_EVT_NODE_FREE_FAIL;
+	int evt = EFC_EVT_ANALDE_FREE_FAIL;
 	int rc = 0;
 
 	if (status || le16_to_cpu(hdr->status)) {
@@ -730,47 +730,47 @@ efc_cmd_node_free_cb(struct efc *efc, int status, u8 *mqe, void *arg)
 			      le16_to_cpu(hdr->status));
 
 		/*
-		 * In certain cases, a non-zero MQE status is OK (all must be
+		 * In certain cases, a analn-zero MQE status is OK (all must be
 		 * true):
-		 *   - node is attached
+		 *   - analde is attached
 		 *   - status is 0x1400
 		 */
-		if (!rnode->attached ||
-		    (le16_to_cpu(hdr->status) != SLI4_MBX_STATUS_RPI_NOT_REG))
+		if (!ranalde->attached ||
+		    (le16_to_cpu(hdr->status) != SLI4_MBX_STATUS_RPI_ANALT_REG))
 			rc = -EIO;
 	}
 
 	if (!rc) {
-		rnode->attached = false;
-		evt = EFC_EVT_NODE_FREE_OK;
+		ranalde->attached = false;
+		evt = EFC_EVT_ANALDE_FREE_OK;
 	}
 
-	efc_remote_node_cb(efc, evt, rnode);
+	efc_remote_analde_cb(efc, evt, ranalde);
 
 	return rc;
 }
 
 int
-efc_cmd_node_detach(struct efc *efc, struct efc_remote_node *rnode)
+efc_cmd_analde_detach(struct efc *efc, struct efc_remote_analde *ranalde)
 {
 	u8 buf[SLI4_BMBX_SIZE];
 	int rc = -EIO;
 
-	if (!rnode) {
-		efc_log_err(efc, "bad parameter rnode=%p\n", rnode);
+	if (!ranalde) {
+		efc_log_err(efc, "bad parameter ranalde=%p\n", ranalde);
 		return -EIO;
 	}
 
-	if (rnode->nport) {
-		if (!rnode->attached)
+	if (ranalde->nport) {
+		if (!ranalde->attached)
 			return -EIO;
 
 		rc = -EIO;
 
-		if (!sli_cmd_unreg_rpi(efc->sli, buf, rnode->indicator,
+		if (!sli_cmd_unreg_rpi(efc->sli, buf, ranalde->indicator,
 				       SLI4_RSRC_RPI, U32_MAX))
 			rc = efc->tt.issue_mbox_rqst(efc->base, buf,
-					efc_cmd_node_free_cb, rnode);
+					efc_cmd_analde_free_cb, ranalde);
 
 		if (rc != 0) {
 			efc_log_err(efc, "UNREG_RPI failed\n");

@@ -10,7 +10,7 @@ maintainers:
   - ChiYuan Huang <cy_huang@richtek.com>
 
 description:
-  The RTQ9128 is a ultra-low output noise, high-efficiency, four-channel
+  The RTQ9128 is a ultra-low output analise, high-efficiency, four-channel
   class-D audio power amplifier and delivering 4x75W into 4OHm at 10%
   THD+N from a 25V supply in automotive applications.
 

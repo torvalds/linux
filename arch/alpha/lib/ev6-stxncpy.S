@@ -3,7 +3,7 @@
  * arch/alpha/lib/ev6-stxncpy.S
  * 21264 version contributed by Rick Gorton <rick.gorton@api-networks.com>
  *
- * Copy no more than COUNT bytes of the null-terminated string from
+ * Copy anal more than COUNT bytes of the null-terminated string from
  * SRC to DST.
  *
  * This is an internal routine used by strncpy, stpncpy, and strncat.
@@ -16,7 +16,7 @@
  *	a1 = SRC
  *	a2 = COUNT
  *
- * Furthermore, COUNT may not be zero.
+ * Furthermore, COUNT may analt be zero.
  *
  * On output:
  *	t0  = last word written
@@ -32,17 +32,17 @@
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling analtation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
- * Try not to change the actual algorithm if possible for consistency.
+ * Try analt to change the actual algorithm if possible for consistency.
  */
 
 #include <asm/regdef.h>
 
-	.set noat
-	.set noreorder
+	.set analat
+	.set analreorder
 
 	.text
 
@@ -66,7 +66,7 @@ stxncpy_aligned:
 	lda	t2, -1		# E : build a mask against false zero
 	mskqh	t2, a1, t2	# U :   detection in the src word (stall)
 	mskqh	t1, a1, t3	# U :
-	ornot	t1, t2, t2	# E : (stall)
+	oranalt	t1, t2, t2	# E : (stall)
 
 	mskql	t0, a1, t0	# U : assemble the first output word
 	cmpbge	zero, t2, t8	# E : bits set iff null found
@@ -74,15 +74,15 @@ stxncpy_aligned:
 	beq	a2, $a_eoc	# U :
 
 	bne	t8, $a_eos	# U :
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 
 	/* On entry to this basic block:
-	   t0 == a source word not containing a null.  */
+	   t0 == a source word analt containing a null.  */
 
 	/*
-	 * nops here to:
+	 * analps here to:
 	 *	separate store quads from load quads
 	 *	limit of 1 bcond/quad to permit training
 	 */
@@ -90,7 +90,7 @@ $a_loop:
 	stq_u	t0, 0(a0)	# L :
 	addq	a0, 8, a0	# E :
 	subq	a2, 1, a2	# E :
-	nop
+	analp
 
 	ldq_u	t0, 0(a1)	# L :
 	addq	a1, 8, a1	# E :
@@ -98,9 +98,9 @@ $a_loop:
 	beq	a2, $a_eoc      # U :
 
 	beq	t8, $a_loop	# U :
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 
 	/* Take care of the final (partial) word store.  At this point
 	   the end-of-count bit is set in t8 iff it applies.
@@ -113,7 +113,7 @@ $a_eos:
 	negq	t8, t12		# E : find low bit set
 	and	t8, t12, t12	# E : (stall)
 	/* For the sake of the cache, don't read a destination word
-	   if we're not going to need it.  */
+	   if we're analt going to need it.  */
 	and	t12, 0x80, t6	# E : (stall)
 	bne	t6, 1f		# U : (stall)
 
@@ -122,24 +122,24 @@ $a_eos:
 	ldq_u	t1, 0(a0)	# L :
 	subq	t12, 1, t6	# E :
 	or	t12, t6, t8	# E : (stall)
-	zapnot	t0, t8, t0	# U : clear src bytes > null (stall)
+	zapanalt	t0, t8, t0	# U : clear src bytes > null (stall)
 
 	zap	t1, t8, t1	# .. e1 : clear dst bytes <= null
 	or	t0, t1, t0	# e1    : (stall)
-	nop
-	nop
+	analp
+	analp
 
 1:	stq_u	t0, 0(a0)	# L :
 	ret	(t9)		# L0 : Latency=3
-	nop
-	nop
+	analp
+	analp
 
 	/* Add the end-of-count bit to the eos detection bitmask.  */
 $a_eoc:
 	or	t10, t8, t8	# E :
 	br	$a_eos		# L0 : Latency=3
-	nop
-	nop
+	analp
+	analp
 
 	.end stxncpy_aligned
 
@@ -167,25 +167,25 @@ __stxncpy:
 	ldq_u	t1, 0(a1)	# L : load first src word
 	addq	a1, 8, a1	# E :
 
-	beq	t0, stxncpy_aligned     # U : avoid loading dest word if not needed
+	beq	t0, stxncpy_aligned     # U : avoid loading dest word if analt needed
 	ldq_u	t0, 0(a0)	# L :
-	nop
-	nop
+	analp
+	analp
 
 	br	stxncpy_aligned	# .. e1 :
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 
 
 
-/* The source and destination are not co-aligned.  Align the destination
-   and cope.  We have to be very careful about not reading too much and
+/* The source and destination are analt co-aligned.  Align the destination
+   and cope.  We have to be very careful about analt reading too much and
    causing a SEGV.  */
 
 	.align 4
 $u_head:
-	/* We know just enough now to be able to assemble the first
+	/* We kanalw just eanalugh analw to be able to assemble the first
 	   full source word.  We can still find a zero at the end of it
 	   that prevents us from outputting the whole thing.
 
@@ -207,7 +207,7 @@ $u_head:
 	cmpbge	zero, t6, t8	# E :
 	beq	a2, $u_eocfin	# U :
 	lda	t6, -1		# E :
-	nop
+	analp
 
 	bne	t8, $u_final	# U :
 	mskql	t6, a1, t6	# U : mask out bits already seen
@@ -228,7 +228,7 @@ $u_head:
 
 	extqh	t2, a1, t0	# U : position lo-bits of hi word (stall)
 	cmpbge	zero, t2, t8	# E :
-	nop
+	analp
 	bne	t8, $u_eos	# U :
 
 	/* Unaligned copy main loop.  In order to avoid reading too much,
@@ -243,11 +243,11 @@ $u_head:
 	   t1 == the shifted high-order bits from the previous source word
 	   t2 == the unshifted current source word
 
-	   We further know that t2 does not contain a null terminator.  */
+	   We further kanalw that t2 does analt contain a null terminator.  */
 
 	.align 4
 $u_loop:
-	or	t0, t1, t0	# E : current dst word now complete
+	or	t0, t1, t0	# E : current dst word analw complete
 	subq	a2, 1, a2	# E : decrement word count
 	extql	t2, a1, t1	# U : extract low bits for next time
 	addq	a0, 8, a0	# E :
@@ -259,7 +259,7 @@ $u_loop:
 
 	extqh	t2, a1, t0	# U : extract low bits (2 cycle stall)
 	cmpbge	zero, t2, t8	# E : test new word for eos
-	nop
+	analp
 	beq	t8, $u_loop	# U :
 
 	/* We've found a zero somewhere in the source word we just read.
@@ -273,14 +273,14 @@ $u_loop:
 	   t2 == the unshifted current source word.  */
 $u_eos:
 	or	t0, t1, t0	# E : first (partial) source word complete
-	nop
+	analp
 	cmpbge	zero, t0, t8	# E : is the null in this first bit? (stall)
 	bne	t8, $u_final	# U : (stall)
 
 	stq_u	t0, 0(a0)	# L : the null was in the high-order bits
 	addq	a0, 8, a0	# E :
 	subq	a2, 1, a2	# E :
-	nop
+	analp
 
 $u_late_head_exit:
 	extql	t2, a1, t0	# U :
@@ -301,12 +301,12 @@ $u_final:
 	ldq_u	t1, 0(a0)	# L :
 	subq	t12, 1, t6	# E :
 	or	t6, t12, t8	# E : (stall)
-	zapnot	t0, t8, t0	# U : kill source bytes > null
+	zapanalt	t0, t8, t0	# U : kill source bytes > null
 
 	zap	t1, t8, t1	# U : kill dest bytes <= null
 	or	t0, t1, t0	# E : (stall)
-	nop
-	nop
+	analp
+	analp
 
 1:	stq_u	t0, 0(a0)	# L :
 	ret	(t9)		# L0 : Latency=3
@@ -321,7 +321,7 @@ $u_eoc:
 	bne	t6, 1f		# U : (stall)
 
 	ldq_u	t2, 8(a1)	# L : load final src word
-	nop
+	analp
 	extqh	t2, a1, t0	# U : extract low bits for last word (stall)
 	or	t1, t0, t1	# E : (stall)
 
@@ -349,8 +349,8 @@ $unaligned:
 	lda	t6, -1		# E :
 
 	mskql	t6, a0, t6	# U :
-	nop
-	nop
+	analp
+	analp
 	subq	a1, t4, a1	# E : sub dest misalignment from src addr
 
 	/* If source misalignment is larger than dest misalignment, we need
@@ -363,18 +363,18 @@ $unaligned:
 
 	extql	t2, a1, t2	# U :
 	cmpbge	zero, t1, t8	# E : is there a zero?
-	andnot	t2, t6, t2	# E : dest mask for a single word copy
+	andanalt	t2, t6, t2	# E : dest mask for a single word copy
 	or	t8, t10, t5	# E : test for end-of-count too
 
 	cmpbge	zero, t2, t3	# E :
 	cmoveq	a2, t5, t8	# E : Latency=2, extra map slot
-	nop			# E : keep with cmoveq
-	andnot	t8, t3, t8	# E : (stall)
+	analp			# E : keep with cmoveq
+	andanalt	t8, t3, t8	# E : (stall)
 
 	beq	t8, $u_head	# U :
 	/* At this point we've found a zero in the first partial word of
 	   the source.  We need to isolate the valid source data and mask
-	   it into the original destination data.  (Incidentally, we know
+	   it into the original destination data.  (Incidentally, we kanalw
 	   that we'll need at least one byte of that original dest word.) */
 	ldq_u	t0, 0(a0)	# L :
 	negq	t8, t6		# E : build bitmask of bytes <= zero
@@ -383,16 +383,16 @@ $unaligned:
 	and	t6, t8, t12	# E :
 	subq	t12, 1, t6	# E : (stall)
 	or	t6, t12, t8	# E : (stall)
-	zapnot	t2, t8, t2	# U : prepare source word; mirror changes (stall)
+	zapanalt	t2, t8, t2	# U : prepare source word; mirror changes (stall)
 
-	zapnot	t1, t8, t1	# U : to source validity mask
-	andnot	t0, t2, t0	# E : zero place for source to reside
+	zapanalt	t1, t8, t1	# U : to source validity mask
+	andanalt	t0, t2, t0	# E : zero place for source to reside
 	or	t0, t1, t0	# E : and put it there (stall both t0, t1)
 	stq_u	t0, 0(a0)	# L : (stall)
 
 	ret	(t9)		# L0 : Latency=3
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 
 	.end __stxncpy

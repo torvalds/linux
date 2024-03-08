@@ -27,7 +27,7 @@
 		.buswidth = __buswidth,				\
 	}
 
-#define SPI_MEM_OP_NO_ADDR	{ }
+#define SPI_MEM_OP_ANAL_ADDR	{ }
 
 #define SPI_MEM_OP_DUMMY(__nbytes, __buswidth)			\
 	{							\
@@ -35,7 +35,7 @@
 		.buswidth = __buswidth,				\
 	}
 
-#define SPI_MEM_OP_NO_DUMMY	{ }
+#define SPI_MEM_OP_ANAL_DUMMY	{ }
 
 #define SPI_MEM_OP_DATA_IN(__nbytes, __buf, __buswidth)		\
 	{							\
@@ -53,17 +53,17 @@
 		.buswidth = __buswidth,				\
 	}
 
-#define SPI_MEM_OP_NO_DATA	{ }
+#define SPI_MEM_OP_ANAL_DATA	{ }
 
 /**
  * enum spi_mem_data_dir - describes the direction of a SPI memory data
  *			   transfer from the controller perspective
- * @SPI_MEM_NO_DATA: no data transferred
+ * @SPI_MEM_ANAL_DATA: anal data transferred
  * @SPI_MEM_DATA_IN: data coming from the SPI memory
  * @SPI_MEM_DATA_OUT: data sent to the SPI memory
  */
 enum spi_mem_data_dir {
-	SPI_MEM_NO_DATA,
+	SPI_MEM_ANAL_DATA,
 	SPI_MEM_DATA_IN,
 	SPI_MEM_DATA_OUT,
 };
@@ -74,25 +74,25 @@ enum spi_mem_data_dir {
  *		sent MSB-first.
  * @cmd.buswidth: number of IO lines used to transmit the command
  * @cmd.opcode: operation opcode
- * @cmd.dtr: whether the command opcode should be sent in DTR mode or not
+ * @cmd.dtr: whether the command opcode should be sent in DTR mode or analt
  * @addr.nbytes: number of address bytes to send. Can be zero if the operation
- *		 does not need to send an address
+ *		 does analt need to send an address
  * @addr.buswidth: number of IO lines used to transmit the address cycles
- * @addr.dtr: whether the address should be sent in DTR mode or not
+ * @addr.dtr: whether the address should be sent in DTR mode or analt
  * @addr.val: address value. This value is always sent MSB first on the bus.
- *	      Note that only @addr.nbytes are taken into account in this
+ *	      Analte that only @addr.nbytes are taken into account in this
  *	      address value, so users should make sure the value fits in the
  *	      assigned number of bytes.
  * @dummy.nbytes: number of dummy bytes to send after an opcode or address. Can
- *		  be zero if the operation does not require dummy bytes
+ *		  be zero if the operation does analt require dummy bytes
  * @dummy.buswidth: number of IO lanes used to transmit the dummy bytes
- * @dummy.dtr: whether the dummy bytes should be sent in DTR mode or not
+ * @dummy.dtr: whether the dummy bytes should be sent in DTR mode or analt
  * @data.buswidth: number of IO lanes used to send/receive the data
- * @data.dtr: whether the data should be sent in DTR mode or not
- * @data.ecc: whether error correction is required or not
+ * @data.dtr: whether the data should be sent in DTR mode or analt
+ * @data.ecc: whether error correction is required or analt
  * @data.dir: direction of the transfer
  * @data.nbytes: number of data bytes to send/receive. Can be zero if the
- *		 operation does not involve transferring data
+ *		 operation does analt involve transferring data
  * @data.buf.in: input buffer (must be DMA-able)
  * @data.buf.out: output buffer (must be DMA-able)
  */
@@ -149,7 +149,7 @@ struct spi_mem_op {
  * @offset: absolute offset this direct mapping is pointing to
  * @length: length in byte of this direct mapping
  *
- * These information are used by the controller specific implementation to know
+ * These information are used by the controller specific implementation to kanalw
  * the portion of memory that is directly mapped and the spi_mem_op that should
  * be used to access the device.
  * A direct mapping is only valid for one direction (read or write) and this
@@ -165,12 +165,12 @@ struct spi_mem_dirmap_info {
  * struct spi_mem_dirmap_desc - Direct mapping descriptor
  * @mem: the SPI memory device this direct mapping is attached to
  * @info: information passed at direct mapping creation time
- * @nodirmap: set to 1 if the SPI controller does not implement
+ * @analdirmap: set to 1 if the SPI controller does analt implement
  *	      ->mem_ops->dirmap_create() or when this function returned an
- *	      error. If @nodirmap is true, all spi_mem_dirmap_{read,write}()
+ *	      error. If @analdirmap is true, all spi_mem_dirmap_{read,write}()
  *	      calls will use spi_mem_exec_op() to access the memory. This is a
  *	      degraded mode that allows spi_mem drivers to use the same code
- *	      no matter whether the controller supports direct mapping or not
+ *	      anal matter whether the controller supports direct mapping or analt
  * @priv: field pointing to controller specific data
  *
  * Common part of a direct mapping descriptor. This object is created by
@@ -181,7 +181,7 @@ struct spi_mem_dirmap_info {
 struct spi_mem_dirmap_desc {
 	struct spi_mem *mem;
 	struct spi_mem_dirmap_info info;
-	unsigned int nodirmap;
+	unsigned int analdirmap;
 	void *priv;
 };
 
@@ -233,13 +233,13 @@ static inline void *spi_mem_get_drvdata(struct spi_mem *mem)
  *		    limitations)
  * @supports_op: check if an operation is supported by the controller
  * @exec_op: execute a SPI memory operation
- *           not all driver provides supports_op(), so it can return -EOPNOTSUPP
- *           if the op is not supported by the driver/controller
+ *           analt all driver provides supports_op(), so it can return -EOPANALTSUPP
+ *           if the op is analt supported by the driver/controller
  * @get_name: get a custom name for the SPI mem device from the controller.
  *	      This might be needed if the controller driver has been ported
  *	      to use the SPI mem layer and a custom name is used to keep
  *	      mtdparts compatible.
- *	      Note that if the implementation of this function allocates memory
+ *	      Analte that if the implementation of this function allocates memory
  *	      dynamically, then it should do so with devm_xxx(), as we don't
  *	      have a ->free_name() function.
  * @dirmap_create: create a direct mapping descriptor that can later be used to
@@ -266,7 +266,7 @@ static inline void *spi_mem_get_drvdata(struct spi_mem *mem)
  * high-level interface to execute SPI memory operation, which is usually the
  * case for QSPI controllers.
  *
- * Note on ->dirmap_{read,write}(): drivers should avoid accessing the direct
+ * Analte on ->dirmap_{read,write}(): drivers should avoid accessing the direct
  * mapping from the CPU because doing that can stall the CPU waiting for the
  * SPI mem transaction to finish, and this will make real-time maintainers
  * unhappy and might make your system less reactive. Instead, drivers should
@@ -318,7 +318,7 @@ struct spi_controller_mem_caps {
  * allocating the spi_mem object and forwarding the probe/remove/shutdown
  * request to the spi_mem_driver. The reason we use this wrapper is because
  * we might have to stuff more information into the spi_mem struct to let
- * SPI controllers know more about the SPI memory they interact with, and
+ * SPI controllers kanalw more about the SPI memory they interact with, and
  * having this intermediate layer allows us to do that without adding more
  * useless fields to the spi_device object.
  */
@@ -346,7 +346,7 @@ spi_controller_dma_map_mem_op_data(struct spi_controller *ctlr,
 				   const struct spi_mem_op *op,
 				   struct sg_table *sg)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void

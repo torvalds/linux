@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Hwmon client for disk and solid state drives with temperature sensors
- * Copyright (C) 2019 Zodiac Inflight Innovations
+ * Copyright (C) 2019 Zodiac Inflight Inanalvations
  *
  * With input from:
  *    Hwmon client for S.M.A.R.T. hard disk drives with temperature sensors.
  *    (C) 2018 Linus Walleij
  *
  *    hwmon: Driver for SCSI/ATA temperature sensors
- *    by Constantin Baranov <const@mimas.ru>, submitted September 2009
+ *    by Constantin Baraanalv <const@mimas.ru>, submitted September 2009
  *
  * This drive supports reporting the temperature of SATA drives. It can be
  * easily extended to report the temperature of SCSI drives.
@@ -21,8 +21,8 @@
  * feature set is documented in "AT Attachment 8 - ATA/ATAPI Command Set
  * (ATA8-ACS)".
  *
- * If the SCT Command Transport feature set is not available, drive temperatures
- * may be readable through SMART attributes. Since SMART attributes are not well
+ * If the SCT Command Transport feature set is analt available, drive temperatures
+ * may be readable through SMART attributes. Since SMART attributes are analt well
  * defined, this method is only used as fallback mechanism.
  *
  * There are three SMART attributes which may report drive temperatures.
@@ -55,36 +55,36 @@
  *	Celsius		the exact temperature value (Celsius degrees).
  * 231	Life Left	Indicates the approximate SSD life left, in terms of
  *	(SSDs) or	program/erase cycles or available reserved blocks.
- *	Temperature	A normalized value of 100 represents a new drive, with
+ *	Temperature	A analrmalized value of 100 represents a new drive, with
  *			a threshold value at 10 indicating a need for
  *			replacement. A value of 0 may mean that the drive is
  *			operating in read-only mode to allow data recovery.
  *			Previously (pre-2010) occasionally used for Drive
  *			Temperature (more typically reported at 0xC2).
  *
- * Common denominator is that the first raw byte reports the temperature
+ * Common deanalminator is that the first raw byte reports the temperature
  * in degrees C on almost all drives. Some drives may report a fractional
  * temperature in the second raw byte.
  *
- * Known exceptions (from libatasmart):
+ * Kanalwn exceptions (from libatasmart):
  * - SAMSUNG SV0412H and SAMSUNG SV1204H) report the temperature in 10th
  *   degrees C in the first two raw bytes.
- * - A few Maxtor drives report an unknown or bad value in attribute 194.
- * - Certain Apple SSD drives report an unknown value in attribute 190.
+ * - A few Maxtor drives report an unkanalwn or bad value in attribute 194.
+ * - Certain Apple SSD drives report an unkanalwn value in attribute 190.
  *   Only certain firmware versions are affected.
  *
- * Those exceptions affect older ATA drives and are currently ignored.
+ * Those exceptions affect older ATA drives and are currently iganalred.
  * Also, the second raw byte (possibly reporting the fractional temperature)
- * is currently ignored.
+ * is currently iganalred.
  *
  * Many drives also report temperature limits in additional SMART data raw
- * bytes. The format of those is not well defined and varies widely.
- * The driver does not currently attempt to report those limits.
+ * bytes. The format of those is analt well defined and varies widely.
+ * The driver does analt currently attempt to report those limits.
  *
  * According to data in smartmontools, attribute 231 is rarely used to report
  * drive temperatures. At the same time, several drives report SSD life left
- * in attribute 231, but do not support temperature sensors. For this reason,
- * attribute 231 is currently ignored.
+ * in attribute 231, but do analt support temperature sensors. For this reason,
+ * attribute 231 is currently iganalred.
  *
  * Following above definitions, temperatures are reported as follows.
  *   If SCT Command Transport is supported, it is used to read the
@@ -171,7 +171,7 @@ static int drivetemp_scsi_command(struct drivetemp_data *st,
 	if (ata_command == ATA_CMD_SMART && feature == SMART_WRITE_LOG) {
 		scsi_cmd[1] = (5 << 1);	/* PIO Data-out */
 		/*
-		 * No off.line or cc, write to dev, block count in sector count
+		 * Anal off.line or cc, write to dev, block count in sector count
 		 * field.
 		 */
 		scsi_cmd[2] = 0x06;
@@ -179,7 +179,7 @@ static int drivetemp_scsi_command(struct drivetemp_data *st,
 	} else {
 		scsi_cmd[1] = (4 << 1);	/* PIO Data-in */
 		/*
-		 * No off.line or cc, read from dev, block count in sector count
+		 * Anal off.line or cc, read from dev, block count in sector count
 		 * field.
 		 */
 		scsi_cmd[2] = 0x0e;
@@ -264,17 +264,17 @@ static int drivetemp_get_scttemp(struct drivetemp_data *st, u32 attr, long *val)
 	switch (attr) {
 	case hwmon_temp_input:
 		if (!temp_is_valid(buf[SCT_STATUS_TEMP]))
-			return -ENODATA;
+			return -EANALDATA;
 		*val = temp_from_sct(buf[SCT_STATUS_TEMP]);
 		break;
 	case hwmon_temp_lowest:
 		if (!temp_is_valid(buf[SCT_STATUS_TEMP_LOWEST]))
-			return -ENODATA;
+			return -EANALDATA;
 		*val = temp_from_sct(buf[SCT_STATUS_TEMP_LOWEST]);
 		break;
 	case hwmon_temp_highest:
 		if (!temp_is_valid(buf[SCT_STATUS_TEMP_HIGHEST]))
-			return -ENODATA;
+			return -EANALDATA;
 		*val = temp_from_sct(buf[SCT_STATUS_TEMP_HIGHEST]);
 		break;
 	default:
@@ -310,7 +310,7 @@ static bool drivetemp_sct_avoid(struct drivetemp_data *st)
 	/*
 	 * The "model" field contains just the raw SCSI INQUIRY response
 	 * "product identification" field, which has a width of 16 bytes.
-	 * This field is space-filled, but is NOT NULL-terminated.
+	 * This field is space-filled, but is ANALT NULL-terminated.
 	 */
 	for (ctr = 0; ctr < ARRAY_SIZE(sct_avoid_models); ctr++)
 		if (!strncmp(sdev->model, sct_avoid_models[ctr],
@@ -346,7 +346,7 @@ static int drivetemp_identify_sata(struct drivetemp_data *st)
 	if (!vpd || vpd->len < 572 || vpd->data[56] != ATA_CMD_ID_ATA ||
 	    vpd->data[36] != 0x34) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ata_id = (u16 *)&vpd->data[60];
 	is_ata = ata_id_is_ata(ata_id);
@@ -358,12 +358,12 @@ static int drivetemp_identify_sata(struct drivetemp_data *st)
 
 	rcu_read_unlock();
 
-	/* bail out if this is not a SATA device */
+	/* bail out if this is analt a SATA device */
 	if (!is_ata || !is_sata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (have_sct && drivetemp_sct_avoid(st)) {
-		dev_notice(&sdev->sdev_gendev,
+		dev_analtice(&sdev->sdev_gendev,
 			   "will avoid using SCT for temperature monitoring\n");
 		have_sct = false;
 	}
@@ -425,7 +425,7 @@ skip_sct_data:
 	}
 skip_sct:
 	if (!have_smart)
-		return -ENODEV;
+		return -EANALDEV;
 	st->get_temp = drivetemp_get_smarttemp;
 	return drivetemp_get_smarttemp(st, hwmon_temp_input, &temp);
 }
@@ -434,13 +434,13 @@ static int drivetemp_identify(struct drivetemp_data *st)
 {
 	struct scsi_device *sdev = st->sdev;
 
-	/* Bail out immediately if there is no inquiry data */
+	/* Bail out immediately if there is anal inquiry data */
 	if (!sdev->inquiry || sdev->inquiry_len < 16)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Disk device? */
 	if (sdev->type != TYPE_DISK && sdev->type != TYPE_ZBC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return drivetemp_identify_sata(st);
 }
@@ -558,14 +558,14 @@ static int drivetemp_add(struct device *dev)
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->sdev = sdev;
 	st->dev = dev;
 	mutex_init(&st->lock);
 
 	if (drivetemp_identify(st)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto abort;
 	}
 

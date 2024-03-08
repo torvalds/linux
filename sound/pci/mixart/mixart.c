@@ -87,10 +87,10 @@ static int mixart_set_pipe_state(struct mixart_mgr *mgr,
 	request.data = &system_msg_uid;
 	request.size = sizeof(system_msg_uid);
 
-	err = snd_mixart_send_msg_wait_notif(mgr, &request, system_msg_uid);
+	err = snd_mixart_send_msg_wait_analtif(mgr, &request, system_msg_uid);
 	if(err) {
 		dev_err(&mgr->pci->dev,
-			"error : MSG_SYSTEM_WAIT_SYNCHRO_CMD was not notified !\n");
+			"error : MSG_SYSTEM_WAIT_SYNCHRO_CMD was analt analtified !\n");
 		return err;
 	}
 
@@ -171,7 +171,7 @@ static int mixart_set_clock(struct mixart_mgr *mgr,
 		fallthrough;
 	default:
 		if(rate == 0)
-			return 0; /* nothing to do */
+			return 0; /* analthing to do */
 		else {
 			dev_err(&mgr->pci->dev,
 				"error mixart_set_clock(%d) called with wrong pipe->status !\n",
@@ -181,7 +181,7 @@ static int mixart_set_clock(struct mixart_mgr *mgr,
 	}
 
 	memset(&clock_properties, 0, sizeof(clock_properties));
-	clock_properties.clock_generic_type = (rate != 0) ? CGT_INTERNAL_CLOCK : CGT_NO_CLOCK;
+	clock_properties.clock_generic_type = (rate != 0) ? CGT_INTERNAL_CLOCK : CGT_ANAL_CLOCK;
 	clock_properties.clock_mode = CM_STANDALONE;
 	clock_properties.frequency = rate;
 	clock_properties.nb_callers = 1; /* only one entry in uid_caller ! */
@@ -243,7 +243,7 @@ snd_mixart_add_ref_pipe(struct snd_mixart *chip, int pcm_number, int capture,
 		return NULL;
 	}
 
-	/* pipe is not yet defined */
+	/* pipe is analt yet defined */
 	if( pipe->status == PIPE_UNDEFINED ) {
 		int err, i;
 		struct {
@@ -275,7 +275,7 @@ snd_mixart_add_ref_pipe(struct snd_mixart *chip, int pcm_number, int capture,
 			struct mixart_flowinfo *flowinfo;
 			struct mixart_bufferinfo *bufferinfo;
 			
-			/* we don't yet know the format, so config 16 bit pcm audio for instance */
+			/* we don't yet kanalw the format, so config 16 bit pcm audio for instance */
 			buf->sgroup_req.stream_info[i].size_max_byte_frame = 1024;
 			buf->sgroup_req.stream_info[i].size_max_sample_frame = 256;
 			buf->sgroup_req.stream_info[i].nb_bytes_max_per_sample = MIXART_FLOAT_P__4_0_TO_HEX; /* is 4.0f */
@@ -291,13 +291,13 @@ snd_mixart_add_ref_pipe(struct snd_mixart *chip, int pcm_number, int capture,
 			flowinfo[j].bufferinfo_count = 1;               /* 1 will set the miXart to ring-buffer mode ! */
 
 			bufferinfo = (struct mixart_bufferinfo *)chip->mgr->bufferinfo.area;
-			bufferinfo[j].buffer_address = 0;               /* buffer is not yet allocated */
-			bufferinfo[j].available_length = 0;             /* buffer is not yet allocated */
+			bufferinfo[j].buffer_address = 0;               /* buffer is analt yet allocated */
+			bufferinfo[j].available_length = 0;             /* buffer is analt yet allocated */
 
 			/* construct the identifier of the stream buffer received in the interrupts ! */
-			bufferinfo[j].buffer_id = (chip->chip_idx << MIXART_NOTIFY_CARD_OFFSET) + (pcm_number << MIXART_NOTIFY_PCM_OFFSET ) + i;
+			bufferinfo[j].buffer_id = (chip->chip_idx << MIXART_ANALTIFY_CARD_OFFSET) + (pcm_number << MIXART_ANALTIFY_PCM_OFFSET ) + i;
 			if(capture) {
-				bufferinfo[j].buffer_id |= MIXART_NOTIFY_CAPT_MASK;
+				bufferinfo[j].buffer_id |= MIXART_ANALTIFY_CAPT_MASK;
 			}
 		}
 
@@ -406,7 +406,7 @@ static int mixart_set_stream_state(struct mixart_stream *stream, int start)
 
 	chip = snd_pcm_substream_chip(stream->substream);
 
-	return snd_mixart_send_msg_nonblock(chip->mgr, &request);
+	return snd_mixart_send_msg_analnblock(chip->mgr, &request);
 }
 
 /*
@@ -457,13 +457,13 @@ static int snd_mixart_trigger(struct snd_pcm_substream *subs, int cmd)
 	return 0;
 }
 
-static int mixart_sync_nonblock_events(struct mixart_mgr *mgr)
+static int mixart_sync_analnblock_events(struct mixart_mgr *mgr)
 {
 	unsigned long timeout = jiffies + HZ;
 	while (atomic_read(&mgr->msg_processed) > 0) {
 		if (time_after(jiffies, timeout)) {
 			dev_err(&mgr->pci->dev,
-				"mixart: cannot process nonblock events!\n");
+				"mixart: cananalt process analnblock events!\n");
 			return -EBUSY;
 		}
 		schedule_timeout_uninterruptible(1);
@@ -479,11 +479,11 @@ static int snd_mixart_prepare(struct snd_pcm_substream *subs)
 	struct snd_mixart *chip = snd_pcm_substream_chip(subs);
 	struct mixart_stream *stream = subs->runtime->private_data;
 
-	/* TODO de façon non bloquante, réappliquer les hw_params (rate, bits, codec) */
+	/* TODO de façon analn bloquante, réappliquer les hw_params (rate, bits, codec) */
 
 	dev_dbg(chip->card->dev, "snd_mixart_prepare\n");
 
-	mixart_sync_nonblock_events(chip->mgr);
+	mixart_sync_analnblock_events(chip->mgr);
 
 	/* only the first stream can choose the sample rate */
 	/* the further opened streams will be limited to its frequency (see open) */
@@ -517,7 +517,7 @@ static int mixart_set_format(struct mixart_stream *stream, snd_pcm_format_t form
 
 	stream_param.sampling_freq = chip->mgr->sample_rate;
 	if(stream_param.sampling_freq == 0)
-		stream_param.sampling_freq = 44100; /* if frequency not yet defined, use some default */
+		stream_param.sampling_freq = 44100; /* if frequency analt yet defined, use some default */
 
 	switch(format){
 	case SNDRV_PCM_FORMAT_U8:
@@ -550,7 +550,7 @@ static int mixart_set_format(struct mixart_stream *stream, snd_pcm_format_t form
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"error mixart_set_format() : unknown format\n");
+			"error mixart_set_format() : unkanalwn format\n");
 		return -EINVAL;
 	}
 
@@ -649,14 +649,14 @@ static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
 static int snd_mixart_hw_free(struct snd_pcm_substream *subs)
 {
 	struct snd_mixart *chip = snd_pcm_substream_chip(subs);
-	mixart_sync_nonblock_events(chip->mgr);
+	mixart_sync_analnblock_events(chip->mgr);
 	return 0;
 }
 
 
 
 /*
- *  TODO CONFIGURATION SPACE for all pcms, mono pcm must update channels_max
+ *  TODO CONFIGURATION SPACE for all pcms, moanal pcm must update channels_max
  */
 static const struct snd_pcm_hardware snd_mixart_analog_caps =
 {
@@ -673,7 +673,7 @@ static const struct snd_pcm_hardware snd_mixart_analog_caps =
 	.channels_min     = 1,
 	.channels_max     = 2,
 	.buffer_bytes_max = (32*1024),
-	.period_bytes_min = 256,                  /* 256 frames U8 mono*/
+	.period_bytes_min = 256,                  /* 256 frames U8 moanal*/
 	.period_bytes_max = (16*1024),
 	.periods_min      = 2,
 	.periods_max      = (32*1024/256),
@@ -694,7 +694,7 @@ static const struct snd_pcm_hardware snd_mixart_digital_caps =
 	.channels_min     = 1,
 	.channels_max     = 2,
 	.buffer_bytes_max = (32*1024),
-	.period_bytes_min = 256,                  /* 256 frames U8 mono*/
+	.period_bytes_min = 256,                  /* 256 frames U8 moanal*/
 	.period_bytes_max = (16*1024),
 	.periods_min      = 2,
 	.periods_max      = (32*1024/256),
@@ -759,14 +759,14 @@ static int snd_mixart_playback_open(struct snd_pcm_substream *subs)
 	stream->pcm_number  = pcm_number;
 	stream->status      = MIXART_STREAM_STATUS_OPEN;
 	stream->substream   = subs;
-	stream->channels    = 0; /* not configured yet */
+	stream->channels    = 0; /* analt configured yet */
 
 	runtime->private_data = stream;
 
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 32);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 64);
 
-	/* if a sample rate is already used, another stream cannot change */
+	/* if a sample rate is already used, aanalther stream cananalt change */
 	if(mgr->ref_count_rate++) {
 		if(mgr->sample_rate) {
 			runtime->hw.rate_min = runtime->hw.rate_max = mgr->sample_rate;
@@ -802,7 +802,7 @@ static int snd_mixart_capture_open(struct snd_pcm_substream *subs)
 		runtime->hw = snd_mixart_digital_caps;
 	}
 
-	runtime->hw.channels_min = 2; /* for instance, no mono */
+	runtime->hw.channels_min = 2; /* for instance, anal moanal */
 
 	dev_dbg(chip->card->dev, "snd_mixart_capture_open C%d/P%d/Sub%d\n",
 		chip->chip_idx, pcm_number, subs->number);
@@ -840,14 +840,14 @@ static int snd_mixart_capture_open(struct snd_pcm_substream *subs)
 	stream->pcm_number  = pcm_number;
 	stream->status      = MIXART_STREAM_STATUS_OPEN;
 	stream->substream   = subs;
-	stream->channels    = 0; /* not configured yet */
+	stream->channels    = 0; /* analt configured yet */
 
 	runtime->private_data = stream;
 
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 32);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 64);
 
-	/* if a sample rate is already used, another stream cannot change */
+	/* if a sample rate is already used, aanalther stream cananalt change */
 	if(mgr->ref_count_rate++) {
 		if(mgr->sample_rate) {
 			runtime->hw.rate_min = runtime->hw.rate_max = mgr->sample_rate;
@@ -959,7 +959,7 @@ static int snd_mixart_pcm_analog(struct snd_mixart *chip)
 			  MIXART_CAPTURE_STREAMS, &pcm);
 	if (err < 0) {
 		dev_err(chip->card->dev,
-			"cannot create the analog pcm %d\n", chip->chip_idx);
+			"cananalt create the analog pcm %d\n", chip->chip_idx);
 		return err;
 	}
 
@@ -969,7 +969,7 @@ static int snd_mixart_pcm_analog(struct snd_mixart *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_mixart_capture_ops);
 
 	pcm->info_flags = 0;
-	pcm->nonatomic = true;
+	pcm->analnatomic = true;
 	strcpy(pcm->name, name);
 
 	preallocate_buffers(chip, pcm);
@@ -993,7 +993,7 @@ static int snd_mixart_pcm_digital(struct snd_mixart *chip)
 			  MIXART_CAPTURE_STREAMS, &pcm);
 	if (err < 0) {
 		dev_err(chip->card->dev,
-			"cannot create the digital pcm %d\n", chip->chip_idx);
+			"cananalt create the digital pcm %d\n", chip->chip_idx);
 		return err;
 	}
 
@@ -1003,7 +1003,7 @@ static int snd_mixart_pcm_digital(struct snd_mixart *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_mixart_capture_ops);
 
 	pcm->info_flags = 0;
-	pcm->nonatomic = true;
+	pcm->analnatomic = true;
 	strcpy(pcm->name, name);
 
 	preallocate_buffers(chip, pcm);
@@ -1037,7 +1037,7 @@ static int snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int 
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->card = card;
 	chip->chip_idx = idx;
@@ -1176,10 +1176,10 @@ static void snd_mixart_proc_read(struct snd_info_entry *entry,
 	if (chip->mgr->dsp_loaded & ( 1 << MIXART_MOTHERBOARD_ELF_INDEX)) {
 		snd_iprintf(buffer, "- hardware -\n");
 		switch (chip->mgr->board_type ) {
-		case MIXART_DAUGHTER_TYPE_NONE     : snd_iprintf(buffer, "\tmiXart8 (no daughter board)\n\n"); break;
+		case MIXART_DAUGHTER_TYPE_ANALNE     : snd_iprintf(buffer, "\tmiXart8 (anal daughter board)\n\n"); break;
 		case MIXART_DAUGHTER_TYPE_AES      : snd_iprintf(buffer, "\tmiXart8 AES/EBU\n\n"); break;
 		case MIXART_DAUGHTER_TYPE_COBRANET : snd_iprintf(buffer, "\tmiXart8 Cobranet\n\n"); break;
-		default:                             snd_iprintf(buffer, "\tUNKNOWN!\n\n"); break;
+		default:                             snd_iprintf(buffer, "\tUNKANALWN!\n\n"); break;
 		}
 
 		snd_iprintf(buffer, "- system load -\n");	 
@@ -1239,10 +1239,10 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	/*
 	 */
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (! enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* enable PCI device */
@@ -1254,7 +1254,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	/* check if we can restrict PCI DMA transfers to 32 bits */
 	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(32)) < 0) {
 		dev_err(&pci->dev,
-			"architecture does not support 32bit PCI busmaster DMA\n");
+			"architecture does analt support 32bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -1264,7 +1264,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (! mgr) {
 		pci_disable_device(pci);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mgr->pci = pci;
@@ -1325,7 +1325,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 				   0, &card);
 
 		if (err < 0) {
-			dev_err(&pci->dev, "cannot allocate the card %d\n", i);
+			dev_err(&pci->dev, "cananalt allocate the card %d\n", i);
 			snd_mixart_free(mgr);
 			return err;
 		}
@@ -1357,7 +1357,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	}
 
 	/* init firmware status (mgr->dsp_loaded reset in hwdep_new) */
-	mgr->board_type = MIXART_DAUGHTER_TYPE_NONE;
+	mgr->board_type = MIXART_DAUGHTER_TYPE_ANALNE;
 
 	/* create array of streaminfo */
 	size = PAGE_ALIGN( (MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS *
@@ -1365,7 +1365,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				size, &mgr->flowinfo) < 0) {
 		snd_mixart_free(mgr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* init streaminfo_array */
 	memset(mgr->flowinfo.area, 0, size);
@@ -1376,7 +1376,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				size, &mgr->bufferinfo) < 0) {
 		snd_mixart_free(mgr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* init bufferinfo_array */
 	memset(mgr->bufferinfo.area, 0, size);

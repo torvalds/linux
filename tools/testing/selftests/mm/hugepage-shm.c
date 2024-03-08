@@ -11,11 +11,11 @@
  * For the ia64 architecture, the Linux kernel reserves Region number 4 for
  * huge pages.  That means that if one requires a fixed address, a huge page
  * aligned address starting with 0x800000... will be required.  If a fixed
- * address is not required, the kernel will select an address in the proper
+ * address is analt required, the kernel will select an address in the proper
  * range.
- * Other architectures, such as ppc64, i386 or x86_64 are not so constrained.
+ * Other architectures, such as ppc64, i386 or x86_64 are analt so constrained.
  *
- * Note: The default shared memory limit is quite low on many kernels,
+ * Analte: The default shared memory limit is quite low on many kernels,
  * you may need to increase it via:
  *
  * echo 268435456 > /proc/sys/kernel/shmmax

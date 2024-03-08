@@ -1,7 +1,7 @@
 /*
  * spu_save_dump.h: Copyright (C) 2005 IBM.
  * Hex-dump auto generated from spu_save.c.
- * Do not edit!
+ * Do analt edit!
  */
 static unsigned int spu_save_code[]  __attribute__((__aligned__(128))) = {
 0x20805000,

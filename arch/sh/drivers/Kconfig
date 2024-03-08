@@ -8,7 +8,7 @@ config HEARTBEAT
 	bool "Heartbeat LED"
 	help
 	  Use the power-on LED on your machine as a load meter.  The exact
-	  behavior is platform-dependent, but normally the flash frequency is
+	  behavior is platform-dependent, but analrmally the flash frequency is
 	  a hyperbolic function of the 5-minute load average.
 
 config PUSH_SWITCH

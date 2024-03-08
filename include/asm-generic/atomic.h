@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Generic C implementation of atomic counter operations. Do not include in
+ * Generic C implementation of atomic counter operations. Do analt include in
  * machine independent code.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.

@@ -26,11 +26,11 @@ static struct irq_chip its_msi_irq_chip = {
 static u32 fsl_mc_msi_domain_get_msi_id(struct irq_domain *domain,
 					struct fsl_mc_device *mc_dev)
 {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	u32 out_id;
 
-	of_node = irq_domain_get_of_node(domain);
-	out_id = of_node ? of_msi_map_id(&mc_dev->dev, of_node, mc_dev->icid) :
+	of_analde = irq_domain_get_of_analde(domain);
+	out_id = of_analde ? of_msi_map_id(&mc_dev->dev, of_analde, mc_dev->icid) :
 			iort_msi_map_id(&mc_dev->dev, mc_dev->icid);
 
 	return out_id;
@@ -53,7 +53,7 @@ static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 	/*
 	 * Set the device Id to be passed to the GIC-ITS:
 	 *
-	 * NOTE: This device id corresponds to the IOMMU stream ID
+	 * ANALTE: This device id corresponds to the IOMMU stream ID
 	 * associated with the DPRC object (ICID).
 	 */
 	info->scratchpad[0].ul = fsl_mc_msi_domain_get_msi_id(msi_domain,
@@ -80,13 +80,13 @@ static const struct of_device_id its_device_id[] = {
 	{},
 };
 
-static void __init its_fsl_mc_msi_init_one(struct fwnode_handle *handle,
+static void __init its_fsl_mc_msi_init_one(struct fwanalde_handle *handle,
 					  const char *name)
 {
 	struct irq_domain *parent;
 	struct irq_domain *mc_msi_domain;
 
-	parent = irq_find_matching_fwnode(handle, DOMAIN_BUS_NEXUS);
+	parent = irq_find_matching_fwanalde(handle, DOMAIN_BUS_NEXUS);
 	if (!parent || !msi_get_domain_info(parent)) {
 		pr_err("%s: unable to locate ITS domain\n", name);
 		return;
@@ -109,25 +109,25 @@ its_fsl_mc_msi_parse_madt(union acpi_subtable_headers *header,
 			  const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;
-	struct fwnode_handle *dom_handle;
-	const char *node_name;
+	struct fwanalde_handle *dom_handle;
+	const char *analde_name;
 	int err = 0;
 
 	its_entry = (struct acpi_madt_generic_translator *)header;
-	node_name = kasprintf(GFP_KERNEL, "ITS@0x%lx",
+	analde_name = kasprintf(GFP_KERNEL, "ITS@0x%lx",
 			      (long)its_entry->base_address);
 
 	dom_handle = iort_find_domain_token(its_entry->translation_id);
 	if (!dom_handle) {
-		pr_err("%s: Unable to locate ITS domain handle\n", node_name);
+		pr_err("%s: Unable to locate ITS domain handle\n", analde_name);
 		err = -ENXIO;
 		goto out;
 	}
 
-	its_fsl_mc_msi_init_one(dom_handle, node_name);
+	its_fsl_mc_msi_init_one(dom_handle, analde_name);
 
 out:
-	kfree(node_name);
+	kfree(analde_name);
 	return err;
 }
 
@@ -143,16 +143,16 @@ static inline void its_fsl_mc_acpi_msi_init(void) { }
 
 static void __init its_fsl_mc_of_msi_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for (np = of_find_matching_node(NULL, its_device_id); np;
-	     np = of_find_matching_node(np, its_device_id)) {
+	for (np = of_find_matching_analde(NULL, its_device_id); np;
+	     np = of_find_matching_analde(np, its_device_id)) {
 		if (!of_device_is_available(np))
 			continue;
 		if (!of_property_read_bool(np, "msi-controller"))
 			continue;
 
-		its_fsl_mc_msi_init_one(of_node_to_fwnode(np),
+		its_fsl_mc_msi_init_one(of_analde_to_fwanalde(np),
 					np->full_name);
 	}
 }

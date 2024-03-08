@@ -113,11 +113,11 @@ int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *parent)
 
 	parent_name = __clk_get_name(parent);
 	if (!parent_name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ddc = devm_kzalloc(hdmi->dev, sizeof(*ddc), GFP_KERNEL);
 	if (!ddc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddc->reg = devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
 					   hdmi->variant->ddc_clk_reg);

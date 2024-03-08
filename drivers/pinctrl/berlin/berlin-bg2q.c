@@ -2,7 +2,7 @@
 /*
  * Marvell Berlin BG2Q pinctrl driver
  *
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */
@@ -130,7 +130,7 @@ static const struct berlin_desc_group berlin2q_soc_pinctrl_groups[] = {
 			/*
 			 * Mode 0x4 mux usb2_dbg *and* usb3_dbg:
 			 * add two functions so it can be used with other groups
-			 * within the same subnode in the device tree
+			 * within the same subanalde in the device tree
 			 */
 			BERLIN_PINCTRL_FUNCTION(0x4, "usb2_dbg"),
 			BERLIN_PINCTRL_FUNCTION(0x4, "usb3_dbg")),

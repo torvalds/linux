@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
@@ -41,7 +41,7 @@ static void led_heartbeat_function(struct timer_list *t)
 	led_cdev = heartbeat_data->led_cdev;
 
 	if (unlikely(panic_heartbeats)) {
-		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_set_brightness_analsleep(led_cdev, LED_OFF);
 		return;
 	}
 
@@ -87,7 +87,7 @@ static void led_heartbeat_function(struct timer_list *t)
 		break;
 	}
 
-	led_set_brightness_nosleep(led_cdev, brightness);
+	led_set_brightness_analsleep(led_cdev, brightness);
 	mod_timer(&heartbeat_data->timer, jiffies + delay);
 }
 
@@ -131,7 +131,7 @@ static int heartbeat_trig_activate(struct led_classdev *led_cdev)
 
 	heartbeat_data = kzalloc(sizeof(*heartbeat_data), GFP_KERNEL);
 	if (!heartbeat_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led_set_trigger_data(led_cdev, heartbeat_data);
 	heartbeat_data->led_cdev = led_cdev;
@@ -163,26 +163,26 @@ static struct led_trigger heartbeat_led_trigger = {
 	.groups = heartbeat_trig_groups,
 };
 
-static int heartbeat_reboot_notifier(struct notifier_block *nb,
+static int heartbeat_reboot_analtifier(struct analtifier_block *nb,
 				     unsigned long code, void *unused)
 {
 	led_trigger_unregister(&heartbeat_led_trigger);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int heartbeat_panic_notifier(struct notifier_block *nb,
+static int heartbeat_panic_analtifier(struct analtifier_block *nb,
 				     unsigned long code, void *unused)
 {
 	panic_heartbeats = 1;
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block heartbeat_reboot_nb = {
-	.notifier_call = heartbeat_reboot_notifier,
+static struct analtifier_block heartbeat_reboot_nb = {
+	.analtifier_call = heartbeat_reboot_analtifier,
 };
 
-static struct notifier_block heartbeat_panic_nb = {
-	.notifier_call = heartbeat_panic_notifier,
+static struct analtifier_block heartbeat_panic_nb = {
+	.analtifier_call = heartbeat_panic_analtifier,
 };
 
 static int __init heartbeat_trig_init(void)
@@ -190,17 +190,17 @@ static int __init heartbeat_trig_init(void)
 	int rc = led_trigger_register(&heartbeat_led_trigger);
 
 	if (!rc) {
-		atomic_notifier_chain_register(&panic_notifier_list,
+		atomic_analtifier_chain_register(&panic_analtifier_list,
 					       &heartbeat_panic_nb);
-		register_reboot_notifier(&heartbeat_reboot_nb);
+		register_reboot_analtifier(&heartbeat_reboot_nb);
 	}
 	return rc;
 }
 
 static void __exit heartbeat_trig_exit(void)
 {
-	unregister_reboot_notifier(&heartbeat_reboot_nb);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	unregister_reboot_analtifier(&heartbeat_reboot_nb);
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
 					 &heartbeat_panic_nb);
 	led_trigger_unregister(&heartbeat_led_trigger);
 }

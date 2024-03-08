@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iommu.h>
@@ -32,8 +32,8 @@
 #define RK_MMU_COMMAND		0x08
 #define RK_MMU_PAGE_FAULT_ADDR	0x0C	/* IOVA of last page fault */
 #define RK_MMU_ZAP_ONE_LINE	0x10	/* Shootdown one IOTLB entry */
-#define RK_MMU_INT_RAWSTAT	0x14	/* IRQ status ignoring mask */
-#define RK_MMU_INT_CLEAR	0x18	/* Acknowledge and re-arm irq */
+#define RK_MMU_INT_RAWSTAT	0x14	/* IRQ status iganalring mask */
+#define RK_MMU_INT_CLEAR	0x18	/* Ackanalwledge and re-arm irq */
 #define RK_MMU_INT_MASK		0x1C	/* IRQ enable */
 #define RK_MMU_INT_STATUS	0x20	/* IRQ status after masking */
 #define RK_MMU_AUTO_GATING	0x24
@@ -51,7 +51,7 @@
 #define RK_MMU_STATUS_IDLE                 BIT(3)
 #define RK_MMU_STATUS_REPLAY_BUFFER_EMPTY  BIT(4)
 #define RK_MMU_STATUS_PAGE_FAULT_IS_WRITE  BIT(5)
-#define RK_MMU_STATUS_STALL_NOT_ACTIVE     BIT(31)
+#define RK_MMU_STATUS_STALL_ANALT_ACTIVE     BIT(31)
 
 /* RK_MMU_COMMAND command values */
 #define RK_MMU_CMD_ENABLE_PAGING    0  /* Enable memory translation */
@@ -111,7 +111,7 @@ struct rk_iommu {
 	int num_clocks;
 	bool reset_disabled;
 	struct iommu_device iommu;
-	struct list_head node; /* entry in rk_iommu_domain.iommus */
+	struct list_head analde; /* entry in rk_iommu_domain.iommus */
 	struct iommu_domain *domain; /* domain to which iommu is attached */
 };
 
@@ -511,7 +511,7 @@ static int rk_iommu_force_reset(struct rk_iommu *iommu)
 		rk_iommu_write(iommu->bases[i], RK_MMU_DTE_ADDR, dte_addr);
 
 		if (dte_addr != rk_iommu_read(iommu->bases[i], RK_MMU_DTE_ADDR)) {
-			dev_err(iommu->dev, "Error during raw reset. MMU_DTE_ADDR is not functioning\n");
+			dev_err(iommu->dev, "Error during raw reset. MMU_DTE_ADDR is analt functioning\n");
 			return -EFAULT;
 		}
 	}
@@ -582,7 +582,7 @@ static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
 	u32 status;
 	u32 int_status;
 	dma_addr_t iova;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int i, err;
 
 	err = pm_runtime_get_if_in_use(iommu->dev);
@@ -615,14 +615,14 @@ static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
 
 			/*
 			 * Report page fault to any installed handlers.
-			 * Ignore the return code, though, since we always zap cache
+			 * Iganalre the return code, though, since we always zap cache
 			 * and clear the page fault anyway.
 			 */
 			if (iommu->domain != &rk_identity_domain)
 				report_iommu_fault(iommu->domain, iommu->dev, iova,
 						   flags);
 			else
-				dev_err(iommu->dev, "Page fault while iommu not attached to domain?\n");
+				dev_err(iommu->dev, "Page fault while iommu analt attached to domain?\n");
 
 			rk_iommu_base_command(iommu->bases[i], RK_MMU_CMD_ZAP_CACHE);
 			rk_iommu_base_command(iommu->bases[i], RK_MMU_CMD_PAGE_FAULT_DONE);
@@ -685,7 +685,7 @@ static void rk_iommu_zap_iova(struct rk_iommu_domain *rk_domain,
 		struct rk_iommu *iommu;
 		int ret;
 
-		iommu = list_entry(pos, struct rk_iommu, node);
+		iommu = list_entry(pos, struct rk_iommu, analde);
 
 		/* Only zap TLBs of IOMMUs that are powered on. */
 		ret = pm_runtime_get_if_in_use(iommu->dev);
@@ -729,13 +729,13 @@ static u32 *rk_dte_get_page_table(struct rk_iommu_domain *rk_domain,
 
 	page_table = (u32 *)get_zeroed_page(GFP_ATOMIC | rk_ops->gfp_flags);
 	if (!page_table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pt_dma = dma_map_single(dma_dev, page_table, SPAGE_SIZE, DMA_TO_DEVICE);
 	if (dma_mapping_error(dma_dev, pt_dma)) {
 		dev_err(dma_dev, "DMA mapping error while allocating page table\n");
 		free_page((unsigned long)page_table);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	dte = rk_ops->mk_dtentries(pt_dma);
@@ -809,7 +809,7 @@ unwind:
 
 	iova += pte_count * SPAGE_SIZE;
 	page_phys = rk_ops->pt_address(pte_addr[pte_count]);
-	pr_err("iova: %pad already mapped to %pa cannot remap to phys: %pa prot: %#x\n",
+	pr_err("iova: %pad already mapped to %pa cananalt remap to phys: %pa prot: %#x\n",
 	       &iova, &page_phys, &paddr, prot);
 
 	return -EADDRINUSE;
@@ -908,7 +908,7 @@ static void rk_iommu_disable(struct rk_iommu *iommu)
 {
 	int i;
 
-	/* Ignore error while disabling, just keep going */
+	/* Iganalre error while disabling, just keep going */
 	WARN_ON(clk_bulk_enable(iommu->num_clocks, iommu->clocks));
 	rk_iommu_enable_stall(iommu);
 	rk_iommu_disable_paging(iommu);
@@ -966,7 +966,7 @@ static int rk_iommu_identity_attach(struct iommu_domain *identity_domain,
 	/* Allow 'virtual devices' (eg drm) to detach from domain */
 	iommu = rk_iommu_from_dev(dev);
 	if (!iommu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rk_domain = to_rk_domain(iommu->domain);
 
@@ -978,7 +978,7 @@ static int rk_iommu_identity_attach(struct iommu_domain *identity_domain,
 	iommu->domain = identity_domain;
 
 	spin_lock_irqsave(&rk_domain->iommus_lock, flags);
-	list_del_init(&iommu->node);
+	list_del_init(&iommu->analde);
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 
 	ret = pm_runtime_get_if_in_use(iommu->dev);
@@ -1010,7 +1010,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 
 	/*
 	 * Allow 'virtual devices' (e.g., drm) to attach to domain.
-	 * Such a device does not belong to an iommu group.
+	 * Such a device does analt belong to an iommu group.
 	 */
 	iommu = rk_iommu_from_dev(dev);
 	if (!iommu)
@@ -1029,7 +1029,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 	iommu->domain = domain;
 
 	spin_lock_irqsave(&rk_domain->iommus_lock, flags);
-	list_add_tail(&iommu->node, &rk_domain->iommus);
+	list_add_tail(&iommu->analde, &rk_domain->iommus);
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 
 	ret = pm_runtime_get_if_in_use(iommu->dev);
@@ -1122,7 +1122,7 @@ static struct iommu_device *rk_iommu_probe_device(struct device *dev)
 
 	data = dev_iommu_priv_get(dev);
 	if (!data)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	iommu = rk_iommu_from_dev(dev);
 
@@ -1147,9 +1147,9 @@ static int rk_iommu_of_xlate(struct device *dev,
 
 	data = devm_kzalloc(dma_dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	iommu_dev = of_find_device_by_node(args->np);
+	iommu_dev = of_find_device_by_analde(args->np);
 
 	data->iommu = platform_get_drvdata(iommu_dev);
 	data->iommu->domain = &rk_identity_domain;
@@ -1188,7 +1188,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 
 	iommu = devm_kzalloc(dev, sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, iommu);
 	iommu->dev = dev;
@@ -1199,7 +1199,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 		rk_ops = ops;
 
 	/*
-	 * That should not happen unless different versions of the
+	 * That should analt happen unless different versions of the
 	 * hardware block are embedded the same SoC
 	 */
 	if (WARN_ON(rk_ops != ops))
@@ -1208,7 +1208,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	iommu->bases = devm_kcalloc(dev, num_res, sizeof(*iommu->bases),
 				    GFP_KERNEL);
 	if (!iommu->bases)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_res; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
@@ -1233,7 +1233,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	iommu->clocks = devm_kcalloc(iommu->dev, iommu->num_clocks,
 				     sizeof(*iommu->clocks), GFP_KERNEL);
 	if (!iommu->clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < iommu->num_clocks; ++i)
 		iommu->clocks[i].id = rk_iommu_clocks[i];
@@ -1244,7 +1244,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	 * So clocks as optional for the time being.
 	 */
 	err = devm_clk_bulk_get(iommu->dev, iommu->num_clocks, iommu->clocks);
-	if (err == -ENOENT)
+	if (err == -EANALENT)
 		iommu->num_clocks = 0;
 	else if (err)
 		return err;
@@ -1263,7 +1263,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 
 	/*
 	 * Use the first registered IOMMU device for domain to use with DMA
-	 * API, since a domain might not physically correspond to a single
+	 * API, since a domain might analt physically correspond to a single
 	 * IOMMU device..
 	 */
 	if (!dma_dev)

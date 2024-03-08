@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -102,7 +102,7 @@
 
 /* responder states */
 enum resp_states {
-	RESPST_NONE,
+	RESPST_ANALNE,
 	RESPST_GET_REQ,
 	RESPST_CHK_PSN,
 	RESPST_CHK_OP_SEQ,
@@ -116,7 +116,7 @@ enum resp_states {
 	RESPST_ATOMIC_WRITE_REPLY,
 	RESPST_PROCESS_FLUSH,
 	RESPST_COMPLETE,
-	RESPST_ACKNOWLEDGE,
+	RESPST_ACKANALWLEDGE,
 	RESPST_CLEANUP,
 	RESPST_DUPLICATE_REQUEST,
 	RESPST_ERR_MALFORMED_WQE,

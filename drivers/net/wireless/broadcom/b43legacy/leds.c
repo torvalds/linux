@@ -5,7 +5,7 @@
   LED control
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005 Stefaanal Brivio <stefaanal.brivio@polimi.it>
   Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -167,7 +167,7 @@ static void b43legacy_map_led(struct b43legacy_wldev *dev,
 				 led_index, activelow);
 		break;
 	default:
-		b43legacywarn(dev->wl, "LEDs: Unknown behaviour 0x%02X\n",
+		b43legacywarn(dev->wl, "LEDs: Unkanalwn behaviour 0x%02X\n",
 			behaviour);
 		break;
 	}
@@ -188,7 +188,7 @@ void b43legacy_leds_init(struct b43legacy_wldev *dev)
 
 	for (i = 0; i < 4; i++) {
 		if (sprom[i] == 0xFF) {
-			/* There is no LED information in the SPROM
+			/* There is anal LED information in the SPROM
 			 * for this LED. Hardcode it here. */
 			activelow = false;
 			switch (i) {

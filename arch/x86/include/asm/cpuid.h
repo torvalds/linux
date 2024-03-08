@@ -66,7 +66,7 @@ native_cpuid_reg(edx)
 
 /*
  * Generic CPUID function
- * clear %ecx since some cpus (Cyrix MII) do not set or clear %ecx
+ * clear %ecx since some cpus (Cyrix MII) do analt set or clear %ecx
  * resulting in stale register contents being returned.
  */
 static inline void cpuid(unsigned int op,

@@ -25,7 +25,7 @@ static void as3722_pm_power_off(void)
 	int ret;
 
 	if (!as3722_pm_poweroff) {
-		pr_err("AS3722 poweroff is not initialised\n");
+		pr_err("AS3722 poweroff is analt initialised\n");
 		return;
 	}
 
@@ -39,7 +39,7 @@ static void as3722_pm_power_off(void)
 static int as3722_poweroff_probe(struct platform_device *pdev)
 {
 	struct as3722_poweroff *as3722_poweroff;
-	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_analde *np = pdev->dev.parent->of_analde;
 
 	if (!np)
 		return -EINVAL;
@@ -50,7 +50,7 @@ static int as3722_poweroff_probe(struct platform_device *pdev)
 	as3722_poweroff = devm_kzalloc(&pdev->dev, sizeof(*as3722_poweroff),
 				GFP_KERNEL);
 	if (!as3722_poweroff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	as3722_poweroff->as3722 = dev_get_drvdata(pdev->dev.parent);
 	as3722_poweroff->dev = &pdev->dev;

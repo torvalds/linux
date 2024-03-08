@@ -3,7 +3,7 @@
  *      Fusion MPT misc device (ioctl) driver.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techanallogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -20,19 +20,19 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    NO WARRANTY
+    ANAL WARRANTY
     THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
     CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but analt limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
     DISCLAIMER OF LIABILITY
-    NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+    NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
     DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -41,7 +41,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
@@ -90,7 +90,7 @@
  * SPARC PLATFORM REMARKS:
  * IOCTL data structures that contain pointers
  * will have different sizes in the driver and applications
- * (as the app. will not use 8-byte pointers).
+ * (as the app. will analt use 8-byte pointers).
  * Apps should use MPTFWDOWNLOAD and MPTCOMMAND.
  * The driver will convert data from
  * mpt_fw_xfer32 (mpt_ioctl_command32) to mpt_fw_xfer (mpt_ioctl_command)
@@ -116,8 +116,8 @@ struct mpt_fw_xfer32 {
  *  IOCTL header structure.
  *  iocnum - must be defined.
  *  port - must be defined for all IOCTL commands other than MPTIOCINFO
- *  maxDataSize - ignored on MPTCOMMAND commands
- *		- ignored on MPTFWREPLACE commands
+ *  maxDataSize - iganalred on MPTCOMMAND commands
+ *		- iganalred on MPTFWREPLACE commands
  *		- on query commands, reports the maximum number of bytes to be returned
  *		  to the host driver (count includes the header).
  *		  That is, set to sizeof(struct mpt_ioctl_iocinfo) for fixed sized commands.
@@ -131,7 +131,7 @@ typedef struct _mpt_ioctl_header {
 } mpt_ioctl_header;
 
 /*
- * Issue a diagnostic reset
+ * Issue a diaganalstic reset
  */
 struct mpt_ioctl_diag_reset {
 	mpt_ioctl_header hdr;
@@ -213,7 +213,7 @@ struct mpt_ioctl_iocinfo_rev1 {
 
 /* Original structure, must always accept these
  * IOCTLs. 4 byte pads can occur based on arch with
- * above structure. Wish to re-align, but cannot.
+ * above structure. Wish to re-align, but cananalt.
  */
 struct mpt_ioctl_iocinfo_rev0 {
 	mpt_ioctl_header hdr;
@@ -236,7 +236,7 @@ struct mpt_ioctl_iocinfo_rev0 {
  * Device Information Page
  * Report the number of, and ids of, all targets
  * on this IOC.  The ids array is a packed structure
- * of the known targetInfo.
+ * of the kanalwn targetInfo.
  * bits 31-24: reserved
  *      23-16: LUN
  *      15- 8: Bus Number
@@ -314,7 +314,7 @@ typedef struct mpt_ioctl_replace_fw {
  *
  * Remark:  Some config pages have bi-directional transfer,
  * both a read and a write. The basic structure allows for
- * a bidirectional set up. Normal messages will have one or
+ * a bidirectional set up. Analrmal messages will have one or
  * both of these buffers NULL.
  */
 struct mpt_ioctl_command {
@@ -372,10 +372,10 @@ typedef struct _hp_header {
 /*
  *  Header:
  *  iocnum 	required (input)
- *  host 	ignored
- *  channe	ignored
- *  id		ignored
- *  lun		ignored
+ *  host 	iganalred
+ *  channe	iganalred
+ *  id		iganalred
+ *  lun		iganalred
  */
 typedef struct _hp_host_info {
 	hp_header_t	 hdr;
@@ -385,7 +385,7 @@ typedef struct _hp_host_info {
 	u16		 subsystem_id;
 	u8		 devfn;
 	u8		 bus;
-	ushort		 host_no;		/* SCSI Host number, if scsi driver not loaded*/
+	ushort		 host_anal;		/* SCSI Host number, if scsi driver analt loaded*/
 	u8		 fw_version[16];	/* string */
 	u8		 serial_number[24];	/* string */
 	u32		 ioc_status;
@@ -408,7 +408,7 @@ typedef struct _hp_host_info_rev0 {
 	u16		 subsystem_id;
 	u8		 devfn;
 	u8		 bus;
-	ushort		 host_no;		/* SCSI Host number, if scsi driver not loaded*/
+	ushort		 host_anal;		/* SCSI Host number, if scsi driver analt loaded*/
 	u8		 fw_version[16];	/* string */
 	u8		 serial_number[24];	/* string */
 	u32		 ioc_status;
@@ -426,7 +426,7 @@ typedef struct _hp_host_info_rev0 {
  *  host 	required
  *  channel	required	(bus number)
  *  id		required
- *  lun		ignored
+ *  lun		iganalred
  *
  *  All error values between 0 and 0xFFFF in size.
  */

@@ -34,7 +34,7 @@
 #define MTK_STAR_HASHTABLE_SIZE_MAX		512
 #define MTK_STAR_DESC_NEEDED			(MAX_SKB_FRAGS + 4)
 
-/* Normally we'd use NET_IP_ALIGN but on arm64 its value is 0 and it doesn't
+/* Analrmally we'd use NET_IP_ALIGN but on arm64 its value is 0 and it doesn't
  * work for this controller.
  */
 #define MTK_STAR_IP_ALIGN			2
@@ -267,7 +267,7 @@ struct mtk_star_priv {
 	struct napi_struct tx_napi;
 	struct napi_struct rx_napi;
 
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	phy_interface_t phy_intf;
 	struct phy_device *phydev;
 	unsigned int link;
@@ -703,12 +703,12 @@ static int mtk_star_prepare_rx_skbs(struct net_device *ndev)
 	for (i = 0; i < MTK_STAR_NUM_RX_DESCS; i++) {
 		skb = mtk_star_alloc_skb(ndev);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dma_addr = mtk_star_dma_map_rx(priv, skb);
 		if (dma_mapping_error(dev, dma_addr)) {
 			dev_kfree_skb(skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		desc = &ring->descs[i];
@@ -999,7 +999,7 @@ static int mtk_star_enable(struct net_device *ndev)
 
 	/* Request the interrupt */
 	ret = request_irq(ndev->irq, mtk_star_handle_irq,
-			  IRQF_TRIGGER_NONE, ndev->name, ndev);
+			  IRQF_TRIGGER_ANALNE, ndev->name, ndev);
 	if (ret)
 		goto err_free_skbs;
 
@@ -1010,11 +1010,11 @@ static int mtk_star_enable(struct net_device *ndev)
 	mtk_star_intr_enable(priv);
 
 	/* Connect to and start PHY */
-	priv->phydev = of_phy_connect(ndev, priv->phy_node,
+	priv->phydev = of_phy_connect(ndev, priv->phy_analde,
 				      mtk_star_adjust_link, 0, priv->phy_intf);
 	if (!priv->phydev) {
 		netdev_err(ndev, "failed to connect to PHY\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_irq;
 	}
 
@@ -1316,7 +1316,7 @@ static int mtk_star_rx(struct mtk_star_priv *priv, int budget)
 		mtk_star_dma_unmap_rx(priv, &desc_data);
 
 		skb_put(desc_data.skb, desc_data.len);
-		desc_data.skb->ip_summed = CHECKSUM_NONE;
+		desc_data.skb->ip_summed = CHECKSUM_ANALNE;
 		desc_data.skb->protocol = eth_type_trans(desc_data.skb, ndev);
 		desc_data.skb->dev = ndev;
 		netif_receive_skb(desc_data.skb);
@@ -1422,24 +1422,24 @@ static int mtk_star_mdio_init(struct net_device *ndev)
 {
 	struct mtk_star_priv *priv = netdev_priv(ndev);
 	struct device *dev = mtk_star_get_dev(priv);
-	struct device_node *of_node, *mdio_node;
+	struct device_analde *of_analde, *mdio_analde;
 	int ret;
 
-	of_node = dev->of_node;
+	of_analde = dev->of_analde;
 
-	mdio_node = of_get_child_by_name(of_node, "mdio");
-	if (!mdio_node)
-		return -ENODEV;
+	mdio_analde = of_get_child_by_name(of_analde, "mdio");
+	if (!mdio_analde)
+		return -EANALDEV;
 
-	if (!of_device_is_available(mdio_node)) {
-		ret = -ENODEV;
-		goto out_put_node;
+	if (!of_device_is_available(mdio_analde)) {
+		ret = -EANALDEV;
+		goto out_put_analde;
 	}
 
 	priv->mii = devm_mdiobus_alloc(dev);
 	if (!priv->mii) {
-		ret = -ENOMEM;
-		goto out_put_node;
+		ret = -EANALMEM;
+		goto out_put_analde;
 	}
 
 	snprintf(priv->mii->id, MII_BUS_ID_SIZE, "%s", dev_name(dev));
@@ -1449,10 +1449,10 @@ static int mtk_star_mdio_init(struct net_device *ndev)
 	priv->mii->write = mtk_star_mdio_write;
 	priv->mii->priv = priv;
 
-	ret = devm_of_mdiobus_register(dev, priv->mii, mdio_node);
+	ret = devm_of_mdiobus_register(dev, priv->mii, mdio_analde);
 
-out_put_node:
-	of_node_put(mdio_node);
+out_put_analde:
+	of_analde_put(mdio_analde);
 	return ret;
 }
 
@@ -1513,7 +1513,7 @@ static int mtk_star_set_timing(struct mtk_star_priv *priv)
 		delay_val |= FIELD_PREP(MTK_STAR_BIT_INV_TX_CLK, priv->tx_inv);
 		break;
 	default:
-		dev_err(dev, "This interface not supported\n");
+		dev_err(dev, "This interface analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1522,7 +1522,7 @@ static int mtk_star_set_timing(struct mtk_star_priv *priv)
 
 static int mtk_star_probe(struct platform_device *pdev)
 {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct mtk_star_priv *priv;
 	struct net_device *ndev;
 	struct device *dev;
@@ -1530,11 +1530,11 @@ static int mtk_star_probe(struct platform_device *pdev)
 	int ret, i;
 
 	dev = &pdev->dev;
-	of_node = dev->of_node;
+	of_analde = dev->of_analde;
 
 	ndev = devm_alloc_etherdev(dev, sizeof(*priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = netdev_priv(ndev);
 	priv->ndev = ndev;
@@ -1553,14 +1553,14 @@ static int mtk_star_probe(struct platform_device *pdev)
 
 	/* We won't be checking the return values of regmap read & write
 	 * functions. They can only fail for mmio if there's a clock attached
-	 * to regmap which is not the case here.
+	 * to regmap which is analt the case here.
 	 */
 	priv->regs = devm_regmap_init_mmio(dev, base,
 					   &mtk_star_regmap_config);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 
-	priv->pericfg = syscon_regmap_lookup_by_phandle(of_node,
+	priv->pericfg = syscon_regmap_lookup_by_phandle(of_analde,
 							"mediatek,pericfg");
 	if (IS_ERR(priv->pericfg)) {
 		dev_err(dev, "Failed to lookup the PERICFG syscon\n");
@@ -1586,7 +1586,7 @@ static int mtk_star_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_get_phy_mode(of_node, &priv->phy_intf);
+	ret = of_get_phy_mode(of_analde, &priv->phy_intf);
 	if (ret) {
 		return ret;
 	} else if (priv->phy_intf != PHY_INTERFACE_MODE_RMII &&
@@ -1596,15 +1596,15 @@ static int mtk_star_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv->phy_node = of_parse_phandle(of_node, "phy-handle", 0);
-	if (!priv->phy_node) {
+	priv->phy_analde = of_parse_phandle(of_analde, "phy-handle", 0);
+	if (!priv->phy_analde) {
 		dev_err(dev, "failed to retrieve the phy handle from device tree\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	priv->rmii_rxc = of_property_read_bool(of_node, "mediatek,rmii-rxc");
-	priv->rx_inv = of_property_read_bool(of_node, "mediatek,rxc-inverse");
-	priv->tx_inv = of_property_read_bool(of_node, "mediatek,txc-inverse");
+	priv->rmii_rxc = of_property_read_bool(of_analde, "mediatek,rmii-rxc");
+	priv->rx_inv = of_property_read_bool(of_analde, "mediatek,rxc-inverse");
+	priv->tx_inv = of_property_read_bool(of_analde, "mediatek,txc-inverse");
 
 	if (priv->compat_data->set_interface_mode) {
 		ret = priv->compat_data->set_interface_mode(ndev);
@@ -1630,7 +1630,7 @@ static int mtk_star_probe(struct platform_device *pdev)
 					      &priv->dma_addr,
 					      GFP_KERNEL | GFP_DMA);
 	if (!priv->ring_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk_star_nic_disable_pd(priv);
 	mtk_star_init_config(priv);
@@ -1669,7 +1669,7 @@ static int mt8516_set_interface_mode(struct net_device *ndev)
 		rmii_rxc = priv->rmii_rxc ? 0 : MTK_PERICFG_BIT_NIC_CFG_CON_CLK;
 		break;
 	default:
-		dev_err(dev, "This interface not supported\n");
+		dev_err(dev, "This interface analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1701,7 +1701,7 @@ static int mt8365_set_interface_mode(struct net_device *ndev)
 		intf_val |= priv->rmii_rxc ? 0 : MTK_PERICFG_BIT_NIC_CFG_CON_CLK_V2;
 		break;
 	default:
-		dev_err(dev, "This interface not supported\n");
+		dev_err(dev, "This interface analt supported\n");
 		return -EINVAL;
 	}
 

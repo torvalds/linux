@@ -18,7 +18,7 @@ description:
   with the hardware implementing the TCU.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^serial(@.*)?$"
 
   compatible:

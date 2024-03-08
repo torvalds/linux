@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2015 Synaptics Incorporated
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inanalvations
  */
 
 #include <linux/bitops.h>
@@ -111,7 +111,7 @@ static int rmi_f55_probe(struct rmi_function *fn)
 
 	f55 = devm_kzalloc(&fn->dev, sizeof(struct f55_data), GFP_KERNEL);
 	if (!f55)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f55->fn = fn;
 	dev_set_drvdata(&fn->dev, f55);

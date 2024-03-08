@@ -10,7 +10,7 @@
 
 
 /*
- * Test basic access to the EBB regs, they should be user accessible with no
+ * Test basic access to the EBB regs, they should be user accessible with anal
  * kernel interaction required.
  */
 int reg_access(void)

@@ -26,7 +26,7 @@ struct i2c_algo_pcf_data {
 	void (*xfer_end) (void *data);
 
 	/* Multi-master lost arbitration back-off delay (msecs)
-	 * This should be set by the bus adapter or knowledgable client
+	 * This should be set by the bus adapter or kanalwledgable client
 	 * if bus is multi-mastered, else zero
 	 */
 	unsigned long lab_mdelay;

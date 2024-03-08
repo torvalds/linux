@@ -5,11 +5,11 @@
  * base is drivers/dma/flsdma.c
  *
  * Copyright (C) 2011-2012 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- * Copyright (C) 2009 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * Copyright (C) 2009 Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  * Copyright (C) 2009 Renesas Solutions, Inc. All rights reserved.
  * Copyright (C) 2007 Freescale Semiconductor, Inc. All rights reserved.
  *
- * - DMA of SuperH does not have Hardware DMA chain mode.
+ * - DMA of SuperH does analt have Hardware DMA chain mode.
  * - MAX DMA size is 16MB.
  *
  */
@@ -21,7 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/kdebug.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -58,7 +58,7 @@ static LIST_HEAD(sh_dmae_devices);
 
 /*
  * Different DMAC implementations provide different ways to clear DMA channels:
- * (1) none - no CHCLR registers are available
+ * (1) analne - anal CHCLR registers are available
  * (2) one CHCLR register per channel - 0 has to be written to it to clear
  *     channel buffers
  * (3) one CHCLR per several channels - 1 has to be written to the bit,
@@ -243,7 +243,7 @@ static void dmae_init(struct sh_dmae_chan *sh_chan)
 
 static int dmae_set_chcr(struct sh_dmae_chan *sh_chan, u32 val)
 {
-	/* If DMA is active, cannot set CHCR. TODO: remove this superfluous check */
+	/* If DMA is active, cananalt set CHCR. TODO: remove this superfluous check */
 	if (dmae_is_busy(sh_chan))
 		return -EBUSY;
 
@@ -264,7 +264,7 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 	if (dmae_is_busy(sh_chan))
 		return -EBUSY;
 
-	if (pdata->no_dmars)
+	if (pdata->anal_dmars)
 		return 0;
 
 	/* in the case of a missing DMARS resource use first memory window */
@@ -319,7 +319,7 @@ static void sh_dmae_setup_xfer(struct shdma_chan *schan,
 
 /*
  * Find a slave channel configuration from the contoller list by either a slave
- * ID in the non-DT case, or by a MID/RID value in the DT case
+ * ID in the analn-DT case, or by a MID/RID value in the DT case
  */
 static const struct sh_dmae_slave_config *dmae_find_slave(
 	struct sh_dmae_chan *sh_chan, int match)
@@ -329,7 +329,7 @@ static const struct sh_dmae_slave_config *dmae_find_slave(
 	const struct sh_dmae_slave_config *cfg;
 	int i;
 
-	if (!sh_chan->shdma_chan.dev->of_node) {
+	if (!sh_chan->shdma_chan.dev->of_analde) {
 		if (match >= SH_DMA_SLAVE_NUMBER)
 			return NULL;
 
@@ -430,7 +430,7 @@ static bool sh_dmae_reset(struct sh_dmae_device *shdev)
 	/* halt the dma controller */
 	sh_dmae_ctl_stop(shdev);
 
-	/* We cannot detect, which channel caused the error, have to reset all */
+	/* We cananalt detect, which channel caused the error, have to reset all */
 	ret = shdma_reset(&shdev->shdma_dev);
 
 	sh_dmae_rst(shdev);
@@ -443,7 +443,7 @@ static irqreturn_t sh_dmae_err(int irq, void *data)
 	struct sh_dmae_device *shdev = data;
 
 	if (!(dmaor_read(shdev) & DMAOR_AE))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	sh_dmae_reset(shdev);
 	return IRQ_HANDLED;
@@ -465,49 +465,49 @@ static bool sh_dmae_desc_completed(struct shdma_chan *schan,
 		 (sh_desc->hw.sar + sh_desc->hw.tcr) == sar_buf);
 }
 
-static bool sh_dmae_nmi_notify(struct sh_dmae_device *shdev)
+static bool sh_dmae_nmi_analtify(struct sh_dmae_device *shdev)
 {
-	/* Fast path out if NMIF is not asserted for this controller */
+	/* Fast path out if NMIF is analt asserted for this controller */
 	if ((dmaor_read(shdev) & DMAOR_NMIF) == 0)
 		return false;
 
 	return sh_dmae_reset(shdev);
 }
 
-static int sh_dmae_nmi_handler(struct notifier_block *self,
+static int sh_dmae_nmi_handler(struct analtifier_block *self,
 			       unsigned long cmd, void *data)
 {
 	struct sh_dmae_device *shdev;
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 	bool triggered;
 
 	/*
 	 * Only concern ourselves with NMI events.
 	 *
-	 * Normally we would check the die chain value, but as this needs
+	 * Analrmally we would check the die chain value, but as this needs
 	 * to be architecture independent, check for NMI context instead.
 	 */
 	if (!in_nmi())
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(shdev, &sh_dmae_devices, node) {
+	list_for_each_entry_rcu(shdev, &sh_dmae_devices, analde) {
 		/*
 		 * Only stop if one of the controllers has NMIF asserted,
-		 * we do not want to interfere with regular address error
+		 * we do analt want to interfere with regular address error
 		 * handling or NMI events that don't concern the DMACs.
 		 */
-		triggered = sh_dmae_nmi_notify(shdev);
+		triggered = sh_dmae_nmi_analtify(shdev);
 		if (triggered == true)
-			ret = NOTIFY_OK;
+			ret = ANALTIFY_OK;
 	}
 	rcu_read_unlock();
 
 	return ret;
 }
 
-static struct notifier_block sh_dmae_nmi_notifier __read_mostly = {
-	.notifier_call	= sh_dmae_nmi_handler,
+static struct analtifier_block sh_dmae_nmi_analtifier __read_mostly = {
+	.analtifier_call	= sh_dmae_nmi_handler,
 
 	/* Run before NMI debug handler and KGDB */
 	.priority	= 1,
@@ -526,7 +526,7 @@ static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 	sh_chan = devm_kzalloc(sdev->dma_dev.dev, sizeof(struct sh_dmae_chan),
 			       GFP_KERNEL);
 	if (!sh_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	schan = &sh_chan->shdma_chan;
 	schan->max_xfer_len = SH_DMA_TCR_MAX + 1;
@@ -548,14 +548,14 @@ static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 		dev_err(sdev->dma_dev.dev,
 			"DMA channel %d request_irq error %d\n",
 			id, err);
-		goto err_no_irq;
+		goto err_anal_irq;
 	}
 
 	shdev->chan[id] = sh_chan;
 	return 0;
 
-err_no_irq:
-	/* remove from dmaengine device node */
+err_anal_irq:
+	/* remove from dmaengine device analde */
 	shdma_chan_remove(schan);
 	return err;
 }
@@ -679,14 +679,14 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	struct dma_device *dma_dev;
 	struct resource *dmars, *errirq_res, *chanirq_res;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		pdata = of_device_get_match_data(&pdev->dev);
 	else
 		pdata = dev_get_platdata(&pdev->dev);
 
 	/* get platform data */
 	if (!pdata || !pdata->channel_num)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* DMARS area is optional */
 	dmars = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -708,12 +708,12 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	 */
 	errirq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!errirq_res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	shdev = devm_kzalloc(&pdev->dev, sizeof(struct sh_dmae_device),
 			     GFP_KERNEL);
 	if (!shdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_dev = &shdev->shdma_dev.dma_dev;
 
@@ -767,7 +767,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s(): GET = %d\n", __func__, err);
 
 	spin_lock_irq(&sh_dmae_lock);
-	list_add_tail_rcu(&shdev->node, &sh_dmae_devices);
+	list_add_tail_rcu(&shdev->analde, &sh_dmae_devices);
 	spin_unlock_irq(&sh_dmae_lock);
 
 	/* reset dma controller - only needed as a test */
@@ -848,7 +848,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	}
 
 	if (irq_cap)
-		dev_notice(&pdev->dev, "Attempting to register %d DMA "
+		dev_analtice(&pdev->dev, "Attempting to register %d DMA "
 			   "channels when a maximum of %d are supported.\n",
 			   pdata->channel_num, SH_DMAE_MAX_CHANNELS);
 
@@ -869,7 +869,7 @@ chan_probe_err:
 eirq_err:
 rst_err:
 	spin_lock_irq(&sh_dmae_lock);
-	list_del_rcu(&shdev->node);
+	list_del_rcu(&shdev->analde);
 	spin_unlock_irq(&sh_dmae_lock);
 
 	pm_runtime_put(&pdev->dev);
@@ -890,7 +890,7 @@ static void sh_dmae_remove(struct platform_device *pdev)
 	dma_async_device_unregister(dma_dev);
 
 	spin_lock_irq(&sh_dmae_lock);
-	list_del_rcu(&shdev->node);
+	list_del_rcu(&shdev->analde);
 	spin_unlock_irq(&sh_dmae_lock);
 
 	pm_runtime_disable(&pdev->dev);
@@ -912,7 +912,7 @@ static struct platform_driver sh_dmae_driver = {
 static int __init sh_dmae_init(void)
 {
 	/* Wire up NMI handling */
-	int err = register_die_notifier(&sh_dmae_nmi_notifier);
+	int err = register_die_analtifier(&sh_dmae_nmi_analtifier);
 	if (err)
 		return err;
 
@@ -924,11 +924,11 @@ static void __exit sh_dmae_exit(void)
 {
 	platform_driver_unregister(&sh_dmae_driver);
 
-	unregister_die_notifier(&sh_dmae_nmi_notifier);
+	unregister_die_analtifier(&sh_dmae_nmi_analtifier);
 }
 module_exit(sh_dmae_exit);
 
-MODULE_AUTHOR("Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>");
+MODULE_AUTHOR("Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>");
 MODULE_DESCRIPTION("Renesas SH DMA Engine driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" SH_DMAE_DRV_NAME);

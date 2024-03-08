@@ -2,7 +2,7 @@
 #ifndef __PLATFORM_DATA_X86_ASUS_WMI_H
 #define __PLATFORM_DATA_X86_ASUS_WMI_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 /* WMI Methods */
@@ -58,7 +58,7 @@
 #define ASUS_WMI_DEVID_KBD_BACKLIGHT	0x00050021
 #define ASUS_WMI_DEVID_LIGHT_SENSOR	0x00050022 /* ?? */
 #define ASUS_WMI_DEVID_LIGHTBAR		0x00050025
-/* This can only be used to disable the screen, not re-enable */
+/* This can only be used to disable the screen, analt re-enable */
 #define ASUS_WMI_DEVID_SCREENPAD_POWER	0x00050031
 /* Writing a brightness re-enables the screen if disabled */
 #define ASUS_WMI_DEVID_SCREENPAD_LIGHT	0x00050032
@@ -136,7 +136,7 @@
 
 /* DSTS masks */
 #define ASUS_WMI_DSTS_STATUS_BIT	0x00000001
-#define ASUS_WMI_DSTS_UNKNOWN_BIT	0x00000002
+#define ASUS_WMI_DSTS_UNKANALWN_BIT	0x00000002
 #define ASUS_WMI_DSTS_PRESENCE_BIT	0x00010000
 #define ASUS_WMI_DSTS_USER_BIT		0x00020000
 #define ASUS_WMI_DSTS_BIOS_BIT		0x00040000
@@ -150,7 +150,7 @@ int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1, u32 *retval);
 static inline int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
 					   u32 *retval)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#if !defined(__BNO055_SERDEV_TRACE_H__) || defined(TRACE_HEADER_MULTI_READ)
-#define __BNO055_SERDEV_TRACE_H__
+#if !defined(__BANAL055_SERDEV_TRACE_H__) || defined(TRACE_HEADER_MULTI_READ)
+#define __BANAL055_SERDEV_TRACE_H__
 
 #include <linux/tracepoint.h>
 
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM bno055_ser
+#define TRACE_SYSTEM banal055_ser
 
 TRACE_EVENT(send_chunk,
 	    TP_PROTO(int len, const u8 *data),
@@ -93,12 +93,12 @@ TRACE_EVENT(recv,
 	    )
 );
 
-#endif /* __BNO055_SERDEV_TRACE_H__ || TRACE_HEADER_MULTI_READ */
+#endif /* __BANAL055_SERDEV_TRACE_H__ || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE bno055_ser_trace
+#define TRACE_INCLUDE_FILE banal055_ser_trace
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>

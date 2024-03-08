@@ -8,7 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/entry-kvm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kdebug.h>
 #include <linux/module.h>
@@ -52,7 +52,7 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	/**
 	 * The preemption should be disabled here because it races with
-	 * kvm_sched_out/kvm_sched_in(called from preempt notifiers) which
+	 * kvm_sched_out/kvm_sched_in(called from preempt analtifiers) which
 	 * also calls vcpu_load/put.
 	 */
 	get_cpu();
@@ -127,7 +127,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	cntx->hstatus |= HSTATUS_SPV;
 
 	if (kvm_riscv_vcpu_alloc_vector_context(vcpu, cntx))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* By default, make CY, TM, and IR counters accessible in VU mode */
 	reset_csr->scounteren = 0x7;
@@ -145,7 +145,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Setup SBI extensions
-	 * NOTE: This must be the last thing to be initialized.
+	 * ANALTE: This must be the last thing to be initialized.
 	 */
 	kvm_riscv_vcpu_sbi_init(vcpu);
 
@@ -159,7 +159,7 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
 	/**
 	 * vcpu with id 0 is the designated boot cpu.
-	 * Keep all vcpus with non-zero id in power-off state so that
+	 * Keep all vcpus with analn-zero id in power-off state so that
 	 * they can be brought up using SBI HSM extension.
 	 */
 	if (vcpu->vcpu_idx != 0)
@@ -237,7 +237,7 @@ long kvm_arch_vcpu_async_ioctl(struct file *filp,
 			return kvm_riscv_vcpu_unset_interrupt(vcpu, IRQ_VS_EXT);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 long kvm_arch_vcpu_ioctl(struct file *filp,
@@ -662,10 +662,10 @@ static __always_inline void kvm_riscv_vcpu_swap_in_host_state(struct kvm_vcpu *v
  * Actually run the vCPU, entering an RCU extended quiescent state (EQS) while
  * the vCPU is running.
  *
- * This must be noinstr as instrumentation may make use of RCU, and this is not
+ * This must be analinstr as instrumentation may make use of RCU, and this is analt
  * safe during the EQS.
  */
-static void noinstr kvm_riscv_vcpu_enter_exit(struct kvm_vcpu *vcpu)
+static void analinstr kvm_riscv_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 {
 	kvm_riscv_vcpu_swap_in_guest_state(vcpu);
 	guest_state_enter_irqoff();
@@ -721,7 +721,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	kvm_sigset_activate(vcpu);
 
 	ret = 1;
-	run->exit_reason = KVM_EXIT_UNKNOWN;
+	run->exit_reason = KVM_EXIT_UNKANALWN;
 	while (ret > 0) {
 		/* Check conditions before entering the guest */
 		ret = xfer_to_guest_mode_handle_work(vcpu);
@@ -756,7 +756,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		smp_mb__after_srcu_read_unlock();
 
 		/*
-		 * We might have got VCPU interrupts updated asynchronously
+		 * We might have got VCPU interrupts updated asynchroanalusly
 		 * so update it in HW.
 		 */
 		kvm_riscv_vcpu_flush_interrupts(vcpu);
@@ -777,7 +777,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		/*
 		 * Cleanup stale TLB enteries
 		 *
-		 * Note: This should be done after G-stage VMID has been
+		 * Analte: This should be done after G-stage VMID has been
 		 * updated using kvm_riscv_gstage_vmid_ver_changed()
 		 */
 		kvm_riscv_local_tlb_sanitize(vcpu);
@@ -809,7 +809,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		 * guest time. Transiently unmask interrupts so that any
 		 * pending interrupts are taken.
 		 *
-		 * There's no barrier which ensures that pending interrupts are
+		 * There's anal barrier which ensures that pending interrupts are
 		 * recognised, so we just hope that the CPU takes any pending
 		 * interrupts between the enable and disable.
 		 */

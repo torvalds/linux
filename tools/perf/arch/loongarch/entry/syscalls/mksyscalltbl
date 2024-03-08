@@ -6,7 +6,7 @@
 #
 # Author(s):  Ming Wang <wangming01@loongson.cn>
 # Author(s):  Huacai Chen <chenhuacai@loongson.cn>
-# Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+# Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
 
 gcc=$1
 hostcc=$2
@@ -14,7 +14,7 @@ incpath=$3
 input=$4
 
 if ! test -r $input; then
-	echo "Could not read input file" >&2
+	echo "Could analt read input file" >&2
 	exit 1
 fi
 

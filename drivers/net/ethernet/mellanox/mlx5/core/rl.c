@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -51,7 +51,7 @@ int mlx5_create_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 		 hierarchy);
 	memcpy(schedc, ctx, MLX5_ST_SZ_BYTES(scheduling_context));
 
-	err = mlx5_cmd_exec_inout(dev, create_scheduling_element, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, create_scheduling_element, in, out);
 	if (err)
 		return err;
 
@@ -188,7 +188,7 @@ static int mlx5_rl_table_get(struct mlx5_rl_table *table)
 	table->rl_entry = kcalloc(table->max_size, sizeof(struct mlx5_rl_entry),
 				  GFP_KERNEL);
 	if (!table->rl_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The index represents the index in HW rate limit table
 	 * Index 0 is reserved for unlimited rate
@@ -246,7 +246,7 @@ int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 	int err;
 
 	if (!table->max_size)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rate = MLX5_GET(set_pp_rate_limit_context, rl_in, rate_limit);
 	if (!rate || !mlx5_rl_is_in_range(dev, rate)) {
@@ -264,7 +264,7 @@ int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 	if (!entry) {
 		mlx5_core_err(dev, "Max number of %u rates reached\n",
 			      table->max_size);
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto rl_err;
 	}
 	if (!entry->refcount) {
@@ -351,7 +351,7 @@ void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, struct mlx5_rate_limit *rl)
 			      MLX5_CAP_QOS(dev, packet_pacing_uid) ?
 				MLX5_SHARED_RESOURCE_UID : 0, false);
 	if (!entry || !entry->refcount) {
-		mlx5_core_warn(dev, "Rate %u, max_burst_sz %u typical_pkt_sz %u are not configured\n",
+		mlx5_core_warn(dev, "Rate %u, max_burst_sz %u typical_pkt_sz %u are analt configured\n",
 			       rl->rate, rl->max_burst_sz, rl->typical_pkt_sz);
 		goto out;
 	}

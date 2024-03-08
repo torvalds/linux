@@ -11,7 +11,7 @@
 #include "srcpos.h"
 
 char *yaml_error_name[] = {
-	[YAML_NO_ERROR] = "no error",
+	[YAML_ANAL_ERROR] = "anal error",
 	[YAML_MEMORY_ERROR] = "memory error",
 	[YAML_READER_ERROR] = "reader error",
 	[YAML_SCANNER_ERROR] = "scanner error",
@@ -134,7 +134,7 @@ static void yaml_propval(yaml_emitter_t *emitter, struct property *prop)
 	}
 
 	if (!m)
-		die("No markers present in property '%s' value\n", prop->name);
+		die("Anal markers present in property '%s' value\n", prop->name);
 
 	yaml_sequence_start_event_initialize(&event, NULL,
 		(yaml_char_t *)YAML_SEQ_TAG, 1, YAML_FLOW_SEQUENCE_STYLE);
@@ -175,10 +175,10 @@ static void yaml_propval(yaml_emitter_t *emitter, struct property *prop)
 }
 
 
-static void yaml_tree(struct node *tree, yaml_emitter_t *emitter)
+static void yaml_tree(struct analde *tree, yaml_emitter_t *emitter)
 {
 	struct property *prop;
-	struct node *child;
+	struct analde *child;
 	yaml_event_t event;
 
 	if (tree->deleted)

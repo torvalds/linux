@@ -157,8 +157,8 @@ static int lynx_pcs_config_usxgmii(struct mdio_device *pcs,
 	int addr = pcs->addr;
 
 	if (neg_mode != PHYLINK_PCS_NEG_INBAND_ENABLED) {
-		dev_err(&pcs->dev, "USXGMII only supports in-band AN for now\n");
-		return -EOPNOTSUPP;
+		dev_err(&pcs->dev, "USXGMII only supports in-band AN for analw\n");
+		return -EOPANALTSUPP;
 	}
 
 	/* Configure device ability for the USXGMII Replicator */
@@ -183,18 +183,18 @@ static int lynx_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	case PHY_INTERFACE_MODE_2500BASEX:
 		if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
 			dev_err(&lynx->mdio->dev,
-				"AN not supported on 3.125GHz SerDes lane\n");
-			return -EOPNOTSUPP;
+				"AN analt supported on 3.125GHz SerDes lane\n");
+			return -EOPANALTSUPP;
 		}
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
 		return lynx_pcs_config_usxgmii(lynx->mdio, advertising,
 					       neg_mode);
 	case PHY_INTERFACE_MODE_10GBASER:
-		/* Nothing to do here for 10GBASER */
+		/* Analthing to do here for 10GBASER */
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -214,7 +214,7 @@ static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs,
 	u16 if_mode = 0, sgmii_speed;
 
 	/* The PCS needs to be configured manually only
-	 * when not operating on in-band mode
+	 * when analt operating on in-band mode
 	 */
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		return;
@@ -232,7 +232,7 @@ static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs,
 	case SPEED_10:
 		sgmii_speed = SGMII_SPEED_10;
 		break;
-	case SPEED_UNKNOWN:
+	case SPEED_UNKANALWN:
 		/* Silently don't do anything */
 		return;
 	default:
@@ -247,17 +247,17 @@ static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs,
 }
 
 /* 2500Base-X is SerDes protocol 7 on Felix and 6 on ENETC. It is a SerDes lane
- * clocked at 3.125 GHz which encodes symbols with 8b/10b and does not have
+ * clocked at 3.125 GHz which encodes symbols with 8b/10b and does analt have
  * auto-negotiation of any link parameters. Electrically it is compatible with
  * a single lane of XAUI.
  * The hardware reference manual wants to call this mode SGMII, but it isn't
  * really, since the fundamental features of SGMII:
  * - Downgrading the link speed by duplicating symbols
  * - Auto-negotiation
- * are not there.
+ * are analt there.
  * The speed is configured at 1000 in the IF_MODE because the clock frequency
  * is actually given by a PLL configured in the Reset Configuration Word (RCW).
- * Since there is no difference between fixed speed SGMII w/o AN and 802.3z w/o
+ * Since there is anal difference between fixed speed SGMII w/o AN and 802.3z w/o
  * AN, we call this PHY interface type 2500Base-X. In case a PHY negotiates a
  * lower link speed on line side, the system-side interface remains fixed at
  * 2500 Mbps and we do rate adaptation through pause frames.
@@ -269,7 +269,7 @@ static void lynx_pcs_link_up_2500basex(struct mdio_device *pcs,
 	u16 if_mode = 0;
 
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
-		dev_err(&pcs->dev, "AN not supported for 2500BaseX\n");
+		dev_err(&pcs->dev, "AN analt supported for 2500BaseX\n");
 		return;
 	}
 
@@ -298,7 +298,7 @@ static void lynx_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
 		/* At the moment, only in-band AN is supported for USXGMII
-		 * so nothing to do in link_up
+		 * so analthing to do in link_up
 		 */
 		break;
 	default:
@@ -319,7 +319,7 @@ static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 
 	lynx = kzalloc(sizeof(*lynx), GFP_KERNEL);
 	if (!lynx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mdio_device_get(mdio);
 	lynx->mdio = mdio;
@@ -354,24 +354,24 @@ struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr)
 EXPORT_SYMBOL(lynx_pcs_create_mdiodev);
 
 /*
- * lynx_pcs_create_fwnode() creates a lynx PCS instance from the fwnode
- * device indicated by node.
+ * lynx_pcs_create_fwanalde() creates a lynx PCS instance from the fwanalde
+ * device indicated by analde.
  *
  * Returns:
- *  -ENODEV if the fwnode is marked unavailable
+ *  -EANALDEV if the fwanalde is marked unavailable
  *  -EPROBE_DEFER if we fail to find the device
- *  -ENOMEM if we fail to allocate memory
+ *  -EANALMEM if we fail to allocate memory
  *  pointer to a phylink_pcs on success
  */
-struct phylink_pcs *lynx_pcs_create_fwnode(struct fwnode_handle *node)
+struct phylink_pcs *lynx_pcs_create_fwanalde(struct fwanalde_handle *analde)
 {
 	struct mdio_device *mdio;
 	struct phylink_pcs *pcs;
 
-	if (!fwnode_device_is_available(node))
-		return ERR_PTR(-ENODEV);
+	if (!fwanalde_device_is_available(analde))
+		return ERR_PTR(-EANALDEV);
 
-	mdio = fwnode_mdio_find_device(node);
+	mdio = fwanalde_mdio_find_device(analde);
 	if (!mdio)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -387,7 +387,7 @@ struct phylink_pcs *lynx_pcs_create_fwnode(struct fwnode_handle *node)
 
 	return pcs;
 }
-EXPORT_SYMBOL_GPL(lynx_pcs_create_fwnode);
+EXPORT_SYMBOL_GPL(lynx_pcs_create_fwanalde);
 
 void lynx_pcs_destroy(struct phylink_pcs *pcs)
 {

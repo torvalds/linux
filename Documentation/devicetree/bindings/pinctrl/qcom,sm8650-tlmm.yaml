@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/qcom,sm8650-tlmm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. SM8650 TLMM block
+title: Qualcomm Techanallogies, Inc. SM8650 TLMM block
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
@@ -45,8 +45,8 @@ $defs:
   qcom-sm8650-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -54,7 +54,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           oneOf:
             - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-9][0-9]|20[0-9])$"
@@ -72,7 +72,7 @@ $defs:
                 cmu_rng, coex_uart1_rx, coex_uart1_tx, coex_uart2_rx,
                 coex_uart2_tx, cri_trng, dbg_out_clk, ddr_bist_complete,
                 ddr_bist_fail, ddr_bist_start, ddr_bist_stop, ddr_pxi0,
-                ddr_pxi1, ddr_pxi2, ddr_pxi3, do_not, dp_hot, gcc_gp1,
+                ddr_pxi1, ddr_pxi2, ddr_pxi3, do_analt, dp_hot, gcc_gp1,
                 gcc_gp2, gcc_gp3, gnss_adc0, gnss_adc1, i2chub0_se0,
                 i2chub0_se1, i2chub0_se2, i2chub0_se3, i2chub0_se4,
                 i2chub0_se5, i2chub0_se6, i2chub0_se7, i2chub0_se8,

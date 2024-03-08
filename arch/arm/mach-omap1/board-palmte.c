@@ -56,7 +56,7 @@ static const unsigned int palmte_keymap[] = {
 	KEY(0, 0, KEY_F1),		/* Calendar */
 	KEY(1, 0, KEY_F2),		/* Contacts */
 	KEY(2, 0, KEY_F3),		/* Tasks List */
-	KEY(3, 0, KEY_F4),		/* Note Pad */
+	KEY(3, 0, KEY_F4),		/* Analte Pad */
 	KEY(4, 0, KEY_POWER),
 	KEY(0, 1, KEY_LEFT),
 	KEY(1, 1, KEY_DOWN),

@@ -72,12 +72,12 @@ static int led_bl_get_leds(struct device *dev,
 			   struct led_bl_data *priv)
 {
 	int i, nb_leds, ret;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct led_classdev **leds;
 	unsigned int max_brightness;
 	unsigned int default_brightness;
 
-	ret = of_count_phandle_with_args(node, "leds", NULL);
+	ret = of_count_phandle_with_args(analde, "leds", NULL);
 	if (ret < 0) {
 		dev_err(dev, "Unable to get led count\n");
 		return -EINVAL;
@@ -92,7 +92,7 @@ static int led_bl_get_leds(struct device *dev,
 	leds = devm_kzalloc(dev, sizeof(struct led_classdev *) * nb_leds,
 			    GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nb_leds; i++) {
 		leds[i] = devm_of_led_get(dev, i);
@@ -123,15 +123,15 @@ static int led_bl_get_leds(struct device *dev,
 static int led_bl_parse_levels(struct device *dev,
 			   struct led_bl_data *priv)
 {
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	int num_levels;
 	u32 value;
 	int ret;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
-	num_levels = of_property_count_u32_elems(node, "brightness-levels");
+	num_levels = of_property_count_u32_elems(analde, "brightness-levels");
 	if (num_levels > 1) {
 		int i;
 		unsigned int db;
@@ -140,9 +140,9 @@ static int led_bl_parse_levels(struct device *dev,
 		levels = devm_kzalloc(dev, sizeof(u32) * num_levels,
 				      GFP_KERNEL);
 		if (!levels)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		ret = of_property_read_u32_array(node, "brightness-levels",
+		ret = of_property_read_u32_array(analde, "brightness-levels",
 						levels,
 						num_levels);
 		if (ret < 0)
@@ -161,13 +161,13 @@ static int led_bl_parse_levels(struct device *dev,
 		priv->max_brightness = num_levels - 1;
 		priv->levels = levels;
 	} else if (num_levels >= 0)
-		dev_warn(dev, "Not enough levels defined\n");
+		dev_warn(dev, "Analt eanalugh levels defined\n");
 
-	ret = of_property_read_u32(node, "default-brightness-level", &value);
+	ret = of_property_read_u32(analde, "default-brightness-level", &value);
 	if (!ret && value <= priv->max_brightness)
 		priv->default_brightness = value;
 	else if (!ret  && value > priv->max_brightness)
-		dev_warn(dev, "Invalid default brightness. Ignoring it\n");
+		dev_warn(dev, "Invalid default brightness. Iganalring it\n");
 
 	return 0;
 }
@@ -180,7 +180,7 @@ static int led_bl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 

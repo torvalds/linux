@@ -109,16 +109,16 @@ static const struct regmap_range aio_ctl_volatile_ranges[] = {
 	regmap_reg_range(0x8, 0x8),
 };
 static const struct regmap_access_table aio_ctl_wr_table = {
-	.yes_ranges = aio_ctl_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(aio_ctl_wr_ranges),
+	.anal_ranges = aio_ctl_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(aio_ctl_wr_ranges),
 };
 static const struct regmap_access_table aio_ctl_rd_table = {
-	.yes_ranges = aio_ctl_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(aio_ctl_rd_ranges),
+	.anal_ranges = aio_ctl_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(aio_ctl_rd_ranges),
 };
 static const struct regmap_access_table aio_ctl_volatile_table = {
-	.yes_ranges = aio_ctl_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(aio_ctl_volatile_ranges),
+	.anal_ranges = aio_ctl_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(aio_ctl_volatile_ranges),
 };
 
 static const struct regmap_config aio_ctl_regmap_config = {
@@ -141,12 +141,12 @@ static const struct regmap_range aio_data_rd_ranges[] = {
 	regmap_reg_range(0x0, 0x0),
 };
 static const struct regmap_access_table aio_data_wr_table = {
-	.yes_ranges = aio_data_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(aio_data_wr_ranges),
+	.anal_ranges = aio_data_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(aio_data_wr_ranges),
 };
 static const struct regmap_access_table aio_data_rd_table = {
-	.yes_ranges = aio_data_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(aio_data_rd_ranges),
+	.anal_ranges = aio_data_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(aio_data_rd_ranges),
 };
 
 static const struct regmap_config aio_data_regmap_config = {
@@ -178,12 +178,12 @@ static const struct regmap_range pit_rd_ranges[] = {
 	regmap_reg_range(0x0, 0x2),
 };
 static const struct regmap_access_table pit_wr_table = {
-	.yes_ranges = pit_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(pit_wr_ranges),
+	.anal_ranges = pit_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(pit_wr_ranges),
 };
 static const struct regmap_access_table pit_rd_table = {
-	.yes_ranges = pit_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(pit_rd_ranges),
+	.anal_ranges = pit_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(pit_rd_ranges),
 };
 
 static const struct regmap_config pit_regmap_config = {
@@ -237,9 +237,9 @@ static int stx104_read_raw(struct iio_dev *indio_dev,
 		/*
 		 * Trigger ADC sample capture by writing to the 8-bit Software Strobe Register and
 		 * wait for completion; the conversion time range is 5 microseconds to 53.68 seconds
-		 * in steps of 25 nanoseconds. The actual Analog Input Frame Timer time interval is
+		 * in steps of 25 naanalseconds. The actual Analog Input Frame Timer time interval is
 		 * calculated as:
-		 * ai_time_frame_ns = ( AIFT + 1 ) * ( 25 nanoseconds ).
+		 * ai_time_frame_ns = ( AIFT + 1 ) * ( 25 naanalseconds ).
 		 * Where 0 <= AIFT <= 2147483648.
 		 */
 		err = regmap_write(priv->aio_ctl_map, STX104_SOFTWARE_STROBE, 0);
@@ -423,7 +423,7 @@ static int stx104_probe(struct device *dev, unsigned int id)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!devm_request_region(dev, base[id], STX104_EXTENT,
 		dev_name(dev))) {
@@ -434,7 +434,7 @@ static int stx104_probe(struct device *dev, unsigned int id)
 
 	stx104_base = devm_ioport_map(dev, base[id], STX104_EXTENT);
 	if (!stx104_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aio_ctl_map = devm_regmap_init_mmio(dev, stx104_base, &aio_ctl_regmap_config);
 	if (IS_ERR(aio_ctl_map))

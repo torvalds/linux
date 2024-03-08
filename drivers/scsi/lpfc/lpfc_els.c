@@ -14,7 +14,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -53,7 +53,7 @@ static void lpfc_cmpl_fabric_iocb(struct lpfc_hba *, struct lpfc_iocbq *,
 			struct lpfc_iocbq *);
 static void lpfc_fabric_abort_vport(struct lpfc_vport *vport);
 static int lpfc_issue_els_fdisc(struct lpfc_vport *vport,
-				struct lpfc_nodelist *ndlp, uint8_t retry);
+				struct lpfc_analdelist *ndlp, uint8_t retry);
 static int lpfc_issue_fabric_iocb(struct lpfc_hba *phba,
 				  struct lpfc_iocbq *iocb);
 static void lpfc_cmpl_els_edc(struct lpfc_hba *phba,
@@ -77,17 +77,17 @@ static void lpfc_vmid_put_cs_ctl(struct lpfc_vport *vport, u32 ctcl_vmid);
  * by reading the HBA's Host Attention (HA) register. If there is any host
  * link attention events during this @vport's discovery process, the @vport
  * shall be marked as FC_ABORT_DISCOVERY, a host link attention clear shall
- * be issued if the link state is not already in host link cleared state,
+ * be issued if the link state is analt already in host link cleared state,
  * and a return code shall indicate whether the host link attention event
  * had happened.
  *
- * Note that, if either the host link is in state LPFC_LINK_DOWN or @vport
+ * Analte that, if either the host link is in state LPFC_LINK_DOWN or @vport
  * state in LPFC_VPORT_READY, the request for checking host link attention
- * event will be ignored and a return code shall indicate no host link
+ * event will be iganalred and a return code shall indicate anal host link
  * attention event had happened.
  *
  * Return codes
- *   0 - no host link attention event happened
+ *   0 - anal host link attention event happened
  *   1 - host link attention event happened
  **/
 int
@@ -146,7 +146,7 @@ static bool lpfc_is_els_acc_rsp(struct lpfc_dmabuf *buf)
  * @expect_rsp: flag indicating whether response is expected.
  * @cmd_size: size of the ELS command.
  * @retry: number of retries to the command when it fails.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @did: destination identifier.
  * @elscmd: the ELS command code.
  *
@@ -171,7 +171,7 @@ static bool lpfc_is_els_acc_rsp(struct lpfc_dmabuf *buf)
 struct lpfc_iocbq *
 lpfc_prep_els_iocb(struct lpfc_vport *vport, u8 expect_rsp,
 		   u16 cmd_size, u8 retry,
-		   struct lpfc_nodelist *ndlp, u32 did,
+		   struct lpfc_analdelist *ndlp, u32 did,
 		   u32 elscmd)
 {
 	struct lpfc_hba  *phba = vport->phba;
@@ -338,7 +338,7 @@ els_iocb_free_pcmb_exit:
  * @vport: pointer to a host virtual N_Port data structure.
  *
  * This routine issues a fabric registration login for a @vport. An
- * active ndlp node with Fabric_DID must already exist for this @vport.
+ * active ndlp analde with Fabric_DID must already exist for this @vport.
  * The routine invokes two mailbox commands to carry out fabric registration
  * login through the HBA firmware: the first mailbox command requests the
  * HBA to perform link configuration for the @vport; and the second mailbox
@@ -354,13 +354,13 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	LPFC_MBOXQ_t *mbox;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct serv_parm *sp;
 	int rc;
 	int err = 0;
 
 	sp = &phba->fc_fabparam;
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	ndlp = lpfc_findanalde_did(vport, Fabric_DID);
 	if (!ndlp) {
 		err = 1;
 		goto fail;
@@ -377,8 +377,8 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	mbox->vport = vport;
 
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT);
+	if (rc == MBX_ANALT_FINISHED) {
 		err = 3;
 		goto fail_free_mbox;
 	}
@@ -406,8 +406,8 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 		goto fail_free_mbox;
 	}
 
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT);
+	if (rc == MBX_ANALT_FINISHED) {
 		err = 7;
 		goto fail_issue_reg_login;
 	}
@@ -424,7 +424,7 @@ fail_free_mbox:
 fail:
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-			 "0249 Cannot issue Register Fabric login: Err %d\n",
+			 "0249 Cananalt issue Register Fabric login: Err %d\n",
 			 err);
 	return -ENXIO;
 }
@@ -445,7 +445,7 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	LPFC_MBOXQ_t *mboxq = NULL;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct lpfc_dmabuf *dmabuf = NULL;
 	int rc = 0;
 
@@ -453,16 +453,16 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
 	    !(phba->link_flag & LS_LOOPBACK_MODE) &&
 	    !(vport->fc_flag & FC_PT2PT)) {
-		ndlp = lpfc_findnode_did(vport, Fabric_DID);
+		ndlp = lpfc_findanalde_did(vport, Fabric_DID);
 		if (!ndlp) {
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto fail;
 		}
 	}
 
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 
@@ -470,7 +470,7 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 	if ((vport->fc_flag & FC_FABRIC) || (vport->fc_flag & FC_PT2PT)) {
 		rc = lpfc_mbox_rsrc_prep(phba, mboxq);
 		if (rc) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto fail_mbox;
 		}
 		dmabuf = mboxq->ctx_buf;
@@ -489,8 +489,8 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_reg_vfi;
 	mboxq->vport = vport;
-	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_ANALWAIT);
+	if (rc == MBX_ANALT_FINISHED) {
 		rc = -ENXIO;
 		goto fail_mbox;
 	}
@@ -529,15 +529,15 @@ lpfc_issue_unreg_vfi(struct lpfc_vport *vport)
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2556 UNREG_VFI mbox allocation failed"
 				"HBA state x%x\n", phba->pport->port_state);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	lpfc_unreg_vfi(mboxq, vport);
 	mboxq->vport = vport;
 	mboxq->mbox_cmpl = lpfc_unregister_vfi_cmpl;
 
-	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_ANALWAIT);
+	if (rc == MBX_ANALT_FINISHED) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2557 UNREG_VFI issue mbox failed rc x%x "
 				"HBA state x%x\n",
@@ -560,15 +560,15 @@ lpfc_issue_unreg_vfi(struct lpfc_vport *vport)
  *
  * This routine is called from FLOGI/FDISC completion handler functions.
  * lpfc_check_clean_addr_bit return 1 when FCID/Fabric portname/ Fabric
- * node nodename is changed in the completion service parameter else return
+ * analde analdename is changed in the completion service parameter else return
  * 0. This function also set flag in the vport data structure to delay
  * NP_Port discovery after the FLOGI/FDISC completion if Clean address bit
  * in FLOGI/FDISC response is cleared and FCID/Fabric portname/ Fabric
- * node nodename is changed in the completion service parameter.
+ * analde analdename is changed in the completion service parameter.
  *
  * Return code
- *   0 - FCID and Fabric Nodename and Fabric portname is not changed.
- *   1 - FCID or Fabric Nodename or Fabric portname is changed.
+ *   0 - FCID and Fabric Analdename and Fabric portname is analt changed.
+ *   1 - FCID or Fabric Analdename or Fabric portname is changed.
  *
  **/
 static uint8_t
@@ -582,7 +582,7 @@ lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
 	if ((vport->fc_prevDID != vport->fc_myDID) ||
 		memcmp(&vport->fabric_portname, &sp->portName,
 			sizeof(struct lpfc_name)) ||
-		memcmp(&vport->fabric_nodename, &sp->nodeName,
+		memcmp(&vport->fabric_analdename, &sp->analdeName,
 			sizeof(struct lpfc_name)) ||
 		(vport->vport_flag & FAWWPN_PARAM_CHG)) {
 		fabric_param_changed = 1;
@@ -595,7 +595,7 @@ lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
 	 *
 	 * If fabric parameter is changed and clean address bit is
 	 * cleared delay nport discovery if
-	 * - vport->fc_prevDID != 0 (not initial discovery) OR
+	 * - vport->fc_prevDID != 0 (analt initial discovery) OR
 	 * - lpfc_delay_discovery module parameter is set.
 	 */
 	if (fabric_param_changed && !sp->cmn.clean_address_bit &&
@@ -612,7 +612,7 @@ lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
 /**
  * lpfc_cmpl_els_flogi_fabric - Completion function for flogi to a fabric port
  * @vport: pointer to a host virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @sp: pointer to service parameter data structure.
  * @ulp_word4: command response value
  *
@@ -622,7 +622,7 @@ lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
  * from the IOCB response. It also check the newly assigned N_Port ID to the
  * @vport against the previously assigned N_Port ID. If it is different from
  * the previously assigned Destination ID (DID), the lpfc_unreg_rpi() routine
- * is invoked on all the remaining nodes with the @vport to unregister the
+ * is invoked on all the remaining analdes with the @vport to unregister the
  * Remote Port Indicators (RPIs). Finally, the lpfc_issue_fabric_reglogin()
  * is invoked to register login to the fabric.
  *
@@ -630,13 +630,13 @@ lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
  *   0 - Success (currently, always return 0)
  **/
 static int
-lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
 			   struct serv_parm *sp, uint32_t ulp_word4)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
-	struct lpfc_nodelist *np;
-	struct lpfc_nodelist *next_np;
+	struct lpfc_analdelist *np;
+	struct lpfc_analdelist *next_np;
 	uint8_t fabric_param_changed;
 
 	spin_lock_irq(shost->host_lock);
@@ -644,7 +644,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	spin_unlock_irq(shost->host_lock);
 
 	phba->fc_edtov = be32_to_cpu(sp->cmn.e_d_tov);
-	if (sp->cmn.edtovResolution)	/* E_D_TOV ticks are in nanoseconds */
+	if (sp->cmn.edtovResolution)	/* E_D_TOV ticks are in naanalseconds */
 		phba->fc_edtov = (phba->fc_edtov + 999999) / 1000000;
 
 	phba->fc_edtovResol = sp->cmn.edtovResolution;
@@ -658,7 +658,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	vport->fc_myDID = ulp_word4 & Mask_DID;
 	memcpy(&ndlp->nlp_portname, &sp->portName, sizeof(struct lpfc_name));
-	memcpy(&ndlp->nlp_nodename, &sp->nodeName, sizeof(struct lpfc_name));
+	memcpy(&ndlp->nlp_analdename, &sp->analdeName, sizeof(struct lpfc_name));
 	ndlp->nlp_class_sup = 0;
 	if (sp->cls1.classValid)
 		ndlp->nlp_class_sup |= FC_COS_CLASS1;
@@ -690,7 +690,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	}
 	memcpy(&vport->fabric_portname, &sp->portName,
 			sizeof(struct lpfc_name));
-	memcpy(&vport->fabric_nodename, &sp->nodeName,
+	memcpy(&vport->fabric_analdename, &sp->analdeName,
 			sizeof(struct lpfc_name));
 	memcpy(&phba->fc_fabparam, sp, sizeof(struct serv_parm));
 
@@ -709,7 +709,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			to call reg_vnpid at least for the physical host */
 			lpfc_printf_vlog(vport, KERN_WARNING,
 					 LOG_ELS | LOG_VPORT,
-					 "1817 Fabric does not support NPIV "
+					 "1817 Fabric does analt support NPIV "
 					 "- configuring single port mode.\n");
 			spin_lock_irq(&phba->hbalock);
 			phba->link_flag &= ~LS_NPIV_FAB_SUPPORTED;
@@ -739,8 +739,8 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 * remaining NPORTs get unreg_login'ed.
 		 */
 		list_for_each_entry_safe(np, next_np,
-					&vport->fc_nodes, nlp_listp) {
-			if ((np->nlp_state != NLP_STE_NPR_NODE) ||
+					&vport->fc_analdes, nlp_listp) {
+			if ((np->nlp_state != NLP_STE_NPR_ANALDE) ||
 				   !(np->nlp_flag & NLP_NPR_ADISC))
 				continue;
 			spin_lock_irq(&np->lock);
@@ -771,7 +771,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 * Driver needs to re-reg VPI in order for f/w
 			 * to update the MAC address.
 			 */
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_ANALDE);
 			lpfc_register_new_vport(phba, vport, ndlp);
 			return 0;
 	}
@@ -785,7 +785,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_issue_fabric_reglogin(vport);
 	} else {
 		ndlp->nlp_type |= NLP_FABRIC;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_ANALDE);
 		if ((!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) &&
 			(vport->vpi_state & LPFC_VPI_REGISTERED)) {
 			lpfc_start_fdiscs(phba);
@@ -805,17 +805,17 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 /**
  * lpfc_cmpl_els_flogi_nport - Completion function for flogi to an N_Port
  * @vport: pointer to a host virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @sp: pointer to service parameter data structure.
  *
  * This routine is invoked by the lpfc_cmpl_els_flogi() completion callback
  * function to handle the completion of a Fabric Login (FLOGI) into an N_Port
  * in a point-to-point topology. First, the @vport's N_Port Name is compared
  * with the received N_Port Name: if the @vport's N_Port Name is greater than
- * the received N_Port Name lexicographically, this node shall assign local
+ * the received N_Port Name lexicographically, this analde shall assign local
  * N_Port ID (PT2PT_LocalID: 1) and remote N_Port ID (PT2PT_RemoteID: 2) and
  * will send out Port Login (PLOGI) with the N_Port IDs assigned. Otherwise,
- * this node shall just wait for the remote node to issue PLOGI and assign
+ * this analde shall just wait for the remote analde to issue PLOGI and assign
  * N_Port IDs.
  *
  * Return code
@@ -823,7 +823,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
  *   -ENXIO - Fail
  **/
 static int
-lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
 			  struct serv_parm *sp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
@@ -836,7 +836,7 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	vport->fc_flag |= FC_PT2PT;
 	spin_unlock_irq(shost->host_lock);
 
-	/* If we are pt2pt with another NPort, force NPIV off! */
+	/* If we are pt2pt with aanalther NPort, force NPIV off! */
 	phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
 
 	/* If physical FC port changed, unreg VFI and ALL VPIs / RPIs */
@@ -859,25 +859,25 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		spin_unlock_irq(shost->host_lock);
 
 		/*
-		 * N_Port ID cannot be 0, set our Id to LocalID
+		 * N_Port ID cananalt be 0, set our Id to LocalID
 		 * the other side will be RemoteID.
 		 */
 
-		/* not equal */
+		/* analt equal */
 		if (rc)
 			vport->fc_myDID = PT2PT_LocalID;
 
-		/* If not registered with a transport, decrement ndlp reference
+		/* If analt registered with a transport, decrement ndlp reference
 		 * count indicating that ndlp can be safely released when other
 		 * references are removed.
 		 */
 		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD)))
 			lpfc_nlp_put(ndlp);
 
-		ndlp = lpfc_findnode_did(vport, PT2PT_RemoteID);
+		ndlp = lpfc_findanalde_did(vport, PT2PT_RemoteID);
 		if (!ndlp) {
 			/*
-			 * Cannot find existing Fabric ndlp, so allocate a
+			 * Cananalt find existing Fabric ndlp, so allocate a
 			 * new one
 			 */
 			ndlp = lpfc_nlp_init(vport, PT2PT_RemoteID);
@@ -887,10 +887,10 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 		memcpy(&ndlp->nlp_portname, &sp->portName,
 		       sizeof(struct lpfc_name));
-		memcpy(&ndlp->nlp_nodename, &sp->nodeName,
+		memcpy(&ndlp->nlp_analdename, &sp->analdeName,
 		       sizeof(struct lpfc_name));
-		/* Set state will put ndlp onto node list if not already done */
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+		/* Set state will put ndlp onto analde list if analt already done */
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_ANALDE);
 		spin_lock_irq(&ndlp->lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(&ndlp->lock);
@@ -903,14 +903,14 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 		mbox->mbox_cmpl = lpfc_mbx_cmpl_local_config_link;
 		mbox->vport = vport;
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-		if (rc == MBX_NOT_FINISHED) {
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT);
+		if (rc == MBX_ANALT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
 			goto fail;
 		}
 	} else {
-		/* This side will wait for the PLOGI. If not registered with
-		 * a transport, decrement node reference count indicating that
+		/* This side will wait for the PLOGI. If analt registered with
+		 * a transport, decrement analde reference count indicating that
 		 * ndlp can be released when other references are removed.
 		 */
 		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD)))
@@ -939,8 +939,8 @@ fail:
  * If the retry attempt has been given up (possibly reach the maximum
  * number of retries), one additional decrement of ndlp reference shall be
  * invoked before going out after releasing the command IOCB. This will
- * actually release the remote node (Note, lpfc_els_free_iocb() will also
- * invoke one decrement of ndlp reference count). If no error reported in
+ * actually release the remote analde (Analte, lpfc_els_free_iocb() will also
+ * invoke one decrement of ndlp reference count). If anal error reported in
  * the IOCB status, the command Port ID field is used to determine whether
  * this is a point-to-point topology or a fabric topology: if the Port ID
  * field is assigned, it is a fabric topology; otherwise, it is a
@@ -954,7 +954,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
 	IOCB_t *irsp;
 	struct lpfc_dmabuf *pcmd = cmdiocb->cmd_dmabuf, *prsp;
 	struct serv_parm *sp;
@@ -965,8 +965,8 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Check to see if link went down during discovery */
 	if (lpfc_els_chk_latt(vport)) {
-		/* One additional decrement on node reference count to
-		 * trigger the release of the node
+		/* One additional decrement on analde reference count to
+		 * trigger the release of the analde
 		 */
 		if (!(ndlp->fc4_xpt_flags & SCSI_XPT_REGD))
 			lpfc_nlp_put(ndlp);
@@ -1034,17 +1034,17 @@ stop_rr_fcf_flogi:
 		/* Check for retry */
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb)) {
 			/* Address a timing race with dev_loss.  If dev_loss
-			 * is active on this FPort node, put the initial ref
-			 * count back to stop premature node release actions.
+			 * is active on this FPort analde, put the initial ref
+			 * count back to stop premature analde release actions.
 			 */
 			lpfc_check_nlp_post_devloss(vport, ndlp);
 			flogi_in_retry = true;
 			goto out;
 		}
 
-		/* The FLOGI will not be retried.  If the FPort node is not
+		/* The FLOGI will analt be retried.  If the FPort analde is analt
 		 * registered with the SCSI transport, remove the initial
-		 * reference to trigger node release.
+		 * reference to trigger analde release.
 		 */
 		if (!(ndlp->nlp_flag & NLP_IN_DEV_LOSS) &&
 		    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD))
@@ -1056,7 +1056,7 @@ stop_rr_fcf_flogi:
 				 ulp_status, ulp_word4, cmdiocb->sli4_xritag,
 				 tmo, kref_read(&ndlp->kref));
 
-		/* If this is not a loop open failure, bail out */
+		/* If this is analt a loop open failure, bail out */
 		if (!(ulp_status == IOSTAT_LOCAL_REJECT &&
 		      ((ulp_word4 & IOERR_PARAM_MASK) ==
 					IOERR_LOOP_OPEN_FAILURE))) {
@@ -1068,14 +1068,14 @@ stop_rr_fcf_flogi:
 			goto flogifail;
 		}
 
-		/* FLOGI failed, so there is no fabric */
+		/* FLOGI failed, so there is anal fabric */
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~(FC_FABRIC | FC_PUBLIC_LOOP |
-				    FC_PT2PT_NO_NVME);
+				    FC_PT2PT_ANAL_NVME);
 		spin_unlock_irq(shost->host_lock);
 
 		/* If private loop, then allow max outstanding els to be
-		 * LPFC_MAX_DISC_THREADS (32). Scanning in the case of no
+		 * LPFC_MAX_DISC_THREADS (32). Scanning in the case of anal
 		 * alpa map would take too long otherwise.
 		 */
 		if (phba->alpa_map[0] == 0)
@@ -1096,7 +1096,7 @@ stop_rr_fcf_flogi:
 				}
 			}
 
-			/* Do not register VFI if the driver aborted FLOGI */
+			/* Do analt register VFI if the driver aborted FLOGI */
 			if (!lpfc_error_lost_link(vport, ulp_status, ulp_word4))
 				lpfc_issue_reg_vfi(vport);
 
@@ -1139,8 +1139,8 @@ stop_rr_fcf_flogi:
 
 	/*
 	 * Address a timing race with dev_loss.  If dev_loss is active on
-	 * this FPort node, put the initial ref count back to stop premature
-	 * node release actions.
+	 * this FPort analde, put the initial ref count back to stop premature
+	 * analde release actions.
 	 */
 	lpfc_check_nlp_post_devloss(vport, ndlp);
 	if (vport->port_state == LPFC_FLOGI) {
@@ -1205,7 +1205,7 @@ stop_rr_fcf_flogi:
 		   vport->fc_flag & FC_PT2PT) {
 		/*
 		 * In a p2p topology, it is possible that discovery has
-		 * already progressed, and this completion can be ignored.
+		 * already progressed, and this completion can be iganalred.
 		 * Recheck the indicated topology.
 		 */
 		if (!sp->cmn.fPort)
@@ -1278,7 +1278,7 @@ lpfc_cmpl_els_link_down(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 /**
  * lpfc_issue_els_flogi - Issue an flogi iocb command for a vport
  * @vport: pointer to a host virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @retry: number of retries to the command IOCB.
  *
  * This routine issues a Fabric Login (FLOGI) Request ELS command
@@ -1288,7 +1288,7 @@ lpfc_cmpl_els_link_down(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  * function field. The lpfc_issue_fabric_iocb routine is invoked to send
  * out FLOGI ELS command with one outstanding fabric IOCB at a time.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the FLOGI ELS command.
  *
@@ -1297,7 +1297,7 @@ lpfc_cmpl_els_link_down(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  *   1 - failed to issue flogi iocb for @vport
  **/
 static int
-lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
 		     uint8_t retry)
 {
 	struct lpfc_hba  *phba = vport->phba;
@@ -1420,7 +1420,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* Check for a deferred FLOGI ACC condition */
 	if (phba->defer_flogi_acc_flag) {
 		/* lookup ndlp for received FLOGI */
-		ndlp = lpfc_findnode_did(vport, 0);
+		ndlp = lpfc_findanalde_did(vport, 0);
 		if (!ndlp)
 			return 0;
 
@@ -1456,7 +1456,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		phba->defer_flogi_acc_flag = false;
 		vport->fc_myDID = did;
 
-		/* Decrement ndlp reference count to indicate the node can be
+		/* Decrement ndlp reference count to indicate the analde can be
 		 * released when other references are removed.
 		 */
 		lpfc_nlp_put(ndlp);
@@ -1472,9 +1472,9 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
  * This routine aborts all the outstanding Fabric Login (FLOGI) IOCBs
  * with a @phba. This routine walks all the outstanding IOCBs on the txcmplq
  * list and issues an abort IOCB commond on each outstanding IOCB that
- * contains a active Fabric_DID ndlp. Note that this function is to issue
+ * contains a active Fabric_DID ndlp. Analte that this function is to issue
  * the abort IOCB command on all the outstanding IOCBs, thus when this
- * function returns, it does not guarantee all the IOCBs are actually aborted.
+ * function returns, it does analt guarantee all the IOCBs are actually aborted.
  *
  * Return code
  *   0 - Successfully issued abort iocb on all outstanding flogis (Always 0)
@@ -1484,7 +1484,7 @@ lpfc_els_abort_flogi(struct lpfc_hba *phba)
 {
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *iocb, *next_iocb;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	u32 ulp_command;
 
 	/* Abort outstanding I/O on NPort <nlp_DID> */
@@ -1509,7 +1509,7 @@ lpfc_els_abort_flogi(struct lpfc_hba *phba)
 				if ((phba->pport->fc_flag & FC_PT2PT) &&
 				    !(phba->pport->fc_flag & FC_PT2PT_PLOGI))
 					iocb->fabric_cmd_cmpl =
-						lpfc_ignore_els_cmpl;
+						lpfc_iganalre_els_cmpl;
 				lpfc_sli_issue_abort_iotag(phba, pring, iocb,
 							   NULL);
 			}
@@ -1529,7 +1529,7 @@ lpfc_els_abort_flogi(struct lpfc_hba *phba)
  *
  * This routine issues an initial Fabric Login (FLOGI) for the @vport
  * specified. It first searches the ndlp with the Fabric_DID (0xfffffe) from
- * the @vport's ndlp list. If no such ndlp found, it will create an ndlp and
+ * the @vport's ndlp list. If anal such ndlp found, it will create an ndlp and
  * put it into the @vport's ndlp list. If an inactive ndlp found on the list,
  * it will just be enabled and made active. The lpfc_issue_els_flogi() routine
  * is then invoked with the @vport and the ndlp to perform the FLOGI for the
@@ -1542,31 +1542,31 @@ lpfc_els_abort_flogi(struct lpfc_hba *phba)
 int
 lpfc_initial_flogi(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 
 	vport->port_state = LPFC_FLOGI;
 	lpfc_set_disctmo(vport);
 
 	/* First look for the Fabric ndlp */
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	ndlp = lpfc_findanalde_did(vport, Fabric_DID);
 	if (!ndlp) {
-		/* Cannot find existing Fabric ndlp, so allocate a new one */
+		/* Cananalt find existing Fabric ndlp, so allocate a new one */
 		ndlp = lpfc_nlp_init(vport, Fabric_DID);
 		if (!ndlp)
 			return 0;
-		/* Set the node type */
+		/* Set the analde type */
 		ndlp->nlp_type |= NLP_FABRIC;
 
-		/* Put ndlp onto node list */
-		lpfc_enqueue_node(vport, ndlp);
+		/* Put ndlp onto analde list */
+		lpfc_enqueue_analde(vport, ndlp);
 	}
 
 	/* Reset the Fabric flag, topology change may have happened */
 	vport->fc_flag &= ~FC_FABRIC;
 	if (lpfc_issue_els_flogi(vport, ndlp, 0)) {
-		/* A node reference should be retained while registered with a
+		/* A analde reference should be retained while registered with a
 		 * transport or dev-loss-evt work is pending.
-		 * Otherwise, decrement node reference to trigger release.
+		 * Otherwise, decrement analde reference to trigger release.
 		 */
 		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD)) &&
 		    !(ndlp->nlp_flag & NLP_IN_DEV_LOSS))
@@ -1582,7 +1582,7 @@ lpfc_initial_flogi(struct lpfc_vport *vport)
  *
  * This routine issues an initial Fabric Discover (FDISC) for the @vport
  * specified. It first searches the ndlp with the Fabric_DID (0xfffffe) from
- * the @vport's ndlp list. If no such ndlp found, it will create an ndlp and
+ * the @vport's ndlp list. If anal such ndlp found, it will create an ndlp and
  * put it into the @vport's ndlp list. If an inactive ndlp found on the list,
  * it will just be enabled and made active. The lpfc_issue_els_fdisc() routine
  * is then invoked with the @vport and the ndlp to perform the FDISC for the
@@ -1595,12 +1595,12 @@ lpfc_initial_flogi(struct lpfc_vport *vport)
 int
 lpfc_initial_fdisc(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 
 	/* First look for the Fabric ndlp */
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	ndlp = lpfc_findanalde_did(vport, Fabric_DID);
 	if (!ndlp) {
-		/* Cannot find existing Fabric ndlp, so allocate a new one */
+		/* Cananalt find existing Fabric ndlp, so allocate a new one */
 		ndlp = lpfc_nlp_init(vport, Fabric_DID);
 		if (!ndlp)
 			return 0;
@@ -1608,14 +1608,14 @@ lpfc_initial_fdisc(struct lpfc_vport *vport)
 		/* NPIV is only supported in Fabrics. */
 		ndlp->nlp_type |= NLP_FABRIC;
 
-		/* Put ndlp onto node list */
-		lpfc_enqueue_node(vport, ndlp);
+		/* Put ndlp onto analde list */
+		lpfc_enqueue_analde(vport, ndlp);
 	}
 
 	if (lpfc_issue_els_fdisc(vport, ndlp, 0)) {
-		/* A node reference should be retained while registered with a
+		/* A analde reference should be retained while registered with a
 		 * transport or dev-loss-evt work is pending.
-		 * Otherwise, decrement node reference to trigger release.
+		 * Otherwise, decrement analde reference to trigger release.
 		 */
 		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD)) &&
 		    !(ndlp->nlp_flag & NLP_IN_DEV_LOSS))
@@ -1631,26 +1631,26 @@ lpfc_initial_fdisc(struct lpfc_vport *vport)
  *
  * This routine checks whether there are more remaining Port Logins
  * (PLOGI) to be issued for the @vport. If so, it will invoke the routine
- * lpfc_els_disc_plogi() to go through the Node Port Recovery (NPR) nodes
+ * lpfc_els_disc_plogi() to go through the Analde Port Recovery (NPR) analdes
  * to issue ELS PLOGIs up to the configured discover threads with the
  * @vport (@vport->cfg_discovery_threads). The function also decrement
- * the @vport's num_disc_node by 1 if it is not already 0.
+ * the @vport's num_disc_analde by 1 if it is analt already 0.
  **/
 void
 lpfc_more_plogi(struct lpfc_vport *vport)
 {
-	if (vport->num_disc_nodes)
-		vport->num_disc_nodes--;
+	if (vport->num_disc_analdes)
+		vport->num_disc_analdes--;
 
-	/* Continue discovery with <num_disc_nodes> PLOGIs to go */
+	/* Continue discovery with <num_disc_analdes> PLOGIs to go */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0232 Continue discovery with %d PLOGIs to go "
 			 "Data: x%x x%x x%x\n",
-			 vport->num_disc_nodes, vport->fc_plogi_cnt,
+			 vport->num_disc_analdes, vport->fc_plogi_cnt,
 			 vport->fc_flag, vport->port_state);
 	/* Check to see if there are more PLOGIs to be sent */
 	if (vport->fc_flag & FC_NLP_MORE)
-		/* go thru NPR nodes and issue any remaining ELS PLOGIs */
+		/* go thru NPR analdes and issue any remaining ELS PLOGIs */
 		lpfc_els_disc_plogi(vport);
 
 	return;
@@ -1660,39 +1660,39 @@ lpfc_more_plogi(struct lpfc_vport *vport)
  * lpfc_plogi_confirm_nport - Confirm plogi wwpn matches stored ndlp
  * @phba: pointer to lpfc hba data structure.
  * @prsp: pointer to response IOCB payload.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine checks and indicates whether the WWPN of an N_Port, retrieved
  * from a PLOGI, matches the WWPN that is stored in the @ndlp for that N_POrt.
  * The following cases are considered N_Port confirmed:
  * 1) The N_Port is a Fabric ndlp; 2) The @ndlp is on vport list and matches
- * the WWPN of the N_Port logged into; 3) The @ndlp is not on vport list but
- * it does not have WWPN assigned either. If the WWPN is confirmed, the
- * pointer to the @ndlp will be returned. If the WWPN is not confirmed:
- * 1) if there is a node on vport list other than the @ndlp with the same
+ * the WWPN of the N_Port logged into; 3) The @ndlp is analt on vport list but
+ * it does analt have WWPN assigned either. If the WWPN is confirmed, the
+ * pointer to the @ndlp will be returned. If the WWPN is analt confirmed:
+ * 1) if there is a analde on vport list other than the @ndlp with the same
  * WWPN of the N_Port PLOGI logged into, the lpfc_unreg_rpi() will be invoked
- * on that node to release the RPI associated with the node; 2) if there is
- * no node found on vport list with the same WWPN of the N_Port PLOGI logged
- * into, a new node shall be allocated (or activated). In either case, the
+ * on that analde to release the RPI associated with the analde; 2) if there is
+ * anal analde found on vport list with the same WWPN of the N_Port PLOGI logged
+ * into, a new analde shall be allocated (or activated). In either case, the
  * parameters of the @ndlp shall be copied to the new_ndlp, the @ndlp shall
- * be released and the new_ndlp shall be put on to the vport node list and
- * its pointer returned as the confirmed node.
+ * be released and the new_ndlp shall be put on to the vport analde list and
+ * its pointer returned as the confirmed analde.
  *
- * Note that before the @ndlp got "released", the keepDID from not-matching
- * or inactive "new_ndlp" on the vport node list is assigned to the nlp_DID
+ * Analte that before the @ndlp got "released", the keepDID from analt-matching
+ * or inactive "new_ndlp" on the vport analde list is assigned to the nlp_DID
  * of the @ndlp. This is because the release of @ndlp is actually to put it
- * into an inactive state on the vport node list and the vport node list
- * management algorithm does not allow two node with a same DID.
+ * into an inactive state on the vport analde list and the vport analde list
+ * management algorithm does analt allow two analde with a same DID.
  *
  * Return code
  *   pointer to the PLOGI N_Port @ndlp
  **/
-static struct lpfc_nodelist *
+static struct lpfc_analdelist *
 lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
-			 struct lpfc_nodelist *ndlp)
+			 struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_vport *vport = ndlp->vport;
-	struct lpfc_nodelist *new_ndlp;
+	struct lpfc_analdelist *new_ndlp;
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
 	uint32_t keepDID = 0, keep_nlp_flag = 0;
@@ -1702,7 +1702,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	struct lpfc_nvme_rport *keep_nrport = NULL;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
 
-	/* Fabric nodes can have the same WWPN so we don't bother searching
+	/* Fabric analdes can have the same WWPN so we don't bother searching
 	 * by WWPN.  Just return the ndlp that was given to us.
 	 */
 	if (ndlp->nlp_type & NLP_FABRIC)
@@ -1711,20 +1711,20 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	sp = (struct serv_parm *) ((uint8_t *) prsp + sizeof(uint32_t));
 	memset(name, 0, sizeof(struct lpfc_name));
 
-	/* Now we find out if the NPort we are logging into, matches the WWPN
-	 * we have for that ndlp. If not, we have some work to do.
+	/* Analw we find out if the NPort we are logging into, matches the WWPN
+	 * we have for that ndlp. If analt, we have some work to do.
 	 */
-	new_ndlp = lpfc_findnode_wwpn(vport, &sp->portName);
+	new_ndlp = lpfc_findanalde_wwpn(vport, &sp->portName);
 
 	/* return immediately if the WWPN matches ndlp */
 	if (!new_ndlp || (new_ndlp == ndlp))
 		return ndlp;
 
 	/*
-	 * Unregister from backend if not done yet. Could have been skipped
+	 * Unregister from backend if analt done yet. Could have been skipped
 	 * due to ADISC
 	 */
-	lpfc_nlp_unreg_node(vport, new_ndlp);
+	lpfc_nlp_unreg_analde(vport, new_ndlp);
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		active_rrqs_xri_bitmap = mempool_alloc(phba->active_rrq_pool,
@@ -1734,7 +1734,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			       phba->cfg_rrq_xri_bitmap_sz);
 	}
 
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS | LOG_NODE,
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS | LOG_ANALDE,
 			 "3178 PLOGI confirm: ndlp x%x x%x x%x: "
 			 "new_ndlp x%x x%x x%x\n",
 			 ndlp->nlp_DID, ndlp->nlp_flag,  ndlp->nlp_fc4_type,
@@ -1748,7 +1748,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		memcpy(active_rrqs_xri_bitmap, new_ndlp->active_rrqs_xri_bitmap,
 		       phba->cfg_rrq_xri_bitmap_sz);
 
-	/* At this point in this routine, we know new_ndlp will be
+	/* At this point in this routine, we kanalw new_ndlp will be
 	 * returned. however, any previous GID_FTs that were done
 	 * would have updated nlp_fc4_type in ndlp, so we must ensure
 	 * new_ndlp has the right value.
@@ -1838,9 +1838,9 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			 "3179 PLOGI confirm NEW: %x %x\n",
 			 new_ndlp->nlp_DID, keepDID);
 
-		/* Two ndlps cannot have the same did on the nodelist.
+		/* Two ndlps cananalt have the same did on the analdelist.
 		 * The KeepDID and keep_nlp_fc4_type need to be swapped
-		 * because ndlp is inflight with no WWPN.
+		 * because ndlp is inflight with anal WWPN.
 		 */
 		ndlp->nlp_DID = keepDID;
 		ndlp->nlp_fc4_type = keep_nlp_fc4_type;
@@ -1873,18 +1873,18 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		/* Since we are switching over to the new_ndlp,
 		 * reset the old ndlp state
 		 */
-		if ((ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) ||
-		    (ndlp->nlp_state == NLP_STE_MAPPED_NODE))
-			keep_nlp_state = NLP_STE_NPR_NODE;
+		if ((ndlp->nlp_state == NLP_STE_UNMAPPED_ANALDE) ||
+		    (ndlp->nlp_state == NLP_STE_MAPPED_ANALDE))
+			keep_nlp_state = NLP_STE_NPR_ANALDE;
 		lpfc_nlp_set_state(vport, ndlp, keep_nlp_state);
 		ndlp->nrport = keep_nrport;
 	}
 
 	/*
-	 * If ndlp is not associated with any rport we can drop it here else
+	 * If ndlp is analt associated with any rport we can drop it here else
 	 * let dev_loss_tmo_callbk trigger DEVICE_RM event
 	 */
-	if (!ndlp->rport && (ndlp->nlp_state == NLP_STE_NPR_NODE))
+	if (!ndlp->rport && (ndlp->nlp_state == NLP_STE_NPR_ANALDE))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
@@ -1892,7 +1892,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		mempool_free(active_rrqs_xri_bitmap,
 			     phba->active_rrq_pool);
 
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS | LOG_NODE,
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS | LOG_ANALDE,
 			 "3173 PLOGI confirm exit: new_ndlp x%x x%x x%x\n",
 			 new_ndlp->nlp_DID, new_ndlp->nlp_flag,
 			 new_ndlp->nlp_fc4_type);
@@ -1905,7 +1905,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
  * @vport: pointer to a host virtual N_Port data structure.
  *
  * This routine checks whether more Registration State Change
- * Notifications (RSCNs) came in while the discovery state machine was in
+ * Analtifications (RSCNs) came in while the discovery state machine was in
  * the FC_RSCN_MODE. If so, the lpfc_els_handle_rscn() routine will be
  * invoked to handle the additional RSCNs for the @vport. Otherwise, the
  * FC_RSCN_MODE bit will be cleared with the @vport to mark as the end of
@@ -1939,7 +1939,7 @@ lpfc_end_rscn(struct lpfc_vport *vport)
  * @rspiocb: pointer to lpfc response iocb data structure.
  *
  * This routine will call the clear rrq function to free the rrq and
- * clear the xri's bit in the ndlp's xri_bitmap. If the ndlp does not
+ * clear the xri's bit in the ndlp's xri_bitmap. If the ndlp does analt
  * exist then the clear_rrq is still called because the rrq needs to
  * be freed.
  **/
@@ -1949,8 +1949,8 @@ lpfc_cmpl_els_rrq(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		  struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
-	struct lpfc_node_rrq *rrq;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analde_rrq *rrq;
 	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 
@@ -1998,15 +1998,15 @@ lpfc_cmpl_els_rrq(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  *
  * This routine is the completion callback function for issuing the Port
  * Login (PLOGI) command. For PLOGI completion, there must be an active
- * ndlp on the vport node list that matches the remote node ID from the
- * PLOGI response IOCB. If such ndlp does not exist, the PLOGI is simply
- * ignored and command IOCB released. The PLOGI response IOCB status is
+ * ndlp on the vport analde list that matches the remote analde ID from the
+ * PLOGI response IOCB. If such ndlp does analt exist, the PLOGI is simply
+ * iganalred and command IOCB released. The PLOGI response IOCB status is
  * checked for error conditions. If there is error status reported, PLOGI
  * retry shall be attempted by invoking the lpfc_els_retry() routine.
  * Otherwise, the lpfc_plogi_confirm_nport() routine shall be invoked on
  * the ndlp and the NLP_EVT_CMPL_PLOGI state to the Discover State Machine
  * (DSM) is set for this PLOGI completion. Finally, it checks whether
- * there are additional N_Port nodes with the vport that need to perform
+ * there are additional N_Port analdes with the vport that need to perform
  * PLOGI. If so, the lpfc_more_plogi() routine is invoked to issue addition
  * PLOGIs.
  **/
@@ -2017,12 +2017,12 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	IOCB_t *irsp;
-	struct lpfc_nodelist *ndlp, *free_ndlp;
+	struct lpfc_analdelist *ndlp, *free_ndlp;
 	struct lpfc_dmabuf *prsp;
 	int disc;
 	struct serv_parm *sp = NULL;
 	u32 ulp_status, ulp_word4, did, iotag;
-	bool release_node = false;
+	bool release_analde = false;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->rsp_iocb = rspiocb;
@@ -2042,16 +2042,16 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		"PLOGI cmpl:      status:x%x/x%x did:x%x",
 		ulp_status, ulp_word4, did);
 
-	ndlp = lpfc_findnode_did(vport, did);
+	ndlp = lpfc_findanalde_did(vport, did);
 	if (!ndlp) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0136 PLOGI completes to NPort x%x "
-				 "with no ndlp. Data: x%x x%x x%x\n",
+				 "with anal ndlp. Data: x%x x%x x%x\n",
 				 did, ulp_status, ulp_word4, iotag);
 		goto out_freeiocb;
 	}
 
-	/* Since ndlp can be freed in the disc state machine, note if this node
+	/* Since ndlp can be freed in the disc state machine, analte if this analde
 	 * is being used during discovery.
 	 */
 	spin_lock_irq(&ndlp->lock);
@@ -2066,7 +2066,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 ndlp->nlp_DID, iotag,
 			 ndlp->nlp_fc4_type,
 			 ulp_status, ulp_word4,
-			 disc, vport->num_disc_nodes);
+			 disc, vport->num_disc_analdes);
 
 	/* Check to see if link went down during discovery */
 	if (lpfc_els_chk_latt(vport)) {
@@ -2098,12 +2098,12 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					 ndlp->nlp_DID, ulp_status,
 					 ulp_word4);
 
-		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
+		/* Do analt call DSM for lpfc_els_abort'ed ELS cmds */
 		if (!lpfc_error_lost_link(vport, ulp_status, ulp_word4))
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_PLOGI);
 
-		/* If a PLOGI collision occurred, the node needs to continue
+		/* If a PLOGI collision occurred, the analde needs to continue
 		 * with the reglogin process.
 		 */
 		spin_lock_irq(&ndlp->lock);
@@ -2113,18 +2113,18 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			goto out;
 		}
 
-		/* No PLOGI collision and the node is not registered with the
-		 * scsi or nvme transport. It is no longer an active node. Just
+		/* Anal PLOGI collision and the analde is analt registered with the
+		 * scsi or nvme transport. It is anal longer an active analde. Just
 		 * start the device remove process.
 		 */
 		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD))) {
 			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 			if (!(ndlp->nlp_flag & NLP_IN_DEV_LOSS))
-				release_node = true;
+				release_analde = true;
 		}
 		spin_unlock_irq(&ndlp->lock);
 
-		if (release_node)
+		if (release_analde)
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_DEVICE_RM);
 	} else {
@@ -2157,11 +2157,11 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					NLP_EVT_CMPL_PLOGI);
 	}
 
-	if (disc && vport->num_disc_nodes) {
+	if (disc && vport->num_disc_analdes) {
 		/* Check to see if there are more PLOGIs to be sent */
 		lpfc_more_plogi(vport);
 
-		if (vport->num_disc_nodes == 0) {
+		if (vport->num_disc_analdes == 0) {
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag &= ~FC_NDISC_ACTIVE;
 			spin_unlock_irq(shost->host_lock);
@@ -2172,7 +2172,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 out:
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ANALDE,
 			      "PLOGI Cmpl PUT:     did:x%x refcnt %d",
 			      ndlp->nlp_DID, kref_read(&ndlp->kref), 0);
 
@@ -2197,7 +2197,7 @@ out_freeiocb:
  * This routine constructs the proper fields of the PLOGI IOCB and invokes
  * the lpfc_sli_issue_iocb() routine to send out PLOGI ELS command.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding
+ * Analte that the ndlp reference count will be incremented by 1 for holding
  * the ndlp and the reference to ndlp will be stored into the ndlp field
  * of the IOCB for the completion callback function to the PLOGI ELS command.
  *
@@ -2210,19 +2210,19 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	struct serv_parm *sp;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct lpfc_iocbq *elsiocb;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	int ret;
 
-	ndlp = lpfc_findnode_did(vport, did);
+	ndlp = lpfc_findanalde_did(vport, did);
 	if (!ndlp)
 		return 1;
 
 	/* Defer the processing of the issue PLOGI until after the
 	 * outstanding UNREG_RPI mbox command completes, unless we
-	 * are going offline. This logic does not apply for Fabric DIDs
+	 * are going offline. This logic does analt apply for Fabric DIDs
 	 */
 	if ((ndlp->nlp_flag & (NLP_IGNR_REG_CMPL | NLP_UNREG_INP)) &&
 	    ((ndlp->nlp_DID & Fabric_DID_MASK) != Fabric_DID_MASK) &&
@@ -2235,7 +2235,7 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 				 ndlp->nlp_rpi, ndlp->nlp_flag, ndlp);
 
 		/* We can only defer 1st PLOGI */
-		if (ndlp->nlp_defer_did == NLP_EVT_NOTHING_PENDING)
+		if (ndlp->nlp_defer_did == NLP_EVT_ANALTHING_PENDING)
 			ndlp->nlp_defer_did = did;
 		return 0;
 	}
@@ -2332,12 +2332,12 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		   struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	char *mode;
 	u32 loglevel;
 	u32 ulp_status;
 	u32 ulp_word4;
-	bool release_node = false;
+	bool release_analde = false;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->rsp_iocb = rspiocb;
@@ -2365,7 +2365,7 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 "0103 PRLI completes to NPort x%06x "
 			 "Data: x%x x%x x%x x%x x%x\n",
 			 ndlp->nlp_DID, ulp_status, ulp_word4,
-			 vport->num_disc_nodes, ndlp->fc4_prli_sent,
+			 vport->num_disc_analdes, ndlp->fc4_prli_sent,
 			 ndlp->fc4_xpt_flags);
 
 	/* Check to see if link went down during discovery */
@@ -2399,7 +2399,7 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 ulp_word4, ndlp->nlp_state,
 				 ndlp->fc4_prli_sent, ndlp->nlp_flag);
 
-		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
+		/* Do analt call DSM for lpfc_els_abort'ed ELS cmds */
 		if (!lpfc_error_lost_link(vport, ulp_status, ulp_word4))
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_PRLI);
@@ -2410,10 +2410,10 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if ((ndlp->nlp_state >= NLP_STE_PLOGI_ISSUE &&
 		     ndlp->nlp_state <= NLP_STE_REG_LOGIN_ISSUE) ||
-		    (ndlp->nlp_state == NLP_STE_NPR_NODE &&
+		    (ndlp->nlp_state == NLP_STE_NPR_ANALDE &&
 		     ndlp->nlp_flag & NLP_DELAY_TMO)) {
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-					 "2784 PRLI cmpl: Allow Node recovery "
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ANALDE,
+					 "2784 PRLI cmpl: Allow Analde recovery "
 					 "DID x%06x nstate x%x nflag x%x\n",
 					 ndlp->nlp_DID, ndlp->nlp_state,
 					 ndlp->nlp_flag);
@@ -2421,15 +2421,15 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		}
 
 		/*
-		 * For P2P topology, retain the node so that PLOGI can be
+		 * For P2P topology, retain the analde so that PLOGI can be
 		 * attempted on it again.
 		 */
 		if (vport->fc_flag & FC_PT2PT)
 			goto out;
 
-		/* As long as this node is not registered with the SCSI
-		 * or NVMe transport and no other PRLIs are outstanding,
-		 * it is no longer an active node.  Otherwise devloss
+		/* As long as this analde is analt registered with the SCSI
+		 * or NVMe transport and anal other PRLIs are outstanding,
+		 * it is anal longer an active analde.  Otherwise devloss
 		 * handles the final cleanup.
 		 */
 		spin_lock_irq(&ndlp->lock);
@@ -2437,15 +2437,15 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		    !ndlp->fc4_prli_sent) {
 			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 			if (!(ndlp->nlp_flag & NLP_IN_DEV_LOSS))
-				release_node = true;
+				release_analde = true;
 		}
 		spin_unlock_irq(&ndlp->lock);
 
-		if (release_node)
+		if (release_analde)
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_DEVICE_RM);
 	} else {
-		/* Good status, call state machine.  However, if another
+		/* Good status, call state machine.  However, if aanalther
 		 * PRLI is outstanding, don't call the state machine
 		 * because final disposition to Mapped or Unmapped is
 		 * completed there.
@@ -2463,7 +2463,7 @@ out:
 /**
  * lpfc_issue_els_prli - Issue a prli iocb command for a vport
  * @vport: pointer to a host virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @retry: number of retries to the command IOCB.
  *
  * This routine issues a Process Login (PRLI) ELS command for the
@@ -2472,7 +2472,7 @@ out:
  * is put to the IOCB completion callback func field before invoking the
  * routine lpfc_sli_issue_iocb() to send out PRLI command.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the PRLI ELS command.
  *
@@ -2481,7 +2481,7 @@ out:
  *   1 - failed to issue prli iocb command for @vport
  **/
 int
-lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
 		    uint8_t retry)
 {
 	int rc = 0;
@@ -2495,7 +2495,7 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/*
 	 * If we are in RSCN mode, the FC4 types supported from a
-	 * previous GFT_ID command may not be accurate. So, if we
+	 * previous GFT_ID command may analt be accurate. So, if we
 	 * are a NVME Initiator, always look for the possibility of
 	 * the remote NPort beng a NVME Target.
 	 */
@@ -2525,7 +2525,7 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		elscmd = ELS_CMD_NVMEPRLI;
 	} else {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "3083 Unknown FC_TYPE x%x ndlp x%06x\n",
+				 "3083 Unkanalwn FC_TYPE x%x ndlp x%06x\n",
 				 ndlp->nlp_fc4_type, ndlp->nlp_DID);
 		return 1;
 	}
@@ -2536,7 +2536,7 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (phba->sli_rev == LPFC_SLI_REV3 &&
 	    ndlp->nlp_fc4_type == NLP_FC4_NVME) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "3088 Rport fc4 type 0x%x not supported by SLI3 adapter\n",
+				 "3088 Rport fc4 type 0x%x analt supported by SLI3 adapter\n",
 				 ndlp->nlp_type);
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 		return 1;
@@ -2554,8 +2554,8 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (local_nlp_type & NLP_FC4_FCP) {
 		/* Remainder of payload is FCP PRLI parameter page.
-		 * Note: this data structure is defined as
-		 * BE/LE in the structure definition so no
+		 * Analte: this data structure is defined as
+		 * BE/LE in the structure definition so anal
 		 * byte swap call is made.
 		 */
 		*((uint32_t *)(pcmd)) = ELS_CMD_PRLI;
@@ -2662,10 +2662,10 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
  * lpfc_rscn_disc - Perform rscn discovery for a vport
  * @vport: pointer to a host virtual N_Port data structure.
  *
- * This routine performs Registration State Change Notification (RSCN)
- * discovery for a @vport. If the @vport's node port recovery count is not
+ * This routine performs Registration State Change Analtification (RSCN)
+ * discovery for a @vport. If the @vport's analde port recovery count is analt
  * zero, it will invoke the lpfc_els_disc_plogi() to perform PLOGI for all
- * the nodes that need recovery. If none of the PLOGI were needed through
+ * the analdes that need recovery. If analne of the PLOGI were needed through
  * the lpfc_els_disc_plogi() routine, the lpfc_end_rscn() routine shall be
  * invoked to check and handle possible more RSCN came in during the period
  * of processing the current ones.
@@ -2676,7 +2676,7 @@ lpfc_rscn_disc(struct lpfc_vport *vport)
 	lpfc_can_disctmo(vport);
 
 	/* RSCN discovery */
-	/* go thru NPR nodes and issue ELS PLOGIs */
+	/* go thru NPR analdes and issue ELS PLOGIs */
 	if (vport->fc_npr_cnt)
 		if (lpfc_els_disc_plogi(vport))
 			return;
@@ -2692,7 +2692,7 @@ lpfc_rscn_disc(struct lpfc_vport *vport)
  * This function handles clearing link attention or issuing reg_vpi depending
  * on whether npiv is enabled. This function also kicks off the PLOGI phase of
  * discovery.
- * This function is called with no locks held.
+ * This function is called with anal locks held.
  **/
 static void
 lpfc_adisc_done(struct lpfc_vport *vport)
@@ -2719,7 +2719,7 @@ lpfc_adisc_done(struct lpfc_vport *vport)
 		 * succeeded or failed because the ADISC completion
 		 * routine guarantees to call the state machine and
 		 * the RPI is either unregistered (failed ADISC response)
-		 * or the RPI is still valid and the node is marked
+		 * or the RPI is still valid and the analde is marked
 		 * mapped for a target.  The exchanges should be in the
 		 * correct state. This code is specific to SLI3.
 		 */
@@ -2732,14 +2732,14 @@ lpfc_adisc_done(struct lpfc_vport *vport)
 	* and continue discovery.
 	*/
 	if (vport->port_state < LPFC_VPORT_READY) {
-		/* If we get here, there is nothing to ADISC */
+		/* If we get here, there is analthing to ADISC */
 		lpfc_issue_clear_la(phba, vport);
 		if (!(vport->fc_flag & FC_ABORT_DISCOVERY)) {
-			vport->num_disc_nodes = 0;
+			vport->num_disc_analdes = 0;
 			/* go thru NPR list, issue ELS PLOGIs */
 			if (vport->fc_npr_cnt)
 				lpfc_els_disc_plogi(vport);
-			if (!vport->num_disc_nodes) {
+			if (!vport->num_disc_analdes) {
 				spin_lock_irq(shost->host_lock);
 				vport->fc_flag &= ~FC_NDISC_ACTIVE;
 				spin_unlock_irq(shost->host_lock);
@@ -2757,28 +2757,28 @@ lpfc_adisc_done(struct lpfc_vport *vport)
  * @vport: pointer to a host virtual N_Port data structure.
  *
  * This routine determines whether there are more ndlps on a @vport
- * node list need to have Address Discover (ADISC) issued. If so, it will
+ * analde list need to have Address Discover (ADISC) issued. If so, it will
  * invoke the lpfc_els_disc_adisc() routine to issue ADISC on the @vport's
- * remaining nodes which need to have ADISC sent.
+ * remaining analdes which need to have ADISC sent.
  **/
 void
 lpfc_more_adisc(struct lpfc_vport *vport)
 {
-	if (vport->num_disc_nodes)
-		vport->num_disc_nodes--;
-	/* Continue discovery with <num_disc_nodes> ADISCs to go */
+	if (vport->num_disc_analdes)
+		vport->num_disc_analdes--;
+	/* Continue discovery with <num_disc_analdes> ADISCs to go */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0210 Continue discovery with %d ADISCs to go "
 			 "Data: x%x x%x x%x\n",
-			 vport->num_disc_nodes, vport->fc_adisc_cnt,
+			 vport->num_disc_analdes, vport->fc_adisc_cnt,
 			 vport->fc_flag, vport->port_state);
 	/* Check to see if there are more ADISCs to be sent */
 	if (vport->fc_flag & FC_NLP_MORE) {
 		lpfc_set_disctmo(vport);
-		/* go thru NPR nodes and issue any remaining ELS ADISCs */
+		/* go thru NPR analdes and issue any remaining ELS ADISCs */
 		lpfc_els_disc_adisc(vport);
 	}
-	if (!vport->num_disc_nodes)
+	if (!vport->num_disc_analdes)
 		lpfc_adisc_done(vport);
 	return;
 }
@@ -2791,11 +2791,11 @@ lpfc_more_adisc(struct lpfc_vport *vport)
  *
  * This routine is the completion function for issuing the Address Discover
  * (ADISC) command. It first checks to see whether link went down during
- * the discovery process. If so, the node will be marked as node port
+ * the discovery process. If so, the analde will be marked as analde port
  * recovery for issuing discover IOCB by the link attention handler and
  * exit. Otherwise, the response status is checked. If error was reported
  * in the response status, the ADISC command shall be retried by invoking
- * the lpfc_els_retry() routine. Otherwise, if no error was reported in
+ * the lpfc_els_retry() routine. Otherwise, if anal error was reported in
  * the response status, the state machine is invoked to set transition
  * with respect to NLP_EVT_CMPL_ADISC event.
  **/
@@ -2805,10 +2805,10 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	IOCB_t *irsp;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	int  disc;
 	u32 ulp_status, ulp_word4, tmo, iotag;
-	bool release_node = false;
+	bool release_analde = false;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->rsp_iocb = rspiocb;
@@ -2832,7 +2832,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		ulp_status, ulp_word4,
 		ndlp->nlp_DID);
 
-	/* Since ndlp can be freed in the disc state machine, note if this node
+	/* Since ndlp can be freed in the disc state machine, analte if this analde
 	 * is being used during discovery.
 	 */
 	spin_lock_irq(&ndlp->lock);
@@ -2845,7 +2845,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 "IoTag x%x Data: x%x x%x x%x x%x x%x\n",
 			 ndlp->nlp_DID, iotag,
 			 ulp_status, ulp_word4,
-			 tmo, disc, vport->num_disc_nodes);
+			 tmo, disc, vport->num_disc_analdes);
 
 	/* Check to see if link went down during discovery */
 	if (lpfc_els_chk_latt(vport)) {
@@ -2875,19 +2875,19 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 					NLP_EVT_CMPL_ADISC);
 
-		/* As long as this node is not registered with the SCSI or NVMe
-		 * transport, it is no longer an active node. Otherwise
+		/* As long as this analde is analt registered with the SCSI or NVMe
+		 * transport, it is anal longer an active analde. Otherwise
 		 * devloss handles the final cleanup.
 		 */
 		spin_lock_irq(&ndlp->lock);
 		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD))) {
 			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 			if (!(ndlp->nlp_flag & NLP_IN_DEV_LOSS))
-				release_node = true;
+				release_analde = true;
 		}
 		spin_unlock_irq(&ndlp->lock);
 
-		if (release_node)
+		if (release_analde)
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_DEVICE_RM);
 	} else
@@ -2896,7 +2896,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					NLP_EVT_CMPL_ADISC);
 
 	/* Check to see if there are more ADISCs to be sent */
-	if (disc && vport->num_disc_nodes)
+	if (disc && vport->num_disc_analdes)
 		lpfc_more_adisc(vport);
 out:
 	lpfc_els_free_iocb(phba, cmdiocb);
@@ -2905,9 +2905,9 @@ out:
 }
 
 /**
- * lpfc_issue_els_adisc - Issue an address discover iocb to an node on a vport
+ * lpfc_issue_els_adisc - Issue an address discover iocb to an analde on a vport
  * @vport: pointer to a virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @retry: number of retries to the command IOCB.
  *
  * This routine issues an Address Discover (ADISC) for an @ndlp on a
@@ -2915,7 +2915,7 @@ out:
  * and states of the ndlp, and invokes the lpfc_sli_issue_iocb() routine
  * to issue the ADISC ELS command.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the ADISC ELS command.
  *
@@ -2924,7 +2924,7 @@ out:
  *   1 - failed to issue adisc
  **/
 int
-lpfc_issue_els_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_issue_els_adisc(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
 		     uint8_t retry)
 {
 	int rc = 0;
@@ -2950,7 +2950,7 @@ lpfc_issue_els_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ap = (ADISC *) pcmd;
 	ap->hardAL_PA = phba->fc_pref_ALPA;
 	memcpy(&ap->portName, &vport->fc_portname, sizeof(struct lpfc_name));
-	memcpy(&ap->nodeName, &vport->fc_nodename, sizeof(struct lpfc_name));
+	memcpy(&ap->analdeName, &vport->fc_analdename, sizeof(struct lpfc_name));
 	ap->DID = be32_to_cpu(vport->fc_myDID);
 
 	phba->fc_stat.elsXmitADISC++;
@@ -2991,7 +2991,7 @@ err:
  * @rspiocb: pointer to lpfc response iocb data structure.
  *
  * This routine is the completion function for issuing the ELS Logout (LOGO)
- * command. If no error status was reported from the LOGO response, the
+ * command. If anal error status was reported from the LOGO response, the
  * state machine of the associated ndlp shall be invoked for transition with
  * respect to NLP_EVT_CMPL_LOGO event.
  **/
@@ -2999,7 +2999,7 @@ static void
 lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		   struct lpfc_iocbq *rspiocb)
 {
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
 	struct lpfc_vport *vport = ndlp->vport;
 	IOCB_t *irsp;
 	unsigned long flags;
@@ -3045,22 +3045,22 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 ndlp->nlp_DID, iotag,
 			 kref_read(&ndlp->kref), ndlp->nlp_flag,
 			 ndlp->fc4_xpt_flags, ulp_status, ulp_word4,
-			 tmo, vport->num_disc_nodes);
+			 tmo, vport->num_disc_analdes);
 
 	if (lpfc_els_chk_latt(vport)) {
 		skip_recovery = 1;
 		goto out;
 	}
 
-	/* The LOGO will not be retried on failure.  A LOGO was
-	 * issued to the remote rport and a ACC or RJT or no Answer are
-	 * all acceptable.  Note the failure and move forward with
+	/* The LOGO will analt be retried on failure.  A LOGO was
+	 * issued to the remote rport and a ACC or RJT or anal Answer are
+	 * all acceptable.  Analte the failure and move forward with
 	 * discovery.  The PLOGI will retry.
 	 */
 	if (ulp_status) {
 		/* LOGO failed */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "2756 LOGO failure, No Retry DID:%06X "
+				 "2756 LOGO failure, Anal Retry DID:%06X "
 				 "Status:x%x/x%x\n",
 				 ndlp->nlp_DID, ulp_status,
 				 ulp_word4);
@@ -3090,16 +3090,16 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 out:
-	/* At this point, the LOGO processing is complete. NOTE: For a
+	/* At this point, the LOGO processing is complete. ANALTE: For a
 	 * pt2pt topology, we are assuming the NPortID will only change
 	 * on link up processing. For a LOGO / PLOGI initiated by the
-	 * Initiator, we are assuming the NPortID is not going to change.
+	 * Initiator, we are assuming the NPortID is analt going to change.
 	 */
 
 	if (wake_up_waiter && ndlp->logo_waitq)
 		wake_up(ndlp->logo_waitq);
 	/*
-	 * If the node is a target, the handling attempts to recover the port.
+	 * If the analde is a target, the handling attempts to recover the port.
 	 * For any other port type, the rpi is unregistered as an implicit
 	 * LOGO.
 	 */
@@ -3115,7 +3115,7 @@ out:
 				 "Recovery Data: x%x x%x x%x x%x\n",
 				 ndlp->nlp_DID, ulp_status,
 				 ulp_word4, tmo,
-				 vport->num_disc_nodes);
+				 vport->num_disc_analdes);
 
 		lpfc_els_free_iocb(phba, cmdiocb);
 		lpfc_nlp_put(ndlp);
@@ -3126,7 +3126,7 @@ out:
 
 	/* Cleanup path for failed REG_RPI handling. If REG_RPI fails, the
 	 * driver sends a LOGO to the rport to cleanup.  For fabric and
-	 * initiator ports cleanup the node as long as it the node is not
+	 * initiator ports cleanup the analde as long as it the analde is analt
 	 * register with the transport.
 	 */
 	if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD))) {
@@ -3143,17 +3143,17 @@ out_rsrc_free:
 }
 
 /**
- * lpfc_issue_els_logo - Issue a logo to an node on a vport
+ * lpfc_issue_els_logo - Issue a logo to an analde on a vport
  * @vport: pointer to a virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @retry: number of retries to the command IOCB.
  *
  * This routine constructs and issues an ELS Logout (LOGO) iocb command
- * to a remote node, referred by an @ndlp on a @vport. It constructs the
+ * to a remote analde, referred by an @ndlp on a @vport. It constructs the
  * payload of the IOCB, properly sets up the @ndlp state, and invokes the
  * lpfc_sli_issue_iocb() routine to send out the LOGO ELS command.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the LOGO ELS command.
  *
@@ -3164,7 +3164,7 @@ out_rsrc_free:
  *   1 - failed to issue logo
  **/
 int
-lpfc_issue_els_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_issue_els_logo(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
 		    uint8_t retry)
 {
 	struct lpfc_hba  *phba = vport->phba;
@@ -3238,7 +3238,7 @@ err:
  * @rspiocb: pointer to lpfc response iocb data structure.
  *
  * This routine is a generic completion callback function for ELS commands.
- * Specifically, it is the callback function which does not need to perform
+ * Specifically, it is the callback function which does analt need to perform
  * any command specific operations. It is currently used by the ELS command
  * issuing routines for RSCN, lpfc_issue_els_rscn, and the ELS Fibre Channel
  * Address Resolution Protocol Response (FARPR) routine, lpfc_issue_els_farpr().
@@ -3251,7 +3251,7 @@ lpfc_cmpl_els_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		  struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_nodelist *free_ndlp;
+	struct lpfc_analdelist *free_ndlp;
 	IOCB_t *irsp;
 	u32 ulp_status, ulp_word4, tmo, did, iotag;
 
@@ -3287,49 +3287,49 @@ lpfc_cmpl_els_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 }
 
 /**
- * lpfc_reg_fab_ctrl_node - RPI register the fabric controller node.
+ * lpfc_reg_fab_ctrl_analde - RPI register the fabric controller analde.
  * @vport: pointer to lpfc_vport data structure.
- * @fc_ndlp: pointer to the fabric controller (0xfffffd) node.
+ * @fc_ndlp: pointer to the fabric controller (0xfffffd) analde.
  *
  * This routine registers the rpi assigned to the fabric controller
- * NPort_ID (0xfffffd) with the port and moves the node to UNMAPPED
+ * NPort_ID (0xfffffd) with the port and moves the analde to UNMAPPED
  * state triggering a registration with the SCSI transport.
  *
- * This routine is single out because the fabric controller node
- * does not receive a PLOGI.  This routine is consumed by the
+ * This routine is single out because the fabric controller analde
+ * does analt receive a PLOGI.  This routine is consumed by the
  * SCR and RDF ELS commands.  Callers are expected to qualify
  * with SLI4 first.
  **/
 static int
-lpfc_reg_fab_ctrl_node(struct lpfc_vport *vport, struct lpfc_nodelist *fc_ndlp)
+lpfc_reg_fab_ctrl_analde(struct lpfc_vport *vport, struct lpfc_analdelist *fc_ndlp)
 {
 	int rc = 0;
 	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_nodelist *ns_ndlp;
+	struct lpfc_analdelist *ns_ndlp;
 	LPFC_MBOXQ_t *mbox;
 
 	if (fc_ndlp->nlp_flag & NLP_RPI_REGISTERED)
 		return rc;
 
-	ns_ndlp = lpfc_findnode_did(vport, NameServer_DID);
+	ns_ndlp = lpfc_findanalde_did(vport, NameServer_DID);
 	if (!ns_ndlp)
-		return -ENODEV;
+		return -EANALDEV;
 
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ANALDE,
 			 "0935 %s: Reg FC RPI x%x on FC DID x%x NSSte: x%x\n",
 			 __func__, fc_ndlp->nlp_rpi, fc_ndlp->nlp_DID,
 			 ns_ndlp->nlp_state);
-	if (ns_ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
-		return -ENODEV;
+	if (ns_ndlp->nlp_state != NLP_STE_UNMAPPED_ANALDE)
+		return -EANALDEV;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
-				 "0936 %s: no memory for reg_login "
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ANALDE,
+				 "0936 %s: anal memory for reg_login "
 				 "Data: x%x x%x x%x x%x\n", __func__,
 				 fc_ndlp->nlp_DID, fc_ndlp->nlp_state,
 				 fc_ndlp->nlp_flag, fc_ndlp->nlp_rpi);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rc = lpfc_reg_rpi(phba, vport->vpi, fc_ndlp->nlp_DID,
 			  (u8 *)&vport->fc_sparam, mbox, fc_ndlp->nlp_rpi);
@@ -3342,14 +3342,14 @@ lpfc_reg_fab_ctrl_node(struct lpfc_vport *vport, struct lpfc_nodelist *fc_ndlp)
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_fc_reg_login;
 	mbox->ctx_ndlp = lpfc_nlp_get(fc_ndlp);
 	if (!mbox->ctx_ndlp) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
 	mbox->vport = vport;
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
-		rc = -ENODEV;
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT);
+	if (rc == MBX_ANALT_FINISHED) {
+		rc = -EANALDEV;
 		lpfc_nlp_put(fc_ndlp);
 		goto out;
 	}
@@ -3360,7 +3360,7 @@ lpfc_reg_fab_ctrl_node(struct lpfc_vport *vport, struct lpfc_nodelist *fc_ndlp)
 
  out:
 	lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_ANALDE,
 			 "0938 %s: failed to format reg_login "
 			 "Data: x%x x%x x%x x%x\n", __func__,
 			 fc_ndlp->nlp_DID, fc_ndlp->nlp_state,
@@ -3389,7 +3389,7 @@ lpfc_cmpl_els_disc_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *pcmd, *prsp;
 	u32 *pdata;
 	u32 cmd;
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
 	u32 ulp_status, ulp_word4, tmo, did, iotag;
 
 	ulp_status = get_job_ulpstatus(phba, rspiocb);
@@ -3458,7 +3458,7 @@ lpfc_cmpl_els_disc_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	/* The RDF response doesn't have any impact on the running driver
-	 * but the notification descriptors are dumped here for support.
+	 * but the analtification descriptors are dumped here for support.
 	 */
 	if (cmd == ELS_CMD_RDF) {
 		int i;
@@ -3477,7 +3477,7 @@ lpfc_cmpl_els_disc_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			    i < be32_to_cpu(prdf->reg_d1.reg_desc.count); i++)
 			lpfc_printf_vlog(vport, KERN_INFO,
 					 LOG_ELS | LOG_CGN_MGMT,
-					 "4677 Fabric RDF Notification Grant "
+					 "4677 Fabric RDF Analtification Grant "
 					 "Data: 0x%08x Reg: %x %x\n",
 					 be32_to_cpu(
 						 prdf->reg_d1.desc_tags[i]),
@@ -3494,18 +3494,18 @@ out:
 }
 
 /**
- * lpfc_issue_els_scr - Issue a scr to an node on a vport
+ * lpfc_issue_els_scr - Issue a scr to an analde on a vport
  * @vport: pointer to a host virtual N_Port data structure.
  * @retry: retry counter for the command IOCB.
  *
- * This routine issues a State Change Request (SCR) to a fabric node
- * on a @vport. The remote node is Fabric Controller (0xfffffd). It
- * first search the @vport node list to find the matching ndlp. If no such
+ * This routine issues a State Change Request (SCR) to a fabric analde
+ * on a @vport. The remote analde is Fabric Controller (0xfffffd). It
+ * first search the @vport analde list to find the matching ndlp. If anal such
  * ndlp is found, a new ndlp shall be created for this (SCR) purpose. An
  * IOCB is allocated, payload prepared, and the lpfc_sli_issue_iocb()
  * routine is invoked to send the SCR IOCB.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the SCR ELS command.
  *
@@ -3521,16 +3521,16 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry)
 	struct lpfc_iocbq *elsiocb;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 
 	cmdsize = (sizeof(uint32_t) + sizeof(SCR));
 
-	ndlp = lpfc_findnode_did(vport, Fabric_Cntl_DID);
+	ndlp = lpfc_findanalde_did(vport, Fabric_Cntl_DID);
 	if (!ndlp) {
 		ndlp = lpfc_nlp_init(vport, Fabric_Cntl_DID);
 		if (!ndlp)
 			return 1;
-		lpfc_enqueue_node(vport, ndlp);
+		lpfc_enqueue_analde(vport, ndlp);
 	}
 
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
@@ -3539,11 +3539,11 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry)
 		return 1;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		rc = lpfc_reg_fab_ctrl_node(vport, ndlp);
+		rc = lpfc_reg_fab_ctrl_analde(vport, ndlp);
 		if (rc) {
 			lpfc_els_free_iocb(phba, elsiocb);
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
-					 "0937 %s: Failed to reg fc node, rc %d\n",
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_ANALDE,
+					 "0937 %s: Failed to reg fc analde, rc %d\n",
 					 __func__, rc);
 			return 1;
 		}
@@ -3594,7 +3594,7 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry)
  *  in point-to-point mode. When sent to the Fabric Controller, it will
  *  replay the RSCN to registered recipients.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the RSCN ELS command.
  *
@@ -3608,7 +3608,7 @@ lpfc_issue_els_rscn(struct lpfc_vport *vport, uint8_t retry)
 	int rc = 0;
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct {
 		struct fc_els_rscn rscn;
 		struct fc_els_rscn_page portid;
@@ -3616,26 +3616,26 @@ lpfc_issue_els_rscn(struct lpfc_vport *vport, uint8_t retry)
 	uint32_t nportid;
 	uint16_t cmdsize = sizeof(*event);
 
-	/* Not supported for private loop */
+	/* Analt supported for private loop */
 	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP &&
 	    !(vport->fc_flag & FC_PUBLIC_LOOP))
 		return 1;
 
 	if (vport->fc_flag & FC_PT2PT) {
 		/* find any mapped nport - that would be the other nport */
-		ndlp = lpfc_findnode_mapped(vport);
+		ndlp = lpfc_findanalde_mapped(vport);
 		if (!ndlp)
 			return 1;
 	} else {
 		nportid = FC_FID_FCTRL;
-		/* find the fabric controller node */
-		ndlp = lpfc_findnode_did(vport, nportid);
+		/* find the fabric controller analde */
+		ndlp = lpfc_findanalde_did(vport, nportid);
 		if (!ndlp) {
 			/* if one didn't exist, make one */
 			ndlp = lpfc_nlp_init(vport, nportid);
 			if (!ndlp)
 				return 1;
-			lpfc_enqueue_node(vport, ndlp);
+			lpfc_enqueue_analde(vport, ndlp);
 		}
 	}
 
@@ -3681,19 +3681,19 @@ lpfc_issue_els_rscn(struct lpfc_vport *vport, uint8_t retry)
 }
 
 /**
- * lpfc_issue_els_farpr - Issue a farp to an node on a vport
+ * lpfc_issue_els_farpr - Issue a farp to an analde on a vport
  * @vport: pointer to a host virtual N_Port data structure.
- * @nportid: N_Port identifier to the remote node.
+ * @nportid: N_Port identifier to the remote analde.
  * @retry: number of retries to the command IOCB.
  *
  * This routine issues a Fibre Channel Address Resolution Response
- * (FARPR) to a node on a vport. The remote node N_Port identifier (@nportid)
- * is passed into the function. It first search the @vport node list to find
- * the matching ndlp. If no such ndlp is found, a new ndlp shall be created
+ * (FARPR) to a analde on a vport. The remote analde N_Port identifier (@nportid)
+ * is passed into the function. It first search the @vport analde list to find
+ * the matching ndlp. If anal such ndlp is found, a new ndlp shall be created
  * for this (FARPR) purpose. An IOCB is allocated, payload prepared, and the
  * lpfc_sli_issue_iocb() routine is invoked to send the FARPR ELS command.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the FARPR ELS command.
  *
@@ -3711,17 +3711,17 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	uint8_t *pcmd;
 	uint32_t *lp;
 	uint16_t cmdsize;
-	struct lpfc_nodelist *ondlp;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ondlp;
+	struct lpfc_analdelist *ndlp;
 
 	cmdsize = (sizeof(uint32_t) + sizeof(FARP));
 
-	ndlp = lpfc_findnode_did(vport, nportid);
+	ndlp = lpfc_findanalde_did(vport, nportid);
 	if (!ndlp) {
 		ndlp = lpfc_nlp_init(vport, nportid);
 		if (!ndlp)
 			return 1;
-		lpfc_enqueue_node(vport, ndlp);
+		lpfc_enqueue_analde(vport, ndlp);
 	}
 
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
@@ -3741,15 +3741,15 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	*lp++ = be32_to_cpu(nportid);
 	*lp++ = be32_to_cpu(vport->fc_myDID);
 	fp->Rflags = 0;
-	fp->Mflags = (FARP_MATCH_PORT | FARP_MATCH_NODE);
+	fp->Mflags = (FARP_MATCH_PORT | FARP_MATCH_ANALDE);
 
 	memcpy(&fp->RportName, &vport->fc_portname, sizeof(struct lpfc_name));
-	memcpy(&fp->RnodeName, &vport->fc_nodename, sizeof(struct lpfc_name));
-	ondlp = lpfc_findnode_did(vport, nportid);
+	memcpy(&fp->RanaldeName, &vport->fc_analdename, sizeof(struct lpfc_name));
+	ondlp = lpfc_findanalde_did(vport, nportid);
 	if (ondlp) {
 		memcpy(&fp->OportName, &ondlp->nlp_portname,
 		       sizeof(struct lpfc_name));
-		memcpy(&fp->OnodeName, &ondlp->nlp_nodename,
+		memcpy(&fp->OanaldeName, &ondlp->nlp_analdename,
 		       sizeof(struct lpfc_name));
 	}
 
@@ -3769,28 +3769,28 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	if (rc == IOCB_ERROR) {
 		/* The additional lpfc_nlp_put will cause the following
 		 * lpfc_els_free_iocb routine to trigger the release of
-		 * the node.
+		 * the analde.
 		 */
 		lpfc_els_free_iocb(phba, elsiocb);
 		lpfc_nlp_put(ndlp);
 		return 1;
 	}
 	/* This will cause the callback-function lpfc_cmpl_els_cmd to
-	 * trigger the release of the node.
+	 * trigger the release of the analde.
 	 */
 	/* Don't release reference count as RDF is likely outstanding */
 	return 0;
 }
 
 /**
- * lpfc_issue_els_rdf - Register for diagnostic functions from the fabric.
+ * lpfc_issue_els_rdf - Register for diaganalstic functions from the fabric.
  * @vport: pointer to a host virtual N_Port data structure.
  * @retry: retry counter for the command IOCB.
  *
  * This routine issues an ELS RDF to the Fabric Controller to register
- * for diagnostic functions.
+ * for diaganalstic functions.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the RDF ELS command.
  *
@@ -3804,28 +3804,28 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_iocbq *elsiocb;
 	struct lpfc_els_rdf_req *prdf;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	uint16_t cmdsize;
 	int rc;
 
 	cmdsize = sizeof(*prdf);
 
-	ndlp = lpfc_findnode_did(vport, Fabric_Cntl_DID);
+	ndlp = lpfc_findanalde_did(vport, Fabric_Cntl_DID);
 	if (!ndlp) {
 		ndlp = lpfc_nlp_init(vport, Fabric_Cntl_DID);
 		if (!ndlp)
-			return -ENODEV;
-		lpfc_enqueue_node(vport, ndlp);
+			return -EANALDEV;
+		lpfc_enqueue_analde(vport, ndlp);
 	}
 
-	/* RDF ELS is not required on an NPIV VN_Port. */
+	/* RDF ELS is analt required on an NPIV VN_Port. */
 	if (vport->port_type == LPFC_NPIV_PORT)
 		return -EACCES;
 
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_RDF);
 	if (!elsiocb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Configure the payload for the supported FPIN events. */
 	prdf = (struct lpfc_els_rdf_req *)elsiocb->cmd_dmabuf->virt;
@@ -3872,11 +3872,11 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
   * lpfc_els_rcv_rdf - Receive RDF ELS request from the fabric.
   * @vport: pointer to a host virtual N_Port data structure.
   * @cmdiocb: pointer to lpfc command iocb data structure.
-  * @ndlp: pointer to a node-list data structure.
+  * @ndlp: pointer to a analde-list data structure.
   *
-  * A received RDF implies a possible change to fabric supported diagnostic
+  * A received RDF implies a possible change to fabric supported diaganalstic
   * functions.  This routine sends LS_ACC and then has the Nx_Port issue a new
-  * RDF request to reregister for supported diagnostic functions.
+  * RDF request to reregister for supported diaganalstic functions.
   *
   * Return code
   *   0 - Success
@@ -3884,7 +3884,7 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
   **/
 static int
 lpfc_els_rcv_rdf(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		 struct lpfc_nodelist *ndlp)
+		 struct lpfc_analdelist *ndlp)
 {
 	/* Send LS_ACC */
 	if (lpfc_els_rsp_acc(vport, ELS_CMD_RDF, cmdiocb, ndlp, NULL)) {
@@ -3927,9 +3927,9 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 	rsp_sig_freq_cyc = be16_to_cpu(pcgd->xmt_signal_frequency.count);
 	rsp_sig_freq_scale = be16_to_cpu(pcgd->xmt_signal_frequency.units);
 
-	/* If the Fport does not support signals. Set FPIN only */
-	if (rsp_sig_cap == EDC_CG_SIG_NOTSUPPORTED)
-		goto out_no_support;
+	/* If the Fport does analt support signals. Set FPIN only */
+	if (rsp_sig_cap == EDC_CG_SIG_ANALTSUPPORTED)
+		goto out_anal_support;
 
 	/* Apply the xmt scale to the xmt cycle to get the correct frequency.
 	 * Adapter default is 100 millisSeconds.  Convert all xmt cycle values
@@ -3943,7 +3943,7 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 		rsp_sig_freq_cyc = 1;
 		break;
 	default:
-		goto out_no_support;
+		goto out_anal_support;
 	}
 
 	/* Convenient shorthand. */
@@ -3958,7 +3958,7 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 	 * decision.
 	 */
 	phba->cgn_reg_fpin = LPFC_CGN_FPIN_WARN | LPFC_CGN_FPIN_ALARM;
-	phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+	phba->cgn_reg_signal = EDC_CG_SIG_ANALTSUPPORTED;
 	if (rsp_sig_cap == EDC_CG_SIG_WARN_ONLY &&
 	    (drv_sig_cap == EDC_CG_SIG_WARN_ONLY ||
 	     drv_sig_cap == EDC_CG_SIG_WARN_ALARM)) {
@@ -3968,7 +3968,7 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 	if (rsp_sig_cap == EDC_CG_SIG_WARN_ALARM) {
 		if (drv_sig_cap == EDC_CG_SIG_WARN_ALARM) {
 			phba->cgn_reg_signal = EDC_CG_SIG_WARN_ALARM;
-			phba->cgn_reg_fpin = LPFC_CGN_FPIN_NONE;
+			phba->cgn_reg_fpin = LPFC_CGN_FPIN_ANALNE;
 		}
 		if (drv_sig_cap == EDC_CG_SIG_WARN_ONLY) {
 			phba->cgn_reg_signal = EDC_CG_SIG_WARN_ONLY;
@@ -3976,11 +3976,11 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 		}
 	}
 
-	/* We are NOT recording signal frequency in congestion info buffer */
+	/* We are ANALT recording signal frequency in congestion info buffer */
 	return;
 
-out_no_support:
-	phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+out_anal_support:
+	phba->cgn_reg_signal = EDC_CG_SIG_ANALTSUPPORTED;
 	phba->cgn_sig_freq = 0;
 	phba->cgn_reg_fpin = LPFC_CGN_FPIN_ALARM | LPFC_CGN_FPIN_WARN;
 }
@@ -3995,8 +3995,8 @@ DECLARE_ENUM2STR_LOOKUP(lpfc_get_tlv_dtag_nm, fc_ls_tlv_dtag,
  * @rspiocb: pointer to lpfc response iocb data structure.
  *
  * This routine is the completion callback function for issuing the Exchange
- * Diagnostic Capabilities (EDC) command. The driver issues an EDC to
- * notify the FPort of its Congestion and Link Fault capabilities.  This
+ * Diaganalstic Capabilities (EDC) command. The driver issues an EDC to
+ * analtify the FPort of its Congestion and Link Fault capabilities.  This
  * routine parses the FPort's response and decides on the least common
  * values applicable to both FPort and NPort for Warnings and Alarms that
  * are communicated via hardware signals.
@@ -4015,7 +4015,7 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	u32 *pdata, dtag;
 	int desc_cnt = 0, bytes_remain;
 	bool rcv_cap_desc = false;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	u32 ulp_status, ulp_word4, tmo, did, iotag;
 
 	ndlp = cmdiocb->ndlp;
@@ -4086,14 +4086,14 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	tlv = edc_rsp->desc;
 
 	/*
-	 * cycle through EDC diagnostic descriptors to find the
+	 * cycle through EDC diaganalstic descriptors to find the
 	 * congestion signaling capability descriptor
 	 */
 	while (bytes_remain) {
 		if (bytes_remain < FC_TLV_DESC_HDR_SZ) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
 					"6461 Truncated TLV hdr on "
-					"Diagnostic descriptor[%d]\n",
+					"Diaganalstic descriptor[%d]\n",
 					desc_cnt);
 			goto out;
 		}
@@ -4106,7 +4106,7 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					sizeof(struct fc_diag_lnkflt_desc)) {
 				lpfc_printf_log(phba, KERN_WARNING,
 					LOG_ELS | LOG_CGN_MGMT | LOG_LDS_EVENT,
-					"6462 Truncated Link Fault Diagnostic "
+					"6462 Truncated Link Fault Diaganalstic "
 					"descriptor[%d]: %d vs 0x%zx 0x%zx\n",
 					desc_cnt, bytes_remain,
 					FC_TLV_DESC_SZ_FROM_LENGTH(tlv),
@@ -4132,7 +4132,7 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					sizeof(struct fc_diag_cg_sig_desc)) {
 				lpfc_printf_log(
 					phba, KERN_WARNING, LOG_CGN_MGMT,
-					"6463 Truncated Cgn Signal Diagnostic "
+					"6463 Truncated Cgn Signal Diaganalstic "
 					"descriptor[%d]: %d vs 0x%zx 0x%zx\n",
 					desc_cnt, bytes_remain,
 					FC_TLV_DESC_SZ_FROM_LENGTH(tlv),
@@ -4163,7 +4163,7 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		default:
 			dtag_nm = lpfc_get_tlv_dtag_nm(dtag);
 			lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
-					"4919 unknown Diagnostic "
+					"4919 unkanalwn Diaganalstic "
 					"Descriptor[%d]: tag x%x (%s)\n",
 					desc_cnt, dtag, dtag_nm);
 		}
@@ -4176,7 +4176,7 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 out:
 	if (!rcv_cap_desc) {
 		phba->cgn_reg_fpin = LPFC_CGN_FPIN_ALARM | LPFC_CGN_FPIN_WARN;
-		phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+		phba->cgn_reg_signal = EDC_CG_SIG_ANALTSUPPORTED;
 		phba->cgn_sig_freq = 0;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_ELS | LOG_CGN_MGMT,
 				"4202 EDC rsp error - sending RDF "
@@ -4224,13 +4224,13 @@ lpfc_format_edc_cgn_desc(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 	cgd->desc_len = cpu_to_be32(
 		FC_TLV_DESC_LENGTH_FROM_SZ(struct fc_diag_cg_sig_desc));
 
-	/* xmt_signal_capability already set to EDC_CG_SIG_NOTSUPPORTED.
+	/* xmt_signal_capability already set to EDC_CG_SIG_ANALTSUPPORTED.
 	 * xmt_signal_frequency.count already set to 0.
 	 * xmt_signal_frequency.units already set to 0.
 	 */
 
 	if (phba->cmf_active_mode == LPFC_CFG_OFF) {
-		/* rcv_signal_capability already set to EDC_CG_SIG_NOTSUPPORTED.
+		/* rcv_signal_capability already set to EDC_CG_SIG_ANALTSUPPORTED.
 		 * rcv_signal_frequency.count already set to 0.
 		 * rcv_signal_frequency.units already set to 0.
 		 */
@@ -4245,7 +4245,7 @@ lpfc_format_edc_cgn_desc(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 		cgd->rcv_signal_capability = cpu_to_be32(EDC_CG_SIG_WARN_ALARM);
 		break;
 	default:
-		/* rcv_signal_capability left 0 thus no support */
+		/* rcv_signal_capability left 0 thus anal support */
 		break;
 	}
 
@@ -4276,7 +4276,7 @@ lpfc_link_is_lds_capable(struct lpfc_hba *phba)
 }
 
  /**
-  * lpfc_issue_els_edc - Exchange Diagnostic Capabilities with the fabric.
+  * lpfc_issue_els_edc - Exchange Diaganalstic Capabilities with the fabric.
   * @vport: pointer to a host virtual N_Port data structure.
   * @retry: retry counter for the command iocb.
   *
@@ -4284,13 +4284,13 @@ lpfc_link_is_lds_capable(struct lpfc_hba *phba)
   * this N_Port's support of hardware signals in its Congestion
   * Capabilities Descriptor.
   *
-  * Note: This routine does not check if one or more signals are
+  * Analte: This routine does analt check if one or more signals are
   * set in the cgn_reg_signal parameter.  The caller makes the
-  * decision to enforce cgn_reg_signal as nonzero or zero depending
+  * decision to enforce cgn_reg_signal as analnzero or zero depending
   * on the conditions.  During Fabric requests, the driver
-  * requires cgn_reg_signals to be nonzero.  But a dynamic request
+  * requires cgn_reg_signals to be analnzero.  But a dynamic request
   * to set the congestion mode to OFF from Monitor or Manage
-  * would correctly issue an EDC with no signals enabled to
+  * would correctly issue an EDC with anal signals enabled to
   * turn off switch functionality and then update the FW.
   *
   * Return code
@@ -4305,7 +4305,7 @@ lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry)
 	struct fc_els_edc *edc_req;
 	struct fc_tlv_desc *tlv;
 	u16 cmdsize;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	u8 *pcmd = NULL;
 	u32 cgn_desc_size, lft_desc_size;
 	int rc;
@@ -4313,9 +4313,9 @@ lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry)
 	if (vport->port_type == LPFC_NPIV_PORT)
 		return -EACCES;
 
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
-		return -ENODEV;
+	ndlp = lpfc_findanalde_did(vport, Fabric_DID);
+	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_ANALDE)
+		return -EANALDEV;
 
 	cgn_desc_size = (phba->cgn_init_reg_signal) ?
 				sizeof(struct fc_diag_cg_sig_desc) : 0;
@@ -4323,7 +4323,7 @@ lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry)
 				sizeof(struct fc_diag_lnkflt_desc) : 0;
 	cmdsize = cgn_desc_size + lft_desc_size;
 
-	/* Skip EDC if no applicable descriptors */
+	/* Skip EDC if anal applicable descriptors */
 	if (!cmdsize)
 		goto try_rdf;
 
@@ -4333,7 +4333,7 @@ lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry)
 	if (!elsiocb)
 		goto try_rdf;
 
-	/* Configure the payload for the supported Diagnostics capabilities. */
+	/* Configure the payload for the supported Diaganalstics capabilities. */
 	pcmd = (u8 *)elsiocb->cmd_dmabuf->virt;
 	memset(pcmd, 0, cmdsize);
 	edc_req = (struct fc_els_edc *)pcmd;
@@ -4370,7 +4370,7 @@ lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry)
 	if (rc == IOCB_ERROR) {
 		/* The additional lpfc_nlp_put will cause the following
 		 * lpfc_els_free_iocb routine to trigger the rlease of
-		 * the node.
+		 * the analde.
 		 */
 		lpfc_els_free_iocb(phba, elsiocb);
 		lpfc_nlp_put(ndlp);
@@ -4379,7 +4379,7 @@ lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry)
 	return 0;
 try_rdf:
 	phba->cgn_reg_fpin = LPFC_CGN_FPIN_WARN | LPFC_CGN_FPIN_ALARM;
-	phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+	phba->cgn_reg_signal = EDC_CG_SIG_ANALTSUPPORTED;
 	rc = lpfc_issue_els_rdf(vport, 0);
 	return rc;
 }
@@ -4387,17 +4387,17 @@ try_rdf:
 /**
  * lpfc_cancel_retry_delay_tmo - Cancel the timer with delayed iocb-cmd retry
  * @vport: pointer to a host virtual N_Port data structure.
- * @nlp: pointer to a node-list data structure.
+ * @nlp: pointer to a analde-list data structure.
  *
  * This routine cancels the timer with a delayed IOCB-command retry for
  * a @vport's @ndlp. It stops the timer for the delayed function retrial and
  * removes the ELS retry event if it presents. In addition, if the
  * NLP_NPR_2B_DISC bit is set in the @nlp's nlp_flag bitmap, ADISC IOCB
- * commands are sent for the @vport's nodes that require issuing discovery
+ * commands are sent for the @vport's analdes that require issuing discovery
  * ADISC.
  **/
 void
-lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
+lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_analdelist *nlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_work_evt *evtp;
@@ -4413,20 +4413,20 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 		list_del_init(&nlp->els_retry_evt.evt_listp);
 		/* Decrement nlp reference count held for the delayed retry */
 		evtp = &nlp->els_retry_evt;
-		lpfc_nlp_put((struct lpfc_nodelist *)evtp->evt_arg1);
+		lpfc_nlp_put((struct lpfc_analdelist *)evtp->evt_arg1);
 	}
 	if (nlp->nlp_flag & NLP_NPR_2B_DISC) {
 		spin_lock_irq(&nlp->lock);
 		nlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 		spin_unlock_irq(&nlp->lock);
-		if (vport->num_disc_nodes) {
+		if (vport->num_disc_analdes) {
 			if (vport->port_state < LPFC_VPORT_READY) {
 				/* Check if there are more ADISCs to be sent */
 				lpfc_more_adisc(vport);
 			} else {
 				/* Check if there are more PLOGIs to be sent */
 				lpfc_more_plogi(vport);
-				if (vport->num_disc_nodes == 0) {
+				if (vport->num_disc_analdes == 0) {
 					spin_lock_irq(shost->host_lock);
 					vport->fc_flag &= ~FC_NDISC_ACTIVE;
 					spin_unlock_irq(shost->host_lock);
@@ -4444,11 +4444,11 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
  * @t: pointer to the timer function associated data (ndlp).
  *
  * This routine is invoked by the ndlp delayed-function timer to check
- * whether there is any pending ELS retry event(s) with the node. If not, it
+ * whether there is any pending ELS retry event(s) with the analde. If analt, it
  * simply returns. Otherwise, if there is at least one ELS delayed event, it
  * adds the delayed events to the HBA work list and invokes the
  * lpfc_worker_wake_up() routine to wake up worker thread to process the
- * event. Note that lpfc_nlp_get() is called before posting the event to
+ * event. Analte that lpfc_nlp_get() is called before posting the event to
  * the work list to hold reference count of ndlp so that it guarantees the
  * reference to ndlp will still be available when the worker thread gets
  * to the event associated with the ndlp.
@@ -4456,7 +4456,7 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 void
 lpfc_els_retry_delay(struct timer_list *t)
 {
-	struct lpfc_nodelist *ndlp = from_timer(ndlp, t, nlp_delayfunc);
+	struct lpfc_analdelist *ndlp = from_timer(ndlp, t, nlp_delayfunc);
 	struct lpfc_vport *vport = ndlp->vport;
 	struct lpfc_hba   *phba = vport->phba;
 	unsigned long flags;
@@ -4468,7 +4468,7 @@ lpfc_els_retry_delay(struct timer_list *t)
 		return;
 	}
 
-	/* We need to hold the node by incrementing the reference
+	/* We need to hold the analde by incrementing the reference
 	 * count until the queued work is done
 	 */
 	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
@@ -4483,7 +4483,7 @@ lpfc_els_retry_delay(struct timer_list *t)
 
 /**
  * lpfc_els_retry_delay_handler - Work thread handler for ndlp delayed function
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine is the worker-thread handler for processing the @ndlp delayed
  * event(s), posted by the lpfc_els_retry_delay() routine. It simply retrieves
@@ -4491,7 +4491,7 @@ lpfc_els_retry_delay(struct timer_list *t)
  * function according to the delayed ELS command to retry the command.
  **/
 void
-lpfc_els_retry_delay_handler(struct lpfc_nodelist *ndlp)
+lpfc_els_retry_delay_handler(struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_vport *vport = ndlp->vport;
 	uint32_t cmd, retry;
@@ -4597,7 +4597,7 @@ lpfc_link_reset(struct lpfc_vport *vport)
 		       phba->cfg_link_speed);
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	mbox->vport = vport;
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT);
 	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2853 Failed to issue INIT_LINK "
@@ -4627,7 +4627,7 @@ lpfc_link_reset(struct lpfc_vport *vport)
  * ndlp for the delayed command issusing.
  *
  * Return code
- *   0 - No retry of els command is made
+ *   0 - Anal retry of els command is made
  *   1 - Immediate or delayed retry of els command is made
  **/
 static int
@@ -4636,7 +4636,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	union lpfc_wqe128 *irsp = &rspiocb->wqe;
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
 	struct lpfc_dmabuf *pcmd = cmdiocb->cmd_dmabuf;
 	uint32_t *elscmd;
 	struct ls_rjt stat;
@@ -4649,7 +4649,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 
 
-	/* Note: cmd_dmabuf may be 0 for internal driver abort
+	/* Analte: cmd_dmabuf may be 0 for internal driver abort
 	 * of delays ELS command.
 	 */
 
@@ -4663,7 +4663,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	else {
 		/* We should only hit this case for retrying PLOGI */
 		did = get_job_els_rsp64_did(phba, rspiocb);
-		ndlp = lpfc_findnode_did(vport, did);
+		ndlp = lpfc_findanalde_did(vport, did);
 		if (!ndlp && (cmd != ELS_CMD_PLOGI))
 			return 0;
 	}
@@ -4678,8 +4678,8 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	case IOSTAT_REMOTE_STOP:
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			/* This IO was aborted by the target, we don't
-			 * know the rxid and because we did not send the
-			 * ABTS we cannot generate and RRQ.
+			 * kanalw the rxid and because we did analt send the
+			 * ABTS we cananalt generate and RRQ.
 			 */
 			lpfc_set_rrq_active(phba, ndlp,
 					 cmdiocb->sli4_lxritag, 0, 0);
@@ -4705,7 +4705,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				delay = 1000;
 			break;
 
-		case IOERR_NO_RESOURCES:
+		case IOERR_ANAL_RESOURCES:
 			logerr = 1; /* HBA out of resources */
 			retry = 1;
 			if (cmdiocb->retry > 100)
@@ -4754,7 +4754,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 * Possibly the rport just wasn't ready.
 			 */
 			if (cmd == ELS_CMD_PLOGI) {
-				/* No retry if state change */
+				/* Anal retry if state change */
 				if (ndlp &&
 				    ndlp->nlp_state != NLP_STE_PLOGI_ISSUE)
 					goto out_retry;
@@ -4797,7 +4797,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 						 "support NVME, disabling NVME\n",
 						 stat.un.b.lsRjtRsnCode);
 				retry = 0;
-				vport->fc_flag |= FC_PT2PT_NO_NVME;
+				vport->fc_flag |= FC_PT2PT_ANAL_NVME;
 				goto out_retry;
 			}
 		}
@@ -4812,7 +4812,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 * appropriate action.
 			 */
 			lpfc_printf_vlog(vport, KERN_INFO,
-					 LOG_DISCOVERY | LOG_ELS | LOG_NODE,
+					 LOG_DISCOVERY | LOG_ELS | LOG_ANALDE,
 					 "0153 ELS cmd x%x LS_RJT by x%x. "
 					 "RsnCode x%x RsnCodeExp x%x\n",
 					 cmd, did, stat.un.b.lsRjtRsnCode,
@@ -4828,8 +4828,8 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				retry = 1;
 				break;
 			case LSEXP_REQ_UNSUPPORTED:
-			case LSEXP_NO_RSRC_ASSIGN:
-				/* These explanation codes get no retry. */
+			case LSEXP_ANAL_RSRC_ASSIGN:
+				/* These explanation codes get anal retry. */
 				if (cmd == ELS_CMD_PRLI ||
 				    cmd == ELS_CMD_NVMEPRLI)
 					break;
@@ -4837,7 +4837,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			default:
 				/* Limit the delay and retry action to a limited
 				 * cmd set.  There are other ELS commands where
-				 * a retry is not expected.
+				 * a retry is analt expected.
 				 */
 				if (cmd == ELS_CMD_PLOGI ||
 				    cmd == ELS_CMD_PRLI ||
@@ -4858,7 +4858,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 						 "Fabric out of resources\n",
 						 stat.un.lsRjtError);
 				lpfc_vport_set_state(vport,
-						     FC_VPORT_NO_FABRIC_RSCS);
+						     FC_VPORT_ANAL_FABRIC_RSCS);
 			}
 			break;
 
@@ -4879,7 +4879,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		case LSRJT_LOGICAL_ERR:
 			/* There are some cases where switches return this
-			 * error when they are not ready and should be returning
+			 * error when they are analt ready and should be returning
 			 * Logical Busy. We should delay every time.
 			 */
 			if (cmd == ELS_CMD_FDISC &&
@@ -4889,13 +4889,13 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				retry = 1;
 			} else if (cmd == ELS_CMD_FLOGI &&
 				   stat.un.b.lsRjtRsnCodeExp ==
-						LSEXP_NOTHING_MORE) {
+						LSEXP_ANALTHING_MORE) {
 				vport->fc_sparam.cmn.bbRcvSizeMsb &= 0xf;
 				retry = 1;
 				lpfc_printf_vlog(vport, KERN_ERR,
 						 LOG_TRACE_EVENT,
 						 "0820 FLOGI Failed (x%x). "
-						 "BBCredit Not Supported\n",
+						 "BBCredit Analt Supported\n",
 						 stat.un.lsRjtError);
 			}
 			break;
@@ -4947,7 +4947,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (link_reset) {
 		rc = lpfc_link_reset(vport);
 		if (rc) {
-			/* Do not give up. Retry PLOGI one more time and attempt
+			/* Do analt give up. Retry PLOGI one more time and attempt
 			 * link reset if PLOGI fails again.
 			 */
 			retry = 1;
@@ -5015,8 +5015,8 @@ out_retry:
 		if (((cmd == ELS_CMD_PLOGI) || (cmd == ELS_CMD_ADISC)) &&
 			((ulp_status != IOSTAT_LOCAL_REJECT) ||
 			((ulp_word4 & IOERR_PARAM_MASK) !=
-			IOERR_NO_RESOURCES))) {
-			/* Don't reset timer for no resources */
+			IOERR_ANAL_RESOURCES))) {
+			/* Don't reset timer for anal resources */
 
 			/* If discovery / RSCN timer is running, reset it */
 			if (timer_pending(&vport->fc_disctmo) ||
@@ -5043,7 +5043,7 @@ out_retry:
 					NLP_STE_PRLI_ISSUE);
 			else if (cmd != ELS_CMD_ADISC)
 				lpfc_nlp_set_state(vport, ndlp,
-					NLP_STE_NPR_NODE);
+					NLP_STE_NPR_ANALDE);
 			ndlp->nlp_last_elscmd = cmd;
 
 			return 1;
@@ -5081,10 +5081,10 @@ out_retry:
 			return 1;
 		}
 	}
-	/* No retry ELS command <elsCmd> to remote NPORT <did> */
+	/* Anal retry ELS command <elsCmd> to remote NPORT <did> */
 	if (logerr) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-			 "0137 No retry ELS command x%x to remote "
+			 "0137 Anal retry ELS command x%x to remote "
 			 "NPORT x%x: Out of Resources: Error:x%x/%x "
 			 "IoTag x%x\n",
 			 cmd, did, ulp_status, ulp_word4,
@@ -5092,7 +5092,7 @@ out_retry:
 	}
 	else {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "0108 No retry ELS command x%x to remote "
+				 "0108 Anal retry ELS command x%x to remote "
 				 "NPORT x%x Retried:%d Error:x%x/%x "
 				 "IoTag x%x nflags x%x\n",
 				 cmd, did, cmdiocb->retry, ulp_status,
@@ -5162,14 +5162,14 @@ lpfc_els_free_bpl(struct lpfc_hba *phba, struct lpfc_dmabuf *buf_ptr)
  * This routine frees a command IOCB and its associated resources. The
  * command IOCB data structure contains the reference to various associated
  * resources, these fields must be set to NULL if the associated reference
- * not present:
+ * analt present:
  *   cmd_dmabuf - reference to cmd.
  *   cmd_dmabuf->next - reference to rsp
  *   rsp_dmabuf - unused
  *   bpl_dmabuf - reference to bpl
  *
  * It first properly decrements the reference count held on ndlp for the
- * IOCB completion callback function. If LPFC_DELAY_MEM_FREE flag is not
+ * IOCB completion callback function. If LPFC_DELAY_MEM_FREE flag is analt
  * set, it invokes the lpfc_els_free_data() routine to release the Direct
  * Memory Access (DMA) buffers associated with the IOCB. Otherwise, it
  * adds the DMA buffer the @phba data structure for the delayed release.
@@ -5186,7 +5186,7 @@ lpfc_els_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *elsiocb)
 {
 	struct lpfc_dmabuf *buf_ptr, *buf_ptr1;
 
-	/* The I/O iocb is complete.  Clear the node and first dmbuf */
+	/* The I/O iocb is complete.  Clear the analde and first dmbuf */
 	elsiocb->ndlp = NULL;
 
 	/* cmd_dmabuf = cmd,  cmd_dmabuf->next = rsp, bpl_dmabuf = bpl */
@@ -5240,7 +5240,7 @@ lpfc_els_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *elsiocb)
  *
  * This routine is the completion callback function to the Logout (LOGO)
  * Accept (ACC) Response ELS command. This routine is invoked to indicate
- * the completion of the LOGO process. If the node has transitioned to NPR,
+ * the completion of the LOGO process. If the analde has transitioned to NPR,
  * this routine unregisters the RPI if it is still registered. The
  * lpfc_els_free_iocb() is invoked to release the IOCB data structure.
  **/
@@ -5248,7 +5248,7 @@ static void
 lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		       struct lpfc_iocbq *rspiocb)
 {
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
 	struct lpfc_vport *vport = cmdiocb->vport;
 	u32 ulp_status, ulp_word4;
 
@@ -5271,13 +5271,13 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	 * requests after logging out from the initiator.
 	 */
 	if (ndlp->nlp_type & NLP_FABRIC &&
-	    ((ndlp->nlp_DID & WELL_KNOWN_DID_MASK) != WELL_KNOWN_DID_MASK))
+	    ((ndlp->nlp_DID & WELL_KANALWN_DID_MASK) != WELL_KANALWN_DID_MASK))
 		goto out;
 
-	if (ndlp->nlp_state == NLP_STE_NPR_NODE) {
+	if (ndlp->nlp_state == NLP_STE_NPR_ANALDE) {
 		/* If PLOGI is being retried, PLOGI completion will cleanup the
-		 * node. The NLP_NPR_2B_DISC flag needs to be retained to make
-		 * progress on nodes discovered from last RSCN.
+		 * analde. The NLP_NPR_2B_DISC flag needs to be retained to make
+		 * progress on analdes discovered from last RSCN.
 		 */
 		if ((ndlp->nlp_flag & NLP_DELAY_TMO) &&
 		    (ndlp->nlp_last_elscmd == ELS_CMD_PLOGI))
@@ -5305,18 +5305,18 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  * RPI (Remote Port Index) mailbox command to the @phba. It simply releases
  * the associated lpfc Direct Memory Access (DMA) buffer back to the pool and
  * decrements the ndlp reference count held for this completion callback
- * function. After that, it invokes the lpfc_drop_node to check
- * whether it is appropriate to release the node.
+ * function. After that, it invokes the lpfc_drop_analde to check
+ * whether it is appropriate to release the analde.
  **/
 void
 lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
-	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
+	struct lpfc_analdelist *ndlp = pmb->ctx_ndlp;
 	u32 mbx_flag = pmb->mbox_flag;
 	u32 mbx_cmd = pmb->u.mb.mbxCommand;
 
 	if (ndlp) {
-		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_ANALDE,
 				 "0006 rpi x%x DID:%x flg:%x %d x%px "
 				 "mbx_cmd x%x mbx_flag x%x x%px\n",
 				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
@@ -5324,7 +5324,7 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				 mbx_flag, pmb);
 
 		/* This ends the default/temporary RPI cleanup logic for this
-		 * ndlp and the node and rpi needs to be released. Free the rpi
+		 * ndlp and the analde and rpi needs to be released. Free the rpi
 		 * first on an UNREG_LOGIN and then release the final
 		 * references.
 		 */
@@ -5334,7 +5334,7 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			ndlp->nlp_flag &= ~NLP_UNREG_INP;
 		spin_unlock_irq(&ndlp->lock);
 		lpfc_nlp_put(ndlp);
-		lpfc_drop_node(ndlp->vport, ndlp);
+		lpfc_drop_analde(ndlp->vport, ndlp);
 	}
 
 	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
@@ -5347,9 +5347,9 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
  * @rspiocb: pointer to lpfc response iocb data structure.
  *
  * This routine is the completion callback function for ELS Response IOCB
- * command. In normal case, this callback function just properly sets the
+ * command. In analrmal case, this callback function just properly sets the
  * nlp_flag bitmap in the ndlp data structure, if the mbox command reference
- * field in the command IOCB is not NULL, the referred mailbox command will
+ * field in the command IOCB is analt NULL, the referred mailbox command will
  * be send out, and then invokes the lpfc_els_free_iocb() routine to release
  * the IOCB.
  **/
@@ -5357,7 +5357,7 @@ static void
 lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		  struct lpfc_iocbq *rspiocb)
 {
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
 	struct lpfc_vport *vport = ndlp ? ndlp->vport : NULL;
 	struct Scsi_Host  *shost = vport ? lpfc_shost_from_vport(vport) : NULL;
 	IOCB_t  *irsp;
@@ -5443,8 +5443,8 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			}
 
 			ndlp->nlp_flag |= NLP_REG_LOGIN_SEND;
-			if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
-			    != MBX_NOT_FINISHED)
+			if (lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT)
+			    != MBX_ANALT_FINISHED)
 				goto out;
 
 			/* Decrement the ndlp reference count we
@@ -5453,9 +5453,9 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_nlp_put(ndlp);
 			ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 
-			/* ELS rsp: Cannot issue reg_login for <NPortid> */
+			/* ELS rsp: Cananalt issue reg_login for <NPortid> */
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				"0138 ELS rsp: Cannot issue reg_login for x%x "
+				"0138 ELS rsp: Cananalt issue reg_login for x%x "
 				"Data: x%x x%x x%x\n",
 				ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
 				ndlp->nlp_rpi);
@@ -5472,7 +5472,7 @@ out:
 		spin_unlock_irq(&ndlp->lock);
 	}
 
-	/* An SLI4 NPIV instance wants to drop the node at this point under
+	/* An SLI4 NPIV instance wants to drop the analde at this point under
 	 * these conditions and release the RPI.
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
@@ -5487,18 +5487,18 @@ out:
 				ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
 				spin_unlock_irq(&ndlp->lock);
 			}
-			lpfc_drop_node(vport, ndlp);
+			lpfc_drop_analde(vport, ndlp);
 		} else if (ndlp->nlp_state != NLP_STE_PLOGI_ISSUE &&
 			   ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE &&
 			   ndlp->nlp_state != NLP_STE_PRLI_ISSUE) {
-			/* Drop ndlp if there is no planned or outstanding
+			/* Drop ndlp if there is anal planned or outstanding
 			 * issued PRLI.
 			 *
 			 * In cases when the ndlp is acting as both an initiator
 			 * and target function, let our issued PRLI determine
 			 * the final ndlp kref drop.
 			 */
-			lpfc_drop_node(vport, ndlp);
+			lpfc_drop_analde(vport, ndlp);
 		}
 	}
 
@@ -5513,7 +5513,7 @@ out:
  * @vport: pointer to a host virtual N_Port data structure.
  * @flag: the els command code to be accepted.
  * @oldiocb: pointer to the original lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @mbox: pointer to the driver internal queue element for mailbox command.
  *
  * This routine prepares and issues an Accept (ACC) response IOCB
@@ -5524,7 +5524,7 @@ out:
  * field of the IOCB for the completion callback function to issue the
  * mailbox command to the HBA later when callback is invoked.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the corresponding
  * response ELS IOCB command.
@@ -5535,7 +5535,7 @@ out:
  **/
 int
 lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
-		 struct lpfc_iocbq *oldiocb, struct lpfc_nodelist *ndlp,
+		 struct lpfc_iocbq *oldiocb, struct lpfc_analdelist *ndlp,
 		 LPFC_MBOXQ_t *mbox)
 {
 	struct lpfc_hba  *phba = vport->phba;
@@ -5643,7 +5643,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 			/* Copy our worldwide names */
 			memcpy(&sp->portName, &vport->fc_sparam.portName,
 			       sizeof(struct lpfc_name));
-			memcpy(&sp->nodeName, &vport->fc_sparam.nodeName,
+			memcpy(&sp->analdeName, &vport->fc_sparam.analdeName,
 			       sizeof(struct lpfc_name));
 		} else {
 			memcpy(pcmd, &vport->fc_sparam,
@@ -5790,7 +5790,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
  * @vport: pointer to a virtual N_Port data structure.
  * @rejectError: reject response to issue
  * @oldiocb: pointer to the original lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @mbox: pointer to the driver internal queue element for mailbox command.
  *
  * This routine prepares and issue an Reject (RJT) response IOCB
@@ -5798,7 +5798,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
  * context_un.mbox field of the IOCB for the completion callback function
  * to issue to the HBA later.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the reject response
  * ELS IOCB command.
@@ -5809,7 +5809,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
  **/
 int
 lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
-		    struct lpfc_iocbq *oldiocb, struct lpfc_nodelist *ndlp,
+		    struct lpfc_iocbq *oldiocb, struct lpfc_analdelist *ndlp,
 		    LPFC_MBOXQ_t *mbox)
 {
 	int rc;
@@ -5870,7 +5870,7 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 	}
 
 	/* The NPIV instance is rejecting this unsolicited ELS. Make sure the
-	 * node's assigned RPI gets released provided this node is not already
+	 * analde's assigned RPI gets released provided this analde is analt already
 	 * registered with the transport.
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
@@ -5892,7 +5892,7 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 }
 
  /**
-  * lpfc_issue_els_edc_rsp - Exchange Diagnostic Capabilities with the fabric.
+  * lpfc_issue_els_edc_rsp - Exchange Diaganalstic Capabilities with the fabric.
   * @vport: pointer to a host virtual N_Port data structure.
   * @cmdiocb: pointer to the original lpfc command iocb data structure.
   * @ndlp: NPort to where rsp is directed
@@ -5907,7 +5907,7 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
   **/
 static int
 lpfc_issue_els_edc_rsp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		       struct lpfc_nodelist *ndlp)
+		       struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	struct fc_els_edc_resp *edc_rsp;
@@ -5996,13 +5996,13 @@ lpfc_issue_els_edc_rsp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rsp_adisc_acc - Prepare and issue acc response to adisc iocb cmd
  * @vport: pointer to a virtual N_Port data structure.
  * @oldiocb: pointer to the original lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine prepares and issues an Accept (ACC) response to Address
  * Discover (ADISC) ELS command. It simply prepares the payload of the IOCB
  * and invokes the lpfc_sli_issue_iocb() routine to send out the command.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the ADISC Accept response
  * ELS IOCB command.
@@ -6013,7 +6013,7 @@ lpfc_issue_els_edc_rsp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  **/
 int
 lpfc_els_rsp_adisc_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
-		       struct lpfc_nodelist *ndlp)
+		       struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	ADISC *ap;
@@ -6064,7 +6064,7 @@ lpfc_els_rsp_adisc_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 	ap = (ADISC *) (pcmd);
 	ap->hardAL_PA = phba->fc_pref_ALPA;
 	memcpy(&ap->portName, &vport->fc_portname, sizeof(struct lpfc_name));
-	memcpy(&ap->nodeName, &vport->fc_nodename, sizeof(struct lpfc_name));
+	memcpy(&ap->analdeName, &vport->fc_analdename, sizeof(struct lpfc_name));
 	ap->DID = be32_to_cpu(vport->fc_myDID);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
@@ -6093,13 +6093,13 @@ lpfc_els_rsp_adisc_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
  * lpfc_els_rsp_prli_acc - Prepare and issue acc response to prli iocb cmd
  * @vport: pointer to a virtual N_Port data structure.
  * @oldiocb: pointer to the original lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine prepares and issues an Accept (ACC) response to Process
  * Login (PRLI) ELS command. It simply prepares the payload of the IOCB
  * and invokes the lpfc_sli_issue_iocb() routine to send out the command.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the PRLI Accept response
  * ELS IOCB command.
@@ -6110,7 +6110,7 @@ lpfc_els_rsp_adisc_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
  **/
 int
 lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
-		      struct lpfc_nodelist *ndlp)
+		      struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	PRLI *npr;
@@ -6214,7 +6214,7 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 
 		/* Xmit PRLI ACC response tag <ulpIoTag> */
 		lpfc_printf_vlog(vport, KERN_INFO,
-				 LOG_ELS | LOG_NODE | LOG_DISCOVERY,
+				 LOG_ELS | LOG_ANALDE | LOG_DISCOVERY,
 				 "6014 FCP issue PRLI ACC imgpair %d "
 				 "retry %d task %d\n",
 				 npr->estabImagePair,
@@ -6255,7 +6255,7 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 		npr_nvme->word5 = cpu_to_be32(npr_nvme->word5);
 	} else
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "6128 Unknown FC_TYPE x%x x%x ndlp x%06x\n",
+				 "6128 Unkanalwn FC_TYPE x%x x%x ndlp x%06x\n",
 				 prli_fc4_req, ndlp->nlp_fc4_type,
 				 ndlp->nlp_DID);
 
@@ -6286,14 +6286,14 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
  * @vport: pointer to a virtual N_Port data structure.
  * @format: rnid command format.
  * @oldiocb: pointer to the original lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
- * This routine issues a Request Node Identification Data (RNID) Accept
+ * This routine issues a Request Analde Identification Data (RNID) Accept
  * (ACC) response. It constructs the RNID ACC response command according to
  * the proper @format and then calls the lpfc_sli_issue_iocb() routine to
  * issue the response.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function.
  *
@@ -6303,7 +6303,7 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
  **/
 static int
 lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
-		      struct lpfc_iocbq *oldiocb, struct lpfc_nodelist *ndlp)
+		      struct lpfc_iocbq *oldiocb, struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	RNID *rn;
@@ -6354,7 +6354,7 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 	rn->Format = format;
 	rn->CommonLen = (2 * sizeof(struct lpfc_name));
 	memcpy(&rn->portName, &vport->fc_portname, sizeof(struct lpfc_name));
-	memcpy(&rn->nodeName, &vport->fc_nodename, sizeof(struct lpfc_name));
+	memcpy(&rn->analdeName, &vport->fc_analdename, sizeof(struct lpfc_name));
 	switch (format) {
 	case 0:
 		rn->SpecificLen = 0;
@@ -6365,7 +6365,7 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 		       &vport->fc_portname, sizeof(struct lpfc_name));
 		rn->un.topologyDisc.unitType = RNID_HBA;
 		rn->un.topologyDisc.physPort = 0;
-		rn->un.topologyDisc.attachedNodes = 0;
+		rn->un.topologyDisc.attachedAnaldes = 0;
 		break;
 	default:
 		rn->CommonLen = 0;
@@ -6399,20 +6399,20 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
  * lpfc_els_clear_rrq - Clear the rq that this rrq describes.
  * @vport: pointer to a virtual N_Port data structure.
  * @iocb: pointer to the lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * Return
  **/
 static void
 lpfc_els_clear_rrq(struct lpfc_vport *vport,
-		   struct lpfc_iocbq *iocb, struct lpfc_nodelist *ndlp)
+		   struct lpfc_iocbq *iocb, struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	uint8_t *pcmd;
 	struct RRQ *rrq;
 	uint16_t rxid;
 	uint16_t xri;
-	struct lpfc_node_rrq *prrq;
+	struct lpfc_analde_rrq *prrq;
 
 
 	pcmd = (uint8_t *)iocb->cmd_dmabuf->virt;
@@ -6448,7 +6448,7 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
  * @vport: pointer to a virtual N_Port data structure.
  * @data: pointer to echo data to return in the accept.
  * @oldiocb: pointer to the original lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * Return code
  *   0 - Successfully issued acc echo response
@@ -6456,7 +6456,7 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
  **/
 static int
 lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
-		      struct lpfc_iocbq *oldiocb, struct lpfc_nodelist *ndlp)
+		      struct lpfc_iocbq *oldiocb, struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	IOCB_t *icmd, *oldcmd;
@@ -6473,7 +6473,7 @@ lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
 		cmdsize = oldiocb->iocb.unsli3.rcvsli3.acc_len;
 
 	/* The accumulated length can exceed the BPL_SIZE.  For
-	 * now, use this as the limit
+	 * analw, use this as the limit
 	 */
 	if (cmdsize > LPFC_BPL_SIZE)
 		cmdsize = LPFC_BPL_SIZE;
@@ -6530,20 +6530,20 @@ lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
 }
 
 /**
- * lpfc_els_disc_adisc - Issue remaining adisc iocbs to npr nodes of a vport
+ * lpfc_els_disc_adisc - Issue remaining adisc iocbs to npr analdes of a vport
  * @vport: pointer to a host virtual N_Port data structure.
  *
  * This routine issues Address Discover (ADISC) ELS commands to those
- * N_Ports which are in node port recovery state and ADISC has not been issued
+ * N_Ports which are in analde port recovery state and ADISC has analt been issued
  * for the @vport. Each time an ELS ADISC IOCB is issued by invoking the
  * lpfc_issue_els_adisc() routine, the per @vport number of discover count
- * (num_disc_nodes) shall be incremented. If the num_disc_nodes reaches a
+ * (num_disc_analdes) shall be incremented. If the num_disc_analdes reaches a
  * pre-configured threshold (cfg_discovery_threads), the @vport fc_flag will
  * be marked with FC_NLP_MORE bit and the process of issuing remaining ADISC
  * IOCBs quit for later pick up. On the other hand, after walking through
- * all the ndlps with the @vport and there is none ADISC IOCB issued, the
+ * all the ndlps with the @vport and there is analne ADISC IOCB issued, the
  * @vport fc_flag shall be cleared with FC_NLP_MORE bit indicating there is
- * no more ADISC need to be sent.
+ * anal more ADISC need to be sent.
  *
  * Return code
  *    The number of N_Ports with adisc issued.
@@ -6552,13 +6552,13 @@ int
 lpfc_els_disc_adisc(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp, *next_ndlp;
+	struct lpfc_analdelist *ndlp, *next_ndlp;
 	int sentadisc = 0;
 
-	/* go thru NPR nodes and issue any remaining ELS ADISCs */
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+	/* go thru NPR analdes and issue any remaining ELS ADISCs */
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_analdes, nlp_listp) {
 
-		if (ndlp->nlp_state != NLP_STE_NPR_NODE ||
+		if (ndlp->nlp_state != NLP_STE_NPR_ANALDE ||
 		    !(ndlp->nlp_flag & NLP_NPR_ADISC))
 			continue;
 
@@ -6567,14 +6567,14 @@ lpfc_els_disc_adisc(struct lpfc_vport *vport)
 		spin_unlock_irq(&ndlp->lock);
 
 		if (!(ndlp->nlp_flag & NLP_NPR_2B_DISC)) {
-			/* This node was marked for ADISC but was not picked
-			 * for discovery. This is possible if the node was
+			/* This analde was marked for ADISC but was analt picked
+			 * for discovery. This is possible if the analde was
 			 * missing in gidft response.
 			 *
-			 * At time of marking node for ADISC, we skipped unreg
+			 * At time of marking analde for ADISC, we skipped unreg
 			 * from backend
 			 */
-			lpfc_nlp_unreg_node(vport, ndlp);
+			lpfc_nlp_unreg_analde(vport, ndlp);
 			lpfc_unreg_rpi(vport, ndlp);
 			continue;
 		}
@@ -6583,8 +6583,8 @@ lpfc_els_disc_adisc(struct lpfc_vport *vport)
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_ADISC_ISSUE);
 		lpfc_issue_els_adisc(vport, ndlp, 0);
 		sentadisc++;
-		vport->num_disc_nodes++;
-		if (vport->num_disc_nodes >=
+		vport->num_disc_analdes++;
+		if (vport->num_disc_analdes >=
 				vport->cfg_discovery_threads) {
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_NLP_MORE;
@@ -6602,19 +6602,19 @@ lpfc_els_disc_adisc(struct lpfc_vport *vport)
 }
 
 /**
- * lpfc_els_disc_plogi - Issue plogi for all npr nodes of a vport before adisc
+ * lpfc_els_disc_plogi - Issue plogi for all npr analdes of a vport before adisc
  * @vport: pointer to a host virtual N_Port data structure.
  *
  * This routine issues Port Login (PLOGI) ELS commands to all the N_Ports
- * which are in node port recovery state, with a @vport. Each time an ELS
+ * which are in analde port recovery state, with a @vport. Each time an ELS
  * ADISC PLOGI IOCB is issued by invoking the lpfc_issue_els_plogi() routine,
- * the per @vport number of discover count (num_disc_nodes) shall be
- * incremented. If the num_disc_nodes reaches a pre-configured threshold
+ * the per @vport number of discover count (num_disc_analdes) shall be
+ * incremented. If the num_disc_analdes reaches a pre-configured threshold
  * (cfg_discovery_threads), the @vport fc_flag will be marked with FC_NLP_MORE
  * bit set and quit the process of issuing remaining ADISC PLOGIN IOCBs for
  * later pick up. On the other hand, after walking through all the ndlps with
- * the @vport and there is none ADISC PLOGI IOCB issued, the @vport fc_flag
- * shall be cleared with the FC_NLP_MORE bit indicating there is no more ADISC
+ * the @vport and there is analne ADISC PLOGI IOCB issued, the @vport fc_flag
+ * shall be cleared with the FC_NLP_MORE bit indicating there is anal more ADISC
  * PLOGI need to be sent.
  *
  * Return code
@@ -6624,12 +6624,12 @@ int
 lpfc_els_disc_plogi(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp, *next_ndlp;
+	struct lpfc_analdelist *ndlp, *next_ndlp;
 	int sentplogi = 0;
 
-	/* go thru NPR nodes and issue any remaining ELS PLOGIs */
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_NPR_NODE &&
+	/* go thru NPR analdes and issue any remaining ELS PLOGIs */
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_analdes, nlp_listp) {
+		if (ndlp->nlp_state == NLP_STE_NPR_ANALDE &&
 				(ndlp->nlp_flag & NLP_NPR_2B_DISC) != 0 &&
 				(ndlp->nlp_flag & NLP_DELAY_TMO) == 0 &&
 				(ndlp->nlp_flag & NLP_NPR_ADISC) == 0) {
@@ -6637,8 +6637,8 @@ lpfc_els_disc_plogi(struct lpfc_vport *vport)
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PLOGI_ISSUE);
 			lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
 			sentplogi++;
-			vport->num_disc_nodes++;
-			if (vport->num_disc_nodes >=
+			vport->num_disc_analdes++;
+			if (vport->num_disc_analdes >=
 					vport->cfg_discovery_threads) {
 				spin_lock_irq(shost->host_lock);
 				vport->fc_flag |= FC_NLP_MORE;
@@ -6710,7 +6710,7 @@ lpfc_rdp_res_sfp_desc(struct fc_rdp_sfp_desc *desc,
 	}
 	/* check if its SFP+ */
 	flag |= ((page_a0[SSF_IDENTIFIER] == SFF_PG0_IDENT_SFP) ?
-			SFP_FLAG_CT_SFP_PLUS : SFP_FLAG_CT_UNKNOWN)
+			SFP_FLAG_CT_SFP_PLUS : SFP_FLAG_CT_UNKANALWN)
 					<< SFP_FLAG_CT_SHIFT;
 
 	/* check if its OPTICAL */
@@ -7010,7 +7010,7 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 		rdp_speed = RDP_PS_256GB;
 		break;
 	default:
-		rdp_speed = RDP_PS_UNKNOWN;
+		rdp_speed = RDP_PS_UNKANALWN;
 		break;
 	}
 
@@ -7038,7 +7038,7 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 		rdp_cap |= RDP_PS_1GB;
 
 	if (rdp_cap == 0)
-		rdp_cap = RDP_CAP_UNKNOWN;
+		rdp_cap = RDP_CAP_UNKANALWN;
 	if (phba->cfg_link_speed != LPFC_USER_LINK_SPEED_AUTO)
 		rdp_cap |= RDP_CAP_USER_CONFIGURED;
 
@@ -7054,7 +7054,7 @@ lpfc_rdp_res_diag_port_names(struct fc_rdp_port_name_desc *desc,
 
 	desc->tag = cpu_to_be32(RDP_PORT_NAMES_DESC_TAG);
 
-	memcpy(desc->port_names.wwnn, &vport->fc_nodename,
+	memcpy(desc->port_names.wwnn, &vport->fc_analdename,
 			sizeof(desc->port_names.wwnn));
 
 	memcpy(desc->port_names.wwpn, &vport->fc_portname,
@@ -7066,18 +7066,18 @@ lpfc_rdp_res_diag_port_names(struct fc_rdp_port_name_desc *desc,
 
 static uint32_t
 lpfc_rdp_res_attach_port_names(struct fc_rdp_port_name_desc *desc,
-		struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+		struct lpfc_vport *vport, struct lpfc_analdelist *ndlp)
 {
 
 	desc->tag = cpu_to_be32(RDP_PORT_NAMES_DESC_TAG);
 	if (vport->fc_flag & FC_FABRIC) {
-		memcpy(desc->port_names.wwnn, &vport->fabric_nodename,
+		memcpy(desc->port_names.wwnn, &vport->fabric_analdename,
 		       sizeof(desc->port_names.wwnn));
 
 		memcpy(desc->port_names.wwpn, &vport->fabric_portname,
 		       sizeof(desc->port_names.wwpn));
 	} else {  /* Point to Point */
-		memcpy(desc->port_names.wwnn, &ndlp->nlp_nodename,
+		memcpy(desc->port_names.wwnn, &ndlp->nlp_analdename,
 		       sizeof(desc->port_names.wwnn));
 
 		memcpy(desc->port_names.wwpn, &ndlp->nlp_portname,
@@ -7092,7 +7092,7 @@ static void
 lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 		int status)
 {
-	struct lpfc_nodelist *ndlp = rdp_context->ndlp;
+	struct lpfc_analdelist *ndlp = rdp_context->ndlp;
 	struct lpfc_vport *vport = ndlp->vport;
 	struct lpfc_iocbq *elsiocb;
 	struct ulp_bde64 *bpl;
@@ -7109,7 +7109,7 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	if (status != SUCCESS)
 		goto error;
 
-	/* This will change once we know the true size of the RDP payload */
+	/* This will change once we kanalw the true size of the RDP payload */
 	cmdsize = sizeof(struct fc_rdp_res_frame);
 
 	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize,
@@ -7189,7 +7189,7 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	rdp_res->length = cpu_to_be32(len - 8);
 	elsiocb->cmd_cmpl = lpfc_cmpl_els_rsp;
 
-	/* Now that we know the true size of the payload, update the BPL */
+	/* Analw that we kanalw the true size of the payload, update the BPL */
 	bpl = (struct ulp_bde64 *)elsiocb->bpl_dmabuf->virt;
 	bpl->tus.f.bdeSize = len;
 	bpl->tus.f.bdeFlags = 0;
@@ -7253,7 +7253,7 @@ error:
 
 free_rdp_context:
 	/* This reference put is for the original unsolicited RDP. If the
-	 * prep failed, there is no reference to remove.
+	 * prep failed, there is anal reference to remove.
 	 */
 	lpfc_nlp_put(ndlp);
 	kfree(rdp_context);
@@ -7277,8 +7277,8 @@ lpfc_get_rdp_info(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context)
 	mbox->vport = rdp_context->ndlp->vport;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a0;
 	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT);
+	if (rc == MBX_ANALT_FINISHED) {
 		lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 		return 1;
 	}
@@ -7339,7 +7339,7 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 
 	rc = lpfc_sli_issue_mbox_wait(phba, mbox, 30);
-	if (rc == MBX_NOT_FINISHED) {
+	if (rc == MBX_ANALT_FINISHED) {
 		rc = 1;
 		goto error;
 	}
@@ -7370,7 +7370,7 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 	       &mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);
 	bf_set(lpfc_mbx_memory_dump_type3_link,
 	       &mbox->u.mqe.un.mem_dump_type3, phba->sli4_hba.physical_port);
-	bf_set(lpfc_mbx_memory_dump_type3_page_no,
+	bf_set(lpfc_mbx_memory_dump_type3_page_anal,
 	       &mbox->u.mqe.un.mem_dump_type3, DMP_PAGE_A2);
 	if (phba->sli_rev < LPFC_SLI_REV4) {
 		mb = &mbox->u.mb;
@@ -7422,9 +7422,9 @@ sfp_fail:
  * lpfc_els_rcv_rdp - Process an unsolicited RDP ELS.
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
- * This routine processes an unsolicited RDP(Read Diagnostic Parameters)
+ * This routine processes an unsolicited RDP(Read Diaganalstic Parameters)
  * IOCB. First, the payload of the unsolicited RDP is checked.
  * Then it will (1) send MBX_DUMP_MEMORY, Embedded DMP_LMSD sub command TYPE-3
  * for Page A0, (2) send MBX_DUMP_MEMORY, DMP_LMSD for Page A2,
@@ -7437,11 +7437,11 @@ sfp_fail:
  */
 static int
 lpfc_els_rcv_rdp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		struct lpfc_nodelist *ndlp)
+		struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_dmabuf *pcmd;
-	uint8_t rjt_err, rjt_expl = LSEXP_NOTHING_MORE;
+	uint8_t rjt_err, rjt_expl = LSEXP_ANALTHING_MORE;
 	struct fc_rdp_req_frame *rdp_req;
 	struct lpfc_rdp_context *rdp_context;
 	union lpfc_wqe128 *cmd = NULL;
@@ -7529,7 +7529,7 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	union lpfc_wqe128 *wqe;
 	uint8_t *pcmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct ls_rjt *stat;
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_lcb_context *lcb_context;
@@ -7721,8 +7721,8 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
 		       be16_to_cpu(lcb_context->duration));
 	}
 
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT);
+	if (rc == MBX_ANALT_FINISHED) {
 		mempool_free(mbox, phba->mbox_mem_pool);
 		return 1;
 	}
@@ -7735,7 +7735,7 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
  * lpfc_els_rcv_lcb - Process an unsolicited LCB
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes an unsolicited LCB(LINK CABLE BEACON) IOCB.
  * First, the payload of the unsolicited LCB is checked.
@@ -7747,7 +7747,7 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
  **/
 static int
 lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		 struct lpfc_nodelist *ndlp)
+		 struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_dmabuf *pcmd;
@@ -7828,8 +7828,8 @@ rjt:
  * lpfc_els_flush_rscn - Clean up any rscn activities with a vport
  * @vport: pointer to a host virtual N_Port data structure.
  *
- * This routine cleans up any Registration State Change Notification
- * (RSCN) activity with a @vport. Note that the fc_rscn_flush flag of the
+ * This routine cleans up any Registration State Change Analtification
+ * (RSCN) activity with a @vport. Analte that the fc_rscn_flush flag of the
  * @vport together with the host_lock is used to prevent multiple thread
  * trying to access the RSCN array on a same @vport at the same time.
  **/
@@ -7842,7 +7842,7 @@ lpfc_els_flush_rscn(struct lpfc_vport *vport)
 
 	spin_lock_irq(shost->host_lock);
 	if (vport->fc_rscn_flush) {
-		/* Another thread is walking fc_rscn_id_list on this vport */
+		/* Aanalther thread is walking fc_rscn_id_list on this vport */
 		spin_unlock_irq(shost->host_lock);
 		return;
 	}
@@ -7869,11 +7869,11 @@ lpfc_els_flush_rscn(struct lpfc_vport *vport)
  * @did: remote destination port identifier.
  *
  * This routine checks whether there is any pending Registration State
- * Configuration Notification (RSCN) to a @did on @vport.
+ * Configuration Analtification (RSCN) to a @did on @vport.
  *
  * Return code
- *   None zero - The @did matched with a pending rscn
- *   0 - not able to match @did with a pending rscn
+ *   Analne zero - The @did matched with a pending rscn
+ *   0 - analt able to match @did with a pending rscn
  **/
 int
 lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
@@ -7886,7 +7886,7 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 
 	ns_did.un.word = did;
 
-	/* Never match fabric nodes for RSCNs */
+	/* Never match fabric analdes for RSCNs */
 	if ((did & Fabric_DID_MASK) == Fabric_DID_MASK)
 		return 0;
 
@@ -7896,7 +7896,7 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 
 	spin_lock_irq(shost->host_lock);
 	if (vport->fc_rscn_flush) {
-		/* Another thread is walking fc_rscn_id_list on this vport */
+		/* Aanalther thread is walking fc_rscn_id_list on this vport */
 		spin_unlock_irq(shost->host_lock);
 		return 0;
 	}
@@ -7941,12 +7941,12 @@ return_did_out:
 }
 
 /**
- * lpfc_rscn_recovery_check - Send recovery event to vport nodes matching rscn
+ * lpfc_rscn_recovery_check - Send recovery event to vport analdes matching rscn
  * @vport: pointer to a host virtual N_Port data structure.
  *
  * This routine sends recovery (NLP_EVT_DEVICE_RECOVERY) event to the
- * state machine for a @vport's nodes that are with pending RSCN (Registration
- * State Change Notification).
+ * state machine for a @vport's analdes that are with pending RSCN (Registration
+ * State Change Analtification).
  *
  * Return code
  *   0 - Successful (currently alway return 0)
@@ -7954,15 +7954,15 @@ return_did_out:
 static int
 lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp = NULL, *n;
+	struct lpfc_analdelist *ndlp = NULL, *n;
 
-	/* Move all affected nodes by pending RSCNs to NPR state. */
-	list_for_each_entry_safe(ndlp, n, &vport->fc_nodes, nlp_listp) {
-		if ((ndlp->nlp_state == NLP_STE_UNUSED_NODE) ||
+	/* Move all affected analdes by pending RSCNs to NPR state. */
+	list_for_each_entry_safe(ndlp, n, &vport->fc_analdes, nlp_listp) {
+		if ((ndlp->nlp_state == NLP_STE_UNUSED_ANALDE) ||
 		    !lpfc_rscn_payload_check(vport, ndlp->nlp_DID))
 			continue;
 
-		/* NVME Target mode does not do RSCN Recovery. */
+		/* NVME Target mode does analt do RSCN Recovery. */
 		if (vport->phba->nvmet_support)
 			continue;
 
@@ -8032,18 +8032,18 @@ lpfc_send_rscn_event(struct lpfc_vport *vport,
  * lpfc_els_rcv_rscn - Process an unsolicited rscn iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes an unsolicited RSCN (Registration State Change
- * Notification) IOCB. First, the payload of the unsolicited RSCN is walked
+ * Analtification) IOCB. First, the payload of the unsolicited RSCN is walked
  * to invoke fc_host_post_event() routine to the FC transport layer. If the
  * discover state machine is about to begin discovery, it just accepts the
  * RSCN and the discovery process will satisfy the RSCN. If this RSCN only
  * contains N_Port IDs for other vports on this HBA, it just accepts the
- * RSCN and ignore processing it. If the state machine is in the recovery
+ * RSCN and iganalre processing it. If the state machine is in the recovery
  * state, the fc_rscn_id_list of this @vport is walked and the
  * lpfc_rscn_recovery_check() routine is invoked to send recovery event for
- * all nodes that match RSCN payload. Otherwise, the lpfc_els_handle_rscn()
+ * all analdes that match RSCN payload. Otherwise, the lpfc_els_handle_rscn()
  * routine is invoked to handle the RSCN event.
  *
  * Return code
@@ -8052,7 +8052,7 @@ lpfc_send_rscn_event(struct lpfc_vport *vport,
  **/
 static int
 lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		  struct lpfc_nodelist *ndlp)
+		  struct lpfc_analdelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
@@ -8083,7 +8083,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	/* Check if RSCN is coming from a direct-connected remote NPort */
 	if (vport->fc_flag & FC_PT2PT) {
-		/* If so, just ACC it, no other action needed for now */
+		/* If so, just ACC it, anal other action needed for analw */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 				 "2024 pt2pt RSCN %08x Data: x%x x%x\n",
 				 *lp, vport->fc_flag, payload_len);
@@ -8103,7 +8103,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	 */
 	if (vport->port_state <= LPFC_NS_QRY) {
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
-			"RCV RSCN ignore: did:x%x/ste:x%x flg:x%x",
+			"RCV RSCN iganalre: did:x%x/ste:x%x flg:x%x",
 			ndlp->nlp_DID, vport->port_state, ndlp->nlp_flag);
 
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
@@ -8111,7 +8111,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	}
 
 	/* If this RSCN just contains NPortIDs for other vports on this HBA,
-	 * just ACC and ignore it.
+	 * just ACC and iganalre it.
 	 */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 		!(vport->cfg_peer_port_login)) {
@@ -8128,7 +8128,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		if (rscn_id == hba_id) {
 			/* ALL NPortIDs in RSCN are on HBA */
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "0219 Ignore RSCN "
+					 "0219 Iganalre RSCN "
 					 "Data: x%x x%x x%x x%x\n",
 					 vport->fc_flag, payload_len,
 					 *lp, vport->fc_rscn_id_cnt);
@@ -8152,7 +8152,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	spin_lock_irq(shost->host_lock);
 	if (vport->fc_rscn_flush) {
-		/* Another thread is walking fc_rscn_id_list on this vport */
+		/* Aanalther thread is walking fc_rscn_id_list on this vport */
 		vport->fc_flag |= FC_RSCN_DISCOVERY;
 		spin_unlock_irq(shost->host_lock);
 		/* Send back ACC */
@@ -8199,7 +8199,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				vport->fc_rscn_id_list[rscn_cnt] = pcmd;
 				vport->fc_rscn_id_cnt++;
 				/* If we zero, cmdiocb->cmd_dmabuf, the calling
-				 * routine will not try to free it.
+				 * routine will analt try to free it.
 				 */
 				cmdiocb->cmd_dmabuf = NULL;
 			}
@@ -8223,7 +8223,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		vport->fc_rscn_flush = 0;
 		/* Send back ACC */
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
-		/* send RECOVERY event for ALL nodes that match RSCN payload */
+		/* send RECOVERY event for ALL analdes that match RSCN payload */
 		lpfc_rscn_recovery_check(vport);
 		return 0;
 	}
@@ -8239,13 +8239,13 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	vport->fc_rscn_flush = 0;
 	/*
 	 * If we zero, cmdiocb->cmd_dmabuf, the calling routine will
-	 * not try to free it.
+	 * analt try to free it.
 	 */
 	cmdiocb->cmd_dmabuf = NULL;
 	lpfc_set_disctmo(vport);
 	/* Send back ACC */
 	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
-	/* send RECOVERY event for ALL nodes that match RSCN payload */
+	/* send RECOVERY event for ALL analdes that match RSCN payload */
 	lpfc_rscn_recovery_check(vport);
 	return lpfc_els_handle_rscn(vport);
 }
@@ -8254,8 +8254,8 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_handle_rscn - Handle rscn for a vport
  * @vport: pointer to a host virtual N_Port data structure.
  *
- * This routine handles the Registration State Configuration Notification
- * (RSCN) for a @vport. If login to NameServer does not exist, a new ndlp shall
+ * This routine handles the Registration State Configuration Analtification
+ * (RSCN) for a @vport. If login to NameServer does analt exist, a new ndlp shall
  * be created and a Port Login (PLOGI) to the NameServer is issued. Otherwise,
  * if the ndlp to NameServer exists, a Common Transport (CT) command to the
  * NameServer shall be issued. If CT command to the NameServer fails to be
@@ -8269,10 +8269,10 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 int
 lpfc_els_handle_rscn(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct lpfc_hba  *phba = vport->phba;
 
-	/* Ignore RSCN if the port is being torn down. */
+	/* Iganalre RSCN if the port is being torn down. */
 	if (vport->load_flag & FC_UNLOADING) {
 		lpfc_els_flush_rscn(vport);
 		return 0;
@@ -8285,17 +8285,17 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0215 RSCN processed Data: x%x x%x x%x x%x x%x x%x\n",
 			 vport->fc_flag, 0, vport->fc_rscn_id_cnt,
-			 vport->port_state, vport->num_disc_nodes,
+			 vport->port_state, vport->num_disc_analdes,
 			 vport->gidft_inp);
 
 	/* To process RSCN, first compare RSCN data with NameServer */
 	vport->fc_ns_retry = 0;
-	vport->num_disc_nodes = 0;
+	vport->num_disc_analdes = 0;
 
-	ndlp = lpfc_findnode_did(vport, NameServer_DID);
-	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
+	ndlp = lpfc_findanalde_did(vport, NameServer_DID);
+	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_ANALDE) {
 		/* Good ndlp, issue CT Request to NameServer.  Need to
-		 * know how many gidfts were issued.  If none, then just
+		 * kanalw how many gidfts were issued.  If analne, then just
 		 * flush the RSCN.  Otherwise, the outstanding requests
 		 * need to complete.
 		 */
@@ -8311,7 +8311,7 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 	} else {
 		/* Nameserver login in question.  Revalidate. */
 		if (ndlp) {
-			ndlp->nlp_prev_state = NLP_STE_UNUSED_NODE;
+			ndlp->nlp_prev_state = NLP_STE_UNUSED_ANALDE;
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PLOGI_ISSUE);
 		} else {
 			ndlp = lpfc_nlp_init(vport, NameServer_DID);
@@ -8338,12 +8338,12 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
  * lpfc_els_rcv_flogi - Process an unsolicited flogi iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes Fabric Login (FLOGI) IOCB received as an ELS
  * unsolicited event. An unsolicited FLOGI can be received in a point-to-
- * point topology. As an unsolicited FLOGI should not be received in a loop
- * mode, any unsolicited FLOGI received in loop mode shall be ignored. The
+ * point topology. As an unsolicited FLOGI should analt be received in a loop
+ * mode, any unsolicited FLOGI received in loop mode shall be iganalred. The
  * lpfc_check_sparm() routine is invoked to check the parameters in the
  * unsolicited FLOGI. If parameters validation failed, the routine
  * lpfc_els_rsp_reject() shall be called with reject reason code set to
@@ -8351,7 +8351,7 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
  * FLOGI shall be compared with the Port WWN of the @vport to determine who
  * will initiate PLOGI. The higher lexicographical value party shall has
  * higher priority (as the winning port) and will initiate PLOGI and
- * communicate Port_IDs (Addresses) for both nodes in PLOGI. The result
+ * communicate Port_IDs (Addresses) for both analdes in PLOGI. The result
  * of this will be marked in the @vport fc_flag field with FC_PT2PT_PLOGI
  * and then the lpfc_els_rsp_acc() routine is invoked to accept the FLOGI.
  *
@@ -8361,7 +8361,7 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
  **/
 static int
 lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		   struct lpfc_nodelist *ndlp)
+		   struct lpfc_analdelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
@@ -8386,7 +8386,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	lpfc_set_disctmo(vport);
 
 	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
-		/* We should never receive a FLOGI in loop mode, ignore it */
+		/* We should never receive a FLOGI in loop mode, iganalre it */
 		did =  bf_get(wqe_els_did, &wqe->xmit_els_rsp.wqe_dest);
 
 		/* An FLOGI ELS command <elsCmd> was received from DID <did> in
@@ -8422,9 +8422,9 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 			mbox->vport = vport;
 			rc = lpfc_sli_issue_mbox(phba, mbox,
-						 MBX_NOWAIT);
+						 MBX_ANALWAIT);
 			lpfc_set_loopback_flag(phba);
-			if (rc == MBX_NOT_FINISHED)
+			if (rc == MBX_ANALT_FINISHED)
 				mempool_free(mbox, phba->mbox_mem_pool);
 			return 1;
 		}
@@ -8458,7 +8458,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	/*
 	 * The vport state should go to LPFC_FLOGI only
-	 * AFTER we issue a FLOGI, not receive one.
+	 * AFTER we issue a FLOGI, analt receive one.
 	 */
 	spin_lock_irq(shost->host_lock);
 	fc_flag = vport->fc_flag;
@@ -8510,7 +8510,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	/* Send back ACC */
 	lpfc_els_rsp_acc(vport, ELS_CMD_FLOGI, cmdiocb, ndlp, NULL);
 
-	/* Now lets put fc_myDID back to what its supposed to be */
+	/* Analw lets put fc_myDID back to what its supposed to be */
 	vport->fc_myDID = did;
 
 	return 0;
@@ -8520,11 +8520,11 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rcv_rnid - Process an unsolicited rnid iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
- * This routine processes Request Node Identification Data (RNID) IOCB
+ * This routine processes Request Analde Identification Data (RNID) IOCB
  * received as an ELS unsolicited event. Only when the RNID specified format
- * 0x0 or 0xDF (Topology Discovery Specific Node Identification Data)
+ * 0x0 or 0xDF (Topology Discovery Specific Analde Identification Data)
  * present, this routine will invoke the lpfc_els_rsp_rnid_acc() routine to
  * Accept (ACC) the RNID ELS command. All the other RNID formats are
  * rejected by invoking the lpfc_els_rsp_reject() routine.
@@ -8534,7 +8534,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  **/
 static int
 lpfc_els_rcv_rnid(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		  struct lpfc_nodelist *ndlp)
+		  struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_dmabuf *pcmd;
 	uint32_t *lp;
@@ -8556,7 +8556,7 @@ lpfc_els_rcv_rnid(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		lpfc_els_rsp_rnid_acc(vport, rn->Format, cmdiocb, ndlp);
 		break;
 	default:
-		/* Reject this request because format not supported */
+		/* Reject this request because format analt supported */
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
@@ -8571,14 +8571,14 @@ lpfc_els_rcv_rnid(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rcv_echo - Process an unsolicited echo iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * Return code
  *   0 - Successfully processed echo iocb (currently always return 0)
  **/
 static int
 lpfc_els_rcv_echo(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		  struct lpfc_nodelist *ndlp)
+		  struct lpfc_analdelist *ndlp)
 {
 	uint8_t *pcmd;
 
@@ -8595,7 +8595,7 @@ lpfc_els_rcv_echo(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rcv_lirr - Process an unsolicited lirr iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes a Link Incident Report Registration(LIRR) IOCB
  * received as an ELS unsolicited event. Currently, this function just invokes
@@ -8606,11 +8606,11 @@ lpfc_els_rcv_echo(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  **/
 static int
 lpfc_els_rcv_lirr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		  struct lpfc_nodelist *ndlp)
+		  struct lpfc_analdelist *ndlp)
 {
 	struct ls_rjt stat;
 
-	/* For now, unconditionally reject this command */
+	/* For analw, unconditionally reject this command */
 	stat.un.b.lsRjtRsvd0 = 0;
 	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 	stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
@@ -8623,21 +8623,21 @@ lpfc_els_rcv_lirr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rcv_rrq - Process an unsolicited rrq iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes a Reinstate Recovery Qualifier (RRQ) IOCB
  * received as an ELS unsolicited event. A request to RRQ shall only
  * be accepted if the Originator Nx_Port N_Port_ID or the Responder
  * Nx_Port N_Port_ID of the target Exchange is the same as the
  * N_Port_ID of the Nx_Port that makes the request. If the RRQ is
- * not accepted, an LS_RJT with reason code "Unable to perform
+ * analt accepted, an LS_RJT with reason code "Unable to perform
  * command request" and reason code explanation "Invalid Originator
- * S_ID" shall be returned. For now, we just unconditionally accept
+ * S_ID" shall be returned. For analw, we just unconditionally accept
  * RRQ from the target.
  **/
 static void
 lpfc_els_rcv_rrq(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		 struct lpfc_nodelist *ndlp)
+		 struct lpfc_analdelist *ndlp)
 {
 	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4)
@@ -8657,7 +8657,7 @@ lpfc_els_rcv_rrq(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * collected, and then invokes the lpfc_sli_issue_iocb() routine to send ACC
  * response to the RLS.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the RLS Accept Response
  * ELS IOCB command.
@@ -8673,7 +8673,7 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct RLS_RSP *rls_rsp;
 	uint8_t *pcmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	uint16_t oxid;
 	uint16_t rxid;
 	uint32_t cmdsize;
@@ -8756,11 +8756,11 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
  * lpfc_els_rcv_rls - Process an unsolicited rls iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes Read Link Status (RLS) IOCB received as an
  * ELS unsolicited event. It first checks the remote port state. If the
- * remote port is not in NLP_STE_UNMAPPED_NODE state or NLP_STE_MAPPED_NODE
+ * remote port is analt in NLP_STE_UNMAPPED_ANALDE state or NLP_STE_MAPPED_ANALDE
  * state, it invokes the lpfc_els_rsl_reject() routine to send the reject
  * response. Otherwise, it issue the MBX_READ_LNK_STAT mailbox command
  * for reading the HBA link statistics. It is for the callback function,
@@ -8772,7 +8772,7 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
  **/
 static int
 lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		 struct lpfc_nodelist *ndlp)
+		 struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba *phba = vport->phba;
 	LPFC_MBOXQ_t *mbox;
@@ -8780,8 +8780,8 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	u32 ctx = get_job_ulpcontext(phba, cmdiocb);
 	u32 ox_id = get_job_rcvoxid(phba, cmdiocb);
 
-	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
-	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))
+	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_ANALDE) &&
+	    (ndlp->nlp_state != NLP_STE_MAPPED_ANALDE))
 		/* reject the unsolicited RLS request and done with it */
 		goto reject_out;
 
@@ -8792,18 +8792,18 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 					 (ox_id << 16 | ctx));
 		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 		if (!mbox->ctx_ndlp)
-			goto node_err;
+			goto analde_err;
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_els_rsp_rls_acc;
-		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
-			!= MBX_NOT_FINISHED)
+		if (lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT)
+			!= MBX_ANALT_FINISHED)
 			/* Mbox completion will send ELS Response */
 			return 0;
 		/* Decrement reference count used for the failed mbox
 		 * command.
 		 */
 		lpfc_nlp_put(ndlp);
-node_err:
+analde_err:
 		mempool_free(mbox, phba->mbox_mem_pool);
 	}
 reject_out:
@@ -8820,16 +8820,16 @@ reject_out:
  * lpfc_els_rcv_rtv - Process an unsolicited rtv iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes Read Timout Value (RTV) IOCB received as an
  * ELS unsolicited event. It first checks the remote port state. If the
- * remote port is not in NLP_STE_UNMAPPED_NODE state or NLP_STE_MAPPED_NODE
+ * remote port is analt in NLP_STE_UNMAPPED_ANALDE state or NLP_STE_MAPPED_ANALDE
  * state, it invokes the lpfc_els_rsl_reject() routine to send the reject
  * response. Otherwise, it sends the Accept(ACC) response to a Read Timeout
  * Value (RTV) unsolicited IOCB event.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the RTV Accept Response
  * ELS IOCB command.
@@ -8839,7 +8839,7 @@ reject_out:
  **/
 static int
 lpfc_els_rcv_rtv(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		 struct lpfc_nodelist *ndlp)
+		 struct lpfc_analdelist *ndlp)
 {
 	int rc = 0;
 	IOCB_t *icmd;
@@ -8852,8 +8852,8 @@ lpfc_els_rcv_rtv(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	uint32_t cmdsize;
 	u32 ulp_context;
 
-	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
-	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))
+	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_ANALDE) &&
+	    (ndlp->nlp_state != NLP_STE_MAPPED_ANALDE))
 		/* reject the unsolicited RTV request and done with it */
 		goto reject_out;
 
@@ -8928,7 +8928,7 @@ reject_out:
 
 /* lpfc_issue_els_rrq - Process an unsolicited rrq iocb
  * @vport: pointer to a host virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @did: DID of the target.
  * @rrq: Pointer to the rrq struct.
  *
@@ -8940,8 +8940,8 @@ reject_out:
  *   1 - Failed to send rrq els iocb.
  **/
 static int
-lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
-			uint32_t did, struct lpfc_node_rrq *rrq)
+lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
+			uint32_t did, struct lpfc_analde_rrq *rrq)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	struct RRQ *els_rrq;
@@ -8953,7 +8953,7 @@ lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (!ndlp)
 		return 1;
 
-	/* If ndlp is not NULL, we will bump the reference count on it */
+	/* If ndlp is analt NULL, we will bump the reference count on it */
 	cmdsize = (sizeof(uint32_t) + sizeof(struct RRQ));
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, 0, ndlp, did,
 				     ELS_CMD_RRQ);
@@ -9009,9 +9009,9 @@ lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
  *         1 Failure.
  **/
 int
-lpfc_send_rrq(struct lpfc_hba *phba, struct lpfc_node_rrq *rrq)
+lpfc_send_rrq(struct lpfc_hba *phba, struct lpfc_analde_rrq *rrq)
 {
-	struct lpfc_nodelist *ndlp = lpfc_findnode_did(rrq->vport,
+	struct lpfc_analdelist *ndlp = lpfc_findanalde_did(rrq->vport,
 						       rrq->nlp_DID);
 	if (!ndlp)
 		return 1;
@@ -9028,12 +9028,12 @@ lpfc_send_rrq(struct lpfc_hba *phba, struct lpfc_node_rrq *rrq)
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdsize: size of the ELS command.
  * @oldiocb: pointer to the original lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine issuees an Accept (ACC) Read Port List (RPL) ELS command.
  * It is to be called by the lpfc_els_rcv_rpl() routine to accept the RPL.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the RPL Accept Response
  * ELS command.
@@ -9044,7 +9044,7 @@ lpfc_send_rrq(struct lpfc_hba *phba, struct lpfc_node_rrq *rrq)
  **/
 static int
 lpfc_els_rsp_rpl_acc(struct lpfc_vport *vport, uint16_t cmdsize,
-		     struct lpfc_iocbq *oldiocb, struct lpfc_nodelist *ndlp)
+		     struct lpfc_iocbq *oldiocb, struct lpfc_analdelist *ndlp)
 {
 	int rc = 0;
 	struct lpfc_hba *phba = vport->phba;
@@ -9119,11 +9119,11 @@ lpfc_els_rsp_rpl_acc(struct lpfc_vport *vport, uint16_t cmdsize,
  * lpfc_els_rcv_rpl - Process an unsolicited rpl iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes Read Port List (RPL) IOCB received as an ELS
  * unsolicited event. It first checks the remote port state. If the remote
- * port is not in NLP_STE_UNMAPPED_NODE and NLP_STE_MAPPED_NODE states, it
+ * port is analt in NLP_STE_UNMAPPED_ANALDE and NLP_STE_MAPPED_ANALDE states, it
  * invokes the lpfc_els_rsp_reject() routine to send reject response.
  * Otherwise, this routine then invokes the lpfc_els_rsp_rpl_acc() routine
  * to accept the RPL.
@@ -9133,7 +9133,7 @@ lpfc_els_rsp_rpl_acc(struct lpfc_vport *vport, uint16_t cmdsize,
  **/
 static int
 lpfc_els_rcv_rpl(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		 struct lpfc_nodelist *ndlp)
+		 struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_dmabuf *pcmd;
 	uint32_t *lp;
@@ -9142,8 +9142,8 @@ lpfc_els_rcv_rpl(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	RPL *rpl;
 	struct ls_rjt stat;
 
-	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
-	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
+	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_ANALDE) &&
+	    (ndlp->nlp_state != NLP_STE_MAPPED_ANALDE)) {
 		/* issue rejection response */
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
@@ -9177,29 +9177,29 @@ lpfc_els_rcv_rpl(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rcv_farp - Process an unsolicited farp request els command
  * @vport: pointer to a virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes Fibre Channel Address Resolution Protocol
  * (FARP) Request IOCB received as an ELS unsolicited event. Currently,
  * the lpfc driver only supports matching on WWPN or WWNN for FARP. As such,
- * FARP_MATCH_PORT flag and FARP_MATCH_NODE flag are checked against the
+ * FARP_MATCH_PORT flag and FARP_MATCH_ANALDE flag are checked against the
  * Match Flag in the FARP request IOCB: if FARP_MATCH_PORT flag is set, the
  * remote PortName is compared against the FC PortName stored in the @vport
- * data structure; if FARP_MATCH_NODE flag is set, the remote NodeName is
- * compared against the FC NodeName stored in the @vport data structure.
+ * data structure; if FARP_MATCH_ANALDE flag is set, the remote AnaldeName is
+ * compared against the FC AnaldeName stored in the @vport data structure.
  * If any of these matches and the FARP_REQUEST_FARPR flag is set in the
  * FARP request IOCB Response Flag, the lpfc_issue_els_farpr() routine is
- * invoked to send out FARP Response to the remote node. Before sending the
+ * invoked to send out FARP Response to the remote analde. Before sending the
  * FARP Response, however, the FARP_REQUEST_PLOGI flag is check in the FARP
  * request IOCB Response Flag and, if it is set, the lpfc_issue_els_plogi()
  * routine is invoked to log into the remote port first.
  *
  * Return code
- *   0 - Either the FARP Match Mode not supported or successfully processed
+ *   0 - Either the FARP Match Mode analt supported or successfully processed
  **/
 static int
 lpfc_els_rcv_farp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		  struct lpfc_nodelist *ndlp)
+		  struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_dmabuf *pcmd;
 	uint32_t *lp;
@@ -9216,7 +9216,7 @@ lpfc_els_rcv_farp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0601 FARP-REQ received from DID x%x\n", did);
 	/* We will only support match on WWPN or WWNN */
-	if (fp->Mflags & ~(FARP_MATCH_NODE | FARP_MATCH_PORT)) {
+	if (fp->Mflags & ~(FARP_MATCH_ANALDE | FARP_MATCH_PORT)) {
 		return 0;
 	}
 
@@ -9228,17 +9228,17 @@ lpfc_els_rcv_farp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			cnt = 1;
 	}
 
-	/* If this FARP command is searching for my nodename */
-	if (fp->Mflags & FARP_MATCH_NODE) {
-		if (memcmp(&fp->RnodeName, &vport->fc_nodename,
+	/* If this FARP command is searching for my analdename */
+	if (fp->Mflags & FARP_MATCH_ANALDE) {
+		if (memcmp(&fp->RanaldeName, &vport->fc_analdename,
 			   sizeof(struct lpfc_name)) == 0)
 			cnt = 1;
 	}
 
 	if (cnt) {
-		if ((ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) ||
-		   (ndlp->nlp_state == NLP_STE_MAPPED_NODE)) {
-			/* Log back into the node before sending the FARP. */
+		if ((ndlp->nlp_state == NLP_STE_UNMAPPED_ANALDE) ||
+		   (ndlp->nlp_state == NLP_STE_MAPPED_ANALDE)) {
+			/* Log back into the analde before sending the FARP. */
 			if (fp->Rflags & FARP_REQUEST_PLOGI) {
 				ndlp->nlp_prev_state = ndlp->nlp_state;
 				lpfc_nlp_set_state(vport, ndlp,
@@ -9246,7 +9246,7 @@ lpfc_els_rcv_farp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
 			}
 
-			/* Send a FARP response to that node */
+			/* Send a FARP response to that analde */
 			if (fp->Rflags & FARP_REQUEST_FARPR)
 				lpfc_issue_els_farpr(vport, did, 0);
 		}
@@ -9258,11 +9258,11 @@ lpfc_els_rcv_farp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rcv_farpr - Process an unsolicited farp response iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine processes Fibre Channel Address Resolution Protocol
  * Response (FARPR) IOCB received as an ELS unsolicited event. It simply
- * invokes the lpfc_els_rsp_acc() routine to the remote node to accept
+ * invokes the lpfc_els_rsp_acc() routine to the remote analde to accept
  * the FARP response request.
  *
  * Return code
@@ -9270,7 +9270,7 @@ lpfc_els_rcv_farp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  **/
 static int
 lpfc_els_rcv_farpr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		   struct lpfc_nodelist  *ndlp)
+		   struct lpfc_analdelist  *ndlp)
 {
 	uint32_t did;
 
@@ -9289,12 +9289,12 @@ lpfc_els_rcv_farpr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rcv_fan - Process an unsolicited fan iocb command
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @fan_ndlp: pointer to a node-list data structure.
+ * @fan_ndlp: pointer to a analde-list data structure.
  *
- * This routine processes a Fabric Address Notification (FAN) IOCB
+ * This routine processes a Fabric Address Analtification (FAN) IOCB
  * command received as an ELS unsolicited event. The FAN ELS command will
  * only be processed on a physical port (i.e., the @vport represents the
- * physical port). The fabric NodeName and PortName from the FAN IOCB are
+ * physical port). The fabric AnaldeName and PortName from the FAN IOCB are
  * compared against those in the phba data structure. If any of those is
  * different, the lpfc_initial_flogi() routine is invoked to initialize
  * Fabric Login (FLOGI) to the fabric to start the discover over. Otherwise,
@@ -9306,7 +9306,7 @@ lpfc_els_rcv_farpr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  **/
 static int
 lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		 struct lpfc_nodelist *fan_ndlp)
+		 struct lpfc_analdelist *fan_ndlp)
 {
 	struct lpfc_hba *phba = vport->phba;
 	uint32_t *lp;
@@ -9315,10 +9315,10 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS, "0265 FAN received\n");
 	lp = (uint32_t *)cmdiocb->cmd_dmabuf->virt;
 	fp = (FAN *) ++lp;
-	/* FAN received; Fan does not have a reply sequence */
+	/* FAN received; Fan does analt have a reply sequence */
 	if ((vport == phba->pport) &&
 	    (vport->port_state == LPFC_LOCAL_CFG_LINK)) {
-		if ((memcmp(&phba->fc_fabparam.nodeName, &fp->FnodeName,
+		if ((memcmp(&phba->fc_fabparam.analdeName, &fp->FanaldeName,
 			    sizeof(struct lpfc_name))) ||
 		    (memcmp(&phba->fc_fabparam.portName, &fp->FportName,
 			    sizeof(struct lpfc_name)))) {
@@ -9344,14 +9344,14 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_rcv_edc - Process an unsolicited EDC iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * Return code
  *   0 - Successfully processed echo iocb (currently always return 0)
  **/
 static int
 lpfc_els_rcv_edc(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
-		 struct lpfc_nodelist *ndlp)
+		 struct lpfc_analdelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	struct fc_els_edc *edc_req;
@@ -9374,8 +9374,8 @@ lpfc_els_rcv_edc(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			 bytes_remain, be32_to_cpu(*ptr),
 			 be32_to_cpu(*(ptr + 1)), be32_to_cpu(*(ptr + 2)));
 
-	/* No signal support unless there is a congestion descriptor */
-	phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+	/* Anal signal support unless there is a congestion descriptor */
+	phba->cgn_reg_signal = EDC_CG_SIG_ANALTSUPPORTED;
 	phba->cgn_sig_freq = 0;
 	phba->cgn_reg_fpin = LPFC_CGN_FPIN_ALARM | LPFC_CGN_FPIN_WARN;
 
@@ -9385,7 +9385,7 @@ lpfc_els_rcv_edc(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	tlv = edc_req->desc;
 
 	/*
-	 * cycle through EDC diagnostic descriptors to find the
+	 * cycle through EDC diaganalstic descriptors to find the
 	 * congestion signaling capability descriptor
 	 */
 	while (bytes_remain) {
@@ -9393,7 +9393,7 @@ lpfc_els_rcv_edc(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			lpfc_printf_log(phba, KERN_WARNING,
 					LOG_ELS | LOG_CGN_MGMT | LOG_LDS_EVENT,
 					"6464 Truncated TLV hdr on "
-					"Diagnostic descriptor[%d]\n",
+					"Diaganalstic descriptor[%d]\n",
 					desc_cnt);
 			goto out;
 		}
@@ -9406,7 +9406,7 @@ lpfc_els_rcv_edc(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				sizeof(struct fc_diag_lnkflt_desc)) {
 				lpfc_printf_log(phba, KERN_WARNING,
 					LOG_ELS | LOG_CGN_MGMT | LOG_LDS_EVENT,
-					"6465 Truncated Link Fault Diagnostic "
+					"6465 Truncated Link Fault Diaganalstic "
 					"descriptor[%d]: %d vs 0x%zx 0x%zx\n",
 					desc_cnt, bytes_remain,
 					FC_TLV_DESC_SZ_FROM_LENGTH(tlv),
@@ -9432,7 +9432,7 @@ lpfc_els_rcv_edc(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				sizeof(struct fc_diag_cg_sig_desc)) {
 				lpfc_printf_log(
 					phba, KERN_WARNING, LOG_CGN_MGMT,
-					"6466 Truncated cgn signal Diagnostic "
+					"6466 Truncated cgn signal Diaganalstic "
 					"descriptor[%d]: %d vs 0x%zx 0x%zx\n",
 					desc_cnt, bytes_remain,
 					FC_TLV_DESC_SZ_FROM_LENGTH(tlv),
@@ -9456,7 +9456,7 @@ lpfc_els_rcv_edc(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			dtag_nm = lpfc_get_tlv_dtag_nm(dtag);
 			lpfc_printf_log(phba, KERN_WARNING,
 					LOG_ELS | LOG_CGN_MGMT | LOG_LDS_EVENT,
-					"6467 unknown Diagnostic "
+					"6467 unkanalwn Diaganalstic "
 					"Descriptor[%d]: tag x%x (%s)\n",
 					desc_cnt, dtag, dtag_nm);
 		}
@@ -9581,8 +9581,8 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 		if (ulp_command != CMD_GEN_REQUEST64_CR) {
 			remote_ID = did;
 		} else {
-			struct lpfc_nodelist *ndlp;
-			ndlp = __lpfc_findnode_rpi(vport, ulp_context);
+			struct lpfc_analdelist *ndlp;
+			ndlp = __lpfc_findanalde_rpi(vport, ulp_context);
 			if (ndlp)
 				remote_ID = ndlp->nlp_DID;
 		}
@@ -9621,16 +9621,16 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
  * @vport. It first aborts the @vport by invoking lpfc_fabric_abort_vport()
  * routine. After that, it walks the ELS transmit queue to remove all the
  * IOCBs with the @vport other than the QUE_RING and ABORT/CLOSE IOCBs. For
- * the IOCBs with a non-NULL completion callback function, the callback
+ * the IOCBs with a analn-NULL completion callback function, the callback
  * function will be invoked with the status set to IOSTAT_LOCAL_REJECT and
  * un.ulpWord[4] set to IOERR_SLI_ABORTED. For IOCBs with a NULL completion
  * callback function, the IOCB will simply be released. Finally, it walks
  * the ELS transmit completion queue to issue an abort IOCB to any transmit
- * completion queue IOCB that is associated with the @vport and is not
- * an IOCB from libdfc (i.e., the management plane IOCBs that are not
+ * completion queue IOCB that is associated with the @vport and is analt
+ * an IOCB from libdfc (i.e., the management plane IOCBs that are analt
  * part of the discovery state machine) out to HBA by invoking the
- * lpfc_sli_issue_abort_iotag() routine. Note that this function issues the
- * abort IOCB to any transmit completion queueed IOCB, it does not guarantee
+ * lpfc_sli_issue_abort_iotag() routine. Analte that this function issues the
+ * abort IOCB to any transmit completion queueed IOCB, it does analt guarantee
  * the IOCBs are aborted when this function returns.
  **/
 void
@@ -9656,7 +9656,7 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	pring = lpfc_phba_elsring(phba);
 
-	/* Bail out if we've no ELS wq, like in PCI error recovery case. */
+	/* Bail out if we've anal ELS wq, like in PCI error recovery case. */
 	if (unlikely(!pring)) {
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		return;
@@ -9685,7 +9685,7 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 			list_add_tail(&piocb->dlist, &abort_list);
 
 			/* If the link is down when flushing ELS commands
-			 * the firmware will not complete them till after
+			 * the firmware will analt complete them till after
 			 * the link comes back up. This may confuse
 			 * discovery for the new link up, so we need to
 			 * change the compl routine to just clean up the iocb
@@ -9722,14 +9722,14 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 
 	if (!list_empty(&abort_list))
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "3387 abort list for txq not empty\n");
+				 "3387 abort list for txq analt empty\n");
 	INIT_LIST_HEAD(&abort_list);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
-	/* No need to abort the txq list,
+	/* Anal need to abort the txq list,
 	 * just queue them up for lpfc_sli_cancel_iocbs
 	 */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txq, list) {
@@ -9738,7 +9738,7 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 		if (piocb->cmd_flag & LPFC_IO_LIBDFC)
 			continue;
 
-		/* Do not flush out the QUE_RING and ABORT/CLOSE iocbs */
+		/* Do analt flush out the QUE_RING and ABORT/CLOSE iocbs */
 		if (ulp_command == CMD_QUE_RING_BUF_CN ||
 		    ulp_command == CMD_QUE_RING_BUF64_CN ||
 		    ulp_command == CMD_CLOSE_XRI_CN ||
@@ -9786,8 +9786,8 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
  * un.ulpWord[4] set to IOERR_SLI_ABORTED. For IOCBs without the completion
  * callback function associated, the IOCB will simply be released. Finally,
  * it walks the ELS transmit completion queue to issue an abort IOCB to any
- * transmit completion queue IOCB that is not an IOCB from libdfc (i.e., the
- * management plane IOCBs that are not part of the discovery state machine)
+ * transmit completion queue IOCB that is analt an IOCB from libdfc (i.e., the
+ * management plane IOCBs that are analt part of the discovery state machine)
  * out to HBA by invoking the lpfc_sli_issue_abort_iotag() routine.
  **/
 void
@@ -9822,7 +9822,7 @@ lpfc_send_els_failure_event(struct lpfc_hba *phba,
 	struct lpfc_lsrjt_event lsrjt_event;
 	struct lpfc_fabric_event_header fabric_event;
 	struct ls_rjt stat;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	uint32_t *pcmd;
 	u32 ulp_status, ulp_word4;
 
@@ -9838,7 +9838,7 @@ lpfc_send_els_failure_event(struct lpfc_hba *phba,
 		lsrjt_event.header.subcategory = LPFC_EVENT_LSRJT_RCV;
 		memcpy(lsrjt_event.header.wwpn, &ndlp->nlp_portname,
 			sizeof(struct lpfc_name));
-		memcpy(lsrjt_event.header.wwnn, &ndlp->nlp_nodename,
+		memcpy(lsrjt_event.header.wwnn, &ndlp->nlp_analdename,
 			sizeof(struct lpfc_name));
 		pcmd = (uint32_t *)cmdiocbp->cmd_dmabuf->virt;
 		lsrjt_event.command = (pcmd != NULL) ? *pcmd : 0;
@@ -9861,7 +9861,7 @@ lpfc_send_els_failure_event(struct lpfc_hba *phba,
 			fabric_event.subcategory = LPFC_EVENT_FABRIC_BUSY;
 		memcpy(fabric_event.wwpn, &ndlp->nlp_portname,
 			sizeof(struct lpfc_name));
-		memcpy(fabric_event.wwnn, &ndlp->nlp_nodename,
+		memcpy(fabric_event.wwnn, &ndlp->nlp_analdename,
 			sizeof(struct lpfc_name));
 		fc_host_post_vendor_event(shost,
 			fc_get_event_number(),
@@ -9876,7 +9876,7 @@ lpfc_send_els_failure_event(struct lpfc_hba *phba,
 /**
  * lpfc_send_els_event - Posts unsolicited els event
  * @vport: Pointer to vport object.
- * @ndlp: Pointer FC node object.
+ * @ndlp: Pointer FC analde object.
  * @payload: ELS command code type.
  *
  * This function posts an event when there is an incoming
@@ -9884,7 +9884,7 @@ lpfc_send_els_failure_event(struct lpfc_hba *phba,
  **/
 static void
 lpfc_send_els_event(struct lpfc_vport *vport,
-		    struct lpfc_nodelist *ndlp,
+		    struct lpfc_analdelist *ndlp,
 		    uint32_t *payload)
 {
 	struct lpfc_els_event_header *els_data = NULL;
@@ -9932,7 +9932,7 @@ lpfc_send_els_event(struct lpfc_vport *vport,
 		return;
 	}
 	memcpy(els_data->wwpn, &ndlp->nlp_portname, sizeof(struct lpfc_name));
-	memcpy(els_data->wwnn, &ndlp->nlp_nodename, sizeof(struct lpfc_name));
+	memcpy(els_data->wwnn, &ndlp->nlp_analdename, sizeof(struct lpfc_name));
 	if (*payload == ELS_CMD_LOGO) {
 		fc_host_post_vendor_event(shost,
 			fc_get_event_number(),
@@ -10032,7 +10032,7 @@ lpfc_display_fpin_wwpn(struct lpfc_hba *phba, __be64 *wwnlist, u32 cnt)
 /**
  * lpfc_els_rcv_fpin_li - Process an FPIN Link Integrity Event.
  * @phba: Pointer to phba object.
- * @tlv:  Pointer to the Link Integrity Notification Descriptor.
+ * @tlv:  Pointer to the Link Integrity Analtification Descriptor.
  *
  * This function processes a Link Integrity FPIN event by logging a message.
  **/
@@ -10063,7 +10063,7 @@ lpfc_els_rcv_fpin_li(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 /**
  * lpfc_els_rcv_fpin_del - Process an FPIN Delivery Event.
  * @phba: Pointer to hba object.
- * @tlv:  Pointer to the Delivery Notification Descriptor TLV
+ * @tlv:  Pointer to the Delivery Analtification Descriptor TLV
  *
  * This function processes a Delivery FPIN event by logging a message.
  **/
@@ -10101,7 +10101,7 @@ lpfc_els_rcv_fpin_del(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 /**
  * lpfc_els_rcv_fpin_peer_cgn - Process a FPIN Peer Congestion Event.
  * @phba: Pointer to hba object.
- * @tlv:  Pointer to the Peer Congestion Notification Descriptor TLV
+ * @tlv:  Pointer to the Peer Congestion Analtification Descriptor TLV
  *
  * This function processes a Peer Congestion FPIN event by logging a message.
  **/
@@ -10131,11 +10131,11 @@ lpfc_els_rcv_fpin_peer_cgn(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 }
 
 /**
- * lpfc_els_rcv_fpin_cgn - Process an FPIN Congestion notification
+ * lpfc_els_rcv_fpin_cgn - Process an FPIN Congestion analtification
  * @phba: Pointer to hba object.
- * @tlv:  Pointer to the Congestion Notification Descriptor TLV
+ * @tlv:  Pointer to the Congestion Analtification Descriptor TLV
  *
- * This function processes an FPIN Congestion Notifiction.  The notification
+ * This function processes an FPIN Congestion Analtifiction.  The analtification
  * could be an Alarm or Warning.  This routine feeds that data into driver's
  * running congestion algorithm. It also processes the FPIN by
  * logging a message. It returns 1 to indicate deliver this message
@@ -10262,7 +10262,7 @@ lpfc_els_rcv_fpin(struct lpfc_vport *vport, void *p, u32 fpin_length)
 	if (fpin_length < sizeof(struct fc_els_fpin))
 		return;
 
-	/* Sanity check descriptor length. The desc_len value does not
+	/* Sanity check descriptor length. The desc_len value does analt
 	 * include space for the ELS command and the desc_len fields.
 	 */
 	len = be32_to_cpu(fpin->desc_len);
@@ -10301,7 +10301,7 @@ lpfc_els_rcv_fpin(struct lpfc_vport *vport, void *p, u32 fpin_length)
 		default:
 			dtag_nm = lpfc_get_tlv_dtag_nm(dtag);
 			lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
-					"4678 unknown FPIN descriptor[%d]: "
+					"4678 unkanalwn FPIN descriptor[%d]: "
 					"tag x%x (%s)\n",
 					desc_cnt, dtag, dtag_nm);
 
@@ -10311,7 +10311,7 @@ lpfc_els_rcv_fpin(struct lpfc_vport *vport, void *p, u32 fpin_length)
 		lpfc_cgn_update_stat(phba, dtag);
 		cnt = be32_to_cpu(tlv->desc_len);
 
-		/* Sanity check descriptor length. The desc_len value does not
+		/* Sanity check descriptor length. The desc_len value does analt
 		 * include space for the desc_tag and the desc_len fields.
 		 */
 		len -= (cnt + sizeof(struct fc_tlv_desc));
@@ -10359,7 +10359,7 @@ lpfc_els_rcv_fpin(struct lpfc_vport *vport, void *p, u32 fpin_length)
  *
  * This routine is used for processing the IOCB associated with a unsolicited
  * event. It first determines whether there is an existing ndlp that matches
- * the DID from the unsolicited IOCB. If not, it will create a new one with
+ * the DID from the unsolicited IOCB. If analt, it will create a new one with
  * the DID from the unsolicited IOCB. The ELS command from the unsolicited
  * IOCB is then used to invoke the proper routine and to set up proper state
  * of the discovery state machine.
@@ -10368,10 +10368,10 @@ static void
 lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		      struct lpfc_vport *vport, struct lpfc_iocbq *elsiocb)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct ls_rjt stat;
 	u32 *payload, payload_len;
-	u32 cmd = 0, did = 0, newnode, status = 0;
+	u32 cmd = 0, did = 0, newanalde, status = 0;
 	uint8_t rjt_exp, rjt_err = 0, init_link = 0;
 	struct lpfc_wcqe_complete *wcqe_cmpl = NULL;
 	LPFC_MBOXQ_t *mbox;
@@ -10379,7 +10379,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (!vport || !elsiocb->cmd_dmabuf)
 		goto dropit;
 
-	newnode = 0;
+	newanalde = 0;
 	wcqe_cmpl = &elsiocb->wcqe_cmpl;
 	payload = elsiocb->cmd_dmabuf->virt;
 	if (phba->sli_rev == LPFC_SLI_REV4)
@@ -10403,7 +10403,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (lpfc_els_chk_latt(vport))
 		goto dropit;
 
-	/* Ignore traffic received during vport shutdown. */
+	/* Iganalre traffic received during vport shutdown. */
 	if (vport->load_flag & FC_UNLOADING)
 		goto dropit;
 
@@ -10412,31 +10412,31 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			(cmd != ELS_CMD_PLOGI))
 		goto dropit;
 
-	ndlp = lpfc_findnode_did(vport, did);
+	ndlp = lpfc_findanalde_did(vport, did);
 	if (!ndlp) {
-		/* Cannot find existing Fabric ndlp, so allocate a new one */
+		/* Cananalt find existing Fabric ndlp, so allocate a new one */
 		ndlp = lpfc_nlp_init(vport, did);
 		if (!ndlp)
 			goto dropit;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
-		newnode = 1;
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_ANALDE);
+		newanalde = 1;
 		if ((did & Fabric_DID_MASK) == Fabric_DID_MASK)
 			ndlp->nlp_type |= NLP_FABRIC;
-	} else if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
-		newnode = 1;
+	} else if (ndlp->nlp_state == NLP_STE_UNUSED_ANALDE) {
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_ANALDE);
+		newanalde = 1;
 	}
 
 	phba->fc_stat.elsRcvFrame++;
 
 	/*
-	 * Do not process any unsolicited ELS commands
+	 * Do analt process any unsolicited ELS commands
 	 * if the ndlp is in DEV_LOSS
 	 */
 	spin_lock_irq(&ndlp->lock);
 	if (ndlp->nlp_flag & NLP_IN_DEV_LOSS) {
 		spin_unlock_irq(&ndlp->lock);
-		if (newnode)
+		if (newanalde)
 			lpfc_nlp_put(ndlp);
 		goto dropit;
 	}
@@ -10462,7 +10462,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	    (cmd != ELS_CMD_FLOGI) &&
 	    !((cmd == ELS_CMD_PLOGI) && (vport->fc_flag & FC_PT2PT))) {
 		rjt_err = LSRJT_LOGICAL_BSY;
-		rjt_exp = LSEXP_NOTHING_MORE;
+		rjt_exp = LSEXP_ANALTHING_MORE;
 		goto lsrjt;
 	}
 
@@ -10495,7 +10495,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		/* If Nport discovery is delayed, reject PLOGIs */
 		if (vport->fc_flag & FC_DISC_DELAYED) {
 			rjt_err = LSRJT_UNABLE_TPC;
-			rjt_exp = LSEXP_NOTHING_MORE;
+			rjt_exp = LSEXP_ANALTHING_MORE;
 			break;
 		}
 
@@ -10503,7 +10503,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			if (!(phba->pport->fc_flag & FC_PT2PT) ||
 				(phba->pport->fc_flag & FC_PT2PT_PLOGI)) {
 				rjt_err = LSRJT_UNABLE_TPC;
-				rjt_exp = LSEXP_NOTHING_MORE;
+				rjt_exp = LSEXP_ANALTHING_MORE;
 				break;
 			}
 		}
@@ -10530,16 +10530,16 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    vport->fc_flag & FC_PT2PT &&
 		    vport->rcv_flogi_cnt >= 1) {
 			rjt_err = LSRJT_LOGICAL_BSY;
-			rjt_exp = LSEXP_NOTHING_MORE;
+			rjt_exp = LSEXP_ANALTHING_MORE;
 			init_link++;
 			goto lsrjt;
 		}
 
 		lpfc_els_rcv_flogi(vport, elsiocb, ndlp);
-		/* retain node if our response is deferred */
+		/* retain analde if our response is deferred */
 		if (phba->defer_flogi_acc_flag)
 			break;
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10552,11 +10552,11 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		lpfc_send_els_event(vport, ndlp, payload);
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			rjt_err = LSRJT_UNABLE_TPC;
-			rjt_exp = LSEXP_NOTHING_MORE;
+			rjt_exp = LSEXP_ANALTHING_MORE;
 			break;
 		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_LOGO);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10569,7 +10569,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		lpfc_send_els_event(vport, ndlp, payload);
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			rjt_err = LSRJT_UNABLE_TPC;
-			rjt_exp = LSEXP_NOTHING_MORE;
+			rjt_exp = LSEXP_ANALTHING_MORE;
 			break;
 		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_PRLO);
@@ -10585,7 +10585,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	case ELS_CMD_RSCN:
 		phba->fc_stat.elsRcvRSCN++;
 		lpfc_els_rcv_rscn(vport, elsiocb, ndlp);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10598,7 +10598,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		phba->fc_stat.elsRcvADISC++;
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			rjt_err = LSRJT_UNABLE_TPC;
-			rjt_exp = LSEXP_NOTHING_MORE;
+			rjt_exp = LSEXP_ANALTHING_MORE;
 			break;
 		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb,
@@ -10612,7 +10612,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		phba->fc_stat.elsRcvPDISC++;
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			rjt_err = LSRJT_UNABLE_TPC;
-			rjt_exp = LSEXP_NOTHING_MORE;
+			rjt_exp = LSEXP_ANALTHING_MORE;
 			break;
 		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb,
@@ -10652,7 +10652,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		if ((vport->port_state < LPFC_DISC_AUTH) &&
 		    (vport->fc_flag & FC_FABRIC)) {
 			rjt_err = LSRJT_UNABLE_TPC;
-			rjt_exp = LSEXP_NOTHING_MORE;
+			rjt_exp = LSEXP_ANALTHING_MORE;
 			break;
 		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_PRLI);
@@ -10664,7 +10664,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvLIRR++;
 		lpfc_els_rcv_lirr(vport, elsiocb, ndlp);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10675,7 +10675,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvRLS++;
 		lpfc_els_rcv_rls(vport, elsiocb, ndlp);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10686,7 +10686,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvRPL++;
 		lpfc_els_rcv_rpl(vport, elsiocb, ndlp);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10697,7 +10697,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvRNID++;
 		lpfc_els_rcv_rnid(vport, elsiocb, ndlp);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10707,7 +10707,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			did, vport->port_state, ndlp->nlp_flag);
 		phba->fc_stat.elsRcvRTV++;
 		lpfc_els_rcv_rtv(vport, elsiocb, ndlp);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10718,7 +10718,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvRRQ++;
 		lpfc_els_rcv_rrq(vport, elsiocb, ndlp);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10729,7 +10729,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvECHO++;
 		lpfc_els_rcv_echo(vport, elsiocb, ndlp);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10746,7 +10746,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		lpfc_els_rcv_fpin(vport, (struct fc_els_fpin *)payload,
 				  payload_len);
 
-		/* There are no replies, so no rjt codes */
+		/* There are anal replies, so anal rjt codes */
 		break;
 	case ELS_CMD_EDC:
 		lpfc_els_rcv_edc(vport, elsiocb, ndlp);
@@ -10759,7 +10759,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					 "1115 Received RDF from invalid DID "
 					 "x%x\n", did);
 			rjt_err = LSRJT_PROTOCOL_ERR;
-			rjt_exp = LSEXP_NOTHING_MORE;
+			rjt_exp = LSEXP_ANALTHING_MORE;
 			goto lsrjt;
 		}
 
@@ -10772,13 +10772,13 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		/* Unsupported ELS command, reject */
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		rjt_exp = LSEXP_NOTHING_MORE;
+		rjt_exp = LSEXP_ANALTHING_MORE;
 
-		/* Unknown ELS command <elsCmd> received from NPORT <did> */
+		/* Unkanalwn ELS command <elsCmd> received from NPORT <did> */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "0115 Unknown ELS command x%x "
+				 "0115 Unkanalwn ELS command x%x "
 				 "received from NPORT x%x\n", cmd, did);
-		if (newnode)
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 		break;
@@ -10792,13 +10792,13 @@ lsrjt:
 		stat.un.b.lsRjtRsnCodeExp = rjt_exp;
 		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, elsiocb, ndlp,
 				    NULL);
-		/* Remove the reference from above for new nodes. */
-		if (newnode)
+		/* Remove the reference from above for new analdes. */
+		if (newanalde)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RM);
 	}
 
-	/* Release the reference on this elsiocb, not the ndlp. */
+	/* Release the reference on this elsiocb, analt the ndlp. */
 	lpfc_nlp_put(elsiocb->ndlp);
 	elsiocb->ndlp = NULL;
 
@@ -10817,8 +10817,8 @@ lsrjt:
 		mbox->u.mb.un.varInitLnk.lipsr_AL_PA = 0;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		mbox->vport = vport;
-		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) ==
-		    MBX_NOT_FINISHED)
+		if (lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT) ==
+		    MBX_ANALT_FINISHED)
 			mempool_free(mbox, phba->mbox_mem_pool);
 	}
 
@@ -10876,8 +10876,8 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	} else if (status == IOSTAT_LOCAL_REJECT &&
 		   (parameter & IOERR_PARAM_MASK) ==
 		   IOERR_RCV_BUFFER_WAITING) {
-		phba->fc_stat.NoRcvBuf++;
-		/* Not enough posted buffers; Try posting more buffers */
+		phba->fc_stat.AnalRcvBuf++;
+		/* Analt eanalugh posted buffers; Try posting more buffers */
 		if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
 			lpfc_sli3_post_buffer(phba, pring, 0);
 		return;
@@ -10896,8 +10896,8 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		}
 	}
 
-	/* If there are no BDEs associated
-	 * with this IOCB, there is nothing to do.
+	/* If there are anal BDEs associated
+	 * with this IOCB, there is analthing to do.
 	 */
 	if (bde_count == 0)
 		return;
@@ -10942,13 +10942,13 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 static void
 lpfc_start_fdmi(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 
 	/* If this is the first time, allocate an ndlp and initialize
-	 * it. Otherwise, make sure the node is enabled and then do the
+	 * it. Otherwise, make sure the analde is enabled and then do the
 	 * login.
 	 */
-	ndlp = lpfc_findnode_did(vport, FDMI_DID);
+	ndlp = lpfc_findanalde_did(vport, FDMI_DID);
 	if (!ndlp) {
 		ndlp = lpfc_nlp_init(vport, FDMI_DID);
 		if (ndlp) {
@@ -10969,16 +10969,16 @@ lpfc_start_fdmi(struct lpfc_vport *vport)
  *
  * This routine issues a Port Login (PLOGI) to the Name Server with
  * State Change Request (SCR) for a @vport. This routine will create an
- * ndlp for the Name Server associated to the @vport if such node does
- * not already exist. The PLOGI to Name Server is issued by invoking the
+ * ndlp for the Name Server associated to the @vport if such analde does
+ * analt already exist. The PLOGI to Name Server is issued by invoking the
  * lpfc_issue_els_plogi() routine. If Fabric-Device Management Interface
- * (FDMI) is configured to the @vport, a FDMI node will be created and
+ * (FDMI) is configured to the @vport, a FDMI analde will be created and
  * the PLOGI to FDMI is issued by invoking lpfc_issue_els_plogi() routine.
  **/
 void
 lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	/*
@@ -10998,7 +10998,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	ndlp = lpfc_findnode_did(vport, NameServer_DID);
+	ndlp = lpfc_findanalde_did(vport, NameServer_DID);
 	if (!ndlp) {
 		ndlp = lpfc_nlp_init(vport, NameServer_DID);
 		if (!ndlp) {
@@ -11008,7 +11008,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 			}
 			lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-					 "0251 NameServer login: no memory\n");
+					 "0251 NameServer login: anal memory\n");
 			return;
 		}
 	}
@@ -11020,7 +11020,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	if (lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0)) {
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "0252 Cannot issue NameServer login\n");
+				 "0252 Cananalt issue NameServer login\n");
 		return;
 	}
 
@@ -11047,7 +11047,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
+	struct lpfc_analdelist *ndlp = pmb->ctx_ndlp;
 	MAILBOX_t *mb = &pmb->u.mb;
 	int rc;
 
@@ -11084,8 +11084,8 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			pmb->vport = vport;
 			pmb->mbox_cmpl = lpfc_init_vpi_cmpl;
 			rc = lpfc_sli_issue_mbox(phba, pmb,
-				MBX_NOWAIT);
-			if (rc == MBX_NOT_FINISHED) {
+				MBX_ANALWAIT);
+			if (rc == MBX_ANALT_FINISHED) {
 				lpfc_printf_vlog(vport, KERN_ERR,
 						 LOG_TRACE_EVENT,
 					"2732 Failed to issue INIT_VPI"
@@ -11103,7 +11103,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 			spin_unlock_irq(shost->host_lock);
-			if (mb->mbxStatus == MBX_NOT_FINISHED)
+			if (mb->mbxStatus == MBX_ANALT_FINISHED)
 				break;
 			if ((vport->port_type == LPFC_PHYSICAL_PORT) &&
 			    !(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG)) {
@@ -11126,7 +11126,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			else {
 				/*
 				 * If the physical port is instantiated using
-				 * FDISC, do not start vport discovery.
+				 * FDISC, do analt start vport discovery.
 				 */
 				if (vport->port_state != LPFC_FDISC)
 					lpfc_start_fdiscs(phba);
@@ -11137,7 +11137,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		}
 	}
 mbox_err_exit:
-	/* Now, we decrement the ndlp reference count held for this
+	/* Analw, we decrement the ndlp reference count held for this
 	 * callback function
 	 */
 	lpfc_nlp_put(ndlp);
@@ -11158,14 +11158,14 @@ mbox_err_exit:
  * lpfc_register_new_vport - Register a new vport with a HBA
  * @phba: pointer to lpfc hba data structure.
  * @vport: pointer to a host virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine registers the @vport as a new virtual port with a HBA.
  * It is done through a registering vpi mailbox command.
  **/
 void
 lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
-			struct lpfc_nodelist *ndlp)
+			struct lpfc_analdelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	LPFC_MBOXQ_t *mbox;
@@ -11181,9 +11181,9 @@ lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		}
 
 		mbox->mbox_cmpl = lpfc_cmpl_reg_new_vport;
-		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
-		    == MBX_NOT_FINISHED) {
-			/* mailbox command not success, decrement ndlp
+		if (lpfc_sli_issue_mbox(phba, mbox, MBX_ANALWAIT)
+		    == MBX_ANALT_FINISHED) {
+			/* mailbox command analt success, decrement ndlp
 			 * reference count for this command
 			 */
 			lpfc_nlp_put(ndlp);
@@ -11195,7 +11195,7 @@ lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		}
 	} else {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "0254 Register VPI: no memory\n");
+				 "0254 Register VPI: anal memory\n");
 		goto mbox_err_exit;
 	}
 	return;
@@ -11218,7 +11218,7 @@ void
 lpfc_cancel_all_vport_retry_delay_timer(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	uint32_t link_state;
 	int i;
 
@@ -11231,7 +11231,7 @@ lpfc_cancel_all_vport_retry_delay_timer(struct lpfc_hba *phba)
 
 	if (vports) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			ndlp = lpfc_findnode_did(vports[i], Fabric_DID);
+			ndlp = lpfc_findanalde_did(vports[i], Fabric_DID);
 			if (ndlp)
 				lpfc_cancel_retry_delay_tmo(vports[i], ndlp);
 			lpfc_els_flush_cmd(vports[i]);
@@ -11251,13 +11251,13 @@ lpfc_cancel_all_vport_retry_delay_timer(struct lpfc_hba *phba)
 void
 lpfc_retry_pport_discovery(struct lpfc_hba *phba)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 
 	/* Cancel the all vports retry delay retry timers */
 	lpfc_cancel_all_vport_retry_delay_timer(phba);
 
 	/* If fabric require FLOGI, then re-instantiate physical login */
-	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
+	ndlp = lpfc_findanalde_did(phba->pport, Fabric_DID);
 	if (!ndlp)
 		return;
 
@@ -11303,7 +11303,7 @@ lpfc_fabric_login_reqd(struct lpfc_hba *phba,
  * This routine is the completion callback function to a Fabric Discover
  * (FDISC) ELS command. Since all the FDISC ELS commands are issued
  * single threaded, each FDISC completion callback function will reset
- * the discovery timer for all vports such that the timers will not get
+ * the discovery timer for all vports such that the timers will analt get
  * unnecessary timeout. The function checks the FDISC IOCB status. If error
  * detected, the vport will be set to FC_VPORT_FAILED state. Otherwise,the
  * vport will set to FC_VPORT_ACTIVE state. It then checks whether the DID
@@ -11320,9 +11320,9 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
-	struct lpfc_nodelist *np;
-	struct lpfc_nodelist *next_np;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analdelist *np;
+	struct lpfc_analdelist *next_np;
 	struct lpfc_iocbq *piocb;
 	struct lpfc_dmabuf *pcmd = cmdiocb->cmd_dmabuf, *prsp;
 	struct serv_parm *sp;
@@ -11387,7 +11387,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
 	memcpy(&vport->fabric_portname, &sp->portName,
 		sizeof(struct lpfc_name));
-	memcpy(&vport->fabric_nodename, &sp->nodeName,
+	memcpy(&vport->fabric_analdename, &sp->analdeName,
 		sizeof(struct lpfc_name));
 	if (fabric_param_changed &&
 		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
@@ -11396,8 +11396,8 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * issue unreg_vpi.
 		 */
 		list_for_each_entry_safe(np, next_np,
-			&vport->fc_nodes, nlp_listp) {
-			if ((np->nlp_state != NLP_STE_NPR_NODE) ||
+			&vport->fc_analdes, nlp_listp) {
+			if ((np->nlp_state != NLP_STE_NPR_ANALDE) ||
 			    !(np->nlp_flag & NLP_NPR_ADISC))
 				continue;
 			spin_lock_irq(&ndlp->lock);
@@ -11425,7 +11425,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * to update the MAC address.
 		 */
 		lpfc_register_new_vport(phba, vport, ndlp);
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_ANALDE);
 		goto out;
 	}
 
@@ -11439,12 +11439,12 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* The FDISC completed successfully. Move the fabric ndlp to
 	 * UNMAPPED state and register with the transport.
 	 */
-	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_ANALDE);
 	goto out;
 
 fdisc_failed:
 	if (vport->fc_vport &&
-	    (vport->fc_vport->vport_state != FC_VPORT_NO_FABRIC_RSCS))
+	    (vport->fc_vport->vport_state != FC_VPORT_ANAL_FABRIC_RSCS))
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	/* Cancel discovery timer */
 	lpfc_can_disctmo(vport);
@@ -11456,15 +11456,15 @@ out:
 /**
  * lpfc_issue_els_fdisc - Issue a fdisc iocb command
  * @vport: pointer to a virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  * @retry: number of retries to the command IOCB.
  *
  * This routine prepares and issues a Fabric Discover (FDISC) IOCB to
- * a remote node (@ndlp) off a @vport. It uses the lpfc_issue_fabric_iocb()
+ * a remote analde (@ndlp) off a @vport. It uses the lpfc_issue_fabric_iocb()
  * routine to issue the IOCB, which makes sure only one outstanding fabric
  * IOCB will be sent off HBA at any given time.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the FDISC ELS command.
  *
@@ -11473,7 +11473,7 @@ out:
  *   1 - Failed to issue fdisc iocb command
  **/
 static int
-lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
 		     uint8_t retry)
 {
 	struct lpfc_hba *phba = vport->phba;
@@ -11494,7 +11494,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (!elsiocb) {
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "0255 Issue FDISC: no IOCB\n");
+				 "0255 Issue FDISC: anal IOCB\n");
 		return 1;
 	}
 
@@ -11528,9 +11528,9 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	pcmd += sizeof(uint32_t); /* CSP Word 4 */
 	pcmd += sizeof(uint32_t); /* Port Name */
 	memcpy(pcmd, &vport->fc_portname, 8);
-	pcmd += sizeof(uint32_t); /* Node Name */
-	pcmd += sizeof(uint32_t); /* Node Name */
-	memcpy(pcmd, &vport->fc_nodename, 8);
+	pcmd += sizeof(uint32_t); /* Analde Name */
+	pcmd += sizeof(uint32_t); /* Analde Name */
+	memcpy(pcmd, &vport->fc_analdename, 8);
 	sp->cmn.valid_vendor_ver_level = 0;
 	memset(sp->un.vendorVersion, 0, sizeof(sp->un.vendorVersion));
 	lpfc_set_disctmo(vport);
@@ -11559,7 +11559,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	lpfc_els_free_iocb(phba, elsiocb);
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-			 "0256 Issue FDISC: Cannot send IOCB\n");
+			 "0256 Issue FDISC: Cananalt send IOCB\n");
 	return 1;
 }
 
@@ -11572,7 +11572,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
  * This routine is the completion callback function to the issuing of a LOGO
  * ELS command off a vport. It frees the command IOCB and then decrement the
  * reference count held on ndlp for this completion function, indicating that
- * the reference to the ndlp is no long needed. Note that the
+ * the reference to the ndlp is anal long needed. Analte that the
  * lpfc_els_free_iocb() routine decrements the ndlp reference held for this
  * callback function and an additional explicit ndlp reference decrementation
  * will trigger the actual release of the ndlp.
@@ -11583,7 +11583,7 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	IOCB_t *irsp;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	u32 ulp_status, ulp_word4, did, tmo;
 
@@ -11610,7 +11610,7 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 "2928 NPIV LOGO completes to NPort x%x "
 			 "Data: x%x x%x x%x x%x x%x x%x x%x\n",
 			 ndlp->nlp_DID, ulp_status, ulp_word4,
-			 tmo, vport->num_disc_nodes,
+			 tmo, vport->num_disc_analdes,
 			 kref_read(&ndlp->kref), ndlp->nlp_flag,
 			 ndlp->fc4_xpt_flags);
 
@@ -11632,7 +11632,7 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		spin_unlock_irq(&ndlp->lock);
 	}
 
-	/* Safe to release resources now. */
+	/* Safe to release resources analw. */
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
 }
@@ -11640,11 +11640,11 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 /**
  * lpfc_issue_els_npiv_logo - Issue a logo off a vport
  * @vport: pointer to a virtual N_Port data structure.
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine issues a LOGO ELS command to an @ndlp off a @vport.
  *
- * Note that the ndlp reference count will be incremented by 1 for holding the
+ * Analte that the ndlp reference count will be incremented by 1 for holding the
  * ndlp and the reference to ndlp will be stored into the ndlp field of
  * the IOCB for the completion callback function to the LOGO ELS command.
  *
@@ -11653,7 +11653,7 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  *   1 - Failed to issue logo off the @vport
  **/
 int
-lpfc_issue_els_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+lpfc_issue_els_npiv_logo(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp)
 {
 	int rc = 0;
 	struct lpfc_hba  *phba = vport->phba;
@@ -11740,7 +11740,7 @@ lpfc_fabric_block_timeout(struct timer_list *t)
  *
  * This routine issues one fabric iocb from the driver internal list to
  * the HBA. It first checks whether it's ready to issue one fabric iocb to
- * the HBA (whether there is no outstanding fabric iocb). If so, it shall
+ * the HBA (whether there is anal outstanding fabric iocb). If so, it shall
  * remove one pending fabric iocb from the driver internal list and invokes
  * lpfc_sli_issue_iocb() routine to send the fabric iocb to the HBA.
  **/
@@ -11812,7 +11812,7 @@ lpfc_unblock_fabric_iocbs(struct lpfc_hba *phba)
  *
  * This routine blocks the issuing fabric iocb for a specified amount of
  * time (currently 100 ms). This is done by set the fabric iocb block bit
- * and set up a timeout timer for 100ms. When the block bit is set, no more
+ * and set up a timeout timer for 100ms. When the block bit is set, anal more
  * fabric iocb will be issued out of the HBA.
  **/
 static void
@@ -11901,9 +11901,9 @@ lpfc_cmpl_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  * issued later. Otherwise, it will issue the iocb on the wire and update the
  * fabric iocb count it indicate that there is one fabric iocb on the wire.
  *
- * Note, this implementation has a potential sending out fabric IOCBs out of
+ * Analte, this implementation has a potential sending out fabric IOCBs out of
  * order. The problem is caused by the construction of the "ready" boolen does
- * not include the condition that the internal fabric IOCB list is empty. As
+ * analt include the condition that the internal fabric IOCB list is empty. As
  * such, it is possible a fabric IOCB issued by this routine might be "jump"
  * ahead of the fabric IOCBs in the internal list.
  *
@@ -11989,7 +11989,7 @@ static void lpfc_fabric_abort_vport(struct lpfc_vport *vport)
 
 /**
  * lpfc_fabric_abort_nport - Abort a ndlp's iocbs from driver fabric iocb list
- * @ndlp: pointer to a node-list data structure.
+ * @ndlp: pointer to a analde-list data structure.
  *
  * This routine aborts all the IOCBs associated with an @ndlp from the
  * driver internal fabric IOCB list. The list contains fabric IOCBs to be
@@ -11998,7 +11998,7 @@ static void lpfc_fabric_abort_vport(struct lpfc_vport *vport)
  * status field to IOSTAT_LOCAL_REJECT, and invokes the callback function
  * associated with the IOCB.
  **/
-void lpfc_fabric_abort_nport(struct lpfc_nodelist *ndlp)
+void lpfc_fabric_abort_nport(struct lpfc_analdelist *ndlp)
 {
 	LIST_HEAD(completions);
 	struct lpfc_hba  *phba = ndlp->phba;
@@ -12061,7 +12061,7 @@ lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_analdelist *ndlp = NULL;
 	unsigned long iflag = 0;
 
 	spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock, iflag);
@@ -12073,7 +12073,7 @@ lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *vport)
 			sglq_entry->ndlp = NULL;
 
 			/* If the xri on the abts_els_sgl list is for the Fport
-			 * node and the vport is unloading, the xri aborted wcqe
+			 * analde and the vport is unloading, the xri aborted wcqe
 			 * likely isn't coming back.  Just release the sgl.
 			 */
 			if ((vport->load_flag & FC_UNLOADING) &&
@@ -12107,7 +12107,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	unsigned long iflag = 0;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct lpfc_sli_ring *pring;
 
 	pring = lpfc_phba_elsring(phba);
@@ -12140,7 +12140,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 	}
 	spin_unlock_irqrestore(&phba->sli4_hba.sgl_list_lock, iflag);
 	lxri = lpfc_sli4_xri_inrange(phba, xri);
-	if (lxri == NO_XRI)
+	if (lxri == ANAL_XRI)
 		return;
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
@@ -12156,16 +12156,16 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 
 /* lpfc_sli_abts_recover_port - Recover a port that failed a BLS_ABORT req.
  * @vport: pointer to virtual port object.
- * @ndlp: nodelist pointer for the impacted node.
+ * @ndlp: analdelist pointer for the impacted analde.
  *
  * The driver calls this routine in response to an SLI4 XRI ABORT CQE
  * or an SLI3 ASYNC_STATUS_CN event from the port.  For either event,
- * the driver is required to send a LOGO to the remote node before it
- * attempts to recover its login to the remote node.
+ * the driver is required to send a LOGO to the remote analde before it
+ * attempts to recover its login to the remote analde.
  */
 void
 lpfc_sli_abts_recover_port(struct lpfc_vport *vport,
-			   struct lpfc_nodelist *ndlp)
+			   struct lpfc_analdelist *ndlp)
 {
 	struct Scsi_Host *shost;
 	struct lpfc_hba *phba;
@@ -12173,9 +12173,9 @@ lpfc_sli_abts_recover_port(struct lpfc_vport *vport,
 
 	shost = lpfc_shost_from_vport(vport);
 	phba = vport->phba;
-	if (ndlp->nlp_state != NLP_STE_MAPPED_NODE) {
+	if (ndlp->nlp_state != NLP_STE_MAPPED_ANALDE) {
 		lpfc_printf_log(phba, KERN_INFO,
-				LOG_SLI, "3093 No rport recovery needed. "
+				LOG_SLI, "3093 Anal rport recovery needed. "
 				"rport in state 0x%x\n", ndlp->nlp_state);
 		return;
 	}
@@ -12183,11 +12183,11 @@ lpfc_sli_abts_recover_port(struct lpfc_vport *vport,
 			"3094 Start rport recovery on shost id 0x%x "
 			"fc_id 0x%06x vpi 0x%x rpi 0x%x state 0x%x "
 			"flags 0x%x\n",
-			shost->host_no, ndlp->nlp_DID,
+			shost->host_anal, ndlp->nlp_DID,
 			vport->vpi, ndlp->nlp_rpi, ndlp->nlp_state,
 			ndlp->nlp_flag);
 	/*
-	 * The rport is not responding.  Remove the FCP-2 flag to prevent
+	 * The rport is analt responding.  Remove the FCP-2 flag to prevent
 	 * an ADISC in the follow-up recovery code.
 	 */
 	spin_lock_irqsave(&ndlp->lock, flags);
@@ -12249,7 +12249,7 @@ lpfc_cmpl_els_qfpa(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 	u8 *pcmd, max_desc;
 	u32 len, i;
-	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
+	struct lpfc_analdelist *ndlp = cmdiocb->ndlp;
 
 	prsp = list_get_first(&dmabuf->list, struct lpfc_dmabuf, list);
 	if (!prsp)
@@ -12331,19 +12331,19 @@ lpfc_cmpl_els_qfpa(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 int lpfc_issue_els_qfpa(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct lpfc_iocbq *elsiocb;
 	u8 *pcmd;
 	int ret;
 
-	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
+	ndlp = lpfc_findanalde_did(phba->pport, Fabric_DID);
+	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_ANALDE)
 		return -ENXIO;
 
 	elsiocb = lpfc_prep_els_iocb(vport, 1, LPFC_QFPA_SIZE, 2, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_QFPA);
 	if (!elsiocb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcmd = (u8 *)elsiocb->cmd_dmabuf->virt;
 
@@ -12373,7 +12373,7 @@ lpfc_vmid_uvem(struct lpfc_vport *vport,
 	       struct lpfc_vmid *vmid, bool instantiated)
 {
 	struct lpfc_vem_id_desc *vem_id_desc;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct lpfc_iocbq *elsiocb;
 	struct instantiated_ve_desc *inst_desc;
 	struct lpfc_vmid_context *vmid_context;
@@ -12381,13 +12381,13 @@ lpfc_vmid_uvem(struct lpfc_vport *vport,
 	u32 *len;
 	int ret = 0;
 
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
+	ndlp = lpfc_findanalde_did(vport, Fabric_DID);
+	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_ANALDE)
 		return -ENXIO;
 
 	vmid_context = kmalloc(sizeof(*vmid_context), GFP_KERNEL);
 	if (!vmid_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	elsiocb = lpfc_prep_els_iocb(vport, 1, LPFC_UVEM_SIZE, 2,
 				     ndlp, Fabric_DID, ELS_CMD_UVEM);
 	if (!elsiocb)
@@ -12463,7 +12463,7 @@ lpfc_cmpl_els_uvem(struct lpfc_hba *phba, struct lpfc_iocbq *icmdiocb,
 	struct lpfc_dmabuf *prsp = NULL;
 	struct lpfc_vmid_context *vmid_context =
 	    icmdiocb->vmid_tag.vmid_context;
-	struct lpfc_nodelist *ndlp = icmdiocb->ndlp;
+	struct lpfc_analdelist *ndlp = icmdiocb->ndlp;
 	u8 *pcmd;
 	u32 *data;
 	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
@@ -12472,7 +12472,7 @@ lpfc_cmpl_els_uvem(struct lpfc_hba *phba, struct lpfc_iocbq *icmdiocb,
 	struct lpfc_vmid *vmid;
 
 	vmid = vmid_context->vmp;
-	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
+	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_ANALDE)
 		ndlp = NULL;
 
 	prsp = list_get_first(&dmabuf->list, struct lpfc_dmabuf, list);

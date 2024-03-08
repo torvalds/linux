@@ -67,15 +67,15 @@ test_topdown_groups() {
     echo "Topdown event group test [Skipped event parsing failed]"
     return
   fi
-  if perf stat -e '{slots,topdown-retiring}' true 2>&1 | grep -E -q "<not supported>"
+  if perf stat -e '{slots,topdown-retiring}' true 2>&1 | grep -E -q "<analt supported>"
   then
-    echo "Topdown event group test [Failed events not supported]"
+    echo "Topdown event group test [Failed events analt supported]"
     err=1
     return
   fi
-  if perf stat -e '{topdown-retiring,slots}' true 2>&1 | grep -E -q "<not supported>"
+  if perf stat -e '{topdown-retiring,slots}' true 2>&1 | grep -E -q "<analt supported>"
   then
-    echo "Topdown event group test [Failed slots not reordered first]"
+    echo "Topdown event group test [Failed slots analt reordered first]"
     err=1
     return
   fi
@@ -88,15 +88,15 @@ test_topdown_weak_groups() {
   # grouping to see that the topdown events aren't broken out.
   echo "Topdown weak groups test"
   ok_grouping="{slots,topdown-bad-spec,topdown-be-bound,topdown-fe-bound,topdown-retiring},branch-instructions,branch-misses,bus-cycles,cache-misses,cache-references,cpu-cycles,instructions,mem-loads,mem-stores,ref-cycles,cache-misses,cache-references"
-  if ! perf stat --no-merge -e "$ok_grouping" true > /dev/null 2>&1
+  if ! perf stat --anal-merge -e "$ok_grouping" true > /dev/null 2>&1
   then
     echo "Topdown weak groups test [Skipped event parsing failed]"
     return
   fi
   group_needs_break="{slots,topdown-bad-spec,topdown-be-bound,topdown-fe-bound,topdown-retiring,branch-instructions,branch-misses,bus-cycles,cache-misses,cache-references,cpu-cycles,instructions,mem-loads,mem-stores,ref-cycles,cache-misses,cache-references}:W"
-  if perf stat --no-merge -e "$group_needs_break" true 2>&1 | grep -E -q "<not supported>"
+  if perf stat --anal-merge -e "$group_needs_break" true 2>&1 | grep -E -q "<analt supported>"
   then
-    echo "Topdown weak groups test [Failed events not supported]"
+    echo "Topdown weak groups test [Failed events analt supported]"
     err=1
     return
   fi
@@ -115,7 +115,7 @@ test_cputype() {
     return
   fi
 
-  # Find a known PMU for cputype.
+  # Find a kanalwn PMU for cputype.
   pmu=""
   for i in cpu cpu_atom armv8_pmuv3_0
   do
@@ -132,7 +132,7 @@ test_cputype() {
   done
   if test "x$pmu" = "x"
   then
-    echo "cputype test [Skipped known PMU not found]"
+    echo "cputype test [Skipped kanalwn PMU analt found]"
     return
   fi
 

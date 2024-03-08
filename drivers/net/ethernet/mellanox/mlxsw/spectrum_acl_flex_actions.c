@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include "spectrum_acl_flex_actions.h"
 #include "core_acl_flex_actions.h"
@@ -14,7 +14,7 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	int err;
 
 	/* The first action set of a TCAM entry is stored directly in TCAM,
-	 * not KVD linear area.
+	 * analt KVD linear area.
 	 */
 	if (is_first)
 		return 0;
@@ -64,7 +64,7 @@ static void mlxsw_sp_act_kvdl_set_del(void *priv, u32 kvdl_index,
 static int mlxsw_sp1_act_kvdl_set_activity_get(void *priv, u32 kvdl_index,
 					       bool *activity)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mlxsw_sp2_act_kvdl_set_activity_get(void *priv, u32 kvdl_index,
@@ -198,8 +198,8 @@ static int mlxsw_sp1_act_sampler_add(void *priv, u16 local_port,
 				     bool ingress, int *p_span_id,
 				     struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG_MOD(extack, "Sampling action is not supported on Spectrum-1");
-	return -EOPNOTSUPP;
+	NL_SET_ERR_MSG_MOD(extack, "Sampling action is analt supported on Spectrum-1");
+	return -EOPANALTSUPP;
 }
 
 static void mlxsw_sp1_act_sampler_del(void *priv, u16 local_port, int span_id,

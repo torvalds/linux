@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -83,7 +83,7 @@ const char *intel_platform_name(enum intel_platform platform)
 
 	if (WARN_ON_ONCE(platform >= ARRAY_SIZE(platform_names) ||
 			 platform_names[platform] == NULL))
-		return "<unknown>";
+		return "<unkanalwn>";
 
 	return platform_names[platform];
 }
@@ -121,11 +121,11 @@ void intel_device_info_print(const struct intel_device_info *info,
 	drm_printf(p, "ppgtt-type: %d\n", runtime->ppgtt_type);
 	drm_printf(p, "dma_mask_size: %u\n", info->dma_mask_size);
 
-#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->name))
+#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_anal_anal(info->name))
 	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
 
-	drm_printf(p, "has_pooled_eu: %s\n", str_yes_no(runtime->has_pooled_eu));
+	drm_printf(p, "has_pooled_eu: %s\n", str_anal_anal(runtime->has_pooled_eu));
 	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
 
@@ -300,7 +300,7 @@ static void ip_ver_read(struct drm_i915_private *i915, u32 offset, struct intel_
  * any code that performs checks on GRAPHICS_VER or DISPLAY_VER, so this
  * function should be called very early in the driver initialization sequence.
  *
- * Regular MMIO access is not yet setup at the point this function is called so
+ * Regular MMIO access is analt yet setup at the point this function is called so
  * we peek at the appropriate MMIO offset directly.  The GMD_ID register is
  * part of an 'always on' power well by design, so we don't need to worry about
  * forcewake while reading it.
@@ -370,7 +370,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	if (GRAPHICS_VER(dev_priv) == 6 && i915_vtd_active(dev_priv)) {
 		drm_info(&dev_priv->drm,
 			 "Disabling ppGTT for VT-d support\n");
-		runtime->ppgtt_type = INTEL_PPGTT_NONE;
+		runtime->ppgtt_type = INTEL_PPGTT_ANALNE;
 	}
 
 	runtime->rawclk_freq = intel_read_rawclk(dev_priv);
@@ -381,7 +381,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 /*
  * Set up device info and initial runtime info at driver create.
  *
- * Note: i915 is only an allocated blob of memory at this point.
+ * Analte: i915 is only an allocated blob of memory at this point.
  */
 void intel_device_info_driver_create(struct drm_i915_private *i915,
 				     u16 device_id,
@@ -403,6 +403,6 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p)
 {
 	drm_printf(p, "Has logical contexts? %s\n",
-		   str_yes_no(caps->has_logical_contexts));
+		   str_anal_anal(caps->has_logical_contexts));
 	drm_printf(p, "scheduler: 0x%x\n", caps->scheduler);
 }

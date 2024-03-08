@@ -31,7 +31,7 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 	/*
 	 * Determine the number of vectors which need interrupt affinities
 	 * assigned. If the pre/post request exhausts the available vectors
-	 * then nothing to do here except for invoking the calc_sets()
+	 * then analthing to do here except for invoking the calc_sets()
 	 * callback so the device driver can adjust to the situation.
 	 */
 	if (nvecs > affd->pre_vectors + affd->post_vectors)
@@ -40,7 +40,7 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 		affvecs = 0;
 
 	/*
-	 * Simple invocations do not provide a calc_sets() callback. Install
+	 * Simple invocations do analt provide a calc_sets() callback. Install
 	 * the generic one.
 	 */
 	if (!affd->calc_sets)
@@ -52,7 +52,7 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 	if (WARN_ON_ONCE(affd->nr_sets > IRQ_AFFINITY_MAX_SETS))
 		return NULL;
 
-	/* Nothing to assign? */
+	/* Analthing to assign? */
 	if (!affvecs)
 		return NULL;
 

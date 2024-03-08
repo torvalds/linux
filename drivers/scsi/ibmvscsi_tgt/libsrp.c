@@ -2,7 +2,7 @@
 /*******************************************************************************
  * SCSI RDMA Protocol lib functions
  *
- * Copyright (C) 2006 FUJITA Tomonori <tomof@acm.org>
+ * Copyright (C) 2006 FUJITA Tomoanalri <tomof@acm.org>
  * Copyright (C) 2016 Bryant G. Ly <bryantly@linux.vnet.ibm.com> IBM Corp.
  *
  ***********************************************************************/
@@ -29,7 +29,7 @@ static int srp_iu_pool_alloc(struct srp_queue *q, size_t max,
 
 	q->pool = kcalloc(max, sizeof(struct iu_entry *), GFP_KERNEL);
 	if (!q->pool)
-		return -ENOMEM;
+		return -EANALMEM;
 	q->items = kcalloc(max, sizeof(struct iu_entry), GFP_KERNEL);
 	if (!q->items)
 		goto free_pool;
@@ -46,7 +46,7 @@ static int srp_iu_pool_alloc(struct srp_queue *q, size_t max,
 
 free_pool:
 	kfree(q->pool);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void srp_iu_pool_free(struct srp_queue *q)
@@ -114,7 +114,7 @@ int srp_target_alloc(struct srp_target *target, struct device *dev,
 	target->rx_ring_size = nr;
 	target->rx_ring = srp_ring_alloc(target->dev, nr, iu_size);
 	if (!target->rx_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = srp_iu_pool_alloc(&target->iu_queue, nr, target->rx_ring);
 	if (err)
 		goto free_ring;
@@ -124,7 +124,7 @@ int srp_target_alloc(struct srp_target *target, struct device *dev,
 
 free_ring:
 	srp_ring_free(target->dev, target->rx_ring, nr, iu_size);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void srp_target_free(struct srp_target *target)
@@ -221,7 +221,7 @@ static int srp_indirect_data(struct ibmvscsis_cmd *cmd, struct srp_cmd *srp_cmd,
 		if (!md) {
 			pr_err("Can't get dma memory %u\n",
 			       be32_to_cpu(id->table_desc.len));
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		sg_init_one(&dummy, md, be32_to_cpu(id->table_desc.len));
@@ -272,7 +272,7 @@ static int data_out_desc_size(struct srp_cmd *cmd)
 	u8 fmt = cmd->buf_fmt >> 4;
 
 	switch (fmt) {
-	case SRP_NO_DATA_DESC:
+	case SRP_ANAL_DATA_DESC:
 		break;
 	case SRP_DATA_DESC_DIRECT:
 		size = sizeof(struct srp_direct_buf);
@@ -316,7 +316,7 @@ int srp_transfer_data(struct ibmvscsis_cmd *cmd, struct srp_cmd *srp_cmd,
 		format = srp_cmd->buf_fmt & ((1U << 4) - 1);
 
 	switch (format) {
-	case SRP_NO_DATA_DESC:
+	case SRP_ANAL_DATA_DESC:
 		break;
 	case SRP_DATA_DESC_DIRECT:
 		md = (struct srp_direct_buf *)(srp_cmd->add_data + offset);
@@ -328,7 +328,7 @@ int srp_transfer_data(struct ibmvscsis_cmd *cmd, struct srp_cmd *srp_cmd,
 					ext_desc);
 		break;
 	default:
-		pr_err("Unknown format %d %x\n", dir, format);
+		pr_err("Unkanalwn format %d %x\n", dir, format);
 		err = -EINVAL;
 	}
 
@@ -351,7 +351,7 @@ u64 srp_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
 	}
 
 	switch (fmt) {
-	case SRP_NO_DATA_DESC:
+	case SRP_ANAL_DATA_DESC:
 		break;
 	case SRP_DATA_DESC_DIRECT:
 		md = (struct srp_direct_buf *)(cmd->add_data + offset);
@@ -390,7 +390,7 @@ int srp_get_desc_table(struct srp_cmd *srp_cmd, enum dma_data_direction *dir,
 	rc = 0;
 	*data_len = 0;
 
-	*dir = DMA_NONE;
+	*dir = DMA_ANALNE;
 
 	if (srp_cmd->buf_fmt & 0xf)
 		*dir = DMA_FROM_DEVICE;
@@ -414,5 +414,5 @@ int srp_get_desc_table(struct srp_cmd *srp_cmd, enum dma_data_direction *dir,
 }
 
 MODULE_DESCRIPTION("SCSI RDMA Protocol lib functions");
-MODULE_AUTHOR("FUJITA Tomonori");
+MODULE_AUTHOR("FUJITA Tomoanalri");
 MODULE_LICENSE("GPL");

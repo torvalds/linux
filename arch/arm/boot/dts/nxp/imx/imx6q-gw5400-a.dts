@@ -11,7 +11,7 @@
 	model = "Gateworks Ventana GW5400-A";
 	compatible = "gw,imx6q-gw5400-a", "gw,ventana", "fsl,imx6q";
 
-	/* these are used by bootloader for disabling nodes */
+	/* these are used by bootloader for disabling analdes */
 	aliases {
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
@@ -128,7 +128,7 @@
 	status = "okay";
 
 	flash: flash@0 {
-		compatible = "sst,w25q256", "jedec,spi-nor";
+		compatible = "sst,w25q256", "jedec,spi-analr";
 		spi-max-frequency = <30000000>;
 		reg = <0>;
 	};
@@ -393,7 +393,7 @@
 			MX6QDL_PAD_EIM_D17__ECSPI1_MISO		0x100b1
 			MX6QDL_PAD_EIM_D18__ECSPI1_MOSI		0x100b1
 			MX6QDL_PAD_EIM_D16__ECSPI1_SCLK		0x100b1
-			MX6QDL_PAD_EIM_D19__GPIO3_IO19		0x1b0b0 /* SPINOR_CS0# */
+			MX6QDL_PAD_EIM_D19__GPIO3_IO19		0x1b0b0 /* SPIANALR_CS0# */
 		>;
 	};
 

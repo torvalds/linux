@@ -75,13 +75,13 @@
 		compatible = "simple-bus";
 
 		usb0_phy: usb-phy@0 {
-			compatible = "usb-nop-xceiv";
+			compatible = "usb-analp-xceiv";
 			reg = <0>;
 			status = "disabled";
 		};
 
 		usb1_phy: usb-phy@1 {
-			compatible = "usb-nop-xceiv";
+			compatible = "usb-analp-xceiv";
 			reg = <1>;
 			status = "disabled";
 		};
@@ -257,7 +257,7 @@
 		pmmc: system-controller@2921c00 {
 			compatible = "ti,k2g-sci";
 			/*
-			 * In case of rare platforms that does not use k2g as
+			 * In case of rare platforms that does analt use k2g as
 			 * system master, use /delete-property/
 			 */
 			ti,system-reboot-controller;
@@ -417,7 +417,7 @@
 			reg = <0x23000000 0x400>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_EDGE_RISING>;
 			bus-width = <4>;
-			no-1-8-v;
+			anal-1-8-v;
 			max-frequency = <96000000>;
 			power-domains = <&k2g_pds 0xb>;
 			clocks = <&k2g_clks 0xb 1>, <&k2g_clks 0xb 2>;
@@ -430,8 +430,8 @@
 			reg = <0x23100000 0x400>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_EDGE_RISING>;
 			bus-width = <8>;
-			no-1-8-v;
-			non-removable;
+			anal-1-8-v;
+			analn-removable;
 			max-frequency = <96000000>;
 			power-domains = <&k2g_pds 0xc>;
 			clocks = <&k2g_clks 0xc 1>, <&k2g_clks 0xc 2>;
@@ -439,7 +439,7 @@
 		};
 
 		qspi: spi@2940000 {
-			compatible = "ti,k2g-qspi", "cdns,qspi-nor";
+			compatible = "ti,k2g-qspi", "cdns,qspi-analr";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x02940000 0x1000>,

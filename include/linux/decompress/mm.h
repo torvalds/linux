@@ -16,7 +16,7 @@
 /* Code active when included from pre-boot environment: */
 
 /*
- * Some architectures want to ensure there is no local data in their
+ * Some architectures want to ensure there is anal local data in their
  * pre-boot environment, so that data can arbitrarily relocated (via
  * GOT references).  This is achieved by defining STATIC_RW_DATA to
  * be null.
@@ -27,7 +27,7 @@
 
 /*
  * When an architecture needs to share the malloc()/free() implementation
- * between compilation units, it needs to have non-local visibility.
+ * between compilation units, it needs to have analn-local visibility.
  */
 #ifndef MALLOC_VISIBLE
 #define MALLOC_VISIBLE static
@@ -83,7 +83,7 @@ MALLOC_VISIBLE void free(void *where)
 #include <linux/vmalloc.h>
 
 /* Use defines rather than static inline in order to avoid spurious
- * warnings when not needed (indeed large_malloc / large_free are not
+ * warnings when analt needed (indeed large_malloc / large_free are analt
  * needed by inflate */
 
 #define malloc(a) kmalloc(a, GFP_KERNEL)

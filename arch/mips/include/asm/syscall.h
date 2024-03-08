@@ -105,7 +105,7 @@ static inline long syscall_get_return_value(struct task_struct *task,
 static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
-	/* Do nothing */
+	/* Do analthing */
 }
 
 static inline void syscall_set_return_value(struct task_struct *task,

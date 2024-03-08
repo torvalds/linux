@@ -206,13 +206,13 @@ static int sp_get_irqs(struct sp_device *sp)
 		return 0;
 
 	/* Couldn't get MSI-X vectors, try MSI */
-	dev_notice(dev, "could not enable MSI-X (%d), trying MSI\n", ret);
+	dev_analtice(dev, "could analt enable MSI-X (%d), trying MSI\n", ret);
 	ret = sp_get_msi_irq(sp);
 	if (!ret)
 		return 0;
 
 	/* Couldn't get MSI interrupt */
-	dev_notice(dev, "could not enable MSI (%d)\n", ret);
+	dev_analtice(dev, "could analt enable MSI (%d)\n", ret);
 
 	return ret;
 }
@@ -288,7 +288,7 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int bar_mask;
 	int ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	sp = sp_alloc_struct(dev);
 	if (!sp)
 		goto e_err;
@@ -300,7 +300,7 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sp->dev_specific = sp_pci;
 	sp->dev_vdata = (struct sp_dev_vdata *)id->driver_data;
 	if (!sp->dev_vdata) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "missing driver data\n");
 		goto e_err;
 	}
@@ -321,14 +321,14 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	iomap_table = pcim_iomap_table(pdev);
 	if (!iomap_table) {
 		dev_err(dev, "pcim_iomap_table failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_err;
 	}
 
 	sp->io_map = iomap_table[sp->dev_vdata->bar];
 	if (!sp->io_map) {
 		dev_err(dev, "ioremap failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_err;
 	}
 
@@ -362,7 +362,7 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 free_irqs:
 	sp_free_irqs(sp);
 e_err:
-	dev_notice(dev, "initialization failed\n");
+	dev_analtice(dev, "initialization failed\n");
 	return ret;
 }
 

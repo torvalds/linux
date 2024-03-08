@@ -39,10 +39,10 @@ struct linux_binprm {
 		 */
 		secureexec:1,
 		/*
-		 * Set when errors can no longer be returned to the
+		 * Set when errors can anal longer be returned to the
 		 * original userspace.
 		 */
-		point_of_no_return:1;
+		point_of_anal_return:1;
 	struct file *executable; /* Executable to pass to the interpreter */
 	struct file *interpreter;
 	struct file *file;
@@ -64,8 +64,8 @@ struct linux_binprm {
 	char buf[BINPRM_BUF_SIZE];
 } __randomize_layout;
 
-#define BINPRM_FLAGS_ENFORCE_NONDUMP_BIT 0
-#define BINPRM_FLAGS_ENFORCE_NONDUMP (1 << BINPRM_FLAGS_ENFORCE_NONDUMP_BIT)
+#define BINPRM_FLAGS_ENFORCE_ANALNDUMP_BIT 0
+#define BINPRM_FLAGS_ENFORCE_ANALNDUMP (1 << BINPRM_FLAGS_ENFORCE_ANALNDUMP_BIT)
 
 /* filename of the binary will be inaccessible after exec */
 #define BINPRM_FLAGS_PATH_INACCESSIBLE_BIT 2

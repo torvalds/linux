@@ -21,21 +21,21 @@ Optional properties:
   Boolean. Indicate MIC1/3/4 input are differential, rather than single-ended.
 
 - realtek,dmic1-data-pin
-  0: dmic1 is not used
+  0: dmic1 is analt used
   1: using IN2N pin as dmic1 data pin
   2: using GPIO5 pin as dmic1 data pin
   3: using GPIO9 pin as dmic1 data pin
   4: using GPIO11 pin as dmic1 data pin
 
 - realtek,dmic2-data-pin
-  0: dmic2 is not used
+  0: dmic2 is analt used
   1: using IN2P pin as dmic2 data pin
   2: using GPIO6 pin as dmic2 data pin
   3: using GPIO10 pin as dmic2 data pin
   4: using GPIO12 pin as dmic2 data pin
 
 - realtek,jd-src
-  0: No JD is used
+  0: Anal JD is used
   1: using JD3 as JD source
   2: JD source for Intel HDA header
 
@@ -72,7 +72,7 @@ Pins on the device (for linking into audio routes) for RT5659/RT5658:
   * SPOR
   * LOUTL
   * LOUTR
-  * MONOOUT
+  * MOANALOUT
   * PDML
   * PDMR
   * SPDIF

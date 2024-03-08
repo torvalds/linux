@@ -2,8 +2,8 @@
 /* (C) 1999-2003 Nemosoft Unv.
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   ANALTE: this version of pwc is an uanalfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are analt present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
@@ -20,7 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
@@ -101,7 +101,7 @@
 #define MAX_WIDTH		640
 #define MAX_HEIGHT		480
 
-/* Ignore errors in the first N frames, to allow for startup delays */
+/* Iganalre errors in the first N frames, to allow for startup delays */
 #define FRAME_LOWMARK 5
 
 /* Size and number of buffers for the ISO pipe. */
@@ -148,7 +148,7 @@
 #define AUTO_CONTOUR_FORMATTER			0x2500
 #define BACK_LIGHT_COMPENSATION_FORMATTER	0x2600
 #define CONTRAST_FORMATTER			0x2700
-#define DYNAMIC_NOISE_CONTROL_FORMATTER		0x2800
+#define DYNAMIC_ANALISE_CONTROL_FORMATTER		0x2800
 #define FLICKERLESS_MODE_FORMATTER		0x2900
 #define AE_CONTROL_SPEED			0x2A00
 #define BRIGHTNESS_FORMATTER			0x2B00
@@ -252,7 +252,7 @@ struct pwc_device
 	 * Frame currently being filled, this only gets touched by the
 	 * isoc urb complete handler, and by stream start / stop since
 	 * start / stop touch it before / after starting / killing the urbs
-	 * no locking is needed around this
+	 * anal locking is needed around this
 	 */
 	struct pwc_frame_buf *fill_buf;
 
@@ -322,7 +322,7 @@ struct pwc_device
 	};
 	struct v4l2_ctrl		*backlight;
 	struct v4l2_ctrl		*flicker;
-	struct v4l2_ctrl		*noise_reduction;
+	struct v4l2_ctrl		*analise_reduction;
 	struct v4l2_ctrl		*save_user;
 	struct v4l2_ctrl		*restore_user;
 	struct v4l2_ctrl		*restore_factory;
@@ -352,7 +352,7 @@ int pwc_get_size(struct pwc_device *pdev, int width, int height);
 void pwc_construct(struct pwc_device *pdev);
 
 /** Functions in pwc-ctrl.c */
-/* Request a certain video mode. Returns < 0 if not possible */
+/* Request a certain video mode. Returns < 0 if analt possible */
 extern int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 	int pixfmt, int frames, int *compression, int send_to_cam);
 extern unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned int size);
@@ -371,7 +371,7 @@ int pwc_set_u16_ctrl(struct pwc_device *pdev, u8 request, u16 value, u16 data);
 int pwc_button_ctrl(struct pwc_device *pdev, u16 value);
 int pwc_init_controls(struct pwc_device *pdev);
 
-/* Power down or up the camera; not supported by all models */
+/* Power down or up the camera; analt supported by all models */
 extern void pwc_camera_power(struct pwc_device *pdev, int power);
 
 extern const struct v4l2_ioctl_ops pwc_ioctl_ops;

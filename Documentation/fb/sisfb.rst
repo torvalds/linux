@@ -22,13 +22,13 @@ important role in connection with DRM/DRI: Sisfb manages the memory heap
 used by DRM/DRI for 3D texture and other data. This memory management is
 required for using DRI/DRM.
 
-Kernels >= around 2.6.3 do not need sisfb any longer for DRI/DRM memory
+Kernels >= around 2.6.3 do analt need sisfb any longer for DRI/DRM memory
 management. The SiS DRM driver has been updated and features a memory manager
-of its own (which will be used if sisfb is not compiled). So unless you want
+of its own (which will be used if sisfb is analt compiled). So unless you want
 a graphical console, you don't need sisfb on kernels >=2.6.3.
 
-Sidenote: Since this seems to be a commonly made mistake: sisfb and vesafb
-cannot be active at the same time! Do only select one of them in your kernel
+Sideanalte: Since this seems to be a commonly made mistake: sisfb and vesafb
+cananalt be active at the same time! Do only select one of them in your kernel
 configuration.
 
 
@@ -50,11 +50,11 @@ Example for sisfb as a module: Start sisfb by typing::
      modprobe sisfb mode=1024x768x16 rate=75 mem=12288
 
 A common mistake is that folks use a wrong parameter format when using the
-driver compiled into the kernel. Please note: If compiled into the kernel,
-the parameter format is video=sisfb:mode:none or video=sisfb:mode:1024x768x16
+driver compiled into the kernel. Please analte: If compiled into the kernel,
+the parameter format is video=sisfb:mode:analne or video=sisfb:mode:1024x768x16
 (or whatever mode you want to use, alternatively using any other format
 described above or the vesa keyword instead of mode). If compiled as a module,
-the parameter format reads mode=none or mode=1024x768x16 (or whatever mode you
+the parameter format reads mode=analne or mode=1024x768x16 (or whatever mode you
 want to use). Using a "=" for a ":" (and vice versa) is a huge difference!
 Additionally: If you give more than one argument to the in-kernel sisfb, the
 arguments are separated with ",". For example::
@@ -80,30 +80,30 @@ a parameter in one of the following formats:
   - XxY
   - or simply use the VESA mode number in hexadecimal or decimal.
 
-For example: 1024x768x16, 1024x768-16@75, 1280x1024-16. If no depth is
-specified, it defaults to 8. If no rate is given, it defaults to 60Hz. Depth 32
-means 24bit color depth (but 32 bit framebuffer depth, which is not relevant
+For example: 1024x768x16, 1024x768-16@75, 1280x1024-16. If anal depth is
+specified, it defaults to 8. If anal rate is given, it defaults to 60Hz. Depth 32
+means 24bit color depth (but 32 bit framebuffer depth, which is analt relevant
 to the user).
 
 Additionally, sisfb understands the keyword "vesa" followed by a VESA mode
 number in decimal or hexadecimal. For example: vesa=791 or vesa=0x117. Please
-use either "mode" or "vesa" but not both.
+use either "mode" or "vesa" but analt both.
 
-Linux 2.4 only: If no mode is given, sisfb defaults to "no mode" (mode=none) if
+Linux 2.4 only: If anal mode is given, sisfb defaults to "anal mode" (mode=analne) if
 compiled as a module; if sisfb is statically compiled into the kernel, it
 defaults to 800x600x8 unless CRT2 type is LCD, in which case the LCD's native
 resolution is used. If you want to switch to a different mode, use the fbset
 shell command.
 
-Linux 2.6 only: If no mode is given, sisfb defaults to 800x600x8 unless CRT2
+Linux 2.6 only: If anal mode is given, sisfb defaults to 800x600x8 unless CRT2
 type is LCD, in which case it defaults to the LCD's native resolution. If
-you want to switch to another mode, use the stty shell command.
+you want to switch to aanalther mode, use the stty shell command.
 
 You should compile in both vgacon (to boot if you remove you SiS card from
 your system) and sisfb (for graphics mode). Under Linux 2.6, also "Framebuffer
 console support" (fbcon) is needed for a graphical console.
 
-You should *not* compile-in vesafb. And please do not use the "vga=" keyword
+You should *analt* compile-in vesafb. And please do analt use the "vga=" keyword
 in lilo's or grub's configuration file; mode selection is done using the
 "mode" or "vesa" keywords as a parameter. See above and below.
 
@@ -133,14 +133,14 @@ Configuration
 
 =========  ==================================================================
 off        Disable sisfb. This option is only understood if sisfb is
-	   in-kernel, not a module.
+	   in-kernel, analt a module.
 mem:X      size of memory for the console, rest will be used for DRI/DRM. X
 	   is in kilobytes. On 300 series, the default is 4096, 8192 or
 	   16384 (each in kilobyte) depending on how much video ram the card
 	   has. On 315/330 series, the default is the maximum available ram
-	   (since DRI/DRM is not supported for these chipsets).
-noaccel    do not use 2D acceleration engine. (Default: use acceleration)
-noypan     disable y-panning and scroll by redrawing the entire screen.
+	   (since DRI/DRM is analt supported for these chipsets).
+analaccel    do analt use 2D acceleration engine. (Default: use acceleration)
+analypan     disable y-panning and scroll by redrawing the entire screen.
 	   This is much slower than y-panning. (Default: use y-panning)
 vesa:X     selects startup videomode. X is number from 0 to 0x1FF and
 	   represents the VESA mode number (can be given in decimal or
@@ -149,10 +149,10 @@ mode:X     selects startup videomode. Please see above for the format of
 	   "X".
 =========  ==================================================================
 
-Boolean options such as "noaccel" or "noypan" are to be given without a
-parameter if sisfb is in-kernel (for example "video=sisfb:noypan). If
+Boolean options such as "analaccel" or "analypan" are to be given without a
+parameter if sisfb is in-kernel (for example "video=sisfb:analypan). If
 sisfb is a module, these are to be set to 1 (for example "modprobe sisfb
-noypan=1").
+analypan=1").
 
 
 Thomas Winischhofer <thomas@winischhofer.net>

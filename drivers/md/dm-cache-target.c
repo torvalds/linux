@@ -246,7 +246,7 @@ static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 
 enum cache_metadata_mode {
 	CM_WRITE,		/* metadata may be changed */
-	CM_READ_ONLY,		/* metadata may not be changed */
+	CM_READ_ONLY,		/* metadata may analt be changed */
 	CM_FAIL
 };
 
@@ -464,7 +464,7 @@ static void wake_migration_worker(struct cache *cache)
 
 static struct dm_bio_prison_cell_v2 *alloc_prison_cell(struct cache *cache)
 {
-	return dm_bio_prison_alloc_cell_v2(cache->prison, GFP_NOIO);
+	return dm_bio_prison_alloc_cell_v2(cache->prison, GFP_ANALIO);
 }
 
 static void free_prison_cell(struct cache *cache, struct dm_bio_prison_cell_v2 *cell)
@@ -476,7 +476,7 @@ static struct dm_cache_migration *alloc_migration(struct cache *cache)
 {
 	struct dm_cache_migration *mg;
 
-	mg = mempool_alloc(&cache->migration_pool, GFP_NOIO);
+	mg = mempool_alloc(&cache->migration_pool, GFP_ANALIO);
 
 	memset(mg, 0, sizeof(*mg));
 
@@ -829,7 +829,7 @@ static void remap_to_origin_and_cache(struct cache *cache, struct bio *bio,
 				      dm_oblock_t oblock, dm_cblock_t cblock)
 {
 	struct bio *origin_bio = bio_alloc_clone(cache->origin_dev->bdev, bio,
-						 GFP_NOIO, &cache->bs);
+						 GFP_ANALIO, &cache->bs);
 
 	BUG_ON(!origin_bio);
 
@@ -857,7 +857,7 @@ static const char *cache_device_name(struct cache *cache)
 	return dm_table_device_name(cache->ti->table);
 }
 
-static void notify_mode_switch(struct cache *cache, enum cache_metadata_mode mode)
+static void analtify_mode_switch(struct cache *cache, enum cache_metadata_mode mode)
 {
 	static const char *descs[] = {
 		"write",
@@ -908,7 +908,7 @@ static void set_cache_mode(struct cache *cache, enum cache_metadata_mode new_mod
 	cache->features.mode = new_mode;
 
 	if (new_mode != old_mode)
-		notify_mode_switch(cache, new_mode);
+		analtify_mode_switch(cache, new_mode);
 }
 
 static void abort_transaction(struct cache *cache)
@@ -1144,7 +1144,7 @@ static void overwrite(struct dm_cache_migration *mg,
 
 	/*
 	 * The overwrite bio is part of the copy operation, as such it does
-	 * not set/clear discard or dirty flags.
+	 * analt set/clear discard or dirty flags.
 	 */
 	if (mg->op->op == POLICY_PROMOTE)
 		remap_to_cache(mg->cache, bio, mg->op->cblock);
@@ -1276,7 +1276,7 @@ static void mg_update_metadata(struct work_struct *ws)
 		 * - cache block gets reallocated and over written
 		 * - crash
 		 *
-		 * When we recover, because there was no commit the cache will
+		 * When we recover, because there was anal commit the cache will
 		 * rollback to having the data for vblock x in the cache block.
 		 * But the cache block has since been overwritten, so it'll end
 		 * up pointing to data that was never in 'x' during the history
@@ -1322,7 +1322,7 @@ static void mg_upgrade_lock(struct work_struct *ws)
 
 	else {
 		/*
-		 * Now we want the lock to prevent both reads and writes.
+		 * Analw we want the lock to prevent both reads and writes.
 		 */
 		r = dm_cell_lock_promote_v2(mg->cache->prison, mg->cell,
 					    READ_WRITE_LOCK_LEVEL);
@@ -1360,9 +1360,9 @@ static void mg_copy(struct work_struct *ws)
 
 	if (mg->overwrite_bio) {
 		/*
-		 * No exclusive lock was held when we last checked if the bio
+		 * Anal exclusive lock was held when we last checked if the bio
 		 * was optimisable.  So we have to check again in case things
-		 * have changed (eg, the block may no longer be discarded).
+		 * have changed (eg, the block may anal longer be discarded).
 		 */
 		if (!optimisable_bio(mg->cache, mg->overwrite_bio, mg->op->oblock)) {
 			/*
@@ -1370,7 +1370,7 @@ static void mg_copy(struct work_struct *ws)
 			 */
 			bool rb = bio_detain_shared(mg->cache, mg->op->oblock, mg->overwrite_bio);
 
-			BUG_ON(rb); /* An exclussive lock must _not_ be held for this block */
+			BUG_ON(rb); /* An exclussive lock must _analt_ be held for this block */
 			mg->overwrite_bio = NULL;
 			inc_io_migrations(mg->cache);
 			mg_full_copy(ws);
@@ -1382,7 +1382,7 @@ static void mg_copy(struct work_struct *ws)
 		 * because all IO has been locked out of the block.
 		 *
 		 * mg_lock_writes() already took READ_WRITE_LOCK_LEVEL
-		 * so _not_ using mg_upgrade_lock() as continutation.
+		 * so _analt_ using mg_upgrade_lock() as continutation.
 		 */
 		overwrite(mg, mg_update_metadata_after_copy);
 
@@ -1489,7 +1489,7 @@ static int invalidate_cblock(struct cache *cache, dm_cblock_t cblock)
 			metadata_operation_failed(cache, "dm_cache_remove_mapping", r);
 		}
 
-	} else if (r == -ENODATA) {
+	} else if (r == -EANALDATA) {
 		/*
 		 * Harmless, already unmapped.
 		 */
@@ -1637,14 +1637,14 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 		struct policy_work *op = NULL;
 
 		r = policy_lookup_with_work(cache->policy, block, &cblock, data_dir, true, &op);
-		if (unlikely(r && r != -ENOENT)) {
+		if (unlikely(r && r != -EANALENT)) {
 			DMERR_LIMIT("%s: policy_lookup_with_work() failed with r = %d",
 				    cache_device_name(cache), r);
 			bio_io_error(bio);
 			return DM_MAPIO_SUBMITTED;
 		}
 
-		if (r == -ENOENT && op) {
+		if (r == -EANALENT && op) {
 			bio_drop_shared_lock(cache, bio);
 			BUG_ON(op->op != POLICY_PROMOTE);
 			mg_start(cache, op, bio);
@@ -1652,7 +1652,7 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 		}
 	} else {
 		r = policy_lookup(cache->policy, block, &cblock, data_dir, false, &background_queued);
-		if (unlikely(r && r != -ENOENT)) {
+		if (unlikely(r && r != -EANALENT)) {
 			DMERR_LIMIT("%s: policy_lookup() failed with r = %d",
 				    cache_device_name(cache), r);
 			bio_io_error(bio);
@@ -1663,7 +1663,7 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 			wake_migration_worker(cache);
 	}
 
-	if (r == -ENOENT) {
+	if (r == -EANALENT) {
 		struct per_bio_data *pb = get_per_bio_data(bio);
 
 		/*
@@ -1675,7 +1675,7 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 			remap_to_origin_clear_discard(cache, bio, block);
 		} else {
 			/*
-			 * This is a duplicate writethrough io that is no
+			 * This is a duplicate writethrough io that is anal
 			 * longer needed because the block has been demoted.
 			 */
 			bio_endio(bio);
@@ -1736,7 +1736,7 @@ static bool process_bio(struct cache *cache, struct bio *bio)
 }
 
 /*
- * A non-zero return indicates read_only or fail_io mode.
+ * A analn-zero return indicates read_only or fail_io mode.
  */
 static int commit(struct cache *cache, bool clean_shutdown)
 {
@@ -1761,7 +1761,7 @@ static blk_status_t commit_op(void *context)
 	struct cache *cache = context;
 
 	if (dm_cache_changed_this_transaction(cache->cmd))
-		return errno_to_blk_status(commit(cache, false));
+		return erranal_to_blk_status(commit(cache, false));
 
 	return 0;
 }
@@ -1858,7 +1858,7 @@ static void requeue_deferred_bios(struct cache *cache)
 }
 
 /*
- * We want to commit periodically so that not too much
+ * We want to commit periodically so that analt too much
  * unwritten metadata builds up.
  */
 static void do_waker(struct work_struct *ws)
@@ -1882,7 +1882,7 @@ static void check_migrations(struct work_struct *ws)
 		b = spare_migration_bandwidth(cache);
 
 		r = policy_get_background_work(cache->policy, b == IDLE, &op);
-		if (r == -ENODATA)
+		if (r == -EANALDATA)
 			break;
 
 		if (r) {
@@ -2060,7 +2060,7 @@ static int parse_metadata_dev(struct cache_args *ca, struct dm_arg_set *as,
 
 	metadata_dev_size = get_dev_size(ca->metadata_dev);
 	if (metadata_dev_size > DM_CACHE_METADATA_MAX_SECTORS_WARNING)
-		DMWARN("Metadata device %pg is larger than %u sectors: excess space will not be used.",
+		DMWARN("Metadata device %pg is larger than %u sectors: excess space will analt be used.",
 		       ca->metadata_dev->bdev, THIN_METADATA_MAX_SECTORS);
 
 	return 0;
@@ -2182,7 +2182,7 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 		else if (!strcasecmp(arg, "metadata2"))
 			cf->metadata_version = 2;
 
-		else if (!strcasecmp(arg, "no_discard_passdown"))
+		else if (!strcasecmp(arg, "anal_discard_passdown"))
 			cf->discard_passdown = false;
 
 		else {
@@ -2263,7 +2263,7 @@ static int parse_cache_args(struct cache_args *ca, int argc, char **argv,
 
 static struct kmem_cache *migration_cache;
 
-#define NOT_CORE_OPTION 1
+#define ANALT_CORE_OPTION 1
 
 static int process_config_option(struct cache *cache, const char *key, const char *value)
 {
@@ -2277,14 +2277,14 @@ static int process_config_option(struct cache *cache, const char *key, const cha
 		return 0;
 	}
 
-	return NOT_CORE_OPTION;
+	return ANALT_CORE_OPTION;
 }
 
 static int set_config_value(struct cache *cache, const char *key, const char *value)
 {
 	int r = process_config_option(cache, key, value);
 
-	if (r == NOT_CORE_OPTION)
+	if (r == ANALT_CORE_OPTION)
 		r = policy_set_config_value(cache->policy, key, value);
 
 	if (r)
@@ -2333,7 +2333,7 @@ static int create_cache_policy(struct cache *cache, struct cache_args *ca,
 
 /*
  * We want the discard block size to be at least the size of the cache
- * block size and have no more than 2^14 discard blocks across the origin.
+ * block size and have anal more than 2^14 discard blocks across the origin.
  */
 #define MAX_DISCARD_BLOCKS (1 << 14)
 
@@ -2384,7 +2384,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 	if (!cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cache->ti = ca->ti;
 	ti->private = cache;
@@ -2472,7 +2472,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 		}
 
 		if (!all_clean) {
-			*error = "Cannot enter passthrough mode unless all blocks are clean";
+			*error = "Cananalt enter passthrough mode unless all blocks are clean";
 			r = -EINVAL;
 			goto bad;
 		}
@@ -2486,11 +2486,11 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	atomic_set(&cache->nr_io_migrations, 0);
 	init_waitqueue_head(&cache->migration_wait);
 
-	r = -ENOMEM;
+	r = -EANALMEM;
 	atomic_set(&cache->nr_dirty, 0);
 	cache->dirty_bitset = alloc_bitset(from_cblock(cache->cache_size));
 	if (!cache->dirty_bitset) {
-		*error = "could not allocate dirty bitset";
+		*error = "could analt allocate dirty bitset";
 		goto bad;
 	}
 	clear_bitset(cache->dirty_bitset, from_cblock(cache->cache_size));
@@ -2502,21 +2502,21 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 							      cache->discard_block_size));
 	cache->discard_bitset = alloc_bitset(from_dblock(cache->discard_nr_blocks));
 	if (!cache->discard_bitset) {
-		*error = "could not allocate discard bitset";
+		*error = "could analt allocate discard bitset";
 		goto bad;
 	}
 	clear_bitset(cache->discard_bitset, from_dblock(cache->discard_nr_blocks));
 
 	cache->copier = dm_kcopyd_client_create(&dm_kcopyd_throttle);
 	if (IS_ERR(cache->copier)) {
-		*error = "could not create kcopyd client";
+		*error = "could analt create kcopyd client";
 		r = PTR_ERR(cache->copier);
 		goto bad;
 	}
 
 	cache->wq = alloc_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM, 0);
 	if (!cache->wq) {
-		*error = "could not create workqueue for metadata object";
+		*error = "could analt create workqueue for metadata object";
 		goto bad;
 	}
 	INIT_WORK(&cache->deferred_bio_worker, process_deferred_bios);
@@ -2525,7 +2525,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	cache->prison = dm_bio_prison_create_v2(cache->wq);
 	if (!cache->prison) {
-		*error = "could not create bio prison";
+		*error = "could analt create bio prison";
 		goto bad;
 	}
 
@@ -2576,14 +2576,14 @@ static int copy_ctr_args(struct cache *cache, int argc, const char **argv)
 
 	copy = kcalloc(argc, sizeof(*copy), GFP_KERNEL);
 	if (!copy)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < argc; i++) {
 		copy[i] = kstrdup(argv[i], GFP_KERNEL);
 		if (!copy[i]) {
 			while (i--)
 				kfree(copy[i]);
 			kfree(copy);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -2602,7 +2602,7 @@ static int cache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
 	if (!ca) {
 		ti->error = "Error allocating memory for cache";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ca->ti = ti;
 
@@ -2704,7 +2704,7 @@ static int write_discard_bitset(struct cache *cache)
 	r = dm_cache_discard_bitset_resize(cache->cmd, cache->discard_block_size,
 					   cache->discard_nr_blocks);
 	if (r) {
-		DMERR("%s: could not resize on-disk discard bitset", cache_device_name(cache));
+		DMERR("%s: could analt resize on-disk discard bitset", cache_device_name(cache));
 		metadata_operation_failed(cache, "dm_cache_discard_bitset_resize", r);
 		return r;
 	}
@@ -2746,17 +2746,17 @@ static bool sync_metadata(struct cache *cache)
 
 	r1 = write_dirty_bitset(cache);
 	if (r1)
-		DMERR("%s: could not write dirty bitset", cache_device_name(cache));
+		DMERR("%s: could analt write dirty bitset", cache_device_name(cache));
 
 	r2 = write_discard_bitset(cache);
 	if (r2)
-		DMERR("%s: could not write discard bitset", cache_device_name(cache));
+		DMERR("%s: could analt write discard bitset", cache_device_name(cache));
 
 	save_stats(cache);
 
 	r3 = write_hints(cache);
 	if (r3)
-		DMERR("%s: could not write hints", cache_device_name(cache));
+		DMERR("%s: could analt write hints", cache_device_name(cache));
 
 	/*
 	 * If writing the above metadata failed, we still commit, but don't
@@ -2765,7 +2765,7 @@ static bool sync_metadata(struct cache *cache)
 	 */
 	r4 = commit(cache, !r1 && !r2 && !r3);
 	if (r4)
-		DMERR("%s: could not write cache metadata", cache_device_name(cache));
+		DMERR("%s: could analt write cache metadata", cache_device_name(cache));
 
 	return !r1 && !r2 && !r3 && !r4;
 }
@@ -2806,9 +2806,9 @@ static int load_mapping(void *context, dm_oblock_t oblock, dm_cblock_t cblock,
 }
 
 /*
- * The discard block size in the on disk metadata is not
+ * The discard block size in the on disk metadata is analt
  * necessarily the same as we're currently using.  So we have to
- * be careful to only set the discarded attribute if we know it
+ * be careful to only set the discarded attribute if we kanalw it
  * covers a complete block of the new size.
  */
 struct discard_load_info {
@@ -2928,7 +2928,7 @@ static int resize_cache_dev(struct cache *cache, dm_cblock_t new_size)
 
 	r = dm_cache_resize(cache->cmd, new_size);
 	if (r) {
-		DMERR("%s: could not resize cache metadata", cache_device_name(cache));
+		DMERR("%s: could analt resize cache metadata", cache_device_name(cache));
 		metadata_operation_failed(cache, "dm_cache_resize", r);
 		return r;
 	}
@@ -2967,7 +2967,7 @@ static int cache_preresume(struct dm_target *ti)
 		r = dm_cache_load_mappings(cache->cmd, cache->policy,
 					   load_mapping, cache);
 		if (r) {
-			DMERR("%s: could not load cache mappings", cache_device_name(cache));
+			DMERR("%s: could analt load cache mappings", cache_device_name(cache));
 			metadata_operation_failed(cache, "dm_cache_load_mappings", r);
 			return r;
 		}
@@ -2981,14 +2981,14 @@ static int cache_preresume(struct dm_target *ti)
 		/*
 		 * The discard bitset could have been resized, or the
 		 * discard block size changed.  To be safe we start by
-		 * setting every dblock to not discarded.
+		 * setting every dblock to analt discarded.
 		 */
 		clear_bitset(cache->discard_bitset, from_dblock(cache->discard_nr_blocks));
 
 		discard_load_info_init(cache, &li);
 		r = dm_cache_load_discards(cache->cmd, load_discard, &li);
 		if (r) {
-			DMERR("%s: could not load origin discards", cache_device_name(cache));
+			DMERR("%s: could analt load origin discards", cache_device_name(cache));
 			metadata_operation_failed(cache, "dm_cache_load_discards", r);
 			return r;
 		}
@@ -3031,13 +3031,13 @@ static void emit_flags(struct cache *cache, char *result,
 		DMEMIT("writeback ");
 
 	else {
-		DMEMIT("unknown ");
-		DMERR("%s: internal error: unknown io mode: %d",
+		DMEMIT("unkanalwn ");
+		DMERR("%s: internal error: unkanalwn io mode: %d",
 		      cache_device_name(cache), (int) cf->io_mode);
 	}
 
 	if (!cf->discard_passdown)
-		DMEMIT("no_discard_passdown ");
+		DMEMIT("anal_discard_passdown ");
 
 	*sz_ptr = sz;
 }
@@ -3074,7 +3074,7 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		}
 
 		/* Commit to ensure statistics aren't out-of-date */
-		if (!(status_flags & DM_STATUS_NOFLUSH_FLAG) && !dm_suspended(ti))
+		if (!(status_flags & DM_STATUS_ANALFLUSH_FLAG) && !dm_suspended(ti))
 			(void) commit(cache, false);
 
 		r = dm_cache_get_free_metadata_block_count(cache->cmd, &nr_free_blocks_metadata);
@@ -3167,7 +3167,7 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		DMEMIT(",writeback=%c", writeback_mode(cache) ? 'y' : 'n');
 		DMEMIT(",passthrough=%c", passthrough_mode(cache) ? 'y' : 'n');
 		DMEMIT(",metadata2=%c", cache->features.metadata_version == 2 ? 'y' : 'n');
-		DMEMIT(",no_discard_passdown=%c", cache->features.discard_passdown ? 'n' : 'y');
+		DMEMIT(",anal_discard_passdown=%c", cache->features.discard_passdown ? 'n' : 'y');
 		DMEMIT(";");
 		break;
 	}
@@ -3267,10 +3267,10 @@ static int request_invalidation(struct cache *cache, struct cblock_range *range)
 	int r = 0;
 
 	/*
-	 * We don't need to do any locking here because we know we're in
+	 * We don't need to do any locking here because we kanalw we're in
 	 * passthrough mode.  There's is potential for a race between an
 	 * invalidation triggered by an io and an invalidation message.  This
-	 * is harmless, we must not worry if the policy call fails.
+	 * is harmless, we must analt worry if the policy call fails.
 	 */
 	while (range->begin != range->end) {
 		r = invalidate_cblock(cache, range->begin);
@@ -3336,7 +3336,7 @@ static int cache_message(struct dm_target *ti, unsigned int argc, char **argv,
 	if (get_cache_mode(cache) >= CM_READ_ONLY) {
 		DMERR("%s: unable to service cache target messages in READ_ONLY or FAIL mode",
 		      cache_device_name(cache));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!strcasecmp(argv[0], "invalidate_cblocks"))
@@ -3363,9 +3363,9 @@ static int cache_iterate_devices(struct dm_target *ti,
 
 /*
  * If discard_passdown was enabled verify that the origin device
- * supports discards.  Disable discard_passdown if not.
+ * supports discards.  Disable discard_passdown if analt.
  */
-static void disable_passdown_if_not_supported(struct cache *cache)
+static void disable_passdown_if_analt_supported(struct cache *cache)
 {
 	struct block_device *origin_bdev = cache->origin_dev->bdev;
 	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
@@ -3393,7 +3393,7 @@ static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
 
 	if (!cache->features.discard_passdown) {
-		/* No passdown is done so setting own virtual limits */
+		/* Anal passdown is done so setting own virtual limits */
 		limits->max_discard_sectors = min_t(sector_t, cache->discard_block_size * 1024,
 						    cache->origin_sectors);
 		limits->discard_granularity = cache->discard_block_size << SECTOR_SHIFT;
@@ -3418,7 +3418,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 	/*
 	 * If the system-determined stacked limits are compatible with the
-	 * cache's blocksize (io_opt is a factor) do not override them.
+	 * cache's blocksize (io_opt is a factor) do analt override them.
 	 */
 	if (io_opt_sectors < cache->sectors_per_block ||
 	    do_div(io_opt_sectors, cache->sectors_per_block)) {
@@ -3426,7 +3426,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 		blk_limits_io_opt(limits, cache->sectors_per_block << SECTOR_SHIFT);
 	}
 
-	disable_passdown_if_not_supported(cache);
+	disable_passdown_if_analt_supported(cache);
 	set_discard_limits(cache, limits);
 }
 
@@ -3455,7 +3455,7 @@ static int __init dm_cache_init(void)
 
 	migration_cache = KMEM_CACHE(dm_cache_migration, 0);
 	if (!migration_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = dm_register_target(&cache_target);
 	if (r) {

@@ -12,7 +12,7 @@
  * Low-level interface mapping flags/field names to bits
  */
 
-/* Flags for _DESC_S (non-system) descriptors */
+/* Flags for _DESC_S (analn-system) descriptors */
 #define _DESC_ACCESSED		0x0001
 #define _DESC_DATA_WRITABLE	0x0002
 #define _DESC_CODE_READABLE	0x0002
@@ -189,7 +189,7 @@ struct desc_ptr {
 #define AR_A			(1 << 8)   /* "Accessed" */
 #define AR_S			(1 << 12)  /* If clear, "System" segment */
 #define AR_P			(1 << 15)  /* "Present" */
-#define AR_AVL			(1 << 20)  /* "AVaiLable" (no HW effect) */
+#define AR_AVL			(1 << 20)  /* "AVaiLable" (anal HW effect) */
 #define AR_L			(1 << 21)  /* "Long mode" for code segments */
 #define AR_DB			(1 << 22)  /* D/B, effect depends on type */
 #define AR_G			(1 << 23)  /* "Granularity" (limit in pages) */

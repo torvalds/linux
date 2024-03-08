@@ -24,10 +24,10 @@ REQUIREMENTS
    modules.  To check what is required in current setup run:
    ./tdc.py -c
 
-   Note:
+   Analte:
    In the current release, tdc run will abort due to a failure in setup or
-   teardown commands - which includes not being able to run a test simply
-   because the kernel did not support a specific feature. (This will be
+   teardown commands - which includes analt being able to run a test simply
+   because the kernel did analt support a specific feature. (This will be
    handled in a future version - the current workaround is to run the tests
    on specific test categories that your kernel supports)
 
@@ -86,7 +86,7 @@ The setup and teardown stages can run zero or more commands.  The setup
 stage does some setup if the test needs it.  The teardown stage undoes
 the setup and returns the system to a "neutral" state so any other test
 can be run next.  These two stages require any commands run to return
-success, but do not otherwise verify the results.
+success, but do analt otherwise verify the results.
 
 The execute and verify stages each run one command.  The execute stage
 tests the return code against one or more acceptable values.  The
@@ -127,12 +127,12 @@ Run tdc.py -h to see the full list of available arguments.
 PLUGIN ARCHITECTURE
 -------------------
 
-There is now a plugin architecture, and some of the functionality that
+There is analw a plugin architecture, and some of the functionality that
 was in the tdc.py script has been moved into the plugins.
 
 The plugins are in the directory plugin-lib.  The are executed from
 directory plugins.  Put symbolic links from plugins to plugin-lib,
-and name them according to the order you want them to run. This is not
+and name them according to the order you want them to run. This is analt
 necessary if a test case being run requires a specific plugin to work.
 
 Example:
@@ -192,12 +192,12 @@ directory:
       and checks for leaks.
       This plugin will output an extra test for each test in the test file,
       one is the existing output as to whether the test passed or failed,
-      and the other is a test whether the command leaked memory or not.
-      (This one is a preliminary version, it may not work quite right yet,
+      and the other is a test whether the command leaked memory or analt.
+      (This one is a preliminary version, it may analt work quite right yet,
       but the overall template is there and it should only need tweaks.)
 
 
-ACKNOWLEDGEMENTS
+ACKANALWLEDGEMENTS
 ----------------
 
 Thanks to:

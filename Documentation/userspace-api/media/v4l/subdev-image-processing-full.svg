@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later -->
+<?xml version="1.0" encoding="UTF-8" standalone="anal"?>
+<!-- SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later -->
 <svg
    xmlns:dc="http://purl.org/dc/elements/1.1/"
    xmlns:cc="http://creativecommons.org/ns#"
@@ -64,7 +64,7 @@
        height="249"
        id="rect6" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#ff765a;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#ff765a;stroke-width:2"
        x="318.89999"
        y="129"
        width="208.10001"
@@ -72,7 +72,7 @@
        id="rect8" />
   </g>
   <rect
-     style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+     style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
      x="-3.4982376"
      y="65.305092"
      width="806"
@@ -88,13 +88,13 @@
        id="ellipse14"
        r="8.5" />
     <circle
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        cx="-12.5"
        cy="166.71201"
        id="ellipse16"
        r="8.5" />
     <circle
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        cx="-12.5"
        cy="166.71201"
        id="ellipse18"
@@ -110,13 +110,13 @@
        id="ellipse22"
        r="8.5" />
     <circle
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        cx="815.23199"
        cy="205.18401"
        id="ellipse24"
        r="8.5" />
     <circle
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        cx="815.23199"
        cy="205.18401"
        id="ellipse26"
@@ -126,7 +126,7 @@
      id="g28"
      transform="translate(-1.4982376,-7.6949076)">
     <line
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        x1="-184.5"
        y1="167"
        x2="-30.736099"
@@ -137,7 +137,7 @@
        points="-33.2449,161.734 -23.2361,166.716 -33.2272,171.734 -30.7361,166.729 "
        id="polygon32" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        points="-33.2449,161.734 -23.2361,166.716 -33.2272,171.734 -30.7361,166.729 "
        id="polygon34" />
   </g>
@@ -145,7 +145,7 @@
      id="g36"
      transform="translate(-1.4982376,-7.6949076)">
     <line
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        x1="823.73199"
        y1="205.18401"
        x2="980.06598"
@@ -156,12 +156,12 @@
        points="977.567,200.212 987.566,205.214 977.565,210.212 980.066,205.212 "
        id="polygon40" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        points="977.567,200.212 987.566,205.214 977.565,210.212 980.066,205.212 "
        id="polygon42" />
   </g>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
      x="-141.45824"
      y="147.3051"
      id="text44">
@@ -171,7 +171,7 @@
        id="tspan46">pad 0 (sink)</tspan>
   </text>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
      x="847.54175"
      y="187.3051"
      id="text48">
@@ -191,7 +191,7 @@
        height="104"
        id="rect54" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#a52a2a;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#a52a2a;stroke-width:2"
        x="5.5"
        y="120"
        width="159"
@@ -209,7 +209,7 @@
        height="77"
        id="rect60" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#0000ff;stroke-width:2"
        x="62.5"
        y="136"
        width="94"
@@ -217,7 +217,7 @@
        id="rect62" />
   </g>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
      x="29.001762"
      y="81.305092"
      id="text64">
@@ -227,7 +227,7 @@
        id="tspan66" />
   </text>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#a52a2a"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#a52a2a"
      x="8.040122"
      y="81.218895"
      id="text68">
@@ -251,7 +251,7 @@
        height="172.478"
        id="rect76" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#00ff00;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#00ff00;stroke-width:2"
        x="333.64401"
        y="185.64999"
        width="165.2"
@@ -259,35 +259,35 @@
        id="rect78" />
   </g>
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="332.14578"
      y1="350.43307"
      x2="61.001762"
      y2="205.3051"
      id="line80" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="332.14578"
      y1="177.95509"
      x2="61.001762"
      y2="128.3051"
      id="line82" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="497.34576"
      y1="350.43307"
      x2="155.00177"
      y2="205.3051"
      id="line84" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="497.34576"
      y1="177.95509"
      x2="155.00177"
      y2="128.3051"
      id="line86" />
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#00ff00"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#00ff00"
      x="333.20578"
      y="141.7471"
      id="text88">
@@ -311,7 +311,7 @@
        height="71.452301"
        id="rect96" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#a020f0;stroke-width:2"
        x="409.32199"
        y="194.565"
        width="100.186"
@@ -319,7 +319,7 @@
        id="rect98" />
   </g>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#8b6914"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#8b6914"
      x="688.00177"
      y="97.43309"
      id="text100">
@@ -343,7 +343,7 @@
        height="71.452301"
        id="rect108" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#8b6914;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#8b6914;stroke-width:2"
        x="688.48798"
        y="173.834"
        width="100.186"
@@ -351,35 +351,35 @@
        id="rect110" />
   </g>
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="686.98975"
      y1="237.59109"
      x2="407.82376"
      y2="258.32309"
      id="line112" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="686.98975"
      y1="166.1391"
      x2="407.82376"
      y2="186.8701"
      id="line114" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="787.17578"
      y1="237.59109"
      x2="508.00977"
      y2="258.32309"
      id="line116" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="787.17578"
      y1="166.1391"
      x2="508.00977"
      y2="186.8701"
      id="line118" />
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#ff765a"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#ff765a"
      x="323.50177"
      y="95.305092"
      id="text120">
@@ -402,13 +402,13 @@
        id="ellipse128"
        r="8.5" />
     <circle
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        cx="-12.0982"
        cy="341.51199"
        id="ellipse130"
        r="8.5" />
     <circle
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        cx="-12.0982"
        cy="341.51199"
        id="ellipse132"
@@ -418,7 +418,7 @@
      id="g134"
      transform="translate(-1.4982376,-7.6949076)">
     <line
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        x1="-184.09801"
        y1="341.79999"
        x2="-30.334299"
@@ -429,12 +429,12 @@
        points="-32.8431,336.534 -22.8343,341.516 -32.8254,346.534 -30.3343,341.529 "
        id="polygon138" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        points="-32.8431,336.534 -22.8343,341.516 -32.8254,346.534 -30.3343,341.529 "
        id="polygon140" />
   </g>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
      x="-140.49823"
      y="321.30508"
      id="text142">
@@ -454,7 +454,7 @@
        height="82.199997"
        id="rect148" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#a52a2a;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#a52a2a;stroke-width:2"
        x="7.8082399"
        y="292.79999"
        width="112.092"
@@ -472,7 +472,7 @@
        height="50.200001"
        id="rect154" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#0000ff;stroke-width:2"
        x="52.900002"
        y="314.79999"
        width="58.099998"
@@ -480,7 +480,7 @@
        id="rect156" />
   </g>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
      x="30.401762"
      y="252.10509"
      id="text158">
@@ -490,42 +490,42 @@
        id="tspan160" />
   </text>
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="357.40176"
      y1="244.20509"
      x2="51.401764"
      y2="307.10507"
      id="line162" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="357.40176"
      y1="308.30508"
      x2="51.401764"
      y2="357.30508"
      id="line164" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="432.50177"
      y1="308.30508"
      x2="109.50176"
      y2="357.30508"
      id="line166" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="432.50177"
      y1="244.20509"
      x2="109.50176"
      y2="307.10507"
      id="line168" />
   <rect
-     style="fill:none;fill-opacity:0;stroke:#00ff00;stroke-width:2"
+     style="fill:analne;fill-opacity:0;stroke:#00ff00;stroke-width:2"
      x="357.40176"
      y="244.20509"
      width="75.099998"
      height="64.099998"
      id="rect170" />
   <rect
-     style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+     style="fill:analne;fill-opacity:0;stroke:#a020f0;stroke-width:2"
      x="441.76376"
      y="276.77109"
      width="64.737999"
@@ -542,7 +542,7 @@
        height="49.265999"
        id="rect176" />
     <rect
-       style="fill:none;fill-opacity:0;stroke:#8b6914;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#8b6914;stroke-width:2"
        x="693.42798"
        y="324.73401"
        width="63.571999"
@@ -550,28 +550,28 @@
        id="rect178" />
   </g>
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="691.92975"
      y1="366.30508"
      x2="441.76376"
      y2="325.30508"
      id="line180" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="691.92975"
      y1="317.03909"
      x2="441.76376"
      y2="276.77109"
      id="line182" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="755.50177"
      y1="366.30508"
      x2="506.50177"
      y2="325.30508"
      id="line184" />
   <line
-     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     style="fill:analne;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
      x1="755.50177"
      y1="317.03909"
      x2="506.50177"
@@ -587,13 +587,13 @@
        id="ellipse190"
        r="8.5" />
     <circle
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        cx="815.44"
        cy="343.98401"
        id="ellipse192"
        r="8.5" />
     <circle
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        cx="815.44"
        cy="343.98401"
        id="ellipse194"
@@ -603,7 +603,7 @@
      id="g196"
      transform="translate(-1.4982376,-7.6949076)">
     <line
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        x1="823.94"
        y1="343.98401"
        x2="980.27399"
@@ -614,12 +614,12 @@
        points="977.775,339.012 987.774,344.014 977.773,349.012 980.274,344.012 "
        id="polygon200" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#000000;stroke-width:2"
        points="977.775,339.012 987.774,344.014 977.773,349.012 980.274,344.012 "
        id="polygon202" />
   </g>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
      x="847.74976"
      y="326.10507"
      id="text204">
@@ -629,7 +629,7 @@
        id="tspan206">pad 3 (source)</tspan>
   </text>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#0000ff"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#0000ff"
      x="195.50177"
      y="83.305092"
      id="text208">
@@ -647,7 +647,7 @@
        id="tspan214">selection</tspan>
   </text>
   <text
-     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#a020f0"
+     style="font-style:analrmal;font-weight:analrmal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#a020f0"
      x="551.50177"
      y="87.305092"
      id="text216">
@@ -668,7 +668,7 @@
      id="g224"
      transform="translate(-1.4982376,-7.6949076)">
     <line
-       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#0000ff;stroke-width:2"
        x1="211"
        y1="132"
        x2="166.21001"
@@ -679,7 +679,7 @@
        points="169.069,140.091 158.73,135.836 168.337,130.118 166.21,135.287 "
        id="polygon228" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#0000ff;stroke-width:2"
        points="169.069,140.091 158.73,135.836 168.337,130.118 166.21,135.287 "
        id="polygon230" />
   </g>
@@ -687,7 +687,7 @@
      id="g232"
      transform="translate(-1.4982376,-7.6949076)">
     <line
-       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#0000ff;stroke-width:2"
        x1="209"
        y1="131"
        x2="115.581"
@@ -698,7 +698,7 @@
        points="121.169,306.355 112.052,312.827 112.345,301.65 115.581,306.209 "
        id="polygon236" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#0000ff;stroke-width:2"
        points="121.169,306.355 112.052,312.827 112.345,301.65 115.581,306.209 "
        id="polygon238" />
   </g>
@@ -706,7 +706,7 @@
      id="g240"
      transform="translate(-1.4982376,-7.6949076)">
     <line
-       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#a020f0;stroke-width:2"
        x1="550.492"
        y1="133.214"
        x2="514.91602"
@@ -717,7 +717,7 @@
        points="520.463,187.168 510.75,192.706 512.147,181.613 514.916,186.469 "
        id="polygon244" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#a020f0;stroke-width:2"
        points="520.463,187.168 510.75,192.706 512.147,181.613 514.916,186.469 "
        id="polygon246" />
   </g>
@@ -725,7 +725,7 @@
      id="g248"
      transform="translate(-1.4982376,-7.6949076)">
     <line
-       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#a020f0;stroke-width:2"
        x1="550.07202"
        y1="133.787"
        x2="510.61801"
@@ -736,7 +736,7 @@
        points="516.106,274.025 508.601,282.312 506.475,271.336 510.618,275.089 "
        id="polygon252" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       style="fill:analne;fill-opacity:0;stroke:#a020f0;stroke-width:2"
        points="516.106,274.025 508.601,282.312 506.475,271.336 510.618,275.089 "
        id="polygon254" />
   </g>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/kernel.h>
@@ -43,7 +43,7 @@ static int __init setup_mem_sz(char *str)
 {
 	low_mem_sz = memparse(str, NULL) & PAGE_MASK;
 
-	/* early console might not be setup yet - it will show up later */
+	/* early console might analt be setup yet - it will show up later */
 	pr_info("\"mem=%s\": mem sz set to %ldM\n", str, TO_MB(low_mem_sz));
 
 	return 0;
@@ -60,19 +60,19 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 
 		low_mem_sz = size;
 		in_use = 1;
-		memblock_add_node(base, size, 0, MEMBLOCK_NONE);
+		memblock_add_analde(base, size, 0, MEMBLOCK_ANALNE);
 	} else {
 #ifdef CONFIG_HIGHMEM
 		high_mem_start = base;
 		high_mem_sz = size;
 		in_use = 1;
-		memblock_add_node(base, size, 1, MEMBLOCK_NONE);
+		memblock_add_analde(base, size, 1, MEMBLOCK_ANALNE);
 		memblock_reserve(base, size);
 #endif
 	}
 
 	pr_info("Memory @ %llx [%lldM] %s\n",
-		base, TO_MB(size), !in_use ? "Not used":"");
+		base, TO_MB(size), !in_use ? "Analt used":"");
 }
 
 /*
@@ -96,11 +96,11 @@ void __init setup_arch_memory(void)
 	/*------------- bootmem allocator setup -----------------------*/
 
 	/*
-	 * seed the bootmem allocator after any DT memory node parsing or
+	 * seed the bootmem allocator after any DT memory analde parsing or
 	 * "mem=xxx" cmdline overrides have potentially updated @arc_mem_sz
 	 *
 	 * Only low mem is added, otherwise we have crashes when allocating
-	 * mem_map[] itself. NO_BOOTMEM allocates mem_map[] at the end of
+	 * mem_map[] itself. ANAL_BOOTMEM allocates mem_map[] at the end of
 	 * avail memory, ending in highmem with a > 32-bit address. However
 	 * it then tries to memset it with a truncaed 32-bit handle, causing
 	 * the crash
@@ -122,13 +122,13 @@ void __init setup_arch_memory(void)
 
 	memblock_dump_all();
 
-	/*----------------- node/zones setup --------------------------*/
-	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
+	/*----------------- analde/zones setup --------------------------*/
+	max_zone_pfn[ZONE_ANALRMAL] = max_low_pfn;
 
 #ifdef CONFIG_HIGHMEM
 	/*
 	 * On ARC (w/o PAE) HIGHMEM addresses are actually smaller (0 based)
-	 * than addresses in normal aka low memory (0x8000_0000 based).
+	 * than addresses in analrmal aka low memory (0x8000_0000 based).
 	 * Even with PAE, the huge peripheral space hole would waste a lot of
 	 * mem with single contiguous mem_map[].
 	 * Thus when HIGHMEM on ARC is enabled the memory map corresponding

@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/hwmon.h>
 #include <linux/interrupt.h>
@@ -80,12 +80,12 @@
 
 #define MII_M1111_HWCFG_MODE_MASK		0xf
 #define MII_M1111_HWCFG_MODE_FIBER_RGMII	0x3
-#define MII_M1111_HWCFG_MODE_SGMII_NO_CLK	0x4
+#define MII_M1111_HWCFG_MODE_SGMII_ANAL_CLK	0x4
 #define MII_M1111_HWCFG_MODE_RTBI		0x7
 #define MII_M1111_HWCFG_MODE_COPPER_1000X_AN	0x8
 #define MII_M1111_HWCFG_MODE_COPPER_RTBI	0x9
 #define MII_M1111_HWCFG_MODE_COPPER_RGMII	0xb
-#define MII_M1111_HWCFG_MODE_COPPER_1000X_NOAN	0xc
+#define MII_M1111_HWCFG_MODE_COPPER_1000X_ANALAN	0xc
 #define MII_M1111_HWCFG_SERIAL_AN_BYPASS	BIT(12)
 #define MII_M1111_HWCFG_FIBER_COPPER_RES	BIT(13)
 #define MII_M1111_HWCFG_FIBER_COPPER_AUTO	BIT(15)
@@ -271,7 +271,7 @@
 #define MII_VCT7_RESULTS_BUSY		9
 
 #define MII_VCT7_CTRL		0x15
-#define MII_VCT7_CTRL_RUN_NOW			BIT(15)
+#define MII_VCT7_CTRL_RUN_ANALW			BIT(15)
 #define MII_VCT7_CTRL_RUN_ANEG			BIT(14)
 #define MII_VCT7_CTRL_DISABLE_CROSS		BIT(13)
 #define MII_VCT7_CTRL_RUN_AFTER_BREAK_LINK	BIT(12)
@@ -370,11 +370,11 @@ static irqreturn_t marvell_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_M1011_IEVENT);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_M1011_IMASK_INIT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -426,7 +426,7 @@ static int marvell_config_aneg(struct phy_device *phydev)
 	if (phydev->autoneg != AUTONEG_ENABLE || changed) {
 		/* A write to speed/duplex bits (that is performed by
 		 * genphy_config_aneg() call above) must be followed by
-		 * a software reset. Otherwise, the write has no effect.
+		 * a software reset. Otherwise, the write has anal effect.
 		 */
 		err = genphy_soft_reset(phydev);
 		if (err < 0)
@@ -473,7 +473,7 @@ static int m88e1101_config_aneg(struct phy_device *phydev)
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /* Set and/or override some configuration registers based on the
- * marvell,reg-init property stored in the of_node for the phydev.
+ * marvell,reg-init property stored in the of_analde for the phydev.
  *
  * marvell,reg-init = <reg-page reg mask value>,...;
  *
@@ -481,7 +481,7 @@ static int m88e1101_config_aneg(struct phy_device *phydev)
  *
  * reg-page: which register bank to use.
  * reg: the register.
- * mask: if non-zero, ANDed with existing register value.
+ * mask: if analn-zero, ANDed with existing register value.
  * value: ORed with the masked value and written to the regiser.
  *
  */
@@ -490,10 +490,10 @@ static int marvell_of_reg_init(struct phy_device *phydev)
 	const __be32 *paddr;
 	int len, i, saved_page, current_page, ret = 0;
 
-	if (!phydev->mdio.dev.of_node)
+	if (!phydev->mdio.dev.of_analde)
 		return 0;
 
-	paddr = of_get_property(phydev->mdio.dev.of_node,
+	paddr = of_get_property(phydev->mdio.dev.of_analde,
 				"marvell,reg-init", &len);
 	if (!paddr || len < (4 * sizeof(*paddr)))
 		return 0;
@@ -641,7 +641,7 @@ static inline u32 linkmode_adv_to_fiber_adv_t(unsigned long *advertise)
  * @phydev: target phy_device struct
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is analt
  *   enabled, then we write the BMCR. Adapted for fiber link in
  *   some Marvell's devices.
  */
@@ -681,7 +681,7 @@ static int m88e1111_config_aneg(struct phy_device *phydev)
 	if (extsr < 0)
 		return extsr;
 
-	/* If not using SGMII or copper 1000BaseX modes, use normal process.
+	/* If analt using SGMII or copper 1000BaseX modes, use analrmal process.
 	 * Steps below are only required for these modes.
 	 */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
@@ -704,9 +704,9 @@ static int m88e1111_config_aneg(struct phy_device *phydev)
 		goto error;
 
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
-		/* Do not touch the fiber advertisement if we're in copper->sgmii mode.
+		/* Do analt touch the fiber advertisement if we're in copper->sgmii mode.
 		 * Just ensure that SGMII-side autonegotiation is enabled.
-		 * If we switched from some other mode to SGMII it may not be.
+		 * If we switched from some other mode to SGMII it may analt be.
 		 */
 		err = genphy_check_and_restart_aneg(phydev, false);
 	else
@@ -734,7 +734,7 @@ static int m88e1510_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto error;
 
-	/* Do not touch the fiber page if we're in copper->sgmii mode */
+	/* Do analt touch the fiber page if we're in copper->sgmii mode */
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
 		return 0;
 
@@ -876,7 +876,7 @@ static int m88e1111_config_init_sgmii(struct phy_device *phydev)
 
 	err = m88e1111_config_init_hwcfg_mode(
 		phydev,
-		MII_M1111_HWCFG_MODE_SGMII_NO_CLK,
+		MII_M1111_HWCFG_MODE_SGMII_ANAL_CLK,
 		MII_M1111_HWCFG_FIBER_COPPER_AUTO);
 	if (err < 0)
 		return err;
@@ -921,7 +921,7 @@ static int m88e1111_config_init_1000basex(struct phy_device *phydev)
 
 	/* If using copper mode, ensure 1000BaseX auto-negotiation is enabled */
 	mode = extsr & MII_M1111_HWCFG_MODE_MASK;
-	if (mode == MII_M1111_HWCFG_MODE_COPPER_1000X_NOAN) {
+	if (mode == MII_M1111_HWCFG_MODE_COPPER_1000X_ANALAN) {
 		err = phy_modify(phydev, MII_M1111_PHY_EXT_SR,
 				 MII_M1111_HWCFG_MODE_MASK |
 				 MII_M1111_HWCFG_SERIAL_AN_BYPASS,
@@ -970,9 +970,9 @@ static int m88e1111_config_init(struct phy_device *phydev)
 		return err;
 
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
-		/* If the HWCFG_MODE was changed from another mode (such as
+		/* If the HWCFG_MODE was changed from aanalther mode (such as
 		 * 1000BaseX) to SGMII, the state of the support bits may have
-		 * also changed now that the PHY has been reset.
+		 * also changed analw that the PHY has been reset.
 		 * Update the PHY abilities accordingly.
 		 */
 		err = genphy_read_abilities(phydev);
@@ -1031,7 +1031,7 @@ static int m88e1111_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return m88e1111_get_downshift(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1042,7 +1042,7 @@ static int m88e1111_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return m88e1111_set_downshift(phydev, *(const u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1095,7 +1095,7 @@ static int m88e1011_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return m88e1011_get_downshift(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1106,7 +1106,7 @@ static int m88e1011_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return m88e1011_set_downshift(phydev, *(const u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1206,7 +1206,7 @@ static int m88e1510_config_init(struct phy_device *phydev)
 	int err;
 	int i;
 
-	/* As per Marvell Release Notes - Alaska 88E1510/88E1518/88E1512/
+	/* As per Marvell Release Analtes - Alaska 88E1510/88E1518/88E1512/
 	 * 88E1514 Rev A0, Errata Section 5.1:
 	 * If EEE is intended to be used, the following register writes
 	 * must be done once after every hardware reset.
@@ -1377,7 +1377,7 @@ static int m88e1145_config_init_rgmii(struct phy_device *phydev)
 static int m88e1145_config_init_sgmii(struct phy_device *phydev)
 {
 	return m88e1111_config_init_hwcfg_mode(
-		phydev, MII_M1111_HWCFG_MODE_SGMII_NO_CLK,
+		phydev, MII_M1111_HWCFG_MODE_SGMII_ANAL_CLK,
 		MII_M1111_HWCFG_FIBER_COPPER_AUTO);
 }
 
@@ -1506,7 +1506,7 @@ static int m88e1540_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return m88e1011_get_downshift(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1519,7 +1519,7 @@ static int m88e1540_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return m88e1011_set_downshift(phydev, *(const u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1672,8 +1672,8 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 	linkmode_zero(phydev->lp_advertising);
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->port = fiber ? PORT_FIBRE : PORT_TP;
 
 	if (phydev->autoneg == AUTONEG_ENABLE)
@@ -1845,8 +1845,8 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 			goto error;
 
 		/* If WOL event happened once, the LED[2] interrupt pin
-		 * will not be cleared unless we reading the interrupt status
-		 * register. If interrupts are in use, the normal interrupt
+		 * will analt be cleared unless we reading the interrupt status
+		 * register. If interrupts are in use, the analrmal interrupt
 		 * handling will clear the WOL event. Clear the WOL event
 		 * before enabling it if !phy_interrupt_is_valid()
 		 */
@@ -2185,7 +2185,7 @@ static int marvell_cable_test_start_common(struct phy_device *phydev)
 {
 	int bmcr, bmsr, ret;
 
-	/* If auto-negotiation is enabled, but not complete, the cable
+	/* If auto-negotiation is enabled, but analt complete, the cable
 	 * test never completes. So disable auto-neg.
 	 */
 	bmcr = phy_read(phydev, MII_BMCR);
@@ -2225,7 +2225,7 @@ static int marvell_vct7_cable_test_start(struct phy_device *phydev)
 	priv->cable_test_tdr = false;
 
 	/* Reset the VCT5 API control to defaults, otherwise
-	 * VCT7 does not work correctly.
+	 * VCT7 does analt work correctly.
 	 */
 	ret = phy_write_paged(phydev, MII_MARVELL_VCT5_PAGE,
 			      MII_VCT5_CTRL,
@@ -2243,7 +2243,7 @@ static int marvell_vct7_cable_test_start(struct phy_device *phydev)
 
 	return phy_write_paged(phydev, MII_MARVELL_VCT7_PAGE,
 			       MII_VCT7_CTRL,
-			       MII_VCT7_CTRL_RUN_NOW |
+			       MII_VCT7_CTRL_RUN_ANALW |
 			       MII_VCT7_CTRL_CENTIMETERS);
 }
 
@@ -2598,7 +2598,7 @@ static int m88e6393_get_temp(struct phy_device *phydev, long *temp)
 	err = m88e1510_get_temp(phydev, temp);
 
 	/* 88E1510 measures T + 25, while the PHY on 88E6393X switch
-	 * T + 75, so we have to subtract another 50
+	 * T + 75, so we have to subtract aanalther 50
 	 */
 	*temp -= 50000;
 
@@ -2655,7 +2655,7 @@ static int marvell_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 {
 	struct phy_device *phydev = dev_get_drvdata(dev);
 	const struct marvell_hwmon_ops *ops = to_marvell_hwmon_ops(phydev);
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -2680,7 +2680,7 @@ static int marvell_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 {
 	struct phy_device *phydev = dev_get_drvdata(dev);
 	const struct marvell_hwmon_ops *ops = to_marvell_hwmon_ops(phydev);
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_temp_crit:
@@ -2725,7 +2725,7 @@ static const struct hwmon_channel_info marvell_hwmon_chip = {
 	.config = marvell_hwmon_chip_config,
 };
 
-/* we can define HWMON_T_CRIT and HWMON_T_MAX_ALARM even though these are not
+/* we can define HWMON_T_CRIT and HWMON_T_MAX_ALARM even though these are analt
  * defined for all PHYs, because the hwmon code checks whether the attributes
  * exists via the .is_visible method
  */
@@ -2766,7 +2766,7 @@ static int marvell_hwmon_name(struct phy_device *phydev)
 
 	priv->hwmon_name = devm_kzalloc(dev, len, GFP_KERNEL);
 	if (!priv->hwmon_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = j = 0; i < len && devname[i]; i++) {
 		if (isalnum(devname[i]))
@@ -3027,7 +3027,7 @@ static int marvell_find_led_mode(unsigned long rules,
 			return 0;
 		}
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int marvell_get_led_mode(u8 index, unsigned long rules, int *mode)
@@ -3067,7 +3067,7 @@ static int marvell_find_led_rules(unsigned long *rules,
 			return 0;
 		}
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int marvell_get_led_rules(u8 index, unsigned long *rules, int mode)
@@ -3088,7 +3088,7 @@ static int marvell_get_led_rules(u8 index, unsigned long *rules, int mode)
 					     ARRAY_SIZE(marvell_led2), mode);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -3165,7 +3165,7 @@ static int marvell_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = priv;
 

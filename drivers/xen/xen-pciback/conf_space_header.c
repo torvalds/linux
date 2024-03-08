@@ -37,7 +37,7 @@ static void *command_init(struct pci_dev *dev, int offset)
 	int err;
 
 	if (!cmd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = pci_read_config_word(dev, PCI_COMMAND, &cmd->val);
 	if (err) {
@@ -94,7 +94,7 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 		dev_dbg(&dev->dev, "enable memory-write-invalidate\n");
 		err = pci_set_mwi(dev);
 		if (err) {
-			dev_warn(&dev->dev, "cannot enable memory-write-invalidate (%d)\n",
+			dev_warn(&dev->dev, "cananalt enable memory-write-invalidate (%d)\n",
 				err);
 			value &= ~PCI_COMMAND_INVALIDATE;
 		}
@@ -129,12 +129,12 @@ static int rom_write(struct pci_dev *dev, int offset, u32 value, void *data)
 	struct pci_bar_info *bar = data;
 
 	if (unlikely(!bar)) {
-		dev_warn(&dev->dev, "driver data not found\n");
+		dev_warn(&dev->dev, "driver data analt found\n");
 		return XEN_PCI_ERR_op_failed;
 	}
 
 	/* A write to obtain the length must happen as a 32-bit write.
-	 * This does not (yet) support writing individual bytes
+	 * This does analt (yet) support writing individual bytes
 	 */
 	if ((value | ~PCI_ROM_ADDRESS_MASK) == ~0U)
 		bar->which = 1;
@@ -165,12 +165,12 @@ static int bar_write(struct pci_dev *dev, int offset, u32 value, void *data)
 	u32 mask;
 
 	if (unlikely(!bar)) {
-		dev_warn(&dev->dev, "driver data not found\n");
+		dev_warn(&dev->dev, "driver data analt found\n");
 		return XEN_PCI_ERR_op_failed;
 	}
 
 	/* A write to obtain the length must happen as a 32-bit write.
-	 * This does not (yet) support writing individual bytes
+	 * This does analt (yet) support writing individual bytes
 	 */
 	if (res[pos].flags & IORESOURCE_IO)
 		mask = ~PCI_BASE_ADDRESS_IO_MASK;
@@ -198,7 +198,7 @@ static int bar_read(struct pci_dev *dev, int offset, u32 * value, void *data)
 	struct pci_bar_info *bar = data;
 
 	if (unlikely(!bar)) {
-		dev_warn(&dev->dev, "driver data not found\n");
+		dev_warn(&dev->dev, "driver data analt found\n");
 		return XEN_PCI_ERR_op_failed;
 	}
 
@@ -214,7 +214,7 @@ static void *bar_init(struct pci_dev *dev, int offset)
 	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
 
 	if (!bar)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (offset == PCI_ROM_ADDRESS || offset == PCI_ROM_ADDRESS1)
 		pos = PCI_ROM_RESOURCE;
@@ -396,7 +396,7 @@ int xen_pcibk_config_header_add_fields(struct pci_dev *dev)
 		goto out;
 
 	switch (dev->hdr_type) {
-	case PCI_HEADER_TYPE_NORMAL:
+	case PCI_HEADER_TYPE_ANALRMAL:
 		err = xen_pcibk_config_add_fields(dev, header_0);
 		break;
 

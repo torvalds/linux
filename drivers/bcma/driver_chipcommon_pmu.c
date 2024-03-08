@@ -107,7 +107,7 @@ static void bcma_pmu2_pll_init0(struct bcma_drv_cc *cc, u32 xtalfreq)
 	}
 
 	if (!freq_tgt_target) {
-		bcma_err(bus, "Unknown TGT frequency for xtalfreq %d\n",
+		bcma_err(bus, "Unkanalwn TGT frequency for xtalfreq %d\n",
 			 xtalfreq);
 		return;
 	}
@@ -189,7 +189,7 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 		max_msk = 0x3FFFFFFF;
 		break;
 	default:
-		bcma_debug(bus, "PMU resource config unknown or not needed for device 0x%04X\n",
+		bcma_debug(bus, "PMU resource config unkanalwn or analt needed for device 0x%04X\n",
 			   bus->chipinfo.id);
 	}
 
@@ -206,7 +206,7 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 	usleep_range(2000, 2500);
 }
 
-/* Disable to allow reading SPROM. Don't know the advantages of enabling it. */
+/* Disable to allow reading SPROM. Don't kanalw the advantages of enabling it. */
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable)
 {
 	struct bcma_bus *bus = cc->core->bus;
@@ -266,7 +266,7 @@ static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		}
 		break;
 	default:
-		bcma_debug(bus, "Workarounds unknown or not needed for device 0x%04X\n",
+		bcma_debug(bus, "Workarounds unkanalwn or analt needed for device 0x%04X\n",
 			   bus->chipinfo.id);
 	}
 }
@@ -296,10 +296,10 @@ void bcma_pmu_init(struct bcma_drv_cc *cc)
 {
 	if (cc->pmu.rev == 1)
 		bcma_pmu_mask32(cc, BCMA_CC_PMU_CTL,
-				~BCMA_CC_PMU_CTL_NOILPONW);
+				~BCMA_CC_PMU_CTL_ANALILPONW);
 	else
 		bcma_pmu_set32(cc, BCMA_CC_PMU_CTL,
-			       BCMA_CC_PMU_CTL_NOILPONW);
+			       BCMA_CC_PMU_CTL_ANALILPONW);
 
 	bcma_pmu_pll_init(cc);
 	bcma_pmu_resources_init(cc);
@@ -341,7 +341,7 @@ u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc)
 		else
 			return 20000 * 1000;
 	default:
-		bcma_warn(bus, "No ALP clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
+		bcma_warn(bus, "Anal ALP clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
 			  bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_ALP_CLOCK);
 	}
 	return BCMA_CC_PMU_ALP_CLOCK;
@@ -441,7 +441,7 @@ u32 bcma_pmu_get_bus_clock(struct bcma_drv_cc *cc)
 	case BCMA_CHIP_ID_BCM53572:
 		return 75000000;
 	default:
-		bcma_warn(bus, "No bus clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
+		bcma_warn(bus, "Anal bus clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
 			  bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_HT_CLOCK);
 	}
 	return BCMA_CC_PMU_HT_CLOCK;
@@ -616,7 +616,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 						     0x88888815);
 		}
 
-		tmp = BCMA_CC_PMU_CTL_PLL_UPD | BCMA_CC_PMU_CTL_NOILPONW;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD | BCMA_CC_PMU_CTL_ANALILPONW;
 		break;
 
 	case BCMA_CHIP_ID_BCM43131:
@@ -627,7 +627,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		/* LCNXN */
 		/*
 		 * PLL Settings for spur avoidance on/off mode,
-		 * no on2 support for 43228A0
+		 * anal on2 support for 43228A0
 		 */
 		if (spuravoid == 1) {
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL0,
@@ -659,7 +659,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 	default:
-		bcma_err(bus, "Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
+		bcma_err(bus, "Unkanalwn spuravoidance settings for chip 0x%04X, analt changing PLL\n",
 			 bus->chipinfo.id);
 		break;
 	}

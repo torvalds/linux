@@ -4,8 +4,8 @@
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
  */
 
-#ifndef __INODE_DOT_H__
-#define __INODE_DOT_H__
+#ifndef __IANALDE_DOT_H__
+#define __IANALDE_DOT_H__
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
@@ -13,16 +13,16 @@
 #include "util.h"
 
 bool gfs2_release_folio(struct folio *folio, gfp_t gfp_mask);
-ssize_t gfs2_internal_read(struct gfs2_inode *ip,
+ssize_t gfs2_internal_read(struct gfs2_ianalde *ip,
 			   char *buf, loff_t *pos, size_t size);
-void gfs2_set_aops(struct inode *inode);
+void gfs2_set_aops(struct ianalde *ianalde);
 
-static inline int gfs2_is_stuffed(const struct gfs2_inode *ip)
+static inline int gfs2_is_stuffed(const struct gfs2_ianalde *ip)
 {
 	return !ip->i_height;
 }
 
-static inline int gfs2_is_jdata(const struct gfs2_inode *ip)
+static inline int gfs2_is_jdata(const struct gfs2_ianalde *ip)
 {
 	return ip->i_diskflags & GFS2_DIF_JDATA;
 }
@@ -37,81 +37,81 @@ static inline bool gfs2_is_writeback(const struct gfs2_sbd *sdp)
 	return sdp->sd_args.ar_data == GFS2_DATA_WRITEBACK;
 }
 
-static inline int gfs2_is_dir(const struct gfs2_inode *ip)
+static inline int gfs2_is_dir(const struct gfs2_ianalde *ip)
 {
-	return S_ISDIR(ip->i_inode.i_mode);
+	return S_ISDIR(ip->i_ianalde.i_mode);
 }
 
-static inline void gfs2_set_inode_blocks(struct inode *inode, u64 blocks)
+static inline void gfs2_set_ianalde_blocks(struct ianalde *ianalde, u64 blocks)
 {
-	inode->i_blocks = blocks << (inode->i_blkbits - 9);
+	ianalde->i_blocks = blocks << (ianalde->i_blkbits - 9);
 }
 
-static inline u64 gfs2_get_inode_blocks(const struct inode *inode)
+static inline u64 gfs2_get_ianalde_blocks(const struct ianalde *ianalde)
 {
-	return inode->i_blocks >> (inode->i_blkbits - 9);
+	return ianalde->i_blocks >> (ianalde->i_blkbits - 9);
 }
 
-static inline void gfs2_add_inode_blocks(struct inode *inode, s64 change)
+static inline void gfs2_add_ianalde_blocks(struct ianalde *ianalde, s64 change)
 {
-	change <<= inode->i_blkbits - 9;
-	gfs2_assert(GFS2_SB(inode), (change >= 0 || inode->i_blocks >= -change));
-	inode->i_blocks += change;
+	change <<= ianalde->i_blkbits - 9;
+	gfs2_assert(GFS2_SB(ianalde), (change >= 0 || ianalde->i_blocks >= -change));
+	ianalde->i_blocks += change;
 }
 
-static inline int gfs2_check_inum(const struct gfs2_inode *ip, u64 no_addr,
-				  u64 no_formal_ino)
+static inline int gfs2_check_inum(const struct gfs2_ianalde *ip, u64 anal_addr,
+				  u64 anal_formal_ianal)
 {
-	return ip->i_no_addr == no_addr && ip->i_no_formal_ino == no_formal_ino;
+	return ip->i_anal_addr == anal_addr && ip->i_anal_formal_ianal == anal_formal_ianal;
 }
 
-static inline void gfs2_inum_out(const struct gfs2_inode *ip,
+static inline void gfs2_inum_out(const struct gfs2_ianalde *ip,
 				 struct gfs2_dirent *dent)
 {
-	dent->de_inum.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
-	dent->de_inum.no_addr = cpu_to_be64(ip->i_no_addr);
+	dent->de_inum.anal_formal_ianal = cpu_to_be64(ip->i_anal_formal_ianal);
+	dent->de_inum.anal_addr = cpu_to_be64(ip->i_anal_addr);
 }
 
-static inline int gfs2_check_internal_file_size(struct inode *inode,
+static inline int gfs2_check_internal_file_size(struct ianalde *ianalde,
 						u64 minsize, u64 maxsize)
 {
-	u64 size = i_size_read(inode);
+	u64 size = i_size_read(ianalde);
 	if (size < minsize || size > maxsize)
 		goto err;
-	if (size & (BIT(inode->i_blkbits) - 1))
+	if (size & (BIT(ianalde->i_blkbits) - 1))
 		goto err;
 	return 0;
 err:
-	gfs2_consist_inode(GFS2_I(inode));
+	gfs2_consist_ianalde(GFS2_I(ianalde));
 	return -EIO;
 }
 
-struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type,
-			        u64 no_addr, u64 no_formal_ino,
+struct ianalde *gfs2_ianalde_lookup(struct super_block *sb, unsigned type,
+			        u64 anal_addr, u64 anal_formal_ianal,
 			        unsigned int blktype);
-struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
-				  u64 no_formal_ino,
+struct ianalde *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 anal_addr,
+				  u64 anal_formal_ianal,
 				  unsigned int blktype);
 
-int gfs2_inode_refresh(struct gfs2_inode *ip);
+int gfs2_ianalde_refresh(struct gfs2_ianalde *ip);
 
-struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
+struct ianalde *gfs2_lookupi(struct ianalde *dir, const struct qstr *name,
 			   int is_root);
 int gfs2_permission(struct mnt_idmap *idmap,
-		    struct inode *inode, int mask);
-struct inode *gfs2_lookup_meta(struct inode *dip, const char *name);
-void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
-int gfs2_open_common(struct inode *inode, struct file *file);
+		    struct ianalde *ianalde, int mask);
+struct ianalde *gfs2_lookup_meta(struct ianalde *dip, const char *name);
+void gfs2_dianalde_out(const struct gfs2_ianalde *ip, void *buf);
+int gfs2_open_common(struct ianalde *ianalde, struct file *file);
 loff_t gfs2_seek_data(struct file *file, loff_t offset);
 loff_t gfs2_seek_hole(struct file *file, loff_t offset);
 
-extern const struct file_operations gfs2_file_fops_nolock;
-extern const struct file_operations gfs2_dir_fops_nolock;
+extern const struct file_operations gfs2_file_fops_anallock;
+extern const struct file_operations gfs2_dir_fops_anallock;
 
 int gfs2_fileattr_get(struct dentry *dentry, struct fileattr *fa);
 int gfs2_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa);
-void gfs2_set_inode_flags(struct inode *inode);
+void gfs2_set_ianalde_flags(struct ianalde *ianalde);
 
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 extern const struct file_operations gfs2_file_fops;
@@ -121,9 +121,9 @@ static inline int gfs2_localflocks(const struct gfs2_sbd *sdp)
 {
 	return sdp->sd_args.ar_localflocks;
 }
-#else /* Single node only */
-#define gfs2_file_fops gfs2_file_fops_nolock
-#define gfs2_dir_fops gfs2_dir_fops_nolock
+#else /* Single analde only */
+#define gfs2_file_fops gfs2_file_fops_anallock
+#define gfs2_dir_fops gfs2_dir_fops_anallock
 
 static inline int gfs2_localflocks(const struct gfs2_sbd *sdp)
 {
@@ -131,5 +131,5 @@ static inline int gfs2_localflocks(const struct gfs2_sbd *sdp)
 }
 #endif /* CONFIG_GFS2_FS_LOCKING_DLM */
 
-#endif /* __INODE_DOT_H__ */
+#endif /* __IANALDE_DOT_H__ */
 

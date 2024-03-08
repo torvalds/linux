@@ -14,7 +14,7 @@ dlmfs is built with OCFS2 as it requires most of its infrastructure.
 :Tools web page:      https://github.com/markfasheh/ocfs2-tools
 :OCFS2 mailing lists: https://subspace.kernel.org/lists.linux.dev.html
 
-All code copyright 2005 Oracle except when otherwise noted.
+All code copyright 2005 Oracle except when otherwise analted.
 
 Credits
 =======
@@ -26,12 +26,12 @@ Mark Fasheh <mark.fasheh@oracle.com>
 
 Caveats
 =======
-- Right now it only works with the OCFS2 DLM, though support for other
-  DLM implementations should not be a major issue.
+- Right analw it only works with the OCFS2 DLM, though support for other
+  DLM implementations should analt be a major issue.
 
 Mount options
 =============
-None
+Analne
 
 Usage
 =====
@@ -48,9 +48,9 @@ dlmfs requires that the OCFS2 cluster infrastructure be in
 place. Please download ocfs2-tools from the above url and configure a
 cluster.
 
-You'll want to start heartbeating on a volume which all the nodes in
+You'll want to start heartbeating on a volume which all the analdes in
 your lockspace can access. The easiest way to do this is via
-ocfs2_hb_ctl (distributed with ocfs2-tools). Right now it requires
+ocfs2_hb_ctl (distributed with ocfs2-tools). Right analw it requires
 that an OCFS2 file system be in place so that it can automatically
 find its heartbeat area, though it will eventually support heartbeat
 against raw disks.
@@ -69,7 +69,7 @@ Users may access dlmfs via standard file system calls, or they can use
 system calls and presents a more traditional locking api.
 
 dlmfs handles lock caching automatically for the user, so a lock
-request for an already acquired lock will not generate another DLM
+request for an already acquired lock will analt generate aanalther DLM
 call. Userspace programs are assumed to handle their own local
 locking.
 
@@ -83,23 +83,23 @@ Lock value blocks can be read and written to a resource via read(2)
 and write(2) against the fd obtained via your open(2) call. The
 maximum currently supported LVB length is 64 bytes (though that is an
 OCFS2 DLM limitation). Through this mechanism, users of dlmfs can share
-small amounts of data amongst their nodes.
+small amounts of data amongst their analdes.
 
 mkdir(2) signals dlmfs to join a domain (which will have the same name
 as the resulting directory)
 
 rmdir(2) signals dlmfs to leave the domain
 
-Locks for a given domain are represented by regular inodes inside the
+Locks for a given domain are represented by regular ianaldes inside the
 domain directory.  Locking against them is done via the open(2) system
 call.
 
-The open(2) call will not return until your lock has been granted or
+The open(2) call will analt return until your lock has been granted or
 an error has occurred, unless it has been instructed to do a trylock
 operation. If the lock succeeds, you'll get an fd.
 
-open(2) with O_CREAT to ensure the resource inode is created - dlmfs does
-not automatically create inodes for existing lock resources.
+open(2) with O_CREAT to ensure the resource ianalde is created - dlmfs does
+analt automatically create ianaldes for existing lock resources.
 
 ============  ===========================
 Open Flag     Lock Request Type
@@ -112,25 +112,25 @@ O_RDWR        Exclusive
 ============  ===========================
 Open Flag     Resulting Locking Behavior
 ============  ===========================
-O_NONBLOCK    Trylock operation
+O_ANALNBLOCK    Trylock operation
 ============  ===========================
 
 You must provide exactly one of O_RDONLY or O_RDWR.
 
-If O_NONBLOCK is also provided and the trylock operation was valid but
-could not lock the resource then open(2) will return ETXTBUSY.
+If O_ANALNBLOCK is also provided and the trylock operation was valid but
+could analt lock the resource then open(2) will return ETXTBUSY.
 
 close(2) drops the lock associated with your fd.
 
 Modes passed to mkdir(2) or open(2) are adhered to locally. Chown is
 supported locally as well. This means you can use them to restrict
-access to the resources via dlmfs on your local node only.
+access to the resources via dlmfs on your local analde only.
 
 The resource LVB may be read from the fd in either Shared Read or
 Exclusive modes via the read(2) system call. It can be written via
 write(2) only when open in Exclusive mode.
 
-Once written, an LVB will be visible to other nodes who obtain Read
+Once written, an LVB will be visible to other analdes who obtain Read
 Only or higher level locks on the resource.
 
 See Also

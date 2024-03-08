@@ -42,7 +42,7 @@ struct acpi_db_execute_walk {
 
 #define PARAM_LIST(pl)                  pl
 
-#define EX_NO_SINGLE_STEP               1
+#define EX_ANAL_SINGLE_STEP               1
 #define EX_SINGLE_STEP                  2
 #define EX_ALL                          4
 
@@ -62,7 +62,7 @@ ACPI_DBR_DEPENDENT_RETURN_OK(acpi_status
 /*
  * dbcmds - debug commands and output routines
  */
-struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string);
+struct acpi_namespace_analde *acpi_db_convert_to_analde(char *in_string);
 
 void acpi_db_display_table_info(char *table_arg);
 
@@ -70,7 +70,7 @@ void acpi_db_display_template(char *buffer_arg);
 
 void acpi_db_unload_acpi_table(char *name);
 
-void acpi_db_send_notify(char *name, u32 value);
+void acpi_db_send_analtify(char *name, u32 value);
 
 void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg);
 
@@ -283,7 +283,7 @@ void acpi_db_dump_external_object(union acpi_object *obj_desc, u32 level);
 
 void acpi_db_prep_namestring(char *name);
 
-struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name);
+struct acpi_namespace_analde *acpi_db_local_ns_lookup(char *name);
 
 void acpi_db_uint32_to_hex_string(u32 value, char *buffer);
 

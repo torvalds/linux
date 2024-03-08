@@ -2,7 +2,7 @@
 /* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -173,15 +173,15 @@ static int pm8xxx_vib_probe(struct platform_device *pdev)
 
 	vib = devm_kzalloc(&pdev->dev, sizeof(*vib), GFP_KERNEL);
 	if (!vib)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vib->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!vib->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&vib->work, pm8xxx_work_handler);
 	vib->vib_input_dev = input_dev;

@@ -12,7 +12,7 @@
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
@@ -32,17 +32,17 @@
 
 
 /* device/<type>/<id> => <type>-<id> */
-static int frontend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
+static int frontend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *analdename)
 {
-	nodename = strchr(nodename, '/');
-	if (!nodename || strlen(nodename + 1) >= XEN_BUS_ID_SIZE) {
-		pr_warn("bad frontend %s\n", nodename);
+	analdename = strchr(analdename, '/');
+	if (!analdename || strlen(analdename + 1) >= XEN_BUS_ID_SIZE) {
+		pr_warn("bad frontend %s\n", analdename);
 		return -EINVAL;
 	}
 
-	strscpy(bus_id, nodename + 1, XEN_BUS_ID_SIZE);
+	strscpy(bus_id, analdename + 1, XEN_BUS_ID_SIZE);
 	if (!strchr(bus_id, '/')) {
-		pr_warn("bus_id %s no slash\n", bus_id);
+		pr_warn("bus_id %s anal slash\n", bus_id);
 		return -EINVAL;
 	}
 	*strchr(bus_id, '/') = '-';
@@ -53,23 +53,23 @@ static int frontend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 static int xenbus_probe_frontend(struct xen_bus_type *bus, const char *type,
 				 const char *name)
 {
-	char *nodename;
+	char *analdename;
 	int err;
 
-	/* ignore console/0 */
+	/* iganalre console/0 */
 	if (!strncmp(type, "console", 7) && !strncmp(name, "0", 1)) {
-		DPRINTK("Ignoring buggy device entry console/0");
+		DPRINTK("Iganalring buggy device entry console/0");
 		return 0;
 	}
 
-	nodename = kasprintf(GFP_KERNEL, "%s/%s/%s", bus->root, type, name);
-	if (!nodename)
-		return -ENOMEM;
+	analdename = kasprintf(GFP_KERNEL, "%s/%s/%s", bus->root, type, name);
+	if (!analdename)
+		return -EANALMEM;
 
-	DPRINTK("%s", nodename);
+	DPRINTK("%s", analdename);
 
-	err = xenbus_probe_node(bus, type, nodename);
-	kfree(nodename);
+	err = xenbus_probe_analde(bus, type, analdename);
+	kfree(analdename);
 	return err;
 }
 
@@ -79,7 +79,7 @@ static int xenbus_uevent_frontend(const struct device *_dev,
 	const struct xenbus_device *dev = to_xenbus_device(_dev);
 
 	if (add_uevent_var(env, "MODALIAS=xen:%s", dev->devicetype))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -101,7 +101,7 @@ static void xenbus_frontend_delayed_resume(struct work_struct *w)
 static int xenbus_frontend_dev_resume(struct device *dev)
 {
 	/*
-	 * If xenstored is running in this domain, we cannot access the backend
+	 * If xenstored is running in this domain, we cananalt access the backend
 	 * state at the moment, so we need to defer xenbus_dev_resume
 	 */
 	if (xen_store_domain_type == XS_LOCAL) {
@@ -130,19 +130,19 @@ static void xenbus_frontend_dev_shutdown(struct device *_dev)
 	struct xenbus_device *dev = to_xenbus_device(_dev);
 	unsigned long timeout = 5*HZ;
 
-	DPRINTK("%s", dev->nodename);
+	DPRINTK("%s", dev->analdename);
 
 	get_device(&dev->dev);
 	if (dev->state != XenbusStateConnected) {
 		pr_info("%s: %s: %s != Connected, skipping\n",
-			__func__, dev->nodename, xenbus_strstate(dev->state));
+			__func__, dev->analdename, xenbus_strstate(dev->state));
 		goto out;
 	}
 	xenbus_switch_state(dev, XenbusStateClosing);
 	timeout = wait_for_completion_timeout(&dev->down, timeout);
 	if (!timeout)
 		pr_info("%s: %s timeout closing device\n",
-			__func__, dev->nodename);
+			__func__, dev->analdename);
  out:
 	put_device(&dev->dev);
 }
@@ -185,7 +185,7 @@ static void frontend_changed(struct xenbus_watch *watch,
 
 /* We watch for devices appearing and vanishing. */
 static struct xenbus_watch fe_watch = {
-	.node = "device",
+	.analde = "device",
 	.callback = frontend_changed,
 };
 
@@ -194,14 +194,14 @@ static int read_backend_details(struct xenbus_device *xendev)
 	return xenbus_read_otherend_details(xendev, "backend-id", "backend");
 }
 
-static int is_device_connecting(struct device *dev, void *data, bool ignore_nonessential)
+static int is_device_connecting(struct device *dev, void *data, bool iganalre_analnessential)
 {
 	struct xenbus_device *xendev = to_xenbus_device(dev);
 	struct device_driver *drv = data;
 	struct xenbus_driver *xendrv;
 
 	/*
-	 * A device with no driver will never connect. We care only about
+	 * A device with anal driver will never connect. We care only about
 	 * devices which should currently be in the process of connecting.
 	 */
 	if (!dev->driver)
@@ -213,7 +213,7 @@ static int is_device_connecting(struct device *dev, void *data, bool ignore_none
 
 	xendrv = to_xenbus_driver(dev->driver);
 
-	if (ignore_nonessential && xendrv->not_essential)
+	if (iganalre_analnessential && xendrv->analt_essential)
 		return 0;
 
 	return (xendev->state < XenbusStateConnected ||
@@ -222,9 +222,9 @@ static int is_device_connecting(struct device *dev, void *data, bool ignore_none
 }
 static int essential_device_connecting(struct device *dev, void *data)
 {
-	return is_device_connecting(dev, data, true /* ignore PV[KBB+FB] */);
+	return is_device_connecting(dev, data, true /* iganalre PV[KBB+FB] */);
 }
-static int non_essential_device_connecting(struct device *dev, void *data)
+static int analn_essential_device_connecting(struct device *dev, void *data)
 {
 	return is_device_connecting(dev, data, false);
 }
@@ -234,10 +234,10 @@ static int exists_essential_connecting_device(struct device_driver *drv)
 	return bus_for_each_dev(&xenbus_frontend.bus, NULL, drv,
 				essential_device_connecting);
 }
-static int exists_non_essential_connecting_device(struct device_driver *drv)
+static int exists_analn_essential_connecting_device(struct device_driver *drv)
 {
 	return bus_for_each_dev(&xenbus_frontend.bus, NULL, drv,
-				non_essential_device_connecting);
+				analn_essential_device_connecting);
 }
 
 static int print_device_status(struct device *dev, void *data)
@@ -250,14 +250,14 @@ static int print_device_status(struct device *dev, void *data)
 		return 0;
 
 	if (!dev->driver) {
-		/* Information only: is this too noisy? */
-		pr_info("Device with no driver: %s\n", xendev->nodename);
+		/* Information only: is this too analisy? */
+		pr_info("Device with anal driver: %s\n", xendev->analdename);
 	} else if (xendev->state < XenbusStateConnected) {
-		enum xenbus_state rstate = XenbusStateUnknown;
+		enum xenbus_state rstate = XenbusStateUnkanalwn;
 		if (xendev->otherend)
 			rstate = xenbus_read_driver_state(xendev->otherend);
 		pr_warn("Timeout connecting to device: %s (local state %d, remote state %d)\n",
-			xendev->nodename, xendev->state, rstate);
+			xendev->analdename, xendev->state, rstate);
 	}
 
 	return 0;
@@ -307,7 +307,7 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 	if (!ready_to_wait_for_devices || !xen_domain())
 		return;
 
-	while (exists_non_essential_connecting_device(drv))
+	while (exists_analn_essential_connecting_device(drv))
 		if (wait_loop(start, 30, &seconds_waited))
 			break;
 
@@ -350,7 +350,7 @@ static void xenbus_reset_backend_state_changed(struct xenbus_watch *w,
 {
 	if (xenbus_scanf(XBT_NIL, path, "", "%i",
 			 &backend_state) != 1)
-		backend_state = XenbusStateUnknown;
+		backend_state = XenbusStateUnkanalwn;
 	printk(KERN_DEBUG "XENBUS: backend %s %s\n",
 	       path, xenbus_strstate(backend_state));
 	wake_up(&backend_state_wq);
@@ -378,12 +378,12 @@ static void xenbus_reset_frontend(char *fe, char *be, int be_state)
 			be, xenbus_strstate(be_state));
 
 	memset(&be_watch, 0, sizeof(be_watch));
-	be_watch.node = kasprintf(GFP_NOIO | __GFP_HIGH, "%s/state", be);
-	if (!be_watch.node)
+	be_watch.analde = kasprintf(GFP_ANALIO | __GFP_HIGH, "%s/state", be);
+	if (!be_watch.analde)
 		return;
 
 	be_watch.callback = xenbus_reset_backend_state_changed;
-	backend_state = XenbusStateUnknown;
+	backend_state = XenbusStateUnkanalwn;
 
 	pr_info("triggering reconnect on %s\n", be);
 	register_xenbus_watch(&be_watch);
@@ -407,7 +407,7 @@ static void xenbus_reset_frontend(char *fe, char *be, int be_state)
 
 	unregister_xenbus_watch(&be_watch);
 	pr_info("reconnect done on %s\n", be);
-	kfree(be_watch.node);
+	kfree(be_watch.analde);
 }
 
 static void xenbus_check_frontend(char *class, char *dev)
@@ -415,7 +415,7 @@ static void xenbus_check_frontend(char *class, char *dev)
 	int be_state, fe_state, err;
 	char *backend, *frontend;
 
-	frontend = kasprintf(GFP_NOIO | __GFP_HIGH, "device/%s/%s", class, dev);
+	frontend = kasprintf(GFP_ANALIO | __GFP_HIGH, "device/%s/%s", class, dev);
 	if (!frontend)
 		return;
 
@@ -464,7 +464,7 @@ static void xenbus_reset_state(void)
 	kfree(devclass);
 }
 
-static int frontend_probe_and_watch(struct notifier_block *notifier,
+static int frontend_probe_and_watch(struct analtifier_block *analtifier,
 				   unsigned long event,
 				   void *data)
 {
@@ -475,14 +475,14 @@ static int frontend_probe_and_watch(struct notifier_block *notifier,
 	xenbus_probe_devices(&xenbus_frontend);
 	register_xenbus_watch(&fe_watch);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 
 static int __init xenbus_probe_frontend_init(void)
 {
-	static struct notifier_block xenstore_notifier = {
-		.notifier_call = frontend_probe_and_watch
+	static struct analtifier_block xenstore_analtifier = {
+		.analtifier_call = frontend_probe_and_watch
 	};
 	int err;
 
@@ -493,7 +493,7 @@ static int __init xenbus_probe_frontend_init(void)
 	if (err)
 		return err;
 
-	register_xenstore_notifier(&xenstore_notifier);
+	register_xenstore_analtifier(&xenstore_analtifier);
 
 	return 0;
 }
@@ -503,7 +503,7 @@ subsys_initcall(xenbus_probe_frontend_init);
 static int __init boot_wait_for_devices(void)
 {
 	if (!xen_has_pv_devices())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ready_to_wait_for_devices = 1;
 	wait_for_devices(NULL);

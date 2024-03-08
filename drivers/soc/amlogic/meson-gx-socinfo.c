@@ -21,7 +21,7 @@
 
 #define SOCINFO_MAJOR	GENMASK(31, 24)
 #define SOCINFO_PACK	GENMASK(23, 16)
-#define SOCINFO_MINOR	GENMASK(15, 8)
+#define SOCINFO_MIANALR	GENMASK(15, 8)
 #define SOCINFO_MISC	GENMASK(7, 0)
 
 static const struct meson_gx_soc_id {
@@ -59,7 +59,7 @@ static const struct meson_gx_package_id {
 	{ "S905M2", 0x21, 0xe0, 0xf0 },
 	{ "S805X", 0x21, 0x30, 0xf0 },
 	{ "S805Y", 0x21, 0xb0, 0xf0 },
-	{ "S912", 0x22, 0, 0x0 }, /* Only S912 is known for GXM */
+	{ "S912", 0x22, 0, 0x0 }, /* Only S912 is kanalwn for GXM */
 	{ "962X", 0x24, 0x10, 0xf0 },
 	{ "962E", 0x24, 0x20, 0xf0 },
 	{ "A113X", 0x25, 0x37, 0xff },
@@ -81,9 +81,9 @@ static inline unsigned int socinfo_to_major(u32 socinfo)
 	return FIELD_GET(SOCINFO_MAJOR, socinfo);
 }
 
-static inline unsigned int socinfo_to_minor(u32 socinfo)
+static inline unsigned int socinfo_to_mianalr(u32 socinfo)
 {
-	return FIELD_GET(SOCINFO_MINOR, socinfo);
+	return FIELD_GET(SOCINFO_MIANALR, socinfo);
 }
 
 static inline unsigned int socinfo_to_pack(u32 socinfo)
@@ -109,7 +109,7 @@ static const char *socinfo_to_package_id(u32 socinfo)
 			return soc_packages[i].name;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static const char *socinfo_to_soc_id(u32 socinfo)
@@ -122,42 +122,42 @@ static const char *socinfo_to_soc_id(u32 socinfo)
 			return soc_ids[i].name;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static int __init meson_gx_socinfo_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *regmap;
 	unsigned int socinfo;
 	struct device *dev;
 	int ret;
 
-	/* look up for chipid node */
-	np = of_find_compatible_node(NULL, NULL, "amlogic,meson-gx-ao-secure");
+	/* look up for chipid analde */
+	np = of_find_compatible_analde(NULL, NULL, "amlogic,meson-gx-ao-secure");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* check if interface is enabled */
 	if (!of_device_is_available(np)) {
-		of_node_put(np);
-		return -ENODEV;
+		of_analde_put(np);
+		return -EANALDEV;
 	}
 
 	/* check if chip-id is available */
 	if (!of_property_read_bool(np, "amlogic,has-chip-id")) {
-		of_node_put(np);
-		return -ENODEV;
+		of_analde_put(np);
+		return -EANALDEV;
 	}
 
-	/* node should be a syscon */
-	regmap = syscon_node_to_regmap(np);
-	of_node_put(np);
+	/* analde should be a syscon */
+	regmap = syscon_analde_to_regmap(np);
+	of_analde_put(np);
 	if (IS_ERR(regmap)) {
 		pr_err("%s: failed to get regmap\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(regmap, AO_SEC_SOCINFO_OFFSET, &socinfo);
@@ -171,12 +171,12 @@ static int __init meson_gx_socinfo_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	soc_dev_attr->family = "Amlogic Meson";
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%x:%x - %x:%x",
 					   socinfo_to_major(socinfo),
-					   socinfo_to_minor(socinfo),
+					   socinfo_to_mianalr(socinfo),
 					   socinfo_to_pack(socinfo),
 					   socinfo_to_misc(socinfo));
 	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "%s (%s)",
@@ -195,7 +195,7 @@ static int __init meson_gx_socinfo_init(void)
 	dev_info(dev, "Amlogic Meson %s Revision %x:%x (%x:%x) Detected\n",
 			soc_dev_attr->soc_id,
 			socinfo_to_major(socinfo),
-			socinfo_to_minor(socinfo),
+			socinfo_to_mianalr(socinfo),
 			socinfo_to_pack(socinfo),
 			socinfo_to_misc(socinfo));
 

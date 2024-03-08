@@ -39,9 +39,9 @@ properties:
       minItems: 2
       maxItems: 2
 
-  mstar,intc-no-eoi:
+  mstar,intc-anal-eoi:
     description:
-      Mark this controller has no End Of Interrupt(EOI) implementation.
+      Mark this controller has anal End Of Interrupt(EOI) implementation.
     type: boolean
 
 required:

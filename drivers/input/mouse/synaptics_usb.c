@@ -10,7 +10,7 @@
  *  Copyright (c) 2004 Ron Lee (ron@debian.org)
  *	rewritten for kernel 2.6
  *
- *  cPad display character device part is not included. It can be found at
+ *  cPad display character device part is analt included. It can be found at
  *  http://jan-steinhoff.de/linux/synaptics-usb.html
  *
  * Bases on:	usb_skeleton.c v2.2 by Greg Kroah-Hartman
@@ -23,8 +23,8 @@
 /*
  * There are three different types of Synaptics USB devices: Touchpads,
  * touchsticks (or trackpoints), and touchscreens. Touchpads are well supported
- * by this driver, touchstick support has not been tested much yet, and
- * touchscreens have not been tested at all.
+ * by this driver, touchstick support has analt been tested much yet, and
+ * touchscreens have analt been tested at all.
  *
  * Up to three alternate settings are possible:
  *	setting 0: one int endpoint for relative movement (used by usbhid.ko)
@@ -67,10 +67,10 @@
 
 #define SYNUSB_RECV_SIZE	8
 
-#define XMIN_NOMINAL		1472
-#define XMAX_NOMINAL		5472
-#define YMIN_NOMINAL		1408
-#define YMAX_NOMINAL		4448
+#define XMIN_ANALMINAL		1472
+#define XMAX_ANALMINAL		5472
+#define YMIN_ANALMINAL		1408
+#define YMAX_ANALMINAL		4448
 
 struct synusb {
 	struct usb_device *udev;
@@ -168,7 +168,7 @@ static void synusb_report_touchpad(struct synusb *synusb)
 	if (num_fingers > 0) {
 		input_report_abs(input_dev, ABS_X, x);
 		input_report_abs(input_dev, ABS_Y,
-				 YMAX_NOMINAL + YMIN_NOMINAL - y);
+				 YMAX_ANALMINAL + YMIN_ANALMINAL - y);
 	}
 
 	input_report_abs(input_dev, ABS_PRESSURE, pressure);
@@ -198,7 +198,7 @@ static void synusb_irq(struct urb *urb)
 
 	/* Device went away so don't keep trying to read from it. */
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 
@@ -302,19 +302,19 @@ static int synusb_probe(struct usb_interface *intf,
 	error = usb_set_interface(udev, intf_num, altsetting);
 	if (error) {
 		dev_err(&udev->dev,
-			"Can not set alternate setting to %i, error: %i",
+			"Can analt set alternate setting to %i, error: %i",
 			altsetting, error);
 		return error;
 	}
 
 	ep = synusb_get_in_endpoint(intf->cur_altsetting);
 	if (!ep)
-		return -ENODEV;
+		return -EANALDEV;
 
 	synusb = kzalloc(sizeof(*synusb), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!synusb || !input_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -335,14 +335,14 @@ static int synusb_probe(struct usb_interface *intf,
 
 	synusb->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!synusb->urb) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 
 	synusb->data = usb_alloc_coherent(udev, SYNUSB_RECV_SIZE, GFP_KERNEL,
 					  &synusb->urb->transfer_dma);
 	if (!synusb->data) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_urb;
 	}
 
@@ -351,7 +351,7 @@ static int synusb_probe(struct usb_interface *intf,
 			 synusb->data, SYNUSB_RECV_SIZE,
 			 synusb_irq, synusb,
 			 ep->bInterval);
-	synusb->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	synusb->urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	if (udev->manufacturer)
 		strscpy(synusb->name, udev->manufacturer,
@@ -398,9 +398,9 @@ static int synusb_probe(struct usb_interface *intf,
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 127, 0, 0);
 	} else {
 		input_set_abs_params(input_dev, ABS_X,
-				     XMIN_NOMINAL, XMAX_NOMINAL, 0, 0);
+				     XMIN_ANALMINAL, XMAX_ANALMINAL, 0, 0);
 		input_set_abs_params(input_dev, ABS_Y,
-				     YMIN_NOMINAL, YMAX_NOMINAL, 0, 0);
+				     YMIN_ANALMINAL, YMAX_ANALMINAL, 0, 0);
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 255, 0, 0);
 		input_set_abs_params(input_dev, ABS_TOOL_WIDTH, 0, 15, 0, 0);
 		__set_bit(BTN_TOUCH, input_dev->keybit);
@@ -489,7 +489,7 @@ static int synusb_resume(struct usb_interface *intf)
 	mutex_lock(&synusb->pm_mutex);
 
 	if ((synusb->is_open || (synusb->flags & SYNUSB_IO_ALWAYS)) &&
-	    usb_submit_urb(synusb->urb, GFP_NOIO) < 0) {
+	    usb_submit_urb(synusb->urb, GFP_ANALIO) < 0) {
 		retval = -EIO;
 	}
 
@@ -514,7 +514,7 @@ static int synusb_post_reset(struct usb_interface *intf)
 	int retval = 0;
 
 	if ((synusb->is_open || (synusb->flags & SYNUSB_IO_ALWAYS)) &&
-	    usb_submit_urb(synusb->urb, GFP_NOIO) < 0) {
+	    usb_submit_urb(synusb->urb, GFP_ANALIO) < 0) {
 		retval = -EIO;
 	}
 

@@ -6,7 +6,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
@@ -71,7 +71,7 @@ static u64 arm_spe_calc_ip(int index, u64 payload)
 		static u32 seen_idx = 0;
 		if (!(seen_idx & BIT(index))) {
 			seen_idx |= BIT(index);
-			pr_warning("ignoring unsupported address packet index: 0x%x\n", index);
+			pr_warning("iganalring unsupported address packet index: 0x%x\n", index);
 		}
 	}
 
@@ -114,7 +114,7 @@ static int arm_spe_get_data(struct arm_spe_decoder *decoder)
 	decoder->len = buffer.len;
 
 	if (!decoder->len)
-		pr_debug("No more data\n");
+		pr_debug("Anal more data\n");
 
 	return decoder->len;
 }

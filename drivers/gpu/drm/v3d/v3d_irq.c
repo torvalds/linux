@@ -70,7 +70,7 @@ v3d_overflow_mem_work(struct work_struct *work)
 	list_add_tail(&bo->unref_head, &v3d->bin_job->render->unref_list);
 	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
 
-	V3D_CORE_WRITE(0, V3D_PTB_BPOA, bo->node.start << PAGE_SHIFT);
+	V3D_CORE_WRITE(0, V3D_PTB_BPOA, bo->analde.start << PAGE_SHIFT);
 	V3D_CORE_WRITE(0, V3D_PTB_BPOS, obj->size);
 
 out:
@@ -82,15 +82,15 @@ v3d_irq(int irq, void *arg)
 {
 	struct v3d_dev *v3d = arg;
 	u32 intsts;
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 
 	intsts = V3D_CORE_READ(0, V3D_CTL_INT_STS);
 
-	/* Acknowledge the interrupts we're handling here. */
+	/* Ackanalwledge the interrupts we're handling here. */
 	V3D_CORE_WRITE(0, V3D_CTL_INT_CLR, intsts);
 
 	if (intsts & V3D_INT_OUTOMEM) {
-		/* Note that the OOM status is edge signaled, so the
+		/* Analte that the OOM status is edge signaled, so the
 		 * interrupt won't happen again until the we actually
 		 * add more memory.  Also, as of V3D 4.1, FLDONE won't
 		 * be reported until any OOM state has been cleared.
@@ -115,7 +115,7 @@ v3d_irq(int irq, void *arg)
 		file->enabled_ns[V3D_BIN] += runtime;
 		v3d->queue[V3D_BIN].enabled_ns += runtime;
 
-		trace_v3d_bcl_irq(&v3d->drm, fence->seqno);
+		trace_v3d_bcl_irq(&v3d->drm, fence->seqanal);
 		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
@@ -136,7 +136,7 @@ v3d_irq(int irq, void *arg)
 		file->enabled_ns[V3D_RENDER] += runtime;
 		v3d->queue[V3D_RENDER].enabled_ns += runtime;
 
-		trace_v3d_rcl_irq(&v3d->drm, fence->seqno);
+		trace_v3d_rcl_irq(&v3d->drm, fence->seqanal);
 		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
@@ -157,7 +157,7 @@ v3d_irq(int irq, void *arg)
 		file->enabled_ns[V3D_CSD] += runtime;
 		v3d->queue[V3D_CSD].enabled_ns += runtime;
 
-		trace_v3d_csd_irq(&v3d->drm, fence->seqno);
+		trace_v3d_csd_irq(&v3d->drm, fence->seqanal);
 		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
@@ -171,7 +171,7 @@ v3d_irq(int irq, void *arg)
 	/* V3D 4.2 wires the hub and core IRQs together, so if we &
 	 * didn't see the common one then check hub for MMU IRQs.
 	 */
-	if (v3d->single_irq_line && status == IRQ_NONE)
+	if (v3d->single_irq_line && status == IRQ_ANALNE)
 		return v3d_hub_irq(irq, arg);
 
 	return status;
@@ -182,11 +182,11 @@ v3d_hub_irq(int irq, void *arg)
 {
 	struct v3d_dev *v3d = arg;
 	u32 intsts;
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 
 	intsts = V3D_READ(V3D_HUB_INT_STS);
 
-	/* Acknowledge the interrupts we're handling here. */
+	/* Ackanalwledge the interrupts we're handling here. */
 	V3D_WRITE(V3D_HUB_INT_CLR, intsts);
 
 	if (intsts & V3D_HUB_INT_TFUC) {
@@ -205,7 +205,7 @@ v3d_hub_irq(int irq, void *arg)
 		file->enabled_ns[V3D_TFU] += runtime;
 		v3d->queue[V3D_TFU].enabled_ns += runtime;
 
-		trace_v3d_tfu_irq(&v3d->drm, fence->seqno);
+		trace_v3d_tfu_irq(&v3d->drm, fence->seqanal);
 		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}

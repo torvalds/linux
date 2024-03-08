@@ -60,7 +60,7 @@ static int rt5033_i2c_probe(struct i2c_client *i2c)
 
 	rt5033 = devm_kzalloc(&i2c->dev, sizeof(*rt5033), GFP_KERNEL);
 	if (!rt5033)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt5033);
 	rt5033->dev = &i2c->dev;
@@ -75,8 +75,8 @@ static int rt5033_i2c_probe(struct i2c_client *i2c)
 
 	ret = regmap_read(rt5033->regmap, RT5033_REG_DEVICE_ID, &dev_id);
 	if (ret) {
-		dev_err(&i2c->dev, "Device not found\n");
-		return -ENODEV;
+		dev_err(&i2c->dev, "Device analt found\n");
+		return -EANALDEV;
 	}
 	chip_rev = dev_id & RT5033_CHIP_REV_MASK;
 	dev_info(&i2c->dev, "Device found (rev. %d)\n", chip_rev);

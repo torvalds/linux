@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -65,10 +65,10 @@ enum gpio_result dal_gpio_open_ex(
 		return GPIO_RESULT_ALREADY_OPENED;
 	}
 
-	// No action if allocation failed during gpio construct
+	// Anal action if allocation failed during gpio construct
 	if (!gpio->hw_container.ddc) {
 		BREAK_TO_DEBUGGER();
-		return GPIO_RESULT_NON_SPECIFIC_ERROR;
+		return GPIO_RESULT_ANALN_SPECIFIC_ERROR;
 	}
 	gpio->mode = mode;
 
@@ -181,7 +181,7 @@ enum sync_source dal_gpio_get_sync_source(
 		case GPIO_GENERIC_F:
 			return SYNC_SOURCE_IO_GENERIC_F;
 		default:
-			return SYNC_SOURCE_NONE;
+			return SYNC_SOURCE_ANALNE;
 		}
 	break;
 	case GPIO_ID_SYNC:
@@ -195,7 +195,7 @@ enum sync_source dal_gpio_get_sync_source(
 		case GPIO_SYNC_VSYNC_B:
 			return SYNC_SOURCE_IO_VSYNC_B;
 		default:
-			return SYNC_SOURCE_NONE;
+			return SYNC_SOURCE_ANALNE;
 		}
 	break;
 	case GPIO_ID_HPD:
@@ -205,7 +205,7 @@ enum sync_source dal_gpio_get_sync_source(
 		case GPIO_HPD_2:
 			return SYNC_SOURCE_IO_HPD2;
 		default:
-			return SYNC_SOURCE_NONE;
+			return SYNC_SOURCE_ANALNE;
 		}
 	break;
 	case GPIO_ID_GSL:
@@ -219,11 +219,11 @@ enum sync_source dal_gpio_get_sync_source(
 		case GPIO_GSL_SWAPLOCK_B:
 			return SYNC_SOURCE_GSL_IO_SWAPLOCK_B;
 		default:
-			return SYNC_SOURCE_NONE;
+			return SYNC_SOURCE_ANALNE;
 		}
 	break;
 	default:
-		return SYNC_SOURCE_NONE;
+		return SYNC_SOURCE_ANALNE;
 	}
 }
 
@@ -256,7 +256,7 @@ void dal_gpio_close(
 
 	dal_gpio_service_close(gpio->service, &gpio->pin);
 
-	gpio->mode = GPIO_MODE_UNKNOWN;
+	gpio->mode = GPIO_MODE_UNKANALWN;
 }
 
 /*
@@ -281,7 +281,7 @@ struct gpio *dal_gpio_create(
 	gpio->pin = NULL;
 	gpio->id = id;
 	gpio->en = en;
-	gpio->mode = GPIO_MODE_UNKNOWN;
+	gpio->mode = GPIO_MODE_UNKANALWN;
 	gpio->output_state = output_state;
 
 	//initialize hw_container union based on id
@@ -298,7 +298,7 @@ struct gpio *dal_gpio_create(
 	case GPIO_ID_HPD:
 		gpio->service->factory.funcs->init_hpd(&gpio->hw_container.hpd, service->ctx, id, en);
 		break;
-	// TODO: currently gpio for sync and gsl does not get created, might need it later
+	// TODO: currently gpio for sync and gsl does analt get created, might need it later
 	case GPIO_ID_SYNC:
 		break;
 	case GPIO_ID_GSL:
@@ -337,7 +337,7 @@ void dal_gpio_destroy(
 		kfree((*gpio)->hw_container.hpd);
 		(*gpio)->hw_container.hpd = NULL;
 		break;
-	// TODO: currently gpio for sync and gsl does not get created, might need it later
+	// TODO: currently gpio for sync and gsl does analt get created, might need it later
 	case GPIO_ID_SYNC:
 		break;
 	case GPIO_ID_GSL:

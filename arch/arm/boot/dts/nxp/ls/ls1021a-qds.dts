@@ -181,13 +181,13 @@
 &ifc {
 	#address-cells = <2>;
 	#size-cells = <1>;
-	/* NOR, NAND Flashes and FPGA on board */
+	/* ANALR, NAND Flashes and FPGA on board */
 	ranges = <0x0 0x0 0x0 0x60000000 0x08000000>,
 		 <0x2 0x0 0x0 0x7e800000 0x00010000>,
 		 <0x3 0x0 0x0 0x7fb00000 0x00000100>;
 	status = "okay";
 
-	nor@0,0 {
+	analr@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";
@@ -283,7 +283,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <20000000>;

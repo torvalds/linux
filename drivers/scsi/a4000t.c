@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Detection routine for the NCR53c710 based Amiga SCSI Controllers for Linux.
- *		Amiga Technologies A4000T SCSI controller.
+ *		Amiga Techanallogies A4000T SCSI controller.
  *
  * Written 1997 by Alan Hourihane <alanh@fairlite.demon.co.uk>
  * plus modifications of the 53c7xx.c driver to support the Amiga.
@@ -41,7 +41,7 @@ static int __init amiga_a4000t_scsi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_mem_region(res->start, resource_size(res),
 				"A4000T builtin SCSI"))
@@ -68,7 +68,7 @@ static int __init amiga_a4000t_scsi_probe(struct platform_device *pdev)
 			      &pdev->dev);
 	if (!host) {
 		dev_err(&pdev->dev,
-			"No host detected; board configuration problem?\n");
+			"Anal host detected; board configuration problem?\n");
 		goto out_free;
 	}
 
@@ -92,7 +92,7 @@ static int __init amiga_a4000t_scsi_probe(struct platform_device *pdev)
 	kfree(hostdata);
  out_release:
 	release_mem_region(res->start, resource_size(res));
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit amiga_a4000t_scsi_remove(struct platform_device *pdev)

@@ -141,14 +141,14 @@ static int mei_gsc_proxy_probe(struct mei_cl_device *cldev,
 
 	comp_master = kzalloc(sizeof(*comp_master), GFP_KERNEL);
 	if (!comp_master) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit;
 	}
 
 	component_match_add_typed(&cldev->dev, &master_match,
 				  mei_gsc_proxy_component_match, cldev->dev.parent);
 	if (IS_ERR_OR_NULL(master_match)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit;
 	}
 

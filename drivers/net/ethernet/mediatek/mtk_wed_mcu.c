@@ -104,7 +104,7 @@ void mtk_wed_mcu_rx_unsolicited_event(struct mtk_wed_wo *wo,
 
 	switch (hdr->cmd) {
 	case MTK_WED_WO_EVT_LOG_DUMP:
-		dev_notice(wo->hw->dev, "%s\n", skb->data);
+		dev_analtice(wo->hw->dev, "%s\n", skb->data);
 		break;
 	case MTK_WED_WO_EVT_PROFILING: {
 		struct mtk_wed_wo_log_info *info = (void *)skb->data;
@@ -112,7 +112,7 @@ void mtk_wed_mcu_rx_unsolicited_event(struct mtk_wed_wo *wo,
 		int i;
 
 		for (i = 0 ; i < count ; i++)
-			dev_notice(wo->hw->dev,
+			dev_analtice(wo->hw->dev,
 				   "SN:%u latency: total=%u, rro:%u, mod:%u\n",
 				   le32_to_cpu(info[i].sn),
 				   le32_to_cpu(info[i].total),
@@ -197,7 +197,7 @@ int mtk_wed_mcu_send_msg(struct mtk_wed_wo *wo, int id, int cmd,
 
 	skb = mtk_wed_mcu_msg_alloc(data, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&wo->mcu.mutex);
 
@@ -227,7 +227,7 @@ int mtk_wed_mcu_msg_update(struct mtk_wed_device *dev, int id, void *data,
 		return 0;
 
 	if (WARN_ON(!wo))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return mtk_wed_mcu_send_msg(wo, MTK_WED_MODULE_ID_WO, id, data, len,
 				    true);
@@ -238,17 +238,17 @@ mtk_wed_get_memory_region(struct mtk_wed_hw *hw, int index,
 			  struct mtk_wed_wo_memory_region *region)
 {
 	struct reserved_mem *rmem;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_parse_phandle(hw->node, "memory-region", index);
+	np = of_parse_phandle(hw->analde, "memory-region", index);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rmem = of_reserved_mem_lookup(np);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!rmem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	region->phy_addr = rmem->base;
 	region->size = rmem->size;
@@ -319,7 +319,7 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 
 	/* load firmware region metadata */
 	for (i = 0; i < ARRAY_SIZE(mem_region); i++) {
-		int index = of_property_match_string(wo->hw->node,
+		int index = of_property_match_string(wo->hw->analde,
 						     "memory-region-names",
 						     mem_region[i].name);
 		if (index < 0)
@@ -337,7 +337,7 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 	/* load firmware */
 	switch (wo->hw->version) {
 	case 2:
-		if (of_device_is_compatible(wo->hw->node,
+		if (of_device_is_compatible(wo->hw->analde,
 					    "mediatek,mt7981-wed"))
 			fw_name = MT7981_FIRMWARE_WO;
 		else

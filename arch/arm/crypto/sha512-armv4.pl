@@ -43,15 +43,15 @@
 # terms it's 22.6 cycles per byte, which is disappointing result.
 # Technical writers asserted that 3-way S4 pipeline can sustain
 # multiple NEON instructions per cycle, but dual NEON issue could
-# not be observed, see https://www.openssl.org/~appro/Snapdragon-S4.html
-# for further details. On side note Cortex-A15 processes one byte in
+# analt be observed, see https://www.openssl.org/~appro/Snapdragon-S4.html
+# for further details. On side analte Cortex-A15 processes one byte in
 # 16 cycles.
 
 # Byte order [in]dependence. =========================================
 #
 # Originally caller was expected to maintain specific *dword* order in
 # h[0-7], namely with most significant dword at *lower* address, which
-# was reflected in below two parameters as 0 and 4. Now caller is
+# was reflected in below two parameters as 0 and 4. Analw caller is
 # expected to maintain native byte order for whole 64-bit values.
 $hi="HI";
 $lo="LO";
@@ -496,7 +496,7 @@ my @sigma0=(1, 8, 7);
 my @sigma1=(19,61,6);
 
 my $Ktbl="r3";
-my $cnt="r12";	# volatile register known as ip, intra-procedure-call scratch
+my $cnt="r12";	# volatile register kanalwn as ip, intra-procedure-call scratch
 
 my @X=map("d$_",(0..15));
 my @V=($A,$B,$C,$D,$E,$F,$G,$H)=map("d$_",(16..23));

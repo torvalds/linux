@@ -14,9 +14,9 @@
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
@@ -30,7 +30,7 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -46,7 +46,7 @@ static char expect_close;
 static DEFINE_SPINLOCK(wafwdt_lock);
 
 /*
- *	You must set these - there is no sane way to probe for this board.
+ *	You must set these - there is anal sane way to probe for this board.
  *
  *	To enable, write the timeout value in seconds (1 to 255) to I/O
  *	port WDT_START, then read the port to start the watchdog. To pat
@@ -63,11 +63,11 @@ MODULE_PARM_DESC(timeout,
 		"Watchdog timeout in seconds. 1 <= timeout <= 255, default="
 				__MODULE_STRING(WD_TIMO) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static void wafwdt_ping(void)
 {
@@ -96,13 +96,13 @@ static ssize_t wafwdt_write(struct file *file, const char __user *buf,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/* In case it was set long ago */
 			expect_close = 0;
 
-			/* scan to see whether or not we got the magic
+			/* scan to see whether or analt we got the magic
 			   character */
 			for (i = 0; i != count; i++) {
 				char c;
@@ -179,12 +179,12 @@ static long wafwdt_ioctl(struct file *file, unsigned int cmd,
 		return put_user(timeout, p);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 	return 0;
 }
 
-static int wafwdt_open(struct inode *inode, struct file *file)
+static int wafwdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &wafwdt_is_open))
 		return -EBUSY;
@@ -193,15 +193,15 @@ static int wafwdt_open(struct inode *inode, struct file *file)
 	 *      Activate
 	 */
 	wafwdt_start();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int wafwdt_close(struct inode *inode, struct file *file)
+static int wafwdt_close(struct ianalde *ianalde, struct file *file)
 {
 	if (expect_close == 42)
 		wafwdt_stop();
 	else {
-		pr_crit("WDT device closed unexpectedly.  WDT will not stop!\n");
+		pr_crit("WDT device closed unexpectedly.  WDT will analt stop!\n");
 		wafwdt_ping();
 	}
 	clear_bit(0, &wafwdt_is_open);
@@ -210,15 +210,15 @@ static int wafwdt_close(struct inode *inode, struct file *file)
 }
 
 /*
- *	Notifier for system down
+ *	Analtifier for system down
  */
 
-static int wafwdt_notify_sys(struct notifier_block *this, unsigned long code,
+static int wafwdt_analtify_sys(struct analtifier_block *this, unsigned long code,
 								void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		wafwdt_stop();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -227,7 +227,7 @@ static int wafwdt_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations wafwdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= wafwdt_write,
 	.unlocked_ioctl	= wafwdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -236,7 +236,7 @@ static const struct file_operations wafwdt_fops = {
 };
 
 static struct miscdevice wafwdt_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &wafwdt_fops,
 };
@@ -246,8 +246,8 @@ static struct miscdevice wafwdt_miscdev = {
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block wafwdt_notifier = {
-	.notifier_call = wafwdt_notify_sys,
+static struct analtifier_block wafwdt_analtifier = {
+	.analtifier_call = wafwdt_analtify_sys,
 };
 
 static int __init wafwdt_init(void)
@@ -276,25 +276,25 @@ static int __init wafwdt_init(void)
 		goto error2;
 	}
 
-	ret = register_reboot_notifier(&wafwdt_notifier);
+	ret = register_reboot_analtifier(&wafwdt_analtifier);
 	if (ret != 0) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", ret);
 		goto error3;
 	}
 
 	ret = misc_register(&wafwdt_miscdev);
 	if (ret != 0) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, ret);
 		goto error4;
 	}
 
-	pr_info("initialized. timeout=%d sec (nowayout=%d)\n",
-		timeout, nowayout);
+	pr_info("initialized. timeout=%d sec (analwayout=%d)\n",
+		timeout, analwayout);
 
 	return ret;
 error4:
-	unregister_reboot_notifier(&wafwdt_notifier);
+	unregister_reboot_analtifier(&wafwdt_analtifier);
 error3:
 	release_region(wdt_start, 1);
 error2:
@@ -307,7 +307,7 @@ error:
 static void __exit wafwdt_exit(void)
 {
 	misc_deregister(&wafwdt_miscdev);
-	unregister_reboot_notifier(&wafwdt_notifier);
+	unregister_reboot_analtifier(&wafwdt_analtifier);
 	if (wdt_stop != wdt_start)
 		release_region(wdt_stop, 1);
 	release_region(wdt_start, 1);

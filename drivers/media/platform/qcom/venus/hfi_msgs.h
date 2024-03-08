@@ -17,7 +17,7 @@
 #define HFI_MSG_SYS_COV				0x20009
 #define HFI_MSG_SYS_PROPERTY_INFO		0x2000a
 
-#define HFI_MSG_EVENT_NOTIFY			0x21001
+#define HFI_MSG_EVENT_ANALTIFY			0x21001
 #define HFI_MSG_SESSION_GET_SEQUENCE_HEADER	0x21002
 
 #define HFI_MSG_SYS_PING_ACK			0x220002
@@ -40,12 +40,12 @@
 #define HFI_PICTURE_P				0x00000002
 #define HFI_PICTURE_B				0x00000004
 #define HFI_PICTURE_IDR				0x00000008
-#define HFI_FRAME_NOTCODED			0x7f002000
+#define HFI_FRAME_ANALTCODED			0x7f002000
 #define HFI_FRAME_YUV				0x7f004000
 #define HFI_UNUSED_PICT				0x10000000
 
 /* message packets */
-struct hfi_msg_event_notify_pkt {
+struct hfi_msg_event_analtify_pkt {
 	struct hfi_session_hdr_pkt shdr;
 	u32 event_id;
 	u32 event_data1;

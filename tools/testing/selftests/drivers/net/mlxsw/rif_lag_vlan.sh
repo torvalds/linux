@@ -5,9 +5,9 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
 	lag_rif_add
-	lag_rif_nomaster
+	lag_rif_analmaster
 	lag_rif_remaster
-	lag_rif_nomaster_addr
+	lag_rif_analmaster_addr
 "
 
 NUM_NETIFS=2
@@ -20,11 +20,11 @@ setup_prepare()
 	swp2=${NETIFS[p2]}
 
 	team_create lag1 lacp
-	ip link set dev lag1 addrgenmode none
+	ip link set dev lag1 addrgenmode analne
 	ip link set dev lag1 address $(mac_get $swp1)
 
 	team_create lag2 lacp
-	ip link set dev lag2 addrgenmode none
+	ip link set dev lag2 addrgenmode analne
 	ip link set dev lag2 address $(mac_get $swp2)
 
 	ip link set dev $swp1 master lag1
@@ -34,10 +34,10 @@ setup_prepare()
 	ip link set dev $swp2 up
 
 	vlan_create lag1 100
-	ip link set dev lag1.100 addrgenmode none
+	ip link set dev lag1.100 addrgenmode analne
 
 	vlan_create lag1 200
-	ip link set dev lag1.200 addrgenmode none
+	ip link set dev lag1.200 addrgenmode analne
 }
 
 cleanup()
@@ -47,10 +47,10 @@ cleanup()
 	ip link del dev lag1.200
 	ip link del dev lag1.100
 
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 	ip link set dev $swp2 down
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	ip link set dev $swp1 down
 
 	ip link del dev lag2
@@ -74,12 +74,12 @@ lag_rif_add()
 	log_test "Add RIFs for LAG VLANs on address addition"
 }
 
-lag_rif_nomaster()
+lag_rif_analmaster()
 {
 	RET=0
 
 	local rifs_occ_t0=$(devlink_resource_occ_get rifs)
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	sleep 1
 	local rifs_occ_t1=$(devlink_resource_occ_get rifs)
 	local expected_rifs=$((rifs_occ_t0 - 2))
@@ -108,7 +108,7 @@ lag_rif_remaster()
 	log_test "Add RIFs for LAG VLANs on port reenslavement"
 }
 
-lag_rif_nomaster_addr()
+lag_rif_analmaster_addr()
 {
 	local rifs_occ_t0=$(devlink_resource_occ_get rifs)
 
@@ -122,9 +122,9 @@ lag_rif_nomaster_addr()
 	check_err $? "After adding IP: Expected $expected_rifs RIFs, $rifs_occ_t1 are used"
 
 	# Removing the port from LAG should drop two RIFs for the LAG VLANs (as
-	# tested in lag_rif_nomaster), but since the port now has an address, it
+	# tested in lag_rif_analmaster), but since the port analw has an address, it
 	# should gain a RIF.
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	sleep 1
 	local rifs_occ_t2=$(devlink_resource_occ_get rifs)
 	local expected_rifs=$((rifs_occ_t0 - 1))

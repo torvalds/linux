@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_ERRQUEUE_H
 #define _UAPI_LINUX_ERRQUEUE_H
 
@@ -13,7 +13,7 @@ struct sock_ee_data_rfc4884 {
 };
 
 struct sock_extended_err {
-	__u32	ee_errno;	
+	__u32	ee_erranal;	
 	__u8	ee_origin;
 	__u8	ee_type;
 	__u8	ee_code;
@@ -25,7 +25,7 @@ struct sock_extended_err {
 	};
 };
 
-#define SO_EE_ORIGIN_NONE	0
+#define SO_EE_ORIGIN_ANALNE	0
 #define SO_EE_ORIGIN_LOCAL	1
 #define SO_EE_ORIGIN_ICMP	2
 #define SO_EE_ORIGIN_ICMP6	3
@@ -72,7 +72,7 @@ struct scm_timestamping64 {
 enum {
 	SCM_TSTAMP_SND,		/* driver passed skb to NIC, or HW */
 	SCM_TSTAMP_SCHED,	/* data entered the packet scheduler */
-	SCM_TSTAMP_ACK,		/* data acknowledged by peer */
+	SCM_TSTAMP_ACK,		/* data ackanalwledged by peer */
 };
 
 #endif /* _UAPI_LINUX_ERRQUEUE_H */

@@ -103,7 +103,7 @@ ecryptfs_get_encrypted_key_payload_data(struct key *key)
 
 static inline struct key *ecryptfs_get_encrypted_key(char *sig)
 {
-	return ERR_PTR(-ENOKEY);
+	return ERR_PTR(-EANALKEY);
 }
 
 #endif /* CONFIG_ENCRYPTED_KEYS */
@@ -162,7 +162,7 @@ ecryptfs_get_key_payload_data(struct key *key)
 /* Constraint: ECRYPTFS_FILENAME_MIN_RANDOM_PREPEND_BYTES >=
  * ECRYPTFS_MAX_IV_BYTES */
 #define ECRYPTFS_FILENAME_MIN_RANDOM_PREPEND_BYTES 16
-#define ECRYPTFS_NON_NULL 0x42 /* A reasonable substitute for NULL */
+#define ECRYPTFS_ANALN_NULL 0x42 /* A reasonable substitute for NULL */
 #define MD5_DIGEST_SIZE 16
 #define ECRYPTFS_TAG_70_DIGEST_SIZE MD5_DIGEST_SIZE
 #define ECRYPTFS_TAG_70_MIN_METADATA_SIZE (1 + ECRYPTFS_MIN_PKT_LEN_SIZE \
@@ -197,7 +197,7 @@ struct ecryptfs_filename {
 	struct list_head crypt_stat_list;
 #define ECRYPTFS_FILENAME_CONTAINS_DECRYPTED 0x00000001
 	u32 flags;
-	u32 seq_no;
+	u32 seq_anal;
 	char *filename;
 	char *encrypted_filename;
 	size_t filename_size;
@@ -248,10 +248,10 @@ struct ecryptfs_crypt_stat {
 	struct mutex cs_mutex;
 };
 
-/* inode private data. */
-struct ecryptfs_inode_info {
-	struct inode vfs_inode;
-	struct inode *wii_inode;
+/* ianalde private data. */
+struct ecryptfs_ianalde_info {
+	struct ianalde vfs_ianalde;
+	struct ianalde *wii_ianalde;
 	struct mutex lower_file_mutex;
 	atomic_t lower_file_count;
 	struct file *lower_file;
@@ -270,9 +270,9 @@ struct ecryptfs_dentry_info {
  * @flags: Status flags
  * @mount_crypt_stat_list: These auth_toks hang off the mount-wide
  *                         cryptographic context. Every time a new
- *                         inode comes into existence, eCryptfs copies
+ *                         ianalde comes into existence, eCryptfs copies
  *                         the auth_toks on that list to the set of
- *                         auth_toks on the inode's crypt_stat
+ *                         auth_toks on the ianalde's crypt_stat
  * @global_auth_tok_key: The key from the user's keyring for the sig
  * @global_auth_tok: The key contents
  * @sig: The key identifier
@@ -324,7 +324,7 @@ extern struct mutex key_tfm_list_mutex;
  * implemented in eCryptfs.
  */
 struct ecryptfs_mount_crypt_stat {
-	/* Pointers to memory we do not own, do not free these */
+	/* Pointers to memory we do analt own, do analt free these */
 #define ECRYPTFS_PLAINTEXT_PASSTHROUGH_ENABLED 0x00000001
 #define ECRYPTFS_XATTR_METADATA_ENABLED        0x00000002
 #define ECRYPTFS_ENCRYPTED_VIEW_ENABLED        0x00000004
@@ -377,7 +377,7 @@ struct ecryptfs_msg_ctx {
 #define ECRYPTFS_MSG_CTX_STATE_FREE     0x01
 #define ECRYPTFS_MSG_CTX_STATE_PENDING  0x02
 #define ECRYPTFS_MSG_CTX_STATE_DONE     0x03
-#define ECRYPTFS_MSG_CTX_STATE_NO_REPLY 0x04
+#define ECRYPTFS_MSG_CTX_STATE_ANAL_REPLY 0x04
 	u8 state;
 #define ECRYPTFS_MSG_HELO 100
 #define ECRYPTFS_MSG_QUIT 101
@@ -394,7 +394,7 @@ struct ecryptfs_msg_ctx {
 	size_t msg_size;
 	struct ecryptfs_message *msg;
 	struct task_struct *task;
-	struct list_head node;
+	struct list_head analde;
 	struct list_head daemon_out_list;
 	struct mutex mux;
 };
@@ -410,7 +410,7 @@ struct ecryptfs_daemon {
 	struct mutex mux;
 	struct list_head msg_ctx_out_queue;
 	wait_queue_head_t wait;
-	struct hlist_node euid_chain;
+	struct hlist_analde euid_chain;
 };
 
 #ifdef CONFIG_ECRYPT_FS_MESSAGING
@@ -450,21 +450,21 @@ ecryptfs_set_file_lower(struct file *file, struct file *lower_file)
 		lower_file;
 }
 
-static inline struct ecryptfs_inode_info *
-ecryptfs_inode_to_private(struct inode *inode)
+static inline struct ecryptfs_ianalde_info *
+ecryptfs_ianalde_to_private(struct ianalde *ianalde)
 {
-	return container_of(inode, struct ecryptfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct ecryptfs_ianalde_info, vfs_ianalde);
 }
 
-static inline struct inode *ecryptfs_inode_to_lower(struct inode *inode)
+static inline struct ianalde *ecryptfs_ianalde_to_lower(struct ianalde *ianalde)
 {
-	return ecryptfs_inode_to_private(inode)->wii_inode;
+	return ecryptfs_ianalde_to_private(ianalde)->wii_ianalde;
 }
 
 static inline void
-ecryptfs_set_inode_lower(struct inode *inode, struct inode *lower_inode)
+ecryptfs_set_ianalde_lower(struct ianalde *ianalde, struct ianalde *lower_ianalde)
 {
-	ecryptfs_inode_to_private(inode)->wii_inode = lower_inode;
+	ecryptfs_ianalde_to_private(ianalde)->wii_ianalde = lower_ianalde;
 }
 
 static inline struct ecryptfs_sb_info *
@@ -519,9 +519,9 @@ void __ecryptfs_printk(const char *fmt, ...);
 
 extern const struct file_operations ecryptfs_main_fops;
 extern const struct file_operations ecryptfs_dir_fops;
-extern const struct inode_operations ecryptfs_main_iops;
-extern const struct inode_operations ecryptfs_dir_iops;
-extern const struct inode_operations ecryptfs_symlink_iops;
+extern const struct ianalde_operations ecryptfs_main_iops;
+extern const struct ianalde_operations ecryptfs_dir_iops;
+extern const struct ianalde_operations ecryptfs_symlink_iops;
 extern const struct super_operations ecryptfs_sops;
 extern const struct dentry_operations ecryptfs_dops;
 extern const struct address_space_operations ecryptfs_aops;
@@ -533,7 +533,7 @@ extern unsigned int ecryptfs_number_of_users;
 extern struct kmem_cache *ecryptfs_auth_tok_list_item_cache;
 extern struct kmem_cache *ecryptfs_file_info_cache;
 extern struct kmem_cache *ecryptfs_dentry_info_cache;
-extern struct kmem_cache *ecryptfs_inode_info_cache;
+extern struct kmem_cache *ecryptfs_ianalde_info_cache;
 extern struct kmem_cache *ecryptfs_sb_info_cache;
 extern struct kmem_cache *ecryptfs_header_cache;
 extern struct kmem_cache *ecryptfs_xattr_cache;
@@ -542,11 +542,11 @@ extern struct kmem_cache *ecryptfs_key_sig_cache;
 extern struct kmem_cache *ecryptfs_global_auth_tok_cache;
 extern struct kmem_cache *ecryptfs_key_tfm_cache;
 
-struct inode *ecryptfs_get_inode(struct inode *lower_inode,
+struct ianalde *ecryptfs_get_ianalde(struct ianalde *lower_ianalde,
 				 struct super_block *sb);
-void ecryptfs_i_size_init(const char *page_virt, struct inode *inode);
+void ecryptfs_i_size_init(const char *page_virt, struct ianalde *ianalde);
 int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
-			     struct inode *ecryptfs_inode);
+			     struct ianalde *ecryptfs_ianalde);
 int ecryptfs_decode_and_decrypt_filename(char **decrypted_name,
 					 size_t *decrypted_name_size,
 					 struct super_block *sb,
@@ -568,19 +568,19 @@ void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destroy_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
 int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat);
-int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode);
+int ecryptfs_write_ianalde_size_to_metadata(struct ianalde *ecryptfs_ianalde);
 int ecryptfs_encrypt_page(struct page *page);
 int ecryptfs_decrypt_page(struct page *page);
 int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
-			    struct inode *ecryptfs_inode);
+			    struct ianalde *ecryptfs_ianalde);
 int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry);
-int ecryptfs_new_file_context(struct inode *ecryptfs_inode);
+int ecryptfs_new_file_context(struct ianalde *ecryptfs_ianalde);
 void ecryptfs_write_crypt_stat_flags(char *page_virt,
 				     struct ecryptfs_crypt_stat *crypt_stat,
 				     size_t *written);
-int ecryptfs_read_and_validate_header_region(struct inode *inode);
+int ecryptfs_read_and_validate_header_region(struct ianalde *ianalde);
 int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
-					    struct inode *inode);
+					    struct ianalde *ianalde);
 u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes);
 int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code);
 void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat);
@@ -593,12 +593,12 @@ ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			  unsigned char *src, struct dentry *ecryptfs_dentry);
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
 ssize_t
-ecryptfs_getxattr_lower(struct dentry *lower_dentry, struct inode *lower_inode,
+ecryptfs_getxattr_lower(struct dentry *lower_dentry, struct ianalde *lower_ianalde,
 			const char *name, void *value, size_t size);
 int
-ecryptfs_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
+ecryptfs_setxattr(struct dentry *dentry, struct ianalde *ianalde, const char *name,
 		  const void *value, size_t size, int flags);
-int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode);
+int ecryptfs_read_xattr_region(char *page_virt, struct ianalde *ecryptfs_ianalde);
 #ifdef CONFIG_ECRYPT_FS_MESSAGING
 int ecryptfs_process_response(struct ecryptfs_daemon *daemon,
 			      struct ecryptfs_message *msg, u32 seq);
@@ -618,12 +618,12 @@ static inline void ecryptfs_release_messaging(void)
 static inline int ecryptfs_send_message(char *data, int data_len,
 					struct ecryptfs_msg_ctx **msg_ctx)
 {
-	return -ENOTCONN;
+	return -EANALTCONN;
 }
 static inline int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,
 					     struct ecryptfs_message **emsg)
 {
-	return -ENOMSG;
+	return -EANALMSG;
 }
 #endif
 
@@ -650,19 +650,19 @@ int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_skcipher **tfm,
 int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 				      struct ecryptfs_auth_tok **auth_tok,
 				      char *sig);
-int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
+int ecryptfs_write_lower(struct ianalde *ecryptfs_ianalde, char *data,
 			 loff_t offset, size_t size);
-int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
+int ecryptfs_write_lower_page_segment(struct ianalde *ecryptfs_ianalde,
 				      struct page *page_for_lower,
 				      size_t offset_in_page, size_t size);
-int ecryptfs_write(struct inode *inode, char *data, loff_t offset, size_t size);
+int ecryptfs_write(struct ianalde *ianalde, char *data, loff_t offset, size_t size);
 int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
-			struct inode *ecryptfs_inode);
+			struct ianalde *ecryptfs_ianalde);
 int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 				     pgoff_t page_index,
 				     size_t offset_in_page, size_t size,
-				     struct inode *ecryptfs_inode);
-struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index);
+				     struct ianalde *ecryptfs_ianalde);
+struct page *ecryptfs_get_locked_page(struct ianalde *ianalde, loff_t index);
 int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
 				 size_t *length_size);
 int ecryptfs_write_packet_length(char *dest, size_t size,
@@ -685,8 +685,8 @@ int ecryptfs_privileged_open(struct file **lower_file,
 			     struct dentry *lower_dentry,
 			     struct vfsmount *lower_mnt,
 			     const struct cred *cred);
-int ecryptfs_get_lower_file(struct dentry *dentry, struct inode *inode);
-void ecryptfs_put_lower_file(struct inode *inode);
+int ecryptfs_get_lower_file(struct dentry *dentry, struct ianalde *ianalde);
+void ecryptfs_put_lower_file(struct ianalde *ianalde);
 int
 ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 			     size_t *packet_size,

@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/smp.h>
@@ -32,11 +32,11 @@
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are analt set.
  */
 void ptrace_disable(struct task_struct *child)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 enum sparc_regset {
@@ -158,7 +158,7 @@ static int genregs32_set(struct task_struct *target,
 				 35 * sizeof(u32), 36 * sizeof(u32));
 	if (ret || !count)
 		return ret;
-	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 36 * sizeof(u32),
+	user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf, 36 * sizeof(u32),
 				  38 * sizeof(u32));
 	return 0;
 }
@@ -195,7 +195,7 @@ static int fpregs32_set(struct task_struct *target,
 				 fpregs,
 				 0, 32 * sizeof(u32));
 	if (!ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  32 * sizeof(u32),
 					  33 * sizeof(u32));
 	if (!ret)
@@ -204,7 +204,7 @@ static int fpregs32_set(struct task_struct *target,
 					 33 * sizeof(u32),
 					 34 * sizeof(u32));
 	if (!ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  34 * sizeof(u32), -1);
 	return ret;
 }
@@ -218,7 +218,7 @@ static const struct user_regset sparc32_regsets[] = {
 	 *	PSR, PC, nPC, Y, WIM, TBR
 	 */
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = 38,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.regset_get = genregs32_get, .set = genregs32_set
@@ -234,7 +234,7 @@ static const struct user_regset sparc32_regsets[] = {
 	 *	FPU QUEUE (64 32-bit ints)
 	 */
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG,
+		.core_analte_type = NT_PRFPREG,
 		.n = 99,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.regset_get = fpregs32_get, .set = fpregs32_set

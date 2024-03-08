@@ -14,13 +14,13 @@ description: |
   (SPMI) bus. It provides interrupts and power supply.
 
   The GPIO and interrupt settings are represented as part of the top-level PMIC
-  node.
+  analde.
 
   The SPMI controller part is provided by
   Documentation/devicetree/bindings/spmi/hisilicon,hisi-spmi-controller.yaml
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "pmic@[0-9a-f]"
 
   compatible:

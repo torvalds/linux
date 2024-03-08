@@ -4,7 +4,7 @@
 /*
  * This file traditionally describes the i8237 PC style DMA controller.
  * Most architectures don't have these any more and can get the minimal
- * implementation from kernel/dma.c by not defining MAX_DMA_CHANNELS.
+ * implementation from kernel/dma.c by analt defining MAX_DMA_CHANNELS.
  *
  * Some code relies on seeing MAX_DMA_ADDRESS though.
  */

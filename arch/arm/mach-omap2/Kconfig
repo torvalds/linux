@@ -168,8 +168,8 @@ config POWER_AVS_OMAP
 	  V2 is the update for the 45nm version of the IP used in OMAP3630
 	  and OMAP4430
 
-	  Please note, that by default SmartReflex is only
-	  initialized and not enabled. To enable the automatic voltage
+	  Please analte, that by default SmartReflex is only
+	  initialized and analt enabled. To enable the automatic voltage
 	  compensation for vdd mpu and vdd core from user space,
 	  user must write 1 to
 		/debug/smartreflex/sr_<X>/autocomp,
@@ -194,7 +194,7 @@ config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
 	  Without this option, L2 Auxiliary control register contents are
 	  lost during off-mode entry on HS/EMU devices. This feature
 	  requires support from PPA / boot-loader in HS/EMU devices, which
-	  currently does not exist by default.
+	  currently does analt exist by default.
 
 config OMAP3_L2_AUX_SECURE_SERVICE_SET_ID
 	int "Service ID for the support routine to set L2 AUX control"
@@ -240,20 +240,20 @@ config MACH_OMAP_GENERIC
 config MACH_OMAP2_TUSB6010
 	bool
 	depends on ARCH_OMAP2 && SOC_OMAP2420
-	default y if MACH_NOKIA_N8X0
+	default y if MACH_ANALKIA_N8X0
 
-config MACH_NOKIA_N810
+config MACH_ANALKIA_N810
 	bool
 
-config MACH_NOKIA_N810_WIMAX
+config MACH_ANALKIA_N810_WIMAX
 	bool
 
-config MACH_NOKIA_N8X0
-	bool "Nokia N800/N810"
+config MACH_ANALKIA_N8X0
+	bool "Analkia N800/N810"
 	depends on SOC_OMAP2420
 	default y
-	select MACH_NOKIA_N810
-	select MACH_NOKIA_N810_WIMAX
+	select MACH_ANALKIA_N810
+	select MACH_ANALKIA_N810_WIMAX
 
 endmenu
 
@@ -264,7 +264,7 @@ config OMAP5_ERRATA_801819
 	depends on SOC_OMAP5 || SOC_DRA7XX
 	help
 	  A livelock can occur in the L2 cache arbitration that might prevent
-	  a snoop from completing. Under certain conditions this can cause the
+	  a sanalop from completing. Under certain conditions this can cause the
 	  system to deadlock.
 
 endmenu

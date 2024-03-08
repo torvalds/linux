@@ -17,8 +17,8 @@ static int efs_symlink_read_folio(struct file *file, struct folio *folio)
 	struct page *page = &folio->page;
 	char *link = page_address(page);
 	struct buffer_head * bh;
-	struct inode * inode = page->mapping->host;
-	efs_block_t size = inode->i_size;
+	struct ianalde * ianalde = page->mapping->host;
+	efs_block_t size = ianalde->i_size;
 	int err;
   
 	err = -ENAMETOOLONG;
@@ -27,13 +27,13 @@ static int efs_symlink_read_folio(struct file *file, struct folio *folio)
   
 	/* read first 512 bytes of link target */
 	err = -EIO;
-	bh = sb_bread(inode->i_sb, efs_bmap(inode, 0));
+	bh = sb_bread(ianalde->i_sb, efs_bmap(ianalde, 0));
 	if (!bh)
 		goto fail;
 	memcpy(link, bh->b_data, (size > EFS_BLOCKSIZE) ? EFS_BLOCKSIZE : size);
 	brelse(bh);
 	if (size > EFS_BLOCKSIZE) {
-		bh = sb_bread(inode->i_sb, efs_bmap(inode, 1));
+		bh = sb_bread(ianalde->i_sb, efs_bmap(ianalde, 1));
 		if (!bh)
 			goto fail;
 		memcpy(link + EFS_BLOCKSIZE, bh->b_data, size - EFS_BLOCKSIZE);

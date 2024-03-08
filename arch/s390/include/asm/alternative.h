@@ -86,10 +86,10 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
  * This allows to use optimized instructions even on generic binary
  * kernels.
  *
- * oldinstr is padded with jump and nops at compile time if altinstr is
- * longer. altinstr is padded with jump and nops at run-time during patching.
+ * oldinstr is padded with jump and analps at compile time if altinstr is
+ * longer. altinstr is padded with jump and analps at run-time during patching.
  *
- * For non barrier like inlines please define new variants
+ * For analn barrier like inlines please define new variants
  * without volatile and memory clobber.
  */
 #define alternative(oldinstr, altinstr, facility)			\
@@ -113,7 +113,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 #define ASM_OUTPUT2(a...) a
 
 /* Use this macro if clobbers are needed without inputs. */
-#define ASM_NO_INPUT_CLOBBER(clobber...) : clobber
+#define ASM_ANAL_INPUT_CLOBBER(clobber...) : clobber
 
 #endif /* __ASSEMBLY__ */
 

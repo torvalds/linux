@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bitops.h>
 #include <linux/ptrace.h>
 #include <linux/adb.h>
@@ -13,7 +13,7 @@
 #include <asm/page.h>
 #include <asm/xmon.h>
 #include <asm/bootx.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/pmac_feature.h>
 #include <asm/processor.h>
 #include <asm/delay.h>
@@ -32,10 +32,10 @@ static int (*udbg_adb_old_getc)(void);
 static int (*udbg_adb_old_getc_poll)(void);
 
 static enum {
-	input_adb_none,
+	input_adb_analne,
 	input_adb_pmu,
 	input_adb_cuda,
-} input_type = input_adb_none;
+} input_type = input_adb_analne;
 
 int xmon_wants_key, xmon_adb_keycode;
 
@@ -105,7 +105,7 @@ static int udbg_adb_local_getc(void)
 			continue;
 		}
 		if (k >= 0x80)
-			continue;	/* ignore up transitions */
+			continue;	/* iganalre up transitions */
 		k = (xmon_adb_shiftstate? xmon_shift_keytab: xmon_keytab)[k];
 		if (k != 0)
 			break;
@@ -118,7 +118,7 @@ static int udbg_adb_local_getc(void)
 static int udbg_adb_getc(void)
 {
 #ifdef CONFIG_BOOTX_TEXT
-	if (udbg_adb_use_btext && input_type != input_adb_none)
+	if (udbg_adb_use_btext && input_type != input_adb_analne)
 		return udbg_adb_local_getc();
 #endif
 	if (udbg_adb_old_getc)
@@ -126,7 +126,7 @@ static int udbg_adb_getc(void)
 	return -1;
 }
 
-/* getc_poll() is not really used, unless you have the xmon-over modem
+/* getc_poll() is analt really used, unless you have the xmon-over modem
  * hack that doesn't quite concern us here, thus we just poll the low level
  * ADB driver to prevent it from timing out and call back the original poll
  * routine.
@@ -162,7 +162,7 @@ void __init udbg_adb_init_early(void)
 
 int __init udbg_adb_init(int force_btext)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* Capture existing callbacks */
 	udbg_adb_old_putc = udbg_putc;
@@ -189,19 +189,19 @@ int __init udbg_adb_init(int force_btext)
 #endif
 
 	/* See if there is a keyboard in the device tree with a parent
-	 * of type "adb". If not, we return a failure, but we keep the
-	 * bext output set for now
+	 * of type "adb". If analt, we return a failure, but we keep the
+	 * bext output set for analw
 	 */
-	for_each_node_by_name(np, "keyboard") {
-		struct device_node *parent = of_get_parent(np);
-		int found = of_node_is_type(parent, "adb");
-		of_node_put(parent);
+	for_each_analde_by_name(np, "keyboard") {
+		struct device_analde *parent = of_get_parent(np);
+		int found = of_analde_is_type(parent, "adb");
+		of_analde_put(parent);
 		if (found)
 			break;
 	}
 	if (np == NULL)
-		return -ENODEV;
-	of_node_put(np);
+		return -EANALDEV;
+	of_analde_put(np);
 
 #ifdef CONFIG_ADB_PMU
 	if (find_via_pmu())
@@ -212,9 +212,9 @@ int __init udbg_adb_init(int force_btext)
 		input_type = input_adb_cuda;
 #endif
 
-	/* Same as above: nothing found, keep btext set for output */
-	if (input_type == input_adb_none)
-		return -ENODEV;
+	/* Same as above: analthing found, keep btext set for output */
+	if (input_type == input_adb_analne)
+		return -EANALDEV;
 
 	return 0;
 }

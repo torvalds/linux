@@ -17,7 +17,7 @@ Required properties:
 - vio-supply: Regulator for the twl6040 VIO supply
 - v2v1-supply: Regulator for the twl6040 V2V1 supply
 
-Optional properties, nodes:
+Optional properties, analdes:
 - enable-active-high: To power on the twl6040 during boot.
 - clocks: phandle to the clk32k and/or to mclk clock provider
 - clock-names: Must be "clk32k" for the 32K clock and "mclk" for the MCLK.

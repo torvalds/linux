@@ -9,7 +9,7 @@
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/idr.h>
@@ -92,11 +92,11 @@ static int textual_leaf_to_string(const u32 *block, char *buf, size_t size)
 
 	quadlets = min(block[0] >> 16, 256U);
 	if (quadlets < 2)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (block[1] != 0 || block[2] != 0)
-		/* unknown language/character set */
-		return -ENODATA;
+		/* unkanalwn language/character set */
+		return -EANALDATA;
 
 	block += 3;
 	quadlets -= 2;
@@ -128,7 +128,7 @@ int fw_csr_string(const u32 *directory, int key, char *buf, size_t size)
 {
 	const u32 *leaf = search_leaf(directory, key);
 	if (!leaf)
-		return -ENOENT;
+		return -EANALENT;
 
 	return textual_leaf_to_string(leaf, buf, size);
 }
@@ -248,7 +248,7 @@ static int fw_unit_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	get_modalias(unit, modalias, sizeof(modalias));
 
 	if (add_uevent_var(env, "MODALIAS=%s", modalias))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -265,11 +265,11 @@ int fw_device_enable_phys_dma(struct fw_device *device)
 {
 	int generation = device->generation;
 
-	/* device->node_id, accessed below, must not be older than generation */
+	/* device->analde_id, accessed below, must analt be older than generation */
 	smp_rmb();
 
 	return device->card->driver->enable_phys_dma(device->card,
-						     device->node_id,
+						     device->analde_id,
 						     generation);
 }
 EXPORT_SYMBOL(fw_device_enable_phys_dma);
@@ -320,7 +320,7 @@ static ssize_t show_immediate(struct device *dev,
 	up_read(&fw_device_rwsem);
 
 	if (value < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	return snprintf(buf, buf ? PAGE_SIZE : 0, "0x%06x\n", value);
 }
@@ -336,7 +336,7 @@ static ssize_t show_text_leaf(struct device *dev,
 	const u32 *directories[] = {NULL, NULL};
 	size_t bufsize;
 	char dummy_buf[2];
-	int i, ret = -ENOENT;
+	int i, ret = -EANALENT;
 
 	down_read(&fw_device_rwsem);
 
@@ -553,12 +553,12 @@ static int read_rom(struct fw_device *device,
 	u64 offset = (CSR_REGISTER_BASE | CSR_CONFIG_ROM) + index * 4;
 	int i, rcode;
 
-	/* device->node_id, accessed below, must not be older than generation */
+	/* device->analde_id, accessed below, must analt be older than generation */
 	smp_rmb();
 
 	for (i = 10; i < 100; i += 10) {
 		rcode = fw_run_transaction(device->card,
-				TCODE_READ_QUADLET_REQUEST, device->node_id,
+				TCODE_READ_QUADLET_REQUEST, device->analde_id,
 				generation, device->max_speed, offset, data, 4);
 		if (rcode != RCODE_BUSY)
 			break;
@@ -575,7 +575,7 @@ static int read_rom(struct fw_device *device,
  * Read the bus info block, perform a speed probe, and read all of the rest of
  * the config ROM.  We do all this with a cached bus generation.  If the bus
  * generation changes under us, read_config_rom will fail and get retried.
- * It's better to start all over in this case because the node from which we
+ * It's better to start all over in this case because the analde from which we
  * are reading the ROM may have changed the ROM during the reset.
  * Returns either a result code or a negative error code.
  */
@@ -590,7 +590,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	rom = kmalloc(sizeof(*rom) * MAX_CONFIG_ROM_SIZE +
 		      sizeof(*stack) * MAX_CONFIG_ROM_SIZE, GFP_KERNEL);
 	if (rom == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stack = &rom[MAX_CONFIG_ROM_SIZE];
 	memset(rom, 0, sizeof(*rom) * MAX_CONFIG_ROM_SIZE);
@@ -616,16 +616,16 @@ static int read_config_rom(struct fw_device *device, int generation)
 		}
 	}
 
-	device->max_speed = device->node->max_speed;
+	device->max_speed = device->analde->max_speed;
 
 	/*
 	 * Determine the speed of
 	 *   - devices with link speed less than PHY speed,
 	 *   - devices with 1394b PHY (unless only connected to 1394a PHYs),
 	 *   - all devices if there are 1394b repeaters.
-	 * Note, we cannot use the bus info block's link_spd as starting point
+	 * Analte, we cananalt use the bus info block's link_spd as starting point
 	 * because some buggy firmwares set it lower than necessary and because
-	 * 1394-1995 nodes do not have the field.
+	 * 1394-1995 analdes do analt have the field.
 	 */
 	if ((rom[2] & 0x7) < device->max_speed ||
 	    device->max_speed == SCODE_BETA ||
@@ -645,7 +645,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	}
 
 	/*
-	 * Now parse the config rom.  The config rom is a recursive
+	 * Analw parse the config rom.  The config rom is a recursive
 	 * directory structure so we parse it using a stack of
 	 * references to the blocks that make up the structure.  We
 	 * push a reference to the root directory on the stack to
@@ -676,7 +676,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 		if (end > MAX_CONFIG_ROM_SIZE) {
 			/*
 			 * This block extends outside the config ROM which is
-			 * a firmware bug.  Ignore this whole block, i.e.
+			 * a firmware bug.  Iganalre this whole block, i.e.
 			 * simply set a fake block length of 0.
 			 */
 			fw_err(card, "skipped invalid ROM block %x at %llx\n",
@@ -688,9 +688,9 @@ static int read_config_rom(struct fw_device *device, int generation)
 		i++;
 
 		/*
-		 * Now read in the block.  If this is a directory
+		 * Analw read in the block.  If this is a directory
 		 * block, check the entries as we read them to see if
-		 * it references another block, and push it in that case.
+		 * it references aanalther block, and push it in that case.
 		 */
 		for (; i < end; i++) {
 			ret = read_rom(device, generation, i, &rom[i]);
@@ -723,7 +723,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	old_rom = device->config_rom;
 	new_rom = kmemdup(rom, length * 4, GFP_KERNEL);
 	if (new_rom == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -825,7 +825,7 @@ struct fw_device *fw_device_get_by_devt(dev_t devt)
 	struct fw_device *device;
 
 	down_read(&fw_device_rwsem);
-	device = idr_find(&fw_device_idr, MINOR(devt));
+	device = idr_find(&fw_device_idr, MIANALR(devt));
 	if (device)
 		fw_device_get(device);
 	up_read(&fw_device_rwsem);
@@ -845,10 +845,10 @@ static void fw_schedule_device_work(struct fw_device *device,
 /*
  * These defines control the retry behavior for reading the config
  * rom.  It shouldn't be necessary to tweak these; if the device
- * doesn't respond to a config rom read within 10 seconds, it's not
+ * doesn't respond to a config rom read within 10 seconds, it's analt
  * going to respond at all.  As for the initial delay, a lot of
  * devices will be able to respond within half a second after bus
- * reset.  On the other hand, it's not really worth being more
+ * reset.  On the other hand, it's analt really worth being more
  * aggressive than that, since it scales pretty well; if 10 devices
  * are plugged in, they're all getting read within one second.
  */
@@ -862,7 +862,7 @@ static void fw_device_shutdown(struct work_struct *work)
 {
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
-	int minor = MINOR(device->device.devt);
+	int mianalr = MIANALR(device->device.devt);
 
 	if (time_before64(get_jiffies_64(),
 			  device->card->reset_jiffies + SHUTDOWN_DELAY)
@@ -881,7 +881,7 @@ static void fw_device_shutdown(struct work_struct *work)
 	device_unregister(&device->device);
 
 	down_write(&fw_device_rwsem);
-	idr_remove(&fw_device_idr, minor);
+	idr_remove(&fw_device_idr, mianalr);
 	up_write(&fw_device_rwsem);
 
 	fw_device_put(device);
@@ -895,14 +895,14 @@ static void fw_device_release(struct device *dev)
 
 	/*
 	 * Take the card lock so we don't set this to NULL while a
-	 * FW_NODE_UPDATED callback is being handled or while the
-	 * bus manager work looks at this node.
+	 * FW_ANALDE_UPDATED callback is being handled or while the
+	 * bus manager work looks at this analde.
 	 */
 	spin_lock_irqsave(&card->lock, flags);
-	device->node->data = NULL;
+	device->analde->data = NULL;
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	fw_node_put(device->node);
+	fw_analde_put(device->analde);
 	kfree(device->config_rom);
 	kfree(device);
 	fw_card_put(card);
@@ -941,7 +941,7 @@ static void fw_device_update(struct work_struct *work)
 }
 
 /*
- * If a device was pending for deletion because its node went away but its
+ * If a device was pending for deletion because its analde went away but its
  * bus info block and root directory header matches that of a newly discovered
  * device, revive the existing fw_device.
  * The newly allocated fw_device becomes obsolete instead.
@@ -957,31 +957,31 @@ static int lookup_existing_device(struct device *dev, void *data)
 		return 0;
 
 	down_read(&fw_device_rwsem); /* serialize config_rom access */
-	spin_lock_irq(&card->lock);  /* serialize node access */
+	spin_lock_irq(&card->lock);  /* serialize analde access */
 
 	if (memcmp(old->config_rom, new->config_rom, 6 * 4) == 0 &&
 	    atomic_cmpxchg(&old->state,
 			   FW_DEVICE_GONE,
 			   FW_DEVICE_RUNNING) == FW_DEVICE_GONE) {
-		struct fw_node *current_node = new->node;
-		struct fw_node *obsolete_node = old->node;
+		struct fw_analde *current_analde = new->analde;
+		struct fw_analde *obsolete_analde = old->analde;
 
-		new->node = obsolete_node;
-		new->node->data = new;
-		old->node = current_node;
-		old->node->data = old;
+		new->analde = obsolete_analde;
+		new->analde->data = new;
+		old->analde = current_analde;
+		old->analde->data = old;
 
 		old->max_speed = new->max_speed;
-		old->node_id = current_node->node_id;
-		smp_wmb();  /* update node_id before generation */
+		old->analde_id = current_analde->analde_id;
+		smp_wmb();  /* update analde_id before generation */
 		old->generation = card->generation;
 		old->config_rom_retries = 0;
-		fw_notice(card, "rediscovered device %s\n", dev_name(dev));
+		fw_analtice(card, "rediscovered device %s\n", dev_name(dev));
 
 		old->workfn = fw_device_update;
 		fw_schedule_device_work(old, 0);
 
-		if (current_node == card->root_node)
+		if (current_analde == card->root_analde)
 			fw_schedule_bm_work(card, 0);
 
 		match = 1;
@@ -993,7 +993,7 @@ static int lookup_existing_device(struct device *dev, void *data)
 	return match;
 }
 
-enum { BC_UNKNOWN = 0, BC_UNIMPLEMENTED, BC_IMPLEMENTED, };
+enum { BC_UNKANALWN = 0, BC_UNIMPLEMENTED, BC_IMPLEMENTED, };
 
 static void set_broadcast_channel(struct fw_device *device, int generation)
 {
@@ -1005,22 +1005,22 @@ static void set_broadcast_channel(struct fw_device *device, int generation)
 		return;
 
 	/*
-	 * The Broadcast_Channel Valid bit is required by nodes which want to
+	 * The Broadcast_Channel Valid bit is required by analdes which want to
 	 * transmit on this channel.  Such transmissions are practically
-	 * exclusive to IP over 1394 (RFC 2734).  IP capable nodes are required
+	 * exclusive to IP over 1394 (RFC 2734).  IP capable analdes are required
 	 * to be IRM capable and have a max_rec of 8 or more.  We use this fact
-	 * to narrow down to which nodes we send Broadcast_Channel updates.
+	 * to narrow down to which analdes we send Broadcast_Channel updates.
 	 */
 	if (!device->irmc || device->max_rec < 8)
 		return;
 
 	/*
-	 * Some 1394-1995 nodes crash if this 1394a-2000 register is written.
+	 * Some 1394-1995 analdes crash if this 1394a-2000 register is written.
 	 * Perform a read test first.
 	 */
-	if (device->bc_implemented == BC_UNKNOWN) {
+	if (device->bc_implemented == BC_UNKANALWN) {
 		rcode = fw_run_transaction(card, TCODE_READ_QUADLET_REQUEST,
-				device->node_id, generation, device->max_speed,
+				device->analde_id, generation, device->max_speed,
 				CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
 				&data, 4);
 		switch (rcode) {
@@ -1039,7 +1039,7 @@ static void set_broadcast_channel(struct fw_device *device, int generation)
 		data = cpu_to_be32(BROADCAST_CHANNEL_INITIAL |
 				   BROADCAST_CHANNEL_VALID);
 		fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
-				device->node_id, generation, device->max_speed,
+				device->analde_id, generation, device->max_speed,
 				CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
 				&data, 4);
 	}
@@ -1059,10 +1059,10 @@ static void fw_device_init(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	struct fw_card *card = device->card;
 	struct device *revived_dev;
-	int minor, ret;
+	int mianalr, ret;
 
 	/*
-	 * All failure paths here set node->data to NULL, so that we
+	 * All failure paths here set analde->data to NULL, so that we
 	 * don't try to do device_for_each_child() on a kfree()'d
 	 * device.
 	 */
@@ -1074,11 +1074,11 @@ static void fw_device_init(struct work_struct *work)
 			device->config_rom_retries++;
 			fw_schedule_device_work(device, RETRY_DELAY);
 		} else {
-			if (device->node->link_on)
-				fw_notice(card, "giving up on node %x: reading config rom failed: %s\n",
-					  device->node_id,
+			if (device->analde->link_on)
+				fw_analtice(card, "giving up on analde %x: reading config rom failed: %s\n",
+					  device->analde_id,
 					  fw_rcode_string(ret));
-			if (device->node == card->root_node)
+			if (device->analde == card->root_analde)
 				fw_schedule_bm_work(card, 0);
 			fw_device_release(&device->device);
 		}
@@ -1098,18 +1098,18 @@ static void fw_device_init(struct work_struct *work)
 
 	fw_device_get(device);
 	down_write(&fw_device_rwsem);
-	minor = idr_alloc(&fw_device_idr, device, 0, 1 << MINORBITS,
+	mianalr = idr_alloc(&fw_device_idr, device, 0, 1 << MIANALRBITS,
 			GFP_KERNEL);
 	up_write(&fw_device_rwsem);
 
-	if (minor < 0)
+	if (mianalr < 0)
 		goto error;
 
 	device->device.bus = &fw_bus_type;
 	device->device.type = &fw_device_type;
 	device->device.parent = card->device;
-	device->device.devt = MKDEV(fw_cdev_major, minor);
-	dev_set_name(&device->device, "fw%d", minor);
+	device->device.devt = MKDEV(fw_cdev_major, mianalr);
+	dev_set_name(&device->device, "fw%d", mianalr);
 
 	BUILD_BUG_ON(ARRAY_SIZE(device->attribute_group.attrs) <
 			ARRAY_SIZE(fw_device_attributes) +
@@ -1128,11 +1128,11 @@ static void fw_device_init(struct work_struct *work)
 	/*
 	 * Transition the device to running state.  If it got pulled
 	 * out from under us while we did the initialization work, we
-	 * have to shut down the device again here.  Normally, though,
-	 * fw_node_event will be responsible for shutting it down when
+	 * have to shut down the device again here.  Analrmally, though,
+	 * fw_analde_event will be responsible for shutting it down when
 	 * necessary.  We have to use the atomic cmpxchg here to avoid
-	 * racing with the FW_NODE_DESTROYED case in
-	 * fw_node_event().
+	 * racing with the FW_ANALDE_DESTROYED case in
+	 * fw_analde_event().
 	 */
 	if (atomic_cmpxchg(&device->state,
 			   FW_DEVICE_INITIALIZING,
@@ -1140,7 +1140,7 @@ static void fw_device_init(struct work_struct *work)
 		device->workfn = fw_device_shutdown;
 		fw_schedule_device_work(device, SHUTDOWN_DELAY);
 	} else {
-		fw_notice(card, "created device %s: GUID %08x%08x, S%d00\n",
+		fw_analtice(card, "created device %s: GUID %08x%08x, S%d00\n",
 			  dev_name(&device->device),
 			  device->config_rom[3], device->config_rom[4],
 			  1 << device->max_speed);
@@ -1153,18 +1153,18 @@ static void fw_device_init(struct work_struct *work)
 
 	/*
 	 * Reschedule the IRM work if we just finished reading the
-	 * root node config rom.  If this races with a bus reset we
+	 * root analde config rom.  If this races with a bus reset we
 	 * just end up running the IRM work a couple of extra times -
 	 * pretty harmless.
 	 */
-	if (device->node == card->root_node)
+	if (device->analde == card->root_analde)
 		fw_schedule_bm_work(card, 0);
 
 	return;
 
  error_with_cdev:
 	down_write(&fw_device_rwsem);
-	idr_remove(&fw_device_idr, minor);
+	idr_remove(&fw_device_idr, mianalr);
 	up_write(&fw_device_rwsem);
  error:
 	fw_device_put(device);		/* fw_device_idr's reference */
@@ -1203,7 +1203,7 @@ static void fw_device_refresh(struct work_struct *work)
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
 	struct fw_card *card = device->card;
-	int ret, node_id = device->node_id;
+	int ret, analde_id = device->analde_id;
 	bool changed;
 
 	ret = reread_config_rom(device, device->generation, &changed);
@@ -1242,7 +1242,7 @@ static void fw_device_refresh(struct work_struct *work)
 			   FW_DEVICE_RUNNING) == FW_DEVICE_GONE)
 		goto gone;
 
-	fw_notice(card, "refreshed device %s\n", dev_name(&device->device));
+	fw_analtice(card, "refreshed device %s\n", dev_name(&device->device));
 	device->config_rom_retries = 0;
 	goto out;
 
@@ -1254,14 +1254,14 @@ static void fw_device_refresh(struct work_struct *work)
 		return;
 	}
 
-	fw_notice(card, "giving up on refresh of device %s: %s\n",
+	fw_analtice(card, "giving up on refresh of device %s: %s\n",
 		  dev_name(&device->device), fw_rcode_string(ret));
  gone:
 	atomic_set(&device->state, FW_DEVICE_GONE);
 	device->workfn = fw_device_shutdown;
 	fw_schedule_device_work(device, SHUTDOWN_DELAY);
  out:
-	if (node_id == card->root_node->node_id)
+	if (analde_id == card->root_analde->analde_id)
 		fw_schedule_bm_work(card, 0);
 }
 
@@ -1272,15 +1272,15 @@ static void fw_device_workfn(struct work_struct *work)
 	device->workfn(work);
 }
 
-void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
+void fw_analde_event(struct fw_card *card, struct fw_analde *analde, int event)
 {
 	struct fw_device *device;
 
 	switch (event) {
-	case FW_NODE_CREATED:
+	case FW_ANALDE_CREATED:
 		/*
-		 * Attempt to scan the node, regardless whether its self ID has
-		 * the L (link active) flag set or not.  Some broken devices
+		 * Attempt to scan the analde, regardless whether its self ID has
+		 * the L (link active) flag set or analt.  Some broken devices
 		 * send L=0 but have an up-and-running link; others send L=1
 		 * without actually having a link.
 		 */
@@ -1294,26 +1294,26 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * rest will happen in fw_device_init().
 		 *
 		 * Attention:  A lot of things, even fw_device_get(),
-		 * cannot be done before fw_device_init() finished!
+		 * cananalt be done before fw_device_init() finished!
 		 * You can basically just check device->state and
 		 * schedule work until then, but only while holding
 		 * card->lock.
 		 */
 		atomic_set(&device->state, FW_DEVICE_INITIALIZING);
 		device->card = fw_card_get(card);
-		device->node = fw_node_get(node);
-		device->node_id = node->node_id;
+		device->analde = fw_analde_get(analde);
+		device->analde_id = analde->analde_id;
 		device->generation = card->generation;
-		device->is_local = node == card->local_node;
+		device->is_local = analde == card->local_analde;
 		mutex_init(&device->client_list_mutex);
 		INIT_LIST_HEAD(&device->client_list);
 
 		/*
-		 * Set the node data to point back to this device so
-		 * FW_NODE_UPDATED callbacks can update the node_id
+		 * Set the analde data to point back to this device so
+		 * FW_ANALDE_UPDATED callbacks can update the analde_id
 		 * and generation for the device.
 		 */
-		node->data = device;
+		analde->data = device;
 
 		/*
 		 * Many devices are slow to respond after bus resets,
@@ -1326,14 +1326,14 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		fw_schedule_device_work(device, INITIAL_DELAY);
 		break;
 
-	case FW_NODE_INITIATED_RESET:
-	case FW_NODE_LINK_ON:
-		device = node->data;
+	case FW_ANALDE_INITIATED_RESET:
+	case FW_ANALDE_LINK_ON:
+		device = analde->data;
 		if (device == NULL)
 			goto create;
 
-		device->node_id = node->node_id;
-		smp_wmb();  /* update node_id before generation */
+		device->analde_id = analde->analde_id;
+		smp_wmb();  /* update analde_id before generation */
 		device->generation = card->generation;
 		if (atomic_cmpxchg(&device->state,
 			    FW_DEVICE_RUNNING,
@@ -1344,13 +1344,13 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		}
 		break;
 
-	case FW_NODE_UPDATED:
-		device = node->data;
+	case FW_ANALDE_UPDATED:
+		device = analde->data;
 		if (device == NULL)
 			break;
 
-		device->node_id = node->node_id;
-		smp_wmb();  /* update node_id before generation */
+		device->analde_id = analde->analde_id;
+		smp_wmb();  /* update analde_id before generation */
 		device->generation = card->generation;
 		if (atomic_read(&device->state) == FW_DEVICE_RUNNING) {
 			device->workfn = fw_device_update;
@@ -1358,24 +1358,24 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		}
 		break;
 
-	case FW_NODE_DESTROYED:
-	case FW_NODE_LINK_OFF:
-		if (!node->data)
+	case FW_ANALDE_DESTROYED:
+	case FW_ANALDE_LINK_OFF:
+		if (!analde->data)
 			break;
 
 		/*
-		 * Destroy the device associated with the node.  There
+		 * Destroy the device associated with the analde.  There
 		 * are two cases here: either the device is fully
 		 * initialized (FW_DEVICE_RUNNING) or we're in the
 		 * process of reading its config rom
 		 * (FW_DEVICE_INITIALIZING).  If it is fully
 		 * initialized we can reuse device->work to schedule a
-		 * full fw_device_shutdown().  If not, there's work
+		 * full fw_device_shutdown().  If analt, there's work
 		 * scheduled to read it's config rom, and we just put
 		 * the device in shutdown state to have that code fail
 		 * to create the device.
 		 */
-		device = node->data;
+		device = analde->data;
 		if (atomic_xchg(&device->state,
 				FW_DEVICE_GONE) == FW_DEVICE_RUNNING) {
 			device->workfn = fw_device_shutdown;

@@ -21,7 +21,7 @@
 #ifndef __ASM_OPENRISC_PGTABLE_H
 #define __ASM_OPENRISC_PGTABLE_H
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 #ifndef __ASSEMBLY__
 #include <asm/mmu.h>
@@ -32,7 +32,7 @@
  * or1k, we use that, but "fold" the mid level into the top-level page
  * table. Since the MMU TLB is software loaded through an interrupt, it
  * supports any page table structure, so we could have used a three-level
- * setup, but for the amounts of memory we normally use, a two-level is
+ * setup, but for the amounts of memory we analrmally use, a two-level is
  * probably more efficient.
  *
  * This file contains the functions and defines necessary to modify and use
@@ -144,7 +144,7 @@ extern void paging_init(void);
 #define _PAGE_WRITE    (_PAGE_UWE | _PAGE_SWE)
 #define _PAGE_DIRTY    _PAGE_D
 #define _PAGE_ACCESSED _PAGE_A
-#define _PAGE_NO_CACHE _PAGE_CI
+#define _PAGE_ANAL_CACHE _PAGE_CI
 #define _PAGE_SHARED   _PAGE_U_SHARED
 #define _PAGE_READ     (_PAGE_URE | _PAGE_SRE)
 
@@ -157,7 +157,7 @@ extern void paging_init(void);
 /* We borrow bit 11 to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	_PAGE_U_SHARED
 
-#define PAGE_NONE       __pgprot(_PAGE_ALL)
+#define PAGE_ANALNE       __pgprot(_PAGE_ALL)
 #define PAGE_READONLY   __pgprot(_PAGE_ALL | _PAGE_URE | _PAGE_SRE)
 #define PAGE_READONLY_X __pgprot(_PAGE_ALL | _PAGE_URE | _PAGE_SRE | _PAGE_EXEC)
 #define PAGE_SHARED \
@@ -175,7 +175,7 @@ extern void paging_init(void);
 #define PAGE_KERNEL_RO \
 	__pgprot(_PAGE_ALL | _PAGE_SRE \
 		 | _PAGE_SHARED | _PAGE_DIRTY | _PAGE_EXEC)
-#define PAGE_KERNEL_NOCACHE \
+#define PAGE_KERNEL_ANALCACHE \
 	__pgprot(_PAGE_ALL | _PAGE_SRE | _PAGE_SWE \
 		 | _PAGE_SHARED | _PAGE_DIRTY | _PAGE_EXEC | _PAGE_CI)
 
@@ -200,18 +200,18 @@ extern unsigned long empty_zero_page[2048];
 /* to set the page-dir */
 #define SET_PAGE_DIR(tsk, pgdir)
 
-#define pte_none(x)	(!pte_val(x))
+#define pte_analne(x)	(!pte_val(x))
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, xp)	do { pte_val(*(xp)) = 0; } while (0)
 
-#define pmd_none(x)	(!pmd_val(x))
+#define pmd_analne(x)	(!pmd_val(x))
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK)) != _KERNPG_TABLE)
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
 #define pmd_clear(xp)	do { pmd_val(*(xp)) = 0; } while (0)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 
 static inline int pte_read(pte_t pte)  { return pte_val(pte) & _PAGE_READ; }
@@ -250,7 +250,7 @@ static inline pte_t pte_mkold(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_WRITE;
 	return pte;
@@ -395,7 +395,7 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -403,7 +403,7 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   <-------------- offset ---------------> E <- type --> 0 0 0 0 0
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  *   The zero'ed bits include _PAGE_PRESENT.
  */
 #define __swp_type(x)			(((x).val >> 5) & 0x3f)

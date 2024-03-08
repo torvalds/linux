@@ -16,7 +16,7 @@
  *
  * This function gets called during call to hid_add_device
  *
- * Return: 0 on success and non zero on error
+ * Return: 0 on success and analn zero on error
  */
 static int ishtp_hid_parse(struct hid_device *hid)
 {
@@ -80,7 +80,7 @@ static int ishtp_raw_request(struct hid_device *hid, unsigned char reportnum,
 		ishtp_buf_len = len + header_size;
 		ishtp_buf = kzalloc(ishtp_buf_len + 7, GFP_KERNEL);
 		if (!ishtp_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(ishtp_buf + header_size, buf, len);
 		hid_ishtp_set_feature(hid, ishtp_buf, ishtp_buf_len, reportnum);
@@ -140,7 +140,7 @@ static void ishtp_hid_request(struct hid_device *hid, struct hid_report *rep,
  *
  * This function is used to wait after get feaure/input report.
  *
- * Return: 0 on success and non zero on error
+ * Return: 0 on success and analn zero on error
  */
 static int ishtp_wait_for_response(struct hid_device *hid)
 {
@@ -201,7 +201,7 @@ static const struct hid_ll_driver ishtp_hid_ll_driver = {
  *
  * This function is used to allocate and add HID device.
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, analn zero on error
  */
 int ishtp_hid_probe(unsigned int cur_hid_dev,
 		    struct ishtp_cl_data *client_data)
@@ -216,7 +216,7 @@ int ishtp_hid_probe(unsigned int cur_hid_dev,
 
 	hid_data = kzalloc(sizeof(*hid_data), GFP_KERNEL);
 	if (!hid_data) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_hid_data;
 	}
 

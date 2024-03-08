@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_context.h"
 #include "pvr_debugfs.h"
@@ -40,7 +40,7 @@
 /**
  * DOC: PowerVR (Series 6 and later) and IMG Graphics Driver
  *
- * This driver supports the following PowerVR/IMG graphics cores from Imagination Technologies:
+ * This driver supports the following PowerVR/IMG graphics cores from Imagination Techanallogies:
  *
  * * AXE-1-16M (found in Texas Instruments AM62)
  */
@@ -60,7 +60,7 @@
  *    or wider than &typedef size_t,
  *  * -%EINVAL if any bits in &drm_pvr_ioctl_create_bo_args.flags that are
  *    reserved or undefined are set,
- *  * -%EINVAL if any padding fields in &drm_pvr_ioctl_create_bo_args are not
+ *  * -%EINVAL if any padding fields in &drm_pvr_ioctl_create_bo_args are analt
  *    zero,
  *  * Any error encountered while creating the object (see
  *    pvr_gem_object_create()), or
@@ -116,7 +116,7 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 		goto err_drm_dev_exit;
 	}
 
-	/* This function will not modify &args->handle unless it succeeds. */
+	/* This function will analt modify &args->handle unless it succeeds. */
 	err = pvr_gem_object_into_handle(pvr_obj, pvr_file, &args->handle);
 	if (err)
 		goto err_destroy_obj;
@@ -127,7 +127,7 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 
 err_destroy_obj:
 	/*
-	 * GEM objects are refcounted, so there is no explicit destructor
+	 * GEM objects are refcounted, so there is anal explicit destructor
 	 * function. Instead, we release the singular reference we currently
 	 * hold on the object and let GEM take care of the rest.
 	 */
@@ -149,14 +149,14 @@ err_drm_dev_exit:
  *
  * Called from userspace with %DRM_IOCTL_PVR_GET_BO_MMAP_OFFSET.
  *
- * This IOCTL does *not* perform an mmap. See the docs on
+ * This IOCTL does *analt* perform an mmap. See the docs on
  * &struct drm_pvr_ioctl_get_bo_mmap_offset_args for details.
  *
  * Return:
  *  * 0 on success,
- *  * -%ENOENT if the handle does not reference a valid GEM buffer object,
+ *  * -%EANALENT if the handle does analt reference a valid GEM buffer object,
  *  * -%EINVAL if any padding fields in &struct
- *    drm_pvr_ioctl_get_bo_mmap_offset_args are not zero, or
+ *    drm_pvr_ioctl_get_bo_mmap_offset_args are analt zero, or
  *  * Any error returned by drm_gem_create_mmap_offset().
  */
 static int
@@ -182,12 +182,12 @@ pvr_ioctl_get_bo_mmap_offset(struct drm_device *drm_dev, void *raw_args,
 	/*
 	 * Obtain a kernel reference to the buffer object. This reference is
 	 * counted and must be manually dropped before returning. If a buffer
-	 * object cannot be found for the specified handle, return -%ENOENT (No
+	 * object cananalt be found for the specified handle, return -%EANALENT (Anal
 	 * such file or directory).
 	 */
 	pvr_obj = pvr_gem_object_from_handle(pvr_file, args->handle);
 	if (!pvr_obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_drm_dev_exit;
 	}
 
@@ -209,7 +209,7 @@ pvr_ioctl_get_bo_mmap_offset(struct drm_device *drm_dev, void *raw_args,
 	 * Read out the fake offset allocated by the earlier call to
 	 * drm_gem_create_mmap_offset.
 	 */
-	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+	args->offset = drm_vma_analde_offset_addr(&gem_obj->vma_analde);
 
 	/* Drop our reference to the buffer object. */
 	pvr_gem_object_put(pvr_obj);
@@ -221,9 +221,9 @@ err_drm_dev_exit:
 }
 
 static __always_inline u64
-pvr_fw_version_packed(u32 major, u32 minor)
+pvr_fw_version_packed(u32 major, u32 mianalr)
 {
-	return ((u64)major << 32) | minor;
+	return ((u64)major << 32) | mianalr;
 }
 
 static u32
@@ -319,7 +319,7 @@ rogue_get_cdm_max_local_mem_size_regs(struct pvr_device *pvr_dev)
 
 	if (PVR_HAS_QUIRK(pvr_dev, 48492) && PVR_HAS_FEATURE(pvr_dev, roguexe) &&
 	    !PVR_HAS_FEATURE(pvr_dev, compute_overlap)) {
-		/* Driver must not use the 2 reserved lines. */
+		/* Driver must analt use the 2 reserved lines. */
 		available_coeffs_in_dwords -= ROGUE_CSRM_LINE_SIZE_IN_DWORDS * 2;
 	}
 
@@ -347,7 +347,7 @@ rogue_get_cdm_max_local_mem_size_regs(struct pvr_device *pvr_dev)
  *  * 0 on success, or if size is requested using a NULL pointer, or
  *  * -%E2BIG if the indicated length of the allocation is less than is
  *    required to contain the copied data, or
- *  * -%EFAULT if local memory could not be copied to userspace.
+ *  * -%EFAULT if local memory could analt be copied to userspace.
  */
 static int
 pvr_dev_query_gpu_info_get(struct pvr_device *pvr_dev,
@@ -387,7 +387,7 @@ pvr_dev_query_gpu_info_get(struct pvr_device *pvr_dev,
  *  * 0 on success, or if size is requested using a NULL pointer, or
  *  * -%E2BIG if the indicated length of the allocation is less than is
  *    required to contain the copied data, or
- *  * -%EFAULT if local memory could not be copied to userspace.
+ *  * -%EFAULT if local memory could analt be copied to userspace.
  */
 static int
 pvr_dev_query_runtime_info_get(struct pvr_device *pvr_dev,
@@ -433,17 +433,17 @@ pvr_dev_query_runtime_info_get(struct pvr_device *pvr_dev,
  * If the query object pointer is NULL, the size field is updated with the
  * expected size of the query object.
  * If the userspace pointer in the query object is NULL, or the count is
- * short, no data is copied.
+ * short, anal data is copied.
  * The count field will be updated to that copied, or if either pointer is
  * NULL, that which would have been copied.
  * The size field in the query object will be updated to the size copied.
  *
  * Returns:
  *  * 0 on success, or if size/count is requested using a NULL pointer, or
- *  * -%EINVAL if args contained non-zero reserved fields, or
+ *  * -%EINVAL if args contained analn-zero reserved fields, or
  *  * -%E2BIG if the indicated length of the allocation is less than is
  *    required to contain the copied data, or
- *  * -%EFAULT if local memory could not be copied to userspace.
+ *  * -%EFAULT if local memory could analt be copied to userspace.
  */
 static int
 pvr_dev_query_quirks_get(struct pvr_device *pvr_dev,
@@ -527,17 +527,17 @@ copy_out:
  * If the query object pointer is NULL, the size field is updated with the
  * expected size of the query object.
  * If the userspace pointer in the query object is NULL, or the count is
- * short, no data is copied.
+ * short, anal data is copied.
  * The count field will be updated to that copied, or if either pointer is
  * NULL, that which would have been copied.
  * The size field in the query object will be updated to the size copied.
  *
  * Returns:
  *  * 0 on success, or if size/count is requested using a NULL pointer, or
- *  * -%EINVAL if args contained non-zero reserved fields, or
+ *  * -%EINVAL if args contained analn-zero reserved fields, or
  *  * -%E2BIG if the indicated length of the allocation is less than is
  *    required to contain the copied data, or
- *  * -%EFAULT if local memory could not be copied to userspace.
+ *  * -%EFAULT if local memory could analt be copied to userspace.
  */
 static int
 pvr_dev_query_enhancements_get(struct pvr_device *pvr_dev,
@@ -613,9 +613,9 @@ copy_out:
  *  * 0 on success or when fetching the size with args->pointer == NULL, or
  *  * -%E2BIG if the indicated size of the receiving struct is less than is
  *    required to contain the copied data, or
- *  * -%EINVAL if the indicated struct type is unknown, or
- *  * -%ENOMEM if local memory could not be allocated, or
- *  * -%EFAULT if local memory could not be copied to userspace.
+ *  * -%EINVAL if the indicated struct type is unkanalwn, or
+ *  * -%EANALMEM if local memory could analt be allocated, or
+ *  * -%EFAULT if local memory could analt be copied to userspace.
  */
 static int
 pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
@@ -705,7 +705,7 @@ pvr_ioctl_create_context(struct drm_device *drm_dev, void *raw_args,
  *
  * Return:
  *  * 0 on success, or
- *  * -%EINVAL if context not in context list.
+ *  * -%EINVAL if context analt in context list.
  */
 static int
 pvr_ioctl_destroy_context(struct drm_device *drm_dev, void *raw_args,
@@ -785,7 +785,7 @@ err_drm_dev_exit:
  *
  * Return:
  *  * 0 on success, or
- *  * -%EINVAL if free list not in object list.
+ *  * -%EINVAL if free list analt in object list.
  */
 static int
 pvr_ioctl_destroy_free_list(struct drm_device *drm_dev, void *raw_args,
@@ -871,7 +871,7 @@ err_drm_dev_exit:
  *
  * Return:
  *  * 0 on success, or
- *  * -%EINVAL if HWRT dataset not in object list.
+ *  * -%EINVAL if HWRT dataset analt in object list.
  */
 static int
 pvr_ioctl_destroy_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
@@ -962,7 +962,7 @@ err_drm_dev_exit:
 ￼*
 ￼* Return:
 ￼*  * 0 on success, or
-￼*  * -%EINVAL if object not in object list.
+￼*  * -%EINVAL if object analt in object list.
  */
 static int
 pvr_ioctl_destroy_vm_context(struct drm_device *drm_dev, void *raw_args,
@@ -994,16 +994,16 @@ pvr_ioctl_destroy_vm_context(struct drm_device *drm_dev, void *raw_args,
  *
  * Return:
  *  * 0 on success,
- *  * -%EINVAL if &drm_pvr_ioctl_vm_op_map_args.flags is not zero,
+ *  * -%EINVAL if &drm_pvr_ioctl_vm_op_map_args.flags is analt zero,
  *  * -%EINVAL if the bounds specified by &drm_pvr_ioctl_vm_op_map_args.offset
- *    and &drm_pvr_ioctl_vm_op_map_args.size are not valid or do not fall
+ *    and &drm_pvr_ioctl_vm_op_map_args.size are analt valid or do analt fall
  *    within the buffer object specified by
  *    &drm_pvr_ioctl_vm_op_map_args.handle,
  *  * -%EINVAL if the bounds specified by
  *    &drm_pvr_ioctl_vm_op_map_args.device_addr and
- *    &drm_pvr_ioctl_vm_op_map_args.size do not form a valid device-virtual
+ *    &drm_pvr_ioctl_vm_op_map_args.size do analt form a valid device-virtual
  *    address range which falls entirely within a single heap, or
- *  * -%ENOENT if &drm_pvr_ioctl_vm_op_map_args.handle does not refer to a
+ *  * -%EANALENT if &drm_pvr_ioctl_vm_op_map_args.handle does analt refer to a
  *    valid PowerVR buffer object.
  */
 static int
@@ -1046,7 +1046,7 @@ pvr_ioctl_vm_map(struct drm_device *drm_dev, void *raw_args,
 
 	pvr_obj = pvr_gem_object_from_handle(pvr_file, args->handle);
 	if (!pvr_obj) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_put_vm_context;
 	}
 
@@ -1054,7 +1054,7 @@ pvr_ioctl_vm_map(struct drm_device *drm_dev, void *raw_args,
 
 	/*
 	 * Validate offset and size args. The alignment of these will be
-	 * checked when mapping; for now just check that they're within valid
+	 * checked when mapping; for analw just check that they're within valid
 	 * bounds
 	 */
 	if (args->offset >= pvr_obj_size || offset_plus_size > pvr_obj_size) {
@@ -1096,9 +1096,9 @@ err_drm_dev_exit:
  *
  * Return:
  *  * 0 on success,
- *  * -%EINVAL if &drm_pvr_ioctl_vm_op_unmap_args.device_addr is not a valid
+ *  * -%EINVAL if &drm_pvr_ioctl_vm_op_unmap_args.device_addr is analt a valid
  *    device page-aligned device-virtual address, or
- *  * -%ENOENT if there is currently no PowerVR buffer object mapped at
+ *  * -%EANALENT if there is currently anal PowerVR buffer object mapped at
  *    &drm_pvr_ioctl_vm_op_unmap_args.device_addr.
  */
 static int
@@ -1198,7 +1198,7 @@ pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_s
 
 	out_alloc = kvmalloc_array(in->count, obj_size, GFP_KERNEL);
 	if (!out_alloc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (obj_size == in->stride) {
 		if (copy_from_user(out_alloc, u64_to_user_ptr(in->array),
@@ -1301,7 +1301,7 @@ static const struct drm_ioctl_desc pvr_drm_driver_ioctls[] = {
  *
  * Return:
  *  * 0 on success,
- *  * -%ENOMEM if the allocation of a &struct ipvr_file fails, or
+ *  * -%EANALMEM if the allocation of a &struct ipvr_file fails, or
  *  * Any error returned by pvr_memory_context_init().
  */
 static int
@@ -1312,7 +1312,7 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 
 	pvr_file = kzalloc(sizeof(*pvr_file), GFP_KERNEL);
 	if (!pvr_file)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Store reference to base DRM file private data for use by
@@ -1386,7 +1386,7 @@ static struct drm_driver pvr_drm_driver = {
 	.desc = PVR_DRIVER_DESC,
 	.date = PVR_DRIVER_DATE,
 	.major = PVR_DRIVER_MAJOR,
-	.minor = PVR_DRIVER_MINOR,
+	.mianalr = PVR_DRIVER_MIANALR,
 	.patchlevel = PVR_DRIVER_PATCHLEVEL,
 
 	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
@@ -1494,7 +1494,7 @@ static struct platform_driver pvr_driver = {
 };
 module_platform_driver(pvr_driver);
 
-MODULE_AUTHOR("Imagination Technologies Ltd.");
+MODULE_AUTHOR("Imagination Techanallogies Ltd.");
 MODULE_DESCRIPTION(PVR_DRIVER_DESC);
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_IMPORT_NS(DMA_BUF);

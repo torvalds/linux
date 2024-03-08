@@ -6,7 +6,7 @@
 //
 // Authors: Namarta Kohli <namartax.kohli@intel.com>
 //          Ramesh Babu K V <ramesh.babu@linux.intel.com>
-//          Vinod Koul <vinod.koul@linux.intel.com>
+//          Vianald Koul <vianald.koul@linux.intel.com>
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -104,7 +104,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 
 	ret = snd_soc_pcm_component_pm_runtime_get(rtd, cstream);
 	if (ret < 0)
-		goto err_no_lock;
+		goto err_anal_lock;
 
 	snd_soc_dpcm_mutex_lock(rtd);
 
@@ -123,7 +123,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	snd_soc_runtime_activate(rtd, stream);
 err:
 	snd_soc_dpcm_mutex_unlock(rtd);
-err_no_lock:
+err_anal_lock:
 	if (ret < 0)
 		soc_compr_clean(cstream, 1);
 
@@ -178,7 +178,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	dpcm_path_put(&list);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_OPEN;
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_ANAL;
 
 	snd_soc_runtime_activate(fe, stream);
 	snd_soc_dpcm_mutex_unlock(fe);
@@ -195,7 +195,7 @@ out:
 	dpcm_path_put(&list);
 	snd_soc_dpcm_mutex_unlock(fe);
 be_err:
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_ANAL;
 	snd_soc_card_mutex_unlock(fe->card);
 	return ret;
 }
@@ -225,7 +225,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_STOP);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_ANAL;
 
 	dpcm_be_disconnect(fe, stream);
 
@@ -314,7 +314,7 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 	}
 
 out:
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_ANAL;
 	snd_soc_card_mutex_unlock(fe->card);
 	return ret;
 }
@@ -410,7 +410,7 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 
 out:
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_ANAL;
 	snd_soc_card_mutex_unlock(fe->card);
 	return ret;
 }
@@ -533,7 +533,7 @@ static struct snd_compr_ops soc_compr_dyn_ops = {
  * snd_soc_new_compress - create a new compress.
  *
  * @rtd: The runtime for which we will create compress
- * @num: the device index number (zero based - shared with normal PCMs)
+ * @num: the device index number (zero based - shared with analrmal PCMs)
  *
  * Return: 0 for success, else error.
  */
@@ -559,7 +559,7 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	if (rtd->dai_link->num_cpus > 1 ||
 	    rtd->dai_link->num_codecs > 1) {
 		dev_err(rtd->card->dev,
-			"Compress ASoC: Multi CPU/Codec not supported\n");
+			"Compress ASoC: Multi CPU/Codec analt supported\n");
 		return -EINVAL;
 	}
 
@@ -594,12 +594,12 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 
 	compr = devm_kzalloc(rtd->card->dev, sizeof(*compr), GFP_KERNEL);
 	if (!compr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	compr->ops = devm_kzalloc(rtd->card->dev, sizeof(soc_compr_ops),
 				  GFP_KERNEL);
 	if (!compr->ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (rtd->dai_link->dynamic) {
 		snprintf(new_name, sizeof(new_name), "(%s)",
@@ -616,7 +616,7 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		}
 
 		/* inherit atomicity from DAI link */
-		be_pcm->nonatomic = rtd->dai_link->nonatomic;
+		be_pcm->analnatomic = rtd->dai_link->analnatomic;
 
 		rtd->pcm = be_pcm;
 		rtd->fe_compr = 1;

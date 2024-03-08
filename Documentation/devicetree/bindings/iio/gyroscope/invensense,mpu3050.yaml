@@ -34,7 +34,7 @@ properties:
       The MPU-3050 will pass through and forward the I2C signals from the
       incoming I2C bus, alternatively drive traffic to a slave device (usually
       an accelerometer) on its own initiative. Therefore is supports an
-      i2c-gate subnode.
+      i2c-gate subanalde.
 
 required:
   - compatible

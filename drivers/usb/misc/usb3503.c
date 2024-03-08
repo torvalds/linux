@@ -130,7 +130,7 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 		bypass = 1;
 		break;
 	default:
-		dev_err(dev, "unknown mode is requested\n");
+		dev_err(dev, "unkanalwn mode is requested\n");
 		return -EINVAL;
 	}
 
@@ -163,7 +163,7 @@ static int usb3503_probe(struct usb3503 *hub)
 {
 	struct device *dev = hub->dev;
 	struct usb3503_platform_data *pdata = dev_get_platdata(dev);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int err;
 	bool is_clk_enabled = false;
 	u32 mode = USB3503_MODE_HUB;
@@ -278,7 +278,7 @@ static int usb3503_probe(struct usb3503 *hub)
 	}
 
 	if (hub->port_off_mask && !hub->regmap)
-		dev_err(dev, "Ports disabled with no control interface\n");
+		dev_err(dev, "Ports disabled with anal control interface\n");
 
 	usb3503_switch_mode(hub, hub->mode);
 
@@ -300,7 +300,7 @@ static int usb3503_i2c_probe(struct i2c_client *i2c)
 
 	hub = devm_kzalloc(&i2c->dev, sizeof(struct usb3503), GFP_KERNEL);
 	if (!hub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, hub);
 	hub->regmap = devm_regmap_init_i2c(i2c, &usb3503_regmap_config);
@@ -328,7 +328,7 @@ static int usb3503_platform_probe(struct platform_device *pdev)
 
 	hub = devm_kzalloc(&pdev->dev, sizeof(struct usb3503), GFP_KERNEL);
 	if (!hub)
-		return -ENOMEM;
+		return -EANALMEM;
 	hub->dev = &pdev->dev;
 	platform_set_drvdata(pdev, hub);
 

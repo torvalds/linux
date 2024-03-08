@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/asm-xtensa/param.h
  *
@@ -22,8 +22,8 @@
 #define NGROUPS		32
 #endif
 
-#ifndef NOGROUP
-#define NOGROUP		(-1)
+#ifndef ANALGROUP
+#define ANALGROUP		(-1)
 #endif
 
 #define MAXHOSTNAMELEN	64	/* max length of hostname */

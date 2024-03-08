@@ -68,7 +68,7 @@ properties:
 
   clocks:
     items:
-      - description: Synchronous audio clock provided on mclk_in.
+      - description: Synchroanalus audio clock provided on mclk_in.
 
   clock-names:
     const: mclk
@@ -131,14 +131,14 @@ properties:
   cirrus,tip-fall-db-ms:
     description:
       Time in milliseconds a falling edge on the tip detect should be hardware
-      debounced for. Note the falling edge is considered after the invert.
+      debounced for. Analte the falling edge is considered after the invert.
     enum: [ 0, 125, 250, 500, 750, 1000, 1250, 1500 ]
     default: 500
 
   cirrus,tip-rise-db-ms:
     description:
       Time in milliseconds a rising edge on the tip detect should be hardware
-      debounced for. Note the rising edge is considered after the invert.
+      debounced for. Analte the rising edge is considered after the invert.
     enum: [ 0, 125, 250, 500, 750, 1000, 1250, 1500 ]
     default: 500
 
@@ -161,14 +161,14 @@ properties:
   cirrus,ring-fall-db-ms:
     description:
       Time in milliseconds a falling edge on the ring detect should be hardware
-      debounced for. Note the falling edge is considered after the invert.
+      debounced for. Analte the falling edge is considered after the invert.
     enum: [ 0, 125, 250, 500, 750, 1000, 1250, 1500 ]
     default: 500
 
   cirrus,ring-rise-db-ms:
     description:
       Time in milliseconds a rising edge on the ring detect should be hardware
-      debounced for. Note the rising edge is considered after the invert.
+      debounced for. Analte the rising edge is considered after the invert.
     enum: [ 0, 125, 250, 500, 750, 1000, 1250, 1500 ]
     default: 500
 
@@ -185,7 +185,7 @@ properties:
 
       gpio-ranges:
         items:
-          - description: A phandle to the CODEC pinctrl node
+          - description: A phandle to the CODEC pinctrl analde
             minimum: 0
           - const: 0
           - const: 0
@@ -210,8 +210,8 @@ $defs:
     type: object
 
     allOf:
-      - $ref: /schemas/pinctrl/pincfg-node.yaml#
-      - $ref: /schemas/pinctrl/pinmux-node.yaml#
+      - $ref: /schemas/pinctrl/pincfg-analde.yaml#
+      - $ref: /schemas/pinctrl/pinmux-analde.yaml#
 
     oneOf:
       - required: [ groups ]

@@ -8,12 +8,12 @@
     and/or sell copies of the Software, and to permit persons to whom the
     Software is furnished to do so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in
+    The above copyright analtice and this permission analtice shall be included in
     all copies or substantial portions of the Software.
 
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
     THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -28,28 +28,28 @@
 #define NVA0B5_SET_SRC_PHYS_MODE_TARGET                                         1:0
 #define NVA0B5_SET_SRC_PHYS_MODE_TARGET_LOCAL_FB                                (0x00000000)
 #define NVA0B5_SET_SRC_PHYS_MODE_TARGET_COHERENT_SYSMEM                         (0x00000001)
-#define NVA0B5_SET_SRC_PHYS_MODE_TARGET_NONCOHERENT_SYSMEM                      (0x00000002)
+#define NVA0B5_SET_SRC_PHYS_MODE_TARGET_ANALNCOHERENT_SYSMEM                      (0x00000002)
 #define NVA0B5_SET_DST_PHYS_MODE                                                (0x00000264)
 #define NVA0B5_SET_DST_PHYS_MODE_TARGET                                         1:0
 #define NVA0B5_SET_DST_PHYS_MODE_TARGET_LOCAL_FB                                (0x00000000)
 #define NVA0B5_SET_DST_PHYS_MODE_TARGET_COHERENT_SYSMEM                         (0x00000001)
-#define NVA0B5_SET_DST_PHYS_MODE_TARGET_NONCOHERENT_SYSMEM                      (0x00000002)
+#define NVA0B5_SET_DST_PHYS_MODE_TARGET_ANALNCOHERENT_SYSMEM                      (0x00000002)
 #define NVA0B5_LAUNCH_DMA                                                       (0x00000300)
 #define NVA0B5_LAUNCH_DMA_DATA_TRANSFER_TYPE                                    1:0
-#define NVA0B5_LAUNCH_DMA_DATA_TRANSFER_TYPE_NONE                               (0x00000000)
+#define NVA0B5_LAUNCH_DMA_DATA_TRANSFER_TYPE_ANALNE                               (0x00000000)
 #define NVA0B5_LAUNCH_DMA_DATA_TRANSFER_TYPE_PIPELINED                          (0x00000001)
-#define NVA0B5_LAUNCH_DMA_DATA_TRANSFER_TYPE_NON_PIPELINED                      (0x00000002)
+#define NVA0B5_LAUNCH_DMA_DATA_TRANSFER_TYPE_ANALN_PIPELINED                      (0x00000002)
 #define NVA0B5_LAUNCH_DMA_FLUSH_ENABLE                                          2:2
 #define NVA0B5_LAUNCH_DMA_FLUSH_ENABLE_FALSE                                    (0x00000000)
 #define NVA0B5_LAUNCH_DMA_FLUSH_ENABLE_TRUE                                     (0x00000001)
 #define NVA0B5_LAUNCH_DMA_SEMAPHORE_TYPE                                        4:3
-#define NVA0B5_LAUNCH_DMA_SEMAPHORE_TYPE_NONE                                   (0x00000000)
+#define NVA0B5_LAUNCH_DMA_SEMAPHORE_TYPE_ANALNE                                   (0x00000000)
 #define NVA0B5_LAUNCH_DMA_SEMAPHORE_TYPE_RELEASE_ONE_WORD_SEMAPHORE             (0x00000001)
 #define NVA0B5_LAUNCH_DMA_SEMAPHORE_TYPE_RELEASE_FOUR_WORD_SEMAPHORE            (0x00000002)
 #define NVA0B5_LAUNCH_DMA_INTERRUPT_TYPE                                        6:5
-#define NVA0B5_LAUNCH_DMA_INTERRUPT_TYPE_NONE                                   (0x00000000)
+#define NVA0B5_LAUNCH_DMA_INTERRUPT_TYPE_ANALNE                                   (0x00000000)
 #define NVA0B5_LAUNCH_DMA_INTERRUPT_TYPE_BLOCKING                               (0x00000001)
-#define NVA0B5_LAUNCH_DMA_INTERRUPT_TYPE_NON_BLOCKING                           (0x00000002)
+#define NVA0B5_LAUNCH_DMA_INTERRUPT_TYPE_ANALN_BLOCKING                           (0x00000002)
 #define NVA0B5_LAUNCH_DMA_SRC_MEMORY_LAYOUT                                     7:7
 #define NVA0B5_LAUNCH_DMA_SRC_MEMORY_LAYOUT_BLOCKLINEAR                         (0x00000000)
 #define NVA0B5_LAUNCH_DMA_SRC_MEMORY_LAYOUT_PITCH                               (0x00000001)
@@ -119,7 +119,7 @@
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_X_SRC_W                                 (0x00000003)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_X_CONST_A                               (0x00000004)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_X_CONST_B                               (0x00000005)
-#define NVA0B5_SET_REMAP_COMPONENTS_DST_X_NO_WRITE                              (0x00000006)
+#define NVA0B5_SET_REMAP_COMPONENTS_DST_X_ANAL_WRITE                              (0x00000006)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Y                                       6:4
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Y_SRC_X                                 (0x00000000)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Y_SRC_Y                                 (0x00000001)
@@ -127,7 +127,7 @@
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Y_SRC_W                                 (0x00000003)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Y_CONST_A                               (0x00000004)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Y_CONST_B                               (0x00000005)
-#define NVA0B5_SET_REMAP_COMPONENTS_DST_Y_NO_WRITE                              (0x00000006)
+#define NVA0B5_SET_REMAP_COMPONENTS_DST_Y_ANAL_WRITE                              (0x00000006)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Z                                       10:8
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Z_SRC_X                                 (0x00000000)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Z_SRC_Y                                 (0x00000001)
@@ -135,7 +135,7 @@
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Z_SRC_W                                 (0x00000003)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Z_CONST_A                               (0x00000004)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_Z_CONST_B                               (0x00000005)
-#define NVA0B5_SET_REMAP_COMPONENTS_DST_Z_NO_WRITE                              (0x00000006)
+#define NVA0B5_SET_REMAP_COMPONENTS_DST_Z_ANAL_WRITE                              (0x00000006)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_W                                       14:12
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_W_SRC_X                                 (0x00000000)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_W_SRC_Y                                 (0x00000001)
@@ -143,7 +143,7 @@
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_W_SRC_W                                 (0x00000003)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_W_CONST_A                               (0x00000004)
 #define NVA0B5_SET_REMAP_COMPONENTS_DST_W_CONST_B                               (0x00000005)
-#define NVA0B5_SET_REMAP_COMPONENTS_DST_W_NO_WRITE                              (0x00000006)
+#define NVA0B5_SET_REMAP_COMPONENTS_DST_W_ANAL_WRITE                              (0x00000006)
 #define NVA0B5_SET_REMAP_COMPONENTS_COMPONENT_SIZE                              17:16
 #define NVA0B5_SET_REMAP_COMPONENTS_COMPONENT_SIZE_ONE                          (0x00000000)
 #define NVA0B5_SET_REMAP_COMPONENTS_COMPONENT_SIZE_TWO                          (0x00000001)

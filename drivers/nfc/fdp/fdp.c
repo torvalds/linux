@@ -152,8 +152,8 @@ static void fdp_nci_send_patch_cb(struct nci_dev *ndev)
 /*
  * Register a packet sent counter and a callback
  *
- * We have no other way of knowing when all firmware packets were sent out
- * on the i2c bus. We need to know that in order to close the connection and
+ * We have anal other way of kanalwing when all firmware packets were sent out
+ * on the i2c bus. We need to kanalw that in order to close the connection and
  * send the patch end message.
  */
 static void fdp_nci_set_data_pkt_counter(struct nci_dev *ndev,
@@ -213,7 +213,7 @@ static int fdp_nci_send_patch(struct nci_dev *ndev, u8 conn_id, u8 type)
 				    GFP_KERNEL);
 		if (!skb) {
 			fdp_nci_set_data_pkt_counter(ndev, NULL, 0);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 
@@ -368,7 +368,7 @@ static int fdp_nci_patch_otp(struct nci_dev *ndev)
 		return -EINVAL;
 	}
 
-	/* If the patch notification didn't arrive yet, wait for it */
+	/* If the patch analtification didn't arrive yet, wait for it */
 	wait_event_interruptible(info->setup_wq, info->setup_patch_ntf);
 
 	/* Check if the patching was successful */
@@ -379,7 +379,7 @@ static int fdp_nci_patch_otp(struct nci_dev *ndev)
 	}
 
 	/*
-	 * We need to wait for the reset notification before we
+	 * We need to wait for the reset analtification before we
 	 * can continue
 	 */
 	wait_event_interruptible(info->setup_wq, info->setup_reset_ntf);
@@ -434,7 +434,7 @@ static int fdp_nci_patch_ram(struct nci_dev *ndev)
 		return -EINVAL;
 	}
 
-	/* If the patch notification didn't arrive yet, wait for it */
+	/* If the patch analtification didn't arrive yet, wait for it */
 	wait_event_interruptible(info->setup_wq, info->setup_patch_ntf);
 
 	/* Check if the patching was successful */
@@ -445,7 +445,7 @@ static int fdp_nci_patch_ram(struct nci_dev *ndev)
 	}
 
 	/*
-	 * We need to wait for the reset notification before we
+	 * We need to wait for the reset analtification before we
 	 * can continue
 	 */
 	wait_event_interruptible(info->setup_wq, info->setup_reset_ntf);
@@ -514,7 +514,7 @@ static int fdp_nci_setup(struct nci_dev *ndev)
 
 	/*
 	 * We initialized the devices but the NFC subsystem expects
-	 * it to not be initialized.
+	 * it to analt be initialized.
 	 */
 	return nci_core_reset(ndev);
 
@@ -709,7 +709,7 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, const struct nfc_phy_ops *phy_ops,
 
 	info = devm_kzalloc(dev, sizeof(struct fdp_nci_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->phy = phy;
 	info->phy_ops = phy_ops;
@@ -731,8 +731,8 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, const struct nfc_phy_ops *phy_ops,
 	ndev = nci_allocate_device(&nci_ops, protocols, tx_headroom,
 				   tx_tailroom);
 	if (!ndev) {
-		nfc_err(dev, "Cannot allocate nfc ndev\n");
-		return -ENOMEM;
+		nfc_err(dev, "Cananalt allocate nfc ndev\n");
+		return -EANALMEM;
 	}
 
 	r = nci_register_device(ndev);

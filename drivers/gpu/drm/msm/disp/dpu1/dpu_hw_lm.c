@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -164,14 +164,14 @@ struct dpu_hw_mixer *dpu_hw_lm_init(struct drm_device *dev,
 {
 	struct dpu_hw_mixer *c;
 
-	if (cfg->pingpong == PINGPONG_NONE) {
+	if (cfg->pingpong == PINGPONG_ANALNE) {
 		DPU_DEBUG("skip mixer %d without pingpong\n", cfg->id);
 		return NULL;
 	}
 
 	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->hw.blk_addr = addr + cfg->base;
 	c->hw.log_mask = DPU_DBG_MASK_LM;

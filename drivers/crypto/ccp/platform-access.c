@@ -12,7 +12,7 @@
  */
 
 #include <linux/bitfield.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/iopoll.h>
 #include <linux/mutex.h>
 
@@ -47,7 +47,7 @@ int psp_check_platform_access_status(void)
 	struct psp_device *psp = psp_get_master_device();
 
 	if (!psp || !psp->platform_access_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -64,13 +64,13 @@ int psp_send_platform_access_msg(enum psp_platform_access_msg msg,
 	int ret;
 
 	if (!psp || !psp->platform_access_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pa_dev = psp->platform_access_data;
 
 	if (!pa_dev->vdata->cmdresp_reg || !pa_dev->vdata->cmdbuff_addr_lo_reg ||
 	    !pa_dev->vdata->cmdbuff_addr_hi_reg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cmd = psp->io_regs + pa_dev->vdata->cmdresp_reg;
 	lo = psp->io_regs + pa_dev->vdata->cmdbuff_addr_lo_reg;
@@ -85,7 +85,7 @@ int psp_send_platform_access_msg(enum psp_platform_access_msg msg,
 	}
 
 	if (wait_cmd(cmd)) {
-		dev_dbg(psp->dev, "platform mailbox is not done processing command\n");
+		dev_dbg(psp->dev, "platform mailbox is analt done processing command\n");
 		ret = -EBUSY;
 		goto unlock;
 	}
@@ -146,7 +146,7 @@ int psp_ring_platform_doorbell(int msg, u32 *result)
 	int ret, val;
 
 	if (!psp || !psp->platform_access_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pa_dev = psp->platform_access_data;
 	button = psp->io_regs + pa_dev->vdata->doorbell_button_reg;
@@ -155,7 +155,7 @@ int psp_ring_platform_doorbell(int msg, u32 *result)
 	mutex_lock(&pa_dev->doorbell_mutex);
 
 	if (wait_cmd(cmd)) {
-		dev_err(psp->dev, "doorbell command not done processing\n");
+		dev_err(psp->dev, "doorbell command analt done processing\n");
 		ret = -EBUSY;
 		goto unlock;
 	}
@@ -203,7 +203,7 @@ int platform_access_dev_init(struct psp_device *psp)
 
 	pa_dev = devm_kzalloc(dev, sizeof(*pa_dev), GFP_KERNEL);
 	if (!pa_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psp->platform_access_data = pa_dev;
 	pa_dev->psp = psp;

@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "debug.h"
 #include "trace-event.h"
@@ -192,7 +192,7 @@ static const struct flag flags[] = {
 	{ "HRTIMER_SOFTIRQ", 8 },
 	{ "RCU_SOFTIRQ", 9 },
 
-	{ "HRTIMER_NORESTART", 0 },
+	{ "HRTIMER_ANALRESTART", 0 },
 	{ "HRTIMER_RESTART", 1 },
 };
 
@@ -201,9 +201,9 @@ unsigned long long eval_flag(const char *flag)
 	int i;
 
 	/*
-	 * Some flags in the format files do not get converted.
-	 * If the flag is not numeric, see if it is something that
-	 * we already know about.
+	 * Some flags in the format files do analt get converted.
+	 * If the flag is analt numeric, see if it is something that
+	 * we already kanalw about.
 	 */
 	if (isdigit(flag[0]))
 		return strtoull(flag, NULL, 0);

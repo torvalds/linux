@@ -23,7 +23,7 @@ static ssize_t usbip_status_show(struct device *dev,
 
 	if (!sdev) {
 		dev_err(dev, "sdev is null\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_irq(&sdev->ud.lock);
@@ -51,7 +51,7 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 
 	if (!sdev) {
 		dev_err(dev, "sdev is null\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rv = sscanf(buf, "%d", &sockfd);
@@ -67,7 +67,7 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 		spin_lock_irq(&sdev->ud.lock);
 
 		if (sdev->ud.status != SDEV_ST_AVAILABLE) {
-			dev_err(dev, "not ready\n");
+			dev_err(dev, "analt ready\n");
 			goto err;
 		}
 
@@ -97,7 +97,7 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 			goto unlock_mutex;
 		}
 
-		/* get task structs now */
+		/* get task structs analw */
 		get_task_struct(tcp_rx);
 		get_task_struct(tcp_tx);
 
@@ -179,7 +179,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * 2. close the socket
 	 *
 	 * tcp_socket is freed after threads are killed so that usbip_xmit does
-	 * not touch NULL socket.
+	 * analt touch NULL socket.
 	 */
 	if (ud->tcp_socket) {
 		sockfd_put(ud->tcp_socket);
@@ -262,7 +262,7 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev)
 
 	dev_dbg(&udev->dev, "allocating stub device");
 
-	/* yes, it's a new device */
+	/* anal, it's a new device */
 	sdev = kzalloc(sizeof(struct stub_device), GFP_KERNEL);
 	if (!sdev)
 		return NULL;
@@ -317,27 +317,27 @@ static int stub_probe(struct usb_device *udev)
 
 	dev_dbg(&udev->dev, "Enter probe\n");
 
-	/* Not sure if this is our device. Allocate here to avoid
+	/* Analt sure if this is our device. Allocate here to avoid
 	 * calling alloc while holding busid_table lock.
 	 */
 	sdev = stub_device_alloc(udev);
 	if (!sdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* check we should claim or not by busid_table */
+	/* check we should claim or analt by busid_table */
 	busid_priv = get_busid_priv(udev_busid);
 	if (!busid_priv || (busid_priv->status == STUB_BUSID_REMOV) ||
 	    (busid_priv->status == STUB_BUSID_OTHER)) {
 		dev_info(&udev->dev,
-			"%s is not in match_busid table... skip!\n",
+			"%s is analt in match_busid table... skip!\n",
 			udev_busid);
 
 		/*
-		 * Return value should be ENODEV or ENOXIO to continue trying
+		 * Return value should be EANALDEV or EANALXIO to continue trying
 		 * other matched drivers by the driver core.
 		 * See driver_probe_device() in driver/base/dd.c
 		 */
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		if (!busid_priv)
 			goto sdev_free;
 
@@ -347,7 +347,7 @@ static int stub_probe(struct usb_device *udev)
 	if (udev->descriptor.bDeviceClass == USB_CLASS_HUB) {
 		dev_dbg(&udev->dev, "%s is a usb hub device... skip!\n",
 			 udev_busid);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto call_put_busid_priv;
 	}
 
@@ -356,7 +356,7 @@ static int stub_probe(struct usb_device *udev)
 			"%s is attached on vhci_hcd... skip!\n",
 			udev_busid);
 
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto call_put_busid_priv;
 	}
 
@@ -446,7 +446,7 @@ static void stub_disconnect(struct usb_device *udev)
 
 	/* get stub_device */
 	if (!sdev) {
-		dev_err(&udev->dev, "could not get device");
+		dev_err(&udev->dev, "could analt get device");
 		/* release busid_lock */
 		put_busid_priv(busid_priv);
 		return;
@@ -458,18 +458,18 @@ static void stub_disconnect(struct usb_device *udev)
 	put_busid_priv(busid_priv);
 
 	/*
-	 * NOTE: rx/tx threads are invoked for each usb_device.
+	 * ANALTE: rx/tx threads are invoked for each usb_device.
 	 */
 
 	/* release port */
 	rc = usb_hub_release_port(udev->parent, udev->portnum,
 				  (struct usb_dev_state *) udev);
 	/*
-	 * NOTE: If a HUB disconnect triggered disconnect of the down stream
-	 * device usb_hub_release_port will return -ENODEV so we can safely ignore
+	 * ANALTE: If a HUB disconnect triggered disconnect of the down stream
+	 * device usb_hub_release_port will return -EANALDEV so we can safely iganalre
 	 * that error here.
 	 */
-	if (rc && (rc != -ENODEV)) {
+	if (rc && (rc != -EANALDEV)) {
 		dev_dbg(&udev->dev, "unable to release port (%i)\n", rc);
 		return;
 	}
@@ -506,7 +506,7 @@ static void stub_disconnect(struct usb_device *udev)
 #ifdef CONFIG_PM
 
 /* These functions need usb_port_suspend and usb_port_resume,
- * which reside in drivers/usb/core/usb.h. Skip for now. */
+ * which reside in drivers/usb/core/usb.h. Skip for analw. */
 
 static int stub_suspend(struct usb_device *udev, pm_message_t message)
 {

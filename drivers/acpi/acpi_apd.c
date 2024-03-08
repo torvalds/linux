@@ -22,7 +22,7 @@ struct apd_private_data;
 /**
  * struct apd_device_desc - a descriptor for apd device
  * @fixed_clk_rate: fixed rate input clock source for acpi device;
- *			0 means no fixed rate input clock source
+ *			0 means anal fixed rate input clock source
  * @properties: build-in properties of the device such as UART
  * @setup: a hook routine to set device resource during create platform device
  *
@@ -73,18 +73,18 @@ static int fch_misc_setup(struct apd_private_data *pdata)
 
 	clk_data = devm_kzalloc(&adev->dev, sizeof(*clk_data), GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_memory_resources(adev, &resource_list);
 	if (ret < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!acpi_dev_get_property(adev, "clk-name", ACPI_TYPE_STRING, &obj)) {
 		clk_data->name = devm_kzalloc(&adev->dev, obj->string.length,
 					      GFP_KERNEL);
 		if (!clk_data->name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		strcpy(clk_data->name, obj->string.pointer);
 	} else {
@@ -92,18 +92,18 @@ static int fch_misc_setup(struct apd_private_data *pdata)
 		clk_data->name = "mclk";
 	}
 
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, analde) {
 		clk_data->base = devm_ioremap(&adev->dev, rentry->res->start,
 					      resource_size(rentry->res));
 		break;
 	}
 	if (!clk_data->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acpi_dev_free_resource_list(&resource_list);
 
 	clkdev = platform_device_register_data(&adev->dev, "clk-fch",
-					       PLATFORM_DEVID_NONE, clk_data,
+					       PLATFORM_DEVID_ANALNE, clk_data,
 					       sizeof(*clk_data));
 	return PTR_ERR_OR_ZERO(clkdev);
 }
@@ -199,7 +199,7 @@ static int acpi_apd_create_device(struct acpi_device *adev,
 
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->adev = adev;
 	pdata->dev_desc = dev_desc;

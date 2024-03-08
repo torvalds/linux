@@ -8,7 +8,7 @@
  *
  * - LINE_WIDTH
  * - XOR_FUNC_NAME(nr)
- * - LD_INOUT_LINE(buf)
+ * - LD_IANALUT_LINE(buf)
  * - LD_AND_XOR_LINE(buf)
  * - ST_LINE(buf)
  */
@@ -21,7 +21,7 @@ void XOR_FUNC_NAME(2)(unsigned long bytes,
 
 	do {
 		__asm__ __volatile__ (
-			LD_INOUT_LINE(v1)
+			LD_IANALUT_LINE(v1)
 			LD_AND_XOR_LINE(v2)
 			ST_LINE(v1)
 		: : [v1] "r"(v1), [v2] "r"(v2) : "memory"
@@ -41,7 +41,7 @@ void XOR_FUNC_NAME(3)(unsigned long bytes,
 
 	do {
 		__asm__ __volatile__ (
-			LD_INOUT_LINE(v1)
+			LD_IANALUT_LINE(v1)
 			LD_AND_XOR_LINE(v2)
 			LD_AND_XOR_LINE(v3)
 			ST_LINE(v1)
@@ -64,7 +64,7 @@ void XOR_FUNC_NAME(4)(unsigned long bytes,
 
 	do {
 		__asm__ __volatile__ (
-			LD_INOUT_LINE(v1)
+			LD_IANALUT_LINE(v1)
 			LD_AND_XOR_LINE(v2)
 			LD_AND_XOR_LINE(v3)
 			LD_AND_XOR_LINE(v4)
@@ -91,7 +91,7 @@ void XOR_FUNC_NAME(5)(unsigned long bytes,
 
 	do {
 		__asm__ __volatile__ (
-			LD_INOUT_LINE(v1)
+			LD_IANALUT_LINE(v1)
 			LD_AND_XOR_LINE(v2)
 			LD_AND_XOR_LINE(v3)
 			LD_AND_XOR_LINE(v4)

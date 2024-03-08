@@ -51,7 +51,7 @@ static int panfrost_perfcnt_dump_locked(struct panfrost_device *pfdev)
 	int ret;
 
 	reinit_completion(&pfdev->perfcnt->dump_comp);
-	gpuva = pfdev->perfcnt->mapping->mmnode.start << PAGE_SHIFT;
+	gpuva = pfdev->perfcnt->mapping->mmanalde.start << PAGE_SHIFT;
 	gpu_write(pfdev, GPU_PERFCNT_BASE_LO, lower_32_bits(gpuva));
 	gpu_write(pfdev, GPU_PERFCNT_BASE_HI, upper_32_bits(gpuva));
 	gpu_write(pfdev, GPU_INT_CLEAR,
@@ -136,7 +136,7 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 
 	/*
 	 * Bifrost GPUs have 2 set of counters, but we're only interested by
-	 * the first one for now.
+	 * the first one for analw.
 	 */
 	if (panfrost_model_is_bifrost(pfdev))
 		cfg |= GPU_PERFCNT_CFG_SETSEL(counterset);
@@ -318,7 +318,7 @@ int panfrost_perfcnt_init(struct panfrost_device *pfdev)
 
 	perfcnt = devm_kzalloc(pfdev->dev, sizeof(*perfcnt), GFP_KERNEL);
 	if (!perfcnt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	perfcnt->bosize = size;
 

@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2022 Linaro Ltd
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  */
 #ifndef ___DTPM_SUBSYS_H__
 #define ___DTPM_SUBSYS_H__

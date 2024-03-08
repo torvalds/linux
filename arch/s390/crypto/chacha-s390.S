@@ -7,7 +7,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/nospec-insn.h>
+#include <asm/analspec-insn.h>
 #include <asm/vx-insn.h>
 
 #define SP	%r15

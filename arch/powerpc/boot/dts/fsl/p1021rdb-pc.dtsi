@@ -1,16 +1,16 @@
 /*
- * P1021 RDB Device Tree Source stub (no addresses or top-level ranges)
+ * P1021 RDB Device Tree Source stub (anal addresses or top-level ranges)
  *
  * Copyright 2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -21,11 +21,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -33,7 +33,7 @@
  */
 
 &lbc {
-	nor@0,0 {
+	analr@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";
@@ -42,45 +42,45 @@
 		device-width = <1>;
 
 		partition@0 {
-			/* This location must not be altered  */
+			/* This location must analt be altered  */
 			/* 256KB for Vitesse 7385 Switch firmware */
 			reg = <0x0 0x00040000>;
-			label = "NOR Vitesse-7385 Firmware";
+			label = "ANALR Vitesse-7385 Firmware";
 			read-only;
 		};
 
 		partition@40000 {
 			/* 256KB for DTB Image */
 			reg = <0x00040000 0x00040000>;
-			label = "NOR DTB Image";
+			label = "ANALR DTB Image";
 		};
 
 		partition@80000 {
 			/* 3.5 MB for Linux Kernel Image */
 			reg = <0x00080000 0x00380000>;
-			label = "NOR Linux Kernel Image";
+			label = "ANALR Linux Kernel Image";
 		};
 
 		partition@400000 {
 			/* 10.75MB for JFFS2 based Root file System */
 			reg = <0x00400000 0x00ac0000>;
-			label = "NOR JFFS2 Root File System";
+			label = "ANALR JFFS2 Root File System";
 		};
 
 		partition@ec0000 {
-			/* This location must not be altered  */
+			/* This location must analt be altered  */
 			/* 256KB for QE ucode firmware*/
 			reg = <0x00ec0000 0x00040000>;
-			label = "NOR QE microcode firmware";
+			label = "ANALR QE microcode firmware";
 			read-only;
 		};
 
 		partition@f00000 {
-			/* This location must not be altered  */
+			/* This location must analt be altered  */
 			/* 512KB for u-boot Bootloader Image */
 			/* 512KB for u-boot Environment Variables */
 			reg = <0x00f00000 0x00100000>;
-			label = "NOR U-Boot Image";
+			label = "ANALR U-Boot Image";
 		};
 	};
 
@@ -92,7 +92,7 @@
 		reg = <0x1 0x0 0x40000>;
 
 		partition@0 {
-			/* This location must not be altered  */
+			/* This location must analt be altered  */
 			/* 1MB for u-boot Bootloader Image */
 			reg = <0x0 0x00100000>;
 			label = "NAND U-Boot Image";
@@ -150,7 +150,7 @@
 		flash@0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "spansion,s25sl12801", "jedec,spi-nor";
+			compatible = "spansion,s25sl12801", "jedec,spi-analr";
 			reg = <0>;
 			spi-max-frequency = <40000000>; /* input clock */
 

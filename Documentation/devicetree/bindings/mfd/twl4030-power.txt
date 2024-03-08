@@ -1,7 +1,7 @@
 Texas Instruments TWL family (twl4030) reset and power management module
 
 The power management module inside the TWL family provides several facilities
-to control the power resources, including power scripts. For now, the
+to control the power resources, including power scripts. For analw, the
 binding only supports the complete shutdown of the system after poweroff.
 
 Required properties:
@@ -19,7 +19,7 @@ for idle modes is loaded to the tlw4030 PMIC.
 
 When using ti,twl4030-power-idle-osc-off, the TI recommended
 configuration is used with the external oscillator being shut
-down during off-idle. Note that this does not work on all boards
+down during off-idle. Analte that this does analt work on all boards
 depending on how the external oscillator is wired.
 
 Optional properties:

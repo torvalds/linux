@@ -149,7 +149,7 @@
 			reset-gpios = <&expander1 0 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <500000>;
 			reset-deassert-us = <50000>;
-			enet-phy-lane-no-swap;
+			enet-phy-lane-anal-swap;
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
@@ -182,7 +182,7 @@
 			reset-gpios = <&expander1 1 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <500000>;
 			reset-deassert-us = <50000>;
-			enet-phy-lane-no-swap;
+			enet-phy-lane-anal-swap;
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
@@ -280,7 +280,7 @@
 		 * Controls the IOT W_DISABLE pin which is low active
 		 * as disable signal but inverted as seen from the CPU.
 		 * The output-low states, the signal is
-		 * inactive, e.g. not disabled
+		 * inactive, e.g. analt disabled
 		 */
 		iot_wdisable_hog: iot-wdisable-hog {
 			gpio-hog;
@@ -304,7 +304,7 @@
 		/*
 		 * Controls the WiFi card PD pin which is low active
 		 * as power down signal. The output-low states, the signal
-		 * is inactive, e.g. not power down
+		 * is inactive, e.g. analt power down
 		 */
 		wlan-pd-hog {
 			gpio-hog;
@@ -316,7 +316,7 @@
 		/*
 		 * Controls the WiFi card disable pin which is low active
 		 * as disable signal. The output-low states, the signal
-		 * is inactive, e.g. not disabled
+		 * is inactive, e.g. analt disabled
 		 */
 		wlan-wdisable-hog {
 			gpio-hog;
@@ -328,7 +328,7 @@
 		/*
 		 * Controls the WiFi card reset pin which is low active
 		 * as reset signal. The output-low states, the signal
-		 * is inactive, e.g. not in reset
+		 * is inactive, e.g. analt in reset
 		 */
 		wlan-perst-hog {
 			gpio-hog;
@@ -441,8 +441,8 @@
 	cd-gpios = <&gpio3 00 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	disable-wp;
 	status = "okay";
 };

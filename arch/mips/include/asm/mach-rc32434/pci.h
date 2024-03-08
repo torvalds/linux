@@ -5,18 +5,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
+ *  ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ *  ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Copyright 2004 IDT Inc. (rischelp@idt.com)
@@ -81,7 +81,7 @@ struct pci_msu {
 #define PCI_CTL_PCIM		0x000001c0
 
 #define PCI_CTL_PCIM_DIS	0
-#define PCI_CTL_PCIM_TNR	1 /* Satellite - target not ready */
+#define PCI_CTL_PCIM_TNR	1 /* Satellite - target analt ready */
 #define PCI_CTL_PCIM_SUS	2 /* Satellite - suspended CPU. */
 #define PCI_CTL_PCIM_EXT	3 /* Host - external arbiter. */
 #define PCI_CTL PCIM_PRIO	4 /* Host - fixed priority arb. */
@@ -233,7 +233,7 @@ struct pci_msu {
 #define PCI_LBAC_SIZE		0x0000007c
 #define PCI_LBAC_SB		(1 << 7)
 #define PCI_LBAC_RT		(1 << 8)
-#define	 PCI_LBAC_RT_NO_PREF	0
+#define	 PCI_LBAC_RT_ANAL_PREF	0
 #define	 PCI_LBAC_RT_PREF	1
 
 /*

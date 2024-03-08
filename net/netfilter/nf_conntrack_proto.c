@@ -9,7 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/err.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 
@@ -154,7 +154,7 @@ unsigned int nf_confirm(void *priv,
 	if (!help && !seqadj_needed)
 		return nf_conntrack_confirm(skb);
 
-	/* helper->help() do not expect ICMP packets */
+	/* helper->help() do analt expect ICMP packets */
 	if (ctinfo == IP_CT_RELATED_REPLY)
 		return nf_conntrack_confirm(skb);
 
@@ -211,7 +211,7 @@ static unsigned int ipv4_conntrack_local(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
-	if (ip_is_fragment(ip_hdr(skb))) { /* IP_NODEFRAG setsockopt set */
+	if (ip_is_fragment(ip_hdr(skb))) { /* IP_ANALDEFRAG setsockopt set */
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *tmpl;
 
@@ -285,7 +285,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	/* We only do TCP and SCTP at the moment: is there a better way? */
 	if (tuple.dst.protonum != IPPROTO_TCP &&
 	    tuple.dst.protonum != IPPROTO_SCTP)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	if ((unsigned int)*len < sizeof(struct sockaddr_in))
 		return -EINVAL;
@@ -308,7 +308,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 		else
 			return 0;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static struct nf_sockopt_ops so_getorigdst = {
@@ -344,14 +344,14 @@ ipv6_getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 
 	if (tuple.dst.protonum != IPPROTO_TCP &&
 	    tuple.dst.protonum != IPPROTO_SCTP)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	if (*len < 0 || (unsigned int)*len < sizeof(sin6))
 		return -EINVAL;
 
 	h = nf_conntrack_find_get(sock_net(sk), &nf_ct_zone_dflt, &tuple);
 	if (!h)
-		return -ENOENT;
+		return -EANALENT;
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
 

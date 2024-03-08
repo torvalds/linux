@@ -10,7 +10,7 @@
 SYSCALL_TBL=$1
 
 if ! test -r $SYSCALL_TBL; then
-	echo "Could not read input file" >&2
+	echo "Could analt read input file" >&2
 	exit 1
 fi
 

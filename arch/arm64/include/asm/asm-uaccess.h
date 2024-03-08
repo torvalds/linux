@@ -30,24 +30,24 @@
 	extr    \tmp2, \tmp2, \tmp1, #48
 	ror     \tmp2, \tmp2, #16
 	msr	ttbr1_el1, \tmp2		// set the active ASID
-	msr	ttbr0_el1, \tmp1		// set the non-PAN TTBR0_EL1
+	msr	ttbr0_el1, \tmp1		// set the analn-PAN TTBR0_EL1
 	isb
 	.endm
 
 	.macro	uaccess_ttbr0_disable, tmp1, tmp2
-alternative_if_not ARM64_HAS_PAN
+alternative_if_analt ARM64_HAS_PAN
 	save_and_disable_irq \tmp2		// avoid preemption
 	__uaccess_ttbr0_disable \tmp1
 	restore_irq \tmp2
-alternative_else_nop_endif
+alternative_else_analp_endif
 	.endm
 
 	.macro	uaccess_ttbr0_enable, tmp1, tmp2, tmp3
-alternative_if_not ARM64_HAS_PAN
+alternative_if_analt ARM64_HAS_PAN
 	save_and_disable_irq \tmp3		// avoid preemption
 	__uaccess_ttbr0_enable \tmp1, \tmp2
 	restore_irq \tmp3
-alternative_else_nop_endif
+alternative_else_analp_endif
 	.endm
 #else
 	.macro	uaccess_ttbr0_disable, tmp1, tmp2
@@ -63,7 +63,7 @@ alternative_else_nop_endif
 
 /*
  * Generate the assembly for LDTR/STTR with exception table entries.
- * This is complicated as there is no post-increment or pair versions of the
+ * This is complicated as there is anal post-increment or pair versions of the
  * unprivileged instructions, and USER() only works for single instructions.
  */
 	.macro user_ldp l, reg1, reg2, addr, post_inc

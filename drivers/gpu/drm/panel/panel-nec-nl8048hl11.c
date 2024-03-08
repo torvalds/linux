@@ -129,7 +129,7 @@ static int nl8048_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &nl8048_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
@@ -180,7 +180,7 @@ static int nl8048_probe(struct spi_device *spi)
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, lcd);
 	lcd->spi = spi;

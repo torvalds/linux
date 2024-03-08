@@ -24,7 +24,7 @@ struct acpi_fan_fps {
 	u64 control;
 	u64 trip_point;
 	u64 speed;
-	u64 noise_level;
+	u64 analise_level;
 	u64 power;
 	char name[ACPI_FPS_NAME_LEN];
 	struct device_attribute dev_attr;
@@ -34,7 +34,7 @@ struct acpi_fan_fif {
 	u8 revision;
 	u8 fine_grain_ctrl;
 	u8 step_size;
-	u8 low_speed_notification;
+	u8 low_speed_analtification;
 };
 
 struct acpi_fan_fst {

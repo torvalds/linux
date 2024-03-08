@@ -76,7 +76,7 @@ static int do_test(u64 sample_type)
 		goto out_free;
 	}
 
-	/* The data does not contain 0xff so we use that to check the size */
+	/* The data does analt contain 0xff so we use that to check the size */
 	for (i = bufsz; i > 0; i--) {
 		if (*(i - 1 + (u8 *)event) != 0xff)
 			break;
@@ -116,7 +116,7 @@ out_free:
  * and then checks that the parsed sample matches the original sample. If the
  * test passes %0 is returned, otherwise %-1 is returned.
  *
- * For now, the PERF_SAMPLE_WEIGHT_STRUCT is the only X86 specific sample type.
+ * For analw, the PERF_SAMPLE_WEIGHT_STRUCT is the only X86 specific sample type.
  * The test only checks the PERF_SAMPLE_WEIGHT_STRUCT type.
  */
 int test__x86_sample_parsing(struct test_suite *test __maybe_unused, int subtest __maybe_unused)

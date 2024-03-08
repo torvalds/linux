@@ -11,7 +11,7 @@ Required properties:
 			    parameters (unused)
 
 - reg			: Address and length of the register set for the device
-- gpio-controller	: Marks the device node as a GPIO controller.
+- gpio-controller	: Marks the device analde as a GPIO controller.
 - interrupts		: Interrupt specifier (see interrupt bindings for
 			  details)
 - interrupt-controller	: Mark the GPIO controller as an interrupt-controller

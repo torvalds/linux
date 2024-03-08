@@ -3,12 +3,12 @@
  * Copyright 2010-2011 Picochip Ltd., Jamie Iles
  * https://www.picochip.com
  *
- * This file implements a driver for the Synopsys DesignWare watchdog device
+ * This file implements a driver for the Syanalpsys DesignWare watchdog device
  * in the many subsystems. The watchdog has 16 different timeout periods
  * and these are a function of the input clock frequency.
  *
- * The DesignWare watchdog cannot be stopped once it has been started so we
- * do not implement a stop function. The watchdog core will continue to send
+ * The DesignWare watchdog cananalt be stopped once it has been started so we
+ * do analt implement a stop function. The watchdog core will continue to send
  * heartbeat requests after the watchdog device has been closed.
  */
 
@@ -63,10 +63,10 @@ static const u32 dw_wdt_fix_tops[DW_WDT_NUM_TOPS] = {
 	DW_WDT_FIX_TOP(15)
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-		 "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+		 "(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 enum dw_wdt_rmod {
 	DW_WDT_RMOD_RESET = 1,
@@ -126,7 +126,7 @@ static unsigned int dw_wdt_find_best_top(struct dw_wdt *dw_wdt,
 
 	/*
 	 * Find a TOP with timeout greater or equal to the requested number.
-	 * Note we'll select a TOP with maximum timeout if the requested
+	 * Analte we'll select a TOP with maximum timeout if the requested
 	 * timeout couldn't be reached.
 	 */
 	for (idx = 0; idx < DW_WDT_NUM_TOPS; ++idx) {
@@ -148,7 +148,7 @@ static unsigned int dw_wdt_get_min_timeout(struct dw_wdt *dw_wdt)
 
 	/*
 	 * We'll find a timeout greater or equal to one second anyway because
-	 * the driver probe would have failed if there was none.
+	 * the driver probe would have failed if there was analne.
 	 */
 	for (idx = 0; idx < DW_WDT_NUM_TOPS; ++idx) {
 		if (dw_wdt->timeouts[idx].sec)
@@ -202,7 +202,7 @@ static int dw_wdt_set_timeout(struct watchdog_device *wdd, unsigned int top_s)
 	u32 top_val;
 
 	/*
-	 * Note IRQ mode being enabled means having a non-zero pre-timeout
+	 * Analte IRQ mode being enabled means having a analn-zero pre-timeout
 	 * setup. In this case we try to find a TOP as close to the half of the
 	 * requested timeout as possible since DW Watchdog IRQ mode is designed
 	 * in two stages way - first timeout rises the pre-timeout interrupt,
@@ -247,7 +247,7 @@ static int dw_wdt_set_pretimeout(struct watchdog_device *wdd, unsigned int req)
 	struct dw_wdt *dw_wdt = to_dw_wdt(wdd);
 
 	/*
-	 * We ignore actual value of the timeout passed from user-space
+	 * We iganalre actual value of the timeout passed from user-space
 	 * using it as a flag whether the pretimeout functionality is intended
 	 * to be activated.
 	 */
@@ -337,13 +337,13 @@ static unsigned int dw_wdt_get_timeleft(struct watchdog_device *wdd)
 static const struct watchdog_info dw_wdt_ident = {
 	.options	= WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
 			  WDIOF_MAGICCLOSE,
-	.identity	= "Synopsys DesignWare Watchdog",
+	.identity	= "Syanalpsys DesignWare Watchdog",
 };
 
 static const struct watchdog_info dw_wdt_pt_ident = {
 	.options	= WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
 			  WDIOF_PRETIMEOUT | WDIOF_MAGICCLOSE,
-	.identity	= "Synopsys DesignWare Watchdog",
+	.identity	= "Syanalpsys DesignWare Watchdog",
 };
 
 static const struct watchdog_ops dw_wdt_ops = {
@@ -368,9 +368,9 @@ static irqreturn_t dw_wdt_irq(int irq, void *devid)
 	 */
 	val = readl(dw_wdt->regs + WDOG_INTERRUPT_STATUS_REG_OFFSET);
 	if (!val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	watchdog_notify_pretimeout(&dw_wdt->wdd);
+	watchdog_analtify_pretimeout(&dw_wdt->wdd);
 
 	return IRQ_HANDLED;
 }
@@ -471,11 +471,11 @@ static int dw_wdt_init_timeouts(struct dw_wdt *dw_wdt, struct device *dev)
 	if (data & WDOG_COMP_PARAMS_1_USE_FIX_TOP) {
 		tops = dw_wdt_fix_tops;
 	} else {
-		ret = of_property_read_variable_u32_array(dev_of_node(dev),
+		ret = of_property_read_variable_u32_array(dev_of_analde(dev),
 			"snps,watchdog-tops", of_tops, DW_WDT_NUM_TOPS,
 			DW_WDT_NUM_TOPS);
 		if (ret < 0) {
-			dev_warn(dev, "No valid TOPs array specified\n");
+			dev_warn(dev, "Anal valid TOPs array specified\n");
 			tops = dw_wdt_fix_tops;
 		} else {
 			tops = of_tops;
@@ -485,7 +485,7 @@ static int dw_wdt_init_timeouts(struct dw_wdt *dw_wdt, struct device *dev)
 	/* Convert the specified TOPs into an array of watchdog timeouts. */
 	dw_wdt_handle_tops(dw_wdt, tops);
 	if (!dw_wdt->timeouts[DW_WDT_NUM_TOPS - 1].sec) {
-		dev_err(dev, "No any valid TOP detected\n");
+		dev_err(dev, "Anal any valid TOP detected\n");
 		return -EINVAL;
 	}
 
@@ -554,7 +554,7 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 
 	dw_wdt = devm_kzalloc(dev, sizeof(*dw_wdt), GFP_KERNEL);
 	if (!dw_wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw_wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dw_wdt->regs))
@@ -562,7 +562,7 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 
 	/*
 	 * Try to request the watchdog dedicated timer clock source. It must
-	 * be supplied if asynchronous mode is enabled. Otherwise fallback
+	 * be supplied if asynchroanalus mode is enabled. Otherwise fallback
 	 * to the common timer/bus clocks configuration, in which the very
 	 * first found clock supply both timer and APB signals.
 	 */
@@ -580,9 +580,9 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	/*
 	 * Request APB clock if device is configured with async clocks mode.
 	 * In this case both tclk and pclk clocks are supposed to be specified.
-	 * Alas we can't know for sure whether async mode was really activated,
+	 * Alas we can't kanalw for sure whether async mode was really activated,
 	 * so the pclk phandle reference is left optional. If it couldn't be
-	 * found we consider the device configured in synchronous clocks mode.
+	 * found we consider the device configured in synchroanalus clocks mode.
 	 */
 	dw_wdt->pclk = devm_clk_get_optional_enabled(dev, "pclk");
 	if (IS_ERR(dw_wdt->pclk))
@@ -592,12 +592,12 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	if (IS_ERR(dw_wdt->rst))
 		return PTR_ERR(dw_wdt->rst);
 
-	/* Enable normal reset without pre-timeout by default. */
+	/* Enable analrmal reset without pre-timeout by default. */
 	dw_wdt_update_mode(dw_wdt, DW_WDT_RMOD_RESET);
 
 	/*
 	 * Pre-timeout IRQ is optional, since some hardware may lack support
-	 * of it. Note we must request rising-edge IRQ, since the lane is left
+	 * of it. Analte we must request rising-edge IRQ, since the lane is left
 	 * pending either until the next watchdog kick event or up to the
 	 * system reset.
 	 */
@@ -630,7 +630,7 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	wdd->parent = dev;
 
 	watchdog_set_drvdata(wdd, dw_wdt);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 	watchdog_init_timeout(wdd, 0, dev);
 
 	/*
@@ -695,5 +695,5 @@ static struct platform_driver dw_wdt_driver = {
 module_platform_driver(dw_wdt_driver);
 
 MODULE_AUTHOR("Jamie Iles");
-MODULE_DESCRIPTION("Synopsys DesignWare Watchdog Driver");
+MODULE_DESCRIPTION("Syanalpsys DesignWare Watchdog Driver");
 MODULE_LICENSE("GPL");

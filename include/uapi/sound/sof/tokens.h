@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -38,7 +38,7 @@
 #define SOF_TKN_BUF_FLAGS			102
 
 /* DAI */
-/* Token retired with ABI 3.2, do not use for new capabilities
+/* Token retired with ABI 3.2, do analt use for new capabilities
  * #define	SOF_TKN_DAI_DMAC_CONFIG			153
  */
 #define SOF_TKN_DAI_TYPE			154
@@ -72,7 +72,7 @@
 /* ASRC */
 #define SOF_TKN_ASRC_RATE_IN			320
 #define SOF_TKN_ASRC_RATE_OUT			321
-#define SOF_TKN_ASRC_ASYNCHRONOUS_MODE		322
+#define SOF_TKN_ASRC_ASYNCHROANALUS_MODE		322
 #define SOF_TKN_ASRC_OPERATION_MODE		323
 
 /* PCM */
@@ -82,7 +82,7 @@
 #define SOF_TKN_COMP_PERIOD_SINK_COUNT		400
 #define SOF_TKN_COMP_PERIOD_SOURCE_COUNT	401
 #define SOF_TKN_COMP_FORMAT			402
-/* Token retired with ABI 3.2, do not use for new capabilities
+/* Token retired with ABI 3.2, do analt use for new capabilities
  * #define SOF_TKN_COMP_PRELOAD_COUNT		403
  */
 #define SOF_TKN_COMP_CORE_ID			404
@@ -102,9 +102,9 @@
 #define SOF_TKN_COMP_NUM_OUTPUT_AUDIO_FORMATS	416
 /*
  * The token value is copied to the dapm_widget's
- * no_wname_in_kcontrol_name.
+ * anal_wname_in_kcontrol_name.
  */
-#define SOF_TKN_COMP_NO_WNAME_IN_KCONTROL_NAME	417
+#define SOF_TKN_COMP_ANAL_WNAME_IN_KCONTROL_NAME	417
 
 /* SSP */
 #define SOF_TKN_INTEL_SSP_CLKS_CONTROL		500
@@ -206,7 +206,7 @@
 #define SOF_TKN_CAVS_AUDIO_FORMAT_DMA_BUFFER_SIZE	1972
 
 /* COPIER */
-#define SOF_TKN_INTEL_COPIER_NODE_TYPE		1980
+#define SOF_TKN_INTEL_COPIER_ANALDE_TYPE		1980
 #define SOF_TKN_INTEL_COPIER_DEEP_BUFFER_DMA_MS	1981
 
 /* ACP I2S */

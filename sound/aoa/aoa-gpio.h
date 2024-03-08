@@ -10,12 +10,12 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 
-typedef void (*notify_func_t)(void *data);
+typedef void (*analtify_func_t)(void *data);
 
-enum notify_type {
-	AOA_NOTIFY_HEADPHONE,
-	AOA_NOTIFY_LINE_IN,
-	AOA_NOTIFY_LINE_OUT,
+enum analtify_type {
+	AOA_ANALTIFY_HEADPHONE,
+	AOA_ANALTIFY_LINE_IN,
+	AOA_ANALTIFY_LINE_OUT,
 };
 
 struct gpio_runtime;
@@ -41,26 +41,26 @@ struct gpio_methods {
 
 	void (*set_hw_reset)(struct gpio_runtime *rt, int on);
 
-	/* use this to be notified of any events. The notification
+	/* use this to be analtified of any events. The analtification
 	 * function is passed the data, and is called in process
 	 * context by the use of schedule_work.
 	 * The interface for it is that setting a function to NULL
 	 * removes it, and they return 0 if the operation succeeded,
-	 * and -EBUSY if the notification is already assigned by
+	 * and -EBUSY if the analtification is already assigned by
 	 * someone else. */
-	int (*set_notify)(struct gpio_runtime *rt,
-			  enum notify_type type,
-			  notify_func_t notify,
+	int (*set_analtify)(struct gpio_runtime *rt,
+			  enum analtify_type type,
+			  analtify_func_t analtify,
 			  void *data);
-	/* returns 0 if not plugged in, 1 if plugged in
+	/* returns 0 if analt plugged in, 1 if plugged in
 	 * or a negative error code */
 	int (*get_detect)(struct gpio_runtime *rt,
-			  enum notify_type type);
+			  enum analtify_type type);
 };
 
-struct gpio_notification {
+struct gpio_analtification {
 	struct delayed_work work;
-	notify_func_t notify;
+	analtify_func_t analtify;
 	void *data;
 	void *gpio_private;
 	struct mutex mutex;
@@ -68,14 +68,14 @@ struct gpio_notification {
 
 struct gpio_runtime {
 	/* to be assigned by fabric */
-	struct device_node *node;
+	struct device_analde *analde;
 	/* since everyone needs this pointer anyway... */
 	struct gpio_methods *methods;
 	/* to be used by the gpio implementation */
 	int implementation_private;
-	struct gpio_notification headphone_notify;
-	struct gpio_notification line_in_notify;
-	struct gpio_notification line_out_notify;
+	struct gpio_analtification headphone_analtify;
+	struct gpio_analtification line_in_analtify;
+	struct gpio_analtification line_out_analtify;
 };
 
 #endif /* __AOA_GPIO_H */

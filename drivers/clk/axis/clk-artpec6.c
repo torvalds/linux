@@ -35,7 +35,7 @@ static const int i2s_clk_indexes[NUM_I2S_CLOCKS] = {
 	ARTPEC6_CLK_I2S1_CLK,
 };
 
-static void of_artpec6_clkctrl_setup(struct device_node *np)
+static void of_artpec6_clkctrl_setup(struct device_analde *np)
 {
 	int i;
 	const char *sys_refclk_name;
@@ -88,7 +88,7 @@ static void of_artpec6_clkctrl_setup(struct device_node *np)
 	clks[ARTPEC6_CLK_CPU_PERIPH] =
 	    clk_register_fixed_factor(NULL, "cpu_periph", "cpu", 0, 1, 2);
 
-	/* EPROBE_DEFER on the apb_clock is not handled in amba devices. */
+	/* EPROBE_DEFER on the apb_clock is analt handled in amba devices. */
 	clks[ARTPEC6_CLK_UART_PCLK] =
 	    clk_register_fixed_factor(NULL, "uart_pclk", "cpu", 0, 1, 8);
 	clks[ARTPEC6_CLK_UART_REFCLK] =
@@ -116,7 +116,7 @@ CLK_OF_DECLARE_DRIVER(artpec6_clkctrl, "axis,artpec6-clkctrl",
 static int artpec6_clkctrl_probe(struct platform_device *pdev)
 {
 	int propidx;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct clk **clks = clkdata->clk_table;
 	const char *sys_refclk_name;
@@ -177,7 +177,7 @@ static int artpec6_clkctrl_probe(struct platform_device *pdev)
 			clks[i2s_clk_indexes[i]] =
 			    clk_register_mux(dev, i2s_clk_names[i],
 					     i2s_mux_parents, 2,
-					     CLK_SET_RATE_NO_REPARENT |
+					     CLK_SET_RATE_ANAL_REPARENT |
 					     CLK_SET_RATE_PARENT,
 					     clkdata->syscon_base + 0x14, i, 1,
 					     0, &clkdata->i2scfg_lock);

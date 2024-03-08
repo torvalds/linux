@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -351,7 +351,7 @@ static int jpeg_v4_0_3_hw_init(void *handle)
  *
  * @handle: amdgpu_device pointer
  *
- * Stop the JPEG block, mark ring as not ready any more
+ * Stop the JPEG block, mark ring as analt ready any more
  */
 static int jpeg_v4_0_3_hw_fini(void *handle)
 {
@@ -875,7 +875,7 @@ static void jpeg_v4_0_3_dec_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t re
 	amdgpu_ring_write(ring, val);
 }
 
-static void jpeg_v4_0_3_dec_ring_nop(struct amdgpu_ring *ring, uint32_t count)
+static void jpeg_v4_0_3_dec_ring_analp(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
@@ -987,7 +987,7 @@ static int jpeg_v4_0_3_process_interrupt(struct amdgpu_device *adev,
 {
 	uint32_t i, inst;
 
-	i = node_id_to_phys_map[entry->node_id];
+	i = analde_id_to_phys_map[entry->analde_id];
 	DRM_DEV_DEBUG(adev->dev, "IH: JPEG TRAP\n");
 
 	for (inst = 0; inst < adev->jpeg.num_jpeg_inst; ++inst)
@@ -996,8 +996,8 @@ static int jpeg_v4_0_3_process_interrupt(struct amdgpu_device *adev,
 
 	if (inst >= adev->jpeg.num_jpeg_inst) {
 		dev_WARN_ONCE(adev->dev, 1,
-			      "Interrupt received for unknown JPEG instance %d",
-			      entry->node_id);
+			      "Interrupt received for unkanalwn JPEG instance %d",
+			      entry->analde_id);
 		return 0;
 	}
 
@@ -1073,7 +1073,7 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_3_dec_ring_vm_funcs = {
 	.emit_vm_flush = jpeg_v4_0_3_dec_ring_emit_vm_flush,
 	.test_ring = amdgpu_jpeg_dec_ring_test_ring,
 	.test_ib = amdgpu_jpeg_dec_ring_test_ib,
-	.insert_nop = jpeg_v4_0_3_dec_ring_nop,
+	.insert_analp = jpeg_v4_0_3_dec_ring_analp,
 	.insert_start = jpeg_v4_0_3_dec_ring_insert_start,
 	.insert_end = jpeg_v4_0_3_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -1119,7 +1119,7 @@ static void jpeg_v4_0_3_set_irq_funcs(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version jpeg_v4_0_3_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_JPEG,
 	.major = 4,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 3,
 	.funcs = &jpeg_v4_0_3_ip_funcs,
 };
@@ -1180,7 +1180,7 @@ static void jpeg_v4_0_3_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t i;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__JPEG)) {
-		dev_warn(adev->dev, "JPEG RAS is not supported\n");
+		dev_warn(adev->dev, "JPEG RAS is analt supported\n");
 		return;
 	}
 
@@ -1202,7 +1202,7 @@ static void jpeg_v4_0_3_reset_ras_error_count(struct amdgpu_device *adev)
 	uint32_t i;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__JPEG)) {
-		dev_warn(adev->dev, "JPEG RAS is not supported\n");
+		dev_warn(adev->dev, "JPEG RAS is analt supported\n");
 		return;
 	}
 

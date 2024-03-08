@@ -156,28 +156,28 @@ static int realtek_rtl_spi_probe(struct platform_device *pdev)
 	ctrl = devm_spi_alloc_host(&pdev->dev, sizeof(*rtspi));
 	if (!ctrl) {
 		dev_err(&pdev->dev, "Error allocating SPI controller\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	platform_set_drvdata(pdev, ctrl);
 	rtspi = spi_controller_get_devdata(ctrl);
 
 	rtspi->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(rtspi->base)) {
-		dev_err(&pdev->dev, "Could not map SPI register address");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Could analt map SPI register address");
+		return -EANALMEM;
 	}
 
 	init_hw(rtspi);
 
-	ctrl->dev.of_node = pdev->dev.of_node;
+	ctrl->dev.of_analde = pdev->dev.of_analde;
 	ctrl->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	ctrl->set_cs = rt_set_cs;
 	ctrl->transfer_one = transfer_one;
 
 	err = devm_spi_register_controller(&pdev->dev, ctrl);
 	if (err) {
-		dev_err(&pdev->dev, "Could not register SPI controller\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Could analt register SPI controller\n");
+		return -EANALDEV;
 	}
 
 	return 0;

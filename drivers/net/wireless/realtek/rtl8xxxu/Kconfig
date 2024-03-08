@@ -9,13 +9,13 @@ config RTL8XXXU
 	help
 	  This is an alternative driver for various Realtek RTL8XXX
 	  parts written to utilize the Linux mac80211 stack.
-	  The driver is known to work with a number of RTL8723AU,
+	  The driver is kanalwn to work with a number of RTL8723AU,
 	  RL8188CU, RTL8188RU, RTL8191CU, RTL8192CU, RTL8723BU, RTL8192EU,
 	  RTL8188FU, RTL8188EU, RTL8710BU (aka RTL8188GU), and RTL8192FU
 	  devices.
 
 	  This driver is under development and has a limited feature
-	  set. In particular it does not yet support 40MHz channels
+	  set. In particular it does analt yet support 40MHz channels
 	  and power management. However it should have a smaller
 	  memory footprint than the vendor drivers and benefits
 	  from the in kernel mac80211 stack.
@@ -32,7 +32,7 @@ config RTL8XXXU_UNTESTED
 	depends on RTL8XXXU
 	help
 	  This option enables detection of Realtek 8723/8188/8191/8192 WiFi
-	  USB devices which have not been tested directly by the driver
+	  USB devices which have analt been tested directly by the driver
 	  author or reported to be working by third parties.
 
 	  Please report your results!

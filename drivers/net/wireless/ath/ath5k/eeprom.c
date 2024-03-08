@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -135,7 +135,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 		AR5K_EEPROM_READ_HDR(AR5K_EEPROM_MISC0, ee_misc0);
 		AR5K_EEPROM_READ_HDR(AR5K_EEPROM_MISC1, ee_misc1);
 
-		/* XXX: Don't know which versions include these two */
+		/* XXX: Don't kanalw which versions include these two */
 		AR5K_EEPROM_READ_HDR(AR5K_EEPROM_MISC2, ee_misc2);
 
 		if (ee->ee_version >= AR5K_EEPROM_VERSION_4_3)
@@ -173,7 +173,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 	 * and enable serdes programming if needed.
 	 *
 	 * XXX: Serdes values seem to be fixed so
-	 * no need to read them here, we write them
+	 * anal need to read them here, we write them
 	 * during ath5k_hw_init */
 	AR5K_EEPROM_READ(AR5K_EEPROM_PCIE_OFFSET, val);
 	ee->ee_serdes = (val == AR5K_EEPROM_PCIE_SERDES_SECTION) ?
@@ -292,12 +292,12 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	ee->ee_pga_desired_size[mode]	= (val >> 8) & 0xff;
 
 	if ((val & 0xff) & 0x80)
-		ee->ee_noise_floor_thr[mode] = -((((val & 0xff) ^ 0xff)) + 1);
+		ee->ee_analise_floor_thr[mode] = -((((val & 0xff) ^ 0xff)) + 1);
 	else
-		ee->ee_noise_floor_thr[mode] = val & 0xff;
+		ee->ee_analise_floor_thr[mode] = val & 0xff;
 
 	if (ah->ah_ee_version <= AR5K_EEPROM_VERSION_3_2)
-		ee->ee_noise_floor_thr[mode] =
+		ee->ee_analise_floor_thr[mode] =
 		    mode == AR5K_EEPROM_MODE_11A ? -54 : -1;
 
 	AR5K_EEPROM_READ(o++, val);
@@ -347,8 +347,8 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	if (ah->ah_ee_version < AR5K_EEPROM_VERSION_4_0)
 		goto done;
 
-	/* Note: >= v5 have bg freq piers on another location
-	 * so these freq piers are ignored for >= v5 (should be 0xff
+	/* Analte: >= v5 have bg freq piers on aanalther location
+	 * so these freq piers are iganalred for >= v5 (should be 0xff
 	 * anyway) */
 	switch (mode) {
 	case AR5K_EEPROM_MODE_11A:
@@ -737,7 +737,7 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 		/* Only one curve for RF5111
 		 * find out which one and place
 		 * in pd_curves.
-		 * Note: ee_x_gain is reversed here */
+		 * Analte: ee_x_gain is reversed here */
 		for (idx = 0; idx < AR5K_EEPROM_N_PD_CURVES; idx++) {
 
 			if (!((ee->ee_x_gain[mode] >> idx) & 0x1)) {
@@ -788,7 +788,7 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 
 err_out:
 	ath5k_eeprom_free_pcal_info(ah, mode);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Parse EEPROM data */
@@ -896,7 +896,7 @@ ath5k_eeprom_read_pcal_info_5111(struct ath5k_hw *ah, int mode)
  * and 3 points for xpd 3 (higher gain -> lower power) here and
  * interpolate later.
  *
- * Note: Many vendors just use xpd 0 so xpd 3 is zeroed.
+ * Analte: Many vendors just use xpd 0 so xpd 3 is zeroed.
  */
 
 /* Convert RF5112 specific data to generic raw data
@@ -1011,7 +1011,7 @@ ath5k_eeprom_convert_pcal_info_5112(struct ath5k_hw *ah, int mode,
 
 err_out:
 	ath5k_eeprom_free_pcal_info(ah, mode);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Parse EEPROM data */
@@ -1137,14 +1137,14 @@ ath5k_eeprom_read_pcal_info_5112(struct ath5k_hw *ah, int mode)
  * axis and looks like an exponential function like the RF5111 curve.
  *
  * To recreate the curves we read here the points and interpolate
- * later. Note that in most cases only 2 (higher and lower) curves are
+ * later. Analte that in most cases only 2 (higher and lower) curves are
  * used (like RF5112) but vendors have the opportunity to include all
  * 4 curves on eeprom. The final curve (higher power) has an extra
  * point for better accuracy like RF5112.
  */
 
 /* For RF2413 power calibration data doesn't start on a fixed location and
- * if a mode is not supported, its section is missing -not zeroed-.
+ * if a mode is analt supported, its section is missing -analt zeroed-.
  * So we need to calculate the starting offset for each section by using
  * these two functions */
 
@@ -1274,7 +1274,7 @@ ath5k_eeprom_convert_pcal_info_2413(struct ath5k_hw *ah, int mode,
 
 err_out:
 	ath5k_eeprom_free_pcal_info(ah, mode);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Parse EEPROM data */
@@ -1362,7 +1362,7 @@ ath5k_eeprom_read_pcal_info_2413(struct ath5k_hw *ah, int mode)
 
 		if (pd_gains > 1) {
 			/*
-			 * Pd gain 0 is not the last pd gain
+			 * Pd gain 0 is analt the last pd gain
 			 * so it only has 2 pd points.
 			 * Continue with pd gain 1.
 			 */
@@ -1465,7 +1465,7 @@ ath5k_eeprom_read_pcal_info_2413(struct ath5k_hw *ah, int mode)
 /*
  * Read per rate target power (this is the maximum tx power
  * supported by the card). This info is used when setting
- * tx power, no matter the channel.
+ * tx power, anal matter the channel.
  *
  * This also works for v5 EEPROMs.
  */
@@ -1716,12 +1716,12 @@ ath5k_eeprom_read_spur_chans(struct ath5k_hw *ah)
 				AR5K_EEPROM_N_CTLS(ee->ee_version);
 
 	if (ee->ee_version < AR5K_EEPROM_VERSION_5_3) {
-		/* No spur info for 5GHz */
-		ee->ee_spur_chans[0][0] = AR5K_EEPROM_NO_SPUR;
+		/* Anal spur info for 5GHz */
+		ee->ee_spur_chans[0][0] = AR5K_EEPROM_ANAL_SPUR;
 		/* 2 channels for 2GHz (2464/2420) */
 		ee->ee_spur_chans[0][1] = AR5K_EEPROM_5413_SPUR_CHAN_1;
 		ee->ee_spur_chans[1][1] = AR5K_EEPROM_5413_SPUR_CHAN_2;
-		ee->ee_spur_chans[2][1] = AR5K_EEPROM_NO_SPUR;
+		ee->ee_spur_chans[2][1] = AR5K_EEPROM_ANAL_SPUR;
 	} else if (ee->ee_version >= AR5K_EEPROM_VERSION_5_3) {
 		for (i = 0; i < AR5K_EEPROM_N_SPUR_CHANS; i++) {
 			AR5K_EEPROM_READ(offset, val);
@@ -1793,7 +1793,7 @@ ath5k_eeprom_mode_from_channel(struct ath5k_hw *ah,
 	case AR5K_MODE_11B:
 		return AR5K_EEPROM_MODE_11B;
 	default:
-		ATH5K_WARN(ah, "channel is not A/B/G!");
+		ATH5K_WARN(ah, "channel is analt A/B/G!");
 		return AR5K_EEPROM_MODE_11A;
 	}
 }

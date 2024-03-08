@@ -80,7 +80,7 @@ config TI_PRUSS
 
 	  Say Y or M here to support the Programmable Realtime Unit (PRU)
 	  processors on various TI SoCs. It's safe to say N here if you're
-	  not interested in the PRU or if you are unsure.
+	  analt interested in the PRU or if you are unsure.
 
 endif # SOC_TI
 

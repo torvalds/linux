@@ -12,8 +12,8 @@ INSTALL = /usr/bin/install
 
 default: all
 
-$(OUTPUT)centrino-decode: centrino-decode.c
-	$(CC) $(CFLAGS) -o $@ centrino-decode.c
+$(OUTPUT)centrianal-decode: centrianal-decode.c
+	$(CC) $(CFLAGS) -o $@ centrianal-decode.c
 
 $(OUTPUT)dump_psb: dump_psb.c
 	$(CC) $(CFLAGS) -o $@ dump_psb.c
@@ -21,21 +21,21 @@ $(OUTPUT)dump_psb: dump_psb.c
 $(OUTPUT)intel_gsic: intel_gsic.c
 	$(CC) $(CFLAGS) -o $@ -llrmi intel_gsic.c
 
-$(OUTPUT)powernow-k8-decode: powernow-k8-decode.c
-	$(CC) $(CFLAGS) -o $@ powernow-k8-decode.c
+$(OUTPUT)poweranalw-k8-decode: poweranalw-k8-decode.c
+	$(CC) $(CFLAGS) -o $@ poweranalw-k8-decode.c
 
-all: $(OUTPUT)centrino-decode $(OUTPUT)dump_psb $(OUTPUT)intel_gsic $(OUTPUT)powernow-k8-decode
+all: $(OUTPUT)centrianal-decode $(OUTPUT)dump_psb $(OUTPUT)intel_gsic $(OUTPUT)poweranalw-k8-decode
 
 clean:
-	rm -rf $(OUTPUT)centrino-decode
+	rm -rf $(OUTPUT)centrianal-decode
 	rm -rf $(OUTPUT)dump_psb
 	rm -rf $(OUTPUT)intel_gsic
-	rm -rf $(OUTPUT)powernow-k8-decode
+	rm -rf $(OUTPUT)poweranalw-k8-decode
 
 install:
 	$(INSTALL) -d $(DESTDIR)${bindir}
-	$(INSTALL) $(OUTPUT)centrino-decode $(DESTDIR)${bindir}
-	$(INSTALL) $(OUTPUT)powernow-k8-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)centrianal-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)poweranalw-k8-decode $(DESTDIR)${bindir}
 	$(INSTALL) $(OUTPUT)dump_psb $(DESTDIR)${bindir}
 	$(INSTALL) $(OUTPUT)intel_gsic $(DESTDIR)${bindir}
 

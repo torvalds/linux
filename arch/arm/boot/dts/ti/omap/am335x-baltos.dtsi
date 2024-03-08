@@ -192,8 +192,8 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>;	/* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		nand-bus-width = <8>;
 		ti,nand-ecc-opt = "bch8";
@@ -368,7 +368,7 @@
 &mmc2 {
 	status = "okay";
 	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	pinctrl-names = "default";
@@ -393,9 +393,9 @@
 };
 
 &gpio0_target {
-	ti,no-reset-on-init;
+	ti,anal-reset-on-init;
 };
 
 &gpio3_target {
-	ti,no-reset-on-init;
+	ti,anal-reset-on-init;
 };

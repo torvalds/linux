@@ -103,13 +103,13 @@ static int st_nci_hci_dm_get_info(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					     HCI_DM_GET_INFO, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -135,13 +135,13 @@ static int st_nci_hci_dm_get_data(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					     HCI_DM_GET_DATA, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -219,13 +219,13 @@ static int st_nci_hci_get_param(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					     HCI_GET_PARAM, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -264,13 +264,13 @@ static int st_nci_hci_dm_vdc_measurement_value(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 				HCI_DM_VDC_MEASUREMENT_VALUE, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -300,13 +300,13 @@ static int st_nci_hci_dm_vdc_value_comparison(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					HCI_DM_VDC_VALUE_COMPARISON, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -334,13 +334,13 @@ static int st_nci_loopback(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					     LOOPBACK, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -360,12 +360,12 @@ static int st_nci_manufacturer_specific(struct nfc_dev *dev, void *data,
 					MANUFACTURER_SPECIFIC,
 					sizeof(ndev->manufact_specific_info));
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, sizeof(ndev->manufact_specific_info),
 		    &ndev->manufact_specific_info)) {
 		kfree_skb(msg);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	return nfc_vendor_cmd_reply(msg);

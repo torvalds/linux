@@ -16,7 +16,7 @@ int imgu_css_dma_buffer_resize(struct imgu_device *imgu,
 
 		imgu_dmamap_free(imgu, map);
 		if (!imgu_dmamap_alloc(imgu, map, size))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -52,7 +52,7 @@ int imgu_css_pool_init(struct imgu_device *imgu, struct imgu_css_pool *pool,
 
 fail:
 	imgu_css_pool_cleanup(imgu, pool);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -83,7 +83,7 @@ void imgu_css_pool_put(struct imgu_css_pool *pool)
  * @n: the distance to the last index.
  *
  * Returns:
- *  The nth entry from last or null map to indicate no frame stored.
+ *  The nth entry from last or null map to indicate anal frame stored.
  */
 const struct imgu_css_map *
 imgu_css_pool_last(struct imgu_css_pool *pool, unsigned int n)

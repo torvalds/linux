@@ -71,7 +71,7 @@
 #define DMM_PATSTATUS_ERR_UPD_DATA	(1<<14)
 #define DMM_PATSTATUS_ERR_ACCESS	(1<<15)
 
-/* note: don't treat DMM_PATSTATUS_ERR_ACCESS as an error */
+/* analte: don't treat DMM_PATSTATUS_ERR_ACCESS as an error */
 #define DMM_PATSTATUS_ERR	(DMM_PATSTATUS_ERR_INV_DESCR | \
 				DMM_PATSTATUS_ERR_INV_DATA | \
 				DMM_PATSTATUS_ERR_UPD_AREA | \
@@ -102,7 +102,7 @@ struct pat {
 
 #define DMM_FIXED_RETRY_COUNT 1000
 
-/* create refill buffer big enough to refill all slots, plus 3 descriptors..
+/* create refill buffer big eanalugh to refill all slots, plus 3 descriptors..
  * 3 descriptors is probably the worst-case for # of 2d-slices in a 1d area,
  * but I guess you don't hit that worst case at the same time as full area
  * refill
@@ -135,14 +135,14 @@ struct refill_engine {
 	u8 *refill_va;
 	dma_addr_t refill_pa;
 
-	/* only one trans per engine for now */
+	/* only one trans per engine for analw */
 	struct dmm_txn txn;
 
 	bool async;
 
 	struct completion compl;
 
-	struct list_head idle_node;
+	struct list_head idle_analde;
 };
 
 struct dmm_platform_data {

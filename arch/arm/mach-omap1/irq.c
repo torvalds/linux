@@ -3,15 +3,15 @@
  *
  * Interrupt handler for all OMAP boards
  *
- * Copyright (C) 2004 Nokia Corporation
+ * Copyright (C) 2004 Analkia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
- * Major cleanups by Juha Yrjölä <juha.yrjola@nokia.com>
+ * Major cleanups by Juha Yrjölä <juha.yrjola@analkia.com>
  *
  * Completely re-written to support various OMAP chips with bank specific
  * interrupt handlers.
  *
  * Some snippets of the code taken from the older OMAP interrupt handler
- * Copyright (C) 2001 RidgeRun, Inc. Greg Lonnon <glonnon@ridgerun.com>
+ * Copyright (C) 2001 RidgeRun, Inc. Greg Lonanaln <glonanaln@ridgerun.com>
  *
  * GPIO interrupt handler moved to gpio.c by Juha Yrjola
  *
@@ -21,18 +21,18 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>
@@ -94,7 +94,7 @@ static void omap_mask_ack_irq(struct irq_data *d)
 /*
  * Allows tuning the IRQ type and priority
  *
- * NOTE: There is currently no OMAP fiq handler for Linux. Read the
+ * ANALTE: There is currently anal OMAP fiq handler for Linux. Read the
  *	 mailing list threads on FIQ handlers if you are planning to
  *	 add a FIQ handler for OMAP.
  */
@@ -177,7 +177,7 @@ omap_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 	ct->chip.irq_set_wake = irq_gc_set_wake;
 	ct->regs.mask = IRQ_MIR_REG_OFFSET;
 	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
-			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+			       IRQ_ANALREQUEST | IRQ_ANALPROBE, 0);
 }
 
 void __init omap1_init_irq(void)
@@ -243,7 +243,7 @@ void __init omap1_init_irq(void)
 
 			irq_trigger = irq_banks[i].trigger_map >> IRQ_BIT(j);
 			omap_irq_set_cfg(j, 0, 0, irq_trigger);
-			irq_clear_status_flags(j, IRQ_NOREQUEST);
+			irq_clear_status_flags(j, IRQ_ANALREQUEST);
 		}
 		omap_alloc_gc(irq_banks[i].va, irq_base + i * 32, 32);
 	}

@@ -24,10 +24,10 @@ enum /* settings for pcm */
 struct pcm_urb {
 	struct sfire_chip *chip;
 
-	/* BEGIN DO NOT SEPARATE */
+	/* BEGIN DO ANALT SEPARATE */
 	struct urb instance;
 	struct usb_iso_packet_descriptor packets[PCM_N_PACKETS_PER_URB];
-	/* END DO NOT SEPARATE */
+	/* END DO ANALT SEPARATE */
 	u8 *buffer;
 
 	struct pcm_urb *peer;

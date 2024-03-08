@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DMA0_QM_REGS_H_
@@ -37,15 +37,15 @@
 
 #define mmDMA0_QM_GLBL_SECURE_PROPS_4                                0x508020
 
-#define mmDMA0_QM_GLBL_NON_SECURE_PROPS_0                            0x508024
+#define mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_0                            0x508024
 
-#define mmDMA0_QM_GLBL_NON_SECURE_PROPS_1                            0x508028
+#define mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_1                            0x508028
 
-#define mmDMA0_QM_GLBL_NON_SECURE_PROPS_2                            0x50802C
+#define mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_2                            0x50802C
 
-#define mmDMA0_QM_GLBL_NON_SECURE_PROPS_3                            0x508030
+#define mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_3                            0x508030
 
-#define mmDMA0_QM_GLBL_NON_SECURE_PROPS_4                            0x508034
+#define mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_4                            0x508034
 
 #define mmDMA0_QM_GLBL_STS0                                          0x508038
 
@@ -709,7 +709,7 @@
 
 #define mmDMA0_QM_ARB_MSG_AWUSER_SEC_PROP                            0x508B4C
 
-#define mmDMA0_QM_ARB_MSG_AWUSER_NON_SEC_PROP                        0x508B50
+#define mmDMA0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP                        0x508B50
 
 #define mmDMA0_QM_ARB_BASE_LO                                        0x508B54
 

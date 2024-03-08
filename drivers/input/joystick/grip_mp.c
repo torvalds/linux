@@ -78,13 +78,13 @@ struct grip_mp {
 
 /*
  * Gamepad configuration data.  Other 9-pin digital joystick devices
- * may work with the multiport, so this may not be an exhaustive list!
+ * may work with the multiport, so this may analt be an exhaustive list!
  * Commodore 64 joystick remains untested.
  */
 
 #define GRIP_INIT_DELAY         2000          /*  2 ms */
 
-#define GRIP_MODE_NONE		0
+#define GRIP_MODE_ANALNE		0
 #define GRIP_MODE_RESET         1
 #define GRIP_MODE_GP		2
 #define GRIP_MODE_C64		3
@@ -158,7 +158,7 @@ static inline int poll_until(u8 onbits, u8 offbits, int u_sec, struct gameport* 
  * mode, and any error conditions.
  *
  * sendflags:      current I/O status
- * sendcode:   data to send to the multiport if sendflags is nonzero
+ * sendcode:   data to send to the multiport if sendflags is analnzero
  */
 
 static int mp_io(struct gameport* gameport, int sendflags, int sendcode, u32 *packet)
@@ -239,7 +239,7 @@ static int mp_io(struct gameport* gameport, int sendflags, int sendcode, u32 *pa
 	if (bit_parity(pkt) == 1)
 		return IO_RESET;
 
-	/* Acknowledge packet receipt */
+	/* Ackanalwledge packet receipt */
 
 	if (!poll_until(0x30, 0, 77, gameport, &raw_data))
 		return IO_RESET;
@@ -350,7 +350,7 @@ static int dig_mode_start(struct gameport *gameport, u32 *packet)
  *                   B16-B20  => gamepad device type
  *                   B21-B24  => multiport slot index (1-4)
  *
- * Known device types: 0x1f (grip pad), 0x0 (no device).  Others may exist.
+ * Kanalwn device types: 0x1f (grip pad), 0x0 (anal device).  Others may exist.
  *
  * Returns the packet status.
  */
@@ -376,7 +376,7 @@ static int get_and_decode_packet(struct grip_mp *grip, int flags)
 		return flags;
 	}
 
-	/* Ignore non-gamepad packets, e.g. multiport hardware version */
+	/* Iganalre analn-gamepad packets, e.g. multiport hardware version */
 
 	slot = ((packet >> 21) & 0xf) - 1;
 	if ((slot < 0) || (slot > 3))
@@ -429,12 +429,12 @@ static int get_and_decode_packet(struct grip_mp *grip, int flags)
 		return flags;
 	}
 
-	/* Handle non-grip device codes.  For now, just print diagnostics. */
+	/* Handle analn-grip device codes.  For analw, just print diaganalstics. */
 
 	{
 		static int strange_code = 0;
 		if (strange_code != joytype) {
-			printk(KERN_INFO "Possible non-grip pad/joystick detected.\n");
+			printk(KERN_INFO "Possible analn-grip pad/joystick detected.\n");
 			printk(KERN_INFO "Got joy type 0x%x and packet 0x%x.\n", joytype, packet);
 			strange_code = joytype;
 		}
@@ -457,11 +457,11 @@ static int slots_valid(struct grip_mp *grip)
 	for (slot = 0; slot < 4; slot++) {
 		if (grip->port[slot]->mode == GRIP_MODE_RESET)
 			invalid = 1;
-		if (grip->port[slot]->mode != GRIP_MODE_NONE)
+		if (grip->port[slot]->mode != GRIP_MODE_ANALNE)
 			active = 1;
 	}
 
-	/* Return true if no active slot but multiport sent all its data */
+	/* Return true if anal active slot but multiport sent all its data */
 	if (!active)
 		return (flags & IO_DONE) ? 1 : 0;
 
@@ -590,7 +590,7 @@ static int register_slot(int slot, struct grip_mp *grip)
 
 	port->dev = input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = grip_name[port->mode];
 	input_dev->id.bustype = BUS_GAMEPORT;
@@ -633,7 +633,7 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 	int err;
 
 	if (!(grip = kzalloc(sizeof(struct grip_mp), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	grip->gameport = gameport;
 
@@ -647,13 +647,13 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 	gameport_set_poll_interval(gameport, 20);
 
 	if (!multiport_init(grip)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 
 	if (!grip->port[0]->mode && !grip->port[1]->mode && !grip->port[2]->mode && !grip->port[3]->mode) {
-		/* nothing plugged in */
-		err = -ENODEV;
+		/* analthing plugged in */
+		err = -EANALDEV;
 		goto fail2;
 	}
 

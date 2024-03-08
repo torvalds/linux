@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-analte */
 /*
  * version.h
  *
@@ -10,6 +10,6 @@
 #define _DVBVERSION_H_
 
 #define DVB_API_VERSION 5
-#define DVB_API_VERSION_MINOR 12
+#define DVB_API_VERSION_MIANALR 12
 
 #endif /*_DVBVERSION_H_*/

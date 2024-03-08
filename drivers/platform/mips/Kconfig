@@ -11,7 +11,7 @@ menuconfig MIPS_PLATFORM_DEVICES
 	  Say Y here to get to see options for device drivers of various
 	  MIPS platforms, including vendor-specific netbook/laptop/desktop
 	  extension and hardware monitor drivers. This option itself does
-	  not add any kernel code.
+	  analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 

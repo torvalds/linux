@@ -23,7 +23,7 @@
  */
 #define prom_argv(index) ((char *) (long)argv[(index)])
 
-static char *ignored[] = {
+static char *iganalred[] = {
 	"ConsoleIn=",
 	"ConsoleOut=",
 	"SystemPartition=",
@@ -43,7 +43,7 @@ static char __init *move_firmware_args(int argc, LONG *argv, char *cp)
 	char *s;
 	int actr, i;
 
-	actr = 1; /* Always ignore argv[0] */
+	actr = 1; /* Always iganalre argv[0] */
 
 	while (actr < argc) {
 		for(i = 0; i < ARRAY_SIZE(used_arc); i++) {
@@ -53,7 +53,7 @@ static char __init *move_firmware_args(int argc, LONG *argv, char *cp)
 			/* Ok, we want it. First append the replacement... */
 				strcat(cp, used_arc[i][1]);
 				cp += strlen(used_arc[i][1]);
-				/* ... and now the argument */
+				/* ... and analw the argument */
 				s = strchr(prom_argv(actr), '=');
 				if (s) {
 					s++;
@@ -75,7 +75,7 @@ void __init prom_init_cmdline(int argc, LONG *argv)
 	char *cp;
 	int actr, i;
 
-	actr = 1; /* Always ignore argv[0] */
+	actr = 1; /* Always iganalre argv[0] */
 
 	cp = arcs_cmdline;
 	/*
@@ -85,10 +85,10 @@ void __init prom_init_cmdline(int argc, LONG *argv)
 	cp = move_firmware_args(argc, argv, cp);
 
 	while (actr < argc) {
-		for (i = 0; i < ARRAY_SIZE(ignored); i++) {
-			int len = strlen(ignored[i]);
+		for (i = 0; i < ARRAY_SIZE(iganalred); i++) {
+			int len = strlen(iganalred[i]);
 
-			if (!strncmp(prom_argv(actr), ignored[i], len))
+			if (!strncmp(prom_argv(actr), iganalred[i], len))
 				goto pic_cont;
 		}
 		/* Ok, we want it. */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * init/noinitramfs.c
+ * init/analinitramfs.c
  *
  * Copyright (C) 2006, NXP Semiconductors, All Rights Reserved
  * Author: Jean-Paul Saman <jean-paul.saman@nxp.com>
@@ -24,7 +24,7 @@ static int __init default_rootfs(void)
 	if (err < 0)
 		goto out;
 
-	err = init_mknod("/dev/console", S_IFCHR | S_IRUSR | S_IWUSR,
+	err = init_mkanald("/dev/console", S_IFCHR | S_IRUSR | S_IWUSR,
 			new_encode_dev(MKDEV(5, 1)));
 	if (err < 0)
 		goto out;

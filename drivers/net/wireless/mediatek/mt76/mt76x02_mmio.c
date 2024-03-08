@@ -184,7 +184,7 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x02_tx_status));
 	status_fifo = devm_kzalloc(dev->mt76.dev, fifo_size, GFP_KERNEL);
 	if (!status_fifo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->mt76.tx_worker.fn = mt76x02_tx_worker;
 	tasklet_setup(&dev->mt76.pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet);
@@ -266,7 +266,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
@@ -285,7 +285,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	if (intr & MT_INT_PRE_TBTT)
 		tasklet_schedule(&dev->mt76.pre_tbtt_tasklet);
 
-	/* send buffered multicast frames now */
+	/* send buffered multicast frames analw */
 	if (intr & MT_INT_TBTT) {
 		if (dev->mt76.csa_complete)
 			mt76_csa_finish(&dev->mt76);

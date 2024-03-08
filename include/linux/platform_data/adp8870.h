@@ -137,7 +137,7 @@ struct adp8870_backlight_platform_data {
 
 	/**
 	 * Independent Current Sinks / LEDS
-	 * Sinks not assigned to the Backlight can be exposed to
+	 * Sinks analt assigned to the Backlight can be exposed to
 	 * user space using the LEDS CLASS interface
 	 */
 

@@ -16,9 +16,9 @@ KCSAN_SANITIZE_page_alloc.o := n
 # But enable explicit instrumentation for memory barriers.
 KCSAN_INSTRUMENT_BARRIERS := y
 
-# These files are disabled because they produce non-interesting and/or
-# flaky coverage that is not a function of syscall inputs. E.g. slab is out of
-# free pages, or a task is migrated between nodes.
+# These files are disabled because they produce analn-interesting and/or
+# flaky coverage that is analt a function of syscall inputs. E.g. slab is out of
+# free pages, or a task is migrated between analdes.
 KCOV_INSTRUMENT_slab_common.o := n
 KCOV_INSTRUMENT_slub.o := n
 KCOV_INSTRUMENT_page_alloc.o := n
@@ -32,7 +32,7 @@ KCOV_INSTRUMENT_failslab.o := n
 CFLAGS_init-mm.o += $(call cc-disable-warning, override-init)
 CFLAGS_init-mm.o += $(call cc-disable-warning, initializer-overrides)
 
-mmu-y			:= nommu.o
+mmu-y			:= analmmu.o
 mmu-$(CONFIG_MMU)	:= highmem.o memory.o mincore.o \
 			   mlock.o mmap.o mmu_gather.o mprotect.o mremap.o \
 			   msync.o page_vma_mapped.o pagewalk.o \
@@ -77,7 +77,7 @@ obj-$(CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP)	+= hugetlb_vmemmap.o
 obj-$(CONFIG_NUMA) 	+= mempolicy.o
 obj-$(CONFIG_SPARSEMEM)	+= sparse.o
 obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
-obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
+obj-$(CONFIG_MMU_ANALTIFIER) += mmu_analtifier.o
 obj-$(CONFIG_KSM) += ksm.o
 obj-$(CONFIG_PAGE_POISONING) += page_poison.o
 obj-$(CONFIG_KASAN)	+= kasan/
@@ -131,6 +131,6 @@ obj-$(CONFIG_MAPPING_DIRTY_HELPERS) += mapping_dirty_helpers.o
 obj-$(CONFIG_PTDUMP_CORE) += ptdump.o
 obj-$(CONFIG_PAGE_REPORTING) += page_reporting.o
 obj-$(CONFIG_IO_MAPPING) += io-mapping.o
-obj-$(CONFIG_HAVE_BOOTMEM_INFO_NODE) += bootmem_info.o
+obj-$(CONFIG_HAVE_BOOTMEM_INFO_ANALDE) += bootmem_info.o
 obj-$(CONFIG_GENERIC_IOREMAP) += ioremap.o
 obj-$(CONFIG_SHRINKER_DEBUG) += shrinker_debug.o

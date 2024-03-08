@@ -46,7 +46,7 @@ static int vesa_probe(void)
 	if (oreg.ax != 0x004f ||
 	    vginfo.signature != VESA_MAGIC ||
 	    vginfo.version < 0x0102)
-		return 0;	/* Not present */
+		return 0;	/* Analt present */
 
 	set_fs(vginfo.video_mode_ptr.seg);
 	mode_ptr = vginfo.video_mode_ptr.off;
@@ -238,7 +238,7 @@ void vesa_store_edid(void)
 #ifdef CONFIG_FIRMWARE_EDID
 	struct biosregs ireg, oreg;
 
-	/* Apparently used as a nonsense token... */
+	/* Apparently used as a analnsense token... */
 	memset(&boot_params.edid_info, 0x13, sizeof(boot_params.edid_info));
 
 	if (vginfo.version < 0x0200)
@@ -252,7 +252,7 @@ void vesa_store_edid(void)
 	intcall(0x10, &ireg, &oreg);
 
 	if (oreg.ax != 0x004f)
-		return;		/* No EDID */
+		return;		/* Anal EDID */
 
 	/* BH = time in seconds to transfer EDD information */
 	/* BL = DDC level supported */
@@ -267,7 +267,7 @@ void vesa_store_edid(void)
 #endif /* CONFIG_FIRMWARE_EDID */
 }
 
-#endif /* not _WAKEUP */
+#endif /* analt _WAKEUP */
 
 static __videocard video_vesa =
 {

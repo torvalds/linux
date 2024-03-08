@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -59,7 +59,7 @@ enum mod_hdcp_ddc_message_id {
 	MOD_HDCP_MESSAGE_ID_RX_CAPS,
 	MOD_HDCP_MESSAGE_ID_WRITE_AKE_INIT,
 	MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_CERT,
-	MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM,
+	MOD_HDCP_MESSAGE_ID_WRITE_AKE_ANAL_STORED_KM,
 	MOD_HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM,
 	MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME,
 	MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO,
@@ -96,7 +96,7 @@ static const uint8_t hdcp_i2c_offsets[] = {
 	[MOD_HDCP_MESSAGE_ID_HDCP2VERSION] = 0x50,
 	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_INIT] = 0x60,
 	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_CERT] = 0x80,
-	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM] = 0x60,
+	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_ANAL_STORED_KM] = 0x60,
 	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM] = 0x60,
 	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME] = 0x80,
 	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO] = 0x80,
@@ -131,7 +131,7 @@ static const uint32_t hdcp_dpcd_addrs[] = {
 	[MOD_HDCP_MESSAGE_ID_RX_CAPS] = 0x6921d,
 	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_INIT] = 0x69000,
 	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_CERT] = 0x6900b,
-	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM] = 0x69220,
+	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_ANAL_STORED_KM] = 0x69220,
 	[MOD_HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM] = 0x692a0,
 	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME] = 0x692c0,
 	[MOD_HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO] = 0x692e0,
@@ -541,18 +541,18 @@ enum mod_hdcp_status mod_hdcp_write_ake_init(struct mod_hdcp *hdcp)
 	return status;
 }
 
-enum mod_hdcp_status mod_hdcp_write_no_stored_km(struct mod_hdcp *hdcp)
+enum mod_hdcp_status mod_hdcp_write_anal_stored_km(struct mod_hdcp *hdcp)
 {
 	enum mod_hdcp_status status;
 
 	if (is_dp_hdcp(hdcp))
-		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM,
-				hdcp->auth.msg.hdcp2.ake_no_stored_km+1,
-				sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km)-1);
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_ANAL_STORED_KM,
+				hdcp->auth.msg.hdcp2.ake_anal_stored_km+1,
+				sizeof(hdcp->auth.msg.hdcp2.ake_anal_stored_km)-1);
 	else
-		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM,
-			hdcp->auth.msg.hdcp2.ake_no_stored_km,
-			sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km));
+		status = write(hdcp, MOD_HDCP_MESSAGE_ID_WRITE_AKE_ANAL_STORED_KM,
+			hdcp->auth.msg.hdcp2.ake_anal_stored_km,
+			sizeof(hdcp->auth.msg.hdcp2.ake_anal_stored_km));
 	return status;
 }
 

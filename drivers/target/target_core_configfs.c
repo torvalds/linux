@@ -113,7 +113,7 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 
 	mutex_lock(&target_devices_lock);
 	if (target_devices) {
-		pr_err("db_root: cannot be changed because it's in use\n");
+		pr_err("db_root: cananalt be changed because it's in use\n");
 		goto unlock;
 	}
 
@@ -133,12 +133,12 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 	/* validate new db root before accepting it */
 	fp = filp_open(db_root_stage, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
-		pr_err("db_root: cannot open: %s\n", db_root_stage);
+		pr_err("db_root: cananalt open: %s\n", db_root_stage);
 		goto unlock;
 	}
-	if (!S_ISDIR(file_inode(fp)->i_mode)) {
+	if (!S_ISDIR(file_ianalde(fp)->i_mode)) {
 		filp_close(fp, NULL);
-		pr_err("db_root: not a directory: %s\n", db_root_stage);
+		pr_err("db_root: analt a directory: %s\n", db_root_stage);
 		goto unlock;
 	}
 	filp_close(fp, NULL);
@@ -203,9 +203,9 @@ static struct config_group *target_core_register_fabric(
 		 *
 		 * mkdir -p /sys/kernel/config/target/$MODULE_NAME
 		 *
-		 * Note that this does not limit which TCM fabric module can be
+		 * Analte that this does analt limit which TCM fabric module can be
 		 * registered, but simply provids auto loading logic for modules with
-		 * mkdir(2) system calls with known TCM fabric modules.
+		 * mkdir(2) system calls with kanalwn TCM fabric modules.
 		 */
 
 		if (!strncmp(name, "iscsi", 5)) {
@@ -350,7 +350,7 @@ static u32 target_default_sess_get_index(struct se_session *se_sess)
 	return 0;
 }
 
-static void target_set_default_node_attributes(struct se_node_acl *se_acl)
+static void target_set_default_analde_attributes(struct se_analde_acl *se_acl)
 {
 }
 
@@ -458,8 +458,8 @@ static void target_set_default_ops(struct target_core_fabric_ops *tfo)
 	if (!tfo->sess_get_index)
 		tfo->sess_get_index = target_default_sess_get_index;
 
-	if (!tfo->set_default_node_attributes)
-		tfo->set_default_node_attributes = target_set_default_node_attributes;
+	if (!tfo->set_default_analde_attributes)
+		tfo->set_default_analde_attributes = target_set_default_analde_attributes;
 
 	if (!tfo->get_cmd_state)
 		tfo->get_cmd_state = target_default_get_cmd_state;
@@ -477,14 +477,14 @@ int target_register_template(const struct target_core_fabric_ops *fo)
 
 	tf = kzalloc(sizeof(struct target_fabric_configfs), GFP_KERNEL);
 	if (!tf) {
-		pr_err("%s: could not allocate memory!\n", __func__);
-		return -ENOMEM;
+		pr_err("%s: could analt allocate memory!\n", __func__);
+		return -EANALMEM;
 	}
 	tfo = kzalloc(sizeof(struct target_core_fabric_ops), GFP_KERNEL);
 	if (!tfo) {
 		kfree(tf);
-		pr_err("%s: could not allocate memory!\n", __func__);
-		return -ENOMEM;
+		pr_err("%s: could analt allocate memory!\n", __func__);
+		return -EANALMEM;
 	}
 	memcpy(tfo, fo, sizeof(*tfo));
 	target_set_default_ops(tfo);
@@ -561,7 +561,7 @@ DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(hw_pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_verify);
 DEF_CONFIGFS_ATTRIB_SHOW(enforce_pr_isids);
-DEF_CONFIGFS_ATTRIB_SHOW(is_nonrot);
+DEF_CONFIGFS_ATTRIB_SHOW(is_analnrot);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_rest_reord);
 DEF_CONFIGFS_ATTRIB_SHOW(force_pr_aptpl);
 DEF_CONFIGFS_ATTRIB_SHOW(hw_block_size);
@@ -620,14 +620,14 @@ DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_caw);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_3pc);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_pr);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(enforce_pr_isids);
-DEF_CONFIGFS_ATTRIB_STORE_BOOL(is_nonrot);
+DEF_CONFIGFS_ATTRIB_STORE_BOOL(is_analnrot);
 
 #define DEF_CONFIGFS_ATTRIB_STORE_STUB(_name)				\
 static ssize_t _name##_store(struct config_item *item, const char *page,\
 		size_t count)						\
 {									\
 	printk_once(KERN_WARNING					\
-		"ignoring deprecated %s attribute\n",			\
+		"iganalring deprecated %s attribute\n",			\
 		__stringify(_name));					\
 	return count;							\
 }
@@ -695,7 +695,7 @@ static ssize_t emulate_write_cache_store(struct config_item *item,
 		return ret;
 
 	if (flag && da->da_dev->transport->get_write_cache) {
-		pr_err("emulate_write_cache not supported for this device\n");
+		pr_err("emulate_write_cache analt supported for this device\n");
 		return -EINVAL;
 	}
 
@@ -717,7 +717,7 @@ static ssize_t emulate_ua_intlck_ctrl_store(struct config_item *item,
 		return ret;
 
 	if (val != TARGET_UA_INTLCK_CTRL_CLEAR
-	 && val != TARGET_UA_INTLCK_CTRL_NO_CLEAR
+	 && val != TARGET_UA_INTLCK_CTRL_ANAL_CLEAR
 	 && val != TARGET_UA_INTLCK_CTRL_ESTABLISH_UA) {
 		pr_err("Illegal value %d\n", val);
 		return -EINVAL;
@@ -763,20 +763,20 @@ static int target_try_configure_unmap(struct se_device *dev,
 				      const char *config_opt)
 {
 	if (!dev->transport->configure_unmap) {
-		pr_err("Generic Block Discard not supported\n");
-		return -ENOSYS;
+		pr_err("Generic Block Discard analt supported\n");
+		return -EANALSYS;
 	}
 
 	if (!target_dev_configured(dev)) {
 		pr_err("Generic Block Discard setup for %s requires device to be configured\n",
 		       config_opt);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!dev->transport->configure_unmap(dev)) {
 		pr_err("Generic Block Discard setup for %s failed\n",
 		       config_opt);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -795,7 +795,7 @@ static ssize_t emulate_tpu_store(struct config_item *item,
 		return ret;
 
 	/*
-	 * We expect this value to be non-zero when generic Block Layer
+	 * We expect this value to be analn-zero when generic Block Layer
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
@@ -823,7 +823,7 @@ static ssize_t emulate_tpws_store(struct config_item *item,
 		return ret;
 
 	/*
-	 * We expect this value to be non-zero when generic Block Layer
+	 * We expect this value to be analn-zero when generic Block Layer
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
@@ -855,26 +855,26 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		return -EINVAL;
 	}
 	if (flag == 2) {
-		pr_err("DIF TYPE2 protection currently not supported\n");
-		return -ENOSYS;
+		pr_err("DIF TYPE2 protection currently analt supported\n");
+		return -EANALSYS;
 	}
 	if (da->hw_pi_prot_type) {
 		pr_warn("DIF protection enabled on underlying hardware,"
-			" ignoring\n");
+			" iganalring\n");
 		return count;
 	}
 	if (!dev->transport->init_prot || !dev->transport->free_prot) {
-		/* 0 is only allowed value for non-supporting backends */
+		/* 0 is only allowed value for analn-supporting backends */
 		if (flag == 0)
 			return count;
 
-		pr_err("DIF protection not supported by backend: %s\n",
+		pr_err("DIF protection analt supported by backend: %s\n",
 		       dev->transport->name);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	if (!target_dev_configured(dev)) {
 		pr_err("DIF protection requires device to be configured\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (dev->export_count) {
 		pr_err("dev[%p]: Unable to change SE Device PROT type while"
@@ -923,13 +923,13 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 		return count;
 
 	if (!dev->transport->format_prot) {
-		pr_err("DIF protection format not supported by backend %s\n",
+		pr_err("DIF protection format analt supported by backend %s\n",
 		       dev->transport->name);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	if (!target_dev_configured(dev)) {
 		pr_err("DIF protection format requires device to be configured\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (dev->export_count) {
 		pr_err("dev[%p]: Unable to format SE Device PROT type while"
@@ -962,11 +962,11 @@ static ssize_t pi_prot_verify_store(struct config_item *item,
 	}
 	if (da->hw_pi_prot_type) {
 		pr_warn("DIF protection enabled on underlying hardware,"
-			" ignoring\n");
+			" iganalring\n");
 		return count;
 	}
 	if (!da->pi_prot_type) {
-		pr_warn("DIF protection not supported by backend, ignoring\n");
+		pr_warn("DIF protection analt supported by backend, iganalring\n");
 		return count;
 	}
 	da->pi_prot_verify = flag;
@@ -1009,8 +1009,8 @@ static ssize_t emulate_rest_reord_store(struct config_item *item,
 
 	if (flag != 0) {
 		printk(KERN_ERR "dev[%p]: SE Device emulation of restricted"
-			" reordering not implemented\n", da->da_dev);
-		return -ENOSYS;
+			" reordering analt implemented\n", da->da_dev);
+		return -EANALSYS;
 	}
 	da->emulate_rest_reord = flag;
 	pr_debug("dev[%p]: SE Device emulate_rest_reord: %d\n",
@@ -1037,7 +1037,7 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 		return -EINVAL;
 	}
 	/*
-	 * We expect this value to be non-zero when generic Block Layer
+	 * We expect this value to be analn-zero when generic Block Layer
 	 * Discard supported is detected iblock_configure_device().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
@@ -1052,7 +1052,7 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 }
 
 /*
- * Note, this can only be called on unexported SE Device Object.
+ * Analte, this can only be called on unexported SE Device Object.
  */
 static ssize_t queue_depth_store(struct config_item *item,
 		const char *page, size_t count)
@@ -1109,7 +1109,7 @@ static ssize_t optimal_sectors_store(struct config_item *item,
 		return -EINVAL;
 	}
 	if (val > da->hw_max_sectors) {
-		pr_err("dev[%p]: Passed optimal_sectors %u cannot be"
+		pr_err("dev[%p]: Passed optimal_sectors %u cananalt be"
 			" greater than hw_max_sectors: %u\n",
 			da->da_dev, val, da->hw_max_sectors);
 		return -EINVAL;
@@ -1182,7 +1182,7 @@ static ssize_t alua_support_store(struct config_item *item,
 	      TRANSPORT_FLAG_PASSTHROUGH_ALUA)) {
 		pr_err("dev[%p]: Unable to change SE Device alua_support:"
 			" alua_support has fixed value\n", dev);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (flag)
@@ -1221,7 +1221,7 @@ static ssize_t pgr_support_store(struct config_item *item,
 	      TRANSPORT_FLAG_PASSTHROUGH_PGR)) {
 		pr_err("dev[%p]: Unable to change SE Device pgr_support:"
 			" pgr_support has fixed value\n", dev);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (flag)
@@ -1284,7 +1284,7 @@ CONFIGFS_ATTR_RO(, hw_pi_prot_type);
 CONFIGFS_ATTR(, pi_prot_format);
 CONFIGFS_ATTR(, pi_prot_verify);
 CONFIGFS_ATTR(, enforce_pr_isids);
-CONFIGFS_ATTR(, is_nonrot);
+CONFIGFS_ATTR(, is_analnrot);
 CONFIGFS_ATTR(, emulate_rest_reord);
 CONFIGFS_ATTR(, force_pr_aptpl);
 CONFIGFS_ATTR_RO(, hw_block_size);
@@ -1326,7 +1326,7 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_pi_prot_format,
 	&attr_pi_prot_verify,
 	&attr_enforce_pr_isids,
-	&attr_is_nonrot,
+	&attr_is_analnrot,
 	&attr_emulate_rest_reord,
 	&attr_force_pr_aptpl,
 	&attr_hw_block_size,
@@ -1405,7 +1405,7 @@ static ssize_t target_check_inquiry_data(char *buf)
 	 */
 	for (i = 0; i < len; i++) {
 		if (buf[i] < 0x20 || buf[i] > 0x7E) {
-			pr_err("Emulated T10 Inquiry Data contains non-ASCII-printable characters\n");
+			pr_err("Emulated T10 Inquiry Data contains analn-ASCII-printable characters\n");
 			return -EINVAL;
 		}
 	}
@@ -1602,7 +1602,7 @@ target_wwn_company_id_store(struct config_item *item,
 	int ret;
 
 	/*
-	 * The IEEE COMPANY_ID field should contain a 24-bit canonical
+	 * The IEEE COMPANY_ID field should contain a 24-bit caanalnical
 	 * form OUI assigned by the IEEE.
 	 */
 	ret = kstrtou32(page, 0, &val);
@@ -1651,18 +1651,18 @@ static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
 
 	/*
 	 * If Linux/SCSI subsystem_api_t plugin got a VPD Unit Serial
-	 * from the struct scsi_device level firmware, do not allow
+	 * from the struct scsi_device level firmware, do analt allow
 	 * VPD Unit Serial to be emulated.
 	 *
-	 * Note this struct scsi_device could also be emulating VPD
-	 * information from its drivers/scsi LLD.  But for now we assume
+	 * Analte this struct scsi_device could also be emulating VPD
+	 * information from its drivers/scsi LLD.  But for analw we assume
 	 * it is doing 'the right thing' wrt a world wide unique
 	 * VPD Unit Serial Number that OS dependent multipath can depend on.
 	 */
 	if (dev->dev_flags & DF_FIRMWARE_VPD_UNIT_SERIAL) {
 		pr_err("Underlying SCSI device firmware provided VPD"
-			" Unit Serial, ignoring request\n");
-		return -EOPNOTSUPP;
+			" Unit Serial, iganalring request\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (strlen(page) >= INQUIRY_VPD_SERIAL_LEN) {
@@ -1813,13 +1813,13 @@ static struct se_device *pr_to_dev(struct config_item *item)
 static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 		char *page)
 {
-	struct se_node_acl *se_nacl;
+	struct se_analde_acl *se_nacl;
 	struct t10_pr_registration *pr_reg;
 	char i_buf[PR_REG_ISID_ID_LEN] = { };
 
 	pr_reg = dev->dev_pr_res_holder;
 	if (!pr_reg)
-		return sprintf(page, "No SPC-3 Reservation holder\n");
+		return sprintf(page, "Anal SPC-3 Reservation holder\n");
 
 	se_nacl = pr_reg->pr_reg_nacl;
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
@@ -1833,17 +1833,17 @@ static ssize_t target_core_dev_pr_show_spc2_res(struct se_device *dev,
 		char *page)
 {
 	struct se_session *sess = dev->reservation_holder;
-	struct se_node_acl *se_nacl;
+	struct se_analde_acl *se_nacl;
 	ssize_t len;
 
 	if (sess) {
-		se_nacl = sess->se_node_acl;
+		se_nacl = sess->se_analde_acl;
 		len = sprintf(page,
 			      "SPC-2 Reservation: %s Initiator: %s\n",
 			      se_nacl->se_tpg->se_tpg_tfo->fabric_name,
 			      se_nacl->initiatorname);
 	} else {
-		len = sprintf(page, "No SPC-2 Reservation holder\n");
+		len = sprintf(page, "Anal SPC-2 Reservation holder\n");
 	}
 	return len;
 }
@@ -1876,7 +1876,7 @@ static ssize_t target_pr_res_pr_all_tgt_pts_show(struct config_item *item,
 
 	spin_lock(&dev->dev_reservation_lock);
 	if (!dev->dev_pr_res_holder) {
-		len = sprintf(page, "No SPC-3 Reservation holder\n");
+		len = sprintf(page, "Anal SPC-3 Reservation holder\n");
 	} else if (dev->dev_pr_res_holder->pr_reg_all_tg_pt) {
 		len = sprintf(page, "SPC-3 Reservation: All Target"
 			" Ports registration\n");
@@ -1900,7 +1900,7 @@ static ssize_t target_pr_res_pr_holder_tg_port_show(struct config_item *item,
 		char *page)
 {
 	struct se_device *dev = pr_to_dev(item);
-	struct se_node_acl *se_nacl;
+	struct se_analde_acl *se_nacl;
 	struct se_portal_group *se_tpg;
 	struct t10_pr_registration *pr_reg;
 	const struct target_core_fabric_ops *tfo;
@@ -1909,7 +1909,7 @@ static ssize_t target_pr_res_pr_holder_tg_port_show(struct config_item *item,
 	spin_lock(&dev->dev_reservation_lock);
 	pr_reg = dev->dev_pr_res_holder;
 	if (!pr_reg) {
-		len = sprintf(page, "No SPC-3 Reservation holder\n");
+		len = sprintf(page, "Anal SPC-3 Reservation holder\n");
 		goto out_unlock;
 	}
 
@@ -1918,7 +1918,7 @@ static ssize_t target_pr_res_pr_holder_tg_port_show(struct config_item *item,
 	tfo = se_tpg->se_tpg_tfo;
 
 	len += sprintf(page+len, "SPC-3 Reservation: %s"
-		" Target Node Endpoint: %s\n", tfo->fabric_name,
+		" Target Analde Endpoint: %s\n", tfo->fabric_name,
 		tfo->tpg_get_wwn(se_tpg));
 	len += sprintf(page+len, "SPC-3 Reservation: Relative Port"
 		" Identifier Tag: %hu %s Portal Group Tag: %hu"
@@ -1954,7 +1954,7 @@ static ssize_t target_pr_res_pr_registered_i_pts_show(struct config_item *item,
 		tfo = pr_reg->pr_reg_nacl->se_tpg->se_tpg_tfo;
 		core_pr_dump_initiator_port(pr_reg, i_buf,
 					PR_REG_ISID_ID_LEN);
-		sprintf(buf, "%s Node: %s%s Key: 0x%016Lx PRgen: 0x%08x\n",
+		sprintf(buf, "%s Analde: %s%s Key: 0x%016Lx PRgen: 0x%08x\n",
 			tfo->fabric_name,
 			pr_reg->pr_reg_nacl->initiatorname, i_buf, pr_reg->pr_res_key,
 			pr_reg->pr_res_generation);
@@ -1968,7 +1968,7 @@ static ssize_t target_pr_res_pr_registered_i_pts_show(struct config_item *item,
 	spin_unlock(&dev->t10_pr.registration_lock);
 
 	if (!reg_count)
-		len += sprintf(page+len, "None\n");
+		len += sprintf(page+len, "Analne\n");
 
 	return len;
 }
@@ -1985,7 +1985,7 @@ static ssize_t target_pr_res_pr_type_show(struct config_item *item, char *page)
 		len = sprintf(page, "SPC-3 Reservation Type: %s\n",
 			core_scsi3_pr_dump_type(pr_reg->pr_res_type));
 	} else {
-		len = sprintf(page, "No SPC-3 Reservation holder\n");
+		len = sprintf(page, "Anal SPC-3 Reservation holder\n");
 	}
 
 	spin_unlock(&dev->dev_reservation_lock);
@@ -2032,15 +2032,15 @@ static ssize_t target_pr_res_aptpl_metadata_show(struct config_item *item,
 }
 
 enum {
-	Opt_initiator_fabric, Opt_initiator_node, Opt_initiator_sid,
+	Opt_initiator_fabric, Opt_initiator_analde, Opt_initiator_sid,
 	Opt_sa_res_key, Opt_res_holder, Opt_res_type, Opt_res_scope,
 	Opt_res_all_tg_pt, Opt_mapped_lun, Opt_target_fabric,
-	Opt_target_node, Opt_tpgt, Opt_port_rtpi, Opt_target_lun, Opt_err
+	Opt_target_analde, Opt_tpgt, Opt_port_rtpi, Opt_target_lun, Opt_err
 };
 
 static match_table_t tokens = {
 	{Opt_initiator_fabric, "initiator_fabric=%s"},
-	{Opt_initiator_node, "initiator_node=%s"},
+	{Opt_initiator_analde, "initiator_analde=%s"},
 	{Opt_initiator_sid, "initiator_sid=%s"},
 	{Opt_sa_res_key, "sa_res_key=%s"},
 	{Opt_res_holder, "res_holder=%d"},
@@ -2049,7 +2049,7 @@ static match_table_t tokens = {
 	{Opt_res_all_tg_pt, "res_all_tg_pt=%d"},
 	{Opt_mapped_lun, "mapped_lun=%u"},
 	{Opt_target_fabric, "target_fabric=%s"},
-	{Opt_target_node, "target_node=%s"},
+	{Opt_target_analde, "target_analde=%s"},
 	{Opt_tpgt, "tpgt=%d"},
 	{Opt_port_rtpi, "port_rtpi=%d"},
 	{Opt_target_lun, "target_lun=%u"},
@@ -2085,7 +2085,7 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	orig = opts;
 	while ((ptr = strsep(&opts, ",\n")) != NULL) {
@@ -2097,18 +2097,18 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 		case Opt_initiator_fabric:
 			i_fabric = match_strdup(args);
 			if (!i_fabric) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			break;
-		case Opt_initiator_node:
+		case Opt_initiator_analde:
 			i_port = match_strdup(args);
 			if (!i_port) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (strlen(i_port) >= PR_APTPL_MAX_IPORT_LEN) {
-				pr_err("APTPL metadata initiator_node="
+				pr_err("APTPL metadata initiator_analde="
 					" exceeds PR_APTPL_MAX_IPORT_LEN: %d\n",
 					PR_APTPL_MAX_IPORT_LEN);
 				ret = -EINVAL;
@@ -2118,7 +2118,7 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 		case Opt_initiator_sid:
 			isid = match_strdup(args);
 			if (!isid) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (strlen(isid) >= PR_REG_ISID_LEN) {
@@ -2175,18 +2175,18 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 		case Opt_target_fabric:
 			t_fabric = match_strdup(args);
 			if (!t_fabric) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			break;
-		case Opt_target_node:
+		case Opt_target_analde:
 			t_port = match_strdup(args);
 			if (!t_port) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (strlen(t_port) >= PR_APTPL_MAX_TPORT_LEN) {
-				pr_err("APTPL metadata target_node="
+				pr_err("APTPL metadata target_analde="
 					" exceeds PR_APTPL_MAX_TPORT_LEN: %d\n",
 					PR_APTPL_MAX_TPORT_LEN);
 				ret = -EINVAL;
@@ -2460,7 +2460,7 @@ static ssize_t target_dev_alua_lu_gp_store(struct config_item *item,
 		 */
 		lu_gp_new = core_alua_get_lu_gp_by_name(strstrip(buf));
 		if (!lu_gp_new)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	spin_lock(&lu_gp_mem->lu_gp_mem_lock);
@@ -2531,7 +2531,7 @@ static ssize_t target_dev_lba_map_show(struct config_item *item, char *page)
 			case ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED:
 				state = 'O';
 				break;
-			case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
+			case ALUA_ACCESS_STATE_ACTIVE_ANALN_OPTIMIZED:
 				state = 'A';
 				break;
 			case ALUA_ACCESS_STATE_STANDBY:
@@ -2568,7 +2568,7 @@ static ssize_t target_dev_lba_map_store(struct config_item *item,
 
 	orig = map_entries = kstrdup(page, GFP_KERNEL);
 	if (!map_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&lba_list);
 	while ((ptr = strsep(&map_entries, "\n")) != NULL) {
@@ -2618,7 +2618,7 @@ static ssize_t target_dev_lba_map_store(struct config_item *item,
 				alua_state = ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED;
 				break;
 			case 'A':
-				alua_state = ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED;
+				alua_state = ALUA_ACCESS_STATE_ACTIVE_ANALN_OPTIMIZED;
 				break;
 			case 'S':
 				alua_state = ALUA_ACCESS_STATE_STANDBY;
@@ -2905,8 +2905,8 @@ static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
 	}
 	if (!target_dev_configured(dev)) {
 		pr_err("Unable to set alua_access_state while device is"
-		       " not configured\n");
-		return -ENODEV;
+		       " analt configured\n");
+		return -EANALDEV;
 	}
 
 	ret = kstrtoul(page, 0, &tmp);
@@ -2963,7 +2963,7 @@ static ssize_t target_tg_pt_gp_alua_access_status_store(
 	}
 	new_status = (int)tmp;
 
-	if ((new_status != ALUA_STATUS_NONE) &&
+	if ((new_status != ALUA_STATUS_ANALNE) &&
 	    (new_status != ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG) &&
 	    (new_status != ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA)) {
 		pr_err("Illegal ALUA access status: 0x%02x\n",
@@ -3031,7 +3031,7 @@ ALUA_SUPPORTED_STATE_ATTR(lba_dependent, ALUA_LBD_SUP);
 ALUA_SUPPORTED_STATE_ATTR(unavailable, ALUA_U_SUP);
 ALUA_SUPPORTED_STATE_ATTR(standby, ALUA_S_SUP);
 ALUA_SUPPORTED_STATE_ATTR(active_optimized, ALUA_AO_SUP);
-ALUA_SUPPORTED_STATE_ATTR(active_nonoptimized, ALUA_AN_SUP);
+ALUA_SUPPORTED_STATE_ATTR(active_analanalptimized, ALUA_AN_SUP);
 
 static ssize_t target_tg_pt_gp_alua_write_metadata_show(
 		struct config_item *item, char *page)
@@ -3063,16 +3063,16 @@ static ssize_t target_tg_pt_gp_alua_write_metadata_store(
 	return count;
 }
 
-static ssize_t target_tg_pt_gp_nonop_delay_msecs_show(struct config_item *item,
+static ssize_t target_tg_pt_gp_analanalp_delay_msecs_show(struct config_item *item,
 		char *page)
 {
-	return core_alua_show_nonop_delay_msecs(to_tg_pt_gp(item), page);
+	return core_alua_show_analanalp_delay_msecs(to_tg_pt_gp(item), page);
 }
 
-static ssize_t target_tg_pt_gp_nonop_delay_msecs_store(struct config_item *item,
+static ssize_t target_tg_pt_gp_analanalp_delay_msecs_store(struct config_item *item,
 		const char *page, size_t count)
 {
-	return core_alua_store_nonop_delay_msecs(to_tg_pt_gp(item), page,
+	return core_alua_store_analanalp_delay_msecs(to_tg_pt_gp(item), page,
 			count);
 }
 
@@ -3198,9 +3198,9 @@ CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_lba_dependent);
 CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_unavailable);
 CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_standby);
 CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_active_optimized);
-CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_active_nonoptimized);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_active_analanalptimized);
 CONFIGFS_ATTR(target_tg_pt_gp_, alua_write_metadata);
-CONFIGFS_ATTR(target_tg_pt_gp_, nonop_delay_msecs);
+CONFIGFS_ATTR(target_tg_pt_gp_, analanalp_delay_msecs);
 CONFIGFS_ATTR(target_tg_pt_gp_, trans_delay_msecs);
 CONFIGFS_ATTR(target_tg_pt_gp_, implicit_trans_secs);
 CONFIGFS_ATTR(target_tg_pt_gp_, preferred);
@@ -3216,10 +3216,10 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	&target_tg_pt_gp_attr_alua_support_lba_dependent,
 	&target_tg_pt_gp_attr_alua_support_unavailable,
 	&target_tg_pt_gp_attr_alua_support_standby,
-	&target_tg_pt_gp_attr_alua_support_active_nonoptimized,
+	&target_tg_pt_gp_attr_alua_support_active_analanalptimized,
 	&target_tg_pt_gp_attr_alua_support_active_optimized,
 	&target_tg_pt_gp_attr_alua_write_metadata,
-	&target_tg_pt_gp_attr_nonop_delay_msecs,
+	&target_tg_pt_gp_attr_analanalp_delay_msecs,
 	&target_tg_pt_gp_attr_trans_delay_msecs,
 	&target_tg_pt_gp_attr_implicit_trans_secs,
 	&target_tg_pt_gp_attr_preferred,
@@ -3325,7 +3325,7 @@ static struct config_group *target_core_stat_mkdir(
 	struct config_group *group,
 	const char *name)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 static void target_core_stat_rmdir(
@@ -3355,7 +3355,7 @@ static struct config_group *target_core_make_subdev(
 	struct se_hba *hba = item_to_hba(hba_ci);
 	struct target_backend *tb = hba->backend;
 	struct se_device *dev;
-	int errno = -ENOMEM, ret;
+	int erranal = -EANALMEM, ret;
 
 	ret = mutex_lock_interruptible(&hba->hba_access_mutex);
 	if (ret)
@@ -3423,7 +3423,7 @@ out_free_device:
 	target_free_device(dev);
 out_unlock:
 	mutex_unlock(&hba->hba_access_mutex);
-	return ERR_PTR(errno);
+	return ERR_PTR(erranal);
 }
 
 static void target_core_drop_subdev(
@@ -3597,7 +3597,7 @@ static struct config_group *target_core_call_addhbatotarget(
 		return ERR_PTR(ret);
 	}
 	/*
-	 * Load up TCM subsystem plugins if they have not already been loaded.
+	 * Load up TCM subsystem plugins if they have analt already been loaded.
 	 */
 	transport_subsystem_check_init();
 
@@ -3654,12 +3654,12 @@ static void target_init_dbroot(void)
 	snprintf(db_root_stage, DB_ROOT_LEN, DB_ROOT_PREFERRED);
 	fp = filp_open(db_root_stage, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
-		pr_err("db_root: cannot open: %s\n", db_root_stage);
+		pr_err("db_root: cananalt open: %s\n", db_root_stage);
 		return;
 	}
-	if (!S_ISDIR(file_inode(fp)->i_mode)) {
+	if (!S_ISDIR(file_ianalde(fp)->i_mode)) {
 		filp_close(fp, NULL);
-		pr_err("db_root: not a valid directory: %s\n", db_root_stage);
+		pr_err("db_root: analt a valid directory: %s\n", db_root_stage);
 		return;
 	}
 	filp_close(fp, NULL);
@@ -3711,7 +3711,7 @@ static int __init target_core_init_configfs(void)
 	 */
 	lu_gp = core_alua_allocate_lu_gp("default_lu_gp", 1);
 	if (IS_ERR(lu_gp)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_global;
 	}
 

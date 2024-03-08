@@ -215,7 +215,7 @@ static inline int rdev_trigger_scan(struct cfg802154_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->trigger_scan)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_802154_rdev_trigger_scan(&rdev->wpan_phy, request);
 	ret = rdev->ops->trigger_scan(&rdev->wpan_phy, request);
@@ -229,7 +229,7 @@ static inline int rdev_abort_scan(struct cfg802154_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->abort_scan)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_802154_rdev_abort_scan(&rdev->wpan_phy, wpan_dev);
 	ret = rdev->ops->abort_scan(&rdev->wpan_phy, wpan_dev);
@@ -243,7 +243,7 @@ static inline int rdev_send_beacons(struct cfg802154_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->send_beacons)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_802154_rdev_send_beacons(&rdev->wpan_phy, request);
 	ret = rdev->ops->send_beacons(&rdev->wpan_phy, request);
@@ -257,7 +257,7 @@ static inline int rdev_stop_beacons(struct cfg802154_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->stop_beacons)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_802154_rdev_stop_beacons(&rdev->wpan_phy, wpan_dev);
 	ret = rdev->ops->stop_beacons(&rdev->wpan_phy, wpan_dev);
@@ -272,7 +272,7 @@ static inline int rdev_associate(struct cfg802154_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->associate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_802154_rdev_associate(&rdev->wpan_phy, wpan_dev, coord);
 	ret = rdev->ops->associate(&rdev->wpan_phy, wpan_dev, coord);
@@ -287,7 +287,7 @@ static inline int rdev_disassociate(struct cfg802154_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->disassociate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_802154_rdev_disassociate(&rdev->wpan_phy, wpan_dev, target);
 	ret = rdev->ops->disassociate(&rdev->wpan_phy, wpan_dev, target);

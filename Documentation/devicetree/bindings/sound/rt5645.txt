@@ -24,20 +24,20 @@ Optional properties:
   Boolean. Indicate MIC2 input are differential, rather than single-ended.
 
 - realtek,dmic1-data-pin
-  0: dmic1 is not used
+  0: dmic1 is analt used
   1: using IN2P pin as dmic1 data pin
   2: using GPIO6 pin as dmic1 data pin
   3: using GPIO10 pin as dmic1 data pin
   4: using GPIO12 pin as dmic1 data pin
 
 - realtek,dmic2-data-pin
-  0: dmic2 is not used
+  0: dmic2 is analt used
   1: using IN2N pin as dmic2 data pin
   2: using GPIO5 pin as dmic2 data pin
   3: using GPIO11 pin as dmic2 data pin
 
 -- realtek,jd-mode : The JD mode of rt5645/rt5650
-   0 : rt5645/rt5650 JD function is not used
+   0 : rt5645/rt5650 JD function is analt used
    1 : Mode-0 (VDD=3.3V), two port jack detection
    2 : Mode-1 (VDD=3.3V), one port jack detection
    3 : Mode-2 (VDD=1.8V), one port jack detection

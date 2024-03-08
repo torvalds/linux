@@ -17,7 +17,7 @@ echo 0 > tracing_cpumask
 # Take a snapshot of the main buffer
 echo 1 > snapshot
 
-# Restore origin cpumask, note that there should be some cpus being traced
+# Restore origin cpumask, analte that there should be some cpus being traced
 echo ${ORIG_CPUMASK} > tracing_cpumask
 
 # Set tracing on

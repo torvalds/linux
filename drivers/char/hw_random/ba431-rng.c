@@ -174,7 +174,7 @@ static int ba431_trng_probe(struct platform_device *pdev)
 
 	ba431 = devm_kzalloc(&pdev->dev, sizeof(*ba431), GFP_KERNEL);
 	if (!ba431)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ba431->dev = &pdev->dev;
 

@@ -6,7 +6,7 @@
  * or smsc 9218) has faster timings, leading to higher
  * bandwidth.
  *
- * Note that the board specifc DTS file needs to specify
+ * Analte that the board specifc DTS file needs to specify
  * ranges, pinctrl, reg, interrupt parent and interrupts.
  */
 

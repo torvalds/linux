@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  Copyright (c) 1999-2000 Vojtech Pavlik
  *
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  * 
  * Should you need to contact me, the author, you can do so either by
@@ -70,13 +70,13 @@ struct hiddev_report_info {
 };
 
 /* To do a GUSAGE/SUSAGE, fill in at least usage_code,  report_type and 
- * report_id.  Set report_id to REPORT_ID_UNKNOWN if the rest of the fields 
- * are unknown.  Otherwise use a usage_ref struct filled in from a previous 
+ * report_id.  Set report_id to REPORT_ID_UNKANALWN if the rest of the fields 
+ * are unkanalwn.  Otherwise use a usage_ref struct filled in from a previous 
  * successful GUSAGE call to save time.  To actually send a value to the
  * device, perform a SUSAGE first, followed by a SREPORT.  An INITREPORT or a
  * GREPORT isn't necessary for a GUSAGE to return valid data.
  */
-#define HID_REPORT_ID_UNKNOWN 0xffffffff
+#define HID_REPORT_ID_UNKANALWN 0xffffffff
 #define HID_REPORT_ID_FIRST   0x00000100
 #define HID_REPORT_ID_NEXT    0x00000200
 #define HID_REPORT_ID_MASK    0x000000ff
@@ -112,8 +112,8 @@ struct hiddev_field_info {
 #define HID_FIELD_VARIABLE		0x002
 #define HID_FIELD_RELATIVE		0x004
 #define HID_FIELD_WRAP			0x008	
-#define HID_FIELD_NONLINEAR		0x010
-#define HID_FIELD_NO_PREFERRED		0x020
+#define HID_FIELD_ANALNLINEAR		0x010
+#define HID_FIELD_ANAL_PREFERRED		0x020
 #define HID_FIELD_NULL_STATE		0x040
 #define HID_FIELD_VOLATILE		0x080
 #define HID_FIELD_BUFFERED_BYTE		0x100
@@ -136,11 +136,11 @@ struct hiddev_usage_ref_multi {
 	__s32 values[HID_MAX_MULTI_USAGES];
 };
 
-/* FIELD_INDEX_NONE is returned in read() data from the kernel when flags
+/* FIELD_INDEX_ANALNE is returned in read() data from the kernel when flags
  * is set to (HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT) and a new report has
  * been sent by the device 
  */
-#define HID_FIELD_INDEX_NONE 0xffffffff
+#define HID_FIELD_INDEX_ANALNE 0xffffffff
 
 /*
  * Protocol version.

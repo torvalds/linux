@@ -57,7 +57,7 @@ static struct acp_card_drvdata es83xx_rn_data = {
 	.dmic_cpu_id = DMIC,
 	.hs_codec_id = ES83XX,
 	.dmic_codec_id = DMIC,
-	.platform = RENOIR,
+	.platform = REANALIR,
 };
 
 static struct acp_card_drvdata max_nau8825_data = {
@@ -137,7 +137,7 @@ static int acp_asoc_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -150,13 +150,13 @@ static int acp_asoc_probe(struct platform_device *pdev)
 
 	acp_asoc_init_ops(card->drvdata);
 
-	/* If widgets and controls are not set in specific callback,
+	/* If widgets and controls are analt set in specific callback,
 	 * they will be added per-codec in acp-mach-common.c
 	 */
 	ret = acp_ops_configure_widgets(card);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-			"Cannot configure widgets for card (%s): %d\n",
+			"Cananalt configure widgets for card (%s): %d\n",
 			card->name, ret);
 		goto out;
 	}
@@ -166,7 +166,7 @@ static int acp_asoc_probe(struct platform_device *pdev)
 	ret = acp_ops_probe(card);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-			"Cannot probe card (%s): %d\n",
+			"Cananalt probe card (%s): %d\n",
 			card->name, ret);
 		goto out;
 	}
@@ -180,7 +180,7 @@ static int acp_asoc_probe(struct platform_device *pdev)
 	ret = acp_legacy_dai_links_create(card);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Cannot create dai links for card (%s): %d\n",
+			"Cananalt create dai links for card (%s): %d\n",
 			card->name, ret);
 		goto out;
 	}

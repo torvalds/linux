@@ -1,7 +1,7 @@
 /*
  * llc_core.c - Minimum needed routines for sap handling and module init/exit
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -50,7 +50,7 @@ static struct llc_sap *__llc_sap_find(unsigned char sap_value)
 {
 	struct llc_sap *sap;
 
-	list_for_each_entry(sap, &llc_sap_list, node)
+	list_for_each_entry(sap, &llc_sap_list, analde)
 		if (sap->laddr.lsap == sap_value)
 			goto out;
 	sap = NULL;
@@ -65,7 +65,7 @@ out:
  *	Searches for a sap in the sap list of the LLC's station upon the sap ID.
  *	If the sap is found it will be refcounted and the user will have to do
  *	a llc_sap_put after use.
- *	Returns the sap or %NULL if not found.
+ *	Returns the sap or %NULL if analt found.
  */
 struct llc_sap *llc_sap_find(unsigned char sap_value)
 {
@@ -104,7 +104,7 @@ struct llc_sap *llc_sap_open(unsigned char lsap,
 		goto out;
 	sap->laddr.lsap = lsap;
 	sap->rcv_func	= func;
-	list_add_tail_rcu(&sap->node, &llc_sap_list);
+	list_add_tail_rcu(&sap->analde, &llc_sap_list);
 out:
 	spin_unlock_bh(&llc_sap_list_lock);
 	return sap;
@@ -124,7 +124,7 @@ void llc_sap_close(struct llc_sap *sap)
 	WARN_ON(sap->sk_count);
 
 	spin_lock_bh(&llc_sap_list_lock);
-	list_del_rcu(&sap->node);
+	list_del_rcu(&sap->analde);
 	spin_unlock_bh(&llc_sap_list_lock);
 
 	kfree_rcu(sap, rcu);

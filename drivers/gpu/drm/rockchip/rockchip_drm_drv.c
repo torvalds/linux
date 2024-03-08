@@ -3,7 +3,7 @@
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author:Mark Yao <mark.yao@rock-chips.com>
  *
- * based on exynos_drm_drv.c
+ * based on exyanals_drm_drv.c
  */
 
 #include <linux/dma-mapping.h>
@@ -40,7 +40,7 @@
 #define DRIVER_DESC	"RockChip Soc DRM"
 #define DRIVER_DATE	"20140818"
 #define DRIVER_MAJOR	1
-#define DRIVER_MINOR	0
+#define DRIVER_MIANALR	0
 
 static const struct drm_driver rockchip_drm_driver;
 
@@ -93,7 +93,7 @@ void rockchip_drm_dma_init_device(struct drm_device *drm_dev,
 	struct rockchip_drm_private *private = drm_dev->dev_private;
 
 	if (!device_iommu_mapped(dev))
-		private->iommu_dev = ERR_PTR(-ENODEV);
+		private->iommu_dev = ERR_PTR(-EANALDEV);
 	else if (!private->iommu_dev)
 		private->iommu_dev = dev;
 }
@@ -109,7 +109,7 @@ static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 
 	private->domain = iommu_domain_alloc(private->iommu_dev->bus);
 	if (!private->domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	geometry = &private->domain->geometry;
 	start = geometry->aperture_start;
@@ -157,7 +157,7 @@ static int rockchip_drm_bind(struct device *dev)
 
 	private = devm_kzalloc(drm_dev->dev, sizeof(*private), GFP_KERNEL);
 	if (!private) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free;
 	}
 
@@ -231,7 +231,7 @@ static const struct drm_driver rockchip_drm_driver = {
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,
 	.major	= DRIVER_MAJOR,
-	.minor	= DRIVER_MINOR,
+	.mianalr	= DRIVER_MIANALR,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -264,24 +264,24 @@ static int num_rockchip_sub_drivers;
  * information is used by the VOP2 driver to identify the encoder.
  *
  * @rkencoder: The encoder to get the remote endpoint id from
- * @np: The encoder device node
+ * @np: The encoder device analde
  * @port: The number of the port leading to the VOP2
  * @reg: The endpoint number leading to the VOP2
  */
 int rockchip_drm_encoder_set_crtc_endpoint_id(struct rockchip_encoder *rkencoder,
-					      struct device_node *np, int port, int reg)
+					      struct device_analde *np, int port, int reg)
 {
 	struct of_endpoint ep;
-	struct device_node *en, *ren;
+	struct device_analde *en, *ren;
 	int ret;
 
 	en = of_graph_get_endpoint_by_regs(np, port, reg);
 	if (!en)
-		return -ENOENT;
+		return -EANALENT;
 
 	ren = of_graph_get_remote_endpoint(en);
 	if (!ren)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = of_graph_parse_endpoint(ren, &ep);
 	if (ret)
@@ -299,35 +299,35 @@ int rockchip_drm_encoder_set_crtc_endpoint_id(struct rockchip_encoder *rkencoder
  *
  * @ep: endpoint of a rockchip vop
  *
- * returns true if subdriver, false if external bridge and -ENODEV
- * if remote port does not contain a device.
+ * returns true if subdriver, false if external bridge and -EANALDEV
+ * if remote port does analt contain a device.
  */
-int rockchip_drm_endpoint_is_subdriver(struct device_node *ep)
+int rockchip_drm_endpoint_is_subdriver(struct device_analde *ep)
 {
-	struct device_node *node = of_graph_get_remote_port_parent(ep);
+	struct device_analde *analde = of_graph_get_remote_port_parent(ep);
 	struct platform_device *pdev;
 	struct device_driver *drv;
 	int i;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	/* status disabled will prevent creation of platform-devices */
-	if (!of_device_is_available(node)) {
-		of_node_put(node);
-		return -ENODEV;
+	if (!of_device_is_available(analde)) {
+		of_analde_put(analde);
+		return -EANALDEV;
 	}
 
-	pdev = of_find_device_by_node(node);
-	of_node_put(node);
+	pdev = of_find_device_by_analde(analde);
+	of_analde_put(analde);
 
-	/* enabled non-platform-devices can immediately return here */
+	/* enabled analn-platform-devices can immediately return here */
 	if (!pdev)
 		return false;
 
 	/*
 	 * All rockchip subdrivers have probed at this point, so
-	 * any device not having a driver now is an external bridge.
+	 * any device analt having a driver analw is an external bridge.
 	 */
 	drv = pdev->dev.driver;
 	if (!drv) {
@@ -350,7 +350,7 @@ static void rockchip_drm_match_remove(struct device *dev)
 {
 	struct device_link *link;
 
-	list_for_each_entry(link, &dev->links.consumers, s_node)
+	list_for_each_entry(link, &dev->links.consumers, s_analde)
 		device_link_del(link);
 }
 
@@ -379,7 +379,7 @@ static struct component_match *rockchip_drm_match_add(struct device *dev)
 	if (IS_ERR(match))
 		rockchip_drm_match_remove(dev);
 
-	return match ?: ERR_PTR(-ENODEV);
+	return match ?: ERR_PTR(-EANALDEV);
 }
 
 static const struct component_master_ops rockchip_drm_ops = {
@@ -389,13 +389,13 @@ static const struct component_master_ops rockchip_drm_ops = {
 
 static int rockchip_drm_platform_of_probe(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *port;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *port;
 	bool found = false;
 	int i;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0;; i++) {
 		port = of_parse_phandle(np, "ports", i);
@@ -403,23 +403,23 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 			break;
 
 		if (!of_device_is_available(port->parent)) {
-			of_node_put(port);
+			of_analde_put(port);
 			continue;
 		}
 
 		found = true;
-		of_node_put(port);
+		of_analde_put(port);
 	}
 
 	if (i == 0) {
 		DRM_DEV_ERROR(dev, "missing 'ports' property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!found) {
 		DRM_DEV_ERROR(dev,
-			      "No available vop found for display-subsystem.\n");
-		return -ENODEV;
+			      "Anal available vop found for display-subsystem.\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -491,7 +491,7 @@ static int __init rockchip_drm_init(void)
 	int ret;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	num_rockchip_sub_drivers = 0;
 	ADD_ROCKCHIP_SUB_DRIVER(vop_platform_driver, CONFIG_ROCKCHIP_VOP);
@@ -505,7 +505,7 @@ static int __init rockchip_drm_init(void)
 				CONFIG_ROCKCHIP_DW_HDMI);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_mipi_dsi_rockchip_driver,
 				CONFIG_ROCKCHIP_DW_MIPI_DSI);
-	ADD_ROCKCHIP_SUB_DRIVER(inno_hdmi_driver, CONFIG_ROCKCHIP_INNO_HDMI);
+	ADD_ROCKCHIP_SUB_DRIVER(inanal_hdmi_driver, CONFIG_ROCKCHIP_INANAL_HDMI);
 	ADD_ROCKCHIP_SUB_DRIVER(rk3066_hdmi_driver,
 				CONFIG_ROCKCHIP_RK3066_HDMI);
 

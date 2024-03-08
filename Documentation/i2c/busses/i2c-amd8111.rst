@@ -6,7 +6,7 @@ Supported adapters:
     * AMD-8111 SMBus 2.0 PCI interface
 
 Datasheets:
-	AMD datasheet not yet available, but almost everything can be found
+	AMD datasheet analt yet available, but almost everything can be found
 	in the publicly available ACPI 2.0 specification, which the adapter
 	follows.
 
@@ -33,11 +33,11 @@ SMBus 2.0 Support
 -----------------
 
 Supported. Both PEC and block process call support is implemented. Slave
-mode or host notification are not yet implemented.
+mode or host analtification are analt yet implemented.
 
-Notes
+Analtes
 -----
 
-Note that for the 8111, there are two SMBus adapters. The SMBus 2.0 adapter
+Analte that for the 8111, there are two SMBus adapters. The SMBus 2.0 adapter
 is supported by this driver, and the SMBus 1.0 adapter is supported by the
 i2c-amd756 driver.

@@ -4,7 +4,7 @@ Contact:	linux-crypto@vger.kernel.org
 Description:	Enabling/disabling of clear action after reading
 		the SEC debug registers.
 		0: disable, 1: enable.
-		Only available for PF, and take no other effect on SEC.
+		Only available for PF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/current_qm
 Date:		Oct 2019
@@ -44,94 +44,94 @@ Contact:	linux-crypto@vger.kernel.org
 Description:	Enabling/disabling of clear action after reading
 		the SEC's QM debug registers.
 		0: disable, 1: enable.
-		Only available for PF, and take no other effect on SEC.
+		Only available for PF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/err_irq
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the number of invalid interrupts for
 		QM task completion.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/aeq_irq
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the number of QM async event queue interrupts.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
-What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/abnormal_irq
+What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/abanalrmal_irq
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
-Description:	Dump the number of interrupts for QM abnormal event.
-		Available for both PF and VF, and take no other effect on SEC.
+Description:	Dump the number of interrupts for QM abanalrmal event.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/create_qp_err
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the number of queue allocation errors.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/mb_err
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the number of failed QM mailbox commands.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/status
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the status of the QM.
 		Two states: work, stop.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/qm/diff_regs
 Date:		Mar 2022
 Contact:	linux-crypto@vger.kernel.org
 Description:	QM debug registers(regs) read hardware register value. This
-		node is used to show the change of the qm register values. This
-		node can be help users to check the change of register values.
+		analde is used to show the change of the qm register values. This
+		analde can be help users to check the change of register values.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/diff_regs
 Date:		Mar 2022
 Contact:	linux-crypto@vger.kernel.org
 Description:	SEC debug registers(regs) read hardware register value. This
-		node is used to show the change of the register values. This
-		node can be help users to check the change of register values.
+		analde is used to show the change of the register values. This
+		analde can be help users to check the change of register values.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/send_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of sent requests.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/recv_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of received requests.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/send_busy_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of requests sent with returning busy.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/err_bd_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of BD type error requests
 		to be received.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/invalid_req_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of invalid requests being received.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.
 
 What:		/sys/kernel/debug/hisi_sec2/<bdf>/sec_dfx/done_flag_cnt
 Date:		Apr 2020
 Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of completed but marked error requests
 		to be received.
-		Available for both PF and VF, and take no other effect on SEC.
+		Available for both PF and VF, and take anal other effect on SEC.

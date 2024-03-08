@@ -9,7 +9,7 @@
 #include <net/switchdev.h>
 
 bool cpsw_port_dev_check(const struct net_device *dev);
-int cpsw_switchdev_register_notifiers(struct cpsw_common *cpsw);
-void cpsw_switchdev_unregister_notifiers(struct cpsw_common *cpsw);
+int cpsw_switchdev_register_analtifiers(struct cpsw_common *cpsw);
+void cpsw_switchdev_unregister_analtifiers(struct cpsw_common *cpsw);
 
 #endif /* DRIVERS_NET_ETHERNET_TI_CPSW_SWITCHDEV_H_ */

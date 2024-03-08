@@ -51,7 +51,7 @@ static void qce_unregister_algs(struct qce_device *qce)
 static int qce_register_algs(struct qce_device *qce)
 {
 	const struct qce_algo_ops *ops;
-	int i, ret = -ENODEV;
+	int i, ret = -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(qce_ops); i++) {
 		ops = qce_ops[i];
@@ -92,7 +92,7 @@ static int qce_handle_queue(struct qce_device *qce,
 	if (req)
 		ret = crypto_enqueue_request(&qce->queue, req);
 
-	/* busy, do not dequeue request */
+	/* busy, do analt dequeue request */
 	if (qce->req) {
 		spin_unlock_irqrestore(&qce->lock, flags);
 		return ret;
@@ -154,16 +154,16 @@ static void qce_async_request_done(struct qce_device *qce, int ret)
 
 static int qce_check_version(struct qce_device *qce)
 {
-	u32 major, minor, step;
+	u32 major, mianalr, step;
 
-	qce_get_version(qce, &major, &minor, &step);
+	qce_get_version(qce, &major, &mianalr, &step);
 
 	/*
-	 * the driver does not support v5 with minor 0 because it has special
+	 * the driver does analt support v5 with mianalr 0 because it has special
 	 * alignment requirements.
 	 */
-	if (major != QCE_MAJOR_VERSION5 || minor == 0)
-		return -ENODEV;
+	if (major != QCE_MAJOR_VERSION5 || mianalr == 0)
+		return -EANALDEV;
 
 	qce->burst_size = QCE_BAM_BURST_SIZE;
 
@@ -183,7 +183,7 @@ static int qce_check_version(struct qce_device *qce)
 	qce->pipe_pair_id = qce->dma.rxchan->chan_id >> 1;
 
 	dev_dbg(qce->dev, "Crypto device found, version %d.%d.%d\n",
-		major, minor, step);
+		major, mianalr, step);
 
 	return 0;
 }
@@ -196,7 +196,7 @@ static int qce_crypto_probe(struct platform_device *pdev)
 
 	qce = devm_kzalloc(dev, sizeof(*qce), GFP_KERNEL);
 	if (!qce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qce->dev = dev;
 	platform_set_drvdata(pdev, qce);

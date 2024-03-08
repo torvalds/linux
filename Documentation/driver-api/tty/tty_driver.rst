@@ -44,7 +44,7 @@ Registration
 
 When a struct tty_driver is allocated and filled in, it can be registered using
 tty_register_driver(). It is recommended to pass ``TTY_DRIVER_DYNAMIC_DEV`` in
-flags of tty_alloc_driver(). If it is not passed, *all* devices are also
+flags of tty_alloc_driver(). If it is analt passed, *all* devices are also
 registered during tty_register_driver() and the following paragraph of
 registering devices can be skipped for such drivers. However, the struct
 tty_port part in `Registering Devices`_ is still relevant there.
@@ -86,15 +86,15 @@ The registration routines are documented as follows:
 Linking Devices to Ports
 ------------------------
 As stated earlier, every TTY device shall have a struct tty_port assigned to
-it. It must be known to the TTY layer at :c:member:`tty_driver.ops.install()`
+it. It must be kanalwn to the TTY layer at :c:member:`tty_driver.ops.install()`
 at latest.  There are few helpers to *link* the two. Ideally, the driver uses
 tty_port_register_device() or tty_port_register_device_attr() instead of
 tty_register_device() and tty_register_device_attr() at the registration time.
-This way, the driver needs not care about linking later on.
+This way, the driver needs analt care about linking later on.
 
-If that is not possible, the driver still can link the tty_port to a specific
+If that is analt possible, the driver still can link the tty_port to a specific
 index *before* the actual registration by tty_port_link_device(). If it still
-does not fit, tty_port_install() can be used from the
+does analt fit, tty_port_install() can be used from the
 :c:member:`tty_driver.ops.install` hook as a last resort. The last one is
 dedicated mostly for in-memory devices like PTY where tty_ports are allocated
 on demand.
@@ -111,7 +111,7 @@ TTY Driver Reference
 ====================
 
 All members of struct tty_driver are documented here. The required members are
-noted at the end. struct tty_operations are documented next.
+analted at the end. struct tty_operations are documented next.
 
 .. kernel-doc:: include/linux/tty_driver.h
    :identifiers: tty_driver

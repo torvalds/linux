@@ -58,7 +58,7 @@ static void test_tcp_client(struct sock_destroy_prog *skel)
 	n = send(clien, "t", 1, 0);
 	if (!ASSERT_LT(n, 0, "client_send on destroyed socket"))
 		goto cleanup;
-	ASSERT_EQ(errno, ECONNABORTED, "error code on destroyed socket");
+	ASSERT_EQ(erranal, ECONNABORTED, "error code on destroyed socket");
 
 cleanup:
 	if (clien != -1)
@@ -99,7 +99,7 @@ static void test_tcp_server(struct sock_destroy_prog *skel)
 	n = send(clien, "t", 1, 0);
 	if (!ASSERT_LT(n, 0, "client_send on destroyed socket"))
 		goto cleanup;
-	ASSERT_EQ(errno, ECONNRESET, "error code on destroyed socket");
+	ASSERT_EQ(erranal, ECONNRESET, "error code on destroyed socket");
 
 cleanup:
 	if (clien != -1)
@@ -165,7 +165,7 @@ static void test_udp_server(struct sock_destroy_prog *skel)
 	for (i = 0; i < num_listens; ++i) {
 		n = read(listen_fds[i], buf, sizeof(buf));
 		if (!ASSERT_EQ(n, -1, "read") ||
-		    !ASSERT_EQ(errno, ECONNABORTED, "error code on destroyed socket"))
+		    !ASSERT_EQ(erranal, ECONNABORTED, "error code on destroyed socket"))
 			break;
 	}
 	ASSERT_EQ(i, num_listens, "server socket");
@@ -214,7 +214,7 @@ void test_sock_destroy(void)
 cleanup:
 	if (nstoken)
 		close_netns(nstoken);
-	SYS_NOFAIL("ip netns del " TEST_NS " &> /dev/null");
+	SYS_ANALFAIL("ip netns del " TEST_NS " &> /dev/null");
 	if (cgroup_fd >= 0)
 		close(cgroup_fd);
 	sock_destroy_prog__destroy(skel);

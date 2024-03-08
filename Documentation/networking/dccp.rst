@@ -12,7 +12,7 @@ DCCP protocol
    - Sysctl variables
    - IOCTLs
    - Other tunables
-   - Notes
+   - Analtes
 
 
 Introduction
@@ -36,10 +36,10 @@ is at http://www.ietf.org/html.charters/dccp-charter.html
 
 Missing features
 ================
-The Linux DCCP implementation does not currently support all the features that are
+The Linux DCCP implementation does analt currently support all the features that are
 specified in RFCs 4340...42.
 
-The known bugs are at:
+The kanalwn bugs are at:
 
 	http://www.linuxfoundation.org/collaborate/workgroups/networking/todo#DCCP
 
@@ -52,8 +52,8 @@ Socket options
 ==============
 DCCP_SOCKOPT_QPOLICY_ID sets the dequeuing policy for outgoing packets. It takes
 a policy ID as argument and can only be set before the connection (i.e. changes
-during an established connection are not supported). Currently, two policies are
-defined: the "simple" policy (DCCPQ_POLICY_SIMPLE), which does nothing special,
+during an established connection are analt supported). Currently, two policies are
+defined: the "simple" policy (DCCPQ_POLICY_SIMPLE), which does analthing special,
 and a priority-based variant (DCCPQ_POLICY_PRIO). The latter allows to pass an
 u32 priority value as ancillary data to sendmsg(), where higher numbers indicate
 a higher packet priority (similar to SO_PRIORITY). This ancillary data needs to
@@ -72,10 +72,10 @@ lowest-priority packet first. The default value for this parameter is
 initialised from /proc/sys/net/dccp/default/tx_qlen.
 
 DCCP_SOCKOPT_SERVICE sets the service. The specification mandates use of
-service codes (RFC 4340, sec. 8.1.2); if this socket option is not set,
-the socket will fall back to 0 (which means that no meaningful service code
+service codes (RFC 4340, sec. 8.1.2); if this socket option is analt set,
+the socket will fall back to 0 (which means that anal meaningful service code
 is present). On active sockets this is set before connect(); specifying more
-than one code has no effect (all subsequent service codes are ignored). The
+than one code has anal effect (all subsequent service codes are iganalred). The
 case is different for passive sockets, where multiple service codes (up to 32)
 can be set before calling bind().
 
@@ -91,14 +91,14 @@ built-in CCIDs.
 DCCP_SOCKOPT_CCID is write-only and sets both the TX and RX CCIDs at the same
 time, combining the operation of the next two socket options. This option is
 preferable over the latter two, since often applications will use the same
-type of CCID for both directions; and mixed use of CCIDs is not currently well
+type of CCID for both directions; and mixed use of CCIDs is analt currently well
 understood. This socket option takes as argument at least one uint8_t value, or
 an array of uint8_t values, which must match available CCIDS (see above). CCIDs
 must be registered on the socket before calling connect() or listen().
 
 DCCP_SOCKOPT_TX_CCID is read/write. It returns the current CCID (if set) or sets
 the preference list for the TX CCID, using the same format as DCCP_SOCKOPT_CCID.
-Please note that the getsockopt argument type here is ``int``, not uint8_t.
+Please analte that the getsockopt argument type here is ``int``, analt uint8_t.
 
 DCCP_SOCKOPT_RX_CCID is analogous to DCCP_SOCKOPT_TX_CCID, but for the RX CCID.
 
@@ -151,7 +151,7 @@ request_retries
 	Requests minus one) before timing out. In addition, it also governs
 	the behaviour of the other, passive side: this variable also sets
 	the number of times DCCP repeats sending a Response when the initial
-	handshake does not progress from RESPOND to OPEN (i.e. when no Ack
+	handshake does analt progress from RESPOND to OPEN (i.e. when anal Ack
 	is received after the initial Request).  This value should be greater
 	than 0, suggested is less than 10. Analogue of tcp_syn_retries.
 
@@ -161,7 +161,7 @@ retries1
 
 retries2
 	The number of times a general DCCP packet is retransmitted. This has
-	importance for retransmitted acknowledgments and feature negotiation,
+	importance for retransmitted ackanalwledgments and feature negotiation,
 	data packets are never retransmitted. Analogue of tcp_retries2.
 
 tx_ccid = 2
@@ -173,7 +173,7 @@ rx_ccid = 2
 
 seq_window = 100
 	The initial sequence window (sec. 7.5.2) of the sender. This influences
-	the local ackno validity and the remote seqno validity windows (7.5.1).
+	the local ackanal validity and the remote seqanal validity windows (7.5.1).
 	Values in the range Wmin = 32 (RFC 4340, 7.5.2) up to 2^32-1 can be set.
 
 tx_qlen = 5
@@ -190,7 +190,7 @@ IOCTLS
 ======
 FIONREAD
 	Works as in udp(7): returns in the ``int`` argument pointer the size of
-	the next pending datagram in bytes, or 0 when no datagram is pending.
+	the next pending datagram in bytes, or 0 when anal datagram is pending.
 
 SIOCOUTQ
 	Returns the number of unsent data bytes in the socket send queue as ``int``
@@ -208,12 +208,12 @@ Per-route rto_min support
 		> ip route show dev wlan0
 
 	CCID-3 also supports the rto_min setting: it is used to define the lower
-	bound for the expiry of the nofeedback timer. This can be useful on LANs
+	bound for the expiry of the analfeedback timer. This can be useful on LANs
 	with very low RTTs (e.g., loopback, Gbit ethernet).
 
 
-Notes
+Analtes
 =====
-DCCP does not travel through NAT successfully at present on many boxes. This is
+DCCP does analt travel through NAT successfully at present on many boxes. This is
 because the checksum covers the pseudo-header as per TCP and UDP. Linux NAT
 support for DCCP has been added.

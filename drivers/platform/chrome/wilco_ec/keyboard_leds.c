@@ -126,7 +126,7 @@ static int kbbl_exist(struct wilco_ec_device *ec, bool *exists)
  * @ec: EC device to talk to.
  *
  * Gets the current brightness, ensuring that the BIOS already initialized the
- * backlight to PWM mode. If not in PWM mode, then the current brightness is
+ * backlight to PWM mode. If analt in PWM mode, then the current brightness is
  * meaningless, so set the brightness to WILCO_KBBL_DEFAULT_BRIGHTNESS.
  *
  * Return: Final brightness of the keyboard, or negative error code on failure.
@@ -187,7 +187,7 @@ int wilco_keyboard_leds_init(struct wilco_ec_device *ec)
 
 	wkl = devm_kzalloc(ec->dev, sizeof(*wkl), GFP_KERNEL);
 	if (!wkl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wkl->ec = ec;
 	wkl->keyboard.name = "platform::kbd_backlight";

@@ -138,7 +138,7 @@
 	vref-supply = <&reg_DCDC3>;
 };
 
-/* ADC2 is not available as it conflicts with AD7879 resistive touchscreen. */
+/* ADC2 is analt available as it conflicts with AD7879 resistive touchscreen. */
 
 &cpu0 {
 	cpu-supply = <&reg_DCDC2>;
@@ -615,7 +615,7 @@
 &usdhc1 {
 	cd-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 	disable-wp;
-	no-1-8-v;
+	anal-1-8-v;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_cd_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz &pinctrl_cd_usdhc1>;
@@ -632,7 +632,7 @@
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
 	fsl,tuning-step = <2>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
@@ -648,7 +648,7 @@
 
 	/*
 	 * Atmel MXT touchsceen + Capacitive Touch Adapter
-	 * NOTE: This pin group conflicts with pin groups pinctrl_pwm2/pinctrl_pwm3.
+	 * ANALTE: This pin group conflicts with pin groups pinctrl_pwm2/pinctrl_pwm3.
 	 * Don't use them simultaneously.
 	 */
 	pinctrl_atmel_adapter: atmeladaptergrp {

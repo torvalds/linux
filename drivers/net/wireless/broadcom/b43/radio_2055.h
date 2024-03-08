@@ -40,7 +40,7 @@
 #define B2055_C2_PWRDET_LGBUF		0x20 /* PWRDET LGBUF Core 2 */
 #define B2055_C2_PWRDET_RXTX		0x21 /* PWRDET RXTX Core 2 */
 #define B2055_RRCCAL_CS			0x22 /* RRCCAL Control spare */
-#define B2055_RRCCAL_NOPTSEL		0x23 /* RRCCAL N OPT SEL */
+#define B2055_RRCCAL_ANALPTSEL		0x23 /* RRCCAL N OPT SEL */
 #define B2055_CAL_MISC			0x24 /* CAL MISC */
 #define B2055_CAL_COUT			0x25 /* CAL Counter out */
 #define B2055_CAL_COUT2			0x26 /* CAL Counter out 2 */
@@ -216,7 +216,7 @@ struct b43_nphy_channeltab_entry_rev2 {
 	u8 channel;
 	/* The channel frequency in MHz */
 	u16 freq;
-	/* An unknown value */
+	/* An unkanalwn value */
 	u16 unk2;
 	/* Radio register values on channelswitch */
 	u8 radio_pll_ref;
@@ -247,10 +247,10 @@ struct b43_nphy_channeltab_entry_rev2 {
 
 /* Upload the default register value table.
  * If "ghz5" is true, we upload the 5Ghz table. Otherwise the 2.4Ghz
- * table is uploaded. If "ignore_uploadflag" is true, we upload any value
- * and ignore the "UPLOAD" flag. */
+ * table is uploaded. If "iganalre_uploadflag" is true, we upload any value
+ * and iganalre the "UPLOAD" flag. */
 void b2055_upload_inittab(struct b43_wldev *dev,
-			  bool ghz5, bool ignore_uploadflag);
+			  bool ghz5, bool iganalre_uploadflag);
 
 /* Get the NPHY Channel Switch Table entry for a channel.
  * Returns NULL on failure to find an entry. */

@@ -72,13 +72,13 @@ static int acpi_check_extended_socket_status(struct acpi_device *device)
 
 	status = acpi_evaluate_integer(device->handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!((sta & ACPI_STA_DEVICE_PRESENT) &&
 	      (sta & ACPI_STA_DEVICE_ENABLED) &&
 	      (sta & ACPI_STA_DEVICE_UI) &&
 	      (sta & ACPI_STA_DEVICE_FUNCTIONING)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -124,15 +124,15 @@ static int fjes_acpi_add(struct acpi_device *device)
 	acpi_status status;
 
 	if (!is_extended_socket_device(device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (acpi_check_extended_socket_status(device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
 				     fjes_get_acpi_resource, fjes_resource);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* create platform_device */
 	plat_dev = platform_device_register_simple(DRV_NAME, 0, fjes_resource,
@@ -185,7 +185,7 @@ static int fjes_setup_resources(struct fjes_adapter *adapter)
 		}
 		break;
 	default:
-	case -ENOMSG:
+	case -EANALMSG:
 	case -EBUSY:
 		adapter->force_reset = true;
 
@@ -227,7 +227,7 @@ static int fjes_setup_resources(struct fjes_adapter *adapter)
 			switch (result) {
 			case 0:
 				break;
-			case -ENOMSG:
+			case -EANALMSG:
 			case -EBUSY:
 			default:
 				adapter->force_reset = true;
@@ -379,7 +379,7 @@ static irqreturn_t fjes_intr(int irq, void *data)
 
 		ret = IRQ_HANDLED;
 	} else {
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 	}
 
 	return ret;
@@ -599,7 +599,7 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	char shortpkt[VLAN_ETH_HLEN];
 	bool is_multi, vlan;
 	struct ethhdr *eth;
-	u16 queue_no = 0;
+	u16 queue_anal = 0;
 	u16 vlan_id = 0;
 	netdev_tx_t ret;
 	char *data;
@@ -607,7 +607,7 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	ret = NETDEV_TX_OK;
 	is_multi = false;
-	cur_queue = netdev_get_tx_queue(netdev, queue_no);
+	cur_queue = netdev_get_tx_queue(netdev, queue_anal);
 
 	eth = (struct ethhdr *)skb->data;
 	my_epid = hw->my_epid;
@@ -659,11 +659,11 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		if (pstatus != EP_PARTNER_SHARED) {
 			if (!is_multi)
 				hw->ep_shm_info[dest_epid].ep_stats
-					.tx_dropped_not_shared += 1;
+					.tx_dropped_analt_shared += 1;
 			ret = NETDEV_TX_OK;
 		} else if (!fjes_hw_check_epbuf_version(
 				&adapter->hw.ep_shm_info[dest_epid].rx, 0)) {
-			/* version is NOT 0 */
+			/* version is ANALT 0 */
 			adapter->stats64.tx_carrier_errors += 1;
 			hw->ep_shm_info[dest_epid].net_stats
 						.tx_carrier_errors += 1;
@@ -861,7 +861,7 @@ static int fjes_vlan_rx_add_vid(struct net_device *netdev,
 				&adapter->hw.ep_shm_info[epid].tx, vid);
 	}
 
-	return ret ? 0 : -ENOSPC;
+	return ret ? 0 : -EANALSPC;
 }
 
 static int fjes_vlan_rx_kill_vid(struct net_device *netdev,
@@ -1153,7 +1153,7 @@ static void fjes_raise_intr_rxdata_task(struct work_struct *work)
 			if (hw->ep_shm_info[epid].tx_status_work ==
 				FJES_TX_DELAY_SEND_PENDING) {
 				hw->ep_shm_info[epid].tx.info->v1i.tx_status =
-					FJES_TX_DELAY_SEND_NONE;
+					FJES_TX_DELAY_SEND_ANALNE;
 			}
 		}
 	}
@@ -1229,7 +1229,7 @@ static void fjes_watch_unshare_task(struct work_struct *work)
 			switch (ret) {
 			case 0:
 				break;
-			case -ENOMSG:
+			case -EANALMSG:
 			case -EBUSY:
 			default:
 				if (!work_pending(
@@ -1272,7 +1272,7 @@ static void fjes_watch_unshare_task(struct work_struct *work)
 				switch (ret) {
 				case 0:
 					break;
-				case -ENOMSG:
+				case -EANALMSG:
 				case -EBUSY:
 				default:
 					if (!work_pending(
@@ -1341,9 +1341,9 @@ static int fjes_probe(struct platform_device *plat_dev)
 	u8 addr[ETH_ALEN];
 	int err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	netdev = alloc_netdev_mq(sizeof(struct fjes_adapter), "es%d",
-				 NET_NAME_UNKNOWN, fjes_netdev_setup,
+				 NET_NAME_UNKANALWN, fjes_netdev_setup,
 				 FJES_MAX_QUEUES);
 
 	if (!netdev)
@@ -1369,14 +1369,14 @@ static int fjes_probe(struct platform_device *plat_dev)
 
 	adapter->txrx_wq = alloc_workqueue(DRV_NAME "/txrx", WQ_MEM_RECLAIM, 0);
 	if (unlikely(!adapter->txrx_wq)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_netdev;
 	}
 
 	adapter->control_wq = alloc_workqueue(DRV_NAME "/control",
 					      WQ_MEM_RECLAIM, 0);
 	if (unlikely(!adapter->control_wq)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_txrx_wq;
 	}
 
@@ -1507,7 +1507,7 @@ static int __init fjes_init_module(void)
 			    NULL);
 
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("%s - version %s - %s\n",
 		fjes_driver_string, fjes_driver_version, fjes_copyright);

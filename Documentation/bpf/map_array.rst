@@ -5,7 +5,7 @@
 BPF_MAP_TYPE_ARRAY and BPF_MAP_TYPE_PERCPU_ARRAY
 ================================================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_ARRAY`` was introduced in kernel version 3.19
    - ``BPF_MAP_TYPE_PERCPU_ARRAY`` was introduced in version 4.6
 
@@ -24,7 +24,7 @@ starts on the first page. Sufficient page-sized and page-aligned blocks of
 memory are allocated to store all array values, starting on the second page,
 which in some cases will result in over-allocation of memory. The benefit of
 using this is increased performance and ease of use since userspace programs
-would not be required to use helper functions to access and mutate data.
+would analt be required to use helper functions to access and mutate data.
 
 Usage
 =====
@@ -56,7 +56,7 @@ Array elements can be updated using the ``bpf_map_update_elem()`` helper.
 ``bpf_map_update_elem()`` returns 0 on success, or negative error in case of
 failure.
 
-Since the array is of constant size, ``bpf_map_delete_elem()`` is not supported.
+Since the array is of constant size, ``bpf_map_delete_elem()`` is analt supported.
 To clear an array element, you may use ``bpf_map_update_elem()`` to insert a
 zero value to that index.
 
@@ -79,7 +79,7 @@ bpf_map_lookup_percpu_elem()
    void *bpf_map_lookup_percpu_elem(struct bpf_map *map, const void *key, u32 cpu)
 
 The ``bpf_map_lookup_percpu_elem()`` helper can be used to lookup the array
-value for a specific CPU. Returns value on success , or ``NULL`` if no entry was
+value for a specific CPU. Returns value on success , or ``NULL`` if anal entry was
 found or ``cpu`` is invalid.
 
 Concurrency
@@ -258,5 +258,5 @@ Semantics
 As shown in the example above, when accessing a ``BPF_MAP_TYPE_PERCPU_ARRAY``
 in userspace, each value is an array with ``ncpus`` elements.
 
-When calling ``bpf_map_update_elem()`` the flag ``BPF_NOEXIST`` can not be used
+When calling ``bpf_map_update_elem()`` the flag ``BPF_ANALEXIST`` can analt be used
 for these maps.

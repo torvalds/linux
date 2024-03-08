@@ -129,7 +129,7 @@ static void da9150_fg_read_sync_start(struct da9150_fg *fg)
 
 	mutex_lock(&fg->io_lock);
 
-	/* Check if QIF sync already requested, and write to sync if not */
+	/* Check if QIF sync already requested, and write to sync if analt */
 	res = da9150_fg_read_attr(fg, DA9150_QIF_SYNC,
 				  DA9150_QIF_SYNC_SIZE);
 	if (res > 0)
@@ -201,7 +201,7 @@ static void da9150_fg_write_attr_sync(struct da9150_fg *fg, u8 code, u8 size,
 	/* Write value for QIF code */
 	da9150_fg_write_attr(fg, code, size, val);
 
-	/* Wait for write acknowledgment */
+	/* Wait for write ackanalwledgment */
 	i = 0;
 	sync_val = res;
 	while ((res == sync_val) && (i++ < DA9150_QIF_SYNC_RETRIES)) {
@@ -417,18 +417,18 @@ static irqreturn_t da9150_fg_irq(int irq, void *data)
 
 static struct da9150_fg_pdata *da9150_fg_dt_pdata(struct device *dev)
 {
-	struct device_node *fg_node = dev->of_node;
+	struct device_analde *fg_analde = dev->of_analde;
 	struct da9150_fg_pdata *pdata;
 
 	pdata = devm_kzalloc(dev, sizeof(struct da9150_fg_pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	of_property_read_u32(fg_node, "dlg,update-interval",
+	of_property_read_u32(fg_analde, "dlg,update-interval",
 			     &pdata->update_interval);
-	of_property_read_u8(fg_node, "dlg,warn-soc-level",
+	of_property_read_u8(fg_analde, "dlg,warn-soc-level",
 			    &pdata->warn_soc_lvl);
-	of_property_read_u8(fg_node, "dlg,crit-soc-level",
+	of_property_read_u8(fg_analde, "dlg,crit-soc-level",
 			    &pdata->crit_soc_lvl);
 
 	return pdata;
@@ -452,7 +452,7 @@ static int da9150_fg_probe(struct platform_device *pdev)
 
 	fg = devm_kzalloc(dev, sizeof(*fg), GFP_KERNEL);
 	if (fg == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, fg);
 	fg->da9150 = da9150;
@@ -475,7 +475,7 @@ static int da9150_fg_probe(struct platform_device *pdev)
 	dev_info(dev, "Version: 0x%x\n", ver);
 
 	/* Handle DT data if provided */
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		fg_pdata = da9150_fg_dt_pdata(dev);
 		dev->platform_data = fg_pdata;
 	}
@@ -485,13 +485,13 @@ static int da9150_fg_probe(struct platform_device *pdev)
 		fg->interval = fg_pdata->update_interval;
 
 		if (fg_pdata->warn_soc_lvl > 100)
-			dev_warn(dev, "Invalid SOC warning level provided, Ignoring");
+			dev_warn(dev, "Invalid SOC warning level provided, Iganalring");
 		else
 			fg->warn_soc = fg_pdata->warn_soc_lvl;
 
 		if ((fg_pdata->crit_soc_lvl > 100) ||
 		    (fg_pdata->crit_soc_lvl >= fg_pdata->warn_soc_lvl))
-			dev_warn(dev, "Invalid SOC critical level provided, Ignoring");
+			dev_warn(dev, "Invalid SOC critical level provided, Iganalring");
 		else
 			fg->crit_soc = fg_pdata->crit_soc_lvl;
 
@@ -537,7 +537,7 @@ static int da9150_fg_resume(struct platform_device *pdev)
 	struct da9150_fg *fg = platform_get_drvdata(pdev);
 
 	/*
-	 * Trigger SOC check to happen now so as to indicate any value change
+	 * Trigger SOC check to happen analw so as to indicate any value change
 	 * since last check before suspend.
 	 */
 	if (fg->interval)

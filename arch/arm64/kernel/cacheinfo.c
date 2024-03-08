@@ -26,7 +26,7 @@ static inline enum cache_type get_cache_type(int level)
 	u64 clidr;
 
 	if (level > MAX_CACHE_LEVEL)
-		return CACHE_TYPE_NOCACHE;
+		return CACHE_TYPE_ANALCACHE;
 	clidr = read_sysreg(clidr_el1);
 	return CLIDR_CTYPE(clidr, level);
 }
@@ -44,7 +44,7 @@ static void detect_cache_level(unsigned int *level_p, unsigned int *leaves_p)
 
 	for (level = 1, leaves = 0; level <= MAX_CACHE_LEVEL; level++) {
 		ctype = get_cache_type(level);
-		if (ctype == CACHE_TYPE_NOCACHE) {
+		if (ctype == CACHE_TYPE_ANALCACHE) {
 			level--;
 			break;
 		}
@@ -83,7 +83,7 @@ int init_cache_level(unsigned int cpu)
 
 	if (level < fw_level) {
 		/*
-		 * some external caches not specified in CLIDR_EL1
+		 * some external caches analt specified in CLIDR_EL1
 		 * the information may be available in the device tree
 		 * only unified external caches are considered here
 		 */

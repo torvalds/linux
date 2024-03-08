@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _func-ioctl:
@@ -12,7 +12,7 @@ Name
 
 v4l2-ioctl - Program a V4L2 device
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -42,7 +42,7 @@ argument ``fd`` must be an open file descriptor. An ioctl ``request``
 has encoded in it whether the argument is an input, output or read/write
 parameter, and the size of the argument ``argp`` in bytes. Macros and
 defines specifying V4L2 ioctl requests are located in the
-``videodev2.h`` header file. Applications should use their own copy, not
+``videodev2.h`` header file. Applications should use their own copy, analt
 include the version in the kernel sources on the system they compile on.
 All V4L2 ioctl requests, their respective function and parameters are
 specified in :ref:`user-func`.
@@ -50,7 +50,7 @@ specified in :ref:`user-func`.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

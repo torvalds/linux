@@ -148,7 +148,7 @@ static inline void __kprobes alu_write_pc(long pcv, struct pt_regs *regs)
  *	The probes instruction handler is set to the value found by
  *	indexing into the action array using the value of 'handler'. This
  *	will be used to simulate the instruction when the probe is hit.
- *	Decoding returns with INSN_GOOD_NO_SLOT.
+ *	Decoding returns with INSN_GOOD_ANAL_SLOT.
  *
  * DECODE_EMULATE(mask, value, handler)
  *	The probes instruction handler is set to the value found by
@@ -186,14 +186,14 @@ static inline void __kprobes alu_write_pc(long pcv, struct pt_regs *regs)
  * from enum decode_reg_type as arguments; only the '*' part of the name is
  * given. E.g.
  *
- *	REGS(0, ANY, NOPC, 0, ANY)
+ *	REGS(0, ANY, ANALPC, 0, ANY)
  *
  * This indicates an instruction is encoded like:
  *
- *	bits 19..16	ignore
+ *	bits 19..16	iganalre
  *	bits 15..12	any register allowed here
  *	bits 11.. 8	any register except PC allowed here
- *	bits  7.. 4	ignore
+ *	bits  7.. 4	iganalre
  *	bits  3.. 0	any register allowed here
  *
  * This register specification is checked after a decode table entry is found to
@@ -210,7 +210,7 @@ static inline void __kprobes alu_write_pc(long pcv, struct pt_regs *regs)
  * "AND <Rd>,<Rn>,<Rm>,<shift> <Rs>"
  *
  *	DECODE_EMULATEX	(0x0e000090, 0x00000010, PROBES_DATA_PROCESSING_REG,
- *						 REGS(ANY, ANY, NOPC, 0, ANY)),
+ *						 REGS(ANY, ANY, ANALPC, 0, ANY)),
  *						      ^    ^    ^        ^
  *						      Rn   Rd   Rs       Rm
  *
@@ -239,25 +239,25 @@ enum decode_type {
 #define DECODE_TYPE_MASK	((1 << DECODE_TYPE_BITS) - 1)
 
 enum decode_reg_type {
-	REG_TYPE_NONE = 0, /* Not a register, ignore */
+	REG_TYPE_ANALNE = 0, /* Analt a register, iganalre */
 	REG_TYPE_ANY,	   /* Any register allowed */
 	REG_TYPE_SAMEAS16, /* Register should be same as that at bits 19..16 */
 	REG_TYPE_SP,	   /* Register must be SP */
 	REG_TYPE_PC,	   /* Register must be PC */
-	REG_TYPE_NOSP,	   /* Register must not be SP */
-	REG_TYPE_NOSPPC,   /* Register must not be SP or PC */
-	REG_TYPE_NOPC,	   /* Register must not be PC */
-	REG_TYPE_NOPCWB,   /* No PC if load/store write-back flag also set */
+	REG_TYPE_ANALSP,	   /* Register must analt be SP */
+	REG_TYPE_ANALSPPC,   /* Register must analt be SP or PC */
+	REG_TYPE_ANALPC,	   /* Register must analt be PC */
+	REG_TYPE_ANALPCWB,   /* Anal PC if load/store write-back flag also set */
 
 	/* The following types are used when the encoding for PC indicates
-	 * another instruction form. This distiction only matters for test
+	 * aanalther instruction form. This distiction only matters for test
 	 * case coverage checks.
 	 */
-	REG_TYPE_NOPCX,	   /* Register must not be PC */
-	REG_TYPE_NOSPPCX,  /* Register must not be SP or PC */
+	REG_TYPE_ANALPCX,	   /* Register must analt be PC */
+	REG_TYPE_ANALSPPCX,  /* Register must analt be SP or PC */
 
 	/* Alias to allow '0' arg to be used in REGS macro. */
-	REG_TYPE_0 = REG_TYPE_NONE
+	REG_TYPE_0 = REG_TYPE_ANALNE
 };
 
 #define REGS(r16, r12, r8, r4, r0)	\
@@ -363,7 +363,7 @@ struct decode_or {
 enum probes_insn {
 	INSN_REJECTED,
 	INSN_GOOD,
-	INSN_GOOD_NO_SLOT
+	INSN_GOOD_ANAL_SLOT
 };
 
 struct decode_reject {
@@ -373,8 +373,8 @@ struct decode_reject {
 #define DECODE_REJECT(_mask, _value)				\
 	DECODE_HEADER(DECODE_TYPE_REJECT, _mask, _value, 0)
 
-probes_insn_handler_t probes_simulate_nop;
-probes_insn_handler_t probes_emulate_none;
+probes_insn_handler_t probes_simulate_analp;
+probes_insn_handler_t probes_emulate_analne;
 
 int __kprobes
 probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,

@@ -19,12 +19,12 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 	u8 *usb_buf;
 
 	/*
-	 * allocate enough for all known requests,
+	 * allocate eanalugh for all kanalwn requests,
 	 * read returns 5 and write 6 bytes
 	 */
 	usb_buf = kmalloc(6, GFP_KERNEL);
 	if (!usb_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (wlen) {
 	case 1:
@@ -123,7 +123,7 @@ static struct i2c_algorithm au6610_i2c_algo = {
 /* Callbacks for DVB USB */
 static struct zl10353_config au6610_zl10353_config = {
 	.demod_address = 0x0f,
-	.no_tuner = 1,
+	.anal_tuner = 1,
 	.parallel_ts = 1,
 };
 
@@ -132,7 +132,7 @@ static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 	adap->fe[0] = dvb_attach(zl10353_attach, &au6610_zl10353_config,
 			&adap_to_d(adap)->i2c_adap);
 	if (adap->fe[0] == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -145,7 +145,7 @@ static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	return dvb_attach(qt1010_attach, adap->fe[0],
 			&adap_to_d(adap)->i2c_adap,
-			&au6610_qt1010_config) == NULL ? -ENODEV : 0;
+			&au6610_qt1010_config) == NULL ? -EANALDEV : 0;
 }
 
 static int au6610_init(struct dvb_usb_device *d)
@@ -188,7 +188,7 @@ static struct usb_driver au6610_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

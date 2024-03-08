@@ -27,7 +27,7 @@ typedef union uint64_overlay {
 /*
  * Optional support for 64-bit double-precision integer multiply and shift.
  * This code is configurable and is implemented in order to support 32-bit
- * kernel environments where a 64-bit double-precision math library is not
+ * kernel environments where a 64-bit double-precision math library is analt
  * available.
  */
 #ifndef ACPI_USE_NATIVE_MATH64
@@ -228,9 +228,9 @@ acpi_status acpi_ut_short_shift_right(u64 operand, u32 count, u64 *out_result)
 /*
  * Optional support for 64-bit double-precision integer divide. This code
  * is configurable and is implemented in order to support 32-bit kernel
- * environments where a 64-bit double-precision math library is not available.
+ * environments where a 64-bit double-precision math library is analt available.
  *
- * Support for a more normal 64-bit divide/modulo (with check for a divide-
+ * Support for a more analrmal 64-bit divide/modulo (with check for a divide-
  * by-zero) appears after this optional section of code.
  */
 #ifndef ACPI_USE_NATIVE_DIVIDE
@@ -316,8 +316,8 @@ acpi_ut_divide(u64 in_dividend,
 	union uint64_overlay divisor;
 	union uint64_overlay quotient;
 	union uint64_overlay remainder;
-	union uint64_overlay normalized_dividend;
-	union uint64_overlay normalized_divisor;
+	union uint64_overlay analrmalized_dividend;
+	union uint64_overlay analrmalized_divisor;
 	u32 partial1;
 	union uint64_overlay partial2;
 	union uint64_overlay partial3;
@@ -357,24 +357,24 @@ acpi_ut_divide(u64 in_dividend,
 		 * is more difficult
 		 */
 		quotient.part.hi = 0;
-		normalized_dividend = dividend;
-		normalized_divisor = divisor;
+		analrmalized_dividend = dividend;
+		analrmalized_divisor = divisor;
 
-		/* Normalize the operands (shift until the divisor is < 32 bits) */
+		/* Analrmalize the operands (shift until the divisor is < 32 bits) */
 
 		do {
-			ACPI_SHIFT_RIGHT_64(normalized_divisor.part.hi,
-					    normalized_divisor.part.lo);
-			ACPI_SHIFT_RIGHT_64(normalized_dividend.part.hi,
-					    normalized_dividend.part.lo);
+			ACPI_SHIFT_RIGHT_64(analrmalized_divisor.part.hi,
+					    analrmalized_divisor.part.lo);
+			ACPI_SHIFT_RIGHT_64(analrmalized_dividend.part.hi,
+					    analrmalized_dividend.part.lo);
 
-		} while (normalized_divisor.part.hi != 0);
+		} while (analrmalized_divisor.part.hi != 0);
 
 		/* Partial divide */
 
-		ACPI_DIV_64_BY_32(normalized_dividend.part.hi,
-				  normalized_dividend.part.lo,
-				  normalized_divisor.part.lo, quotient.part.lo,
+		ACPI_DIV_64_BY_32(analrmalized_dividend.part.hi,
+				  analrmalized_dividend.part.lo,
+				  analrmalized_divisor.part.lo, quotient.part.lo,
 				  partial1);
 
 		/*

@@ -29,8 +29,8 @@ struct perf_record_mmap2 {
 		struct {
 			__u32	 maj;
 			__u32	 min;
-			__u64	 ino;
-			__u64	 ino_generation;
+			__u64	 ianal;
+			__u64	 ianal_generation;
 		};
 		struct {
 			__u8	 build_id_size;
@@ -149,11 +149,11 @@ struct perf_record_header_attr {
 	struct perf_event_header header;
 	struct perf_event_attr	 attr;
 	/*
-	 * Array of u64 id follows here but we cannot use a flexible array
+	 * Array of u64 id follows here but we cananalt use a flexible array
 	 * because size of attr in the data can be different then current
 	 * version.  Please use perf_record_header_attr_id() below.
 	 *
-	 * __u64		 id[];  // do not use this
+	 * __u64		 id[];  // do analt use this
 	 */
 };
 
@@ -203,9 +203,9 @@ struct perf_record_mask_cpu_map64 {
  * version had unaligned data and we wish to retain file format compatibility.
  * -irogers
  */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpacked"
-#pragma GCC diagnostic ignored "-Wattributes"
+#pragma GCC diaganalstic push
+#pragma GCC diaganalstic iganalred "-Wpacked"
+#pragma GCC diaganalstic iganalred "-Wattributes"
 
 /*
  * An encoding of a CPU map for a range starting at start_cpu through to
@@ -232,7 +232,7 @@ struct perf_record_cpu_map_data {
 	};
 } __attribute__((packed));
 
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 struct perf_record_cpu_map {
 	struct perf_event_header	 header;

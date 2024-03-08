@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * omap3-n950.dts - Device Tree file for Nokia N950
+ * omap3-n950.dts - Device Tree file for Analkia N950
  *
  * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
  */
@@ -11,8 +11,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Nokia N950";
-	compatible = "nokia,omap3-n950", "ti,omap3630", "ti,omap3";
+	model = "Analkia N950";
+	compatible = "analkia,omap3-n950", "ti,omap3630", "ti,omap3";
 
 	keys {
 		compatible = "gpio-keys";
@@ -70,9 +70,9 @@
 
 &i2c2 {
 	smia_1: camera@10 {
-		compatible = "nokia,smia";
+		compatible = "analkia,smia";
 		reg = <0x10>;
-		/* No reset gpio */
+		/* Anal reset gpio */
 		vana-supply = <&vaux3>;
 		clocks = <&isp 0>;
 		clock-frequency = <9600000>;
@@ -124,7 +124,7 @@
 };
 
 &modem {
-	compatible = "nokia,n950-modem";
+	compatible = "analkia,n950-modem";
 };
 
 &twl {
@@ -225,7 +225,7 @@
 	};
 
 	lcd0: panel@0 {
-		compatible = "nokia,himalaya", "panel-dsi-cm";
+		compatible = "analkia,himalaya", "panel-dsi-cm";
 		reg = <0>;
 		label = "lcd0";
 
@@ -243,7 +243,7 @@
 
 		/* TODO:
 		 * - panel is upside-down
-		 * - top + bottom 5px are not visible
+		 * - top + bottom 5px are analt visible
 		 */
 		panel-timing {
 			clock-frequency = <0>;          /* Calculated by dsi */

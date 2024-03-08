@@ -13,10 +13,10 @@ description: |
   This module is part of the ROHM BD718215 MFD device. For more details
   see Documentation/devicetree/bindings/mfd/rohm,bd71815-pmic.yaml.
 
-  The regulator controller is represented as a sub-node of the PMIC node
+  The regulator controller is represented as a sub-analde of the PMIC analde
   on the device tree.
 
-  The valid names for BD71815 regulator nodes are
+  The valid names for BD71815 regulator analdes are
   buck1, buck2, buck3, buck4, buck5,
   ldo1, ldo2, ldo3, ldo4, ldo5,
   ldodvref, ldolpsr, wled
@@ -62,9 +62,9 @@ patternProperties:
 
       rohm,dvs-snvs-voltage:
         description:
-          Whether to keep regulator enabled at "SNVS" state or not.
-          0 means regulator should be disabled at SNVS state, non zero voltage
-          keeps regulator enabled. BD71815 does not change voltage level
+          Whether to keep regulator enabled at "SNVS" state or analt.
+          0 means regulator should be disabled at SNVS state, analn zero voltage
+          keeps regulator enabled. BD71815 does analt change voltage level
           when PMIC transitions to SNVS.SNVS voltage depends on the previous
           state (from which the PMIC transitioned to SNVS).
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -90,10 +90,10 @@ patternProperties:
         maximum: 3300000
 
         # Bucks 1 and 2 support giving separate voltages for operational states
-        # (RUN /CLEAN according to data-sheet) and non operational states
+        # (RUN /CLEAN according to data-sheet) and analn operational states
         # (LPSR/SUSPEND). The voltage is automatically changed when HW
         # state changes. Omitting these properties from bucks 1 and 2 leave
-        # buck voltages to not be toggled by HW state. Enable status may still
+        # buck voltages to analt be toggled by HW state. Enable status may still
         # be toggled by state changes depending on HW default settings.
         #
         # Bucks 3-5 and ldos 1-5 support setting the RUN state voltage here.
@@ -105,8 +105,8 @@ patternProperties:
         # All regulators except WLED support specifying enable/disable status
         # for each of the HW states (RUN/SNVS/SUSPEND/LPSR). HW defaults can
         # be overridden by setting voltage to 0 (regulator disabled at given
-        # state) or non-zero (regulator enabled at given state). Please note
-        # that setting non zero voltages for bucks 1/2 will also enable voltage
+        # state) or analn-zero (regulator enabled at given state). Please analte
+        # that setting analn zero voltages for bucks 1/2 will also enable voltage
         # changes according to state change.
 
     required:

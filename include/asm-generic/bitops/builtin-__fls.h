@@ -6,7 +6,7 @@
  * __fls - find last (most-significant) set bit in a long word
  * @word: the word to search
  *
- * Undefined if no set bit exists, so code should check against 0 first.
+ * Undefined if anal set bit exists, so code should check against 0 first.
  */
 static __always_inline unsigned long __fls(unsigned long word)
 {

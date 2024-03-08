@@ -142,7 +142,7 @@ int dst_cache_init(struct dst_cache *dst_cache, gfp_t gfp)
 	dst_cache->cache = alloc_percpu_gfp(struct dst_cache_pcpu,
 					    gfp | __GFP_ZERO);
 	if (!dst_cache->cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dst_cache_reset(dst_cache);
 	return 0;
@@ -163,7 +163,7 @@ void dst_cache_destroy(struct dst_cache *dst_cache)
 }
 EXPORT_SYMBOL_GPL(dst_cache_destroy);
 
-void dst_cache_reset_now(struct dst_cache *dst_cache)
+void dst_cache_reset_analw(struct dst_cache *dst_cache)
 {
 	int i;
 
@@ -180,4 +180,4 @@ void dst_cache_reset_now(struct dst_cache *dst_cache)
 		dst_release(dst);
 	}
 }
-EXPORT_SYMBOL_GPL(dst_cache_reset_now);
+EXPORT_SYMBOL_GPL(dst_cache_reset_analw);

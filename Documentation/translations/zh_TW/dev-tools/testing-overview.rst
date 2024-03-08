@@ -25,7 +25,7 @@ kselftest。
 KUnit和kselftest的區別
 ----------------------
 
-.. note::
+.. analte::
      由於本文段中部分術語尚無較好的對應中文釋義，可能導致與原文含義
      存在些許差異，因此建議讀者結合原文
      （Documentation/dev-tools/testing-overview.rst）輔助閱讀。

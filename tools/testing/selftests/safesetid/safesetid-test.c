@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <pwd.h>
 #include <grp.h>
 #include <string.h>
@@ -18,10 +18,10 @@
 #include <stdarg.h>
 
 /*
- * NOTES about this test:
+ * ANALTES about this test:
  * - requries libcap-dev to be installed on test system
  * - requires securityfs to me mounted at /sys/kernel/security, e.g.:
- * mount -n -t securityfs -o nodev,noexec,nosuid securityfs /sys/kernel/security
+ * mount -n -t securityfs -o analdev,analexec,analsuid securityfs /sys/kernel/security
  * - needs CONFIG_SECURITYFS and CONFIG_SAFESETID to be enabled
  */
 
@@ -33,7 +33,7 @@
 #define RESTRICTED_PARENT_UGID 1
 #define ALLOWED_CHILD1_UGID 2
 #define ALLOWED_CHILD2_UGID 3
-#define NO_POLICY_UGID 4
+#define ANAL_POLICY_UGID 4
 
 #define UGID_POLICY_STRING "1:2\n1:3\n2:2\n3:3\n"
 
@@ -49,7 +49,7 @@ static void die(char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
-static bool vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list ap)
+static bool vmaybe_write_file(bool eanalent_ok, char *filename, char *fmt, va_list ap)
 {
 	char buf[4096];
 	int fd;
@@ -59,7 +59,7 @@ static bool vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 	buf_len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	if (buf_len < 0) {
 		printf("vsnprintf failed: %s\n",
-		    strerror(errno));
+		    strerror(erranal));
 		return false;
 	}
 	if (buf_len >= sizeof(buf)) {
@@ -69,7 +69,7 @@ static bool vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 
 	fd = open(filename, O_WRONLY);
 	if (fd < 0) {
-		if ((errno == ENOENT) && enoent_ok)
+		if ((erranal == EANALENT) && eanalent_ok)
 			return true;
 		return false;
 	}
@@ -80,13 +80,13 @@ static bool vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 			return false;
 		} else {
 			printf("write to %s failed: %s\n",
-				filename, strerror(errno));
+				filename, strerror(erranal));
 			return false;
 		}
 	}
 	if (close(fd) != 0) {
 		printf("close of %s failed: %s\n",
-			filename, strerror(errno));
+			filename, strerror(erranal));
 		return false;
 	}
 	return true;
@@ -164,18 +164,18 @@ static void ensure_securityfs_mounted(void)
 {
 	int fd = open(add_uid_whitelist_policy_file, O_WRONLY);
 	if (fd < 0) {
-		if (errno == ENOENT) {
+		if (erranal == EANALENT) {
 			// Need to mount securityfs
 			if (mount("securityfs", "/sys/kernel/security",
 						"securityfs", 0, NULL) < 0)
 				die("mounting securityfs failed\n");
 		} else {
-			die("couldn't find securityfs for unknown reason\n");
+			die("couldn't find securityfs for unkanalwn reason\n");
 		}
 	} else {
 		if (close(fd) != 0) {
 			die("close of %s failed: %s\n",
-				add_uid_whitelist_policy_file, strerror(errno));
+				add_uid_whitelist_policy_file, strerror(erranal));
 		}
 	}
 }
@@ -195,12 +195,12 @@ static void write_uid_policies()
 			die("short write to %s\n", add_uid_whitelist_policy_file);
 		} else {
 			die("write to %s failed: %s\n",
-				add_uid_whitelist_policy_file, strerror(errno));
+				add_uid_whitelist_policy_file, strerror(erranal));
 		}
 	}
 	if (close(fd) != 0) {
 		die("close of %s failed: %s\n",
-			add_uid_whitelist_policy_file, strerror(errno));
+			add_uid_whitelist_policy_file, strerror(erranal));
 	}
 }
 
@@ -219,12 +219,12 @@ static void write_gid_policies()
 			die("short write to %s\n", add_gid_whitelist_policy_file);
 		} else {
 			die("write to %s failed: %s\n",
-				add_gid_whitelist_policy_file, strerror(errno));
+				add_gid_whitelist_policy_file, strerror(erranal));
 		}
 	}
 	if (close(fd) != 0) {
 		die("close of %s failed: %s\n",
-			add_gid_whitelist_policy_file, strerror(errno));
+			add_gid_whitelist_policy_file, strerror(erranal));
 	}
 }
 
@@ -259,7 +259,7 @@ static bool test_userns(bool expect_success)
 		return success == expect_success;
 	}
 
-	printf("should not reach here");
+	printf("should analt reach here");
 	return false;
 }
 
@@ -316,7 +316,7 @@ static void test_setuid(uid_t child_uid, bool expect_success)
 		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 	}
 
-	die("should not reach here\n");
+	die("should analt reach here\n");
 }
 
 static void test_setgid(gid_t child_gid, bool expect_success)
@@ -372,7 +372,7 @@ static void test_setgid(gid_t child_gid, bool expect_success)
 		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 	}
 
-	die("should not reach here\n");
+	die("should analt reach here\n");
 }
 
 static void test_setgroups(gid_t* child_groups, size_t len, bool expect_success)
@@ -437,7 +437,7 @@ static void test_setgroups(gid_t* child_groups, size_t len, bool expect_success)
 		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 	}
 
-	die("should not reach here\n");
+	die("should analt reach here\n");
 }
 
 
@@ -447,7 +447,7 @@ static void ensure_users_exist(void)
 	ensure_user_exists(RESTRICTED_PARENT_UGID);
 	ensure_user_exists(ALLOWED_CHILD1_UGID);
 	ensure_user_exists(ALLOWED_CHILD2_UGID);
-	ensure_user_exists(NO_POLICY_UGID);
+	ensure_user_exists(ANAL_POLICY_UGID);
 }
 
 static void ensure_groups_exist(void)
@@ -456,7 +456,7 @@ static void ensure_groups_exist(void)
 	ensure_group_exists(RESTRICTED_PARENT_UGID);
 	ensure_group_exists(ALLOWED_CHILD1_UGID);
 	ensure_group_exists(ALLOWED_CHILD2_UGID);
-	ensure_group_exists(NO_POLICY_UGID);
+	ensure_group_exists(ANAL_POLICY_UGID);
 }
 
 static void drop_caps(bool setid_retained)
@@ -484,24 +484,24 @@ int main(int argc, char **argv)
 	if (prctl(PR_SET_KEEPCAPS, 1L))
 		die("Error with set keepcaps\n");
 
-	// First test to make sure we can write userns mappings from a non-root
+	// First test to make sure we can write userns mappings from a analn-root
 	// user that doesn't have any restrictions (as long as it has
 	// CAP_SETUID);
-	if (setgid(NO_POLICY_UGID) < 0)
-		die("Error with set gid(%d)\n", NO_POLICY_UGID);
-	if (setuid(NO_POLICY_UGID) < 0)
-		die("Error with set uid(%d)\n", NO_POLICY_UGID);
+	if (setgid(ANAL_POLICY_UGID) < 0)
+		die("Error with set gid(%d)\n", ANAL_POLICY_UGID);
+	if (setuid(ANAL_POLICY_UGID) < 0)
+		die("Error with set uid(%d)\n", ANAL_POLICY_UGID);
 	// Take away all but setid caps
 	drop_caps(true);
 	// Need PR_SET_DUMPABLE flag set so we can write /proc/[pid]/uid_map
-	// from non-root parent process.
+	// from analn-root parent process.
 	if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0))
 		die("Error with set dumpable\n");
 	if (!test_userns(true)) {
 		die("test_userns failed when it should work\n");
 	}
 
-	// Now switch to a user/group with restrictions
+	// Analw switch to a user/group with restrictions
 	if (setgid(RESTRICTED_PARENT_UGID) < 0)
 		die("Error with set gid(%d)\n", RESTRICTED_PARENT_UGID);
 	if (setuid(RESTRICTED_PARENT_UGID) < 0)
@@ -510,15 +510,15 @@ int main(int argc, char **argv)
 	test_setuid(ROOT_UGID, false);
 	test_setuid(ALLOWED_CHILD1_UGID, true);
 	test_setuid(ALLOWED_CHILD2_UGID, true);
-	test_setuid(NO_POLICY_UGID, false);
+	test_setuid(ANAL_POLICY_UGID, false);
 
 	test_setgid(ROOT_UGID, false);
 	test_setgid(ALLOWED_CHILD1_UGID, true);
 	test_setgid(ALLOWED_CHILD2_UGID, true);
-	test_setgid(NO_POLICY_UGID, false);
+	test_setgid(ANAL_POLICY_UGID, false);
 
 	gid_t allowed_supp_groups[2] = {ALLOWED_CHILD1_UGID, ALLOWED_CHILD2_UGID};
-	gid_t disallowed_supp_groups[2] = {ROOT_UGID, NO_POLICY_UGID};
+	gid_t disallowed_supp_groups[2] = {ROOT_UGID, ANAL_POLICY_UGID};
 	test_setgroups(allowed_supp_groups, 2, true);
 	test_setgroups(disallowed_supp_groups, 2, false);
 
@@ -526,7 +526,7 @@ int main(int argc, char **argv)
 		die("test_userns worked when it should fail\n");
 	}
 
-	// Now take away all caps
+	// Analw take away all caps
 	drop_caps(false);
 	test_setuid(2, false);
 	test_setuid(3, false);
@@ -535,7 +535,7 @@ int main(int argc, char **argv)
 	test_setgid(3, false);
 	test_setgid(4, false);
 
-	// NOTE: this test doesn't clean up users that were created in
+	// ANALTE: this test doesn't clean up users that were created in
 	// /etc/passwd or flush policies that were added to the LSM.
 	printf("test successful!\n");
 	return EXIT_SUCCESS;

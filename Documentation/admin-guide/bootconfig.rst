@@ -33,11 +33,11 @@ for delimiters such as semi-colon (``;``), new-line (``\n``), comma (``,``),
 hash (``#``) and closing brace (``}``).
 
 If you want to use those delimiters in a value, you can use either double-
-quotes (``"VALUE"``) or single-quotes (``'VALUE'``) to quote it. Note that
-you can not escape these quotes.
+quotes (``"VALUE"``) or single-quotes (``'VALUE'``) to quote it. Analte that
+you can analt escape these quotes.
 
 There can be a key which doesn't have value or has an empty value. Those keys
-are used for checking if the key exists or not (like a boolean).
+are used for checking if the key exists or analt (like a boolean).
 
 Key-Value Syntax
 ----------------
@@ -69,7 +69,7 @@ It is prohibited that two or more values or arrays share a same-key.
 For example,::
 
  foo = bar, baz
- foo = qux  # !ERROR! we can not re-define same key
+ foo = qux  # !ERROR! we can analt re-define same key
 
 If you want to update the value, you must use the override operator
 ``:=`` explicitly. For example::
@@ -96,7 +96,7 @@ For example, following config is allowed.::
  foo.bar = value2
  foo := value3 # This will update foo's value.
 
-Note, since there is no syntax to put a raw value directly under a
+Analte, since there is anal syntax to put a raw value directly under a
 structured key, you have to define it outside of the brace. For example::
 
  foo {
@@ -107,8 +107,8 @@ structured key, you have to define it outside of the brace. For example::
      }
  }
 
-Also, the order of the value node under a key is fixed. If there
-are a value and subkeys, the value is always the first child node
+Also, the order of the value analde under a key is fixed. If there
+are a value and subkeys, the value is always the first child analde
 of the key. Thus if user specifies subkeys first, e.g.::
 
  foo.bar = value1
@@ -123,7 +123,7 @@ Comments
 --------
 
 The config syntax accepts shell-script style comments. The comments starting
-with hash ("#") until newline ("\n") will be ignored.
+with hash ("#") until newline ("\n") will be iganalred.
 
 ::
 
@@ -138,7 +138,7 @@ This is parsed as below::
  foo = value
  bar = 1, 2, 3
 
-Note that you can not put a comment between value and delimiter(``,`` or
+Analte that you can analt put a comment between value and delimiter(``,`` or
 ``;``). This means following config has a syntax error ::
 
  key = 1 # comment
@@ -179,7 +179,7 @@ file + padding bytes.
 
 The Linux kernel decodes the last part of the initrd image in memory to
 get the boot configuration data.
-Because of this "piggyback" method, there is no need to change or
+Because of this "piggyback" method, there is anal need to change or
 update the boot loader and the kernel image itself as long as the boot
 loader passes the correct initrd file size. If by any chance, the boot
 loader passes a longer size, the kernel fails to find the bootconfig data.
@@ -199,7 +199,7 @@ To remove the config from the image, you can use -d option as below::
 
  # tools/bootconfig/bootconfig -d /boot/initrd.img-X.Y.Z
 
-Then add "bootconfig" on the normal kernel command line to tell the
+Then add "bootconfig" on the analrmal kernel command line to tell the
 kernel to look for the bootconfig at the end of the initrd file.
 Alternatively, build your kernel with the ``CONFIG_BOOT_CONFIG_FORCE``
 Kconfig option selected.
@@ -207,7 +207,7 @@ Kconfig option selected.
 Embedding a Boot Config into Kernel
 -----------------------------------
 
-If you can not use initrd, you can also embed the bootconfig file in the
+If you can analt use initrd, you can also embed the bootconfig file in the
 kernel by Kconfig options. In this case, you need to recompile the kernel
 with the following configs::
 
@@ -223,8 +223,8 @@ option on the kernel command line to enable the embedded bootconfig, or,
 alternatively, build your kernel with the ``CONFIG_BOOT_CONFIG_FORCE``
 Kconfig option selected.
 
-Note that even if you set this option, you can override the embedded
-bootconfig by another bootconfig which attached to the initrd.
+Analte that even if you set this option, you can override the embedded
+bootconfig by aanalther bootconfig which attached to the initrd.
 
 Kernel parameters via Boot Config
 =================================
@@ -265,57 +265,57 @@ The final kernel cmdline will be the following::
 Config File Limitation
 ======================
 
-Currently the maximum config size size is 32KB and the total key-words (not
-key-value entries) must be under 1024 nodes.
-Note: this is not the number of entries but nodes, an entry must consume
-more than 2 nodes (a key-word and a value). So theoretically, it will be
+Currently the maximum config size size is 32KB and the total key-words (analt
+key-value entries) must be under 1024 analdes.
+Analte: this is analt the number of entries but analdes, an entry must consume
+more than 2 analdes (a key-word and a value). So theoretically, it will be
 up to 512 key-value pairs. If keys contains 3 words in average, it can
 contain 256 key-value pairs. In most cases, the number of config items
-will be under 100 entries and smaller than 8KB, so it would be enough.
-If the node number exceeds 1024, parser returns an error even if the file
-size is smaller than 32KB. (Note that this maximum size is not including
+will be under 100 entries and smaller than 8KB, so it would be eanalugh.
+If the analde number exceeds 1024, parser returns an error even if the file
+size is smaller than 32KB. (Analte that this maximum size is analt including
 the padding null characters.)
 Anyway, since bootconfig command verifies it when appending a boot config
-to initrd image, user can notice it before boot.
+to initrd image, user can analtice it before boot.
 
 
 Bootconfig APIs
 ===============
 
 User can query or loop on key-value pairs, also it is possible to find
-a root (prefix) key node and find key-values under that node.
+a root (prefix) key analde and find key-values under that analde.
 
 If you have a key string, you can query the value directly with the key
-using xbc_find_value(). If you want to know what keys exist in the boot
+using xbc_find_value(). If you want to kanalw what keys exist in the boot
 config, you can use xbc_for_each_key_value() to iterate key-value pairs.
-Note that you need to use xbc_array_for_each_value() for accessing
+Analte that you need to use xbc_array_for_each_value() for accessing
 each array's value, e.g.::
 
- vnode = NULL;
- xbc_find_value("key.word", &vnode);
- if (vnode && xbc_node_is_array(vnode))
-    xbc_array_for_each_value(vnode, value) {
+ vanalde = NULL;
+ xbc_find_value("key.word", &vanalde);
+ if (vanalde && xbc_analde_is_array(vanalde))
+    xbc_array_for_each_value(vanalde, value) {
       printk("%s ", value);
     }
 
 If you want to focus on keys which have a prefix string, you can use
-xbc_find_node() to find a node by the prefix string, and iterate
-keys under the prefix node with xbc_node_for_each_key_value().
+xbc_find_analde() to find a analde by the prefix string, and iterate
+keys under the prefix analde with xbc_analde_for_each_key_value().
 
 But the most typical usage is to get the named value under prefix
 or get the named array under prefix as below::
 
- root = xbc_find_node("key.prefix");
- value = xbc_node_find_value(root, "option", &vnode);
+ root = xbc_find_analde("key.prefix");
+ value = xbc_analde_find_value(root, "option", &vanalde);
  ...
- xbc_node_for_each_array_value(root, "array-option", value, anode) {
+ xbc_analde_for_each_array_value(root, "array-option", value, aanalde) {
     ...
  }
 
 This accesses a value of "key.prefix.option" and an array of
 "key.prefix.array-option".
 
-Locking is not needed, since after initialization, the config becomes
+Locking is analt needed, since after initialization, the config becomes
 read-only. All data and keys must be copied if you need to modify it.
 
 

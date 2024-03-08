@@ -196,13 +196,13 @@ static irqreturn_t pcf50633_irq(int irq, void *data)
 	if (pcf->is_suspended) {
 		pcf->is_suspended = 0;
 
-		/* Set the resume reason filtering out non resumers */
+		/* Set the resume reason filtering out analn resumers */
 		for (i = 0; i < ARRAY_SIZE(pcf_int); i++)
 			pcf->resume_reason[i] = pcf_int[i] &
 						pcf->pdata->resumers[i];
 
 		/* Make sure we don't pass on any ONKEY events to
-		 * userspace now */
+		 * userspace analw */
 		pcf_int[1] &= ~(PCF50633_INT2_ONKEYR | PCF50633_INT2_ONKEYF);
 	}
 
@@ -228,7 +228,7 @@ static int pcf50633_suspend(struct device *dev)
 	u8 res[5];
 
 
-	/* Make sure our interrupt handlers are not called
+	/* Make sure our interrupt handlers are analt called
 	 * henceforth */
 	disable_irq(pcf->irq);
 
@@ -300,7 +300,7 @@ int pcf50633_irq_init(struct pcf50633 *pcf, int irq)
 		dev_err(pcf->dev, "Failed to request IRQ %d\n", ret);
 
 	if (enable_irq_wake(irq) < 0)
-		dev_err(pcf->dev, "IRQ %u cannot be enabled as wake-up source"
+		dev_err(pcf->dev, "IRQ %u cananalt be enabled as wake-up source"
 			"in this hardware revision", irq);
 
 	return ret;

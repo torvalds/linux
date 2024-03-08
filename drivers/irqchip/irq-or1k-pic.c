@@ -68,7 +68,7 @@ static struct or1k_pic_dev or1k_pic_level = {
 		.irq_mask = or1k_pic_mask,
 	},
 	.handle = handle_level_irq,
-	.flags = IRQ_LEVEL | IRQ_NOPROBE,
+	.flags = IRQ_LEVEL | IRQ_ANALPROBE,
 };
 
 static struct or1k_pic_dev or1k_pic_edge = {
@@ -80,7 +80,7 @@ static struct or1k_pic_dev or1k_pic_edge = {
 		.irq_mask_ack = or1k_pic_mask_ack,
 	},
 	.handle = handle_edge_irq,
-	.flags = IRQ_LEVEL | IRQ_NOPROBE,
+	.flags = IRQ_LEVEL | IRQ_ANALPROBE,
 };
 
 static struct or1k_pic_dev or1k_pic_or1200 = {
@@ -92,7 +92,7 @@ static struct or1k_pic_dev or1k_pic_or1200 = {
 		.irq_mask_ack = or1k_pic_or1200_mask_ack,
 	},
 	.handle = handle_level_irq,
-	.flags = IRQ_LEVEL | IRQ_NOPROBE,
+	.flags = IRQ_LEVEL | IRQ_ANALPROBE,
 };
 
 static struct irq_domain *root_domain;
@@ -103,7 +103,7 @@ static inline int pic_get_irq(int first)
 
 	hwirq = ffs(mfspr(SPR_PICSR) >> first);
 	if (!hwirq)
-		return NO_IRQ;
+		return ANAL_IRQ;
 	else
 		hwirq = hwirq + first - 1;
 
@@ -114,7 +114,7 @@ static void or1k_pic_handle_irq(struct pt_regs *regs)
 {
 	int irq = -1;
 
-	while ((irq = pic_get_irq(irq + 1)) != NO_IRQ)
+	while ((irq = pic_get_irq(irq + 1)) != ANAL_IRQ)
 		generic_handle_domain_irq(root_domain, irq);
 }
 
@@ -138,13 +138,13 @@ static const struct irq_domain_ops or1k_irq_domain_ops = {
  * 1000 CPU.  This is the "root" domain as these are the interrupts
  * that directly trigger an exception in the CPU.
  */
-static int __init or1k_pic_init(struct device_node *node,
+static int __init or1k_pic_init(struct device_analde *analde,
 				 struct or1k_pic_dev *pic)
 {
 	/* Disable all interrupts until explicitly requested */
 	mtspr(SPR_PICMR, (0UL));
 
-	root_domain = irq_domain_add_linear(node, 32, &or1k_irq_domain_ops,
+	root_domain = irq_domain_add_linear(analde, 32, &or1k_irq_domain_ops,
 					    pic);
 
 	set_handle_irq(or1k_pic_handle_irq);
@@ -152,25 +152,25 @@ static int __init or1k_pic_init(struct device_node *node,
 	return 0;
 }
 
-static int __init or1k_pic_or1200_init(struct device_node *node,
-				       struct device_node *parent)
+static int __init or1k_pic_or1200_init(struct device_analde *analde,
+				       struct device_analde *parent)
 {
-	return or1k_pic_init(node, &or1k_pic_or1200);
+	return or1k_pic_init(analde, &or1k_pic_or1200);
 }
 IRQCHIP_DECLARE(or1k_pic_or1200, "opencores,or1200-pic", or1k_pic_or1200_init);
 IRQCHIP_DECLARE(or1k_pic, "opencores,or1k-pic", or1k_pic_or1200_init);
 
-static int __init or1k_pic_level_init(struct device_node *node,
-				      struct device_node *parent)
+static int __init or1k_pic_level_init(struct device_analde *analde,
+				      struct device_analde *parent)
 {
-	return or1k_pic_init(node, &or1k_pic_level);
+	return or1k_pic_init(analde, &or1k_pic_level);
 }
 IRQCHIP_DECLARE(or1k_pic_level, "opencores,or1k-pic-level",
 		or1k_pic_level_init);
 
-static int __init or1k_pic_edge_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init or1k_pic_edge_init(struct device_analde *analde,
+				     struct device_analde *parent)
 {
-	return or1k_pic_init(node, &or1k_pic_edge);
+	return or1k_pic_init(analde, &or1k_pic_edge);
 }
 IRQCHIP_DECLARE(or1k_pic_edge, "opencores,or1k-pic-edge", or1k_pic_edge_init);

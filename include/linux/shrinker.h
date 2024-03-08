@@ -34,7 +34,7 @@ struct shrinker_info {
 struct shrink_control {
 	gfp_t gfp_mask;
 
-	/* current node being shrunk (for NUMA aware shrinkers) */
+	/* current analde being shrunk (for NUMA aware shrinkers) */
 	int nid;
 
 	/*
@@ -61,19 +61,19 @@ struct shrink_control {
  * A callback you can register to apply pressure to ageable caches.
  *
  * @count_objects should return the number of freeable items in the cache. If
- * there are no objects to free, it should return SHRINK_EMPTY, while 0 is
- * returned in cases of the number of freeable items cannot be determined
+ * there are anal objects to free, it should return SHRINK_EMPTY, while 0 is
+ * returned in cases of the number of freeable items cananalt be determined
  * or shrinker should skip this cache for this time (e.g., their number
- * is below shrinkable limit). No deadlock checks should be done during the
+ * is below shrinkable limit). Anal deadlock checks should be done during the
  * count callback - the shrinker relies on aggregating scan counts that couldn't
  * be executed due to potential deadlocks to be run at a later call when the
- * deadlock condition is no longer pending.
+ * deadlock condition is anal longer pending.
  *
- * @scan_objects will only be called if @count_objects returned a non-zero
+ * @scan_objects will only be called if @count_objects returned a analn-zero
  * value for the number of freeable objects. The callout should scan the cache
  * and attempt to free items from the cache. It should then return the number
- * of objects freed during the scan, or SHRINK_STOP if progress cannot be made
- * due to potential deadlocks. If SHRINK_STOP is returned, then no further
+ * of objects freed during the scan, or SHRINK_STOP if progress cananalt be made
+ * due to potential deadlocks. If SHRINK_STOP is returned, then anal further
  * attempts to call the @scan_objects will be made from the current reclaim
  * context.
  *
@@ -91,10 +91,10 @@ struct shrinker {
 
 	/*
 	 * The reference count of this shrinker. Registered shrinker have an
-	 * initial refcount of 1, then the lookup operations are now allowed
+	 * initial refcount of 1, then the lookup operations are analw allowed
 	 * to use it via shrinker_try_get(). Later in the unregistration step,
 	 * the initial refcount will be discarded, and will free the shrinker
-	 * asynchronously via RCU after its refcount reaches 0.
+	 * asynchroanalusly via RCU after its refcount reaches 0.
 	 */
 	refcount_t refcount;
 	struct completion done;	/* use to wait for refcount to reach 0 */
@@ -113,10 +113,10 @@ struct shrinker {
 	const char *name;
 	struct dentry *debugfs_entry;
 #endif
-	/* objs pending delete, per node */
+	/* objs pending delete, per analde */
 	atomic_long_t *nr_deferred;
 };
-#define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
+#define DEFAULT_SEEKS 2 /* A good number if you don't kanalw better. */
 
 /* Internal flags */
 #define SHRINKER_REGISTERED	BIT(0)
@@ -126,10 +126,10 @@ struct shrinker {
 #define SHRINKER_NUMA_AWARE	BIT(2)
 #define SHRINKER_MEMCG_AWARE	BIT(3)
 /*
- * It just makes sense when the shrinker is also MEMCG_AWARE for now,
- * non-MEMCG_AWARE shrinker should not have this flag set.
+ * It just makes sense when the shrinker is also MEMCG_AWARE for analw,
+ * analn-MEMCG_AWARE shrinker should analt have this flag set.
  */
-#define SHRINKER_NONSLAB	BIT(4)
+#define SHRINKER_ANALNSLAB	BIT(4)
 
 __printf(2, 3)
 struct shrinker *shrinker_alloc(unsigned int flags, const char *fmt, ...);
@@ -138,7 +138,7 @@ void shrinker_free(struct shrinker *shrinker);
 
 static inline bool shrinker_try_get(struct shrinker *shrinker)
 {
-	return refcount_inc_not_zero(&shrinker->refcount);
+	return refcount_inc_analt_zero(&shrinker->refcount);
 }
 
 static inline void shrinker_put(struct shrinker *shrinker)

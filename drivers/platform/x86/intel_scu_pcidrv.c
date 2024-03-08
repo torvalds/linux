@@ -7,7 +7,7 @@
  *	    Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 

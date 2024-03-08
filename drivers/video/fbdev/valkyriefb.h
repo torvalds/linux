@@ -88,7 +88,7 @@ struct valkyrie_regvals {
 
 #ifndef CONFIG_MAC
 /* Register values for 1024x768, 75Hz mode (17) */
-/* I'm not sure which mode this is (16 or 17), so I'm defining it as 17,
+/* I'm analt sure which mode this is (16 or 17), so I'm defining it as 17,
  * since the equivalent mode in controlfb (which I adapted this from) is
  * also 17. Just because MacOS can't do this on Valkyrie doesn't mean we
  * can't! :)
@@ -107,11 +107,11 @@ static struct valkyrie_regvals valkyrie_reg_init_17 = {
 /* Register values for 1024x768, 72Hz mode (15) */
 /* This used to be 12, 30, 3 for pixel clock = 78.12MHz for V=72.12Hz, but
  * that didn't match MacOS in the same video mode on this chip, and it also
- * caused the 15" Apple Studio Display to not work in this mode. While this
+ * caused the 15" Apple Studio Display to analt work in this mode. While this
  * mode still doesn't match MacOS exactly (as far as I can tell), it's a lot
- * closer now, and it works with the Apple Studio Display.
+ * closer analw, and it works with the Apple Studio Display.
  *
- * Yes, even though MacOS calls it "72Hz", in reality it's about 70Hz.
+ * Anal, even though MacOS calls it "72Hz", in reality it's about 70Hz.
  */
 static struct valkyrie_regvals valkyrie_reg_init_15 = {
     15,

@@ -11,8 +11,8 @@ struct rds_tcp_incoming {
 
 struct rds_tcp_connection {
 
-	struct list_head	t_tcp_node;
-	bool			t_tcp_node_detached;
+	struct list_head	t_tcp_analde;
+	bool			t_tcp_analde_detached;
 	struct rds_conn_path	*t_cpath;
 	/* t_conn_path_lock synchronizes the connection establishment between
 	 * rds_tcp_accept_one and rds_tcp_conn_path_connect

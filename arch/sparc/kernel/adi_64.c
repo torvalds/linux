@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* adi_64.c: support for ADI (Application Data Integrity) feature on
- * sparc m7 and newer processors. This feature is also known as
+ * sparc m7 and newer processors. This feature is also kanalwn as
  * SSM (Silicon Secured Memory).
  *
  * Copyright (C) 2016 Oracle and/or its affiliates. All rights reserved.
@@ -16,8 +16,8 @@
 
 /* Each page of storage for ADI tags can accommodate tags for 128
  * pages. When ADI enabled pages are being swapped out, it would be
- * prudent to allocate at least enough tag storage space to accommodate
- * SWAPFILE_CLUSTER number of pages. Allocate enough tag storage to
+ * prudent to allocate at least eanalugh tag storage space to accommodate
+ * SWAPFILE_CLUSTER number of pages. Allocate eanalugh tag storage to
  * store tags for four SWAPFILE_CLUSTER pages to reduce need for
  * further allocations for same vma.
  */
@@ -30,9 +30,9 @@ EXPORT_SYMBOL(adi_state);
  *	hypervisor to detect ADI capabilities
  *
  * Hypervisor reports ADI capabilities of platform in "hwcap-list" property
- * for "cpu" node. If the platform supports ADI, "hwcap-list" property
+ * for "cpu" analde. If the platform supports ADI, "hwcap-list" property
  * contains the keyword "adp". If the platform supports ADI, "platform"
- * node will contain "adp-blksz", "adp-nbits" and "ue-on-adp" properties
+ * analde will contain "adp-blksz", "adp-nbits" and "ue-on-adp" properties
  * to describe the ADI capabilities.
  */
 void __init mdesc_adi_init(void)
@@ -43,15 +43,15 @@ void __init mdesc_adi_init(void)
 	int len;
 
 	if (!hp)
-		goto adi_not_found;
+		goto adi_analt_found;
 
-	pn = mdesc_node_by_name(hp, MDESC_NODE_NULL, "cpu");
-	if (pn == MDESC_NODE_NULL)
-		goto adi_not_found;
+	pn = mdesc_analde_by_name(hp, MDESC_ANALDE_NULL, "cpu");
+	if (pn == MDESC_ANALDE_NULL)
+		goto adi_analt_found;
 
 	prop = mdesc_get_property(hp, pn, "hwcap-list", &len);
 	if (!prop)
-		goto adi_not_found;
+		goto adi_analt_found;
 
 	/*
 	 * Look for "adp" keyword in hwcap-list which would indicate
@@ -72,36 +72,36 @@ void __init mdesc_adi_init(void)
 	}
 
 	if (!adi_state.enabled)
-		goto adi_not_found;
+		goto adi_analt_found;
 
-	/* Find the ADI properties in "platform" node. If all ADI
-	 * properties are not found, ADI support is incomplete and
-	 * do not enable ADI in the kernel.
+	/* Find the ADI properties in "platform" analde. If all ADI
+	 * properties are analt found, ADI support is incomplete and
+	 * do analt enable ADI in the kernel.
 	 */
-	pn = mdesc_node_by_name(hp, MDESC_NODE_NULL, "platform");
-	if (pn == MDESC_NODE_NULL)
-		goto adi_not_found;
+	pn = mdesc_analde_by_name(hp, MDESC_ANALDE_NULL, "platform");
+	if (pn == MDESC_ANALDE_NULL)
+		goto adi_analt_found;
 
 	val = (u64 *) mdesc_get_property(hp, pn, "adp-blksz", &len);
 	if (!val)
-		goto adi_not_found;
+		goto adi_analt_found;
 	adi_state.caps.blksz = *val;
 
 	val = (u64 *) mdesc_get_property(hp, pn, "adp-nbits", &len);
 	if (!val)
-		goto adi_not_found;
+		goto adi_analt_found;
 	adi_state.caps.nbits = *val;
 
 	val = (u64 *) mdesc_get_property(hp, pn, "ue-on-adp", &len);
 	if (!val)
-		goto adi_not_found;
+		goto adi_analt_found;
 	adi_state.caps.ue_on_adi = *val;
 
 	/* Some of the code to support swapping ADI tags is written
 	 * assumption that two ADI tags can fit inside one byte. If
 	 * this assumption is broken by a future architecture change,
 	 * that code will have to be revisited. If that were to happen,
-	 * disable ADI support so we do not get unpredictable results
+	 * disable ADI support so we do analt get unpredictable results
 	 * with programs trying to use ADI and their pages getting
 	 * swapped out
 	 */
@@ -113,7 +113,7 @@ void __init mdesc_adi_init(void)
 	mdesc_release(hp);
 	return;
 
-adi_not_found:
+adi_analt_found:
 	adi_state.enabled = false;
 	adi_state.caps.blksz = 0;
 	adi_state.caps.nbits = 0;
@@ -143,7 +143,7 @@ tag_storage_desc_t *find_tag_store(struct mm_struct *mm,
 		}
 		spin_unlock_irqrestore(&mm->context.tag_lock, flags);
 
-		/* If no matching entries were found, this must be a
+		/* If anal matching entries were found, this must be a
 		 * freshly allocated page
 		 */
 		if (i >= max_desc)
@@ -202,7 +202,7 @@ tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
 
 	} else {
 		size = sizeof(tag_storage_desc_t)*max_desc;
-		mm->context.tag_store = kzalloc(size, GFP_NOWAIT|__GFP_NOWARN);
+		mm->context.tag_store = kzalloc(size, GFP_ANALWAIT|__GFP_ANALWARN);
 		if (mm->context.tag_store == NULL) {
 			tag_desc = NULL;
 			goto out;
@@ -224,15 +224,15 @@ tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
 	tag_desc = open_desc;
 	tag_desc->tag_users = 1;
 
-	/* Tag storage has not been allocated for this vma and space
+	/* Tag storage has analt been allocated for this vma and space
 	 * is available in tag storage descriptor. Since this page is
 	 * being swapped out, there is high probability subsequent pages
 	 * in the VMA will be swapped out as well. Allocate pages to
-	 * store tags for as many pages in this vma as possible but not
+	 * store tags for as many pages in this vma as possible but analt
 	 * more than TAG_STORAGE_PAGES. Each byte in tag space holds
 	 * two ADI tags since each ADI tag is 4 bits. Each ADI tag
 	 * covers adi_blksize() worth of addresses. Check if the hole is
-	 * big enough to accommodate full address range for using
+	 * big eanalugh to accommodate full address range for using
 	 * TAG_STORAGE_PAGES number of tag pages.
 	 */
 	size = TAG_STORAGE_PAGES * PAGE_SIZE;
@@ -281,7 +281,7 @@ tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
 		size = (size + (PAGE_SIZE-adi_blksize()))/PAGE_SIZE;
 		size = size * PAGE_SIZE;
 	}
-	tags = kzalloc(size, GFP_NOWAIT|__GFP_NOWARN);
+	tags = kzalloc(size, GFP_ANALWAIT|__GFP_ANALWARN);
 	if (tags == NULL) {
 		tag_desc->tag_users = 0;
 		tag_desc = NULL;
@@ -305,7 +305,7 @@ void del_tag_store(tag_storage_desc_t *tag_desc, struct mm_struct *mm)
 	tag_desc->tag_users--;
 	if (tag_desc->tag_users == 0) {
 		tag_desc->start = tag_desc->end = 0;
-		/* Do not free up the tag storage space allocated
+		/* Do analt free up the tag storage space allocated
 		 * by the first descriptor. This is persistent
 		 * emergency tag storage space for the task.
 		 */
@@ -332,7 +332,7 @@ void adi_restore_tags(struct mm_struct *mm, struct vm_area_struct *vma,
 	unsigned long paddr, tmp, version1, version2;
 
 	/* Check if the swapped out page has an ADI version
-	 * saved. If yes, restore version tag to the newly
+	 * saved. If anal, restore version tag to the newly
 	 * allocated page.
 	 */
 	tag_desc = find_tag_store(mm, vma, addr);

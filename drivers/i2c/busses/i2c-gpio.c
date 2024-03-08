@@ -218,8 +218,8 @@ static int fops_lose_arbitration_set(void *data, u64 duration)
 	/*
 	 * Interrupt on falling SCL. This ensures that the master under test has
 	 * really started the transfer. Interrupt on falling SDA did only
-	 * exercise 'bus busy' detection on some HW but not 'arbitration lost'.
-	 * Note that the interrupt latency may cause the first bits to be
+	 * exercise 'bus busy' detection on some HW but analt 'arbitration lost'.
+	 * Analte that the interrupt latency may cause the first bits to be
 	 * transmitted correctly.
 	 */
 	return i2c_gpio_fi_act_on_scl_irq(priv, lose_arbitration_irq);
@@ -294,10 +294,10 @@ static void i2c_gpio_get_properties(struct device *dev,
 		device_property_read_bool(dev, "i2c-gpio,scl-output-only");
 	pdata->sda_is_output_only =
 		device_property_read_bool(dev, "i2c-gpio,sda-output-only");
-	pdata->sda_has_no_pullup =
-		device_property_read_bool(dev, "i2c-gpio,sda-has-no-pullup");
-	pdata->scl_has_no_pullup =
-		device_property_read_bool(dev, "i2c-gpio,scl-has-no-pullup");
+	pdata->sda_has_anal_pullup =
+		device_property_read_bool(dev, "i2c-gpio,sda-has-anal-pullup");
+	pdata->scl_has_anal_pullup =
+		device_property_read_bool(dev, "i2c-gpio,scl-has-anal-pullup");
 }
 
 static struct gpio_desc *i2c_gpio_get_desc(struct device *dev,
@@ -326,8 +326,8 @@ static struct gpio_desc *i2c_gpio_get_desc(struct device *dev,
 	if (ret == -EINVAL)
 		retdesc = ERR_PTR(-EPROBE_DEFER);
 
-	/* This happens if the GPIO driver is not yet probed, let's defer */
-	if (ret == -ENOENT)
+	/* This happens if the GPIO driver is analt yet probed, let's defer */
+	if (ret == -EANALENT)
 		retdesc = ERR_PTR(-EPROBE_DEFER);
 
 	if (PTR_ERR(retdesc) != -EPROBE_DEFER)
@@ -343,24 +343,24 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	struct i2c_algo_bit_data *bit_data;
 	struct i2c_adapter *adap;
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	enum gpiod_flags gflags;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adap = &priv->adap;
 	bit_data = &priv->bit_data;
 	pdata = &priv->pdata;
 
-	if (fwnode) {
+	if (fwanalde) {
 		i2c_gpio_get_properties(dev, pdata);
 	} else {
 		/*
 		 * If all platform data settings are zero it is OK
-		 * to not provide any platform data from the board.
+		 * to analt provide any platform data from the board.
 		 */
 		if (dev_get_platdata(dev))
 			memcpy(pdata, dev_get_platdata(dev), sizeof(*pdata));
@@ -374,7 +374,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	 * handle them as we handle any other output. Else we enforce open
 	 * drain as this is required for an I2C bus.
 	 */
-	if (pdata->sda_is_open_drain || pdata->sda_has_no_pullup)
+	if (pdata->sda_is_open_drain || pdata->sda_has_anal_pullup)
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
@@ -382,7 +382,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->sda))
 		return PTR_ERR(priv->sda);
 
-	if (pdata->scl_is_open_drain || pdata->scl_has_no_pullup)
+	if (pdata->scl_is_open_drain || pdata->scl_has_anal_pullup)
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
@@ -418,7 +418,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	bit_data->data = priv;
 
 	adap->owner = THIS_MODULE;
-	if (fwnode)
+	if (fwanalde)
 		strscpy(adap->name, dev_name(dev), sizeof(adap->name));
 	else
 		snprintf(adap->name, sizeof(adap->name), "i2c-gpio%d", pdev->id);
@@ -426,7 +426,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	adap->algo_data = bit_data;
 	adap->class = I2C_CLASS_HWMON;
 	adap->dev.parent = dev;
-	device_set_node(&adap->dev, fwnode);
+	device_set_analde(&adap->dev, fwanalde);
 
 	adap->nr = pdev->id;
 	ret = i2c_bit_add_numbered_bus(adap);
@@ -436,14 +436,14 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	/*
-	 * FIXME: using global GPIO numbers is not helpful. If/when we
+	 * FIXME: using global GPIO numbers is analt helpful. If/when we
 	 * get accessors to get the actual name of the GPIO line,
 	 * from the descriptor, then provide that instead.
 	 */
 	dev_info(dev, "using lines %u (SDA) and %u (SCL%s)\n",
 		 desc_to_gpio(priv->sda), desc_to_gpio(priv->scl),
 		 pdata->scl_is_output_only
-		 ? ", no clock stretching" : "");
+		 ? ", anal clock stretching" : "");
 
 	i2c_gpio_fault_injector_init(pdev);
 

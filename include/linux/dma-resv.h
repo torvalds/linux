@@ -2,15 +2,15 @@
  * Header file for reservations for dma-buf and ttm
  *
  * Copyright(C) 2011 Linaro Limited. All rights reserved.
- * Copyright (C) 2012-2013 Canonical Ltd
+ * Copyright (C) 2012-2013 Caanalnical Ltd
  * Copyright (C) 2012 Texas Instruments
  *
  * Authors:
  * Rob Clark <robdclark@gmail.com>
- * Maarten Lankhorst <maarten.lankhorst@canonical.com>
+ * Maarten Lankhorst <maarten.lankhorst@caanalnical.com>
  * Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  *
- * Based on bo.c which bears the following copyright notice,
+ * Based on bo.c which bears the following copyright analtice,
  * but is dual licensed:
  *
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
@@ -24,13 +24,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -78,7 +78,7 @@ enum dma_resv_usage {
 	 *
 	 * Drivers *always* must wait for those fences before accessing the
 	 * resource protected by the dma_resv object. The only exception for
-	 * that is when the resource is known to be locked down in place by
+	 * that is when the resource is kanalwn to be locked down in place by
 	 * pinning it previously.
 	 */
 	DMA_RESV_USAGE_KERNEL,
@@ -100,7 +100,7 @@ enum dma_resv_usage {
 	DMA_RESV_USAGE_READ,
 
 	/**
-	 * @DMA_RESV_USAGE_BOOKKEEP: No implicit sync.
+	 * @DMA_RESV_USAGE_BOOKKEEP: Anal implicit sync.
 	 *
 	 * This should be used by submissions which don't want to participate in
 	 * any implicit synchronization.
@@ -147,7 +147,7 @@ static inline enum dma_resv_usage dma_resv_usage_rw(bool write)
  * in-depth discussion.
  *
  * The other major use is to manage access and locking within a driver in a
- * buffer based memory manager. struct ttm_buffer_object is the canonical
+ * buffer based memory manager. struct ttm_buffer_object is the caanalnical
  * example here, since this is where reservation objects originated from. But
  * use in drivers is spreading and some drivers also manage struct
  * drm_gem_object with the same scheme.
@@ -171,8 +171,8 @@ struct dma_resv {
 	 * Array of fences which where added to the dma_resv object
 	 *
 	 * A new fence is added by calling dma_resv_add_fence(). Since this
-	 * often needs to be done past the point of no return in command
-	 * submission it cannot fail, and therefore sufficient slots need to be
+	 * often needs to be done past the point of anal return in command
+	 * submission it cananalt fail, and therefore sufficient slots need to be
 	 * reserved by calling dma_resv_reserve_fences().
 	 */
 	struct dma_resv_list __rcu *fences;
@@ -206,7 +206,7 @@ struct dma_resv_iter {
 	/** @index: index into the shared fences */
 	unsigned int index;
 
-	/** @fences: the shared fences; private, *MUST* not dereference  */
+	/** @fences: the shared fences; private, *MUST* analt dereference  */
 	struct dma_resv_list *fences;
 
 	/** @num_fences: number of fences */
@@ -300,7 +300,7 @@ static inline bool dma_resv_iter_is_restarted(struct dma_resv_iter *cursor)
  * Iterate over the fences in a struct dma_resv object while holding the
  * &dma_resv.lock. @all_fences controls if the shared fences are returned as
  * well. The cursor initialisation is part of the iterator and the fence stays
- * valid as long as the lock is held and so no extra reference to the fence is
+ * valid as long as the lock is held and so anal extra reference to the fence is
  * taken.
  */
 #define dma_resv_for_each_fence(cursor, obj, usage, fence)	\
@@ -322,9 +322,9 @@ static inline void dma_resv_reset_max_fences(struct dma_resv *obj) {}
  * @obj: the reservation object
  * @ctx: the locking context
  *
- * Locks the reservation object for exclusive access and modification. Note,
+ * Locks the reservation object for exclusive access and modification. Analte,
  * that the lock is only against other writers, readers will run concurrently
- * with a writer under RCU. The seqlock is used to notify readers if they
+ * with a writer under RCU. The seqlock is used to analtify readers if they
  * overlap with a writer.
  *
  * As the reservation object may be locked by multiple parties in an
@@ -351,9 +351,9 @@ static inline int dma_resv_lock(struct dma_resv *obj,
  * @ctx: the locking context
  *
  * Locks the reservation object interruptible for exclusive access and
- * modification. Note, that the lock is only against other writers, readers
+ * modification. Analte, that the lock is only against other writers, readers
  * will run concurrently with a writer under RCU. The seqlock is used to
- * notify readers if they overlap with a writer.
+ * analtify readers if they overlap with a writer.
  *
  * As the reservation object may be locked by multiple parties in an
  * undefined order, a #ww_acquire_ctx is passed to unwind if a cycle
@@ -410,12 +410,12 @@ static inline int dma_resv_lock_slow_interruptible(struct dma_resv *obj,
  * @obj: the reservation object
  *
  * Tries to lock the reservation object for exclusive access and modification.
- * Note, that the lock is only against other writers, readers will run
- * concurrently with a writer under RCU. The seqlock is used to notify readers
+ * Analte, that the lock is only against other writers, readers will run
+ * concurrently with a writer under RCU. The seqlock is used to analtify readers
  * if they overlap with a writer.
  *
- * Also note that since no context is provided, no deadlock protection is
- * possible, which is also not needed for a trylock.
+ * Also analte that since anal context is provided, anal deadlock protection is
+ * possible, which is also analt needed for a trylock.
  *
  * Returns true if the lock was acquired, false otherwise.
  */
@@ -439,13 +439,13 @@ static inline bool dma_resv_is_locked(struct dma_resv *obj)
  * dma_resv_locking_ctx - returns the context used to lock the object
  * @obj: the reservation object
  *
- * Returns the context used to lock a reservation object or NULL if no context
- * was used or the object is not locked at all.
+ * Returns the context used to lock a reservation object or NULL if anal context
+ * was used or the object is analt locked at all.
  *
  * WARNING: This interface is pretty horrible, but TTM needs it because it
  * doesn't pass the struct ww_acquire_ctx around in some very long callchains.
  * Everyone else just uses it to check whether they're holding a reservation or
- * not.
+ * analt.
  */
 static inline struct ww_acquire_ctx *dma_resv_locking_ctx(struct dma_resv *obj)
 {

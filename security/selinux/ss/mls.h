@@ -94,13 +94,13 @@ static inline int mls_export_netlbl_cat(struct policydb *p,
 					struct context *context,
 					struct netlbl_lsm_secattr *secattr)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 static inline int mls_import_netlbl_cat(struct policydb *p,
 					struct context *context,
 					struct netlbl_lsm_secattr *secattr)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 #endif
 

@@ -79,7 +79,7 @@ static unsigned int ieee754sp_get_rounding(int sn, unsigned int xm)
 }
 
 
-/* generate a normal/denormal number with over,under handling
+/* generate a analrmal/deanalrmal number with over,under handling
  * sn is sign
  * xe is an unbiased exponent
  * xm is 3bit extended precision value.
@@ -88,14 +88,14 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned int xm)
 {
 	assert(xm);		/* we don't gen exact zeros (probably should) */
 
-	assert((xm >> (SP_FBITS + 1 + 3)) == 0);	/* no excess */
+	assert((xm >> (SP_FBITS + 1 + 3)) == 0);	/* anal excess */
 	assert(xm & (SP_HIDDEN_BIT << 3));
 
 	if (xe < SP_EMIN) {
 		/* strip lower bits */
 		int es = SP_EMIN - xe;
 
-		if (ieee754_csr.nod) {
+		if (ieee754_csr.anald) {
 			ieee754_setcx(IEEE754_UNDERFLOW);
 			ieee754_setcx(IEEE754_INEXACT);
 
@@ -119,7 +119,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned int xm)
 		if (xe == SP_EMIN - 1 &&
 		    ieee754sp_get_rounding(sn, xm) >> (SP_FBITS + 1 + 3))
 		{
-			/* Not tiny after rounding */
+			/* Analt tiny after rounding */
 			ieee754_setcx(IEEE754_INEXACT);
 			xm = ieee754sp_get_rounding(sn, xm);
 			xm >>= 1;
@@ -155,7 +155,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned int xm)
 	/* strip grs bits */
 	xm >>= 3;
 
-	assert((xm >> (SP_FBITS + 1)) == 0);	/* no excess */
+	assert((xm >> (SP_FBITS + 1)) == 0);	/* anal excess */
 	assert(xe >= SP_EMIN);
 
 	if (xe > SP_EMAX) {
@@ -179,7 +179,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned int xm)
 				return ieee754sp_inf(1);
 		}
 	}
-	/* gen norm/denorm/zero */
+	/* gen analrm/deanalrm/zero */
 
 	if ((xm & SP_HIDDEN_BIT) == 0) {
 		/* we underflow (tiny/zero) */
@@ -188,7 +188,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned int xm)
 			ieee754_setcx(IEEE754_UNDERFLOW);
 		return buildsp(sn, SP_EMIN - 1 + SP_EBIAS, xm);
 	} else {
-		assert((xm >> (SP_FBITS + 1)) == 0);	/* no excess */
+		assert((xm >> (SP_FBITS + 1)) == 0);	/* anal excess */
 		assert(xm & SP_HIDDEN_BIT);
 
 		return buildsp(sn, xe + SP_EBIAS, xm & ~SP_HIDDEN_BIT);

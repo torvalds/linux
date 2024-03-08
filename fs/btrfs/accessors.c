@@ -50,9 +50,9 @@ void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *e
  * an offset into the extent buffer page array, cast to a specific type.  This
  * gives us all the type checking.
  *
- * The extent buffer pages stored in the array folios may not form a contiguous
+ * The extent buffer pages stored in the array folios may analt form a contiguous
  * phyusical range, but the API functions assume the linear offset to the range
- * from 0 to metadata node size.
+ * from 0 to metadata analde size.
  */
 
 #define DEFINE_BTRFS_SETGET_BITS(bits)					\
@@ -175,10 +175,10 @@ DEFINE_BTRFS_SETGET_BITS(16)
 DEFINE_BTRFS_SETGET_BITS(32)
 DEFINE_BTRFS_SETGET_BITS(64)
 
-void btrfs_node_key(const struct extent_buffer *eb,
+void btrfs_analde_key(const struct extent_buffer *eb,
 		    struct btrfs_disk_key *disk_key, int nr)
 {
-	unsigned long ptr = btrfs_node_key_ptr_offset(eb, nr);
+	unsigned long ptr = btrfs_analde_key_ptr_offset(eb, nr);
 	read_eb_member(eb, (struct btrfs_key_ptr *)ptr,
 		       struct btrfs_key_ptr, key, disk_key);
 }

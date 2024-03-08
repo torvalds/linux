@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -151,7 +151,7 @@ static inline const char *port_identifier(enum port port)
 }
 
 enum tc_port {
-	TC_PORT_NONE = -1,
+	TC_PORT_ANALNE = -1,
 
 	TC_PORT_1 = 0,
 	TC_PORT_2,
@@ -164,7 +164,7 @@ enum tc_port {
 };
 
 enum aux_ch {
-	AUX_CH_NONE = -1,
+	AUX_CH_ANALNE = -1,
 
 	AUX_CH_A,
 	AUX_CH_B,
@@ -190,7 +190,7 @@ enum aux_ch {
 };
 
 enum phy {
-	PHY_NONE = -1,
+	PHY_ANALNE = -1,
 
 	PHY_A = 0,
 	PHY_B,
@@ -214,7 +214,7 @@ enum phy_fia {
 };
 
 #define for_each_hpd_pin(__pin) \
-	for ((__pin) = (HPD_NONE + 1); (__pin) < HPD_NUM_PINS; (__pin)++)
+	for ((__pin) = (HPD_ANALNE + 1); (__pin) < HPD_NUM_PINS; (__pin)++)
 
 #define for_each_pipe(__dev_priv, __p) \
 	for ((__p) = 0; (__p) < I915_MAX_PIPES; (__p)++) \
@@ -501,7 +501,7 @@ bool intel_plane_uses_fence(const struct intel_plane_state *plane_state);
 struct intel_encoder *
 intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 			   const struct intel_crtc_state *crtc_state);
-void intel_plane_disable_noatomic(struct intel_crtc *crtc,
+void intel_plane_disable_analatomic(struct intel_crtc *crtc,
 				  struct intel_plane *plane);
 void intel_set_plane_visible(struct intel_crtc_state *crtc_state,
 			     struct intel_plane_state *plane_state,
@@ -529,7 +529,7 @@ void intel_atomic_helper_free_state_worker(struct work_struct *work);
 enum drm_mode_status intel_mode_valid(struct drm_device *dev,
 				      const struct drm_display_mode *mode);
 int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
-			bool nonblock);
+			bool analnblock);
 
 void intel_hpd_poll_fini(struct drm_i915_private *i915);
 
@@ -543,7 +543,7 @@ bool assert_port_valid(struct drm_i915_private *i915, enum port port);
 
 /*
  * Use I915_STATE_WARN(x) (rather than WARN() and WARN_ON()) for hw state sanity
- * checks to check for unexpected conditions which may not necessarily be a user
+ * checks to check for unexpected conditions which may analt necessarily be a user
  * visible problem. This will either WARN() or DRM_ERROR() depending on the
  * verbose_state_checks module param, to enable distros and users to tailor
  * their preferred amount of i915 abrt spam.
@@ -557,6 +557,6 @@ bool assert_port_valid(struct drm_i915_private *i915, enum port port);
 	unlikely(__ret_warn_on);					\
 })
 
-bool intel_scanout_needs_vtd_wa(struct drm_i915_private *i915);
+bool intel_scaanalut_needs_vtd_wa(struct drm_i915_private *i915);
 
 #endif

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2022-2023 Microchip Technology Inc.
+// Copyright (C) 2022-2023 Microchip Techanallogy Inc.
 // PCI1xxxx OTP/EEPROM driver
 
 #include <linux/auxiliary_bus.h>
@@ -338,7 +338,7 @@ static int pci1xxxx_otp_eeprom_probe(struct auxiliary_device *aux_dev,
 
 	priv = devm_kzalloc(&aux_dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdev = aux_dev;
 
@@ -346,13 +346,13 @@ static int pci1xxxx_otp_eeprom_probe(struct auxiliary_device *aux_dev,
 				     PERI_PF3_SYSTEM_REG_ADDR_BASE,
 				     PERI_PF3_SYSTEM_REG_LENGTH,
 				     aux_dev->name))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->reg_base = devm_ioremap(&aux_dev->dev, pdata->region_start +
 				      PERI_PF3_SYSTEM_REG_ADDR_BASE,
 				      PERI_PF3_SYSTEM_REG_LENGTH);
 	if (!priv->reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = set_sys_lock(priv);
 	if (ret)
@@ -440,4 +440,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>");
 MODULE_AUTHOR("Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>");
 MODULE_AUTHOR("Vaibhaav Ram T.L <vaibhaavram.tl@microchip.com>");
-MODULE_DESCRIPTION("Microchip Technology Inc. PCI1xxxx OTP EEPROM Programmer");
+MODULE_DESCRIPTION("Microchip Techanallogy Inc. PCI1xxxx OTP EEPROM Programmer");

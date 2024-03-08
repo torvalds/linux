@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Copyright Novell Inc 2010
+ * Copyright Analvell Inc 2010
  *
  * Authors: Alexander Graf <agraf@suse.de>
  */
@@ -122,11 +122,11 @@
 #define OP_4X_PS_MERGE10	592
 #define OP_4X_PS_MERGE11	624
 
-#define SCALAR_NONE		0
+#define SCALAR_ANALNE		0
 #define SCALAR_HIGH		(1 << 0)
 #define SCALAR_LOW		(1 << 1)
-#define SCALAR_NO_PS0		(1 << 2)
-#define SCALAR_NO_PS1		(1 << 3)
+#define SCALAR_ANAL_PS0		(1 << 2)
+#define SCALAR_ANAL_PS1		(1 << 3)
 
 #define GQR_ST_TYPE_MASK	0x00000007
 #define GQR_ST_TYPE_SHIFT	0
@@ -515,7 +515,7 @@ static int kvmppc_ps_three_in(struct kvm_vcpu *vcpu, bool rc,
 	dprintk(KERN_INFO "PS3 ps0 -> f(0x%x, 0x%x, 0x%x) = 0x%x\n",
 			  ps0_in1, ps0_in2, ps0_in3, ps0_out);
 
-	if (!(scalar & SCALAR_NO_PS0))
+	if (!(scalar & SCALAR_ANAL_PS0))
 		kvm_cvt_fd(&ps0_out, &VCPU_FPR(vcpu, reg_out));
 
 	/* PS1 */
@@ -526,7 +526,7 @@ static int kvmppc_ps_three_in(struct kvm_vcpu *vcpu, bool rc,
 	if (scalar & SCALAR_HIGH)
 		ps1_in2 = ps0_in2;
 
-	if (!(scalar & SCALAR_NO_PS1))
+	if (!(scalar & SCALAR_ANAL_PS1))
 		func(&vcpu->arch.fp.fpscr, &qpr[reg_out], &ps1_in1, &ps1_in2, &ps1_in3);
 
 	dprintk(KERN_INFO "PS3 ps1 -> f(0x%x, 0x%x, 0x%x) = 0x%x\n",
@@ -561,7 +561,7 @@ static int kvmppc_ps_two_in(struct kvm_vcpu *vcpu, bool rc,
 
 	func(&vcpu->arch.fp.fpscr, &ps0_out, &ps0_in1, &ps0_in2);
 
-	if (!(scalar & SCALAR_NO_PS0)) {
+	if (!(scalar & SCALAR_ANAL_PS0)) {
 		dprintk(KERN_INFO "PS2 ps0 -> f(0x%x, 0x%x) = 0x%x\n",
 				  ps0_in1, ps0_in2, ps0_out);
 
@@ -577,7 +577,7 @@ static int kvmppc_ps_two_in(struct kvm_vcpu *vcpu, bool rc,
 
 	func(&vcpu->arch.fp.fpscr, &ps1_out, &ps1_in1, &ps1_in2);
 
-	if (!(scalar & SCALAR_NO_PS1)) {
+	if (!(scalar & SCALAR_ANAL_PS1)) {
 		qpr[reg_out] = ps1_out;
 
 		dprintk(KERN_INFO "PS2 ps1 -> f(0x%x, 0x%x) = 0x%x\n",
@@ -847,12 +847,12 @@ int kvmppc_emulate_paired_single(struct kvm_vcpu *vcpu)
 		switch (inst_get_field(inst, 26, 30)) {
 		case OP_4A_PS_SUM1:
 			emulated = kvmppc_ps_two_in(vcpu, rcomp, ax_rd,
-					ax_rb, ax_ra, SCALAR_NO_PS0 | SCALAR_HIGH, fps_fadds);
+					ax_rb, ax_ra, SCALAR_ANAL_PS0 | SCALAR_HIGH, fps_fadds);
 			VCPU_FPR(vcpu, ax_rd) = VCPU_FPR(vcpu, ax_rc);
 			break;
 		case OP_4A_PS_SUM0:
 			emulated = kvmppc_ps_two_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rb, SCALAR_NO_PS1 | SCALAR_LOW, fps_fadds);
+					ax_ra, ax_rb, SCALAR_ANAL_PS1 | SCALAR_LOW, fps_fadds);
 			vcpu->arch.qpr[ax_rd] = vcpu->arch.qpr[ax_rc];
 			break;
 		case OP_4A_PS_MULS0:
@@ -873,19 +873,19 @@ int kvmppc_emulate_paired_single(struct kvm_vcpu *vcpu)
 			break;
 		case OP_4A_PS_DIV:
 			emulated = kvmppc_ps_two_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rb, SCALAR_NONE, fps_fdivs);
+					ax_ra, ax_rb, SCALAR_ANALNE, fps_fdivs);
 			break;
 		case OP_4A_PS_SUB:
 			emulated = kvmppc_ps_two_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rb, SCALAR_NONE, fps_fsubs);
+					ax_ra, ax_rb, SCALAR_ANALNE, fps_fsubs);
 			break;
 		case OP_4A_PS_ADD:
 			emulated = kvmppc_ps_two_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rb, SCALAR_NONE, fps_fadds);
+					ax_ra, ax_rb, SCALAR_ANALNE, fps_fadds);
 			break;
 		case OP_4A_PS_SEL:
 			emulated = kvmppc_ps_three_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rc, ax_rb, SCALAR_NONE, fps_fsel);
+					ax_ra, ax_rc, ax_rb, SCALAR_ANALNE, fps_fsel);
 			break;
 		case OP_4A_PS_RES:
 			emulated = kvmppc_ps_one_in(vcpu, rcomp, ax_rd,
@@ -893,7 +893,7 @@ int kvmppc_emulate_paired_single(struct kvm_vcpu *vcpu)
 			break;
 		case OP_4A_PS_MUL:
 			emulated = kvmppc_ps_two_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rc, SCALAR_NONE, fps_fmuls);
+					ax_ra, ax_rc, SCALAR_ANALNE, fps_fmuls);
 			break;
 		case OP_4A_PS_RSQRTE:
 			emulated = kvmppc_ps_one_in(vcpu, rcomp, ax_rd,
@@ -901,19 +901,19 @@ int kvmppc_emulate_paired_single(struct kvm_vcpu *vcpu)
 			break;
 		case OP_4A_PS_MSUB:
 			emulated = kvmppc_ps_three_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rc, ax_rb, SCALAR_NONE, fps_fmsubs);
+					ax_ra, ax_rc, ax_rb, SCALAR_ANALNE, fps_fmsubs);
 			break;
 		case OP_4A_PS_MADD:
 			emulated = kvmppc_ps_three_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rc, ax_rb, SCALAR_NONE, fps_fmadds);
+					ax_ra, ax_rc, ax_rb, SCALAR_ANALNE, fps_fmadds);
 			break;
 		case OP_4A_PS_NMSUB:
 			emulated = kvmppc_ps_three_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rc, ax_rb, SCALAR_NONE, fps_fnmsubs);
+					ax_ra, ax_rc, ax_rb, SCALAR_ANALNE, fps_fnmsubs);
 			break;
 		case OP_4A_PS_NMADD:
 			emulated = kvmppc_ps_three_in(vcpu, rcomp, ax_rd,
-					ax_ra, ax_rc, ax_rb, SCALAR_NONE, fps_fnmadds);
+					ax_ra, ax_rc, ax_rb, SCALAR_ANALNE, fps_fnmadds);
 			break;
 		}
 		break;

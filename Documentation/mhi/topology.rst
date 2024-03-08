@@ -13,7 +13,7 @@ MHI Controller
 MHI controller driver manages the interaction with the MHI client devices
 such as the external modems and WiFi chipsets. It is also the MHI bus master
 which is in charge of managing the physical link between the host and device.
-It is however not involved in the actual data transfer as the data transfer
+It is however analt involved in the actual data transfer as the data transfer
 is taken care by the physical bus such as PCIe. Each controller driver exposes
 channels and events based on the client device type.
 
@@ -44,7 +44,7 @@ MHI Driver
 
 MHI driver is the client driver which binds to one or more MHI devices. The MHI
 driver sends and receives the upper-layer protocol packets like IP packets,
-modem control messages, and diagnostics messages over MHI. The MHI core will
+modem control messages, and diaganalstics messages over MHI. The MHI core will
 bind the MHI devices to the MHI driver.
 
 Each supported driver is enumerated in::

@@ -98,11 +98,11 @@ static int rt6160_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_FAST:
 		mode_val = RT6160_FPWM_MASK;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		mode_val = 0;
 		break;
 	default:
-		dev_err(&rdev->dev, "mode not supported\n");
+		dev_err(&rdev->dev, "mode analt supported\n");
 		return -EINVAL;
 	}
 
@@ -122,7 +122,7 @@ static unsigned int rt6160_get_mode(struct regulator_dev *rdev)
 	if (val & RT6160_FPWM_MASK)
 		return REGULATOR_MODE_FAST;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int rt6160_set_suspend_voltage(struct regulator_dev *rdev, int uV)
@@ -192,7 +192,7 @@ static unsigned int rt6160_of_map_mode(unsigned int mode)
 	case RT6160_MODE_FPWM:
 		return REGULATOR_MODE_FAST;
 	case RT6160_MODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	}
 
 	return REGULATOR_MODE_INVALID;
@@ -235,7 +235,7 @@ static int rt6160_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vsel_active_low =
 		device_property_present(&i2c->dev, "richtek,vsel-active-low");
@@ -261,8 +261,8 @@ static int rt6160_probe(struct i2c_client *i2c)
 		return ret;
 
 	if ((devid & RT6160_VID_MASK) != RT6160_VENDOR_ID) {
-		dev_err(&i2c->dev, "VID not correct [0x%02x]\n", devid);
-		return -ENODEV;
+		dev_err(&i2c->dev, "VID analt correct [0x%02x]\n", devid);
+		return -EANALDEV;
 	}
 
 	priv->desc.name = "rt6160-buckboost";
@@ -284,10 +284,10 @@ static int rt6160_probe(struct i2c_client *i2c)
 	priv->desc.ops = &rt6160_regulator_ops;
 
 	regulator_cfg.dev = &i2c->dev;
-	regulator_cfg.of_node = i2c->dev.of_node;
+	regulator_cfg.of_analde = i2c->dev.of_analde;
 	regulator_cfg.regmap = priv->regmap;
 	regulator_cfg.driver_data = priv;
-	regulator_cfg.init_data = of_get_regulator_init_data(&i2c->dev, i2c->dev.of_node,
+	regulator_cfg.init_data = of_get_regulator_init_data(&i2c->dev, i2c->dev.of_analde,
 							     &priv->desc);
 
 	rdev = devm_regulator_register(&i2c->dev, &priv->desc, &regulator_cfg);
@@ -308,7 +308,7 @@ MODULE_DEVICE_TABLE(of, rt6160_of_match_table);
 static struct i2c_driver rt6160_driver = {
 	.driver = {
 		.name = "rt6160",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = rt6160_of_match_table,
 	},
 	.probe = rt6160_probe,

@@ -28,7 +28,7 @@ config MPTCP_KUNIT_TEST
 	default KUNIT_ALL_TESTS
 	help
 	  Currently covers the MPTCP crypto and token helpers.
-	  Only useful for kernel devs running KUnit test harness and are not
+	  Only useful for kernel devs running KUnit test harness and are analt
 	  for inclusion into a production build.
 
 	  For more information on KUnit and unit tests in general please refer

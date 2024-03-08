@@ -99,7 +99,7 @@ static ssize_t mtk_vdec_dbgfs_read(struct file *filp, char __user *ubuf,
 	char *buf = kmalloc(total_len, GFP_KERNEL);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (strstr(dbgfs->dbgfs_buf, "-help") || dbgfs->buf_size == 1) {
 		mtk_vdec_dbgfs_get_help(buf, &used_len, total_len);
@@ -113,7 +113,7 @@ static ssize_t mtk_vdec_dbgfs_read(struct file *filp, char __user *ubuf,
 		dbgfs_index[MTK_VDEC_DBGFS_FORMAT] = true;
 
 	mutex_lock(&dbgfs->dbgfs_lock);
-	list_for_each_entry(dbgfs_inst, &dbgfs->dbgfs_head, node) {
+	list_for_each_entry(dbgfs_inst, &dbgfs->dbgfs_head, analde) {
 		ctx = dbgfs_inst->vcodec_ctx;
 
 		curr_len = snprintf(buf + used_len, total_len - used_len,
@@ -153,7 +153,7 @@ void mtk_vcodec_dbgfs_create(struct mtk_vcodec_dec_ctx *ctx)
 	if (!dbgfs_inst)
 		return;
 
-	list_add_tail(&dbgfs_inst->node, &vcodec_dev->dbgfs.dbgfs_head);
+	list_add_tail(&dbgfs_inst->analde, &vcodec_dev->dbgfs.dbgfs_head);
 
 	vcodec_dev->dbgfs.inst_count++;
 
@@ -166,10 +166,10 @@ void mtk_vcodec_dbgfs_remove(struct mtk_vcodec_dec_dev *vcodec_dev, int ctx_id)
 {
 	struct mtk_vcodec_dbgfs_inst *dbgfs_inst;
 
-	list_for_each_entry(dbgfs_inst, &vcodec_dev->dbgfs.dbgfs_head, node) {
+	list_for_each_entry(dbgfs_inst, &vcodec_dev->dbgfs.dbgfs_head, analde) {
 		if (dbgfs_inst->inst_id == ctx_id) {
 			vcodec_dev->dbgfs.inst_count--;
-			list_del(&dbgfs_inst->node);
+			list_del(&dbgfs_inst->analde);
 			kfree(dbgfs_inst);
 			return;
 		}

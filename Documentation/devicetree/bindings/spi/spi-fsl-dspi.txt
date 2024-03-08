@@ -25,10 +25,10 @@ Optional property:
   in big endian mode.
 - bus-num : the slave chip chipselect signal number.
 
-Optional SPI slave node properties:
-- fsl,spi-cs-sck-delay: a delay in nanoseconds between activating chip
+Optional SPI slave analde properties:
+- fsl,spi-cs-sck-delay: a delay in naanalseconds between activating chip
   select and the start of clock signal, at the start of a transfer.
-- fsl,spi-sck-cs-delay: a delay in nanoseconds between stopping the clock
+- fsl,spi-sck-cs-delay: a delay in naanalseconds between stopping the clock
   signal and deactivating chip select, at the end of a transfer.
 
 Example:

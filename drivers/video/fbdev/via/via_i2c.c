@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -13,7 +13,7 @@
 #include <linux/via_i2c.h>
 
 /*
- * There can only be one set of these, so there's no point in having
+ * There can only be one set of these, so there's anal point in having
  * them be dynamically allocated...
  */
 #define VIAFB_NUM_I2C		5
@@ -111,7 +111,7 @@ int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata)
 	struct i2c_msg msgs[2];
 
 	if (!via_i2c_par[adap].is_active)
-		return -ENODEV;
+		return -EANALDEV;
 	*pdata = 0;
 	msgs[0].flags = 0;
 	msgs[1].flags = I2C_M_RD;
@@ -135,7 +135,7 @@ int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data)
 	struct i2c_msg msgs;
 
 	if (!via_i2c_par[adap].is_active)
-		return -ENODEV;
+		return -EANALDEV;
 	msgs.flags = 0;
 	msgs.addr = slave_addr / 2;
 	msgs.len = 2;
@@ -156,7 +156,7 @@ int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len
 	struct i2c_msg msgs[2];
 
 	if (!via_i2c_par[adap].is_active)
-		return -ENODEV;
+		return -EANALDEV;
 	msgs[0].flags = 0;
 	msgs[1].flags = I2C_M_RD;
 	msgs[0].addr = msgs[1].addr = slave_addr / 2;
@@ -235,7 +235,7 @@ static int viafb_i2c_probe(struct platform_device *platdev)
 				     &i2c_stuff->algo, adap_cfg,
 				NULL); /* FIXME: PCIDEV */
 		if (ret < 0) {
-			printk(KERN_ERR "viafb: cannot create i2c bus %u:%d\n",
+			printk(KERN_ERR "viafb: cananalt create i2c bus %u:%d\n",
 				i, ret);
 			continue;  /* Still try to make the rest */
 		}

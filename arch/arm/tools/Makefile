@@ -28,7 +28,7 @@ kapi:	$(kapi-hdrs-y) $(gen-y)
 
 uapi:	$(uapi-hdrs-y)
 
-# Create output directory if not already present
+# Create output directory if analt already present
 $(shell mkdir -p $(kapi) $(uapi))
 
 quiet_cmd_gen_mach = GEN     $@

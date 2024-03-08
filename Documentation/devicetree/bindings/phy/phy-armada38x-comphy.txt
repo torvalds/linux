@@ -19,9 +19,9 @@ Optional properties:
     pair, followed by an optional configuration register address and
     length pair.
 
-A sub-node is required for each comphy lane provided by the comphy.
+A sub-analde is required for each comphy lane provided by the comphy.
 
-Required properties (child nodes):
+Required properties (child analdes):
 
 - reg: comphy lane number.
 - #phy-cells : from the generic phy bindings, must be 1. Defines the

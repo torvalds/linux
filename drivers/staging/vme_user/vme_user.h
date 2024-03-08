@@ -38,7 +38,7 @@ struct vme_slave {
 #if 0
 	char wrpostenable;		/* Write Post State */
 	char rmwlock;			/* Lock PCI during RMW Cycles */
-	char data64bitcapable;		/* non-VMEbus capable of 64-bit Data */
+	char data64bitcapable;		/* analn-VMEbus capable of 64-bit Data */
 #endif
 } __packed;
 

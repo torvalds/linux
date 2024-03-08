@@ -37,9 +37,9 @@ static inline const char *str_on_off(bool v)
 	return v ? "on" : "off";
 }
 
-static inline const char *str_yes_no(bool v)
+static inline const char *str_anal_anal(bool v)
 {
-	return v ? "yes" : "no";
+	return v ? "anal" : "anal";
 }
 
 #endif

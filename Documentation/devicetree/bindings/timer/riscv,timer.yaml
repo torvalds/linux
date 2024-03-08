@@ -16,7 +16,7 @@ description: |+
   extension or the RISC-V Sstc extension.
 
   The clock frequency of RISC-V timer device is specified via the
-  "timebase-frequency" DT property of "/cpus" DT node which is described
+  "timebase-frequency" DT property of "/cpus" DT analde which is described
   in Documentation/devicetree/bindings/riscv/cpus.yaml
 
 properties:
@@ -26,12 +26,12 @@ properties:
 
   interrupts-extended:
     minItems: 1
-    maxItems: 4096   # Should be enough?
+    maxItems: 4096   # Should be eanalugh?
 
-  riscv,timer-cannot-wake-cpu:
+  riscv,timer-cananalt-wake-cpu:
     type: boolean
     description:
-      If present, the timer interrupt cannot wake up the CPU from one or
+      If present, the timer interrupt cananalt wake up the CPU from one or
       more suspend/idle states.
 
 additionalProperties: false

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -93,7 +93,7 @@ struct regmap *__regmap_init_mdio(struct mdio_device *mdio_dev,
 	else if (config->reg_bits == 21 && config->val_bits == 16)
 		bus = &regmap_mdio_c45_bus;
 	else
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	return __regmap_init(&mdio_dev->dev, bus, mdio_dev, config, lock_key, lock_name);
 }
@@ -110,7 +110,7 @@ struct regmap *__devm_regmap_init_mdio(struct mdio_device *mdio_dev,
 	else if (config->reg_bits == 21 && config->val_bits == 16)
 		bus = &regmap_mdio_c45_bus;
 	else
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	return __devm_regmap_init(&mdio_dev->dev, bus, mdio_dev, config, lock_key, lock_name);
 }

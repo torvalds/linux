@@ -1,7 +1,7 @@
 [
     {
         "ArchStdEvent": "EXC_TAKEN",
-        "PublicDescription": "Counts any taken architecturally visible exceptions such as IRQ, FIQ, SError, and other synchronous exceptions. Exceptions are counted whether or not they are taken locally."
+        "PublicDescription": "Counts any taken architecturally visible exceptions such as IRQ, FIQ, SError, and other synchroanalus exceptions. Exceptions are counted whether or analt they are taken locally."
     },
     {
         "ArchStdEvent": "EXC_RETURN",
@@ -9,7 +9,7 @@
     },
     {
         "ArchStdEvent": "EXC_UNDEF",
-        "PublicDescription": "Counts the number of synchronous exceptions which are taken locally that are due to attempting to execute an instruction that is UNDEFINED. Attempting to execute instruction bit patterns that have not been allocated. Attempting to execute instructions when they are disabled. Attempting to execute instructions at an inappropriate Exception level. Attempting to execute an instruction when the value of PSTATE.IL is 1."
+        "PublicDescription": "Counts the number of synchroanalus exceptions which are taken locally that are due to attempting to execute an instruction that is UNDEFINED. Attempting to execute instruction bit patterns that have analt been allocated. Attempting to execute instructions when they are disabled. Attempting to execute instructions at an inappropriate Exception level. Attempting to execute an instruction when the value of PSTATE.IL is 1."
     },
     {
         "ArchStdEvent": "EXC_SVC",
@@ -17,7 +17,7 @@
     },
     {
         "ArchStdEvent": "EXC_PABORT",
-        "PublicDescription": "Counts synchronous exceptions that are taken locally and caused by Instruction Aborts."
+        "PublicDescription": "Counts synchroanalus exceptions that are taken locally and caused by Instruction Aborts."
     },
     {
         "ArchStdEvent": "EXC_DABORT",
@@ -41,22 +41,22 @@
     },
     {
         "ArchStdEvent": "EXC_TRAP_PABORT",
-        "PublicDescription": "Counts exceptions which are traps not taken locally and are caused by Instruction Aborts. For example, attempting to execute an instruction with a misaligned PC."
+        "PublicDescription": "Counts exceptions which are traps analt taken locally and are caused by Instruction Aborts. For example, attempting to execute an instruction with a misaligned PC."
     },
     {
         "ArchStdEvent": "EXC_TRAP_DABORT",
-        "PublicDescription": "Counts exceptions which are traps not taken locally and are caused by Data Aborts or SError interrupts. Conditions that could cause those exceptions are:\n\n1. Attempting to read or write memory where the MMU generates a fault,\n2. Attempting to read or write memory with a misaligned address,\n3. Interrupts from the SEI input.\n4. internally generated SErrors."
+        "PublicDescription": "Counts exceptions which are traps analt taken locally and are caused by Data Aborts or SError interrupts. Conditions that could cause those exceptions are:\n\n1. Attempting to read or write memory where the MMU generates a fault,\n2. Attempting to read or write memory with a misaligned address,\n3. Interrupts from the SEI input.\n4. internally generated SErrors."
     },
     {
         "ArchStdEvent": "EXC_TRAP_OTHER",
-        "PublicDescription": "Counts the number of synchronous trap exceptions which are not taken locally and are not SVC, SMC, HVC, data aborts, Instruction Aborts, or interrupts."
+        "PublicDescription": "Counts the number of synchroanalus trap exceptions which are analt taken locally and are analt SVC, SMC, HVC, data aborts, Instruction Aborts, or interrupts."
     },
     {
         "ArchStdEvent": "EXC_TRAP_IRQ",
-        "PublicDescription": "Counts IRQ exceptions including the virtual IRQs that are not taken locally."
+        "PublicDescription": "Counts IRQ exceptions including the virtual IRQs that are analt taken locally."
     },
     {
         "ArchStdEvent": "EXC_TRAP_FIQ",
-        "PublicDescription": "Counts FIQs which are not taken locally but taken from EL0, EL1,\n or EL2 to EL3 (which would be the normal behavior for FIQs when not executing\n in EL3)."
+        "PublicDescription": "Counts FIQs which are analt taken locally but taken from EL0, EL1,\n or EL2 to EL3 (which would be the analrmal behavior for FIQs when analt executing\n in EL3)."
     }
 ]

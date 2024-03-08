@@ -144,7 +144,7 @@ l2_%=:	exit;						\
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void pointers_for_lookup_hash_array__1(void)
 {
 	asm volatile ("					\
@@ -155,7 +155,7 @@ void pointers_for_lookup_hash_array__1(void)
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void pointers_for_lookup_hash_array__2(void)
 {
 	asm volatile ("					\
@@ -194,7 +194,7 @@ l2_%=:	exit;						\
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void lookup_hash_map_in_map__1(void)
 {
 	asm volatile ("					\
@@ -205,7 +205,7 @@ void lookup_hash_map_in_map__1(void)
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void lookup_hash_map_in_map__2(void)
 {
 	asm volatile ("					\

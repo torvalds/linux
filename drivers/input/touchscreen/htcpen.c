@@ -5,7 +5,7 @@
  * Copyright (C) 2008 Pau Oliva Fora <pof@eslack.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/input.h>
@@ -125,7 +125,7 @@ static int htcpen_isa_probe(struct device *dev, unsigned int id)
 	htcpen_dev = input_allocate_device();
 	if (!htcpen_dev) {
 		printk(KERN_ERR "htcpen: can't allocate device\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto input_alloc_failed;
 	}
 
@@ -229,7 +229,7 @@ MODULE_DEVICE_TABLE(dmi, htcshift_dmi_table);
 static int __init htcpen_isa_init(void)
 {
 	if (!dmi_check_system(htcshift_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return isa_register_driver(&htcpen_isa_driver, 1);
 }

@@ -17,9 +17,9 @@
 #include <linux/vt_kern.h>
 #include <linux/console.h>
 
-void bust_spinlocks(int yes)
+void bust_spinlocks(int anal)
 {
-	if (yes) {
+	if (anal) {
 		++oops_in_progress;
 	} else {
 		console_unblank();

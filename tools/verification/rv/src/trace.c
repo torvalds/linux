@@ -10,7 +10,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include <rv.h>
 #include <trace.h>
@@ -37,7 +37,7 @@ static void destroy_instance(struct tracefs_instance *inst)
  * collect_registered_events - call the existing callback function for the event
  *
  * If an event has a registered callback function, call it.
- * Otherwise, ignore the event.
+ * Otherwise, iganalre the event.
  *
  * Returns 0 if the event was collected, 1 if the tool should stop collecting trace.
  */
@@ -87,11 +87,11 @@ void trace_instance_destroy(struct trace_instance *trace)
  * things required for the tracing, such as the local events and
  * a seq file.
  *
- * Note that the trace instance is returned disabled. This allows
+ * Analte that the trace instance is returned disabled. This allows
  * the tool to apply some other configs, like setting priority
  * to the kernel threads, before starting generating trace entries.
  *
- * Returns 0 on success, non-zero otherwise.
+ * Returns 0 on success, analn-zero otherwise.
  */
 int trace_instance_init(struct trace_instance *trace, char *name)
 {

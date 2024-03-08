@@ -18,7 +18,7 @@
  *
  *  from
  *
- *  linux/fs/minix/inode.c
+ *  linux/fs/minix/ianalde.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -74,7 +74,7 @@
 
 #include <linux/uaccess.h>
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -96,48 +96,48 @@
 #include "swab.h"
 #include "util.h"
 
-static struct inode *ufs_nfs_get_inode(struct super_block *sb, u64 ino, u32 generation)
+static struct ianalde *ufs_nfs_get_ianalde(struct super_block *sb, u64 ianal, u32 generation)
 {
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	if (ino < UFS_ROOTINO || ino > (u64)uspi->s_ncg * uspi->s_ipg)
+	if (ianal < UFS_ROOTIANAL || ianal > (u64)uspi->s_ncg * uspi->s_ipg)
 		return ERR_PTR(-ESTALE);
 
-	inode = ufs_iget(sb, ino);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	if (generation && inode->i_generation != generation) {
-		iput(inode);
+	ianalde = ufs_iget(sb, ianal);
+	if (IS_ERR(ianalde))
+		return ERR_CAST(ianalde);
+	if (generation && ianalde->i_generation != generation) {
+		iput(ianalde);
 		return ERR_PTR(-ESTALE);
 	}
-	return inode;
+	return ianalde;
 }
 
 static struct dentry *ufs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 				       int fh_len, int fh_type)
 {
-	return generic_fh_to_dentry(sb, fid, fh_len, fh_type, ufs_nfs_get_inode);
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type, ufs_nfs_get_ianalde);
 }
 
 static struct dentry *ufs_fh_to_parent(struct super_block *sb, struct fid *fid,
 				       int fh_len, int fh_type)
 {
-	return generic_fh_to_parent(sb, fid, fh_len, fh_type, ufs_nfs_get_inode);
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type, ufs_nfs_get_ianalde);
 }
 
 static struct dentry *ufs_get_parent(struct dentry *child)
 {
-	ino_t ino;
+	ianal_t ianal;
 
-	ino = ufs_inode_by_name(d_inode(child), &dotdot_name);
-	if (!ino)
-		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(ufs_iget(child->d_sb, ino));
+	ianal = ufs_ianalde_by_name(d_ianalde(child), &dotdot_name);
+	if (!ianal)
+		return ERR_PTR(-EANALENT);
+	return d_obtain_alias(ufs_iget(child->d_sb, ianal));
 }
 
 static const struct export_operations ufs_export_ops = {
-	.encode_fh = generic_encode_ino32_fh,
+	.encode_fh = generic_encode_ianal32_fh,
 	.fh_to_dentry	= ufs_fh_to_dentry,
 	.fh_to_parent	= ufs_fh_to_parent,
 	.get_parent	= ufs_get_parent,
@@ -168,12 +168,12 @@ static void ufs_print_super_stuff(struct super_block *sb,
 		pr_debug("  fs_volname:  %s\n", usb2->fs_un.fs_u2.fs_volname);
 		pr_debug("  fs_sblockloc: %llu\n", (unsigned long long)
 			 fs64_to_cpu(sb, usb2->fs_un.fs_u2.fs_sblockloc));
-		pr_debug("  cs_ndir(No of dirs):  %llu\n", (unsigned long long)
+		pr_debug("  cs_ndir(Anal of dirs):  %llu\n", (unsigned long long)
 			 fs64_to_cpu(sb, usb2->fs_un.fs_u2.cs_ndir));
-		pr_debug("  cs_nbfree(No of free blocks):  %llu\n",
+		pr_debug("  cs_nbfree(Anal of free blocks):  %llu\n",
 			 (unsigned long long)
 			 fs64_to_cpu(sb, usb2->fs_un.fs_u2.cs_nbfree));
-		pr_info("  cs_nifree(Num of free inodes): %llu\n",
+		pr_info("  cs_nifree(Num of free ianaldes): %llu\n",
 			(unsigned long long)
 			fs64_to_cpu(sb, usb3->fs_un1.fs_u2.cs_nifree));
 		pr_info("  cs_nffree(Num of free frags): %llu\n",
@@ -182,10 +182,10 @@ static void ufs_print_super_stuff(struct super_block *sb,
 		pr_info("  fs_maxsymlinklen: %u\n",
 			fs32_to_cpu(sb, usb3->fs_un2.fs_44.fs_maxsymlinklen));
 	} else {
-		pr_debug(" sblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_sblkno));
-		pr_debug(" cblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_cblkno));
-		pr_debug(" iblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_iblkno));
-		pr_debug(" dblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_dblkno));
+		pr_debug(" sblkanal:      %u\n", fs32_to_cpu(sb, usb1->fs_sblkanal));
+		pr_debug(" cblkanal:      %u\n", fs32_to_cpu(sb, usb1->fs_cblkanal));
+		pr_debug(" iblkanal:      %u\n", fs32_to_cpu(sb, usb1->fs_iblkanal));
+		pr_debug(" dblkanal:      %u\n", fs32_to_cpu(sb, usb1->fs_dblkanal));
 		pr_debug(" cgoffset:    %u\n",
 			 fs32_to_cpu(sb, usb1->fs_cgoffset));
 		pr_debug(" ~cgmask:     0x%x\n",
@@ -346,7 +346,7 @@ enum {
        Opt_type_old = UFS_MOUNT_UFSTYPE_OLD,
        Opt_type_sunx86 = UFS_MOUNT_UFSTYPE_SUNx86,
        Opt_type_sun = UFS_MOUNT_UFSTYPE_SUN,
-       Opt_type_sunos = UFS_MOUNT_UFSTYPE_SUNOS,
+       Opt_type_suanals = UFS_MOUNT_UFSTYPE_SUANALS,
        Opt_type_44bsd = UFS_MOUNT_UFSTYPE_44BSD,
        Opt_type_ufs2 = UFS_MOUNT_UFSTYPE_UFS2,
        Opt_type_hp = UFS_MOUNT_UFSTYPE_HP,
@@ -364,7 +364,7 @@ static const match_table_t tokens = {
 	{Opt_type_old, "ufstype=old"},
 	{Opt_type_sunx86, "ufstype=sunx86"},
 	{Opt_type_sun, "ufstype=sun"},
-	{Opt_type_sunos, "ufstype=sunos"},
+	{Opt_type_suanals, "ufstype=suanals"},
 	{Opt_type_44bsd, "ufstype=44bsd"},
 	{Opt_type_ufs2, "ufstype=ufs2"},
 	{Opt_type_ufs2, "ufstype=5xbsd"},
@@ -409,9 +409,9 @@ static int ufs_parse_options (char * options, unsigned * mount_options)
 			ufs_clear_opt (*mount_options, UFSTYPE);
 			ufs_set_opt (*mount_options, UFSTYPE_SUN);
 			break;
-		case Opt_type_sunos:
+		case Opt_type_suanals:
 			ufs_clear_opt(*mount_options, UFSTYPE);
-			ufs_set_opt(*mount_options, UFSTYPE_SUNOS);
+			ufs_set_opt(*mount_options, UFSTYPE_SUANALS);
 			break;
 		case Opt_type_44bsd:
 			ufs_clear_opt (*mount_options, UFSTYPE);
@@ -517,7 +517,7 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 	 */
 	size = uspi->s_cssize;
 	blks = (size + uspi->s_fsize - 1) >> uspi->s_fshift;
-	base = space = kmalloc(size, GFP_NOFS);
+	base = space = kmalloc(size, GFP_ANALFS);
 	if (!base)
 		goto failed; 
 	sbi->s_csp = (struct ufs_csum *)space;
@@ -543,14 +543,14 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 	 * at this time) and prepare internal data structures for cg caching.
 	 */
 	sbi->s_ucg = kmalloc_array(uspi->s_ncg, sizeof(struct buffer_head *),
-				   GFP_NOFS);
+				   GFP_ANALFS);
 	if (!sbi->s_ucg)
 		goto failed;
 	for (i = 0; i < uspi->s_ncg; i++) 
 		sbi->s_ucg[i] = NULL;
 	for (i = 0; i < UFS_MAX_GROUP_LOADED; i++) {
 		sbi->s_ucpi[i] = NULL;
-		sbi->s_cgno[i] = UFS_CGNO_EMPTY;
+		sbi->s_cganal[i] = UFS_CGANAL_EMPTY;
 	}
 	for (i = 0; i < uspi->s_ncg; i++) {
 		UFSD("read cg %u\n", i);
@@ -562,9 +562,9 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 		ufs_print_cylinder_stuff(sb, (struct ufs_cylinder_group *) sbi->s_ucg[i]->b_data);
 	}
 	for (i = 0; i < UFS_MAX_GROUP_LOADED; i++) {
-		if (!(sbi->s_ucpi[i] = kmalloc (sizeof(struct ufs_cg_private_info), GFP_NOFS)))
+		if (!(sbi->s_ucpi[i] = kmalloc (sizeof(struct ufs_cg_private_info), GFP_ANALFS)))
 			goto failed;
-		sbi->s_cgno[i] = UFS_CGNO_EMPTY;
+		sbi->s_cganal[i] = UFS_CGANAL_EMPTY;
 	}
 	sbi->s_cg_loaded = 0;
 	UFSD("EXIT\n");
@@ -701,7 +701,7 @@ static int ufs_sync_fs(struct super_block *sb, int wait)
 
 	usb1->fs_time = ufs_get_seconds(sb);
 	if ((flags & UFS_ST_MASK) == UFS_ST_SUN  ||
-	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
+	    (flags & UFS_ST_MASK) == UFS_ST_SUANALS ||
 	    (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
 		ufs_set_fs_state(sb, usb1, usb3,
 				UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
@@ -783,7 +783,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	struct ufs_super_block_second * usb2;
 	struct ufs_super_block_third * usb3;
 	struct ufs_buffer_head * ubh;	
-	struct inode *inode;
+	struct ianalde *ianalde;
 	unsigned block_size, super_block_size;
 	unsigned flags;
 	unsigned super_block_offset;
@@ -805,7 +805,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		
 	sbi = kzalloc(sizeof(struct ufs_sb_info), GFP_KERNEL);
 	if (!sbi)
-		goto failed_nomem;
+		goto failed_analmem;
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
 
@@ -878,20 +878,20 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_fshift = 10;
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
-		uspi->s_maxsymlinklen = 0; /* Not supported on disk */
+		uspi->s_maxsymlinklen = 0; /* Analt supported on disk */
 		flags |= UFS_DE_OLD | UFS_UID_EFT | UFS_ST_SUN | UFS_CG_SUN;
 		break;
 
-	case UFS_MOUNT_UFSTYPE_SUNOS:
-		UFSD("ufstype=sunos\n");
+	case UFS_MOUNT_UFSTYPE_SUANALS:
+		UFSD("ufstype=suanals\n");
 		uspi->s_fsize = block_size = 1024;
 		uspi->s_fmask = ~(1024 - 1);
 		uspi->s_fshift = 10;
 		uspi->s_sbsize = 2048;
 		super_block_size = 2048;
 		uspi->s_sbbase = 0;
-		uspi->s_maxsymlinklen = 0; /* Not supported on disk */
-		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_SUNOS | UFS_CG_SUN;
+		uspi->s_maxsymlinklen = 0; /* Analt supported on disk */
+		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_SUANALS | UFS_CG_SUN;
 		break;
 
 	case UFS_MOUNT_UFSTYPE_SUNx86:
@@ -901,7 +901,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_fshift = 10;
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
-		uspi->s_maxsymlinklen = 0; /* Not supported on disk */
+		uspi->s_maxsymlinklen = 0; /* Analt supported on disk */
 		flags |= UFS_DE_OLD | UFS_UID_EFT | UFS_ST_SUNx86 | UFS_CG_SUN;
 		break;
 
@@ -984,7 +984,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
  		break;
 	default:
 		if (!silent)
-			pr_err("unknown ufstype\n");
+			pr_err("unkanalwn ufstype\n");
 		goto failed;
 	}
 	
@@ -1009,7 +1009,7 @@ again:
 
 	/* Sort out mod used on SunOS 4.1.3 for fs_state */
 	uspi->s_postblformat = fs32_to_cpu(sb, usb3->fs_postblformat);
-	if (((flags & UFS_ST_MASK) == UFS_ST_SUNOS) &&
+	if (((flags & UFS_ST_MASK) == UFS_ST_SUANALS) &&
 	    (uspi->s_postblformat != UFS_42POSTBLFMT)) {
 		flags &= ~UFS_ST_MASK;
 		flags |=  UFS_ST_SUN;
@@ -1018,7 +1018,7 @@ again:
 	if ((flags & UFS_ST_MASK) == UFS_ST_44BSD &&
 	    uspi->s_postblformat == UFS_42POSTBLFMT) {
 		if (!silent)
-			pr_err("this is not a 44bsd filesystem");
+			pr_err("this is analt a 44bsd filesystem");
 		goto failed;
 	}
 
@@ -1070,7 +1070,7 @@ magic_found:
 	uspi->s_fshift = fs32_to_cpu(sb, usb1->fs_fshift);
 
 	if (!is_power_of_2(uspi->s_fsize)) {
-		pr_err("%s(): fragment size %u is not a power of 2\n",
+		pr_err("%s(): fragment size %u is analt a power of 2\n",
 		       __func__, uspi->s_fsize);
 		goto failed;
 	}
@@ -1085,7 +1085,7 @@ magic_found:
 		goto failed;
 	}
 	if (!is_power_of_2(uspi->s_bsize)) {
-		pr_err("%s(): block size %u is not a power of 2\n",
+		pr_err("%s(): block size %u is analt a power of 2\n",
 		       __func__, uspi->s_bsize);
 		goto failed;
 	}
@@ -1104,7 +1104,7 @@ magic_found:
 		ubh = NULL;
 		block_size = uspi->s_fsize;
 		super_block_size = uspi->s_sbsize;
-		UFSD("another value of block_size or super_block_size %u, %u\n", block_size, super_block_size);
+		UFSD("aanalther value of block_size or super_block_size %u, %u\n", block_size, super_block_size);
 		goto again;
 	}
 
@@ -1113,12 +1113,12 @@ magic_found:
 
 	/*
 	 * Check, if file system was correctly unmounted.
-	 * If not, make it read only.
+	 * If analt, make it read only.
 	 */
 	if (((flags & UFS_ST_MASK) == UFS_ST_44BSD) ||
 	  ((flags & UFS_ST_MASK) == UFS_ST_OLD) ||
 	  (((flags & UFS_ST_MASK) == UFS_ST_SUN ||
-	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
+	    (flags & UFS_ST_MASK) == UFS_ST_SUANALS ||
 	  (flags & UFS_ST_MASK) == UFS_ST_SUNx86) &&
 	  (ufs_get_fs_state(sb, usb1, usb3) == (UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time))))) {
 		switch(usb1->fs_clean) {
@@ -1161,10 +1161,10 @@ magic_found:
 
 	sb->s_magic = fs32_to_cpu(sb, usb3->fs_magic);
 
-	uspi->s_sblkno = fs32_to_cpu(sb, usb1->fs_sblkno);
-	uspi->s_cblkno = fs32_to_cpu(sb, usb1->fs_cblkno);
-	uspi->s_iblkno = fs32_to_cpu(sb, usb1->fs_iblkno);
-	uspi->s_dblkno = fs32_to_cpu(sb, usb1->fs_dblkno);
+	uspi->s_sblkanal = fs32_to_cpu(sb, usb1->fs_sblkanal);
+	uspi->s_cblkanal = fs32_to_cpu(sb, usb1->fs_cblkanal);
+	uspi->s_iblkanal = fs32_to_cpu(sb, usb1->fs_iblkanal);
+	uspi->s_dblkanal = fs32_to_cpu(sb, usb1->fs_dblkanal);
 	uspi->s_cgoffset = fs32_to_cpu(sb, usb1->fs_cgoffset);
 	uspi->s_cgmask = fs32_to_cpu(sb, usb1->fs_cgmask);
 
@@ -1193,7 +1193,7 @@ magic_found:
 	uspi->s_csmask = fs32_to_cpu(sb, usb1->fs_csmask);
 	uspi->s_csshift = fs32_to_cpu(sb, usb1->fs_csshift);
 	uspi->s_nindir = fs32_to_cpu(sb, usb1->fs_nindir);
-	uspi->s_inopb = fs32_to_cpu(sb, usb1->fs_inopb);
+	uspi->s_ianalpb = fs32_to_cpu(sb, usb1->fs_ianalpb);
 	uspi->s_nspf = fs32_to_cpu(sb, usb1->fs_nspf);
 	uspi->s_npsect = ufs_get_fs_npsect(sb, usb1, usb3);
 	uspi->s_interleave = fs32_to_cpu(sb, usb1->fs_interleave);
@@ -1232,7 +1232,7 @@ magic_found:
 	}
 
 	/*
-	 * Compute another frequently used values
+	 * Compute aanalther frequently used values
 	 */
 	uspi->s_fpbmask = uspi->s_fpb - 1;
 	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
@@ -1248,7 +1248,7 @@ magic_found:
 	uspi->s_apbmask = uspi->s_apb - 1;
 	uspi->s_nspfshift = uspi->s_fshift - UFS_SECTOR_BITS;
 	uspi->s_nspb = uspi->s_nspf << uspi->s_fpbshift;
-	uspi->s_inopf = uspi->s_inopb >> uspi->s_fpbshift;
+	uspi->s_ianalpf = uspi->s_ianalpb >> uspi->s_fpbshift;
 	uspi->s_bpf = uspi->s_fsize << 3;
 	uspi->s_bpfshift = uspi->s_fshift + 3;
 	uspi->s_bpfmask = uspi->s_bpf - 1;
@@ -1269,14 +1269,14 @@ magic_found:
 	sb->s_maxbytes = ufs_max_bytes(sb);
 	sb->s_max_links = UFS_LINK_MAX;
 
-	inode = ufs_iget(sb, UFS_ROOTINO);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
+	ianalde = ufs_iget(sb, UFS_ROOTIANAL);
+	if (IS_ERR(ianalde)) {
+		ret = PTR_ERR(ianalde);
 		goto failed;
 	}
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed;
 	}
 
@@ -1300,9 +1300,9 @@ failed:
 	UFSD("EXIT (FAILED)\n");
 	return ret;
 
-failed_nomem:
-	UFSD("EXIT (NOMEM)\n");
-	return -ENOMEM;
+failed_analmem:
+	UFSD("EXIT (ANALMEM)\n");
+	return -EANALMEM;
 }
 
 static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
@@ -1322,7 +1322,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	
 	/*
 	 * Allow the "check" option to be passed as a remount option.
-	 * It is not possible to change ufstype option during remount
+	 * It is analt possible to change ufstype option during remount
 	 */
 	ufstype = UFS_SB(sb)->s_mount_opt & UFS_MOUNT_UFSTYPE;
 	new_mount_opt = 0;
@@ -1352,7 +1352,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		ufs_put_super_internal(sb);
 		usb1->fs_time = ufs_get_seconds(sb);
 		if ((flags & UFS_ST_MASK) == UFS_ST_SUN
-		  || (flags & UFS_ST_MASK) == UFS_ST_SUNOS
+		  || (flags & UFS_ST_MASK) == UFS_ST_SUANALS
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNx86) 
 			ufs_set_fs_state(sb, usb1, usb3,
 				UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
@@ -1368,7 +1368,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		return -EINVAL;
 #else
 		if (ufstype != UFS_MOUNT_UFSTYPE_SUN && 
-		    ufstype != UFS_MOUNT_UFSTYPE_SUNOS &&
+		    ufstype != UFS_MOUNT_UFSTYPE_SUANALS &&
 		    ufstype != UFS_MOUNT_UFSTYPE_44BSD &&
 		    ufstype != UFS_MOUNT_UFSTYPE_SUNx86 &&
 		    ufstype != UFS_MOUNT_UFSTYPE_UFS2) {
@@ -1438,64 +1438,64 @@ static int ufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static struct kmem_cache * ufs_inode_cachep;
+static struct kmem_cache * ufs_ianalde_cachep;
 
-static struct inode *ufs_alloc_inode(struct super_block *sb)
+static struct ianalde *ufs_alloc_ianalde(struct super_block *sb)
 {
-	struct ufs_inode_info *ei;
+	struct ufs_ianalde_info *ei;
 
-	ei = alloc_inode_sb(sb, ufs_inode_cachep, GFP_NOFS);
+	ei = alloc_ianalde_sb(sb, ufs_ianalde_cachep, GFP_ANALFS);
 	if (!ei)
 		return NULL;
 
-	inode_set_iversion(&ei->vfs_inode, 1);
+	ianalde_set_iversion(&ei->vfs_ianalde, 1);
 	seqlock_init(&ei->meta_lock);
 	mutex_init(&ei->truncate_mutex);
-	return &ei->vfs_inode;
+	return &ei->vfs_ianalde;
 }
 
-static void ufs_free_in_core_inode(struct inode *inode)
+static void ufs_free_in_core_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(ufs_inode_cachep, UFS_I(inode));
+	kmem_cache_free(ufs_ianalde_cachep, UFS_I(ianalde));
 }
 
 static void init_once(void *foo)
 {
-	struct ufs_inode_info *ei = (struct ufs_inode_info *) foo;
+	struct ufs_ianalde_info *ei = (struct ufs_ianalde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	ianalde_init_once(&ei->vfs_ianalde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_ianaldecache(void)
 {
-	ufs_inode_cachep = kmem_cache_create_usercopy("ufs_inode_cache",
-				sizeof(struct ufs_inode_info), 0,
+	ufs_ianalde_cachep = kmem_cache_create_usercopy("ufs_ianalde_cache",
+				sizeof(struct ufs_ianalde_info), 0,
 				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
 					SLAB_ACCOUNT),
-				offsetof(struct ufs_inode_info, i_u1.i_symlink),
-				sizeof_field(struct ufs_inode_info,
+				offsetof(struct ufs_ianalde_info, i_u1.i_symlink),
+				sizeof_field(struct ufs_ianalde_info,
 					i_u1.i_symlink),
 				init_once);
-	if (ufs_inode_cachep == NULL)
-		return -ENOMEM;
+	if (ufs_ianalde_cachep == NULL)
+		return -EANALMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_ianaldecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(ufs_inode_cachep);
+	kmem_cache_destroy(ufs_ianalde_cachep);
 }
 
 static const struct super_operations ufs_super_ops = {
-	.alloc_inode	= ufs_alloc_inode,
-	.free_inode	= ufs_free_in_core_inode,
-	.write_inode	= ufs_write_inode,
-	.evict_inode	= ufs_evict_inode,
+	.alloc_ianalde	= ufs_alloc_ianalde,
+	.free_ianalde	= ufs_free_in_core_ianalde,
+	.write_ianalde	= ufs_write_ianalde,
+	.evict_ianalde	= ufs_evict_ianalde,
 	.put_super	= ufs_put_super,
 	.sync_fs	= ufs_sync_fs,
 	.statfs		= ufs_statfs,
@@ -1520,7 +1520,7 @@ MODULE_ALIAS_FS("ufs");
 
 static int __init init_ufs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_ianaldecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&ufs_fs_type);
@@ -1528,7 +1528,7 @@ static int __init init_ufs_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_ianaldecache();
 out1:
 	return err;
 }
@@ -1536,7 +1536,7 @@ out1:
 static void __exit exit_ufs_fs(void)
 {
 	unregister_filesystem(&ufs_fs_type);
-	destroy_inodecache();
+	destroy_ianaldecache();
 }
 
 module_init(init_ufs_fs)

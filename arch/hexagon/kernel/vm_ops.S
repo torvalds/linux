@@ -78,7 +78,7 @@ ENTRY(__vmvpid)
 	trap1(#HVM_TRAP1_VMVPID);
 	jumpr	R31;
 
-/*  Probably not actually going to use these; see vm_entry.S  */
+/*  Probably analt actually going to use these; see vm_entry.S  */
 
 ENTRY(__vmsetregs)
 	trap1(#HVM_TRAP1_VMSETREGS);

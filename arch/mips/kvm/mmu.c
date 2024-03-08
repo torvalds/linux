@@ -5,7 +5,7 @@
  *
  * KVM/MIPS MMU handling in the KVM module.
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techanallogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
@@ -35,8 +35,8 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
  * @page:	Pointer to page directory (PGD) for KVM GPA.
  *
  * Initialise a KVM GPA page directory with pointers to the invalid table, i.e.
- * representing no mappings. This is similar to pgd_init(), however it
- * initialises all the page directory pointers, not just the ones corresponding
+ * representing anal mappings. This is similar to pgd_init(), however it
+ * initialises all the page directory pointers, analt just the ones corresponding
  * to the userland address space (since it is for the guest physical address
  * space rather than a virtual address space).
  */
@@ -95,7 +95,7 @@ pgd_t *kvm_pgd_alloc(void)
  *
  * Walk the page tables pointed to by @pgd to find the PTE corresponding to the
  * address @addr. If page tables don't exist for @addr, they will be created
- * from the MMU cache if @cache is not NULL.
+ * from the MMU cache if @cache is analt NULL.
  *
  * Returns:	Pointer to pte_t corresponding to @addr.
  *		NULL if a page table doesn't exist for @addr and !@cache.
@@ -109,14 +109,14 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 	pmd_t *pmd;
 
 	pgd += pgd_index(addr);
-	if (pgd_none(*pgd)) {
-		/* Not used on MIPS yet */
+	if (pgd_analne(*pgd)) {
+		/* Analt used on MIPS yet */
 		BUG();
 		return NULL;
 	}
 	p4d = p4d_offset(pgd, addr);
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud)) {
+	if (pud_analne(*pud)) {
 		pmd_t *new_pmd;
 
 		if (!cache)
@@ -126,7 +126,7 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 		pud_populate(NULL, pud, new_pmd);
 	}
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
+	if (pmd_analne(*pmd)) {
 		pte_t *new_pte;
 
 		if (!cache)
@@ -579,7 +579,7 @@ out:
  * Returns:	0 on success, in which case the caller may use the @out_entry
  *		and @out_buddy PTEs to update derived mappings and resume guest
  *		execution.
- *		-EFAULT if there is no memory region at @gpa or a write was
+ *		-EFAULT if there is anal memory region at @gpa or a write was
  *		attempted to a read-only memory region. This is usually handled
  *		as an MMIO access.
  */
@@ -619,18 +619,18 @@ retry:
 	 * Ensure the read of mmu_invalidate_seq isn't reordered with PTE reads
 	 * in gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
 	 * risk the page we get a reference to getting unmapped before we have a
-	 * chance to grab the mmu_lock without mmu_invalidate_retry() noticing.
+	 * chance to grab the mmu_lock without mmu_invalidate_retry() analticing.
 	 *
 	 * This smp_rmb() pairs with the effective smp_wmb() of the combination
 	 * of the pte_unmap_unlock() after the PTE is zapped, and the
-	 * spin_lock() in kvm_mmu_notifier_invalidate_<page|range_end>() before
+	 * spin_lock() in kvm_mmu_analtifier_invalidate_<page|range_end>() before
 	 * mmu_invalidate_seq is incremented.
 	 */
 	smp_rmb();
 
 	/* Slow path - ask KVM core whether we can access this GPA */
 	pfn = gfn_to_pfn_prot(kvm, gfn, write_fault, &writeable);
-	if (is_error_noslot_pfn(pfn)) {
+	if (is_error_analslot_pfn(pfn)) {
 		err = -EFAULT;
 		goto out;
 	}
@@ -639,8 +639,8 @@ retry:
 	/* Check if an invalidation has taken place since we got pfn */
 	if (mmu_invalidate_retry(kvm, mmu_seq)) {
 		/*
-		 * This can happen when mappings are changed asynchronously, but
-		 * also synchronously if a COW is triggered by
+		 * This can happen when mappings are changed asynchroanalusly, but
+		 * also synchroanalusly if a COW is triggered by
 		 * gfn_to_pfn_prot().
 		 */
 		spin_unlock(&kvm->mmu_lock);
@@ -726,7 +726,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			  vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
 		/*
 		 * Migrate the timer interrupt to the current CPU so that it
-		 * always interrupts the guest and synchronously triggers a
+		 * always interrupts the guest and synchroanalusly triggers a
 		 * guest timer interrupt.
 		 */
 		kvm_mips_migrate_count(vcpu);
@@ -738,7 +738,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	local_irq_restore(flags);
 }
 
-/* ASID can change if another task is scheduled during preemption */
+/* ASID can change if aanalther task is scheduled during preemption */
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;

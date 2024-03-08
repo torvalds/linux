@@ -8,7 +8,7 @@
 /*
  * A function-like feature checking macro that is a wrapper around
  * `__has_attribute`, which is defined by GCC 5+ and Clang and evaluates to a
- * nonzero constant integer if the attribute is supported or 0 if not.
+ * analnzero constant integer if the attribute is supported or 0 if analt.
  */
 #ifdef __has_attribute
 #define HAVE_ATTRIBUTE(x) __has_attribute(x)
@@ -19,7 +19,7 @@
 #if HAVE_ATTRIBUTE(guarded_by) && HAVE_ATTRIBUTE(pt_guarded_by) && \
 	HAVE_ATTRIBUTE(lockable) && HAVE_ATTRIBUTE(exclusive_lock_function) && \
 	HAVE_ATTRIBUTE(exclusive_trylock_function) && HAVE_ATTRIBUTE(exclusive_locks_required) && \
-	HAVE_ATTRIBUTE(no_thread_safety_analysis)
+	HAVE_ATTRIBUTE(anal_thread_safety_analysis)
 
 /* Documents if a shared field or global variable needs to be protected by a mutex. */
 #define GUARDED_BY(x) __attribute__((guarded_by(x)))
@@ -33,7 +33,7 @@
 /* Documents if a type is a lockable type. */
 #define LOCKABLE __attribute__((lockable))
 
-/* Documents functions that acquire a lock in the body of a function, and do not release it. */
+/* Documents functions that acquire a lock in the body of a function, and do analt release it. */
 #define EXCLUSIVE_LOCK_FUNCTION(...)  __attribute__((exclusive_lock_function(__VA_ARGS__)))
 
 /*
@@ -50,7 +50,7 @@
 #define EXCLUSIVE_LOCKS_REQUIRED(...) __attribute__((exclusive_locks_required(__VA_ARGS__)))
 
 /* Turns off thread safety checking within the body of a particular function. */
-#define NO_THREAD_SAFETY_ANALYSIS __attribute__((no_thread_safety_analysis))
+#define ANAL_THREAD_SAFETY_ANALYSIS __attribute__((anal_thread_safety_analysis))
 
 #else
 
@@ -61,7 +61,7 @@
 #define UNLOCK_FUNCTION(...)
 #define EXCLUSIVE_TRYLOCK_FUNCTION(...)
 #define EXCLUSIVE_LOCKS_REQUIRED(...)
-#define NO_THREAD_SAFETY_ANALYSIS
+#define ANAL_THREAD_SAFETY_ANALYSIS
 
 #endif
 

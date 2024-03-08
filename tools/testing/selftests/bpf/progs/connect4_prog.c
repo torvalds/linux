@@ -9,7 +9,7 @@
 #include <linux/in6.h>
 #include <linux/tcp.h>
 #include <linux/if.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
@@ -24,15 +24,15 @@
 #define TCP_CA_NAME_MAX 16
 #endif
 
-#ifndef TCP_NOTSENT_LOWAT
-#define TCP_NOTSENT_LOWAT 25
+#ifndef TCP_ANALTSENT_LOWAT
+#define TCP_ANALTSENT_LOWAT 25
 #endif
 
 #ifndef IFNAMSIZ
 #define IFNAMSIZ 16
 #endif
 
-__attribute__ ((noinline)) __weak
+__attribute__ ((analinline)) __weak
 int do_bind(struct bpf_sock_addr *ctx)
 {
 	struct sockaddr_in sa = {};
@@ -68,12 +68,12 @@ static __inline int verify_cc(struct bpf_sock_addr *ctx,
 
 static __inline int set_cc(struct bpf_sock_addr *ctx)
 {
-	char reno[TCP_CA_NAME_MAX] = "reno";
+	char reanal[TCP_CA_NAME_MAX] = "reanal";
 	char cubic[TCP_CA_NAME_MAX] = "cubic";
 
-	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &reno, sizeof(reno)))
+	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &reanal, sizeof(reanal)))
 		return 1;
-	if (verify_cc(ctx, reno))
+	if (verify_cc(ctx, reanal))
 		return 1;
 
 	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &cubic, sizeof(cubic)))
@@ -88,7 +88,7 @@ static __inline int bind_to_device(struct bpf_sock_addr *ctx)
 {
 	char veth1[IFNAMSIZ] = "test_sock_addr1";
 	char veth2[IFNAMSIZ] = "test_sock_addr2";
-	char missing[IFNAMSIZ] = "nonexistent_dev";
+	char missing[IFNAMSIZ] = "analnexistent_dev";
 	char del_bind[IFNAMSIZ] = "";
 
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
@@ -98,7 +98,7 @@ static __inline int bind_to_device(struct bpf_sock_addr *ctx)
 				&veth2, sizeof(veth2)))
 		return 1;
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
-				&missing, sizeof(missing)) != -ENODEV)
+				&missing, sizeof(missing)) != -EANALDEV)
 		return 1;
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
 				&del_bind, sizeof(del_bind)))
@@ -131,12 +131,12 @@ static __inline int set_keepalive(struct bpf_sock_addr *ctx)
 	return 0;
 }
 
-static __inline int set_notsent_lowat(struct bpf_sock_addr *ctx)
+static __inline int set_analtsent_lowat(struct bpf_sock_addr *ctx)
 {
 	int lowat = 65535;
 
 	if (ctx->type == SOCK_STREAM) {
-		if (bpf_setsockopt(ctx, SOL_TCP, TCP_NOTSENT_LOWAT, &lowat, sizeof(lowat)))
+		if (bpf_setsockopt(ctx, SOL_TCP, TCP_ANALTSENT_LOWAT, &lowat, sizeof(lowat)))
 			return 1;
 	}
 
@@ -163,7 +163,7 @@ int connect_v4_prog(struct bpf_sock_addr *ctx)
 	if (set_keepalive(ctx))
 		return 0;
 
-	if (set_notsent_lowat(ctx))
+	if (set_analtsent_lowat(ctx))
 		return 0;
 
 	if (ctx->type != SOCK_STREAM && ctx->type != SOCK_DGRAM)

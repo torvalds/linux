@@ -71,7 +71,7 @@ enum mt76_mcu_evt_type {
 };
 
 enum mt76_dma_wed_ind_reason {
-	MT_DMA_WED_IND_REASON_NORMAL,
+	MT_DMA_WED_IND_REASON_ANALRMAL,
 	MT_DMA_WED_IND_REASON_REPEAT,
 	MT_DMA_WED_IND_REASON_OLDPKT,
 };

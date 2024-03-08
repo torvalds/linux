@@ -59,7 +59,7 @@ static void pps_echo_client_default(struct pps_device *pps, int event,
  * parameters, the ones specified into default_params.
  *
  * The function returns, in case of success, the PPS device. Otherwise
- * ERR_PTR(errno).
+ * ERR_PTR(erranal).
  */
 
 struct pps_device *pps_register_source(struct pps_source_info *info,
@@ -85,7 +85,7 @@ struct pps_device *pps_register_source(struct pps_source_info *info,
 	/* Allocate memory for the new PPS source struct */
 	pps = kzalloc(sizeof(struct pps_device), GFP_KERNEL);
 	if (pps == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto pps_register_source_exit;
 	}
 

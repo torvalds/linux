@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_GENERIC_SIGNAL_DEFS_H
 #define __ASM_GENERIC_SIGNAL_DEFS_H
 
@@ -7,15 +7,15 @@
 /*
  * SA_FLAGS values:
  *
- * SA_NOCLDSTOP flag to turn off SIGCHLD when children stop.
- * SA_NOCLDWAIT flag on SIGCHLD to inhibit zombies.
+ * SA_ANALCLDSTOP flag to turn off SIGCHLD when children stop.
+ * SA_ANALCLDWAIT flag on SIGCHLD to inhibit zombies.
  * SA_SIGINFO delivers the signal with SIGINFO structs.
  * SA_ONSTACK indicates that a registered stack_t will be used.
  * SA_RESTART flag to get restarting signals (which were the default long ago)
- * SA_NODEFER prevents the current signal from being masked in the handler.
+ * SA_ANALDEFER prevents the current signal from being masked in the handler.
  * SA_RESETHAND clears the handler when the signal is delivered.
  * SA_UNSUPPORTED is a flag bit that will never be supported. Kernels from
- * before the introduction of SA_UNSUPPORTED did not clear unknown bits from
+ * before the introduction of SA_UNSUPPORTED did analt clear unkanalwn bits from
  * sa_flags when read using the oldact argument to sigaction and rt_sigaction,
  * so this bit allows flag bit support to be detected from userspace while
  * allowing an old kernel to be distinguished from a kernel that supports every
@@ -23,14 +23,14 @@
  * SA_EXPOSE_TAGBITS exposes an architecture-defined set of tag bits in
  * siginfo.si_addr.
  *
- * SA_ONESHOT and SA_NOMASK are the historical Linux names for the Single
- * Unix names RESETHAND and NODEFER respectively.
+ * SA_ONESHOT and SA_ANALMASK are the historical Linux names for the Single
+ * Unix names RESETHAND and ANALDEFER respectively.
  */
-#ifndef SA_NOCLDSTOP
-#define SA_NOCLDSTOP	0x00000001
+#ifndef SA_ANALCLDSTOP
+#define SA_ANALCLDSTOP	0x00000001
 #endif
-#ifndef SA_NOCLDWAIT
-#define SA_NOCLDWAIT	0x00000002
+#ifndef SA_ANALCLDWAIT
+#define SA_ANALCLDWAIT	0x00000002
 #endif
 #ifndef SA_SIGINFO
 #define SA_SIGINFO	0x00000004
@@ -49,7 +49,7 @@
 /* 0x01000000 used on x86 */
 /* 0x02000000 used on x86 */
 /*
- * New architectures should not define the obsolete
+ * New architectures should analt define the obsolete
  *	SA_RESTORER	0x04000000
  */
 #ifndef SA_ONSTACK
@@ -58,14 +58,14 @@
 #ifndef SA_RESTART
 #define SA_RESTART	0x10000000
 #endif
-#ifndef SA_NODEFER
-#define SA_NODEFER	0x40000000
+#ifndef SA_ANALDEFER
+#define SA_ANALDEFER	0x40000000
 #endif
 #ifndef SA_RESETHAND
 #define SA_RESETHAND	0x80000000
 #endif
 
-#define SA_NOMASK	SA_NODEFER
+#define SA_ANALMASK	SA_ANALDEFER
 #define SA_ONESHOT	SA_RESETHAND
 
 #ifndef SIG_BLOCK
@@ -86,7 +86,7 @@ typedef void __restorefn_t(void);
 typedef __restorefn_t __user *__sigrestore_t;
 
 #define SIG_DFL	((__force __sighandler_t)0)	/* default signal handling */
-#define SIG_IGN	((__force __sighandler_t)1)	/* ignore signal */
+#define SIG_IGN	((__force __sighandler_t)1)	/* iganalre signal */
 #define SIG_ERR	((__force __sighandler_t)-1)	/* error return from signal */
 #endif
 

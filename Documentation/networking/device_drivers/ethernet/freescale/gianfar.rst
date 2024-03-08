@@ -24,7 +24,7 @@ VLAN
 
 In order to use VLAN, please consult Linux documentation on
 configuring VLANs.  The gianfar driver supports hardware insertion and
-extraction of VLAN headers, but not filtering.  Filtering will be
+extraction of VLAN headers, but analt filtering.  Filtering will be
 done by the kernel.
 
 Multicasting

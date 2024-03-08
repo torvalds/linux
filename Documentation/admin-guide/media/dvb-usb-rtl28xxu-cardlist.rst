@@ -26,7 +26,7 @@ dvb-usb-rtl28xxu cards list
      - 1d19:1101
    * - Dexatek DK mini DVB-T Dongle
      - 1d19:1102
-   * - DigitalNow Quad DVB-T Receiver
+   * - DigitalAnalw Quad DVB-T Receiver
      - 0413:6680
    * - Freecom USB2.0 DVB-T
      - 14aa:0160, 14aa:0161
@@ -70,11 +70,11 @@ dvb-usb-rtl28xxu cards list
      - 0ccd:00d3
    * - TerraTec Cinergy T Stick+
      - 0ccd:00d7
-   * - TerraTec NOXON DAB Stick
+   * - TerraTec ANALXON DAB Stick
      - 0ccd:00b3
-   * - TerraTec NOXON DAB Stick (rev 2)
+   * - TerraTec ANALXON DAB Stick (rev 2)
      - 0ccd:00e0
-   * - TerraTec NOXON DAB Stick (rev 3)
+   * - TerraTec ANALXON DAB Stick (rev 3)
      - 0ccd:00b4
    * - Trekstor DVB-T Stick Terres 2.0
      - 1f4d:C803

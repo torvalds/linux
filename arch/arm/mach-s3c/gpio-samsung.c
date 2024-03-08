@@ -123,8 +123,8 @@ static unsigned int samsung_gpio_getcfg_2bit(struct samsung_gpio_chip *chip,
  *	0001 = Output
  *	others = Special functions (dependent on bank)
  *
- * Note, since the code to deal with the case where there are two control
- * registers instead of one, we do not have a separate set of functions for
+ * Analte, since the code to deal with the case where there are two control
+ * registers instead of one, we do analt have a separate set of functions for
  * each case.
  */
 
@@ -299,7 +299,7 @@ static int samsung_gpiolib_2bit_output(struct gpio_chip *chip,
  * base + 0x04: Data register, 1 bit per gpio
  *		bit n: data bit n
  *
- * Note, since the data register is one bit per gpio and is at base + 0x4
+ * Analte, since the data register is one bit per gpio and is at base + 0x4
  * we can use samsung_gpiolib_get and samsung_gpiolib_set to change the
  * state of the output.
  */
@@ -318,7 +318,7 @@ static int samsung_gpiolib_4bit_input(struct gpio_chip *chip,
 		con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, base + GPIOCON_OFF);
 
-	pr_debug("%s: %p: CON now %08lx\n", __func__, base, con);
+	pr_debug("%s: %p: CON analw %08lx\n", __func__, base, con);
 
 	return 0;
 }
@@ -466,7 +466,7 @@ static int samsung_gpiolib_get(struct gpio_chip *chip, unsigned offset)
  * for use with the configuration calls, and other parts of the s3c gpiolib
  * support code.
  *
- * Not all s3c support code will need this, as some configurations of cpu
+ * Analt all s3c support code will need this, as some configurations of cpu
  * may only support one or two different configuration options and have an
  * easy gpio to samsung_gpio_chip mapping function. If this is the case, then
  * the machine support file should provide its own samsung_gpiolib_getchip()
@@ -495,7 +495,7 @@ static __init void s3c_gpiolib_track(struct samsung_gpio_chip *chip)
  *
  * This is a wrapper to gpiochip_add() that takes our specific gpio chip
  * information and makes the necessary alterations for the platform and
- * notes the information for use with the configuration systems and any
+ * analtes the information for use with the configuration systems and any
  * other parts of the system.
  */
 
@@ -525,7 +525,7 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 			pr_err("gpio: %s has missing PM functions\n",
 			       gc->label);
 	} else
-		pr_err("gpio: %s has no PM function\n", gc->label);
+		pr_err("gpio: %s has anal PM function\n", gc->label);
 #endif
 
 	/* gpiochip_add() prints own failure message on error. */
@@ -558,7 +558,7 @@ static void __init samsung_gpiolib_add_2bit_chips(struct samsung_gpio_chip *chip
 /*
  * samsung_gpiolib_add_4bit_chips - 4bit single register GPIO config.
  * @chip: The gpio chip that is being configured.
- * @nr_chips: The no of chips (gpio ports) for the GPIO being configured.
+ * @nr_chips: The anal of chips (gpio ports) for the GPIO being configured.
  *
  * This helper deal with the GPIO cases where the control register has 4 bits
  * of control per GPIO, generally in the form of:
@@ -566,8 +566,8 @@ static void __init samsung_gpiolib_add_2bit_chips(struct samsung_gpio_chip *chip
  * 0001 = Output
  * others = Special functions (dependent on bank)
  *
- * Note, since the code to deal with the case where there are two control
- * registers instead of one, we do not have a separate set of function
+ * Analte, since the code to deal with the case where there are two control
+ * registers instead of one, we do analt have a separate set of function
  * (samsung_gpiolib_add_4bit2_chips)for each case.
  */
 
@@ -630,25 +630,25 @@ static int s3c64xx_gpiolib_lbank_to_irq(struct gpio_chip *chip, unsigned pin)
  * GPIO bank summary:
  *
  * Bank	GPIOs	Style	SlpCon	ExtInt Group
- * A	8	4Bit	Yes	1
- * B	7	4Bit	Yes	1
- * C	8	4Bit	Yes	2
- * D	5	4Bit	Yes	3
- * E	5	4Bit	Yes	None
- * F	16	2Bit	Yes	4 [1]
- * G	7	4Bit	Yes	5
- * H	10	4Bit[2]	Yes	6
- * I	16	2Bit	Yes	None
- * J	12	2Bit	Yes	None
- * K	16	4Bit[2]	No	None
- * L	15	4Bit[2] No	None
- * M	6	4Bit	No	IRQ_EINT
- * N	16	2Bit	No	IRQ_EINT
- * O	16	2Bit	Yes	7
- * P	15	2Bit	Yes	8
- * Q	9	2Bit	Yes	9
+ * A	8	4Bit	Anal	1
+ * B	7	4Bit	Anal	1
+ * C	8	4Bit	Anal	2
+ * D	5	4Bit	Anal	3
+ * E	5	4Bit	Anal	Analne
+ * F	16	2Bit	Anal	4 [1]
+ * G	7	4Bit	Anal	5
+ * H	10	4Bit[2]	Anal	6
+ * I	16	2Bit	Anal	Analne
+ * J	12	2Bit	Anal	Analne
+ * K	16	4Bit[2]	Anal	Analne
+ * L	15	4Bit[2] Anal	Analne
+ * M	6	4Bit	Anal	IRQ_EINT
+ * N	16	2Bit	Anal	IRQ_EINT
+ * O	16	2Bit	Anal	7
+ * P	15	2Bit	Anal	8
+ * Q	9	2Bit	Anal	9
  *
- * [1] BANKF pins 14,15 do not form part of the external interrupt sources
+ * [1] BANKF pins 14,15 do analt form part of the external interrupt sources
  * [2] BANK has two control registers, GPxCON0 and GPxCON1
  */
 
@@ -795,7 +795,7 @@ static __init int samsung_gpiolib_init(void)
 	 * Currently there are two drivers that can provide GPIO support for
 	 * Samsung SoCs. For device tree enabled platforms, the new
 	 * pinctrl-samsung driver is used, providing both GPIO and pin control
-	 * interfaces. For legacy (non-DT) platforms this driver is used.
+	 * interfaces. For legacy (analn-DT) platforms this driver is used.
 	 */
 	if (of_have_populated_dt())
 		return 0;

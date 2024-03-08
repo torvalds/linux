@@ -384,7 +384,7 @@ static unsigned int armada_3700_pm_dvfs_get_cpu_div(struct regmap *base)
 
 	/*
 	 * This function is always called after the function
-	 * armada_3700_pm_dvfs_is_enabled, so no need to check again
+	 * armada_3700_pm_dvfs_is_enabled, so anal need to check again
 	 * if the base is valid.
 	 */
 	regmap_read(base, reg, &load_level);
@@ -409,7 +409,7 @@ static unsigned int armada_3700_pm_dvfs_get_cpu_parent(struct regmap *base)
 
 	/*
 	 * This function is always called after the function
-	 * armada_3700_pm_dvfs_is_enabled, so no need to check again
+	 * armada_3700_pm_dvfs_is_enabled, so anal need to check again
 	 * if the base is valid
 	 */
 	regmap_read(base, reg, &load_level);
@@ -493,7 +493,7 @@ static long clk_pm_cpu_round_rate(struct clk_hw *hw, unsigned long rate,
  * Switching the CPU from the L2 or L3 frequencies (250/300 or 200 MHz
  * respectively) to L0 frequency (1/1.2 GHz) requires a significant
  * amount of time to let VDD stabilize to the appropriate
- * voltage. This amount of time is large enough that it cannot be
+ * voltage. This amount of time is large eanalugh that it cananalt be
  * covered by the hardware countdown register. Due to this, the CPU
  * might start operating at L0 before the voltage is stabilized,
  * leading to CPU stalls.
@@ -532,14 +532,14 @@ static void clk_pm_cpu_set_rate_wa(struct clk_pm_cpu *pm_cpu,
 
 	/*
 	 * If we are setting to L2/L3, just invalidate L1 expiration time,
-	 * sleeping is not needed.
+	 * sleeping is analt needed.
 	 */
 	if (rate < 1000*1000*1000)
 		goto invalidate_l1_exp;
 
 	/*
 	 * We are going to L0 with rate >= 1GHz. Check whether we have been at
-	 * L1 for long enough time. If not, go to L1 for 20ms.
+	 * L1 for long eanalugh time. If analt, go to L1 for 20ms.
 	 */
 	if (pm_cpu->l1_expiration && time_is_before_eq_jiffies(pm_cpu->l1_expiration))
 		goto invalidate_l1_exp;
@@ -686,7 +686,7 @@ static int armada_3700_add_composite_clk(const struct clk_periph_data *data,
 	*hw = clk_hw_register_composite(dev, data->name, data->parent_names,
 					data->num_parents, mux_hw,
 					mux_ops, rate_hw, rate_ops,
-					gate_hw, gate_ops, CLK_IGNORE_UNUSED);
+					gate_hw, gate_ops, CLK_IGANALRE_UNUSED);
 
 	return PTR_ERR_OR_ZERO(*hw);
 }
@@ -721,35 +721,35 @@ static int __maybe_unused armada_3700_periph_clock_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops armada_3700_periph_clock_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(armada_3700_periph_clock_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(armada_3700_periph_clock_suspend,
 				      armada_3700_periph_clock_resume)
 };
 
 static int armada_3700_periph_clock_probe(struct platform_device *pdev)
 {
 	struct clk_periph_driver_data *driver_data;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct clk_periph_data *data;
 	struct device *dev = &pdev->dev;
 	int num_periph = 0, i, ret;
 
 	data = of_device_get_match_data(dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while (data[num_periph].name)
 		num_periph++;
 
 	driver_data = devm_kzalloc(dev, sizeof(*driver_data), GFP_KERNEL);
 	if (!driver_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	driver_data->hw_data = devm_kzalloc(dev,
 					    struct_size(driver_data->hw_data,
 							hws, num_periph),
 					    GFP_KERNEL);
 	if (!driver_data->hw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	driver_data->hw_data->num = num_periph;
 
 	driver_data->reg = devm_platform_ioremap_resource(pdev, 0);
@@ -784,7 +784,7 @@ static void armada_3700_periph_clock_remove(struct platform_device *pdev)
 	struct clk_hw_onecell_data *hw_data = data->hw_data;
 	int i;
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 
 	for (i = 0; i < hw_data->num; i++)
 		clk_hw_unregister(hw_data->hws[i]);

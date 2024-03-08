@@ -18,7 +18,7 @@ struct intel_priv_data {
 
 /* This struct is used to associate PCI Function of MAC controller on a board,
  * discovered via DMI, with the address of PHY connected to the MAC. The
- * negative value of the address means that MAC controller is not connected
+ * negative value of the address means that MAC controller is analt connected
  * with PHY.
  */
 struct stmmac_pci_func_data {
@@ -46,7 +46,7 @@ static int stmmac_pci_find_phy_addr(struct pci_dev *pdev,
 
 	dmi_id = dmi_first_match(dmi_list);
 	if (!dmi_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dmi_data = dmi_id->driver_data;
 	func_data = dmi_data->func;
@@ -55,7 +55,7 @@ static int stmmac_pci_find_phy_addr(struct pci_dev *pdev,
 		if (func_data->func == func)
 			return func_data->phy_addr;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int serdes_status_poll(struct stmmac_priv *priv, int phyaddr,
@@ -318,12 +318,12 @@ static int intel_crosststamp(ktime_t *device,
 	int i;
 
 	if (!boot_cpu_has(X86_FEATURE_ART))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	intel_priv = priv->plat->bsp_priv;
 
 	/* Both internal crosstimestamping and external triggered event
-	 * timestamping cannot be run concurrently.
+	 * timestamping cananalt be run concurrently.
 	 */
 	if (priv->plat->flags & STMMAC_FLAG_EXT_SNAPSHOT_EN)
 		return -EBUSY;
@@ -446,7 +446,7 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 static int intel_mgbe_common_data(struct pci_dev *pdev,
 				  struct plat_stmmacenet_data *plat)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	char clk_name[20];
 	int ret;
 	int i;
@@ -517,7 +517,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->axi = devm_kzalloc(&pdev->dev, sizeof(*plat->axi),
 				 GFP_KERNEL);
 	if (!plat->axi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->axi->axi_lpi_en = 0;
 	plat->axi->axi_xit_frm = 0;
@@ -565,14 +565,14 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->vlan_fail_q = plat->rx_queues_to_use - 1;
 
 	/* For fixed-link setup, we allow phy-mode setting */
-	fwnode = dev_fwnode(&pdev->dev);
-	if (fwnode) {
+	fwanalde = dev_fwanalde(&pdev->dev);
+	if (fwanalde) {
 		int phy_mode;
 
 		/* "phy-mode" setting is optional. If it is set,
-		 *  we allow either sgmii or 1000base-x for now.
+		 *  we allow either sgmii or 1000base-x for analw.
 		 */
-		phy_mode = fwnode_get_phy_mode(fwnode);
+		phy_mode = fwanalde_get_phy_mode(fwanalde);
 		if (phy_mode >= 0) {
 			if (phy_mode == PHY_INTERFACE_MODE_SGMII ||
 			    phy_mode == PHY_INTERFACE_MODE_1000BASEX)
@@ -590,14 +590,14 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	}
 
 	/* For fixed-link setup, we clear xpcs_an_inband */
-	if (fwnode) {
-		struct fwnode_handle *fixed_node;
+	if (fwanalde) {
+		struct fwanalde_handle *fixed_analde;
 
-		fixed_node = fwnode_get_named_child_node(fwnode, "fixed-link");
-		if (fixed_node)
+		fixed_analde = fwanalde_get_named_child_analde(fwanalde, "fixed-link");
+		if (fixed_analde)
 			plat->mdio_bus_data->xpcs_an_inband = false;
 
-		fwnode_handle_put(fixed_node);
+		fwanalde_handle_put(fixed_analde);
 	}
 
 	/* Ensure mdio bus scan skips intel serdes and pcs-xpcs */
@@ -906,7 +906,7 @@ static int quark_default_data(struct pci_dev *pdev,
 	common_default_data(plat);
 
 	/* Refuse to load the driver and register net device if MAC controller
-	 * does not connect to any PHY interface.
+	 * does analt connect to any PHY interface.
 	 */
 	ret = stmmac_pci_find_phy_addr(pdev, quark_pci_dmi);
 	if (ret < 0) {
@@ -1017,10 +1017,10 @@ static int stmmac_config_multi_msi(struct pci_dev *pdev,
  * @id: pointer to table of device id/id's.
  *
  * Description: This probing function gets called for all PCI devices which
- * match the ID table and are not "owned" by other driver yet. This function
+ * match the ID table and are analt "owned" by other driver yet. This function
  * gets passed a "struct pci_dev *" for each device whose entry in the ID table
  * matches the device. The probe functions returns zero when the driver choose
- * to take "ownership" of the device or an error code(-ve no) otherwise.
+ * to take "ownership" of the device or an error code(-ve anal) otherwise.
  */
 static int intel_eth_pci_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
@@ -1033,28 +1033,28 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 
 	intel_priv = devm_kzalloc(&pdev->dev, sizeof(*intel_priv), GFP_KERNEL);
 	if (!intel_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(*plat->mdio_bus_data),
 					   GFP_KERNEL);
 	if (!plat->mdio_bus_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*plat->dma_cfg),
 				     GFP_KERNEL);
 	if (!plat->dma_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->safety_feat_cfg = devm_kzalloc(&pdev->dev,
 					     sizeof(*plat->safety_feat_cfg),
 					     GFP_KERNEL);
 	if (!plat->safety_feat_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enable pci device */
 	ret = pcim_enable_device(pdev);
@@ -1076,7 +1076,7 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 
 	/* Initialize all MSI vectors to invalid so that it can be set
 	 * according to platform data settings below.
-	 * Note: MSI vector takes value from 0 upto 31 (STMMAC_MSI_VEC_MAX)
+	 * Analte: MSI vector takes value from 0 upto 31 (STMMAC_MSI_VEC_MAX)
 	 */
 	plat->msi_mac_vec = STMMAC_MSI_VEC_MAX;
 	plat->msi_wol_vec = STMMAC_MSI_VEC_MAX;

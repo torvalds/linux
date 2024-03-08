@@ -18,7 +18,7 @@ ACPI_MODULE_NAME("utids")
  *
  * FUNCTION:    acpi_ut_execute_HID
  *
- * PARAMETERS:  device_node         - Node for the device
+ * PARAMETERS:  device_analde         - Analde for the device
  *              return_id           - Where the string HID is returned
  *
  * RETURN:      Status
@@ -28,11 +28,11 @@ ACPI_MODULE_NAME("utids")
  *              Integer or a String. A string is always returned. An EISAID
  *              is converted to a string.
  *
- *              NOTE: Internal function, no parameter validation
+ *              ANALTE: Internal function, anal parameter validation
  *
  ******************************************************************************/
 acpi_status
-acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_HID(struct acpi_namespace_analde *device_analde,
 		    struct acpi_pnp_device_id **return_id)
 {
 	union acpi_operand_object *obj_desc;
@@ -42,7 +42,7 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 
 	ACPI_FUNCTION_TRACE(ut_execute_HID);
 
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__HID,
+	status = acpi_ut_evaluate_object(device_analde, METHOD_NAME__HID,
 					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING,
 					 &obj_desc);
 	if (ACPI_FAILURE(status)) {
@@ -63,7 +63,7 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
 				 (acpi_size)length);
 	if (!hid) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -95,22 +95,22 @@ cleanup:
  *
  * FUNCTION:    acpi_ut_execute_UID
  *
- * PARAMETERS:  device_node         - Node for the device
+ * PARAMETERS:  device_analde         - Analde for the device
  *              return_id           - Where the string UID is returned
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Executes the _UID control method that returns the unique
- *              ID of the device. The UID is either a 64-bit Integer (NOT an
+ *              ID of the device. The UID is either a 64-bit Integer (ANALT an
  *              EISAID) or a string. Always returns a string. A 64-bit integer
  *              is converted to a decimal string.
  *
- *              NOTE: Internal function, no parameter validation
+ *              ANALTE: Internal function, anal parameter validation
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_UID(struct acpi_namespace_analde *device_analde,
 		    struct acpi_pnp_device_id **return_id)
 {
 	union acpi_operand_object *obj_desc;
@@ -120,7 +120,7 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 
 	ACPI_FUNCTION_TRACE(ut_execute_UID);
 
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__UID,
+	status = acpi_ut_evaluate_object(device_analde, METHOD_NAME__UID,
 					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING,
 					 &obj_desc);
 	if (ACPI_FAILURE(status)) {
@@ -141,7 +141,7 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
 				 (acpi_size)length);
 	if (!uid) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -173,7 +173,7 @@ cleanup:
  *
  * FUNCTION:    acpi_ut_execute_CID
  *
- * PARAMETERS:  device_node         - Node for the device
+ * PARAMETERS:  device_analde         - Analde for the device
  *              return_cid_list     - Where the CID list is returned
  *
  * RETURN:      Status, list of CID strings
@@ -181,7 +181,7 @@ cleanup:
  * DESCRIPTION: Executes the _CID control method that returns one or more
  *              compatible hardware IDs for the device.
  *
- *              NOTE: Internal function, no parameter validation
+ *              ANALTE: Internal function, anal parameter validation
  *
  * A _CID method can return either a single compatible ID or a package of
  * compatible IDs. Each compatible ID can be one of the following:
@@ -193,7 +193,7 @@ cleanup:
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_CID(struct acpi_namespace_analde *device_analde,
 		    struct acpi_pnp_device_id_list **return_cid_list)
 {
 	union acpi_operand_object **cid_objects;
@@ -211,7 +211,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 
 	/* Evaluate the _CID method for this device */
 
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__CID,
+	status = acpi_ut_evaluate_object(device_analde, METHOD_NAME__CID,
 					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING
 					 | ACPI_BTYPE_PACKAGE, &obj_desc);
 	if (ACPI_FAILURE(status)) {
@@ -221,7 +221,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 	/*
 	 * Get the count and size of the returned _CIDs. _CID can return either
 	 * a Package of Integers/Strings or a single Integer or String.
-	 * Note: This section also validates that all CID elements are of the
+	 * Analte: This section also validates that all CID elements are of the
 	 * correct type (Integer or String).
 	 */
 	if (obj_desc->common.type == ACPI_TYPE_PACKAGE) {
@@ -257,7 +257,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 	}
 
 	/*
-	 * Now that we know the length of the CIDs, allocate return buffer:
+	 * Analw that we kanalw the length of the CIDs, allocate return buffer:
 	 * 1) Size of the base structure +
 	 * 2) Size of the CID PNP_DEVICE_ID array +
 	 * 3) Size of the actual CID strings
@@ -267,7 +267,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 
 	cid_list = ACPI_ALLOCATE_ZEROED(cid_list_size);
 	if (!cid_list) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -316,7 +316,7 @@ cleanup:
  *
  * FUNCTION:    acpi_ut_execute_CLS
  *
- * PARAMETERS:  device_node         - Node for the device
+ * PARAMETERS:  device_analde         - Analde for the device
  *              return_id           - Where the _CLS is returned
  *
  * RETURN:      Status
@@ -332,7 +332,7 @@ cleanup:
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
+acpi_ut_execute_CLS(struct acpi_namespace_analde *device_analde,
 		    struct acpi_pnp_device_id **return_id)
 {
 	union acpi_operand_object *obj_desc;
@@ -345,7 +345,7 @@ acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
 
 	ACPI_FUNCTION_TRACE(ut_execute_CLS);
 
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__CLS,
+	status = acpi_ut_evaluate_object(device_analde, METHOD_NAME__CLS,
 					 ACPI_BTYPE_PACKAGE, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -378,7 +378,7 @@ acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
 				 (acpi_size)length);
 	if (!cls) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 

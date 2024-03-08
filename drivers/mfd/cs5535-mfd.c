@@ -88,7 +88,7 @@ static int cs5535_mfd_probe(struct pci_dev *pdev,
 		goto err_disable;
 	}
 
-	err = mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE, cs5535_mfd_cells,
+	err = mfd_add_devices(&pdev->dev, PLATFORM_DEVID_ANALNE, cs5535_mfd_cells,
 			      ARRAY_SIZE(cs5535_mfd_cells), NULL, 0, NULL);
 	if (err) {
 		dev_err(&pdev->dev,
@@ -104,7 +104,7 @@ static int cs5535_mfd_probe(struct pci_dev *pdev,
 			goto err_remove_devices;
 		}
 
-		err = mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE,
+		err = mfd_add_devices(&pdev->dev, PLATFORM_DEVID_ANALNE,
 				      cs5535_olpc_mfd_cells,
 				      ARRAY_SIZE(cs5535_olpc_mfd_cells),
 				      NULL, 0, NULL);

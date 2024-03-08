@@ -42,7 +42,7 @@ description: |
   CPSW Port and Ethernet PHY which depends on Eth PHY and board configuration.
   |
   CPSW Port's Interface Mode Selection PHY device should defined as child device
-  of SCM node (scm_conf) and can be attached to each CPSW port node using standard
+  of SCM analde (scm_conf) and can be attached to each CPSW port analde using standard
   PHY bindings.
 
 properties:
@@ -126,7 +126,7 @@ allOf:
             maximum: 8
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

@@ -11,13 +11,13 @@ maintainers:
   - Pavel Machek <pavel@ucw.cz>
 
 description:
-  Each trigger source provider should be represented by a device tree node. It
+  Each trigger source provider should be represented by a device tree analde. It
   may be e.g. a USB port or an Ethernet device.
 
 properties:
   '#trigger-source-cells':
     description:
-      Number of cells in a source trigger. Typically 0 for nodes of simple
+      Number of cells in a source trigger. Typically 0 for analdes of simple
       trigger sources (e.g. a specific USB port).
     enum: [ 0, 1 ]
 

@@ -46,7 +46,7 @@ is_server_using_iface(struct TCP_Server_Info *server,
 			   sizeof(i6->sin6_addr)) != 0)
 			return false;
 	} else {
-		/* unknown family.. */
+		/* unkanalwn family.. */
 		return false;
 	}
 	return true;
@@ -137,7 +137,7 @@ cifs_chan_set_need_reconnect(struct cifs_ses *ses,
 		return;
 
 	set_bit(chan_index, &ses->chans_need_reconnect);
-	cifs_dbg(FYI, "Set reconnect bitmask for chan %u; now 0x%lx\n",
+	cifs_dbg(FYI, "Set reconnect bitmask for chan %u; analw 0x%lx\n",
 		 chan_index, ses->chans_need_reconnect);
 }
 
@@ -151,7 +151,7 @@ cifs_chan_clear_need_reconnect(struct cifs_ses *ses,
 		return;
 
 	clear_bit(chan_index, &ses->chans_need_reconnect);
-	cifs_dbg(FYI, "Cleared reconnect bitmask for chan %u; now 0x%lx\n",
+	cifs_dbg(FYI, "Cleared reconnect bitmask for chan %u; analw 0x%lx\n",
 		 chan_index, ses->chans_need_reconnect);
 }
 
@@ -200,20 +200,20 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 	if (left <= 0) {
 		spin_unlock(&ses->chan_lock);
 		cifs_dbg(FYI,
-			 "ses already at max_channels (%zu), nothing to open\n",
+			 "ses already at max_channels (%zu), analthing to open\n",
 			 ses->chan_max);
 		return 0;
 	}
 
 	if (server->dialect < SMB30_PROT_ID) {
 		spin_unlock(&ses->chan_lock);
-		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
+		cifs_dbg(VFS, "multichannel is analt supported on this protocol version, use 3.0 or above\n");
 		return 0;
 	}
 
 	if (!(server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
 		spin_unlock(&ses->chan_lock);
-		cifs_server_dbg(VFS, "no multichannel support\n");
+		cifs_server_dbg(VFS, "anal multichannel support\n");
 		return 0;
 	}
 	spin_unlock(&ses->chan_lock);
@@ -230,7 +230,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 		spin_lock(&ses->iface_lock);
 		if (!ses->iface_count) {
 			spin_unlock(&ses->iface_lock);
-			cifs_dbg(VFS, "server %s does not advertise interfaces\n",
+			cifs_dbg(VFS, "server %s does analt advertise interfaces\n",
 				      ses->server->hostname);
 			break;
 		}
@@ -244,7 +244,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 
 		list_for_each_entry_safe_from(iface, niface, &ses->iface_list,
 				    iface_head) {
-			/* do not mix rdma and non-rdma interfaces */
+			/* do analt mix rdma and analn-rdma interfaces */
 			if (iface->rdma_capable != ses->server->rdma)
 				continue;
 
@@ -254,7 +254,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 			     !iface->rss_capable))
 				continue;
 
-			/* check if we already allocated enough channels */
+			/* check if we already allocated eanalugh channels */
 			iface_weight = iface->speed / iface_min_speed;
 
 			if (iface->weight_fulfilled >= iface_weight)
@@ -304,7 +304,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 /*
  * called when multichannel is disabled by the server.
  * this always gets called from smb2_reconnect
- * and cannot get called in parallel threads.
+ * and cananalt get called in parallel threads.
  */
 void
 cifs_disable_secondary_channels(struct cifs_ses *ses)
@@ -396,7 +396,7 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	spin_lock(&ses->iface_lock);
 	if (!ses->iface_count) {
 		spin_unlock(&ses->iface_lock);
-		cifs_dbg(VFS, "server %s does not advertise interfaces\n", ses->server->hostname);
+		cifs_dbg(VFS, "server %s does analt advertise interfaces\n", ses->server->hostname);
 		return;
 	}
 
@@ -416,7 +416,7 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 			break;
 		}
 
-		/* do not mix rdma and non-rdma interfaces */
+		/* do analt mix rdma and analn-rdma interfaces */
 		if (iface->rdma_capable != server->rdma)
 			continue;
 
@@ -426,7 +426,7 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 			continue;
 		}
 
-		/* check if we already allocated enough channels */
+		/* check if we already allocated eanalugh channels */
 		iface_weight = iface->speed / iface_min_speed;
 
 		if (iface->weight_fulfilled >= iface_weight)
@@ -446,7 +446,7 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 			cifs_dbg(FYI, "unable to get the interface matching: %pIS\n",
 				 &ss);
 		else {
-			cifs_dbg(FYI, "unable to find another interface to replace: %pIS\n",
+			cifs_dbg(FYI, "unable to find aanalther interface to replace: %pIS\n",
 				 &old_iface->sockaddr);
 		}
 
@@ -454,7 +454,7 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 		return;
 	}
 
-	/* now drop the ref to the current iface */
+	/* analw drop the ref to the current iface */
 	if (old_iface) {
 		cifs_dbg(FYI, "replacing iface: %pIS with %pIS\n",
 			 &old_iface->sockaddr,
@@ -523,11 +523,11 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 
 	if (iface->sockaddr.ss_family == AF_INET)
 		cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ip:%pI4)\n",
-			 ses, iface->speed, iface->rdma_capable ? "yes" : "no",
+			 ses, iface->speed, iface->rdma_capable ? "anal" : "anal",
 			 &ipv4->sin_addr);
 	else
 		cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ip:%pI6)\n",
-			 ses, iface->speed, iface->rdma_capable ? "yes" : "no",
+			 ses, iface->speed, iface->rdma_capable ? "anal" : "anal",
 			 &ipv6->sin6_addr);
 
 	/*
@@ -543,18 +543,18 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 	 */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_xid;
 	}
 
-	/* Always make new connection for now (TODO?) */
-	ctx->nosharesock = true;
+	/* Always make new connection for analw (TODO?) */
+	ctx->analsharesock = true;
 
 	/* Auth */
 	ctx->domainauto = ses->domainAuto;
 	ctx->domainname = ses->domainName;
 
-	/* no hostname for extra channels */
+	/* anal hostname for extra channels */
 	ctx->server_hostname = "";
 
 	ctx->username = ses->user_name;
@@ -567,7 +567,7 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 	len = sizeof(unc_fmt) + SERVER_NAME_LEN_WITH_NULL;
 	ctx->UNC = kzalloc(len, GFP_KERNEL);
 	if (!ctx->UNC) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_ctx;
 	}
 	scnprintf(ctx->UNC, len, unc_fmt, ses->ip_addr);
@@ -577,9 +577,9 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 	ctx->vals = ses->server->vals;
 	ctx->ops = ses->server->ops;
 
-	ctx->noblocksnd = ses->server->noblocksnd;
-	ctx->noautotune = ses->server->noautotune;
-	ctx->sockopt_tcp_nodelay = ses->server->tcp_nodelay;
+	ctx->analblocksnd = ses->server->analblocksnd;
+	ctx->analautotune = ses->server->analautotune;
+	ctx->sockopt_tcp_analdelay = ses->server->tcp_analdelay;
 	ctx->echo_interval = ses->server->echo_interval / HZ;
 	ctx->max_credits = ses->server->max_credits;
 
@@ -620,7 +620,7 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 
 	mutex_lock(&ses->session_mutex);
 	/*
-	 * We need to allocate the server crypto now as we will need
+	 * We need to allocate the server crypto analw as we will need
 	 * to sign packets before we generate the channel signing key
 	 * (we sign with the session key)
 	 */
@@ -670,10 +670,10 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses,
 	__u32 capabilities = 0;
 
 	/* init fields common to all four types of SessSetup */
-	/* Note that offsets for first seven fields in req struct are same  */
-	/*	in CIFS Specs so does not matter which of 3 forms of struct */
+	/* Analte that offsets for first seven fields in req struct are same  */
+	/*	in CIFS Specs so does analt matter which of 3 forms of struct */
 	/*	that we use in next few lines                               */
-	/* Note that header is initialized to zero in header_assemble */
+	/* Analte that header is initialized to zero in header_assemble */
 	pSMB->req.AndXCommand = 0xFF;
 	pSMB->req.MaxBufferSize = cpu_to_le16(min_t(u32,
 					CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4,
@@ -681,7 +681,7 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses,
 	pSMB->req.MaxMpxCount = cpu_to_le16(server->maxReq);
 	pSMB->req.VcNumber = cpu_to_le16(1);
 
-	/* Now no need to set SMBFLG_CASELESS or obsolete CANONICAL PATH */
+	/* Analw anal need to set SMBFLG_CASELESS or obsolete CAANALNICAL PATH */
 
 	/* BB verify whether signing required on neg or just auth frame (and NTLM case) */
 
@@ -842,9 +842,9 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifs_ses *ses,
 	if (bleft <= 0)
 		return;
 
-	kfree(ses->serverNOS);
-	ses->serverNOS = cifs_strndup_from_utf16(data, bleft, true, nls_cp);
-	cifs_dbg(FYI, "serverNOS=%s\n", ses->serverNOS);
+	kfree(ses->serverANALS);
+	ses->serverANALS = cifs_strndup_from_utf16(data, bleft, true, nls_cp);
+	cifs_dbg(FYI, "serverANALS=%s\n", ses->serverANALS);
 	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
 	data += len;
 	bleft -= len;
@@ -888,12 +888,12 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	if (len >= bleft)
 		return;
 
-	kfree(ses->serverNOS);
+	kfree(ses->serverANALS);
 
-	ses->serverNOS = kmalloc(len + 1, GFP_KERNEL);
-	if (ses->serverNOS) {
-		memcpy(ses->serverNOS, bcc_ptr, len);
-		ses->serverNOS[len] = 0;
+	ses->serverANALS = kmalloc(len + 1, GFP_KERNEL);
+	if (ses->serverANALS) {
+		memcpy(ses->serverANALS, bcc_ptr, len);
+		ses->serverANALS[len] = 0;
 	}
 
 	bcc_ptr += len + 1;
@@ -904,12 +904,12 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 		return;
 
 	/*
-	 * No domain field in LANMAN case. Domain is
+	 * Anal domain field in LANMAN case. Domain is
 	 * returned by old servers in the SMB negprot response
 	 *
-	 * BB For newer servers which do not support Unicode,
+	 * BB For newer servers which do analt support Unicode,
 	 * but thus do return domain here, we could add parsing
-	 * for it later, but it is not very important
+	 * for it later, but it is analt very important
 	 */
 	cifs_dbg(FYI, "ascii: bytes left %d\n", bleft);
 }
@@ -945,22 +945,22 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 
 	if ((ses->ntlmssp->client_flags & (NTLMSSP_NEGOTIATE_SEAL | NTLMSSP_NEGOTIATE_SIGN)) &&
 	    (!(server_flags & NTLMSSP_NEGOTIATE_56) && !(server_flags & NTLMSSP_NEGOTIATE_128))) {
-		cifs_dbg(VFS, "%s: requested signing/encryption but server did not return either 56-bit or 128-bit session key size\n",
+		cifs_dbg(VFS, "%s: requested signing/encryption but server did analt return either 56-bit or 128-bit session key size\n",
 			 __func__);
 		return -EINVAL;
 	}
 	if (!(server_flags & NTLMSSP_NEGOTIATE_NTLM) && !(server_flags & NTLMSSP_NEGOTIATE_EXTENDED_SEC)) {
-		cifs_dbg(VFS, "%s: server does not seem to support either NTLMv1 or NTLMv2\n", __func__);
+		cifs_dbg(VFS, "%s: server does analt seem to support either NTLMv1 or NTLMv2\n", __func__);
 		return -EINVAL;
 	}
 	if (ses->server->sign && !(server_flags & NTLMSSP_NEGOTIATE_SIGN)) {
-		cifs_dbg(VFS, "%s: forced packet signing but server does not seem to support it\n",
+		cifs_dbg(VFS, "%s: forced packet signing but server does analt seem to support it\n",
 			 __func__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if ((ses->ntlmssp->client_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
 	    !(server_flags & NTLMSSP_NEGOTIATE_KEY_XCH))
-		pr_warn_once("%s: authentication has been weakened as server does not support key exchange\n",
+		pr_warn_once("%s: authentication has been weakened as server does analt support key exchange\n",
 			     __func__);
 
 	ses->ntlmssp->server_flags = server_flags;
@@ -986,7 +986,7 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
 			cifs_dbg(VFS, "Challenge target info alloc failure\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		ses->auth_key.len = tilen;
 	}
@@ -1069,7 +1069,7 @@ int build_ntlmssp_negotiate_blob(unsigned char **pbuffer,
 	len = size_of_ntlmssp_blob(ses, sizeof(NEGOTIATE_MESSAGE));
 	*pbuffer = kmalloc(len, GFP_KERNEL);
 	if (!*pbuffer) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
 		*buflen = 0;
 		goto setup_ntlm_neg_ret;
@@ -1114,7 +1114,7 @@ setup_ntlm_neg_ret:
 /*
  * Build ntlmssp blob with additional fields, such as version,
  * supported by modern servers. For safety limit to SMB3 or later
- * See notes in MS-NLMP Section 2.2.2.1 e.g.
+ * See analtes in MS-NLMP Section 2.2.2.1 e.g.
  */
 int build_ntlmssp_smb3_negotiate_blob(unsigned char **pbuffer,
 				 u16 *buflen,
@@ -1131,7 +1131,7 @@ int build_ntlmssp_smb3_negotiate_blob(unsigned char **pbuffer,
 	len = size_of_ntlmssp_blob(ses, sizeof(struct negotiate_message));
 	*pbuffer = kmalloc(len, GFP_KERNEL);
 	if (!*pbuffer) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
 		*buflen = 0;
 		goto setup_ntlm_smb3_neg_ret;
@@ -1152,7 +1152,7 @@ int build_ntlmssp_smb3_negotiate_blob(unsigned char **pbuffer,
 		flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 
 	sec_blob->Version.ProductMajorVersion = LINUX_VERSION_MAJOR;
-	sec_blob->Version.ProductMinorVersion = LINUX_VERSION_PATCHLEVEL;
+	sec_blob->Version.ProductMianalrVersion = LINUX_VERSION_PATCHLEVEL;
 	sec_blob->Version.ProductBuild = cpu_to_le16(SMB3_PRODUCT_BUILD);
 	sec_blob->Version.NTLMRevisionCurrent = NTLMSSP_REVISION_W2K3;
 
@@ -1202,7 +1202,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 	len = size_of_ntlmssp_blob(ses, sizeof(AUTHENTICATE_MESSAGE));
 	*pbuffer = kmalloc(len, GFP_KERNEL);
 	if (!*pbuffer) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
 		*buflen = 0;
 		goto setup_ntlmv2_ret;
@@ -1218,7 +1218,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 		NTLMSSP_NEGOTIATE_WORKSTATION_SUPPLIED;
 
 	sec_blob->Version.ProductMajorVersion = LINUX_VERSION_MAJOR;
-	sec_blob->Version.ProductMinorVersion = LINUX_VERSION_PATCHLEVEL;
+	sec_blob->Version.ProductMianalrVersion = LINUX_VERSION_PATCHLEVEL;
 	sec_blob->Version.ProductBuild = cpu_to_le16(SMB3_PRODUCT_BUILD);
 	sec_blob->Version.NTLMRevisionCurrent = NTLMSSP_REVISION_W2K3;
 
@@ -1243,7 +1243,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 				cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
 	} else {
 		/*
-		 * don't send an NT Response for anonymous access
+		 * don't send an NT Response for aanalnymous access
 		 */
 		sec_blob->NtChallengeResponse.Length = 0;
 		sec_blob->NtChallengeResponse.MaximumLength = 0;
@@ -1351,7 +1351,7 @@ sess_alloc_buffer(struct sess_data *sess_data, int wct)
 	struct cifs_ses *ses = sess_data->ses;
 	struct smb_hdr *smb_buf;
 
-	rc = small_smb_init_no_tc(SMB_COM_SESSION_SETUP_ANDX, wct, ses,
+	rc = small_smb_init_anal_tc(SMB_COM_SESSION_SETUP_ANDX, wct, ses,
 				  (void **)&smb_buf);
 
 	if (rc)
@@ -1365,10 +1365,10 @@ sess_alloc_buffer(struct sess_data *sess_data, int wct)
 	 */
 	sess_data->buf0_type = CIFS_SMALL_BUFFER;
 
-	/* 2000 big enough to fit max user, domain, NOS name etc. */
+	/* 2000 big eanalugh to fit max user, domain, ANALS name etc. */
 	sess_data->iov[2].iov_base = kmalloc(2000, GFP_KERNEL);
 	if (!sess_data->iov[2].iov_base) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_smb_buf;
 	}
 
@@ -1378,7 +1378,7 @@ out_free_smb_buf:
 	cifs_small_buf_release(smb_buf);
 	sess_data->iov[0].iov_base = NULL;
 	sess_data->iov[0].iov_len = 0;
-	sess_data->buf0_type = CIFS_NO_BUFFER;
+	sess_data->buf0_type = CIFS_ANAL_BUFFER;
 	return rc;
 }
 
@@ -1389,13 +1389,13 @@ sess_free_buffer(struct sess_data *sess_data)
 
 	/*
 	 * Zero the session data before freeing, as it might contain sensitive info (keys, etc).
-	 * Note that iov[1] is already freed by caller.
+	 * Analte that iov[1] is already freed by caller.
 	 */
-	if (sess_data->buf0_type != CIFS_NO_BUFFER && iov[0].iov_base)
+	if (sess_data->buf0_type != CIFS_ANAL_BUFFER && iov[0].iov_base)
 		memzero_explicit(iov[0].iov_base, iov[0].iov_len);
 
 	free_rsp_buf(sess_data->buf0_type, iov[0].iov_base);
-	sess_data->buf0_type = CIFS_NO_BUFFER;
+	sess_data->buf0_type = CIFS_ANAL_BUFFER;
 	kfree_sensitive(iov[2].iov_base);
 }
 
@@ -1413,7 +1413,7 @@ sess_establish_session(struct sess_data *sess_data)
 				ses->auth_key.len, GFP_KERNEL);
 			if (!server->session_key.response) {
 				cifs_server_unlock(server);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			server->session_key.len =
 						ses->auth_key.len;
@@ -1471,10 +1471,10 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 	bcc_ptr = sess_data->iov[2].iov_base;
 	capabilities = cifs_ssetup_hdr(ses, server, pSMB);
 
-	pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
+	pSMB->req_anal_secext.Capabilities = cpu_to_le32(capabilities);
 
 	/* LM2 password would be here if we supported it */
-	pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
+	pSMB->req_anal_secext.CaseInsensitivePasswordLength = 0;
 
 	if (ses->user_name != NULL) {
 		/* calculate nlmv2 response and session key */
@@ -1491,10 +1491,10 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 		/* set case sensitive password length after tilen may get
 		 * assigned, tilen is 0 otherwise.
 		 */
-		pSMB->req_no_secext.CaseSensitivePasswordLength =
+		pSMB->req_anal_secext.CaseSensitivePasswordLength =
 			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
 	} else {
-		pSMB->req_no_secext.CaseSensitivePasswordLength = 0;
+		pSMB->req_anal_secext.CaseSensitivePasswordLength = 0;
 	}
 
 	if (ses->capabilities & CAP_UNICODE) {
@@ -1535,7 +1535,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
+		/* anal string area to decode, do analthing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
@@ -1609,7 +1609,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 	if (!ses->auth_key.response) {
 		cifs_dbg(VFS, "Kerberos can't allocate (%u bytes) memory\n",
 			 msg->sesskey_len);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_put_spnego_key;
 	}
 	ses->auth_key.len = msg->sesskey_len;
@@ -1671,7 +1671,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
+		/* anal string area to decode, do analthing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
@@ -1717,7 +1717,7 @@ _sess_auth_rawntlmssp_assemble_req(struct sess_data *sess_data)
 	capabilities = cifs_ssetup_hdr(ses, server, pSMB);
 	if ((pSMB->req.hdr.Flags2 & SMBFLG2_UNICODE) == 0) {
 		cifs_dbg(VFS, "NTLMSSP requires Unicode support\n");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
@@ -1762,7 +1762,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	 */
 	ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
 	if (!ses->ntlmssp) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	ses->ntlmssp->sesskey_per_smbsess = false;
@@ -1794,8 +1794,8 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
 	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
 
-	/* If true, rc here is expected and not an error */
-	if (sess_data->buf0_type != CIFS_NO_BUFFER &&
+	/* If true, rc here is expected and analt an error */
+	if (sess_data->buf0_type != CIFS_ANAL_BUFFER &&
 	    smb_buf->Status.CifsError ==
 			cpu_to_le32(NT_STATUS_MORE_PROCESSING_REQUIRED))
 		rc = 0;
@@ -1924,7 +1924,7 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
+		/* anal string area to decode, do analthing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
@@ -1979,14 +1979,14 @@ static int select_sec(struct sess_data *sess_data)
 		break;
 #else
 		cifs_dbg(VFS, "Kerberos negotiated but upcall support disabled!\n");
-		return -ENOSYS;
+		return -EANALSYS;
 #endif /* CONFIG_CIFS_UPCALL */
 	case RawNTLMSSP:
 		sess_data->func = sess_auth_rawntlmssp_negotiate;
 		break;
 	default:
-		cifs_dbg(VFS, "secType %d not supported!\n", type);
-		return -ENOSYS;
+		cifs_dbg(VFS, "secType %d analt supported!\n", type);
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -2006,12 +2006,12 @@ int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 
 	sess_data = kzalloc(sizeof(struct sess_data), GFP_KERNEL);
 	if (!sess_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sess_data->xid = xid;
 	sess_data->ses = ses;
 	sess_data->server = server;
-	sess_data->buf0_type = CIFS_NO_BUFFER;
+	sess_data->buf0_type = CIFS_ANAL_BUFFER;
 	sess_data->nls_cp = (struct nls_table *) nls_cp;
 
 	rc = select_sec(sess_data);

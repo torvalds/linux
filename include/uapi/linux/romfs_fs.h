@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_ROMFS_FS_H
 #define __LINUX_ROMFS_FS_H
 
@@ -30,9 +30,9 @@ struct romfs_super_block {
 	char name[];		/* volume name */
 };
 
-/* On disk inode */
+/* On disk ianalde */
 
-struct romfs_inode {
+struct romfs_ianalde {
 	__be32 next;		/* low 4 bits see ROMFH_ */
 	__be32 spec;
 	__be32 size;

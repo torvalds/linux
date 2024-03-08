@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #include <linux/skbuff.h>
 #include <linux/ctype.h>
@@ -187,7 +187,7 @@ void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
 		config->num_peers = TARGET_NUM_PEERS(DBS_SBS);
 		config->num_tids = TARGET_NUM_TIDS(DBS_SBS);
 	} else {
-		/* Control should not reach here */
+		/* Control should analt reach here */
 		config->num_peers = TARGET_NUM_PEERS(SINGLE);
 		config->num_tids = TARGET_NUM_TIDS(SINGLE);
 	}
@@ -367,7 +367,7 @@ ath12k_wmi_tlv_parse_alloc(struct ath12k_base *ab, const void *ptr,
 
 	tb = kcalloc(WMI_TAG_MAX, sizeof(*tb), gfp);
 	if (!tb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = ath12k_wmi_tlv_parse(ab, tb, ptr, len);
 	if (ret) {
@@ -378,7 +378,7 @@ ath12k_wmi_tlv_parse_alloc(struct ath12k_base *ab, const void *ptr,
 	return tb;
 }
 
-static int ath12k_wmi_cmd_send_nowait(struct ath12k_wmi_pdev *wmi, struct sk_buff *skb,
+static int ath12k_wmi_cmd_send_analwait(struct ath12k_wmi_pdev *wmi, struct sk_buff *skb,
 				      u32 cmd_id)
 {
 	struct ath12k_skb_cb *skb_cb = ATH12K_SKB_CB(skb);
@@ -387,7 +387,7 @@ static int ath12k_wmi_cmd_send_nowait(struct ath12k_wmi_pdev *wmi, struct sk_buf
 	int ret;
 
 	if (!skb_push(skb, sizeof(struct wmi_cmd_hdr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd_hdr = (struct wmi_cmd_hdr *)skb->data;
 	cmd_hdr->cmd_id = le32_encode_bits(cmd_id, WMI_CMD_HDR_CMD_ID);
@@ -409,12 +409,12 @@ int ath12k_wmi_cmd_send(struct ath12k_wmi_pdev *wmi, struct sk_buff *skb,
 			u32 cmd_id)
 {
 	struct ath12k_wmi_base *wmi_ab = wmi->wmi_ab;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 
 	wait_event_timeout(wmi_ab->tx_credits_wq, ({
-		ret = ath12k_wmi_cmd_send_nowait(wmi, skb, cmd_id);
+		ret = ath12k_wmi_cmd_send_analwait(wmi, skb, cmd_id);
 
 		if (ret && test_bit(ATH12K_FLAG_CRASH_FLUSH, &wmi_ab->ab->dev_flags))
 			ret = -ESHUTDOWN;
@@ -503,7 +503,7 @@ ath12k_pull_mac_phy_cap_svc_ready_ext(struct ath12k_wmi_pdev *wmi_handle,
 	fw_pdev->phy_id = le32_to_cpu(mac_caps->phy_id);
 	ab->fw_pdev_count++;
 
-	/* Take non-zero tx/rx chainmask. If tx/rx chainmask differs from
+	/* Take analn-zero tx/rx chainmask. If tx/rx chainmask differs from
 	 * band to band for a single radio, need to see how this should be
 	 * handled.
 	 */
@@ -763,7 +763,7 @@ int ath12k_wmi_mgmt_send(struct ath12k *ar, u32 vdev_id, u32 buf_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_mgmt_send_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_MGMT_TX_SEND_CMD,
@@ -812,7 +812,7 @@ int ath12k_wmi_vdev_create(struct ath12k *ar, u8 *macaddr,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_create_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_CREATE_CMD,
@@ -876,7 +876,7 @@ int ath12k_wmi_vdev_delete(struct ath12k *ar, u8 vdev_id)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_delete_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_DELETE_CMD,
@@ -903,7 +903,7 @@ int ath12k_wmi_vdev_stop(struct ath12k *ar, u8 vdev_id)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_stop_cmd *)skb->data;
 
@@ -931,7 +931,7 @@ int ath12k_wmi_vdev_down(struct ath12k *ar, u8 vdev_id)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_down_cmd *)skb->data;
 
@@ -1008,7 +1008,7 @@ int ath12k_wmi_vdev_start(struct ath12k *ar, struct wmi_vdev_start_req_arg *arg,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_start_request_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_START_REQUEST_CMD,
@@ -1017,7 +1017,7 @@ int ath12k_wmi_vdev_start(struct ath12k *ar, struct wmi_vdev_start_req_arg *arg,
 	cmd->beacon_interval = cpu_to_le32(arg->bcn_intval);
 	cmd->bcn_tx_rate = cpu_to_le32(arg->bcn_tx_rate);
 	cmd->dtim_period = cpu_to_le32(arg->dtim_period);
-	cmd->num_noa_descriptors = cpu_to_le32(arg->num_noa_descriptors);
+	cmd->num_anala_descriptors = cpu_to_le32(arg->num_anala_descriptors);
 	cmd->preferred_rx_streams = cpu_to_le32(arg->pref_rx_streams);
 	cmd->preferred_tx_streams = cpu_to_le32(arg->pref_tx_streams);
 	cmd->cac_duration_ms = cpu_to_le32(arg->cac_duration_ms);
@@ -1050,8 +1050,8 @@ int ath12k_wmi_vdev_start(struct ath12k *ar, struct wmi_vdev_start_req_arg *arg,
 	tlv = ptr;
 	tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_STRUCT, 0);
 
-	/* Note: This is a nested TLV containing:
-	 * [wmi_tlv][wmi_p2p_noa_descriptor][wmi_tlv]..
+	/* Analte: This is a nested TLV containing:
+	 * [wmi_tlv][wmi_p2p_anala_descriptor][wmi_tlv]..
 	 */
 
 	ptr += sizeof(*tlv);
@@ -1084,7 +1084,7 @@ int ath12k_wmi_vdev_up(struct ath12k *ar, u32 vdev_id, u32 aid, const u8 *bssid)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_up_cmd *)skb->data;
 
@@ -1118,7 +1118,7 @@ int ath12k_wmi_send_peer_create_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_peer_create_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_PEER_CREATE_CMD,
@@ -1151,7 +1151,7 @@ int ath12k_wmi_send_peer_delete_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_peer_delete_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_PEER_DELETE_CMD,
@@ -1183,7 +1183,7 @@ int ath12k_wmi_send_pdev_set_regdomain(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_pdev_set_regdomain_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_PDEV_SET_REGDOMAIN_CMD,
@@ -1222,7 +1222,7 @@ int ath12k_wmi_set_peer_param(struct ath12k *ar, const u8 *peer_addr,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_peer_set_param_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_PEER_SET_PARAM_CMD,
@@ -1257,7 +1257,7 @@ int ath12k_wmi_send_peer_flush_tids_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_peer_flush_tids_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_PEER_FLUSH_TIDS_CMD,
@@ -1293,7 +1293,7 @@ int ath12k_wmi_peer_rx_reorder_queue_setup(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_peer_reorder_queue_setup_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_REORDER_QUEUE_SETUP_CMD,
@@ -1304,7 +1304,7 @@ int ath12k_wmi_peer_rx_reorder_queue_setup(struct ath12k *ar,
 	cmd->tid = cpu_to_le32(tid);
 	cmd->queue_ptr_lo = cpu_to_le32(lower_32_bits(paddr));
 	cmd->queue_ptr_hi = cpu_to_le32(upper_32_bits(paddr));
-	cmd->queue_no = cpu_to_le32(tid);
+	cmd->queue_anal = cpu_to_le32(tid);
 	cmd->ba_window_size_valid = cpu_to_le32(ba_window_size_valid);
 	cmd->ba_window_size = cpu_to_le32(ba_window_size);
 
@@ -1334,7 +1334,7 @@ ath12k_wmi_rx_reord_queue_remove(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_peer_reorder_queue_remove_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_REORDER_QUEUE_REMOVE_CMD,
@@ -1369,7 +1369,7 @@ int ath12k_wmi_pdev_set_param(struct ath12k *ar, u32 param_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_pdev_set_param_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_PDEV_SET_PARAM_CMD,
@@ -1400,7 +1400,7 @@ int ath12k_wmi_pdev_set_ps_mode(struct ath12k *ar, int vdev_id, u32 enable)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_pdev_set_ps_mode_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_STA_POWERSAVE_MODE_CMD,
@@ -1431,7 +1431,7 @@ int ath12k_wmi_pdev_suspend(struct ath12k *ar, u32 suspend_opt,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_pdev_suspend_cmd *)skb->data;
 
@@ -1462,7 +1462,7 @@ int ath12k_wmi_pdev_resume(struct ath12k *ar, u32 pdev_id)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_pdev_resume_cmd *)skb->data;
 
@@ -1482,7 +1482,7 @@ int ath12k_wmi_pdev_resume(struct ath12k *ar, u32 pdev_id)
 	return ret;
 }
 
-/* TODO FW Support for the cmd is not available yet.
+/* TODO FW Support for the cmd is analt available yet.
  * Can be tested once the command and corresponding
  * event is implemented in FW
  */
@@ -1496,7 +1496,7 @@ int ath12k_wmi_pdev_bss_chan_info_request(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_pdev_bss_chan_info_req_cmd *)skb->data;
 
@@ -1528,7 +1528,7 @@ int ath12k_wmi_send_set_ap_ps_param_cmd(struct ath12k *ar, u8 *peer_addr,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_ap_ps_peer_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_AP_PS_PEER_CMD,
@@ -1563,7 +1563,7 @@ int ath12k_wmi_set_sta_ps_param(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_sta_powersave_param_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_STA_POWERSAVE_PARAM_CMD,
@@ -1597,7 +1597,7 @@ int ath12k_wmi_force_fw_hang_cmd(struct ath12k *ar, u32 type, u32 delay_time_ms)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_force_fw_hang_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_FORCE_FW_HANG_CMD,
@@ -1625,7 +1625,7 @@ int ath12k_wmi_vdev_set_param_cmd(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_set_param_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_SET_PARAM_CMD,
@@ -1658,7 +1658,7 @@ int ath12k_wmi_send_pdev_temperature_cmd(struct ath12k *ar)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_get_pdev_temperature_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_PDEV_GET_TEMPERATURE_CMD,
@@ -1687,7 +1687,7 @@ int ath12k_wmi_send_bcn_offload_control_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_bcn_offload_ctrl_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_BCN_OFFLOAD_CTRL_CMD,
@@ -1727,7 +1727,7 @@ int ath12k_wmi_bcn_tmpl(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_bcn_tmpl_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_BCN_TMPL_CMD,
@@ -1780,7 +1780,7 @@ int ath12k_wmi_vdev_install_key(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_install_key_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_INSTALL_KEY_CMD,
@@ -1895,8 +1895,8 @@ static void ath12k_wmi_copy_peer_flags(struct wmi_peer_assoc_complete_cmd *cmd,
 	 * if (arg->amsdu_disable) Add after FW support
 	 **/
 
-	/* Target asserts if node is marked HT and all MCS is set to 0.
-	 * Mark the node as non-HT if all the mcs rates are disabled through
+	/* Target asserts if analde is marked HT and all MCS is set to 0.
+	 * Mark the analde as analn-HT if all the mcs rates are disabled through
 	 * iwpriv
 	 **/
 	if (arg->peer_ht_rates.num_rates == 0)
@@ -1933,7 +1933,7 @@ int ath12k_wmi_send_peer_assoc_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr = skb->data;
 
@@ -2125,7 +2125,7 @@ void ath12k_wmi_start_scan_init(struct ath12k *ar,
 	arg->idle_time = 0;
 	arg->max_scan_time = 20000;
 	arg->probe_delay = 5;
-	arg->notify_scan_events = WMI_SCAN_EVENT_STARTED |
+	arg->analtify_scan_events = WMI_SCAN_EVENT_STARTED |
 				  WMI_SCAN_EVENT_COMPLETED |
 				  WMI_SCAN_EVENT_BSS_CHANNEL |
 				  WMI_SCAN_EVENT_FOREIGN_CHAN |
@@ -2144,27 +2144,27 @@ static void ath12k_wmi_copy_scan_event_cntrl_flags(struct wmi_start_scan_cmd *cm
 {
 	/* Scan events subscription */
 	if (arg->scan_ev_started)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_STARTED);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_STARTED);
 	if (arg->scan_ev_completed)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_COMPLETED);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_COMPLETED);
 	if (arg->scan_ev_bss_chan)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_BSS_CHANNEL);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_BSS_CHANNEL);
 	if (arg->scan_ev_foreign_chan)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_FOREIGN_CHAN);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_FOREIGN_CHAN);
 	if (arg->scan_ev_dequeued)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_DEQUEUED);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_DEQUEUED);
 	if (arg->scan_ev_preempted)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_PREEMPTED);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_PREEMPTED);
 	if (arg->scan_ev_start_failed)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_START_FAILED);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_START_FAILED);
 	if (arg->scan_ev_restarted)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_RESTARTED);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_RESTARTED);
 	if (arg->scan_ev_foreign_chn_exit)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_FOREIGN_CHAN_EXIT);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_FOREIGN_CHAN_EXIT);
 	if (arg->scan_ev_suspended)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_SUSPENDED);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_SUSPENDED);
 	if (arg->scan_ev_resumed)
-		cmd->notify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_RESUMED);
+		cmd->analtify_scan_events |= cpu_to_le32(WMI_SCAN_EVENT_RESUMED);
 
 	/** Set scan control flags */
 	cmd->scan_ctrl_flags = 0;
@@ -2203,7 +2203,7 @@ static void ath12k_wmi_copy_scan_event_cntrl_flags(struct wmi_start_scan_cmd *cm
 	if (arg->scan_f_add_spoofed_mac_in_probe)
 		cmd->scan_ctrl_flags |= cpu_to_le32(WMI_SCAN_ADD_SPOOF_MAC_IN_PROBE_REQ);
 	if (arg->scan_f_add_rand_seq_in_probe)
-		cmd->scan_ctrl_flags |= cpu_to_le32(WMI_SCAN_RANDOM_SEQ_NO_IN_PROBE_REQ);
+		cmd->scan_ctrl_flags |= cpu_to_le32(WMI_SCAN_RANDOM_SEQ_ANAL_IN_PROBE_REQ);
 	if (arg->scan_f_en_ie_whitelist_in_probe)
 		cmd->scan_ctrl_flags |=
 			cpu_to_le32(WMI_SCAN_ENABLE_IE_WHTELIST_IN_PROBE_REQ);
@@ -2263,7 +2263,7 @@ int ath12k_wmi_send_scan_start_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr = skb->data;
 
@@ -2275,7 +2275,7 @@ int ath12k_wmi_send_scan_start_cmd(struct ath12k *ar,
 	cmd->scan_req_id = cpu_to_le32(arg->scan_req_id);
 	cmd->vdev_id = cpu_to_le32(arg->vdev_id);
 	cmd->scan_priority = cpu_to_le32(arg->scan_priority);
-	cmd->notify_scan_events = cpu_to_le32(arg->notify_scan_events);
+	cmd->analtify_scan_events = cpu_to_le32(arg->analtify_scan_events);
 
 	ath12k_wmi_copy_scan_event_cntrl_flags(cmd, arg);
 
@@ -2405,7 +2405,7 @@ int ath12k_wmi_send_scan_stop_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_stop_scan_cmd *)skb->data;
 
@@ -2470,7 +2470,7 @@ int ath12k_wmi_send_scan_chan_list_cmd(struct ath12k *ar,
 
 		skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cmd = (struct wmi_scan_chan_list_cmd *)skb->data;
 		cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_SCAN_CHAN_LIST_CMD,
@@ -2481,7 +2481,7 @@ int ath12k_wmi_send_scan_chan_list_cmd(struct ath12k *ar,
 			cmd->flags |= cpu_to_le32(WMI_APPEND_TO_EXISTING_CHAN_LIST_FLAG);
 
 		ath12k_dbg(ar->ab, ATH12K_DBG_WMI,
-			   "WMI no.of chan = %d len = %d pdev_id = %d num_sends = %d\n",
+			   "WMI anal.of chan = %d len = %d pdev_id = %d num_sends = %d\n",
 			   num_send_chans, len, cmd->pdev_id, num_sends);
 
 		ptr = skb->data + sizeof(*cmd);
@@ -2572,7 +2572,7 @@ int ath12k_wmi_send_wmm_update_cmd(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_set_wmm_params_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_SET_WMM_PARAMS_CMD,
@@ -2607,13 +2607,13 @@ int ath12k_wmi_send_wmm_update_cmd(struct ath12k *ar, u32 vdev_id,
 		wmm_param->cwmax = cpu_to_le32(wmi_wmm_arg->cwmax);
 		wmm_param->txoplimit = cpu_to_le32(wmi_wmm_arg->txop);
 		wmm_param->acm = cpu_to_le32(wmi_wmm_arg->acm);
-		wmm_param->no_ack = cpu_to_le32(wmi_wmm_arg->no_ack);
+		wmm_param->anal_ack = cpu_to_le32(wmi_wmm_arg->anal_ack);
 
 		ath12k_dbg(ar->ab, ATH12K_DBG_WMI,
-			   "wmi wmm set ac %d aifs %d cwmin %d cwmax %d txop %d acm %d no_ack %d\n",
+			   "wmi wmm set ac %d aifs %d cwmin %d cwmax %d txop %d acm %d anal_ack %d\n",
 			   ac, wmm_param->aifs, wmm_param->cwmin,
 			   wmm_param->cwmax, wmm_param->txoplimit,
-			   wmm_param->acm, wmm_param->no_ack);
+			   wmm_param->acm, wmm_param->anal_ack);
 	}
 	ret = ath12k_wmi_cmd_send(wmi, skb,
 				  WMI_VDEV_SET_WMM_PARAMS_CMDID);
@@ -2636,7 +2636,7 @@ int ath12k_wmi_send_dfs_phyerr_offload_enable_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_dfs_phyerr_offload_cmd *)skb->data;
 	cmd->tlv_header =
@@ -2669,7 +2669,7 @@ int ath12k_wmi_delba_send(struct ath12k *ar, u32 vdev_id, const u8 *mac,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_delba_send_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_DELBA_SEND_CMD,
@@ -2705,7 +2705,7 @@ int ath12k_wmi_addba_set_resp(struct ath12k *ar, u32 vdev_id, const u8 *mac,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_addba_setresponse_cmd *)skb->data;
 	cmd->tlv_header =
@@ -2741,7 +2741,7 @@ int ath12k_wmi_addba_send(struct ath12k *ar, u32 vdev_id, const u8 *mac,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_addba_send_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_ADDBA_SEND_CMD,
@@ -2775,7 +2775,7 @@ int ath12k_wmi_addba_clear_resp(struct ath12k *ar, u32 vdev_id, const u8 *mac)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_addba_clear_resp_cmd *)skb->data;
 	cmd->tlv_header =
@@ -2809,7 +2809,7 @@ int ath12k_wmi_send_init_country_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_init_country_cmd *)skb->data;
 	cmd->tlv_header =
@@ -2864,7 +2864,7 @@ ath12k_wmi_send_twt_enable_cmd(struct ath12k *ar, u32 pdev_id)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_twt_enable_params_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_TWT_ENABLE_CMD,
@@ -2882,12 +2882,12 @@ ath12k_wmi_send_twt_enable_cmd(struct ath12k *ar, u32 pdev_id)
 		cpu_to_le32(ATH12K_TWT_DEF_INTERFERENCE_THRESH_TEARDOWN);
 	cmd->interference_thresh_setup =
 		cpu_to_le32(ATH12K_TWT_DEF_INTERFERENCE_THRESH_SETUP);
-	cmd->min_no_sta_setup = cpu_to_le32(ATH12K_TWT_DEF_MIN_NO_STA_SETUP);
-	cmd->min_no_sta_teardown = cpu_to_le32(ATH12K_TWT_DEF_MIN_NO_STA_TEARDOWN);
-	cmd->no_of_bcast_mcast_slots =
-		cpu_to_le32(ATH12K_TWT_DEF_NO_OF_BCAST_MCAST_SLOTS);
-	cmd->min_no_twt_slots = cpu_to_le32(ATH12K_TWT_DEF_MIN_NO_TWT_SLOTS);
-	cmd->max_no_sta_twt = cpu_to_le32(ATH12K_TWT_DEF_MAX_NO_STA_TWT);
+	cmd->min_anal_sta_setup = cpu_to_le32(ATH12K_TWT_DEF_MIN_ANAL_STA_SETUP);
+	cmd->min_anal_sta_teardown = cpu_to_le32(ATH12K_TWT_DEF_MIN_ANAL_STA_TEARDOWN);
+	cmd->anal_of_bcast_mcast_slots =
+		cpu_to_le32(ATH12K_TWT_DEF_ANAL_OF_BCAST_MCAST_SLOTS);
+	cmd->min_anal_twt_slots = cpu_to_le32(ATH12K_TWT_DEF_MIN_ANAL_TWT_SLOTS);
+	cmd->max_anal_sta_twt = cpu_to_le32(ATH12K_TWT_DEF_MAX_ANAL_STA_TWT);
 	cmd->mode_check_interval = cpu_to_le32(ATH12K_TWT_DEF_MODE_CHECK_INTERVAL);
 	cmd->add_sta_slot_interval = cpu_to_le32(ATH12K_TWT_DEF_ADD_STA_SLOT_INTERVAL);
 	cmd->remove_sta_slot_interval =
@@ -2917,7 +2917,7 @@ ath12k_wmi_send_twt_disable_cmd(struct ath12k *ar, u32 pdev_id)
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_twt_disable_params_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_TWT_DISABLE_CMD,
@@ -2947,7 +2947,7 @@ ath12k_wmi_send_obss_spr_cmd(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_obss_spatial_reuse_params_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_OBSS_SPATIAL_REUSE_SET_CMD,
@@ -2981,7 +2981,7 @@ int ath12k_wmi_obss_color_cfg_cmd(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_obss_color_collision_cfg_params_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_OBSS_COLOR_COLLISION_DET_CONFIG,
@@ -3022,7 +3022,7 @@ int ath12k_wmi_send_bss_color_change_enable_cmd(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_bss_color_change_enable_params_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_BSS_COLOR_CHANGE_ENABLE,
@@ -3061,7 +3061,7 @@ int ath12k_wmi_fils_discovery_tmpl(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_fils_discovery_tmpl_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_FILS_DISCOVERY_TMPL_CMD,
@@ -3102,7 +3102,7 @@ int ath12k_wmi_probe_resp_tmpl(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_probe_tmpl_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_PRB_TMPL_CMD,
@@ -3151,7 +3151,7 @@ int ath12k_wmi_fils_discovery(struct ath12k *ar, u32 vdev_id, u32 interval,
 	len = sizeof(*cmd);
 	skb = ath12k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_fils_discovery_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_ENABLE_FILS_CMD,
@@ -3294,7 +3294,7 @@ static int ath12k_init_cmd_send(struct ath12k_wmi_pdev *wmi,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_init_cmd *)skb->data;
 
@@ -3386,7 +3386,7 @@ int ath12k_wmi_pdev_lro_cfg(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct ath12k_wmi_pdev_lro_config_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_LRO_INFO_CMD,
@@ -3450,7 +3450,7 @@ int ath12k_wmi_set_hw_mode(struct ath12k_base *ab,
 
 	skb = ath12k_wmi_alloc_skb(wmi_ab, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct ath12k_wmi_pdev_set_hw_mode_cmd *)skb->data;
 
@@ -3502,7 +3502,7 @@ int ath12k_wmi_vdev_spectral_conf(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct ath12k_wmi_vdev_spectral_conf_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_SPECTRAL_CONFIGURE_CMD,
@@ -3514,7 +3514,7 @@ int ath12k_wmi_vdev_spectral_conf(struct ath12k *ar,
 	cmd->scan_fft_size = cpu_to_le32(arg->scan_fft_size);
 	cmd->scan_gc_ena = cpu_to_le32(arg->scan_gc_ena);
 	cmd->scan_restart_ena = cpu_to_le32(arg->scan_restart_ena);
-	cmd->scan_noise_floor_ref = cpu_to_le32(arg->scan_noise_floor_ref);
+	cmd->scan_analise_floor_ref = cpu_to_le32(arg->scan_analise_floor_ref);
 	cmd->scan_init_delay = cpu_to_le32(arg->scan_init_delay);
 	cmd->scan_nb_tone_thr = cpu_to_le32(arg->scan_nb_tone_thr);
 	cmd->scan_str_bin_thr = cpu_to_le32(arg->scan_str_bin_thr);
@@ -3554,7 +3554,7 @@ int ath12k_wmi_vdev_spectral_enable(struct ath12k *ar, u32 vdev_id,
 
 	skb = ath12k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct ath12k_wmi_vdev_spectral_enable_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_SPECTRAL_ENABLE_CMD,
@@ -3591,7 +3591,7 @@ int ath12k_wmi_pdev_dma_ring_cfg(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct ath12k_wmi_pdev_dma_ring_cfg_req_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_DMA_RING_CFG_REQ,
@@ -3638,7 +3638,7 @@ static int ath12k_wmi_dma_buf_entry_parse(struct ath12k_base *soc,
 		return -EPROTO;
 
 	if (arg->num_buf_entry >= le32_to_cpu(arg->fixed.num_buf_release_entry))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	arg->num_buf_entry++;
 	return 0;
@@ -3654,7 +3654,7 @@ static int ath12k_wmi_dma_buf_meta_parse(struct ath12k_base *soc,
 		return -EPROTO;
 
 	if (arg->num_meta >= le32_to_cpu(arg->fixed.num_meta_data_entry))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	arg->num_meta++;
 
@@ -3754,7 +3754,7 @@ static int ath12k_wmi_hw_mode_caps_parse(struct ath12k_base *soc,
 		return -EPROTO;
 
 	if (svc_rdy_ext->n_hw_mode_caps >= svc_rdy_ext->arg.num_hw_modes)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	hw_mode_cap = container_of(ptr, struct ath12k_wmi_hw_mode_cap_params,
 				   hw_mode_id);
@@ -3819,14 +3819,14 @@ static int ath12k_wmi_mac_phy_caps_parse(struct ath12k_base *soc,
 		return -EPROTO;
 
 	if (svc_rdy_ext->n_mac_phy_caps >= svc_rdy_ext->tot_phy_id)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	len = min_t(u16, len, sizeof(struct ath12k_wmi_mac_phy_caps_params));
 	if (!svc_rdy_ext->n_mac_phy_caps) {
 		svc_rdy_ext->mac_phy_caps = kzalloc((svc_rdy_ext->tot_phy_id) * len,
 						    GFP_ATOMIC);
 		if (!svc_rdy_ext->mac_phy_caps)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	memcpy(svc_rdy_ext->mac_phy_caps + svc_rdy_ext->n_mac_phy_caps, ptr, len);
@@ -3844,7 +3844,7 @@ static int ath12k_wmi_ext_hal_reg_caps_parse(struct ath12k_base *soc,
 		return -EPROTO;
 
 	if (svc_rdy_ext->n_ext_hal_reg_caps >= svc_rdy_ext->arg.num_phy)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	svc_rdy_ext->n_ext_hal_reg_caps++;
 	return 0;
@@ -3962,7 +3962,7 @@ static int ath12k_wmi_alloc_dbring_caps(struct ath12k_base *ab,
 	sz = num_cap * sizeof(struct ath12k_dbring_cap);
 	ptr = kzalloc(sz, GFP_ATOMIC);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ab->db_caps = ptr;
 	ab->num_db_cap = num_cap;
@@ -3999,7 +3999,7 @@ static int ath12k_wmi_dma_ring_caps(struct ath12k_base *ab,
 		return 0;
 
 	if (ab->num_db_cap) {
-		ath12k_warn(ab, "Already processed, so ignoring dma ring caps\n");
+		ath12k_warn(ab, "Already processed, so iganalring dma ring caps\n");
 		return 0;
 	}
 
@@ -4533,7 +4533,7 @@ static int ath12k_pull_reg_chan_list_ext_update_ev(struct ath12k_base *ab,
 	}
 
 	if (!total_reg_rules) {
-		ath12k_warn(ab, "No reg rules available\n");
+		ath12k_warn(ab, "Anal reg rules available\n");
 		kfree(tb);
 		return -EINVAL;
 	}
@@ -4565,17 +4565,17 @@ static int ath12k_pull_reg_chan_list_ext_update_ev(struct ath12k_base *ab,
 	case WMI_REG_SET_CC_STATUS_PASS:
 		reg_info->status_code = REG_SET_CC_STATUS_PASS;
 		break;
-	case WMI_REG_CURRENT_ALPHA2_NOT_FOUND:
-		reg_info->status_code = REG_CURRENT_ALPHA2_NOT_FOUND;
+	case WMI_REG_CURRENT_ALPHA2_ANALT_FOUND:
+		reg_info->status_code = REG_CURRENT_ALPHA2_ANALT_FOUND;
 		break;
-	case WMI_REG_INIT_ALPHA2_NOT_FOUND:
-		reg_info->status_code = REG_INIT_ALPHA2_NOT_FOUND;
+	case WMI_REG_INIT_ALPHA2_ANALT_FOUND:
+		reg_info->status_code = REG_INIT_ALPHA2_ANALT_FOUND;
 		break;
-	case WMI_REG_SET_CC_CHANGE_NOT_ALLOWED:
-		reg_info->status_code = REG_SET_CC_CHANGE_NOT_ALLOWED;
+	case WMI_REG_SET_CC_CHANGE_ANALT_ALLOWED:
+		reg_info->status_code = REG_SET_CC_CHANGE_ANALT_ALLOWED;
 		break;
-	case WMI_REG_SET_CC_STATUS_NO_MEMORY:
-		reg_info->status_code = REG_SET_CC_STATUS_NO_MEMORY;
+	case WMI_REG_SET_CC_STATUS_ANAL_MEMORY:
+		reg_info->status_code = REG_SET_CC_STATUS_ANAL_MEMORY;
 		break;
 	case WMI_REG_SET_CC_STATUS_FAIL:
 		reg_info->status_code = REG_SET_CC_STATUS_FAIL;
@@ -4652,7 +4652,7 @@ static int ath12k_pull_reg_chan_list_ext_update_ev(struct ath12k_base *ab,
 		if (!reg_info->reg_rules_2g_ptr) {
 			kfree(tb);
 			ath12k_warn(ab, "Unable to Allocate memory for 2g rules\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -4665,7 +4665,7 @@ static int ath12k_pull_reg_chan_list_ext_update_ev(struct ath12k_base *ab,
 		if (!reg_info->reg_rules_5g_ptr) {
 			kfree(tb);
 			ath12k_warn(ab, "Unable to Allocate memory for 5g rules\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -4679,7 +4679,7 @@ static int ath12k_pull_reg_chan_list_ext_update_ev(struct ath12k_base *ab,
 		if (!reg_info->reg_rules_6g_ap_ptr[i]) {
 			kfree(tb);
 			ath12k_warn(ab, "Unable to Allocate memory for 6g ap rules\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ext_wmi_reg_rule += num_6g_reg_rules_ap[i];
@@ -4694,7 +4694,7 @@ static int ath12k_pull_reg_chan_list_ext_update_ev(struct ath12k_base *ab,
 			if (!reg_info->reg_rules_6g_client_ptr[j][i]) {
 				kfree(tb);
 				ath12k_warn(ab, "Unable to Allocate memory for 6g client rules\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			ext_wmi_reg_rule += num_6g_reg_rules_cl[j][i];
@@ -4935,7 +4935,7 @@ static int wmi_process_mgmt_tx_comp(struct ath12k *ar, u32 desc_id,
 		ath12k_warn(ar->ab, "received mgmt tx compl for invalid msdu_id: %d\n",
 			    desc_id);
 		spin_unlock_bh(&ar->txmgmt_idr_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	idr_remove(&ar->txmgmt_idr, desc_id);
@@ -4945,7 +4945,7 @@ static int wmi_process_mgmt_tx_comp(struct ath12k *ar, u32 desc_id,
 	dma_unmap_single(ar->ab->dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 
 	info = IEEE80211_SKB_CB(msdu);
-	if ((!(info->flags & IEEE80211_TX_CTL_NO_ACK)) && !status)
+	if ((!(info->flags & IEEE80211_TX_CTL_ANAL_ACK)) && !status)
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
 	ieee80211_tx_status_irqsafe(ar->hw, msdu);
@@ -5042,7 +5042,7 @@ static void ath12k_wmi_event_scan_completed(struct ath12k *ar)
 		 * e.g. when transport pipe is full. This has been observed
 		 * with spectral scan phyerr events starving wmi transport
 		 * pipe. In such case the "scan completed" event should be (and
-		 * is) ignored by the host as it may be just firmware's scan
+		 * is) iganalred by the host as it may be just firmware's scan
 		 * state machine recovering.
 		 */
 		ath12k_warn(ar->ab, "received scan completed event in an invalid scan state: %s (%d)\n",
@@ -5114,7 +5114,7 @@ ath12k_wmi_event_scan_type_str(enum wmi_scan_event_type type,
 		case WMI_SCAN_REASON_MAX:
 			break;
 		}
-		return "completed [unknown]";
+		return "completed [unkanalwn]";
 	case WMI_SCAN_EVENT_BSS_CHANNEL:
 		return "bss channel";
 	case WMI_SCAN_EVENT_FOREIGN_CHAN:
@@ -5130,7 +5130,7 @@ ath12k_wmi_event_scan_type_str(enum wmi_scan_event_type type,
 	case WMI_SCAN_EVENT_FOREIGN_CHAN_EXIT:
 		return "foreign channel exit";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -5269,7 +5269,7 @@ static int ath12k_pull_chan_info_ev(struct ath12k_base *ab, u8 *evt_buf,
 	ch_info_ev->err_code = ev->err_code;
 	ch_info_ev->freq = ev->freq;
 	ch_info_ev->cmd_flags = ev->cmd_flags;
-	ch_info_ev->noise_floor = ev->noise_floor;
+	ch_info_ev->analise_floor = ev->analise_floor;
 	ch_info_ev->rx_clear_count = ev->rx_clear_count;
 	ch_info_ev->cycle_count = ev->cycle_count;
 	ch_info_ev->chan_tx_pwr_range = ev->chan_tx_pwr_range;
@@ -5307,7 +5307,7 @@ ath12k_pull_pdev_bss_chan_info_ev(struct ath12k_base *ab, struct sk_buff *skb,
 
 	bss_ch_info_ev->pdev_id = ev->pdev_id;
 	bss_ch_info_ev->freq = ev->freq;
-	bss_ch_info_ev->noise_floor = ev->noise_floor;
+	bss_ch_info_ev->analise_floor = ev->analise_floor;
 	bss_ch_info_ev->rx_clear_count_low = ev->rx_clear_count_low;
 	bss_ch_info_ev->rx_clear_count_high = ev->rx_clear_count_high;
 	bss_ch_info_ev->cycle_count_low = ev->cycle_count_low;
@@ -5441,7 +5441,7 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 
 	reg_info = kzalloc(sizeof(*reg_info), GFP_ATOMIC);
 	if (!reg_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fallback;
 	}
 
@@ -5465,7 +5465,7 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 
 	if (pdev_idx >= ab->num_radios) {
 		/* Process the event for phy0 only if single_pdev_only
-		 * is true. If pdev_idx is valid but not 0, discard the
+		 * is true. If pdev_idx is valid but analt 0, discard the
 		 * event. Otherwise, it goes to fallback.
 		 */
 		if (ab->hw_params->single_pdev_only &&
@@ -5513,7 +5513,7 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 		ab->new_regd[pdev_idx] = regd;
 		queue_work(ab->workqueue, &ar->regd_update_work);
 	} else {
-		/* Multiple events for the same *ar is not expected. But we
+		/* Multiple events for the same *ar is analt expected. But we
 		 * can still clear any previously stored default_regd if we
 		 * are receiving this event for the same radio by mistake.
 		 * NULL pointer handling will be taken care by kfree itself.
@@ -5672,14 +5672,14 @@ static const char *ath12k_wmi_vdev_resp_print(u32 vdev_resp_status)
 	switch (vdev_resp_status) {
 	case WMI_VDEV_START_RESPONSE_INVALID_VDEVID:
 		return "invalid vdev id";
-	case WMI_VDEV_START_RESPONSE_NOT_SUPPORTED:
-		return "not supported";
+	case WMI_VDEV_START_RESPONSE_ANALT_SUPPORTED:
+		return "analt supported";
 	case WMI_VDEV_START_RESPONSE_DFS_VIOLATION:
 		return "dfs violation";
 	case WMI_VDEV_START_RESPONSE_INVALID_REGDOMAIN:
 		return "invalid regdomain";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -5823,7 +5823,7 @@ static void ath12k_mgmt_rx_event(struct ath12k_base *ab, struct sk_buff *skb)
 
 	status->freq = ieee80211_channel_to_frequency(rx_ev.channel,
 						      status->band);
-	status->signal = rx_ev.snr + ATH12K_DEFAULT_NOISE_FLOOR;
+	status->signal = rx_ev.snr + ATH12K_DEFAULT_ANALISE_FLOOR;
 	status->rate_idx = ath12k_mac_bitrate_to_idx(sband, rx_ev.rate / 100);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -5938,7 +5938,7 @@ static void ath12k_scan_event(struct ath12k_base *ab, struct sk_buff *skb)
 	rcu_read_lock();
 
 	/* In case the scan was cancelled, ex. during interface teardown,
-	 * the interface will not be found in active interfaces.
+	 * the interface will analt be found in active interfaces.
 	 * Rather, in such scenarios, iterate over the active pdev's to
 	 * search 'ar' if the corresponding 'ar' scan is ABORTING and the
 	 * aborting scan's vdev id matches this event info.
@@ -5955,7 +5955,7 @@ static void ath12k_scan_event(struct ath12k_base *ab, struct sk_buff *skb)
 	}
 
 	if (!ar) {
-		ath12k_warn(ab, "Received scan event for unknown vdev");
+		ath12k_warn(ab, "Received scan event for unkanalwn vdev");
 		rcu_read_unlock();
 		return;
 	}
@@ -6025,7 +6025,7 @@ static void ath12k_peer_sta_kickout_event(struct ath12k_base *ab, struct sk_buff
 	peer = ath12k_peer_find_by_addr(ab, arg.mac_addr);
 
 	if (!peer) {
-		ath12k_warn(ab, "peer not found %pM\n",
+		ath12k_warn(ab, "peer analt found %pM\n",
 			    arg.mac_addr);
 		goto exit;
 	}
@@ -6079,7 +6079,7 @@ static void ath12k_roam_event(struct ath12k_base *ab, struct sk_buff *skb)
 	}
 
 	if (le32_to_cpu(roam_ev.reason) >= WMI_ROAM_REASON_MAX)
-		ath12k_warn(ab, "ignoring unknown roam event reason %d on vdev %i\n",
+		ath12k_warn(ab, "iganalring unkanalwn roam event reason %d on vdev %i\n",
 			    roam_ev.reason, roam_ev.vdev_id);
 
 	switch (le32_to_cpu(roam_ev.reason)) {
@@ -6093,7 +6093,7 @@ static void ath12k_roam_event(struct ath12k_base *ab, struct sk_buff *skb)
 	case WMI_ROAM_REASON_LOW_RSSI:
 	case WMI_ROAM_REASON_SUITABLE_AP_FOUND:
 	case WMI_ROAM_REASON_HO_FAILED:
-		ath12k_warn(ab, "ignoring not implemented roam event reason %d on vdev %i\n",
+		ath12k_warn(ab, "iganalring analt implemented roam event reason %d on vdev %i\n",
 			    roam_ev.reason, roam_ev.vdev_id);
 		break;
 	}
@@ -6116,9 +6116,9 @@ static void ath12k_chan_info_event(struct ath12k_base *ab, struct sk_buff *skb)
 	}
 
 	ath12k_dbg(ab, ATH12K_DBG_WMI,
-		   "chan info vdev_id %d err_code %d freq %d cmd_flags %d noise_floor %d rx_clear_count %d cycle_count %d mac_clk_mhz %d\n",
+		   "chan info vdev_id %d err_code %d freq %d cmd_flags %d analise_floor %d rx_clear_count %d cycle_count %d mac_clk_mhz %d\n",
 		   ch_info_ev.vdev_id, ch_info_ev.err_code, ch_info_ev.freq,
-		   ch_info_ev.cmd_flags, ch_info_ev.noise_floor,
+		   ch_info_ev.cmd_flags, ch_info_ev.analise_floor,
 		   ch_info_ev.rx_clear_count, ch_info_ev.cycle_count,
 		   ch_info_ev.mac_clk_mhz);
 
@@ -6140,7 +6140,7 @@ static void ath12k_chan_info_event(struct ath12k_base *ab, struct sk_buff *skb)
 	switch (ar->scan.state) {
 	case ATH12K_SCAN_IDLE:
 	case ATH12K_SCAN_STARTING:
-		ath12k_warn(ab, "received chan info event without a scan request, ignoring\n");
+		ath12k_warn(ab, "received chan info event without a scan request, iganalring\n");
 		goto exit;
 	case ATH12K_SCAN_RUNNING:
 	case ATH12K_SCAN_ABORTING:
@@ -6163,8 +6163,8 @@ static void ath12k_chan_info_event(struct ath12k_base *ab, struct sk_buff *skb)
 	if (ch_info_ev.cmd_flags == WMI_CHAN_INFO_START_RESP) {
 		survey = &ar->survey[idx];
 		memset(survey, 0, sizeof(*survey));
-		survey->noise = le32_to_cpu(ch_info_ev.noise_floor);
-		survey->filled = SURVEY_INFO_NOISE_DBM | SURVEY_INFO_TIME |
+		survey->analise = le32_to_cpu(ch_info_ev.analise_floor);
+		survey->filled = SURVEY_INFO_ANALISE_DBM | SURVEY_INFO_TIME |
 				 SURVEY_INFO_TIME_BUSY;
 		survey->time = div_u64(le32_to_cpu(ch_info_ev.cycle_count), cc_freq_hz);
 		survey->time_busy = div_u64(le32_to_cpu(ch_info_ev.rx_clear_count),
@@ -6206,9 +6206,9 @@ ath12k_pdev_bss_chan_info_event(struct ath12k_base *ab, struct sk_buff *skb)
 		le32_to_cpu(bss_ch_info_ev.rx_bss_cycle_count_low);
 
 	ath12k_dbg(ab, ATH12K_DBG_WMI,
-		   "pdev bss chan info:\n pdev_id: %d freq: %d noise: %d cycle: busy %llu total %llu tx %llu rx %llu rx_bss %llu\n",
+		   "pdev bss chan info:\n pdev_id: %d freq: %d analise: %d cycle: busy %llu total %llu tx %llu rx %llu rx_bss %llu\n",
 		   bss_ch_info_ev.pdev_id, bss_ch_info_ev.freq,
-		   bss_ch_info_ev.noise_floor, busy, total,
+		   bss_ch_info_ev.analise_floor, busy, total,
 		   tx, rx, rx_bss);
 
 	rcu_read_lock();
@@ -6231,12 +6231,12 @@ ath12k_pdev_bss_chan_info_event(struct ath12k_base *ab, struct sk_buff *skb)
 
 	survey = &ar->survey[idx];
 
-	survey->noise     = le32_to_cpu(bss_ch_info_ev.noise_floor);
+	survey->analise     = le32_to_cpu(bss_ch_info_ev.analise_floor);
 	survey->time      = div_u64(total, cc_freq_hz);
 	survey->time_busy = div_u64(busy, cc_freq_hz);
 	survey->time_rx   = div_u64(rx_bss, cc_freq_hz);
 	survey->time_tx   = div_u64(tx, cc_freq_hz);
-	survey->filled   |= (SURVEY_INFO_NOISE_DBM |
+	survey->filled   |= (SURVEY_INFO_ANALISE_DBM |
 			     SURVEY_INFO_TIME |
 			     SURVEY_INFO_TIME_BUSY |
 			     SURVEY_INFO_TIME_RX |
@@ -6386,7 +6386,7 @@ static void ath12k_update_stats_event(struct ath12k_base *ab, struct sk_buff *sk
 }
 
 /* PDEV_CTL_FAILSAFE_CHECK_EVENT is received from FW when the frequency scanned
- * is not part of BDF CTL(Conformance test limits) table entries.
+ * is analt part of BDF CTL(Conformance test limits) table entries.
  */
 static void ath12k_pdev_ctl_failsafe_check_event(struct ath12k_base *ab,
 						 struct sk_buff *skb)
@@ -6440,7 +6440,7 @@ ath12k_wmi_process_csa_switch_count_event(struct ath12k_base *ab,
 		arvif = ath12k_mac_get_arvif_by_vdev_id(ab, vdev_ids[i]);
 
 		if (!arvif) {
-			ath12k_warn(ab, "Recvd csa status for unknown vdev %d",
+			ath12k_warn(ab, "Recvd csa status for unkanalwn vdev %d",
 				    vdev_ids[i]);
 			continue;
 		}
@@ -6529,7 +6529,7 @@ ath12k_wmi_pdev_dfs_radar_detected_event(struct ath12k_base *ab, struct sk_buff 
 		   ev->pdev_id);
 
 	if (ar->dfs_block_radar_events)
-		ath12k_info(ab, "DFS Radar detected, but ignored as requested\n");
+		ath12k_info(ab, "DFS Radar detected, but iganalred as requested\n");
 	else
 		ieee80211_radar_detected(ar->hw);
 
@@ -6704,7 +6704,7 @@ static void ath12k_wmi_op_rx(struct ath12k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_MGMT_RX_EVENTID:
 		ath12k_mgmt_rx_event(ab, skb);
-		/* mgmt_rx_event() owns the skb now! */
+		/* mgmt_rx_event() owns the skb analw! */
 		return;
 	case WMI_MGMT_TX_COMPLETION_EVENTID:
 		ath12k_mgmt_tx_compl_event(ab, skb);
@@ -6764,7 +6764,7 @@ static void ath12k_wmi_op_rx(struct ath12k_base *ab, struct sk_buff *skb)
 	case WMI_TWT_DISABLE_EVENTID:
 	case WMI_PDEV_DMA_RING_CFG_RSP_EVENTID:
 		ath12k_dbg(ab, ATH12K_DBG_WMI,
-			   "ignoring unsupported event 0x%x\n", id);
+			   "iganalring unsupported event 0x%x\n", id);
 		break;
 	case WMI_PDEV_DFS_RADAR_DETECTION_EVENTID:
 		ath12k_wmi_pdev_dfs_radar_detected_event(ab, skb);
@@ -6774,7 +6774,7 @@ static void ath12k_wmi_op_rx(struct ath12k_base *ab, struct sk_buff *skb)
 		break;
 	/* TODO: Add remaining events */
 	default:
-		ath12k_dbg(ab, ATH12K_DBG_WMI, "Unknown eventid: 0x%x\n", id);
+		ath12k_dbg(ab, ATH12K_DBG_WMI, "Unkanalwn eventid: 0x%x\n", id);
 		break;
 	}
 
@@ -6834,7 +6834,7 @@ ath12k_wmi_send_unit_test_cmd(struct ath12k *ar,
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, buf_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_unit_test_cmd *)skb->data;
 	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_UNIT_TEST_CMD,

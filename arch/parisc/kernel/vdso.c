@@ -104,7 +104,7 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 
 	pagelist = kcalloc(pages + 1, sizeof(struct page *), GFP_KERNEL);
 	if (!pagelist)
-		panic("%s: Cannot allocate page list for VDSO", __func__);
+		panic("%s: Cananalt allocate page list for VDSO", __func__);
 	for (i = 0; i < pages; i++)
 		pagelist[i] = virt_to_page(start + i * PAGE_SIZE);
 	return pagelist;

@@ -14,7 +14,7 @@
 
 
 /* These symbols are exported ONLY FOR the i2c core.
- * No other users will be supported.
+ * Anal other users will be supported.
  */
 DECLARE_RWSEM(__i2c_board_lock);
 EXPORT_SYMBOL_GPL(__i2c_board_lock);
@@ -42,7 +42,7 @@ EXPORT_SYMBOL_GPL(__i2c_first_dynamic_bus_num);
  * The I2C devices will be created later, after the adapter for the relevant
  * bus has been registered.  After that moment, standard driver model tools
  * are used to bind "new style" I2C drivers to the devices.  The bus number
- * for any device declared using this routine is not available for dynamic
+ * for any device declared using this routine is analt available for dynamic
  * allocation.
  *
  * The board info passed can safely be __initdata, but be careful of embedded
@@ -64,7 +64,7 @@ int i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsig
 		devinfo = kzalloc(sizeof(*devinfo), GFP_KERNEL);
 		if (!devinfo) {
 			pr_debug("i2c-core: can't register boardinfo!\n");
-			status = -ENOMEM;
+			status = -EANALMEM;
 			break;
 		}
 
@@ -78,7 +78,7 @@ int i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsig
 						sizeof(*info->resources),
 					GFP_KERNEL);
 			if (!devinfo->board_info.resources) {
-				status = -ENOMEM;
+				status = -EANALMEM;
 				kfree(devinfo);
 				break;
 			}

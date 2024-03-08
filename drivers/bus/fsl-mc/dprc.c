@@ -14,7 +14,7 @@
  * towards the mc firmware
  */
 static u16 dprc_major_ver;
-static u16 dprc_minor_ver;
+static u16 dprc_mianalr_ver;
 
 /**
  * dprc_open() - Open DPRC object for use
@@ -60,7 +60,7 @@ EXPORT_SYMBOL_GPL(dprc_open);
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPRC object
  *
- * After this function is called, no further operations are
+ * After this function is called, anal further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -87,14 +87,14 @@ EXPORT_SYMBOL_GPL(dprc_close);
  * @token:	Token of DPRC object
  * @child_container_id:	ID of the container to reset
  * @options: 32 bit options:
- *   - 0 (no bits set) - all the objects inside the container are
+ *   - 0 (anal bits set) - all the objects inside the container are
  *     reset. The child containers are entered recursively and the
  *     objects reset. All the objects (including the child containers)
  *     are closed.
  *   - bit 0 set - all the objects inside the container are reset.
- *     However the child containers are not entered recursively.
+ *     However the child containers are analt entered recursively.
  *     This option is supported for API versions >= 6.5
- * In case a software context crashes or becomes non-responsive, the parent
+ * In case a software context crashes or becomes analn-responsive, the parent
  * may wish to reset its resources container before the software context is
  * restarted.
  *
@@ -103,8 +103,8 @@ EXPORT_SYMBOL_GPL(dprc_close);
  * needed. All objects handles that were owned by the child container shall be
  * closed.
  *
- * Note that such request may be submitted even if the child software context
- * has not crashed, but the resulting object cleanup operations will not be
+ * Analte that such request may be submitted even if the child software context
+ * has analt crashed, but the resulting object cleanup operations will analt be
  * aware of that.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -121,13 +121,13 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
 	int err;
 
 	/*
-	 * If the DPRC object version was not yet cached, cache it now.
+	 * If the DPRC object version was analt yet cached, cache it analw.
 	 * Otherwise use the already cached value.
 	 */
-	if (!dprc_major_ver && !dprc_minor_ver) {
+	if (!dprc_major_ver && !dprc_mianalr_ver) {
 		err = dprc_get_api_version(mc_io, 0,
 				&dprc_major_ver,
-				&dprc_minor_ver);
+				&dprc_mianalr_ver);
 		if (err)
 			return err;
 	}
@@ -135,9 +135,9 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
 	/*
 	 * MC API 6.5 introduced a new field in the command used to pass
 	 * some flags.
-	 * Bit 0 indicates that the child containers are not recursively reset.
+	 * Bit 0 indicates that the child containers are analt recursively reset.
 	 */
-	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 5))
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_mianalr_ver >= 5))
 		cmdid = DPRC_CMDID_RESET_CONT_V2;
 
 	/* prepare command */
@@ -194,7 +194,7 @@ int dprc_set_irq(struct fsl_mc_io *mc_io,
  *
  * Allows GPP software to control when interrupts are generated.
  * Each interrupt can have up to 32 causes.  The enable/disable control's the
- * overall interrupt state. if the interrupt is disabled no causes will cause
+ * overall interrupt state. if the interrupt is disabled anal causes will cause
  * an interrupt.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -227,7 +227,7 @@ int dprc_set_irq_enable(struct fsl_mc_io *mc_io,
  * @irq_index:	The interrupt index to configure
  * @mask:	event mask to trigger interrupt;
  *			each bit:
- *				0 = ignore event
+ *				0 = iganalre event
  *				1 = consider event for asserting irq
  *
  * Every interrupt can have up to 32 causes and the interrupt model supports
@@ -262,7 +262,7 @@ int dprc_set_irq_mask(struct fsl_mc_io *mc_io,
  * @token:	Token of DPRC object
  * @irq_index:	The interrupt index to configure
  * @status:	Returned interrupts status - one bit per cause:
- *			0 = no interrupt pending
+ *			0 = anal interrupt pending
  *			1 = interrupt pending
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -411,7 +411,7 @@ EXPORT_SYMBOL_GPL(dprc_get_obj_count);
  * @obj_desc:	Returns the requested object descriptor
  *
  * The object descriptors are retrieved one by one by incrementing
- * obj_index up to (not including) the value of obj_count returned
+ * obj_index up to (analt including) the value of obj_count returned
  * from dprc_get_obj_count(). dprc_get_obj_count() must
  * be called prior to dprc_get_obj().
  *
@@ -448,7 +448,7 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 	obj_desc->region_count = rsp_params->region_count;
 	obj_desc->state = le32_to_cpu(rsp_params->state);
 	obj_desc->ver_major = le16_to_cpu(rsp_params->version_major);
-	obj_desc->ver_minor = le16_to_cpu(rsp_params->version_minor);
+	obj_desc->ver_mianalr = le16_to_cpu(rsp_params->version_mianalr);
 	obj_desc->flags = le16_to_cpu(rsp_params->flags);
 	strscpy_pad(obj_desc->type, rsp_params->type, 16);
 	strscpy_pad(obj_desc->label, rsp_params->label, 16);
@@ -522,18 +522,18 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	int err;
 
     /*
-     * If the DPRC object version was not yet cached, cache it now.
+     * If the DPRC object version was analt yet cached, cache it analw.
      * Otherwise use the already cached value.
      */
-	if (!dprc_major_ver && !dprc_minor_ver) {
+	if (!dprc_major_ver && !dprc_mianalr_ver) {
 		err = dprc_get_api_version(mc_io, 0,
 				      &dprc_major_ver,
-				      &dprc_minor_ver);
+				      &dprc_mianalr_ver);
 		if (err)
 			return err;
 	}
 
-	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 6)) {
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_mianalr_ver >= 6)) {
 		/*
 		 * MC API version 6.6 changed the size of the MC portals and software
 		 * portals to 64K (as implemented by hardware). If older API is in use the
@@ -544,7 +544,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 		cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V3,
 						  cmd_flags, token);
 
-	} else if (dprc_major_ver == 6 && dprc_minor_ver >= 3) {
+	} else if (dprc_major_ver == 6 && dprc_mianalr_ver >= 3) {
 		/*
 		 * MC API version 6.3 introduced a new field to the region
 		 * descriptor: base_address. If the older API is in use then the base
@@ -574,7 +574,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	region_desc->size = le32_to_cpu(rsp_params->size);
 	region_desc->type = rsp_params->type;
 	region_desc->flags = le32_to_cpu(rsp_params->flags);
-	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 3))
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_mianalr_ver >= 3))
 		region_desc->base_address = le64_to_cpu(rsp_params->base_addr);
 	else
 		region_desc->base_address = 0;
@@ -588,14 +588,14 @@ EXPORT_SYMBOL_GPL(dprc_get_obj_region);
  * @mc_io:	Pointer to Mc portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @major_ver:	Major version of Data Path Resource Container API
- * @minor_ver:	Minor version of Data Path Resource Container API
+ * @mianalr_ver:	Mianalr version of Data Path Resource Container API
  *
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver)
+			 u16 *mianalr_ver)
 {
 	struct fsl_mc_command cmd = { 0 };
 	int err;
@@ -610,7 +610,7 @@ int dprc_get_api_version(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	mc_cmd_read_api_version(&cmd, major_ver, minor_ver);
+	mc_cmd_read_api_version(&cmd, major_ver, mianalr_ver);
 
 	return 0;
 }
@@ -657,9 +657,9 @@ int dprc_get_container_id(struct fsl_mc_io *mc_io,
  * @state:	Returned link state:
  *		1 - link is up;
  *		0 - link is down;
- *		-1 - no connection (endpoint2 information is irrelevant)
+ *		-1 - anal connection (endpoint2 information is irrelevant)
  *
- * Return:     '0' on Success; -ENOTCONN if connection does not exist.
+ * Return:     '0' on Success; -EANALTCONN if connection does analt exist.
  */
 int dprc_get_connection(struct fsl_mc_io *mc_io,
 			u32 cmd_flags,
@@ -686,7 +686,7 @@ int dprc_get_connection(struct fsl_mc_io *mc_io,
 	/* send command to mc */
 	err = mc_send_command(mc_io, &cmd);
 	if (err)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	/* retrieve response parameters */
 	rsp_params = (struct dprc_rsp_get_connection *)cmd.params;

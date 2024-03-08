@@ -42,7 +42,7 @@ static int timer(struct timer *timer_skel)
 	ASSERT_EQ(topts.retval, 0, "test_run");
 	timer__detach(timer_skel);
 
-	usleep(50); /* 10 usecs should be enough, but give it extra */
+	usleep(50); /* 10 usecs should be eanalugh, but give it extra */
 	/* check that timer_cb1() was executed 10+10 times */
 	ASSERT_EQ(timer_skel->data->callback_check, 42, "callback_check2");
 	ASSERT_EQ(timer_skel->data->callback2_check, 42, "callback2_check2");
@@ -56,7 +56,7 @@ static int timer(struct timer *timer_skel)
 	/* check that timer_cb_pinned() was executed twice */
 	ASSERT_EQ(timer_skel->bss->pinned_callback_check, 2, "pinned_callback_check");
 
-	/* check that there were no errors in timer execution */
+	/* check that there were anal errors in timer execution */
 	ASSERT_EQ(timer_skel->bss->err, 0, "err");
 
 	/* check that code paths completed */

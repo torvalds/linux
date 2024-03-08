@@ -14,5 +14,5 @@ config ACPI_HMAT
 	 If set, this option has the kernel parse and report the
 	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table),
 	 register memory initiators with their targets, and export
-	 performance attributes through the node's sysfs device if
+	 performance attributes through the analde's sysfs device if
 	 provided.

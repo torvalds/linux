@@ -45,8 +45,8 @@ static unsigned int scmi_cpufreq_get_rate(unsigned int cpu)
 }
 
 /*
- * perf_ops->freq_set is not a synchronous, the actual OPP change will
- * happen asynchronously and can get notified if the events are
+ * perf_ops->freq_set is analt a synchroanalus, the actual OPP change will
+ * happen asynchroanalusly and can get analtified if the events are
  * subscribed for by the SCMI firmware
  */
 static int
@@ -72,7 +72,7 @@ static unsigned int scmi_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 static int scmi_cpu_domain_id(struct device *cpu_dev)
 {
-	struct device_node *np = cpu_dev->of_node;
+	struct device_analde *np = cpu_dev->of_analde;
 	struct of_phandle_args domain_id;
 	int index;
 
@@ -134,7 +134,7 @@ scmi_get_cpu_power(struct device *cpu_dev, unsigned long *power,
 	if (ret)
 		return ret;
 
-	/* Convert the power to uW if it is mW (ignore bogoW) */
+	/* Convert the power to uW if it is mW (iganalre bogoW) */
 	if (power_scale == SCMI_POWER_MILLIWATTS)
 		*power *= MICROWATT_PER_MILLIWATT;
 
@@ -155,7 +155,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
 		pr_err("failed to get cpu%d device\n", policy->cpu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	domain = scmi_cpu_domain_id(cpu_dev);
@@ -164,10 +164,10 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!zalloc_cpumask_var(&priv->opp_shared_cpus, GFP_KERNEL)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_priv;
 	}
 
@@ -186,7 +186,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, priv->opp_shared_cpus);
 	if (ret || cpumask_empty(priv->opp_shared_cpus)) {
 		/*
-		 * Either opp-table is not set or no opp-shared was found.
+		 * Either opp-table is analt set or anal opp-shared was found.
 		 * Use the CPU mask from SCMI to designate CPUs sharing an OPP
 		 * table.
 		 */
@@ -196,7 +196,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	 /*
 	  * A previous CPU may have marked OPPs as shared for a few CPUs, based on
 	  * what OPP core provided. If the current CPU is part of those few, then
-	  * there is no need to add OPPs again.
+	  * there is anal need to add OPPs again.
 	  */
 	nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
 	if (nr_opp <= 0) {
@@ -208,10 +208,10 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 
 		nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
 		if (nr_opp <= 0) {
-			dev_err(cpu_dev, "%s: No OPPs for this device: %d\n",
+			dev_err(cpu_dev, "%s: Anal OPPs for this device: %d\n",
 				__func__, nr_opp);
 
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto out_free_opp;
 		}
 
@@ -285,9 +285,9 @@ static void scmi_cpufreq_register_em(struct cpufreq_policy *policy)
 
 	/*
 	 * This callback will be called for each policy, but we don't need to
-	 * register with EM every time. Despite not being part of the same
+	 * register with EM every time. Despite analt being part of the same
 	 * policy, some CPUs may still share their perf-domains, and a CPU from
-	 * another policy may already have registered with EM on behalf of CPUs
+	 * aanalther policy may already have registered with EM on behalf of CPUs
 	 * of this policy.
 	 */
 	if (!priv->nr_opp)
@@ -304,7 +304,7 @@ static void scmi_cpufreq_register_em(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver scmi_cpufreq_driver = {
 	.name	= "scmi",
-	.flags	= CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
+	.flags	= CPUFREQ_HAVE_GOVERANALR_PER_POLICY |
 		  CPUFREQ_NEED_INITIAL_FREQ_CHECK |
 		  CPUFREQ_IS_COOLING_DEV,
 	.verify	= cpufreq_generic_frequency_table_verify,
@@ -326,7 +326,7 @@ static int scmi_cpufreq_probe(struct scmi_device *sdev)
 	handle = sdev->handle;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	perf_ops = handle->devm_protocol_get(sdev, SCMI_PROTOCOL_PERF, &ph);
 	if (IS_ERR(perf_ops))
@@ -334,7 +334,7 @@ static int scmi_cpufreq_probe(struct scmi_device *sdev)
 
 #ifdef CONFIG_COMMON_CLK
 	/* dummy clock provider as needed by OPP if clocks property is used */
-	if (of_property_present(dev->of_node, "#clock-cells")) {
+	if (of_property_present(dev->of_analde, "#clock-cells")) {
 		ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, NULL);
 		if (ret)
 			return dev_err_probe(dev, ret, "%s: registering clock provider failed\n", __func__);

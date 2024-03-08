@@ -8,8 +8,8 @@ $(info,hello world 0)
 $(warning-if,y,hello world 1)
 
 # 'error-if' is similar, but it terminates the parsing immediately.
-# The following is just no-op since the first argument is not y.
-$(error-if,n,this should not be printed)
+# The following is just anal-op since the first argument is analt y.
+$(error-if,n,this should analt be printed)
 
 # Shorthand
 warning = $(warning-if,y,$(1))
@@ -22,6 +22,6 @@ $(warning,$(shell,echo hello world 3))
 $(warning,$(shell,printf 'hello\nworld\n\n4\n\n\n'))
 
 # 'filename' is expanded to the currently parsed file name,
-# 'lineno' to the line number.
+# 'lineanal' to the line number.
 $(warning,filename=$(filename))
-$(warning,lineno=$(lineno))
+$(warning,lineanal=$(lineanal))

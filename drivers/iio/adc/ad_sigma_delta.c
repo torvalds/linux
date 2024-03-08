@@ -192,7 +192,7 @@ int ad_sd_reset(struct ad_sigma_delta *sigma_delta,
 	size = DIV_ROUND_UP(reset_length, 8);
 	buf = kcalloc(size, sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(buf, 0xff, size);
 	ret = spi_write(sigma_delta->spi, buf, size);
@@ -226,7 +226,7 @@ int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 	timeout = wait_for_completion_timeout(&sigma_delta->completion, 2 * HZ);
 	if (timeout == 0) {
 		sigma_delta->irq_dis = true;
-		disable_irq_nosync(sigma_delta->spi->irq);
+		disable_irq_analsync(sigma_delta->spi->irq);
 		ret = -EIO;
 	} else {
 		ret = 0;
@@ -315,7 +315,7 @@ int ad_sigma_delta_single_conversion(struct iio_dev *indio_dev,
 
 out:
 	if (!sigma_delta->irq_dis) {
-		disable_irq_nosync(sigma_delta->spi->irq);
+		disable_irq_analsync(sigma_delta->spi->irq);
 		sigma_delta->irq_dis = true;
 	}
 
@@ -383,7 +383,7 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 	samples_buf = devm_krealloc(&sigma_delta->spi->dev, sigma_delta->samples_buf,
 				    samples_buf_size, GFP_KERNEL);
 	if (!samples_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sigma_delta->samples_buf = samples_buf;
 
@@ -414,7 +414,7 @@ static int ad_sd_buffer_postdisable(struct iio_dev *indio_dev)
 	wait_for_completion_timeout(&sigma_delta->completion, HZ);
 
 	if (!sigma_delta->irq_dis) {
-		disable_irq_nosync(sigma_delta->spi->irq);
+		disable_irq_analsync(sigma_delta->spi->irq);
 		sigma_delta->irq_dis = true;
 	}
 
@@ -480,7 +480,7 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 
 	/*
 	 * For devices sampling only one channel at
-	 * once, there is no need for sample number tracking.
+	 * once, there is anal need for sample number tracking.
 	 */
 	if (sigma_delta->active_slots == 1) {
 		iio_push_to_buffers_with_timestamp(indio_dev, data, pf->timestamp);
@@ -514,7 +514,7 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 	}
 
 irq_handled:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	sigma_delta->irq_dis = false;
 	enable_irq(sigma_delta->spi->irq);
 
@@ -539,7 +539,7 @@ static irqreturn_t ad_sd_data_rdy_trig_poll(int irq, void *private)
 	struct ad_sigma_delta *sigma_delta = private;
 
 	complete(&sigma_delta->completion);
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	sigma_delta->irq_dis = true;
 	iio_trigger_poll(sigma_delta->trig);
 
@@ -579,7 +579,7 @@ static int devm_ad_sd_probe_trigger(struct device *dev, struct iio_dev *indio_de
 	sigma_delta->trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
 						   iio_device_id(indio_dev));
 	if (sigma_delta->trig == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&sigma_delta->completion);
 
@@ -590,7 +590,7 @@ static int devm_ad_sd_probe_trigger(struct device *dev, struct iio_dev *indio_de
 
 	ret = devm_request_irq(dev, sigma_delta->spi->irq,
 			       ad_sd_data_rdy_trig_poll,
-			       sigma_delta->info->irq_flags | IRQF_NO_AUTOEN,
+			       sigma_delta->info->irq_flags | IRQF_ANAL_AUTOEN,
 			       indio_dev->name,
 			       sigma_delta);
 	if (ret)
@@ -621,7 +621,7 @@ int devm_ad_sd_setup_buffer_and_trigger(struct device *dev, struct iio_dev *indi
 	sigma_delta->slots = devm_kcalloc(dev, sigma_delta->num_slots,
 					  sizeof(*sigma_delta->slots), GFP_KERNEL);
 	if (!sigma_delta->slots)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 					      &iio_pollfunc_store_time,

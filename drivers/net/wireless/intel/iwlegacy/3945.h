@@ -33,18 +33,18 @@ extern const struct il_ops il3945_ops;
 #define _IL3945_MODULE_FIRMWARE(api) IL3945_FW_PRE #api ".ucode"
 #define IL3945_MODULE_FIRMWARE(api) _IL3945_MODULE_FIRMWARE(api)
 
-/* Default noise level to report when noise measurement is not available.
+/* Default analise level to report when analise measurement is analt available.
  *   This may be because we're:
- *   1)  Not associated (4965, no beacon stats being sent to driver)
- *   2)  Scanning (noise measurement does not apply to associated channel)
- *   3)  Receiving CCK (3945 delivers noise info only for OFDM frames)
- * Use default noise value of -127 ... this is below the range of measurable
+ *   1)  Analt associated (4965, anal beacon stats being sent to driver)
+ *   2)  Scanning (analise measurement does analt apply to associated channel)
+ *   3)  Receiving CCK (3945 delivers analise info only for OFDM frames)
+ * Use default analise value of -127 ... this is below the range of measurable
  *   Rx dBm for either 3945 or 4965, so it can indicate "unmeasurable" to user.
  *   Also, -127 works better than 0 when averaging frames with/without
- *   noise info (e.g. averaging might be done in app); measured dBm values are
+ *   analise info (e.g. averaging might be done in app); measured dBm values are
  *   always negative ... using a negative value as the default keeps all
  *   averages within an s8's (used in some apps) range of negative values. */
-#define IL_NOISE_MEAS_NOT_AVAILABLE (-127)
+#define IL_ANALISE_MEAS_ANALT_AVAILABLE (-127)
 
 /* Module parameters accessible from iwl-*.c */
 extern struct il_mod_params il3945_mod_params;
@@ -96,7 +96,7 @@ enum il3945_antenna {
  * RTS threshold here is total size [2347] minus 4 FCS bytes
  * Per spec:
  *   a value of 0 means RTS on all data/management packets
- *   a value > max MSDU size means no RTS
+ *   a value > max MSDU size means anal RTS
  * else RTS for data/management frames where MPDU is larger
  *   than RTS value.
  */
@@ -115,7 +115,7 @@ enum il3945_antenna {
 #define IL_TX_FIFO_AC3	3
 #define IL_TX_FIFO_HCCA_1	5
 #define IL_TX_FIFO_HCCA_2	6
-#define IL_TX_FIFO_NONE	7
+#define IL_TX_FIFO_ANALNE	7
 
 #define IEEE80211_DATA_LEN              2304
 #define IEEE80211_4ADDR_LEN             30
@@ -185,7 +185,7 @@ void il3945_dump_nic_error_log(struct il_priv *il);
  * Functions implemented in iwl-[34]*.c which are forward declared here
  * for use by iwl3945-base.c
  *
- * NOTE:  The implementation of these functions are hardware specific
+ * ANALTE:  The implementation of these functions are hardware specific
  * which is why they are in the hardware specific files (vs. iwl-base.c)
  *
  * Naming convention --
@@ -231,8 +231,8 @@ int il3945_commit_rxon(struct il_priv *il);
  * il3945_hw_find_station - Find station id for a given BSSID
  * @bssid: MAC address of station ID to find
  *
- * NOTE:  This should not be hardware specific but the code has
- * not yet been merged into a single common layer for managing the
+ * ANALTE:  This should analt be hardware specific but the code has
+ * analt yet been merged into a single common layer for managing the
  * station tables.
  */
 u8 il3945_hw_find_station(struct il_priv *il, const u8 *bssid);
@@ -265,10 +265,10 @@ extern const struct il3945_rate_info il3945_rates[RATE_COUNT_3945];
  * One for each of 5 "sample" power levels in each band.
  * v_det is measured at the factory, using the 3945's built-in power amplifier
  *   (PA) output voltage detector.  This same detector is used during Tx of
- *   long packets in normal operation to provide feedback as to proper output
+ *   long packets in analrmal operation to provide feedback as to proper output
  *   level.
  * Data copied from EEPROM.
- * DO NOT ALTER THIS STRUCTURE!!!
+ * DO ANALT ALTER THIS STRUCTURE!!!
  */
 struct il3945_eeprom_txpower_sample {
 	u8 gain_idx;		/* idx into power (gain) setup table ... */
@@ -277,12 +277,12 @@ struct il3945_eeprom_txpower_sample {
 } __packed;
 
 /*
- * Mappings of Tx power levels -> nominal radio/DSP gain table idxes.
+ * Mappings of Tx power levels -> analminal radio/DSP gain table idxes.
  * One for each channel group (a.k.a. "band") (1 for BG, 4 for A).
  * Tx power setup code interpolates between the 5 "sample" power levels
- *    to determine the nominal setup for a requested power level.
+ *    to determine the analminal setup for a requested power level.
  * Data copied from EEPROM.
- * DO NOT ALTER THIS STRUCTURE!!!
+ * DO ANALT ALTER THIS STRUCTURE!!!
  */
 struct il3945_eeprom_txpower_group {
 	struct il3945_eeprom_txpower_sample samples[5];	/* 5 power levels */
@@ -298,7 +298,7 @@ struct il3945_eeprom_txpower_group {
 } __packed;
 
 /*
- * Temperature-based Tx-power compensation data, not band-specific.
+ * Temperature-based Tx-power compensation data, analt band-specific.
  * These coefficients are use to modify a/b/c/d/e coeffs based on
  *   difference between current temperature and factory calib temperature.
  * Data copied from EEPROM.
@@ -356,7 +356,7 @@ struct il3945_eeprom {
 /*
  * 4.9 GHz channels 183, 184, 185, 187, 188, 189, 192, 196,
  * 5.0 GHz channels 7, 8, 11, 12, 16
- * (4915-5080MHz) (none of these is ever supported)
+ * (4915-5080MHz) (analne of these is ever supported)
  */
 	u16 band_2_count;	/* abs.ofs: 226 */
 	struct il_eeprom_channel band_2_channels[13];	/* abs.ofs: 228 */
@@ -401,7 +401,7 @@ struct il3945_eeprom {
 #define PCI_CFG_REV_ID_BIT_BASIC_SKU                (0x40)	/* bit 6    */
 #define PCI_CFG_REV_ID_BIT_RTP                      (0x80)	/* bit 7    */
 
-/* 4 DATA + 1 CMD. There are 2 HCCA queues that are not used. */
+/* 4 DATA + 1 CMD. There are 2 HCCA queues that are analt used. */
 #define IL39_NUM_QUEUES        5
 #define IL39_CMD_QUEUE_NUM	4
 
@@ -528,7 +528,7 @@ struct il3945_shared {
 
 #define FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD		(0x00200000)
 
-#define FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_NOINT		(0x00000000)
+#define FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_ANALINT		(0x00000000)
 
 #define FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE		(0x00000000)
 #define FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE		(0x80000000)
@@ -537,23 +537,23 @@ struct il3945_shared {
 
 #define FH39_TCSR_CHNL_TX_BUF_STS_REG_BIT_TFDB_WPTR		(0x00000001)
 
-#define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TXPD_ON	(0xFF000000)
+#define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SANALOP_RD_TXPD_ON	(0xFF000000)
 #define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RD_TXPD_ON	(0x00FF0000)
 
 #define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_MAX_FRAG_SIZE_128B	(0x00000400)
 
-#define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TFD_ON		(0x00000100)
+#define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SANALOP_RD_TFD_ON		(0x00000100)
 #define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RD_CBB_ON		(0x00000080)
 
 #define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RSP_WAIT_TH	(0x00000020)
 #define FH39_TSSR_TX_MSG_CONFIG_REG_VAL_RSP_WAIT_TH		(0x00000005)
 
 #define FH39_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_ch)	(BIT(_ch) << 24)
-#define FH39_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_ch)	(BIT(_ch) << 16)
+#define FH39_TSSR_TX_STATUS_REG_BIT_ANAL_PEND_REQ(_ch)	(BIT(_ch) << 16)
 
 #define FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_ch) \
 	(FH39_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_ch) | \
-	 FH39_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_ch))
+	 FH39_TSSR_TX_STATUS_REG_BIT_ANAL_PEND_REQ(_ch))
 
 #define FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE			(0x01000000)
 

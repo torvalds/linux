@@ -41,12 +41,12 @@ static void setgamma(struct gspca_dev *gspca_dev, s32 val);
 static void setsharpness(struct gspca_dev *gspca_dev, s32 val);
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -129,7 +129,7 @@ static void setsharpness(struct gspca_dev *gspca_dev, s32 val)
 
 static void setilluminators(struct gspca_dev *gspca_dev, bool top, bool bottom)
 {
-	/* both are off if not streaming */
+	/* both are off if analt streaming */
 	gspca_dev->usb_buf[0] = 0x22;
 	if (top)
 		gspca_dev->usb_buf[1] = 0x76;
@@ -209,7 +209,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_ILLUMINATORS_2, 0, 1, 1, 0);
 	sd->illum_bottom->flags |= V4L2_CTRL_FLAG_UPDATE;
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(2, &sd->illum_top);
@@ -268,7 +268,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /*	if (h_size == 320 ) */
 /*		data[9]= 0x56;	 * reg 8, 24MHz, 2:1 scale down */
 /*	else */
-	data[9] = 0x52;		/* reg 8, 24MHz, no scale down */
+	data[9] = 0x52;		/* reg 8, 24MHz, anal scale down */
 /*jfm: from win trace*/
 	data[10] = 0x18;
 

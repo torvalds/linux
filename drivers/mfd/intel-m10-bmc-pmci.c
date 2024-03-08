@@ -332,8 +332,8 @@ static const struct regmap_range m10bmc_pmci_regmap_range[] = {
 };
 
 static const struct regmap_access_table m10bmc_pmci_access_table = {
-	.yes_ranges	= m10bmc_pmci_regmap_range,
-	.n_yes_ranges	= ARRAY_SIZE(m10bmc_pmci_regmap_range),
+	.anal_ranges	= m10bmc_pmci_regmap_range,
+	.n_anal_ranges	= ARRAY_SIZE(m10bmc_pmci_regmap_range),
 };
 
 static struct regmap_config m10bmc_pmci_regmap_config = {
@@ -387,7 +387,7 @@ static int m10bmc_pmci_probe(struct dfl_device *ddev)
 
 	pmci = devm_kzalloc(dev, sizeof(*pmci), GFP_KERNEL);
 	if (!pmci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmci->m10bmc.flash_bulk_ops = &m10bmc_pmci_flash_bulk_ops;
 	pmci->m10bmc.dev = dev;
@@ -398,7 +398,7 @@ static int m10bmc_pmci_probe(struct dfl_device *ddev)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&pmci->flash_mutex);
 

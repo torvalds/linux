@@ -29,7 +29,7 @@
  * @level: TLS Alert level
  * @description: TLS Alert description
  *
- * Returns zero on success or a negative errno.
+ * Returns zero on success or a negative erranal.
  */
 int tls_alert_send(struct socket *sock, u8 level, u8 description)
 {

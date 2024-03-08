@@ -14,8 +14,8 @@ description: |
   functionality. Each pair serves 32 GPIOs. The VF610 has 5 instances of
   each, and each PORT module has its own interrupt.
 
-  Note: Each GPIO port should have an alias correctly numbered in "aliases"
-  node.
+  Analte: Each GPIO port should have an alias correctly numbered in "aliases"
+  analde.
 
 properties:
   compatible:
@@ -37,7 +37,7 @@ properties:
 
   interrupts:
     items:
-      - description: GPIO Trustzone non-secure interrupt number
+      - description: GPIO Trustzone analn-secure interrupt number
       - description: GPIO Trustzone secure interrupt number
     minItems: 1
 

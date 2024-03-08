@@ -1,7 +1,7 @@
 Versatile Express voltage regulators
 ------------------------------------
 
-Requires node properties:
+Requires analde properties:
 - "compatible" value: "arm,vexpress-volt"
 - "arm,vexpress-sysreg,func" when controlled via vexpress-sysreg
   (see Documentation/devicetree/bindings/arm/vexpress-config.yaml
@@ -18,7 +18,7 @@ Optional regulator properties:
 See Documentation/devicetree/bindings/regulator/regulator.txt
 for more details about the regulator properties.
 
-When no "regulator-[min|max]-microvolt" properties are defined,
+When anal "regulator-[min|max]-microvolt" properties are defined,
 the device is treated as fixed (or rather "read-only") regulator.
 
 Example:

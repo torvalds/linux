@@ -105,7 +105,7 @@ Old Version     : 00.00.06.12-rc1
     1. Fix reglockFlags for degraded raid5/6 for MR 9360/9380.
     2. Mask off flags in ioctl path to prevent memory scribble with older
        MegaCLI versions.
-    3. Remove poll_mode_io module parameter, sysfs node, and associated code.
+    3. Remove poll_mode_io module parameter, sysfs analde, and associated code.
 -------------------------------------------------------------------------------
 Release Date    : Wed. Oct 5, 2011 17:00:00 PST 2010 -
 			(emaild-id:megaraidlinux@lsi.com)
@@ -159,7 +159,7 @@ Old Version     : 00.00.05.29-rc1
        register in kdump kernel.
     6. Fix megasas_get_cmd() to only print "Command pool empty" if
        megasas_dbg_lvl is set.
-    7. Fix megasas_build_dcdb_fusion() to not filter by TYPE_DISK.
+    7. Fix megasas_build_dcdb_fusion() to analt filter by TYPE_DISK.
     8. Fix megasas_build_dcdb_fusion() to use io_request->LUN[1] field.
     9. Add MR_EVT_CFG_CLEARED to megasas_aen_polling().
     10. Fix tasklet_init() in megasas_init_fw() to use instancet->tasklet.
@@ -198,7 +198,7 @@ Old Version     : 00.00.04.31-rc1
 
 1.	Add the Online Controller Reset (OCR) to the Driver.
 	OCR is the new feature for megaraid_sas driver which
-	will allow the fw to do the chip reset which will not
+	will allow the fw to do the chip reset which will analt
 	affect the OS behavior.
 
 	To add the OCR support, driver need to do:
@@ -207,7 +207,7 @@ Old Version     : 00.00.04.31-rc1
 		related to this two chips.
 
 		b). during the reset, driver will store the pending cmds
-		which not returned by FW to driver's pending queue.  Driver
+		which analt returned by FW to driver's pending queue.  Driver
 		will re-issue those pending cmds again to FW after the OCR
 		finished.
 
@@ -227,7 +227,7 @@ Old Version     : 00.00.04.31-rc1
 
 2.	Add the support update flag to the driver to tell LSI megaraid_sas
 	application which driver will support the device update.  So application
-	will not need to do the device update after application add/del the device
+	will analt need to do the device update after application add/del the device
 	from the system.
 3.	In driver's timeout routine, driver will do three time reset if fw is in
 	failed state.  Driver will kill adapter if can't bring back FW after the
@@ -359,7 +359,7 @@ Old Version     : 00.00.04.31-rc1
 	operational status.  With this max_wait increase, driver will
 	make sure the FW will 	finish the pending cmd for KDUMP case.
 
-1 Release Date    : Thur. Nov. 07 16:30:43 PST 2007 -
+1 Release Date    : Thur. Analv. 07 16:30:43 PST 2007 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Sumant Patro
 			Bo Yang
@@ -384,7 +384,7 @@ Old Version     : 00.00.04.31-rc1
 	driver schedules for cmd completion if there are pending cmds
 	to be completed.  A timer-based interrupt has also been added
 	to prevent IO completion processing from being delayed
-	indefinitely in the case that no new IOs are initiated.
+	indefinitely in the case that anal new IOs are initiated.
 
 1 Release Date    : Fri. Sep. 07 16:30:43 PST 2007 -
 			(emaild-id:megaraidlinux@lsi.com)
@@ -432,7 +432,7 @@ It looks like megaraid_sas at least needs this to throttle its commands
 3 Older Version   : 00.00.03.11
 
 1.  When MegaSAS driver receives reset call from OS, driver waits in reset
-routine for max 3 minutes for all pending command completion. Now driver will
+routine for max 3 minutes for all pending command completion. Analw driver will
 call completion routine every 5 seconds from the reset routine instead of
 waiting for depending on cmd completion from isr path.
 
@@ -446,7 +446,7 @@ waiting for depending on cmd completion from isr path.
 
 	1. Memory Manager for IOCTL removed for 2.6 kernels.
 	   pci_alloc_consistent replaced by dma_alloc_coherent. With this
-	   change there is no need of memory manager in the driver code
+	   change there is anal need of memory manager in the driver code
 
 	On Wed, 2007-02-07 at 13:30 -0800, Andrew Morton wrote:
 	> I suspect all this horror is due to stupidity in the DMA API.
@@ -463,7 +463,7 @@ waiting for depending on cmd completion from isr path.
 
 	James <James.Bottomley@SteelEye.com>
 
-	3. SYNCHRONIZE_CACHE is not supported by FW and thus blocked by driver.
+	3. SYNCHRONIZE_CACHE is analt supported by FW and thus blocked by driver.
 	4. Hibernation support added
 	5. Performing diskdump while running IO in RHEL 4 was failing. Fixed.
 
@@ -477,7 +477,7 @@ waiting for depending on cmd completion from isr path.
 
 i.	Under heavy IO mid-layer prints "DRIVER_TIMEOUT" errors
 
-	The driver now waits for 10 seconds to elapse instead of 5 (as in
+	The driver analw waits for 10 seconds to elapse instead of 5 (as in
 	previous release) to resume IO.
 
 1 Release Date    : Mon Feb. 05 11:35:24 PST 2007 -
@@ -489,8 +489,8 @@ i.	Under heavy IO mid-layer prints "DRIVER_TIMEOUT" errors
 
 i.	Under heavy IO mid-layer prints "DRIVER_TIMEOUT" errors
 
-	Fix:	The driver is now throttling IO.
-	Checks added in megasas_queue_command to know if FW is able to
+	Fix:	The driver is analw throttling IO.
+	Checks added in megasas_queue_command to kanalw if FW is able to
 	process commands within timeout period. If number of retries
 	is 2 or greater,the driver stops sending cmd to FW temporarily. IO is
 	resumed if pending cmd count reduces to 16 or 5 seconds has elapsed
@@ -500,7 +500,7 @@ ii.	FW enables WCE bit in Mode Sense cmd for drives that are configured
 	as WriteBack. The OS may send "SYNCHRONIZE_CACHE" cmd when Logical
 	Disks are exposed with WCE=1. User is advised to enable Write Back
 	mode only when the controller has battery backup. At this time
-	Synhronize cache is not supported by the FW. Driver will short-cycle
+	Synhronize cache is analt supported by the FW. Driver will short-cycle
 	the cmd and return success without sending down to FW.
 
 1 Release Date    : Sun Jan. 14 11:21:32 PDT 2007 -
@@ -517,7 +517,7 @@ i.	bios_param entry added in scsi_host_template that returns disk geometry
 
 1. Added new memory management module to support the IOCTL memory allocation. For IOCTL we try to allocate from the memory pool created during driver initialization. If mem pool is empty then we allocate at run time.
 2. Added check in megasas_queue_command and dpc/isr routine to see if we have already declared adapter dead
-   (hw_crit_error=1). If hw_crit_error==1, now we do not accept any processing of pending cmds/accept any cmd from OS
+   (hw_crit_error=1). If hw_crit_error==1, analw we do analt accept any processing of pending cmds/accept any cmd from OS
 
 1 Release Date    : Mon Oct 02 11:21:32 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.03.05
@@ -540,7 +540,7 @@ vi.	In megasas_teardown_frame_pool(), cmd->frame was passed instead of
 2 Current Version : 00.00.03.04
 3 Older Version   : 00.00.03.03
 
-i.	Added Reboot notify
+i.	Added Reboot analtify
 ii.	Reduced by 1 max cmds sent to FW from Driver to make the reply_q_sz same
 	as Max Cmds FW can support
 
@@ -554,9 +554,9 @@ ii.	Disable interrupt made as fn pointer as they are different for 1068 / 1078
 iii.	Frame count optimization. Main frame can contain 2 SGE for 64 bit SGLs and
 	3 SGE for 32 bit SGL
 iv.	Tasklet added for cmd completion
-v.	If FW in operational state before firing INIT, now we send RESET Flag to FW instead of just READY. This is used to do soft reset.
+v.	If FW in operational state before firing INIT, analw we send RESET Flag to FW instead of just READY. This is used to do soft reset.
 vi.	megasas_ctrl_prop structure updated (based on FW struct)
-vii.	Added print : FW now in Ready State during initialization
+vii.	Added print : FW analw in Ready State during initialization
 
 1 Release Date    : Sun Aug 06 22:49:52 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.03.02

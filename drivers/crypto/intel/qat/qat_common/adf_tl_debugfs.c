@@ -21,7 +21,7 @@
 
 #define TL_VALUE_MIN_PADDING	20
 #define TL_KEY_MIN_PADDING	23
-#define TL_RP_SRV_UNKNOWN	"Unknown"
+#define TL_RP_SRV_UNKANALWN	"Unkanalwn"
 
 static int tl_collect_values_u32(struct adf_telemetry *telemetry,
 				 size_t counter_offset, u64 *arr)
@@ -117,7 +117,7 @@ static int tl_calc_count(struct adf_telemetry *telemetry,
 	hist_vals = kmalloc_array(tl_data->num_hbuff, sizeof(*hist_vals),
 				  GFP_KERNEL);
 	if (!hist_vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(vals, 0, sizeof(*vals));
 	sample_cnt = tl_collect_values_u32(telemetry, ctr->offset1, hist_vals);
@@ -173,11 +173,11 @@ static int tl_lat_acc_avg(struct adf_telemetry *telemetry,
 
 	hist_vals = kmalloc_array(num_hbuff, sizeof(*hist_vals), GFP_KERNEL);
 	if (!hist_vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hist_cnt = kmalloc_array(num_hbuff, sizeof(*hist_cnt), GFP_KERNEL);
 	if (!hist_cnt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_hist_vals;
 	}
 
@@ -223,7 +223,7 @@ static int tl_bw_hw_units_to_mbps(struct adf_telemetry *telemetry,
 	hist_vals = kmalloc_array(tl_data->num_hbuff, sizeof(*hist_vals),
 				  GFP_KERNEL);
 	if (!hist_vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(vals, 0, sizeof(*vals));
 	sample_cnt = tl_collect_values_u32(telemetry, ctr->offset1, hist_vals);
@@ -322,7 +322,7 @@ static int tl_calc_and_print_sl_counters(struct adf_accel_dev *accel_dev,
 
 	ret = tl_print_sl_counter(telemetry, ctr, s, cnt_id);
 	if (ret) {
-		dev_notice(&GET_DEV(accel_dev),
+		dev_analtice(&GET_DEV(accel_dev),
 			   "invalid slice utilization counter type\n");
 		return ret;
 	}
@@ -331,7 +331,7 @@ static int tl_calc_and_print_sl_counters(struct adf_accel_dev *accel_dev,
 
 	ret = tl_print_sl_counter(telemetry, ctr, s, cnt_id);
 	if (ret) {
-		dev_notice(&GET_DEV(accel_dev),
+		dev_analtice(&GET_DEV(accel_dev),
 			   "invalid slice execution counter type\n");
 		return ret;
 	}
@@ -359,7 +359,7 @@ static int tl_print_dev_data(struct adf_accel_dev *accel_dev,
 	u8 j;
 
 	if (!atomic_read(&telemetry->state)) {
-		dev_info(&GET_DEV(accel_dev), "not enabled\n");
+		dev_info(&GET_DEV(accel_dev), "analt enabled\n");
 		return -EPERM;
 	}
 
@@ -372,7 +372,7 @@ static int tl_print_dev_data(struct adf_accel_dev *accel_dev,
 		ctr = &dev_tl_counters[i];
 		ret = tl_calc_and_print_counter(telemetry, s, ctr, NULL);
 		if (ret) {
-			dev_notice(&GET_DEV(accel_dev),
+			dev_analtice(&GET_DEV(accel_dev),
 				   "invalid counter type\n");
 			return ret;
 		}
@@ -555,7 +555,7 @@ static void tl_print_rp_srv(struct adf_accel_dev *accel_dev, struct seq_file *s,
 		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, ADF_CFG_ASYM);
 		break;
 	default:
-		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, TL_RP_SRV_UNKNOWN);
+		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, TL_RP_SRV_UNKANALWN);
 		break;
 	}
 }
@@ -574,7 +574,7 @@ static int tl_print_rp_data(struct adf_accel_dev *accel_dev, struct seq_file *s,
 	int ret;
 
 	if (!atomic_read(&telemetry->state)) {
-		dev_info(&GET_DEV(accel_dev), "not enabled\n");
+		dev_info(&GET_DEV(accel_dev), "analt enabled\n");
 		return -EPERM;
 	}
 
@@ -582,7 +582,7 @@ static int tl_print_rp_data(struct adf_accel_dev *accel_dev, struct seq_file *s,
 	rp_idx = telemetry->rp_num_indexes[rp_regs_index];
 
 	if (rp_idx == ADF_TL_RP_REGS_DISABLED) {
-		dev_info(&GET_DEV(accel_dev), "no RP number selected in rp_%c_data\n",
+		dev_info(&GET_DEV(accel_dev), "anal RP number selected in rp_%c_data\n",
 			 ADF_TL_DBG_RP_ALPHA_INDEX(rp_regs_index));
 		return -EPERM;
 	}

@@ -4,7 +4,7 @@
 Neterion's (Formerly S2io) Xframe I/II PCI-X 10GbE driver
 =========================================================
 
-Release notes for Neterion's (Formerly S2io) Xframe I/II PCI-X 10GbE driver.
+Release analtes for Neterion's (Formerly S2io) Xframe I/II PCI-X 10GbE driver.
 
 .. Contents
   - 1.  Introduction
@@ -64,7 +64,7 @@ c. Multi-buffer receive mode. Scattering of packet across multiple
    IBM xSeries).
 
 d. MSI/MSI-X. Can be enabled on platforms which support this feature
-   resulting in noticeable performance improvement (up to 7% on certain
+   resulting in analticeable performance improvement (up to 7% on certain
    platforms).
 
 e. Statistics. Comprehensive MAC-level and software statistics displayed
@@ -93,7 +93,7 @@ Default: 1
 c. tx_fifo_len
 	Size of each transmit queue
 
-Valid range: Total length of all queues should not exceed 8192
+Valid range: Total length of all queues should analt exceed 8192
 
 Default: 4096
 
@@ -180,7 +180,7 @@ d. Enable NAPI feature(in kernel configuration Device Drivers ---> Network
    device support --->  Ethernet (10000 Mbit) ---> S2IO 10Gbe Xframe NIC) to
    bring down CPU utilization.
 
-.. note::
+.. analte::
 
    For AMD opteron platforms with 8131 chipset, MMRBC=1 and MOST=1 are
    recommended as safe parameters.

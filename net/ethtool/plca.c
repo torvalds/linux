@@ -62,14 +62,14 @@ static int plca_get_cfg_prepare_data(const struct ethnl_req_info *req_base,
 
 	// check that the PHY device is available and connected
 	if (!dev->phydev) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
-	// note: rtnl_lock is held already by ethnl_default_doit
+	// analte: rtnl_lock is held already by ethnl_default_doit
 	ops = ethtool_phy_ops;
 	if (!ops || !ops->get_plca_cfg) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -92,8 +92,8 @@ static int plca_get_cfg_reply_size(const struct ethnl_req_info *req_base,
 {
 	return nla_total_size(sizeof(u16)) +	/* _VERSION */
 	       nla_total_size(sizeof(u8)) +	/* _ENABLED */
-	       nla_total_size(sizeof(u32)) +	/* _NODE_CNT */
-	       nla_total_size(sizeof(u32)) +	/* _NODE_ID */
+	       nla_total_size(sizeof(u32)) +	/* _ANALDE_CNT */
+	       nla_total_size(sizeof(u32)) +	/* _ANALDE_ID */
 	       nla_total_size(sizeof(u32)) +	/* _TO_TIMER */
 	       nla_total_size(sizeof(u32)) +	/* _BURST_COUNT */
 	       nla_total_size(sizeof(u32));	/* _BURST_TIMER */
@@ -110,10 +110,10 @@ static int plca_get_cfg_fill_reply(struct sk_buff *skb,
 	     nla_put_u16(skb, ETHTOOL_A_PLCA_VERSION, plca->version)) ||
 	    (plca->enabled >= 0 &&
 	     nla_put_u8(skb, ETHTOOL_A_PLCA_ENABLED, !!plca->enabled)) ||
-	    (plca->node_id >= 0 &&
-	     nla_put_u32(skb, ETHTOOL_A_PLCA_NODE_ID, plca->node_id)) ||
-	    (plca->node_cnt >= 0 &&
-	     nla_put_u32(skb, ETHTOOL_A_PLCA_NODE_CNT, plca->node_cnt)) ||
+	    (plca->analde_id >= 0 &&
+	     nla_put_u32(skb, ETHTOOL_A_PLCA_ANALDE_ID, plca->analde_id)) ||
+	    (plca->analde_cnt >= 0 &&
+	     nla_put_u32(skb, ETHTOOL_A_PLCA_ANALDE_CNT, plca->analde_cnt)) ||
 	    (plca->to_tmr >= 0 &&
 	     nla_put_u32(skb, ETHTOOL_A_PLCA_TO_TMR, plca->to_tmr)) ||
 	    (plca->burst_cnt >= 0 &&
@@ -131,8 +131,8 @@ const struct nla_policy ethnl_plca_set_cfg_policy[] = {
 	[ETHTOOL_A_PLCA_HEADER]		=
 		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_PLCA_ENABLED]	= NLA_POLICY_MAX(NLA_U8, 1),
-	[ETHTOOL_A_PLCA_NODE_ID]	= NLA_POLICY_MAX(NLA_U32, 255),
-	[ETHTOOL_A_PLCA_NODE_CNT]	= NLA_POLICY_RANGE(NLA_U32, 1, 255),
+	[ETHTOOL_A_PLCA_ANALDE_ID]	= NLA_POLICY_MAX(NLA_U32, 255),
+	[ETHTOOL_A_PLCA_ANALDE_CNT]	= NLA_POLICY_RANGE(NLA_U32, 1, 255),
 	[ETHTOOL_A_PLCA_TO_TMR]		= NLA_POLICY_MAX(NLA_U32, 255),
 	[ETHTOOL_A_PLCA_BURST_CNT]	= NLA_POLICY_MAX(NLA_U32, 255),
 	[ETHTOOL_A_PLCA_BURST_TMR]	= NLA_POLICY_MAX(NLA_U32, 255),
@@ -150,16 +150,16 @@ ethnl_set_plca(struct ethnl_req_info *req_info, struct genl_info *info)
 
 	// check that the PHY device is available and connected
 	if (!dev->phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ops = ethtool_phy_ops;
 	if (!ops || !ops->set_plca_cfg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&plca_cfg, 0xff, sizeof(plca_cfg));
 	plca_update_sint(&plca_cfg.enabled, tb, ETHTOOL_A_PLCA_ENABLED, &mod);
-	plca_update_sint(&plca_cfg.node_id, tb, ETHTOOL_A_PLCA_NODE_ID, &mod);
-	plca_update_sint(&plca_cfg.node_cnt, tb, ETHTOOL_A_PLCA_NODE_CNT, &mod);
+	plca_update_sint(&plca_cfg.analde_id, tb, ETHTOOL_A_PLCA_ANALDE_ID, &mod);
+	plca_update_sint(&plca_cfg.analde_cnt, tb, ETHTOOL_A_PLCA_ANALDE_CNT, &mod);
 	plca_update_sint(&plca_cfg.to_tmr, tb, ETHTOOL_A_PLCA_TO_TMR, &mod);
 	plca_update_sint(&plca_cfg.burst_cnt, tb, ETHTOOL_A_PLCA_BURST_CNT,
 			 &mod);
@@ -205,14 +205,14 @@ static int plca_get_status_prepare_data(const struct ethnl_req_info *req_base,
 
 	// check that the PHY device is available and connected
 	if (!dev->phydev) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
-	// note: rtnl_lock is held already by ethnl_default_doit
+	// analte: rtnl_lock is held already by ethnl_default_doit
 	ops = ethtool_phy_ops;
 	if (!ops || !ops->get_plca_status) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 

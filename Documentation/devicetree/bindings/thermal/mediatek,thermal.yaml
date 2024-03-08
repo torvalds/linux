@@ -10,7 +10,7 @@ maintainers:
   - Sascha Hauer <s.hauer@pengutronix.de>
 
 description:
-  This device does not have its own ADC, instead it directly controls the AUXADC
+  This device does analt have its own ADC, instead it directly controls the AUXADC
   via AHB bus accesses. For this reason it needs phandles to the AUXADC. Also it
   controls a mux in the apmixedsys register space via AHB bus accesses, so a
   phandle to the APMIXEDSYS is also needed.

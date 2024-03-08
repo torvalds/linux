@@ -33,16 +33,16 @@ static int opal_status_to_err(int rc)
 		err = -EINVAL;
 		break;
 	case OPAL_RESOURCE:
-		err = -ENOSPC;
+		err = -EANALSPC;
 		break;
 	case OPAL_HARDWARE:
 		err = -EIO;
 		break;
-	case OPAL_NO_MEM:
-		err = -ENOMEM;
+	case OPAL_ANAL_MEM:
+		err = -EANALMEM;
 		break;
 	case OPAL_EMPTY:
-		err = -ENOENT;
+		err = -EANALENT;
 		break;
 	case OPAL_PARTIAL:
 		err = -EFBIG;
@@ -101,23 +101,23 @@ static int opal_set_variable(const char *key, u64 ksize, u8 *data, u64 dsize)
 static ssize_t opal_secvar_format(char *buf, size_t bufsize)
 {
 	ssize_t rc = 0;
-	struct device_node *node;
+	struct device_analde *analde;
 	const char *format;
 
-	node = of_find_compatible_node(NULL, NULL, "ibm,secvar-backend");
-	if (!of_device_is_available(node)) {
-		rc = -ENODEV;
+	analde = of_find_compatible_analde(NULL, NULL, "ibm,secvar-backend");
+	if (!of_device_is_available(analde)) {
+		rc = -EANALDEV;
 		goto out;
 	}
 
-	rc = of_property_read_string(node, "format", &format);
+	rc = of_property_read_string(analde, "format", &format);
 	if (rc)
 		goto out;
 
 	rc = snprintf(buf, bufsize, "%s", format);
 
 out:
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return rc;
 }
@@ -125,21 +125,21 @@ out:
 static int opal_secvar_max_size(u64 *max_size)
 {
 	int rc;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_find_compatible_node(NULL, NULL, "ibm,secvar-backend");
-	if (!node)
-		return -ENODEV;
+	analde = of_find_compatible_analde(NULL, NULL, "ibm,secvar-backend");
+	if (!analde)
+		return -EANALDEV;
 
-	if (!of_device_is_available(node)) {
-		rc = -ENODEV;
+	if (!of_device_is_available(analde)) {
+		rc = -EANALDEV;
 		goto out;
 	}
 
-	rc = of_property_read_u64(node, "max-var-size", max_size);
+	rc = of_property_read_u64(analde, "max-var-size", max_size);
 
 out:
-	of_node_put(node);
+	of_analde_put(analde);
 	return rc;
 }
 
@@ -157,7 +157,7 @@ static int opal_secvar_probe(struct platform_device *pdev)
 			|| !opal_check_token(OPAL_SECVAR_GET_NEXT)
 			|| !opal_check_token(OPAL_SECVAR_ENQUEUE_UPDATE)) {
 		pr_err("OPAL doesn't support secure variables\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return set_secvar_ops(&opal_secvar_ops);

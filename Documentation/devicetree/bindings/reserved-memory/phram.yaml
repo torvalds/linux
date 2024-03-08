@@ -10,7 +10,7 @@ description: |
   Specifies that the reserved memory region can be used as an MTD or block
   device.
 
-  The "phram" node is named after the "MTD in PHysical RAM" driver which
+  The "phram" analde is named after the "MTD in PHysical RAM" driver which
   provides an implementation of this functionality in Linux.
 
 maintainers:

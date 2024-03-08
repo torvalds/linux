@@ -31,7 +31,7 @@ void eip_poll(struct net_device *dev);
 #endif
 
 
-/* Without I/O delay - non ISA or later chips */
+/* Without I/O delay - analn ISA or later chips */
 void NS8390_init(struct net_device *dev, int startp);
 int ei_open(struct net_device *dev);
 int ei_close(struct net_device *dev);
@@ -85,7 +85,7 @@ struct ei_device {
 	unsigned word16:1;		/* We have the 16-bit (vs 8-bit)
 					 * version of the card.
 					 */
-	unsigned bigendian:1;		/* 16-bit big endian mode. Do NOT
+	unsigned bigendian:1;		/* 16-bit big endian mode. Do ANALT
 					 * set this on random 8390 clones!
 					 */
 	unsigned txing:1;		/* Transmit Active */
@@ -125,13 +125,13 @@ struct ei_device {
 #define E8390_RXCONFIG		(ei_status.rxcr_base | 0x04)
 #define E8390_RXOFF		(ei_status.rxcr_base | 0x20)
 #else
-/* EN0_RXCR: broadcasts, no multicast,errors */
+/* EN0_RXCR: broadcasts, anal multicast,errors */
 #define E8390_RXCONFIG		0x4
-/* EN0_RXCR: Accept no packets */
+/* EN0_RXCR: Accept anal packets */
 #define E8390_RXOFF		0x20
 #endif
 
-/* EN0_TXCR: Normal transmit mode */
+/* EN0_TXCR: Analrmal transmit mode */
 #define E8390_TXCONFIG		0x00
 /* EN0_TXCR: Transmitter off */
 #define E8390_TXOFF		0x02
@@ -143,14 +143,14 @@ struct ei_device {
 #define E8390_TRANS	0x04	/* Transmit a frame */
 #define E8390_RREAD	0x08	/* Remote read */
 #define E8390_RWRITE	0x10	/* Remote write  */
-#define E8390_NODMA	0x20	/* Remote DMA */
+#define E8390_ANALDMA	0x20	/* Remote DMA */
 #define E8390_PAGE0	0x00	/* Select page chip registers */
 #define E8390_PAGE1	0x40	/* using the two high-order bits */
 #define E8390_PAGE2	0x80	/* Page 3 is invalid. */
 
 /* Only generate indirect loads given a machine that needs them.
- * - removed AMIGA_PCMCIA from this list, handled as ISA io now
- * - the _p for generates no delay by default 8390p.c overrides this.
+ * - removed AMIGA_PCMCIA from this list, handled as ISA io analw
+ * - the _p for generates anal delay by default 8390p.c overrides this.
  */
 
 #ifndef ei_inb
@@ -194,8 +194,8 @@ struct ei_device {
 #define EN0_COUNTER2	EI_SHIFT(0x0f)	/* Rcv missed frame error counter RD */
 
 /* Bits in EN0_ISR - Interrupt status register */
-#define ENISR_RX	0x01	/* Receiver, no error */
-#define ENISR_TX	0x02	/* Transmitter, no error */
+#define ENISR_RX	0x01	/* Receiver, anal error */
+#define ENISR_TX	0x02	/* Transmitter, anal error */
 #define ENISR_RX_ERR	0x04	/* Receiver, with error */
 #define ENISR_TX_ERR	0x08	/* Transmitter, with error */
 #define ENISR_OVER	0x10	/* Receiver overwrote the ring */

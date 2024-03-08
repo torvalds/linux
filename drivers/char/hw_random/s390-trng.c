@@ -48,9 +48,9 @@ static atomic64_t trng_hwrng_counter = ATOMIC64_INIT(0);
 
 /* file io functions */
 
-static int trng_open(struct inode *inode, struct file *file)
+static int trng_open(struct ianalde *ianalde, struct file *file)
 {
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static ssize_t trng_read(struct file *file, char __user *ubuf,
@@ -70,7 +70,7 @@ static ssize_t trng_read(struct file *file, char __user *ubuf,
 	if (nbytes > sizeof(buf)) {
 		p = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	while (nbytes) {
@@ -140,12 +140,12 @@ static const struct file_operations trng_fops = {
 	.open		= &trng_open,
 	.release	= NULL,
 	.read		= &trng_read,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice trng_dev = {
 	.name	= "trng",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.mode	= 0444,
 	.fops	= &trng_fops,
 	.groups = trng_dev_attr_groups,
@@ -215,10 +215,10 @@ static int __init trng_init(void)
 
 	trng_debug_init();
 
-	/* check if subfunction CPACF_PRNO_TRNG is available */
-	if (!cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG)) {
-		DEBUG_INFO("trng_init CPACF_PRNO_TRNG not available\n");
-		ret = -ENODEV;
+	/* check if subfunction CPACF_PRANAL_TRNG is available */
+	if (!cpacf_query_func(CPACF_PRANAL, CPACF_PRANAL_TRNG)) {
+		DEBUG_INFO("trng_init CPACF_PRANAL_TRNG analt available\n");
+		ret = -EANALDEV;
 		goto out_dbg;
 	}
 

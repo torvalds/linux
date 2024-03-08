@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,11 +29,11 @@
 #define AUX_RX_ERROR_FLAGS (AUX_SW_RX_OVERFLOW |	     \
 			    AUX_SW_RX_HPD_DISCON |	     \
 			    AUX_SW_RX_PARTIAL_BYTE |	     \
-			    AUX_SW_NON_AUX_MODE |	     \
+			    AUX_SW_ANALN_AUX_MODE |	     \
 			    AUX_SW_RX_SYNC_INVALID_L |	     \
 			    AUX_SW_RX_SYNC_INVALID_H |	     \
 			    AUX_SW_RX_INVALID_START |	     \
-			    AUX_SW_RX_RECV_NO_DET |	     \
+			    AUX_SW_RX_RECV_ANAL_DET |	     \
 			    AUX_SW_RX_RECV_INVALID_H |	     \
 			    AUX_SW_RX_RECV_INVALID_V)
 
@@ -168,7 +168,7 @@ radeon_dp_aux_transfer_native(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg
 		goto done;
 	}
 	if (tmp & AUX_RX_ERROR_FLAGS) {
-		drm_dbg_kms_ratelimited(dev, "dp_aux_ch flags not zero: %08x\n", tmp);
+		drm_dbg_kms_ratelimited(dev, "dp_aux_ch flags analt zero: %08x\n", tmp);
 		ret = -EIO;
 		goto done;
 	}

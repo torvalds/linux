@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux/SPARC PROM Configuration Driver
- * Copyright (C) 1996 Thomas K. Dyas (tdyas@noc.rutgers.edu)
+ * Copyright (C) 1996 Thomas K. Dyas (tdyas@analc.rutgers.edu)
  * Copyright (C) 1996 Eddie C. Dost  (ecd@skynet.be)
  *
  * This character device driver allows user programs to access the
@@ -9,7 +9,7 @@
  * driver and the NetBSD /dev/openprom driver. The SunOS eeprom
  * utility works without any modifications.
  *
- * The driver uses a minor number under the misc device major. The
+ * The driver uses a mianalr number under the misc device major. The
  * file read/write mode determines the type of access to the PROM.
  * Interrupts are disabled whenever the driver calls into the PROM for
  * sanity's sake.
@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/string.h>
@@ -33,22 +33,22 @@
 #include <linux/pci.h>
 #endif
 
-MODULE_AUTHOR("Thomas K. Dyas (tdyas@noc.rutgers.edu) and Eddie C. Dost  (ecd@skynet.be)");
+MODULE_AUTHOR("Thomas K. Dyas (tdyas@analc.rutgers.edu) and Eddie C. Dost  (ecd@skynet.be)");
 MODULE_DESCRIPTION("OPENPROM Configuration Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
-MODULE_ALIAS_MISCDEV(SUN_OPENPROM_MINOR);
+MODULE_ALIAS_MISCDEV(SUN_OPENPROM_MIANALR);
 
 /* Private data kept by the driver for each descriptor. */
 typedef struct openprom_private_data
 {
-	struct device_node *current_node; /* Current node for SunOS ioctls. */
-	struct device_node *lastnode; /* Last valid node used by BSD ioctls. */
+	struct device_analde *current_analde; /* Current analde for SunOS ioctls. */
+	struct device_analde *lastanalde; /* Last valid analde used by BSD ioctls. */
 } DATA;
 
-/* ID of the PROM node containing all of the EEPROM options. */
+/* ID of the PROM analde containing all of the EEPROM options. */
 static DEFINE_MUTEX(openprom_mutex);
-static struct device_node *options_node;
+static struct device_analde *options_analde;
 
 /*
  * Copy an openpromio structure into kernel space from user space.
@@ -77,7 +77,7 @@ static int copyin(struct openpromio __user *info, struct openpromio **opp_p)
 		bufsize = OPROMMAXPARAM;
 
 	if (!(*opp_p = kzalloc(sizeof(int) + bufsize + 1, GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(&(*opp_p)->oprom_array,
 			   &info->oprom_array, bufsize)) {
@@ -96,7 +96,7 @@ static int getstrings(struct openpromio __user *info, struct openpromio **opp_p)
 		return -EFAULT;
 
 	if (!(*opp_p = kzalloc(sizeof(int) + OPROMMAXPARAM + 1, GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*opp_p)->oprom_size = 0;
 
@@ -127,7 +127,7 @@ static int copyout(void __user *info, struct openpromio *opp, int len)
 	return 0;
 }
 
-static int opromgetprop(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize)
+static int opromgetprop(void __user *argp, struct device_analde *dp, struct openpromio *op, int bufsize)
 {
 	const void *pval;
 	int len;
@@ -144,7 +144,7 @@ static int opromgetprop(void __user *argp, struct device_node *dp, struct openpr
 	return copyout(argp, op, sizeof(int) + bufsize);
 }
 
-static int opromnxtprop(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize)
+static int opromnxtprop(void __user *argp, struct device_analde *dp, struct openpromio *op, int bufsize)
 {
 	struct property *prop;
 	int len;
@@ -174,15 +174,15 @@ static int opromnxtprop(void __user *argp, struct device_node *dp, struct openpr
 	return copyout(argp, op, sizeof(int) + bufsize);
 }
 
-static int opromsetopt(struct device_node *dp, struct openpromio *op, int bufsize)
+static int opromsetopt(struct device_analde *dp, struct openpromio *op, int bufsize)
 {
 	char *buf = op->oprom_array + strlen(op->oprom_array) + 1;
 	int len = op->oprom_array + bufsize - buf;
 
-	return of_set_property(options_node, op->oprom_array, buf, len);
+	return of_set_property(options_analde, op->oprom_array, buf, len);
 }
 
-static int opromnext(void __user *argp, unsigned int cmd, struct device_node *dp, struct openpromio *op, int bufsize, DATA *data)
+static int opromnext(void __user *argp, unsigned int cmd, struct device_analde *dp, struct openpromio *op, int bufsize, DATA *data)
 {
 	phandle ph;
 
@@ -193,7 +193,7 @@ static int opromnext(void __user *argp, unsigned int cmd, struct device_node *dp
 
 	ph = *((int *) op->oprom_array);
 	if (ph) {
-		dp = of_find_node_by_phandle(ph);
+		dp = of_find_analde_by_phandle(ph);
 		if (!dp)
 			return -EINVAL;
 
@@ -211,39 +211,39 @@ static int opromnext(void __user *argp, unsigned int cmd, struct device_node *dp
 			break;
 		}
 	} else {
-		/* Sibling of node zero is the root node.  */
+		/* Sibling of analde zero is the root analde.  */
 		if (cmd != OPROMNEXT)
 			return -EINVAL;
 
-		dp = of_find_node_by_path("/");
+		dp = of_find_analde_by_path("/");
 	}
 
 	ph = 0;
 	if (dp)
 		ph = dp->phandle;
 
-	data->current_node = dp;
+	data->current_analde = dp;
 	*((int *) op->oprom_array) = ph;
 	op->oprom_size = sizeof(phandle);
 
 	return copyout(argp, op, bufsize + sizeof(int));
 }
 
-static int oprompci2node(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize, DATA *data)
+static int oprompci2analde(void __user *argp, struct device_analde *dp, struct openpromio *op, int bufsize, DATA *data)
 {
 	int err = -EINVAL;
 
 	if (bufsize >= 2*sizeof(int)) {
 #ifdef CONFIG_PCI
 		struct pci_dev *pdev;
-		struct device_node *dp;
+		struct device_analde *dp;
 
 		pdev = pci_get_domain_bus_and_slot(0,
 						((int *) op->oprom_array)[0],
 						((int *) op->oprom_array)[1]);
 
-		dp = pci_device_to_OF_node(pdev);
-		data->current_node = dp;
+		dp = pci_device_to_OF_analde(pdev);
+		data->current_analde = dp;
 		*((int *)op->oprom_array) = dp->phandle;
 		op->oprom_size = sizeof(int);
 		err = copyout(argp, op, bufsize + sizeof(int));
@@ -255,14 +255,14 @@ static int oprompci2node(void __user *argp, struct device_node *dp, struct openp
 	return err;
 }
 
-static int oprompath2node(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize, DATA *data)
+static int oprompath2analde(void __user *argp, struct device_analde *dp, struct openpromio *op, int bufsize, DATA *data)
 {
 	phandle ph = 0;
 
-	dp = of_find_node_by_path(op->oprom_array);
+	dp = of_find_analde_by_path(op->oprom_array);
 	if (dp)
 		ph = dp->phandle;
-	data->current_node = dp;
+	data->current_analde = dp;
 	*((int *)op->oprom_array) = ph;
 	op->oprom_size = sizeof(int);
 
@@ -286,9 +286,9 @@ static int opromgetbootargs(void __user *argp, struct openpromio *op, int bufsiz
 /*
  *	SunOS and Solaris /dev/openprom ioctl calls.
  */
-static long openprom_sunos_ioctl(struct file * file,
+static long openprom_suanals_ioctl(struct file * file,
 				 unsigned int cmd, unsigned long arg,
-				 struct device_node *dp)
+				 struct device_analde *dp)
 {
 	DATA *data = file->private_data;
 	struct openpromio *opp = NULL;
@@ -328,12 +328,12 @@ static long openprom_sunos_ioctl(struct file * file,
 		error = opromnext(argp, cmd, dp, opp, bufsize, data);
 		break;
 
-	case OPROMPCI2NODE:
-		error = oprompci2node(argp, dp, opp, bufsize, data);
+	case OPROMPCI2ANALDE:
+		error = oprompci2analde(argp, dp, opp, bufsize, data);
 		break;
 
-	case OPROMPATH2NODE:
-		error = oprompath2node(argp, dp, opp, bufsize, data);
+	case OPROMPATH2ANALDE:
+		error = oprompath2analde(argp, dp, opp, bufsize, data);
 		break;
 
 	case OPROMGETBOOTARGS:
@@ -344,12 +344,12 @@ static long openprom_sunos_ioctl(struct file * file,
 	case OPROMGETCONS:
 	case OPROMGETFBNAME:
 		if (cnt++ < 10)
-			printk(KERN_INFO "openprom_sunos_ioctl: unimplemented ioctl\n");
+			printk(KERN_INFO "openprom_suanals_ioctl: unimplemented ioctl\n");
 		error = -EINVAL;
 		break;
 	default:
 		if (cnt++ < 10)
-			printk(KERN_INFO "openprom_sunos_ioctl: cmd 0x%X, arg 0x%lX\n", cmd, arg);
+			printk(KERN_INFO "openprom_suanals_ioctl: cmd 0x%X, arg 0x%lX\n", cmd, arg);
 		error = -EINVAL;
 		break;
 	}
@@ -360,12 +360,12 @@ static long openprom_sunos_ioctl(struct file * file,
 	return error;
 }
 
-static struct device_node *get_node(phandle n, DATA *data)
+static struct device_analde *get_analde(phandle n, DATA *data)
 {
-	struct device_node *dp = of_find_node_by_phandle(n);
+	struct device_analde *dp = of_find_analde_by_phandle(n);
 
 	if (dp)
-		data->lastnode = dp;
+		data->lastanalde = dp;
 
 	return dp;
 }
@@ -385,7 +385,7 @@ static char * copyin_string(char __user *user, size_t len)
 static int opiocget(void __user *argp, DATA *data)
 {
 	struct opiocdesc op;
-	struct device_node *dp;
+	struct device_analde *dp;
 	char *str;
 	const void *pval;
 	int err, len;
@@ -393,7 +393,7 @@ static int opiocget(void __user *argp, DATA *data)
 	if (copy_from_user(&op, argp, sizeof(op)))
 		return -EFAULT;
 
-	dp = get_node(op.op_nodeid, data);
+	dp = get_analde(op.op_analdeid, data);
 
 	str = copyin_string(op.op_name, op.op_namelen);
 	if (IS_ERR(str))
@@ -417,7 +417,7 @@ static int opiocget(void __user *argp, DATA *data)
 static int opiocnextprop(void __user *argp, DATA *data)
 {
 	struct opiocdesc op;
-	struct device_node *dp;
+	struct device_analde *dp;
 	struct property *prop;
 	char *str;
 	int len;
@@ -425,7 +425,7 @@ static int opiocnextprop(void __user *argp, DATA *data)
 	if (copy_from_user(&op, argp, sizeof(op)))
 		return -EFAULT;
 
-	dp = get_node(op.op_nodeid, data);
+	dp = get_analde(op.op_analdeid, data);
 	if (!dp)
 		return -EINVAL;
 
@@ -463,14 +463,14 @@ static int opiocnextprop(void __user *argp, DATA *data)
 static int opiocset(void __user *argp, DATA *data)
 {
 	struct opiocdesc op;
-	struct device_node *dp;
+	struct device_analde *dp;
 	char *str, *tmp;
 	int err;
 
 	if (copy_from_user(&op, argp, sizeof(op)))
 		return -EFAULT;
 
-	dp = get_node(op.op_nodeid, data);
+	dp = get_analde(op.op_analdeid, data);
 	if (!dp)
 		return -EINVAL;
 
@@ -494,7 +494,7 @@ static int opiocset(void __user *argp, DATA *data)
 
 static int opiocgetnext(unsigned int cmd, void __user *argp)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 	phandle nd;
 
 	BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
@@ -505,9 +505,9 @@ static int opiocgetnext(unsigned int cmd, void __user *argp)
 	if (nd == 0) {
 		if (cmd != OPIOCGETNEXT)
 			return -EINVAL;
-		dp = of_find_node_by_path("/");
+		dp = of_find_analde_by_path("/");
 	} else {
-		dp = of_find_node_by_phandle(nd);
+		dp = of_find_analde_by_phandle(nd);
 		nd = 0;
 		if (dp) {
 			if (cmd == OPIOCGETNEXT)
@@ -545,11 +545,11 @@ static int openprom_bsd_ioctl(struct file * file,
 		err = opiocset(argp, data);
 		break;
 
-	case OPIOCGETOPTNODE:
+	case OPIOCGETOPTANALDE:
 		BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
 
 		err = 0;
-		if (copy_to_user(argp, &options_node->phandle, sizeof(phandle)))
+		if (copy_to_user(argp, &options_analde->phandle, sizeof(phandle)))
 			err = -EFAULT;
 		break;
 
@@ -581,15 +581,15 @@ static long openprom_ioctl(struct file * file,
 	case OPROMNXTOPT:
 		if ((file->f_mode & FMODE_READ) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(file, cmd, arg,
-					    options_node);
+		return openprom_suanals_ioctl(file, cmd, arg,
+					    options_analde);
 
 	case OPROMSETOPT:
 	case OPROMSETOPT2:
 		if ((file->f_mode & FMODE_WRITE) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(file, cmd, arg,
-					    options_node);
+		return openprom_suanals_ioctl(file, cmd, arg,
+					    options_analde);
 
 	case OPROMNEXT:
 	case OPROMCHILD:
@@ -597,23 +597,23 @@ static long openprom_ioctl(struct file * file,
 	case OPROMNXTPROP:
 		if ((file->f_mode & FMODE_READ) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(file, cmd, arg,
-					    data->current_node);
+		return openprom_suanals_ioctl(file, cmd, arg,
+					    data->current_analde);
 
 	case OPROMU2P:
 	case OPROMGETCONS:
 	case OPROMGETFBNAME:
 	case OPROMGETBOOTARGS:
 	case OPROMSETCUR:
-	case OPROMPCI2NODE:
-	case OPROMPATH2NODE:
+	case OPROMPCI2ANALDE:
+	case OPROMPATH2ANALDE:
 		if ((file->f_mode & FMODE_READ) == 0)
 			return -EPERM;
-		return openprom_sunos_ioctl(file, cmd, arg, NULL);
+		return openprom_suanals_ioctl(file, cmd, arg, NULL);
 
 	case OPIOCGET:
 	case OPIOCNEXTPROP:
-	case OPIOCGETOPTNODE:
+	case OPIOCGETOPTANALDE:
 	case OPIOCGETNEXT:
 	case OPIOCGETCHILD:
 		if ((file->f_mode & FMODE_READ) == 0)
@@ -633,7 +633,7 @@ static long openprom_ioctl(struct file * file,
 static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg)
 {
-	long rval = -ENOTTY;
+	long rval = -EANALTTY;
 
 	/*
 	 * SunOS/Solaris only, the NetBSD one's have embedded pointers in
@@ -653,8 +653,8 @@ static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
 	case OPROMGETFBNAME:
 	case OPROMGETBOOTARGS:
 	case OPROMSETCUR:
-	case OPROMPCI2NODE:
-	case OPROMPATH2NODE:
+	case OPROMPCI2ANALDE:
+	case OPROMPATH2ANALDE:
 		rval = openprom_ioctl(file, cmd, arg);
 		break;
 	}
@@ -662,24 +662,24 @@ static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
 	return rval;
 }
 
-static int openprom_open(struct inode * inode, struct file * file)
+static int openprom_open(struct ianalde * ianalde, struct file * file)
 {
 	DATA *data;
 
 	data = kmalloc(sizeof(DATA), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&openprom_mutex);
-	data->current_node = of_find_node_by_path("/");
-	data->lastnode = data->current_node;
+	data->current_analde = of_find_analde_by_path("/");
+	data->lastanalde = data->current_analde;
 	file->private_data = (void *) data;
 	mutex_unlock(&openprom_mutex);
 
 	return 0;
 }
 
-static int openprom_release(struct inode * inode, struct file * file)
+static int openprom_release(struct ianalde * ianalde, struct file * file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -687,7 +687,7 @@ static int openprom_release(struct inode * inode, struct file * file)
 
 static const struct file_operations openprom_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.unlocked_ioctl = openprom_ioctl,
 	.compat_ioctl =	openprom_compat_ioctl,
 	.open =		openprom_open,
@@ -695,7 +695,7 @@ static const struct file_operations openprom_fops = {
 };
 
 static struct miscdevice openprom_dev = {
-	.minor		= SUN_OPENPROM_MINOR,
+	.mianalr		= SUN_OPENPROM_MIANALR,
 	.name		= "openprom",
 	.fops		= &openprom_fops,
 };
@@ -708,8 +708,8 @@ static int __init openprom_init(void)
 	if (err)
 		return err;
 
-	options_node = of_get_child_by_name(of_find_node_by_path("/"), "options");
-	if (!options_node) {
+	options_analde = of_get_child_by_name(of_find_analde_by_path("/"), "options");
+	if (!options_analde) {
 		misc_deregister(&openprom_dev);
 		return -EIO;
 	}

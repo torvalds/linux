@@ -66,7 +66,7 @@ struct snp_guest_dev {
 		struct snp_derived_key_req derived_key;
 		struct snp_ext_report_req ext_report;
 	} req;
-	u32 *os_area_msg_seqno;
+	u32 *os_area_msg_seqanal;
 	u8 *vmpck;
 };
 
@@ -94,7 +94,7 @@ static bool is_vmpck_empty(struct snp_guest_dev *snp_dev)
  *
  * This is because in the current encryption scheme GHCB v2 uses AES-GCM to
  * encrypt the requests. The IV for this scheme is the sequence number. GCM
- * cannot tolerate IV reuse.
+ * cananalt tolerate IV reuse.
  *
  * The ASP FW v1.51 only increments the sequence numbers on a successful
  * guest<->ASP back and forth and only accepts messages at its exact sequence
@@ -112,29 +112,29 @@ static void snp_disable_vmpck(struct snp_guest_dev *snp_dev)
 	snp_dev->vmpck = NULL;
 }
 
-static inline u64 __snp_get_msg_seqno(struct snp_guest_dev *snp_dev)
+static inline u64 __snp_get_msg_seqanal(struct snp_guest_dev *snp_dev)
 {
 	u64 count;
 
 	lockdep_assert_held(&snp_cmd_mutex);
 
 	/* Read the current message sequence counter from secrets pages */
-	count = *snp_dev->os_area_msg_seqno;
+	count = *snp_dev->os_area_msg_seqanal;
 
 	return count + 1;
 }
 
-/* Return a non-zero on success */
-static u64 snp_get_msg_seqno(struct snp_guest_dev *snp_dev)
+/* Return a analn-zero on success */
+static u64 snp_get_msg_seqanal(struct snp_guest_dev *snp_dev)
 {
-	u64 count = __snp_get_msg_seqno(snp_dev);
+	u64 count = __snp_get_msg_seqanal(snp_dev);
 
 	/*
 	 * The message sequence counter for the SNP guest request is a  64-bit
 	 * value but the version 2 of GHCB specification defines a 32-bit storage
 	 * for it. If the counter exceeds the 32-bit value then return zero.
 	 * The caller should check the return value, but if the caller happens to
-	 * not check the value and use it, then the firmware treats zero as an
+	 * analt check the value and use it, then the firmware treats zero as an
 	 * invalid number and will fail the  message request.
 	 */
 	if (count >= UINT_MAX) {
@@ -145,13 +145,13 @@ static u64 snp_get_msg_seqno(struct snp_guest_dev *snp_dev)
 	return count;
 }
 
-static void snp_inc_msg_seqno(struct snp_guest_dev *snp_dev)
+static void snp_inc_msg_seqanal(struct snp_guest_dev *snp_dev)
 {
 	/*
 	 * The counter is also incremented by the PSP, so increment it by 2
 	 * and save in secrets page.
 	 */
-	*snp_dev->os_area_msg_seqno += 2;
+	*snp_dev->os_area_msg_seqanal += 2;
 }
 
 static inline struct snp_guest_dev *to_snp_dev(struct file *file)
@@ -224,7 +224,7 @@ static int enc_dec_message(struct snp_guest_crypto *crypto, struct snp_guest_msg
 
 	req = aead_request_alloc(crypto->tfm, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * AEAD memory operations:
@@ -262,7 +262,7 @@ static int __enc_payload(struct snp_guest_dev *snp_dev, struct snp_guest_msg *ms
 	struct snp_guest_msg_hdr *hdr = &msg->hdr;
 
 	memset(crypto->iv, 0, crypto->iv_len);
-	memcpy(crypto->iv, &hdr->msg_seqno, sizeof(hdr->msg_seqno));
+	memcpy(crypto->iv, &hdr->msg_seqanal, sizeof(hdr->msg_seqanal));
 
 	return enc_dec_message(crypto, msg, plaintext, msg->payload, len, true);
 }
@@ -275,7 +275,7 @@ static int dec_payload(struct snp_guest_dev *snp_dev, struct snp_guest_msg *msg,
 
 	/* Build IV with response buffer sequence number */
 	memset(crypto->iv, 0, crypto->iv_len);
-	memcpy(crypto->iv, &hdr->msg_seqno, sizeof(hdr->msg_seqno));
+	memcpy(crypto->iv, &hdr->msg_seqanal, sizeof(hdr->msg_seqanal));
 
 	return enc_dec_message(crypto, msg, msg->payload, plaintext, len, false);
 }
@@ -288,14 +288,14 @@ static int verify_and_dec_payload(struct snp_guest_dev *snp_dev, void *payload, 
 	struct snp_guest_msg_hdr *req_hdr = &req->hdr;
 	struct snp_guest_msg_hdr *resp_hdr = &resp->hdr;
 
-	dev_dbg(snp_dev->dev, "response [seqno %lld type %d version %d sz %d]\n",
-		resp_hdr->msg_seqno, resp_hdr->msg_type, resp_hdr->msg_version, resp_hdr->msg_sz);
+	dev_dbg(snp_dev->dev, "response [seqanal %lld type %d version %d sz %d]\n",
+		resp_hdr->msg_seqanal, resp_hdr->msg_type, resp_hdr->msg_version, resp_hdr->msg_sz);
 
 	/* Copy response from shared memory to encrypted memory. */
 	memcpy(resp, snp_dev->response, sizeof(*resp));
 
 	/* Verify that the sequence counter is incremented by 1 */
-	if (unlikely(resp_hdr->msg_seqno != (req_hdr->msg_seqno + 1)))
+	if (unlikely(resp_hdr->msg_seqanal != (req_hdr->msg_seqanal + 1)))
 		return -EBADMSG;
 
 	/* Verify response message type and version number. */
@@ -314,7 +314,7 @@ static int verify_and_dec_payload(struct snp_guest_dev *snp_dev, void *payload, 
 	return dec_payload(snp_dev, resp, payload, resp_hdr->msg_sz + crypto->a_len);
 }
 
-static int enc_payload(struct snp_guest_dev *snp_dev, u64 seqno, int version, u8 type,
+static int enc_payload(struct snp_guest_dev *snp_dev, u64 seqanal, int version, u8 type,
 			void *payload, size_t sz)
 {
 	struct snp_guest_msg *req = &snp_dev->secret_request;
@@ -327,16 +327,16 @@ static int enc_payload(struct snp_guest_dev *snp_dev, u64 seqno, int version, u8
 	hdr->hdr_sz = sizeof(*hdr);
 	hdr->msg_type = type;
 	hdr->msg_version = version;
-	hdr->msg_seqno = seqno;
+	hdr->msg_seqanal = seqanal;
 	hdr->msg_vmpck = vmpck_id;
 	hdr->msg_sz = sz;
 
-	/* Verify the sequence number is non-zero */
-	if (!hdr->msg_seqno)
-		return -ENOSR;
+	/* Verify the sequence number is analn-zero */
+	if (!hdr->msg_seqanal)
+		return -EANALSR;
 
-	dev_dbg(snp_dev->dev, "request [seqno %lld type %d version %d sz %d]\n",
-		hdr->msg_seqno, hdr->msg_type, hdr->msg_version, hdr->msg_sz);
+	dev_dbg(snp_dev->dev, "request [seqanal %lld type %d version %d sz %d]\n",
+		hdr->msg_seqanal, hdr->msg_type, hdr->msg_version, hdr->msg_sz);
 
 	return __enc_payload(snp_dev, req, payload, sz);
 }
@@ -358,7 +358,7 @@ retry_request:
 	 */
 	rc = snp_issue_guest_request(exit_code, &snp_dev->input, rio);
 	switch (rc) {
-	case -ENOSPC:
+	case -EANALSPC:
 		/*
 		 * If the extended guest request fails due to having too
 		 * small of a certificate data buffer, retry the same
@@ -401,19 +401,19 @@ retry_request:
 	}
 
 	/*
-	 * Increment the message sequence number. There is no harm in doing
-	 * this now because decryption uses the value stored in the response
+	 * Increment the message sequence number. There is anal harm in doing
+	 * this analw because decryption uses the value stored in the response
 	 * structure and any failure will wipe the VMPCK, preventing further
 	 * use anyway.
 	 */
-	snp_inc_msg_seqno(snp_dev);
+	snp_inc_msg_seqanal(snp_dev);
 
 	if (override_err) {
 		rio->exitinfo2 = override_err;
 
 		/*
 		 * If an extended guest request was issued and the supplied certificate
-		 * buffer was not large enough, a standard guest request was issued to
+		 * buffer was analt large eanalugh, a standard guest request was issued to
 		 * prevent IV reuse. If the standard request was successful, return -EIO
 		 * back to the caller as would have originally been returned.
 		 */
@@ -432,19 +432,19 @@ static int handle_guest_request(struct snp_guest_dev *snp_dev, u64 exit_code,
 				void *req_buf, size_t req_sz, void *resp_buf,
 				u32 resp_sz)
 {
-	u64 seqno;
+	u64 seqanal;
 	int rc;
 
-	/* Get message sequence and verify that its a non-zero */
-	seqno = snp_get_msg_seqno(snp_dev);
-	if (!seqno)
+	/* Get message sequence and verify that its a analn-zero */
+	seqanal = snp_get_msg_seqanal(snp_dev);
+	if (!seqanal)
 		return -EIO;
 
 	/* Clear shared memory's response for the host to populate. */
 	memset(snp_dev->response, 0, sizeof(struct snp_guest_msg));
 
 	/* Encrypt the userspace provided payload in snp_dev->secret_request. */
-	rc = enc_payload(snp_dev, seqno, rio->msg_version, type, req_buf, req_sz);
+	rc = enc_payload(snp_dev, seqanal, rio->msg_version, type, req_buf, req_sz);
 	if (rc)
 		return rc;
 
@@ -501,13 +501,13 @@ static int get_report(struct snp_guest_dev *snp_dev, struct snp_guest_request_io
 
 	/*
 	 * The intermediate response buffer is used while decrypting the
-	 * response payload. Make sure that it has enough space to cover the
+	 * response payload. Make sure that it has eanalugh space to cover the
 	 * authtag.
 	 */
 	resp_len = sizeof(resp->data) + crypto->a_len;
 	resp = kzalloc(resp_len, GFP_KERNEL_ACCOUNT);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = handle_guest_request(snp_dev, SVM_VMGEXIT_GUEST_REQUEST, arg,
 				  SNP_MSG_REPORT_REQ, req, sizeof(*req), resp->data,
@@ -539,12 +539,12 @@ static int get_derived_key(struct snp_guest_dev *snp_dev, struct snp_guest_reque
 
 	/*
 	 * The intermediate response buffer is used while decrypting the
-	 * response payload. Make sure that it has enough space to cover the
+	 * response payload. Make sure that it has eanalugh space to cover the
 	 * authtag.
 	 */
 	resp_len = sizeof(resp.data) + crypto->a_len;
 	if (sizeof(buf) < resp_len)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(req, (void __user *)arg->req_data, sizeof(*req)))
 		return -EFAULT;
@@ -582,7 +582,7 @@ static int get_ext_report(struct snp_guest_dev *snp_dev, struct snp_guest_reques
 	if (copy_from_sockptr(req, io->req_data, sizeof(*req)))
 		return -EFAULT;
 
-	/* caller does not want certificate data */
+	/* caller does analt want certificate data */
 	if (!req->certs_len || !req->certs_address)
 		goto cmd;
 
@@ -601,21 +601,21 @@ static int get_ext_report(struct snp_guest_dev *snp_dev, struct snp_guest_reques
 	/*
 	 * Initialize the intermediate buffer with all zeros. This buffer
 	 * is used in the guest request message to get the certs blob from
-	 * the host. If host does not supply any certs in it, then copy
-	 * zeros to indicate that certificate data was not provided.
+	 * the host. If host does analt supply any certs in it, then copy
+	 * zeros to indicate that certificate data was analt provided.
 	 */
 	memset(snp_dev->certs_data, 0, req->certs_len);
 	npages = req->certs_len >> PAGE_SHIFT;
 cmd:
 	/*
 	 * The intermediate response buffer is used while decrypting the
-	 * response payload. Make sure that it has enough space to cover the
+	 * response payload. Make sure that it has eanalugh space to cover the
 	 * authtag.
 	 */
 	resp_len = sizeof(resp->data) + crypto->a_len;
 	resp = kzalloc(resp_len, GFP_KERNEL_ACCOUNT);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snp_dev->input.data_npages = npages;
 	ret = handle_guest_request(snp_dev, SVM_VMGEXIT_EXT_GUEST_REQUEST, arg,
@@ -652,24 +652,24 @@ static long snp_guest_ioctl(struct file *file, unsigned int ioctl, unsigned long
 	void __user *argp = (void __user *)arg;
 	struct snp_guest_request_ioctl input;
 	struct snp_req_resp io;
-	int ret = -ENOTTY;
+	int ret = -EANALTTY;
 
 	if (copy_from_user(&input, argp, sizeof(input)))
 		return -EFAULT;
 
 	input.exitinfo2 = 0xff;
 
-	/* Message version must be non-zero */
+	/* Message version must be analn-zero */
 	if (!input.msg_version)
 		return -EINVAL;
 
 	mutex_lock(&snp_cmd_mutex);
 
-	/* Check if the VMPCK is not empty */
+	/* Check if the VMPCK is analt empty */
 	if (is_vmpck_empty(snp_dev)) {
 		dev_err_ratelimited(snp_dev->dev, "VMPCK is disabled\n");
 		mutex_unlock(&snp_cmd_mutex);
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	switch (ioctl) {
@@ -743,25 +743,25 @@ static const struct file_operations snp_guest_fops = {
 	.unlocked_ioctl = snp_guest_ioctl,
 };
 
-static u8 *get_vmpck(int id, struct snp_secrets_page_layout *layout, u32 **seqno)
+static u8 *get_vmpck(int id, struct snp_secrets_page_layout *layout, u32 **seqanal)
 {
 	u8 *key = NULL;
 
 	switch (id) {
 	case 0:
-		*seqno = &layout->os_area.msg_seqno_0;
+		*seqanal = &layout->os_area.msg_seqanal_0;
 		key = layout->vmpck0;
 		break;
 	case 1:
-		*seqno = &layout->os_area.msg_seqno_1;
+		*seqanal = &layout->os_area.msg_seqanal_1;
 		key = layout->vmpck1;
 		break;
 	case 2:
-		*seqno = &layout->os_area.msg_seqno_2;
+		*seqanal = &layout->os_area.msg_seqanal_2;
 		key = layout->vmpck2;
 		break;
 	case 3:
-		*seqno = &layout->os_area.msg_seqno_3;
+		*seqanal = &layout->os_area.msg_seqanal_3;
 		key = layout->vmpck3;
 		break;
 	default:
@@ -799,14 +799,14 @@ static int sev_report_new(struct tsm_report *report, void *data)
 
 	void *buf __free(kvfree) = kvzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	guard(mutex)(&snp_cmd_mutex);
 
-	/* Check if the VMPCK is not empty */
+	/* Check if the VMPCK is analt empty */
 	if (is_vmpck_empty(snp_dev)) {
 		dev_err_ratelimited(snp_dev->dev, "VMPCK is disabled\n");
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	cert_table = buf + report_size;
@@ -840,14 +840,14 @@ static int sev_report_new(struct tsm_report *report, void *data)
 	if (hdr.status)
 		return -ENXIO;
 	if ((hdr.report_size + sizeof(hdr)) > report_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	void *rbuf __free(kvfree) = kvzalloc(hdr.report_size, GFP_KERNEL);
 	if (!rbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(rbuf, buf + sizeof(hdr), hdr.report_size);
-	report->outblob = no_free_ptr(rbuf);
+	report->outblob = anal_free_ptr(rbuf);
 	report->outblob_len = hdr.report_size;
 
 	certs_size = 0;
@@ -863,7 +863,7 @@ static int sev_report_new(struct tsm_report *report, void *data)
 	if (!certs_size && i)
 		dev_warn_ratelimited(snp_dev->dev, "certificate slots conveyed without size\n");
 
-	/* No certs to report */
+	/* Anal certs to report */
 	if (!certs_size)
 		return 0;
 
@@ -876,10 +876,10 @@ static int sev_report_new(struct tsm_report *report, void *data)
 
 	void *cbuf __free(kvfree) = kvzalloc(certs_size, GFP_KERNEL);
 	if (!cbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(cbuf, cert_table, certs_size);
-	report->auxblob = no_free_ptr(cbuf);
+	report->auxblob = anal_free_ptr(cbuf);
 	report->auxblob_len = certs_size;
 
 	return 0;
@@ -906,31 +906,31 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!dev->platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = (struct sev_guest_platform_data *)dev->platform_data;
 	mapping = ioremap_encrypted(data->secrets_gpa, PAGE_SIZE);
 	if (!mapping)
-		return -ENODEV;
+		return -EANALDEV;
 
 	layout = (__force void *)mapping;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	snp_dev = devm_kzalloc(&pdev->dev, sizeof(struct snp_guest_dev), GFP_KERNEL);
 	if (!snp_dev)
 		goto e_unmap;
 
 	ret = -EINVAL;
-	snp_dev->vmpck = get_vmpck(vmpck_id, layout, &snp_dev->os_area_msg_seqno);
+	snp_dev->vmpck = get_vmpck(vmpck_id, layout, &snp_dev->os_area_msg_seqanal);
 	if (!snp_dev->vmpck) {
 		dev_err(dev, "invalid vmpck id %d\n", vmpck_id);
 		goto e_unmap;
 	}
 
-	/* Verify that VMPCK is not zero. */
+	/* Verify that VMPCK is analt zero. */
 	if (is_vmpck_empty(snp_dev)) {
 		dev_err(dev, "vmpck id %d is null\n", vmpck_id);
 		goto e_unmap;
@@ -959,7 +959,7 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 		goto e_free_cert_data;
 
 	misc = &snp_dev->misc;
-	misc->minor = MISC_DYNAMIC_MINOR;
+	misc->mianalr = MISC_DYNAMIC_MIANALR;
 	misc->name = DEVICE_NAME;
 	misc->fops = &snp_guest_fops;
 

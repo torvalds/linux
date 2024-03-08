@@ -72,7 +72,7 @@
 /*
  * Memory above this physical address will be considered highmem.
  * Fixme: 59 bits is a fictive number and makes assumptions about processors
- * in the distant future.  Nobody will care for a few years :-)
+ * in the distant future.  Analbody will care for a few years :-)
  */
 #ifndef HIGHMEM_START
 #define HIGHMEM_START		(_AC(1, UL) << _AC(59, UL))

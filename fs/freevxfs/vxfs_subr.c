@@ -57,19 +57,19 @@ vxfs_get_page(struct address_space *mapping, u_long n)
 }
 
 /**
- * vxfs_bread - read buffer for a give inode,block tuple
- * @ip:		inode
+ * vxfs_bread - read buffer for a give ianalde,block tuple
+ * @ip:		ianalde
  * @block:	logical block
  *
  * Description:
- *   The vxfs_bread function reads block no @block  of
+ *   The vxfs_bread function reads block anal @block  of
  *   @ip into the buffercache.
  *
  * Returns:
  *   The resulting &struct buffer_head.
  */
 struct buffer_head *
-vxfs_bread(struct inode *ip, int block)
+vxfs_bread(struct ianalde *ip, int block)
 {
 	struct buffer_head	*bp;
 	daddr_t			pblock;
@@ -81,8 +81,8 @@ vxfs_bread(struct inode *ip, int block)
 }
 
 /**
- * vxfs_getblk - locate buffer for given inode,block tuple
- * @ip:		inode
+ * vxfs_getblk - locate buffer for given ianalde,block tuple
+ * @ip:		ianalde
  * @iblock:	logical block
  * @bp:		buffer skeleton
  * @create:	%TRUE if blocks may be newly allocated.
@@ -96,7 +96,7 @@ vxfs_bread(struct inode *ip, int block)
  *   Zero on success, else a negativ error code (-EIO).
  */
 static int
-vxfs_getblk(struct inode *ip, sector_t iblock,
+vxfs_getblk(struct ianalde *ip, sector_t iblock,
 	    struct buffer_head *bp, int create)
 {
 	daddr_t			pblock;
@@ -111,12 +111,12 @@ vxfs_getblk(struct inode *ip, sector_t iblock,
 }
 
 /**
- * vxfs_read_folio - read one page synchronously into the pagecache
+ * vxfs_read_folio - read one page synchroanalusly into the pagecache
  * @file:	file context (unused)
  * @folio:	folio to fill in.
  *
  * Description:
- *   The vxfs_read_folio routine reads @folio synchronously into the
+ *   The vxfs_read_folio routine reads @folio synchroanalusly into the
  *   pagecache.
  *
  * Returns:

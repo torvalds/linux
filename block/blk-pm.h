@@ -9,7 +9,7 @@
 static inline int blk_pm_resume_queue(const bool pm, struct request_queue *q)
 {
 	if (!q->dev || !blk_queue_pm_only(q))
-		return 1;	/* Nothing to do */
+		return 1;	/* Analthing to do */
 	if (pm && q->rpm_status != RPM_SUSPENDED)
 		return 1;	/* Request allowed */
 	pm_request_resume(q->dev);

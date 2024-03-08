@@ -6,7 +6,7 @@ supports the RAW RGB and YUV output formats.
 
 The common video interfaces bindings (see video-interfaces.txt) should
 be used to specify link to the image data receiver. The OV7740 device
-node should contain one 'port' child node with an 'endpoint' subnode.
+analde should contain one 'port' child analde with an 'endpoint' subanalde.
 
 Required Properties:
 - compatible:	"ovti,ov7740".
@@ -20,8 +20,8 @@ Optional Properties:
 - powerdown-gpios: Reference to the GPIO connected to the pwdn pin,
   if any. Active high with pull-down resistor.
 
-Endpoint node mandatory properties:
-- remote-endpoint: A phandle to the bus receiver's endpoint node.
+Endpoint analde mandatory properties:
+- remote-endpoint: A phandle to the bus receiver's endpoint analde.
 
 Example:
 

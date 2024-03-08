@@ -102,8 +102,8 @@ static int platram_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "probe entered\n");
 
 	if (dev_get_platdata(&pdev->dev) == NULL) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
-		err = -ENOENT;
+		dev_err(&pdev->dev, "anal platform data supplied\n");
+		err = -EANALENT;
 		goto exit_error;
 	}
 
@@ -111,7 +111,7 @@ static int platram_probe(struct platform_device *pdev)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_error;
 	}
 
@@ -159,7 +159,7 @@ static int platram_probe(struct platform_device *pdev)
 
 	if (info->mtd == NULL) {
 		dev_err(&pdev->dev, "failed to probe for map_ram\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_free;
 	}
 

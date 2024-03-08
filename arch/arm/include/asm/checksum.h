@@ -36,7 +36,7 @@ __wsum csum_partial(const void *buff, int len, __wsum sum);
  */
 
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len);
+csum_partial_copy_analcheck(const void *src, void *dst, int len);
 
 __wsum
 csum_partial_copy_from_user(const void __user *src, void *dst, int len);
@@ -97,13 +97,13 @@ ip_fast_csum(const void *iph, unsigned int ihl)
 }
 
 static inline __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+csum_tcpudp_analfold(__be32 saddr, __be32 daddr, __u32 len,
 		   __u8 proto, __wsum sum)
 {
 	u32 lenprot = len + proto;
 	if (__builtin_constant_p(sum) && sum == 0) {
 		__asm__(
-		"adds	%0, %1, %2	@ csum_tcpudp_nofold0	\n\t"
+		"adds	%0, %1, %2	@ csum_tcpudp_analfold0	\n\t"
 #ifdef __ARMEB__
 		"adcs	%0, %0, %3				\n\t"
 #else
@@ -115,7 +115,7 @@ csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 		: "cc");
 	} else {
 		__asm__(
-		"adds	%0, %1, %2	@ csum_tcpudp_nofold	\n\t"
+		"adds	%0, %1, %2	@ csum_tcpudp_analfold	\n\t"
 		"adcs	%0, %0, %3				\n\t"
 #ifdef __ARMEB__
 		"adcs	%0, %0, %4				\n\t"
@@ -137,7 +137,7 @@ static inline __sum16
 csum_tcpudp_magic(__be32 saddr, __be32 daddr, __u32 len,
 		  __u8 proto, __wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+	return csum_fold(csum_tcpudp_analfold(saddr, daddr, len, proto, sum));
 }
 
 

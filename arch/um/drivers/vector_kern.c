@@ -38,8 +38,8 @@
  * Multiple FDs/IRQs per device
  * Vector IO optionally used for read/write, falling back to legacy
  * based on configuration and/or availability
- * Configuration is no longer positional - L2TPv3 and GRE require up to
- * 10 parameters, passing this as positional is not fit for purpose.
+ * Configuration is anal longer positional - L2TPv3 and GRE require up to
+ * 10 parameters, passing this as positional is analt fit for purpose.
  * Only socket transports are supported
  */
 
@@ -546,7 +546,7 @@ static struct vector_queue *create_queue(
 
 	mmsg_vector = result->mmsg_vector;
 	for (i = 0; i < max_size; i++) {
-		/* Clear all pointers - we use non-NULL as marking on
+		/* Clear all pointers - we use analn-NULL as marking on
 		 * what to free on destruction
 		 */
 		*(result->skbuff_vector + i) = NULL;
@@ -604,11 +604,11 @@ out_fail:
 }
 
 /*
- * We do not use the RX queue as a proper wraparound queue for now
- * This is not necessary because the consumption via napi_gro_receive()
+ * We do analt use the RX queue as a proper wraparound queue for analw
+ * This is analt necessary because the consumption via napi_gro_receive()
  * happens in-line. While we can try using the return code of
- * netif_rx() for flow control there are no drivers doing this today.
- * For this RX specific use we ignore the tail/head locks and
+ * netif_rx() for flow control there are anal drivers doing this today.
+ * For this RX specific use we iganalre the tail/head locks and
  * just read into a prepared queue filled with skbuffs.
  */
 
@@ -647,7 +647,7 @@ static struct sk_buff *prep_skb(
 	result->data_len = len - vp->max_packet;
 	result->len += len - vp->max_packet;
 	skb_reset_mac_header(result);
-	result->ip_summed = CHECKSUM_NONE;
+	result->ip_summed = CHECKSUM_ANALNE;
 	iov[iov_index].iov_base = result->data;
 	iov[iov_index].iov_len = vp->max_packet;
 	iov_index++;
@@ -753,14 +753,14 @@ static int vector_config(char *str, char **error_out)
 		return err;
 
 	/* This string is broken up and the pieces used by the underlying
-	 * driver. We should copy it to make sure things do not go wrong
+	 * driver. We should copy it to make sure things do analt go wrong
 	 * later.
 	 */
 
 	params = kstrdup(params, GFP_KERNEL);
 	if (params == NULL) {
 		*error_out = "vector_config failed to strdup string";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	parsed = uml_parse_vector_ifspec(params);
@@ -798,7 +798,7 @@ static int vector_remove(int n, char **error_out)
 
 	vec_d = find_device(n);
 	if (vec_d == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	dev = vec_d->dev;
 	vp = netdev_priv(dev);
 	if (vp->fds != NULL)
@@ -809,7 +809,7 @@ static int vector_remove(int n, char **error_out)
 }
 
 /*
- * There is no shared per-transport initialization code, so
+ * There is anal shared per-transport initialization code, so
  * we will just initialize each interface one by one and
  * add them to a list
  */
@@ -831,8 +831,8 @@ static void vector_device_release(struct device *dev)
 	free_netdev(netdev);
 }
 
-/* Bog standard recv using recvmsg - not used normally unless the user
- * explicitly specifies not to use recvmmsg vector RX.
+/* Bog standard recv using recvmsg - analt used analrmally unless the user
+ * explicitly specifies analt to use recvmmsg vector RX.
  */
 
 static int vector_legacy_rx(struct vector_private *vp)
@@ -1017,8 +1017,8 @@ static int vector_mmsg_rx(struct vector_private *vp, int budget)
 				mmsg_vector->msg_len - vp->rx_header_size);
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			/*
-			 * We do not need to lock on updating stats here
-			 * The interrupt loop is non-reentrant.
+			 * We do analt need to lock on updating stats here
+			 * The interrupt loop is analn-reentrant.
 			 */
 			vp->dev->stats.rx_bytes += skb->len;
 			vp->dev->stats.rx_packets++;
@@ -1062,8 +1062,8 @@ static int vector_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	/* We do BQL only in the vector path, no point doing it in
-	 * packet at a time mode as there is no device queue
+	/* We do BQL only in the vector path, anal point doing it in
+	 * packet at a time mode as there is anal device queue
 	 */
 
 	netdev_sent_queue(vp->dev, skb->len);
@@ -1087,7 +1087,7 @@ static irqreturn_t vector_rx_interrupt(int irq, void *dev_id)
 	struct vector_private *vp = netdev_priv(dev);
 
 	if (!netif_running(dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	napi_schedule(&vp->napi);
 	return IRQ_HANDLED;
 
@@ -1099,10 +1099,10 @@ static irqreturn_t vector_tx_interrupt(int irq, void *dev_id)
 	struct vector_private *vp = netdev_priv(dev);
 
 	if (!netif_running(dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	/* We need to pay attention to it only if we got
-	 * -EAGAIN or -ENOBUFFS from sendmmsg. Otherwise
-	 * we ignore it. In the future, it may be worth
+	 * -EAGAIN or -EANALBUFFS from sendmmsg. Otherwise
+	 * we iganalre it. In the future, it may be worth
 	 * it to improve the IRQ controller a bit to make
 	 * tweaking the IRQ mask less costly
 	 */
@@ -1349,14 +1349,14 @@ static int vector_set_features(struct net_device *dev,
 {
 	struct vector_private *vp = netdev_priv(dev);
 	/* Adjust buffer sizes for GSO/GRO. Unfortunately, there is
-	 * no way to negotiate it on raw sockets, so we can change
+	 * anal way to negotiate it on raw sockets, so we can change
 	 * only our side.
 	 */
 	if (features & NETIF_F_GRO)
 		/* All new frame buffers will be GRO-sized */
 		vp->req_size = 65536;
 	else
-		/* All new frame buffers will be normal sized */
+		/* All new frame buffers will be analrmal sized */
 		vp->req_size = vp->max_packet + vp->headroom + SAFETY_MARGIN;
 	return 0;
 }
@@ -1385,7 +1385,7 @@ static int vector_net_load_bpf_flash(struct net_device *dev,
 	int result = 0;
 
 	if (!(vp->options & VECTOR_BPF_FLASH)) {
-		netdev_err(dev, "loading firmware not permitted: %s\n", efl->data);
+		netdev_err(dev, "loading firmware analt permitted: %s\n", efl->data);
 		return -1;
 	}
 
@@ -1471,7 +1471,7 @@ static int vector_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return VECTOR_NUM_STATS;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1577,7 +1577,7 @@ static void vector_eth_configure(
 	device->unit = n;
 
 	/* If this name ends up conflicting with an existing registered
-	 * netdevice, that is OK, register_netdev{,ice}() will notice this
+	 * netdevice, that is OK, register_netdev{,ice}() will analtice this
 	 * and fail.
 	 */
 	snprintf(dev->name, sizeof(dev->name), "vec%d", n);
@@ -1732,20 +1732,20 @@ static struct mc_device vector_mc = {
 
 #ifdef CONFIG_INET
 static int vector_inetaddr_event(
-	struct notifier_block *this,
+	struct analtifier_block *this,
 	unsigned long event,
 	void *ptr)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block vector_inetaddr_notifier = {
-	.notifier_call		= vector_inetaddr_event,
+static struct analtifier_block vector_inetaddr_analtifier = {
+	.analtifier_call		= vector_inetaddr_event,
 };
 
 static void inet_register(void)
 {
-	register_inetaddr_notifier(&vector_inetaddr_notifier);
+	register_inetaddr_analtifier(&vector_inetaddr_analtifier);
 }
 #else
 static inline void inet_register(void)

@@ -6,7 +6,7 @@
 The SI476x Driver
 =================
 
-Copyright |copy| 2013 Andrey Smirnov <andrew.smirnov@gmail.com>
+Copyright |copy| 2013 Andrey Smiranalv <andrew.smiranalv@gmail.com>
 
 TODO for the driver
 -------------------
@@ -49,7 +49,7 @@ The drivers exposes following files:
   0x04		 softmute_int	  Flag indicating that softmute
 				  attenuation has increased above
 				  softmute threshold
-  0x05		 smute		  0 - Audio is not soft muted
+  0x05		 smute		  0 - Audio is analt soft muted
 				  1 - Audio is soft muted
   0x06		 smattn		  Soft mute attenuation level in dB
   0x07		 chbw		  Channel filter bandwidth in kHz
@@ -57,7 +57,7 @@ The drivers exposes following files:
 				  100Hz
   0x09		 hiblend	  HiBlend cutoff frequency in units
 				  of 100 Hz
-  0x10		 pilot		  0 - Stereo pilot is not present
+  0x10		 pilot		  0 - Stereo pilot is analt present
 				  1 - Stereo pilot is present
   0x11		 stblend	  Stereo blend in %
   =============  ==============   ====================================
@@ -89,7 +89,7 @@ The drivers exposes following files:
   Offset	 Name		  Description
   =============  ==============   ====================================
   0x00		 mxhi		  0 - FM Mixer PD high threshold is
-				  not tripped
+				  analt tripped
 				  1 - FM Mixer PD high threshold is
 				  tripped
   0x01		 mxlo		  ditto for FM Mixer PD low
@@ -113,12 +113,12 @@ The drivers exposes following files:
   =============  ==============   ====================================
   Offset	 Name		  Description
   =============  ==============   ====================================
-  0x00		 multhint	  0 - multipath value has not crossed
+  0x00		 multhint	  0 - multipath value has analt crossed
 				  the Multipath high threshold
 				  1 - multipath value has crossed
 				  the Multipath high threshold
   0x01		 multlint	  ditto for Multipath low threshold
-  0x02		 snrhint	  0 - received signal's SNR has not
+  0x02		 snrhint	  0 - received signal's SNR has analt
 				  crossed high threshold
 				  1 - received signal's SNR has
 				  crossed high threshold
@@ -146,7 +146,7 @@ The drivers exposes following files:
   0x20		 mult		  Multipath indicator
   0x21		 dev		  Frequency deviation
   0x24		 assi		  Adjacent channel SSI
-  0x25		 usn		  Ultrasonic noise indicator
+  0x25		 usn		  Ultrasonic analise indicator
   0x26		 pilotdev	  Pilot deviation in units of 100 Hz
   0x27		 rdsdev		  ditto for RDS
   0x28		 assidev	  ditto for ASSI

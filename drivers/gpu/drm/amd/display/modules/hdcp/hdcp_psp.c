@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,7 +57,7 @@ static enum mod_hdcp_status remove_display_from_topology_v2(
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.context.mem_context.shared_buf;
 
 	if (!display || !is_display_active(display))
-		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+		return MOD_HDCP_STATUS_DISPLAY_ANALT_FOUND;
 
 	mutex_lock(&psp->dtm_context.mutex);
 
@@ -93,7 +93,7 @@ static enum mod_hdcp_status remove_display_from_topology_v3(
 	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.context.mem_context.shared_buf;
 
 	if (!display || !is_display_active(display))
-		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+		return MOD_HDCP_STATUS_DISPLAY_ANALT_FOUND;
 
 	mutex_lock(&psp->dtm_context.mutex);
 
@@ -128,7 +128,7 @@ static enum mod_hdcp_status add_display_to_topology_v2(
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	if (!psp->dtm_context.context.initialized) {
-		DRM_INFO("Failed to add display topology, DTM TA is not initialized.");
+		DRM_INFO("Failed to add display topology, DTM TA is analt initialized.");
 		display->state = MOD_HDCP_DISPLAY_INACTIVE;
 		return MOD_HDCP_STATUS_FAILURE;
 	}
@@ -175,7 +175,7 @@ static enum mod_hdcp_status add_display_to_topology_v3(
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	if (!psp->dtm_context.context.initialized) {
-		DRM_INFO("Failed to add display topology, DTM TA is not initialized.");
+		DRM_INFO("Failed to add display topology, DTM TA is analt initialized.");
 		display->state = MOD_HDCP_DISPLAY_INACTIVE;
 		return MOD_HDCP_STATUS_FAILURE;
 	}
@@ -256,7 +256,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_create_session(struct mod_hdcp *hdcp)
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	if (!psp->hdcp_context.context.initialized) {
-		DRM_ERROR("Failed to create hdcp session. HDCP TA is not initialized.");
+		DRM_ERROR("Failed to create hdcp session. HDCP TA is analt initialized.");
 		return MOD_HDCP_STATUS_FAILURE;
 	}
 
@@ -501,12 +501,12 @@ enum mod_hdcp_status mod_hdcp_hdcp2_create_session(struct mod_hdcp *hdcp)
 
 
 	if (!psp->hdcp_context.context.initialized) {
-		DRM_ERROR("Failed to create hdcp session, HDCP TA is not initialized");
+		DRM_ERROR("Failed to create hdcp session, HDCP TA is analt initialized");
 		return MOD_HDCP_STATUS_FAILURE;
 	}
 
 	if (!display)
-		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+		return MOD_HDCP_STATUS_DISPLAY_ANALT_FOUND;
 
 	mutex_lock(&psp->hdcp_context.mutex);
 
@@ -627,7 +627,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp)
 	memcpy(&msg_in->process.receiver_message[0], hdcp->auth.msg.hdcp2.ake_cert,
 	       sizeof(hdcp->auth.msg.hdcp2.ake_cert));
 
-	msg_in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__AKE_NO_STORED_KM;
+	msg_in->prepare.msg1_id = TA_HDCP_HDCP2_MSG_ID__AKE_ANAL_STORED_KM;
 	msg_in->prepare.msg2_id = TA_HDCP_HDCP2_MSG_ID__AKE_STORED_KM;
 
 	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
@@ -637,12 +637,12 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp)
 	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS) {
 		status = MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
 	} else {
-		memcpy(hdcp->auth.msg.hdcp2.ake_no_stored_km,
+		memcpy(hdcp->auth.msg.hdcp2.ake_anal_stored_km,
 		       &msg_out->prepare.transmitter_message[0],
-		       sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km));
+		       sizeof(hdcp->auth.msg.hdcp2.ake_anal_stored_km));
 
 		memcpy(hdcp->auth.msg.hdcp2.ake_stored_km,
-		       &msg_out->prepare.transmitter_message[sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km)],
+		       &msg_out->prepare.transmitter_message[sizeof(hdcp->auth.msg.hdcp2.ake_anal_stored_km)],
 		       sizeof(hdcp->auth.msg.hdcp2.ake_stored_km));
 
 		if (msg_out->process.msg1_status ==
@@ -831,7 +831,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_encryption(struct mod_hdcp *hdcp)
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	if (!display)
-		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+		return MOD_HDCP_STATUS_DISPLAY_ANALT_FOUND;
 
 	mutex_lock(&psp->hdcp_context.mutex);
 

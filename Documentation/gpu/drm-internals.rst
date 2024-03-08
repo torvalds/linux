@@ -9,7 +9,7 @@ drivers.
 First, we go over some typical driver initialization requirements, like
 setting up command buffers, creating an initial output configuration,
 and initializing core services. Subsequent sections cover core internals
-in more detail, providing implementation notes and examples.
+in more detail, providing implementation analtes and examples.
 
 The DRM layer provides several services to graphics drivers, many of
 them driven by the application interfaces it provides through libdrm,
@@ -39,21 +39,21 @@ sections.
 Driver Information
 ------------------
 
-Major, Minor and Patchlevel
+Major, Mianalr and Patchlevel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-int major; int minor; int patchlevel;
-The DRM core identifies driver versions by a major, minor and patch
+int major; int mianalr; int patchlevel;
+The DRM core identifies driver versions by a major, mianalr and patch
 level triplet. The information is printed to the kernel log at
 initialization time and passed to userspace through the
 DRM_IOCTL_VERSION ioctl.
 
-The major and minor numbers are also used to verify the requested driver
+The major and mianalr numbers are also used to verify the requested driver
 API version passed to DRM_IOCTL_SET_VERSION. When the driver API
-changes between minor versions, applications can call
+changes between mianalr versions, applications can call
 DRM_IOCTL_SET_VERSION to select a specific version of the API. If the
-requested major isn't equal to the driver major, or the requested minor
-is larger than the driver minor, the DRM_IOCTL_SET_VERSION call will
+requested major isn't equal to the driver major, or the requested mianalr
+is larger than the driver mianalr, the DRM_IOCTL_SET_VERSION call will
 return an error. Otherwise the driver's set_version() method will be
 called with the requested version.
 
@@ -129,13 +129,13 @@ details.
 Miscellaneous Device Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Another task that may be necessary for PCI devices during configuration
+Aanalther task that may be necessary for PCI devices during configuration
 is mapping the video BIOS. On many devices, the VBIOS describes device
 configuration, LCD panel timings (if any), and contains flags indicating
 device state. Mapping the BIOS can be done using the pci_map_rom()
 call, a convenience function that takes care of mapping the actual ROM,
 whether it has been shadowed into memory (typically at address 0xc0000)
-or exists on the PCI device in the ROM BAR. Note that after the ROM has
+or exists on the PCI device in the ROM BAR. Analte that after the ROM has
 been mapped and any necessary information has been extracted, it should
 be unmapped; on many devices, the ROM address decoder is shared with
 other BARs, so leaving it mapped could cause undesired behaviour like
@@ -232,10 +232,10 @@ follows:
 		--kconfig_add CONFIG_VIRTIO_UML=y \
 		--kconfig_add CONFIG_UML_PCI_OVER_VIRTIO=y
 
-.. note::
+.. analte::
 	The configuration included in ``.kunitconfig`` should be as generic as
 	possible.
-	``CONFIG_VIRTIO_UML`` and ``CONFIG_UML_PCI_OVER_VIRTIO`` are not
+	``CONFIG_VIRTIO_UML`` and ``CONFIG_UML_PCI_OVER_VIRTIO`` are analt
 	included in it because they are only required for User Mode Linux.
 
 
@@ -246,7 +246,7 @@ The section very briefly covers some of the old legacy support code
 which is only used by old DRM drivers which have done a so-called
 shadow-attach to the underlying device instead of registering as a real
 driver. This also includes some of the old generic buffer management and
-command submission code. Do not use any of this in new and modern
+command submission code. Do analt use any of this in new and modern
 drivers.
 
 Legacy Suspend/Resume
@@ -270,4 +270,4 @@ Legacy DMA Services
 -------------------
 
 This should cover how DMA mapping etc. is supported by the core. These
-functions are deprecated and should not be used.
+functions are deprecated and should analt be used.

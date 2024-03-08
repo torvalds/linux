@@ -16,7 +16,7 @@
 #ifndef __IA_CSS_UTIL_H__
 #define __IA_CSS_UTIL_H__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <ia_css_err.h>
 #include <type_support.h>
@@ -24,13 +24,13 @@
 #include <ia_css_stream_public.h>
 #include <ia_css_stream_format.h>
 
-/* @brief convert "errno" error code to "ia_css_err" error code
+/* @brief convert "erranal" error code to "ia_css_err" error code
  *
- * @param[in]	"errno" error code
+ * @param[in]	"erranal" error code
  * @return	"ia_css_err" error code
  *
  */
-int ia_css_convert_errno(
+int ia_css_convert_erranal(
     int in_err);
 
 /* @brief check vf frame info.

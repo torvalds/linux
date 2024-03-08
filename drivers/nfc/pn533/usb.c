@@ -2,7 +2,7 @@
 /*
  * Driver for NXP PN533 NFC Chip - USB transport layer
  *
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  * Copyright (C) 2012-2013 Tieto Poland
  */
 
@@ -95,7 +95,7 @@ static void pn533_recv_ack(struct urb *urb)
 	case 0:
 		break; /* success */
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 		dev_dbg(&phy->udev->dev,
 			"The urb has been stopped (status %d)\n",
 			urb->status);
@@ -145,7 +145,7 @@ static int pn533_usb_send_ack(struct pn533 *dev, gfp_t flags)
 	if (!phy->ack_buffer) {
 		phy->ack_buffer = kmemdup(ack, sizeof(ack), flags);
 		if (!phy->ack_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	phy->ack_urb->transfer_buffer = phy->ack_buffer;
@@ -172,7 +172,7 @@ static int pn533_usb_send_frame(struct pn533 *dev,
 	phy->out_urb->transfer_buffer = out->data;
 	phy->out_urb->transfer_buffer_length = out->len;
 
-	print_hex_dump_debug("PN533 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("PN533 TX: ", DUMP_PREFIX_ANALNE, 16, 1,
 			     out->data, out->len, false);
 
 	arg.phy = phy;
@@ -210,7 +210,7 @@ static void pn533_usb_abort_cmd(struct pn533 *dev, gfp_t flags)
 {
 	struct pn533_usb_phy *phy = dev->phy;
 
-	/* ACR122U does not support any command which aborts last
+	/* ACR122U does analt support any command which aborts last
 	 * issued command i.e. as ACK for standard PN533. Additionally,
 	 * it behaves stange, sending broken or incorrect responses,
 	 * when we cancel urb before the chip will send response.
@@ -369,7 +369,7 @@ static void pn533_acr122_poweron_rdr_resp(struct urb *urb)
 {
 	struct pn533_acr122_poweron_rdr_arg *arg = urb->context;
 
-	print_hex_dump_debug("ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ACR122 RX: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       urb->transfer_buffer, urb->transfer_buffer_length,
 		       false);
 
@@ -390,7 +390,7 @@ static int pn533_acr122_poweron_rdr(struct pn533_usb_phy *phy)
 
 	buffer = kmemdup(cmd, sizeof(cmd), GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&arg.done);
 	cntx = phy->in_urb->context;  /* backup context */
@@ -398,7 +398,7 @@ static int pn533_acr122_poweron_rdr(struct pn533_usb_phy *phy)
 	phy->in_urb->complete = pn533_acr122_poweron_rdr_resp;
 	phy->in_urb->context = &arg;
 
-	print_hex_dump_debug("ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ACR122 TX: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       cmd, sizeof(cmd), false);
 
 	rc = usb_bulk_msg(phy->udev, phy->out_urb->pipe, buffer, sizeof(cmd),
@@ -432,7 +432,7 @@ static void pn533_out_complete(struct urb *urb)
 	case 0:
 		break; /* success */
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 		dev_dbg(&phy->udev->dev,
 			"The urb has been stopped (status %d)\n",
 			urb->status);
@@ -455,7 +455,7 @@ static void pn533_ack_complete(struct urb *urb)
 	case 0:
 		break; /* success */
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 		dev_dbg(&phy->udev->dev,
 			"The urb has been stopped (status %d)\n",
 			urb->status);
@@ -483,7 +483,7 @@ static int pn533_usb_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *endpoint;
 	int in_endpoint = 0;
 	int out_endpoint = 0;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 	int i;
 	u32 protocols;
 	enum pn533_protocol_type protocol_type = PN533_PROTO_REQ_ACK_RESP;
@@ -495,11 +495,11 @@ static int pn533_usb_probe(struct usb_interface *interface,
 
 	phy = devm_kzalloc(&interface->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	in_buf = kzalloc(in_buf_len, GFP_KERNEL);
 	if (!in_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->udev = usb_get_dev(interface_to_usbdev(interface));
 	phy->interface = interface;
@@ -517,8 +517,8 @@ static int pn533_usb_probe(struct usb_interface *interface,
 
 	if (!in_endpoint || !out_endpoint) {
 		nfc_err(&interface->dev,
-			"Could not find bulk-in or bulk-out endpoint\n");
-		rc = -ENODEV;
+			"Could analt find bulk-in or bulk-out endpoint\n");
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -546,11 +546,11 @@ static int pn533_usb_probe(struct usb_interface *interface,
 		break;
 
 	case PN533_DEVICE_PASORI:
-		protocols = PN533_NO_TYPE_B_PROTOCOLS;
+		protocols = PN533_ANAL_TYPE_B_PROTOCOLS;
 		break;
 
 	case PN533_DEVICE_ACR122U:
-		protocols = PN533_NO_TYPE_B_PROTOCOLS;
+		protocols = PN533_ANAL_TYPE_B_PROTOCOLS;
 		fops = &pn533_acr122_frame_ops;
 		protocol_type = PN533_PROTO_REQ_RESP;
 
@@ -563,7 +563,7 @@ static int pn533_usb_probe(struct usb_interface *interface,
 		break;
 
 	default:
-		nfc_err(&interface->dev, "Unknown device type %lu\n",
+		nfc_err(&interface->dev, "Unkanalwn device type %lu\n",
 			id->driver_info);
 		rc = -EINVAL;
 		goto error;

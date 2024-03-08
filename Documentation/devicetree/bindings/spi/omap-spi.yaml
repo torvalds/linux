@@ -48,7 +48,7 @@ properties:
     description:
       Must be "mcspi<n>", n being the instance number (1-based).
       This property is applicable only on legacy platforms mainly omap2/3
-      and ti81xx and should not be used on other platforms.
+      and ti81xx and should analt be used on other platforms.
     deprecated: true
 
   ti,pindir-d0-out-d1-in:

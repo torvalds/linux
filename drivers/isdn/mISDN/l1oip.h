@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * see notice in l1oip.c
+ * see analtice in l1oip.c
  */
 
 /* debugging */

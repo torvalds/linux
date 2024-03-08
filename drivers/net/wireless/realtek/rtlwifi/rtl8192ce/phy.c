@@ -257,7 +257,7 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
 			"Radio_B:RTL8192CE_RADIOB_1TARRAY\n");
 	}
-	rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE, "Radio No %x\n", rfpath);
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE, "Radio Anal %x\n", rfpath);
 	switch (rfpath) {
 	case RF90_PATH_A:
 		for (i = 0; i < radioa_arraylen; i = i + 2) {
@@ -278,7 +278,7 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 		pr_info("Incorrect rfpath %#x\n", rfpath);
 		break;
 	default:
-		pr_info("switch case %#x not processed\n", rfpath);
+		pr_info("switch case %#x analt processed\n", rfpath);
 		break;
 	}
 	return true;
@@ -318,7 +318,7 @@ void rtl92ce_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		pr_info("unknown bandwidth: %#X\n", rtlphy->current_chan_bw);
+		pr_info("unkanalwn bandwidth: %#X\n", rtlphy->current_chan_bw);
 		break;
 	}
 
@@ -342,7 +342,7 @@ void rtl92ce_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 			       HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkanalwn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -435,7 +435,7 @@ static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 							       LED_CTL_LINK);
 			} else {
 				rtlpriv->cfg->ops->led_control(hw,
-							       LED_CTL_NO_LINK);
+							       LED_CTL_ANAL_LINK);
 			}
 			break;
 		}
@@ -448,7 +448,7 @@ static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			} else {
 				if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS) {
 					rtlpriv->cfg->ops->led_control(hw,
-							       LED_CTL_NO_LINK);
+							       LED_CTL_ANAL_LINK);
 				} else {
 					rtlpriv->cfg->ops->led_control(hw,
 							     LED_CTL_POWER_OFF);
@@ -493,7 +493,7 @@ static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			break;
 		}
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x analt processed\n",
 		       rfpwr_state);
 		bresult = false;
 		break;

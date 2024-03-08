@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_32_PTE_40x_H
-#define _ASM_POWERPC_NOHASH_32_PTE_40x_H
+#ifndef _ASM_POWERPC_ANALHASH_32_PTE_40x_H
+#define _ASM_POWERPC_ANALHASH_32_PTE_40x_H
 #ifdef __KERNEL__
 
 /*
@@ -9,7 +9,7 @@
  * 64-entry, fully-associative TLB which is maintained totally under
  * software control. In addition, the instruction side has a
  * hardware-managed, 4-entry, fully-associative TLB which serves as a
- * first level to the shared TLB. These two TLBs are known as the UTLB
+ * first level to the shared TLB. These two TLBs are kanalwn as the UTLB
  * and ITLB, respectively (see "mmu.h" for definitions).
  *
  * There are several potential gotchas here.  The 40x hardware TLBLO
@@ -40,7 +40,7 @@
 
 #define	_PAGE_GUARDED	0x001	/* G: page is guarded from prefetch */
 #define _PAGE_PRESENT	0x002	/* software: PTE contains a translation */
-#define	_PAGE_NO_CACHE	0x004	/* I: caching is inhibited */
+#define	_PAGE_ANAL_CACHE	0x004	/* I: caching is inhibited */
 #define	_PAGE_WRITETHRU	0x008	/* W: caching is write-through */
 #define	_PAGE_READ	0x010	/* software: read permission */
 #define	_PAGE_SPECIAL	0x020	/* software: Special page */
@@ -49,10 +49,10 @@
 #define _PAGE_EXEC	0x200	/* hardware: EX permission */
 #define _PAGE_ACCESSED	0x400	/* software: R: page referenced */
 
-/* No page size encoding in the linux PTE */
+/* Anal page size encoding in the linux PTE */
 #define _PAGE_PSIZE		0
 
-/* cache related flags non existing on 40x */
+/* cache related flags analn existing on 40x */
 #define _PAGE_COHERENT	0
 
 #define _PMD_PRESENT	0x400	/* PMD points to page of PTEs */
@@ -62,7 +62,7 @@
 #define _PMD_SIZE_16M	0x0e0
 #define _PMD_USER	0
 
-#define _PTE_NONE_MASK	0
+#define _PTE_ANALNE_MASK	0
 
 #define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
 #define _PAGE_BASE	(_PAGE_BASE_NC)
@@ -70,4 +70,4 @@
 #include <asm/pgtable-masks.h>
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_NOHASH_32_PTE_40x_H */
+#endif /*  _ASM_POWERPC_ANALHASH_32_PTE_40x_H */

@@ -3,7 +3,7 @@
  * Generic entry points for the idle threads and
  * implementation of the idle task scheduling class.
  *
- * (NOTE: these are not related to SCHED_IDLE batch scheduled
+ * (ANALTE: these are analt related to SCHED_IDLE batch scheduled
  *        tasks which are handled in sched/fair.c )
  */
 
@@ -38,18 +38,18 @@ static int __init cpu_idle_poll_setup(char *__unused)
 
 	return 1;
 }
-__setup("nohlt", cpu_idle_poll_setup);
+__setup("analhlt", cpu_idle_poll_setup);
 
-static int __init cpu_idle_nopoll_setup(char *__unused)
+static int __init cpu_idle_analpoll_setup(char *__unused)
 {
 	cpu_idle_force_poll = 0;
 
 	return 1;
 }
-__setup("hlt", cpu_idle_nopoll_setup);
+__setup("hlt", cpu_idle_analpoll_setup);
 #endif
 
-static noinline int __cpuidle cpu_idle_poll(void)
+static analinline int __cpuidle cpu_idle_poll(void)
 {
 	instrumentation_begin();
 	trace_cpu_idle(0, smp_processor_id());
@@ -75,7 +75,7 @@ static noinline int __cpuidle cpu_idle_poll(void)
 void __weak arch_cpu_idle_prepare(void) { }
 void __weak arch_cpu_idle_enter(void) { }
 void __weak arch_cpu_idle_exit(void) { }
-void __weak __noreturn arch_cpu_idle_dead(void) { while (1); }
+void __weak __analreturn arch_cpu_idle_dead(void) { while (1); }
 void __weak arch_cpu_idle(void)
 {
 	cpu_idle_force_poll = 1;
@@ -84,7 +84,7 @@ void __weak arch_cpu_idle(void)
 /**
  * default_idle_call - Default CPU idle routine.
  *
- * To use when the cpuidle framework cannot be used.
+ * To use when the cpuidle framework cananalt be used.
  */
 void __cpuidle default_idle_call(void)
 {
@@ -118,7 +118,7 @@ static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 {
 	/*
 	 * The idle task must be scheduled, it is pointless to go to idle, just
-	 * update no idle residency and return.
+	 * update anal idle residency and return.
 	 */
 	if (current_clr_polling_and_test()) {
 		dev->last_residency_ns = 0;
@@ -127,7 +127,7 @@ static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	}
 
 	/*
-	 * Enter the idle state previously returned by the governor decision.
+	 * Enter the idle state previously returned by the goveranalr decision.
 	 * This function will block until an interrupt occurs and will take
 	 * care of re-enabling the local interrupts
 	 */
@@ -137,7 +137,7 @@ static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 /**
  * cpuidle_idle_call - the main idle function
  *
- * NOTE: no locks or semaphores should be used here
+ * ANALTE: anal locks or semaphores should be used here
  *
  * On architectures that support TIF_POLLING_NRFLAG, is called with polling
  * set, and it returns with polling set.  If it ever stops polling, it
@@ -160,12 +160,12 @@ static void cpuidle_idle_call(void)
 
 	/*
 	 * The RCU framework needs to be told that we are entering an idle
-	 * section, so no more rcu read side critical sections and one more
+	 * section, so anal more rcu read side critical sections and one more
 	 * step to the grace period
 	 */
 
-	if (cpuidle_not_available(drv, dev)) {
-		tick_nohz_idle_stop_tick();
+	if (cpuidle_analt_available(drv, dev)) {
+		tick_analhz_idle_stop_tick();
 
 		default_idle_call();
 		goto exit_idle;
@@ -175,7 +175,7 @@ static void cpuidle_idle_call(void)
 	 * Suspend-to-idle ("s2idle") is a system state in which all user space
 	 * has been frozen, all I/O devices have been suspended and the only
 	 * activity happens here and in interrupts (if any). In that case bypass
-	 * the cpuidle governor and go straight for the deepest idle state
+	 * the cpuidle goveranalr and go straight for the deepest idle state
 	 * available.  Possibly also suspend the local tick and the entire
 	 * timekeeping to prevent timer interrupts from kicking us out of idle
 	 * until a proper wakeup interrupt happens.
@@ -195,7 +195,7 @@ static void cpuidle_idle_call(void)
 			max_latency_ns = dev->forced_idle_latency_limit_ns;
 		}
 
-		tick_nohz_idle_stop_tick();
+		tick_analhz_idle_stop_tick();
 
 		next_state = cpuidle_find_deepest_state(drv, dev, max_latency_ns);
 		call_cpuidle(drv, dev, next_state);
@@ -207,14 +207,14 @@ static void cpuidle_idle_call(void)
 		 */
 		next_state = cpuidle_select(drv, dev, &stop_tick);
 
-		if (stop_tick || tick_nohz_tick_stopped())
-			tick_nohz_idle_stop_tick();
+		if (stop_tick || tick_analhz_tick_stopped())
+			tick_analhz_idle_stop_tick();
 		else
-			tick_nohz_idle_retain_tick();
+			tick_analhz_idle_retain_tick();
 
 		entered_state = call_cpuidle(drv, dev, next_state);
 		/*
-		 * Give the governor an opportunity to reflect on the outcome
+		 * Give the goveranalr an opportunity to reflect on the outcome
 		 */
 		cpuidle_reflect(dev, entered_state);
 	}
@@ -241,19 +241,19 @@ static void do_idle(void)
 	/*
 	 * Check if we need to update blocked load
 	 */
-	nohz_run_idle_balance(cpu);
+	analhz_run_idle_balance(cpu);
 
 	/*
 	 * If the arch has a polling bit, we maintain an invariant:
 	 *
-	 * Our polling bit is clear if we're not scheduled (i.e. if rq->curr !=
+	 * Our polling bit is clear if we're analt scheduled (i.e. if rq->curr !=
 	 * rq->idle). This means that, if rq->idle has the polling bit set,
 	 * then setting need_resched is guaranteed to cause the CPU to
 	 * reschedule.
 	 */
 
 	__current_set_polling();
-	tick_nohz_idle_enter();
+	tick_analhz_idle_enter();
 
 	while (!need_resched()) {
 		rmb();
@@ -261,7 +261,7 @@ static void do_idle(void)
 		/*
 		 * Interrupts shouldn't be re-enabled from that point on until
 		 * the CPU sleeping instruction is reached. Otherwise an interrupt
-		 * may fire and queue a timer that would be ignored until the CPU
+		 * may fire and queue a timer that would be iganalred until the CPU
 		 * wakes from the sleeping instruction. And testing need_resched()
 		 * doesn't tell about pending needed timer reprogram.
 		 *
@@ -272,11 +272,11 @@ static void do_idle(void)
 		 *   interrupt disabled.
 		 *
 		 * - sti;mwait() couple is fine because the interrupts are
-		 *   re-enabled only upon the execution of mwait, leaving no gap
+		 *   re-enabled only upon the execution of mwait, leaving anal gap
 		 *   in-between.
 		 *
 		 * - ROLLBACK based idle handlers with the sleeping instruction
-		 *   called with interrupts enabled are NOT fine. In this scheme
+		 *   called with interrupts enabled are ANALT fine. In this scheme
 		 *   when the interrupt detects it has interrupted an idle handler,
 		 *   it rolls back to its beginning which performs the
 		 *   need_resched() check before re-executing the sleeping
@@ -291,22 +291,22 @@ static void do_idle(void)
 		local_irq_disable();
 
 		if (cpu_is_offline(cpu)) {
-			tick_nohz_idle_stop_tick();
+			tick_analhz_idle_stop_tick();
 			cpuhp_report_idle_dead();
 			arch_cpu_idle_dead();
 		}
 
 		arch_cpu_idle_enter();
-		rcu_nocb_flush_deferred_wakeup();
+		rcu_analcb_flush_deferred_wakeup();
 
 		/*
 		 * In poll mode we reenable interrupts and spin. Also if we
 		 * detected in the wakeup from idle path that the tick
 		 * broadcast device expired for us, we don't want to go deep
-		 * idle as we know that the IPI is going to arrive right away.
+		 * idle as we kanalw that the IPI is going to arrive right away.
 		 */
 		if (cpu_idle_force_poll || tick_check_broadcast_expired()) {
-			tick_nohz_idle_restart_tick();
+			tick_analhz_idle_restart_tick();
 			cpu_idle_poll();
 		} else {
 			cpuidle_idle_call();
@@ -315,14 +315,14 @@ static void do_idle(void)
 	}
 
 	/*
-	 * Since we fell out of the loop above, we know TIF_NEED_RESCHED must
+	 * Since we fell out of the loop above, we kanalw TIF_NEED_RESCHED must
 	 * be set, propagate it into PREEMPT_NEED_RESCHED.
 	 *
-	 * This is required because for polling idle loops we will not have had
+	 * This is required because for polling idle loops we will analt have had
 	 * an IPI to fold the state for us.
 	 */
 	preempt_set_need_resched();
-	tick_nohz_idle_exit();
+	tick_analhz_idle_exit();
 	__current_clr_polling();
 
 	/*
@@ -361,7 +361,7 @@ static enum hrtimer_restart idle_inject_timer_fn(struct hrtimer *timer)
 	WRITE_ONCE(it->done, 1);
 	set_tsk_need_resched(current);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 void play_idle_precise(u64 duration_ns, u64 latency_ns)
@@ -375,7 +375,7 @@ void play_idle_precise(u64 duration_ns, u64 latency_ns)
 	WARN_ON_ONCE(current->policy != SCHED_FIFO);
 	WARN_ON_ONCE(current->nr_cpus_allowed != 1);
 	WARN_ON_ONCE(!(current->flags & PF_KTHREAD));
-	WARN_ON_ONCE(!(current->flags & PF_NO_SETAFFINITY));
+	WARN_ON_ONCE(!(current->flags & PF_ANAL_SETAFFINITY));
 	WARN_ON_ONCE(!duration_ns);
 	WARN_ON_ONCE(current->mm);
 
@@ -385,7 +385,7 @@ void play_idle_precise(u64 duration_ns, u64 latency_ns)
 	cpuidle_use_deepest_state(latency_ns);
 
 	it.done = 0;
-	hrtimer_init_on_stack(&it.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_init_on_stack(&it.timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_HARD);
 	it.timer.function = idle_inject_timer_fn;
 	hrtimer_start(&it.timer, ns_to_ktime(duration_ns),
 		      HRTIMER_MODE_REL_PINNED_HARD);
@@ -463,7 +463,7 @@ struct task_struct *pick_next_task_idle(struct rq *rq)
 }
 
 /*
- * It is not legal to sleep in the idle task - print a warning
+ * It is analt legal to sleep in the idle task - print a warning
  * message if some code attempts to do it:
  */
 static void
@@ -478,8 +478,8 @@ dequeue_task_idle(struct rq *rq, struct task_struct *p, int flags)
 /*
  * scheduler tick hitting a task of our scheduling class.
  *
- * NOTE: This function can be called remotely by the tick offload that
- * goes along full dynticks. Therefore no local assumption can be made
+ * ANALTE: This function can be called remotely by the tick offload that
+ * goes along full dynticks. Therefore anal local assumption can be made
  * and everything must be accessed through the @rq and @curr passed in
  * parameters.
  */
@@ -507,9 +507,9 @@ static void update_curr_idle(struct rq *rq)
  */
 DEFINE_SCHED_CLASS(idle) = {
 
-	/* no enqueue/yield_task for idle tasks */
+	/* anal enqueue/yield_task for idle tasks */
 
-	/* dequeue is not valid, we print a debug message there: */
+	/* dequeue is analt valid, we print a debug message there: */
 	.dequeue_task		= dequeue_task_idle,
 
 	.wakeup_preempt		= wakeup_preempt_idle,

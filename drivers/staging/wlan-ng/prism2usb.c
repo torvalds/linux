@@ -164,7 +164,7 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 
 		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
-		/* There's no hardware to shutdown, but the driver
+		/* There's anal hardware to shutdown, but the driver
 		 * might have some tasks that must be stopped before
 		 * we can tear everything down.
 		 */
@@ -188,21 +188,21 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		cancel_work_sync(&hw->commsqual_bh);
 		cancel_work_sync(&hw->usb_work);
 
-		/* Now we complete any outstanding commands
+		/* Analw we complete any outstanding commands
 		 * and tell everyone who is waiting for their
 		 * responses that we have shut down.
 		 */
 		list_for_each_entry(ctlx, &cleanlist, list)
 			complete(&ctlx->done);
 
-		/* Give any outstanding synchronous commands
+		/* Give any outstanding synchroanalus commands
 		 * a chance to complete. All they need to do
 		 * is "wake up", so that's easy.
 		 * (I'd like a better way to do this, really.)
 		 */
 		msleep(100);
 
-		/* Now delete the CTLXs, because no-one else can now. */
+		/* Analw delete the CTLXs, because anal-one else can analw. */
 		list_for_each_entry_safe(ctlx, temp, &cleanlist, list)
 			kfree(ctlx);
 
@@ -231,11 +231,11 @@ static int prism2sta_suspend(struct usb_interface *interface,
 
 	wlandev = usb_get_intfdata(interface);
 	if (!wlandev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hw = wlandev->priv;
 	if (!hw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
 
@@ -254,11 +254,11 @@ static int prism2sta_resume(struct usb_interface *interface)
 
 	wlandev = usb_get_intfdata(interface);
 	if (!wlandev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hw = wlandev->priv;
 	if (!hw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Do a chip-level reset on the MAC */
 	if (prism2_doreset) {
@@ -272,7 +272,7 @@ static int prism2sta_resume(struct usb_interface *interface)
 			kfree(wlandev);
 			kfree(hw);
 			wlandev = NULL;
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -293,7 +293,7 @@ static struct usb_driver prism2_usb_driver = {
 	.suspend = prism2sta_suspend,
 	.resume = prism2sta_resume,
 	.reset_resume = prism2sta_resume,
-	/* fops, minor? */
+	/* fops, mianalr? */
 };
 
 module_usb_driver(prism2_usb_driver);

@@ -87,17 +87,17 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	/* decode instruction */
 	switch (csky_probe_decode_insn(p->addr, &p->ainsn.api)) {
-	case INSN_REJECTED:	/* insn not supported */
+	case INSN_REJECTED:	/* insn analt supported */
 		return -EINVAL;
 
-	case INSN_GOOD_NO_SLOT:	/* insn need simulation */
+	case INSN_GOOD_ANAL_SLOT:	/* insn need simulation */
 		p->ainsn.api.insn = NULL;
 		break;
 
 	case INSN_GOOD:	/* instruction uses slot */
 		p->ainsn.api.insn = get_insn_slot();
 		if (!p->ainsn.api.insn)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 	}
 
@@ -148,7 +148,7 @@ static void __kprobes set_current_kprobe(struct kprobe *p)
 }
 
 /*
- * Interrupts need to be disabled before single-step mode is set, and not
+ * Interrupts need to be disabled before single-step mode is set, and analt
  * reenabled until after single-step mode ends.
  * Without disabling interrupt on local CPU, there is a chance of
  * interrupt occurrence in the period of exception return and  start of
@@ -207,7 +207,7 @@ static void __kprobes setup_singlestep(struct kprobe *p,
 
 		set_ss_context(kcb, slot, p);	/* mark pending ss */
 
-		/* IRQs and single stepping do not mix well. */
+		/* IRQs and single stepping do analt mix well. */
 		kprobes_save_local_irqflag(kcb, regs);
 		regs->sr = (regs->sr & TRACE_MODE_MASK) | TRACE_MODE_SI;
 		instruction_pointer_set(regs, slot);
@@ -249,7 +249,7 @@ post_kprobe_handler(struct kprobe_ctlblk *kcb, struct pt_regs *regs)
 	if (!cur)
 		return;
 
-	/* return addr restore if non-branching insn */
+	/* return addr restore if analn-branching insn */
 	if (cur->ainsn.api.restore != 0)
 		regs->pc = cur->ainsn.api.restore;
 
@@ -284,7 +284,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the ip points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * analrmal page fault.
 		 */
 		regs->pc = (unsigned long) cur->addr;
 		BUG_ON(!instruction_pointer(regs));
@@ -329,10 +329,10 @@ kprobe_breakpoint_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 			/*
-			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, it will
-			 * modify the execution path and no need to single
+			 * If we have anal pre-handler or it returned 0, we
+			 * continue with analrmal processing.  If we have a
+			 * pre-handler and it returned analn-zero, it will
+			 * modify the execution path and anal need to single
 			 * stepping. Let's just reset current kprobe and exit.
 			 *
 			 * pre_handler can hit a breakpoint and can step thru
@@ -348,9 +348,9 @@ kprobe_breakpoint_handler(struct pt_regs *regs)
 
 	/*
 	 * The breakpoint instruction was removed right
-	 * after we hit it.  Another cpu has removed
+	 * after we hit it.  Aanalther cpu has removed
 	 * either a probepoint or a debugger breakpoint
-	 * at this address.  In either case, no further
+	 * at this address.  In either case, anal further
 	 * handling of this interrupt is appropriate.
 	 * Return back to original instruction, and continue.
 	 */
@@ -376,7 +376,7 @@ kprobe_single_step_handler(struct pt_regs *regs)
 }
 
 /*
- * Provide a blacklist of symbols identifying ranges which cannot be kprobed.
+ * Provide a blacklist of symbols identifying ranges which cananalt be kprobed.
  * This blacklist is exposed to userspace via debugfs (kprobes/blacklist).
  */
 int __init arch_populate_kprobe_blacklist(void)

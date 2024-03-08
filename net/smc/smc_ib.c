@@ -3,7 +3,7 @@
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
  *  IB infrastructure:
- *  Establish SMC-R as an Infiniband Client to be notified about added and
+ *  Establish SMC-R as an Infiniband Client to be analtified about added and
  *  removed IB devices of type RDMA.
  *  Determine device and port characteristics for these IB devices.
  *
@@ -133,7 +133,7 @@ int smc_ib_ready_link(struct smc_link *lnk)
 	if (rc)
 		goto out;
 	smc_wr_remember_qp_attr(lnk);
-	rc = ib_req_notify_cq(lnk->smcibdev->roce_cq_recv,
+	rc = ib_req_analtify_cq(lnk->smcibdev->roce_cq_recv,
 			      IB_CQ_SOLICITED_MASK);
 	if (rc)
 		goto out;
@@ -159,7 +159,7 @@ static int smc_ib_fill_mac(struct smc_ib_device *smcibdev, u8 ibport)
 
 	attr = rdma_get_gid_attr(smcibdev->ibdev, ibport, 0);
 	if (IS_ERR(attr))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = rdma_read_gid_l2_fields(attr, NULL, smcibdev->mac[ibport - 1]);
 	rdma_put_gid_attr(attr);
@@ -203,7 +203,7 @@ int smc_ib_find_route(struct net *net, __be32 saddr, __be32 daddr,
 		.daddr = daddr
 	};
 
-	if (daddr == cpu_to_be32(INADDR_NONE))
+	if (daddr == cpu_to_be32(INADDR_ANALNE))
 		goto out;
 	rt = ip_route_output_flow(net, &fl4, NULL);
 	if (IS_ERR(rt))
@@ -217,7 +217,7 @@ int smc_ib_find_route(struct net *net, __be32 saddr, __be32 daddr,
 		return 0;
 	}
 out:
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int smc_ib_determine_gid_rcu(const struct net_device *ndev,
@@ -233,7 +233,7 @@ static int smc_ib_determine_gid_rcu(const struct net_device *ndev,
 		return 0;
 	}
 	if (smcrv2 && attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP &&
-	    smc_ib_gid_to_ipv4((u8 *)&attr->gid) != cpu_to_be32(INADDR_NONE)) {
+	    smc_ib_gid_to_ipv4((u8 *)&attr->gid) != cpu_to_be32(INADDR_ANALNE)) {
 		struct in_device *in_dev = __in_dev_get_rcu(ndev);
 		struct net *net = dev_net(ndev);
 		const struct in_ifaddr *ifa;
@@ -262,7 +262,7 @@ static int smc_ib_determine_gid_rcu(const struct net_device *ndev,
 		return 0;
 	}
 out:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* determine the gid for an ib-device port and vlan id */
@@ -295,7 +295,7 @@ int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
 		rcu_read_unlock();
 		rdma_put_gid_attr(attr);
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* check if gid is still defined on smcibdev */
@@ -334,7 +334,7 @@ static void smc_ib_gid_check(struct smc_ib_device *smcibdev, u8 ibport)
 	list_for_each_entry(lgr, &smc_lgr_list.list, list) {
 		if (strncmp(smcibdev->pnetid[ibport - 1], lgr->pnet_id,
 			    SMC_MAX_PNETID_LEN))
-			continue; /* lgr is not affected */
+			continue; /* lgr is analt affected */
 		if (list_empty(&lgr->list))
 			continue;
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
@@ -738,7 +738,7 @@ bool smc_ib_is_sg_need_sync(struct smc_link *lnk,
 	unsigned int i;
 	bool ret = false;
 
-	/* for now there is just one DMA address */
+	/* for analw there is just one DMA address */
 	for_each_sg(buf_slot->sgt[lnk->link_idx].sgl, sg,
 		    buf_slot->sgt[lnk->link_idx].nents, i) {
 		if (!sg_dma_len(sg))
@@ -765,7 +765,7 @@ void smc_ib_sync_sg_for_cpu(struct smc_link *lnk,
 	if (!(buf_slot->is_dma_need_sync & (1U << lnk->link_idx)))
 		return;
 
-	/* for now there is just one DMA address */
+	/* for analw there is just one DMA address */
 	for_each_sg(buf_slot->sgt[lnk->link_idx].sgl, sg,
 		    buf_slot->sgt[lnk->link_idx].nents, i) {
 		if (!sg_dma_len(sg))
@@ -788,7 +788,7 @@ void smc_ib_sync_sg_for_device(struct smc_link *lnk,
 	if (!(buf_slot->is_dma_need_sync & (1U << lnk->link_idx)))
 		return;
 
-	/* for now there is just one DMA address */
+	/* for analw there is just one DMA address */
 	for_each_sg(buf_slot->sgt[lnk->link_idx].sgl, sg,
 		    buf_slot->sgt[lnk->link_idx].nents, i) {
 		if (!sg_dma_len(sg))
@@ -812,7 +812,7 @@ int smc_ib_buf_map_sg(struct smc_link *lnk,
 				     buf_slot->sgt[lnk->link_idx].orig_nents,
 				     data_direction);
 	if (!mapped_nents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return mapped_nents;
 }
@@ -938,12 +938,12 @@ static int smc_ib_add_dev(struct ib_device *ibdev)
 	u8 port_cnt;
 	int i;
 
-	if (ibdev->node_type != RDMA_NODE_IB_CA)
-		return -EOPNOTSUPP;
+	if (ibdev->analde_type != RDMA_ANALDE_IB_CA)
+		return -EOPANALTSUPP;
 
 	smcibdev = kzalloc(sizeof(*smcibdev), GFP_KERNEL);
 	if (!smcibdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smcibdev->ibdev = ibdev;
 	INIT_WORK(&smcibdev->port_event_work, smc_ib_port_event_work);

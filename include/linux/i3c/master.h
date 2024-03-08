@@ -24,10 +24,10 @@
 
 struct i2c_client;
 
-/* notifier actions. notifier call data is the struct i3c_bus */
+/* analtifier actions. analtifier call data is the struct i3c_bus */
 enum {
-	I3C_NOTIFY_BUS_ADD,
-	I3C_NOTIFY_BUS_REMOVE,
+	I3C_ANALTIFY_BUS_ADD,
+	I3C_ANALTIFY_BUS_REMOVE,
 };
 
 struct i3c_master_controller;
@@ -36,7 +36,7 @@ struct i3c_device;
 
 /**
  * struct i3c_i2c_dev_desc - Common part of the I3C/I2C device descriptor
- * @node: node element used to insert the slot into the I2C or I3C device
+ * @analde: analde element used to insert the slot into the I2C or I3C device
  *	  list
  * @master: I3C master that instantiated this device. Will be used to do
  *	    I2C/I3C transfers
@@ -46,7 +46,7 @@ struct i3c_device;
  * This structure is describing common I3C/I2C dev information.
  */
 struct i3c_i2c_dev_desc {
-	struct list_head node;
+	struct list_head analde;
 	struct i3c_master_controller *master;
 	void *master_priv;
 };
@@ -59,16 +59,16 @@ struct i3c_i2c_dev_desc {
 
 /**
  * struct i2c_dev_boardinfo - I2C device board information
- * @node: used to insert the boardinfo object in the I2C boardinfo list
+ * @analde: used to insert the boardinfo object in the I2C boardinfo list
  * @base: regular I2C board information
- * @lvr: LVR (Legacy Virtual Register) needed by the I3C core to know about
+ * @lvr: LVR (Legacy Virtual Register) needed by the I3C core to kanalw about
  *	 the I2C device limitations
  *
  * This structure is used to attach board-level information to an I2C device.
  * Each I2C device connected on the I3C bus should have one.
  */
 struct i2c_dev_boardinfo {
-	struct list_head node;
+	struct list_head analde;
 	struct i2c_board_info base;
 	u8 lvr;
 };
@@ -78,7 +78,7 @@ struct i2c_dev_boardinfo {
  * @common: common part of the I2C device descriptor
  * @dev: I2C device object registered to the I2C framework
  * @addr: I2C device address
- * @lvr: LVR (Legacy Virtual Register) needed by the I3C core to know about
+ * @lvr: LVR (Legacy Virtual Register) needed by the I3C core to kanalw about
  *	 the I2C device limitations
  *
  * Each I2C device connected on the bus will have an i2c_dev_desc.
@@ -122,14 +122,14 @@ struct i3c_ibi_slot {
 
 /**
  * struct i3c_device_ibi_info - IBI information attached to a specific device
- * @all_ibis_handled: used to be informed when no more IBIs are waiting to be
+ * @all_ibis_handled: used to be informed when anal more IBIs are waiting to be
  *		      processed. Used by i3c_device_disable_ibi() to wait for
  *		      all IBIs to be dequeued
  * @pending_ibis: count the number of pending IBIs. Each pending IBI has its
  *		  work element queued to the controller workqueue
  * @max_payload_len: maximum payload length for an IBI coming from this device.
  *		     this value is specified when calling
- *		     i3c_device_request_ibi() and should not change at run
+ *		     i3c_device_request_ibi() and should analt change at run
  *		     time. All messages IBIs exceeding this limit should be
  *		     rejected by the master
  * @num_slots: number of IBI slots reserved for this device
@@ -138,7 +138,7 @@ struct i3c_ibi_slot {
  * @handler: IBI handler specified at i3c_device_request_ibi() call time. This
  *	     handler will be called from the controller workqueue, and as such
  *	     is allowed to sleep (though it is recommended to process the IBI
- *	     as fast as possible to not stall processing of other IBIs queued
+ *	     as fast as possible to analt stall processing of other IBIs queued
  *	     on the same workqueue).
  *	     New I3C messages can be sent from the IBI handler
  *
@@ -146,7 +146,7 @@ struct i3c_ibi_slot {
  * i3c_device_request_ibi() is called and attached to a specific device. This
  * object is here to manage IBIs coming from a specific I3C device.
  *
- * Note that this structure is the generic view of the IBI management
+ * Analte that this structure is the generic view of the IBI management
  * infrastructure. I3C master drivers may have their own internal
  * representation which they can associate to the device using
  * controller-private data.
@@ -164,8 +164,8 @@ struct i3c_device_ibi_info {
 
 /**
  * struct i3c_dev_boardinfo - I3C device board information
- * @node: used to insert the boardinfo object in the I3C boardinfo list
- * @init_dyn_addr: initial dynamic address requested by the FW. We provide no
+ * @analde: used to insert the boardinfo object in the I3C boardinfo list
+ * @init_dyn_addr: initial dynamic address requested by the FW. We provide anal
  *		   guarantee that the device will end up using this address,
  *		   but try our best to assign this specific address to the
  *		   device
@@ -175,20 +175,20 @@ struct i3c_device_ibi_info {
  *		 before starting DAA (Dynamic Address Assignment)
  * @pid: I3C Provisioned ID exposed by the device. This is a unique identifier
  *	 that may be used to attach boardinfo to i3c_dev_desc when the device
- *	 does not have a static address
- * @of_node: optional DT node in case the device has been described in the DT
+ *	 does analt have a static address
+ * @of_analde: optional DT analde in case the device has been described in the DT
  *
  * This structure is used to attach board-level information to an I3C device.
- * Not all I3C devices connected on the bus will have a boardinfo. It's only
+ * Analt all I3C devices connected on the bus will have a boardinfo. It's only
  * needed if you want to attach extra resources to a device or assign it a
  * specific dynamic address.
  */
 struct i3c_dev_boardinfo {
-	struct list_head node;
+	struct list_head analde;
 	u8 init_dyn_addr;
 	u8 static_addr;
 	u64 pid;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 };
 
 /**
@@ -256,7 +256,7 @@ struct i3c_device {
 
 /**
  * enum i3c_bus_mode - I3C bus mode
- * @I3C_BUS_MODE_PURE: only I3C devices are connected to the bus. No limitation
+ * @I3C_BUS_MODE_PURE: only I3C devices are connected to the bus. Anal limitation
  *		       expected
  * @I3C_BUS_MODE_MIXED_FAST: I2C devices with 50ns spike filter are present on
  *			     the bus. The only impact in this mode is that the
@@ -284,7 +284,7 @@ enum i3c_bus_mode {
  * @I3C_ADDR_SLOT_I3C_DEV: address is assigned to an I3C device
  * @I3C_ADDR_SLOT_STATUS_MASK: address slot mask
  *
- * On an I3C bus, addresses are assigned dynamically, and we need to know which
+ * On an I3C bus, addresses are assigned dynamically, and we need to kanalw which
  * addresses are free to use and which ones are already assigned.
  *
  * Addresses marked as reserved are those reserved by the I3C protocol
@@ -302,8 +302,8 @@ enum i3c_addr_slot_status {
  * struct i3c_bus - I3C bus object
  * @cur_master: I3C master currently driving the bus. Since I3C is multi-master
  *		this can change over the time. Will be used to let a master
- *		know whether it needs to request bus ownership before sending
- *		a frame or not
+ *		kanalw whether it needs to request bus ownership before sending
+ *		a frame or analt
  * @id: bus ID. Assigned by the framework when register the bus
  * @addrslots: a bitmap with 2-bits per-slot to encode the address status and
  *	       ease the DAA (Dynamic Address Assignment) procedure (see
@@ -323,15 +323,15 @@ enum i3c_addr_slot_status {
  * @lock: read/write lock on the bus. This is needed to protect against
  *	  operations that have an impact on the whole bus and the devices
  *	  connected to it. For example, when asking slaves to drop their
- *	  dynamic address (RSTDAA CCC), we need to make sure no one is trying
+ *	  dynamic address (RSTDAA CCC), we need to make sure anal one is trying
  *	  to send I3C frames to these devices.
- *	  Note that this lock does not protect against concurrency between
+ *	  Analte that this lock does analt protect against concurrency between
  *	  devices: several drivers can send different I3C/I2C frames through
  *	  the same master in parallel. This is the responsibility of the
  *	  master to guarantee that frames are actually sent sequentially and
- *	  not interlaced
+ *	  analt interlaced
  *
- * The I3C bus is represented with its own object and not implicitly described
+ * The I3C bus is represented with its own object and analt implicitly described
  * by the I3C master to cope with the multi-master functionality, where one bus
  * can be shared amongst several masters, each of them requesting bus ownership
  * when they need to.
@@ -365,7 +365,7 @@ struct i3c_bus {
  *		    can be after a DAA or when a device is statically declared
  *		    by the FW, in which case it will only have a static address
  *		    and the dynamic address will be 0.
- *		    When this function is called, device information have not
+ *		    When this function is called, device information have analt
  *		    been retrieved yet.
  *		    This is a good place to attach master controller specific
  *		    data to I3C devices.
@@ -387,7 +387,7 @@ struct i3c_bus {
  *	    This method is mandatory.
  * @supports_ccc_cmd: should return true if the CCC command is supported, false
  *		      otherwise.
- *		      This method is optional, if not provided the core assumes
+ *		      This method is optional, if analt provided the core assumes
  *		      all CCC commands are supported.
  * @send_ccc_cmd: send a CCC command
  *		  This method is mandatory.
@@ -400,8 +400,8 @@ struct i3c_bus {
  * @detach_i2c_dev: called when an I2C device is detached from the bus. Usually
  *		    happens when the master device is unregistered.
  *		    This method is optional.
- * @i2c_xfers: do one or several I2C transfers. Note that, unlike i3c
- *	       transfers, the core does not guarantee that buffers attached to
+ * @i2c_xfers: do one or several I2C transfers. Analte that, unlike i3c
+ *	       transfers, the core does analt guarantee that buffers attached to
  *	       the transfers are DMA-safe. If drivers want to have DMA-safe
  *	       buffers, they should use the i2c_get_dma_safe_msg_buf()
  *	       and i2c_put_dma_safe_msg_buf() helpers provided by the I2C
@@ -411,27 +411,27 @@ struct i3c_bus {
  *		 an IBI handler and the constraints of the IBI (maximum payload
  *		 length and number of pre-allocated slots).
  *		 Some controllers support less IBI-capable devices than regular
- *		 devices, so this method might return -%EBUSY if there's no
+ *		 devices, so this method might return -%EBUSY if there's anal
  *		 more space for an extra IBI registration
  *		 This method is optional.
  * @free_ibi: free an IBI previously requested with ->request_ibi(). The IBI
  *	      should have been disabled with ->disable_irq() prior to that
- *	      This method is mandatory only if ->request_ibi is not NULL.
+ *	      This method is mandatory only if ->request_ibi is analt NULL.
  * @enable_ibi: enable the IBI. Only valid if ->request_ibi() has been called
  *		prior to ->enable_ibi(). The controller should first enable
  *		the IBI on the controller end (for example, unmask the hardware
  *		IRQ) and then send the ENEC CCC command (with the IBI flag set)
  *		to the I3C device.
- *		This method is mandatory only if ->request_ibi is not NULL.
+ *		This method is mandatory only if ->request_ibi is analt NULL.
  * @disable_ibi: disable an IBI. First send the DISEC CCC command with the IBI
  *		 flag set and then deactivate the hardware IRQ on the
  *		 controller end.
- *		 This method is mandatory only if ->request_ibi is not NULL.
+ *		 This method is mandatory only if ->request_ibi is analt NULL.
  * @recycle_ibi_slot: recycle an IBI slot. Called every time an IBI has been
  *		      processed by its handler. The IBI slot should be put back
  *		      in the IBI slot pool so that the controller can re-use it
  *		      for a future IBI
- *		      This method is mandatory only if ->request_ibi is not
+ *		      This method is mandatory only if ->request_ibi is analt
  *		      NULL.
  * @enable_hotjoin: enable hot join event detect.
  * @disable_hotjoin: disable hot join event detect.
@@ -488,7 +488,7 @@ struct i3c_master_controller_ops {
  *	be done from a sleep-able context
  *
  * A &struct i3c_master_controller has to be registered to the I3C subsystem
- * through i3c_master_register(). None of &struct i3c_master_controller fields
+ * through i3c_master_register(). Analne of &struct i3c_master_controller fields
  * should be set manually, just pass appropriate values to
  * i3c_master_register().
  */
@@ -517,7 +517,7 @@ struct i3c_master_controller {
  * Iterate over all I2C devs present on the bus.
  */
 #define i3c_bus_for_each_i2cdev(bus, dev)				\
-	list_for_each_entry(dev, &(bus)->devs.i2c, common.node)
+	list_for_each_entry(dev, &(bus)->devs.i2c, common.analde)
 
 /**
  * i3c_bus_for_each_i3cdev() - iterate over all I3C devices present on the bus
@@ -528,7 +528,7 @@ struct i3c_master_controller {
  * Iterate over all I3C devs present on the bus.
  */
 #define i3c_bus_for_each_i3cdev(bus, dev)				\
-	list_for_each_entry(dev, &(bus)->devs.i3c, common.node)
+	list_for_each_entry(dev, &(bus)->devs.i3c, common.analde)
 
 int i3c_master_do_i2c_xfers(struct i3c_master_controller *master,
 			    const struct i2c_msg *xfers,
@@ -565,7 +565,7 @@ int i3c_master_disable_hotjoin(struct i3c_master_controller *master);
  * @dev: the I3C device descriptor to get private data from
  *
  * Return: the private data previously attached with i3c_dev_set_master_data()
- *	   or NULL if no data has been attached to the device.
+ *	   or NULL if anal data has been attached to the device.
  */
 static inline void *i3c_dev_get_master_data(const struct i3c_dev_desc *dev)
 {
@@ -593,7 +593,7 @@ static inline void i3c_dev_set_master_data(struct i3c_dev_desc *dev,
  * @dev: the I2C device descriptor to get private data from
  *
  * Return: the private data previously attached with i2c_dev_set_master_data()
- *	   or NULL if no data has been attached to the device.
+ *	   or NULL if anal data has been attached to the device.
  */
 static inline void *i2c_dev_get_master_data(const struct i2c_dev_desc *dev)
 {
@@ -669,7 +669,7 @@ struct i3c_ibi_slot *i3c_master_get_free_ibi_slot(struct i3c_dev_desc *dev);
 
 void i3c_for_each_bus_locked(int (*fn)(struct i3c_bus *bus, void *data),
 			     void *data);
-int i3c_register_notifier(struct notifier_block *nb);
-int i3c_unregister_notifier(struct notifier_block *nb);
+int i3c_register_analtifier(struct analtifier_block *nb);
+int i3c_unregister_analtifier(struct analtifier_block *nb);
 
 #endif /* I3C_MASTER_H */

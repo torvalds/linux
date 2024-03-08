@@ -4,11 +4,11 @@
 ARCnet Hardware
 ===============
 
-.. note::
+.. analte::
 
    1) This file is a supplement to arcnet.txt.  Please read that for general
       driver configuration help.
-   2) This file is no longer Linux-specific.  It should probably be moved out
+   2) This file is anal longer Linux-specific.  It should probably be moved out
       of the kernel sources.  Ideas?
 
 Because so many people (myself included) seem to have obtained ARCnet cards
@@ -25,21 +25,21 @@ ARCnet is a network type which works in a way similar to popular Ethernet
 networks but which is also different in some very important ways.
 
 First of all, you can get ARCnet cards in at least two speeds: 2.5 Mbps
-(slower than Ethernet) and 100 Mbps (faster than normal Ethernet).  In fact,
+(slower than Ethernet) and 100 Mbps (faster than analrmal Ethernet).  In fact,
 there are others as well, but these are less common.  The different hardware
-types, as far as I'm aware, are not compatible and so you cannot wire a
+types, as far as I'm aware, are analt compatible and so you cananalt wire a
 100 Mbps card to a 2.5 Mbps card, and so on.  From what I hear, my driver does
 work with 100 Mbps cards, but I haven't been able to verify this myself,
-since I only have the 2.5 Mbps variety.  It is probably not going to saturate
+since I only have the 2.5 Mbps variety.  It is probably analt going to saturate
 your 100 Mbps card.  Stop complaining. :)
 
-You also cannot connect an ARCnet card to any kind of Ethernet card and
+You also cananalt connect an ARCnet card to any kind of Ethernet card and
 expect it to work.
 
 There are two "types" of ARCnet - STAR topology and BUS topology.  This
 refers to how the cards are meant to be wired together.  According to most
 available documentation, you can only connect STAR cards to STAR cards and
-BUS cards to BUS cards.  That makes sense, right?  Well, it's not quite
+BUS cards to BUS cards.  That makes sense, right?  Well, it's analt quite
 true; see below under "Cabling."
 
 Once you get past these little stumbling blocks, ARCnet is actually quite a
@@ -48,21 +48,21 @@ which makes it completely incompatible with so-called "Token Ring" cards,
 but which makes transfers much more reliable than Ethernet does.  In fact,
 ARCnet will guarantee that a packet arrives safely at the destination, and
 even if it can't possibly be delivered properly (ie. because of a cable
-break, or because the destination computer does not exist) it will at least
+break, or because the destination computer does analt exist) it will at least
 tell the sender about it.
 
 Because of the carefully defined action of the "token", it will always make
 a pass around the "ring" within a maximum length of time.  This makes it
 useful for realtime networks.
 
-In addition, all known ARCnet cards have an (almost) identical programming
+In addition, all kanalwn ARCnet cards have an (almost) identical programming
 interface.  This means that with one ARCnet driver you can support any
 card, whereas with Ethernet each manufacturer uses what is sometimes a
 completely different programming interface, leading to a lot of different,
 sometimes very similar, Ethernet drivers.  Of course, always using the same
 programming interface also means that when high-performance hardware
 facilities like PCI bus mastering DMA appear, it's hard to take advantage of
-them.  Let's not go into that.
+them.  Let's analt go into that.
 
 One thing that makes ARCnet cards difficult to program for, however, is the
 limit on their packet sizes; standard ARCnet can only send packets that are
@@ -128,7 +128,7 @@ amplifies, but the smart one decodes to digital and encodes back all packets
 coming through.  This is much better if you have several hubs in the net,
 since many dumb active hubs may worsen the signal quality.
 
-And now to the cabling.  What you can connect together:
+And analw to the cabling.  What you can connect together:
 
 1. A card to a card.  This is the simplest way of creating a 2-computer
    network.
@@ -137,19 +137,19 @@ And now to the cabling.  What you can connect together:
    must be properly terminated with 93 Ohm (or something else if you don't
    have the right ones) terminators.
 
-	(Avery's note: oops, I didn't know that.  Mine (TV cable) works
+	(Avery's analte: oops, I didn't kanalw that.  Mine (TV cable) works
 	anyway, though.)
 
-3. A card to an active hub.  Here is no need to terminate the unused
-   connectors except some kind of aesthetic feeling.  But, there may not be
+3. A card to an active hub.  Here is anal need to terminate the unused
+   connectors except some kind of aesthetic feeling.  But, there may analt be
    more than eleven active hubs between any two computers.  That of course
    doesn't limit the number of active hubs on the network.
 
-4. An active hub to another.
+4. An active hub to aanalther.
 
 5. An active hub to passive hub.
 
-Remember that you cannot connect two passive hubs together.  The power loss
+Remember that you cananalt connect two passive hubs together.  The power loss
 implied by such a connection is too high for the net to operate reliably.
 
 An example of a typical ARCnet network::
@@ -176,7 +176,7 @@ cable. A typical BUS ARCnet network looks like::
   R - Terminator
   T - T connector
 
-But that is not all! The two types can be connected together.  According to
+But that is analt all! The two types can be connected together.  According to
 the official documentation the only way of connecting them is using an active
 hub::
 
@@ -224,7 +224,7 @@ the empty connectors of cards on the ends of the chain.  An example::
      |_____|       |_____|       |_____|
 
 
-There are also hubs for the TP topology.  There is nothing difficult
+There are also hubs for the TP topology.  There is analthing difficult
 involved in using them; you just connect a TP chain to a hub on any end or
 even at both.  This way you can create almost any network configuration.
 The maximum of 11 hubs between any two computers on the net applies here as
@@ -268,8 +268,8 @@ All ARCnet cards should have a total of four or five different settings:
   - the I/O address:  this is the "port" your ARCnet card is on.  Probed
     values in the Linux ARCnet driver are only from 0x200 through 0x3F0. (If
     your card has additional ones, which is possible, please tell me.) This
-    should not be the same as any other device on your system.  According to
-    a doc I got from Novell, MS Windows prefers values of 0x300 or more,
+    should analt be the same as any other device on your system.  According to
+    a doc I got from Analvell, MS Windows prefers values of 0x300 or more,
     eating net connections on my system (at least) otherwise.  My guess is
     this may be because, if your card is at 0x2E0, probing for a serial port
     at 0x2E8 will reset the card and probably mess things up royally.
@@ -279,49 +279,49 @@ All ARCnet cards should have a total of four or five different settings:
   - the IRQ: on  8-bit cards, it might be 2 (9), 3, 4, 5, or 7.
 	     on 16-bit cards, it might be 2 (9), 3, 4, 5, 7, or 10-15.
 
-    Make sure this is different from any other card on your system.  Note
+    Make sure this is different from any other card on your system.  Analte
     that IRQ2 is the same as IRQ9, as far as Linux is concerned.  You can
     "cat /proc/interrupts" for a somewhat complete list of which ones are in
     use at any given time.  Here is a list of common usages from Vojtech
     Pavlik <vojtech@suse.cz>:
 
-	("Not on bus" means there is no way for a card to generate this
+	("Analt on bus" means there is anal way for a card to generate this
 	interrupt)
 
 	======   =========================================================
-	IRQ  0   Timer 0 (Not on bus)
-	IRQ  1   Keyboard (Not on bus)
-	IRQ  2   IRQ Controller 2 (Not on bus, nor does interrupt the CPU)
+	IRQ  0   Timer 0 (Analt on bus)
+	IRQ  1   Keyboard (Analt on bus)
+	IRQ  2   IRQ Controller 2 (Analt on bus, analr does interrupt the CPU)
 	IRQ  3   COM2
 	IRQ  4   COM1
 	IRQ  5   FREE (LPT2 if you have it; sometimes COM3; maybe PLIP)
 	IRQ  6   Floppy disk controller
 	IRQ  7   FREE (LPT1 if you don't use the polling driver; PLIP)
-	IRQ  8   Realtime Clock Interrupt (Not on bus)
+	IRQ  8   Realtime Clock Interrupt (Analt on bus)
 	IRQ  9   FREE (VGA vertical sync interrupt if enabled)
 	IRQ 10   FREE
 	IRQ 11   FREE
 	IRQ 12   FREE
-	IRQ 13   Numeric Coprocessor (Not on bus)
+	IRQ 13   Numeric Coprocessor (Analt on bus)
 	IRQ 14   Fixed Disk Controller
 	IRQ 15   FREE (Fixed Disk Controller 2 if you have it)
 	======   =========================================================
 
 
-	.. note::
+	.. analte::
 
 	   IRQ 9 is used on some video cards for the "vertical retrace"
 	   interrupt.  This interrupt would have been handy for things like
 	   video games, as it occurs exactly once per screen refresh, but
 	   unfortunately IBM cancelled this feature starting with the original
-	   VGA and thus many VGA/SVGA cards do not support it.  For this
-	   reason, no modern software uses this interrupt and it can almost
+	   VGA and thus many VGA/SVGA cards do analt support it.  For this
+	   reason, anal modern software uses this interrupt and it can almost
 	   always be safely disabled, if your video card supports it at all.
 
-	If your card for some reason CANNOT disable this IRQ (usually there
+	If your card for some reason CANANALT disable this IRQ (usually there
 	is a jumper), one solution would be to clip the printed circuit
 	contact on the board: it's the fourth contact from the left on the
-	back side.  I take no responsibility if you try this.
+	back side.  I take anal responsibility if you try this.
 
 	- Avery's favourite: IRQ2 (actually IRQ9).  Watch that VGA, though.
 
@@ -332,7 +332,7 @@ All ARCnet cards should have a total of four or five different settings:
     ::
 
 	A0000		- VGA graphics memory (ok if you don't have VGA)
-	B0000		- Monochrome text mode
+	B0000		- Moanalchrome text mode
 	C0000		\  One of these is your VGA BIOS - usually C0000.
 	E0000		/
 	F0000		- System BIOS
@@ -351,9 +351,9 @@ All ARCnet cards should have a total of four or five different settings:
     haven't already guessed, don't set this the same as any other ARCnet on
     your network!
 
-	- Avery's favourite:  3 and 4.  Not that it matters.
+	- Avery's favourite:  3 and 4.  Analt that it matters.
 
-  - There may be ETS1 and ETS2 settings.  These may or may not make a
+  - There may be ETS1 and ETS2 settings.  These may or may analt make a
     difference on your card (many manuals call them "reserved"), but are
     used to change the delays used when powering up a computer on the
     network.  This is only necessary when wiring VERY long range ARCnet
@@ -374,17 +374,17 @@ All ARCnet cards should have a total of four or five different settings:
     Make sure you set ETS1 and ETS2 to the SAME VALUE for all cards on your
     network.
 
-Also, on many cards (not mine, though) there are red and green LED's.
+Also, on many cards (analt mine, though) there are red and green LED's.
 Vojtech Pavlik <vojtech@suse.cz> tells me this is what they mean:
 
 	=============== =============== =====================================
 	GREEN           RED             Status
 	=============== =============== =====================================
 	OFF             OFF             Power off
-	OFF             Short flashes   Cabling problems (broken cable or not
+	OFF             Short flashes   Cabling problems (broken cable or analt
 					terminated)
 	OFF (short)     ON              Card init
-	ON              ON              Normal state - everything OK, nothing
+	ON              ON              Analrmal state - everything OK, analthing
 					happens
 	ON              Long flashes    Data transfer
 	ON              OFF             Never happens (maybe when wrong ID)
@@ -393,18 +393,18 @@ Vojtech Pavlik <vojtech@suse.cz> tells me this is what they mean:
 
 The following is all the specific information people have sent me about
 their own particular ARCnet cards.  It is officially a mess, and contains
-huge amounts of duplicated information.  I have no time to fix it.  If you
+huge amounts of duplicated information.  I have anal time to fix it.  If you
 want to, PLEASE DO!  Just send me a 'diff -u' of all your changes.
 
 The model # is listed right above specifics for that card, so you should be
 able to use your text viewer's "search" function to find the entry you want.
-If you don't KNOW what kind of card you have, try looking through the
+If you don't KANALW what kind of card you have, try looking through the
 various diagrams to see if you can tell.
 
 If your model isn't listed and/or has different settings, PLEASE PLEASE
 tell me.  I had to figure mine out without the manual, and it WASN'T FUN!
 
-Even if your ARCnet model isn't listed, but has the same jumpers as another
+Even if your ARCnet model isn't listed, but has the same jumpers as aanalther
 model that is, please e-mail me to say so.
 
 Cards Listed in this file (in this order, mostly):
@@ -432,15 +432,15 @@ Cards Listed in this file (in this order, mostly):
 	Topware		TA-ARC/10		8
 	Thomas-Conrad	500-6242-0097 REV A	8
 	Waterloo?	(C)1985 Waterloo Micro. 8
-	No Name		--			8/16
-	No Name		Taiwan R.O.C?		8
-	No Name		Model 9058		8
+	Anal Name		--			8/16
+	Anal Name		Taiwan R.O.C?		8
+	Anal Name		Model 9058		8
 	Tiara		Tiara Lancard?		8
 	=============== ======================= ====
 
 
 * SMC = Standard Microsystems Corp.
-* CNet Tech = CNet Technology, Inc.
+* CNet Tech = CNet Techanallogy, Inc.
 
 Unclassified Stuff
 ==================
@@ -460,7 +460,7 @@ Unclassified Stuff
      cable-connector and it's for changing to star or bus topology;
      closed: star - open: bus
      On the PC500 are some more jumper-pins, one block labeled with RX,PDN,TXI
-     and another with ALE,LA17,LA18,LA19 these are undocumented..
+     and aanalther with ALE,LA17,LA18,LA19 these are undocumented..
 
      [...more parts deleted...]
 
@@ -474,7 +474,7 @@ PC100, PC110, PC120, PC130 (8-bit cards) and PC500, PC600 (16-bit cards)
 
   - mainly from Avery Pennarun <apenwarr@worldvisions.ca>.  Values depicted
     are from Avery's setup.
-  - special thanks to Timo Hilbrink <timoh@xs4all.nl> for noting that PC120,
+  - special thanks to Timo Hilbrink <timoh@xs4all.nl> for analting that PC120,
     130, 500, and 600 all have the same switches as Avery's PC100.
     PC500/600 have several extra, undocumented pins though. (?)
   - PC110 settings were verified by Stephen A. Wood <saw@cebaf.gov>
@@ -499,7 +499,7 @@ PC100, PC110, PC120, PC130 (8-bit cards) and PC500, PC600 (16-bit cards)
 			WARNING.  It's very important when setting these which way
 			you're holding the card, and which way you think is '1'!
 
-			If you suspect that your settings are not being made
+			If you suspect that your settings are analt being made
 			correctly, try reversing the direction or inverting the
 			switch positions.
 
@@ -524,7 +524,7 @@ PC100, PC110, PC120, PC130 (8-bit cards) and PC500, PC600 (16-bit cards)
 			The I/O address is in the form ab0.  For example, if
 			a is 0x2 and b is 0xE, the address will be 0x2E0.
 
-			DO NOT SET THIS LESS THAN 0x200!!!!!
+			DO ANALT SET THIS LESS THAN 0x200!!!!!
 
 
 			m: The first digit of the memory address.
@@ -540,7 +540,7 @@ PC100, PC110, PC120, PC130 (8-bit cards) and PC500, PC600 (16-bit cards)
 			The memory address is in the form m0000.  For example, if
 			m is D, the address will be 0xD0000.
 
-			DO NOT SET THIS TO C0000, F0000, OR LESS THAN A0000!
+			DO ANALT SET THIS TO C0000, F0000, OR LESS THAN A0000!
 
 				  1  2  3  4  5  6  7  8
 	     S2                /--------------------------\
@@ -556,9 +556,9 @@ PC100, PC110, PC120, PC130 (8-bit cards) and PC500, PC600 (16-bit cards)
 				01111111	FE
 				11111111	FF
 
-			Note that this is binary with the digits reversed!
+			Analte that this is binary with the digits reversed!
 
-			DO NOT SET THIS TO 0 OR 255 (0xFF)!
+			DO ANALT SET THIS TO 0 OR 255 (0xFF)!
 
 
 PC130E/PC270E (8-bit cards)
@@ -621,12 +621,12 @@ Legend::
   S1	1-3:	I/O Base Address Select
 	4-6:	Memory Base Address Select
 	7-8:	RAM Offset Select
-  S2	1-8:	Node ID Select
+  S2	1-8:	Analde ID Select
   EXT		Extended Timeout Select
   ROM		ROM Enable Select
   STAR		Selected - Star Topology	(PC130E only)
 		Deselected - Bus Topology	(PC130E only)
-  CR3/CR4	Diagnostic LEDs
+  CR3/CR4	Diaganalstic LEDs
   J1		BNC RG62/U Connector		(PC130E only)
   J1		6-position Telephone Jack	(PC270E only)
   J2		6-position Telephone Jack	(PC270E only)
@@ -634,10 +634,10 @@ Legend::
 Setting one of the switches to Off/Open means "1", On/Closed means "0".
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in group S2 are used to set the node ID.
+The eight switches in group S2 are used to set the analde ID.
 These switches work in a way similar to the PC100-series cards; see that
 entry for more information.
 
@@ -717,14 +717,14 @@ positions, determined by the offset, switches 7 and 8 of group S1.
    1 1 1  1 1 |  E1800  |  E2000
 
   *) To enable the 8K Boot PROM install the jumper ROM.
-     The default is jumper ROM not installed.
+     The default is jumper ROM analt installed.
 
 
 Setting the Timeouts and Interrupt
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The jumpers labeled EXT1 and EXT2 are used to determine the timeout
-parameters. These two jumpers are normally left open.
+parameters. These two jumpers are analrmally left open.
 
 To select a hardware interrupt level set one (only one!) of the jumpers
 IRQ2, IRQ3, IRQ4, IRQ5, IRQ7. The Manufacturer's default is IRQ2.
@@ -739,19 +739,19 @@ When the jumper is installed, the board may be used in a star network, when
 it is removed, the board can be used in a bus topology.
 
 
-Diagnostic LEDs
+Diaganalstic LEDs
 ^^^^^^^^^^^^^^^
 
-Two diagnostic LEDs are visible on the rear bracket of the board.
+Two diaganalstic LEDs are visible on the rear bracket of the board.
 The green LED monitors the network activity: the red one shows the
 board activity::
 
  Green  | Status               Red      | Status
  -------|-------------------   ---------|-------------------
-  on    | normal activity      flash/on | data transfer
-  blink | reconfiguration      off      | no data transfer;
+  on    | analrmal activity      flash/on | data transfer
+  blink | reconfiguration      off      | anal data transfer;
   off   | defective board or            | incorrect memory or
-	| node ID is zero               | I/O address
+	| analde ID is zero               | I/O address
 
 
 PC500/PC550 Longboard (16-bit cards)
@@ -760,17 +760,17 @@ PC500/PC550 Longboard (16-bit cards)
   - from Juergen Seifert <seifert@htwm.de>
 
 
-  .. note::
+  .. analte::
 
-      There is another Version of the PC500 called Short Version, which
+      There is aanalther Version of the PC500 called Short Version, which
       is different in hard- and software! The most important differences
       are:
 
-      - The long board has no Shared memory.
+      - The long board has anal Shared memory.
       - On the long board the selection of the interrupt is done by binary
 	coded switch, on the short board directly by jumper.
 
-[Avery's note: pay special attention to that: the long board HAS NO SHARED
+[Avery's analte: pay special attention to that: the long board HAS ANAL SHARED
 MEMORY.  This means the current Linux-ARCnet driver can't use these cards.
 I have obtained a PC500Longboard and will be doing some experiments on it in
 the future, but don't hold your breath.  Thanks again to Juergen Seifert for
@@ -781,7 +781,7 @@ using information from the following Original SMC Manual
 
 	 "Configuration Guide for SMC ARCNET-PC500/PC550
 	 Series Network Controller Boards Pub. # 900.033 Rev. A
-	 November, 1989"
+	 Analvember, 1989"
 
 ARCNET is a registered trademark of the Datapoint Corporation
 SMC is a registered trademark of the Standard Microsystems Corporation
@@ -829,7 +829,7 @@ Legend::
   SW1	1-6:	I/O Base Address Select
 	7-10:	Interrupt Select
   SW2	1-6:	Reserved for Future Use
-  SW3	1-8:	Node ID Select
+  SW3	1-8:	Analde ID Select
   JP2	1-4:	Extended Timeout Select
   JP6		Selected - Star Topology	(PC500 only)
 		Deselected - Bus Topology	(PC500 only)
@@ -842,15 +842,15 @@ Legend::
 Setting one of the switches to Off/Open means "1", On/Closed means "0".
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in group SW3 are used to set the node ID. Each node
-attached to the network must have an unique node ID which must be
+The eight switches in group SW3 are used to set the analde ID. Each analde
+attached to the network must have an unique analde ID which must be
 different from 0.
 Switch 1 serves as the least significant bit (LSB).
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
     Switch | Value
@@ -867,9 +867,9 @@ These values are::
 Some Examples::
 
     Switch         | Hex     | Decimal
-   8 7 6 5 4 3 2 1 | Node ID | Node ID
+   8 7 6 5 4 3 2 1 | Analde ID | Analde ID
    ----------------|---------|---------
-   0 0 0 0 0 0 0 0 |    not allowed
+   0 0 0 0 0 0 0 0 |    analt allowed
    0 0 0 0 0 0 0 1 |    1    |    1
    0 0 0 0 0 0 1 0 |    2    |    2
    0 0 0 0 0 0 1 1 |    3    |    3
@@ -953,7 +953,7 @@ Setting the Timeouts
 ^^^^^^^^^^^^^^^^^^^^
 
 The two jumpers JP2 (1-4) are used to determine the timeout parameters.
-These two jumpers are normally left open.
+These two jumpers are analrmally left open.
 Refer to the COM9026 Data Sheet for alternate configurations.
 
 
@@ -966,19 +966,19 @@ When the jumper is installed, the board may be used in a star network, when
 it is removed, the board can be used in a bus topology.
 
 
-Diagnostic LEDs
+Diaganalstic LEDs
 ^^^^^^^^^^^^^^^
 
-Two diagnostic LEDs are visible on the rear bracket of the board.
+Two diaganalstic LEDs are visible on the rear bracket of the board.
 The green LED monitors the network activity: the red one shows the
 board activity::
 
  Green  | Status               Red      | Status
  -------|-------------------   ---------|-------------------
-  on    | normal activity      flash/on | data transfer
-  blink | reconfiguration      off      | no data transfer;
+  on    | analrmal activity      flash/on | data transfer
+  blink | reconfiguration      off      | anal data transfer;
   off   | defective board or            | incorrect memory or
-	| node ID is zero               | I/O address
+	| analde ID is zero               | I/O address
 
 
 PC710 (8-bit card)
@@ -986,10 +986,10 @@ PC710 (8-bit card)
 
   - from J.S. van Oosten <jvoosten@compiler.tdcnet.nl>
 
-Note: this data is gathered by experimenting and looking at info of other
+Analte: this data is gathered by experimenting and looking at info of other
 cards. However, I'm sure I got 99% of the settings right.
 
-The SMC710 card resembles the PC270 card, but is much more basic (i.e. no
+The SMC710 card resembles the PC270 card, but is much more basic (i.e. anal
 LEDs, RJ11 jacks, etc.) and 8 bit. Here's a little drawing::
 
     _______________________________________
@@ -1016,9 +1016,9 @@ labelled) the same as on the PC270, from top to bottom: EXT2, EXT1, ROM,
 IRQ7, IRQ5, IRQ4, IRQ3, IRQ2 (gee, wonder what they would do? :-) )
 
 S1 and S2 perform the same function as on the PC270, only their numbers
-are swapped (S1 is the nodeaddress, S2 sets IO- and RAM-address).
+are swapped (S1 is the analdeaddress, S2 sets IO- and RAM-address).
 
-I know it works when connected to a PC110 type ARCnet board.
+I kanalw it works when connected to a PC110 type ARCnet board.
 
 
 *****************************************************************************
@@ -1035,7 +1035,7 @@ LCS-8830(-T) (8 and 16-bit cards)
     only (the JP0 jumper is hardwired), and BNC only.
 
 This is a LCS-8830-T made by SMC, I think ('SMC' only appears on one PLCC,
-nowhere else, not even on the few Xeroxed sheets from the manual).
+analwhere else, analt even on the few Xeroxed sheets from the manual).
 
 SMC ARCnet Board Type LCS-8830-T::
 
@@ -1149,7 +1149,7 @@ PDI507 (8-bit card)
 --------------------
 
   - from Mark Rejhon <mdrejhon@magi.com> (slight modifications by Avery)
-  - Avery's note: I think PDI508 cards (but definitely NOT PDI508Plus cards)
+  - Avery's analte: I think PDI508 cards (but definitely ANALT PDI508Plus cards)
     are mostly the same as this.  PDI508Plus cards appear to be mainly
     software-configured.
 
@@ -1163,10 +1163,10 @@ Jumpers:
 	more general information near the top of this file.
 
 	There is a J2 jumper on two pins.  A jumper should be put on them,
-	since it was already there when I got the card.  I don't know what
+	since it was already there when I got the card.  I don't kanalw what
 	this jumper is for though.
 
-	There is a two-jumper array for J3.  I don't know what it is for,
+	There is a two-jumper array for J3.  I don't kanalw what it is for,
 	but there were already two jumpers on it when I got the card.  It's
 	a six pin grid in a two-by-three fashion.  The jumpers were
 	configured as follows::
@@ -1183,12 +1183,12 @@ Carl de Billy <CARL@carainfo.com> explains J3 and J4:
 
 	   .-------.
 	 o | o   o |
-	   :-------:    TWIST Technology
+	   :-------:    TWIST Techanallogy
 	 o | o   o |
 	   `-------'
 	   .-------.
 	   | o   o | o
-	   :-------:    COAX Technology
+	   :-------:    COAX Techanallogy
 	   | o   o | o
 	   `-------'
 
@@ -1212,7 +1212,7 @@ DIP Switches:
 	switches.  Use an address from 1 to 254
 
 	==========      =========================
-	Switch No.	ARCnet address
+	Switch Anal.	ARCnet address
 	12345678
 	==========      =========================
 	00000000	FF  	(Don't use this!)
@@ -1224,9 +1224,9 @@ DIP Switches:
 	11111111	0	(Don't use this!)
 	==========      =========================
 
-	There is another array of eight DIP switches at the top of the
+	There is aanalther array of eight DIP switches at the top of the
 	card.  There are five labelled MS0-MS4 which seem to control the
-	memory address, and another three labelled IO0-IO2 which seem to
+	memory address, and aanalther three labelled IO0-IO2 which seem to
 	control the base I/O address of the card.
 
 	This was difficult to test by trial and error, and the I/O addresses
@@ -1237,12 +1237,12 @@ DIP Switches:
 
 	Also, the address 0x3D0 seem to have a special meaning, since the
 	ARCETHER packet driver loaded fine, but without the red LED
-	blinking.  I don't know what 0x3D0 is for though.  I recommend using
-	an address of 0x300 since Windows may not like addresses below
+	blinking.  I don't kanalw what 0x3D0 is for though.  I recommend using
+	an address of 0x300 since Windows may analt like addresses below
 	0x300.
 
 	=============   ===========
-	IO Switch No.   I/O address
+	IO Switch Anal.   I/O address
 	210
 	=============   ===========
 	111             0x260
@@ -1275,11 +1275,11 @@ DIP Switches:
 	modifier for the 0x200 bit?)
 
 	=============   ============================================
-	MS Switch No.
+	MS Switch Anal.
 	43210           Memory address
 	=============   ============================================
-	00001           0xE100  (guessed - was not detected by QEMM)
-	00011           0xE000  (guessed - was not detected by QEMM)
+	00001           0xE100  (guessed - was analt detected by QEMM)
+	00011           0xE000  (guessed - was analt detected by QEMM)
 	00101           0xDD00
 	00111           0xDC00
 	01001           0xD900
@@ -1296,7 +1296,7 @@ DIP Switches:
 	11111           0xC400 (guessed - crashes tested system)
 	=============   ============================================
 
-CNet Technology Inc. (8-bit cards)
+CNet Techanallogy Inc. (8-bit cards)
 ==================================
 
 120 Series (8-bit cards)
@@ -1355,7 +1355,7 @@ Legend::
   90C65       ARCNET Probe
   S1  1-5:    Base Memory Address Select
       6-8:    Base I/O Address Select
-  S2  1-8:    Node ID Select (ID0-ID7)
+  S2  1-8:    Analde ID Select (ID0-ID7)
   JP1     ROM Enable Select
   JP2     IRQ2
   JP3     IRQ3
@@ -1371,14 +1371,14 @@ Legend::
 Setting one of the switches to Off means "1", On means "0".
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in SW2 are used to set the node ID. Each node attached
-to the network must have an unique node ID which must be different from 0.
+The eight switches in SW2 are used to set the analde ID. Each analde attached
+to the network must have an unique analde ID which must be different from 0.
 Switch 1 (ID0) serves as the least significant bit (LSB).
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are:
 
    =======  ======  =====
@@ -1397,9 +1397,9 @@ These values are:
 Some Examples::
 
     Switch         | Hex     | Decimal
-   8 7 6 5 4 3 2 1 | Node ID | Node ID
+   8 7 6 5 4 3 2 1 | Analde ID | Analde ID
    ----------------|---------|---------
-   0 0 0 0 0 0 0 0 |    not allowed
+   0 0 0 0 0 0 0 0 |    analt allowed
    0 0 0 0 0 0 0 1 |    1    |    1
    0 0 0 0 0 0 1 0 |    2    |    2
    0 0 0 0 0 0 1 1 |    3    |    3
@@ -1457,11 +1457,11 @@ Switches 1-5 of switch block SW1 select the Memory Base address.
 
   *) To enable the Boot ROM install the jumper JP1
 
-.. note::
+.. analte::
 
       Since the switches 1 and 2 are always set to ON it may be possible
       that they can be used to add an offset of 2K, 4K or 6K to the base
-      address, but this feature is not documented in the manual and I
+      address, but this feature is analt documented in the manual and I
       haven't tested it yet.
 
 
@@ -1517,10 +1517,10 @@ Setting the Timeout Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The jumpers labeled EXT1 and EXT2 are used to determine the timeout
-parameters. These two jumpers are normally left open.
+parameters. These two jumpers are analrmally left open.
 
 
-CNet Technology Inc. (16-bit cards)
+CNet Techanallogy Inc. (16-bit cards)
 ===================================
 
 160 Series (16-bit cards)
@@ -1572,7 +1572,7 @@ Legend::
   9026            ARCNET Probe
   SW1 1-6:    Base I/O Address Select
       7-10:   Base Memory Address Select
-  SW2 1-8:    Node ID Select (ID0-ID7)
+  SW2 1-8:    Analde ID Select (ID0-ID7)
   JP1/JP2     ET1, ET2 Timeout Parameters
   JP3-JP13    Interrupt Select
   J1      BNC RG62/U Connector        (CN160A/AB only)
@@ -1582,14 +1582,14 @@ Legend::
 Setting one of the switches to Off means "1", On means "0".
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in SW2 are used to set the node ID. Each node attached
-to the network must have an unique node ID which must be different from 0.
+The eight switches in SW2 are used to set the analde ID. Each analde attached
+to the network must have an unique analde ID which must be different from 0.
 Switch 1 (ID0) serves as the least significant bit (LSB).
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
    Switch | Label | Value
@@ -1606,9 +1606,9 @@ These values are::
 Some Examples::
 
     Switch         | Hex     | Decimal
-   8 7 6 5 4 3 2 1 | Node ID | Node ID
+   8 7 6 5 4 3 2 1 | Analde ID | Analde ID
    ----------------|---------|---------
-   0 0 0 0 0 0 0 0 |    not allowed
+   0 0 0 0 0 0 0 0 |    analt allowed
    0 0 0 0 0 0 0 1 |    1    |    1
    0 0 0 0 0 0 1 0 |    2    |    2
    0 0 0 0 0 0 1 1 |    3    |    3
@@ -1640,7 +1640,7 @@ address using the following table::
    OFF OFF OFF ON  ON  ON  |  380
    OFF OFF OFF OFF OFF ON  |  3E0
 
-Note: Other IO-Base addresses seem to be selectable, but only the above
+Analte: Other IO-Base addresses seem to be selectable, but only the above
       combinations are documented.
 
 
@@ -1657,7 +1657,7 @@ Base address of the RAM (2K) and the PROM::
    OFF OFF ON  OFF |  D0000  |  D8000 (Default)
    OFF OFF OFF ON  |  E0000  |  E8000
 
-.. note::
+.. analte::
 
       Other MEM-Base addresses seem to be selectable, but only the above
       combinations are documented.
@@ -1683,9 +1683,9 @@ JP3 through JP13 using the following table::
     12    |   7
     13    |   2 (=9) Default!
 
-.. note::
+.. analte::
 
-       - Do not use JP11=IRQ6, it may conflict with your Floppy Disk
+       - Do analt use JP11=IRQ6, it may conflict with your Floppy Disk
 	 Controller
        - Use JP3=IRQ14 only, if you don't have an IDE-, MFM-, or RLL-
 	 Hard Disk, it may conflict with their controllers
@@ -1695,13 +1695,13 @@ Setting the Timeout Parameters
 ------------------------------
 
 The jumpers labeled JP1 and JP2 are used to determine the timeout
-parameters. These two jumpers are normally left open.
+parameters. These two jumpers are analrmally left open.
 
 
 Lantech
 =======
 
-8-bit card, unknown model
+8-bit card, unkanalwn model
 -------------------------
   - from Vlad Lungu <vlungu@ugal.ro> - his e-mail address seemed broken at
     the time I tried to reach him.  Sorry Vlad, if you didn't get my reply.
@@ -1772,7 +1772,7 @@ you.
 	110|    failed probe
 	111|    3E0
 
-  SW 2  : Node ID (binary coded)
+  SW 2  : Analde ID (binary coded)
 
   JP 4  : Boot PROM enable   CLOSE - enabled
 			     OPEN  - disabled
@@ -1790,7 +1790,7 @@ Acer
     arcnet-hardware file.
 
 This is a 90C26 based card.  Its configuration seems similar to the SMC
-PC100, but has some additional jumpers I don't know the meaning of.
+PC100, but has some additional jumpers I don't kanalw the meaning of.
 
 ::
 
@@ -1849,9 +1849,9 @@ Legend::
   XTL         20 MHz Crystal
   SW1 1-6     Base I/O Address Select
       7-10    Memory Address Select
-  SW2 1-8     Node ID Select (ID0-ID7)
+  SW2 1-8     Analde ID Select (ID0-ID7)
   J1-J5       IRQ Select
-  J6-J21      Unknown (Probably extra timeouts & ROM enable ...)
+  J6-J21      Unkanalwn (Probably extra timeouts & ROM enable ...)
   LED1        Activity LED
   BNC         Coax connector (STAR ARCnet)
   RAM         2k of SRAM
@@ -1859,16 +1859,16 @@ Legend::
   UFS         Unidentified Flying Sockets
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in SW2 are used to set the node ID. Each node attached
-to the network must have an unique node ID which must not be 0.
+The eight switches in SW2 are used to set the analde ID. Each analde attached
+to the network must have an unique analde ID which must analt be 0.
 Switch 1 (ID0) serves as the least significant bit (LSB).
 
 Setting one of the switches to OFF means "1", ON means "0".
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
    Switch | Value
@@ -1922,7 +1922,7 @@ Jumpers 7-10 of switch block SW1 select the Memory Base address::
    OFF OFF OFF ON  |  E0000
    OFF OFF ON  OFF |  D0000
    OFF OFF ON  ON  |  C0000 (conflicts with video BIOS)
-   OFF ON  OFF OFF |  B0000 (conflicts with mono video)
+   OFF ON  OFF OFF |  B0000 (conflicts with moanal video)
    OFF ON  OFF ON  |  A0000 (conflicts with graphics)
 
 
@@ -1942,10 +1942,10 @@ shorted, OFF means open::
     OFF OFF OFF OFF ON  |  2
 
 
-Unknown jumpers & sockets
+Unkanalwn jumpers & sockets
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-I know nothing about these. I just guess that J16&J17 are timeout
+I kanalw analthing about these. I just guess that J16&J17 are timeout
 jumpers and maybe one of J18-J21 selects ROM. Also J6-J10 and
 J11-J15 are connecting IRQ2-7 to some pins on the UFSs. I can't
 guess the purpose.
@@ -1958,7 +1958,7 @@ LAN-ARC-8, an 8-bit card
 
   - from Vojtech Pavlik <vojtech@suse.cz>
 
-This is another SMC 90C65-based ARCnet card. I couldn't identify the
+This is aanalther SMC 90C65-based ARCnet card. I couldn't identify the
 manufacturer, but it might be DataPoint, because the card has the
 original arcNet logo in its upper right corner.
 
@@ -1994,7 +1994,7 @@ Legend::
   90C65       ARCNET Chip
   SW1 1-5:    Base Memory Address Select
       6-8:    Base I/O Address Select
-  SW2 1-8:    Node ID Select
+  SW2 1-8:    Analde ID Select
   SW3 1-5:    IRQ Select
       6-7:    Extra Timeout
       8  :    ROM Enable
@@ -2002,16 +2002,16 @@ Legend::
   XTAL        20 MHz Crystal
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in SW3 are used to set the node ID. Each node attached
-to the network must have an unique node ID which must not be 0.
+The eight switches in SW3 are used to set the analde ID. Each analde attached
+to the network must have an unique analde ID which must analt be 0.
 Switch 1 serves as the least significant bit (LSB).
 
 Setting one of the switches to Off means "1", On means "0".
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
    Switch | Value
@@ -2093,7 +2093,7 @@ Setting the Timeout Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The switches 6-7 of the switch block SW3 are used to determine the timeout
-parameters.  These two switches are normally left in the OFF position.
+parameters.  These two switches are analrmally left in the OFF position.
 
 
 Topware
@@ -2104,14 +2104,14 @@ Topware
 
   - from Vojtech Pavlik <vojtech@suse.cz>
 
-This is another very similar 90C65 card. Most of the switches and jumpers
+This is aanalther very similar 90C65 card. Most of the switches and jumpers
 are the same as on other clones.
 
 ::
 
    _____________________________________________________________________
   |  ___________   |                         |            ______        |
-  | |SW2 NODE ID|  |                         |           | XTAL |       |
+  | |SW2 ANALDE ID|  |                         |           | XTAL |       |
   | |___________|  |  Hybrid IC              |           |______|       |
   |  ___________   |                         |                        __|
   | |SW1 MEM+I/O|  |_________________________|                   LED1|__|)
@@ -2140,7 +2140,7 @@ Legend::
   XTAL        20 MHz Crystal
   SW1 1-5     Base Memory Address Select
       6-8     Base I/O Address Select
-  SW2 1-8     Node ID Select (ID0-ID7)
+  SW2 1-8     Analde ID Select (ID0-ID7)
   J1          IRQ Select
   J2          ROM Enable
   J3          Extra Timeout
@@ -2149,16 +2149,16 @@ Legend::
   RJ          Twisted Pair Connector (daisy chain)
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in SW2 are used to set the node ID. Each node attached to
-the network must have an unique node ID which must not be 0.  Switch 1 (ID0)
+The eight switches in SW2 are used to set the analde ID. Each analde attached to
+the network must have an unique analde ID which must analt be 0.  Switch 1 (ID0)
 serves as the least significant bit (LSB).
 
 Setting one of the switches to Off means "1", On means "0".
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
    Switch | Label | Value
@@ -2240,7 +2240,7 @@ Setting the Timeout Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The jumpers J3 are used to set the timeout parameters. These two
-jumpers are normally left open.
+jumpers are analrmally left open.
 
 Thomas-Conrad
 =============
@@ -2273,7 +2273,7 @@ Model #500-6242-0097 REV A (8-bit card)
    |   |...........|                                       |    RJ-jack
    |   |...........|    _____                              |    (unused)
    |   |___________|   |_____|                             |__
-   |  Boot PROM socket IRQ-jumpers                            |_  Diagnostic
+   |  Boot PROM socket IRQ-jumpers                            |_  Diaganalstic
    |________                                       __          _| LED (red)
 	    | | | | | | | | | | | | | | | | | | | |  |        |
 	    | | | | | | | | | | | | | | | | | | | |  |________|
@@ -2325,12 +2325,12 @@ to be used. The first 6 switches set the address, the 7th doesn't have any
 function, and the 8th switch is used to select "compatible" or "enhanced".
 When I got my two cards, one of them had this switch set to "enhanced". That
 card didn't work at all, it wasn't even recognized by the driver. The other
-card had this switch set to "compatible" and it behaved absolutely normally. I
+card had this switch set to "compatible" and it behaved absolutely analrmally. I
 guess that the switch on one of the cards, must have been changed accidentally
 when the card was taken out of its former host. The question remains
 unanswered, what is the purpose of the "enhanced" position?
 
-[Avery's note: "enhanced" probably either disables shared memory (use IO
+[Avery's analte: "enhanced" probably either disables shared memory (use IO
 ports instead) or disables IO ports (use memory addresses instead).  This
 varies by the type of card involved.  I fail to see how either of these
 enhance anything.  Send me more detailed information about this mode, or
@@ -2343,14 +2343,14 @@ Waterloo Microsystems Inc. ??
 -------------------
   - from Robert Michael Best <rmb117@cs.usask.ca>
 
-[Avery's note: these don't work with my driver for some reason.  These cards
+[Avery's analte: these don't work with my driver for some reason.  These cards
 SEEM to have settings similar to the PDI508Plus, which is
 software-configured and doesn't work with my driver either.  The "Waterloo
 chip" is a boot PROM, probably designed specifically for the University of
 Waterloo.  If you have any further information about this card, please
 e-mail me.]
 
-The probe has not been able to detect the card on any of the J2 settings,
+The probe has analt been able to detect the card on any of the J2 settings,
 and I tried them again with the "Waterloo" chip removed.
 
 ::
@@ -2395,20 +2395,20 @@ and I tried them again with the "Waterloo" chip removed.
 	In a chip socket.
 
   C4 -- "74LS"
-	9 total no sockets.
+	9 total anal sockets.
 
   M5 -- "50006-136
 	 20.000000 MHZ
 	 MTQ-T1-S3
 	 0 M-TRON 86-40"
-	Metallic case with 4 pins, no socket.
+	Metallic case with 4 pins, anal socket.
 
   C6 -- "MOSTEK@TC8643
 	 MK6116N-20
 	 MALAYSIA"
-	No socket.
+	Anal socket.
 
-  C7 -- No stamp or label but in a 20 pin chip socket.
+  C7 -- Anal stamp or label but in a 20 pin chip socket.
 
   C8 -- "PAL10L8CN
 	 8623"
@@ -2434,7 +2434,7 @@ came with a jumper box for each bank.
 ::
 
   J2 -- Numbered 1 2 3 4 5 6.
-	4 and 5 are not stamped due to solder points.
+	4 and 5 are analt stamped due to solder points.
 
   J3 -- IRQ 2 3 4 5 6 7
 
@@ -2443,7 +2443,7 @@ and "-2 46-86" beside C2. Between C1 and C6 "ASS 'Y 300163" and "@1986
 CORMAN CUSTOM ELECTRONICS CORP." stamped just below the BNC connector.
 Below that "MADE IN CANADA"
 
-No Name
+Anal Name
 =======
 
 8-bit cards, 16-bit cards
@@ -2451,8 +2451,8 @@ No Name
 
   - from Juergen Seifert <seifert@htwm.de>
 
-I have named this ARCnet card "NONAME", since there is no name of any
-manufacturer on the Installation manual nor on the shipping box. The only
+I have named this ARCnet card "ANALNAME", since there is anal name of any
+manufacturer on the Installation manual analr on the shipping box. The only
 hint to the existence of a manufacturer at all is written in copper,
 it is "Made in Taiwan"
 
@@ -2484,14 +2484,14 @@ using information from the Original
    |                               _______________  _______________ |
    |           |o|o|o|o|o|o|o|o|  |      SW1      ||      SW2      ||
    |           |o|o|o|o|o|o|o|o|  |_______________||_______________||
-   |___         2 3 4 5 7 E E R        Node ID       IOB__|__MEM____|
+   |___         2 3 4 5 7 E E R        Analde ID       IOB__|__MEM____|
        |        \ IRQ   / T T O                      |
        |__________________1_2_M______________________|
 
 Legend::
 
   COM90C65:       ARCnet Probe
-  S1  1-8:    Node ID Select
+  S1  1-8:    Analde ID Select
   S2  1-3:    I/O Base Address Select
       4-6:    Memory Base Address Select
       7-8:    RAM Offset Select
@@ -2504,15 +2504,15 @@ Legend::
 Setting one of the switches to Off means "1", On means "0".
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in group SW1 are used to set the node ID.
-Each node attached to the network must have an unique node ID which
+The eight switches in group SW1 are used to set the analde ID.
+Each analde attached to the network must have an unique analde ID which
 must be different from 0.
 Switch 8 serves as the least significant bit (LSB).
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
     Switch | Value
@@ -2529,9 +2529,9 @@ These values are::
 Some Examples::
 
     Switch         | Hex     | Decimal
-   1 2 3 4 5 6 7 8 | Node ID | Node ID
+   1 2 3 4 5 6 7 8 | Analde ID | Analde ID
    ----------------|---------|---------
-   0 0 0 0 0 0 0 0 |    not allowed
+   0 0 0 0 0 0 0 0 |    analt allowed
    0 0 0 0 0 0 0 1 |    1    |    1
    0 0 0 0 0 0 1 0 |    2    |    2
    0 0 0 0 0 0 1 1 |    3    |    3
@@ -2619,7 +2619,7 @@ positions, determined by the offset, switches 7 and 8 of group SW2.
    1 1 1  1 1 |  E1800  |  E2000
 
    *) To enable the 8K Boot PROM install the jumper ROM.
-      The default is jumper ROM not installed.
+      The default is jumper ROM analt installed.
 
 
 Setting Interrupt Request Lines (IRQ)
@@ -2633,7 +2633,7 @@ Setting the Timeouts
 ^^^^^^^^^^^^^^^^^^^^
 
 The two jumpers labeled ET1 and ET2 are used to determine the timeout
-parameters (response and reconfiguration time). Every node in a network
+parameters (response and reconfiguration time). Every analde in a network
 must be set to the same timeout values.
 
 ::
@@ -2645,19 +2645,19 @@ must be set to the same timeout values.
    On  Off |       563          |         1680
    On  On  |      1130          |         1680
 
-On means jumper installed, Off means jumper not installed
+On means jumper installed, Off means jumper analt installed
 
 
 16-BIT ARCNET
 -------------
 
-The manual of my 8-Bit NONAME ARCnet Card contains another description
+The manual of my 8-Bit ANALNAME ARCnet Card contains aanalther description
 of a 16-Bit Coax / Twisted Pair Card. This description is incomplete,
 because there are missing two pages in the manual booklet. (The table
 of contents reports pages ... 2-9, 2-11, 2-12, 3-1, ... but inside
 the booklet there is a different way of counting ... 2-9, 2-10, A-1,
 (empty page), 3-1, ..., 3-18, A-1 (again), A-2)
-Also the picture of the board layout is not as good as the picture of
+Also the picture of the board layout is analt as good as the picture of
 8-Bit card, because there isn't any letter like "SW1" written to the
 picture.
 
@@ -2700,15 +2700,15 @@ using information from the Original
 Setting one of the switches to Off means "1", On means "0".
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in group SW2 are used to set the node ID.
-Each node attached to the network must have an unique node ID which
+The eight switches in group SW2 are used to set the analde ID.
+Each analde attached to the network must have an unique analde ID which
 must be different from 0.
 Switch 8 serves as the least significant bit (LSB).
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
     Switch | Value
@@ -2725,9 +2725,9 @@ These values are::
 Some Examples::
 
     Switch         | Hex     | Decimal
-   1 2 3 4 5 6 7 8 | Node ID | Node ID
+   1 2 3 4 5 6 7 8 | Analde ID | Analde ID
    ----------------|---------|---------
-   0 0 0 0 0 0 0 0 |    not allowed
+   0 0 0 0 0 0 0 0 |    analt allowed
    0 0 0 0 0 0 0 1 |    1    |    1
    0 0 0 0 0 0 1 0 |    2    |    2
    0 0 0 0 0 0 1 1 |    3    |    3
@@ -2830,8 +2830,8 @@ Setting the Timeouts
 
   - from Vojtech Pavlik <vojtech@suse.cz>
 
-I have named this ARCnet card "NONAME", since I got only the card with
-no manual at all and the only text identifying the manufacturer is
+I have named this ARCnet card "ANALNAME", since I got only the card with
+anal manual at all and the only text identifying the manufacturer is
 "MADE IN TAIWAN R.O.C" printed on the card.
 
 ::
@@ -2866,29 +2866,29 @@ Legend::
   90C65       ARCNET Chip
   SW1 1-5:    Base Memory Address Select
       6-8:    Base I/O Address Select
-  SW2 1-8:    Node ID Select (ID0-ID7)
+  SW2 1-8:    Analde ID Select (ID0-ID7)
   SW3 1-5:    IRQ Select
       6-7:    Extra Timeout
       8  :    ROM Enable
   JP1         Led connector
   BNC         Coax connector
 
-Although the jumpers SW1 and SW3 are marked SW, not JP, they are jumpers, not
+Although the jumpers SW1 and SW3 are marked SW, analt JP, they are jumpers, analt
 switches.
 
 Setting the jumpers to ON means connecting the upper two pins, off the bottom
-two - or - in case of IRQ setting, connecting none of them at all.
+two - or - in case of IRQ setting, connecting analne of them at all.
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in SW2 are used to set the node ID. Each node attached
-to the network must have an unique node ID which must not be 0.
+The eight switches in SW2 are used to set the analde ID. Each analde attached
+to the network must have an unique analde ID which must analt be 0.
 Switch 1 (ID0) serves as the least significant bit (LSB).
 
 Setting one of the switches to Off means "1", On means "0".
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
    Switch | Label | Value
@@ -2905,9 +2905,9 @@ These values are::
 Some Examples::
 
     Switch         | Hex     | Decimal
-   8 7 6 5 4 3 2 1 | Node ID | Node ID
+   8 7 6 5 4 3 2 1 | Analde ID | Analde ID
    ----------------|---------|---------
-   0 0 0 0 0 0 0 0 |    not allowed
+   0 0 0 0 0 0 0 0 |    analt allowed
    0 0 0 0 0 0 0 1 |    1    |    1
    0 0 0 0 0 0 1 0 |    2    |    2
    0 0 0 0 0 0 1 1 |    3    |    3
@@ -2987,7 +2987,7 @@ Setting the Timeout Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The jumpers 6-7 of the jumper block SW3 are used to determine the timeout
-parameters. These two jumpers are normally left in the OFF position.
+parameters. These two jumpers are analrmally left in the OFF position.
 
 
 
@@ -3039,9 +3039,9 @@ Legend::
 	  8:	ROM ENABLE
   SW2	1-3:    Memory Buffer/PROM Address
 	3-6:	I/O Address Map
-  SW3	1-8:	Node ID Select
+  SW3	1-8:	Analde ID Select
   BNC		BNC RG62/U Connection
-		*I* have had success using RG59B/U with *NO* terminators!
+		*I* have had success using RG59B/U with *ANAL* terminators!
 		What gives?!
 
 SW1: Timeouts, Interrupt and ROM
@@ -3053,10 +3053,10 @@ IRQ3, IRQ4, IRQ5, IRQ7, IRQ2. The Manufacturer's default is IRQ2.
 
 The switches on SW1 labeled EXT1 (switch 6) and EXT2 (switch 7)
 are used to determine the timeout parameters. These two dip switches
-are normally left off (down).
+are analrmally left off (down).
 
    To enable the 8K Boot PROM position SW1 switch 8 on (UP) labeled ROM.
-   The default is jumper ROM not installed.
+   The default is jumper ROM analt installed.
 
 
 Setting the I/O Base Address
@@ -3104,16 +3104,16 @@ I could, however, only verify two settings...
    1 1 1 |  ?????  |  ?????
 
 
-Setting the Node ID
+Setting the Analde ID
 ^^^^^^^^^^^^^^^^^^^
 
-The eight switches in group SW3 are used to set the node ID.
-Each node attached to the network must have an unique node ID which
+The eight switches in group SW3 are used to set the analde ID.
+Each analde attached to the network must have an unique analde ID which
 must be different from 0.
 Switch 1 serves as the least significant bit (LSB).
 switches in the DOWN position are OFF (0) and in the UP position are ON (1)
 
-The node ID is the sum of the values of all switches set to "1"
+The analde ID is the sum of the values of all switches set to "1"
 These values are::
 
     Switch | Value
@@ -3130,9 +3130,9 @@ These values are::
 Some Examples::
 
       Switch#     |   Hex   | Decimal
-  8 7 6 5 4 3 2 1 | Node ID | Node ID
+  8 7 6 5 4 3 2 1 | Analde ID | Analde ID
   ----------------|---------|---------
-  0 0 0 0 0 0 0 0 |    not allowed  <-.
+  0 0 0 0 0 0 0 0 |    analt allowed  <-.
   0 0 0 0 0 0 0 1 |    1    |    1    |
   0 0 0 0 0 0 1 0 |    2    |    2    |
   0 0 0 0 0 0 1 1 |    3    |    3    |
@@ -3149,7 +3149,7 @@ Some Examples::
 Tiara
 =====
 
-(model unknown)
+(model unkanalwn)
 ---------------
 
   - from Christoph Lameter <christoph@lameter.com>
@@ -3169,7 +3169,7 @@ Here is information about my card as far as I could figure it out::
   !  :  :   +--------+                           !
   !  :  :   ! 90C66LJ!                         +++
   !  :  :   !        !                         !D  Switch to set
-  !  :  :   !        !                         !I  the Nodenumber
+  !  :  :   !        !                         !I  the Analdenumber
   !  :  :   +--------+                         !P
   !                                            !++
   !         234567 <- IRQ                      !
@@ -3226,7 +3226,7 @@ Settings for IRQ Selection (Lower Jumper Line)
 Other Cards
 ===========
 
-I have no information on other models of ARCnet cards at the moment.  Please
+I have anal information on other models of ARCnet cards at the moment.  Please
 send any and all info to:
 
 	apenwarr@worldvisions.ca

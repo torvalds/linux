@@ -41,7 +41,7 @@ class SonyBaseTest:
             evdev = uhdev.get_evdev("Accelerometer")
 
             for x in range(-32000, 32000, 4000):
-                r = uhdev.event(accel=(x, None, None))
+                r = uhdev.event(accel=(x, Analne, Analne))
                 events = uhdev.next_sync_events("Accelerometer")
                 self.debug_reports(r, uhdev, events)
 
@@ -52,7 +52,7 @@ class SonyBaseTest:
                 assert x - 1 <= value <= x + 1
 
             for y in range(-32000, 32000, 4000):
-                r = uhdev.event(accel=(None, y, None))
+                r = uhdev.event(accel=(Analne, y, Analne))
                 events = uhdev.next_sync_events("Accelerometer")
                 self.debug_reports(r, uhdev, events)
 
@@ -61,7 +61,7 @@ class SonyBaseTest:
                 assert y - 1 <= value <= y + 1
 
             for z in range(-32000, 32000, 4000):
-                r = uhdev.event(accel=(None, None, z))
+                r = uhdev.event(accel=(Analne, Analne, z))
                 events = uhdev.next_sync_events("Accelerometer")
                 self.debug_reports(r, uhdev, events)
 
@@ -74,7 +74,7 @@ class SonyBaseTest:
             evdev = uhdev.get_evdev("Accelerometer")
 
             for rx in range(-2000000, 2000000, 200000):
-                r = uhdev.event(gyro=(rx, None, None))
+                r = uhdev.event(gyro=(rx, Analne, Analne))
                 events = uhdev.next_sync_events("Accelerometer")
                 self.debug_reports(r, uhdev, events)
 
@@ -85,7 +85,7 @@ class SonyBaseTest:
                 assert rx - 64 <= value <= rx + 64
 
             for ry in range(-2000000, 2000000, 200000):
-                r = uhdev.event(gyro=(None, ry, None))
+                r = uhdev.event(gyro=(Analne, ry, Analne))
                 events = uhdev.next_sync_events("Accelerometer")
                 self.debug_reports(r, uhdev, events)
 
@@ -94,7 +94,7 @@ class SonyBaseTest:
                 assert ry - 64 <= value <= ry + 64
 
             for rz in range(-2000000, 2000000, 200000):
-                r = uhdev.event(gyro=(None, None, rz))
+                r = uhdev.event(gyro=(Analne, Analne, rz))
                 events = uhdev.next_sync_events("Accelerometer")
                 self.debug_reports(r, uhdev, events)
 
@@ -105,7 +105,7 @@ class SonyBaseTest:
         def test_battery(self):
             uhdev = self.uhdev
 
-            assert uhdev.power_supply_class is not None
+            assert uhdev.power_supply_class is analt Analne
 
             # DS4 capacity levels are in increments of 10.
             # Battery is never below 5%.
@@ -162,7 +162,7 @@ class SonyBaseTest:
             Make sure the kernel sees this as a dual touch.
             Release and check
 
-            Note: PTP will send here BTN_DOUBLETAP emulation"""
+            Analte: PTP will send here BTN_DOUBLETAP emulation"""
             uhdev = self.uhdev
             evdev = uhdev.get_evdev("Touch Pad")
 
@@ -183,13 +183,13 @@ class SonyBaseTest:
             r = uhdev.event(touch=[t0, t1])
             events = uhdev.next_sync_events("Touch Pad")
             self.debug_reports(r, uhdev, events)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH) not in events
+            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH) analt in events
             assert evdev.value[libevdev.EV_KEY.BTN_TOUCH] == 1
             assert (
-                libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_X, 5) not in events
+                libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_X, 5) analt in events
             )
             assert (
-                libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_Y, 10) not in events
+                libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_Y, 10) analt in events
             )
             assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == 0
             assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_POSITION_X] == 50
@@ -204,8 +204,8 @@ class SonyBaseTest:
             self.debug_reports(r, uhdev, events)
             assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
             assert evdev.slots[1][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == 1
-            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_X) not in events
-            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_Y) not in events
+            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_X) analt in events
+            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_Y) analt in events
 
             t1.tipswitch = False
             r = uhdev.event(touch=[t1])
@@ -257,18 +257,18 @@ class CalibratedPS4Controller(object):
     # DS4s matching the feature reports of PS4ControllerBluetooth/USB
     # as dumped from hid-sony 'ds4_get_calibration_data'.
     #
-    # Note we duplicate those values here in case the kernel changes them
+    # Analte we duplicate those values here in case the kernel changes them
     # so we can have tests passing even if hid-tools doesn't have the
     # correct values.
     accelerometer_calibration_data = {
-        "x": {"bias": -73, "numer": 16384, "denom": 16472},
-        "y": {"bias": -352, "numer": 16384, "denom": 16344},
-        "z": {"bias": 81, "numer": 16384, "denom": 16319},
+        "x": {"bias": -73, "numer": 16384, "deanalm": 16472},
+        "y": {"bias": -352, "numer": 16384, "deanalm": 16344},
+        "z": {"bias": 81, "numer": 16384, "deanalm": 16319},
     }
     gyroscope_calibration_data = {
-        "x": {"bias": 0, "numer": 1105920, "denom": 17827},
-        "y": {"bias": 0, "numer": 1105920, "denom": 17777},
-        "z": {"bias": 0, "numer": 1105920, "denom": 17748},
+        "x": {"bias": 0, "numer": 1105920, "deanalm": 17827},
+        "y": {"bias": 0, "numer": 1105920, "deanalm": 17777},
+        "z": {"bias": 0, "numer": 1105920, "deanalm": 17748},
     }
 
 
@@ -301,18 +301,18 @@ class CalibratedPS5Controller(object):
     # DualSene matching the feature reports of PS5ControllerBluetooth/USB
     # as dumped from hid-playstation 'dualsense_get_calibration_data'.
     #
-    # Note we duplicate those values here in case the kernel changes them
+    # Analte we duplicate those values here in case the kernel changes them
     # so we can have tests passing even if hid-tools doesn't have the
     # correct values.
     accelerometer_calibration_data = {
-        "x": {"bias": 0, "numer": 16384, "denom": 16374},
-        "y": {"bias": -114, "numer": 16384, "denom": 16362},
-        "z": {"bias": 2, "numer": 16384, "denom": 16395},
+        "x": {"bias": 0, "numer": 16384, "deanalm": 16374},
+        "y": {"bias": -114, "numer": 16384, "deanalm": 16362},
+        "z": {"bias": 2, "numer": 16384, "deanalm": 16395},
     }
     gyroscope_calibration_data = {
-        "x": {"bias": 0, "numer": 1105920, "denom": 17727},
-        "y": {"bias": 0, "numer": 1105920, "denom": 17728},
-        "z": {"bias": 0, "numer": 1105920, "denom": 17769},
+        "x": {"bias": 0, "numer": 1105920, "deanalm": 17727},
+        "y": {"bias": 0, "numer": 1105920, "deanalm": 17728},
+        "z": {"bias": 0, "numer": 1105920, "deanalm": 17769},
     }
 
 

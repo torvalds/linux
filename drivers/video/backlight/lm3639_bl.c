@@ -112,7 +112,7 @@ static int lm3639_bled_update_status(struct backlight_device *bl)
 						 pdata->max_brt_led);
 		else
 			dev_err(pchip->dev,
-				"No pwm control func. in plat-data\n");
+				"Anal pwm control func. in plat-data\n");
 		return bl->props.brightness;
 	}
 
@@ -149,7 +149,7 @@ static int lm3639_bled_get_brightness(struct backlight_device *bl)
 			bl->props.brightness = pdata->pwm_get_intensity();
 		else
 			dev_err(pchip->dev,
-				"No pwm control func. in plat-data\n");
+				"Anal pwm control func. in plat-data\n");
 		return bl->props.brightness;
 	}
 
@@ -305,18 +305,18 @@ static int lm3639_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c functionality check fail.\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (pdata == NULL) {
 		dev_err(&client->dev, "Needs Platform Data.\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	pchip = devm_kzalloc(&client->dev,
 			     sizeof(struct lm3639_chip_data), GFP_KERNEL);
 	if (!pchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pchip->pdata = pdata;
 	pchip->dev = &client->dev;

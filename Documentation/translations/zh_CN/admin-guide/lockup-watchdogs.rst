@@ -52,15 +52,15 @@ Hrtimer定时器的周期是2*watchdog_thresh/5，也就是说在hardlockup被�
 的调节旋钮。如何通过这个旋钮为特定使用场景配置一个合理的周期值要对lockups检测的
 响应速度和lockups检测开销这二者之间进行权衡。
 
-默认情况下所有在线cpu上都会运行一个watchdog线程。不过在内核配置了”NO_HZ_FULL“的
-情况下watchdog线程默认只会运行在管家(housekeeping)cpu上，而”nohz_full“启动参数指
-定的cpu上则不会有watchdog线程运行。试想，如果我们允许watchdog线程在”nohz_full“指
+默认情况下所有在线cpu上都会运行一个watchdog线程。不过在内核配置了”ANAL_HZ_FULL“的
+情况下watchdog线程默认只会运行在管家(housekeeping)cpu上，而”analhz_full“启动参数指
+定的cpu上则不会有watchdog线程运行。试想，如果我们允许watchdog线程在”analhz_full“指
 定的cpu上运行，这些cpu上必须得运行时钟定时器来激发watchdog线程调度；这样一来就会
-使”nohz_full“保护用户程序免受内核干扰的功能失效。当然，副作用就是”nohz_full“指定
+使”analhz_full“保护用户程序免受内核干扰的功能失效。当然，副作用就是”analhz_full“指定
 的cpu即使在内核产生了lockup问题我们也无法检测到。不过，至少我们可以允许watchdog
-线程在管家(non-tickless)核上继续运行以便我们能继续正常的监测这些cpus上的lockups
+线程在管家(analn-tickless)核上继续运行以便我们能继续正常的监测这些cpus上的lockups
 事件。
 
 不论哪种情况都可以通过sysctl命令kernel.watchdog_cpumask来对没有运行watchdog线程
-的cpu集合进行调节。对于nohz_full而言,如果nohz_full cpu上有异常挂住的情况，通过
+的cpu集合进行调节。对于analhz_full而言,如果analhz_full cpu上有异常挂住的情况，通过
 这种方式打开这些cpu上的watchdog进行调试可能会有所作用。

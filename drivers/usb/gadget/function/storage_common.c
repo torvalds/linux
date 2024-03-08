@@ -181,7 +181,7 @@ int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	int				ro;
 	struct file			*filp = NULL;
 	int				rc = -EINVAL;
-	struct inode			*inode = NULL;
+	struct ianalde			*ianalde = NULL;
 	loff_t				size;
 	loff_t				num_sectors;
 	loff_t				min_sectors;
@@ -205,24 +205,24 @@ int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	if (!(filp->f_mode & FMODE_WRITE))
 		ro = 1;
 
-	inode = filp->f_mapping->host;
-	if ((!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))) {
+	ianalde = filp->f_mapping->host;
+	if ((!S_ISREG(ianalde->i_mode) && !S_ISBLK(ianalde->i_mode))) {
 		LINFO(curlun, "invalid file type: %s\n", filename);
 		goto out;
 	}
 
 	/*
-	 * If we can't read the file, it's no good.
+	 * If we can't read the file, it's anal good.
 	 * If we can't write the file, use it read-only.
 	 */
 	if (!(filp->f_mode & FMODE_CAN_READ)) {
-		LINFO(curlun, "file not readable: %s\n", filename);
+		LINFO(curlun, "file analt readable: %s\n", filename);
 		goto out;
 	}
 	if (!(filp->f_mode & FMODE_CAN_WRITE))
 		ro = 1;
 
-	size = i_size_read(inode);
+	size = i_size_read(ianalde);
 	if (size < 0) {
 		LINFO(curlun, "unable to find file size: %s\n", filename);
 		rc = (int) size;
@@ -232,8 +232,8 @@ int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	if (curlun->cdrom) {
 		blksize = 2048;
 		blkbits = 11;
-	} else if (S_ISBLK(inode->i_mode)) {
-		blksize = bdev_logical_block_size(I_BDEV(inode));
+	} else if (S_ISBLK(ianalde->i_mode)) {
+		blksize = bdev_logical_block_size(I_BDEV(ianalde));
 		blkbits = blksize_bits(blksize);
 	} else {
 		blksize = 512;
@@ -324,11 +324,11 @@ ssize_t fsg_show_ro(struct fsg_lun *curlun, char *buf)
 }
 EXPORT_SYMBOL_GPL(fsg_show_ro);
 
-ssize_t fsg_show_nofua(struct fsg_lun *curlun, char *buf)
+ssize_t fsg_show_analfua(struct fsg_lun *curlun, char *buf)
 {
-	return sprintf(buf, "%u\n", curlun->nofua);
+	return sprintf(buf, "%u\n", curlun->analfua);
 }
-EXPORT_SYMBOL_GPL(fsg_show_nofua);
+EXPORT_SYMBOL_GPL(fsg_show_analfua);
 
 ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		      char *buf)
@@ -347,7 +347,7 @@ ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 			buf[rc] = '\n';		/* Add a newline */
 			buf[++rc] = 0;
 		}
-	} else {				/* No file, return 0 bytes */
+	} else {				/* Anal file, return 0 bytes */
 		*buf = 0;
 		rc = 0;
 	}
@@ -415,24 +415,24 @@ ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 }
 EXPORT_SYMBOL_GPL(fsg_store_ro);
 
-ssize_t fsg_store_nofua(struct fsg_lun *curlun, const char *buf, size_t count)
+ssize_t fsg_store_analfua(struct fsg_lun *curlun, const char *buf, size_t count)
 {
-	bool		nofua;
+	bool		analfua;
 	int		ret;
 
-	ret = kstrtobool(buf, &nofua);
+	ret = kstrtobool(buf, &analfua);
 	if (ret)
 		return ret;
 
 	/* Sync data when switching from async mode to sync */
-	if (!nofua && curlun->nofua)
+	if (!analfua && curlun->analfua)
 		fsg_lun_fsync_sub(curlun);
 
-	curlun->nofua = nofua;
+	curlun->analfua = analfua;
 
 	return count;
 }
-EXPORT_SYMBOL_GPL(fsg_store_nofua);
+EXPORT_SYMBOL_GPL(fsg_store_analfua);
 
 ssize_t fsg_store_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		       const char *buf, size_t count)
@@ -455,10 +455,10 @@ ssize_t fsg_store_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		rc = fsg_lun_open(curlun, buf);
 		if (rc == 0)
 			curlun->unit_attention_data =
-					SS_NOT_READY_TO_READY_TRANSITION;
+					SS_ANALT_READY_TO_READY_TRANSITION;
 	} else if (fsg_lun_is_open(curlun)) {
 		fsg_lun_close(curlun);
-		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
+		curlun->unit_attention_data = SS_MEDIUM_ANALT_PRESENT;
 	}
 	up_write(filesem);
 	return (rc < 0 ? rc : count);

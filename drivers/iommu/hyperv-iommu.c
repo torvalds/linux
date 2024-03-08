@@ -33,7 +33,7 @@
  */
 #define IOAPIC_REMAPPING_ENTRY 24
 
-static cpumask_t ioapic_max_cpumask = { CPU_BITS_NONE };
+static cpumask_t ioapic_max_cpumask = { CPU_BITS_ANALNE };
 static struct irq_domain *ioapic_ir_domain;
 
 static int hyperv_ir_set_affinity(struct irq_data *data,
@@ -87,7 +87,7 @@ static int hyperv_irq_remapping_alloc(struct irq_domain *domain,
 
 	/*
 	 * Hypver-V IO APIC irq affinity should be in the scope of
-	 * ioapic_max_cpumask because no irq remapping support.
+	 * ioapic_max_cpumask because anal irq remapping support.
 	 */
 	irq_data_update_affinity(irq_data, &ioapic_max_cpumask);
 
@@ -117,7 +117,7 @@ static const struct irq_domain_ops hyperv_ir_domain_ops = {
 static const struct irq_domain_ops hyperv_root_ir_domain_ops;
 static int __init hyperv_prepare_irq_remapping(void)
 {
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 	int i;
 	const char *name;
 	const struct irq_domain_ops *ops;
@@ -128,7 +128,7 @@ static int __init hyperv_prepare_irq_remapping(void)
 	 */
 	if (!hypervisor_is_type(X86_HYPER_MS_HYPERV) ||
 	    x86_init.hyper.msi_ext_dest_id())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hv_root_partition) {
 		name = "HYPERV-ROOT-IR";
@@ -138,17 +138,17 @@ static int __init hyperv_prepare_irq_remapping(void)
 		ops = &hyperv_ir_domain_ops;
 	}
 
-	fn = irq_domain_alloc_named_id_fwnode(name, 0);
+	fn = irq_domain_alloc_named_id_fwanalde(name, 0);
 	if (!fn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ioapic_ir_domain =
 		irq_domain_create_hierarchy(arch_get_ir_parent_domain(),
 				0, IOAPIC_REMAPPING_ENTRY, fn, ops, NULL);
 
 	if (!ioapic_ir_domain) {
-		irq_domain_free_fwnode(fn);
-		return -ENOMEM;
+		irq_domain_free_fwanalde(fn);
+		return -EANALMEM;
 	}
 
 	if (hv_root_partition)
@@ -158,9 +158,9 @@ static int __init hyperv_prepare_irq_remapping(void)
 	 * Hyper-V doesn't provide irq remapping function for
 	 * IO-APIC and so IO-APIC only accepts 8-bit APIC ID.
 	 * Cpu's APIC ID is read from ACPI MADT table and APIC IDs
-	 * in the MADT table on Hyper-v are sorted monotonic increasingly.
+	 * in the MADT table on Hyper-v are sorted moanaltonic increasingly.
 	 * APIC ID reflects cpu topology. There maybe some APIC ID
-	 * gaps when cpu number in a socket is not power of two. Prepare
+	 * gaps when cpu number in a socket is analt power of two. Prepare
 	 * max cpu affinity for IOAPIC irqs. Scan cpu 0-255 and set cpu
 	 * into ioapic_max_cpumask if its APIC ID is less than 256.
 	 */
@@ -288,7 +288,7 @@ static int hyperv_root_irq_remapping_alloc(struct irq_domain *domain,
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		irq_domain_free_irqs_common(domain, virq, nr_irqs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_data = irq_domain_get_irq_data(domain, virq);

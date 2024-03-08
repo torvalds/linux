@@ -101,33 +101,33 @@ int mcs_add_intr_wq_entry(struct mcs *mcs, struct mcs_intr_event *event)
 
 	event->intr_mask &= pfvf->intr_mask;
 
-	/* Check PF/VF interrupt notification is enabled */
+	/* Check PF/VF interrupt analtification is enabled */
 	if (!(pfvf->intr_mask && event->intr_mask))
 		return 0;
 
 	qentry = kmalloc(sizeof(*qentry), GFP_ATOMIC);
 	if (!qentry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qentry->intr_event = *event;
 	spin_lock(&rvu->mcs_intrq_lock);
-	list_add_tail(&qentry->node, &rvu->mcs_intrq_head);
+	list_add_tail(&qentry->analde, &rvu->mcs_intrq_head);
 	spin_unlock(&rvu->mcs_intrq_lock);
 	queue_work(rvu->mcs_intr_wq, &rvu->mcs_intr_work);
 
 	return 0;
 }
 
-static int mcs_notify_pfvf(struct mcs_intr_event *event, struct rvu *rvu)
+static int mcs_analtify_pfvf(struct mcs_intr_event *event, struct rvu *rvu)
 {
 	struct mcs_intr_info *req;
 	int err, pf;
 
 	pf = rvu_get_pf(event->pcifunc);
 
-	req = otx2_mbox_alloc_msg_mcs_intr_notify(rvu, pf);
+	req = otx2_mbox_alloc_msg_mcs_intr_analtify(rvu, pf);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->mcs_id = event->mcs_id;
 	req->intr_mask = event->intr_mask;
@@ -138,7 +138,7 @@ static int mcs_notify_pfvf(struct mcs_intr_event *event, struct rvu *rvu)
 	otx2_mbox_msg_send(&rvu->afpf_wq_info.mbox_up, pf);
 	err = otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pf);
 	if (err)
-		dev_warn(rvu->dev, "MCS notification to pf %d failed\n", pf);
+		dev_warn(rvu->dev, "MCS analtification to pf %d failed\n", pf);
 
 	return 0;
 }
@@ -154,17 +154,17 @@ static void mcs_intr_handler_task(struct work_struct *work)
 		spin_lock_irqsave(&rvu->mcs_intrq_lock, flags);
 		qentry = list_first_entry_or_null(&rvu->mcs_intrq_head,
 						  struct mcs_intrq_entry,
-						  node);
+						  analde);
 		if (qentry)
-			list_del(&qentry->node);
+			list_del(&qentry->analde);
 
 		spin_unlock_irqrestore(&rvu->mcs_intrq_lock, flags);
 		if (!qentry)
-			break; /* nothing more to process */
+			break; /* analthing more to process */
 
 		event = &qentry->intr_event;
 
-		mcs_notify_pfvf(event, rvu);
+		mcs_analtify_pfvf(event, rvu);
 		kfree(qentry);
 	} while (1);
 }
@@ -201,7 +201,7 @@ int rvu_mbox_handler_mcs_get_hw_info(struct rvu *rvu,
 	struct mcs *mcs;
 
 	if (!rvu->mcs_blk_cnt)
-		return MCS_AF_ERR_NOT_MAPPED;
+		return MCS_AF_ERR_ANALT_MAPPED;
 
 	/* MCS resources are same across all blocks */
 	mcs = mcs_get_pdata(0);
@@ -392,7 +392,7 @@ int rvu_mbox_handler_mcs_set_active_lmac(struct rvu *rvu,
 
 	mcs = mcs_get_pdata(req->mcs_id);
 	if (!mcs)
-		return MCS_AF_ERR_NOT_MAPPED;
+		return MCS_AF_ERR_ANALT_MAPPED;
 
 	mcs->hw->lmac_bmap = req->lmac_bmap;
 	mcs_set_lmac_channels(req->mcs_id, req->chan_base);
@@ -895,12 +895,12 @@ int rvu_mcs_init(struct rvu *rvu)
 		mcs->pf = devm_kcalloc(mcs->dev, hw->total_pfs,
 				       sizeof(struct mcs_pfvf), GFP_KERNEL);
 		if (!mcs->pf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mcs->vf = devm_kcalloc(mcs->dev, hw->total_vfs,
 				       sizeof(struct mcs_pfvf), GFP_KERNEL);
 		if (!mcs->vf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Initialize the wq for handling mcs interrupts */
@@ -909,7 +909,7 @@ int rvu_mcs_init(struct rvu *rvu)
 	rvu->mcs_intr_wq = alloc_workqueue("mcs_intr_wq", 0, 0);
 	if (!rvu->mcs_intr_wq) {
 		dev_err(rvu->dev, "mcs alloc workqueue failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return err;

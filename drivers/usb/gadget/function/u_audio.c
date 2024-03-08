@@ -134,7 +134,7 @@ static void u_audio_set_fback_frequency(enum usb_device_speed speed,
 		 * ff = (freq << 16) / 8000
 		 *
 		 * Win10 and OSX UAC2 drivers require number of samples per packet
-		 * in order to honor the feedback value.
+		 * in order to hoanalr the feedback value.
 		 * Linux snd-usb-audio detects the applied bit-shift automatically.
 		 */
 		ep_desc = out_ep->desc;
@@ -178,7 +178,7 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 
 	substream = prm->ss;
 
-	/* Do nothing if ALSA isn't active */
+	/* Do analthing if ALSA isn't active */
 	if (!substream)
 		goto exit;
 
@@ -455,7 +455,7 @@ static inline void free_ep(struct uac_rtd_params *prm, struct usb_ep *ep)
 			if (usb_ep_dequeue(ep, prm->reqs[i]))
 				usb_ep_free_request(ep, prm->reqs[i]);
 			/*
-			 * If usb_ep_dequeue() cannot successfully dequeue the
+			 * If usb_ep_dequeue() cananalt successfully dequeue the
 			 * request, the request will be freed by the completion
 			 * callback.
 			 */
@@ -493,14 +493,14 @@ static inline void free_ep_fback(struct uac_rtd_params *prm, struct usb_ep *ep)
 
 static void set_active(struct uac_rtd_params *prm, bool active)
 {
-	// notifying through the Rate ctrl
+	// analtifying through the Rate ctrl
 	struct snd_kcontrol *kctl = prm->snd_kctl_rate;
 	unsigned long flags;
 
 	spin_lock_irqsave(&prm->lock, flags);
 	if (prm->active != active) {
 		prm->active = active;
-		snd_ctl_notify(prm->uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(prm->uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&kctl->id);
 	}
 	spin_unlock_irqrestore(&prm->lock, flags);
@@ -608,7 +608,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 		if (!prm->reqs[i]) {
 			req = usb_ep_alloc_request(ep, GFP_ATOMIC);
 			if (req == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			prm->reqs[i] = req;
 
@@ -637,7 +637,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 
 	req_fback = usb_ep_alloc_request(ep_fback, GFP_ATOMIC);
 	if (req_fback == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prm->req_fback = req_fback;
 	req_fback->zero = 0;
@@ -647,7 +647,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 
 	req_fback->buf = kzalloc(req_len, GFP_ATOMIC);
 	if (!req_fback->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Configure the feedback endpoint's reported frequency.
@@ -727,7 +727,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 		if (!prm->reqs[i]) {
 			req = usb_ep_alloc_request(ep, GFP_ATOMIC);
 			if (req == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			prm->reqs[i] = req;
 
@@ -806,7 +806,7 @@ int u_audio_set_volume(struct g_audio *audio_dev, int playback, s16 val)
 	spin_unlock_irqrestore(&prm->lock, flags);
 
 	if (change)
-		snd_ctl_notify(uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&prm->snd_kctl_volume->id);
 
 	return 0;
@@ -855,7 +855,7 @@ int u_audio_set_mute(struct g_audio *audio_dev, int playback, int val)
 	spin_unlock_irqrestore(&prm->lock, flags);
 
 	if (change)
-		snd_ctl_notify(uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &prm->snd_kctl_mute->id);
 
 	return 0;
@@ -966,8 +966,8 @@ static int u_audio_mute_put(struct snd_kcontrol *kcontrol,
 	}
 	spin_unlock_irqrestore(&prm->lock, flags);
 
-	if (change && audio_dev->notify)
-		audio_dev->notify(audio_dev, prm->fu_id, UAC_FU_MUTE);
+	if (change && audio_dev->analtify)
+		audio_dev->analtify(audio_dev, prm->fu_id, UAC_FU_MUTE);
 
 	return change;
 }
@@ -982,7 +982,7 @@ static int u_audio_volume_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	DECLARE_TLV_DB_MINMAX(scale, 0, 0);
 
 	if (size < sizeof(scale))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* UAC volume resolution is 1/256 dB, TLV is 1/100 dB */
 	scale[2] = (prm->volume_min * 100) / 256;
@@ -1045,8 +1045,8 @@ static int u_audio_volume_put(struct snd_kcontrol *kcontrol,
 	}
 	spin_unlock_irqrestore(&prm->lock, flags);
 
-	if (change && audio_dev->notify)
-		audio_dev->notify(audio_dev, prm->fu_id, UAC_FU_VOLUME);
+	if (change && audio_dev->analtify)
+		audio_dev->analtify(audio_dev, prm->fu_id, UAC_FU_VOLUME);
 
 	return change;
 }
@@ -1108,7 +1108,7 @@ static int u_audio_rate_get(struct snd_kcontrol *kcontrol,
 	if (prm->active)
 		ucontrol->value.integer.value[0] = prm->srate;
 	else
-		/* not active: reporting zero rate */
+		/* analt active: reporting zero rate */
 		ucontrol->value.integer.value[0] = 0;
 	spin_unlock_irqrestore(&prm->lock, flags);
 	return 0;
@@ -1168,7 +1168,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 
 	uac = kzalloc(sizeof(*uac), GFP_KERNEL);
 	if (!uac)
-		return -ENOMEM;
+		return -EANALMEM;
 	g_audio->uac = uac;
 	uac->audio_dev = g_audio;
 
@@ -1188,7 +1188,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 				    sizeof(struct usb_request *),
 				    GFP_KERNEL);
 		if (!prm->reqs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 
@@ -1196,7 +1196,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 				GFP_KERNEL);
 		if (!prm->rbuf) {
 			prm->max_psize = 0;
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 	}
@@ -1213,7 +1213,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 				    sizeof(struct usb_request *),
 				    GFP_KERNEL);
 		if (!prm->reqs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 
@@ -1221,12 +1221,12 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 				GFP_KERNEL);
 		if (!prm->rbuf) {
 			prm->max_psize = 0;
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 	}
 
-	/* Choose any slot, with no id */
+	/* Choose any slot, with anal id */
 	err = snd_card_new(&g_audio->gadget->dev,
 			-1, NULL, THIS_MODULE, 0, &card);
 	if (err < 0)
@@ -1236,7 +1236,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 
 	/*
 	 * Create first PCM device
-	 * Create a substream only for non-zero channel streams
+	 * Create a substream only for analn-zero channel streams
 	 */
 	err = snd_pcm_new(uac->card, pcm_name, 0,
 			       p_chmask ? 1 : 0, c_chmask ? 1 : 0, &pcm);
@@ -1263,7 +1263,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		kctl = snd_ctl_new1(&u_audio_controls[UAC_FBACK_CTRL],
 				    &uac->c_prm);
 		if (!kctl) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto snd_fail;
 		}
 
@@ -1279,7 +1279,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		kctl = snd_ctl_new1(&u_audio_controls[UAC_P_PITCH_CTRL],
 				    &uac->p_prm);
 		if (!kctl) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto snd_fail;
 		}
 
@@ -1321,7 +1321,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 			kctl = snd_ctl_new1(&u_audio_controls[UAC_MUTE_CTRL],
 					    prm);
 			if (!kctl) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto snd_fail;
 			}
 
@@ -1344,7 +1344,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 			kctl = snd_ctl_new1(&u_audio_controls[UAC_VOLUME_CTRL],
 					    prm);
 			if (!kctl) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto snd_fail;
 			}
 
@@ -1373,7 +1373,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 
 		kctl = snd_ctl_new1(&u_audio_controls[UAC_RATE_CTRL], prm);
 		if (!kctl) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto snd_fail;
 		}
 

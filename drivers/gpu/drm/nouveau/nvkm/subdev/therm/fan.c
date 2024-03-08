@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 		fan->percent = target;
 	}
 
-	/* check that we're not already at the target duty cycle */
+	/* check that we're analt already at the target duty cycle */
 	duty = fan->get(therm);
 	if (duty == target) {
 		spin_unlock_irqrestore(&fan->lock, flags);
@@ -82,7 +82,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 	 */
 	spin_unlock_irqrestore(&fan->lock, flags);
 
-	/* schedule next fan update, if not at target speed already */
+	/* schedule next fan update, if analt at target speed already */
 	if (target != duty) {
 		u16 bump_period = fan->bios.bump_period;
 		u16 slow_down_period = fan->bios.slow_down_period;
@@ -133,7 +133,7 @@ nvkm_therm_fan_sense(struct nvkm_therm *therm)
 		return therm->func->fan_sense(therm);
 
 	if (therm->fan->tach.func == DCB_GPIO_UNUSED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Time a complete rotation and extrapolate to RPM:
 	 * When the fan spins, it changes the value of GPIO FAN_SENSE.
@@ -243,7 +243,7 @@ nvkm_therm_fan_ctor(struct nvkm_therm *therm)
 		}
 	}
 
-	/* no controllable fan found, create a dummy fan module */
+	/* anal controllable fan found, create a dummy fan module */
 	if (ret != 0) {
 		ret = nvkm_fannil_create(therm);
 		if (ret)

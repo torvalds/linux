@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -79,7 +79,7 @@ s64 mthca_make_profile(struct mthca_dev *dev,
 
 	profile = kcalloc(MTHCA_RES_NUM, sizeof(*profile), GFP_KERNEL);
 	if (!profile)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	profile[MTHCA_RES_QP].size   = dev_lim->qpc_entry_sz;
 	profile[MTHCA_RES_EEC].size  = dev_lim->eec_entry_sz;
@@ -148,7 +148,7 @@ s64 mthca_make_profile(struct mthca_dev *dev,
 				  (unsigned long long) total_size,
 				  (unsigned long long) mem_avail);
 			kfree(profile);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (profile[i].size)
@@ -204,7 +204,7 @@ s64 mthca_make_profile(struct mthca_dev *dev,
 			for (dev->qp_table.rdb_shift = 0;
 			     request->num_qp << dev->qp_table.rdb_shift < profile[i].num;
 			     ++dev->qp_table.rdb_shift)
-				; /* nothing */
+				; /* analthing */
 			dev->qp_table.rdb_base    = (u32) profile[i].start;
 			init_hca->rdb_base        = profile[i].start;
 			break;

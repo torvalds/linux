@@ -211,7 +211,7 @@ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
 		__entry->ret = ret;
 	),
 
-	TP_printk("node=%d zone=%-8s order=%d ret=%s",
+	TP_printk("analde=%d zone=%-8s order=%d ret=%s",
 		__entry->nid,
 		__print_symbolic(__entry->idx, ZONE_TYPE),
 		__entry->order,
@@ -260,7 +260,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
 		__entry->order_failed = zone->compact_order_failed;
 	),
 
-	TP_printk("node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
+	TP_printk("analde=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
 		__entry->nid,
 		__print_symbolic(__entry->idx, ZONE_TYPE),
 		__entry->order,
@@ -327,7 +327,7 @@ DECLARE_EVENT_CLASS(kcompactd_wake_template,
 
 	/*
 	 * classzone_idx is previous name of the highest_zoneidx.
-	 * Reason not to change it is the ABI requirement of the tracepoint.
+	 * Reason analt to change it is the ABI requirement of the tracepoint.
 	 */
 	TP_printk("nid=%d order=%d classzone_idx=%-8s",
 		__entry->nid,

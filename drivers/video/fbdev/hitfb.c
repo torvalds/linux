@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -30,16 +30,16 @@
 #define	WIDTH 640
 
 static struct fb_var_screeninfo hitfb_var = {
-	.activate	= FB_ACTIVATE_NOW,
+	.activate	= FB_ACTIVATE_ANALW,
 	.height		= -1,
 	.width		= -1,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 static struct fb_fix_screeninfo hitfb_fix = {
 	.id		= "Hitachi HD64461",
 	.type		= FB_TYPE_PACKED_PIXELS,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static volatile void __iomem *hitfb_offset_to_addr(unsigned int offset)
@@ -219,23 +219,23 @@ static int hitfb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static int hitfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int hitfb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp, struct fb_info *info)
 {
-	if (regno >= 256)
+	if (reganal >= 256)
 		return 1;
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		hitfb_writew(regno << 8, HD64461_CPTWAR);
+		hitfb_writew(reganal << 8, HD64461_CPTWAR);
 		hitfb_writew(red >> 10, HD64461_CPTWDR);
 		hitfb_writew(green >> 10, HD64461_CPTWDR);
 		hitfb_writew(blue >> 10, HD64461_CPTWDR);
 		break;
 	case 16:
-		if (regno >= 16)
+		if (reganal >= 16)
 			return 1;
-		((u32 *) (info->pseudo_palette))[regno] =
+		((u32 *) (info->pseudo_palette))[reganal] =
 		    ((red & 0xf800)) |
 		    ((green & 0xfc00) >> 5) | ((blue & 0xf800) >> 11);
 		break;
@@ -348,7 +348,7 @@ static int hitfb_probe(struct platform_device *dev)
 	int ret;
 
 	if (fb_get_options("hitfb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	hitfb_fix.mmio_start = HD64461_IO_OFFSET(0x1000);
 	hitfb_fix.mmio_len = 0x1000;
@@ -401,7 +401,7 @@ static int hitfb_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
 	if (unlikely(!info))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->fbops = &hitfb_ops;
 	info->var = hitfb_var;

@@ -52,7 +52,7 @@ static ssize_t acpi_table_aml_write(struct config_item *cfg,
 
 	table->header = kmemdup(header, header->length, GFP_KERNEL);
 	if (!table->header)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = acpi_load_table(table->header, &table->index);
 	if (ret) {
@@ -68,7 +68,7 @@ static inline struct acpi_table_header *get_header(struct config_item *cfg)
 	struct acpi_table *table = container_of(cfg, struct acpi_table, cfg);
 
 	if (!table->header)
-		pr_err("table not loaded\n");
+		pr_err("table analt loaded\n");
 
 	return table->header ?: ERR_PTR(-EINVAL);
 }
@@ -212,7 +212,7 @@ static struct config_item *acpi_table_make_item(struct config_group *group,
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_item_init_type_name(&table->cfg, name, &acpi_table_type);
 	return &table->cfg;

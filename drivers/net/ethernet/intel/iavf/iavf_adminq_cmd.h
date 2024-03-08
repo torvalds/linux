@@ -11,15 +11,15 @@
  */
 
 #define IAVF_FW_API_VERSION_MAJOR	0x0001
-#define IAVF_FW_API_VERSION_MINOR_X722	0x0005
-#define IAVF_FW_API_VERSION_MINOR_X710	0x0008
+#define IAVF_FW_API_VERSION_MIANALR_X722	0x0005
+#define IAVF_FW_API_VERSION_MIANALR_X710	0x0008
 
-#define IAVF_FW_MINOR_VERSION(_h) ((_h)->mac.type == IAVF_MAC_XL710 ? \
-					IAVF_FW_API_VERSION_MINOR_X710 : \
-					IAVF_FW_API_VERSION_MINOR_X722)
+#define IAVF_FW_MIANALR_VERSION(_h) ((_h)->mac.type == IAVF_MAC_XL710 ? \
+					IAVF_FW_API_VERSION_MIANALR_X710 : \
+					IAVF_FW_API_VERSION_MIANALR_X722)
 
 /* API version 1.7 implements additional link and PHY-specific APIs  */
-#define IAVF_MINOR_VER_GET_LINK_INFO_XL710 0x0007
+#define IAVF_MIANALR_VER_GET_LINK_INFO_XL710 0x0007
 
 struct iavf_aq_desc {
 	__le16 flags;
@@ -78,27 +78,27 @@ struct iavf_aq_desc {
 /* error codes */
 enum iavf_admin_queue_err {
 	IAVF_AQ_RC_OK		= 0,  /* success */
-	IAVF_AQ_RC_EPERM	= 1,  /* Operation not permitted */
-	IAVF_AQ_RC_ENOENT	= 2,  /* No such element */
+	IAVF_AQ_RC_EPERM	= 1,  /* Operation analt permitted */
+	IAVF_AQ_RC_EANALENT	= 2,  /* Anal such element */
 	IAVF_AQ_RC_ESRCH	= 3,  /* Bad opcode */
 	IAVF_AQ_RC_EINTR	= 4,  /* operation interrupted */
 	IAVF_AQ_RC_EIO		= 5,  /* I/O error */
-	IAVF_AQ_RC_ENXIO	= 6,  /* No such resource */
+	IAVF_AQ_RC_ENXIO	= 6,  /* Anal such resource */
 	IAVF_AQ_RC_E2BIG	= 7,  /* Arg too long */
 	IAVF_AQ_RC_EAGAIN	= 8,  /* Try again */
-	IAVF_AQ_RC_ENOMEM	= 9,  /* Out of memory */
+	IAVF_AQ_RC_EANALMEM	= 9,  /* Out of memory */
 	IAVF_AQ_RC_EACCES	= 10, /* Permission denied */
 	IAVF_AQ_RC_EFAULT	= 11, /* Bad address */
 	IAVF_AQ_RC_EBUSY	= 12, /* Device or resource busy */
 	IAVF_AQ_RC_EEXIST	= 13, /* object already exists */
 	IAVF_AQ_RC_EINVAL	= 14, /* Invalid argument */
-	IAVF_AQ_RC_ENOTTY	= 15, /* Not a typewriter */
-	IAVF_AQ_RC_ENOSPC	= 16, /* No space left or alloc failure */
-	IAVF_AQ_RC_ENOSYS	= 17, /* Function not implemented */
+	IAVF_AQ_RC_EANALTTY	= 15, /* Analt a typewriter */
+	IAVF_AQ_RC_EANALSPC	= 16, /* Anal space left or alloc failure */
+	IAVF_AQ_RC_EANALSYS	= 17, /* Function analt implemented */
 	IAVF_AQ_RC_ERANGE	= 18, /* Parameter out of range */
 	IAVF_AQ_RC_EFLUSHED	= 19, /* Cmd flushed due to prev cmd error */
 	IAVF_AQ_RC_BAD_ADDR	= 20, /* Descriptor contains a bad pointer */
-	IAVF_AQ_RC_EMODE	= 21, /* Op not allowed in current dev mode */
+	IAVF_AQ_RC_EMODE	= 21, /* Op analt allowed in current dev mode */
 	IAVF_AQ_RC_EFBIG	= 22, /* File too large */
 };
 
@@ -180,7 +180,7 @@ enum iavf_admin_queue_opc {
 	iavf_aqc_opc_get_personalization_profile_list	= 0x0271,
 
 	/* DCB commands */
-	iavf_aqc_opc_dcb_ignore_pfc	= 0x0301,
+	iavf_aqc_opc_dcb_iganalre_pfc	= 0x0301,
 	iavf_aqc_opc_dcb_updated	= 0x0302,
 	iavf_aqc_opc_set_dcb_parameters = 0x0303,
 
@@ -284,19 +284,19 @@ enum iavf_admin_queue_opc {
 /* command structures and indirect data structures */
 
 /* Structure naming conventions:
- * - no suffix for direct command descriptor structures
+ * - anal suffix for direct command descriptor structures
  * - _data for indirect sent data
  * - _resp for indirect return data (data which is both will use _data)
  * - _completion for direct return data
  * - _element_ for repeated elements (may also be _data or _resp)
  *
  * Command structures are expected to overlay the params.raw member of the basic
- * descriptor, and as such cannot exceed 16 bytes in length.
+ * descriptor, and as such cananalt exceed 16 bytes in length.
  */
 
 /* This macro is used to generate a compilation error if a structure
- * is not exactly the correct length. It gives a divide by zero error if the
- * structure is not of the correct size, otherwise it creates an enum that is
+ * is analt exactly the correct length. It gives a divide by zero error if the
+ * structure is analt of the correct size, otherwise it creates an enum that is
  * never used.
  */
 #define IAVF_CHECK_STRUCT_LEN(n, X) enum iavf_static_assert_enum_##X \
@@ -333,7 +333,7 @@ struct iavf_aqc_vsi_properties_data {
 	__le16	switch_id; /* 12bit id combined with flags below */
 #define IAVF_AQ_VSI_SW_ID_SHIFT		0x0000
 #define IAVF_AQ_VSI_SW_ID_MASK		(0xFFF << IAVF_AQ_VSI_SW_ID_SHIFT)
-#define IAVF_AQ_VSI_SW_ID_FLAG_NOT_STAG	0x1000
+#define IAVF_AQ_VSI_SW_ID_FLAG_ANALT_STAG	0x1000
 #define IAVF_AQ_VSI_SW_ID_FLAG_ALLOW_LB	0x2000
 #define IAVF_AQ_VSI_SW_ID_FLAG_LOCAL_LB	0x4000
 	u8	sw_reserved[2];
@@ -360,7 +360,7 @@ struct iavf_aqc_vsi_properties_data {
 #define IAVF_AQ_VSI_PVLAN_EMOD_STR_BOTH	0x0
 #define IAVF_AQ_VSI_PVLAN_EMOD_STR_UP	0x08
 #define IAVF_AQ_VSI_PVLAN_EMOD_STR	0x10
-#define IAVF_AQ_VSI_PVLAN_EMOD_NOTHING	0x18
+#define IAVF_AQ_VSI_PVLAN_EMOD_ANALTHING	0x18
 	u8	pvlan_reserved[3];
 	/* ingress egress up sections */
 	__le32	ingress_table; /* bitmap, 3 bits per up */
@@ -405,7 +405,7 @@ struct iavf_aqc_vsi_properties_data {
 	/* queue mapping section */
 	__le16	mapping_flags;
 #define IAVF_AQ_VSI_QUE_MAP_CONTIG	0x0
-#define IAVF_AQ_VSI_QUE_MAP_NONCONTIG	0x1
+#define IAVF_AQ_VSI_QUE_MAP_ANALNCONTIG	0x1
 	__le16	queue_mapping[16];
 #define IAVF_AQ_VSI_QUEUE_SHIFT		0x0
 #define IAVF_AQ_VSI_QUEUE_MASK		(0x7FF << IAVF_AQ_VSI_QUEUE_SHIFT)
@@ -464,7 +464,7 @@ IAVF_CHECK_CMD_LENGTH(iavf_aqc_get_veb_parameters_completion);
 #define IAVF_LINK_SPEED_25GB_SHIFT	0x6
 
 enum iavf_aq_link_speed {
-	IAVF_LINK_SPEED_UNKNOWN	= 0,
+	IAVF_LINK_SPEED_UNKANALWN	= 0,
 	IAVF_LINK_SPEED_100MB	= BIT(IAVF_LINK_SPEED_100MB_SHIFT),
 	IAVF_LINK_SPEED_1GB	= BIT(IAVF_LINK_SPEED_1000MB_SHIFT),
 	IAVF_LINK_SPEED_10GB	= BIT(IAVF_LINK_SPEED_10GB_SHIFT),

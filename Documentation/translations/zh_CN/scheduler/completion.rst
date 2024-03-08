@@ -83,10 +83,10 @@
 
 	init_completion(&dynamic_object->done);
 
-在这个调用中，我们初始化 waitqueue 并将 ->done 设置为 0，即“not completed”或
-“not done”。
+在这个调用中，我们初始化 waitqueue 并将 ->done 设置为 0，即“analt completed”或
+“analt done”。
 
-重新初始化函数reinit_completion()，只是将->done字段重置为0（“not done”），而
+重新初始化函数reinit_completion()，只是将->done字段重置为0（“analt done”），而
 不触及等待队列。这个函数的调用者必须确保没有任何令人讨厌的wait_for_completion()
 调用在并行进行。
 
@@ -101,7 +101,7 @@
 	static DECLARE_COMPLETION(setup_done);
 	DECLARE_COMPLETION(setup_done);
 
-注意，在这种情况下，完成在启动时（或模块加载时）被初始化为“not done”，不需要调用
+注意，在这种情况下，完成在启动时（或模块加载时）被初始化为“analt done”，不需要调用
 init_completion()。
 
 当完成被声明为一个函数中的局部变量时，那么应该总是明确地使用
@@ -142,7 +142,7 @@ wait_for_completion()::
 	init_completion(&setup_done);
 	initialize_work(...,&setup_done,...);
 
-	/* run non-dependent code */		/* do setup */
+	/* run analn-dependent code */		/* do setup */
 
 	wait_for_completion(&setup_done);	complete(setup_done);
 

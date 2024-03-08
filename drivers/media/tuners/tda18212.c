@@ -188,7 +188,7 @@ static int tda18212_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(&client->dev, "kzalloc() failed\n");
 		goto err;
 	}
@@ -222,7 +222,7 @@ static int tda18212_probe(struct i2c_client *client)
 		version = "S"; /* slave */
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 

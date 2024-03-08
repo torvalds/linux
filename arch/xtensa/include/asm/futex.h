@@ -14,7 +14,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #define arch_futex_atomic_op_inuser arch_futex_atomic_op_inuser
 #define futex_atomic_cmpxchg_inatomic futex_atomic_cmpxchg_inatomic
@@ -101,7 +101,7 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 				  ret, oldval, uaddr, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	if (!ret)

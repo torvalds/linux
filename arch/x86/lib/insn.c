@@ -11,14 +11,14 @@
 #else
 #include <string.h>
 #endif
-#include <asm/inat.h> /*__ignore_sync_check__ */
-#include <asm/insn.h> /* __ignore_sync_check__ */
-#include <asm/unaligned.h> /* __ignore_sync_check__ */
+#include <asm/inat.h> /*__iganalre_sync_check__ */
+#include <asm/insn.h> /* __iganalre_sync_check__ */
+#include <asm/unaligned.h> /* __iganalre_sync_check__ */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kconfig.h>
 
-#include <asm/emulate_prefix.h> /* __ignore_sync_check__ */
+#include <asm/emulate_prefix.h> /* __iganalre_sync_check__ */
 
 #define leXX_to_cpu(t, r)						\
 ({									\
@@ -62,7 +62,7 @@ void insn_init(struct insn *insn, const void *kaddr, int buf_len, int x86_64)
 {
 	/*
 	 * Instructions longer than MAX_INSN_SIZE (15 bytes) are invalid
-	 * even if the input buffer is long enough to hold them.
+	 * even if the input buffer is long eanalugh to hold them.
 	 */
 	if (buf_len > MAX_INSN_SIZE)
 		buf_len = MAX_INSN_SIZE;
@@ -114,7 +114,7 @@ static void insn_get_emulate_prefix(struct insn *insn)
  * @insn:	&struct insn containing instruction
  *
  * Populates the @insn->prefixes bitmap, and updates @insn->next_byte
- * to point to the (first) opcode.  No effect if @insn->prefixes.got
+ * to point to the (first) opcode.  Anal effect if @insn->prefixes.got
  * is already set.
  *
  * * Returns:
@@ -197,7 +197,7 @@ found:
 		if (!insn->x86_64) {
 			/*
 			 * In 32-bits mode, if the [7:6] bits (mod bits of
-			 * ModRM) on the second byte are not 11b, it is
+			 * ModRM) on the second byte are analt 11b, it is
 			 * LDS or LES or BOUND.
 			 */
 			if (X86_MODRM_MOD(b2) != 3)
@@ -242,7 +242,7 @@ vex_end:
 	return 0;
 
 err_out:
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 /**
@@ -252,7 +252,7 @@ err_out:
  * Populates @insn->opcode, updates @insn->next_byte to point past the
  * opcode byte(s), and set @insn->attr (except for groups).
  * If necessary, first collects any preceding (prefix) bytes.
- * Sets @insn->opcode.value = opcode1.  No effect if @insn->opcode.got
+ * Sets @insn->opcode.value = opcode1.  Anal effect if @insn->opcode.got
  * is already 1.
  *
  * Returns:
@@ -279,7 +279,7 @@ int insn_get_opcode(struct insn *insn)
 	insn_set_byte(opcode, 0, op);
 	opcode->nbytes = 1;
 
-	/* Check if there is VEX prefix or not */
+	/* Check if there is VEX prefix or analt */
 	if (insn_is_avx(insn)) {
 		insn_byte_t m, p;
 		m = insn_vex_m_bits(insn);
@@ -315,7 +315,7 @@ end:
 	return 0;
 
 err_out:
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 /**
@@ -324,7 +324,7 @@ err_out:
  *
  * Populates @insn->modrm and updates @insn->next_byte to point past the
  * ModRM byte, if any.  If necessary, first collects the preceding bytes
- * (prefixes and opcode(s)).  No effect if @insn->modrm.got is already 1.
+ * (prefixes and opcode(s)).  Anal effect if @insn->modrm.got is already 1.
  *
  * Returns:
  * 0:  on success
@@ -367,7 +367,7 @@ int insn_get_modrm(struct insn *insn)
 	return 0;
 
 err_out:
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 
@@ -376,7 +376,7 @@ err_out:
  * @insn:	&struct insn containing instruction
  *
  * If necessary, first collects the instruction up to and including the
- * ModRM byte.  No effect if @insn->x86_64 is 0.
+ * ModRM byte.  Anal effect if @insn->x86_64 is 0.
  */
 int insn_rip_relative(struct insn *insn)
 {
@@ -436,7 +436,7 @@ int insn_get_sib(struct insn *insn)
 	return 0;
 
 err_out:
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 
@@ -469,11 +469,11 @@ int insn_get_displacement(struct insn *insn)
 	if (insn->modrm.nbytes) {
 		/*
 		 * Interpreting the modrm byte:
-		 * mod = 00 - no displacement fields (exceptions below)
+		 * mod = 00 - anal displacement fields (exceptions below)
 		 * mod = 01 - 1-byte displacement field
 		 * mod = 10 - displacement field is 4 bytes, or 2 bytes if
 		 * 	address size = 2 (0x67 prefix in 32-bit mode)
-		 * mod = 11 - no memory operand
+		 * mod = 11 - anal memory operand
 		 *
 		 * If address size = 2...
 		 * mod = 00, r/m = 110 - displacement field is 2 bytes
@@ -510,7 +510,7 @@ out:
 	return 0;
 
 err_out:
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 /* Decode moffset16/32/64. Return 0 if failed */
@@ -595,7 +595,7 @@ static int __get_immptr(struct insn *insn)
 		insn_field_set(&insn->immediate1, get_next(int, insn), 4);
 		break;
 	case 8:
-		/* ptr16:64 is not exist (no segment) */
+		/* ptr16:64 is analt exist (anal segment) */
 		return 0;
 	default:	/* opnd_bytes must be modified manually */
 		goto err_out;
@@ -641,7 +641,7 @@ int insn_get_immediate(struct insn *insn)
 	}
 
 	if (!inat_has_immediate(insn->attr))
-		/* no immediates */
+		/* anal immediates */
 		goto done;
 
 	switch (inat_immediate_size(insn->attr)) {
@@ -682,7 +682,7 @@ done:
 	return 0;
 
 err_out:
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 /**
@@ -737,7 +737,7 @@ int insn_decode(struct insn *insn, const void *kaddr, int buf_len, enum insn_mod
 {
 	int ret;
 
-/* #define INSN_MODE_KERN	-1 __ignore_sync_check__ mode is only valid in the kernel */
+/* #define INSN_MODE_KERN	-1 __iganalre_sync_check__ mode is only valid in the kernel */
 
 	if (m == INSN_MODE_KERN)
 		insn_init(insn, kaddr, buf_len, IS_ENABLED(CONFIG_X86_64));

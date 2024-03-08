@@ -117,7 +117,7 @@ enum irq_subclass {
 void irq_subclass_register(enum irq_subclass subclass);
 void irq_subclass_unregister(enum irq_subclass subclass);
 
-#define irq_canonicalize(irq)  (irq)
+#define irq_caanalnicalize(irq)  (irq)
 
 #endif /* __ASSEMBLY__ */
 

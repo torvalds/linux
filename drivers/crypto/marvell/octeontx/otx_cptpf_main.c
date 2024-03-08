@@ -80,13 +80,13 @@ static int otx_cpt_device_init(struct otx_cpt_device *cpt)
 	bist = (u64)otx_cpt_check_bist_status(cpt);
 	if (bist) {
 		dev_err(dev, "RAM BIST failed with code 0x%llx\n", bist);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	bist = otx_cpt_check_exe_bist_status(cpt);
 	if (bist) {
 		dev_err(dev, "Engine BIST failed with code 0x%llx\n", bist);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Get max enabled cores */
@@ -181,7 +181,7 @@ static int otx_cpt_sriov_configure(struct pci_dev *pdev, int numvfs)
 		module_put(THIS_MODULE);
 		cpt->vfs_enabled = 0;
 	}
-	dev_notice(&cpt->pdev->dev, "VFs enabled: %d\n", ret);
+	dev_analtice(&cpt->pdev->dev, "VFs enabled: %d\n", ret);
 
 	return ret;
 }
@@ -195,7 +195,7 @@ static int otx_cpt_probe(struct pci_dev *pdev,
 
 	cpt = devm_kzalloc(dev, sizeof(*cpt), GFP_KERNEL);
 	if (!cpt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, cpt);
 	cpt->pdev = pdev;
@@ -221,8 +221,8 @@ static int otx_cpt_probe(struct pci_dev *pdev,
 	/* MAP PF's configuration registers */
 	cpt->reg_base = pci_iomap(pdev, OTX_CPT_PF_PCI_CFG_BAR, 0);
 	if (!cpt->reg_base) {
-		dev_err(dev, "Cannot map config register space, aborting\n");
-		err = -ENOMEM;
+		dev_err(dev, "Cananalt map config register space, aborting\n");
+		err = -EANALMEM;
 		goto err_release_regions;
 	}
 

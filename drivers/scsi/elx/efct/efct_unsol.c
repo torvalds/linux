@@ -10,7 +10,7 @@
 #define frame_printf(efct, hdr, fmt, ...) \
 	do { \
 		char s_id_text[16]; \
-		efc_node_fcid_display(ntoh24((hdr)->fh_s_id), \
+		efc_analde_fcid_display(ntoh24((hdr)->fh_s_id), \
 			s_id_text, sizeof(s_id_text)); \
 		efc_log_debug(efct, "[%06x.%s] %02x/%04x/%04x: " fmt, \
 			ntoh24((hdr)->fh_d_id), s_id_text, \
@@ -18,28 +18,28 @@
 			be16_to_cpu((hdr)->fh_rx_id), ##__VA_ARGS__); \
 	} while (0)
 
-static struct efct_node *
-efct_node_find(struct efct *efct, u32 port_id, u32 node_id)
+static struct efct_analde *
+efct_analde_find(struct efct *efct, u32 port_id, u32 analde_id)
 {
-	struct efct_node *node;
-	u64 id = (u64)port_id << 32 | node_id;
+	struct efct_analde *analde;
+	u64 id = (u64)port_id << 32 | analde_id;
 
 	/*
-	 * During node shutdown, Lookup will be removed first,
-	 * before announcing to backend. So, no new IOs will be allowed
+	 * During analde shutdown, Lookup will be removed first,
+	 * before ananaluncing to backend. So, anal new IOs will be allowed
 	 */
-	/* Find a target node, given s_id and d_id */
-	node = xa_load(&efct->lookup, id);
-	if (node)
-		kref_get(&node->ref);
+	/* Find a target analde, given s_id and d_id */
+	analde = xa_load(&efct->lookup, id);
+	if (analde)
+		kref_get(&analde->ref);
 
-	return node;
+	return analde;
 }
 
 static int
 efct_dispatch_frame(struct efct *efct, struct efc_hw_sequence *seq)
 {
-	struct efct_node *node;
+	struct efct_analde *analde;
 	struct fc_frame_header *hdr;
 	u32 s_id, d_id;
 
@@ -53,29 +53,29 @@ efct_dispatch_frame(struct efct *efct, struct efc_hw_sequence *seq)
 		return -EIO;
 
 	if (hdr->fh_type == FC_TYPE_FCP) {
-		node = efct_node_find(efct, d_id, s_id);
-		if (!node) {
+		analde = efct_analde_find(efct, d_id, s_id);
+		if (!analde) {
 			efc_log_err(efct,
-				    "Node not found, drop cmd d_id:%x s_id:%x\n",
+				    "Analde analt found, drop cmd d_id:%x s_id:%x\n",
 				    d_id, s_id);
 			efct_hw_sequence_free(&efct->hw, seq);
 			return 0;
 		}
 
-		efct_dispatch_fcp_cmd(node, seq);
+		efct_dispatch_fcp_cmd(analde, seq);
 	} else {
-		node = efct_node_find(efct, d_id, s_id);
-		if (!node) {
-			efc_log_err(efct, "ABTS: Node not found, d_id:%x s_id:%x\n",
+		analde = efct_analde_find(efct, d_id, s_id);
+		if (!analde) {
+			efc_log_err(efct, "ABTS: Analde analt found, d_id:%x s_id:%x\n",
 				    d_id, s_id);
 			return -EIO;
 		}
 
-		efc_log_err(efct, "Received ABTS for Node:%p\n", node);
-		efct_node_recv_abts_frame(node, seq);
+		efc_log_err(efct, "Received ABTS for Analde:%p\n", analde);
+		efct_analde_recv_abts_frame(analde, seq);
 	}
 
-	kref_put(&node->ref, node->release);
+	kref_put(&analde->ref, analde->release);
 	efct_hw_sequence_free(&efct->hw, seq);
 	return 0;
 }
@@ -127,8 +127,8 @@ efct_dispatch_unsol_tmf(struct efct_io *io, u8 tm_flags, u32 lun)
 		}
 	}
 	if (i == ARRAY_SIZE(tmflist)) {
-		/* Not handled */
-		efc_log_err(io->node->efct, "TMF x%x rejected\n", tm_flags);
+		/* Analt handled */
+		efc_log_err(io->analde->efct, "TMF x%x rejected\n", tm_flags);
 		efct_scsi_send_tmf_resp(io, EFCT_SCSI_TMF_FUNCTION_REJECTED,
 					NULL, efct_fc_tmf_rejected_cb, NULL);
 	}
@@ -160,7 +160,7 @@ efct_populate_io_fcp_cmd(struct efct_io *io, struct fcp_cmnd *cmnd,
 			 struct fc_frame_header *fchdr, bool sit)
 {
 	io->init_task_tag = be16_to_cpu(fchdr->fh_ox_id);
-	/* note, tgt_task_tag, hw_tag  set when HW io is allocated */
+	/* analte, tgt_task_tag, hw_tag  set when HW io is allocated */
 	io->exp_xfer_len = be32_to_cpu(cmnd->fc_dl);
 	io->transferred = 0;
 
@@ -218,12 +218,12 @@ efct_sframe_common_send_cb(void *arg, u8 *cqe, int status)
 }
 
 static int
-efct_sframe_common_send(struct efct_node *node,
+efct_sframe_common_send(struct efct_analde *analde,
 			struct efc_hw_sequence *seq,
 			enum fc_rctl r_ctl, u32 f_ctl,
 			u8 type, void *payload, u32 payload_len)
 {
-	struct efct *efct = node->efct;
+	struct efct *efct = analde->efct;
 	struct efct_hw *hw = &efct->hw;
 	int rc = 0;
 	struct fc_frame_header *req_hdr = seq->header->dma.virt;
@@ -297,10 +297,10 @@ efct_sframe_common_send(struct efct_node *node,
 }
 
 static int
-efct_sframe_send_fcp_rsp(struct efct_node *node, struct efc_hw_sequence *seq,
+efct_sframe_send_fcp_rsp(struct efct_analde *analde, struct efc_hw_sequence *seq,
 			 void *rsp, u32 rsp_len)
 {
-	return efct_sframe_common_send(node, seq, FC_RCTL_DD_CMD_STATUS,
+	return efct_sframe_common_send(analde, seq, FC_RCTL_DD_CMD_STATUS,
 				      FC_FC_EX_CTX |
 				      FC_FC_LAST_SEQ |
 				      FC_FC_END_SEQ |
@@ -310,25 +310,25 @@ efct_sframe_send_fcp_rsp(struct efct_node *node, struct efc_hw_sequence *seq,
 }
 
 static int
-efct_sframe_send_task_set_full_or_busy(struct efct_node *node,
+efct_sframe_send_task_set_full_or_busy(struct efct_analde *analde,
 				       struct efc_hw_sequence *seq)
 {
 	struct fcp_resp_with_ext fcprsp;
 	struct fcp_cmnd *fcpcmd = seq->payload->dma.virt;
 	int rc = 0;
 	unsigned long flags = 0;
-	struct efct *efct = node->efct;
+	struct efct *efct = analde->efct;
 
 	/* construct task set full or busy response */
 	memset(&fcprsp, 0, sizeof(fcprsp));
-	spin_lock_irqsave(&node->active_ios_lock, flags);
-	fcprsp.resp.fr_status = list_empty(&node->active_ios) ?
+	spin_lock_irqsave(&analde->active_ios_lock, flags);
+	fcprsp.resp.fr_status = list_empty(&analde->active_ios) ?
 				SAM_STAT_BUSY : SAM_STAT_TASK_SET_FULL;
-	spin_unlock_irqrestore(&node->active_ios_lock, flags);
+	spin_unlock_irqrestore(&analde->active_ios_lock, flags);
 	*((u32 *)&fcprsp.ext.fr_resid) = be32_to_cpu(fcpcmd->fc_dl);
 
 	/* send it using send_frame */
-	rc = efct_sframe_send_fcp_rsp(node, seq, &fcprsp, sizeof(fcprsp));
+	rc = efct_sframe_send_fcp_rsp(analde, seq, &fcprsp, sizeof(fcprsp));
 	if (rc)
 		efc_log_debug(efct, "efct_sframe_send_fcp_rsp failed %d\n", rc);
 
@@ -336,9 +336,9 @@ efct_sframe_send_task_set_full_or_busy(struct efct_node *node,
 }
 
 int
-efct_dispatch_fcp_cmd(struct efct_node *node, struct efc_hw_sequence *seq)
+efct_dispatch_fcp_cmd(struct efct_analde *analde, struct efc_hw_sequence *seq)
 {
-	struct efct *efct = node->efct;
+	struct efct *efct = analde->efct;
 	struct fc_frame_header *fchdr = seq->header->dma.virt;
 	struct fcp_cmnd	*cmnd = NULL;
 	struct efct_io *io = NULL;
@@ -359,12 +359,12 @@ efct_dispatch_fcp_cmd(struct efct_node *node, struct efc_hw_sequence *seq)
 	if (lun == U32_MAX)
 		return -EIO;
 
-	io = efct_scsi_io_alloc(node);
+	io = efct_scsi_io_alloc(analde);
 	if (!io) {
 		int rc;
 
 		/* Use SEND_FRAME to send task set full or busy */
-		rc = efct_sframe_send_task_set_full_or_busy(node, seq);
+		rc = efct_sframe_send_task_set_full_or_busy(analde, seq);
 		if (rc)
 			efc_log_err(efct, "Failed to send busy task: %d\n", rc);
 
@@ -384,12 +384,12 @@ efct_dispatch_fcp_cmd(struct efct_node *node, struct efc_hw_sequence *seq)
 		u32 flags = efct_get_flags_fcp_cmd(cmnd);
 
 		if (cmnd->fc_flags & FCP_CFL_LEN_MASK) {
-			efc_log_err(efct, "Additional CDB not supported\n");
+			efc_log_err(efct, "Additional CDB analt supported\n");
 			return -EIO;
 		}
 		/*
 		 * Can return failure for things like task set full and UAs,
-		 * no need to treat as a dropped frame if rc != 0
+		 * anal need to treat as a dropped frame if rc != 0
 		 */
 		efct_scsi_recv_cmd(io, lun, cmnd->fc_cdb,
 				   sizeof(cmnd->fc_cdb), flags);
@@ -401,20 +401,20 @@ efct_dispatch_fcp_cmd(struct efct_node *node, struct efc_hw_sequence *seq)
 static int
 efct_process_abts(struct efct_io *io, struct fc_frame_header *hdr)
 {
-	struct efct_node *node = io->node;
+	struct efct_analde *analde = io->analde;
 	struct efct *efct = io->efct;
 	u16 ox_id = be16_to_cpu(hdr->fh_ox_id);
 	u16 rx_id = be16_to_cpu(hdr->fh_rx_id);
 	struct efct_io *abortio;
 
 	/* Find IO and attempt to take a reference on it */
-	abortio = efct_io_find_tgt_io(efct, node, ox_id, rx_id);
+	abortio = efct_io_find_tgt_io(efct, analde, ox_id, rx_id);
 
 	if (abortio) {
 		/* Got a reference on the IO. Hold it until backend
-		 * is notified below
+		 * is analtified below
 		 */
-		efc_log_info(node->efct, "Abort ox_id [%04x] rx_id [%04x]\n",
+		efc_log_info(analde->efct, "Abort ox_id [%04x] rx_id [%04x]\n",
 			     ox_id, rx_id);
 
 		/*
@@ -446,11 +446,11 @@ efct_process_abts(struct efct_io *io, struct fc_frame_header *hdr)
 		kref_put(&abortio->ref, abortio->release);
 	} else {
 		/*
-		 * Either IO was not found or it has been
+		 * Either IO was analt found or it has been
 		 * freed between finding it
 		 * and attempting to get the reference,
 		 */
-		efc_log_info(node->efct, "Abort: ox_id [%04x], IO not found\n",
+		efc_log_info(analde->efct, "Abort: ox_id [%04x], IO analt found\n",
 			     ox_id);
 
 		/* Send a BA_RJT */
@@ -460,14 +460,14 @@ efct_process_abts(struct efct_io *io, struct fc_frame_header *hdr)
 }
 
 int
-efct_node_recv_abts_frame(struct efct_node *node, struct efc_hw_sequence *seq)
+efct_analde_recv_abts_frame(struct efct_analde *analde, struct efc_hw_sequence *seq)
 {
-	struct efct *efct = node->efct;
+	struct efct *efct = analde->efct;
 	struct fc_frame_header *hdr = seq->header->dma.virt;
 	struct efct_io *io = NULL;
 
-	node->abort_cnt++;
-	io = efct_scsi_io_alloc(node);
+	analde->abort_cnt++;
+	io = efct_scsi_io_alloc(analde);
 	if (io) {
 		io->hw_priv = seq->hw_priv;
 		/* If we got this far, SIT=1 */
@@ -475,7 +475,7 @@ efct_node_recv_abts_frame(struct efct_node *node, struct efc_hw_sequence *seq)
 
 		/* fill out generic fields */
 		io->efct = efct;
-		io->node = node;
+		io->analde = analde;
 		io->cmd_tgt = true;
 
 		efct_process_abts(io, seq->header->dma.virt);

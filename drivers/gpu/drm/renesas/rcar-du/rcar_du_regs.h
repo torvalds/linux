@@ -29,7 +29,7 @@
 #define DSYSR_TVM_SWITCH	(1 << 6)
 #define DSYSR_TVM_TVSYNC	(2 << 6)
 #define DSYSR_TVM_MASK		(3 << 6)
-#define DSYSR_SCM_INT_NONE	(0 << 4)
+#define DSYSR_SCM_INT_ANALNE	(0 << 4)
 #define DSYSR_SCM_INT_SYNC	(2 << 4)
 #define DSYSR_SCM_INT_VIDEO	(3 << 4)
 #define DSYSR_SCM_MASK		(3 << 4)
@@ -359,7 +359,7 @@
 #define PnMR_SPIM_TP		(0 << 12)	/* Transparent Color */
 #define PnMR_SPIM_ALP		(1 << 12)	/* Alpha Blending */
 #define PnMR_SPIM_EOR		(2 << 12)	/* EOR */
-#define PnMR_SPIM_TP_OFF	(1 << 14)	/* No Transparent Color */
+#define PnMR_SPIM_TP_OFF	(1 << 14)	/* Anal Transparent Color */
 #define PnMR_CPSL_CP1		(0 << 8)	/* Color Palette selected 1 */
 #define PnMR_CPSL_CP2		(1 << 8)	/* Color Palette selected 2 */
 #define PnMR_CPSL_CP3		(2 << 8)	/* Color Palette selected 3 */
@@ -431,7 +431,7 @@
 #define PnDDCR4_SDFS_RGB	(0 << 4)
 #define PnDDCR4_SDFS_YC		(5 << 4)
 #define PnDDCR4_SDFS_MASK	(7 << 4)
-#define PnDDCR4_EDF_NONE	(0 << 0)
+#define PnDDCR4_EDF_ANALNE	(0 << 0)
 #define PnDDCR4_EDF_ARGB8888	(1 << 0)
 #define PnDDCR4_EDF_RGB888	(2 << 0)
 #define PnDDCR4_EDF_RGB666	(3 << 0)
@@ -542,9 +542,9 @@
  */
 
 #define YNCR			0x11080
-#define YNOR			0x11084
-#define CRNOR			0x11088
-#define CBNOR			0x1108c
+#define YANALR			0x11084
+#define CRANALR			0x11088
+#define CBANALR			0x1108c
 #define RCRCR			0x11090
 #define GCRCR			0x11094
 #define GCBCR			0x11098

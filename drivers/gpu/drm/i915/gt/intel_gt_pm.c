@@ -30,7 +30,7 @@ static void user_forcewake(struct intel_gt *gt, bool suspend)
 	int count = atomic_read(&gt->user_wakeref);
 	intel_wakeref_t wakeref;
 
-	/* Inside suspend/resume so single threaded, no races to worry about. */
+	/* Inside suspend/resume so single threaded, anal races to worry about. */
 	if (likely(!count))
 		return;
 
@@ -75,7 +75,7 @@ static int __gt_unpark(struct intel_wakeref *wf)
 
 	/*
 	 * It seems that the DMC likes to transition between the DC states a lot
-	 * when there are no connected displays (no active power domains) during
+	 * when there are anal connected displays (anal active power domains) during
 	 * command submission.
 	 *
 	 * This activity has negative impact on the performance of the chip with
@@ -134,7 +134,7 @@ void intel_gt_pm_init_early(struct intel_gt *gt)
 {
 	/*
 	 * We access the runtime_pm structure via gt->i915 here rather than
-	 * gt->uncore as we do elsewhere in the file because gt->uncore is not
+	 * gt->uncore as we do elsewhere in the file because gt->uncore is analt
 	 * yet initialized for all tiles at this point in the driver startup.
 	 * runtime_pm is per-device rather than per-tile, so this is still the
 	 * correct structure.
@@ -146,8 +146,8 @@ void intel_gt_pm_init_early(struct intel_gt *gt)
 void intel_gt_pm_init(struct intel_gt *gt)
 {
 	/*
-	 * Enabling power-management should be "self-healing". If we cannot
-	 * enable a feature, simply leave it disabled with a notice to the
+	 * Enabling power-management should be "self-healing". If we cananalt
+	 * enable a feature, simply leave it disabled with a analtice to the
 	 * user.
 	 */
 	intel_rc6_init(&gt->rc6);
@@ -168,7 +168,7 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
 
-	GT_TRACE(gt, "force:%s\n", str_yes_no(force));
+	GT_TRACE(gt, "force:%s\n", str_anal_anal(force));
 
 	/* Use a raw wakeref to avoid calling intel_display_power_get early */
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
@@ -224,7 +224,7 @@ void intel_gt_resume_early(struct intel_gt *gt)
 	 * Sanitize steer semaphores during driver resume. This is necessary
 	 * to address observed cases of steer semaphores being
 	 * held after a suspend operation. Confirmation from the hardware team
-	 * assures the safety of this operation, as no lock acquisitions
+	 * assures the safety of this operation, as anal lock acquisitions
 	 * by other agents occur during driver load/resume process.
 	 */
 	intel_gt_mcr_lock_sanitize(gt);
@@ -355,9 +355,9 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 
 	/*
 	 * On disabling the device, we want to turn off HW access to memory
-	 * that we no longer own.
+	 * that we anal longer own.
 	 *
-	 * However, not all suspend-states disable the device. S0 (s2idle)
+	 * However, analt all suspend-states disable the device. S0 (s2idle)
 	 * is effectively runtime-suspend, the device is left powered on
 	 * but needs to be put into a low power state. We need to keep
 	 * powermanagement enabled, but we also retain system state and so

@@ -5,13 +5,13 @@
 #include <linux/sizes.h>
 #include "misc.h"
 
-static const void *get_prop(const void *fdt, const char *node_path,
+static const void *get_prop(const void *fdt, const char *analde_path,
 			    const char *property, int minlen)
 {
 	const void *prop;
 	int offset, len;
 
-	offset = fdt_path_offset(fdt, node_path);
+	offset = fdt_path_offset(fdt, analde_path);
 	if (offset < 0)
 		return NULL;
 
@@ -51,7 +51,7 @@ static uint64_t get_val(const fdt32_t *cells, uint32_t ncells)
  * Traditionally, the start address of physical memory is obtained by masking
  * the program counter.  However, this does require that this address is a
  * multiple of 128 MiB, precluding booting Linux on platforms where this
- * requirement is not fulfilled.
+ * requirement is analt fulfilled.
  * Hence validate the calculated address against the memory information in the
  * DTB, and, if out-of-range, replace it by the real start address.
  * To preserve backwards compatibility (systems reserving a block of memory
@@ -85,7 +85,7 @@ uint32_t fdt_check_mem_start(uint32_t mem_start, const void *fdt)
 	/*
 	 * Usable memory in case of a crash dump kernel
 	 * This property describes a limitation: memory within this range is
-	 * only valid when also described through another mechanism
+	 * only valid when also described through aanalther mechanism
 	 */
 	usable = get_prop(fdt, "/chosen", "linux,usable-memory-range",
 			  (addr_cells + size_cells) * sizeof(fdt32_t));
@@ -103,9 +103,9 @@ uint32_t fdt_check_mem_start(uint32_t mem_start, const void *fdt)
 		usable_end = usable_base + size;
 	}
 
-	/* Walk all memory nodes and regions */
-	for (offset = fdt_next_node(fdt, -1, NULL); offset >= 0;
-	     offset = fdt_next_node(fdt, offset, NULL)) {
+	/* Walk all memory analdes and regions */
+	for (offset = fdt_next_analde(fdt, -1, NULL); offset >= 0;
+	     offset = fdt_next_analde(fdt, offset, NULL)) {
 		type = fdt_getprop(fdt, offset, "device_type", NULL);
 		if (!type || strcmp(type, "memory"))
 			continue;
@@ -154,12 +154,12 @@ uint32_t fdt_check_mem_start(uint32_t mem_start, const void *fdt)
 	}
 
 	if (fdt_mem_start == 0xffffffff) {
-		/* No usable memory found, falling back to default */
+		/* Anal usable memory found, falling back to default */
 		return mem_start;
 	}
 
 	/*
-	 * The calculated address is not usable, or was overridden by the
+	 * The calculated address is analt usable, or was overridden by the
 	 * "linux,usable-memory-range" property.
 	 * Use the lowest usable physical memory address from the DTB instead,
 	 * and make sure this is a multiple of 2 MiB for phys/virt patching.

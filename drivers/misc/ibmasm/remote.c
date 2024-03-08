@@ -5,7 +5,7 @@
  * Copyright (C) IBM Corporation, 2004
  *
  * Authors: Max Asböck <amax@us.ibm.com>
- *          Vernon Mauery <vernux@us.ibm.com>
+ *          Veranaln Mauery <vernux@us.ibm.com>
  */
 
 /* Remote mouse and keyboard event handling functions */
@@ -68,7 +68,7 @@ static const unsigned short xlate_high[XLATE_SIZE] = {
 };
 
 static const unsigned short xlate[XLATE_SIZE] = {
-	[NO_KEYCODE] = KEY_RESERVED,
+	[ANAL_KEYCODE] = KEY_RESERVED,
 	[KEY_SYM_SPACE] = KEY_SPACE,
 	[KEY_SYM_TILDE] = KEY_GRAVE,        [KEY_SYM_BKTIC] = KEY_GRAVE,
 	[KEY_SYM_ONE] = KEY_1,              [KEY_SYM_BANG] = KEY_1,
@@ -198,7 +198,7 @@ int ibmasm_init_remote_input_dev(struct service_processor *sp)
 	/* set up the mouse input device */
 	struct input_dev *mouse_dev, *keybd_dev;
 	struct pci_dev *pdev = to_pci_dev(sp->dev);
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 	int i;
 
 	sp->remote.mouse_dev = mouse_dev = input_allocate_device();

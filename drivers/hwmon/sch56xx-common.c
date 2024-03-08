@@ -21,10 +21,10 @@
 #include "sch56xx-common.h"
 
 /* Insmod parameters */
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+	__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 #define SIO_SCH56XX_LD_EM	0x0C	/* Embedded uController Logical Dev */
 #define SIO_UNLOCK_KEY		0x55	/* Key to enable Super-I/O */
@@ -178,13 +178,13 @@ static int sch56xx_send_cmd(u16 addr, u8 cmd, u16 reg, u8 v)
 	}
 
 	/*
-	 * According to the SMSC app note we should now do:
+	 * According to the SMSC app analte we should analw do:
 	 *
 	 * Set Mailbox Address Pointer to first location in Region 1 *
 	 * outb(0x00, addr + 2);
 	 * outb(0x80, addr + 3);
 	 *
-	 * But if we do that things don't work, so let's not.
+	 * But if we do that things don't work, so let's analt.
 	 */
 
 	/* Read Value field */
@@ -328,11 +328,11 @@ struct regmap *devm_regmap_init_sch56xx(struct device *dev, struct mutex *lock, 
 	struct regmap *map;
 
 	if (config->reg_bits != 16 && config->val_bits != 8)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	context->lock = lock;
 	context->addr = addr;
@@ -384,7 +384,7 @@ static int watchdog_set_timeout(struct watchdog_device *wddev,
 	}
 
 	/*
-	 * Remember new timeout value, but do not write as that (re)starts
+	 * Remember new timeout value, but do analt write as that (re)starts
 	 * the watchdog countdown.
 	 */
 	data->watchdog_preset = DIV_ROUND_UP(timeout, resolution);
@@ -400,7 +400,7 @@ static int watchdog_start(struct watchdog_device *wddev)
 	u8 val;
 
 	/*
-	 * The sch56xx's watchdog cannot really be started / stopped
+	 * The sch56xx's watchdog cananalt really be started / stopped
 	 * it is always running, but we can avoid the timer expiring
 	 * from causing a system reset by clearing the output enable bit.
 	 *
@@ -410,7 +410,7 @@ static int watchdog_start(struct watchdog_device *wddev)
 	 *
 	 * This will only cause a system reset if the 0-1 flank happens when
 	 * output enable is true. Setting output enable after the flank will
-	 * not cause a reset, nor will the timer expiring a second time.
+	 * analt cause a reset, analr will the timer expiring a second time.
 	 * This means we must clear the watchdog event bit in case it is set.
 	 *
 	 * The timer may still be running (after a recent watchdog_stop) and
@@ -504,7 +504,7 @@ void sch56xx_watchdog_register(struct device *parent, u16 addr, u32 revision,
 	if (output_enable < 0)
 		return;
 	if (check_enabled && !(output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)) {
-		pr_warn("Watchdog not enabled by BIOS, not registering\n");
+		pr_warn("Watchdog analt enabled by BIOS, analt registering\n");
 		return;
 	}
 
@@ -518,7 +518,7 @@ void sch56xx_watchdog_register(struct device *parent, u16 addr, u32 revision,
 	strscpy(data->wdinfo.identity, "sch56xx watchdog", sizeof(data->wdinfo.identity));
 	data->wdinfo.firmware_version = revision;
 	data->wdinfo.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT;
-	if (!nowayout)
+	if (!analwayout)
 		data->wdinfo.options |= WDIOF_MAGICCLOSE;
 
 	data->wddev.info = &data->wdinfo;
@@ -527,11 +527,11 @@ void sch56xx_watchdog_register(struct device *parent, u16 addr, u32 revision,
 	data->wddev.timeout = 60;
 	data->wddev.min_timeout = 1;
 	data->wddev.max_timeout = 255 * 60;
-	watchdog_set_nowayout(&data->wddev, nowayout);
+	watchdog_set_analwayout(&data->wddev, analwayout);
 	if (output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)
 		set_bit(WDOG_HW_RUNNING, &data->wddev.status);
 
-	/* Since the watchdog uses a downcounter there is no register to read
+	/* Since the watchdog uses a downcounter there is anal register to read
 	   the BIOS set timeout from (if any was set at all) ->
 	   Choose a preset which will give us a 1 minute timeout */
 	if (control & SCH56XX_WDOG_TIME_BASE_SEC)
@@ -576,15 +576,15 @@ static int __init sch56xx_find(int sioaddr, const char **name)
 	default:
 		pr_debug("Unsupported device id: 0x%02x\n",
 			 (unsigned int)devid);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
 	superio_select(sioaddr, SIO_SCH56XX_LD_EM);
 
 	if (!(superio_inb(sioaddr, SIO_REG_ENABLE) & 0x01)) {
-		pr_warn("Device not activated\n");
-		err = -ENODEV;
+		pr_warn("Device analt activated\n");
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -595,8 +595,8 @@ static int __init sch56xx_find(int sioaddr, const char **name)
 	address = superio_inb(sioaddr, SIO_REG_ADDR) |
 		   superio_inb(sioaddr, SIO_REG_ADDR + 1) << 8;
 	if (address == 0) {
-		pr_warn("Base address not set\n");
-		err = -ENODEV;
+		pr_warn("Base address analt set\n");
+		err = -EANALDEV;
 		goto exit;
 	}
 	err = address;

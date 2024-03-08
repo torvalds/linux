@@ -58,7 +58,7 @@ struct dbdma_cmd {
 #define INPUT_LAST	0x3000	/* ditto, expect end marker */
 #define STORE_WORD	0x4000	/* write word (4 bytes) to device reg */
 #define LOAD_WORD	0x5000	/* read word (4 bytes) from device reg */
-#define DBDMA_NOP	0x6000	/* do nothing */
+#define DBDMA_ANALP	0x6000	/* do analthing */
 #define DBDMA_STOP	0x7000	/* suspend processing */
 
 /* Key values in command field */

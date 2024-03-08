@@ -29,7 +29,7 @@
 #define DRA7_EFUSE_HAS_ALL_MPU_OPP		23
 #define DRA76_EFUSE_HAS_ALL_MPU_OPP		24
 
-#define DRA7_EFUSE_NOM_MPU_OPP			BIT(0)
+#define DRA7_EFUSE_ANALM_MPU_OPP			BIT(0)
 #define DRA7_EFUSE_OD_MPU_OPP			BIT(1)
 #define DRA7_EFUSE_HIGH_MPU_OPP			BIT(2)
 #define DRA76_EFUSE_PLUS_MPU_OPP		BIT(3)
@@ -65,7 +65,7 @@ struct ti_cpufreq_soc_data {
 
 struct ti_cpufreq_data {
 	struct device *cpu_dev;
-	struct device_node *opp_node;
+	struct device_analde *opp_analde;
 	struct regmap *syscon;
 	const struct ti_cpufreq_soc_data *soc_data;
 };
@@ -82,7 +82,7 @@ static unsigned long amx3_efuse_xlate(struct ti_cpufreq_data *opp_data,
 static unsigned long dra7_efuse_xlate(struct ti_cpufreq_data *opp_data,
 				      unsigned long efuse)
 {
-	unsigned long calculated_efuse = DRA7_EFUSE_NOM_MPU_OPP;
+	unsigned long calculated_efuse = DRA7_EFUSE_ANALM_MPU_OPP;
 
 	/*
 	 * The efuse on dra7 and am57 parts contains a specific
@@ -165,14 +165,14 @@ static struct ti_cpufreq_soc_data dra7_soc_data = {
  *    to separate between omap3503, omap3515, omap3525, omap3530
  *    and feature presence.
  *    There are encodings for versions limited to 400/266MHz
- *    but we ignore.
- *    Not clear if this also holds for omap34xx.
+ *    but we iganalre.
+ *    Analt clear if this also holds for omap34xx.
  *  some eFuse values e.g. CONTROL_FUSE_OPP1_VDD1
  *    are stored in the SYSCON register range
  *  Register 0x4830A20C [ProdID.SKUID] [0:3]
- *    0x0 for normal 600/430MHz device.
+ *    0x0 for analrmal 600/430MHz device.
  *    0x8 for 720/520MHz device.
- *    Not clear what omap34xx value is.
+ *    Analt clear what omap34xx value is.
  */
 
 static struct ti_cpufreq_soc_data omap34xx_soc_data = {
@@ -195,7 +195,7 @@ static struct ti_cpufreq_soc_data omap34xx_soc_data = {
  *     1 1000/800 MHz
  *  some eFuse values e.g. CONTROL_FUSE_OPP 1G_VDD1
  *    are stored in the SYSCON register range.
- *  There is no 0x4830A20C [ProdID.SKUID] register (exists but
+ *  There is anal 0x4830A20C [ProdID.SKUID] register (exists but
  *    seems to always read as 0).
  */
 
@@ -212,8 +212,8 @@ static struct ti_cpufreq_soc_data omap36xx_soc_data = {
 };
 
 /*
- * AM3517 is quite similar to AM/DM37x except that it has no
- * high speed grade eFuse and no abb ldo
+ * AM3517 is quite similar to AM/DM37x except that it has anal
+ * high speed grade eFuse and anal abb ldo
  */
 
 static struct ti_cpufreq_soc_data am3517_soc_data = {
@@ -239,7 +239,7 @@ static struct ti_cpufreq_soc_data am625_soc_data = {
  * @opp_data: pointer to ti_cpufreq_data context
  * @efuse_value: Set to the value parsed from efuse
  *
- * Returns error code if efuse not read properly.
+ * Returns error code if efuse analt read properly.
  */
 static int ti_cpufreq_get_efuse(struct ti_cpufreq_data *opp_data,
 				u32 *efuse_value)
@@ -251,12 +251,12 @@ static int ti_cpufreq_get_efuse(struct ti_cpufreq_data *opp_data,
 	ret = regmap_read(opp_data->syscon, opp_data->soc_data->efuse_offset,
 			  &efuse);
 	if (ret == -EIO) {
-		/* not a syscon register! */
+		/* analt a syscon register! */
 		void __iomem *regs = ioremap(OMAP3_SYSCON_BASE +
 				opp_data->soc_data->efuse_offset, 4);
 
 		if (!regs)
-			return -ENOMEM;
+			return -EANALMEM;
 		efuse = readl(regs);
 		iounmap(regs);
 		}
@@ -280,7 +280,7 @@ static int ti_cpufreq_get_efuse(struct ti_cpufreq_data *opp_data,
  * @opp_data: pointer to ti_cpufreq_data context
  * @revision_value: Set to the value parsed from revision register
  *
- * Returns error code if revision not read properly.
+ * Returns error code if revision analt read properly.
  */
 static int ti_cpufreq_get_rev(struct ti_cpufreq_data *opp_data,
 			      u32 *revision_value)
@@ -292,12 +292,12 @@ static int ti_cpufreq_get_rev(struct ti_cpufreq_data *opp_data,
 	ret = regmap_read(opp_data->syscon, opp_data->soc_data->rev_offset,
 			  &revision);
 	if (ret == -EIO) {
-		/* not a syscon register! */
+		/* analt a syscon register! */
 		void __iomem *regs = ioremap(OMAP3_SYSCON_BASE +
 				opp_data->soc_data->rev_offset, 4);
 
 		if (!regs)
-			return -ENOMEM;
+			return -EANALMEM;
 		revision = readl(regs);
 		iounmap(regs);
 		}
@@ -316,13 +316,13 @@ static int ti_cpufreq_get_rev(struct ti_cpufreq_data *opp_data,
 static int ti_cpufreq_setup_syscon_register(struct ti_cpufreq_data *opp_data)
 {
 	struct device *dev = opp_data->cpu_dev;
-	struct device_node *np = opp_data->opp_node;
+	struct device_analde *np = opp_data->opp_analde;
 
 	opp_data->syscon = syscon_regmap_lookup_by_phandle(np,
 							"syscon");
 	if (IS_ERR(opp_data->syscon)) {
 		dev_err(dev,
-			"\"syscon\" is missing, cannot use OPPv2 table.\n");
+			"\"syscon\" is missing, cananalt use OPPv2 table.\n");
 		return PTR_ERR(opp_data->syscon);
 	}
 
@@ -345,14 +345,14 @@ static const struct of_device_id ti_cpufreq_of_match[] = {
 	{},
 };
 
-static const struct of_device_id *ti_cpufreq_match_node(void)
+static const struct of_device_id *ti_cpufreq_match_analde(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 
-	np = of_find_node_by_path("/");
-	match = of_match_node(ti_cpufreq_of_match, np);
-	of_node_put(np);
+	np = of_find_analde_by_path("/");
+	match = of_match_analde(ti_cpufreq_of_match, np);
+	of_analde_put(np);
 
 	return match;
 }
@@ -371,44 +371,44 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 
 	match = dev_get_platdata(&pdev->dev);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	opp_data = devm_kzalloc(&pdev->dev, sizeof(*opp_data), GFP_KERNEL);
 	if (!opp_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	opp_data->soc_data = match->data;
 
 	opp_data->cpu_dev = get_cpu_device(0);
 	if (!opp_data->cpu_dev) {
 		pr_err("%s: Failed to get device for CPU0\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	opp_data->opp_node = dev_pm_opp_of_get_opp_desc_node(opp_data->cpu_dev);
-	if (!opp_data->opp_node) {
+	opp_data->opp_analde = dev_pm_opp_of_get_opp_desc_analde(opp_data->cpu_dev);
+	if (!opp_data->opp_analde) {
 		dev_info(opp_data->cpu_dev,
-			 "OPP-v2 not supported, cpufreq-dt will attempt to use legacy tables.\n");
+			 "OPP-v2 analt supported, cpufreq-dt will attempt to use legacy tables.\n");
 		goto register_cpufreq_dt;
 	}
 
 	ret = ti_cpufreq_setup_syscon_register(opp_data);
 	if (ret)
-		goto fail_put_node;
+		goto fail_put_analde;
 
 	/*
-	 * OPPs determine whether or not they are supported based on
+	 * OPPs determine whether or analt they are supported based on
 	 * two metrics:
 	 *	0 - SoC Revision
 	 *	1 - eFuse value
 	 */
 	ret = ti_cpufreq_get_rev(opp_data, &version[0]);
 	if (ret)
-		goto fail_put_node;
+		goto fail_put_analde;
 
 	ret = ti_cpufreq_get_efuse(opp_data, &version[1]);
 	if (ret)
-		goto fail_put_node;
+		goto fail_put_analde;
 
 	if (opp_data->soc_data->multi_regulator) {
 		if (opp_data->soc_data->reg_names)
@@ -420,18 +420,18 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 	ret = dev_pm_opp_set_config(opp_data->cpu_dev, &config);
 	if (ret < 0) {
 		dev_err(opp_data->cpu_dev, "Failed to set OPP config\n");
-		goto fail_put_node;
+		goto fail_put_analde;
 	}
 
-	of_node_put(opp_data->opp_node);
+	of_analde_put(opp_data->opp_analde);
 
 register_cpufreq_dt:
 	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
 
 	return 0;
 
-fail_put_node:
-	of_node_put(opp_data->opp_node);
+fail_put_analde:
+	of_analde_put(opp_data->opp_analde);
 
 	return ret;
 }
@@ -441,7 +441,7 @@ static int __init ti_cpufreq_init(void)
 	const struct of_device_id *match;
 
 	/* Check to ensure we are on a compatible platform */
-	match = ti_cpufreq_match_node();
+	match = ti_cpufreq_match_analde();
 	if (match)
 		platform_device_register_data(NULL, "ti-cpufreq", -1, match,
 					      sizeof(*match));

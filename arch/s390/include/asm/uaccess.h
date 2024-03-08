@@ -76,7 +76,7 @@ union oac {
 	};
 };
 
-int __noreturn __put_user_bad(void);
+int __analreturn __put_user_bad(void);
 
 #define __put_user_asm(to, from, size)					\
 ({									\
@@ -132,7 +132,7 @@ static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned lon
 	return rc;
 }
 
-int __noreturn __get_user_bad(void);
+int __analreturn __get_user_bad(void);
 
 #define __get_user_asm(to, from, size)					\
 ({									\
@@ -286,7 +286,7 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 
 void *s390_kernel_write(void *dst, const void *src, size_t size);
 
-int __noreturn __put_kernel_bad(void);
+int __analreturn __put_kernel_bad(void);
 
 #define __put_kernel_asm(val, to, insn)					\
 ({									\
@@ -304,7 +304,7 @@ int __noreturn __put_kernel_bad(void);
 	__rc;								\
 })
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	unsigned long __x = (unsigned long)(*((type *)(src)));		\
 	int __pk_err;							\
@@ -330,7 +330,7 @@ do {									\
 		goto err_label;						\
 } while (0)
 
-int __noreturn __get_kernel_bad(void);
+int __analreturn __get_kernel_bad(void);
 
 #define __get_kernel_asm(val, from, insn)				\
 ({									\
@@ -348,7 +348,7 @@ int __noreturn __get_kernel_bad(void);
 	__rc;								\
 })
 
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	int __gk_err;							\
 									\
@@ -565,7 +565,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 }
 
 /**
- * cmpxchg_user_key() - cmpxchg with user space target, honoring storage keys
+ * cmpxchg_user_key() - cmpxchg with user space target, hoanalring storage keys
  * @ptr: User space address of value to compare to @old and exchange with
  *	 @new. Must be aligned to sizeof(*@ptr).
  * @uval: Address where the old value of *@ptr is written to.
@@ -575,9 +575,9 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
  * @new: New value to place at *@ptr.
  * @key: Access key to use for checking storage key protection.
  *
- * Perform a cmpxchg on a user space target, honoring storage key protection.
+ * Perform a cmpxchg on a user space target, hoanalring storage key protection.
  * @key alone determines how key checking is performed, neither
- * storage-protection-override nor fetch-protection-override apply.
+ * storage-protection-override analr fetch-protection-override apply.
  * The caller must compare *@uval and @old to determine if values have been
  * exchanged. In case of an exception *@uval is set to zero.
  *

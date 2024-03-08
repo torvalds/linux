@@ -45,7 +45,7 @@ static int mmapped;
 /* vdovikin: removed static struct i2c_pcf_isa gpi; code -
   this module in real supports only one device, due to missing arguments
   in some functions, called from the algo-pcf module. Sometimes it's
-  need to be rewriten - but for now just remove this for simpler reading */
+  need to be rewriten - but for analw just remove this for simpler reading */
 
 static wait_queue_head_t pcf_wait;
 static int pcf_pending;
@@ -136,27 +136,27 @@ static int pcf_isa_init(void)
 		if (!request_region(base, 2, pcf_isa_ops.name)) {
 			printk(KERN_ERR "%s: requested I/O region (%#x:2) is "
 			       "in use\n", pcf_isa_ops.name, base);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		base_iomem = ioport_map(base, 2);
 		if (!base_iomem) {
 			printk(KERN_ERR "%s: remap of I/O region %#x failed\n",
 			       pcf_isa_ops.name, base);
 			release_region(base, 2);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else {
 		if (!request_mem_region(base, 2, pcf_isa_ops.name)) {
 			printk(KERN_ERR "%s: requested memory region (%#x:2) "
 			       "is in use\n", pcf_isa_ops.name, base);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		base_iomem = ioremap(base, 2);
 		if (base_iomem == NULL) {
 			printk(KERN_ERR "%s: remap of memory region %#x "
 			       "failed\n", pcf_isa_ops.name, base);
 			release_mem_region(base, 2);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	pr_debug("%s: registers %#x remapped to %p\n", pcf_isa_ops.name, base,
@@ -256,7 +256,7 @@ static int elektor_probe(struct device *dev, unsigned int id)
 {
 	init_waitqueue_head(&pcf_wait);
 	if (pcf_isa_init())
-		return -ENODEV;
+		return -EANALDEV;
 	pcf_isa_ops.dev.parent = dev;
 	if (i2c_pcf_add_bus(&pcf_isa_ops) < 0)
 		goto fail;
@@ -278,7 +278,7 @@ static int elektor_probe(struct device *dev, unsigned int id)
 		iounmap(base_iomem);
 		release_mem_region(base, 2);
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void elektor_remove(struct device *dev, unsigned int id)
@@ -309,7 +309,7 @@ static struct isa_driver i2c_elektor_driver = {
 	},
 };
 
-MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");
+MODULE_AUTHOR("Hans Berglund <hb@spacetec.anal>");
 MODULE_DESCRIPTION("I2C-Bus adapter routines for PCF8584 ISA bus adapter");
 MODULE_LICENSE("GPL");
 

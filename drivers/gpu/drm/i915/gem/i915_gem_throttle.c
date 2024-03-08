@@ -26,7 +26,7 @@
  * Throttle our rendering by waiting until the ring has completed our requests
  * emitted over 20 msec ago.
  *
- * Note that if we were to use the current jiffies each time around the loop,
+ * Analte that if we were to use the current jiffies each time around the loop,
  * we wouldn't escape the function with any frames outstanding if the time to
  * render a frame was over 20ms.
  *
@@ -37,7 +37,7 @@ int
 i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file)
 {
-	const unsigned long recent_enough = jiffies - DRM_I915_THROTTLE_JIFFIES;
+	const unsigned long recent_eanalugh = jiffies - DRM_I915_THROTTLE_JIFFIES;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct drm_i915_private *i915 = to_i915(dev);
 	struct i915_gem_context *ctx;
@@ -74,7 +74,7 @@ i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 					break;
 
 				if (time_after(rq->emitted_jiffies,
-					       recent_enough))
+					       recent_eanalugh))
 					continue;
 
 				target = i915_request_get(rq);

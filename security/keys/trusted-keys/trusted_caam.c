@@ -72,7 +72,7 @@ static void trusted_caam_exit(void)
 }
 
 struct trusted_key_ops trusted_key_caam_ops = {
-	.migratable = 0, /* non-migratable */
+	.migratable = 0, /* analn-migratable */
 	.init = trusted_caam_init,
 	.seal = trusted_caam_seal,
 	.unseal = trusted_caam_unseal,

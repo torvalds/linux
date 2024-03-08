@@ -91,7 +91,7 @@ static inline bool __acpi_aml_access_ok(unsigned long flag)
 static inline bool __acpi_aml_readable(struct circ_buf *circ, unsigned long flag)
 {
 	/*
-	 * Another read is not in progress and there is data in buffer
+	 * Aanalther read is analt in progress and there is data in buffer
 	 * available for read.
 	 */
 	if (!(acpi_aml_io.flags & flag) && circ_count(circ))
@@ -102,7 +102,7 @@ static inline bool __acpi_aml_readable(struct circ_buf *circ, unsigned long flag
 static inline bool __acpi_aml_writable(struct circ_buf *circ, unsigned long flag)
 {
 	/*
-	 * Another write is not in progress and there is buffer space
+	 * Aanalther write is analt in progress and there is buffer space
 	 * available for write.
 	 */
 	if (!(acpi_aml_io.flags & flag) && circ_space(circ))
@@ -295,7 +295,7 @@ static int acpi_aml_readb_kern(void)
  *
  * This function should be used to implement acpi_os_printf() to filter out
  * the debugger output and store the output into the debugger interface
- * buffer. Return the size of stored logs or errno.
+ * buffer. Return the size of stored logs or erranal.
  */
 static ssize_t acpi_aml_write_log(const char *msg)
 {
@@ -303,7 +303,7 @@ static ssize_t acpi_aml_write_log(const char *msg)
 	int count = 0, size = 0;
 
 	if (!acpi_aml_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 	if (msg)
 		count = strlen(msg);
 	while (count > 0) {
@@ -335,7 +335,7 @@ again:
  *
  * This function should be used to implement acpi_os_get_line() to capture
  * the debugger input commands and store the input commands into the
- * debugger interface buffer. Return the size of stored commands or errno.
+ * debugger interface buffer. Return the size of stored commands or erranal.
  */
 static ssize_t acpi_aml_read_cmd(char *msg, size_t count)
 {
@@ -454,19 +454,19 @@ static int acpi_aml_wait_command_ready(bool single_step,
 	return 0;
 }
 
-static int acpi_aml_notify_command_complete(void)
+static int acpi_aml_analtify_command_complete(void)
 {
 	return 0;
 }
 
-static int acpi_aml_open(struct inode *inode, struct file *file)
+static int acpi_aml_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret = 0;
 	acpi_status status;
 
 	mutex_lock(&acpi_aml_io.lock);
 	/*
-	 * The debugger interface is being closed, no new user is allowed
+	 * The debugger interface is being closed, anal new user is allowed
 	 * during this period.
 	 */
 	if (acpi_aml_io.flags & ACPI_AML_CLOSED) {
@@ -487,11 +487,11 @@ static int acpi_aml_open(struct inode *inode, struct file *file)
 		}
 	} else {
 		/*
-		 * No writer is allowed unless the debugger thread is
+		 * Anal writer is allowed unless the debugger thread is
 		 * ready.
 		 */
 		if (!(acpi_aml_io.flags & ACPI_AML_OPENED)) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_lock;
 		}
 	}
@@ -525,7 +525,7 @@ err_exit:
 	return ret;
 }
 
-static int acpi_aml_release(struct inode *inode, struct file *file)
+static int acpi_aml_release(struct ianalde *ianalde, struct file *file)
 {
 	mutex_lock(&acpi_aml_io.lock);
 	acpi_aml_io.users--;
@@ -551,7 +551,7 @@ static int acpi_aml_release(struct inode *inode, struct file *file)
 
 		/*
 		 * Then we try to terminate the debugger thread if it is
-		 * not terminated.
+		 * analt terminated.
 		 */
 		pr_debug("Terminating debugger thread.\n");
 		acpi_terminate_debugger();
@@ -611,7 +611,7 @@ static ssize_t acpi_aml_read(struct file *file, char __user *buf,
 again:
 		ret = acpi_aml_read_user(buf + size, count);
 		if (ret == -EAGAIN) {
-			if (file->f_flags & O_NONBLOCK)
+			if (file->f_flags & O_ANALNBLOCK)
 				break;
 			else {
 				ret = wait_event_interruptible(acpi_aml_io.wait,
@@ -681,7 +681,7 @@ static ssize_t acpi_aml_write(struct file *file, const char __user *buf,
 again:
 		ret = acpi_aml_write_user(buf + size, count);
 		if (ret == -EAGAIN) {
-			if (file->f_flags & O_NONBLOCK)
+			if (file->f_flags & O_ANALNBLOCK)
 				break;
 			else {
 				ret = wait_event_interruptible(acpi_aml_io.wait,
@@ -714,9 +714,9 @@ static __poll_t acpi_aml_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &acpi_aml_io.wait, wait);
 	if (acpi_aml_user_readable())
-		masks |= EPOLLIN | EPOLLRDNORM;
+		masks |= EPOLLIN | EPOLLRDANALRM;
 	if (acpi_aml_user_writable())
-		masks |= EPOLLOUT | EPOLLWRNORM;
+		masks |= EPOLLOUT | EPOLLWRANALRM;
 
 	return masks;
 }
@@ -735,7 +735,7 @@ static const struct acpi_debugger_ops acpi_aml_debugger = {
 	.read_cmd		 = acpi_aml_read_cmd,
 	.write_log		 = acpi_aml_write_log,
 	.wait_command_ready	 = acpi_aml_wait_command_ready,
-	.notify_command_complete = acpi_aml_notify_command_complete,
+	.analtify_command_complete = acpi_aml_analtify_command_complete,
 };
 
 static int __init acpi_aml_init(void)
@@ -743,7 +743,7 @@ static int __init acpi_aml_init(void)
 	int ret;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Initialize AML IO interface */
 	mutex_init(&acpi_aml_io.lock);

@@ -59,7 +59,7 @@ ssp2: spi@80014000 {
 
 In order to use the QCA7000 as UART slave it must be defined as a child of a
 UART master in the device tree. It is possible to preconfigure the UART
-settings of the QCA7000 firmware, but it's not possible to change them during
+settings of the QCA7000 firmware, but it's analt possible to change them during
 runtime.
 
 Required properties:

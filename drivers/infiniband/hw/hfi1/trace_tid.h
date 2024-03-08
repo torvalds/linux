@@ -31,10 +31,10 @@ u16 hfi1_trace_get_tid_idx(u32 ent);
 
 #define TID_FLOW_PRN "[%s] qpn 0x%x flow %d: idx %d resp_ib_psn 0x%x " \
 		     "generation 0x%x fpsn 0x%x-%x r_next_psn 0x%x " \
-		     "ib_psn 0x%x-%x npagesets %u tnode_cnt %u " \
+		     "ib_psn 0x%x-%x npagesets %u tanalde_cnt %u " \
 		     "tidcnt %u tid_idx %u tid_offset %u length %u sent %u"
 
-#define TID_NODE_PRN "[%s] qpn 0x%x  %s idx %u grp base 0x%x map 0x%x " \
+#define TID_ANALDE_PRN "[%s] qpn 0x%x  %s idx %u grp base 0x%x map 0x%x " \
 		     "used %u cnt %u"
 
 #define RSP_INFO_PRN "[%s] qpn 0x%x state 0x%x s_state 0x%x psn 0x%x " \
@@ -503,7 +503,7 @@ DECLARE_EVENT_CLASS(/* tid_fow */
 		__field(u32, ib_spsn)
 		__field(u32, ib_lpsn)
 		__field(u32, npagesets)
-		__field(u32, tnode_cnt)
+		__field(u32, tanalde_cnt)
 		__field(u32, tidcnt)
 		__field(u32, tid_idx)
 		__field(u32, tid_offset)
@@ -525,7 +525,7 @@ DECLARE_EVENT_CLASS(/* tid_fow */
 		__entry->ib_spsn = flow->flow_state.ib_spsn;
 		__entry->ib_lpsn = flow->flow_state.ib_lpsn;
 		__entry->npagesets = flow->npagesets;
-		__entry->tnode_cnt = flow->tnode_cnt;
+		__entry->tanalde_cnt = flow->tanalde_cnt;
 		__entry->tidcnt = flow->tidcnt;
 		__entry->tid_idx = flow->tid_idx;
 		__entry->tid_offset =  flow->tid_offset;
@@ -546,7 +546,7 @@ DECLARE_EVENT_CLASS(/* tid_fow */
 		__entry->ib_spsn,
 		__entry->ib_lpsn,
 		__entry->npagesets,
-		__entry->tnode_cnt,
+		__entry->tanalde_cnt,
 		__entry->tidcnt,
 		__entry->tid_idx,
 		__entry->tid_offset,
@@ -633,8 +633,8 @@ DEFINE_EVENT(/* event */
 	TP_ARGS(qp, index, flow)
 );
 
-DECLARE_EVENT_CLASS(/* tid_node */
-	hfi1_tid_node_template,
+DECLARE_EVENT_CLASS(/* tid_analde */
+	hfi1_tid_analde_template,
 	TP_PROTO(struct rvt_qp *qp, const char *msg, u32 index, u32 base,
 		 u8 map, u8 used, u8 cnt),
 	TP_ARGS(qp, msg, index, base, map, used, cnt),
@@ -659,7 +659,7 @@ DECLARE_EVENT_CLASS(/* tid_node */
 		__entry->cnt = cnt;
 	),
 	TP_printk(/* print */
-		TID_NODE_PRN,
+		TID_ANALDE_PRN,
 		__get_str(dev),
 		__entry->qpn,
 		__get_str(msg),
@@ -672,7 +672,7 @@ DECLARE_EVENT_CLASS(/* tid_node */
 );
 
 DEFINE_EVENT(/* event */
-	hfi1_tid_node_template, hfi1_tid_node_add,
+	hfi1_tid_analde_template, hfi1_tid_analde_add,
 	TP_PROTO(struct rvt_qp *qp, const char *msg, u32 index, u32 base,
 		 u8 map, u8 used, u8 cnt),
 	TP_ARGS(qp, msg, index, base, map, used, cnt)
@@ -1407,14 +1407,14 @@ DECLARE_EVENT_CLASS(/* tid_write_sp */
 		__entry->r_tid_alloc,
 		__entry->alloc_w_segs,
 		__entry->pending_tid_w_segs,
-		__entry->sync_pt ? "yes" : "no",
+		__entry->sync_pt ? "anal" : "anal",
 		__entry->ps_nak_psn,
 		__entry->ps_nak_state,
 		__entry->prnr_nak_state,
 		__entry->hw_flow_index,
 		__entry->generation,
 		__entry->fpsn,
-		__entry->resync ? "yes" : "no",
+		__entry->resync ? "anal" : "anal",
 		__entry->r_next_psn_kdeth
 	)
 );

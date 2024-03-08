@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *    driver for Microchip PQI-based storage controllers
- *    Copyright (c) 2019-2023 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019-2023 Microchip Techanallogy Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -26,7 +26,7 @@ static struct pqi_sas_phy *pqi_alloc_sas_phy(struct pqi_sas_port *pqi_sas_port)
 	if (!pqi_sas_phy)
 		return NULL;
 
-	phy = sas_phy_alloc(pqi_sas_port->parent_node->parent_dev,
+	phy = sas_phy_alloc(pqi_sas_port->parent_analde->parent_dev,
 		pqi_sas_port->next_phy_index);
 	if (!phy) {
 		kfree(pqi_sas_phy);
@@ -67,11 +67,11 @@ static int pqi_sas_port_add_phy(struct pqi_sas_phy *pqi_sas_phy)
 	identify->device_type = SAS_END_DEVICE;
 	identify->initiator_port_protocols = SAS_PROTOCOL_ALL;
 	identify->target_port_protocols = SAS_PROTOCOL_ALL;
-	phy->minimum_linkrate_hw = SAS_LINK_RATE_UNKNOWN;
-	phy->maximum_linkrate_hw = SAS_LINK_RATE_UNKNOWN;
-	phy->minimum_linkrate = SAS_LINK_RATE_UNKNOWN;
-	phy->maximum_linkrate = SAS_LINK_RATE_UNKNOWN;
-	phy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
+	phy->minimum_linkrate_hw = SAS_LINK_RATE_UNKANALWN;
+	phy->maximum_linkrate_hw = SAS_LINK_RATE_UNKANALWN;
+	phy->minimum_linkrate = SAS_LINK_RATE_UNKANALWN;
+	phy->maximum_linkrate = SAS_LINK_RATE_UNKANALWN;
+	phy->negotiated_linkrate = SAS_LINK_RATE_UNKANALWN;
 
 	rc = sas_phy_add(pqi_sas_phy->phy);
 	if (rc)
@@ -118,13 +118,13 @@ static struct sas_rphy *pqi_sas_rphy_alloc(struct pqi_sas_port *pqi_sas_port)
 {
 	if (pqi_sas_port->device && pqi_sas_port->device->is_expander_smp_device)
 		return sas_expander_alloc(pqi_sas_port->port,
-				SAS_FANOUT_EXPANDER_DEVICE);
+				SAS_FAANALUT_EXPANDER_DEVICE);
 
 	return sas_end_device_alloc(pqi_sas_port->port);
 }
 
 static struct pqi_sas_port *pqi_alloc_sas_port(
-	struct pqi_sas_node *pqi_sas_node, u64 sas_address,
+	struct pqi_sas_analde *pqi_sas_analde, u64 sas_address,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
@@ -136,9 +136,9 @@ static struct pqi_sas_port *pqi_alloc_sas_port(
 		return NULL;
 
 	INIT_LIST_HEAD(&pqi_sas_port->phy_list_head);
-	pqi_sas_port->parent_node = pqi_sas_node;
+	pqi_sas_port->parent_analde = pqi_sas_analde;
 
-	port = sas_port_alloc_num(pqi_sas_node->parent_dev);
+	port = sas_port_alloc_num(pqi_sas_analde->parent_dev);
 	if (!port)
 		goto free_pqi_port;
 
@@ -150,7 +150,7 @@ static struct pqi_sas_port *pqi_alloc_sas_port(
 	pqi_sas_port->sas_address = sas_address;
 	pqi_sas_port->device = device;
 	list_add_tail(&pqi_sas_port->port_list_entry,
-		&pqi_sas_node->port_list_head);
+		&pqi_sas_analde->port_list_head);
 
 	return pqi_sas_port;
 
@@ -176,32 +176,32 @@ static void pqi_free_sas_port(struct pqi_sas_port *pqi_sas_port)
 	kfree(pqi_sas_port);
 }
 
-static struct pqi_sas_node *pqi_alloc_sas_node(struct device *parent_dev)
+static struct pqi_sas_analde *pqi_alloc_sas_analde(struct device *parent_dev)
 {
-	struct pqi_sas_node *pqi_sas_node;
+	struct pqi_sas_analde *pqi_sas_analde;
 
-	pqi_sas_node = kzalloc(sizeof(*pqi_sas_node), GFP_KERNEL);
-	if (pqi_sas_node) {
-		pqi_sas_node->parent_dev = parent_dev;
-		INIT_LIST_HEAD(&pqi_sas_node->port_list_head);
+	pqi_sas_analde = kzalloc(sizeof(*pqi_sas_analde), GFP_KERNEL);
+	if (pqi_sas_analde) {
+		pqi_sas_analde->parent_dev = parent_dev;
+		INIT_LIST_HEAD(&pqi_sas_analde->port_list_head);
 	}
 
-	return pqi_sas_node;
+	return pqi_sas_analde;
 }
 
-static void pqi_free_sas_node(struct pqi_sas_node *pqi_sas_node)
+static void pqi_free_sas_analde(struct pqi_sas_analde *pqi_sas_analde)
 {
 	struct pqi_sas_port *pqi_sas_port;
 	struct pqi_sas_port *next;
 
-	if (!pqi_sas_node)
+	if (!pqi_sas_analde)
 		return;
 
 	list_for_each_entry_safe(pqi_sas_port, next,
-		&pqi_sas_node->port_list_head, port_list_entry)
+		&pqi_sas_analde->port_list_head, port_list_entry)
 			pqi_free_sas_port(pqi_sas_port);
 
-	kfree(pqi_sas_node);
+	kfree(pqi_sas_analde);
 }
 
 struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(
@@ -224,26 +224,26 @@ int pqi_add_sas_host(struct Scsi_Host *shost, struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
 	struct device *parent_dev;
-	struct pqi_sas_node *pqi_sas_node;
+	struct pqi_sas_analde *pqi_sas_analde;
 	struct pqi_sas_port *pqi_sas_port;
 	struct pqi_sas_phy *pqi_sas_phy;
 
 	parent_dev = &shost->shost_dev;
 
-	pqi_sas_node = pqi_alloc_sas_node(parent_dev);
-	if (!pqi_sas_node)
-		return -ENOMEM;
+	pqi_sas_analde = pqi_alloc_sas_analde(parent_dev);
+	if (!pqi_sas_analde)
+		return -EANALMEM;
 
-	pqi_sas_port = pqi_alloc_sas_port(pqi_sas_node,
+	pqi_sas_port = pqi_alloc_sas_port(pqi_sas_analde,
 		ctrl_info->sas_address, NULL);
 	if (!pqi_sas_port) {
-		rc = -ENODEV;
-		goto free_sas_node;
+		rc = -EANALDEV;
+		goto free_sas_analde;
 	}
 
 	pqi_sas_phy = pqi_alloc_sas_phy(pqi_sas_port);
 	if (!pqi_sas_phy) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto free_sas_port;
 	}
 
@@ -251,7 +251,7 @@ int pqi_add_sas_host(struct Scsi_Host *shost, struct pqi_ctrl_info *ctrl_info)
 	if (rc)
 		goto free_sas_phy;
 
-	ctrl_info->sas_host = pqi_sas_node;
+	ctrl_info->sas_host = pqi_sas_analde;
 
 	return 0;
 
@@ -259,32 +259,32 @@ free_sas_phy:
 	pqi_free_sas_phy(pqi_sas_phy);
 free_sas_port:
 	pqi_free_sas_port(pqi_sas_port);
-free_sas_node:
-	pqi_free_sas_node(pqi_sas_node);
+free_sas_analde:
+	pqi_free_sas_analde(pqi_sas_analde);
 
 	return rc;
 }
 
 void pqi_delete_sas_host(struct pqi_ctrl_info *ctrl_info)
 {
-	pqi_free_sas_node(ctrl_info->sas_host);
+	pqi_free_sas_analde(ctrl_info->sas_host);
 }
 
-int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
+int pqi_add_sas_device(struct pqi_sas_analde *pqi_sas_analde,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
 	struct pqi_sas_port *pqi_sas_port;
 	struct sas_rphy *rphy;
 
-	pqi_sas_port = pqi_alloc_sas_port(pqi_sas_node,
+	pqi_sas_port = pqi_alloc_sas_port(pqi_sas_analde,
 		device->sas_address, device);
 	if (!pqi_sas_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rphy = pqi_sas_rphy_alloc(pqi_sas_port);
 	if (!rphy) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto free_sas_port;
 	}
 
@@ -330,7 +330,7 @@ static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 	struct pqi_scsi_dev *device;
 
 	if (!rphy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	shost = rphy_to_shost(rphy);
 	ctrl_info = shost_to_hba(shost);
@@ -338,7 +338,7 @@ static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 	found_device = pqi_find_device_by_sas_rphy(ctrl_info, rphy);
 
 	if (!found_device) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 
@@ -402,7 +402,7 @@ static int pqi_sas_get_bay_identifier(struct sas_rphy *rphy)
 	struct Scsi_Host *shost;
 
 	if (!rphy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	shost = rphy_to_shost(rphy);
 	ctrl_info = shost_to_hba(shost);
@@ -410,7 +410,7 @@ static int pqi_sas_get_bay_identifier(struct sas_rphy *rphy)
 	device = pqi_find_device_by_sas_rphy(ctrl_info, rphy);
 
 	if (!device) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 
@@ -526,7 +526,7 @@ void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 	ctrl_info = shost_to_hba(shost);
 
 	if (job->reply_payload.payload_len == 0) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -535,7 +535,7 @@ void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		goto out;
 	}
 
-	if (rphy->identify.device_type != SAS_FANOUT_EXPANDER_DEVICE) {
+	if (rphy->identify.device_type != SAS_FAANALUT_EXPANDER_DEVICE) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -547,7 +547,7 @@ void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 	smp_buf = pqi_build_csmi_smp_passthru_buffer(rphy, job);
 	if (!smp_buf) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 

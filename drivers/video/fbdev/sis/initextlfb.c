@@ -20,23 +20,23 @@
 #include <linux/fb.h>
 
 int		sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr,
-			unsigned char modeno, unsigned char rateindex);
-int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
+			unsigned char modeanal, unsigned char rateindex);
+int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeanal,
 			unsigned char rateindex, struct fb_var_screeninfo *var);
-bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
+bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeanal,
 			int *htotal, int *vtotal, unsigned char rateindex);
 
 extern bool	SiSInitPtr(struct SiS_Private *SiS_Pr);
-extern bool	SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
+extern bool	SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeAnal,
 			unsigned short *ModeIdIndex);
 extern void	SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 			int xres, int yres, struct fb_var_screeninfo *var, bool writeres);
 
 int
-sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr, unsigned char modeno,
+sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr, unsigned char modeanal,
 			unsigned char rateindex)
 {
-    unsigned short ModeNo = modeno;
+    unsigned short ModeAnal = modeanal;
     unsigned short ModeIdIndex = 0, ClockIndex = 0;
     unsigned short RRTI = 0;
     int Clock;
@@ -46,14 +46,14 @@ sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr, unsigned char modeno,
     if(rateindex > 0) rateindex--;
 
 #ifdef CONFIG_FB_SIS_315
-    switch(ModeNo) {
-    case 0x5a: ModeNo = 0x50; break;
-    case 0x5b: ModeNo = 0x56;
+    switch(ModeAnal) {
+    case 0x5a: ModeAnal = 0x50; break;
+    case 0x5b: ModeAnal = 0x56;
     }
 #endif
 
-    if(!(SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex))) {
-       printk(KERN_ERR "Could not find mode %x\n", ModeNo);
+    if(!(SiS_SearchModeID(SiS_Pr, &ModeAnal, &ModeIdIndex))) {
+       printk(KERN_ERR "Could analt find mode %x\n", ModeAnal);
        return 65000;
     }
 
@@ -61,11 +61,11 @@ sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr, unsigned char modeno,
 
     if(SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag & HaveWideTiming) {
        if(SiS_Pr->SiS_UseWide == 1) {
-	  /* Wide screen: Ignore rateindex */
+	  /* Wide screen: Iganalre rateindex */
 	  ClockIndex = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRTVCLK_WIDE;
        } else {
 	  RRTI += rateindex;
-	  ClockIndex = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRTVCLK_NORM;
+	  ClockIndex = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRTVCLK_ANALRM;
        }
     } else {
        RRTI += rateindex;
@@ -78,10 +78,10 @@ sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr, unsigned char modeno,
 }
 
 int
-sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
+sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeanal,
 			unsigned char rateindex, struct fb_var_screeninfo *var)
 {
-    unsigned short ModeNo = modeno;
+    unsigned short ModeAnal = modeanal;
     unsigned short ModeIdIndex = 0, index = 0, RRTI = 0;
     int            j;
 
@@ -90,22 +90,22 @@ sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
     if(rateindex > 0) rateindex--;
 
 #ifdef CONFIG_FB_SIS_315
-    switch(ModeNo) {
-       case 0x5a: ModeNo = 0x50; break;
-       case 0x5b: ModeNo = 0x56;
+    switch(ModeAnal) {
+       case 0x5a: ModeAnal = 0x50; break;
+       case 0x5b: ModeAnal = 0x56;
     }
 #endif
 
-    if(!(SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex))) return 0;
+    if(!(SiS_SearchModeID(SiS_Pr, &ModeAnal, &ModeIdIndex))) return 0;
 
     RRTI = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].REFindex;
     if(SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag & HaveWideTiming) {
        if(SiS_Pr->SiS_UseWide == 1) {
-	  /* Wide screen: Ignore rateindex */
+	  /* Wide screen: Iganalre rateindex */
 	  index = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRT1CRTC_WIDE;
        } else {
 	  RRTI += rateindex;
-	  index = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRT1CRTC_NORM;
+	  index = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRT1CRTC_ANALRM;
        }
     } else {
        RRTI += rateindex;
@@ -128,7 +128,7 @@ sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
     else
        var->sync |= FB_SYNC_HOR_HIGH_ACT;
 
-    var->vmode = FB_VMODE_NONINTERLACED;
+    var->vmode = FB_VMODE_ANALNINTERLACED;
     if(SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag & 0x0080)
        var->vmode = FB_VMODE_INTERLACED;
     else {
@@ -161,10 +161,10 @@ sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
 }
 
 bool
-sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno, int *htotal,
+sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeanal, int *htotal,
 			int *vtotal, unsigned char rateindex)
 {
-    unsigned short ModeNo = modeno;
+    unsigned short ModeAnal = modeanal;
     unsigned short ModeIdIndex = 0, CRT1Index = 0;
     unsigned short RRTI = 0;
     unsigned char  sr_data, cr_data, cr_data2;
@@ -174,22 +174,22 @@ sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno, int *ht
     if(rateindex > 0) rateindex--;
 
 #ifdef CONFIG_FB_SIS_315
-    switch(ModeNo) {
-       case 0x5a: ModeNo = 0x50; break;
-       case 0x5b: ModeNo = 0x56;
+    switch(ModeAnal) {
+       case 0x5a: ModeAnal = 0x50; break;
+       case 0x5b: ModeAnal = 0x56;
     }
 #endif
 
-    if(!(SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex))) return false;
+    if(!(SiS_SearchModeID(SiS_Pr, &ModeAnal, &ModeIdIndex))) return false;
 
     RRTI = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].REFindex;
     if(SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag & HaveWideTiming) {
        if(SiS_Pr->SiS_UseWide == 1) {
-	  /* Wide screen: Ignore rateindex */
+	  /* Wide screen: Iganalre rateindex */
 	  CRT1Index = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRT1CRTC_WIDE;
        } else {
 	  RRTI += rateindex;
-	  CRT1Index = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRT1CRTC_NORM;
+	  CRT1Index = SiS_Pr->SiS_RefIndex[RRTI].Ext_CRT1CRTC_ANALRM;
        }
     } else {
        RRTI += rateindex;

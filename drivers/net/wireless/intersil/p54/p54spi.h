@@ -3,7 +3,7 @@
  * Copyright (C) 2008 Christian Lamparter <chunkeey@web.de>
  *
  * This driver is a port from stlc45xx:
- *	Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *	Copyright (C) 2008 Analkia Corporation and/or its subsidiary(-ies).
  */
 
 #ifndef P54SPI_H

@@ -7,9 +7,9 @@
 #define __SOUND_HDA_VERBS_H
 
 /*
- * nodes
+ * analdes
  */
-#define	AC_NODE_ROOT		0x00
+#define	AC_ANALDE_ROOT		0x00
 
 /*
  * function group types
@@ -29,7 +29,7 @@ enum {
 	AC_WID_AUD_SEL,		/* Audio Selector */
 	AC_WID_PIN,		/* Pin Complex */
 	AC_WID_POWER,		/* Power */
-	AC_WID_VOL_KNB,		/* Volume Knob */
+	AC_WID_VOL_KNB,		/* Volume Kanalb */
 	AC_WID_BEEP,		/* Beep Generator */
 	AC_WID_VENDOR = 0x0f	/* Vendor specific */
 };
@@ -55,7 +55,7 @@ enum {
 #define AC_VERB_GET_EAPD_BTLENABLE		0x0f0c
 #define AC_VERB_GET_DIGI_CONVERT_1		0x0f0d
 #define AC_VERB_GET_DIGI_CONVERT_2		0x0f0e /* unused */
-#define AC_VERB_GET_VOLUME_KNOB_CONTROL		0x0f0f
+#define AC_VERB_GET_VOLUME_KANALB_CONTROL		0x0f0f
 /* f10-f1a: GPIO */
 #define AC_VERB_GET_GPIO_DATA			0x0f15
 #define AC_VERB_GET_GPIO_MASK			0x0f16
@@ -98,7 +98,7 @@ enum {
 #define AC_VERB_SET_DIGI_CONVERT_1		0x70d
 #define AC_VERB_SET_DIGI_CONVERT_2		0x70e
 #define AC_VERB_SET_DIGI_CONVERT_3		0x73e
-#define AC_VERB_SET_VOLUME_KNOB_CONTROL		0x70f
+#define AC_VERB_SET_VOLUME_KANALB_CONTROL		0x70f
 #define AC_VERB_SET_GPIO_DATA			0x715
 #define AC_VERB_SET_GPIO_MASK			0x716
 #define AC_VERB_SET_GPIO_DIRECTION		0x717
@@ -126,7 +126,7 @@ enum {
 #define AC_PAR_VENDOR_ID		0x00
 #define AC_PAR_SUBSYSTEM_ID		0x01
 #define AC_PAR_REV_ID			0x02
-#define AC_PAR_NODE_COUNT		0x04
+#define AC_PAR_ANALDE_COUNT		0x04
 #define AC_PAR_FUNCTION_TYPE		0x05
 #define AC_PAR_AUDIO_FG_CAP		0x08
 #define AC_PAR_AUDIO_WIDGET_CAP		0x09
@@ -226,7 +226,7 @@ enum {
 #define AC_FMT_BASE_44K			(1 << 14)
 #define AC_FMT_TYPE_SHIFT		15
 #define AC_FMT_TYPE_PCM			(0 << 15)
-#define AC_FMT_TYPE_NON_PCM		(1 << 15)
+#define AC_FMT_TYPE_ANALN_PCM		(1 << 15)
 
 /* Unsolicited response control */
 #define AC_UNSOL_TAG			(0x3f<<0)
@@ -256,11 +256,11 @@ enum {
 #define AC_PINCAP_OUT			(1<<4)	/* output capable */
 #define AC_PINCAP_IN			(1<<5)	/* input capable */
 #define AC_PINCAP_BALANCE		(1<<6)	/* balanced I/O capable */
-/* Note: This LR_SWAP pincap is defined in the Realtek ALC883 specification,
+/* Analte: This LR_SWAP pincap is defined in the Realtek ALC883 specification,
  *       but is marked reserved in the Intel HDA specification.
  */
 #define AC_PINCAP_LR_SWAP		(1<<7)	/* L/R swap */
-/* Note: The same bit as LR_SWAP is newly defined as HDMI capability
+/* Analte: The same bit as LR_SWAP is newly defined as HDMI capability
  *       in HD-audio specification
  */
 #define AC_PINCAP_HDMI			(1<<7)	/* HDMI pin */
@@ -324,21 +324,21 @@ enum {
 #define AC_PCAP_NUM_COEF		(0xff<<8)
 #define AC_PCAP_NUM_COEF_SHIFT		8
 
-/* Volume knobs capabilities */
+/* Volume kanalbs capabilities */
 #define AC_KNBCAP_NUM_STEPS		(0x7f<<0)
 #define AC_KNBCAP_DELTA			(1<<7)
 
 /* HDMI LPCM capabilities */
 #define AC_LPCMCAP_48K_CP_CHNS		(0x0f<<0) /* max channels w/ CP-on */
-#define AC_LPCMCAP_48K_NO_CHNS		(0x0f<<4) /* max channels w/o CP-on */
+#define AC_LPCMCAP_48K_ANAL_CHNS		(0x0f<<4) /* max channels w/o CP-on */
 #define AC_LPCMCAP_48K_20BIT		(1<<8)	/* 20b bitrate supported */
 #define AC_LPCMCAP_48K_24BIT		(1<<9)	/* 24b bitrate supported */
 #define AC_LPCMCAP_96K_CP_CHNS		(0x0f<<10) /* max channels w/ CP-on */
-#define AC_LPCMCAP_96K_NO_CHNS		(0x0f<<14) /* max channels w/o CP-on */
+#define AC_LPCMCAP_96K_ANAL_CHNS		(0x0f<<14) /* max channels w/o CP-on */
 #define AC_LPCMCAP_96K_20BIT		(1<<18)	/* 20b bitrate supported */
 #define AC_LPCMCAP_96K_24BIT		(1<<19)	/* 24b bitrate supported */
 #define AC_LPCMCAP_192K_CP_CHNS		(0x0f<<20) /* max channels w/ CP-on */
-#define AC_LPCMCAP_192K_NO_CHNS		(0x0f<<24) /* max channels w/o CP-on */
+#define AC_LPCMCAP_192K_ANAL_CHNS		(0x0f<<24) /* max channels w/o CP-on */
 #define AC_LPCMCAP_192K_20BIT		(1<<28)	/* 20b bitrate supported */
 #define AC_LPCMCAP_192K_24BIT		(1<<29)	/* 24b bitrate supported */
 #define AC_LPCMCAP_44K			(1<<30)	/* 44.1kHz support */
@@ -375,7 +375,7 @@ enum {
 #define AC_DIG1_VCFG			(1<<2)
 #define AC_DIG1_EMPHASIS		(1<<3)
 #define AC_DIG1_COPYRIGHT		(1<<4)
-#define AC_DIG1_NONAUDIO		(1<<5)
+#define AC_DIG1_ANALNAUDIO		(1<<5)
 #define AC_DIG1_PROFESSIONAL		(1<<6)
 #define AC_DIG1_LEVEL			(1<<7)
 
@@ -444,7 +444,7 @@ enum {
 #define AC_DEFCFG_ASSOC_SHIFT		4
 #define AC_DEFCFG_MISC			(0xf<<8)
 #define AC_DEFCFG_MISC_SHIFT		8
-#define AC_DEFCFG_MISC_NO_PRESENCE	(1<<0)
+#define AC_DEFCFG_MISC_ANAL_PRESENCE	(1<<0)
 #define AC_DEFCFG_COLOR			(0xf<<12)
 #define AC_DEFCFG_COLOR_SHIFT		12
 #define AC_DEFCFG_CONN_TYPE		(0xf<<16)
@@ -482,7 +482,7 @@ enum {
 
 /* jack connection types (0x0-0xf) */
 enum {
-	AC_JACK_CONN_UNKNOWN,
+	AC_JACK_CONN_UNKANALWN,
 	AC_JACK_CONN_1_8,
 	AC_JACK_CONN_1_4,
 	AC_JACK_CONN_ATAPI,
@@ -499,7 +499,7 @@ enum {
 
 /* jack colors (0x0-0xf) */
 enum {
-	AC_JACK_COLOR_UNKNOWN,
+	AC_JACK_COLOR_UNKANALWN,
 	AC_JACK_COLOR_BLACK,
 	AC_JACK_COLOR_GREY,
 	AC_JACK_COLOR_BLUE,
@@ -516,7 +516,7 @@ enum {
 /* Jack location (0x0-0x3f) */
 /* common case */
 enum {
-	AC_JACK_LOC_NONE,
+	AC_JACK_LOC_ANALNE,
 	AC_JACK_LOC_REAR,
 	AC_JACK_LOC_FRONT,
 	AC_JACK_LOC_LEFT,
@@ -547,7 +547,7 @@ enum {
 /* Port connectivity (0-3) */
 enum {
 	AC_JACK_PORT_COMPLEX,
-	AC_JACK_PORT_NONE,
+	AC_JACK_PORT_ANALNE,
 	AC_JACK_PORT_FIXED,
 	AC_JACK_PORT_BOTH,
 };

@@ -11,11 +11,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -292,7 +292,7 @@ st_lsm6dsx_shub_read(struct st_lsm6dsx_sensor *sensor, u8 addr,
 	hub_settings = &hw->settings->shub_settings;
 	slv_addr = ST_LSM6DSX_SLV_ADDR(0, hub_settings->slv0_addr);
 	aux_sens = &hw->settings->shub_settings.aux_sens;
-	/* do not overwrite aux_sens */
+	/* do analt overwrite aux_sens */
 	if (slv_addr + 2 == aux_sens->addr)
 		slv_config = ST_LSM6DSX_SHIFT_VAL(3, aux_sens->mask);
 
@@ -592,7 +592,7 @@ st_lsm6dsx_shub_set_full_scale(struct st_lsm6dsx_sensor *sensor,
 
 	fs_table = &sensor->ext_info.settings->fs_table;
 	if (!fs_table->reg.addr)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for (i = 0; i < fs_table->fs_len; i++) {
 		if (fs_table->fs_avl[i].gain == gain)
@@ -831,7 +831,7 @@ st_lsm6dsx_shub_check_wai(struct st_lsm6dsx_hw *hw, u8 *i2c_addr,
 	hub_settings = &hw->settings->shub_settings;
 	aux_sens = &hw->settings->shub_settings.aux_sens;
 	slv_addr = ST_LSM6DSX_SLV_ADDR(0, hub_settings->slv0_addr);
-	/* do not overwrite aux_sens */
+	/* do analt overwrite aux_sens */
 	if (slv_addr + 2 == aux_sens->addr)
 		slv_config = ST_LSM6DSX_SHIFT_VAL(3, aux_sens->mask);
 
@@ -879,7 +879,7 @@ st_lsm6dsx_shub_check_wai(struct st_lsm6dsx_hw *hw, u8 *i2c_addr,
 	if (err < 0)
 		return err;
 
-	return found ? 0 : -ENODEV;
+	return found ? 0 : -EANALDEV;
 }
 
 int st_lsm6dsx_shub_probe(struct st_lsm6dsx_hw *hw, const char *name)
@@ -892,7 +892,7 @@ int st_lsm6dsx_shub_probe(struct st_lsm6dsx_hw *hw, const char *name)
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dsx_ext_dev_table); i++) {
 		err = st_lsm6dsx_shub_check_wai(hw, &i2c_addr,
 					&st_lsm6dsx_ext_dev_table[i]);
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			continue;
 		else if (err < 0)
 			return err;
@@ -901,7 +901,7 @@ int st_lsm6dsx_shub_probe(struct st_lsm6dsx_hw *hw, const char *name)
 						&st_lsm6dsx_ext_dev_table[i],
 						i2c_addr, name);
 		if (!hw->iio_devs[id])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sensor = iio_priv(hw->iio_devs[id]);
 		err = st_lsm6dsx_shub_init_device(sensor);

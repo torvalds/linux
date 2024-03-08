@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -62,7 +62,7 @@ struct rxe_cq {
 	struct rxe_pool_elem	elem;
 	struct rxe_queue	*queue;
 	spinlock_t		cq_lock;
-	u8			notify;
+	u8			analtify;
 	bool			is_user;
 	atomic_t		num_wq;
 };
@@ -112,7 +112,7 @@ struct rxe_req_info {
 	int			wait_psn;
 	int			need_retry;
 	int			wait_for_rnr_timer;
-	int			noack_pkts;
+	int			analack_pkts;
 	struct rxe_task		task;
 };
 
@@ -238,7 +238,7 @@ struct rxe_qp {
 	int			need_req_skb;
 
 	/* Timer for retranmitting packet when ACKs have been lost. RC
-	 * only. The requester sets it when it is not already
+	 * only. The requester sets it when it is analt already
 	 * started. The responder resets it whenever an ack is
 	 * received.
 	 */
@@ -344,7 +344,7 @@ struct rxe_mw {
 };
 
 struct rxe_mcg {
-	struct rb_node		node;
+	struct rb_analde		analde;
 	struct kref		ref_cnt;
 	struct rxe_dev		*rxe;
 	struct list_head	qp_list;

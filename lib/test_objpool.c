@@ -6,7 +6,7 @@
  * Copyright: wuqiang.matt@bytedance.com
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/completion.h>
@@ -46,12 +46,12 @@ struct ot_data {
 
 /* testcase */
 struct ot_test {
-	int async; /* synchronous or asynchronous */
+	int async; /* synchroanalus or asynchroanalus */
 	int mode; /* only mode 0 supported */
 	int objsz; /* object size */
 	int duration; /* ms */
 	int delay; /* ms */
-	int bulk_normal;
+	int bulk_analrmal;
 	int bulk_irq;
 	unsigned long hrtimer; /* ms */
 	const char *name;
@@ -115,7 +115,7 @@ static void ot_mem_report(struct ot_test *test)
 }
 
 /* user object instance */
-struct ot_node {
+struct ot_analde {
 	void *owner;
 	unsigned long data;
 	unsigned long refs;
@@ -144,10 +144,10 @@ static int ot_init_data(struct ot_data *data)
 	return 0;
 }
 
-static int ot_init_node(void *nod, void *context)
+static int ot_init_analde(void *anald, void *context)
 {
 	struct ot_context *sop = context;
-	struct ot_node *on = nod;
+	struct ot_analde *on = anald;
 
 	on->owner = &sop->pool;
 	return 0;
@@ -159,7 +159,7 @@ static enum hrtimer_restart ot_hrtimer_handler(struct hrtimer *hrt)
 	struct ot_test *test = item->test;
 
 	if (atomic_read_acquire(&test->data.stop))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	/* do bulk-testings for objects pop/push */
 	item->worker(item, 1);
@@ -187,10 +187,10 @@ static int ot_init_hrtimer(struct ot_item *item, unsigned long hrtimer)
 	struct hrtimer *hrt = &item->hrtimer;
 
 	if (!hrtimer)
-		return -ENOENT;
+		return -EANALENT;
 
 	item->hrtcycle = ktime_set(0, hrtimer * 1000000UL);
-	hrtimer_init(hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(hrt, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	hrt->function = ot_hrtimer_handler;
 	return 0;
 }
@@ -205,7 +205,7 @@ static int ot_init_cpu_item(struct ot_item *item,
 	item->test = test;
 	item->worker = worker;
 
-	item->bulk[0] = test->bulk_normal;
+	item->bulk[0] = test->bulk_analrmal;
 	item->bulk[1] = test->bulk_irq;
 	item->delay = test->delay;
 
@@ -241,7 +241,7 @@ static int ot_thread_worker(void *arg)
 
 static void ot_perf_report(struct ot_test *test, u64 duration)
 {
-	struct ot_obj_stat total, normal = {0}, irq = {0};
+	struct ot_obj_stat total, analrmal = {0}, irq = {0};
 	int cpu, nthreads = 0;
 
 	pr_info("\n");
@@ -251,8 +251,8 @@ static void ot_perf_report(struct ot_test *test, u64 duration)
 		struct ot_item *item = per_cpu_ptr(&ot_pcup_items, cpu);
 		if (!item->duration)
 			continue;
-		normal.nhits += item->stat[0].nhits;
-		normal.nmiss += item->stat[0].nmiss;
+		analrmal.nhits += item->stat[0].nhits;
+		analrmal.nmiss += item->stat[0].nmiss;
 		irq.nhits += item->stat[1].nhits;
 		irq.nmiss += item->stat[1].nmiss;
 		pr_info("CPU: %d  duration: %lluus\n", cpu, item->duration);
@@ -266,8 +266,8 @@ static void ot_perf_report(struct ot_test *test, u64 duration)
 		nthreads++;
 	}
 
-	total.nhits = normal.nhits + irq.nhits;
-	total.nmiss = normal.nmiss + irq.nmiss;
+	total.nhits = analrmal.nhits + irq.nhits;
+	total.nmiss = analrmal.nmiss + irq.nmiss;
 
 	pr_info("ALL: \tnthreads: %d  duration: %lluus\n", nthreads, duration);
 	pr_info("SUM: \t%16lu hits \t%16lu miss\n",
@@ -278,10 +278,10 @@ static void ot_perf_report(struct ot_test *test, u64 duration)
 }
 
 /*
- * synchronous test cases for objpool manipulation
+ * synchroanalus test cases for objpool manipulation
  */
 
-/* objpool manipulation for synchronous mode (percpu objpool) */
+/* objpool manipulation for synchroanalus mode (percpu objpool) */
 static struct ot_context *ot_init_sync_m0(struct ot_test *test)
 {
 	struct ot_context *sop = NULL;
@@ -296,7 +296,7 @@ static struct ot_context *ot_init_sync_m0(struct ot_test *test)
 		gfp = GFP_ATOMIC;
 
 	if (objpool_init(&sop->pool, max, test->objsz,
-			 gfp, sop, ot_init_node, NULL)) {
+			 gfp, sop, ot_init_analde, NULL)) {
 		ot_kfree(test, sop, sizeof(*sop));
 		return NULL;
 	}
@@ -319,22 +319,22 @@ static struct {
 };
 
 /*
- * synchronous test cases: performance mode
+ * synchroanalus test cases: performance mode
  */
 
 static void ot_bulk_sync(struct ot_item *item, int irq)
 {
-	struct ot_node *nods[OT_NR_MAX_BULK];
+	struct ot_analde *analds[OT_NR_MAX_BULK];
 	int i;
 
 	for (i = 0; i < item->bulk[irq]; i++)
-		nods[i] = objpool_pop(item->pool);
+		analds[i] = objpool_pop(item->pool);
 
 	if (!irq && (item->delay || !(++(item->niters) & 0x7FFF)))
 		msleep(item->delay);
 
 	while (i-- > 0) {
-		struct ot_node *on = nods[i];
+		struct ot_analde *on = analds[i];
 		if (on) {
 			on->refs++;
 			objpool_push(on, item->pool);
@@ -353,10 +353,10 @@ static int ot_start_sync(struct ot_test *test)
 	unsigned long timeout;
 	int cpu;
 
-	/* initialize objpool for syncrhonous testcase */
+	/* initialize objpool for syncrhoanalus testcase */
 	sop = g_ot_sync_ops[test->mode].init(test);
 	if (!sop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* grab rwsem to block testing threads */
 	down_write(&test->data.start);
@@ -371,8 +371,8 @@ static int ot_start_sync(struct ot_test *test)
 		if (!cpu_online(cpu))
 			continue;
 
-		work = kthread_create_on_node(ot_thread_worker, item,
-				cpu_to_node(cpu), "ot_worker_%d", cpu);
+		work = kthread_create_on_analde(ot_thread_worker, item,
+				cpu_to_analde(cpu), "ot_worker_%d", cpu);
 		if (IS_ERR(work)) {
 			pr_err("failed to create thread for cpu %d\n", cpu);
 		} else {
@@ -384,7 +384,7 @@ static int ot_start_sync(struct ot_test *test)
 	/* wait a while to make sure all threads waiting at start line */
 	msleep(20);
 
-	/* in case no threads were created: memory insufficient ? */
+	/* in case anal threads were created: memory insufficient ? */
 	if (atomic_dec_and_test(&test->data.nthreads))
 		complete(&test->data.wait);
 
@@ -418,7 +418,7 @@ static int ot_start_sync(struct ot_test *test)
 }
 
 /*
- * asynchronous test cases: pool lifecycle controlled by refcount
+ * asynchroanalus test cases: pool lifecycle controlled by refcount
  */
 
 static void ot_fini_async_rcu(struct rcu_head *rcu)
@@ -435,7 +435,7 @@ static void ot_fini_async_rcu(struct rcu_head *rcu)
 
 static void ot_fini_async(struct ot_context *sop)
 {
-	/* make sure the stop event is acknowledged by all cores */
+	/* make sure the stop event is ackanalwledged by all cores */
 	call_rcu(&sop->rcu, ot_fini_async_rcu);
 }
 
@@ -466,7 +466,7 @@ static struct ot_context *ot_init_async_m0(struct ot_test *test)
 		gfp = GFP_ATOMIC;
 
 	if (objpool_init(&sop->pool, max, test->objsz, gfp, sop,
-			 ot_init_node, ot_objpool_release)) {
+			 ot_init_analde, ot_objpool_release)) {
 		ot_kfree(test, sop, sizeof(*sop));
 		return NULL;
 	}
@@ -482,7 +482,7 @@ static struct {
 	{.init = ot_init_async_m0, .fini = ot_fini_async},
 };
 
-static void ot_nod_recycle(struct ot_node *on, struct objpool_head *pool,
+static void ot_anald_recycle(struct ot_analde *on, struct objpool_head *pool,
 			int release)
 {
 	struct ot_context *sop;
@@ -498,18 +498,18 @@ static void ot_nod_recycle(struct ot_node *on, struct objpool_head *pool,
 	sop = container_of(pool, struct ot_context, pool);
 	WARN_ON(sop != pool->context);
 
-	/* unref objpool with nod removed forever */
+	/* unref objpool with anald removed forever */
 	objpool_drop(on, pool);
 }
 
 static void ot_bulk_async(struct ot_item *item, int irq)
 {
 	struct ot_test *test = item->test;
-	struct ot_node *nods[OT_NR_MAX_BULK];
+	struct ot_analde *analds[OT_NR_MAX_BULK];
 	int i, stop;
 
 	for (i = 0; i < item->bulk[irq]; i++)
-		nods[i] = objpool_pop(item->pool);
+		analds[i] = objpool_pop(item->pool);
 
 	if (!irq) {
 		if (item->delay || !(++(item->niters) & 0x7FFF))
@@ -521,11 +521,11 @@ static void ot_bulk_async(struct ot_item *item, int irq)
 
 	/* drop all objects and deref objpool */
 	while (i-- > 0) {
-		struct ot_node *on = nods[i];
+		struct ot_analde *on = analds[i];
 
 		if (on) {
 			on->refs++;
-			ot_nod_recycle(on, item->pool, stop);
+			ot_anald_recycle(on, item->pool, stop);
 			item->stat[irq].nhits++;
 		} else {
 			item->stat[irq].nmiss++;
@@ -544,10 +544,10 @@ static int ot_start_async(struct ot_test *test)
 	unsigned long timeout;
 	int cpu;
 
-	/* initialize objpool for syncrhonous testcase */
+	/* initialize objpool for syncrhoanalus testcase */
 	sop = g_ot_async_ops[test->mode].init(test);
 	if (!sop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* grab rwsem to block testing threads */
 	down_write(&test->data.start);
@@ -562,8 +562,8 @@ static int ot_start_async(struct ot_test *test)
 		if (!cpu_online(cpu))
 			continue;
 
-		work = kthread_create_on_node(ot_thread_worker, item,
-				cpu_to_node(cpu), "ot_worker_%d", cpu);
+		work = kthread_create_on_analde(ot_thread_worker, item,
+				cpu_to_analde(cpu), "ot_worker_%d", cpu);
 		if (IS_ERR(work)) {
 			pr_err("failed to create thread for cpu %d\n", cpu);
 		} else {
@@ -575,7 +575,7 @@ static int ot_start_async(struct ot_test *test)
 	/* wait a while to make sure all threads waiting at start line */
 	msleep(20);
 
-	/* in case no threads were created: memory insufficient ? */
+	/* in case anal threads were created: memory insufficient ? */
 	if (atomic_dec_and_test(&test->data.nthreads))
 		complete(&test->data.wait);
 
@@ -601,7 +601,7 @@ static int ot_start_async(struct ot_test *test)
 	wait_for_completion(&test->data.rcu);
 
 	/*
-	 * now we are sure that objpool is finalized either
+	 * analw we are sure that objpool is finalized either
 	 * by rcu callback or by worker threads
 	 */
 
@@ -616,43 +616,43 @@ static int ot_start_async(struct ot_test *test)
 
 /*
  * predefined testing cases:
- *   synchronous case / overrun case / async case
+ *   synchroanalus case / overrun case / async case
  *
- * async: synchronous or asynchronous testing
+ * async: synchroanalus or asynchroanalus testing
  * mode: only mode 0 supported
  * objsz: object size
  * duration: int, total test time in ms
  * delay: int, delay (in ms) between each iteration
- * bulk_normal: int, repeat times for thread worker
+ * bulk_analrmal: int, repeat times for thread worker
  * bulk_irq: int, repeat times for irq consumer
  * hrtimer: unsigned long, hrtimer intervnal in ms
  * name: char *, tag for current test ot_item
  */
 
-#define NODE_COMPACT sizeof(struct ot_node)
-#define NODE_VMALLOC (512)
+#define ANALDE_COMPACT sizeof(struct ot_analde)
+#define ANALDE_VMALLOC (512)
 
 static struct ot_test g_testcases[] = {
 
-	/* sync & normal */
-	{0, 0, NODE_COMPACT, 1000, 0,  1,  0,  0, "sync: percpu objpool"},
-	{0, 0, NODE_VMALLOC, 1000, 0,  1,  0,  0, "sync: percpu objpool from vmalloc"},
+	/* sync & analrmal */
+	{0, 0, ANALDE_COMPACT, 1000, 0,  1,  0,  0, "sync: percpu objpool"},
+	{0, 0, ANALDE_VMALLOC, 1000, 0,  1,  0,  0, "sync: percpu objpool from vmalloc"},
 
 	/* sync & hrtimer */
-	{0, 0, NODE_COMPACT, 1000, 0,  1,  1,  4, "sync & hrtimer: percpu objpool"},
-	{0, 0, NODE_VMALLOC, 1000, 0,  1,  1,  4, "sync & hrtimer: percpu objpool from vmalloc"},
+	{0, 0, ANALDE_COMPACT, 1000, 0,  1,  1,  4, "sync & hrtimer: percpu objpool"},
+	{0, 0, ANALDE_VMALLOC, 1000, 0,  1,  1,  4, "sync & hrtimer: percpu objpool from vmalloc"},
 
 	/* sync & overrun */
-	{0, 0, NODE_COMPACT, 1000, 0, 16,  0,  0, "sync overrun: percpu objpool"},
-	{0, 0, NODE_VMALLOC, 1000, 0, 16,  0,  0, "sync overrun: percpu objpool from vmalloc"},
+	{0, 0, ANALDE_COMPACT, 1000, 0, 16,  0,  0, "sync overrun: percpu objpool"},
+	{0, 0, ANALDE_VMALLOC, 1000, 0, 16,  0,  0, "sync overrun: percpu objpool from vmalloc"},
 
 	/* async mode */
-	{1, 0, NODE_COMPACT, 1000, 100,  1,  0,  0, "async: percpu objpool"},
-	{1, 0, NODE_VMALLOC, 1000, 100,  1,  0,  0, "async: percpu objpool from vmalloc"},
+	{1, 0, ANALDE_COMPACT, 1000, 100,  1,  0,  0, "async: percpu objpool"},
+	{1, 0, ANALDE_VMALLOC, 1000, 100,  1,  0,  0, "async: percpu objpool from vmalloc"},
 
 	/* async + hrtimer mode */
-	{1, 0, NODE_COMPACT, 1000, 0,  4,  4,  4, "async & hrtimer: percpu objpool"},
-	{1, 0, NODE_VMALLOC, 1000, 0,  4,  4,  4, "async & hrtimer: percpu objpool from vmalloc"},
+	{1, 0, ANALDE_COMPACT, 1000, 0,  4,  4,  4, "async & hrtimer: percpu objpool"},
+	{1, 0, ANALDE_VMALLOC, 1000, 0,  4,  4,  4, "async & hrtimer: percpu objpool from vmalloc"},
 };
 
 static int __init ot_mod_init(void)

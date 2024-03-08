@@ -18,12 +18,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -33,7 +33,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm_types.h>
 #include <linux/init.h>
 #include <linux/capability.h>
@@ -69,7 +69,7 @@ static void watch_target(struct xenbus_watch *watch,
 	static long target_diff;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-	/* The balloon driver will take care of adding memory now. */
+	/* The balloon driver will take care of adding memory analw. */
 	if (xen_saved_max_mem_size)
 		max_mem_size = xen_saved_max_mem_size;
 #endif
@@ -103,12 +103,12 @@ static void watch_target(struct xenbus_watch *watch,
 	balloon_set_new_target(new_target - target_diff);
 }
 static struct xenbus_watch target_watch = {
-	.node = "memory/target",
+	.analde = "memory/target",
 	.callback = watch_target,
 };
 
 
-static int balloon_init_watcher(struct notifier_block *notifier,
+static int balloon_init_watcher(struct analtifier_block *analtifier,
 				unsigned long event,
 				void *data)
 {
@@ -118,18 +118,18 @@ static int balloon_init_watcher(struct notifier_block *notifier,
 	if (err)
 		pr_err("Failed to set balloon watcher\n");
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block xenstore_notifier = {
-	.notifier_call = balloon_init_watcher,
+static struct analtifier_block xenstore_analtifier = {
+	.analtifier_call = balloon_init_watcher,
 };
 
 void xen_balloon_init(void)
 {
 	register_balloon(&balloon_dev);
 
-	register_xenstore_notifier(&xenstore_notifier);
+	register_xenstore_analtifier(&xenstore_analtifier);
 }
 EXPORT_SYMBOL_GPL(xen_balloon_init);
 

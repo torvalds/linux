@@ -9,7 +9,7 @@
 
 #include "stdlib.h"
 
-/* Not currently supported: leading whitespace, sign, 0x prefix, zero base */
+/* Analt currently supported: leading whitespace, sign, 0x prefix, zero base */
 unsigned long long int strtoull(const char *ptr, char **end, int base)
 {
 	unsigned long long ret = 0;

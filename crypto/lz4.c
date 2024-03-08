@@ -22,7 +22,7 @@ static void *lz4_alloc_ctx(struct crypto_scomp *tfm)
 
 	ctx = vmalloc(LZ4_MEM_COMPRESS);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return ctx;
 }
@@ -33,7 +33,7 @@ static int lz4_init(struct crypto_tfm *tfm)
 
 	ctx->lz4_comp_mem = lz4_alloc_ctx(NULL);
 	if (IS_ERR(ctx->lz4_comp_mem))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

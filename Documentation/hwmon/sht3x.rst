@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'sht3x'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheets:
         - https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf
@@ -17,7 +17,7 @@ Supported chips:
 
     Prefix: 'sts3x'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheets:
         - https://sensirion.com/media/documents/1DA31AFD/61641F76/Sensirion_Temperature_Sensors_STS3x_Datasheet.pdf
@@ -41,8 +41,8 @@ addresses 0x44 or 0x45 (0x4a or 0x4b for sts3x), depending on the wiring. See
 Documentation/i2c/instantiating-devices.rst for methods to instantiate the
 device.
 
-Even if sht3x sensor supports clock-stretch (blocking mode) and non-stretch
-(non-blocking mode) in single-shot mode, this driver only supports the latter.
+Even if sht3x sensor supports clock-stretch (blocking mode) and analn-stretch
+(analn-blocking mode) in single-shot mode, this driver only supports the latter.
 
 The sht3x sensor supports a single shot mode as well as 5 periodic measure
 modes, which can be controlled with the update_interval sysfs interface.
@@ -89,10 +89,10 @@ heater_enable:      heater enable, heating element removes excess humidity from
 			- 0: turned off
 			- 1: turned on
 update_interval:    update interval, 0 for single shot, interval in msec
-		    for periodic measurement. If the interval is not supported
+		    for periodic measurement. If the interval is analt supported
 		    by the sensor, the next faster interval is chosen
 repeatability:      write or read repeatability, higher repeatability means
-                    longer measurement duration, lower noise level and
+                    longer measurement duration, lower analise level and
                     larger energy consumption:
 
                         - 0: low repeatability

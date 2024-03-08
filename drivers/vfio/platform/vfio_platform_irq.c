@@ -22,7 +22,7 @@ static void vfio_platform_mask(struct vfio_platform_irq *irq_ctx)
 	spin_lock_irqsave(&irq_ctx->lock, flags);
 
 	if (!irq_ctx->masked) {
-		disable_irq_nosync(irq_ctx->hwirq);
+		disable_irq_analsync(irq_ctx->hwirq);
 		irq_ctx->masked = true;
 	}
 
@@ -62,7 +62,7 @@ static int vfio_platform_set_irq_mask(struct vfio_platform_device *vdev,
 		return 0;
 	}
 
-	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+	if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 		vfio_platform_mask(&vdev->irqs[index]);
 
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
@@ -123,7 +123,7 @@ static int vfio_platform_set_irq_unmask(struct vfio_platform_device *vdev,
 		return 0;
 	}
 
-	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+	if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 		vfio_platform_unmask(&vdev->irqs[index]);
 
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
@@ -140,7 +140,7 @@ static irqreturn_t vfio_automasked_irq_handler(int irq, void *dev_id)
 {
 	struct vfio_platform_irq *irq_ctx = dev_id;
 	unsigned long flags;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	spin_lock_irqsave(&irq_ctx->lock, flags);
 
@@ -148,7 +148,7 @@ static irqreturn_t vfio_automasked_irq_handler(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 
 		/* automask maskable interrupts */
-		disable_irq_nosync(irq_ctx->hwirq);
+		disable_irq_analsync(irq_ctx->hwirq);
 		irq_ctx->masked = true;
 	}
 
@@ -177,7 +177,7 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 	int ret;
 
 	if (irq->trigger) {
-		irq_clear_status_flags(irq->hwirq, IRQ_NOAUTOEN);
+		irq_clear_status_flags(irq->hwirq, IRQ_ANALAUTOEN);
 		free_irq(irq->hwirq, irq);
 		kfree(irq->name);
 		eventfd_ctx_put(irq->trigger);
@@ -189,7 +189,7 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 	irq->name = kasprintf(GFP_KERNEL_ACCOUNT, "vfio-irq[%d](%s)",
 			      irq->hwirq, vdev->name);
 	if (!irq->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trigger = eventfd_ctx_fdget(fd);
 	if (IS_ERR(trigger)) {
@@ -199,7 +199,7 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 
 	irq->trigger = trigger;
 
-	irq_set_status_flags(irq->hwirq, IRQ_NOAUTOEN);
+	irq_set_status_flags(irq->hwirq, IRQ_ANALAUTOEN);
 	ret = request_irq(irq->hwirq, handler, 0, irq->name, irq);
 	if (ret) {
 		kfree(irq->name);
@@ -227,7 +227,7 @@ static int vfio_platform_set_irq_trigger(struct vfio_platform_device *vdev,
 	else
 		handler = vfio_irq_handler;
 
-	if (!count && (flags & VFIO_IRQ_SET_DATA_NONE))
+	if (!count && (flags & VFIO_IRQ_SET_DATA_ANALNE))
 		return vfio_set_trigger(vdev, index, -1, handler);
 
 	if (start != 0 || count != 1)
@@ -239,7 +239,7 @@ static int vfio_platform_set_irq_trigger(struct vfio_platform_device *vdev,
 		return vfio_set_trigger(vdev, index, fd, handler);
 	}
 
-	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+	if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 		handler(irq->hwirq, irq);
 
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
@@ -273,7 +273,7 @@ int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
 	}
 
 	if (!func)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return func(vdev, index, start, count, flags, data);
 }
@@ -288,7 +288,7 @@ int vfio_platform_irq_init(struct vfio_platform_device *vdev)
 	vdev->irqs = kcalloc(cnt, sizeof(struct vfio_platform_irq),
 			     GFP_KERNEL_ACCOUNT);
 	if (!vdev->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cnt; i++) {
 		int hwirq = vdev->get_irq(vdev, i);

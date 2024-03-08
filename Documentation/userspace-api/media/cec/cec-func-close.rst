@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: CEC
 
 .. _cec-func-close:
@@ -12,7 +12,7 @@ Name
 
 cec-close - Close a cec device
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -37,7 +37,7 @@ Return Value
 ============
 
 :c:func:`close()` returns 0 on success. On error, -1 is returned, and
-``errno`` is set appropriately. Possible error codes are:
+``erranal`` is set appropriately. Possible error codes are:
 
 ``EBADF``
-    ``fd`` is not a valid open file descriptor.
+    ``fd`` is analt a valid open file descriptor.

@@ -31,7 +31,7 @@ void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id)
 
 	/*
 	 * Bit 4 indicates that the fields NPWG, NPWA, NPDG, NPDA, and
-	 * NOWS are defined for this namespace and should be used by
+	 * ANALWS are defined for this namespace and should be used by
 	 * the host for I/O optimization.
 	 */
 	id->nsfeat |= 1 << 4;
@@ -44,8 +44,8 @@ void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id)
 			    bdev_logical_block_size(bdev));
 	/* NPDG = Namespace Preferred Deallocate Alignment */
 	id->npda = id->npdg;
-	/* NOWS = Namespace Optimal Write Size */
-	id->nows = to0based(bdev_io_opt(bdev) / bdev_logical_block_size(bdev));
+	/* ANALWS = Namespace Optimal Write Size */
+	id->analws = to0based(bdev_io_opt(bdev) / bdev_logical_block_size(bdev));
 }
 
 void nvmet_bdev_ns_disable(struct nvmet_ns *ns)
@@ -83,13 +83,13 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
 	 * an advantage of cache.
 	 */
 	if (ns->buffered_io)
-		return -ENOTBLK;
+		return -EANALTBLK;
 
 	ns->bdev_handle = bdev_open_by_path(ns->device_path,
 				BLK_OPEN_READ | BLK_OPEN_WRITE, NULL, NULL);
 	if (IS_ERR(ns->bdev_handle)) {
 		ret = PTR_ERR(ns->bdev_handle);
-		if (ret != -ENOTBLK) {
+		if (ret != -EANALTBLK) {
 			pr_err("failed to open block device %s: (%d)\n",
 					ns->device_path, ret);
 		}
@@ -128,13 +128,13 @@ u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
 	if (likely(blk_sts == BLK_STS_OK))
 		return status;
 	/*
-	 * Right now there exists M : 1 mapping between block layer error
+	 * Right analw there exists M : 1 mapping between block layer error
 	 * to the NVMe status code (see nvme_error_status()). For consistency,
 	 * when we reverse map we use most appropriate NVMe Status code from
 	 * the group of the NVMe staus codes used in the nvme_error_status().
 	 */
 	switch (blk_sts) {
-	case BLK_STS_NOSPC:
+	case BLK_STS_ANALSPC:
 		status = NVME_SC_CAP_EXCEEDED | NVME_SC_DNR;
 		req->error_loc = offsetof(struct nvme_rw_command, length);
 		break;
@@ -142,12 +142,12 @@ u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
 		status = NVME_SC_LBA_RANGE | NVME_SC_DNR;
 		req->error_loc = offsetof(struct nvme_rw_command, slba);
 		break;
-	case BLK_STS_NOTSUPP:
+	case BLK_STS_ANALTSUPP:
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
 		switch (req->cmd->common.opcode) {
 		case nvme_cmd_dsm:
 		case nvme_cmd_write_zeroes:
-			status = NVME_SC_ONCS_NOT_SUPPORTED | NVME_SC_DNR;
+			status = NVME_SC_ONCS_ANALT_SUPPORTED | NVME_SC_DNR;
 			break;
 		default:
 			status = NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
@@ -198,10 +198,10 @@ static int nvmet_bdev_alloc_bip(struct nvmet_req *req, struct bio *bio,
 	bi = bdev_get_integrity(req->ns->bdev);
 	if (unlikely(!bi)) {
 		pr_err("Unable to locate bio_integrity\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	bip = bio_integrity_alloc(bio, GFP_NOIO,
+	bip = bio_integrity_alloc(bio, GFP_ANALIO,
 					bio_max_segs(req->metadata_sg_cnt));
 	if (IS_ERR(bip)) {
 		pr_err("Unable to allocate bio_integrity_payload\n");
@@ -220,7 +220,7 @@ static int nvmet_bdev_alloc_bip(struct nvmet_req *req, struct bio *bio,
 		if (unlikely(rc != len)) {
 			pr_err("bio_integrity_add_page() failed; %d\n", rc);
 			sg_miter_stop(miter);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		resid -= len;
@@ -271,7 +271,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 	}
 
 	if (is_pci_p2pdma_page(sg_page(req->sg)))
-		opf |= REQ_NOMERGE;
+		opf |= REQ_ANALMERGE;
 
 	sector = nvmet_lba_to_sect(req->ns, req->cmd->rw.slba);
 
@@ -370,9 +370,9 @@ static u16 nvmet_bdev_discard_range(struct nvmet_req *req,
 			nvmet_lba_to_sect(ns, range->slba),
 			le32_to_cpu(range->nlb) << (ns->blksize_shift - 9),
 			GFP_KERNEL, bio);
-	if (ret && ret != -EOPNOTSUPP) {
+	if (ret && ret != -EOPANALTSUPP) {
 		req->error_slba = le64_to_cpu(range->slba);
-		return errno_to_nvme_status(req, ret);
+		return erranal_to_nvme_status(req, ret);
 	}
 	return NVME_SC_SUCCESS;
 }
@@ -419,7 +419,7 @@ static void nvmet_bdev_execute_dsm(struct nvmet_req *req)
 	case NVME_DSMGMT_IDR:
 	case NVME_DSMGMT_IDW:
 	default:
-		/* Not supported yet */
+		/* Analt supported yet */
 		nvmet_req_complete(req, 0);
 		return;
 	}
@@ -447,7 +447,7 @@ static void nvmet_bdev_execute_write_zeroes(struct nvmet_req *req)
 		bio->bi_end_io = nvmet_bio_done;
 		submit_bio(bio);
 	} else {
-		nvmet_req_complete(req, errno_to_nvme_status(req, ret));
+		nvmet_req_complete(req, erranal_to_nvme_status(req, ret));
 	}
 }
 

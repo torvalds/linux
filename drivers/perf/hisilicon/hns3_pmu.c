@@ -15,7 +15,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -300,7 +300,7 @@ struct hns3_pmu_event_attr {
 
 struct hns3_pmu {
 	struct perf_event *hw_events[HNS3_PMU_MAX_HW_EVENTS];
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct pci_dev *pdev;
 	struct pmu pmu;
 	void __iomem *base;
@@ -555,7 +555,7 @@ static struct attribute *hns3_pmu_events_attr[] = {
 
 	/* latency events */
 	HNS3_PMU_DLY_EVT_PAIR(dly_tx_push_to_mac, TX_PUSH),
-	HNS3_PMU_DLY_EVT_PAIR(dly_tx_normal_to_mac, TX),
+	HNS3_PMU_DLY_EVT_PAIR(dly_tx_analrmal_to_mac, TX),
 	HNS3_PMU_DLY_EVT_PAIR(dly_ssu_tx_th_nic, SSU_TX_NIC),
 	HNS3_PMU_DLY_EVT_PAIR(dly_ssu_tx_th_roce, SSU_TX_ROCE),
 	HNS3_PMU_DLY_EVT_PAIR(dly_ssu_rx_th_nic, SSU_RX_NIC),
@@ -563,7 +563,7 @@ static struct attribute *hns3_pmu_events_attr[] = {
 	HNS3_PMU_DLY_EVT_PAIR(dly_rpu, RPU),
 	HNS3_PMU_DLY_EVT_PAIR(dly_tpu, TPU),
 	HNS3_PMU_DLY_EVT_PAIR(dly_rpe, RPE),
-	HNS3_PMU_DLY_EVT_PAIR(dly_tpe_normal, TPE),
+	HNS3_PMU_DLY_EVT_PAIR(dly_tpe_analrmal, TPE),
 	HNS3_PMU_DLY_EVT_PAIR(dly_tpe_push, TPE_PUSH),
 	HNS3_PMU_DLY_EVT_PAIR(dly_wr_fbd, WR_FBD),
 	HNS3_PMU_DLY_EVT_PAIR(dly_wr_ebd, WR_EBD),
@@ -622,7 +622,7 @@ static struct attribute *hns3_pmu_filter_mode_attr[] = {
 
 	/* latency events */
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_tx_push_to_mac, TX_PUSH),
-	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_tx_normal_to_mac, TX),
+	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_tx_analrmal_to_mac, TX),
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_ssu_tx_th_nic, SSU_TX_NIC),
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_ssu_tx_th_roce, SSU_TX_ROCE),
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_ssu_rx_th_nic, SSU_RX_NIC),
@@ -630,7 +630,7 @@ static struct attribute *hns3_pmu_filter_mode_attr[] = {
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_rpu, RPU),
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_tpu, TPU),
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_rpe, RPE),
-	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_tpe_normal, TPE),
+	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_tpe_analrmal, TPE),
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_tpe_push, TPE_PUSH),
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_wr_fbd, WR_FBD),
 	HNS3_PMU_DLY_FLT_MODE_PAIR(dly_wr_ebd, WR_EBD),
@@ -801,12 +801,12 @@ static int hns3_pmu_find_related_event_idx(struct hns3_pmu *hns3_pmu,
 			return idx;
 	}
 
-	/* No related event and all hardware events are used up */
+	/* Anal related event and all hardware events are used up */
 	if (hw_event_used >= HNS3_PMU_MAX_HW_EVENTS)
 		return -EBUSY;
 
-	/* No related event and there is extra hardware events can be use */
-	return -ENOENT;
+	/* Anal related event and there is extra hardware events can be use */
+	return -EANALENT;
 }
 
 static int hns3_pmu_get_event_idx(struct hns3_pmu *hns3_pmu)
@@ -834,7 +834,7 @@ static bool hns3_pmu_valid_bdf(struct hns3_pmu *hns3_pmu, u16 bdf)
 					   PCI_BUS_NUM(bdf),
 					   GET_PCI_DEVFN(bdf));
 	if (!pdev) {
-		pci_err(hns3_pmu->pdev, "Nonexistent EP device: %#x!\n", bdf);
+		pci_err(hns3_pmu->pdev, "Analnexistent EP device: %#x!\n", bdf);
 		return false;
 	}
 
@@ -915,7 +915,7 @@ static int hns3_pmu_set_func_mode(struct perf_event *event,
 	u16 bdf = hns3_pmu_get_bdf(event);
 
 	if (!hns3_pmu_valid_bdf(hns3_pmu, bdf))
-		return -ENOENT;
+		return -EANALENT;
 
 	HNS3_PMU_SET_HW_FILTER(hwc, HNS3_PMU_HW_FILTER_FUNC);
 
@@ -930,11 +930,11 @@ static int hns3_pmu_set_func_queue_mode(struct perf_event *event,
 	u16 bdf = hns3_pmu_get_bdf(event);
 
 	if (!hns3_pmu_valid_bdf(hns3_pmu, bdf))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!hns3_pmu_valid_queue(hns3_pmu, hwc->idx, bdf, queue_id)) {
 		pci_err(hns3_pmu->pdev, "Invalid queue: %u\n", queue_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	HNS3_PMU_SET_HW_FILTER(hwc, HNS3_PMU_HW_FILTER_FUNC_QUEUE);
@@ -1029,7 +1029,7 @@ static int hns3_pmu_select_filter_mode(struct perf_event *event,
 	pmu_event = hns3_pmu_get_pmu_event(event_id);
 	if (!pmu_event) {
 		pci_err(hns3_pmu->pdev, "Invalid pmu event\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (hns3_pmu_is_enabled_global_mode(event, pmu_event)) {
@@ -1058,7 +1058,7 @@ static int hns3_pmu_select_filter_mode(struct perf_event *event,
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static bool hns3_pmu_validate_event_group(struct perf_event *event)
@@ -1237,11 +1237,11 @@ static int hns3_pmu_event_init(struct perf_event *event)
 	int ret;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* Sampling is not supported */
+	/* Sampling is analt supported */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	event->cpu = hns3_pmu->on_cpu;
 
@@ -1336,7 +1336,7 @@ static int hns3_pmu_add(struct perf_event *event, int flags)
 
 	/* Check all working events to find a related event. */
 	idx = hns3_pmu_find_related_event_idx(hns3_pmu, event);
-	if (idx < 0 && idx != -ENOENT)
+	if (idx < 0 && idx != -EANALENT)
 		return idx;
 
 	/* Current event shares an enabled hardware event with related event */
@@ -1398,7 +1398,7 @@ static int hns3_pmu_alloc_pmu(struct pci_dev *pdev, struct hns3_pmu *hns3_pmu)
 	hns3_pmu->base = pcim_iomap_table(pdev)[BAR_2];
 	if (!hns3_pmu->base) {
 		pci_err(pdev, "ioremap failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hns3_pmu->hw_clk_freq = readl(hns3_pmu->base + HNS3_PMU_REG_CLOCK_FREQ);
@@ -1411,7 +1411,7 @@ static int hns3_pmu_alloc_pmu(struct pci_dev *pdev, struct hns3_pmu *hns3_pmu)
 	device_id = val & 0xffff;
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hns3_pmu_sicl_%u", device_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hns3_pmu->pdev = pdev;
 	hns3_pmu->on_cpu = -1;
@@ -1429,7 +1429,7 @@ static int hns3_pmu_alloc_pmu(struct pci_dev *pdev, struct hns3_pmu *hns3_pmu)
 		.read		= hns3_pmu_read,
 		.task_ctx_nr	= perf_invalid_context,
 		.attr_groups	= hns3_pmu_attr_groups,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	return 0;
@@ -1447,7 +1447,7 @@ static irqreturn_t hns3_pmu_irq(int irq, void *data)
 
 		/*
 		 * As each counter will restart from 0 when it is overflowed,
-		 * extra processing is no need, just clear interrupt status.
+		 * extra processing is anal need, just clear interrupt status.
 		 */
 		if (intr_status)
 			hns3_pmu_clear_intr_status(hns3_pmu, idx);
@@ -1456,13 +1456,13 @@ static irqreturn_t hns3_pmu_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int hns3_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
+static int hns3_pmu_online_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct hns3_pmu *hns3_pmu;
 
-	hns3_pmu = hlist_entry_safe(node, struct hns3_pmu, node);
+	hns3_pmu = hlist_entry_safe(analde, struct hns3_pmu, analde);
 	if (!hns3_pmu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hns3_pmu->on_cpu == -1) {
 		hns3_pmu->on_cpu = cpu;
@@ -1472,16 +1472,16 @@ static int hns3_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int hns3_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int hns3_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct hns3_pmu *hns3_pmu;
 	unsigned int target;
 
-	hns3_pmu = hlist_entry_safe(node, struct hns3_pmu, node);
+	hns3_pmu = hlist_entry_safe(analde, struct hns3_pmu, analde);
 	if (!hns3_pmu)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Nothing to do if this CPU doesn't own the PMU */
+	/* Analthing to do if this CPU doesn't own the PMU */
 	if (hns3_pmu->on_cpu != cpu)
 		return 0;
 
@@ -1547,7 +1547,7 @@ static int hns3_pmu_init_pmu(struct pci_dev *pdev, struct hns3_pmu *hns3_pmu)
 		return ret;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HNS3_PMU_ONLINE,
-				       &hns3_pmu->node);
+				       &hns3_pmu->analde);
 	if (ret) {
 		pci_err(pdev, "failed to register hotplug, ret = %d.\n", ret);
 		return ret;
@@ -1556,8 +1556,8 @@ static int hns3_pmu_init_pmu(struct pci_dev *pdev, struct hns3_pmu *hns3_pmu)
 	ret = perf_pmu_register(&hns3_pmu->pmu, hns3_pmu->pmu.name, -1);
 	if (ret) {
 		pci_err(pdev, "failed to register perf PMU, ret = %d.\n", ret);
-		cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HNS3_PMU_ONLINE,
-						    &hns3_pmu->node);
+		cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HNS3_PMU_ONLINE,
+						    &hns3_pmu->analde);
 	}
 
 	return ret;
@@ -1568,8 +1568,8 @@ static void hns3_pmu_uninit_pmu(struct pci_dev *pdev)
 	struct hns3_pmu *hns3_pmu = pci_get_drvdata(pdev);
 
 	perf_pmu_unregister(&hns3_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HNS3_PMU_ONLINE,
-					    &hns3_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HNS3_PMU_ONLINE,
+					    &hns3_pmu->analde);
 }
 
 static int hns3_pmu_init_dev(struct pci_dev *pdev)
@@ -1600,7 +1600,7 @@ static int hns3_pmu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	hns3_pmu = devm_kzalloc(&pdev->dev, sizeof(*hns3_pmu), GFP_KERNEL);
 	if (!hns3_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hns3_pmu_init_dev(pdev);
 	if (ret)

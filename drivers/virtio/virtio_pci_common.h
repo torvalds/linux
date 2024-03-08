@@ -35,10 +35,10 @@ struct virtio_pci_vq_info {
 	/* the actual virtqueue */
 	struct virtqueue *vq;
 
-	/* the list node for the virtqueues list */
-	struct list_head node;
+	/* the list analde for the virtqueues list */
+	struct list_head analde;
 
-	/* MSI-X vector (or none) */
+	/* MSI-X vector (or analne) */
 	unsigned int msix_vector;
 };
 
@@ -81,7 +81,7 @@ struct virtio_pci_device {
 	int msix_enabled;
 	int intx_enabled;
 	cpumask_var_t *msix_affinity_masks;
-	/* Name strings for interrupts. This size should be enough,
+	/* Name strings for interrupts. This size should be eanalugh,
 	 * and I'm too lazy to allocate each name separately. */
 	char (*msix_names)[256];
 	/* Number of available vectors */
@@ -121,8 +121,8 @@ static struct virtio_pci_device *to_vp_device(struct virtio_device *vdev)
 
 /* wait for pending irq handlers */
 void vp_synchronize_vectors(struct virtio_device *vdev);
-/* the notify function used when creating a virt queue */
-bool vp_notify(struct virtqueue *vq);
+/* the analtify function used when creating a virt queue */
+bool vp_analtify(struct virtqueue *vq);
 /* the config->del_vqs() implementation */
 void vp_del_vqs(struct virtio_device *vdev);
 /* the config->find_vqs() implementation */
@@ -135,7 +135,7 @@ const char *vp_bus_name(struct virtio_device *vdev);
 /* Setup the affinity for a virtqueue:
  * - force the affinity for per vq vector
  * - OR over all affinities for shared MSI
- * - ignore the affinity request if we're using INTX
+ * - iganalre the affinity request if we're using INTX
  */
 int vp_set_vq_affinity(struct virtqueue *vq, const struct cpumask *cpu_mask);
 
@@ -147,7 +147,7 @@ void virtio_pci_legacy_remove(struct virtio_pci_device *);
 #else
 static inline int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void virtio_pci_legacy_remove(struct virtio_pci_device *vp_dev)
 {
@@ -163,12 +163,12 @@ struct virtio_device *virtio_pci_vf_get_pf_dev(struct pci_dev *pdev);
 	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_COMMON_CFG_READ) | \
 	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_WRITE) | \
 	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_READ) | \
-	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_NOTIFY_INFO))
+	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_ANALTIFY_INFO))
 
 /* Unlike modern drivers which support hardware virtio devices, legacy drivers
  * assume software-based devices: e.g. they don't use proper memory barriers
  * on ARM, use big endian on PPC, etc. X86 drivers are mostly ok though, more
- * or less by chance. For now, only support legacy IO on X86.
+ * or less by chance. For analw, only support legacy IO on X86.
  */
 #ifdef CONFIG_VIRTIO_PCI_ADMIN_LEGACY
 #define VIRTIO_ADMIN_CMD_BITMAP VIRTIO_LEGACY_ADMIN_CMD_BITMAP

@@ -8,7 +8,7 @@
  *
  * Defines low-level handling of mcount calls when the kernel
  * is compiled with the -pg flag. When using dynamic ftrace, the
- * mcount call-sites get patched with NOP till they are enabled.
+ * mcount call-sites get patched with ANALP till they are enabled.
  * All code mutation routines here are called under stop_machine().
  */
 
@@ -31,15 +31,15 @@
  *   PUSH    {LR}
  *   BL	     __gnu_mcount_nc
  *
- * To turn this combined sequence into a NOP, we need to restore the value of
- * SP before the PUSH. Let's use an ADD rather than a POP into LR, as LR is not
+ * To turn this combined sequence into a ANALP, we need to restore the value of
+ * SP before the PUSH. Let's use an ADD rather than a POP into LR, as LR is analt
  * modified anyway, and reloading LR from memory is highly likely to be less
  * efficient.
  */
 #ifdef CONFIG_THUMB2_KERNEL
-#define	NOP		0xf10d0d04	/* add.w sp, sp, #4 */
+#define	ANALP		0xf10d0d04	/* add.w sp, sp, #4 */
 #else
-#define	NOP		0xe28dd004	/* add   sp, sp, #4 */
+#define	ANALP		0xe28dd004	/* add   sp, sp, #4 */
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -58,9 +58,9 @@ void arch_ftrace_update_code(int command)
 	stop_machine(__ftrace_modify_code, &command, NULL);
 }
 
-static unsigned long ftrace_nop_replace(struct dyn_ftrace *rec)
+static unsigned long ftrace_analp_replace(struct dyn_ftrace *rec)
 {
-	return NOP;
+	return ANALP;
 }
 
 void ftrace_caller_from_init(void);
@@ -106,7 +106,7 @@ static int ftrace_modify_code(unsigned long pc, unsigned long old,
 		old = __opcode_to_mem_arm(old);
 
 	if (validate) {
-		if (copy_from_kernel_nofault(&replaced, (void *)pc,
+		if (copy_from_kernel_analfault(&replaced, (void *)pc,
 				MCOUNT_INSN_SIZE))
 			return -EFAULT;
 
@@ -153,7 +153,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	mod = rec->arch.mod;
 #endif
 
-	old = ftrace_nop_replace(rec);
+	old = ftrace_analp_replace(rec);
 
 	new = ftrace_call_replace(ip, aaddr, !mod);
 #ifdef CONFIG_ARM_MODULE_PLTS
@@ -183,7 +183,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 
 #endif
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_analp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long aaddr = adjust_address(rec, addr);
@@ -209,7 +209,7 @@ int ftrace_make_nop(struct module *mod,
 	}
 #endif
 
-	new = ftrace_nop_replace(rec);
+	new = ftrace_analp_replace(rec);
 	/*
 	 * Locations in .init.text may call __gnu_mcount_mc via a linker
 	 * emitted veneer if they are too far away from its implementation, and
@@ -271,9 +271,9 @@ static int __ftrace_modify_caller(unsigned long *callsite,
 	unsigned long caller_fn = (unsigned long) func;
 	unsigned long pc = (unsigned long) callsite;
 	unsigned long branch = arm_gen_branch(pc, caller_fn);
-	unsigned long nop = arm_gen_nop();
-	unsigned long old = enable ? nop : branch;
-	unsigned long new = enable ? branch : nop;
+	unsigned long analp = arm_gen_analp();
+	unsigned long old = enable ? analp : branch;
+	unsigned long new = enable ? branch : analp;
 
 	return ftrace_modify_code(pc, old, new, true);
 }

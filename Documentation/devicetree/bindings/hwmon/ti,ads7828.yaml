@@ -33,7 +33,7 @@ properties:
 
   vref-supply:
     description:
-      The regulator to use as an external reference. If it does not exists the
+      The regulator to use as an external reference. If it does analt exists the
       internal reference will be used.
 
 required:

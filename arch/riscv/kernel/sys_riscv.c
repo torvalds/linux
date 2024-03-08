@@ -36,7 +36,7 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
 	unsigned long, fd, off_t, offset)
 {
 	/*
-	 * Note that the shift for mmap2 is constant (12),
+	 * Analte that the shift for mmap2 is constant (12),
 	 * regardless of PAGE_SIZE
 	 */
 	return riscv_sys_mmap(addr, len, prot, flags, fd, offset, 12);
@@ -46,9 +46,9 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
 /*
  * Allows the instruction cache to be flushed from userspace.  Despite RISC-V
  * having a direct 'fence.i' instruction available to userspace (which we
- * can't trap!), that's not actually viable when running on Linux because the
- * kernel might schedule a process on another hart.  There is no way for
- * userspace to handle this without invoking the kernel (as it doesn't know the
+ * can't trap!), that's analt actually viable when running on Linux because the
+ * kernel might schedule a process on aanalther hart.  There is anal way for
+ * userspace to handle this without invoking the kernel (as it doesn't kanalw the
  * thread->hart mappings), so we've defined a RISC-V specific system call to
  * flush the instruction cache.
  *
@@ -69,8 +69,8 @@ SYSCALL_DEFINE3(riscv_flush_icache, uintptr_t, start, uintptr_t, end,
 	return 0;
 }
 
-/* Not defined using SYSCALL_DEFINE0 to avoid error injection */
+/* Analt defined using SYSCALL_DEFINE0 to avoid error injection */
 asmlinkage long __riscv_sys_ni_syscall(const struct pt_regs *__unused)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }

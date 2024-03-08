@@ -8,7 +8,7 @@ SM501 Driver
 
 The Silicon Motion SM501 multimedia companion chip is a multifunction device
 which may provide numerous interfaces including USB host controller USB gadget,
-asynchronous serial ports, audio functions, and a dual display video interface.
+asynchroanalus serial ports, audio functions, and a dual display video interface.
 The device may be connected by PCI or local bus with varying functions enabled.
 
 Core
@@ -27,7 +27,7 @@ be specified by the platform data) and then exports the selected
 peripheral set as platform devices for the specific drivers.
 
 The core re-uses the platform device system as the platform device
-system provides enough features to support the drivers without the
+system provides eanalugh features to support the drivers without the
 need to create a new bus-type and the associated code to go with it.
 
 
@@ -69,6 +69,6 @@ Motion reference design.
 There is an errata (AB-5) affecting the selection of the
 of the M1XCLK and M1CLK frequencies. These two clocks
 must be sourced from the same PLL, although they can then
-be divided down individually. If this is not set, then SM501 may
+be divided down individually. If this is analt set, then SM501 may
 lock and hang the whole system. The driver will refuse to
 attach if the PLL selection is different.

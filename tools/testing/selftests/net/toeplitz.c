@@ -9,14 +9,14 @@
  *
  * If '-C $rx_irq_cpu_list' is given, also
  *
- * 4. Identify the cpu on which the packet arrived with PACKET_FANOUT_CPU
+ * 4. Identify the cpu on which the packet arrived with PACKET_FAANALUT_CPU
  * 5. Compute the rxqueue that RSS would select based on this rx_hash
  * 6. Using the $rx_irq_cpu_list map, identify the arriving cpu based on rxq irq
  * 7. Compare the cpus from 4 and 6
  *
  * Else if '-r $rps_bitmap' is given, also
  *
- * 4. Identify the cpu on which the packet arrived with PACKET_FANOUT_CPU
+ * 4. Identify the cpu on which the packet arrived with PACKET_FAANALUT_CPU
  * 5. Compute the cpu that RPS should select based on rx_hash and $rps_bitmap
  * 6. Compare the cpus from 4 and 5
  */
@@ -24,7 +24,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -63,7 +63,7 @@
 
 #define FOUR_TUPLE_MAX_LEN	((sizeof(struct in6_addr) * 2) + (sizeof(uint16_t) * 2))
 
-#define RSS_MAX_CPUS (1 << 16)	/* real constraint is PACKET_FANOUT_MAX */
+#define RSS_MAX_CPUS (1 << 16)	/* real constraint is PACKET_FAANALUT_MAX */
 
 #define RPS_MAX_CPUS 16UL	/* must be a power of 2 */
 
@@ -85,7 +85,7 @@ static int ring_block_sz;
 
 /* stats */
 static int frames_received;
-static int frames_nohash;
+static int frames_analhash;
 static int frames_error;
 
 #define log_verbose(args...)	do { if (cfg_verbose) fprintf(stderr, args); } while (0)
@@ -126,7 +126,7 @@ static inline uint32_t toeplitz(const unsigned char *four_tuple,
 	return ret;
 }
 
-/* Compare computed cpu with arrival cpu from packet_fanout_cpu */
+/* Compare computed cpu with arrival cpu from packet_faanalut_cpu */
 static void verify_rss(uint32_t rx_hash, int cpu)
 {
 	int queue = rx_hash % cfg_num_queues;
@@ -209,7 +209,7 @@ static char *recv_frame(const struct ring_state *ring, char *frame)
 		verify_rxhash(frame + hdr->tp_net, hdr->hv1.tp_rxhash,
 			      ring->cpu);
 	else
-		frames_nohash++;
+		frames_analhash++;
 
 	return frame + hdr->tp_next_offset;
 }
@@ -249,9 +249,9 @@ static void process_rings(void)
 	for (i = 0; i < num_cpus; i++)
 		do {} while (recv_block(&rings[i]));
 
-	fprintf(stderr, "count: pass=%u nohash=%u fail=%u\n",
-		frames_received - frames_nohash - frames_error,
-		frames_nohash, frames_error);
+	fprintf(stderr, "count: pass=%u analhash=%u fail=%u\n",
+		frames_received - frames_analhash - frames_error,
+		frames_analhash, frames_error);
 }
 
 static char *setup_ring(int fd)
@@ -270,7 +270,7 @@ static char *setup_ring(int fd)
 	req3.tp_block_size /= req3.tp_block_nr;
 
 	if (setsockopt(fd, SOL_PACKET, PACKET_RX_RING, &req3, sizeof(req3)))
-		error(1, errno, "setsockopt PACKET_RX_RING");
+		error(1, erranal, "setsockopt PACKET_RX_RING");
 
 	ring_block_sz = req3.tp_block_size;
 	ring_block_nr = req3.tp_block_nr;
@@ -301,7 +301,7 @@ static void __set_filter(int fd, int off_proto, uint8_t proto, int off_dport)
 	prog.filter = filter;
 	prog.len = ARRAY_SIZE(filter);
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)))
-		error(1, errno, "setsockopt filter");
+		error(1, erranal, "setsockopt filter");
 }
 
 /* filter on transport protocol and destination port */
@@ -330,14 +330,14 @@ static void set_filter_null(int fd)
 	prog.filter = filter;
 	prog.len = ARRAY_SIZE(filter);
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)))
-		error(1, errno, "setsockopt filter");
+		error(1, erranal, "setsockopt filter");
 }
 
 static int create_ring(char **ring)
 {
-	struct fanout_args args = {
+	struct faanalut_args args = {
 		.id = 1,
-		.type_flags = PACKET_FANOUT_CPU,
+		.type_flags = PACKET_FAANALUT_CPU,
 		.max_num_members = RSS_MAX_CPUS
 	};
 	struct sockaddr_ll ll = { 0 };
@@ -345,14 +345,14 @@ static int create_ring(char **ring)
 
 	fd = socket(PF_PACKET, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket creation failed");
+		error(1, erranal, "socket creation failed");
 
 	val = TPACKET_V3;
 	if (setsockopt(fd, SOL_PACKET, PACKET_VERSION, &val, sizeof(val)))
-		error(1, errno, "setsockopt PACKET_VERSION");
+		error(1, erranal, "setsockopt PACKET_VERSION");
 	*ring = setup_ring(fd);
 
-	/* block packets until all rings are added to the fanout group:
+	/* block packets until all rings are added to the faanalut group:
 	 * else packets can arrive during setup and get misclassified
 	 */
 	set_filter_null(fd);
@@ -362,19 +362,19 @@ static int create_ring(char **ring)
 	ll.sll_protocol = cfg_family == AF_INET ? htons(ETH_P_IP) :
 						  htons(ETH_P_IPV6);
 	if (bind(fd, (void *)&ll, sizeof(ll)))
-		error(1, errno, "bind");
+		error(1, erranal, "bind");
 
 	/* must come after bind: verifies all programs in group match */
-	if (setsockopt(fd, SOL_PACKET, PACKET_FANOUT, &args, sizeof(args))) {
+	if (setsockopt(fd, SOL_PACKET, PACKET_FAANALUT, &args, sizeof(args))) {
 		/* on failure, retry using old API if that is sufficient:
 		 * it has a hard limit of 256 sockets, so only try if
-		 * (a) only testing rxhash, not RSS or (b) <= 256 cpus.
+		 * (a) only testing rxhash, analt RSS or (b) <= 256 cpus.
 		 * in this API, the third argument is left implicit.
 		 */
 		if (cfg_num_queues || num_cpus > 256 ||
-		    setsockopt(fd, SOL_PACKET, PACKET_FANOUT,
+		    setsockopt(fd, SOL_PACKET, PACKET_FAANALUT,
 			       &args, sizeof(uint32_t)))
-			error(1, errno, "setsockopt PACKET_FANOUT cpu");
+			error(1, erranal, "setsockopt PACKET_FAANALUT cpu");
 	}
 
 	return fd;
@@ -387,11 +387,11 @@ static int setup_sink(void)
 
 	fd = socket(cfg_family, cfg_type, 0);
 	if (fd == -1)
-		error(1, errno, "socket %d.%d", cfg_family, cfg_type);
+		error(1, erranal, "socket %d.%d", cfg_family, cfg_type);
 
 	val = 1 << 20;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &val, sizeof(val)))
-		error(1, errno, "setsockopt rcvbuf");
+		error(1, erranal, "setsockopt rcvbuf");
 
 	return fd;
 }
@@ -405,7 +405,7 @@ static void setup_rings(void)
 		rings[i].fd = create_ring(&rings[i].mmap);
 	}
 
-	/* accept packets once all rings in the fanout group are up */
+	/* accept packets once all rings in the faanalut group are up */
 	for (i = 0; i < num_cpus; i++)
 		set_filter(rings[i].fd);
 }
@@ -416,9 +416,9 @@ static void cleanup_rings(void)
 
 	for (i = 0; i < num_cpus; i++) {
 		if (munmap(rings[i].mmap, ring_block_nr * ring_block_sz))
-			error(1, errno, "munmap");
+			error(1, erranal, "munmap");
 		if (close(rings[i].fd))
-			error(1, errno, "close");
+			error(1, erranal, "close");
 	}
 }
 
@@ -489,13 +489,13 @@ static void parse_opts(int argc, char **argv)
 	    {"cpus",	required_argument, 0, 'C'},
 	    {"key",	required_argument, 0, 'k'},
 	    {"iface",	required_argument, 0, 'i'},
-	    {"ipv4",	no_argument, 0, '4'},
-	    {"ipv6",	no_argument, 0, '6'},
-	    {"sink",	no_argument, 0, 's'},
-	    {"tcp",	no_argument, 0, 't'},
+	    {"ipv4",	anal_argument, 0, '4'},
+	    {"ipv6",	anal_argument, 0, '6'},
+	    {"sink",	anal_argument, 0, 's'},
+	    {"tcp",	anal_argument, 0, 't'},
 	    {"timeout",	required_argument, 0, 'T'},
-	    {"udp",	no_argument, 0, 'u'},
-	    {"verbose",	no_argument, 0, 'v'},
+	    {"udp",	anal_argument, 0, 'u'},
+	    {"verbose",	anal_argument, 0, 'v'},
 	    {"rps",	required_argument, 0, 'r'},
 	    {0, 0, 0, 0}
 	};
@@ -544,7 +544,7 @@ static void parse_opts(int argc, char **argv)
 			break;
 
 		default:
-			error(1, 0, "unknown option %c", optopt);
+			error(1, 0, "unkanalwn option %c", optopt);
 			break;
 		}
 	}
@@ -580,9 +580,9 @@ int main(int argc, char **argv)
 	cleanup_rings();
 
 	if (cfg_sink && close(fd_sink))
-		error(1, errno, "close sink");
+		error(1, erranal, "close sink");
 
-	if (frames_received - frames_nohash < min_tests)
+	if (frames_received - frames_analhash < min_tests)
 		error(1, 0, "too few frames for verification");
 
 	return frames_error;

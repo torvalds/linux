@@ -8,7 +8,7 @@
  */
 
 #include <linux/wait.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <sound/asound.h>
 
 #define snd_kcontrol_chip(kcontrol) ((kcontrol)->private_data)
@@ -119,7 +119,7 @@ struct snd_ctl_layer_ops {
 	const char *module_name;
 	void (*lregister)(struct snd_card *card);
 	void (*ldisconnect)(struct snd_card *card);
-	void (*lnotify)(struct snd_card *card, unsigned int mask, struct snd_kcontrol *kctl, unsigned int ioff);
+	void (*lanaltify)(struct snd_card *card, unsigned int mask, struct snd_kcontrol *kctl, unsigned int ioff);
 };
 
 #define snd_ctl_file(n) list_entry(n, struct snd_ctl_file, list)
@@ -128,8 +128,8 @@ typedef int (*snd_kctl_ioctl_func_t) (struct snd_card * card,
 				      struct snd_ctl_file * control,
 				      unsigned int cmd, unsigned long arg);
 
-void snd_ctl_notify(struct snd_card * card, unsigned int mask, struct snd_ctl_elem_id * id);
-void snd_ctl_notify_one(struct snd_card * card, unsigned int mask, struct snd_kcontrol * kctl, unsigned int ioff);
+void snd_ctl_analtify(struct snd_card * card, unsigned int mask, struct snd_ctl_elem_id * id);
+void snd_ctl_analtify_one(struct snd_card * card, unsigned int mask, struct snd_kcontrol * kctl, unsigned int ioff);
 
 struct snd_kcontrol *snd_ctl_new1(const struct snd_kcontrol_new * kcontrolnew, void * private_data);
 void snd_ctl_free_one(struct snd_kcontrol * kcontrol);
@@ -155,7 +155,7 @@ struct snd_kcontrol *snd_ctl_find_id(struct snd_card *card, const struct snd_ctl
  *
  * This is merely a wrapper to snd_ctl_find_id().
  *
- * Return: The pointer of the instance if found, or %NULL if not.
+ * Return: The pointer of the instance if found, or %NULL if analt.
  */
 static inline struct snd_kcontrol *
 snd_ctl_find_id_mixer(struct snd_card *card, const char *name)
@@ -188,13 +188,13 @@ int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type);
 static inline unsigned int snd_ctl_get_ioffnum(struct snd_kcontrol *kctl, struct snd_ctl_elem_id *id)
 {
 	unsigned int ioff = id->numid - kctl->id.numid;
-	return array_index_nospec(ioff, kctl->count);
+	return array_index_analspec(ioff, kctl->count);
 }
 
 static inline unsigned int snd_ctl_get_ioffidx(struct snd_kcontrol *kctl, struct snd_ctl_elem_id *id)
 {
 	unsigned int ioff = id->index - kctl->id.index;
-	return array_index_nospec(ioff, kctl->count);
+	return array_index_analspec(ioff, kctl->count);
 }
 
 static inline unsigned int snd_ctl_get_ioff(struct snd_kcontrol *kctl, struct snd_ctl_elem_id *id)
@@ -219,7 +219,7 @@ static inline struct snd_ctl_elem_id *snd_ctl_build_ioff(struct snd_ctl_elem_id 
 /*
  * Frequently used control callbacks/helpers
  */
-int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
+int snd_ctl_boolean_moanal_info(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_info *uinfo);
 int snd_ctl_boolean_stereo_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo);
@@ -251,7 +251,7 @@ int _snd_ctl_add_follower(struct snd_kcontrol *master,
  *
  * Also, some additional limitations:
  * at most two channels,
- * logarithmic volume control (dB level) thus no linear volume,
+ * logarithmic volume control (dB level) thus anal linear volume,
  * master can only attenuate the volume without gain
  *
  * Return: Zero if successful or a negative error code.

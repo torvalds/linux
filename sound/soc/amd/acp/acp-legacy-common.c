@@ -16,7 +16,7 @@
 #include <linux/pci.h>
 #include <linux/export.h>
 
-#define ACP_RENOIR_PDM_ADDR	0x02
+#define ACP_REANALIR_PDM_ADDR	0x02
 #define ACP_REMBRANDT_PDM_ADDR	0x03
 #define ACP63_PDM_ADDR		0x02
 #define ACP70_PDM_ADDR		0x02
@@ -88,7 +88,7 @@ void restore_acp_pdm_params(struct snd_pcm_substream *substream,
 	soc_runtime = snd_soc_substream_to_rtd(substream);
 	dai = snd_soc_rtd_to_cpu(soc_runtime, 0);
 	/* Programming channel mask and sampling rate */
-	writel(adata->ch_mask, adata->acp_base + ACP_WOV_PDM_NO_OF_CHANNELS);
+	writel(adata->ch_mask, adata->acp_base + ACP_WOV_PDM_ANAL_OF_CHANNELS);
 	writel(PDM_DEC_64, adata->acp_base + ACP_WOV_PDM_DECIMATION_FACTOR);
 
 	/* Enabling ACP Pdm interuppts */
@@ -383,7 +383,7 @@ int check_acp_pdm(struct pci_dev *pci, struct acp_chip_info *chip)
 
 	switch (chip->acp_rev) {
 	case ACP3X_DEV:
-		pdm_addr = ACP_RENOIR_PDM_ADDR;
+		pdm_addr = ACP_REANALIR_PDM_ADDR;
 		break;
 	case ACP6X_DEV:
 		pdm_addr = ACP_REMBRANDT_PDM_ADDR;
@@ -405,7 +405,7 @@ int check_acp_pdm(struct pci_dev *pci, struct acp_chip_info *chip)
 					   obj->integer.value == pdm_addr)
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_NS_GPL(check_acp_pdm, SND_SOC_ACP_COMMON);
 

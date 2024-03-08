@@ -48,13 +48,13 @@ static inline bool __get_fault_info(u64 esr, struct kvm_vcpu_fault_info *fault)
 	far = read_sysreg_el2(SYS_FAR);
 
 	/*
-	 * The HPFAR can be invalid if the stage 2 fault did not
+	 * The HPFAR can be invalid if the stage 2 fault did analt
 	 * happen during a stage 1 page table walk (the ESR_EL2.S1PTW
 	 * bit is clear) and one of the two following cases are true:
 	 *   1. The fault was due to a permission fault
 	 *   2. The processor carries errata 834220
 	 *
-	 * Therefore, for all non S1PTW faults where we either have a
+	 * Therefore, for all analn S1PTW faults where we either have a
 	 * permission fault or the errata workaround is enabled, we
 	 * resolve the IPA using the AT instruction.
 	 */

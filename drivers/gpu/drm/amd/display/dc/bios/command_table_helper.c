@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -178,7 +178,7 @@ void dal_cmd_table_helper_assign_control_parameter(
 	/* there are three transmitter blocks, each one has two links 4-lanes
 	 * each, A+B, C+D, E+F, Uniphy A, C and E are enumerated as link 0 in
 	 * each transmitter block B, D and F as link 1, third transmitter block
-	 * has non splitable links (UniphyE and UniphyF can not be configured
+	 * has analn splitable links (UniphyE and UniphyF can analt be configured
 	 * separately to drive two different streams)
 	 */
 	if ((control->transmitter == TRANSMITTER_UNIPHY_B) ||
@@ -285,11 +285,11 @@ uint8_t dal_cmd_table_helper_encoder_id_to_atom(
 		return ENCODER_OBJECT_ID_INTERNAL_UNIPHY3;
 	case ENCODER_ID_INTERNAL_WIRELESS:
 		return ENCODER_OBJECT_ID_INTERNAL_VCE;
-	case ENCODER_ID_UNKNOWN:
-		return ENCODER_OBJECT_ID_NONE;
+	case ENCODER_ID_UNKANALWN:
+		return ENCODER_OBJECT_ID_ANALNE;
 	default:
 		/* Invalid encoder id */
 		BREAK_TO_DEBUGGER();
-		return ENCODER_OBJECT_ID_NONE;
+		return ENCODER_OBJECT_ID_ANALNE;
 	}
 }

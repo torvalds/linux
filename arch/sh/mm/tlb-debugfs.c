@@ -134,9 +134,9 @@ static int tlb_seq_show(struct seq_file *file, void *iter)
 	return 0;
 }
 
-static int tlb_debugfs_open(struct inode *inode, struct file *file)
+static int tlb_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, tlb_seq_show, inode->i_private);
+	return single_open(file, tlb_seq_show, ianalde->i_private);
 }
 
 static const struct file_operations tlb_debugfs_fops = {

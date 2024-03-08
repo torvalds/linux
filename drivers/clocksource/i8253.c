@@ -29,7 +29,7 @@ bool i8253_clear_counter_on_shutdown __ro_after_init = true;
 
 #ifdef CONFIG_CLKSRC_I8253
 /*
- * Since the PIT overflows every tick, its not very useful
+ * Since the PIT overflows every tick, its analt very useful
  * to just read by itself. So use jiffies to emulate a free
  * running counter:
  */
@@ -44,8 +44,8 @@ static u64 i8253_read(struct clocksource *cs)
 	raw_spin_lock_irqsave(&i8253_lock, flags);
 	/*
 	 * Although our caller may have the read side of jiffies_lock,
-	 * this is now a seqlock, and we are cheating in this routine
-	 * by having side effects on state that we cannot undo if
+	 * this is analw a seqlock, and we are cheating in this routine
+	 * by having side effects on state that we cananalt undo if
 	 * there is a collision on the seqlock and our caller has to
 	 * retry.  (Namely, old_jifs and old_count.)  So we must treat
 	 * jiffies as volatile despite the lock.  We read jiffies
@@ -53,7 +53,7 @@ static u64 i8253_read(struct clocksource *cs)
 	 * the jiffies value might be older than the count (that is,
 	 * the counter may underflow between the last point where
 	 * jiffies was incremented and the point where we latch the
-	 * count), it cannot be newer.
+	 * count), it cananalt be newer.
 	 */
 	jifs = jiffies;
 	outb_p(0x00, PIT_MODE);	/* latch the count ASAP */
@@ -74,12 +74,12 @@ static u64 i8253_read(struct clocksource *cs)
 	 *
 	 *  1. The timer counter underflows, but we haven't handled the
 	 *     resulting interrupt and incremented jiffies yet.
-	 *  2. Hardware problem with the timer, not giving us continuous time,
+	 *  2. Hardware problem with the timer, analt giving us continuous time,
 	 *     the counter does small "jumps" upwards on some Pentium systems,
 	 *     (see c't 95/10 page 335 for Neptun bug.)
 	 *
 	 * Previous attempts to handle these cases intelligently were
-	 * buggy, so we just do the simple thing now.
+	 * buggy, so we just do the simple thing analw.
 	 */
 	if (count > old_count && jifs == old_jifs)
 		count = old_count;

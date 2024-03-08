@@ -68,9 +68,9 @@ struct mace_data {
 };
 
 /*
- * Number of bytes of private data per MACE: allow enough for
+ * Number of bytes of private data per MACE: allow eanalugh for
  * the rx and tx dma commands plus a branch dma command each,
- * and another 16 bytes to allow us to align the dma command
+ * and aanalther 16 bytes to allow us to align the dma command
  * buffers on a 16 byte boundary.
  */
 #define PRIV_BYTES	(sizeof(struct mace_data) \
@@ -107,7 +107,7 @@ static const struct net_device_ops mace_netdev_ops = {
 
 static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
-	struct device_node *mace = macio_get_of_node(mdev);
+	struct device_analde *mace = macio_get_of_analde(mdev);
 	struct net_device *dev;
 	struct mace_data *mp;
 	const unsigned char *addr;
@@ -117,7 +117,7 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
 		printk(KERN_ERR "can't use MACE %pOF: need 3 addrs and 3 irqs\n",
 		       mace);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	addr = of_get_property(mace, "mac-address", NULL);
@@ -126,18 +126,18 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 		if (addr == NULL) {
 			printk(KERN_ERR "Can't get mac-address for MACE %pOF\n",
 			       mace);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	/*
-	 * lazy allocate the driver-wide dummy buffer. (Note that we
+	 * lazy allocate the driver-wide dummy buffer. (Analte that we
 	 * never have more than one MACE in the system anyway)
 	 */
 	if (dummy_buf == NULL) {
 		dummy_buf = kmalloc(RX_BUFLEN+2, GFP_KERNEL);
 		if (dummy_buf == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (macio_request_resources(mdev, "mace")) {
@@ -147,7 +147,7 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 
 	dev = alloc_etherdev(PRIV_BYTES);
 	if (!dev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_release;
 	}
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
@@ -160,7 +160,7 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	mp->mace = ioremap(dev->base_addr, 0x1000);
 	if (mp->mace == NULL) {
 		printk(KERN_ERR "MACE: can't map IO resources !\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_free;
 	}
 	dev->irq = macio_irq(mdev, 0);
@@ -180,7 +180,7 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	mp->tx_dma = ioremap(macio_resource_start(mdev, 1), 0x1000);
 	if (mp->tx_dma == NULL) {
 		printk(KERN_ERR "MACE: can't map TX DMA resources !\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_unmap_io;
 	}
 	mp->tx_dma_intr = macio_irq(mdev, 1);
@@ -188,7 +188,7 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	mp->rx_dma = ioremap(macio_resource_start(mdev, 2), 0x1000);
 	if (mp->rx_dma == NULL) {
 		printk(KERN_ERR "MACE: can't map RX DMA resources !\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_unmap_tx_dma;
 	}
 	mp->rx_dma_intr = macio_irq(mdev, 2);
@@ -242,7 +242,7 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 
 	rc = register_netdev(dev);
 	if (rc) {
-		printk(KERN_ERR "MACE: Cannot register net device, aborting.\n");
+		printk(KERN_ERR "MACE: Cananalt register net device, aborting.\n");
 		goto err_free_rx_irq;
 	}
 
@@ -307,7 +307,7 @@ static void dbdma_reset(volatile struct dbdma_regs __iomem *dma)
     out_le32(&dma->control, (WAKE|FLUSH|PAUSE|RUN) << 16);
 
     /*
-     * Yes this looks peculiar, but apparently it needs to be this
+     * Anal this looks peculiar, but apparently it needs to be this
      * way on some machines.
      */
     for (i = 200; i > 0; --i)
@@ -332,11 +332,11 @@ static void mace_reset(struct net_device *dev)
 	break;
     }
     if (!i) {
-	printk(KERN_ERR "mace: cannot reset chip!\n");
+	printk(KERN_ERR "mace: cananalt reset chip!\n");
 	return;
     }
 
-    out_8(&mb->imr, 0xff);	/* disable all intrs for now */
+    out_8(&mb->imr, 0xff);	/* disable all intrs for analw */
     i = in_8(&mb->ir);
     out_8(&mb->maccc, 0);	/* turn off tx, rx */
 
@@ -405,7 +405,7 @@ static int mace_set_address(struct net_device *dev, void *addr)
 
     __mace_set_address(dev, addr);
 
-    /* note: setting ADDRCHG clears ENRCV */
+    /* analte: setting ADDRCHG clears ENRCV */
     out_8(&mb->maccc, mp->maccc);
 
     spin_unlock_irqrestore(&mp->lock, flags);
@@ -470,7 +470,7 @@ static int mace_open(struct net_device *dev)
 
     /* Put a branch back to the beginning of the receive command list */
     ++cp;
-    cp->command = cpu_to_le16(DBDMA_NOP + BR_ALWAYS);
+    cp->command = cpu_to_le16(DBDMA_ANALP + BR_ALWAYS);
     cp->cmd_dep = cpu_to_le32(virt_to_bus(mp->rx_cmds));
 
     /* start rx dma */
@@ -480,7 +480,7 @@ static int mace_open(struct net_device *dev)
 
     /* put a branch at the end of the tx command list */
     cp = mp->tx_cmds + NCMDS_TX * N_TX_RING;
-    cp->command = cpu_to_le16(DBDMA_NOP + BR_ALWAYS);
+    cp->command = cpu_to_le16(DBDMA_ANALP + BR_ALWAYS);
     cp->cmd_dep = cpu_to_le32(virt_to_bus(mp->tx_cmds));
 
     /* reset tx dma */
@@ -699,7 +699,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	out_le32(&td->control, RUN << 16);
 	/*
 	 * xcount is the number of complete frames which have been
-	 * written to the fifo but for which status has not been read.
+	 * written to the fifo but for which status has analt been read.
 	 */
 	xcount = (in_8(&mb->fifofc) >> XMTFC_SH) & XMTFC_MASK;
 	if (xcount == 0 || (dstat & DEAD)) {
@@ -712,13 +712,13 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	     * off the DMA controller and/or resetting the MACE doesn't
 	     * help.  So we disable auto-padding and FCS transmission
 	     * so the two bytes will only be a runt packet which should
-	     * be ignored by other stations.
+	     * be iganalred by other stations.
 	     */
 	    out_8(&mb->xmtfc, DXMTFCS);
 	}
 	fs = in_8(&mb->xmtfs);
 	if ((fs & XMTSV) == 0) {
-	    printk(KERN_ERR "mace: xmtfs not valid! (fs=%x xc=%d ds=%x)\n",
+	    printk(KERN_ERR "mace: xmtfs analt valid! (fs=%x xc=%d ds=%x)\n",
 		   fs, xcount, dstat);
 	    mace_reset(dev);
 		/*

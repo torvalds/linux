@@ -165,7 +165,7 @@ static int ak881x_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		vp1 = 0xf;
 		ak881x->lines = 576;
 	} else {
-		/* No SECAM or PAL_N/Nc supported */
+		/* Anal SECAM or PAL_N/Nc supported */
 		return -EINVAL;
 	}
 
@@ -240,7 +240,7 @@ static int ak881x_probe(struct i2c_client *client)
 
 	ak881x = devm_kzalloc(&client->dev, sizeof(*ak881x), GFP_KERNEL);
 	if (!ak881x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&ak881x->subdev, client, &ak881x_subdev_ops);
 
@@ -252,8 +252,8 @@ static int ak881x_probe(struct i2c_client *client)
 		break;
 	default:
 		dev_err(&client->dev,
-			"No ak881x chip detected, register read %x\n", data);
-		return -ENODEV;
+			"Anal ak881x chip detected, register read %x\n", data);
+		return -EANALDEV;
 	}
 
 	ak881x->revision = reg_read(client, AK881X_DEVICE_REVISION);
@@ -280,7 +280,7 @@ static int ak881x_probe(struct i2c_client *client)
 		dev_dbg(&client->dev, "IF mode %x\n", ifmode);
 
 		/*
-		 * "Line Blanking No." seems to be the same as the number of
+		 * "Line Blanking Anal." seems to be the same as the number of
 		 * "black" lines on, e.g., SuperH VOU, whose default value of 20
 		 * "incidentally" matches ak881x' default
 		 */

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -64,7 +64,7 @@ struct ttm_tt {
 	 * TTM swapping out such pages.  Also important is to prevent TTM from
 	 * ever directly mapping these pages.
 	 *
-	 * Note that enum ttm_bo_type.ttm_bo_type_sg objects will always enable
+	 * Analte that enum ttm_bo_type.ttm_bo_type_sg objects will always enable
 	 * this flag.
 	 *
 	 * TTM_TT_FLAG_EXTERNAL_MAPPABLE: Same behaviour as
@@ -73,13 +73,13 @@ struct ttm_tt {
 	 * implementing a ttm_tt backend which still allocates driver owned
 	 * pages underneath(say with shmem).
 	 *
-	 * Note that since this also implies TTM_TT_FLAG_EXTERNAL, the usage
+	 * Analte that since this also implies TTM_TT_FLAG_EXTERNAL, the usage
 	 * here should always be:
 	 *
 	 *   page_flags = TTM_TT_FLAG_EXTERNAL |
 	 *		  TTM_TT_FLAG_EXTERNAL_MAPPABLE;
 	 *
-	 * TTM_TT_FLAG_PRIV_POPULATED: TTM internal only. DO NOT USE. This is
+	 * TTM_TT_FLAG_PRIV_POPULATED: TTM internal only. DO ANALT USE. This is
 	 * set by TTM after ttm_tt_populate() has successfully returned, and is
 	 * then unset when TTM calls ttm_tt_unpopulate().
 	 */
@@ -129,7 +129,7 @@ static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
  * @zero_alloc: true if allocated pages needs to be zeroed
  *
  * Make sure we have a TTM structure allocated for the given BO.
- * No pages are actually allocated.
+ * Anal pages are actually allocated.
  */
 int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
 
@@ -143,7 +143,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * @extra_pages: Extra pages needed for the driver.
  *
  * Create a struct ttm_tt to back data with system memory pages.
- * No pages are actually allocated.
+ * Anal pages are actually allocated.
  * Returns:
  * NULL: Out of memory.
  */

@@ -69,7 +69,7 @@
 #define ENET_DMA_CH_CFG_INT_MASK			0x08		/* interrupts mask */
 #define  ENET_DMA_CH_CFG_INT_BUFF_DONE			0x00000001	/* buffer done */
 #define  ENET_DMA_CH_CFG_INT_DONE			0x00000002	/* packet xfer complete */
-#define  ENET_DMA_CH_CFG_INT_NO_DESC			0x00000004	/* no valid descriptors */
+#define  ENET_DMA_CH_CFG_INT_ANAL_DESC			0x00000004	/* anal valid descriptors */
 #define  ENET_DMA_CH_CFG_INT_RX_ERROR			0x00000008	/* rxdma detect client protocol error */
 #define ENET_DMA_CH_CFG_MAX_BURST			0x0c		/* max burst length permitted */
 #define  ENET_DMA_CH_CFG_MAX_BURST_DESCSIZE_SEL		0x00040000	/* DMA Descriptor Size Selection */

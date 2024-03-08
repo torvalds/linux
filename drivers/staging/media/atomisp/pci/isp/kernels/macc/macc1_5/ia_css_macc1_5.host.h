@@ -33,7 +33,7 @@ ia_css_macc1_5_vmem_encode(
     const struct ia_css_macc1_5_table *from,
     unsigned int size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_macc1_5_debug_dtrace(
     const struct ia_css_macc1_5_config *config,

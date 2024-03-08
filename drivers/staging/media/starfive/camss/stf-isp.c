@@ -4,7 +4,7 @@
  *
  * StarFive Camera Subsystem - ISP Module
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  */
 #include <media/v4l2-rect.h>
 
@@ -104,7 +104,7 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 	fmt->height = clamp_t(u32, fmt->height, STFCAMSS_FRAME_MIN_HEIGHT,
 			      STFCAMSS_FRAME_MAX_HEIGHT);
 	fmt->height &= ~0x1;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->flags = 0;
 
@@ -339,7 +339,7 @@ int stf_isp_register(struct stf_isp_dev *isp_dev, struct v4l2_device *v4l2_dev)
 
 	v4l2_subdev_init(sd, &isp_v4l2_ops);
 	sd->internal_ops = &isp_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	snprintf(sd->name, ARRAY_SIZE(sd->name), "stf_isp");
 	v4l2_set_subdevdata(sd, isp_dev);
 

@@ -26,13 +26,13 @@ int meson_card_i2s_set_sysclk(struct snd_pcm_substream *substream,
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					     SND_SOC_CLOCK_IN);
-		if (ret && ret != -ENOTSUPP)
+		if (ret && ret != -EANALTSUPP)
 			return ret;
 	}
 
 	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_cpu(rtd, 0), 0, mclk,
 				     SND_SOC_CLOCK_OUT);
-	if (ret && ret != -ENOTSUPP)
+	if (ret && ret != -EANALTSUPP)
 		return ret;
 
 	return 0;
@@ -67,21 +67,21 @@ err_ldata:
 	kfree(links);
 err_links:
 	dev_err(priv->card.dev, "failed to allocate links\n");
-	return -ENOMEM;
+	return -EANALMEM;
 
 }
 EXPORT_SYMBOL_GPL(meson_card_reallocate_links);
 
 int meson_card_parse_dai(struct snd_soc_card *card,
-			 struct device_node *node,
+			 struct device_analde *analde,
 			 struct snd_soc_dai_link_component *dlc)
 {
 	int ret;
 
-	if (!dlc || !node)
+	if (!dlc || !analde)
 		return -EINVAL;
 
-	ret = snd_soc_of_get_dlc(node, NULL, dlc, 0);
+	ret = snd_soc_of_get_dlc(analde, NULL, dlc, 0);
 	if (ret)
 		return dev_err_probe(card->dev, ret, "can't parse dai\n");
 
@@ -91,13 +91,13 @@ EXPORT_SYMBOL_GPL(meson_card_parse_dai);
 
 static int meson_card_set_link_name(struct snd_soc_card *card,
 				    struct snd_soc_dai_link *link,
-				    struct device_node *node,
+				    struct device_analde *analde,
 				    const char *prefix)
 {
 	char *name = devm_kasprintf(card->dev, GFP_KERNEL, "%s.%s",
-				    prefix, node->full_name);
+				    prefix, analde->full_name);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->name = name;
 	link->stream_name = name;
@@ -105,28 +105,28 @@ static int meson_card_set_link_name(struct snd_soc_card *card,
 	return 0;
 }
 
-unsigned int meson_card_parse_daifmt(struct device_node *node,
-				     struct device_node *cpu_node)
+unsigned int meson_card_parse_daifmt(struct device_analde *analde,
+				     struct device_analde *cpu_analde)
 {
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
+	struct device_analde *bitclkmaster = NULL;
+	struct device_analde *framemaster = NULL;
 	unsigned int daifmt;
 
-	daifmt = snd_soc_daifmt_parse_format(node, NULL);
+	daifmt = snd_soc_daifmt_parse_format(analde, NULL);
 
-	snd_soc_daifmt_parse_clock_provider_as_phandle(node, NULL, &bitclkmaster, &framemaster);
+	snd_soc_daifmt_parse_clock_provider_as_phandle(analde, NULL, &bitclkmaster, &framemaster);
 
-	/* If no master is provided, default to cpu master */
-	if (!bitclkmaster || bitclkmaster == cpu_node) {
-		daifmt |= (!framemaster || framemaster == cpu_node) ?
+	/* If anal master is provided, default to cpu master */
+	if (!bitclkmaster || bitclkmaster == cpu_analde) {
+		daifmt |= (!framemaster || framemaster == cpu_analde) ?
 			SND_SOC_DAIFMT_CBS_CFS : SND_SOC_DAIFMT_CBS_CFM;
 	} else {
-		daifmt |= (!framemaster || framemaster == cpu_node) ?
+		daifmt |= (!framemaster || framemaster == cpu_analde) ?
 			SND_SOC_DAIFMT_CBM_CFS : SND_SOC_DAIFMT_CBM_CFM;
 	}
 
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
+	of_analde_put(bitclkmaster);
+	of_analde_put(framemaster);
 
 	return daifmt;
 }
@@ -134,37 +134,37 @@ EXPORT_SYMBOL_GPL(meson_card_parse_daifmt);
 
 int meson_card_set_be_link(struct snd_soc_card *card,
 			   struct snd_soc_dai_link *link,
-			   struct device_node *node)
+			   struct device_analde *analde)
 {
 	struct snd_soc_dai_link_component *codec;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret, num_codecs;
 
-	num_codecs = of_get_child_count(node);
+	num_codecs = of_get_child_count(analde);
 	if (!num_codecs) {
-		dev_err(card->dev, "be link %s has no codec\n",
-			node->full_name);
+		dev_err(card->dev, "be link %s has anal codec\n",
+			analde->full_name);
 		return -EINVAL;
 	}
 
 	codec = devm_kcalloc(card->dev, num_codecs, sizeof(*codec), GFP_KERNEL);
 	if (!codec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->codecs = codec;
 	link->num_codecs = num_codecs;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		ret = meson_card_parse_dai(card, np, codec);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
 		codec++;
 	}
 
-	ret = meson_card_set_link_name(card, link, node, "be");
+	ret = meson_card_set_link_name(card, link, analde, "be");
 	if (ret)
 		dev_err(card->dev, "error setting %pOFn link name\n", np);
 
@@ -174,7 +174,7 @@ EXPORT_SYMBOL_GPL(meson_card_set_be_link);
 
 int meson_card_set_fe_link(struct snd_soc_card *card,
 			   struct snd_soc_dai_link *link,
-			   struct device_node *node,
+			   struct device_analde *analde,
 			   bool is_playback)
 {
 	link->codecs = &snd_soc_dummy_dlc;
@@ -190,20 +190,20 @@ int meson_card_set_fe_link(struct snd_soc_card *card,
 	else
 		link->dpcm_capture = 1;
 
-	return meson_card_set_link_name(card, link, node, "fe");
+	return meson_card_set_link_name(card, link, analde, "fe");
 }
 EXPORT_SYMBOL_GPL(meson_card_set_fe_link);
 
 static int meson_card_add_links(struct snd_soc_card *card)
 {
 	struct meson_card *priv = snd_soc_card_get_drvdata(card);
-	struct device_node *node = card->dev->of_node;
-	struct device_node *np;
+	struct device_analde *analde = card->dev->of_analde;
+	struct device_analde *np;
 	int num, i, ret;
 
-	num = of_get_child_count(node);
+	num = of_get_child_count(analde);
 	if (!num) {
-		dev_err(card->dev, "card has no links\n");
+		dev_err(card->dev, "card has anal links\n");
 		return -EINVAL;
 	}
 
@@ -212,10 +212,10 @@ static int meson_card_add_links(struct snd_soc_card *card)
 		return ret;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		ret = priv->match_data->add_link(card, np, &i);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
@@ -230,8 +230,8 @@ static int meson_card_parse_of_optional(struct snd_soc_card *card,
 					int (*func)(struct snd_soc_card *c,
 						    const char *p))
 {
-	/* If property is not provided, don't fail ... */
-	if (!of_property_read_bool(card->dev->of_node, propname))
+	/* If property is analt provided, don't fail ... */
+	if (!of_property_read_bool(card->dev->of_analde, propname))
 		return 0;
 
 	/* ... but do fail if it is provided and the parsing fails */
@@ -249,15 +249,15 @@ static void meson_card_clean_references(struct meson_card *priv)
 	if (card->dai_link) {
 		for_each_card_prelinks(card, i, link) {
 			if (link->cpus)
-				of_node_put(link->cpus->of_node);
+				of_analde_put(link->cpus->of_analde);
 			for_each_link_codecs(link, j, codec)
-				of_node_put(codec->of_node);
+				of_analde_put(codec->of_analde);
 		}
 	}
 
 	if (card->aux_dev) {
 		for_each_card_pre_auxs(card, i, aux)
-			of_node_put(aux->dlc.of_node);
+			of_analde_put(aux->dlc.of_analde);
 	}
 
 	kfree(card->dai_link);
@@ -274,12 +274,12 @@ int meson_card_probe(struct platform_device *pdev)
 	data = of_device_get_match_data(dev);
 	if (!data) {
 		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 	snd_soc_card_set_drvdata(&priv->card, priv);

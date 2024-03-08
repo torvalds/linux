@@ -7,7 +7,7 @@
 */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -323,7 +323,7 @@ static int ves1820_get_frontend(struct dvb_frontend *fe,
 
 	p->modulation = ((state->reg0 >> 2) & 7) + QAM_16;
 
-	p->fec_inner = FEC_NONE;
+	p->fec_inner = FEC_ANALNE;
 
 	p->frequency = ((p->frequency + 31250) / 62500) * 62500;
 	if (sync & 2)

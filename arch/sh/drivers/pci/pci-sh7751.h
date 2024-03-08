@@ -43,7 +43,7 @@
   #define SH7751_PCICONF1_SER        0x00000100  /* SERR Output Control */
   #define SH7751_PCICONF1_WCC        0x00000080  /* Wait Cycle Control */
   #define SH7751_PCICONF1_PER        0x00000040  /* Parity Error Response */
-  #define SH7751_PCICONF1_VPS        0x00000020  /* VGA Pallet Snoop */
+  #define SH7751_PCICONF1_VPS        0x00000020  /* VGA Pallet Sanalop */
   #define SH7751_PCICONF1_MWIE       0x00000010  /* Memory Write+Invalidate */
   #define SH7751_PCICONF1_SPC        0x00000008  /* Special Cycle Control */
   #define SH7751_PCICONF1_BUM        0x00000004  /* Bus Master Control */

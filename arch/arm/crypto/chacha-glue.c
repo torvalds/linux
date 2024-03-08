@@ -310,7 +310,7 @@ static int __init chacha_simd_mod_init(void)
 		case ARM_CPU_PART_CORTEX_A7:
 		case ARM_CPU_PART_CORTEX_A5:
 			/*
-			 * The Cortex-A7 and Cortex-A5 do not perform well with
+			 * The Cortex-A7 and Cortex-A5 do analt perform well with
 			 * the NEON implementation but do incredibly with the
 			 * scalar one and use less power.
 			 */

@@ -142,7 +142,7 @@ static int hix5hd2_ir_config(struct hix5hd2_ir_priv *priv)
 		}
 	}
 
-	/* Now only support raw mode, with symbol start from low to high */
+	/* Analw only support raw mode, with symbol start from low to high */
 	rate = DIV_ROUND_CLOSEST(priv->rate, 1000000);
 	val = IR_CFG_SYMBOL_MAXWIDTH & IR_CFG_WIDTH_MASK << IR_CFG_WIDTH_SHIFT;
 	val |= IR_CFG_SYMBOL_FMT & IR_CFG_FORMAT_MASK << IR_CFG_FORMAT_SHIFT;
@@ -193,7 +193,7 @@ static irqreturn_t hix5hd2_ir_rx_interrupt(int irq, void *data)
 	if (irq_sr & INTMS_OVERFLOW) {
 		/*
 		 * we must read IR_DATAL first, then we can clean up
-		 * IR_INTS availably since logic would not clear
+		 * IR_INTS availably since logic would analt clear
 		 * fifo when overflow, drv do the job
 		 */
 		ir_raw_event_overflow(priv->rdev);
@@ -252,24 +252,24 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 	struct rc_dev *rdev;
 	struct device *dev = &pdev->dev;
 	struct hix5hd2_ir_priv *priv;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	const char *map_name;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->socdata = device_get_match_data(dev);
 	if (!priv->socdata) {
 		dev_err(dev, "Unable to initialize IR data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	priv->regmap = syscon_regmap_lookup_by_phandle(node,
+	priv->regmap = syscon_regmap_lookup_by_phandle(analde,
 						       "hisilicon,power-syscon");
 	if (IS_ERR(priv->regmap)) {
-		dev_info(dev, "no power-reg\n");
+		dev_info(dev, "anal power-reg\n");
 		priv->regmap = NULL;
 	}
 
@@ -283,11 +283,11 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 
 	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clock = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clock)) {
-		dev_err(dev, "clock not found\n");
+		dev_err(dev, "clock analt found\n");
 		ret = PTR_ERR(priv->clock);
 		goto err;
 	}
@@ -301,7 +301,7 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 	rdev->open = hix5hd2_ir_open;
 	rdev->close = hix5hd2_ir_close;
 	rdev->driver_name = IR_HIX5HD2_NAME;
-	map_name = of_get_property(node, "linux,rc-map-name", NULL);
+	map_name = of_get_property(analde, "linux,rc-map-name", NULL);
 	rdev->map_name = map_name ?: RC_MAP_EMPTY;
 	rdev->device_name = IR_HIX5HD2_NAME;
 	rdev->input_phys = IR_HIX5HD2_NAME "/input0";

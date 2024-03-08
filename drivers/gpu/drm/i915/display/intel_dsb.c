@@ -68,12 +68,12 @@ struct intel_dsb {
  * registers.
  *
  * DSB HW can support only register writes (both indexed and direct MMIO
- * writes). There are no registers reads possible with DSB HW engine.
+ * writes). There are anal registers reads possible with DSB HW engine.
  */
 
 /* DSB opcodes. */
 #define DSB_OPCODE_SHIFT		24
-#define DSB_OPCODE_NOOP			0x0
+#define DSB_OPCODE_ANALOP			0x0
 #define DSB_OPCODE_MMIO_WRITE		0x1
 #define   DSB_BYTE_EN			0xf
 #define   DSB_BYTE_EN_SHIFT		20
@@ -146,9 +146,9 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	u32 prev_opcode, prev_reg;
 
 	/*
-	 * Nothing emitted yet? Must check before looking
+	 * Analthing emitted yet? Must check before looking
 	 * at the actual data since i915_gem_object_create_internal()
-	 * does *not* give you zeroed memory!
+	 * does *analt* give you zeroed memory!
 	 */
 	if (dsb->free_pos == 0)
 		return false;
@@ -204,7 +204,7 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 	 *
 	 * As every instruction is 8 byte aligned the index of dsb instruction
 	 * will start always from even number while dealing with u32 array. If
-	 * we are writing odd no of dwords, Zeros will be added in the end for
+	 * we are writing odd anal of dwords, Zeros will be added in the end for
 	 * padding.
 	 */
 	if (!intel_dsb_prev_ins_is_mmio_write(dsb, reg) &&
@@ -251,7 +251,7 @@ static u32 intel_dsb_mask_to_byte_en(u32 mask)
 		!!(mask & 0x000000ff) << 0);
 }
 
-/* Note: mask implemented via byte enables! */
+/* Analte: mask implemented via byte enables! */
 void intel_dsb_reg_write_masked(struct intel_dsb *dsb,
 				i915_reg_t reg, u32 mask, u32 val)
 {
@@ -261,33 +261,33 @@ void intel_dsb_reg_write_masked(struct intel_dsb *dsb,
 		       i915_mmio_reg_offset(reg));
 }
 
-void intel_dsb_noop(struct intel_dsb *dsb, int count)
+void intel_dsb_analop(struct intel_dsb *dsb, int count)
 {
 	int i;
 
 	for (i = 0; i < count; i++)
 		intel_dsb_emit(dsb, 0,
-			       DSB_OPCODE_NOOP << DSB_OPCODE_SHIFT);
+			       DSB_OPCODE_ANALOP << DSB_OPCODE_SHIFT);
 }
 
-void intel_dsb_nonpost_start(struct intel_dsb *dsb)
+void intel_dsb_analnpost_start(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
 	enum pipe pipe = crtc->pipe;
 
 	intel_dsb_reg_write_masked(dsb, DSB_CTRL(pipe, dsb->id),
-				   DSB_NON_POSTED, DSB_NON_POSTED);
-	intel_dsb_noop(dsb, 4);
+				   DSB_ANALN_POSTED, DSB_ANALN_POSTED);
+	intel_dsb_analop(dsb, 4);
 }
 
-void intel_dsb_nonpost_end(struct intel_dsb *dsb)
+void intel_dsb_analnpost_end(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
 	enum pipe pipe = crtc->pipe;
 
 	intel_dsb_reg_write_masked(dsb, DSB_CTRL(pipe, dsb->id),
-				   DSB_NON_POSTED, 0);
-	intel_dsb_noop(dsb, 4);
+				   DSB_ANALN_POSTED, 0);
+	intel_dsb_analop(dsb, 4);
 }
 
 static void intel_dsb_align_tail(struct intel_dsb *dsb)

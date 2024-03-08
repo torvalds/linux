@@ -37,7 +37,7 @@ int enic_dev_add_station_addr(struct enic *enic)
 	int err;
 
 	if (!is_valid_ether_addr(enic->netdev->dev_addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	spin_lock_bh(&enic->devcmd_lock);
 	err = vnic_dev_add_addr(enic->vdev, enic->netdev->dev_addr);
@@ -51,7 +51,7 @@ int enic_dev_del_station_addr(struct enic *enic)
 	int err;
 
 	if (!is_valid_ether_addr(enic->netdev->dev_addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	spin_lock_bh(&enic->devcmd_lock);
 	err = vnic_dev_del_addr(enic->vdev, enic->netdev->dev_addr);
@@ -95,23 +95,23 @@ int enic_dev_del_addr(struct enic *enic, const u8 *addr)
 	return err;
 }
 
-int enic_dev_notify_unset(struct enic *enic)
+int enic_dev_analtify_unset(struct enic *enic)
 {
 	int err;
 
 	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_notify_unset(enic->vdev);
+	err = vnic_dev_analtify_unset(enic->vdev);
 	spin_unlock_bh(&enic->devcmd_lock);
 
 	return err;
 }
 
-int enic_dev_hang_notify(struct enic *enic)
+int enic_dev_hang_analtify(struct enic *enic)
 {
 	int err;
 
 	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_hang_notify(enic->vdev);
+	err = vnic_dev_hang_analtify(enic->vdev);
 	spin_unlock_bh(&enic->devcmd_lock);
 
 	return err;
@@ -188,7 +188,7 @@ int enic_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return err;
 }
 
-int enic_dev_status_to_errno(int devcmd_status)
+int enic_dev_status_to_erranal(int devcmd_status)
 {
 	switch (devcmd_status) {
 	case ERR_SUCCESS:
@@ -201,13 +201,13 @@ int enic_dev_status_to_errno(int devcmd_status)
 		return -EPERM;
 	case ERR_EBUSY:
 		return -EBUSY;
-	case ERR_ECMDUNKNOWN:
-	case ERR_ENOTSUPPORTED:
-		return -EOPNOTSUPP;
+	case ERR_ECMDUNKANALWN:
+	case ERR_EANALTSUPPORTED:
+		return -EOPANALTSUPP;
 	case ERR_EBADSTATE:
 		return -EINVAL;
-	case ERR_ENOMEM:
-		return -ENOMEM;
+	case ERR_EANALMEM:
+		return -EANALMEM;
 	case ERR_ETIMEDOUT:
 		return -ETIMEDOUT;
 	case ERR_ELINKDOWN:

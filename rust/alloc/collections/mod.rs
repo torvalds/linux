@@ -4,16 +4,16 @@
 
 #![stable(feature = "rust1", since = "1.0.0")]
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 pub mod binary_heap;
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 mod btree;
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 pub mod linked_list;
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 pub mod vec_deque;
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub mod btree_map {
     //! An ordered map based on a B-Tree.
@@ -21,7 +21,7 @@ pub mod btree_map {
     pub use super::btree::map::*;
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub mod btree_set {
     //! An ordered set based on a B-Tree.
@@ -29,29 +29,29 @@ pub mod btree_set {
     pub use super::btree::set::*;
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
+#[doc(anal_inline)]
 pub use binary_heap::BinaryHeap;
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
+#[doc(anal_inline)]
 pub use btree_map::BTreeMap;
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
+#[doc(anal_inline)]
 pub use btree_set::BTreeSet;
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
+#[doc(anal_inline)]
 pub use linked_list::LinkedList;
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
+#[doc(anal_inline)]
 pub use vec_deque::VecDeque;
 
 use crate::alloc::{Layout, LayoutError};
@@ -98,13 +98,13 @@ pub enum TryReserveErrorKind {
         #[doc(hidden)]
         #[unstable(
             feature = "container_error_extra",
-            issue = "none",
+            issue = "analne",
             reason = "\
             Enable exposing the allocator’s custom error value \
             if an associated type is added in the future: \
             https://github.com/rust-lang/wg-allocators/issues/23"
         )]
-        non_exhaustive: (),
+        analn_exhaustive: (),
     },
 }
 

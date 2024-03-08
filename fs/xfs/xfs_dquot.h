@@ -8,12 +8,12 @@
 
 /*
  * Dquots are structures that hold quota information about a user or a group,
- * much like inodes are for files. In fact, dquots share many characteristics
- * with inodes. However, dquots can also be a centralized resource, relative
- * to a collection of inodes. In this respect, dquots share some characteristics
+ * much like ianaldes are for files. In fact, dquots share many characteristics
+ * with ianaldes. However, dquots can also be a centralized resource, relative
+ * to a collection of ianaldes. In this respect, dquots share some characteristics
  * of the superblock.
  * XFS dquots exploit both those in its algorithms. They make every attempt
- * to not be a bottleneck when quotas are on and have minimal impact, if any,
+ * to analt be a bottleneck when quotas are on and have minimal impact, if any,
  * when quotas are off.
  */
 
@@ -67,11 +67,11 @@ struct xfs_dquot {
 	xfs_dqid_t		q_id;
 	uint			q_nrefs;
 	int			q_bufoffset;
-	xfs_daddr_t		q_blkno;
+	xfs_daddr_t		q_blkanal;
 	xfs_fileoff_t		q_fileoffset;
 
 	struct xfs_dquot_res	q_blk;	/* regular blocks */
-	struct xfs_dquot_res	q_ino;	/* inodes */
+	struct xfs_dquot_res	q_ianal;	/* ianaldes */
 	struct xfs_dquot_res	q_rtb;	/* realtime blocks */
 
 	struct xfs_dq_logitem	q_logitem;
@@ -87,11 +87,11 @@ struct xfs_dquot {
 
 /*
  * Lock hierarchy for q_qlock:
- *	XFS_QLOCK_NORMAL is the implicit default,
+ *	XFS_QLOCK_ANALRMAL is the implicit default,
  *	XFS_QLOCK_NESTED is the dquot with the higher id in xfs_dqlock2
  */
 enum {
-	XFS_QLOCK_NORMAL = 0,
+	XFS_QLOCK_ANALRMAL = 0,
 	XFS_QLOCK_NESTED,
 };
 
@@ -105,7 +105,7 @@ static inline void xfs_dqflock(struct xfs_dquot *dqp)
 	wait_for_completion(&dqp->q_flush);
 }
 
-static inline bool xfs_dqflock_nowait(struct xfs_dquot *dqp)
+static inline bool xfs_dqflock_analwait(struct xfs_dquot *dqp)
 {
 	return try_wait_for_completion(&dqp->q_flush);
 }
@@ -115,7 +115,7 @@ static inline void xfs_dqfunlock(struct xfs_dquot *dqp)
 	complete(&dqp->q_flush);
 }
 
-static inline int xfs_dqlock_nowait(struct xfs_dquot *dqp)
+static inline int xfs_dqlock_analwait(struct xfs_dquot *dqp)
 {
 	return mutex_trylock(&dqp->q_qlock);
 }
@@ -150,8 +150,8 @@ static inline int xfs_this_quota_on(struct xfs_mount *mp, xfs_dqtype_t type)
 	}
 }
 
-static inline struct xfs_dquot *xfs_inode_dquot(
-	struct xfs_inode	*ip,
+static inline struct xfs_dquot *xfs_ianalde_dquot(
+	struct xfs_ianalde	*ip,
 	xfs_dqtype_t		type)
 {
 	switch (type) {
@@ -208,12 +208,12 @@ int		xfs_qm_dqflush(struct xfs_dquot *dqp, struct xfs_buf **bpp);
 void		xfs_qm_dqunpin_wait(struct xfs_dquot *dqp);
 void		xfs_qm_adjust_dqtimers(struct xfs_dquot *d);
 void		xfs_qm_adjust_dqlimits(struct xfs_dquot *d);
-xfs_dqid_t	xfs_qm_id_for_quotatype(struct xfs_inode *ip,
+xfs_dqid_t	xfs_qm_id_for_quotatype(struct xfs_ianalde *ip,
 				xfs_dqtype_t type);
 int		xfs_qm_dqget(struct xfs_mount *mp, xfs_dqid_t id,
 				xfs_dqtype_t type, bool can_alloc,
 				struct xfs_dquot **dqpp);
-int		xfs_qm_dqget_inode(struct xfs_inode *ip, xfs_dqtype_t type,
+int		xfs_qm_dqget_ianalde(struct xfs_ianalde *ip, xfs_dqtype_t type,
 				bool can_alloc, struct xfs_dquot **dqpp);
 int		xfs_qm_dqget_next(struct xfs_mount *mp, xfs_dqid_t id,
 				xfs_dqtype_t type, struct xfs_dquot **dqpp);

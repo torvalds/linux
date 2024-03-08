@@ -19,7 +19,7 @@ static int otx2_dmacflt_do_add(struct otx2_nic *pf, const u8 *mac,
 	req = otx2_mbox_alloc_msg_cgx_mac_addr_add(&pf->mbox);
 	if (!req) {
 		mutex_unlock(&pf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ether_addr_copy(req->mac_addr, mac);
@@ -46,7 +46,7 @@ static int otx2_dmacflt_add_pfmac(struct otx2_nic *pf, u32 *dmac_index)
 	req = otx2_mbox_alloc_msg_cgx_mac_addr_set(&pf->mbox);
 	if (!req) {
 		mutex_unlock(&pf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->index = *dmac_index;
@@ -96,7 +96,7 @@ static int otx2_dmacflt_do_remove(struct otx2_nic *pfvf, const u8 *mac,
 	req = otx2_mbox_alloc_msg_cgx_mac_addr_del(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->index = dmac_index;
@@ -116,7 +116,7 @@ static int otx2_dmacflt_remove_pfmac(struct otx2_nic *pf, u32 dmac_index)
 	req = otx2_mbox_alloc_msg_cgx_mac_addr_reset(&pf->mbox);
 	if (!req) {
 		mutex_unlock(&pf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	req->index = dmac_index;
 
@@ -152,7 +152,7 @@ int otx2_dmacflt_get_max_cnt(struct otx2_nic *pf)
 
 	if (!msg) {
 		mutex_unlock(&pf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pf->mbox);
@@ -186,7 +186,7 @@ int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u32 bit_pos)
 
 	if (!req) {
 		mutex_unlock(&pf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ether_addr_copy(req->mac_addr, mac);

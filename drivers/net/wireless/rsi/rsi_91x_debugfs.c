@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -38,8 +38,8 @@ static int rsi_sdio_stats_read(struct seq_file *seq, void *data)
 		   dev->rx_info.buf_full_counter);
 	seq_printf(seq, "sdio_buf_semi_full_count %d\n",
 		   dev->rx_info.buf_semi_full_counter);
-	seq_printf(seq, "sdio_unknown_intr_count: %d\n",
-		   dev->rx_info.total_sdio_unknown_intr);
+	seq_printf(seq, "sdio_unkanalwn_intr_count: %d\n",
+		   dev->rx_info.total_sdio_unkanalwn_intr);
 	/* RX Path Stats */
 	seq_printf(seq, "BUFFER FULL STATUS  : %d\n",
 		   dev->rx_info.buffer_full);
@@ -60,15 +60,15 @@ static int rsi_sdio_stats_read(struct seq_file *seq, void *data)
 /**
  * rsi_sdio_stats_open() - This function calls single open function of seq_file
  *			   to open file and read contents from it.
- * @inode: Pointer to the inode structure.
+ * @ianalde: Pointer to the ianalde structure.
  * @file: Pointer to the file structure.
  *
- * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
+ * Return: Pointer to the opened file status: 0 on success, EANALMEM on failure.
  */
-static int rsi_sdio_stats_open(struct inode *inode,
+static int rsi_sdio_stats_open(struct ianalde *ianalde,
 			       struct file *file)
 {
-	return single_open(file, rsi_sdio_stats_read, inode->i_private);
+	return single_open(file, rsi_sdio_stats_read, ianalde->i_private);
 }
 
 /**
@@ -84,7 +84,7 @@ static int rsi_version_read(struct seq_file *seq, void *data)
 
 	seq_printf(seq, "LMAC   : %d.%d.%d.%d\n",
 		   common->lmac_ver.major,
-		   common->lmac_ver.minor,
+		   common->lmac_ver.mianalr,
 		   common->lmac_ver.release_num,
 		   common->lmac_ver.patch_num);
 
@@ -94,15 +94,15 @@ static int rsi_version_read(struct seq_file *seq, void *data)
 /**
  * rsi_version_open() - This function calls single open function of seq_file to
  *			open file and read contents from it.
- * @inode: Pointer to the inode structure.
+ * @ianalde: Pointer to the ianalde structure.
  * @file: Pointer to the file structure.
  *
- * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
+ * Return: Pointer to the opened file status: 0 on success, EANALMEM on failure.
  */
-static int rsi_version_open(struct inode *inode,
+static int rsi_version_open(struct ianalde *ianalde,
 				 struct file *file)
 {
-	return single_open(file, rsi_version_read, inode->i_private);
+	return single_open(file, rsi_version_read, ianalde->i_private);
 }
 
 /**
@@ -117,8 +117,8 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 	struct rsi_common *common = seq->private;
 
 	static const unsigned char fsm_state[][32] = {
-		"FSM_FW_NOT_LOADED",
-		"FSM_CARD_NOT_READY",
+		"FSM_FW_ANALT_LOADED",
+		"FSM_CARD_ANALT_READY",
 		"FSM_COMMON_DEV_PARAMS_SENT",
 		"FSM_BOOT_PARAMS_SENT",
 		"FSM_EEPROM_READ_MAC_ADDR",
@@ -179,15 +179,15 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 /**
  * rsi_stats_open() - This function calls single open function of seq_file to
  *		      open file and read contents from it.
- * @inode: Pointer to the inode structure.
+ * @ianalde: Pointer to the ianalde structure.
  * @file: Pointer to the file structure.
  *
- * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
+ * Return: Pointer to the opened file status: 0 on success, EANALMEM on failure.
  */
-static int rsi_stats_open(struct inode *inode,
+static int rsi_stats_open(struct ianalde *ianalde,
 			  struct file *file)
 {
-	return single_open(file, rsi_stats_read, inode->i_private);
+	return single_open(file, rsi_stats_read, ianalde->i_private);
 }
 
 /**
@@ -208,15 +208,15 @@ static int rsi_debug_zone_read(struct seq_file *seq, void *data)
 /**
  * rsi_debug_read() - This function calls single open function of seq_file to
  *		      open file and read contents from it.
- * @inode: Pointer to the inode structure.
+ * @ianalde: Pointer to the ianalde structure.
  * @file: Pointer to the file structure.
  *
- * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
+ * Return: Pointer to the opened file status: 0 on success, EANALMEM on failure.
  */
-static int rsi_debug_read(struct inode *inode,
+static int rsi_debug_read(struct ianalde *ianalde,
 			  struct file *file)
 {
-	return single_open(file, rsi_debug_zone_read, inode->i_private);
+	return single_open(file, rsi_debug_zone_read, ianalde->i_private);
 }
 
 /**
@@ -287,7 +287,7 @@ int rsi_init_dbgfs(struct rsi_hw *adapter)
 
 	dev_dbgfs = kzalloc(sizeof(*dev_dbgfs), GFP_KERNEL);
 	if (!dev_dbgfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->dfsentry = dev_dbgfs;
 
@@ -314,7 +314,7 @@ EXPORT_SYMBOL_GPL(rsi_init_dbgfs);
  *			in the reverse order of creation.
  * @adapter: Pointer to the adapter structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 void rsi_remove_dbgfs(struct rsi_hw *adapter)
 {

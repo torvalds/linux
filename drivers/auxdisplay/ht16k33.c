@@ -111,12 +111,12 @@ struct ht16k33_priv {
 static const struct fb_fix_screeninfo ht16k33_fb_fix = {
 	.id		= DRIVER_NAME,
 	.type		= FB_TYPE_PACKED_PIXELS,
-	.visual		= FB_VISUAL_MONO10,
+	.visual		= FB_VISUAL_MOANAL10,
 	.xpanstep	= 0,
 	.ypanstep	= 0,
 	.ywrapstep	= 0,
 	.line_length	= HT16K33_MATRIX_LED_MAX_ROWS,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo ht16k33_fb_var = {
@@ -132,7 +132,7 @@ static const struct fb_var_screeninfo ht16k33_fb_var = {
 	.right_margin = 0,
 	.upper_margin = 0,
 	.lower_margin = 0,
-	.vmode = FB_VMODE_NONINTERLACED,
+	.vmode = FB_VMODE_ANALNINTERLACED,
 };
 
 static const SEG7_DEFAULT_MAP(initial_map_seg7);
@@ -264,7 +264,7 @@ static void ht16k33_fb_update(struct work_struct *work)
 		pos++;
 	}
 
-	/* No changes found */
+	/* Anal changes found */
 	if (first < 0)
 		goto requeue;
 
@@ -492,8 +492,8 @@ static int ht16k33_led_probe(struct device *dev, struct led_classdev *led,
 	int err;
 
 	/* The LED is optional */
-	init_data.fwnode = device_get_named_child_node(dev, "led");
-	if (!init_data.fwnode)
+	init_data.fwanalde = device_get_named_child_analde(dev, "led");
+	if (!init_data.fwanalde)
 		return 0;
 
 	init_data.devicename = "auxdisplay";
@@ -525,7 +525,7 @@ static int ht16k33_keypad_probe(struct i2c_client *client,
 
 	keypad->dev = devm_input_allocate_device(dev);
 	if (!keypad->dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(keypad->dev, keypad);
 
@@ -534,13 +534,13 @@ static int ht16k33_keypad_probe(struct i2c_client *client,
 	keypad->dev->open = ht16k33_keypad_start;
 	keypad->dev->close = ht16k33_keypad_stop;
 
-	if (!device_property_read_bool(dev, "linux,no-autorepeat"))
+	if (!device_property_read_bool(dev, "linux,anal-autorepeat"))
 		__set_bit(EV_REP, keypad->dev->evbit);
 
 	err = device_property_read_u32(dev, "debounce-delay-ms",
 				       &keypad->debounce_ms);
 	if (err) {
-		dev_err(dev, "key debounce delay not specified\n");
+		dev_err(dev, "key debounce delay analt specified\n");
 		return err;
 	}
 
@@ -592,7 +592,7 @@ static int ht16k33_fbdev_probe(struct device *dev, struct ht16k33_priv *priv,
 		if (err)
 			return err;
 	} else {
-		/* backwards compatibility with DT lacking an led subnode */
+		/* backwards compatibility with DT lacking an led subanalde */
 		struct backlight_properties bl_props;
 
 		memset(&bl_props, 0, sizeof(struct backlight_properties));
@@ -615,24 +615,24 @@ static int ht16k33_fbdev_probe(struct device *dev, struct ht16k33_priv *priv,
 	BUILD_BUG_ON(PAGE_SIZE < HT16K33_FB_SIZE);
 	fbdev->buffer = (unsigned char *) get_zeroed_page(GFP_KERNEL);
 	if (!fbdev->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fbdev->cache = devm_kmalloc(dev, HT16K33_FB_SIZE, GFP_KERNEL);
 	if (!fbdev->cache) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_fbdev_buffer;
 	}
 
 	fbdev->info = framebuffer_alloc(0, dev);
 	if (!fbdev->info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_fbdev_buffer;
 	}
 
 	err = device_property_read_u32(dev, "refresh-rate-hz",
 				       &fbdev->refresh_rate);
 	if (err) {
-		dev_err(dev, "refresh rate not specified\n");
+		dev_err(dev, "refresh rate analt specified\n");
 		goto err_fbdev_info;
 	}
 	fb_bl_default_curve(fbdev->info, 0, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
@@ -675,7 +675,7 @@ static int ht16k33_seg_probe(struct device *dev, struct ht16k33_priv *priv,
 
 	switch (priv->type) {
 	case DISP_MATRIX:
-		/* not handled here */
+		/* analt handled here */
 		err = -EINVAL;
 		break;
 
@@ -724,7 +724,7 @@ static int ht16k33_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 	id = i2c_of_match_device(dev->driver->of_match_table, client);

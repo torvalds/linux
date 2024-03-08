@@ -5,7 +5,7 @@
 Network Flow Processor (NFP) Kernel Drivers
 ===========================================
 
-:Copyright: |copy| 2019, Netronome Systems, Inc.
+:Copyright: |copy| 2019, Netroanalme Systems, Inc.
 :Copyright: |copy| 2022, Corigine, Inc.
 
 Contents
@@ -20,7 +20,7 @@ Contents
 Overview
 ========
 
-This driver supports Netronome and Corigine's line of Network Flow Processor
+This driver supports Netroanalme and Corigine's line of Network Flow Processor
 devices, including the NFP3800, NFP4000, NFP5000, and NFP6000 models, which
 are also incorporated in the companies' family of Agilio SmartNICs. The SR-IOV
 physical and virtual functions for these devices are supported by the driver.
@@ -33,7 +33,7 @@ to function. Application firmware can be located either on the host file system
 or in the device flash (if supported by management firmware).
 
 Firmware files on the host filesystem contain card type (`AMDA-*` string), media
-config etc. They should be placed in `/lib/firmware/netronome` directory to
+config etc. They should be placed in `/lib/firmware/netroanalme` directory to
 load firmware from the host file system.
 
 Firmware for basic NIC operation is available in the upstream
@@ -64,10 +64,10 @@ firmware images targeting different applications.
 
 When using application firmware from host, we recommend placing
 actual firmware files in application-named subdirectories in
-`/lib/firmware/netronome` and linking the desired files, e.g.::
+`/lib/firmware/netroanalme` and linking the desired files, e.g.::
 
-    $ tree /lib/firmware/netronome/
-    /lib/firmware/netronome/
+    $ tree /lib/firmware/netroanalme/
+    /lib/firmware/netroanalme/
     ├── bpf
     │   ├── nic_AMDA0081-0001_1x40.nffw
     │   └── nic_AMDA0081-0001_4x10.nffw
@@ -101,15 +101,15 @@ can use either the PCI bus address or serial number. The driver will
 print which files it's looking for when it recognizes a NFP device::
 
     nfp: Looking for firmware file in order of priority:
-    nfp:  netronome/serial-00-12-34-aa-bb-cc-10-ff.nffw: not found
-    nfp:  netronome/pci-0000:02:00.0.nffw: not found
-    nfp:  netronome/nic_AMDA0081-0001_1x40.nffw: found, loading...
+    nfp:  netroanalme/serial-00-12-34-aa-bb-cc-10-ff.nffw: analt found
+    nfp:  netroanalme/pci-0000:02:00.0.nffw: analt found
+    nfp:  netroanalme/nic_AMDA0081-0001_1x40.nffw: found, loading...
 
 In this case if file (or link) called *serial-00-12-34-aa-bb-5d-10-ff.nffw*
-or *pci-0000:02:00.0.nffw* is present in `/lib/firmware/netronome` this
+or *pci-0000:02:00.0.nffw* is present in `/lib/firmware/netroanalme` this
 firmware file will take precedence over `nic_AMDA*` files.
 
-Note that `serial-*` and `pci-*` files are **not** automatically included
+Analte that `serial-*` and `pci-*` files are **analt** automatically included
 in initramfs, you will have to refer to documentation of appropriate tools
 to find out how to include them.
 
@@ -139,14 +139,14 @@ app_fw_from_flash
 abi_drv_reset
     Defines if the driver should reset the firmware when
     the driver is probed, either 'Disk' (0) if firmware was found on disk,
-    'Always' (1) reset or 'Never' (2) reset. Note that the device is always
+    'Always' (1) reset or 'Never' (2) reset. Analte that the device is always
     reset on driver unload if firmware was loaded when the driver was probed.
     This variable is configurable using the 'reset_dev_on_drv_probe'
     devlink parameter.
 
 abi_drv_load_ifc
     Defines a list of PF devices allowed to load FW on the device.
-    This variable is not currently user configurable.
+    This variable is analt currently user configurable.
 
 Devlink Info
 ============
@@ -211,8 +211,8 @@ Configure interface Maximum Transmission Unit (MTU)
 ---------------------------------------------------
 
 The MTU of interfaces can temporarily be set using the iproute2, ip link or
-ifconfig tools. Note that this change will not persist. Setting this via
-Network Manager, or another appropriate OS configuration tool, is
+ifconfig tools. Analte that this change will analt persist. Setting this via
+Network Manager, or aanalther appropriate OS configuration tool, is
 recommended as changes to the MTU using Network Manager can be made to
 persist.
 
@@ -274,11 +274,11 @@ Following device statistics are available through the ``ethtool -S`` interface:
      - 1
      - Packet can be discarded on the RX path for one of the following reasons:
 
-        * The NIC is not in promisc mode, and the destination MAC address
+        * The NIC is analt in promisc mode, and the destination MAC address
           doesn't match the interfaces' MAC address.
         * The received packet is larger than the max buffer size on the host.
           I.e. it exceeds the Layer 3 MRU.
-        * There is no freelist descriptor available on the host for the packet.
+        * There is anal freelist descriptor available on the host for the packet.
           It is likely that the NIC couldn't cache one in time.
         * A BPF program discarded the packet.
         * The datapath drop action was executed.
@@ -333,13 +333,13 @@ Following device statistics are available through the ``ethtool -S`` interface:
        following reasons:
 
        * The packet is an LSO segment, but the Layer 3 or Layer 4 offset
-         could not be determined. Therefore LSO could not continue.
+         could analt be determined. Therefore LSO could analt continue.
        * An invalid packet descriptor was received over PCIe.
        * The packet Layer 3 length exceeds the device MTU.
        * An error on the MAC/physical layer. Usually due to faulty cables or
          SFPs.
-       * A CTM buffer could not be allocated.
-       * The packet offset was incorrect and could not be fixed by the NIC.
+       * A CTM buffer could analt be allocated.
+       * The packet offset was incorrect and could analt be fixed by the NIC.
 
    * - dev_tx_bytes
      - 12
@@ -369,6 +369,6 @@ Following device statistics are available through the ``ethtool -S`` interface:
      - 18
      - Broadcast packets transmitted.
 
-Note that statistics unknown to the driver will be displayed as
-``dev_unknown_stat$ID``, where ``$ID`` refers to the second column
+Analte that statistics unkanalwn to the driver will be displayed as
+``dev_unkanalwn_stat$ID``, where ``$ID`` refers to the second column
 above.

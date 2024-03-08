@@ -88,8 +88,8 @@ static int stm32_dac_set_enable_state(struct iio_dev *indio_dev, int ch,
 	}
 
 	/*
-	 * When HFSEL is set, it is not allowed to write the DHRx register
-	 * during 8 clock cycles after the ENx bit is set. It is not allowed
+	 * When HFSEL is set, it is analt allowed to write the DHRx register
+	 * during 8 clock cycles after the ENx bit is set. It is analt allowed
 	 * to make software/hardware trigger during this period either.
 	 */
 	if (en && dac->common->hfsel)
@@ -278,7 +278,7 @@ static const struct iio_chan_spec stm32_dac_channels[] = {
 
 static int stm32_dac_chan_of_init(struct iio_dev *indio_dev)
 {
-	struct device_node *np = indio_dev->dev.of_node;
+	struct device_analde *np = indio_dev->dev.of_analde;
 	unsigned int i;
 	u32 channel;
 	int ret;
@@ -311,24 +311,24 @@ static int stm32_dac_chan_of_init(struct iio_dev *indio_dev)
 
 static int stm32_dac_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct iio_dev *indio_dev;
 	struct stm32_dac *dac;
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*dac));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, indio_dev);
 
 	dac = iio_priv(indio_dev);
 	dac->common = dev_get_drvdata(pdev->dev.parent);
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_analde = pdev->dev.of_analde;
 	indio_dev->info = &stm32_dac_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -339,7 +339,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Get stm32-dac-core PM online */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_set_autosuspend_delay(dev, STM32_DAC_AUTO_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
@@ -357,7 +357,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 err_pm_put:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	return ret;
 }
@@ -370,7 +370,7 @@ static void stm32_dac_remove(struct platform_device *pdev)
 	iio_device_unregister(indio_dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 }
 
 static int stm32_dac_suspend(struct device *dev)

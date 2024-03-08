@@ -7,7 +7,7 @@ RapidIO subsystem mport character device driver (rio_mport_cdev.c)
 
 This device driver is the result of collaboration within the RapidIO.org
 Software Task Group (STG) between Texas Instruments, Freescale,
-Prodrive Technologies, Nokia Networks, BAE and IDT.  Additional input was
+Prodrive Techanallogies, Analkia Networks, BAE and IDT.  Additional input was
 received from other members of RapidIO.org. The objective was to create a
 character mode driver interface which exposes the capabilities of RapidIO
 devices directly to applications, in a manner that allows the numerous and
@@ -17,8 +17,8 @@ This driver (MPORT_CDEV) provides access to basic RapidIO subsystem operations
 for user-space applications. Most of RapidIO operations are supported through
 'ioctl' system calls.
 
-When loaded this device driver creates filesystem nodes named rio_mportX in /dev
-directory for each registered RapidIO mport device. 'X' in the node name matches
+When loaded this device driver creates filesystem analdes named rio_mportX in /dev
+directory for each registered RapidIO mport device. 'X' in the analde name matches
 to unique port ID assigned to each local mport device.
 
 Using available set of ioctl commands user-space applications can perform
@@ -49,9 +49,9 @@ following RapidIO bus and subsystem operations:
 - Allocate/Free contiguous DMA coherent memory buffer for DMA data transfers
   to/from remote RapidIO devices (RIO_ALLOC_DMA/RIO_FREE_DMA)
 - Initiate DMA data transfers to/from remote RapidIO devices (RIO_TRANSFER).
-  Supports blocking, asynchronous and posted (a.k.a 'fire-and-forget') data
+  Supports blocking, asynchroanalus and posted (a.k.a 'fire-and-forget') data
   transfer modes.
-- Check/Wait for completion of asynchronous DMA data transfer
+- Check/Wait for completion of asynchroanalus DMA data transfer
   (RIO_WAIT_FOR_ASYNC)
 - Manage device objects supported by RapidIO subsystem (RIO_DEV_ADD/RIO_DEV_DEL).
   This allows implementation of various RapidIO fabric enumeration algorithms
@@ -71,9 +71,9 @@ functionality of their platform when planning to use this driver:
 
 - IDT Tsi721 PCIe-to-RapidIO bridge device and its mport device driver are fully
   compatible with this driver.
-- Freescale SoCs 'fsl_rio' mport driver does not have implementation for RapidIO
+- Freescale SoCs 'fsl_rio' mport driver does analt have implementation for RapidIO
   specific DMA engine support and therefore DMA data transfers mport_cdev driver
-  are not available.
+  are analt available.
 
 3. Module parameters
 ====================
@@ -91,10 +91,10 @@ functionality of their platform when planning to use this driver:
         This parameter can be changed dynamically.
         Use CONFIG_RAPIDIO_DEBUG=y to enable debug output at the top level.
 
-4. Known problems
+4. Kanalwn problems
 =================
 
-  None.
+  Analne.
 
 5. User-space Applications and API
 ==================================
@@ -107,4 +107,4 @@ RapidIO.org.
 
 - Add support for sending/receiving "raw" RapidIO messaging packets.
 - Add memory mapped DMA data transfers as an option when RapidIO-specific DMA
-  is not available.
+  is analt available.

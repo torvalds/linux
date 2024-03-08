@@ -37,8 +37,8 @@
 #define XDDR_REG_CONFIG0_NUM_RANKS_MASK		GENMASK(15, 14)
 #define XDDR_REG_CONFIG0_SIZE_MASK		GENMASK(10, 8)
 
-#define XDDR_REG_PINOUT_OFFSET			0x25C
-#define XDDR_REG_PINOUT_ECC_EN_MASK		GENMASK(7, 5)
+#define XDDR_REG_PIANALUT_OFFSET			0x25C
+#define XDDR_REG_PIANALUT_ECC_EN_MASK		GENMASK(7, 5)
 
 #define ECCW0_FLIP_CTRL				0x109C
 #define ECCW0_FLIP0_OFFSET			0x10A0
@@ -72,40 +72,40 @@
 #define ECCR1_UE_DATA_HI_OFFSET			0x111C
 #define ECCR1_UE_DATA_PAR_OFFSET		0x1120
 
-#define XDDR_NOC_REG_ADEC4_OFFSET		0x44
+#define XDDR_ANALC_REG_ADEC4_OFFSET		0x44
 #define RANK_1_MASK				GENMASK(11, 6)
 #define LRANK_0_MASK				GENMASK(17, 12)
 #define LRANK_1_MASK				GENMASK(23, 18)
 #define MASK_24					GENMASK(29, 24)
 
-#define XDDR_NOC_REG_ADEC5_OFFSET		0x48
-#define XDDR_NOC_REG_ADEC6_OFFSET		0x4C
-#define XDDR_NOC_REG_ADEC7_OFFSET		0x50
-#define XDDR_NOC_REG_ADEC8_OFFSET		0x54
-#define XDDR_NOC_REG_ADEC9_OFFSET		0x58
-#define XDDR_NOC_REG_ADEC10_OFFSET		0x5C
+#define XDDR_ANALC_REG_ADEC5_OFFSET		0x48
+#define XDDR_ANALC_REG_ADEC6_OFFSET		0x4C
+#define XDDR_ANALC_REG_ADEC7_OFFSET		0x50
+#define XDDR_ANALC_REG_ADEC8_OFFSET		0x54
+#define XDDR_ANALC_REG_ADEC9_OFFSET		0x58
+#define XDDR_ANALC_REG_ADEC10_OFFSET		0x5C
 
-#define XDDR_NOC_REG_ADEC11_OFFSET		0x60
+#define XDDR_ANALC_REG_ADEC11_OFFSET		0x60
 #define MASK_0					GENMASK(5, 0)
 #define GRP_0_MASK				GENMASK(11, 6)
 #define GRP_1_MASK				GENMASK(17, 12)
 #define CH_0_MASK				GENMASK(23, 18)
 
-#define XDDR_NOC_REG_ADEC12_OFFSET		0x71C
-#define XDDR_NOC_REG_ADEC13_OFFSET		0x720
+#define XDDR_ANALC_REG_ADEC12_OFFSET		0x71C
+#define XDDR_ANALC_REG_ADEC13_OFFSET		0x720
 
-#define XDDR_NOC_REG_ADEC14_OFFSET		0x724
-#define XDDR_NOC_ROW_MATCH_MASK			GENMASK(17, 0)
-#define XDDR_NOC_COL_MATCH_MASK			GENMASK(27, 18)
-#define XDDR_NOC_BANK_MATCH_MASK		GENMASK(29, 28)
-#define XDDR_NOC_GRP_MATCH_MASK			GENMASK(31, 30)
+#define XDDR_ANALC_REG_ADEC14_OFFSET		0x724
+#define XDDR_ANALC_ROW_MATCH_MASK			GENMASK(17, 0)
+#define XDDR_ANALC_COL_MATCH_MASK			GENMASK(27, 18)
+#define XDDR_ANALC_BANK_MATCH_MASK		GENMASK(29, 28)
+#define XDDR_ANALC_GRP_MATCH_MASK			GENMASK(31, 30)
 
-#define XDDR_NOC_REG_ADEC15_OFFSET		0x728
-#define XDDR_NOC_RANK_MATCH_MASK		GENMASK(1, 0)
-#define XDDR_NOC_LRANK_MATCH_MASK		GENMASK(4, 2)
-#define XDDR_NOC_CH_MATCH_MASK			BIT(5)
-#define XDDR_NOC_MOD_SEL_MASK			BIT(6)
-#define XDDR_NOC_MATCH_EN_MASK			BIT(8)
+#define XDDR_ANALC_REG_ADEC15_OFFSET		0x728
+#define XDDR_ANALC_RANK_MATCH_MASK		GENMASK(1, 0)
+#define XDDR_ANALC_LRANK_MATCH_MASK		GENMASK(4, 2)
+#define XDDR_ANALC_CH_MATCH_MASK			BIT(5)
+#define XDDR_ANALC_MOD_SEL_MASK			BIT(6)
+#define XDDR_ANALC_MATCH_EN_MASK			BIT(8)
 
 #define ECCR_UE_CE_ADDR_HI_ROW_MASK		GENMASK(7, 0)
 
@@ -206,7 +206,7 @@ struct ecc_status {
 /**
  * struct edac_priv - DDR memory controller private instance data.
  * @ddrmc_baseaddr:	Base address of the DDR controller.
- * @ddrmc_noc_baseaddr:	Base address of the DDRMC NOC.
+ * @ddrmc_analc_baseaddr:	Base address of the DDRMC ANALC.
  * @message:		Buffer for framing the event specific info.
  * @mc_id:		Memory controller ID.
  * @ce_cnt:		Correctable error count.
@@ -224,7 +224,7 @@ struct ecc_status {
  */
 struct edac_priv {
 	void __iomem *ddrmc_baseaddr;
-	void __iomem *ddrmc_noc_baseaddr;
+	void __iomem *ddrmc_analc_baseaddr;
 	char message[XDDR_EDAC_MSG_SIZE];
 	u32 mc_id;
 	u32 ce_cnt;
@@ -513,7 +513,7 @@ static enum dev_type get_dwidth(const void __iomem *base)
 		dt = DEV_X8;
 		break;
 	default:
-		dt = DEV_UNKNOWN;
+		dt = DEV_UNKANALWN;
 	}
 
 	return dt;
@@ -533,11 +533,11 @@ static bool get_ecc_state(void __iomem *base)
 	u32 ecctype;
 
 	dt = get_dwidth(base);
-	if (dt == DEV_UNKNOWN)
+	if (dt == DEV_UNKANALWN)
 		return false;
 
-	ecctype = readl(base + XDDR_REG_PINOUT_OFFSET);
-	ecctype &= XDDR_REG_PINOUT_ECC_EN_MASK;
+	ecctype = readl(base + XDDR_REG_PIANALUT_OFFSET);
+	ecctype &= XDDR_REG_PIANALUT_ECC_EN_MASK;
 
 	return !!ecctype;
 }
@@ -624,9 +624,9 @@ static void mc_init(struct mem_ctl_info *mci, struct platform_device *pdev)
 
 	/* Initialize controller capabilities and configuration */
 	mci->mtype_cap = MEM_FLAG_DDR4;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->scrub_cap = SCRUB_HW_SRC;
-	mci->scrub_mode = SCRUB_NONE;
+	mci->scrub_mode = SCRUB_ANALNE;
 
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->ctl_name = "xlnx_ddr_controller";
@@ -675,7 +675,7 @@ static void disable_intr(struct edac_priv *priv)
  *
  * Update poison registers as per DDR mapping upon write of the address
  * location the fault is injected.
- * Return: none.
+ * Return: analne.
  */
 static void poison_setup(struct edac_priv *priv)
 {
@@ -718,20 +718,20 @@ static void poison_setup(struct edac_priv *priv)
 	else
 		writel(0xFF, priv->ddrmc_baseaddr + ECCW0_FLIP_CTRL);
 
-	writel(0, priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC12_OFFSET);
-	writel(0, priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC13_OFFSET);
+	writel(0, priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC12_OFFSET);
+	writel(0, priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC13_OFFSET);
 
-	regval = row & XDDR_NOC_ROW_MATCH_MASK;
-	regval |= FIELD_PREP(XDDR_NOC_COL_MATCH_MASK, col);
-	regval |= FIELD_PREP(XDDR_NOC_BANK_MATCH_MASK, bank);
-	regval |= FIELD_PREP(XDDR_NOC_GRP_MATCH_MASK, grp);
-	writel(regval, priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC14_OFFSET);
+	regval = row & XDDR_ANALC_ROW_MATCH_MASK;
+	regval |= FIELD_PREP(XDDR_ANALC_COL_MATCH_MASK, col);
+	regval |= FIELD_PREP(XDDR_ANALC_BANK_MATCH_MASK, bank);
+	regval |= FIELD_PREP(XDDR_ANALC_GRP_MATCH_MASK, grp);
+	writel(regval, priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC14_OFFSET);
 
-	regval = rank & XDDR_NOC_RANK_MATCH_MASK;
-	regval |= FIELD_PREP(XDDR_NOC_LRANK_MATCH_MASK, lrank);
-	regval |= FIELD_PREP(XDDR_NOC_CH_MATCH_MASK, ch);
-	regval |= (XDDR_NOC_MOD_SEL_MASK | XDDR_NOC_MATCH_EN_MASK);
-	writel(regval, priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC15_OFFSET);
+	regval = rank & XDDR_ANALC_RANK_MATCH_MASK;
+	regval |= FIELD_PREP(XDDR_ANALC_LRANK_MATCH_MASK, lrank);
+	regval |= FIELD_PREP(XDDR_ANALC_CH_MATCH_MASK, ch);
+	regval |= (XDDR_ANALC_MOD_SEL_MASK | XDDR_ANALC_MATCH_EN_MASK);
+	writel(regval, priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC15_OFFSET);
 }
 
 static ssize_t xddr_inject_data_poison_store(struct mem_ctl_info *mci,
@@ -769,12 +769,12 @@ static ssize_t inject_data_poison_store(struct file *file, const char __user *da
 
 	/* Unlock the PCSR registers */
 	writel(PCSR_UNLOCK_VAL, priv->ddrmc_baseaddr + XDDR_PCSR_OFFSET);
-	writel(PCSR_UNLOCK_VAL, priv->ddrmc_noc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(PCSR_UNLOCK_VAL, priv->ddrmc_analc_baseaddr + XDDR_PCSR_OFFSET);
 
 	poison_setup(priv);
 
 	/* Lock the PCSR registers */
-	writel(1, priv->ddrmc_noc_baseaddr + XDDR_PCSR_OFFSET);
+	writel(1, priv->ddrmc_analc_baseaddr + XDDR_PCSR_OFFSET);
 
 	xddr_inject_data_poison_store(mci, data);
 
@@ -819,16 +819,16 @@ static void setup_row_address_map(struct edac_priv *priv)
 	u32 regval;
 	union edac_info rows;
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC5_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC5_OFFSET);
 	process_bit(priv, 0, regval);
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC6_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC6_OFFSET);
 	process_bit(priv, 5, regval);
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC7_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC7_OFFSET);
 	process_bit(priv, 10, regval);
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC8_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC8_OFFSET);
 	rows.i  = regval;
 
 	priv->row_bit[15] = rows.row0;
@@ -841,10 +841,10 @@ static void setup_column_address_map(struct edac_priv *priv)
 	u32 regval;
 	union edac_info cols;
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC8_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC8_OFFSET);
 	priv->col_bit[0] = FIELD_GET(MASK_24, regval);
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC9_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC9_OFFSET);
 	cols.i  = regval;
 	priv->col_bit[1] = cols.col1;
 	priv->col_bit[2] = cols.col2;
@@ -852,7 +852,7 @@ static void setup_column_address_map(struct edac_priv *priv)
 	priv->col_bit[4] = cols.col4;
 	priv->col_bit[5] = cols.col5;
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC10_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC10_OFFSET);
 	cols.i  = regval;
 	priv->col_bit[6] = cols.col1;
 	priv->col_bit[7] = cols.col2;
@@ -864,10 +864,10 @@ static void setup_bank_grp_ch_address_map(struct edac_priv *priv)
 {
 	u32 regval;
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC10_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC10_OFFSET);
 	priv->bank_bit[0] = FIELD_GET(MASK_24, regval);
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC11_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC11_OFFSET);
 	priv->bank_bit[1] = (regval & MASK_0);
 	priv->grp_bit[0] = FIELD_GET(GRP_0_MASK, regval);
 	priv->grp_bit[1] = FIELD_GET(GRP_1_MASK, regval);
@@ -878,7 +878,7 @@ static void setup_rank_lrank_address_map(struct edac_priv *priv)
 {
 	u32 regval;
 
-	regval = readl(priv->ddrmc_noc_baseaddr + XDDR_NOC_REG_ADEC4_OFFSET);
+	regval = readl(priv->ddrmc_analc_baseaddr + XDDR_ANALC_REG_ADEC4_OFFSET);
 	priv->rank_bit[0] = (regval & MASK_0);
 	priv->rank_bit[1] = FIELD_GET(RANK_1_MASK, regval);
 	priv->lrank_bit[0] = FIELD_GET(LRANK_0_MASK, regval);
@@ -892,7 +892,7 @@ static void setup_rank_lrank_address_map(struct edac_priv *priv)
  *
  * Set Address Map by querying ADDRMAP registers.
  *
- * Return: none.
+ * Return: analne.
  */
 static void setup_address_map(struct edac_priv *priv)
 {
@@ -914,17 +914,17 @@ static const struct of_device_id xlnx_edac_match[] = {
 };
 
 MODULE_DEVICE_TABLE(of, xlnx_edac_match);
-static u32 emif_get_id(struct device_node *node)
+static u32 emif_get_id(struct device_analde *analde)
 {
 	u32 addr, my_addr, my_id = 0;
-	struct device_node *np;
+	struct device_analde *np;
 	const __be32 *addrp;
 
-	addrp = of_get_address(node, 0, NULL, NULL);
-	my_addr = (u32)of_translate_address(node, addrp);
+	addrp = of_get_address(analde, 0, NULL, NULL);
+	my_addr = (u32)of_translate_address(analde, addrp);
 
-	for_each_matching_node(np, xlnx_edac_match) {
-		if (np == node)
+	for_each_matching_analde(np, xlnx_edac_match) {
+		if (np == analde)
 			continue;
 
 		addrp = of_get_address(np, 0, NULL, NULL);
@@ -943,7 +943,7 @@ static u32 emif_get_id(struct device_node *node)
 
 static int mc_probe(struct platform_device *pdev)
 {
-	void __iomem *ddrmc_baseaddr, *ddrmc_noc_baseaddr;
+	void __iomem *ddrmc_baseaddr, *ddrmc_analc_baseaddr;
 	struct edac_mc_layer layers[2];
 	struct mem_ctl_info *mci;
 	u8 num_chans, num_csrows;
@@ -955,15 +955,15 @@ static int mc_probe(struct platform_device *pdev)
 	if (IS_ERR(ddrmc_baseaddr))
 		return PTR_ERR(ddrmc_baseaddr);
 
-	ddrmc_noc_baseaddr = devm_platform_ioremap_resource_byname(pdev, "noc");
-	if (IS_ERR(ddrmc_noc_baseaddr))
-		return PTR_ERR(ddrmc_noc_baseaddr);
+	ddrmc_analc_baseaddr = devm_platform_ioremap_resource_byname(pdev, "analc");
+	if (IS_ERR(ddrmc_analc_baseaddr))
+		return PTR_ERR(ddrmc_analc_baseaddr);
 
 	if (!get_ecc_state(ddrmc_baseaddr))
 		return -ENXIO;
 
 	/* Allocate ID number for the EMIF controller */
-	edac_mc_id = emif_get_id(pdev->dev.of_node);
+	edac_mc_id = emif_get_id(pdev->dev.of_analde);
 
 	regval = readl(ddrmc_baseaddr + XDDR_REG_CONFIG0_OFFSET);
 	num_chans = FIELD_GET(XDDR_REG_CONFIG0_NUM_CHANS_MASK, regval);
@@ -986,12 +986,12 @@ static int mc_probe(struct platform_device *pdev)
 	if (!mci) {
 		edac_printk(KERN_ERR, EDAC_MC,
 			    "Failed memory allocation for mc instance\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv = mci->pvt_info;
 	priv->ddrmc_baseaddr = ddrmc_baseaddr;
-	priv->ddrmc_noc_baseaddr = ddrmc_noc_baseaddr;
+	priv->ddrmc_analc_baseaddr = ddrmc_analc_baseaddr;
 	priv->ce_cnt = 0;
 	priv->ue_cnt = 0;
 	priv->mc_id = edac_mc_id;
@@ -1005,9 +1005,9 @@ static int mc_probe(struct platform_device *pdev)
 		goto free_edac_mc;
 	}
 
-	rc = xlnx_register_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
+	rc = xlnx_register_event(PM_ANALTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
 				 XPM_EVENT_ERROR_MASK_DDRMC_CR | XPM_EVENT_ERROR_MASK_DDRMC_NCR |
-				 XPM_EVENT_ERROR_MASK_NOC_CR | XPM_EVENT_ERROR_MASK_NOC_NCR,
+				 XPM_EVENT_ERROR_MASK_ANALC_CR | XPM_EVENT_ERROR_MASK_ANALC_NCR,
 				 false, err_callback, mci);
 	if (rc) {
 		if (rc == -EACCES)
@@ -1042,10 +1042,10 @@ static int mc_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(priv->debugfs);
 #endif
 
-	xlnx_unregister_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
+	xlnx_unregister_event(PM_ANALTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
 			      XPM_EVENT_ERROR_MASK_DDRMC_CR |
-			      XPM_EVENT_ERROR_MASK_NOC_CR |
-			      XPM_EVENT_ERROR_MASK_NOC_NCR |
+			      XPM_EVENT_ERROR_MASK_ANALC_CR |
+			      XPM_EVENT_ERROR_MASK_ANALC_NCR |
 			      XPM_EVENT_ERROR_MASK_DDRMC_NCR, err_callback, mci);
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);

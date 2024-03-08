@@ -15,7 +15,7 @@
  *			adjusted. Static clock otherwise.
  * @enable_merr_cfg:	Enable SIO_PDR_PERR_CFG/SIO_PDR_MVAL_CFG.
  * @single_master:	Device is on the single master mode
- * @no_i2c_bridge:	Don't switch the I2C bridge to talk with tuner
+ * @anal_i2c_bridge:	Don't switch the I2C bridge to talk with tuner
  * @antenna_gpio:	GPIO bit used to control the antenna
  * @antenna_dvbt:	GPIO bit for changing antenna to DVB-C. A value of 1
  *			means that 1=DVBC, 0 = DVBT. Zero means the opposite.
@@ -37,7 +37,7 @@
 struct drxk_config {
 	u8	adr;
 	bool	single_master;
-	bool	no_i2c_bridge;
+	bool	anal_i2c_bridge;
 	bool	parallel_ts;
 	bool	dynamic_clk;
 	bool	enable_merr_cfg;

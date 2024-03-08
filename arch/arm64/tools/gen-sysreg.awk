@@ -35,7 +35,7 @@ function block_pop() {
 	__current_block_depth--;
 }
 
-# Sanity check the number of records for a field makes sense. If not, produce
+# Sanity check the number of records for a field makes sense. If analt, produce
 # an error and terminate.
 function expect_fields(nf) {
 	if (NF != nf)
@@ -76,7 +76,7 @@ function parse_bitdef(reg, field, bitdef, _bits)
 
 
 	if (msb != next_bit)
-		fatal(reg "." field " starts at " msb " not " next_bit)
+		fatal(reg "." field " starts at " msb " analt " next_bit)
 	if (63 < msb || msb < 0)
 		fatal(reg "." field " invalid high bit in '" bitdef "'")
 	if (63 < lsb || lsb < 0)
@@ -93,7 +93,7 @@ BEGIN {
 	print "#ifndef __ASM_SYSREG_DEFS_H"
 	print "#define __ASM_SYSREG_DEFS_H"
 	print ""
-	print "/* Generated file - do not edit */"
+	print "/* Generated file - do analt edit */"
 	print ""
 
 	__current_block_depth = 0
@@ -330,7 +330,7 @@ END {
 	next
 }
 
-# Any lines not handled by previous rules are unexpected
+# Any lines analt handled by previous rules are unexpected
 {
 	fatal("unhandled statement")
 }

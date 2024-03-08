@@ -54,10 +54,10 @@ enum smc_llc_msg_type {
 #define SMC_LLC_DEL_OP_INIT_TERM	0x00020000
 #define SMC_LLC_DEL_PROG_INIT_TERM	0x00030000
 #define SMC_LLC_DEL_PROT_VIOL		0x00040000
-#define SMC_LLC_DEL_NO_ASYM_NEEDED	0x00050000
+#define SMC_LLC_DEL_ANAL_ASYM_NEEDED	0x00050000
 /* LLC DELETE LINK Response Reason Codes */
-#define SMC_LLC_DEL_NOLNK	0x00100000  /* Unknown Link ID (no link) */
-#define SMC_LLC_DEL_NOLGR	0x00200000  /* Unknown Link Group */
+#define SMC_LLC_DEL_ANALLNK	0x00100000  /* Unkanalwn Link ID (anal link) */
+#define SMC_LLC_DEL_ANALLGR	0x00200000  /* Unkanalwn Link Group */
 
 /* returns a usable link of the link group, or NULL */
 static inline struct smc_link *smc_llc_usable_link(struct smc_link_group *lgr)

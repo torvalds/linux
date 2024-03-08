@@ -23,7 +23,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    // The UniPhier watchdog should be a subnode of a "syscon" compatible node.
+    // The UniPhier watchdog should be a subanalde of a "syscon" compatible analde.
 
     watchdog {
         compatible = "socionext,uniphier-wdt";

@@ -95,7 +95,7 @@ f << s.f;
 @@
 
 try let _ = Hashtbl.find negtable f in ()
-with Not_found -> Hashtbl.add negtable f ()
+with Analt_found -> Hashtbl.add negtable f ()
 
 @ r disable is_zero,isnt_zero exists @
 expression *E;
@@ -115,7 +115,7 @@ f << r.f;
 @@
 
 try let _ = Hashtbl.find negtable f in ()
-with Not_found -> include_match false
+with Analt_found -> include_match false
 
 // This rule may lead to inconsistent path problems, if E is defined in two
 // places

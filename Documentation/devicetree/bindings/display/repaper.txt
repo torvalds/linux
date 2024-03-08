@@ -14,7 +14,7 @@ Required properties:
 Required property for e2271cs021:
 - border-gpios:		Border control
 
-The node for this driver must be a child node of a SPI controller, hence
+The analde for this driver must be a child analde of a SPI controller, hence
 all mandatory properties described in ../spi/spi-bus.txt must be specified.
 
 Optional property:

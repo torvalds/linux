@@ -411,12 +411,12 @@
 };
 
 &spifc {
-	pinctrl-0 = <&nor_pins>;
+	pinctrl-0 = <&analr_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
 	gd25lq128: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;

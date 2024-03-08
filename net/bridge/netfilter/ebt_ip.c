@@ -9,7 +9,7 @@
  *
  *  Changes:
  *    added ip-sport and ip-dport
- *    Innominate Security Technologies AG <mhopf@innominate.com>
+ *    Inanalminate Security Techanallogies AG <mhopf@inanalminate.com>
  *    September, 2002
  */
 #include <linux/ip.h>

@@ -7,10 +7,10 @@
  *
  *  NFS client per-mount statistics provide information about the
  *  health of the NFS client and the health of each NFS mount point.
- *  Generally these are not for detailed problem diagnosis, but
+ *  Generally these are analt for detailed problem diaganalsis, but
  *  simply to indicate that there is a problem.
  *
- *  These counters are not meant to be human-readable, but are meant
+ *  These counters are analt meant to be human-readable, but are meant
  *  to be integrated into system monitoring tools such as "sar" and
  *  "iostat".  As such, the counters are sampled by the tools over
  *  time, and are never zeroed after a file system is mounted.
@@ -31,7 +31,7 @@
  *     to the server by the NFS client via an NFS READ or WRITE
  *     request.
  *
- * 2.  NORMAL - the number of bytes read or written by applications
+ * 2.  ANALRMAL - the number of bytes read or written by applications
  *     via the read(2) and write(2) system call interfaces.
  *
  * 3.  DIRECT - the number of bytes read or written from files
@@ -45,9 +45,9 @@
  *
  * These counters can also help characterize which access methods
  * are in use.  DIRECT by itself shows whether there is any O_DIRECT
- * traffic.  NORMAL + DIRECT shows how much data is going through
+ * traffic.  ANALRMAL + DIRECT shows how much data is going through
  * the system call interface.  A large amount of SERVER traffic
- * without much NORMAL or DIRECT traffic shows that applications
+ * without much ANALRMAL or DIRECT traffic shows that applications
  * are using mapped files.
  *
  * NFS page counters
@@ -60,8 +60,8 @@
  * interface determine what exactly is being counted.
  */
 enum nfs_stat_bytecounters {
-	NFSIOS_NORMALREADBYTES = 0,
-	NFSIOS_NORMALWRITTENBYTES,
+	NFSIOS_ANALRMALREADBYTES = 0,
+	NFSIOS_ANALRMALWRITTENBYTES,
 	NFSIOS_DIRECTREADBYTES,
 	NFSIOS_DIRECTWRITTENBYTES,
 	NFSIOS_SERVERREADBYTES,
@@ -89,7 +89,7 @@ enum nfs_stat_bytecounters {
  * locking properly).
  */
 enum nfs_stat_eventcounters {
-	NFSIOS_INODEREVALIDATE = 0,
+	NFSIOS_IANALDEREVALIDATE = 0,
 	NFSIOS_DENTRYREVALIDATE,
 	NFSIOS_DATAINVALIDATE,
 	NFSIOS_ATTRINVALIDATE,

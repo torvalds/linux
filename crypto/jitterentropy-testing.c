@@ -2,7 +2,7 @@
 /*
  * Test interface for Jitter RNG.
  *
- * Copyright (C) 2023, Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2023, Stephan Mueller <smueller@chroanalx.de>
  */
 
 #include <linux/debugfs.h>
@@ -29,7 +29,7 @@ static struct dentry *jent_raw_debugfs_root = NULL;
 
 /*
  * boot variable:
- * 0 ==> No boot test, gathering of runtime data allowed
+ * 0 ==> Anal boot test, gathering of runtime data allowed
  * 1 ==> Boot test enabled and ready for collecting data, gathering runtime
  *	 data is disabled
  * 2 ==> Boot test completed and disabled, gathering of runtime data is
@@ -63,7 +63,7 @@ static void jent_testing_data_init(struct jent_testing *data, u32 boot)
 
 static void jent_testing_fini(struct jent_testing *data, u32 boot)
 {
-	/* If we have boot data, we do not reset yet to allow data to be read */
+	/* If we have boot data, we do analt reset yet to allow data to be read */
 	if (boot)
 		return;
 
@@ -131,13 +131,13 @@ static int jent_testing_reader(struct jent_testing *data, u32 *boot,
 
 		spin_lock_irqsave(&data->lock, flags);
 
-		/* We have no data or reached the writer. */
+		/* We have anal data or reached the writer. */
 		if (!writer || (writer == data->rb_reader)) {
 
 			spin_unlock_irqrestore(&data->lock, flags);
 
 			/*
-			 * Now we gathered all boot data, enable regular data
+			 * Analw we gathered all boot data, enable regular data
 			 * collection.
 			 */
 			if (*boot) {
@@ -189,14 +189,14 @@ static int jent_testing_extract_user(struct file *file, char __user *buf,
 
 	/*
 	 * The intention of this interface is for collecting at least
-	 * 1000 samples due to the SP800-90B requirements. So, we make no
+	 * 1000 samples due to the SP800-90B requirements. So, we make anal
 	 * effort in avoiding allocating more memory that actually needed
 	 * by the user. Hence, we allocate sufficient memory to always hold
 	 * that amount of data.
 	 */
 	tmp = kmalloc(JENT_TEST_RINGBUFFER_SIZE + sizeof(u32), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp_aligned = PTR_ALIGN(tmp, sizeof(u32));
 

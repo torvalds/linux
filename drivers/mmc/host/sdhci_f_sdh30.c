@@ -85,7 +85,7 @@ static void sdhci_f_sdh30_reset(struct sdhci_host *host, u8 mask)
 		sdhci_writel(host, ctl, F_SDH30_ESD_CONTROL);
 	}
 
-	if ((host->mmc->caps & MMC_CAP_NONREMOVABLE) &&
+	if ((host->mmc->caps & MMC_CAP_ANALNREMOVABLE) &&
 	    !(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)) {
 		ctl = sdhci_readl(host, F_SDH30_TEST);
 		ctl |= F_SDH30_FORCE_CARD_INSERT;
@@ -104,7 +104,7 @@ static const struct sdhci_ops sdhci_f_sdh30_ops = {
 
 static const struct sdhci_pltfm_data sdhci_f_sdh30_pltfm_data = {
 	.ops = &sdhci_f_sdh30_ops,
-	.quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
+	.quirks = SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC
 		| SDHCI_QUIRK_INVERTED_WRITE_PROTECT,
 	.quirks2 = SDHCI_QUIRK2_SUPPORT_SINGLE
 		|  SDHCI_QUIRK2_TUNING_WORK_AROUND,
@@ -135,7 +135,7 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	if (dev_of_node(dev)) {
+	if (dev_of_analde(dev)) {
 		sdhci_get_of_property(pdev);
 
 		priv->clk_iface = devm_clk_get(&pdev->dev, "iface");
@@ -241,7 +241,7 @@ MODULE_DEVICE_TABLE(acpi, f_sdh30_acpi_ids);
 static struct platform_driver sdhci_f_sdh30_driver = {
 	.driver = {
 		.name = "f_sdh30",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(f_sdh30_dt_ids),
 		.acpi_match_table = ACPI_PTR(f_sdh30_acpi_ids),
 		.pm	= &sdhci_pltfm_pmops,

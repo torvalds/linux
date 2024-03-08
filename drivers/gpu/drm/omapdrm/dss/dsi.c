@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  */
 
@@ -66,7 +66,7 @@ static bool dsi_perf;
 module_param(dsi_perf, bool, 0644);
 #endif
 
-/* Note: for some reason video mode seems to work only if VC_VIDEO is 0 */
+/* Analte: for some reason video mode seems to work only if VC_VIDEO is 0 */
 #define VC_VIDEO	0
 #define VC_CMD		1
 
@@ -269,7 +269,7 @@ static void print_irq_status_vc(int vc, u32 status)
 		status,
 		PIS(CS),
 		PIS(ECC_CORR),
-		PIS(ECC_NO_CORR),
+		PIS(ECC_ANAL_CORR),
 		verbose_irq ? PIS(PACKET_SENT) : "",
 		PIS(BTA),
 		PIS(FIFO_TX_OVF),
@@ -306,8 +306,8 @@ static void print_irq_status_cio(u32 status)
 		PIS(ERRCONTENTIONLP1_2),
 		PIS(ERRCONTENTIONLP0_3),
 		PIS(ERRCONTENTIONLP1_3),
-		PIS(ULPSACTIVENOT_ALL0),
-		PIS(ULPSACTIVENOT_ALL1));
+		PIS(ULPSACTIVEANALT_ALL0),
+		PIS(ULPSACTIVEANALT_ALL1));
 #undef PIS
 }
 
@@ -411,16 +411,16 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 	int i;
 
 	if (!dsi->is_enabled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&dsi->irq_lock);
 
 	irqstatus = dsi_read_reg(dsi, DSI_IRQSTATUS);
 
-	/* IRQ is not for us */
+	/* IRQ is analt for us */
 	if (!irqstatus) {
 		spin_unlock(&dsi->irq_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	dsi_write_reg(dsi, DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
@@ -706,7 +706,7 @@ static int dsi_runtime_get(struct dsi_data *dsi)
 
 	r = pm_runtime_get_sync(dsi->dev);
 	if (WARN_ON(r < 0)) {
-		pm_runtime_put_noidle(dsi->dev);
+		pm_runtime_put_analidle(dsi->dev);
 		return r;
 	}
 	return 0;
@@ -719,7 +719,7 @@ static void dsi_runtime_put(struct dsi_data *dsi)
 	DSSDBG("dsi_runtime_put\n");
 
 	r = pm_runtime_put_sync(dsi->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 
 static void _dsi_print_reset_status(struct dsi_data *dsi)
@@ -877,7 +877,7 @@ static int dsi_pll_power(struct dsi_data *dsi, enum dsi_pll_power_state state)
 {
 	int t = 0;
 
-	/* DSI-PLL power command 0x3 is not working */
+	/* DSI-PLL power command 0x3 is analt working */
 	if ((dsi->data->quirks & DSI_QUIRK_PLL_PWR_BUG) &&
 	    state == DSI_PLL_POWER_ON_DIV)
 		state = DSI_PLL_POWER_ON_ALL;
@@ -890,7 +890,7 @@ static int dsi_pll_power(struct dsi_data *dsi, enum dsi_pll_power_state state)
 		if (++t > 1000) {
 			DSSERR("Failed to set DSI PLL power mode to %d\n",
 					state);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		udelay(1);
 	}
@@ -922,7 +922,7 @@ static int dsi_pll_enable(struct dss_pll *pll)
 		return r;
 
 	/*
-	 * Note: SCP CLK is not required on OMAP3, but it is required on OMAP4.
+	 * Analte: SCP CLK is analt required on OMAP3, but it is required on OMAP4.
 	 */
 	dsi_enable_scp_clk(dsi);
 
@@ -930,18 +930,18 @@ static int dsi_pll_enable(struct dss_pll *pll)
 	if (r)
 		goto err0;
 
-	/* XXX PLL does not come out of reset without this... */
+	/* XXX PLL does analt come out of reset without this... */
 	dispc_pck_free_enable(dsi->dss->dispc, 1);
 
 	if (!wait_for_bit_change(dsi, DSI_PLL_STATUS, 0, 1)) {
-		DSSERR("PLL not coming out of reset.\n");
-		r = -ENODEV;
+		DSSERR("PLL analt coming out of reset.\n");
+		r = -EANALDEV;
 		dispc_pck_free_enable(dsi->dss->dispc, 0);
 		goto err1;
 	}
 
-	/* XXX ... but if left on, we get problems when planes do not
-	 * fill the whole display. No idea about this */
+	/* XXX ... but if left on, we get problems when planes do analt
+	 * fill the whole display. Anal idea about this */
 	dispc_pck_free_enable(dsi->dss->dispc, 0);
 
 	r = dsi_pll_power(dsi, DSI_PLL_POWER_ON_ALL);
@@ -1043,7 +1043,7 @@ static int dsi_dump_dsi_irqs(struct seq_file *s, void *p)
 
 	stats = kmalloc(sizeof(*stats), GFP_KERNEL);
 	if (!stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&dsi->irq_stats_lock, flags);
 
@@ -1094,7 +1094,7 @@ static int dsi_dump_dsi_irqs(struct seq_file *s, void *p)
 	PIS(FIFO_TX_OVF);
 	PIS(FIFO_RX_OVF);
 	PIS(BTA);
-	PIS(ECC_NO_CORR);
+	PIS(ECC_ANAL_CORR);
 	PIS(FIFO_TX_UDF);
 	PIS(PP_BUSY_CHANGE);
 #undef PIS
@@ -1122,8 +1122,8 @@ static int dsi_dump_dsi_irqs(struct seq_file *s, void *p)
 	PIS(ERRCONTENTIONLP1_2);
 	PIS(ERRCONTENTIONLP0_3);
 	PIS(ERRCONTENTIONLP1_3);
-	PIS(ULPSACTIVENOT_ALL0);
-	PIS(ULPSACTIVENOT_ALL1);
+	PIS(ULPSACTIVEANALT_ALL0);
+	PIS(ULPSACTIVEANALT_ALL1);
 #undef PIS
 
 	kfree(stats);
@@ -1237,7 +1237,7 @@ static int dsi_cio_power(struct dsi_data *dsi, enum dsi_cio_power_state state)
 		if (++t > 1000) {
 			DSSERR("failed to set complexio power state to "
 					"%d\n", state);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		udelay(1);
 	}
@@ -1455,7 +1455,7 @@ static int dsi_cio_wait_tx_clk_esc_reset(struct dsi_data *dsi)
 				if (!in_use[i] || (l & (1 << offsets[i])))
 					continue;
 
-				DSSERR("CIO TXCLKESC%d domain not coming " \
+				DSSERR("CIO TXCLKESC%d domain analt coming " \
 						"out of reset\n", i);
 			}
 			return -EIO;
@@ -1507,7 +1507,7 @@ static int dsi_omap4_mux_pads(struct dsi_data *dsi, unsigned int lanes)
 		pipd_mask = OMAP4_DSI2_PIPD_MASK;
 		pipd_shift = OMAP4_DSI2_PIPD_SHIFT;
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return regmap_update_bits(dsi->syscon, OMAP4_DSIPHY_SYSCON_OFFSET,
@@ -1532,7 +1532,7 @@ static int dsi_omap5_mux_pads(struct dsi_data *dsi, unsigned int lanes)
 	else if (dsi->module_id == 1)
 		enable_shift = OMAP5_DSI2_LANEENABLE_SHIFT;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regmap_update_bits(dsi->syscon, OMAP5_DSIPHY_SYSCON_OFFSET,
 		OMAP5_DSI_LANEENABLE_MASK << enable_shift,
@@ -1575,7 +1575,7 @@ static int dsi_cio_init(struct dsi_data *dsi)
 	dsi_read_reg(dsi, DSI_DSIPHY_CFG5);
 
 	if (!wait_for_bit_change(dsi, DSI_DSIPHY_CFG5, 30, 1)) {
-		DSSERR("CIO SCP Clock domain not coming out of reset.\n");
+		DSSERR("CIO SCP Clock domain analt coming out of reset.\n");
 		r = -EIO;
 		goto err_scp_clk_dom;
 	}
@@ -1597,8 +1597,8 @@ static int dsi_cio_init(struct dsi_data *dsi)
 		goto err_cio_pwr;
 
 	if (!wait_for_bit_change(dsi, DSI_COMPLEXIO_CFG1, 29, 1)) {
-		DSSERR("CIO PWR clock domain not coming out of reset.\n");
-		r = -ENODEV;
+		DSSERR("CIO PWR clock domain analt coming out of reset.\n");
+		r = -EANALDEV;
 		goto err_cio_pwr_dom;
 	}
 
@@ -1617,7 +1617,7 @@ static int dsi_cio_init(struct dsi_data *dsi)
 
 	/* DDR_CLK_ALWAYS_ON */
 	REG_FLD_MOD(dsi, DSI_CLK_CTRL,
-		    !(dsi->dsidev->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS),
+		    !(dsi->dsidev->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS),
 		    13, 13);
 
 	DSSDBG("CIO init done\n");
@@ -1718,7 +1718,7 @@ static int dsi_force_tx_stop_mode_io(struct dsi_data *dsi)
 	dsi_write_reg(dsi, DSI_TIMING1, r);
 
 	if (!wait_for_bit_change(dsi, DSI_TIMING1, 15, 0)) {
-		DSSERR("TX_STOP bit not going down\n");
+		DSSERR("TX_STOP bit analt going down\n");
 		return -EIO;
 	}
 
@@ -1805,7 +1805,7 @@ static int dsi_sync_vc_l4(struct dsi_data *dsi, int vc)
 	if (r)
 		goto err0;
 
-	/* Wait for completion only if TX_FIFO_NOT_EMPTY is still set */
+	/* Wait for completion only if TX_FIFO_ANALT_EMPTY is still set */
 	if (REG_GET(dsi, DSI_VC_CTRL(vc), 5, 5)) {
 		if (wait_for_completion_timeout(&completion,
 				msecs_to_jiffies(10)) == 0) {
@@ -1885,8 +1885,8 @@ static void dsi_vc_initial_config(struct dsi_data *dsi, int vc)
 	if (dsi->data->quirks & DSI_QUIRK_VC_OCP_WIDTH)
 		r = FLD_MOD(r, 3, 11, 10);	/* OCP_WIDTH = 32 bit */
 
-	r = FLD_MOD(r, 4, 29, 27); /* DMA_RX_REQ_NB = no dma */
-	r = FLD_MOD(r, 4, 23, 21); /* DMA_TX_REQ_NB = no dma */
+	r = FLD_MOD(r, 4, 29, 27); /* DMA_RX_REQ_NB = anal dma */
+	r = FLD_MOD(r, 4, 23, 21); /* DMA_TX_REQ_NB = anal dma */
 
 	dsi_write_reg(dsi, DSI_VC_CTRL(vc), r);
 
@@ -1951,11 +1951,11 @@ static void dsi_show_rx_ack_with_err(u16 err)
 	if (err & (1 << 8))
 		DSSERR("\t\tECC Error, single-bit (corrected)\n");
 	if (err & (1 << 9))
-		DSSERR("\t\tECC Error, multi-bit (not corrected)\n");
+		DSSERR("\t\tECC Error, multi-bit (analt corrected)\n");
 	if (err & (1 << 10))
 		DSSERR("\t\tChecksum Error\n");
 	if (err & (1 << 11))
-		DSSERR("\t\tData type not recognized\n");
+		DSSERR("\t\tData type analt recognized\n");
 	if (err & (1 << 12))
 		DSSERR("\t\tInvalid VC ID\n");
 	if (err & (1 << 13))
@@ -1968,14 +1968,14 @@ static void dsi_show_rx_ack_with_err(u16 err)
 
 static u16 dsi_vc_flush_receive_data(struct dsi_data *dsi, int vc)
 {
-	/* RX_FIFO_NOT_EMPTY */
+	/* RX_FIFO_ANALT_EMPTY */
 	while (REG_GET(dsi, DSI_VC_CTRL(vc), 20, 20)) {
 		u32 val;
 		u8 dt;
 		val = dsi_read_reg(dsi, DSI_VC_SHORT_PACKET_HEADER(vc));
 		DSSERR("\trawval %#08x\n", val);
 		dt = FLD_GET(val, 5, 0);
-		if (dt == MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT) {
+		if (dt == MIPI_DSI_RX_ACKANALWLEDGE_AND_ERROR_REPORT) {
 			u16 err = FLD_GET(val, 23, 8);
 			dsi_show_rx_ack_with_err(err);
 		} else if (dt == MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE) {
@@ -1989,7 +1989,7 @@ static u16 dsi_vc_flush_receive_data(struct dsi_data *dsi, int vc)
 					FLD_GET(val, 23, 8));
 			dsi_vc_flush_long_data(dsi, vc);
 		} else {
-			DSSERR("\tunknown datatype 0x%02x\n", dt);
+			DSSERR("\tunkanalwn datatype 0x%02x\n", dt);
 		}
 	}
 	return 0;
@@ -2002,9 +2002,9 @@ static int dsi_vc_send_bta(struct dsi_data *dsi, int vc)
 
 	WARN_ON(!dsi_bus_is_locked(dsi));
 
-	/* RX_FIFO_NOT_EMPTY */
+	/* RX_FIFO_ANALT_EMPTY */
 	if (REG_GET(dsi, DSI_VC_CTRL(vc), 20, 20)) {
-		DSSERR("rx fifo not empty when sending BTA, dumping data:\n");
+		DSSERR("rx fifo analt empty when sending BTA, dumping data:\n");
 		dsi_vc_flush_receive_data(dsi, vc);
 	}
 
@@ -2206,7 +2206,7 @@ static int dsi_vc_write_common(struct omap_dss_device *dssdev, int vc,
 		return r;
 
 	/*
-	 * TODO: we do not always have to do the BTA sync, for example
+	 * TODO: we do analt always have to do the BTA sync, for example
 	 * we can improve performance by setting the update window
 	 * information without sending BTA sync between the commands.
 	 * In that case we can return early.
@@ -2218,9 +2218,9 @@ static int dsi_vc_write_common(struct omap_dss_device *dssdev, int vc,
 		return r;
 	}
 
-	/* RX_FIFO_NOT_EMPTY */
+	/* RX_FIFO_ANALT_EMPTY */
 	if (REG_GET(dsi, DSI_VC_CTRL(vc), 20, 20)) {
-		DSSERR("rx fifo not empty after write, dumping data:\n");
+		DSSERR("rx fifo analt empty after write, dumping data:\n");
 		dsi_vc_flush_receive_data(dsi, vc);
 		return -EIO;
 	}
@@ -2235,7 +2235,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int vc, u8 *buf,
 	u8 dt;
 	int r;
 
-	/* RX_FIFO_NOT_EMPTY */
+	/* RX_FIFO_ANALT_EMPTY */
 	if (REG_GET(dsi, DSI_VC_CTRL(vc), 20, 20) == 0) {
 		DSSERR("RX fifo empty when trying to read.\n");
 		r = -EIO;
@@ -2246,7 +2246,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int vc, u8 *buf,
 	if (dsi->debug_read)
 		DSSDBG("\theader: %08x\n", val);
 	dt = FLD_GET(val, 5, 0);
-	if (dt == MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT) {
+	if (dt == MIPI_DSI_RX_ACKANALWLEDGE_AND_ERROR_REPORT) {
 		u16 err = FLD_GET(val, 23, 8);
 		dsi_show_rx_ack_with_err(err);
 		r = -EIO;
@@ -2302,7 +2302,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int vc, u8 *buf,
 			goto err;
 		}
 
-		/* two byte checksum ends the packet, not included in len */
+		/* two byte checksum ends the packet, analt included in len */
 		for (w = 0; w < len + 2;) {
 			int b;
 			val = dsi_read_reg(dsi,
@@ -2324,7 +2324,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int vc, u8 *buf,
 
 		return len;
 	} else {
-		DSSERR("\tunknown datatype 0x%02x\n", dt);
+		DSSERR("\tunkanalwn datatype 0x%02x\n", dt);
 		r = -EIO;
 		goto err;
 	}
@@ -3110,7 +3110,7 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 	bytespl = w * bytespp;
 	bytespf = bytespl * h;
 
-	/* NOTE: packet_payload has to be equal to N * bytespl, where N is
+	/* ANALTE: packet_payload has to be equal to N * bytespl, where N is
 	 * number of lines in a packet.  See errata about VP_CLK_RATIO */
 
 	if (bytespf < line_buf_size)
@@ -3136,10 +3136,10 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 		l = FLD_MOD(l, 1, 31, 31); /* TE_START */
 	dsi_write_reg(dsi, DSI_VC_TE(vc), l);
 
-	/* We put SIDLEMODE to no-idle for the duration of the transfer,
-	 * because DSS interrupts are not capable of waking up the CPU and the
+	/* We put SIDLEMODE to anal-idle for the duration of the transfer,
+	 * because DSS interrupts are analt capable of waking up the CPU and the
 	 * framedone interrupt could be delayed for quite a long time. I think
-	 * the same goes for any DSS interrupts, but for some reason I have not
+	 * the same goes for any DSS interrupts, but for some reason I have analt
 	 * seen the problem anywhere else than here.
 	 */
 	dispc_disable_sidle(dsi->dss->dispc);
@@ -3168,7 +3168,7 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 #ifdef DSI_CATCH_MISSING_TE
 static void dsi_te_timeout(struct timer_list *unused)
 {
-	DSSERR("TE not received for 250ms!\n");
+	DSSERR("TE analt received for 250ms!\n");
 }
 #endif
 
@@ -3199,7 +3199,7 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 	 * on the HW is buggy, and would probably require resetting the whole
 	 * DSI */
 
-	DSSERR("Framedone not received for 250ms!\n");
+	DSSERR("Framedone analt received for 250ms!\n");
 
 	dsi_handle_framedone(dsi, -ETIMEDOUT);
 }
@@ -3208,7 +3208,7 @@ static void dsi_framedone_irq_callback(void *data)
 {
 	struct dsi_data *dsi = data;
 
-	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
+	/* Analte: We get FRAMEDONE when DISPC has finished sending pixels and
 	 * turns itself off. However, DSI still has the pixels in its buffers,
 	 * and is sending the data.
 	 */
@@ -3233,9 +3233,9 @@ static int _dsi_update(struct dsi_data *dsi)
 	return 0;
 }
 
-static int _dsi_send_nop(struct dsi_data *dsi, int vc, int channel)
+static int _dsi_send_analp(struct dsi_data *dsi, int vc, int channel)
 {
-	const u8 payload[] = { MIPI_DCS_NOP };
+	const u8 payload[] = { MIPI_DCS_ANALP };
 	const struct mipi_dsi_msg msg = {
 		.channel = channel,
 		.type = MIPI_DSI_DCS_SHORT_WRITE,
@@ -3268,13 +3268,13 @@ static int dsi_update_channel(struct omap_dss_device *dssdev, int vc)
 	DSSDBG("dsi_update_channel: %d", vc);
 
 	/*
-	 * Send NOP between the frames. If we don't send something here, the
+	 * Send ANALP between the frames. If we don't send something here, the
 	 * updates stop working. This is probably related to DSI spec stating
 	 * that the DSI host should transition to LP at least once per frame.
 	 */
-	r = _dsi_send_nop(dsi, VC_CMD, dsi->dsidev->channel);
+	r = _dsi_send_analp(dsi, VC_CMD, dsi->dsidev->channel);
 	if (r < 0) {
-		DSSWARN("failed to send nop between frames: %d\n", r);
+		DSSWARN("failed to send analp between frames: %d\n", r);
 		goto err;
 	}
 
@@ -3422,7 +3422,7 @@ static void dsi_setup_dsi_vcs(struct dsi_data *dsi)
 	dsi_force_tx_stop_mode_io(dsi);
 
 	/* start the DDR clock by sending a NULL packet */
-	if (!(dsi->dsidev->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+	if (!(dsi->dsidev->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS))
 		dsi_vc_send_null(dsi, VC_CMD, dsi->dsidev->channel);
 }
 
@@ -3633,7 +3633,7 @@ static void print_dispc_vm(const char *str, const struct videomode *vm)
 #undef TO_DISPC_T
 }
 
-/* note: this is not quite accurate */
+/* analte: this is analt quite accurate */
 static void print_dsi_dispc_vm(const char *str,
 		const struct omap_dss_dsi_videomode_timings *t)
 {
@@ -3723,7 +3723,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 
 	/*
 	 * Here we should calculate minimum txbyteclk to be able to send the
-	 * frame in time, and also to handle TE. That's not very simple, though,
+	 * frame in time, and also to handle TE. That's analt very simple, though,
 	 * especially as we go to LP between each pixel packet due to HW
 	 * "feature". So let's just estimate very roughly and multiply by 1.5.
 	 */
@@ -3736,7 +3736,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	ctx->pll = &dsi->pll;
 	ctx->config = cfg;
 	ctx->req_pck_min = pck;
-	ctx->req_pck_nom = pck;
+	ctx->req_pck_analm = pck;
 	ctx->req_pck_max = pck * 3 / 2;
 
 	pll_min = max(cfg->hs_clk_min * 4, txbyteclk * 4 * 4);
@@ -3756,7 +3756,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	unsigned long hsclk = ctx->dsi_cinfo.clkdco / 4;
 	unsigned long byteclk = hsclk / 4;
 
-	unsigned long dispc_pck, req_pck_min, req_pck_nom, req_pck_max;
+	unsigned long dispc_pck, req_pck_min, req_pck_analm, req_pck_max;
 	int xres;
 	int panel_htot, panel_hbl; /* pixels */
 	int dispc_htot, dispc_hbl; /* pixels */
@@ -3772,7 +3772,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	req_vm = cfg->vm;
 	req_pck_min = ctx->req_pck_min;
 	req_pck_max = ctx->req_pck_max;
-	req_pck_nom = ctx->req_pck_nom;
+	req_pck_analm = ctx->req_pck_analm;
 
 	dispc_pck = ctx->dispc_cinfo.pck;
 	dispc_tput = (u64)dispc_pck * bitspp;
@@ -3786,7 +3786,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(xres * bitspp, 8) + 6, ndl);
 
 	/*
-	 * When there are no line buffers, DISPC and DSI must have the
+	 * When there are anal line buffers, DISPC and DSI must have the
 	 * same tput. Otherwise DISPC tput needs to be higher than DSI's.
 	 */
 	if (dsi->line_buffer_size < xres * bitspp / 8) {
@@ -3801,7 +3801,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	if (dsi_tput < (u64)bitspp * req_pck_min)
 		return false;
 
-	/* When non-burst mode, DSI tput must be below max requirement. */
+	/* When analn-burst mode, DSI tput must be below max requirement. */
 	if (cfg->trans_mode != OMAP_DSS_DSI_BURST_MODE) {
 		if (dsi_tput > (u64)bitspp * req_pck_max)
 			return false;
@@ -3818,10 +3818,10 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 		hse = 0;
 	}
 
-	/* DSI htot to match the panel's nominal pck */
-	dsi_htot = div64_u64((u64)panel_htot * byteclk, req_pck_nom);
+	/* DSI htot to match the panel's analminal pck */
+	dsi_htot = div64_u64((u64)panel_htot * byteclk, req_pck_analm);
 
-	/* fail if there would be no time for blanking */
+	/* fail if there would be anal time for blanking */
 	if (dsi_htot < hss + hse + dsi_hact)
 		return false;
 
@@ -3852,11 +3852,11 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	} else if (ndl == 3 && req_vm->hsync_len == 0) {
 		hsa = 0;
 	} else {
-		hsa = div64_u64((u64)req_vm->hsync_len * byteclk, req_pck_nom);
+		hsa = div64_u64((u64)req_vm->hsync_len * byteclk, req_pck_analm);
 		hsa = max(hsa - hse, 1);
 	}
 
-	hbp = div64_u64((u64)req_vm->hback_porch * byteclk, req_pck_nom);
+	hbp = div64_u64((u64)req_vm->hback_porch * byteclk, req_pck_analm);
 	hbp = max(hbp, 1);
 
 	hfp = dsi_hbl - (hss + hsa + hse + hbp);
@@ -3908,13 +3908,13 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	if (cfg->trans_mode == OMAP_DSS_DSI_PULSE_MODE) {
 		hsa = div64_u64((u64)req_vm->hsync_len * dispc_pck,
-				req_pck_nom);
+				req_pck_analm);
 		hsa = max(hsa, 1);
 	} else {
 		hsa = 1;
 	}
 
-	hbp = div64_u64((u64)req_vm->hback_porch * dispc_pck, req_pck_nom);
+	hbp = div64_u64((u64)req_vm->hback_porch * dispc_pck, req_pck_analm);
 	hbp = max(hbp, 1);
 
 	hfp = dispc_hbl - hsa - hbp;
@@ -3979,7 +3979,7 @@ static bool dsi_vm_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 
 	/*
 	 * In burst mode we can let the dispc pck be arbitrarily high, but it
-	 * limits our scaling abilities. So for now, don't aim too high.
+	 * limits our scaling abilities. So for analw, don't aim too high.
 	 */
 
 	if (ctx->config->trans_mode == OMAP_DSS_DSI_BURST_MODE)
@@ -4029,7 +4029,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 
 	/* these limits should come from the panel driver */
 	ctx->req_pck_min = vm->pixelclock - 1000;
-	ctx->req_pck_nom = vm->pixelclock;
+	ctx->req_pck_analm = vm->pixelclock;
 	ctx->req_pck_max = vm->pixelclock + 1000;
 
 	byteclk_min = div64_u64((u64)ctx->req_pck_min * bitspp, ndl * 8);
@@ -4297,7 +4297,7 @@ static void omap_dsi_te_timeout_work_callback(struct work_struct *work)
 
 	old = atomic_cmpxchg(&dsi->do_ext_te_update, 1, 0);
 	if (old) {
-		dev_err(dsi->dev, "TE not received for 250ms!\n");
+		dev_err(dsi->dev, "TE analt received for 250ms!\n");
 		_dsi_update(dsi);
 	}
 }
@@ -4312,12 +4312,12 @@ static int omap_dsi_register_te_irq(struct dsi_data *dsi,
 	if (IS_ERR(dsi->te_gpio)) {
 		err = PTR_ERR(dsi->te_gpio);
 
-		if (err == -ENOENT) {
+		if (err == -EANALENT) {
 			dsi->te_gpio = NULL;
 			return 0;
 		}
 
-		dev_err(dsi->dev, "Could not get TE gpio: %d\n", err);
+		dev_err(dsi->dev, "Could analt get TE gpio: %d\n", err);
 		return err;
 	}
 
@@ -4330,7 +4330,7 @@ static int omap_dsi_register_te_irq(struct dsi_data *dsi,
 
 	dsi->te_irq = te_irq;
 
-	irq_set_status_flags(te_irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(te_irq, IRQ_ANALAUTOEN);
 
 	err = request_threaded_irq(te_irq, NULL, omap_dsi_te_irq_handler,
 				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
@@ -4621,7 +4621,7 @@ static int dsi_bridge_attach(struct drm_bridge *bridge,
 {
 	struct dsi_data *dsi = drm_bridge_to_dsi(bridge);
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	return drm_bridge_attach(bridge->encoder, dsi->output.next_bridge,
@@ -4701,7 +4701,7 @@ static const struct drm_bridge_funcs dsi_bridge_funcs = {
 static void dsi_bridge_init(struct dsi_data *dsi)
 {
 	dsi->bridge.funcs = &dsi_bridge_funcs;
-	dsi->bridge.of_node = dsi->host.dev->of_node;
+	dsi->bridge.of_analde = dsi->host.dev->of_analde;
 	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
 
 	drm_bridge_add(&dsi->bridge);
@@ -4758,14 +4758,14 @@ static void dsi_uninit_output(struct dsi_data *dsi)
 
 static int dsi_probe_of(struct dsi_data *dsi)
 {
-	struct device_node *node = dsi->dev->of_node;
+	struct device_analde *analde = dsi->dev->of_analde;
 	struct property *prop;
 	u32 lane_arr[10];
 	int len, num_pins;
 	int r;
-	struct device_node *ep;
+	struct device_analde *ep;
 
-	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(analde, 0, 0);
 	if (!ep)
 		return 0;
 
@@ -4797,12 +4797,12 @@ static int dsi_probe_of(struct dsi_data *dsi)
 		goto err;
 	}
 
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return 0;
 
 err:
-	of_node_put(ep);
+	of_analde_put(ep);
 	return r;
 }
 
@@ -4895,7 +4895,7 @@ static int dsi_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsi->dev = dev;
 	dev_set_drvdata(dev, dsi);
@@ -4937,7 +4937,7 @@ static int dsi_probe(struct platform_device *pdev)
 	dsi->irq = platform_get_irq(pdev, 0);
 	if (dsi->irq < 0) {
 		DSSERR("platform_get_irq failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	r = devm_request_irq(dev, dsi->irq, omap_dsi_irq_handler,
@@ -4958,7 +4958,7 @@ static int dsi_probe(struct platform_device *pdev)
 	if (soc)
 		dsi->data = soc->data;
 	else
-		dsi->data = of_match_node(dsi_of_match, dev->of_node)->data;
+		dsi->data = of_match_analde(dsi_of_match, dev->of_analde)->data;
 
 	d = dsi->data->modules;
 	while (d->address != 0 && d->address != dsi_mem->start)
@@ -4966,27 +4966,27 @@ static int dsi_probe(struct platform_device *pdev)
 
 	if (d->address == 0) {
 		DSSERR("unsupported DSI module\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dsi->module_id = d->id;
 
 	if (dsi->data->model == DSI_MODEL_OMAP4 ||
 	    dsi->data->model == DSI_MODEL_OMAP5) {
-		struct device_node *np;
+		struct device_analde *np;
 
 		/*
 		 * The OMAP4/5 display DT bindings don't reference the padconf
 		 * syscon. Our only option to retrieve it is to find it by name.
 		 */
-		np = of_find_node_by_name(NULL,
+		np = of_find_analde_by_name(NULL,
 			dsi->data->model == DSI_MODEL_OMAP4 ?
 			"omap4_padconf_global" : "omap5_padconf_global");
 		if (!np)
-			return -ENODEV;
+			return -EANALDEV;
 
-		dsi->syscon = syscon_node_to_regmap(np);
-		of_node_put(np);
+		dsi->syscon = syscon_analde_to_regmap(np);
+		of_analde_put(np);
 	}
 
 	/* DSI VCs initialization */

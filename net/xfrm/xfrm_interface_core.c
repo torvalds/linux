@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
 #include <linux/icmp.h>
@@ -92,7 +92,7 @@ static int xfrmi_build_state(struct net *net, struct nlattr *nla,
 	new_state = lwtunnel_state_alloc(sizeof(*info));
 	if (!new_state) {
 		NL_SET_ERR_MSG(extack, "failed to create encap info");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	new_state->type = LWTUNNEL_ENCAP_XFRM;
@@ -297,7 +297,7 @@ static void xfrmi_scrub_packet(struct sk_buff *skb, bool xnet)
 	skb_clear_tstamp(skb);
 	skb->pkt_type = PACKET_HOST;
 	skb->skb_iif = 0;
-	skb->ignore_df = 0;
+	skb->iganalre_df = 0;
 	skb_dst_drop(skb);
 	nf_reset_ct(skb);
 	nf_reset_trace(skb);
@@ -411,7 +411,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 
 		md_dst = metadata_dst_alloc(0, METADATA_XFRM, GFP_ATOMIC);
 		if (!md_dst)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		md_dst->u.xfrm_info.if_id = x->if_id;
 		md_dst->u.xfrm_info.link = link;
@@ -481,7 +481,7 @@ xfrmi_xmit2(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	mtu = dst_mtu(dst);
 	if ((!skb_is_gso(skb) && skb->len > mtu) ||
 	    (skb_is_gso(skb) && !skb_gso_validate_network_len(skb, mtu))) {
-		skb_dst_update_pmtu_no_confirm(skb, mtu);
+		skb_dst_update_pmtu_anal_confirm(skb, mtu);
 
 		if (skb->protocol == htons(ETH_P_IPV6)) {
 			if (mtu < IPV6_MIN_MTU)
@@ -742,11 +742,11 @@ static void xfrmi_dev_setup(struct net_device *dev)
 {
 	dev->netdev_ops 	= &xfrmi_netdev_ops;
 	dev->header_ops		= &ip_tunnel_header_ops;
-	dev->type		= ARPHRD_NONE;
+	dev->type		= ARPHRD_ANALNE;
 	dev->mtu		= ETH_DATA_LEN;
 	dev->min_mtu		= ETH_MIN_MTU;
 	dev->max_mtu		= IP_MAX_MTU;
-	dev->flags 		= IFF_NOARP;
+	dev->flags 		= IFF_ANALARP;
 	dev->needs_free_netdev	= true;
 	dev->priv_destructor	= xfrmi_dev_free;
 	netif_keep_dst(dev);
@@ -767,7 +767,7 @@ static int xfrmi_dev_init(struct net_device *dev)
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = gro_cells_init(&xi->gro_cells, dev);
 	if (err) {
@@ -843,7 +843,7 @@ static int xfrmi_newlink(struct net *src_net, struct net_device *dev,
 
 	} else {
 		if (!p.if_id) {
-			NL_SET_ERR_MSG(extack, "if_id must be non zero");
+			NL_SET_ERR_MSG(extack, "if_id must be analn zero");
 			return -EINVAL;
 		}
 
@@ -876,7 +876,7 @@ static int xfrmi_changelink(struct net_device *dev, struct nlattr *tb[],
 
 	xfrmi_netlink_parms(data, &p);
 	if (!p.if_id) {
-		NL_SET_ERR_MSG(extack, "if_id must be non zero");
+		NL_SET_ERR_MSG(extack, "if_id must be analn zero");
 		return -EINVAL;
 	}
 

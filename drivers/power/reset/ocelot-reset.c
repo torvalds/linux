@@ -7,7 +7,7 @@
  */
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mod_devicetable.h>
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
@@ -26,7 +26,7 @@ struct ocelot_reset_context {
 	void __iomem *base;
 	struct regmap *cpu_ctrl;
 	const struct reset_props *props;
-	struct notifier_block restart_handler;
+	struct analtifier_block restart_handler;
 };
 
 #define BIT_OFF_INVALID				32
@@ -39,7 +39,7 @@ struct ocelot_reset_context {
 #define IF_SI_OWNER_SIBM			1
 #define IF_SI_OWNER_SIMC			2
 
-static int ocelot_restart_handle(struct notifier_block *this,
+static int ocelot_restart_handle(struct analtifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	struct ocelot_reset_context *ctx = container_of(this, struct
@@ -47,7 +47,7 @@ static int ocelot_restart_handle(struct notifier_block *this,
 							restart_handler);
 	u32 if_si_owner_bit = ctx->props->if_si_owner_bit;
 
-	/* Make sure the core is not protected from reset */
+	/* Make sure the core is analt protected from reset */
 	regmap_update_bits(ctx->cpu_ctrl, ctx->props->protect_reg,
 			   ctx->props->vcore_protect, 0);
 
@@ -63,7 +63,7 @@ static int ocelot_restart_handle(struct notifier_block *this,
 	writel(SOFT_CHIP_RST, ctx->base);
 
 	pr_emerg("Unable to restart system\n");
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int ocelot_reset_probe(struct platform_device *pdev)
@@ -74,7 +74,7 @@ static int ocelot_reset_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->base))
@@ -84,15 +84,15 @@ static int ocelot_reset_probe(struct platform_device *pdev)
 
 	ctx->cpu_ctrl = syscon_regmap_lookup_by_compatible(ctx->props->syscon);
 	if (IS_ERR(ctx->cpu_ctrl)) {
-		dev_err(dev, "No syscon map: %s\n", ctx->props->syscon);
+		dev_err(dev, "Anal syscon map: %s\n", ctx->props->syscon);
 		return PTR_ERR(ctx->cpu_ctrl);
 	}
 
-	ctx->restart_handler.notifier_call = ocelot_restart_handle;
+	ctx->restart_handler.analtifier_call = ocelot_restart_handle;
 	ctx->restart_handler.priority = 192;
 	err = register_restart_handler(&ctx->restart_handler);
 	if (err)
-		dev_err(dev, "can't register restart notifier (err=%d)\n", err);
+		dev_err(dev, "can't register restart analtifier (err=%d)\n", err);
 
 	return err;
 }

@@ -70,7 +70,7 @@ static int run_test(int cgroup_fd, int server_fd, int family, int type)
 	prog = bpf_object__find_program_by_name(obj, v4 ?
 						"connect4" :
 						"connect6");
-	if (CHECK(!prog, "find_prog", "connect prog not found\n")) {
+	if (CHECK(!prog, "find_prog", "connect prog analt found\n")) {
 		err = -EIO;
 		goto close_bpf_object;
 	}
@@ -86,7 +86,7 @@ static int run_test(int cgroup_fd, int server_fd, int family, int type)
 	prog = bpf_object__find_program_by_name(obj, v4 ?
 						"getpeername4" :
 						"getpeername6");
-	if (CHECK(!prog, "find_prog", "getpeername prog not found\n")) {
+	if (CHECK(!prog, "find_prog", "getpeername prog analt found\n")) {
 		err = -EIO;
 		goto close_bpf_object;
 	}
@@ -102,7 +102,7 @@ static int run_test(int cgroup_fd, int server_fd, int family, int type)
 	prog = bpf_object__find_program_by_name(obj, v4 ?
 						"getsockname4" :
 						"getsockname6");
-	if (CHECK(!prog, "find_prog", "getsockname prog not found\n")) {
+	if (CHECK(!prog, "find_prog", "getsockname prog analt found\n")) {
 		err = -EIO;
 		goto close_bpf_object;
 	}

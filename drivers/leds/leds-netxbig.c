@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 LaCie
  *
- * Author: Simon Guinot <sguinot@lacie.com>
+ * Author: Simon Guianalt <sguianalt@lacie.com>
  */
 
 #include <linux/module.h>
@@ -193,7 +193,7 @@ static void netxbig_led_set(struct led_classdev *led_cdev,
 	gpio_ext_set_value(led_dat->gpio_ext, led_dat->mode_addr, mode_val);
 	led_dat->mode = mode;
 	/*
-	 * Note that the brightness register is shared between all the
+	 * Analte that the brightness register is shared between all the
 	 * SATA LEDs. So, change the brightness setting for a single
 	 * SATA LED will affect all the others.
 	 */
@@ -286,11 +286,11 @@ static int create_netxbig_led(struct platform_device *pdev,
 	led_dat->cdev.brightness_set = netxbig_led_set;
 	/*
 	 * Because the GPIO extension bus don't allow to read registers
-	 * value, there is no way to probe the LED initial state.
+	 * value, there is anal way to probe the LED initial state.
 	 * So, the initial sysfs LED value for the "brightness" and "sata"
 	 * attributes are inconsistent.
 	 *
-	 * Note that the initial LED state can't be reconfigured.
+	 * Analte that the initial LED state can't be reconfigured.
 	 * The reason is that the LED behaviour must stay uniform during
 	 * the whole boot process (bootloader+linux).
 	 */
@@ -317,7 +317,7 @@ static int create_netxbig_led(struct platform_device *pdev,
  * netxbig_gpio_ext_remove() - Clean up GPIO extension data
  * @data: managed resource data to clean up
  *
- * Since we pick GPIO descriptors from another device than the device our
+ * Since we pick GPIO descriptors from aanalther device than the device our
  * driver is probing to, we need to register a specific callback to free
  * these up using managed resources.
  */
@@ -362,12 +362,12 @@ static int netxbig_gpio_ext_get(struct device *dev,
 	num_addr = ret;
 	addr = devm_kcalloc(dev, num_addr, sizeof(*addr), GFP_KERNEL);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * We cannot use devm_ managed resources with these GPIO descriptors
+	 * We cananalt use devm_ managed resources with these GPIO descriptors
 	 * since they are associated with the "GPIO extension device" which
-	 * does not probe any driver. The device tree parser will however
+	 * does analt probe any driver. The device tree parser will however
 	 * populate a platform device for it so we can anyway obtain the
 	 * GPIO descriptors from the device.
 	 */
@@ -391,7 +391,7 @@ static int netxbig_gpio_ext_get(struct device *dev,
 	num_data = ret;
 	data = devm_kcalloc(dev, num_data, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_data; i++) {
 		gpiod = gpiod_get_index(gpio_ext_dev, "data", i,
@@ -419,11 +419,11 @@ static int netxbig_gpio_ext_get(struct device *dev,
 static int netxbig_leds_get_of_pdata(struct device *dev,
 				     struct netxbig_led_platform_data *pdata)
 {
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *gpio_ext_np;
+	struct device_analde *np = dev_of_analde(dev);
+	struct device_analde *gpio_ext_np;
 	struct platform_device *gpio_ext_pdev;
 	struct device *gpio_ext_dev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct netxbig_gpio_ext *gpio_ext;
 	struct netxbig_led_timer *timers;
 	struct netxbig_led *leds, *led;
@@ -438,21 +438,21 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		dev_err(dev, "Failed to get DT handle gpio-ext\n");
 		return -EINVAL;
 	}
-	gpio_ext_pdev = of_find_device_by_node(gpio_ext_np);
+	gpio_ext_pdev = of_find_device_by_analde(gpio_ext_np);
 	if (!gpio_ext_pdev) {
 		dev_err(dev, "Failed to find platform device for gpio-ext\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	gpio_ext_dev = &gpio_ext_pdev->dev;
 
 	gpio_ext = devm_kzalloc(dev, sizeof(*gpio_ext), GFP_KERNEL);
 	if (!gpio_ext) {
-		of_node_put(gpio_ext_np);
-		ret = -ENOMEM;
+		of_analde_put(gpio_ext_np);
+		ret = -EANALMEM;
 		goto put_device;
 	}
 	ret = netxbig_gpio_ext_get(dev, gpio_ext_dev, gpio_ext);
-	of_node_put(gpio_ext_np);
+	of_analde_put(gpio_ext_np);
 	if (ret)
 		goto put_device;
 	pdata->gpio_ext = gpio_ext;
@@ -469,7 +469,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		timers = devm_kcalloc(dev, num_timers, sizeof(*timers),
 				      GFP_KERNEL);
 		if (!timers) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_device;
 		}
 		for (i = 0; i < num_timers; i++) {
@@ -495,19 +495,19 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 	/* LEDs */
 	num_leds = of_get_available_child_count(np);
 	if (!num_leds) {
-		dev_err(dev, "No LED subnodes found in DT\n");
-		ret = -ENODEV;
+		dev_err(dev, "Anal LED subanaldes found in DT\n");
+		ret = -EANALDEV;
 		goto put_device;
 	}
 
 	leds = devm_kcalloc(dev, num_leds, sizeof(*leds), GFP_KERNEL);
 	if (!leds) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_device;
 	}
 
 	led = leds;
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		const char *string;
 		int *mode_val;
 		int num_modes;
@@ -515,25 +515,25 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		ret = of_property_read_u32(child, "mode-addr",
 					   &led->mode_addr);
 		if (ret)
-			goto err_node_put;
+			goto err_analde_put;
 
 		ret = of_property_read_u32(child, "bright-addr",
 					   &led->bright_addr);
 		if (ret)
-			goto err_node_put;
+			goto err_analde_put;
 
 		ret = of_property_read_u32(child, "max-brightness",
 					   &led->bright_max);
 		if (ret)
-			goto err_node_put;
+			goto err_analde_put;
 
 		mode_val =
 			devm_kcalloc(dev,
 				     NETXBIG_LED_MODE_NUM, sizeof(*mode_val),
 				     GFP_KERNEL);
 		if (!mode_val) {
-			ret = -ENOMEM;
-			goto err_node_put;
+			ret = -EANALMEM;
+			goto err_analde_put;
 		}
 
 		for (i = 0; i < NETXBIG_LED_MODE_NUM; i++)
@@ -542,12 +542,12 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		ret = of_property_count_u32_elems(child, "mode-val");
 		if (ret < 0 || ret % 2) {
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_analde_put;
 		}
 		num_modes = ret / 2;
 		if (num_modes > NETXBIG_LED_MODE_NUM) {
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		for (i = 0; i < num_modes; i++) {
@@ -560,7 +560,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 						   "mode-val", 2 * i + 1, &val);
 			if (mode >= NETXBIG_LED_MODE_NUM) {
 				ret = -EINVAL;
-				goto err_node_put;
+				goto err_analde_put;
 			}
 			mode_val[mode] = val;
 		}
@@ -583,8 +583,8 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 
 	return 0;
 
-err_node_put:
-	of_node_put(child);
+err_analde_put:
+	of_analde_put(child);
 put_device:
 	put_device(gpio_ext_dev);
 	return ret;
@@ -605,7 +605,7 @@ static int netxbig_led_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = netxbig_leds_get_of_pdata(&pdev->dev, pdata);
 	if (ret)
 		return ret;
@@ -614,7 +614,7 @@ static int netxbig_led_probe(struct platform_device *pdev)
 				 pdata->num_leds, sizeof(*leds_data),
 				 GFP_KERNEL);
 	if (!leds_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pdata->num_leds; i++) {
 		ret = create_netxbig_led(pdev, pdata,
@@ -636,7 +636,7 @@ static struct platform_driver netxbig_led_driver = {
 
 module_platform_driver(netxbig_led_driver);
 
-MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
+MODULE_AUTHOR("Simon Guianalt <sguianalt@lacie.com>");
 MODULE_DESCRIPTION("LED driver for LaCie xBig Network boards");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:leds-netxbig");

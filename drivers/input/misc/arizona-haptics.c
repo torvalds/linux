@@ -39,7 +39,7 @@ static void arizona_haptics_work(struct work_struct *work)
 	int ret;
 
 	if (!haptics->arizona->dapm) {
-		dev_err(arizona->dev, "No DAPM context\n");
+		dev_err(arizona->dev, "Anal DAPM context\n");
 		return;
 	}
 
@@ -54,7 +54,7 @@ static void arizona_haptics_work(struct work_struct *work)
 			return;
 		}
 
-		/* This enable sequence will be a noop if already enabled */
+		/* This enable sequence will be a analop if already enabled */
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_HAPTICS_CONTROL_1,
 					 ARIZONA_HAP_CTRL_MASK,
@@ -79,7 +79,7 @@ static void arizona_haptics_work(struct work_struct *work)
 			return;
 		}
 	} else {
-		/* This disable sequence will be a noop if already enabled */
+		/* This disable sequence will be a analop if already enabled */
 		ret = snd_soc_component_disable_pin(component, "HAPTICS");
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to disable HAPTICS: %d\n",
@@ -112,7 +112,7 @@ static int arizona_haptics_play(struct input_dev *input, void *data,
 	struct arizona *arizona = haptics->arizona;
 
 	if (!arizona->dapm) {
-		dev_err(arizona->dev, "No DAPM context\n");
+		dev_err(arizona->dev, "Anal DAPM context\n");
 		return -EBUSY;
 	}
 
@@ -157,7 +157,7 @@ static int arizona_haptics_probe(struct platform_device *pdev)
 
 	haptics = devm_kzalloc(&pdev->dev, sizeof(*haptics), GFP_KERNEL);
 	if (!haptics)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	haptics->arizona = arizona;
 
@@ -174,7 +174,7 @@ static int arizona_haptics_probe(struct platform_device *pdev)
 	haptics->input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!haptics->input_dev) {
 		dev_err(arizona->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_drvdata(haptics->input_dev, haptics);

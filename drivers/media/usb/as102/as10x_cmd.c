@@ -13,7 +13,7 @@
  * as10x_cmd_turn_on - send turn on command to AS10x
  * @adap:   pointer to AS10x bus adapter
  *
- * Return 0 when no error, < 0 in case of error.
+ * Return 0 when anal error, < 0 in case of error.
  */
 int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 {
@@ -28,7 +28,7 @@ int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 			sizeof(pcmd->body.turn_on.req));
 
 	/* fill command */
-	pcmd->body.turn_on.req.proc_id = cpu_to_le16(CONTROL_PROC_TURNON);
+	pcmd->body.turn_on.req.proc_id = cpu_to_le16(CONTROL_PROC_TURANALN);
 
 	/* send command */
 	if (adap->ops->xfer_cmd) {
@@ -44,7 +44,7 @@ int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 		goto out;
 
 	/* parse response */
-	error = as10x_rsp_parse(prsp, CONTROL_PROC_TURNON_RSP);
+	error = as10x_rsp_parse(prsp, CONTROL_PROC_TURANALN_RSP);
 
 out:
 	return error;
@@ -69,7 +69,7 @@ int as10x_cmd_turn_off(struct as10x_bus_adapter_t *adap)
 			sizeof(pcmd->body.turn_off.req));
 
 	/* fill command */
-	pcmd->body.turn_off.req.proc_id = cpu_to_le16(CONTROL_PROC_TURNOFF);
+	pcmd->body.turn_off.req.proc_id = cpu_to_le16(CONTROL_PROC_TURANALFF);
 
 	/* send command */
 	if (adap->ops->xfer_cmd) {
@@ -84,7 +84,7 @@ int as10x_cmd_turn_off(struct as10x_bus_adapter_t *adap)
 		goto out;
 
 	/* parse response */
-	error = as10x_rsp_parse(prsp, CONTROL_PROC_TURNOFF_RSP);
+	error = as10x_rsp_parse(prsp, CONTROL_PROC_TURANALFF_RSP);
 
 out:
 	return error;

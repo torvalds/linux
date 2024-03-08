@@ -8,7 +8,7 @@
 #include <linux/spinlock.h>
 #include <asm-generic/mm_hooks.h>
 
-/* on PA-RISC, we actually have enough contexts to justify an allocator
+/* on PA-RISC, we actually have eanalugh contexts to justify an allocator
  * for them.  prumpf */
 
 extern unsigned long alloc_sid(void);

@@ -79,9 +79,9 @@ enum {
 #define REG_CR1_OUTSEL_OFFSET		0
 #define REG_CR1_OUTSEL_MASK		GENMASK(1, REG_CR1_OUTSEL_OFFSET)
 
-#define REG_CR2_DAC_MONO		BIT(7)
+#define REG_CR2_DAC_MOANAL		BIT(7)
 #define REG_CR2_DAC_MUTE		BIT(5)
-#define REG_CR2_DAC_NOMAD		BIT(1)
+#define REG_CR2_DAC_ANALMAD		BIT(1)
 #define REG_CR2_DAC_RIGHT_ONLY		BIT(0)
 
 #define REG_CR3_ADC_INSEL_OFFSET	2
@@ -237,7 +237,7 @@ static int jz4760_codec_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		/* do nothing */
+		/* do analthing */
 		break;
 	default:
 		ret = -EINVAL;
@@ -462,10 +462,10 @@ static const struct snd_soc_dapm_widget jz4760_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Line In", JZ4760_CODEC_REG_PMR1,
 			 REG_PMR1_SB_LINE_OFFSET, 1, NULL, 0),
 
-	SND_SOC_DAPM_MUX("Headphones Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Headphones Source", SND_SOC_ANALPM, 0, 0,
 			 &jz4760_codec_hp_source),
 
-	SND_SOC_DAPM_MUX("Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &jz4760_codec_cap_source),
 
 	SND_SOC_DAPM_PGA("Mic 1", JZ4760_CODEC_REG_PMR1,
@@ -477,7 +477,7 @@ static const struct snd_soc_dapm_widget jz4760_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Mic Diff", JZ4760_CODEC_REG_CR3,
 			 REG_CR3_MICDIFF_OFFSET, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("Mic", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mic", SND_SOC_ANALPM, 0, 0,
 			   jz4760_codec_mic_controls,
 			   ARRAY_SIZE(jz4760_codec_mic_controls)),
 
@@ -490,11 +490,11 @@ static const struct snd_soc_dapm_widget jz4760_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", "Playback", JZ4760_CODEC_REG_PMR2,
 			 REG_PMR2_SB_DAC_OFFSET, 1),
 
-	SND_SOC_DAPM_MIXER("PCM Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM Playback", SND_SOC_ANALPM, 0, 0,
 			   jz4760_codec_pcm_playback_controls,
 			   ARRAY_SIZE(jz4760_codec_pcm_playback_controls)),
 
-	SND_SOC_DAPM_MIXER("Headphones Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Headphones Playback", SND_SOC_ANALPM, 0, 0,
 			   jz4760_codec_hp_playback_controls,
 			   ARRAY_SIZE(jz4760_codec_hp_playback_controls)),
 
@@ -607,9 +607,9 @@ static void jz4760_codec_codec_init_regs(struct snd_soc_component *codec)
 	/* 0: 16ohm/220uF, 1: 10kohm/1uF */
 	regmap_clear_bits(regmap, JZ4760_CODEC_REG_CR1, REG_CR1_HP_LOAD);
 
-	/* default to NOMAD */
+	/* default to ANALMAD */
 	regmap_set_bits(jz_codec->regmap, JZ4760_CODEC_REG_CR2,
-			REG_CR2_DAC_NOMAD);
+			REG_CR2_DAC_ANALMAD);
 
 	/* disable automatic gain */
 	regmap_clear_bits(regmap, JZ4760_CODEC_REG_AGC1, REG_AGC1_EN);
@@ -718,7 +718,7 @@ static const struct snd_soc_dai_ops jz4760_codec_dai_ops = {
 	.hw_params	= jz4760_codec_hw_params,
 	.trigger	= jz4760_codec_pcm_trigger,
 	.mute_stream	= jz4760_codec_mute_stream,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define JZ_CODEC_FORMATS (SNDRV_PCM_FMTBIT_S16_LE  | \
@@ -845,7 +845,7 @@ static int jz4760_codec_probe(struct platform_device *pdev)
 
 	codec = devm_kzalloc(dev, sizeof(*codec), GFP_KERNEL);
 	if (!codec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->dev = dev;
 

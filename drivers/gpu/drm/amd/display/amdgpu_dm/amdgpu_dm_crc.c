@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@
 #include "amdgpu_securedisplay.h"
 
 static const char *const pipe_crc_sources[] = {
-	"none",
+	"analne",
 	"crtc",
 	"crtc dither",
 	"dprx",
@@ -42,8 +42,8 @@ static const char *const pipe_crc_sources[] = {
 
 static enum amdgpu_dm_pipe_crc_source dm_parse_crc_source(const char *source)
 {
-	if (!source || !strcmp(source, "none"))
-		return AMDGPU_DM_PIPE_CRC_SOURCE_NONE;
+	if (!source || !strcmp(source, "analne"))
+		return AMDGPU_DM_PIPE_CRC_SOURCE_ANALNE;
 	if (!strcmp(source, "auto") || !strcmp(source, "crtc"))
 		return AMDGPU_DM_PIPE_CRC_SOURCE_CRTC;
 	if (!strcmp(source, "dprx"))
@@ -72,7 +72,7 @@ static bool dm_need_crc_dither(enum amdgpu_dm_pipe_crc_source src)
 {
 	return (src == AMDGPU_DM_PIPE_CRC_SOURCE_CRTC_DITHER) ||
 	       (src == AMDGPU_DM_PIPE_CRC_SOURCE_DPRX_DITHER) ||
-	       (src == AMDGPU_DM_PIPE_CRC_SOURCE_NONE);
+	       (src == AMDGPU_DM_PIPE_CRC_SOURCE_ANALNE);
 }
 
 const char *const *amdgpu_dm_crtc_get_crc_sources(struct drm_crtc *crtc,
@@ -104,13 +104,13 @@ static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc, struct dc_st
 	/* Disable secure_display if it was enabled */
 	if (was_activated) {
 		/* stop ROI update on this crtc */
-		flush_work(&dm->secure_display_ctxs[crtc->index].notify_ta_work);
+		flush_work(&dm->secure_display_ctxs[crtc->index].analtify_ta_work);
 		flush_work(&dm->secure_display_ctxs[crtc->index].forward_roi_work);
 		dc_stream_forward_crc_window(stream, NULL, true);
 	}
 }
 
-static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
+static void amdgpu_dm_crtc_analtify_ta_to_read(struct work_struct *work)
 {
 	struct secure_display_context *secure_display_ctx;
 	struct psp_context *psp;
@@ -120,7 +120,7 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	uint8_t phy_inst;
 	int ret;
 
-	secure_display_ctx = container_of(work, struct secure_display_context, notify_ta_work);
+	secure_display_ctx = container_of(work, struct secure_display_context, analtify_ta_work);
 	crtc = secure_display_ctx->crtc;
 
 	if (!crtc)
@@ -129,7 +129,7 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	psp = &drm_to_adev(crtc->dev)->psp;
 
 	if (!psp->securedisplay_context.context.initialized) {
-		DRM_DEBUG_DRIVER("Secure Display fails to notify PSP TA\n");
+		DRM_DEBUG_DRIVER("Secure Display fails to analtify PSP TA\n");
 		return;
 	}
 
@@ -200,7 +200,7 @@ amdgpu_dm_crtc_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
 
 	if (source < 0) {
-		DRM_DEBUG_DRIVER("Unknown CRC source %s for CRTC%d\n",
+		DRM_DEBUG_DRIVER("Unkanalwn CRC source %s for CRTC%d\n",
 				 src_name, crtc->index);
 		return -EINVAL;
 	}
@@ -225,7 +225,7 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 	mutex_lock(&adev->dm.dc_lock);
 
 	/* Enable or disable CRTC CRC generation */
-	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE) {
+	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_ANALNE) {
 		if (!dc_stream_configure_crc(stream_state->ctx->dc,
 					     stream_state, NULL, enable, enable)) {
 			ret = -EINVAL;
@@ -265,7 +265,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	int ret = 0;
 
 	if (source < 0) {
-		DRM_DEBUG_DRIVER("Unknown CRC source %s for CRTC%d\n",
+		DRM_DEBUG_DRIVER("Unkanalwn CRC source %s for CRTC%d\n",
 				 src_name, crtc->index);
 		return -EINVAL;
 	}
@@ -286,7 +286,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		 * Need to wait for all outstanding programming to complete
 		 * in commit tail since it can modify CRC related fields and
 		 * hardware state. Since we're holding the CRTC lock we're
-		 * guaranteed that no other commit work can be queued off
+		 * guaranteed that anal other commit work can be queued off
 		 * before we modify the state below.
 		 */
 		ret = wait_for_completion_interruptible_timeout(
@@ -304,18 +304,18 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	/*
 	 * USER REQ SRC | CURRENT SRC | BEHAVIOR
 	 * -----------------------------
-	 * None         | None        | Do nothing
-	 * None         | CRTC        | Disable CRTC CRC, set default to dither
-	 * None         | DPRX        | Disable DPRX CRC, need 'aux', set default to dither
-	 * None         | CRTC DITHER | Disable CRTC CRC
-	 * None         | DPRX DITHER | Disable DPRX CRC, need 'aux'
-	 * CRTC         | XXXX        | Enable CRTC CRC, no dither
-	 * DPRX         | XXXX        | Enable DPRX CRC, need 'aux', no dither
+	 * Analne         | Analne        | Do analthing
+	 * Analne         | CRTC        | Disable CRTC CRC, set default to dither
+	 * Analne         | DPRX        | Disable DPRX CRC, need 'aux', set default to dither
+	 * Analne         | CRTC DITHER | Disable CRTC CRC
+	 * Analne         | DPRX DITHER | Disable DPRX CRC, need 'aux'
+	 * CRTC         | XXXX        | Enable CRTC CRC, anal dither
+	 * DPRX         | XXXX        | Enable DPRX CRC, need 'aux', anal dither
 	 * CRTC DITHER  | XXXX        | Enable CRTC CRC, set dither
 	 * DPRX DITHER  | XXXX        | Enable DPRX CRC, need 'aux', set dither
 	 */
 	if (dm_is_crc_source_dprx(source) ||
-	    (source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE &&
+	    (source == AMDGPU_DM_PIPE_CRC_SOURCE_ANALNE &&
 	     dm_is_crc_source_dprx(cur_crc_src))) {
 		struct amdgpu_dm_connector *aconn = NULL;
 		struct drm_connector *connector;
@@ -335,7 +335,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		drm_connector_list_iter_end(&conn_iter);
 
 		if (!aconn) {
-			DRM_DEBUG_DRIVER("No amd connector matching CRTC-%d\n", crtc->index);
+			DRM_DEBUG_DRIVER("Anal amd connector matching CRTC-%d\n", crtc->index);
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -343,14 +343,14 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		aux = (aconn->mst_output_port) ? &aconn->mst_output_port->aux : &aconn->dm_dp_aux.aux;
 
 		if (!aux) {
-			DRM_DEBUG_DRIVER("No dp aux for amd connector\n");
+			DRM_DEBUG_DRIVER("Anal dp aux for amd connector\n");
 			ret = -EINVAL;
 			goto cleanup;
 		}
 
 		if ((aconn->base.connector_type != DRM_MODE_CONNECTOR_DisplayPort) &&
 				(aconn->base.connector_type != DRM_MODE_CONNECTOR_eDP)) {
-			DRM_DEBUG_DRIVER("No DP connector available for CRC source\n");
+			DRM_DEBUG_DRIVER("Anal DP connector available for CRC source\n");
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -440,13 +440,13 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 	cur_crc_src = acrtc->dm_irq_params.crc_src;
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
 
-	/* Early return if CRC capture is not enabled. */
+	/* Early return if CRC capture is analt enabled. */
 	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src))
 		return;
 
 	/*
-	 * Since flipping and crc enablement happen asynchronously, we - more
-	 * often than not - will be returning an 'uncooked' crc on first frame.
+	 * Since flipping and crc enablement happen asynchroanalusly, we - more
+	 * often than analt - will be returning an 'uncooked' crc on first frame.
 	 * Probably because hw isn't ready yet. For added security, skip the
 	 * first two CRC values.
 	 */
@@ -485,7 +485,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	spin_lock_irqsave(&drm_dev->event_lock, flags1);
 	cur_crc_src = acrtc->dm_irq_params.crc_src;
 
-	/* Early return if CRC capture is not enabled. */
+	/* Early return if CRC capture is analt enabled. */
 	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src) ||
 		!dm_is_crc_source_crtc(cur_crc_src))
 		goto cleanup;
@@ -527,7 +527,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 
 	} else {
 		/* prepare work for psp to read ROI/CRC and send to I2C */
-		schedule_work(&secure_display_ctx->notify_ta_work);
+		schedule_work(&secure_display_ctx->analtify_ta_work);
 	}
 
 cleanup:
@@ -549,7 +549,7 @@ amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		INIT_WORK(&secure_display_ctxs[i].forward_roi_work, amdgpu_dm_forward_crc_window);
-		INIT_WORK(&secure_display_ctxs[i].notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
+		INIT_WORK(&secure_display_ctxs[i].analtify_ta_work, amdgpu_dm_crtc_analtify_ta_to_read);
 		secure_display_ctxs[i].crtc = &adev->mode_info.crtcs[i]->base;
 	}
 

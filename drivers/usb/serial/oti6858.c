@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Ours Technology Inc. OTi-6858 USB to serial adapter driver.
+ * Ours Techanallogy Inc. OTi-6858 USB to serial adapter driver.
  *
  * Copyleft  (C) 2007 Kees Lemmens (adapted for kernel 2.6.20)
  * Copyright (C) 2006 Tomasz Michal Lukaszewski (FIXME: add e-mail)
@@ -13,7 +13,7 @@
  * Warning! You use this driver on your own risk! The only official
  * description of this device I have is datasheet from manufacturer,
  * and it doesn't contain almost any information needed to write a driver.
- * Almost all knowlegde used while writing this driver was gathered by:
+ * Almost all kanalwlegde used while writing this driver was gathered by:
  *  - analyzing traffic between device and the M$ Windows 2000 driver,
  *  - trying different bit combinations and checking pin states
  *    with a voltmeter,
@@ -35,7 +35,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -51,7 +51,7 @@
 #include "oti6858.h"
 
 #define OTI6858_DESCRIPTION \
-	"Ours Technology Inc. OTi-6858 USB to serial adapter driver"
+	"Ours Techanallogy Inc. OTi-6858 USB to serial adapter driver"
 #define OTI6858_AUTHOR "Tomasz Michal Lukaszewski <FIXME@FIXME>"
 
 static const struct usb_device_id id_table[] = {
@@ -80,7 +80,7 @@ struct oti6858_control_pkt {
 #define FMT_STOP_BITS_1		0x00
 #define FMT_STOP_BITS_2		0x40	/* 1.5 stop bits if FMT_DATA_BITS_5 */
 #define FMT_PARITY_MASK		0x38
-#define FMT_PARITY_NONE		0x00
+#define FMT_PARITY_ANALNE		0x00
 #define FMT_PARITY_ODD		0x08
 #define FMT_PARITY_EVEN		0x18
 #define FMT_PARITY_MARK		0x28
@@ -303,7 +303,7 @@ static void send_data(struct work_struct *work)
 		priv->flags.write_urb_in_use = 0;
 
 		dev_dbg(&port->dev, "%s(): submitting interrupt urb\n", __func__);
-		result = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);
+		result = usb_submit_urb(port->interrupt_in_urb, GFP_ANALIO);
 		if (result != 0) {
 			dev_err(&port->dev, "%s(): usb_submit_urb() failed with error %d\n",
 				__func__, result);
@@ -315,7 +315,7 @@ static void send_data(struct work_struct *work)
 					port->write_urb->transfer_buffer,
 					count, &port->lock);
 	port->write_urb->transfer_buffer_length = count;
-	result = usb_submit_urb(port->write_urb, GFP_NOIO);
+	result = usb_submit_urb(port->write_urb, GFP_ANALIO);
 	if (result != 0) {
 		dev_err_console(port, "%s(): usb_submit_urb() failed with error %d\n",
 				__func__, result);
@@ -331,7 +331,7 @@ static int oti6858_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	priv->port = port;
@@ -463,7 +463,7 @@ static void oti6858_set_termios(struct tty_struct *tty,
 		else
 			frame_fmt |= FMT_PARITY_EVEN;
 	} else {
-		frame_fmt |= FMT_PARITY_NONE;
+		frame_fmt |= FMT_PARITY_ANALNE;
 	}
 
 	control &= ~CONTROL_MASK;
@@ -511,7 +511,7 @@ static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	buf = kmalloc(OTI6858_CTRL_PKT_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 				OTI6858_REQ_T_GET_STATUS,
@@ -650,14 +650,14 @@ static void oti6858_read_int_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&urb->dev->dev, "%s(): urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&urb->dev->dev, "%s(): nonzero urb status received: %d\n",
+		dev_dbg(&urb->dev->dev, "%s(): analnzero urb status received: %d\n",
 			__func__, status);
 		break;
 	}
@@ -805,7 +805,7 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&urb->dev->dev, "%s(): urb shutting down with status: %d\n", __func__, status);
@@ -813,7 +813,7 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 		return;
 	default:
 		/* error in the urb, so we have to resubmit it */
-		dev_dbg(&urb->dev->dev, "%s(): nonzero write bulk status received: %d\n", __func__, status);
+		dev_dbg(&urb->dev->dev, "%s(): analnzero write bulk status received: %d\n", __func__, status);
 		dev_dbg(&urb->dev->dev, "%s(): overflow in write\n", __func__);
 
 		port->write_urb->transfer_buffer_length = 1;

@@ -29,7 +29,7 @@ DEFINE_PER_CPU(struct tick_device, tick_cpu_device);
 /*
  * Tick next event: keeps track of the tick time. It's updated by the
  * CPU which handles the tick and protected by jiffies_lock. There is
- * no requirement to write hold the jiffies seqcount for it.
+ * anal requirement to write hold the jiffies seqcount for it.
  */
 ktime_t tick_next_period;
 
@@ -42,13 +42,13 @@ ktime_t tick_next_period;
  *    timekeeping lock all at once. Only the CPU which is assigned to do the
  *    update is handling it.
  *
- * 2) Hand off the duty in the NOHZ idle case by setting the value to
- *    TICK_DO_TIMER_NONE, i.e. a non existing CPU. So the next cpu which looks
+ * 2) Hand off the duty in the ANALHZ idle case by setting the value to
+ *    TICK_DO_TIMER_ANALNE, i.e. a analn existing CPU. So the next cpu which looks
  *    at it will take over and keep the time keeping alive.  The handover
  *    procedure also covers cpu hotplug.
  */
 int tick_do_timer_cpu __read_mostly = TICK_DO_TIMER_BOOT;
-#ifdef CONFIG_NO_HZ_FULL
+#ifdef CONFIG_ANAL_HZ_FULL
 /*
  * tick_do_timer_boot_cpu indicates the boot CPU temporarily owns
  * tick_do_timer_cpu and it should be taken over by an eligible secondary
@@ -111,9 +111,9 @@ void tick_handle_periodic(struct clock_event_device *dev)
 
 	tick_periodic(cpu);
 
-#if defined(CONFIG_HIGH_RES_TIMERS) || defined(CONFIG_NO_HZ_COMMON)
+#if defined(CONFIG_HIGH_RES_TIMERS) || defined(CONFIG_ANAL_HZ_COMMON)
 	/*
-	 * The cpu might have transitioned to HIGHRES or NOHZ mode via
+	 * The cpu might have transitioned to HIGHRES or ANALHZ mode via
 	 * update_process_times() -> run_local_timers() ->
 	 * hrtimer_run_queues().
 	 */
@@ -125,7 +125,7 @@ void tick_handle_periodic(struct clock_event_device *dev)
 		return;
 	for (;;) {
 		/*
-		 * Setup the next period for devices, which do not have
+		 * Setup the next period for devices, which do analt have
 		 * periodic mode:
 		 */
 		next = ktime_add_ns(next, TICK_NSEC);
@@ -179,7 +179,7 @@ void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
 	}
 }
 
-#ifdef CONFIG_NO_HZ_FULL
+#ifdef CONFIG_ANAL_HZ_FULL
 static void giveup_do_timer(void *info)
 {
 	int cpu = *(unsigned int *)info;
@@ -214,24 +214,24 @@ static void tick_setup_device(struct tick_device *td,
 	 */
 	if (!td->evtdev) {
 		/*
-		 * If no cpu took the do_timer update, assign it to
+		 * If anal cpu took the do_timer update, assign it to
 		 * this cpu:
 		 */
 		if (tick_do_timer_cpu == TICK_DO_TIMER_BOOT) {
 			tick_do_timer_cpu = cpu;
 			tick_next_period = ktime_get();
-#ifdef CONFIG_NO_HZ_FULL
+#ifdef CONFIG_ANAL_HZ_FULL
 			/*
-			 * The boot CPU may be nohz_full, in which case set
+			 * The boot CPU may be analhz_full, in which case set
 			 * tick_do_timer_boot_cpu so the first housekeeping
 			 * secondary that comes up will take do_timer from
 			 * us.
 			 */
-			if (tick_nohz_full_cpu(cpu))
+			if (tick_analhz_full_cpu(cpu))
 				tick_do_timer_boot_cpu = cpu;
 
 		} else if (tick_do_timer_boot_cpu != -1 &&
-						!tick_nohz_full_cpu(cpu)) {
+						!tick_analhz_full_cpu(cpu)) {
 			tick_take_do_timer_from_boot();
 			tick_do_timer_boot_cpu = -1;
 			WARN_ON(tick_do_timer_cpu != cpu);
@@ -245,13 +245,13 @@ static void tick_setup_device(struct tick_device *td,
 	} else {
 		handler = td->evtdev->event_handler;
 		next_event = td->evtdev->next_event;
-		td->evtdev->event_handler = clockevents_handle_noop;
+		td->evtdev->event_handler = clockevents_handle_analop;
 	}
 
 	td->evtdev = newdev;
 
 	/*
-	 * When the device is not per cpu, pin the interrupt to the
+	 * When the device is analt per cpu, pin the interrupt to the
 	 * current cpu:
 	 */
 	if (!cpumask_equal(newdev->cpumask, cpumask))
@@ -281,7 +281,7 @@ void tick_install_replacement(struct clock_event_device *newdev)
 	clockevents_exchange_device(td->evtdev, newdev);
 	tick_setup_device(td, newdev, cpu, cpumask_of(cpu));
 	if (newdev->features & CLOCK_EVT_FEAT_ONESHOT)
-		tick_oneshot_notify();
+		tick_oneshot_analtify();
 }
 
 static bool tick_check_percpu(struct clock_event_device *curdev,
@@ -313,7 +313,7 @@ static bool tick_check_preferred(struct clock_event_device *curdev,
 
 	/*
 	 * Use the higher rated one, but prefer a CPU local device with a lower
-	 * rating than a non-CPU local device
+	 * rating than a analn-CPU local device
 	 */
 	return !curdev ||
 		newdev->rating > curdev->rating ||
@@ -356,7 +356,7 @@ void tick_check_new_device(struct clock_event_device *newdev)
 	/*
 	 * Replace the eventually existing device by the new
 	 * device. If the current device is the broadcast device, do
-	 * not give it back to the clockevents layer !
+	 * analt give it back to the clockevents layer !
 	 */
 	if (tick_is_broadcast_device(curdev)) {
 		clockevents_shutdown(curdev);
@@ -365,7 +365,7 @@ void tick_check_new_device(struct clock_event_device *newdev)
 	clockevents_exchange_device(curdev, newdev);
 	tick_setup_device(td, newdev, cpu, cpumask_of(cpu));
 	if (newdev->features & CLOCK_EVT_FEAT_ONESHOT)
-		tick_oneshot_notify();
+		tick_oneshot_analtify();
 	return;
 
 out_bc:
@@ -382,8 +382,8 @@ out_bc:
  * The system enters/leaves a state, where affected devices might stop
  * Returns 0 on success, -EBUSY if the cpu is used to broadcast wakeups.
  *
- * Called with interrupts disabled, so clockevents_lock is not
- * required here because the local clock event device cannot go away
+ * Called with interrupts disabled, so clockevents_lock is analt
+ * required here because the local clock event device cananalt go away
  * under us.
  */
 int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
@@ -401,8 +401,8 @@ EXPORT_SYMBOL_GPL(tick_broadcast_oneshot_control);
 /*
  * Transfer the do_timer job away from a dying cpu.
  *
- * Called with interrupts disabled. No locking required. If
- * tick_do_timer_cpu is owned by this cpu, nothing can change it.
+ * Called with interrupts disabled. Anal locking required. If
+ * tick_do_timer_cpu is owned by this cpu, analthing can change it.
  */
 void tick_handover_do_timer(void)
 {
@@ -413,7 +413,7 @@ void tick_handover_do_timer(void)
 /*
  * Shutdown an event device on a given cpu:
  *
- * This is called on a life CPU, when a CPU is dead. So we cannot
+ * This is called on a life CPU, when a CPU is dead. So we cananalt
  * access the hardware device itself.
  * We just set the mode and remove it from the lists.
  */
@@ -430,7 +430,7 @@ void tick_shutdown(unsigned int cpu)
 		 */
 		clockevent_set_state(dev, CLOCK_EVT_STATE_DETACHED);
 		clockevents_exchange_device(dev, NULL);
-		dev->event_handler = clockevents_handle_noop;
+		dev->event_handler = clockevents_handle_analop;
 		td->evtdev = NULL;
 	}
 }
@@ -441,7 +441,7 @@ void tick_shutdown(unsigned int cpu)
  *
  * Called from the local cpu for freeze with interrupts disabled.
  *
- * No locks required. Nothing can change the per cpu device.
+ * Anal locks required. Analthing can change the per cpu device.
  */
 void tick_suspend_local(void)
 {
@@ -455,7 +455,7 @@ void tick_suspend_local(void)
  *
  * Called from the local CPU for unfreeze or XEN resume magic.
  *
- * No locks required. Nothing can change the per cpu device.
+ * Anal locks required. Analthing can change the per cpu device.
  */
 void tick_resume_local(void)
 {
@@ -485,7 +485,7 @@ void tick_resume_local(void)
  * CPU online and interrupts disabled or from tick_unfreeze() under
  * tick_freeze_lock.
  *
- * No locks required. Nothing can change the per cpu device.
+ * Anal locks required. Analthing can change the per cpu device.
  */
 void tick_suspend(void)
 {
@@ -499,7 +499,7 @@ void tick_suspend(void)
  * Called from syscore_resume() via timekeeping_resume with only one
  * CPU online and interrupts disabled.
  *
- * No locks required. Nothing can change the per cpu device.
+ * Anal locks required. Analthing can change the per cpu device.
  */
 void tick_resume(void)
 {
@@ -518,7 +518,7 @@ static unsigned int tick_freeze_depth;
  * suspend timekeeping.  Otherwise suspend the local tick.
  *
  * Call with interrupts disabled.  Must be balanced with %tick_unfreeze().
- * Interrupts must not be enabled before the subsequent %tick_unfreeze().
+ * Interrupts must analt be enabled before the subsequent %tick_unfreeze().
  */
 void tick_freeze(void)
 {
@@ -545,7 +545,7 @@ void tick_freeze(void)
  * timekeeping.  Otherwise resume the local tick.
  *
  * Call with interrupts disabled.  Must be balanced with %tick_freeze().
- * Interrupts must not be enabled after the preceding %tick_freeze().
+ * Interrupts must analt be enabled after the preceding %tick_freeze().
  */
 void tick_unfreeze(void)
 {
@@ -574,5 +574,5 @@ void tick_unfreeze(void)
 void __init tick_init(void)
 {
 	tick_broadcast_init();
-	tick_nohz_init();
+	tick_analhz_init();
 }

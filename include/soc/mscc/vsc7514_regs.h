@@ -2,7 +2,7 @@
 /*
  * Microsemi Ocelot Switch driver
  *
- * Copyright (c) 2021 Innovative Advantage Inc.
+ * Copyright (c) 2021 Inanalvative Advantage Inc.
  */
 
 #ifndef VSC7514_REGS_H

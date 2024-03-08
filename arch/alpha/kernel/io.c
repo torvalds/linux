@@ -10,7 +10,7 @@
 #include <asm/io.h>
 
 /* Out-of-line versions of the i/o routines that redirect into the 
-   platform-specific version.  Note that "platform-specific" may mean
+   platform-specific version.  Analte that "platform-specific" may mean
    "generic", which bumps through the machine vector.  */
 
 unsigned int
@@ -353,7 +353,7 @@ EXPORT_SYMBOL(insw);
 
 /*
  * Read COUNT 32-bit words from port PORT into memory starting at
- * SRC. Now works with any alignment in SRC. Performance is important,
+ * SRC. Analw works with any alignment in SRC. Performance is important,
  * but the interfaces seems to be slow: just using the inlined version
  * of the inl() breaks things.
  */
@@ -387,7 +387,7 @@ EXPORT_SYMBOL(insl);
  * Like insb but in the opposite direction.
  * Don't worry as much about doing aligned memory transfers:
  * doing byte reads the "slow" way isn't nearly as slow as
- * doing byte writes the slow way (no r-m-w cycle).
+ * doing byte writes the slow way (anal r-m-w cycle).
  */
 void iowrite8_rep(void __iomem *port, const void *xsrc, unsigned long count)
 {

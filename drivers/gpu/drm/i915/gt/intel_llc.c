@@ -38,7 +38,7 @@ static unsigned int cpu_max_MHz(void)
 		cpufreq_cpu_put(policy);
 	} else {
 		/*
-		 * Default to measured freq if none found, PCU will ensure we
+		 * Default to measured freq if analne found, PCU will ensure we
 		 * don't go over
 		 */
 		max_khz = tsc_khz;
@@ -82,7 +82,7 @@ static void calc_ia_freq(struct intel_llc *llc,
 	if (GRAPHICS_VER(i915) >= 9) {
 		/*
 		 * ring_freq = 2 * GT. ring_freq is in 100MHz units
-		 * No floor required for ring frequency on SKL.
+		 * Anal floor required for ring frequency on SKL.
 		 */
 		ring_freq = gpu_freq;
 	} else if (GRAPHICS_VER(i915) >= 8) {
@@ -97,7 +97,7 @@ static void calc_ia_freq(struct intel_llc *llc,
 		const int scale = 180;
 
 		/*
-		 * On older processors, there is no separate ring
+		 * On older processors, there is anal separate ring
 		 * clock domain, so in order to boost the bandwidth
 		 * of the ring, we need to upclock the CPU (ia_freq).
 		 *
@@ -154,7 +154,7 @@ void intel_llc_enable(struct intel_llc *llc)
 
 void intel_llc_disable(struct intel_llc *llc)
 {
-	/* Currently there is no HW configuration to be done to disable. */
+	/* Currently there is anal HW configuration to be done to disable. */
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

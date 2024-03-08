@@ -33,7 +33,7 @@ static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	handle->dev = dev;
 	handle->handler = handler;
@@ -49,8 +49,8 @@ static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
 
 	printk(KERN_DEBUG pr_fmt("Connected device: %s (%s at %s)\n"),
 	       dev_name(&dev->dev),
-	       dev->name ?: "unknown",
-	       dev->phys ?: "unknown");
+	       dev->name ?: "unkanalwn",
+	       dev->phys ?: "unkanalwn");
 
 	return 0;
 

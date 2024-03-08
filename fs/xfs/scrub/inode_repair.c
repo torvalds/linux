@@ -15,10 +15,10 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_icache.h"
-#include "xfs_inode_buf.h"
-#include "xfs_inode_fork.h"
+#include "xfs_ianalde_buf.h"
+#include "xfs_ianalde_fork.h"
 #include "xfs_ialloc.h"
 #include "xfs_da_format.h"
 #include "xfs_reflink.h"
@@ -45,21 +45,21 @@
 #include "scrub/repair.h"
 
 /*
- * Inode Record Repair
+ * Ianalde Record Repair
  * ===================
  *
- * Roughly speaking, inode problems can be classified based on whether or not
- * they trip the dinode verifiers.  If those trip, then we won't be able to
- * xfs_iget ourselves the inode.
+ * Roughly speaking, ianalde problems can be classified based on whether or analt
+ * they trip the dianalde verifiers.  If those trip, then we won't be able to
+ * xfs_iget ourselves the ianalde.
  *
- * Therefore, the xrep_dinode_* functions fix anything that will cause the
- * inode buffer verifier or the dinode verifier.  The xrep_inode_* functions
- * fix things on live incore inodes.  The inode repair functions make decisions
+ * Therefore, the xrep_dianalde_* functions fix anything that will cause the
+ * ianalde buffer verifier or the dianalde verifier.  The xrep_ianalde_* functions
+ * fix things on live incore ianaldes.  The ianalde repair functions make decisions
  * with security and usability implications when reviving a file:
  *
  * - Files with zero di_mode or a garbage di_mode are converted to regular file
- *   that only root can read.  This file may not actually contain user data,
- *   if the file was not previously a regular file.  Setuid and setgid bits
+ *   that only root can read.  This file may analt actually contain user data,
+ *   if the file was analt previously a regular file.  Setuid and setgid bits
  *   are cleared.
  *
  * - Zero-size directories can be truncated to look empty.  It is necessary to
@@ -71,8 +71,8 @@
  *
  * - Invalid extent size hints will be removed.
  *
- * - Quotacheck will be scheduled if we repaired an inode that was so badly
- *   damaged that the ondisk inode had to be rebuilt.
+ * - Quotacheck will be scheduled if we repaired an ianalde that was so badly
+ *   damaged that the ondisk ianalde had to be rebuilt.
  *
  * - Invalid user, group, or project IDs (aka -1U) will be reset to zero.
  *   Setuid and setgid bits are cleared.
@@ -81,7 +81,7 @@
  *   fork data is inconsistent.  It is necessary to run the bmapbtd or bmapbta
  *   repair functions to recover the space mapping.
  *
- * - ACLs will not be recovered if the attr fork is zapped or the extended
+ * - ACLs will analt be recovered if the attr fork is zapped or the extended
  *   attribute structure itself requires salvaging.
  *
  * - If the attr fork is zapped, the user and group ids are reset to root and
@@ -89,12 +89,12 @@
  */
 
 /*
- * All the information we need to repair the ondisk inode if we can't iget the
- * incore inode.  We don't allocate this buffer unless we're going to perform
- * a repair to the ondisk inode cluster buffer.
+ * All the information we need to repair the ondisk ianalde if we can't iget the
+ * incore ianalde.  We don't allocate this buffer unless we're going to perform
+ * a repair to the ondisk ianalde cluster buffer.
  */
-struct xrep_inode {
-	/* Inode mapping that we saved from the initial lookup attempt. */
+struct xrep_ianalde {
+	/* Ianalde mapping that we saved from the initial lookup attempt. */
 	struct xfs_imap		imap;
 
 	struct xfs_scrub	*sc;
@@ -121,28 +121,28 @@ struct xrep_inode {
 	/* Number of (data device) extents for the attr fork. */
 	xfs_aextnum_t		attr_extents;
 
-	/* Sick state to set after zapping parts of the inode. */
-	unsigned int		ino_sick_mask;
+	/* Sick state to set after zapping parts of the ianalde. */
+	unsigned int		ianal_sick_mask;
 
 	/* Must we remove all access from this file? */
 	bool			zap_acls;
 };
 
 /*
- * Setup function for inode repair.  @imap contains the ondisk inode mapping
- * information so that we can correct the ondisk inode cluster buffer if
+ * Setup function for ianalde repair.  @imap contains the ondisk ianalde mapping
+ * information so that we can correct the ondisk ianalde cluster buffer if
  * necessary to make iget work.
  */
 int
-xrep_setup_inode(
+xrep_setup_ianalde(
 	struct xfs_scrub	*sc,
 	const struct xfs_imap	*imap)
 {
-	struct xrep_inode	*ri;
+	struct xrep_ianalde	*ri;
 
-	sc->buf = kzalloc(sizeof(struct xrep_inode), XCHK_GFP_FLAGS);
+	sc->buf = kzalloc(sizeof(struct xrep_ianalde), XCHK_GFP_FLAGS);
 	if (!sc->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ri = sc->buf;
 	memcpy(&ri->imap, imap, sizeof(struct xfs_imap));
@@ -151,54 +151,54 @@ xrep_setup_inode(
 }
 
 /*
- * Make sure this ondisk inode can pass the inode buffer verifier.  This is
- * not the same as the dinode verifier.
+ * Make sure this ondisk ianalde can pass the ianalde buffer verifier.  This is
+ * analt the same as the dianalde verifier.
  */
 STATIC void
-xrep_dinode_buf_core(
+xrep_dianalde_buf_core(
 	struct xfs_scrub	*sc,
 	struct xfs_buf		*bp,
 	unsigned int		ioffset)
 {
-	struct xfs_dinode	*dip = xfs_buf_offset(bp, ioffset);
+	struct xfs_dianalde	*dip = xfs_buf_offset(bp, ioffset);
 	struct xfs_trans	*tp = sc->tp;
 	struct xfs_mount	*mp = sc->mp;
-	xfs_agino_t		agino;
+	xfs_agianal_t		agianal;
 	bool			crc_ok = false;
 	bool			magic_ok = false;
 	bool			unlinked_ok = false;
 
-	agino = be32_to_cpu(dip->di_next_unlinked);
+	agianal = be32_to_cpu(dip->di_next_unlinked);
 
-	if (xfs_verify_agino_or_null(bp->b_pag, agino))
+	if (xfs_verify_agianal_or_null(bp->b_pag, agianal))
 		unlinked_ok = true;
 
-	if (dip->di_magic == cpu_to_be16(XFS_DINODE_MAGIC) &&
-	    xfs_dinode_good_version(mp, dip->di_version))
+	if (dip->di_magic == cpu_to_be16(XFS_DIANALDE_MAGIC) &&
+	    xfs_dianalde_good_version(mp, dip->di_version))
 		magic_ok = true;
 
-	if (xfs_verify_cksum((char *)dip, mp->m_sb.sb_inodesize,
-			XFS_DINODE_CRC_OFF))
+	if (xfs_verify_cksum((char *)dip, mp->m_sb.sb_ianaldesize,
+			XFS_DIANALDE_CRC_OFF))
 		crc_ok = true;
 
 	if (magic_ok && unlinked_ok && crc_ok)
 		return;
 
 	if (!magic_ok) {
-		dip->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
+		dip->di_magic = cpu_to_be16(XFS_DIANALDE_MAGIC);
 		dip->di_version = 3;
 	}
 	if (!unlinked_ok)
-		dip->di_next_unlinked = cpu_to_be32(NULLAGINO);
-	xfs_dinode_calc_crc(mp, dip);
-	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
+		dip->di_next_unlinked = cpu_to_be32(NULLAGIANAL);
+	xfs_dianalde_calc_crc(mp, dip);
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DIANAL_BUF);
 	xfs_trans_log_buf(tp, bp, ioffset,
-				  ioffset + sizeof(struct xfs_dinode) - 1);
+				  ioffset + sizeof(struct xfs_dianalde) - 1);
 }
 
-/* Make sure this inode cluster buffer can pass the inode buffer verifier. */
+/* Make sure this ianalde cluster buffer can pass the ianalde buffer verifier. */
 STATIC void
-xrep_dinode_buf(
+xrep_dianalde_buf(
 	struct xfs_scrub	*sc,
 	struct xfs_buf		*bp)
 {
@@ -206,39 +206,39 @@ xrep_dinode_buf(
 	int			i;
 	int			ni;
 
-	ni = XFS_BB_TO_FSB(mp, bp->b_length) * mp->m_sb.sb_inopblock;
+	ni = XFS_BB_TO_FSB(mp, bp->b_length) * mp->m_sb.sb_ianalpblock;
 	for (i = 0; i < ni; i++)
-		xrep_dinode_buf_core(sc, bp, i << mp->m_sb.sb_inodelog);
+		xrep_dianalde_buf_core(sc, bp, i << mp->m_sb.sb_ianaldelog);
 }
 
-/* Reinitialize things that never change in an inode. */
+/* Reinitialize things that never change in an ianalde. */
 STATIC void
-xrep_dinode_header(
+xrep_dianalde_header(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode	*dip)
+	struct xfs_dianalde	*dip)
 {
-	trace_xrep_dinode_header(sc, dip);
+	trace_xrep_dianalde_header(sc, dip);
 
-	dip->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
-	if (!xfs_dinode_good_version(sc->mp, dip->di_version))
+	dip->di_magic = cpu_to_be16(XFS_DIANALDE_MAGIC);
+	if (!xfs_dianalde_good_version(sc->mp, dip->di_version))
 		dip->di_version = 3;
-	dip->di_ino = cpu_to_be64(sc->sm->sm_ino);
+	dip->di_ianal = cpu_to_be64(sc->sm->sm_ianal);
 	uuid_copy(&dip->di_uuid, &sc->mp->m_sb.sb_meta_uuid);
 	dip->di_gen = cpu_to_be32(sc->sm->sm_gen);
 }
 
 /* Turn di_mode into /something/ recognizable. */
 STATIC void
-xrep_dinode_mode(
-	struct xrep_inode	*ri,
-	struct xfs_dinode	*dip)
+xrep_dianalde_mode(
+	struct xrep_ianalde	*ri,
+	struct xfs_dianalde	*dip)
 {
 	struct xfs_scrub	*sc = ri->sc;
 	uint16_t		mode = be16_to_cpu(dip->di_mode);
 
-	trace_xrep_dinode_mode(sc, dip);
+	trace_xrep_dianalde_mode(sc, dip);
 
-	if (mode == 0 || xfs_mode_to_ftype(mode) != XFS_DIR3_FT_UNKNOWN)
+	if (mode == 0 || xfs_mode_to_ftype(mode) != XFS_DIR3_FT_UNKANALWN)
 		return;
 
 	/* bad mode, so we set it to a file that only root can read */
@@ -251,9 +251,9 @@ xrep_dinode_mode(
 
 /* Fix any conflicting flags that the verifiers complain about. */
 STATIC void
-xrep_dinode_flags(
+xrep_dianalde_flags(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode	*dip,
+	struct xfs_dianalde	*dip,
 	bool			isrt)
 {
 	struct xfs_mount	*mp = sc->mp;
@@ -261,7 +261,7 @@ xrep_dinode_flags(
 	uint16_t		flags = be16_to_cpu(dip->di_flags);
 	uint16_t		mode = be16_to_cpu(dip->di_mode);
 
-	trace_xrep_dinode_flags(sc, dip);
+	trace_xrep_dianalde_flags(sc, dip);
 
 	if (isrt)
 		flags |= XFS_DIFLAG_REALTIME;
@@ -292,72 +292,72 @@ xrep_dinode_flags(
 }
 
 /*
- * Blow out symlink; now it points nowhere.  We don't have to worry about
- * incore state because this inode is failing the verifiers.
+ * Blow out symlink; analw it points analwhere.  We don't have to worry about
+ * incore state because this ianalde is failing the verifiers.
  */
 STATIC void
-xrep_dinode_zap_symlink(
-	struct xrep_inode	*ri,
-	struct xfs_dinode	*dip)
+xrep_dianalde_zap_symlink(
+	struct xrep_ianalde	*ri,
+	struct xfs_dianalde	*dip)
 {
 	struct xfs_scrub	*sc = ri->sc;
 	char			*p;
 
-	trace_xrep_dinode_zap_symlink(sc, dip);
+	trace_xrep_dianalde_zap_symlink(sc, dip);
 
-	dip->di_format = XFS_DINODE_FMT_LOCAL;
+	dip->di_format = XFS_DIANALDE_FMT_LOCAL;
 	dip->di_size = cpu_to_be64(1);
 	p = XFS_DFORK_PTR(dip, XFS_DATA_FORK);
 	*p = '?';
-	ri->ino_sick_mask |= XFS_SICK_INO_SYMLINK_ZAPPED;
+	ri->ianal_sick_mask |= XFS_SICK_IANAL_SYMLINK_ZAPPED;
 }
 
 /*
  * Blow out dir, make the parent point to the root.  In the future repair will
- * reconstruct this directory for us.  Note that there's no in-core directory
- * inode because the sf verifier tripped, so we don't have to worry about the
+ * reconstruct this directory for us.  Analte that there's anal in-core directory
+ * ianalde because the sf verifier tripped, so we don't have to worry about the
  * dentry cache.
  */
 STATIC void
-xrep_dinode_zap_dir(
-	struct xrep_inode	*ri,
-	struct xfs_dinode	*dip)
+xrep_dianalde_zap_dir(
+	struct xrep_ianalde	*ri,
+	struct xfs_dianalde	*dip)
 {
 	struct xfs_scrub	*sc = ri->sc;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_dir2_sf_hdr	*sfp;
 	int			i8count;
 
-	trace_xrep_dinode_zap_dir(sc, dip);
+	trace_xrep_dianalde_zap_dir(sc, dip);
 
-	dip->di_format = XFS_DINODE_FMT_LOCAL;
-	i8count = mp->m_sb.sb_rootino > XFS_DIR2_MAX_SHORT_INUM;
+	dip->di_format = XFS_DIANALDE_FMT_LOCAL;
+	i8count = mp->m_sb.sb_rootianal > XFS_DIR2_MAX_SHORT_INUM;
 	sfp = XFS_DFORK_PTR(dip, XFS_DATA_FORK);
 	sfp->count = 0;
 	sfp->i8count = i8count;
-	xfs_dir2_sf_put_parent_ino(sfp, mp->m_sb.sb_rootino);
+	xfs_dir2_sf_put_parent_ianal(sfp, mp->m_sb.sb_rootianal);
 	dip->di_size = cpu_to_be64(xfs_dir2_sf_hdr_size(i8count));
-	ri->ino_sick_mask |= XFS_SICK_INO_DIR_ZAPPED;
+	ri->ianal_sick_mask |= XFS_SICK_IANAL_DIR_ZAPPED;
 }
 
 /* Make sure we don't have a garbage file size. */
 STATIC void
-xrep_dinode_size(
-	struct xrep_inode	*ri,
-	struct xfs_dinode	*dip)
+xrep_dianalde_size(
+	struct xrep_ianalde	*ri,
+	struct xfs_dianalde	*dip)
 {
 	struct xfs_scrub	*sc = ri->sc;
 	uint64_t		size = be64_to_cpu(dip->di_size);
 	uint16_t		mode = be16_to_cpu(dip->di_mode);
 
-	trace_xrep_dinode_size(sc, dip);
+	trace_xrep_dianalde_size(sc, dip);
 
 	switch (mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFSOCK:
-		/* di_size can't be nonzero for special files */
+		/* di_size can't be analnzero for special files */
 		dip->di_size = 0;
 		break;
 	case S_IFREG:
@@ -368,34 +368,34 @@ xrep_dinode_size(
 		/*
 		 * Truncate ridiculously oversized symlinks.  If the size is
 		 * zero, reset it to point to the current directory.  Both of
-		 * these conditions trigger dinode verifier errors, so there
-		 * is no in-core state to reset.
+		 * these conditions trigger dianalde verifier errors, so there
+		 * is anal in-core state to reset.
 		 */
 		if (size > XFS_SYMLINK_MAXLEN)
 			dip->di_size = cpu_to_be64(XFS_SYMLINK_MAXLEN);
 		else if (size == 0)
-			xrep_dinode_zap_symlink(ri, dip);
+			xrep_dianalde_zap_symlink(ri, dip);
 		break;
 	case S_IFDIR:
 		/*
 		 * Directories can't have a size larger than 32G.  If the size
 		 * is zero, reset it to an empty directory.  Both of these
-		 * conditions trigger dinode verifier errors, so there is no
+		 * conditions trigger dianalde verifier errors, so there is anal
 		 * in-core state to reset.
 		 */
 		if (size > XFS_DIR2_SPACE_SIZE)
 			dip->di_size = cpu_to_be64(XFS_DIR2_SPACE_SIZE);
 		else if (size == 0)
-			xrep_dinode_zap_dir(ri, dip);
+			xrep_dianalde_zap_dir(ri, dip);
 		break;
 	}
 }
 
 /* Fix extent size hints. */
 STATIC void
-xrep_dinode_extsize_hints(
+xrep_dianalde_extsize_hints(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode	*dip)
+	struct xfs_dianalde	*dip)
 {
 	struct xfs_mount	*mp = sc->mp;
 	uint64_t		flags2 = be64_to_cpu(dip->di_flags2);
@@ -404,9 +404,9 @@ xrep_dinode_extsize_hints(
 
 	xfs_failaddr_t		fa;
 
-	trace_xrep_dinode_extsize_hints(sc, dip);
+	trace_xrep_dianalde_extsize_hints(sc, dip);
 
-	fa = xfs_inode_validate_extsize(mp, be32_to_cpu(dip->di_extsize),
+	fa = xfs_ianalde_validate_extsize(mp, be32_to_cpu(dip->di_extsize),
 			mode, flags);
 	if (fa) {
 		dip->di_extsize = 0;
@@ -417,7 +417,7 @@ xrep_dinode_extsize_hints(
 	if (dip->di_version < 3)
 		return;
 
-	fa = xfs_inode_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
+	fa = xfs_ianalde_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
 			mode, flags, flags2);
 	if (fa) {
 		dip->di_cowextsize = 0;
@@ -425,21 +425,21 @@ xrep_dinode_extsize_hints(
 	}
 }
 
-/* Count extents and blocks for an inode given an rmap. */
+/* Count extents and blocks for an ianalde given an rmap. */
 STATIC int
-xrep_dinode_walk_rmap(
+xrep_dianalde_walk_rmap(
 	struct xfs_btree_cur		*cur,
 	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
-	struct xrep_inode		*ri = priv;
+	struct xrep_ianalde		*ri = priv;
 	int				error = 0;
 
 	if (xchk_should_terminate(ri->sc, &error))
 		return error;
 
-	/* We only care about this inode. */
-	if (rec->rm_owner != ri->sc->sm->sm_ino)
+	/* We only care about this ianalde. */
+	if (rec->rm_owner != ri->sc->sm->sm_ianal)
 		return 0;
 
 	if (rec->rm_flags & XFS_RMAP_ATTR_FORK) {
@@ -457,10 +457,10 @@ xrep_dinode_walk_rmap(
 	return 0;
 }
 
-/* Count extents and blocks for an inode from all AG rmap data. */
+/* Count extents and blocks for an ianalde from all AG rmap data. */
 STATIC int
-xrep_dinode_count_ag_rmaps(
-	struct xrep_inode	*ri,
+xrep_dianalde_count_ag_rmaps(
+	struct xrep_ianalde	*ri,
 	struct xfs_perag	*pag)
 {
 	struct xfs_btree_cur	*cur;
@@ -472,26 +472,26 @@ xrep_dinode_count_ag_rmaps(
 		return error;
 
 	cur = xfs_rmapbt_init_cursor(ri->sc->mp, ri->sc->tp, agf, pag);
-	error = xfs_rmap_query_all(cur, xrep_dinode_walk_rmap, ri);
+	error = xfs_rmap_query_all(cur, xrep_dianalde_walk_rmap, ri);
 	xfs_btree_del_cursor(cur, error);
 	xfs_trans_brelse(ri->sc->tp, agf);
 	return error;
 }
 
-/* Count extents and blocks for a given inode from all rmap data. */
+/* Count extents and blocks for a given ianalde from all rmap data. */
 STATIC int
-xrep_dinode_count_rmaps(
-	struct xrep_inode	*ri)
+xrep_dianalde_count_rmaps(
+	struct xrep_ianalde	*ri)
 {
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 	int			error;
 
 	if (!xfs_has_rmapbt(ri->sc->mp) || xfs_has_realtime(ri->sc->mp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	for_each_perag(ri->sc->mp, agno, pag) {
-		error = xrep_dinode_count_ag_rmaps(ri, pag);
+	for_each_perag(ri->sc->mp, aganal, pag) {
+		error = xrep_dianalde_count_ag_rmaps(ri, pag);
 		if (error) {
 			xfs_perag_rele(pag);
 			return error;
@@ -502,7 +502,7 @@ xrep_dinode_count_rmaps(
 	if (ri->data_extents && ri->rt_extents)
 		return -EFSCORRUPTED;
 
-	trace_xrep_dinode_count_rmaps(ri->sc,
+	trace_xrep_dianalde_count_rmaps(ri->sc,
 			ri->data_blocks, ri->rt_blocks, ri->attr_blocks,
 			ri->data_extents, ri->rt_extents, ri->attr_extents);
 	return 0;
@@ -510,9 +510,9 @@ xrep_dinode_count_rmaps(
 
 /* Return true if this extents-format ifork looks like garbage. */
 STATIC bool
-xrep_dinode_bad_extents_fork(
+xrep_dianalde_bad_extents_fork(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode	*dip,
+	struct xfs_dianalde	*dip,
 	unsigned int		dfork_size,
 	int			whichfork)
 {
@@ -544,9 +544,9 @@ xrep_dinode_bad_extents_fork(
 
 /* Return true if this btree-format ifork looks like garbage. */
 STATIC bool
-xrep_dinode_bad_bmbt_fork(
+xrep_dianalde_bad_bmbt_fork(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode	*dip,
+	struct xfs_dianalde	*dip,
 	unsigned int		dfork_size,
 	int			whichfork)
 {
@@ -578,7 +578,7 @@ xrep_dinode_bad_bmbt_fork(
 		struct xfs_bmbt_key	*fkp;
 		xfs_bmbt_ptr_t		*fpp;
 		xfs_fileoff_t		fileoff;
-		xfs_fsblock_t		fsbno;
+		xfs_fsblock_t		fsbanal;
 
 		fkp = XFS_BMDR_KEY_ADDR(dfp, i);
 		fileoff = be64_to_cpu(fkp->br_startoff);
@@ -586,8 +586,8 @@ xrep_dinode_bad_bmbt_fork(
 			return true;
 
 		fpp = XFS_BMDR_PTR_ADDR(dfp, i, dmxr);
-		fsbno = be64_to_cpu(*fpp);
-		if (!xfs_verify_fsbno(sc->mp, fsbno))
+		fsbanal = be64_to_cpu(*fpp);
+		if (!xfs_verify_fsbanal(sc->mp, fsbanal))
 			return true;
 	}
 
@@ -599,9 +599,9 @@ xrep_dinode_bad_bmbt_fork(
  * ifork formatters.
  */
 STATIC bool
-xrep_dinode_check_dfork(
+xrep_dianalde_check_dfork(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode	*dip,
+	struct xfs_dianalde	*dip,
 	uint16_t		mode)
 {
 	void			*dfork_ptr;
@@ -623,19 +623,19 @@ xrep_dinode_check_dfork(
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFSOCK:
-		if (fmt != XFS_DINODE_FMT_DEV)
+		if (fmt != XFS_DIANALDE_FMT_DEV)
 			return true;
 		break;
 	case S_IFREG:
-		if (fmt == XFS_DINODE_FMT_LOCAL)
+		if (fmt == XFS_DIANALDE_FMT_LOCAL)
 			return true;
 		fallthrough;
 	case S_IFLNK:
 	case S_IFDIR:
 		switch (fmt) {
-		case XFS_DINODE_FMT_LOCAL:
-		case XFS_DINODE_FMT_EXTENTS:
-		case XFS_DINODE_FMT_BTREE:
+		case XFS_DIANALDE_FMT_LOCAL:
+		case XFS_DIANALDE_FMT_EXTENTS:
+		case XFS_DIANALDE_FMT_BTREE:
 			break;
 		default:
 			return true;
@@ -649,10 +649,10 @@ xrep_dinode_check_dfork(
 	dfork_ptr = XFS_DFORK_PTR(dip, XFS_DATA_FORK);
 
 	switch (fmt) {
-	case XFS_DINODE_FMT_DEV:
+	case XFS_DIANALDE_FMT_DEV:
 		break;
-	case XFS_DINODE_FMT_LOCAL:
-		/* dir/symlink structure cannot be larger than the fork */
+	case XFS_DIANALDE_FMT_LOCAL:
+		/* dir/symlink structure cananalt be larger than the fork */
 		if (data_size > dfork_size)
 			return true;
 		/* directory structure must pass verification. */
@@ -664,13 +664,13 @@ xrep_dinode_check_dfork(
 		    xfs_symlink_shortform_verify(dfork_ptr, data_size) != NULL)
 			return true;
 		break;
-	case XFS_DINODE_FMT_EXTENTS:
-		if (xrep_dinode_bad_extents_fork(sc, dip, dfork_size,
+	case XFS_DIANALDE_FMT_EXTENTS:
+		if (xrep_dianalde_bad_extents_fork(sc, dip, dfork_size,
 				XFS_DATA_FORK))
 			return true;
 		break;
-	case XFS_DINODE_FMT_BTREE:
-		if (xrep_dinode_bad_bmbt_fork(sc, dip, dfork_size,
+	case XFS_DIANALDE_FMT_BTREE:
+		if (xrep_dianalde_bad_bmbt_fork(sc, dip, dfork_size,
 				XFS_DATA_FORK))
 			return true;
 		break;
@@ -682,22 +682,22 @@ xrep_dinode_check_dfork(
 }
 
 static void
-xrep_dinode_set_data_nextents(
-	struct xfs_dinode	*dip,
+xrep_dianalde_set_data_nextents(
+	struct xfs_dianalde	*dip,
 	xfs_extnum_t		nextents)
 {
-	if (xfs_dinode_has_large_extent_counts(dip))
+	if (xfs_dianalde_has_large_extent_counts(dip))
 		dip->di_big_nextents = cpu_to_be64(nextents);
 	else
 		dip->di_nextents = cpu_to_be32(nextents);
 }
 
 static void
-xrep_dinode_set_attr_nextents(
-	struct xfs_dinode	*dip,
+xrep_dianalde_set_attr_nextents(
+	struct xfs_dianalde	*dip,
 	xfs_extnum_t		nextents)
 {
-	if (xfs_dinode_has_large_extent_counts(dip))
+	if (xfs_dianalde_has_large_extent_counts(dip))
 		dip->di_big_anextents = cpu_to_be32(nextents);
 	else
 		dip->di_anextents = cpu_to_be16(nextents);
@@ -705,18 +705,18 @@ xrep_dinode_set_attr_nextents(
 
 /* Reset the data fork to something sane. */
 STATIC void
-xrep_dinode_zap_dfork(
-	struct xrep_inode	*ri,
-	struct xfs_dinode	*dip,
+xrep_dianalde_zap_dfork(
+	struct xrep_ianalde	*ri,
+	struct xfs_dianalde	*dip,
 	uint16_t		mode)
 {
 	struct xfs_scrub	*sc = ri->sc;
 
-	trace_xrep_dinode_zap_dfork(sc, dip);
+	trace_xrep_dianalde_zap_dfork(sc, dip);
 
-	ri->ino_sick_mask |= XFS_SICK_INO_BMBTD_ZAPPED;
+	ri->ianal_sick_mask |= XFS_SICK_IANAL_BMBTD_ZAPPED;
 
-	xrep_dinode_set_data_nextents(dip, 0);
+	xrep_dianalde_set_data_nextents(dip, 0);
 	ri->data_blocks = 0;
 	ri->rt_blocks = 0;
 
@@ -726,7 +726,7 @@ xrep_dinode_zap_dfork(
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFSOCK:
-		dip->di_format = XFS_DINODE_FMT_DEV;
+		dip->di_format = XFS_DIANALDE_FMT_DEV;
 		dip->di_size = 0;
 		return;
 	}
@@ -736,17 +736,17 @@ xrep_dinode_zap_dfork(
 	 * will run the bmapbtd checker next.
 	 */
 	if (ri->data_extents || ri->rt_extents || S_ISREG(mode)) {
-		dip->di_format = XFS_DINODE_FMT_EXTENTS;
+		dip->di_format = XFS_DIANALDE_FMT_EXTENTS;
 		return;
 	}
 
 	/* Otherwise, reset the local format to the minimum. */
 	switch (mode & S_IFMT) {
 	case S_IFLNK:
-		xrep_dinode_zap_symlink(ri, dip);
+		xrep_dianalde_zap_symlink(ri, dip);
 		break;
 	case S_IFDIR:
-		xrep_dinode_zap_dir(ri, dip);
+		xrep_dianalde_zap_dir(ri, dip);
 		break;
 	}
 }
@@ -756,41 +756,41 @@ xrep_dinode_zap_dfork(
  * ifork formatters.
  */
 STATIC bool
-xrep_dinode_check_afork(
+xrep_dianalde_check_afork(
 	struct xfs_scrub		*sc,
-	struct xfs_dinode		*dip)
+	struct xfs_dianalde		*dip)
 {
 	struct xfs_attr_sf_hdr		*afork_ptr;
 	size_t				attr_size;
 	unsigned int			afork_size;
 
 	if (XFS_DFORK_BOFF(dip) == 0)
-		return dip->di_aformat != XFS_DINODE_FMT_EXTENTS ||
+		return dip->di_aformat != XFS_DIANALDE_FMT_EXTENTS ||
 		       xfs_dfork_attr_extents(dip) != 0;
 
 	afork_size = XFS_DFORK_SIZE(dip, sc->mp, XFS_ATTR_FORK);
 	afork_ptr = XFS_DFORK_PTR(dip, XFS_ATTR_FORK);
 
 	switch (XFS_DFORK_FORMAT(dip, XFS_ATTR_FORK)) {
-	case XFS_DINODE_FMT_LOCAL:
-		/* Fork has to be large enough to extract the xattr size. */
+	case XFS_DIANALDE_FMT_LOCAL:
+		/* Fork has to be large eanalugh to extract the xattr size. */
 		if (afork_size < sizeof(struct xfs_attr_sf_hdr))
 			return true;
 
-		/* xattr structure cannot be larger than the fork */
+		/* xattr structure cananalt be larger than the fork */
 		attr_size = be16_to_cpu(afork_ptr->totsize);
 		if (attr_size > afork_size)
 			return true;
 
 		/* xattr structure must pass verification. */
 		return xfs_attr_shortform_verify(afork_ptr, attr_size) != NULL;
-	case XFS_DINODE_FMT_EXTENTS:
-		if (xrep_dinode_bad_extents_fork(sc, dip, afork_size,
+	case XFS_DIANALDE_FMT_EXTENTS:
+		if (xrep_dianalde_bad_extents_fork(sc, dip, afork_size,
 					XFS_ATTR_FORK))
 			return true;
 		break;
-	case XFS_DINODE_FMT_BTREE:
-		if (xrep_dinode_bad_bmbt_fork(sc, dip, afork_size,
+	case XFS_DIANALDE_FMT_BTREE:
+		if (xrep_dianalde_bad_bmbt_fork(sc, dip, afork_size,
 					XFS_ATTR_FORK))
 			return true;
 		break;
@@ -806,27 +806,27 @@ xrep_dinode_check_afork(
  * ACLs, make the file readable only by root.
  */
 STATIC void
-xrep_dinode_zap_afork(
-	struct xrep_inode	*ri,
-	struct xfs_dinode	*dip,
+xrep_dianalde_zap_afork(
+	struct xrep_ianalde	*ri,
+	struct xfs_dianalde	*dip,
 	uint16_t		mode)
 {
 	struct xfs_scrub	*sc = ri->sc;
 
-	trace_xrep_dinode_zap_afork(sc, dip);
+	trace_xrep_dianalde_zap_afork(sc, dip);
 
-	ri->ino_sick_mask |= XFS_SICK_INO_BMBTA_ZAPPED;
+	ri->ianal_sick_mask |= XFS_SICK_IANAL_BMBTA_ZAPPED;
 
-	dip->di_aformat = XFS_DINODE_FMT_EXTENTS;
-	xrep_dinode_set_attr_nextents(dip, 0);
+	dip->di_aformat = XFS_DIANALDE_FMT_EXTENTS;
+	xrep_dianalde_set_attr_nextents(dip, 0);
 	ri->attr_blocks = 0;
 
 	/*
 	 * If the data fork is in btree format, removing the attr fork entirely
 	 * might cause verifier failures if the next level down in the bmbt
-	 * could now fit in the data fork area.
+	 * could analw fit in the data fork area.
 	 */
-	if (dip->di_format != XFS_DINODE_FMT_BTREE)
+	if (dip->di_format != XFS_DIANALDE_FMT_BTREE)
 		dip->di_forkoff = 0;
 	dip->di_mode = cpu_to_be16(mode & ~0777);
 	dip->di_uid = 0;
@@ -835,64 +835,64 @@ xrep_dinode_zap_afork(
 
 /* Make sure the fork offset is a sensible value. */
 STATIC void
-xrep_dinode_ensure_forkoff(
-	struct xrep_inode	*ri,
-	struct xfs_dinode	*dip,
+xrep_dianalde_ensure_forkoff(
+	struct xrep_ianalde	*ri,
+	struct xfs_dianalde	*dip,
 	uint16_t		mode)
 {
 	struct xfs_bmdr_block	*bmdr;
 	struct xfs_scrub	*sc = ri->sc;
 	xfs_extnum_t		attr_extents, data_extents;
 	size_t			bmdr_minsz = XFS_BMDR_SPACE_CALC(1);
-	unsigned int		lit_sz = XFS_LITINO(sc->mp);
+	unsigned int		lit_sz = XFS_LITIANAL(sc->mp);
 	unsigned int		afork_min, dfork_min;
 
-	trace_xrep_dinode_ensure_forkoff(sc, dip);
+	trace_xrep_dianalde_ensure_forkoff(sc, dip);
 
 	/*
-	 * Before calling this function, xrep_dinode_core ensured that both
+	 * Before calling this function, xrep_dianalde_core ensured that both
 	 * forks actually fit inside their respective literal areas.  If this
-	 * was not the case, the fork was reset to FMT_EXTENTS with zero
+	 * was analt the case, the fork was reset to FMT_EXTENTS with zero
 	 * records.  If the rmapbt scan found attr or data fork blocks, this
-	 * will be noted in the dinode_stats, and we must leave enough room
+	 * will be analted in the dianalde_stats, and we must leave eanalugh room
 	 * for the bmap repair code to reconstruct the mapping structure.
 	 *
 	 * First, compute the minimum space required for the attr fork.
 	 */
 	switch (dip->di_aformat) {
-	case XFS_DINODE_FMT_LOCAL:
+	case XFS_DIANALDE_FMT_LOCAL:
 		/*
 		 * If we still have a shortform xattr structure at all, that
-		 * means the attr fork area was exactly large enough to fit
+		 * means the attr fork area was exactly large eanalugh to fit
 		 * the sf structure.
 		 */
 		afork_min = XFS_DFORK_SIZE(dip, sc->mp, XFS_ATTR_FORK);
 		break;
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		attr_extents = xfs_dfork_attr_extents(dip);
 		if (attr_extents) {
 			/*
 			 * We must maintain sufficient space to hold the entire
-			 * extent map array in the data fork.  Note that we
-			 * previously zapped the fork if it had no chance of
-			 * fitting in the inode.
+			 * extent map array in the data fork.  Analte that we
+			 * previously zapped the fork if it had anal chance of
+			 * fitting in the ianalde.
 			 */
 			afork_min = sizeof(struct xfs_bmbt_rec) * attr_extents;
 		} else if (ri->attr_extents > 0) {
 			/*
 			 * The attr fork thinks it has zero extents, but we
-			 * found some xattr extents.  We need to leave enough
+			 * found some xattr extents.  We need to leave eanalugh
 			 * empty space here so that the incore attr fork will
 			 * get created (and hence trigger the attr fork bmap
 			 * repairer).
 			 */
 			afork_min = bmdr_minsz;
 		} else {
-			/* No extents on disk or found in rmapbt. */
+			/* Anal extents on disk or found in rmapbt. */
 			afork_min = 0;
 		}
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		/* Must have space for btree header and key/pointers. */
 		bmdr = XFS_DFORK_PTR(dip, XFS_ATTR_FORK);
 		afork_min = XFS_BMAP_BROOT_SPACE(sc->mp, bmdr);
@@ -905,44 +905,44 @@ xrep_dinode_ensure_forkoff(
 
 	/* Compute the minimum space required for the data fork. */
 	switch (dip->di_format) {
-	case XFS_DINODE_FMT_DEV:
+	case XFS_DIANALDE_FMT_DEV:
 		dfork_min = sizeof(__be32);
 		break;
-	case XFS_DINODE_FMT_UUID:
+	case XFS_DIANALDE_FMT_UUID:
 		dfork_min = sizeof(uuid_t);
 		break;
-	case XFS_DINODE_FMT_LOCAL:
+	case XFS_DIANALDE_FMT_LOCAL:
 		/*
 		 * If we still have a shortform data fork at all, that means
-		 * the data fork area was large enough to fit whatever was in
+		 * the data fork area was large eanalugh to fit whatever was in
 		 * there.
 		 */
 		dfork_min = be64_to_cpu(dip->di_size);
 		break;
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		data_extents = xfs_dfork_data_extents(dip);
 		if (data_extents) {
 			/*
 			 * We must maintain sufficient space to hold the entire
-			 * extent map array in the data fork.  Note that we
-			 * previously zapped the fork if it had no chance of
-			 * fitting in the inode.
+			 * extent map array in the data fork.  Analte that we
+			 * previously zapped the fork if it had anal chance of
+			 * fitting in the ianalde.
 			 */
 			dfork_min = sizeof(struct xfs_bmbt_rec) * data_extents;
 		} else if (ri->data_extents > 0 || ri->rt_extents > 0) {
 			/*
 			 * The data fork thinks it has zero extents, but we
-			 * found some data extents.  We need to leave enough
+			 * found some data extents.  We need to leave eanalugh
 			 * empty space here so that the data fork bmap repair
 			 * will recover the mappings.
 			 */
 			dfork_min = bmdr_minsz;
 		} else {
-			/* No extents on disk or found in rmapbt. */
+			/* Anal extents on disk or found in rmapbt. */
 			dfork_min = 0;
 		}
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		/* Must have space for btree header and key/pointers. */
 		bmdr = XFS_DFORK_PTR(dip, XFS_DATA_FORK);
 		dfork_min = XFS_BMAP_BROOT_SPACE(sc->mp, bmdr);
@@ -964,10 +964,10 @@ xrep_dinode_ensure_forkoff(
 	ASSERT(afork_min <= lit_sz);
 
 	/*
-	 * If the data fork was zapped and we don't have enough space for the
+	 * If the data fork was zapped and we don't have eanalugh space for the
 	 * recovery fork, move the attr fork up.
 	 */
-	if (dip->di_format == XFS_DINODE_FMT_EXTENTS &&
+	if (dip->di_format == XFS_DIANALDE_FMT_EXTENTS &&
 	    xfs_dfork_data_extents(dip) == 0 &&
 	    (ri->data_extents > 0 || ri->rt_extents > 0) &&
 	    bmdr_minsz > XFS_DFORK_DSIZE(dip, sc->mp)) {
@@ -976,7 +976,7 @@ xrep_dinode_ensure_forkoff(
 			 * The attr for and the stub fork we need to recover
 			 * the data fork won't both fit.  Zap the attr fork.
 			 */
-			xrep_dinode_zap_afork(ri, dip, mode);
+			xrep_dianalde_zap_afork(ri, dip, mode);
 			afork_min = bmdr_minsz;
 		} else {
 			void	*before, *after;
@@ -990,14 +990,14 @@ xrep_dinode_ensure_forkoff(
 	}
 
 	/*
-	 * If the attr fork was zapped and we don't have enough space for the
+	 * If the attr fork was zapped and we don't have eanalugh space for the
 	 * recovery fork, move the attr fork down.
 	 */
-	if (dip->di_aformat == XFS_DINODE_FMT_EXTENTS &&
+	if (dip->di_aformat == XFS_DIANALDE_FMT_EXTENTS &&
 	    xfs_dfork_attr_extents(dip) == 0 &&
 	    ri->attr_extents > 0 &&
 	    bmdr_minsz > XFS_DFORK_ASIZE(dip, sc->mp)) {
-		if (dip->di_format == XFS_DINODE_FMT_BTREE) {
+		if (dip->di_format == XFS_DIANALDE_FMT_BTREE) {
 			/*
 			 * If the data fork is in btree format then we can't
 			 * adjust forkoff because that runs the risk of
@@ -1008,7 +1008,7 @@ xrep_dinode_ensure_forkoff(
 			 * If we can't move the attr fork, too bad, we lose the
 			 * attr fork and leak its blocks.
 			 */
-			xrep_dinode_zap_afork(ri, dip, mode);
+			xrep_dianalde_zap_afork(ri, dip, mode);
 		} else {
 			/*
 			 * Otherwise, just slide the attr fork down.  The attr
@@ -1022,13 +1022,13 @@ xrep_dinode_ensure_forkoff(
 
 /*
  * Zap the data/attr forks if we spot anything that isn't going to pass the
- * ifork verifiers or the ifork formatters, because we need to get the inode
- * into good enough shape that the higher level repair functions can run.
+ * ifork verifiers or the ifork formatters, because we need to get the ianalde
+ * into good eanalugh shape that the higher level repair functions can run.
  */
 STATIC void
-xrep_dinode_zap_forks(
-	struct xrep_inode	*ri,
-	struct xfs_dinode	*dip)
+xrep_dianalde_zap_forks(
+	struct xrep_ianalde	*ri,
+	struct xfs_dianalde	*dip)
 {
 	struct xfs_scrub	*sc = ri->sc;
 	xfs_extnum_t		data_extents;
@@ -1038,7 +1038,7 @@ xrep_dinode_zap_forks(
 	bool			zap_datafork = false;
 	bool			zap_attrfork = ri->zap_acls;
 
-	trace_xrep_dinode_zap_forks(sc, dip);
+	trace_xrep_dianalde_zap_forks(sc, dip);
 
 	mode = be16_to_cpu(dip->di_mode);
 
@@ -1046,7 +1046,7 @@ xrep_dinode_zap_forks(
 	attr_extents = xfs_dfork_attr_extents(dip);
 	nblocks = be64_to_cpu(dip->di_nblocks);
 
-	/* Inode counters don't make sense? */
+	/* Ianalde counters don't make sense? */
 	if (data_extents > nblocks)
 		zap_datafork = true;
 	if (attr_extents > nblocks)
@@ -1055,16 +1055,16 @@ xrep_dinode_zap_forks(
 		zap_datafork = zap_attrfork = true;
 
 	if (!zap_datafork)
-		zap_datafork = xrep_dinode_check_dfork(sc, dip, mode);
+		zap_datafork = xrep_dianalde_check_dfork(sc, dip, mode);
 	if (!zap_attrfork)
-		zap_attrfork = xrep_dinode_check_afork(sc, dip);
+		zap_attrfork = xrep_dianalde_check_afork(sc, dip);
 
 	/* Zap whatever's bad. */
 	if (zap_attrfork)
-		xrep_dinode_zap_afork(ri, dip, mode);
+		xrep_dianalde_zap_afork(ri, dip, mode);
 	if (zap_datafork)
-		xrep_dinode_zap_dfork(ri, dip, mode);
-	xrep_dinode_ensure_forkoff(ri, dip, mode);
+		xrep_dianalde_zap_dfork(ri, dip, mode);
+	xrep_dianalde_ensure_forkoff(ri, dip, mode);
 
 	/*
 	 * Zero di_nblocks if we don't have any extents at all to satisfy the
@@ -1076,66 +1076,66 @@ xrep_dinode_zap_forks(
 		dip->di_nblocks = 0;
 }
 
-/* Inode didn't pass dinode verifiers, so fix the raw buffer and retry iget. */
+/* Ianalde didn't pass dianalde verifiers, so fix the raw buffer and retry iget. */
 STATIC int
-xrep_dinode_core(
-	struct xrep_inode	*ri)
+xrep_dianalde_core(
+	struct xrep_ianalde	*ri)
 {
 	struct xfs_scrub	*sc = ri->sc;
 	struct xfs_buf		*bp;
-	struct xfs_dinode	*dip;
-	xfs_ino_t		ino = sc->sm->sm_ino;
+	struct xfs_dianalde	*dip;
+	xfs_ianal_t		ianal = sc->sm->sm_ianal;
 	int			error;
 	int			iget_error;
 
-	/* Figure out what this inode had mapped in both forks. */
-	error = xrep_dinode_count_rmaps(ri);
+	/* Figure out what this ianalde had mapped in both forks. */
+	error = xrep_dianalde_count_rmaps(ri);
 	if (error)
 		return error;
 
-	/* Read the inode cluster buffer. */
+	/* Read the ianalde cluster buffer. */
 	error = xfs_trans_read_buf(sc->mp, sc->tp, sc->mp->m_ddev_targp,
-			ri->imap.im_blkno, ri->imap.im_len, XBF_UNMAPPED, &bp,
+			ri->imap.im_blkanal, ri->imap.im_len, XBF_UNMAPPED, &bp,
 			NULL);
 	if (error)
 		return error;
 
-	/* Make sure we can pass the inode buffer verifier. */
-	xrep_dinode_buf(sc, bp);
-	bp->b_ops = &xfs_inode_buf_ops;
+	/* Make sure we can pass the ianalde buffer verifier. */
+	xrep_dianalde_buf(sc, bp);
+	bp->b_ops = &xfs_ianalde_buf_ops;
 
 	/* Fix everything the verifier will complain about. */
 	dip = xfs_buf_offset(bp, ri->imap.im_boffset);
-	xrep_dinode_header(sc, dip);
-	xrep_dinode_mode(ri, dip);
-	xrep_dinode_flags(sc, dip, ri->rt_extents > 0);
-	xrep_dinode_size(ri, dip);
-	xrep_dinode_extsize_hints(sc, dip);
-	xrep_dinode_zap_forks(ri, dip);
+	xrep_dianalde_header(sc, dip);
+	xrep_dianalde_mode(ri, dip);
+	xrep_dianalde_flags(sc, dip, ri->rt_extents > 0);
+	xrep_dianalde_size(ri, dip);
+	xrep_dianalde_extsize_hints(sc, dip);
+	xrep_dianalde_zap_forks(ri, dip);
 
-	/* Write out the inode. */
-	trace_xrep_dinode_fixed(sc, dip);
-	xfs_dinode_calc_crc(sc->mp, dip);
-	xfs_trans_buf_set_type(sc->tp, bp, XFS_BLFT_DINO_BUF);
+	/* Write out the ianalde. */
+	trace_xrep_dianalde_fixed(sc, dip);
+	xfs_dianalde_calc_crc(sc->mp, dip);
+	xfs_trans_buf_set_type(sc->tp, bp, XFS_BLFT_DIANAL_BUF);
 	xfs_trans_log_buf(sc->tp, bp, ri->imap.im_boffset,
-			ri->imap.im_boffset + sc->mp->m_sb.sb_inodesize - 1);
+			ri->imap.im_boffset + sc->mp->m_sb.sb_ianaldesize - 1);
 
 	/*
-	 * In theory, we've fixed the ondisk inode record enough that we should
-	 * be able to load the inode into the cache.  Try to iget that inode
-	 * now while we hold the AGI and the inode cluster buffer and take the
+	 * In theory, we've fixed the ondisk ianalde record eanalugh that we should
+	 * be able to load the ianalde into the cache.  Try to iget that ianalde
+	 * analw while we hold the AGI and the ianalde cluster buffer and take the
 	 * IOLOCK so that we can continue with repairs without anyone else
-	 * accessing the inode.  If iget fails, we still need to commit the
+	 * accessing the ianalde.  If iget fails, we still need to commit the
 	 * changes.
 	 */
-	iget_error = xchk_iget(sc, ino, &sc->ip);
+	iget_error = xchk_iget(sc, ianal, &sc->ip);
 	if (!iget_error)
 		xchk_ilock(sc, XFS_IOLOCK_EXCL);
 
 	/*
-	 * Commit the inode cluster buffer updates and drop the AGI buffer that
+	 * Commit the ianalde cluster buffer updates and drop the AGI buffer that
 	 * we've been holding since scrub setup.  From here on out, repairs
-	 * deal only with the cached inode.
+	 * deal only with the cached ianalde.
 	 */
 	error = xrep_trans_commit(sc);
 	if (error)
@@ -1148,29 +1148,29 @@ xrep_dinode_core(
 	if (error)
 		return error;
 
-	error = xrep_ino_dqattach(sc);
+	error = xrep_ianal_dqattach(sc);
 	if (error)
 		return error;
 
 	xchk_ilock(sc, XFS_ILOCK_EXCL);
-	if (ri->ino_sick_mask)
-		xfs_inode_mark_sick(sc->ip, ri->ino_sick_mask);
+	if (ri->ianal_sick_mask)
+		xfs_ianalde_mark_sick(sc->ip, ri->ianal_sick_mask);
 	return 0;
 }
 
-/* Fix everything xfs_dinode_verify cares about. */
+/* Fix everything xfs_dianalde_verify cares about. */
 STATIC int
-xrep_dinode_problems(
-	struct xrep_inode	*ri)
+xrep_dianalde_problems(
+	struct xrep_ianalde	*ri)
 {
 	struct xfs_scrub	*sc = ri->sc;
 	int			error;
 
-	error = xrep_dinode_core(ri);
+	error = xrep_dianalde_core(ri);
 	if (error)
 		return error;
 
-	/* We had to fix a totally busted inode, schedule quotacheck. */
+	/* We had to fix a totally busted ianalde, schedule quotacheck. */
 	if (XFS_IS_UQUOTA_ON(sc->mp))
 		xrep_force_quotacheck(sc, XFS_DQTYPE_USER);
 	if (XFS_IS_GQUOTA_ON(sc->mp))
@@ -1189,7 +1189,7 @@ xrep_dinode_problems(
 
 /* Make sure block and extent counts are ok. */
 STATIC int
-xrep_inode_blockcounts(
+xrep_ianalde_blockcounts(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_ifork	*ifp;
@@ -1198,27 +1198,27 @@ xrep_inode_blockcounts(
 	xfs_extnum_t		nextents;
 	int			error;
 
-	trace_xrep_inode_blockcounts(sc);
+	trace_xrep_ianalde_blockcounts(sc);
 
 	/* Set data fork counters from the data fork mappings. */
 	error = xfs_bmap_count_blocks(sc->tp, sc->ip, XFS_DATA_FORK,
 			&nextents, &count);
 	if (error)
 		return error;
-	if (xfs_is_reflink_inode(sc->ip)) {
+	if (xfs_is_reflink_ianalde(sc->ip)) {
 		/*
 		 * data fork blockcount can exceed physical storage if a user
 		 * reflinks the same block over and over again.
 		 */
 		;
-	} else if (XFS_IS_REALTIME_INODE(sc->ip)) {
+	} else if (XFS_IS_REALTIME_IANALDE(sc->ip)) {
 		if (count >= sc->mp->m_sb.sb_rblocks)
 			return -EFSCORRUPTED;
 	} else {
 		if (count >= sc->mp->m_sb.sb_dblocks)
 			return -EFSCORRUPTED;
 	}
-	error = xrep_ino_ensure_extent_count(sc, XFS_DATA_FORK, nextents);
+	error = xrep_ianal_ensure_extent_count(sc, XFS_DATA_FORK, nextents);
 	if (error)
 		return error;
 	sc->ip->i_df.if_nextents = nextents;
@@ -1232,7 +1232,7 @@ xrep_inode_blockcounts(
 			return error;
 		if (count >= sc->mp->m_sb.sb_dblocks)
 			return -EFSCORRUPTED;
-		error = xrep_ino_ensure_extent_count(sc, XFS_ATTR_FORK,
+		error = xrep_ianal_ensure_extent_count(sc, XFS_ATTR_FORK,
 				nextents);
 		if (error)
 			return error;
@@ -1247,12 +1247,12 @@ xrep_inode_blockcounts(
 
 /* Check for invalid uid/gid/prid. */
 STATIC void
-xrep_inode_ids(
+xrep_ianalde_ids(
 	struct xfs_scrub	*sc)
 {
 	bool			dirty = false;
 
-	trace_xrep_inode_ids(sc);
+	trace_xrep_ianalde_ids(sc);
 
 	if (!uid_valid(VFS_I(sc->ip)->i_uid)) {
 		i_uid_write(VFS_I(sc->ip), 0);
@@ -1282,44 +1282,44 @@ xrep_inode_ids(
 
 static inline void
 xrep_clamp_timestamp(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct timespec64	*ts)
 {
 	ts->tv_nsec = clamp_t(long, ts->tv_nsec, 0, NSEC_PER_SEC);
 	*ts = timestamp_truncate(*ts, VFS_I(ip));
 }
 
-/* Nanosecond counters can't have more than 1 billion. */
+/* Naanalsecond counters can't have more than 1 billion. */
 STATIC void
-xrep_inode_timestamps(
-	struct xfs_inode	*ip)
+xrep_ianalde_timestamps(
+	struct xfs_ianalde	*ip)
 {
 	struct timespec64	tstamp;
-	struct inode		*inode = VFS_I(ip);
+	struct ianalde		*ianalde = VFS_I(ip);
 
-	tstamp = inode_get_atime(inode);
+	tstamp = ianalde_get_atime(ianalde);
 	xrep_clamp_timestamp(ip, &tstamp);
-	inode_set_atime_to_ts(inode, tstamp);
+	ianalde_set_atime_to_ts(ianalde, tstamp);
 
-	tstamp = inode_get_mtime(inode);
+	tstamp = ianalde_get_mtime(ianalde);
 	xrep_clamp_timestamp(ip, &tstamp);
-	inode_set_mtime_to_ts(inode, tstamp);
+	ianalde_set_mtime_to_ts(ianalde, tstamp);
 
-	tstamp = inode_get_ctime(inode);
+	tstamp = ianalde_get_ctime(ianalde);
 	xrep_clamp_timestamp(ip, &tstamp);
-	inode_set_ctime_to_ts(inode, tstamp);
+	ianalde_set_ctime_to_ts(ianalde, tstamp);
 
 	xrep_clamp_timestamp(ip, &ip->i_crtime);
 }
 
-/* Fix inode flags that don't make sense together. */
+/* Fix ianalde flags that don't make sense together. */
 STATIC void
-xrep_inode_flags(
+xrep_ianalde_flags(
 	struct xfs_scrub	*sc)
 {
 	uint16_t		mode;
 
-	trace_xrep_inode_flags(sc);
+	trace_xrep_ianalde_flags(sc);
 
 	mode = VFS_I(sc->ip)->i_mode;
 
@@ -1328,7 +1328,7 @@ xrep_inode_flags(
 		sc->ip->i_diflags &= ~XFS_DIFLAG_ANY;
 
 	/* NEWRTBM only applies to realtime bitmaps */
-	if (sc->ip->i_ino == sc->mp->m_sb.sb_rbmino)
+	if (sc->ip->i_ianal == sc->mp->m_sb.sb_rbmianal)
 		sc->ip->i_diflags |= XFS_DIFLAG_NEWRTBM;
 	else
 		sc->ip->i_diflags &= ~XFS_DIFLAG_NEWRTBM;
@@ -1338,14 +1338,14 @@ xrep_inode_flags(
 		sc->ip->i_diflags &= ~(XFS_DIFLAG_RTINHERIT |
 					  XFS_DIFLAG_EXTSZINHERIT |
 					  XFS_DIFLAG_PROJINHERIT |
-					  XFS_DIFLAG_NOSYMLINKS);
+					  XFS_DIFLAG_ANALSYMLINKS);
 
 	/* These only make sense for files. */
 	if (!S_ISREG(mode))
 		sc->ip->i_diflags &= ~(XFS_DIFLAG_REALTIME |
 					  XFS_DIFLAG_EXTSIZE);
 
-	/* These only make sense for non-rt files. */
+	/* These only make sense for analn-rt files. */
 	if (sc->ip->i_diflags & XFS_DIFLAG_REALTIME)
 		sc->ip->i_diflags &= ~XFS_DIFLAG_FILESTREAM;
 
@@ -1358,7 +1358,7 @@ xrep_inode_flags(
 	if (sc->ip->i_diflags2 & ~XFS_DIFLAG2_ANY)
 		sc->ip->i_diflags2 &= ~XFS_DIFLAG2_ANY;
 
-	/* No reflink flag unless we support it and it's a file. */
+	/* Anal reflink flag unless we support it and it's a file. */
 	if (!xfs_has_reflink(sc->mp) || !S_ISREG(mode))
 		sc->ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 
@@ -1366,18 +1366,18 @@ xrep_inode_flags(
 	if (!(S_ISREG(mode) || S_ISDIR(mode)))
 		sc->ip->i_diflags2 &= ~XFS_DIFLAG2_DAX;
 
-	/* No reflink files on the realtime device. */
+	/* Anal reflink files on the realtime device. */
 	if (sc->ip->i_diflags & XFS_DIFLAG_REALTIME)
 		sc->ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 }
 
 /*
- * Fix size problems with block/node format directories.  If we fail to find
+ * Fix size problems with block/analde format directories.  If we fail to find
  * the extent list, just bail out and let the bmapbtd repair functions clean
  * up that mess.
  */
 STATIC void
-xrep_inode_blockdir_size(
+xrep_ianalde_blockdir_size(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_iext_cursor	icur;
@@ -1386,7 +1386,7 @@ xrep_inode_blockdir_size(
 	xfs_fileoff_t		off;
 	int			error;
 
-	trace_xrep_inode_blockdir_size(sc);
+	trace_xrep_ianalde_blockdir_size(sc);
 
 	error = xfs_iread_extents(sc->tp, sc->ip, XFS_DATA_FORK);
 	if (error)
@@ -1407,41 +1407,41 @@ xrep_inode_blockdir_size(
 
 /* Fix size problems with short format directories. */
 STATIC void
-xrep_inode_sfdir_size(
+xrep_ianalde_sfdir_size(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_ifork	*ifp;
 
-	trace_xrep_inode_sfdir_size(sc);
+	trace_xrep_ianalde_sfdir_size(sc);
 
 	ifp = xfs_ifork_ptr(sc->ip, XFS_DATA_FORK);
 	sc->ip->i_disk_size = ifp->if_bytes;
 }
 
 /*
- * Fix any irregularities in a directory inode's size now that we can iterate
- * extent maps and access other regular inode data.
+ * Fix any irregularities in a directory ianalde's size analw that we can iterate
+ * extent maps and access other regular ianalde data.
  */
 STATIC void
-xrep_inode_dir_size(
+xrep_ianalde_dir_size(
 	struct xfs_scrub	*sc)
 {
-	trace_xrep_inode_dir_size(sc);
+	trace_xrep_ianalde_dir_size(sc);
 
 	switch (sc->ip->i_df.if_format) {
-	case XFS_DINODE_FMT_EXTENTS:
-	case XFS_DINODE_FMT_BTREE:
-		xrep_inode_blockdir_size(sc);
+	case XFS_DIANALDE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_BTREE:
+		xrep_ianalde_blockdir_size(sc);
 		break;
-	case XFS_DINODE_FMT_LOCAL:
-		xrep_inode_sfdir_size(sc);
+	case XFS_DIANALDE_FMT_LOCAL:
+		xrep_ianalde_sfdir_size(sc);
 		break;
 	}
 }
 
 /* Fix extent size hint problems. */
 STATIC void
-xrep_inode_extsize(
+xrep_ianalde_extsize(
 	struct xfs_scrub	*sc)
 {
 	/* Fix misaligned extent size hints on a directory. */
@@ -1453,53 +1453,53 @@ xrep_inode_extsize(
 	}
 }
 
-/* Fix any irregularities in an inode that the verifiers don't catch. */
+/* Fix any irregularities in an ianalde that the verifiers don't catch. */
 STATIC int
-xrep_inode_problems(
+xrep_ianalde_problems(
 	struct xfs_scrub	*sc)
 {
 	int			error;
 
-	error = xrep_inode_blockcounts(sc);
+	error = xrep_ianalde_blockcounts(sc);
 	if (error)
 		return error;
-	xrep_inode_timestamps(sc->ip);
-	xrep_inode_flags(sc);
-	xrep_inode_ids(sc);
+	xrep_ianalde_timestamps(sc->ip);
+	xrep_ianalde_flags(sc);
+	xrep_ianalde_ids(sc);
 	/*
-	 * We can now do a better job fixing the size of a directory now that
-	 * we can scan the data fork extents than we could in xrep_dinode_size.
+	 * We can analw do a better job fixing the size of a directory analw that
+	 * we can scan the data fork extents than we could in xrep_dianalde_size.
 	 */
 	if (S_ISDIR(VFS_I(sc->ip)->i_mode))
-		xrep_inode_dir_size(sc);
-	xrep_inode_extsize(sc);
+		xrep_ianalde_dir_size(sc);
+	xrep_ianalde_extsize(sc);
 
-	trace_xrep_inode_fixed(sc);
-	xfs_trans_log_inode(sc->tp, sc->ip, XFS_ILOG_CORE);
+	trace_xrep_ianalde_fixed(sc);
+	xfs_trans_log_ianalde(sc->tp, sc->ip, XFS_ILOG_CORE);
 	return xrep_roll_trans(sc);
 }
 
-/* Repair an inode's fields. */
+/* Repair an ianalde's fields. */
 int
-xrep_inode(
+xrep_ianalde(
 	struct xfs_scrub	*sc)
 {
 	int			error = 0;
 
 	/*
-	 * No inode?  That means we failed the _iget verifiers.  Repair all
-	 * the things that the inode verifiers care about, then retry _iget.
+	 * Anal ianalde?  That means we failed the _iget verifiers.  Repair all
+	 * the things that the ianalde verifiers care about, then retry _iget.
 	 */
 	if (!sc->ip) {
-		struct xrep_inode	*ri = sc->buf;
+		struct xrep_ianalde	*ri = sc->buf;
 
 		ASSERT(ri != NULL);
 
-		error = xrep_dinode_problems(ri);
+		error = xrep_dianalde_problems(ri);
 		if (error)
 			return error;
 
-		/* By this point we had better have a working incore inode. */
+		/* By this point we had better have a working incore ianalde. */
 		if (!sc->ip)
 			return -EFSCORRUPTED;
 	}
@@ -1509,14 +1509,14 @@ xrep_inode(
 	/* If we found corruption of any kind, try to fix it. */
 	if ((sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT) ||
 	    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_XCORRUPT)) {
-		error = xrep_inode_problems(sc);
+		error = xrep_ianalde_problems(sc);
 		if (error)
 			return error;
 	}
 
 	/* See if we can clear the reflink flag. */
-	if (xfs_is_reflink_inode(sc->ip)) {
-		error = xfs_reflink_clear_inode_flag(sc->ip, &sc->tp);
+	if (xfs_is_reflink_ianalde(sc->ip)) {
+		error = xfs_reflink_clear_ianalde_flag(sc->ip, &sc->tp);
 		if (error)
 			return error;
 	}

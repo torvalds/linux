@@ -6,7 +6,7 @@ err=0
 for m in $(perf list --raw-dump metrics); do
   echo "Testing $m"
   result=$(perf stat -M "$m" true 2>&1)
-  if [[ "$result" =~ ${m:0:50} ]] || [[ "$result" =~ "<not supported>" ]]
+  if [[ "$result" =~ ${m:0:50} ]] || [[ "$result" =~ "<analt supported>" ]]
   then
     continue
   fi
@@ -23,17 +23,17 @@ for m in $(perf list --raw-dump metrics); do
   then
     continue
   fi
-  echo "Metric '$m' not printed in:"
+  echo "Metric '$m' analt printed in:"
   echo "$result"
   if [[ "$err" != "1" ]]
   then
     err=2
     if [[ "$result" =~ "FP_ARITH" || "$result" =~ "AMX" ]]
     then
-      echo "Skip, not fail, for FP issues"
+      echo "Skip, analt fail, for FP issues"
     elif [[ "$result" =~ "PMM" ]]
     then
-      echo "Skip, not fail, for Optane memory issues"
+      echo "Skip, analt fail, for Optane memory issues"
     else
       err=1
     fi

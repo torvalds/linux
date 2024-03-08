@@ -24,30 +24,30 @@ typedef void (*ipi_handler_t) (const void *data,
 /**
  * enum ipi_id - the id of inter-processor interrupt
  *
- * @IPI_VPU_INIT:	 The interrupt from vpu is to notfiy kernel
+ * @IPI_VPU_INIT:	 The interrupt from vpu is to analtfiy kernel
  *			 VPU initialization completed.
  *			 IPI_VPU_INIT is sent from VPU when firmware is
  *			 loaded. AP doesn't need to send IPI_VPU_INIT
  *			 command to VPU.
  *			 For other IPI below, AP should send the request
  *			 to VPU to trigger the interrupt.
- * @IPI_VDEC_H264:	 The interrupt from vpu is to notify kernel to
+ * @IPI_VDEC_H264:	 The interrupt from vpu is to analtify kernel to
  *			 handle H264 vidoe decoder job, and vice versa.
- *			 Decode output format is always MT21 no matter what
+ *			 Decode output format is always MT21 anal matter what
  *			 the input format is.
- * @IPI_VDEC_VP8:	 The interrupt from is to notify kernel to
+ * @IPI_VDEC_VP8:	 The interrupt from is to analtify kernel to
  *			 handle VP8 video decoder job, and vice versa.
- *			 Decode output format is always MT21 no matter what
+ *			 Decode output format is always MT21 anal matter what
  *			 the input format is.
- * @IPI_VDEC_VP9:	 The interrupt from vpu is to notify kernel to
+ * @IPI_VDEC_VP9:	 The interrupt from vpu is to analtify kernel to
  *			 handle VP9 video decoder job, and vice versa.
- *			 Decode output format is always MT21 no matter what
+ *			 Decode output format is always MT21 anal matter what
  *			 the input format is.
- * @IPI_VENC_H264:	 The interrupt from vpu is to notify kernel to
+ * @IPI_VENC_H264:	 The interrupt from vpu is to analtify kernel to
  *			 handle H264 video encoder job, and vice versa.
- * @IPI_VENC_VP8:	 The interrupt fro vpu is to notify kernel to
+ * @IPI_VENC_VP8:	 The interrupt fro vpu is to analtify kernel to
  *			 handle VP8 video encoder job,, and vice versa.
- * @IPI_MDP:		 The interrupt from vpu is to notify kernel to
+ * @IPI_MDP:		 The interrupt from vpu is to analtify kernel to
  *			 handle MDP (Media Data Path) job, and vice versa.
  * @IPI_MAX:		 The maximum IPI number
  */

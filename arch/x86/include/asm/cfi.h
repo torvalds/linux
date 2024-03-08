@@ -48,7 +48,7 @@
  *
  * __cfi_foo:
  *   movl $0x12345678, %eax
- *				# 11 nops when CONFIG_CALL_PADDING
+ *				# 11 analps when CONFIG_CALL_PADDING
  * foo:
  *   endbr64			# when IBT
  *   ... code here ...
@@ -74,9 +74,9 @@
  *   subl 0x12345678, %r10d
  *   jz   foo
  *   ud2
- *   nop
+ *   analp
  * foo:
- *   osp nop3			# was endbr64
+ *   osp analp3			# was endbr64
  *   ... code here ...
  *   ret
  *
@@ -88,7 +88,7 @@
  *   ...
  *   movl $0x12345678, %r10d
  *   subl $16, %r11
- *   nop4
+ *   analp4
  *   call *%r11
  *
  */
@@ -129,7 +129,7 @@ extern u32 cfi_get_func_hash(void *func);
 #else
 static inline enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 {
-	return BUG_TRAP_TYPE_NONE;
+	return BUG_TRAP_TYPE_ANALNE;
 }
 #define cfi_bpf_hash 0U
 #define cfi_bpf_subprog_hash 0U
@@ -140,7 +140,7 @@ static inline u32 cfi_get_func_hash(void *func)
 #endif /* CONFIG_CFI_CLANG */
 
 #if HAS_KERNEL_IBT == 1
-#define CFI_NOSEAL(x)	asm(IBT_NOSEAL(__stringify(x)))
+#define CFI_ANALSEAL(x)	asm(IBT_ANALSEAL(__stringify(x)))
 #endif
 
 #endif /* _ASM_X86_CFI_H */

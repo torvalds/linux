@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 // Keytable for Xbox 360 Universal Media remote
-// Copyright (c) 2021 Bastien Nocera <hadess@hadess.net>
+// Copyright (c) 2021 Bastien Analcera <hadess@hadess.net>
 
 #include <media/rc-map.h>
 #include <linux/module.h>

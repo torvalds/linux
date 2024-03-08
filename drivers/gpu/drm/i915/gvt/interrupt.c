@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -76,7 +76,7 @@ static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[RCS_DEBUG] = "Render EU debug from SVG",
 	[RCS_MMIO_SYNC_FLUSH] = "Render MMIO sync flush status",
 	[RCS_CMD_STREAMER_ERR] = "Render CS error interrupt",
-	[RCS_PIPE_CONTROL] = "Render PIPE CONTROL notify",
+	[RCS_PIPE_CONTROL] = "Render PIPE CONTROL analtify",
 	[RCS_WATCHDOG_EXCEEDED] = "Render CS Watchdog counter exceeded",
 	[RCS_PAGE_DIRECTORY_FAULT] = "Render page directory faults",
 	[RCS_AS_CONTEXT_SWITCH] = "Render AS Context Switch Interrupt",
@@ -84,22 +84,22 @@ static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[VCS_MI_USER_INTERRUPT] = "Video CS MI USER INTERRUPT",
 	[VCS_MMIO_SYNC_FLUSH] = "Video MMIO sync flush status",
 	[VCS_CMD_STREAMER_ERR] = "Video CS error interrupt",
-	[VCS_MI_FLUSH_DW] = "Video MI FLUSH DW notify",
+	[VCS_MI_FLUSH_DW] = "Video MI FLUSH DW analtify",
 	[VCS_WATCHDOG_EXCEEDED] = "Video CS Watchdog counter exceeded",
 	[VCS_PAGE_DIRECTORY_FAULT] = "Video page directory faults",
 	[VCS_AS_CONTEXT_SWITCH] = "Video AS Context Switch Interrupt",
 	[VCS2_MI_USER_INTERRUPT] = "VCS2 Video CS MI USER INTERRUPT",
-	[VCS2_MI_FLUSH_DW] = "VCS2 Video MI FLUSH DW notify",
+	[VCS2_MI_FLUSH_DW] = "VCS2 Video MI FLUSH DW analtify",
 	[VCS2_AS_CONTEXT_SWITCH] = "VCS2 Context Switch Interrupt",
 
 	[BCS_MI_USER_INTERRUPT] = "Blitter CS MI USER INTERRUPT",
 	[BCS_MMIO_SYNC_FLUSH] = "Billter MMIO sync flush status",
 	[BCS_CMD_STREAMER_ERR] = "Blitter CS error interrupt",
-	[BCS_MI_FLUSH_DW] = "Blitter MI FLUSH DW notify",
+	[BCS_MI_FLUSH_DW] = "Blitter MI FLUSH DW analtify",
 	[BCS_PAGE_DIRECTORY_FAULT] = "Blitter page directory faults",
 	[BCS_AS_CONTEXT_SWITCH] = "Blitter AS Context Switch Interrupt",
 
-	[VECS_MI_FLUSH_DW] = "Video Enhanced Streamer MI FLUSH DW notify",
+	[VECS_MI_FLUSH_DW] = "Video Enhanced Streamer MI FLUSH DW analtify",
 	[VECS_AS_CONTEXT_SWITCH] = "VECS Context Switch Interrupt",
 
 	[PIPE_A_FIFO_UNDERRUN] = "Pipe A FIFO underrun",
@@ -432,7 +432,7 @@ static void inject_virtual_interrupt(struct intel_vgpu *vgpu)
 	addr = *(u32 *)(vgpu_cfg_space(vgpu) + MSI_CAP_ADDRESS(offset));
 	data = *(u16 *)(vgpu_cfg_space(vgpu) + MSI_CAP_DATA(offset));
 
-	/* Do not generate MSI if MSIEN is disabled */
+	/* Do analt generate MSI if MSIEN is disabled */
 	if (!(control & MSI_CAP_EN))
 		return;
 

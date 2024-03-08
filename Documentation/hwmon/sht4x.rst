@@ -9,7 +9,7 @@ Supported Chips:
 
     Prefix: 'sht4x'
 
-    Addresses scanned: None
+    Addresses scanned: Analne
 
     Datasheet:
 
@@ -26,7 +26,7 @@ and temperature sensor. Temperature is measured in degree celsius, relative
 humidity is expressed as a percentage. In sysfs interface, all values are
 scaled by 1000, i.e. the value for 31.5 degrees celsius is 31500.
 
-Usage Notes
+Usage Analtes
 -----------
 
 The device communicates with the I2C protocol. Sensors can have the I2C

@@ -102,7 +102,7 @@
 	.macro		do_crypt, round, ttab, ltab, bsz
 	push		{r3-r11, lr}
 
-	// Load keys first, to reduce latency in case they're not cached yet.
+	// Load keys first, to reduce latency in case they're analt cached yet.
 	ldm		rk!, {r8-r11}
 
 	ldr		r4, [in]
@@ -126,7 +126,7 @@
 	/*
 	 * Disable interrupts and prefetch the 1024-byte 'ft' or 'it' table into
 	 * L1 cache, assuming cacheline size >= 32.  This is a hardening measure
-	 * intended to make cache-timing attacks more difficult.  They may not
+	 * intended to make cache-timing attacks more difficult.  They may analt
 	 * be fully prevented, however; see the paper
 	 * https://cr.yp.to/antiforgery/cachetiming-20050414.pdf
 	 * ("Cache-timing attacks on AES") for a discussion of the many

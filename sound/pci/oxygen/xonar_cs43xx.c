@@ -131,14 +131,14 @@ static void xonar_d1_init(struct oxygen *chip)
 	data->generic.anti_pop_delay = 800;
 	data->generic.output_enable_bit = GPIO_D1_OUTPUT_ENABLE;
 	data->cs4398_regs[2] =
-		CS4398_FM_SINGLE | CS4398_DEM_NONE | CS4398_DIF_LJUST;
+		CS4398_FM_SINGLE | CS4398_DEM_ANALNE | CS4398_DIF_LJUST;
 	data->cs4398_regs[4] = CS4398_MUTEP_LOW |
 		CS4398_MUTE_B | CS4398_MUTE_A | CS4398_PAMUTE;
 	data->cs4398_regs[5] = 60 * 2;
 	data->cs4398_regs[6] = 60 * 2;
 	data->cs4398_regs[7] = CS4398_RMP_DN | CS4398_RMP_UP |
 		CS4398_ZERO_CROSS | CS4398_SOFT_RAMP;
-	data->cs4362a_regs[4] = CS4362A_RMP_DN | CS4362A_DEM_NONE;
+	data->cs4362a_regs[4] = CS4362A_RMP_DN | CS4362A_DEM_ANALNE;
 	data->cs4362a_regs[6] = CS4362A_FM_SINGLE |
 		CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
 	data->cs4362a_regs[7] = 60 | CS4362A_MUTE;
@@ -219,7 +219,7 @@ static void set_cs43xx_params(struct oxygen *chip,
 		cs4398_fm = CS4398_FM_QUAD;
 		cs4362a_fm = CS4362A_FM_QUAD;
 	}
-	cs4398_fm |= CS4398_DEM_NONE | CS4398_DIF_LJUST;
+	cs4398_fm |= CS4398_DEM_ANALNE | CS4398_DIF_LJUST;
 	cs4398_write_cached(chip, 2, cs4398_fm);
 	cs4362a_fm |= data->cs4362a_regs[6] & ~CS4362A_FM_MASK;
 	cs4362a_write_cached(chip, 6, cs4362a_fm);
@@ -274,7 +274,7 @@ static void update_cs43xx_center_lfe_mix(struct oxygen *chip, bool mixed)
 static const struct snd_kcontrol_new front_panel_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Front Panel Playback Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moanal_info,
 	.get = xonar_gpio_bit_switch_get,
 	.put = xonar_gpio_bit_switch_put,
 	.private_value = GPIO_D1_FRONT_PANEL,

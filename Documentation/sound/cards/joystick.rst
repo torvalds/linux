@@ -74,7 +74,7 @@ emu10k1	emu10k1-gp
 fm801	fm801-gp
 =======	=================
 
-Note: the "pcigame" and "cs461x" modules are for the OSS drivers only.
+Analte: the "pcigame" and "cs461x" modules are for the OSS drivers only.
 These ALSA drivers (cs46xx, trident and au88x0) have the
 built-in gameport support.
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Synopsys DesignWare PCIe host controller driver
+ * Syanalpsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		https://www.samsung.com
@@ -43,7 +43,7 @@ static const char * const dw_pcie_app_rsts[DW_PCIE_NUM_APP_RSTS] = {
 };
 
 static const char * const dw_pcie_core_rsts[DW_PCIE_NUM_CORE_RSTS] = {
-	[DW_PCIE_NON_STICKY_RST] = "non-sticky",
+	[DW_PCIE_ANALN_STICKY_RST] = "analn-sticky",
 	[DW_PCIE_STICKY_RST] = "sticky",
 	[DW_PCIE_CORE_RST] = "core",
 	[DW_PCIE_PIPE_RST] = "pipe",
@@ -103,7 +103,7 @@ static int dw_pcie_get_resets(struct dw_pcie *pci)
 int dw_pcie_get_resources(struct dw_pcie *pci)
 {
 	struct platform_device *pdev = to_platform_device(pci->dev);
-	struct device_node *np = dev_of_node(pci->dev);
+	struct device_analde *np = dev_of_analde(pci->dev);
 	struct resource *res;
 	int ret;
 
@@ -126,7 +126,7 @@ int dw_pcie_get_resources(struct dw_pcie *pci)
 		}
 	}
 
-	/* For non-unrolled iATU/eDMA platforms this range will be ignored */
+	/* For analn-unrolled iATU/eDMA platforms this range will be iganalred */
 	if (!pci->atu_base) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "atu");
 		if (res) {
@@ -204,7 +204,7 @@ void dw_pcie_version_detect(struct dw_pcie *pci)
 /*
  * These interfaces resemble the pci_find_*capability() interfaces, but these
  * are for configuring host controllers, which are bridges *to* PCI devices but
- * are not PCI devices themselves.
+ * are analt PCI devices themselves.
  */
 static u8 __dw_pcie_find_next_cap(struct dw_pcie *pci, u8 cap_ptr,
 				  u8 cap)
@@ -255,7 +255,7 @@ static u16 dw_pcie_find_next_ext_capability(struct dw_pcie *pci, u16 start,
 
 	header = dw_pcie_readl_dbi(pci, pos);
 	/*
-	 * If we have no capabilities, this is indicated by cap ID,
+	 * If we have anal capabilities, this is indicated by cap ID,
 	 * cap version and next pointer all being 0.
 	 */
 	if (header == 0)
@@ -437,7 +437,7 @@ static inline u32 dw_pcie_enable_ecrc(u32 val)
 	 *
 	 * Because of this, even when the ECRC is enabled through AER
 	 * registers, the transactions going through ATU won't have TLP
-	 * Digest as there is no way the PCI core AER code could program
+	 * Digest as there is anal way the PCI core AER code could program
 	 * the TD bit which is specific to the DesignWare core.
 	 *
 	 * The best way to handle this scenario is to program the TD bit
@@ -445,27 +445,27 @@ static inline u32 dw_pcie_enable_ecrc(u32 val)
 	 * devices.
 	 *
 	 * At this point,
-	 * When ECRC is enabled in AER registers, everything works normally
-	 * When ECRC is NOT enabled in AER registers, then,
+	 * When ECRC is enabled in AER registers, everything works analrmally
+	 * When ECRC is ANALT enabled in AER registers, then,
 	 * on Root Port:- TLP Digest (DWord size) gets appended to each packet
-	 *                even through it is not required. Since downstream
+	 *                even through it is analt required. Since downstream
 	 *                TLPs are mostly for configuration accesses and BAR
-	 *                accesses, they are not in critical path and won't
+	 *                accesses, they are analt in critical path and won't
 	 *                have much negative effect on the performance.
 	 * on End Point:- TLP Digest is received for some/all the packets coming
-	 *                from the root port. TLP Digest is ignored because,
+	 *                from the root port. TLP Digest is iganalred because,
 	 *                as per the PCIe Spec r5.0 v1.0 section 2.2.3
 	 *                "TLP Digest Rules", when an endpoint receives TLP
 	 *                Digest when its ECRC check functionality is disabled
-	 *                in AER registers, received TLP Digest is just ignored.
-	 * Since there is no issue or error reported either side, best way to
+	 *                in AER registers, received TLP Digest is just iganalred.
+	 * Since there is anal issue or error reported either side, best way to
 	 * handle the scenario is to program TD bit by default.
 	 */
 
 	return val | PCIE_ATU_TD;
 }
 
-static int __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
+static int __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_anal,
 				       int index, int type, u64 cpu_addr,
 				       u64 pci_addr, u64 size)
 {
@@ -499,7 +499,7 @@ static int __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 	dw_pcie_writel_atu_ob(pci, index, PCIE_ATU_UPPER_TARGET,
 			      upper_32_bits(pci_addr));
 
-	val = type | PCIE_ATU_FUNC_NUM(func_no);
+	val = type | PCIE_ATU_FUNC_NUM(func_anal);
 	if (upper_32_bits(limit_addr) > upper_32_bits(cpu_addr) &&
 	    dw_pcie_ver_is_ge(pci, 460A))
 		val |= PCIE_ATU_INCREASE_REGION_SIZE;
@@ -521,7 +521,7 @@ static int __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 		mdelay(LINK_WAIT_IATU);
 	}
 
-	dev_err(pci->dev, "Outbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Outbound iATU is analt being enabled\n");
 
 	return -ETIMEDOUT;
 }
@@ -533,11 +533,11 @@ int dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
 					   cpu_addr, pci_addr, size);
 }
 
-int dw_pcie_prog_ep_outbound_atu(struct dw_pcie *pci, u8 func_no, int index,
+int dw_pcie_prog_ep_outbound_atu(struct dw_pcie *pci, u8 func_anal, int index,
 				 int type, u64 cpu_addr, u64 pci_addr,
 				 u64 size)
 {
-	return __dw_pcie_prog_outbound_atu(pci, func_no, index, type,
+	return __dw_pcie_prog_outbound_atu(pci, func_anal, index, type,
 					   cpu_addr, pci_addr, size);
 }
 
@@ -599,12 +599,12 @@ int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, int index, int type,
 		mdelay(LINK_WAIT_IATU);
 	}
 
-	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Inbound iATU is analt being enabled\n");
 
 	return -ETIMEDOUT;
 }
 
-int dw_pcie_prog_ep_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
+int dw_pcie_prog_ep_inbound_atu(struct dw_pcie *pci, u8 func_anal, int index,
 				int type, u64 cpu_addr, u8 bar)
 {
 	u32 retries, val;
@@ -618,7 +618,7 @@ int dw_pcie_prog_ep_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 			      upper_32_bits(cpu_addr));
 
 	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_REGION_CTRL1, type |
-			      PCIE_ATU_FUNC_NUM(func_no));
+			      PCIE_ATU_FUNC_NUM(func_anal));
 	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_REGION_CTRL2,
 			      PCIE_ATU_ENABLE | PCIE_ATU_FUNC_NUM_MATCH_EN |
 			      PCIE_ATU_BAR_MODE_ENABLE | (bar << 8));
@@ -635,7 +635,7 @@ int dw_pcie_prog_ep_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 		mdelay(LINK_WAIT_IATU);
 	}
 
-	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Inbound iATU is analt being enabled\n");
 
 	return -ETIMEDOUT;
 }
@@ -650,7 +650,7 @@ int dw_pcie_wait_for_link(struct dw_pcie *pci)
 	u32 offset, val;
 	int retries;
 
-	/* Check if the link is up or not */
+	/* Check if the link is up or analt */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (dw_pcie_link_up(pci))
 			break;
@@ -818,7 +818,7 @@ void dw_pcie_iatu_detect(struct dw_pcie *pci)
 	} else if (ib) {
 		dir = PCIE_ATU_REGION_DIR_IB;
 	} else {
-		dev_err(pci->dev, "No iATU regions found\n");
+		dev_err(pci->dev, "Anal iATU regions found\n");
 		return;
 	}
 
@@ -886,10 +886,10 @@ static int dw_pcie_edma_find_chip(struct dw_pcie *pci)
 
 	/*
 	 * Indirect eDMA CSRs access has been completely removed since v5.40a
-	 * thus no space is now reserved for the eDMA channels viewport and
-	 * former DMA CTRL register is no longer fixed to FFs.
+	 * thus anal space is analw reserved for the eDMA channels viewport and
+	 * former DMA CTRL register is anal longer fixed to FFs.
 	 *
-	 * Note that Renesas R-Car S4-8's PCIe controllers for unknown reason
+	 * Analte that Renesas R-Car S4-8's PCIe controllers for unkanalwn reason
 	 * have zeros in the eDMA CTRL register even though the HW-manual
 	 * explicitly states there must FFs if the unrolled mapping is enabled.
 	 * For such cases the low-level drivers are supposed to manually
@@ -909,7 +909,7 @@ static int dw_pcie_edma_find_chip(struct dw_pcie *pci)
 
 		pci->edma.reg_base = pci->dbi_base + PCIE_DMA_VIEWPORT_BASE;
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci->edma.dev = pci->dev;
@@ -971,7 +971,7 @@ static int dw_pcie_edma_ll_alloc(struct dw_pcie *pci)
 		ll->vaddr.mem = dmam_alloc_coherent(pci->dev, ll->sz,
 						    &paddr, GFP_KERNEL);
 		if (!ll->vaddr.mem)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ll->paddr = paddr;
 	}
@@ -982,7 +982,7 @@ static int dw_pcie_edma_ll_alloc(struct dw_pcie *pci)
 		ll->vaddr.mem = dmam_alloc_coherent(pci->dev, ll->sz,
 						    &paddr, GFP_KERNEL);
 		if (!ll->vaddr.mem)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ll->paddr = paddr;
 	}
@@ -994,7 +994,7 @@ int dw_pcie_edma_detect(struct dw_pcie *pci)
 {
 	int ret;
 
-	/* Don't fail if no eDMA was found (for the backward compatibility) */
+	/* Don't fail if anal eDMA was found (for the backward compatibility) */
 	ret = dw_pcie_edma_find_chip(pci);
 	if (ret)
 		return 0;
@@ -1014,7 +1014,7 @@ int dw_pcie_edma_detect(struct dw_pcie *pci)
 
 	/* Don't fail if the DW eDMA driver can't find the device */
 	ret = dw_edma_probe(&pci->edma);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -EANALDEV) {
 		dev_err(pci->dev, "Couldn't register eDMA device\n");
 		return ret;
 	}

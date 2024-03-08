@@ -121,7 +121,7 @@ truncating:
 			return PAGE_SIZE - 1;
 		}
 	default:
-		dev_err(dev, "element type %d not supported\n", element->type);
+		dev_err(dev, "element type %d analt supported\n", element->type);
 		return -EINVAL;
 	}
 }

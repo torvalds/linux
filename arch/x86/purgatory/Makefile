@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-OBJECT_FILES_NON_STANDARD := y
+OBJECT_FILES_ANALN_STANDARD := y
 
 purgatory-y := purgatory.o stack.o setup-x86_$(BITS).o sha256.o entry64.o string.o
 
@@ -12,25 +12,25 @@ $(obj)/string.o: $(srctree)/arch/x86/boot/compressed/string.c FORCE
 $(obj)/sha256.o: $(srctree)/lib/crypto/sha256.c FORCE
 	$(call if_changed_rule,cc_o_c)
 
-CFLAGS_sha256.o := -D__DISABLE_EXPORTS -D__NO_FORTIFY
+CFLAGS_sha256.o := -D__DISABLE_EXPORTS -D__ANAL_FORTIFY
 
 # When profile-guided optimization is enabled, llvm emits two different
-# overlapping text sections, which is not supported by kexec. Remove profile
+# overlapping text sections, which is analt supported by kexec. Remove profile
 # optimization flags.
 KBUILD_CFLAGS := $(filter-out -fprofile-sample-use=% -fprofile-use=%,$(KBUILD_CFLAGS))
 
-# When LTO is enabled, llvm emits many text sections, which is not supported
+# When LTO is enabled, llvm emits many text sections, which is analt supported
 # by kexec. Remove -flto=* flags.
 KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_LTO),$(KBUILD_CFLAGS))
 
-# When linking purgatory.ro with -r unresolved symbols are not checked,
+# When linking purgatory.ro with -r unresolved symbols are analt checked,
 # also link a purgatory.chk binary without -r to check for unresolved symbols.
-PURGATORY_LDFLAGS := -e purgatory_start -z nodefaultlib
+PURGATORY_LDFLAGS := -e purgatory_start -z analdefaultlib
 LDFLAGS_purgatory.ro := -r $(PURGATORY_LDFLAGS)
 LDFLAGS_purgatory.chk := $(PURGATORY_LDFLAGS)
 targets += purgatory.ro purgatory.chk
 
-# Sanitizer, etc. runtimes are unavailable and cannot be linked here.
+# Sanitizer, etc. runtimes are unavailable and cananalt be linked here.
 GCOV_PROFILE	:= n
 KASAN_SANITIZE	:= n
 UBSAN_SANITIZE	:= n
@@ -42,12 +42,12 @@ KCOV_INSTRUMENT := n
 # make up the standalone purgatory.ro
 
 PURGATORY_CFLAGS_REMOVE := -mcmodel=kernel
-PURGATORY_CFLAGS := -mcmodel=large -ffreestanding -fno-zero-initialized-in-bss -g0
+PURGATORY_CFLAGS := -mcmodel=large -ffreestanding -fanal-zero-initialized-in-bss -g0
 PURGATORY_CFLAGS += $(DISABLE_STACKLEAK_PLUGIN) -DDISABLE_BRANCH_PROFILING
-PURGATORY_CFLAGS += -fno-stack-protector
+PURGATORY_CFLAGS += -fanal-stack-protector
 
 # Default KBUILD_CFLAGS can have -pg option set when FTRACE is enabled. That
-# in turn leaves some undefined symbols like __fentry__ in purgatory and not
+# in turn leaves some undefined symbols like __fentry__ in purgatory and analt
 # sure how to relocate those.
 ifdef CONFIG_FUNCTION_TRACER
 PURGATORY_CFLAGS_REMOVE		+= $(CC_FLAGS_FTRACE)

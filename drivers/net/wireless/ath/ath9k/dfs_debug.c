@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -42,7 +42,7 @@ static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, size - len, "DFS support for "
 			 "macVersion = 0x%x, macRev = 0x%x: %s\n",
@@ -52,7 +52,7 @@ static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 
 	if (!sc->dfs_detector) {
 		len += scnprintf(buf + len, size - len,
-				 "DFS detector not enabled\n");
+				 "DFS detector analt enabled\n");
 		goto exit;
 	}
 
@@ -60,7 +60,7 @@ static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, size - len, "Pulse detector statistics:\n");
 	ATH9K_DFS_STAT("pulse events reported   ", pulses_total);
-	ATH9K_DFS_STAT("invalid pulse events    ", pulses_no_dfs);
+	ATH9K_DFS_STAT("invalid pulse events    ", pulses_anal_dfs);
 	ATH9K_DFS_STAT("DFS pulses detected     ", pulses_detected);
 	ATH9K_DFS_STAT("Datalen discards        ", datalen_discards);
 	ATH9K_DFS_STAT("RSSI discards           ", rssi_discards);

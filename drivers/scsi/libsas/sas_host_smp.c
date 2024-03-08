@@ -23,7 +23,7 @@ static void sas_host_smp_discover(struct sas_ha_struct *sas_ha, u8 *resp_data,
 	struct sas_rphy *rphy;
 
 	if (phy_id >= sas_ha->num_phys) {
-		resp_data[2] = SMP_RESP_NO_PHY;
+		resp_data[2] = SMP_RESP_ANAL_PHY;
 		return;
 	}
 	resp_data[2] = SMP_RESP_FUNC_ACC;
@@ -57,7 +57,7 @@ static void sas_host_smp_discover(struct sas_ha_struct *sas_ha, u8 *resp_data,
  * @count: total number of registers in the bitstream (from frame)
  * @bit: bit position of 'od' in the returned byte
  *
- * returns NULL if 'od' is not in 'data'
+ * returns NULL if 'od' is analt in 'data'
  *
  * From SFF-8485 v0.7:
  * "In GPIO_TX[1], bit 0 of byte 3 contains the first bit (i.e., OD0.0)
@@ -142,11 +142,11 @@ static void sas_report_phy_sata(struct sas_ha_struct *sas_ha, u8 *resp_data,
 	int i;
 
 	if (phy_id >= sas_ha->num_phys) {
-		resp_data[2] = SMP_RESP_NO_PHY;
+		resp_data[2] = SMP_RESP_ANAL_PHY;
 		return;
 	}
 
-	resp_data[2] = SMP_RESP_PHY_NO_SATA;
+	resp_data[2] = SMP_RESP_PHY_ANAL_SATA;
 
 	if (!sas_ha->sas_phy[phy_id]->port)
 		return;
@@ -187,13 +187,13 @@ static void sas_phy_control(struct sas_ha_struct *sas_ha, u8 phy_id,
 	struct asd_sas_phy *asd_phy;
 
 	if (phy_id >= sas_ha->num_phys) {
-		resp_data[2] = SMP_RESP_NO_PHY;
+		resp_data[2] = SMP_RESP_ANAL_PHY;
 		return;
 	}
 
 	asd_phy = sas_ha->sas_phy[phy_id];
 	switch (phy_op) {
-	case PHY_FUNC_NOP:
+	case PHY_FUNC_ANALP:
 	case PHY_FUNC_LINK_RESET:
 	case PHY_FUNC_HARD_RESET:
 	case PHY_FUNC_DISABLE:
@@ -234,7 +234,7 @@ void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost)
 	    job->reply_payload.payload_len < 8)
 		goto out;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	req_data = kzalloc(job->request_payload.payload_len, GFP_KERNEL);
 	if (!req_data)
 		goto out;
@@ -253,7 +253,7 @@ void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost)
 	if (req_data[0] != SMP_REQUEST)
 		goto out_free_resp;
 
-	/* set up default don't know response */
+	/* set up default don't kanalw response */
 	resp_data[0] = SMP_RESPONSE;
 	resp_data[1] = req_data[1];
 	resp_data[2] = SMP_RESP_FUNC_UNK;
@@ -298,7 +298,7 @@ void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost)
 		break;
 
 	case SMP_REPORT_ROUTE_INFO:
-		/* Can't implement; hosts have no routes */
+		/* Can't implement; hosts have anal routes */
 		break;
 
 	case SMP_WRITE_GPIO_REG: {
@@ -319,7 +319,7 @@ void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost)
 	}
 
 	case SMP_CONF_ROUTE_INFO:
-		/* Can't implement; hosts have no routes */
+		/* Can't implement; hosts have anal routes */
 		break;
 
 	case SMP_PHY_CONTROL:

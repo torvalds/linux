@@ -8,9 +8,9 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  * - stlc45xx driver
- *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *   Copyright (C) 2008 Analkia Corporation and/or its subsidiary(-ies).
  */
 
 #include <linux/slab.h>
@@ -68,11 +68,11 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			default:
 				wiphy_err(priv->hw->wiphy,
 					  "unsupported firmware\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			break;
 		case BR_CODE_COMPONENT_VERSION:
-			/* 24 bytes should be enough for all firmwares */
+			/* 24 bytes should be eanalugh for all firmwares */
 			if (strnlen((unsigned char *) bootrec->data, 24) < 24)
 				fw_version = (unsigned char *) bootrec->data;
 			break;
@@ -154,16 +154,16 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 
 	wiphy_info(priv->hw->wiphy,
 		   "cryptographic accelerator WEP:%s, TKIP:%s, CCMP:%s\n",
-		   (priv->privacy_caps & BR_DESC_PRIV_CAP_WEP) ? "YES" : "no",
+		   (priv->privacy_caps & BR_DESC_PRIV_CAP_WEP) ? "ANAL" : "anal",
 		   (priv->privacy_caps &
 		    (BR_DESC_PRIV_CAP_TKIP | BR_DESC_PRIV_CAP_MICHAEL))
-		   ? "YES" : "no",
+		   ? "ANAL" : "anal",
 		   (priv->privacy_caps & BR_DESC_PRIV_CAP_AESCCMP)
-		   ? "YES" : "no");
+		   ? "ANAL" : "anal");
 
 	if (priv->rx_keycache_size) {
 		/*
-		 * NOTE:
+		 * ANALTE:
 		 *
 		 * The firmware provides at most 255 (0 - 254) slots
 		 * for keys which are then used to offload decryption.
@@ -176,7 +176,7 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		priv->used_rxkeys = bitmap_zalloc(priv->rx_keycache_size,
 						  GFP_KERNEL);
 		if (!priv->used_rxkeys)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -227,7 +227,7 @@ int p54_download_eeprom(struct p54_common *priv, void *buf,
 			    len, P54_CONTROL_TYPE_EEPROM_READBACK,
 			    GFP_KERNEL);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&priv->eeprom_mutex);
 	priv->eeprom = buf;
@@ -249,7 +249,7 @@ int p54_download_eeprom(struct p54_common *priv, void *buf,
 			&priv->eeprom_comp, HZ);
 	if (timeout <= 0) {
 		wiphy_err(priv->hw->wiphy,
-			"device does not respond or signal received!\n");
+			"device does analt respond or signal received!\n");
 		ret = -EBUSY;
 	}
 	priv->eeprom = NULL;
@@ -265,7 +265,7 @@ int p54_update_beacon_tim(struct p54_common *priv, u16 aid, bool set)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*tim),
 			    P54_CONTROL_TYPE_TIM, GFP_ATOMIC);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tim = skb_put(skb, sizeof(*tim));
 	tim->count = 1;
@@ -282,7 +282,7 @@ int p54_sta_unlock(struct p54_common *priv, u8 *addr)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*sta),
 			    P54_CONTROL_TYPE_PSM_STA_UNLOCK, GFP_ATOMIC);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sta = skb_put(skb, sizeof(*sta));
 	memcpy(sta->addr, addr, ETH_ALEN);
@@ -302,7 +302,7 @@ int p54_tx_cancel(struct p54_common *priv, __le32 req_id)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*cancel),
 			    P54_CONTROL_TYPE_TXCANCEL, GFP_ATOMIC);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cancel = skb_put(skb, sizeof(*cancel));
 	cancel->req_id = req_id;
@@ -319,7 +319,7 @@ int p54_setup_mac(struct p54_common *priv)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*setup),
 			    P54_CONTROL_TYPE_SETUP, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	setup = skb_put(skb, sizeof(*setup));
 	if (!(priv->hw->conf.flags & IEEE80211_CONF_IDLE)) {
@@ -405,7 +405,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 			    sizeof(*rate) + 2 * sizeof(*rssi),
 			    P54_CONTROL_TYPE_SCAN, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	head = skb_put(skb, sizeof(*head));
 	memset(head->scan_params, 0, sizeof(head->scan_params));
@@ -433,7 +433,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW)
 		body = skb_put(skb, sizeof(body->longbow));
 	else
-		body = skb_put(skb, sizeof(body->normal));
+		body = skb_put(skb, sizeof(body->analrmal));
 
 	for (i = 0; i < priv->output_limit->entries; i++) {
 		__le16 *entry_freq = (void *) (priv->output_limit->data +
@@ -450,14 +450,14 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 			struct pda_channel_output_limit *limits =
 			       (void *) entry_freq;
 
-			body->normal.val_barker = 0x38;
-			body->normal.val_bpsk = body->normal.dup_bpsk =
+			body->analrmal.val_barker = 0x38;
+			body->analrmal.val_bpsk = body->analrmal.dup_bpsk =
 				limits->val_bpsk;
-			body->normal.val_qpsk = body->normal.dup_qpsk =
+			body->analrmal.val_qpsk = body->analrmal.dup_qpsk =
 				limits->val_qpsk;
-			body->normal.val_16qam = body->normal.dup_16qam =
+			body->analrmal.val_16qam = body->analrmal.dup_16qam =
 				limits->val_16qam;
-			body->normal.val_64qam = body->normal.dup_64qam =
+			body->analrmal.val_64qam = body->analrmal.dup_64qam =
 				limits->val_64qam;
 		}
 		break;
@@ -477,7 +477,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 				entry + sizeof(__le16),
 				priv->curve_data->entry_size);
 		} else {
-			struct p54_scan_body *chan = &body->normal;
+			struct p54_scan_body *chan = &body->analrmal;
 			struct pda_pa_curve_data *curve_data =
 				(void *) priv->curve_data->data;
 
@@ -542,7 +542,7 @@ int p54_set_leds(struct p54_common *priv)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*led),
 			    P54_CONTROL_TYPE_LED, GFP_ATOMIC);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led = skb_put(skb, sizeof(*led));
 	led->flags = cpu_to_le16(0x0003);
@@ -562,7 +562,7 @@ int p54_set_edcf(struct p54_common *priv)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*edcf),
 			    P54_CONTROL_TYPE_DCFINIT, GFP_ATOMIC);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edcf = skb_put(skb, sizeof(*edcf));
 	if (priv->use_short_slot) {
@@ -607,7 +607,7 @@ int p54_set_ps(struct p54_common *priv)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*psm),
 			    P54_CONTROL_TYPE_PSM, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psm = skb_put(skb, sizeof(*psm));
 	psm->mode = cpu_to_le16(mode);
@@ -636,7 +636,7 @@ int p54_init_xbow_synth(struct p54_common *priv)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*xbow),
 			    P54_CONTROL_TYPE_XBOW_SYNTH_CFG, GFP_KERNEL);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xbow = skb_put(skb, sizeof(*xbow));
 	xbow->magic1 = cpu_to_le16(0x1);
@@ -656,7 +656,7 @@ int p54_upload_key(struct p54_common *priv, u8 algo, int slot, u8 idx, u8 len,
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*rxkey),
 			    P54_CONTROL_TYPE_RX_KEYCACHE, GFP_KERNEL);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rxkey = skb_put(skb, sizeof(*rxkey));
 	rxkey->entry = slot;
@@ -681,7 +681,7 @@ int p54_upload_key(struct p54_common *priv, u8 algo, int slot, u8 idx, u8 len,
 			[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY]), 8);
 		break;
 
-	case P54_CRYPTO_NONE:
+	case P54_CRYPTO_ANALNE:
 		rxkey->key_len = 0;
 		memset(rxkey->key, 0, sizeof(rxkey->key));
 		break;
@@ -707,13 +707,13 @@ int p54_fetch_statistics(struct p54_common *priv)
 			    sizeof(struct p54_statistics),
 			    P54_CONTROL_TYPE_STAT_READBACK, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The statistic feedback causes some extra headaches here, if it
-	 * is not to crash/corrupt the firmware data structures.
+	 * is analt to crash/corrupt the firmware data structures.
 	 *
-	 * Unlike all other Control Get OIDs we can not use helpers like
+	 * Unlike all other Control Get OIDs we can analt use helpers like
 	 * skb_put to reserve the space for the data we're requesting.
 	 * Instead the extra frame length -which will hold the results later-
 	 * will only be told to the p54_assign_address, so that following
@@ -736,7 +736,7 @@ int p54_set_groupfilter(struct p54_common *priv)
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*grp),
 			    P54_CONTROL_TYPE_GROUP_ADDRESS_TABLE, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	grp = skb_put(skb, sizeof(*grp));
 

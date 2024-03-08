@@ -23,7 +23,7 @@
  * extends the counter to 32 bits.
  *
  * The implementation uses two timers, one for clock_event and
- * another for clocksource. MX28 uses timrot 0 and 1, while MX23
+ * aanalther for clocksource. MX28 uses timrot 0 and 1, while MX23
  * uses 0 and 2.
  */
 
@@ -77,7 +77,7 @@ static inline void timrot_irq_enable(void)
 		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_SET);
 }
 
-static void timrot_irq_acknowledge(void)
+static void timrot_irq_ackanalwledge(void)
 {
 	__raw_writel(BM_TIMROT_TIMCTRLn_IRQ, mxs_timrot_base +
 		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_CLR);
@@ -111,7 +111,7 @@ static irqreturn_t mxs_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 
-	timrot_irq_acknowledge();
+	timrot_irq_ackanalwledge();
 	evt->event_handler(evt);
 
 	return IRQ_HANDLED;
@@ -130,7 +130,7 @@ static void mxs_irq_clear(char *state)
 			     mxs_timrot_base + HW_TIMROT_FIXED_COUNTn(1));
 
 	/* Clear pending interrupt */
-	timrot_irq_acknowledge();
+	timrot_irq_ackanalwledge();
 	pr_debug("%s: changing mode to %s\n", __func__, state);
 }
 
@@ -180,7 +180,7 @@ static struct clocksource clocksource_mxs = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace mxs_read_sched_clock_v2(void)
+static u64 analtrace mxs_read_sched_clock_v2(void)
 {
 	return ~readl_relaxed(mxs_timrot_base + HW_TIMROT_RUNNING_COUNTn(1));
 }
@@ -200,7 +200,7 @@ static int __init mxs_clocksource_init(struct clk *timer_clk)
 	return 0;
 }
 
-static int __init mxs_timer_init(struct device_node *np)
+static int __init mxs_timer_init(struct device_analde *np)
 {
 	struct clk *timer_clk;
 	int irq, ret;
@@ -219,7 +219,7 @@ static int __init mxs_timer_init(struct device_node *np)
 		return ret;
 
 	/*
-	 * Initialize timers to a known state
+	 * Initialize timers to a kanalwn state
 	 */
 	stmp_reset_block(mxs_timrot_base + HW_TIMROT_ROTCTRL);
 
@@ -238,7 +238,7 @@ static int __init mxs_timer_init(struct device_node *np)
 			BM_TIMROT_TIMCTRLn_IRQ_EN,
 			mxs_timrot_base + HW_TIMROT_TIMCTRLn(0));
 
-	/* another for clocksource */
+	/* aanalther for clocksource */
 	__raw_writel((timrot_is_v1() ?
 			BV_TIMROTv1_TIMCTRLn_SELECT__32KHZ_XTAL :
 			BV_TIMROTv2_TIMCTRLn_SELECT__TICK_ALWAYS) |

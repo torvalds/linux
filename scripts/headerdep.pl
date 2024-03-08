@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Detect cycles in the header file dependency graph
-# Vegard Nossum <vegardno@ifi.uio.no>
+# Vegard Analssum <vegardanal@ifi.uio.anal>
 #
 
 use strict;
@@ -26,7 +26,7 @@ my $opt_graph;
 
 push @opt_include, 'include';
 my %deps = ();
-my %linenos = ();
+my %lineanals = ();
 
 my @headers = grep { strip($_) } @ARGV;
 
@@ -138,7 +138,7 @@ sub print_cycle {
 		$first->[1], $first->[0];
 }
 
-# Find and print the smallest cycle starting in the specified node.
+# Find and print the smallest cycle starting in the specified analde.
 sub detect_cycles {
 	my @queue = map { [[0, $_]] } @_;
 	while(@queue) {

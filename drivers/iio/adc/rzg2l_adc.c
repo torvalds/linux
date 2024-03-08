@@ -286,7 +286,7 @@ static irqreturn_t rzg2l_adc_isr(int irq, void *dev_id)
 
 	intst = reg & RZG2L_ADSTS_INTST_MASK;
 	if (!intst)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for_each_set_bit(ch, &intst, RZG2L_ADC_MAX_CHANNELS)
 		adc->last_val[ch] = rzg2l_adc_readl(adc, RZG2L_ADCR(ch)) & RZG2L_ADCR_AD_MASK;
@@ -302,7 +302,7 @@ static irqreturn_t rzg2l_adc_isr(int irq, void *dev_id)
 static int rzg2l_adc_parse_properties(struct platform_device *pdev, struct rzg2l_adc *adc)
 {
 	struct iio_chan_spec *chan_array;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct rzg2l_adc_data *data;
 	unsigned int channel;
 	int num_channels;
@@ -311,12 +311,12 @@ static int rzg2l_adc_parse_properties(struct platform_device *pdev, struct rzg2l
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	num_channels = device_get_child_node_count(&pdev->dev);
+	num_channels = device_get_child_analde_count(&pdev->dev);
 	if (!num_channels) {
-		dev_err(&pdev->dev, "no channel children\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal channel children\n");
+		return -EANALDEV;
 	}
 
 	if (num_channels > RZG2L_ADC_MAX_CHANNELS) {
@@ -327,18 +327,18 @@ static int rzg2l_adc_parse_properties(struct platform_device *pdev, struct rzg2l
 	chan_array = devm_kcalloc(&pdev->dev, num_channels, sizeof(*chan_array),
 				  GFP_KERNEL);
 	if (!chan_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	device_for_each_child_node(&pdev->dev, fwnode) {
-		ret = fwnode_property_read_u32(fwnode, "reg", &channel);
+	device_for_each_child_analde(&pdev->dev, fwanalde) {
+		ret = fwanalde_property_read_u32(fwanalde, "reg", &channel);
 		if (ret) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return ret;
 		}
 
 		if (channel >= RZG2L_ADC_MAX_CHANNELS) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return -EINVAL;
 		}
 
@@ -435,7 +435,7 @@ static int rzg2l_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 

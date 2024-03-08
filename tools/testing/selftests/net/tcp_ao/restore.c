@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Author: Dmitry Safonov <dima@arista.com> */
+/* Author: Dmitry Safoanalv <dima@arista.com> */
 /* This is over-simplified TCP_REPAIR for TCP_ESTABLISHED sockets
  * It tests that TCP-AO enabled connection can be restored.
  * For the proper socket repair see:
@@ -71,7 +71,7 @@ static void try_server_run(const char *tst_name, unsigned int port,
 	test_tcp_ao_counters_cmp(tst_name, &ao1, &ao2, cnt_expected);
 
 	if (after_cnt <= before_cnt) {
-		test_fail("%s: %s counter did not increase: %zu <= %zu",
+		test_fail("%s: %s counter did analt increase: %zu <= %zu",
 				tst_name, cnt_name, after_cnt, before_cnt);
 	} else {
 		test_ok("%s: counter %s increased %zu => %zu",
@@ -91,7 +91,7 @@ static void *server_fn(void *arg)
 {
 	unsigned int port = test_server_port;
 
-	try_server_run("TCP-AO migrate to another socket", port++,
+	try_server_run("TCP-AO migrate to aanalther socket", port++,
 		       0, TEST_CNT_GOOD);
 	try_server_run("TCP-AO with wrong send ISN", port++,
 		       FAULT_TIMEOUT, TEST_CNT_BAD);
@@ -183,7 +183,7 @@ static void test_sk_restore(const char *tst_name, unsigned int server_port,
 	test_tcp_ao_counters_cmp(tst_name, &ao1, &ao2, cnt_expected);
 
 	if (after_cnt <= before_cnt) {
-		test_fail("%s: %s counter did not increase: %zu <= %zu",
+		test_fail("%s: %s counter did analt increase: %zu <= %zu",
 				tst_name, cnt_name, after_cnt, before_cnt);
 	} else {
 		test_ok("%s: counter %s increased %zu => %zu",
@@ -201,7 +201,7 @@ static void *client_fn(void *arg)
 	sockaddr_af saddr;
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
-	test_sk_restore("TCP-AO migrate to another socket", port++,
+	test_sk_restore("TCP-AO migrate to aanalther socket", port++,
 			&saddr, &tcp_img, &ao_img, 0, TEST_CNT_GOOD);
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);

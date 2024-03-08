@@ -12,5 +12,5 @@ config QNX4FS_FS
 	  To compile this file system support as a module, choose M here: the
 	  module will be called qnx4.
 
-	  If you don't know whether you need it, then you don't need it:
+	  If you don't kanalw whether you need it, then you don't need it:
 	  answer N.

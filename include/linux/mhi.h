@@ -129,8 +129,8 @@ enum mhi_ee_type {
 	MHI_EE_EDL,
 	MHI_EE_FP,
 	MHI_EE_MAX_SUPPORTED = MHI_EE_FP,
-	MHI_EE_DISABLE_TRANSITION, /* local EE, not related to mhi spec */
-	MHI_EE_NOT_SUPPORTED,
+	MHI_EE_DISABLE_TRANSITION, /* local EE, analt related to mhi spec */
+	MHI_EE_ANALT_SUPPORTED,
 	MHI_EE_MAX,
 };
 
@@ -212,7 +212,7 @@ enum mhi_db_brst_mode {
  * @pollcfg: Polling configuration for burst mode.  0 is default.  milliseconds
 	     for UL channels, multiple of 8 ring elements for DL channels
  * @doorbell: Doorbell mode
- * @lpm_notify: The channel master requires low power mode notifications
+ * @lpm_analtify: The channel master requires low power mode analtifications
  * @offload_channel: The client manages the channel completely
  * @doorbell_mode_switch: Channel switches to doorbell mode on M0 transition
  * @auto_queue: Framework will automatically queue buffers for DL traffic
@@ -229,7 +229,7 @@ struct mhi_channel_config {
 	u32 ee_mask;
 	u32 pollcfg;
 	enum mhi_db_brst_mode doorbell;
-	bool lpm_notify;
+	bool lpm_analtify;
 	bool offload_channel;
 	bool doorbell_mode_switch;
 	bool auto_queue;
@@ -241,8 +241,8 @@ struct mhi_channel_config {
  * @num_elements: The number of elements that can be queued to this ring
  * @irq_moderation_ms: Delay irq for additional events to be aggregated
  * @irq: IRQ associated with this ring
- * @channel: Dedicated channel number. U32_MAX indicates a non-dedicated ring
- * @priority: Priority of this ring. Use 1 for now
+ * @channel: Dedicated channel number. U32_MAX indicates a analn-dedicated ring
+ * @priority: Priority of this ring. Use 1 for analw
  * @mode: Doorbell mode
  * @data_type: Type of data this ring will process
  * @hardware_event: This ring is associated with hardware channels
@@ -273,7 +273,7 @@ struct mhi_event_config {
  * @num_events: Number of event rings defined in @event_cfg
  * @event_cfg: Array of defined event rings
  * @use_bounce_buf: Use a bounce buffer pool due to limited DDR access
- * @m2_no_db: Host is not allowed to ring DB in M2 state
+ * @m2_anal_db: Host is analt allowed to ring DB in M2 state
  */
 struct mhi_controller_config {
 	u32 max_channels;
@@ -285,7 +285,7 @@ struct mhi_controller_config {
 	u32 num_events;
 	struct mhi_event_config *event_cfg;
 	bool use_bounce_buf;
-	bool m2_no_db;
+	bool m2_anal_db;
 };
 
 /**
@@ -300,10 +300,10 @@ struct mhi_controller_config {
  * @wake_db: MHI WAKE doorbell register address
  * @iova_start: IOMMU starting address for data (required)
  * @iova_stop: IOMMU stop address for data (required)
- * @fw_image: Firmware image name for normal booting (optional)
- * @fw_data: Firmware image data content for normal booting, used only
+ * @fw_image: Firmware image name for analrmal booting (optional)
+ * @fw_data: Firmware image data content for analrmal booting, used only
  *           if fw_image is NULL and fbc_download is true (optional)
- * @fw_sz: Firmware image data size for normal booting, used only if fw_image
+ * @fw_sz: Firmware image data size for analrmal booting, used only if fw_image
  *         is NULL and fbc_download is true (optional)
  * @edl_image: Firmware image name for emergency download mode (optional)
  * @rddm_size: RAM dump size that host should allocate for debugging purpose
@@ -313,7 +313,7 @@ struct mhi_controller_config {
  * @fbc_image: Points to firmware image buffer
  * @rddm_image: Points to RAM dump buffer
  * @mhi_chan: Points to the channel configuration table
- * @lpm_chans: List of channels that require LPM notifications
+ * @lpm_chans: List of channels that require LPM analtifications
  * @irq: base irq # to request (required)
  * @max_chan: Maximum number of channels the controller supports
  * @total_ev_rings: Total # of event rings allocated
@@ -323,7 +323,7 @@ struct mhi_controller_config {
  * @family_number: MHI controller family number
  * @device_number: MHI controller device number
  * @major_version: MHI controller major revision number
- * @minor_version: MHI controller minor revision number
+ * @mianalr_version: MHI controller mianalr revision number
  * @serial_number: MHI controller serial number obtained from BHI
  * @oem_pk_hash: MHI controller OEM PK Hash obtained from BHI
  * @mhi_event: MHI event ring configurations table
@@ -347,7 +347,7 @@ struct mhi_controller_config {
  * @st_worker: State transition worker
  * @hiprio_wq: High priority workqueue for MHI work such as state transitions
  * @state_event: State change event
- * @status_cb: CB function to notify power states of the device (required)
+ * @status_cb: CB function to analtify power states of the device (required)
  * @wake_get: CB function to assert device wake (optional)
  * @wake_put: CB function to de-assert device wake (optional)
  * @wake_toggle: CB function to assert and de-assert device wake (optional)
@@ -377,7 +377,7 @@ struct mhi_controller_config {
  *  family_number
  *  device_number
  *  major_version
- *  minor_version
+ *  mianalr_version
  */
 struct mhi_controller {
 	struct device *cntrl_dev;
@@ -411,7 +411,7 @@ struct mhi_controller {
 	u32 family_number;
 	u32 device_number;
 	u32 major_version;
-	u32 minor_version;
+	u32 mianalr_version;
 	u32 serial_number;
 	u32 oem_pk_hash[MHI_MAX_OEM_PK_HASH_SEGMENTS];
 
@@ -472,7 +472,7 @@ struct mhi_controller {
  * @mhi_cntrl: Controller the device belongs to
  * @ul_chan: UL channel for the device
  * @dl_chan: DL channel for the device
- * @dev: Driver model device node for the MHI device
+ * @dev: Driver model device analde for the MHI device
  * @dev_type: MHI device type
  * @ul_chan_id: MHI channel id for UL transfer
  * @dl_chan_id: MHI channel id for DL transfer
@@ -527,7 +527,7 @@ struct mhi_buf {
  * @remove: CB function for client driver remove function
  * @ul_xfer_cb: CB function for UL data transfer
  * @dl_xfer_cb: CB function for DL data transfer
- * @status_cb: CB functions for asynchronous status
+ * @status_cb: CB functions for asynchroanalus status
  * @driver: Device driver model driver
  */
 struct mhi_driver {
@@ -610,11 +610,11 @@ void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl,
 		       enum mhi_state state);
 
 /**
- * mhi_notify - Notify the MHI client driver about client device status
+ * mhi_analtify - Analtify the MHI client driver about client device status
  * @mhi_dev: MHI device instance
  * @cb_reason: MHI callback reason
  */
-void mhi_notify(struct mhi_device *mhi_dev, enum mhi_callback cb_reason);
+void mhi_analtify(struct mhi_device *mhi_dev, enum mhi_callback cb_reason);
 
 /**
  * mhi_get_free_desc_count - Get transfer ring length
@@ -628,7 +628,7 @@ int mhi_get_free_desc_count(struct mhi_device *mhi_dev,
 /**
  * mhi_prepare_for_power_up - Do pre-initialization before power up.
  *                            This is optional, call this before power up if
- *                            the controller does not want bus framework to
+ *                            the controller does analt want bus framework to
  *                            automatically free any allocated memory during
  *                            shutdown process.
  * @mhi_cntrl: MHI controller
@@ -726,7 +726,7 @@ void mhi_soc_reset(struct mhi_controller *mhi_cntrl);
 void mhi_device_get(struct mhi_device *mhi_dev);
 
 /**
- * mhi_device_get_sync - Disable device low power mode. Synchronously
+ * mhi_device_get_sync - Disable device low power mode. Synchroanalusly
  *                       take the controller out of suspended state
  * @mhi_dev: Device associated with the channel
  */
@@ -763,7 +763,7 @@ int mhi_prepare_for_transfer_autoqueue(struct mhi_device *mhi_dev);
 /**
  * mhi_unprepare_from_transfer - Reset UL and DL channels for data transfer.
  *                               Issue the RESET channel command and let the
- *                               device clean-up the context so no incoming
+ *                               device clean-up the context so anal incoming
  *                               transfers are seen on the host. Free memory
  *                               associated with the context on host. If device
  *                               is unresponsive, only perform a host side

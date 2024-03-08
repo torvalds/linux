@@ -102,7 +102,7 @@
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <40000000>;
 	};
 };
@@ -364,7 +364,7 @@
 		>;
 	};
 
-	/* no reset for sdhc2 interface */
+	/* anal reset for sdhc2 interface */
 	pinctrl_usdhc2_gpio: usdhc2-gpio-grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SD2_CD_B_GPIO2_IO12		0x1c4
@@ -600,7 +600,7 @@
 	bus-width = <8>;
 	vmmc-supply = <&reg_usdhc1_vmmc>;
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -613,7 +613,7 @@
 	wp-gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>;
 	bus-width = <4>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 

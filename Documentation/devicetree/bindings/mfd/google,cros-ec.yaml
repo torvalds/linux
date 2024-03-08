@@ -56,14 +56,14 @@ properties:
     description:
       Some implementations of the EC include a small nvram space used to
       store verified boot context data. This boolean flag is used to specify
-      whether this nvram is present or not.
+      whether this nvram is present or analt.
     type: boolean
 
   mediatek,rpmsg-name:
     description:
       Must be defined if the cros-ec is a rpmsg device for a Mediatek
       ARM Cortex M4 Co-processor. Contains the name of the rpmsg
-      device. Used to match the subnode to the rpmsg device announced by
+      device. Used to match the subanalde to the rpmsg device ananalunced by
       the SCP.
     $ref: /schemas/types.yaml#/definitions/string
 
@@ -137,7 +137,7 @@ properties:
 
     description:
       This device is used to signal when a detachable base is attached
-      to a Chrome OS tablet. This device cannot be detected at runtime.
+      to a Chrome OS tablet. This device cananalt be detected at runtime.
 
     properties:
       compatible:
@@ -168,7 +168,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               const: google,cros-ec-spi
     then:
@@ -183,7 +183,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               const: google,cros-ec-rpmsg
     then:
@@ -193,7 +193,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               enum:
                 - google,cros-ec-rpmsg

@@ -38,7 +38,7 @@ properties:
 
   vdd-mphy-supply:
     description:
-      Phandle to vdd-mphy supply regulator node.
+      Phandle to vdd-mphy supply regulator analde.
 
   sprd,ufs-anlg-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle

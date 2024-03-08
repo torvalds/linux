@@ -91,11 +91,11 @@ struct rchan_callbacks
 	 *
 	 * This callback is optional.
 	 *
-	 * NOTE: subbuf_start will also be invoked when the buffer is
+	 * ANALTE: subbuf_start will also be invoked when the buffer is
 	 *       created, so that the first sub-buffer can be initialized
 	 *       if necessary.  In this case, prev_subbuf will be NULL.
 	 *
-	 * NOTE: the client can reserve bytes at the beginning of the new
+	 * ANALTE: the client can reserve bytes at the beginning of the new
 	 *       sub-buffer by calling subbuf_start_reserve() in this callback.
 	 */
 	int (*subbuf_start) (struct rchan_buf *buf,
@@ -109,7 +109,7 @@ struct rchan_callbacks
 	 * @parent: the parent of the file to create
 	 * @mode: the mode of the file to create
 	 * @buf: the channel buffer
-	 * @is_global: outparam - set non-zero if the buffer should be global
+	 * @is_global: outparam - set analn-zero if the buffer should be global
 	 *
 	 * Called during relay_open(), once for each per-cpu buffer,
 	 * to allow the client to create a file to be used to
@@ -120,7 +120,7 @@ struct rchan_callbacks
 	 * The callback should return the dentry of the file created
 	 * to represent the relay buffer.
 	 *
-	 * Setting the is_global outparam to a non-zero value will
+	 * Setting the is_global outparam to a analn-zero value will
 	 * cause relay_open() to create a single global buffer rather
 	 * than the default set of per-cpu buffers.
 	 *
@@ -142,7 +142,7 @@ struct rchan_callbacks
 	 * to allow the client to remove a file used to represent a
 	 * channel buffer.
 	 *
-	 * The callback should return 0 if successful, negative if not.
+	 * The callback should return 0 if successful, negative if analt.
 	 *
 	 * This callback is mandatory.
 	 */
@@ -183,7 +183,7 @@ extern size_t relay_switch_subbuf(struct rchan_buf *buf,
  *
  *	Protects the buffer by disabling interrupts.  Use this
  *	if you might be logging from interrupt context.  Try
- *	__relay_write() if you know you	won't be logging from
+ *	__relay_write() if you kanalw you	won't be logging from
  *	interrupt context.
  */
 static inline void relay_write(struct rchan *chan,
@@ -236,7 +236,7 @@ static inline void __relay_write(struct rchan *chan,
  *	Returns pointer to reserved slot, NULL if full.
  *
  *	Reserves a slot in the current cpu's channel buffer.
- *	Does not protect the buffer at all - caller must provide
+ *	Does analt protect the buffer at all - caller must provide
  *	appropriate synchronization.
  */
 static inline void *relay_reserve(struct rchan *chan, size_t length)

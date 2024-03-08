@@ -21,10 +21,10 @@
 #include "sof-client-probes.h"
 
 #define SOF_PROBES_SUSPEND_DELAY_MS 3000
-/* only extraction supported for now */
+/* only extraction supported for analw */
 #define SOF_PROBES_NUM_DAI_LINKS 1
 
-#define SOF_PROBES_INVALID_NODE_ID UINT_MAX
+#define SOF_PROBES_INVALID_ANALDE_ID UINT_MAX
 
 static bool __read_mostly sof_probes_enabled;
 module_param_named(enable, sof_probes_enabled, bool, 0444);
@@ -40,7 +40,7 @@ static int sof_probes_compr_startup(struct snd_compr_stream *cstream,
 	int ret;
 
 	if (sof_client_get_fw_state(cdev) == SOF_FW_CRASHED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = sof_client_core_module_get(cdev);
 	if (ret)
@@ -49,7 +49,7 @@ static int sof_probes_compr_startup(struct snd_compr_stream *cstream,
 	ret = ops->startup(cdev, cstream, dai, &priv->extractor_stream_tag);
 	if (ret) {
 		dev_err(dai->dev, "Failed to startup probe stream: %d\n", ret);
-		priv->extractor_stream_tag = SOF_PROBES_INVALID_NODE_ID;
+		priv->extractor_stream_tag = SOF_PROBES_INVALID_ANALDE_ID;
 		sof_client_core_module_put(cdev);
 	}
 
@@ -84,7 +84,7 @@ exit:
 	if (ret < 0)
 		dev_err(dai->dev, "Failed to deinit probe: %d\n", ret);
 
-	priv->extractor_stream_tag = SOF_PROBES_INVALID_NODE_ID;
+	priv->extractor_stream_tag = SOF_PROBES_INVALID_ANALDE_ID;
 	snd_compr_free_pages(cstream);
 
 	ret = ops->shutdown(cdev, cstream, dai);
@@ -201,14 +201,14 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 	char *buf;
 	int i, ret, err;
 
-	if (priv->extractor_stream_tag == SOF_PROBES_INVALID_NODE_ID) {
-		dev_warn(dev, "no extractor stream running\n");
-		return -ENOENT;
+	if (priv->extractor_stream_tag == SOF_PROBES_INVALID_ANALDE_ID) {
+		dev_warn(dev, "anal extractor stream running\n");
+		return -EANALENT;
 	}
 
 	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0 && ret != -EACCES) {
@@ -224,7 +224,7 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 		offset = strlen(buf);
 		remaining = PAGE_SIZE - offset;
 		ret = snprintf(buf + offset, remaining,
-			       "Id: %#010x  Purpose: %u  Node id: %#x\n",
+			       "Id: %#010x  Purpose: %u  Analde id: %#x\n",
 				desc[i].buffer_id, desc[i].purpose, desc[i].stream_tag);
 		if (ret < 0 || ret >= remaining) {
 			/* truncate the output buffer at the last full line */
@@ -261,9 +261,9 @@ sof_probes_dfs_points_write(struct file *file, const char __user *from,
 	size_t bytes;
 	int ret, err;
 
-	if (priv->extractor_stream_tag == SOF_PROBES_INVALID_NODE_ID) {
-		dev_warn(dev, "no extractor stream running\n");
-		return -ENOENT;
+	if (priv->extractor_stream_tag == SOF_PROBES_INVALID_ANALDE_ID) {
+		dev_warn(dev, "anal extractor stream running\n");
+		return -EANALENT;
 	}
 
 	ret = parse_int_array_user(from, count, (int **)&array);
@@ -318,9 +318,9 @@ sof_probes_dfs_points_remove_write(struct file *file, const char __user *from,
 	int ret, err;
 	u32 *array;
 
-	if (priv->extractor_stream_tag == SOF_PROBES_INVALID_NODE_ID) {
-		dev_warn(dev, "no extractor stream running\n");
-		return -ENOENT;
+	if (priv->extractor_stream_tag == SOF_PROBES_INVALID_ANALDE_ID) {
+		dev_warn(dev, "anal extractor stream running\n");
+		return -EANALENT;
 	}
 
 	ret = parse_int_array_user(from, count, (int **)&array);
@@ -399,24 +399,24 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	struct snd_soc_dai_link *links;
 	int ret;
 
-	/* do not set up the probes support if it is not enabled */
+	/* do analt set up the probes support if it is analt enabled */
 	if (!sof_probes_enabled)
 		return -ENXIO;
 
 	ops = dev_get_platdata(dev);
 	if (!ops) {
 		dev_err(dev, "missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!ops->startup || !ops->shutdown || !ops->set_params || !ops->trigger ||
 	    !ops->pointer) {
 		dev_err(dev, "missing platform callback(s)\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->host_ops = ops;
 
@@ -432,8 +432,8 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 		break;
 #endif
 	default:
-		dev_err(dev, "Matching IPC ops not found.");
-		return -ENODEV;
+		dev_err(dev, "Matching IPC ops analt found.");
+		return -EANALDEV;
 	}
 
 	cdev->data = priv;
@@ -448,7 +448,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	}
 
 	/* set client data */
-	priv->extractor_stream_tag = SOF_PROBES_INVALID_NODE_ID;
+	priv->extractor_stream_tag = SOF_PROBES_INVALID_ANALDE_ID;
 
 	/* create read-write probes_points debugfs entry */
 	priv->dfs_points = debugfs_create_file("probe_points", 0644, dfsroot,
@@ -464,7 +464,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	if (!links || !cpus) {
 		debugfs_remove(priv->dfs_points);
 		debugfs_remove(priv->dfs_points_remove);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* extraction DAI link */
@@ -477,7 +477,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	links[0].num_codecs = 1;
 	links[0].platforms = platform_component;
 	links[0].num_platforms = ARRAY_SIZE(platform_component);
-	links[0].nonatomic = 1;
+	links[0].analnatomic = 1;
 
 	card = &priv->card;
 

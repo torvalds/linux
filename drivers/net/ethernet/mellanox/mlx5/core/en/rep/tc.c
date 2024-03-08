@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies. */
 
 #include <linux/netdevice.h>
 #include <linux/if_macvlan.h>
@@ -143,7 +143,7 @@ mlx5e_rep_setup_tc_cls_flower(struct mlx5e_priv *priv,
 		return mlx5e_stats_flower(priv->netdev, priv, cls_flower,
 					  flags);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -174,7 +174,7 @@ int mlx5e_rep_setup_tc_cls_matchall(struct mlx5e_priv *priv,
 		mlx5e_tc_stats_matchall(priv, ma);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -185,7 +185,7 @@ static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 	struct mlx5e_priv *priv = cb_priv;
 
 	if (!priv->netdev || !netif_device_present(priv->netdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
@@ -193,7 +193,7 @@ static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 	case TC_SETUP_CLSMATCHALL:
 		return mlx5e_rep_setup_tc_cls_matchall(priv, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -216,21 +216,21 @@ static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
 		memcpy(&tmp, f, sizeof(*f));
 
 		if (!mlx5_chains_prios_supported(esw_chains(esw)))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* Re-use tc offload path by moving the ft flow to the
 		 * reserved ft chain.
 		 *
-		 * FT offload can use prio range [0, INT_MAX], so we normalize
+		 * FT offload can use prio range [0, INT_MAX], so we analrmalize
 		 * it to range [1, mlx5_esw_chains_get_prio_range(esw)]
 		 * as with tc, where prio 0 isn't supported.
 		 *
 		 * We only support chain 0 of FT offload.
 		 */
 		if (tmp.common.prio >= mlx5_chains_get_prio_range(esw_chains(esw)))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (tmp.common.chain_index != 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		tmp.common.chain_index = mlx5_chains_get_nf_ft_chain(esw_chains(esw));
 		tmp.common.prio++;
@@ -238,7 +238,7 @@ static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
 		memcpy(&f->stats, &tmp.stats, sizeof(f->stats));
 		return err;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -264,7 +264,7 @@ int mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 						  mlx5e_rep_setup_ft_cb,
 						  priv, priv, true);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -309,7 +309,7 @@ int mlx5e_rep_tc_event_port_affinity(struct mlx5e_priv *priv)
 
 	queue_work(priv->wq, &rpriv->uplink_priv.reoffload_flows_work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static struct mlx5e_rep_indr_block_priv *
@@ -339,7 +339,7 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 	int err = 0;
 
 	if (!netif_device_present(indr_priv->rpriv->netdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (flower->command) {
 	case FLOW_CLS_REPLACE:
@@ -352,7 +352,7 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 		err = mlx5e_stats_flower(netdev, priv, flower, flags);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -373,7 +373,7 @@ static int mlx5e_rep_indr_setup_tc_cb(enum tc_setup_type type,
 		return mlx5e_rep_indr_offload(priv->netdev, type_data, priv,
 					      flags);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -402,7 +402,7 @@ static int mlx5e_rep_indr_setup_ft_cb(enum tc_setup_type type,
 		/* Re-use tc offload path by moving the ft flow to the
 		 * reserved ft chain.
 		 *
-		 * FT offload can use prio range [0, INT_MAX], so we normalize
+		 * FT offload can use prio range [0, INT_MAX], so we analrmalize
 		 * it to range [1, mlx5_esw_chains_get_prio_range(esw)]
 		 * as with tc, where prio 0 isn't supported.
 		 *
@@ -411,7 +411,7 @@ static int mlx5e_rep_indr_setup_ft_cb(enum tc_setup_type type,
 		if (!mlx5_chains_prios_supported(esw_chains(esw)) ||
 		    tmp.common.prio >= mlx5_chains_get_prio_range(esw_chains(esw)) ||
 		    tmp.common.chain_index)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		tmp.common.chain_index = mlx5_chains_get_nf_ft_chain(esw_chains(esw));
 		tmp.common.prio++;
@@ -419,7 +419,7 @@ static int mlx5e_rep_indr_setup_ft_cb(enum tc_setup_type type,
 		memcpy(&f->stats, &tmp.stats, sizeof(f->stats));
 		return err;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -492,7 +492,7 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 	struct flow_block_cb *block_cb;
 
 	if (!mlx5e_rep_check_indr_block_supported(rpriv, netdev, f))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	f->unlocked_driver_cb = true;
 	f->driver_block_list = &mlx5e_block_cb_list;
@@ -505,7 +505,7 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 
 		indr_priv = kmalloc(sizeof(*indr_priv), GFP_KERNEL);
 		if (!indr_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		indr_priv->netdev = netdev;
 		indr_priv->rpriv = rpriv;
@@ -529,17 +529,17 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 	case FLOW_BLOCK_UNBIND:
 		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev, f->binder_type);
 		if (!indr_priv)
-			return -ENOENT;
+			return -EANALENT;
 
 		block_cb = flow_block_cb_lookup(f->block, setup_cb, indr_priv);
 		if (!block_cb)
-			return -ENOENT;
+			return -EANALENT;
 
 		flow_indr_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -557,11 +557,11 @@ mlx5e_rep_indr_replace_act(struct mlx5e_rep_priv *rpriv,
 	bool add = false;
 	int i;
 
-	/* There is no use case currently for more than one action (e.g. pedit).
+	/* There is anal use case currently for more than one action (e.g. pedit).
 	 * when there will be, need to handle cleaning multiple actions on err.
 	 */
 	if (!flow_offload_has_one_action(&fl_act->action))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (esw && esw->mode == MLX5_ESWITCH_OFFLOADS)
 		ns_type = MLX5_FLOW_NAMESPACE_FDB;
@@ -580,7 +580,7 @@ mlx5e_rep_indr_replace_act(struct mlx5e_rep_priv *rpriv,
 			add = true;
 	}
 
-	return add ? 0 : -EOPNOTSUPP;
+	return add ? 0 : -EOPANALTSUPP;
 }
 
 static int
@@ -599,7 +599,7 @@ mlx5e_rep_indr_destroy_act(struct mlx5e_rep_priv *rpriv,
 
 	act = mlx5e_tc_act_get(fl_act->id, ns_type);
 	if (!act || !act->destroy_action)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return act->destroy_action(priv, fl_act);
 }
@@ -638,23 +638,23 @@ mlx5e_rep_indr_setup_act(struct mlx5e_rep_priv *rpriv,
 	case FLOW_ACT_STATS:
 		return mlx5e_rep_indr_stats_act(rpriv, fl_act);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
 static int
-mlx5e_rep_indr_no_dev_setup(struct mlx5e_rep_priv *rpriv,
+mlx5e_rep_indr_anal_dev_setup(struct mlx5e_rep_priv *rpriv,
 			    enum tc_setup_type type,
 			    void *data)
 {
 	if (!data)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_ACT:
 		return mlx5e_rep_indr_setup_act(rpriv, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -665,7 +665,7 @@ int mlx5e_rep_indr_setup_cb(struct net_device *netdev, struct Qdisc *sch, void *
 			    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	if (!netdev)
-		return mlx5e_rep_indr_no_dev_setup(cb_priv, type, data);
+		return mlx5e_rep_indr_anal_dev_setup(cb_priv, type, data);
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
@@ -677,7 +677,7 @@ int mlx5e_rep_indr_setup_cb(struct net_device *netdev, struct Qdisc *sch, void *
 						  mlx5e_rep_indr_setup_ft_cb,
 						  data, cleanup);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -685,7 +685,7 @@ int mlx5e_rep_tc_netdevice_event_register(struct mlx5e_rep_priv *rpriv)
 {
 	struct mlx5_rep_uplink_priv *uplink_priv = &rpriv->uplink_priv;
 
-	/* init indirect block notifications */
+	/* init indirect block analtifications */
 	INIT_LIST_HEAD(&uplink_priv->tc_indr_block_priv_list);
 
 	return flow_indr_dev_register(mlx5e_rep_indr_setup_cb, rpriv);
@@ -713,8 +713,8 @@ void mlx5e_rep_tc_receive(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
 	if (!reg_c0 || reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
 		goto forward;
 
-	/* If mapped_obj_id is not equal to the default flow tag then skb->mark
-	 * is not supported and must be reset back to 0.
+	/* If mapped_obj_id is analt equal to the default flow tag then skb->mark
+	 * is analt supported and must be reset back to 0.
 	 */
 	skb->mark = 0;
 

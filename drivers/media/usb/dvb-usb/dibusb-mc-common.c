@@ -105,7 +105,7 @@ int dibusb_dib3000mc_frontend_attach(struct dvb_usb_adapter *adap)
 		}
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL(dibusb_dib3000mc_frontend_attach);
 
@@ -153,9 +153,9 @@ int dibusb_dib3000mc_tuner_attach(struct dvb_usb_adapter *adap)
 
 	tun_i2c = dib3000mc_get_tuner_i2c_master(adap->fe_adap[0].fe, 1);
 	if (dvb_attach(mt2060_attach, adap->fe_adap[0].fe, tun_i2c, &stk3000p_mt2060_config, if1) == NULL) {
-		/* not found - use panasonic pll parameters */
+		/* analt found - use panasonic pll parameters */
 		if (dvb_attach(dvb_pll_attach, adap->fe_adap[0].fe, 0x60, tun_i2c, DVB_PLL_ENV57H1XD5) == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		st->mt2060_present = 1;
 		/* set the correct parameters for the dib3000p */

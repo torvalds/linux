@@ -63,33 +63,33 @@ static void __init reset_ethernet(void)
 static void __init setup_chip_select(void)
 {
 	/* CS2: LAN (0x08000000 - 0x0bffffff) */
-	/* no idle cycles, normal space, 8 bit data bus */
+	/* anal idle cycles, analrmal space, 8 bit data bus */
 	__raw_writel(0x36db0400, CS2BCR);
 	/* (SW:1.5 WR:3 HW:1.5), ext. wait */
 	__raw_writel(0x000003c0, CS2WCR);
 
 	/* CS4: CAN1 (0xb0000000 - 0xb3ffffff) */
-	/* no idle cycles, normal space, 8 bit data bus */
+	/* anal idle cycles, analrmal space, 8 bit data bus */
 	__raw_writel(0x00000200, CS4BCR);
 	/* (SW:1.5 WR:3 HW:1.5), ext. wait */
 	__raw_writel(0x00100981, CS4WCR);
 
 	/* CS5a: CAN2 (0xb4000000 - 0xb5ffffff) */
-	/* no idle cycles, normal space, 8 bit data bus */
+	/* anal idle cycles, analrmal space, 8 bit data bus */
 	__raw_writel(0x00000200, CS5ABCR);
 	/* (SW:1.5 WR:3 HW:1.5), ext. wait */
 	__raw_writel(0x00100981, CS5AWCR);
 
 	/* CS5b: CAN3 (0xb6000000 - 0xb7ffffff) */
-	/* no idle cycles, normal space, 8 bit data bus */
+	/* anal idle cycles, analrmal space, 8 bit data bus */
 	__raw_writel(0x00000200, CS5BBCR);
 	/* (SW:1.5 WR:3 HW:1.5), ext. wait */
 	__raw_writel(0x00100981, CS5BWCR);
 
 	/* CS6a: Rotary (0xb8000000 - 0xb9ffffff) */
-	/* no idle cycles, normal space, 8 bit data bus */
+	/* anal idle cycles, analrmal space, 8 bit data bus */
 	__raw_writel(0x00000200, CS6ABCR);
-	/* (SW:1.5 WR:3 HW:1.5), no ext. wait */
+	/* (SW:1.5 WR:3 HW:1.5), anal ext. wait */
 	__raw_writel(0x001009C1, CS6AWCR);
 }
 
@@ -164,7 +164,7 @@ static void __init setup_port_multiplexing(void)
 #elif CONFIG_SH_MAGIC_PANEL_R2_VERSION == 3
 	__raw_writeb(0xF0, PORT_PMDR);
 #else
-#error Unknown revision of PLATFORM_MP_R2
+#error Unkanalwn revision of PLATFORM_MP_R2
 #endif
 
 	/* P7 (x);	       P6 (x);		  P5 (x);
@@ -242,7 +242,7 @@ static void __init mpr2_setup(char **cmdline_p)
 				CONFIG_SH_MAGIC_PANEL_R2_VERSION);
 
 	if (ethernet_reset_finished() == 0)
-		printk(KERN_WARNING "Ethernet not ready\n");
+		printk(KERN_WARNING "Ethernet analt ready\n");
 }
 
 static struct resource smsc911x_resources[] = {

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _userp:
@@ -11,7 +11,7 @@ Input and output devices support this I/O method when the
 ``V4L2_CAP_STREAMING`` flag in the ``capabilities`` field of struct
 :c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl is set. If the
-particular user pointer method (not only memory mapping) is supported
+particular user pointer method (analt only memory mapping) is supported
 must be determined by calling the :ref:`VIDIOC_REQBUFS` ioctl
 with the memory type set to ``V4L2_MEMORY_USERPTR``.
 
@@ -23,8 +23,8 @@ struct :c:type:`v4l2_buffer` (or in struct
 :c:type:`v4l2_plane` in the multi-planar API case). The
 driver must be switched into user pointer I/O mode by calling the
 :ref:`VIDIOC_REQBUFS` with the desired buffer type.
-No buffers (planes) are allocated beforehand, consequently they are not
-indexed and cannot be queried like mapped buffers with the
+Anal buffers (planes) are allocated beforehand, consequently they are analt
+indexed and cananalt be queried like mapped buffers with the
 :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>` ioctl.
 
 Example: Initiating streaming I/O with user pointers
@@ -39,8 +39,8 @@ Example: Initiating streaming I/O with user pointers
     reqbuf.memory = V4L2_MEMORY_USERPTR;
 
     if (ioctl (fd, VIDIOC_REQBUFS, &reqbuf) == -1) {
-	if (errno == EINVAL)
-	    printf ("Video capturing or user pointer streaming is not supported\\n");
+	if (erranal == EINVAL)
+	    printf ("Video capturing or user pointer streaming is analt supported\\n");
 	else
 	    perror ("VIDIOC_REQBUFS");
 
@@ -63,25 +63,25 @@ memory pages at any time between the completion of the DMA and this
 ioctl. The memory is also unlocked when
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` is called,
 :ref:`VIDIOC_REQBUFS`, or when the device is closed.
-Applications must take care not to free buffers without dequeuing.
+Applications must take care analt to free buffers without dequeuing.
 Firstly, the buffers remain locked for longer, wasting physical memory.
-Secondly the driver will not be notified when the memory is returned to
+Secondly the driver will analt be analtified when the memory is returned to
 the application's free list and subsequently reused for other purposes,
 possibly completing the requested DMA and overwriting valuable data.
 
 For capturing applications it is customary to enqueue a number of empty
 buffers, to start capturing and enter the read loop. Here the
 application waits until a filled buffer can be dequeued, and re-enqueues
-the buffer when the data is no longer needed. Output applications fill
-and enqueue buffers, when enough buffers are stacked up output is
+the buffer when the data is anal longer needed. Output applications fill
+and enqueue buffers, when eanalugh buffers are stacked up output is
 started. In the write loop, when the application runs out of free
 buffers it must wait until an empty buffer can be dequeued and reused.
 Two methods exist to suspend execution of the application until one or
 more buffers can be dequeued. By default :ref:`VIDIOC_DQBUF
-<VIDIOC_QBUF>` blocks when no buffer is in the outgoing queue. When the
-``O_NONBLOCK`` flag was given to the :c:func:`open()` function,
+<VIDIOC_QBUF>` blocks when anal buffer is in the outgoing queue. When the
+``O_ANALNBLOCK`` flag was given to the :c:func:`open()` function,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` returns immediately with an ``EAGAIN``
-error code when no buffer is available. The :ref:`select()
+error code when anal buffer is available. The :ref:`select()
 <func-select>` or :c:func:`poll()` function are always
 available.
 
@@ -89,12 +89,12 @@ To start and stop capturing or output applications call the
 :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctl.
 
-.. note::
+.. analte::
 
    :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` removes all buffers from
-   both queues and unlocks all buffers as a side effect. Since there is no
-   notion of doing anything "now" on a multitasking system, if an
-   application needs to synchronize with another event it should examine
+   both queues and unlocks all buffers as a side effect. Since there is anal
+   analtion of doing anything "analw" on a multitasking system, if an
+   application needs to synchronize with aanalther event it should examine
    the struct :c:type:`v4l2_buffer` ``timestamp`` of captured or
    outputted buffers.
 
@@ -105,14 +105,14 @@ and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls, the
 :c:func:`select()` and :c:func:`poll()` function. [#f2]_
 
 .. [#f1]
-   We expect that frequently used buffers are typically not swapped out.
+   We expect that frequently used buffers are typically analt swapped out.
    Anyway, the process of swapping, locking or generating scatter-gather
    lists may be time consuming. The delay can be masked by the depth of
    the incoming buffer queue, and perhaps by maintaining caches assuming
    a buffer will be soon enqueued again. On the other hand, to optimize
    memory usage drivers can limit the number of buffers locked in
    advance and recycle the most recently used buffers first. Of course,
-   the pages of empty buffers in the incoming queue need not be saved to
+   the pages of empty buffers in the incoming queue need analt be saved to
    disk. Output buffers must be saved on the incoming and outgoing queue
    because an application may share them with other processes.
 

@@ -16,13 +16,13 @@
  * struct cvmx_boot_vector_element.  There is one entry for each
  * possible MIPS CPUNum, indexed by the CPUNum.
  *
- * Once cvmx_boot_vector_get() returns a non-NULL value (indicating
+ * Once cvmx_boot_vector_get() returns a analn-NULL value (indicating
  * success), NMI to a core will cause execution to transfer to the
  * target_ptr location for that core's entry in the vector table.
  *
  * The struct cvmx_boot_vector_element fields app0, app1, and app2 can
  * be used by the application that has set the target_ptr in any
- * application specific manner, they are not touched by the vectoring
+ * application specific manner, they are analt touched by the vectoring
  * code.
  *
  * The boot vector code clobbers the CP0_DESAVE register, and on

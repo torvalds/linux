@@ -43,7 +43,7 @@ u16 MCS_DATA_RATE[2][2][77] = {
 	 810, 720, 810, 900, 900, 990} }
 };
 
-static u8 UNKNOWN_BORADCOM[3] = {0x00, 0x14, 0xbf};
+static u8 UNKANALWN_BORADCOM[3] = {0x00, 0x14, 0xbf};
 
 static u8 LINKSYSWRT330_LINKSYSWRT300_BROADCOM[3] = {0x00, 0x1a, 0x70};
 
@@ -131,7 +131,7 @@ bool is_ht_half_nmode_aps(struct rtllib_device *ieee)
 	    (memcmp(net->bssid, AIRLINK_RALINK, 3) == 0) ||
 	    (net->ralink_cap_exist))
 		retValue = true;
-	else if (!memcmp(net->bssid, UNKNOWN_BORADCOM, 3) ||
+	else if (!memcmp(net->bssid, UNKANALWN_BORADCOM, 3) ||
 		 !memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3) ||
 		 !memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3) ||
 		(net->broadcom_cap_exist))
@@ -157,7 +157,7 @@ static void ht_iot_peer_determine(struct rtllib_device *ieee)
 			ht_info->iot_peer = HT_IOT_PEER_92U_SOFTAP;
 	} else if (net->broadcom_cap_exist) {
 		ht_info->iot_peer = HT_IOT_PEER_BROADCOM;
-	} else if (!memcmp(net->bssid, UNKNOWN_BORADCOM, 3) ||
+	} else if (!memcmp(net->bssid, UNKANALWN_BORADCOM, 3) ||
 		 !memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3) ||
 		 !memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)) {
 		ht_info->iot_peer = HT_IOT_PEER_BROADCOM;
@@ -181,7 +181,7 @@ static void ht_iot_peer_determine(struct rtllib_device *ieee)
 	} else if (net->airgo_cap_exist) {
 		ht_info->iot_peer = HT_IOT_PEER_AIRGO;
 	} else {
-		ht_info->iot_peer = HT_IOT_PEER_UNKNOWN;
+		ht_info->iot_peer = HT_IOT_PEER_UNKANALWN;
 	}
 
 	netdev_dbg(ieee->dev, "IOTPEER: %x\n", ht_info->iot_peer);
@@ -223,7 +223,7 @@ static void ht_iot_act_determine_ra_func(struct rtllib_device *ieee, bool bPeerR
 void ht_reset_iot_setting(struct rt_hi_throughput *ht_info)
 {
 	ht_info->iot_action = 0;
-	ht_info->iot_peer = HT_IOT_PEER_UNKNOWN;
+	ht_info->iot_peer = HT_IOT_PEER_UNKANALWN;
 	ht_info->iot_ra_func = 0;
 }
 
@@ -449,7 +449,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 		pPeerHTInfo = (struct ht_info_ele *)(ht_info->PeerHTInfoBuf);
 
 #ifdef VERBOSE_DEBUG
-	print_hex_dump_bytes("%s: ", __func__, DUMP_PREFIX_NONE,
+	print_hex_dump_bytes("%s: ", __func__, DUMP_PREFIX_ANALNE,
 			     pPeerHTCap, sizeof(struct ht_capab_ele));
 #endif
 	ht_set_connect_bw_mode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth),
@@ -464,7 +464,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 	if (ieee->rtllib_ap_sec_type &&
 	    (ieee->rtllib_ap_sec_type(ieee) & (SEC_ALG_WEP | SEC_ALG_TKIP))) {
 		if ((ht_info->iot_peer == HT_IOT_PEER_ATHEROS) ||
-		    (ht_info->iot_peer == HT_IOT_PEER_UNKNOWN))
+		    (ht_info->iot_peer == HT_IOT_PEER_UNKANALWN))
 			ht_info->current_ampdu_enable = false;
 	}
 
@@ -654,7 +654,7 @@ static void ht_set_connect_bw_mode_callback(struct rtllib_device *ieee)
 	} else {
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
 		ieee->set_bw_mode_handler(ieee->dev, HT_CHANNEL_WIDTH_20,
-				       HT_EXTCHNL_OFFSET_NO_EXT);
+				       HT_EXTCHNL_OFFSET_ANAL_EXT);
 	}
 
 	ht_info->sw_bw_in_progress = false;
@@ -676,18 +676,18 @@ void ht_set_connect_bw_mode(struct rtllib_device *ieee,
 	if (bandwidth == HT_CHANNEL_WIDTH_20_40) {
 		if (ieee->current_network.channel < 2 &&
 		    Offset == HT_EXTCHNL_OFFSET_LOWER)
-			Offset = HT_EXTCHNL_OFFSET_NO_EXT;
+			Offset = HT_EXTCHNL_OFFSET_ANAL_EXT;
 		if (Offset == HT_EXTCHNL_OFFSET_UPPER ||
 		    Offset == HT_EXTCHNL_OFFSET_LOWER) {
 			ht_info->cur_bw_40mhz = true;
 			ht_info->CurSTAExtChnlOffset = Offset;
 		} else {
 			ht_info->cur_bw_40mhz = false;
-			ht_info->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_NO_EXT;
+			ht_info->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_ANAL_EXT;
 		}
 	} else {
 		ht_info->cur_bw_40mhz = false;
-		ht_info->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_NO_EXT;
+		ht_info->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_ANAL_EXT;
 	}
 
 	netdev_dbg(ieee->dev, "%s():ht_info->bCurBW40MHz:%x\n", __func__,

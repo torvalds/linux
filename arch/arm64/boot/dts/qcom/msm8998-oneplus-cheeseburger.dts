@@ -34,8 +34,8 @@
 &pmi8998_gpios {
 	button_backlight_default: button-backlight-state {
 		pins = "gpio5";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-down;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 };

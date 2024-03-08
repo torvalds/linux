@@ -3,7 +3,7 @@
  * Copyright (c) 2021 Linaro Ltd.
  * Author: Sam Protsenko <semen.protsenko@linaro.org>
  *
- * Samsung Exynos USI driver (Universal Serial Interface).
+ * Samsung Exyanals USI driver (Universal Serial Interface).
  */
 
 #include <linux/clk.h>
@@ -14,10 +14,10 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-#include <dt-bindings/soc/samsung,exynos-usi.h>
+#include <dt-bindings/soc/samsung,exyanals-usi.h>
 
 /* USIv2: System Register: SW_CONF register bits */
-#define USI_V2_SW_CONF_NONE	0x0
+#define USI_V2_SW_CONF_ANALNE	0x0
 #define USI_V2_SW_CONF_UART	BIT(0)
 #define USI_V2_SW_CONF_SPI	BIT(1)
 #define USI_V2_SW_CONF_I2C	BIT(2)
@@ -33,20 +33,20 @@
 #define USI_OPTION_CLKREQ_ON	BIT(1)
 #define USI_OPTION_CLKSTOP_ON	BIT(2)
 
-enum exynos_usi_ver {
+enum exyanals_usi_ver {
 	USI_VER2 = 2,
 };
 
-struct exynos_usi_variant {
-	enum exynos_usi_ver ver;	/* USI IP-core version */
+struct exyanals_usi_variant {
+	enum exyanals_usi_ver ver;	/* USI IP-core version */
 	unsigned int sw_conf_mask;	/* SW_CONF mask for all protocols */
-	size_t min_mode;		/* first index in exynos_usi_modes[] */
-	size_t max_mode;		/* last index in exynos_usi_modes[] */
+	size_t min_mode;		/* first index in exyanals_usi_modes[] */
+	size_t max_mode;		/* last index in exyanals_usi_modes[] */
 	size_t num_clks;		/* number of clocks to assert */
 	const char * const *clk_names;	/* clock names to assert */
 };
 
-struct exynos_usi {
+struct exyanals_usi {
 	struct device *dev;
 	void __iomem *regs;		/* USI register map */
 	struct clk_bulk_data *clks;	/* USI clocks */
@@ -58,42 +58,42 @@ struct exynos_usi {
 	struct regmap *sysreg;		/* System Register map */
 	unsigned int sw_conf;		/* SW_CONF register offset in sysreg */
 
-	const struct exynos_usi_variant *data;
+	const struct exyanals_usi_variant *data;
 };
 
-struct exynos_usi_mode {
+struct exyanals_usi_mode {
 	const char *name;		/* mode name */
 	unsigned int val;		/* mode register value */
 };
 
-static const struct exynos_usi_mode exynos_usi_modes[] = {
-	[USI_V2_NONE] =	{ .name = "none", .val = USI_V2_SW_CONF_NONE },
+static const struct exyanals_usi_mode exyanals_usi_modes[] = {
+	[USI_V2_ANALNE] =	{ .name = "analne", .val = USI_V2_SW_CONF_ANALNE },
 	[USI_V2_UART] =	{ .name = "uart", .val = USI_V2_SW_CONF_UART },
 	[USI_V2_SPI] =	{ .name = "spi",  .val = USI_V2_SW_CONF_SPI },
 	[USI_V2_I2C] =	{ .name = "i2c",  .val = USI_V2_SW_CONF_I2C },
 };
 
-static const char * const exynos850_usi_clk_names[] = { "pclk", "ipclk" };
-static const struct exynos_usi_variant exynos850_usi_data = {
+static const char * const exyanals850_usi_clk_names[] = { "pclk", "ipclk" };
+static const struct exyanals_usi_variant exyanals850_usi_data = {
 	.ver		= USI_VER2,
 	.sw_conf_mask	= USI_V2_SW_CONF_MASK,
-	.min_mode	= USI_V2_NONE,
+	.min_mode	= USI_V2_ANALNE,
 	.max_mode	= USI_V2_I2C,
-	.num_clks	= ARRAY_SIZE(exynos850_usi_clk_names),
-	.clk_names	= exynos850_usi_clk_names,
+	.num_clks	= ARRAY_SIZE(exyanals850_usi_clk_names),
+	.clk_names	= exyanals850_usi_clk_names,
 };
 
-static const struct of_device_id exynos_usi_dt_match[] = {
+static const struct of_device_id exyanals_usi_dt_match[] = {
 	{
-		.compatible = "samsung,exynos850-usi",
-		.data = &exynos850_usi_data,
+		.compatible = "samsung,exyanals850-usi",
+		.data = &exyanals850_usi_data,
 	},
 	{ } /* sentinel */
 };
-MODULE_DEVICE_TABLE(of, exynos_usi_dt_match);
+MODULE_DEVICE_TABLE(of, exyanals_usi_dt_match);
 
 /**
- * exynos_usi_set_sw_conf - Set USI block configuration mode
+ * exyanals_usi_set_sw_conf - Set USI block configuration mode
  * @usi: USI driver object
  * @mode: Mode index
  *
@@ -101,7 +101,7 @@ MODULE_DEVICE_TABLE(of, exynos_usi_dt_match);
  *
  * Return: 0 on success, or negative error code on failure.
  */
-static int exynos_usi_set_sw_conf(struct exynos_usi *usi, size_t mode)
+static int exyanals_usi_set_sw_conf(struct exyanals_usi *usi, size_t mode)
 {
 	unsigned int val;
 	int ret;
@@ -109,20 +109,20 @@ static int exynos_usi_set_sw_conf(struct exynos_usi *usi, size_t mode)
 	if (mode < usi->data->min_mode || mode > usi->data->max_mode)
 		return -EINVAL;
 
-	val = exynos_usi_modes[mode].val;
+	val = exyanals_usi_modes[mode].val;
 	ret = regmap_update_bits(usi->sysreg, usi->sw_conf,
 				 usi->data->sw_conf_mask, val);
 	if (ret)
 		return ret;
 
 	usi->mode = mode;
-	dev_dbg(usi->dev, "protocol: %s\n", exynos_usi_modes[usi->mode].name);
+	dev_dbg(usi->dev, "protocol: %s\n", exyanals_usi_modes[usi->mode].name);
 
 	return 0;
 }
 
 /**
- * exynos_usi_enable - Initialize USI block
+ * exyanals_usi_enable - Initialize USI block
  * @usi: USI driver object
  *
  * USI IP-core start state is "reset" (on startup and after CPU resume). This
@@ -132,7 +132,7 @@ static int exynos_usi_set_sw_conf(struct exynos_usi *usi, size_t mode)
  *
  * Return: 0 on success, or negative error code on failure.
  */
-static int exynos_usi_enable(const struct exynos_usi *usi)
+static int exyanals_usi_enable(const struct exyanals_usi *usi)
 {
 	u32 val;
 	int ret;
@@ -160,21 +160,21 @@ static int exynos_usi_enable(const struct exynos_usi *usi)
 	return ret;
 }
 
-static int exynos_usi_configure(struct exynos_usi *usi)
+static int exyanals_usi_configure(struct exyanals_usi *usi)
 {
 	int ret;
 
-	ret = exynos_usi_set_sw_conf(usi, usi->mode);
+	ret = exyanals_usi_set_sw_conf(usi, usi->mode);
 	if (ret)
 		return ret;
 
 	if (usi->data->ver == USI_VER2)
-		return exynos_usi_enable(usi);
+		return exyanals_usi_enable(usi);
 
 	return 0;
 }
 
-static int exynos_usi_parse_dt(struct device_node *np, struct exynos_usi *usi)
+static int exyanals_usi_parse_dt(struct device_analde *np, struct exyanals_usi *usi)
 {
 	int ret;
 	u32 mode;
@@ -200,7 +200,7 @@ static int exynos_usi_parse_dt(struct device_node *np, struct exynos_usi *usi)
 	return 0;
 }
 
-static int exynos_usi_get_clocks(struct exynos_usi *usi)
+static int exyanals_usi_get_clocks(struct exyanals_usi *usi)
 {
 	const size_t num = usi->data->num_clks;
 	struct device *dev = usi->dev;
@@ -211,7 +211,7 @@ static int exynos_usi_get_clocks(struct exynos_usi *usi)
 
 	usi->clks = devm_kcalloc(dev, num, sizeof(*usi->clks), GFP_KERNEL);
 	if (!usi->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; ++i)
 		usi->clks[i].id = usi->data->clk_names[i];
@@ -219,16 +219,16 @@ static int exynos_usi_get_clocks(struct exynos_usi *usi)
 	return devm_clk_bulk_get(dev, num, usi->clks);
 }
 
-static int exynos_usi_probe(struct platform_device *pdev)
+static int exyanals_usi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct exynos_usi *usi;
+	struct device_analde *np = dev->of_analde;
+	struct exyanals_usi *usi;
 	int ret;
 
 	usi = devm_kzalloc(dev, sizeof(*usi), GFP_KERNEL);
 	if (!usi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usi->dev = dev;
 	platform_set_drvdata(pdev, usi);
@@ -237,11 +237,11 @@ static int exynos_usi_probe(struct platform_device *pdev)
 	if (!usi->data)
 		return -EINVAL;
 
-	ret = exynos_usi_parse_dt(np, usi);
+	ret = exyanals_usi_parse_dt(np, usi);
 	if (ret)
 		return ret;
 
-	ret = exynos_usi_get_clocks(usi);
+	ret = exyanals_usi_get_clocks(usi);
 	if (ret)
 		return ret;
 
@@ -251,34 +251,34 @@ static int exynos_usi_probe(struct platform_device *pdev)
 			return PTR_ERR(usi->regs);
 	}
 
-	ret = exynos_usi_configure(usi);
+	ret = exyanals_usi_configure(usi);
 	if (ret)
 		return ret;
 
-	/* Make it possible to embed protocol nodes into USI np */
+	/* Make it possible to embed protocol analdes into USI np */
 	return of_platform_populate(np, NULL, NULL, dev);
 }
 
-static int __maybe_unused exynos_usi_resume_noirq(struct device *dev)
+static int __maybe_unused exyanals_usi_resume_analirq(struct device *dev)
 {
-	struct exynos_usi *usi = dev_get_drvdata(dev);
+	struct exyanals_usi *usi = dev_get_drvdata(dev);
 
-	return exynos_usi_configure(usi);
+	return exyanals_usi_configure(usi);
 }
 
-static const struct dev_pm_ops exynos_usi_pm = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, exynos_usi_resume_noirq)
+static const struct dev_pm_ops exyanals_usi_pm = {
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(NULL, exyanals_usi_resume_analirq)
 };
 
-static struct platform_driver exynos_usi_driver = {
+static struct platform_driver exyanals_usi_driver = {
 	.driver = {
-		.name		= "exynos-usi",
-		.pm		= &exynos_usi_pm,
-		.of_match_table	= exynos_usi_dt_match,
+		.name		= "exyanals-usi",
+		.pm		= &exyanals_usi_pm,
+		.of_match_table	= exyanals_usi_dt_match,
 	},
-	.probe = exynos_usi_probe,
+	.probe = exyanals_usi_probe,
 };
-module_platform_driver(exynos_usi_driver);
+module_platform_driver(exyanals_usi_driver);
 
 MODULE_DESCRIPTION("Samsung USI driver");
 MODULE_AUTHOR("Sam Protsenko <semen.protsenko@linaro.org>");

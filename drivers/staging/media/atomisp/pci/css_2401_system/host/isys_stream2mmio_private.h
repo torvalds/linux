@@ -22,13 +22,13 @@
 #include "print_support.h"	/* print */
 
 #define STREAM2MMIO_COMMAND_REG_ID             0
-#define STREAM2MMIO_ACKNOWLEDGE_REG_ID         1
+#define STREAM2MMIO_ACKANALWLEDGE_REG_ID         1
 #define STREAM2MMIO_PIX_WIDTH_ID_REG_ID        2
-#define STREAM2MMIO_START_ADDR_REG_ID          3      /* master port address,NOT Byte */
-#define STREAM2MMIO_END_ADDR_REG_ID            4      /* master port address,NOT Byte */
-#define STREAM2MMIO_STRIDE_REG_ID              5      /* stride in master port words, increment is per packet for long sids, stride is not used for short sid's*/
+#define STREAM2MMIO_START_ADDR_REG_ID          3      /* master port address,ANALT Byte */
+#define STREAM2MMIO_END_ADDR_REG_ID            4      /* master port address,ANALT Byte */
+#define STREAM2MMIO_STRIDE_REG_ID              5      /* stride in master port words, increment is per packet for long sids, stride is analt used for short sid's*/
 #define STREAM2MMIO_NUM_ITEMS_REG_ID           6      /* number of packets for store packets cmd, number of words for store_words cmd */
-#define STREAM2MMIO_BLOCK_WHEN_NO_CMD_REG_ID   7      /* if this register is 1, input will be stalled if there is no pending command for this sid */
+#define STREAM2MMIO_BLOCK_WHEN_ANAL_CMD_REG_ID   7      /* if this register is 1, input will be stalled if there is anal pending command for this sid */
 #define STREAM2MMIO_REGS_PER_SID               8
 
 /*****************************************************
@@ -65,7 +65,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_sid_state(
     stream2mmio_sid_state_t	*state)
 {
 	state->rcv_ack =
-	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_ACKNOWLEDGE_REG_ID);
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_ACKANALWLEDGE_REG_ID);
 
 	state->pix_width_id =
 	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_PIX_WIDTH_ID_REG_ID);
@@ -82,8 +82,8 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_sid_state(
 	state->num_items =
 	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_NUM_ITEMS_REG_ID);
 
-	state->block_when_no_cmd =
-	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_BLOCK_WHEN_NO_CMD_REG_ID);
+	state->block_when_anal_cmd =
+	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_BLOCK_WHEN_ANAL_CMD_REG_ID);
 }
 
 /**
@@ -99,7 +99,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_print_sid_state(
 	ia_css_print("\t \t Endaddr 0x%x\n", state->end_addr);
 	ia_css_print("\t \t Strides 0x%x\n", state->strides);
 	ia_css_print("\t \t Num Items 0x%x\n", state->num_items);
-	ia_css_print("\t \t block when no cmd 0x%x\n", state->block_when_no_cmd);
+	ia_css_print("\t \t block when anal cmd 0x%x\n", state->block_when_anal_cmd);
 }
 
 /**

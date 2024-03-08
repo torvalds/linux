@@ -66,12 +66,12 @@ const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
 		if (fweh_event_names[i].code == code)
 			return fweh_event_names[i].name;
 	}
-	return "unknown";
+	return "unkanalwn";
 }
 #else
 const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
 {
-	return "nodebug";
+	return "analdebug";
 }
 #endif
 
@@ -108,9 +108,9 @@ static int brcmf_fweh_call_event_handler(struct brcmf_pub *drvr,
 		if (fweh->evt_handler[code])
 			err = fweh->evt_handler[code](ifp, emsg, data);
 		else
-			bphy_err(drvr, "unhandled event %d ignored\n", code);
+			bphy_err(drvr, "unhandled event %d iganalred\n", code);
 	} else {
-		bphy_err(drvr, "no interface object\n");
+		bphy_err(drvr, "anal interface object\n");
 	}
 	return err;
 }
@@ -134,17 +134,17 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		  ifevent->action, ifevent->ifidx, ifevent->bsscfgidx,
 		  ifevent->flags, ifevent->role);
 
-	/* The P2P Device interface event must not be ignored contrary to what
-	 * firmware tells us. Older firmware uses p2p noif, with sta role.
+	/* The P2P Device interface event must analt be iganalred contrary to what
+	 * firmware tells us. Older firmware uses p2p analif, with sta role.
 	 * This should be accepted when p2pdev_setup is ongoing. TDLS setup will
-	 * use the same ifevent and should be ignored.
+	 * use the same ifevent and should be iganalred.
 	 */
-	is_p2pdev = ((ifevent->flags & BRCMF_E_IF_FLAG_NOIF) &&
+	is_p2pdev = ((ifevent->flags & BRCMF_E_IF_FLAG_ANALIF) &&
 		     (ifevent->role == BRCMF_E_IF_ROLE_P2P_CLIENT ||
 		      ((ifevent->role == BRCMF_E_IF_ROLE_STA) &&
 		       (drvr->fweh.p2pdev_setup_ongoing))));
-	if (!is_p2pdev && (ifevent->flags & BRCMF_E_IF_FLAG_NOIF)) {
-		brcmf_dbg(EVENT, "event can be ignored\n");
+	if (!is_p2pdev && (ifevent->flags & BRCMF_E_IF_FLAG_ANALIF)) {
+		brcmf_dbg(EVENT, "event can be iganalred\n");
 		return;
 	}
 	if (ifevent->ifidx >= BRCMF_MAX_IFS) {
@@ -177,7 +177,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	if (ifp && ifevent->action == BRCMF_E_IF_DEL) {
 		bool armed = brcmf_cfg80211_vif_event_armed(drvr->config);
 
-		/* Default handling in case no-one waits for this event */
+		/* Default handling in case anal-one waits for this event */
 		if (!armed)
 			brcmf_remove_interface(ifp, false);
 	}
@@ -276,10 +276,10 @@ event_free:
 }
 
 /**
- * brcmf_fweh_p2pdev_setup() - P2P device setup ongoing (or not).
+ * brcmf_fweh_p2pdev_setup() - P2P device setup ongoing (or analt).
  *
  * @ifp: ifp on which setup is taking place or finished.
- * @ongoing: p2p device setup in progress (or not).
+ * @ongoing: p2p device setup in progress (or analt).
  */
 void brcmf_fweh_p2pdev_setup(struct brcmf_if *ifp, bool ongoing)
 {
@@ -328,7 +328,7 @@ int brcmf_fweh_register(struct brcmf_pub *drvr, enum brcmf_fweh_event_code code,
 {
 	if (drvr->fweh.evt_handler[code]) {
 		bphy_err(drvr, "event code %d already registered\n", code);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	drvr->fweh.evt_handler[code] = handler;
 	brcmf_dbg(TRACE, "event handler registered for %s\n",

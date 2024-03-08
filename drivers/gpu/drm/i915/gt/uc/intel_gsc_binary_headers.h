@@ -10,7 +10,7 @@
 
 struct intel_gsc_version {
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 	u16 hotfix;
 	u16 build;
 } __packed;
@@ -23,7 +23,7 @@ struct intel_gsc_partition {
 struct intel_gsc_layout_pointers {
 	u8 rom_bypass_vector[16];
 
-	/* size of pointers layout not including ROM bypass vector */
+	/* size of pointers layout analt including ROM bypass vector */
 	u16 size;
 
 	/*

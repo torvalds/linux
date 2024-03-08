@@ -39,7 +39,7 @@ int mlx5_tout_init(struct mlx5_core_dev *dev)
 
 	dev->timeouts = kmalloc(sizeof(*dev->timeouts), GFP_KERNEL);
 	if (!dev->timeouts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MAX_TIMEOUT_TYPES; i++)
 		tout_set(dev, tout_def_sw_val[i], i);

@@ -55,7 +55,7 @@
 		led2 {
 			label = "led2";
 			gpios = <&gpio6 19 GPIO_ACTIVE_HIGH>;	/* gpio179 */
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 	};
 

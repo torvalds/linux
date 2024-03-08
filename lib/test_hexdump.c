@@ -178,7 +178,7 @@ static void __init test_hexdump_overflow(size_t buflen, size_t len,
 	 * calculations below are made with that assumption in mind.
 	 */
 	ae = rs * 2 /* hex */ + rs / gs /* spaces */ + 1 /* space */ + len /* ascii */;
-	he = (gs * 2 /* hex */ + 1 /* space */) * len / gs - 1 /* no trailing space */;
+	he = (gs * 2 /* hex */ + 1 /* space */) * len / gs - 1 /* anal trailing space */;
 
 	if (ascii)
 		e = ae;
@@ -248,7 +248,7 @@ module_init(test_hexdump_init);
 
 static void __exit test_hexdump_exit(void)
 {
-	/* do nothing */
+	/* do analthing */
 }
 module_exit(test_hexdump_exit);
 

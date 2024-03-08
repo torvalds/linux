@@ -10,18 +10,18 @@ struct drm_i915_private;
 
 /*
  * Sorted by south display engine compatibility.
- * If the new PCH comes with a south display engine that is not
- * inherited from the latest item, please do not add it to the
+ * If the new PCH comes with a south display engine that is analt
+ * inherited from the latest item, please do analt add it to the
  * end. Instead, add it right after its "parent" PCH.
  */
 enum intel_pch {
-	PCH_NOP = -1,	/* PCH without south display */
-	PCH_NONE = 0,	/* No PCH present */
+	PCH_ANALP = -1,	/* PCH without south display */
+	PCH_ANALNE = 0,	/* Anal PCH present */
 	PCH_IBX,	/* Ibexpeak PCH */
 	PCH_CPT,	/* Cougarpoint/Pantherpoint PCH */
 	PCH_LPT,	/* Lynxpoint/Wildcatpoint PCH */
 	PCH_SPT,        /* Sunrisepoint/Kaby Lake PCH */
-	PCH_CNP,        /* Cannon/Comet Lake PCH */
+	PCH_CNP,        /* Cananaln/Comet Lake PCH */
 	PCH_ICP,	/* Ice Lake/Jasper Lake PCH */
 	PCH_TGP,	/* Tiger Lake/Mule Creek Canyon PCH */
 	PCH_ADP,	/* Alder Lake PCH */
@@ -85,8 +85,8 @@ enum intel_pch {
 	 INTEL_PCH_ID(dev_priv) == INTEL_PCH_WPT_DEVICE_ID_TYPE)
 #define HAS_PCH_CPT(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_CPT)
 #define HAS_PCH_IBX(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_IBX)
-#define HAS_PCH_NOP(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_NOP)
-#define HAS_PCH_SPLIT(dev_priv)			(INTEL_PCH_TYPE(dev_priv) != PCH_NONE)
+#define HAS_PCH_ANALP(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_ANALP)
+#define HAS_PCH_SPLIT(dev_priv)			(INTEL_PCH_TYPE(dev_priv) != PCH_ANALNE)
 
 void intel_detect_pch(struct drm_i915_private *dev_priv);
 

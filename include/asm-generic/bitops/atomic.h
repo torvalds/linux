@@ -22,7 +22,7 @@ static __always_inline void
 arch_clear_bit(unsigned int nr, volatile unsigned long *p)
 {
 	p += BIT_WORD(nr);
-	raw_atomic_long_andnot(BIT_MASK(nr), (atomic_long_t *)p);
+	raw_atomic_long_andanalt(BIT_MASK(nr), (atomic_long_t *)p);
 }
 
 static __always_inline void
@@ -50,7 +50,7 @@ arch_test_and_clear_bit(unsigned int nr, volatile unsigned long *p)
 	unsigned long mask = BIT_MASK(nr);
 
 	p += BIT_WORD(nr);
-	old = raw_atomic_long_fetch_andnot(mask, (atomic_long_t *)p);
+	old = raw_atomic_long_fetch_andanalt(mask, (atomic_long_t *)p);
 	return !!(old & mask);
 }
 

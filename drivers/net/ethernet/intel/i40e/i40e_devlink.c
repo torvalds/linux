@@ -197,7 +197,7 @@ static void i40e_devlink_set_switch_id(struct i40e_pf *pf,
  * i40e_devlink_create_port - Create a devlink port for this PF
  * @pf: the PF to create a port for
  *
- * Create and register a devlink_port for this PF. Note that although each
+ * Create and register a devlink_port for this PF. Analte that although each
  * physical function is connected to a separate devlink instance, the port
  * will still be numbered according to the physical function id.
  *

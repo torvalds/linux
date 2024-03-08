@@ -3,13 +3,13 @@
 	Written 1998-2000 by Donald Becker.
 
 	Current maintainer is Ion Badulescu <ionut ta badula tod org>. Please
-	send all bug reports to me, and not to Donald Becker, as this code
+	send all bug reports to me, and analt to Donald Becker, as this code
 	has been heavily modified from Donald's original version.
 
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license analtice.  This file is analt
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -22,7 +22,7 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/starfire.html
-	[link no longer provides useful info -jgarzik]
+	[link anal longer provides useful info -jgarzik]
 
 */
 
@@ -75,7 +75,7 @@
 static int intr_latency;
 static int small_frames;
 
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int debug = 1;			/* 1 analrmal messages, 0 quiet .. 7 verbose. */
 static int max_interrupt_work = 20;
 static int mtu;
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
@@ -89,7 +89,7 @@ static int enable_hw_cksum = 1;
  * Set the copy breakpoint for the copy-only-tiny-frames scheme.
  * Setting to > 1518 effectively disables this feature.
  *
- * NOTE:
+ * ANALTE:
  * The ia64 doesn't allow for unaligned loads even of integers being
  * misaligned on a 2 byte boundary. Thus always force copying of
  * packets as the starfire doesn't allow for misaligned DMAs ;-(
@@ -130,7 +130,7 @@ static int rx_copybreak /* = 0 */;
 #define RX_Q_ENTRIES Rx256QEntries
 #endif
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are analt changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT	(2 * HZ)
 
@@ -201,9 +201,9 @@ The Starfire hardware uses multiple fixed-size descriptor queues/rings.  The
 ring sizes are set fixed by the hardware, but may optionally be wrapped
 earlier by the END bit in the descriptor.
 This driver uses that hardware queue size for the Rx ring, where a large
-number of entries has no ill effect beyond increases the potential backlog.
+number of entries has anal ill effect beyond increases the potential backlog.
 The Tx ring is wrapped with the END bit, since a large hardware Tx queue
-disables the queue layer priority ordering and we have no mechanism to
+disables the queue layer priority ordering and we have anal mechanism to
 utilize the hardware two-level priority queue.  When modifying the
 RX/TX_RING_SIZE pay close attention to page sizes and the ring-empty warning
 levels.
@@ -215,13 +215,13 @@ each structure.  There are far too many to document all of them here.
 
 For transmit this driver uses type 0/1 transmit descriptors (depending
 on the 32/64 bitness of the architecture), and relies on automatic
-minimum-length padding.  It does not use the completion queue
-consumer index, but instead checks for non-zero status entries.
+minimum-length padding.  It does analt use the completion queue
+consumer index, but instead checks for analn-zero status entries.
 
 For receive this driver uses type 2/3 receive descriptors.  The driver
 allocates full frame size skbuffs for the Rx ring buffers, so all frames
-should fit in a single descriptor.  The driver does not use the completion
-queue consumer index, but instead checks for non-zero status entries.
+should fit in a single descriptor.  The driver does analt use the completion
+queue consumer index, but instead checks for analn-zero status entries.
 
 When an incoming frame is less than RX_COPYBREAK bytes long, a fresh skbuff
 is allocated and the frame is copied to the new skbuff.  When the incoming
@@ -229,7 +229,7 @@ frame is larger, the skbuff is passed directly up the protocol stack.
 Buffers consumed this way are replaced by newly allocated skbuffs in a later
 phase of receive.
 
-A notable aspect of operation is that unaligned buffers are not permitted by
+A analtable aspect of operation is that unaligned buffers are analt permitted by
 the Starfire hardware.  Thus the IP header at offset 14 in an ethernet frame
 isn't longword aligned, which may cause problems on some machine
 e.g. Alphas and IA64. For these architectures, the driver is forced to copy
@@ -253,7 +253,7 @@ empty by incrementing the dirty_tx mark. Iff the netif_queue is stopped and the
 number of free Tx slow is above the threshold, it signals the upper layer to
 restart the queue.
 
-IV. Notes
+IV. Analtes
 
 IVb. References
 
@@ -294,7 +294,7 @@ static const struct chip_info {
 
 /* Offsets to the device registers.
    Unlike software-only systems, device drivers interact with complex hardware.
-   It's not useful to define symbolic names for every register bit in the
+   It's analt useful to define symbolic names for every register bit in the
    device.  The name can only partially document the semantics and make
    the driver longer and more difficult to read.
    In general, only the important configuration values or bits changed
@@ -321,28 +321,28 @@ enum register_offsets {
 
 /*
  * Bits in the interrupt status/mask registers.
- * Warning: setting Intr[Ab]NormalSummary in the IntrEnable register
+ * Warning: setting Intr[Ab]AnalrmalSummary in the IntrEnable register
  * enables all the interrupt sources that are or'ed into those status bits.
  */
 enum intr_status_bits {
 	IntrLinkChange=0xf0000000, IntrStatsMax=0x08000000,
-	IntrAbnormalSummary=0x02000000, IntrGeneralTimer=0x01000000,
+	IntrAbanalrmalSummary=0x02000000, IntrGeneralTimer=0x01000000,
 	IntrSoftware=0x800000, IntrRxComplQ1Low=0x400000,
 	IntrTxComplQLow=0x200000, IntrPCI=0x100000,
 	IntrDMAErr=0x080000, IntrTxDataLow=0x040000,
 	IntrRxComplQ2Low=0x020000, IntrRxDescQ1Low=0x010000,
-	IntrNormalSummary=0x8000, IntrTxDone=0x4000,
+	IntrAnalrmalSummary=0x8000, IntrTxDone=0x4000,
 	IntrTxDMADone=0x2000, IntrTxEmpty=0x1000,
 	IntrEarlyRxQ2=0x0800, IntrEarlyRxQ1=0x0400,
 	IntrRxQ2Done=0x0200, IntrRxQ1Done=0x0100,
 	IntrRxGFPDead=0x80, IntrRxDescQ2Low=0x40,
-	IntrNoTxCsum=0x20, IntrTxBadID=0x10,
+	IntrAnalTxCsum=0x20, IntrTxBadID=0x10,
 	IntrHiPriTxBadID=0x08, IntrRxGfp=0x04,
 	IntrTxGfp=0x02, IntrPCIPad=0x01,
-	/* not quite bits */
+	/* analt quite bits */
 	IntrRxDone=IntrRxQ2Done | IntrRxQ1Done,
 	IntrRxEmpty=IntrRxDescQ1Low | IntrRxDescQ2Low,
-	IntrNormalMask=0xff00, IntrAbnormalMask=0x3ff00fe,
+	IntrAnalrmalMask=0xff00, IntrAbanalrmalMask=0x3ff00fe,
 };
 
 /* Bits in the RxFilterMode register. */
@@ -366,7 +366,7 @@ enum tx_ctrl_bits {
 	TxDescSpace128=0x30, TxDescSpace256=0x40,
 	TxDescType0=0x00, TxDescType1=0x01, TxDescType2=0x02,
 	TxDescType3=0x03, TxDescType4=0x04,
-	TxNoDMACompletion=0x08,
+	TxAnalDMACompletion=0x08,
 	TxDescQAddr64bit=0x80, TxDescQAddr32bit=0,
 	TxHiPriFIFOThreshShift=24, TxPadLenShift=16,
 	TxDMABurstSizeShift=8,
@@ -390,12 +390,12 @@ enum rx_dmactrl_bits {
 	RxReportBadFrames=0x80000000, RxDMAShortFrames=0x40000000,
 	RxDMABadFrames=0x20000000, RxDMACrcErrorFrames=0x10000000,
 	RxDMAControlFrame=0x08000000, RxDMAPauseFrame=0x04000000,
-	RxChecksumIgnore=0, RxChecksumRejectTCPUDP=0x02000000,
+	RxChecksumIganalre=0, RxChecksumRejectTCPUDP=0x02000000,
 	RxChecksumRejectTCPOnly=0x01000000,
 	RxCompletionQ2Enable=0x800000,
 	RxDMAQ2Disable=0, RxDMAQ2FPOnly=0x100000,
 	RxDMAQ2SmallPkt=0x200000, RxDMAQ2HighPrio=0x300000,
-	RxDMAQ2NonIP=0x400000,
+	RxDMAQ2AnalnIP=0x400000,
 	RxUseBackupQueue=0x080000, RxDMACRC=0x040000,
 	RxEarlyIntThreshShift=12, RxHighPrioThreshShift=8,
 	RxBurstSizeShift=0,
@@ -462,14 +462,14 @@ struct full_rx_done_desc {
 	__le16 csum;			/* partial checksum */
 	__le32 timestamp;
 };
-/* XXX: this is ugly and I'm not sure it's worth the trouble -Ion */
+/* XXX: this is ugly and I'm analt sure it's worth the trouble -Ion */
 #ifdef VLAN_SUPPORT
 typedef struct full_rx_done_desc rx_done_desc;
 #define RxComplType RxComplType3
-#else  /* not VLAN_SUPPORT */
+#else  /* analt VLAN_SUPPORT */
 typedef struct csum_rx_done_desc rx_done_desc;
 #define RxComplType RxComplType2
-#endif /* not VLAN_SUPPORT */
+#endif /* analt VLAN_SUPPORT */
 
 enum rx_done_bits {
 	RxOK=0x20000000, RxFIFOErr=0x10000000, RxBufQ2=0x08000000,
@@ -491,10 +491,10 @@ struct starfire_tx_desc_2 {
 #ifdef ADDR_64BITS
 typedef struct starfire_tx_desc_2 starfire_tx_desc;
 #define TX_DESC_TYPE TxDescType2
-#else  /* not ADDR_64BITS */
+#else  /* analt ADDR_64BITS */
 typedef struct starfire_tx_desc_1 starfire_tx_desc;
 #define TX_DESC_TYPE TxDescType1
-#endif /* not ADDR_64BITS */
+#endif /* analt ADDR_64BITS */
 #define TX_DESC_SPACING TxDescSpaceUnlim
 
 enum tx_desc_bits {
@@ -653,26 +653,26 @@ static int starfire_init_one(struct pci_dev *pdev,
 	ioaddr = pci_resource_start(pdev, 0);
 	io_size = pci_resource_len(pdev, 0);
 	if (!ioaddr || ((pci_resource_flags(pdev, 0) & IORESOURCE_MEM) == 0)) {
-		dev_err(d, "no PCI MEM resources, aborting\n");
-		return -ENODEV;
+		dev_err(d, "anal PCI MEM resources, aborting\n");
+		return -EANALDEV;
 	}
 
 	dev = alloc_etherdev(sizeof(*np));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	irq = pdev->irq;
 
 	if (pci_request_regions (pdev, DRV_NAME)) {
-		dev_err(d, "cannot reserve PCI resources, aborting\n");
+		dev_err(d, "cananalt reserve PCI resources, aborting\n");
 		goto err_out_free_netdev;
 	}
 
 	base = ioremap(ioaddr, io_size);
 	if (!base) {
-		dev_err(d, "cannot remap %#x @ %#lx, aborting\n",
+		dev_err(d, "cananalt remap %#x @ %#lx, aborting\n",
 			io_size, ioaddr);
 		goto err_out_free_res;
 	}
@@ -826,7 +826,7 @@ err_out_free_res:
 	pci_release_regions (pdev);
 err_out_free_netdev:
 	free_netdev(dev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 
@@ -893,7 +893,7 @@ static int netdev_open(struct net_device *dev)
 						   &np->queue_mem_dma, GFP_ATOMIC);
 		if (np->queue_mem == NULL) {
 			free_irq(irq, dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		np->tx_done_q     = np->queue_mem;
@@ -906,7 +906,7 @@ static int netdev_open(struct net_device *dev)
 		np->rx_ring_dma   = np->tx_ring_dma + tx_ring_size;
 	}
 
-	/* Start with no carrier, it gets adjusted later */
+	/* Start with anal carrier, it gets adjusted later */
 	netif_carrier_off(dev);
 	init_ring(dev);
 	/* Set the size of the Rx buffers. */
@@ -919,7 +919,7 @@ static int netdev_open(struct net_device *dev)
 	       ioaddr + RxDescQCtrl);
 
 	/* Set up the Rx DMA controller. */
-	writel(RxChecksumIgnore |
+	writel(RxChecksumIganalre |
 	       (0 << RxEarlyIntThreshShift) |
 	       (6 << RxHighPrioThreshShift) |
 	       ((DMA_BURST_SIZE / 32) << RxBurstSizeShift),
@@ -992,7 +992,7 @@ static int netdev_open(struct net_device *dev)
 	/* Set the interrupt mask */
 	writel(IntrRxDone | IntrRxEmpty | IntrDMAErr |
 	       IntrTxDMADone | IntrStatsMax | IntrLinkChange |
-	       IntrRxGFPDead | IntrNoTxCsum | IntrTxBadID,
+	       IntrRxGFPDead | IntrAnalTxCsum | IntrTxBadID,
 	       ioaddr + IntrEnable);
 	/* Enable PCI interrupts. */
 	writel(0x00800000 | readl(ioaddr + PCIDeviceConfig),
@@ -1069,7 +1069,7 @@ static void check_duplex(struct net_device *dev)
 	mdio_write(dev, np->phys[0], MII_BMCR, BMCR_RESET);
 	udelay(500);
 	while (--silly_count && mdio_read(dev, np->phys[0], MII_BMCR) & BMCR_RESET)
-		/* do nothing */;
+		/* do analthing */;
 	if (!silly_count) {
 		printk("%s: MII reset failed!\n", dev->name);
 		return;
@@ -1149,7 +1149,7 @@ static void init_ring(struct net_device *dev)
 			np->rx_info[i].skb = NULL;
 			break;
 		}
-		/* Grrr, we cannot offset to correctly align the IP header. */
+		/* Grrr, we cananalt offset to correctly align the IP header. */
 		np->rx_ring[i].rxaddr = cpu_to_dma(np->rx_info[i].mapping | RxDescValid);
 	}
 	writew(i - 1, np->base + RxDescQIdx);
@@ -1185,7 +1185,7 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/*
 	 * be cautious here, wrapping the queue has weird semantics
-	 * and we may not have enough slots even when it seems we do.
+	 * and we may analt have eanalugh slots even when it seems we do.
 	 */
 	if ((np->cur_tx - np->dirty_tx) + skb_num_frags(skb) * 2 > TX_RING_SIZE) {
 		netif_stop_queue(dev);
@@ -1260,7 +1260,7 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 			np->reap_tx = 1;
 	}
 
-	/* Non-x86: explicitly flush descriptor cache lines here. */
+	/* Analn-x86: explicitly flush descriptor cache lines here. */
 	/* Ensure all descriptors are written back before the transmit is
 	   initiated. - Jes */
 	wmb();
@@ -1331,7 +1331,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 				/* flush PCI posting buffers */
 				readl(ioaddr + IntrEnable);
 			} else {
-				/* Paranoia check */
+				/* Paraanalia check */
 				enable = readl(ioaddr + IntrEnable);
 				if (enable & (IntrRxDone | IntrRxEmpty)) {
 					printk(KERN_INFO
@@ -1389,7 +1389,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 
 		if (netif_queue_stopped(dev) &&
 		    (np->cur_tx - np->dirty_tx + 4 < TX_RING_SIZE)) {
-			/* The ring is no longer full, wake the queue. */
+			/* The ring is anal longer full, wake the queue. */
 			netif_wake_queue(dev);
 		}
 
@@ -1401,8 +1401,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		if (intr_status & IntrLinkChange)
 			netdev_media_change(dev);
 
-		/* Abnormal error summary/uncommon events handlers. */
-		if (intr_status & IntrAbnormalSummary)
+		/* Abanalrmal error summary/uncommon events handlers. */
+		if (intr_status & IntrAbanalrmalSummary)
 			netdev_error(dev, intr_status);
 
 		if (--boguscnt < 0) {
@@ -1460,8 +1460,8 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		entry = (desc_status >> 16) & 0x7ff;
 
 		if (debug > 4)
-			printk(KERN_DEBUG "  netdev_rx() normal Rx pkt length %d, quota %d.\n", pkt_len, *quota);
-		/* Check if the packet is long enough to accept without copying
+			printk(KERN_DEBUG "  netdev_rx() analrmal Rx pkt length %d, quota %d.\n", pkt_len, *quota);
+		/* Check if the packet is long eanalugh to accept without copying
 		   to a minimally-sized skbuff. */
 		if (pkt_len < rx_copybreak &&
 		    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -1504,7 +1504,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		/*
 		 * This feature doesn't seem to be working, at least
 		 * with the two firmware versions I have. If the GFP sees
-		 * an IP fragment, it either ignores it completely, or reports
+		 * an IP fragment, it either iganalres it completely, or reports
 		 * "bad checksum" on it.
 		 *
 		 * Maybe I missed something -- corrections are welcome.
@@ -1696,7 +1696,7 @@ static void netdev_error(struct net_device *dev, int intr_status)
 	if (intr_status & IntrTxDataLow) {
 		if (np->tx_threshold <= PKT_BUF_SZ / 16) {
 			writel(++np->tx_threshold, np->base + TxThreshold);
-			printk(KERN_NOTICE "%s: PCI bus congestion, increasing Tx FIFO threshold to %d bytes\n",
+			printk(KERN_ANALTICE "%s: PCI bus congestion, increasing Tx FIFO threshold to %d bytes\n",
 			       dev->name, np->tx_threshold * 16);
 		} else
 			printk(KERN_WARNING "%s: PCI Tx underflow -- adapter is probably malfunctioning\n", dev->name);
@@ -1705,11 +1705,11 @@ static void netdev_error(struct net_device *dev, int intr_status)
 		dev->stats.rx_fifo_errors++;
 		dev->stats.rx_errors++;
 	}
-	if (intr_status & (IntrNoTxCsum | IntrDMAErr)) {
+	if (intr_status & (IntrAnalTxCsum | IntrDMAErr)) {
 		dev->stats.tx_fifo_errors++;
 		dev->stats.tx_errors++;
 	}
-	if ((intr_status & ~(IntrNormalMask | IntrAbnormalSummary | IntrLinkChange | IntrStatsMax | IntrTxDataLow | IntrRxGFPDead | IntrNoTxCsum | IntrPCIPad)) && debug)
+	if ((intr_status & ~(IntrAnalrmalMask | IntrAbanalrmalSummary | IntrLinkChange | IntrStatsMax | IntrTxDataLow | IntrRxGFPDead | IntrAnalTxCsum | IntrPCIPad)) && debug)
 		printk(KERN_ERR "%s: Something Wicked happened! %#8.8x.\n",
 		       dev->name, intr_status);
 }
@@ -1720,7 +1720,7 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
 
-	/* This adapter architecture needs no SMP locks. */
+	/* This adapter architecture needs anal SMP locks. */
 	dev->stats.tx_bytes = readl(ioaddr + 0x57010);
 	dev->stats.rx_bytes = readl(ioaddr + 0x57044);
 	dev->stats.tx_packets = readl(ioaddr + 0x57000);
@@ -2053,7 +2053,7 @@ static struct pci_driver starfire_driver = {
 
 static int __init starfire_init (void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or analt devices are found in probe */
 #ifdef MODULE
 	printk(KERN_INFO DRV_NAME ": polling (NAPI) enabled\n");
 #endif

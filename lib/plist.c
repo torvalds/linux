@@ -57,7 +57,7 @@ static void plist_check_head(struct plist_head *head)
 {
 	if (!plist_head_empty(head))
 		plist_check_list(&plist_first(head)->prio_list);
-	plist_check_list(&head->node_list);
+	plist_check_list(&head->analde_list);
 }
 
 #else
@@ -65,109 +65,109 @@ static void plist_check_head(struct plist_head *head)
 #endif
 
 /**
- * plist_add - add @node to @head
+ * plist_add - add @analde to @head
  *
- * @node:	&struct plist_node pointer
+ * @analde:	&struct plist_analde pointer
  * @head:	&struct plist_head pointer
  */
-void plist_add(struct plist_node *node, struct plist_head *head)
+void plist_add(struct plist_analde *analde, struct plist_head *head)
 {
-	struct plist_node *first, *iter, *prev = NULL;
-	struct list_head *node_next = &head->node_list;
+	struct plist_analde *first, *iter, *prev = NULL;
+	struct list_head *analde_next = &head->analde_list;
 
 	plist_check_head(head);
-	WARN_ON(!plist_node_empty(node));
-	WARN_ON(!list_empty(&node->prio_list));
+	WARN_ON(!plist_analde_empty(analde));
+	WARN_ON(!list_empty(&analde->prio_list));
 
 	if (plist_head_empty(head))
-		goto ins_node;
+		goto ins_analde;
 
 	first = iter = plist_first(head);
 
 	do {
-		if (node->prio < iter->prio) {
-			node_next = &iter->node_list;
+		if (analde->prio < iter->prio) {
+			analde_next = &iter->analde_list;
 			break;
 		}
 
 		prev = iter;
 		iter = list_entry(iter->prio_list.next,
-				struct plist_node, prio_list);
+				struct plist_analde, prio_list);
 	} while (iter != first);
 
-	if (!prev || prev->prio != node->prio)
-		list_add_tail(&node->prio_list, &iter->prio_list);
-ins_node:
-	list_add_tail(&node->node_list, node_next);
+	if (!prev || prev->prio != analde->prio)
+		list_add_tail(&analde->prio_list, &iter->prio_list);
+ins_analde:
+	list_add_tail(&analde->analde_list, analde_next);
 
 	plist_check_head(head);
 }
 
 /**
- * plist_del - Remove a @node from plist.
+ * plist_del - Remove a @analde from plist.
  *
- * @node:	&struct plist_node pointer - entry to be removed
+ * @analde:	&struct plist_analde pointer - entry to be removed
  * @head:	&struct plist_head pointer - list head
  */
-void plist_del(struct plist_node *node, struct plist_head *head)
+void plist_del(struct plist_analde *analde, struct plist_head *head)
 {
 	plist_check_head(head);
 
-	if (!list_empty(&node->prio_list)) {
-		if (node->node_list.next != &head->node_list) {
-			struct plist_node *next;
+	if (!list_empty(&analde->prio_list)) {
+		if (analde->analde_list.next != &head->analde_list) {
+			struct plist_analde *next;
 
-			next = list_entry(node->node_list.next,
-					struct plist_node, node_list);
+			next = list_entry(analde->analde_list.next,
+					struct plist_analde, analde_list);
 
-			/* add the next plist_node into prio_list */
+			/* add the next plist_analde into prio_list */
 			if (list_empty(&next->prio_list))
-				list_add(&next->prio_list, &node->prio_list);
+				list_add(&next->prio_list, &analde->prio_list);
 		}
-		list_del_init(&node->prio_list);
+		list_del_init(&analde->prio_list);
 	}
 
-	list_del_init(&node->node_list);
+	list_del_init(&analde->analde_list);
 
 	plist_check_head(head);
 }
 
 /**
- * plist_requeue - Requeue @node at end of same-prio entries.
+ * plist_requeue - Requeue @analde at end of same-prio entries.
  *
  * This is essentially an optimized plist_del() followed by
  * plist_add().  It moves an entry already in the plist to
  * after any other same-priority entries.
  *
- * @node:	&struct plist_node pointer - entry to be moved
+ * @analde:	&struct plist_analde pointer - entry to be moved
  * @head:	&struct plist_head pointer - list head
  */
-void plist_requeue(struct plist_node *node, struct plist_head *head)
+void plist_requeue(struct plist_analde *analde, struct plist_head *head)
 {
-	struct plist_node *iter;
-	struct list_head *node_next = &head->node_list;
+	struct plist_analde *iter;
+	struct list_head *analde_next = &head->analde_list;
 
 	plist_check_head(head);
 	BUG_ON(plist_head_empty(head));
-	BUG_ON(plist_node_empty(node));
+	BUG_ON(plist_analde_empty(analde));
 
-	if (node == plist_last(head))
+	if (analde == plist_last(head))
 		return;
 
-	iter = plist_next(node);
+	iter = plist_next(analde);
 
-	if (node->prio != iter->prio)
+	if (analde->prio != iter->prio)
 		return;
 
-	plist_del(node, head);
+	plist_del(analde, head);
 
 	plist_for_each_continue(iter, head) {
-		if (node->prio != iter->prio) {
-			node_next = &iter->node_list;
+		if (analde->prio != iter->prio) {
+			analde_next = &iter->analde_list;
 			break;
 		}
 	}
-	list_add_tail(&node->node_list, node_next);
+	list_add_tail(&analde->analde_list, analde_next);
 
 	plist_check_head(head);
 }
@@ -178,11 +178,11 @@ void plist_requeue(struct plist_node *node, struct plist_head *head)
 #include <linux/module.h>
 #include <linux/init.h>
 
-static struct plist_node __initdata test_node[241];
+static struct plist_analde __initdata test_analde[241];
 
 static void __init plist_test_check(int nr_expect)
 {
-	struct plist_node *first, *prio_pos, *node_pos;
+	struct plist_analde *first, *prio_pos, *analde_pos;
 
 	if (plist_head_empty(&test_head)) {
 		BUG_ON(nr_expect != 0);
@@ -190,31 +190,31 @@ static void __init plist_test_check(int nr_expect)
 	}
 
 	prio_pos = first = plist_first(&test_head);
-	plist_for_each(node_pos, &test_head) {
+	plist_for_each(analde_pos, &test_head) {
 		if (nr_expect-- < 0)
 			break;
-		if (node_pos == first)
+		if (analde_pos == first)
 			continue;
-		if (node_pos->prio == prio_pos->prio) {
-			BUG_ON(!list_empty(&node_pos->prio_list));
+		if (analde_pos->prio == prio_pos->prio) {
+			BUG_ON(!list_empty(&analde_pos->prio_list));
 			continue;
 		}
 
-		BUG_ON(prio_pos->prio > node_pos->prio);
-		BUG_ON(prio_pos->prio_list.next != &node_pos->prio_list);
-		prio_pos = node_pos;
+		BUG_ON(prio_pos->prio > analde_pos->prio);
+		BUG_ON(prio_pos->prio_list.next != &analde_pos->prio_list);
+		prio_pos = analde_pos;
 	}
 
 	BUG_ON(nr_expect != 0);
 	BUG_ON(prio_pos->prio_list.next != &first->prio_list);
 }
 
-static void __init plist_test_requeue(struct plist_node *node)
+static void __init plist_test_requeue(struct plist_analde *analde)
 {
-	plist_requeue(node, &test_head);
+	plist_requeue(analde, &test_head);
 
-	if (node != plist_last(&test_head))
-		BUG_ON(node->prio == plist_next(node)->prio);
+	if (analde != plist_last(&test_head))
+		BUG_ON(analde->prio == plist_next(analde)->prio);
 }
 
 static int  __init plist_test(void)
@@ -224,32 +224,32 @@ static int  __init plist_test(void)
 
 	printk(KERN_DEBUG "start plist test\n");
 	plist_head_init(&test_head);
-	for (i = 0; i < ARRAY_SIZE(test_node); i++)
-		plist_node_init(test_node + i, 0);
+	for (i = 0; i < ARRAY_SIZE(test_analde); i++)
+		plist_analde_init(test_analde + i, 0);
 
 	for (loop = 0; loop < 1000; loop++) {
 		r = r * 193939 % 47629;
-		i = r % ARRAY_SIZE(test_node);
-		if (plist_node_empty(test_node + i)) {
+		i = r % ARRAY_SIZE(test_analde);
+		if (plist_analde_empty(test_analde + i)) {
 			r = r * 193939 % 47629;
-			test_node[i].prio = r % 99;
-			plist_add(test_node + i, &test_head);
+			test_analde[i].prio = r % 99;
+			plist_add(test_analde + i, &test_head);
 			nr_expect++;
 		} else {
-			plist_del(test_node + i, &test_head);
+			plist_del(test_analde + i, &test_head);
 			nr_expect--;
 		}
 		plist_test_check(nr_expect);
-		if (!plist_node_empty(test_node + i)) {
-			plist_test_requeue(test_node + i);
+		if (!plist_analde_empty(test_analde + i)) {
+			plist_test_requeue(test_analde + i);
 			plist_test_check(nr_expect);
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(test_node); i++) {
-		if (plist_node_empty(test_node + i))
+	for (i = 0; i < ARRAY_SIZE(test_analde); i++) {
+		if (plist_analde_empty(test_analde + i))
 			continue;
-		plist_del(test_node + i, &test_head);
+		plist_del(test_analde + i, &test_head);
 		nr_expect--;
 		plist_test_check(nr_expect);
 	}

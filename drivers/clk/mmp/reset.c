@@ -80,7 +80,7 @@ static const struct reset_control_ops mmp_clk_reset_ops = {
 	.deassert	= mmp_clk_reset_deassert,
 };
 
-void mmp_clk_reset_register(struct device_node *np,
+void mmp_clk_reset_register(struct device_analde *np,
 			struct mmp_clk_reset_cell *cells, int nr_resets)
 {
 	struct mmp_clk_reset_unit *unit;
@@ -93,7 +93,7 @@ void mmp_clk_reset_register(struct device_node *np,
 	unit->rcdev.of_reset_n_cells = 1;
 	unit->rcdev.nr_resets = nr_resets;
 	unit->rcdev.ops = &mmp_clk_reset_ops;
-	unit->rcdev.of_node = np;
+	unit->rcdev.of_analde = np;
 	unit->rcdev.of_xlate = mmp_of_reset_xlate;
 
 	reset_controller_register(&unit->rcdev);

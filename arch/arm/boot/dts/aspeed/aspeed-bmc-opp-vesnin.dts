@@ -24,11 +24,11 @@
 		ranges;
 
 		vga_memory: framebuffer@5f000000 {
-			no-map;
+			anal-map;
 			reg = <0x5f000000 0x01000000>; /* 16MB */
 		};
 		flash_memory: region@5c000000 {
-			no-map;
+			anal-map;
 			reg = <0x5c000000 0x02000000>; /* 32M */
 		};
 	};
@@ -100,7 +100,7 @@
 
 	flash@0 {
 		status = "okay";
-		label = "pnor";
+		label = "panalr";
 		m25p,fast-read;
 	};
 };

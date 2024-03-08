@@ -147,7 +147,7 @@ static int owl_comp_fix_fact_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We must report success but we can do so unconditionally because
 	 * owl_comp_fix_fact_round_rate returns values that ensure this call is
-	 * a nop.
+	 * a analp.
 	 */
 
 	return 0;
@@ -201,7 +201,7 @@ const struct clk_ops owl_comp_fix_fact_ops = {
 
 const struct clk_ops owl_comp_pass_ops = {
 	/* mux_ops */
-	.determine_rate	= clk_hw_determine_rate_no_reparent,
+	.determine_rate	= clk_hw_determine_rate_anal_reparent,
 	.get_parent	= owl_comp_get_parent,
 	.set_parent	= owl_comp_set_parent,
 

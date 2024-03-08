@@ -17,7 +17,7 @@
 #include <linux/sched/debug.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -79,7 +79,7 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 	}
 	if (teid.as == PSW_BITS_AS_SECONDARY)
 		return USER_FAULT;
-	/* Access register mode, not used in the kernel */
+	/* Access register mode, analt used in the kernel */
 	if (teid.as == PSW_BITS_AS_ACCREG)
 		return USER_FAULT;
 	/* Home space -> access via kernel ASCE */
@@ -110,7 +110,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 	switch (asce & _ASCE_TYPE_MASK) {
 	case _ASCE_TYPE_REGION1:
 		table += (address & _REGION1_INDEX) >> _REGION1_SHIFT;
-		if (get_kernel_nofault(entry, table))
+		if (get_kernel_analfault(entry, table))
 			goto bad;
 		pr_cont("R1:%016lx ", entry);
 		if (entry & _REGION_ENTRY_INVALID)
@@ -119,7 +119,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		fallthrough;
 	case _ASCE_TYPE_REGION2:
 		table += (address & _REGION2_INDEX) >> _REGION2_SHIFT;
-		if (get_kernel_nofault(entry, table))
+		if (get_kernel_analfault(entry, table))
 			goto bad;
 		pr_cont("R2:%016lx ", entry);
 		if (entry & _REGION_ENTRY_INVALID)
@@ -128,7 +128,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		fallthrough;
 	case _ASCE_TYPE_REGION3:
 		table += (address & _REGION3_INDEX) >> _REGION3_SHIFT;
-		if (get_kernel_nofault(entry, table))
+		if (get_kernel_analfault(entry, table))
 			goto bad;
 		pr_cont("R3:%016lx ", entry);
 		if (entry & (_REGION_ENTRY_INVALID | _REGION3_ENTRY_LARGE))
@@ -137,7 +137,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		fallthrough;
 	case _ASCE_TYPE_SEGMENT:
 		table += (address & _SEGMENT_INDEX) >> _SEGMENT_SHIFT;
-		if (get_kernel_nofault(entry, table))
+		if (get_kernel_analfault(entry, table))
 			goto bad;
 		pr_cont("S:%016lx ", entry);
 		if (entry & (_SEGMENT_ENTRY_INVALID | _SEGMENT_ENTRY_LARGE))
@@ -145,7 +145,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		table = __va(entry & _SEGMENT_ENTRY_ORIGIN);
 	}
 	table += (address & _PAGE_INDEX) >> _PAGE_SHIFT;
-	if (get_kernel_nofault(entry, table))
+	if (get_kernel_analfault(entry, table))
 		goto bad;
 	pr_cont("P:%016lx ", entry);
 out:
@@ -225,7 +225,7 @@ static void do_sigsegv(struct pt_regs *regs, int si_code)
 	force_sig_fault(SIGSEGV, si_code, (void __user *)get_fault_address(regs));
 }
 
-static void handle_fault_error_nolock(struct pt_regs *regs, int si_code)
+static void handle_fault_error_anallock(struct pt_regs *regs, int si_code)
 {
 	enum fault_type fault_type;
 	unsigned long address;
@@ -258,7 +258,7 @@ static void handle_fault_error(struct pt_regs *regs, int si_code)
 	struct mm_struct *mm = current->mm;
 
 	mmap_read_unlock(mm);
-	handle_fault_error_nolock(regs, si_code);
+	handle_fault_error_anallock(regs, si_code);
 }
 
 static void do_sigbus(struct pt_regs *regs)
@@ -273,9 +273,9 @@ static void do_sigbus(struct pt_regs *regs)
  *
  * interruption code (int_code):
  *   04       Protection	   ->  Write-Protection  (suppression)
- *   10       Segment translation  ->  Not present	 (nullification)
- *   11       Page translation	   ->  Not present	 (nullification)
- *   3b       Region third trans.  ->  Not present	 (nullification)
+ *   10       Segment translation  ->  Analt present	 (nullification)
+ *   11       Page translation	   ->  Analt present	 (nullification)
+ *   3b       Region third trans.  ->  Analt present	 (nullification)
  */
 static void do_exception(struct pt_regs *regs, int access)
 {
@@ -301,11 +301,11 @@ static void do_exception(struct pt_regs *regs, int access)
 	type = get_fault_type(regs);
 	switch (type) {
 	case KERNEL_FAULT:
-		return handle_fault_error_nolock(regs, 0);
+		return handle_fault_error_anallock(regs, 0);
 	case USER_FAULT:
 	case GMAP_FAULT:
 		if (faulthandler_disabled() || !mm)
-			return handle_fault_error_nolock(regs, 0);
+			return handle_fault_error_anallock(regs, 0);
 		break;
 	}
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
@@ -341,7 +341,7 @@ static void do_exception(struct pt_regs *regs, int access)
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			handle_fault_error_nolock(regs, 0);
+			handle_fault_error_anallock(regs, 0);
 		return;
 	}
 lock_mmap:
@@ -356,7 +356,7 @@ lock_mmap:
 		if (address == -EFAULT)
 			return handle_fault_error(regs, SEGV_MAPERR);
 		if (gmap->pfault_enabled)
-			flags |= FAULT_FLAG_RETRY_NOWAIT;
+			flags |= FAULT_FLAG_RETRY_ANALWAIT;
 	}
 retry:
 	vma = find_vma(mm, address);
@@ -367,16 +367,16 @@ retry:
 			return handle_fault_error(regs, SEGV_MAPERR);
 		vma = expand_stack(mm, address);
 		if (!vma)
-			return handle_fault_error_nolock(regs, SEGV_MAPERR);
+			return handle_fault_error_anallock(regs, SEGV_MAPERR);
 	}
 	if (unlikely(!(vma->vm_flags & access)))
 		return handle_fault_error(regs, SEGV_ACCERR);
 	fault = handle_mm_fault(vma, address, flags, regs);
 	if (fault_signal_pending(fault, regs)) {
-		if (flags & FAULT_FLAG_RETRY_NOWAIT)
+		if (flags & FAULT_FLAG_RETRY_ANALWAIT)
 			mmap_read_unlock(mm);
 		if (!user_mode(regs))
-			handle_fault_error_nolock(regs, 0);
+			handle_fault_error_anallock(regs, 0);
 		return;
 	}
 	/* The fault is fully completed (including releasing mmap lock) */
@@ -392,15 +392,15 @@ retry:
 		goto error;
 	}
 	if (fault & VM_FAULT_RETRY) {
-		if (IS_ENABLED(CONFIG_PGSTE) && gmap &&	(flags & FAULT_FLAG_RETRY_NOWAIT)) {
+		if (IS_ENABLED(CONFIG_PGSTE) && gmap &&	(flags & FAULT_FLAG_RETRY_ANALWAIT)) {
 			/*
-			 * FAULT_FLAG_RETRY_NOWAIT has been set,
-			 * mmap_lock has not been released
+			 * FAULT_FLAG_RETRY_ANALWAIT has been set,
+			 * mmap_lock has analt been released
 			 */
 			current->thread.gmap_pfault = 1;
 			return handle_fault_error(regs, 0);
 		}
-		flags &= ~FAULT_FLAG_RETRY_NOWAIT;
+		flags &= ~FAULT_FLAG_RETRY_ANALWAIT;
 		flags |= FAULT_FLAG_TRIED;
 		mmap_read_lock(mm);
 		goto retry;
@@ -411,7 +411,7 @@ gmap:
 				       address);
 		if (address == -EFAULT)
 			return handle_fault_error(regs, SEGV_MAPERR);
-		if (address == -ENOMEM) {
+		if (address == -EANALMEM) {
 			fault = VM_FAULT_OOM;
 			mmap_read_unlock(mm);
 			goto error;
@@ -422,17 +422,17 @@ gmap:
 error:
 	if (fault & VM_FAULT_OOM) {
 		if (!user_mode(regs))
-			handle_fault_error_nolock(regs, 0);
+			handle_fault_error_anallock(regs, 0);
 		else
 			pagefault_out_of_memory();
 	} else if (fault & VM_FAULT_SIGSEGV) {
 		if (!user_mode(regs))
-			handle_fault_error_nolock(regs, 0);
+			handle_fault_error_anallock(regs, 0);
 		else
 			do_sigsegv(regs, SEGV_MAPERR);
 	} else if (fault & VM_FAULT_SIGBUS) {
 		if (!user_mode(regs))
-			handle_fault_error_nolock(regs, 0);
+			handle_fault_error_anallock(regs, 0);
 		else
 			do_sigbus(regs);
 	} else {
@@ -454,32 +454,32 @@ void do_protection_exception(struct pt_regs *regs)
 	/*
 	 * Check for low-address protection.  This needs to be treated
 	 * as a special case because the translation exception code
-	 * field is not guaranteed to contain valid data in this case.
+	 * field is analt guaranteed to contain valid data in this case.
 	 */
 	if (unlikely(!teid.b61)) {
 		if (user_mode(regs)) {
-			/* Low-address protection in user mode: cannot happen */
+			/* Low-address protection in user mode: cananalt happen */
 			die(regs, "Low-address protection");
 		}
 		/*
 		 * Low-address protection in kernel mode means
 		 * NULL pointer write access in kernel mode.
 		 */
-		return handle_fault_error_nolock(regs, 0);
+		return handle_fault_error_anallock(regs, 0);
 	}
 	if (unlikely(MACHINE_HAS_NX && teid.b56)) {
 		regs->int_parm_long = (teid.addr * PAGE_SIZE) | (regs->psw.addr & PAGE_MASK);
-		return handle_fault_error_nolock(regs, SEGV_ACCERR);
+		return handle_fault_error_anallock(regs, SEGV_ACCERR);
 	}
 	do_exception(regs, VM_WRITE);
 }
-NOKPROBE_SYMBOL(do_protection_exception);
+ANALKPROBE_SYMBOL(do_protection_exception);
 
 void do_dat_exception(struct pt_regs *regs)
 {
 	do_exception(regs, VM_ACCESS_FLAGS);
 }
-NOKPROBE_SYMBOL(do_dat_exception);
+ANALKPROBE_SYMBOL(do_dat_exception);
 
 #if IS_ENABLED(CONFIG_PGSTE)
 
@@ -494,15 +494,15 @@ void do_secure_storage_access(struct pt_regs *regs)
 	int rc;
 
 	/*
-	 * Bit 61 indicates if the address is valid, if it is not the
+	 * Bit 61 indicates if the address is valid, if it is analt the
 	 * kernel should be stopped or SIGSEGV should be sent to the
-	 * process. Bit 61 is not reliable without the misc UV feature,
+	 * process. Bit 61 is analt reliable without the misc UV feature,
 	 * therefore this needs to be checked too.
 	 */
 	if (uv_has_feature(BIT_UV_FEAT_MISC) && !teid.b61) {
 		/*
 		 * When this happens, userspace did something that it
-		 * was not supposed to do, e.g. branching into secure
+		 * was analt supposed to do, e.g. branching into secure
 		 * memory. Trigger a segmentation fault.
 		 */
 		if (user_mode(regs)) {
@@ -511,7 +511,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 		}
 		/*
 		 * The kernel should never run into this case and
-		 * there is no way out of this situation.
+		 * there is anal way out of this situation.
 		 */
 		panic("Unexpected PGM 0x3d with TEID bit 61=0");
 	}
@@ -523,7 +523,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 		addr = __gmap_translate(gmap, addr);
 		mmap_read_unlock(mm);
 		if (IS_ERR_VALUE(addr))
-			return handle_fault_error_nolock(regs, SEGV_MAPERR);
+			return handle_fault_error_anallock(regs, SEGV_MAPERR);
 		fallthrough;
 	case USER_FAULT:
 		mm = current->mm;
@@ -554,19 +554,19 @@ void do_secure_storage_access(struct pt_regs *regs)
 		unreachable();
 	}
 }
-NOKPROBE_SYMBOL(do_secure_storage_access);
+ANALKPROBE_SYMBOL(do_secure_storage_access);
 
-void do_non_secure_storage_access(struct pt_regs *regs)
+void do_analn_secure_storage_access(struct pt_regs *regs)
 {
 	struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
 	unsigned long gaddr = get_fault_address(regs);
 
 	if (WARN_ON_ONCE(get_fault_type(regs) != GMAP_FAULT))
-		return handle_fault_error_nolock(regs, SEGV_MAPERR);
+		return handle_fault_error_anallock(regs, SEGV_MAPERR);
 	if (gmap_convert_to_secure(gmap, gaddr) == -EINVAL)
 		send_sig(SIGSEGV, current, 0);
 }
-NOKPROBE_SYMBOL(do_non_secure_storage_access);
+ANALKPROBE_SYMBOL(do_analn_secure_storage_access);
 
 void do_secure_storage_violation(struct pt_regs *regs)
 {

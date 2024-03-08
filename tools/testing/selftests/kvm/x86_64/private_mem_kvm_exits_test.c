@@ -33,7 +33,7 @@ static uint32_t run_vcpu_get_exit_reason(struct kvm_vcpu *vcpu)
 
 	r = _vcpu_run(vcpu);
 	if (r) {
-		TEST_ASSERT(errno == EFAULT, KVM_IOCTL_ERROR(KVM_RUN, r));
+		TEST_ASSERT(erranal == EFAULT, KVM_IOCTL_ERROR(KVM_RUN, r));
 		TEST_ASSERT_EQ(vcpu->run->exit_reason, KVM_EXIT_MEMORY_FAULT);
 	}
 	return vcpu->run->exit_reason;
@@ -55,7 +55,7 @@ static void test_private_access_memslot_deleted(void)
 	vm = vm_create_shape_with_one_vcpu(protected_vm_shape, &vcpu,
 					   guest_repeatedly_read);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 				    EXITS_TEST_GPA, EXITS_TEST_SLOT,
 				    EXITS_TEST_NPAGES,
 				    KVM_MEM_GUEST_MEMFD);
@@ -82,7 +82,7 @@ static void test_private_access_memslot_deleted(void)
 	kvm_vm_free(vm);
 }
 
-static void test_private_access_memslot_not_private(void)
+static void test_private_access_memslot_analt_private(void)
 {
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
@@ -91,8 +91,8 @@ static void test_private_access_memslot_not_private(void)
 	vm = vm_create_shape_with_one_vcpu(protected_vm_shape, &vcpu,
 					   guest_repeatedly_read);
 
-	/* Add a non-private memslot (flags = 0) */
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+	/* Add a analn-private memslot (flags = 0) */
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 				    EXITS_TEST_GPA, EXITS_TEST_SLOT,
 				    EXITS_TEST_NPAGES, 0);
 
@@ -116,5 +116,5 @@ int main(int argc, char *argv[])
 	TEST_REQUIRE(kvm_check_cap(KVM_CAP_VM_TYPES) & BIT(KVM_X86_SW_PROTECTED_VM));
 
 	test_private_access_memslot_deleted();
-	test_private_access_memslot_not_private();
+	test_private_access_memslot_analt_private();
 }

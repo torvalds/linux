@@ -11,16 +11,16 @@
 extern void bpf_rcu_read_lock(void) __ksym;
 extern void bpf_rcu_read_unlock(void) __ksym;
 
-struct node_data {
+struct analde_data {
 	long key;
 	long list_data;
-	struct bpf_rb_node r;
-	struct bpf_list_node l;
+	struct bpf_rb_analde r;
+	struct bpf_list_analde l;
 	struct bpf_refcount ref;
 };
 
 struct map_value {
-	struct node_data __kptr *node;
+	struct analde_data __kptr *analde;
 };
 
 struct {
@@ -28,53 +28,53 @@ struct {
 	__type(key, int);
 	__type(value, struct map_value);
 	__uint(max_entries, 2);
-} stashed_nodes SEC(".maps");
+} stashed_analdes SEC(".maps");
 
-struct node_acquire {
+struct analde_acquire {
 	long key;
 	long data;
-	struct bpf_rb_node node;
+	struct bpf_rb_analde analde;
 	struct bpf_refcount refcount;
 };
 
 #define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
 private(A) struct bpf_spin_lock lock;
-private(A) struct bpf_rb_root root __contains(node_data, r);
-private(A) struct bpf_list_head head __contains(node_data, l);
+private(A) struct bpf_rb_root root __contains(analde_data, r);
+private(A) struct bpf_list_head head __contains(analde_data, l);
 
 private(B) struct bpf_spin_lock alock;
-private(B) struct bpf_rb_root aroot __contains(node_acquire, node);
+private(B) struct bpf_rb_root aroot __contains(analde_acquire, analde);
 
 private(C) struct bpf_spin_lock block;
-private(C) struct bpf_rb_root broot __contains(node_data, r);
+private(C) struct bpf_rb_root broot __contains(analde_data, r);
 
-static bool less(struct bpf_rb_node *node_a, const struct bpf_rb_node *node_b)
+static bool less(struct bpf_rb_analde *analde_a, const struct bpf_rb_analde *analde_b)
 {
-	struct node_data *a;
-	struct node_data *b;
+	struct analde_data *a;
+	struct analde_data *b;
 
-	a = container_of(node_a, struct node_data, r);
-	b = container_of(node_b, struct node_data, r);
+	a = container_of(analde_a, struct analde_data, r);
+	b = container_of(analde_b, struct analde_data, r);
 
 	return a->key < b->key;
 }
 
-static bool less_a(struct bpf_rb_node *a, const struct bpf_rb_node *b)
+static bool less_a(struct bpf_rb_analde *a, const struct bpf_rb_analde *b)
 {
-	struct node_acquire *node_a;
-	struct node_acquire *node_b;
+	struct analde_acquire *analde_a;
+	struct analde_acquire *analde_b;
 
-	node_a = container_of(a, struct node_acquire, node);
-	node_b = container_of(b, struct node_acquire, node);
+	analde_a = container_of(a, struct analde_acquire, analde);
+	analde_b = container_of(b, struct analde_acquire, analde);
 
-	return node_a->key < node_b->key;
+	return analde_a->key < analde_b->key;
 }
 
 static long __insert_in_tree_and_list(struct bpf_list_head *head,
 				      struct bpf_rb_root *root,
 				      struct bpf_spin_lock *lock)
 {
-	struct node_data *n, *m;
+	struct analde_data *n, *m;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
@@ -107,9 +107,9 @@ static long __stash_map_insert_tree(int idx, int val, struct bpf_rb_root *root,
 				    struct bpf_spin_lock *lock)
 {
 	struct map_value *mapval;
-	struct node_data *n, *m;
+	struct analde_data *n, *m;
 
-	mapval = bpf_map_lookup_elem(&stashed_nodes, &idx);
+	mapval = bpf_map_lookup_elem(&stashed_analdes, &idx);
 	if (!mapval)
 		return -1;
 
@@ -120,7 +120,7 @@ static long __stash_map_insert_tree(int idx, int val, struct bpf_rb_root *root,
 	n->key = val;
 	m = bpf_refcount_acquire(n);
 
-	n = bpf_kptr_xchg(&mapval->node, n);
+	n = bpf_kptr_xchg(&mapval->analde, n);
 	if (n) {
 		bpf_obj_drop(n);
 		bpf_obj_drop(m);
@@ -141,8 +141,8 @@ static long __read_from_tree(struct bpf_rb_root *root,
 			     struct bpf_spin_lock *lock,
 			     bool remove_from_tree)
 {
-	struct bpf_rb_node *rb;
-	struct node_data *n;
+	struct bpf_rb_analde *rb;
+	struct analde_data *n;
 	long res = -99;
 
 	bpf_spin_lock(lock);
@@ -153,7 +153,7 @@ static long __read_from_tree(struct bpf_rb_root *root,
 		return -1;
 	}
 
-	n = container_of(rb, struct node_data, r);
+	n = container_of(rb, struct analde_data, r);
 	res = n->key;
 
 	if (!remove_from_tree) {
@@ -165,7 +165,7 @@ static long __read_from_tree(struct bpf_rb_root *root,
 	bpf_spin_unlock(lock);
 	if (!rb)
 		return -2;
-	n = container_of(rb, struct node_data, r);
+	n = container_of(rb, struct analde_data, r);
 	bpf_obj_drop(n);
 	return res;
 }
@@ -174,8 +174,8 @@ static long __read_from_list(struct bpf_list_head *head,
 			     struct bpf_spin_lock *lock,
 			     bool remove_from_list)
 {
-	struct bpf_list_node *l;
-	struct node_data *n;
+	struct bpf_list_analde *l;
+	struct analde_data *n;
 	long res = -99;
 
 	bpf_spin_lock(lock);
@@ -186,7 +186,7 @@ static long __read_from_list(struct bpf_list_head *head,
 		return -1;
 	}
 
-	n = container_of(l, struct node_data, l);
+	n = container_of(l, struct analde_data, l);
 	res = n->list_data;
 
 	if (!remove_from_list) {
@@ -205,15 +205,15 @@ static long __read_from_list(struct bpf_list_head *head,
 
 static long __read_from_unstash(int idx)
 {
-	struct node_data *n = NULL;
+	struct analde_data *n = NULL;
 	struct map_value *mapval;
 	long val = -99;
 
-	mapval = bpf_map_lookup_elem(&stashed_nodes, &idx);
+	mapval = bpf_map_lookup_elem(&stashed_analdes, &idx);
 	if (!mapval)
 		return -1;
 
-	n = bpf_kptr_xchg(&mapval->node, n);
+	n = bpf_kptr_xchg(&mapval->analde, n);
 	if (!n)
 		return -2;
 
@@ -249,10 +249,10 @@ long insert_and_remove_tree_##rem_tree##_list_##rem_list(void *ctx)	\
 	return tree_data + list_data;					\
 }
 
-/* After successful insert of struct node_data into both collections:
+/* After successful insert of struct analde_data into both collections:
  *   - it should have refcount = 2
- *   - removing / not removing the node_data from a collection after
- *     reading should have no effect on ability to read / remove from
+ *   - removing / analt removing the analde_data from a collection after
+ *     reading should have anal effect on ability to read / remove from
  *     the other collection
  */
 INSERT_READ_BOTH(true, true, "insert_read_both: remove from tree + list");
@@ -291,8 +291,8 @@ long insert_and_remove_lf_tree_##rem_tree##_list_##rem_list(void *ctx)	\
 /* Similar to insert_read_both, but list data is read and possibly removed
  * first
  *
- * Results should be no different than reading and possibly removing rbtree
- * node first
+ * Results should be anal different than reading and possibly removing rbtree
+ * analde first
  */
 INSERT_READ_BOTH(true, true, "insert_read_both_list_first: remove from tree + list");
 INSERT_READ_BOTH(false, false, "insert_read_both_list_first: remove from neither");
@@ -326,7 +326,7 @@ long insert_double_##read_fn##_and_del_##read_root(void *ctx)		\
 
 /* Insert into both tree and list, then try reading-and-removing from either twice
  *
- * The second read-and-remove should fail on read step since the node has
+ * The second read-and-remove should fail on read step since the analde has
  * already been removed
  */
 INSERT_DOUBLE_READ_AND_DEL(__read_from_tree, root, "insert_double_del: 2x read-and-del from tree");
@@ -359,26 +359,26 @@ long insert_rbtree_and_stash__del_tree_##rem_tree(void *ctx)		\
 	return tree_data + map_data;					\
 }
 
-/* Stash a refcounted node in map_val, insert same node into tree, then try
+/* Stash a refcounted analde in map_val, insert same analde into tree, then try
  * reading data from tree then unstashed map_val, possibly removing from tree
  *
- * Removing from tree should have no effect on map_val kptr validity
+ * Removing from tree should have anal effect on map_val kptr validity
  */
 INSERT_STASH_READ(true, "insert_stash_read: remove from tree");
 INSERT_STASH_READ(false, "insert_stash_read: don't remove from tree");
 
 SEC("tc")
 __success
-long rbtree_refcounted_node_ref_escapes(void *ctx)
+long rbtree_refcounted_analde_ref_escapes(void *ctx)
 {
-	struct node_acquire *n, *m;
+	struct analde_acquire *n, *m;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
 		return 1;
 
 	bpf_spin_lock(&alock);
-	bpf_rbtree_add(&aroot, &n->node, less_a);
+	bpf_rbtree_add(&aroot, &n->analde, less_a);
 	m = bpf_refcount_acquire(n);
 	bpf_spin_unlock(&alock);
 	if (!m)
@@ -391,9 +391,9 @@ long rbtree_refcounted_node_ref_escapes(void *ctx)
 
 SEC("tc")
 __success
-long rbtree_refcounted_node_ref_escapes_owning_input(void *ctx)
+long rbtree_refcounted_analde_ref_escapes_owning_input(void *ctx)
 {
-	struct node_acquire *n, *m;
+	struct analde_acquire *n, *m;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
@@ -403,7 +403,7 @@ long rbtree_refcounted_node_ref_escapes_owning_input(void *ctx)
 	m->key = 2;
 
 	bpf_spin_lock(&alock);
-	bpf_rbtree_add(&aroot, &n->node, less_a);
+	bpf_rbtree_add(&aroot, &n->analde, less_a);
 	bpf_spin_unlock(&alock);
 
 	bpf_obj_drop(m);
@@ -411,15 +411,15 @@ long rbtree_refcounted_node_ref_escapes_owning_input(void *ctx)
 	return 0;
 }
 
-static long __stash_map_empty_xchg(struct node_data *n, int idx)
+static long __stash_map_empty_xchg(struct analde_data *n, int idx)
 {
-	struct map_value *mapval = bpf_map_lookup_elem(&stashed_nodes, &idx);
+	struct map_value *mapval = bpf_map_lookup_elem(&stashed_analdes, &idx);
 
 	if (!mapval) {
 		bpf_obj_drop(n);
 		return 1;
 	}
-	n = bpf_kptr_xchg(&mapval->node, n);
+	n = bpf_kptr_xchg(&mapval->analde, n);
 	if (n) {
 		bpf_obj_drop(n);
 		return 2;
@@ -430,7 +430,7 @@ static long __stash_map_empty_xchg(struct node_data *n, int idx)
 SEC("tc")
 long rbtree_wrong_owner_remove_fail_a1(void *ctx)
 {
-	struct node_data *n, *m;
+	struct analde_data *n, *m;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
@@ -452,14 +452,14 @@ SEC("tc")
 long rbtree_wrong_owner_remove_fail_b(void *ctx)
 {
 	struct map_value *mapval;
-	struct node_data *n;
+	struct analde_data *n;
 	int idx = 0;
 
-	mapval = bpf_map_lookup_elem(&stashed_nodes, &idx);
+	mapval = bpf_map_lookup_elem(&stashed_analdes, &idx);
 	if (!mapval)
 		return 1;
 
-	n = bpf_kptr_xchg(&mapval->node, NULL);
+	n = bpf_kptr_xchg(&mapval->analde, NULL);
 	if (!n)
 		return 2;
 
@@ -475,26 +475,26 @@ SEC("tc")
 long rbtree_wrong_owner_remove_fail_a2(void *ctx)
 {
 	struct map_value *mapval;
-	struct bpf_rb_node *res;
-	struct node_data *m;
+	struct bpf_rb_analde *res;
+	struct analde_data *m;
 	int idx = 1;
 
-	mapval = bpf_map_lookup_elem(&stashed_nodes, &idx);
+	mapval = bpf_map_lookup_elem(&stashed_analdes, &idx);
 	if (!mapval)
 		return 1;
 
-	m = bpf_kptr_xchg(&mapval->node, NULL);
+	m = bpf_kptr_xchg(&mapval->analde, NULL);
 	if (!m)
 		return 2;
 	bpf_spin_lock(&lock);
 
-	/* make m non-owning ref */
+	/* make m analn-owning ref */
 	bpf_list_push_back(&head, &m->l);
 	res = bpf_rbtree_remove(&root, &m->r);
 
 	bpf_spin_unlock(&lock);
 	if (res) {
-		bpf_obj_drop(container_of(res, struct node_data, r));
+		bpf_obj_drop(container_of(res, struct analde_data, r));
 		return 3;
 	}
 	return 0;
@@ -506,8 +506,8 @@ int BPF_PROG(rbtree_sleepable_rcu,
 	     struct file *file, struct kobject *kobj,
 	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
 {
-	struct bpf_rb_node *rb;
-	struct node_data *n, *m = NULL;
+	struct bpf_rb_analde *rb;
+	struct analde_data *n, *m = NULL;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
@@ -524,7 +524,7 @@ int BPF_PROG(rbtree_sleepable_rcu,
 	if (!rb)
 		goto err_out;
 
-	m = container_of(rb, struct node_data, r);
+	m = container_of(rb, struct analde_data, r);
 
 err_out:
 	bpf_spin_unlock(&lock);
@@ -536,18 +536,18 @@ err_out:
 
 SEC("?fentry.s/bpf_testmod_test_read")
 __success
-int BPF_PROG(rbtree_sleepable_rcu_no_explicit_rcu_lock,
+int BPF_PROG(rbtree_sleepable_rcu_anal_explicit_rcu_lock,
 	     struct file *file, struct kobject *kobj,
 	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
 {
-	struct bpf_rb_node *rb;
-	struct node_data *n, *m = NULL;
+	struct bpf_rb_analde *rb;
+	struct analde_data *n, *m = NULL;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
 		return 0;
 
-	/* No explicit bpf_rcu_read_lock */
+	/* Anal explicit bpf_rcu_read_lock */
 	bpf_spin_lock(&lock);
 	bpf_rbtree_add(&root, &n->r, less);
 	rb = bpf_rbtree_first(&root);
@@ -558,11 +558,11 @@ int BPF_PROG(rbtree_sleepable_rcu_no_explicit_rcu_lock,
 	if (!rb)
 		goto err_out;
 
-	m = container_of(rb, struct node_data, r);
+	m = container_of(rb, struct analde_data, r);
 
 err_out:
 	bpf_spin_unlock(&lock);
-	/* No explicit bpf_rcu_read_unlock */
+	/* Anal explicit bpf_rcu_read_unlock */
 	if (m)
 		bpf_obj_drop(m);
 	return 0;

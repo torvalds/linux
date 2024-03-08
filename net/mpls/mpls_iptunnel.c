@@ -107,7 +107,7 @@ static int mpls_xmit(struct sk_buff *skb)
 	if (!out_dev->header_ops)
 		hh_len = 0;
 
-	/* Ensure there is enough space for the headers in the skb */
+	/* Ensure there is eanalugh space for the headers in the skb */
 	if (skb_cow(skb, hh_len + new_header_size))
 		goto drop;
 
@@ -191,7 +191,7 @@ static int mpls_build_state(struct net *net, struct nlattr *nla,
 	newts = lwtunnel_state_alloc(struct_size(tun_encap_info, label,
 						 n_labels));
 	if (!newts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tun_encap_info = mpls_lwtunnel_encap(newts);
 	ret = nla_get_labels(tb[MPLS_IPTUNNEL_DST], n_labels,

@@ -79,7 +79,7 @@ static const struct clk_ops bd71837_clk_ops = {
 static int bd71837_clk_probe(struct platform_device *pdev)
 {
 	struct bd718xx_clk *c;
-	int rval = -ENOMEM;
+	int rval = -EANALMEM;
 	const char *parent_clk;
 	struct device *parent = pdev->dev.parent;
 	struct clk_init_data init = {
@@ -90,18 +90,18 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 
 	c = devm_kzalloc(&pdev->dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!c->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	init.num_parents = 1;
-	parent_clk = of_clk_get_parent_name(parent->of_node, 0);
+	parent_clk = of_clk_get_parent_name(parent->of_analde, 0);
 
 	init.parent_names = &parent_clk;
 	if (!parent_clk) {
-		dev_err(&pdev->dev, "No parent clk found\n");
+		dev_err(&pdev->dev, "Anal parent clk found\n");
 		return -EINVAL;
 	}
 	switch (chip) {
@@ -119,13 +119,13 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 		c->mask = CLK_OUT_EN_MASK;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown clk chip\n");
+		dev_err(&pdev->dev, "Unkanalwn clk chip\n");
 		return -EINVAL;
 	}
 	c->pdev = pdev;
 	c->hw.init = &init;
 
-	of_property_read_string_index(parent->of_node,
+	of_property_read_string_index(parent->of_analde,
 				      "clock-output-names", 0, &init.name);
 
 	rval = devm_clk_hw_register(&pdev->dev, &c->hw);

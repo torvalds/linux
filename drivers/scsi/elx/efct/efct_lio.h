@@ -13,14 +13,14 @@
 #define efct_lio_io_printf(io, fmt, ...)			\
 	efc_log_debug(io->efct,					\
 		"[%s] [%04x][i:%04x t:%04x h:%04x]" fmt,\
-		io->node->display_name, io->instance_index,	\
+		io->analde->display_name, io->instance_index,	\
 		io->init_task_tag, io->tgt_task_tag, io->hw_tag,\
 		##__VA_ARGS__)
 
 #define efct_lio_tmfio_printf(io, fmt, ...)			\
 	efc_log_debug(io->efct,					\
 		"[%s] [%04x][i:%04x t:%04x h:%04x][f:%02x]" fmt,\
-		io->node->display_name, io->instance_index,	\
+		io->analde->display_name, io->instance_index,	\
 		io->init_task_tag, io->tgt_task_tag, io->hw_tag,\
 		io->tgt_io.tmf,  ##__VA_ARGS__)
 
@@ -65,18 +65,18 @@ struct efct_scsi_tgt_nport {
 	struct efct_lio_nport	*lio_nport;
 };
 
-struct efct_node {
+struct efct_analde {
 	struct list_head	list_entry;
 	struct kref		ref;
 	void			(*release)(struct kref *arg);
 	struct efct		*efct;
-	struct efc_node		*node;
+	struct efc_analde		*analde;
 	struct se_session	*session;
 	spinlock_t		active_ios_lock;
 	struct list_head	active_ios;
 	char			display_name[EFC_NAME_LENGTH];
 	u32			port_fc_id;
-	u32			node_fc_id;
+	u32			analde_fc_id;
 	u32			vpi;
 	u32			rpi;
 	u32			abort_cnt;
@@ -127,7 +127,7 @@ enum {
 	SCSI_HANDLER_DATAPHASE_STARTED = 1,
 	SCSI_HANDLER_RESP_STARTED,
 	SCSI_HANDLER_VALIDATED_DATAPHASE_STARTED,
-	SCSI_CMD_NOT_SUPPORTED,
+	SCSI_CMD_ANALT_SUPPORTED,
 };
 
 #define WWN_NAME_LEN		32
@@ -154,7 +154,7 @@ struct efct_lio_nport {
 };
 
 struct efct_lio_tpg_attrib {
-	u32			generate_node_acls;
+	u32			generate_analde_acls;
 	u32			cache_dynamic_acls;
 	u32			demo_mode_write_protect;
 	u32			prod_mode_write_protect;
@@ -175,7 +175,7 @@ struct efct_lio_nacl {
 	u64			nport_wwnn;
 	char			nport_name[WWN_NAME_LEN];
 	struct se_session	*session;
-	struct se_node_acl	se_node_acl;
+	struct se_analde_acl	se_analde_acl;
 };
 
 struct efct_lio_vport_list_t {

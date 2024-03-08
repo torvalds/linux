@@ -15,7 +15,7 @@
  *	YOSHIFUJI Hideaki @USAGI: Remove ipv6_parse_exthdrs().
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -166,7 +166,7 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	__IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_IN, skb->len);
 
-	SKB_DR_SET(reason, NOT_SPECIFIED);
+	SKB_DR_SET(reason, ANALT_SPECIFIED);
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL ||
 	    !idev || unlikely(idev->cnf.disable_ipv6)) {
 		__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDISCARDS);
@@ -179,10 +179,10 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	/*
 	 * Store incoming device index. When the packet will
-	 * be queued, we cannot refer to skb->dev anymore.
+	 * be queued, we cananalt refer to skb->dev anymore.
 	 *
 	 * BTW, when we send a packet for our own local address on a
-	 * non-loopback interface (e.g. ethX), it is being delivered
+	 * analn-loopback interface (e.g. ethX), it is being delivered
 	 * via the loopback interface (lo) here; skb->dev = loopback_dev.
 	 * It, however, should be considered as if it is being
 	 * arrived via the sending interface (ethX), because of the
@@ -201,13 +201,13 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	__IP6_ADD_STATS(net, idev,
-			IPSTATS_MIB_NOECTPKTS +
+			IPSTATS_MIB_ANALECTPKTS +
 				(ipv6_get_dsfield(hdr) & INET_ECN_MASK),
 			max_t(unsigned short, 1, skb_shinfo(skb)->gso_segs));
 	/*
 	 * RFC4291 2.5.3
-	 * The loopback address must not be used as the source address in IPv6
-	 * packets that are sent outside of a single node. [..]
+	 * The loopback address must analt be used as the source address in IPv6
+	 * packets that are sent outside of a single analde. [..]
 	 * A packet received on an interface with a destination address
 	 * of loopback must be dropped.
 	 */
@@ -219,9 +219,9 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	/* RFC4291 Errata ID: 3480
 	 * Interface-Local scope spans only a single interface on a
-	 * node and is useful only for loopback transmission of
+	 * analde and is useful only for loopback transmission of
 	 * multicast.  Packets with interface-local scope received
-	 * from another node must be discarded.
+	 * from aanalther analde must be discarded.
 	 */
 	if (!(skb->pkt_type == PACKET_LOOPBACK ||
 	      dev->flags & IFF_LOOPBACK) &&
@@ -242,7 +242,7 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	/* RFC4291 2.7
-	 * Nodes must not originate a packet to a multicast address whose scope
+	 * Analdes must analt originate a packet to a multicast address whose scope
 	 * field contains the reserved value 0; if such a packet is received, it
 	 * must be silently dropped.
 	 */
@@ -252,7 +252,7 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	/*
 	 * RFC4291 2.7
-	 * Multicast addresses must not be used as source addresses in IPv6
+	 * Multicast addresses must analt be used as source addresses in IPv6
 	 * packets or appear in any Routing header.
 	 */
 	if (ipv6_addr_is_multicast(&hdr->saddr))
@@ -286,7 +286,7 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	rcu_read_unlock();
 
-	/* Must drop socket now because of tproxy. */
+	/* Must drop socket analw because of tproxy. */
 	if (!skb_sk_is_prefetched(skb))
 		skb_orphan(skb);
 
@@ -391,7 +391,7 @@ resubmit_final:
 		if (have_final) {
 			if (!(ipprot->flags & INET6_PROTO_FINAL)) {
 				/* Once we've seen a final protocol don't
-				 * allow encapsulation on any non-final
+				 * allow encapsulation on any analn-final
 				 * ones. This allows foo in UDP encapsulation
 				 * to work.
 				 */
@@ -427,7 +427,7 @@ resubmit_final:
 				goto discard;
 			}
 		}
-		if (!(ipprot->flags & INET6_PROTO_NOPOLICY)) {
+		if (!(ipprot->flags & INET6_PROTO_ANALPOLICY)) {
 			if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 				SKB_DR_SET(reason, XFRM_POLICY);
 				goto discard;
@@ -439,10 +439,10 @@ resubmit_final:
 				      skb);
 		if (ret > 0) {
 			if (ipprot->flags & INET6_PROTO_FINAL) {
-				/* Not an extension header, most likely UDP
+				/* Analt an extension header, most likely UDP
 				 * encapsulation. Use return value as nexthdr
-				 * protocol not nhoff (which presumably is
-				 * not set by handler).
+				 * protocol analt nhoff (which presumably is
+				 * analt set by handler).
 				 */
 				nexthdr = ret;
 				goto resubmit_final;
@@ -456,10 +456,10 @@ resubmit_final:
 		if (!raw) {
 			if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 				__IP6_INC_STATS(net, idev,
-						IPSTATS_MIB_INUNKNOWNPROTOS);
+						IPSTATS_MIB_INUNKANALWNPROTOS);
 				icmpv6_send(skb, ICMPV6_PARAMPROB,
 					    ICMPV6_UNK_NEXTHDR, nhoff);
-				SKB_DR_SET(reason, IP_NOPROTO);
+				SKB_DR_SET(reason, IP_ANALPROTO);
 			} else {
 				SKB_DR_SET(reason, XFRM_POLICY);
 			}
@@ -513,7 +513,7 @@ int ip6_mc_input(struct sk_buff *skb)
 		if (!dev) {
 			rcu_read_unlock();
 			kfree_skb(skb);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else {
 		dev = skb->dev;
@@ -526,7 +526,7 @@ int ip6_mc_input(struct sk_buff *skb)
 
 #ifdef CONFIG_IPV6_MROUTE
 	/*
-	 *      IPv6 multicast router mode is now supported ;)
+	 *      IPv6 multicast router mode is analw supported ;)
 	 */
 	if (atomic_read(&dev_net(skb->dev)->ipv6.devconf_all->mc_forwarding) &&
 	    !(ipv6_addr_type(&hdr->daddr) &
@@ -566,7 +566,7 @@ int ip6_mc_input(struct sk_buff *skb)
 
 				goto out;
 			}
-			/* unknown RA - process it normally */
+			/* unkanalwn RA - process it analrmally */
 		}
 
 		if (deliver)

@@ -54,7 +54,7 @@ static int ipc3_fw_ext_man_get_dbg_abi_info(struct snd_sof_dev *sdev,
 		dev_dbg(sdev->dev,
 			"Firmware: DBG_ABI %d:%d:%d\n",
 			SOF_ABI_VERSION_MAJOR(dbg_abi->dbg_abi.abi_dbg_version),
-			SOF_ABI_VERSION_MINOR(dbg_abi->dbg_abi.abi_dbg_version),
+			SOF_ABI_VERSION_MIANALR(dbg_abi->dbg_abi.abi_dbg_version),
 			SOF_ABI_VERSION_PATCH(dbg_abi->dbg_abi.abi_dbg_version));
 
 	return 0;
@@ -94,7 +94,7 @@ static int ipc3_fw_ext_man_get_config_data(struct snd_sof_dev *sdev,
 			break;
 		default:
 			dev_info(sdev->dev,
-				 "Unknown firmware configuration token %d value %d",
+				 "Unkanalwn firmware configuration token %d value %d",
 				 elem->token, elem->value);
 			break;
 		}
@@ -116,7 +116,7 @@ static ssize_t ipc3_fw_ext_man_size(struct snd_sof_dev *sdev, const struct firmw
 	head = (struct sof_ext_man_header *)fw->data;
 
 	/*
-	 * assert fw size is big enough to contain extended manifest header,
+	 * assert fw size is big eanalugh to contain extended manifest header,
 	 * it prevents from reading unallocated memory from `head` in following
 	 * step.
 	 */
@@ -202,7 +202,7 @@ static size_t sof_ipc3_fw_parse_ext_man(struct snd_sof_dev *sdev)
 			break;
 		default:
 			dev_info(sdev->dev,
-				 "unknown sof_ext_man header type %d size %#x\n",
+				 "unkanalwn sof_ext_man header type %d size %#x\n",
 				 elem_hdr->type, elem_hdr->size);
 			break;
 		}
@@ -245,7 +245,7 @@ static int sof_ipc3_parse_module_memcpy(struct snd_sof_dev *sdev,
 	for (count = 0; count < module->num_blocks; count++) {
 		/* check for wrap */
 		if (remaining < sizeof(*block)) {
-			dev_err(sdev->dev, "not enough data remaining\n");
+			dev_err(sdev->dev, "analt eanalugh data remaining\n");
 			return -EINVAL;
 		}
 
@@ -263,7 +263,7 @@ static int sof_ipc3_parse_module_memcpy(struct snd_sof_dev *sdev,
 		switch (block->type) {
 		case SOF_FW_BLK_TYPE_RSRVD0:
 		case SOF_FW_BLK_TYPE_ROM...SOF_FW_BLK_TYPE_RSRVD14:
-			continue;	/* not handled atm */
+			continue;	/* analt handled atm */
 		case SOF_FW_BLK_TYPE_IRAM:
 		case SOF_FW_BLK_TYPE_DRAM:
 		case SOF_FW_BLK_TYPE_SRAM:
@@ -293,7 +293,7 @@ static int sof_ipc3_parse_module_memcpy(struct snd_sof_dev *sdev,
 		}
 
 		if (remaining < block->size) {
-			dev_err(sdev->dev, "%s: not enough data remaining\n", __func__);
+			dev_err(sdev->dev, "%s: analt eanalugh data remaining\n", __func__);
 			return -EINVAL;
 		}
 
@@ -341,7 +341,7 @@ static int sof_ipc3_load_fw_to_dsp(struct snd_sof_dev *sdev)
 	for (count = 0; count < header->num_modules; count++) {
 		/* check for wrap */
 		if (remaining < sizeof(*module)) {
-			dev_err(sdev->dev, "%s: not enough data for a module\n",
+			dev_err(sdev->dev, "%s: analt eanalugh data for a module\n",
 				__func__);
 			return -EINVAL;
 		}
@@ -357,7 +357,7 @@ static int sof_ipc3_load_fw_to_dsp(struct snd_sof_dev *sdev)
 		}
 
 		if (remaining < module->size) {
-			dev_err(sdev->dev, "%s: not enough data remaining\n", __func__);
+			dev_err(sdev->dev, "%s: analt eanalugh data remaining\n", __func__);
 			return -EINVAL;
 		}
 

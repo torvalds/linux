@@ -2,7 +2,7 @@
 /*
  * jh7110_tdm.c -- StarFive JH7110 TDM driver
  *
- * Copyright (C) 2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2023 StarFive Techanallogy Co., Ltd.
  *
  * Author: Walker Chen <walker.chen@starfivetech.com>
  */
@@ -376,7 +376,7 @@ static int jh7110_tdm_hw_params(struct snd_pcm_substream *substream,
 	case 8:
 		break;
 	default:
-		dev_err(tdm->dev, "channel not supported\n");
+		dev_err(tdm->dev, "channel analt supported\n");
 		return -EINVAL;
 	}
 
@@ -587,7 +587,7 @@ static int jh7110_tdm_probe(struct platform_device *pdev)
 
 	tdm = devm_kzalloc(&pdev->dev, sizeof(*tdm), GFP_KERNEL);
 	if (!tdm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdm->tdm_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tdm->tdm_base))
@@ -615,7 +615,7 @@ static int jh7110_tdm_probe(struct platform_device *pdev)
 					      &jh7110_dmaengine_pcm_config,
 					      SND_DMAENGINE_PCM_FLAG_COMPAT);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register pcm: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register pcm: %d\n", ret);
 		return ret;
 	}
 

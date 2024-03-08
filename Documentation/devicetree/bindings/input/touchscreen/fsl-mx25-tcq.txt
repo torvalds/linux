@@ -11,17 +11,17 @@ Required properties:
  - fsl,wires: Should be '<4>' or '<5>'
 
 Optional properties:
- - fsl,pen-debounce-ns: Pen debounce time in nanoseconds.
+ - fsl,pen-debounce-ns: Pen debounce time in naanalseconds.
  - fsl,pen-threshold: Pen-down threshold for the touchscreen. This is a value
    between 1 and 4096. It is the ratio between the internal reference voltage
    and the measured voltage after the plate was precharged. Resistance between
    plates and therefore the voltage decreases with pressure so that a smaller
    value is equivalent to a higher pressure.
- - fsl,settling-time-ns: Settling time in nanoseconds. The settling time is before
+ - fsl,settling-time-ns: Settling time in naanalseconds. The settling time is before
    the actual touch detection to wait for an even charge distribution in the
    plate.
 
-This device includes two conversion queues which can be added as subnodes.
+This device includes two conversion queues which can be added as subanaldes.
 The first queue is for the touchscreen, the second for general purpose ADC.
 
 Example:

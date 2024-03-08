@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -26,7 +26,7 @@ u8 ath9k_parse_mpdudensity(u8 mpdudensity)
 {
 	/*
 	 * 802.11n D2.0 defined values for "Minimum MPDU Start Spacing":
-	 *   0 for no restriction
+	 *   0 for anal restriction
 	 *   1 for 1/4 us
 	 *   2 for 1/2 us
 	 *   3 for 1 us
@@ -128,8 +128,8 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 
 	/*
-	 * While the hardware is asleep, the cycle counters contain no
-	 * useful data. Better clear them now so that they don't mess up
+	 * While the hardware is asleep, the cycle counters contain anal
+	 * useful data. Better clear them analw so that they don't mess up
 	 * survey data results.
 	 */
 	if (power_mode != ATH9K_PM_AWAKE) {
@@ -352,28 +352,28 @@ out:
 	return r;
 }
 
-static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
+static void ath_analde_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 			    struct ieee80211_vif *vif)
 {
-	struct ath_node *an;
-	an = (struct ath_node *)sta->drv_priv;
+	struct ath_analde *an;
+	an = (struct ath_analde *)sta->drv_priv;
 
 	an->sc = sc;
 	an->sta = sta;
 	an->vif = vif;
 	memset(&an->key_idx, 0, sizeof(an->key_idx));
 
-	ath_tx_node_init(sc, an);
+	ath_tx_analde_init(sc, an);
 
-	ath_dynack_node_init(sc->sc_ah, an);
+	ath_dynack_analde_init(sc->sc_ah, an);
 }
 
-static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
+static void ath_analde_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 {
-	struct ath_node *an = (struct ath_node *)sta->drv_priv;
-	ath_tx_node_cleanup(sc, an);
+	struct ath_analde *an = (struct ath_analde *)sta->drv_priv;
+	ath_tx_analde_cleanup(sc, an);
 
-	ath_dynack_node_deinit(sc->sc_ah, an);
+	ath_dynack_analde_deinit(sc->sc_ah, an);
 }
 
 void ath9k_tasklet(struct tasklet_struct *t)
@@ -433,7 +433,7 @@ void ath9k_tasklet(struct tasklet_struct *t)
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
 		/*
-		 * TSF sync does not look correct; remain awake to sync with
+		 * TSF sync does analt look correct; remain awake to sync with
 		 * the next Beacon.
 		 */
 		ath_dbg(common, PS, "TSFOOR - Sync with next Beacon\n");
@@ -512,19 +512,19 @@ irqreturn_t ath_isr(int irq, void *dev)
 	bool sched = false;
 
 	/*
-	 * The hardware is not ready/present, don't
-	 * touch anything. Note this can happen early
+	 * The hardware is analt ready/present, don't
+	 * touch anything. Analte this can happen early
 	 * on if the IRQ is shared.
 	 */
 	if (!ah || test_bit(ATH_OP_INVALID, &common->op_flags))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* shared irq, not for us */
+	/* shared irq, analt for us */
 	if (!ath9k_hw_intrpend(ah))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
-	 * Figure out the reason(s) for the interrupt.  Note
+	 * Figure out the reason(s) for the interrupt.  Analte
 	 * that the hal returns a pseudo-ISR that may include
 	 * bits we haven't explicitly enabled so we mask the
 	 * value to insure we only process bits we requested.
@@ -539,11 +539,11 @@ irqreturn_t ath_isr(int irq, void *dev)
 	}
 
 	/*
-	 * If there are no status bits set, then this interrupt was not
+	 * If there are anal status bits set, then this interrupt was analt
 	 * for me (should have been caught above).
 	 */
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Cache the status */
 	spin_lock(&sc->intr_lock);
@@ -604,7 +604,7 @@ chip_reset:
 }
 
 /*
- * This function is called when a HW reset cannot be deferred
+ * This function is called when a HW reset cananalt be deferred
  * and has to be immediate.
  */
 int ath_reset(struct ath_softc *sc, struct ath9k_channel *hchan)
@@ -676,7 +676,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * The basic interface to setting the hardware in a good
-	 * state is ``reset''.  On return the hardware is known to
+	 * state is ``reset''.  On return the hardware is kanalwn to
 	 * be powered up and with interrupts disabled.  This must
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
@@ -709,7 +709,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * Enable GTT interrupts only for AR9003/AR9004 chips
-	 * for now.
+	 * for analw.
 	 */
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		ah->imask |= ATH9K_INT_GTT;
@@ -763,7 +763,7 @@ static void ath9k_tx(struct ieee80211_hw *hw,
 
 	if (sc->ps_enabled) {
 		/*
-		 * mac80211 does not set PM field for normal data frames, so we
+		 * mac80211 does analt set PM field for analrmal data frames, so we
 		 * need to update that based on the current PS mode.
 		 */
 		if (ieee80211_is_data(hdr->frame_control) &&
@@ -803,7 +803,7 @@ static void ath9k_tx(struct ieee80211_hw *hw,
 	}
 
 	/*
-	 * Cannot tx while the hardware is in full sleep, it first needs a full
+	 * Cananalt tx while the hardware is in full sleep, it first needs a full
 	 * chip reset to recover from that
 	 */
 	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP)) {
@@ -891,7 +891,7 @@ static void ath9k_pending_key_del(struct ath_softc *sc, u8 keyix)
 	    ath9k_txq_has_key(sc, keyix))
 		return;
 
-	/* No more TXQ frames point to this key cache entry, so delete it. */
+	/* Anal more TXQ frames point to this key cache entry, so delete it. */
 	clear_bit(keyix, ah->pending_del_keymap);
 	ath_key_delete(common, keyix);
 }
@@ -913,7 +913,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath_cancel_work(sc);
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
-		ath_dbg(common, ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device analt present\n");
 		mutex_unlock(&sc->mutex);
 		return;
 	}
@@ -926,14 +926,14 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	/* prevent tasklets to enable interrupts once we disable them */
 	ah->imask &= ~ATH9K_INT_GLOBAL;
 
-	/* make sure h/w will not generate any interrupt
+	/* make sure h/w will analt generate any interrupt
 	 * before setting the invalid flag. */
 	ath9k_hw_disable_interrupts(ah);
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	/* we can now sync irq and kill any running tasklets, since we already
-	 * disabled interrupts and not holding a spin lock */
+	/* we can analw sync irq and kill any running tasklets, since we already
+	 * disabled interrupts and analt holding a spin lock */
 	synchronize_irq(sc->irq);
 	tasklet_kill(&sc->intr_tq);
 	tasklet_kill(&sc->bcon_tasklet);
@@ -1045,7 +1045,7 @@ static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 			iter_data->primary_sta = vif;
 		break;
 	case NL80211_IFTYPE_OCB:
-		iter_data->nocbs++;
+		iter_data->analcbs++;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		iter_data->nadhocs++;
@@ -1215,7 +1215,7 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 
 		if (iter_data.nmeshes)
 			ah->opmode = NL80211_IFTYPE_MESH_POINT;
-		else if (iter_data.nocbs)
+		else if (iter_data.analcbs)
 			ah->opmode = NL80211_IFTYPE_OCB;
 		else if (iter_data.nadhocs)
 			ah->opmode = NL80211_IFTYPE_ADHOC;
@@ -1334,13 +1334,13 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
-	struct ath_node *an = &avp->mcast_node;
+	struct ath_analde *an = &avp->mcast_analde;
 
 	mutex_lock(&sc->mutex);
 	if (IS_ENABLED(CONFIG_ATH9K_TX99)) {
 		if (sc->cur_chan->nvifs >= 1) {
 			mutex_unlock(&sc->mutex);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		sc->tx99_vif = vif;
 	}
@@ -1349,7 +1349,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	sc->cur_chan->nvifs++;
 
 	if (vif->type == NL80211_IFTYPE_STATION && ath9k_is_chanctx_enabled())
-		vif->driver_flags |= IEEE80211_VIF_GET_NOA_UPDATE;
+		vif->driver_flags |= IEEE80211_VIF_GET_ANALA_UPDATE;
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
@@ -1369,8 +1369,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	an->sc = sc;
 	an->sta = NULL;
 	an->vif = vif;
-	an->no_ps_filter = true;
-	ath_tx_node_init(sc, an);
+	an->anal_ps_filter = true;
+	ath_tx_analde_init(sc, an);
 
 	mutex_unlock(&sc->mutex);
 	return 0;
@@ -1389,7 +1389,7 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 
 	if (IS_ENABLED(CONFIG_ATH9K_TX99)) {
 		mutex_unlock(&sc->mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ath_dbg(common, CONFIG, "Change Interface\n");
@@ -1433,7 +1433,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
 
-	ath_tx_node_cleanup(sc, &avp->mcast_node);
+	ath_tx_analde_cleanup(sc, &avp->mcast_analde);
 
 	ath9k_calculate_summary_state(sc, avp->chanctx);
 
@@ -1513,7 +1513,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	/*
 	 * We just prepare to enable PS. We have to wait until our AP has
-	 * ACK'd our null data frame to disable RX otherwise we'll ignore
+	 * ACK'd our null data frame to disable RX otherwise we'll iganalre
 	 * those ACKs and end up retransmitting the same null data frames.
 	 * IEEE80211_CONF_CHANGE_PS is only passed by mac80211 for STA mode.
 	 */
@@ -1596,11 +1596,11 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+	struct ath_analde *an = (struct ath_analde *) sta->drv_priv;
 	struct ieee80211_key_conf ps_key = { };
 	int key;
 
-	ath_node_attach(sc, sta, vif);
+	ath_analde_attach(sc, sta, vif);
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_AP_VLAN)
@@ -1620,7 +1620,7 @@ static void ath9k_del_ps_key(struct ath_softc *sc,
 			     struct ieee80211_sta *sta)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+	struct ath_analde *an = (struct ath_analde *) sta->drv_priv;
 
 	if (!an->ps_key)
 	    return;
@@ -1637,7 +1637,7 @@ static int ath9k_sta_remove(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 
 	ath9k_del_ps_key(sc, vif, sta);
-	ath_node_detach(sc, sta);
+	ath_analde_detach(sc, sta);
 
 	return 0;
 }
@@ -1652,13 +1652,13 @@ static int ath9k_sta_state(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int ret = 0;
 
-	if (old_state == IEEE80211_STA_NOTEXIST &&
-	    new_state == IEEE80211_STA_NONE) {
+	if (old_state == IEEE80211_STA_ANALTEXIST &&
+	    new_state == IEEE80211_STA_ANALNE) {
 		ret = ath9k_sta_add(hw, vif, sta);
 		ath_dbg(common, CONFIG,
 			"Add station: %pM\n", sta->addr);
-	} else if (old_state == IEEE80211_STA_NONE &&
-		   new_state == IEEE80211_STA_NOTEXIST) {
+	} else if (old_state == IEEE80211_STA_ANALNE &&
+		   new_state == IEEE80211_STA_ANALTEXIST) {
 		ret = ath9k_sta_remove(hw, vif, sta);
 		ath_dbg(common, CONFIG,
 			"Remove station: %pM\n", sta->addr);
@@ -1677,7 +1677,7 @@ static int ath9k_sta_state(struct ieee80211_hw *hw,
 }
 
 static void ath9k_sta_set_tx_filter(struct ath_hw *ah,
-				    struct ath_node *an,
+				    struct ath_analde *an,
 				    bool set)
 {
 	int i;
@@ -1689,21 +1689,21 @@ static void ath9k_sta_set_tx_filter(struct ath_hw *ah,
 	}
 }
 
-static void ath9k_sta_notify(struct ieee80211_hw *hw,
+static void ath9k_sta_analtify(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif,
-			 enum sta_notify_cmd cmd,
+			 enum sta_analtify_cmd cmd,
 			 struct ieee80211_sta *sta)
 {
 	struct ath_softc *sc = hw->priv;
-	struct ath_node *an = (struct ath_node *) sta->drv_priv;
+	struct ath_analde *an = (struct ath_analde *) sta->drv_priv;
 
 	switch (cmd) {
-	case STA_NOTIFY_SLEEP:
+	case STA_ANALTIFY_SLEEP:
 		an->sleeping = true;
 		ath_tx_aggr_sleep(sta, sc, an);
 		ath9k_sta_set_tx_filter(sc->sc_ah, an, true);
 		break;
-	case STA_NOTIFY_AWAKE:
+	case STA_ANALTIFY_AWAKE:
 		ath9k_sta_set_tx_filter(sc->sc_ah, an, false);
 		an->sleeping = false;
 		ath_tx_aggr_wakeup(sc, an);
@@ -1761,11 +1761,11 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_node *an = NULL;
+	struct ath_analde *an = NULL;
 	int ret = 0, i;
 
-	if (ath9k_modparam_nohwcrypt)
-		return -ENOSPC;
+	if (ath9k_modparam_analhwcrypt)
+		return -EANALSPC;
 
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
 	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
@@ -1773,17 +1773,17 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		/*
-		 * For now, disable hw crypto for the RSN IBSS group keys. This
+		 * For analw, disable hw crypto for the RSN IBSS group keys. This
 		 * could be optimized in the future to use a modified key cache
 		 * design to support per-STA RX GTK, but until that gets
 		 * implemented, use of software crypto for group addressed
 		 * frames is a acceptable to allow RSN IBSS to be used.
 		 */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* There may be MPDUs queued for the outgoing PTK key. Flush queues to
-	 * make sure these are not send unencrypted or with a wrong (new) key
+	 * make sure these are analt send unencrypted or with a wrong (new) key
 	 */
 	if (cmd == DISABLE_KEY && key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
 		ieee80211_stop_queues(hw);
@@ -1795,9 +1795,9 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	ath9k_ps_wakeup(sc);
 	ath_dbg(common, CONFIG, "Set HW Key %d\n", cmd);
 	if (sta)
-		an = (struct ath_node *)sta->drv_priv;
+		an = (struct ath_analde *)sta->drv_priv;
 
-	/* Delete pending key cache entries if no more frames are pointing to
+	/* Delete pending key cache entries if anal more frames are pointing to
 	 * them in TXQs.
 	 */
 	for (i = 0; i < ATH_KEYMAX; i++)
@@ -1833,7 +1833,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 		break;
 	case DISABLE_KEY:
 		if (ath9k_txq_has_key(sc, key->hw_key_idx)) {
-			/* Delay key cache entry deletion until there are no
+			/* Delay key cache entry deletion until there are anal
 			 * remaining TXQ frames pointing to this entry.
 			 */
 			set_bit(key->hw_key_idx, sc->sc_ah->pending_del_keymap);
@@ -2009,7 +2009,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	bool flush = false;
 	int ret = 0;
 	struct ieee80211_sta *sta = params->sta;
-	struct ath_node *an = (struct ath_node *)sta->drv_priv;
+	struct ath_analde *an = (struct ath_analde *)sta->drv_priv;
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	u16 tid = params->tid;
 	u16 *ssn = &params->ssn;
@@ -2047,12 +2047,12 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		ath9k_ps_restore(sc);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		atid = ath_node_to_tid(an, tid);
+		atid = ath_analde_to_tid(an, tid);
 		atid->baw_size = IEEE80211_MIN_AMPDU_BUF <<
 					sta->deflink.ht_cap.ampdu_factor;
 		break;
 	default:
-		ath_err(ath9k_hw_common(sc->sc_ah), "Unknown AMPDU action\n");
+		ath_err(ath9k_hw_common(sc->sc_ah), "Unkanalwn AMPDU action\n");
 	}
 
 	mutex_unlock(&sc->mutex);
@@ -2071,7 +2071,7 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	int pos;
 
 	if (IS_ENABLED(CONFIG_ATH9K_TX99))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	spin_lock_irqsave(&common->cc_lock, flags);
 	if (idx == 0)
@@ -2088,7 +2088,7 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 
 	if (!sband || idx >= sband->n_channels) {
 		spin_unlock_irqrestore(&common->cc_lock, flags);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	chan = &sband->channels[idx];
@@ -2208,7 +2208,7 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
 	}
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
-		ath_dbg(common, ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device analt present\n");
 		return;
 	}
 
@@ -2356,7 +2356,7 @@ static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	if (ah->caps.rx_chainmask == 1)
 		return 0;
 
-	/* AR9100 runs into calibration issues if not all rx chains are enabled */
+	/* AR9100 runs into calibration issues if analt all rx chains are enabled */
 	if (AR_SREV_9100(ah))
 		ah->rxchainmask = 0x7;
 	else
@@ -2570,7 +2570,7 @@ static int ath9k_add_chanctx(struct ieee80211_hw *hw,
 	}
 
 	mutex_unlock(&sc->mutex);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 
@@ -2708,7 +2708,7 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 	if (go_ctx) {
 		/*
 		 * Wait till the GO interface gets a chance
-		 * to send out an NoA.
+		 * to send out an AnalA.
 		 */
 		spin_lock_bh(&sc->chan_lock);
 		sc->sched.mgd_prepare_tx = true;
@@ -2724,7 +2724,7 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 		if (wait_for_completion_timeout(&sc->go_beacon,
 						timeout) == 0) {
 			ath_dbg(common, CHAN_CTX,
-				"Failed to send new NoA\n");
+				"Failed to send new AnalA\n");
 
 			spin_lock_bh(&sc->chan_lock);
 			sc->sched.mgd_prepare_tx = false;
@@ -2795,7 +2795,7 @@ struct ieee80211_ops ath9k_ops = {
 	.config 	    = ath9k_config,
 	.configure_filter   = ath9k_configure_filter,
 	.sta_state          = ath9k_sta_state,
-	.sta_notify         = ath9k_sta_notify,
+	.sta_analtify         = ath9k_sta_analtify,
 	.conf_tx 	    = ath9k_conf_tx,
 	.bss_info_changed   = ath9k_bss_info_changed,
 	.set_key            = ath9k_set_key,

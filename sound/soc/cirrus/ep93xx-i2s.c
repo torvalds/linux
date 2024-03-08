@@ -67,7 +67,7 @@
 #define EP93XX_I2S_CLKCFG_CKP		(1 << 1) /* Bit clock polarity */
 #define EP93XX_I2S_CLKCFG_REL		(1 << 2) /* First bit transition */
 #define EP93XX_I2S_CLKCFG_MASTER	(1 << 3) /* Master mode */
-#define EP93XX_I2S_CLKCFG_NBCG		(1 << 4) /* Not bit clock gating */
+#define EP93XX_I2S_CLKCFG_NBCG		(1 << 4) /* Analt bit clock gating */
 
 #define EP93XX_I2S_GLSTS_TX0_FIFO_FULL	BIT(12)
 
@@ -448,7 +448,7 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->regs))
@@ -457,7 +457,7 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_SND_EP93XX_SOC_I2S_WATCHDOG)) {
 		int irq = platform_get_irq(pdev, 0);
 		if (irq <= 0)
-			return irq < 0 ? irq : -ENODEV;
+			return irq < 0 ? irq : -EANALDEV;
 
 		err = devm_request_irq(&pdev->dev, irq, ep93xx_i2s_interrupt, 0,
 				       pdev->name, info);

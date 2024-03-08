@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <linux/bpf.h>
 #include <stdio.h>
@@ -34,7 +34,7 @@ bool use_loader;
 struct btf *base_btf;
 struct hashmap *refs_table;
 
-static void __noreturn clean_and_exit(int i)
+static void __analreturn clean_and_exit(int i)
 {
 	if (json_output)
 		jsonw_destroy(&json_wtr);
@@ -92,13 +92,13 @@ static const struct cmd commands[] = {
 };
 
 #ifndef BPFTOOL_VERSION
-/* bpftool's major and minor version numbers are aligned on libbpf's. There is
+/* bpftool's major and mianalr version numbers are aligned on libbpf's. There is
  * an offset of 6 for the version number, because bpftool's version was higher
  * than libbpf's when we adopted this scheme. The patch number remains at 0
- * for now. Set BPFTOOL_VERSION to override.
+ * for analw. Set BPFTOOL_VERSION to override.
  */
 #define BPFTOOL_MAJOR_VERSION (LIBBPF_MAJOR_VERSION + 6)
-#define BPFTOOL_MINOR_VERSION LIBBPF_MINOR_VERSION
+#define BPFTOOL_MIANALR_VERSION LIBBPF_MIANALR_VERSION
 #define BPFTOOL_PATCH_VERSION 0
 #endif
 
@@ -134,7 +134,7 @@ static int do_version(int argc, char **argv)
 	for (i = 0; commands[i].cmd; i++) {
 		if (!strcmp(commands[i].cmd, "prog")) {
 			/* Assume we run a bootstrap version if "bpftool prog"
-			 * is not available.
+			 * is analt available.
 			 */
 			bootstrap = !commands[i].func;
 			break;
@@ -149,11 +149,11 @@ static int do_version(int argc, char **argv)
 		jsonw_printf(json_wtr, "\"%s\"", BPFTOOL_VERSION);
 #else
 		jsonw_printf(json_wtr, "\"%d.%d.%d\"", BPFTOOL_MAJOR_VERSION,
-			     BPFTOOL_MINOR_VERSION, BPFTOOL_PATCH_VERSION);
+			     BPFTOOL_MIANALR_VERSION, BPFTOOL_PATCH_VERSION);
 #endif
 		jsonw_name(json_wtr, "libbpf_version");
 		jsonw_printf(json_wtr, "\"%d.%d\"",
-			     libbpf_major_version(), libbpf_minor_version());
+			     libbpf_major_version(), libbpf_mianalr_version());
 
 		jsonw_name(json_wtr, "features");
 		jsonw_start_object(json_wtr);	/* features */
@@ -171,7 +171,7 @@ static int do_version(int argc, char **argv)
 		printf("%s v%s\n", bin_name, BPFTOOL_VERSION);
 #else
 		printf("%s v%d.%d.%d\n", bin_name, BPFTOOL_MAJOR_VERSION,
-		       BPFTOOL_MINOR_VERSION, BPFTOOL_PATCH_VERSION);
+		       BPFTOOL_MIANALR_VERSION, BPFTOOL_PATCH_VERSION);
 #endif
 		printf("using libbpf %s\n", libbpf_version_string());
 		printf("features:");
@@ -199,7 +199,7 @@ int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	for (i = 0; cmds[i].cmd; i++) {
 		if (is_prefix(*argv, cmds[i].cmd)) {
 			if (!cmds[i].func) {
-				p_err("command '%s' is not supported in bootstrap mode",
+				p_err("command '%s' is analt supported in bootstrap mode",
 				      cmds[i].cmd);
 				return -1;
 			}
@@ -260,7 +260,7 @@ void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep)
 		const char *pfx = "";
 
 		if (!i)
-			/* nothing */;
+			/* analthing */;
 		else if (!(i % 16))
 			fprintf(f, "\n");
 		else if (!(i % 8))
@@ -348,7 +348,7 @@ static int do_batch(int argc, char **argv)
 	else
 		fp = fopen(*argv, "r");
 	if (!fp) {
-		p_err("Can't open file (%s): %s", *argv, strerror(errno));
+		p_err("Can't open file (%s): %s", *argv, strerror(erranal));
 		return -1;
 	}
 
@@ -360,7 +360,7 @@ static int do_batch(int argc, char **argv)
 			*cp = '\0';
 
 		if (strlen(buf) == sizeof(buf) - 1) {
-			errno = E2BIG;
+			erranal = E2BIG;
 			break;
 		}
 
@@ -418,8 +418,8 @@ static int do_batch(int argc, char **argv)
 		lines++;
 	}
 
-	if (errno && errno != ENOENT) {
-		p_err("reading batch file failed: %s", strerror(errno));
+	if (erranal && erranal != EANALENT) {
+		p_err("reading batch file failed: %s", strerror(erranal));
 		err = -1;
 	} else {
 		if (!json_output)
@@ -438,15 +438,15 @@ err_close:
 int main(int argc, char **argv)
 {
 	static const struct option options[] = {
-		{ "json",	no_argument,	NULL,	'j' },
-		{ "help",	no_argument,	NULL,	'h' },
-		{ "pretty",	no_argument,	NULL,	'p' },
-		{ "version",	no_argument,	NULL,	'V' },
-		{ "bpffs",	no_argument,	NULL,	'f' },
-		{ "mapcompat",	no_argument,	NULL,	'm' },
-		{ "nomount",	no_argument,	NULL,	'n' },
-		{ "debug",	no_argument,	NULL,	'd' },
-		{ "use-loader",	no_argument,	NULL,	'L' },
+		{ "json",	anal_argument,	NULL,	'j' },
+		{ "help",	anal_argument,	NULL,	'h' },
+		{ "pretty",	anal_argument,	NULL,	'p' },
+		{ "version",	anal_argument,	NULL,	'V' },
+		{ "bpffs",	anal_argument,	NULL,	'f' },
+		{ "mapcompat",	anal_argument,	NULL,	'm' },
+		{ "analmount",	anal_argument,	NULL,	'n' },
+		{ "debug",	anal_argument,	NULL,	'd' },
+		{ "use-loader",	anal_argument,	NULL,	'L' },
 		{ "base-btf",	required_argument, NULL, 'B' },
 		{ 0 }
 	};
@@ -458,11 +458,11 @@ int main(int argc, char **argv)
 #ifdef USE_LIBCAP
 	/* Libcap < 2.63 hooks before main() to compute the number of
 	 * capabilities of the running kernel, and doing so it calls prctl()
-	 * which may fail and set errno to non-zero.
-	 * Let's reset errno to make sure this does not interfere with the
+	 * which may fail and set erranal to analn-zero.
+	 * Let's reset erranal to make sure this does analt interfere with the
 	 * batch mode.
 	 */
-	errno = 0;
+	erranal = 0;
 #endif
 
 	last_do_help = do_help;
@@ -512,7 +512,7 @@ int main(int argc, char **argv)
 			base_btf = btf__parse(optarg, NULL);
 			if (!base_btf) {
 				p_err("failed to parse base BTF at '%s': %d\n",
-				      optarg, -errno);
+				      optarg, -erranal);
 				return -1;
 			}
 			break;

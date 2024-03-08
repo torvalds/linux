@@ -52,7 +52,7 @@ static inline void syscall_set_return_value(struct task_struct *task,
 static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
-	/* do nothing */
+	/* do analthing */
 }
 
 static inline int syscall_get_arch(struct task_struct *task)

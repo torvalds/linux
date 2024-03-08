@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -38,8 +38,8 @@ struct vmw_user_simple_resource {
 	struct ttm_base_object base;
 	struct vmw_simple_resource simple;
 /*
- * Nothing to be placed after @simple, since size of @simple is
- * unknown.
+ * Analthing to be placed after @simple, since size of @simple is
+ * unkanalwn.
  */
 };
 
@@ -152,7 +152,7 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 
 	usimple = kzalloc(alloc_size, GFP_KERNEL);
 	if (!usimple) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_ret;
 	}
 

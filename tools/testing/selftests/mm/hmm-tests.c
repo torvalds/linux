@@ -12,7 +12,7 @@
 
 #include "../kselftest_harness.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -121,7 +121,7 @@ static int hmm_open(int unit)
 	snprintf(pathname, sizeof(pathname), "/dev/hmm_dmirror%d", unit);
 	fd = open(pathname, O_RDWR, 0);
 	if (fd < 0)
-		fprintf(stderr, "could not open hmm dmirror driver (%s)\n",
+		fprintf(stderr, "could analt open hmm dmirror driver (%s)\n",
 			pathname);
 	return fd;
 }
@@ -138,7 +138,7 @@ FIXTURE_SETUP(hmm)
 
 	self->fd = hmm_open(variant->device_number);
 	if (self->fd < 0 && hmm_is_coherent_type(variant->device_number))
-		SKIP(exit(0), "DEVICE_COHERENT not available");
+		SKIP(exit(0), "DEVICE_COHERENT analt available");
 	ASSERT_GE(self->fd, 0);
 }
 
@@ -149,7 +149,7 @@ FIXTURE_SETUP(hmm2)
 
 	self->fd0 = hmm_open(variant->device_number0);
 	if (self->fd0 < 0 && hmm_is_coherent_type(variant->device_number0))
-		SKIP(exit(0), "DEVICE_COHERENT not available");
+		SKIP(exit(0), "DEVICE_COHERENT analt available");
 	ASSERT_GE(self->fd0, 0);
 	self->fd1 = hmm_open(variant->device_number1);
 	ASSERT_GE(self->fd1, 0);
@@ -192,9 +192,9 @@ static int hmm_dmirror_cmd(int fd,
 		ret = ioctl(fd, request, &cmd);
 		if (ret == 0)
 			break;
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			continue;
-		return -errno;
+		return -erranal;
 	}
 	buffer->cpages = cmd.cpages;
 	buffer->faults = cmd.faults;
@@ -228,7 +228,7 @@ static int hmm_create_file(unsigned long size)
 
 		do {
 			r = ftruncate(fd, size);
-		} while (r == -1 && errno == EINTR);
+		} while (r == -1 && erranal == EINTR);
 		if (!r)
 			return fd;
 		close(fd);
@@ -256,13 +256,13 @@ static unsigned int hmm_random(void)
 	return r;
 }
 
-static void hmm_nanosleep(unsigned int n)
+static void hmm_naanalsleep(unsigned int n)
 {
 	struct timespec t;
 
 	t.tv_sec = 0;
 	t.tv_nsec = n;
-	nanosleep(&t, NULL);
+	naanalsleep(&t, NULL);
 }
 
 static int hmm_migrate_sys_to_dev(int fd,
@@ -287,9 +287,9 @@ TEST_F(hmm, open_close)
 }
 
 /*
- * Read private anonymous memory.
+ * Read private aanalnymous memory.
  */
-TEST_F(hmm, anon_read)
+TEST_F(hmm, aanaln_read)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -313,13 +313,13 @@ TEST_F(hmm, anon_read)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/*
 	 * Initialize buffer in system memory but leave the first two pages
-	 * zero (pte_none and pfn_zero).
+	 * zero (pte_analne and pfn_zero).
 	 */
 	i = 2 * self->page_size / sizeof(*ptr);
 	for (ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -350,10 +350,10 @@ TEST_F(hmm, anon_read)
 }
 
 /*
- * Read private anonymous memory which has been protected with
- * mprotect() PROT_NONE.
+ * Read private aanalnymous memory which has been protected with
+ * mprotect() PROT_ANALNE.
  */
-TEST_F(hmm, anon_read_prot)
+TEST_F(hmm, aanaln_read_prot)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -376,7 +376,7 @@ TEST_F(hmm, anon_read_prot)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -389,7 +389,7 @@ TEST_F(hmm, anon_read_prot)
 		ptr[i] = -i;
 
 	/* Protect buffer from reading. */
-	ret = mprotect(buffer->ptr, size, PROT_NONE);
+	ret = mprotect(buffer->ptr, size, PROT_ANALNE);
 	ASSERT_EQ(ret, 0);
 
 	/* Simulate a device reading system memory. */
@@ -410,9 +410,9 @@ TEST_F(hmm, anon_read_prot)
 }
 
 /*
- * Write private anonymous memory.
+ * Write private aanalnymous memory.
  */
-TEST_F(hmm, anon_write)
+TEST_F(hmm, aanaln_write)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -435,7 +435,7 @@ TEST_F(hmm, anon_write)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -457,10 +457,10 @@ TEST_F(hmm, anon_write)
 }
 
 /*
- * Write private anonymous memory which has been protected with
+ * Write private aanalnymous memory which has been protected with
  * mprotect() PROT_READ.
  */
-TEST_F(hmm, anon_write_prot)
+TEST_F(hmm, aanaln_write_prot)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -483,7 +483,7 @@ TEST_F(hmm, anon_write_prot)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -505,7 +505,7 @@ TEST_F(hmm, anon_write_prot)
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
 		ASSERT_EQ(ptr[i], 0);
 
-	/* Now allow writing and see that the zero page is replaced. */
+	/* Analw allow writing and see that the zero page is replaced. */
 	ret = mprotect(buffer->ptr, size, PROT_WRITE | PROT_READ);
 	ASSERT_EQ(ret, 0);
 
@@ -523,10 +523,10 @@ TEST_F(hmm, anon_write_prot)
 }
 
 /*
- * Check that a device writing an anonymous private mapping
+ * Check that a device writing an aanalnymous private mapping
  * will copy-on-write if a child process inherits the mapping.
  */
-TEST_F(hmm, anon_write_child)
+TEST_F(hmm, aanaln_write_child)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -551,7 +551,7 @@ TEST_F(hmm, anon_write_child)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -570,7 +570,7 @@ TEST_F(hmm, anon_write_child)
 		waitpid(pid, &ret, 0);
 		ASSERT_EQ(WIFEXITED(ret), 1);
 
-		/* Check that the parent's buffer did not change. */
+		/* Check that the parent's buffer did analt change. */
 		for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
 			ASSERT_EQ(ptr[i], i);
 		return;
@@ -601,10 +601,10 @@ TEST_F(hmm, anon_write_child)
 }
 
 /*
- * Check that a device writing an anonymous shared mapping
- * will not copy-on-write if a child process inherits the mapping.
+ * Check that a device writing an aanalnymous shared mapping
+ * will analt copy-on-write if a child process inherits the mapping.
  */
-TEST_F(hmm, anon_write_child_shared)
+TEST_F(hmm, aanaln_write_child_shared)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -629,7 +629,7 @@ TEST_F(hmm, anon_write_child_shared)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_SHARED | MAP_ANONYMOUS,
+			   MAP_SHARED | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -679,9 +679,9 @@ TEST_F(hmm, anon_write_child_shared)
 }
 
 /*
- * Write private anonymous huge page.
+ * Write private aanalnymous huge page.
  */
-TEST_F(hmm, anon_write_huge)
+TEST_F(hmm, aanaln_write_huge)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -704,7 +704,7 @@ TEST_F(hmm, anon_write_huge)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -785,7 +785,7 @@ static long file_read_ulong(char *file, const char *tag)
 /*
  * Write huge TLBFS page.
  */
-TEST_F(hmm, anon_write_hugetlbfs)
+TEST_F(hmm, aanaln_write_hugetlbfs)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -797,7 +797,7 @@ TEST_F(hmm, anon_write_hugetlbfs)
 
 	default_hsize = file_read_ulong("/proc/meminfo", "Hugepagesize:");
 	if (default_hsize < 0 || default_hsize*1024 < default_hsize)
-		SKIP(return, "Huge page size could not be determined");
+		SKIP(return, "Huge page size could analt be determined");
 	default_hsize = default_hsize*1024; /* KB to B */
 
 	size = ALIGN(TWOMEG, default_hsize);
@@ -808,11 +808,11 @@ TEST_F(hmm, anon_write_hugetlbfs)
 
 	buffer->ptr = mmap(NULL, size,
 				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+				   MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB,
 				   -1, 0);
 	if (buffer->ptr == MAP_FAILED) {
 		free(buffer);
-		SKIP(return, "Huge page could not be allocated");
+		SKIP(return, "Huge page could analt be allocated");
 	}
 
 	buffer->fd = -1;
@@ -953,7 +953,7 @@ TEST_F(hmm, file_write)
 }
 
 /*
- * Migrate anonymous memory to device private memory.
+ * Migrate aanalnymous memory to device private memory.
  */
 TEST_F(hmm, migrate)
 {
@@ -978,7 +978,7 @@ TEST_F(hmm, migrate)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -999,7 +999,7 @@ TEST_F(hmm, migrate)
 }
 
 /*
- * Migrate anonymous memory to device private memory and fault some of it back
+ * Migrate aanalnymous memory to device private memory and fault some of it back
  * to system memory, then try migrating the resulting mix of system and device
  * private memory to the device.
  */
@@ -1026,7 +1026,7 @@ TEST_F(hmm, migrate_fault)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1081,7 +1081,7 @@ TEST_F(hmm, migrate_release)
 	ASSERT_NE(buffer->mirror, NULL);
 
 	buffer->ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS, buffer->fd, 0);
+			   MAP_PRIVATE | MAP_AANALNYMOUS, buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Initialize buffer in system memory. */
@@ -1109,7 +1109,7 @@ TEST_F(hmm, migrate_release)
 }
 
 /*
- * Migrate anonymous shared memory to device private memory.
+ * Migrate aanalnymous shared memory to device private memory.
  */
 TEST_F(hmm, migrate_shared)
 {
@@ -1132,13 +1132,13 @@ TEST_F(hmm, migrate_shared)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_SHARED | MAP_ANONYMOUS,
+			   MAP_SHARED | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
 	/* Migrate memory to device. */
 	ret = hmm_migrate_sys_to_dev(self->fd, buffer, npages);
-	ASSERT_EQ(ret, -ENOENT);
+	ASSERT_EQ(ret, -EANALENT);
 
 	hmm_buffer_free(buffer);
 }
@@ -1169,8 +1169,8 @@ TEST_F(hmm2, migrate_mixed)
 
 	/* Reserve a range of addresses. */
 	buffer->ptr = mmap(NULL, size,
-			   PROT_NONE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   PROT_ANALNE,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 	p = buffer->ptr;
@@ -1214,7 +1214,7 @@ TEST_F(hmm2, migrate_mixed)
 	ptr = (int *)(buffer->ptr + 5 * self->page_size);
 	*ptr = val;
 
-	/* Now try to migrate pages 2-5 to device 1. */
+	/* Analw try to migrate pages 2-5 to device 1. */
 	buffer->ptr = p + 2 * self->page_size;
 	ret = hmm_migrate_sys_to_dev(self->fd1, buffer, 4);
 	ASSERT_EQ(ret, 0);
@@ -1223,7 +1223,7 @@ TEST_F(hmm2, migrate_mixed)
 	/* Page 5 won't be migrated to device 0 because it's on device 1. */
 	buffer->ptr = p + 5 * self->page_size;
 	ret = hmm_migrate_sys_to_dev(self->fd0, buffer, 1);
-	ASSERT_EQ(ret, -ENOENT);
+	ASSERT_EQ(ret, -EANALENT);
 	buffer->ptr = p;
 
 	buffer->ptr = p;
@@ -1231,12 +1231,12 @@ TEST_F(hmm2, migrate_mixed)
 }
 
 /*
- * Migrate anonymous memory to device memory and back to system memory
+ * Migrate aanalnymous memory to device memory and back to system memory
  * multiple times. In case of private zone configuration, this is done
  * through fault pages accessed by CPU. In case of coherent zone configuration,
  * the pages from the device should be explicitly migrated back to system memory.
  * The reason is Coherent device zone has coherent access by CPU, therefore
- * it will not generate any page fault.
+ * it will analt generate any page fault.
  */
 TEST_F(hmm, migrate_multiple)
 {
@@ -1263,7 +1263,7 @@ TEST_F(hmm, migrate_multiple)
 
 		buffer->ptr = mmap(NULL, size,
 				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS,
+				   MAP_PRIVATE | MAP_AANALNYMOUS,
 				   buffer->fd, 0);
 		ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1295,9 +1295,9 @@ TEST_F(hmm, migrate_multiple)
 }
 
 /*
- * Read anonymous memory multiple times.
+ * Read aanalnymous memory multiple times.
  */
-TEST_F(hmm, anon_read_multiple)
+TEST_F(hmm, aanaln_read_multiple)
 {
 	struct hmm_buffer *buffer;
 	unsigned long npages;
@@ -1322,7 +1322,7 @@ TEST_F(hmm, anon_read_multiple)
 
 		buffer->ptr = mmap(NULL, size,
 				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS,
+				   MAP_PRIVATE | MAP_AANALNYMOUS,
 				   buffer->fd, 0);
 		ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1350,7 +1350,7 @@ void *unmap_buffer(void *p)
 	struct hmm_buffer *buffer = p;
 
 	/* Delay for a bit and then unmap buffer while it is being read. */
-	hmm_nanosleep(hmm_random() % 32000);
+	hmm_naanalsleep(hmm_random() % 32000);
 	munmap(buffer->ptr + buffer->size / 2, buffer->size / 2);
 	buffer->ptr = NULL;
 
@@ -1358,9 +1358,9 @@ void *unmap_buffer(void *p)
 }
 
 /*
- * Try reading anonymous memory while it is being unmapped.
+ * Try reading aanalnymous memory while it is being unmapped.
  */
-TEST_F(hmm, anon_teardown)
+TEST_F(hmm, aanaln_teardown)
 {
 	unsigned long npages;
 	unsigned long size;
@@ -1388,7 +1388,7 @@ TEST_F(hmm, anon_teardown)
 
 		buffer->ptr = mmap(NULL, size,
 				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS,
+				   MAP_PRIVATE | MAP_AANALNYMOUS,
 				   buffer->fd, 0);
 		ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1487,8 +1487,8 @@ TEST_F(hmm2, snapshot)
 
 	/* Reserve a range of addresses. */
 	buffer->ptr = mmap(NULL, size,
-			   PROT_NONE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   PROT_ANALNE,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 	p = buffer->ptr;
@@ -1550,7 +1550,7 @@ TEST_F(hmm2, snapshot)
 	if (!hmm_is_coherent_type(variant->device_number0)) {
 		ASSERT_EQ(m[5], HMM_DMIRROR_PROT_DEV_PRIVATE_LOCAL |
 				HMM_DMIRROR_PROT_WRITE);
-		ASSERT_EQ(m[6], HMM_DMIRROR_PROT_NONE);
+		ASSERT_EQ(m[6], HMM_DMIRROR_PROT_ANALNE);
 	} else {
 		ASSERT_EQ(m[5], HMM_DMIRROR_PROT_DEV_COHERENT_LOCAL |
 				HMM_DMIRROR_PROT_WRITE);
@@ -1580,7 +1580,7 @@ TEST_F(hmm, compound)
 
 	default_hsize = file_read_ulong("/proc/meminfo", "Hugepagesize:");
 	if (default_hsize < 0 || default_hsize*1024 < default_hsize)
-		SKIP(return, "Huge page size could not be determined");
+		SKIP(return, "Huge page size could analt be determined");
 	default_hsize = default_hsize*1024; /* KB to B */
 
 	size = ALIGN(TWOMEG, default_hsize);
@@ -1591,7 +1591,7 @@ TEST_F(hmm, compound)
 
 	buffer->ptr = mmap(NULL, size,
 				   PROT_READ | PROT_WRITE,
-				   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+				   MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB,
 				   -1, 0);
 	if (buffer->ptr == MAP_FAILED) {
 		free(buffer);
@@ -1663,7 +1663,7 @@ TEST_F(hmm2, double_map)
 	/* Reserve a range of addresses. */
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1738,7 +1738,7 @@ TEST_F(hmm, exclusive)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1792,7 +1792,7 @@ TEST_F(hmm, exclusive_mprotect)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1845,7 +1845,7 @@ TEST_F(hmm, exclusive_cow)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1882,7 +1882,7 @@ static int gup_test_exec(int gup_fd, unsigned long addr, int cmd,
 
 	if (ioctl(gup_fd, cmd, &gup)) {
 		perror("ioctl on error\n");
-		return errno;
+		return erranal;
 	}
 
 	return 0;
@@ -1908,7 +1908,7 @@ TEST_F(hmm, hmm_gup_test)
 
 	gup_fd = open("/sys/kernel/debug/gup_test", O_RDWR);
 	if (gup_fd == -1)
-		SKIP(return, "Skipping test, could not find gup_test driver");
+		SKIP(return, "Skipping test, could analt find gup_test driver");
 
 	npages = 4;
 	size = npages << self->page_shift;
@@ -1923,7 +1923,7 @@ TEST_F(hmm, hmm_gup_test)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -1967,7 +1967,7 @@ TEST_F(hmm, hmm_gup_test)
 	ASSERT_EQ(HMM_DMIRROR_PROT_WRITE, m[2]);
 	ASSERT_EQ(HMM_DMIRROR_PROT_WRITE, m[3]);
 	/*
-	 * Check again the content on the pages. Make sure there's no
+	 * Check again the content on the pages. Make sure there's anal
 	 * corrupted data.
 	 */
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
@@ -2009,7 +2009,7 @@ TEST_F(hmm, hmm_cow_in_device)
 
 	buffer->ptr = mmap(NULL, size,
 			   PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS,
+			   MAP_PRIVATE | MAP_AANALNYMOUS,
 			   buffer->fd, 0);
 	ASSERT_NE(buffer->ptr, MAP_FAILED);
 
@@ -2030,7 +2030,7 @@ TEST_F(hmm, hmm_cow_in_device)
 		/* Child process waitd for SIGTERM from the parent. */
 		while (1) {
 		}
-		perror("Should not reach this\n");
+		perror("Should analt reach this\n");
 		exit(0);
 	}
 	/* Parent process writes to COW pages(s) and gets a

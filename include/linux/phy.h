@@ -76,8 +76,8 @@ extern const int phy_gbit_features_array[2];
 extern const int phy_10gbit_features_array[1];
 
 /*
- * Set phydev->irq to PHY_POLL if interrupts are not supported,
- * or not desired for this PHY.  Set to PHY_MAC_INTERRUPT if
+ * Set phydev->irq to PHY_POLL if interrupts are analt supported,
+ * or analt desired for this PHY.  Set to PHY_MAC_INTERRUPT if
  * the attached MAC driver handles the interrupt
  */
 #define PHY_POLL		-1
@@ -92,8 +92,8 @@ extern const int phy_10gbit_features_array[1];
 /**
  * enum phy_interface_t - Interface Mode definitions
  *
- * @PHY_INTERFACE_MODE_NA: Not Applicable - don't touch
- * @PHY_INTERFACE_MODE_INTERNAL: No interface, MAC and PHY combined
+ * @PHY_INTERFACE_MODE_NA: Analt Applicable - don't touch
+ * @PHY_INTERFACE_MODE_INTERNAL: Anal interface, MAC and PHY combined
  * @PHY_INTERFACE_MODE_MII: Media-independent interface
  * @PHY_INTERFACE_MODE_GMII: Gigabit media-independent interface
  * @PHY_INTERFACE_MODE_SGMII: Serial gigabit media-independent interface
@@ -287,7 +287,7 @@ static inline const char *phy_modes(phy_interface_t interface)
 	case PHY_INTERFACE_MODE_QUSGMII:
 		return "qusgmii";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -345,7 +345,7 @@ struct phy_package_shared {
 	size_t priv_size;
 
 	/* private data pointer */
-	/* note that this pointer is shared between different phydevs and
+	/* analte that this pointer is shared between different phydevs and
 	 * the user has to take care of appropriate locking. It is allocated
 	 * and freed automatically by phy_package_join() and
 	 * phy_package_leave().
@@ -410,11 +410,11 @@ struct mii_bus {
 	/** @mdio_map: list of all MDIO devices on bus */
 	struct mdio_device *mdio_map[PHY_MAX_ADDR];
 
-	/** @phy_mask: PHY addresses to be ignored when probing */
+	/** @phy_mask: PHY addresses to be iganalred when probing */
 	u32 phy_mask;
 
-	/** @phy_ignore_ta_mask: PHY addresses to ignore the TA/read failure */
-	u32 phy_ignore_ta_mask;
+	/** @phy_iganalre_ta_mask: PHY addresses to iganalre the TA/read failure */
+	u32 phy_iganalre_ta_mask;
 
 	/**
 	 * @irq: An array of interrupts, each PHY's interrupt at the index
@@ -474,36 +474,36 @@ struct phy_device *mdiobus_scan_c22(struct mii_bus *bus, int addr);
 /**
  * enum phy_state - PHY state machine states:
  *
- * @PHY_DOWN: PHY device and driver are not ready for anything.  probe
+ * @PHY_DOWN: PHY device and driver are analt ready for anything.  probe
  * should be called if and only if the PHY is in this state,
  * given that the PHY device exists.
  * - PHY driver probe function will set the state to @PHY_READY
  *
  * @PHY_READY: PHY is ready to send and receive packets, but the
- * controller is not.  By default, PHYs which do not implement
+ * controller is analt.  By default, PHYs which do analt implement
  * probe will be set to this state by phy_probe().
  * - start will set the state to UP
  *
  * @PHY_UP: The PHY and attached device are ready to do work.
  * Interrupts should be started here.
- * - timer moves to @PHY_NOLINK or @PHY_RUNNING
+ * - timer moves to @PHY_ANALLINK or @PHY_RUNNING
  *
- * @PHY_NOLINK: PHY is up, but not currently plugged in.
+ * @PHY_ANALLINK: PHY is up, but analt currently plugged in.
  * - irq or timer will set @PHY_RUNNING if link comes back
  * - phy_stop moves to @PHY_HALTED
  *
  * @PHY_RUNNING: PHY is currently up, running, and possibly sending
  * and/or receiving packets
- * - irq or timer will set @PHY_NOLINK if link goes down
+ * - irq or timer will set @PHY_ANALLINK if link goes down
  * - phy_stop moves to @PHY_HALTED
  *
  * @PHY_CABLETEST: PHY is performing a cable test. Packet reception/sending
- * is not expected to work, carrier will be indicated as down. PHY will be
+ * is analt expected to work, carrier will be indicated as down. PHY will be
  * poll once per second, or on interrupt for it current state.
  * Once complete, move to UP to restart the PHY.
  * - phy_stop aborts the running test and moves to @PHY_HALTED
  *
- * @PHY_HALTED: PHY is up, but no polling or interrupts are done.
+ * @PHY_HALTED: PHY is up, but anal polling or interrupts are done.
  * - phy_start moves to @PHY_UP
  *
  * @PHY_ERROR: PHY is up, but is in an error state.
@@ -516,7 +516,7 @@ enum phy_state {
 	PHY_ERROR,
 	PHY_UP,
 	PHY_RUNNING,
-	PHY_NOLINK,
+	PHY_ANALLINK,
 	PHY_CABLETEST,
 };
 
@@ -543,7 +543,7 @@ struct macsec_ops;
  * @mdio: MDIO bus this PHY is on
  * @drv: Pointer to the driver for this PHY instance
  * @devlink: Create a link between phy dev and mac dev, if the external phy
- *           used by current mac interface is managed by another mac interface.
+ *           used by current mac interface is managed by aanalther mac interface.
  * @phy_id: UID for this device found during discovery
  * @c45_ids: 802.3-c45 Device Identifiers if is_c45.
  * @is_c45:  Set to true if this PHY uses clause 45 addressing.
@@ -568,14 +568,14 @@ struct macsec_ops;
  *      - Bits [23:16] are currently reserved for future use.
  *      - Bits [31:24] are reserved for defining generic
  *        PHY driver behavior.
- * @irq: IRQ number of the PHY's interrupt (-1 if none)
+ * @irq: IRQ number of the PHY's interrupt (-1 if analne)
  * @phylink: Pointer to phylink instance for this PHY
  * @sfp_bus_attached: Flag indicating whether the SFP bus has been attached
  * @sfp_bus: SFP bus attached to this PHY's fiber port
  * @attached_dev: The attached enet driver's device instance ptr
  * @adjust_link: Callback for the enet controller to respond to changes: in the
  *               link state.
- * @phy_link_change: Callback for phylink for notification of link change
+ * @phy_link_change: Callback for phylink for analtification of link change
  * @macsec_ops: MACsec offloading ops.
  *
  * @speed: Current link speed
@@ -607,9 +607,9 @@ struct macsec_ops;
  * @interface: enum phy_interface_t value
  * @possible_interfaces: bitmap if interface modes that the attached PHY
  *			 will switch between depending on media speed.
- * @skb: Netlink message for cable diagnostics
- * @nest: Netlink nest used for cable diagnostics
- * @ehdr: nNtlink header for cable diagnostics
+ * @skb: Netlink message for cable diaganalstics
+ * @nest: Netlink nest used for cable diaganalstics
+ * @ehdr: nNtlink header for cable diaganalstics
  * @phy_led_triggers: Array of LED triggers
  * @phy_num_led_triggers: Number of triggers in @phy_led_triggers
  * @led_link_trigger: LED trigger for link up/down
@@ -679,7 +679,7 @@ struct phy_device {
 	DECLARE_PHY_INTERFACE_MASK(possible_interfaces);
 
 	/*
-	 * forced speed & duplex (no autoneg)
+	 * forced speed & duplex (anal autoneg)
 	 * partner speed & duplex & pause (autoneg)
 	 */
 	int speed;
@@ -703,7 +703,7 @@ struct phy_device {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising_eee);
 	bool eee_enabled;
 
-	/* Host supported PHY interface types. Should be ignored if empty. */
+	/* Host supported PHY interface types. Should be iganalred if empty. */
 	DECLARE_PHY_INTERFACE_MASK(host_interfaces);
 
 	/* Energy efficient ethernet modes which should be prohibited */
@@ -720,7 +720,7 @@ struct phy_device {
 
 	/*
 	 * Interrupt number for this PHY
-	 * -1 means no interrupt
+	 * -1 means anal interrupt
 	 */
 	int irq;
 
@@ -767,7 +767,7 @@ struct phy_device {
 };
 
 /* Generic phy_device::dev_flags */
-#define PHY_F_NO_IRQ		0x80000000
+#define PHY_F_ANAL_IRQ		0x80000000
 
 static inline struct phy_device *to_phy_device(const struct device *dev)
 {
@@ -783,7 +783,7 @@ static inline struct phy_device *to_phy_device(const struct device *dev)
  * @pair: Bitmap of cable pairs to collect data for
  *
  * A structure containing possible configuration parameters
- * for a TDR cable test. The driver does not need to implement
+ * for a TDR cable test. The driver does analt need to implement
  * all the parameters, but should report what is actually used.
  * All distances are in centimeters.
  */
@@ -799,39 +799,39 @@ struct phy_tdr_config {
  * struct phy_plca_cfg - Configuration of the PLCA (Physical Layer Collision
  * Avoidance) Reconciliation Sublayer.
  *
- * @version: read-only PLCA register map version. -1 = not available. Ignored
+ * @version: read-only PLCA register map version. -1 = analt available. Iganalred
  *   when setting the configuration. Format is the same as reported by the PLCA
- *   IDVER register (31.CA00). -1 = not available.
- * @enabled: PLCA configured mode (enabled/disabled). -1 = not available / don't
+ *   IDVER register (31.CA00). -1 = analt available.
+ * @enabled: PLCA configured mode (enabled/disabled). -1 = analt available / don't
  *   set. 0 = disabled, anything else = enabled.
- * @node_id: the PLCA local node identifier. -1 = not available / don't set.
- *   Allowed values [0 .. 254]. 255 = node disabled.
- * @node_cnt: the PLCA node count (maximum number of nodes having a TO). Only
- *   meaningful for the coordinator (node_id = 0). -1 = not available / don't
+ * @analde_id: the PLCA local analde identifier. -1 = analt available / don't set.
+ *   Allowed values [0 .. 254]. 255 = analde disabled.
+ * @analde_cnt: the PLCA analde count (maximum number of analdes having a TO). Only
+ *   meaningful for the coordinator (analde_id = 0). -1 = analt available / don't
  *   set. Allowed values [1 .. 255].
  * @to_tmr: The value of the PLCA to_timer in bit-times, which determines the
  *   PLCA transmit opportunity window opening. See IEEE802.3 Clause 148 for
- *   more details. The to_timer shall be set equal over all nodes.
- *   -1 = not available / don't set. Allowed values [0 .. 255].
- * @burst_cnt: controls how many additional frames a node is allowed to send in
+ *   more details. The to_timer shall be set equal over all analdes.
+ *   -1 = analt available / don't set. Allowed values [0 .. 255].
+ * @burst_cnt: controls how many additional frames a analde is allowed to send in
  *   single transmit opportunity (TO). The default value of 0 means that the
- *   node is allowed exactly one frame per TO. A value of 1 allows two frames
- *   per TO, and so on. -1 = not available / don't set.
+ *   analde is allowed exactly one frame per TO. A value of 1 allows two frames
+ *   per TO, and so on. -1 = analt available / don't set.
  *   Allowed values [0 .. 255].
  * @burst_tmr: controls how many bit times to wait for the MAC to send a new
  *   frame before interrupting the burst. This value should be set to a value
  *   greater than the MAC inter-packet gap (which is typically 96 bits).
- *   -1 = not available / don't set. Allowed values [0 .. 255].
+ *   -1 = analt available / don't set. Allowed values [0 .. 255].
  *
  * A structure containing configuration parameters for setting/getting the PLCA
- * RS configuration. The driver does not need to implement all the parameters,
+ * RS configuration. The driver does analt need to implement all the parameters,
  * but should report what is actually used.
  */
 struct phy_plca_cfg {
 	int version;
 	int enabled;
-	int node_id;
-	int node_cnt;
+	int analde_id;
+	int analde_cnt;
 	int to_tmr;
 	int burst_cnt;
 	int burst_tmr;
@@ -845,7 +845,7 @@ struct phy_plca_cfg {
  *	register(31.CA03), indicating BEACON activity.
  *
  * A structure containing status information of the PLCA RS configuration.
- * The driver does not need to implement all the parameters, but should report
+ * The driver does analt need to implement all the parameters, but should report
  * what is actually used.
  */
 struct phy_plca_status {
@@ -885,12 +885,12 @@ struct phy_led {
  * @driver_data: Static driver data
  *
  * All functions are optional. If config_aneg or read_status
- * are not implemented, the phy core uses the genphy versions.
- * Note that none of these functions should be called from
+ * are analt implemented, the phy core uses the genphy versions.
+ * Analte that analne of these functions should be called from
  * interrupt time. The goal is for the bus read/write functions
  * to be able to block when the bus transaction is happening,
  * and be freed up by an interrupt (The MPC85xx has this ability,
- * though it is not currently supported in the driver).
+ * though it is analt currently supported in the driver).
  */
 struct phy_driver {
 	struct mdio_driver_common mdiodrv;
@@ -930,8 +930,8 @@ struct phy_driver {
 	 * whether to advertise lower-speed modes for that interface. It is
 	 * assumed that if a rate matching mode is supported on an interface,
 	 * then that interface's rate can be adapted to all slower link speeds
-	 * supported by the phy. If the interface is not supported, this should
-	 * return %RATE_MATCH_NONE.
+	 * supported by the phy. If the interface is analt supported, this should
+	 * return %RATE_MATCH_ANALNE.
 	 */
 	int (*get_rate_matching)(struct phy_device *phydev,
 				   phy_interface_t iface);
@@ -991,19 +991,19 @@ struct phy_driver {
 	void (*get_wol)(struct phy_device *dev, struct ethtool_wolinfo *wol);
 
 	/**
-	 * @link_change_notify: Called to inform a PHY device driver
+	 * @link_change_analtify: Called to inform a PHY device driver
 	 * when the core is about to change the link state. This
 	 * callback is supposed to be used as fixup hook for drivers
 	 * that need to take action when the link state
-	 * changes. Drivers are by no means allowed to mess with the
+	 * changes. Drivers are by anal means allowed to mess with the
 	 * PHY device structure in their implementations.
 	 */
-	void (*link_change_notify)(struct phy_device *dev);
+	void (*link_change_analtify)(struct phy_device *dev);
 
 	/**
 	 * @read_mmd: PHY specific driver override for reading a MMD
 	 * register.  This function is optional for PHY specific
-	 * drivers.  When not provided, the default MMD read function
+	 * drivers.  When analt provided, the default MMD read function
 	 * will be used by phy_read_mmd(), which will use either a
 	 * direct read for Clause 45 PHYs or an indirect read for
 	 * Clause 22 PHYs.  devnum is the MMD device number within the
@@ -1015,7 +1015,7 @@ struct phy_driver {
 	/**
 	 * @write_mmd: PHY specific driver override for writing a MMD
 	 * register.  This function is optional for PHY specific
-	 * drivers.  When not provided, the default MMD write function
+	 * drivers.  When analt provided, the default MMD write function
 	 * will be used by phy_write_mmd(), which will use either a
 	 * direct write for Clause 45 PHYs, or an indirect write for
 	 * Clause 22 PHYs.  devnum is the MMD device number within the
@@ -1118,7 +1118,7 @@ struct phy_driver {
 	 * @index: Which LED of the PHY device
 	 * @rules The core is interested in these rules
 	 *
-	 * Return 0 if yes,  -EOPNOTSUPP if not, or an error code.
+	 * Return 0 if anal,  -EOPANALTSUPP if analt, or an error code.
 	 */
 	int (*led_hw_is_supported)(struct phy_device *dev, u8 index,
 				   unsigned long rules);
@@ -1139,7 +1139,7 @@ struct phy_driver {
 	 * @rules Pointer to the rules used to control the LED
 	 *
 	 * Set *@rules to how the HW is currently blinking. Returns 0
-	 * on success, or a error code if the current blinking cannot
+	 * on success, or a error code if the current blinking cananalt
 	 * be represented in rules, or some other error happens.
 	 */
 	int (*led_hw_control_get)(struct phy_device *dev, u8 index,
@@ -1235,7 +1235,7 @@ void phy_check_downshift(struct phy_device *phydev);
  * @phydev: the phy_device struct
  * @regnum: register number to read
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1276,7 +1276,7 @@ static inline int __phy_read(struct phy_device *phydev, u32 regnum)
  * @regnum: register number to write
  * @val: value to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1309,7 +1309,7 @@ static inline int __phy_write(struct phy_device *phydev, u32 regnum, u16 val)
  * Unlocked helper function which allows a PHY register to be modified as
  * new register value = (old register value & ~mask) | set
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erranal, 0 if there was anal change, and 1 in case of change
  */
 static inline int __phy_modify_changed(struct phy_device *phydev, u32 regnum,
 				       u16 mask, u16 set)
@@ -1339,7 +1339,7 @@ int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
  * @timeout_us: Timeout in us, 0 means never timeout
  * @sleep_before_read: if it is true, sleep @sleep_us before read.
  * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
- * case, the last read value at @args is stored in @val. Must not
+ * case, the last read value at @args is stored in @val. Must analt
  * be called from atomic context if sleep_us or timeout_us are used.
  */
 #define phy_read_mmd_poll_timeout(phydev, devaddr, regnum, val, cond, \
@@ -1504,7 +1504,7 @@ static inline int phy_clear_bits_mmd(struct phy_device *phydev, int devad,
  * phy_interrupt_is_valid - Convenience function for testing a given PHY irq
  * @phydev: the phy_device struct
  *
- * NOTE: must be kept in sync with addition/removal of PHY_POLL and
+ * ANALTE: must be kept in sync with addition/removal of PHY_POLL and
  * PHY_MAC_INTERRUPT
  */
 static inline bool phy_interrupt_is_valid(struct phy_device *phydev)
@@ -1665,27 +1665,27 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 				     bool is_c45,
 				     struct phy_c45_device_ids *c45_ids);
 #if IS_ENABLED(CONFIG_PHYLIB)
-int fwnode_get_phy_id(struct fwnode_handle *fwnode, u32 *phy_id);
-struct mdio_device *fwnode_mdio_find_device(struct fwnode_handle *fwnode);
-struct phy_device *fwnode_phy_find_device(struct fwnode_handle *phy_fwnode);
+int fwanalde_get_phy_id(struct fwanalde_handle *fwanalde, u32 *phy_id);
+struct mdio_device *fwanalde_mdio_find_device(struct fwanalde_handle *fwanalde);
+struct phy_device *fwanalde_phy_find_device(struct fwanalde_handle *phy_fwanalde);
 struct phy_device *device_phy_find_device(struct device *dev);
-struct fwnode_handle *fwnode_get_phy_node(const struct fwnode_handle *fwnode);
+struct fwanalde_handle *fwanalde_get_phy_analde(const struct fwanalde_handle *fwanalde);
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45);
 int phy_device_register(struct phy_device *phy);
 void phy_device_free(struct phy_device *phydev);
 #else
-static inline int fwnode_get_phy_id(struct fwnode_handle *fwnode, u32 *phy_id)
+static inline int fwanalde_get_phy_id(struct fwanalde_handle *fwanalde, u32 *phy_id)
 {
 	return 0;
 }
 static inline
-struct mdio_device *fwnode_mdio_find_device(struct fwnode_handle *fwnode)
+struct mdio_device *fwanalde_mdio_find_device(struct fwanalde_handle *fwanalde)
 {
 	return 0;
 }
 
 static inline
-struct phy_device *fwnode_phy_find_device(struct fwnode_handle *phy_fwnode)
+struct phy_device *fwanalde_phy_find_device(struct fwanalde_handle *phy_fwanalde)
 {
 	return NULL;
 }
@@ -1696,7 +1696,7 @@ static inline struct phy_device *device_phy_find_device(struct device *dev)
 }
 
 static inline
-struct fwnode_handle *fwnode_get_phy_node(struct fwnode_handle *fwnode)
+struct fwanalde_handle *fwanalde_get_phy_analde(struct fwanalde_handle *fwanalde)
 {
 	return NULL;
 }
@@ -1762,16 +1762,16 @@ static inline
 int phy_start_cable_test(struct phy_device *phydev,
 			 struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG(extack, "Kernel not compiled with PHYLIB support");
-	return -EOPNOTSUPP;
+	NL_SET_ERR_MSG(extack, "Kernel analt compiled with PHYLIB support");
+	return -EOPANALTSUPP;
 }
 static inline
 int phy_start_cable_test_tdr(struct phy_device *phydev,
 			     struct netlink_ext_ack *extack,
 			     const struct phy_tdr_config *config)
 {
-	NL_SET_ERR_MSG(extack, "Kernel not compiled with PHYLIB support");
-	return -EOPNOTSUPP;
+	NL_SET_ERR_MSG(extack, "Kernel analt compiled with PHYLIB support");
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -1833,14 +1833,14 @@ int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
 int genphy_soft_reset(struct phy_device *phydev);
-irqreturn_t genphy_handle_interrupt_no_ack(struct phy_device *phydev);
+irqreturn_t genphy_handle_interrupt_anal_ack(struct phy_device *phydev);
 
 static inline int genphy_config_aneg(struct phy_device *phydev)
 {
 	return __genphy_config_aneg(phydev, false);
 }
 
-static inline int genphy_no_config_intr(struct phy_device *phydev)
+static inline int genphy_anal_config_intr(struct phy_device *phydev)
 {
 	return 0;
 }
@@ -2011,8 +2011,8 @@ static inline int phy_package_address(struct phy_device *phydev,
 	if (addr_offset >= PHY_MAX_ADDR - base_addr)
 		return -EIO;
 
-	/* we know that addr will be in the range 0..31 and thus the
-	 * implicit cast to a signed int is not a problem.
+	/* we kanalw that addr will be in the range 0..31 and thus the
+	 * implicit cast to a signed int is analt a problem.
 	 */
 	return base_addr + addr_offset;
 }
@@ -2126,7 +2126,7 @@ static inline int mdiobus_register_board_info(const struct mdio_board_info *i,
  * @__phy_drivers: array of PHY drivers to register
  * @__count: Numbers of members in array
  *
- * Helper macro for PHY drivers which do not do anything special in module
+ * Helper macro for PHY drivers which do analt do anything special in module
  * init/exit. Each module may only use this macro once, and calling it
  * replaces module_init() and module_exit().
  */

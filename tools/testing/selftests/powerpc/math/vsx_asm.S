@@ -24,7 +24,7 @@ FUNC_END(check_vsx)
 #                 int *running);
 # On starting will (atomically) decrement threads_starting as a signal
 # that the VMX have been loaded with varray. Will proceed to check the
-# validity of the VMX registers while running is not zero.
+# validity of the VMX registers while running is analt zero.
 FUNC_START(preempt_vsx)
 	PUSH_BASIC_STACK(512)
 	std r3,STACK_FRAME_PARAM(0)(sp) # vector int *varray
@@ -32,7 +32,7 @@ FUNC_START(preempt_vsx)
 	std r5,STACK_FRAME_PARAM(2)(sp) # int *running
 
 	bl load_vsx
-	nop
+	analp
 
 	sync
 	# Atomic DEC
@@ -44,7 +44,7 @@ FUNC_START(preempt_vsx)
 
 2:	ld r3,STACK_FRAME_PARAM(0)(sp)
 	bl check_vsx
-	nop
+	analp
 	cmpdi r3,0
 	bne 3f
 	ld r4,STACK_FRAME_PARAM(2)(sp)

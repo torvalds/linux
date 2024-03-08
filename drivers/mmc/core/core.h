@@ -36,7 +36,7 @@ struct mmc_bus_ops {
 void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops);
 void mmc_detach_bus(struct mmc_host *host);
 
-struct device_node *mmc_of_find_child_device(struct mmc_host *host,
+struct device_analde *mmc_of_find_child_device(struct mmc_host *host,
 		unsigned func_num);
 
 void mmc_init_erase(struct mmc_card *card);
@@ -159,7 +159,7 @@ int mmc_cqe_recovery(struct mmc_host *host);
  *
  *	mmc_pre_req() is called in prior to mmc_start_req() to let
  *	host prepare for the new request. Preparation of a request may be
- *	performed while another request is running on the host.
+ *	performed while aanalther request is running on the host.
  */
 static inline void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq)
 {
@@ -171,10 +171,10 @@ static inline void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq)
  *	mmc_post_req - Post process a completed request
  *	@host: MMC host to post process command
  *	@mrq: MMC request to post process for
- *	@err: Error, if non zero, clean up any resources made in pre_req
+ *	@err: Error, if analn zero, clean up any resources made in pre_req
  *
  *	Let the host post process a completed request. Post processing of
- *	a request may be performed while another request is running.
+ *	a request may be performed while aanalther request is running.
  */
 static inline void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
 				int err)

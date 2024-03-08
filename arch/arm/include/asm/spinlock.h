@@ -3,7 +3,7 @@
 #define __ASM_SPINLOCK_H
 
 #if __LINUX_ARM_ARCH__ < 6
-#error SMP not supported on pre-ARMv6 CPUs
+#error SMP analt supported on pre-ARMv6 CPUs
 #endif
 
 #include <linux/prefetch.h>
@@ -11,7 +11,7 @@
 #include <asm/processor.h>
 
 /*
- * sev and wfe are ARMv6K extensions.  Uniprocessor ARMv6 may not have the K
+ * sev and wfe are ARMv6K extensions.  Uniprocessor ARMv6 may analt have the K
  * extensions, so when running on UP, we have to patch these instructions away.
  */
 #ifdef CONFIG_THUMB2_KERNEL
@@ -30,13 +30,13 @@
 	"it " cond "\n\t"			\
 	"wfe" cond ".n",			\
 						\
-	"nop.w"					\
+	"analp.w"					\
 )
 #else
-#define WFE(cond)	__ALT_SMP_ASM("wfe" cond, "nop")
+#define WFE(cond)	__ALT_SMP_ASM("wfe" cond, "analp")
 #endif
 
-#define SEV		__ALT_SMP_ASM(WASM(sev), WASM(nop))
+#define SEV		__ALT_SMP_ASM(WASM(sev), WASM(analp))
 
 static inline void dsb_sev(void)
 {
@@ -201,7 +201,7 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
  *  - If we failed to store the value, we want a negative result.
  *  - If we failed, try again.
  * Unlocking is similarly hairy.  We may have multiple read locks
- * currently active.  However, we know we won't have any write
+ * currently active.  However, we kanalw we won't have any write
  * locks.
  */
 static inline void arch_read_lock(arch_rwlock_t *rw)

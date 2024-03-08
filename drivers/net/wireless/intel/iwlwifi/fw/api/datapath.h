@@ -22,9 +22,9 @@ enum iwl_data_path_subcmd_ids {
 	UPDATE_MU_GROUPS_CMD = 0x1,
 
 	/**
-	 * @TRIGGER_RX_QUEUES_NOTIF_CMD: &struct iwl_rxq_sync_cmd
+	 * @TRIGGER_RX_QUEUES_ANALTIF_CMD: &struct iwl_rxq_sync_cmd
 	 */
-	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+	TRIGGER_RX_QUEUES_ANALTIF_CMD = 0x2,
 
 	/**
 	 * @WNM_PLATFORM_PTM_REQUEST_CMD: &struct iwl_time_sync_cfg_cmd
@@ -90,15 +90,15 @@ enum iwl_data_path_subcmd_ids {
 	SEC_KEY_CMD = 0x18,
 
 	/**
-	 * @MONITOR_NOTIF: Datapath monitoring notification, using
-	 *	&struct iwl_datapath_monitor_notif
+	 * @MONITOR_ANALTIF: Datapath monitoring analtification, using
+	 *	&struct iwl_datapath_monitor_analtif
 	 */
-	MONITOR_NOTIF = 0xF4,
+	MONITOR_ANALTIF = 0xF4,
 
 	/**
-	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data or &struct iwl_rx_no_data_ver_3
+	 * @RX_ANAL_DATA_ANALTIF: &struct iwl_rx_anal_data or &struct iwl_rx_anal_data_ver_3
 	 */
-	RX_NO_DATA_NOTIF = 0xF5,
+	RX_ANAL_DATA_ANALTIF = 0xF5,
 
 	/**
 	 * @THERMAL_DUAL_CHAIN_DISABLE_REQ: firmware request for SMPS mode,
@@ -107,24 +107,24 @@ enum iwl_data_path_subcmd_ids {
 	THERMAL_DUAL_CHAIN_REQUEST = 0xF6,
 
 	/**
-	 * @TLC_MNG_UPDATE_NOTIF: &struct iwl_tlc_update_notif
+	 * @TLC_MNG_UPDATE_ANALTIF: &struct iwl_tlc_update_analtif
 	 */
-	TLC_MNG_UPDATE_NOTIF = 0xF7,
+	TLC_MNG_UPDATE_ANALTIF = 0xF7,
 
 	/**
-	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
+	 * @STA_PM_ANALTIF: &struct iwl_mvm_pm_state_analtification
 	 */
-	STA_PM_NOTIF = 0xFD,
+	STA_PM_ANALTIF = 0xFD,
 
 	/**
-	 * @MU_GROUP_MGMT_NOTIF: &struct iwl_mu_group_mgmt_notif
+	 * @MU_GROUP_MGMT_ANALTIF: &struct iwl_mu_group_mgmt_analtif
 	 */
-	MU_GROUP_MGMT_NOTIF = 0xFE,
+	MU_GROUP_MGMT_ANALTIF = 0xFE,
 
 	/**
-	 * @RX_QUEUES_NOTIFICATION: &struct iwl_rxq_sync_notification
+	 * @RX_QUEUES_ANALTIFICATION: &struct iwl_rxq_sync_analtification
 	 */
-	RX_QUEUES_NOTIFICATION = 0xFF,
+	RX_QUEUES_ANALTIFICATION = 0xFF,
 };
 
 /**
@@ -142,13 +142,13 @@ struct iwl_mu_group_mgmt_cmd {
 } __packed; /* MU_GROUP_ID_MNG_TABLE_API_S_VER_1 */
 
 /**
- * struct iwl_mu_group_mgmt_notif - VHT MU-MIMO group id notification
+ * struct iwl_mu_group_mgmt_analtif - VHT MU-MIMO group id analtification
  *
  * @membership_status: a bitmap of MU groups
  * @user_position: the position of station in a group. If the station is in the
  *	group then bits (group * 2) is the position -1
  */
-struct iwl_mu_group_mgmt_notif {
+struct iwl_mu_group_mgmt_analtif {
 	__le32 membership_status[2];
 	__le32 user_position[4];
 } __packed; /* MU_GROUP_MNG_NTFY_API_S_VER_1 */
@@ -167,7 +167,7 @@ enum iwl_time_sync_protocol_type {
 /**
  * struct iwl_time_sync_cfg_cmd - TM/FTM time sync measurement configuration
  *
- * @protocols: The type of frames to raise notifications for. A bitmap
+ * @protocols: The type of frames to raise analtifications for. A bitmap
  *	of @iwl_time_sync_protocol_type
  * @peer_addr: peer address with which TM/FTM measurements are required
  * @reserved: for alignment
@@ -205,12 +205,12 @@ struct iwl_synced_time_cmd {
  * struct iwl_synced_time_rsp - response to iwl_synced_time_cmd
  *
  * @operation: one of &enum iwl_synced_time_operation
- * @platform_timestamp_hi: high DWORD of the ARTB clock timestamp in nanoseconds
- * @platform_timestamp_lo: low DWORD of the ARTB clock timestamp in nanoseconds
+ * @platform_timestamp_hi: high DWORD of the ARTB clock timestamp in naanalseconds
+ * @platform_timestamp_lo: low DWORD of the ARTB clock timestamp in naanalseconds
  * @gp2_timestamp_hi: high DWORD of the GP2 clock timestamp in 10's of
- *	nanoseconds
+ *	naanalseconds
  * @gp2_timestamp_lo: low DWORD of the GP2 clock timestamp in 10's of
- *	nanoseconds
+ *	naanalseconds
  */
 struct iwl_synced_time_rsp {
 	__le32 operation;
@@ -250,7 +250,7 @@ struct iwl_time_msmt_ptp_ctx {
 } __packed /* PTP_CTX_VER_1 */;
 
 /**
- * struct iwl_time_msmt_notify - Time Sync measurement notification
+ * struct iwl_time_msmt_analtify - Time Sync measurement analtification
  * for TM/FTM, along with additional meta data.
  *
  * @peer_addr: peer address
@@ -258,28 +258,28 @@ struct iwl_time_msmt_ptp_ctx {
  * @dialog_token: measurement flow dialog token number
  * @followup_dialog_token: Measurement flow previous dialog token number
  * @t1_hi: high dword of t1-time of the Tx'ed action frame departure on
- *	sender side in units of 10 nano seconds
+ *	sender side in units of 10 naanal seconds
  * @t1_lo: low dword of t1-time of the Tx'ed action frame departure on
- *	sender side in units of 10 nano seconds
- * @t1_max_err: maximum t1-time error in units of 10 nano seconds
+ *	sender side in units of 10 naanal seconds
+ * @t1_max_err: maximum t1-time error in units of 10 naanal seconds
  * @t4_hi: high dword of t4-time of the Rx'ed action frame's Ack arrival on
- *	sender side in units of 10 nano seconds
+ *	sender side in units of 10 naanal seconds
  * @t4_lo: low dword of t4-time of the Rx'ed action frame's Ack arrival on
- *	sender side in units of 10 nano seconds
- * @t4_max_err: maximum t4-time error in units of 10 nano seconds
+ *	sender side in units of 10 naanal seconds
+ * @t4_max_err: maximum t4-time error in units of 10 naanal seconds
  * @t2_hi: high dword of t2-time of the Rx'ed action frame arrival on
- *	receiver side in units of 10 nano seconds
+ *	receiver side in units of 10 naanal seconds
  * @t2_lo: low dword of t2-time of the Rx'ed action frame arrival on
- *	receiver side in units of 10 nano seconds
- * @t2_max_err: maximum t2-time error in units of 10 nano seconds
+ *	receiver side in units of 10 naanal seconds
+ * @t2_max_err: maximum t2-time error in units of 10 naanal seconds
  * @t3_hi: high dword of t3-time of the Tx'ed action frame's Ack departure on
- *	receiver side in units of 10 nano seconds
+ *	receiver side in units of 10 naanal seconds
  * @t3_lo: low dword of t3-time of the Tx'ed action frame's Ack departure on
- *	receiver side in units of 10 nano seconds
- * @t3_max_err: maximum t3-time error in units of 10 nano seconds
+ *	receiver side in units of 10 naanal seconds
+ * @t3_max_err: maximum t3-time error in units of 10 naanal seconds
  * @ptp: vendor specific information element
  */
-struct iwl_time_msmt_notify {
+struct iwl_time_msmt_analtify {
 	u8 peer_addr[ETH_ALEN];
 	u8 reserved[2];
 	__le32 dialog_token;
@@ -300,25 +300,25 @@ struct iwl_time_msmt_notify {
 } __packed; /* WNM_80211V_TIMING_MEASUREMENT_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_time_msmt_cfm_notify - Time Sync measurement confirmation
- * notification for TM/FTM. Sent on receipt of 802.11 Ack from peer for the
+ * struct iwl_time_msmt_cfm_analtify - Time Sync measurement confirmation
+ * analtification for TM/FTM. Sent on receipt of 802.11 Ack from peer for the
  * Tx'ed TM/FTM measurement action frame.
  *
  * @peer_addr: peer address
  * @reserved: for alignment
  * @dialog_token: measurement flow dialog token number
  * @t1_hi: high dword of t1-time of the Tx'ed action frame departure on
- *	sender side in units of 10 nano seconds
+ *	sender side in units of 10 naanal seconds
  * @t1_lo: low dword of t1-time of the Tx'ed action frame departure on
- *	sender side in units of 10 nano seconds
- * @t1_max_err: maximum t1-time error in units of 10 nano seconds
+ *	sender side in units of 10 naanal seconds
+ * @t1_max_err: maximum t1-time error in units of 10 naanal seconds
  * @t4_hi: high dword of t4-time of the Rx'ed action frame's Ack arrival on
- *	sender side in units of 10 nano seconds
+ *	sender side in units of 10 naanal seconds
  * @t4_lo: low dword of t4-time of the Rx'ed action frame's Ack arrival on
- *	sender side in units of 10 nano seconds
- * @t4_max_err: maximum t4-time error in units of 10 nano seconds
+ *	sender side in units of 10 naanal seconds
+ * @t4_max_err: maximum t4-time error in units of 10 naanal seconds
  */
-struct iwl_time_msmt_cfm_notify {
+struct iwl_time_msmt_cfm_analtify {
 	u8 peer_addr[ETH_ALEN];
 	u8 reserved[2];
 	__le32 dialog_token;
@@ -373,11 +373,11 @@ struct iwl_channel_estimation_cfg {
 	__le64 frame_types;
 } __packed; /* CHEST_COLLECTOR_FILTER_CMD_API_S_VER_1 */
 
-enum iwl_datapath_monitor_notif_type {
-	IWL_DP_MON_NOTIF_TYPE_EXT_CCA,
+enum iwl_datapath_monitor_analtif_type {
+	IWL_DP_MON_ANALTIF_TYPE_EXT_CCA,
 };
 
-struct iwl_datapath_monitor_notif {
+struct iwl_datapath_monitor_analtif {
 	__le32 type;
 	u8 mac_id;
 	u8 reserved[3];
@@ -562,7 +562,7 @@ enum iwl_scd_queue_cfg_operation {
  * @u.add.tid: TID
  * @u.add.reserved: reserved
  * @u.add.flags: flags from &enum iwl_tx_queue_cfg_actions, except
- *	%TX_QUEUE_CFG_ENABLE_QUEUE is not valid
+ *	%TX_QUEUE_CFG_ENABLE_QUEUE is analt valid
  * @u.add.cb_size: size code
  * @u.add.bc_dram_addr: byte-count table IOVA
  * @u.add.tfdq_dram_addr: TFD queue IOVA
@@ -603,7 +603,7 @@ struct iwl_scd_queue_cfg_cmd {
  * @IWL_SEC_KEY_FLAG_CIPHER_CCMP: CCMP/CMAC cipher
  * @IWL_SEC_KEY_FLAG_CIPHER_TKIP: TKIP cipher
  * @IWL_SEC_KEY_FLAG_CIPHER_GCMP: GCMP/GMAC cipher
- * @IWL_SEC_KEY_FLAG_NO_TX: don't install for TX
+ * @IWL_SEC_KEY_FLAG_ANAL_TX: don't install for TX
  * @IWL_SEC_KEY_FLAG_KEY_SIZE: large key size (WEP-104, GCMP-256, GMAC-256)
  * @IWL_SEC_KEY_FLAG_MFP: MFP is in used for this key
  * @IWL_SEC_KEY_FLAG_MCAST_KEY: this is a multicast key
@@ -615,7 +615,7 @@ enum iwl_sec_key_flags {
 	IWL_SEC_KEY_FLAG_CIPHER_CCMP	= 0x02,
 	IWL_SEC_KEY_FLAG_CIPHER_TKIP	= 0x03,
 	IWL_SEC_KEY_FLAG_CIPHER_GCMP	= 0x05,
-	IWL_SEC_KEY_FLAG_NO_TX		= 0x08,
+	IWL_SEC_KEY_FLAG_ANAL_TX		= 0x08,
 	IWL_SEC_KEY_FLAG_KEY_SIZE	= 0x10,
 	IWL_SEC_KEY_FLAG_MFP		= 0x20,
 	IWL_SEC_KEY_FLAG_MCAST_KEY	= 0x40,

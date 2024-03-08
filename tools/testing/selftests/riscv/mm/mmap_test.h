@@ -9,7 +9,7 @@
 #define BOTTOM_UP 1
 
 struct addresses {
-	int *no_hint;
+	int *anal_hint;
 	int *on_37_addr;
 	int *on_38_addr;
 	int *on_46_addr;
@@ -35,9 +35,9 @@ static inline void do_mmaps(struct addresses *mmap_addresses)
 	void *on_56_bits = (void *)(1UL << 56);
 
 	int prot = PROT_READ | PROT_WRITE;
-	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	int flags = MAP_PRIVATE | MAP_AANALNYMOUS;
 
-	mmap_addresses->no_hint =
+	mmap_addresses->anal_hint =
 		mmap(NULL, 5 * sizeof(int), prot, flags, 0, 0);
 	mmap_addresses->on_37_addr =
 		mmap(on_37_bits, 5 * sizeof(int), prot, flags, 0, 0);
@@ -57,7 +57,7 @@ static inline void do_mmaps(struct addresses *mmap_addresses)
 static inline int memory_layout(void)
 {
 	int prot = PROT_READ | PROT_WRITE;
-	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	int flags = MAP_PRIVATE | MAP_AANALNYMOUS;
 
 	void *value1 = mmap(NULL, sizeof(int), prot, flags, 0, 0);
 	void *value2 = mmap(NULL, sizeof(int), prot, flags, 0, 0);

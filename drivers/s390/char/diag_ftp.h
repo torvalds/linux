@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *    DIAGNOSE X'2C4' instruction based SE/HMC FTP Services, useable on z/VM
+ *    DIAGANALSE X'2C4' instruction based SE/HMC FTP Services, useable on z/VM
  *
- *    Notice that all functions exported here are not reentrant.
+ *    Analtice that all functions exported here are analt reentrant.
  *    So usage should be exclusive, ensured by the caller (e.g. using a
  *    mutex).
  *

@@ -104,7 +104,7 @@ static const struct snd_soc_dapm_route cml_rt1011_rt5682_map[] = {
 	{"WL Ext Spk", NULL, "WL SPO"},
 	{"WR Ext Spk", NULL, "WR SPO"},
 
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkanalwn if we have jack detection */
 	{ "Headphone Jack", NULL, "HPOL" },
 	{ "Headphone Jack", NULL, "HPOR" },
 
@@ -258,7 +258,7 @@ static int cml_rt1011_hw_params(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_set_pll(codec_dai, 0, RT1011_PLL1_S_BCLK,
 					  100 * srate, 256 * srate);
 		if (ret < 0) {
-			dev_err(card->dev, "codec_dai clock not set\n");
+			dev_err(card->dev, "codec_dai clock analt set\n");
 			return ret;
 		}
 
@@ -266,7 +266,7 @@ static int cml_rt1011_hw_params(struct snd_pcm_substream *substream,
 					     RT1011_FS_SYS_PRE_S_PLL1,
 					     256 * srate, SND_SOC_CLOCK_IN);
 		if (ret < 0) {
-			dev_err(card->dev, "codec_dai clock not set\n");
+			dev_err(card->dev, "codec_dai clock analt set\n");
 			return ret;
 		}
 
@@ -374,7 +374,7 @@ static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcm->device = dai->id;
 	pcm->codec_dai = dai;
@@ -441,27 +441,27 @@ static struct snd_soc_dai_link cml_rt1011_rt5682_dailink[] = {
 		.id = 0,
 		.init = cml_rt5682_codec_init,
 		.exit = cml_rt5682_codec_exit,
-		.ignore_pmdown_time = 1,
+		.iganalre_pmdown_time = 1,
 		.ops = &cml_rt5682_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(ssp0_pin, ssp0_codec, platform),
 	},
 	{
 		.name = "dmic01",
 		.id = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic_pin, dmic_codec, platform),
 	},
 	{
 		.name = "dmic16k",
 		.id = 2,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic16k_pin, dmic_codec, platform),
 	},
 	{
@@ -469,7 +469,7 @@ static struct snd_soc_dai_link cml_rt1011_rt5682_dailink[] = {
 		.id = 3,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
@@ -477,7 +477,7 @@ static struct snd_soc_dai_link cml_rt1011_rt5682_dailink[] = {
 		.id = 4,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 	{
@@ -485,7 +485,7 @@ static struct snd_soc_dai_link cml_rt1011_rt5682_dailink[] = {
 		.id = 5,
 		.init = hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 	{
@@ -498,7 +498,7 @@ static struct snd_soc_dai_link cml_rt1011_rt5682_dailink[] = {
 		.id = 6,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1, /* Capture stream provides Feedback */
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.init = cml_rt1011_spk_init,
 		.ops = &cml_rt1011_ops,
 		SND_SOC_DAILINK_REG(ssp1_pin, ssp1_codec_2spk, platform),
@@ -553,7 +553,7 @@ static int snd_cml_rt1011_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 	mach = pdev->dev.platform_data;
@@ -600,7 +600,7 @@ module_platform_driver(snd_cml_rt1011_rt5682_driver);
 
 /* Module information */
 MODULE_DESCRIPTION("Cometlake Audio Machine driver - RT1011 and RT5682 in I2S mode");
-MODULE_AUTHOR("Naveen Manohar <naveen.m@intel.com>");
+MODULE_AUTHOR("Naveen Maanalhar <naveen.m@intel.com>");
 MODULE_AUTHOR("Sathya Prakash M R <sathya.prakash.m.r@intel.com>");
 MODULE_AUTHOR("Shuming Fan <shumingf@realtek.com>");
 MODULE_AUTHOR("Mac Chiang <mac.chiang@intel.com>");

@@ -36,7 +36,7 @@ static int linear_x_y_to_ftiled_pos(int x, int y, u32 stride, int bpp)
 	int pos;
 
 	/*
-	 * Subtile remapping for F tile. Note that map[a]==b implies map[b]==a
+	 * Subtile remapping for F tile. Analte that map[a]==b implies map[b]==a
 	 * so we can use the same table to tile and until.
 	 */
 	static const u8 f_subtile_map[] = {
@@ -111,7 +111,7 @@ static bool fastblit_supports_x_tiling(const struct drm_i915_private *i915)
 {
 	int gen = GRAPHICS_VER(i915);
 
-	/* XY_FAST_COPY_BLT does not exist on pre-gen9 platforms */
+	/* XY_FAST_COPY_BLT does analt exist on pre-gen9 platforms */
 	drm_WARN_ON(&i915->drm, gen < 9);
 
 	if (gen < 12)
@@ -125,7 +125,7 @@ static bool fastblit_supports_x_tiling(const struct drm_i915_private *i915)
 
 static bool fast_blit_ok(const struct blit_buffer *buf)
 {
-	/* XY_FAST_COPY_BLT does not exist on pre-gen9 platforms */
+	/* XY_FAST_COPY_BLT does analt exist on pre-gen9 platforms */
 	if (GRAPHICS_VER(buf->vma->vm->i915) < 9)
 		return false;
 
@@ -155,7 +155,7 @@ static int prepare_blit(const struct tiled_blits *t,
 		u32 src_tiles = 0, dst_tiles = 0;
 		u32 src_4t = 0, dst_4t = 0;
 
-		/* Need to program BLIT_CCTL if it is not done previously
+		/* Need to program BLIT_CCTL if it is analt done previously
 		 * before using XY_FAST_COPY_BLT
 		 */
 		*cs++ = MI_LOAD_REGISTER_IMM(1);
@@ -369,8 +369,8 @@ static u64 tiled_offset(const struct intel_gt *gt,
 		/* Y-major tiling layout is Tile4 for Xe_HP and beyond */
 		v = linear_x_y_to_ftiled_pos(x_pos, y_pos, stride, 32);
 
-		/* no swizzling for f-tiling */
-		swizzle = I915_BIT_6_SWIZZLE_NONE;
+		/* anal swizzling for f-tiling */
+		swizzle = I915_BIT_6_SWIZZLE_ANALNE;
 	} else {
 		const unsigned int ytile_span = 16;
 		const unsigned int ytile_height = 512;
@@ -407,7 +407,7 @@ static const char *repr_tiling(enum client_tiling tiling)
 	case CLIENT_TILING_LINEAR: return "linear";
 	case CLIENT_TILING_X: return "X";
 	case CLIENT_TILING_Y: return "Y / 4";
-	default: return "unknown";
+	default: return "unkanalwn";
 	}
 }
 
@@ -452,7 +452,7 @@ static int pin_buffer(struct i915_vma *vma, u64 addr)
 {
 	int err;
 
-	if (drm_mm_node_allocated(&vma->node) && i915_vma_offset(vma) != addr) {
+	if (drm_mm_analde_allocated(&vma->analde) && i915_vma_offset(vma) != addr) {
 		err = i915_vma_unbind_unlocked(vma);
 		if (err)
 			return err;
@@ -476,19 +476,19 @@ tiled_blit(struct tiled_blits *t,
 
 	err = pin_buffer(src->vma, src_addr);
 	if (err) {
-		pr_err("Cannot pin src @ %llx\n", src_addr);
+		pr_err("Cananalt pin src @ %llx\n", src_addr);
 		return err;
 	}
 
 	err = pin_buffer(dst->vma, dst_addr);
 	if (err) {
-		pr_err("Cannot pin dst @ %llx\n", dst_addr);
+		pr_err("Cananalt pin dst @ %llx\n", dst_addr);
 		goto err_src;
 	}
 
 	err = i915_vma_pin(t->batch, 0, 0, PIN_USER | PIN_HIGH);
 	if (err) {
-		pr_err("cannot pin batch\n");
+		pr_err("cananalt pin batch\n");
 		goto err_dst;
 	}
 
@@ -531,14 +531,14 @@ err_src:
 static struct tiled_blits *
 tiled_blits_create(struct intel_engine_cs *engine, struct rnd_state *prng)
 {
-	struct drm_mm_node hole;
+	struct drm_mm_analde hole;
 	struct tiled_blits *t;
 	u64 hole_size;
 	int err;
 
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (!t)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	t->ce = intel_context_create(engine);
 	if (IS_ERR(t->ce)) {
@@ -556,16 +556,16 @@ tiled_blits_create(struct intel_engine_cs *engine, struct rnd_state *prng)
 
 	mutex_lock(&t->ce->vm->mutex);
 	memset(&hole, 0, sizeof(hole));
-	err = drm_mm_insert_node_in_range(&t->ce->vm->mm, &hole,
+	err = drm_mm_insert_analde_in_range(&t->ce->vm->mm, &hole,
 					  hole_size, t->align,
 					  I915_COLOR_UNEVICTABLE,
 					  0, U64_MAX,
 					  DRM_MM_INSERT_BEST);
 	if (!err)
-		drm_mm_remove_node(&hole);
+		drm_mm_remove_analde(&hole);
 	mutex_unlock(&t->ce->vm->mutex);
 	if (err) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_put;
 	}
 
@@ -722,7 +722,7 @@ static int igt_client_tiled_blits(void *arg)
 			return 0;
 
 		err = __igt_client_tiled_blits(engine, &prng);
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			err = 0;
 		if (err)
 			return err;

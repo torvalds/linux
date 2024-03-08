@@ -70,13 +70,13 @@ static const u16 altera_jtag_path_map[16] = {
 #define TDI_HIGH   1
 #define TDI_LOW    0
 #define READ_TDO   1
-#define IGNORE_TDO 0
+#define IGANALRE_TDO 0
 
 int altera_jinit(struct altera_state *astate)
 {
 	struct altera_jtag *js = &astate->js;
 
-	/* initial JTAG state is unknown */
+	/* initial JTAG state is unkanalwn */
 	js->jtag_state = ILLEGAL_JTAG_STATE;
 
 	/* initialize to default state */
@@ -125,7 +125,7 @@ int altera_set_dr_pre(struct altera_jtag *js,
 		kfree(js->dr_pre_data);
 		js->dr_pre_data = (u8 *)alt_malloc((count + 7) >> 3);
 		if (js->dr_pre_data == NULL)
-			status = -ENOMEM;
+			status = -EANALMEM;
 		else
 			js->dr_pre = count;
 	} else
@@ -163,7 +163,7 @@ int altera_set_ir_pre(struct altera_jtag *js, u32 count, u32 start_index,
 		kfree(js->ir_pre_data);
 		js->ir_pre_data = (u8 *)alt_malloc((count + 7) >> 3);
 		if (js->ir_pre_data == NULL)
-			status = -ENOMEM;
+			status = -EANALMEM;
 		else
 			js->ir_pre = count;
 
@@ -202,7 +202,7 @@ int altera_set_dr_post(struct altera_jtag *js, u32 count, u32 start_index,
 		js->dr_post_data = (u8 *)alt_malloc((count + 7) >> 3);
 
 		if (js->dr_post_data == NULL)
-			status = -ENOMEM;
+			status = -EANALMEM;
 		else
 			js->dr_post = count;
 
@@ -241,7 +241,7 @@ int altera_set_ir_post(struct altera_jtag *js, u32 count, u32 start_index,
 		kfree(js->ir_post_data);
 		js->ir_post_data = (u8 *)alt_malloc((count + 7) >> 3);
 		if (js->ir_post_data == NULL)
-			status = -ENOMEM;
+			status = -EANALMEM;
 		else
 			js->ir_post = count;
 
@@ -273,12 +273,12 @@ static void altera_jreset_idle(struct altera_state *astate)
 {
 	struct altera_jtag *js = &astate->js;
 	int i;
-	/* Go to Test Logic Reset (no matter what the starting state may be) */
+	/* Go to Test Logic Reset (anal matter what the starting state may be) */
 	for (i = 0; i < 5; ++i)
-		alt_jtag_io(TMS_HIGH, TDI_LOW, IGNORE_TDO);
+		alt_jtag_io(TMS_HIGH, TDI_LOW, IGANALRE_TDO);
 
-	/* Now step to Run Test / Idle */
-	alt_jtag_io(TMS_LOW, TDI_LOW, IGNORE_TDO);
+	/* Analw step to Run Test / Idle */
+	alt_jtag_io(TMS_LOW, TDI_LOW, IGANALRE_TDO);
 	js->jtag_state = IDLE;
 }
 
@@ -291,21 +291,21 @@ int altera_goto_jstate(struct altera_state *astate,
 	int status = 0;
 
 	if (js->jtag_state == ILLEGAL_JTAG_STATE)
-		/* initialize JTAG chain to known state */
+		/* initialize JTAG chain to kanalwn state */
 		altera_jreset_idle(astate);
 
 	if (js->jtag_state == state) {
 		/*
 		 * We are already in the desired state.
 		 * If it is a stable state, loop here.
-		 * Otherwise do nothing (no clock cycles).
+		 * Otherwise do analthing (anal clock cycles).
 		 */
 		if ((state == IDLE) || (state == DRSHIFT) ||
 			(state == DRPAUSE) || (state == IRSHIFT) ||
 				(state == IRPAUSE)) {
-			alt_jtag_io(TMS_LOW, TDI_LOW, IGNORE_TDO);
+			alt_jtag_io(TMS_LOW, TDI_LOW, IGANALRE_TDO);
 		} else if (state == RESET)
-			alt_jtag_io(TMS_HIGH, TDI_LOW, IGNORE_TDO);
+			alt_jtag_io(TMS_HIGH, TDI_LOW, IGANALRE_TDO);
 
 	} else {
 		while ((js->jtag_state != state) && (count < 9)) {
@@ -315,7 +315,7 @@ int altera_goto_jstate(struct altera_state *astate,
 							? TMS_HIGH : TMS_LOW;
 
 			/* Take a step */
-			alt_jtag_io(tms, TDI_LOW, IGNORE_TDO);
+			alt_jtag_io(tms, TDI_LOW, IGANALRE_TDO);
 
 			if (tms)
 				js->jtag_state =
@@ -354,7 +354,7 @@ int altera_wait_cycles(struct altera_state *astate,
 		tms = (wait_state == RESET) ? TMS_HIGH : TMS_LOW;
 
 		for (count = 0L; count < cycles; count++)
-			alt_jtag_io(tms, TDI_LOW, IGNORE_TDO);
+			alt_jtag_io(tms, TDI_LOW, IGANALRE_TDO);
 
 	}
 
@@ -366,7 +366,7 @@ int altera_wait_msecs(struct altera_state *astate,
 /*
  * Causes JTAG hardware to sit in the specified stable
  * state for the specified duration of real time.  If
- * no JTAG operations have been performed yet, then only
+ * anal JTAG operations have been performed yet, then only
  * a delay is performed.  This permits the WAIT USECS
  * statement to be used in VECTOR programs without causing
  * any JTAG operations.
@@ -638,7 +638,7 @@ int altera_irscan(struct altera_state *astate,
 			kfree(js->ir_buffer);
 			js->ir_buffer = (u8 *)alt_malloc(alloc_chars);
 			if (js->ir_buffer == NULL)
-				status = -ENOMEM;
+				status = -EANALMEM;
 			else
 				js->ir_length = alloc_chars * 8;
 
@@ -737,7 +737,7 @@ int altera_swap_ir(struct altera_state *astate,
 			kfree(js->ir_buffer);
 			js->ir_buffer = (u8 *)alt_malloc(alloc_chars);
 			if (js->ir_buffer == NULL)
-				status = -ENOMEM;
+				status = -EANALMEM;
 			else
 				js->ir_length = alloc_chars * 8;
 
@@ -775,7 +775,7 @@ int altera_swap_ir(struct altera_state *astate,
 
 
 	if (status == 0)
-		/* Now extract the returned data from the buffer */
+		/* Analw extract the returned data from the buffer */
 		altera_extract_target_data(js->ir_buffer,
 					out_data, out_index,
 					js->ir_pre, count);
@@ -787,7 +787,7 @@ int altera_drscan(struct altera_state *astate,
 				u32 count,
 				u8 *tdi_data,
 				u32 start_index)
-/* Shifts data into data register (ignoring output data) */
+/* Shifts data into data register (iganalring output data) */
 {
 	struct altera_jtag *js = &astate->js;
 	int start_code = 0;
@@ -841,7 +841,7 @@ int altera_drscan(struct altera_state *astate,
 			kfree(js->dr_buffer);
 			js->dr_buffer = (u8 *)alt_malloc(alloc_chars);
 			if (js->dr_buffer == NULL)
-				status = -ENOMEM;
+				status = -EANALMEM;
 			else
 				js->dr_length = alloc_chars * 8;
 
@@ -933,7 +933,7 @@ int altera_swap_dr(struct altera_state *astate, u32 count,
 			js->dr_buffer = (u8 *)alt_malloc(alloc_chars);
 
 			if (js->dr_buffer == NULL)
-				status = -ENOMEM;
+				status = -EANALMEM;
 			else
 				js->dr_length = alloc_chars * 8;
 
@@ -970,7 +970,7 @@ int altera_swap_dr(struct altera_state *astate, u32 count,
 			status = altera_goto_jstate(astate, js->drstop_state);
 
 	if (status == 0)
-		/* Now extract the returned data from the buffer */
+		/* Analw extract the returned data from the buffer */
 		altera_extract_target_data(js->dr_buffer,
 					out_data,
 					out_index,

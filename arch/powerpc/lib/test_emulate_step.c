@@ -16,9 +16,9 @@
 
 #define MAX_SUBTESTS	16
 
-#define IGNORE_GPR(n)	(0x1UL << (n))
-#define IGNORE_XER	(0x1UL << 32)
-#define IGNORE_CCR	(0x1UL << 33)
+#define IGANALRE_GPR(n)	(0x1UL << (n))
+#define IGANALRE_XER	(0x1UL << 32)
+#define IGANALRE_CCR	(0x1UL << 33)
 #define NEGATIVE_TEST	(0x1UL << 63)
 
 #define TEST_PLD(r, base, i, pr) \
@@ -272,7 +272,7 @@ static void __init test_ldarx_stdcx(void)
 	 * of stdcx. :
 	 *  1. Reservation is active and store is performed. In this
 	 *     case cr0.eq bit will be set to 1.
-	 *  2. Reservation is not active and store is not performed.
+	 *  2. Reservation is analt active and store is analt performed.
 	 *     In this case cr0.eq bit will be set to 0.
 	 */
 	if (stepped == 1 && ((regs.gpr[5] == a && (regs.ccr & cr0_eq))
@@ -465,26 +465,26 @@ static void __init test_plfd_pstfd(void)
 #else
 static void __init test_lfsx_stfsx(void)
 {
-	show_result("lfsx", "SKIP (CONFIG_PPC_FPU is not set)");
-	show_result("stfsx", "SKIP (CONFIG_PPC_FPU is not set)");
+	show_result("lfsx", "SKIP (CONFIG_PPC_FPU is analt set)");
+	show_result("stfsx", "SKIP (CONFIG_PPC_FPU is analt set)");
 }
 
 static void __init test_plfs_pstfs(void)
 {
-	show_result("plfs", "SKIP (CONFIG_PPC_FPU is not set)");
-	show_result("pstfs", "SKIP (CONFIG_PPC_FPU is not set)");
+	show_result("plfs", "SKIP (CONFIG_PPC_FPU is analt set)");
+	show_result("pstfs", "SKIP (CONFIG_PPC_FPU is analt set)");
 }
 
 static void __init test_lfdx_stfdx(void)
 {
-	show_result("lfdx", "SKIP (CONFIG_PPC_FPU is not set)");
-	show_result("stfdx", "SKIP (CONFIG_PPC_FPU is not set)");
+	show_result("lfdx", "SKIP (CONFIG_PPC_FPU is analt set)");
+	show_result("stfdx", "SKIP (CONFIG_PPC_FPU is analt set)");
 }
 
 static void __init test_plfd_pstfd(void)
 {
-	show_result("plfd", "SKIP (CONFIG_PPC_FPU is not set)");
-	show_result("pstfd", "SKIP (CONFIG_PPC_FPU is not set)");
+	show_result("plfd", "SKIP (CONFIG_PPC_FPU is analt set)");
+	show_result("pstfd", "SKIP (CONFIG_PPC_FPU is analt set)");
 }
 #endif /* CONFIG_PPC_FPU */
 
@@ -540,8 +540,8 @@ static void __init test_lvx_stvx(void)
 #else
 static void __init test_lvx_stvx(void)
 {
-	show_result("lvx", "SKIP (CONFIG_ALTIVEC is not set)");
-	show_result("stvx", "SKIP (CONFIG_ALTIVEC is not set)");
+	show_result("lvx", "SKIP (CONFIG_ALTIVEC is analt set)");
+	show_result("stvx", "SKIP (CONFIG_ALTIVEC is analt set)");
 }
 #endif /* CONFIG_ALTIVEC */
 
@@ -606,8 +606,8 @@ static void __init test_lxvd2x_stxvd2x(void)
 #else
 static void __init test_lxvd2x_stxvd2x(void)
 {
-	show_result("lxvd2x", "SKIP (CONFIG_VSX is not set)");
-	show_result("stxvd2x", "SKIP (CONFIG_VSX is not set)");
+	show_result("lxvd2x", "SKIP (CONFIG_VSX is analt set)");
+	show_result("stxvd2x", "SKIP (CONFIG_VSX is analt set)");
 }
 #endif /* CONFIG_VSX */
 
@@ -693,8 +693,8 @@ static void __init test_lxvp_stxvp(void)
 #else
 static void __init test_lxvp_stxvp(void)
 {
-	show_result("lxvp", "SKIP (CONFIG_VSX is not set)");
-	show_result("stxvp", "SKIP (CONFIG_VSX is not set)");
+	show_result("lxvp", "SKIP (CONFIG_VSX is analt set)");
+	show_result("stxvp", "SKIP (CONFIG_VSX is analt set)");
 }
 #endif /* CONFIG_VSX */
 
@@ -781,8 +781,8 @@ static void __init test_lxvpx_stxvpx(void)
 #else
 static void __init test_lxvpx_stxvpx(void)
 {
-	show_result("lxvpx", "SKIP (CONFIG_VSX is not set)");
-	show_result("stxvpx", "SKIP (CONFIG_VSX is not set)");
+	show_result("lxvpx", "SKIP (CONFIG_VSX is analt set)");
+	show_result("stxvpx", "SKIP (CONFIG_VSX is analt set)");
 }
 #endif /* CONFIG_VSX */
 
@@ -871,8 +871,8 @@ static void __init test_plxvp_pstxvp(void)
 #else
 static void __init test_plxvp_pstxvp(void)
 {
-	show_result("plxvp", "SKIP (CONFIG_VSX is not set)");
-	show_result("pstxvp", "SKIP (CONFIG_VSX is not set)");
+	show_result("plxvp", "SKIP (CONFIG_VSX is analt set)");
+	show_result("pstxvp", "SKIP (CONFIG_VSX is analt set)");
 }
 #endif /* CONFIG_VSX */
 
@@ -915,11 +915,11 @@ struct compute_test {
 
 static struct compute_test compute_tests[] = {
 	{
-		.mnemonic = "nop",
+		.mnemonic = "analp",
 		.subtests = {
 			{
 				.descr = "R0 = LONG_MAX",
-				.instr = ppc_inst(PPC_RAW_NOP()),
+				.instr = ppc_inst(PPC_RAW_ANALP()),
 				.regs = {
 					.gpr[0] = LONG_MAX,
 				}
@@ -1043,7 +1043,7 @@ static struct compute_test compute_tests[] = {
 		.subtests = {
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MIN",
-				.flags = IGNORE_CCR,
+				.flags = IGANALRE_CCR,
 				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
@@ -1060,7 +1060,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MAX, RB = LONG_MAX",
-				.flags = IGNORE_CCR,
+				.flags = IGANALRE_CCR,
 				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MAX,
@@ -1223,7 +1223,7 @@ static struct compute_test compute_tests[] = {
 		.subtests = {
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MIN",
-				.flags = IGNORE_CCR,
+				.flags = IGANALRE_CCR,
 				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
@@ -1240,7 +1240,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MAX, RB = LONG_MAX",
-				.flags = IGNORE_CCR,
+				.flags = IGANALRE_CCR,
 				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MAX,
@@ -1327,7 +1327,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = 1L, RB = 0",
 				.instr = ppc_inst(PPC_RAW_DIVDE(20, 21, 22)),
-				.flags = IGNORE_GPR(20),
+				.flags = IGANALRE_GPR(20),
 				.regs = {
 					.gpr[21] = 1L,
 					.gpr[22] = 0,
@@ -1357,7 +1357,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = 1L, RB = 0",
 				.instr = ppc_inst(PPC_RAW_DIVDE_DOT(20, 21, 22)),
-				.flags = IGNORE_GPR(20),
+				.flags = IGANALRE_GPR(20),
 				.regs = {
 					.gpr[21] = 1L,
 					.gpr[22] = 0,
@@ -1379,7 +1379,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MIN",
 				.instr = ppc_inst(PPC_RAW_DIVDEU(20, 21, 22)),
-				.flags = IGNORE_GPR(20),
+				.flags = IGANALRE_GPR(20),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MIN,
@@ -1388,7 +1388,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = 1L, RB = 0",
 				.instr = ppc_inst(PPC_RAW_DIVDEU(20, 21, 22)),
-				.flags = IGNORE_GPR(20),
+				.flags = IGANALRE_GPR(20),
 				.regs = {
 					.gpr[21] = 1L,
 					.gpr[22] = 0,
@@ -1413,7 +1413,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = LONG_MIN + 1, RB = LONG_MIN",
 				.instr = ppc_inst(PPC_RAW_DIVDEU(20, 21, 22)),
-				.flags = IGNORE_GPR(20),
+				.flags = IGANALRE_GPR(20),
 				.regs = {
 					.gpr[21] = LONG_MIN + 1,
 					.gpr[22] = LONG_MIN,
@@ -1427,7 +1427,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MIN",
 				.instr = ppc_inst(PPC_RAW_DIVDEU_DOT(20, 21, 22)),
-				.flags = IGNORE_GPR(20),
+				.flags = IGANALRE_GPR(20),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MIN,
@@ -1436,7 +1436,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = 1L, RB = 0",
 				.instr = ppc_inst(PPC_RAW_DIVDEU_DOT(20, 21, 22)),
-				.flags = IGNORE_GPR(20),
+				.flags = IGANALRE_GPR(20),
 				.regs = {
 					.gpr[21] = 1L,
 					.gpr[22] = 0,
@@ -1461,7 +1461,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = LONG_MIN + 1, RB = LONG_MIN",
 				.instr = ppc_inst(PPC_RAW_DIVDEU_DOT(20, 21, 22)),
-				.flags = IGNORE_GPR(20),
+				.flags = IGANALRE_GPR(20),
 				.regs = {
 					.gpr[21] = LONG_MIN + 1,
 					.gpr[22] = LONG_MIN,
@@ -1606,7 +1606,7 @@ static int __init emulate_compute_instr(struct pt_regs *regs,
 	if (!regs || !ppc_inst_val(instr))
 		return -EINVAL;
 
-	/* This is not a return frame regs */
+	/* This is analt a return frame regs */
 	regs->nip = patch_site_addr(&patch__exec_instr);
 
 	analysed = analyse_instr(&op, regs, instr);
@@ -1631,7 +1631,7 @@ static int __init execute_compute_instr(struct pt_regs *regs,
 	if (!regs || !ppc_inst_val(instr))
 		return -EINVAL;
 
-	/* Patch the NOP with the actual instruction */
+	/* Patch the ANALP with the actual instruction */
 	patch_instruction_site(&patch__exec_instr, instr);
 	if (exec_instr(regs)) {
 		pr_info("execution failed, instruction = %08lx\n", ppc_inst_as_ulong(instr));
@@ -1656,7 +1656,7 @@ static void __init run_tests_compute(void)
 	struct pt_regs *regs, exp, got;
 	unsigned int i, j, k;
 	ppc_inst_t instr;
-	bool ignore_gpr, ignore_xer, ignore_ccr, passed, rc, negative;
+	bool iganalre_gpr, iganalre_xer, iganalre_ccr, passed, rc, negative;
 
 	for (i = 0; i < ARRAY_SIZE(compute_tests); i++) {
 		test = &compute_tests[i];
@@ -1671,8 +1671,8 @@ static void __init run_tests_compute(void)
 			flags = test->subtests[j].flags;
 			regs = &test->subtests[j].regs;
 			negative = flags & NEGATIVE_TEST;
-			ignore_xer = flags & IGNORE_XER;
-			ignore_ccr = flags & IGNORE_CCR;
+			iganalre_xer = flags & IGANALRE_XER;
+			iganalre_ccr = flags & IGANALRE_CCR;
 			passed = true;
 
 			memcpy(&exp, regs, sizeof(struct pt_regs));
@@ -1697,8 +1697,8 @@ static void __init run_tests_compute(void)
 
 			/* Verify GPR values */
 			for (k = 0; k < 32; k++) {
-				ignore_gpr = flags & IGNORE_GPR(k);
-				if (!ignore_gpr && exp.gpr[k] != got.gpr[k]) {
+				iganalre_gpr = flags & IGANALRE_GPR(k);
+				if (!iganalre_gpr && exp.gpr[k] != got.gpr[k]) {
 					passed = false;
 					gpr_mismatch(k, exp.gpr[k], got.gpr[k]);
 				}
@@ -1711,13 +1711,13 @@ static void __init run_tests_compute(void)
 			}
 
 			/* Verify XER value */
-			if (!ignore_xer && exp.xer != got.xer) {
+			if (!iganalre_xer && exp.xer != got.xer) {
 				passed = false;
 				reg_mismatch("XER", exp.xer, got.xer);
 			}
 
 			/* Verify CR value */
-			if (!ignore_ccr && exp.ccr != got.ccr) {
+			if (!iganalre_ccr && exp.ccr != got.ccr) {
 				passed = false;
 				reg_mismatch("CR", exp.ccr, got.ccr);
 			}

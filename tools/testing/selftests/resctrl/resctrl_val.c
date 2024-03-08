@@ -130,10 +130,10 @@ void get_event_and_umask(char *cas_count_cfg, int count, bool op)
 	}
 }
 
-static int open_perf_event(int i, int cpu_no, int j)
+static int open_perf_event(int i, int cpu_anal, int j)
 {
 	imc_counters_config[i][j].fd =
-		perf_event_open(&imc_counters_config[i][j].pe, -1, cpu_no, -1,
+		perf_event_open(&imc_counters_config[i][j].pe, -1, cpu_anal, -1,
 				PERF_FLAG_FD_CLOEXEC);
 
 	if (imc_counters_config[i][j].fd == -1) {
@@ -161,7 +161,7 @@ static int read_from_imc_dir(char *imc_dir, int count)
 		return -1;
 	}
 	if (fscanf(fp, "%u", &imc_counters_config[count][READ].type) <= 0) {
-		perror("Could not get imc type");
+		perror("Could analt get imc type");
 		fclose(fp);
 
 		return -1;
@@ -180,7 +180,7 @@ static int read_from_imc_dir(char *imc_dir, int count)
 		return -1;
 	}
 	if (fscanf(fp, "%s", cas_count_cfg) <= 0) {
-		perror("Could not get imc cas count read");
+		perror("Could analt get imc cas count read");
 		fclose(fp);
 
 		return -1;
@@ -198,7 +198,7 @@ static int read_from_imc_dir(char *imc_dir, int count)
 		return -1;
 	}
 	if  (fscanf(fp, "%s", cas_count_cfg) <= 0) {
-		perror("Could not get imc cas count write");
+		perror("Could analt get imc cas count write");
 		fclose(fp);
 
 		return -1;
@@ -236,17 +236,17 @@ static int num_of_imcs(void)
 
 			/*
 			 * imc counters are named as "uncore_imc_<n>", hence
-			 * increment the pointer to point to <n>. Note that
+			 * increment the pointer to point to <n>. Analte that
 			 * sizeof(UNCORE_IMC) would count for null character as
 			 * well and hence the last underscore character in
-			 * uncore_imc'_' need not be counted.
+			 * uncore_imc'_' need analt be counted.
 			 */
 			temp = temp + sizeof(UNCORE_IMC);
 
 			/*
 			 * Some directories under "DYN_PMU_PATH" could have
 			 * names like "uncore_imc_free_running", hence, check if
-			 * first character is a numerical digit or not.
+			 * first character is a numerical digit or analt.
 			 */
 			if (temp[0] >= '0' && temp[0] <= '9') {
 				sprintf(imc_dir, "%s/%s/", DYN_PMU_PATH,
@@ -294,7 +294,7 @@ static int initialize_mem_bw_imc(void)
 
 /*
  * get_mem_bw_imc:	Memory band width as reported by iMC counters
- * @cpu_no:		CPU number that the benchmark PID is binded to
+ * @cpu_anal:		CPU number that the benchmark PID is binded to
  * @bw_report:		Bandwidth report type (reads, writes)
  *
  * Memory B/W utilized by a process on a socket can be calculated using
@@ -302,7 +302,7 @@ static int initialize_mem_bw_imc(void)
  *
  * Return: = 0 on success. < 0 on failure.
  */
-static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
+static int get_mem_bw_imc(int cpu_anal, char *bw_report, float *bw_imc)
 {
 	float reads, writes, of_mul_read, of_mul_write;
 	int imc, j, ret;
@@ -311,7 +311,7 @@ static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
 	reads = 0, writes = 0, of_mul_read = 1, of_mul_write = 1;
 	for (imc = 0; imc < imcs; imc++) {
 		for (j = 0; j < 2; j++) {
-			ret = open_perf_event(imc, cpu_no, j);
+			ret = open_perf_event(imc, cpu_anal, j);
 			if (ret)
 				return -1;
 		}
@@ -407,16 +407,16 @@ void set_mbm_path(const char *ctrlgrp, const char *mongrp, int resource_id)
  * initialize_mem_bw_resctrl:	Appropriately populate "mbm_total_path"
  * @ctrlgrp:			Name of the control monitor group (con_mon grp)
  * @mongrp:			Name of the monitor group (mon grp)
- * @cpu_no:			CPU number that the benchmark PID is binded to
+ * @cpu_anal:			CPU number that the benchmark PID is binded to
  * @resctrl_val:		Resctrl feature (Eg: mbm, mba.. etc)
  */
 static void initialize_mem_bw_resctrl(const char *ctrlgrp, const char *mongrp,
-				      int cpu_no, char *resctrl_val)
+				      int cpu_anal, char *resctrl_val)
 {
 	int resource_id;
 
-	if (get_resource_id(cpu_no, &resource_id) < 0) {
-		perror("Could not get resource_id");
+	if (get_resource_id(cpu_anal, &resource_id) < 0) {
+		perror("Could analt get resource_id");
 		return;
 	}
 
@@ -438,10 +438,10 @@ static void initialize_mem_bw_resctrl(const char *ctrlgrp, const char *mongrp,
  * For MBM,
  * 1. If con_mon grp and mon grp are given, then read from con_mon grp's mon grp
  * 2. If only con_mon grp is given, then read from con_mon grp
- * 3. If both are not given, then read from root con_mon grp
+ * 3. If both are analt given, then read from root con_mon grp
  * For MBA,
  * 1. If con_mon grp is given, then read from it
- * 2. If con_mon grp is not given, then read from root con_mon grp
+ * 2. If con_mon grp is analt given, then read from root con_mon grp
  */
 static int get_mem_bw_resctrl(unsigned long *mbm_total)
 {
@@ -454,7 +454,7 @@ static int get_mem_bw_resctrl(unsigned long *mbm_total)
 		return -1;
 	}
 	if (fscanf(fp, "%lu", mbm_total) <= 0) {
-		perror("Could not get mbm local bytes");
+		perror("Could analt get mbm local bytes");
 		fclose(fp);
 
 		return -1;
@@ -503,7 +503,7 @@ int signal_handler_register(void)
 
 /*
  * Reset signal handler to SIG_DFL.
- * Non-Value return because the caller should keep
+ * Analn-Value return because the caller should keep
  * the error code of other path even if sigaction fails.
  */
 void signal_handler_unregister(void)
@@ -526,7 +526,7 @@ void signal_handler_unregister(void)
  * @bw_imc:		perf imc counter value
  * @bw_resc:		memory bandwidth value
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 on success. analn-zero on failure.
  */
 static int print_results_bw(char *filename,  int bm_pid, float bw_imc,
 			    unsigned long bw_resc)
@@ -540,16 +540,16 @@ static int print_results_bw(char *filename,  int bm_pid, float bw_imc,
 	} else {
 		fp = fopen(filename, "a");
 		if (!fp) {
-			perror("Cannot open results file");
+			perror("Cananalt open results file");
 
-			return errno;
+			return erranal;
 		}
 		if (fprintf(fp, "Pid: %d \t Mem_BW_iMC: %f \t Mem_BW_resc: %lu \t Difference: %lu\n",
 			    bm_pid, bw_imc, bw_resc, diff) <= 0) {
 			fclose(fp);
-			perror("Could not log results.");
+			perror("Could analt log results.");
 
-			return errno;
+			return erranal;
 		}
 		fclose(fp);
 	}
@@ -576,15 +576,15 @@ static void set_cmt_path(const char *ctrlgrp, const char *mongrp, char sock_num)
  * initialize_llc_occu_resctrl:	Appropriately populate "llc_occup_path"
  * @ctrlgrp:			Name of the control monitor group (con_mon grp)
  * @mongrp:			Name of the monitor group (mon grp)
- * @cpu_no:			CPU number that the benchmark PID is binded to
+ * @cpu_anal:			CPU number that the benchmark PID is binded to
  * @resctrl_val:		Resctrl feature (Eg: cat, cmt.. etc)
  */
 static void initialize_llc_occu_resctrl(const char *ctrlgrp, const char *mongrp,
-					int cpu_no, char *resctrl_val)
+					int cpu_anal, char *resctrl_val)
 {
 	int resource_id;
 
-	if (get_resource_id(cpu_no, &resource_id) < 0) {
+	if (get_resource_id(cpu_anal, &resource_id) < 0) {
 		perror("# Unable to resource_id");
 		return;
 	}
@@ -602,12 +602,12 @@ measure_vals(struct resctrl_val_param *param, unsigned long *bw_resc_start)
 
 	/*
 	 * Measure memory bandwidth from resctrl and from
-	 * another source which is perf imc value or could
-	 * be something else if perf imc event is not available.
+	 * aanalther source which is perf imc value or could
+	 * be something else if perf imc event is analt available.
 	 * Compare the two values to validate resctrl value.
 	 * It takes 1sec to measure the data.
 	 */
-	ret = get_mem_bw_imc(param->cpu_no, param->bw_report, &bw_imc);
+	ret = get_mem_bw_imc(param->cpu_anal, param->bw_report, &bw_imc);
 	if (ret < 0)
 		return ret;
 
@@ -681,7 +681,7 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
  * @benchmark_cmd:	benchmark command and its arguments
  * @param:		parameters passed to resctrl_val()
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 on success. analn-zero on failure.
  */
 int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *param)
 {
@@ -761,7 +761,7 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 	ksft_print_msg("Benchmark PID: %d\n", bm_pid);
 
 	/*
-	 * The cast removes constness but nothing mutates benchmark_cmd within
+	 * The cast removes constness but analthing mutates benchmark_cmd within
 	 * the context of this process. At the receiving process, it becomes
 	 * argv, which is mutable, on exec() but that's after fork() so it
 	 * doesn't matter for the process running the tests.
@@ -769,7 +769,7 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 	value.sival_ptr = (void *)benchmark_cmd;
 
 	/* Taskset benchmark to specified cpu */
-	ret = taskset_benchmark(bm_pid, param->cpu_no);
+	ret = taskset_benchmark(bm_pid, param->cpu_anal);
 	if (ret)
 		goto out;
 
@@ -786,10 +786,10 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 			goto out;
 
 		initialize_mem_bw_resctrl(param->ctrlgrp, param->mongrp,
-					  param->cpu_no, resctrl_val);
+					  param->cpu_anal, resctrl_val);
 	} else if (!strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
 		initialize_llc_occu_resctrl(param->ctrlgrp, param->mongrp,
-					    param->cpu_no, resctrl_val);
+					    param->cpu_anal, resctrl_val);
 
 	/* Parent waits for child to be ready. */
 	close(pipefd[1]);
@@ -806,11 +806,11 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 	/* Signal child to start benchmark */
 	if (sigqueue(bm_pid, SIGUSR1, value) == -1) {
 		perror("# sigqueue SIGUSR1 to child");
-		ret = errno;
+		ret = erranal;
 		goto out;
 	}
 
-	/* Give benchmark enough time to fully run */
+	/* Give benchmark eanalugh time to fully run */
 	sleep(1);
 
 	/* Test runs until the callback setup() tells the test to stop. */

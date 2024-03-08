@@ -214,7 +214,7 @@ static void *__audioreach_alloc_pkt(int payload_size, uint32_t opcode, uint32_t 
 
 	p = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pkt = p;
 	pkt->hdr.version = GPR_PKT_VER;
@@ -357,7 +357,7 @@ static void apm_populate_module_list_obj(struct apm_mod_list_obj *obj,
 	obj->container_id = container->container_id;
 	obj->num_modules = container->num_modules;
 	i = 0;
-	list_for_each_entry(module, &container->modules_list, node) {
+	list_for_each_entry(module, &container->modules_list, analde) {
 		obj->mod_cfg[i].module_id = module->module_id;
 		obj->mod_cfg[i].instance_id = module->instance_id;
 		i++;
@@ -396,18 +396,18 @@ static void audioreach_populate_graph(struct q6apm *apm, struct audioreach_graph
 		nconn++;
 	}
 
-	list_for_each_entry(sg, sg_list, node) {
+	list_for_each_entry(sg, sg_list, analde) {
 		struct apm_sub_graph_data *sg_cfg = &sg_data->sg_cfg[i++];
 
 		apm_populate_sub_graph_config(sg_cfg, sg);
 
-		list_for_each_entry(container, &sg->container_list, node) {
+		list_for_each_entry(container, &sg->container_list, analde) {
 			cobj = &c_data->cont_obj[ncontainer];
 
 			apm_populate_container_config(cobj, container);
 			apm_populate_module_list_obj(mlobj, container, sg->sub_graph_id);
 
-			list_for_each_entry(module, &container->modules_list, node) {
+			list_for_each_entry(module, &container->modules_list, analde) {
 				int pn;
 
 				module_prop_obj = &mp_data->mod_prop_obj[nmodule++];
@@ -467,15 +467,15 @@ void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct audioreach_graph_info
 	if (info->dst_mod_inst_id && info->src_mod_inst_id)
 		num_connections++;
 
-	list_for_each_entry(sgs, sg_list, node) {
+	list_for_each_entry(sgs, sg_list, analde) {
 		num_sub_graphs++;
-		list_for_each_entry(container, &sgs->container_list, node) {
+		list_for_each_entry(container, &sgs->container_list, analde) {
 			num_containers++;
 			num_modules += container->num_modules;
 			ml_sz = ml_sz + sizeof(struct apm_module_list_params) +
 				APM_MOD_LIST_OBJ_PSIZE(mlobj, container->num_modules);
 
-			list_for_each_entry(module, &container->modules_list, node) {
+			list_for_each_entry(module, &container->modules_list, analde) {
 				num_connections += module->num_connections;
 			}
 		}
@@ -759,7 +759,7 @@ int audioreach_send_u32_param(struct q6apm_graph *graph, struct audioreach_modul
 	payload_size = sizeof(uint32_t) + APM_MODULE_PARAM_DATA_SIZE;
 	p = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(p))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = p;
 	p = p + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
@@ -934,7 +934,7 @@ int audioreach_compr_set_param(struct q6apm_graph *graph, struct audioreach_modu
 			0, graph->port->id, iid);
 
 	if (IS_ERR(pkt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = (void *)pkt + GPR_HDR_SIZE;
 	header = p;

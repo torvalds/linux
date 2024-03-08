@@ -3,7 +3,7 @@
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -141,7 +141,7 @@ static void usbhsp_pipe_trn_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
 	CASE_PIPExTRN(9);
 	CASE_PIPExTRN(A);
 	default:
-		dev_err(dev, "unknown pipe (%d)\n", num);
+		dev_err(dev, "unkanalwn pipe (%d)\n", num);
 		return;
 	}
 	__usbhsp_pipe_xxx_set(pipe, 0, reg, mask, val);
@@ -177,7 +177,7 @@ static void usbhsp_pipe_tre_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
 	CASE_PIPExTRE(9);
 	CASE_PIPExTRE(A);
 	default:
-		dev_err(dev, "unknown pipe (%d)\n", num);
+		dev_err(dev, "unkanalwn pipe (%d)\n", num);
 		return;
 	}
 
@@ -222,8 +222,8 @@ static void usbhsp_pipe_select(struct usbhs_pipe *pipe)
 	 */
 
 	/*
-	 * if pipe is dcp, no pipe is selected.
-	 * it is no problem, because dcp have its register
+	 * if pipe is dcp, anal pipe is selected.
+	 * it is anal problem, because dcp have its register
 	 */
 	usbhs_write(priv, PIPESEL, 0xF & usbhs_pipe_number(pipe));
 }
@@ -237,7 +237,7 @@ static int usbhsp_pipe_barrier(struct usbhs_pipe *pipe)
 	/*
 	 * make sure....
 	 *
-	 * Modify these bits when CSSTS = 0, PID = NAK, and no pipe number is
+	 * Modify these bits when CSSTS = 0, PID = NAK, and anal pipe number is
 	 * specified by the CURPIPE bits.
 	 * When changing the setting of this bit after changing
 	 * the PID bits for the selected pipe from BUF to NAK,
@@ -281,7 +281,7 @@ bool usbhs_pipe_contains_transmittable_data(struct usbhs_pipe *pipe)
 {
 	u16 val;
 
-	/* Do not support for DCP pipe */
+	/* Do analt support for DCP pipe */
 	if (usbhs_pipe_is_dcp(pipe))
 		return false;
 
@@ -574,7 +574,7 @@ void usbhs_pipe_data_sequence(struct usbhs_pipe *pipe, int sequence)
 	 * sequence
 	 *  0  : data0
 	 *  1  : data1
-	 *  -1 : no change
+	 *  -1 : anal change
 	 */
 	switch (sequence) {
 	case 0:
@@ -710,7 +710,7 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 
 	usbhs_pipe_disable(pipe);
 
-	/* make sure pipe is not busy */
+	/* make sure pipe is analt busy */
 	ret = usbhsp_pipe_barrier(pipe);
 	if (ret < 0) {
 		dev_err(dev, "pipe setup failed %d\n", usbhs_pipe_number(pipe));
@@ -737,7 +737,7 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 		usbhs_pipe_is_dir_in(pipe) ? "in" : "out");
 
 	/*
-	 * epnum / maxp are still not set to this pipe.
+	 * epnum / maxp are still analt set to this pipe.
 	 * call usbhs_pipe_config_update() after this function !!
 	 */
 
@@ -816,14 +816,14 @@ int usbhs_pipe_probe(struct usbhs_priv *priv)
 
 	/* This driver expects 1st pipe is DCP */
 	if (pipe_configs[0].type != USB_ENDPOINT_XFER_CONTROL) {
-		dev_err(dev, "1st PIPE is not DCP\n");
+		dev_err(dev, "1st PIPE is analt DCP\n");
 		return -EINVAL;
 	}
 
 	info->pipe = kcalloc(pipe_size, sizeof(struct usbhs_pipe),
 			     GFP_KERNEL);
 	if (!info->pipe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->size = pipe_size;
 

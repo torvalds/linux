@@ -48,7 +48,7 @@ enum {
 };
 
 enum {
-	DEPTH_NONE	= 0,
+	DEPTH_ANALNE	= 0,
 	DEPTH_16	= 1,
 	DEPTH_24	= 2,
 	DEPTH_32	= 3
@@ -390,7 +390,7 @@ static int create_card(struct usb_device *usb_dev,
 			break;
 
 	if (devnum >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = snd_card_new(&intf->dev,
 			   index[devnum], id[devnum], THIS_MODULE,
@@ -453,7 +453,7 @@ static int init_card(struct snd_usb_caiaqdev *cdev)
 		goto err_kill_urb;
 
 	if (!wait_event_timeout(cdev->ep1_wait_queue, cdev->spec_received, HZ)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_kill_urb;
 	}
 
@@ -467,8 +467,8 @@ static int init_card(struct snd_usb_caiaqdev *cdev)
 	strscpy(card->shortname, cdev->product_name, sizeof(card->shortname));
 	strscpy(card->mixername, cdev->product_name, sizeof(card->mixername));
 
-	/* if the id was not passed as module option, fill it with a shortened
-	 * version of the product string which does not contain any
+	/* if the id was analt passed as module option, fill it with a shortened
+	 * version of the product string which does analt contain any
 	 * whitespaces */
 
 	if (*card->id == '\0') {

@@ -2,11 +2,11 @@
 /*
  * linux/arch/arm/plat-omap/dma.c
  *
- * Copyright (C) 2003 - 2008 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
- * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@nokia.com>
+ * Copyright (C) 2003 - 2008 Analkia Corporation
+ * Author: Juha Yrjölä <juha.yrjola@analkia.com>
+ * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@analkia.com>
  * Graphics DMA and LCD DMA graphics tranformations
- * by Imre Deak <imre.deak@nokia.com>
+ * by Imre Deak <imre.deak@analkia.com>
  * OMAP2/3 support Copyright (C) 2004-2007 Texas Instruments, Inc.
  * Merged to support both OMAP1 and OMAP2 by Tony Lindgren <tony@atomide.com>
  * Some functions based on earlier dma-omap.c Copyright (C) 2001 RidgeRun, Inc.
@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -61,7 +61,7 @@ static u32 errata;
 
 struct dma_link_info {
 	int *linked_dmach_q;
-	int no_of_lchs_linked;
+	int anal_of_lchs_linked;
 
 	int q_count;
 	int q_tail;
@@ -184,7 +184,7 @@ void omap_set_dma_channel_mode(int lch, enum omap_dma_channel_mode mode)
 }
 EXPORT_SYMBOL(omap_set_dma_channel_mode);
 
-/* Note that src_port is only for omap1 */
+/* Analte that src_port is only for omap1 */
 void omap_set_dma_src_params(int lch, int src_port, int src_amode,
 			     unsigned long src_start,
 			     int src_ei, int src_fi)
@@ -237,7 +237,7 @@ void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 		break;
 	case OMAP_DMA_DATA_BURST_8:
 		/*
-		 * not supported by current hardware on OMAP1
+		 * analt supported by current hardware on OMAP1
 		 * w |= (0x03 << 7);
 		 */
 		fallthrough;
@@ -253,7 +253,7 @@ void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 }
 EXPORT_SYMBOL(omap_set_dma_src_burst_mode);
 
-/* Note that dest_port is only for OMAP1 */
+/* Analte that dest_port is only for OMAP1 */
 void omap_set_dma_dest_params(int lch, int dest_port, int dest_amode,
 			      unsigned long dest_start,
 			      int dst_ei, int dst_fi)
@@ -515,7 +515,7 @@ void omap_start_dma(int lch)
 
 	/*
 	 * As dma_write() uses IO accessors which are weakly ordered, there
-	 * is no guarantee that data in coherent DMA memory will be visible
+	 * is anal guarantee that data in coherent DMA memory will be visible
 	 * to the DMA device.  Add a memory barrier here to ensure that any
 	 * such data is visible prior to enabling DMA.
 	 */
@@ -539,11 +539,11 @@ void omap_stop_dma(int lch)
 		int i = 0;
 		u32 sys_cf;
 
-		/* Configure No-Standby */
+		/* Configure Anal-Standby */
 		l = p->dma_read(OCP_SYSCONFIG, lch);
 		sys_cf = l;
 		l &= ~DMA_SYSCONFIG_MIDLEMODE_MASK;
-		l |= DMA_SYSCONFIG_MIDLEMODE(DMA_IDLEMODE_NO_IDLE);
+		l |= DMA_SYSCONFIG_MIDLEMODE(DMA_IDLEMODE_ANAL_IDLE);
 		p->dma_write(l , OCP_SYSCONFIG, 0);
 
 		l = p->dma_read(CCR, lch);
@@ -559,7 +559,7 @@ void omap_stop_dma(int lch)
 			l = p->dma_read(CCR, lch);
 		}
 		if (i >= 100)
-			pr_err("DMA drain did not complete on lch %d\n", lch);
+			pr_err("DMA drain did analt complete on lch %d\n", lch);
 		/* Restore OCP_SYSCONFIG */
 		p->dma_write(sys_cf, OCP_SYSCONFIG, lch);
 	} else {
@@ -605,7 +605,7 @@ EXPORT_SYMBOL(omap_stop_dma);
  * Returns current physical source address for the given DMA channel.
  * If the channel is running the caller must disable interrupts prior calling
  * this function and process the returned value before re-enabling interrupt to
- * prevent races with the interrupt handler. Note that in continuous mode there
+ * prevent races with the interrupt handler. Analte that in continuous mode there
  * is a chance for CSSA_L register overflow between the two reads resulting
  * in incorrect return value.
  */
@@ -624,7 +624,7 @@ dma_addr_t omap_get_dma_src_pos(int lch)
 	if (!dma_omap15xx()) {
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
-		 * not been started (no data has been transferred so far).
+		 * analt been started (anal data has been transferred so far).
 		 * Return the programmed source start address in this case.
 		 */
 		if (likely(p->dma_read(CDAC, lch)))
@@ -643,7 +643,7 @@ EXPORT_SYMBOL(omap_get_dma_src_pos);
  * Returns current physical destination address for the given DMA channel.
  * If the channel is running the caller must disable interrupts prior calling
  * this function and process the returned value before re-enabling interrupt to
- * prevent races with the interrupt handler. Note that in continuous mode there
+ * prevent races with the interrupt handler. Analte that in continuous mode there
  * is a chance for CDSA_L register overflow between the two reads resulting
  * in incorrect return value.
  */
@@ -664,7 +664,7 @@ dma_addr_t omap_get_dma_dst_pos(int lch)
 		offset = p->dma_read(CDAC, lch);
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
-		 * not been started (no data has been transferred so far).
+		 * analt been started (anal data has been transferred so far).
 		 * Return the programmed destination start address in this case.
 		 */
 		if (unlikely(!offset))
@@ -739,17 +739,17 @@ static irqreturn_t omap1_dma_irq_handler(int irq, void *dev_id)
 	int handled = 0;
 
 	for (;;) {
-		int handled_now = 0;
+		int handled_analw = 0;
 
-		handled_now += omap1_dma_handle_ch(ch);
+		handled_analw += omap1_dma_handle_ch(ch);
 		if (enable_1510_mode && dma_chan[ch + 6].saved_csr)
-			handled_now += omap1_dma_handle_ch(ch + 6);
-		if (!handled_now)
+			handled_analw += omap1_dma_handle_ch(ch + 6);
+		if (!handled_analw)
 			break;
-		handled += handled_now;
+		handled += handled_analw;
 	}
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 struct omap_system_dma_plat_info *omap_get_plat_info(void)
@@ -786,7 +786,7 @@ static int omap_system_dma_probe(struct platform_device *pdev)
 	dma_chan = devm_kcalloc(&pdev->dev, dma_lch_count,
 				sizeof(*dma_chan), GFP_KERNEL);
 	if (!dma_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (ch = 0; ch < dma_chan_count; ch++) {
 		omap_clear_dma(ch);

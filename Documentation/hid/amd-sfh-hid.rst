@@ -49,11 +49,11 @@ registered as a device on this bus. Here, MP2 is an ARM core connected to x86 fo
 sensor data. The layer, which binds each device (AMD SFH HID driver) identifies the device type and
 registers with the HID core. Transport layer attaches a constant "struct hid_ll_driver" object with
 each device. Once a device is registered with HID core, the callbacks provided via this struct are
-used by HID core to communicate with the device. AMD HID Transport layer implements the synchronous calls.
+used by HID core to communicate with the device. AMD HID Transport layer implements the synchroanalus calls.
 
 AMD HID Client Layer
 --------------------
-This layer is responsible to implement HID requests and descriptors. As firmware is OS agnostic, HID
+This layer is responsible to implement HID requests and descriptors. As firmware is OS aganalstic, HID
 client layer fills the HID request structure and descriptors. HID client layer is complex as it is
 interface between MP2 PCIe layer and HID. HID client layer initializes the MP2 PCIe layer and holds
 the instance of MP2 layer. It identifies the number of sensors connected using MP2-PCIe layer. Based
@@ -93,7 +93,7 @@ Enumeration and Probing flow
         |		|              |                       Read P2C              |
         |		|	       |			Register             |
         |		|              |                           |                 |
-        |               |              | Loop(for No of Sensors)   |                 |
+        |               |              | Loop(for Anal of Sensors)   |                 |
         |		|	       |----------------------|    |                 |
         |		|              | Create HID Descriptor|    |                 |
         |		|	       | Create Input  report |    |                 |

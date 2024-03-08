@@ -2,7 +2,7 @@
 /*
  * Cache operations for the cache instruction.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef __ASM_CACHEOPS_H
 #define __ASM_CACHEOPS_H

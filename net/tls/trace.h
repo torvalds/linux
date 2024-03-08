@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM tls
@@ -14,13 +14,13 @@ struct sock;
 
 TRACE_EVENT(tls_device_offload_set,
 
-	TP_PROTO(struct sock *sk, int dir, u32 tcp_seq, u8 *rec_no, int ret),
+	TP_PROTO(struct sock *sk, int dir, u32 tcp_seq, u8 *rec_anal, int ret),
 
-	TP_ARGS(sk, dir, tcp_seq, rec_no, ret),
+	TP_ARGS(sk, dir, tcp_seq, rec_anal, ret),
 
 	TP_STRUCT__entry(
 		__field(	struct sock *,	sk		)
-		__field(	u64,		rec_no		)
+		__field(	u64,		rec_anal		)
 		__field(	int,		dir		)
 		__field(	u32,		tcp_seq		)
 		__field(	int,		ret		)
@@ -28,29 +28,29 @@ TRACE_EVENT(tls_device_offload_set,
 
 	TP_fast_assign(
 		__entry->sk = sk;
-		__entry->rec_no = get_unaligned_be64(rec_no);
+		__entry->rec_anal = get_unaligned_be64(rec_anal);
 		__entry->dir = dir;
 		__entry->tcp_seq = tcp_seq;
 		__entry->ret = ret;
 	),
 
 	TP_printk(
-		"sk=%p direction=%d tcp_seq=%u rec_no=%llu ret=%d",
-		__entry->sk, __entry->dir, __entry->tcp_seq, __entry->rec_no,
+		"sk=%p direction=%d tcp_seq=%u rec_anal=%llu ret=%d",
+		__entry->sk, __entry->dir, __entry->tcp_seq, __entry->rec_anal,
 		__entry->ret
 	)
 );
 
 TRACE_EVENT(tls_device_decrypted,
 
-	TP_PROTO(struct sock *sk, u32 tcp_seq, u8 *rec_no, u32 rec_len,
+	TP_PROTO(struct sock *sk, u32 tcp_seq, u8 *rec_anal, u32 rec_len,
 		 bool encrypted, bool decrypted),
 
-	TP_ARGS(sk, tcp_seq, rec_no, rec_len, encrypted, decrypted),
+	TP_ARGS(sk, tcp_seq, rec_anal, rec_len, encrypted, decrypted),
 
 	TP_STRUCT__entry(
 		__field(	struct sock *,	sk		)
-		__field(	u64,		rec_no		)
+		__field(	u64,		rec_anal		)
 		__field(	u32,		tcp_seq		)
 		__field(	u32,		rec_len		)
 		__field(	bool,		encrypted	)
@@ -59,7 +59,7 @@ TRACE_EVENT(tls_device_decrypted,
 
 	TP_fast_assign(
 		__entry->sk = sk;
-		__entry->rec_no = get_unaligned_be64(rec_no);
+		__entry->rec_anal = get_unaligned_be64(rec_anal);
 		__entry->tcp_seq = tcp_seq;
 		__entry->rec_len = rec_len;
 		__entry->encrypted = encrypted;
@@ -67,36 +67,36 @@ TRACE_EVENT(tls_device_decrypted,
 	),
 
 	TP_printk(
-		"sk=%p tcp_seq=%u rec_no=%llu len=%u encrypted=%d decrypted=%d",
+		"sk=%p tcp_seq=%u rec_anal=%llu len=%u encrypted=%d decrypted=%d",
 		__entry->sk, __entry->tcp_seq,
-		__entry->rec_no, __entry->rec_len,
+		__entry->rec_anal, __entry->rec_len,
 		__entry->encrypted, __entry->decrypted
 	)
 );
 
 TRACE_EVENT(tls_device_rx_resync_send,
 
-	TP_PROTO(struct sock *sk, u32 tcp_seq, u8 *rec_no, int sync_type),
+	TP_PROTO(struct sock *sk, u32 tcp_seq, u8 *rec_anal, int sync_type),
 
-	TP_ARGS(sk, tcp_seq, rec_no, sync_type),
+	TP_ARGS(sk, tcp_seq, rec_anal, sync_type),
 
 	TP_STRUCT__entry(
 		__field(	struct sock *,	sk		)
-		__field(	u64,		rec_no		)
+		__field(	u64,		rec_anal		)
 		__field(	u32,		tcp_seq		)
 		__field(	int,		sync_type	)
 	),
 
 	TP_fast_assign(
 		__entry->sk = sk;
-		__entry->rec_no = get_unaligned_be64(rec_no);
+		__entry->rec_anal = get_unaligned_be64(rec_anal);
 		__entry->tcp_seq = tcp_seq;
 		__entry->sync_type = sync_type;
 	),
 
 	TP_printk(
-		"sk=%p tcp_seq=%u rec_no=%llu sync_type=%d",
-		__entry->sk, __entry->tcp_seq, __entry->rec_no,
+		"sk=%p tcp_seq=%u rec_anal=%llu sync_type=%d",
+		__entry->sk, __entry->tcp_seq, __entry->rec_anal,
 		__entry->sync_type
 	)
 );
@@ -170,25 +170,25 @@ TRACE_EVENT(tls_device_tx_resync_req,
 
 TRACE_EVENT(tls_device_tx_resync_send,
 
-	TP_PROTO(struct sock *sk, u32 tcp_seq, u8 *rec_no),
+	TP_PROTO(struct sock *sk, u32 tcp_seq, u8 *rec_anal),
 
-	TP_ARGS(sk, tcp_seq, rec_no),
+	TP_ARGS(sk, tcp_seq, rec_anal),
 
 	TP_STRUCT__entry(
 		__field(	struct sock *,	sk		)
-		__field(	u64,		rec_no		)
+		__field(	u64,		rec_anal		)
 		__field(	u32,		tcp_seq		)
 	),
 
 	TP_fast_assign(
 		__entry->sk = sk;
-		__entry->rec_no = get_unaligned_be64(rec_no);
+		__entry->rec_anal = get_unaligned_be64(rec_anal);
 		__entry->tcp_seq = tcp_seq;
 	),
 
 	TP_printk(
-		"sk=%p tcp_seq=%u rec_no=%llu",
-		__entry->sk, __entry->tcp_seq, __entry->rec_no
+		"sk=%p tcp_seq=%u rec_anal=%llu",
+		__entry->sk, __entry->tcp_seq, __entry->rec_anal
 	)
 );
 

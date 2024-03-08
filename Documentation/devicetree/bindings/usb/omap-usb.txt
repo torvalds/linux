@@ -24,7 +24,7 @@ Optional properties:
  - ctrl-module : phandle of the control module this glue uses to write to
    mailbox
 
-SOC specific device node entry
+SOC specific device analde entry
 usb_otg_hs: usb_otg_hs@4a0ab000 {
 	compatible = "ti,omap4-musb";
 	ti,hwmods = "usb_otg_hs";
@@ -36,7 +36,7 @@ usb_otg_hs: usb_otg_hs@4a0ab000 {
 	phy-names = "usb2-phy";
 };
 
-Board specific device node entry
+Board specific device analde entry
 &usb_otg_hs {
 	interface-type = <1>;
 	mode = <3>;
@@ -51,7 +51,7 @@ OMAP DWC3 GLUE
  - reg : Address and length of the register set for the device.
  - interrupts : The irq number of this device that is used to interrupt the
    MPU
- - #address-cells, #size-cells : Must be present if the device has sub-nodes
+ - #address-cells, #size-cells : Must be present if the device has sub-analdes
  - utmi-mode : controls the source of UTMI/PIPE status for VBUS and OTG ID.
    It should be set to "1" for HW mode and "2" for SW mode.
  - ranges: the child address space are mapped 1:1 onto the parent address space
@@ -59,10 +59,10 @@ OMAP DWC3 GLUE
 Optional Properties:
  - extcon : phandle for the extcon device omap dwc3 uses to detect
    connect/disconnect events.
- - vbus-supply : phandle to the regulator device tree node if needed.
+ - vbus-supply : phandle to the regulator device tree analde if needed.
 
-Sub-nodes:
-The dwc3 core should be added as subnode to omap dwc3 glue.
+Sub-analdes:
+The dwc3 core should be added as subanalde to omap dwc3 glue.
 - dwc3 :
    The binding details of dwc3 can be found in:
    Documentation/devicetree/bindings/usb/snps,dwc3.yaml

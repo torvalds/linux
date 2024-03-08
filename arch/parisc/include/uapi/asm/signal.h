@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_PARISC_SIGNAL_H
 #define _UAPI_ASM_PARISC_SIGNAL_H
 
@@ -37,19 +37,19 @@
 #define SIGUNUSED	31
 #define SIGSYS		31
 
-/* These should not be considered constants from userland.  */
+/* These should analt be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	_NSIG
 
 #define SA_ONSTACK	0x00000001
 #define SA_RESETHAND	0x00000004
-#define SA_NOCLDSTOP	0x00000008
+#define SA_ANALCLDSTOP	0x00000008
 #define SA_SIGINFO	0x00000010
-#define SA_NODEFER	0x00000020
+#define SA_ANALDEFER	0x00000020
 #define SA_RESTART	0x00000040
-#define SA_NOCLDWAIT	0x00000080
+#define SA_ANALCLDWAIT	0x00000080
 
-#define SA_NOMASK	SA_NODEFER
+#define SA_ANALMASK	SA_ANALDEFER
 #define SA_ONESHOT	SA_RESETHAND
 
 #define MINSIGSTKSZ	2048

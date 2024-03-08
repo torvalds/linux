@@ -5,24 +5,24 @@
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	Release 0.10.
  *
  *	Fixes
- *		Dave Gregorich	:	Modularisation and minor bugs
+ *		Dave Gregorich	:	Modularisation and mianalr bugs
  *		Alan Cox	:	Added the watchdog ioctl() stuff
- *		Alan Cox	:	Fixed the reboot problem (as noted by
+ *		Alan Cox	:	Fixed the reboot problem (as analted by
  *					Matt Crocker).
  *		Alan Cox	:	Added wdt= boot option
  *		Alan Cox	:	Cleaned up copy/user stuff
  *		Tim Hockin	:	Added insmod parameters, comment cleanup
  *					Parameterized timeout
- *		JP Nollmann	:	Added support for PCI wdt501p
+ *		JP Analllmann	:	Added support for PCI wdt501p
  *		Alan Cox	:	Split ISA and PCI cards into two drivers
  *		Jeff Garzik	:	PCI cleanups
  *		Tigran Aivazian	:	Restructured wdtpci_init_one() to handle
@@ -30,7 +30,7 @@
  *		Joel Becker	:	Added WDIOC_GET/SETTIMEOUT
  *		Zwane Mwaikambo	:	Magic char closing, locking changes,
  *					cleanups
- *		Matt Domsch	:	nowayout module option
+ *		Matt Domsch	:	analwayout module option
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -43,7 +43,7 @@
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/pci.h>
@@ -74,11 +74,11 @@ MODULE_PARM_DESC(heartbeat,
 		"Watchdog heartbeat in seconds. (0<heartbeat<65536, default="
 				__MODULE_STRING(WD_TIMO) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /* Support for the Fan Tachometer on the PCI-WDT501 */
 static int tachometer;
@@ -140,7 +140,7 @@ static int wdtpci_start(void)
 	udelay(8);
 	inb(WDT_BUZZER);		/* disable */
 	udelay(8);
-	inb(WDT_OPTONOTRST);		/* disable */
+	inb(WDT_OPTOANALTRST);		/* disable */
 	udelay(8);
 	inb(WDT_OPTORST);		/* disable */
 	udelay(8);
@@ -154,7 +154,7 @@ static int wdtpci_start(void)
 						Retriggerable One-Shot */
 	wdtpci_ctr_load(0, 20833);	/* count at 100Hz */
 	wdtpci_ctr_load(1, wd_heartbeat);/* Heartbeat */
-	/* DO NOT LOAD CTR2 on PCI card! -- JPN */
+	/* DO ANALT LOAD CTR2 on PCI card! -- JPN */
 	outb(0, WDT_DC);		/* Enable watchdog */
 	udelay(8);
 
@@ -176,7 +176,7 @@ static int wdtpci_stop(void)
 	spin_lock_irqsave(&wdtpci_lock, flags);
 	inb(WDT_DC);			/* Disable watchdog */
 	udelay(8);
-	wdtpci_ctr_load(2, 0);		/* 0 length reset pulses now */
+	wdtpci_ctr_load(2, 0);		/* 0 length reset pulses analw */
 	spin_unlock_irqrestore(&wdtpci_lock, flags);
 	return 0;
 }
@@ -229,7 +229,7 @@ static int wdtpci_set_heartbeat(int t)
  *	@status:		the new status.
  *
  *	Extract the status information from a WDT watchdog device. There are
- *	several board variants so we have to know which bits are valid. Some
+ *	several board variants so we have to kanalw which bits are valid. Some
  *	bits default to one and some to zero in order to be maximally painful.
  *
  *	we then map the bits onto the status ioctl flags.
@@ -342,9 +342,9 @@ static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
 /**
  *	wdtpci_write:
  *	@file: file handle to the watchdog
- *	@buf: buffer to write (unused as data does not matter here
+ *	@buf: buffer to write (unused as data does analt matter here
  *	@count: count of bytes
- *	@ppos: pointer to the position to write. No seeks allowed
+ *	@ppos: pointer to the position to write. Anal seeks allowed
  *
  *	A write to a watchdog device is defined as a keepalive signal. Any
  *	write of data will do, as we we don't define content meaning.
@@ -354,7 +354,7 @@ static ssize_t wdtpci_write(struct file *file, const char __user *buf,
 						size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -430,13 +430,13 @@ static long wdtpci_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
 /**
  *	wdtpci_open:
- *	@inode: inode of device
+ *	@ianalde: ianalde of device
  *	@file: file handle to device
  *
  *	The watchdog device has been opened. The watchdog device is single
@@ -446,23 +446,23 @@ static long wdtpci_ioctl(struct file *file, unsigned int cmd,
  *	set set to be as long as possible.
  */
 
-static int wdtpci_open(struct inode *inode, struct file *file)
+static int wdtpci_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &open_lock))
 		return -EBUSY;
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 	/*
 	 *	Activate
 	 */
 	wdtpci_start();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /**
  *	wdtpci_release:
- *	@inode: inode to board
+ *	@ianalde: ianalde to board
  *	@file: file handle to board
  *
  *	The watchdog has a configurable API. There is a religious dispute
@@ -472,12 +472,12 @@ static int wdtpci_open(struct inode *inode, struct file *file)
  *	case you have to open it again very soon.
  */
 
-static int wdtpci_release(struct inode *inode, struct file *file)
+static int wdtpci_release(struct ianalde *ianalde, struct file *file)
 {
 	if (expect_close == 42) {
 		wdtpci_stop();
 	} else {
-		pr_crit("Unexpected close, not stopping timer!\n");
+		pr_crit("Unexpected close, analt stopping timer!\n");
 		wdtpci_ping();
 	}
 	expect_close = 0;
@@ -490,7 +490,7 @@ static int wdtpci_release(struct inode *inode, struct file *file)
  *	@file: file handle to the watchdog board
  *	@buf: buffer to write 1 byte into
  *	@count: length of buffer
- *	@ptr: offset (no seek allowed)
+ *	@ptr: offset (anal seek allowed)
  *
  *	Read reports the temperature in degrees Fahrenheit. The API is in
  *	fahrenheit. It was designed by an imperial measurement luddite.
@@ -512,48 +512,48 @@ static ssize_t wdtpci_temp_read(struct file *file, char __user *buf,
 
 /**
  *	wdtpci_temp_open:
- *	@inode: inode of device
+ *	@ianalde: ianalde of device
  *	@file: file handle to device
  *
  *	The temperature device has been opened.
  */
 
-static int wdtpci_temp_open(struct inode *inode, struct file *file)
+static int wdtpci_temp_open(struct ianalde *ianalde, struct file *file)
 {
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /**
  *	wdtpci_temp_release:
- *	@inode: inode to board
+ *	@ianalde: ianalde to board
  *	@file: file handle to board
  *
  *	The temperature device has been closed.
  */
 
-static int wdtpci_temp_release(struct inode *inode, struct file *file)
+static int wdtpci_temp_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
 
 /**
- *	wdtpci_notify_sys:
- *	@this: our notifier block
+ *	wdtpci_analtify_sys:
+ *	@this: our analtifier block
  *	@code: the event being reported
  *	@unused: unused
  *
- *	Our notifier is called on system shutdowns. We want to turn the card
+ *	Our analtifier is called on system shutdowns. We want to turn the card
  *	off at reboot otherwise the machine will reboot again during memory
  *	test or worse yet during the following fsck. This would suck, in fact
  *	trust me - if it happens it does suck.
  */
 
-static int wdtpci_notify_sys(struct notifier_block *this, unsigned long code,
+static int wdtpci_analtify_sys(struct analtifier_block *this, unsigned long code,
 							void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		wdtpci_stop();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -563,7 +563,7 @@ static int wdtpci_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations wdtpci_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= wdtpci_write,
 	.unlocked_ioctl	= wdtpci_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -572,21 +572,21 @@ static const struct file_operations wdtpci_fops = {
 };
 
 static struct miscdevice wdtpci_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &wdtpci_fops,
 };
 
 static const struct file_operations wdtpci_temp_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= wdtpci_temp_read,
 	.open		= wdtpci_temp_open,
 	.release	= wdtpci_temp_release,
 };
 
 static struct miscdevice temp_miscdev = {
-	.minor	= TEMP_MINOR,
+	.mianalr	= TEMP_MIANALR,
 	.name	= "temperature",
 	.fops	= &wdtpci_temp_fops,
 };
@@ -596,8 +596,8 @@ static struct miscdevice temp_miscdev = {
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block wdtpci_notifier = {
-	.notifier_call = wdtpci_notify_sys,
+static struct analtifier_block wdtpci_analtifier = {
+	.analtifier_call = wdtpci_analtify_sys,
 };
 
 
@@ -609,22 +609,22 @@ static int wdtpci_init_one(struct pci_dev *dev,
 	dev_count++;
 	if (dev_count > 1) {
 		pr_err("This driver only supports one device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (type != 500 && type != 501) {
-		pr_err("unknown card type '%d'\n", type);
-		return -ENODEV;
+		pr_err("unkanalwn card type '%d'\n", type);
+		return -EANALDEV;
 	}
 
 	if (pci_enable_device(dev)) {
-		pr_err("Not possible to enable PCI Device\n");
-		return -ENODEV;
+		pr_err("Analt possible to enable PCI Device\n");
+		return -EANALDEV;
 	}
 
 	if (pci_resource_start(dev, 2) == 0x0000) {
-		pr_err("No I/O-Address for card detected\n");
-		ret = -ENODEV;
+		pr_err("Anal I/O-Address for card detected\n");
+		ret = -EANALDEV;
 		goto out_pci;
 	}
 
@@ -639,7 +639,7 @@ static int wdtpci_init_one(struct pci_dev *dev,
 
 	if (request_irq(irq, wdtpci_interrupt, IRQF_SHARED,
 			 "wdt_pci", &wdtpci_miscdev)) {
-		pr_err("IRQ %d is not free\n", irq);
+		pr_err("IRQ %d is analt free\n", irq);
 		goto out_reg;
 	}
 
@@ -647,37 +647,37 @@ static int wdtpci_init_one(struct pci_dev *dev,
 		(unsigned long long)io, irq);
 
 	/* Check that the heartbeat value is within its range;
-	   if not reset to the default */
+	   if analt reset to the default */
 	if (wdtpci_set_heartbeat(heartbeat)) {
 		wdtpci_set_heartbeat(WD_TIMO);
 		pr_info("heartbeat value must be 0 < heartbeat < 65536, using %d\n",
 			WD_TIMO);
 	}
 
-	ret = register_reboot_notifier(&wdtpci_notifier);
+	ret = register_reboot_analtifier(&wdtpci_analtifier);
 	if (ret) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", ret);
 		goto out_irq;
 	}
 
 	if (type == 501) {
 		ret = misc_register(&temp_miscdev);
 		if (ret) {
-			pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-			       TEMP_MINOR, ret);
+			pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+			       TEMP_MIANALR, ret);
 			goto out_rbt;
 		}
 	}
 
 	ret = misc_register(&wdtpci_miscdev);
 	if (ret) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, ret);
 		goto out_misc;
 	}
 
-	pr_info("initialized. heartbeat=%d sec (nowayout=%d)\n",
-		heartbeat, nowayout);
+	pr_info("initialized. heartbeat=%d sec (analwayout=%d)\n",
+		heartbeat, analwayout);
 	if (type == 501)
 		pr_info("Fan Tachometer is %s\n",
 			tachometer ? "Enabled" : "Disabled");
@@ -690,7 +690,7 @@ out_misc:
 	if (type == 501)
 		misc_deregister(&temp_miscdev);
 out_rbt:
-	unregister_reboot_notifier(&wdtpci_notifier);
+	unregister_reboot_analtifier(&wdtpci_analtifier);
 out_irq:
 	free_irq(irq, &wdtpci_miscdev);
 out_reg:
@@ -708,7 +708,7 @@ static void wdtpci_remove_one(struct pci_dev *pdev)
 	misc_deregister(&wdtpci_miscdev);
 	if (type == 501)
 		misc_deregister(&temp_miscdev);
-	unregister_reboot_notifier(&wdtpci_notifier);
+	unregister_reboot_analtifier(&wdtpci_analtifier);
 	free_irq(irq, &wdtpci_miscdev);
 	pci_release_region(pdev, 2);
 	pci_disable_device(pdev);
@@ -737,6 +737,6 @@ static struct pci_driver wdtpci_driver = {
 
 module_pci_driver(wdtpci_driver);
 
-MODULE_AUTHOR("JP Nollmann, Alan Cox");
+MODULE_AUTHOR("JP Analllmann, Alan Cox");
 MODULE_DESCRIPTION("Driver for the ICS PCI-WDT500/501 watchdog cards");
 MODULE_LICENSE("GPL");

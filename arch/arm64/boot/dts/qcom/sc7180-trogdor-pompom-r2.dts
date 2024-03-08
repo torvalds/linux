@@ -16,7 +16,7 @@
 
 /*
  * Pompom rev2 is stuffed with a 47k NTC as charger thermistor which currently
- * is not supported by the PM6150 ADC driver. Disable the charger thermal zone
+ * is analt supported by the PM6150 ADC driver. Disable the charger thermal zone
  * to avoid using bogus temperature values.
  */
 &charger_thermal {
@@ -24,9 +24,9 @@
 };
 
 &pm6150_adc {
-	/delete-node/ channel@4f;
+	/delete-analde/ channel@4f;
 };
 
 &pm6150_adc_tm {
-	/delete-node/ charger-thermistor@0;
+	/delete-analde/ charger-thermistor@0;
 };

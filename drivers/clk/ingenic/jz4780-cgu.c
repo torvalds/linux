@@ -2,7 +2,7 @@
 /*
  * Ingenic JZ4780 SoC CGU driver
  *
- * Copyright (c) 2013-2015 Imagination Technologies
+ * Copyright (c) 2013-2015 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  * Copyright (c) 2020 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
  */
@@ -56,7 +56,7 @@
 /* bits within the USBPCR register */
 #define USBPCR_USB_MODE			BIT(31)
 #define USBPCR_IDPULLUP_MASK	(0x3 << 28)
-#define USBPCR_COMMONONN		BIT(25)
+#define USBPCR_COMMOANALNN		BIT(25)
 #define USBPCR_VBUSVLDEXT		BIT(24)
 #define USBPCR_VBUSVLDEXTSEL	BIT(23)
 #define USBPCR_POR				BIT(22)
@@ -786,7 +786,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 
 };
 
-static void __init jz4780_cgu_init(struct device_node *np)
+static void __init jz4780_cgu_init(struct device_analde *np)
 {
 	int retval;
 

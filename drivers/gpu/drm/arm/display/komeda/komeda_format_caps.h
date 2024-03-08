@@ -45,7 +45,7 @@
  * limitations for a specific format, and format_caps will be linked into
  * &komeda_framebuffer like a extension of &drm_format_info.
  *
- * NOTE: one fourcc may has two different format_caps items for fourcc and
+ * ANALTE: one fourcc may has two different format_caps items for fourcc and
  * fourcc+modifier
  *
  * @hw_id: hw format id, hw specific value.
@@ -70,7 +70,7 @@ struct komeda_format_caps {
  * @n_formats: the size of format_caps list.
  * @format_caps: format_caps list.
  * @format_mod_supported: Optional. Some HW may have special requirements or
- * limitations which can not be described by format_caps, this func supply HW
+ * limitations which can analt be described by format_caps, this func supply HW
  * the ability to do the further HW specific check.
  */
 struct komeda_format_caps_table {

@@ -23,7 +23,7 @@
 /*
  * Debugging stuff
  *
- * Note that these macros must not contain any code which is not
+ * Analte that these macros must analt contain any code which is analt
  * 100% relocatable.  Any attempt to do so will result in a crash.
  * Please select one of the following when turning on debugging.
  */
@@ -188,26 +188,26 @@
 start:
 		.type	start,#function
 		/*
-		 * These 7 nops along with the 1 nop immediately below for
-		 * !THUMB2 form 8 nops that make the compressed kernel bootable
+		 * These 7 analps along with the 1 analp immediately below for
+		 * !THUMB2 form 8 analps that make the compressed kernel bootable
 		 * on legacy ARM systems that were assuming the kernel in a.out
 		 * binary format. The boot loaders on these systems would
 		 * jump 32 bytes into the image to skip the a.out header.
-		 * with these 8 nops filling exactly 32 bytes, things still
+		 * with these 8 analps filling exactly 32 bytes, things still
 		 * work as expected on these legacy systems. Thumb2 mode keeps
-		 * 7 of the nops as it turns out that some boot loaders
+		 * 7 of the analps as it turns out that some boot loaders
 		 * were patching the initial instructions of the kernel, i.e
 		 * had started to exploit this "patch area".
 		 */
-		__initial_nops
+		__initial_analps
 		.rept	5
-		__nop
+		__analp
 		.endr
 #ifndef CONFIG_THUMB2_KERNEL
-		__nop
+		__analp
 #else
  AR_CLASS(	sub	pc, pc, #3	)	@ A/R: switch to Thumb2 mode
-  M_CLASS(	nop.w			)	@ M: already in Thumb2 mode
+  M_CLASS(	analp.w			)	@ M: already in Thumb2 mode
 		.thumb
 #endif
 		W(b)	1f
@@ -216,7 +216,7 @@ start:
 		.word	_magic_start	@ absolute load/run zImage address
 		.word	_magic_end	@ zImage end address
 		.word	0x04030201	@ endianness flag
-		.word	0x45454545	@ another magic number to indicate
+		.word	0x45454545	@ aanalther magic number to indicate
 		.word	_magic_table	@ additional data table
 
 		__EFI_HEADER
@@ -236,18 +236,18 @@ start:
 		 * We only do this if we were in user mode on entry.
 		 */
 		mrs	r2, cpsr		@ get current mode
-		tst	r2, #3			@ not user?
-		bne	not_angel
+		tst	r2, #3			@ analt user?
+		bne	analt_angel
 		mov	r0, #0x17		@ angel_SWIreason_EnterSVC
  ARM(		swi	0x123456	)	@ angel_SWI_ARM
  THUMB(		svc	0xab		)	@ angel_SWI_THUMB
-not_angel:
+analt_angel:
 		safe_svcmode_maskall r0
 		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
 						@ SPSR
 #endif
 		/*
-		 * Note that some cache flushing and other stuff may
+		 * Analte that some cache flushing and other stuff may
 		 * be needed here - is there an Angel SWI call for this?
 		 */
 
@@ -282,9 +282,9 @@ not_angel:
 		adr	r1, LC1
 #ifdef CONFIG_ARM_APPENDED_DTB
 		/*
-		 * Look for an appended DTB.  If found, we cannot use it to
+		 * Look for an appended DTB.  If found, we cananalt use it to
 		 * validate the calculated start of physical memory, as its
-		 * memory nodes may need to be augmented by ATAGS stored at
+		 * memory analdes may need to be augmented by ATAGS stored at
 		 * an offset from the same start of physical memory.
 		 */
 		ldr	r2, [r1, #4]	@ get &_edata
@@ -292,12 +292,12 @@ not_angel:
 		ldr	r2, [r2]	@ get DTB signature
 		ldr	r3, =OF_DT_MAGIC
 		cmp	r2, r3		@ do we have a DTB there?
-		beq	1f		@ if yes, skip validation
+		beq	1f		@ if anal, skip validation
 #endif /* CONFIG_ARM_APPENDED_DTB */
 
 		/*
 		 * Make sure we have some stack before calling C code.
-		 * No GOT fixup has occurred yet, but none of the code we're
+		 * Anal GOT fixup has occurred yet, but analne of the code we're
 		 * about to call uses any global variables.
 		 */
 		ldr	sp, [r1]	@ get stack location
@@ -341,7 +341,7 @@ restart:	adr	r0, LC1
 		add	r10, sp, #MALLOC_SIZE
 #else
 		/*
-		 * With ZBOOT_ROM the bss/stack is non relocatable,
+		 * With ZBOOT_ROM the bss/stack is analn relocatable,
 		 * but someone could still run this code from RAM,
 		 * in which case our reference is _edata.
 		 */
@@ -352,12 +352,12 @@ restart:	adr	r0, LC1
 #ifdef CONFIG_ARM_APPENDED_DTB
 /*
  *   r4  = final kernel address (possibly with LSB set)
- *   r5  = appended dtb size (still unknown)
+ *   r5  = appended dtb size (still unkanalwn)
  *   r6  = _edata
  *   r7  = architecture ID
  *   r8  = atags/device tree pointer
  *   r9  = size of decompressed image
- *   r10 = end of this image, including  bss/stack/malloc space if non XIP
+ *   r10 = end of this image, including  bss/stack/malloc space if analn XIP
  *   sp  = stack pointer
  *
  * if there are device trees (dtb) appended to zImage, advance r10 so that the
@@ -367,15 +367,15 @@ restart:	adr	r0, LC1
 		ldr	lr, [r6, #0]
 		ldr	r1, =OF_DT_MAGIC
 		cmp	lr, r1
-		bne	dtb_check_done		@ not found
+		bne	dtb_check_done		@ analt found
 
 #ifdef CONFIG_ARM_ATAG_DTB_COMPAT
 		/*
 		 * OK... Let's do some funky business here.
 		 * If we do have a DTB appended to zImage, and we do have
 		 * an ATAG list around, we want the later to be translated
-		 * and folded into the former here. No GOT fixup has occurred
-		 * yet, but none of the code we're about to call uses any
+		 * and folded into the former here. Anal GOT fixup has occurred
+		 * yet, but analne of the code we're about to call uses any
 		 * global variable.
 		*/
 
@@ -383,7 +383,7 @@ restart:	adr	r0, LC1
 		ldr	r5, [r6, #4]
 		be32tocpu r5, r1
 		dbgadtb	r6, r5
-		/* 50% DTB growth should be good enough */
+		/* 50% DTB growth should be good eanalugh */
 		add	r5, r5, r5, lsr #1
 		/* preserve 64-bit alignment */
 		add	r5, r5, #7
@@ -402,7 +402,7 @@ restart:	adr	r0, LC1
 		bl	atags_to_fdt
 
 		/*
-		 * If returned value is 1, there is no ATAG at the location
+		 * If returned value is 1, there is anal ATAG at the location
 		 * pointed by r8.  Try the typical 0x100 offset from start
 		 * of RAM and hope for the best.
 		 */
@@ -450,11 +450,11 @@ dtb_check_done:
  * Check to see if we will overwrite ourselves.
  *   r4  = final kernel address (possibly with LSB set)
  *   r9  = size of decompressed image
- *   r10 = end of this image, including  bss/stack/malloc space if non XIP
+ *   r10 = end of this image, including  bss/stack/malloc space if analn XIP
  * We basically want:
  *   r4 - 16k page directory >= r10 -> OK
  *   r4 + image length <= address of wont_overwrite -> OK
- * Note: the possible LSB in r4 is harmless here.
+ * Analte: the possible LSB in r4 is harmless here.
  */
 		add	r10, r10, #16384
 		cmp	r4, r10
@@ -549,7 +549,7 @@ wont_overwrite:
  *   r2  = BSS start
  *   r3  = BSS end
  *   r4  = kernel execution address (possibly with LSB set)
- *   r5  = appended dtb size (0 if not present)
+ *   r5  = appended dtb size (0 if analt present)
  *   r7  = architecture ID
  *   r8  = atags pointer
  *   r11 = GOT start
@@ -557,7 +557,7 @@ wont_overwrite:
  *   sp  = stack pointer
  */
 		orrs	r1, r0, r5
-		beq	not_relocated
+		beq	analt_relocated
 
 		add	r11, r11, r0
 		add	r12, r12, r0
@@ -566,7 +566,7 @@ wont_overwrite:
 		/*
 		 * If we're running fully PIC === CONFIG_ZBOOT_ROM = n,
 		 * we need to fix up pointers into the BSS region.
-		 * Note that the stack pointer has already been fixed up.
+		 * Analte that the stack pointer has already been fixed up.
 		 */
 		add	r2, r2, r0
 		add	r3, r3, r0
@@ -603,7 +603,7 @@ wont_overwrite:
 		blo	1b
 #endif
 
-not_relocated:	mov	r0, #0
+analt_relocated:	mov	r0, #0
 1:		str	r0, [r2], #4		@ clear bss
 		str	r0, [r2], #4
 		str	r0, [r2], #4
@@ -614,14 +614,14 @@ not_relocated:	mov	r0, #0
 		/*
 		 * Did we skip the cache setup earlier?
 		 * That is indicated by the LSB in r4.
-		 * Do it now if so.
+		 * Do it analw if so.
 		 */
 		tst	r4, #1
 		bic	r4, r4, #1
 		blne	cache_on
 
 /*
- * The C runtime environment should now be setup sufficiently.
+ * The C runtime environment should analw be setup sufficiently.
  * Set up some pointers, and start decompressing.
  *   r4  = kernel execution address
  *   r7  = architecture ID
@@ -643,7 +643,7 @@ not_relocated:	mov	r0, #0
 #ifdef CONFIG_ARM_VIRT_EXT
 		mrs	r0, spsr		@ Get saved CPU boot mode
 		and	r0, r0, #MODE_MASK
-		cmp	r0, #HYP_MODE		@ if not booted in HYP mode...
+		cmp	r0, #HYP_MODE		@ if analt booted in HYP mode...
 		bne	__enter_kernel		@ boot kernel directly
 
 		adr_l	r0, __hyp_reentry_vectors
@@ -706,7 +706,7 @@ params:		ldr	r0, =0x10000100		@ params_phys for RPC
  * can have both the I and D caches on.
  *
  * We place the page tables 16k down from the kernel execution address,
- * and we hope that nothing else is using it.  If we're using it, we
+ * and we hope that analthing else is using it.  If we're using it, we
  * will go pop!
  *
  * On entry,
@@ -770,7 +770,7 @@ __armv3_mpu_cache_on:
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
 		/*
-		 * ?? ARMv3 MMU does not allow reading the control register,
+		 * ?? ARMv3 MMU does analt allow reading the control register,
 		 * does this really work on ARMv3 MPU?
 		 */
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
@@ -807,7 +807,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 1:		cmp	r1, r9			@ if virt > start of RAM
 		cmphs	r10, r1			@   && end of RAM > virt
 		bic	r1, r1, #0x1c		@ clear XN|U + C + B
-		orrlo	r1, r1, #0x10		@ Set XN|U for non-RAM
+		orrlo	r1, r1, #0x10		@ Set XN|U for analn-RAM
 		orrhs	r1, r1, r6		@ set RAM section settings
 		str	r1, [r0], #4		@ 1:1 mapping
 		add	r1, r1, #1048576
@@ -816,7 +816,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 /*
  * If ever we are running from Flash, then we surely want the cache
  * to be enabled also for our execution instance...  We map 2MB of it
- * so there is no map overlap problem for up to 1 MB compressed kernel.
+ * so there is anal map overlap problem for up to 1 MB compressed kernel.
  * If the execution is in RAM then we would only be duplicating the above.
  */
 		orr	r1, r6, #0x04		@ ensure B is set for this
@@ -835,7 +835,7 @@ ENDPROC(__setup_mmu)
 @ for the decompressor C code:
 __armv6_mmu_cache_on:
 		mrc	p15, 0, r0, c1, c0, 0	@ read SCTLR
-		bic	r0, r0, #2		@ A (no unaligned access fault)
+		bic	r0, r0, #2		@ A (anal unaligned access fault)
 		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
 		mcr	p15, 0, r0, c1, c0, 0	@ write SCTLR
 		b	__armv4_mmu_cache_on
@@ -881,7 +881,7 @@ __armv7_mmu_cache_on:
 		bic	r0, r0, #1 << 28	@ clear SCTLR.TRE
 		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
 		orr	r0, r0, #0x003c		@ write buffer
-		bic	r0, r0, #2		@ A (no unaligned access fault)
+		bic	r0, r0, #2		@ A (anal unaligned access fault)
 		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
 						@ (needed for ARM1176)
 #ifdef CONFIG_MMU
@@ -938,7 +938,7 @@ __common_mmu_cache_on:
  * Here follow the relocatable cache support functions for the
  * various processors.  This is a generic hook for locating an
  * entry and jumping to an instruction at the specified offset
- * from the start of the block.  Please note this is all position
+ * from the start of the block.  Please analte this is all position
  * independent code.
  *
  *  r1  = corrupted
@@ -958,7 +958,7 @@ call_cache_fn:	adr	r12, proc_types
 		 * v7-M (if existant at all) we just return early here.
 		 * If V7M_SCB_CPUID were used the cpu ID functions (i.e.
 		 * __armv7_mmu_cache_{on,off,flush}) would be selected which
-		 * use cp15 registers that are not implemented on v7-M.
+		 * use cp15 registers that are analt implemented on v7-M.
 		 */
 		bx	lr
 #else
@@ -994,27 +994,27 @@ proc_types:
 		.word	0x41000000		@ old ARM ID
 		.word	0xff00f000
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 
 		.word	0x41007000		@ ARM7/710
 		.word	0xfff8fe00
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 
 		.word	0x41807200		@ ARM720T (writethrough)
 		.word	0xffffff00
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 
 		.word	0x41007400		@ ARM74x
 		.word	0xff00ff00
@@ -1037,11 +1037,11 @@ proc_types:
 		.word	0x00007000		@ ARM7 IDs
 		.word	0x0000f000
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 
 		@ Everything from here on will be the new ID system.
 
@@ -1125,18 +1125,18 @@ proc_types:
 		.word	0			@ unrecognised type
 		.word	0
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 		mov	pc, lr
- THUMB(		nop				)
+ THUMB(		analp				)
 
 		.size	proc_types, . - proc_types
 
 		/*
-		 * If you get a "non-constant expression in ".if" statement"
+		 * If you get a "analn-constant expression in ".if" statement"
 		 * error from the assembler on this line, check that you have
-		 * not accidentally written a "b" instruction where you should
+		 * analt accidentally written a "b" instruction where you should
 		 * have written W(b).
 		 */
 		.if (. - proc_types) % PROC_ENTRY_SIZE != 0
@@ -1144,7 +1144,7 @@ proc_types:
 		.endif
 
 /*
- * Turn off the Cache and MMU.  ARMv3 does not support
+ * Turn off the Cache and MMU.  ARMv3 does analt support
  * reading the control register, but ARMv4 does.
  *
  * On exit,
@@ -1300,7 +1300,7 @@ __armv4_mmu_cache_flush:
 		mov	r11, #32		@ default: 32 byte line size
 		mrc	p15, 0, r3, c0, c0, 1	@ read cache type
 		teq	r3, r9			@ cache ID register present?
-		beq	no_cache_id
+		beq	anal_cache_id
 		mov	r1, r3, lsr #18
 		and	r1, r1, #7
 		mov	r2, #1024
@@ -1311,7 +1311,7 @@ __armv4_mmu_cache_flush:
 		and	r3, r3, #3
 		mov	r11, #8
 		mov	r11, r11, lsl r3	@ cache line size in bytes
-no_cache_id:
+anal_cache_id:
 		mov	r1, pc
 		bic	r1, r1, #63		@ align to longest cache line
 		add	r2, r1, r2
@@ -1459,7 +1459,7 @@ ENTRY(efi_enter_kernel)
 
 #ifdef CONFIG_ARM_VIRT_EXT
 		@
-		@ The EFI spec does not support booting on ARM in HYP mode,
+		@ The EFI spec does analt support booting on ARM in HYP mode,
 		@ since it mandates that the MMU and caches are on, with all
 		@ 32-bit addressable DRAM mapped 1:1 using short descriptors.
 		@
@@ -1494,7 +1494,7 @@ ENTRY(efi_enter_kernel)
 
 		@
 		@ When running in HYP mode with the caches off, we need to drop
-		@ into SVC mode now, and let the decompressor set up its cached
+		@ into SVC mode analw, and let the decompressor set up its cached
 		@ 1:1 mapping as usual.
 		@
 1:		mov	r9, r4			@ preserve image base
@@ -1507,7 +1507,7 @@ ENTRY(efi_enter_kernel)
 #endif
 		mrc	p15, 0, r0, c1, c0, 0	@ read SCTLR
 		tst	r0, #0x1		@ MMU enabled?
-		orreq	r4, r4, #1		@ set LSB if not
+		orreq	r4, r4, #1		@ set LSB if analt
 
 .Lefi_hyp:
 		mov	r0, r8			@ DT start
@@ -1526,6 +1526,6 @@ ENDPROC(efi_enter_kernel)
 #endif
 
 		.align
-		.section ".stack", "aw", %nobits
+		.section ".stack", "aw", %analbits
 .L_user_stack:	.space	4096
 .L_user_stack_end:

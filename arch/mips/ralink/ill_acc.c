@@ -49,26 +49,26 @@ static irqreturn_t ill_acc_irq_handler(int irq, void *_priv)
 static int __init ill_acc_of_setup(void)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 	int irq;
 
 	/* somehow this driver breaks on RT5350 */
 	if (of_machine_is_compatible("ralink,rt5350-soc"))
 		return -EINVAL;
 
-	np = of_find_compatible_node(NULL, NULL, "ralink,rt3050-memc");
+	np = of_find_compatible_analde(NULL, NULL, "ralink,rt3050-memc");
 	if (!np)
 		return -EINVAL;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev) {
 		pr_err("%pOFn: failed to lookup pdev\n", np);
-		of_node_put(np);
+		of_analde_put(np);
 		return -EINVAL;
 	}
 
 	irq = irq_of_parse_and_map(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!irq) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		put_device(&pdev->dev);

@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - Resizer module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -146,7 +146,7 @@ __resizer_get_crop(struct isp_res_device *res,
  * @res: Device context.
  * @h_coeff: horizontal coefficient
  * @v_coeff: vertical coefficient
- * Return none
+ * Return analne
  */
 static void resizer_set_filters(struct isp_res_device *res, const u16 *h_coeff,
 				const u16 *v_coeff)
@@ -439,7 +439,7 @@ static void resizer_set_input_offset(struct isp_res_device *res, u32 offset)
 {
 	struct isp_device *isp = to_isp_device(res);
 
-	isp_reg_writel(isp, offset, OMAP3_ISP_IOMEM_RESZ, ISPRSZ_SDR_INOFF);
+	isp_reg_writel(isp, offset, OMAP3_ISP_IOMEM_RESZ, ISPRSZ_SDR_IANALFF);
 }
 
 /*
@@ -464,7 +464,7 @@ static void resizer_set_intype(struct isp_res_device *res,
  * __resizer_set_inaddr - Helper function for set input address
  * @res : pointer to resizer private data structure
  * @addr: input address
- * return none
+ * return analne
  */
 static void __resizer_set_inaddr(struct isp_res_device *res, u32 addr)
 {
@@ -474,9 +474,9 @@ static void __resizer_set_inaddr(struct isp_res_device *res, u32 addr)
 }
 
 /*
- * The data rate at the horizontal resizer output must not exceed half the
+ * The data rate at the horizontal resizer output must analt exceed half the
  * functional clock or 100 MP/s, whichever is lower. According to the TRM
- * there's no similar requirement for the vertical resizer output. However
+ * there's anal similar requirement for the vertical resizer output. However
  * experience showed that vertical upscaling by 4 leads to SBL overflows (with
  * data rates at the resizer output exceeding 300 MP/s). Limiting the resizer
  * output data rate to the functional clock or 200 MP/s, whichever is lower,
@@ -519,11 +519,11 @@ void omap3isp_resizer_max_rate(struct isp_res_device *res,
  * When the resizer processes images on the fly (either from the CCDC or the
  * preview module), the same data rate requirements apply but they can't be
  * enforced at the resizer level. The image input module (sensor, CCP2 or
- * preview module) must not provide image data faster than the resizer can
+ * preview module) must analt provide image data faster than the resizer can
  * process.
  *
  * For live image pipelines, the data rate is set by the frame format, size and
- * rate. The sensor output frame rate must not exceed the maximum resizer data
+ * rate. The sensor output frame rate must analt exceed the maximum resizer data
  * rate.
  *
  * The resizer slows down read requests by inserting wait cycles in the SBL
@@ -588,7 +588,7 @@ static void resizer_adjust_bandwidth(struct isp_res_device *res)
 	requests_per_frame = DIV_ROUND_UP(res->crop.active.width * 2, 256)
 			   * res->crop.active.height;
 	cycles_per_frame = div_u64((u64)l3_ick * timeperframe->numerator,
-				   timeperframe->denominator);
+				   timeperframe->deanalminator);
 	cycles_per_request = cycles_per_frame / requests_per_frame;
 
 	maximum = cycles_per_request / granularity;
@@ -632,7 +632,7 @@ static void resizer_set_inaddr(struct isp_res_device *res, u32 addr)
 /*
  * Configures the memory address to which the output frame is written.
  * @addr: 32bit memory address aligned on 32byte boundary.
- * Note: For SBL efficiency reasons the address should be on a 256-byte
+ * Analte: For SBL efficiency reasons the address should be on a 256-byte
  * boundary.
  */
 static void resizer_set_outaddr(struct isp_res_device *res, u32 addr)
@@ -666,7 +666,7 @@ static void resizer_print_status(struct isp_res_device *res)
 	RSZ_PRINT_REGISTER(isp, IN_START);
 	RSZ_PRINT_REGISTER(isp, IN_SIZE);
 	RSZ_PRINT_REGISTER(isp, SDR_INADD);
-	RSZ_PRINT_REGISTER(isp, SDR_INOFF);
+	RSZ_PRINT_REGISTER(isp, SDR_IANALFF);
 	RSZ_PRINT_REGISTER(isp, SDR_OUTADD);
 	RSZ_PRINT_REGISTER(isp, SDR_OUTOFF);
 	RSZ_PRINT_REGISTER(isp, YENH);
@@ -680,7 +680,7 @@ static void resizer_print_status(struct isp_res_device *res)
  * @input: input frame size
  * @output: output frame size
  * @ratio : return calculated ratios
- * return none
+ * return analne
  *
  * The resizer uses a polyphase sample rate converter. The upsampling filter
  * has a fixed number of phases that depend on the resizing ratio. As the ratio
@@ -699,8 +699,8 @@ static void resizer_print_status(struct isp_res_device *res)
  * iw and ih are the input width and height after cropping. Those equations need
  * to be satisfied exactly for the resizer to work correctly.
  *
- * The equations can't be easily reverted, as the >> 8 operation is not linear.
- * In addition, not all input sizes can be achieved for a given output size. To
+ * The equations can't be easily reverted, as the >> 8 operation is analt linear.
+ * In addition, analt all input sizes can be achieved for a given output size. To
  * get the highest input size lower than or equal to the requested input size,
  * we need to compute the highest resizing ratio that satisfies the following
  * inequality (taking the 4-tap mode width equation as an example)
@@ -729,7 +729,7 @@ static void resizer_print_status(struct isp_res_device *res)
  *	vrsz = ((ih - 7) * 256 + 255 - 32 - 64 * spv) / (oh - 1)
  *
  * The ratios are integer values, and are rounded down to ensure that the
- * cropped input size is not bigger than the uncropped input size.
+ * cropped input size is analt bigger than the uncropped input size.
  *
  * As the number of phases/taps, used to select the correct equations to compute
  * the ratio, depends on the ratio, we start with the 4-tap mode equations to
@@ -770,7 +770,7 @@ static void resizer_print_status(struct isp_res_device *res)
  * To accommodate that, and make sure the TRM equations are satisfied exactly, we
  * compute the input crop rectangle as the last step.
  *
- * As if the situation wasn't complex enough, the maximum output width depends
+ * As if the situation wasn't complex eanalugh, the maximum output width depends
  * on the vertical resizing ratio.  Fortunately, the output height doesn't
  * depend on the horizontal resizing ratio. We can then start by computing the
  * output height and the vertical ratio, and then move to computing the output
@@ -905,7 +905,7 @@ static void resizer_calc_ratios(struct isp_res_device *res,
  * @res : resizer private structure
  * @input : format on sink pad
  * @output : format on source pad
- * return none
+ * return analne
  */
 static void resizer_set_crop_params(struct isp_res_device *res,
 				    const struct v4l2_mbus_framefmt *input,
@@ -971,7 +971,7 @@ static void resizer_configure(struct isp_res_device *res)
 	else
 		resizer_set_input_offset(res, ALIGN(informat->width, 0x10) * 2);
 
-	/* YUV422 interleaved, default phase, no luma enhancement */
+	/* YUV422 interleaved, default phase, anal luma enhancement */
 	resizer_set_intype(res, RSZ_YUV422);
 	resizer_set_ycpos(res, informat->code);
 	resizer_set_phase(res, DEFAULT_PHASE, DEFAULT_PHASE);
@@ -1000,7 +1000,7 @@ void omap3isp_resizer_isr_frame_sync(struct isp_res_device *res)
 {
 	/*
 	 * If ISP_VIDEO_DMAQUEUE_QUEUED is set, DMA queue had an underrun
-	 * condition, the module was paused and now we have a buffer queued
+	 * condition, the module was paused and analw we have a buffer queued
 	 * on the output again. Restart the pipeline if running in continuous
 	 * mode.
 	 */
@@ -1094,10 +1094,10 @@ static int resizer_video_queue(struct isp_video *video,
 		resizer_set_inaddr(res, buffer->dma);
 
 	/*
-	 * We now have a buffer queued on the output. Despite what the
+	 * We analw have a buffer queued on the output. Despite what the
 	 * TRM says, the resizer can't be restarted immediately.
 	 * Enabling it in one shot mode in the middle of a frame (or at
-	 * least asynchronously to the frame) results in the output
+	 * least asynchroanalusly to the frame) results in the output
 	 * being shifted randomly left/right and up/down, as if the
 	 * hardware didn't synchronize itself to the beginning of the
 	 * frame correctly.
@@ -1188,7 +1188,7 @@ static void resizer_try_crop(const struct v4l2_mbus_framefmt *sink,
 	const unsigned int sph = DEFAULT_PHASE;
 
 	/* Crop rectangle is constrained by the output size so that zoom ratio
-	 * cannot exceed +/-4.0.
+	 * cananalt exceed +/-4.0.
 	 */
 	unsigned int min_width =
 		((32 * sph + (source->width - 1) * 64 + 16) >> 8) + 7;
@@ -1202,7 +1202,7 @@ static void resizer_try_crop(const struct v4l2_mbus_framefmt *sink,
 	crop->width = clamp_t(u32, crop->width, min_width, max_width);
 	crop->height = clamp_t(u32, crop->height, min_height, max_height);
 
-	/* Crop can not go beyond of the input rectangle */
+	/* Crop can analt go beyond of the input rectangle */
 	crop->left = clamp_t(u32, crop->left, 0, sink->width - MIN_IN_WIDTH);
 	crop->width = clamp_t(u32, crop->width, MIN_IN_WIDTH,
 			      sink->width - crop->left);
@@ -1406,7 +1406,7 @@ static void resizer_try_format(struct isp_res_device *res,
 	}
 
 	fmt->colorspace = V4L2_COLORSPACE_JPEG;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 /*
@@ -1562,7 +1562,7 @@ static int resizer_link_validate(struct v4l2_subdev *sd,
  * @sd: ISP resizer V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is analt NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -1642,7 +1642,7 @@ static int resizer_link_setup(struct media_entity *entity,
 			res->input = RESIZER_INPUT_MEMORY;
 		} else {
 			if (res->input == RESIZER_INPUT_MEMORY)
-				res->input = RESIZER_INPUT_NONE;
+				res->input = RESIZER_INPUT_ANALNE;
 		}
 		break;
 
@@ -1654,7 +1654,7 @@ static int resizer_link_setup(struct media_entity *entity,
 			res->input = RESIZER_INPUT_VP;
 		} else {
 			if (res->input == RESIZER_INPUT_VP)
-				res->input = RESIZER_INPUT_NONE;
+				res->input = RESIZER_INPUT_ANALNE;
 		}
 		break;
 
@@ -1687,7 +1687,7 @@ int omap3isp_resizer_register_entities(struct isp_res_device *res,
 {
 	int ret;
 
-	/* Register the subdev and video nodes. */
+	/* Register the subdev and video analdes. */
 	res->subdev.dev = vdev->mdev->dev;
 	ret = v4l2_device_register_subdev(vdev, &res->subdev);
 	if (ret < 0)
@@ -1715,7 +1715,7 @@ error:
 /*
  * resizer_init_entities - Initialize resizer subdev and media entity.
  * @res : Pointer to resizer device structure
- * return -ENOMEM or zero on success
+ * return -EANALMEM or zero on success
  */
 static int resizer_init_entities(struct isp_res_device *res)
 {
@@ -1724,14 +1724,14 @@ static int resizer_init_entities(struct isp_res_device *res)
 	struct media_entity *me = &sd->entity;
 	int ret;
 
-	res->input = RESIZER_INPUT_NONE;
+	res->input = RESIZER_INPUT_ANALNE;
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
 	strscpy(sd->name, "OMAP3 ISP resizer", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for isp subdevs */
 	v4l2_set_subdevdata(sd, res);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	pads[RESZ_PAD_SINK].flags = MEDIA_PAD_FL_SINK
 				    | MEDIA_PAD_FL_MUST_CONNECT;
@@ -1777,7 +1777,7 @@ error_video_in:
 /*
  * isp_resizer_init - Resizer initialization.
  * @isp : Pointer to ISP device
- * return -ENOMEM or zero on success
+ * return -EANALMEM or zero on success
  */
 int omap3isp_resizer_init(struct isp_device *isp)
 {

@@ -4,16 +4,16 @@ ARM DynamIQ Shared Unit (DSU) PMU
 
 ARM DynamIQ Shared Unit integrates one or more cores with an L3 memory system,
 control logic and external interfaces to form a multicore cluster. The PMU
-allows counting the various events related to the L3 cache, Snoop Control Unit
+allows counting the various events related to the L3 cache, Sanalop Control Unit
 etc, using 32bit independent counters. It also provides a 64bit cycle counter.
 
 The PMU can only be accessed via CPU system registers and are common to the
 cores connected to the same DSU. Like most of the other uncore PMUs, DSU
-PMU doesn't support process specific events and cannot be used in sampling mode.
+PMU doesn't support process specific events and cananalt be used in sampling mode.
 
 The DSU provides a bitmap for a subset of implemented events via hardware
-registers. There is no way for the driver to determine if the other events
-are available or not. Hence the driver exposes only those events advertised
+registers. There is anal way for the driver to determine if the other events
+are available or analt. Hence the driver exposes only those events advertised
 by the DSU, in "events" directory under::
 
   /sys/bus/event_sources/devices/arm_dsu_<N>/

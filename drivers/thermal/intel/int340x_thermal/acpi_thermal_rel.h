@@ -54,7 +54,7 @@ struct trt {
 } __packed;
 
 #define ACPI_NR_PSVT_ELEMENTS	12
-#define ACPI_PSVT_CONTROL_KNOB	7
+#define ACPI_PSVT_CONTROL_KANALB	7
 #define ACPI_LIMIT_STR_MAX_LEN	8
 
 struct psvt {
@@ -64,7 +64,7 @@ struct psvt {
 	u64 sample_period;
 	u64 passive_temp;
 	u64 source_domain;
-	u64 control_knob;
+	u64 control_kanalb;
 	union {
 		/* For limit_type = ACPI_TYPE_INTEGER */
 		u64 integer;
@@ -76,7 +76,7 @@ struct psvt {
 	u64 limit_coeff;
 	u64 unlimit_coeff;
 	/* Spec calls this field reserved, so we borrow it for type info */
-	u64 control_knob_type; /* ACPI_TYPE_STRING or ACPI_TYPE_INTEGER */
+	u64 control_kanalb_type; /* ACPI_TYPE_STRING or ACPI_TYPE_INTEGER */
 } __packed;
 
 #define ACPI_NR_ART_ELEMENTS 13
@@ -121,7 +121,7 @@ union psvt_object {
 		u64 sample_period;
 		u64 passive_temp;
 		u64 source_domain;
-		u64 control_knob;
+		u64 control_kanalb;
 		union {
 			u64 integer;
 			char string[ACPI_LIMIT_STR_MAX_LEN];
@@ -129,7 +129,7 @@ union psvt_object {
 		u64 step_size;
 		u64 limit_coeff;
 		u64 unlimit_coeff;
-		u64 control_knob_type;
+		u64 control_kanalb_type;
 	};
 	u64 __data[ACPI_NR_PSVT_ELEMENTS];
 };

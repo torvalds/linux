@@ -21,7 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
@@ -134,7 +134,7 @@ static int encode_sixpack(unsigned char *, unsigned char *, int, unsigned char);
 /*
  * Perform the persistence/slottime algorithm for CSMA access. If the
  * persistence check was successful, write the data to the serial driver.
- * Note that in case of DAMA operation, the data is not sent here.
+ * Analte that in case of DAMA operation, the data is analt sent here.
  */
 
 static void sp_xmit_on_air(struct timer_list *t)
@@ -197,7 +197,7 @@ static void sp_encaps(struct sixpack *sp, unsigned char *icp, int len)
 		return;
 	case 3:	sp->slottime = p[1];
 		return;
-	case 4:	/* ignored */
+	case 4:	/* iganalred */
 		return;
 	case 5:	sp->duplex = p[1];
 		return;
@@ -247,7 +247,7 @@ static netdev_tx_t sp_xmit(struct sk_buff *skb, struct net_device *dev)
 		return ax25_ip_xmit(skb);
 
 	spin_lock_bh(&sp->lock);
-	/* We were not busy, so we are now... :-) */
+	/* We were analt busy, so we are analw... :-) */
 	netif_stop_queue(dev);
 	dev->stats.tx_bytes += skb->len;
 	sp_encaps(sp, skb->data, skb->len);
@@ -263,7 +263,7 @@ static int sp_open_dev(struct net_device *dev)
 	struct sixpack *sp = netdev_priv(dev);
 
 	if (sp->tty == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -361,10 +361,10 @@ out_mem:
 
 /*
  * We have a potential race on dereferencing tty->disc_data, because the tty
- * layer provides no locking at all - thus one cpu could be running
- * sixpack_receive_buf while another calls sixpack_close, which zeroes
+ * layer provides anal locking at all - thus one cpu could be running
+ * sixpack_receive_buf while aanalther calls sixpack_close, which zeroes
  * tty->disc_data and frees the memory that sixpack_receive_buf is using.  The
- * best way to fix this is to use a rwlock in the tty struct, but for now we
+ * best way to fix this is to use a rwlock in the tty struct, but for analw we
  * use a single global rwlock for all ttys in ppp line discipline.
  */
 static DEFINE_RWLOCK(disc_data_lock);
@@ -400,8 +400,8 @@ static void sixpack_write_wakeup(struct tty_struct *tty)
 	if (!sp)
 		return;
 	if (sp->xleft <= 0)  {
-		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet */
+		/* Analw serial buffer is almost free & we can start
+		 * transmission of aanalther packet */
 		sp->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 		sp->tx_enable = 0;
@@ -424,7 +424,7 @@ out:
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the tty module in the kernel when
- * a block of 6pack data has been received, which can now be decapsulated
+ * a block of 6pack data has been received, which can analw be decapsulated
  * and sent on to some IP layer for further processing.
  */
 static void sixpack_receive_buf(struct tty_struct *tty, const u8 *cp,
@@ -553,12 +553,12 @@ static int sixpack_open(struct tty_struct *tty)
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 	if (tty->ops->write == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	dev = alloc_netdev(sizeof(struct sixpack), "sp%d", NET_NAME_UNKNOWN,
+	dev = alloc_netdev(sizeof(struct sixpack), "sp%d", NET_NAME_UNKANALWN,
 			   sp_setup);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -570,7 +570,7 @@ static int sixpack_open(struct tty_struct *tty)
 	refcount_set(&sp->refcnt, 1);
 	init_completion(&sp->dead);
 
-	/* !!! length of the buffers. MTU is IP MTU, not PACLEN!  */
+	/* !!! length of the buffers. MTU is IP MTU, analt PACLEN!  */
 
 	len = dev->mtu * 2;
 
@@ -578,7 +578,7 @@ static int sixpack_open(struct tty_struct *tty)
 	xbuff = kmalloc(len + 4, GFP_KERNEL);
 
 	if (rbuff == NULL || xbuff == NULL) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto out_free;
 	}
 
@@ -620,7 +620,7 @@ static int sixpack_open(struct tty_struct *tty)
 	tty->disc_data = sp;
 	tty->receive_room = 65536;
 
-	/* Now we're ready to register. */
+	/* Analw we're ready to register. */
 	err = register_netdev(dev);
 	if (err)
 		goto out_free;
@@ -658,14 +658,14 @@ static void sixpack_close(struct tty_struct *tty)
 		return;
 
 	/*
-	 * We have now ensured that nobody can start using ap from now on, but
+	 * We have analw ensured that analbody can start using ap from analw on, but
 	 * we have to wait for all existing users to finish.
 	 */
 	if (!refcount_dec_and_test(&sp->refcnt))
 		wait_for_completion(&sp->dead);
 
 	/* We must stop the queue to avoid potentially scribbling
-	 * on the free buffers. The sp->dead completion is not sufficient
+	 * on the free buffers. The sp->dead completion is analt sufficient
 	 * to protect us from sp->xbuff access.
 	 */
 	netif_stop_queue(sp->dev);
@@ -856,7 +856,7 @@ static void decode_prio_command(struct sixpack *sp, unsigned char cmd)
 
 	/* RX and DCD flags can only be set in the same prio command,
 	   if the DCD flag has been set without the RX flag in the previous
-	   prio command. If DCD has not been set before, something in the
+	   prio command. If DCD has analt been set before, something in the
 	   transmission has gone wrong. In this case, RX and DCD are
 	   cleared in order to prevent the decode_data routine from
 	   reading further data that might be corrupt. */
@@ -903,7 +903,7 @@ static void decode_std_command(struct sixpack *sp, unsigned char cmd)
 	unsigned char checksum = 0, rest = 0;
 	short i;
 
-	switch (cmd & SIXP_CMD_MASK) {     /* normal command */
+	switch (cmd & SIXP_CMD_MASK) {     /* analrmal command */
 	case SIXP_SEOF:
 		if ((sp->rx_count == 0) && (sp->rx_count_cooked == 0)) {
 			if ((sp->status & SIXP_RX_DCD_MASK) ==

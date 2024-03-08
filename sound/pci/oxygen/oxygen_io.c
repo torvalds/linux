@@ -98,7 +98,7 @@ static int oxygen_ac97_wait(struct oxygen *chip, unsigned int mask)
 			      status & mask; }),
 			   msecs_to_jiffies(1) + 1);
 	/*
-	 * Check even after a timeout because this function should not require
+	 * Check even after a timeout because this function should analt require
 	 * the AC'97 interrupt to be enabled.
 	 */
 	status |= oxygen_read8(chip, OXYGEN_AC97_INTERRUPT_STATUS);
@@ -161,7 +161,7 @@ u16 oxygen_read_ac97(struct oxygen *chip, unsigned int codec,
 			last_read = value;
 			/*
 			 * Invert the register value bits to make sure that two
-			 * consecutive unsuccessful reads do not return the same
+			 * consecutive unsuccessful reads do analt return the same
 			 * value.
 			 */
 			reg ^= 0xffff;
@@ -188,7 +188,7 @@ static int oxygen_wait_spi(struct oxygen *chip)
 
 	/*
 	 * Higher timeout to be sure: 200 us;
-	 * actual transaction should not need more than 40 us.
+	 * actual transaction should analt need more than 40 us.
 	 */
 	for (count = 50; count > 0; count--) {
 		udelay(4);
@@ -204,7 +204,7 @@ int oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data)
 {
 	/*
 	 * We need to wait AFTER initiating the SPI transaction,
-	 * otherwise read operations will not work.
+	 * otherwise read operations will analt work.
 	 */
 	oxygen_write8(chip, OXYGEN_SPI_DATA1, data);
 	oxygen_write8(chip, OXYGEN_SPI_DATA2, data >> 8);
@@ -217,7 +217,7 @@ EXPORT_SYMBOL(oxygen_write_spi);
 
 void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data)
 {
-	/* should not need more than about 300 us */
+	/* should analt need more than about 300 us */
 	msleep(1);
 
 	oxygen_write8(chip, OXYGEN_2WIRE_MAP, map);

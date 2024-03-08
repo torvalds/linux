@@ -63,8 +63,8 @@ patternProperties:
         minItems: 1
         maxItems: 12
         description:
-          This property denotes the LED module number(s) that is used on the
-          for the child node.  The LED modules can either be used stand alone
+          This property deanaltes the LED module number(s) that is used on the
+          for the child analde.  The LED modules can either be used stand alone
           or grouped into a module bank.
 
       '#address-cells':

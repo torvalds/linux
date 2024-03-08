@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include "dr_types.h"
 
@@ -230,9 +230,9 @@ static int dr_icm_buddy_init_ste_cache(struct mlx5dr_icm_buddy_mem *buddy)
 	buddy->ste_arr = kvcalloc(num_of_entries,
 				  sizeof(struct mlx5dr_ste), GFP_KERNEL);
 	if (!buddy->ste_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Preallocate full STE size on non-ConnectX-5 devices since
+	/* Preallocate full STE size on analn-ConnectX-5 devices since
 	 * we need to support both full and reduced with the same cache.
 	 */
 	buddy->hw_ste_arr = kvcalloc(num_of_entries,
@@ -250,7 +250,7 @@ free_hw_ste_arr:
 	kvfree(buddy->hw_ste_arr);
 free_ste_arr:
 	kvfree(buddy->ste_arr);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void dr_icm_buddy_cleanup_ste_cache(struct mlx5dr_icm_buddy_mem *buddy)
@@ -267,7 +267,7 @@ static int dr_icm_buddy_create(struct mlx5dr_icm_pool *pool)
 
 	icm_mr = dr_icm_pool_mr_create(pool);
 	if (!icm_mr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buddy = kvzalloc(sizeof(*buddy), GFP_KERNEL);
 	if (!buddy)
@@ -286,7 +286,7 @@ static int dr_icm_buddy_create(struct mlx5dr_icm_pool *pool)
 	}
 
 	/* add it to the -start- of the list in order to search in it first */
-	list_add(&buddy->list_node, &pool->buddy_mem_list);
+	list_add(&buddy->list_analde, &pool->buddy_mem_list);
 
 	pool->dmn->num_buddies[pool->icm_type]++;
 
@@ -298,7 +298,7 @@ err_free_buddy:
 	kvfree(buddy);
 free_mr:
 	dr_icm_pool_mr_destroy(icm_mr);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void dr_icm_buddy_destroy(struct mlx5dr_icm_buddy_mem *buddy)
@@ -375,7 +375,7 @@ static int dr_icm_pool_sync_all_buddy_pools(struct mlx5dr_icm_pool *pool)
 
 	dr_icm_pool_clear_hot_chunks_arr(pool);
 
-	list_for_each_entry_safe(buddy, tmp_buddy, &pool->buddy_mem_list, list_node) {
+	list_for_each_entry_safe(buddy, tmp_buddy, &pool->buddy_mem_list, list_analde) {
 		if (!buddy->used_memory && pool->icm_type == DR_ICM_TYPE_STE)
 			dr_icm_buddy_destroy(buddy);
 	}
@@ -394,7 +394,7 @@ static int dr_icm_handle_buddies_get_mem(struct mlx5dr_icm_pool *pool,
 
 alloc_buddy_mem:
 	/* find the next free place from the buddy list */
-	list_for_each_entry(buddy_mem_pool, &pool->buddy_mem_list, list_node) {
+	list_for_each_entry(buddy_mem_pool, &pool->buddy_mem_list, list_analde) {
 		err = mlx5dr_buddy_alloc_mem(buddy_mem_pool,
 					     chunk_size, seg);
 		if (!err)
@@ -403,13 +403,13 @@ alloc_buddy_mem:
 		if (WARN_ON(new_mem)) {
 			/* We have new memory pool, first in the list */
 			mlx5dr_err(pool->dmn,
-				   "No memory for order: %d\n",
+				   "Anal memory for order: %d\n",
 				   chunk_size);
 			goto out;
 		}
 	}
 
-	/* no more available allocators in that pool, create new */
+	/* anal more available allocators in that pool, create new */
 	err = dr_icm_buddy_create(pool);
 	if (err) {
 		mlx5dr_err(pool->dmn,
@@ -567,7 +567,7 @@ void mlx5dr_icm_pool_destroy(struct mlx5dr_icm_pool *pool)
 
 	dr_icm_pool_clear_hot_chunks_arr(pool);
 
-	list_for_each_entry_safe(buddy, tmp_buddy, &pool->buddy_mem_list, list_node)
+	list_for_each_entry_safe(buddy, tmp_buddy, &pool->buddy_mem_list, list_analde)
 		dr_icm_buddy_destroy(buddy);
 
 	kvfree(pool->hot_chunks_arr);

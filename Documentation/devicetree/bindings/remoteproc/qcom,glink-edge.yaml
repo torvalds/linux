@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/remoteproc/qcom,glink-edge.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm G-Link Edge communication channel nodes
+title: Qualcomm G-Link Edge communication channel analdes
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 description:
-  Qualcomm G-Link subnode represents communication edge, channels and devices
+  Qualcomm G-Link subanalde represents communication edge, channels and devices
   related to the remote processor.
 
 properties:
@@ -19,7 +19,7 @@ properties:
     required:
       - qcom,glink-channels
     description:
-      Qualcomm APR (Asynchronous Packet Router)
+      Qualcomm APR (Asynchroanalus Packet Router)
 
   fastrpc:
     $ref: /schemas/misc/qcom,fastrpc.yaml#
@@ -41,7 +41,7 @@ properties:
   label:
     description:
       Name of the edge, used for debugging and identification purposes. The
-      node name will be used if this is not present.
+      analde name will be used if this is analt present.
 
   mboxes:
     maxItems: 1

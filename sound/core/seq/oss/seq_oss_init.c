@@ -37,7 +37,7 @@ static struct seq_oss_devinfo *client_table[SNDRV_SEQ_OSS_MAX_CLIENTS];
 /*
  * prototypes
  */
-static int receive_announce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop);
+static int receive_ananalunce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop);
 static int translate_mode(struct file *file);
 static int create_port(struct seq_oss_devinfo *dp);
 static int delete_port(struct seq_oss_devinfo *dp);
@@ -48,7 +48,7 @@ static void free_devinfo(void *private);
 #define call_ctl(type,rec) snd_seq_kernel_client_ctl(system_client, type, rec)
 
 
-/* call snd_seq_oss_midi_lookup_ports() asynchronously */
+/* call snd_seq_oss_midi_lookup_ports() asynchroanalusly */
 static void async_call_lookup_ports(struct work_struct *work)
 {
 	snd_seq_oss_midi_lookup_ports(system_client);
@@ -68,7 +68,7 @@ snd_seq_oss_create_client(void)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto __error;
 	}
 
@@ -80,7 +80,7 @@ snd_seq_oss_create_client(void)
 
 	system_client = rc;
 
-	/* create announcement receiver port */
+	/* create ananaluncement receiver port */
 	strcpy(port->name, "Receiver");
 	port->addr.client = system_client;
 	port->capability = SNDRV_SEQ_PORT_CAP_WRITE; /* receive only */
@@ -88,9 +88,9 @@ snd_seq_oss_create_client(void)
 
 	memset(&port_callback, 0, sizeof(port_callback));
 	/* don't set port_callback.owner here. otherwise the module counter
-	 * is incremented and we can no longer release the module..
+	 * is incremented and we can anal longer release the module..
 	 */
-	port_callback.event_input = receive_announce;
+	port_callback.event_input = receive_ananalunce;
 	port->kernel = &port_callback;
 	
 	if (call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, port) >= 0) {
@@ -99,7 +99,7 @@ snd_seq_oss_create_client(void)
 		system_port = port->addr.port;
 		memset(&subs, 0, sizeof(subs));
 		subs.sender.client = SNDRV_SEQ_CLIENT_SYSTEM;
-		subs.sender.port = SNDRV_SEQ_PORT_SYSTEM_ANNOUNCE;
+		subs.sender.port = SNDRV_SEQ_PORT_SYSTEM_ANANALUNCE;
 		subs.dest.client = system_client;
 		subs.dest.port = system_port;
 		call_ctl(SNDRV_SEQ_IOCTL_SUBSCRIBE_PORT, &subs);
@@ -116,21 +116,21 @@ snd_seq_oss_create_client(void)
 
 
 /*
- * receive annoucement from system port, and check the midi device
+ * receive ananalucement from system port, and check the midi device
  */
 static int
-receive_announce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop)
+receive_ananalunce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop)
 {
 	struct snd_seq_port_info pinfo;
 
 	if (atomic)
-		return 0; /* it must not happen */
+		return 0; /* it must analt happen */
 
 	switch (ev->type) {
 	case SNDRV_SEQ_EVENT_PORT_START:
 	case SNDRV_SEQ_EVENT_PORT_CHANGE:
 		if (ev->data.addr.client == system_client)
-			break; /* ignore myself */
+			break; /* iganalre myself */
 		memset(&pinfo, 0, sizeof(pinfo));
 		pinfo.addr = ev->data.addr;
 		if (call_ctl(SNDRV_SEQ_IOCTL_GET_PORT_INFO, &pinfo) >= 0)
@@ -139,7 +139,7 @@ receive_announce(struct snd_seq_event *ev, int direct, void *private, int atomic
 
 	case SNDRV_SEQ_EVENT_PORT_EXIT:
 		if (ev->data.addr.client == system_client)
-			break; /* ignore myself */
+			break; /* iganalre myself */
 		snd_seq_oss_midi_check_exit_port(ev->data.addr.client,
 						ev->data.addr.port);
 		break;
@@ -175,7 +175,7 @@ snd_seq_oss_open(struct file *file, int level)
 
 	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 	if (!dp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp->cseq = system_client;
 	dp->port = -1;
@@ -189,7 +189,7 @@ snd_seq_oss_open(struct file *file, int level)
 	dp->index = i;
 	if (i >= SNDRV_SEQ_OSS_MAX_CLIENTS) {
 		pr_debug("ALSA: seq_oss: too many applications\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto _error;
 	}
 
@@ -198,8 +198,8 @@ snd_seq_oss_open(struct file *file, int level)
 	snd_seq_oss_midi_setup(dp);
 
 	if (dp->synth_opened == 0 && dp->max_mididev == 0) {
-		/* pr_err("ALSA: seq_oss: no device found\n"); */
-		rc = -ENODEV;
+		/* pr_err("ALSA: seq_oss: anal device found\n"); */
+		rc = -EANALDEV;
 		goto _error;
 	}
 
@@ -230,7 +230,7 @@ snd_seq_oss_open(struct file *file, int level)
 	if (is_read_mode(dp->file_mode)) {
 		dp->readq = snd_seq_oss_readq_new(dp, maxqlen);
 		if (!dp->readq) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto _error;
 		}
 	}
@@ -239,7 +239,7 @@ snd_seq_oss_open(struct file *file, int level)
 	if (is_write_mode(dp->file_mode)) {
 		dp->writeq = snd_seq_oss_writeq_new(dp, maxqlen);
 		if (!dp->writeq) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto _error;
 		}
 	}
@@ -248,7 +248,7 @@ snd_seq_oss_open(struct file *file, int level)
 	dp->timer = snd_seq_oss_timer_new(dp);
 	if (!dp->timer) {
 		pr_err("ALSA: seq_oss: can't alloc timer\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto _error;
 	}
 
@@ -286,8 +286,8 @@ translate_mode(struct file *file)
 		file_mode |= SNDRV_SEQ_OSS_FILE_WRITE;
 	if ((file->f_flags & O_ACCMODE) != O_WRONLY)
 		file_mode |= SNDRV_SEQ_OSS_FILE_READ;
-	if (file->f_flags & O_NONBLOCK)
-		file_mode |= SNDRV_SEQ_OSS_FILE_NONBLOCK;
+	if (file->f_flags & O_ANALNBLOCK)
+		file_mode |= SNDRV_SEQ_OSS_FILE_ANALNBLOCK;
 	return file_mode;
 }
 
@@ -305,7 +305,7 @@ create_port(struct seq_oss_devinfo *dp)
 	memset(&port, 0, sizeof(port));
 	port.addr.client = dp->cseq;
 	sprintf(port.name, "Sequencer-%d", dp->index);
-	port.capability = SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_WRITE; /* no subscription */
+	port.capability = SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_WRITE; /* anal subscription */
 	port.type = SNDRV_SEQ_PORT_TYPE_SPECIFIC;
 	port.midi_channels = 128;
 	port.synth_voices = 128;
@@ -464,7 +464,7 @@ static const char *
 filemode_str(int val)
 {
 	static const char * const str[] = {
-		"none", "read", "write", "read/write",
+		"analne", "read", "write", "read/write",
 	};
 	return str[val & SNDRV_SEQ_OSS_FILE_ACMODE];
 }

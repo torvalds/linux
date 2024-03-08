@@ -146,12 +146,12 @@
 	pinctrl-0 = <&pinctrl_qspi>;
 	status = "okay";
 
-	/* SPI flash; not assembled by default */
+	/* SPI flash; analt assembled by default */
 	spi_flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
-		compatible = "micron,n25q256a", "jedec,spi-nor";
+		compatible = "micron,n25q256a", "jedec,spi-analr";
 		spi-max-frequency = <29000000>;
 		status = "disabled";
 	};
@@ -183,7 +183,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

@@ -209,7 +209,7 @@ void rtl92s_phy_scan_operation_backup(struct ieee80211_hw *hw,
 			rtl92s_phy_set_fw_cmd(hw, FW_CMD_RESUME_DM_BY_SCAN);
 			break;
 		default:
-			pr_err("Unknown operation\n");
+			pr_err("Unkanalwn operation\n");
 			break;
 		}
 	}
@@ -249,7 +249,7 @@ void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 		rtl_write_byte(rtlpriv, BW_OPMODE, reg_bw_opmode);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkanalwn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -274,7 +274,7 @@ void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 			rtl_write_byte(rtlpriv, RFPGA0_ANALOGPARAMETER2, 0x18);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkanalwn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -291,7 +291,7 @@ static bool _rtl92s_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		WARN_ONCE(true, "rtl8192se: cmdtable cannot be NULL\n");
+		WARN_ONCE(true, "rtl8192se: cmdtable cananalt be NULL\n");
 		return false;
 	}
 
@@ -398,7 +398,7 @@ static bool _rtl92s_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			}
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x analt processed\n",
 			       currentcmd->cmdid);
 			break;
 		}
@@ -539,7 +539,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 							 LED_CTL_LINK);
 			else
 				rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_NO_LINK);
+							 LED_CTL_ANAL_LINK);
 			break;
 		}
 	case ERFOFF:{
@@ -551,7 +551,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			} else {
 				if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS)
 					rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_NO_LINK);
+							 LED_CTL_ANAL_LINK);
 				else
 					rtlpriv->cfg->ops->led_control(hw,
 							 LED_CTL_POWER_OFF);
@@ -603,7 +603,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			_rtl92se_phy_set_rf_sleep(hw);
 			break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x analt processed\n",
 		       rfpwr_state);
 		bresult = false;
 		break;
@@ -952,7 +952,7 @@ u8 rtl92s_phy_config_rf(struct ieee80211_hw *hw, enum radio_path rfpath)
 		radio_b_tblen = RADIOB_ARRAYLENGTH;
 	}
 
-	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio Anal %x\n", rfpath);
 	rtstatus = true;
 
 	switch (rfpath) {
@@ -1034,7 +1034,7 @@ bool rtl92s_phy_bb_config(struct ieee80211_hw *hw)
 	    (rtlphy->rf_type == RF_1T2R && rf_num != 2) ||
 	    (rtlphy->rf_type == RF_2T2R && rf_num != 2) ||
 	    (rtlphy->rf_type == RF_2T2R_GREEN && rf_num != 2)) {
-		pr_err("RF_Type(%x) does not match RF_Num(%x)!!\n",
+		pr_err("RF_Type(%x) does analt match RF_Num(%x)!!\n",
 		       rtlphy->rf_type, rf_num);
 		pr_err("path1 0x%x, path2 0x%x, pathmap 0x%x\n",
 		       path1, path2, pathmap);
@@ -1566,7 +1566,7 @@ void rtl92s_phy_switch_ephy_parameter(struct ieee80211_hw *hw)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 
 	/* The way to be capable to switch clock request
-	 * when the PG setting does not support clock request.
+	 * when the PG setting does analt support clock request.
 	 * This is the backdoor solution to switch clock
 	 * request before ASPM or D3. */
 	rtl_write_dword(rtlpriv, 0x540, 0x73c11);

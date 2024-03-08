@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -115,7 +115,7 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	/*
 	 * Control PSR based on vblank requirements from OS
 	 *
-	 * If panel supports PSR SU, there's no need to disable PSR when OS is
+	 * If panel supports PSR SU, there's anal need to disable PSR when OS is
 	 * submitting fast atomic commits (we infer this by whether the OS
 	 * requests vblank events). Fast atomic commits will simply trigger a
 	 * full-frame-update (FFU); a specific case of selective-update (SU)
@@ -182,7 +182,7 @@ skip:
 	if (dm->vblank_control_workqueue) {
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
 		if (!work)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		INIT_WORK(&work->work, amdgpu_dm_crtc_vblank_control_worker);
 		work->dm = dm;
@@ -327,7 +327,7 @@ amdgpu_dm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		}
 	} else {
 		drm_dbg_atomic(crtc->dev,
-			       "[CRTC:%d:%s] unknown property [PROP:%d:%s]]\n",
+			       "[CRTC:%d:%s] unkanalwn property [PROP:%d:%s]]\n",
 			       crtc->base.id, crtc->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -458,7 +458,7 @@ static int amdgpu_dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	/*
 	 * We require the primary plane to be enabled whenever the CRTC is, otherwise
 	 * drm_mode_cursor_universal may end up trying to enable the cursor plane while all other
-	 * planes are disabled, which is not supported by the hardware. And there is legacy
+	 * planes are disabled, which is analt supported by the hardware. And there is legacy
 	 * userspace which stops using the HW cursor altogether in response to the resulting EINVAL.
 	 */
 	if (crtc_state->enable &&
@@ -479,7 +479,7 @@ static int amdgpu_dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	/* In some use cases, like reset, no stream is attached */
+	/* In some use cases, like reset, anal stream is attached */
 	if (!dm_crtc_state->stream)
 		return 0;
 
@@ -494,7 +494,7 @@ static const struct drm_crtc_helper_funcs amdgpu_dm_crtc_helper_funcs = {
 	.disable = amdgpu_dm_crtc_helper_disable,
 	.atomic_check = amdgpu_dm_crtc_helper_atomic_check,
 	.mode_fixup = amdgpu_dm_crtc_helper_mode_fixup,
-	.get_scanout_position = amdgpu_crtc_get_scanout_position,
+	.get_scaanalut_position = amdgpu_crtc_get_scaanalut_position,
 };
 
 int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
@@ -504,7 +504,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	struct amdgpu_crtc *acrtc = NULL;
 	struct drm_plane *cursor_plane;
 	bool is_dcn;
-	int res = -ENOMEM;
+	int res = -EANALMEM;
 
 	cursor_plane = kzalloc(sizeof(*cursor_plane), GFP_KERNEL);
 	if (!cursor_plane)

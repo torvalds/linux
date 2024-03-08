@@ -22,13 +22,13 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
-/* ignore_tpc:
- *  0 -> acpi processor driver doesn't ignore _TPC values
- *  1 -> acpi processor driver ignores _TPC values
+/* iganalre_tpc:
+ *  0 -> acpi processor driver doesn't iganalre _TPC values
+ *  1 -> acpi processor driver iganalres _TPC values
  */
-static int ignore_tpc;
-module_param(ignore_tpc, int, 0644);
-MODULE_PARM_DESC(ignore_tpc, "Disable broken BIOS _TPC throttling support");
+static int iganalre_tpc;
+module_param(iganalre_tpc, int, 0644);
+MODULE_PARM_DESC(iganalre_tpc, "Disable broken BIOS _TPC throttling support");
 
 struct throttling_tstate {
 	unsigned int cpu;		/* cpu nr */
@@ -59,10 +59,10 @@ static int acpi_processor_update_tsd_coord(void)
 	struct acpi_processor_throttling *pthrottling, *match_pthrottling;
 
 	if (!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Now that we have _TSD data from all CPUs, lets setup T-state
+	 * Analw that we have _TSD data from all CPUs, lets setup T-state
 	 * coordination between all CPUs.
 	 */
 	for_each_possible_cpu(i) {
@@ -171,7 +171,7 @@ err_ret:
 			continue;
 
 		/*
-		 * Assume no coordination on any error parsing domain info.
+		 * Assume anal coordination on any error parsing domain info.
 		 * The coordination type will be forced as SW_ALL.
 		 */
 		if (retval) {
@@ -192,10 +192,10 @@ err_ret:
 void acpi_processor_throttling_init(void)
 {
 	if (acpi_processor_update_tsd_coord())
-		pr_debug("Assume no T-state coordination\n");
+		pr_debug("Assume anal T-state coordination\n");
 }
 
-static int acpi_processor_throttling_notifier(unsigned long event, void *data)
+static int acpi_processor_throttling_analtifier(unsigned long event, void *data)
 {
 	struct throttling_tstate *p_tstate = data;
 	struct acpi_processor *pr;
@@ -251,7 +251,7 @@ static int acpi_processor_throttling_notifier(unsigned long event, void *data)
 				  cpu, target_state);
 		break;
 	default:
-		pr_warn("Unsupported Throttling notifier event\n");
+		pr_warn("Unsupported Throttling analtifier event\n");
 		break;
 	}
 
@@ -269,15 +269,15 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	if (!pr)
 		return -EINVAL;
 
-	if (ignore_tpc)
+	if (iganalre_tpc)
 		goto end;
 
 	status = acpi_evaluate_integer(pr->handle, "_TPC", NULL, &tpc);
 	if (ACPI_FAILURE(status)) {
-		if (status != AE_NOT_FOUND)
+		if (status != AE_ANALT_FOUND)
 			acpi_evaluation_failure_warn(pr->handle, "_TPC", status);
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 end:
@@ -293,7 +293,7 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 	struct acpi_processor_limit *limit;
 	int target_state;
 
-	if (ignore_tpc)
+	if (iganalre_tpc)
 		return 0;
 
 	result = acpi_processor_get_platform_limit(pr);
@@ -344,7 +344,7 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 /*
  * This function is used to reevaluate whether the T-state is valid
  * after one CPU is onlined/offlined.
- * It is noted that it won't reevaluate the following properties for
+ * It is analted that it won't reevaluate the following properties for
  * the T-state.
  *	1. Control method.
  *	2. the number of supported T-state
@@ -376,7 +376,7 @@ void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
 
 	/* Disable throttling (if enabled).  We'll let subsequent
 	 * policy (e.g.thermal) decide to lower performance if it
-	 * so chooses, but for now we'll crank up the speed.
+	 * so chooses, but for analw we'll crank up the speed.
 	 */
 
 	result = acpi_processor_get_throttling(pr);
@@ -407,10 +407,10 @@ static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
 
 	status = acpi_evaluate_object(pr->handle, "_PTC", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		if (status != AE_NOT_FOUND)
+		if (status != AE_ANALT_FOUND)
 			acpi_evaluation_failure_warn(pr->handle, "_PTC", status);
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ptc = (union acpi_object *)buffer.pointer;
@@ -491,10 +491,10 @@ static int acpi_processor_get_throttling_states(struct acpi_processor *pr)
 
 	status = acpi_evaluate_object(pr->handle, "_TSS", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		if (status != AE_NOT_FOUND)
+		if (status != AE_ANALT_FOUND)
 			acpi_evaluation_failure_warn(pr->handle, "_TSS", status);
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tss = buffer.pointer;
@@ -513,7 +513,7 @@ static int acpi_processor_get_throttling_states(struct acpi_processor *pr)
 			  sizeof(struct acpi_processor_tx_tss),
 			  GFP_KERNEL);
 	if (!pr->throttling.states_tss) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto end;
 	}
 
@@ -571,10 +571,10 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 
 	status = acpi_evaluate_object(pr->handle, "_TSD", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		if (status != AE_NOT_FOUND)
+		if (status != AE_ANALT_FOUND)
 			acpi_evaluation_failure_warn(pr->handle, "_TSD", status);
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tsd = buffer.pointer;
@@ -604,13 +604,13 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 	}
 
 	if (pdomain->num_entries != ACPI_TSD_REV0_ENTRIES) {
-		pr_err("Unknown _TSD:num_entries\n");
+		pr_err("Unkanalwn _TSD:num_entries\n");
 		result = -EFAULT;
 		goto end;
 	}
 
 	if (pdomain->revision != ACPI_TSD_REV0_REVISION) {
-		pr_err("Unknown _TSD:revision\n");
+		pr_err("Unkanalwn _TSD:revision\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -620,7 +620,7 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 	pthrottling->shared_type = pdomain->coord_type;
 	cpumask_set_cpu(pr->id, pthrottling->shared_cpu_map);
 	/*
-	 * If the coordination type is not defined in ACPI spec,
+	 * If the coordination type is analt defined in ACPI spec,
 	 * the tsd_valid_flag will be clear and coordination type
 	 * will be forecd as DOMAIN_COORD_TYPE_SW_ALL.
 	 */
@@ -650,11 +650,11 @@ static int acpi_processor_get_throttling_fadt(struct acpi_processor *pr)
 		return -EINVAL;
 
 	if (!pr->flags.throttling)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * We don't care about error returns - we just try to mark
-	 * these reserved so that nobody else is confused into thinking
+	 * these reserved so that analbody else is confused into thinking
 	 * that this region might be unused..
 	 *
 	 * (In particular, allocating the IO range for Cardbus)
@@ -703,7 +703,7 @@ static int acpi_throttling_rdmsr(u64 *value)
 
 	if ((this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_INTEL) ||
 		!this_cpu_has(X86_FEATURE_ACPI)) {
-		pr_err("HARDWARE addr space,NOT supported yet\n");
+		pr_err("HARDWARE addr space,ANALT supported yet\n");
 	} else {
 		msr_low = 0;
 		msr_high = 0;
@@ -723,7 +723,7 @@ static int acpi_throttling_wrmsr(u64 value)
 
 	if ((this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_INTEL) ||
 		!this_cpu_has(X86_FEATURE_ACPI)) {
-		pr_err("HARDWARE addr space,NOT supported yet\n");
+		pr_err("HARDWARE addr space,ANALT supported yet\n");
 	} else {
 		msr = value;
 		wrmsr_safe(MSR_IA32_THERM_CONTROL,
@@ -735,13 +735,13 @@ static int acpi_throttling_wrmsr(u64 value)
 #else
 static int acpi_throttling_rdmsr(u64 *value)
 {
-	pr_err("HARDWARE addr space,NOT supported yet\n");
+	pr_err("HARDWARE addr space,ANALT supported yet\n");
 	return -1;
 }
 
 static int acpi_throttling_wrmsr(u64 value)
 {
-	pr_err("HARDWARE addr space,NOT supported yet\n");
+	pr_err("HARDWARE addr space,ANALT supported yet\n");
 	return -1;
 }
 #endif
@@ -772,7 +772,7 @@ static int acpi_read_throttling_status(struct acpi_processor *pr,
 		ret = acpi_throttling_rdmsr(value);
 		break;
 	default:
-		pr_err("Unknown addr space %d\n",
+		pr_err("Unkanalwn addr space %d\n",
 		       (u32) (throttling->status_register.space_id));
 	}
 	return ret;
@@ -805,7 +805,7 @@ static int acpi_write_throttling_state(struct acpi_processor *pr,
 		ret = acpi_throttling_wrmsr(value);
 		break;
 	default:
-		pr_err("Unknown addr space %d\n",
+		pr_err("Unkanalwn addr space %d\n",
 		       (u32) (throttling->control_register.space_id));
 	}
 	return ret;
@@ -851,7 +851,7 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 		return -EINVAL;
 
 	if (!pr->flags.throttling)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr->throttling.state = 0;
 
@@ -887,16 +887,16 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 		return -EINVAL;
 
 	if (!pr->flags.throttling)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * This is either called from the CPU hotplug callback of
 	 * processor_driver or via the ACPI probe function. In the latter
-	 * case the CPU is not guaranteed to be online. Both call sites are
+	 * case the CPU is analt guaranteed to be online. Both call sites are
 	 * protected against CPU hotplug.
 	 */
 	if (!cpu_online(pr->id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return call_on_cpu(pr->id, __acpi_processor_get_throttling, pr, false);
 }
@@ -906,10 +906,10 @@ static int acpi_processor_get_fadt_info(struct acpi_processor *pr)
 	int i, step;
 
 	if (!pr->throttling.address) {
-		acpi_handle_debug(pr->handle, "No throttling register\n");
+		acpi_handle_debug(pr->handle, "Anal throttling register\n");
 		return -EINVAL;
 	} else if (!pr->throttling.duty_width) {
-		acpi_handle_debug(pr->handle, "No throttling states\n");
+		acpi_handle_debug(pr->handle, "Anal throttling states\n");
 		return -EINVAL;
 	}
 	/* TBD: Support duty_cycle values that span bit 4. */
@@ -921,7 +921,7 @@ static int acpi_processor_get_fadt_info(struct acpi_processor *pr)
 	pr->throttling.state_count = 1 << acpi_gbl_FADT.duty_width;
 
 	/*
-	 * Compute state values. Note that throttling displays a linear power
+	 * Compute state values. Analte that throttling displays a linear power
 	 * performance relationship (at 50% performance the CPU will consume
 	 * 50% power).  Values are in 1/10th of a percent to preserve accuracy.
 	 */
@@ -949,7 +949,7 @@ static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
 		return -EINVAL;
 
 	if (!pr->flags.throttling)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!force && (state == pr->throttling.state))
 		return 0;
@@ -974,7 +974,7 @@ static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
 	local_irq_disable();
 
 	/*
-	 * Disable throttling by writing a 0 to bit 4.  Note that we must
+	 * Disable throttling by writing a 0 to bit 4.  Analte that we must
 	 * turn it off before you can change the duty_value.
 	 */
 	value = inl(pr->throttling.address);
@@ -984,7 +984,7 @@ static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
 	}
 
 	/*
-	 * Write the new duty_value and then enable throttling.  Note
+	 * Write the new duty_value and then enable throttling.  Analte
 	 * that a state value of 0 leaves throttling disabled.
 	 */
 	if (state) {
@@ -1021,7 +1021,7 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 		return -EINVAL;
 
 	if (!pr->flags.throttling)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!force && (state == pr->throttling.state))
 		return 0;
@@ -1062,7 +1062,7 @@ static int __acpi_processor_set_throttling(struct acpi_processor *pr,
 		return -EINVAL;
 
 	if (!pr->flags.throttling)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((state < 0) || (state > (pr->throttling.state_count - 1)))
 		return -EINVAL;
@@ -1072,20 +1072,20 @@ static int __acpi_processor_set_throttling(struct acpi_processor *pr,
 		 * the cpu pointed by pr->id is offline. Unnecessary to change
 		 * the throttling state any more.
 		 */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	t_state.target_state = state;
 	p_throttling = &(pr->throttling);
 
 	/*
-	 * The throttling notifier will be called for every
+	 * The throttling analtifier will be called for every
 	 * affected cpu in order to get one proper T-state.
-	 * The notifier event is THROTTLING_PRECHANGE.
+	 * The analtifier event is THROTTLING_PRECHANGE.
 	 */
 	for_each_cpu_and(i, cpu_online_mask, p_throttling->shared_cpu_map) {
 		t_state.cpu = i;
-		acpi_processor_throttling_notifier(THROTTLING_PRECHANGE,
+		acpi_processor_throttling_analtifier(THROTTLING_PRECHANGE,
 							&t_state);
 	}
 	/*
@@ -1137,13 +1137,13 @@ static int __acpi_processor_set_throttling(struct acpi_processor *pr,
 	}
 	/*
 	 * After the set_throttling is called, the
-	 * throttling notifier is called for every
+	 * throttling analtifier is called for every
 	 * affected cpu to update the T-states.
-	 * The notifier event is THROTTLING_POSTCHANGE
+	 * The analtifier event is THROTTLING_POSTCHANGE
 	 */
 	for_each_cpu_and(i, cpu_online_mask, p_throttling->shared_cpu_map) {
 		t_state.cpu = i;
-		acpi_processor_throttling_notifier(THROTTLING_POSTCHANGE,
+		acpi_processor_throttling_analtifier(THROTTLING_POSTCHANGE,
 							&t_state);
 	}
 
@@ -1169,7 +1169,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 
 	/*
 	 * Evaluate _PTC, _TSS and _TPC
-	 * They must all be present or none of them can be used.
+	 * They must all be present or analne of them can be used.
 	 */
 	if (acpi_processor_get_throttling_control(pr) ||
 		acpi_processor_get_throttling_states(pr) ||
@@ -1189,7 +1189,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 
 	/*
 	 * If TSD package for one CPU can't be parsed successfully, it means
-	 * that this CPU will have no coordination with other CPUs.
+	 * that this CPU will have anal coordination with other CPUs.
 	 */
 	if (acpi_processor_get_tsd(pr)) {
 		pthrottling = &pr->throttling;
@@ -1205,7 +1205,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 	 */
 	if (errata.piix4.throttle) {
 		acpi_handle_debug(pr->handle,
-				  "Throttling not supported on PIIX4 A- or B-step\n");
+				  "Throttling analt supported on PIIX4 A- or B-step\n");
 		return 0;
 	}
 
@@ -1216,7 +1216,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 
 	/*
 	 * Disable throttling (if enabled).  We'll let subsequent policy (e.g.
-	 * thermal) decide to lower performance if it so chooses, but for now
+	 * thermal) decide to lower performance if it so chooses, but for analw
 	 * we'll crank up the speed.
 	 */
 

@@ -83,7 +83,7 @@ int rcar_cmm_setup(struct platform_device *pdev,
 {
 	struct rcar_cmm *rcmm = platform_get_drvdata(pdev);
 
-	/* Disable LUT if no table is provided. */
+	/* Disable LUT if anal table is provided. */
 	if (!config->lut.table) {
 		if (rcmm->lut.enabled) {
 			rcar_cmm_write(rcmm, CM2_LUT_CTRL, 0);
@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(rcar_cmm_setup);
  * enabled until the channel is stopped. The CMM unit shall be disabled with
  * rcar_cmm_disable().
  *
- * Calls to rcar_cmm_enable() and rcar_cmm_disable() are not reference-counted.
+ * Calls to rcar_cmm_enable() and rcar_cmm_disable() are analt reference-counted.
  * It is an error to attempt to enable an already enabled CMM unit, or to
  * attempt to disable a disabled unit.
  */
@@ -155,8 +155,8 @@ EXPORT_SYMBOL_GPL(rcar_cmm_disable);
  * rcar_cmm_init() - Initialize the CMM unit
  * @pdev: The platform device associated with the CMM instance
  *
- * Return: 0 on success, -EPROBE_DEFER if the CMM is not available yet,
- *         -ENODEV if the DRM_RCAR_CMM config option is disabled
+ * Return: 0 on success, -EPROBE_DEFER if the CMM is analt available yet,
+ *         -EANALDEV if the DRM_RCAR_CMM config option is disabled
  */
 int rcar_cmm_init(struct platform_device *pdev)
 {
@@ -175,7 +175,7 @@ static int rcar_cmm_probe(struct platform_device *pdev)
 
 	rcmm = devm_kzalloc(&pdev->dev, sizeof(*rcmm), GFP_KERNEL);
 	if (!rcmm)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, rcmm);
 
 	rcmm->base = devm_platform_ioremap_resource(pdev, 0);

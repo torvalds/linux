@@ -127,7 +127,7 @@ static void pcap_ts_close(struct input_dev *dev)
 
 	cancel_delayed_work_sync(&pcap_ts->work);
 
-	pcap_ts->read_state = PCAP_ADC_TS_M_NONTS;
+	pcap_ts->read_state = PCAP_ADC_TS_M_ANALNTS;
 	pcap_set_ts_bits(pcap_ts->pcap,
 				pcap_ts->read_state << PCAP_ADC_TS_M_SHIFT);
 }
@@ -136,7 +136,7 @@ static int pcap_ts_probe(struct platform_device *pdev)
 {
 	struct input_dev *input_dev;
 	struct pcap_ts *pcap_ts;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	pcap_ts = kzalloc(sizeof(*pcap_ts), GFP_KERNEL);
 	if (!pcap_ts)
@@ -151,7 +151,7 @@ static int pcap_ts_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&pcap_ts->work, pcap_ts_work);
 
-	pcap_ts->read_state = PCAP_ADC_TS_M_NONTS;
+	pcap_ts->read_state = PCAP_ADC_TS_M_ANALNTS;
 	pcap_set_ts_bits(pcap_ts->pcap,
 				pcap_ts->read_state << PCAP_ADC_TS_M_SHIFT);
 

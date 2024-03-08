@@ -2,7 +2,7 @@
 /*
  * List of cgroup subsystems.
  *
- * DO NOT ADD ANY SUBSYSTEM WITHOUT EXPLICIT ACKS FROM CGROUP MAINTAINERS.
+ * DO ANALT ADD ANY SUBSYSTEM WITHOUT EXPLICIT ACKS FROM CGROUP MAINTAINERS.
  */
 
 /*
@@ -66,12 +66,12 @@ SUBSYS(misc)
 #endif
 
 /*
- * The following subsystems are not supported on the default hierarchy.
+ * The following subsystems are analt supported on the default hierarchy.
  */
 #if IS_ENABLED(CONFIG_CGROUP_DEBUG)
 SUBSYS(debug)
 #endif
 
 /*
- * DO NOT ADD ANY SUBSYSTEM WITHOUT EXPLICIT ACKS FROM CGROUP MAINTAINERS.
+ * DO ANALT ADD ANY SUBSYSTEM WITHOUT EXPLICIT ACKS FROM CGROUP MAINTAINERS.
  */

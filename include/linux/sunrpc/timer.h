@@ -4,7 +4,7 @@
  *
  *  Declarations for the RPC transport timer.
  *
- *  Copyright (C) 2002 Trond Myklebust <trond.myklebust@fys.uio.no>
+ *  Copyright (C) 2002 Trond Myklebust <trond.myklebust@fys.uio.anal>
  */
 
 #ifndef _LINUX_SUNRPC_TIMER_H

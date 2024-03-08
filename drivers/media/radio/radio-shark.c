@@ -1,7 +1,7 @@
 /*
  * Linux V4L2 radio driver for the Griffin radioSHARK USB radio receiver
  *
- * Note the radioSHARK offers the audio through a regular USB audio device,
+ * Analte the radioSHARK offers the audio through a regular USB audio device,
  * this driver only handles the tuning.
  *
  * The info necessary to drive the shark was taken from the small userspace
@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 #define SHARK_IN_EP		0x83
 #define SHARK_OUT_EP		0x05
 
-#define TEA575X_BIT_MONO	(1<<22)		/* 0 = stereo, 1 = mono */
+#define TEA575X_BIT_MOANAL	(1<<22)		/* 0 = stereo, 1 = moanal */
 #define TEA575X_BIT_BAND_MASK	(3<<20)
 #define TEA575X_BIT_BAND_FM	(0<<20)
 
@@ -55,8 +55,8 @@ MODULE_LICENSE("GPL");
 
 #define v4l2_dev_to_shark(d) container_of(d, struct shark_device, v4l2_dev)
 
-/* Note BLUE_IS_PULSE comes after NO_LEDS as it is a status bit, not a LED */
-enum { BLUE_LED, BLUE_PULSE_LED, RED_LED, NO_LEDS, BLUE_IS_PULSE };
+/* Analte BLUE_IS_PULSE comes after ANAL_LEDS as it is a status bit, analt a LED */
+enum { BLUE_LED, BLUE_PULSE_LED, RED_LED, ANAL_LEDS, BLUE_IS_PULSE };
 
 struct shark_device {
 	struct usb_device *usbdev;
@@ -65,9 +65,9 @@ struct shark_device {
 
 #ifdef SHARK_USE_LEDS
 	struct work_struct led_work;
-	struct led_classdev leds[NO_LEDS];
-	char led_names[NO_LEDS][32];
-	atomic_t brightness[NO_LEDS];
+	struct led_classdev leds[ANAL_LEDS];
+	char led_names[ANAL_LEDS][32];
+	atomic_t brightness[ANAL_LEDS];
 	unsigned long brightness_new;
 #endif
 
@@ -133,12 +133,12 @@ static u32 shark_read_val(struct snd_tea575x *tea)
 	shark->last_val = val;
 
 	/*
-	 * The shark does not allow actually reading the stereo / mono pin :(
-	 * So assume that when we're tuned to an FM station and mono has not
+	 * The shark does analt allow actually reading the stereo / moanal pin :(
+	 * So assume that when we're tuned to an FM station and moanal has analt
 	 * been requested, that we're receiving stereo.
 	 */
 	if (((val & TEA575X_BIT_BAND_MASK) == TEA575X_BIT_BAND_FM) &&
-	    !(val & TEA575X_BIT_MONO))
+	    !(val & TEA575X_BIT_MOANAL))
 		shark->tea.stereo = true;
 	else
 		shark->tea.stereo = false;
@@ -214,7 +214,7 @@ static void shark_led_set_red(struct led_classdev *led_cdev,
 	schedule_work(&shark->led_work);
 }
 
-static const struct led_classdev shark_led_templates[NO_LEDS] = {
+static const struct led_classdev shark_led_templates[ANAL_LEDS] = {
 	[BLUE_LED] = {
 		.name		= "%s:blue:",
 		.brightness	= LED_OFF,
@@ -241,7 +241,7 @@ static int shark_register_leds(struct shark_device *shark, struct device *dev)
 
 	atomic_set(&shark->brightness[BLUE_LED], 127);
 	INIT_WORK(&shark->led_work, shark_led_work);
-	for (i = 0; i < NO_LEDS; i++) {
+	for (i = 0; i < ANAL_LEDS; i++) {
 		shark->leds[i] = shark_led_templates[i];
 		snprintf(shark->led_names[i], sizeof(shark->led_names[0]),
 			 shark->leds[i].name, shark->v4l2_dev.name);
@@ -261,7 +261,7 @@ static void shark_unregister_leds(struct shark_device *shark)
 {
 	int i;
 
-	for (i = 0; i < NO_LEDS; i++)
+	for (i = 0; i < ANAL_LEDS; i++)
 		led_classdev_unregister(&shark->leds[i]);
 
 	cancel_work_sync(&shark->led_work);
@@ -280,7 +280,7 @@ static inline void shark_resume_leds(struct shark_device *shark)
 static int shark_register_leds(struct shark_device *shark, struct device *dev)
 {
 	v4l2_warn(&shark->v4l2_dev,
-		  "CONFIG_LEDS_CLASS not enabled, LED support disabled\n");
+		  "CONFIG_LEDS_CLASS analt enabled, LED support disabled\n");
 	return 0;
 }
 static inline void shark_unregister_leds(struct shark_device *shark) { }
@@ -315,7 +315,7 @@ static int usb_shark_probe(struct usb_interface *intf,
 			   const struct usb_device_id *id)
 {
 	struct shark_device *shark;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	static const u8 ep_addresses[] = {
 		SHARK_IN_EP | USB_DIR_IN,
 		SHARK_OUT_EP | USB_DIR_OUT,
@@ -353,7 +353,7 @@ static int usb_shark_probe(struct usb_interface *intf,
 	shark->tea.private_data = shark;
 	shark->tea.radio_nr = -1;
 	shark->tea.ops = &shark_tea_ops;
-	shark->tea.cannot_mute = true;
+	shark->tea.cananalt_mute = true;
 	shark->tea.has_am = true;
 	strscpy(shark->tea.card, "Griffin radioSHARK",
 		sizeof(shark->tea.card));

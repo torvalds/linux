@@ -20,7 +20,7 @@ struct contention_task_data {
 
 /*
  * Upper bits of the flags in the contention_data are used to identify
- * some well-known locks which do not have symbols (non-global locks).
+ * some well-kanalwn locks which do analt have symbols (analn-global locks).
  */
 #define LCD_F_MMAP_LOCK		(1U << 31)
 #define LCD_F_SIGHAND_LOCK	(1U << 30)
@@ -43,7 +43,7 @@ enum lock_aggr_mode {
 };
 
 enum lock_class_sym {
-	LOCK_CLASS_NONE,
+	LOCK_CLASS_ANALNE,
 	LOCK_CLASS_RQLOCK,
 };
 

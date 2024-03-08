@@ -2,7 +2,7 @@
 /*
  * Divide a 64-bit unsigned number by a 32-bit unsigned number.
  * This routine assumes that the top 32 bits of the dividend are
- * non-zero to start with.
+ * analn-zero to start with.
  * On entry, r3 points to the dividend, which get overwritten with
  * the 64-bit quotient, and r4 contains the divisor.
  * On exit, r3 contains the remainder.
@@ -29,7 +29,7 @@ __div64_32:
 	cntlzw	r0,r5		# we are shifting the dividend right
 	li	r10,-1		# to make it < 2^32, and shifting
 	srw	r10,r10,r0	# the divisor right the same amount,
-	addc	r9,r4,r10	# rounding up (so the estimate cannot
+	addc	r9,r4,r10	# rounding up (so the estimate cananalt
 	andc	r11,r6,r10	# ever be too large, only too small)
 	andc	r9,r9,r10
 	addze	r9,r9

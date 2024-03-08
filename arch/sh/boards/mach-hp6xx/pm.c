@@ -6,7 +6,7 @@
  */
 #include <linux/init.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>

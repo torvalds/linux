@@ -11,7 +11,7 @@ maintainers:
 
 description:
   The bindings describe the reset-controller found on AOSS-CC (always on
-  subsystem) for Qualcomm Technologies Inc SoCs.
+  subsystem) for Qualcomm Techanallogies Inc SoCs.
 
 properties:
   compatible:

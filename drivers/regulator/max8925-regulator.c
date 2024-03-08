@@ -157,7 +157,7 @@ static const struct regulator_ops max8925_regulator_ldo_ops = {
 	.desc	= {						\
 		.name	= "SDV" #_id,				\
 		.of_match = of_match_ptr("SDV" #_id),		\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.ops	= &max8925_regulator_sdv_ops,		\
 		.type	= REGULATOR_VOLTAGE,			\
 		.id	= MAX8925_ID_SD##_id,			\
@@ -175,7 +175,7 @@ static const struct regulator_ops max8925_regulator_ldo_ops = {
 	.desc	= {						\
 		.name	= "LDO" #_id,				\
 		.of_match = of_match_ptr("LDO" #_id),		\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.ops	= &max8925_regulator_ldo_ops,		\
 		.type	= REGULATOR_VOLTAGE,			\
 		.id	= MAX8925_ID_LDO##_id,			\
@@ -227,7 +227,7 @@ static int max8925_regulator_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resource!\n");
+		dev_err(&pdev->dev, "Anal REG resource!\n");
 		return -EINVAL;
 	}
 	for (i = 0; i < ARRAY_SIZE(max8925_regulator_info); i++) {
@@ -263,7 +263,7 @@ static int max8925_regulator_probe(struct platform_device *pdev)
 static struct platform_driver max8925_regulator_driver = {
 	.driver		= {
 		.name	= "max8925-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= max8925_regulator_probe,
 };

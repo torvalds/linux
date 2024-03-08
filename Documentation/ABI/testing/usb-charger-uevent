@@ -10,7 +10,7 @@ Description:	There are two USB charger states:
 		There are five USB charger types:
 
 		========================  ==========================
-		USB_CHARGER_UNKNOWN_TYPE  Charger type is unknown
+		USB_CHARGER_UNKANALWN_TYPE  Charger type is unkanalwn
 		USB_CHARGER_SDP_TYPE      Standard Downstream Port
 		USB_CHARGER_CDP_TYPE      Charging Downstream Port
 		USB_CHARGER_DCP_TYPE      Dedicated Charging Port
@@ -22,15 +22,15 @@ Description:	There are two USB charger states:
 		Here are two examples taken using ``udevadm monitor -p`` when
 		USB charger is online::
 
-		    UDEV  change   /devices/soc0/usbphynop1 (platform)
+		    UDEV  change   /devices/soc0/usbphyanalp1 (platform)
 		    ACTION=change
-		    DEVPATH=/devices/soc0/usbphynop1
+		    DEVPATH=/devices/soc0/usbphyanalp1
 		    DRIVER=usb_phy_generic
-		    MODALIAS=of:Nusbphynop1T(null)Cusb-nop-xceiv
-		    OF_COMPATIBLE_0=usb-nop-xceiv
+		    MODALIAS=of:Nusbphyanalp1T(null)Cusb-analp-xceiv
+		    OF_COMPATIBLE_0=usb-analp-xceiv
 		    OF_COMPATIBLE_N=1
-		    OF_FULLNAME=/usbphynop1
-		    OF_NAME=usbphynop1
+		    OF_FULLNAME=/usbphyanalp1
+		    OF_NAME=usbphyanalp1
 		    SEQNUM=2493
 		    SUBSYSTEM=platform
 		    USB_CHARGER_STATE=USB_CHARGER_PRESENT
@@ -39,16 +39,16 @@ Description:	There are two USB charger states:
 
 		USB charger is offline::
 
-		    KERNEL change   /devices/soc0/usbphynop1 (platform)
+		    KERNEL change   /devices/soc0/usbphyanalp1 (platform)
 		    ACTION=change
-		    DEVPATH=/devices/soc0/usbphynop1
+		    DEVPATH=/devices/soc0/usbphyanalp1
 		    DRIVER=usb_phy_generic
-		    MODALIAS=of:Nusbphynop1T(null)Cusb-nop-xceiv
-		    OF_COMPATIBLE_0=usb-nop-xceiv
+		    MODALIAS=of:Nusbphyanalp1T(null)Cusb-analp-xceiv
+		    OF_COMPATIBLE_0=usb-analp-xceiv
 		    OF_COMPATIBLE_N=1
-		    OF_FULLNAME=/usbphynop1
-		    OF_NAME=usbphynop1
+		    OF_FULLNAME=/usbphyanalp1
+		    OF_NAME=usbphyanalp1
 		    SEQNUM=2494
 		    SUBSYSTEM=platform
 		    USB_CHARGER_STATE=USB_CHARGER_ABSENT
-		    USB_CHARGER_TYPE=USB_CHARGER_UNKNOWN_TYPE
+		    USB_CHARGER_TYPE=USB_CHARGER_UNKANALWN_TYPE

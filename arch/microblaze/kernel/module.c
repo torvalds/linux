@@ -70,19 +70,19 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			pr_debug("R_MICROBLAZE_32_PCREL_LO\n");
 			break;
 
-		case R_MICROBLAZE_64_NONE:
-			pr_debug("R_MICROBLAZE_64_NONE\n");
+		case R_MICROBLAZE_64_ANALNE:
+			pr_debug("R_MICROBLAZE_64_ANALNE\n");
 			break;
 
-		case R_MICROBLAZE_NONE:
-			pr_debug("R_MICROBLAZE_NONE\n");
+		case R_MICROBLAZE_ANALNE:
+			pr_debug("R_MICROBLAZE_ANALNE\n");
 			break;
 
 		default:
-			pr_err("module %s: Unknown relocation: %u\n",
+			pr_err("module %s: Unkanalwn relocation: %u\n",
 				module->name,
 				ELF32_R_TYPE(rela[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;

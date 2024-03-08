@@ -13,7 +13,7 @@
 #include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define HI846_MEDIA_BUS_FORMAT		MEDIA_BUS_FMT_SGBRG10_1X10
 #define HI846_RGB_DEPTH			10
@@ -30,11 +30,11 @@
 
 #define HI846_REG_IMAGE_ORIENTATION	0x000e
 
-#define HI846_REG_UNKNOWN_0022		0x0022
+#define HI846_REG_UNKANALWN_0022		0x0022
 
 #define HI846_REG_Y_ADDR_START_VACT_H	0x0026
 #define HI846_REG_Y_ADDR_START_VACT_L	0x0027
-#define HI846_REG_UNKNOWN_0028		0x0028
+#define HI846_REG_UNKANALWN_0028		0x0028
 
 #define HI846_REG_Y_ADDR_END_VACT_H	0x002c
 #define HI846_REG_Y_ADDR_END_VACT_L	0x002d
@@ -49,14 +49,14 @@
 
 #define HI846_REG_TG_ENABLE		0x004c
 
-#define HI846_REG_UNKNOWN_005C		0x005c
+#define HI846_REG_UNKANALWN_005C		0x005c
 
-#define HI846_REG_UNKNOWN_006A		0x006a
+#define HI846_REG_UNKANALWN_006A		0x006a
 
 /*
  * Long exposure time. Actually, exposure is a 20 bit value that
  * includes the lower 4 bits of 0x0073 too. Only 16 bits are used
- * right now
+ * right analw
  */
 #define HI846_REG_EXPOSURE		0x0074
 #define HI846_EXPOSURE_MIN		6
@@ -86,53 +86,53 @@
 #define HI846_REG_X_ADDR_START_HACT_H	0x0120
 #define HI846_REG_X_ADDR_END_HACT_H	0x0122
 
-#define HI846_REG_UNKNOWN_012A		0x012a
+#define HI846_REG_UNKANALWN_012A		0x012a
 
-#define HI846_REG_UNKNOWN_0200		0x0200
+#define HI846_REG_UNKANALWN_0200		0x0200
 
-#define HI846_REG_UNKNOWN_021C		0x021c
-#define HI846_REG_UNKNOWN_021E		0x021e
+#define HI846_REG_UNKANALWN_021C		0x021c
+#define HI846_REG_UNKANALWN_021E		0x021e
 
-#define HI846_REG_UNKNOWN_0402		0x0402
-#define HI846_REG_UNKNOWN_0404		0x0404
-#define HI846_REG_UNKNOWN_0408		0x0408
-#define HI846_REG_UNKNOWN_0410		0x0410
-#define HI846_REG_UNKNOWN_0412		0x0412
-#define HI846_REG_UNKNOWN_0414		0x0414
+#define HI846_REG_UNKANALWN_0402		0x0402
+#define HI846_REG_UNKANALWN_0404		0x0404
+#define HI846_REG_UNKANALWN_0408		0x0408
+#define HI846_REG_UNKANALWN_0410		0x0410
+#define HI846_REG_UNKANALWN_0412		0x0412
+#define HI846_REG_UNKANALWN_0414		0x0414
 
-#define HI846_REG_UNKNOWN_0418		0x0418
+#define HI846_REG_UNKANALWN_0418		0x0418
 
-#define HI846_REG_UNKNOWN_051E		0x051e
+#define HI846_REG_UNKANALWN_051E		0x051e
 
 /* Formatter */
 #define HI846_REG_X_START_H		0x0804
 #define HI846_REG_X_START_L		0x0805
 
 /* MIPI */
-#define HI846_REG_UNKNOWN_0900		0x0900
+#define HI846_REG_UNKANALWN_0900		0x0900
 #define HI846_REG_MIPI_TX_OP_EN		0x0901
 #define HI846_REG_MIPI_TX_OP_MODE	0x0902
 #define HI846_RAW8			BIT(5)
 
-#define HI846_REG_UNKNOWN_090C		0x090c
-#define HI846_REG_UNKNOWN_090E		0x090e
+#define HI846_REG_UNKANALWN_090C		0x090c
+#define HI846_REG_UNKANALWN_090E		0x090e
 
-#define HI846_REG_UNKNOWN_0914		0x0914
+#define HI846_REG_UNKANALWN_0914		0x0914
 #define HI846_REG_TLPX			0x0915
 #define HI846_REG_TCLK_PREPARE		0x0916
 #define HI846_REG_TCLK_ZERO		0x0917
-#define HI846_REG_UNKNOWN_0918		0x0918
+#define HI846_REG_UNKANALWN_0918		0x0918
 #define HI846_REG_THS_PREPARE		0x0919
 #define HI846_REG_THS_ZERO		0x091a
 #define HI846_REG_THS_TRAIL		0x091b
 #define HI846_REG_TCLK_POST		0x091c
 #define HI846_REG_TCLK_TRAIL_MIN	0x091d
-#define HI846_REG_UNKNOWN_091E		0x091e
+#define HI846_REG_UNKANALWN_091E		0x091e
 
-#define HI846_REG_UNKNOWN_0954		0x0954
-#define HI846_REG_UNKNOWN_0956		0x0956
-#define HI846_REG_UNKNOWN_0958		0x0958
-#define HI846_REG_UNKNOWN_095A		0x095a
+#define HI846_REG_UNKANALWN_0954		0x0954
+#define HI846_REG_UNKANALWN_0956		0x0956
+#define HI846_REG_UNKANALWN_0958		0x0958
+#define HI846_REG_UNKANALWN_095A		0x095a
 
 /* ISP Common */
 #define HI846_REG_MODE_SELECT		0x0a00
@@ -146,7 +146,7 @@
 #define HI846_REG_ISP_TPG_EN		0x01
 #define HI846_REG_TEST_PATTERN		0x020a /* 1-9 */
 
-#define HI846_REG_UNKNOWN_0A0C		0x0a0c
+#define HI846_REG_UNKANALWN_0A0C		0x0a0c
 
 /* Windowing */
 #define HI846_REG_X_OUTPUT_SIZE_H	0x0a12
@@ -157,47 +157,47 @@
 /* ISP Common */
 #define HI846_REG_PEDESTAL_EN		0x0a1a
 
-#define HI846_REG_UNKNOWN_0A1E		0x0a1e
+#define HI846_REG_UNKANALWN_0A1E		0x0a1e
 
 /* Horizontal Binning Mode */
 #define HI846_REG_HBIN_MODE		0x0a22
 
-#define HI846_REG_UNKNOWN_0A24		0x0a24
-#define HI846_REG_UNKNOWN_0B02		0x0b02
-#define HI846_REG_UNKNOWN_0B10		0x0b10
-#define HI846_REG_UNKNOWN_0B12		0x0b12
-#define HI846_REG_UNKNOWN_0B14		0x0b14
+#define HI846_REG_UNKANALWN_0A24		0x0a24
+#define HI846_REG_UNKANALWN_0B02		0x0b02
+#define HI846_REG_UNKANALWN_0B10		0x0b10
+#define HI846_REG_UNKANALWN_0B12		0x0b12
+#define HI846_REG_UNKANALWN_0B14		0x0b14
 
 /* BLC (Black Level Calibration) */
 #define HI846_REG_BLC_CTL0		0x0c00
 
-#define HI846_REG_UNKNOWN_0C06		0x0c06
-#define HI846_REG_UNKNOWN_0C10		0x0c10
-#define HI846_REG_UNKNOWN_0C12		0x0c12
-#define HI846_REG_UNKNOWN_0C14		0x0c14
-#define HI846_REG_UNKNOWN_0C16		0x0c16
+#define HI846_REG_UNKANALWN_0C06		0x0c06
+#define HI846_REG_UNKANALWN_0C10		0x0c10
+#define HI846_REG_UNKANALWN_0C12		0x0c12
+#define HI846_REG_UNKANALWN_0C14		0x0c14
+#define HI846_REG_UNKANALWN_0C16		0x0c16
 
-#define HI846_REG_UNKNOWN_0E04		0x0e04
+#define HI846_REG_UNKANALWN_0E04		0x0e04
 
 #define HI846_REG_CHIP_ID_L		0x0f16
 #define HI846_REG_CHIP_ID_H		0x0f17
 #define HI846_CHIP_ID_L			0x46
 #define HI846_CHIP_ID_H			0x08
 
-#define HI846_REG_UNKNOWN_0F04		0x0f04
-#define HI846_REG_UNKNOWN_0F08		0x0f08
+#define HI846_REG_UNKANALWN_0F04		0x0f04
+#define HI846_REG_UNKANALWN_0F08		0x0f08
 
 /* PLL */
 #define HI846_REG_PLL_CFG_MIPI2_H	0x0f2a
 #define HI846_REG_PLL_CFG_MIPI2_L	0x0f2b
 
-#define HI846_REG_UNKNOWN_0F30		0x0f30
+#define HI846_REG_UNKANALWN_0F30		0x0f30
 #define HI846_REG_PLL_CFG_RAMP1_H	0x0f32
-#define HI846_REG_UNKNOWN_0F36		0x0f36
+#define HI846_REG_UNKANALWN_0F36		0x0f36
 #define HI846_REG_PLL_CFG_MIPI1_H	0x0f38
 
-#define HI846_REG_UNKNOWN_2008		0x2008
-#define HI846_REG_UNKNOWN_326E		0x326e
+#define HI846_REG_UNKANALWN_2008		0x2008
+#define HI846_REG_UNKANALWN_326E		0x326e
 
 struct hi846_reg {
 	u16 address;
@@ -237,7 +237,7 @@ struct hi846_mode {
 
 static const struct hi846_reg hi846_init_2lane[] = {
 	{HI846_REG_MODE_SELECT,		0x0000},
-	/* regs below are unknown */
+	/* regs below are unkanalwn */
 	{0x2000, 0x100a},
 	{0x2002, 0x00ff},
 	{0x2004, 0x0007},
@@ -374,81 +374,81 @@ static const struct hi846_reg hi846_init_2lane[] = {
 	{0x3312, 0x0000},
 	{0x3314, 0xfc94},
 	{0x3316, 0xc3d8},
-	/* regs above are unknown */
+	/* regs above are unkanalwn */
 	{HI846_REG_MODE_SELECT,			0x0000},
-	{HI846_REG_UNKNOWN_0E04,		0x0012},
+	{HI846_REG_UNKANALWN_0E04,		0x0012},
 	{HI846_REG_Y_ODD_INC_FOBP,		0x1111},
 	{HI846_REG_Y_ODD_INC_VACT,		0x1111},
-	{HI846_REG_UNKNOWN_0022,		0x0008},
+	{HI846_REG_UNKANALWN_0022,		0x0008},
 	{HI846_REG_Y_ADDR_START_VACT_H,		0x0040},
-	{HI846_REG_UNKNOWN_0028,		0x0017},
+	{HI846_REG_UNKANALWN_0028,		0x0017},
 	{HI846_REG_Y_ADDR_END_VACT_H,		0x09cf},
-	{HI846_REG_UNKNOWN_005C,		0x2101},
+	{HI846_REG_UNKANALWN_005C,		0x2101},
 	{HI846_REG_FLL,				0x09de},
 	{HI846_REG_LLP,				0x0ed8},
 	{HI846_REG_IMAGE_ORIENTATION,		0x0100},
 	{HI846_REG_BINNING_MODE,		0x0022},
 	{HI846_REG_HBIN_MODE,			0x0000},
-	{HI846_REG_UNKNOWN_0A24,		0x0000},
+	{HI846_REG_UNKANALWN_0A24,		0x0000},
 	{HI846_REG_X_START_H,			0x0000},
 	{HI846_REG_X_OUTPUT_SIZE_H,		0x0cc0},
 	{HI846_REG_Y_OUTPUT_SIZE_H,		0x0990},
 	{HI846_REG_EXPOSURE,			0x09d8},
 	{HI846_REG_ANALOG_GAIN,			0x0000},
 	{HI846_REG_GROUPED_PARA_HOLD,		0x0000},
-	{HI846_REG_UNKNOWN_051E,		0x0000},
-	{HI846_REG_UNKNOWN_0200,		0x0400},
+	{HI846_REG_UNKANALWN_051E,		0x0000},
+	{HI846_REG_UNKANALWN_0200,		0x0400},
 	{HI846_REG_PEDESTAL_EN,			0x0c00},
-	{HI846_REG_UNKNOWN_0A0C,		0x0010},
-	{HI846_REG_UNKNOWN_0A1E,		0x0ccf},
-	{HI846_REG_UNKNOWN_0402,		0x0110},
-	{HI846_REG_UNKNOWN_0404,		0x00f4},
-	{HI846_REG_UNKNOWN_0408,		0x0000},
-	{HI846_REG_UNKNOWN_0410,		0x008d},
-	{HI846_REG_UNKNOWN_0412,		0x011a},
-	{HI846_REG_UNKNOWN_0414,		0x864c},
-	{HI846_REG_UNKNOWN_021C,		0x0003},
-	{HI846_REG_UNKNOWN_021E,		0x0235},
+	{HI846_REG_UNKANALWN_0A0C,		0x0010},
+	{HI846_REG_UNKANALWN_0A1E,		0x0ccf},
+	{HI846_REG_UNKANALWN_0402,		0x0110},
+	{HI846_REG_UNKANALWN_0404,		0x00f4},
+	{HI846_REG_UNKANALWN_0408,		0x0000},
+	{HI846_REG_UNKANALWN_0410,		0x008d},
+	{HI846_REG_UNKANALWN_0412,		0x011a},
+	{HI846_REG_UNKANALWN_0414,		0x864c},
+	{HI846_REG_UNKANALWN_021C,		0x0003},
+	{HI846_REG_UNKANALWN_021E,		0x0235},
 	{HI846_REG_BLC_CTL0,			0x9150},
-	{HI846_REG_UNKNOWN_0C06,		0x0021},
-	{HI846_REG_UNKNOWN_0C10,		0x0040},
-	{HI846_REG_UNKNOWN_0C12,		0x0040},
-	{HI846_REG_UNKNOWN_0C14,		0x0040},
-	{HI846_REG_UNKNOWN_0C16,		0x0040},
+	{HI846_REG_UNKANALWN_0C06,		0x0021},
+	{HI846_REG_UNKANALWN_0C10,		0x0040},
+	{HI846_REG_UNKANALWN_0C12,		0x0040},
+	{HI846_REG_UNKANALWN_0C14,		0x0040},
+	{HI846_REG_UNKANALWN_0C16,		0x0040},
 	{HI846_REG_FAST_STANDBY_MODE,		0x0100},
 	{HI846_REG_ISP_EN_H,			0x014a},
-	{HI846_REG_UNKNOWN_0418,		0x0000},
-	{HI846_REG_UNKNOWN_012A,		0x03b4},
+	{HI846_REG_UNKANALWN_0418,		0x0000},
+	{HI846_REG_UNKANALWN_012A,		0x03b4},
 	{HI846_REG_X_ADDR_START_HACT_H,		0x0046},
 	{HI846_REG_X_ADDR_END_HACT_H,		0x0376},
-	{HI846_REG_UNKNOWN_0B02,		0xe04d},
-	{HI846_REG_UNKNOWN_0B10,		0x6821},
-	{HI846_REG_UNKNOWN_0B12,		0x0120},
-	{HI846_REG_UNKNOWN_0B14,		0x0001},
-	{HI846_REG_UNKNOWN_2008,		0x38fd},
-	{HI846_REG_UNKNOWN_326E,		0x0000},
-	{HI846_REG_UNKNOWN_0900,		0x0320},
+	{HI846_REG_UNKANALWN_0B02,		0xe04d},
+	{HI846_REG_UNKANALWN_0B10,		0x6821},
+	{HI846_REG_UNKANALWN_0B12,		0x0120},
+	{HI846_REG_UNKANALWN_0B14,		0x0001},
+	{HI846_REG_UNKANALWN_2008,		0x38fd},
+	{HI846_REG_UNKANALWN_326E,		0x0000},
+	{HI846_REG_UNKANALWN_0900,		0x0320},
 	{HI846_REG_MIPI_TX_OP_MODE,		0xc31a},
-	{HI846_REG_UNKNOWN_0914,		0xc109},
+	{HI846_REG_UNKANALWN_0914,		0xc109},
 	{HI846_REG_TCLK_PREPARE,		0x061a},
-	{HI846_REG_UNKNOWN_0918,		0x0306},
+	{HI846_REG_UNKANALWN_0918,		0x0306},
 	{HI846_REG_THS_ZERO,			0x0b09},
 	{HI846_REG_TCLK_POST,			0x0c07},
-	{HI846_REG_UNKNOWN_091E,		0x0a00},
-	{HI846_REG_UNKNOWN_090C,		0x042a},
-	{HI846_REG_UNKNOWN_090E,		0x006b},
-	{HI846_REG_UNKNOWN_0954,		0x0089},
-	{HI846_REG_UNKNOWN_0956,		0x0000},
-	{HI846_REG_UNKNOWN_0958,		0xca00},
-	{HI846_REG_UNKNOWN_095A,		0x9240},
-	{HI846_REG_UNKNOWN_0F08,		0x2f04},
-	{HI846_REG_UNKNOWN_0F30,		0x001f},
-	{HI846_REG_UNKNOWN_0F36,		0x001f},
-	{HI846_REG_UNKNOWN_0F04,		0x3a00},
+	{HI846_REG_UNKANALWN_091E,		0x0a00},
+	{HI846_REG_UNKANALWN_090C,		0x042a},
+	{HI846_REG_UNKANALWN_090E,		0x006b},
+	{HI846_REG_UNKANALWN_0954,		0x0089},
+	{HI846_REG_UNKANALWN_0956,		0x0000},
+	{HI846_REG_UNKANALWN_0958,		0xca00},
+	{HI846_REG_UNKANALWN_095A,		0x9240},
+	{HI846_REG_UNKANALWN_0F08,		0x2f04},
+	{HI846_REG_UNKANALWN_0F30,		0x001f},
+	{HI846_REG_UNKANALWN_0F36,		0x001f},
+	{HI846_REG_UNKANALWN_0F04,		0x3a00},
 	{HI846_REG_PLL_CFG_RAMP1_H,		0x025a},
 	{HI846_REG_PLL_CFG_MIPI1_H,		0x025a},
 	{HI846_REG_PLL_CFG_MIPI2_H,		0x0024},
-	{HI846_REG_UNKNOWN_006A,		0x0100},
+	{HI846_REG_UNKANALWN_006A,		0x0100},
 	{HI846_REG_TG_ENABLE,			0x0100},
 };
 
@@ -845,45 +845,45 @@ static const struct hi846_reg mode_640x480_config[] = {
 	{HI846_REG_Y_ODD_INC_VACT,		0x7711},
 	{HI846_REG_Y_ADDR_START_VACT_H,		0x0148},
 	{HI846_REG_Y_ADDR_END_VACT_H,		0x08c7},
-	{HI846_REG_UNKNOWN_005C,		0x4404},
+	{HI846_REG_UNKANALWN_005C,		0x4404},
 	{HI846_REG_FLL,				0x0277},
 	{HI846_REG_LLP,				0x0ed8},
 	{HI846_REG_BINNING_MODE,		0x0322},
 	{HI846_REG_HBIN_MODE,			0x0200},
-	{HI846_REG_UNKNOWN_0A24,		0x0000},
+	{HI846_REG_UNKANALWN_0A24,		0x0000},
 	{HI846_REG_X_START_H,			0x0058},
 	{HI846_REG_X_OUTPUT_SIZE_H,		0x0280},
 	{HI846_REG_Y_OUTPUT_SIZE_H,		0x01e0},
 
 	/* For OTP */
-	{HI846_REG_UNKNOWN_021C,		0x0003},
-	{HI846_REG_UNKNOWN_021E,		0x0235},
+	{HI846_REG_UNKANALWN_021C,		0x0003},
+	{HI846_REG_UNKANALWN_021E,		0x0235},
 
 	{HI846_REG_ISP_EN_H,			0x016a},
-	{HI846_REG_UNKNOWN_0418,		0x0210},
-	{HI846_REG_UNKNOWN_0B02,		0xe04d},
-	{HI846_REG_UNKNOWN_0B10,		0x7021},
-	{HI846_REG_UNKNOWN_0B12,		0x0120},
-	{HI846_REG_UNKNOWN_0B14,		0x0001},
-	{HI846_REG_UNKNOWN_2008,		0x38fd},
-	{HI846_REG_UNKNOWN_326E,		0x0000},
+	{HI846_REG_UNKANALWN_0418,		0x0210},
+	{HI846_REG_UNKANALWN_0B02,		0xe04d},
+	{HI846_REG_UNKANALWN_0B10,		0x7021},
+	{HI846_REG_UNKANALWN_0B12,		0x0120},
+	{HI846_REG_UNKANALWN_0B14,		0x0001},
+	{HI846_REG_UNKANALWN_2008,		0x38fd},
+	{HI846_REG_UNKANALWN_326E,		0x0000},
 };
 
 static const struct hi846_reg mode_640x480_mipi_2lane[] = {
-	{HI846_REG_UNKNOWN_0900,		0x0300},
+	{HI846_REG_UNKANALWN_0900,		0x0300},
 	{HI846_REG_MIPI_TX_OP_MODE,		0x4319},
-	{HI846_REG_UNKNOWN_0914,		0xc105},
+	{HI846_REG_UNKANALWN_0914,		0xc105},
 	{HI846_REG_TCLK_PREPARE,		0x030c},
-	{HI846_REG_UNKNOWN_0918,		0x0304},
+	{HI846_REG_UNKANALWN_0918,		0x0304},
 	{HI846_REG_THS_ZERO,			0x0708},
 	{HI846_REG_TCLK_POST,			0x0b04},
-	{HI846_REG_UNKNOWN_091E,		0x0500},
-	{HI846_REG_UNKNOWN_090C,		0x0208},
-	{HI846_REG_UNKNOWN_090E,		0x009a},
-	{HI846_REG_UNKNOWN_0954,		0x0089},
-	{HI846_REG_UNKNOWN_0956,		0x0000},
-	{HI846_REG_UNKNOWN_0958,		0xca80},
-	{HI846_REG_UNKNOWN_095A,		0x9240},
+	{HI846_REG_UNKANALWN_091E,		0x0500},
+	{HI846_REG_UNKANALWN_090C,		0x0208},
+	{HI846_REG_UNKANALWN_090E,		0x009a},
+	{HI846_REG_UNKANALWN_0954,		0x0089},
+	{HI846_REG_UNKANALWN_0956,		0x0000},
+	{HI846_REG_UNKANALWN_0958,		0xca80},
+	{HI846_REG_UNKANALWN_095A,		0x9240},
 	{HI846_REG_PLL_CFG_MIPI2_H,		0x4924},
 	{HI846_REG_TG_ENABLE,			0x0100},
 };
@@ -894,66 +894,66 @@ static const struct hi846_reg mode_1280x720_config[] = {
 	{HI846_REG_Y_ODD_INC_VACT,		0x3311},
 	{HI846_REG_Y_ADDR_START_VACT_H,		0x0238},
 	{HI846_REG_Y_ADDR_END_VACT_H,		0x07d7},
-	{HI846_REG_UNKNOWN_005C,		0x4202},
+	{HI846_REG_UNKANALWN_005C,		0x4202},
 	{HI846_REG_FLL,				0x034a},
 	{HI846_REG_LLP,				0x0ed8},
 	{HI846_REG_BINNING_MODE,		0x0122},
 	{HI846_REG_HBIN_MODE,			0x0100},
-	{HI846_REG_UNKNOWN_0A24,		0x0000},
+	{HI846_REG_UNKANALWN_0A24,		0x0000},
 	{HI846_REG_X_START_H,			0x00b0},
 	{HI846_REG_X_OUTPUT_SIZE_H,		0x0500},
 	{HI846_REG_Y_OUTPUT_SIZE_H,		0x02d0},
 	{HI846_REG_EXPOSURE,			0x0344},
 
 	/* For OTP */
-	{HI846_REG_UNKNOWN_021C,		0x0003},
-	{HI846_REG_UNKNOWN_021E,		0x0235},
+	{HI846_REG_UNKANALWN_021C,		0x0003},
+	{HI846_REG_UNKANALWN_021E,		0x0235},
 
 	{HI846_REG_ISP_EN_H,			0x016a},
-	{HI846_REG_UNKNOWN_0418,		0x0410},
-	{HI846_REG_UNKNOWN_0B02,		0xe04d},
-	{HI846_REG_UNKNOWN_0B10,		0x6c21},
-	{HI846_REG_UNKNOWN_0B12,		0x0120},
-	{HI846_REG_UNKNOWN_0B14,		0x0005},
-	{HI846_REG_UNKNOWN_2008,		0x38fd},
-	{HI846_REG_UNKNOWN_326E,		0x0000},
+	{HI846_REG_UNKANALWN_0418,		0x0410},
+	{HI846_REG_UNKANALWN_0B02,		0xe04d},
+	{HI846_REG_UNKANALWN_0B10,		0x6c21},
+	{HI846_REG_UNKANALWN_0B12,		0x0120},
+	{HI846_REG_UNKANALWN_0B14,		0x0005},
+	{HI846_REG_UNKANALWN_2008,		0x38fd},
+	{HI846_REG_UNKANALWN_326E,		0x0000},
 };
 
 static const struct hi846_reg mode_1280x720_mipi_2lane[] = {
-	{HI846_REG_UNKNOWN_0900,		0x0300},
+	{HI846_REG_UNKANALWN_0900,		0x0300},
 	{HI846_REG_MIPI_TX_OP_MODE,		0x4319},
-	{HI846_REG_UNKNOWN_0914,		0xc109},
+	{HI846_REG_UNKANALWN_0914,		0xc109},
 	{HI846_REG_TCLK_PREPARE,		0x061a},
-	{HI846_REG_UNKNOWN_0918,		0x0407},
+	{HI846_REG_UNKANALWN_0918,		0x0407},
 	{HI846_REG_THS_ZERO,			0x0a0b},
 	{HI846_REG_TCLK_POST,			0x0e08},
-	{HI846_REG_UNKNOWN_091E,		0x0a00},
-	{HI846_REG_UNKNOWN_090C,		0x0427},
-	{HI846_REG_UNKNOWN_090E,		0x0145},
-	{HI846_REG_UNKNOWN_0954,		0x0089},
-	{HI846_REG_UNKNOWN_0956,		0x0000},
-	{HI846_REG_UNKNOWN_0958,		0xca80},
-	{HI846_REG_UNKNOWN_095A,		0x9240},
+	{HI846_REG_UNKANALWN_091E,		0x0a00},
+	{HI846_REG_UNKANALWN_090C,		0x0427},
+	{HI846_REG_UNKANALWN_090E,		0x0145},
+	{HI846_REG_UNKANALWN_0954,		0x0089},
+	{HI846_REG_UNKANALWN_0956,		0x0000},
+	{HI846_REG_UNKANALWN_0958,		0xca80},
+	{HI846_REG_UNKANALWN_095A,		0x9240},
 	{HI846_REG_PLL_CFG_MIPI2_H,		0x4124},
 	{HI846_REG_TG_ENABLE,			0x0100},
 };
 
 static const struct hi846_reg mode_1280x720_mipi_4lane[] = {
 	/* 360Mbps */
-	{HI846_REG_UNKNOWN_0900,		0x0300},
+	{HI846_REG_UNKANALWN_0900,		0x0300},
 	{HI846_REG_MIPI_TX_OP_MODE,		0xc319},
-	{HI846_REG_UNKNOWN_0914,		0xc105},
+	{HI846_REG_UNKANALWN_0914,		0xc105},
 	{HI846_REG_TCLK_PREPARE,		0x030c},
-	{HI846_REG_UNKNOWN_0918,		0x0304},
+	{HI846_REG_UNKANALWN_0918,		0x0304},
 	{HI846_REG_THS_ZERO,			0x0708},
 	{HI846_REG_TCLK_POST,			0x0b04},
-	{HI846_REG_UNKNOWN_091E,		0x0500},
-	{HI846_REG_UNKNOWN_090C,		0x0208},
-	{HI846_REG_UNKNOWN_090E,		0x008a},
-	{HI846_REG_UNKNOWN_0954,		0x0089},
-	{HI846_REG_UNKNOWN_0956,		0x0000},
-	{HI846_REG_UNKNOWN_0958,		0xca80},
-	{HI846_REG_UNKNOWN_095A,		0x9240},
+	{HI846_REG_UNKANALWN_091E,		0x0500},
+	{HI846_REG_UNKANALWN_090C,		0x0208},
+	{HI846_REG_UNKANALWN_090E,		0x008a},
+	{HI846_REG_UNKANALWN_0954,		0x0089},
+	{HI846_REG_UNKANALWN_0956,		0x0000},
+	{HI846_REG_UNKANALWN_0958,		0xca80},
+	{HI846_REG_UNKANALWN_095A,		0x9240},
 	{HI846_REG_PLL_CFG_MIPI2_H,		0x4924},
 	{HI846_REG_TG_ENABLE,			0x0100},
 };
@@ -964,65 +964,65 @@ static const struct hi846_reg mode_1632x1224_config[] = {
 	{HI846_REG_Y_ODD_INC_VACT,		0x3311},
 	{HI846_REG_Y_ADDR_START_VACT_H,		0x0040},
 	{HI846_REG_Y_ADDR_END_VACT_H,		0x09cf},
-	{HI846_REG_UNKNOWN_005C,		0x4202},
+	{HI846_REG_UNKANALWN_005C,		0x4202},
 	{HI846_REG_FLL,				0x09de},
 	{HI846_REG_LLP,				0x0ed8},
 	{HI846_REG_BINNING_MODE,		0x0122},
 	{HI846_REG_HBIN_MODE,			0x0100},
-	{HI846_REG_UNKNOWN_0A24,		0x0000},
+	{HI846_REG_UNKANALWN_0A24,		0x0000},
 	{HI846_REG_X_START_H,			0x0000},
 	{HI846_REG_X_OUTPUT_SIZE_H,		0x0660},
 	{HI846_REG_Y_OUTPUT_SIZE_H,		0x04c8},
 	{HI846_REG_EXPOSURE,			0x09d8},
 
 	/* For OTP */
-	{HI846_REG_UNKNOWN_021C,		0x0003},
-	{HI846_REG_UNKNOWN_021E,		0x0235},
+	{HI846_REG_UNKANALWN_021C,		0x0003},
+	{HI846_REG_UNKANALWN_021E,		0x0235},
 
 	{HI846_REG_ISP_EN_H,			0x016a},
-	{HI846_REG_UNKNOWN_0418,		0x0000},
-	{HI846_REG_UNKNOWN_0B02,		0xe04d},
-	{HI846_REG_UNKNOWN_0B10,		0x6c21},
-	{HI846_REG_UNKNOWN_0B12,		0x0120},
-	{HI846_REG_UNKNOWN_0B14,		0x0005},
-	{HI846_REG_UNKNOWN_2008,		0x38fd},
-	{HI846_REG_UNKNOWN_326E,		0x0000},
+	{HI846_REG_UNKANALWN_0418,		0x0000},
+	{HI846_REG_UNKANALWN_0B02,		0xe04d},
+	{HI846_REG_UNKANALWN_0B10,		0x6c21},
+	{HI846_REG_UNKANALWN_0B12,		0x0120},
+	{HI846_REG_UNKANALWN_0B14,		0x0005},
+	{HI846_REG_UNKANALWN_2008,		0x38fd},
+	{HI846_REG_UNKANALWN_326E,		0x0000},
 };
 
 static const struct hi846_reg mode_1632x1224_mipi_2lane[] = {
-	{HI846_REG_UNKNOWN_0900,		0x0300},
+	{HI846_REG_UNKANALWN_0900,		0x0300},
 	{HI846_REG_MIPI_TX_OP_MODE,		0x4319},
-	{HI846_REG_UNKNOWN_0914,		0xc109},
+	{HI846_REG_UNKANALWN_0914,		0xc109},
 	{HI846_REG_TCLK_PREPARE,		0x061a},
-	{HI846_REG_UNKNOWN_0918,		0x0407},
+	{HI846_REG_UNKANALWN_0918,		0x0407},
 	{HI846_REG_THS_ZERO,			0x0a0b},
 	{HI846_REG_TCLK_POST,			0x0e08},
-	{HI846_REG_UNKNOWN_091E,		0x0a00},
-	{HI846_REG_UNKNOWN_090C,		0x0427},
-	{HI846_REG_UNKNOWN_090E,		0x0069},
-	{HI846_REG_UNKNOWN_0954,		0x0089},
-	{HI846_REG_UNKNOWN_0956,		0x0000},
-	{HI846_REG_UNKNOWN_0958,		0xca80},
-	{HI846_REG_UNKNOWN_095A,		0x9240},
+	{HI846_REG_UNKANALWN_091E,		0x0a00},
+	{HI846_REG_UNKANALWN_090C,		0x0427},
+	{HI846_REG_UNKANALWN_090E,		0x0069},
+	{HI846_REG_UNKANALWN_0954,		0x0089},
+	{HI846_REG_UNKANALWN_0956,		0x0000},
+	{HI846_REG_UNKANALWN_0958,		0xca80},
+	{HI846_REG_UNKANALWN_095A,		0x9240},
 	{HI846_REG_PLL_CFG_MIPI2_H,		0x4124},
 	{HI846_REG_TG_ENABLE,			0x0100},
 };
 
 static const struct hi846_reg mode_1632x1224_mipi_4lane[] = {
-	{HI846_REG_UNKNOWN_0900,		0x0300},
+	{HI846_REG_UNKANALWN_0900,		0x0300},
 	{HI846_REG_MIPI_TX_OP_MODE,		0xc319},
-	{HI846_REG_UNKNOWN_0914,		0xc105},
+	{HI846_REG_UNKANALWN_0914,		0xc105},
 	{HI846_REG_TCLK_PREPARE,		0x030c},
-	{HI846_REG_UNKNOWN_0918,		0x0304},
+	{HI846_REG_UNKANALWN_0918,		0x0304},
 	{HI846_REG_THS_ZERO,			0x0708},
 	{HI846_REG_TCLK_POST,			0x0b04},
-	{HI846_REG_UNKNOWN_091E,		0x0500},
-	{HI846_REG_UNKNOWN_090C,		0x0208},
-	{HI846_REG_UNKNOWN_090E,		0x001c},
-	{HI846_REG_UNKNOWN_0954,		0x0089},
-	{HI846_REG_UNKNOWN_0956,		0x0000},
-	{HI846_REG_UNKNOWN_0958,		0xca80},
-	{HI846_REG_UNKNOWN_095A,		0x9240},
+	{HI846_REG_UNKANALWN_091E,		0x0500},
+	{HI846_REG_UNKANALWN_090C,		0x0208},
+	{HI846_REG_UNKANALWN_090E,		0x001c},
+	{HI846_REG_UNKANALWN_0954,		0x0089},
+	{HI846_REG_UNKANALWN_0956,		0x0000},
+	{HI846_REG_UNKANALWN_0958,		0xca80},
+	{HI846_REG_UNKANALWN_095A,		0x9240},
 	{HI846_REG_PLL_CFG_MIPI2_H,		0x4924},
 	{HI846_REG_TG_ENABLE,			0x0100},
 };
@@ -1415,7 +1415,7 @@ static int hi846_init_controls(struct hi846 *hi846)
 	s64 exposure_max, h_blank;
 	int ret;
 	struct i2c_client *client = v4l2_get_subdevdata(&hi846->sd);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 
 	ctrl_hdlr = &hi846->ctrl_handler;
 	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 10);
@@ -1477,11 +1477,11 @@ static int hi846_init_controls(struct hi846 *hi846)
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto error;
 
-	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &hi846_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &hi846_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error;
@@ -1564,12 +1564,12 @@ static int hi846_start_streaming(struct hi846 *hi846)
 		return ret;
 
 	/*
-	 * Reading 0x0034 is purely done for debugging reasons: It is not
+	 * Reading 0x0034 is purely done for debugging reasons: It is analt
 	 * documented in the DS but only mentioned once:
 	 * "If 0x0034[2] bit is disabled , Visible pixel width and height is 0."
 	 * So even though that sounds like we won't see anything, we don't
-	 * know more about this, so in that case only inform the user but do
-	 * nothing more.
+	 * kanalw more about this, so in that case only inform the user but do
+	 * analthing more.
 	 */
 	ret = hi846_read_reg(hi846, 0x0034, &val);
 	if (ret)
@@ -1712,13 +1712,13 @@ static int hi846_set_format(struct v4l2_subdev *sd,
 	if (hi846->nr_lanes == 2) {
 		if (!hi846->cur_mode->reg_list_2lane.num_of_regs) {
 			dev_err(&client->dev,
-				"this mode is not supported for 2 lanes\n");
+				"this mode is analt supported for 2 lanes\n");
 			return -EINVAL;
 		}
 	} else {
 		if (!hi846->cur_mode->reg_list_4lane.num_of_regs) {
 			dev_err(&client->dev,
-				"this mode is not supported for 4 lanes\n");
+				"this mode is analt supported for 4 lanes\n");
 			return -EINVAL;
 		}
 	}
@@ -1745,7 +1745,7 @@ static int hi846_set_format(struct v4l2_subdev *sd,
 	mf->width = hi846->cur_mode->width;
 	mf->height = hi846->cur_mode->height;
 	mf->code = HI846_MEDIA_BUS_FORMAT;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 
 	__v4l2_ctrl_s_ctrl(hi846->link_freq, hi846_get_link_freq_index(hi846));
 	__v4l2_ctrl_s_ctrl_int64(hi846->pixel_rate,
@@ -1791,7 +1791,7 @@ static int hi846_get_format(struct v4l2_subdev *sd,
 	mutex_lock(&hi846->mutex);
 	mf->code        = HI846_MEDIA_BUS_FORMAT;
 	mf->colorspace  = V4L2_COLORSPACE_RAW;
-	mf->field       = V4L2_FIELD_NONE;
+	mf->field       = V4L2_FIELD_ANALNE;
 	mf->width       = hi846->cur_mode->width;
 	mf->height      = hi846->cur_mode->height;
 	mutex_unlock(&hi846->mutex);
@@ -1824,7 +1824,7 @@ static int hi846_enum_frame_size(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (fse->code != HI846_MEDIA_BUS_FORMAT) {
-		dev_err(&client->dev, "frame size enum not matching\n");
+		dev_err(&client->dev, "frame size enum analt matching\n");
 		return -EINVAL;
 	}
 
@@ -1882,7 +1882,7 @@ static int hi846_init_state(struct v4l2_subdev *sd,
 	mutex_lock(&hi846->mutex);
 	mf->code        = HI846_MEDIA_BUS_FORMAT;
 	mf->colorspace  = V4L2_COLORSPACE_RAW;
-	mf->field       = V4L2_FIELD_NONE;
+	mf->field       = V4L2_FIELD_ANALNE;
 	mf->width       = hi846->cur_mode->width;
 	mf->height      = hi846->cur_mode->height;
 	mutex_unlock(&hi846->mutex);
@@ -1946,7 +1946,7 @@ static int hi846_identify_module(struct hi846 *hi846)
 }
 
 static s64 hi846_check_link_freqs(struct hi846 *hi846,
-				  struct v4l2_fwnode_endpoint *ep)
+				  struct v4l2_fwanalde_endpoint *ep)
 {
 	const s64 *freqs = hi846_link_freqs;
 	int freqs_count = ARRAY_SIZE(hi846_link_freqs);
@@ -1965,30 +1965,30 @@ static s64 hi846_check_link_freqs(struct hi846 *hi846,
 
 static int hi846_parse_dt(struct hi846 *hi846, struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	int ret;
 	s64 fq;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep) {
-		dev_err(dev, "unable to find endpoint node\n");
+		dev_err(dev, "unable to find endpoint analde\n");
 		return -ENXIO;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret) {
-		dev_err(dev, "failed to parse endpoint node: %d\n", ret);
+		dev_err(dev, "failed to parse endpoint analde: %d\n", ret);
 		return ret;
 	}
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2 &&
 	    bus_cfg.bus.mipi_csi2.num_data_lanes != 4) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
@@ -1997,7 +1997,7 @@ static int hi846_parse_dt(struct hi846 *hi846, struct device *dev)
 	hi846->nr_lanes = bus_cfg.bus.mipi_csi2.num_data_lanes;
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "link-frequency property not found in DT\n");
+		dev_err(dev, "link-frequency property analt found in DT\n");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -2005,12 +2005,12 @@ static int hi846_parse_dt(struct hi846 *hi846, struct device *dev)
 	/* Check that link frequences for all the modes are in device tree */
 	fq = hi846_check_link_freqs(hi846, &bus_cfg);
 	if (fq) {
-		dev_err(dev, "Link frequency of %lld is not supported\n", fq);
+		dev_err(dev, "Link frequency of %lld is analt supported\n", fq);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
 
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	hi846->rst_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(hi846->rst_gpio)) {
@@ -2030,7 +2030,7 @@ static int hi846_parse_dt(struct hi846 *hi846, struct device *dev)
 	return 0;
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 	return ret;
 }
 
@@ -2043,7 +2043,7 @@ static int hi846_probe(struct i2c_client *client)
 
 	hi846 = devm_kzalloc(&client->dev, sizeof(*hi846), GFP_KERNEL);
 	if (!hi846)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hi846_parse_dt(hi846, &client->dev);
 	if (ret) {
@@ -2062,7 +2062,7 @@ static int hi846_probe(struct i2c_client *client)
 	mclk_freq = clk_get_rate(hi846->clock);
 	if (mclk_freq != 25000000)
 		dev_warn(&client->dev,
-			 "External clock freq should be 25000000, not %u.\n",
+			 "External clock freq should be 25000000, analt %u.\n",
 			 mclk_freq);
 
 	for (i = 0; i < HI846_NUM_SUPPLIES; i++)
@@ -2094,7 +2094,7 @@ static int hi846_probe(struct i2c_client *client)
 		goto err_power_off;
 	}
 
-	hi846->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	hi846->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	hi846->sd.entity.ops = &hi846_subdev_entity_ops;
 	hi846->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	hi846->pad.flags = MEDIA_PAD_FL_SOURCE;

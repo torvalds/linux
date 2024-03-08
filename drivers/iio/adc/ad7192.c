@@ -50,7 +50,7 @@
 /* Status Register Bit Designations (AD7192_REG_STAT) */
 #define AD7192_STAT_RDY		BIT(7) /* Ready */
 #define AD7192_STAT_ERR		BIT(6) /* Error (Overrange, Underrange) */
-#define AD7192_STAT_NOREF	BIT(5) /* Error no external reference */
+#define AD7192_STAT_ANALREF	BIT(5) /* Error anal external reference */
 #define AD7192_STAT_PARITY	BIT(4) /* Parity */
 #define AD7192_STAT_CH3		BIT(2) /* Channel 3 */
 #define AD7192_STAT_CH2		BIT(1) /* Channel 2 */
@@ -66,7 +66,7 @@
 #define AD7192_MODE_ENPAR	BIT(13) /* Parity Enable */
 #define AD7192_MODE_CLKDIV	BIT(12) /* Clock divide by 2 (AD7190/2 only)*/
 #define AD7192_MODE_SCYCLE	BIT(11) /* Single cycle conversion */
-#define AD7192_MODE_REJ60	BIT(10) /* 50/60Hz notch filter */
+#define AD7192_MODE_REJ60	BIT(10) /* 50/60Hz analtch filter */
 				  /* Filter Update Rate Select Mask */
 #define AD7192_MODE_RATE_MASK	GENMASK(9, 0)
 
@@ -84,7 +84,7 @@
 #define AD7192_CLK_EXT_MCLK1_2		0 /* External 4.92 MHz Clock connected*/
 					  /* from MCLK1 to MCLK2 */
 #define AD7192_CLK_EXT_MCLK2		1 /* External Clock applied to MCLK2 */
-#define AD7192_CLK_INT			2 /* Internal 4.92 MHz Clock not */
+#define AD7192_CLK_INT			2 /* Internal 4.92 MHz Clock analt */
 					  /* available at the MCLK2 pin */
 #define AD7192_CLK_INT_CO		3 /* Internal 4.92 MHz Clock available*/
 					  /* at the MCLK2 pin */
@@ -95,7 +95,7 @@
 #define AD7192_CONF_ACX		BIT(22) /* AC excitation enable(AD7195 only) */
 #define AD7192_CONF_REFSEL	BIT(20) /* REFIN1/REFIN2 Reference Select */
 #define AD7192_CONF_CHAN_MASK	GENMASK(18, 8) /* Channel select mask */
-#define AD7192_CONF_BURN	BIT(7) /* Burnout current enable */
+#define AD7192_CONF_BURN	BIT(7) /* Buranalut current enable */
 #define AD7192_CONF_REFDET	BIT(6) /* Reference detect enable */
 #define AD7192_CONF_BUF		BIT(4) /* Buffered Mode Enable */
 #define AD7192_CONF_UNIPOLAR	BIT(3) /* Unipolar/Bipolar Enable */
@@ -146,11 +146,11 @@
 #define AD7192_EXT_FREQ_MHZ_MAX	5120000
 #define AD7192_INT_FREQ_MHZ	4915200
 
-#define AD7192_NO_SYNC_FILTER	1
+#define AD7192_ANAL_SYNC_FILTER	1
 #define AD7192_SYNC3_FILTER	3
 #define AD7192_SYNC4_FILTER	4
 
-/* NOTE:
+/* ANALTE:
  * The AD7190/2/5 features a dual use data out ready DOUT/RDY output.
  * In order to avoid contentions on the SPI bus, it's therefore necessary
  * to use spi bus locking.
@@ -366,7 +366,7 @@ static inline bool ad7192_valid_external_frequency(u32 freq)
 
 static int ad7192_of_clock_select(struct ad7192_state *st)
 {
-	struct device_node *np = st->sd.spi->dev.of_node;
+	struct device_analde *np = st->sd.spi->dev.of_analde;
 	unsigned int clock_sel;
 
 	clock_sel = AD7192_CLK_INT;
@@ -385,11 +385,11 @@ static int ad7192_of_clock_select(struct ad7192_state *st)
 	return clock_sel;
 }
 
-static int ad7192_setup(struct iio_dev *indio_dev, struct device_node *np)
+static int ad7192_setup(struct iio_dev *indio_dev, struct device_analde *np)
 {
 	struct ad7192_state *st = iio_priv(indio_dev);
 	bool rej60_en, refin2_en;
-	bool buf_en, bipolar, burnout_curr_en;
+	bool buf_en, bipolar, buranalut_curr_en;
 	unsigned long long scale_uv;
 	int i, ret, id;
 
@@ -434,13 +434,13 @@ static int ad7192_setup(struct iio_dev *indio_dev, struct device_node *np)
 	if (!bipolar)
 		st->conf |= AD7192_CONF_UNIPOLAR;
 
-	burnout_curr_en = of_property_read_bool(np,
-						"adi,burnout-currents-enable");
-	if (burnout_curr_en && buf_en) {
+	buranalut_curr_en = of_property_read_bool(np,
+						"adi,buranalut-currents-enable");
+	if (buranalut_curr_en && buf_en) {
 		st->conf |= AD7192_CONF_BURN;
-	} else if (burnout_curr_en) {
+	} else if (buranalut_curr_en) {
 		dev_warn(&st->sd.spi->dev,
-			 "Can't enable burnout currents: see CHOP or buffer\n");
+			 "Can't enable buranalut currents: see CHOP or buffer\n");
 	}
 
 	ret = ad_sd_write_reg(&st->sd, AD7192_REG_MODE, 3, st->mode);
@@ -744,11 +744,11 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 			*val = st->scale_avail[gain][0];
 			*val2 = st->scale_avail[gain][1];
 			mutex_unlock(&st->lock);
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_TEMP:
 			*val = 0;
 			*val2 = 1000000000 / ad7192_get_temp_scale(unipolar);
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		default:
 			return -EINVAL;
 		}
@@ -860,7 +860,7 @@ static int ad7192_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
@@ -882,7 +882,7 @@ static int ad7192_read_avail(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		*vals = (int *)st->scale_avail;
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		/* Values are stored in a 2D matrix  */
 		*length = ARRAY_SIZE(st->scale_avail) * 2;
 
@@ -1060,13 +1060,13 @@ static int ad7192_probe(struct spi_device *spi)
 	int ret;
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ?\n");
-		return -ENODEV;
+		dev_err(&spi->dev, "anal IRQ?\n");
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -1092,7 +1092,7 @@ static int ad7192_probe(struct spi_device *spi)
 
 	st->vref = devm_regulator_get_optional(&spi->dev, "vref");
 	if (IS_ERR(st->vref)) {
-		if (PTR_ERR(st->vref) != -ENODEV)
+		if (PTR_ERR(st->vref) != -EANALDEV)
 			return PTR_ERR(st->vref);
 
 		ret = regulator_get_voltage(st->avdd);
@@ -1152,7 +1152,7 @@ static int ad7192_probe(struct spi_device *spi)
 		}
 	}
 
-	ret = ad7192_setup(indio_dev, spi->dev.of_node);
+	ret = ad7192_setup(indio_dev, spi->dev.of_analde);
 	if (ret)
 		return ret;
 

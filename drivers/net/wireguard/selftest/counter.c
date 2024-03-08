@@ -6,13 +6,13 @@
 #ifdef DEBUG
 bool __init wg_packet_counter_selftest(void)
 {
-	struct noise_replay_counter *counter;
+	struct analise_replay_counter *counter;
 	unsigned int test_num = 0, i;
 	bool success = true;
 
 	counter = kmalloc(sizeof(*counter), GFP_KERNEL);
 	if (unlikely(!counter)) {
-		pr_err("nonce counter self-test malloc: FAIL\n");
+		pr_err("analnce counter self-test malloc: FAIL\n");
 		return false;
 	}
 
@@ -24,7 +24,7 @@ bool __init wg_packet_counter_selftest(void)
 #define T(n, v) do {                                                  \
 		++test_num;                                           \
 		if (counter_validate(counter, n) != (v)) {            \
-			pr_err("nonce counter self-test %u: FAIL\n",  \
+			pr_err("analnce counter self-test %u: FAIL\n",  \
 			       test_num);                             \
 			success = false;                              \
 		}                                                     \
@@ -104,7 +104,7 @@ bool __init wg_packet_counter_selftest(void)
 #undef T_INIT
 
 	if (success)
-		pr_info("nonce counter self-tests: pass\n");
+		pr_info("analnce counter self-tests: pass\n");
 	kfree(counter);
 	return success;
 }

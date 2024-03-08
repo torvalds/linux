@@ -17,7 +17,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -136,7 +136,7 @@ static const struct gc0310_reg gc0310_reset_register[] = {
 	{ 0x43, 0x00 },
 	{ 0x21, 0x02 }, /* 0x01 */
 	{ 0x22, 0x02 }, /* 0x01 */
-	{ 0x23, 0x01 }, /* 0x05 //Nor:0x05 DOU:0x06 */
+	{ 0x23, 0x01 }, /* 0x05 //Analr:0x05 DOU:0x06 */
 	{ 0x29, 0x00 },
 	{ 0x2A, 0x25 }, /* 0x05 //data zero 0x7a de */
 	{ 0x2B, 0x02 },
@@ -218,7 +218,7 @@ static const struct gc0310_reg gc0310_reset_register[] = {
 	{ 0x72, 0x40 }, /* post gain */
 	{ 0x5a, 0x84 }, /* 84//analog gain 0  */
 	{ 0x5b, 0xc9 }, /* c9 */
-	{ 0x5c, 0xed }, /* ed//not use pga gain highest level */
+	{ 0x5c, 0xed }, /* ed//analt use pga gain highest level */
 	{ 0x77, 0x40 }, /* R gain 0x74 //awb gain */
 	{ 0x78, 0x40 }, /* G gain */
 	{ 0x79, 0x40 }, /* B gain 0x5f */
@@ -372,7 +372,7 @@ static void gc0310_fill_format(struct v4l2_mbus_framefmt *fmt)
 	memset(fmt, 0, sizeof(*fmt));
 	fmt->width = GC0310_NATIVE_WIDTH;
 	fmt->height = GC0310_NATIVE_HEIGHT;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 }
 
@@ -408,7 +408,7 @@ static int gc0310_detect(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pm_runtime_get_sync(&client->dev);
 	if (ret >= 0)
@@ -416,7 +416,7 @@ static int gc0310_detect(struct i2c_client *client)
 	pm_runtime_put(&client->dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "read sensor_id failed: %d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(&client->dev, "sensor ID = 0x%x\n", ret);
@@ -424,7 +424,7 @@ static int gc0310_detect(struct i2c_client *client)
 	if (ret != GC0310_ID) {
 		dev_err(&client->dev, "sensor ID error, read id = 0x%x, target id = 0x%x\n",
 			ret, GC0310_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(&client->dev, "detect gc0310 success\n");
@@ -508,7 +508,7 @@ static int gc0310_get_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = GC0310_FPS;
+	interval->interval.deanalminator = GC0310_FPS;
 
 	return 0;
 }
@@ -605,23 +605,23 @@ static void gc0310_remove(struct i2c_client *client)
 
 static int gc0310_probe(struct i2c_client *client)
 {
-	struct fwnode_handle *ep_fwnode;
+	struct fwanalde_handle *ep_fwanalde;
 	struct gc0310_device *dev;
 	int ret;
 
 	/*
-	 * Sometimes the fwnode graph is initialized by the bridge driver.
+	 * Sometimes the fwanalde graph is initialized by the bridge driver.
 	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
 	 */
-	ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
-	if (!ep_fwnode)
-		return dev_err_probe(&client->dev, -EPROBE_DEFER, "waiting for fwnode graph endpoint\n");
+	ep_fwanalde = fwanalde_graph_get_next_endpoint(dev_fwanalde(&client->dev), NULL);
+	if (!ep_fwanalde)
+		return dev_err_probe(&client->dev, -EPROBE_DEFER, "waiting for fwanalde graph endpoint\n");
 
-	fwnode_handle_put(ep_fwnode);
+	fwanalde_handle_put(ep_fwanalde);
 
 	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(dev->reset)) {
@@ -650,7 +650,7 @@ static int gc0310_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 

@@ -19,7 +19,7 @@ struct sk_buff;
 struct ipa;
 struct ipa_gsi_endpoint_data;
 
-/* Non-zero granularity of counter used to implement aggregation timeout */
+/* Analn-zero granularity of counter used to implement aggregation timeout */
 #define IPA_AGGR_GRANULARITY		500	/* microseconds */
 
 #define IPA_MTU			ETH_DATA_LEN
@@ -35,7 +35,7 @@ enum ipa_endpoint_name {
 	IPA_ENDPOINT_MODEM_AP_TX,
 	IPA_ENDPOINT_MODEM_AP_RX,
 	IPA_ENDPOINT_MODEM_DL_NLO_TX,
-	IPA_ENDPOINT_COUNT,	/* Number of names (not an index) */
+	IPA_ENDPOINT_COUNT,	/* Number of names (analt an index) */
 };
 
 #define IPA_ENDPOINT_MAX		36	/* Max supported by driver */
@@ -77,7 +77,7 @@ struct ipa_endpoint_tx {
  *
  * A time limit can be specified to close aggregation.  Aggregation will be
  * closed if this period passes after data is first written into a receive
- * buffer.  If not specified, no time limit is imposed.
+ * buffer.  If analt specified, anal time limit is imposed.
  *
  * Insufficient space available in the receive buffer can close aggregation.
  * The aggregation byte limit defines the point (in units of 1024 bytes) in

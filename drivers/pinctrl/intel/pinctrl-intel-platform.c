@@ -36,7 +36,7 @@ static int intel_platform_pinctrl_prepare_pins(struct device *dev, size_t base,
 
 	descs = devm_krealloc_array(dev, pins->pins, base + size, sizeof(*descs), GFP_KERNEL);
 	if (!descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < size; i++) {
 		unsigned int pin_number = base + i;
@@ -58,7 +58,7 @@ static int intel_platform_pinctrl_prepare_pins(struct device *dev, size_t base,
 }
 
 static int intel_platform_pinctrl_prepare_group(struct device *dev,
-						struct fwnode_handle *child,
+						struct fwanalde_handle *child,
 						struct intel_padgroup *gpp,
 						struct intel_platform_pins *pins)
 {
@@ -67,11 +67,11 @@ static int intel_platform_pinctrl_prepare_group(struct device *dev,
 	u32 size;
 	int ret;
 
-	ret = fwnode_property_read_string(child, "intc-gpio-group-name", &name);
+	ret = fwanalde_property_read_string(child, "intc-gpio-group-name", &name);
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_u32(child, "intc-gpio-pad-count", &size);
+	ret = fwanalde_property_read_u32(child, "intc-gpio-pad-count", &size);
 	if (ret)
 		return ret;
 
@@ -90,7 +90,7 @@ static int intel_platform_pinctrl_prepare_community(struct device *dev,
 						    struct intel_community *community,
 						    struct intel_platform_pins *pins)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct intel_padgroup *gpps;
 	unsigned int group;
 	size_t ngpps;
@@ -122,16 +122,16 @@ static int intel_platform_pinctrl_prepare_community(struct device *dev,
 		return ret;
 	community->ie_offset = offset;
 
-	ngpps = device_get_child_node_count(dev);
+	ngpps = device_get_child_analde_count(dev);
 	if (!ngpps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpps = devm_kcalloc(dev, ngpps, sizeof(*gpps), GFP_KERNEL);
 	if (!gpps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	group = 0;
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		struct intel_padgroup *gpp = &gpps[group];
 
 		gpp->reg_num = group;
@@ -158,16 +158,16 @@ static int intel_platform_pinctrl_prepare_soc_data(struct device *dev,
 	unsigned int i;
 	int ret;
 
-	/* Version 1.0 of the specification assumes only a single community per device node */
+	/* Version 1.0 of the specification assumes only a single community per device analde */
 	ncommunities = 1,
 	communities = devm_kcalloc(dev, ncommunities, sizeof(*communities), GFP_KERNEL);
 	if (!communities)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ncommunities; i++) {
 		struct intel_community *community = &communities[i];
 
-		community->barno = i;
+		community->baranal = i;
 		community->pin_base = pins.npins;
 
 		ret = intel_platform_pinctrl_prepare_community(dev, community, &pins);
@@ -194,7 +194,7 @@ static int intel_platform_pinctrl_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = intel_platform_pinctrl_prepare_soc_data(dev, data);
 	if (ret)

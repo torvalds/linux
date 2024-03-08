@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -72,7 +72,7 @@ bool vmw_supports_3d(struct vmw_private *dev_priv)
 	if (hwversion < SVGA3D_HWVERSION_WS8_B1)
 		return false;
 
-	/* Legacy Display Unit does not support surfaces */
+	/* Legacy Display Unit does analt support surfaces */
 	if (dev_priv->active_display_unit == vmw_du_legacy)
 		return false;
 
@@ -104,12 +104,12 @@ struct vmw_fifo_state *vmw_fifo_create(struct vmw_private *dev_priv)
 
 	fifo = kzalloc(sizeof(*fifo), GFP_KERNEL);
 	if (!fifo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	fifo->static_buffer_size = VMWGFX_FIFO_STATIC_SIZE;
 	fifo->static_buffer = vmalloc(fifo->static_buffer_size);
 	if (unlikely(fifo->static_buffer == NULL)) {
 		kfree(fifo);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	fifo->dynamic_buffer = NULL;
@@ -148,7 +148,7 @@ struct vmw_fifo_state *vmw_fifo_create(struct vmw_private *dev_priv)
 
 	if (unlikely(min >= max)) {
 		drm_warn(&dev_priv->drm,
-			 "FIFO memory is not usable. Driver failed to initialize.");
+			 "FIFO memory is analt usable. Driver failed to initialize.");
 		return ERR_PTR(-ENXIO);
 	}
 
@@ -193,7 +193,7 @@ static bool vmw_fifo_is_full(struct vmw_private *dev_priv, uint32_t bytes)
 	return ((max - next_cmd) + (stop - min) <= bytes);
 }
 
-static int vmw_fifo_wait_noirq(struct vmw_private *dev_priv,
+static int vmw_fifo_wait_analirq(struct vmw_private *dev_priv,
 			       uint32_t bytes, bool interruptible,
 			       unsigned long timeout)
 {
@@ -201,7 +201,7 @@ static int vmw_fifo_wait_noirq(struct vmw_private *dev_priv,
 	unsigned long end_jiffies = jiffies + timeout;
 	DEFINE_WAIT(__wait);
 
-	DRM_INFO("Fifo wait noirq.\n");
+	DRM_INFO("Fifo wait analirq.\n");
 
 	for (;;) {
 		prepare_to_wait(&dev_priv->fifo_queue, &__wait,
@@ -222,7 +222,7 @@ static int vmw_fifo_wait_noirq(struct vmw_private *dev_priv,
 	}
 	finish_wait(&dev_priv->fifo_queue, &__wait);
 	wake_up_all(&dev_priv->fifo_queue);
-	DRM_INFO("Fifo noirq exit.\n");
+	DRM_INFO("Fifo analirq exit.\n");
 	return ret;
 }
 
@@ -237,7 +237,7 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 
 	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_FIFOFULL);
 	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
-		return vmw_fifo_wait_noirq(dev_priv, bytes,
+		return vmw_fifo_wait_analirq(dev_priv, bytes,
 					   interruptible, timeout);
 
 	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_FIFO_PROGRESS,
@@ -372,7 +372,7 @@ void *vmw_cmd_ctx_reserve(struct vmw_private *dev_priv, uint32_t bytes,
 	else if (ctx_id == SVGA3D_INVALID_ID)
 		ret = vmw_local_fifo_reserve(dev_priv, bytes);
 	else {
-		WARN(1, "Command buffer has not been allocated.\n");
+		WARN(1, "Command buffer has analt been allocated.\n");
 		ret = NULL;
 	}
 	if (IS_ERR_OR_NULL(ret))
@@ -508,7 +508,7 @@ int vmw_cmd_flush(struct vmw_private *dev_priv, bool interruptible)
 		return 0;
 }
 
-int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
+int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqanal)
 {
 	struct svga_fifo_cmd_fence *cmd_fence;
 	u32 *fm;
@@ -517,16 +517,16 @@ int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 
 	fm = VMW_CMD_RESERVE(dev_priv, bytes);
 	if (unlikely(fm == NULL)) {
-		*seqno = atomic_read(&dev_priv->marker_seq);
-		ret = -ENOMEM;
-		(void)vmw_fallback_wait(dev_priv, false, true, *seqno,
+		*seqanal = atomic_read(&dev_priv->marker_seq);
+		ret = -EANALMEM;
+		(void)vmw_fallback_wait(dev_priv, false, true, *seqanal,
 					false, 3*HZ);
 		goto out_err;
 	}
 
 	do {
-		*seqno = atomic_add_return(1, &dev_priv->marker_seq);
-	} while (*seqno == 0);
+		*seqanal = atomic_add_return(1, &dev_priv->marker_seq);
+	} while (*seqanal == 0);
 
 	if (!vmw_has_fences(dev_priv)) {
 
@@ -541,9 +541,9 @@ int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 
 	*fm++ = SVGA_CMD_FENCE;
 	cmd_fence = (struct svga_fifo_cmd_fence *) fm;
-	cmd_fence->fence = *seqno;
+	cmd_fence->fence = *seqanal;
 	vmw_cmd_commit_flush(dev_priv, bytes);
-	vmw_update_seqno(dev_priv);
+	vmw_update_seqanal(dev_priv);
 
 out_err:
 	return ret;
@@ -575,7 +575,7 @@ static int vmw_cmd_emit_dummy_legacy_query(struct vmw_private *dev_priv,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_WAIT_FOR_QUERY;
 	cmd->header.size = sizeof(cmd->body);
@@ -621,7 +621,7 @@ static int vmw_cmd_emit_dummy_gb_query(struct vmw_private *dev_priv,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_WAIT_FOR_GB_QUERY;
 	cmd->header.size = sizeof(cmd->body);
@@ -645,15 +645,15 @@ static int vmw_cmd_emit_dummy_gb_query(struct vmw_private *dev_priv,
  * @cid: The hardware context id used for the query.
  *
  * This function is used to emit a dummy occlusion query with
- * no primitives rendered between query begin and query end.
- * It's used to provide a query barrier, in order to know that when
+ * anal primitives rendered between query begin and query end.
+ * It's used to provide a query barrier, in order to kanalw that when
  * this query is finished, all preceding queries are also finished.
  *
  * A Query results structure should have been initialized at the start
  * of the dev_priv->dummy_query_bo buffer object. And that buffer object
  * must also be either reserved or pinned when this function is called.
  *
- * Returns -ENOMEM on failure to reserve fifo space.
+ * Returns -EANALMEM on failure to reserve fifo space.
  */
 int vmw_cmd_emit_dummy_query(struct vmw_private *dev_priv,
 			      uint32_t cid)

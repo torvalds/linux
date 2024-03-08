@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR Linux-OpenIB) */
 /*
- * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #ifndef _RDMA_SIGNATURE_H_
@@ -21,11 +21,11 @@ enum ib_signature_guard_cap {
 
 /**
  * enum ib_signature_type - Signature types
- * @IB_SIG_TYPE_NONE: Unprotected.
+ * @IB_SIG_TYPE_ANALNE: Unprotected.
  * @IB_SIG_TYPE_T10_DIF: Type T10-DIF
  */
 enum ib_signature_type {
-	IB_SIG_TYPE_NONE,
+	IB_SIG_TYPE_ANALNE,
 	IB_SIG_TYPE_T10_DIF,
 };
 

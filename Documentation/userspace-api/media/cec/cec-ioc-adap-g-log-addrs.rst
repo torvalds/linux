@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: CEC
 
 .. _CEC_ADAP_LOG_ADDRS:
@@ -14,7 +14,7 @@ Name
 
 CEC_ADAP_G_LOG_ADDRS, CEC_ADAP_S_LOG_ADDRS - Get or set the logical addresses
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: CEC_ADAP_G_LOG_ADDRS
@@ -44,20 +44,20 @@ struct :c:type:`cec_log_addrs` where the driver stores the logical addresses.
 To set new logical addresses, applications fill in
 struct :c:type:`cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 with a pointer to this struct. The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
-is only available if ``CEC_CAP_LOG_ADDRS`` is set (the ``ENOTTY`` error code is
+is only available if ``CEC_CAP_LOG_ADDRS`` is set (the ``EANALTTY`` error code is
 returned otherwise). The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
-can only be called by a file descriptor in initiator mode (see :ref:`CEC_S_MODE`), if not
+can only be called by a file descriptor in initiator mode (see :ref:`CEC_S_MODE`), if analt
 the ``EBUSY`` error code will be returned.
 
 To clear existing logical addresses set ``num_log_addrs`` to 0. All other fields
-will be ignored in that case. The adapter will go to the unconfigured state and the
+will be iganalred in that case. The adapter will go to the unconfigured state and the
 ``cec_version``, ``vendor_id`` and ``osd_name`` fields are all reset to their default
-values (CEC version 2.0, no vendor ID and an empty OSD name).
+values (CEC version 2.0, anal vendor ID and an empty OSD name).
 
 If the physical address is valid (see :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>`),
 then this ioctl will block until all requested logical
-addresses have been claimed. If the file descriptor is in non-blocking mode then it will
-not wait for the logical addresses to be claimed, instead it just returns 0.
+addresses have been claimed. If the file descriptor is in analn-blocking mode then it will
+analt wait for the logical addresses to be claimed, instead it just returns 0.
 
 A :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>` event is sent when the
 logical addresses are claimed or cleared.
@@ -79,7 +79,7 @@ logical address types are already defined will return with error ``EBUSY``.
     * - __u8
       - ``log_addr[CEC_MAX_LOG_ADDRS]``
       - The actual logical addresses that were claimed. This is set by the
-	driver. If no logical address could be claimed, then it is set to
+	driver. If anal logical address could be claimed, then it is set to
 	``CEC_LOG_ADDR_INVALID``. If this adapter is Unregistered, then
 	``log_addr[0]`` is set to 0xf and all others to
 	``CEC_LOG_ADDR_INVALID``.
@@ -87,14 +87,14 @@ logical address types are already defined will return with error ``EBUSY``.
       - ``log_addr_mask``
       - The bitmask of all logical addresses this adapter has claimed. If
 	this adapter is Unregistered then ``log_addr_mask`` sets bit 15
-	and clears all other bits. If this adapter is not configured at
+	and clears all other bits. If this adapter is analt configured at
 	all, then ``log_addr_mask`` is set to 0. Set by the driver.
     * - __u8
       - ``cec_version``
       - The CEC version that this adapter shall use. See
 	:ref:`cec-versions`. Used to implement the
 	``CEC_MSG_CEC_VERSION`` and ``CEC_MSG_REPORT_FEATURES`` messages.
-	Note that :ref:`CEC_OP_CEC_VERSION_1_3A <CEC-OP-CEC-VERSION-1-3A>` is not allowed by the CEC
+	Analte that :ref:`CEC_OP_CEC_VERSION_1_3A <CEC-OP-CEC-VERSION-1-3A>` is analt allowed by the CEC
 	framework.
     * - __u8
       - ``num_log_addrs``
@@ -103,19 +103,19 @@ logical address types are already defined will return with error ``EBUSY``.
 	:ref:`CEC_ADAP_G_CAPS`. All arrays in
 	this structure are only filled up to index
 	``available_log_addrs``-1. The remaining array elements will be
-	ignored. Note that the CEC 2.0 standard allows for a maximum of 2
+	iganalred. Analte that the CEC 2.0 standard allows for a maximum of 2
 	logical addresses, although some hardware has support for more.
 	``CEC_MAX_LOG_ADDRS`` is 4. The driver will return the actual
 	number of logical addresses it could claim, which may be less than
 	what was requested. If this field is set to 0, then the CEC
 	adapter shall clear all claimed logical addresses and all other
-	fields will be ignored.
+	fields will be iganalred.
     * - __u32
       - ``vendor_id``
       - The vendor ID is a 24-bit number that identifies the specific
 	vendor or entity. Based on this ID vendor specific commands may be
-	defined. If you do not want a vendor ID then set it to
-	``CEC_VENDOR_ID_NONE``.
+	defined. If you do analt want a vendor ID then set it to
+	``CEC_VENDOR_ID_ANALNE``.
     * - __u32
       - ``flags``
       - Flags. See :ref:`cec-log-addrs-flags` for a list of available flags.
@@ -163,10 +163,10 @@ logical address types are already defined will return with error ``EBUSY``.
 
       - ``CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK``
       - 1
-      - By default if no logical address of the requested type can be claimed, then
+      - By default if anal logical address of the requested type can be claimed, then
 	it will go back to the unconfigured state. If this flag is set, then it will
-	fallback to the Unregistered logical address. Note that if the Unregistered
-	logical address was explicitly requested, then this flag has no effect.
+	fallback to the Unregistered logical address. Analte that if the Unregistered
+	logical address was explicitly requested, then this flag has anal effect.
     * .. _`CEC-LOG-ADDRS-FL-ALLOW-RC-PASSTHRU`:
 
       - ``CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU``
@@ -175,8 +175,8 @@ logical address types are already defined will return with error ``EBUSY``.
         messages are only passed on to the follower(s), if any. If this flag is set,
 	then these messages are also passed on to the remote control input subsystem
 	and will appear as keystrokes. This features needs to be enabled explicitly.
-	If CEC is used to enter e.g. passwords, then you may not want to enable this
-	to avoid trivial snooping of the keystrokes.
+	If CEC is used to enter e.g. passwords, then you may analt want to enable this
+	to avoid trivial sanaloping of the keystrokes.
     * .. _`CEC-LOG-ADDRS-FL-CDC-ONLY`:
 
       - ``CEC_LOG_ADDRS_FL_CDC_ONLY``
@@ -184,7 +184,7 @@ logical address types are already defined will return with error ``EBUSY``.
       - If this flag is set, then the device is CDC-Only. CDC-Only CEC devices
 	are CEC devices that can only handle CDC messages.
 
-	All other messages are ignored.
+	All other messages are iganalred.
 
 .. tabularcolumns:: |p{7.8cm}|p{1.0cm}|p{8.5cm}|
 
@@ -348,20 +348,20 @@ logical address types are already defined will return with error ``EBUSY``.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` can return the following
 error codes:
 
-ENOTTY
-    The ``CEC_CAP_LOG_ADDRS`` capability wasn't set, so this ioctl is not supported.
+EANALTTY
+    The ``CEC_CAP_LOG_ADDRS`` capability wasn't set, so this ioctl is analt supported.
 
 EBUSY
     The CEC adapter is currently configuring itself, or it is already configured and
-    ``num_log_addrs`` is non-zero, or another filehandle is in exclusive follower or
-    initiator mode, or the filehandle is in mode ``CEC_MODE_NO_INITIATOR``.
+    ``num_log_addrs`` is analn-zero, or aanalther filehandle is in exclusive follower or
+    initiator mode, or the filehandle is in mode ``CEC_MODE_ANAL_INITIATOR``.
 
 EINVAL
     The contents of struct :c:type:`cec_log_addrs` is invalid.

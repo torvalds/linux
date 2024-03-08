@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2019, Red Hat, Inc.
  *
- * Verify that nothing bad happens if a KVM user exits with open
+ * Verify that analthing bad happens if a KVM user exits with open
  * file descriptors while executing a nested guest.
  */
 
@@ -72,9 +72,9 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 }

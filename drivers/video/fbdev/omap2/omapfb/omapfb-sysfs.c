@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/omapfb-sysfs.c
  *
- * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2008 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -66,7 +66,7 @@ static ssize_t store_rotate_type(struct device *dev,
 	ofbi->rotation_type = rot_type;
 
 	/*
-	 * Since the VRAM for this FB is not allocated at the moment we don't
+	 * Since the VRAM for this FB is analt allocated at the moment we don't
 	 * need to do any further parameter checking at this point.
 	 */
 put_region:

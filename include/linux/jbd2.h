@@ -36,11 +36,11 @@
 /*
  * Define JBD2_PARANIOD_IOFAIL to cause a kernel BUG() if ext4 finds
  * certain classes of error which can occur due to failed IOs.  Under
- * normal use we want ext4 to continue after such errors, because
+ * analrmal use we want ext4 to continue after such errors, because
  * hardware _can_ fail, but for debugging purposes when running tests on
- * known-good hardware we may want to trap these errors.
+ * kanalwn-good hardware we may want to trap these errors.
  */
-#undef JBD2_PARANOID_IOFAIL
+#undef JBD2_PARAANALID_IOFAIL
 
 /*
  * The default maximum commit age, in seconds.
@@ -60,7 +60,7 @@ void __jbd2_debug(int level, const char *file, const char *func,
 #define jbd2_debug(n, fmt, a...) \
 	__jbd2_debug((n), __FILE__, __func__, __LINE__, (fmt), ##a)
 #else
-#define jbd2_debug(n, fmt, a...)  no_printk(fmt, ##a)
+#define jbd2_debug(n, fmt, a...)  anal_printk(fmt, ##a)
 #endif
 
 extern void *jbd2_alloc(size_t size, gfp_t flags);
@@ -80,10 +80,10 @@ extern void jbd2_free(void *ptr, size_t size);
  *
  * The buffer credits field is used to account for journaled buffers
  * being modified by the running process.  To ensure that there is
- * enough log space for all outstanding operations, we need to limit the
+ * eanalugh log space for all outstanding operations, we need to limit the
  * number of outstanding buffers possible at any time.  When the
- * operation completes, any buffer credits not used are credited back to
- * the transaction, so that at all times we know how many buffers the
+ * operation completes, any buffer credits analt used are credited back to
+ * the transaction, so that at all times we kanalw how many buffers the
  * outstanding updates on a transaction might possibly touch.
  *
  * This is an opaque datatype.
@@ -149,14 +149,14 @@ typedef struct journal_header_s
 /*
  * Commit block header for storing transactional checksums:
  *
- * NOTE: If FEATURE_COMPAT_CHECKSUM (checksum v1) is set, the h_chksum*
+ * ANALTE: If FEATURE_COMPAT_CHECKSUM (checksum v1) is set, the h_chksum*
  * fields are used to store a checksum of the descriptor and data blocks.
  *
  * If FEATURE_INCOMPAT_CSUM_V2 (checksum v2) is set, then the h_chksum
  * field is used to store crc32c(uuid+commit_block).  Each journal metadata
  * block gets its own checksum, and data block checksums are stored in
  * journal_block_tag (in the descriptor).  The other h_chksum* fields are
- * not used.
+ * analt used.
  *
  * If FEATURE_INCOMPAT_CSUM_V3 is set, the descriptor block uses
  * journal_block_tag3_t to store a full 32-bit checksum.  Everything else
@@ -241,7 +241,7 @@ typedef struct journal_superblock_s
 
 /* 0x0020 */
 	/* Error value, as set by jbd2_journal_abort(). */
-	__be32	s_errno;
+	__be32	s_erranal;
 
 /* 0x0024 */
 	/* Remaining fields are only valid in a version-2 superblock */
@@ -287,10 +287,10 @@ typedef struct journal_superblock_s
 
 /* See "journal feature predicate functions" below */
 
-/* Features known to this kernel version: */
-#define JBD2_KNOWN_COMPAT_FEATURES	JBD2_FEATURE_COMPAT_CHECKSUM
-#define JBD2_KNOWN_ROCOMPAT_FEATURES	0
-#define JBD2_KNOWN_INCOMPAT_FEATURES	(JBD2_FEATURE_INCOMPAT_REVOKE | \
+/* Features kanalwn to this kernel version: */
+#define JBD2_KANALWN_COMPAT_FEATURES	JBD2_FEATURE_COMPAT_CHECKSUM
+#define JBD2_KANALWN_ROCOMPAT_FEATURES	0
+#define JBD2_KANALWN_INCOMPAT_FEATURES	(JBD2_FEATURE_INCOMPAT_REVOKE | \
 					JBD2_FEATURE_INCOMPAT_64BIT | \
 					JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT | \
 					JBD2_FEATURE_INCOMPAT_CSUM_V2 | \
@@ -353,7 +353,7 @@ static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
 #define J_ASSERT_BH(bh, expr)	J_ASSERT(expr)
 #define J_ASSERT_JH(jh, expr)	J_ASSERT(expr)
 
-#if defined(JBD2_PARANOID_IOFAIL)
+#if defined(JBD2_PARAANALID_IOFAIL)
 #define J_EXPECT(expr, why...)		J_ASSERT(expr)
 #define J_EXPECT_BH(bh, expr, why...)	J_ASSERT_BH(bh, expr)
 #define J_EXPECT_JH(jh, expr, why...)	J_ASSERT_JH(jh, expr)
@@ -374,31 +374,31 @@ static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
 #define J_EXPECT_JH(jh, expr, why...)	__journal_expect(expr, ## why)
 #endif
 
-/* Flags in jbd_inode->i_flags */
+/* Flags in jbd_ianalde->i_flags */
 #define __JI_COMMIT_RUNNING 0
 #define __JI_WRITE_DATA 1
 #define __JI_WAIT_DATA 2
 
 /*
- * Commit of the inode data in progress. We use this flag to protect us from
- * concurrent deletion of inode. We cannot use reference to inode for this
- * since we cannot afford doing last iput() on behalf of kjournald
+ * Commit of the ianalde data in progress. We use this flag to protect us from
+ * concurrent deletion of ianalde. We cananalt use reference to ianalde for this
+ * since we cananalt afford doing last iput() on behalf of kjournald
  */
 #define JI_COMMIT_RUNNING (1 << __JI_COMMIT_RUNNING)
-/* Write allocated dirty buffers in this inode before commit */
+/* Write allocated dirty buffers in this ianalde before commit */
 #define JI_WRITE_DATA (1 << __JI_WRITE_DATA)
-/* Wait for outstanding data writes for this inode before commit */
+/* Wait for outstanding data writes for this ianalde before commit */
 #define JI_WAIT_DATA (1 << __JI_WAIT_DATA)
 
 /**
- * struct jbd2_inode - The jbd_inode type is the structure linking inodes in
+ * struct jbd2_ianalde - The jbd_ianalde type is the structure linking ianaldes in
  * ordered mode present in a transaction so that we can sync them during commit.
  */
-struct jbd2_inode {
+struct jbd2_ianalde {
 	/**
 	 * @i_transaction:
 	 *
-	 * Which transaction does this inode belong to? Either the running
+	 * Which transaction does this ianalde belong to? Either the running
 	 * transaction or the committing one. [j_list_lock]
 	 */
 	transaction_t *i_transaction;
@@ -406,32 +406,32 @@ struct jbd2_inode {
 	/**
 	 * @i_next_transaction:
 	 *
-	 * Pointer to the running transaction modifying inode's data in case
+	 * Pointer to the running transaction modifying ianalde's data in case
 	 * there is already a committing transaction touching it. [j_list_lock]
 	 */
 	transaction_t *i_next_transaction;
 
 	/**
-	 * @i_list: List of inodes in the i_transaction [j_list_lock]
+	 * @i_list: List of ianaldes in the i_transaction [j_list_lock]
 	 */
 	struct list_head i_list;
 
 	/**
-	 * @i_vfs_inode:
+	 * @i_vfs_ianalde:
 	 *
-	 * VFS inode this inode belongs to [constant for lifetime of structure]
+	 * VFS ianalde this ianalde belongs to [constant for lifetime of structure]
 	 */
-	struct inode *i_vfs_inode;
+	struct ianalde *i_vfs_ianalde;
 
 	/**
-	 * @i_flags: Flags of inode [j_list_lock]
+	 * @i_flags: Flags of ianalde [j_list_lock]
 	 */
 	unsigned long i_flags;
 
 	/**
 	 * @i_dirty_start:
 	 *
-	 * Offset in bytes where the dirty range for this inode starts.
+	 * Offset in bytes where the dirty range for this ianalde starts.
 	 * [j_list_lock]
 	 */
 	loff_t i_dirty_start;
@@ -439,7 +439,7 @@ struct jbd2_inode {
 	/**
 	 * @i_dirty_end:
 	 *
-	 * Inclusive offset in bytes where the dirty range for this inode
+	 * Inclusive offset in bytes where the dirty range for this ianalde
 	 * ends. [j_list_lock]
 	 */
 	loff_t i_dirty_end;
@@ -463,7 +463,7 @@ struct jbd2_revoke_table_s;
  * @h_reserved: Flag for handle for reserved credits.
  * @h_aborted: Flag indicating fatal error on handle.
  * @h_type: For handle statistics.
- * @h_line_no: For handle statistics.
+ * @h_line_anal: For handle statistics.
  * @h_start_jiffies: Handle Start time.
  * @h_requested_credits: Holds @h_total_credits after handle is started.
  * @h_revoke_credits_requested: Holds @h_revoke_credits after handle is started.
@@ -489,13 +489,13 @@ struct jbd2_journal_handle
 	int			h_ref;
 	int			h_err;
 
-	/* Flags [no locking] */
+	/* Flags [anal locking] */
 	unsigned int	h_sync:		1;
 	unsigned int	h_jdata:	1;
 	unsigned int	h_reserved:	1;
 	unsigned int	h_aborted:	1;
 	unsigned int	h_type:		8;
-	unsigned int	h_line_no:	16;
+	unsigned int	h_line_anal:	16;
 
 	unsigned long		h_start_jiffies;
 	unsigned int		h_requested_credits;
@@ -520,13 +520,13 @@ struct transaction_chp_stats_s {
  * RUNNING:	accepting new updates
  * LOCKED:	Updates still running but we don't accept new ones
  * RUNDOWN:	Updates are tidying up but have finished requesting
- *		new buffers to modify (state not used for now)
+ *		new buffers to modify (state analt used for analw)
  * FLUSH:       All updates complete, but we are still writing to disk
  * COMMIT:      All data on disk, writing commit record
  * FINISHED:	We still have to keep the transaction for checkpointing.
  *
  * The transaction keeps track of all of the buffers modified by a
- * running transaction, and all of the buffers committed but not yet
+ * running transaction, and all of the buffers committed but analt yet
  * flushed to home for finished transactions.
  * (Locking Documentation improved by LockDoc)
  */
@@ -550,15 +550,15 @@ struct transaction_chp_stats_s {
 
 struct transaction_s
 {
-	/* Pointer to the journal for this transaction. [no locking] */
+	/* Pointer to the journal for this transaction. [anal locking] */
 	journal_t		*t_journal;
 
-	/* Sequence number for this transaction [no locking] */
+	/* Sequence number for this transaction [anal locking] */
 	tid_t			t_tid;
 
 	/*
 	 * Transaction's current state
-	 * [no locking - only kjournald2 alters this]
+	 * [anal locking - only kjournald2 alters this]
 	 * [j_list_lock] guards transition of a transaction into T_FINISHED
 	 * state and subsequent call of __jbd2_journal_drop_transaction()
 	 * FIXME: needs barriers
@@ -577,26 +577,26 @@ struct transaction_s
 	}			t_state;
 
 	/*
-	 * Where in the log does this transaction's commit start? [no locking]
+	 * Where in the log does this transaction's commit start? [anal locking]
 	 */
 	unsigned long		t_log_start;
 
 	/*
-	 * Number of buffers on the t_buffers list [j_list_lock, no locks
+	 * Number of buffers on the t_buffers list [j_list_lock, anal locks
 	 * needed for jbd2 thread]
 	 */
 	int			t_nr_buffers;
 
 	/*
-	 * Doubly-linked circular list of all buffers reserved but not yet
-	 * modified by this transaction [j_list_lock, no locks needed fo
+	 * Doubly-linked circular list of all buffers reserved but analt yet
+	 * modified by this transaction [j_list_lock, anal locks needed fo
 	 * jbd2 thread]
 	 */
 	struct journal_head	*t_reserved_list;
 
 	/*
 	 * Doubly-linked circular list of all metadata buffers owned by this
-	 * transaction [j_list_lock, no locks needed for jbd2 thread]
+	 * transaction [j_list_lock, anal locks needed for jbd2 thread]
 	 */
 	struct journal_head	*t_buffers;
 
@@ -617,18 +617,18 @@ struct transaction_s
 	 * Doubly-linked circular list of metadata buffers being
 	 * shadowed by log IO.  The IO buffers on the iobuf list and
 	 * the shadow buffers on this list match each other one for
-	 * one at all times. [j_list_lock, no locks needed for jbd2
+	 * one at all times. [j_list_lock, anal locks needed for jbd2
 	 * thread]
 	 */
 	struct journal_head	*t_shadow_list;
 
 	/*
-	 * List of inodes associated with the transaction; e.g., ext4 uses
-	 * this to track inodes in data=ordered and data=journal mode that
+	 * List of ianaldes associated with the transaction; e.g., ext4 uses
+	 * this to track ianaldes in data=ordered and data=journal mode that
 	 * need special handling on transaction commit; also used by ocfs2.
 	 * [j_list_lock]
 	 */
-	struct list_head	t_inode_list;
+	struct list_head	t_ianalde_list;
 
 	/*
 	 * Longest time some handle had to wait for running transaction
@@ -652,7 +652,7 @@ struct transaction_s
 
 	/*
 	 * Number of outstanding updates running on this transaction
-	 * [none]
+	 * [analne]
 	 */
 	atomic_t		t_updates;
 
@@ -660,18 +660,18 @@ struct transaction_s
 	 * Number of blocks reserved for this transaction in the journal.
 	 * This is including all credits reserved when starting transaction
 	 * handles as well as all journal descriptor blocks needed for this
-	 * transaction. [none]
+	 * transaction. [analne]
 	 */
 	atomic_t		t_outstanding_credits;
 
 	/*
 	 * Number of revoke records for this transaction added by already
-	 * stopped handles. [none]
+	 * stopped handles. [analne]
 	 */
 	atomic_t		t_outstanding_revokes;
 
 	/*
-	 * How many handles used this transaction? [none]
+	 * How many handles used this transaction? [analne]
 	 */
 	atomic_t		t_handle_count;
 
@@ -683,12 +683,12 @@ struct transaction_s
 
 	/*
 	 * When will the transaction expire (become due for commit), in jiffies?
-	 * [no locking]
+	 * [anal locking]
 	 */
 	unsigned long		t_expires;
 
 	/*
-	 * When this transaction started, in nanoseconds [no locking]
+	 * When this transaction started, in naanalseconds [anal locking]
 	 */
 	ktime_t			t_start_time;
 
@@ -696,9 +696,9 @@ struct transaction_s
 	 * This transaction is being forced and some process is
 	 * waiting for it to finish.
 	 */
-	unsigned int t_synchronous_commit:1;
+	unsigned int t_synchroanalus_commit:1;
 
-	/* Disk flush needs to be sent to fs partition [no locking] */
+	/* Disk flush needs to be sent to fs partition [anal locking] */
 	int			t_need_data_flush;
 
 	/*
@@ -751,17 +751,17 @@ struct journal_s
 {
 	/**
 	 * @j_flags: General journaling state flags [j_state_lock,
-	 * no lock for quick racy checks]
+	 * anal lock for quick racy checks]
 	 */
 	unsigned long		j_flags;
 
 	/**
-	 * @j_errno:
+	 * @j_erranal:
 	 *
 	 * Is there an outstanding uncleared error on the journal (from a prior
 	 * abort)? [j_state_lock]
 	 */
-	int			j_errno;
+	int			j_erranal;
 
 	/**
 	 * @j_abort_mutex: Lock the whole aborting procedure.
@@ -787,7 +787,7 @@ struct journal_s
 	 * @j_barrier_count:
 	 *
 	 * Number of processes waiting to create a barrier lock [j_state_lock,
-	 * no lock for quick racy checks]
+	 * anal lock for quick racy checks]
 	 */
 	int			j_barrier_count;
 
@@ -800,7 +800,7 @@ struct journal_s
 	 * @j_running_transaction:
 	 *
 	 * Transactions: The current running transaction...
-	 * [j_state_lock, no lock for quick racy checks] [caller holding
+	 * [j_state_lock, anal lock for quick racy checks] [caller holding
 	 * open handle]
 	 */
 	transaction_t		*j_running_transaction;
@@ -951,7 +951,7 @@ struct journal_s
 	 *
 	 * Number of fast commit blocks currently allocated. Accessed only
 	 * during fast commit. Currently only process can do fast commit, so
-	 * this field is not protected by any lock.
+	 * this field is analt protected by any lock.
 	 */
 	unsigned long		j_fc_off;
 
@@ -1018,12 +1018,12 @@ struct journal_s
 	spinlock_t		j_list_lock;
 
 	/**
-	 * @j_inode:
+	 * @j_ianalde:
 	 *
-	 * Optional inode where we store the journal.  If present, all
-	 * journal block numbers are mapped into this inode via bmap().
+	 * Optional ianalde where we store the journal.  If present, all
+	 * journal block numbers are mapped into this ianalde via bmap().
 	 */
-	struct inode		*j_inode;
+	struct ianalde		*j_ianalde;
 
 	/**
 	 * @j_tail_sequence:
@@ -1043,7 +1043,7 @@ struct journal_s
 	 * @j_commit_sequence:
 	 *
 	 * Sequence number of the most recently committed transaction
-	 * [j_state_lock, no lock for quick racy checks]
+	 * [j_state_lock, anal lock for quick racy checks]
 	 */
 	tid_t			j_commit_sequence;
 
@@ -1051,7 +1051,7 @@ struct journal_s
 	 * @j_commit_request:
 	 *
 	 * Sequence number of the most recent transaction wanting commit
-	 * [j_state_lock, no lock for quick racy checks]
+	 * [j_state_lock, anal lock for quick racy checks]
 	 */
 	tid_t			j_commit_request;
 
@@ -1123,7 +1123,7 @@ struct journal_s
 	/**
 	 * @j_fc_wbuf: Array of fast commit bhs for fast commit. Accessed only
 	 * during a fast commit. Currently only process can do fast commit, so
-	 * this field is not protected by any lock.
+	 * this field is analt protected by any lock.
 	 */
 	struct buffer_head	**j_fc_wbuf;
 
@@ -1144,7 +1144,7 @@ struct journal_s
 	/**
 	 * @j_last_sync_writer:
 	 *
-	 * The pid of the last person to run a synchronous operation
+	 * The pid of the last person to run a synchroanalus operation
 	 * through the journal.
 	 */
 	pid_t			j_last_sync_writer;
@@ -1152,7 +1152,7 @@ struct journal_s
 	/**
 	 * @j_average_commit_time:
 	 *
-	 * The average amount of time in nanoseconds it takes to commit a
+	 * The average amount of time in naanalseconds it takes to commit a
 	 * transaction to disk. [j_state_lock]
 	 */
 	u64			j_average_commit_time;
@@ -1161,7 +1161,7 @@ struct journal_s
 	 * @j_min_batch_time:
 	 *
 	 * Minimum time that we should wait for additional filesystem operations
-	 * to get batched into a synchronous handle in microseconds.
+	 * to get batched into a synchroanalus handle in microseconds.
 	 */
 	u32			j_min_batch_time;
 
@@ -1169,7 +1169,7 @@ struct journal_s
 	 * @j_max_batch_time:
 	 *
 	 * Maximum time that we should wait for additional filesystem operations
-	 * to get batched into a synchronous handle in microseconds.
+	 * to get batched into a synchroanalus handle in microseconds.
 	 */
 	u32			j_max_batch_time;
 
@@ -1182,25 +1182,25 @@ struct journal_s
 						     transaction_t *);
 
 	/**
-	 * @j_submit_inode_data_buffers:
+	 * @j_submit_ianalde_data_buffers:
 	 *
-	 * This function is called for all inodes associated with the
+	 * This function is called for all ianaldes associated with the
 	 * committing transaction marked with JI_WRITE_DATA flag
 	 * before we start to write out the transaction to the journal.
 	 */
-	int			(*j_submit_inode_data_buffers)
-					(struct jbd2_inode *);
+	int			(*j_submit_ianalde_data_buffers)
+					(struct jbd2_ianalde *);
 
 	/**
-	 * @j_finish_inode_data_buffers:
+	 * @j_finish_ianalde_data_buffers:
 	 *
-	 * This function is called for all inodes associated with the
+	 * This function is called for all ianaldes associated with the
 	 * committing transaction marked with JI_WAIT_DATA flag
 	 * after we have written the transaction to the journal
 	 * but before we write out the commit block.
 	 */
-	int			(*j_finish_inode_data_buffers)
-					(struct jbd2_inode *);
+	int			(*j_finish_ianalde_data_buffers)
+					(struct jbd2_ianalde *);
 
 	/*
 	 * Journal statistics
@@ -1278,7 +1278,7 @@ struct journal_s
 	 * the journal. This function should return JBD2_FC_REPLAY_CONTINUE
 	 * to indicate that the block was processed correctly and more fast
 	 * commit replay should continue. Return value of JBD2_FC_REPLAY_STOP
-	 * indicates the end of replay (no more blocks remaining). A negative
+	 * indicates the end of replay (anal more blocks remaining). A negative
 	 * return value indicates error.
 	 */
 	int (*j_fc_replay_callback)(struct journal_s *journal,
@@ -1302,8 +1302,8 @@ struct journal_s
 	} while (0)
 
 /*
- * We can support any known requested features iff the
- * superblock is not in version 1.  Otherwise we fail to support any
+ * We can support any kanalwn requested features iff the
+ * superblock is analt in version 1.  Otherwise we fail to support any
  * extended sb features.
  */
 static inline bool jbd2_format_support_feature(journal_t *j)
@@ -1384,7 +1384,7 @@ JBD2_FEATURE_INCOMPAT_FUNCS(fast_commit,	FAST_COMMIT)
  */
 #define JBD2_UNMOUNT	0x001	/* Journal thread is being destroyed */
 #define JBD2_ABORT	0x002	/* Journaling has been aborted for errors. */
-#define JBD2_ACK_ERR	0x004	/* The errno in the sb has been acked */
+#define JBD2_ACK_ERR	0x004	/* The erranal in the sb has been acked */
 #define JBD2_FLUSHED	0x008	/* The journal superblock has been flushed */
 #define JBD2_LOADED	0x010	/* The journal superblock has been loaded */
 #define JBD2_BARRIER	0x020	/* Use IDE barriers */
@@ -1448,7 +1448,7 @@ void __jbd2_journal_insert_checkpoint(struct journal_head *, transaction_t *);
 
 struct jbd2_buffer_trigger_type {
 	/*
-	 * Fired a the moment data to write to the journal are known to be
+	 * Fired a the moment data to write to the journal are kanalwn to be
 	 * stable - so either at the moment b_frozen_data is created or just
 	 * before a buffer is written to the journal.  mapped_data is a mapped
 	 * buffer that is the frozen data for commit.
@@ -1458,7 +1458,7 @@ struct jbd2_buffer_trigger_type {
 			 size_t size);
 
 	/*
-	 * Fired during journal abort for dirty buffers that will not be
+	 * Fired during journal abort for dirty buffers that will analt be
 	 * committed.
 	 */
 	void (*t_abort)(struct jbd2_buffer_trigger_type *type,
@@ -1485,11 +1485,11 @@ extern void jbd2_journal_free_transaction(transaction_t *);
 /*
  * Journal locking.
  *
- * We need to lock the journal during transaction state changes so that nobody
+ * We need to lock the journal during transaction state changes so that analbody
  * ever tries to take a handle on the running transaction while we are in the
  * middle of moving it to the commit phase.  j_state_lock does this.
  *
- * Note that the locking is completely interrupt unsafe.  We never touch
+ * Analte that the locking is completely interrupt unsafe.  We never touch
  * journal structures from interrupts.
  */
 
@@ -1507,12 +1507,12 @@ static inline handle_t *journal_current_handle(void)
 extern handle_t *jbd2_journal_start(journal_t *, int nblocks);
 extern handle_t *jbd2__journal_start(journal_t *, int blocks, int rsv_blocks,
 				     int revoke_records, gfp_t gfp_mask,
-				     unsigned int type, unsigned int line_no);
+				     unsigned int type, unsigned int line_anal);
 extern int	 jbd2_journal_restart(handle_t *, int nblocks);
 extern int	 jbd2__journal_restart(handle_t *, int nblocks,
 				       int revoke_records, gfp_t gfp_mask);
 extern int	 jbd2_journal_start_reserved(handle_t *handle,
-				unsigned int type, unsigned int line_no);
+				unsigned int type, unsigned int line_anal);
 extern void	 jbd2_journal_free_reserved(handle_t *handle);
 extern int	 jbd2_journal_extend(handle_t *handle, int nblocks,
 				     int revoke_records);
@@ -1536,7 +1536,7 @@ void jbd2_journal_wait_updates(journal_t *);
 extern journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 				struct block_device *fs_dev,
 				unsigned long long start, int len, int bsize);
-extern journal_t * jbd2_journal_init_inode (struct inode *);
+extern journal_t * jbd2_journal_init_ianalde (struct ianalde *);
 extern int	   jbd2_journal_update_format (journal_t *);
 extern int	   jbd2_journal_check_used_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
@@ -1551,28 +1551,28 @@ extern int	   jbd2_journal_destroy    (journal_t *);
 extern int	   jbd2_journal_recover    (journal_t *journal);
 extern int	   jbd2_journal_wipe       (journal_t *, int);
 extern int	   jbd2_journal_skip_recovery	(journal_t *);
-extern void	   jbd2_journal_update_sb_errno(journal_t *);
+extern void	   jbd2_journal_update_sb_erranal(journal_t *);
 extern int	   jbd2_journal_update_sb_log_tail	(journal_t *, tid_t,
 				unsigned long, blk_opf_t);
 extern void	   jbd2_journal_abort      (journal_t *, int);
-extern int	   jbd2_journal_errno      (journal_t *);
+extern int	   jbd2_journal_erranal      (journal_t *);
 extern void	   jbd2_journal_ack_err    (journal_t *);
 extern int	   jbd2_journal_clear_err  (journal_t *);
 extern int	   jbd2_journal_bmap(journal_t *, unsigned long, unsigned long long *);
 extern int	   jbd2_journal_force_commit(journal_t *);
 extern int	   jbd2_journal_force_commit_nested(journal_t *);
-extern int	   jbd2_journal_inode_ranged_write(handle_t *handle,
-			struct jbd2_inode *inode, loff_t start_byte,
+extern int	   jbd2_journal_ianalde_ranged_write(handle_t *handle,
+			struct jbd2_ianalde *ianalde, loff_t start_byte,
 			loff_t length);
-extern int	   jbd2_journal_inode_ranged_wait(handle_t *handle,
-			struct jbd2_inode *inode, loff_t start_byte,
+extern int	   jbd2_journal_ianalde_ranged_wait(handle_t *handle,
+			struct jbd2_ianalde *ianalde, loff_t start_byte,
 			loff_t length);
-extern int	   jbd2_journal_finish_inode_data_buffers(
-			struct jbd2_inode *jinode);
+extern int	   jbd2_journal_finish_ianalde_data_buffers(
+			struct jbd2_ianalde *jianalde);
 extern int	   jbd2_journal_begin_ordered_truncate(journal_t *journal,
-				struct jbd2_inode *inode, loff_t new_size);
-extern void	   jbd2_journal_init_jbd_inode(struct jbd2_inode *jinode, struct inode *inode);
-extern void	   jbd2_journal_release_jbd_inode(journal_t *journal, struct jbd2_inode *jinode);
+				struct jbd2_ianalde *ianalde, loff_t new_size);
+extern void	   jbd2_journal_init_jbd_ianalde(struct jbd2_ianalde *jianalde, struct ianalde *ianalde);
+extern void	   jbd2_journal_release_jbd_ianalde(journal_t *journal, struct jbd2_ianalde *jianalde);
 
 /*
  * journal_head management
@@ -1597,19 +1597,19 @@ static inline void jbd2_free_handle(handle_t *handle)
 }
 
 /*
- * jbd2_inode management (optional, for those file systems that want to use
- * dynamically allocated jbd2_inode structures)
+ * jbd2_ianalde management (optional, for those file systems that want to use
+ * dynamically allocated jbd2_ianalde structures)
  */
-extern struct kmem_cache *jbd2_inode_cache;
+extern struct kmem_cache *jbd2_ianalde_cache;
 
-static inline struct jbd2_inode *jbd2_alloc_inode(gfp_t gfp_flags)
+static inline struct jbd2_ianalde *jbd2_alloc_ianalde(gfp_t gfp_flags)
 {
-	return kmem_cache_alloc(jbd2_inode_cache, gfp_flags);
+	return kmem_cache_alloc(jbd2_ianalde_cache, gfp_flags);
 }
 
-static inline void jbd2_free_inode(struct jbd2_inode *jinode)
+static inline void jbd2_free_ianalde(struct jbd2_ianalde *jianalde)
 {
-	kmem_cache_free(jbd2_inode_cache, jinode);
+	kmem_cache_free(jbd2_ianalde_cache, jianalde);
 }
 
 /* Primary revoke support */
@@ -1657,8 +1657,8 @@ int jbd2_fc_begin_commit(journal_t *journal, tid_t tid);
 int jbd2_fc_end_commit(journal_t *journal);
 int jbd2_fc_end_commit_fallback(journal_t *journal);
 int jbd2_fc_get_buf(journal_t *journal, struct buffer_head **bh_out);
-int jbd2_submit_inode_data(journal_t *journal, struct jbd2_inode *jinode);
-int jbd2_wait_inode_data(journal_t *journal, struct jbd2_inode *jinode);
+int jbd2_submit_ianalde_data(journal_t *journal, struct jbd2_ianalde *jianalde);
+int jbd2_wait_ianalde_data(journal_t *journal, struct jbd2_ianalde *jianalde);
 int jbd2_fc_wait_bufs(journal_t *journal, int num_blks);
 int jbd2_fc_release_bufs(journal_t *journal);
 
@@ -1673,7 +1673,7 @@ static inline int jbd2_journal_get_max_txn_bufs(journal_t *journal)
  * Simple test wrapper function to test the JBD2_ABORT state flag.  This
  * bit, when set, indicates that we have had a fatal error somewhere,
  * either inside the journaling layer or indicated to us by the client
- * (eg. ext3), and that we and should not commit any further
+ * (eg. ext3), and that we and should analt commit any further
  * transactions.
  */
 
@@ -1696,7 +1696,7 @@ static inline void jbd2_journal_abort_handle(handle_t *handle)
 
 static inline void jbd2_init_fs_dev_write_error(journal_t *journal)
 {
-	struct address_space *mapping = journal->j_fs_dev->bd_inode->i_mapping;
+	struct address_space *mapping = journal->j_fs_dev->bd_ianalde->i_mapping;
 
 	/*
 	 * Save the original wb_err value of client fs's bdev mapping which
@@ -1707,7 +1707,7 @@ static inline void jbd2_init_fs_dev_write_error(journal_t *journal)
 
 static inline int jbd2_check_fs_dev_write_error(journal_t *journal)
 {
-	struct address_space *mapping = journal->j_fs_dev->bd_inode->i_mapping;
+	struct address_space *mapping = journal->j_fs_dev->bd_ianalde->i_mapping;
 
 	return errseq_check(&mapping->wb_err,
 			    READ_ONCE(journal->j_fs_dev_wb_err));
@@ -1730,7 +1730,7 @@ static inline int tid_geq(tid_t x, tid_t y)
 	return (difference >= 0);
 }
 
-extern int jbd2_journal_blocks_per_page(struct inode *inode);
+extern int jbd2_journal_blocks_per_page(struct ianalde *ianalde);
 extern size_t journal_tag_bytes(journal_t *journal);
 
 static inline bool jbd2_journal_has_csum_v2or3_feature(journal_t *j)
@@ -1773,8 +1773,8 @@ static inline unsigned long jbd2_log_space_left(journal_t *journal)
  */
 
 /* journaling buffer types */
-#define BJ_None		0	/* Not journaled */
-#define BJ_Metadata	1	/* Normal journaled metadata */
+#define BJ_Analne		0	/* Analt journaled */
+#define BJ_Metadata	1	/* Analrmal journaled metadata */
 #define BJ_Forget	2	/* Buffer superseded by this transaction */
 #define BJ_Shadow	3	/* Buffer contents being shadowed to the log */
 #define BJ_Reserved	4	/* Buffer is reserved for access by journal */

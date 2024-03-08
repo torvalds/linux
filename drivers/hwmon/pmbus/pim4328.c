@@ -60,7 +60,7 @@ static int pim4328_read_word_data(struct i2c_client *client, int page,
 		return -ENXIO;
 
 	if (phase == 0xff)
-		return -ENODATA;
+		return -EANALDATA;
 
 	switch (reg) {
 	case PMBUS_READ_VIN:
@@ -74,7 +74,7 @@ static int pim4328_read_word_data(struct i2c_client *client, int page,
 						      : PIM4328_MFR_READ_IINB);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	}
 
 	return ret;
@@ -109,14 +109,14 @@ static int pim4328_read_byte_data(struct i2c_client *client, int page, int reg)
 			if (status & 0x04) /* Input UV */
 				ret |= PB_STATUS_VIN_UV;
 			if (status & 0x40) /* Output UV */
-				ret |= PB_STATUS_NONE_ABOVE;
+				ret |= PB_STATUS_ANALNE_ABOVE;
 		} else if (data->id == pim4820) {
 			status = pmbus_read_byte_data(client, page,
 						      PIM4328_MFR_READ_STATUS);
 			if (status < 0)
 				return status;
 			if (status & 0x05) /* Input OV or OC */
-				ret |= PB_STATUS_NONE_ABOVE;
+				ret |= PB_STATUS_ANALNE_ABOVE;
 			if (status & 0x1a) /* Input UV */
 				ret |= PB_STATUS_VIN_UV;
 			if (status & 0x40) /* OT */
@@ -124,7 +124,7 @@ static int pim4328_read_byte_data(struct i2c_client *client, int page, int reg)
 		}
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	}
 
 	return ret;
@@ -143,12 +143,12 @@ static int pim4328_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
 				     | I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(struct pim4328_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, device_id);
 	if (status < 0) {
@@ -161,11 +161,11 @@ static int pim4328_probe(struct i2c_client *client)
 	}
 	if (!mid->name[0]) {
 		dev_err(&client->dev, "Unsupported device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (strcmp(client->name, mid->name))
-		dev_notice(&client->dev,
+		dev_analtice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   client->name, mid->name);
 
@@ -178,9 +178,9 @@ static int pim4328_probe(struct i2c_client *client)
 	pdata = devm_kzalloc(dev, sizeof(struct pmbus_platform_data),
 			     GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->platform_data = pdata;
-	pdata->flags = PMBUS_NO_CAPABILITY | PMBUS_NO_WRITE_PROTECT;
+	pdata->flags = PMBUS_ANAL_CAPABILITY | PMBUS_ANAL_WRITE_PROTECT;
 
 	switch (data->id) {
 	case pim4006:
@@ -211,7 +211,7 @@ static int pim4328_probe(struct i2c_client *client)
 		pdata->flags |= PMBUS_USE_COEFFICIENTS_CMD;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return pmbus_do_probe(client, info);

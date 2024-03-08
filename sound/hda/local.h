@@ -30,7 +30,7 @@ static inline unsigned int get_wcaps_channels(u32 wcaps)
 extern const struct attribute_group *hdac_dev_attr_groups[];
 int hda_widget_sysfs_init(struct hdac_device *codec);
 int hda_widget_sysfs_reinit(struct hdac_device *codec, hda_nid_t start_nid,
-			    int num_nodes);
+			    int num_analdes);
 void hda_widget_sysfs_exit(struct hdac_device *codec);
 
 int snd_hdac_bus_add_device(struct hdac_bus *bus, struct hdac_device *codec);

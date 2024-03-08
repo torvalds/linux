@@ -10,11 +10,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -23,11 +23,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -60,7 +60,7 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
  * @net: the associated network namespace
  * @type: message type
  * @size: payload size
- * @dest: destination node
+ * @dest: destination analde
  *
  * The buffer returned is of size INT_H_SIZE + payload size
  */
@@ -81,7 +81,7 @@ static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
 }
 
 /**
- * tipc_named_publish - tell other nodes about a new publication by this node
+ * tipc_named_publish - tell other analdes about a new publication by this analde
  * @net: the associated network namespace
  * @p: the new publication
  */
@@ -91,27 +91,27 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *p)
 	struct distr_item *item;
 	struct sk_buff *skb;
 
-	if (p->scope == TIPC_NODE_SCOPE) {
-		list_add_tail_rcu(&p->binding_node, &nt->node_scope);
+	if (p->scope == TIPC_ANALDE_SCOPE) {
+		list_add_tail_rcu(&p->binding_analde, &nt->analde_scope);
 		return NULL;
 	}
 	write_lock_bh(&nt->cluster_scope_lock);
-	list_add_tail(&p->binding_node, &nt->cluster_scope);
+	list_add_tail(&p->binding_analde, &nt->cluster_scope);
 	write_unlock_bh(&nt->cluster_scope_lock);
 	skb = named_prepare_buf(net, PUBLICATION, ITEM_SIZE, 0);
 	if (!skb) {
 		pr_warn("Publication distribution failure\n");
 		return NULL;
 	}
-	msg_set_named_seqno(buf_msg(skb), nt->snd_nxt++);
-	msg_set_non_legacy(buf_msg(skb));
+	msg_set_named_seqanal(buf_msg(skb), nt->snd_nxt++);
+	msg_set_analn_legacy(buf_msg(skb));
 	item = (struct distr_item *)msg_data(buf_msg(skb));
 	publ_to_item(item, p);
 	return skb;
 }
 
 /**
- * tipc_named_withdraw - tell other nodes about a withdrawn publication by this node
+ * tipc_named_withdraw - tell other analdes about a withdrawn publication by this analde
  * @net: the associated network namespace
  * @p: the withdrawn publication
  */
@@ -122,9 +122,9 @@ struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *p)
 	struct sk_buff *skb;
 
 	write_lock_bh(&nt->cluster_scope_lock);
-	list_del(&p->binding_node);
+	list_del(&p->binding_analde);
 	write_unlock_bh(&nt->cluster_scope_lock);
-	if (p->scope == TIPC_NODE_SCOPE)
+	if (p->scope == TIPC_ANALDE_SCOPE)
 		return NULL;
 
 	skb = named_prepare_buf(net, WITHDRAWAL, ITEM_SIZE, 0);
@@ -132,37 +132,37 @@ struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *p)
 		pr_warn("Withdrawal distribution failure\n");
 		return NULL;
 	}
-	msg_set_named_seqno(buf_msg(skb), nt->snd_nxt++);
-	msg_set_non_legacy(buf_msg(skb));
+	msg_set_named_seqanal(buf_msg(skb), nt->snd_nxt++);
+	msg_set_analn_legacy(buf_msg(skb));
 	item = (struct distr_item *)msg_data(buf_msg(skb));
 	publ_to_item(item, p);
 	return skb;
 }
 
 /**
- * named_distribute - prepare name info for bulk distribution to another node
+ * named_distribute - prepare name info for bulk distribution to aanalther analde
  * @net: the associated network namespace
  * @list: list of messages (buffers) to be returned from this function
- * @dnode: node to be updated
+ * @danalde: analde to be updated
  * @pls: linked list of publication items to be packed into buffer chain
- * @seqno: sequence number for this message
+ * @seqanal: sequence number for this message
  */
 static void named_distribute(struct net *net, struct sk_buff_head *list,
-			     u32 dnode, struct list_head *pls, u16 seqno)
+			     u32 danalde, struct list_head *pls, u16 seqanal)
 {
 	struct publication *publ;
 	struct sk_buff *skb = NULL;
 	struct distr_item *item = NULL;
-	u32 msg_dsz = ((tipc_node_get_mtu(net, dnode, 0, false) - INT_H_SIZE) /
+	u32 msg_dsz = ((tipc_analde_get_mtu(net, danalde, 0, false) - INT_H_SIZE) /
 			ITEM_SIZE) * ITEM_SIZE;
 	u32 msg_rem = msg_dsz;
 	struct tipc_msg *hdr;
 
-	list_for_each_entry(publ, pls, binding_node) {
+	list_for_each_entry(publ, pls, binding_analde) {
 		/* Prepare next buffer: */
 		if (!skb) {
 			skb = named_prepare_buf(net, PUBLICATION, msg_rem,
-						dnode);
+						danalde);
 			if (!skb) {
 				pr_warn("Bulk publication failure\n");
 				return;
@@ -170,7 +170,7 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 			hdr = buf_msg(skb);
 			msg_set_bc_ack_invalid(hdr, true);
 			msg_set_bulk(hdr);
-			msg_set_non_legacy(hdr);
+			msg_set_analn_legacy(hdr);
 			item = (struct distr_item *)msg_data(hdr);
 		}
 
@@ -194,42 +194,42 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 	}
 	hdr = buf_msg(skb_peek_tail(list));
 	msg_set_last_bulk(hdr);
-	msg_set_named_seqno(hdr, seqno);
+	msg_set_named_seqanal(hdr, seqanal);
 }
 
 /**
- * tipc_named_node_up - tell specified node about all publications by this node
+ * tipc_named_analde_up - tell specified analde about all publications by this analde
  * @net: the associated network namespace
- * @dnode: destination node
- * @capabilities: peer node's capabilities
+ * @danalde: destination analde
+ * @capabilities: peer analde's capabilities
  */
-void tipc_named_node_up(struct net *net, u32 dnode, u16 capabilities)
+void tipc_named_analde_up(struct net *net, u32 danalde, u16 capabilities)
 {
 	struct name_table *nt = tipc_name_table(net);
 	struct tipc_net *tn = tipc_net(net);
 	struct sk_buff_head head;
-	u16 seqno;
+	u16 seqanal;
 
 	__skb_queue_head_init(&head);
 	spin_lock_bh(&tn->nametbl_lock);
 	if (!(capabilities & TIPC_NAMED_BCAST))
 		nt->rc_dests++;
-	seqno = nt->snd_nxt;
+	seqanal = nt->snd_nxt;
 	spin_unlock_bh(&tn->nametbl_lock);
 
 	read_lock_bh(&nt->cluster_scope_lock);
-	named_distribute(net, &head, dnode, &nt->cluster_scope, seqno);
-	tipc_node_xmit(net, &head, dnode, 0);
+	named_distribute(net, &head, danalde, &nt->cluster_scope, seqanal);
+	tipc_analde_xmit(net, &head, danalde, 0);
 	read_unlock_bh(&nt->cluster_scope_lock);
 }
 
 /**
- * tipc_publ_purge - remove publication associated with a failed node
+ * tipc_publ_purge - remove publication associated with a failed analde
  * @net: the associated network namespace
  * @p: the publication to remove
- * @addr: failed node's address
+ * @addr: failed analde's address
  *
- * Invoked for each publication issued by a newly failed node.
+ * Invoked for each publication issued by a newly failed analde.
  * Removes publication structure from name table & deletes it.
  */
 static void tipc_publ_purge(struct net *net, struct publication *p, u32 addr)
@@ -243,13 +243,13 @@ static void tipc_publ_purge(struct net *net, struct publication *p, u32 addr)
 	spin_lock_bh(&tn->nametbl_lock);
 	_p = tipc_nametbl_remove_publ(net, &ua, &p->sk, p->key);
 	if (_p)
-		tipc_node_unsubscribe(net, &_p->binding_node, addr);
+		tipc_analde_unsubscribe(net, &_p->binding_analde, addr);
 	spin_unlock_bh(&tn->nametbl_lock);
 	if (_p)
 		kfree_rcu(_p, rcu);
 }
 
-void tipc_publ_notify(struct net *net, struct list_head *nsub_list,
+void tipc_publ_analtify(struct net *net, struct list_head *nsub_list,
 		      u32 addr, u16 capabilities)
 {
 	struct name_table *nt = tipc_name_table(net);
@@ -257,7 +257,7 @@ void tipc_publ_notify(struct net *net, struct list_head *nsub_list,
 
 	struct publication *publ, *tmp;
 
-	list_for_each_entry_safe(publ, tmp, nsub_list, binding_node)
+	list_for_each_entry_safe(publ, tmp, nsub_list, binding_analde)
 		tipc_publ_purge(net, publ, addr);
 	spin_lock_bh(&tn->nametbl_lock);
 	if (!(capabilities & TIPC_NAMED_BCAST))
@@ -266,18 +266,18 @@ void tipc_publ_notify(struct net *net, struct list_head *nsub_list,
 }
 
 /**
- * tipc_update_nametbl - try to process a nametable update and notify
+ * tipc_update_nametbl - try to process a nametable update and analtify
  *			 subscribers
  * @net: the associated network namespace
  * @i: location of item in the message
- * @node: node address
+ * @analde: analde address
  * @dtype: name distributor message type
  *
  * tipc_nametbl_lock must be held.
  * Return: the publication item if successful, otherwise NULL.
  */
 static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
-				u32 node, u32 dtype)
+				u32 analde, u32 dtype)
 {
 	struct publication *p = NULL;
 	struct tipc_socket_addr sk;
@@ -287,25 +287,25 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_CLUSTER_SCOPE,
 		   ntohl(i->type), ntohl(i->lower), ntohl(i->upper));
 	sk.ref = ntohl(i->port);
-	sk.node = node;
+	sk.analde = analde;
 
 	if (dtype == PUBLICATION) {
 		p = tipc_nametbl_insert_publ(net, &ua, &sk, key);
 		if (p) {
-			tipc_node_subscribe(net, &p->binding_node, node);
+			tipc_analde_subscribe(net, &p->binding_analde, analde);
 			return true;
 		}
 	} else if (dtype == WITHDRAWAL) {
 		p = tipc_nametbl_remove_publ(net, &ua, &sk, key);
 		if (p) {
-			tipc_node_unsubscribe(net, &p->binding_node, node);
+			tipc_analde_unsubscribe(net, &p->binding_analde, analde);
 			kfree_rcu(p, rcu);
 			return true;
 		}
 		pr_warn_ratelimited("Failed to remove binding %u,%u from %u\n",
-				    ua.sr.type, ua.sr.lower, node);
+				    ua.sr.type, ua.sr.lower, analde);
 	} else {
-		pr_warn_ratelimited("Unknown name table message received\n");
+		pr_warn_ratelimited("Unkanalwn name table message received\n");
 	}
 	return false;
 }
@@ -315,7 +315,7 @@ static struct sk_buff *tipc_named_dequeue(struct sk_buff_head *namedq,
 {
 	struct sk_buff *skb, *tmp;
 	struct tipc_msg *hdr;
-	u16 seqno;
+	u16 seqanal;
 
 	spin_lock_bh(&namedq->lock);
 	skb_queue_walk_safe(namedq, skb, tmp) {
@@ -325,9 +325,9 @@ static struct sk_buff *tipc_named_dequeue(struct sk_buff_head *namedq,
 			continue;
 		}
 		hdr = buf_msg(skb);
-		seqno = msg_named_seqno(hdr);
+		seqanal = msg_named_seqanal(hdr);
 		if (msg_is_last_bulk(hdr)) {
-			*rcv_nxt = seqno;
+			*rcv_nxt = seqanal;
 			*open = true;
 		}
 
@@ -337,14 +337,14 @@ static struct sk_buff *tipc_named_dequeue(struct sk_buff_head *namedq,
 			return skb;
 		}
 
-		if (*open && (*rcv_nxt == seqno)) {
+		if (*open && (*rcv_nxt == seqanal)) {
 			(*rcv_nxt)++;
 			__skb_unlink(skb, namedq);
 			spin_unlock_bh(&namedq->lock);
 			return skb;
 		}
 
-		if (less(seqno, *rcv_nxt)) {
+		if (less(seqanal, *rcv_nxt)) {
 			__skb_unlink(skb, namedq);
 			kfree_skb(skb);
 			continue;
@@ -355,10 +355,10 @@ static struct sk_buff *tipc_named_dequeue(struct sk_buff_head *namedq,
 }
 
 /**
- * tipc_named_rcv - process name table update messages sent by another node
+ * tipc_named_rcv - process name table update messages sent by aanalther analde
  * @net: the associated network namespace
  * @namedq: queue to receive from
- * @rcv_nxt: store last received seqno here
+ * @rcv_nxt: store last received seqanal here
  * @open: last bulk msg was received (FIXME)
  */
 void tipc_named_rcv(struct net *net, struct sk_buff_head *namedq,
@@ -368,16 +368,16 @@ void tipc_named_rcv(struct net *net, struct sk_buff_head *namedq,
 	struct distr_item *item;
 	struct tipc_msg *hdr;
 	struct sk_buff *skb;
-	u32 count, node;
+	u32 count, analde;
 
 	spin_lock_bh(&tn->nametbl_lock);
 	while ((skb = tipc_named_dequeue(namedq, rcv_nxt, open))) {
 		hdr = buf_msg(skb);
-		node = msg_orignode(hdr);
+		analde = msg_origanalde(hdr);
 		item = (struct distr_item *)msg_data(hdr);
 		count = msg_data_sz(hdr) / ITEM_SIZE;
 		while (count--) {
-			tipc_update_nametbl(net, item, node, msg_type(hdr));
+			tipc_update_nametbl(net, item, analde, msg_type(hdr));
 			item++;
 		}
 		kfree_skb(skb);
@@ -390,8 +390,8 @@ void tipc_named_rcv(struct net *net, struct sk_buff_head *namedq,
  * @net: the associated network namespace
  *
  * This routine is called whenever TIPC networking is enabled.
- * All name table entries published by this node are updated to reflect
- * the node's new network address.
+ * All name table entries published by this analde are updated to reflect
+ * the analde's new network address.
  */
 void tipc_named_reinit(struct net *net)
 {
@@ -402,10 +402,10 @@ void tipc_named_reinit(struct net *net)
 
 	spin_lock_bh(&tn->nametbl_lock);
 
-	list_for_each_entry_rcu(p, &nt->node_scope, binding_node)
-		p->sk.node = self;
-	list_for_each_entry_rcu(p, &nt->cluster_scope, binding_node)
-		p->sk.node = self;
+	list_for_each_entry_rcu(p, &nt->analde_scope, binding_analde)
+		p->sk.analde = self;
+	list_for_each_entry_rcu(p, &nt->cluster_scope, binding_analde)
+		p->sk.analde = self;
 	nt->rc_dests = 0;
 	spin_unlock_bh(&tn->nametbl_lock);
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2021. Huawei Technologies Co., Ltd
+ * Copyright (C) 2021. Huawei Techanallogies Co., Ltd
  */
 #include <linux/kernel.h>
 #include <linux/bpf_verifier.h>
@@ -36,7 +36,7 @@ dummy_ops_init_args(const union bpf_attr *kattr, unsigned int nr)
 
 	args = kzalloc(sizeof(*args), GFP_KERNEL);
 	if (!args)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctx_in = u64_to_user_ptr(kattr->test.ctx_in);
 	if (copy_from_user(args->args, ctx_in, size_in))
@@ -93,7 +93,7 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 	int err;
 
 	if (prog->aux->attach_btf_id != st_ops->type_id)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	func_proto = prog->aux->attach_func_proto;
 	args = dummy_ops_init_args(kattr, btf_type_vlen(func_proto));
@@ -102,19 +102,19 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 
 	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
 	if (!tlinks) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	image = arch_alloc_bpf_trampoline(PAGE_SIZE);
 	if (!image) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	/* prog doesn't take the ownership of the reference from caller */
@@ -201,7 +201,7 @@ static int bpf_dummy_ops_btf_struct_access(struct bpf_verifier_log *log,
 		return -EACCES;
 	}
 
-	return NOT_INIT;
+	return ANALT_INIT;
 }
 
 static const struct bpf_verifier_ops bpf_dummy_verifier_ops = {
@@ -213,12 +213,12 @@ static int bpf_dummy_init_member(const struct btf_type *t,
 				 const struct btf_member *member,
 				 void *kdata, const void *udata)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int bpf_dummy_reg(void *kdata)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void bpf_dummy_unreg(void *kdata)

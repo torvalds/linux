@@ -147,14 +147,14 @@ static int aq_get_macsec_common_stats(struct aq_hw_s *hw,
 		STATS_2x32_TO_64(ingress_counters.tagged_miss_pkts);
 	stats->in.untagged_miss_pkts =
 		STATS_2x32_TO_64(ingress_counters.untagged_miss_pkts);
-	stats->in.notag_pkts = STATS_2x32_TO_64(ingress_counters.notag_pkts);
+	stats->in.analtag_pkts = STATS_2x32_TO_64(ingress_counters.analtag_pkts);
 	stats->in.untagged_pkts =
 		STATS_2x32_TO_64(ingress_counters.untagged_pkts);
 	stats->in.bad_tag_pkts =
 		STATS_2x32_TO_64(ingress_counters.bad_tag_pkts);
-	stats->in.no_sci_pkts = STATS_2x32_TO_64(ingress_counters.no_sci_pkts);
-	stats->in.unknown_sci_pkts =
-		STATS_2x32_TO_64(ingress_counters.unknown_sci_pkts);
+	stats->in.anal_sci_pkts = STATS_2x32_TO_64(ingress_counters.anal_sci_pkts);
+	stats->in.unkanalwn_sci_pkts =
+		STATS_2x32_TO_64(ingress_counters.unkanalwn_sci_pkts);
 	stats->in.ctrl_prt_pass_pkts =
 		STATS_2x32_TO_64(ingress_counters.ctrl_prt_pass_pkts);
 	stats->in.unctrl_prt_pass_pkts =
@@ -176,8 +176,8 @@ static int aq_get_macsec_common_stats(struct aq_hw_s *hw,
 	if (unlikely(ret))
 		return ret;
 	stats->out.ctl_pkts = STATS_2x32_TO_64(egress_counters.ctl_pkt);
-	stats->out.unknown_sa_pkts =
-		STATS_2x32_TO_64(egress_counters.unknown_sa_pkts);
+	stats->out.unkanalwn_sa_pkts =
+		STATS_2x32_TO_64(egress_counters.unkanalwn_sa_pkts);
 	stats->out.untagged_pkts =
 		STATS_2x32_TO_64(egress_counters.untagged_pkts);
 	stats->out.too_long = STATS_2x32_TO_64(egress_counters.too_long);
@@ -203,9 +203,9 @@ static int aq_get_rxsa_stats(struct aq_hw_s *hw, const int sa_idx,
 		STATS_2x32_TO_64(i_sa_counters.untagged_hit_pkts);
 	stats->ctrl_hit_drop_redir_pkts =
 		STATS_2x32_TO_64(i_sa_counters.ctrl_hit_drop_redir_pkts);
-	stats->not_using_sa = STATS_2x32_TO_64(i_sa_counters.not_using_sa);
+	stats->analt_using_sa = STATS_2x32_TO_64(i_sa_counters.analt_using_sa);
 	stats->unused_sa = STATS_2x32_TO_64(i_sa_counters.unused_sa);
-	stats->not_valid_pkts = STATS_2x32_TO_64(i_sa_counters.not_valid_pkts);
+	stats->analt_valid_pkts = STATS_2x32_TO_64(i_sa_counters.analt_valid_pkts);
 	stats->invalid_pkts = STATS_2x32_TO_64(i_sa_counters.invalid_pkts);
 	stats->ok_pkts = STATS_2x32_TO_64(i_sa_counters.ok_pkts);
 	stats->late_pkts = STATS_2x32_TO_64(i_sa_counters.late_pkts);
@@ -418,7 +418,7 @@ static u32 aq_to_hw_sc_idx(const u32 sc_idx, const enum aq_macsec_sc_sa sc_sa)
 
 static enum aq_macsec_sc_sa sc_sa_from_num_an(const int num_an)
 {
-	enum aq_macsec_sc_sa sc_sa = aq_macsec_sa_sc_not_used;
+	enum aq_macsec_sc_sa sc_sa = aq_macsec_sa_sc_analt_used;
 
 	switch (num_an) {
 	case 4:
@@ -447,18 +447,18 @@ static int aq_mdo_add_secy(struct macsec_context *ctx)
 	int ret = 0;
 
 	if (secy->xpn)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sc_sa = sc_sa_from_num_an(MACSEC_NUM_AN);
-	if (sc_sa == aq_macsec_sa_sc_not_used)
+	if (sc_sa == aq_macsec_sa_sc_analt_used)
 		return -EINVAL;
 
 	if (hweight32(cfg->txsc_idx_busy) >= aq_sc_idx_max(sc_sa))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	txsc_idx = ffz(cfg->txsc_idx_busy);
 	if (txsc_idx == AQ_MACSEC_MAX_SC)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	cfg->sc_sa = sc_sa;
 	cfg->aq_txsc[txsc_idx].hw_sc_idx = aq_to_hw_sc_idx(txsc_idx, sc_sa);
@@ -481,7 +481,7 @@ static int aq_mdo_upd_secy(struct macsec_context *ctx)
 
 	txsc_idx = aq_get_txsc_idx_from_secy(nic->macsec_cfg, secy);
 	if (txsc_idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (netif_carrier_ok(nic->ndev) && netif_running(secy->netdev))
 		ret = aq_set_txsc(nic, txsc_idx);
@@ -751,11 +751,11 @@ static int aq_mdo_add_rxsc(struct macsec_context *ctx)
 	int ret = 0;
 
 	if (hweight32(cfg->rxsc_idx_busy) >= rxsc_idx_max)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	rxsc_idx = ffz(cfg->rxsc_idx_busy);
 	if (rxsc_idx >= rxsc_idx_max)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	cfg->aq_rxsc[rxsc_idx].hw_sc_idx = aq_to_hw_sc_idx(rxsc_idx,
 							   cfg->sc_sa);
@@ -781,7 +781,7 @@ static int aq_mdo_upd_rxsc(struct macsec_context *ctx)
 
 	rxsc_idx = aq_get_rxsc_idx_from_rxsc(nic->macsec_cfg, ctx->rx_sc);
 	if (rxsc_idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (netif_carrier_ok(nic->ndev) && netif_running(ctx->secy->netdev))
 		ret = aq_set_rxsc(nic, rxsc_idx);
@@ -845,7 +845,7 @@ static int aq_mdo_del_rxsc(struct macsec_context *ctx)
 
 	rxsc_idx = aq_get_rxsc_idx_from_rxsc(nic->macsec_cfg, ctx->rx_sc);
 	if (rxsc_idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (netif_carrier_ok(nic->ndev))
 		clear_type = AQ_CLEAR_ALL;
@@ -1009,10 +1009,10 @@ static int aq_mdo_get_dev_stats(struct macsec_context *ctx)
 	ctx->stats.dev_stats->OutPktsUntagged = stats->out.untagged_pkts;
 	ctx->stats.dev_stats->InPktsUntagged = stats->in.untagged_pkts;
 	ctx->stats.dev_stats->OutPktsTooLong = stats->out.too_long;
-	ctx->stats.dev_stats->InPktsNoTag = stats->in.notag_pkts;
+	ctx->stats.dev_stats->InPktsAnalTag = stats->in.analtag_pkts;
 	ctx->stats.dev_stats->InPktsBadTag = stats->in.bad_tag_pkts;
-	ctx->stats.dev_stats->InPktsUnknownSCI = stats->in.unknown_sci_pkts;
-	ctx->stats.dev_stats->InPktsNoSCI = stats->in.no_sci_pkts;
+	ctx->stats.dev_stats->InPktsUnkanalwnSCI = stats->in.unkanalwn_sci_pkts;
+	ctx->stats.dev_stats->InPktsAnalSCI = stats->in.anal_sci_pkts;
 	ctx->stats.dev_stats->InPktsOverrun = 0;
 
 	return 0;
@@ -1028,7 +1028,7 @@ static int aq_mdo_get_tx_sc_stats(struct macsec_context *ctx)
 
 	txsc_idx = aq_get_txsc_idx_from_secy(nic->macsec_cfg, ctx->secy);
 	if (txsc_idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	aq_txsc = &nic->macsec_cfg->aq_txsc[txsc_idx];
 	stats = &aq_txsc->stats;
@@ -1096,7 +1096,7 @@ static int aq_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 
 	rxsc_idx = aq_get_rxsc_idx_from_rxsc(cfg, ctx->rx_sc);
 	if (rxsc_idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	aq_rxsc = &cfg->aq_rxsc[rxsc_idx];
 	for (i = 0; i < MACSEC_NUM_AN; i++) {
@@ -1119,8 +1119,8 @@ static int aq_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 		ctx->stats.rx_sc_stats->InPktsOK += stats->ok_pkts;
 		ctx->stats.rx_sc_stats->InPktsInvalid += stats->invalid_pkts;
 		ctx->stats.rx_sc_stats->InPktsLate += stats->late_pkts;
-		ctx->stats.rx_sc_stats->InPktsNotValid += stats->not_valid_pkts;
-		ctx->stats.rx_sc_stats->InPktsNotUsingSA += stats->not_using_sa;
+		ctx->stats.rx_sc_stats->InPktsAnaltValid += stats->analt_valid_pkts;
+		ctx->stats.rx_sc_stats->InPktsAnaltUsingSA += stats->analt_using_sa;
 		ctx->stats.rx_sc_stats->InPktsUnusedSA += stats->unused_sa;
 	}
 
@@ -1153,8 +1153,8 @@ static int aq_mdo_get_rx_sa_stats(struct macsec_context *ctx)
 
 	ctx->stats.rx_sa_stats->InPktsOK = stats->ok_pkts;
 	ctx->stats.rx_sa_stats->InPktsInvalid = stats->invalid_pkts;
-	ctx->stats.rx_sa_stats->InPktsNotValid = stats->not_valid_pkts;
-	ctx->stats.rx_sa_stats->InPktsNotUsingSA = stats->not_using_sa;
+	ctx->stats.rx_sa_stats->InPktsAnaltValid = stats->analt_valid_pkts;
+	ctx->stats.rx_sa_stats->InPktsAnaltUsingSA = stats->analt_using_sa;
 	ctx->stats.rx_sa_stats->InPktsUnusedSA = stats->unused_sa;
 
 	rx_sa = rcu_dereference_bh(aq_rxsc->sw_rxsc->sa[ctx->sa.assoc_num]);
@@ -1464,7 +1464,7 @@ int aq_macsec_init(struct aq_nic_s *nic)
 
 	nic->macsec_cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!nic->macsec_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nic->ndev->features |= NETIF_F_HW_MACSEC;
 	nic->ndev->macsec_ops = &aq_macsec_ops;
@@ -1688,11 +1688,11 @@ u64 *aq_macsec_get_stats(struct aq_nic_s *nic, u64 *data)
 	data[i] = common_stats->in.ctl_pkts;
 	data[++i] = common_stats->in.tagged_miss_pkts;
 	data[++i] = common_stats->in.untagged_miss_pkts;
-	data[++i] = common_stats->in.notag_pkts;
+	data[++i] = common_stats->in.analtag_pkts;
 	data[++i] = common_stats->in.untagged_pkts;
 	data[++i] = common_stats->in.bad_tag_pkts;
-	data[++i] = common_stats->in.no_sci_pkts;
-	data[++i] = common_stats->in.unknown_sci_pkts;
+	data[++i] = common_stats->in.anal_sci_pkts;
+	data[++i] = common_stats->in.unkanalwn_sci_pkts;
 	data[++i] = common_stats->in.ctrl_prt_pass_pkts;
 	data[++i] = common_stats->in.unctrl_prt_pass_pkts;
 	data[++i] = common_stats->in.ctrl_prt_fail_pkts;
@@ -1702,7 +1702,7 @@ u64 *aq_macsec_get_stats(struct aq_nic_s *nic, u64 *data)
 	data[++i] = common_stats->in.ecc_error_pkts;
 	data[++i] = common_stats->in.unctrl_hit_drop_redir;
 	data[++i] = common_stats->out.ctl_pkts;
-	data[++i] = common_stats->out.unknown_sa_pkts;
+	data[++i] = common_stats->out.unkanalwn_sa_pkts;
 	data[++i] = common_stats->out.untagged_pkts;
 	data[++i] = common_stats->out.too_long;
 	data[++i] = common_stats->out.ecc_error_pkts;
@@ -1747,9 +1747,9 @@ u64 *aq_macsec_get_stats(struct aq_nic_s *nic, u64 *data)
 
 			data[++i] = rxsa_stats->untagged_hit_pkts;
 			data[++i] = rxsa_stats->ctrl_hit_drop_redir_pkts;
-			data[++i] = rxsa_stats->not_using_sa;
+			data[++i] = rxsa_stats->analt_using_sa;
 			data[++i] = rxsa_stats->unused_sa;
-			data[++i] = rxsa_stats->not_valid_pkts;
+			data[++i] = rxsa_stats->analt_valid_pkts;
 			data[++i] = rxsa_stats->invalid_pkts;
 			data[++i] = rxsa_stats->ok_pkts;
 			data[++i] = rxsa_stats->late_pkts;

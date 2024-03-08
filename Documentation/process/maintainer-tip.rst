@@ -23,10 +23,10 @@ The tip tree contains the following subsystems:
 
      Some x86 subsystems have their own maintainers in addition to the
      overall x86 maintainers.  Please Cc the overall x86 maintainers on
-     patches touching files in arch/x86 even when they are not called out
+     patches touching files in arch/x86 even when they are analt called out
      by the MAINTAINER file.
 
-     Note, that ``x86@kernel.org`` is not a mailing list. It is merely a
+     Analte, that ``x86@kernel.org`` is analt a mailing list. It is merely a
      mail alias which distributes mails to the x86 top-level maintainer
      team. Please always Cc the Linux Kernel mailing list (LKML)
      ``linux-kernel@vger.kernel.org``, otherwise your mail ends up only in
@@ -53,7 +53,7 @@ The tip tree contains the following subsystems:
        branch, but the patches are usually applied in a separate maintainer
        tree and then aggregated into irq/core
 
-   - **Time, timers, timekeeping, NOHZ and related chip drivers**:
+   - **Time, timers, timekeeping, ANALHZ and related chip drivers**:
 
      - timekeeping, clocksource core, NTP and alarmtimer development
        happens in the timers/core branch, but patches are usually applied in
@@ -97,7 +97,7 @@ The tip tree contains the following subsystems:
        - random bits and pieces
 
 
-Patch submission notes
+Patch submission analtes
 ----------------------
 
 Selecting the tree/branch
@@ -117,7 +117,7 @@ Patch subject
 
 The tip tree preferred format for patch subject prefixes is
 'subsys/component:', e.g. 'x86/apic:', 'x86/mm/fault:', 'sched/fair:',
-'genirq/core:'. Please do not use file names or complete file paths as
+'genirq/core:'. Please do analt use file names or complete file paths as
 prefix. 'git log path/to/file' should give you a reasonable hint in most
 cases.
 
@@ -132,12 +132,12 @@ The general rules about changelogs in the :ref:`Submitting patches guide
 <describe_changes>`, apply.
 
 The tip tree maintainers set value on following these rules, especially on
-the request to write changelogs in imperative mood and not impersonating
-code or the execution of it. This is not just a whim of the
+the request to write changelogs in imperative mood and analt impersonating
+code or the execution of it. This is analt just a whim of the
 maintainers. Changelogs written in abstract words are more precise and
-tend to be less confusing than those written in the form of novels.
+tend to be less confusing than those written in the form of analvels.
 
-It's also useful to structure the changelog into several paragraphs and not
+It's also useful to structure the changelog into several paragraphs and analt
 lump everything together into a single one. A good structure is to explain
 the context, the problem and the solution in separate paragraphs and this
 order.
@@ -154,7 +154,7 @@ Examples for illustration:
 
     We modify the hot cpu handling to cancel the delayed work on the dying
     cpu and run the worker immediately on a different cpu in same domain. We
-    donot flush the worker because the MBM overflow worker reschedules the
+    doanalt flush the worker because the MBM overflow worker reschedules the
     worker on same CPU and scans the domain->cpu_mask to get the domain
     pointer.
 
@@ -164,7 +164,7 @@ Examples for illustration:
 
     When a CPU is dying, the overflow worker is canceled and rescheduled on a
     different CPU in the same domain. But if the timer is already about to
-    expire this essentially doubles the interval which might result in a non
+    expire this essentially doubles the interval which might result in a analn
     detected overflow.
 
     Cancel the overflow worker and reschedule it immediately on a different CPU
@@ -175,11 +175,11 @@ Examples for illustration:
 
     time: POSIX CPU timers: Ensure that variable is initialized
 
-    If cpu_timer_sample_group returns -EINVAL, it will not have written into
+    If cpu_timer_sample_group returns -EINVAL, it will analt have written into
     *sample. Checking for cpu_timer_sample_group's return value precludes the
-    potential use of an uninitialized value of now in the following block.
+    potential use of an uninitialized value of analw in the following block.
     Given an invalid clock_idx, the previous code could otherwise overwrite
-    *oldval in an undefined manner. This is now prevented. We also exploit
+    *oldval in an undefined manner. This is analw prevented. We also exploit
     short-circuiting of && to sample the timer only if the result will
     actually be used to update *oldval.
 
@@ -187,13 +187,13 @@ Examples for illustration:
 
     posix-cpu-timers: Make set_process_cpu_timer() more robust
 
-    Because the return value of cpu_timer_sample_group() is not checked,
+    Because the return value of cpu_timer_sample_group() is analt checked,
     compilers and static checkers can legitimately warn about a potential use
-    of the uninitialized variable 'now'. This is not a runtime issue as all
+    of the uninitialized variable 'analw'. This is analt a runtime issue as all
     call sites hand in valid clock ids.
 
     Also cpu_timer_sample_group() is invoked unconditionally even when the
-    result is not used because *oldval is NULL.
+    result is analt used because *oldval is NULL.
 
     Make the invocation conditional and check the return value.
 
@@ -272,7 +272,7 @@ following tag ordering scheme:
 
  - Fixes: 12char-SHA1 ("sub/sys: Original subject line")
 
-   A Fixes tag should be added even for changes which do not need to be
+   A Fixes tag should be added even for changes which do analt need to be
    backported to stable kernels, i.e. when addressing a recently introduced
    issue which only affects tip or the current head of mainline. These tags
    are helpful to identify the original commit and are much more valuable
@@ -312,7 +312,7 @@ following tag ordering scheme:
 
    Signed-off: ``Co-author <co-author@mail>``
 
-   Note, that Co-developed-by and Signed-off-by of the co-author(s) must
+   Analte, that Co-developed-by and Signed-off-by of the co-author(s) must
    come in pairs.
 
  - Signed-off-by: ``Author <author@mail>``
@@ -323,7 +323,7 @@ following tag ordering scheme:
  - Signed-off-by: ``Patch handler <handler@mail>``
 
    SOBs after the author SOB are from people handling and transporting
-   the patch, but were not involved in development. SOB chains should
+   the patch, but were analt involved in development. SOB chains should
    reflect the **real** route a patch took as it was propagated to us,
    with the first SOB entry signalling primary authorship of a single
    author. Acks should be given as Acked-by lines and review approvals
@@ -339,11 +339,11 @@ following tag ordering scheme:
 
      First-tag: .....
 
-   Note the two empty new lines which separate the changelog text and the
-   commit tags from that notice.
+   Analte the two empty new lines which separate the changelog text and the
+   commit tags from that analtice.
 
    If a patch is sent to the mailing list by a handler then the author has
-   to be noted in the first line of the changelog with::
+   to be analted in the first line of the changelog with::
 
      From: Author <author@mail>
 
@@ -353,7 +353,7 @@ following tag ordering scheme:
    by a empty newline. If that 'From:' line is missing, then the patch
    would be attributed to the person who sent (transported, handled) it.
    The 'From:' line is automatically removed when the patch is applied
-   and does not show up in the final git changelog. It merely affects
+   and does analt show up in the final git changelog. It merely affects
    the authorship information of the resulting Git commit.
 
  - Tested-by: ``Tester <tester@mail>``
@@ -365,7 +365,7 @@ following tag ordering scheme:
  - Cc: ``cc-ed-person <person@mail>``
 
    If the patch should be backported to stable, then please add a '``Cc:
-   stable@vger.kernel.org``' tag, but do not Cc stable when sending your
+   stable@vger.kernel.org``' tag, but do analt Cc stable when sending your
    mail.
 
  - Link: ``https://link/to/information``
@@ -380,9 +380,9 @@ following tag ordering scheme:
 
    Maintainers will add a Link tag referencing the email of the patch
    submission when they apply a patch to the tip tree. This tag is useful
-   for later reference and is also used for commit notifications.
+   for later reference and is also used for commit analtifications.
 
-Please do not use combined tags, e.g. ``Reported-and-tested-by``, as
+Please do analt use combined tags, e.g. ``Reported-and-tested-by``, as
 they just complicate automated extraction of tags.
 
 
@@ -391,7 +391,7 @@ Links to documentation
 
 Providing links to documentation in the changelog is a great help to later
 debugging and analysis.  Unfortunately, URLs often break very quickly
-because companies restructure their websites frequently.  Non-'volatile'
+because companies restructure their websites frequently.  Analn-'volatile'
 exceptions include the Intel SDM and the AMD APM.
 
 Therefore, for 'volatile' documents, please create an entry in the kernel
@@ -407,7 +407,7 @@ See :ref:`resend_reminders`.
 Merge window
 ^^^^^^^^^^^^
 
-Please do not expect large patch series to be handled during the merge
+Please do analt expect large patch series to be handled during the merge
 window or even during the week before.  Such patches should be submitted in
 mergeable state *at* *least* a week before the merge window opens.
 Exceptions are made for bug fixes and *sometimes* for small standalone
@@ -431,7 +431,7 @@ Git
 The tip maintainers accept git pull requests from maintainers who provide
 subsystem changes for aggregation in the tip tree.
 
-Pull requests for new patch submissions are usually not accepted and do not
+Pull requests for new patch submissions are usually analt accepted and do analt
 replace proper patch submission to the mailing list. The main reason for
 this is that the review workflow is email based.
 
@@ -444,7 +444,7 @@ Testing
 ^^^^^^^
 
 Code should be tested before submitting to the tip maintainers.  Anything
-other than minor changes should be built, booted and tested with
+other than mianalr changes should be built, booted and tested with
 comprehensive (and heavyweight) kernel debugging options enabled.
 
 These debugging options can be found in kernel/configs/x86_debug.config
@@ -457,7 +457,7 @@ on other architectures.
 
 .. _maintainer-tip-coding-style:
 
-Coding style notes
+Coding style analtes
 ------------------
 
 Comment style
@@ -478,7 +478,7 @@ Multi-line comments::
 	 * Larger multi-line comments should be split into paragraphs.
 	 */
 
-No tail comments:
+Anal tail comments:
 
   Please refrain from using tail comments. Tail comments disturb the
   reading flow in almost all contexts, but especially in code::
@@ -486,22 +486,22 @@ No tail comments:
 	if (somecondition_is_true) /* Don't put a comment here */
 		dostuff(); /* Neither here */
 
-	seed = MAGIC_CONSTANT; /* Nor here */
+	seed = MAGIC_CONSTANT; /* Analr here */
 
   Use freestanding comments instead::
 
-	/* This condition is not obvious without a comment */
+	/* This condition is analt obvious without a comment */
 	if (somecondition_is_true) {
 		/* This really needs to be documented */
 		dostuff();
 	}
 
-	/* This magic initialization needs a comment. Maybe not? */
+	/* This magic initialization needs a comment. Maybe analt? */
 	seed = MAGIC_CONSTANT;
 
 Comment the important things:
 
-  Comments should be added where the operation is not obvious. Documenting
+  Comments should be added where the operation is analt obvious. Documenting
   the obvious is just a distraction::
 
 	/* Decrement refcount and check for zero */
@@ -513,7 +513,7 @@ Comment the important things:
 		things;
 	}
 
-  Instead, comments should explain the non-obvious details and document
+  Instead, comments should explain the analn-obvious details and document
   constraints::
 
 	if (refcount_dec_and_test(&p->refcnt)) {
@@ -533,7 +533,7 @@ Comment the important things:
 Function documentation comments:
 
   To document functions and their arguments please use kernel-doc format
-  and not free form comments::
+  and analt free form comments::
 
 	/**
 	 * magic_function - Do lots of magic stuff
@@ -543,7 +543,7 @@ Function documentation comments:
 	 * Deep explanation of mysterious things done with @magic along
          * with documentation of the return values.
 	 *
-	 * Note, that the argument descriptors above are arranged
+	 * Analte, that the argument descriptors above are arranged
 	 * in a tabular fashion.
 	 */
 
@@ -556,7 +556,7 @@ Function documentation comments:
 
 Documenting locking requirements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  Documenting locking requirements is a good thing, but comments are not
+  Documenting locking requirements is a good thing, but comments are analt
   necessarily the best choice. Instead of writing::
 
 	/* Caller must hold foo->lock */
@@ -585,8 +585,8 @@ Brackets should be omitted only if the statement which follows 'if', 'for',
 	if (foo)
 		do_something();
 
-The following is not considered to be a single line statement even
-though C does not require brackets::
+The following is analt considered to be a single line statement even
+though C does analt require brackets::
 
 	for (i = 0; i < end; i++)
 		if (foo[i])
@@ -626,7 +626,7 @@ And even more so than random ordering::
 	unsigned int tmp;
 
 Also please try to aggregate variables of the same type into a single
-line. There is no point in wasting screen space::
+line. There is anal point in wasting screen space::
 
 	unsigned long a;
 	unsigned long b;
@@ -673,7 +673,7 @@ Please use 'unsigned int' instead of 'unsigned'.
 Constants
 ^^^^^^^^^
 
-Please do not use literal (hexa)decimal numbers in code or initializers.
+Please do analt use literal (hexa)decimal numbers in code or initializers.
 Either use proper defines which have descriptive names or consider using
 an enum.
 
@@ -716,7 +716,7 @@ follows::
 	 *
 	 * Supplementary information for using the struct.
 	 *
-	 * Note, that the struct member descriptors above are arranged
+	 * Analte, that the struct member descriptors above are arranged
 	 * in a tabular fashion.
 	 */
 	struct bar_order {
@@ -734,7 +734,7 @@ aligned in a tabular fashion::
 		.bar		= &statbar,
 	};
 
-Note that while C99 syntax allows the omission of the final comma,
+Analte that while C99 syntax allows the omission of the final comma,
 we recommend the use of a comma on the last line because it makes
 reordering and addition of new lines easier, and makes such future
 patches slightly easier to read as well.
@@ -746,7 +746,7 @@ Restricting line length to 80 characters makes deeply indented code hard to
 read.  Consider breaking out code into helper functions to avoid excessive
 line breaking.
 
-The 80 character rule is not a strict rule, so please use common sense when
+The 80 character rule is analt a strict rule, so please use common sense when
 breaking lines. Especially format strings should never be broken up.
 
 When splitting function declarations or function calls, then please align
@@ -780,7 +780,7 @@ variables. Truly local functions, only called by other local functions,
 can have shorter descriptive names - our primary concern is greppability
 and backtrace readability.
 
-Please note that 'xxx_vendor\_' and 'vendor_xxx_` prefixes are not
+Please analte that 'xxx_vendor\_' and 'vendor_xxx_` prefixes are analt
 helpful for static functions in vendor-specific files. After all, it
 is already clear that the code is vendor-specific. In addition, vendor
 names should only be for truly vendor-specific functionality.
@@ -788,7 +788,7 @@ names should only be for truly vendor-specific functionality.
 As always apply common sense and aim for consistency and readability.
 
 
-Commit notifications
+Commit analtifications
 --------------------
 
 The tip tree is monitored by a bot for new commits. The bot sends an email
@@ -799,6 +799,6 @@ Link tag at the end of the tag list to set the In-Reply-To email header so
 the message is properly threaded with the patch submission email.
 
 The tip maintainers and submaintainers try to reply to the submitter
-when merging a patch, but they sometimes forget or it does not fit the
+when merging a patch, but they sometimes forget or it does analt fit the
 workflow of the moment. While the bot message is purely mechanical, it
 also implies a 'Thank you! Applied.'.

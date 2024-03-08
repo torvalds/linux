@@ -68,7 +68,7 @@ static void measure_clocks(struct intel_engine_cs *engine,
 		local_irq_enable();
 	}
 
-	/* Use the median of both cycle/dt; close enough */
+	/* Use the median of both cycle/dt; close eanalugh */
 	sort(cycles, 5, sizeof(*cycles), cmp_u32, NULL);
 	*out_cycles = (cycles[1] + 2 * cycles[2] + cycles[3]) / 4;
 
@@ -84,8 +84,8 @@ static int live_gt_clocks(void *arg)
 	intel_wakeref_t wakeref;
 	int err = 0;
 
-	if (!gt->clock_frequency) { /* unknown */
-		pr_info("CS_TIMESTAMP frequency unknown\n");
+	if (!gt->clock_frequency) { /* unkanalwn */
+		pr_info("CS_TIMESTAMP frequency unkanalwn\n");
 		return 0;
 	}
 
@@ -114,14 +114,14 @@ static int live_gt_clocks(void *arg)
 			engine->gt->clock_frequency / 1000);
 
 		if (9 * time < 8 * dt || 8 * time > 9 * dt) {
-			pr_err("%s: CS ticks did not match walltime!\n",
+			pr_err("%s: CS ticks did analt match walltime!\n",
 			       engine->name);
 			err = -EINVAL;
 			break;
 		}
 
 		if (9 * expected < 8 * cycles || 8 * expected > 9 * cycles) {
-			pr_err("%s: walltime did not match CS ticks!\n",
+			pr_err("%s: walltime did analt match CS ticks!\n",
 			       engine->name);
 			err = -EINVAL;
 			break;
@@ -157,7 +157,7 @@ static int live_gt_resume(void *arg)
 			break;
 
 		if (gt->rc6.supported && !gt->rc6.enabled) {
-			pr_err("rc6 not enabled upon resume!\n");
+			pr_err("rc6 analt enabled upon resume!\n");
 			intel_gt_set_wedged_on_init(gt);
 			err = -EINVAL;
 			break;
@@ -165,7 +165,7 @@ static int live_gt_resume(void *arg)
 
 		err = st_llc_verify(&gt->llc);
 		if (err) {
-			pr_err("llc state not restored upon resume!\n");
+			pr_err("llc state analt restored upon resume!\n");
 			intel_gt_set_wedged_on_init(gt);
 			break;
 		}

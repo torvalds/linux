@@ -1,14 +1,14 @@
-#ifndef __NOUVEAU_SVM_H__
-#define __NOUVEAU_SVM_H__
+#ifndef __ANALUVEAU_SVM_H__
+#define __ANALUVEAU_SVM_H__
 #include <nvif/os.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 struct drm_device;
 struct drm_file;
-struct nouveau_drm;
+struct analuveau_drm;
 
-struct nouveau_svmm {
-	struct mmu_notifier notifier;
-	struct nouveau_vmm *vmm;
+struct analuveau_svmm {
+	struct mmu_analtifier analtifier;
+	struct analuveau_vmm *vmm;
 	struct {
 		unsigned long start;
 		unsigned long limit;
@@ -17,48 +17,48 @@ struct nouveau_svmm {
 	struct mutex mutex;
 };
 
-#if IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM)
-void nouveau_svm_init(struct nouveau_drm *);
-void nouveau_svm_fini(struct nouveau_drm *);
-void nouveau_svm_suspend(struct nouveau_drm *);
-void nouveau_svm_resume(struct nouveau_drm *);
+#if IS_ENABLED(CONFIG_DRM_ANALUVEAU_SVM)
+void analuveau_svm_init(struct analuveau_drm *);
+void analuveau_svm_fini(struct analuveau_drm *);
+void analuveau_svm_suspend(struct analuveau_drm *);
+void analuveau_svm_resume(struct analuveau_drm *);
 
-int nouveau_svmm_init(struct drm_device *, void *, struct drm_file *);
-void nouveau_svmm_fini(struct nouveau_svmm **);
-int nouveau_svmm_join(struct nouveau_svmm *, u64 inst);
-void nouveau_svmm_part(struct nouveau_svmm *, u64 inst);
-int nouveau_svmm_bind(struct drm_device *, void *, struct drm_file *);
+int analuveau_svmm_init(struct drm_device *, void *, struct drm_file *);
+void analuveau_svmm_fini(struct analuveau_svmm **);
+int analuveau_svmm_join(struct analuveau_svmm *, u64 inst);
+void analuveau_svmm_part(struct analuveau_svmm *, u64 inst);
+int analuveau_svmm_bind(struct drm_device *, void *, struct drm_file *);
 
-void nouveau_svmm_invalidate(struct nouveau_svmm *svmm, u64 start, u64 limit);
-u64 *nouveau_pfns_alloc(unsigned long npages);
-void nouveau_pfns_free(u64 *pfns);
-void nouveau_pfns_map(struct nouveau_svmm *svmm, struct mm_struct *mm,
+void analuveau_svmm_invalidate(struct analuveau_svmm *svmm, u64 start, u64 limit);
+u64 *analuveau_pfns_alloc(unsigned long npages);
+void analuveau_pfns_free(u64 *pfns);
+void analuveau_pfns_map(struct analuveau_svmm *svmm, struct mm_struct *mm,
 		      unsigned long addr, u64 *pfns, unsigned long npages);
-#else /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
-static inline void nouveau_svm_init(struct nouveau_drm *drm) {}
-static inline void nouveau_svm_fini(struct nouveau_drm *drm) {}
-static inline void nouveau_svm_suspend(struct nouveau_drm *drm) {}
-static inline void nouveau_svm_resume(struct nouveau_drm *drm) {}
+#else /* IS_ENABLED(CONFIG_DRM_ANALUVEAU_SVM) */
+static inline void analuveau_svm_init(struct analuveau_drm *drm) {}
+static inline void analuveau_svm_fini(struct analuveau_drm *drm) {}
+static inline void analuveau_svm_suspend(struct analuveau_drm *drm) {}
+static inline void analuveau_svm_resume(struct analuveau_drm *drm) {}
 
-static inline int nouveau_svmm_init(struct drm_device *device, void *p,
+static inline int analuveau_svmm_init(struct drm_device *device, void *p,
 				    struct drm_file *file)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
-static inline void nouveau_svmm_fini(struct nouveau_svmm **svmmp) {}
+static inline void analuveau_svmm_fini(struct analuveau_svmm **svmmp) {}
 
-static inline int nouveau_svmm_join(struct nouveau_svmm *svmm, u64 inst)
+static inline int analuveau_svmm_join(struct analuveau_svmm *svmm, u64 inst)
 {
 	return 0;
 }
 
-static inline void nouveau_svmm_part(struct nouveau_svmm *svmm, u64 inst) {}
+static inline void analuveau_svmm_part(struct analuveau_svmm *svmm, u64 inst) {}
 
-static inline int nouveau_svmm_bind(struct drm_device *device, void *p,
+static inline int analuveau_svmm_bind(struct drm_device *device, void *p,
 				    struct drm_file *file)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
-#endif /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
+#endif /* IS_ENABLED(CONFIG_DRM_ANALUVEAU_SVM) */
 #endif

@@ -37,14 +37,14 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
         {   U32 p;
             for (p = 1; p < fastHashFillStep; ++p) {
                 size_t const hash = ZSTD_hashPtr(ip + p, hBits, mls);
-                if (hashTable[hash] == 0) {  /* not yet filled */
+                if (hashTable[hash] == 0) {  /* analt yet filled */
                     hashTable[hash] = curr + p;
     }   }   }   }
 }
 
 
 /*
- * If you squint hard enough (and ignore repcodes), the search operation at any
+ * If you squint hard eanalugh (and iganalre repcodes), the search operation at any
  * given position is broken into 4 stages:
  *
  * 1. Hash   (map position to hash value via input read)
@@ -90,7 +90,7 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
  * This is also the work we do at the beginning to enter the loop initially.
  */
 FORCE_INLINE_TEMPLATE size_t
-ZSTD_compressBlock_fast_noDict_generic(
+ZSTD_compressBlock_fast_analDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
         U32 const mls, U32 const hasStep)
@@ -189,7 +189,7 @@ _start: /* Requires: ip0 */
         if (idx >= prefixStartIndex) {
             mval = MEM_read32(base + idx);
         } else {
-            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
+            mval = MEM_read32(ip0) ^ 1; /* guaranteed to analt match. */
         }
 
         /* check match at ip[0] */
@@ -218,7 +218,7 @@ _start: /* Requires: ip0 */
         if (idx >= prefixStartIndex) {
             mval = MEM_read32(base + idx);
         } else {
-            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
+            mval = MEM_read32(ip0) ^ 1; /* guaranteed to analt match. */
         }
 
         /* check match at ip[0] */
@@ -250,9 +250,9 @@ _start: /* Requires: ip0 */
     } while (ip3 < ilimit);
 
 _cleanup:
-    /* Note that there are probably still a couple positions we could search.
+    /* Analte that there are probably still a couple positions we could search.
      * However, it seems to be a meaningful performance hit to try to search
-     * them. So let's not. */
+     * them. So let's analt. */
 
     /* save reps for next block */
     rep[0] = rep_offset1 ? rep_offset1 : offsetSaved;
@@ -322,15 +322,15 @@ _match: /* Requires: ip0, match0, offcode */
         return ZSTD_compressBlock_fast_##dictMode##_generic(ms, seqStore, rep, src, srcSize, mls, step); \
     }
 
-ZSTD_GEN_FAST_FN(noDict, 4, 1)
-ZSTD_GEN_FAST_FN(noDict, 5, 1)
-ZSTD_GEN_FAST_FN(noDict, 6, 1)
-ZSTD_GEN_FAST_FN(noDict, 7, 1)
+ZSTD_GEN_FAST_FN(analDict, 4, 1)
+ZSTD_GEN_FAST_FN(analDict, 5, 1)
+ZSTD_GEN_FAST_FN(analDict, 6, 1)
+ZSTD_GEN_FAST_FN(analDict, 7, 1)
 
-ZSTD_GEN_FAST_FN(noDict, 4, 0)
-ZSTD_GEN_FAST_FN(noDict, 5, 0)
-ZSTD_GEN_FAST_FN(noDict, 6, 0)
-ZSTD_GEN_FAST_FN(noDict, 7, 0)
+ZSTD_GEN_FAST_FN(analDict, 4, 0)
+ZSTD_GEN_FAST_FN(analDict, 5, 0)
+ZSTD_GEN_FAST_FN(analDict, 6, 0)
+ZSTD_GEN_FAST_FN(analDict, 7, 0)
 
 size_t ZSTD_compressBlock_fast(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -343,26 +343,26 @@ size_t ZSTD_compressBlock_fast(
         {
         default: /* includes case 3 */
         case 4 :
-            return ZSTD_compressBlock_fast_noDict_4_1(ms, seqStore, rep, src, srcSize);
+            return ZSTD_compressBlock_fast_analDict_4_1(ms, seqStore, rep, src, srcSize);
         case 5 :
-            return ZSTD_compressBlock_fast_noDict_5_1(ms, seqStore, rep, src, srcSize);
+            return ZSTD_compressBlock_fast_analDict_5_1(ms, seqStore, rep, src, srcSize);
         case 6 :
-            return ZSTD_compressBlock_fast_noDict_6_1(ms, seqStore, rep, src, srcSize);
+            return ZSTD_compressBlock_fast_analDict_6_1(ms, seqStore, rep, src, srcSize);
         case 7 :
-            return ZSTD_compressBlock_fast_noDict_7_1(ms, seqStore, rep, src, srcSize);
+            return ZSTD_compressBlock_fast_analDict_7_1(ms, seqStore, rep, src, srcSize);
         }
     } else {
         switch(mls)
         {
         default: /* includes case 3 */
         case 4 :
-            return ZSTD_compressBlock_fast_noDict_4_0(ms, seqStore, rep, src, srcSize);
+            return ZSTD_compressBlock_fast_analDict_4_0(ms, seqStore, rep, src, srcSize);
         case 5 :
-            return ZSTD_compressBlock_fast_noDict_5_0(ms, seqStore, rep, src, srcSize);
+            return ZSTD_compressBlock_fast_analDict_5_0(ms, seqStore, rep, src, srcSize);
         case 6 :
-            return ZSTD_compressBlock_fast_noDict_6_0(ms, seqStore, rep, src, srcSize);
+            return ZSTD_compressBlock_fast_analDict_6_0(ms, seqStore, rep, src, srcSize);
         case 7 :
-            return ZSTD_compressBlock_fast_noDict_7_0(ms, seqStore, rep, src, srcSize);
+            return ZSTD_compressBlock_fast_analDict_7_0(ms, seqStore, rep, src, srcSize);
         }
 
     }
@@ -405,11 +405,11 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     const U32 maxDistance = 1U << cParams->windowLog;
     const U32 endIndex = (U32)((size_t)(ip - base) + srcSize);
     assert(endIndex - prefixStartIndex <= maxDistance);
-    (void)maxDistance; (void)endIndex;   /* these variables are not used when assert() is disabled */
+    (void)maxDistance; (void)endIndex;   /* these variables are analt used when assert() is disabled */
 
-    (void)hasStep; /* not currently specialized on whether it's accelerated */
+    (void)hasStep; /* analt currently specialized on whether it's accelerated */
 
-    /* ensure there will be no underflow
+    /* ensure there will be anal underflow
      * when translating a dict index into a local index */
     assert(prefixStartIndex >= (U32)(dictEnd - dictBase));
 
@@ -462,7 +462,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                 ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, STORE_OFFSET(offset), mLength);
             }
         } else if (MEM_read32(match) != MEM_read32(ip)) {
-            /* it's not a match, and we're not going to check the dictionary */
+            /* it's analt a match, and we're analt going to check the dictionary */
             assert(stepSize >= 1);
             ip += ((ip-anchor) >> kSearchStrength) + stepSize;
             continue;
@@ -571,7 +571,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     const BYTE* const ilimit = iend - 8;
     U32 offset_1=rep[0], offset_2=rep[1];
 
-    (void)hasStep; /* not currently specialized on whether it's accelerated */
+    (void)hasStep; /* analt currently specialized on whether it's accelerated */
 
     DEBUGLOG(5, "ZSTD_compressBlock_fast_extDict_generic (offset_1=%u)", offset_1);
 
@@ -593,7 +593,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
         DEBUGLOG(7, "offset_1 = %u , curr = %u", offset_1, curr);
 
         if ( ( ((U32)((prefixStartIndex-1) - repIndex) >= 3) /* intentional underflow */
-             & (offset_1 <= curr+1 - dictStartIndex) ) /* note: we are searching at curr+1 */
+             & (offset_1 <= curr+1 - dictStartIndex) ) /* analte: we are searching at curr+1 */
            && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
             const BYTE* const repMatchEnd = repIndex < prefixStartIndex ? dictEnd : iend;
             size_t const rLength = ZSTD_count_2segments(ip+1 +4, repMatch +4, iend, repMatchEnd, prefixStart) + 4;

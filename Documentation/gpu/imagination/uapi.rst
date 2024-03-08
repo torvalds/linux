@@ -161,7 +161,7 @@ SUBMIT_JOBS
                  drm_pvr_hwrt_data_ref
                  drm_pvr_job
 
-Internal notes
+Internal analtes
 ==============
 .. kernel-doc:: drivers/gpu/drm/imagination/pvr_device.h
    :doc: IOCTL validation helpers

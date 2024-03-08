@@ -20,7 +20,7 @@
 			device_type = "cpu";
 			/*
 			 * Since the board has pluggable CPU modules, we
-			 * cannot define a proper compatible here. Let the
+			 * cananalt define a proper compatible here. Let the
 			 * boot loader fill in the apropriate compatible
 			 * string if necessary.
 			 */
@@ -172,7 +172,7 @@
 		bus-range = <0x00 0xff>;
 		ranges = <0x01000000 0 0x0000000 /* I/O space @00000000 */
 			0x60000000 0 0x00010000 /* 64 KB @ LB 60000000 */
-			0x02000000 0 0x40000000 /* non-prefectable memory @40000000 */
+			0x02000000 0 0x40000000 /* analn-prefectable memory @40000000 */
 			0x40000000 0 0x10000000 /* 256 MiB @ LB 40000000 1:1 */
 			0x42000000 0 0x50000000 /* prefetchable memory @50000000 */
 			0x50000000 0 0x10000000>; /* 256 MiB @ LB 50000000 1:1 */

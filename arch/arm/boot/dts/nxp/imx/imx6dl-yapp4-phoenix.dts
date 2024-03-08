@@ -30,7 +30,7 @@
 };
 
 &switch_ports {
-	/delete-node/ port@2;
+	/delete-analde/ port@2;
 };
 
 &usbh1 {

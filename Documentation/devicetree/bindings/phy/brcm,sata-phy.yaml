@@ -10,7 +10,7 @@ maintainers:
   - Florian Fainelli <f.fainelli@gmail.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^sata[-|_]phy(@.*)?$"
 
   compatible:
@@ -49,7 +49,7 @@ patternProperties:
   "^sata-phy@[0-9]+$":
     type: object
     description: |
-      Each port's PHY should be represented as a sub-node.
+      Each port's PHY should be represented as a sub-analde.
 
     properties:
       reg:
@@ -63,7 +63,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/flag
         description: |
           Use spread spectrum clocking (SSC) on this port
-          This property is not applicable for "brcm,iproc-ns2-sata-phy",
+          This property is analt applicable for "brcm,iproc-ns2-sata-phy",
           "brcm,iproc-nsp-sata-phy" and "brcm,iproc-sr-sata-phy".
 
       "brcm,rxaeq-mode":

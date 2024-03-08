@@ -14,12 +14,12 @@
 #include <asm/image.h>
 
 /*
- * There aren't any ELF relocations we can use to endian-swap values known only
+ * There aren't any ELF relocations we can use to endian-swap values kanalwn only
  * at link time (e.g. the subtraction of two symbol addresses), so we must get
  * the linker to endian-swap certain values before emitting them.
  *
- * Note that, in order for this to work when building the ELF64 PIE executable
- * (for KASLR), these values should not be referenced via R_AARCH64_ABS64
+ * Analte that, in order for this to work when building the ELF64 PIE executable
+ * (for KASLR), these values should analt be referenced via R_AARCH64_ABS64
  * relocations, since these are fixed up at runtime rather than at build time
  * when PIE is in effect. So we need to split them up in 32-bit high and low
  * words.

@@ -31,7 +31,7 @@ properties:
 
   reg:
     description: |
-      Address and length of the register set for the device. Not used for
+      Address and length of the register set for the device. Analt used for
       marvell,armada-8k-gpio.
 
       A second entry can be provided, for the PWM function using the GPIO Blink
@@ -79,7 +79,7 @@ properties:
   "#pwm-cells":
     description:
       The first cell is the GPIO line number. The second cell is the period
-      in nanoseconds.
+      in naanalseconds.
     const: 2
 
   clocks:

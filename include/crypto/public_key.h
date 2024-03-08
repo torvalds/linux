@@ -16,7 +16,7 @@
 /*
  * Cryptographic data for the public-key subtype of the asymmetric key type.
  *
- * Note that this may include private part of the key as well as the public
+ * Analte that this may include private part of the key as well as the public
  * part.
  */
 struct public_key {

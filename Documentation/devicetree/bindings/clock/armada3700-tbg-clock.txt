@@ -14,7 +14,7 @@ The following is a list of provided IDs and clock names on Armada 3700:
 
 Required properties:
 - compatible : shall be "marvell,armada-3700-tbg-clock"
-- reg : must be the register address of North Bridge PLL register
+- reg : must be the register address of Analrth Bridge PLL register
 - #clock-cells : from common clock binding; shall be set to 1
 
 Example:

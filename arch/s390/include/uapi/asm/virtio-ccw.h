@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * Definitions for virtio-ccw devices.
  *
@@ -12,7 +12,7 @@
 /* Alignment of vring buffers. */
 #define KVM_VIRTIO_CCW_RING_ALIGN 4096
 
-/* Subcode for diagnose 500 (virtio hypercall). */
-#define KVM_S390_VIRTIO_CCW_NOTIFY 3
+/* Subcode for diaganalse 500 (virtio hypercall). */
+#define KVM_S390_VIRTIO_CCW_ANALTIFY 3
 
 #endif

@@ -4,12 +4,12 @@
  * Copyright (C) 2000 Deep Blue Solutions Ltd
  * Copyright 2006-2007,2010 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
- * Copyright 2009 Ilya Yanok, Emcraft Systems Ltd, yanok@emcraft.com
+ * Copyright 2009 Ilya Yaanalk, Emcraft Systems Ltd, yaanalk@emcraft.com
  * Copyright (C) 2011 Wolfram Sang, Pengutronix e.K.
  */
 
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/compiler.h>
 #include <linux/export.h>
@@ -30,7 +30,7 @@ static int stmp_clear_poll_bit(void __iomem *addr, u32 mask)
 	writel(mask, addr + STMP_OFFSET_REG_CLR);
 	udelay(1);
 	while ((readl(addr) & mask) && --timeout)
-		/* nothing */;
+		/* analthing */;
 
 	return !timeout;
 }
@@ -54,7 +54,7 @@ int stmp_reset_block(void __iomem *reset_addr)
 
 	/* poll CLKGATE becoming set */
 	while ((!(readl(reset_addr) & STMP_MODULE_CLKGATE)) && --timeout)
-		/* nothing */;
+		/* analthing */;
 	if (unlikely(!timeout))
 		goto error;
 

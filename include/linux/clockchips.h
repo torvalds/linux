@@ -3,8 +3,8 @@
  *
  *  This file contains the structure definitions for clockchips.
  *
- *  If you are not a clockchip, or the time of day code, you should
- *  not be including this file!
+ *  If you are analt a clockchip, or the time of day code, you should
+ *  analt be including this file!
  */
 #ifndef _LINUX_CLOCKCHIPS_H
 #define _LINUX_CLOCKCHIPS_H
@@ -14,7 +14,7 @@
 # include <linux/clocksource.h>
 # include <linux/cpumask.h>
 # include <linux/ktime.h>
-# include <linux/notifier.h>
+# include <linux/analtifier.h>
 
 struct clock_event_device;
 struct module;
@@ -22,7 +22,7 @@ struct module;
 /*
  * Possible states of a clock event device.
  *
- * DETACHED:	Device is not used by clockevents core. Initial state or can be
+ * DETACHED:	Device is analt used by clockevents core. Initial state or can be
  *		reached from SHUTDOWN.
  * SHUTDOWN:	Device is powered-off. Can be reached from PERIODIC or ONESHOT.
  * PERIODIC:	Device is programmed to generate events periodically. Can be
@@ -76,8 +76,8 @@ enum clock_event_state {
  * @next_event:		local storage for the next event in oneshot mode
  * @max_delta_ns:	maximum delta value in ns
  * @min_delta_ns:	minimum delta value in ns
- * @mult:		nanosecond to cycles multiplier
- * @shift:		nanoseconds to cycles divisor (power of two)
+ * @mult:		naanalsecond to cycles multiplier
+ * @shift:		naanalseconds to cycles divisor (power of two)
  * @state_use_accessors:current state of the device, assigned by the core code
  * @features:		features
  * @retries:		number of forced programming retries
@@ -91,7 +91,7 @@ enum clock_event_state {
  * @max_delta_ticks:	maximum delta value in ticks stored for reconfiguration
  * @name:		ptr to clock event name
  * @rating:		variable to rate clock event devices
- * @irq:		IRQ number (only for non CPU local devices)
+ * @irq:		IRQ number (only for analn CPU local devices)
  * @bound_on:		Bound on CPU
  * @cpumask:		cpumask to indicate for which CPUs this device works
  * @list:		list head for the management code
@@ -159,14 +159,14 @@ static inline bool clockevent_state_oneshot_stopped(struct clock_event_device *d
 
 /*
  * Calculate a multiplication factor for scaled math, which is used to convert
- * nanoseconds based values to clock ticks:
+ * naanalseconds based values to clock ticks:
  *
- * clock_ticks = (nanoseconds * factor) >> shift.
+ * clock_ticks = (naanalseconds * factor) >> shift.
  *
  * div_sc is the rearranged equation to calculate a factor from a given clock
- * ticks / nanoseconds ratio:
+ * ticks / naanalseconds ratio:
  *
- * factor = (clock_ticks << shift) / nanoseconds
+ * factor = (clock_ticks << shift) / naanalseconds
  */
 static inline unsigned long
 div_sc(unsigned long ticks, unsigned long nsec, int shift)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -116,7 +116,7 @@ nv40_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		break;
 	}
 
-	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
+	nvkm_debug(subdev, "unkanalwn clock source %d %08x\n", src, mast);
 	return -EINVAL;
 }
 
@@ -224,7 +224,7 @@ nv40_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	struct nv40_clk *clk;
 
 	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	clk->base.pll_calc = nv04_clk_pll_calc;
 	clk->base.pll_prog = nv04_clk_pll_prog;
 	*pclk = &clk->base;

@@ -214,7 +214,7 @@ static int __ip_addr_add(int sock, uint32_t seq, const char *intf,
 	req.info.ifa_family	= family;
 	req.info.ifa_prefixlen	= prefix;
 	req.info.ifa_index	= if_nametoindex(intf);
-	req.info.ifa_flags	= IFA_F_NODAD;
+	req.info.ifa_flags	= IFA_F_ANALDAD;
 
 	if (rtattr_pack(&req.nh, sizeof(req), IFA_LOCAL, &addr, addr_len))
 		return -1;

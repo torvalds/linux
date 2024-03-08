@@ -3,14 +3,14 @@
 #define _LINUX_NUMA_H
 
 
-#ifdef CONFIG_NODES_SHIFT
-#define NODES_SHIFT     CONFIG_NODES_SHIFT
+#ifdef CONFIG_ANALDES_SHIFT
+#define ANALDES_SHIFT     CONFIG_ANALDES_SHIFT
 #else
-#define NODES_SHIFT     0
+#define ANALDES_SHIFT     0
 #endif
 
-#define MAX_NUMNODES    (1 << NODES_SHIFT)
+#define MAX_NUMANALDES    (1 << ANALDES_SHIFT)
 
-#define	NUMA_NO_NODE	(-1)
+#define	NUMA_ANAL_ANALDE	(-1)
 
 #endif /* _LINUX_NUMA_H */

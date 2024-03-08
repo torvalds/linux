@@ -26,12 +26,12 @@ fi
 TRACEFS=`grep -m 1 -w tracefs /proc/mounts | cut -f 2 -d " "`
 if [ -z "$TRACEFS" ]; then
 	if ! grep -wq debugfs /proc/mounts; then
-		echo "Error: No tracefs/debugfs was mounted."
+		echo "Error: Anal tracefs/debugfs was mounted."
 		exit 1
 	fi
 	TRACEFS=`grep -m 1 -w debugfs /proc/mounts | cut -f 2 -d " "`/tracing
 	if [ ! -d $TRACEFS ]; then
-		echo "Error: ftrace is not enabled on this kernel." 1>&2
+		echo "Error: ftrace is analt enabled on this kernel." 1>&2
 		exit 1
 	fi
 fi
@@ -47,9 +47,9 @@ emit_kv() { # key =|+= value
 global_options() {
 	val=`cat $TRACEFS/max_graph_depth`
 	[ $val != 0 ] && emit_kv kernel.fgraph_max_depth = $val
-	if grep -qv "^#" $TRACEFS/set_graph_function $TRACEFS/set_graph_notrace ; then
+	if grep -qv "^#" $TRACEFS/set_graph_function $TRACEFS/set_graph_analtrace ; then
 		cat 1>&2 << EOF
-# WARN: kernel.fgraph_filters and kernel.fgraph_notrace are not supported, since the wild card expression was expanded and lost from memory.
+# WARN: kernel.fgraph_filters and kernel.fgraph_analtrace are analt supported, since the wild card expression was expanded and lost from memory.
 EOF
 	fi
 }
@@ -59,7 +59,7 @@ kprobe_event_options() {
 		case $p in
 		r*)
 		cat 1>&2 << EOF
-# WARN: A return probe found but it is not supported by bootconfig. Skip it.
+# WARN: A return probe found but it is analt supported by bootconfig. Skip it.
 EOF
 		continue;;
 		esac
@@ -98,7 +98,7 @@ event_is_enabled() { # enable-file
 
 per_event_options() { # event-dir
 	evdir=$1
-	# Check the special event which has no filter and no trigger
+	# Check the special event which has anal filter and anal trigger
 	[ ! -f $evdir/filter ] && return
 
 	if grep -q "^hist:" $evdir/trigger; then
@@ -106,7 +106,7 @@ per_event_options() { # event-dir
 		__vars=`defined_vars $evdir`
 		for v in `referred_vars $evdir`; do
 			if echo $DEFINED_VARS $__vars | grep -vqw ${v#$}; then
-				# $v is not defined yet, defer it
+				# $v is analt defined yet, defer it
 				UNRESOLVED_EVENTS="$UNRESOLVED_EVENTS $evdir"
 				return;
 			fi
@@ -121,7 +121,7 @@ per_event_options() { # event-dir
 		emit_kv $PREFIX.event.$group.$event.enable
 	fi
 	val=`cat $evdir/filter`
-	if [ "$val" != "none" ]; then
+	if [ "$val" != "analne" ]; then
 		emit_kv $PREFIX.event.$group.$event.filter = "$val"
 	fi
 }
@@ -176,34 +176,34 @@ EOF
 is_default_trace_option() { # option
 grep -qw $1 << EOF
 print-parent
-nosym-offset
-nosym-addr
-noverbose
-noraw
-nohex
-nobin
-noblock
+analsym-offset
+analsym-addr
+analverbose
+analraw
+analhex
+analbin
+analblock
 trace_printk
-annotate
-nouserstacktrace
-nosym-userobj
-noprintk-msg-only
+ananaltate
+analuserstacktrace
+analsym-userobj
+analprintk-msg-only
 context-info
-nolatency-format
+anallatency-format
 record-cmd
-norecord-tgid
+analrecord-tgid
 overwrite
-nodisable_on_free
+analdisable_on_free
 irq-info
 markers
-noevent-fork
-nopause-on-trace
+analevent-fork
+analpause-on-trace
 function-trace
-nofunction-fork
-nodisplay-graph
-nostacktrace
-notest_nop_accept
-notest_nop_refuse
+analfunction-fork
+analdisplay-graph
+analstacktrace
+analtest_analp_accept
+analtest_analp_refuse
 EOF
 }
 
@@ -244,10 +244,10 @@ instance_options() { # [instance-name]
 	fi
 
 	val=`cat $INSTANCE/current_tracer`
-	[ $val != nop ] && emit_kv $PREFIX.tracer = $val
-	if grep -qv "^#" $INSTANCE/set_ftrace_filter $INSTANCE/set_ftrace_notrace; then
+	[ $val != analp ] && emit_kv $PREFIX.tracer = $val
+	if grep -qv "^#" $INSTANCE/set_ftrace_filter $INSTANCE/set_ftrace_analtrace; then
 		cat 1>&2 << EOF
-# WARN: kernel.ftrace.filters and kernel.ftrace.notrace are not supported, since the wild card expression was expanded and lost from memory.
+# WARN: kernel.ftrace.filters and kernel.ftrace.analtrace are analt supported, since the wild card expression was expanded and lost from memory.
 EOF
 	fi
 	event_options

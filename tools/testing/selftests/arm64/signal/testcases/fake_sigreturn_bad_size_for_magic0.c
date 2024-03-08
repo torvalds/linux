@@ -39,7 +39,7 @@ static int fake_sigreturn_bad_size_for_magic0_run(struct tdescr *td,
 
 struct tdescr tde = {
 		.name = "FAKE_SIGRETURN_BAD_SIZE_FOR_TERMINATOR",
-		.descr = "Trigger a sigreturn using non-zero size terminator",
+		.descr = "Trigger a sigreturn using analn-zero size terminator",
 		.sig_ok = SIGSEGV,
 		.timeout = 3,
 		.run = fake_sigreturn_bad_size_for_magic0_run,

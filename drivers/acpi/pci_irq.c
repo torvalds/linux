@@ -114,7 +114,7 @@ static void do_prt_fixups(struct acpi_prt_entry *entry,
 	for (i = 0; i < ARRAY_SIZE(prt_quirks); i++) {
 		quirk = &prt_quirks[i];
 
-		/* All current quirks involve link devices, not GSIs */
+		/* All current quirks involve link devices, analt GSIs */
 		if (dmi_check_system(quirk->system) &&
 		    entry->id.segment == quirk->segment &&
 		    entry->id.bus == quirk->bus &&
@@ -144,14 +144,14 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 
 	if (((prt->address >> 16) & 0xffff) != device ||
 	    prt->pin + 1 != pin)
-		return -ENODEV;
+		return -EANALDEV;
 
 	entry = kzalloc(sizeof(struct acpi_prt_entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Note that the _PRT uses 0=INTA, 1=INTB, etc, while PCI uses
+	 * Analte that the _PRT uses 0=INTA, 1=INTB, etc, while PCI uses
 	 * 1=INTA, 2=INTB.  We use the PCI encoding throughout, so convert
 	 * it here.
 	 */
@@ -172,8 +172,8 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 	 * indicates which resource descriptor in the resource template (of
 	 * the link device) this interrupt is allocated from.
 	 *
-	 * NOTE: Don't query the Link Device for IRQ information at this time
-	 *       because Link Device enumeration may not have occurred yet
+	 * ANALTE: Don't query the Link Device for IRQ information at this time
+	 *       because Link Device enumeration may analt have occurred yet
 	 *       (e.g. exists somewhere 'below' this _PRT entry in the ACPI
 	 *       namespace).
 	 */
@@ -208,13 +208,13 @@ static int acpi_pci_irq_find_prt_entry(struct pci_dev *dev,
 		handle = ACPI_HANDLE(dev->bus->bridge);
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* 'handle' is the _PRT's parent (root bridge or PCI-PCI bridge) */
 	status = acpi_get_irq_routing_table(handle, &buffer);
 	if (ACPI_FAILURE(status)) {
 		kfree(buffer.pointer);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	entry = buffer.pointer;
@@ -234,8 +234,8 @@ static int acpi_pci_irq_find_prt_entry(struct pci_dev *dev,
                           PCI Interrupt Routing Support
    -------------------------------------------------------------------------- */
 #ifdef CONFIG_X86_IO_APIC
-extern int noioapicquirk;
-extern int noioapicreroute;
+extern int analioapicquirk;
+extern int analioapicreroute;
 
 static int bridge_has_boot_interrupt_variant(struct pci_bus *bus)
 {
@@ -253,19 +253,19 @@ static int bridge_has_boot_interrupt_variant(struct pci_bus *bus)
 /*
  * Some chipsets (e.g. Intel 6700PXH) generate a legacy INTx when the IRQ
  * entry in the chipset's IO-APIC is masked (as, e.g. the RT kernel does
- * during interrupt handling). When this INTx generation cannot be disabled,
+ * during interrupt handling). When this INTx generation cananalt be disabled,
  * we reroute these interrupts to their legacy equivalent to get rid of
  * spurious interrupts.
  */
 static int acpi_reroute_boot_interrupt(struct pci_dev *dev,
 				       struct acpi_prt_entry *entry)
 {
-	if (noioapicquirk || noioapicreroute) {
+	if (analioapicquirk || analioapicreroute) {
 		return 0;
 	} else {
 		switch (bridge_has_boot_interrupt_variant(dev->bus)) {
 		case 0:
-			/* no rerouting necessary */
+			/* anal rerouting necessary */
 			return 0;
 		case INTEL_IRQ_REROUTE_VARIANT:
 			/*
@@ -280,8 +280,8 @@ static int acpi_reroute_boot_interrupt(struct pci_dev *dev,
 			entry->index = (entry->index % 4) + 16;
 			return 1;
 		default:
-			dev_warn(&dev->dev, "Cannot reroute IRQ %d to legacy "
-				 "IRQ: unknown mapping\n", entry->index);
+			dev_warn(&dev->dev, "Cananalt reroute IRQ %d to legacy "
+				 "IRQ: unkanalwn mapping\n", entry->index);
 			return -1;
 		}
 	}
@@ -316,7 +316,7 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 			/* PC card has the same IRQ as its cardbridge */
 			bridge_pin = bridge->pin;
 			if (!bridge_pin) {
-				dev_dbg(&bridge->dev, "No interrupt pin configured\n");
+				dev_dbg(&bridge->dev, "Anal interrupt pin configured\n");
 				return NULL;
 			}
 			pin = bridge_pin;
@@ -347,7 +347,7 @@ static int acpi_isa_register_gsi(struct pci_dev *dev)
 	if (dev->irq > 0 && (dev->irq <= 0xF) &&
 	    acpi_isa_irq_available(dev->irq) &&
 	    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
-		dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
+		dev_warn(&dev->dev, "PCI INT %c: anal GSI - using ISA IRQ %d\n",
 			 pin_name(dev->pin), dev->irq);
 		acpi_register_gsi(&dev->dev, dev_gsi,
 				  ACPI_LEVEL_SENSITIVE,
@@ -359,7 +359,7 @@ static int acpi_isa_register_gsi(struct pci_dev *dev)
 #else
 static inline int acpi_isa_register_gsi(struct pci_dev *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -367,12 +367,12 @@ static inline bool acpi_pci_irq_valid(struct pci_dev *dev, u8 pin)
 {
 #ifdef CONFIG_X86
 	/*
-	 * On x86 irq line 0xff means "unknown" or "no connection"
-	 * (PCI 3.0, Section 6.2.4, footnote on page 223).
+	 * On x86 irq line 0xff means "unkanalwn" or "anal connection"
+	 * (PCI 3.0, Section 6.2.4, footanalte on page 223).
 	 */
 	if (dev->irq == 0xff) {
-		dev->irq = IRQ_NOTCONNECTED;
-		dev_warn(&dev->dev, "PCI INT %c: not connected\n",
+		dev->irq = IRQ_ANALTCONNECTED;
+		dev_warn(&dev->dev, "PCI INT %c: analt connected\n",
 			 pin_name(pin));
 		return false;
 	}
@@ -403,7 +403,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 
 	pin = dev->pin;
 	if (!pin) {
-		dev_dbg(&dev->dev, "No interrupt pin configured\n");
+		dev_dbg(&dev->dev, "Anal interrupt pin configured\n");
 		return 0;
 	}
 
@@ -434,7 +434,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 
 	if (gsi < 0) {
 		/*
-		 * No IRQ known to the ACPI subsystem - maybe the BIOS /
+		 * Anal IRQ kanalwn to the ACPI subsystem - maybe the BIOS /
 		 * driver reported one, then use it. Exit in any case.
 		 */
 		if (!acpi_pci_irq_valid(dev, pin)) {
@@ -443,7 +443,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		}
 
 		if (acpi_isa_register_gsi(dev))
-			dev_warn(&dev->dev, "PCI INT %c: no GSI\n",
+			dev_warn(&dev->dev, "PCI INT %c: anal GSI\n",
 				 pin_name(pin));
 
 		kfree(entry);

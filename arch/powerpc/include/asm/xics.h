@@ -17,7 +17,7 @@
 
 /*
  * Mark IPIs as higher priority so we can take them inside interrupts
- * FIXME: still true now?
+ * FIXME: still true analw?
  */
 #define IPI_PRIORITY		4
 
@@ -33,21 +33,21 @@ extern int icp_native_init(void);
 extern void icp_native_flush_interrupt(void);
 extern void icp_native_cause_ipi_rm(int cpu);
 #else
-static inline int icp_native_init(void) { return -ENODEV; }
+static inline int icp_native_init(void) { return -EANALDEV; }
 #endif
 
 /* PAPR ICP */
 #ifdef CONFIG_PPC_ICP_HV
 int __init icp_hv_init(void);
 #else
-static inline int icp_hv_init(void) { return -ENODEV; }
+static inline int icp_hv_init(void) { return -EANALDEV; }
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
 int __init icp_opal_init(void);
 extern void icp_opal_flush_interrupt(void);
 #else
-static inline int icp_opal_init(void) { return -ENODEV; }
+static inline int icp_opal_init(void) { return -EANALDEV; }
 #endif
 
 /* ICP ops */
@@ -69,30 +69,30 @@ extern const struct icp_ops *icp_ops;
 /* Native ICS */
 extern int ics_native_init(void);
 #else
-static inline int ics_native_init(void) { return -ENODEV; }
+static inline int ics_native_init(void) { return -EANALDEV; }
 #endif
 
 /* RTAS ICS */
 #ifdef CONFIG_PPC_ICS_RTAS
 extern int ics_rtas_init(void);
 #else
-static inline int ics_rtas_init(void) { return -ENODEV; }
+static inline int ics_rtas_init(void) { return -EANALDEV; }
 #endif
 
 /* HAL ICS */
 #ifdef CONFIG_PPC_POWERNV
 extern int ics_opal_init(void);
 #else
-static inline int ics_opal_init(void) { return -ENODEV; }
+static inline int ics_opal_init(void) { return -EANALDEV; }
 #endif
 
 /* ICS instance, hooked up to chip_data of an irq */
 struct ics {
 	struct list_head link;
 	int (*check)(struct ics *ics, unsigned int hwirq);
-	void (*mask_unknown)(struct ics *ics, unsigned long vec);
+	void (*mask_unkanalwn)(struct ics *ics, unsigned long vec);
 	long (*get_server)(struct ics *ics, unsigned long vec);
-	int (*host_match)(struct ics *ics, struct device_node *node);
+	int (*host_match)(struct ics *ics, struct device_analde *analde);
 	struct irq_chip *chip;
 	char data[];
 };
@@ -158,7 +158,7 @@ extern void xics_init(void);
 extern void xics_setup_cpu(void);
 extern void xics_update_irq_servers(void);
 extern void xics_set_cpu_giq(unsigned int gserver, unsigned int join);
-extern void xics_mask_unknown_vec(unsigned int vec);
+extern void xics_mask_unkanalwn_vec(unsigned int vec);
 extern void xics_smp_probe(void);
 extern void xics_register_ics(struct ics *ics);
 extern void xics_teardown_cpu(void);

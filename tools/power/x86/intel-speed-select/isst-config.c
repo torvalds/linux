@@ -161,7 +161,7 @@ static int update_cpu_model(void)
 
 		fp = fopen("/proc/cpuinfo", "r");
 		if (!fp)
-			err(-1, "cannot open /proc/cpuinfo\n");
+			err(-1, "cananalt open /proc/cpuinfo\n");
 
 		while (getline(&line, &n, fp) > 0) {
 			if (strstr(line, "model name")) {
@@ -493,7 +493,7 @@ void set_cpu_online_offline(int cpu, int state)
 	fd = open(buffer, O_WRONLY);
 	if (fd < 0) {
 		if (!cpu) {
-			fprintf(stderr, "This system is not configured for CPU 0 online/offline\n");
+			fprintf(stderr, "This system is analt configured for CPU 0 online/offline\n");
 			fprintf(stderr, "Will use cgroup v2\n");
 			cpu_0_workaround(!state);
 			return;
@@ -565,7 +565,7 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 		for (j = 0; j < MAX_DIE_PER_PACKAGE; j++) {
 			/*
 			 * Fix me:
-			 * How to check a non-cpu die for a package/die with all cpu offlined?
+			 * How to check a analn-cpu die for a package/die with all cpu offlined?
 			 */
 			if (!valid_mask[i][j])
 				continue;
@@ -608,7 +608,7 @@ static void for_each_online_target_cpu_in_set(
 	}
 
 	if (!found)
-		fprintf(stderr, "No valid CPU in the list\n");
+		fprintf(stderr, "Anal valid CPU in the list\n");
 }
 
 #define BITMASK_SIZE 32
@@ -867,7 +867,7 @@ int enable_cpuset_controller(void)
 	fd = open("/sys/fs/cgroup/cgroup.subtree_control", O_RDWR, 0);
 	if (fd < 0) {
 		debug_printf("Can't activate cpuset controller\n");
-		debug_printf("Either you are not root user or CGroup v2 is not supported\n");
+		debug_printf("Either you are analt root user or CGroup v2 is analt supported\n");
 		return fd;
 	}
 
@@ -895,7 +895,7 @@ int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int lev
 	if (!dir) {
 		ret = mkdir(dir_name, 0744);
 		if (ret) {
-			debug_printf("Can't create dir:%s errno:%d\n", dir_name, errno);
+			debug_printf("Can't create dir:%s erranal:%d\n", dir_name, erranal);
 			return ret;
 		}
 	}
@@ -1008,13 +1008,13 @@ static int cpu_0_workaround(int isolate)
 
 	/* First check if CPU 0 was isolated to remove isolation. */
 
-	/* If the cpuset.cpus doesn't exist, that means that none of the CPUs are isolated*/
+	/* If the cpuset.cpus doesn't exist, that means that analne of the CPUs are isolated*/
 	fd = open("/sys/fs/cgroup/0-0-0/cpuset.cpus", O_RDONLY, 0);
 	if (fd < 0)
 		return 0;
 
 	len = read(fd, str, sizeof(str));
-	/* Error check, but unlikely to fail. If fails that means that not isolated */
+	/* Error check, but unlikely to fail. If fails that means that analt isolated */
 	if (len == -1)
 		return 0;
 
@@ -1026,7 +1026,7 @@ static int cpu_0_workaround(int isolate)
 	}
 
 	fd1 = open("/sys/fs/cgroup/0-0-0/cpuset.cpus.partition", O_RDONLY, 0);
-	/* Unlikely that, this attribute is not present, but handle error */
+	/* Unlikely that, this attribute is analt present, but handle error */
 	if (fd1 < 0) {
 		close(fd);
 		return 0;
@@ -1154,7 +1154,7 @@ static void isst_print_extended_platform_info(void)
 	if (mask & BIT(0)) {
 		fprintf(outf, "Intel(R) SST-PP (feature perf-profile) is supported\n");
 	} else {
-		fprintf(outf, "Intel(R) SST-PP (feature perf-profile) is not supported\n");
+		fprintf(outf, "Intel(R) SST-PP (feature perf-profile) is analt supported\n");
 		fprintf(outf, "Only performance level 0 (base level) is present\n");
 	}
 
@@ -1166,28 +1166,28 @@ static void isst_print_extended_platform_info(void)
 	if (mask & BIT(2))
 		fprintf(outf, "Intel(R) SST-TF (feature turbo-freq) is supported\n");
 	else
-		fprintf(outf, "Intel(R) SST-TF (feature turbo-freq) is not supported\n");
+		fprintf(outf, "Intel(R) SST-TF (feature turbo-freq) is analt supported\n");
 
 	if (mask & BIT(3))
 		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is supported\n");
 	else
-		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is not supported\n");
+		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is analt supported\n");
 
 	if (isst_read_pm_config(&id, &cp_state, &cp_cap)) {
-		fprintf(outf, "Intel(R) SST-CP (feature core-power) status is unknown\n");
+		fprintf(outf, "Intel(R) SST-CP (feature core-power) status is unkanalwn\n");
 		return;
 	}
 
 	if (cp_cap)
 		fprintf(outf, "Intel(R) SST-CP (feature core-power) is supported\n");
 	else
-		fprintf(outf, "Intel(R) SST-CP (feature core-power) is not supported\n");
+		fprintf(outf, "Intel(R) SST-CP (feature core-power) is analt supported\n");
 }
 
 static void isst_print_platform_information(void)
 {
 	if (is_clx_n_platform()) {
-		fprintf(stderr, "\nThis option in not supported on this platform\n");
+		fprintf(stderr, "\nThis option in analt supported on this platform\n");
 		exit(0);
 	}
 
@@ -1232,7 +1232,7 @@ static void exec_on_get_ctdp_cpu(struct isst_id *id, void *arg1, void *arg2, voi
 \
 		if (cmd_help) {                                                   \
 			fprintf(stderr,                                           \
-				"Print %s [No command arguments are required]\n", \
+				"Print %s [Anal command arguments are required]\n", \
 				help);                                            \
 			exit(0);                                                  \
 		}                                                                 \
@@ -1270,7 +1270,7 @@ static int clx_n_get_base_ratio(void)
 
 	fp = fopen("/proc/cpuinfo", "r");
 	if (!fp)
-		err(-1, "cannot open /proc/cpuinfo\n");
+		err(-1, "cananalt open /proc/cpuinfo\n");
 
 	while (getline(&line, &n, fp) > 0) {
 		if (strstr(line, "model name")) {
@@ -1332,13 +1332,13 @@ static int clx_n_config(struct isst_id *id)
 	}
 
 	if (pbf_info->p1_high == ~0UL) {
-		debug_printf("CLX: maximum base frequency not set\n");
+		debug_printf("CLX: maximum base frequency analt set\n");
 		ret = -1;
 		goto error_ret;
 	}
 
 	if (pbf_info->p1_low == 0) {
-		debug_printf("CLX: minimum base frequency not set\n");
+		debug_printf("CLX: minimum base frequency analt set\n");
 		ret = -1;
 		goto error_ret;
 	}
@@ -1429,12 +1429,12 @@ static void dump_isst_config(int arg)
 
 	if (cmd_help) {
 		fprintf(stderr,
-			"Print Intel(R) Speed Select Technology Performance profile configuration\n");
+			"Print Intel(R) Speed Select Techanallogy Performance profile configuration\n");
 		fprintf(stderr,
 			"including base frequency and turbo frequency configurations\n");
 		fprintf(stderr, "Optional: -l|--level : Specify tdp level\n");
 		fprintf(stderr,
-			"\tIf no arguments, dump information for all TDP levels\n");
+			"\tIf anal arguments, dump information for all TDP levels\n");
 		exit(0);
 	}
 
@@ -1496,7 +1496,7 @@ display_result:
 			alloc_cpu_set(&ctdp_level.core_cpumask);
 		ret = isst_get_coremask_info(id, tdp_level, &ctdp_level);
 		if (ret) {
-			isst_display_error_info_message(1, "Can't get coremask, online/offline option is ignored", 0, 0);
+			isst_display_error_info_message(1, "Can't get coremask, online/offline option is iganalred", 0, 0);
 			goto free_mask;
 		}
 
@@ -1607,7 +1607,7 @@ static void dump_pbf_config(int arg)
 
 	if (cmd_help) {
 		fprintf(stderr,
-			"Print Intel(R) Speed Select Technology base frequency configuration for a TDP level\n");
+			"Print Intel(R) Speed Select Techanallogy base frequency configuration for a TDP level\n");
 		fprintf(stderr,
 			"\tArguments: -l|--level : Specify tdp level\n");
 		exit(0);
@@ -1684,9 +1684,9 @@ static int set_cpufreq_scaling_min_max(int cpu, int max, int freq)
 	return 0;
 }
 
-static int no_turbo(void)
+static int anal_turbo(void)
 {
-	return parse_int_file(0, "/sys/devices/system/cpu/intel_pstate/no_turbo");
+	return parse_int_file(0, "/sys/devices/system/cpu/intel_pstate/anal_turbo");
 }
 
 static void adjust_scaling_max_from_base_freq(int cpu)
@@ -1695,7 +1695,7 @@ static void adjust_scaling_max_from_base_freq(int cpu)
 
 	scaling_max_freq = parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
 	base_freq = get_cpufreq_base_freq(cpu);
-	if (scaling_max_freq < base_freq || no_turbo())
+	if (scaling_max_freq < base_freq || anal_turbo())
 		set_cpufreq_scaling_min_max(cpu, 1, base_freq);
 }
 
@@ -1966,7 +1966,7 @@ static void set_pbf_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *ar
 	}
 
 	if (!ctdp_level.pbf_support) {
-		isst_display_error_info_message(1, "base-freq feature is not present at this level", 1, pkg_dev.current_level);
+		isst_display_error_info_message(1, "base-freq feature is analt present at this level", 1, pkg_dev.current_level);
 		ret = -1;
 		goto disp_result;
 	}
@@ -2010,7 +2010,7 @@ static void set_pbf_enable(int arg)
 	if (cmd_help) {
 		if (enable) {
 			fprintf(stderr,
-				"Enable Intel Speed Select Technology base frequency feature\n");
+				"Enable Intel Speed Select Techanallogy base frequency feature\n");
 			if (is_clx_n_platform()) {
 				fprintf(stderr,
 					"\tOn this platform this command doesn't enable feature in the hardware.\n");
@@ -2031,7 +2031,7 @@ static void set_pbf_enable(int arg)
 				exit(0);
 			}
 			fprintf(stderr,
-				"Disable Intel Speed Select Technology base frequency feature\n");
+				"Disable Intel Speed Select Techanallogy base frequency feature\n");
 			fprintf(stderr,
 				"\tOptional Arguments: -a|--auto : Also disable core-power associations\n");
 		}
@@ -2069,7 +2069,7 @@ static void dump_fact_config(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr,
-			"Print complete Intel Speed Select Technology turbo frequency configuration for a TDP level. Other arguments are optional.\n");
+			"Print complete Intel Speed Select Techanallogy turbo frequency configuration for a TDP level. Other arguments are optional.\n");
 		fprintf(stderr,
 			"\tArguments: -l|--level : Specify tdp level\n");
 		fprintf(stderr,
@@ -2102,7 +2102,7 @@ static void set_fact_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *a
 	int ret;
 	int status = *(int *)arg4;
 
-	if (status && no_turbo()) {
+	if (status && anal_turbo()) {
 		isst_display_error_info_message(1, "Turbo mode is disabled", 0, 0);
 		ret = -1;
 		goto disp_results;
@@ -2121,7 +2121,7 @@ static void set_fact_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *a
 	}
 
 	if (!ctdp_level.fact_support) {
-		isst_display_error_info_message(1, "turbo-freq feature is not present at this level", 1, pkg_dev.current_level);
+		isst_display_error_info_message(1, "turbo-freq feature is analt present at this level", 1, pkg_dev.current_level);
 		ret = -1;
 		goto disp_results;
 	}
@@ -2175,7 +2175,7 @@ static void set_fact_enable(int arg)
 	if (cmd_help) {
 		if (enable) {
 			fprintf(stderr,
-				"Enable Intel Speed Select Technology Turbo frequency feature\n");
+				"Enable Intel Speed Select Techanallogy Turbo frequency feature\n");
 			fprintf(stderr,
 				"Optional: -t|--trl : Specify turbo ratio limit in hex starting with 0x\n");
 			fprintf(stderr,
@@ -2184,7 +2184,7 @@ static void set_fact_enable(int arg)
 				"-C|--cpu option as as high priority using core-power feature\n");
 		} else {
 			fprintf(stderr,
-				"Disable Intel Speed Select Technology turbo frequency feature\n");
+				"Disable Intel Speed Select Techanallogy turbo frequency feature\n");
 			fprintf(stderr,
 				"Optional: -t|--trl : Specify turbo ratio limit in hex starting with 0x\n");
 			fprintf(stderr,
@@ -2297,7 +2297,7 @@ static void enable_clos_qos_config(struct isst_id *id, void *arg1, void *arg2, v
 
 	if (!isst_read_pm_config(id, &cp_state, &cp_cap)) {
 		if (!cp_cap) {
-			isst_display_error_info_message(1, "core-power not supported", 0, 0);
+			isst_display_error_info_message(1, "core-power analt supported", 0, 0);
 			return;
 		}
 	}
@@ -2332,7 +2332,7 @@ static void set_clos_enable(int arg)
 			}
 		} else {
 			fprintf(stderr,
-				"Disable core-power: [No command arguments are required]\n");
+				"Disable core-power: [Anal command arguments are required]\n");
 		}
 		exit(0);
 	}
@@ -2370,7 +2370,7 @@ static void dump_clos_config(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr,
-			"Print Intel Speed Select Technology core power configuration\n");
+			"Print Intel Speed Select Techanallogy core power configuration\n");
 		fprintf(stderr,
 			"\tArguments: [-c | --clos]: Specify clos id\n");
 		exit(0);
@@ -2412,7 +2412,7 @@ static void dump_clos_info(int arg)
 {
 	if (cmd_help) {
 		fprintf(stderr,
-			"Print Intel Speed Select Technology core power information\n");
+			"Print Intel Speed Select Techanallogy core power information\n");
 		fprintf(stderr, "\t Optionally specify targeted cpu id with [--cpu|-c]\n");
 		exit(0);
 	}
@@ -2471,24 +2471,24 @@ static void set_clos_config(int arg)
 		exit(0);
 	}
 	if (!is_skx_based_platform() && (clos_epp < 0 || clos_epp > 0x0F)) {
-		fprintf(stderr, "clos epp is not specified or invalid, default: 0\n");
+		fprintf(stderr, "clos epp is analt specified or invalid, default: 0\n");
 		clos_epp = 0;
 	}
 	if (!is_skx_based_platform() && (clos_prop_prio < 0 || clos_prop_prio > 0x0F)) {
 		fprintf(stderr,
-			"clos frequency weight is not specified or invalid, default: 0\n");
+			"clos frequency weight is analt specified or invalid, default: 0\n");
 		clos_prop_prio = 0;
 	}
 	if (clos_min < 0) {
-		fprintf(stderr, "clos min is not specified, default: 0\n");
+		fprintf(stderr, "clos min is analt specified, default: 0\n");
 		clos_min = 0;
 	}
 	if (clos_max < 0) {
-		fprintf(stderr, "clos max is not specified, default: Max frequency (ratio 0xff)\n");
+		fprintf(stderr, "clos max is analt specified, default: Max frequency (ratio 0xff)\n");
 		clos_max = 0xff;
 	}
 	if (clos_desired) {
-		fprintf(stderr, "clos desired is not supported on this platform\n");
+		fprintf(stderr, "clos desired is analt supported on this platform\n");
 		clos_desired = 0x00;
 	}
 
@@ -2726,7 +2726,7 @@ void parse_cpu_command(char *optarg)
 	invalid_count = 0;
 
 	while (next && *next) {
-		if (*next == '-') /* no negative cpu numbers */
+		if (*next == '-') /* anal negative cpu numbers */
 			goto error;
 
 		start = strtoul(next, &next, 10);
@@ -2841,7 +2841,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 		{ "online", required_argument, 0, 'o' },
 		{ "trl-type", required_argument, 0, 'r' },
 		{ "trl", required_argument, 0, 't' },
-		{ "help", no_argument, 0, 'h' },
+		{ "help", anal_argument, 0, 'h' },
 		{ "clos", required_argument, 0, 'c' },
 		{ "desired", required_argument, 0, 'd' },
 		{ "epp", required_argument, 0, 'e' },
@@ -2849,7 +2849,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 		{ "max", required_argument, 0, 'm' },
 		{ "priority", required_argument, 0, 'p' },
 		{ "weight", required_argument, 0, 'w' },
-		{ "auto", no_argument, 0, 'a' },
+		{ "auto", anal_argument, 0, 'a' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -2937,12 +2937,12 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			}
 			break;
 		default:
-			printf("Unknown option: ignore\n");
+			printf("Unkanalwn option: iganalre\n");
 		}
 	}
 
 	if (argv[optind])
-		printf("Garbage at the end of command: ignore\n");
+		printf("Garbage at the end of command: iganalre\n");
 }
 
 static void isst_help(void)
@@ -3075,7 +3075,7 @@ static void usage(void)
 
 	printf("\nUsage:\n");
 	printf("intel-speed-select [OPTIONS] FEATURE COMMAND COMMAND_ARGUMENTS\n");
-	printf("\nUse this tool to enumerate and control the Intel Speed Select Technology features:\n");
+	printf("\nUse this tool to enumerate and control the Intel Speed Select Techanallogy features:\n");
 	if (is_clx_n_platform())
 		printf("\nFEATURE : [perf-profile|base-freq]\n");
 	else
@@ -3102,7 +3102,7 @@ static void usage(void)
 	printf("\t[-r|--retry] : Retry count for mail box commands on failure, default 3\n");
 	printf("\t[-v|--version] : Print version\n");
 	printf("\t[-b|--oob : Start a daemon to process HFI events for perf profile change from Out of Band agent.\n");
-	printf("\t[-n|--no-daemon : Don't run as daemon. By default --oob will turn on daemon mode\n");
+	printf("\t[-n|--anal-daemon : Don't run as daemon. By default --oob will turn on daemon mode\n");
 	printf("\t[-w|--delay : Delay for reading config level state change in OOB poll mode.\n");
 	printf("\t[-g|--cgroupv2 : Try to use cgroup v2 CPU isolation instead of CPU online/offline.\n");
 	printf("\t[-u|--cpu0-workaround : Don't try to online/offline CPU0 instead use cgroup v2.\n");
@@ -3141,22 +3141,22 @@ static void cmdline(int argc, char **argv)
 	int ret;
 	int oob_mode = 0;
 	int poll_interval = -1;
-	int no_daemon = 0;
+	int anal_daemon = 0;
 	int mbox_delay = 0, mbox_retries = 3;
 
 	static struct option long_options[] = {
-		{ "all-cpus-online", no_argument, 0, 'a' },
+		{ "all-cpus-online", anal_argument, 0, 'a' },
 		{ "cpu", required_argument, 0, 'c' },
-		{ "debug", no_argument, 0, 'd' },
+		{ "debug", anal_argument, 0, 'd' },
 		{ "format", required_argument, 0, 'f' },
-		{ "help", no_argument, 0, 'h' },
-		{ "info", no_argument, 0, 'i' },
+		{ "help", anal_argument, 0, 'h' },
+		{ "info", anal_argument, 0, 'i' },
 		{ "pause", required_argument, 0, 'p' },
 		{ "out", required_argument, 0, 'o' },
 		{ "retry", required_argument, 0, 'r' },
-		{ "version", no_argument, 0, 'v' },
-		{ "oob", no_argument, 0, 'b' },
-		{ "no-daemon", no_argument, 0, 'n' },
+		{ "version", anal_argument, 0, 'v' },
+		{ "oob", anal_argument, 0, 'b' },
+		{ "anal-daemon", anal_argument, 0, 'n' },
 		{ "poll-interval", required_argument, 0, 'w' },
 		{ "cgroupv2", required_argument, 0, 'g' },
 		{ "cpu0-workaround", required_argument, 0, 'u' },
@@ -3171,15 +3171,15 @@ static void cmdline(int argc, char **argv)
 	ret = update_cpu_model();
 	if (ret)
 		err(-1, "Invalid CPU model (%d)\n", cpu_model);
-	printf("Intel(R) Speed Select Technology\n");
+	printf("Intel(R) Speed Select Techanallogy\n");
 	printf("Executing on CPU model:%d[0x%x]\n", cpu_model, cpu_model);
 
 	if (!is_clx_n_platform()) {
 		fp = fopen(pathname, "rb");
 		if (!fp) {
-			fprintf(stderr, "Intel speed select drivers are not loaded on this system.\n");
+			fprintf(stderr, "Intel speed select drivers are analt loaded on this system.\n");
 			fprintf(stderr, "Verify that kernel config includes CONFIG_INTEL_SPEED_SELECT_INTERFACE.\n");
-			fprintf(stderr, "If the config is included then this is not a supported platform.\n");
+			fprintf(stderr, "If the config is included then this is analt a supported platform.\n");
 			exit(0);
 		}
 		fclose(fp);
@@ -3221,14 +3221,14 @@ static void cmdline(int argc, char **argv)
 		case 'p':
 			ret = strtol(optarg, &ptr, 10);
 			if (!ret)
-				fprintf(stderr, "Invalid pause interval, ignore\n");
+				fprintf(stderr, "Invalid pause interval, iganalre\n");
 			else
 				mbox_delay = ret;
 			break;
 		case 'r':
 			ret = strtol(optarg, &ptr, 10);
 			if (!ret)
-				fprintf(stderr, "Invalid retry count, ignore\n");
+				fprintf(stderr, "Invalid retry count, iganalre\n");
 			else
 				mbox_retries = ret;
 			break;
@@ -3239,7 +3239,7 @@ static void cmdline(int argc, char **argv)
 			oob_mode = 1;
 			break;
 		case 'n':
-			no_daemon = 1;
+			anal_daemon = 1;
 			break;
 		case 'w':
 			ret = strtol(optarg, &ptr, 10);
@@ -3278,7 +3278,7 @@ static void cmdline(int argc, char **argv)
 		if (debug_flag)
 			fprintf(stderr, "OOB mode is enabled in debug mode\n");
 
-		ret = isst_daemon(debug_flag, poll_interval, no_daemon);
+		ret = isst_daemon(debug_flag, poll_interval, anal_daemon);
 		if (ret)
 			fprintf(stderr, "OOB mode enable failed\n");
 		goto out;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.xyz>
+// Copyright (c) 2017 Iceanalwy Zheng <iceanalwy@aosc.xyz>
 // Based on sun50i-a64-pine64.dts, which is:
 //   Copyright (c) 2016 ARM Ltd.
 
@@ -55,7 +55,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 	};
@@ -121,9 +121,9 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip cananalt work without this regulator off, although
  * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
+ * Maybe we don't still kanalw well about CPUs domain.
  */
 &reg_fldo2 {
 	regulator-always-on;

@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ8795 switch driver
  *
- * Copyright (C) 2017 Microchip Technology Inc.
+ * Copyright (C) 2017 Microchip Techanallogy Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
@@ -82,7 +82,7 @@ static int ksz8863_change_mtu(struct ksz_device *dev, int frame_size)
 
 	if (frame_size <= KSZ8_LEGAL_PACKET_SIZE)
 		ctrl2 |= KSZ8863_LEGAL_PACKET_ENABLE;
-	else if (frame_size > KSZ8863_NORMAL_PACKET_SIZE)
+	else if (frame_size > KSZ8863_ANALRMAL_PACKET_SIZE)
 		ctrl2 |= KSZ8863_HUGE_PACKET_ENABLE;
 
 	return ksz_rmw8(dev, REG_SW_CTRL_2, KSZ8863_LEGAL_PACKET_ENABLE |
@@ -96,7 +96,7 @@ static int ksz8795_change_mtu(struct ksz_device *dev, int frame_size)
 
 	if (frame_size > KSZ8_LEGAL_PACKET_SIZE)
 		ctrl2 |= SW_LEGAL_PACKET_DISABLE;
-	if (frame_size > KSZ8863_NORMAL_PACKET_SIZE)
+	if (frame_size > KSZ8863_ANALRMAL_PACKET_SIZE)
 		ctrl1 |= SW_HUGE_PACKET;
 
 	ret = ksz_rmw8(dev, REG_SW_CTRL_1, SW_HUGE_PACKET, ctrl1);
@@ -124,7 +124,7 @@ int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu)
 		return ksz8863_change_mtu(dev, frame_size);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void ksz8795_set_prio_queue(struct ksz_device *dev, int port, int queue)
@@ -318,7 +318,7 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 
 	mib->cnt_ptr = 0;
 
-	/* Some ports may not have MIB counters before SWITCH_COUNTER_NUM. */
+	/* Some ports may analt have MIB counters before SWITCH_COUNTER_NUM. */
 	while (mib->cnt_ptr < dev->info->reg_mib_cnt) {
 		dev->dev_ops->r_mib_cnt(dev, port, mib->cnt_ptr,
 					&mib->counters[mib->cnt_ptr]);
@@ -328,7 +328,7 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 	/* last one in storage */
 	dropped = &mib->counters[dev->info->mib_cnt];
 
-	/* Some ports may not have MIB counters after SWITCH_COUNTER_NUM. */
+	/* Some ports may analt have MIB counters after SWITCH_COUNTER_NUM. */
 	while (mib->cnt_ptr < dev->info->mib_cnt) {
 		dev->dev_ops->r_mib_pkt(dev, port, mib->cnt_ptr,
 					dropped, &mib->counters[mib->cnt_ptr]);
@@ -392,16 +392,16 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 	do {
 		ksz_read8(dev, regs[REG_IND_DATA_CHECK], data);
 		timeout--;
-	} while ((*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) && timeout);
+	} while ((*data & masks[DYNAMIC_MAC_TABLE_ANALT_READY]) && timeout);
 
-	/* Entry is not ready for accessing. */
-	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) {
+	/* Entry is analt ready for accessing. */
+	if (*data & masks[DYNAMIC_MAC_TABLE_ANALT_READY]) {
 		return -EAGAIN;
 	/* Entry is ready for accessing. */
 	} else {
 		ksz_read8(dev, regs[REG_IND_DATA_8], data);
 
-		/* There is no valid entry in the table. */
+		/* There is anal valid entry in the table. */
 		if (*data & masks[DYNAMIC_MAC_TABLE_MAC_EMPTY])
 			return -ENXIO;
 	}
@@ -872,7 +872,7 @@ int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	switch (reg) {
 	case MII_BMCR:
 
-		/* Do not support PHY reset function. */
+		/* Do analt support PHY reset function. */
 		if (val & BMCR_RESET)
 			break;
 		ret = ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
@@ -907,7 +907,7 @@ int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			else
 				data &= ~PORT_AUTO_NEG_DISABLE;
 
-			/* Fiber port does not support auto-negotiation. */
+			/* Fiber port does analt support auto-negotiation. */
 			if (dev->ports[p].fiber)
 				data |= PORT_AUTO_NEG_DISABLE;
 		}
@@ -1104,9 +1104,9 @@ static int ksz8_add_sta_mac(struct ksz_device *dev, int port,
 			break;
 	}
 
-	/* no available entry */
+	/* anal available entry */
 	if (index == dev->info->num_statics && !empty)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* add entry */
 	if (index == dev->info->num_statics) {
@@ -1145,7 +1145,7 @@ static int ksz8_del_sta_mac(struct ksz_device *dev, int port,
 			break;
 	}
 
-	/* no available entry */
+	/* anal available entry */
 	if (index == dev->info->num_statics)
 		return 0;
 
@@ -1185,12 +1185,12 @@ int ksz8_port_vlan_filtering(struct ksz_device *dev, int port, bool flag,
 			     struct netlink_ext_ack *extack)
 {
 	if (ksz_is_ksz88x3(dev))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	/* Discard packets with VID not enabled on the switch */
+	/* Discard packets with VID analt enabled on the switch */
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_VLAN_ENABLE, flag);
 
-	/* Discard packets with VID not enabled on the ingress port */
+	/* Discard packets with VID analt enabled on the ingress port */
 	for (port = 0; port < dev->phy_port_cnt; ++port)
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_2, PORT_INGRESS_FILTER,
 			     flag);
@@ -1218,19 +1218,19 @@ int ksz8_port_vlan_add(struct ksz_device *dev, int port,
 	u8 fid, member, valid;
 
 	if (ksz_is_ksz88x3(dev))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* If a VLAN is added with untagged flag different from the
 	 * port's Remove Tag flag, we need to change the latter.
-	 * Ignore VID 0, which is always untagged.
-	 * Ignore CPU port, which will always be tagged.
+	 * Iganalre VID 0, which is always untagged.
+	 * Iganalre CPU port, which will always be tagged.
 	 */
 	if (untagged != p->remove_tag && vlan->vid != 0 &&
 	    port != dev->cpu_port) {
 		unsigned int vid;
 
 		/* Reject attempts to add a VLAN that requires the
-		 * Remove Tag flag to be changed, unless there are no
+		 * Remove Tag flag to be changed, unless there are anal
 		 * other VLANs currently configured.
 		 */
 		for (vid = 1; vid < dev->info->num_vlans; ++vid) {
@@ -1287,7 +1287,7 @@ int ksz8_port_vlan_del(struct ksz_device *dev, int port,
 	u8 fid, member, valid;
 
 	if (ksz_is_ksz88x3(dev))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
 	pvid = pvid & 0xFFF;
@@ -1297,7 +1297,7 @@ int ksz8_port_vlan_del(struct ksz_device *dev, int port,
 
 	member &= ~BIT(port);
 
-	/* Invalidate the entry if no more member. */
+	/* Invalidate the entry if anal more member. */
 	if (!member) {
 		fid = 0;
 		valid = 0;
@@ -1363,7 +1363,7 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 
 	if (!p->interface && dev->compat_interface) {
 		dev_warn(dev->dev,
-			 "Using legacy switch \"phy-mode\" property, because it is missing on port %d node. "
+			 "Using legacy switch \"phy-mode\" property, because it is missing on port %d analde. "
 			 "Please update your device tree.\n",
 			 port);
 		p->interface = dev->compat_interface;
@@ -1476,15 +1476,15 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
  *     0 = full-duplex flow control is enabled based on AN result."
  *
  * This means that the flow control behavior depends on the state of this bit:
- * - If PORT_FORCE_FLOW_CTRL is set to 1, the switch will ignore AN results and
+ * - If PORT_FORCE_FLOW_CTRL is set to 1, the switch will iganalre AN results and
  *   force flow control on the port.
  * - If PORT_FORCE_FLOW_CTRL is set to 0, the switch will enable or disable
  *   flow control based on the AN results.
  *
  * However, there is a potential limitation in this configuration. It is
- * currently not possible to force disable flow control on a port if we still
- * advertise pause support. While such a configuration is not currently
- * supported by Linux, and may not make practical sense, it's important to be
+ * currently analt possible to force disable flow control on a port if we still
+ * advertise pause support. While such a configuration is analt currently
+ * supported by Linux, and may analt make practical sense, it's important to be
  * aware of this limitation when working with the KSZ8873 and similar devices.
  */
 static void ksz8_phy_port_link_up(struct ksz_device *dev, int port, int duplex,
@@ -1503,7 +1503,7 @@ static void ksz8_phy_port_link_up(struct ksz_device *dev, int port, int duplex,
 	 * be determined by the auto-negotiation process based on the
 	 * capabilities of both link partners. However, for KSZ8873, the
 	 * PORT_FORCE_FLOW_CTRL bit may be set by the hardware bootstrap,
-	 * ignoring the auto-negotiation result. Thus, even in auto-negotiation
+	 * iganalring the auto-negotiation result. Thus, even in auto-negotiation
 	 * mode, we need to ensure that the PORT_FORCE_FLOW_CTRL bit is
 	 * properly cleared.
 	 *
@@ -1634,11 +1634,11 @@ int ksz8_setup(struct dsa_switch *ds)
 
 	/*
 	 * Make sure unicast VLAN boundary is set as default and
-	 * enable no excessive collision drop.
+	 * enable anal excessive collision drop.
 	 */
 	regmap_update_bits(ksz_regmap_8(dev), REG_SW_CTRL_2,
-			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP,
-			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP);
+			   UNICAST_VLAN_BOUNDARY | ANAL_EXC_COLLISION_DROP,
+			   UNICAST_VLAN_BOUNDARY | ANAL_EXC_COLLISION_DROP);
 
 	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_REPLACE_VID, false);
 
@@ -1659,14 +1659,14 @@ void ksz8_get_caps(struct ksz_device *dev, int port,
 	config->mac_capabilities = MAC_10 | MAC_100;
 
 	/* Silicon Errata Sheet (DS80000830A):
-	 * "Port 1 does not respond to received flow control PAUSE frames"
+	 * "Port 1 does analt respond to received flow control PAUSE frames"
 	 * So, disable Pause support on "Port 1" (port == 0) for all ksz88x3
 	 * switches.
 	 */
 	if (!ksz_is_ksz88x3(dev) || port)
 		config->mac_capabilities |= MAC_SYM_PAUSE;
 
-	/* Asym pause is not supported on KSZ8863 and KSZ8873 */
+	/* Asym pause is analt supported on KSZ8863 and KSZ8873 */
 	if (!ksz_is_ksz88x3(dev))
 		config->mac_capabilities |= MAC_ASYM_PAUSE;
 }

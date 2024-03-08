@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -96,7 +96,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	p->relocs = kvcalloc(p->nrelocs, sizeof(struct radeon_bo_list),
 			GFP_KERNEL);
 	if (p->relocs == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	radeon_cs_buckets_init(&buckets);
@@ -111,7 +111,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		if (gobj == NULL) {
 			DRM_ERROR("gem object lookup failed 0x%x\n",
 				  r->handle);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		p->relocs[i].robj = gem_to_radeon_bo(gobj);
 
@@ -148,7 +148,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 				r->write_domain : r->read_domains;
 
 			if (domain & RADEON_GEM_DOMAIN_CPU) {
-				DRM_ERROR("RADEON_GEM_DOMAIN_CPU is not valid "
+				DRM_ERROR("RADEON_GEM_DOMAIN_CPU is analt valid "
 					  "for command submission\n");
 				return -EINVAL;
 			}
@@ -172,11 +172,11 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].allowed_domains = domain;
 		}
 
-		/* Objects shared as dma-bufs cannot be moved to VRAM */
+		/* Objects shared as dma-bufs cananalt be moved to VRAM */
 		if (p->relocs[i].robj->prime_shared_count) {
 			p->relocs[i].allowed_domains &= ~RADEON_GEM_DOMAIN_VRAM;
 			if (!p->relocs[i].allowed_domains) {
-				DRM_ERROR("BO associated with dma-buf cannot "
+				DRM_ERROR("BO associated with dma-buf cananalt "
 					  "be moved to VRAM\n");
 				return -EINVAL;
 			}
@@ -211,7 +211,7 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 
 	switch (ring) {
 	default:
-		DRM_ERROR("unknown ring id: %d\n", ring);
+		DRM_ERROR("unkanalwn ring id: %d\n", ring);
 		return -EINVAL;
 	case RADEON_CS_RING_GFX:
 		p->ring = RADEON_RING_TYPE_GFX_INDEX;
@@ -241,7 +241,7 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 		p->ring = R600_RING_TYPE_UVD_INDEX;
 		break;
 	case RADEON_CS_RING_VCE:
-		/* TODO: only use the low priority ring for now */
+		/* TODO: only use the low priority ring for analw */
 		p->ring = TN_RING_TYPE_VCE1_INDEX;
 		break;
 	}
@@ -265,7 +265,7 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 	return 0;
 }
 
-/* XXX: note that this is called from the legacy UMS CS ioctl as well */
+/* XXX: analte that this is called from the legacy UMS CS ioctl as well */
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 {
 	struct drm_radeon_cs *cs = data;
@@ -291,7 +291,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->chunk_const_ib = NULL;
 	p->chunks_array = kvmalloc_array(cs->num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (p->chunks_array == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	chunk_array_ptr = (uint64_t *)(unsigned long)(cs->chunks);
 	if (copy_from_user(p->chunks_array, chunk_array_ptr,
@@ -302,7 +302,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->nchunks = cs->num_chunks;
 	p->chunks = kvcalloc(p->nchunks, sizeof(struct radeon_cs_chunk), GFP_KERNEL);
 	if (p->chunks == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (i = 0; i < p->nchunks; i++) {
 		struct drm_radeon_cs_chunk __user **chunk_ptr = NULL;
@@ -351,7 +351,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		p->chunks[i].kdata = kvmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
 		size *= sizeof(uint32_t);
 		if (p->chunks[i].kdata == NULL) {
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (copy_from_user(p->chunks[i].kdata, cdata, size)) {
 			return -EFAULT;
@@ -369,7 +369,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	if (p->rdev) {
 		if ((p->cs_flags & RADEON_CS_USE_VM) &&
 		    !p->rdev->vm_manager.enabled) {
-			DRM_ERROR("VM not active on asic!\n");
+			DRM_ERROR("VM analt active on asic!\n");
 			return -EINVAL;
 		}
 
@@ -384,7 +384,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			}
 		} else {
 			if (p->rdev->asic->ring[p->ring]->ib_parse == NULL) {
-				DRM_ERROR("VM not supported on ring %d!\n",
+				DRM_ERROR("VM analt supported on ring %d!\n",
 					  p->ring);
 				return -EINVAL;
 			}
@@ -487,10 +487,10 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 	}
 
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
-		radeon_uvd_note_usage(rdev);
+		radeon_uvd_analte_usage(rdev);
 	else if ((parser->ring == TN_RING_TYPE_VCE1_INDEX) ||
 		 (parser->ring == TN_RING_TYPE_VCE2_INDEX))
-		radeon_vce_note_usage(rdev);
+		radeon_vce_analte_usage(rdev);
 
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	if (r) {
@@ -515,7 +515,7 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 		return r;
 
 	if (vm->ib_bo_va == NULL) {
-		DRM_ERROR("Tmp BO not in VM!\n");
+		DRM_ERROR("Tmp BO analt in VM!\n");
 		return -EINVAL;
 	}
 
@@ -530,7 +530,7 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 		bo = p->relocs[i].robj;
 		bo_va = radeon_vm_bo_find(vm, bo);
 		if (bo_va == NULL) {
-			dev_err(rdev->dev, "bo %p not in vm %p\n", bo, vm);
+			dev_err(rdev->dev, "bo %p analt in vm %p\n", bo, vm);
 			return -EINVAL;
 		}
 
@@ -573,7 +573,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
-		radeon_uvd_note_usage(rdev);
+		radeon_uvd_analte_usage(rdev);
 
 	mutex_lock(&vm->mutex);
 	r = radeon_bo_vm_update_pte(parser, vm);
@@ -737,7 +737,7 @@ out:
  * @idx:	packet index
  *
  * Assume that chunk_ib_index is properly set. Will return -EINVAL
- * if packet is bigger than remaining ib size. or if packets is unknown.
+ * if packet is bigger than remaining ib size. or if packets is unkanalwn.
  **/
 int radeon_cs_packet_parse(struct radeon_cs_parser *p,
 			   struct radeon_cs_packet *pkt,
@@ -749,7 +749,7 @@ int radeon_cs_packet_parse(struct radeon_cs_parser *p,
 	int ret = 0, i;
 
 	if (idx >= ib_chunk->length_dw) {
-		DRM_ERROR("Can not parse packet at %d after CS end %d !\n",
+		DRM_ERROR("Can analt parse packet at %d after CS end %d !\n",
 			  idx, ib_chunk->length_dw);
 		return -EINVAL;
 	}
@@ -774,7 +774,7 @@ int radeon_cs_packet_parse(struct radeon_cs_parser *p,
 		pkt->count = -1;
 		break;
 	default:
-		DRM_ERROR("Unknown packet type %d at %d !\n", pkt->type, idx);
+		DRM_ERROR("Unkanalwn packet type %d at %d !\n", pkt->type, idx);
 		ret = -EINVAL;
 		goto dump_ib;
 	}
@@ -797,12 +797,12 @@ dump_ib:
 }
 
 /**
- * radeon_cs_packet_next_is_pkt3_nop() - test if the next packet is P3 NOP
+ * radeon_cs_packet_next_is_pkt3_analp() - test if the next packet is P3 ANALP
  * @p:		structure holding the parser context.
  *
- * Check if the next packet is NOP relocation packet3.
+ * Check if the next packet is ANALP relocation packet3.
  **/
-bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
+bool radeon_cs_packet_next_is_pkt3_analp(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_packet p3reloc;
 	int r;
@@ -812,7 +812,7 @@ bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
 		return false;
 	if (p3reloc.type != RADEON_PACKET_TYPE3)
 		return false;
-	if (p3reloc.opcode != RADEON_PACKET3_NOP)
+	if (p3reloc.opcode != RADEON_PACKET3_ANALP)
 		return false;
 	return true;
 }
@@ -841,14 +841,14 @@ void radeon_cs_dump_packet(struct radeon_cs_parser *p,
  * radeon_cs_packet_next_reloc() - parse next (should be reloc) packet
  * @p:			parser structure holding parsing context.
  * @cs_reloc:		reloc informations
- * @nomm:		no memory management for debugging
+ * @analmm:		anal memory management for debugging
  *
  * Check if next packet is relocation packet3, do bo validation and compute
  * GPU offset using the provided start.
  **/
 int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 				struct radeon_bo_list **cs_reloc,
-				int nomm)
+				int analmm)
 {
 	struct radeon_cs_chunk *relocs_chunk;
 	struct radeon_cs_packet p3reloc;
@@ -856,7 +856,7 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 	int r;
 
 	if (p->chunk_relocs == NULL) {
-		DRM_ERROR("No relocation chunk !\n");
+		DRM_ERROR("Anal relocation chunk !\n");
 		return -EINVAL;
 	}
 	*cs_reloc = NULL;
@@ -866,8 +866,8 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 		return r;
 	p->idx += p3reloc.count + 2;
 	if (p3reloc.type != RADEON_PACKET_TYPE3 ||
-	    p3reloc.opcode != RADEON_PACKET3_NOP) {
-		DRM_ERROR("No packet3 for relocation for packet at %d.\n",
+	    p3reloc.opcode != RADEON_PACKET3_ANALP) {
+		DRM_ERROR("Anal packet3 for relocation for packet at %d.\n",
 			  p3reloc.idx);
 		radeon_cs_dump_packet(p, &p3reloc);
 		return -EINVAL;
@@ -880,7 +880,7 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 	/* FIXME: we assume reloc size is 4 dwords */
-	if (nomm) {
+	if (analmm) {
 		*cs_reloc = p->relocs;
 		(*cs_reloc)->gpu_offset =
 			(u64)relocs_chunk->kdata[idx + 3] << 32;

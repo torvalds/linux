@@ -157,7 +157,7 @@
 #define TRCIDR3_SYSSTALL			BIT(27)
 #define TRCIDR3_NUMPROC_LO_MASK			GENMASK(30, 28)
 #define TRCIDR3_NUMPROC_HI_MASK			GENMASK(13, 12)
-#define TRCIDR3_NOOVERFLOW			BIT(31)
+#define TRCIDR3_ANALOVERFLOW			BIT(31)
 
 #define TRCIDR4_NUMACPAIRS_MASK			GENMASK(3, 0)
 #define TRCIDR4_NUMPC_MASK			GENMASK(15, 12)
@@ -199,7 +199,7 @@
 
 #define TRCSTALLCTLR_ISTALL			BIT(8)
 #define TRCSTALLCTLR_INSTPRIORITY		BIT(10)
-#define TRCSTALLCTLR_NOOVERFLOW			BIT(13)
+#define TRCSTALLCTLR_ANALOVERFLOW			BIT(13)
 
 #define TRCVICTLR_EVENT_MASK			GENMASK(7, 0)
 #define TRCVICTLR_SSSTATUS			BIT(9)
@@ -260,7 +260,7 @@
 #define CASE_WRITE(val, x)					\
 	case (x): { write_etm4x_sysreg_const_offset((val), (x)); break; }
 
-#define CASE_NOP(__unused, x)					\
+#define CASE_ANALP(__unused, x)					\
 	case (x):	/* fall through */
 
 #define ETE_ONLY_SYSREG_LIST(op, val)		\
@@ -489,16 +489,16 @@
 	ETM4x_ONLY_SYSREG_LIST(WRITE, (val))
 
 #define ETM_COMMON_SYSREG_LIST_CASES		\
-	ETM_COMMON_SYSREG_LIST(NOP, __unused)
+	ETM_COMMON_SYSREG_LIST(ANALP, __unused)
 
 #define ETM4x_ONLY_SYSREG_LIST_CASES		\
-	ETM4x_ONLY_SYSREG_LIST(NOP, __unused)
+	ETM4x_ONLY_SYSREG_LIST(ANALP, __unused)
 
 #define ETM4x_SYSREG_LIST_CASES			\
 	ETM_COMMON_SYSREG_LIST_CASES		\
-	ETM4x_ONLY_SYSREG_LIST(NOP, __unused)
+	ETM4x_ONLY_SYSREG_LIST(ANALP, __unused)
 
-#define ETM4x_MMAP_LIST_CASES		ETM_MMAP_LIST(NOP, __unused)
+#define ETM4x_MMAP_LIST_CASES		ETM_MMAP_LIST(ANALP, __unused)
 
 /* ETE only supports system register access */
 #define ETE_READ_CASES(res)			\
@@ -510,7 +510,7 @@
 	ETE_ONLY_SYSREG_LIST(WRITE, (val))
 
 #define ETE_ONLY_SYSREG_LIST_CASES		\
-	ETE_ONLY_SYSREG_LIST(NOP, __unused)
+	ETE_ONLY_SYSREG_LIST(ANALP, __unused)
 
 #define read_etm4x_sysreg_offset(offset, _64bit)				\
 	({									\
@@ -634,7 +634,7 @@
 #define ETM_MODE_ISTALL_EN		BIT(21)
 #define ETM_MODE_DSTALL_EN		BIT(22)
 #define ETM_MODE_INSTPRIO		BIT(23)
-#define ETM_MODE_NOOVERFLOW		BIT(24)
+#define ETM_MODE_ANALOVERFLOW		BIT(24)
 #define ETM_MODE_TRACE_RESET		BIT(25)
 #define ETM_MODE_TRACE_ERR		BIT(26)
 #define ETM_MODE_VIEWINST_STARTSTOP	BIT(27)
@@ -646,9 +646,9 @@
  * TRCOSLSR.OSLM advertises the OS Lock model.
  * OSLM[2:0] = TRCOSLSR[4:3,0]
  *
- *	0b000 - Trace OS Lock is not implemented.
+ *	0b000 - Trace OS Lock is analt implemented.
  *	0b010 - Trace OS Lock is implemented.
- *	0b100 - Trace OS Lock is not implemented, unit is controlled by PE OS Lock.
+ *	0b100 - Trace OS Lock is analt implemented, unit is controlled by PE OS Lock.
  */
 #define ETM_OSLOCK_NI		0b000
 #define ETM_OSLOCK_PRESENT	0b010
@@ -715,10 +715,10 @@
 #define TRCACATR_EXLEVEL_SHIFT		8
 
 /*
- * Exception level mask for Secure and Non-Secure ELs.
+ * Exception level mask for Secure and Analn-Secure ELs.
  * ETM defines the bits for EL control (e.g, TRVICTLR, TRCACTRn).
- * The Secure and Non-Secure ELs are always to gether.
- * Non-secure EL3 is never implemented.
+ * The Secure and Analn-Secure ELs are always to gether.
+ * Analn-secure EL3 is never implemented.
  * We use the following generic mask as they appear in different
  * registers and this can be shifted for the appropriate
  * fields.
@@ -727,9 +727,9 @@
 #define ETM_EXLEVEL_S_OS		BIT(1)	/* Secure EL1		*/
 #define ETM_EXLEVEL_S_HYP		BIT(2)	/* Secure EL2		*/
 #define ETM_EXLEVEL_S_MON		BIT(3)	/* Secure EL3/Monitor	*/
-#define ETM_EXLEVEL_NS_APP		BIT(4)	/* NonSecure EL0	*/
-#define ETM_EXLEVEL_NS_OS		BIT(5)	/* NonSecure EL1	*/
-#define ETM_EXLEVEL_NS_HYP		BIT(6)	/* NonSecure EL2	*/
+#define ETM_EXLEVEL_NS_APP		BIT(4)	/* AnalnSecure EL0	*/
+#define ETM_EXLEVEL_NS_OS		BIT(5)	/* AnalnSecure EL1	*/
+#define ETM_EXLEVEL_NS_HYP		BIT(6)	/* AnalnSecure EL2	*/
 
 /* access level controls in TRCACATRn */
 #define TRCACATR_EXLEVEL_SHIFT		8
@@ -738,13 +738,13 @@
 #define ETM_TRCIDR1_ARCH_MAJOR_MASK	(0xfU << ETM_TRCIDR1_ARCH_MAJOR_SHIFT)
 #define ETM_TRCIDR1_ARCH_MAJOR(x)	\
 	(((x) & ETM_TRCIDR1_ARCH_MAJOR_MASK) >> ETM_TRCIDR1_ARCH_MAJOR_SHIFT)
-#define ETM_TRCIDR1_ARCH_MINOR_SHIFT	4
-#define ETM_TRCIDR1_ARCH_MINOR_MASK	(0xfU << ETM_TRCIDR1_ARCH_MINOR_SHIFT)
-#define ETM_TRCIDR1_ARCH_MINOR(x)	\
-	(((x) & ETM_TRCIDR1_ARCH_MINOR_MASK) >> ETM_TRCIDR1_ARCH_MINOR_SHIFT)
-#define ETM_TRCIDR1_ARCH_SHIFT		ETM_TRCIDR1_ARCH_MINOR_SHIFT
+#define ETM_TRCIDR1_ARCH_MIANALR_SHIFT	4
+#define ETM_TRCIDR1_ARCH_MIANALR_MASK	(0xfU << ETM_TRCIDR1_ARCH_MIANALR_SHIFT)
+#define ETM_TRCIDR1_ARCH_MIANALR(x)	\
+	(((x) & ETM_TRCIDR1_ARCH_MIANALR_MASK) >> ETM_TRCIDR1_ARCH_MIANALR_SHIFT)
+#define ETM_TRCIDR1_ARCH_SHIFT		ETM_TRCIDR1_ARCH_MIANALR_SHIFT
 #define ETM_TRCIDR1_ARCH_MASK		\
-	(ETM_TRCIDR1_ARCH_MAJOR_MASK | ETM_TRCIDR1_ARCH_MINOR_MASK)
+	(ETM_TRCIDR1_ARCH_MAJOR_MASK | ETM_TRCIDR1_ARCH_MIANALR_MASK)
 
 #define ETM_TRCIDR1_ARCH_ETMv4		0x4
 
@@ -754,14 +754,14 @@
  *
  * TRCDEVARCH	- CoreSight architected register
  *                - Bits[15:12] - Major version
- *                - Bits[19:16] - Minor version
+ *                - Bits[19:16] - Mianalr version
  *
  * We must rely only on TRCDEVARCH for the version information. Even though,
  * TRCIDR1 also provides the architecture version, it is a "Trace" register
  * and as such must be accessed only with Trace power domain ON. This may
- * not be available at probe time.
+ * analt be available at probe time.
  *
- * Now to make certain decisions easier based on the version
+ * Analw to make certain decisions easier based on the version
  * we use an internal representation of the version in the
  * driver, as follows :
  *
@@ -769,10 +769,10 @@
  *      Bits[7:4] - Major version
  *      Bits[3:0] - Minro version
  */
-#define ETM_ARCH_VERSION(major, minor)		\
-	((((major) & 0xfU) << 4) | (((minor) & 0xfU)))
+#define ETM_ARCH_VERSION(major, mianalr)		\
+	((((major) & 0xfU) << 4) | (((mianalr) & 0xfU)))
 #define ETM_ARCH_MAJOR_VERSION(arch)	(((arch) >> 4) & 0xfU)
-#define ETM_ARCH_MINOR_VERSION(arch)	((arch) & 0xfU)
+#define ETM_ARCH_MIANALR_VERSION(arch)	((arch) & 0xfU)
 
 #define ETM_ARCH_V4	ETM_ARCH_VERSION(4, 0)
 #define ETM_ARCH_ETE	ETM_ARCH_VERSION(5, 0)
@@ -975,7 +975,7 @@ struct etmv4_save_state {
  * @ccitmin:	minimum value that can be programmed in
  * @s_ex_level:	In secure state, indicates whether instruction tracing is
  *		supported for the corresponding Exception level.
- * @ns_ex_level:In non-secure state, indicates whether instruction tracing is
+ * @ns_ex_level:In analn-secure state, indicates whether instruction tracing is
  *		supported for the corresponding Exception level.
  * @sticky_enable: true if ETM base configuration has been done.
  * @boot_enable:True if we should start tracing at boot time.
@@ -996,7 +996,7 @@ struct etmv4_save_state {
  * @stall_ctrl:	Enables trace unit functionality that prevents trace
  *		unit buffer overflows.
  * @sysstall:	Does the system support stall control of the PE?
- * @nooverflow:	Indicate if overflow prevention is supported.
+ * @analoverflow:	Indicate if overflow prevention is supported.
  * @atbtrig:	If the implementation can support ATB triggers
  * @lpoverride:	If the implementation can support low-power state over.
  * @trfcr:	If the CPU supports FEAT_TRF, value of the TRFCR_ELx that
@@ -1053,7 +1053,7 @@ struct etmv4_drvdata {
 	bool				syncpr;
 	bool				stallctl;
 	bool				sysstall;
-	bool				nooverflow;
+	bool				analoverflow;
 	bool				atbtrig;
 	bool				lpoverride;
 	u64				trfcr;
@@ -1075,7 +1075,7 @@ enum etm_addr_acctype {
 
 /* Address comparator context types */
 enum etm_addr_ctxtype {
-	ETM_CTX_NONE,
+	ETM_CTX_ANALNE,
 	ETM_CTX_CTXID,
 	ETM_CTX_VMID,
 	ETM_CTX_CTXID_VMID,

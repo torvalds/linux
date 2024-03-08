@@ -55,14 +55,14 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define  MODEL_ECHO_AUDIOFIRE_4		0x000af4
 /* AudioFire9 is applied for AudioFire8(since 2009 July) and AudioFirePre8 */
 #define  MODEL_ECHO_AUDIOFIRE_9		0x000af9
-/* unknown as product */
+/* unkanalwn as product */
 #define  MODEL_ECHO_FIREWORKS_8		0x0000f8
 #define  MODEL_ECHO_FIREWORKS_HDMI	0x00afd1
 
 #define VENDOR_GIBSON			0x00075b
 /* for Robot Interface Pack of Dark Fire, Dusk Tiger, Les Paul Standard 2010 */
 #define  MODEL_GIBSON_RIP		0x00afb2
-/* unknown as product */
+/* unkanalwn as product */
 #define  MODEL_GIBSON_GOLDTOP		0x00afb9
 
 /* part of hardware capability flags */
@@ -78,7 +78,7 @@ get_hardware_info(struct snd_efw *efw)
 
 	hwinfo = kzalloc(sizeof(struct snd_efw_hwinfo), GFP_KERNEL);
 	if (hwinfo == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = snd_efw_command_get_hwinfo(efw, hwinfo);
 	if (err < 0)
@@ -128,7 +128,7 @@ get_hardware_info(struct snd_efw *efw)
 	 && (192000 <= hwinfo->max_sample_rate))
 		efw->supported_sampling_rate |= SNDRV_PCM_RATE_192000;
 
-	/* the number of MIDI ports, not of MIDI conformant data channels */
+	/* the number of MIDI ports, analt of MIDI conformant data channels */
 	if (hwinfo->midi_out_ports > SND_EFW_MAX_MIDI_OUT_PORTS ||
 	    hwinfo->midi_in_ports > SND_EFW_MAX_MIDI_IN_PORTS) {
 		err = -EIO;
@@ -143,7 +143,7 @@ get_hardware_info(struct snd_efw *efw)
 	    hwinfo->amdtp_rx_pcm_channels    > AM824_MAX_CHANNELS_FOR_PCM ||
 	    hwinfo->amdtp_rx_pcm_channels_2x > AM824_MAX_CHANNELS_FOR_PCM ||
 	    hwinfo->amdtp_rx_pcm_channels_4x > AM824_MAX_CHANNELS_FOR_PCM) {
-		err = -ENOSYS;
+		err = -EANALSYS;
 		goto end;
 	}
 	efw->pcm_capture_channels[0] = hwinfo->amdtp_tx_pcm_channels;
@@ -214,7 +214,7 @@ static int efw_probe(struct fw_unit *unit, const struct ieee1394_device_id *entr
 	}
 	if (card_index >= SNDRV_CARDS) {
 		mutex_unlock(&devices_mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_card_new(&unit->device, index[card_index], id[card_index], THIS_MODULE,
@@ -241,7 +241,7 @@ static int efw_probe(struct fw_unit *unit, const struct ieee1394_device_id *entr
 	snd_efw_resp_buf_size = clamp(snd_efw_resp_buf_size, SND_EFW_RESPONSE_MAXIMUM_BYTES, 4096U);
 	efw->resp_buf = devm_kzalloc(&card->card_dev, snd_efw_resp_buf_size, GFP_KERNEL);
 	if (!efw->resp_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 	efw->pull_ptr = efw->push_ptr = efw->resp_buf;

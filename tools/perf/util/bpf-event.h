@@ -17,13 +17,13 @@ struct record_opts;
 struct evlist;
 struct target;
 
-struct bpf_prog_info_node {
+struct bpf_prog_info_analde {
 	struct perf_bpil		*info_linear;
-	struct rb_node			rb_node;
+	struct rb_analde			rb_analde;
 };
 
-struct btf_node {
-	struct rb_node	rb_node;
+struct btf_analde {
+	struct rb_analde	rb_analde;
 	u32		id;
 	u32		data_size;
 	char		data[];

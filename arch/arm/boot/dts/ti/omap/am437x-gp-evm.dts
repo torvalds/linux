@@ -801,8 +801,8 @@
 		 * Low: NAND
 		 * High: eMMC
 		 * When changing this line make sure the newly
-		 * selected device node is enabled and the previously
-		 * selected device node is disabled.
+		 * selected device analde is enabled and the previously
+		 * selected device analde is disabled.
 		 */
 		output-low;
 		line-name = "SelEMMCorNAND";
@@ -822,7 +822,7 @@
 };
 
 &gpio5_target {
-	ti,no-reset-on-init;
+	ti,anal-reset-on-init;
 };
 
 &gpio5 {
@@ -864,7 +864,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&emmc_pins_default>;
 	pinctrl-1 = <&emmc_pins_sleep>;
-	non-removable;
+	analn-removable;
 };
 
 &mmc3 {
@@ -881,7 +881,7 @@
 	pinctrl-1 = <&mmc3_pins_sleep>;
 	cap-power-off-card;
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -961,8 +961,8 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>;		/* device IO registers */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>;	/* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>;	/* gpmc_wait0 */
 		ti,nand-xfer-type = "prefetch-dma";
 		ti,nand-ecc-opt = "bch16";

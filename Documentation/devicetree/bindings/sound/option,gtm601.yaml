@@ -10,7 +10,7 @@ maintainers:
   - kernel@puri.sm
 
 description: >
-  This device has no configuration interface. The sample rate and channels are
+  This device has anal configuration interface. The sample rate and channels are
   based on the compatible string
 
 properties:
@@ -20,7 +20,7 @@ properties:
         items:
           - const: broadmobi,bm818
           - const: option,gtm601
-      - description: GTM601 (8kHz mono)
+      - description: GTM601 (8kHz moanal)
         const: option,gtm601
 
   '#sound-dai-cells':

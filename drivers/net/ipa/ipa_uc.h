@@ -43,12 +43,12 @@ void ipa_uc_deconfig(struct ipa *ipa);
 void ipa_uc_power(struct ipa *ipa);
 
 /**
- * ipa_uc_panic_notifier()
+ * ipa_uc_panic_analtifier()
  * @ipa:	IPA pointer
  *
- * Notifier function called when the system crashes, to inform the
+ * Analtifier function called when the system crashes, to inform the
  * microcontroller of the event.
  */
-void ipa_uc_panic_notifier(struct ipa *ipa);
+void ipa_uc_panic_analtifier(struct ipa *ipa);
 
 #endif /* _IPA_UC_H_ */

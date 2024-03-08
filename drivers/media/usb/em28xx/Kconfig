@@ -27,7 +27,7 @@ config VIDEO_EM28XX_ALSA
 	help
 	  This is an ALSA driver for some Empia 28xx based TV cards.
 
-	  This is not required for em2800/em2820/em2821 boards. However,
+	  This is analt required for em2800/em2820/em2821 boards. However,
 	  newer em28xx devices uses Vendor Class for audio, instead of
 	  implementing the USB Audio Class. For those chips, this module
 	  will enable digital audio.

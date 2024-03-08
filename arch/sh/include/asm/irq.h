@@ -6,12 +6,12 @@
 #include <asm/machvec.h>
 
 /*
- * This is a special IRQ number for indicating that no IRQ has been
- * triggered and to simply ignore the IRQ dispatch. This is a special
+ * This is a special IRQ number for indicating that anal IRQ has been
+ * triggered and to simply iganalre the IRQ dispatch. This is a special
  * case that can happen with IRQ auto-distribution when multiple CPUs
  * are woken up and signalled in parallel.
  */
-#define NO_IRQ_IGNORE		((unsigned int)-1)
+#define ANAL_IRQ_IGANALRE		((unsigned int)-1)
 
 /*
  * Simple Mask Register Support

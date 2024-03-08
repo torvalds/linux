@@ -3194,7 +3194,7 @@ static void *epoll60_wait_thread(void *ctx_)
 		ret = epoll_pwait(ctx->epfd, &e, 1, 2000, &sigmask);
 		if (ret != 1) {
 			/* We expect only signal delivery on stop */
-			assert(ret < 0 && errno == EINTR && "Lost wakeup!\n");
+			assert(ret < 0 && erranal == EINTR && "Lost wakeup!\n");
 			assert(ctx->stopped);
 			break;
 		}
@@ -3240,7 +3240,7 @@ TEST(epoll60)
 
 	/* Create event fds */
 	for (i = 0; i < ARRAY_SIZE(ctx.evfd); i++) {
-		ctx.evfd[i] = eventfd(0, EFD_NONBLOCK);
+		ctx.evfd[i] = eventfd(0, EFD_ANALNBLOCK);
 		ASSERT_GE(ctx.evfd[i], 0);
 
 		e.events = EPOLLIN | EPOLLET;
@@ -3269,7 +3269,7 @@ TEST(epoll60)
 		while (count_waiters(&ctx) != ARRAY_SIZE(ctx.evfd))
 			;
 
-		/* 1ms should be enough to schedule away */
+		/* 1ms should be eanalugh to schedule away */
 		usleep(1000);
 
 		/* Quickly signal all handles at once */
@@ -3348,7 +3348,7 @@ TEST(epoll61)
 
 	ctx.epfd = epoll_create1(0);
 	ASSERT_GE(ctx.epfd, 0);
-	ctx.evfd = eventfd(0, EFD_NONBLOCK);
+	ctx.evfd = eventfd(0, EFD_ANALNBLOCK);
 	ASSERT_GE(ctx.evfd, 0);
 
 	ev.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP;
@@ -3374,7 +3374,7 @@ TEST(epoll61)
 		 * or Thread 3.  If it wakes up Thread 2, Thread 2 writes on the
 		 * eventfd to wake up Thread 3.
 		 *
-		 * If no events are missed, all three threads should eventually
+		 * If anal events are missed, all three threads should eventually
 		 * be joinable.
 		 */
 		ASSERT_EQ(pthread_create(&threads[0], NULL,

@@ -164,7 +164,7 @@ static int spear13xx_add_pcie_port(struct spear13xx_pcie *spear13xx_pcie,
 		return pp->irq;
 
 	ret = devm_request_irq(dev, pp->irq, spear13xx_pcie_irq_handler,
-			       IRQF_SHARED | IRQF_NO_THREAD,
+			       IRQF_SHARED | IRQF_ANAL_THREAD,
 			       "spear1340-pcie", spear13xx_pcie);
 	if (ret) {
 		dev_err(dev, "failed to request irq %d\n", pp->irq);
@@ -172,7 +172,7 @@ static int spear13xx_add_pcie_port(struct spear13xx_pcie *spear13xx_pcie,
 	}
 
 	pp->ops = &spear13xx_pcie_host_ops;
-	pp->msi_irq[0] = -ENODEV;
+	pp->msi_irq[0] = -EANALDEV;
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
@@ -193,16 +193,16 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci;
 	struct spear13xx_pcie *spear13xx_pcie;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	spear13xx_pcie = devm_kzalloc(dev, sizeof(*spear13xx_pcie), GFP_KERNEL);
 	if (!spear13xx_pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;

@@ -11,14 +11,14 @@
 
 /*
  *  This code can be loaded anywhere, eg FLASH ROM as reset vector,
- *  as long as output does not overlap it.
+ *  as long as output does analt overlap it.
  */
 
 #include <linux/linkage.h>
 #include <asm/cache.h>
 
 	.text
-	.set noat
+	.set analat
 ENTRY(_start)
 	wrctl	status, r0		/* disable interrupt */
 	/* invalidate all instruction cache */
@@ -59,7 +59,7 @@ chkadr:
 
 finish_move:
 	/* zero out the .bss segment (uninitialized common data) */
-	movia	r2, __bss_start		/* presume nothing is between */
+	movia	r2, __bss_start		/* presume analthing is between */
 	movia	r1, _end		/* the .bss and _end. */
 1: 	stb	r0, 0(r2)
 	addi	r2, r2, 1

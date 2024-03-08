@@ -68,7 +68,7 @@ static inline bool __preempt_count_dec_and_test(void)
 	 * If we wrote back all zeroes, then we're preemptible and in
 	 * need of a reschedule. Otherwise, we need to reload the
 	 * preempt_count in case the need_resched flag was cleared by an
-	 * interrupt occurring between the non-atomic READ_ONCE/WRITE_ONCE
+	 * interrupt occurring between the analn-atomic READ_ONCE/WRITE_ONCE
 	 * pair.
 	 */
 	return !pc || !READ_ONCE(ti->preempt_count);
@@ -83,20 +83,20 @@ static inline bool should_resched(int preempt_offset)
 #ifdef CONFIG_PREEMPTION
 
 void preempt_schedule(void);
-void preempt_schedule_notrace(void);
+void preempt_schedule_analtrace(void);
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
 
 DECLARE_STATIC_KEY_TRUE(sk_dynamic_irqentry_exit_cond_resched);
 void dynamic_preempt_schedule(void);
 #define __preempt_schedule()		dynamic_preempt_schedule()
-void dynamic_preempt_schedule_notrace(void);
-#define __preempt_schedule_notrace()	dynamic_preempt_schedule_notrace()
+void dynamic_preempt_schedule_analtrace(void);
+#define __preempt_schedule_analtrace()	dynamic_preempt_schedule_analtrace()
 
 #else /* CONFIG_PREEMPT_DYNAMIC */
 
 #define __preempt_schedule()		preempt_schedule()
-#define __preempt_schedule_notrace()	preempt_schedule_notrace()
+#define __preempt_schedule_analtrace()	preempt_schedule_analtrace()
 
 #endif /* CONFIG_PREEMPT_DYNAMIC */
 #endif /* CONFIG_PREEMPTION */

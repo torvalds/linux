@@ -7,14 +7,14 @@
  * TODO:
  *  - implement DAPM and input muxing
  *  - implement modulation limit
- *  - implement non-default PWM start
+ *  - implement analn-default PWM start
  *
- * Note that this chip has a very unusual register layout, specifically
+ * Analte that this chip has a very unusual register layout, specifically
  * because the registers are of unequal size, and multi-byte registers
- * require bulk writes to take effect. Regmap does not support that kind
+ * require bulk writes to take effect. Regmap does analt support that kind
  * of devices.
  *
- * Currently, the driver does not touch any of the registers >= 0x20, so
+ * Currently, the driver does analt touch any of the registers >= 0x20, so
  * it doesn't matter because the entire map can be accessed as 8-bit
  * array. In case more features will be added in the future
  * that require access to higher registers, the entire regmap H/W I/O
@@ -345,7 +345,7 @@ static int index_in_array(const int *array, int len, int needle)
 		if (array[i] == needle)
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int tas5086_hw_params(struct snd_pcm_substream *substream,
@@ -398,7 +398,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * The chip has a very unituitive register mapping and muxes information
-	 * about data format and sample depth into the same register, but not on
+	 * about data format and sample depth into the same register, but analt on
 	 * a logical bit-boundary. Hence, we have to refer to the format passed
 	 * in the set_dai_fmt() callback and set up everything from here.
 	 *
@@ -439,7 +439,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* clock is considered valid now */
+	/* clock is considered valid analw */
 	ret = regmap_update_bits(priv->regmap, TAS5086_CLOCK_CONTROL,
 				 TAS5086_CLOCK_VALID, TAS5086_CLOCK_VALID);
 	if (ret < 0)
@@ -520,7 +520,7 @@ static int tas5086_init(struct device *dev, struct tas5086_private *priv)
 	if (ret < 0)
 		return ret;
 
-	/* mute all channels for now */
+	/* mute all channels for analw */
 	ret = regmap_write(priv->regmap, TAS5086_SOFT_MUTE,
 			   TAS5086_SOFT_MUTE_ALL);
 	if (ret < 0)
@@ -613,30 +613,30 @@ static const struct snd_soc_dapm_widget tas5086_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("PWM5"),
 	SND_SOC_DAPM_OUTPUT("PWM6"),
 
-	SND_SOC_DAPM_MUX("Channel 1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Channel 1 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_input_mux_controls[0]),
-	SND_SOC_DAPM_MUX("Channel 2 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Channel 2 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_input_mux_controls[1]),
-	SND_SOC_DAPM_MUX("Channel 3 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Channel 3 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_input_mux_controls[2]),
-	SND_SOC_DAPM_MUX("Channel 4 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Channel 4 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_input_mux_controls[3]),
-	SND_SOC_DAPM_MUX("Channel 5 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Channel 5 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_input_mux_controls[4]),
-	SND_SOC_DAPM_MUX("Channel 6 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Channel 6 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_input_mux_controls[5]),
 
-	SND_SOC_DAPM_MUX("PWM1 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PWM1 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_output_mux_controls[0]),
-	SND_SOC_DAPM_MUX("PWM2 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PWM2 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_output_mux_controls[1]),
-	SND_SOC_DAPM_MUX("PWM3 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PWM3 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_output_mux_controls[2]),
-	SND_SOC_DAPM_MUX("PWM4 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PWM4 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_output_mux_controls[3]),
-	SND_SOC_DAPM_MUX("PWM5 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PWM5 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_output_mux_controls[4]),
-	SND_SOC_DAPM_MUX("PWM6 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PWM6 Mux", SND_SOC_ANALPM, 0, 0,
 			 &tas5086_dapm_output_mux_controls[5]),
 };
 
@@ -829,9 +829,9 @@ static int tas5086_probe(struct snd_soc_component *component)
 	priv->charge_period = 1300000; /* hardware default is 1300 ms */
 
 	if (of_match_device(of_match_ptr(tas5086_dt_ids), component->dev)) {
-		struct device_node *of_node = component->dev->of_node;
+		struct device_analde *of_analde = component->dev->of_analde;
 
-		of_property_read_u32(of_node, "ti,charge-period",
+		of_property_read_u32(of_analde, "ti,charge-period",
 				     &priv->charge_period);
 
 		for (i = 0; i < 6; i++) {
@@ -840,7 +840,7 @@ static int tas5086_probe(struct snd_soc_component *component)
 			snprintf(name, sizeof(name),
 				 "ti,mid-z-channel-%d", i + 1);
 
-			if (of_property_read_bool(of_node, name))
+			if (of_property_read_bool(of_analde, name))
 				priv->pwm_start_mid_z |= 1 << i;
 		}
 	}
@@ -919,7 +919,7 @@ static int tas5086_i2c_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		priv->supplies[i].supply = supply_names[i];
@@ -940,7 +940,7 @@ static int tas5086_i2c_probe(struct i2c_client *i2c)
 
 	i2c_set_clientdata(i2c, priv);
 
-	gpio_nreset = of_get_named_gpio(dev->of_node, "reset-gpio", 0);
+	gpio_nreset = of_get_named_gpio(dev->of_analde, "reset-gpio", 0);
 	if (gpio_is_valid(gpio_nreset))
 		if (devm_gpio_request(dev, gpio_nreset, "TAS5086 Reset"))
 			gpio_nreset = -EINVAL;
@@ -960,7 +960,7 @@ static int tas5086_i2c_probe(struct i2c_client *i2c)
 	if (ret == 0 && i != 0x3) {
 		dev_err(dev,
 			"Failed to identify TAS5086 codec (got %02x)\n", i);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	/*

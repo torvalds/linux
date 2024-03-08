@@ -227,7 +227,7 @@
     },
     {
         "id": "5948",
-        "name": "Delete nonexistent prio qdisc",
+        "name": "Delete analnexistent prio qdisc",
         "category": [
             "qdisc",
             "prio"

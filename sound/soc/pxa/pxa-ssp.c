@@ -87,7 +87,7 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 
 	dma = kzalloc(sizeof(struct snd_dmaengine_dai_dma_data), GFP_KERNEL);
 	if (!dma)
-		return -ENOMEM;
+		return -EANALMEM;
 	dma->chan_name = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 		"tx" : "rx";
 
@@ -234,7 +234,7 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		sscr0 |= SSCR0_ACS;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* The SSP clock must be disabled when changing SSP clock mode
@@ -499,7 +499,7 @@ static int pxa_ssp_configure_dai_fmt(struct ssp_priv *priv)
 
 	/* Since we are configuring the timings for the format by hand
 	 * we have to defer some things until hw_params() where we
-	 * know parameters like the sample size.
+	 * kanalw parameters like the sample size.
 	 */
 	priv->configured_dai_fmt = priv->dai_fmt;
 
@@ -553,7 +553,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 		((chn == 2) && (ttsa != 1)) || (width == 32),
 		substream->stream == SNDRV_PCM_STREAM_PLAYBACK, dma_data);
 
-	/* we can only change the settings if the port is not in use */
+	/* we can only change the settings if the port is analt in use */
 	if (pxa_ssp_read_reg(ssp, SSCR0) & SSCR0_SSE)
 		return 0;
 
@@ -614,7 +614,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	} else if (sscr0 & SSCR0_ECS) {
 		/*
 		 * For setups with external clocking, the PLL and its diviers
-		 * are not active. Instead, the SCR bits in SSCR0 can be used
+		 * are analt active. Instead, the SCR bits in SSCR0 can be used
 		 * to divide the clock.
 		 */
 		pxa_ssp_set_scr(ssp, bclk / rate);
@@ -626,7 +626,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 
 		if (((priv->sysclk / bclk) == 64) && (width == 16)) {
 			/* This is a special case where the bitclk is 64fs
-			 * and we're not dealing with 2*32 bits of audio
+			 * and we're analt dealing with 2*32 bits of audio
 			 * samples.
 			 *
 			 * The SSP values used for that are all found out by
@@ -660,10 +660,10 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* When we use a network mode, we always require TDM slots
-	 * - complain loudly and fail if they've not been set up yet.
+	 * - complain loudly and fail if they've analt been set up yet.
 	 */
 	if ((sscr0 & SSCR0_MOD) && !ttsa) {
-		dev_err(ssp->dev, "No TDM timeslot configured\n");
+		dev_err(ssp->dev, "Anal TDM timeslot configured\n");
 		return -EINVAL;
 	}
 
@@ -751,21 +751,21 @@ static int pxa_ssp_probe(struct snd_soc_dai *dai)
 
 	priv = kzalloc(sizeof(struct ssp_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (dev->of_node) {
-		struct device_node *ssp_handle;
+	if (dev->of_analde) {
+		struct device_analde *ssp_handle;
 
-		ssp_handle = of_parse_phandle(dev->of_node, "port", 0);
+		ssp_handle = of_parse_phandle(dev->of_analde, "port", 0);
 		if (!ssp_handle) {
 			dev_err(dev, "unable to get 'port' phandle\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_priv;
 		}
 
 		priv->ssp = pxa_ssp_request_of(ssp_handle, "SoC audio");
 		if (priv->ssp == NULL) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_priv;
 		}
 
@@ -780,7 +780,7 @@ static int pxa_ssp_probe(struct snd_soc_dai *dai)
 	} else {
 		priv->ssp = pxa_ssp_request(dai->id + 1, "SoC audio");
 		if (priv->ssp == NULL) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_priv;
 		}
 	}

@@ -104,7 +104,7 @@
 #define MIPI_MAX_SIZE_L		0x84
 #define MIPI_MAX_SIZE_H		0x85
 #define DSI_CTRL		0x86
-#define DSI_CTRL_UNKNOWN		0x28
+#define DSI_CTRL_UNKANALWN		0x28
 #define DSI_CTRL_DSI_LANES(n)		((n) & 0x3)
 #define MIPI_PN_SWAP		0x87
 #define MIPI_PN_SWAP_CLK		BIT(4)
@@ -171,8 +171,8 @@ static const struct regmap_range chipone_dsi_readable_ranges[] = {
 };
 
 static const struct regmap_access_table chipone_dsi_readable_table = {
-	.yes_ranges = chipone_dsi_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(chipone_dsi_readable_ranges),
+	.anal_ranges = chipone_dsi_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(chipone_dsi_readable_ranges),
 };
 
 static const struct regmap_range chipone_dsi_writeable_ranges[] = {
@@ -188,8 +188,8 @@ static const struct regmap_range chipone_dsi_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table chipone_dsi_writeable_table = {
-	.yes_ranges = chipone_dsi_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(chipone_dsi_writeable_ranges),
+	.anal_ranges = chipone_dsi_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(chipone_dsi_writeable_ranges),
 };
 
 static const struct regmap_config chipone_regmap_config = {
@@ -411,7 +411,7 @@ static void chipone_atomic_enable(struct drm_bridge *bridge,
 
 	/* DSI data lane count */
 	chipone_writeb(icn, DSI_CTRL,
-		       DSI_CTRL_UNKNOWN | DSI_CTRL_DSI_LANES(icn->dsi->lanes - 1));
+		       DSI_CTRL_UNKANALWN | DSI_CTRL_DSI_LANES(icn->dsi->lanes - 1));
 
 	chipone_writeb(icn, MIPI_PD_CK_LANE, 0xa0);
 	chipone_writeb(icn, PLL_CTRL(12), 0xff);
@@ -515,10 +515,10 @@ static int chipone_dsi_attach(struct chipone *icn)
 	struct device *dev = icn->dev;
 	int dsi_lanes, ret;
 
-	dsi_lanes = drm_of_get_data_lanes_count_ep(dev->of_node, 0, 0, 1, 4);
+	dsi_lanes = drm_of_get_data_lanes_count_ep(dev->of_analde, 0, 0, 1, 4);
 
 	/*
-	 * If the 'data-lanes' property does not exist in DT or is invalid,
+	 * If the 'data-lanes' property does analt exist in DT or is invalid,
 	 * default to previously hard-coded behavior, which was 4 data lanes.
 	 */
 	if (dsi_lanes < 0)
@@ -528,7 +528,7 @@ static int chipone_dsi_attach(struct chipone *icn)
 
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 	dsi->hs_rate = 500000000;
 	dsi->lp_rate = 16000000;
 
@@ -542,8 +542,8 @@ static int chipone_dsi_attach(struct chipone *icn)
 static int chipone_dsi_host_attach(struct chipone *icn)
 {
 	struct device *dev = icn->dev;
-	struct device_node *host_node;
-	struct device_node *endpoint;
+	struct device_analde *host_analde;
+	struct device_analde *endpoint;
 	struct mipi_dsi_device *dsi;
 	struct mipi_dsi_host *host;
 	int ret = 0;
@@ -551,18 +551,18 @@ static int chipone_dsi_host_attach(struct chipone *icn)
 	const struct mipi_dsi_device_info info = {
 		.type = "chipone",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	};
 
-	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
-	host_node = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_analde, 0, 0);
+	host_analde = of_graph_get_remote_port_parent(endpoint);
+	of_analde_put(endpoint);
 
-	if (!host_node)
+	if (!host_analde)
 		return -EINVAL;
 
-	host = of_find_mipi_dsi_host_by_node(host_node);
-	of_node_put(host_node);
+	host = of_find_mipi_dsi_host_by_analde(host_analde);
+	of_analde_put(host_analde);
 	if (!host) {
 		dev_err(dev, "failed to find dsi host\n");
 		return -EPROBE_DEFER;
@@ -680,7 +680,7 @@ static int chipone_parse_dt(struct chipone *icn)
 		return PTR_ERR(icn->enable_gpio);
 	}
 
-	icn->panel_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 1, 0);
+	icn->panel_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 1, 0);
 	if (IS_ERR(icn->panel_bridge))
 		return PTR_ERR(icn->panel_bridge);
 
@@ -694,7 +694,7 @@ static int chipone_common_probe(struct device *dev, struct chipone **icnr)
 
 	icn = devm_kzalloc(dev, sizeof(struct chipone), GFP_KERNEL);
 	if (!icn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	icn->dev = dev;
 
@@ -704,7 +704,7 @@ static int chipone_common_probe(struct device *dev, struct chipone **icnr)
 
 	icn->bridge.funcs = &chipone_bridge_funcs;
 	icn->bridge.type = DRM_MODE_CONNECTOR_DPI;
-	icn->bridge.of_node = dev->of_node;
+	icn->bridge.of_analde = dev->of_analde;
 
 	*icnr = icn;
 

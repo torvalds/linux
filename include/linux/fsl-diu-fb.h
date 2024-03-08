@@ -44,7 +44,7 @@ struct aoi_display_offset {
 /*
  * The MPC5121 BSP comes with a gamma_set utility that initializes the
  * gamma table.  Unfortunately, it uses bad values for the IOCTL commands,
- * but there's nothing we can do about it now.  These ioctls are only
+ * but there's analthing we can do about it analw.  These ioctls are only
  * supported on the MPC5121.
  */
 #define MFB_SET_GAMMA		_IOW('M', 1, __u8)

@@ -38,7 +38,7 @@ static inline void scr_memsetw(u16 *s, u16 c, unsigned int count)
 		memset16(s, c, count / 2);
 }
 
-/* Do not trust that the usage will be correct; analyze the arguments.  */
+/* Do analt trust that the usage will be correct; analyze the arguments.  */
 extern void scr_memcpyw(u16 *d, const u16 *s, unsigned int count);
 
 /* ??? These are currently only used for downloading character sets.  As

@@ -2,7 +2,7 @@
 /*
  * Pin-multiplex helper macros for TI DaVinci family devices
  *
- * Author: Vladimir Barinov, MontaVista Software, Inc. <source@mvista.com>
+ * Author: Vladimir Barianalv, MontaVista Software, Inc. <source@mvista.com>
  *
  * 2007 (c) MontaVista Software, Inc.
  *
@@ -656,7 +656,7 @@ enum davinci_da850_index {
 extern int davinci_cfg_reg(unsigned long reg_cfg);
 extern int davinci_cfg_reg_list(const short pins[]);
 #else
-/* boot loader does it all (no warnings from CONFIG_DAVINCI_MUX_WARNINGS) */
+/* boot loader does it all (anal warnings from CONFIG_DAVINCI_MUX_WARNINGS) */
 static inline int davinci_cfg_reg(unsigned long reg_cfg) { return 0; }
 static inline int davinci_cfg_reg_list(const short pins[])
 {

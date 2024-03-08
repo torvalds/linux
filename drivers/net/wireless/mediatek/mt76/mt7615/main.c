@@ -196,13 +196,13 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	mvif->mt76.idx = __ffs64(~dev->mt76.vif_mask);
 	if (mvif->mt76.idx >= MT7615_MAX_INTERFACES) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
 	idx = get_omac_idx(vif->type, dev->omac_mask);
 	if (idx < 0) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 	mvif->mt76.omac_idx = idx;
@@ -321,7 +321,7 @@ int mt7615_set_channel(struct mt7615_phy *phy)
 		goto out;
 
 	mt7615_mac_reset_counters(phy);
-	phy->noise = 0;
+	phy->analise = 0;
 	phy->chfreq = mt76_rr(dev, MT_CHFREQ(ext_phy));
 
 out:
@@ -353,7 +353,7 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int idx = key->keyidx, err = 0;
 	u8 *wcid_keyidx = &wcid->hw_key_idx;
 
-	/* The hardware does not support per-STA RX GTK, fallback
+	/* The hardware does analt support per-STA RX GTK, fallback
 	 * to software mode for these.
 	 */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -361,7 +361,7 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* fall back to sw encryption for unsupported ciphers */
 	switch (key->cipher) {
@@ -379,7 +379,7 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mt7615_mutex_acquire(dev);
@@ -655,7 +655,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7615_WTBL_STA - 1);
 	if (idx < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	INIT_LIST_HEAD(&msta->wcid.poll_list);
 	msta->vif = mvif;
@@ -875,16 +875,16 @@ static int
 mt7615_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       struct ieee80211_sta *sta)
 {
-    return mt76_sta_state(hw, vif, sta, IEEE80211_STA_NOTEXIST,
-			  IEEE80211_STA_NONE);
+    return mt76_sta_state(hw, vif, sta, IEEE80211_STA_ANALTEXIST,
+			  IEEE80211_STA_ANALNE);
 }
 
 static int
 mt7615_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  struct ieee80211_sta *sta)
 {
-    return mt76_sta_state(hw, vif, sta, IEEE80211_STA_NONE,
-			  IEEE80211_STA_NOTEXIST);
+    return mt76_sta_state(hw, vif, sta, IEEE80211_STA_ANALNE,
+			  IEEE80211_STA_ANALTEXIST);
 }
 
 static int
@@ -1135,7 +1135,7 @@ mt7615_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int err;
 
 	if (!mt7615_firmware_offload(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mt7615_mutex_acquire(dev);
 
@@ -1158,7 +1158,7 @@ mt7615_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	int err;
 
 	if (!mt7615_firmware_offload(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mt7615_mutex_acquire(dev);
 	err = mt76_connac_mcu_sched_scan_enable(mphy, vif, false);

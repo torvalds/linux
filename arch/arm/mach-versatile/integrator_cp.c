@@ -60,7 +60,7 @@ static void __init intcp_map_io(void)
 
 /*
  * It seems that the card insertion interrupt remains active after
- * we've acknowledged it.  We therefore ignore the interrupt, and
+ * we've ackanalwledged it.  We therefore iganalre the interrupt, and
  * rely on reading it from the SIC.  This also means that we must
  * clear the latched interrupt.
  */
@@ -77,7 +77,7 @@ static struct mmci_platform_data mmc_data = {
 	.status		= mmc_status,
 };
 
-static u64 notrace intcp_read_sched_clock(void)
+static u64 analtrace intcp_read_sched_clock(void)
 {
 	unsigned int val;
 
@@ -117,9 +117,9 @@ static const struct of_device_id intcp_syscon_match[] = {
 
 static void __init intcp_init_of(void)
 {
-	struct device_node *cpcon;
+	struct device_analde *cpcon;
 
-	cpcon = of_find_matching_node(NULL, intcp_syscon_match);
+	cpcon = of_find_matching_analde(NULL, intcp_syscon_match);
 	if (!cpcon)
 		return;
 

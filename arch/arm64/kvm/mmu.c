@@ -51,7 +51,7 @@ static phys_addr_t stage2_range_addr_end(phys_addr_t addr, phys_addr_t end)
  * we may see kernel panics with CONFIG_DETECT_HUNG_TASK,
  * CONFIG_LOCKUP_DETECTOR, CONFIG_LOCKDEP. Additionally, holding the lock too
  * long will also starve other vCPUs. We have to also make sure that the page
- * tables are not freed while we released the lock.
+ * tables are analt freed while we released the lock.
  */
 static int stage2_apply_range(struct kvm_s2_mmu *mmu, phys_addr_t addr,
 			      phys_addr_t end,
@@ -190,7 +190,7 @@ static void *stage2_memcache_zalloc_page(void *arg)
 	struct kvm_mmu_memory_cache *mc = arg;
 	void *virt;
 
-	/* Allocated with __GFP_ZERO, so no need to zero */
+	/* Allocated with __GFP_ZERO, so anal need to zero */
 	virt = kvm_mmu_memory_cache_alloc(mc);
 	if (virt)
 		kvm_account_pgtable_pages(virt, 1);
@@ -285,12 +285,12 @@ static void invalidate_icache_guest_page(void *va, size_t size)
  *
  * If a guest maps certain memory pages as uncached, all writes will
  * bypass the data cache and go directly to RAM.  However, the CPUs
- * can still speculate reads (not writes) and fill cache lines with
+ * can still speculate reads (analt writes) and fill cache lines with
  * data.
  *
  * Those cache lines will be *clean* cache lines though, so a
  * clean+invalidate operation is equivalent to an invalidate
- * operation, because no cache lines are marked dirty.
+ * operation, because anal cache lines are marked dirty.
  *
  * Those clean cache lines could be filled prior to an uncached write
  * by the guest, and the cache coherent IO subsystem would therefore
@@ -301,7 +301,7 @@ static void invalidate_icache_guest_page(void *va, size_t size)
  * never hit in the cache.
  *
  * This is all avoided on systems that have ARM64_HAS_STAGE2_FWB, as
- * we then fully enforce cacheability of RAM, no matter what the guest
+ * we then fully enforce cacheability of RAM, anal matter what the guest
  * does.
  */
 /**
@@ -309,11 +309,11 @@ static void invalidate_icache_guest_page(void *va, size_t size)
  * @mmu:   The KVM stage-2 MMU pointer
  * @start: The intermediate physical base address of the range to unmap
  * @size:  The size of the area to unmap
- * @may_block: Whether or not we are permitted to block
+ * @may_block: Whether or analt we are permitted to block
  *
  * Clear a range of stage-2 mappings, lowering the various ref-counts.  Must
  * be called while holding mmu_lock (unless for freeing the stage2 pgd before
- * destroying the VM), otherwise another faulting VCPU may come in and mess
+ * destroying the VM), otherwise aanalther faulting VCPU may come in and mess
  * with things behind our backs.
  */
 static void __unmap_stage2_range(struct kvm_s2_mmu *mmu, phys_addr_t start, u64 size,
@@ -391,7 +391,7 @@ static bool kvm_host_owns_hyp_mappings(void)
 	/*
 	 * This can happen at boot time when __create_hyp_mappings() is called
 	 * after the hyp protection has been enabled, but the static key has
-	 * not been flipped yet.
+	 * analt been flipped yet.
 	 */
 	if (!hyp_pgtable && is_protected_kvm_enabled())
 		return false;
@@ -430,26 +430,26 @@ static phys_addr_t kvm_kaddr_to_phys(void *kaddr)
 struct hyp_shared_pfn {
 	u64 pfn;
 	int count;
-	struct rb_node node;
+	struct rb_analde analde;
 };
 
 static DEFINE_MUTEX(hyp_shared_pfns_lock);
 static struct rb_root hyp_shared_pfns = RB_ROOT;
 
-static struct hyp_shared_pfn *find_shared_pfn(u64 pfn, struct rb_node ***node,
-					      struct rb_node **parent)
+static struct hyp_shared_pfn *find_shared_pfn(u64 pfn, struct rb_analde ***analde,
+					      struct rb_analde **parent)
 {
 	struct hyp_shared_pfn *this;
 
-	*node = &hyp_shared_pfns.rb_node;
+	*analde = &hyp_shared_pfns.rb_analde;
 	*parent = NULL;
-	while (**node) {
-		this = container_of(**node, struct hyp_shared_pfn, node);
-		*parent = **node;
+	while (**analde) {
+		this = container_of(**analde, struct hyp_shared_pfn, analde);
+		*parent = **analde;
 		if (this->pfn < pfn)
-			*node = &((**node)->rb_left);
+			*analde = &((**analde)->rb_left);
 		else if (this->pfn > pfn)
-			*node = &((**node)->rb_right);
+			*analde = &((**analde)->rb_right);
 		else
 			return this;
 	}
@@ -459,12 +459,12 @@ static struct hyp_shared_pfn *find_shared_pfn(u64 pfn, struct rb_node ***node,
 
 static int share_pfn_hyp(u64 pfn)
 {
-	struct rb_node **node, *parent;
+	struct rb_analde **analde, *parent;
 	struct hyp_shared_pfn *this;
 	int ret = 0;
 
 	mutex_lock(&hyp_shared_pfns_lock);
-	this = find_shared_pfn(pfn, &node, &parent);
+	this = find_shared_pfn(pfn, &analde, &parent);
 	if (this) {
 		this->count++;
 		goto unlock;
@@ -472,14 +472,14 @@ static int share_pfn_hyp(u64 pfn)
 
 	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (!this) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
 	this->pfn = pfn;
 	this->count = 1;
-	rb_link_node(&this->node, parent, node);
-	rb_insert_color(&this->node, &hyp_shared_pfns);
+	rb_link_analde(&this->analde, parent, analde);
+	rb_insert_color(&this->analde, &hyp_shared_pfns);
 	ret = kvm_call_hyp_nvhe(__pkvm_host_share_hyp, pfn, 1);
 unlock:
 	mutex_unlock(&hyp_shared_pfns_lock);
@@ -489,14 +489,14 @@ unlock:
 
 static int unshare_pfn_hyp(u64 pfn)
 {
-	struct rb_node **node, *parent;
+	struct rb_analde **analde, *parent;
 	struct hyp_shared_pfn *this;
 	int ret = 0;
 
 	mutex_lock(&hyp_shared_pfns_lock);
-	this = find_shared_pfn(pfn, &node, &parent);
+	this = find_shared_pfn(pfn, &analde, &parent);
 	if (WARN_ON(!this)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock;
 	}
 
@@ -504,7 +504,7 @@ static int unshare_pfn_hyp(u64 pfn)
 	if (this->count)
 		goto unlock;
 
-	rb_erase(&this->node, &hyp_shared_pfns);
+	rb_erase(&this->analde, &hyp_shared_pfns);
 	kfree(this);
 	ret = kvm_call_hyp_nvhe(__pkvm_host_unshare_hyp, pfn, 1);
 unlock:
@@ -525,7 +525,7 @@ int kvm_share_hyp(void *from, void *to)
 	/*
 	 * The share hcall maps things in the 'fixed-offset' region of the hyp
 	 * VA space, so we can only share physically contiguous data-structures
-	 * for now.
+	 * for analw.
 	 */
 	if (is_vmalloc_or_module_addr(from) || is_vmalloc_or_module_addr(to))
 		return -EINVAL;
@@ -613,7 +613,7 @@ static int __hyp_alloc_private_va_range(unsigned long base)
 	 * overflowed the idmap/IO address range.
 	 */
 	if ((base ^ io_map_base) & BIT(VA_BITS - 1))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	io_map_base = base;
 
@@ -638,8 +638,8 @@ int hyp_alloc_private_va_range(size_t size, unsigned long *haddr)
 	mutex_lock(&kvm_hyp_pgd_mutex);
 
 	/*
-	 * This assumes that we have enough space below the idmap
-	 * page to allocate our VAs. If not, the check in
+	 * This assumes that we have eanalugh space below the idmap
+	 * page to allocate our VAs. If analt, the check in
 	 * __hyp_alloc_private_va_range() will kick. A potential
 	 * alternative would be to detect that overflow and switch
 	 * to an allocation above the idmap.
@@ -707,7 +707,7 @@ int create_hyp_stack(phys_addr_t phys_addr, unsigned long *haddr)
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 
 	if (ret) {
-		kvm_err("Cannot allocate hyp stack guard page\n");
+		kvm_err("Cananalt allocate hyp stack guard page\n");
 		return ret;
 	}
 
@@ -716,14 +716,14 @@ int create_hyp_stack(phys_addr_t phys_addr, unsigned long *haddr)
 	 * at the higher address and leave the lower guard page
 	 * unbacked.
 	 *
-	 * Any valid stack address now has the PAGE_SHIFT bit as 1
+	 * Any valid stack address analw has the PAGE_SHIFT bit as 1
 	 * and addresses corresponding to the guard page have the
 	 * PAGE_SHIFT bit as 0 - this is used for overflow detection.
 	 */
 	ret = __create_hyp_mappings(base + PAGE_SIZE, PAGE_SIZE, phys_addr,
 				    PAGE_HYP);
 	if (ret)
-		kvm_err("Cannot map hyp stack\n");
+		kvm_err("Cananalt map hyp stack\n");
 
 	*haddr = base + size;
 
@@ -749,7 +749,7 @@ int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
 
 	*kaddr = ioremap(phys_addr, size);
 	if (!*kaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (is_kernel_in_hyp_mode()) {
 		*haddr = *kaddr;
@@ -826,7 +826,7 @@ static int get_user_mapping_size(struct kvm *kvm, u64 addr)
 		return ret;
 
 	/*
-	 * Not seeing an error, but not updating level? Something went
+	 * Analt seeing an error, but analt updating level? Something went
 	 * deeply wrong...
 	 */
 	if (WARN_ON(level > KVM_PGTABLE_LAST_LEVEL))
@@ -862,7 +862,7 @@ static struct kvm_pgtable_mm_ops kvm_s2_mm_ops = {
  * @type:	The machine type of the virtual machine
  *
  * Allocates only the stage-2 HW PGD level table(s).
- * Note we don't need locking here as this is only called when the VM is
+ * Analte we don't need locking here as this is only called when the VM is
  * created, which can only be done once.
  */
 int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long type)
@@ -903,7 +903,7 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long t
 
 	pgt = kzalloc(sizeof(*pgt), GFP_KERNEL_ACCOUNT);
 	if (!pgt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmu->arch = &kvm->arch;
 	err = kvm_pgtable_stage2_init(pgt, mmu, &kvm_s2_mm_ops);
@@ -912,7 +912,7 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long t
 
 	mmu->last_vcpu_ran = alloc_percpu(typeof(*mmu->last_vcpu_ran));
 	if (!mmu->last_vcpu_ran) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_destroy_pgtable;
 	}
 
@@ -1061,7 +1061,7 @@ int topup_hyp_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages)
  * @guest_ipa:	The IPA at which to insert the mapping
  * @pa:		The physical address of the device
  * @size:	The size of the mapping
- * @writable:   Whether or not to create a writable mapping
+ * @writable:   Whether or analt to create a writable mapping
  */
 int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 			  phys_addr_t pa, unsigned long size, bool writable)
@@ -1199,7 +1199,7 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 	 * also check for initially-all-set because we can avoid
 	 * eager-splitting if initially-all-set is false.
 	 * Initially-all-set equal false implies that huge-pages were
-	 * already split when enabling dirty logging: no need to do it
+	 * already split when enabling dirty logging: anal need to do it
 	 * again.
 	 */
 	if (kvm_dirty_log_manual_protect_and_init_set(kvm))
@@ -1232,7 +1232,7 @@ static bool fault_supports_stage2_huge_mapping(struct kvm_memory_slot *memslot,
 
 	/*
 	 * Pages belonging to memslots that don't have the same alignment
-	 * within a PMD/PUD for userspace and IPA cannot be mapped with stage-2
+	 * within a PMD/PUD for userspace and IPA cananalt be mapped with stage-2
 	 * PMD/PUD entries, because we'll end up mapping the wrong pages.
 	 *
 	 * Consider a layout like the following:
@@ -1257,14 +1257,14 @@ static bool fault_supports_stage2_huge_mapping(struct kvm_memory_slot *memslot,
 		return false;
 
 	/*
-	 * Next, let's make sure we're not trying to map anything not covered
+	 * Next, let's make sure we're analt trying to map anything analt covered
 	 * by the memslot. This means we have to prohibit block size mappings
-	 * for the beginning and end of a non-block aligned and non-block sized
+	 * for the beginning and end of a analn-block aligned and analn-block sized
 	 * memory slot (illustrated by the head and tail parts of the
 	 * userspace view above containing pages 'abcde' and 'xyz',
 	 * respectively).
 	 *
-	 * Note that it doesn't matter if we do the check using the
+	 * Analte that it doesn't matter if we do the check using the
 	 * userspace_addr or the base_gfn, as both are equally aligned (per
 	 * the check above) and equally sized.
 	 */
@@ -1308,7 +1308,7 @@ transparent_hugepage_adjust(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		return PMD_SIZE;
 	}
 
-	/* Use page mapping if we cannot use block mapping. */
+	/* Use page mapping if we cananalt use block mapping. */
 	return PAGE_SIZE;
 }
 
@@ -1342,7 +1342,7 @@ static int get_vma_page_shift(struct vm_area_struct *vma, unsigned long hva)
 }
 
 /*
- * The page will be mapped in stage 2 as Normal Cacheable, so the VM will be
+ * The page will be mapped in stage 2 as Analrmal Cacheable, so the VM will be
  * able to see the page's tags and therefore they must be initialised first. If
  * PG_mte_tagged is set, tags have already been initialised.
  *
@@ -1407,7 +1407,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 
 	/*
 	 * Permission faults just need to update the existing leaf entry,
-	 * and so normally don't require allocations from the memcache. The
+	 * and so analrmally don't require allocations from the memcache. The
 	 * only exception to this is when dirty logging is enabled at runtime
 	 * and a write fault needs to collapse a block entry into a table.
 	 */
@@ -1462,7 +1462,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	case PAGE_SHIFT:
 		break;
 	default:
-		WARN_ONCE(1, "Unknown vma_shift %d", vma_shift);
+		WARN_ONCE(1, "Unkanalwn vma_shift %d", vma_shift);
 	}
 
 	vma_pagesize = 1UL << vma_shift;
@@ -1492,7 +1492,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		kvm_send_hwpoison_signal(hva, vma_shift);
 		return 0;
 	}
-	if (is_error_noslot_pfn(pfn))
+	if (is_error_analslot_pfn(pfn))
 		return -EFAULT;
 
 	if (kvm_is_device_pfn(pfn)) {
@@ -1501,7 +1501,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		 * the VMA flags, vma_pagesize is already representing the
 		 * largest quantity we can map.  If instead it was mapped
 		 * via gfn_to_pfn_prot(), vma_pagesize is set to PAGE_SIZE
-		 * and must not be upgraded.
+		 * and must analt be upgraded.
 		 *
 		 * In both cases, we don't let transparent_hugepage_adjust()
 		 * change things at the last minute.
@@ -1516,7 +1516,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	}
 
 	if (exec_fault && device)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	read_lock(&kvm->mmu_lock);
 	pgt = vcpu->arch.hw_mmu->pgt;
@@ -1524,7 +1524,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		goto out_unlock;
 
 	/*
-	 * If we are not forced to use page mapping, check if we are
+	 * If we are analt forced to use page mapping, check if we are
 	 * backed by a THP and thus use block mapping if possible.
 	 */
 	if (vma_pagesize == PAGE_SIZE && !(force_pte || device)) {
@@ -1650,11 +1650,11 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	/* Synchronous External Abort? */
+	/* Synchroanalus External Abort? */
 	if (kvm_vcpu_abt_issea(vcpu)) {
 		/*
 		 * For RAS the host kernel may handle this abort.
-		 * There is no need to pass the error into the guest.
+		 * There is anal need to pass the error into the guest.
 		 */
 		if (kvm_handle_guest_sea(fault_ipa, kvm_vcpu_get_esr(vcpu)))
 			kvm_inject_vabt(vcpu);
@@ -1686,11 +1686,11 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		/*
 		 * The guest has put either its instructions or its page-tables
 		 * somewhere it shouldn't have. Userspace won't be able to do
-		 * anything about this (there's no syndrome for a start), so
+		 * anything about this (there's anal syndrome for a start), so
 		 * re-inject the abort back into the guest.
 		 */
 		if (is_iabt) {
-			ret = -ENOEXEC;
+			ret = -EANALEXEC;
 			goto out;
 		}
 
@@ -1702,10 +1702,10 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 
 		/*
 		 * Check for a cache maintenance operation. Since we
-		 * ended-up here, we know it is outside of any memory
+		 * ended-up here, we kanalw it is outside of any memory
 		 * slot. But we can't find out if that is for a device,
 		 * or if the guest is just being stupid. The only thing
-		 * we know for sure is that this range cannot be cached.
+		 * we kanalw for sure is that this range cananalt be cached.
 		 *
 		 * So let's assume that the guest is just being
 		 * cautious, and skip the instruction.
@@ -1727,7 +1727,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		goto out_unlock;
 	}
 
-	/* Userspace should not be able to register out-of-bounds IPAs */
+	/* Userspace should analt be able to register out-of-bounds IPAs */
 	VM_BUG_ON(fault_ipa >= kvm_phys_size(vcpu->arch.hw_mmu));
 
 	if (esr_fsc_is_access_flag_fault(esr)) {
@@ -1741,7 +1741,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 	if (ret == 0)
 		ret = 1;
 out:
-	if (ret == -ENOEXEC) {
+	if (ret == -EANALEXEC) {
 		kvm_inject_pabt(vcpu, kvm_vcpu_get_hfar(vcpu));
 		ret = 1;
 	}
@@ -1774,7 +1774,7 @@ bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	/*
 	 * If the page isn't tagged, defer to user_mem_abort() for sanitising
 	 * the MTE tags. The S2 pte should have been unmapped by
-	 * mmu_notifier_invalidate_range_end().
+	 * mmu_analtifier_invalidate_range_end().
 	 */
 	if (kvm_has_mte(kvm) && !page_mte_tagged(pfn_to_page(pfn)))
 		return false;
@@ -1784,10 +1784,10 @@ bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	 * it just like a translation fault and the map handler will clean
 	 * the cache to the PoC.
 	 *
-	 * The MMU notifiers will have unmapped a huge PMD before calling
+	 * The MMU analtifiers will have unmapped a huge PMD before calling
 	 * ->change_pte() (which in turn calls kvm_set_spte_gfn()) and
 	 * therefore we never need to clear out a huge PMD through this
-	 * calling path and a memcache is not required.
+	 * calling path and a memcache is analt required.
 	 */
 	kvm_pgtable_stage2_map(kvm->arch.mmu.pgt, range->start << PAGE_SHIFT,
 			       PAGE_SIZE, __pfn_to_phys(pfn),
@@ -1869,7 +1869,7 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 
 	/*
 	 * We rely on the linker script to ensure at build time that the HYP
-	 * init code does not cross a page boundary.
+	 * init code does analt cross a page boundary.
 	 */
 	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
@@ -1909,7 +1909,7 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 	    hyp_idmap_start != (unsigned long)__hyp_idmap_text_start) {
 		/*
 		 * The idmap page is intersecting with the VA space,
-		 * it is not safe to continue further.
+		 * it is analt safe to continue further.
 		 */
 		kvm_err("IDMAP intersecting with HYP VA, unable to continue\n");
 		err = -EINVAL;
@@ -1918,8 +1918,8 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 
 	hyp_pgtable = kzalloc(sizeof(*hyp_pgtable), GFP_KERNEL);
 	if (!hyp_pgtable) {
-		kvm_err("Hyp mode page-table not allocated\n");
-		err = -ENOMEM;
+		kvm_err("Hyp mode page-table analt allocated\n");
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1961,7 +1961,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 			return;
 
 		/*
-		 * Huge and normal pages are write-protected and split
+		 * Huge and analrmal pages are write-protected and split
 		 * on either of these two cases:
 		 *
 		 * 1. with initial-all-set: gradually with CLEAR ioctls,
@@ -1979,8 +1979,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 		/*
 		 * Free any leftovers from the eager page splitting cache. Do
 		 * this when deleting, moving, disabling dirty logging, or
-		 * creating the memslot (a nop). Doing it for deletes makes
-		 * sure we don't leak memory, and there's no need to keep the
+		 * creating the memslot (a analp). Doing it for deletes makes
+		 * sure we don't leak memory, and there's anal need to keep the
 		 * cache around for any of the other cases.
 		 */
 		kvm_mmu_free_memory_cache(&kvm->arch.mmu.split_page_cache);
@@ -2034,7 +2034,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		}
 
 		if (vma->vm_flags & VM_PFNMAP) {
-			/* IO region dirty page logging not allowed */
+			/* IO region dirty page logging analt allowed */
 			if (new->flags & KVM_MEM_LOG_DIRTY_PAGES) {
 				ret = -EINVAL;
 				break;
@@ -2072,15 +2072,15 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 }
 
 /*
- * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ * See analte at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are analt easily virtualized).
  *
  * Main problems:
- * - S/W ops are local to a CPU (not broadcast)
+ * - S/W ops are local to a CPU (analt broadcast)
  * - We have line migration behind our back (speculation)
  * - System caches don't support S/W at all (damn!)
  *
  * In the face of the above, the best we can do is to try and convert
- * S/W ops to VA ops. Because the guest is not allowed to infer the
+ * S/W ops to VA ops. Because the guest is analt allowed to infer the
  * S/W to PA mapping, it can only use S/W to nuke the whole cache,
  * which is a rather good thing for us.
  *
@@ -2105,7 +2105,7 @@ void kvm_set_way_flush(struct kvm_vcpu *vcpu)
 
 	/*
 	 * If this is the first time we do a S/W operation
-	 * (i.e. HCR_TVM not set) flush the whole memory, and set the
+	 * (i.e. HCR_TVM analt set) flush the whole memory, and set the
 	 * VM trapping.
 	 *
 	 * Otherwise, rely on the VM trapping to wait for the MMU +
@@ -2122,19 +2122,19 @@ void kvm_set_way_flush(struct kvm_vcpu *vcpu)
 
 void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled)
 {
-	bool now_enabled = vcpu_has_cache_enabled(vcpu);
+	bool analw_enabled = vcpu_has_cache_enabled(vcpu);
 
 	/*
 	 * If switching the MMU+caches on, need to invalidate the caches.
 	 * If switching it off, need to clean the caches.
 	 * Clean + invalidate does the trick always.
 	 */
-	if (now_enabled != was_enabled)
+	if (analw_enabled != was_enabled)
 		stage2_flush_vm(vcpu->kvm);
 
-	/* Caches are now on, stop trapping VM ops (until a S/W op) */
-	if (now_enabled)
+	/* Caches are analw on, stop trapping VM ops (until a S/W op) */
+	if (analw_enabled)
 		*vcpu_hcr(vcpu) &= ~HCR_TVM;
 
-	trace_kvm_toggle_cache(*vcpu_pc(vcpu), was_enabled, now_enabled);
+	trace_kvm_toggle_cache(*vcpu_pc(vcpu), was_enabled, analw_enabled);
 }

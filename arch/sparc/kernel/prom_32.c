@@ -38,23 +38,23 @@ void * __init prom_early_alloc(unsigned long size)
 }
 
 /* The following routines deal with the black magic of fully naming a
- * node.
+ * analde.
  *
- * Certain well known named nodes are just the simple name string.
+ * Certain well kanalwn named analdes are just the simple name string.
  *
  * Actual devices have an address specifier appended to the base name
  * string, like this "foo@addr".  The "addr" can be in any number of
- * formats, and the platform plus the type of the node determine the
+ * formats, and the platform plus the type of the analde determine the
  * format and how it is constructed.
  *
- * For children of the ROOT node, the naming convention is fixed and
+ * For children of the ROOT analde, the naming convention is fixed and
  * determined by whether this is a sun4u or sun4v system.
  *
- * For children of other nodes, it is bus type specific.  So
+ * For children of other analdes, it is bus type specific.  So
  * we walk up the tree until we discover a "device_type" property
  * we recognize and we go from there.
  */
-static void __init sparc32_path_component(struct device_node *dp, char *tmp_buf)
+static void __init sparc32_path_component(struct device_analde *dp, char *tmp_buf)
 {
 	const char *name = of_get_property(dp, "name", NULL);
 	struct linux_prom_registers *regs;
@@ -71,7 +71,7 @@ static void __init sparc32_path_component(struct device_node *dp, char *tmp_buf)
 }
 
 /* "name@slot,offset"  */
-static void __init sbus_path_component(struct device_node *dp, char *tmp_buf)
+static void __init sbus_path_component(struct device_analde *dp, char *tmp_buf)
 {
 	const char *name = of_get_property(dp, "name", NULL);
 	struct linux_prom_registers *regs;
@@ -89,7 +89,7 @@ static void __init sbus_path_component(struct device_node *dp, char *tmp_buf)
 }
 
 /* "name@devnum[,func]" */
-static void __init pci_path_component(struct device_node *dp, char *tmp_buf)
+static void __init pci_path_component(struct device_analde *dp, char *tmp_buf)
 {
 	const char *name = of_get_property(dp, "name", NULL);
 	struct linux_prom_pci_registers *regs;
@@ -115,7 +115,7 @@ static void __init pci_path_component(struct device_node *dp, char *tmp_buf)
 }
 
 /* "name@addrhi,addrlo" */
-static void __init ebus_path_component(struct device_node *dp, char *tmp_buf)
+static void __init ebus_path_component(struct device_analde *dp, char *tmp_buf)
 {
 	const char *name = of_get_property(dp, "name", NULL);
 	struct linux_prom_registers *regs;
@@ -133,7 +133,7 @@ static void __init ebus_path_component(struct device_node *dp, char *tmp_buf)
 }
 
 /* "name@irq,addrlo" */
-static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
+static void __init ambapp_path_component(struct device_analde *dp, char *tmp_buf)
 {
 	const char *name = of_get_property(dp, "name", NULL);
 	struct amba_prom_registers *regs;
@@ -143,7 +143,7 @@ static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
 	int interrupt = 0;
 
 	/* In order to get a unique ID in the device tree (multiple AMBA devices
-	 * may have the same name) the node number is printed
+	 * may have the same name) the analde number is printed
 	 */
 	prop = of_find_property(dp, "reg", NULL);
 	if (!prop) {
@@ -153,29 +153,29 @@ static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
 		reg0 = regs->phys_addr;
 	}
 
-	/* Not all cores have Interrupt */
+	/* Analt all cores have Interrupt */
 	prop = of_find_property(dp, "interrupts", NULL);
 	if (!prop)
-		intr = &interrupt; /* IRQ0 does not exist */
+		intr = &interrupt; /* IRQ0 does analt exist */
 	else
 		intr = prop->value;
 
 	sprintf(tmp_buf, "%s@%x,%x", name, *intr, reg0);
 }
 
-static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
+static void __init __build_path_component(struct device_analde *dp, char *tmp_buf)
 {
-	struct device_node *parent = dp->parent;
+	struct device_analde *parent = dp->parent;
 
 	if (parent != NULL) {
-		if (of_node_is_type(parent, "pci") ||
-		    of_node_is_type(parent, "pciex"))
+		if (of_analde_is_type(parent, "pci") ||
+		    of_analde_is_type(parent, "pciex"))
 			return pci_path_component(dp, tmp_buf);
-		if (of_node_is_type(parent, "sbus"))
+		if (of_analde_is_type(parent, "sbus"))
 			return sbus_path_component(dp, tmp_buf);
-		if (of_node_is_type(parent, "ebus"))
+		if (of_analde_is_type(parent, "ebus"))
 			return ebus_path_component(dp, tmp_buf);
-		if (of_node_is_type(parent, "ambapp"))
+		if (of_analde_is_type(parent, "ambapp"))
 			return ambapp_path_component(dp, tmp_buf);
 
 		/* "isa" is handled with platform naming */
@@ -185,7 +185,7 @@ static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 	return sparc32_path_component(dp, tmp_buf);
 }
 
-char * __init build_path_component(struct device_node *dp)
+char * __init build_path_component(struct device_analde *dp)
 {
 	const char *name = of_get_property(dp, "name", NULL);
 	char tmp_buf[64], *n;
@@ -206,10 +206,10 @@ extern void restore_current(void);
 void __init of_console_init(void)
 {
 	char *msg = "OF stdout device is: %s\n";
-	struct device_node *dp;
+	struct device_analde *dp;
 	unsigned long flags;
 	const char *type;
-	phandle node;
+	phandle analde;
 	int skip, tmp, fd;
 
 	of_console_path = prom_early_alloc(256);
@@ -237,12 +237,12 @@ void __init of_console_init(void)
 		}
 
 		tmp = skip;
-		for_each_node_by_type(dp, type) {
+		for_each_analde_by_type(dp, type) {
 			if (!tmp--)
 				break;
 		}
 		if (!dp) {
-			prom_printf("Cannot find PROM_V0 console node.\n");
+			prom_printf("Cananalt find PROM_V0 console analde.\n");
 			prom_halt();
 		}
 		of_console_device = dp;
@@ -260,21 +260,21 @@ void __init of_console_init(void)
 		fd = *romvec->pv_v2bootargs.fd_stdout;
 
 		spin_lock_irqsave(&prom_lock, flags);
-		node = (*romvec->pv_v2devops.v2_inst2pkg)(fd);
+		analde = (*romvec->pv_v2devops.v2_inst2pkg)(fd);
 		restore_current();
 		spin_unlock_irqrestore(&prom_lock, flags);
 
-		if (!node) {
-			prom_printf("Cannot resolve stdout node from "
+		if (!analde) {
+			prom_printf("Cananalt resolve stdout analde from "
 				    "instance %08x.\n", fd);
 			prom_halt();
 		}
-		dp = of_find_node_by_phandle(node);
+		dp = of_find_analde_by_phandle(analde);
 
-		if (!of_node_is_type(dp, "display") &&
-		    !of_node_is_type(dp, "serial")) {
+		if (!of_analde_is_type(dp, "display") &&
+		    !of_analde_is_type(dp, "serial")) {
 			prom_printf("Console device_type is neither display "
-				    "nor serial.\n");
+				    "analr serial.\n");
 			prom_halt();
 		}
 
@@ -293,10 +293,10 @@ void __init of_console_init(void)
 		} else {
 			const char *path;
 
-			dp = of_find_node_by_path("/");
+			dp = of_find_analde_by_path("/");
 			path = of_get_property(dp, "stdout-path", NULL);
 			if (!path) {
-				prom_printf("No stdout-path in root node.\n");
+				prom_printf("Anal stdout-path in root analde.\n");
 				prom_halt();
 			}
 			strcpy(of_console_path, path);
@@ -318,6 +318,6 @@ void __init of_fill_in_cpu_data(void)
 {
 }
 
-void __init irq_trans_init(struct device_node *dp)
+void __init irq_trans_init(struct device_analde *dp)
 {
 }

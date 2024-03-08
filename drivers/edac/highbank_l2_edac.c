@@ -56,19 +56,19 @@ static int highbank_l2_err_probe(struct platform_device *pdev)
 	dci = edac_device_alloc_ctl_info(sizeof(*drvdata), "cpu",
 		1, "L", 1, 2, NULL, 0, 0);
 	if (!dci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata = dci->pvt_info;
 	dci->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dci);
 
 	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
 		dev_err(&pdev->dev, "Unable to get mem resource\n");
-		res = -ENODEV;
+		res = -EANALDEV;
 		goto err;
 	}
 
@@ -82,13 +82,13 @@ static int highbank_l2_err_probe(struct platform_device *pdev)
 	drvdata->base = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!drvdata->base) {
 		dev_err(&pdev->dev, "Unable to map regs\n");
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err;
 	}
 
 	id = of_match_device(hb_l2_err_of_match, &pdev->dev);
 	dci->mod_name = pdev->dev.driver->name;
-	dci->ctl_name = id ? id->compatible : "unknown";
+	dci->ctl_name = id ? id->compatible : "unkanalwn";
 	dci->dev_name = dev_name(&pdev->dev);
 
 	if (edac_device_add_device(dci))

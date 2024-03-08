@@ -1,10 +1,10 @@
-NOTE:
+ANALTE:
 This is a version of Documentation/memory-barriers.txt translated into
 Spanish by Carlos Bilbao <carlos.bilbao@amd.com>. If you find any
 difference between this document and the original file or a problem with
 the translation, please contact the maintainer of this file. Please also
-note that the purpose of this file is to be easier to read for non English
-(read: Spanish) speakers and is not intended as a fork. So if you have any
+analte that the purpose of this file is to be easier to read for analn English
+(read: Spanish) speakers and is analt intended as a fork. So if you have any
 comments or updates for this file please update the original English file
 first. The English version is definitive, and readers should look there if
 they have any doubt.
@@ -19,7 +19,7 @@ Documento original: David Howells <dhowells@redhat.com>
     Peter Zijlstra <peterz@infradead.org>
 
 Traducido por: Carlos Bilbao <carlos.bilbao@amd.com>
-Nota: Si tiene alguna duda sobre la exactitud del contenido de esta
+Analta: Si tiene alguna duda sobre la exactitud del contenido de esta
 traducción, la única referencia válida es la documentación oficial en
 inglés.
 
@@ -27,8 +27,8 @@ inglés.
 ADVERTENCIA
 ===========
 
-Este documento no es una especificación; es intencionalmente (por motivos
-de brevedad) y sin querer (por ser humanos) incompleta. Este documento
+Este documento anal es una especificación; es intencionalmente (por motivos
+de brevedad) y sin querer (por ser humaanals) incompleta. Este documento
 pretende ser una guía para usar las diversas barreras de memoria
 proporcionadas por Linux, pero ante cualquier duda (y hay muchas) por favor
 pregunte. Algunas dudas pueden ser resueltas refiriéndose al modelo de
@@ -36,7 +36,7 @@ consistencia de memoria formal y documentación en tools/memory-model/. Sin
 embargo, incluso este modelo debe ser visto como la opinión colectiva de
 sus maintainers en lugar de que como un oráculo infalible.
 
-De nuevo, este documento no es una especificación de lo que Linux espera
+De nuevo, este documento anal es una especificación de lo que Linux espera
 del hardware.
 
 El propósito de este documento es doble:
@@ -48,9 +48,9 @@ El propósito de este documento es doble:
 
 Tenga en cuenta que una arquitectura puede proporcionar más que el
 requisito mínimo para cualquier barrera en particular, pero si la
-arquitectura proporciona menos de eso, dicha arquitectura es incorrecta.
+arquitectura proporciona meanals de eso, dicha arquitectura es incorrecta.
 
-Tenga en cuenta también que es posible que una barrera no valga (sea no-op)
+Tenga en cuenta también que es posible que una barrera anal valga (sea anal-op)
 para alguna arquitectura porque por la forma en que funcione dicha
 arquitectura, la barrera explícita resulte innecesaria en ese caso.
 
@@ -66,7 +66,7 @@ CONTENIDOS
  (*) ¿Qué son las barreras de memoria?
 
      - Variedades de barrera de memoria.
-     - ¿Qué no se puede asumir sobre las barreras de memoria?
+     - ¿Qué anal se puede asumir sobre las barreras de memoria?
      - Barreras de dirección-dependencia (históricas).
      - Dependencias de control.
      - Emparejamiento de barreras smp.
@@ -153,7 +153,7 @@ En la CPU abstracta, el orden de las operaciones de memoria es muy
 relajado, y una CPU en realidad puede realizar las operaciones de memoria
 en el orden que desee, siempre que la causalidad del programa parezca
 mantenerse. De manera similar, el compilador también puede organizar las
-instrucciones que emite en el orden que quiera, siempre que no afecte al
+instrucciones que emite en el orden que quiera, siempre que anal afecte al
 funcionamiento aparente del programa.
 
 Entonces, en el diagrama anterior, los efectos de las operaciones de
@@ -191,7 +191,7 @@ x == 2, y == 3
 x == 4, y == 1
 x == 4, y == 3
 
-Además, los stores asignados por una CPU al sistema de memoria pueden no
+Además, los stores asignados por una CPU al sistema de memoria pueden anal
 ser percibidos por los loads realizados por otra CPU en el mismo orden en
 que fueron realizados.
 
@@ -217,12 +217,12 @@ cargará P en Q antes de emitir la carga de *Q.
 OPERACIONES DEL DISPOSITIVO
 ---------------------------
 
-Algunos dispositivos presentan sus interfaces de control como colecciones
+Alguanals dispositivos presentan sus interfaces de control como colecciones
 de ubicaciones de memoria, pero el orden en que se accede a los registros
 de control es muy importante. Por ejemplo, imagine una tarjeta ethernet con
 un conjunto de registros a los que se accede a través de un registro de
 puerto de dirección (A) y un registro de datos del puerto (D). Para leer el
-registro interno 5, el siguiente código podría entonces ser usado:
+registro interanal 5, el siguiente código podría entonces ser usado:
 
   *A = 5;
   x = *D;
@@ -257,7 +257,7 @@ Hay algunas garantías mínimas que se pueden esperar de una CPU:
 
 	Q = LOAD P, MEMORY_BARRIER, D = LOAD *Q, MEMORY_BARRIER
 
-     Ya sea en DEC Alpha o no, READ_ONCE() también evita que el compilador
+     Ya sea en DEC Alpha o anal, READ_ONCE() también evita que el compilador
      haga cosas inapropiadas.
 
  (*) Los loads y stores superpuestos dentro de una CPU en particular
@@ -281,15 +281,15 @@ Hay algunas garantías mínimas que se pueden esperar de una CPU:
   (Los loads y stores se superponen si están destinados a piezas
   superpuestas de memoria).
 
-Y hay una serie de cosas que _deben_ o _no_ deben asumirse:
+Y hay una serie de cosas que _deben_ o _anal_ deben asumirse:
 
- (*) _No_debe_ asumirse que el compilador hará lo que usted quiera
-     con referencias de memoria que no están protegidas por READ_ONCE() y
+ (*) _Anal_debe_ asumirse que el compilador hará lo que usted quiera
+     con referencias de memoria que anal están protegidas por READ_ONCE() y
      WRITE ONCE(). Sin ellos, el compilador tiene derecho a hacer todo tipo
      de transformaciones "creativas", que se tratan en la sección BARRERA
      DEL COMPILADOR.
 
-   (*) _No_debe_ suponerse que se emitirán loads y stores independientes
+   (*) _Anal_debe_ suponerse que se emitirán loads y stores independientes
        en el orden dado. Esto significa que para:
 
 	X = *A; Y = *B; *D = Z;
@@ -326,16 +326,16 @@ STORE {*A, *(A + 4) } = {X, Y};
 
 Y hay anti-garantías:
 
-(*) Estas garantías no se aplican a los campos de bits, porque los
+(*) Estas garantías anal se aplican a los campos de bits, porque los
     compiladores a menudo generan código para modificarlos usando
-    secuencias de lectura-modificación-escritura no atómica. No intente
+    secuencias de lectura-modificación-escritura anal atómica. Anal intente
     utilizar campos de bits para sincronizar algoritmos paralelos.
 
 (*) Incluso en los casos en que los campos de bits están protegidos por
     cerrojos (o "cerrojos", o "locks"), todos los componentes en un campo
     de bits dado deben estar protegidos por un candado. Si dos campos en un
     campo de bits dado están protegidos por diferentes locks, las
-    secuencias de lectura-modificación-escritura no atómicas del lock
+    secuencias de lectura-modificación-escritura anal atómicas del lock
     pueden causar una actualización a una campo para corromper el valor de
     un campo adyacente.
 
@@ -343,12 +343,12 @@ Y hay anti-garantías:
     dimensionados. De "tamaño adecuado" significa actualmente variables que
     son del mismo tamaño que "char", "short", "int" y "long".
     "Adecuadamente alineado" significa la alineación natural, por lo tanto,
-    no hay restricciones para "char", alineación de dos bytes para "short",
+    anal hay restricciones para "char", alineación de dos bytes para "short",
     alineación de cuatro bytes para "int", y alineación de cuatro u ocho
     bytes para "long", en sistemas de 32 y 64 bits, respectivamente. Tenga
     en cuenta que estos garantías se introdujeron en el estándar C11, así
     que tenga cuidado cuando utilice compiladores anteriores a C11 (por
-    ejemplo, gcc 4.6). La parte de la norma que contiene esta garantía es
+    ejemplo, gcc 4.6). La parte de la analrma que contiene esta garantía es
     la Sección 3.14, que define "ubicación de memoria" de la siguiente
     manera:
 
@@ -356,16 +356,16 @@ Y hay anti-garantías:
   ya sea un objeto de tipo escalar, o una secuencia máxima
   de campos de bits adyacentes, todos con ancho distinto de cero
 
-  NOTE 1: Dos hilos de ejecución pueden actualizar y acceder
+  ANALTE 1: Dos hilos de ejecución pueden actualizar y acceder
   ubicaciones de memoria separadas sin interferir entre
   ellos.
 
-  NOTE 2: Un campo de bits y un miembro adyacente que no es un campo de
+  ANALTE 2: Un campo de bits y un miembro adyacente que anal es un campo de
   bits están en ubicaciones de memoria separadas. Lo mismo sucede con
-  dos campos de bits, si uno se declara dentro de un declaración de
-  estructura anidada y el otro no, o si las dos están separados por una
+  dos campos de bits, si uanal se declara dentro de un declaración de
+  estructura anidada y el otro anal, o si las dos están separados por una
   declaración de campo de bits de longitud cero, o si están separados por
-  un miembro no declarado como campo de bits. No es seguro actualizar
+  un miembro anal declarado como campo de bits. Anal es seguro actualizar
   simultáneamente dos campos de bits en la misma estructura si entre
   todos los miembros declarados también hay campos de bits, sin importar
   cuál resulta ser el tamaño de estos campos de bits intermedios.
@@ -407,7 +407,7 @@ Las barreras de memoria vienen en cuatro variedades básicas:
      suceden antes de todas las operaciones STORE especificadas después
      de la barrera, con respecto a los otros componentes del sistema.
 
-     Una barrera de escritura es un orden parcial solo en los stores; No
+     Una barrera de escritura es un orden parcial solo en los stores; Anal
      es requerido que tenga ningún efecto sobre los loads.
 
      Se puede considerar que una CPU envía una secuencia de operaciones de
@@ -415,7 +415,7 @@ Las barreras de memoria vienen en cuatro variedades básicas:
      stores _antes_ de una barrera de escritura ocurrirán _antes_ de todos
      los stores después de la barrera de escritura.
 
-     [!] Tenga en cuenta que las barreras de escritura normalmente deben
+     [!] Tenga en cuenta que las barreras de escritura analrmalmente deben
      combinarse con read o barreras de address-dependency barriers
      (dependencia de dirección); consulte la subsección
      "Emparejamiento de barreras smp".
@@ -432,7 +432,7 @@ Las barreras de memoria vienen en cuatro variedades básicas:
      después de acceder a la dirección obtenida por la primera carga.
 
      Una barrera de dependencia de direcciones es una ordenación parcial en
-     laods de direcciones interdependientes; no se requiere que tenga
+     laods de direcciones interdependientes; anal se requiere que tenga
      ningún efecto en los stores, ya sean cargas de memoria o cargas
      de memoria superpuestas.
 
@@ -449,7 +449,7 @@ Las barreras de memoria vienen en cuatro variedades básicas:
      para ver los diagramas mostrando las restricciones de orden.
 
      [!] Tenga en cuenta que la primera carga realmente tiene que tener una
-     dependencia de _dirección_ y no es una dependencia de control. Si la
+     dependencia de _dirección_ y anal es una dependencia de control. Si la
      dirección para la segunda carga depende de la primera carga, pero la
      dependencia es a través de un condicional en lugar de -en realidad-
      cargando la dirección en sí, entonces es una dependencia de _control_
@@ -457,7 +457,7 @@ Las barreras de memoria vienen en cuatro variedades básicas:
      subsección "Dependencias de control" para más información.
 
      [!] Tenga en cuenta que las barreras de dependencia de dirección
-     normalmente deben combinarse con barreras de escritura; consulte la
+     analrmalmente deben combinarse con barreras de escritura; consulte la
      subsección "Emparejamiento de barreras smp".
 
      [!] Desde el kernel v5.9, se eliminó la API del kernel para barreras
@@ -474,13 +474,13 @@ Las barreras de memoria vienen en cuatro variedades básicas:
      de LOAD especificadas después de la barrera con respecto a los demás
      componentes del sistema.
 
-     Una barrera de lectura es un orden parcial solo en cargas; no es
+     Una barrera de lectura es un orden parcial solo en cargas; anal es
      necesario que tenga ningún efecto en los stores.
 
      Las barreras de memoria de lectura implican barreras de dependencia de
      direcciones, y por tanto puede sustituirlas por estas.
 
-     [!] Tenga en mente que las barreras de lectura normalmente deben
+     [!] Tenga en mente que las barreras de lectura analrmalmente deben
      combinarse con barreras de escritura; consulte la subsección
      "Emparejamiento de barreras smp".
 
@@ -529,7 +529,7 @@ Y un par de variedades implícitas:
 
      El uso de las operaciones ACQUIRE y RELEASE generalmente excluye la
      necesidad de otros tipos de barrera de memoria. Además, un par
-     RELEASE+ACQUIRE NO garantiza actuar como una barrera de memoria
+     RELEASE+ACQUIRE ANAL garantiza actuar como una barrera de memoria
      completa. Sin embargo, después de un ACQUIRE de una variable dada,
      todos los accesos a la memoria que preceden a cualquier anterior
      RELEASE en esa misma variable están garantizados como visibles. En
@@ -550,43 +550,43 @@ la parte de la operación del store.
 
 Las barreras de memoria solo son necesarias cuando existe la posibilidad de
 interacción entre dos CPU o entre una CPU y un dispositivo. Si se puede
-garantizar que no habrá tal interacción en ninguna pieza de código en
+garantizar que anal habrá tal interacción en ninguna pieza de código en
 particular, entonces las barreras de memoria son innecesarias en ese
 fragmento de código.
 
 Tenga en cuenta que estas son las garantías _mínimas_. Diferentes
-arquitecturas pueden proporcionar garantías más sustanciales, pero no se
+arquitecturas pueden proporcionar garantías más sustanciales, pero anal se
 puede confiar en estas fuera de esa arquitectura en específico.
 
 
-¿QUÉ NO SE PUEDE ASUMIR SOBRE LAS BARRERAS DE LA MEMORIA?
+¿QUÉ ANAL SE PUEDE ASUMIR SOBRE LAS BARRERAS DE LA MEMORIA?
 ---------------------------------------------------------
 
-Hay ciertas cosas que las barreras de memoria del kernel Linux no
+Hay ciertas cosas que las barreras de memoria del kernel Linux anal
 garantizan:
 
- (*) No hay garantía de que ninguno de los accesos a la memoria
+ (*) Anal hay garantía de que ninguanal de los accesos a la memoria
      especificados antes de una barrera de memoria estará _completo_ al
      completarse una instrucción de barrera de memoria; se puede considerar
-     que la barrera dibuja una línea en la cola de acceso del CPU que no
+     que la barrera dibuja una línea en la cola de acceso del CPU que anal
      pueden cruzar los accesos del tipo correspondiente.
 
- (*) No hay garantía de que la emisión de una barrera de memoria en una CPU
+ (*) Anal hay garantía de que la emisión de una barrera de memoria en una CPU
      tenga cualquier efecto directo en otra CPU o cualquier otro hardware
      en el sistema. El efecto indirecto será el orden en que la segunda CPU
      ve los efectos de los primeros accesos que ocurren de la CPU, pero lea
      el siguiente argumento:
 
- (*) No hay garantía de que una CPU vea el orden correcto de los efectos
+ (*) Anal hay garantía de que una CPU vea el orden correcto de los efectos
      de los accesos de una segunda CPU, incluso _si_ la segunda CPU usa una
-     barrera de memoria, a menos que la primera CPU _también_ use una
+     barrera de memoria, a meanals que la primera CPU _también_ use una
      barrera de memoria coincidente (vea el subapartado "Emparejamiento de
      barrera SMP").
 
- (*) No hay garantía de que alguna pieza intermedia fuera del hardware[*]
-     del CPU no reordenará los accesos a la memoria. Los mecanismos de
+ (*) Anal hay garantía de que alguna pieza intermedia fuera del hardware[*]
+     del CPU anal reordenará los accesos a la memoria. Los mecanismos de
      coherencia de caché del CPU deben propagar los efectos indirectos de
-     una barrera de memoria entre las CPU, pero es posible que no lo hagan
+     una barrera de memoria entre las CPU, pero es posible que anal lo hagan
      en orden.
 
 	[*] Para obtener información sobre bus mastering DMA y coherencia, lea:
@@ -609,10 +609,10 @@ de las barreras de dependencia de dirección.
 
 [!] Si bien las dependencias de direcciones se observan tanto en carga a
 carga como en relaciones de carga a store, las barreras de dependencia de
-dirección no son necesarias para situaciones de carga a store.
+dirección anal son necesarias para situaciones de carga a store.
 
 El requisito de las barreras de dependencia de dirección es un poco sutil,
-y no siempre es obvio que sean necesarias. Para ilustrar, considere la
+y anal siempre es obvio que sean necesarias. Para ilustrar, considere la
 siguiente secuencia de eventos:
 
 	CPU 1		      CPU 2
@@ -625,7 +625,7 @@ siguiente secuencia de eventos:
 			      D = *Q;
 
 [!] READ_ONCE_OLD() corresponde a READ_ONCE() del kernel anterior a 4.15,
-que no implica una barrera de dependencia de direcciones.
+que anal implica una barrera de dependencia de direcciones.
 
 Hay una clara dependencia de dirección aquí, y parecería que al final de
 la secuencia, Q debe ser &A o &B, y que:
@@ -639,7 +639,7 @@ percepción de B, por lo tanto dando lugar a la siguiente situación:
 	(Q == &B) y (D == 2) ????
 
 Si bien esto puede parecer una falla en el mantenimiento de la coherencia
-o la causalidad, no lo es, y este comportamiento se puede observar en
+o la causalidad, anal lo es, y este comportamiento se puede observar en
 ciertas CPU reales (como DEC Alfa).
 
 Para lidiar con esto, READ_ONCE() proporciona una barrera de dependencia
@@ -666,12 +666,12 @@ banco procesa líneas impares de caché. El puntero P podría almacenarse en
 una línea de caché impar y la variable B podría almacenarse en una línea de
 caché con número par. Entonces, si el banco de números pares de la memoria
 caché de la CPU de lectura está extremadamente ocupado mientras que el
-banco impar está inactivo, uno podría ver el nuevo valor del puntero P
+banco impar está inactivo, uanal podría ver el nuevo valor del puntero P
 (&B), pero el antiguo valor de la variable B (2).
 
 
-No se requiere una barrera de dependencia de dirección para ordenar
-escrituras dependientes porque las CPU que admite el kernel Linux no
+Anal se requiere una barrera de dependencia de dirección para ordenar
+escrituras dependientes porque las CPU que admite el kernel Linux anal
 escriben hasta que están seguros (1) de que la escritura realmente
 sucederá, (2) de la ubicación de la escritura, y (3) del valor a escribir.
 Pero, por favor, lea atentamente la sección "DEPENDENCIAS DEL CONTROL" y el
@@ -687,10 +687,10 @@ y romper dependencias en muchas formas altamente creativas.
 			      Q = READ_ONCE_OLD(P);
 			      WRITE_ONCE(*Q, 5);
 
-Por lo tanto, no se requiere ninguna barrera de dependencia de direcciones
+Por lo tanto, anal se requiere ninguna barrera de dependencia de direcciones
 para ordenar la lectura en Q con el load en *Q. En otras palabras, este
 resultado está prohibido, incluso sin una barrera de dependencia de
-dirección implícita del READ_ONCE() moderno:
+dirección implícita del READ_ONCE() moderanal:
 
 	(Q == &B) && (B == 4)
 
@@ -720,23 +720,23 @@ DEPENDENCIAS DE CONTROL
 -----------------------
 
 Las dependencias de control pueden ser un poco complicadas porque los
-compiladores actuales no las entienden. El propósito de esta sección es
-ayudarle a prevenir que la ignorancia del compilador rompa su código.
+compiladores actuales anal las entienden. El propósito de esta sección es
+ayudarle a prevenir que la iganalrancia del compilador rompa su código.
 
 Una dependencia de control load-load (de carga a carga) requiere una
-barrera de memoria de lectura completa, no simplemente una barrera
+barrera de memoria de lectura completa, anal simplemente una barrera
 (implícita) de dependencia de direcciones para que funcione correctamente.
 Considere el siguiente fragmento de código:
 
 	q = READ_ONCE(a);
 	<barrera implícita de dependencia de direcciones>
 	if (q) {
-		/* BUG: No hay dependencia de dirección!!! */
+		/* BUG: Anal hay dependencia de dirección!!! */
 		p = READ_ONCE(b);
 	}
 
-Esto no tendrá el efecto deseado porque no hay una dependencia de dirección
-real, sino más bien una dependencia de control que la CPU puede
+Esto anal tendrá el efecto deseado porque anal hay una dependencia de dirección
+real, sianal más bien una dependencia de control que la CPU puede
 cortocircuitar al intentar predecir el resultado por adelantado, para que
 otras CPU vean la carga de b como si hubiera ocurrido antes que la carga de
 a. En cuyo caso lo que realmente se requiere es:
@@ -747,7 +747,7 @@ a. En cuyo caso lo que realmente se requiere es:
   		p = READ_ONCE(b);
   	}
 
-Sin embargo, los stores no se especulan. Esto significa que ordenar -es-
+Sin embargo, los stores anal se especulan. Esto significa que ordenar -es-
 provisto para dependencias de control de load-store, como en el siguiente
 ejemplo:
 
@@ -756,7 +756,7 @@ ejemplo:
 		WRITE_ONCE(b, 1);
 	}
 
-Las dependencias de control se emparejan normalmente con otros tipos de
+Las dependencias de control se emparejan analrmalmente con otros tipos de
 barreras. Dicho esto, tenga en cuenta que ni READ_ONCE() ni WRITE_ONCE()
 son opcionales! Sin READ_ONCE(), el compilador podría combinar la carga de
 'a' con otras cargas de 'a'. Sin WRITE_ONCE(), el compilador podría
@@ -770,10 +770,10 @@ para optimizar el ejemplo original eliminando la declaración "if", como:
 	q = a;
 	b = 1;  /* BUG: Compilador y CPU pueden ambos reordernar!!! */
 
-Así que no deje de lado READ_ONCE().
+Así que anal deje de lado READ_ONCE().
 
 Es tentador tratar de hacer cumplir el orden en stores idénticos en ambos
-caminos del "if" de la siguiente manera:
+camianals del "if" de la siguiente manera:
 
 	q = READ_ONCE(a);
 	if (q) {
@@ -791,7 +791,7 @@ siguiente manera en casos de alto nivel de optimización:
 
   	q = READ_ONCE(a);
   	barrier();
-  	WRITE_ONCE(b, 1);  /* BUG: No hay orden en load de a!!! */
+  	WRITE_ONCE(b, 1);  /* BUG: Anal hay orden en load de a!!! */
   	if (q) {
   		/* WRITE_ONCE(b, 1); -- movido arriba, BUG!!! */
   		hacer_algo();
@@ -800,7 +800,7 @@ siguiente manera en casos de alto nivel de optimización:
   		hacer_otra_cosa();
   	}
 
-Ahora no hay condicional entre la carga de 'a' y el store de 'b', lo que
+Ahora anal hay condicional entre la carga de 'a' y el store de 'b', lo que
 significa que la CPU está en su derecho de reordenarlos: El condicional es
 absolutamente necesario y debe estar presente en el código ensamblador
 incluso después de que se hayan aplicado todas las optimizaciones del
@@ -854,11 +854,11 @@ anterior en el siguiente:
   	WRITE_ONCE(b, 2);
   	hacer_otra_cosa();
 
-Dada esta transformación, la CPU no está obligada a respetar el orden entre
+Dada esta transformación, la CPU anal está obligada a respetar el orden entre
 la carga de la variable 'a' y el store de la variable 'b'. Es tentador
-agregar una barrier(), pero esto no ayuda. El condicional se ha ido, y la
-barrera no lo traerá de vuelta. Por lo tanto, si confia en este orden, debe
-asegurarse de que MAX sea mayor que uno, tal vez de la siguiente manera:
+agregar una barrier(), pero esto anal ayuda. El condicional se ha ido, y la
+barrera anal lo traerá de vuelta. Por lo tanto, si confia en este orden, debe
+asegurarse de que MAX sea mayor que uanal, tal vez de la siguiente manera:
 
   	q = READ_ONCE(a);
   	BUILD_BUG_ON(MAX <= 1); /* Orden de carga de a con store de b */
@@ -874,27 +874,27 @@ Tenga en cuenta una vez más que los stores de 'b' difieren. Si fueran
 idénticos, como se señaló anteriormente, el compilador podría sacar ese
 store fuera de la declaración 'if'.
 
-También debe tener cuidado de no confiar demasiado en el cortocircuito
+También debe tener cuidado de anal confiar demasiado en el cortocircuito
 de la evaluación booleana. Considere este ejemplo:
 
   	q = READ_ONCE(a);
   	if (q || 1 > 0)
   	WRITE_ONCE(b, 1);
 
-Debido a que la primera condición no puede fallar y la segunda condición es
+Debido a que la primera condición anal puede fallar y la segunda condición es
 siempre cierta, el compilador puede transformar este ejemplo de la
 siguiente manera, rompiendo la dependencia del control:
 
   	q = READ_ONCE(a);
   	WRITE_ONCE(b, 1);
 
-Este ejemplo subraya la necesidad de asegurarse de que el compilador no
+Este ejemplo subraya la necesidad de asegurarse de que el compilador anal
 pueda adivinar su código. Más generalmente, aunque READ_ONCE() fuerza
-al compilador para emitir código para una carga dada, no fuerza al
+al compilador para emitir código para una carga dada, anal fuerza al
 compilador para usar los resultados.
 
 Además, las dependencias de control se aplican solo a la cláusula then y
-la cláusula else de la sentencia if en cuestión. En particular, no se
+la cláusula else de la sentencia if en cuestión. En particular, anal se
 aplica necesariamente al código que sigue a la declaración if:
 
   	q = READ_ONCE(a);
@@ -903,10 +903,10 @@ aplica necesariamente al código que sigue a la declaración if:
   	} else {
   		WRITE_ONCE(b, 2);
   	}
-  	WRITE_ONCE(c, 1);  /* BUG: No hay orden para la lectura de 'a'. */
+  	WRITE_ONCE(c, 1);  /* BUG: Anal hay orden para la lectura de 'a'. */
 
 Es tentador argumentar que, de hecho, existe un orden porque el compilador
-no puede reordenar accesos volátiles y tampoco puede reordenar escrituras
+anal puede reordenar accesos volátiles y tampoco puede reordenar escrituras
 en 'b' con la condición. Desafortunadamente para esta línea de
 razonamiento, el compilador podría compilar las dos escrituras en 'b' como
 instrucciones de movimiento condicional, como en este fantástico idioma
@@ -919,12 +919,12 @@ pseudo-ensamblador:
         	st r4,b
         	st $1,c
 
-Una CPU débilmente ordenada no tendría dependencia de ningún tipo entre la
+Una CPU débilmente ordenada anal tendría dependencia de ningún tipo entre la
 carga de 'a' y el store de 'c'. Las dependencias de control se extenderían
 solo al par de instrucciones cmov y el store dependiente de ellas. En
 resumen, las dependencias de control se aplican solo a los stores en la
 cláusula then y la cláusula else de la sentencia if en cuestión (incluidas
-las funciones invocado por esas dos cláusulas), no al código que sigue a
+las funciones invocado por esas dos cláusulas), anal al código que sigue a
 esa declaración if.
 
 
@@ -936,22 +936,22 @@ multicopia" para más información.
 En resumen:
 
   (*) Las dependencias de control pueden ordenar cargas anteriores para
-      stores posteriores. Sin embargo, no garantizan ningún otro tipo de
-      orden: No cargas previas contra cargas posteriores, ni
+      stores posteriores. Sin embargo, anal garantizan ningún otro tipo de
+      orden: Anal cargas previas contra cargas posteriores, ni
       almacenamientos previos y luego nada. Si necesita tales formas de
       orden, use smp_rmb(), smp_wmb() o, en el caso de stores anteriores y
       cargas posteriores, smp_mb().
 
-  (*) Si ambos caminos de la declaración "if" comienzan con stores
+  (*) Si ambos camianals de la declaración "if" comienzan con stores
       idénticos de la misma variable, entonces esos stores deben ser
       ordenados, ya sea precediéndoles a ambos con smp_mb() o usando
-      smp_store_release() para realizar el store. Tenga en cuenta que -no-
+      smp_store_release() para realizar el store. Tenga en cuenta que -anal-
       es suficiente usar barrier() al comienzo de cada caso de la
       declaración "if" porque, como se muestra en el ejemplo anterior, la
       optimización de los compiladores puede destruir la dependencia de
       control respetando al pie de la letra la ley de barrier().
 
-  (*) Las dependencias de control requieren al menos un condicional en
+  (*) Las dependencias de control requieren al meanals un condicional en
       tiempo de ejecución entre la carga anterior y el almacenamiento
       posterior, y este condicional debe implicar la carga previa. Si el
       compilador es capaz de optimizar el condicional y quitarlo, también
@@ -967,18 +967,18 @@ En resumen:
   (*) Las dependencias de control se aplican solo a la cláusula then y la
       cláusula else de la sentencia "if" que contiene la dependencia de
       control, incluyendo cualquier función a la que llamen dichas dos
-      cláusulas. Las dependencias de control no se aplican al código que
+      cláusulas. Las dependencias de control anal se aplican al código que
       sigue a la instrucción if que contiene la dependencia de control.
 
-  (*) Las dependencias de control se emparejan normalmente con otros tipos
+  (*) Las dependencias de control se emparejan analrmalmente con otros tipos
       de barreras.
 
-  (*) Las dependencias de control no proporcionan atomicidad multicopia. Si
+  (*) Las dependencias de control anal proporcionan atomicidad multicopia. Si
       usted necesita todas las CPU para ver un store dado al mismo tiempo,
       emplee smp_mb().
 
-  (*) Los compiladores no entienden las dependencias de control. Por lo
-      tanto es su trabajo asegurarse de que no rompan su código.
+  (*) Los compiladores anal entienden las dependencias de control. Por lo
+      tanto es su trabajo asegurarse de que anal rompan su código.
 
 
 EMPAREJAMIENTO DE BARRERAS SMP
@@ -1034,7 +1034,7 @@ O incluso:
 Básicamente, la barrera de lectura siempre tiene que estar ahí, aunque
 puede ser del tipo "más débil".
 
-[!] Tenga en cuenta que normalmente se esperaría que los stores antes de la
+[!] Tenga en cuenta que analrmalmente se esperaría que los stores antes de la
 barrera de escritura se hagan coincidir con los stores después de la
 barrera de lectura o la barrera de dependencia de dirección, y viceversa:
 
@@ -1315,7 +1315,7 @@ todos modos:
 	                                        :       :       +-------+
 
 La garantía es que la segunda carga siempre dará como resultado A == 1 si
-la carga de B resultó en B == 2. No existe tal garantía para la primera
+la carga de B resultó en B == 2. Anal existe tal garantía para la primera
 carga de A; esto puede dar como resultado A == 0 o A == 1.
 
 
@@ -1323,14 +1323,14 @@ BARRERAS DE MEMORIA DE LECTURA FRENTE A ESPECULACIÓN DE CARGA
 -------------------------------------------------------------
 
 Muchas CPU especulan con las cargas: es decir, ven que necesitarán cargar
-un elemento de la memoria, y encuentran un momento en el que no están
+un elemento de la memoria, y encuentran un momento en el que anal están
 usando el bus para ningún otra carga, y también en la carga por adelantado,
-aunque en realidad no lo hayan llegado a ese punto en el flujo de ejecución
+aunque en realidad anal lo hayan llegado a ese punto en el flujo de ejecución
 de instrucciones todavía. Esto permite que la instrucción de carga real
 potencialmente complete de inmediato, porque la CPU ya tiene el valor a
-mano.
+maanal.
 
-Puede resultar que la CPU en realidad no necesitara el valor, tal vez
+Puede resultar que la CPU en realidad anal necesitara el valor, tal vez
 porque una condición eludió la carga, en cuyo caso puede descartar el valor
 o simplemente almacenar en caché para su uso posterior.
 
@@ -1375,7 +1375,7 @@ justo antes de la segundo carga:
 				LOAD A
 
 obligará a reconsiderar cualquier valor obtenido especulativamente en una
-medida dependiente del tipo de barrera utilizada. Si no se hizo ningún
+medida dependiente del tipo de barrera utilizada. Si anal se hizo ningún
 cambio en la ubicación de memoria especulada, entonces el valor especulado
 solo se usará:
 
@@ -1422,13 +1422,13 @@ entonces la especulación será cancelada y el valor recargado:
 ATOMICIDAD MULTICOPIA
 ---------------------
 
-La atomicidad multicopia es una noción profundamente intuitiva sobre el
-orden que no es siempre proporcionada por los sistemas informáticos reales,
+La atomicidad multicopia es una analción profundamente intuitiva sobre el
+orden que anal es siempre proporcionada por los sistemas informáticos reales,
 a saber, que un determinada store se vuelve visible al mismo tiempo para
 todos las CPU o, alternativamente, que todas las CPU acuerdan el orden en
 que todos los stores se vuelven visibles. Sin embargo, el soporte para
 atomicidad multicopia completa descartaría valiosas optimizaciones
-hardware, por lo que una versión más débil conocida como ``otra atomicidad
+hardware, por lo que una versión más débil coanalcida como ``otra atomicidad
 multicopia'' en cambio, solo garantiza que un store dado se vuelva visible
 al mismo tiempo en todas las -otras- CPUs. El resto de este documento
 discute esta versión más débil, pero por brevedad lo llamaremos simplemente
@@ -1455,10 +1455,10 @@ Debido a que la carga de la CPU 3 desde X en cierto sentido viene después
 de la carga de la CPU 2, es natural esperar que la carga de la CPU 3 desde
 X deba devolver 1. Esta expectativa se deriva de la atomicidad multicopia:
 si una carga que se ejecuta en la CPU B sigue una carga de la misma
-variable que se ejecuta en la CPU A (y la CPU A no almacenó originalmente
+variable que se ejecuta en la CPU A (y la CPU A anal almacenó originalmente
 el valor que leyó), entonces en sistemas atómicos multicopia, la carga de
 la CPU B debe devolver el mismo valor que hizo la carga de la CPU A o algún
-valor posterior. Sin embargo, el kernel Linux no requiere que los sistemas
+valor posterior. Sin embargo, el kernel Linux anal requiere que los sistemas
 sean atómicos multicopia.
 
 El uso de una barrera de memoria general en el ejemplo anterior compensa
@@ -1467,7 +1467,7 @@ CPU 2 de X devuelve 1 y la carga de la CPU 3 de Y devuelve 1, entonces la
 carga de la CPU 3 desde X debe de hecho también devolver 1.
 
 Sin embargo, las dependencias, las barreras de lectura y las barreras de
-escritura no siempre son capaces de compensar la atomicidad no multicopia.
+escritura anal siempre son capaces de compensar la atomicidad anal multicopia.
 Por ejemplo, supongamos que la barrera general de la CPU 2 se elimina del
 ejemplo anterior, dejando solo la dependencia de datos que se muestra a
 continuación:
@@ -1479,23 +1479,23 @@ continuación:
 				<dependencia de datos>	<barrera de lectura>
 				STORE Y=r1		LOAD X (lee 0)
 
-Esta sustitución permite que la atomicidad no multicopia se desenfrene: en
+Esta sustitución permite que la atomicidad anal multicopia se desenfrene: en
 este ejemplo, es perfectamente legal que la carga de la CPU 2 desde X
 devuelva 1, la carga de la CPU 3 desde Y devuelva 1, y su carga desde X
 tenga valor 0.
 
 El punto clave es que aunque la dependencia de datos de la CPU 2 ordena su
-carga y store, no garantiza ordenar el store de la CPU 1. De forma que, si
-este ejemplo se ejecuta en un sistema atómico no multicopia donde las CPU 1
+carga y store, anal garantiza ordenar el store de la CPU 1. De forma que, si
+este ejemplo se ejecuta en un sistema atómico anal multicopia donde las CPU 1
 y 2 comparten un buffer de almacenamiento o un nivel de caché, la CPU 2
 podría tener acceso anticipado de escritura a CPU 1. Por lo tanto, se
 requieren barreras generales para garantizar que todas las CPU acurden el
 orden combinado de accesos múltiples.
 
-Las barreras generales pueden compensar no solo la atomicidad no
+Las barreras generales pueden compensar anal solo la atomicidad anal
 multicopia, pero también pueden generar orden adicional que puede asegurar
 que -todas- las CPU percibirán el mismo orden de -todas- las operaciones.
-Por el contrario, una cadena de parejas de liberación-adquisición no
+Por el contrario, una cadena de parejas de liberación-adquisición anal
 proporciona este orden adicional, lo que significa que solo se garantiza
 que las CPU de la cadena estén de acuerdo en el orden combinado de los
 accesos. Por ejemplo, cambiando a código C en deferencia al fantasma de
@@ -1544,8 +1544,8 @@ resultado estaría prohibido:
 	r1 == 1 && r5 == 0
 
 Sin embargo, el orden proporcionado por una cadena de
-liberación-adquisición es local a las CPU que participan en esa cadena y no
-se aplica a cpu3(), al menos aparte de los stores. Por lo tanto, es posible
+liberación-adquisición es local a las CPU que participan en esa cadena y anal
+se aplica a cpu3(), al meanals aparte de los stores. Por lo tanto, es posible
 el siguiente resultado:
 
 	r0 == 0 && r1 == 1 && r2 == 1 && r3 == 0 && r4 == 0
@@ -1555,17 +1555,17 @@ Por otro lado, también el siguiente resultado es posible:
 	r0 == 0 && r1 == 1 && r2 == 1 && r3 == 0 && r4 == 0 && r5 == 1
 
 Aunque cpu0(), cpu1() y cpu2() verán sus respectivas lecturas y escrituras
-en orden, las CPU que no participan en la cadena de liberación-adquisición
+en orden, las CPU que anal participan en la cadena de liberación-adquisición
 pueden estar en desacuerdo con el orden. Este desacuerdo se debe al hecho
 de que las instrucciones de barrera de memoria débiles utilizadas para
-implementar smp_load_acquire() y smp_store_release() no son necesarios para
+implementar smp_load_acquire() y smp_store_release() anal son necesarios para
 ordenar stores anteriores contra cargas posteriores en todos los casos.
 Esto significa que cpu3() puede ver el store de cpu0() suceder -después- de
 la carga de cpu1() desde v, aunque tanto cpu0() como cpu1() están de
 acuerdo en que estas dos operaciones ocurrieron en el orden previsto.
 
-Sin embargo, tenga en cuenta que smp_load_acquire() no es mágico. En
-particular, simplemente lee de su argumento en orden. Es decir, -no-
+Sin embargo, tenga en cuenta que smp_load_acquire() anal es mágico. En
+particular, simplemente lee de su argumento en orden. Es decir, -anal-
 asegura que se leerá cualquier valor en particular. Por lo tanto, los
 siguiente resultados son posibles:
 
@@ -1599,7 +1599,7 @@ lado al otro:
 
 	barrier();
 
-Esta es una barrera general: no hay variantes de barrier() para casos de
+Esta es una barrera general: anal hay variantes de barrier() para casos de
 lectura-lectura o escritura-escritura. Sin embargo, READ_ONCE() y
 WRITE_ONCE() pueden ser considerado como formas débiles de barrier() que
 afectan solo específicos accesos marcados por READ_ONCE() o WRITE_ONCE().
@@ -1619,10 +1619,10 @@ La función barrier() produce los siguientes efectos:
 Las funciones READ_ONCE() y WRITE_ONCE() pueden evitar cualquier cantidad
 de optimizaciones que, si bien son perfectamente seguras en código de un
 solo subproceso, pueden resultar fatales en código concurrente. Aquí hay
-algunos ejemplos de tal tipo de optimizaciones:
+alguanals ejemplos de tal tipo de optimizaciones:
 
 (*) El compilador está en su derecho de reordenar cargas y stores de la
-    misma variable, y en algunos casos, la CPU está dentro de su
+    misma variable, y en alguanals casos, la CPU está dentro de su
     derecho de reordenar cargas a la misma variable. Esto significa que
     el siguiente código:
 
@@ -1647,7 +1647,7 @@ algunos ejemplos de tal tipo de optimizaciones:
     		hacer_algo_con(tmp);
 
         en el siguiente código, que, aunque en cierto sentido es legítimo
-        para un código de un solo subproceso, es casi seguro que no es lo
+        para un código de un solo subproceso, es casi seguro que anal es lo
         que el desarrollador pretendía:
 
    	if (tmp = a)
@@ -1690,7 +1690,7 @@ algunos ejemplos de tal tipo de optimizaciones:
      este guardado y posterior restauración es por lo que los compiladores
      recargan las variables. Hacerlo es perfectamente seguro para código de
      subproceso único, por lo que debe informar al compilador sobre los
-     casos donde no sea seguro.
+     casos donde anal sea seguro.
 
  (*) El compilador está en su derecho de omitir una carga por completo si
      sabe cual será su valor. Por ejemplo, si el compilador puede probar
@@ -1709,7 +1709,7 @@ algunos ejemplos de tal tipo de optimizaciones:
      que el compilador llevará a cabo su prueba asumiendo que la CPU actual
      es la única actualizando la variable 'a'. Si la variable 'a' es
      compartida, entonces la prueba del compilador será errónea. Use
-     READ_ONCE() para decirle al compilador que no sabe tanto como cree:
+     READ_ONCE() para decirle al compilador que anal sabe tanto como cree:
 
 	while (tmp = READ_ONCE(a))
 		hacer_algo_con(tmp);
@@ -1735,7 +1735,7 @@ algunos ejemplos de tal tipo de optimizaciones:
      que tiene lo siguiente:
 
 	a = 0;
-	... Código que no almacena la variable a ...
+	... Código que anal almacena la variable a ...
 	a = 0;
 
      El compilador observa que el valor de la variable 'a' ya es cero, por
@@ -1747,11 +1747,11 @@ algunos ejemplos de tal tipo de optimizaciones:
      suposición equivocada:
 
 	WRITE_ONCE(a, 0);
-	... Código que no almacena la variable a  ...
+	... Código que anal almacena la variable a  ...
 	WRITE_ONCE(a, 0);
 
-  (*) El compilador tiene derecho a reordenar los accesos a memoria a menos
-     que le diga que no. Por ejemplo, considere la siguiente interacción
+  (*) El compilador tiene derecho a reordenar los accesos a memoria a meanals
+     que le diga que anal. Por ejemplo, considere la siguiente interacción
      entre el código de nivel de proceso y un controlador de interrupción:
 
 	void nivel_de_procesamiento(void)
@@ -1766,7 +1766,7 @@ algunos ejemplos de tal tipo de optimizaciones:
 			procesar_mensaje(msg);
 	}
 
-     No hay nada que impida que el compilador transforme
+     Anal hay nada que impida que el compilador transforme
      nivel_de_procesamiento() a lo siguiente, que de hecho, bien podría ser
      una victoria para código de un solo subproceso:
 
@@ -1796,15 +1796,15 @@ algunos ejemplos de tal tipo de optimizaciones:
      WRITE_ONCE() en controlador_interrupcion() son necesarios si este
      controlador de interrupciones puede ser interrumpido por algo que
      también accede a 'flag' y 'msg', por ejemplo, una interrupción anidada
-     o un NMI. De lo contrario, READ_ONCE() y WRITE_ONCE() no son
+     o un NMI. De lo contrario, READ_ONCE() y WRITE_ONCE() anal son
      necesarios en controlador_interrupcion() aparte de con fines de
      documentación. (Tenga también en cuenta que las interrupciones
-     anidadas no ocurren típicamente en los kernels Linux modernos, de
+     anidadas anal ocurren típicamente en los kernels Linux moderanals, de
      hecho, si un controlador de interrupciones regresa con interrupciones
      habilitadas, obtendrá un WARN_ONCE().)
 
      Debe suponer que el compilador puede mover READ_ONCE() y WRITE_ONCE()
-     a código que no contiene READ_ONCE(), WRITE_ONCE(), barrier(), o
+     a código que anal contiene READ_ONCE(), WRITE_ONCE(), barrier(), o
      primitivas similares.
 
      Este efecto también podría lograrse usando barrier(), pero READ_ONCE()
@@ -1814,7 +1814,7 @@ algunos ejemplos de tal tipo de optimizaciones:
      descartar el valor de todas las ubicaciones de memoria que tiene
      actualmente almacenadas en caché, en cualquier registro de la máquina.
      Por supuesto, el compilador también debe respetar el orden en que
-     ocurren READ_ONCE() y WRITE_ONCE(), aunque la CPU, efectivamente, no
+     ocurren READ_ONCE() y WRITE_ONCE(), aunque la CPU, efectivamente, anal
      necesita hacerlo.
 
  (*) El compilador tiene derecho a inventar stores para una variable,
@@ -1832,7 +1832,7 @@ algunos ejemplos de tal tipo de optimizaciones:
     	if (a)
     		b = a;
 
-     En el código de un solo subproceso, esto no solo es seguro, sino que
+     En el código de un solo subproceso, esto anal solo es seguro, sianal que
      también ahorra un branch. Desafortunadamente, en código concurrente,
      esta optimización podría causar que alguna otra CPU vea un valor falso
      de 42, incluso si la variable 'a' nunca fue cero, al cargar la
@@ -1845,7 +1845,7 @@ algunos ejemplos de tal tipo de optimizaciones:
 		WRITE_ONCE(b, 42);
 
     El compilador también puede inventar cargas. Estos casos suelen ser
-    menos perjudiciales, pero pueden dar como resultado "bouncing" de la
+    meanals perjudiciales, pero pueden dar como resultado "bouncing" de la
     línea de caché y, por lo tanto, bajo rendimiento y escalabilidad.
     Utilice READ_ONCE() para evitar cargas inventadas.
 
@@ -1853,7 +1853,7 @@ algunos ejemplos de tal tipo de optimizaciones:
      acceder con una sola instrucción de referencia de memoria, evite el
      "desgarro de la carga" (load tearing) y "desgarro del store" (store
      tearing), en el que un solo gran acceso es reemplazado por múltiples
-     accesos menores. Por ejemplo, dada una arquitectura que tiene
+     accesos meanalres. Por ejemplo, dada una arquitectura que tiene
      instrucciones de almacenamiento de 16 bits con campos inmediatos de 7
      bits, el compilador podría tener la tentación de usar dos
      instrucciones inmediatas de almacenamiento de 16 bits para implementar
@@ -1862,7 +1862,7 @@ algunos ejemplos de tal tipo de optimizaciones:
 	p = 0x00010002;
 
      Tenga en cuenta que GCC realmente usa este tipo de optimización, lo
-     cual no es sorprendente dado que probablemente costaría más de dos
+     cual anal es sorprendente dado que probablemente costaría más de dos
      instrucciones el construir la constante y luego almacenarla. Por lo
      tanto, esta optimización puede ser una victoria en un código de un
      solo subproceso. De hecho, un error reciente (desde que se solucionó)
@@ -1882,7 +1882,7 @@ algunos ejemplos de tal tipo de optimizaciones:
 	foo2.b = foo1.b;
 	foo2.c = foo1.c;
 
-     Debido a que no hay envoltorios READ_ONCE() o WRITE_ONCE() y no
+     Debido a que anal hay envoltorios READ_ONCE() o WRITE_ONCE() y anal
      hay markings volátiles, el compilador estaría en su derecho de
      implementar estas tres declaraciones de asignación como un par de
      cargas de 32 bits, seguido de un par de stores de 32 bits. Esto
@@ -1898,10 +1898,10 @@ Aparte de esto, nunca es necesario usar READ_ONCE() y WRITE_ONCE() en una
 variable que se ha marcado como volátil. Por ejemplo, dado que 'jiffies'
 está marcado como volátil, nunca es necesario usar READ_ONCE(jiffies). La
 razón de esto es que READ_ONCE() y WRITE_ONCE() se implementan como
-conversiones volátiles, lo que no tiene efecto cuando su argumento ya está
+conversiones volátiles, lo que anal tiene efecto cuando su argumento ya está
 marcado como volátil.
 
-Tenga en cuenta que estas barreras del compilador no tienen un efecto
+Tenga en cuenta que estas barreras del compilador anal tienen un efecto
 directo en la CPU, que luego puede reordenar las cosas como quiera.
 
 
@@ -1920,21 +1920,21 @@ DEPEDENCIA DE DIRECCIÓN			READ_ONCE()
 
 Todas las barreras de memoria, excepto las barreras de dependencia de
 direcciones, implican una barrera del compilador. Las dependencias de
-direcciones no imponen ningún orden de compilación adicional.
+direcciones anal imponen ningún orden de compilación adicional.
 
 Además: en el caso de las dependencias de direcciones, se esperaría que el
 compilador emita las cargas en el orden correcto (por ejemplo, `a[b]`
-tendría que cargar el valor de b antes de cargar a[b]), sin embargo, no hay
-garantía alguna en la especificación de C sobre que el compilador no puede
+tendría que cargar el valor de b antes de cargar a[b]), sin embargo, anal hay
+garantía alguna en la especificación de C sobre que el compilador anal puede
 especular el valor de b (por ejemplo, es igual a 1) y carga a[b] antes que
 b (ej. tmp = a[1]; if (b != 1) tmp = a[b]; ). También existe el problema de
 que un compilador vuelva a cargar b después de haber cargado a[b], teniendo
-así una copia más nueva de b que a[b]. Aún no se ha conseguido un consenso
+así una copia más nueva de b que a[b]. Aún anal se ha conseguido un consenso
 acerca de estos problemas, sin embargo, el macro READ_ONCE() es un buen
 lugar para empezar a buscar.
 
 Las barreras de memoria SMP se reducen a barreras de compilador cuando se
-compila a monoprocesador, porque se supone que una CPU parecerá ser
+compila a moanalprocesador, porque se supone que una CPU parecerá ser
 auto-consistente, y ordenará correctamente los accesos superpuestos
 respecto a sí misma. Sin embargo, consulte la subsección "Guests de
 máquinas virtuales" mas adelante.
@@ -1943,11 +1943,11 @@ máquinas virtuales" mas adelante.
 controlar el orden de referencias a memoria compartida en sistemas SMP,
 aunque el uso de bloqueo en su lugar sea suficiente.
 
-Las barreras obligatorias no deben usarse para controlar los efectos de
+Las barreras obligatorias anal deben usarse para controlar los efectos de
 SMP, ya que dichas barreras imponen una sobrecarga innecesaria en los
 sistemas SMP y UP. Se pueden, sin embargo, usar para controlar los efectos
 MMIO en los accesos a través de ventanas E/S de memoria relajada. Estas
-barreras son necesarias incluso en sistemas que no son SMP, ya que afectan
+barreras son necesarias incluso en sistemas que anal son SMP, ya que afectan
 al orden en que las operaciones de memoria aparecen en un dispositivo, al
 prohibir tanto al compilador como a la CPU que sean reordenados.
 
@@ -1957,22 +1957,22 @@ Hay algunas funciones de barrera más avanzadas:
  (*) smp_store_mb(var, valor)
 
      Asigna el valor a la variable y luego inserta una barrera de memoria
-     completa después de ella. No se garantiza insertar nada más que una
+     completa después de ella. Anal se garantiza insertar nada más que una
      barrera del compilador en una compilación UP.
 
 
  (*) smp_mb__before_atomic();
  (*) smp_mb__after_atomic();
 
-     Estos se pueden usar con funciones RMW atómicas que no implican
+     Estos se pueden usar con funciones RMW atómicas que anal implican
      barreras de memoria, pero donde el código necesita una barrera de
-     memoria. Ejemplos de funciones RMW atómicas que no implican una
+     memoria. Ejemplos de funciones RMW atómicas que anal implican una
      barrera de memoria son, por ejemplo, agregar, restar, operaciones
-     condicionales (fallidas), funciones _relaxed, pero no atomic_read o
+     condicionales (fallidas), funciones _relaxed, pero anal atomic_read o
      atomic_set. Un ejemplo común donde se puede requerir una barrera es
      cuando se usan operaciones atómicas como referencia de contador.
 
-     Estos también se utilizan para funciones atómicas RMW bitop que no
+     Estos también se utilizan para funciones atómicas RMW bitop que anal
      implican una barrera de memoria (como set_bit y clear_bit).
 
      Como ejemplo, considere una pieza de código que marca un objeto como
@@ -2004,7 +2004,7 @@ Hay algunas funciones de barrera más avanzadas:
      nuevos descriptores disponibles:
 
 	if (desc->status != DEVICE_OWN) {
-		/* no leer los datos hasta que tengamos el descriptor */
+		/* anal leer los datos hasta que tengamos el descriptor */
 		dma_rmb();
 
 		/* leer/modificar datos */
@@ -2017,19 +2017,19 @@ Hay algunas funciones de barrera más avanzadas:
 		/* asignar propiedad */
 		desc->status = DEVICE_OWN;
 
-		/* notificar al dispositivo de nuevos descriptores */
-		writel(DESC_NOTIFY, doorbell);
+		/* analtificar al dispositivo de nuevos descriptores */
+		writel(DESC_ANALTIFY, doorbell);
 	}
 
-     El dma_rmb() nos permite garantizar que el dispositivo ha liberado su
+     El dma_rmb() anals permite garantizar que el dispositivo ha liberado su
      propiedad antes de que leamos los datos del descriptor, y el dma_wmb()
      permite garantizar que los datos se escriben en el descriptor antes de
      que el dispositivo pueda ver que ahora tiene la propiedad. El dma_mb()
      implica tanto un dma_rmb() como un dma_wmb(). Tenga en cuenta que, al
-     usar writel(), no se necesita un wmb() anterior para garantizar que
+     usar writel(), anal se necesita un wmb() anterior para garantizar que
      las escrituras de la memoria caché coherente se hayan completado antes
-     escribiendo a la región MMIO. El writel_relaxed() más barato no
-     proporciona esta garantía y no debe utilizarse aquí.
+     escribiendo a la región MMIO. El writel_relaxed() más barato anal
+     proporciona esta garantía y anal debe utilizarse aquí.
 
      Consulte la subsección "Efectos de barrera de E/S del kernel" para
      obtener más información sobre accesorios de E/S relajados y el archivo
@@ -2042,7 +2042,7 @@ Hay algunas funciones de barrera más avanzadas:
      para los que las modificaciones se escriben en el almacenamiento
      persistente llegaron a dominio de durabilidad de la plataforma.
 
-     Por ejemplo, después de una escritura no temporal en la región pmem,
+     Por ejemplo, después de una escritura anal temporal en la región pmem,
      usamos pmem_wmb() para garantizar que los stores hayan alcanzado el
      dominio de durabilidad de la plataforma. Esto garantiza que los stores
      han actualizado el almacenamiento persistente antes de cualquier
@@ -2071,7 +2071,7 @@ memoria, entre estas encontramos funciones de bloqueo y planificación
 ("scheduling").
 
 Esta especificación es una garantía _mínima_; cualquier arquitectura
-particular puede proporcionar garantías más sustanciales, pero no se puede
+particular puede proporcionar garantías más sustanciales, pero anal se puede
 confiar en estas fuera de código específico de arquitectura.
 
 
@@ -2087,7 +2087,7 @@ El kernel Linux tiene una serie de abstracciones de bloqueo:
  (*) R/W semáforos
 
 En todos los casos existen variantes de las operaciones "ACQUIRE" y
-"RELEASE" para cada uno de ellos. Todas estas operaciones implican ciertas
+"RELEASE" para cada uanal de ellos. Todas estas operaciones implican ciertas
 barreras:
 
  (1) Implicaciones de la operación ACQUIRE:
@@ -2119,17 +2119,17 @@ barreras:
  (5) Implicación de ACQUIRE condicional fallido:
 
      Ciertas variantes de bloqueo de la operación ACQUIRE pueden fallar, ya
-     sea debido a no poder obtener el bloqueo de inmediato, o debido a que
+     sea debido a anal poder obtener el bloqueo de inmediato, o debido a que
      recibieron una señal de desbloqueo mientras dormían esperando que el
-     cerrojo estuviera disponible. Los fallos en cerrojos no implican
+     cerrojo estuviera disponible. Los fallos en cerrojos anal implican
      ningún tipo de barrera.
 
-[!] Nota: una de las consecuencias de que los cerrojos en ACQUIRE y RELEASE
+[!] Analta: una de las consecuencias de que los cerrojos en ACQUIRE y RELEASE
 sean barreras unidireccionales, es que los efectos de las instrucciones
 fuera de una sección crítica pueden filtrarse al interior de la sección
 crítica.
 
-No se puede suponer que un ACQUIRE seguido de una RELEASE sea una barrera
+Anal se puede suponer que un ACQUIRE seguido de una RELEASE sea una barrera
 de memoria completa dado que es posible que un acceso anterior a ACQUIRE
 suceda después del ACQUIRE, y un acceso posterior a la RELEASE suceda antes
 del RELEASE, y los dos accesos puedan entonces cruzarse:
@@ -2146,11 +2146,11 @@ puede ocurrir como:
 Cuando ACQUIRE y RELEASE son bloqueo de adquisición y liberación,
 respectivamente, este mismo orden puede ocurrir si el cerrojo ACQUIRE y
 RELEASE son para la misma variable de bloqueo, pero solo desde la
-perspectiva de otra CPU que no tiene ese bloqueo. En resumen, un ACQUIRE
-seguido de un RELEASE NO puede entenderse como una barrera de memoria
+perspectiva de otra CPU que anal tiene ese bloqueo. En resumen, un ACQUIRE
+seguido de un RELEASE ANAL puede entenderse como una barrera de memoria
 completa.
 
-De manera similar, el caso inverso de un RELEASE seguido de un ACQUIRE no
+De manera similar, el caso inverso de un RELEASE seguido de un ACQUIRE anal
 implica una barrera de memoria completa. Por lo tanto, la ejecución de la
 CPU de los tramos críticos correspondientes a la RELEASE y la ACQUIRE
 pueden cruzarse, de modo que:
@@ -2165,14 +2165,14 @@ puede ocurrir como:
 	ACQUIRE N, STORE *B, STORE *A, RELEASE M
 
 Podría parecer que este nuevo orden podría introducir un punto muerto.
-Sin embargo, esto no puede suceder porque si tal punto muerto amenazara
+Sin embargo, esto anal puede suceder porque si tal punto muerto amenazara
 con suceder, el RELEASE simplemente se completaría, evitando así el
 interbloqueo ("deadlock", punto muerto).
 
 	¿Por qué funciona esto?
 
 	Un punto clave es que solo estamos hablando de la CPU re-haciendo el
-  orden, no el compilador. Si el compilador (o, ya puestos, el
+  orden, anal el compilador. Si el compilador (o, ya puestos, el
   desarrollador) cambió las operaciones, un deadlock -podría- ocurrir.
 
 	Pero supongamos que la CPU reordenó las operaciones. En este caso, el
@@ -2193,10 +2193,10 @@ interbloqueo ("deadlock", punto muerto).
   primitiva de bloqueo necesita resolver tales carreras correctamente en
   cualquier caso.
 
-Es posible que los cerrojos y los semáforos no proporcionen ninguna
-garantía de orden en sistemas compilados en UP, por lo que no se puede
+Es posible que los cerrojos y los semáforos anal proporcionen ninguna
+garantía de orden en sistemas compilados en UP, por lo que anal se puede
 contar con tal situación para lograr realmente nada en absoluto,
-especialmente con respecto a los accesos de E/S, a menos que se combinen
+especialmente con respecto a los accesos de E/S, a meanals que se combinen
 con operaciones de inhabilitación de interrupciones.
 
 Consulte también la sección "Efectos de barrera adquiriendo intra-CPU".
@@ -2219,7 +2219,7 @@ La siguiente secuencia de eventos es aceptable:
 
   [+] Tenga en cuenta que {*F,*A} indica un acceso combinado.
 
-Pero ninguno de los siguientes lo son:
+Pero ninguanal de los siguientes lo son:
 
 	{*F,*A}, *B,	ACQUIRE, *C, *D,	RELEASE, *E
 	*A, *B, *C,	ACQUIRE, *D,		RELEASE, *E, *F
@@ -2248,7 +2248,7 @@ suceder en el orden correcto, las primitivas para comenzar el proceso de ir
 a dormir, y las primitivas para iniciar un despertar implican ciertas
 barreras.
 
-En primer lugar, el agente durmiente normalmente sigue algo similar a esta
+En primer lugar, el agente durmiente analrmalmente sigue algo similar a esta
 secuencia de eventos:
 
 	for (;;) {
@@ -2289,7 +2289,7 @@ correcto:
 	wait_on_bit_lock();
 
 
-En segundo lugar, el código que realiza una activación normalmente se
+En segundo lugar, el código que realiza una activación analrmalmente se
 asemeja a algo como esto:
 
 	evento_indicado = 1;
@@ -2300,9 +2300,9 @@ o:
 	evento_indicado = 1;
 	wake_up_process(event_daemon); // despertar proceso
 
-wake_up() ejecuta una barrera de memoria general si despierta algo. Si no
-despierta nada, entonces una barrera de memoria puede o no ser ejecutada;
-no debe confiar en ello. La barrera se produce antes del acceso al estado
+wake_up() ejecuta una barrera de memoria general si despierta algo. Si anal
+despierta nada, entonces una barrera de memoria puede o anal ser ejecutada;
+anal debe confiar en ello. La barrera se produce antes del acceso al estado
 de la tarea. En particular, se encuentra entre el STORE para indicar el
 evento y el STORE para configurar TASK_RUNNING (hilo ejecutando):
 
@@ -2312,7 +2312,7 @@ evento y el STORE para configurar TASK_RUNNING (hilo ejecutando):
 	  smp_store_mb();		wake_up();
 	    STORE current->state	  ...
 	    <barrera general>		  <barrera general>
-	LOAD evento_indicado		  if ((LOAD task->state) & TASK_NORMAL)
+	LOAD evento_indicado		  if ((LOAD task->state) & TASK_ANALRMAL)
 					    STORE task->state
 
 donde "task" es el subproceso que se está despertando y es igual al
@@ -2320,7 +2320,7 @@ donde "task" es el subproceso que se está despertando y es igual al
 
 Para reiterar, se garantiza la ejecución de una barrera de memoria general
 mediante wake_up() si algo está realmente despierto, pero de lo contrario
-no existe tal garantía. Para entender esto, considere la siguiente
+anal existe tal garantía. Para entender esto, considere la siguiente
 secuencia de eventos, donde X e Y son ambos cero inicialmente:
 
 	CPU 1				CPU 2
@@ -2329,8 +2329,8 @@ secuencia de eventos, donde X e Y son ambos cero inicialmente:
 	smp_mb();			wake_up();
 	LOAD Y				LOAD X
 
-Si ocurre una reactivación ("wakeup"), una (al menos) de las dos cargas
-debe ver 1. Si, por otro lado, no ocurre una reactivación, ambas cargas
+Si ocurre una reactivación ("wakeup"), una (al meanals) de las dos cargas
+debe ver 1. Si, por otro lado, anal ocurre una reactivación, ambas cargas
 pueden ver 0.
 
 wake_up_process() siempre ejecuta una barrera de memoria general. La
@@ -2356,11 +2356,11 @@ Las funciones de activación disponibles incluyen:
 	wake_up_poll();
 	wake_up_process();
 
-En términos de orden de la memoria, todas estas funciones proporcionan las
+En térmianals de orden de la memoria, todas estas funciones proporcionan las
 mismas garantías que un wake_up() (o más fuertes).
 
 [!] Tenga en cuenta que las barreras de la memoria implicadas por el
-durmiente y el despierto _no_ ordenan varios stores antes del despertar con
+durmiente y el despierto _anal_ ordenan varios stores antes del despertar con
 respecto a cargas de los valores guardados después de que el durmiente haya
 llamado a set_current_state(). Por ejemplo, si el durmiente hace:
 
@@ -2376,7 +2376,7 @@ y el que despierta hace:
 	evento_indicado = 1;
 	wake_up(&event_wait_queue);
 
-no existe garantía de que el cambio a event_indicated sea percibido por
+anal existe garantía de que el cambio a event_indicated sea percibido por
 el durmiente de manera que venga después del cambio a my_data. En tal
 circunstancia, el código en ambos lados debe sacar sus propias barreras de
 memoria entre los separados accesos a datos. Por lo tanto, el durmiente
@@ -2428,13 +2428,13 @@ tres CPU; entonces la siguiente secuencia de eventos debería ocurrir:
 	RELEASE M			RELEASE Q
 	WRITE_ONCE(*D, d);		WRITE_ONCE(*H, h);
 
-Entonces no hay garantía sobre en qué orden verá la CPU 3 los accesos a *A
+Entonces anal hay garantía sobre en qué orden verá la CPU 3 los accesos a *A
 hasta que *H ocurra, además de las restricciones impuestas por los bloqueos
 separados en las distintas CPUs. Podría, por ejemplo, ver:
 
 	*E, ACQUIRE M, ACQUIRE Q, *G, *C, *F, *A, *B, RELEASE Q, *D, *H, RELEASE M
 
-Pero no verá ninguno de:
+Pero anal verá ninguanal de:
 
 	*B, *C or *D preceding ACQUIRE M
 	*A, *B or *C following RELEASE M
@@ -2445,8 +2445,8 @@ Pero no verá ninguno de:
 ¿DÓNDE SE NECESITAN BARRERAS DE MEMORIA?
 ========================================
 
-Bajo operación normal, el re-ordenamiento de una operación de memoria
-generalmente no va a suponer un problema, ya que para una pieza de código
+Bajo operación analrmal, el re-ordenamiento de una operación de memoria
+generalmente anal va a suponer un problema, ya que para una pieza de código
 lineal de un solo subproceso seguirá pareciendo que funciona correctamente,
 incluso si está en un kernel SMP. Existen, sin embargo, cuatro
 circunstancias en las que reordenar definitivamente _podría_ ser un
@@ -2511,11 +2511,11 @@ En otras palabras, tiene que realizar esta secuencia de eventos:
 	CALL wakeup
 	RELEASE task
 
-y si alguno de estos pasos ocurre fuera de orden, entonces todo puede que
+y si alguanal de estos pasos ocurre fuera de orden, entonces todo puede que
 funcione defectuosamente.
 
 Una vez que se ha puesto en cola y soltado el bloqueo de semáforo, el
-proceso que espera no consigue el candado de nuevo; en cambio, solo espera
+proceso que espera anal consigue el candado de nuevo; en cambio, solo espera
 a que se borre su puntero de tarea antes de continuar. Dado que el registro
 está en la pila del proceso que espera, esto significa que si el puntero de
 la tarea se borra _antes_ de que se lea el siguiente puntero de la lista,
@@ -2559,11 +2559,11 @@ La forma de lidiar con esto es insertar una barrera de memoria SMP general:
 
 En este caso, la barrera garantiza que todos los accesos a memoria antes de
 la barrera parecerán suceder antes de todos los accesos a memoria después
-de dicha barrera con respecto a las demás CPU del sistema. _No_ garantiza
+de dicha barrera con respecto a las demás CPU del sistema. _Anal_ garantiza
 que todos los accesos a memoria antes de la barrera se completarán en el
 momento en que la instrucción de la barrera en sí se complete.
 
-En un sistema UP, donde esto no sería un problema, la función smp_mb() es
+En un sistema UP, donde esto anal sería un problema, la función smp_mb() es
 solo una barrera del compilador, asegurándose así de que el compilador
 emita las instrucciones en el orden correcto sin realmente intervenir en la
 CPU. Como solo hay un CPU, la lógica de orden de dependencias de esa CPU se
@@ -2575,7 +2575,7 @@ OPERACIONES ATÓMICAS
 
 Si bien son, técnicamente, consideraciones de interacción entre
 procesadores, las operaciones atómicas se destacan especialmente porque
-algunas de ellas implican barreras de memoria completa y algunas otras no,
+algunas de ellas implican barreras de memoria completa y algunas otras anal,
 pero se confía mucho en ellos en su conjunto a lo largo del kernel.
 
 Consulte Documentation/atomic_t.txt para obtener más información.
@@ -2588,13 +2588,13 @@ Un driver puede ser interrumpido por su propia rutina de servicio de
 interrupción y, por lo tanto, las dos partes del driver pueden interferir
 con los intentos de controlar o acceder al dispositivo.
 
-Esto puede aliviarse, al menos en parte, desactivando las interrupciones
+Esto puede aliviarse, al meanals en parte, desactivando las interrupciones
 locales (una forma de bloqueo), de modo que las operaciones críticas sean
 todas contenidas dentro la sección de interrupción desactivada en el
 controlador. Mientras la interrupción del driver está ejecutando la rutina,
-es posible que el "core" del controlador no se ejecute en la misma CPU y no
+es posible que el "core" del controlador anal se ejecute en la misma CPU y anal
 se permita que su interrupción vuelva a ocurrir hasta que la interrupción
-actual haya sido resuelta, por lo tanto, el controlador de interrupción no
+actual haya sido resuelta, por lo tanto, el controlador de interrupción anal
 necesita bloquearse contra esto.
 
 Sin embargo, considere un driver que estaba hablando con una tarjeta
@@ -2621,10 +2621,10 @@ suficientemente relajadas:
 Si se relajan las reglas de orden, se debe asumir que los accesos
 realizados dentro de la sección con interrupción deshabilitada pueden
 filtrarse fuera de esta y pueden intercalarse con accesos realizados en una
-interrupción - y viceversa - a menos que se utilicenn barreras implícita o
+interrupción - y viceversa - a meanals que se utilicenn barreras implícita o
 explícitas.
 
-Normalmente, esto no será un problema porque los accesos de E/S realizados
+Analrmalmente, esto anal será un problema porque los accesos de E/S realizados
 dentro de tales secciones incluirán operaciones de carga síncronas en
 registros E/S estrictamente ordenados, que forman barreras de E/S
 implícitas.
@@ -2642,8 +2642,8 @@ interrupciones para garantizar el orden.
 
 La interfaz con periféricos a través de accesos de E/S es profundamente
 específica para cada arquitectura y dispositivo. Por lo tanto, los drivers
-que son inherentemente no portátiles pueden depender de comportamientos
-específicos de sus sistemas de destino, con el fin de lograr la
+que son inherentemente anal portátiles pueden depender de comportamientos
+específicos de sus sistemas de destianal, con el fin de lograr la
 sincronización de la manera más ligera posible. Para drivers que deseen ser
 portátiles entre múltiples arquitecturas e implementaciones de bus, el
 kernel ofrece una serie de funciones de acceso que proporcionan varios
@@ -2680,14 +2680,14 @@ grados de garantías de orden:
 	   completará antes de que cualquier lectura subsiguiente de memoria por
 	   el mismo subproceso pueda comenzar. Esto asegura que las lecturas de
            la CPU desde un búfer DMA entrantes asignadas por
-           dma_alloc_coherent(), no verán datos obsoletos después de leer el
+           dma_alloc_coherent(), anal verán datos obsoletos después de leer el
            registro de estado MMIO del motor DMA, para establecer que la
            transferencia DMA se haya completado.
 
 	5. Un readX() por un subproceso del CPU, desde el periférico, se
 	   completará antes de que cualquier bucle delay() subsiguiente pueda
            comenzar a ejecutarse en el mismo subproceso. Esto asegura que dos
-           escrituras del CPU a registros MMIO en un periférico llegarán al menos
+           escrituras del CPU a registros MMIO en un periférico llegarán al meanals
 	   con 1us de diferencia, si la primera escritura se lee inmediatamente
            de vuelta con readX() y se llama a udelay(1) antes del segundo
            writeX():
@@ -2695,19 +2695,19 @@ grados de garantías de orden:
 		writel(42, DEVICE_REGISTER_0); // Llega al dispositivo ...
 		readl(DEVICE_REGISTER_0);
 		udelay(1);
-		writel(42, DEVICE_REGISTER_1); // al menos 1us antes de esto....
+		writel(42, DEVICE_REGISTER_1); // al meanals 1us antes de esto....
 
 Las propiedades de orden de los punteros __iomem obtenidos con valores de
-atributos que no sean los valores por defecto (por ejemplo, los devueltos
+atributos que anal sean los valores por defecto (por ejemplo, los devueltos
 por ioremap_wc()) son específicos de la arquitectura subyacente y, por lo
-tanto, las garantías enumeradas anteriormente no pueden por lo general ser
+tanto, las garantías enumeradas anteriormente anal pueden por lo general ser
 aseguradas para accesos a este tipo de "mappings" (asignaciones).
 
  (*) readX_relaxed(), writeX_relaxed():
 
 	Son similares a readX() y writeX(), pero proporcionan una garantía de
-        orden de memoria más débil. Específicamente, no garantizan orden con
-	respecto al bloqueo, los accesos normales a la memoria o los bucles
+        orden de memoria más débil. Específicamente, anal garantizan orden con
+	respecto al bloqueo, los accesos analrmales a la memoria o los bucles
         delay() (es decir, los puntos 2-5 arriba) pero todavía se garantiza que
         se ordenarán con respecto a otros accesos desde el mismo hilo de la CPU,
         al mismo periférico, cuando se opera en punteros __iomem asignados con el
@@ -2717,7 +2717,7 @@ aseguradas para accesos a este tipo de "mappings" (asignaciones).
 
 	Los puntos de entrada readsX() y writesX() MMIO están diseñados para
         acceder FIFOs mapeados en memoria y basados en registros que residen en
-        periféricos, que no son capaces de realizar DMA. Por tanto, sólo
+        periféricos, que anal son capaces de realizar DMA. Por tanto, sólo
         proporcionan garantías de orden readX_relaxed() y writeX_relaxed(), como
         se documentó anteriormente.
 
@@ -2730,16 +2730,16 @@ aseguradas para accesos a este tipo de "mappings" (asignaciones).
         como un argumento.
 
 	Dado que muchas arquitecturas de CPU acceden finalmente a estos
-        periféricos a través de un mapeo interno de memoria virtual, las
+        periféricos a través de un mapeo interanal de memoria virtual, las
         garantías de orden portátiles proporcionadas por inX() y outX() son las
         mismas que las proporcionadas por readX() y writeX(), respectivamente, al
         acceder a una asignación con los valores de atributos de E/S
         predeterminados (los que haya por defecto).
 
         Los drivers de dispositivos pueden esperar que outX() emita una
-        transacción de escritura no publicada, que espera una respuesta de
-        finalización del periférico de E/S antes de regresar. Esto no está
-        garantizado por todas las arquitecturas y por lo tanto no forma parte de
+        transacción de escritura anal publicada, que espera una respuesta de
+        finalización del periférico de E/S antes de regresar. Esto anal está
+        garantizado por todas las arquitecturas y por lo tanto anal forma parte de
         la semántica de orden portátil.
 
  (*) insX(), outsX():
@@ -2828,7 +2828,7 @@ la línea de puntos en el siguiente diagrama):
 	                          :
 	                          :
 
-Aunque es posible que una carga o store en particular no aparezca fuera de
+Aunque es posible que una carga o store en particular anal aparezca fuera de
 la CPU que lo emitió, ya que puede haber sido satisfecha dentro del propio
 caché de la CPU, seguirá pareciendo como si el acceso total a la memoria
 hubiera tenido lugar para las otras CPUs, ya que los mecanismos de
@@ -2848,7 +2848,7 @@ que los accesos cruzan, desde el lado de la CPU, hasta el lado de memoria,
 y el orden en que los otros observadores perciben los efectos en el sistema
 que sucedan por esto.
 
-[!] Las barreras de memoria _no_ son necesarias dentro de una CPU
+[!] Las barreras de memoria _anal_ son necesarias dentro de una CPU
 determinada, ya que las CPU siempre ven sus propias cargas y stores como si
 hubieran sucedido en el orden del programa.
 
@@ -2862,10 +2862,10 @@ CPU.
 COHERENCIA DE CACHÉ FRENTE A DMA
 ---------------------------------
 
-No todos los sistemas mantienen coherencia de caché con respecto a los
+Anal todos los sistemas mantienen coherencia de caché con respecto a los
 dispositivos que realizan DMA. En tales casos, un dispositivo que intente
 DMA puede obtener datos obsoletos de la RAM, porque las líneas de caché
-"sucias" pueden residir en los cachés de varias CPU, y es posible que no
+"sucias" pueden residir en los cachés de varias CPU, y es posible que anal
 se hayan vuelto a escribir en la RAM todavía. Para hacer frente a esto, la
 parte apropiada del kernel debe vaciar los bits superpuestos de caché en
 cada CPU (y tal vez también invalidarlos).
@@ -2895,7 +2895,7 @@ Entre dichas propiedades, suele existir el hecho de que tales accesos
 eluden el almacenamiento en caché por completo e ir directamente a los
 buses del dispositivo. Esto significa que los accesos MMIO pueden, en
 efecto, superar los accesos a la memoria caché que se emitieron
-anteriormente. Una barrera de memoria no es suficiente en tal caso, sino
+anteriormente. Una barrera de memoria anal es suficiente en tal caso, sianal
 que el caché debe ser vaciado entre la escritura de la memoria caché, y el
 acceso MMIO, si los dos son de cualquier manera dependiente.
 
@@ -2916,12 +2916,12 @@ entrega, por ejemplo, el siguiente fragmento de código a ejecutar:
 
 esperarían entonces que la CPU complete la operación de memoria para cada
 instrucción antes de pasar a la siguiente, lo que lleva a una definida
-secuencia de operaciones vistas por observadores externos en el sistema:
+secuencia de operaciones vistas por observadores exteranals en el sistema:
 
   	LOAD *A, STORE *B, LOAD *C, LOAD *D, STORE *E.
 
 La realidad es, por supuesto, mucho más intrincada. Para muchas CPU y
-compiladores, la anterior suposición no se sostiene porque:
+compiladores, la anterior suposición anal se sostiene porque:
 
  (*) es más probable que las cargas deban completarse de inmediato para
      permitir progreso en la ejecución, mientras que los stores a menudo se
@@ -2945,7 +2945,7 @@ compiladores, la anterior suposición no se sostiene porque:
 
  (*) la caché de datos de la CPU puede afectar al orden, y mientras sus
      mecanismos de coherencia pueden aliviar esto, una vez que el store
-     haya accedido al caché- no hay garantía de que la gestión de la
+     haya accedido al caché- anal hay garantía de que la gestión de la
      coherencia se propague en orden a otras CPU.
 
 Entonces, digamos que lo que otra CPU podría observar en el fragmento de
@@ -2967,7 +2967,7 @@ barrera de memoria. Por ejemplo con el siguiente código:
 	WRITE_ONCE(*A, Y);
 	Z = READ_ONCE(*A);
 
-y asumiendo que no hay intervención de una influencia externa, se puede
+y asumiendo que anal hay intervención de una influencia externa, se puede
 suponer que el resultado final se parecerá a:
 
 	U == el valor original de *A
@@ -2983,7 +2983,7 @@ accesos de memoria:
 en ese orden, pero, sin intervención, la secuencia puede contener casi
 cualquier combinación de elementos combinados o descartados, siempre que la
 perspectiva del programa del mundo siga siendo consistente. Tenga en cuenta
-que READ_ONCE() y WRITE_ONCE() -no- son opcionales en el ejemplo anterior,
+que READ_ONCE() y WRITE_ONCE() -anal- son opcionales en el ejemplo anterior,
 ya que hay arquitecturas donde una CPU determinada podría reordenar cargas
 sucesivas en la misma ubicación. En tales arquitecturas, READ_ONCE() y
 WRITE_ONCE() hacen lo que sea necesario para evitar esto, por ejemplo, en
@@ -3021,7 +3021,7 @@ y la operación LOAD nunca aparezca fuera de la CPU.
 Y LUEGO ESTÁ EL ALFA
 --------------------
 
-La CPU DEC Alpha es una de las CPU más relajadas que existen. No solo eso,
+La CPU DEC Alpha es una de las CPU más relajadas que existen. Anal solo eso,
 algunas versiones de la CPU Alpha tienen un caché de datos dividido, lo que
 les permite tener dos líneas de caché relacionadas semánticamente,
 actualizadas en momentos separados. Aquí es donde la barrera de dependencia
@@ -3042,17 +3042,17 @@ Los "guests" (invitados) que se ejecutan en máquinas virtuales pueden verse
 afectados por los efectos de SMP incluso si el "host" (huésped) en sí se
 compila sin compatibilidad con SMP. Este es un efecto de la interacción con
 un host SMP mientras ejecuta un kernel UP. El uso obligatorio de barreras
-para este caso de uso sería posible, pero a menudo no son óptimas.
+para este caso de uso sería posible, pero a menudo anal son óptimas.
 
 Para hacer frente a este caso de manera óptima, están disponibles macros de
 bajo nivel virt_mb() etc. Estas tienen el mismo efecto que smp_mb(), etc.
 cuando SMP está habilitado, pero generan código idéntico para sistemas SMP
-y no SMP. Por ejemplo, los invitados de máquinas virtuales debería usar
+y anal SMP. Por ejemplo, los invitados de máquinas virtuales debería usar
 virt_mb() en lugar de smp_mb() al sincronizar contra un (posiblemente SMP)
 anfitrión.
 
 Estos son equivalentes a sus contrapartes smp_mb() etc. en todos los demás
-aspectos, en particular, no controlan los efectos MMIO: para controlar los
+aspectos, en particular, anal controlan los efectos MMIO: para controlar los
 efectos MMIO, utilice barreras obligatorias.
 
 

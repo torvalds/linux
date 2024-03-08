@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Microchip KSZ PTP register definitions
- * Copyright (C) 2022 Microchip Technology Inc.
+ * Copyright (C) 2022 Microchip Techanallogy Inc.
  */
 
 #ifndef __KSZ_PTP_REGS_H
@@ -25,22 +25,22 @@
 #define PTP_CLK_ENABLE			BIT(1)
 #define PTP_CLK_RESET			BIT(0)
 
-#define REG_PTP_RTC_SUB_NANOSEC__2	0x0502
+#define REG_PTP_RTC_SUB_NAANALSEC__2	0x0502
 
-#define PTP_RTC_SUB_NANOSEC_M		0x0007
+#define PTP_RTC_SUB_NAANALSEC_M		0x0007
 #define PTP_RTC_0NS			0x00
 
-#define REG_PTP_RTC_NANOSEC		0x0504
+#define REG_PTP_RTC_NAANALSEC		0x0504
 
 #define REG_PTP_RTC_SEC			0x0508
 
-#define REG_PTP_SUBNANOSEC_RATE		0x050C
+#define REG_PTP_SUBNAANALSEC_RATE		0x050C
 
-#define PTP_SUBNANOSEC_M		0x3FFFFFFF
+#define PTP_SUBNAANALSEC_M		0x3FFFFFFF
 #define PTP_RATE_DIR			BIT(31)
 #define PTP_TMP_RATE_ENABLE		BIT(30)
 
-#define REG_PTP_SUBNANOSEC_RATE_L	0x050E
+#define REG_PTP_SUBNAANALSEC_RATE_L	0x050E
 
 #define REG_PTP_RATE_DURATION		0x0510
 #define REG_PTP_RATE_DURATION_H		0x0510
@@ -84,7 +84,7 @@
 #define TS_ENABLE			BIT(1)
 #define TS_RESET			BIT(0)
 
-#define REG_TRIG_TARGET_NANOSEC	0x0530
+#define REG_TRIG_TARGET_NAANALSEC	0x0530
 #define REG_TRIG_TARGET_SEC		0x0534
 
 #define REG_TRIG_CTRL__4		0x0538
@@ -92,8 +92,8 @@
 #define TRIG_CASCADE_ENABLE		BIT(31)
 #define TRIG_CASCADE_TAIL		BIT(30)
 #define TRIG_CASCADE_UPS_M		GENMASK(29, 26)
-#define TRIG_NOW			BIT(25)
-#define TRIG_NOTIFY			BIT(24)
+#define TRIG_ANALW			BIT(25)
+#define TRIG_ANALTIFY			BIT(24)
 #define TRIG_EDGE			BIT(23)
 #define TRIG_PATTERN_M			GENMASK(22, 20)
 #define TRIG_NEG_EDGE			0

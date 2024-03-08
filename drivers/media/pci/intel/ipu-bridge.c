@@ -12,7 +12,7 @@
 #include <linux/workqueue.h>
 
 #include <media/ipu-bridge.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 /*
  * 92335fcf-3203-4472-af93-7b4453ac29da
@@ -32,14 +32,14 @@
 #define IVSC_DEV_NAME "intel_vsc"
 
 /*
- * Extend this array with ACPI Hardware IDs of devices known to be working
+ * Extend this array with ACPI Hardware IDs of devices kanalwn to be working
  * plus the number of link-frequencies expected by their drivers, along with
  * the frequency values in hertz. This is somewhat opportunistic way of adding
- * support for this for now in the hopes of a better source for the information
+ * support for this for analw in the hopes of a better source for the information
  * (possibly some encoded value in the SSDB buffer that we're unaware of)
  * becoming apparent in the future.
  *
- * Do not add an entry for a sensor that is not actually supported.
+ * Do analt add an entry for a sensor that is analt actually supported.
  */
 static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	/* Omnivision OV5693 */
@@ -161,7 +161,7 @@ static int ipu_bridge_check_ivsc_dev(struct ipu_sensor *sensor,
 		if (!csi_dev) {
 			acpi_dev_put(adev);
 			dev_err(&adev->dev, "Failed to find MEI CSI dev\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		sensor->csi_dev = csi_dev;
@@ -181,17 +181,17 @@ static int ipu_bridge_read_acpi_buffer(struct acpi_device *adev, char *id,
 
 	status = acpi_evaluate_object(adev->handle, id, NULL, &buffer);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	obj = buffer.pointer;
 	if (!obj) {
 		dev_err(&adev->dev, "Couldn't locate ACPI buffer\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (obj->type != ACPI_TYPE_BUFFER) {
-		dev_err(&adev->dev, "Not an ACPI buffer\n");
-		ret = -ENODEV;
+		dev_err(&adev->dev, "Analt an ACPI buffer\n");
+		ret = -EANALDEV;
 		goto out_free_buff;
 	}
 
@@ -212,46 +212,46 @@ static u32 ipu_bridge_parse_rotation(struct acpi_device *adev,
 				     struct ipu_sensor_ssdb *ssdb)
 {
 	switch (ssdb->degree) {
-	case IPU_SENSOR_ROTATION_NORMAL:
+	case IPU_SENSOR_ROTATION_ANALRMAL:
 		return 0;
 	case IPU_SENSOR_ROTATION_INVERTED:
 		return 180;
 	default:
 		dev_warn(&adev->dev,
-			 "Unknown rotation %d. Assume 0 degree rotation\n",
+			 "Unkanalwn rotation %d. Assume 0 degree rotation\n",
 			 ssdb->degree);
 		return 0;
 	}
 }
 
-static enum v4l2_fwnode_orientation ipu_bridge_parse_orientation(struct acpi_device *adev)
+static enum v4l2_fwanalde_orientation ipu_bridge_parse_orientation(struct acpi_device *adev)
 {
-	enum v4l2_fwnode_orientation orientation;
+	enum v4l2_fwanalde_orientation orientation;
 	struct acpi_pld_info *pld;
 	acpi_status status;
 
 	status = acpi_get_physical_device_location(adev->handle, &pld);
 	if (ACPI_FAILURE(status)) {
 		dev_warn(&adev->dev, "_PLD call failed, using default orientation\n");
-		return V4L2_FWNODE_ORIENTATION_EXTERNAL;
+		return V4L2_FWANALDE_ORIENTATION_EXTERNAL;
 	}
 
 	switch (pld->panel) {
 	case ACPI_PLD_PANEL_FRONT:
-		orientation = V4L2_FWNODE_ORIENTATION_FRONT;
+		orientation = V4L2_FWANALDE_ORIENTATION_FRONT;
 		break;
 	case ACPI_PLD_PANEL_BACK:
-		orientation = V4L2_FWNODE_ORIENTATION_BACK;
+		orientation = V4L2_FWANALDE_ORIENTATION_BACK;
 		break;
 	case ACPI_PLD_PANEL_TOP:
 	case ACPI_PLD_PANEL_LEFT:
 	case ACPI_PLD_PANEL_RIGHT:
-	case ACPI_PLD_PANEL_UNKNOWN:
-		orientation = V4L2_FWNODE_ORIENTATION_EXTERNAL;
+	case ACPI_PLD_PANEL_UNKANALWN:
+		orientation = V4L2_FWANALDE_ORIENTATION_EXTERNAL;
 		break;
 	default:
-		dev_warn(&adev->dev, "Unknown _PLD panel val %d\n", pld->panel);
-		orientation = V4L2_FWNODE_ORIENTATION_EXTERNAL;
+		dev_warn(&adev->dev, "Unkanalwn _PLD panel val %d\n", pld->panel);
+		orientation = V4L2_FWANALDE_ORIENTATION_EXTERNAL;
 		break;
 	}
 
@@ -269,7 +269,7 @@ int ipu_bridge_parse_ssdb(struct acpi_device *adev, struct ipu_sensor *sensor)
 		return ret;
 
 	if (ssdb.vcmtype > ARRAY_SIZE(ipu_vcm_types)) {
-		dev_warn(&adev->dev, "Unknown VCM type %d\n", ssdb.vcmtype);
+		dev_warn(&adev->dev, "Unkanalwn VCM type %d\n", ssdb.vcmtype);
 		ssdb.vcmtype = 0;
 	}
 
@@ -291,29 +291,29 @@ int ipu_bridge_parse_ssdb(struct acpi_device *adev, struct ipu_sensor *sensor)
 }
 EXPORT_SYMBOL_NS_GPL(ipu_bridge_parse_ssdb, INTEL_IPU_BRIDGE);
 
-static void ipu_bridge_create_fwnode_properties(
+static void ipu_bridge_create_fwanalde_properties(
 	struct ipu_sensor *sensor,
 	struct ipu_bridge *bridge,
 	const struct ipu_sensor_config *cfg)
 {
 	struct ipu_property_names *names = &sensor->prop_names;
-	struct software_node *nodes = sensor->swnodes;
+	struct software_analde *analdes = sensor->swanaldes;
 
 	sensor->prop_names = prop_names;
 
 	if (sensor->csi_dev) {
 		sensor->local_ref[0] =
-			SOFTWARE_NODE_REFERENCE(&nodes[SWNODE_IVSC_SENSOR_ENDPOINT]);
+			SOFTWARE_ANALDE_REFERENCE(&analdes[SWANALDE_IVSC_SENSOR_ENDPOINT]);
 		sensor->remote_ref[0] =
-			SOFTWARE_NODE_REFERENCE(&nodes[SWNODE_IVSC_IPU_ENDPOINT]);
+			SOFTWARE_ANALDE_REFERENCE(&analdes[SWANALDE_IVSC_IPU_ENDPOINT]);
 		sensor->ivsc_sensor_ref[0] =
-			SOFTWARE_NODE_REFERENCE(&nodes[SWNODE_SENSOR_ENDPOINT]);
+			SOFTWARE_ANALDE_REFERENCE(&analdes[SWANALDE_SENSOR_ENDPOINT]);
 		sensor->ivsc_ipu_ref[0] =
-			SOFTWARE_NODE_REFERENCE(&nodes[SWNODE_IPU_ENDPOINT]);
+			SOFTWARE_ANALDE_REFERENCE(&analdes[SWANALDE_IPU_ENDPOINT]);
 
 		sensor->ivsc_sensor_ep_properties[0] =
 			PROPERTY_ENTRY_U32(names->bus_type,
-					   V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
+					   V4L2_FWANALDE_BUS_TYPE_CSI2_DPHY);
 		sensor->ivsc_sensor_ep_properties[1] =
 			PROPERTY_ENTRY_U32_ARRAY_LEN(names->data_lanes,
 						     bridge->data_lanes,
@@ -324,7 +324,7 @@ static void ipu_bridge_create_fwnode_properties(
 
 		sensor->ivsc_ipu_ep_properties[0] =
 			PROPERTY_ENTRY_U32(names->bus_type,
-					   V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
+					   V4L2_FWANALDE_BUS_TYPE_CSI2_DPHY);
 		sensor->ivsc_ipu_ep_properties[1] =
 			PROPERTY_ENTRY_U32_ARRAY_LEN(names->data_lanes,
 						     bridge->data_lanes,
@@ -334,9 +334,9 @@ static void ipu_bridge_create_fwnode_properties(
 						 sensor->ivsc_ipu_ref);
 	} else {
 		sensor->local_ref[0] =
-			SOFTWARE_NODE_REFERENCE(&nodes[SWNODE_IPU_ENDPOINT]);
+			SOFTWARE_ANALDE_REFERENCE(&analdes[SWANALDE_IPU_ENDPOINT]);
 		sensor->remote_ref[0] =
-			SOFTWARE_NODE_REFERENCE(&nodes[SWNODE_SENSOR_ENDPOINT]);
+			SOFTWARE_ANALDE_REFERENCE(&analdes[SWANALDE_SENSOR_ENDPOINT]);
 	}
 
 	sensor->dev_properties[0] = PROPERTY_ENTRY_U32(
@@ -350,14 +350,14 @@ static void ipu_bridge_create_fwnode_properties(
 					sensor->orientation);
 	if (sensor->vcm_type) {
 		sensor->vcm_ref[0] =
-			SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_VCM]);
+			SOFTWARE_ANALDE_REFERENCE(&sensor->swanaldes[SWANALDE_VCM]);
 		sensor->dev_properties[3] =
 			PROPERTY_ENTRY_REF_ARRAY("lens-focus", sensor->vcm_ref);
 	}
 
 	sensor->ep_properties[0] = PROPERTY_ENTRY_U32(
 					sensor->prop_names.bus_type,
-					V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
+					V4L2_FWANALDE_BUS_TYPE_CSI2_DPHY);
 	sensor->ep_properties[1] = PROPERTY_ENTRY_U32_ARRAY_LEN(
 					sensor->prop_names.data_lanes,
 					bridge->data_lanes, sensor->lanes);
@@ -379,113 +379,113 @@ static void ipu_bridge_create_fwnode_properties(
 					sensor->remote_ref);
 }
 
-static void ipu_bridge_init_swnode_names(struct ipu_sensor *sensor)
+static void ipu_bridge_init_swanalde_names(struct ipu_sensor *sensor)
 {
-	snprintf(sensor->node_names.remote_port,
-		 sizeof(sensor->node_names.remote_port),
-		 SWNODE_GRAPH_PORT_NAME_FMT, sensor->link);
-	snprintf(sensor->node_names.port,
-		 sizeof(sensor->node_names.port),
-		 SWNODE_GRAPH_PORT_NAME_FMT, 0); /* Always port 0 */
-	snprintf(sensor->node_names.endpoint,
-		 sizeof(sensor->node_names.endpoint),
-		 SWNODE_GRAPH_ENDPOINT_NAME_FMT, 0); /* And endpoint 0 */
+	snprintf(sensor->analde_names.remote_port,
+		 sizeof(sensor->analde_names.remote_port),
+		 SWANALDE_GRAPH_PORT_NAME_FMT, sensor->link);
+	snprintf(sensor->analde_names.port,
+		 sizeof(sensor->analde_names.port),
+		 SWANALDE_GRAPH_PORT_NAME_FMT, 0); /* Always port 0 */
+	snprintf(sensor->analde_names.endpoint,
+		 sizeof(sensor->analde_names.endpoint),
+		 SWANALDE_GRAPH_ENDPOINT_NAME_FMT, 0); /* And endpoint 0 */
 	if (sensor->vcm_type) {
-		/* append link to distinguish nodes with same model VCM */
-		snprintf(sensor->node_names.vcm, sizeof(sensor->node_names.vcm),
+		/* append link to distinguish analdes with same model VCM */
+		snprintf(sensor->analde_names.vcm, sizeof(sensor->analde_names.vcm),
 			 "%s-%u", sensor->vcm_type, sensor->link);
 	}
 
 	if (sensor->csi_dev) {
-		snprintf(sensor->node_names.ivsc_sensor_port,
-			 sizeof(sensor->node_names.ivsc_sensor_port),
-			 SWNODE_GRAPH_PORT_NAME_FMT, 0);
-		snprintf(sensor->node_names.ivsc_ipu_port,
-			 sizeof(sensor->node_names.ivsc_ipu_port),
-			 SWNODE_GRAPH_PORT_NAME_FMT, 1);
+		snprintf(sensor->analde_names.ivsc_sensor_port,
+			 sizeof(sensor->analde_names.ivsc_sensor_port),
+			 SWANALDE_GRAPH_PORT_NAME_FMT, 0);
+		snprintf(sensor->analde_names.ivsc_ipu_port,
+			 sizeof(sensor->analde_names.ivsc_ipu_port),
+			 SWANALDE_GRAPH_PORT_NAME_FMT, 1);
 	}
 }
 
-static void ipu_bridge_init_swnode_group(struct ipu_sensor *sensor)
+static void ipu_bridge_init_swanalde_group(struct ipu_sensor *sensor)
 {
-	struct software_node *nodes = sensor->swnodes;
+	struct software_analde *analdes = sensor->swanaldes;
 
-	sensor->group[SWNODE_SENSOR_HID] = &nodes[SWNODE_SENSOR_HID];
-	sensor->group[SWNODE_SENSOR_PORT] = &nodes[SWNODE_SENSOR_PORT];
-	sensor->group[SWNODE_SENSOR_ENDPOINT] = &nodes[SWNODE_SENSOR_ENDPOINT];
-	sensor->group[SWNODE_IPU_PORT] = &nodes[SWNODE_IPU_PORT];
-	sensor->group[SWNODE_IPU_ENDPOINT] = &nodes[SWNODE_IPU_ENDPOINT];
+	sensor->group[SWANALDE_SENSOR_HID] = &analdes[SWANALDE_SENSOR_HID];
+	sensor->group[SWANALDE_SENSOR_PORT] = &analdes[SWANALDE_SENSOR_PORT];
+	sensor->group[SWANALDE_SENSOR_ENDPOINT] = &analdes[SWANALDE_SENSOR_ENDPOINT];
+	sensor->group[SWANALDE_IPU_PORT] = &analdes[SWANALDE_IPU_PORT];
+	sensor->group[SWANALDE_IPU_ENDPOINT] = &analdes[SWANALDE_IPU_ENDPOINT];
 	if (sensor->vcm_type)
-		sensor->group[SWNODE_VCM] =  &nodes[SWNODE_VCM];
+		sensor->group[SWANALDE_VCM] =  &analdes[SWANALDE_VCM];
 
 	if (sensor->csi_dev) {
-		sensor->group[SWNODE_IVSC_HID] =
-					&nodes[SWNODE_IVSC_HID];
-		sensor->group[SWNODE_IVSC_SENSOR_PORT] =
-					&nodes[SWNODE_IVSC_SENSOR_PORT];
-		sensor->group[SWNODE_IVSC_SENSOR_ENDPOINT] =
-					&nodes[SWNODE_IVSC_SENSOR_ENDPOINT];
-		sensor->group[SWNODE_IVSC_IPU_PORT] =
-					&nodes[SWNODE_IVSC_IPU_PORT];
-		sensor->group[SWNODE_IVSC_IPU_ENDPOINT] =
-					&nodes[SWNODE_IVSC_IPU_ENDPOINT];
+		sensor->group[SWANALDE_IVSC_HID] =
+					&analdes[SWANALDE_IVSC_HID];
+		sensor->group[SWANALDE_IVSC_SENSOR_PORT] =
+					&analdes[SWANALDE_IVSC_SENSOR_PORT];
+		sensor->group[SWANALDE_IVSC_SENSOR_ENDPOINT] =
+					&analdes[SWANALDE_IVSC_SENSOR_ENDPOINT];
+		sensor->group[SWANALDE_IVSC_IPU_PORT] =
+					&analdes[SWANALDE_IVSC_IPU_PORT];
+		sensor->group[SWANALDE_IVSC_IPU_ENDPOINT] =
+					&analdes[SWANALDE_IVSC_IPU_ENDPOINT];
 
 		if (sensor->vcm_type)
-			sensor->group[SWNODE_VCM] = &nodes[SWNODE_VCM];
+			sensor->group[SWANALDE_VCM] = &analdes[SWANALDE_VCM];
 	} else {
 		if (sensor->vcm_type)
-			sensor->group[SWNODE_IVSC_HID] = &nodes[SWNODE_VCM];
+			sensor->group[SWANALDE_IVSC_HID] = &analdes[SWANALDE_VCM];
 	}
 }
 
-static void ipu_bridge_create_connection_swnodes(struct ipu_bridge *bridge,
+static void ipu_bridge_create_connection_swanaldes(struct ipu_bridge *bridge,
 						 struct ipu_sensor *sensor)
 {
-	struct ipu_node_names *names = &sensor->node_names;
-	struct software_node *nodes = sensor->swnodes;
+	struct ipu_analde_names *names = &sensor->analde_names;
+	struct software_analde *analdes = sensor->swanaldes;
 
-	ipu_bridge_init_swnode_names(sensor);
+	ipu_bridge_init_swanalde_names(sensor);
 
-	nodes[SWNODE_SENSOR_HID] = NODE_SENSOR(sensor->name,
+	analdes[SWANALDE_SENSOR_HID] = ANALDE_SENSOR(sensor->name,
 					       sensor->dev_properties);
-	nodes[SWNODE_SENSOR_PORT] = NODE_PORT(sensor->node_names.port,
-					      &nodes[SWNODE_SENSOR_HID]);
-	nodes[SWNODE_SENSOR_ENDPOINT] = NODE_ENDPOINT(
-						sensor->node_names.endpoint,
-						&nodes[SWNODE_SENSOR_PORT],
+	analdes[SWANALDE_SENSOR_PORT] = ANALDE_PORT(sensor->analde_names.port,
+					      &analdes[SWANALDE_SENSOR_HID]);
+	analdes[SWANALDE_SENSOR_ENDPOINT] = ANALDE_ENDPOINT(
+						sensor->analde_names.endpoint,
+						&analdes[SWANALDE_SENSOR_PORT],
 						sensor->ep_properties);
-	nodes[SWNODE_IPU_PORT] = NODE_PORT(sensor->node_names.remote_port,
-					   &bridge->ipu_hid_node);
-	nodes[SWNODE_IPU_ENDPOINT] = NODE_ENDPOINT(
-						sensor->node_names.endpoint,
-						&nodes[SWNODE_IPU_PORT],
+	analdes[SWANALDE_IPU_PORT] = ANALDE_PORT(sensor->analde_names.remote_port,
+					   &bridge->ipu_hid_analde);
+	analdes[SWANALDE_IPU_ENDPOINT] = ANALDE_ENDPOINT(
+						sensor->analde_names.endpoint,
+						&analdes[SWANALDE_IPU_PORT],
 						sensor->ipu_properties);
 
 	if (sensor->csi_dev) {
 		snprintf(sensor->ivsc_name, sizeof(sensor->ivsc_name), "%s-%u",
 			 acpi_device_hid(sensor->ivsc_adev), sensor->link);
 
-		nodes[SWNODE_IVSC_HID] = NODE_SENSOR(sensor->ivsc_name,
+		analdes[SWANALDE_IVSC_HID] = ANALDE_SENSOR(sensor->ivsc_name,
 						     sensor->ivsc_properties);
-		nodes[SWNODE_IVSC_SENSOR_PORT] =
-				NODE_PORT(names->ivsc_sensor_port,
-					  &nodes[SWNODE_IVSC_HID]);
-		nodes[SWNODE_IVSC_SENSOR_ENDPOINT] =
-				NODE_ENDPOINT(names->endpoint,
-					      &nodes[SWNODE_IVSC_SENSOR_PORT],
+		analdes[SWANALDE_IVSC_SENSOR_PORT] =
+				ANALDE_PORT(names->ivsc_sensor_port,
+					  &analdes[SWANALDE_IVSC_HID]);
+		analdes[SWANALDE_IVSC_SENSOR_ENDPOINT] =
+				ANALDE_ENDPOINT(names->endpoint,
+					      &analdes[SWANALDE_IVSC_SENSOR_PORT],
 					      sensor->ivsc_sensor_ep_properties);
-		nodes[SWNODE_IVSC_IPU_PORT] =
-				NODE_PORT(names->ivsc_ipu_port,
-					  &nodes[SWNODE_IVSC_HID]);
-		nodes[SWNODE_IVSC_IPU_ENDPOINT] =
-				NODE_ENDPOINT(names->endpoint,
-					      &nodes[SWNODE_IVSC_IPU_PORT],
+		analdes[SWANALDE_IVSC_IPU_PORT] =
+				ANALDE_PORT(names->ivsc_ipu_port,
+					  &analdes[SWANALDE_IVSC_HID]);
+		analdes[SWANALDE_IVSC_IPU_ENDPOINT] =
+				ANALDE_ENDPOINT(names->endpoint,
+					      &analdes[SWANALDE_IVSC_IPU_PORT],
 					      sensor->ivsc_ipu_ep_properties);
 	}
 
-	nodes[SWNODE_VCM] = NODE_VCM(sensor->node_names.vcm);
+	analdes[SWANALDE_VCM] = ANALDE_VCM(sensor->analde_names.vcm);
 
-	ipu_bridge_init_swnode_group(sensor);
+	ipu_bridge_init_swanalde_group(sensor);
 }
 
 /*
@@ -506,7 +506,7 @@ static void ipu_bridge_instantiate_vcm_work(struct work_struct *work)
 			     work);
 	struct acpi_device *adev = ACPI_COMPANION(data->sensor);
 	struct i2c_client *vcm_client;
-	bool put_fwnode = true;
+	bool put_fwanalde = true;
 	int ret;
 
 	/*
@@ -515,16 +515,16 @@ static void ipu_bridge_instantiate_vcm_work(struct work_struct *work)
 	 */
 	ret = pm_runtime_get_sync(data->sensor);
 	if (ret < 0) {
-		dev_err(data->sensor, "Error %d runtime-resuming sensor, cannot instantiate VCM\n",
+		dev_err(data->sensor, "Error %d runtime-resuming sensor, cananalt instantiate VCM\n",
 			ret);
 		goto out_pm_put;
 	}
 
 	/*
-	 * Note the client is created only once and then kept around
-	 * even after a rmmod, just like the software-nodes.
+	 * Analte the client is created only once and then kept around
+	 * even after a rmmod, just like the software-analdes.
 	 */
-	vcm_client = i2c_acpi_new_device_by_fwnode(acpi_fwnode_handle(adev),
+	vcm_client = i2c_acpi_new_device_by_fwanalde(acpi_fwanalde_handle(adev),
 						   1, &data->board_info);
 	if (IS_ERR(vcm_client)) {
 		dev_err(data->sensor, "Error instantiating VCM client: %ld\n",
@@ -535,20 +535,20 @@ static void ipu_bridge_instantiate_vcm_work(struct work_struct *work)
 	device_link_add(&vcm_client->dev, data->sensor, DL_FLAG_PM_RUNTIME);
 
 	dev_info(data->sensor, "Instantiated %s VCM\n", data->board_info.type);
-	put_fwnode = false; /* Ownership has passed to the i2c-client */
+	put_fwanalde = false; /* Ownership has passed to the i2c-client */
 
 out_pm_put:
 	pm_runtime_put(data->sensor);
 	put_device(data->sensor);
-	if (put_fwnode)
-		fwnode_handle_put(data->board_info.fwnode);
+	if (put_fwanalde)
+		fwanalde_handle_put(data->board_info.fwanalde);
 	kfree(data);
 }
 
 int ipu_bridge_instantiate_vcm(struct device *sensor)
 {
 	struct ipu_bridge_instantiate_vcm_work_data *data;
-	struct fwnode_handle *vcm_fwnode;
+	struct fwanalde_handle *vcm_fwanalde;
 	struct i2c_client *vcm_client;
 	struct acpi_device *adev;
 	char *sep;
@@ -557,22 +557,22 @@ int ipu_bridge_instantiate_vcm(struct device *sensor)
 	if (!adev)
 		return 0;
 
-	vcm_fwnode = fwnode_find_reference(dev_fwnode(sensor), "lens-focus", 0);
-	if (IS_ERR(vcm_fwnode))
+	vcm_fwanalde = fwanalde_find_reference(dev_fwanalde(sensor), "lens-focus", 0);
+	if (IS_ERR(vcm_fwanalde))
 		return 0;
 
 	/* When reloading modules the client will already exist */
-	vcm_client = i2c_find_device_by_fwnode(vcm_fwnode);
+	vcm_client = i2c_find_device_by_fwanalde(vcm_fwanalde);
 	if (vcm_client) {
-		fwnode_handle_put(vcm_fwnode);
+		fwanalde_handle_put(vcm_fwanalde);
 		put_device(&vcm_client->dev);
 		return 0;
 	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		fwnode_handle_put(vcm_fwnode);
-		return -ENOMEM;
+		fwanalde_handle_put(vcm_fwanalde);
+		return -EANALMEM;
 	}
 
 	INIT_WORK(&data->work, ipu_bridge_instantiate_vcm_work);
@@ -580,9 +580,9 @@ int ipu_bridge_instantiate_vcm(struct device *sensor)
 	snprintf(data->name, sizeof(data->name), "%s-VCM",
 		 acpi_dev_name(adev));
 	data->board_info.dev_name = data->name;
-	data->board_info.fwnode = vcm_fwnode;
+	data->board_info.fwanalde = vcm_fwanalde;
 	snprintf(data->board_info.type, sizeof(data->board_info.type),
-		 "%pfwP", vcm_fwnode);
+		 "%pfwP", vcm_fwanalde);
 	/* Strip "-<link>" postfix */
 	sep = strchrnul(data->board_info.type, '-');
 	*sep = 0;
@@ -595,16 +595,16 @@ EXPORT_SYMBOL_NS_GPL(ipu_bridge_instantiate_vcm, INTEL_IPU_BRIDGE);
 
 static int ipu_bridge_instantiate_ivsc(struct ipu_sensor *sensor)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 
 	if (!sensor->csi_dev)
 		return 0;
 
-	fwnode = software_node_fwnode(&sensor->swnodes[SWNODE_IVSC_HID]);
-	if (!fwnode)
-		return -ENODEV;
+	fwanalde = software_analde_fwanalde(&sensor->swanaldes[SWANALDE_IVSC_HID]);
+	if (!fwanalde)
+		return -EANALDEV;
 
-	set_secondary_fwnode(sensor->csi_dev, fwnode);
+	set_secondary_fwanalde(sensor->csi_dev, fwanalde);
 
 	return 0;
 }
@@ -616,7 +616,7 @@ static void ipu_bridge_unregister_sensors(struct ipu_bridge *bridge)
 
 	for (i = 0; i < bridge->n_sensors; i++) {
 		sensor = &bridge->sensors[i];
-		software_node_unregister_node_group(sensor->group);
+		software_analde_unregister_analde_group(sensor->group);
 		acpi_dev_put(sensor->adev);
 		put_device(sensor->csi_dev);
 		acpi_dev_put(sensor->ivsc_adev);
@@ -626,7 +626,7 @@ static void ipu_bridge_unregister_sensors(struct ipu_bridge *bridge)
 static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 				     struct ipu_bridge *bridge)
 {
-	struct fwnode_handle *fwnode, *primary;
+	struct fwanalde_handle *fwanalde, *primary;
 	struct ipu_sensor *sensor;
 	struct acpi_device *adev;
 	int ret;
@@ -643,7 +643,7 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 		sensor = &bridge->sensors[bridge->n_sensors];
 
-		ret = bridge->parse_sensor_fwnode(adev, sensor);
+		ret = bridge->parse_sensor_fwanalde(adev, sensor);
 		if (ret)
 			goto err_put_adev;
 
@@ -654,28 +654,28 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 		if (ret)
 			goto err_put_adev;
 
-		ipu_bridge_create_fwnode_properties(sensor, bridge, cfg);
-		ipu_bridge_create_connection_swnodes(bridge, sensor);
+		ipu_bridge_create_fwanalde_properties(sensor, bridge, cfg);
+		ipu_bridge_create_connection_swanaldes(bridge, sensor);
 
-		ret = software_node_register_node_group(sensor->group);
+		ret = software_analde_register_analde_group(sensor->group);
 		if (ret)
 			goto err_put_ivsc;
 
-		fwnode = software_node_fwnode(&sensor->swnodes[
-						      SWNODE_SENSOR_HID]);
-		if (!fwnode) {
-			ret = -ENODEV;
-			goto err_free_swnodes;
+		fwanalde = software_analde_fwanalde(&sensor->swanaldes[
+						      SWANALDE_SENSOR_HID]);
+		if (!fwanalde) {
+			ret = -EANALDEV;
+			goto err_free_swanaldes;
 		}
 
 		sensor->adev = acpi_dev_get(adev);
 
-		primary = acpi_fwnode_handle(adev);
-		primary->secondary = fwnode;
+		primary = acpi_fwanalde_handle(adev);
+		primary->secondary = fwanalde;
 
 		ret = ipu_bridge_instantiate_ivsc(sensor);
 		if (ret)
-			goto err_free_swnodes;
+			goto err_free_swanaldes;
 
 		dev_info(bridge->dev, "Found supported sensor %s\n",
 			 acpi_dev_name(adev));
@@ -685,8 +685,8 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 	return 0;
 
-err_free_swnodes:
-	software_node_unregister_node_group(sensor->group);
+err_free_swanaldes:
+	software_analde_unregister_analde_group(sensor->group);
 err_put_ivsc:
 	put_device(sensor->csi_dev);
 	acpi_dev_put(sensor->ivsc_adev);
@@ -748,9 +748,9 @@ static int ipu_bridge_ivsc_is_ready(void)
 }
 
 int ipu_bridge_init(struct device *dev,
-		    ipu_parse_sensor_fwnode_t parse_sensor_fwnode)
+		    ipu_parse_sensor_fwanalde_t parse_sensor_fwanalde)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct ipu_bridge *bridge;
 	unsigned int i;
 	int ret;
@@ -760,17 +760,17 @@ int ipu_bridge_init(struct device *dev,
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	strscpy(bridge->ipu_node_name, IPU_HID,
-		sizeof(bridge->ipu_node_name));
-	bridge->ipu_hid_node.name = bridge->ipu_node_name;
+	strscpy(bridge->ipu_analde_name, IPU_HID,
+		sizeof(bridge->ipu_analde_name));
+	bridge->ipu_hid_analde.name = bridge->ipu_analde_name;
 	bridge->dev = dev;
-	bridge->parse_sensor_fwnode = parse_sensor_fwnode;
+	bridge->parse_sensor_fwanalde = parse_sensor_fwanalde;
 
-	ret = software_node_register(&bridge->ipu_hid_node);
+	ret = software_analde_register(&bridge->ipu_hid_analde);
 	if (ret < 0) {
-		dev_err(dev, "Failed to register the IPU HID node\n");
+		dev_err(dev, "Failed to register the IPU HID analde\n");
 		goto err_free_bridge;
 	}
 
@@ -790,21 +790,21 @@ int ipu_bridge_init(struct device *dev,
 
 	dev_info(dev, "Connected %d cameras\n", bridge->n_sensors);
 
-	fwnode = software_node_fwnode(&bridge->ipu_hid_node);
-	if (!fwnode) {
-		dev_err(dev, "Error getting fwnode from ipu software_node\n");
-		ret = -ENODEV;
+	fwanalde = software_analde_fwanalde(&bridge->ipu_hid_analde);
+	if (!fwanalde) {
+		dev_err(dev, "Error getting fwanalde from ipu software_analde\n");
+		ret = -EANALDEV;
 		goto err_unregister_sensors;
 	}
 
-	set_secondary_fwnode(dev, fwnode);
+	set_secondary_fwanalde(dev, fwanalde);
 
 	return 0;
 
 err_unregister_sensors:
 	ipu_bridge_unregister_sensors(bridge);
 err_unregister_ipu:
-	software_node_unregister(&bridge->ipu_hid_node);
+	software_analde_unregister(&bridge->ipu_hid_analde);
 err_free_bridge:
 	kfree(bridge);
 

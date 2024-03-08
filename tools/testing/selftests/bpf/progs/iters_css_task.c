@@ -2,7 +2,7 @@
 /* Copyright (C) 2023 Chuyi Zhou <zhouchuyi@bytedance.com> */
 
 #include "vmlinux.h"
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_misc.h"

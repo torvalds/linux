@@ -134,7 +134,7 @@ static inline const char *nvdimm_bus_cmd_name(unsigned cmd)
 	case ND_CMD_ARS_STATUS:		return "ars_status";
 	case ND_CMD_CLEAR_ERROR:	return "clear_error";
 	case ND_CMD_CALL:		return "cmd_call";
-	default:			return "unknown";
+	default:			return "unkanalwn";
 	}
 }
 
@@ -151,7 +151,7 @@ static inline const char *nvdimm_cmd_name(unsigned cmd)
 	case ND_CMD_VENDOR_EFFECT_LOG:		return "effect_log";
 	case ND_CMD_VENDOR:			return "vendor";
 	case ND_CMD_CALL:			return "cmd_call";
-	default:				return "unknown";
+	default:				return "unkanalwn";
 	}
 }
 

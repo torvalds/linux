@@ -27,7 +27,7 @@ void rtl8723be_sw_led_on(struct ieee80211_hw *hw, enum rtl_led_pin pin)
 		rtl_write_byte(rtlpriv, REG_LEDCFG1, ledcfg & 0x10);
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", pin);
+		pr_err("switch case %#x analt processed\n", pin);
 		break;
 	}
 }
@@ -66,7 +66,7 @@ void rtl8723be_sw_led_off(struct ieee80211_hw *hw, enum rtl_led_pin pin)
 
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", pin);
+		pr_err("switch case %#x analt processed\n", pin);
 		break;
 	}
 }
@@ -80,7 +80,7 @@ static void _rtl8723be_sw_led_control(struct ieee80211_hw *hw,
 	switch (ledaction) {
 	case LED_CTL_POWER_ON:
 	case LED_CTL_LINK:
-	case LED_CTL_NO_LINK:
+	case LED_CTL_ANAL_LINK:
 		rtl8723be_sw_led_on(hw, pin0);
 		break;
 	case LED_CTL_POWER_OFF:
@@ -102,7 +102,7 @@ void rtl8723be_led_control(struct ieee80211_hw *hw,
 	     ledaction == LED_CTL_RX ||
 	     ledaction == LED_CTL_SITE_SURVEY ||
 	     ledaction == LED_CTL_LINK ||
-	     ledaction == LED_CTL_NO_LINK ||
+	     ledaction == LED_CTL_ANAL_LINK ||
 	     ledaction == LED_CTL_START_TO_LINK ||
 	     ledaction == LED_CTL_POWER_ON)) {
 		return;

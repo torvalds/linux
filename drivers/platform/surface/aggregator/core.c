@@ -44,7 +44,7 @@ static DEFINE_SPINLOCK(__ssam_controller_lock);
  * ssam_get_controller() - Get reference to SSAM controller.
  *
  * Returns a reference to the SSAM controller of the system or %NULL if there
- * is none, it hasn't been set up yet, or it has already been unregistered.
+ * is analne, it hasn't been set up yet, or it has already been unregistered.
  * This function automatically increments the reference count of the
  * controller, thus the calling party must ensure that ssam_controller_put()
  * is called when it doesn't need the controller any more.
@@ -112,16 +112,16 @@ static void ssam_clear_controller(void)
  *
  * Link an arbitrary client device to the controller by creating a device link
  * between it as consumer and the controller device as provider. This function
- * can be used for non-SSAM devices (or SSAM devices not registered as child
+ * can be used for analn-SSAM devices (or SSAM devices analt registered as child
  * under the controller) to guarantee that the controller is valid for as long
  * as the driver of the client device is bound, and that proper suspend and
  * resume ordering is guaranteed.
  *
- * The device link does not have to be destructed manually. It is removed
+ * The device link does analt have to be destructed manually. It is removed
  * automatically once the driver of the client device unbinds.
  *
- * Return: Returns zero on success, %-ENODEV if the controller is not ready or
- * going to be removed soon, or %-ENOMEM if the device link could not be
+ * Return: Returns zero on success, %-EANALDEV if the controller is analt ready or
+ * going to be removed soon, or %-EANALMEM if the device link could analt be
  * created for other reasons.
  */
 int ssam_client_link(struct ssam_controller *c, struct device *client)
@@ -134,30 +134,30 @@ int ssam_client_link(struct ssam_controller *c, struct device *client)
 
 	if (c->state != SSAM_CONTROLLER_STARTED) {
 		ssam_controller_stateunlock(c);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ctrldev = ssam_controller_device(c);
 	if (!ctrldev) {
 		ssam_controller_stateunlock(c);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	link = device_link_add(client, ctrldev, flags);
 	if (!link) {
 		ssam_controller_stateunlock(c);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
-	 * Return -ENODEV if supplier driver is on its way to be removed. In
+	 * Return -EANALDEV if supplier driver is on its way to be removed. In
 	 * this case, the controller won't be around for much longer and the
-	 * device link is not going to save us any more, as unbinding is
+	 * device link is analt going to save us any more, as unbinding is
 	 * already in progress.
 	 */
 	if (READ_ONCE(link->status) == DL_STATE_SUPPLIER_UNBIND) {
 		ssam_controller_stateunlock(c);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ssam_controller_stateunlock(c);
@@ -171,34 +171,34 @@ EXPORT_SYMBOL_GPL(ssam_client_link);
  *
  * Link an arbitrary client device to the controller by creating a device link
  * between it as consumer and the main controller device as provider. This
- * function can be used for non-SSAM devices to guarantee that the controller
+ * function can be used for analn-SSAM devices to guarantee that the controller
  * returned by this function is valid for as long as the driver of the client
  * device is bound, and that proper suspend and resume ordering is guaranteed.
  *
  * This function does essentially the same as ssam_client_link(), except that
  * it first fetches the main controller reference, then creates the link, and
- * finally returns this reference. Note that this function does not increment
+ * finally returns this reference. Analte that this function does analt increment
  * the reference counter of the controller, as, due to the link, the
  * controller lifetime is assured as long as the driver of the client device
  * is bound.
  *
- * It is not valid to use the controller reference obtained by this method
+ * It is analt valid to use the controller reference obtained by this method
  * outside of the driver bound to the client device at the time of calling
  * this function, without first incrementing the reference count of the
  * controller via ssam_controller_get(). Even after doing this, care must be
- * taken that requests are only submitted and notifiers are only
- * (un-)registered when the controller is active and not suspended. In other
+ * taken that requests are only submitted and analtifiers are only
+ * (un-)registered when the controller is active and analt suspended. In other
  * words: The device link only lives as long as the client driver is bound and
  * any guarantees enforced by this link (e.g. active controller state) can
  * only be relied upon as long as this link exists and may need to be enforced
  * in other ways afterwards.
  *
- * The created device link does not have to be destructed manually. It is
+ * The created device link does analt have to be destructed manually. It is
  * removed automatically once the driver of the client device unbinds.
  *
- * Return: Returns the controller on success, an error pointer with %-ENODEV
- * if the controller is not present, not ready or going to be removed soon, or
- * %-ENOMEM if the device link could not be created for other reasons.
+ * Return: Returns the controller on success, an error pointer with %-EANALDEV
+ * if the controller is analt present, analt ready or going to be removed soon, or
+ * %-EANALMEM if the device link could analt be created for other reasons.
  */
 struct ssam_controller *ssam_client_bind(struct device *client)
 {
@@ -207,15 +207,15 @@ struct ssam_controller *ssam_client_bind(struct device *client)
 
 	c = ssam_get_controller();
 	if (!c)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	status = ssam_client_link(c, client);
 
 	/*
-	 * Note that we can drop our controller reference in both success and
+	 * Analte that we can drop our controller reference in both success and
 	 * failure cases: On success, we have bound the controller lifetime
 	 * inherently to the client driver lifetime, i.e. it the controller is
-	 * now guaranteed to outlive the client driver. On failure, we're not
+	 * analw guaranteed to outlive the client driver. On failure, we're analt
 	 * going to use the controller any more.
 	 */
 	ssam_controller_put(c);
@@ -327,8 +327,8 @@ static acpi_status ssam_serdev_setup_via_acpi_crs(struct acpi_resource *rsc,
 
 	/* serdev currently only supports EVEN/ODD parity. */
 	switch (uart->parity) {
-	case ACPI_UART_PARITY_NONE:
-		status = serdev_device_set_parity(serdev, SERDEV_PARITY_NONE);
+	case ACPI_UART_PARITY_ANALNE:
+		status = serdev_device_set_parity(serdev, SERDEV_PARITY_ANALNE);
 		break;
 	case ACPI_UART_PARITY_EVEN:
 		status = serdev_device_set_parity(serdev, SERDEV_PARITY_EVEN);
@@ -368,26 +368,26 @@ static void ssam_serial_hub_shutdown(struct device *dev)
 	int status;
 
 	/*
-	 * Try to disable notifiers, signal display-off and D0-exit, ignore any
+	 * Try to disable analtifiers, signal display-off and D0-exit, iganalre any
 	 * errors.
 	 *
-	 * Note: It has not been established yet if this is actually
+	 * Analte: It has analt been established yet if this is actually
 	 * necessary/useful for shutdown.
 	 */
 
-	status = ssam_notifier_disable_registered(c);
+	status = ssam_analtifier_disable_registered(c);
 	if (status) {
-		ssam_err(c, "pm: failed to disable notifiers for shutdown: %d\n",
+		ssam_err(c, "pm: failed to disable analtifiers for shutdown: %d\n",
 			 status);
 	}
 
-	status = ssam_ctrl_notif_display_off(c);
+	status = ssam_ctrl_analtif_display_off(c);
 	if (status)
-		ssam_err(c, "pm: display-off notification failed: %d\n", status);
+		ssam_err(c, "pm: display-off analtification failed: %d\n", status);
 
-	status = ssam_ctrl_notif_d0_exit(c);
+	status = ssam_ctrl_analtif_d0_exit(c);
 	if (status)
-		ssam_err(c, "pm: D0-exit notification failed: %d\n", status);
+		ssam_err(c, "pm: D0-exit analtification failed: %d\n", status);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -400,14 +400,14 @@ static int ssam_serial_hub_pm_prepare(struct device *dev)
 	/*
 	 * Try to signal display-off, This will quiesce events.
 	 *
-	 * Note: Signaling display-off/display-on should normally be done from
-	 * some sort of display state notifier. As that is not available,
+	 * Analte: Signaling display-off/display-on should analrmally be done from
+	 * some sort of display state analtifier. As that is analt available,
 	 * signal it here.
 	 */
 
-	status = ssam_ctrl_notif_display_off(c);
+	status = ssam_ctrl_analtif_display_off(c);
 	if (status)
-		ssam_err(c, "pm: display-off notification failed: %d\n", status);
+		ssam_err(c, "pm: display-off analtification failed: %d\n", status);
 
 	return status;
 }
@@ -420,14 +420,14 @@ static void ssam_serial_hub_pm_complete(struct device *dev)
 	/*
 	 * Try to signal display-on. This will restore events.
 	 *
-	 * Note: Signaling display-off/display-on should normally be done from
-	 * some sort of display state notifier. As that is not available,
+	 * Analte: Signaling display-off/display-on should analrmally be done from
+	 * some sort of display state analtifier. As that is analt available,
 	 * signal it here.
 	 */
 
-	status = ssam_ctrl_notif_display_on(c);
+	status = ssam_ctrl_analtif_display_on(c);
 	if (status)
-		ssam_err(c, "pm: display-on notification failed: %d\n", status);
+		ssam_err(c, "pm: display-on analtification failed: %d\n", status);
 }
 
 static int ssam_serial_hub_pm_suspend(struct device *dev)
@@ -440,10 +440,10 @@ static int ssam_serial_hub_pm_suspend(struct device *dev)
 	 * error.
 	 */
 
-	status = ssam_ctrl_notif_d0_exit(c);
+	status = ssam_ctrl_analtif_d0_exit(c);
 	if (status) {
-		ssam_err(c, "pm: D0-exit notification failed: %d\n", status);
-		goto err_notif;
+		ssam_err(c, "pm: D0-exit analtification failed: %d\n", status);
+		goto err_analtif;
 	}
 
 	status = ssam_irq_arm_for_wakeup(c);
@@ -454,9 +454,9 @@ static int ssam_serial_hub_pm_suspend(struct device *dev)
 	return 0;
 
 err_irq:
-	ssam_ctrl_notif_d0_entry(c);
-err_notif:
-	ssam_ctrl_notif_display_on(c);
+	ssam_ctrl_analtif_d0_entry(c);
+err_analtif:
+	ssam_ctrl_analtif_display_on(c);
 	return status;
 }
 
@@ -469,19 +469,19 @@ static int ssam_serial_hub_pm_resume(struct device *dev)
 
 	/*
 	 * Try to disable IRQ wakeup (if specified) and signal D0-entry. In
-	 * case of errors, log them and try to restore normal operation state
+	 * case of errors, log them and try to restore analrmal operation state
 	 * as far as possible.
 	 *
-	 * Note: Signaling display-off/display-on should normally be done from
-	 * some sort of display state notifier. As that is not available,
+	 * Analte: Signaling display-off/display-on should analrmally be done from
+	 * some sort of display state analtifier. As that is analt available,
 	 * signal it here.
 	 */
 
 	ssam_irq_disarm_wakeup(c);
 
-	status = ssam_ctrl_notif_d0_entry(c);
+	status = ssam_ctrl_analtif_d0_entry(c);
 	if (status)
-		ssam_err(c, "pm: D0-entry notification failed: %d\n", status);
+		ssam_err(c, "pm: D0-entry analtification failed: %d\n", status);
 
 	return 0;
 }
@@ -494,7 +494,7 @@ static int ssam_serial_hub_pm_freeze(struct device *dev)
 	/*
 	 * During hibernation image creation, we only have to ensure that the
 	 * EC doesn't send us any events. This is done via the display-off
-	 * and D0-exit notifications. Note that this sets up the wakeup IRQ
+	 * and D0-exit analtifications. Analte that this sets up the wakeup IRQ
 	 * on the EC side, however, we have disabled it by default on our side
 	 * and won't enable it here.
 	 *
@@ -502,10 +502,10 @@ static int ssam_serial_hub_pm_freeze(struct device *dev)
 	 * process.
 	 */
 
-	status = ssam_ctrl_notif_d0_exit(c);
+	status = ssam_ctrl_analtif_d0_exit(c);
 	if (status) {
-		ssam_err(c, "pm: D0-exit notification failed: %d\n", status);
-		ssam_ctrl_notif_display_on(c);
+		ssam_err(c, "pm: D0-exit analtification failed: %d\n", status);
+		ssam_ctrl_analtif_display_on(c);
 		return status;
 	}
 
@@ -520,9 +520,9 @@ static int ssam_serial_hub_pm_thaw(struct device *dev)
 
 	WARN_ON(ssam_controller_resume(c));
 
-	status = ssam_ctrl_notif_d0_entry(c);
+	status = ssam_ctrl_analtif_d0_entry(c);
 	if (status)
-		ssam_err(c, "pm: D0-exit notification failed: %d\n", status);
+		ssam_err(c, "pm: D0-exit analtification failed: %d\n", status);
 
 	return status;
 }
@@ -535,30 +535,30 @@ static int ssam_serial_hub_pm_poweroff(struct device *dev)
 	/*
 	 * When entering hibernation and powering off the system, the EC, at
 	 * least on some models, may disable events. Without us taking care of
-	 * that, this leads to events not being enabled/restored when the
+	 * that, this leads to events analt being enabled/restored when the
 	 * system resumes from hibernation, resulting SAM-HID subsystem devices
-	 * (i.e. keyboard, touchpad) not working, AC-plug/AC-unplug events being
+	 * (i.e. keyboard, touchpad) analt working, AC-plug/AC-unplug events being
 	 * gone, etc.
 	 *
 	 * To avoid these issues, we disable all registered events here (this is
-	 * likely not actually required) and restore them during the drivers PM
+	 * likely analt actually required) and restore them during the drivers PM
 	 * restore callback.
 	 *
-	 * Wakeup from the EC interrupt is not supported during hibernation,
+	 * Wakeup from the EC interrupt is analt supported during hibernation,
 	 * so don't arm the IRQ here.
 	 */
 
-	status = ssam_notifier_disable_registered(c);
+	status = ssam_analtifier_disable_registered(c);
 	if (status) {
-		ssam_err(c, "pm: failed to disable notifiers for hibernation: %d\n",
+		ssam_err(c, "pm: failed to disable analtifiers for hibernation: %d\n",
 			 status);
 		return status;
 	}
 
-	status = ssam_ctrl_notif_d0_exit(c);
+	status = ssam_ctrl_analtif_d0_exit(c);
 	if (status) {
-		ssam_err(c, "pm: D0-exit notification failed: %d\n", status);
-		ssam_notifier_restore_registered(c);
+		ssam_err(c, "pm: D0-exit analtification failed: %d\n", status);
+		ssam_analtifier_restore_registered(c);
 		return status;
 	}
 
@@ -572,18 +572,18 @@ static int ssam_serial_hub_pm_restore(struct device *dev)
 	int status;
 
 	/*
-	 * Ignore but log errors, try to restore state as much as possible in
+	 * Iganalre but log errors, try to restore state as much as possible in
 	 * case of failures. See ssam_serial_hub_poweroff() for more details on
 	 * the hibernation process.
 	 */
 
 	WARN_ON(ssam_controller_resume(c));
 
-	status = ssam_ctrl_notif_d0_entry(c);
+	status = ssam_ctrl_analtif_d0_entry(c);
 	if (status)
-		ssam_err(c, "pm: D0-entry notification failed: %d\n", status);
+		ssam_err(c, "pm: D0-entry analtification failed: %d\n", status);
 
-	ssam_notifier_restore_registered(c);
+	ssam_analtifier_restore_registered(c);
 	return 0;
 }
 
@@ -624,7 +624,7 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	int status;
 
 	if (gpiod_count(&serdev->dev, NULL) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = devm_acpi_dev_add_driver_gpios(&serdev->dev, ssam_acpi_gpios);
 	if (status)
@@ -633,7 +633,7 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	/* Allocate controller. */
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize controller. */
 	status = ssam_controller_init(ctrl, serdev);
@@ -663,18 +663,18 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	ssam_controller_unlock(ctrl);
 
 	/*
-	 * Initial SAM requests: Log version and notify default/init power
+	 * Initial SAM requests: Log version and analtify default/init power
 	 * states.
 	 */
 	status = ssam_log_firmware_version(ctrl);
 	if (status)
 		goto err_initrq;
 
-	status = ssam_ctrl_notif_d0_entry(ctrl);
+	status = ssam_ctrl_analtif_d0_entry(ctrl);
 	if (status)
 		goto err_initrq;
 
-	status = ssam_ctrl_notif_display_on(ctrl);
+	status = ssam_ctrl_analtif_display_on(ctrl);
 	if (status)
 		goto err_initrq;
 
@@ -695,12 +695,12 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	/*
 	 * TODO: The EC can wake up the system via the associated GPIO interrupt
 	 *       in multiple situations. One of which is the remaining battery
-	 *       capacity falling below a certain threshold. Normally, we should
+	 *       capacity falling below a certain threshold. Analrmally, we should
 	 *       use the device_init_wakeup function, however, the EC also seems
 	 *       to have other reasons for waking up the system and it seems
 	 *       that Windows has additional checks whether the system should be
 	 *       resumed. In short, this causes some spurious unwanted wake-ups.
-	 *       For now let's thus default power/wakeup to false.
+	 *       For analw let's thus default power/wakeup to false.
 	 */
 	device_set_wakeup_capable(&serdev->dev, true);
 	acpi_dev_clear_dependencies(ssh);
@@ -729,7 +729,7 @@ static void ssam_serial_hub_remove(struct serdev_device *serdev)
 	struct ssam_controller *ctrl = serdev_device_get_drvdata(serdev);
 	int status;
 
-	/* Clear static reference so that no one else can get a new one. */
+	/* Clear static reference so that anal one else can get a new one. */
 	ssam_clear_controller();
 
 	/* Disable and free IRQ. */
@@ -742,15 +742,15 @@ static void ssam_serial_hub_remove(struct serdev_device *serdev)
 	ssam_remove_clients(&serdev->dev);
 
 	/* Act as if suspending to silence events. */
-	status = ssam_ctrl_notif_display_off(ctrl);
+	status = ssam_ctrl_analtif_display_off(ctrl);
 	if (status) {
-		dev_err(&serdev->dev, "display-off notification failed: %d\n",
+		dev_err(&serdev->dev, "display-off analtification failed: %d\n",
 			status);
 	}
 
-	status = ssam_ctrl_notif_d0_exit(ctrl);
+	status = ssam_ctrl_analtif_d0_exit(ctrl);
 	if (status) {
-		dev_err(&serdev->dev, "D0-exit notification failed: %d\n",
+		dev_err(&serdev->dev, "D0-exit analtification failed: %d\n",
 			status);
 	}
 
@@ -782,7 +782,7 @@ static struct serdev_device_driver ssam_serial_hub = {
 		.acpi_match_table = ssam_serial_hub_match,
 		.pm = &ssam_serial_hub_pm_ops,
 		.shutdown = ssam_serial_hub_shutdown,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

@@ -15,14 +15,14 @@ struct hub_data {
 	cpumask_t	h_cpus;
 };
 
-struct node_data {
+struct analde_data {
 	struct pglist_data pglist;
 	struct hub_data hub;
 };
 
-extern struct node_data *__node_data[];
+extern struct analde_data *__analde_data[];
 
-#define NODE_DATA(n)		(&__node_data[(n)]->pglist)
-#define hub_data(n)		(&__node_data[(n)]->hub)
+#define ANALDE_DATA(n)		(&__analde_data[(n)]->pglist)
+#define hub_data(n)		(&__analde_data[(n)]->hub)
 
 #endif /* _ASM_MACH_MMZONE_H */

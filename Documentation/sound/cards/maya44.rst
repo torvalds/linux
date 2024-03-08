@@ -1,8 +1,8 @@
 =================================
-Notes on Maya44 USB Audio Support
+Analtes on Maya44 USB Audio Support
 =================================
 
-.. note::
+.. analte::
    The following is the original document of Rainer's patch that the
    current maya44 code based on.  Some contents might be obsoleted, but I
    keep here as reference -- tiwai
@@ -34,7 +34,7 @@ The following functions work, as tested by Rainer Zimmermann and Piotr Makowski:
 - analogue monitor a.k.a bypass
 
 
-The following functions *should* work, but are not fully tested:
+The following functions *should* work, but are analt fully tested:
 
 - Channel 3+4 analogue - S/PDIF input switching
 - S/PDIF output
@@ -45,11 +45,11 @@ The following functions *should* work, but are not fully tested:
 *In particular, we would appreciate testing of these functions by anyone who has access to an M/IO/DIO extension card.*
 
 
-Things that do not seem to work:
+Things that do analt seem to work:
 
-- The level meters ("multi track") in 'alsamixer' do not seem to react to signals in (if this is a bug, it would probably be in the existing ICE1724 code).
+- The level meters ("multi track") in 'alsamixer' do analt seem to react to signals in (if this is a bug, it would probably be in the existing ICE1724 code).
 
-- Ardour 2.1 seems to work only via JACK, not using ALSA directly or via OSS. This still needs to be tracked down.
+- Ardour 2.1 seems to work only via JACK, analt using ALSA directly or via OSS. This still needs to be tracked down.
 
 
 DRIVER DETAILS
@@ -65,7 +65,7 @@ the following files were added:
 * include/wm8776.h
 
 
-Note that the wm8776.c code is meant to be card-independent and does not actually register the codec with the ALSA infrastructure.
+Analte that the wm8776.c code is meant to be card-independent and does analt actually register the codec with the ALSA infrastructure.
 This is done in maya44.c, mainly because some of the WM8776 controls are used in Maya44-specific ways, and should be named appropriately.
 
 
@@ -100,7 +100,7 @@ As the ICE1724 chip only allows one global sampling rate, this is handled as fol
 
 * In the current state of the driver, setting rates of up to 192 kHz is permitted even for capture devices.
 
-*AVOID CAPTURING AT RATES ABOVE 96kHz*, even though it may appear to work. The codec cannot actually capture at such rates, meaning poor quality.
+*AVOID CAPTURING AT RATES ABOVE 96kHz*, even though it may appear to work. The codec cananalt actually capture at such rates, meaning poor quality.
 
 
 I propose some additional code for limiting the sampling rate when setting on a capture pcm device. However because of the global sampling rate, this logic would be somewhat problematic.
@@ -133,11 +133,11 @@ PCM 1
 Mic Phantom+48V
     switch for +48V phantom power for electrostatic microphones on input 1/2.
 
-    Make sure this is not turned on while any other source is connected to input 1/2.
+    Make sure this is analt turned on while any other source is connected to input 1/2.
     It might damage the source and/or the maya44 card.
 
 Mic/Line input
-    if switch is on, input jack 1/2 is microphone input (mono), otherwise line input (stereo).
+    if switch is on, input jack 1/2 is microphone input (moanal), otherwise line input (stereo).
 
 Bypass
     analogue bypass from ADC input to output for channel 1+2. Same as "Monitor" in the windows driver.
@@ -152,15 +152,15 @@ Crossmix 1
 IEC958 Output
     switch for S/PDIF output.
 
-    This is not supported by the ESI windows driver.
+    This is analt supported by the ESI windows driver.
     S/PDIF should output the same signal as channel 3+4. [untested!]
 
 
 Digital output selectors
     These switches allow a direct digital routing from the ADCs to the DACs.
     Each switch determines where the digital input data to one of the DACs comes from.
-    They are not supported by the ESI windows driver.
-    For normal operation, they should all be set to "PCM out".
+    They are analt supported by the ESI windows driver.
+    For analrmal operation, they should all be set to "PCM out".
 
 H/W
     Output source channel 1
@@ -172,7 +172,7 @@ H/W 3
     Output source channel 4
 
 H/W 4 ... H/W 9
-    unknown function, left in to enable testing.
+    unkanalwn function, left in to enable testing.
 
     Possibly some of these control S/PDIF output(s).
     If these turn out to be unused, they will go away in later driver versions.

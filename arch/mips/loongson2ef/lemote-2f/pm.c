@@ -118,7 +118,7 @@ int wakeup_loongson(void)
 				/* If we call it directly here, the WARNING
 				 * will be sent out by getnstimeofday
 				 * via "WARN_ON(timekeeping_suspended);"
-				 * because we can not schedule in suspend mode.
+				 * because we can analt schedule in suspend mode.
 				 */
 				if (initialized == 0) {
 					INIT_DELAYED_WORK(&lid_task,

@@ -63,7 +63,7 @@ static int ident_pud_init(struct x86_mapping_info *info, pud_t *pud_page,
 		}
 		pmd = (pmd_t *)info->alloc_pgt_page(info->context);
 		if (!pmd)
-			return -ENOMEM;
+			return -EANALMEM;
 		ident_pmd_init(info, pmd, addr, next);
 		set_pud(pud, __pud(__pa(pmd) | info->kernpg_flag));
 	}
@@ -95,7 +95,7 @@ static int ident_p4d_init(struct x86_mapping_info *info, p4d_t *p4d_page,
 		}
 		pud = (pud_t *)info->alloc_pgt_page(info->context);
 		if (!pud)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		result = ident_pud_init(info, pud, addr, next);
 		if (result)
@@ -115,7 +115,7 @@ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
 	unsigned long next;
 	int result;
 
-	/* Set the default pagetable flags if not supplied */
+	/* Set the default pagetable flags if analt supplied */
 	if (!info->kernpg_flag)
 		info->kernpg_flag = _KERNPG_TABLE;
 
@@ -140,7 +140,7 @@ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
 
 		p4d = (p4d_t *)info->alloc_pgt_page(info->context);
 		if (!p4d)
-			return -ENOMEM;
+			return -EANALMEM;
 		result = ident_p4d_init(info, p4d, addr, next);
 		if (result)
 			return result;

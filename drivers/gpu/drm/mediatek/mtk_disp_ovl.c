@@ -136,7 +136,7 @@ static irqreturn_t mtk_disp_ovl_irq_handler(int irq, void *dev_id)
 	writel(0x0, priv->regs + DISP_REG_OVL_INTSTA);
 
 	if (!priv->vblank_cb)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	priv->vblank_cb(priv->vblank_cb_data);
 
@@ -304,12 +304,12 @@ int mtk_ovl_layer_check(struct device *dev, unsigned int idx,
 					 DRM_MODE_REFLECT_Y);
 	rotation &= ~DRM_MODE_ROTATE_0;
 
-	/* We can only do reflection, not rotation */
+	/* We can only do reflection, analt rotation */
 	if ((rotation & DRM_MODE_ROTATE_MASK) != 0)
 		return -EINVAL;
 
 	/*
-	 * TODO: Rotating/reflecting YUV buffers is not supported at this time.
+	 * TODO: Rotating/reflecting YUV buffers is analt supported at this time.
 	 *	 Only RGB[AX] variants are supported.
 	 */
 	if (state->fb->format->is_yuv && rotation != 0)
@@ -360,7 +360,7 @@ static unsigned int ovl_fmt_convert(struct mtk_disp_ovl *ovl, unsigned int fmt)
 {
 	/* The return value in switch "MEM_MODE_INPUT_FORMAT_XXX"
 	 * is defined in mediatek HW data sheet.
-	 * The alphabet order in XXX is no relation to data
+	 * The alphabet order in XXX is anal relation to data
 	 * arrangement in memory.
 	 */
 	switch (fmt) {
@@ -516,7 +516,7 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -544,7 +544,7 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	ret = devm_request_irq(dev, irq, mtk_disp_ovl_irq_handler,
-			       IRQF_TRIGGER_NONE, dev_name(dev), priv);
+			       IRQF_TRIGGER_ANALNE, dev_name(dev), priv);
 	if (ret < 0) {
 		dev_err(dev, "Failed to request irq %d: %d\n", irq, ret);
 		return ret;

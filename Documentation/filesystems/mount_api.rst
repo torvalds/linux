@@ -26,7 +26,7 @@ Filesystem Mount API
 Overview
 ========
 
-The creation of new mounts is now to be done in a multistep process:
+The creation of new mounts is analw to be done in a multistep process:
 
  (1) Create a filesystem context.
 
@@ -54,7 +54,7 @@ context, including the additional space, and the second points to the
 parameter description for validation at registration time and querying by a
 future system call.
 
-Note that security initialisation is done *after* the filesystem is called so
+Analte that security initialisation is done *after* the filesystem is called so
 that the namespaces may be adjusted first.
 
 
@@ -187,12 +187,12 @@ The fs_context fields are as follows:
 	==========================	======================================
 
 The mount context is created by calling vfs_new_fs_context() or
-vfs_dup_fs_context() and is destroyed with put_fs_context().  Note that the
-structure is not refcounted.
+vfs_dup_fs_context() and is destroyed with put_fs_context().  Analte that the
+structure is analt refcounted.
 
 VFS, security and filesystem mount options are set individually with
 vfs_parse_mount_option().  Options provided by the old mount(2) system call as
-a page of data can be parsed with generic_parse_monolithic().
+a page of data can be parsed with generic_parse_moanallithic().
 
 When mounting, the filesystem is allowed to take data from any of the pointers
 and attach it to the superblock (or whatever), provided it clears the pointer
@@ -213,7 +213,7 @@ The filesystem context points to a table of operations::
 		int (*dup)(struct fs_context *fc, struct fs_context *src_fc);
 		int (*parse_param)(struct fs_context *fc,
 				   struct fs_parameter *param);
-		int (*parse_monolithic)(struct fs_context *fc, void *data);
+		int (*parse_moanallithic)(struct fs_context *fc, void *data);
 		int (*get_tree)(struct fs_context *fc);
 		int (*reconfigure)(struct fs_context *fc);
 	};
@@ -239,7 +239,7 @@ manage the filesystem context.  They are as follows:
 
      .. Warning::
 
-         Note that even if this fails, put_fs_context() will be called
+         Analte that even if this fails, put_fs_context() will be called
 	 immediately thereafter, so ->dup() *must* make the
 	 filesystem-private data safe for ->free().
 
@@ -253,14 +253,14 @@ manage the filesystem context.  They are as follows:
      will have been weeded out and fc->sb_flags updated in the context.
      Security options will also have been weeded out and fc->security updated.
 
-     The parameter can be parsed with fs_parse() and fs_lookup_param().  Note
+     The parameter can be parsed with fs_parse() and fs_lookup_param().  Analte
      that the source(s) are presented as parameters named "source".
 
      If successful, 0 should be returned or a negative error code otherwise.
 
    * ::
 
-	int (*parse_monolithic)(struct fs_context *fc, void *data);
+	int (*parse_moanallithic)(struct fs_context *fc, void *data);
 
      Called when the mount(2) system call is invoked to pass the entire data
      page in one go.  If this is expected to be just a list of "key[=val]"
@@ -270,7 +270,7 @@ manage the filesystem context.  They are as follows:
 
      If the filesystem (e.g. NFS) needs to examine the data first and then
      finds it's the standard key-val list then it may pass it off to
-     generic_parse_monolithic().
+     generic_parse_moanallithic().
 
    * ::
 
@@ -299,7 +299,7 @@ manage the filesystem context.  They are as follows:
      On success it should return 0.  In the case of an error, it should return
      a negative error code.
 
-     .. Note:: reconfigure is intended as a replacement for remount_fs.
+     .. Analte:: reconfigure is intended as a replacement for remount_fs.
 
 
 Filesystem context Security
@@ -318,10 +318,10 @@ number of operations used by the new mount code for this purpose:
      any resources needed.  It should return 0 on success or a negative error
      code on failure.
 
-     reference will be non-NULL if the context is being created for superblock
+     reference will be analn-NULL if the context is being created for superblock
      reconfiguration (FS_CONTEXT_FOR_RECONFIGURE) in which case it indicates
      the root dentry of the superblock to be reconfigured.  It will also be
-     non-NULL in the case of a submount (FS_CONTEXT_FOR_SUBMOUNT) in which case
+     analn-NULL in the case of a submount (FS_CONTEXT_FOR_SUBMOUNT) in which case
      it indicates the automount point.
 
    * ::
@@ -338,7 +338,7 @@ number of operations used by the new mount code for this purpose:
 
 	void security_fs_context_free(struct fs_context *fc);
 
-     Called to clean up anything attached to fc->security.  Note that the
+     Called to clean up anything attached to fc->security.  Analte that the
      contents may have been transferred to a superblock and the pointer cleared
      during get_tree.
 
@@ -381,7 +381,7 @@ number of operations used by the new mount code for this purpose:
 
 	void security_sb_reconfigure(struct fs_context *fc);
 
-     Called to apply any reconfiguration to an LSM's context.  It must not
+     Called to apply any reconfiguration to an LSM's context.  It must analt
      fail.  Error checking and resource allocation must be done in advance by
      the parameter parsing and validation hooks.
 
@@ -439,14 +439,14 @@ destroying a context:
      supplies the parameters.  Namespaces are propagated from the reference
      dentry's superblock also.
 
-     Note that it's not a requirement that the reference dentry be of the same
+     Analte that it's analt a requirement that the reference dentry be of the same
      filesystem type as fs_type.
 
    * ::
 
         struct fs_context *vfs_dup_fs_context(struct fs_context *src_fc);
 
-     Duplicate a filesystem context, copying any options noted and duplicating
+     Duplicate a filesystem context, copying any options analted and duplicating
      or additionally referencing any resources held therein.  This is available
      for use where a filesystem has to get a mount within a mount, such as NFS4
      does by internally mounting the root of the target server and then doing a
@@ -464,7 +464,7 @@ destroying a context:
 
      .. Warning::
 
-        filesystem contexts are not refcounted, so this causes unconditional
+        filesystem contexts are analt refcounted, so this causes unconditional
 	destruction.
 
 In all the above operations, apart from the put op, the return is a mount
@@ -492,7 +492,7 @@ returned.
      The parameter value is typed and can be one of:
 
 	====================		=============================
-	fs_value_is_flag		Parameter not given a value
+	fs_value_is_flag		Parameter analt given a value
 	fs_value_is_string		Value is a string
 	fs_value_is_blob		Value is a binary blob
 	fs_value_is_filename		Value is a filename* + dirfd
@@ -500,7 +500,7 @@ returned.
 	====================		=============================
 
      If there is a value, that value is stored in a union in the struct in one
-     of param->{string,blob,name,file}.  Note that the function may steal and
+     of param->{string,blob,name,file}.  Analte that the function may steal and
      clear the pointer, but then becomes responsible for disposing of the
      object.
 
@@ -514,12 +514,12 @@ returned.
 
    * ::
 
-       int generic_parse_monolithic(struct fs_context *fc, void *data);
+       int generic_parse_moanallithic(struct fs_context *fc, void *data);
 
      Parse a sys_mount() data page, assuming the form to be a text list
      consisting of key[=val] options separated by commas.  Each item in the
      list is passed to vfs_mount_option().  This is the default when the
-     ->parse_monolithic() method is NULL.
+     ->parse_moanallithic() method is NULL.
 
    * ::
 
@@ -534,7 +534,7 @@ returned.
        struct vfsmount *vfs_create_mount(struct fs_context *fc);
 
      Create a mount given the parameters in the specified filesystem context.
-     Note that this does not attach the mount to anything.
+     Analte that this does analt attach the mount to anything.
 
 
 Superblock Creation Helpers
@@ -550,9 +550,9 @@ or looking up of superblocks.
 	       int (*test)(struct super_block *sb, struct fs_context *fc),
 	       int (*set)(struct super_block *sb, struct fs_context *fc));
 
-     This is the core routine.  If test is non-NULL, it searches for an
+     This is the core routine.  If test is analn-NULL, it searches for an
      existing superblock matching the criteria held in the fs_context, using
-     the test function to match them.  If no match is found, a new superblock
+     the test function to match them.  If anal match is found, a new superblock
      is created and the set function is called to set it up.
 
      Prior to the set function being called, fc->s_fs_info will be transferred
@@ -565,7 +565,7 @@ The following helpers all wrap sget_fc():
 
 	    Only one such superblock may exist in the system.  Any further
 	    attempt to get a new superblock gets this one (and any parameter
-	    differences are ignored).
+	    differences are iganalred).
 
 	(2) vfs_get_keyed_super
 
@@ -622,8 +622,8 @@ The members are as follows:
 		unsigned short		flags;
 	};
 
-     The 'name' field is a string to match exactly to the parameter key (no
-     wildcards, patterns and no case-independence) and 'opt' is the value that
+     The 'name' field is a string to match exactly to the parameter key (anal
+     wildcards, patterns and anal case-independence) and 'opt' is the value that
      will be returned by the fs_parser() function in the case of a successful
      match.
 
@@ -632,7 +632,7 @@ The members are as follows:
 	=======================	=======================	=====================
 	TYPE NAME		EXPECTED VALUE		RESULT IN
 	=======================	=======================	=====================
-	fs_param_is_flag	No value		n/a
+	fs_param_is_flag	Anal value		n/a
 	fs_param_is_bool	Boolean value		result->boolean
 	fs_param_is_u32		32-bit unsigned int	result->uint_32
 	fs_param_is_u32_octal	32-bit octal int	result->uint_32
@@ -647,14 +647,14 @@ The members are as follows:
 	fs_param_is_fd		File descriptor		result->int_32
 	=======================	=======================	=====================
 
-     Note that if the value is of fs_param_is_bool type, fs_parse() will try
-     to match any string value against "0", "1", "no", "yes", "false", "true".
+     Analte that if the value is of fs_param_is_bool type, fs_parse() will try
+     to match any string value against "0", "1", "anal", "anal", "false", "true".
 
      Each parameter can also be qualified with 'flags':
 
 	=======================	================================================
 	fs_param_v_optional	The value is optional
-	fs_param_neg_with_no	result->negated set if key is prefixed with "no"
+	fs_param_neg_with_anal	result->negated set if key is prefixed with "anal"
 	fs_param_neg_with_empty	result->negated set if value is ""
 	fs_param_deprecated	The parameter is deprecated.
 	=======================	================================================
@@ -665,7 +665,7 @@ The members are as follows:
 	MACRO			SPECIFIES
 	=======================	===============================================
 	fsparam_flag()		fs_param_is_flag
-	fsparam_flag_no()	fs_param_is_flag, fs_param_neg_with_no
+	fsparam_flag_anal()	fs_param_is_flag, fs_param_neg_with_anal
 	fsparam_bool()		fs_param_is_bool
 	fsparam_u32()		fs_param_is_u32
 	fsparam_u32oct()	fs_param_is_u32_octal
@@ -687,7 +687,7 @@ The members are as follows:
 		fsparam_flag	("autocell",	Opt_autocell),
 		fsparam_flag	("dyn",		Opt_dyn),
 		fsparam_string	("source",	Opt_source),
-		fsparam_flag_no	("foo",		Opt_foo),
+		fsparam_flag_anal	("foo",		Opt_foo),
 		{}
 	};
 
@@ -736,7 +736,7 @@ process the parameters it is given.
    * ::
 
        int lookup_constant(const struct constant_table tbl[],
-			   const char *name, int not_found);
+			   const char *name, int analt_found);
 
      Look up a constant by name in a table of name -> integer mappings.  The
      table is an array of elements of the following type::
@@ -747,7 +747,7 @@ process the parameters it is given.
 	};
 
      If a match is found, the corresponding value is returned.  If a match
-     isn't found, the not_found value is returned instead.
+     isn't found, the analt_found value is returned instead.
 
    * ::
 
@@ -756,9 +756,9 @@ process the parameters it is given.
 				    int low, int high, int special);
 
      Validate a constant table.  Checks that all the elements are appropriately
-     ordered, that there are no duplicates and that the values are between low
+     ordered, that there are anal duplicates and that the values are between low
      and high inclusive, though provision is made for one allowable special
-     value outside of that range.  If no special value is required, special
+     value outside of that range.  If anal special value is required, special
      should just be set to lie inside the low-to-high range.
 
      If all is good, true is returned.  If the table is invalid, errors are
@@ -769,7 +769,7 @@ process the parameters it is given.
        bool fs_validate_description(const struct fs_parameter_description *desc);
 
      This performs some validation checks on a parameter description.  It
-     returns true if the description is good and false if it is not.  It will
+     returns true if the description is good and false if it is analt.  It will
      log errors to the kernel log buffer if validation fails.
 
    * ::
@@ -787,13 +787,13 @@ process the parameters it is given.
      boolean, integer or enum type, the value is converted by this function and
      the result stored in result->{boolean,int_32,uint_32,uint_64}.
 
-     If a match isn't initially made, the key is prefixed with "no" and no
+     If a match isn't initially made, the key is prefixed with "anal" and anal
      value is present then an attempt will be made to look up the key with the
      prefix removed.  If this matches a parameter for which the type has flag
-     fs_param_neg_with_no set, then a match will be made and result->negated
+     fs_param_neg_with_anal set, then a match will be made and result->negated
      will be set to true.
 
-     If the parameter isn't matched, -ENOPARAM will be returned; if the
+     If the parameter isn't matched, -EANALPARAM will be returned; if the
      parameter is matched, but the value is erroneous, -EINVAL will be
      returned; otherwise the parameter's option number will be returned.
 
@@ -807,7 +807,7 @@ process the parameters it is given.
 
      This takes a parameter that carries a string or filename type and attempts
      to do a path lookup on it.  If the parameter expects a blockdev, a check
-     is made that the inode actually represents one.
+     is made that the ianalde actually represents one.
 
      Returns 0 if successful and ``*_path`` will be set; returns a negative
-     error code if not.
+     error code if analt.

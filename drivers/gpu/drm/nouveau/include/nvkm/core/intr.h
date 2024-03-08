@@ -7,7 +7,7 @@ struct nvkm_subdev;
 
 enum nvkm_intr_prio {
 	NVKM_INTR_PRIO_VBLANK = 0,
-	NVKM_INTR_PRIO_NORMAL,
+	NVKM_INTR_PRIO_ANALRMAL,
 	NVKM_INTR_PRIO_NR
 };
 

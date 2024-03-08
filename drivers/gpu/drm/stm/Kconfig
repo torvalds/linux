@@ -15,7 +15,7 @@ config DRM_STM
 	  will be called stm-drm.
 
 config DRM_STM_DSI
-	tristate "STMicroelectronics specific extensions for Synopsys MIPI DSI"
+	tristate "STMicroelectronics specific extensions for Syanalpsys MIPI DSI"
 	depends on DRM_STM
 	select DRM_DW_MIPI_DSI
 	help

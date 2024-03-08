@@ -34,7 +34,7 @@ properties:
 
 patternProperties:
   "^.*-pins?$":
-    $ref: /schemas/pinctrl/pinmux-node.yaml#
+    $ref: /schemas/pinctrl/pinmux-analde.yaml#
     additionalProperties: false
 
     properties:

@@ -6,7 +6,7 @@ config VIDEO_IMX8_ISI
 	depends on HAS_DMA && PM
 	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select V4L2_MEM2MEM_DEV if VIDEO_IMX8_ISI_M2M
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
@@ -18,5 +18,5 @@ config VIDEO_IMX8_ISI_M2M
 	bool "i.MX8 Image Sensor Interface (ISI) memory-to-memory support"
 	depends on VIDEO_IMX8_ISI
 	help
-	  Select 'yes' here to enable support for memory-to-memory processing
+	  Select 'anal' here to enable support for memory-to-memory processing
 	  in the ISI driver.

@@ -113,7 +113,7 @@
 #define MSR_LE		__MASK(MSR_LE_LG)	/* Little Endian */
 
 #define MSR_TM		__MASK(MSR_TM_LG)	/* Transactional Mem Available */
-#define MSR_TS_N	0			/*  Non-transactional */
+#define MSR_TS_N	0			/*  Analn-transactional */
 #define MSR_TS_S	__MASK(MSR_TS_S_LG)	/*  Transaction Suspended */
 #define MSR_TS_T	__MASK(MSR_TS_T_LG)	/*  Transaction Transactional */
 #define MSR_TS_MASK	(MSR_TS_T | MSR_TS_S)   /* Transaction State bits */
@@ -198,7 +198,7 @@
 #define FPSCR_UE	0x00000020	/* IEEE underflow exception enable */
 #define FPSCR_ZE	0x00000010	/* IEEE zero divide exception enable */
 #define FPSCR_XE	0x00000008	/* FP inexact exception enable */
-#define FPSCR_NI	0x00000004	/* FPU non IEEE-Mode */
+#define FPSCR_NI	0x00000004	/* FPU analn IEEE-Mode */
 #define FPSCR_RN	0x00000003	/* FPU rounding control */
 
 /* Bit definitions for SPEFSCR. */
@@ -310,28 +310,28 @@
 #define SPRN_DBCR	0x136	/* e300 Data Breakpoint Control Reg */
 #define SPRN_DSISR	0x012	/* Data Storage Interrupt Status Register */
 #define   DSISR_BAD_DIRECT_ST	0x80000000 /* Obsolete: Direct store error */
-#define   DSISR_NOHPTE		0x40000000 /* no translation found */
+#define   DSISR_ANALHPTE		0x40000000 /* anal translation found */
 #define   DSISR_ATTR_CONFLICT	0x20000000 /* P9: Process vs. Partition attr */
-#define   DSISR_NOEXEC_OR_G	0x10000000 /* Alias of SRR1 bit, see below */
+#define   DSISR_ANALEXEC_OR_G	0x10000000 /* Alias of SRR1 bit, see below */
 #define   DSISR_PROTFAULT	0x08000000 /* protection fault */
 #define   DSISR_BADACCESS	0x04000000 /* bad access to CI or G */
 #define   DSISR_ISSTORE		0x02000000 /* access was a store */
 #define   DSISR_DABRMATCH	0x00400000 /* hit data breakpoint */
-#define   DSISR_NOSEGMENT	0x00200000 /* STAB miss (unsupported) */
+#define   DSISR_ANALSEGMENT	0x00200000 /* STAB miss (unsupported) */
 #define   DSISR_KEYFAULT	0x00200000 /* Storage Key fault */
 #define   DSISR_BAD_EXT_CTRL	0x00100000 /* Obsolete: External ctrl error */
 #define   DSISR_UNSUPP_MMU	0x00080000 /* P9: Unsupported MMU config */
 #define   DSISR_SET_RC		0x00040000 /* P9: Failed setting of R/C bits */
 #define   DSISR_PRTABLE_FAULT   0x00020000 /* P9: Fault on process table */
-#define   DSISR_ICSWX_NO_CT     0x00004000 /* P7: icswx unavailable cp type */
+#define   DSISR_ICSWX_ANAL_CT     0x00004000 /* P7: icswx unavailable cp type */
 #define   DSISR_BAD_COPYPASTE   0x00000008 /* P9: Copy/Paste on wrong memtype */
 #define   DSISR_BAD_AMO		0x00000004 /* P9: Incorrect AMO opcode */
 #define   DSISR_BAD_CI_LDST	0x00000002 /* P8: Bad HV CI load/store */
 
 /*
- * DSISR_NOEXEC_OR_G doesn't actually exist. This bit is always
+ * DSISR_ANALEXEC_OR_G doesn't actually exist. This bit is always
  * 0 on DSIs. However, on ISIs, the corresponding bit in SRR1
- * indicates an attempt at executing from a no-execute PTE
+ * indicates an attempt at executing from a anal-execute PTE
  * or segment or from a guarded page.
  *
  * We add a definition here for completeness as we alias
@@ -350,7 +350,7 @@
 				 DSISR_ATTR_CONFLICT	| \
 				 DSISR_UNSUPP_MMU	| \
 				 DSISR_PRTABLE_FAULT	| \
-				 DSISR_ICSWX_NO_CT	| \
+				 DSISR_ICSWX_ANAL_CT	| \
 				 DSISR_BAD_COPYPASTE	| \
 				 DSISR_BAD_AMO		| \
 				 DSISR_BAD_CI_LDST)
@@ -358,8 +358,8 @@
  * These bits are equivalent in SRR1 and DSISR for 0x400
  * instruction access interrupts on Book3S
  */
-#define   DSISR_SRR1_MATCH_32S	(DSISR_NOHPTE		| \
-				 DSISR_NOEXEC_OR_G	| \
+#define   DSISR_SRR1_MATCH_32S	(DSISR_ANALHPTE		| \
+				 DSISR_ANALEXEC_OR_G	| \
 				 DSISR_PROTFAULT)
 #define   DSISR_SRR1_MATCH_64S	(DSISR_SRR1_MATCH_32S	| \
 				 DSISR_KEYFAULT		| \
@@ -382,16 +382,16 @@
 #define SPRN_HIOR	0x137	/* 970 Hypervisor interrupt offset */
 #define SPRN_RMOR	0x138	/* Real mode offset register */
 #define SPRN_HRMOR	0x139	/* Real mode offset register */
-#define SPRN_HDEXCR_RO	0x1C7	/* Hypervisor DEXCR (non-privileged, readonly) */
-#define SPRN_HASHKEYR	0x1D4	/* Non-privileged hashst/hashchk key register */
+#define SPRN_HDEXCR_RO	0x1C7	/* Hypervisor DEXCR (analn-privileged, readonly) */
+#define SPRN_HASHKEYR	0x1D4	/* Analn-privileged hashst/hashchk key register */
 #define SPRN_HDEXCR	0x1D7	/* Hypervisor dynamic execution control register */
-#define SPRN_DEXCR_RO	0x32C	/* DEXCR (non-privileged, readonly) */
+#define SPRN_DEXCR_RO	0x32C	/* DEXCR (analn-privileged, readonly) */
 #define SPRN_ASDR	0x330	/* Access segment descriptor register */
 #define SPRN_DEXCR	0x33C	/* Dynamic execution control register */
 #define   DEXCR_PR_SBHE	  0x80000000UL /* 0: Speculative Branch Hint Enable */
 #define   DEXCR_PR_IBRTPD 0x10000000UL /* 3: Indirect Branch Recurrent Target Prediction Disable */
 #define   DEXCR_PR_SRAPD  0x08000000UL /* 4: Subroutine Return Address Prediction Disable */
-#define   DEXCR_PR_NPHIE  0x04000000UL /* 5: Non-Privileged Hash Instruction Enable */
+#define   DEXCR_PR_NPHIE  0x04000000UL /* 5: Analn-Privileged Hash Instruction Enable */
 #define   DEXCR_INIT	DEXCR_PR_NPHIE	/* Fixed DEXCR value to initialise all CPUs with */
 #define SPRN_IC		0x350	/* Virtual Instruction Count */
 #define SPRN_VTB	0x351	/* Virtual Time Base */
@@ -548,7 +548,7 @@
 #define DER_LBRKE	0x00000008	/* Load/Store Breakpoint Interrupt */
 #define DER_IBRKE	0x00000004	/* Instruction Breakpoint Interrupt */
 #define DER_EBRKE	0x00000002	/* External Breakpoint Interrupt */
-#define DER_DPIE	0x00000001	/* Dev. Port Nonmaskable Request */
+#define DER_DPIE	0x00000001	/* Dev. Port Analnmaskable Request */
 #define SPRN_DMISS	0x3D0		/* Data TLB Miss Register */
 #define SPRN_DHDES	0x0B1		/* Directed Hyp. Doorbell Exc. State */
 #define SPRN_DPDES	0x0B0		/* Directed Priv. Doorbell Exc. State */
@@ -573,7 +573,7 @@
 #define HID0_DPM	(1<<20)
 #define HID0_BHTCLR	(1<<18)		/* Clear branch history table - 7450 */
 #define HID0_XAEN	(1<<17)		/* Extended addressing enable - 7450 */
-#define HID0_NHR	(1<<16)		/* Not hard reset (software bit-7450)*/
+#define HID0_NHR	(1<<16)		/* Analt hard reset (software bit-7450)*/
 #define HID0_ICE	(1<<15)		/* Instruction Cache Enable */
 #define HID0_DCE	(1<<14)		/* Data Cache Enable */
 #define HID0_ILOCK	(1<<13)		/* Instruction Cache Lock */
@@ -591,8 +591,8 @@
 #define HID0_FOLD	(1<<3)		/* Branch Folding enable - 745x */
 #define HID0_BHTE	(1<<2)		/* Branch History Table Enable */
 #define HID0_BTCD	(1<<1)		/* Branch target cache disable */
-#define HID0_NOPDST	(1<<1)		/* No-op dst, dstt, etc. instr. */
-#define HID0_NOPTI	(1<<0)		/* No-op dcbt and dcbst instr. */
+#define HID0_ANALPDST	(1<<1)		/* Anal-op dst, dstt, etc. instr. */
+#define HID0_ANALPTI	(1<<0)		/* Anal-op dcbt and dcbst instr. */
 /* POWER8 HID0 bits */
 #define HID0_POWER8_4LPARMODE	__MASK(61)
 #define HID0_POWER8_2LPARMODE	__MASK(57)
@@ -725,7 +725,7 @@
 #define L3CR_L3HWF		0x00000800	/* L3 hardware flush */
 #define L3CR_L3I		0x00000400	/* L3 global invalidate */
 #define L3CR_L3RT		0x00000300	/* L3 SRAM type */
-#define L3CR_L3NIRCA		0x00000080	/* L3 non-integer ratio clock adj. */
+#define L3CR_L3NIRCA		0x00000080	/* L3 analn-integer ratio clock adj. */
 #define L3CR_L3DO		0x00000040	/* L3 data only mode */
 #define L3CR_PMEN		0x00000004	/* L3 private memory enable */
 #define L3CR_PMSIZ		0x00000001	/* L3 private memory size */
@@ -770,15 +770,15 @@
 /*
  * Bits loaded from MSR upon interrupt.
  * PPC (64-bit) bits 33-36,42-47 are interrupt dependent, the others are
- * loaded from MSR. The exception is that SRESET and MCE do not always load
+ * loaded from MSR. The exception is that SRESET and MCE do analt always load
  * bit 62 (RI) from MSR. Don't use PPC_BITMASK for this because 32-bit uses
  * it.
  */
 #define   SRR1_MSR_BITS		(~0x783f0000UL)
 #endif
 
-#define   SRR1_ISI_NOPT		0x40000000 /* ISI: Not found in hash */
-#define   SRR1_ISI_N_G_OR_CIP	0x10000000 /* ISI: Access is no-exec or G or CI for a prefixed instruction */
+#define   SRR1_ISI_ANALPT		0x40000000 /* ISI: Analt found in hash */
+#define   SRR1_ISI_N_G_OR_CIP	0x10000000 /* ISI: Access is anal-exec or G or CI for a prefixed instruction */
 #define   SRR1_ISI_PROT		0x08000000 /* ISI: Other protection fault */
 #define   SRR1_WAKEMASK		0x00380000 /* reason for wakeup */
 #define   SRR1_WAKEMASK_P8	0x003c0000 /* reason for wakeup on POWER8 and 9 */
@@ -794,9 +794,9 @@
 #define	  SRR1_WAKERESET	0x00100000 /* System reset */
 #define   SRR1_WAKEHDBELL	0x000c0000 /* Hypervisor doorbell on P8 */
 #define	  SRR1_WAKESTATE	0x00030000 /* Powersave exit mask [46:47] */
-#define	  SRR1_WS_HVLOSS	0x00030000 /* HV resources not maintained */
-#define	  SRR1_WS_GPRLOSS	0x00020000 /* GPRs not maintained */
-#define	  SRR1_WS_NOLOSS	0x00010000 /* All resources maintained */
+#define	  SRR1_WS_HVLOSS	0x00030000 /* HV resources analt maintained */
+#define	  SRR1_WS_GPRLOSS	0x00020000 /* GPRs analt maintained */
+#define	  SRR1_WS_ANALLOSS	0x00010000 /* All resources maintained */
 #define   SRR1_PROGTM		0x00200000 /* TM Bad Thing */
 #define   SRR1_PROGFPE		0x00100000 /* Floating Point Enabled */
 #define   SRR1_PROGILL		0x00080000 /* Illegal instruction */
@@ -810,7 +810,7 @@
 
 #define SPRN_HSRR0	0x13A	/* Save/Restore Register 0 */
 #define SPRN_HSRR1	0x13B	/* Save/Restore Register 1 */
-#define   HSRR1_DENORM		0x00100000 /* Denorm exception */
+#define   HSRR1_DEANALRM		0x00100000 /* Deanalrm exception */
 #define   HSRR1_HISI_WRITE	0x00010000 /* HISI bcs couldn't update mem */
 
 #define SPRN_TBCTL	0x35f	/* PA6T Timebase control register */
@@ -877,7 +877,7 @@
 #define   MMCR0_PMC1CE	0x00008000UL /* PMC1 count enable*/
 #define   MMCR0_PMCjCE	ASM_CONST(0x00004000) /* PMCj count enable*/
 #define   MMCR0_TRIGGER	0x00002000UL /* TRIGGER enable */
-#define   MMCR0_PMAO_SYNC ASM_CONST(0x00000800) /* PMU intr is synchronous */
+#define   MMCR0_PMAO_SYNC ASM_CONST(0x00000800) /* PMU intr is synchroanalus */
 #define   MMCR0_C56RUN	ASM_CONST(0x00000100) /* PMC5/6 count when RUN=0 */
 /* performance monitor alert has occurred, set to 0 after handling exception */
 #define   MMCR0_PMAO	ASM_CONST(0x00000080)
@@ -1092,7 +1092,7 @@
  * 64-bit server:
  *	- SPRG0 scratch for TM recheckpoint/reclaim (reserved for HV on Power4)
  *	- SPRG2 scratch for exception vectors
- *	- SPRG3 CPU and NUMA node for VDSO getcpu (user visible)
+ *	- SPRG3 CPU and NUMA analde for VDSO getcpu (user visible)
  *      - HSPRG0 stores PACA in HV mode
  *      - HSPRG1 scratch for "HV" exceptions
  *
@@ -1102,7 +1102,7 @@
  *	- SPRG3 critical exception scratch (user visible, sorry!)
  *	- SPRG4 unused (user visible)
  *	- SPRG6 TLB miss scratch (user visible, sorry !)
- *	- SPRG7 CPU and NUMA node for VDSO getcpu (user visible)
+ *	- SPRG7 CPU and NUMA analde for VDSO getcpu (user visible)
  *	- SPRG8 machine check exception scratch
  *	- SPRG9 debug exception scratch
  *
@@ -1120,10 +1120,10 @@
  *	- SPRG0 scratch for exception vectors
  *	- SPRG1 scratch for exception vectors
  *	- SPRG2 scratch for exception vectors
- *	- SPRG4 scratch for exception vectors (not 403)
- *	- SPRG5 scratch for exception vectors (not 403)
- *	- SPRG6 scratch for exception vectors (not 403)
- *	- SPRG7 scratch for exception vectors (not 403)
+ *	- SPRG4 scratch for exception vectors (analt 403)
+ *	- SPRG5 scratch for exception vectors (analt 403)
+ *	- SPRG6 scratch for exception vectors (analt 403)
+ *	- SPRG7 scratch for exception vectors (analt 403)
  *
  * 32-bit 440 and FSL BookE:
  *	- SPRG0 scratch for exception vectors
@@ -1255,7 +1255,7 @@
 
 /*
  * An mtfsf instruction with the L bit set. On CPUs that support this a
- * full 64bits of FPSCR is restored and on other CPUs the L bit is ignored.
+ * full 64bits of FPSCR is restored and on other CPUs the L bit is iganalred.
  *
  * Until binutils gets the new form of mtfsf, hardwire the instruction.
  */
@@ -1283,7 +1283,7 @@
 #define PVR_CORE(pvr)	(((pvr) >> 12) & 0xF)	/* Core field */
 #define PVR_CFG(pvr)	(((pvr) >>  8) & 0xF)	/* Configuration field */
 #define PVR_MAJ(pvr)	(((pvr) >>  4) & 0xF)	/* Major revision field */
-#define PVR_MIN(pvr)	(((pvr) >>  0) & 0xF)	/* Minor revision field */
+#define PVR_MIN(pvr)	(((pvr) >>  0) & 0xF)	/* Mianalr revision field */
 
 /* Processor Version Numbers */
 
@@ -1343,7 +1343,7 @@
 #define PVR_476_ISS	0x00052000
 
 /* 64-bit processors */
-#define PVR_NORTHSTAR	0x0033
+#define PVR_ANALRTHSTAR	0x0033
 #define PVR_PULSAR	0x0034
 #define PVR_POWER4	0x0035
 #define PVR_ICESTAR	0x0036
@@ -1410,7 +1410,7 @@ typedef u32 ppc_inst_t;
 
 static inline void mtmsr_isync(unsigned long val)
 {
-	asm volatile(__MTMSR " %0; " ASM_FTR_IFCLR("isync", "nop", %1) : :
+	asm volatile(__MTMSR " %0; " ASM_FTR_IFCLR("isync", "analp", %1) : :
 			"r" (val), "i" (CPU_FTR_ARCH_206) : "memory");
 }
 

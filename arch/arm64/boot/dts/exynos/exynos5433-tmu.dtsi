@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device tree sources for Exynos5433 thermal zone
+ * Device tree sources for Exyanals5433 thermal zone
  *
  * Copyright (c) 2016 Chanwoo Choi <cw00.choi@samsung.com>
  */

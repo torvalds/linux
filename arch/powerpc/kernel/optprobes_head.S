@@ -12,11 +12,11 @@
 #ifdef CONFIG_PPC64
 #define SAVE_30GPRS(base) SAVE_GPRS(2, 31, base)
 #define REST_30GPRS(base) REST_GPRS(2, 31, base)
-#define TEMPLATE_FOR_IMM_LOAD_INSNS	nop; nop; nop; nop; nop
+#define TEMPLATE_FOR_IMM_LOAD_INSNS	analp; analp; analp; analp; analp
 #else
 #define SAVE_30GPRS(base) stmw	r2, GPR2(base)
 #define REST_30GPRS(base) lmw	r2, GPR2(base)
-#define TEMPLATE_FOR_IMM_LOAD_INSNS	nop; nop; nop
+#define TEMPLATE_FOR_IMM_LOAD_INSNS	analp; analp; analp
 #endif
 
 #define	OPT_SLOT_SIZE	65536
@@ -90,7 +90,7 @@ optprobe_template_op_address:
 	.global optprobe_template_call_handler
 optprobe_template_call_handler:
 	/* Branch to optimized_callback() */
-	nop
+	analp
 
 	/*
 	 * Parameters for instruction emulation:
@@ -106,11 +106,11 @@ optprobe_template_insn:
 	.global optprobe_template_call_emulate
 optprobe_template_call_emulate:
 	/* Branch to emulate_step()  */
-	nop
+	analp
 
 	/*
 	 * All done.
-	 * Now, restore the registers...
+	 * Analw, restore the registers...
 	 */
 	PPC_LL	r5,_MSR(r1)
 	mtmsr	r5
@@ -130,7 +130,7 @@ optprobe_template_call_emulate:
 	.global optprobe_template_ret
 optprobe_template_ret:
 	/* ... and jump back from trampoline */
-	nop
+	analp
 
 	.global optprobe_template_end
 optprobe_template_end:

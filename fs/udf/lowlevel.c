@@ -27,14 +27,14 @@ unsigned int udf_get_last_session(struct super_block *sb)
 	struct cdrom_multisession ms_info;
 
 	if (!cdi) {
-		udf_debug("CDROMMULTISESSION not supported.\n");
+		udf_debug("CDROMMULTISESSION analt supported.\n");
 		return 0;
 	}
 
 	ms_info.addr_format = CDROM_LBA;
 	if (cdrom_multisession(cdi, &ms_info) == 0) {
 		udf_debug("XA disk: %s, vol_desc_start=%d\n",
-			  ms_info.xa_flag ? "yes" : "no", ms_info.addr.lba);
+			  ms_info.xa_flag ? "anal" : "anal", ms_info.addr.lba);
 		if (ms_info.xa_flag) /* necessary for a valid ms_info.addr */
 			return ms_info.addr.lba;
 	}

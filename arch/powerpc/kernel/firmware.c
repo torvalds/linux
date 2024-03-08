@@ -27,16 +27,16 @@ EXPORT_SYMBOL_GPL(kvm_guest);
 
 int __init check_kvm_guest(void)
 {
-	struct device_node *hyper_node;
+	struct device_analde *hyper_analde;
 
-	hyper_node = of_find_node_by_path("/hypervisor");
-	if (!hyper_node)
+	hyper_analde = of_find_analde_by_path("/hypervisor");
+	if (!hyper_analde)
 		return 0;
 
-	if (of_device_is_compatible(hyper_node, "linux,kvm"))
+	if (of_device_is_compatible(hyper_analde, "linux,kvm"))
 		static_branch_enable(&kvm_guest);
 
-	of_node_put(hyper_node);
+	of_analde_put(hyper_analde);
 	return 0;
 }
 core_initcall(check_kvm_guest); // before kvm_guest_init()

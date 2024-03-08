@@ -23,15 +23,15 @@ static int mx27_cpu_partnumber;
 static int mx27_read_cpu_rev(void)
 {
 	void __iomem *ccm_base;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx27-ccm");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx27-ccm");
 	ccm_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	BUG_ON(!ccm_base);
 	/*
-	 * now we have access to the IO registers. As we need
+	 * analw we have access to the IO registers. As we need
 	 * the silicon revision very early we read it here to
 	 * avoid any further hooks
 	*/
@@ -47,14 +47,14 @@ static int mx27_read_cpu_rev(void)
 	case 2:
 		return IMX_CHIP_REVISION_2_1;
 	default:
-		return IMX_CHIP_REVISION_UNKNOWN;
+		return IMX_CHIP_REVISION_UNKANALWN;
 	}
 }
 
 /*
  * Returns:
  *	the silicon revision of the cpu
- *	-EINVAL - not a mx27
+ *	-EINVAL - analt a mx27
  */
 int mx27_revision(void)
 {

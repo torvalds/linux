@@ -9,24 +9,24 @@ Required properties:
 - dma-requests:	Number of DMA requests the crossbar can receive
 - dma-masters:	phandle pointing to the DMA controller
 
-The DMA controller node need to have the following poroperties:
+The DMA controller analde need to have the following poroperties:
 - dma-requests:	Number of DMA requests the controller can handle
 
 Optional properties:
 - ti,dma-safe-map: Safe routing value for unused request lines
-- ti,reserved-dma-request-ranges: DMA request ranges which should not be used
+- ti,reserved-dma-request-ranges: DMA request ranges which should analt be used
 		when mapping xbar input to DMA request, they are either
 		allocated to be used by for example the DSP or they are used as
 		memcpy channels in eDMA.
 
-Notes:
+Analtes:
 When requesting channel via ti,dra7-dma-crossbar, the DMA clinet must request
 the DMA event number as crossbar ID (input to the DMA crossbar).
 
 For ti,am335x-edma-crossbar: the meaning of parameters of dmas for clients:
 dmas = <&edma_xbar 12 0 1>; where <12> is the DMA request number, <0> is the TC
 the event should be assigned and <1> is the mux selection for in the crossbar.
-When mux 0 is used the DMA channel can be requested directly from edma node.
+When mux 0 is used the DMA channel can be requested directly from edma analde.
 
 Example:
 

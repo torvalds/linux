@@ -18,7 +18,7 @@
 
 static struct signal_struct init_signals = {
 	.nr_threads	= 1,
-	.thread_head	= LIST_HEAD_INIT(init_task.thread_node),
+	.thread_head	= LIST_HEAD_INIT(init_task.thread_analde),
 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(init_signals.wait_chldexit),
 	.shared_pending	= {
 		.list = LIST_HEAD_INIT(init_signals.shared_pending.list),
@@ -72,8 +72,8 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.flags		= PF_KTHREAD,
 	.prio		= MAX_PRIO - 20,
 	.static_prio	= MAX_PRIO - 20,
-	.normal_prio	= MAX_PRIO - 20,
-	.policy		= SCHED_NORMAL,
+	.analrmal_prio	= MAX_PRIO - 20,
+	.policy		= SCHED_ANALRMAL,
 	.cpus_ptr	= &init_task.cpus_mask,
 	.user_cpus_ptr	= NULL,
 	.cpus_mask	= CPU_MASK_ALL,
@@ -82,10 +82,10 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.active_mm	= &init_mm,
 	.faults_disabled_mapping = NULL,
 	.restart_block	= {
-		.fn = do_no_restart_syscall,
+		.fn = do_anal_restart_syscall,
 	},
 	.se		= {
-		.group_node 	= LIST_HEAD_INIT(init_task.se.group_node),
+		.group_analde 	= LIST_HEAD_INIT(init_task.se.group_analde),
 	},
 	.rt		= {
 		.run_list	= LIST_HEAD_INIT(init_task.rt.run_list),
@@ -93,7 +93,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	},
 	.tasks		= LIST_HEAD_INIT(init_task.tasks),
 #ifdef CONFIG_SMP
-	.pushable_tasks	= PLIST_NODE_INIT(init_task.pushable_tasks, MAX_PRIO),
+	.pushable_tasks	= PLIST_ANALDE_INIT(init_task.pushable_tasks, MAX_PRIO),
 #endif
 #ifdef CONFIG_CGROUP_SCHED
 	.sched_task_group = &root_task_group,
@@ -128,7 +128,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.pi_lock),
 	.timer_slack_ns = 50000, /* 50 usec default slack */
 	.thread_pid	= &init_struct_pid,
-	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
+	.thread_analde	= LIST_HEAD_INIT(init_signals.thread_head),
 #ifdef CONFIG_AUDIT
 	.loginuid	= INVALID_UID,
 	.sessionid	= AUDIT_SID_UNSET,
@@ -140,8 +140,8 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 #ifdef CONFIG_PREEMPT_RCU
 	.rcu_read_lock_nesting = 0,
 	.rcu_read_unlock_special.s = 0,
-	.rcu_node_entry = LIST_HEAD_INIT(init_task.rcu_node_entry),
-	.rcu_blocked_node = NULL,
+	.rcu_analde_entry = LIST_HEAD_INIT(init_task.rcu_analde_entry),
+	.rcu_blocked_analde = NULL,
 #endif
 #ifdef CONFIG_TASKS_RCU
 	.rcu_tasks_holdout = false,
@@ -152,7 +152,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.trc_reader_nesting = 0,
 	.trc_reader_special.s = 0,
 	.trc_holdout_list = LIST_HEAD_INIT(init_task.trc_holdout_list),
-	.trc_blkd_node = LIST_HEAD_INIT(init_task.trc_blkd_node),
+	.trc_blkd_analde = LIST_HEAD_INIT(init_task.trc_blkd_analde),
 #endif
 #ifdef CONFIG_CPUSETS
 	.mems_allowed_seq = SEQCNT_SPINLOCK_ZERO(init_task.mems_allowed_seq,
@@ -169,7 +169,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.vtime.state	= VTIME_SYS,
 #endif
 #ifdef CONFIG_NUMA_BALANCING
-	.numa_preferred_nid = NUMA_NO_NODE,
+	.numa_preferred_nid = NUMA_ANAL_ANALDE,
 	.numa_group	= NULL,
 	.numa_faults	= NULL,
 #endif
@@ -185,7 +185,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.softirqs_enabled = 1,
 #endif
 #ifdef CONFIG_LOCKDEP
-	.lockdep_depth = 0, /* no locks held yet */
+	.lockdep_depth = 0, /* anal locks held yet */
 	.curr_chain_key = INITIAL_CHAIN_KEY,
 	.lockdep_recursion = 0,
 #endif

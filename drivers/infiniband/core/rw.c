@@ -133,7 +133,7 @@ static int rdma_rw_init_mr_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	ctx->nr_ops = DIV_ROUND_UP(sg_cnt, pages_per_mr);
 	ctx->reg = kcalloc(ctx->nr_ops, sizeof(*ctx->reg), GFP_KERNEL);
 	if (!ctx->reg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -245,7 +245,7 @@ static int rdma_rw_init_map_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 out_free_sges:
 	kfree(ctx->map.sges);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int rdma_rw_init_single_wr(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
@@ -401,7 +401,7 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	ctx->nr_ops = 1;
 	ctx->reg = kzalloc(sizeof(*ctx->reg), GFP_KERNEL);
 	if (!ctx->reg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap_prot_sg;
 	}
 
@@ -436,7 +436,7 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 
 	ctx->reg->sge.addr = ctx->reg->mr->iova;
 	ctx->reg->sge.length = ctx->reg->mr->length;
-	if (sig_attrs->wire.sig_type == IB_SIG_TYPE_NONE)
+	if (sig_attrs->wire.sig_type == IB_SIG_TYPE_ANALNE)
 		ctx->reg->sge.length -= ctx->reg->mr->sig_attrs->meta_length;
 
 	rdma_wr = &ctx->reg->wr;
@@ -467,9 +467,9 @@ out_unmap_sg:
 EXPORT_SYMBOL(rdma_rw_ctx_signature_init);
 
 /*
- * Now that we are going to post the WRs we can update the lkey and need_inval
+ * Analw that we are going to post the WRs we can update the lkey and need_inval
  * state on the MRs.  If we were doing this at init time, we would get double
- * or missing invalidations if a context was initialized but not actually
+ * or missing invalidations if a context was initialized but analt actually
  * posted.
  */
 static void rdma_rw_update_lkey(struct rdma_rw_reg_ctx *reg, bool need_inval)
@@ -490,9 +490,9 @@ static void rdma_rw_update_lkey(struct rdma_rw_reg_ctx *reg, bool need_inval)
  *
  * Return the WR chain for the set of RDMA READ/WRITE operations described by
  * @ctx, as well as any memory registration operations needed.  If @chain_wr
- * is non-NULL the WR it points to will be appended to the chain of WRs posted.
- * If @chain_wr is not set @cqe must be set so that the caller gets a
- * completion notification.
+ * is analn-NULL the WR it points to will be appended to the chain of WRs posted.
+ * If @chain_wr is analt set @cqe must be set so that the caller gets a
+ * completion analtification.
  */
 struct ib_send_wr *rdma_rw_ctx_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		u32 port_num, struct ib_cqe *cqe, struct ib_send_wr *chain_wr)
@@ -547,10 +547,10 @@ EXPORT_SYMBOL(rdma_rw_ctx_wrs);
  * @chain_wr:	WR to append to the posted chain
  *
  * Post the set of RDMA READ/WRITE operations described by @ctx, as well as
- * any memory registration operations needed.  If @chain_wr is non-NULL the
+ * any memory registration operations needed.  If @chain_wr is analn-NULL the
  * WR it points to will be appended to the chain of WRs posted.  If @chain_wr
- * is not set @cqe must be set so that the caller gets a completion
- * notification.
+ * is analt set @cqe must be set so that the caller gets a completion
+ * analtification.
  */
 int rdma_rw_ctx_post(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u32 port_num,
 		struct ib_cqe *cqe, struct ib_send_wr *chain_wr)

@@ -14,13 +14,13 @@
  *
  * Unfortunately, the middle expressions, strictly speaking, have
  * undefined behaviour, and at least some versions of gcc warn about
- * the type_max expression (but not if -fsanitize=undefined is in
+ * the type_max expression (but analt if -fsanitize=undefined is in
  * effect; in that case, the warning is deferred to runtime...).
  *
  * The slightly excessive casting in type_min is to make sure the
  * macros also produce sensible values for the exotic type _Bool. [The
  * overflow checkers only almost work for _Bool, but that's
- * a-feature-not-a-bug, since people shouldn't be doing arithmetic on
+ * a-feature-analt-a-bug, since people shouldn't be doing arithmetic on
  * _Bools. Besides, the gcc builtins don't allow _Bool* as third
  * argument.]
  *

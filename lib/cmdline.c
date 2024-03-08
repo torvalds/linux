@@ -44,12 +44,12 @@ static int get_range(char **str, int *pint, int n)
  *	the current option in the string.
  *
  *	Return values:
- *	0 - no int in string
- *	1 - int found, no subsequent comma
+ *	0 - anal int in string
+ *	1 - int found, anal subsequent comma
  *	2 - int found including a subsequent comma
- *	3 - hyphen found to denote a range
+ *	3 - hyphen found to deanalte a range
  *
- *	Leading hyphen without integer is no integer case, but we consume it
+ *	Leading hyphen without integer is anal integer case, but we consume it
  *	for the sake of simplification.
  */
 
@@ -88,7 +88,7 @@ EXPORT_SYMBOL(get_option);
  *	This function parses a string containing a comma-separated
  *	list of integers, a hyphen-separated range of _positive_ integers,
  *	or a combination of both.  The parse halts when the array is
- *	full, or when no more numbers can be retrieved from the
+ *	full, or when anal more numbers can be retrieved from the
  *	string.
  *
  *	When @nints is 0, the function just validates the given @str and
@@ -191,7 +191,7 @@ unsigned long long memparse(const char *ptr, char **retptr)
 EXPORT_SYMBOL(memparse);
 
 /**
- *	parse_option_str - Parse a string and check an option is set or not
+ *	parse_option_str - Parse a string and check an option is set or analt
  *	@str: String to be parsed
  *	@option: option name
  *

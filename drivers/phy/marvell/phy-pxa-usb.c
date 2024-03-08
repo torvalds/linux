@@ -292,9 +292,9 @@ static int pxa_usb_phy_probe(struct platform_device *pdev)
 
 	pxa_usb_phy = devm_kzalloc(dev, sizeof(struct pxa_usb_phy), GFP_KERNEL);
 	if (!pxa_usb_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_id = of_match_node(pxa_usb_phy_of_match, dev->of_node);
+	of_id = of_match_analde(pxa_usb_phy_of_match, dev->of_analde);
 	if (of_id)
 		pxa_usb_phy->version = (uintptr_t)of_id->data;
 	else
@@ -319,7 +319,7 @@ static int pxa_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(provider);
 	}
 
-	if (!dev->of_node) {
+	if (!dev->of_analde) {
 		phy_create_lookup(pxa_usb_phy->phy, "usb", "mv-udc");
 		phy_create_lookup(pxa_usb_phy->phy, "usb", "pxa-u2oehci");
 		phy_create_lookup(pxa_usb_phy->phy, "usb", "mv-otg");

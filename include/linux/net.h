@@ -17,7 +17,7 @@
 #include <linux/stringify.h>
 #include <linux/random.h>
 #include <linux/wait.h>
-#include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
+#include <linux/fcntl.h>	/* For O_CLOEXEC and O_ANALNBLOCK */
 #include <linux/rcupdate.h>
 #include <linux/once.h>
 #include <linux/fs.h>
@@ -27,18 +27,18 @@
 #include <uapi/linux/net.h>
 
 struct poll_table_struct;
-struct pipe_inode_info;
-struct inode;
+struct pipe_ianalde_info;
+struct ianalde;
 struct file;
 struct net;
 
-/* Historically, SOCKWQ_ASYNC_NOSPACE & SOCKWQ_ASYNC_WAITDATA were located
+/* Historically, SOCKWQ_ASYNC_ANALSPACE & SOCKWQ_ASYNC_WAITDATA were located
  * in sock->flags, but moved into sk->sk_wq->flags to be RCU protected.
  * Eventually all flags will be in sk->sk_wq->flags.
  */
-#define SOCKWQ_ASYNC_NOSPACE	0
+#define SOCKWQ_ASYNC_ANALSPACE	0
 #define SOCKWQ_ASYNC_WAITDATA	1
-#define SOCK_NOSPACE		2
+#define SOCK_ANALSPACE		2
 #define SOCK_PASSCRED		3
 #define SOCK_PASSSEC		4
 #define SOCK_SUPPORT_ZC		5
@@ -78,8 +78,8 @@ enum sock_type {
 
 /* Flags for socket, socketpair, accept4 */
 #define SOCK_CLOEXEC	O_CLOEXEC
-#ifndef SOCK_NONBLOCK
-#define SOCK_NONBLOCK	O_NONBLOCK
+#ifndef SOCK_ANALNBLOCK
+#define SOCK_ANALNBLOCK	O_ANALNBLOCK
 #endif
 
 #endif /* ARCH_HAS_SOCKET_TYPES */
@@ -97,10 +97,10 @@ enum sock_shutdown_cmd {
 };
 
 struct socket_wq {
-	/* Note: wait MUST be first field of socket_wq */
+	/* Analte: wait MUST be first field of socket_wq */
 	wait_queue_head_t	wait;
 	struct fasync_struct	*fasync_list;
-	unsigned long		flags; /* %SOCKWQ_ASYNC_NOSPACE, etc */
+	unsigned long		flags; /* %SOCKWQ_ASYNC_ANALSPACE, etc */
 	struct rcu_head		rcu;
 } ____cacheline_aligned_in_smp;
 
@@ -108,10 +108,10 @@ struct socket_wq {
  *  struct socket - general BSD socket
  *  @state: socket state (%SS_CONNECTED, etc)
  *  @type: socket type (%SOCK_STREAM, etc)
- *  @flags: socket flags (%SOCK_NOSPACE, etc)
+ *  @flags: socket flags (%SOCK_ANALSPACE, etc)
  *  @ops: protocol specific socket operations
  *  @file: File back pointer for gc
- *  @sk: internal networking protocol agnostic socket representation
+ *  @sk: internal networking protocol aganalstic socket representation
  *  @wq: wait queue for several uses
  */
 struct socket {
@@ -195,7 +195,7 @@ struct proto_ops {
 	void		(*show_fdinfo)(struct seq_file *m, struct socket *sock);
 	int		(*sendmsg)   (struct socket *sock, struct msghdr *m,
 				      size_t total_len);
-	/* Notes for implementing recvmsg:
+	/* Analtes for implementing recvmsg:
 	 * ===============================
 	 * msg->msg_namelen should get updated by the recvmsg handlers
 	 * iff msg_name != NULL. It is by default 0 to prevent
@@ -208,7 +208,7 @@ struct proto_ops {
 	int		(*mmap)	     (struct file *file, struct socket *sock,
 				      struct vm_area_struct * vma);
 	ssize_t 	(*splice_read)(struct socket *sock,  loff_t *ppos,
-				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+				       struct pipe_ianalde_info *pipe, size_t len, unsigned int flags);
 	void		(*splice_eof)(struct socket *sock);
 	int		(*set_peek_off)(struct sock *sk, int val);
 	int		(*peek_len)(struct socket *sock);
@@ -278,8 +278,8 @@ do {								\
 	net_ratelimited_function(pr_crit, fmt, ##__VA_ARGS__)
 #define net_err_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_err, fmt, ##__VA_ARGS__)
-#define net_notice_ratelimited(fmt, ...)			\
-	net_ratelimited_function(pr_notice, fmt, ##__VA_ARGS__)
+#define net_analtice_ratelimited(fmt, ...)			\
+	net_ratelimited_function(pr_analtice, fmt, ##__VA_ARGS__)
 #define net_warn_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_warn, fmt, ##__VA_ARGS__)
 #define net_info_ratelimited(fmt, ...)				\
@@ -301,7 +301,7 @@ do {									\
 #define net_dbg_ratelimited(fmt, ...)				\
 	do {							\
 		if (0)						\
-			no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); \
+			anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); \
 	} while (0)
 #endif
 
@@ -312,7 +312,7 @@ do {									\
  * E.g. XFS meta- & log-data is in slab pages, or bcache meta
  * data pages, or other high order pages allocated by
  * __get_free_pages() without __GFP_COMP, which have a page_count
- * of 0 and/or have PageSlab() set. We cannot use send_page for
+ * of 0 and/or have PageSlab() set. We cananalt use send_page for
  * those, as that does get_page(); put_page(); and would cause
  * either a VM_BUG directly, or __page_cache_release a page that
  * would actually still be referenced by someone, leading to some

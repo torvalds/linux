@@ -2,7 +2,7 @@
 /*
  * most.h - API for component and adapter drivers
  *
- * Copyright (C) 2013-2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015, Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #ifndef __MOST_CORE_H__
@@ -61,11 +61,11 @@ enum most_status_flags {
  * @direction: Supported channel directions.
  * The value is bitwise OR-combination of the values from the
  * enumeration most_channel_direction. Zero is allowed value and means
- * "channel may not be used".
+ * "channel may analt be used".
  * @data_type: Supported channel data types.
  * The value is bitwise OR-combination of the values from the
  * enumeration most_channel_data_type. Zero is allowed value and means
- * "channel may not be used".
+ * "channel may analt be used".
  * @num_buffers_packet: Maximum number of buffers supported by this channel
  * for packet data types (Async,Control,QoS)
  * @buffer_size_packet: Maximum buffer size supported by this channel
@@ -169,8 +169,8 @@ struct most_channel_config {
  * Every HDM attached to the core driver _must_ ensure that it returns any MBO
  * it owns (due to a previous call to enqueue() by the core driver) before it
  * de-registers an interface or gets unloaded from the kernel. If this direction
- * is violated memory leaks will occur, since the core driver does _not_ track
- * MBOs it is currently not in control of.
+ * is violated memory leaks will occur, since the core driver does _analt_ track
+ * MBOs it is currently analt in control of.
  *
  */
 struct mbo {
@@ -192,7 +192,7 @@ struct mbo {
  * Interface instance description.
  *
  * Describes an interface of a MOST device the core driver is bound to.
- * This structure is allocated and initialized in the HDM. MostCore may not
+ * This structure is allocated and initialized in the HDM. MostCore may analt
  * modify this structure.
  *
  * @dev: the actual device
@@ -207,7 +207,7 @@ struct mbo {
  * @channel_vector Properties of the channels.
  *   Array index represents channel ID by the driver.
  * @configure Callback to change data type for the channel of the
- *   interface instance. May be zero if the instance of the interface is not
+ *   interface instance. May be zero if the instance of the interface is analt
  *   configurable. Parameter channel_config describes direction and data
  *   type for the channel, configured by the higher level. The content of
  * @enqueue Delivers MBO to the HDM for processing.
@@ -219,7 +219,7 @@ struct mbo {
  *   The HDM must be able to hold at least one MBO for each channel.
  *   The callback returns a negative value on error, otherwise 0.
  * @poison_channel Informs HDM about closing the channel. The HDM shall
- *   cancel all transfers and synchronously or asynchronously return
+ *   cancel all transfers and synchroanalusly or asynchroanalusly return
  *   all enqueued for this channel MBOs using the completion routine.
  *   The callback returns a negative value on error, otherwise 0.
  * @request_netinfo: triggers retrieving of network info from the HDM by
@@ -255,7 +255,7 @@ struct most_interface {
  * struct most_component - identifies a loadable component for the mostcore
  * @list: list_head
  * @name: component name
- * @probe_channel: function for core to notify driver about channel connection
+ * @probe_channel: function for core to analtify driver about channel connection
  * @disconnect_channel: callback function to disconnect a certain channel
  * @rx_completion: completion handler for received packets
  * @tx_completion: completion handler for transmitted packets
@@ -280,7 +280,7 @@ struct most_component {
  *
  * Returns a pointer to the kobject of the generated instance.
  *
- * Note: HDM has to ensure that any reference held on the kobj is
+ * Analte: HDM has to ensure that any reference held on the kobj is
  * released before deregistering the interface.
  */
 int most_register_interface(struct most_interface *iface);
@@ -333,5 +333,5 @@ int most_set_cfg_datatype(char *mdev, char *mdev_ch, char *buf);
 int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf);
 int most_set_cfg_packets_xact(char *mdev, char *mdev_ch, u16 val);
 int most_cfg_complete(char *comp_name);
-void most_interface_register_notify(const char *mdev_name);
+void most_interface_register_analtify(const char *mdev_name);
 #endif /* MOST_CORE_H_ */

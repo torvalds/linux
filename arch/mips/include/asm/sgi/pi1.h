@@ -21,7 +21,7 @@ struct pi1_regs {
 	u8 _status[3];
 	volatile u8 status;
 #define PI1_STAT_DEVID		0x03	/* bits 0-1 */
-#define PI1_STAT_NOINK		0x04	/* SGI MODE only */
+#define PI1_STAT_ANALINK		0x04	/* SGI MODE only */
 #define PI1_STAT_ERROR		0x08
 #define PI1_STAT_ONLINE		0x10
 #define PI1_STAT_PE		0x20
@@ -43,7 +43,7 @@ struct pi1_regs {
 	volatile u8 intstat;
 #define PI1_INTSTAT_ACK		0x04
 #define PI1_INTSTAT_FEMPTY	0x08
-#define PI1_INTSTAT_NOINK	0x10
+#define PI1_INTSTAT_ANALINK	0x10
 #define PI1_INTSTAT_ONLINE	0x20
 #define PI1_INTSTAT_ERR		0x40
 #define PI1_INTSTAT_PE		0x80
@@ -51,7 +51,7 @@ struct pi1_regs {
 	volatile u8 intmask;		/* enabled low, reset high*/
 #define PI1_INTMASK_ACK		0x04
 #define PI1_INTMASK_FIFO_EMPTY	0x08
-#define PI1_INTMASK_NOINK	0x10
+#define PI1_INTMASK_ANALINK	0x10
 #define PI1_INTMASK_ONLINE	0x20
 #define PI1_INTMASK_ERR		0x40
 #define PI1_INTMASK_PE		0x80

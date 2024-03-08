@@ -384,5 +384,5 @@ void __init plat_irq_setup(void)
 
 void __init plat_mem_setup(void)
 {
-	/* TODO: Register Node 1 */
+	/* TODO: Register Analde 1 */
 }

@@ -161,7 +161,7 @@ static int atl1e_validate_option(int *value, struct atl1e_option *opt,
  * @adapter: board private structure
  *
  * This routine checks all command line parameters for valid user
- * input.  If an invalid value is given, or if no user specified
+ * input.  If an invalid value is given, or if anal user specified
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  */
@@ -170,9 +170,9 @@ void atl1e_check_options(struct atl1e_adapter *adapter)
 	int bd = adapter->bd_number;
 
 	if (bd >= ATL1E_MAX_NIC) {
-		netdev_notice(adapter->netdev,
-			      "no configuration for board #%i\n", bd);
-		netdev_notice(adapter->netdev,
+		netdev_analtice(adapter->netdev,
+			      "anal configuration for board #%i\n", bd);
+		netdev_analtice(adapter->netdev,
 			      "Using defaults for all values\n");
 	}
 

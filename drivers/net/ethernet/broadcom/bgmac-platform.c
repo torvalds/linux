@@ -84,7 +84,7 @@ static void platform_bgmac_clk_enable(struct bgmac *bgmac, u32 flags)
 	}
 
 	val = bgmac_idm_read(bgmac, BCMA_IOCTL);
-	/* Some bits of BCMA_IOCTL set by HW/ATF and should not change */
+	/* Some bits of BCMA_IOCTL set by HW/ATF and should analt change */
 	val |= flags & ~(BGMAC_AWCACHE | BGMAC_ARCACHE | BGMAC_AWUSER |
 			 BGMAC_ARUSER);
 	val |= BGMAC_CLK_EN;
@@ -154,15 +154,15 @@ static int platform_phy_connect(struct bgmac *bgmac)
 
 	if (bgmac->plat.nicpm_base)
 		phy_dev = of_phy_get_and_connect(bgmac->net_dev,
-						 bgmac->dev->of_node,
+						 bgmac->dev->of_analde,
 						 bgmac_nicpm_speed_set);
 	else
 		phy_dev = of_phy_get_and_connect(bgmac->net_dev,
-						 bgmac->dev->of_node,
+						 bgmac->dev->of_analde,
 						 bgmac_adjust_link);
 	if (!phy_dev) {
 		dev_err(bgmac->dev, "PHY connection failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -170,20 +170,20 @@ static int platform_phy_connect(struct bgmac *bgmac)
 
 static int bgmac_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct bgmac *bgmac;
 	struct resource *regs;
 	int ret;
 
 	bgmac = bgmac_alloc(&pdev->dev);
 	if (!bgmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, bgmac);
 
 	/* Set the features of the 4707 family */
 	bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
-	bgmac->feature_flags |= BGMAC_FEAT_NO_RESET;
+	bgmac->feature_flags |= BGMAC_FEAT_ANAL_RESET;
 	bgmac->feature_flags |= BGMAC_FEAT_CMDCFG_SR_REV4;
 	bgmac->feature_flags |= BGMAC_FEAT_TX_MASK_SETUP;
 	bgmac->feature_flags |= BGMAC_FEAT_RX_MASK_SETUP;
@@ -198,7 +198,7 @@ static int bgmac_probe(struct platform_device *pdev)
 
 	if (ret)
 		dev_warn(&pdev->dev,
-			 "MAC address not present in device tree\n");
+			 "MAC address analt present in device tree\n");
 
 	bgmac->irq = platform_get_irq(pdev, 0);
 	if (bgmac->irq < 0)

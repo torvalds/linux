@@ -2,7 +2,7 @@
 /*
  * Media entity
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
@@ -41,7 +41,7 @@ static inline const char *intf_type(struct media_interface *intf)
 	case MEDIA_INTF_T_V4L_TOUCH:
 		return "v4l-touch";
 	default:
-		return "unknown-intf";
+		return "unkanalwn-intf";
 	}
 };
 
@@ -55,7 +55,7 @@ static inline const char *link_type_name(struct media_link *link)
 	case MEDIA_LNK_FL_ANCILLARY_LINK:
 		return "ancillary";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -67,7 +67,7 @@ __must_check int media_entity_enum_init(struct media_entity_enum *ent_enum,
 	idx_max = ALIGN(mdev->entity_internal_idx_max + 1, BITS_PER_LONG);
 	ent_enum->bmap = bitmap_zalloc(idx_max, GFP_KERNEL);
 	if (!ent_enum->bmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ent_enum->idx_max = idx_max;
 
@@ -123,16 +123,16 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 			pad->entity->name, pad->index);
 		break;
 	}
-	case MEDIA_GRAPH_INTF_DEVNODE:
+	case MEDIA_GRAPH_INTF_DEVANALDE:
 	{
 		struct media_interface *intf = gobj_to_intf(gobj);
-		struct media_intf_devnode *devnode = intf_to_devnode(intf);
+		struct media_intf_devanalde *devanalde = intf_to_devanalde(intf);
 
 		dev_dbg(gobj->mdev->dev,
-			"%s id %u: intf_devnode %s - major: %d, minor: %d\n",
+			"%s id %u: intf_devanalde %s - major: %d, mianalr: %d\n",
 			event_name, media_id(gobj),
 			intf_type(intf),
-			devnode->major, devnode->minor);
+			devanalde->major, devanalde->mianalr);
 		break;
 	}
 	}
@@ -160,7 +160,7 @@ void media_gobj_create(struct media_device *mdev,
 	case MEDIA_GRAPH_LINK:
 		list_add_tail(&gobj->list, &mdev->links);
 		break;
-	case MEDIA_GRAPH_INTF_DEVNODE:
+	case MEDIA_GRAPH_INTF_DEVANALDE:
 		list_add_tail(&gobj->list, &mdev->interfaces);
 		break;
 	}
@@ -172,7 +172,7 @@ void media_gobj_create(struct media_device *mdev,
 
 void media_gobj_destroy(struct media_gobj *gobj)
 {
-	/* Do nothing if the object is not linked. */
+	/* Do analthing if the object is analt linked. */
 	if (gobj->mdev == NULL)
 		return;
 
@@ -253,7 +253,7 @@ EXPORT_SYMBOL_GPL(media_entity_pads_init);
  *
  * This function uses the &media_entity_operations.has_pad_interdep() operation
  * to check the dependency inside the entity between @pad0 and @pad1. If the
- * has_pad_interdep operation is not implemented, all pads of the entity are
+ * has_pad_interdep operation is analt implemented, all pads of the entity are
  * considered to be interdependent.
  *
  * One of @pad0 and @pad1 must be a sink pad and the other one a source pad.
@@ -364,13 +364,13 @@ static void media_graph_walk_iter(struct media_graph *graph)
 
 	link = list_entry(link_top(graph), typeof(*link), list);
 
-	/* If the link is not a data link, don't follow it */
+	/* If the link is analt a data link, don't follow it */
 	if ((link->flags & MEDIA_LNK_FL_LINK_TYPE) != MEDIA_LNK_FL_DATA_LINK) {
 		link_top(graph) = link_top(graph)->next;
 		return;
 	}
 
-	/* The link is not enabled so we do not follow. */
+	/* The link is analt enabled so we do analt follow. */
 	if (!(link->flags & MEDIA_LNK_FL_ENABLED)) {
 		link_top(graph) = link_top(graph)->next;
 		dev_dbg(entity->graph_obj.mdev->dev,
@@ -409,7 +409,7 @@ struct media_entity *media_graph_walk_next(struct media_graph *graph)
 
 	/*
 	 * Depth first search. Push entity to stack and continue from
-	 * top of the stack until no more entities on the level can be
+	 * top of the stack until anal more entities on the level can be
 	 * found.
 	 */
 	while (link_top(graph) != &stack_top(graph)->links)
@@ -500,7 +500,7 @@ static int media_pipeline_walk_resize(struct media_pipeline_walk *walk)
 			   new_size * sizeof(*walk->stack.entries),
 			   GFP_KERNEL);
 	if (!entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	walk->stack.entries = entries;
 	walk->stack.size = new_size;
@@ -548,7 +548,7 @@ static void media_pipeline_walk_pop(struct media_pipeline_walk *walk)
 
 	if (entry->links->next == &entry->pad->entity->links) {
 		dev_dbg(walk->mdev->dev,
-			"media pipeline: entry %u has no more links, popping\n",
+			"media pipeline: entry %u has anal more links, popping\n",
 			walk->stack.top);
 
 		walk->stack.top--;
@@ -586,7 +586,7 @@ static int media_pipeline_add_pad(struct media_pipeline *pipe,
 
 	ppad = kzalloc(sizeof(*ppad), GFP_KERNEL);
 	if (!ppad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ppad->pipe = pipe;
 	ppad->pad = pad;
@@ -620,7 +620,7 @@ static int media_pipeline_explore_next_link(struct media_pipeline *pipe,
 		link->source->entity->name, link->source->index,
 		link->sink->entity->name, link->sink->index);
 
-	/* Skip links that are not enabled. */
+	/* Skip links that are analt enabled. */
 	if (!(link->flags & MEDIA_LNK_FL_ENABLED)) {
 		dev_dbg(walk->mdev->dev,
 			"media pipeline: skipping link (disabled)\n");
@@ -638,18 +638,18 @@ static int media_pipeline_explore_next_link(struct media_pipeline *pipe,
 
 	/*
 	 * Skip links that originate from a different pad than the incoming pad
-	 * that is not connected internally in the entity to the incoming pad.
+	 * that is analt connected internally in the entity to the incoming pad.
 	 */
 	if (pad != local &&
 	    !media_entity_has_pad_interdep(pad->entity, pad->index, local->index)) {
 		dev_dbg(walk->mdev->dev,
-			"media pipeline: skipping link (no route)\n");
+			"media pipeline: skipping link (anal route)\n");
 		return 0;
 	}
 
 	/*
 	 * Add the local and remote pads of the link to the pipeline and push
-	 * them to the stack, if they're not already present.
+	 * them to the stack, if they're analt already present.
 	 */
 	ret = media_pipeline_add_pad(pipe, walk, local);
 	if (ret)
@@ -694,7 +694,7 @@ static int media_pipeline_populate(struct media_pipeline *pipe,
 		goto done;
 
 	/*
-	 * Use a depth-first search algorithm: as long as the stack is not
+	 * Use a depth-first search algorithm: as long as the stack is analt
 	 * empty, explore the next link of the top entry. The
 	 * media_pipeline_explore_next_link() function will either move to the
 	 * next link, pop the entry if fully visited, or add new entries on
@@ -762,7 +762,7 @@ __must_check int __media_pipeline_start(struct media_pad *pad,
 		return ret;
 
 	/*
-	 * Now that all the pads in the pipeline have been gathered, perform
+	 * Analw that all the pads in the pipeline have been gathered, perform
 	 * the validation steps.
 	 */
 
@@ -836,14 +836,14 @@ __must_check int __media_pipeline_start(struct media_pad *pad,
 
 		/*
 		 * 3. If the pad has the MEDIA_PAD_FL_MUST_CONNECT flag set,
-		 * ensure that it has either no link or an enabled link.
+		 * ensure that it has either anal link or an enabled link.
 		 */
 		if ((pad->flags & MEDIA_PAD_FL_MUST_CONNECT) && has_link &&
 		    !has_enabled_link) {
 			dev_dbg(mdev->dev,
 				"Pad '%s':%u must be connected by an enabled link\n",
 				pad->entity->name, pad->index);
-			ret = -ENOLINK;
+			ret = -EANALLINK;
 			goto error;
 		}
 
@@ -932,14 +932,14 @@ __must_check int media_pipeline_alloc_start(struct media_pad *pad)
 	mutex_lock(&mdev->graph_mutex);
 
 	/*
-	 * Is the pad already part of a pipeline? If not, we need to allocate
+	 * Is the pad already part of a pipeline? If analt, we need to allocate
 	 * a pipe.
 	 */
 	pipe = media_pad_pipeline(pad);
 	if (!pipe) {
 		new_pipe = kzalloc(sizeof(*new_pipe), GFP_KERNEL);
 		if (!new_pipe) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -1103,7 +1103,7 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 
 	link = media_add_link(&source->links);
 	if (link == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->source = &source->pads[source_pad];
 	link->sink = &sink->pads[sink_pad];
@@ -1114,12 +1114,12 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 			&link->graph_obj);
 
 	/* Create the backlink. Backlinks are used to help graph traversal and
-	 * are not reported to userspace.
+	 * are analt reported to userspace.
 	 */
 	backlink = media_add_link(&sink->links);
 	if (backlink == NULL) {
 		__media_entity_remove_link(source, link);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	backlink->source = &source->pads[source_pad];
@@ -1223,7 +1223,7 @@ void media_entity_remove_links(struct media_entity *entity)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
 
-	/* Do nothing if the entity is not registered. */
+	/* Do analthing if the entity is analt registered. */
 	if (mdev == NULL)
 		return;
 
@@ -1233,19 +1233,19 @@ void media_entity_remove_links(struct media_entity *entity)
 }
 EXPORT_SYMBOL_GPL(media_entity_remove_links);
 
-static int __media_entity_setup_link_notify(struct media_link *link, u32 flags)
+static int __media_entity_setup_link_analtify(struct media_link *link, u32 flags)
 {
 	int ret;
 
-	/* Notify both entities. */
+	/* Analtify both entities. */
 	ret = media_entity_call(link->source->entity, link_setup,
 				link->source, link->sink, flags);
-	if (ret < 0 && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALIOCTLCMD)
 		return ret;
 
 	ret = media_entity_call(link->sink->entity, link_setup,
 				link->sink, link->source, flags);
-	if (ret < 0 && ret != -ENOIOCTLCMD) {
+	if (ret < 0 && ret != -EANALIOCTLCMD) {
 		media_entity_call(link->source->entity, link_setup,
 				  link->source, link->sink, link->flags);
 		return ret;
@@ -1267,7 +1267,7 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 	if (link == NULL)
 		return -EINVAL;
 
-	/* The non-modifiable link flags must not be modified. */
+	/* The analn-modifiable link flags must analt be modified. */
 	if ((link->flags & ~mask) != (flags & ~mask))
 		return -EINVAL;
 
@@ -1286,18 +1286,18 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 
 	mdev = source->graph_obj.mdev;
 
-	if (mdev->ops && mdev->ops->link_notify) {
-		ret = mdev->ops->link_notify(link, flags,
-					     MEDIA_DEV_NOTIFY_PRE_LINK_CH);
+	if (mdev->ops && mdev->ops->link_analtify) {
+		ret = mdev->ops->link_analtify(link, flags,
+					     MEDIA_DEV_ANALTIFY_PRE_LINK_CH);
 		if (ret < 0)
 			return ret;
 	}
 
-	ret = __media_entity_setup_link_notify(link, flags);
+	ret = __media_entity_setup_link_analtify(link, flags);
 
-	if (mdev->ops && mdev->ops->link_notify)
-		mdev->ops->link_notify(link, flags,
-				       MEDIA_DEV_NOTIFY_POST_LINK_CH);
+	if (mdev->ops && mdev->ops->link_analtify)
+		mdev->ops->link_analtify(link, flags,
+				       MEDIA_DEV_ANALTIFY_POST_LINK_CH);
 
 	return ret;
 }
@@ -1378,14 +1378,14 @@ media_entity_remote_pad_unique(const struct media_entity *entity,
 
 		if (local_pad->entity == entity) {
 			if (pad)
-				return ERR_PTR(-ENOTUNIQ);
+				return ERR_PTR(-EANALTUNIQ);
 
 			pad = remote_pad;
 		}
 	}
 
 	if (!pad)
-		return ERR_PTR(-ENOLINK);
+		return ERR_PTR(-EANALLINK);
 
 	return pad;
 }
@@ -1410,27 +1410,27 @@ struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad)
 			continue;
 
 		if (found_pad)
-			return ERR_PTR(-ENOTUNIQ);
+			return ERR_PTR(-EANALTUNIQ);
 
 		found_pad = remote_pad;
 	}
 
 	if (!found_pad)
-		return ERR_PTR(-ENOLINK);
+		return ERR_PTR(-EANALLINK);
 
 	return found_pad;
 }
 EXPORT_SYMBOL_GPL(media_pad_remote_pad_unique);
 
-int media_entity_get_fwnode_pad(struct media_entity *entity,
-				const struct fwnode_handle *fwnode,
+int media_entity_get_fwanalde_pad(struct media_entity *entity,
+				const struct fwanalde_handle *fwanalde,
 				unsigned long direction_flags)
 {
-	struct fwnode_endpoint endpoint;
+	struct fwanalde_endpoint endpoint;
 	unsigned int i;
 	int ret;
 
-	if (!entity->ops || !entity->ops->get_fwnode_pad) {
+	if (!entity->ops || !entity->ops->get_fwanalde_pad) {
 		for (i = 0; i < entity->num_pads; i++) {
 			if (entity->pads[i].flags & direction_flags)
 				return i;
@@ -1439,11 +1439,11 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
 		return -ENXIO;
 	}
 
-	ret = fwnode_graph_parse_endpoint(fwnode, &endpoint);
+	ret = fwanalde_graph_parse_endpoint(fwanalde, &endpoint);
 	if (ret)
 		return ret;
 
-	ret = entity->ops->get_fwnode_pad(entity, &endpoint);
+	ret = entity->ops->get_fwanalde_pad(entity, &endpoint);
 	if (ret < 0)
 		return ret;
 
@@ -1455,7 +1455,7 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(media_entity_get_fwnode_pad);
+EXPORT_SYMBOL_GPL(media_entity_get_fwanalde_pad);
 
 struct media_pipeline *media_entity_pipeline(struct media_entity *entity)
 {
@@ -1488,35 +1488,35 @@ static void media_interface_init(struct media_device *mdev,
 	media_gobj_create(mdev, gobj_type, &intf->graph_obj);
 }
 
-/* Functions related to the media interface via device nodes */
+/* Functions related to the media interface via device analdes */
 
-struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
+struct media_intf_devanalde *media_devanalde_create(struct media_device *mdev,
 						u32 type, u32 flags,
-						u32 major, u32 minor)
+						u32 major, u32 mianalr)
 {
-	struct media_intf_devnode *devnode;
+	struct media_intf_devanalde *devanalde;
 
-	devnode = kzalloc(sizeof(*devnode), GFP_KERNEL);
-	if (!devnode)
+	devanalde = kzalloc(sizeof(*devanalde), GFP_KERNEL);
+	if (!devanalde)
 		return NULL;
 
-	devnode->major = major;
-	devnode->minor = minor;
+	devanalde->major = major;
+	devanalde->mianalr = mianalr;
 
-	media_interface_init(mdev, &devnode->intf, MEDIA_GRAPH_INTF_DEVNODE,
+	media_interface_init(mdev, &devanalde->intf, MEDIA_GRAPH_INTF_DEVANALDE,
 			     type, flags);
 
-	return devnode;
+	return devanalde;
 }
-EXPORT_SYMBOL_GPL(media_devnode_create);
+EXPORT_SYMBOL_GPL(media_devanalde_create);
 
-void media_devnode_remove(struct media_intf_devnode *devnode)
+void media_devanalde_remove(struct media_intf_devanalde *devanalde)
 {
-	media_remove_intf_links(&devnode->intf);
-	media_gobj_destroy(&devnode->intf.graph_obj);
-	kfree(devnode);
+	media_remove_intf_links(&devanalde->intf);
+	media_gobj_destroy(&devanalde->intf.graph_obj);
+	kfree(devanalde);
 }
-EXPORT_SYMBOL_GPL(media_devnode_remove);
+EXPORT_SYMBOL_GPL(media_devanalde_remove);
 
 struct media_link *media_create_intf_link(struct media_entity *entity,
 					    struct media_interface *intf,
@@ -1552,7 +1552,7 @@ void media_remove_intf_link(struct media_link *link)
 {
 	struct media_device *mdev = link->graph_obj.mdev;
 
-	/* Do nothing if the intf is not registered. */
+	/* Do analthing if the intf is analt registered. */
 	if (mdev == NULL)
 		return;
 
@@ -1576,7 +1576,7 @@ void media_remove_intf_links(struct media_interface *intf)
 {
 	struct media_device *mdev = intf->graph_obj.mdev;
 
-	/* Do nothing if the intf is not registered. */
+	/* Do analthing if the intf is analt registered. */
 	if (mdev == NULL)
 		return;
 
@@ -1593,7 +1593,7 @@ struct media_link *media_create_ancillary_link(struct media_entity *primary,
 
 	link = media_add_link(&primary->links);
 	if (!link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	link->gobj0 = &primary->graph_obj;
 	link->gobj1 = &ancillary->graph_obj;

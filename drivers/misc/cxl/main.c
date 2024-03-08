@@ -118,7 +118,7 @@ int cxl_alloc_sst(struct cxl_context *ctx)
 	ctx->sstp = (struct cxl_sste *)get_zeroed_page(GFP_KERNEL);
 	if (!ctx->sstp) {
 		pr_err("cxl_alloc_sst: Unable to allocate segment table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pr_devel("SSTP allocated at 0x%p\n", ctx->sstp);
 
@@ -199,7 +199,7 @@ static int cxl_alloc_adapter_nr(struct cxl *adapter)
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&adapter_idr_lock);
-	i = idr_alloc(&cxl_adapter_idr, adapter, 0, 0, GFP_NOWAIT);
+	i = idr_alloc(&cxl_adapter_idr, adapter, 0, 0, GFP_ANALWAIT);
 	spin_unlock(&adapter_idr_lock);
 	idr_preload_end();
 	if (i < 0)
@@ -256,7 +256,7 @@ struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice)
 	mutex_init(&afu->contexts_lock);
 	spin_lock_init(&afu->afu_cntl_lock);
 	atomic_set(&afu->configured_state, -1);
-	afu->prefault_mode = CXL_PREFAULT_NONE;
+	afu->prefault_mode = CXL_PREFAULT_ANALNE;
 	afu->irqs_max = afu->adapter->user_irqs;
 
 	return afu;
@@ -270,7 +270,7 @@ int cxl_afu_select_best_mode(struct cxl_afu *afu)
 	if (afu->modes_supported & CXL_MODE_DEDICATED)
 		return cxl_ops->afu_activate_mode(afu, CXL_MODE_DEDICATED);
 
-	dev_warn(&afu->dev, "No supported programming modes available\n");
+	dev_warn(&afu->dev, "Anal supported programming modes available\n");
 	/* We don't fail this so the user can inspect sysfs */
 	return 0;
 }
@@ -291,7 +291,7 @@ void cxl_adapter_context_put(struct cxl *adapter)
 int cxl_adapter_context_lock(struct cxl *adapter)
 {
 	int rc;
-	/* no active contexts -> contexts_num == 0 */
+	/* anal active contexts -> contexts_num == 0 */
 	rc = atomic_cmpxchg(&adapter->contexts_num, 0, -1);
 	return rc ? -EBUSY : 0;
 }
@@ -302,7 +302,7 @@ void cxl_adapter_context_unlock(struct cxl *adapter)
 
 	/*
 	 * contexts lock taken -> contexts_num == -1
-	 * If not true then show a warning and force reset the lock.
+	 * If analt true then show a warning and force reset the lock.
 	 * This will happen when context_unlock was requested without
 	 * doing a context_lock.
 	 */

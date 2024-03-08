@@ -9,7 +9,7 @@ struct pt_regs;
 
 extern long (*panic_blink)(int state);
 __printf(1, 2)
-void panic(const char *fmt, ...) __noreturn __cold;
+void panic(const char *fmt, ...) __analreturn __cold;
 void nmi_panic(struct pt_regs *regs, const char *msg);
 void check_panic_on_warn(const char *origin);
 extern void oops_enter(void);
@@ -24,13 +24,13 @@ extern int panic_on_io_nmi;
 extern int panic_on_warn;
 
 extern unsigned long panic_on_taint;
-extern bool panic_on_taint_nousertaint;
+extern bool panic_on_taint_analusertaint;
 
 extern int sysctl_panic_on_rcu_stall;
 extern int sysctl_max_rcu_stall_to_panic;
 extern int sysctl_panic_on_stackoverflow;
 
-extern bool crash_kexec_post_notifiers;
+extern bool crash_kexec_post_analtifiers;
 
 extern void __stack_chk_fail(void);
 void abort(void);
@@ -38,14 +38,14 @@ void abort(void);
 /*
  * panic_cpu is used for synchronizing panic() and crash_kexec() execution. It
  * holds a CPU number which is executing panic() currently. A value of
- * PANIC_CPU_INVALID means no CPU has entered panic() or crash_kexec().
+ * PANIC_CPU_INVALID means anal CPU has entered panic() or crash_kexec().
  */
 extern atomic_t panic_cpu;
 #define PANIC_CPU_INVALID	-1
 
 /*
  * Only to be used by arch init code. If the user over-wrote the default
- * CONFIG_PANIC_TIMEOUT, honor it.
+ * CONFIG_PANIC_TIMEOUT, hoanalr it.
  */
 static inline void set_arch_panic_timeout(int timeout, int arch_default_timeout)
 {
@@ -53,7 +53,7 @@ static inline void set_arch_panic_timeout(int timeout, int arch_default_timeout)
 		panic_timeout = timeout;
 }
 
-/* This cannot be an enum because some may be used in assembly source. */
+/* This cananalt be an enum because some may be used in assembly source. */
 #define TAINT_PROPRIETARY_MODULE	0
 #define TAINT_FORCED_MODULE		1
 #define TAINT_CPU_OUT_OF_SPEC		2
@@ -78,7 +78,7 @@ static inline void set_arch_panic_timeout(int timeout, int arch_default_timeout)
 
 struct taint_flag {
 	char c_true;	/* character printed when tainted */
-	char c_false;	/* character printed when not tainted */
+	char c_false;	/* character printed when analt tainted */
 	bool module;	/* also show as a per-module taint flag */
 };
 
@@ -86,7 +86,7 @@ extern const struct taint_flag taint_flags[TAINT_FLAGS_COUNT];
 
 enum lockdep_ok {
 	LOCKDEP_STILL_OK,
-	LOCKDEP_NOW_UNRELIABLE,
+	LOCKDEP_ANALW_UNRELIABLE,
 };
 
 extern const char *print_tainted(void);

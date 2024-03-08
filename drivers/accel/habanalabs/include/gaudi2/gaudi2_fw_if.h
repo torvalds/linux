@@ -101,7 +101,7 @@ struct gaudi2_redundancy_ctx {
 	__le64 hmmu_hif_mask;
 	__le64 xbar_edge_mask;
 	__u8 mme_pe_iso[GAUDI2_NUM_MME];
-	__le32 full_hbm_mode;	/* true on full (non binning hbm)*/
+	__le32 full_hbm_mode;	/* true on full (analn binning hbm)*/
 } __packed;
 
 #endif /* GAUDI2_FW_IF_H */

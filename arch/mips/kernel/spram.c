@@ -2,7 +2,7 @@
 /*
  * MIPS SPRAM support
  *
- * Copyright (C) 2007, 2008 MIPS Technologies, Inc.
+ * Copyright (C) 2007, 2008 MIPS Techanallogies, Inc.
  */
 #include <linux/kernel.h>
 #include <linux/ptrace.h>

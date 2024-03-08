@@ -21,7 +21,7 @@
 #define  SDHCI_VENDOR_ENHANCED_STRB 0x1
 #define  SDHCI_VENDOR_GATE_SDCLK_EN 0x2
 
-#define BRCMSTB_MATCH_FLAGS_NO_64BIT		BIT(0)
+#define BRCMSTB_MATCH_FLAGS_ANAL_64BIT		BIT(0)
 #define BRCMSTB_MATCH_FLAGS_BROKEN_TIMEOUT	BIT(1)
 #define BRCMSTB_MATCH_FLAGS_HAS_CLOCK_GATE	BIT(2)
 
@@ -164,7 +164,7 @@ static void sdhci_brcmstb_set_uhs_signaling(struct sdhci_host *host,
 		 (timing == MMC_TIMING_MMC_DDR52))
 		ctrl_2 |= SDHCI_CTRL_UHS_DDR50;
 	else if (timing == MMC_TIMING_MMC_HS400)
-		ctrl_2 |= SDHCI_CTRL_HS400; /* Non-standard */
+		ctrl_2 |= SDHCI_CTRL_HS400; /* Analn-standard */
 	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
 }
 
@@ -215,7 +215,7 @@ static struct sdhci_ops sdhci_brcmstb_ops_74165b0 = {
 };
 
 static struct brcmstb_match_priv match_priv_7425 = {
-	.flags = BRCMSTB_MATCH_FLAGS_NO_64BIT |
+	.flags = BRCMSTB_MATCH_FLAGS_ANAL_64BIT |
 	BRCMSTB_MATCH_FLAGS_BROKEN_TIMEOUT,
 	.ops = &sdhci_brcmstb_ops,
 };
@@ -277,7 +277,7 @@ static int sdhci_brcmstb_add_host(struct sdhci_host *host,
 	cq_host = devm_kzalloc(mmc_dev(host->mmc),
 			       sizeof(*cq_host), GFP_KERNEL);
 	if (!cq_host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -318,7 +318,7 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 	struct clk *base_clk = NULL;
 	int res;
 
-	match = of_match_node(sdhci_brcm_of_match, pdev->dev.of_node);
+	match = of_match_analde(sdhci_brcm_of_match, pdev->dev.of_analde);
 	match_priv = match->data;
 
 	dev_dbg(&pdev->dev, "Probe found match for %s\n",  match->compatible);
@@ -342,7 +342,7 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 		match_priv->ops->irq = sdhci_brcmstb_cqhci_irq;
 	}
 
-	/* Map in the non-standard CFG registers */
+	/* Map in the analn-standard CFG registers */
 	priv->cfg_regs = devm_platform_get_and_ioremap_resource(pdev, 1, NULL);
 	if (IS_ERR(priv->cfg_regs)) {
 		res = PTR_ERR(priv->cfg_regs);
@@ -355,11 +355,11 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 		goto err;
 
 	/*
-	 * Automatic clock gating does not work for SD cards that may
-	 * voltage switch so only enable it for non-removable devices.
+	 * Automatic clock gating does analt work for SD cards that may
+	 * voltage switch so only enable it for analn-removable devices.
 	 */
 	if ((match_priv->flags & BRCMSTB_MATCH_FLAGS_HAS_CLOCK_GATE) &&
-	    (host->mmc->caps & MMC_CAP_NONREMOVABLE))
+	    (host->mmc->caps & MMC_CAP_ANALNREMOVABLE))
 		priv->flags |= BRCMSTB_PRIV_FLAGS_GATE_CLOCK;
 
 	/*
@@ -376,7 +376,7 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 	 * properties through mmc_of_parse().
 	 */
 	sdhci_read_caps(host);
-	if (match_priv->flags & BRCMSTB_MATCH_FLAGS_NO_64BIT)
+	if (match_priv->flags & BRCMSTB_MATCH_FLAGS_ANAL_64BIT)
 		host->caps &= ~SDHCI_CAN_64BIT;
 	host->caps1 &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_SDR104 |
 			 SDHCI_SUPPORT_DDR50);
@@ -391,7 +391,7 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 
 	base_clk = devm_clk_get_optional(&pdev->dev, "sdio_freq");
 	if (IS_ERR(base_clk)) {
-		dev_warn(&pdev->dev, "Clock for \"sdio_freq\" not found\n");
+		dev_warn(&pdev->dev, "Clock for \"sdio_freq\" analt found\n");
 		goto add_host;
 	}
 
@@ -405,7 +405,7 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 
 	host->caps &= ~SDHCI_CLOCK_V3_BASE_MASK;
 	host->caps |= (actual_clock_mhz << SDHCI_CLOCK_BASE_SHIFT);
-	/* Disable presets because they are now incorrect */
+	/* Disable presets because they are analw incorrect */
 	host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
 
 	dev_dbg(&pdev->dev, "Base Clock Frequency changed to %dMHz\n",
@@ -455,10 +455,10 @@ static int sdhci_brcmstb_resume(struct device *dev)
 	if (!ret && priv->base_freq_hz) {
 		ret = clk_prepare_enable(priv->base_clk);
 		/*
-		 * Note: using clk_get_rate() below as clk_get_rate()
-		 * honors CLK_GET_RATE_NOCACHE attribute, but clk_set_rate()
-		 * may do implicit get_rate() calls that do not honor
-		 * CLK_GET_RATE_NOCACHE.
+		 * Analte: using clk_get_rate() below as clk_get_rate()
+		 * hoanalrs CLK_GET_RATE_ANALCACHE attribute, but clk_set_rate()
+		 * may do implicit get_rate() calls that do analt hoanalr
+		 * CLK_GET_RATE_ANALCACHE.
 		 */
 		if (!ret &&
 		    (clk_get_rate(priv->base_clk) != priv->base_freq_hz))
@@ -476,7 +476,7 @@ static const struct dev_pm_ops sdhci_brcmstb_pmops = {
 static struct platform_driver sdhci_brcmstb_driver = {
 	.driver		= {
 		.name	= "sdhci-brcmstb",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &sdhci_brcmstb_pmops,
 		.of_match_table = of_match_ptr(sdhci_brcm_of_match),
 	},

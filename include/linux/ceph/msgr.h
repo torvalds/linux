@@ -83,15 +83,15 @@ extern const char *ceph_entity_type_name(int type);
  */
 struct ceph_entity_addr {
 	__le32 type;  /* CEPH_ENTITY_ADDR_TYPE_* */
-	__le32 nonce;  /* unique id for process (e.g. pid) */
+	__le32 analnce;  /* unique id for process (e.g. pid) */
 	struct sockaddr_storage in_addr;
 } __attribute__ ((packed));
 
-static inline bool ceph_addr_equal_no_type(const struct ceph_entity_addr *lhs,
+static inline bool ceph_addr_equal_anal_type(const struct ceph_entity_addr *lhs,
 					   const struct ceph_entity_addr *rhs)
 {
 	return !memcmp(&lhs->in_addr, &rhs->in_addr, sizeof(lhs->in_addr)) &&
-	       lhs->nonce == rhs->nonce;
+	       lhs->analnce == rhs->analnce;
 }
 
 struct ceph_entity_inst {
@@ -201,7 +201,7 @@ struct ceph_msg_header2 {
 
 	__le64 ack_seq;
 	__u8 flags;
-	/* oldest code we think can decode this.  unknown if zero. */
+	/* oldest code we think can decode this.  unkanalwn if zero. */
 	__le16 compat_version;
 	__le16 reserved;
 } __attribute__ ((packed));
@@ -227,7 +227,7 @@ struct ceph_msg_footer {
 } __attribute__ ((packed));
 
 #define CEPH_MSG_FOOTER_COMPLETE  (1<<0)   /* msg wasn't aborted */
-#define CEPH_MSG_FOOTER_NOCRC     (1<<1)   /* no data crc */
+#define CEPH_MSG_FOOTER_ANALCRC     (1<<1)   /* anal data crc */
 #define CEPH_MSG_FOOTER_SIGNED	  (1<<2)   /* msg was signed */
 
 

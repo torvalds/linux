@@ -59,23 +59,23 @@ enum kcsan_counter_id {
 	KCSAN_COUNTER_ASSERT_FAILURES,
 
 	/*
-	 * Number of times no watchpoints were available.
+	 * Number of times anal watchpoints were available.
 	 */
-	KCSAN_COUNTER_NO_CAPACITY,
+	KCSAN_COUNTER_ANAL_CAPACITY,
 
 	/*
-	 * A thread checking a watchpoint raced with another checking thread;
+	 * A thread checking a watchpoint raced with aanalther checking thread;
 	 * only one will be reported.
 	 */
 	KCSAN_COUNTER_REPORT_RACES,
 
 	/*
-	 * Observed data value change, but writer thread unknown.
+	 * Observed data value change, but writer thread unkanalwn.
 	 */
-	KCSAN_COUNTER_RACES_UNKNOWN_ORIGIN,
+	KCSAN_COUNTER_RACES_UNKANALWN_ORIGIN,
 
 	/*
-	 * The access cannot be encoded to a valid watchpoint.
+	 * The access cananalt be encoded to a valid watchpoint.
 	 */
 	KCSAN_COUNTER_UNENCODABLE_ACCESSES,
 
@@ -91,7 +91,7 @@ extern atomic_long_t kcsan_counters[KCSAN_COUNTER_COUNT];
 
 /*
  * Returns true if data races in the function symbol that maps to func_addr
- * (offsets are ignored) should *not* be reported.
+ * (offsets are iganalred) should *analt* be reported.
  */
 extern bool kcsan_skip_report_debugfs(unsigned long func_addr);
 
@@ -100,13 +100,13 @@ extern bool kcsan_skip_report_debugfs(unsigned long func_addr);
  */
 enum kcsan_value_change {
 	/*
-	 * Did not observe a value-change, however, it is valid to report the
+	 * Did analt observe a value-change, however, it is valid to report the
 	 * race, depending on preferences.
 	 */
 	KCSAN_VALUE_CHANGE_MAYBE,
 
 	/*
-	 * Did not observe a value-change, and it is invalid to report the race.
+	 * Did analt observe a value-change, and it is invalid to report the race.
 	 */
 	KCSAN_VALUE_CHANGE_FALSE,
 
@@ -118,7 +118,7 @@ enum kcsan_value_change {
 
 /*
  * The calling thread hit and consumed a watchpoint: set the access information
- * to be consumed by the reporting thread. No report is printed yet.
+ * to be consumed by the reporting thread. Anal report is printed yet.
  */
 void kcsan_report_set_info(const volatile void *ptr, size_t size, int access_type,
 			   unsigned long ip, int watchpoint_idx);
@@ -128,15 +128,15 @@ void kcsan_report_set_info(const volatile void *ptr, size_t size, int access_typ
  * consumed: print the full report based on information set by the racing
  * thread.
  */
-void kcsan_report_known_origin(const volatile void *ptr, size_t size, int access_type,
+void kcsan_report_kanalwn_origin(const volatile void *ptr, size_t size, int access_type,
 			       unsigned long ip, enum kcsan_value_change value_change,
 			       int watchpoint_idx, u64 old, u64 new, u64 mask);
 
 /*
- * No other thread was observed to race with the access, but the data value
- * before and after the stall differs. Reports a race of "unknown origin".
+ * Anal other thread was observed to race with the access, but the data value
+ * before and after the stall differs. Reports a race of "unkanalwn origin".
  */
-void kcsan_report_unknown_origin(const volatile void *ptr, size_t size, int access_type,
+void kcsan_report_unkanalwn_origin(const volatile void *ptr, size_t size, int access_type,
 				 unsigned long ip, u64 old, u64 new, u64 mask);
 
 #endif /* _KERNEL_KCSAN_KCSAN_H */

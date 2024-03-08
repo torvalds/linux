@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -245,7 +245,7 @@ void dpp3_cnv_setup (
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
-		pixel_format = 26; /* ARGB16161616_UNORM */
+		pixel_format = 26; /* ARGB16161616_UANALRM */
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 		pixel_format = 24;
@@ -294,7 +294,7 @@ void dpp3_cnv_setup (
 		break;
 	}
 
-	/* Set default color space based on format if none is given. */
+	/* Set default color space based on format if analne is given. */
 	color_space = input_color_space ? input_color_space : color_space;
 
 	if (is_2bit == 1 && alpha_2bit_lut != NULL) {
@@ -368,7 +368,7 @@ void dpp3_set_cursor_attributes(
 			CUR0_EXPANSION_MODE, 0,
 			CUR0_ROM_EN, cur_rom_en);
 
-	if (color_format == CURSOR_MODE_MONO) {
+	if (color_format == CURSOR_MODE_MOANAL) {
 		/* todo: clarify what to program these to */
 		REG_UPDATE(CURSOR0_COLOR0,
 				CUR0_COLOR0, 0x00000000);
@@ -398,7 +398,7 @@ bool dpp3_get_optimal_number_of_taps(
 		return false;
 
 	/*
-	 * Set default taps if none are provided
+	 * Set default taps if analne are provided
 	 * From programming guide: taps = min{ ceil(2*H_RATIO,1), 8} for downscaling
 	 * taps = 4 for upscaling
 	 */

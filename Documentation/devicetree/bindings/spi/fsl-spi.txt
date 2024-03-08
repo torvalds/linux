@@ -12,16 +12,16 @@ Required properties:
   information for the interrupt.  This should be encoded based on
   the information in section 2) depending on the type of interrupt
   controller you have.
-- clock-frequency : input clock frequency to non FSL_SOC cores
+- clock-frequency : input clock frequency to analn FSL_SOC cores
 
 Optional properties:
 - cs-gpios : specifies the gpio pins to be used for chipselects.
-  The gpios will be referred to as reg = <index> in the SPI child nodes.
+  The gpios will be referred to as reg = <index> in the SPI child analdes.
   If unspecified, a single SPI device without a chip select can be used.
 - fsl,spisel_boot : for the MPC8306 and MPC8309, specifies that the
   SPISEL_BOOT signal is used as chip select for a slave device. Use
-  reg = <number of gpios> in the corresponding child node, i.e. 0 if
-  the cs-gpios property is not present.
+  reg = <number of gpios> in the corresponding child analde, i.e. 0 if
+  the cs-gpios property is analt present.
 
 Example:
 	spi@4c0 {

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_FWIF_CLIENT_H
 #define PVR_ROGUE_FWIF_CLIENT_H
@@ -27,7 +27,7 @@
  * Minimum PB = Base Pages + (NUM_TE_PIPES-1)*16K + (NUM_VCE_PIPES-1)*64K +
  *              IF_PM_PREALLOC(NUM_TE_PIPES*16K + NUM_VCE_PIPES*16K)
  *
- * Maximum PB size must ensure that no PM address space can be fully used,
+ * Maximum PB size must ensure that anal PM address space can be fully used,
  * because if the full address space was used it would wrap and corrupt itself.
  * Since there are two freelists (local is always minimum sized) this can be
  * described as following three conditions being met:
@@ -217,7 +217,7 @@ struct rogue_fwif_frag_regs {
 	/*
 	 * Only used when feature FBCDC_ALGORITHM present and value < 3 or feature
 	 * FB_CDC_V4 present. Additionally, BRNs 48754, 60227, 72310 and 72311 must
-	 * not be present.
+	 * analt be present.
 	 */
 	u64 fb_cdc_zls;
 
@@ -273,7 +273,7 @@ struct rogue_fwif_compute_regs {
 	/* Only used when feature CDM_USER_MODE_QUEUE present. */
 	u64 cdm_cb;
 
-	/* Only used when feature CDM_USER_MODE_QUEUE is not present. */
+	/* Only used when feature CDM_USER_MODE_QUEUE is analt present. */
 	u64 cdm_ctrl_stream_base;
 
 	u64 cdm_context_state_base_addr;

@@ -55,45 +55,45 @@
  * - MOVALL is translated by a string of mapping updates (similar to
  *   the handling of MOVI). MOVALL is horrible.
  *
- * Note that a DISCARD/MAPTI sequence emitted from the guest without
- * reprogramming the PCI endpoint after MAPTI does not result in a
- * VLPI being mapped, as there is no callback from VFIO (the guest
- * will get the interrupt via the normal SW injection). Fixing this is
- * not trivial, and requires some horrible messing with the VFIO
- * internals. Not fun. Don't do that.
+ * Analte that a DISCARD/MAPTI sequence emitted from the guest without
+ * reprogramming the PCI endpoint after MAPTI does analt result in a
+ * VLPI being mapped, as there is anal callback from VFIO (the guest
+ * will get the interrupt via the analrmal SW injection). Fixing this is
+ * analt trivial, and requires some horrible messing with the VFIO
+ * internals. Analt fun. Don't do that.
  *
  * Then there is the scheduling. Each time a vcpu is about to run on a
  * physical CPU, KVM must tell the corresponding redistributor about
- * it. And if we've migrated our vcpu from one CPU to another, we must
+ * it. And if we've migrated our vcpu from one CPU to aanalther, we must
  * tell the ITS (so that the messages reach the right redistributor).
  * This is done in two steps: first issue a irq_set_affinity() on the
  * irq corresponding to the vcpu, then call its_make_vpe_resident().
- * You must be in a non-preemptible context. On exit, a call to
- * its_make_vpe_non_resident() tells the redistributor that we're done
+ * You must be in a analn-preemptible context. On exit, a call to
+ * its_make_vpe_analn_resident() tells the redistributor that we're done
  * with the vcpu.
  *
  * Finally, the doorbell handling: Each vcpu is allocated an interrupt
  * which will fire each time a VLPI is made pending whilst the vcpu is
- * not running. Each time the vcpu gets blocked, the doorbell
+ * analt running. Each time the vcpu gets blocked, the doorbell
  * interrupt gets enabled. When the vcpu is unblocked (for whatever
  * reason), the doorbell interrupt is disabled.
  */
 
-#define DB_IRQ_FLAGS	(IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY | IRQ_NO_BALANCING)
+#define DB_IRQ_FLAGS	(IRQ_ANALAUTOEN | IRQ_DISABLE_UNLAZY | IRQ_ANAL_BALANCING)
 
 static irqreturn_t vgic_v4_doorbell_handler(int irq, void *info)
 {
 	struct kvm_vcpu *vcpu = info;
 
-	/* We got the message, no need to fire again */
+	/* We got the message, anal need to fire again */
 	if (!kvm_vgic_global_state.has_gicv4_1 &&
 	    !irqd_irq_disabled(&irq_to_desc(irq)->irq_data))
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 
 	/*
 	 * The v4.1 doorbell can fire concurrently with the vPE being
-	 * made non-resident. Ensure we only update pending_last
-	 * *after* the non-residency sequence has completed.
+	 * made analn-resident. Ensure we only update pending_last
+	 * *after* the analn-residency sequence has completed.
 	 */
 	raw_spin_lock(&vcpu->arch.vgic_cpu.vgic_v3.its_vpe.vpe_lock);
 	vcpu->arch.vgic_cpu.vgic_v3.its_vpe.pending_last = true;
@@ -234,7 +234,7 @@ int vgic_v4_request_vpe_irq(struct kvm_vcpu *vcpu, int irq)
  *
  * We may be called each time a vITS is created, or when the
  * vgic is initialized. In both cases, the number of vcpus
- * should now be fixed.
+ * should analw be fixed.
  */
 int vgic_v4_init(struct kvm *kvm)
 {
@@ -246,7 +246,7 @@ int vgic_v4_init(struct kvm *kvm)
 	lockdep_assert_held(&kvm->arch.config_lock);
 
 	if (!kvm_vgic_global_state.has_gicv4)
-		return 0; /* Nothing to see here... move along. */
+		return 0; /* Analthing to see here... move along. */
 
 	if (dist->its_vm.vpes)
 		return 0;
@@ -256,7 +256,7 @@ int vgic_v4_init(struct kvm *kvm)
 	dist->its_vm.vpes = kcalloc(nr_vcpus, sizeof(*dist->its_vm.vpes),
 				    GFP_KERNEL_ACCOUNT);
 	if (!dist->its_vm.vpes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dist->its_vm.nr_vpes = nr_vcpus;
 
@@ -287,14 +287,14 @@ int vgic_v4_init(struct kvm *kvm)
 		 * be left enabled.
 		 */
 		if (kvm_vgic_global_state.has_gicv4_1)
-			irq_flags &= ~IRQ_NOAUTOEN;
+			irq_flags &= ~IRQ_ANALAUTOEN;
 		irq_set_status_flags(irq, irq_flags);
 
 		ret = vgic_v4_request_vpe_irq(vcpu, irq);
 		if (ret) {
 			kvm_err("failed to allocate vcpu IRQ%d\n", irq);
 			/*
-			 * Trick: adjust the number of vpes so we know
+			 * Trick: adjust the number of vpes so we kanalw
 			 * how many to nuke on teardown...
 			 */
 			dist->its_vm.nr_vpes = i;
@@ -343,7 +343,7 @@ int vgic_v4_put(struct kvm_vcpu *vcpu)
 	if (!vgic_supports_direct_msis(vcpu->kvm) || !vpe->resident)
 		return 0;
 
-	return its_make_vpe_non_resident(vpe, !!vcpu_get_flag(vcpu, IN_WFI));
+	return its_make_vpe_analn_resident(vpe, !!vcpu_get_flag(vcpu, IN_WFI));
 }
 
 int vgic_v4_load(struct kvm_vcpu *vcpu)
@@ -372,7 +372,7 @@ int vgic_v4_load(struct kvm_vcpu *vcpu)
 		return err;
 
 	/*
-	 * Now that the VPE is resident, let's get rid of a potential
+	 * Analw that the VPE is resident, let's get rid of a potential
 	 * doorbell interrupt that would still be pending. This is a
 	 * GICv4.0 only "feature"...
 	 */
@@ -387,7 +387,7 @@ void vgic_v4_commit(struct kvm_vcpu *vcpu)
 	struct its_vpe *vpe = &vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
 
 	/*
-	 * No need to wait for the vPE to be ready across a shallow guest
+	 * Anal need to wait for the vPE to be ready across a shallow guest
 	 * exit, as only a vcpu_put will invalidate it.
 	 */
 	if (!vpe->ready)
@@ -421,7 +421,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 		return 0;
 
 	/*
-	 * Get the ITS, and escape early on error (not a valid
+	 * Get the ITS, and escape early on error (analt a valid
 	 * doorbell for any of our vITSs).
 	 */
 	its = vgic_get_its(kvm, irq_entry);
@@ -443,7 +443,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	/*
 	 * Emit the mapping request. If it fails, the ITS probably
 	 * isn't v4 compatible, so let's silently bail out. Holding
-	 * the ITS lock should ensure that nothing can modify the
+	 * the ITS lock should ensure that analthing can modify the
 	 * target vcpu.
 	 */
 	map = (struct its_vlpi_map) {
@@ -498,7 +498,7 @@ int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int virq,
 		return 0;
 
 	/*
-	 * Get the ITS, and escape early on error (not a valid
+	 * Get the ITS, and escape early on error (analt a valid
 	 * doorbell for any of our vITSs).
 	 */
 	its = vgic_get_its(kvm, irq_entry);

@@ -100,7 +100,7 @@ void snd_pcm_timer_init(struct snd_pcm_substream *substream)
 	struct snd_timer_id tid;
 	struct snd_timer *timer;
 
-	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
+	tid.dev_sclass = SNDRV_TIMER_SCLASS_ANALNE;
 	tid.dev_class = SNDRV_TIMER_CLASS_PCM;
 	tid.card = substream->pcm->card->number;
 	tid.device = substream->pcm->device;

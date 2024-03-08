@@ -70,7 +70,7 @@
 		button-sw8 {
 			gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
 			label = "BTN-X";
-			linux,code = <BTN_NORTH>;
+			linux,code = <BTN_ANALRTH>;
 		};
 		btn_f1: button-sw9 {
 			gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_LOW>;
@@ -508,7 +508,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <108000000>;
 		spi-rx-bus-width = <2>;
@@ -587,13 +587,13 @@
 
 	leds {
 		red_led_pin: red-led-pin {
-			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pmic {
 		dc_det: dc-det {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pmic_int: pmic-int {
@@ -605,11 +605,11 @@
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
-			rockchip,pins = <0 RK_PA4 2 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 2 &pcfg_pull_analne>;
 		};
 
 		soc_slppin_slp: soc_slppin_slp {
-			rockchip,pins = <0 RK_PA4 1 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 1 &pcfg_pull_analne>;
 		};
 	};
 };

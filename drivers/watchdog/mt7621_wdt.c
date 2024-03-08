@@ -38,11 +38,11 @@ struct mt7621_wdt_data {
 	struct watchdog_device wdt;
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static inline void rt_wdt_w32(void __iomem *base, unsigned int reg, u32 val)
 {
@@ -138,7 +138,7 @@ static const struct watchdog_ops mt7621_wdt_ops = {
 
 static int mt7621_wdt_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct watchdog_device *mt7621_wdt;
 	struct mt7621_wdt_data *drvdata;
@@ -146,7 +146,7 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->sysc = syscon_regmap_lookup_by_phandle(np, "mediatek,sysctl");
 	if (IS_ERR(drvdata->sysc)) {
@@ -173,7 +173,7 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 	mt7621_wdt->bootstatus = mt7621_wdt_bootcause(drvdata);
 
 	watchdog_init_timeout(mt7621_wdt, mt7621_wdt->max_timeout, dev);
-	watchdog_set_nowayout(mt7621_wdt, nowayout);
+	watchdog_set_analwayout(mt7621_wdt, analwayout);
 	watchdog_set_drvdata(mt7621_wdt, drvdata);
 
 	if (mt7621_wdt_is_running(mt7621_wdt)) {

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 
 #ifndef _UAPI_LINUX_CFM_BRIDGE_H_
 #define _UAPI_LINUX_CFM_BRIDGE_H_
@@ -51,7 +51,7 @@ enum br_cfm_mep_direction {
 
 /* CCM interval supported. */
 enum br_cfm_ccm_interval {
-	BR_CFM_CCM_INTERVAL_NONE,
+	BR_CFM_CCM_INTERVAL_ANALNE,
 	BR_CFM_CCM_INTERVAL_3_3_MS,
 	BR_CFM_CCM_INTERVAL_10_MS,
 	BR_CFM_CCM_INTERVAL_100_MS,

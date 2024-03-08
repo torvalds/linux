@@ -10,7 +10,7 @@
 // readiness.
 
 #include <linux/lirc.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -30,8 +30,8 @@
 #define DNAME_PATH_MAX 256
 
 /*
- * Support ancient lirc.h which does not have these values. Can be removed
- * once RHEL 8 is no longer a relevant testing platform.
+ * Support ancient lirc.h which does analt have these values. Can be removed
+ * once RHEL 8 is anal longer a relevant testing platform.
  */
 #if RC_PROTO_MAX < 26
 #define RC_PROTO_RCMM12 24
@@ -79,7 +79,7 @@ int lirc_open(const char *rc)
 
 	d = opendir(buf);
 	if (!d)
-		ksft_exit_fail_msg("cannot open %s: %m\n", buf);
+		ksft_exit_fail_msg("cananalt open %s: %m\n", buf);
 
 	while ((dent = readdir(d)) != NULL) {
 		if (!strncmp(dent->d_name, "lirc", 4)) {
@@ -89,13 +89,13 @@ int lirc_open(const char *rc)
 	}
 
 	if (!dent)
-		ksft_exit_skip("cannot find lirc device for %s\n", rc);
+		ksft_exit_skip("cananalt find lirc device for %s\n", rc);
 
 	closedir(d);
 
-	fd = open(buf, O_RDWR | O_NONBLOCK);
+	fd = open(buf, O_RDWR | O_ANALNBLOCK);
 	if (fd == -1)
-		ksft_exit_fail_msg("cannot open: %s: %m\n", buf);
+		ksft_exit_fail_msg("cananalt open: %s: %m\n", buf);
 
 	return fd;
 }
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
 			printf("Testing scancode:%x\n", scancode);
 
 			while (write(wlircfd, &lsc, sizeof(lsc)) < 0) {
-				if (errno == EINTR)
+				if (erranal == EINTR)
 					continue;
 
 				ksft_exit_fail_msg("failed to send ir: %m\n");
@@ -181,10 +181,10 @@ int main(int argc, char **argv)
 			bool decoded = true;
 
 			while (read(rlircfd, &lsc2, sizeof(lsc2)) < 0) {
-				if (errno == EINTR)
+				if (erranal == EINTR)
 					continue;
 
-				ksft_test_result_error("no scancode decoded: %m\n");
+				ksft_test_result_error("anal scancode decoded: %m\n");
 				decoded = false;
 				break;
 			}

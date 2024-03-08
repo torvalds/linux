@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/slab.h>
@@ -73,38 +73,38 @@ static int wlcore_validate_fw_ver(struct wl1271 *wl)
 	int i;
 
 	/* the chip must be exactly equal */
-	if ((min_ver[FW_VER_CHIP] != WLCORE_FW_VER_IGNORE) &&
+	if ((min_ver[FW_VER_CHIP] != WLCORE_FW_VER_IGANALRE) &&
 	    (min_ver[FW_VER_CHIP] != fw_ver[FW_VER_CHIP]))
 		goto fail;
 
 	/* the firmware type must be equal */
-	if ((min_ver[FW_VER_IF_TYPE] != WLCORE_FW_VER_IGNORE) &&
+	if ((min_ver[FW_VER_IF_TYPE] != WLCORE_FW_VER_IGANALRE) &&
 	    (min_ver[FW_VER_IF_TYPE] != fw_ver[FW_VER_IF_TYPE]))
 		goto fail;
 
 	/* the project number must be equal */
-	if ((min_ver[FW_VER_SUBTYPE] != WLCORE_FW_VER_IGNORE) &&
+	if ((min_ver[FW_VER_SUBTYPE] != WLCORE_FW_VER_IGANALRE) &&
 	    (min_ver[FW_VER_SUBTYPE] != fw_ver[FW_VER_SUBTYPE]))
 		goto fail;
 
 	/* the API version must be greater or equal */
-	if ((min_ver[FW_VER_MAJOR] != WLCORE_FW_VER_IGNORE) &&
+	if ((min_ver[FW_VER_MAJOR] != WLCORE_FW_VER_IGANALRE) &&
 		 (min_ver[FW_VER_MAJOR] > fw_ver[FW_VER_MAJOR]))
 		goto fail;
 
 	/* if the API version is equal... */
-	if (((min_ver[FW_VER_MAJOR] == WLCORE_FW_VER_IGNORE) ||
+	if (((min_ver[FW_VER_MAJOR] == WLCORE_FW_VER_IGANALRE) ||
 	     (min_ver[FW_VER_MAJOR] == fw_ver[FW_VER_MAJOR])) &&
-	    /* ...the minor must be greater or equal */
-	    ((min_ver[FW_VER_MINOR] != WLCORE_FW_VER_IGNORE) &&
-	     (min_ver[FW_VER_MINOR] > fw_ver[FW_VER_MINOR])))
+	    /* ...the mianalr must be greater or equal */
+	    ((min_ver[FW_VER_MIANALR] != WLCORE_FW_VER_IGANALRE) &&
+	     (min_ver[FW_VER_MIANALR] > fw_ver[FW_VER_MIANALR])))
 		goto fail;
 
 	return 0;
 
 fail:
 	for (i = 0; i < NUM_FW_VER && off < sizeof(min_fw_str); i++)
-		if (min_ver[i] == WLCORE_FW_VER_IGNORE)
+		if (min_ver[i] == WLCORE_FW_VER_IGANALRE)
 			off += snprintf(min_fw_str + off,
 					sizeof(min_fw_str) - off,
 					"*.");
@@ -119,7 +119,7 @@ fail:
 		     "git://git.ti.com/wilink8-wlan/wl18xx_fw.git",
 		     fw_ver[FW_VER_CHIP], fw_ver[FW_VER_IF_TYPE],
 		     fw_ver[FW_VER_MAJOR], fw_ver[FW_VER_SUBTYPE],
-		     fw_ver[FW_VER_MINOR], min_fw_str);
+		     fw_ver[FW_VER_MIANALR], min_fw_str);
 	return -EINVAL;
 }
 
@@ -131,7 +131,7 @@ static int wlcore_boot_static_data(struct wl1271 *wl)
 
 	static_data = kmalloc(len, GFP_KERNEL);
 	if (!static_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -173,14 +173,14 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 		     fw_data_len, CHUNK_SIZE);
 
 	if ((fw_data_len % 4) != 0) {
-		wl1271_error("firmware length not multiple of four");
+		wl1271_error("firmware length analt multiple of four");
 		return -EIO;
 	}
 
 	chunk = kmalloc(CHUNK_SIZE, GFP_KERNEL);
 	if (!chunk) {
 		wl1271_error("allocation for firmware upload chunk failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(&partition, &wl->ptable[PART_DOWN], sizeof(partition));
@@ -270,7 +270,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 {
 	struct platform_device *pdev = wl->pdev;
 	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&pdev->dev);
-	const char *nvs_name = "unknown";
+	const char *nvs_name = "unkanalwn";
 	size_t nvs_len, burst_len;
 	int i;
 	u32 dest_addr, val;
@@ -279,7 +279,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 
 	if (wl->nvs == NULL) {
 		wl1271_error("NVS file is needed during boot");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pdev_data && pdev_data->family)
@@ -302,7 +302,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 		if (wl->nvs_len != sizeof(struct wl1271_nvs_file) &&
 		    (wl->nvs_len != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
 		     wl->enable_11a)) {
-			wl1271_error("%s size is not as expected: %zu != %zu",
+			wl1271_error("%s size is analt as expected: %zu != %zu",
 				     nvs_name, wl->nvs_len,
 				     sizeof(struct wl1271_nvs_file));
 			kfree(wl->nvs);
@@ -321,7 +321,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 			if (nvs->general_params.dual_mode_select)
 				wl->enable_11a = true;
 		} else {
-			wl1271_error("%s size is not as expected: %zu != %zu",
+			wl1271_error("%s size is analt as expected: %zu != %zu",
 				     nvs_name, wl->nvs_len,
 				     sizeof(struct wl128x_nvs_file));
 			kfree(wl->nvs);
@@ -392,7 +392,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	/*
 	 * We've reached the first zero length, the first NVS table
 	 * is located at an aligned offset which is at least 7 bytes further.
-	 * NOTE: The wl->nvs->nvs element must be first, in order to
+	 * ANALTE: The wl->nvs->nvs element must be first, in order to
 	 * simplify the casting, we assume it is at the beginning of
 	 * the wl->nvs structure.
 	 */
@@ -404,7 +404,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 
 	nvs_len -= nvs_ptr - (u8 *)wl->nvs;
 
-	/* Now we must set the partition correctly */
+	/* Analw we must set the partition correctly */
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
 	if (ret < 0)
 		return ret;
@@ -412,7 +412,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	/* Copy the NVS tables to a new block to ensure alignment */
 	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL);
 	if (!nvs_aligned)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* And finally we upload the NVS tables */
 	ret = wlcore_write_data(wl, REG_CMD_MBOX_ADDRESS, nvs_aligned, nvs_len,
@@ -456,7 +456,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	loop = 0;
 	while (loop++ < INIT_LOOP) {
 		udelay(INIT_LOOP_DELAY);
-		ret = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR, &intr);
+		ret = wlcore_read_reg(wl, REG_INTERRUPT_ANAL_CLEAR, &intr);
 		if (ret < 0)
 			return ret;
 
@@ -505,7 +505,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	}
 
 	/*
-	 * in case of full asynchronous mode the firmware event must be
+	 * in case of full asynchroanalus mode the firmware event must be
 	 * ready to receive event from the command mailbox
 	 */
 

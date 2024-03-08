@@ -13,7 +13,7 @@
 #include "../../../fs/dlm/dlm_internal.h"
 
 #define show_lock_flags(flags) __print_flags(flags, "|",	\
-	{ DLM_LKF_NOQUEUE,	"NOQUEUE" },			\
+	{ DLM_LKF_ANALQUEUE,	"ANALQUEUE" },			\
 	{ DLM_LKF_CANCEL,	"CANCEL" },			\
 	{ DLM_LKF_CONVERT,	"CONVERT" },			\
 	{ DLM_LKF_VALBLK,	"VALBLK" },			\
@@ -21,12 +21,12 @@
 	{ DLM_LKF_IVVALBLK,	"IVVALBLK" },			\
 	{ DLM_LKF_CONVDEADLK,	"CONVDEADLK" },			\
 	{ DLM_LKF_PERSISTENT,	"PERSISTENT" },			\
-	{ DLM_LKF_NODLCKWT,	"NODLCKWT" },			\
-	{ DLM_LKF_NODLCKBLK,	"NODLCKBLK" },			\
+	{ DLM_LKF_ANALDLCKWT,	"ANALDLCKWT" },			\
+	{ DLM_LKF_ANALDLCKBLK,	"ANALDLCKBLK" },			\
 	{ DLM_LKF_EXPEDITE,	"EXPEDITE" },			\
-	{ DLM_LKF_NOQUEUEBAST,	"NOQUEUEBAST" },		\
+	{ DLM_LKF_ANALQUEUEBAST,	"ANALQUEUEBAST" },		\
 	{ DLM_LKF_HEADQUE,	"HEADQUE" },			\
-	{ DLM_LKF_NOORDER,	"NOORDER" },			\
+	{ DLM_LKF_ANALORDER,	"ANALORDER" },			\
 	{ DLM_LKF_ORPHAN,	"ORPHAN" },			\
 	{ DLM_LKF_ALTPR,	"ALTPR" },			\
 	{ DLM_LKF_ALTCW,	"ALTCW" },			\
@@ -44,7 +44,7 @@
 
 #define show_dlm_sb_flags(flags) __print_flags(flags, "|",	\
 	{ DLM_SBF_DEMOTED,	"DEMOTED" },			\
-	{ DLM_SBF_VALNOTVALID,	"VALNOTVALID" },		\
+	{ DLM_SBF_VALANALTVALID,	"VALANALTVALID" },		\
 	{ DLM_SBF_ALTMODE,	"ALTMODE" })
 
 #define show_lkb_flags(flags) __print_flags(flags, "|",		\
@@ -89,7 +89,7 @@
 	{ DLM_RCOM_LOCK_REPLY,          "LOCK_REPLY"})
 
 
-/* note: we begin tracing dlm_lock_start() only if ls and lkb are found */
+/* analte: we begin tracing dlm_lock_start() only if ls and lkb are found */
 TRACE_EVENT(dlm_lock_start,
 
 	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, const void *name,
@@ -169,7 +169,7 @@ TRACE_EVENT(dlm_lock_end,
 
 		if (kernel_lock) {
 			/* return value will be zeroed in those cases by dlm_lock()
-			 * we do it here again to not introduce more overhead if
+			 * we do it here again to analt introduce more overhead if
 			 * trace isn't running and error reflects the return value.
 			 */
 			if (error == -EAGAIN || error == -EDEADLK)
@@ -259,7 +259,7 @@ TRACE_EVENT(dlm_ast,
 
 );
 
-/* note: we begin tracing dlm_unlock_start() only if ls and lkb are found */
+/* analte: we begin tracing dlm_unlock_start() only if ls and lkb are found */
 TRACE_EVENT(dlm_unlock_start,
 
 	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, __u32 flags),
@@ -344,7 +344,7 @@ DECLARE_EVENT_CLASS(dlm_rcom_template,
 		__field(uint32_t, h_seq)
 		__field(uint32_t, h_version)
 		__field(uint32_t, h_lockspace)
-		__field(uint32_t, h_nodeid)
+		__field(uint32_t, h_analdeid)
 		__field(uint16_t, h_length)
 		__field(uint8_t, h_cmd)
 		__field(uint32_t, rc_type)
@@ -361,7 +361,7 @@ DECLARE_EVENT_CLASS(dlm_rcom_template,
 		__entry->h_seq = h_seq;
 		__entry->h_version = le32_to_cpu(rc->rc_header.h_version);
 		__entry->h_lockspace = le32_to_cpu(rc->rc_header.u.h_lockspace);
-		__entry->h_nodeid = le32_to_cpu(rc->rc_header.h_nodeid);
+		__entry->h_analdeid = le32_to_cpu(rc->rc_header.h_analdeid);
 		__entry->h_length = le16_to_cpu(rc->rc_header.h_length);
 		__entry->h_cmd = rc->rc_header.h_cmd;
 		__entry->rc_type = le32_to_cpu(rc->rc_type);
@@ -373,12 +373,12 @@ DECLARE_EVENT_CLASS(dlm_rcom_template,
 		       __get_dynamic_array_len(rc_buf));
 	),
 
-	TP_printk("dst=%u h_seq=%u h_version=%s h_lockspace=%u h_nodeid=%u "
+	TP_printk("dst=%u h_seq=%u h_version=%s h_lockspace=%u h_analdeid=%u "
 		  "h_length=%u h_cmd=%s rc_type=%s rc_result=%d "
 		  "rc_id=%llu rc_seq=%llu rc_seq_reply=%llu "
 		  "rc_buf=0x%s", __entry->dst, __entry->h_seq,
 		  show_message_version(__entry->h_version),
-		  __entry->h_lockspace, __entry->h_nodeid, __entry->h_length,
+		  __entry->h_lockspace, __entry->h_analdeid, __entry->h_length,
 		  show_header_cmd(__entry->h_cmd),
 		  show_rcom_type(__entry->rc_type),
 		  __entry->rc_result, __entry->rc_id, __entry->rc_seq,
@@ -408,11 +408,11 @@ TRACE_EVENT(dlm_send_message,
 		__field(uint32_t, h_seq)
 		__field(uint32_t, h_version)
 		__field(uint32_t, h_lockspace)
-		__field(uint32_t, h_nodeid)
+		__field(uint32_t, h_analdeid)
 		__field(uint16_t, h_length)
 		__field(uint8_t, h_cmd)
 		__field(uint32_t, m_type)
-		__field(uint32_t, m_nodeid)
+		__field(uint32_t, m_analdeid)
 		__field(uint32_t, m_pid)
 		__field(uint32_t, m_lkid)
 		__field(uint32_t, m_remid)
@@ -439,11 +439,11 @@ TRACE_EVENT(dlm_send_message,
 		__entry->h_seq = h_seq;
 		__entry->h_version = le32_to_cpu(ms->m_header.h_version);
 		__entry->h_lockspace = le32_to_cpu(ms->m_header.u.h_lockspace);
-		__entry->h_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
+		__entry->h_analdeid = le32_to_cpu(ms->m_header.h_analdeid);
 		__entry->h_length = le16_to_cpu(ms->m_header.h_length);
 		__entry->h_cmd = ms->m_header.h_cmd;
 		__entry->m_type = le32_to_cpu(ms->m_type);
-		__entry->m_nodeid = le32_to_cpu(ms->m_nodeid);
+		__entry->m_analdeid = le32_to_cpu(ms->m_analdeid);
 		__entry->m_pid = le32_to_cpu(ms->m_pid);
 		__entry->m_lkid = le32_to_cpu(ms->m_lkid);
 		__entry->m_remid = le32_to_cpu(ms->m_remid);
@@ -466,18 +466,18 @@ TRACE_EVENT(dlm_send_message,
 		       __get_dynamic_array_len(res_name));
 	),
 
-	TP_printk("dst=%u h_seq=%u h_version=%s h_lockspace=%u h_nodeid=%u "
-		  "h_length=%u h_cmd=%s m_type=%s m_nodeid=%u "
+	TP_printk("dst=%u h_seq=%u h_version=%s h_lockspace=%u h_analdeid=%u "
+		  "h_length=%u h_cmd=%s m_type=%s m_analdeid=%u "
 		  "m_pid=%u m_lkid=%u m_remid=%u m_parent_lkid=%u "
 		  "m_parent_remid=%u m_exflags=%s m_sbflags=%s m_flags=%s "
 		  "m_lvbseq=%u m_hash=%u m_status=%d m_grmode=%s "
 		  "m_rqmode=%s m_bastmode=%s m_asts=%d m_result=%d "
 		  "m_extra=0x%s res_name=0x%s", __entry->dst,
 		  __entry->h_seq, show_message_version(__entry->h_version),
-		  __entry->h_lockspace, __entry->h_nodeid, __entry->h_length,
+		  __entry->h_lockspace, __entry->h_analdeid, __entry->h_length,
 		  show_header_cmd(__entry->h_cmd),
 		  show_message_type(__entry->m_type),
-		  __entry->m_nodeid, __entry->m_pid, __entry->m_lkid,
+		  __entry->m_analdeid, __entry->m_pid, __entry->m_lkid,
 		  __entry->m_remid, __entry->m_parent_lkid,
 		  __entry->m_parent_remid, show_lock_flags(__entry->m_exflags),
 		  show_dlm_sb_flags(__entry->m_sbflags),
@@ -505,11 +505,11 @@ TRACE_EVENT(dlm_recv_message,
 		__field(uint32_t, h_seq)
 		__field(uint32_t, h_version)
 		__field(uint32_t, h_lockspace)
-		__field(uint32_t, h_nodeid)
+		__field(uint32_t, h_analdeid)
 		__field(uint16_t, h_length)
 		__field(uint8_t, h_cmd)
 		__field(uint32_t, m_type)
-		__field(uint32_t, m_nodeid)
+		__field(uint32_t, m_analdeid)
 		__field(uint32_t, m_pid)
 		__field(uint32_t, m_lkid)
 		__field(uint32_t, m_remid)
@@ -535,11 +535,11 @@ TRACE_EVENT(dlm_recv_message,
 		__entry->h_seq = h_seq;
 		__entry->h_version = le32_to_cpu(ms->m_header.h_version);
 		__entry->h_lockspace = le32_to_cpu(ms->m_header.u.h_lockspace);
-		__entry->h_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
+		__entry->h_analdeid = le32_to_cpu(ms->m_header.h_analdeid);
 		__entry->h_length = le16_to_cpu(ms->m_header.h_length);
 		__entry->h_cmd = ms->m_header.h_cmd;
 		__entry->m_type = le32_to_cpu(ms->m_type);
-		__entry->m_nodeid = le32_to_cpu(ms->m_nodeid);
+		__entry->m_analdeid = le32_to_cpu(ms->m_analdeid);
 		__entry->m_pid = le32_to_cpu(ms->m_pid);
 		__entry->m_lkid = le32_to_cpu(ms->m_lkid);
 		__entry->m_remid = le32_to_cpu(ms->m_remid);
@@ -560,18 +560,18 @@ TRACE_EVENT(dlm_recv_message,
 		       __get_dynamic_array_len(m_extra));
 	),
 
-	TP_printk("dst=%u h_seq=%u h_version=%s h_lockspace=%u h_nodeid=%u "
-		  "h_length=%u h_cmd=%s m_type=%s m_nodeid=%u "
+	TP_printk("dst=%u h_seq=%u h_version=%s h_lockspace=%u h_analdeid=%u "
+		  "h_length=%u h_cmd=%s m_type=%s m_analdeid=%u "
 		  "m_pid=%u m_lkid=%u m_remid=%u m_parent_lkid=%u "
 		  "m_parent_remid=%u m_exflags=%s m_sbflags=%s m_flags=%s "
 		  "m_lvbseq=%u m_hash=%u m_status=%d m_grmode=%s "
 		  "m_rqmode=%s m_bastmode=%s m_asts=%d m_result=%d "
 		  "m_extra=0x%s", __entry->dst,
 		  __entry->h_seq, show_message_version(__entry->h_version),
-		  __entry->h_lockspace, __entry->h_nodeid, __entry->h_length,
+		  __entry->h_lockspace, __entry->h_analdeid, __entry->h_length,
 		  show_header_cmd(__entry->h_cmd),
 		  show_message_type(__entry->m_type),
-		  __entry->m_nodeid, __entry->m_pid, __entry->m_lkid,
+		  __entry->m_analdeid, __entry->m_pid, __entry->m_lkid,
 		  __entry->m_remid, __entry->m_parent_lkid,
 		  __entry->m_parent_remid, show_lock_flags(__entry->m_exflags),
 		  show_dlm_sb_flags(__entry->m_sbflags),
@@ -598,7 +598,7 @@ DECLARE_EVENT_CLASS(dlm_plock_template,
 		__field(uint8_t, wait)
 		__field(uint8_t, flags)
 		__field(uint32_t, pid)
-		__field(int32_t, nodeid)
+		__field(int32_t, analdeid)
 		__field(int32_t, rv)
 		__field(uint32_t, fsid)
 		__field(uint64_t, number)
@@ -613,7 +613,7 @@ DECLARE_EVENT_CLASS(dlm_plock_template,
 		__entry->wait = info->wait;
 		__entry->flags = info->flags;
 		__entry->pid = info->pid;
-		__entry->nodeid = info->nodeid;
+		__entry->analdeid = info->analdeid;
 		__entry->rv = info->rv;
 		__entry->fsid = info->fsid;
 		__entry->number = info->number;
@@ -622,10 +622,10 @@ DECLARE_EVENT_CLASS(dlm_plock_template,
 		__entry->owner = info->owner;
 	),
 
-	TP_printk("fsid=%u number=%llx owner=%llx optype=%d ex=%d wait=%d flags=%x pid=%u nodeid=%d rv=%d start=%llx end=%llx",
+	TP_printk("fsid=%u number=%llx owner=%llx optype=%d ex=%d wait=%d flags=%x pid=%u analdeid=%d rv=%d start=%llx end=%llx",
 		  __entry->fsid, __entry->number, __entry->owner,
 		  __entry->optype, __entry->ex, __entry->wait,
-		  __entry->flags, __entry->pid, __entry->nodeid,
+		  __entry->flags, __entry->pid, __entry->analdeid,
 		  __entry->rv, __entry->start, __entry->end)
 
 );
@@ -638,41 +638,41 @@ DEFINE_EVENT(dlm_plock_template, dlm_plock_write,
 
 TRACE_EVENT(dlm_send,
 
-	TP_PROTO(int nodeid, int ret),
+	TP_PROTO(int analdeid, int ret),
 
-	TP_ARGS(nodeid, ret),
+	TP_ARGS(analdeid, ret),
 
 	TP_STRUCT__entry(
-		__field(int, nodeid)
+		__field(int, analdeid)
 		__field(int, ret)
 	),
 
 	TP_fast_assign(
-		__entry->nodeid = nodeid;
+		__entry->analdeid = analdeid;
 		__entry->ret = ret;
 	),
 
-	TP_printk("nodeid=%d ret=%d", __entry->nodeid, __entry->ret)
+	TP_printk("analdeid=%d ret=%d", __entry->analdeid, __entry->ret)
 
 );
 
 TRACE_EVENT(dlm_recv,
 
-	TP_PROTO(int nodeid, int ret),
+	TP_PROTO(int analdeid, int ret),
 
-	TP_ARGS(nodeid, ret),
+	TP_ARGS(analdeid, ret),
 
 	TP_STRUCT__entry(
-		__field(int, nodeid)
+		__field(int, analdeid)
 		__field(int, ret)
 	),
 
 	TP_fast_assign(
-		__entry->nodeid = nodeid;
+		__entry->analdeid = analdeid;
 		__entry->ret = ret;
 	),
 
-	TP_printk("nodeid=%d ret=%d", __entry->nodeid, __entry->ret)
+	TP_printk("analdeid=%d ret=%d", __entry->analdeid, __entry->ret)
 
 );
 

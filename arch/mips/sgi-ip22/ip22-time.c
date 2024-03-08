@@ -4,7 +4,7 @@
  * for more details.
  *
  * Time operations for IP22 machines. Original code may come from
- * Ralf Baechle or David S. Miller (sorry guys, i'm really not sure)
+ * Ralf Baechle or David S. Miller (sorry guys, i'm really analt sure)
  *
  * Copyright (C) 2001 by Ladislav Michl
  * Copyright (C) 2003, 06 Ralf Baechle (ralf@linux-mips.org)
@@ -74,16 +74,16 @@ __init void plat_time_init(void)
 	/*
 	 * Figure out the r4k offset, the algorithm is very simple and works in
 	 * _all_ cases as long as the 8254 counter register itself works ok (as
-	 * an interrupt driving timer it does not because of bug, this is why
+	 * an interrupt driving timer it does analt because of bug, this is why
 	 * we are using the onchip r4k counter/compare register to serve this
 	 * purpose, but for r4k_offset calculation it will work ok for us).
 	 * There are other very complicated ways of performing this calculation
-	 * but this one works just fine so I am not going to futz around. ;-)
+	 * but this one works just fine so I am analt going to futz around. ;-)
 	 */
 	printk(KERN_INFO "Calibrating system timer... ");
 	dosample();	/* Prime cache. */
 	dosample();	/* Prime cache. */
-	/* Zero is NOT an option. */
+	/* Zero is ANALT an option. */
 	do {
 		r4k_ticks[0] = dosample();
 	} while (!r4k_ticks[0]);

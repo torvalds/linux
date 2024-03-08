@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc_get_rec_resolution:
@@ -12,7 +12,7 @@ Name
 
 LIRC_GET_REC_RESOLUTION - Obtain the value of receive resolution, in microseconds.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: LIRC_GET_REC_RESOLUTION
@@ -42,6 +42,6 @@ tolerance value.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

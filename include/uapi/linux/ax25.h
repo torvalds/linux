@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * These are the public elements of the Linux kernel AX.25 code. A similar
  * file netrom.h exists for the NET/ROM protocol.
@@ -29,7 +29,7 @@
 #define SIOCAX25GETUID		(SIOCPROTOPRIVATE+0)
 #define SIOCAX25ADDUID		(SIOCPROTOPRIVATE+1)
 #define SIOCAX25DELUID		(SIOCPROTOPRIVATE+2)
-#define SIOCAX25NOUID		(SIOCPROTOPRIVATE+3)
+#define SIOCAX25ANALUID		(SIOCPROTOPRIVATE+3)
 #define SIOCAX25OPTRT		(SIOCPROTOPRIVATE+7)
 #define SIOCAX25CTLCON		(SIOCPROTOPRIVATE+8)
 #define SIOCAX25GETINFOOLD	(SIOCPROTOPRIVATE+9)
@@ -40,8 +40,8 @@
 
 #define AX25_SET_RT_IPMODE	2
 
-#define AX25_NOUID_DEFAULT	0
-#define AX25_NOUID_BLOCK	1
+#define AX25_ANALUID_DEFAULT	0
+#define AX25_ANALUID_BLOCK	1
 
 typedef struct {
 	char		ax25_call[7];	/* 6 call + SSID (shifted ascii!) */
@@ -85,7 +85,7 @@ struct ax25_ctl_struct {
         ax25_address            digi_addr[AX25_MAX_DIGIS];
 };
 
-/* this will go away. Please do not export to user land */
+/* this will go away. Please do analt export to user land */
 struct ax25_info_struct_deprecated {
 	unsigned int	n2, n2count;
 	unsigned int	t1, t1timer;

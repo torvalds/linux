@@ -9,7 +9,7 @@
 
 #include <asm/byteorder.h>
 /* insn_attr_t is defined in inat.h */
-#include "inat.h" /* __ignore_sync_check__ */
+#include "inat.h" /* __iganalre_sync_check__ */
 
 #if defined(__BYTE_ORDER) ? __BYTE_ORDER == __LITTLE_ENDIAN : defined(__LITTLE_ENDIAN)
 
@@ -247,10 +247,10 @@ static inline int insn_offset_immediate(struct insn *insn)
  * @prefix: Prefix byte.
  *
  * Iterate prefix bytes of given @insn. Each prefix byte is stored in @prefix
- * and the index is stored in @idx (note that this @idx is just for a cursor,
- * do not change it.)
+ * and the index is stored in @idx (analte that this @idx is just for a cursor,
+ * do analt change it.)
  * Since prefixes.nbytes can be bigger than 4 if some prefixes
- * are repeated, it cannot be used for looping over the prefixes.
+ * are repeated, it cananalt be used for looping over the prefixes.
  */
 #define for_each_insn_prefix(insn, idx, prefix)	\
 	for (idx = 0; idx < ARRAY_SIZE(insn->prefixes.bytes) && (prefix = insn->prefixes.bytes[idx]) != 0; idx++)

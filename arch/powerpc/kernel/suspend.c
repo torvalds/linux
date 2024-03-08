@@ -12,12 +12,12 @@
 #include <asm/sections.h>
 
 /*
- *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ *	pfn_is_analsave - check if given pfn is in the 'analsave' section
  */
 
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_analsave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn = __pa(&__nosave_begin) >> PAGE_SHIFT;
-	unsigned long nosave_end_pfn = PAGE_ALIGN(__pa(&__nosave_end)) >> PAGE_SHIFT;
-	return (pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
+	unsigned long analsave_begin_pfn = __pa(&__analsave_begin) >> PAGE_SHIFT;
+	unsigned long analsave_end_pfn = PAGE_ALIGN(__pa(&__analsave_end)) >> PAGE_SHIFT;
+	return (pfn >= analsave_begin_pfn) && (pfn < analsave_end_pfn);
 }

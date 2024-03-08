@@ -66,7 +66,7 @@ static int st_uvis25_check_whoami(struct st_uvis25_hw *hw)
 		dev_err(regmap_get_device(hw->regmap),
 			"wrong whoami {%02x vs %02x}\n",
 			data, ST_UVIS25_REG_WHOAMI_VAL);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -127,7 +127,7 @@ static int st_uvis25_read_raw(struct iio_dev *iio_dev,
 
 		/*
 		 * mask irq line during oneshot read since the sensor
-		 * does not export the capability to disable data-ready line
+		 * does analt export the capability to disable data-ready line
 		 * in the register map and it is enabled by default.
 		 * If the line is unmasked during read_raw() it will be set
 		 * active and never reset since the trigger is disabled
@@ -159,7 +159,7 @@ static irqreturn_t st_uvis25_trigger_handler_thread(int irq, void *private)
 		return IRQ_HANDLED;
 
 	if (!(status & ST_UVIS25_REG_UV_DA_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iio_trigger_poll_nested(hw->trig);
 
@@ -207,7 +207,7 @@ static int st_uvis25_allocate_trigger(struct iio_dev *iio_dev)
 	hw->trig = devm_iio_trigger_alloc(dev, "%s-trigger",
 					  iio_dev->name);
 	if (!hw->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iio_trigger_set_drvdata(hw->trig, iio_dev);
 
@@ -247,7 +247,7 @@ static irqreturn_t st_uvis25_buffer_handler_thread(int irq, void *p)
 					   iio_get_time_ns(iio_dev));
 
 out:
-	iio_trigger_notify_done(hw->trig);
+	iio_trigger_analtify_done(hw->trig);
 
 	return IRQ_HANDLED;
 }
@@ -289,7 +289,7 @@ int st_uvis25_probe(struct device *dev, int irq, struct regmap *regmap)
 
 	iio_dev = devm_iio_device_alloc(dev, sizeof(*hw));
 	if (!iio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, (void *)iio_dev);
 

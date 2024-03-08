@@ -106,7 +106,7 @@ static int sd_read_data(struct rtsx_usb_sdmmc *host, struct mmc_command *cmd,
 		if (cmd->opcode == MMC_SEND_TUNING_BLOCK)
 			trans_mode = SD_TM_AUTO_TUNING;
 		else
-			trans_mode = SD_TM_NORMAL_READ;
+			trans_mode = SD_TM_ANALRMAL_READ;
 
 		rtsx_usb_add_cmd(ucr, WRITE_REG_CMD,
 				SD_CMD0, 0xFF, (u8)(cmd->opcode) | 0x40);
@@ -130,7 +130,7 @@ static int sd_read_data(struct rtsx_usb_sdmmc *host, struct mmc_command *cmd,
 
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_CFG2, 0xFF,
 			SD_CALCULATE_CRC7 | SD_CHECK_CRC16 |
-			SD_NO_WAIT_BUSY_END | SD_CHECK_CRC7 | SD_RSP_LEN_6);
+			SD_ANAL_WAIT_BUSY_END | SD_CHECK_CRC7 | SD_RSP_LEN_6);
 	if (trans_mode != SD_TM_AUTO_TUNING)
 		rtsx_usb_add_cmd(ucr, WRITE_REG_CMD,
 				CARD_DATA_SOURCE, 0x01, PINGPONG_BUFFER);
@@ -242,7 +242,7 @@ static int sd_write_data(struct rtsx_usb_sdmmc *host, struct mmc_command *cmd,
 
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_CFG2, 0xFF,
 		SD_CALCULATE_CRC7 | SD_CHECK_CRC16 |
-		SD_NO_WAIT_BUSY_END | SD_CHECK_CRC7 | SD_RSP_LEN_6);
+		SD_ANAL_WAIT_BUSY_END | SD_CHECK_CRC7 | SD_RSP_LEN_6);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD,
 			CARD_DATA_SOURCE, 0x01, PINGPONG_BUFFER);
 
@@ -307,14 +307,14 @@ static void sd_send_cmd_get_rsp(struct rtsx_usb_sdmmc *host,
 	 * R3, R4
 	 */
 	switch (mmc_resp_type(cmd)) {
-	case MMC_RSP_NONE:
+	case MMC_RSP_ANALNE:
 		rsp_type = SD_RSP_TYPE_R0;
 		break;
 	case MMC_RSP_R1:
 		rsp_type = SD_RSP_TYPE_R1;
 		break;
-	case MMC_RSP_R1_NO_CRC:
-		rsp_type = SD_RSP_TYPE_R1 | SD_NO_CHECK_CRC7;
+	case MMC_RSP_R1_ANAL_CRC:
+		rsp_type = SD_RSP_TYPE_R1 | SD_ANAL_CHECK_CRC7;
 		break;
 	case MMC_RSP_R1B:
 		rsp_type = SD_RSP_TYPE_R1b;
@@ -326,7 +326,7 @@ static void sd_send_cmd_get_rsp(struct rtsx_usb_sdmmc *host,
 		rsp_type = SD_RSP_TYPE_R3;
 		break;
 	default:
-		dev_dbg(sdmmc_dev(host), "cmd->flag is not valid\n");
+		dev_dbg(sdmmc_dev(host), "cmd->flag is analt valid\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -415,7 +415,7 @@ static void sd_send_cmd_get_rsp(struct rtsx_usb_sdmmc *host,
 	}
 
 	/* Check CRC7 */
-	if (!(rsp_type & SD_NO_CHECK_CRC7)) {
+	if (!(rsp_type & SD_ANAL_CHECK_CRC7)) {
 		if (ptr[stat_idx] & SD_CRC7_ERR) {
 			err = -EILSEQ;
 			dev_dbg(sdmmc_dev(host), "CRC7 error\n");
@@ -461,13 +461,13 @@ static int sd_rw_multi(struct rtsx_usb_sdmmc *host, struct mmc_request *mrq)
 		dev_dbg(sdmmc_dev(host), "%s: read %zu bytes\n",
 				__func__, data_len);
 		cfg2 = SD_CALCULATE_CRC7 | SD_CHECK_CRC16 |
-			SD_NO_WAIT_BUSY_END | SD_CHECK_CRC7 | SD_RSP_LEN_0;
+			SD_ANAL_WAIT_BUSY_END | SD_CHECK_CRC7 | SD_RSP_LEN_0;
 		trans_mode = SD_TM_AUTO_READ_3;
 	} else {
 		dev_dbg(sdmmc_dev(host), "%s: write %zu bytes\n",
 				__func__, data_len);
-		cfg2 = SD_NO_CALCULATE_CRC7 | SD_CHECK_CRC16 |
-			SD_NO_WAIT_BUSY_END | SD_NO_CHECK_CRC7 | SD_RSP_LEN_0;
+		cfg2 = SD_ANAL_CALCULATE_CRC7 | SD_CHECK_CRC16 |
+			SD_ANAL_WAIT_BUSY_END | SD_ANAL_CHECK_CRC7 | SD_RSP_LEN_0;
 		trans_mode = SD_TM_AUTO_WRITE_3;
 	}
 
@@ -542,16 +542,16 @@ static inline void sd_disable_initial_mode(struct rtsx_usb_sdmmc *host)
 			SD_CLK_DIVIDE_MASK, SD_CLK_DIVIDE_0);
 }
 
-static void sd_normal_rw(struct rtsx_usb_sdmmc *host,
+static void sd_analrmal_rw(struct rtsx_usb_sdmmc *host,
 		struct mmc_request *mrq)
 {
 	struct mmc_command *cmd = mrq->cmd;
 	struct mmc_data *data = mrq->data;
 	u8 *buf;
 
-	buf = kzalloc(data->blksz, GFP_NOIO);
+	buf = kzalloc(data->blksz, GFP_ANALIO);
 	if (!buf) {
-		cmd->error = -ENOMEM;
+		cmd->error = -EANALMEM;
 		return;
 	}
 
@@ -594,9 +594,9 @@ static int sd_change_phase(struct rtsx_usb_sdmmc *host, u8 sample_point, int tx)
 		rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_VPCLK1_CTL,
 				0x0F, sample_point);
 
-	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_VPCLK0_CTL, PHASE_NOT_RESET, 0);
+	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_VPCLK0_CTL, PHASE_ANALT_RESET, 0);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_VPCLK0_CTL,
-			PHASE_NOT_RESET, PHASE_NOT_RESET);
+			PHASE_ANALT_RESET, PHASE_ANALT_RESET);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CLK_DIV, CLK_CHANGE, 0);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_CFG1, SD_ASYNC_FIFO_RST, 0);
 
@@ -751,7 +751,7 @@ static int sdmmc_get_ro(struct mmc_host *mmc)
 	u16 val;
 
 	if (host->host_removal)
-		return -ENOMEDIUM;
+		return -EANALMEDIUM;
 
 	mutex_lock(&ucr->dev_mutex);
 
@@ -761,7 +761,7 @@ static int sdmmc_get_ro(struct mmc_host *mmc)
 	mutex_unlock(&ucr->dev_mutex);
 
 
-	/* Treat failed detection as non-ro */
+	/* Treat failed detection as analn-ro */
 	if (err)
 		return 0;
 
@@ -779,7 +779,7 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 	u16 val;
 
 	if (host->host_removal)
-		return -ENOMEDIUM;
+		return -EANALMEDIUM;
 
 	mutex_lock(&ucr->dev_mutex);
 
@@ -788,16 +788,16 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 
 	mutex_unlock(&ucr->dev_mutex);
 
-	/* Treat failed detection as non-exist */
+	/* Treat failed detection as analn-exist */
 	if (err)
-		goto no_card;
+		goto anal_card;
 
 	if (val & SD_CD) {
 		host->card_exist = true;
 		return 1;
 	}
 
-no_card:
+anal_card:
 	host->card_exist = false;
 	return 0;
 }
@@ -813,12 +813,12 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	dev_dbg(sdmmc_dev(host), "%s\n", __func__);
 
 	if (host->host_removal) {
-		cmd->error = -ENOMEDIUM;
+		cmd->error = -EANALMEDIUM;
 		goto finish;
 	}
 
 	if ((!host->card_exist)) {
-		cmd->error = -ENOMEDIUM;
+		cmd->error = -EANALMEDIUM;
 		goto finish_detect_card;
 	}
 
@@ -847,7 +847,7 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			}
 		}
 	} else {
-		sd_normal_rw(host, mrq);
+		sd_analrmal_rw(host, mrq);
 	}
 
 	if (mrq->data) {
@@ -1026,9 +1026,9 @@ static int sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 
 	if (power_mode == MMC_POWER_OFF) {
 		err = sd_power_off(host);
-		pm_runtime_put_noidle(sdmmc_dev(host));
+		pm_runtime_put_analidle(sdmmc_dev(host));
 	} else {
-		pm_runtime_get_noresume(sdmmc_dev(host));
+		pm_runtime_get_analresume(sdmmc_dev(host));
 		err = sd_power_on(host);
 	}
 
@@ -1150,7 +1150,7 @@ static int sdmmc_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 			__func__, ios->signal_voltage);
 
 	if (host->host_removal)
-		return -ENOMEDIUM;
+		return -EANALMEDIUM;
 
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_120)
 		return -EPERM;
@@ -1236,7 +1236,7 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	int err = 0;
 
 	if (host->host_removal)
-		return -ENOMEDIUM;
+		return -EANALMEDIUM;
 
 	mutex_lock(&ucr->dev_mutex);
 
@@ -1278,7 +1278,7 @@ static void rtsx_usb_update_led(struct work_struct *work)
 		container_of(work, struct rtsx_usb_sdmmc, led_work);
 	struct rtsx_ucr *ucr = host->ucr;
 
-	pm_runtime_get_noresume(sdmmc_dev(host));
+	pm_runtime_get_analresume(sdmmc_dev(host));
 	mutex_lock(&ucr->dev_mutex);
 
 	if (host->power_mode == MMC_POWER_OFF)
@@ -1306,8 +1306,8 @@ static void rtsx_usb_init_host(struct rtsx_usb_sdmmc *host)
 		MMC_CAP_MMC_HIGHSPEED | MMC_CAP_BUS_WIDTH_TEST |
 		MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
 		MMC_CAP_SYNC_RUNTIME_PM;
-	mmc->caps2 = MMC_CAP2_NO_PRESCAN_POWERUP | MMC_CAP2_FULL_PWR_CYCLE |
-		MMC_CAP2_NO_SDIO;
+	mmc->caps2 = MMC_CAP2_ANAL_PRESCAN_POWERUP | MMC_CAP2_FULL_PWR_CYCLE |
+		MMC_CAP2_ANAL_SDIO;
 
 	mmc->max_current_330 = 400;
 	mmc->max_current_180 = 800;
@@ -1339,7 +1339,7 @@ static int rtsx_usb_sdmmc_drv_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(*host), &pdev->dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = mmc_priv(mmc);
 	host->ucr = ucr;
@@ -1395,9 +1395,9 @@ static void rtsx_usb_sdmmc_drv_remove(struct platform_device *pdev)
 		dev_dbg(&(pdev->dev),
 			"%s: Controller removed during transfer\n",
 			mmc_hostname(mmc));
-		host->mrq->cmd->error = -ENOMEDIUM;
+		host->mrq->cmd->error = -EANALMEDIUM;
 		if (host->mrq->stop)
-			host->mrq->stop->error = -ENOMEDIUM;
+			host->mrq->stop->error = -EANALMEDIUM;
 		mmc_request_done(mmc, host->mrq);
 	}
 	mutex_unlock(&host->host_mutex);
@@ -1457,7 +1457,7 @@ static struct platform_driver rtsx_usb_sdmmc_driver = {
 	.id_table       = rtsx_usb_sdmmc_ids,
 	.driver		= {
 		.name	= "rtsx_usb_sdmmc",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &rtsx_usb_sdmmc_dev_pm_ops,
 	},
 };

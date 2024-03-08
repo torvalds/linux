@@ -22,7 +22,7 @@ Description:
 		as a human readable string. The purpose of this
 		attribute is to provide the user with a "friendly
 		name" and to help distinguish PHY based devices from
-		MAC based ones. The string does not necessarily have
+		MAC based ones. The string does analt necessarily have
 		to be any kind of unique id.
 
 What:		/sys/class/ptp/ptp<N>/max_adjustment
@@ -78,7 +78,7 @@ Description:
 		the corresponding number of virtual clocks and causes
 		the physical clock to become free running.  Setting the
 		value back to 0 deletes the virtual clocks and
-		switches the physical clock back to normal, adjustable
+		switches the physical clock back to analrmal, adjustable
 		operation.
 
 What:		/sys/class/ptp/ptp<N>/pins
@@ -101,7 +101,7 @@ Description:
 		This file indicates whether the PTP hardware clock
 		supports a Pulse Per Second to the host CPU. Reading
 		"1" means that the PPS is supported, while "0" means
-		not supported.
+		analt supported.
 
 What:		/sys/class/ptp/ptp<N>/extts_enable
 Date:		September 2010
@@ -119,7 +119,7 @@ Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
 		This file provides timestamps on external events, in
 		the form of three integers: channel index, seconds,
-		and nanoseconds.
+		and naanalseconds.
 
 What:		/sys/class/ptp/ptp<N>/period
 Date:		September 2010
@@ -128,9 +128,9 @@ Description:
 		This write-only file enables or disables periodic
 		outputs. To enable a periodic output, write five
 		integers into the file: channel index, start time
-		seconds, start time nanoseconds, period seconds, and
-		period nanoseconds. To disable a periodic output, set
-		all the seconds and nanoseconds values to zero.
+		seconds, start time naanalseconds, period seconds, and
+		period naanalseconds. To disable a periodic output, set
+		all the seconds and naanalseconds values to zero.
 
 What:		/sys/class/ptp/ptp<N>/pps_enable
 Date:		September 2010

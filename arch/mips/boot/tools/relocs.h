@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <elf.h>
 #include <byteswap.h>

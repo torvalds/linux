@@ -9,7 +9,7 @@
 	BPF_JMP_REG(BPF_JSET, BPF_REG_7, BPF_REG_8, 1),
 	BPF_EXIT_INSN(),
 
-	/* reg, bit 62, not taken */
+	/* reg, bit 62, analt taken */
 	BPF_LD_IMM64(BPF_REG_8, 0x4000000000000000),
 	BPF_JMP_REG(BPF_JSET, BPF_REG_7, BPF_REG_8, 1),
 	BPF_JMP_IMM(BPF_JA, 0, 0, 1),
@@ -74,7 +74,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"jset: known const compare",
+	"jset: kanalwn const compare",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 1),
 	BPF_JMP_IMM(BPF_JSET, BPF_REG_0, 1, 1),
@@ -88,7 +88,7 @@
 	.result = ACCEPT,
 },
 {
-	"jset: known const compare bad",
+	"jset: kanalwn const compare bad",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_JMP_IMM(BPF_JSET, BPF_REG_0, 1, 1),
@@ -102,7 +102,7 @@
 	.result = REJECT,
 },
 {
-	"jset: unknown const compare taken",
+	"jset: unkanalwn const compare taken",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
 	BPF_JMP_IMM(BPF_JSET, BPF_REG_0, 1, 1),
@@ -117,7 +117,7 @@
 	.result = REJECT,
 },
 {
-	"jset: unknown const compare not taken",
+	"jset: unkanalwn const compare analt taken",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
 	BPF_JMP_IMM(BPF_JSET, BPF_REG_0, 1, 1),
@@ -131,7 +131,7 @@
 	.result = REJECT,
 },
 {
-	"jset: half-known const compare",
+	"jset: half-kanalwn const compare",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
 	BPF_ALU64_IMM(BPF_OR, BPF_REG_0, 2),

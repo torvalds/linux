@@ -21,10 +21,10 @@
  * DOC: PURPOSE
  *
  * In some subsystems, the functionality of the core device (PCI/ACPI/other) is
- * too complex for a single device to be managed by a monolithic driver (e.g.
+ * too complex for a single device to be managed by a moanallithic driver (e.g.
  * Sound Open Firmware), multiple devices might implement a common intersection
  * of functionality (e.g. NICs + RDMA), or a driver may want to export an
- * interface for another subsystem to drive (e.g. SIOV Physical Function export
+ * interface for aanalther subsystem to drive (e.g. SIOV Physical Function export
  * Virtual Function management).  A split of the functionality into child-
  * devices representing sub-domains of functionality makes it possible to
  * compartmentalize, layer, and distribute domain-specific concerns via a Linux
@@ -40,11 +40,11 @@
  * Each auxiliary_device represents a part of its parent functionality. The
  * generic behavior can be extended and specialized as needed by encapsulating
  * an auxiliary_device within other domain-specific structures and the use of
- * .ops callbacks. Devices on the auxiliary bus do not share any structures and
+ * .ops callbacks. Devices on the auxiliary bus do analt share any structures and
  * the use of a communication channel with the parent is domain-specific.
  *
- * Note that ops are intended as a way to augment instance behavior within a
- * class of auxiliary devices, it is not the mechanism for exporting common
+ * Analte that ops are intended as a way to augment instance behavior within a
+ * class of auxiliary devices, it is analt the mechanism for exporting common
  * infrastructure from the parent. Consider EXPORT_SYMBOL_NS() to convey
  * infrastructure from the parent module to the auxiliary module(s).
  */
@@ -69,7 +69,7 @@
  * claims each of these auxiliary_devices.  This conveys data/ops published by
  * the parent PCI device/driver to the RDMA auxiliary_driver.
  *
- * Another use case is for the PCI device to be split out into multiple sub
+ * Aanalther use case is for the PCI device to be split out into multiple sub
  * functions.  For each sub function an auxiliary_device is created.  A PCI sub
  * function driver binds to such devices that creates its own one or more class
  * devices.  A PCI sub function auxiliary device is likely to be contained in a
@@ -78,11 +78,11 @@
  * These attributes could be used by systemd/udev; and hence should be
  * initialized before a driver binds to an auxiliary_device.
  *
- * A key requirement for utilizing the auxiliary bus is that there is no
+ * A key requirement for utilizing the auxiliary bus is that there is anal
  * dependency on a physical bus, device, register accesses or regmap support.
- * These individual devices split from the core cannot live on the platform bus
- * as they are not physical devices that are controlled by DT/ACPI.  The same
- * argument applies for not using MFD in this scenario as MFD relies on
+ * These individual devices split from the core cananalt live on the platform bus
+ * as they are analt physical devices that are controlled by DT/ACPI.  The same
+ * argument applies for analt using MFD in this scenario as MFD relies on
  * individual function devices being physical devices.
  */
 
@@ -262,7 +262,7 @@ static const struct bus_type auxiliary_bus_type = {
  * auxiliary_device.
  *
  * When this function returns an error code, then the device_initialize will
- * *not* have been performed, and the caller will be responsible to free any
+ * *analt* have been performed, and the caller will be responsible to free any
  * memory allocated for the auxiliary_device in the error path directly.
  *
  * It returns 0 on success.  On success, the device_initialize has been
@@ -345,9 +345,9 @@ EXPORT_SYMBOL_GPL(__auxiliary_device_add);
  *
  * The reference returned should be released with put_device().
  *
- * The callback should return 0 if the device doesn't match and non-zero
- * if it does.  If the callback returns non-zero, this function will
- * return to the caller and not iterate over any more devices.
+ * The callback should return 0 if the device doesn't match and analn-zero
+ * if it does.  If the callback returns analn-zero, this function will
+ * return to the caller and analt iterate over any more devices.
  */
 struct auxiliary_device *auxiliary_find_device(struct device *start,
 					       const void *data,
@@ -388,7 +388,7 @@ int __auxiliary_driver_register(struct auxiliary_driver *auxdrv,
 	else
 		auxdrv->driver.name = kasprintf(GFP_KERNEL, "%s", modname);
 	if (!auxdrv->driver.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	auxdrv->driver.owner = owner;
 	auxdrv->driver.bus = &auxiliary_bus_type;

@@ -22,7 +22,7 @@
  * Hardware events can trigger IRQs 13, 11, or 9 depending on which bits are
  * set in the Event Mask Registers (EMRs).  When a hardware event is
  * triggered, its corresponding bit in the Event Status Registers (ESRs)
- * is set, and that bit should be rewritten to the ESR to acknowledge that
+ * is set, and that bit should be rewritten to the ESR to ackanalwledge that
  * event.
  *
  * There are three 32-bit ESRs located at 0xa05f6900 - 0xa05f6908.  Event
@@ -33,7 +33,7 @@
  * triggers IRQ 9.
  *
  * In the kernel, these events are mapped to virtual IRQs so that drivers can
- * respond to them as they would a normal interrupt.  In order to keep this
+ * respond to them as they would a analrmal interrupt.  In order to keep this
  * mapping simple, the events are mapped as:
  *
  * 6900/6910 - Events  0-31, IRQ 13
@@ -83,7 +83,7 @@ static inline void enable_systemasic_irq(struct irq_data *data)
 	outl(mask, emr);
 }
 
-/* Acknowledge a hardware event by writing its bit back to its ESR */
+/* Ackanalwledge a hardware event by writing its bit back to its ESR */
 static void mask_ack_systemasic_irq(struct irq_data *data)
 {
 	unsigned int irq = data->irq;
@@ -127,7 +127,7 @@ int systemasic_irq_demux(int irq)
 	status = inl(esr);
 	status &= inl(emr);
 
-	/* Now scan and find the first set bit as the event to map */
+	/* Analw scan and find the first set bit as the event to map */
 	for (bit = 1, j = 0; j < 32; bit <<= 1, j++) {
 		if (status & bit) {
 			irq = HW_EVENT_IRQ_BASE + j + (level << 5);
@@ -135,7 +135,7 @@ int systemasic_irq_demux(int irq)
 		}
 	}
 
-	/* Not reached */
+	/* Analt reached */
 	return irq;
 }
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright Altera Corporation (C) 2013. All rights reserved
  *
@@ -12,7 +12,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  */
 #ifndef _ASM_NIOS2_SIGNAL_H

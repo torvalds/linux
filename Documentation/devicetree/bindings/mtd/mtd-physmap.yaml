@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/mtd/mtd-physmap.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: CFI or JEDEC memory-mapped NOR flash, MTD-RAM (NVRAM...)
+title: CFI or JEDEC memory-mapped ANALR flash, MTD-RAM (NVRAM...)
 
 maintainers:
   - Rob Herring <robh@kernel.org>
 
 description: |
-  Flash chips (Memory Technology Devices) are often used for solid state
+  Flash chips (Memory Techanallogy Devices) are often used for solid state
   file systems on embedded devices.
 
 allOf:
@@ -65,7 +65,7 @@ properties:
   reg:
     description: |
       It's possible to (optionally) define multiple "reg" tuples so that
-      non-identical chips can be described in one node.
+      analn-identical chips can be described in one analde.
     minItems: 1
     maxItems: 8
 
@@ -81,7 +81,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 1, 2 ]
 
-  no-unaligned-direct-access:
+  anal-unaligned-direct-access:
     type: boolean
     description: |
       Disables the default direct mapping of the flash.
@@ -89,7 +89,7 @@ properties:
       On some platforms (e.g. MPC5200) a direct 1:1 mapping may cause problems
       with JFFS2 usage, as the local bus (LPB) doesn't support unaligned
       accesses as implemented in the JFFS2 code via memcpy(). By defining
-      "no-unaligned-direct-access", the flash will not be exposed directly to
+      "anal-unaligned-direct-access", the flash will analt be exposed directly to
       the MTD users (e.g. JFFS2) any more.
 
   linux,mtd-name:

@@ -6,21 +6,21 @@
    met:
 
        * Redistributions of source code must retain the above copyright
-	 notice, this list of conditions and the following disclaimer.
+	 analtice, this list of conditions and the following disclaimer.
        * Redistributions in binary form must reproduce the above copyright
-	 notice, this list of conditions and the following disclaimer in
+	 analtice, this list of conditions and the following disclaimer in
 	 the documentation and/or other materials provided with the
 	 distribution.
-       * Neither the name of the copyright holder nor the names of its
+       * Neither the name of the copyright holder analr the names of its
 	 contributors may be used to endorse or promote products derived
 	 from this software without specific prior written permission.
 
    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER AND CONTRIBUTORS "AS
-   IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+   IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
    TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-   PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+   PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
    HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -85,7 +85,7 @@ enum SpiceSurfaceFmt {
 };
 
 enum SpiceClipType {
-	SPICE_CLIP_TYPE_NONE,
+	SPICE_CLIP_TYPE_ANALNE,
 	SPICE_CLIP_TYPE_RECTS,
 
 	SPICE_CLIP_TYPE_ENUM_END
@@ -108,7 +108,7 @@ enum SpiceRopd {
 };
 
 enum SpiceBrushType {
-	SPICE_BRUSH_TYPE_NONE,
+	SPICE_BRUSH_TYPE_ANALNE,
 	SPICE_BRUSH_TYPE_SOLID,
 	SPICE_BRUSH_TYPE_PATTERN,
 
@@ -117,7 +117,7 @@ enum SpiceBrushType {
 
 enum SpiceCursorType {
 	SPICE_CURSOR_TYPE_ALPHA,
-	SPICE_CURSOR_TYPE_MONO,
+	SPICE_CURSOR_TYPE_MOANAL,
 	SPICE_CURSOR_TYPE_COLOR4,
 	SPICE_CURSOR_TYPE_COLOR8,
 	SPICE_CURSOR_TYPE_COLOR16,
@@ -158,11 +158,11 @@ enum {
 
 /* qxl-1 compat: append only */
 enum {
-	QXL_IO_NOTIFY_CMD,
-	QXL_IO_NOTIFY_CURSOR,
+	QXL_IO_ANALTIFY_CMD,
+	QXL_IO_ANALTIFY_CURSOR,
 	QXL_IO_UPDATE_AREA,
 	QXL_IO_UPDATE_IRQ,
-	QXL_IO_NOTIFY_OOM,
+	QXL_IO_ANALTIFY_OOM,
 	QXL_IO_RESET,
 	QXL_IO_SET_MODE,                  /* qxl-1 */
 	QXL_IO_LOG,
@@ -276,7 +276,7 @@ struct qxl_modes {
 
 /* qxl-1 compat: append only */
 enum qxl_cmd_type {
-	QXL_CMD_NOP,
+	QXL_CMD_ANALP,
 	QXL_CMD_DRAW,
 	QXL_CMD_UPDATE,
 	QXL_CMD_CURSOR,
@@ -337,9 +337,9 @@ struct qxl_surface_create {
 struct qxl_ring_header {
 	uint32_t num_items;
 	uint32_t prod;
-	uint32_t notify_on_prod;
+	uint32_t analtify_on_prod;
 	uint32_t cons;
-	uint32_t notify_on_cons;
+	uint32_t analtify_on_cons;
 };
 
 /* qxl-1 compat: append only */
@@ -447,7 +447,7 @@ struct qxl_cursor_cmd {
 };
 
 enum {
-	QXL_DRAW_NOP,
+	QXL_DRAW_ANALP,
 	QXL_DRAW_FILL,
 	QXL_DRAW_OPAQUE,
 	QXL_DRAW_COPY,
@@ -489,8 +489,8 @@ enum qxl_effect_type {
 	QXL_EFFECT_REVERT_ON_DUP = 2,
 	QXL_EFFECT_BLACKNESS_ON_DUP = 3,
 	QXL_EFFECT_WHITENESS_ON_DUP = 4,
-	QXL_EFFECT_NOP_ON_DUP = 5,
-	QXL_EFFECT_NOP = 6,
+	QXL_EFFECT_ANALP_ON_DUP = 5,
+	QXL_EFFECT_ANALP = 6,
 	QXL_EFFECT_OPAQUE_BRUSH = 7
 };
 
@@ -616,7 +616,7 @@ enum qxl_operator {
 	QXL_OP_XOR			 = 0x0b,
 	QXL_OP_ADD			 = 0x0c,
 	QXL_OP_SATURATE			 = 0x0d,
-	/* Note the jump here from 0x0d to 0x30 */
+	/* Analte the jump here from 0x0d to 0x30 */
 	QXL_OP_MULTIPLY			 = 0x30,
 	QXL_OP_SCREEN			 = 0x31,
 	QXL_OP_OVERLAY			 = 0x32,
@@ -631,7 +631,7 @@ enum qxl_operator {
 	QXL_OP_HSL_HUE			 = 0x3b,
 	QXL_OP_HSL_SATURATION		 = 0x3c,
 	QXL_OP_HSL_COLOR		 = 0x3d,
-	QXL_OP_HSL_LUMINOSITY		 = 0x3e
+	QXL_OP_HSL_LUMIANALSITY		 = 0x3e
 };
 
 struct qxl_transform {
@@ -654,8 +654,8 @@ struct qxl_transform {
  *     reserved:		[ 19 - 31 ]
  *
  * The repeat and filter values are those of pixman:
- *		REPEAT_NONE =		0
- *              REPEAT_NORMAL =		1
+ *		REPEAT_ANALNE =		0
+ *              REPEAT_ANALRMAL =		1
  *		REPEAT_PAD =		2
  *		REPEAT_REFLECT =	3
  *
@@ -852,7 +852,7 @@ struct qxl_image {
 
 /* A QXLHead is a single monitor output backed by a QXLSurface.
  * x and y offsets are unsigned since they are used in relation to
- * the given surface, not the same as the x, y coordinates in the guest
+ * the given surface, analt the same as the x, y coordinates in the guest
  * screen reference frame. */
 struct qxl_head {
 	uint32_t id;
@@ -866,7 +866,7 @@ struct qxl_head {
 
 struct qxl_monitors_config {
 	uint16_t count;
-	uint16_t max_allowed; /* If it is 0 no fixed limit is given by the
+	uint16_t max_allowed; /* If it is 0 anal fixed limit is given by the
 				 driver */
 	struct qxl_head heads[];
 };

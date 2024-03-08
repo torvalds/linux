@@ -28,7 +28,7 @@
 #define BMG160_CHIP_ID_VAL		0x0F
 
 #define BMG160_REG_PMU_LPW		0x11
-#define BMG160_MODE_NORMAL		0x00
+#define BMG160_MODE_ANALRMAL		0x00
 #define BMG160_MODE_DEEP_SUSPEND	0x20
 #define BMG160_MODE_SUSPEND		0x80
 
@@ -41,7 +41,7 @@
 #define BMG160_RANGE_125DPS		4
 
 #define BMG160_REG_PMU_BW		0x10
-#define BMG160_NO_FILTER		0
+#define BMG160_ANAL_FILTER		0
 #define BMG160_DEF_BW			100
 #define BMG160_REG_PMU_BW_RES		BIT(7)
 
@@ -57,7 +57,7 @@
 #define BMG160_REG_INT_RST_LATCH	0x21
 #define BMG160_INT_MODE_LATCH_RESET	0x80
 #define BMG160_INT_MODE_LATCH_INT	0x0F
-#define BMG160_INT_MODE_NON_LATCH_INT	0x00
+#define BMG160_INT_MODE_ANALN_LATCH_INT	0x00
 
 #define BMG160_REG_INT_EN_0		0x15
 #define BMG160_DATA_ENABLE_INT		BIT(7)
@@ -196,7 +196,7 @@ static int bmg160_get_filter(struct bmg160_data *data, int *val)
 		return ret;
 	}
 
-	/* Ignore the readonly reserved bit. */
+	/* Iganalre the readonly reserved bit. */
 	bw_bits &= ~BMG160_REG_PMU_BW_RES;
 
 	for (i = 0; i < ARRAY_SIZE(bmg160_samp_freq_table); ++i) {
@@ -238,7 +238,7 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	unsigned int val;
 
 	/*
-	 * Reset chip to get it in a known good state. A delay of 30ms after
+	 * Reset chip to get it in a kanalwn good state. A delay of 30ms after
 	 * reset is required according to the datasheet.
 	 */
 	regmap_write(data->regmap, BMG160_GYRO_REG_RESET,
@@ -254,10 +254,10 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	dev_dbg(dev, "Chip Id %x\n", val);
 	if (val != BMG160_CHIP_ID_VAL) {
 		dev_err(dev, "invalid chip %x\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	ret = bmg160_set_mode(data, BMG160_MODE_NORMAL);
+	ret = bmg160_set_mode(data, BMG160_MODE_ANALRMAL);
 	if (ret < 0)
 		return ret;
 
@@ -321,7 +321,7 @@ static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 		dev_err(dev, "Failed: bmg160_set_power_state for %d\n", on);
 
 		if (on)
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_analidle(dev);
 
 		return ret;
 	}
@@ -364,8 +364,8 @@ static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 		}
 
 		/*
-		 * New data interrupt is always non-latched,
-		 * which will have higher priority, so no need
+		 * New data interrupt is always analn-latched,
+		 * which will have higher priority, so anal need
 		 * to set latched mode, we will be flooded anyway with INTR
 		 */
 		if (!data->dready_trigger_on) {
@@ -411,7 +411,7 @@ static int bmg160_setup_new_data_interrupt(struct bmg160_data *data,
 
 	if (status) {
 		ret = regmap_write(data->regmap, BMG160_REG_INT_RST_LATCH,
-				   BMG160_INT_MODE_NON_LATCH_INT |
+				   BMG160_INT_MODE_ANALN_LATCH_INT |
 				   BMG160_INT_MODE_LATCH_RESET);
 		if (ret < 0) {
 			dev_err(dev, "Error writing reg_rst_latch\n");
@@ -455,7 +455,7 @@ static int bmg160_get_bw(struct bmg160_data *data, int *val)
 		return ret;
 	}
 
-	/* Ignore the readonly reserved bit. */
+	/* Iganalre the readonly reserved bit. */
 	bw_bits &= ~BMG160_REG_PMU_BW_RES;
 
 	for (i = 0; i < ARRAY_SIZE(bmg160_samp_freq_table); ++i) {
@@ -893,7 +893,7 @@ static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   pf->timestamp);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1076,7 +1076,7 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
@@ -1124,14 +1124,14 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 							   indio_dev->name,
 							   iio_device_id(indio_dev));
 		if (!data->dready_trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->motion_trig = devm_iio_trigger_alloc(dev,
 							  "%s-any-motion-dev%d",
 							  indio_dev->name,
 							  iio_device_id(indio_dev));
 		if (!data->motion_trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->dready_trig->ops = &bmg160_trigger_ops;
 		iio_trigger_set_drvdata(data->dready_trig, indio_dev);
@@ -1199,7 +1199,7 @@ void bmg160_core_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	iio_triggered_buffer_cleanup(indio_dev);
 
@@ -1235,7 +1235,7 @@ static int bmg160_resume(struct device *dev)
 	mutex_lock(&data->mutex);
 	if (data->dready_trigger_on || data->motion_trigger_on ||
 							data->ev_enable_state)
-		bmg160_set_mode(data, BMG160_MODE_NORMAL);
+		bmg160_set_mode(data, BMG160_MODE_ANALRMAL);
 	mutex_unlock(&data->mutex);
 
 	return 0;
@@ -1264,7 +1264,7 @@ static int bmg160_runtime_resume(struct device *dev)
 	struct bmg160_data *data = iio_priv(indio_dev);
 	int ret;
 
-	ret = bmg160_set_mode(data, BMG160_MODE_NORMAL);
+	ret = bmg160_set_mode(data, BMG160_MODE_ANALRMAL);
 	if (ret < 0)
 		return ret;
 

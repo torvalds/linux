@@ -51,7 +51,7 @@
 #define DEMOD_TYPE_ST_ATSC	(DEMOD_TYPE_XO2 + 4)
 #define DEMOD_TYPE_SONY_C2T2I	(DEMOD_TYPE_XO2 + 5)
 
-#define NGENE_XO2_TYPE_NONE	0
+#define NGENE_XO2_TYPE_ANALNE	0
 #define NGENE_XO2_TYPE_DUOFLEX	1
 #define NGENE_XO2_TYPE_CI	2
 
@@ -208,15 +208,15 @@ struct EVENT_BUFFER {
 /* Firmware commands. */
 
 enum OPCODES {
-	CMD_NOP = 0,
+	CMD_ANALP = 0,
 	CMD_FWLOAD_PREPARE  = 0x01,
 	CMD_FWLOAD_FINISH   = 0x02,
 	CMD_I2C_READ        = 0x03,
 	CMD_I2C_WRITE       = 0x04,
 
-	CMD_I2C_WRITE_NOSTOP = 0x05,
+	CMD_I2C_WRITE_ANALSTOP = 0x05,
 	CMD_I2C_CONTINUE_WRITE = 0x06,
-	CMD_I2C_CONTINUE_WRITE_NOSTOP = 0x07,
+	CMD_I2C_CONTINUE_WRITE_ANALSTOP = 0x07,
 
 	CMD_DEBUG_OUTPUT    = 0x09,
 
@@ -537,7 +537,7 @@ struct SRingBufferDescriptor {
 };
 
 enum STREAMMODEFLAGS {
-	StreamMode_NONE   = 0, /* Stream not used */
+	StreamMode_ANALNE   = 0, /* Stream analt used */
 	StreamMode_ANALOG = 1, /* Analog: Stream 0,1 = Video, 2,3 = Audio */
 	StreamMode_TSIN   = 2, /* Transport stream input (all) */
 	StreamMode_HDTV   = 4, /* HDTV: Maximum 1920x1080p30,1920x1080i60
@@ -654,7 +654,7 @@ struct ngene_channel {
 
 	/* stuff from analog driver */
 
-	int minor;
+	int mianalr;
 	struct mychip        *mychip;
 	struct snd_card      *soundcard;
 	u8                   *evenbuffer;
@@ -668,9 +668,9 @@ struct ngene_channel {
 	int                   tun_dec_rdy;
 	int                   lastbufferflag;
 
-	struct ngene_tvnorm  *tvnorms;
-	int                   tvnorm_num;
-	int                   tvnorm;
+	struct ngene_tvanalrm  *tvanalrms;
+	int                   tvanalrm_num;
+	int                   tvanalrm;
 
 	int running;
 
@@ -738,8 +738,8 @@ struct ngene {
 
 	struct ngene_info    *card_info;
 
-	tx_cb_t              *TxEventNotify;
-	rx_cb_t              *RxEventNotify;
+	tx_cb_t              *TxEventAnaltify;
+	rx_cb_t              *RxEventAnaltify;
 	int                   tx_busy;
 	wait_queue_head_t     tx_wq;
 	wait_queue_head_t     rx_wq;
@@ -788,7 +788,7 @@ struct ngene_info {
 	char *name;
 
 	int   io_type[MAX_STREAM];
-#define NGENE_IO_NONE    0
+#define NGENE_IO_ANALNE    0
 #define NGENE_IO_TV      1
 #define NGENE_IO_HDTV    2
 #define NGENE_IO_TSIN    4

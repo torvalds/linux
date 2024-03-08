@@ -75,7 +75,7 @@ static void dma_rx_complete(void *param)
 		__dma_rx_complete(p);
 
 	/*
-	 * Cannot be combined with the previous check because __dma_rx_complete()
+	 * Cananalt be combined with the previous check because __dma_rx_complete()
 	 * changes dma->rx_running.
 	 */
 	if (!dma->rx_running && (serial_lsr_in(p) & UART_LSR_DR))
@@ -206,7 +206,7 @@ int serial8250_request_dma(struct uart_8250_port *p)
 						       dma->fn, dma->rx_param,
 						       p->port.dev, "rx");
 	if (!dma->rxchan)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* 8250 rx dma requires dmaengine driver to support pause/terminate */
 	ret = dma_get_slave_caps(dma->rxchan, &caps);
@@ -225,7 +225,7 @@ int serial8250_request_dma(struct uart_8250_port *p)
 						       dma->fn, dma->tx_param,
 						       p->port.dev, "tx");
 	if (!dma->txchan) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto release_rx;
 	}
 
@@ -247,7 +247,7 @@ int serial8250_request_dma(struct uart_8250_port *p)
 	dma->rx_buf = dma_alloc_coherent(dma->rxchan->device->dev, dma->rx_size,
 					&dma->rx_addr, GFP_KERNEL);
 	if (!dma->rx_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -259,7 +259,7 @@ int serial8250_request_dma(struct uart_8250_port *p)
 	if (dma_mapping_error(dma->txchan->device->dev, dma->tx_addr)) {
 		dma_free_coherent(dma->rxchan->device->dev, dma->rx_size,
 				  dma->rx_buf, dma->rx_addr);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

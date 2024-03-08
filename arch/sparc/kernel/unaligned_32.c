@@ -100,7 +100,7 @@ static inline unsigned long fetch_reg(unsigned int reg, struct pt_regs *regs)
 
 	/* Ho hum, the slightly complicated case. */
 	win = (struct reg_window32 *) regs->u_regs[UREG_FP];
-	return win->locals[reg - 16]; /* yes, I know what this does... */
+	return win->locals[reg - 16]; /* anal, I kanalw what this does... */
 }
 
 static inline unsigned long safe_fetch_reg(unsigned int reg, struct pt_regs *regs)
@@ -231,7 +231,7 @@ static void kernel_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
 			(current->mm ? (unsigned long) current->mm->pgd :
 			(unsigned long) current->active_mm->pgd));
 	        die_if_kernel("Oops", regs);
-		/* Not reached */
+		/* Analt reached */
 	}
 	regs->pc = entry->fixup;
 	regs->npc = regs->pc + 4;
@@ -265,7 +265,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 			break;
 		default:
 			panic("Impossible kernel unaligned trap.");
-			/* Not reached... */
+			/* Analt reached... */
 		}
 		if (err)
 			kernel_mna_trap_fault(regs, insn);

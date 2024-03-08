@@ -33,7 +33,7 @@
  *             u8, u16, u32
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -167,7 +167,7 @@ union sd_command {
 
 enum SD_RESPONSE_TYPE {
 	SDRT_UNSPECIFIED = 0,
-	SDRT_NONE,
+	SDRT_ANALNE,
 	SDRT_1,
 	SDRT_1B,
 	SDRT_2,
@@ -185,7 +185,7 @@ enum SD_RESPONSE_TYPE {
 #define RESPONSE_IRQ_DISABLED			0x05
 #define RESPONSE_IRQ_ENABLED			0x06
 #define RESPONSE_PIGGYBACKED			0x07
-#define RESPONSE_NO_INTERRUPT			0x08
+#define RESPONSE_ANAL_INTERRUPT			0x08
 #define RESPONSE_PIG_DISABLED			0x09
 #define RESPONSE_PIG_ENABLED			0x0A
 #define SD_ERROR_1BIT_TIMEOUT			0x01
@@ -194,18 +194,18 @@ enum SD_RESPONSE_TYPE {
 #define SD_ERROR_4BIT_CRC_WRONG			0x04
 #define SD_ERROR_1BIT_CRC_ERROR			0x05
 #define SD_ERROR_4BIT_CRC_ERROR			0x06
-#define SD_ERROR_NO_CMD_ENDBIT			0x07
-#define SD_ERROR_NO_1BIT_DATEND			0x08
-#define SD_ERROR_NO_4BIT_DATEND			0x09
+#define SD_ERROR_ANAL_CMD_ENDBIT			0x07
+#define SD_ERROR_ANAL_1BIT_DATEND			0x08
+#define SD_ERROR_ANAL_4BIT_DATEND			0x09
 #define SD_ERROR_1BIT_UNEXPECTED_TIMEOUT	0x0A
 #define SD_ERROR_4BIT_UNEXPECTED_TIMEOUT	0x0B
 #define SD_ERROR_ILLEGAL_COMMAND		0x0C
-#define SD_ERROR_NO_DEVICE			0x0D
+#define SD_ERROR_ANAL_DEVICE			0x0D
 #define SD_ERROR_TRANSFER_LENGTH		0x0E
 #define SD_ERROR_1BIT_DATA_TIMEOUT		0x0F
 #define SD_ERROR_4BIT_DATA_TIMEOUT		0x10
 #define SD_ERROR_ILLEGAL_STATE			0x11
-#define SD_ERROR_UNKNOWN_ERROR			0x12
+#define SD_ERROR_UNKANALWN_ERROR			0x12
 #define SD_ERROR_RESERVED_ERROR			0x13
 #define SD_ERROR_INVALID_FUNCTION		0x14
 #define SD_ERROR_OUT_OF_RANGE			0x15
@@ -387,7 +387,7 @@ static void vub300_queue_cmnd_work(struct vub300_mmc_host *vub300)
 	kref_get(&vub300->kref);
 	if (queue_work(cmndworkqueue, &vub300->cmndwork)) {
 		/*
-		 * then the cmndworkqueue was not previously
+		 * then the cmndworkqueue was analt previously
 		 * running and the above get ref is obvious
 		 * required and will be put when the thread
 		 * terminates by a specific call
@@ -407,7 +407,7 @@ static void vub300_queue_poll_work(struct vub300_mmc_host *vub300, int delay)
 	kref_get(&vub300->kref);
 	if (queue_delayed_work(pollworkqueue, &vub300->pollwork, delay)) {
 		/*
-		 * then the pollworkqueue was not previously
+		 * then the pollworkqueue was analt previously
 		 * running and the above get ref is obvious
 		 * required and will be put when the thread
 		 * terminates by a specific call
@@ -427,7 +427,7 @@ static void vub300_queue_dead_work(struct vub300_mmc_host *vub300)
 	kref_get(&vub300->kref);
 	if (queue_work(deadworkqueue, &vub300->deadwork)) {
 		/*
-		 * then the deadworkqueue was not previously
+		 * then the deadworkqueue was analt previously
 		 * running and the above get ref is obvious
 		 * required and will be put when the thread
 		 * terminates by a specific call
@@ -522,7 +522,7 @@ static void new_system_port_status(struct vub300_mmc_host *vub300)
 		vub300->card_present = 0;
 		mmc_detect_change(vub300->mmc, 0);
 	} else {
-		/* no change */
+		/* anal change */
 	}
 }
 
@@ -598,7 +598,7 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 		mutex_unlock(&vub300->irq_mutex);
 		break;
 	case RESPONSE_ERROR:
-		if (vub300->resp.error.error_code == SD_ERROR_NO_DEVICE)
+		if (vub300->resp.error.error_code == SD_ERROR_ANAL_DEVICE)
 			check_vub300_port_status(vub300);
 		break;
 	case RESPONSE_STATUS:
@@ -643,7 +643,7 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 		mutex_unlock(&vub300->irq_mutex);
 		break;
 	}
-	case RESPONSE_NO_INTERRUPT:
+	case RESPONSE_ANAL_INTERRUPT:
 		vub300_queue_poll_work(vub300, 1);
 		break;
 	default:
@@ -661,7 +661,7 @@ static void __do_poll(struct vub300_mmc_host *vub300)
 	commretval = wait_for_completion_timeout(&vub300->irqpoll_complete,
 						 msecs_to_jiffies(500));
 	if (vub300->usb_transport_fail) {
-		/* no need to do anything */
+		/* anal need to do anything */
 	} else if (commretval == 0) {
 		vub300->usb_timed_out = 1;
 		usb_kill_urb(vub300->command_out_urb);
@@ -675,7 +675,7 @@ static void __do_poll(struct vub300_mmc_host *vub300)
  * is trying to poll the device for an IRQ
  */
 static void vub300_pollwork_thread(struct work_struct *work)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct vub300_mmc_host *vub300 = container_of(work,
 			      struct vub300_mmc_host, pollwork.work);
 	if (!vub300->interface) {
@@ -686,7 +686,7 @@ static void vub300_pollwork_thread(struct work_struct *work)
 	if (vub300->cmd) {
 		vub300_queue_poll_work(vub300, 1);
 	} else if (!vub300->card_present) {
-		/* no need to do anything */
+		/* anal need to do anything */
 	} else { /* vub300->card_present */
 		mutex_lock(&vub300->irq_mutex);
 		if (!vub300->irq_enabled) {
@@ -696,7 +696,7 @@ static void vub300_pollwork_thread(struct work_struct *work)
 			mmc_signal_sdio_irq(vub300->mmc);
 			mod_timer(&vub300->inactivity_timer, jiffies + HZ);
 			mutex_unlock(&vub300->irq_mutex);
-		} else { /* NOT vub300->irqs_queued */
+		} else { /* ANALT vub300->irqs_queued */
 			mutex_unlock(&vub300->irq_mutex);
 			__do_poll(vub300);
 		}
@@ -706,7 +706,7 @@ static void vub300_pollwork_thread(struct work_struct *work)
 }
 
 static void vub300_deadwork_thread(struct work_struct *work)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct vub300_mmc_host *vub300 =
 		container_of(work, struct vub300_mmc_host, deadwork);
 	if (!vub300->interface) {
@@ -725,10 +725,10 @@ static void vub300_deadwork_thread(struct work_struct *work)
 		check_vub300_port_status(vub300);
 	} else if (vub300->mmc && vub300->mmc->card) {
 		/*
-		 * the MMC core must not have responded
+		 * the MMC core must analt have responded
 		 * to the previous indication - lets
 		 * hope that it eventually does so we
-		 * will just ignore this for now
+		 * will just iganalre this for analw
 		 */
 	} else {
 		check_vub300_port_status(vub300);
@@ -769,9 +769,9 @@ static int vub300_response_error(u8 error_code)
 	case SD_ERROR_4BIT_CRC_WRONG:
 	case SD_ERROR_1BIT_CRC_ERROR:
 	case SD_ERROR_4BIT_CRC_ERROR:
-	case SD_ERROR_NO_CMD_ENDBIT:
-	case SD_ERROR_NO_1BIT_DATEND:
-	case SD_ERROR_NO_4BIT_DATEND:
+	case SD_ERROR_ANAL_CMD_ENDBIT:
+	case SD_ERROR_ANAL_1BIT_DATEND:
+	case SD_ERROR_ANAL_4BIT_DATEND:
 	case SD_ERROR_1BIT_DATA_TIMEOUT:
 	case SD_ERROR_4BIT_DATA_TIMEOUT:
 	case SD_ERROR_1BIT_UNEXPECTED_TIMEOUT:
@@ -781,10 +781,10 @@ static int vub300_response_error(u8 error_code)
 		return -EILSEQ;
 	case SD_ERROR_ILLEGAL_COMMAND:
 		return -EINVAL;
-	case SD_ERROR_NO_DEVICE:
-		return -ENOMEDIUM;
+	case SD_ERROR_ANAL_DEVICE:
+		return -EANALMEDIUM;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -839,7 +839,7 @@ static void command_out_completed(struct urb *urb)
 		} else {
 			/*
 			 * and thus we only call it directly
-			 * when it will not be called
+			 * when it will analt be called
 			 */
 			complete(&vub300->command_complete);
 		}
@@ -849,7 +849,7 @@ static void command_out_completed(struct urb *urb)
 /*
  * the STUFF bits are masked out for the comparisons
  */
-static void snoop_block_size_and_bus_width(struct vub300_mmc_host *vub300,
+static void sanalop_block_size_and_bus_width(struct vub300_mmc_host *vub300,
 					   u32 cmd_arg)
 {
 	if ((0xFBFFFE00 & cmd_arg) == 0x80022200)
@@ -946,7 +946,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 	} else {
 		switch (cmd->opcode) {
 		case 0:
-			response_type = SDRT_NONE;
+			response_type = SDRT_ANALNE;
 			vub300->resp_len = 0;
 			break;
 		case 1:
@@ -962,7 +962,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 			vub300->resp_len = 6;
 			break;
 		case 4:
-			response_type = SDRT_NONE;
+			response_type = SDRT_ANALNE;
 			vub300->resp_len = 0;
 			break;
 		case 5:
@@ -998,7 +998,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 			vub300->resp_len = 6;
 			break;
 		case 15:
-			response_type = SDRT_NONE;
+			response_type = SDRT_ANALNE;
 			vub300->resp_len = 0;
 			break;
 		case 16:
@@ -1037,7 +1037,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 		case 52:
 			response_type = SDRT_5;
 			vub300->resp_len = 6;
-			snoop_block_size_and_bus_width(vub300, cmd->arg);
+			sanalop_block_size_and_bus_width(vub300, cmd->arg);
 			break;
 		case 53:
 			response_type = SDRT_5;
@@ -1060,7 +1060,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 		}
 	}
 	/*
-	 * it is a shame that we can not use "sizeof(struct sd_command_header)"
+	 * it is a shame that we can analt use "sizeof(struct sd_command_header)"
 	 * this is because the packet _must_ be padded to 64 bytes
 	 */
 	vub300->cmnd.head.header_size = 20;
@@ -1176,7 +1176,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 
 /*
  * timer callback runs in atomic mode
- *       so it cannot call usb_kill_urb()
+ *       so it cananalt call usb_kill_urb()
  */
 static void vub300_sg_timed_out(struct timer_list *t)
 {
@@ -1247,7 +1247,7 @@ static void __download_offload_pseudocode(struct vub300_mmc_host *vub300,
 				goto copy_error_message;
 		} else {
 			dev_err(&vub300->udev->dev,
-				"not enough memory for xfer buffer to send"
+				"analt eanalugh memory for xfer buffer to send"
 				" INTERRUPT_PSEUDOCODE for %s %s\n", fw->data,
 				vub300->vub_name);
 			strscpy(vub300->vub_name,
@@ -1290,7 +1290,7 @@ static void __download_offload_pseudocode(struct vub300_mmc_host *vub300,
 				goto copy_error_message;
 		} else {
 			dev_err(&vub300->udev->dev,
-				"not enough memory for xfer buffer to send"
+				"analt eanalugh memory for xfer buffer to send"
 				" TRANSFER_PSEUDOCODE for %s %s\n", fw->data,
 				vub300->vub_name);
 			strscpy(vub300->vub_name,
@@ -1347,7 +1347,7 @@ copy_error_message:
 }
 
 /*
- * if the binary containing the EMPTY PseudoCode can not be found
+ * if the binary containing the EMPTY PseudoCode can analt be found
  * vub300->vub_name is set anyway in order to prevent an automatic retry
  */
 static void download_offload_pseudocode(struct vub300_mmc_host *vub300)
@@ -1375,7 +1375,7 @@ static void download_offload_pseudocode(struct vub300_mmc_host *vub300)
 		retval = request_firmware(&fw, vub300->vub_name, &card->dev);
 		if (retval < 0) {
 			strscpy(vub300->vub_name,
-				"no SDIO offload firmware found",
+				"anal SDIO offload firmware found",
 				sizeof(vub300->vub_name));
 		} else {
 			__download_offload_pseudocode(vub300, fw);
@@ -1402,7 +1402,7 @@ static int vub300_usb_bulk_msg(struct vub300_mmc_host *vub300,
 	int retval;
 	vub300->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!vub300->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 	usb_fill_bulk_urb(vub300->urb, usb_dev, pipe, data, len,
 			  vub300_usb_bulk_msg_completion, NULL);
 	init_completion(&done);
@@ -1490,7 +1490,7 @@ static int __command_read_data(struct vub300_mmc_host *vub300,
 				return linear_length;
 			}
 		} else {
-			cmd->error = -ENOMEM;
+			cmd->error = -EANALMEM;
 			data->bytes_xfered = 0;
 			return 0;
 		}
@@ -1548,10 +1548,10 @@ static int __command_write_data(struct vub300_mmc_host *vub300,
 				data->bytes_xfered = vub300->datasize;
 			}
 		} else {
-			cmd->error = -ENOMEM;
+			cmd->error = -EANALMEM;
 			data->bytes_xfered = 0;
 		}
-	} else {		/* no data padding required */
+	} else {		/* anal data padding required */
 		int result;
 		unsigned char buf[64 * 4];
 		sg_copy_to_buffer(data->sg, data->sg_len, buf, sizeof(buf));
@@ -1596,7 +1596,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 		wait_for_completion_timeout(&vub300->command_complete,
 					    msecs_to_jiffies(msec_timeout));
 	if (respretval == 0) { /* TIMED OUT */
-		/* we don't know which of "out" and "res" if any failed */
+		/* we don't kanalw which of "out" and "res" if any failed */
 		int result;
 		vub300->usb_timed_out = 1;
 		usb_kill_urb(vub300->command_out_urb);
@@ -1609,7 +1609,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 			usb_unlock_device(vub300->udev);
 		}
 	} else if (respretval < 0) {
-		/* we don't know which of "out" and "res" if any failed */
+		/* we don't kanalw which of "out" and "res" if any failed */
 		usb_kill_urb(vub300->command_out_urb);
 		usb_kill_urb(vub300->command_res_urb);
 		cmd->error = respretval;
@@ -1629,7 +1629,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 	} else if (vub300->resp.common.header_type == 0x00) {
 		/*
 		 * the command completed successfully
-		 * and there was no piggybacked data
+		 * and there was anal piggybacked data
 		 */
 	} else if (vub300->resp.common.header_type == RESPONSE_ERROR) {
 		cmd->error =
@@ -1775,7 +1775,7 @@ static void vub300_cmndwork_thread(struct work_struct *work)
 		vub300->cmd = NULL;
 		vub300->data = NULL;
 		if (cmd->error) {
-			if (cmd->error == -ENOMEDIUM)
+			if (cmd->error == -EANALMEDIUM)
 				check_vub300_port_status(vub300);
 			mutex_unlock(&vub300->cmd_mutex);
 			mmc_request_done(vub300->mmc, req);
@@ -1817,7 +1817,7 @@ static int examine_cyclic_buffer(struct vub300_mmc_host *vub300,
 		vub300->total_offload_count -= 1;
 		return 1;
 	} else {
-		int delta = 1;	/* because it does not match the first one */
+		int delta = 1;	/* because it does analt match the first one */
 		u8 register_count = vub300->fn[Function].offload_count - 1;
 		u32 register_point = vub300->fn[Function].offload_point + 1;
 		while (0 < register_count) {
@@ -1897,7 +1897,7 @@ static int satisfy_request_from_offloaded_data(struct vub300_mmc_host *vub300,
 }
 
 static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct mmc_command *cmd = req->cmd;
 	struct vub300_mmc_host *vub300 = mmc_priv(mmc);
 	if (!vub300->interface) {
@@ -1907,12 +1907,12 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 	} else {
 		struct mmc_data *data = req->data;
 		if (!vub300->card_powered) {
-			cmd->error = -ENOMEDIUM;
+			cmd->error = -EANALMEDIUM;
 			mmc_request_done(mmc, req);
 			return;
 		}
 		if (!vub300->card_present) {
-			cmd->error = -ENOMEDIUM;
+			cmd->error = -EANALMEDIUM;
 			mmc_request_done(mmc, req);
 			return;
 		}
@@ -1922,7 +1922,7 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 			return;
 		}
 		if (!vub300->interface) {
-			cmd->error = -ENODEV;
+			cmd->error = -EANALDEV;
 			mmc_request_done(mmc, req);
 			return;
 		}
@@ -1952,10 +1952,10 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 			mutex_unlock(&vub300->cmd_mutex);
 			kref_put(&vub300->kref, vub300_delete);
 			/*
-			 * the kernel lock diagnostics complain
+			 * the kernel lock diaganalstics complain
 			 * if the cmd_mutex * is "passed on"
 			 * to the cmndwork thread,
-			 * so we must release it now
+			 * so we must release it analw
 			 * and re-acquire it in the cmndwork thread
 			 */
 		}
@@ -1965,7 +1965,7 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 static void __set_clock_speed(struct vub300_mmc_host *vub300, u8 buf[8],
 			      struct mmc_ios *ios)
 {
-	int buf_array_size = 8; /* ARRAY_SIZE(buf) does not work !!! */
+	int buf_array_size = 8; /* ARRAY_SIZE(buf) does analt work !!! */
 	int retval;
 	u32 kHzClock;
 	if (ios->clock >= 48000000)
@@ -2003,7 +2003,7 @@ static void __set_clock_speed(struct vub300_mmc_host *vub300, u8 buf[8],
 }
 
 static void vub300_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct vub300_mmc_host *vub300 = mmc_priv(mmc);
 	if (!vub300->interface)
 		return;
@@ -2031,7 +2031,7 @@ static void vub300_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			kfree(buf);
 		}
 	} else {
-		/* this should mean no change of state */
+		/* this should mean anal change of state */
 	}
 	mutex_unlock(&vub300->cmd_mutex);
 	kref_put(&vub300->kref, vub300_delete);
@@ -2044,7 +2044,7 @@ static int vub300_mmc_get_ro(struct mmc_host *mmc)
 }
 
 static void vub300_enable_sdio_irq(struct mmc_host *mmc, int enable)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct vub300_mmc_host *vub300 = mmc_priv(mmc);
 	if (!vub300->interface)
 		return;
@@ -2060,7 +2060,7 @@ static void vub300_enable_sdio_irq(struct mmc_host *mmc, int enable)
 			vub300->irq_enabled = 1;
 			vub300_queue_poll_work(vub300, 0);
 		} else if (vub300->irq_enabled) {
-			/* this should not happen, so we will just ignore it */
+			/* this should analt happen, so we will just iganalre it */
 		} else {
 			vub300->irq_enabled = 1;
 			vub300_queue_poll_work(vub300, 0);
@@ -2082,12 +2082,12 @@ static const struct mmc_host_ops vub300_mmc_ops = {
 
 static int vub300_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct vub300_mmc_host *vub300;
 	struct usb_host_interface *iface_desc;
 	struct usb_device *udev = usb_get_dev(interface_to_usbdev(interface));
 	int i;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	struct urb *command_out_urb;
 	struct urb *command_res_urb;
 	struct mmc_host *mmc;
@@ -2105,19 +2105,19 @@ static int vub300_probe(struct usb_interface *interface,
 		 manufacturer, product, serial_number);
 	command_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!command_out_urb) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error0;
 	}
 	command_res_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!command_res_urb) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error1;
 	}
 	/* this also allocates memory for our VUB300 mmc host device */
 	mmc = mmc_alloc_host(sizeof(struct vub300_mmc_host), &udev->dev);
 	if (!mmc) {
-		retval = -ENOMEM;
-		dev_err(&udev->dev, "not enough memory for the mmc_host\n");
+		retval = -EANALMEM;
+		dev_err(&udev->dev, "analt eanalugh memory for the mmc_host\n");
 		goto error4;
 	}
 	/* MMC core transfer sizes tunable parameters */
@@ -2225,7 +2225,7 @@ static int vub300_probe(struct usb_interface *interface,
 			 "vub300 testing %s EndPoint(%d) %02X\n",
 			 usb_endpoint_is_bulk_in(endpoint) ? "BULK IN" :
 			 usb_endpoint_is_bulk_out(endpoint) ? "BULK OUT" :
-			 "UNKNOWN", i, endpoint->bEndpointAddress);
+			 "UNKANALWN", i, endpoint->bEndpointAddress);
 		if (endpoint->wMaxPacketSize > 64)
 			vub300->large_usb_packets = 1;
 		if (usb_endpoint_is_bulk_in(endpoint)) {
@@ -2237,7 +2237,7 @@ static int vub300_probe(struct usb_interface *interface,
 					endpoint->bEndpointAddress;
 			} else {
 				dev_warn(&vub300->udev->dev,
-					 "ignoring"
+					 "iganalring"
 					 " unexpected bulk_in endpoint");
 			}
 		} else if (usb_endpoint_is_bulk_out(endpoint)) {
@@ -2249,12 +2249,12 @@ static int vub300_probe(struct usb_interface *interface,
 					endpoint->bEndpointAddress;
 			} else {
 				dev_warn(&vub300->udev->dev,
-					 "ignoring"
+					 "iganalring"
 					 " unexpected bulk_out endpoint");
 			}
 		} else {
 			dev_warn(&vub300->udev->dev,
-				 "vub300 ignoring EndPoint(%d) %02X", i,
+				 "vub300 iganalring EndPoint(%d) %02X", i,
 				 endpoint->bEndpointAddress);
 		}
 	}
@@ -2269,7 +2269,7 @@ static int vub300_probe(struct usb_interface *interface,
 		/* we have the expected EndPoints */
 	} else {
 		dev_err(&vub300->udev->dev,
-		    "Could not find two sets of bulk-in/out endpoint pairs\n");
+		    "Could analt find two sets of bulk-in/out endpoint pairs\n");
 		retval = -EINVAL;
 		goto error5;
 	}
@@ -2331,7 +2331,7 @@ static int vub300_probe(struct usb_interface *interface,
 	else
 		dev_info(&vub300->udev->dev,
 			 "USB vub300 remote SDIO host controller[%d]"
-			 "connected with no SD/SDIO card inserted\n",
+			 "connected with anal SD/SDIO card inserted\n",
 			 interface_to_InterfaceNumber(interface));
 	retval = mmc_add_host(mmc);
 	if (retval)
@@ -2356,7 +2356,7 @@ error0:
 }
 
 static void vub300_disconnect(struct usb_interface *interface)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct vub300_mmc_host *vub300 = usb_get_intfdata(interface);
 	if (!vub300 || !vub300->mmc) {
 		return;
@@ -2372,7 +2372,7 @@ static void vub300_disconnect(struct usb_interface *interface)
 			kref_put(&vub300->kref, vub300_delete);
 			mmc_remove_host(mmc);
 			pr_info("USB vub300 remote SDIO host controller[%d]"
-				" now disconnected", ifnum);
+				" analw disconnected", ifnum);
 			return;
 		}
 	}
@@ -2393,16 +2393,16 @@ static int vub300_resume(struct usb_interface *intf)
 #define vub300_resume NULL
 #endif
 static int vub300_pre_reset(struct usb_interface *intf)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct vub300_mmc_host *vub300 = usb_get_intfdata(intf);
 	mutex_lock(&vub300->cmd_mutex);
 	return 0;
 }
 
 static int vub300_post_reset(struct usb_interface *intf)
-{				/* NOT irq */
+{				/* ANALT irq */
 	struct vub300_mmc_host *vub300 = usb_get_intfdata(intf);
-	/* we are sure no URBs are active - no locking needed */
+	/* we are sure anal URBs are active - anal locking needed */
 	vub300->errors = -EPIPE;
 	mutex_unlock(&vub300->cmd_mutex);
 	return 0;
@@ -2421,27 +2421,27 @@ static struct usb_driver vub300_driver = {
 };
 
 static int __init vub300_init(void)
-{				/* NOT irq */
+{				/* ANALT irq */
 	int result;
 
 	pr_info("VUB300 Driver rom wait states = %02X irqpoll timeout = %04X",
 		firmware_rom_wait_states, 0x0FFFF & firmware_irqpoll_timeout);
 	cmndworkqueue = create_singlethread_workqueue("kvub300c");
 	if (!cmndworkqueue) {
-		pr_err("not enough memory for the REQUEST workqueue");
-		result = -ENOMEM;
+		pr_err("analt eanalugh memory for the REQUEST workqueue");
+		result = -EANALMEM;
 		goto out1;
 	}
 	pollworkqueue = create_singlethread_workqueue("kvub300p");
 	if (!pollworkqueue) {
-		pr_err("not enough memory for the IRQPOLL workqueue");
-		result = -ENOMEM;
+		pr_err("analt eanalugh memory for the IRQPOLL workqueue");
+		result = -EANALMEM;
 		goto out2;
 	}
 	deadworkqueue = create_singlethread_workqueue("kvub300d");
 	if (!deadworkqueue) {
-		pr_err("not enough memory for the EXPIRED workqueue");
-		result = -ENOMEM;
+		pr_err("analt eanalugh memory for the EXPIRED workqueue");
+		result = -EANALMEM;
 		goto out3;
 	}
 	result = usb_register(&vub300_driver);

@@ -73,8 +73,8 @@ static void xge_adjust_link(struct net_device *ndev)
 			phy_print_status(phydev);
 		}
 	} else {
-		if (pdata->phy_speed != SPEED_UNKNOWN) {
-			pdata->phy_speed = SPEED_UNKNOWN;
+		if (pdata->phy_speed != SPEED_UNKANALWN) {
+			pdata->phy_speed = SPEED_UNKANALWN;
 			xge_mac_disable(pdata);
 			phy_print_status(phydev);
 		}
@@ -106,7 +106,7 @@ int xge_mdio_config(struct net_device *ndev)
 
 	mdio_bus = mdiobus_alloc();
 	if (!mdio_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdio_bus->name = "APM X-Gene Ethernet (v2) MDIO Bus";
 	mdio_bus->read = xge_mdio_read;
@@ -123,8 +123,8 @@ int xge_mdio_config(struct net_device *ndev)
 
 	phydev = phy_find_first(mdio_bus);
 	if (!phydev) {
-		dev_err(dev, "no PHY found\n");
-		ret = -ENODEV;
+		dev_err(dev, "anal PHY found\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 	phydev = phy_connect(ndev, phydev_name(phydev),
@@ -132,7 +132,7 @@ int xge_mdio_config(struct net_device *ndev)
 			     pdata->resources.phy_mode);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(ndev, "Could not attach to PHY\n");
+		netdev_err(ndev, "Could analt attach to PHY\n");
 		ret = PTR_ERR(phydev);
 		goto err;
 	}
@@ -146,9 +146,9 @@ int xge_mdio_config(struct net_device *ndev)
 	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, mask);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_BNC_BIT, mask);
 
-	linkmode_andnot(phydev->supported, phydev->supported, mask);
+	linkmode_andanalt(phydev->supported, phydev->supported, mask);
 	linkmode_copy(phydev->advertising, phydev->supported);
-	pdata->phy_speed = SPEED_UNKNOWN;
+	pdata->phy_speed = SPEED_UNKANALWN;
 
 	return 0;
 err:

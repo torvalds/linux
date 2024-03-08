@@ -21,19 +21,19 @@ static int proc_initialized;	/* = 0 */
 
 static loff_t proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 {
-	struct pci_dev *dev = pde_data(file_inode(file));
+	struct pci_dev *dev = pde_data(file_ianalde(file));
 	return fixed_size_llseek(file, off, whence, dev->cfg_size);
 }
 
 static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 				 size_t nbytes, loff_t *ppos)
 {
-	struct pci_dev *dev = pde_data(file_inode(file));
+	struct pci_dev *dev = pde_data(file_ianalde(file));
 	unsigned int pos = *ppos;
 	unsigned int cnt, size;
 
 	/*
-	 * Normal users can read only the standardized portion of the
+	 * Analrmal users can read only the standardized portion of the
 	 * configuration space as several chips lock up when trying to read
 	 * undefined locations (think of Intel PIIX4 as a typical example).
 	 */
@@ -111,8 +111,8 @@ static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 				  size_t nbytes, loff_t *ppos)
 {
-	struct inode *ino = file_inode(file);
-	struct pci_dev *dev = pde_data(ino);
+	struct ianalde *ianal = file_ianalde(file);
+	struct pci_dev *dev = pde_data(ianal);
 	int pos = *ppos;
 	int size = dev->cfg_size;
 	int cnt, ret;
@@ -180,7 +180,7 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 	pci_config_pm_runtime_put(dev);
 
 	*ppos = pos;
-	i_size_write(ino, dev->cfg_size);
+	i_size_write(ianal, dev->cfg_size);
 	return nbytes;
 }
 
@@ -194,7 +194,7 @@ struct pci_filp_private {
 static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
-	struct pci_dev *dev = pde_data(file_inode(file));
+	struct pci_dev *dev = pde_data(file_ianalde(file));
 #ifdef HAVE_PCI_MMAP
 	struct pci_filp_private *fpriv = file->private_data;
 #endif /* HAVE_PCI_MMAP */
@@ -242,7 +242,7 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 #ifdef HAVE_PCI_MMAP
 static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct pci_dev *dev = pde_data(file_inode(file));
+	struct pci_dev *dev = pde_data(file_ianalde(file));
 	struct pci_filp_private *fpriv = file->private_data;
 	resource_size_t start, end;
 	int i, ret, write_combine = 0, res_bit = IORESOURCE_MEM;
@@ -265,7 +265,7 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (i >= PCI_STD_NUM_BARS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fpriv->mmap_state == pci_mmap_mem &&
 	    fpriv->write_combine) {
@@ -291,12 +291,12 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int proc_bus_pci_open(struct inode *inode, struct file *file)
+static int proc_bus_pci_open(struct ianalde *ianalde, struct file *file)
 {
 	struct pci_filp_private *fpriv = kmalloc(sizeof(*fpriv), GFP_KERNEL);
 
 	if (!fpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fpriv->mmap_state = pci_mmap_io;
 	fpriv->write_combine = 0;
@@ -307,7 +307,7 @@ static int proc_bus_pci_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int proc_bus_pci_release(struct inode *inode, struct file *file)
+static int proc_bus_pci_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	file->private_data = NULL;
@@ -430,14 +430,14 @@ int pci_proc_attach_device(struct pci_dev *dev)
 		}
 		bus->procdir = proc_mkdir(name, proc_bus_pci_dir);
 		if (!bus->procdir)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	sprintf(name, "%02x.%x", PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 	e = proc_create_data(name, S_IFREG | S_IRUGO | S_IWUSR, bus->procdir,
 			     &proc_bus_pci_ops, dev);
 	if (!e)
-		return -ENOMEM;
+		return -EANALMEM;
 	proc_set_size(e, dev->cfg_size);
 	dev->procent = e;
 

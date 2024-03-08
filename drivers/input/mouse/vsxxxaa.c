@@ -16,14 +16,14 @@
  * Building an adaptor to DE9 / DB25 RS232
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * DISCLAIMER: Use this description AT YOUR OWN RISK! I'll not pay for
+ * DISCLAIMER: Use this description AT YOUR OWN RISK! I'll analt pay for
  * anything if you break your mouse, your computer or whatever!
  *
  * In theory, this mouse is a simple RS232 device. In practice, it has got
  * a quite uncommon plug and the requirement to additionally get a power
  * supply at +5V and -12V.
  *
- * If you look at the socket/jack (_not_ at the plug), we use this pin
+ * If you look at the socket/jack (_analt_ at the plug), we use this pin
  * numbering:
  *    _______
  *   / 7 6 5 \
@@ -31,7 +31,7 @@
  *   \  2 1  /
  *    -------
  *
- *	DEC socket	DE9	DB25	Note
+ *	DEC socket	DE9	DB25	Analte
  *	1 (GND)		5	7	-
  *	2 (RxD)		2	3	-
  *	3 (TxD)		3	2	-
@@ -146,7 +146,7 @@ static void vsxxxaa_detection_done(struct vsxxxaa *mouse)
 
 	default:
 		snprintf(mouse->name, sizeof(mouse->name),
-			 "unknown DEC pointer device (type = 0x%02x)",
+			 "unkanalwn DEC pointer device (type = 0x%02x)",
 			 mouse->type);
 		break;
 	}
@@ -198,7 +198,7 @@ static void vsxxxaa_handle_REL_packet(struct vsxxxaa *mouse)
 	int dx, dy;
 
 	/*
-	 * Check for normal stream packets. This is three bytes,
+	 * Check for analrmal stream packets. This is three bytes,
 	 * with the first byte's 3 MSB set to 100.
 	 *
 	 * [0]:	1	0	0	SignX	SignY	Left	Middle	Right
@@ -318,8 +318,8 @@ static void vsxxxaa_handle_POR_packet(struct vsxxxaa *mouse)
 	 * M: manufacturer location code
 	 * R: revision code
 	 * E: Error code. If it's in the range of 0x00..0x1f, only some
-	 *    minor problem occurred. Errors >= 0x20 are considered bad
-	 *    and the device may not work properly...
+	 *    mianalr problem occurred. Errors >= 0x20 are considered bad
+	 *    and the device may analt work properly...
 	 * D: <0010> == mouse, <0100> == tablet
 	 */
 
@@ -341,7 +341,7 @@ static void vsxxxaa_handle_POR_packet(struct vsxxxaa *mouse)
 	vsxxxaa_detection_done(mouse);
 
 	if (error <= 0x1f) {
-		/* No (serious) error. Report buttons */
+		/* Anal (serious) error. Report buttons */
 		input_report_key(dev, BTN_LEFT, left);
 		input_report_key(dev, BTN_MIDDLE, middle);
 		input_report_key(dev, BTN_RIGHT, right);
@@ -356,9 +356,9 @@ static void vsxxxaa_handle_POR_packet(struct vsxxxaa *mouse)
 
 	/*
 	 * If the mouse was hot-plugged, we need to force differential mode
-	 * now... However, give it a second to recover from it's reset.
+	 * analw... However, give it a second to recover from it's reset.
 	 */
-	printk(KERN_NOTICE
+	printk(KERN_ANALTICE
 		"%s on %s: Forcing standard packet format, "
 		"incremental streaming mode and 72 samples/sec\n",
 		mouse->name, mouse->phys);
@@ -381,7 +381,7 @@ static void vsxxxaa_parse_buffer(struct vsxxxaa *mouse)
 		/*
 		 * Out of sync? Throw away what we don't understand. Each
 		 * packet starts with a byte whose bit 7 is set. Unhandled
-		 * packets (ie. which we don't know about or simply b0rk3d
+		 * packets (ie. which we don't kanalw about or simply b0rk3d
 		 * data...) will get shifted out of the buffer after some
 		 * activity on the mouse.
 		 */
@@ -393,7 +393,7 @@ static void vsxxxaa_parse_buffer(struct vsxxxaa *mouse)
 		}
 
 		/*
-		 * Check for packets we know about.
+		 * Check for packets we kanalw about.
 		 */
 
 		if (vsxxxaa_smells_like_packet(mouse, VSXXXAA_PACKET_REL, 3)) {
@@ -417,11 +417,11 @@ static void vsxxxaa_parse_buffer(struct vsxxxaa *mouse)
 				vsxxxaa_handle_POR_packet(mouse);
 
 		} else {
-			break; /* No REL, ABS or POR packet found */
+			break; /* Anal REL, ABS or POR packet found */
 		}
 
 		if (stray_bytes > 0) {
-			printk(KERN_ERR "Dropping %d bytes now...\n",
+			printk(KERN_ERR "Dropping %d bytes analw...\n",
 				stray_bytes);
 			vsxxxaa_drop_bytes(mouse, stray_bytes);
 		}
@@ -454,7 +454,7 @@ static int vsxxxaa_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct vsxxxaa *mouse;
 	struct input_dev *input_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	mouse = kzalloc(sizeof(struct vsxxxaa), GFP_KERNEL);
 	input_dev = input_allocate_device();

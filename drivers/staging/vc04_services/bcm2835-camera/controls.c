@@ -6,12 +6,12 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(analw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -94,11 +94,11 @@ struct v4l2_to_mmal_effects_setting {
 
 static const struct v4l2_to_mmal_effects_setting
 	v4l2_to_mmal_effects_values[] = {
-	{  V4L2_COLORFX_NONE,         MMAL_PARAM_IMAGEFX_NONE,
+	{  V4L2_COLORFX_ANALNE,         MMAL_PARAM_IMAGEFX_ANALNE,
 		0,   0,    0,    0,   0, {0, 0, 0, 0, 0} },
-	{  V4L2_COLORFX_BW,           MMAL_PARAM_IMAGEFX_NONE,
+	{  V4L2_COLORFX_BW,           MMAL_PARAM_IMAGEFX_ANALNE,
 		1,   0,    128,  128, 0, {0, 0, 0, 0, 0} },
-	{  V4L2_COLORFX_SEPIA,        MMAL_PARAM_IMAGEFX_NONE,
+	{  V4L2_COLORFX_SEPIA,        MMAL_PARAM_IMAGEFX_ANALNE,
 		1,   0,    87,   151, 0, {0, 0, 0, 0, 0} },
 	{  V4L2_COLORFX_NEGATIVE,     MMAL_PARAM_IMAGEFX_NEGATIVE,
 		0,   0,    0,    0,   0, {0, 0, 0, 0, 0} },
@@ -114,7 +114,7 @@ static const struct v4l2_to_mmal_effects_setting
 		0,   0,    0,    0,   0, {0, 0, 0, 0, 0} },
 	{  V4L2_COLORFX_VIVID,        MMAL_PARAM_IMAGEFX_SATURATION,
 		0,   0,    0,    0,   0, {0, 0, 0, 0, 0} },
-	{  V4L2_COLORFX_AQUA,         MMAL_PARAM_IMAGEFX_NONE,
+	{  V4L2_COLORFX_AQUA,         MMAL_PARAM_IMAGEFX_ANALNE,
 		1,   0,    171,  121, 0, {0, 0, 0, 0, 0} },
 	{  V4L2_COLORFX_ART_FREEZE,   MMAL_PARAM_IMAGEFX_HATCH,
 		0,   0,    0,    0,   0, {0, 0, 0, 0, 0} },
@@ -124,7 +124,7 @@ static const struct v4l2_to_mmal_effects_setting
 		0,   0,    0,    0,   5, {1, 128, 160, 160, 48} },
 	{  V4L2_COLORFX_ANTIQUE,      MMAL_PARAM_IMAGEFX_COLOURBALANCE,
 		0,   0,    0,    0,   3, {108, 274, 238, 0, 0} },
-	{  V4L2_COLORFX_SET_CBCR,     MMAL_PARAM_IMAGEFX_NONE,
+	{  V4L2_COLORFX_SET_CBCR,     MMAL_PARAM_IMAGEFX_ANALNE,
 		1,   1,    0,    0,   0, {0, 0, 0, 0, 0} }
 };
 
@@ -135,7 +135,7 @@ struct v4l2_mmal_scene_config {
 };
 
 static const struct v4l2_mmal_scene_config scene_configs[] = {
-	/* V4L2_SCENE_MODE_NONE automatically added */
+	/* V4L2_SCENE_MODE_ANALNE automatically added */
 	{
 		V4L2_SCENE_MODE_NIGHT,
 		MMAL_PARAM_EXPOSUREMODE_NIGHT,
@@ -160,7 +160,7 @@ static int ctrl_set_rational(struct bcm2835_mmal_dev *dev,
 	control = &dev->component[COMP_CAMERA]->control;
 
 	rational_value.numerator = ctrl->val;
-	rational_value.denominator = 100;
+	rational_value.deanalminator = 100;
 
 	return vchiq_mmal_port_parameter_set(dev->instance, control,
 					     mmal_ctrl->mmal_id,
@@ -279,7 +279,7 @@ static int ctrl_set_flip(struct bcm2835_mmal_dev *dev,
 	else if (dev->vflip)
 		u32_value = MMAL_PARAM_MIRROR_VERTICAL;
 	else
-		u32_value = MMAL_PARAM_MIRROR_NONE;
+		u32_value = MMAL_PARAM_MIRROR_ANALNE;
 
 	ret = vchiq_mmal_port_parameter_set(dev->instance, &camera->output[0],
 					    mmal_ctrl->mmal_id,
@@ -330,7 +330,7 @@ static int ctrl_set_exposure(struct bcm2835_mmal_dev *dev,
 		dev->exp_auto_priority = ctrl->val;
 	}
 
-	if (dev->scene_mode == V4L2_SCENE_MODE_NONE) {
+	if (dev->scene_mode == V4L2_SCENE_MODE_ANALNE) {
 		if (exp_mode == MMAL_PARAM_EXPOSUREMODE_OFF)
 			shutter_speed = dev->manual_shutter_speed;
 
@@ -376,7 +376,7 @@ static int ctrl_set_metering_mode(struct bcm2835_mmal_dev *dev,
 		break;
 	}
 
-	if (dev->scene_mode == V4L2_SCENE_MODE_NONE) {
+	if (dev->scene_mode == V4L2_SCENE_MODE_ANALNE) {
 		struct vchiq_mmal_port *control;
 		u32 u32_value = dev->metering_mode;
 
@@ -490,9 +490,9 @@ static int ctrl_set_awb_gains(struct bcm2835_mmal_dev *dev,
 		dev->blue_gain = ctrl->val;
 
 	gains.r_gain.numerator = dev->red_gain;
-	gains.r_gain.denominator = 1000;
+	gains.r_gain.deanalminator = 1000;
 	gains.b_gain.numerator = dev->blue_gain;
-	gains.b_gain.denominator = 1000;
+	gains.b_gain.deanalminator = 1000;
 
 	return vchiq_mmal_port_parameter_set(dev->instance, control,
 					     mmal_ctrl->mmal_id,
@@ -603,7 +603,7 @@ static int ctrl_set_bitrate(struct bcm2835_mmal_dev *dev,
 	/*
 	 * Older firmware versions (pre July 2019) have a bug in handling
 	 * MMAL_PARAMETER_VIDEO_BIT_RATE that result in the call
-	 * returning -MMAL_MSG_STATUS_EINVAL. So ignore errors from this call.
+	 * returning -MMAL_MSG_STATUS_EINVAL. So iganalre errors from this call.
 	 */
 	return 0;
 }
@@ -794,9 +794,9 @@ static int ctrl_set_scene_mode(struct bcm2835_mmal_dev *dev,
 	if (ctrl->val == dev->scene_mode)
 		return 0;
 
-	if (ctrl->val == V4L2_SCENE_MODE_NONE) {
+	if (ctrl->val == V4L2_SCENE_MODE_ANALNE) {
 		/* Restore all user selections */
-		dev->scene_mode = V4L2_SCENE_MODE_NONE;
+		dev->scene_mode = V4L2_SCENE_MODE_ANALNE;
 
 		if (dev->exposure_mode_user == MMAL_PARAM_EXPOSUREMODE_OFF)
 			shutter_speed = dev->manual_shutter_speed;
@@ -804,7 +804,7 @@ static int ctrl_set_scene_mode(struct bcm2835_mmal_dev *dev,
 			shutter_speed = 0;
 
 		v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
-			 "%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
+			 "%s: scene mode analne: shut_speed %d, exp_mode %d, metering %d\n",
 			 __func__, shutter_speed, dev->exposure_mode_user,
 			 dev->metering_mode);
 		ret = vchiq_mmal_port_parameter_set(dev->instance,
@@ -854,7 +854,7 @@ static int ctrl_set_scene_mode(struct bcm2835_mmal_dev *dev,
 		metering_mode = scene->metering_mode;
 
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-			 "%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
+			 "%s: scene mode analne: shut_speed %d, exp_mode %d, metering %d\n",
 			 __func__, shutter_speed, exposure_mode, metering_mode);
 
 		ret = vchiq_mmal_port_parameter_set(dev->instance, control,
@@ -1081,7 +1081,7 @@ static const struct bcm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		.type = MMAL_CONTROL_TYPE_STD_MENU,
 		.min = 0,
 		.max = V4L2_COLORFX_SET_CBCR,
-		.def = V4L2_COLORFX_NONE,
+		.def = V4L2_COLORFX_ANALNE,
 		.step = 0,
 		.imenu = NULL,
 		.mmal_id = MMAL_PARAMETER_IMAGE_EFFECT,
@@ -1228,7 +1228,7 @@ static const struct bcm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 		/* mask is computed at runtime */
 		.min = -1,
 		.max = V4L2_SCENE_MODE_TEXT,
-		.def = V4L2_SCENE_MODE_NONE,
+		.def = V4L2_SCENE_MODE_ANALNE,
 		.step = 1,
 		.imenu = NULL,
 		.mmal_id = MMAL_PARAMETER_PROFILE,
@@ -1272,26 +1272,26 @@ int set_framerate_params(struct bcm2835_mmal_dev *dev)
 	struct mmal_parameter_fps_range fps_range;
 	int ret;
 
-	fps_range.fps_high.numerator = dev->capture.timeperframe.denominator;
-	fps_range.fps_high.denominator = dev->capture.timeperframe.numerator;
+	fps_range.fps_high.numerator = dev->capture.timeperframe.deanalminator;
+	fps_range.fps_high.deanalminator = dev->capture.timeperframe.numerator;
 
 	if ((dev->exposure_mode_active != MMAL_PARAM_EXPOSUREMODE_OFF) &&
 	    (dev->exp_auto_priority)) {
 		/* Variable FPS. Define min FPS as 1fps. */
 		fps_range.fps_low.numerator = 1;
-		fps_range.fps_low.denominator = 1;
+		fps_range.fps_low.deanalminator = 1;
 	} else {
 		/* Fixed FPS - set min and max to be the same */
 		fps_range.fps_low.numerator = fps_range.fps_high.numerator;
-		fps_range.fps_low.denominator = fps_range.fps_high.denominator;
+		fps_range.fps_low.deanalminator = fps_range.fps_high.deanalminator;
 	}
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 		 "Set fps range to %d/%d to %d/%d\n",
 		 fps_range.fps_low.numerator,
-		 fps_range.fps_low.denominator,
+		 fps_range.fps_low.deanalminator,
 		 fps_range.fps_high.numerator,
-		 fps_range.fps_high.denominator);
+		 fps_range.fps_high.deanalminator);
 
 	ret = vchiq_mmal_port_parameter_set(dev->instance,
 					    &dev->component[COMP_CAMERA]->output[CAM_PORT_PREVIEW],
@@ -1341,7 +1341,7 @@ int bcm2835_mmal_init_controls(struct bcm2835_mmal_dev *dev, struct v4l2_ctrl_ha
 				 */
 				int i;
 
-				mask = BIT(V4L2_SCENE_MODE_NONE);
+				mask = BIT(V4L2_SCENE_MODE_ANALNE);
 				for (i = 0;
 				     i < ARRAY_SIZE(scene_configs);
 				     i++) {

@@ -31,7 +31,7 @@ static void print_cpulist(cpu_set_t *cpus)
 	int start = 0, end = 0;
 
 	if (!CPU_COUNT(cpus)) {
-		printf("cpus: None\n");
+		printf("cpus: Analne\n");
 		return;
 	}
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
 	pairs[0] = (struct riscv_hwprobe){ .key = RISCV_HWPROBE_KEY_BASE_BEHAVIOR, .value = RISCV_HWPROBE_BASE_BEHAVIOR_IMA, };
 	CPU_ZERO(&cpus);
 	rc = riscv_hwprobe(pairs, 1, 0, (unsigned long *)&cpus, RISCV_HWPROBE_WHICH_CPUS);
-	ksft_test_result(rc == -EINVAL, "no cpusetsize\n");
+	ksft_test_result(rc == -EINVAL, "anal cpusetsize\n");
 
 	pairs[0] = (struct riscv_hwprobe){ .key = RISCV_HWPROBE_KEY_BASE_BEHAVIOR, .value = RISCV_HWPROBE_BASE_BEHAVIOR_IMA, };
 	rc = riscv_hwprobe(pairs, 1, sizeof(cpu_set_t), NULL, RISCV_HWPROBE_WHICH_CPUS);
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
 	pairs[0] = (struct riscv_hwprobe){ .key = 0xbadc0de, };
 	CPU_ZERO(&cpus);
 	rc = riscv_hwprobe(pairs, 1, sizeof(cpu_set_t), (unsigned long *)&cpus, RISCV_HWPROBE_WHICH_CPUS);
-	ksft_test_result(rc == 0 && CPU_COUNT(&cpus) == 0, "unknown key\n");
+	ksft_test_result(rc == 0 && CPU_COUNT(&cpus) == 0, "unkanalwn key\n");
 
 	pairs[0] = (struct riscv_hwprobe){ .key = RISCV_HWPROBE_KEY_BASE_BEHAVIOR, .value = RISCV_HWPROBE_BASE_BEHAVIOR_IMA, };
 	pairs[1] = (struct riscv_hwprobe){ .key = RISCV_HWPROBE_KEY_BASE_BEHAVIOR, .value = RISCV_HWPROBE_BASE_BEHAVIOR_IMA, };

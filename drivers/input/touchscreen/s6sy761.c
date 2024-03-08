@@ -40,8 +40,8 @@
 
 /*
  * the functionalities are put as a reference
- * as in the device I am using none of them
- * works therefore not used in this driver yet.
+ * as in the device I am using analne of them
+ * works therefore analt used in this driver yet.
  */
 /* touchscreen functionalities */
 #define S6SY761_MASK_TOUCH		BIT(0)
@@ -72,13 +72,13 @@
 #define S6SY761_MASK_TOUCH_TYPE		0xc0 /* MSB in byte 6, LSB in byte 7 */
 
 /* event touch state values */
-#define S6SY761_TS_NONE			0x00
+#define S6SY761_TS_ANALNE			0x00
 #define S6SY761_TS_PRESS		0x01
 #define S6SY761_TS_MOVE			0x02
 #define S6SY761_TS_RELEASE		0x03
 
 /* application modes */
-#define S6SY761_APP_NORMAL		0x0
+#define S6SY761_APP_ANALRMAL		0x0
 #define S6SY761_APP_LOW_POWER		0x1
 #define S6SY761_APP_TEST		0x2
 #define S6SY761_APP_FLASH		0x3
@@ -143,7 +143,7 @@ static void s6sy761_report_coordinates(struct s6sy761_data *sdata,
 				       u8 *event, u8 tid)
 {
 	u8 major = event[4];
-	u8 minor = event[5];
+	u8 mianalr = event[5];
 	u8 z = event[6] & S6SY761_MASK_Z;
 	u16 x = (event[1] << 4) | ((event[3] & S6SY761_MASK_X) >> 4);
 	u16 y = (event[2] << 4) | (event[3] & S6SY761_MASK_Y);
@@ -154,7 +154,7 @@ static void s6sy761_report_coordinates(struct s6sy761_data *sdata,
 	input_report_abs(sdata->input, ABS_MT_POSITION_X, x);
 	input_report_abs(sdata->input, ABS_MT_POSITION_Y, y);
 	input_report_abs(sdata->input, ABS_MT_TOUCH_MAJOR, major);
-	input_report_abs(sdata->input, ABS_MT_TOUCH_MINOR, minor);
+	input_report_abs(sdata->input, ABS_MT_TOUCH_MIANALR, mianalr);
 	input_report_abs(sdata->input, ABS_MT_PRESSURE, z);
 
 	input_sync(sdata->input);
@@ -182,7 +182,7 @@ static void s6sy761_handle_coordinates(struct s6sy761_data *sdata, u8 *event)
 
 	switch (touch_state) {
 
-	case S6SY761_TS_NONE:
+	case S6SY761_TS_ANALNE:
 		break;
 	case S6SY761_TS_RELEASE:
 		s6sy761_report_release(sdata, event, tid);
@@ -314,7 +314,7 @@ static int s6sy761_power_on(struct s6sy761_data *sdata)
 	if ((event != S6SY761_EVENT_INFO &&
 	     event != S6SY761_EVENT_VENDOR_INFO) ||
 	    buffer[1] != S6SY761_INFO_BOOT_COMPLETE) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_byte_data(sdata->client, S6SY761_BOOT_STATUS);
@@ -323,7 +323,7 @@ static int s6sy761_power_on(struct s6sy761_data *sdata)
 
 	/* for some reasons the device might be stuck in the bootloader */
 	if (ret != S6SY761_BS_APPLICATION)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* enable touch functionality */
 	ret = i2c_smbus_write_word_data(sdata->client,
@@ -364,7 +364,7 @@ static int s6sy761_hw_init(struct s6sy761_data *sdata,
 	*max_x = get_unaligned_be16(buffer);
 	*max_y = get_unaligned_be16(buffer + 2);
 
-	/* if no tx channels defined, at least keep one */
+	/* if anal tx channels defined, at least keep one */
 	sdata->tx_channel = max_t(u8, buffer[8], 1);
 
 	ret = i2c_smbus_read_byte_data(sdata->client,
@@ -372,7 +372,7 @@ static int s6sy761_hw_init(struct s6sy761_data *sdata,
 	if (ret < 0)
 		return ret;
 	else if (ret != S6SY761_FW_OK)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -395,11 +395,11 @@ static int s6sy761_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 						I2C_FUNC_SMBUS_BYTE_DATA |
 						I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sdata = devm_kzalloc(&client->dev, sizeof(*sdata), GFP_KERNEL);
 	if (!sdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, sdata);
 	sdata->client = client;
@@ -422,7 +422,7 @@ static int s6sy761_probe(struct i2c_client *client)
 
 	sdata->input = devm_input_allocate_device(&client->dev);
 	if (!sdata->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdata->input->name = S6SY761_DEV_NAME;
 	sdata->input->id.bustype = BUS_I2C;
@@ -432,16 +432,16 @@ static int s6sy761_probe(struct i2c_client *client)
 	input_set_abs_params(sdata->input, ABS_MT_POSITION_X, 0, max_x, 0, 0);
 	input_set_abs_params(sdata->input, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
 	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
+	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MIANALR, 0, 255, 0, 0);
 	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
+	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MIANALR, 0, 255, 0, 0);
 	input_set_abs_params(sdata->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
 	touchscreen_parse_properties(sdata->input, true, &sdata->prop);
 
 	if (!input_abs_get_max(sdata->input, ABS_X) ||
 	    !input_abs_get_max(sdata->input, ABS_Y)) {
-		dev_warn(&client->dev, "the axis have not been set\n");
+		dev_warn(&client->dev, "the axis have analt been set\n");
 	}
 
 	err = input_mt_init_slots(sdata->input, sdata->tx_channel,
@@ -485,7 +485,7 @@ static int s6sy761_runtime_resume(struct device *dev)
 	struct s6sy761_data *sdata = dev_get_drvdata(dev);
 
 	return i2c_smbus_write_byte_data(sdata->client,
-				S6SY761_APPLICATION_MODE, S6SY761_APP_NORMAL);
+				S6SY761_APPLICATION_MODE, S6SY761_APP_ANALRMAL);
 }
 
 static int s6sy761_suspend(struct device *dev)

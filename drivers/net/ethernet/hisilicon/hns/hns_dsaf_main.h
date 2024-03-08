@@ -69,7 +69,7 @@ enum dsaf_roce_qos_sl {
 #define HNS_DSAF_IS_DEBUG(dev) ((dev)->dsaf_mode == DSAF_MODE_DISABLE_SP)
 
 enum hal_dsaf_mode {
-	HRD_DSAF_NO_DSAF_MODE	= 0x0,
+	HRD_DSAF_ANAL_DSAF_MODE	= 0x0,
 	HRD_DSAF_MODE		= 0x1,
 };
 
@@ -126,7 +126,7 @@ enum dsaf_stp_port_type {
 };
 
 enum dsaf_sw_port_type {
-	DSAF_SW_PORT_TYPE_NON_VLAN = 0,
+	DSAF_SW_PORT_TYPE_ANALN_VLAN = 0,
 	DSAF_SW_PORT_TYPE_ACCESS = 1,
 	DSAF_SW_PORT_TYPE_TRUNK = 2,
 };
@@ -143,15 +143,15 @@ enum dsaf_mode {
 	DSAF_MODE_ENABLE_32VM,	/**< en DSAF-mode, support 32 VM */
 	DSAF_MODE_ENABLE_128VM,	/**< en DSAF-mode, support 128 VM */
 	DSAF_MODE_ENABLE,		/**< before is enable DSAF mode*/
-	DSAF_MODE_DISABLE_SP,	/* <non-dsaf, single port mode */
-	DSAF_MODE_DISABLE_FIX,	/**< non-dasf, fixed to queue*/
-	DSAF_MODE_DISABLE_2PORT_8VM,	/**< non-dasf, 2port 8VM */
-	DSAF_MODE_DISABLE_2PORT_16VM,	/**< non-dasf, 2port 16VM */
-	DSAF_MODE_DISABLE_2PORT_64VM,	/**< non-dasf, 2port 64VM */
-	DSAF_MODE_DISABLE_6PORT_0VM,	/**< non-dasf, 6port 0VM */
-	DSAF_MODE_DISABLE_6PORT_2VM,	/**< non-dasf, 6port 2VM */
-	DSAF_MODE_DISABLE_6PORT_4VM,	/**< non-dasf, 6port 4VM */
-	DSAF_MODE_DISABLE_6PORT_16VM,	/**< non-dasf, 6port 16VM */
+	DSAF_MODE_DISABLE_SP,	/* <analn-dsaf, single port mode */
+	DSAF_MODE_DISABLE_FIX,	/**< analn-dasf, fixed to queue*/
+	DSAF_MODE_DISABLE_2PORT_8VM,	/**< analn-dasf, 2port 8VM */
+	DSAF_MODE_DISABLE_2PORT_16VM,	/**< analn-dasf, 2port 16VM */
+	DSAF_MODE_DISABLE_2PORT_64VM,	/**< analn-dasf, 2port 64VM */
+	DSAF_MODE_DISABLE_6PORT_0VM,	/**< analn-dasf, 6port 0VM */
+	DSAF_MODE_DISABLE_6PORT_2VM,	/**< analn-dasf, 6port 2VM */
+	DSAF_MODE_DISABLE_6PORT_4VM,	/**< analn-dasf, 6port 4VM */
+	DSAF_MODE_DISABLE_6PORT_16VM,	/**< analn-dasf, 6port 16VM */
 	DSAF_MODE_MAX		/**< the last one, use as the num */
 };
 
@@ -165,7 +165,7 @@ struct dsaf_drv_mac_single_dest_entry {
 	u16 in_vlan_id; /* value of VlanId */
 
 	/* the vld input port num, dsaf-mode fix 0, */
-	/*	non-dasf is the entry whitch port vld*/
+	/*	analn-dasf is the entry whitch port vld*/
 	u8 in_port_num;
 
 	u8 port_num; /*output port num*/
@@ -182,7 +182,7 @@ struct dsaf_drv_mac_multi_dest_entry {
 	u32 port_mask[DSAF_DEST_PORT_NUM / DSAF_WORD_BIT_CNT];
 
 	/* the vld input port num, dsaf-mode fix 0,*/
-	/*	non-dasf is the entry whitch port vld*/
+	/*	analn-dasf is the entry whitch port vld*/
 	u8 in_port_num;
 	u8 rsv[7];
 };
@@ -344,7 +344,7 @@ struct dsaf_device {
 	struct hns_mac_cb *mac_cb[DSAF_MAX_PORT_NUM];
 	struct dsaf_misc_op *misc_op;
 
-	struct dsaf_hw_stats hw_stats[DSAF_NODE_NUM];
+	struct dsaf_hw_stats hw_stats[DSAF_ANALDE_NUM];
 	struct dsaf_int_stat int_stat;
 	/* make sure tcam table config spinlock */
 	spinlock_t tcam_lock;
@@ -438,7 +438,7 @@ void hns_dsaf_fix_mac_mode(struct hns_mac_cb *mac_cb);
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev);
 void hns_dsaf_ae_uninit(struct dsaf_device *dsaf_dev);
 
-void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 inode_num);
+void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 ianalde_num);
 
 int hns_dsaf_get_sset_count(struct dsaf_device *dsaf_dev, int stringset);
 void hns_dsaf_get_stats(struct dsaf_device *ddev, u64 *data, int port);
@@ -463,6 +463,6 @@ int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     u8 mac_id, u8 port_num);
 int hns_dsaf_wait_pkt_clean(struct dsaf_device *dsaf_dev, int port);
 
-int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
+int hns_dsaf_roce_reset(struct fwanalde_handle *dsaf_fwanalde, bool dereset);
 
 #endif /* __HNS_DSAF_MAIN_H__ */

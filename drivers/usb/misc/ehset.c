@@ -4,7 +4,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
@@ -138,7 +138,7 @@ static int ehset_probe(struct usb_interface *intf,
 		/*
 		 * GetDescriptor SETUP request -> 15secs delay -> IN & STATUS
 		 *
-		 * Note, this test is only supported on root hubs since the
+		 * Analte, this test is only supported on root hubs since the
 		 * SetPortFeature handling can only be done inside the HCD's
 		 * hub_control callback function.
 		 */

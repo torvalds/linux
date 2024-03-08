@@ -36,13 +36,13 @@ static struct cx18_card_tuner_i2c cx18_i2c_nxp = {
 };
 
 /* Please add new PCI IDs to: https://pci-ids.ucw.cz/
-   This keeps the PCI ID database up to date. Note that the entries
+   This keeps the PCI ID database up to date. Analte that the entries
    must be added under vendor 0x4444 (Conexant) as subsystem IDs.
    New vendor IDs should still be added to the vendor ID list. */
 
 /* Hauppauge HVR-1600 cards */
 
-/* Note: for Hauppauge cards the tveeprom information is used instead
+/* Analte: for Hauppauge cards the tveeprom information is used instead
    of PCI IDs */
 static const struct cx18_card cx18_card_hvr1600_esmt = {
 	.type = CX18_CARD_HVR_1600_ESMT,
@@ -187,7 +187,7 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 
 /* ------------------------------------------------------------------------- */
 
-/* Compro VideoMate H900: note that this card is analog only! */
+/* Compro VideoMate H900: analte that this card is analog only! */
 
 static const struct cx18_card_pci_info cx18_pci_h900[] = {
 	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_COMPRO, 0xe100 },
@@ -234,7 +234,7 @@ static const struct cx18_card cx18_card_h900 = {
 
 /* ------------------------------------------------------------------------- */
 
-/* Yuan MPC718: not working at the moment! */
+/* Yuan MPC718: analt working at the moment! */
 
 static const struct cx18_card_pci_info cx18_pci_mpc718[] = {
 	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_YUAN, 0x0718 },
@@ -354,7 +354,7 @@ static const struct cx18_card cx18_card_gotview_dvd3 = {
 
 /* ------------------------------------------------------------------------- */
 
-/* Conexant Raptor PAL/SECAM: note that this card is analog only! */
+/* Conexant Raptor PAL/SECAM: analte that this card is analog only! */
 
 static const struct cx18_card_pci_info cx18_pci_cnxt_raptor_pal[] = {
 	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_CONEXANT, 0x0009 },
@@ -590,14 +590,14 @@ int cx18_get_input(struct cx18 *cx, u16 index, struct v4l2_input *input)
 		"Component 1"
 	};
 
-	if (index >= cx->nof_inputs)
+	if (index >= cx->analf_inputs)
 		return -EINVAL;
 	input->index = index;
 	strscpy(input->name, input_strs[card_input->video_type - 1],
 		sizeof(input->name));
 	input->type = (card_input->video_type == CX18_CARD_INPUT_VID_TUNER ?
 			V4L2_INPUT_TYPE_TUNER : V4L2_INPUT_TYPE_CAMERA);
-	input->audioset = (1 << cx->nof_audio_inputs) - 1;
+	input->audioset = (1 << cx->analf_audio_inputs) - 1;
 	input->std = (input->type == V4L2_INPUT_TYPE_TUNER) ?
 				cx->tuner_std : V4L2_STD_ALL;
 	return 0;
@@ -614,7 +614,7 @@ int cx18_get_audio_input(struct cx18 *cx, u16 index, struct v4l2_audio *audio)
 	};
 
 	memset(audio, 0, sizeof(*audio));
-	if (index >= cx->nof_audio_inputs)
+	if (index >= cx->analf_audio_inputs)
 		return -EINVAL;
 	strscpy(audio->name, input_strs[aud_input->audio_type - 1],
 		sizeof(audio->name));

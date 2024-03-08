@@ -215,7 +215,7 @@ static const struct watchdog_ops stm32_iwdg_ops = {
 static const struct of_device_id stm32_iwdg_of_match[] = {
 	{ .compatible = "st,stm32-iwdg", .data = &stm32_iwdg_data },
 	{ .compatible = "st,stm32mp1-iwdg", .data = &stm32mp1_iwdg_data },
-	{ /* end node */ }
+	{ /* end analde */ }
 };
 MODULE_DEVICE_TABLE(of, stm32_iwdg_of_match);
 
@@ -228,11 +228,11 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->data = of_device_get_match_data(&pdev->dev);
 	if (!wdt->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* This is the timer base. */
 	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -253,7 +253,7 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 				    1000) / wdt->rate;
 
 	watchdog_set_drvdata(wdd, wdt);
-	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_analwayout(wdd, WATCHDOG_ANALWAYOUT);
 	watchdog_init_timeout(wdd, 0, dev);
 
 	/*
@@ -261,7 +261,7 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 	 * (Means U-Boot/bootloaders leaves the watchdog running)
 	 * When we get here we should make a decision to prevent
 	 * any side effects before user space daemon will take care of it.
-	 * The best option, taking into consideration that there is no
+	 * The best option, taking into consideration that there is anal
 	 * way to read values back from hardware, is to enforce watchdog
 	 * being run with deterministic values.
 	 */

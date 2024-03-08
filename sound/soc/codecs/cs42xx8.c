@@ -380,7 +380,7 @@ static const struct snd_soc_dai_ops cs42xx8_dai_ops = {
 	.hw_params	= cs42xx8_hw_params,
 	.hw_free	= cs42xx8_hw_free,
 	.mute_stream	= cs42xx8_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42xx8_dai = {
@@ -523,7 +523,7 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap, struct cs42xx8_driv
 
 	cs42xx8 = devm_kzalloc(dev, sizeof(*cs42xx8), GFP_KERNEL);
 	if (cs42xx8 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, cs42xx8);
 

@@ -76,9 +76,9 @@ struct axon_msic {
 };
 
 #ifdef DEBUG
-void axon_msi_debug_setup(struct device_node *dn, struct axon_msic *msic);
+void axon_msi_debug_setup(struct device_analde *dn, struct axon_msic *msic);
 #else
-static inline void axon_msi_debug_setup(struct device_node *dn,
+static inline void axon_msi_debug_setup(struct device_analde *dn,
 					struct axon_msic *msic) { }
 #endif
 
@@ -117,7 +117,7 @@ static void axon_msi_cascade(struct irq_desc *desc)
 			msic->fifo_virt[idx] = cpu_to_le32(0xffffffff);
 		} else {
 			/*
-			 * Reading the MSIC_WRITE_OFFSET_REG does not
+			 * Reading the MSIC_WRITE_OFFSET_REG does analt
 			 * reliably flush the outstanding DMA to the
 			 * FIFO buffer. Here we were reading stale
 			 * data, so we need to retry.
@@ -151,13 +151,13 @@ static void axon_msi_cascade(struct irq_desc *desc)
 static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 {
 	struct irq_domain *irq_domain;
-	struct device_node *dn, *tmp;
+	struct device_analde *dn, *tmp;
 	const phandle *ph;
 	struct axon_msic *msic = NULL;
 
-	dn = of_node_get(pci_device_to_OF_node(dev));
+	dn = of_analde_get(pci_device_to_OF_analde(dev));
 	if (!dn) {
-		dev_dbg(&dev->dev, "axon_msi: no pci_dn found\n");
+		dev_dbg(&dev->dev, "axon_msi: anal pci_dn found\n");
 		return NULL;
 	}
 
@@ -169,22 +169,22 @@ static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 
 	if (!ph) {
 		dev_dbg(&dev->dev,
-			"axon_msi: no msi-translator property found\n");
+			"axon_msi: anal msi-translator property found\n");
 		goto out_error;
 	}
 
 	tmp = dn;
-	dn = of_find_node_by_phandle(*ph);
-	of_node_put(tmp);
+	dn = of_find_analde_by_phandle(*ph);
+	of_analde_put(tmp);
 	if (!dn) {
 		dev_dbg(&dev->dev,
-			"axon_msi: msi-translator doesn't point to a node\n");
+			"axon_msi: msi-translator doesn't point to a analde\n");
 		goto out_error;
 	}
 
 	irq_domain = irq_find_host(dn);
 	if (!irq_domain) {
-		dev_dbg(&dev->dev, "axon_msi: no irq_domain found for node %pOF\n",
+		dev_dbg(&dev->dev, "axon_msi: anal irq_domain found for analde %pOF\n",
 			dn);
 		goto out_error;
 	}
@@ -192,25 +192,25 @@ static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 	msic = irq_domain->host_data;
 
 out_error:
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	return msic;
 }
 
 static int setup_msi_msg_address(struct pci_dev *dev, struct msi_msg *msg)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	int len;
 	const u32 *prop;
 
-	dn = of_node_get(pci_device_to_OF_node(dev));
+	dn = of_analde_get(pci_device_to_OF_analde(dev));
 	if (!dn) {
-		dev_dbg(&dev->dev, "axon_msi: no pci_dn found\n");
-		return -ENODEV;
+		dev_dbg(&dev->dev, "axon_msi: anal pci_dn found\n");
+		return -EANALDEV;
 	}
 
 	for (; dn; dn = of_get_next_parent(dn)) {
-		if (!dev->no_64bit_msi) {
+		if (!dev->anal_64bit_msi) {
 			prop = of_get_property(dn, "msi-address-64", &len);
 			if (prop)
 				break;
@@ -223,9 +223,9 @@ static int setup_msi_msg_address(struct pci_dev *dev, struct msi_msg *msg)
 
 	if (!prop) {
 		dev_dbg(&dev->dev,
-			"axon_msi: no msi-address-(32|64) properties found\n");
-		of_node_put(dn);
-		return -ENOENT;
+			"axon_msi: anal msi-address-(32|64) properties found\n");
+		of_analde_put(dn);
+		return -EANALENT;
 	}
 
 	switch (len) {
@@ -240,11 +240,11 @@ static int setup_msi_msg_address(struct pci_dev *dev, struct msi_msg *msg)
 	default:
 		dev_dbg(&dev->dev,
 			"axon_msi: malformed msi-address-(32|64) property\n");
-		of_node_put(dn);
+		of_analde_put(dn);
 		return -EINVAL;
 	}
 
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	return 0;
 }
@@ -258,13 +258,13 @@ static int axon_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	msic = find_msi_translator(dev);
 	if (!msic)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = setup_msi_msg_address(dev, &msg);
 	if (rc)
 		return rc;
 
-	msi_for_each_desc(entry, &dev->dev, MSI_DESC_NOTASSOCIATED) {
+	msi_for_each_desc(entry, &dev->dev, MSI_DESC_ANALTASSOCIATED) {
 		virq = irq_create_direct_mapping(msic->irq_domain);
 		if (!virq) {
 			dev_warn(&dev->dev,
@@ -320,7 +320,7 @@ static void axon_msi_shutdown(struct platform_device *device)
 	u32 tmp;
 
 	pr_devel("axon_msi: disabling %pOF\n",
-		 irq_domain_get_of_node(msic->irq_domain));
+		 irq_domain_get_of_analde(msic->irq_domain));
 	tmp  = dcr_read(msic->dcr_host, MSIC_CTRL_REG);
 	tmp &= ~MSIC_CTRL_ENABLE & ~MSIC_CTRL_IRQ_ENABLE;
 	msic_dcr_write(msic, MSIC_CTRL_REG, tmp);
@@ -328,7 +328,7 @@ static void axon_msi_shutdown(struct platform_device *device)
 
 static int axon_msi_probe(struct platform_device *device)
 {
-	struct device_node *dn = device->dev.of_node;
+	struct device_analde *dn = device->dev.of_analde;
 	struct axon_msic *msic;
 	unsigned int virq;
 	int dcr_base, dcr_len;
@@ -376,7 +376,7 @@ static int axon_msi_probe(struct platform_device *device)
 	memset(msic->fifo_virt, 0xff, MSIC_FIFO_SIZE_BYTES);
 
 	/* We rely on being able to stash a virq in a u16, so limit irqs to < 65536 */
-	msic->irq_domain = irq_domain_add_nomap(dn, 65536, &msic_host_ops, msic);
+	msic->irq_domain = irq_domain_add_analmap(dn, 65536, &msic_host_ops, msic);
 	if (!msic->irq_domain) {
 		printk(KERN_ERR "axon_msi: couldn't allocate irq_domain for %pOF\n",
 		       dn);
@@ -458,7 +458,7 @@ static int msic_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_msic, msic_get, msic_set, "%llu\n");
 
-void axon_msi_debug_setup(struct device_node *dn, struct axon_msic *msic)
+void axon_msi_debug_setup(struct device_analde *dn, struct axon_msic *msic)
 {
 	char name[8];
 	struct resource res;
@@ -474,7 +474,7 @@ void axon_msi_debug_setup(struct device_node *dn, struct axon_msic *msic)
 		return;
 	}
 
-	snprintf(name, sizeof(name), "msic_%d", of_node_to_nid(dn));
+	snprintf(name, sizeof(name), "msic_%d", of_analde_to_nid(dn));
 
 	debugfs_create_file(name, 0600, arch_debugfs_dir, msic, &fops_msic);
 }

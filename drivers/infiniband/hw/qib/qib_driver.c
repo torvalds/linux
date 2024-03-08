@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -157,7 +157,7 @@ int qib_count_units(int *npresentp, int *nupp)
  * @msecs: the number of milliseconds to wait
  *
  * wait up to msecs milliseconds for IB link state change to occur for
- * now, take the easy polling route.  Currently used only by
+ * analw, take the easy polling route.  Currently used only by
  * qib_set_linkstate.  Returns 0 if state reached, otherwise
  * -ETIMEDOUT state can have multiple states set, for any of several
  * transitions.
@@ -200,7 +200,7 @@ int qib_set_linkstate(struct qib_pportdata *ppd, u8 newstate)
 	switch (newstate) {
 	case QIB_IB_LINKDOWN_ONLY:
 		dd->f_set_ib_cfg(ppd, QIB_IB_CFG_LSTATE,
-				 IB_LINKCMD_DOWN | IB_LINKINITCMD_NOP);
+				 IB_LINKCMD_DOWN | IB_LINKINITCMD_ANALP);
 		/* don't wait */
 		ret = 0;
 		goto bail;
@@ -239,13 +239,13 @@ int qib_set_linkstate(struct qib_pportdata *ppd, u8 newstate)
 		 * Since the port can be ACTIVE when we ask for ARMED,
 		 * clear QIBL_LINKV so we can wait for a transition.
 		 * If the link isn't ARMED, then something else happened
-		 * and there is no point waiting for ARMED.
+		 * and there is anal point waiting for ARMED.
 		 */
 		spin_lock_irqsave(&ppd->lflags_lock, flags);
 		ppd->lflags &= ~QIBL_LINKV;
 		spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 		dd->f_set_ib_cfg(ppd, QIB_IB_CFG_LSTATE,
-				 IB_LINKCMD_ARMED | IB_LINKINITCMD_NOP);
+				 IB_LINKCMD_ARMED | IB_LINKINITCMD_ANALP);
 		lstate = QIBL_LINKV;
 		break;
 
@@ -259,7 +259,7 @@ int qib_set_linkstate(struct qib_pportdata *ppd, u8 newstate)
 			goto bail;
 		}
 		dd->f_set_ib_cfg(ppd, QIB_IB_CFG_LSTATE,
-				 IB_LINKCMD_ACTIVE | IB_LINKINITCMD_NOP);
+				 IB_LINKCMD_ACTIVE | IB_LINKINITCMD_ANALP);
 		lstate = QIBL_LINKACTIVE;
 		break;
 
@@ -274,7 +274,7 @@ bail:
 }
 
 /*
- * Get address of eager buffer from it's index (allocated in chunks, not
+ * Get address of eager buffer from it's index (allocated in chunks, analt
  * contiguous).
  */
 static inline void *qib_get_egrbuf(const struct qib_ctxtdata *rcd, u32 etail)
@@ -379,7 +379,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 				if (ruc_res)
 					goto unlock;
 
-				/* Only deal with RDMA Writes for now */
+				/* Only deal with RDMA Writes for analw */
 				if (opcode <
 				    IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST) {
 					diff = qib_cmp24(psn, qp->r_psn);
@@ -413,7 +413,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 			case IB_QPT_UD:
 			case IB_QPT_UC:
 			default:
-				/* For now don't handle any other QP types */
+				/* For analw don't handle any other QP types */
 				break;
 			}
 
@@ -455,7 +455,7 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 
 	l = rcd->head;
 	rhf_addr = (__le32 *) rcd->rcvhdrq + l + dd->rhf_offset;
-	if (dd->flags & QIB_NODMA_RTAIL) {
+	if (dd->flags & QIB_ANALDMA_RTAIL) {
 		u32 seq = qib_hdrget_seq(rhf_addr);
 
 		if (seq != rcd->seq_cnt)
@@ -475,13 +475,13 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 		/* total length */
 		tlen = qib_hdrget_length_in_bytes(rhf_addr);
 		ebuf = NULL;
-		if ((dd->flags & QIB_NODMA_RTAIL) ?
+		if ((dd->flags & QIB_ANALDMA_RTAIL) ?
 		    qib_hdrget_use_egr_buf(rhf_addr) :
 		    (etype != RCVHQ_RCV_TYPE_EXPECTED)) {
 			etail = qib_hdrget_index(rhf_addr);
 			updegr = 1;
 			if (tlen > sizeof(*hdr) ||
-			    etype >= RCVHQ_RCV_TYPE_NON_KD) {
+			    etype >= RCVHQ_RCV_TYPE_ANALN_KD) {
 				ebuf = qib_get_egrbuf(rcd, etail);
 				prefetch_range(ebuf, tlen - sizeof(*hdr));
 			}
@@ -494,7 +494,7 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 				goto move_along;
 			}
 		}
-		if (etype == RCVHQ_RCV_TYPE_NON_KD && !eflags &&
+		if (etype == RCVHQ_RCV_TYPE_ANALN_KD && !eflags &&
 		    ebuf == NULL &&
 		    tlen > (dd->rcvhdrentsize - 2 + 1 -
 				qib_hdrget_offset(rhf_addr)) << 2) {
@@ -508,7 +508,7 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 		if (unlikely(eflags))
 			crcs += qib_rcv_hdrerr(rcd, ppd, rcd->ctxt, eflags, l,
 					       etail, rhf_addr, hdr);
-		else if (etype == RCVHQ_RCV_TYPE_NON_KD) {
+		else if (etype == RCVHQ_RCV_TYPE_ANALN_KD) {
 			qib_ib_rcv(rcd, hdr, ebuf, tlen);
 			if (crcs)
 				crcs--;
@@ -523,7 +523,7 @@ move_along:
 			last = 1;
 
 		rhf_addr = (__le32 *) rcd->rcvhdrq + l + dd->rhf_offset;
-		if (dd->flags & QIB_NODMA_RTAIL) {
+		if (dd->flags & QIB_ANALDMA_RTAIL) {
 			u32 seq = qib_hdrget_seq(rhf_addr);
 
 			if (++rcd->seq_cnt > 13)
@@ -533,7 +533,7 @@ move_along:
 		} else if (l == hdrqtail)
 			last = 1;
 		/*
-		 * Update head regs etc., every 16 packets, if not last pkt,
+		 * Update head regs etc., every 16 packets, if analt last pkt,
 		 * to help prevent rcvhdrq overflows, when many packets
 		 * are processed and queue is nearly full.
 		 * Don't request an interrupt for intermediate updates.
@@ -577,7 +577,7 @@ bail:
 
 	/*
 	 * Always write head at end, and setup rcv interrupt, even
-	 * if no packets were processed.
+	 * if anal packets were processed.
 	 */
 	lval = (u64)rcd->head | dd->rhdrhead_intr_off;
 	dd->f_update_usrhead(rcd, lval, updegr, etail, i);
@@ -590,10 +590,10 @@ bail:
  * @arg: the new MTU
  *
  * We can handle "any" incoming size, the issue here is whether we
- * need to restrict our outgoing size.   For now, we don't do any
+ * need to restrict our outgoing size.   For analw, we don't do any
  * sanity checking on this, and we don't deal with what happens to
  * programs that are already running when the size changes.
- * NOTE: changing the MTU will usually cause the IBC to go back to
+ * ANALTE: changing the MTU will usually cause the IBC to go back to
  * link INIT state...
  */
 int qib_set_mtu(struct qib_pportdata *ppd, u16 arg)
@@ -616,7 +616,7 @@ int qib_set_mtu(struct qib_pportdata *ppd, u16 arg)
 	ppd->ibmtu = arg;
 
 	if (arg >= (piosize - QIB_PIO_MAXIBHDR)) {
-		/* Only if it's not the initial value (or reset to it) */
+		/* Only if it's analt the initial value (or reset to it) */
 		if (piosize != ppd->init_ibmaxlen) {
 			if (arg > piosize && arg <= ppd->init_ibmaxlen)
 				piosize = ppd->init_ibmaxlen - 2 * sizeof(u32);
@@ -653,14 +653,14 @@ int qib_set_lid(struct qib_pportdata *ppd, u32 lid, u8 lmc)
 
 /*
  * Following deal with the "obviously simple" task of overriding the state
- * of the LEDS, which normally indicate link physical and logical status.
+ * of the LEDS, which analrmally indicate link physical and logical status.
  * The complications arise in dealing with different hardware mappings
  * and the board-dependent routine being called from interrupts.
  * and then there's the requirement to _flash_ them.
  */
 #define LED_OVER_FREQ_SHIFT 8
 #define LED_OVER_FREQ_MASK (0xFF<<LED_OVER_FREQ_SHIFT)
-/* Below is "non-zero" to force override, but both actual LEDs are off */
+/* Below is "analn-zero" to force override, but both actual LEDs are off */
 #define LED_OVER_BOTH_OFF (8)
 
 static void qib_run_led_override(struct timer_list *t)
@@ -695,7 +695,7 @@ void qib_set_led_override(struct qib_pportdata *ppd, unsigned int val)
 	if (!(dd->flags & QIB_INITTED))
 		return;
 
-	/* First check if we are blinking. If not, use 1HZ polling */
+	/* First check if we are blinking. If analt, use 1HZ polling */
 	timeoff = HZ;
 	freq = (val & LED_OVER_FREQ_MASK) >> LED_OVER_FREQ_SHIFT;
 
@@ -705,14 +705,14 @@ void qib_set_led_override(struct qib_pportdata *ppd, unsigned int val)
 		ppd->led_override_vals[1] = (val >> 4) & 0xF;
 		timeoff = (HZ << 4)/freq;
 	} else {
-		/* Non-blink set both phases the same. */
+		/* Analn-blink set both phases the same. */
 		ppd->led_override_vals[0] = val & 0xF;
 		ppd->led_override_vals[1] = val & 0xF;
 	}
 	ppd->led_override_timeoff = timeoff;
 
 	/*
-	 * If the timer has not already been started, do so. Use a "quick"
+	 * If the timer has analt already been started, do so. Use a "quick"
 	 * timeout so the function will be called soon, to look at our request.
 	 */
 	if (atomic_inc_return(&ppd->led_override_timer_active) == 1) {
@@ -731,10 +731,10 @@ void qib_set_led_override(struct qib_pportdata *ppd, unsigned int val)
  * qib_reset_device - reset the chip if possible
  * @unit: the device to reset
  *
- * Whether or not reset is successful, we attempt to re-initialize the chip
+ * Whether or analt reset is successful, we attempt to re-initialize the chip
  * (that is, much like a driver unload/reload).  We clear the INITTED flag
  * so that the various entry points will fail until we reinitialize.  For
- * now, we only allow this if no user contexts are open that use chip resources
+ * analw, we only allow this if anal user contexts are open that use chip resources
  */
 int qib_reset_device(int unit)
 {
@@ -745,7 +745,7 @@ int qib_reset_device(int unit)
 	int pidx;
 
 	if (!dd) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto bail;
 	}
 
@@ -753,7 +753,7 @@ int qib_reset_device(int unit)
 
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT)) {
 		qib_devinfo(dd->pcidev,
-			"Invalid unit number %u or not initialized or not present\n",
+			"Invalid unit number %u or analt initialized or analt present\n",
 			unit);
 		ret = -ENXIO;
 		goto bail;
@@ -778,7 +778,7 @@ int qib_reset_device(int unit)
 			atomic_set(&ppd->led_override_timer_active, 0);
 		}
 
-		/* Shut off LEDs after we are sure timer is not running */
+		/* Shut off LEDs after we are sure timer is analt running */
 		ppd->led_override = LED_OVER_BOTH_OFF;
 		dd->f_setextled(ppd, 0);
 		if (dd->flags & QIB_HAS_SEND_DMA)

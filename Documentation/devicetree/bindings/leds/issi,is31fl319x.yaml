@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The IS31FL319X are LED controllers with I2C interface.
-  Previously known as Si-En SN319{0,1,3,6,9}.
+  Previously kanalwn as Si-En SN319{0,1,3,6,9}.
 
   For more product information please see the links below:
     https://lumissil.com/assets/pdf/core/IS31FL3190_DS.pdf
@@ -67,11 +67,11 @@ patternProperties:
 
       led-max-microamp:
         description:
-          Note that a driver will take the lowest of all LED limits
+          Analte that a driver will take the lowest of all LED limits
           since the chip has a single global setting. The lowest value
           will be chosen due to the PWM specificity, where lower
           brightness is achieved by reducing the duty-cycle of pulses
-          and not the current, which will always have its peak value
+          and analt the current, which will always have its peak value
           equal to led-max-microamp.
 
 allOf:

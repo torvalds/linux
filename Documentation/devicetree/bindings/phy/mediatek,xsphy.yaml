@@ -41,7 +41,7 @@ description: |
   DIG_GLB & PHYA_GLB are shared by U31 ports.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^xs-phy@[0-9a-f]+$"
 
   compatible:
@@ -76,14 +76,14 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 17
 
-# Required child node:
+# Required child analde:
 patternProperties:
   "^usb-phy@[0-9a-f]+$":
     type: object
     description:
-      A sub-node is required for each port the controller provides.
+      A sub-analde is required for each port the controller provides.
       Address range information including the usual 'reg' property
-      is used inside these nodes to describe the controller's topology.
+      is used inside these analdes to describe the controller's topology.
 
     properties:
       reg:

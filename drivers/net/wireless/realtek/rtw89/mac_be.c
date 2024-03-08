@@ -342,7 +342,7 @@ static void rtw89_mac_dmac_func_pre_en_be(struct rtw89_dev *rtwdev)
 
 	switch (rtwdev->hci.type) {
 	case RTW89_HCI_TYPE_PCIE:
-		val = u32_replace_bits(val, S_BE_DMA_MOD_PCIE_NO_DATA_CPU,
+		val = u32_replace_bits(val, S_BE_DMA_MOD_PCIE_ANAL_DATA_CPU,
 				       B_BE_DMA_MODE_MASK);
 		break;
 	case RTW89_HCI_TYPE_USB:
@@ -378,7 +378,7 @@ int rtw89_mac_write_xtal_si_be(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 m
 	val32 = u32_encode_bits(offset, B_BE_WL_XTAL_SI_ADDR_MASK) |
 		u32_encode_bits(val, B_BE_WL_XTAL_SI_DATA_MASK) |
 		u32_encode_bits(mask, B_BE_WL_XTAL_SI_BITMASK_MASK) |
-		u32_encode_bits(XTAL_SI_NORMAL_WRITE, B_BE_WL_XTAL_SI_MODE_MASK) |
+		u32_encode_bits(XTAL_SI_ANALRMAL_WRITE, B_BE_WL_XTAL_SI_MODE_MASK) |
 		u32_encode_bits(0, B_BE_WL_XTAL_SI_CHIPID_MASK) |
 		B_BE_WL_XTAL_SI_CMD_POLL;
 	rtw89_write32(rtwdev, R_BE_WLAN_XTAL_SI_CTRL, val32);
@@ -386,7 +386,7 @@ int rtw89_mac_write_xtal_si_be(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 m
 	ret = read_poll_timeout(rtw89_read32, val32, !(val32 & B_BE_WL_XTAL_SI_CMD_POLL),
 				50, 50000, false, rtwdev, R_BE_WLAN_XTAL_SI_CTRL);
 	if (ret) {
-		rtw89_warn(rtwdev, "xtal si not ready(W): offset=%x val=%x mask=%x\n",
+		rtw89_warn(rtwdev, "xtal si analt ready(W): offset=%x val=%x mask=%x\n",
 			   offset, val, mask);
 		return ret;
 	}
@@ -403,7 +403,7 @@ int rtw89_mac_read_xtal_si_be(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 	val32 = u32_encode_bits(offset, B_BE_WL_XTAL_SI_ADDR_MASK) |
 		u32_encode_bits(0x0, B_BE_WL_XTAL_SI_DATA_MASK) |
 		u32_encode_bits(0x0, B_BE_WL_XTAL_SI_BITMASK_MASK) |
-		u32_encode_bits(XTAL_SI_NORMAL_READ, B_BE_WL_XTAL_SI_MODE_MASK) |
+		u32_encode_bits(XTAL_SI_ANALRMAL_READ, B_BE_WL_XTAL_SI_MODE_MASK) |
 		u32_encode_bits(0, B_BE_WL_XTAL_SI_CHIPID_MASK) |
 		B_BE_WL_XTAL_SI_CMD_POLL;
 	rtw89_write32(rtwdev, R_BE_WLAN_XTAL_SI_CTRL, val32);
@@ -411,7 +411,7 @@ int rtw89_mac_read_xtal_si_be(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 	ret = read_poll_timeout(rtw89_read32, val32, !(val32 & B_BE_WL_XTAL_SI_CMD_POLL),
 				50, 50000, false, rtwdev, R_BE_WLAN_XTAL_SI_CTRL);
 	if (ret) {
-		rtw89_warn(rtwdev, "xtal si not ready(R): offset=%x\n", offset);
+		rtw89_warn(rtwdev, "xtal si analt ready(R): offset=%x\n", offset);
 		return ret;
 	}
 
@@ -458,17 +458,17 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 
 	val32 = rtw89_read32(rtwdev, R_BE_HALT_C2H);
 	if (val32) {
-		rtw89_warn(rtwdev, "[SER] AON L2 Debug register not empty before Boot.\n");
+		rtw89_warn(rtwdev, "[SER] AON L2 Debug register analt empty before Boot.\n");
 		rtw89_warn(rtwdev, "[SER] %s: R_BE_HALT_C2H = 0x%x\n", __func__, val32);
 	}
 	val32 = rtw89_read32(rtwdev, R_BE_UDM1);
 	if (val32) {
-		rtw89_warn(rtwdev, "[SER] AON L2 Debug register not empty before Boot.\n");
+		rtw89_warn(rtwdev, "[SER] AON L2 Debug register analt empty before Boot.\n");
 		rtw89_warn(rtwdev, "[SER] %s: R_BE_UDM1 = 0x%x\n", __func__, val32);
 	}
 	val32 = rtw89_read32(rtwdev, R_BE_UDM2);
 	if (val32) {
-		rtw89_warn(rtwdev, "[SER] AON L2 Debug register not empty before Boot.\n");
+		rtw89_warn(rtwdev, "[SER] AON L2 Debug register analt empty before Boot.\n");
 		rtw89_warn(rtwdev, "[SER] %s: R_BE_UDM2 = 0x%x\n", __func__, val32);
 	}
 
@@ -518,7 +518,7 @@ static const u8 fwdl_status_map[] = {
 	[4] = RTW89_FWDL_CHECKSUM_FAIL,
 	[5] = RTW89_FWDL_SECURITY_FAIL,
 	[6] = RTW89_FWDL_SECURITY_FAIL,
-	[7] = RTW89_FWDL_CV_NOT_MATCH,
+	[7] = RTW89_FWDL_CV_ANALT_MATCH,
 	[8] = RTW89_FWDL_RSVD0,
 	[2] = RTW89_FWDL_WCPU_FWDL_RDY,
 	[3] = RTW89_FWDL_WCPU_FW_INIT_RDY,
@@ -828,21 +828,21 @@ static int scheduler_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_HE_CTN_CHK_CCA_NAV, mac_idx);
 	val32 = B_BE_HE_CTN_CHK_CCA_P20 | B_BE_HE_CTN_CHK_EDCCA_P20 |
 		B_BE_HE_CTN_CHK_CCA_BITMAP | B_BE_HE_CTN_CHK_EDCCA_BITMAP |
-		B_BE_HE_CTN_CHK_NO_GNT_WL | B_BE_HE_CTN_CHK_BASIC_NAV |
+		B_BE_HE_CTN_CHK_ANAL_GNT_WL | B_BE_HE_CTN_CHK_BASIC_NAV |
 		B_BE_HE_CTN_CHK_INTRA_NAV | B_BE_HE_CTN_CHK_TX_NAV;
 	rtw89_write32(rtwdev, reg, val32);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_HE_SIFS_CHK_CCA_NAV, mac_idx);
 	val32 = B_BE_HE_SIFS_CHK_EDCCA_P20 | B_BE_HE_SIFS_CHK_EDCCA_BITMAP |
-		B_BE_HE_SIFS_CHK_NO_GNT_WL;
+		B_BE_HE_SIFS_CHK_ANAL_GNT_WL;
 	rtw89_write32(rtwdev, reg, val32);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TB_CHK_CCA_NAV, mac_idx);
-	val32 = B_BE_TB_CHK_EDCCA_BITMAP | B_BE_TB_CHK_NO_GNT_WL | B_BE_TB_CHK_BASIC_NAV;
+	val32 = B_BE_TB_CHK_EDCCA_BITMAP | B_BE_TB_CHK_ANAL_GNT_WL | B_BE_TB_CHK_BASIC_NAV;
 	rtw89_write32(rtwdev, reg, val32);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CCA_CFG_0, mac_idx);
-	rtw89_write32_clr(rtwdev, reg, B_BE_NO_GNT_WL_EN);
+	rtw89_write32_clr(rtwdev, reg, B_BE_ANAL_GNT_WL_EN);
 
 	if (is_qta_poh(rtwdev)) {
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_PREBKF_CFG_0, mac_idx);
@@ -850,7 +850,7 @@ static int scheduler_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 				   SCH_PREBKF_24US);
 
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CTN_CFG_0, mac_idx);
-		rtw89_write32_mask(rtwdev, reg, B_BE_PREBKF_TIME_NONAC_MASK,
+		rtw89_write32_mask(rtwdev, reg, B_BE_PREBKF_TIME_ANALNAC_MASK,
 				   SCH_PREBKF_24US);
 	}
 
@@ -1384,7 +1384,7 @@ static int dle_buf_req_be(struct rtw89_dev *rtwdev, u16 buf_len, bool wd, u16 *p
 
 	*pkt_id = u32_get_bits(val, B_BE_WD_BUF_STAT_PKTID_MASK);
 	if (*pkt_id == S_WD_BUF_STAT_PKTID_INVALID)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -1519,7 +1519,7 @@ static void err_imr_ctrl_be(struct rtw89_dev *rtwdev, bool en)
 	u32 v32_cmac0 = en ? CMAC0_ERR_IMR_EN : CMAC0_ERR_IMR_DIS;
 	u32 v32_cmac1 = en ? CMAC1_ERR_IMR_EN : CMAC1_ERR_IMR_DIS;
 
-	v32_dmac &= ~B_BE_DMAC_NOTX_ERR_INT_EN;
+	v32_dmac &= ~B_BE_DMAC_ANALTX_ERR_INT_EN;
 
 	rtw89_write32(rtwdev, R_BE_DMAC_ERR_IMR, v32_dmac);
 	rtw89_write32(rtwdev, R_BE_CMAC_ERR_IMR, v32_cmac0);
@@ -1614,18 +1614,18 @@ static int dbcc_enable_be(struct rtw89_dev *rtwdev, bool enable)
 		}
 
 		if (test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags)) {
-			ret = rtw89_fw_h2c_notify_dbcc(rtwdev, true);
+			ret = rtw89_fw_h2c_analtify_dbcc(rtwdev, true);
 			if (ret) {
-				rtw89_err(rtwdev, "%s:[ERR]notfify dbcc1 fail %d\n",
+				rtw89_err(rtwdev, "%s:[ERR]analtfify dbcc1 fail %d\n",
 					  __func__, ret);
 				return ret;
 			}
 		}
 	} else {
 		if (test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags)) {
-			ret = rtw89_fw_h2c_notify_dbcc(rtwdev, false);
+			ret = rtw89_fw_h2c_analtify_dbcc(rtwdev, false);
 			if (ret) {
-				rtw89_err(rtwdev, "%s:[ERR]notfify dbcc1 fail %d\n",
+				rtw89_err(rtwdev, "%s:[ERR]analtfify dbcc1 fail %d\n",
 					  __func__, ret);
 				return ret;
 			}
@@ -1747,7 +1747,7 @@ static bool rtw89_mac_get_txpwr_cr_be(struct rtw89_dev *rtwdev,
 	if (*cr >= CMAC1_START_ADDR_BE && *cr <= CMAC1_END_ADDR_BE) {
 		if (mode == RTW89_QTA_SCC) {
 			rtw89_err(rtwdev,
-				  "[TXPWR] addr=0x%x but hw not enable\n",
+				  "[TXPWR] addr=0x%x but hw analt enable\n",
 				  *cr);
 			return false;
 		}
@@ -1938,7 +1938,7 @@ static void rtw89_mac_dump_qta_lost_be(struct rtw89_dev *rtwdev)
 	struct rtw89_mac_dle_dfi_qempty qempty;
 	struct rtw89_mac_dle_dfi_quota quota;
 	struct rtw89_mac_dle_dfi_ctrl ctrl;
-	u32 val, not_empty, i;
+	u32 val, analt_empty, i;
 	int ret;
 
 	qempty.dle_type = DLE_CTRL_TYPE_PLE;
@@ -1950,8 +1950,8 @@ static void rtw89_mac_dump_qta_lost_be(struct rtw89_dev *rtwdev)
 	else
 		rtw89_info(rtwdev, "DLE group0 empty: 0x%x\n", qempty.qempty);
 
-	for (not_empty = ~qempty.qempty, i = 0; not_empty != 0; not_empty >>= 1, i++) {
-		if (!(not_empty & BIT(0)))
+	for (analt_empty = ~qempty.qempty, i = 0; analt_empty != 0; analt_empty >>= 1, i++) {
+		if (!(analt_empty & BIT(0)))
 			continue;
 		ctrl.type = DLE_CTRL_TYPE_PLE;
 		ctrl.target = DLE_DFI_TYPE_QLNKTBL;
@@ -2029,7 +2029,7 @@ static void rtw89_mac_dump_cmac_err_status_be(struct rtw89_dev *rtwdev,
 
 	ret = rtw89_mac_check_mac_en(rtwdev, band, RTW89_CMAC_SEL);
 	if (ret) {
-		rtw89_info(rtwdev, "[CMAC] : CMAC%d not enabled\n", band);
+		rtw89_info(rtwdev, "[CMAC] : CMAC%d analt enabled\n", band);
 		return;
 	}
 
@@ -2201,7 +2201,7 @@ static bool mac_is_txq_empty_be(struct rtw89_dev *rtwdev)
 		return false;
 	}
 
-	msk32 = B_CMAC0_MGQ_NORMAL_BE | B_CMAC1_MGQ_NORMAL_BE;
+	msk32 = B_CMAC0_MGQ_ANALRMAL_BE | B_CMAC1_MGQ_ANALRMAL_BE;
 	if ((qempty.qempty & msk32) != msk32)
 		return false;
 

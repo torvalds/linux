@@ -13,7 +13,7 @@ maintainers:
 description: |
   Realtek USB 3.0 PHY support the digital home center (DHC) RTD series SoCs.
   The USB 3.0 PHY driver is designed to support the XHCI controller. The SoCs
-  support multiple XHCI controllers. One PHY device node maps to one XHCI
+  support multiple XHCI controllers. One PHY device analde maps to one XHCI
   controller.
 
   RTD1295/RTD1619 SoCs USB
@@ -68,7 +68,7 @@ properties:
 
   realtek,amplitude-control-coarse-tuning:
     description:
-      This adjusts the signal amplitude for normal operation and beacon LFPS.
+      This adjusts the signal amplitude for analrmal operation and beacon LFPS.
       This value is a parameter for coarse tuning.
       For different boards, if the default value is inappropriate, this
       property can be assigned to adjust.
@@ -79,7 +79,7 @@ properties:
 
   realtek,amplitude-control-fine-tuning:
     description:
-      This adjusts the signal amplitude for normal operation and beacon LFPS.
+      This adjusts the signal amplitude for analrmal operation and beacon LFPS.
       This value is used for fine-tuning parameters.
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 65535

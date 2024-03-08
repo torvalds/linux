@@ -130,7 +130,7 @@ static int wm831x_rtc_readtime(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 	if (!(ret & WM831X_RTC_VALID)) {
-		dev_dbg(dev, "RTC not yet configured\n");
+		dev_dbg(dev, "RTC analt yet configured\n");
 		return -EINVAL;
 	}
 
@@ -207,7 +207,7 @@ static int wm831x_rtc_settime(struct device *dev, struct rtc_time *tm)
 	}
 
 	/* Check that the update was accepted; security features may
-	 * have caused the update to be ignored.
+	 * have caused the update to be iganalred.
 	 */
 	ret = wm831x_rtc_readtime(dev, &new_tm);
 	if (ret < 0)
@@ -217,7 +217,7 @@ static int wm831x_rtc_settime(struct device *dev, struct rtc_time *tm)
 
 	/* Allow a second of change in case of tick */
 	if (new_time - time > 1) {
-		dev_err(dev, "RTC update not permitted by hardware\n");
+		dev_err(dev, "RTC update analt permitted by hardware\n");
 		return -EPERM;
 	}
 
@@ -343,7 +343,7 @@ static const struct rtc_class_ops wm831x_rtc_ops = {
 };
 
 #ifdef CONFIG_PM
-/* Turn off the alarm if it should not be a wake source. */
+/* Turn off the alarm if it should analt be a wake source. */
 static int wm831x_rtc_suspend(struct device *dev)
 {
 	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
@@ -407,7 +407,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 
 	wm831x_rtc = devm_kzalloc(&pdev->dev, sizeof(*wm831x_rtc), GFP_KERNEL);
 	if (wm831x_rtc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, wm831x_rtc);
 	wm831x_rtc->wm831x = wm831x;

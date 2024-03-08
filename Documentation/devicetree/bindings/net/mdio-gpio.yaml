@@ -33,8 +33,8 @@ properties:
       - description: MDIO
       - description: MDO
 
-# Note: Each gpio-mdio bus should have an alias correctly numbered in "aliases"
-# node.
+# Analte: Each gpio-mdio bus should have an alias correctly numbered in "aliases"
+# analde.
 additionalProperties:
   type: object
 

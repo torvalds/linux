@@ -3,7 +3,7 @@
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #ifndef __WL1251_RX_H__
@@ -19,7 +19,7 @@
  * The Rx path uses a double buffer and an rx_contro structure, each located
  * at a fixed address in the device memory. The host keeps track of which
  * buffer is available and alternates between them on a per packet basis.
- * The size of each of the two buffers is large enough to hold the longest
+ * The size of each of the two buffers is large eanalugh to hold the longest
  * 802.3 packet.
  * The RX path goes like that:
  * 1) The target generates an interrupt each time a new packet is received.

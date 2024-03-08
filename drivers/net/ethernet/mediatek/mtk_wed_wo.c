@@ -265,12 +265,12 @@ mtk_wed_wo_queue_alloc(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
 	q->desc = dmam_alloc_coherent(wo->hw->dev, n_desc * sizeof(*q->desc),
 				      &q->desc_dma, GFP_KERNEL);
 	if (!q->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->entry = devm_kzalloc(wo->hw->dev, n_desc * sizeof(*q->entry),
 				GFP_KERNEL);
 	if (!q->entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -350,13 +350,13 @@ int mtk_wed_wo_queue_tx_skb(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
 	q->tail = mtk_wed_mmio_r32(wo, q->regs.dma_idx);
 	index = (q->head + 1) % q->n_desc;
 	if (q->tail == index) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	entry = &q->entry[index];
 	if (skb->len > entry->len) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -392,12 +392,12 @@ static int
 mtk_wed_wo_hardware_init(struct mtk_wed_wo *wo)
 {
 	struct mtk_wed_wo_queue_regs regs;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	np = of_parse_phandle(wo->hw->node, "mediatek,wo-ccif", 0);
+	np = of_parse_phandle(wo->hw->analde, "mediatek,wo-ccif", 0);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	wo->mmio.regs = syscon_regmap_lookup_by_phandle(np, NULL);
 	if (IS_ERR(wo->mmio.regs)) {
@@ -452,7 +452,7 @@ mtk_wed_wo_hardware_init(struct mtk_wed_wo *wo)
 error:
 	devm_free_irq(wo->hw->dev, wo->mmio.irq, wo);
 error_put:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -480,7 +480,7 @@ int mtk_wed_wo_init(struct mtk_wed_hw *hw)
 
 	wo = devm_kzalloc(hw->dev, sizeof(*wo), GFP_KERNEL);
 	if (!wo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->wed_wo = wo;
 	wo->hw = hw;

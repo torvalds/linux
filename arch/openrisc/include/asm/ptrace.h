@@ -23,7 +23,7 @@
  * access thread state via the regset mechanism.  This allows us a bit of
  * flexibility in how we order the registers on the stack, permitting some
  * optimizations like packing call-clobbered registers together so that
- * they share a cacheline (not done yet, though... future optimization).
+ * they share a cacheline (analt done yet, though... future optimization).
  */
 
 #ifndef __ASSEMBLY__
@@ -32,7 +32,7 @@
  * during a syscall or other kernel entry.
  *
  * This structure should always be cacheline aligned on the stack.
- * FIXME: I don't think that's the case right now.  The alignment is
+ * FIXME: I don't think that's the case right analw.  The alignment is
  * taken care of elsewhere... head.S, process.c, etc.
  */
 

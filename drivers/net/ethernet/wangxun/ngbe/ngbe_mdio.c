@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2019 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2019 - 2022 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/ethtool.h>
 #include <linux/iopoll.h>
@@ -144,7 +144,7 @@ int ngbe_mdio_init(struct wx *wx)
 
 	mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mii_bus->name = "ngbe_mii_bus";
 	mii_bus->read = ngbe_phy_read_reg_c22;
@@ -165,7 +165,7 @@ int ngbe_mdio_init(struct wx *wx)
 
 	wx->phydev = phy_find_first(mii_bus);
 	if (!wx->phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy_attached_info(wx->phydev);
 

@@ -77,7 +77,7 @@ enum hdmi_pll_pwr {
 	HDMI_PLLPWRCMD_ALLOFF = 0,
 	HDMI_PLLPWRCMD_PLLONLY = 1,
 	HDMI_PLLPWRCMD_BOTHON_ALLCLKS = 2,
-	HDMI_PLLPWRCMD_BOTHON_NOPHYCLK = 3
+	HDMI_PLLPWRCMD_BOTHON_ANALPHYCLK = 3
 };
 
 enum hdmi_phy_pwr {
@@ -99,7 +99,7 @@ enum hdmi_packing_mode {
 };
 
 enum hdmi_stereo_channels {
-	HDMI_AUDIO_STEREO_NOCHANNELS = 0,
+	HDMI_AUDIO_STEREO_ANALCHANNELS = 0,
 	HDMI_AUDIO_STEREO_ONECHANNEL = 1,
 	HDMI_AUDIO_STEREO_TWOCHANNELS = 2,
 	HDMI_AUDIO_STEREO_THREECHANNELS = 3,
@@ -310,7 +310,7 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
 int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);
 
 /* HDMI common funcs */
-int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
+int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_analde *ep,
 	struct hdmi_phy_data *phy);
 
 /* Audio funcs */

@@ -23,7 +23,7 @@ properties:
   clocks:
     $ref: ../clock/samsung,s2mps11.yaml
     description:
-      Child node describing clock provider.
+      Child analde describing clock provider.
 
   interrupts:
     maxItems: 1
@@ -34,7 +34,7 @@ properties:
   regulators:
     $ref: ../regulator/samsung,s5m8767.yaml
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
   s5m8767,pmic-buck2-dvs-voltage:
     $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -87,7 +87,7 @@ properties:
     description: |
       Default voltage setting selected from the possible 8 options selectable
       by the dvs gpios. The value of this property should be between 0 and 7.
-      If not specified or if out of range, the default value of this property
+      If analt specified or if out of range, the default value of this property
       is set to 0.
 
   s5m8767,pmic-buck-dvs-gpios:
@@ -153,15 +153,15 @@ dependencies:
 additionalProperties: false
 
 allOf:
-  - not:
+  - analt:
       required:
         - s5m8767,pmic-buck2-uses-gpio-dvs
         - s5m8767,pmic-buck3-uses-gpio-dvs
-  - not:
+  - analt:
       required:
         - s5m8767,pmic-buck2-uses-gpio-dvs
         - s5m8767,pmic-buck4-uses-gpio-dvs
-  - not:
+  - analt:
       required:
         - s5m8767,pmic-buck3-uses-gpio-dvs
         - s5m8767,pmic-buck4-uses-gpio-dvs
@@ -224,7 +224,7 @@ examples:
                     regulator-max-microvolt = <1100000>;
                     regulator-always-on;
                     regulator-boot-on;
-                    op_mode = <1>; /* Normal Mode */
+                    op_mode = <1>; /* Analrmal Mode */
                 };
 
                 // ...
@@ -235,7 +235,7 @@ examples:
                     regulator-max-microvolt = <1100000>;
                     regulator-always-on;
                     regulator-boot-on;
-                    op_mode = <1>; /* Normal Mode */
+                    op_mode = <1>; /* Analrmal Mode */
                 };
 
                 BUCK2 {
@@ -244,7 +244,7 @@ examples:
                     regulator-max-microvolt = <1350000>;
                     regulator-always-on;
                     regulator-boot-on;
-                    op_mode = <1>; /* Normal Mode */
+                    op_mode = <1>; /* Analrmal Mode */
                 };
 
                 // ...
@@ -287,7 +287,7 @@ examples:
                     regulator-max-microvolt = <1100000>;
                     regulator-always-on;
                     regulator-boot-on;
-                    op_mode = <1>; /* Normal Mode */
+                    op_mode = <1>; /* Analrmal Mode */
                 };
 
                 // ...

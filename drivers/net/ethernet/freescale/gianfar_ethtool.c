@@ -17,7 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -53,7 +53,7 @@ static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"rx-allocation-errors",
 	"rx-large-frame-errors",
 	"rx-short-frame-errors",
-	"rx-non-octet-errors",
+	"rx-analn-octet-errors",
 	"rx-crc-errors",
 	"rx-overrun-errors",
 	"rx-busy-errors",
@@ -78,7 +78,7 @@ static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"receive-broadcast-packet",
 	"rx-control-frame-packets",
 	"rx-pause-frame-packets",
-	"rx-unknown-op-code",
+	"rx-unkanalwn-op-code",
 	"rx-alignment-error",
 	"rx-frame-length-error",
 	"rx-code-error",
@@ -157,7 +157,7 @@ static int gfar_sset_count(struct net_device *dev, int sset)
 		else
 			return GFAR_EXTRA_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -258,10 +258,10 @@ static int gfar_gcoalesce(struct net_device *dev,
 	unsigned long txcount;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!dev->phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rx_queue = priv->rx_queue[0];
 	tx_queue = priv->tx_queue[0];
@@ -292,10 +292,10 @@ static int gfar_scoalesce(struct net_device *dev,
 	int i, err = 0;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!dev->phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check the bounds of the values */
 	if (cvals->rx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
@@ -372,7 +372,7 @@ static int gfar_scoalesce(struct net_device *dev,
 
 /* Fills in rvals with the current ring parameters.  Currently,
  * rx, rx_mini, and rx_jumbo rings are the same size, as mini and
- * jumbo are ignored by the driver */
+ * jumbo are iganalred by the driver */
 static void gfar_gringparam(struct net_device *dev,
 			    struct ethtool_ringparam *rvals,
 			    struct kernel_ethtool_ringparam *kernel_rvals,
@@ -466,7 +466,7 @@ static int gfar_spauseparam(struct net_device *dev,
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!phy_validate_pause(phydev, epause))
 		return -EINVAL;
@@ -523,7 +523,7 @@ int gfar_set_features(struct net_device *dev, netdev_features_t features)
 	dev->features = features;
 
 	if (dev->flags & IFF_UP) {
-		/* Now we take down the rings to rebuild them */
+		/* Analw we take down the rings to rebuild them */
 		stop_gfar(dev);
 		err = startup_gfar(dev);
 	} else {
@@ -607,14 +607,14 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	u32 fcr = 0x0, fpr = FPR_FILER_MASK;
 
 	if (ethflow & RXH_L2DA) {
-		fcr = RQFCR_PID_DAH | RQFCR_CMP_NOMATCH |
+		fcr = RQFCR_PID_DAH | RQFCR_CMP_ANALMATCH |
 		      RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 
-		fcr = RQFCR_PID_DAL | RQFCR_CMP_NOMATCH |
+		fcr = RQFCR_PID_DAL | RQFCR_CMP_ANALMATCH |
 		      RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
@@ -623,7 +623,7 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	}
 
 	if (ethflow & RXH_VLAN) {
-		fcr = RQFCR_PID_VID | RQFCR_CMP_NOMATCH | RQFCR_HASH |
+		fcr = RQFCR_PID_VID | RQFCR_CMP_ANALMATCH | RQFCR_HASH |
 		      RQFCR_AND | RQFCR_HASHTBL_0;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
@@ -632,7 +632,7 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	}
 
 	if (ethflow & RXH_IP_SRC) {
-		fcr = RQFCR_PID_SIA | RQFCR_CMP_NOMATCH | RQFCR_HASH |
+		fcr = RQFCR_PID_SIA | RQFCR_CMP_ANALMATCH | RQFCR_HASH |
 		      RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
@@ -641,7 +641,7 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	}
 
 	if (ethflow & (RXH_IP_DST)) {
-		fcr = RQFCR_PID_DIA | RQFCR_CMP_NOMATCH | RQFCR_HASH |
+		fcr = RQFCR_PID_DIA | RQFCR_CMP_ANALMATCH | RQFCR_HASH |
 		      RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
@@ -650,7 +650,7 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	}
 
 	if (ethflow & RXH_L3_PROTO) {
-		fcr = RQFCR_PID_L4P | RQFCR_CMP_NOMATCH | RQFCR_HASH |
+		fcr = RQFCR_PID_L4P | RQFCR_CMP_ANALMATCH | RQFCR_HASH |
 		      RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
@@ -659,7 +659,7 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	}
 
 	if (ethflow & RXH_L4_B_0_1) {
-		fcr = RQFCR_PID_SPT | RQFCR_CMP_NOMATCH | RQFCR_HASH |
+		fcr = RQFCR_PID_SPT | RQFCR_CMP_ANALMATCH | RQFCR_HASH |
 		      RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
@@ -668,7 +668,7 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	}
 
 	if (ethflow & RXH_L4_B_2_3) {
-		fcr = RQFCR_PID_DPT | RQFCR_CMP_NOMATCH | RQFCR_HASH |
+		fcr = RQFCR_PID_DPT | RQFCR_CMP_ANALMATCH | RQFCR_HASH |
 		      RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
@@ -711,7 +711,7 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 		break;
 	default:
 		netdev_err(priv->ndev,
-			   "Right now this class is not supported\n");
+			   "Right analw this class is analt supported\n");
 		ret = 0;
 		goto err;
 	}
@@ -728,7 +728,7 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 
 	if (i == MAX_FILER_IDX + 1) {
 		netdev_err(priv->ndev,
-			   "No parse rule found, can't create hash rules\n");
+			   "Anal parse rule found, can't create hash rules\n");
 		ret = 0;
 		goto err;
 	}
@@ -798,7 +798,7 @@ static int gfar_check_filer_hardware(struct gfar_private *priv)
 	i = gfar_read(&regs->ecntrl);
 	i &= ECNTRL_FIFM;
 	if (i == ECNTRL_FIFM) {
-		netdev_notice(priv->ndev, "Interface in FIFO mode\n");
+		netdev_analtice(priv->ndev, "Interface in FIFO mode\n");
 		i = gfar_read(&regs->rctrl);
 		i &= RCTRL_PRSDEP_MASK | RCTRL_PRSFM;
 		if (i == (RCTRL_PRSDEP_MASK | RCTRL_PRSFM)) {
@@ -807,7 +807,7 @@ static int gfar_check_filer_hardware(struct gfar_private *priv)
 		} else {
 			netdev_warn(priv->ndev,
 				    "Receive Queue Filtering disabled\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 	/* Or in standard mode */
@@ -820,7 +820,7 @@ static int gfar_check_filer_hardware(struct gfar_private *priv)
 		} else {
 			netdev_warn(priv->ndev,
 				    "Receive Queue Filtering disabled\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -1146,7 +1146,7 @@ static int gfar_convert_to_filer(struct ethtool_rx_flow_spec *rule,
 		gfar_set_attribute(prio, prio_mask, RQFCR_PID_PRI, tab);
 	}
 
-	/* If there has been nothing written till now, it must be a default */
+	/* If there has been analthing written till analw, it must be a default */
 	if (tab->index == old_index) {
 		gfar_set_mask(0xFFFFFFFF, tab);
 		tab->fe[tab->index].ctrl = 0x20;
@@ -1163,7 +1163,7 @@ static int gfar_convert_to_filer(struct ethtool_rx_flow_spec *rule,
 	else
 		tab->fe[tab->index - 1].ctrl |= (rule->ring_cookie << 10);
 
-	/* Only big enough entries can be clustered */
+	/* Only big eanalugh entries can be clustered */
 	if (tab->index > (old_index + 2)) {
 		tab->fe[old_index + 1].ctrl |= RQFCR_CLE;
 		tab->fe[tab->index - 1].ctrl |= RQFCR_CLE;
@@ -1207,15 +1207,15 @@ static int gfar_check_capability(struct ethtool_rx_flow_spec *flow,
 	if (flow->flow_type & FLOW_EXT)	{
 		if (~flow->m_ext.data[0] || ~flow->m_ext.data[1])
 			netdev_warn(priv->ndev,
-				    "User-specific data not supported!\n");
+				    "User-specific data analt supported!\n");
 		if (~flow->m_ext.vlan_etype)
 			netdev_warn(priv->ndev,
-				    "VLAN-etype not supported!\n");
+				    "VLAN-etype analt supported!\n");
 	}
 	if (flow->flow_type == IP_USER_FLOW)
 		if (flow->h_u.usr_ip4_spec.ip_ver != ETH_RX_NFC_IP4)
 			netdev_warn(priv->ndev,
-				    "IP-Version differing from IPv4 not supported!\n");
+				    "IP-Version differing from IPv4 analt supported!\n");
 
 	return 0;
 }
@@ -1229,21 +1229,21 @@ static int gfar_process_filer_changes(struct gfar_private *priv)
 	/* So index is set to zero, too! */
 	tab = kzalloc(sizeof(*tab), GFP_KERNEL);
 	if (tab == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Now convert the existing filer data from flow_spec into
+	/* Analw convert the existing filer data from flow_spec into
 	 * filer tables binary format
 	 */
 	list_for_each_entry(j, &priv->rx_list.list, list) {
 		ret = gfar_convert_to_filer(&j->fs, tab);
 		if (ret == -EBUSY) {
 			netdev_err(priv->ndev,
-				   "Rule not added: No free space!\n");
+				   "Rule analt added: Anal free space!\n");
 			goto end;
 		}
 		if (ret == -1) {
 			netdev_err(priv->ndev,
-				   "Rule not added: Unsupported Flow-type!\n");
+				   "Rule analt added: Unsupported Flow-type!\n");
 			goto end;
 		}
 	}
@@ -1251,7 +1251,7 @@ static int gfar_process_filer_changes(struct gfar_private *priv)
 	/* Write everything to hardware */
 	ret = gfar_write_filer_table(priv, tab);
 	if (ret == -EBUSY) {
-		netdev_err(priv->ndev, "Rule not added: No free space!\n");
+		netdev_err(priv->ndev, "Rule analt added: Anal free space!\n");
 		goto end;
 	}
 
@@ -1281,7 +1281,7 @@ static int gfar_add_cls(struct gfar_private *priv,
 
 	temp = kmalloc(sizeof(*temp), GFP_KERNEL);
 	if (temp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(&temp->fs, flow, sizeof(temp->fs));
 
 	gfar_invert_masks(&temp->fs);
@@ -1303,7 +1303,7 @@ static int gfar_add_cls(struct gfar_private *priv,
 			}
 			if (comp->fs.location == flow->location) {
 				netdev_err(priv->ndev,
-					   "Rule not added: ID %d not free!\n",
+					   "Rule analt added: ID %d analt free!\n",
 					   flow->location);
 				ret = -EBUSY;
 				goto clean_mem;
@@ -1452,7 +1452,7 @@ static int gfar_get_ts_info(struct net_device *dev,
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct platform_device *ptp_dev;
-	struct device_node *ptp_node;
+	struct device_analde *ptp_analde;
 	struct ptp_qoriq *ptp = NULL;
 
 	info->phc_index = -1;
@@ -1464,10 +1464,10 @@ static int gfar_get_ts_info(struct net_device *dev,
 		return 0;
 	}
 
-	ptp_node = of_find_compatible_node(NULL, NULL, "fsl,etsec-ptp");
-	if (ptp_node) {
-		ptp_dev = of_find_device_by_node(ptp_node);
-		of_node_put(ptp_node);
+	ptp_analde = of_find_compatible_analde(NULL, NULL, "fsl,etsec-ptp");
+	if (ptp_analde) {
+		ptp_dev = of_find_device_by_analde(ptp_analde);
+		of_analde_put(ptp_analde);
 		if (ptp_dev)
 			ptp = platform_get_drvdata(ptp_dev);
 	}
@@ -1483,7 +1483,7 @@ static int gfar_get_ts_info(struct net_device *dev,
 				SOF_TIMESTAMPING_SOFTWARE;
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
 			 (1 << HWTSTAMP_TX_ON);
-	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 			   (1 << HWTSTAMP_FILTER_ALL);
 	return 0;
 }

@@ -27,7 +27,7 @@ static int dpaa2_switch_flower_parse_key(struct flow_cls_offload *cls,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Unsupported keys used");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	acl_h = &acl_key->match;
@@ -94,14 +94,14 @@ static int dpaa2_switch_flower_parse_key(struct flow_cls_offload *cls,
 		flow_rule_match_ip(rule, &match);
 		if (match.mask->ttl != 0) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Matching on TTL not supported");
-			return -EOPNOTSUPP;
+					   "Matching on TTL analt supported");
+			return -EOPANALTSUPP;
 		}
 
 		if ((match.mask->tos & 0x3) != 0) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Matching on ECN not supported, only DSCP");
-			return -EOPNOTSUPP;
+					   "Matching on ECN analt supported, only DSCP");
+			return -EOPANALTSUPP;
 		}
 
 		acl_h->l3_dscp = match.key->tos >> 2;
@@ -123,7 +123,7 @@ int dpaa2_switch_acl_entry_add(struct dpaa2_switch_filter_block *filter_block,
 
 	cmd_buff = kzalloc(DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE, GFP_KERNEL);
 	if (!cmd_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpsw_acl_prepare_entry_cfg(acl_key, cmd_buff);
 
@@ -166,7 +166,7 @@ dpaa2_switch_acl_entry_remove(struct dpaa2_switch_filter_block *block,
 
 	cmd_buff = kzalloc(DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE, GFP_KERNEL);
 	if (!cmd_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpsw_acl_prepare_entry_cfg(acl_key, cmd_buff);
 
@@ -307,7 +307,7 @@ dpaa2_switch_acl_entry_get_index(struct dpaa2_switch_filter_block *block,
 			return index;
 		index++;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static struct dpaa2_switch_mirror_entry *
@@ -373,8 +373,8 @@ static int dpaa2_switch_tc_parse_action_acl(struct ethsw_core *ethsw,
 	case FLOW_ACTION_REDIRECT:
 		if (!dpaa2_switch_port_dev_check(cls_act->dev)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Destination not a DPAA2 switch port");
-			return -EOPNOTSUPP;
+					   "Destination analt a DPAA2 switch port");
+			return -EOPANALTSUPP;
 		}
 
 		dpsw_act->if_id = dpaa2_switch_get_index(ethsw, cls_act->dev);
@@ -385,8 +385,8 @@ static int dpaa2_switch_tc_parse_action_acl(struct ethsw_core *ethsw,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Action not supported");
-		err = -EOPNOTSUPP;
+				   "Action analt supported");
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -423,8 +423,8 @@ dpaa2_switch_block_add_mirror(struct dpaa2_switch_filter_block *block,
 	for_each_set_bit(port, &block_ports, ethsw->sw_attr.num_ifs) {
 		port_priv = ethsw->ports[port];
 
-		/* We cannot add a per VLAN mirroring rule if the VLAN in
-		 * question is not installed on the switch port.
+		/* We cananalt add a per VLAN mirroring rule if the VLAN in
+		 * question is analt installed on the switch port.
 		 */
 		if (entry->cfg.filter == DPSW_REFLECTION_FILTER_INGRESS_VLAN &&
 		    !(port_priv->vlans[vlan] & ETHSW_VLAN_MEMBER)) {
@@ -499,12 +499,12 @@ dpaa2_switch_cls_flower_replace_acl(struct dpaa2_switch_filter_block *block,
 
 	if (dpaa2_switch_acl_tbl_is_full(block)) {
 		NL_SET_ERR_MSG(extack, "Maximum filter capacity reached");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	acl_entry = kzalloc(sizeof(*acl_entry), GFP_KERNEL);
 	if (!acl_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = dpaa2_switch_flower_parse_key(cls, &acl_entry->key);
 	if (err)
@@ -537,7 +537,7 @@ static int dpaa2_switch_flower_parse_mirror_key(struct flow_cls_offload *cls,
 	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct netlink_ext_ack *extack = cls->common.extack;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (dissector->used_keys &
 	    ~(BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
@@ -545,7 +545,7 @@ static int dpaa2_switch_flower_parse_mirror_key(struct flow_cls_offload *cls,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Mirroring is supported only per VLAN");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
@@ -557,13 +557,13 @@ static int dpaa2_switch_flower_parse_mirror_key(struct flow_cls_offload *cls,
 		    match.mask->vlan_dei != 0) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Only matching on VLAN ID supported");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		if (match.mask->vlan_id != 0xFFF) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Masked matching not supported");
-			return -EOPNOTSUPP;
+					   "Masked matching analt supported");
+			return -EOPANALTSUPP;
 		}
 
 		*vlan = (u16)match.key->vlan_id;
@@ -593,8 +593,8 @@ dpaa2_switch_cls_flower_replace_mirror(struct dpaa2_switch_filter_block *block,
 	/* Offload rules only when the destination is a DPAA2 switch port */
 	if (!dpaa2_switch_port_dev_check(cls_act->dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Destination not a DPAA2 switch port");
-		return -EOPNOTSUPP;
+				   "Destination analt a DPAA2 switch port");
+		return -EOPANALTSUPP;
 	}
 	if_id = dpaa2_switch_get_index(ethsw, cls_act->dev);
 
@@ -604,7 +604,7 @@ dpaa2_switch_cls_flower_replace_mirror(struct dpaa2_switch_filter_block *block,
 	 */
 	if (mirror_port_enabled && ethsw->mirror_port != if_id) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Multiple mirror ports not supported");
+				   "Multiple mirror ports analt supported");
 		return -EBUSY;
 	}
 
@@ -629,7 +629,7 @@ dpaa2_switch_cls_flower_replace_mirror(struct dpaa2_switch_filter_block *block,
 
 	mirror_entry = kzalloc(sizeof(*mirror_entry), GFP_KERNEL);
 	if (!mirror_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mirror_entry->cfg.filter = DPSW_REFLECTION_FILTER_INGRESS_VLAN;
 	mirror_entry->cfg.vlan_id = vlan;
@@ -648,7 +648,7 @@ int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_filter_block *block,
 
 	if (!flow_offload_has_one_action(&rule->action)) {
 		NL_SET_ERR_MSG(extack, "Only singular actions are supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	act = &rule->action.entries[0];
@@ -660,8 +660,8 @@ int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_filter_block *block,
 	case FLOW_ACTION_MIRRED:
 		return dpaa2_switch_cls_flower_replace_mirror(block, cls);
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "Action not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Action analt supported");
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -677,7 +677,7 @@ int dpaa2_switch_cls_flower_destroy(struct dpaa2_switch_filter_block *block,
 	if (acl_entry)
 		return dpaa2_switch_acl_tbl_remove_entry(block, acl_entry);
 
-	/* If not, then it has to be a mirror */
+	/* If analt, then it has to be a mirror */
 	mirror_entry = dpaa2_switch_mirror_find_entry_by_cookie(block,
 								cls->cookie);
 	if (mirror_entry)
@@ -699,12 +699,12 @@ dpaa2_switch_cls_matchall_replace_acl(struct dpaa2_switch_filter_block *block,
 
 	if (dpaa2_switch_acl_tbl_is_full(block)) {
 		NL_SET_ERR_MSG(extack, "Maximum filter capacity reached");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	acl_entry = kzalloc(sizeof(*acl_entry), GFP_KERNEL);
 	if (!acl_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	act = &cls->rule->action.entries[0];
 	err = dpaa2_switch_tc_parse_action_acl(ethsw, act,
@@ -746,8 +746,8 @@ dpaa2_switch_cls_matchall_replace_mirror(struct dpaa2_switch_filter_block *block
 	/* Offload rules only when the destination is a DPAA2 switch port */
 	if (!dpaa2_switch_port_dev_check(cls_act->dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Destination not a DPAA2 switch port");
-		return -EOPNOTSUPP;
+				   "Destination analt a DPAA2 switch port");
+		return -EOPANALTSUPP;
 	}
 	if_id = dpaa2_switch_get_index(ethsw, cls_act->dev);
 
@@ -757,7 +757,7 @@ dpaa2_switch_cls_matchall_replace_mirror(struct dpaa2_switch_filter_block *block
 	 */
 	if (mirror_port_enabled && ethsw->mirror_port != if_id) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Multiple mirror ports not supported");
+				   "Multiple mirror ports analt supported");
 		return -EBUSY;
 	}
 
@@ -776,7 +776,7 @@ dpaa2_switch_cls_matchall_replace_mirror(struct dpaa2_switch_filter_block *block
 
 	mirror_entry = kzalloc(sizeof(*mirror_entry), GFP_KERNEL);
 	if (!mirror_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mirror_entry->cfg.filter = DPSW_REFLECTION_FILTER_INGRESS_ALL;
 	mirror_entry->cookie = cls->cookie;
@@ -793,7 +793,7 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
 
 	if (!flow_offload_has_one_action(&cls->rule->action)) {
 		NL_SET_ERR_MSG(extack, "Only singular actions are supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	act = &cls->rule->action.entries[0];
@@ -805,8 +805,8 @@ int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_filter_block *block,
 	case FLOW_ACTION_MIRRED:
 		return dpaa2_switch_cls_matchall_replace_mirror(block, cls);
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "Action not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Action analt supported");
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -836,7 +836,7 @@ unwind_add:
 	return err;
 }
 
-int dpaa2_switch_block_unoffload_mirror(struct dpaa2_switch_filter_block *block,
+int dpaa2_switch_block_uanalffload_mirror(struct dpaa2_switch_filter_block *block,
 					struct ethsw_port_priv *port_priv)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
@@ -874,7 +874,7 @@ int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_filter_block *block,
 		return dpaa2_switch_acl_tbl_remove_entry(block,
 							 acl_entry);
 
-	/* If not, then it has to be a mirror */
+	/* If analt, then it has to be a mirror */
 	mirror_entry = dpaa2_switch_mirror_find_entry_by_cookie(block,
 								cls->cookie);
 	if (mirror_entry)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -1571,7 +1571,7 @@ static void si_set_pcie_lanes(struct amdgpu_device *adev, int lanes)
 	link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 	link_width_cntl &= ~LC_LINK_WIDTH_MASK;
 	link_width_cntl |= mask << LC_LINK_WIDTH_SHIFT;
-	link_width_cntl |= (LC_RECONFIG_NOW |
+	link_width_cntl |= (LC_RECONFIG_ANALW |
 			    LC_RECONFIG_ARC_MISSING_ESCAPE);
 
 	WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
@@ -1585,7 +1585,7 @@ static void si_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may analt be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -1846,7 +1846,7 @@ static int si_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
 
 	mdelay(15);
 
-	/* Switch from bypass mode to normal mode */
+	/* Switch from bypass mode to analrmal mode */
 	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
 
 	r = si_uvd_send_upll_ctlreq(adev, CG_UPLL_FUNC_CNTL);
@@ -1970,7 +1970,7 @@ static int si_set_vce_clocks(struct amdgpu_device *adev, u32 evclk, u32 ecclk)
 
 	mdelay(15);
 
-	/* Switch from bypass mode to normal mode */
+	/* Switch from bypass mode to analrmal mode */
 	WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, 0, ~VCEPLL_BYPASS_EN_MASK);
 
 	r = si_vce_send_vcepll_ctlreq(adev);
@@ -2288,7 +2288,7 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 				if (tmp & LC_RENEGOTIATION_SUPPORT) {
 					tmp &= ~(LC_LINK_WIDTH_MASK | LC_UPCONFIGURE_DIS);
 					tmp |= (max_lw << LC_LINK_WIDTH_SHIFT);
-					tmp |= LC_UPCONFIGURE_SUPPORT | LC_RENEGOTIATE_EN | LC_RECONFIG_NOW;
+					tmp |= LC_UPCONFIGURE_SUPPORT | LC_RENEGOTIATE_EN | LC_RECONFIG_ANALW;
 					WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, tmp);
 				}
 			}
@@ -2452,7 +2452,7 @@ static void si_program_aspm(struct amdgpu_device *adev)
 		WREG32_PCIE_PORT(PCIE_LC_CNTL3, data);
 
 	orig = data = RREG32_PCIE(PCIE_P_CNTL);
-	data |= P_IGNORE_EDB_ERR;
+	data |= P_IGANALRE_EDB_ERR;
 	if (orig != data)
 		WREG32_PCIE(PCIE_P_CNTL, data);
 
@@ -2723,7 +2723,7 @@ static const struct amdgpu_ip_block_version si_common_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &si_common_ip_funcs,
 };

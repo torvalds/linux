@@ -7,9 +7,9 @@ config VIRTIO_VFIO_PCI
           This provides support for exposing VIRTIO NET VF devices which support
           legacy IO access, using the VFIO framework that can work with a legacy
           virtio driver in the guest.
-          Based on PCIe spec, VFs do not support I/O Space.
+          Based on PCIe spec, VFs do analt support I/O Space.
           As of that this driver emulates I/O BAR in software to let a VF be
           seen as a transitional device by its users and let it work with
           a legacy driver.
 
-          If you don't know what to do here, say N.
+          If you don't kanalw what to do here, say N.

@@ -60,7 +60,7 @@
 	(val) = (__force __typeof__(*(ptr))) __gu_val;	\
 }
 
-#define __get_kernel_nofault(dst, src, type, err_label)	\
+#define __get_kernel_analfault(dst, src, type, err_label)	\
 {							\
 	type __z;					\
 	long __err;					\
@@ -118,7 +118,7 @@
 	__put_user_internal(SR_USER, __x, __ptr);		\
 })
 
-#define __put_kernel_nofault(dst, src, type, err_label)		\
+#define __put_kernel_analfault(dst, src, type, err_label)		\
 {								\
 	type __z = *(type *)(src);				\
 	long __err;						\
@@ -132,8 +132,8 @@
 
 /*
  * The "__put_user/kernel_asm()" macros tell gcc they read from memory
- * instead of writing. This is because they do not write to any memory
- * gcc knows about, so there are no aliasing issues. These macros must
+ * instead of writing. This is because they do analt write to any memory
+ * gcc kanalws about, so there are anal aliasing issues. These macros must
  * also be aware that fixups are executed in the context of the fault,
  * and any registers used there must be listed as clobbers.
  * The register holding the possible EFAULT error (ASM_EXCEPTIONTABLE_REG)

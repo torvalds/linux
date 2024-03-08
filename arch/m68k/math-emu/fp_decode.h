@@ -7,12 +7,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -23,11 +23,11 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -57,14 +57,14 @@
  *
  * the current implementation doesn't check for every disallowed
  * addressing mode (e.g. pc relative modes as destination), as long
- * as it only means a new addressing mode, which should not appear
+ * as it only means a new addressing mode, which should analt appear
  * in a program and that doesn't crash the emulation, I think it's
- * not a problem to allow these modes.
+ * analt a problem to allow these modes.
  */
 
 do_fmovem=0
 do_fmovem_cr=0
-do_no_pc_mode=0
+do_anal_pc_mode=0
 do_fscc=0
 
 | first decoding of the instr type
@@ -181,7 +181,7 @@ debug	move.l	"(%sp)+,%d1"
 
 	.align	4
 0:
-|	.long	"no memory indirect action/reserved","null outer displacement"
+|	.long	"anal memory indirect action/reserved","null outer displacement"
 |	.long	"word outer displacement","long outer displacement"
 .endm
 
@@ -289,7 +289,7 @@ debug	move.l	"(%sp)+,%d1"
 | addressing mode: address register/programm counter indirect
 |		   with 16bit displacement
 .macro	fp_mode_addr_indirect_disp16
-	.if	!do_no_pc_mode
+	.if	!do_anal_pc_mode
 	fp_test_basereg_d16 1f
 	printf	PDECODE,"pc"
 	fp_get_pc %a0
@@ -330,7 +330,7 @@ debug	jra	"2f"
 
 | all other indirect addressing modes will finally end up here
 .macro	fp_mode_addr_indirect_extmode0
-	.if	!do_no_pc_mode
+	.if	!do_anal_pc_mode
 	fp_test_basereg_ext 1f
 	printf	PDECODE,"pc"
 	fp_get_pc %a0

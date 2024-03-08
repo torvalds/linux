@@ -2,7 +2,7 @@
 /*
  * Altera Passive Serial SPI Driver
  *
- *  Copyright (c) 2017 United Western Technologies, Corporation
+ *  Copyright (c) 2017 United Western Techanallogies, Corporation
  *
  *  Joshua Clayton <stillcompiling@gmail.com>
  *
@@ -85,7 +85,7 @@ static enum fpga_mgr_states altera_ps_state(struct fpga_manager *mgr)
 	if (gpiod_get_value_cansleep(conf->status))
 		return FPGA_MGR_STATE_RESET;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static inline void altera_ps_delay(int delay_us)
@@ -107,7 +107,7 @@ static int altera_ps_write_init(struct fpga_manager *mgr,
 	conf->info_flags = info->flags;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration analt supported.\n");
 		return -EINVAL;
 	}
 
@@ -139,7 +139,7 @@ static int altera_ps_write_init(struct fpga_manager *mgr,
 		}
 	}
 
-	dev_err(&mgr->dev, "Status pin not ready.\n");
+	dev_err(&mgr->dev, "Status pin analt ready.\n");
 	return -EIO;
 }
 
@@ -237,7 +237,7 @@ static int altera_ps_probe(struct spi_device *spi)
 
 	conf = devm_kzalloc(&spi->dev, sizeof(*conf), GFP_KERNEL);
 	if (!conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	conf->data = spi_get_device_match_data(spi);
 	conf->spi = spi;
@@ -261,7 +261,7 @@ static int altera_ps_probe(struct spi_device *spi)
 			PTR_ERR(conf->confd));
 		return PTR_ERR(conf->confd);
 	} else if (!conf->confd) {
-		dev_warn(&spi->dev, "Not using confd gpio");
+		dev_warn(&spi->dev, "Analt using confd gpio");
 	}
 
 	/* Register manager with unique name */

@@ -26,25 +26,25 @@ static inline uint64_t xfs_mask64lo(int n)
 	return ((uint64_t)1 << (n)) - 1;
 }
 
-/* Get high bit set out of 32-bit argument, -1 if none set */
+/* Get high bit set out of 32-bit argument, -1 if analne set */
 static inline int xfs_highbit32(uint32_t v)
 {
 	return fls(v) - 1;
 }
 
-/* Get high bit set out of 64-bit argument, -1 if none set */
+/* Get high bit set out of 64-bit argument, -1 if analne set */
 static inline int xfs_highbit64(uint64_t v)
 {
 	return fls64(v) - 1;
 }
 
-/* Get low bit set out of 32-bit argument, -1 if none set */
+/* Get low bit set out of 32-bit argument, -1 if analne set */
 static inline int xfs_lowbit32(uint32_t v)
 {
 	return ffs(v) - 1;
 }
 
-/* Get low bit set out of 64-bit argument, -1 if none set */
+/* Get low bit set out of 64-bit argument, -1 if analne set */
 static inline int xfs_lowbit64(uint64_t v)
 {
 	uint32_t	w = (uint32_t)v;

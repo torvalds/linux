@@ -36,13 +36,13 @@ ice_is_arfs_using_perfect_flow(struct ice_hw *hw, enum ice_fltr_ptype flow_type)
 	/* active counters can be updated by multiple CPUs */
 	smp_mb__before_atomic();
 	switch (flow_type) {
-	case ICE_FLTR_PTYPE_NONF_IPV4_UDP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_UDP:
 		return atomic_read(&arfs_fltr_cntrs->active_udpv4_cnt) > 0;
-	case ICE_FLTR_PTYPE_NONF_IPV6_UDP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_UDP:
 		return atomic_read(&arfs_fltr_cntrs->active_udpv6_cnt) > 0;
-	case ICE_FLTR_PTYPE_NONF_IPV4_TCP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_TCP:
 		return atomic_read(&arfs_fltr_cntrs->active_tcpv4_cnt) > 0;
-	case ICE_FLTR_PTYPE_NONF_IPV6_TCP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_TCP:
 		return atomic_read(&arfs_fltr_cntrs->active_tcpv6_cnt) > 0;
 	default:
 		return false;
@@ -62,25 +62,25 @@ ice_arfs_update_active_fltr_cntrs(struct ice_vsi *vsi,
 	struct ice_arfs_active_fltr_cntrs *fltr_cntrs = vsi->arfs_fltr_cntrs;
 
 	switch (entry->fltr_info.flow_type) {
-	case ICE_FLTR_PTYPE_NONF_IPV4_TCP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_TCP:
 		if (add)
 			atomic_inc(&fltr_cntrs->active_tcpv4_cnt);
 		else
 			atomic_dec(&fltr_cntrs->active_tcpv4_cnt);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_TCP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_TCP:
 		if (add)
 			atomic_inc(&fltr_cntrs->active_tcpv6_cnt);
 		else
 			atomic_dec(&fltr_cntrs->active_tcpv6_cnt);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_UDP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_UDP:
 		if (add)
 			atomic_inc(&fltr_cntrs->active_udpv4_cnt);
 		else
 			atomic_dec(&fltr_cntrs->active_udpv4_cnt);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_UDP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_UDP:
 		if (add)
 			atomic_inc(&fltr_cntrs->active_udpv6_cnt);
 		else
@@ -98,14 +98,14 @@ ice_arfs_update_active_fltr_cntrs(struct ice_vsi *vsi,
  * @del_list_head: head of the list of ice_arfs_entry(s) for rule deletion
  *
  * Loop through the delete list passed in and remove the rules from HW. After
- * each rule is deleted, disconnect and free the ice_arfs_entry because it is no
+ * each rule is deleted, disconnect and free the ice_arfs_entry because it is anal
  * longer being referenced by the aRFS hash table.
  */
 static void
 ice_arfs_del_flow_rules(struct ice_vsi *vsi, struct hlist_head *del_list_head)
 {
 	struct ice_arfs_entry *e;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	struct device *dev;
 
 	dev = ice_pf_to_dev(vsi->back);
@@ -122,7 +122,7 @@ ice_arfs_del_flow_rules(struct ice_vsi *vsi, struct hlist_head *del_list_head)
 				result, e->fltr_state, e->fltr_info.fltr_id,
 				e->flow_id, e->fltr_info.q_index);
 
-		/* The aRFS hash table is no longer referencing this entry */
+		/* The aRFS hash table is anal longer referencing this entry */
 		hlist_del(&e->list_entry);
 		devm_kfree(dev, e);
 	}
@@ -134,7 +134,7 @@ ice_arfs_del_flow_rules(struct ice_vsi *vsi, struct hlist_head *del_list_head)
  * @add_list_head: head of the list of ice_arfs_entry_ptr(s) for rule addition
  *
  * Loop through the add list passed in and remove the rules from HW. After each
- * rule is added, disconnect and free the ice_arfs_entry_ptr node. Don't free
+ * rule is added, disconnect and free the ice_arfs_entry_ptr analde. Don't free
  * the ice_arfs_entry(s) because they are still being referenced in the aRFS
  * hash table.
  */
@@ -142,7 +142,7 @@ static void
 ice_arfs_add_flow_rules(struct ice_vsi *vsi, struct hlist_head *add_list_head)
 {
 	struct ice_arfs_entry_ptr *ep;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	struct device *dev;
 
 	dev = ice_pf_to_dev(vsi->back);
@@ -174,7 +174,7 @@ ice_arfs_add_flow_rules(struct ice_vsi *vsi, struct hlist_head *add_list_head)
  * @arfs_entry: aRFS entry that's being checked for expiration
  *
  * Return true if the flow has expired, else false. This function should be used
- * to determine whether or not an aRFS entry should be removed from the hardware
+ * to determine whether or analt an aRFS entry should be removed from the hardware
  * and software structures.
  */
 static bool
@@ -187,8 +187,8 @@ ice_arfs_is_flow_expired(struct ice_vsi *vsi, struct ice_arfs_entry *arfs_entry)
 		return true;
 
 	/* expiration timer only used for UDP filters */
-	if (arfs_entry->fltr_info.flow_type != ICE_FLTR_PTYPE_NONF_IPV4_UDP &&
-	    arfs_entry->fltr_info.flow_type != ICE_FLTR_PTYPE_NONF_IPV6_UDP)
+	if (arfs_entry->fltr_info.flow_type != ICE_FLTR_PTYPE_ANALNF_IPV4_UDP &&
+	    arfs_entry->fltr_info.flow_type != ICE_FLTR_PTYPE_ANALNF_IPV6_UDP)
 		return false;
 
 	return time_in_range64(arfs_entry->time_activated +
@@ -216,7 +216,7 @@ ice_arfs_update_flow_rules(struct ice_vsi *vsi, u16 idx,
 			   struct hlist_head *del_list)
 {
 	struct ice_arfs_entry *e;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	struct device *dev;
 
 	dev = ice_pf_to_dev(vsi->back);
@@ -231,14 +231,14 @@ ice_arfs_update_flow_rules(struct ice_vsi *vsi, u16 idx,
 
 			if (!ep)
 				continue;
-			INIT_HLIST_NODE(&ep->list_entry);
+			INIT_HLIST_ANALDE(&ep->list_entry);
 			/* reference aRFS entry to add HW filter */
 			ep->arfs_entry = e;
 			hlist_add_head(&ep->list_entry, add_list);
 			e->fltr_state = ICE_ARFS_ACTIVE;
 			/* expiration timer only used for UDP flows */
-			if (flow_type == ICE_FLTR_PTYPE_NONF_IPV4_UDP ||
-			    flow_type == ICE_FLTR_PTYPE_NONF_IPV6_UDP)
+			if (flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_UDP ||
+			    flow_type == ICE_FLTR_PTYPE_ANALNF_IPV6_UDP)
 				e->time_activated = get_jiffies_64();
 		} else if (e->fltr_state == ICE_ARFS_ACTIVE) {
 			/* check if filter needs to be removed from HW */
@@ -306,7 +306,7 @@ ice_arfs_build_entry(struct ice_vsi *vsi, const struct flow_keys *fk,
 
 	arfs_entry = devm_kzalloc(ice_pf_to_dev(vsi->back),
 				  sizeof(*arfs_entry),
-				  GFP_ATOMIC | __GFP_NOWARN);
+				  GFP_ATOMIC | __GFP_ANALWARN);
 	if (!arfs_entry)
 		return NULL;
 
@@ -319,8 +319,8 @@ ice_arfs_build_entry(struct ice_vsi *vsi, const struct flow_keys *fk,
 	if (fk->basic.n_proto == htons(ETH_P_IP)) {
 		fltr_info->ip.v4.proto = ip_proto;
 		fltr_info->flow_type = (ip_proto == IPPROTO_TCP) ?
-			ICE_FLTR_PTYPE_NONF_IPV4_TCP :
-			ICE_FLTR_PTYPE_NONF_IPV4_UDP;
+			ICE_FLTR_PTYPE_ANALNF_IPV4_TCP :
+			ICE_FLTR_PTYPE_ANALNF_IPV4_UDP;
 		fltr_info->ip.v4.src_ip = fk->addrs.v4addrs.src;
 		fltr_info->ip.v4.dst_ip = fk->addrs.v4addrs.dst;
 		fltr_info->ip.v4.src_port = fk->ports.src;
@@ -328,8 +328,8 @@ ice_arfs_build_entry(struct ice_vsi *vsi, const struct flow_keys *fk,
 	} else { /* ETH_P_IPV6 */
 		fltr_info->ip.v6.proto = ip_proto;
 		fltr_info->flow_type = (ip_proto == IPPROTO_TCP) ?
-			ICE_FLTR_PTYPE_NONF_IPV6_TCP :
-			ICE_FLTR_PTYPE_NONF_IPV6_UDP;
+			ICE_FLTR_PTYPE_ANALNF_IPV6_TCP :
+			ICE_FLTR_PTYPE_ANALNF_IPV6_UDP;
 		memcpy(&fltr_info->ip.v6.src_ip, &fk->addrs.v6addrs.src,
 		       sizeof(struct in6_addr));
 		memcpy(&fltr_info->ip.v6.dst_ip, &fk->addrs.v6addrs.dst,
@@ -340,7 +340,7 @@ ice_arfs_build_entry(struct ice_vsi *vsi, const struct flow_keys *fk,
 
 	arfs_entry->flow_id = flow_id;
 	fltr_info->fltr_id =
-		atomic_inc_return(vsi->arfs_last_fltr_id) % RPS_NO_FILTER;
+		atomic_inc_return(vsi->arfs_last_fltr_id) % RPS_ANAL_FILTER;
 
 	return arfs_entry;
 }
@@ -365,13 +365,13 @@ ice_arfs_is_perfect_flow_set(struct ice_hw *hw, __be16 l3_proto, u8 l4_proto)
 		return true;
 
 	if (l3_proto == htons(ETH_P_IP) && l4_proto == IPPROTO_UDP)
-		return test_bit(ICE_FLTR_PTYPE_NONF_IPV4_UDP, perfect_fltr);
+		return test_bit(ICE_FLTR_PTYPE_ANALNF_IPV4_UDP, perfect_fltr);
 	else if (l3_proto == htons(ETH_P_IP) && l4_proto == IPPROTO_TCP)
-		return test_bit(ICE_FLTR_PTYPE_NONF_IPV4_TCP, perfect_fltr);
+		return test_bit(ICE_FLTR_PTYPE_ANALNF_IPV4_TCP, perfect_fltr);
 	else if (l3_proto == htons(ETH_P_IPV6) && l4_proto == IPPROTO_UDP)
-		return test_bit(ICE_FLTR_PTYPE_NONF_IPV6_UDP, perfect_fltr);
+		return test_bit(ICE_FLTR_PTYPE_ANALNF_IPV6_UDP, perfect_fltr);
 	else if (l3_proto == htons(ETH_P_IPV6) && l4_proto == IPPROTO_TCP)
-		return test_bit(ICE_FLTR_PTYPE_NONF_IPV6_TCP, perfect_fltr);
+		return test_bit(ICE_FLTR_PTYPE_ANALNF_IPV6_TCP, perfect_fltr);
 
 	return false;
 }
@@ -408,15 +408,15 @@ ice_rx_flow_steer(struct net_device *netdev, const struct sk_buff *skb,
 
 	/* failed to allocate memory for aRFS so don't crash */
 	if (unlikely(!vsi->arfs_fltr_list))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pf = vsi->back;
 
 	if (skb->encapsulation)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	n_proto = fk.basic.n_proto;
 	/* Support only IPV4 and IPV6 */
@@ -424,15 +424,15 @@ ice_rx_flow_steer(struct net_device *netdev, const struct sk_buff *skb,
 	    n_proto == htons(ETH_P_IPV6))
 		ip_proto = fk.basic.ip_proto;
 	else
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	/* Support only TCP and UDP */
 	if (ip_proto != IPPROTO_TCP && ip_proto != IPPROTO_UDP)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	/* only support 4-tuple filters for aRFS */
 	if (!ice_arfs_is_perfect_flow_set(&pf->hw, n_proto, ip_proto))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* choose the aRFS list bucket based on skb hash */
 	idx = skb_get_hash_raw(skb) & ICE_ARFS_LST_MASK;
@@ -462,12 +462,12 @@ ice_rx_flow_steer(struct net_device *netdev, const struct sk_buff *skb,
 
 	arfs_entry = ice_arfs_build_entry(vsi, &fk, rxq_idx, flow_id);
 	if (!arfs_entry) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	ret = arfs_entry->fltr_info.fltr_id;
-	INIT_HLIST_NODE(&arfs_entry->list_entry);
+	INIT_HLIST_ANALDE(&arfs_entry->list_entry);
 	hlist_add_head(&arfs_entry->list_entry, &vsi->arfs_fltr_list[idx]);
 out_schedule_service_task:
 	ice_service_task_schedule(pf);
@@ -488,14 +488,14 @@ static int ice_init_arfs_cntrs(struct ice_vsi *vsi)
 	vsi->arfs_fltr_cntrs = kzalloc(sizeof(*vsi->arfs_fltr_cntrs),
 				       GFP_KERNEL);
 	if (!vsi->arfs_fltr_cntrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vsi->arfs_last_fltr_id = kzalloc(sizeof(*vsi->arfs_last_fltr_id),
 					 GFP_KERNEL);
 	if (!vsi->arfs_last_fltr_id) {
 		kfree(vsi->arfs_fltr_cntrs);
 		vsi->arfs_fltr_cntrs = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -550,7 +550,7 @@ void ice_clear_arfs(struct ice_vsi *vsi)
 	dev = ice_pf_to_dev(vsi->back);
 	for (i = 0; i < ICE_MAX_ARFS_LIST; i++) {
 		struct ice_arfs_entry *r;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 
 		spin_lock_bh(&vsi->arfs_lock);
 		hlist_for_each_entry_safe(r, n, &vsi->arfs_fltr_list[i],

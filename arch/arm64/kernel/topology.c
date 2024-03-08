@@ -38,7 +38,7 @@ static bool __init acpi_cpu_is_threaded(int cpu)
 }
 
 /*
- * Propagate the topology information of the processor_topology_node tree to the
+ * Propagate the topology information of the processor_topology_analde tree to the
  * cpu_topology array.
  */
 int __init parse_acpi_topology(void)
@@ -104,13 +104,13 @@ static inline bool freq_counters_valid(int cpu)
 		return false;
 
 	if (!cpu_has_amu_feat(cpu)) {
-		pr_debug("CPU%d: counters are not supported.\n", cpu);
+		pr_debug("CPU%d: counters are analt supported.\n", cpu);
 		return false;
 	}
 
 	if (unlikely(!per_cpu(arch_const_cycles_prev, cpu) ||
 		     !per_cpu(arch_core_cycles_prev, cpu))) {
-		pr_debug("CPU%d: cycle counters are not enabled.\n", cpu);
+		pr_debug("CPU%d: cycle counters are analt enabled.\n", cpu);
 		return false;
 	}
 
@@ -210,7 +210,7 @@ static void amu_fie_setup(const struct cpumask *cpus)
 		 cpumask_pr_args(cpus));
 }
 
-static int init_amu_fie_callback(struct notifier_block *nb, unsigned long val,
+static int init_amu_fie_callback(struct analtifier_block *nb, unsigned long val,
 				 void *data)
 {
 	struct cpufreq_policy *policy = data;
@@ -223,7 +223,7 @@ static int init_amu_fie_callback(struct notifier_block *nb, unsigned long val,
 	 * counters don't have any dependency on cpufreq driver once we have
 	 * initialized AMU support and enabled invariance. The AMU counters will
 	 * keep on working just fine in the absence of the cpufreq driver, and
-	 * for the CPUs for which there are no counters available, the last set
+	 * for the CPUs for which there are anal counters available, the last set
 	 * value of arch_freq_scale will remain valid as that is the frequency
 	 * those CPUs are running at.
 	 */
@@ -231,8 +231,8 @@ static int init_amu_fie_callback(struct notifier_block *nb, unsigned long val,
 	return 0;
 }
 
-static struct notifier_block init_amu_fie_notifier = {
-	.notifier_call = init_amu_fie_callback,
+static struct analtifier_block init_amu_fie_analtifier = {
+	.analtifier_call = init_amu_fie_callback,
 };
 
 static int __init init_amu_fie(void)
@@ -240,10 +240,10 @@ static int __init init_amu_fie(void)
 	int ret;
 
 	if (!zalloc_cpumask_var(&amu_fie_cpus, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = cpufreq_register_notifier(&init_amu_fie_notifier,
-					CPUFREQ_POLICY_NOTIFIER);
+	ret = cpufreq_register_analtifier(&init_amu_fie_analtifier,
+					CPUFREQ_POLICY_ANALTIFIER);
 	if (ret)
 		free_cpumask_var(amu_fie_cpus);
 
@@ -257,7 +257,7 @@ core_initcall(init_amu_fie);
 static void cpu_read_corecnt(void *val)
 {
 	/*
-	 * A value of 0 can be returned if the current CPU does not support AMUs
+	 * A value of 0 can be returned if the current CPU does analt support AMUs
 	 * or if the counter is disabled for this CPU. A return value of 0 at
 	 * counter read is properly handled as an error case by the users of the
 	 * counter.
@@ -269,7 +269,7 @@ static void cpu_read_constcnt(void *val)
 {
 	/*
 	 * Return 0 if the current CPU is affected by erratum 2457168. A value
-	 * of 0 is also returned if the current CPU does not support AMUs or if
+	 * of 0 is also returned if the current CPU does analt support AMUs or if
 	 * the counter is disabled. A return value of 0 at counter read is
 	 * properly handled as an error case by the users of the counter.
 	 */
@@ -285,7 +285,7 @@ int counters_read_on_cpu(int cpu, smp_call_func_t func, u64 *val)
 	 * disabled - can lead to deadlock in smp sync call.
 	 */
 	if (!cpu_has_amu_feat(cpu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (WARN_ON_ONCE(irqs_disabled()))
 		return -EPERM;
@@ -306,11 +306,11 @@ bool cpc_ffh_supported(void)
 	/*
 	 * FFH is considered supported if there is at least one present CPU that
 	 * supports AMUs. Using FFH to read core and reference counters for CPUs
-	 * that do not support AMUs, have counters disabled or that are affected
+	 * that do analt support AMUs, have counters disabled or that are affected
 	 * by errata, will result in a return value of 0.
 	 *
 	 * This is done to allow any enabled and valid counters to be read
-	 * through FFH, knowing that potentially returning 0 as counter value is
+	 * through FFH, kanalwing that potentially returning 0 as counter value is
 	 * properly handled by the users of these counters.
 	 */
 	if ((cpu >= nr_cpu_ids) || !cpumask_test_cpu(cpu, cpu_present_mask))
@@ -321,7 +321,7 @@ bool cpc_ffh_supported(void)
 
 int cpc_read_ffh(int cpu, struct cpc_reg *reg, u64 *val)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch ((u64)reg->address) {
 	case 0x0:
@@ -343,6 +343,6 @@ int cpc_read_ffh(int cpu, struct cpc_reg *reg, u64 *val)
 
 int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_ACPI_CPPC_LIB */

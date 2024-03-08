@@ -66,9 +66,9 @@
 
 /*
  * GPIO name legend: proper name = the GPIO line is used as GPIO
- *         NC = not connected (pin out but not routed from the chip to
+ *         NC = analt connected (pin out but analt routed from the chip to
  *              anything the board)
- *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
+ *         "[PER]" = pin is muxed for [peripheral] (analt GPIO)
  *         LSEC = Low Speed External Connector
  *         HSEC = High Speed External Connector
  *
@@ -284,9 +284,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_default>;
-	no-sdio;
-	no-mmc;
-	no-1-8-v;
+	anal-sdio;
+	anal-mmc;
+	anal-1-8-v;
 	cd-gpios = <&pinctrl 120 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
 	vmmc-supply = <&sd_vcc>;
@@ -298,9 +298,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_default>;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	bus-width = <8>;
 	vmmc-supply = <&vcc_3v1>;
 };

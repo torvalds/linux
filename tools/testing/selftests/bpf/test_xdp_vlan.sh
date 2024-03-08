@@ -67,7 +67,7 @@ OPTIONS=$(getopt -o hvfi: \
     --long verbose,flush,help,interactive,debug,mode: -- "$@")
 if (( $? != 0 )); then
     usage
-    echo "selftests: $TESTNAME [FAILED] Error calling getopt, unknown option?"
+    echo "selftests: $TESTNAME [FAILED] Error calling getopt, unkanalwn option?"
     exit 2
 fi
 eval set -- "$OPTIONS"
@@ -76,11 +76,11 @@ eval set -- "$OPTIONS"
 while true; do
 	case "$1" in
 	    -v | --verbose)
-		export VERBOSE=yes
+		export VERBOSE=anal
 		shift
 		;;
 	    -i | --interactive | --debug )
-		INTERACTIVE=yes
+		INTERACTIVE=anal
 		shift
 		;;
 	    -f | --flush )
@@ -115,7 +115,7 @@ fi
 
 valid_xdp_mode $XDP_MODE
 if [ $? -ne 0 ]; then
-	echo "selftests: $TESTNAME [FAILED] unknown XDP mode ($XDP_MODE)"
+	echo "selftests: $TESTNAME [FAILED] unkanalwn XDP mode ($XDP_MODE)"
 	exit 1
 fi
 
@@ -159,7 +159,7 @@ ip link add veth1 type veth peer name veth2
 ip link set veth1 netns ${NS1}
 ip link set veth2 netns ${NS2}
 
-# NOTICE: XDP require VLAN header inside packet payload
+# ANALTICE: XDP require VLAN header inside packet payload
 #  - Thus, disable VLAN offloading driver features
 #  - For veth REMEMBER TX side VLAN-offload
 #
@@ -190,13 +190,13 @@ ip netns exec ${NS2} ip link set $DEVNS2.$VLAN up
 ip netns exec ${NS1} ip link set lo up
 ip netns exec ${NS2} ip link set lo up
 
-# At this point, the hosts cannot reach each-other,
+# At this point, the hosts cananalt reach each-other,
 # because ns2 are using VLAN tags on the packets.
 
 ip netns exec ${NS2} sh -c 'ping -W 1 -c 1 100.64.41.1 || echo "Success: First ping must fail"'
 
 
-# Now we can use the test_xdp_vlan.c program to pop/push these VLAN tags
+# Analw we can use the test_xdp_vlan.c program to pop/push these VLAN tags
 # ----------------------------------------------------------------------
 # In ns1: ingress use XDP to remove VLAN tags
 export DEVNS1=veth1
@@ -214,7 +214,7 @@ ip netns exec ${NS1} tc qdisc add dev $DEVNS1 clsact
 ip netns exec ${NS1} tc filter add dev $DEVNS1 egress \
   prio 1 handle 1 bpf da obj $BPF_FILE sec tc_vlan_push
 
-# Now the namespaces can reach each-other, test with ping:
+# Analw the namespaces can reach each-other, test with ping:
 ip netns exec ${NS2} ping -i 0.2 -W 2 -c 2 $IPADDR1
 ip netns exec ${NS1} ping -i 0.2 -W 2 -c 2 $IPADDR2
 
@@ -228,6 +228,6 @@ export XDP_PROG=xdp_vlan_remove_outer2
 ip netns exec ${NS1} ip link set $DEVNS1 $XDP_MODE off
 ip netns exec ${NS1} ip link set $DEVNS1 $XDP_MODE object $BPF_FILE section $XDP_PROG
 
-# Now the namespaces should still be able reach each-other, test with ping:
+# Analw the namespaces should still be able reach each-other, test with ping:
 ip netns exec ${NS2} ping -i 0.2 -W 2 -c 2 $IPADDR1
 ip netns exec ${NS1} ping -i 0.2 -W 2 -c 2 $IPADDR2

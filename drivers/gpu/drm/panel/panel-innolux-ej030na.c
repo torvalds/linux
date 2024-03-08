@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Innolux/Chimei EJ030NA TFT LCD panel driver
+ * Inanallux/Chimei EJ030NA TFT LCD panel driver
  *
  * Copyright (C) 2020, Paul Cercueil <paul@crapouillou.net>
  * Copyright (C) 2020, Christophe Branchereau <cbranchereau@gmail.com>
@@ -162,7 +162,7 @@ static int ej030na_get_modes(struct drm_panel *panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &panel_info->display_modes[i]);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 
@@ -206,7 +206,7 @@ static int ej030na_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->spi = spi;
 	spi_set_drvdata(spi, priv);
@@ -289,14 +289,14 @@ static const struct ej030na_info ej030na_info = {
 };
 
 static const struct of_device_id ej030na_of_match[] = {
-	{ .compatible = "innolux,ej030na", .data = &ej030na_info },
+	{ .compatible = "inanallux,ej030na", .data = &ej030na_info },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ej030na_of_match);
 
 static struct spi_driver ej030na_driver = {
 	.driver = {
-		.name = "panel-innolux-ej030na",
+		.name = "panel-inanallux-ej030na",
 		.of_match_table = ej030na_of_match,
 	},
 	.probe = ej030na_probe,

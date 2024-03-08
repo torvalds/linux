@@ -37,7 +37,7 @@ struct isp2401_sync_generator_cfg_s {
 typedef enum {
 	PIXELGEN_TPG_MODE_RAMP = 0,
 	PIXELGEN_TPG_MODE_CHBO,
-	PIXELGEN_TPG_MODE_MONO,
+	PIXELGEN_TPG_MODE_MOANAL,
 	N_PIXELGEN_TPG_MODE
 } pixelgen_tpg_mode_t;
 
@@ -47,7 +47,7 @@ typedef enum {
  */
 typedef struct pixelgen_tpg_cfg_s pixelgen_tpg_cfg_t;
 struct pixelgen_tpg_cfg_s {
-	pixelgen_tpg_mode_t	mode;	/* CHBO, MONO */
+	pixelgen_tpg_mode_t	mode;	/* CHBO, MOANAL */
 
 	struct {
 		/* be used by CHBO and MON */

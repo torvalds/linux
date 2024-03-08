@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
@@ -78,7 +78,7 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 
 
 struct pcmcia_dynid {
-	struct list_head		node;
+	struct list_head		analde;
 	struct pcmcia_device_id		id;
 };
 
@@ -97,31 +97,31 @@ new_id_store(struct device_driver *driver, const char *buf, size_t count)
 	struct pcmcia_dynid *dynid;
 	struct pcmcia_driver *pdrv = to_pcmcia_drv(driver);
 	__u16 match_flags, manf_id, card_id;
-	__u8 func_id, function, device_no;
+	__u8 func_id, function, device_anal;
 	__u32 prod_id_hash[4] = {0, 0, 0, 0};
 	int fields = 0;
 	int retval = 0;
 
 	fields = sscanf(buf, "%hx %hx %hx %hhx %hhx %hhx %x %x %x %x",
-			&match_flags, &manf_id, &card_id, &func_id, &function, &device_no,
+			&match_flags, &manf_id, &card_id, &func_id, &function, &device_anal,
 			&prod_id_hash[0], &prod_id_hash[1], &prod_id_hash[2], &prod_id_hash[3]);
 	if (fields < 6)
 		return -EINVAL;
 
 	dynid = kzalloc(sizeof(struct pcmcia_dynid), GFP_KERNEL);
 	if (!dynid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dynid->id.match_flags = match_flags;
 	dynid->id.manf_id = manf_id;
 	dynid->id.card_id = card_id;
 	dynid->id.func_id = func_id;
 	dynid->id.function = function;
-	dynid->id.device_no = device_no;
+	dynid->id.device_anal = device_anal;
 	memcpy(dynid->id.prod_id_hash, prod_id_hash, sizeof(__u32) * 4);
 
 	mutex_lock(&pdrv->dynids.lock);
-	list_add_tail(&dynid->node, &pdrv->dynids.list);
+	list_add_tail(&dynid->analde, &pdrv->dynids.list);
 	mutex_unlock(&pdrv->dynids.lock);
 
 	retval = driver_attach(&pdrv->drv);
@@ -138,8 +138,8 @@ pcmcia_free_dynids(struct pcmcia_driver *drv)
 	struct pcmcia_dynid *dynid, *n;
 
 	mutex_lock(&drv->dynids.lock);
-	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
-		list_del(&dynid->node);
+	list_for_each_entry_safe(dynid, n, &drv->dynids.list, analde) {
+		list_del(&dynid->analde);
 		kfree(dynid);
 	}
 	mutex_unlock(&drv->dynids.lock);
@@ -258,7 +258,7 @@ static int pcmcia_device_probe(struct device *dev)
 
 	dev = get_device(dev);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	p_dev = to_pcmcia_dev(dev);
 	p_drv = to_pcmcia_drv(dev->driver);
@@ -282,7 +282,7 @@ static int pcmcia_device_probe(struct device *dev)
 			p_dev->config_regs);
 	} else {
 		dev_info(dev,
-			 "pcmcia: could not parse base and rmask0 of CIS\n");
+			 "pcmcia: could analt parse base and rmask0 of CIS\n");
 		p_dev->config_base = 0;
 		p_dev->config_regs = 0;
 	}
@@ -301,7 +301,7 @@ static int pcmcia_device_probe(struct device *dev)
 
 	mutex_lock(&s->ops_mutex);
 	if ((s->pcmcia_pfc) &&
-	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
+	    (p_dev->socket->device_count == 1) && (p_dev->device_anal == 0))
 		pcmcia_parse_uevents(s, PCMCIA_UEVENT_REQUERY);
 	mutex_unlock(&s->ops_mutex);
 
@@ -367,7 +367,7 @@ static void pcmcia_device_remove(struct device *dev)
 	 */
 	if ((p_dev->socket->pcmcia_pfc) &&
 	    (p_dev->socket->device_count > 0) &&
-	    (p_dev->device_no == 0))
+	    (p_dev->device_anal == 0))
 		pcmcia_card_remove(p_dev->socket, p_dev);
 
 	/* detach the "instance" */
@@ -377,13 +377,13 @@ static void pcmcia_device_remove(struct device *dev)
 	/* check for proper unloading */
 	if (p_dev->_irq || p_dev->_io || p_dev->_locked)
 		dev_info(dev,
-			 "pcmcia: driver %s did not release config properly\n",
+			 "pcmcia: driver %s did analt release config properly\n",
 			 p_drv->name);
 
 	for (i = 0; i < MAX_WIN; i++)
 		if (p_dev->_win & CLIENT_WIN_REQ(i))
 			dev_info(dev,
-				 "pcmcia: driver %s did not release window properly\n",
+				 "pcmcia: driver %s did analt release window properly\n",
 				 p_drv->name);
 
 	/* references from pcmcia_device_probe */
@@ -404,7 +404,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 
 	vers1 = kmalloc(sizeof(*vers1), GFP_KERNEL);
 	if (!vers1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!pccard_read_tuple(p_dev->socket, BIND_FN_ALL,
 			       CISTPL_MANFID, &manf_id)) {
@@ -423,7 +423,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		p_dev->has_func_id = 1;
 		mutex_unlock(&p_dev->socket->ops_mutex);
 	} else {
-		/* rule of thumb: cards with no FUNCID, but with
+		/* rule of thumb: cards with anal FUNCID, but with
 		 * common memory device geometry information, are
 		 * probably memory cards (from pcmcia-cs) */
 		cistpl_device_geo_t *devgeo;
@@ -431,7 +431,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		devgeo = kmalloc(sizeof(*devgeo), GFP_KERNEL);
 		if (!devgeo) {
 			kfree(vers1);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (!pccard_read_tuple(p_dev->socket, p_dev->func,
 				      CISTPL_DEVICE_GEO, devgeo)) {
@@ -493,15 +493,15 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 		goto err_put;
 
 	mutex_lock(&s->ops_mutex);
-	p_dev->device_no = (s->device_count++);
+	p_dev->device_anal = (s->device_count++);
 	mutex_unlock(&s->ops_mutex);
 
 	/* max of 2 PFC devices */
-	if ((p_dev->device_no >= 2) && (function == 0))
+	if ((p_dev->device_anal >= 2) && (function == 0))
 		goto err_free;
 
 	/* max of 4 devices overall */
-	if (p_dev->device_no >= 4)
+	if (p_dev->device_anal >= 4)
 		goto err_free;
 
 	p_dev->socket = s;
@@ -522,7 +522,7 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 
 	/*
 	 * p_dev->function_config must be the same for all card functions.
-	 * Note that this is serialized by ops_mutex, so that only one
+	 * Analte that this is serialized by ops_mutex, so that only one
 	 * such struct will be created.
 	 */
 	list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
@@ -537,7 +537,7 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 
 	if (pcmcia_setup_irq(p_dev))
 		dev_warn(&p_dev->dev,
-			"IRQ setup failed -- device might not work\n");
+			"IRQ setup failed -- device might analt work\n");
 
 	if (!p_dev->function_config) {
 		config_t *c;
@@ -565,12 +565,12 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 
 	mutex_unlock(&s->ops_mutex);
 
-	dev_notice(&p_dev->dev, "pcmcia: registering new device %s (IRQ: %d)\n",
+	dev_analtice(&p_dev->dev, "pcmcia: registering new device %s (IRQ: %d)\n",
 		   p_dev->devname, p_dev->irq);
 
 	pcmcia_device_query(p_dev);
 
-	dev_set_name(&p_dev->dev, "%d.%d", p_dev->socket->sock, p_dev->device_no);
+	dev_set_name(&p_dev->dev, "%d.%d", p_dev->socket->sock, p_dev->device_anal);
 	if (device_register(&p_dev->dev)) {
 		mutex_lock(&s->ops_mutex);
 		list_del(&p_dev->socket_device_list);
@@ -606,13 +606,13 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 static int pcmcia_card_add(struct pcmcia_socket *s)
 {
 	cistpl_longlink_mfc_t mfc;
-	unsigned int no_funcs, i, no_chains;
+	unsigned int anal_funcs, i, anal_chains;
 	int ret = -EAGAIN;
 
 	mutex_lock(&s->ops_mutex);
 	if (!(s->resource_setup_done)) {
 		dev_dbg(&s->dev,
-			   "no resources available, delaying card_add\n");
+			   "anal resources available, delaying card_add\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EAGAIN; /* try again, but later... */
 	}
@@ -625,35 +625,35 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 	}
 	mutex_unlock(&s->ops_mutex);
 
-	ret = pccard_validate_cis(s, &no_chains);
-	if (ret || !no_chains) {
-#if defined(CONFIG_MTD_PCMCIA_ANONYMOUS)
-		/* Set up as an anonymous card. If we don't have anonymous
-		   memory support then just error the card as there is no
+	ret = pccard_validate_cis(s, &anal_chains);
+	if (ret || !anal_chains) {
+#if defined(CONFIG_MTD_PCMCIA_AANALNYMOUS)
+		/* Set up as an aanalnymous card. If we don't have aanalnymous
+		   memory support then just error the card as there is anal
 		   point trying to second guess.
 
-		   Note: some cards have just a device entry, it may be
+		   Analte: some cards have just a device entry, it may be
 		   worth extending support to cover these in future */
 		if (ret == -EIO) {
-			dev_info(&s->dev, "no CIS, assuming an anonymous memory card.\n");
+			dev_info(&s->dev, "anal CIS, assuming an aanalnymous memory card.\n");
 			pcmcia_replace_cis(s, "\xFF", 1);
-			no_chains = 1;
+			anal_chains = 1;
 			ret = 0;
 		} else
 #endif
 		{
 			dev_dbg(&s->dev, "invalid CIS or invalid resources\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	if (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_LONGLINK_MFC, &mfc))
-		no_funcs = mfc.nfn;
+		anal_funcs = mfc.nfn;
 	else
-		no_funcs = 1;
-	s->functions = no_funcs;
+		anal_funcs = 1;
+	s->functions = anal_funcs;
 
-	for (i = 0; i < no_funcs; i++)
+	for (i = 0; i < anal_funcs; i++)
 		pcmcia_device_add(s, i);
 
 	return ret;
@@ -720,8 +720,8 @@ static void pcmcia_requery(struct pcmcia_socket *s)
 	if (has_pfc)
 		pcmcia_device_add(s, 0);
 
-	/* we re-scan all devices, not just the ones connected to this
-	 * socket. This does not matter, though. */
+	/* we re-scan all devices, analt just the ones connected to this
+	 * socket. This does analt matter, though. */
 	if (bus_rescan_devices(&pcmcia_bus_type))
 		dev_warn(&s->dev, "rescanning the bus failed\n");
 }
@@ -742,7 +742,7 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char *filename)
 {
 	struct pcmcia_socket *s = dev->socket;
 	const struct firmware *fw;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	cistpl_longlink_mfc_t mfc;
 	int old_funcs, new_funcs = 1;
 
@@ -791,7 +791,7 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char *filename)
 static inline int pcmcia_load_firmware(struct pcmcia_device *dev,
 				       char *filename)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif
@@ -843,12 +843,12 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 			return 0;
 	}
 
-	if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) {
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_ANAL) {
 		dev_dbg(&dev->dev, "this is a pseudo-multi-function device\n");
 		mutex_lock(&dev->socket->ops_mutex);
 		dev->socket->pcmcia_pfc = 1;
 		mutex_unlock(&dev->socket->ops_mutex);
-		if (dev->device_no != did->device_no)
+		if (dev->device_anal != did->device_anal)
 			return 0;
 	}
 
@@ -862,11 +862,11 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 		 * we need explicit matches */
 		if (dev->socket->pcmcia_pfc)
 			return 0;
-		if (dev->device_no)
+		if (dev->device_anal)
 			return 0;
 
 		/* also, FUNC_ID matching needs to be activated by userspace
-		 * after it has re-checked that there is no possible module
+		 * after it has re-checked that there is anal possible module
 		 * with a prod_id/manf_id/card_id match.
 		 */
 		mutex_lock(&dev->socket->ops_mutex);
@@ -887,7 +887,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 				return 0;
 	}
 
-	if (did->match_flags & PCMCIA_DEV_ID_MATCH_ANONYMOUS) {
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_AANALNYMOUS) {
 		int i;
 		for (i = 0; i < 4; i++)
 			if (dev->prod_id[i])
@@ -909,7 +909,7 @@ static int pcmcia_bus_match(struct device *dev, struct device_driver *drv)
 
 	/* match dynamic devices first */
 	mutex_lock(&p_drv->dynids.lock);
-	list_for_each_entry(dynid, &p_drv->dynids.list, node) {
+	list_for_each_entry(dynid, &p_drv->dynids.list, analde) {
 		dev_dbg(dev, "trying to match to %s\n", drv->name);
 		if (pcmcia_devmatch(p_dev, &dynid->id)) {
 			dev_dbg(dev, "matched to %s\n", drv->name);
@@ -938,7 +938,7 @@ static int pcmcia_bus_uevent(const struct device *dev, struct kobj_uevent_env *e
 	u32 hash[4] = { 0, 0, 0, 0};
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	p_dev = to_pcmcia_dev(dev);
 
@@ -949,11 +949,11 @@ static int pcmcia_bus_uevent(const struct device *dev, struct kobj_uevent_env *e
 		hash[i] = crc32(0, p_dev->prod_id[i], strlen(p_dev->prod_id[i]));
 	}
 
-	if (add_uevent_var(env, "SOCKET_NO=%u", p_dev->socket->sock))
-		return -ENOMEM;
+	if (add_uevent_var(env, "SOCKET_ANAL=%u", p_dev->socket->sock))
+		return -EANALMEM;
 
-	if (add_uevent_var(env, "DEVICE_NO=%02X", p_dev->device_no))
-		return -ENOMEM;
+	if (add_uevent_var(env, "DEVICE_ANAL=%02X", p_dev->device_anal))
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "MODALIAS=pcmcia:m%04Xc%04Xf%02Xfn%02Xpfn%02X"
 			   "pa%08Xpb%08Xpc%08Xpd%08X",
@@ -961,12 +961,12 @@ static int pcmcia_bus_uevent(const struct device *dev, struct kobj_uevent_env *e
 			   p_dev->has_card_id ? p_dev->card_id : 0,
 			   p_dev->has_func_id ? p_dev->func_id : 0,
 			   p_dev->func,
-			   p_dev->device_no,
+			   p_dev->device_anal,
 			   hash[0],
 			   hash[1],
 			   hash[2],
 			   hash[3]))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1002,7 +1002,7 @@ static int runtime_resume(struct device *dev)
 static ssize_t field##_show (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);		\
-	return p_dev->test ? sysfs_emit(buf, format, p_dev->field) : -ENODEV; \
+	return p_dev->test ? sysfs_emit(buf, format, p_dev->field) : -EANALDEV; \
 }									\
 static DEVICE_ATTR_RO(field);
 
@@ -1010,7 +1010,7 @@ static DEVICE_ATTR_RO(field);
 static ssize_t name##_show (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);		\
-	return p_dev->field ? sysfs_emit(buf, "%s\n", p_dev->field) : -ENODEV; \
+	return p_dev->field ? sysfs_emit(buf, "%s\n", p_dev->field) : -EANALDEV; \
 }									\
 static DEVICE_ATTR_RO(name);
 
@@ -1026,7 +1026,7 @@ static ssize_t function_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
-	return p_dev->socket ? sysfs_emit(buf, "0x%02x\n", p_dev->func) : -ENODEV;
+	return p_dev->socket ? sysfs_emit(buf, "0x%02x\n", p_dev->func) : -EANALDEV;
 }
 static DEVICE_ATTR_RO(function);
 
@@ -1088,7 +1088,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 				p_dev->has_manf_id ? p_dev->manf_id : 0,
 				p_dev->has_card_id ? p_dev->card_id : 0,
 				p_dev->has_func_id ? p_dev->func_id : 0,
-				p_dev->func, p_dev->device_no,
+				p_dev->func, p_dev->device_anal,
 				hash[0], hash[1], hash[2], hash[3]);
 }
 static DEVICE_ATTR_RO(modalias);
@@ -1155,7 +1155,7 @@ static int pcmcia_dev_suspend(struct device *dev)
 		ret = p_drv->suspend(p_dev);
 		if (ret) {
 			dev_err(dev,
-				"pcmcia: device %s (driver %s) did not want to go to sleep (%d)\n",
+				"pcmcia: device %s (driver %s) did analt want to go to sleep (%d)\n",
 				p_dev->devname, p_drv->name, ret);
 			mutex_lock(&p_dev->socket->ops_mutex);
 			p_dev->suspended = 0;
@@ -1164,7 +1164,7 @@ static int pcmcia_dev_suspend(struct device *dev)
 		}
 	}
 
-	if (p_dev->device_no == p_dev->func) {
+	if (p_dev->device_anal == p_dev->func) {
 		dev_dbg(dev, "releasing configuration\n");
 		pcmcia_release_configuration(p_dev);
 	}
@@ -1196,7 +1196,7 @@ static int pcmcia_dev_resume(struct device *dev)
 	if (!p_drv)
 		goto out;
 
-	if (p_dev->device_no == p_dev->func) {
+	if (p_dev->device_anal == p_dev->func) {
 		dev_dbg(dev, "requesting configuration\n");
 		ret = pcmcia_enable_device(p_dev);
 		if (ret)
@@ -1297,16 +1297,16 @@ static int pcmcia_bus_early_resume(struct pcmcia_socket *skt)
 	skt->functions = 0;
 	mutex_unlock(&skt->ops_mutex);
 
-	/* now, add the new card */
+	/* analw, add the new card */
 	pcmcia_bus_add(skt);
 	return 0;
 }
 
 
 /*
- * NOTE: This is racy. There's no guarantee the card will still be
+ * ANALTE: This is racy. There's anal guarantee the card will still be
  * physically present, even if the call to this function returns
- * non-NULL. Furthermore, the device driver most likely is unbound
+ * analn-NULL. Furthermore, the device driver most likely is unbound
  * almost immediately, so the timeframe where pcmcia_dev_present
  * returns NULL is probably really really small.
  */
@@ -1347,7 +1347,7 @@ static int pcmcia_bus_add_socket(struct device *dev)
 	socket = pcmcia_get_socket(socket);
 	if (!socket) {
 		dev_err(dev, "PCMCIA obtaining reference to socket failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = sysfs_create_bin_file(&dev->kobj, &pccard_cis_attr);

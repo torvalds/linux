@@ -198,7 +198,7 @@
 	vqmmc-supply = <&reg_1p8v>;
 	assigned-clocks = <&topckgen CLK_TOP_MSDC30_0_SEL>;
 	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
-	non-removable;
+	analn-removable;
 };
 
 &mmc1 {
@@ -222,13 +222,13 @@
 	status = "disabled";
 };
 
-&nor_flash {
+&analr_flash {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi_nor_pins>;
+	pinctrl-0 = <&spi_analr_pins>;
 	status = "disabled";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 	};
 };
@@ -432,7 +432,7 @@
 		};
 	};
 
-	/* Serial NAND is shared pin with SPI-NOR */
+	/* Serial NAND is shared pin with SPI-ANALR */
 	serial_nand_pins: serial-nand-pins {
 		mux {
 			function = "flash";
@@ -454,15 +454,15 @@
 		};
 	};
 
-	/* SPI-NOR is shared pin with serial NAND */
-	spi_nor_pins: spi-nor-pins {
+	/* SPI-ANALR is shared pin with serial NAND */
+	spi_analr_pins: spi-analr-pins {
 		mux {
 			function = "flash";
-			groups = "spi_nor";
+			groups = "spi_analr";
 		};
 	};
 
-	/* serial NAND is shared pin with SPI-NOR */
+	/* serial NAND is shared pin with SPI-ANALR */
 	serial_nand_pins: serial-nand-pins {
 		mux {
 			function = "flash";

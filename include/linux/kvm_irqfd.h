@@ -14,8 +14,8 @@
 /*
  * Resampling irqfds are a special variety of irqfds used to emulate
  * level triggered interrupts.  The interrupt is asserted on eventfd
- * trigger.  On acknowledgment through the irq ack notifier, the
- * interrupt is de-asserted and userspace is notified through the
+ * trigger.  On ackanalwledgment through the irq ack analtifier, the
+ * interrupt is de-asserted and userspace is analtified through the
  * resamplefd.  All resamplers on the same gsi are de-asserted
  * together, so we don't need to track the state of each individual
  * user.  We can also therefore share the same irq source ID.
@@ -27,7 +27,7 @@ struct kvm_kernel_irqfd_resampler {
 	 * RCU list modified under kvm->irqfds.resampler_lock
 	 */
 	struct list_head list;
-	struct kvm_irq_ack_notifier notifier;
+	struct kvm_irq_ack_analtifier analtifier;
 	/*
 	 * Entry in list of kvm->irqfd.resampler_list.  Use for sharing
 	 * resamplers among irqfds on the same gsi.
@@ -48,7 +48,7 @@ struct kvm_kernel_irqfd {
 	struct work_struct inject;
 	/* The resampler used by this irqfd (resampler-only) */
 	struct kvm_kernel_irqfd_resampler *resampler;
-	/* Eventfd notified on resample (resampler-only) */
+	/* Eventfd analtified on resample (resampler-only) */
 	struct eventfd_ctx *resamplefd;
 	/* Entry in list of irqfds for a resampler (resampler-only) */
 	struct list_head resampler_link;

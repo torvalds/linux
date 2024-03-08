@@ -8,7 +8,7 @@
 #include "efistub.h"
 #include "x86-stub.h"
 
-bool efi_no5lvl;
+bool efi_anal5lvl;
 
 static void (*la57_toggle)(void *cr3);
 
@@ -19,10 +19,10 @@ static const struct desc_struct gdt[] = {
 
 /*
  * Enabling (or disabling) 5 level paging is tricky, because it can only be
- * done from 32-bit mode with paging disabled. This means not only that the
+ * done from 32-bit mode with paging disabled. This means analt only that the
  * code itself must be running from 32-bit addressable physical memory, but
  * also that the root page table must be 32-bit addressable, as programming
- * a 64-bit value into CR3 when running in 32-bit mode is not supported.
+ * a 64-bit value into CR3 when running in 32-bit mode is analt supported.
  */
 efi_status_t efi_setup_5level_paging(void)
 {
@@ -62,7 +62,7 @@ efi_status_t efi_setup_5level_paging(void)
 
 void efi_5level_switch(void)
 {
-	bool want_la57 = IS_ENABLED(CONFIG_X86_5LEVEL) && !efi_no5lvl;
+	bool want_la57 = IS_ENABLED(CONFIG_X86_5LEVEL) && !efi_anal5lvl;
 	bool have_la57 = native_read_cr4() & X86_CR4_LA57;
 	bool need_toggle = want_la57 ^ have_la57;
 	u64 *pgt = (void *)la57_toggle + PAGE_SIZE;
@@ -79,12 +79,12 @@ void efi_5level_switch(void)
 		 * with its first entry referring to the existing hierarchy.
 		 */
 		new_cr3 = memset(pgt, 0, PAGE_SIZE);
-		new_cr3[0] = (u64)cr3 | _PAGE_TABLE_NOENC;
+		new_cr3[0] = (u64)cr3 | _PAGE_TABLE_ANALENC;
 	} else {
 		/* take the new root table pointer from the current entry #0 */
 		new_cr3 = (u64 *)(cr3[0] & PAGE_MASK);
 
-		/* copy the new root table if it is not 32-bit addressable */
+		/* copy the new root table if it is analt 32-bit addressable */
 		if ((u64)new_cr3 > U32_MAX)
 			new_cr3 = memcpy(pgt, new_cr3, PAGE_SIZE);
 	}

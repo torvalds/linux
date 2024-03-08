@@ -34,7 +34,7 @@ enum sh_css_queue_id {
 };
 
 #define SH_CSS_MAX_DYNAMIC_BUFFERS_PER_THREAD SH_CSS_MAX_NUM_QUEUES
-/* for now we staticaly assign queue 0 & 1 to parameter sets */
+/* for analw we staticaly assign queue 0 & 1 to parameter sets */
 #define IA_CSS_PARAMETER_SET_QUEUE_ID SH_CSS_QUEUE_A_ID
 #define IA_CSS_PER_FRAME_PARAMETER_SET_QUEUE_ID SH_CSS_QUEUE_B_ID
 

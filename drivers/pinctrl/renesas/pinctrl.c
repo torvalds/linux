@@ -86,7 +86,7 @@ static int sh_pfc_map_add_config(struct pinctrl_map *map,
 	cfgs = kmemdup(configs, num_configs * sizeof(*cfgs),
 		       GFP_KERNEL);
 	if (cfgs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map->type = type;
 	map->data.configs.group_or_pin = group_or_pin;
@@ -96,8 +96,8 @@ static int sh_pfc_map_add_config(struct pinctrl_map *map,
 	return 0;
 }
 
-static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-				    struct device_node *np,
+static int sh_pfc_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+				    struct device_analde *np,
 				    struct pinctrl_map **map,
 				    unsigned int *num_maps, unsigned int *index)
 {
@@ -131,8 +131,8 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	if (!function && num_configs == 0) {
 		dev_err(dev,
-			"DT node must contain at least a function or config\n");
-		ret = -ENODEV;
+			"DT analde must contain at least a function or config\n");
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -158,8 +158,8 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	if (!num_pins && !num_groups) {
-		dev_err(dev, "No pin or group provided in DT node\n");
-		ret = -ENODEV;
+		dev_err(dev, "Anal pin or group provided in DT analde\n");
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -170,7 +170,7 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	maps = krealloc(maps, sizeof(*maps) * nmaps, GFP_KERNEL);
 	if (maps == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -235,13 +235,13 @@ static void sh_pfc_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np,
+static int sh_pfc_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_analde *np,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct device *dev = pmx->pfc->dev;
-	struct device_node *child;
+	struct device_analde *child;
 	unsigned int index;
 	int ret;
 
@@ -249,18 +249,18 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	index = 0;
 
-	for_each_child_of_node(np, child) {
-		ret = sh_pfc_dt_subnode_to_map(pctldev, child, map, num_maps,
+	for_each_child_of_analde(np, child) {
+		ret = sh_pfc_dt_subanalde_to_map(pctldev, child, map, num_maps,
 					       &index);
 		if (ret < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			goto done;
 		}
 	}
 
-	/* If no mapping has been found in child nodes try the config node. */
+	/* If anal mapping has been found in child analdes try the config analde. */
 	if (*num_maps == 0) {
-		ret = sh_pfc_dt_subnode_to_map(pctldev, np, map, num_maps,
+		ret = sh_pfc_dt_subanalde_to_map(pctldev, np, map, num_maps,
 					       &index);
 		if (ret < 0)
 			goto done;
@@ -269,7 +269,7 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (*num_maps)
 		return 0;
 
-	dev_err(dev, "no mapping found in node %pOF\n", np);
+	dev_err(dev, "anal mapping found in analde %pOF\n", np);
 	ret = -EINVAL;
 
 done:
@@ -286,7 +286,7 @@ static const struct pinctrl_ops sh_pfc_pinctrl_ops = {
 	.get_group_pins		= sh_pfc_get_group_pins,
 	.pin_dbg_show		= sh_pfc_pin_dbg_show,
 #ifdef CONFIG_OF
-	.dt_node_to_map		= sh_pfc_dt_node_to_map,
+	.dt_analde_to_map		= sh_pfc_dt_analde_to_map,
 	.dt_free_map		= sh_pfc_dt_free_map,
 #endif
 };
@@ -338,7 +338,7 @@ static int sh_pfc_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
 
 		/*
-		 * This driver cannot manage both gpio and mux when the gpio
+		 * This driver cananalt manage both gpio and mux when the gpio
 		 * pin is already enabled. So, this function fails.
 		 */
 		if (cfg->gpio_enabled) {
@@ -430,7 +430,7 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	unsigned int dir;
 	int ret;
 
-	/* Check if the requested direction is supported by the pin. Not all
+	/* Check if the requested direction is supported by the pin. Analt all
 	 * SoCs provide pin config data, so perform the check conditionally.
 	 */
 	if (pin->configs) {
@@ -576,7 +576,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 	unsigned int arg;
 
 	if (!sh_pfc_pinconf_validate(pfc, _pin, param))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
@@ -585,7 +585,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 		unsigned int bias;
 
 		if (!pfc->info->ops || !pfc->info->ops->get_bias)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		spin_lock_irqsave(&pfc->lock, flags);
 		bias = pfc->info->ops->get_bias(pfc, _pin);
@@ -617,7 +617,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 		int bit;
 
 		if (!pfc->info->ops || !pfc->info->ops->pin_to_pocctrl)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		bit = pfc->info->ops->pin_to_pocctrl(_pin, &pocctrl);
 		if (WARN(bit < 0, "invalid pin %#x", _pin))
@@ -634,7 +634,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 	}
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -654,14 +654,14 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
 		param = pinconf_to_config_param(configs[i]);
 
 		if (!sh_pfc_pinconf_validate(pfc, _pin, param))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_PULL_UP:
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 		case PIN_CONFIG_BIAS_DISABLE:
 			if (!pfc->info->ops || !pfc->info->ops->set_bias)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			spin_lock_irqsave(&pfc->lock, flags);
 			pfc->info->ops->set_bias(pfc, _pin, param);
@@ -690,7 +690,7 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
 			int bit;
 
 			if (!pfc->info->ops || !pfc->info->ops->pin_to_pocctrl)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			bit = pfc->info->ops->pin_to_pocctrl(_pin, &pocctrl);
 			if (WARN(bit < 0, "invalid pin %#x", _pin))
@@ -716,7 +716,7 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
 		}
 
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	} /* for each config */
 
@@ -762,13 +762,13 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 				 pfc->info->nr_pins, sizeof(*pmx->pins),
 				 GFP_KERNEL);
 	if (unlikely(!pmx->pins))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmx->configs = devm_kcalloc(pfc->dev,
 				    pfc->info->nr_pins, sizeof(*pmx->configs),
 				    GFP_KERNEL);
 	if (unlikely(!pmx->configs))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pfc->info->nr_pins; ++i) {
 		const struct sh_pfc_pin *info = &pfc->info->pins[i];
@@ -789,7 +789,7 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 
 	pmx = devm_kzalloc(pfc->dev, sizeof(*pmx), GFP_KERNEL);
 	if (unlikely(!pmx))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmx->pfc = pfc;
 
@@ -808,7 +808,7 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	ret = devm_pinctrl_register_and_init(pfc->dev, &pmx->pctl_desc, pmx,
 					     &pmx->pctl);
 	if (ret) {
-		dev_err(pfc->dev, "could not register: %i\n", ret);
+		dev_err(pfc->dev, "could analt register: %i\n", ret);
 
 		return ret;
 	}
@@ -831,7 +831,7 @@ rcar_pin_to_bias_reg(const struct sh_pfc_soc_info *info, unsigned int pin,
 		}
 	}
 
-	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
+	WARN_ONCE(1, "Pin %u is analt in bias info list\n", pin);
 
 	return NULL;
 }

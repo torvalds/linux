@@ -234,7 +234,7 @@ static int smsc47b397_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct smsc47b397_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->addr = res->start;
 	mutex_init(&data->lock);
@@ -262,7 +262,7 @@ static int __init smsc47b397_device_add(unsigned short address)
 
 	pdev = platform_device_alloc(DRVNAME, address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}
@@ -313,7 +313,7 @@ static int __init smsc47b397_find(void)
 		break;
 	default:
 		superio_exit();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rev = superio_inb(SUPERIO_REG_DEVREV);

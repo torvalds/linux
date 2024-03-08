@@ -6,7 +6,7 @@
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/net.h>
@@ -88,7 +88,7 @@ static struct ip6_flowlabel *fl_lookup(struct net *net, __be32 label)
 
 	rcu_read_lock();
 	fl = __fl_lookup(net, label);
-	if (fl && !atomic_inc_not_zero(&fl->users))
+	if (fl && !atomic_inc_analt_zero(&fl->users))
 		fl = NULL;
 	rcu_read_unlock();
 	return fl;
@@ -148,7 +148,7 @@ static void fl_release(struct ip6_flowlabel *fl)
 static void ip6_fl_gc(struct timer_list *unused)
 {
 	int i;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	unsigned long sched = 0;
 
 	spin_lock(&ip6_fl_lock);
@@ -165,7 +165,7 @@ static void ip6_fl_gc(struct timer_list *unused)
 				if (time_after(ttd, fl->expires))
 					fl->expires = ttd;
 				ttd = fl->expires;
-				if (time_after_eq(now, ttd)) {
+				if (time_after_eq(analw, ttd)) {
 					*flp = fl->next;
 					fl_free(fl);
 					atomic_dec(&fl_size);
@@ -178,7 +178,7 @@ static void ip6_fl_gc(struct timer_list *unused)
 		}
 	}
 	if (!sched && atomic_read(&fl_size))
-		sched = now + FL_MAX_LINGER;
+		sched = analw + FL_MAX_LINGER;
 	if (sched) {
 		mod_timer(&ip6_fl_gc_timer, sched);
 	}
@@ -233,9 +233,9 @@ static struct ip6_flowlabel *fl_intern(struct net *net,
 		 * we dropper the ip6_fl_lock, so this entry could reappear
 		 * and we need to recheck with it.
 		 *
-		 * OTOH no need to search the active socket first, like it is
+		 * OTOH anal need to search the active socket first, like it is
 		 * done in ipv6_flowlabel_opt - sock is locked, so new entry
-		 * with the same label can only appear on another sock
+		 * with the same label can only appear on aanalther sock
 		 */
 		lfl = __fl_lookup(net, fl->label);
 		if (lfl) {
@@ -270,7 +270,7 @@ struct ip6_flowlabel *__fl6_sock_lookup(struct sock *sk, __be32 label)
 	for_each_sk_fl_rcu(np, sfl) {
 		struct ip6_flowlabel *fl = sfl->fl;
 
-		if (fl->label == label && atomic_inc_not_zero(&fl->users)) {
+		if (fl->label == label && atomic_inc_analt_zero(&fl->users)) {
 			fl->lastuse = jiffies;
 			rcu_read_unlock();
 			return fl;
@@ -386,7 +386,7 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 	if (olen > 64 * 1024)
 		goto done;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	fl = kzalloc(sizeof(*fl), GFP_KERNEL);
 	if (!fl)
 		goto done;
@@ -396,7 +396,7 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		struct flowi6 flowi6;
 		struct ipcm6_cookie ipc6;
 
-		err = -ENOMEM;
+		err = -EANALMEM;
 		fl->opt = kmalloc(sizeof(*fl->opt) + olen, GFP_KERNEL);
 		if (!fl->opt)
 			goto done;
@@ -487,7 +487,7 @@ static int mem_check(struct sock *sk)
 	    ((count >= FL_MAX_PER_SOCK ||
 	      (count > 0 && room < FL_MAX_SIZE/2) || room < FL_MAX_SIZE/4) &&
 	     !capable(CAP_NET_ADMIN)))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	return 0;
 }
@@ -536,7 +536,7 @@ int ipv6_flowlabel_opt_get(struct sock *sk, struct in6_flowlabel_req *freq,
 	}
 	rcu_read_unlock();
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 #define socklist_dereference(__sflp) \
@@ -550,7 +550,7 @@ static int ipv6_flowlabel_put(struct sock *sk, struct in6_flowlabel_req *freq)
 
 	if (freq->flr_flags & IPV6_FL_F_REFLECT) {
 		if (sk->sk_protocol != IPPROTO_TCP)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		if (!inet6_test_bit(REPFLOW, sk))
 			return -ESRCH;
 		np->flow_label = 0;
@@ -595,7 +595,7 @@ static int ipv6_flowlabel_renew(struct sock *sk, struct in6_flowlabel_req *freq)
 	}
 	rcu_read_unlock();
 
-	if (freq->flr_share == IPV6_FL_S_NONE &&
+	if (freq->flr_share == IPV6_FL_S_ANALNE &&
 	    ns_capable(net->user_ns, CAP_NET_ADMIN)) {
 		struct ip6_flowlabel *fl = fl_lookup(net, freq->flr_label);
 
@@ -620,12 +620,12 @@ static int ipv6_flowlabel_get(struct sock *sk, struct in6_flowlabel_req *freq,
 
 	if (freq->flr_flags & IPV6_FL_F_REFLECT) {
 		if (net->ipv6.sysctl.flowlabel_consistency) {
-			net_info_ratelimited("Can not set IPV6_FL_F_REFLECT if flowlabel_consistency sysctl is enable\n");
+			net_info_ratelimited("Can analt set IPV6_FL_F_REFLECT if flowlabel_consistency sysctl is enable\n");
 			return -EPERM;
 		}
 
 		if (sk->sk_protocol != IPPROTO_TCP)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		inet6_set_bit(REPFLOW, sk);
 		return 0;
 	}
@@ -652,7 +652,7 @@ static int ipv6_flowlabel_get(struct sock *sk, struct in6_flowlabel_req *freq,
 					goto done;
 				}
 				fl1 = sfl->fl;
-				if (!atomic_inc_not_zero(&fl1->users))
+				if (!atomic_inc_analt_zero(&fl1->users))
 					fl1 = NULL;
 				break;
 			}
@@ -675,7 +675,7 @@ recheck:
 			     !uid_eq(fl1->owner.uid, fl->owner.uid)))
 				goto release;
 
-			err = -ENOMEM;
+			err = -EANALMEM;
 			if (!sfl1)
 				goto release;
 			if (fl->linger > fl1->linger)
@@ -691,11 +691,11 @@ release:
 			goto done;
 		}
 	}
-	err = -ENOENT;
+	err = -EANALENT;
 	if (!(freq->flr_flags & IPV6_FL_F_CREATE))
 		goto done;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!sfl1)
 		goto done;
 
@@ -712,7 +712,7 @@ release:
 
 		if (copy_to_sockptr_offset(optval, offset, &fl->label,
 				sizeof(fl->label))) {
-			/* Intentionally ignore fault. */
+			/* Intentionally iganalre fault. */
 		}
 	}
 
@@ -810,7 +810,7 @@ static void *ip6fl_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct ip6fl_iter_state *state = ip6fl_seq_private(seq);
 
-	state->pid_ns = proc_pid_ns(file_inode(seq->file)->i_sb);
+	state->pid_ns = proc_pid_ns(file_ianalde(seq->file)->i_sb);
 
 	rcu_read_lock();
 	return *pos ? ip6fl_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -870,7 +870,7 @@ static int __net_init ip6_flowlabel_proc_init(struct net *net)
 {
 	if (!proc_create_net("ip6_flowlabel", 0444, net->proc_net,
 			&ip6fl_seq_ops, sizeof(struct ip6fl_iter_state)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

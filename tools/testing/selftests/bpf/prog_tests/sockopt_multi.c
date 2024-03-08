@@ -215,7 +215,7 @@ static int run_setsockopt_test(struct sockopt_multi *obj, int cg_parent,
 		goto detach;
 	}
 
-	/* Attach parent program and make sure it adds another 0x10. */
+	/* Attach parent program and make sure it adds aanalther 0x10. */
 
 	link_parent = bpf_program__attach_cgroup(obj->progs._setsockopt,
 						 cg_parent);

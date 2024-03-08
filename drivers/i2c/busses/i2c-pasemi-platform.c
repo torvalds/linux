@@ -54,7 +54,7 @@ static int pasemi_platform_i2c_probe(struct platform_device *pdev)
 	data = devm_kzalloc(dev, sizeof(struct pasemi_platform_i2c_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smbus = &data->smbus;
 	smbus->dev = dev;
@@ -63,7 +63,7 @@ static int pasemi_platform_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(smbus->ioaddr))
 		return PTR_ERR(smbus->ioaddr);
 
-	if (of_property_read_u32(dev->of_node, "clock-frequency", &frequency))
+	if (of_property_read_u32(dev->of_analde, "clock-frequency", &frequency))
 		frequency = I2C_MAX_STANDARD_MODE_FREQ;
 
 	data->clk_ref = devm_clk_get_enabled(dev, NULL);
@@ -74,7 +74,7 @@ static int pasemi_platform_i2c_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	smbus->adapter.dev.of_node = pdev->dev.of_node;
+	smbus->adapter.dev.of_analde = pdev->dev.of_analde;
 	error = pasemi_i2c_common_probe(smbus);
 	if (error)
 		return error;

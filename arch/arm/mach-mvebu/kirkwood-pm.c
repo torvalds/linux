@@ -3,7 +3,7 @@
  * Power Management driver for Marvell Kirkwood SoCs
  *
  * Copyright (C) 2013 Ezequiel Garcia <ezequiel@free-electrons.com>
- * Copyright (C) 2010 Simon Guinot <sguinot@lacie.com>
+ * Copyright (C) 2010 Simon Guianalt <sguianalt@lacie.com>
  */
 
 #include <linux/kernel.h>

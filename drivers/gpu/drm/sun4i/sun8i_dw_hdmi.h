@@ -103,7 +103,7 @@
 #define SUN8I_HDMI_PHY_PLL_CFG1_CKIN_SEL_SHIFT	26
 #define SUN8I_HDMI_PHY_PLL_CFG1_PLLEN		BIT(25)
 #define SUN8I_HDMI_PHY_PLL_CFG1_LDO_VSET(x)	((x) << 22)
-#define SUN8I_HDMI_PHY_PLL_CFG1_UNKNOWN(x)	((x) << 20)
+#define SUN8I_HDMI_PHY_PLL_CFG1_UNKANALWN(x)	((x) << 20)
 #define SUN8I_HDMI_PHY_PLL_CFG1_PLLDBEN		BIT(19)
 #define SUN8I_HDMI_PHY_PLL_CFG1_CS		BIT(18)
 #define SUN8I_HDMI_PHY_PLL_CFG1_CP_S(x)		((x) << 13)
@@ -197,7 +197,7 @@ encoder_to_sun8i_dw_hdmi(struct drm_encoder *encoder)
 	return container_of(encoder, struct sun8i_dw_hdmi, encoder);
 }
 
-int sun8i_hdmi_phy_get(struct sun8i_dw_hdmi *hdmi, struct device_node *node);
+int sun8i_hdmi_phy_get(struct sun8i_dw_hdmi *hdmi, struct device_analde *analde);
 
 int sun8i_hdmi_phy_init(struct sun8i_hdmi_phy *phy);
 void sun8i_hdmi_phy_deinit(struct sun8i_hdmi_phy *phy);

@@ -9,8 +9,8 @@
  *
  * History:
  * Copyright (c) 2005 David Brownell
- * Copyright (c) 2006 Nokia Corporation
- * Various changes: Imre Deak <imre.deak@nokia.com>
+ * Copyright (c) 2006 Analkia Corporation
+ * Various changes: Imre Deak <imre.deak@analkia.com>
  *
  * Using code from:
  *  - corgi_ts.c
@@ -53,7 +53,7 @@
 #define AD7877_REG_SEQ0				12
 #define AD7877_REG_SEQ1				13
 #define AD7877_REG_DAC				14
-#define AD7877_REG_NONE1			15
+#define AD7877_REG_ANALNE1			15
 #define AD7877_REG_EXTWRITE			15
 #define AD7877_REG_XPLUS			16
 #define AD7877_REG_YPLUS			17
@@ -69,8 +69,8 @@
 #define AD7877_REG_GPIOCTRL1			27
 #define AD7877_REG_GPIOCTRL2			28
 #define AD7877_REG_GPIODATA			29
-#define AD7877_REG_NONE2			30
-#define AD7877_REG_NONE3			31
+#define AD7877_REG_ANALNE2			30
+#define AD7877_REG_ANALNE3			31
 
 #define AD7877_SEQ_YPLUS_BIT			(1<<11)
 #define AD7877_SEQ_XPLUS_BIT			(1<<10)
@@ -116,10 +116,10 @@ enum {
 #define AD7877_AVG(x)			((x & 0x3) << 10)
 
 /* Control REG 1 */
-#define	AD7877_SER			(1 << 11)	/* non-differential */
+#define	AD7877_SER			(1 << 11)	/* analn-differential */
 #define	AD7877_DFR			(0 << 11)	/* differential */
 
-#define AD7877_MODE_NOC  (0)	/* Do not convert */
+#define AD7877_MODE_ANALC  (0)	/* Do analt convert */
 #define AD7877_MODE_SCC  (1)	/* Single channel conversion */
 #define AD7877_MODE_SEQ0 (2)	/* Sequence 0 in Slave Mode */
 #define AD7877_MODE_SEQ1 (3)	/* Sequence 1 in Master Mode */
@@ -136,7 +136,7 @@ enum {
 		AD7877_SEQ_Z2_BIT | AD7877_SEQ_Z1_BIT)
 
 /*
- * Non-touchscreen sensors only use single-ended conversions.
+ * Analn-touchscreen sensors only use single-ended conversions.
  */
 
 struct ser_req {
@@ -203,7 +203,7 @@ static int ad7877_read(struct spi_device *spi, u16 reg)
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_message_init(&req->msg);
 
@@ -234,7 +234,7 @@ static int ad7877_write(struct spi_device *spi, u16 reg, u16 val)
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_message_init(&req->msg);
 
@@ -261,7 +261,7 @@ static int ad7877_read_adc(struct spi_device *spi, unsigned command)
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_message_init(&req->msg);
 
@@ -271,7 +271,7 @@ static int ad7877_read_adc(struct spi_device *spi, unsigned command)
 			 AD7877_AVG(0) | AD7877_PM(2) | AD7877_TMR(0) |
 			 AD7877_ACQ(ts->acquisition_time) | AD7877_FCD(0);
 
-	req->reset = AD7877_WRITEADD(AD7877_REG_CTRL1) | AD7877_MODE_NOC;
+	req->reset = AD7877_WRITEADD(AD7877_REG_CTRL1) | AD7877_MODE_ANALC;
 
 	req->command = (u16) command;
 
@@ -331,7 +331,7 @@ static int ad7877_process_data(struct ad7877 *ts)
 	 * The samples processed here are already preprocessed by the AD7877.
 	 * The preprocessing function consists of an averaging filter.
 	 * The combination of 'first conversion delay' and averaging provides a robust solution,
-	 * discarding the spurious noise in the signal and keeping only the data of interest.
+	 * discarding the spurious analise in the signal and keeping only the data of interest.
 	 * The size of the averaging filter is programmable. (dev.platform_data, see linux/spi/ad7877.h)
 	 * Other user-programmable conversion controls include variable acquisition time,
 	 * and first conversion delay. Up to 16 averages can be taken per conversion.
@@ -420,7 +420,7 @@ static void ad7877_disable(void *data)
 	}
 
 	/*
-	 * We know the chip's in lowpower mode since we always
+	 * We kanalw the chip's in lowpower mode since we always
 	 * leave it that way after every request
 	 */
 
@@ -676,13 +676,13 @@ static int ad7877_probe(struct spi_device *spi)
 	u16				verify;
 
 	if (!spi->irq) {
-		dev_dbg(&spi->dev, "no IRQ?\n");
-		return -ENODEV;
+		dev_dbg(&spi->dev, "anal IRQ?\n");
+		return -EANALDEV;
 	}
 
 	if (!pdata) {
-		dev_dbg(&spi->dev, "no platform data?\n");
-		return -ENODEV;
+		dev_dbg(&spi->dev, "anal platform data?\n");
+		return -EANALDEV;
 	}
 
 	/* don't exceed max specified SPI CLK frequency */
@@ -700,11 +700,11 @@ static int ad7877_probe(struct spi_device *spi)
 
 	ts = devm_kzalloc(&spi->dev, sizeof(struct ad7877), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&spi->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devm_add_action_or_reset(&spi->dev, ad7877_disable, ts);
 	if (err)
@@ -760,7 +760,7 @@ static int ad7877_probe(struct spi_device *spi)
 	if (verify != AD7877_MM_SEQUENCE) {
 		dev_err(&spi->dev, "%s: Failed to probe %s\n",
 			dev_name(&spi->dev), input_dev->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (gpio3)

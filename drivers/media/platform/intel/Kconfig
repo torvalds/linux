@@ -9,6 +9,6 @@ config VIDEO_PXA27x
 	depends on PXA27x || COMPILE_TEST
 	select VIDEOBUF2_DMA_SG
 	select SG_SPLIT
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface

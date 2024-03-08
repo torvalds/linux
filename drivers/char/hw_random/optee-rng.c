@@ -19,7 +19,7 @@
 /*
  * TA_CMD_GET_ENTROPY - Get Entropy from RNG
  *
- * param[0] (inout memref) - Entropy buffer memory reference
+ * param[0] (ianalut memref) - Entropy buffer memory reference
  * param[1] unused
  * param[2] unused
  * param[3] unused
@@ -27,7 +27,7 @@
  * Result:
  * TEE_SUCCESS - Invoke command success
  * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
- * TEE_ERROR_NOT_SUPPORTED - Requested entropy size greater than size of pool
+ * TEE_ERROR_ANALT_SUPPORTED - Requested entropy size greater than size of pool
  * TEE_ERROR_HEALTH_TEST_FAIL - Continuous health testing failed
  */
 #define TA_CMD_GET_ENTROPY		0x0
@@ -88,7 +88,7 @@ static size_t get_optee_rng_data(struct optee_rng_private *pvt_data,
 	inv_arg.num_params = 4;
 
 	/* Fill invoke cmd params */
-	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT;
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT;
 	param[0].u.memref.shm = pvt_data->entropy_shm_pool;
 	param[0].u.memref.size = req_size;
 	param[0].u.memref.shm_offs = 0;
@@ -214,7 +214,7 @@ static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
 static int optee_rng_probe(struct device *dev)
 {
 	struct tee_client_device *rng_device = to_tee_client_device(dev);
-	int ret = 0, err = -ENODEV;
+	int ret = 0, err = -EANALDEV;
 	struct tee_ioctl_open_session_arg sess_arg;
 
 	memset(&sess_arg, 0, sizeof(sess_arg));
@@ -223,7 +223,7 @@ static int optee_rng_probe(struct device *dev)
 	pvt_data.ctx = tee_client_open_context(NULL, optee_ctx_match, NULL,
 					       NULL);
 	if (IS_ERR(pvt_data.ctx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Open session with hwrng Trusted App */
 	export_uuid(sess_arg.uuid, &rng_device->id.uuid);

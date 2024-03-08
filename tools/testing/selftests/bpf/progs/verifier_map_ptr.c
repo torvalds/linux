@@ -71,13 +71,13 @@ __naked void bpf_map_ptr_write_rejected(void)
 }
 
 SEC("socket")
-__description("bpf_map_ptr: read non-existent field rejected")
+__description("bpf_map_ptr: read analn-existent field rejected")
 __failure
-__msg("cannot access ptr member ops with moff 0 in struct bpf_map with off 1 size 4")
+__msg("cananalt access ptr member ops with moff 0 in struct bpf_map with off 1 size 4")
 __failure_unpriv
 __msg_unpriv("access is allowed only to CAP_PERFMON and CAP_SYS_ADMIN")
 __flag(BPF_F_ANY_ALIGNMENT)
-__naked void read_non_existent_field_rejected(void)
+__naked void read_analn_existent_field_rejected(void)
 {
 	asm volatile ("					\
 	r6 = 0;						\

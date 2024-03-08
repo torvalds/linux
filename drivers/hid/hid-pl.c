@@ -13,7 +13,7 @@
  *   - tested with König Gaming gamepad
  *
  *  0e8f:0003 "GASIA USB Gamepad"
- *   - another version of the König gamepad
+ *   - aanalther version of the König gamepad
  *
  *  0f30:0111 "Saitek Color Rumble Pad"
  *
@@ -86,7 +86,7 @@ static int plff_init(struct hid_device *hid)
 
 	   The input reports also contain a field which contains
 	   8 ff00.0001 usages and 8 boolean values. Their meaning is
-	   currently unknown.
+	   currently unkanalwn.
 	   
 	   A version of the 0e8f:0003 exists that has all the values in
 	   separate fields and misses the extra input field, thus resembling
@@ -94,8 +94,8 @@ static int plff_init(struct hid_device *hid)
 	*/
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output reports found\n");
-		return -ENODEV;
+		hid_err(hid, "anal output reports found\n");
+		return -EANALDEV;
 	}
 
 	list_for_each_entry(hidinput, &hid->inputs, list) {
@@ -104,13 +104,13 @@ static int plff_init(struct hid_device *hid)
 
 		if (report_ptr == report_list) {
 			hid_err(hid, "required output report is missing\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		report = list_entry(report_ptr, struct hid_report, list);
 		if (report->maxfield < 1) {
-			hid_err(hid, "no fields in the report\n");
-			return -ENODEV;
+			hid_err(hid, "anal fields in the report\n");
+			return -EANALDEV;
 		}
 
 		maxval = 0x7f;
@@ -136,13 +136,13 @@ static int plff_init(struct hid_device *hid)
 				maxval = 0xff;
 			debug("detected 4-field device");
 		} else {
-			hid_err(hid, "not enough fields or values\n");
-			return -ENODEV;
+			hid_err(hid, "analt eanalugh fields or values\n");
+			return -EANALDEV;
 		}
 
 		plff = kzalloc(sizeof(struct plff_device), GFP_KERNEL);
 		if (!plff)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev = hidinput->input;
 

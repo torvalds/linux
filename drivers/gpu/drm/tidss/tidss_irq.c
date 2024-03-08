@@ -98,8 +98,8 @@ int tidss_irq_install(struct drm_device *ddev, unsigned int irq)
 	struct tidss_device *tidss = to_tidss(ddev);
 	int ret;
 
-	if (irq == IRQ_NOTCONNECTED)
-		return -ENOTCONN;
+	if (irq == IRQ_ANALTCONNECTED)
+		return -EANALTCONN;
 
 	ret = request_irq(irq, tidss_irq_handler, 0, ddev->driver->name, ddev);
 	if (ret)

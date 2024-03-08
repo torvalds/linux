@@ -37,7 +37,7 @@ static int qlcnic_sriov_pf_set_vport_info(struct qlcnic_adapter *adapter,
 	int err;
 
 	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_SET_NIC_INFO))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd.req.arg[1] = (vport_id << 16) | 0x1;
 	cmd.req.arg[2] = npar_info->bit_offsets;
@@ -178,7 +178,7 @@ static int qlcnic_sriov_get_pf_info(struct qlcnic_adapter *adapter,
 	struct qlcnic_cmd_args cmd;
 
 	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_NIC_INFO))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd.req.arg[1] = 0x2;
 	err = qlcnic_issue_cmd(adapter, &cmd);
@@ -293,7 +293,7 @@ static int qlcnic_sriov_pf_config_vport(struct qlcnic_adapter *adapter,
 	int vpid;
 
 	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_VPORT))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flag) {
 		cmd.req.arg[3] = func << 8;
@@ -384,7 +384,7 @@ static int qlcnic_sriov_pf_cfg_eswitch(struct qlcnic_adapter *adapter,
 	int err = -EIO;
 
 	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_TOGGLE_ESWITCH))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd.req.arg[0] |= (3 << 29);
 	cmd.req.arg[1] = ((func & 0xf) << 2) | BIT_6 | BIT_1;
@@ -422,8 +422,8 @@ static int qlcnic_sriov_pf_create_flr_queue(struct qlcnic_adapter *adapter)
 
 	wq = create_singlethread_workqueue("qlcnic-flr");
 	if (wq == NULL) {
-		dev_err(&adapter->pdev->dev, "Cannot create FLR workqueue\n");
-		return -ENOMEM;
+		dev_err(&adapter->pdev->dev, "Cananalt create FLR workqueue\n");
+		return -EANALMEM;
 	}
 
 	bc->bc_flr_wq =  wq;
@@ -467,7 +467,7 @@ static int qlcnic_pci_sriov_disable(struct qlcnic_adapter *adapter)
 
 	if (pci_vfs_assigned(adapter->pdev)) {
 		netdev_err(adapter->netdev,
-			   "SR-IOV VFs belonging to port %d are assigned to VMs. SR-IOV can not be disabled on this port\n",
+			   "SR-IOV VFs belonging to port %d are assigned to VMs. SR-IOV can analt be disabled on this port\n",
 			   adapter->portnum);
 		netdev_info(adapter->netdev,
 			    "Please detach SR-IOV VFs belonging to port %d from VMs, and then try to disable SR-IOV on this port\n",
@@ -622,7 +622,7 @@ static int qlcnic_pci_sriov_enable(struct qlcnic_adapter *adapter, int num_vfs)
 
 	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
 		netdev_err(netdev,
-			   "SR-IOV cannot be enabled, when legacy interrupts are enabled\n");
+			   "SR-IOV cananalt be enabled, when legacy interrupts are enabled\n");
 		return -EIO;
 	}
 
@@ -801,13 +801,13 @@ static int qlcnic_sriov_cfg_vf_def_mac(struct qlcnic_adapter *adapter,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = qlcnic_alloc_mbx_args(cmd, adapter, QLCNIC_CMD_CONFIG_MAC_VLAN);
 	if (err)
 		goto free_cmd;
 
-	cmd->type = QLC_83XX_MBX_CMD_NO_WAIT;
+	cmd->type = QLC_83XX_MBX_CMD_ANAL_WAIT;
 	vpid = qlcnic_sriov_pf_get_vport_handle(adapter, vf->pci_func);
 	if (vpid < 0) {
 		err = -EINVAL;
@@ -1347,7 +1347,7 @@ static int qlcnic_sriov_pf_get_acl_cmd(struct qlcnic_bc_trans *trans,
 	cmd->rsp.arg[0] |= 1 << 25;
 
 	/* For 84xx adapter in case of PVID , PFD should send vlan mode as
-	 * QLC_NO_VLAN_MODE to VFD which is zero in mailbox response
+	 * QLC_ANAL_VLAN_MODE to VFD which is zero in mailbox response
 	 */
 	if (qlcnic_84xx_check(adapter) && mode == QLC_PVID_MODE)
 		return 0;
@@ -1808,7 +1808,7 @@ int qlcnic_sriov_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	u8 *curr_mac;
 
 	if (!qlcnic_sriov_pf_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	num_vfs = sriov->num_vfs;
 
@@ -1837,7 +1837,7 @@ int qlcnic_sriov_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 		netdev_err(netdev,
 			   "MAC address change failed for VF %d, as VF driver is loaded. Please unload VF driver and retry the operation\n",
 			   vf);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	memcpy(curr_mac, mac, netdev->addr_len);
@@ -1857,7 +1857,7 @@ int qlcnic_sriov_set_vf_tx_rate(struct net_device *netdev, int vf,
 	u16 vpid;
 
 	if (!qlcnic_sriov_pf_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vf >= sriov->num_vfs)
 		return -EINVAL;
@@ -1918,13 +1918,13 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 	struct qlcnic_vport *vp;
 
 	if (!qlcnic_sriov_pf_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vf >= sriov->num_vfs || qos > 7)
 		return -EINVAL;
 
 	if (vlan_proto != htons(ETH_P_8021Q))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (vlan > MAX_VLAN_ID) {
 		netdev_err(netdev,
@@ -1939,7 +1939,7 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 		netdev_err(netdev,
 			   "VLAN change failed for VF %d, as VF driver is loaded. Please unload VF driver and retry the operation\n",
 			   vf);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	memset(vf_info->sriov_vlans, 0,
@@ -1950,7 +1950,7 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 		vp->vlan_mode = QLC_GUEST_VLAN_MODE;
 		break;
 	case 0:
-		vp->vlan_mode = QLC_NO_VLAN_MODE;
+		vp->vlan_mode = QLC_ANAL_VLAN_MODE;
 		vp->qos = 0;
 		break;
 	default:
@@ -1977,7 +1977,7 @@ static __u32 qlcnic_sriov_get_vf_vlan(struct qlcnic_adapter *adapter,
 	case QLC_GUEST_VLAN_MODE:
 		vlan = MAX_VLAN_ID;
 		break;
-	case QLC_NO_VLAN_MODE:
+	case QLC_ANAL_VLAN_MODE:
 		vlan = 0;
 		break;
 	default:
@@ -1996,7 +1996,7 @@ int qlcnic_sriov_get_vf_config(struct net_device *netdev,
 	struct qlcnic_vport *vp;
 
 	if (!qlcnic_sriov_pf_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vf >= sriov->num_vfs)
 		return -EINVAL;
@@ -2027,7 +2027,7 @@ int qlcnic_sriov_set_vf_spoofchk(struct net_device *netdev, int vf, bool chk)
 	struct qlcnic_vport *vp;
 
 	if (!qlcnic_sriov_pf_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vf >= sriov->num_vfs)
 		return -EINVAL;
@@ -2038,7 +2038,7 @@ int qlcnic_sriov_set_vf_spoofchk(struct net_device *netdev, int vf, bool chk)
 		netdev_err(netdev,
 			   "Spoof check change failed for VF %d, as VF driver is loaded. Please unload VF driver and retry the operation\n",
 			   vf);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	vp->spoofchk = chk;

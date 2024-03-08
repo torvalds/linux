@@ -22,8 +22,8 @@
 /* Current FCoE HSI version number composed of two fields (16 bit) */
 /* Implies on a change broken previous HSI */
 #define FCOE_HSI_MAJOR_VERSION (2)
-/* Implies on a change which does not broken previous HSI */
-#define FCOE_HSI_MINOR_VERSION (1)
+/* Implies on a change which does analt broken previous HSI */
+#define FCOE_HSI_MIANALR_VERSION (1)
 
 /* KWQ/KCQ FCoE layer code */
 #define FCOE_KWQE_LAYER_CODE   (7)
@@ -50,7 +50,7 @@
 #define FCOE_KCQE_OPCODE_ENABLE_CONN			(0x16)
 #define FCOE_KCQE_OPCODE_DISABLE_CONN			(0x17)
 #define FCOE_KCQE_OPCODE_DESTROY_CONN			(0x18)
-#define FCOE_KCQE_OPCODE_CQ_EVENT_NOTIFICATION  (0x20)
+#define FCOE_KCQE_OPCODE_CQ_EVENT_ANALTIFICATION  (0x20)
 #define FCOE_KCQE_OPCODE_FCOE_ERROR				(0x21)
 
 /* KCQ (kernel completion queue) completion status */
@@ -100,20 +100,20 @@
 /* Task context constants */
 /******** Remove FCP_CMD write tce sleep ***********************/
 /* In case timer services are required then shall be updated by Xstorm after
- * start processing the task. In case no timer facilities are required then the
+ * start processing the task. In case anal timer facilities are required then the
  * driver would initialize the state to this value
  *
-#define	FCOE_TASK_TX_STATE_NORMAL				0
+#define	FCOE_TASK_TX_STATE_ANALRMAL				0
  * After driver has initialize the task in case timer services required *
 #define	FCOE_TASK_TX_STATE_INIT					1
 ******** Remove FCP_CMD write tce sleep ***********************/
 /* After driver has initialize the task in case timer services required */
 #define	FCOE_TASK_TX_STATE_INIT					0
 /* In case timer services are required then shall be updated by Xstorm after
- * start processing the task. In case no timer facilities are required then the
+ * start processing the task. In case anal timer facilities are required then the
  * driver would initialize the state to this value
  */
-#define	FCOE_TASK_TX_STATE_NORMAL				1
+#define	FCOE_TASK_TX_STATE_ANALRMAL				1
 /* Task is under abort procedure. Updated in order to stop processing of
  * pending WQEs on this task
  */
@@ -131,7 +131,7 @@
 /* For completion the ABTS task. */
 #define	FCOE_TASK_TX_STATE_ABTS_TX				8
 
-#define	FCOE_TASK_RX_STATE_NORMAL				0
+#define	FCOE_TASK_RX_STATE_ANALRMAL				0
 #define	FCOE_TASK_RX_STATE_COMPLETED				1
 /* Obsolete: Intermediate completion (middle path with local completion) */
 #define	FCOE_TASK_RX_STATE_INTER_COMP				2
@@ -149,14 +149,14 @@
 #define	FCOE_TASK_RX_STATE_EXCHANGE_CLEANUP_IN_PROCESS		8
 /* FW only: Special completion indication in case of task was cleaned. */
 #define FCOE_TASK_RX_STATE_EXCHANGE_CLEANUP_COMPLETED		9
-/* Not in used: Special completion indication (in task requested the exchange
- * cleanup) in case cleaned task is in non-valid.
+/* Analt in used: Special completion indication (in task requested the exchange
+ * cleanup) in case cleaned task is in analn-valid.
  */
 #define FCOE_TASK_RX_STATE_ABORT_CLEANUP_COMPLETED		10
 /* Special completion indication (in task requested the sequence cleanup) in
- * case cleaned task was already returned to normal.
+ * case cleaned task was already returned to analrmal.
  */
-#define FCOE_TASK_RX_STATE_IGNORED_SEQUENCE_CLEANUP		11
+#define FCOE_TASK_RX_STATE_IGANALRED_SEQUENCE_CLEANUP		11
 
 
 #define	FCOE_TASK_TYPE_WRITE			0
@@ -202,17 +202,17 @@
 
 /* Error codes for Error Reporting in slow path flows */
 #define FCOE_SLOW_PATH_ERROR_CODE_TOO_MANY_FUNCS			0
-#define FCOE_SLOW_PATH_ERROR_CODE_NO_LICENSE				1
+#define FCOE_SLOW_PATH_ERROR_CODE_ANAL_LICENSE				1
 
 /* Error codes for Error Reporting in fast path flows
  * XFER error codes
  */
 #define FCOE_ERROR_CODE_XFER_OOO_RO					0
-#define FCOE_ERROR_CODE_XFER_RO_NOT_ALIGNED				1
+#define FCOE_ERROR_CODE_XFER_RO_ANALT_ALIGNED				1
 #define FCOE_ERROR_CODE_XFER_NULL_BURST_LEN				2
 #define FCOE_ERROR_CODE_XFER_RO_GREATER_THAN_DATA2TRNS			3
 #define FCOE_ERROR_CODE_XFER_INVALID_PAYLOAD_SIZE			4
-#define FCOE_ERROR_CODE_XFER_TASK_TYPE_NOT_WRITE			5
+#define FCOE_ERROR_CODE_XFER_TASK_TYPE_ANALT_WRITE			5
 #define FCOE_ERROR_CODE_XFER_PEND_XFER_SET				6
 #define FCOE_ERROR_CODE_XFER_OPENED_SEQ					7
 #define FCOE_ERROR_CODE_XFER_FCTL					8
@@ -228,7 +228,7 @@
 #define FCOE_ERROR_CODE_FCP_RSP_OPENED_SEQ				16
 #define FCOE_ERROR_CODE_FCP_RSP_FCTL					17
 #define FCOE_ERROR_CODE_FCP_RSP_LAST_SEQ_RESET				18
-#define FCOE_ERROR_CODE_FCP_RSP_CONF_REQ_NOT_SUPPORTED_YET		19
+#define FCOE_ERROR_CODE_FCP_RSP_CONF_REQ_ANALT_SUPPORTED_YET		19
 
 /* FCP DATA error codes */
 #define FCOE_ERROR_CODE_DATA_OOO_RO					20
@@ -238,7 +238,7 @@
 #define FCOE_ERROR_CODE_DATA_SOFN_SEQ_ACTIVE_RESET			24
 #define FCOE_ERROR_CODE_DATA_EOFN_END_SEQ_SET				25
 #define FCOE_ERROR_CODE_DATA_EOFT_END_SEQ_RESET				26
-#define FCOE_ERROR_CODE_DATA_TASK_TYPE_NOT_READ				27
+#define FCOE_ERROR_CODE_DATA_TASK_TYPE_ANALT_READ				27
 #define FCOE_ERROR_CODE_DATA_FCTL					28
 
 /* Middle path error codes */
@@ -264,14 +264,14 @@
 #define FCOE_ERROR_CODE_COMMON_FC_HDR_RX_ID_MISMATCH			44
 #define FCOE_ERROR_CODE_COMMON_INCORRECT_SEQ_CNT			45
 #define FCOE_ERROR_CODE_COMMON_DATA_FC_HDR_FCP_TYPE_MISMATCH		46
-#define FCOE_ERROR_CODE_COMMON_DATA_NO_MORE_SGES			47
+#define FCOE_ERROR_CODE_COMMON_DATA_ANAL_MORE_SGES			47
 #define FCOE_ERROR_CODE_COMMON_OPTIONAL_FC_HDR				48
 #define FCOE_ERROR_CODE_COMMON_READ_TCE_OX_ID_TOO_BIG			49
-#define FCOE_ERROR_CODE_COMMON_DATA_WAS_NOT_TRANSMITTED			50
+#define FCOE_ERROR_CODE_COMMON_DATA_WAS_ANALT_TRANSMITTED			50
 
 /* Unsolicited Rx error codes */
-#define FCOE_ERROR_CODE_UNSOLICITED_TYPE_NOT_ELS			51
-#define FCOE_ERROR_CODE_UNSOLICITED_TYPE_NOT_BLS			52
+#define FCOE_ERROR_CODE_UNSOLICITED_TYPE_ANALT_ELS			51
+#define FCOE_ERROR_CODE_UNSOLICITED_TYPE_ANALT_BLS			52
 #define FCOE_ERROR_CODE_UNSOLICITED_FCTL_ELS				53
 #define FCOE_ERROR_CODE_UNSOLICITED_FCTL_BLS				54
 #define FCOE_ERROR_CODE_UNSOLICITED_R_CTL				55

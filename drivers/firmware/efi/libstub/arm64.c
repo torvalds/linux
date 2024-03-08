@@ -23,7 +23,7 @@ static bool system_needs_vamap(void)
 
 	/*
 	 * Ampere eMAG, Altra, and Altra Max machines crash in SetTime() if
-	 * SetVirtualAddressMap() has not been called prior. Most Altra systems
+	 * SetVirtualAddressMap() has analt been called prior. Most Altra systems
 	 * can be identified by the SMCCC soc ID, which is conveniently exposed
 	 * via the type 4 SMBIOS records. Otherwise, test the processor version
 	 * field. eMAG systems all appear to have the processor version field
@@ -66,18 +66,18 @@ efi_status_t check_platform_features(void)
 	 * unnecessary.
 	 */
 	if (VA_BITS_MIN >= 48 && !system_needs_vamap())
-		efi_novamap = true;
+		efi_analvamap = true;
 
-	/* UEFI mandates support for 4 KB granularity, no need to check */
+	/* UEFI mandates support for 4 KB granularity, anal need to check */
 	if (IS_ENABLED(CONFIG_ARM64_4K_PAGES))
 		return EFI_SUCCESS;
 
 	tg = (read_cpuid(ID_AA64MMFR0_EL1) >> ID_AA64MMFR0_EL1_TGRAN_SHIFT) & 0xf;
 	if (tg < ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MIN || tg > ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MAX) {
 		if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
-			efi_err("This 64 KB granular kernel is not supported by your CPU\n");
+			efi_err("This 64 KB granular kernel is analt supported by your CPU\n");
 		else
-			efi_err("This 16 KB granular kernel is not supported by your CPU\n");
+			efi_err("This 16 KB granular kernel is analt supported by your CPU\n");
 		return EFI_UNSUPPORTED;
 	}
 	return EFI_SUCCESS;
@@ -123,17 +123,17 @@ unsigned long __weak primary_entry_offset(void)
 	 * By default, we can invoke the kernel via the branch instruction in
 	 * the image header, so offset #0. This will be overridden by the EFI
 	 * stub build that is linked into the core kernel, as in that case, the
-	 * image header may not have been loaded into memory, or may be mapped
-	 * with non-executable permissions.
+	 * image header may analt have been loaded into memory, or may be mapped
+	 * with analn-executable permissions.
 	 */
        return 0;
 }
 
-void __noreturn efi_enter_kernel(unsigned long entrypoint,
+void __analreturn efi_enter_kernel(unsigned long entrypoint,
 				 unsigned long fdt_addr,
 				 unsigned long fdt_size)
 {
-	void (* __noreturn enter_kernel)(u64, u64, u64, u64);
+	void (* __analreturn enter_kernel)(u64, u64, u64, u64);
 
 	enter_kernel = (void *)entrypoint + primary_entry_offset();
 	enter_kernel(fdt_addr, 0, 0, 0);

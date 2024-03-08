@@ -19,7 +19,7 @@
 	},
 	{
 		"MetricName": "sf_hit_rate",
-		"BriefDescription": "Snoop filter hit rate can be used to measure the snoop filter efficiency.",
+		"BriefDescription": "Sanalop filter hit rate can be used to measure the sanalop filter efficiency.",
 		"MetricGroup": "cmn",
 		"MetricExpr": "hnf_sf_hit / hnf_slc_sf_cache_access",
 		"ScaleUnit": "100%",

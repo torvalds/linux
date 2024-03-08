@@ -334,7 +334,7 @@ static int dummy_systimer_create(struct snd_pcm_substream *substream)
 
 	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (!dpcm)
-		return -ENOMEM;
+		return -EANALMEM;
 	substream->runtime->private_data = dpcm;
 	timer_setup(&dpcm->timer, dummy_systimer_callback, 0);
 	spin_lock_init(&dpcm->lock);
@@ -377,16 +377,16 @@ static enum hrtimer_restart dummy_hrtimer_callback(struct hrtimer *timer)
 
 	dpcm = container_of(timer, struct dummy_hrtimer_pcm, timer);
 	if (!atomic_read(&dpcm->running))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 	/*
 	 * In cases of XRUN and draining, this calls .trigger to stop PCM
 	 * substream.
 	 */
 	snd_pcm_period_elapsed(dpcm->substream);
 	if (!atomic_read(&dpcm->running))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
-	hrtimer_forward_now(timer, dpcm->period_time);
+	hrtimer_forward_analw(timer, dpcm->period_time);
 	return HRTIMER_RESTART;
 }
 
@@ -455,9 +455,9 @@ static int dummy_hrtimer_create(struct snd_pcm_substream *substream)
 
 	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (!dpcm)
-		return -ENOMEM;
+		return -EANALMEM;
 	substream->runtime->private_data = dpcm;
-	hrtimer_init(&dpcm->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
+	hrtimer_init(&dpcm->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_SOFT);
 	dpcm->timer.function = dummy_hrtimer_callback;
 	dpcm->substream = substream;
 	atomic_set(&dpcm->running, 0);
@@ -561,7 +561,7 @@ static int dummy_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw = dummy->pcm_hw;
 	if (substream->pcm->device & 1) {
 		runtime->hw.info &= ~SNDRV_PCM_INFO_INTERLEAVED;
-		runtime->hw.info |= SNDRV_PCM_INFO_NONINTERLEAVED;
+		runtime->hw.info |= SNDRV_PCM_INFO_ANALNINTERLEAVED;
 	}
 	if (substream->pcm->device & 2)
 		runtime->hw.info &= ~(SNDRV_PCM_INFO_MMAP |
@@ -618,7 +618,7 @@ static int alloc_fake_buffer(void)
 		dummy_page[i] = (void *)get_zeroed_page(GFP_KERNEL);
 		if (!dummy_page[i]) {
 			free_fake_buffer();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;
@@ -628,14 +628,14 @@ static int dummy_pcm_copy(struct snd_pcm_substream *substream,
 			  int channel, unsigned long pos,
 			  struct iov_iter *iter, unsigned long bytes)
 {
-	return 0; /* do nothing */
+	return 0; /* do analthing */
 }
 
 static int dummy_pcm_silence(struct snd_pcm_substream *substream,
 			     int channel, unsigned long pos,
 			     unsigned long bytes)
 {
-	return 0; /* do nothing */
+	return 0; /* do analthing */
 }
 
 static struct page *dummy_pcm_page(struct snd_pcm_substream *substream,
@@ -653,7 +653,7 @@ static const struct snd_pcm_ops dummy_pcm_ops = {
 	.pointer =	dummy_pcm_pointer,
 };
 
-static const struct snd_pcm_ops dummy_pcm_ops_no_buf = {
+static const struct snd_pcm_ops dummy_pcm_ops_anal_buf = {
 	.open =		dummy_pcm_open,
 	.close =	dummy_pcm_close,
 	.hw_params =	dummy_pcm_hw_params,
@@ -678,7 +678,7 @@ static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 		return err;
 	dummy->pcm = pcm;
 	if (fake_buffer)
-		ops = &dummy_pcm_ops_no_buf;
+		ops = &dummy_pcm_ops_anal_buf;
 	else
 		ops = &dummy_pcm_ops;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, ops);
@@ -800,7 +800,7 @@ static int snd_dummy_capsrc_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 static int snd_dummy_iobox_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *info)
 {
-	static const char *const names[] = { "None", "CD Player" };
+	static const char *const names[] = { "Analne", "CD Player" };
 
 	return snd_ctl_enum_info(info, 1, 2, names);
 }
@@ -839,9 +839,9 @@ static int snd_dummy_iobox_put(struct snd_kcontrol *kcontrol,
 				SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 		}
 
-		snd_ctl_notify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
+		snd_ctl_analtify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
 			       &dummy->cd_volume_ctl->id);
-		snd_ctl_notify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
+		snd_ctl_analtify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
 			       &dummy->cd_switch_ctl->id);
 	}
 
@@ -919,8 +919,8 @@ static void print_rates(struct snd_dummy *dummy,
 
 	if (dummy->pcm_hw.rates & SNDRV_PCM_RATE_CONTINUOUS)
 		snd_iprintf(buffer, " continuous");
-	if (dummy->pcm_hw.rates & SNDRV_PCM_RATE_KNOT)
-		snd_iprintf(buffer, " knot");
+	if (dummy->pcm_hw.rates & SNDRV_PCM_RATE_KANALT)
+		snd_iprintf(buffer, " kanalt");
 	for (i = 0; i < ARRAY_SIZE(rates); i++)
 		if (dummy->pcm_hw.rates & (1 << i))
 			snd_iprintf(buffer, " %d", rates[i]);
@@ -1173,10 +1173,10 @@ static int __init alsa_card_dummy_init(void)
 	}
 	if (!cards) {
 #ifdef MODULE
-		printk(KERN_ERR "Dummy soundcard not found or device busy\n");
+		printk(KERN_ERR "Dummy soundcard analt found or device busy\n");
 #endif
 		snd_dummy_unregister_all();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

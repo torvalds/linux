@@ -64,7 +64,7 @@ extern unsigned long zero_page_mask;
 	 (((unsigned long)(vaddr)) &zero_page_mask))))
 #define __HAVE_COLOR_ZERO_PAGE
 
-/* TODO: s390 cannot support io_remap_pfn_range... */
+/* TODO: s390 cananalt support io_remap_pfn_range... */
 
 #define pte_ERROR(e) \
 	pr_err("%s:%d: bad pte %016lx.\n", __FILE__, __LINE__, pte_val(e))
@@ -113,18 +113,18 @@ static inline int is_module_addr(void *addr)
  * 0000000000111111111122222222223333333333444444444455555555556666
  * 0123456789012345678901234567890123456789012345678901234567890123
  *
- * I Page-Invalid Bit:    Page is not available for address-translation
- * P Page-Protection Bit: Store access not possible for page
- * C Change-bit override: HW is not required to set change bit
+ * I Page-Invalid Bit:    Page is analt available for address-translation
+ * P Page-Protection Bit: Store access analt possible for page
+ * C Change-bit override: HW is analt required to set change bit
  *
  * A 64 bit segmenttable entry of S390 has following format:
  * |        P-table origin                              |      TT
  * 0000000000111111111122222222223333333333444444444455555555556666
  * 0123456789012345678901234567890123456789012345678901234567890123
  *
- * I Segment-Invalid Bit:    Segment is not available for address-translation
- * C Common-Segment Bit:     Segment is not private (PoP 3-30)
- * P Page-Protection Bit: Store access not possible for page
+ * I Segment-Invalid Bit:    Segment is analt available for address-translation
+ * C Common-Segment Bit:     Segment is analt private (PoP 3-30)
+ * P Page-Protection Bit: Store access analt possible for page
  * TT Type 00
  *
  * A 64 bit region table entry of S390 has following format:
@@ -132,7 +132,7 @@ static inline int is_module_addr(void *addr)
  * 0000000000111111111122222222223333333333444444444455555555556666
  * 0123456789012345678901234567890123456789012345678901234567890123
  *
- * I Segment-Invalid Bit:    Segment is not available for address-translation
+ * I Segment-Invalid Bit:    Segment is analt available for address-translation
  * TT Type 01
  * TF
  * TL Table length
@@ -159,7 +159,7 @@ static inline int is_module_addr(void *addr)
  */
 
 /* Hardware bits in the page table entry */
-#define _PAGE_NOEXEC	0x100		/* HW no-execute bit  */
+#define _PAGE_ANALEXEC	0x100		/* HW anal-execute bit  */
 #define _PAGE_PROTECT	0x200		/* HW read-only bit  */
 #define _PAGE_INVALID	0x400		/* HW invalid bit    */
 #define _PAGE_LARGE	0x800		/* Bit to mark a large pte */
@@ -183,20 +183,20 @@ static inline int is_module_addr(void *addr)
 
 #define _PAGE_SWP_EXCLUSIVE _PAGE_LARGE	/* SW pte exclusive swap bit */
 
-/* Set of bits not changed in pte_modify */
+/* Set of bits analt changed in pte_modify */
 #define _PAGE_CHG_MASK		(PAGE_MASK | _PAGE_SPECIAL | _PAGE_DIRTY | \
 				 _PAGE_YOUNG | _PAGE_SOFT_DIRTY)
 
 /*
- * Mask of bits that must not be changed with RDP. Allow only _PAGE_PROTECT
+ * Mask of bits that must analt be changed with RDP. Allow only _PAGE_PROTECT
  * HW bit and all SW bits.
  */
 #define _PAGE_RDP_MASK		~(_PAGE_PROTECT | _PAGE_SW_BITS)
 
 /*
- * handle_pte_fault uses pte_present and pte_none to find out the pte type
+ * handle_pte_fault uses pte_present and pte_analne to find out the pte type
  * WITHOUT holding the page table lock. The _PAGE_PRESENT bit is used to
- * distinguish present from not-present ptes. It is changed only with the page
+ * distinguish present from analt-present ptes. It is changed only with the page
  * table lock held.
  *
  * The following table gives the different possible bit combinations for
@@ -209,10 +209,10 @@ static inline int is_module_addr(void *addr)
  *				.IR.uswrdy.p
  * empty			.10.00000000
  * swap				.11..ttttt.0
- * prot-none, clean, old	.11.xx0000.1
- * prot-none, clean, young	.11.xx0001.1
- * prot-none, dirty, old	.11.xx0010.1
- * prot-none, dirty, young	.11.xx0011.1
+ * prot-analne, clean, old	.11.xx0000.1
+ * prot-analne, clean, young	.11.xx0001.1
+ * prot-analne, dirty, old	.11.xx0010.1
+ * prot-analne, dirty, young	.11.xx0011.1
  * read-only, clean, old	.11.xx0100.1
  * read-only, clean, young	.01.xx0101.1
  * read-only, dirty, old	.11.xx0110.1
@@ -225,7 +225,7 @@ static inline int is_module_addr(void *addr)
  * SW-bits: p present, y young, d dirty, r read, w write, s special,
  *	    u unused, l large
  *
- * pte_none    is true for the bit pattern .10.00000000, pte == 0x400
+ * pte_analne    is true for the bit pattern .10.00000000, pte == 0x400
  * pte_swap    is true for the bit pattern .11..ooooo.0, (pte & 0x201) == 0x200
  * pte_present is true for the bit pattern .xx.xxxxxx.1, (pte & 0x001) == 0x001
  */
@@ -246,7 +246,7 @@ static inline int is_module_addr(void *addr)
 /* Bits in the region table entry */
 #define _REGION_ENTRY_ORIGIN	~0xfffUL/* region/segment table origin	    */
 #define _REGION_ENTRY_PROTECT	0x200	/* region protection bit	    */
-#define _REGION_ENTRY_NOEXEC	0x100	/* region no-execute bit	    */
+#define _REGION_ENTRY_ANALEXEC	0x100	/* region anal-execute bit	    */
 #define _REGION_ENTRY_OFFSET	0xc0	/* region table offset		    */
 #define _REGION_ENTRY_INVALID	0x20	/* invalid region table entry	    */
 #define _REGION_ENTRY_TYPE_MASK	0x0c	/* region table type mask	    */
@@ -284,7 +284,7 @@ static inline int is_module_addr(void *addr)
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
 #define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* page table origin		    */
 #define _SEGMENT_ENTRY_PROTECT	0x200	/* segment protection bit	    */
-#define _SEGMENT_ENTRY_NOEXEC	0x100	/* segment no-execute bit	    */
+#define _SEGMENT_ENTRY_ANALEXEC	0x100	/* segment anal-execute bit	    */
 #define _SEGMENT_ENTRY_INVALID	0x20	/* invalid segment table entry	    */
 #define _SEGMENT_ENTRY_TYPE_MASK 0x0c	/* segment table type mask	    */
 
@@ -355,10 +355,10 @@ static inline int is_module_addr(void *addr)
  * Segment table and region3 table entry encoding
  * (R = read-only, I = invalid, y = young bit):
  *				dy..R...I...wr
- * prot-none, clean, old	00..1...1...00
- * prot-none, clean, young	01..1...1...00
- * prot-none, dirty, old	10..1...1...00
- * prot-none, dirty, young	11..1...1...00
+ * prot-analne, clean, old	00..1...1...00
+ * prot-analne, clean, young	01..1...1...00
+ * prot-analne, dirty, old	10..1...1...00
+ * prot-analne, dirty, young	11..1...1...00
  * read-only, clean, old	00..1...1...01
  * read-only, clean, young	01..1...0...01
  * read-only, dirty, old	10..1...1...01
@@ -382,12 +382,12 @@ static inline int is_module_addr(void *addr)
 #define PGSTE_GR_BIT	0x0004000000000000UL
 #define PGSTE_GC_BIT	0x0002000000000000UL
 #define PGSTE_UC_BIT	0x0000800000000000UL	/* user dirty (migration) */
-#define PGSTE_IN_BIT	0x0000400000000000UL	/* IPTE notify bit */
+#define PGSTE_IN_BIT	0x0000400000000000UL	/* IPTE analtify bit */
 #define PGSTE_VSIE_BIT	0x0000200000000000UL	/* ref'd in a shadow table */
 
 /* Guest Page State used for virtualization */
 #define _PGSTE_GPS_ZERO			0x0000000080000000UL
-#define _PGSTE_GPS_NODAT		0x0000000040000000UL
+#define _PGSTE_GPS_ANALDAT		0x0000000040000000UL
 #define _PGSTE_GPS_USAGE_MASK		0x0000000003000000UL
 #define _PGSTE_GPS_USAGE_STABLE		0x0000000000000000UL
 #define _PGSTE_GPS_USAGE_UNUSED		0x0000000001000000UL
@@ -405,22 +405,22 @@ static inline int is_module_addr(void *addr)
 /*
  * Page protection definitions.
  */
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_INVALID | _PAGE_PROTECT)
+#define PAGE_ANALNE	__pgprot(_PAGE_PRESENT | _PAGE_INVALID | _PAGE_PROTECT)
 #define PAGE_RO		__pgprot(_PAGE_PRESENT | _PAGE_READ | \
-				 _PAGE_NOEXEC  | _PAGE_INVALID | _PAGE_PROTECT)
+				 _PAGE_ANALEXEC  | _PAGE_INVALID | _PAGE_PROTECT)
 #define PAGE_RX		__pgprot(_PAGE_PRESENT | _PAGE_READ | \
 				 _PAGE_INVALID | _PAGE_PROTECT)
 #define PAGE_RW		__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
-				 _PAGE_NOEXEC  | _PAGE_INVALID | _PAGE_PROTECT)
+				 _PAGE_ANALEXEC  | _PAGE_INVALID | _PAGE_PROTECT)
 #define PAGE_RWX	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
 				 _PAGE_INVALID | _PAGE_PROTECT)
 
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
-				 _PAGE_YOUNG | _PAGE_DIRTY | _PAGE_NOEXEC)
+				 _PAGE_YOUNG | _PAGE_DIRTY | _PAGE_ANALEXEC)
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
-				 _PAGE_YOUNG | _PAGE_DIRTY | _PAGE_NOEXEC)
+				 _PAGE_YOUNG | _PAGE_DIRTY | _PAGE_ANALEXEC)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_YOUNG | \
-				 _PAGE_PROTECT | _PAGE_NOEXEC)
+				 _PAGE_PROTECT | _PAGE_ANALEXEC)
 #define PAGE_KERNEL_EXEC __pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
 				  _PAGE_YOUNG |	_PAGE_DIRTY)
 
@@ -434,16 +434,16 @@ static inline int is_module_addr(void *addr)
 /*
  * Segment entry (large page) protection definitions.
  */
-#define SEGMENT_NONE	__pgprot(_SEGMENT_ENTRY_INVALID | \
+#define SEGMENT_ANALNE	__pgprot(_SEGMENT_ENTRY_INVALID | \
 				 _SEGMENT_ENTRY_PROTECT)
 #define SEGMENT_RO	__pgprot(_SEGMENT_ENTRY_PROTECT | \
 				 _SEGMENT_ENTRY_READ | \
-				 _SEGMENT_ENTRY_NOEXEC)
+				 _SEGMENT_ENTRY_ANALEXEC)
 #define SEGMENT_RX	__pgprot(_SEGMENT_ENTRY_PROTECT | \
 				 _SEGMENT_ENTRY_READ)
 #define SEGMENT_RW	__pgprot(_SEGMENT_ENTRY_READ | \
 				 _SEGMENT_ENTRY_WRITE | \
-				 _SEGMENT_ENTRY_NOEXEC)
+				 _SEGMENT_ENTRY_ANALEXEC)
 #define SEGMENT_RWX	__pgprot(_SEGMENT_ENTRY_READ | \
 				 _SEGMENT_ENTRY_WRITE)
 #define SEGMENT_KERNEL	__pgprot(_SEGMENT_ENTRY |	\
@@ -452,13 +452,13 @@ static inline int is_module_addr(void *addr)
 				 _SEGMENT_ENTRY_WRITE | \
 				 _SEGMENT_ENTRY_YOUNG | \
 				 _SEGMENT_ENTRY_DIRTY | \
-				 _SEGMENT_ENTRY_NOEXEC)
+				 _SEGMENT_ENTRY_ANALEXEC)
 #define SEGMENT_KERNEL_RO __pgprot(_SEGMENT_ENTRY |	\
 				 _SEGMENT_ENTRY_LARGE |	\
 				 _SEGMENT_ENTRY_READ |	\
 				 _SEGMENT_ENTRY_YOUNG |	\
 				 _SEGMENT_ENTRY_PROTECT | \
-				 _SEGMENT_ENTRY_NOEXEC)
+				 _SEGMENT_ENTRY_ANALEXEC)
 #define SEGMENT_KERNEL_EXEC __pgprot(_SEGMENT_ENTRY |	\
 				 _SEGMENT_ENTRY_LARGE |	\
 				 _SEGMENT_ENTRY_READ |	\
@@ -476,13 +476,13 @@ static inline int is_module_addr(void *addr)
 				 _REGION3_ENTRY_WRITE |	 \
 				 _REGION3_ENTRY_YOUNG |	 \
 				 _REGION3_ENTRY_DIRTY | \
-				 _REGION_ENTRY_NOEXEC)
+				 _REGION_ENTRY_ANALEXEC)
 #define REGION3_KERNEL_RO __pgprot(_REGION_ENTRY_TYPE_R3 | \
 				   _REGION3_ENTRY_LARGE |  \
 				   _REGION3_ENTRY_READ |   \
 				   _REGION3_ENTRY_YOUNG |  \
 				   _REGION_ENTRY_PROTECT | \
-				   _REGION_ENTRY_NOEXEC)
+				   _REGION_ENTRY_ANALEXEC)
 #define REGION3_KERNEL_EXEC __pgprot(_REGION_ENTRY_TYPE_R3 | \
 				 _REGION3_ENTRY_LARGE |	 \
 				 _REGION3_ENTRY_READ |	 \
@@ -567,7 +567,7 @@ static inline pud_t set_pud_bit(pud_t pud, pgprot_t prot)
 
 /*
  * In the case that a guest uses storage keys
- * faults should no longer be backed by zero pages
+ * faults should anal longer be backed by zero pages
  */
 #define mm_forbids_zeropage mm_has_pgste
 static inline int mm_uses_skeys(struct mm_struct *mm)
@@ -637,7 +637,7 @@ static inline int pgd_present(pgd_t pgd)
 	return (pgd_val(pgd) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
-static inline int pgd_none(pgd_t pgd)
+static inline int pgd_analne(pgd_t pgd)
 {
 	if (pgd_folded(pgd))
 		return 0;
@@ -671,7 +671,7 @@ static inline int p4d_present(p4d_t p4d)
 	return (p4d_val(p4d) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
-static inline int p4d_none(p4d_t p4d)
+static inline int p4d_analne(p4d_t p4d)
 {
 	if (p4d_folded(p4d))
 		return 0;
@@ -698,7 +698,7 @@ static inline int pud_present(pud_t pud)
 	return (pud_val(pud) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
-static inline int pud_none(pud_t pud)
+static inline int pud_analne(pud_t pud)
 {
 	if (pud_folded(pud))
 		return 0;
@@ -753,7 +753,7 @@ static inline int pmd_present(pmd_t pmd)
 	return pmd_val(pmd) != _SEGMENT_ENTRY_EMPTY;
 }
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_analne(pmd_t pmd)
 {
 	return pmd_val(pmd) == _SEGMENT_ENTRY_EMPTY;
 }
@@ -788,7 +788,7 @@ static inline int pte_present(pte_t pte)
 	return (pte_val(pte) & _PAGE_PRESENT) != 0;
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_analne(pte_t pte)
 {
 	/* Bit pattern: pte == 0x400 */
 	return pte_val(pte) == _PAGE_INVALID;
@@ -813,12 +813,12 @@ static inline int pte_same(pte_t a, pte_t b)
 }
 
 #ifdef CONFIG_NUMA_BALANCING
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protanalne(pte_t pte)
 {
 	return pte_present(pte) && !(pte_val(pte) & _PAGE_READ);
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protanalne(pmd_t pmd)
 {
 	/* pmd_large(pmd) implies pmd_present(pmd) */
 	return pmd_large(pmd) && !(pmd_val(pmd) & _SEGMENT_ENTRY_READ);
@@ -875,7 +875,7 @@ static inline pmd_t pmd_clear_soft_dirty(pmd_t pmd)
 
 /*
  * query functions pte_write/pte_dirty/pte_young only work if
- * pte_present() is true. Undefined behaviour if not..
+ * pte_present() is true. Undefined behaviour if analt..
  */
 static inline int pte_write(pte_t pte)
 {
@@ -901,8 +901,8 @@ static inline int pte_unused(pte_t pte)
 /*
  * Extract the pgprot value from the given pte while at the same time making it
  * usable for kernel address space mappings where fault driven dirty and
- * young/old accounting is not supported, i.e _PAGE_PROTECT and _PAGE_INVALID
- * must not be set.
+ * young/old accounting is analt supported, i.e _PAGE_PROTECT and _PAGE_INVALID
+ * must analt be set.
  */
 static inline pgprot_t pte_pgprot(pte_t pte)
 {
@@ -976,14 +976,14 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 
 /*
  * The following pte modification functions only work if
- * pte_present() is true. Undefined behaviour if not..
+ * pte_present() is true. Undefined behaviour if analt..
  */
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	pte = clear_pte_bit(pte, __pgprot(~_PAGE_CHG_MASK));
 	pte = set_pte_bit(pte, newprot);
 	/*
-	 * newprot for PAGE_NONE, PAGE_RO, PAGE_RX, PAGE_RW and PAGE_RWX
+	 * newprot for PAGE_ANALNE, PAGE_RO, PAGE_RX, PAGE_RW and PAGE_RWX
 	 * has the invalid bit set, clear it again for readable, young pages
 	 */
 	if ((pte_val(pte) & _PAGE_YOUNG) && (pte_val(pte) & _PAGE_READ))
@@ -1003,7 +1003,7 @@ static inline pte_t pte_wrprotect(pte_t pte)
 	return set_pte_bit(pte, __pgprot(_PAGE_PROTECT));
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	pte = set_pte_bit(pte, __pgprot(_PAGE_WRITE));
 	if (pte_val(pte) & _PAGE_DIRTY)
@@ -1054,7 +1054,7 @@ static inline pte_t pte_mkhuge(pte_t pte)
 #define IPTE_GLOBAL	0
 #define	IPTE_LOCAL	1
 
-#define IPTE_NODAT	0x400
+#define IPTE_ANALDAT	0x400
 #define IPTE_GUEST_ASCE	0x800
 
 static __always_inline void __ptep_rdp(unsigned long addr, pte_t *ptep,
@@ -1118,7 +1118,7 @@ static __always_inline void __ptep_ipte_range(unsigned long address, int nr,
  * On s390 the tlb needs to get flushed with the modification of the pte
  * if the pte is active. The only way how this can be implemented is to
  * have ptep_get_and_clear do the tlb flush. In exchange flush_tlb_range
- * is a nop.
+ * is a analp.
  */
 pte_t ptep_xchg_direct(struct mm_struct *, unsigned long, pte_t *, pte_t);
 pte_t ptep_xchg_lazy(struct mm_struct *, unsigned long, pte_t *, pte_t);
@@ -1175,8 +1175,8 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
  * The batched pte unmap code uses ptep_get_and_clear_full to clear the
  * ptes. Here an optimization is possible. tlb_gather_mmu flushes all
  * tlbs of an mm if it can guarantee that the ptes of the mm_struct
- * cannot be accessed while the batched unmap is running. In this case
- * full==1 and a simple pte_clear is enough. See tlb.h.
+ * cananalt be accessed while the batched unmap is running. In this case
+ * full==1 and a simple pte_clear is eanalugh. See tlb.h.
  */
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
@@ -1191,19 +1191,19 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	} else {
 		res = ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
 	}
-	/* Nothing to do */
+	/* Analthing to do */
 	if (!mm_is_protected(mm) || !pte_present(res))
 		return res;
 	/*
 	 * At this point the reference through the mapping is still present.
-	 * The notifier should have destroyed all protected vCPUs at this
+	 * The analtifier should have destroyed all protected vCPUs at this
 	 * point, so the destroy should be successful.
 	 */
 	if (full && !uv_destroy_owned_page(pte_val(res) & PAGE_MASK))
 		return res;
 	/*
-	 * If something went wrong and the page could not be destroyed, or
-	 * if this is not a mm teardown, the slower export is used as
+	 * If something went wrong and the page could analt be destroyed, or
+	 * if this is analt a mm teardown, the slower export is used as
 	 * fallback instead.
 	 */
 	uv_convert_owned_from_secure(pte_val(res) & PAGE_MASK);
@@ -1241,13 +1241,13 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 						pte_t *ptep)
 {
 	/*
-	 * RDP might not have propagated the PTE protection reset to all CPUs,
+	 * RDP might analt have propagated the PTE protection reset to all CPUs,
 	 * so there could be spurious TLB protection faults.
-	 * NOTE: This will also be called when a racing pagetable update on
-	 * another thread already installed the correct PTE. Both cases cannot
+	 * ANALTE: This will also be called when a racing pagetable update on
+	 * aanalther thread already installed the correct PTE. Both cases cananalt
 	 * really be distinguished.
 	 * Therefore, only do the local TLB flush when RDP can be used, and the
-	 * PTE does not have _PAGE_PROTECT set, to avoid unnecessary overhead.
+	 * PTE does analt have _PAGE_PROTECT set, to avoid unnecessary overhead.
 	 * A local RDP can be used to do the flush.
 	 */
 	if (MACHINE_HAS_RDP && !(pte_val(*ptep) & _PAGE_PROTECT))
@@ -1277,8 +1277,8 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
  */
 void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry);
-void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-void ptep_notify(struct mm_struct *mm, unsigned long addr,
+void ptep_set_analtify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+void ptep_analtify(struct mm_struct *mm, unsigned long addr,
 		 pte_t *ptep, unsigned long bits);
 int ptep_force_prot(struct mm_struct *mm, unsigned long gaddr,
 		    pte_t *ptep, int prot, unsigned long bit);
@@ -1356,7 +1356,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 
 	__pte = __pte(physpage | pgprot_val(pgprot));
 	if (!MACHINE_HAS_NX)
-		__pte = clear_pte_bit(__pte, __pgprot(_PAGE_NOEXEC));
+		__pte = clear_pte_bit(__pte, __pgprot(_PAGE_ANALEXEC));
 	return pte_mkyoung(__pte);
 }
 
@@ -1500,7 +1500,7 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 	return set_pmd_bit(pmd, __pgprot(_SEGMENT_ENTRY_PROTECT));
 }
 
-static inline pmd_t pmd_mkwrite_novma(pmd_t pmd)
+static inline pmd_t pmd_mkwrite_analvma(pmd_t pmd)
 {
 	pmd = set_pmd_bit(pmd, __pgprot(_SEGMENT_ENTRY_WRITE));
 	if (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY)
@@ -1554,11 +1554,11 @@ static inline pud_t pud_mkdirty(pud_t pud)
 static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
 {
 	/*
-	 * pgprot is PAGE_NONE, PAGE_RO, PAGE_RX, PAGE_RW or PAGE_RWX
+	 * pgprot is PAGE_ANALNE, PAGE_RO, PAGE_RX, PAGE_RW or PAGE_RWX
 	 * (see __Pxxx / __Sxxx). Convert to segment table entry format.
 	 */
-	if (pgprot_val(pgprot) == pgprot_val(PAGE_NONE))
-		return pgprot_val(SEGMENT_NONE);
+	if (pgprot_val(pgprot) == pgprot_val(PAGE_ANALNE))
+		return pgprot_val(SEGMENT_ANALNE);
 	if (pgprot_val(pgprot) == pgprot_val(PAGE_RO))
 		return pgprot_val(SEGMENT_RO);
 	if (pgprot_val(pgprot) == pgprot_val(PAGE_RX))
@@ -1617,7 +1617,7 @@ static inline void __pmdp_csp(pmd_t *pmdp)
 #define IDTE_LOCAL	1
 
 #define IDTE_PTOA	0x0800
-#define IDTE_NODAT	0x1000
+#define IDTE_ANALDAT	0x1000
 #define IDTE_GUEST_ASCE	0x2000
 
 static __always_inline void __pmdp_idte(unsigned long addr, pmd_t *pmdp,
@@ -1724,7 +1724,7 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			      pmd_t *pmdp, pmd_t entry)
 {
 	if (!MACHINE_HAS_NX)
-		entry = clear_pmd_bit(entry, __pgprot(_SEGMENT_ENTRY_NOEXEC));
+		entry = clear_pmd_bit(entry, __pgprot(_SEGMENT_ENTRY_ANALEXEC));
 	set_pmd(pmdp, entry);
 }
 
@@ -1815,7 +1815,7 @@ static inline int has_transparent_hugepage(void)
  * |0123456789012345678901234567890123456789012345678901|23456|78901|23|
  *
  * Bits 0-51 store the offset.
- * Bit 52 (E) is used to remember PG_anon_exclusive.
+ * Bit 52 (E) is used to remember PG_aanaln_exclusive.
  * Bits 57-61 store the type.
  * Bit 62 (S) is used for softdirty tracking.
  * Bits 55 and 56 (X) are unused.
@@ -1864,7 +1864,7 @@ extern int s390_enable_sie(void);
 extern int s390_enable_skey(void);
 extern void s390_reset_cmma(struct mm_struct *mm);
 
-/* s390 has a private copy of get unmapped area to deal with cache synonyms */
+/* s390 has a private copy of get unmapped area to deal with cache syanalnyms */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 

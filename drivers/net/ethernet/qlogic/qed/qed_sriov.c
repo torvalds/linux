@@ -31,8 +31,8 @@ static u8 qed_vf_calculate_legacy(struct qed_vf_info *p_vf)
 {
 	u8 legacy = 0;
 
-	if (p_vf->acquire.vfdev_info.eth_fp_hsi_minor ==
-	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
+	if (p_vf->acquire.vfdev_info.eth_fp_hsi_mianalr ==
+	    ETH_HSI_VER_ANAL_PKT_LEN_TUNN)
 		legacy |= QED_QCID_LEGACY_VF_RX_PROD;
 
 	if (!(p_vf->acquire.vfdev_info.capabilities &
@@ -49,7 +49,7 @@ static int qed_sp_vf_start(struct qed_hwfn *p_hwfn, struct qed_vf_info *p_vf)
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
-	u8 fp_minor;
+	u8 fp_mianalr;
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -77,30 +77,30 @@ static int qed_sp_vf_start(struct qed_hwfn *p_hwfn, struct qed_vf_info *p_vf)
 		p_ramrod->personality = PERSONALITY_RDMA_AND_ETH;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown VF personality %d\n",
+		DP_ANALTICE(p_hwfn, "Unkanalwn VF personality %d\n",
 			  p_hwfn->hw_info.personality);
 		qed_sp_destroy_request(p_hwfn, p_ent);
 		return -EINVAL;
 	}
 
-	fp_minor = p_vf->acquire.vfdev_info.eth_fp_hsi_minor;
-	if (fp_minor > ETH_HSI_VER_MINOR &&
-	    fp_minor != ETH_HSI_VER_NO_PKT_LEN_TUNN) {
+	fp_mianalr = p_vf->acquire.vfdev_info.eth_fp_hsi_mianalr;
+	if (fp_mianalr > ETH_HSI_VER_MIANALR &&
+	    fp_mianalr != ETH_HSI_VER_ANAL_PKT_LEN_TUNN) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
 			   "VF [%d] - Requested fp hsi %02x.%02x which is slightly newer than PF's %02x.%02x; Configuring PFs version\n",
 			   p_vf->abs_vf_id,
 			   ETH_HSI_VER_MAJOR,
-			   fp_minor, ETH_HSI_VER_MAJOR, ETH_HSI_VER_MINOR);
-		fp_minor = ETH_HSI_VER_MINOR;
+			   fp_mianalr, ETH_HSI_VER_MAJOR, ETH_HSI_VER_MIANALR);
+		fp_mianalr = ETH_HSI_VER_MIANALR;
 	}
 
 	p_ramrod->hsi_fp_ver.major_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MAJOR;
-	p_ramrod->hsi_fp_ver.minor_ver_arr[ETH_VER_KEY] = fp_minor;
+	p_ramrod->hsi_fp_ver.mianalr_ver_arr[ETH_VER_KEY] = fp_mianalr;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
 		   "VF[%d] - Starting using HSI %02x.%02x\n",
-		   p_vf->abs_vf_id, ETH_HSI_VER_MAJOR, fp_minor);
+		   p_vf->abs_vf_id, ETH_HSI_VER_MAJOR, fp_mianalr);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -134,10 +134,10 @@ static int qed_sp_vf_stop(struct qed_hwfn *p_hwfn,
 
 bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
 			   int rel_vf_id,
-			   bool b_enabled_only, bool b_non_malicious)
+			   bool b_enabled_only, bool b_analn_malicious)
 {
 	if (!p_hwfn->pf_iov_info) {
-		DP_NOTICE(p_hwfn->cdev, "No iov info\n");
+		DP_ANALTICE(p_hwfn->cdev, "Anal iov info\n");
 		return false;
 	}
 
@@ -150,7 +150,7 @@ bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
 		return false;
 
 	if ((p_hwfn->pf_iov_info->vfs_array[rel_vf_id].b_malicious) &&
-	    b_non_malicious)
+	    b_analn_malicious)
 		return false;
 
 	return true;
@@ -163,7 +163,7 @@ static struct qed_vf_info *qed_iov_get_vf_info(struct qed_hwfn *p_hwfn,
 	struct qed_vf_info *vf = NULL;
 
 	if (!p_hwfn->pf_iov_info) {
-		DP_NOTICE(p_hwfn->cdev, "No iov info\n");
+		DP_ANALTICE(p_hwfn->cdev, "Anal iov info\n");
 		return NULL;
 	}
 
@@ -171,7 +171,7 @@ static struct qed_vf_info *qed_iov_get_vf_info(struct qed_hwfn *p_hwfn,
 				  b_enabled_only, false))
 		vf = &p_hwfn->pf_iov_info->vfs_array[relative_vf_id];
 	else
-		DP_ERR(p_hwfn, "%s: VF[%d] is not enabled\n",
+		DP_ERR(p_hwfn, "%s: VF[%d] is analt enabled\n",
 		       __func__, relative_vf_id);
 
 	return vf;
@@ -354,7 +354,7 @@ static int qed_iov_pci_cfg_info(struct qed_dev *cdev)
 	if (iov->num_vfs) {
 		DP_VERBOSE(cdev,
 			   QED_MSG_IOV,
-			   "Number of VFs are already set to non-zero value. Ignoring PCI configuration value\n");
+			   "Number of VFs are already set to analn-zero value. Iganalring PCI configuration value\n");
 		iov->num_vfs = 0;
 	}
 
@@ -391,7 +391,7 @@ static int qed_iov_pci_cfg_info(struct qed_dev *cdev)
 		 * num_vfs to zero to avoid memory corruption in the code that
 		 * assumes max number of vfs
 		 */
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "IOV: Unexpected number of vfs set: %d setting num_vf to zero\n",
 			  iov->num_vfs);
 
@@ -476,7 +476,7 @@ static int qed_iov_allocate_vfdb(struct qed_hwfn *p_hwfn)
 				       &p_iov_info->mbx_msg_phys_addr,
 				       GFP_KERNEL);
 	if (!*p_v_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate PF Mailbox Reply buffer (per-VF) */
 	p_iov_info->mbx_reply_size = sizeof(union pfvf_tlvs) * num_vfs;
@@ -486,7 +486,7 @@ static int qed_iov_allocate_vfdb(struct qed_hwfn *p_hwfn)
 				       &p_iov_info->mbx_reply_phys_addr,
 				       GFP_KERNEL);
 	if (!*p_v_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_iov_info->bulletins_size = sizeof(struct qed_bulletin_content) *
 				     num_vfs;
@@ -496,7 +496,7 @@ static int qed_iov_allocate_vfdb(struct qed_hwfn *p_hwfn)
 				       &p_iov_info->bulletins_phys,
 				       GFP_KERNEL);
 	if (!*p_v_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_IOV,
@@ -539,13 +539,13 @@ int qed_iov_alloc(struct qed_hwfn *p_hwfn)
 
 	if (!IS_PF_SRIOV(p_hwfn)) {
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "No SR-IOV - no need for IOV db\n");
+			   "Anal SR-IOV - anal need for IOV db\n");
 		return 0;
 	}
 
 	p_sriov = kzalloc(sizeof(*p_sriov), GFP_KERNEL);
 	if (!p_sriov)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_hwfn->pf_iov_info = p_sriov;
 
@@ -595,14 +595,14 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	pos = pci_find_ext_capability(p_hwfn->cdev->pdev,
 				      PCI_EXT_CAP_ID_SRIOV);
 	if (!pos) {
-		DP_VERBOSE(p_hwfn, QED_MSG_IOV, "No PCIe IOV support\n");
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV, "Anal PCIe IOV support\n");
 		return 0;
 	}
 
 	/* Allocate a new struct for IOV information */
 	cdev->p_iov_info = kzalloc(sizeof(*cdev->p_iov_info), GFP_KERNEL);
 	if (!cdev->p_iov_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->p_iov_info->pos = pos;
 
@@ -610,13 +610,13 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	if (rc)
 		return rc;
 
-	/* We want PF IOV to be synonemous with the existence of p_iov_info;
-	 * In case the capability is published but there are no VFs, simply
+	/* We want PF IOV to be syanalnemous with the existence of p_iov_info;
+	 * In case the capability is published but there are anal VFs, simply
 	 * de-allocate the struct.
 	 */
 	if (!cdev->p_iov_info->total_vfs) {
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "IOV capabilities, but no VFs are published\n");
+			   "IOV capabilities, but anal VFs are published\n");
 		kfree(cdev->p_iov_info);
 		cdev->p_iov_info = NULL;
 		return 0;
@@ -995,7 +995,7 @@ static int qed_iov_init_hw_for_vf(struct qed_hwfn *p_hwfn,
 	}
 
 	if (vf->b_init) {
-		DP_NOTICE(p_hwfn, "VF[%d] is already active.\n",
+		DP_ANALTICE(p_hwfn, "VF[%d] is already active.\n",
 			  p_params->rel_vf_id);
 		return -EINVAL;
 	}
@@ -1008,7 +1008,7 @@ static int qed_iov_init_hw_for_vf(struct qed_hwfn *p_hwfn,
 
 		qid = p_params->req_rx_queue[i];
 		if (qid < min_vf_qzone || qid > max_vf_qzone) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Can't enable Rx qid [%04x] for VF[%d]: qids [0x%04x,...,0x%04x] available\n",
 				  qid,
 				  p_params->rel_vf_id,
@@ -1018,7 +1018,7 @@ static int qed_iov_init_hw_for_vf(struct qed_hwfn *p_hwfn,
 
 		qid = p_params->req_tx_queue[i];
 		if (qid > max_vf_qzone) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Can't enable Tx qid [%04x] for VF[%d]: max qid 0x%04x\n",
 				  qid, p_params->rel_vf_id, max_vf_qzone);
 			return -EINVAL;
@@ -1044,8 +1044,8 @@ static int qed_iov_init_hw_for_vf(struct qed_hwfn *p_hwfn,
 							     p_ptt,
 							     vf, num_irqs);
 	if (!num_of_vf_avaiable_chains) {
-		DP_ERR(p_hwfn, "no available igu sbs\n");
-		return -ENOMEM;
+		DP_ERR(p_hwfn, "anal available igu sbs\n");
+		return -EANALMEM;
 	}
 
 	/* Choose queue number and index ranges */
@@ -1140,7 +1140,7 @@ static int qed_iov_release_hw_for_vf(struct qed_hwfn *p_hwfn,
 
 static bool qed_iov_tlv_supported(u16 tlvtype)
 {
-	return CHANNEL_TLV_NONE < tlvtype && tlvtype < CHANNEL_TLV_MAX;
+	return CHANNEL_TLV_ANALNE < tlvtype && tlvtype < CHANNEL_TLV_MAX;
 }
 
 /* place a given tlv on the tlv buffer, continuing current tlv list */
@@ -1177,14 +1177,14 @@ void qed_dp_tlv_list(struct qed_hwfn *p_hwfn, void *tlvs_list)
 
 		/* Validate entry - protect against malicious VFs */
 		if (!tlv->length) {
-			DP_NOTICE(p_hwfn, "TLV of length 0 found\n");
+			DP_ANALTICE(p_hwfn, "TLV of length 0 found\n");
 			return;
 		}
 
 		total_length += tlv->length;
 
 		if (total_length >= sizeof(struct tlv_buffer_size)) {
-			DP_NOTICE(p_hwfn, "TLV ==> Buffer overflow\n");
+			DP_ANALTICE(p_hwfn, "TLV ==> Buffer overflow\n");
 			return;
 		}
 
@@ -1282,7 +1282,7 @@ static u16 qed_iov_prep_vp_update_resp_tlvs(struct qed_hwfn *p_hwfn,
 		if (tlvs_accepted & BIT(i))
 			resp->hdr.status = status;
 		else
-			resp->hdr.status = PFVF_STATUS_NOT_SUPPORTED;
+			resp->hdr.status = PFVF_STATUS_ANALT_SUPPORTED;
 
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
@@ -1501,13 +1501,13 @@ static u8 qed_iov_vf_mbx_acquire_resc(struct qed_hwfn *p_hwfn,
 		/* Some legacy OSes are incapable of correctly handling this
 		 * failure.
 		 */
-		if ((p_vf->acquire.vfdev_info.eth_fp_hsi_minor ==
-		     ETH_HSI_VER_NO_PKT_LEN_TUNN) &&
+		if ((p_vf->acquire.vfdev_info.eth_fp_hsi_mianalr ==
+		     ETH_HSI_VER_ANAL_PKT_LEN_TUNN) &&
 		    (p_vf->acquire.vfdev_info.os_type ==
 		     VFPF_ACQUIRE_OS_WINDOWS))
 			return PFVF_STATUS_SUCCESS;
 
-		return PFVF_STATUS_NO_RESOURCE;
+		return PFVF_STATUS_ANAL_RESOURCE;
 	}
 
 	return PFVF_STATUS_SUCCESS;
@@ -1518,15 +1518,15 @@ static void qed_iov_vf_mbx_acquire_stats(struct qed_hwfn *p_hwfn,
 {
 	p_stats->mstats.address = PXP_VF_BAR0_START_MSDM_ZONE_B +
 				  offsetof(struct mstorm_vf_zone,
-					   non_trigger.eth_queue_stat);
+					   analn_trigger.eth_queue_stat);
 	p_stats->mstats.len = sizeof(struct eth_mstorm_per_queue_stat);
 	p_stats->ustats.address = PXP_VF_BAR0_START_USDM_ZONE_B +
 				  offsetof(struct ustorm_vf_zone,
-					   non_trigger.eth_queue_stat);
+					   analn_trigger.eth_queue_stat);
 	p_stats->ustats.len = sizeof(struct eth_ustorm_per_queue_stat);
 	p_stats->pstats.address = PXP_VF_BAR0_START_PSDM_ZONE_B +
 				  offsetof(struct pstorm_vf_zone,
-					   non_trigger.eth_queue_stat);
+					   analn_trigger.eth_queue_stat);
 	p_stats->pstats.len = sizeof(struct eth_pstorm_per_queue_stat);
 	p_stats->tstats.address = 0;
 	p_stats->tstats.len = 0;
@@ -1540,18 +1540,18 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	struct pfvf_acquire_resp_tlv *resp = &mbx->reply_virt->acquire_resp;
 	struct pf_vf_pfdev_info *pfdev_info = &resp->pfdev_info;
 	struct vfpf_acquire_tlv *req = &mbx->req_virt->acquire;
-	u8 vfpf_status = PFVF_STATUS_NOT_SUPPORTED;
+	u8 vfpf_status = PFVF_STATUS_ANALT_SUPPORTED;
 	struct pf_vf_resc *resc = &resp->resc;
 	int rc;
 
 	memset(resp, 0, sizeof(*resp));
 
-	/* Write the PF version so that VF would know which version
+	/* Write the PF version so that VF would kanalw which version
 	 * is supported - might be later overridden. This guarantees that
 	 * VF could recognize legacy PF based on lack of versions in reply.
 	 */
 	pfdev_info->major_fp_hsi = ETH_HSI_VER_MAJOR;
-	pfdev_info->minor_fp_hsi = ETH_HSI_VER_MINOR;
+	pfdev_info->mianalr_fp_hsi = ETH_HSI_VER_MIANALR;
 
 	if (vf->state != VF_FREE && vf->state != VF_STOPPED) {
 		DP_VERBOSE(p_hwfn,
@@ -1571,14 +1571,14 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 				   "VF[%d] is pre-fastpath HSI\n",
 				   vf->abs_vf_id);
 			p_vfdev->eth_fp_hsi_major = ETH_HSI_VER_MAJOR;
-			p_vfdev->eth_fp_hsi_minor = ETH_HSI_VER_NO_PKT_LEN_TUNN;
+			p_vfdev->eth_fp_hsi_mianalr = ETH_HSI_VER_ANAL_PKT_LEN_TUNN;
 		} else {
 			DP_INFO(p_hwfn,
 				"VF[%d] needs fastpath HSI %02x.%02x, which is incompatible with loaded FW's fastpath HSI %02x.%02x\n",
 				vf->abs_vf_id,
 				req->vfdev_info.eth_fp_hsi_major,
-				req->vfdev_info.eth_fp_hsi_minor,
-				ETH_HSI_VER_MAJOR, ETH_HSI_VER_MINOR);
+				req->vfdev_info.eth_fp_hsi_mianalr,
+				ETH_HSI_VER_MAJOR, ETH_HSI_VER_MIANALR);
 
 			goto out;
 		}
@@ -1626,22 +1626,22 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	memcpy(pfdev_info->port_mac, p_hwfn->hw_info.hw_mac_addr, ETH_ALEN);
 
 	pfdev_info->fw_major = FW_MAJOR_VERSION;
-	pfdev_info->fw_minor = FW_MINOR_VERSION;
+	pfdev_info->fw_mianalr = FW_MIANALR_VERSION;
 	pfdev_info->fw_rev = FW_REVISION_VERSION;
 	pfdev_info->fw_eng = FW_ENGINEERING_VERSION;
 
 	/* Incorrect when legacy, but doesn't matter as legacy isn't reading
 	 * this field.
 	 */
-	pfdev_info->minor_fp_hsi = min_t(u8, ETH_HSI_VER_MINOR,
-					 req->vfdev_info.eth_fp_hsi_minor);
+	pfdev_info->mianalr_fp_hsi = min_t(u8, ETH_HSI_VER_MIANALR,
+					 req->vfdev_info.eth_fp_hsi_mianalr);
 	pfdev_info->os_type = VFPF_ACQUIRE_OS_LINUX;
 	qed_mcp_get_mfw_ver(p_hwfn, p_ptt, &pfdev_info->mfw_ver, NULL);
 
 	pfdev_info->dev_type = p_hwfn->cdev->type;
 	pfdev_info->chip_rev = p_hwfn->cdev->chip_rev;
 
-	/* Fill resources available to VF; Make sure there are enough to
+	/* Fill resources available to VF; Make sure there are eanalugh to
 	 * satisfy the VF's request.
 	 */
 	vfpf_status = qed_iov_vf_mbx_acquire_resc(p_hwfn, p_ptt, vf,
@@ -1652,7 +1652,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	/* Start the VF in FW */
 	rc = qed_sp_vf_start(p_hwfn, vf);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to start VF[%02x]\n", vf->abs_vf_id);
+		DP_ANALTICE(p_hwfn, "Failed to start VF[%02x]\n", vf->abs_vf_id);
 		vfpf_status = PFVF_STATUS_FAILURE;
 		goto out;
 	}
@@ -1742,7 +1742,7 @@ static int qed_iov_reconfigure_unicast_vlan(struct qed_hwfn *p_hwfn,
 		rc = qed_sp_eth_filter_ucast(p_hwfn, p_vf->opaque_fid,
 					     &filter, QED_SPQ_MODE_CB, NULL);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Failed to configure VLAN [%04x] to VF [%04x]\n",
 				  filter.vlan, p_vf->relative_vf_id);
 			break;
@@ -1776,7 +1776,7 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 
 	if ((events & BIT(MAC_ADDR_FORCED)) ||
 	    p_vf->p_vf_info.is_trusted_configured) {
-		/* Since there's no way [currently] of removing the MAC,
+		/* Since there's anal way [currently] of removing the MAC,
 		 * we can always assume this means we need to force it.
 		 */
 		memset(&filter, 0, sizeof(filter));
@@ -1790,7 +1790,7 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 		rc = qed_sp_eth_filter_ucast(p_hwfn, p_vf->opaque_fid,
 					     &filter, QED_SPQ_MODE_CB, NULL);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "PF failed to configure MAC for VF\n");
 			return rc;
 		}
@@ -1820,7 +1820,7 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 		rc = qed_sp_eth_filter_ucast(p_hwfn, p_vf->opaque_fid,
 					     &filter, QED_SPQ_MODE_CB, NULL);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "PF failed to configure VLAN for VF\n");
 			return rc;
 		}
@@ -1843,7 +1843,7 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 					 &vport_update,
 					 QED_SPQ_MODE_EBLOCK, NULL);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "PF failed to configure VF vport for vlan\n");
 			return rc;
 		}
@@ -1864,7 +1864,7 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 							 QED_SPQ_MODE_EBLOCK,
 							 NULL);
 			if (rc) {
-				DP_NOTICE(p_hwfn,
+				DP_ANALTICE(p_hwfn,
 					  "Failed to send Rx update fo queue[0x%04x]\n",
 					  p_cid->rel.queue_id);
 				return rc;
@@ -1901,7 +1901,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 
 	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vf->relative_vf_id, true);
 	if (!vf_info) {
-		DP_NOTICE(p_hwfn->cdev,
+		DP_ANALTICE(p_hwfn->cdev,
 			  "Failed to get VF info, invalid vfid [%d]\n",
 			  vf->relative_vf_id);
 		return;
@@ -1916,7 +1916,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	for (sb_id = 0; sb_id < vf->num_sbs; sb_id++) {
 		if (!start->sb_addr[sb_id]) {
 			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-				   "VF[%d] did not fill the address of SB %d\n",
+				   "VF[%d] did analt fill the address of SB %d\n",
 				   vf->relative_vf_id, sb_id);
 			break;
 		}
@@ -1930,7 +1930,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	vf->shadow_config.inner_vlan_removal = start->inner_vlan_removal;
 
 	/* Take into consideration configuration forced by hypervisor;
-	 * If none is configured, use the supplied VF values [for old
+	 * If analne is configured, use the supplied VF values [for old
 	 * vfs that would still be fine, since they passed '0' as padding].
 	 */
 	p_bitmap = &vf_info->bulletin.p_virt->valid_bitmap;
@@ -1953,7 +1953,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	params.max_buffers_per_cqe = start->max_buffers_per_cqe;
 	params.mtu = vf->mtu;
 
-	/* Non trusted VFs should enable control frame filtering */
+	/* Analn trusted VFs should enable control frame filtering */
 	params.check_mac = !vf->p_vf_info.is_trusted_configured;
 
 	rc = qed_sp_eth_vport_start(p_hwfn, &params);
@@ -1986,7 +1986,7 @@ static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
 	if ((qed_iov_validate_active_rxq(p_hwfn, vf)) ||
 	    (qed_iov_validate_active_txq(p_hwfn, vf))) {
 		vf->b_malicious = true;
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "VF [%02x] - considered malicious; Unable to stop RX/TX queues\n",
 			  vf->abs_vf_id);
 		status = PFVF_STATUS_MALICIOUS;
@@ -2022,7 +2022,7 @@ static void qed_iov_vf_mbx_start_rxq_resp(struct qed_hwfn *p_hwfn,
 	mbx->offset = (u8 *)mbx->reply_virt;
 
 	/* Taking a bigger struct instead of adding a TLV to list was a
-	 * mistake, but one which we're now stuck with, as some older
+	 * mistake, but one which we're analw stuck with, as some older
 	 * clients assume the size of the previous response.
 	 */
 	if (!b_legacy)
@@ -2040,7 +2040,7 @@ static void qed_iov_vf_mbx_start_rxq_resp(struct qed_hwfn *p_hwfn,
 		req = &mbx->req_virt->start_rxq;
 		p_tlv->offset = PXP_VF_BAR0_START_MSDM_ZONE_B +
 				offsetof(struct mstorm_vf_zone,
-					 non_trigger.eth_rx_queue_producers) +
+					 analn_trigger.eth_rx_queue_producers) +
 				sizeof(struct eth_rx_prod_data) * req->rx_qid;
 	}
 
@@ -2090,7 +2090,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	struct qed_queue_start_common_params params;
 	struct qed_queue_cid_vf_params vf_params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
-	u8 status = PFVF_STATUS_NO_RESOURCE;
+	u8 status = PFVF_STATUS_ANAL_RESOURCE;
 	u8 qid_usage_idx, vf_legacy = 0;
 	struct vfpf_start_rxq_tlv *req;
 	struct qed_vf_queue *p_queue;
@@ -2316,7 +2316,7 @@ static void qed_iov_vf_mbx_update_tunn_param(struct qed_hwfn *p_hwfn,
 
 	if (!qed_iov_pf_validate_tunn_param(p_req)) {
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "No tunnel update requested by VF\n");
+			   "Anal tunnel update requested by VF\n");
 		status = PFVF_STATUS_FAILURE;
 		goto send_resp;
 	}
@@ -2392,11 +2392,11 @@ static void qed_iov_vf_mbx_start_txq_resp(struct qed_hwfn *p_hwfn,
 	mbx->offset = (u8 *)mbx->reply_virt;
 
 	/* Taking a bigger struct instead of adding a TLV to list was a
-	 * mistake, but one which we're now stuck with, as some older
+	 * mistake, but one which we're analw stuck with, as some older
 	 * clients assume the size of the previous response.
 	 */
-	if (p_vf->acquire.vfdev_info.eth_fp_hsi_minor ==
-	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
+	if (p_vf->acquire.vfdev_info.eth_fp_hsi_mianalr ==
+	    ETH_HSI_VER_ANAL_PKT_LEN_TUNN)
 		b_legacy = true;
 
 	if (!b_legacy)
@@ -2423,7 +2423,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	struct qed_queue_start_common_params params;
 	struct qed_queue_cid_vf_params vf_params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
-	u8 status = PFVF_STATUS_NO_RESOURCE;
+	u8 status = PFVF_STATUS_ANAL_RESOURCE;
 	struct vfpf_start_txq_tlv *req;
 	struct qed_vf_queue *p_queue;
 	struct qed_queue_cid *p_cid;
@@ -2509,7 +2509,7 @@ static int qed_iov_vf_stop_rxqs(struct qed_hwfn *p_hwfn,
 	p_queue = &vf->vf_queues[rxq_id];
 
 	/* We've validated the index and the existence of the active RXQ -
-	 * now we need to make sure that it's using the correct qid.
+	 * analw we need to make sure that it's using the correct qid.
 	 */
 	if (!p_queue->cids[qid_usage_idx].p_cid ||
 	    p_queue->cids[qid_usage_idx].b_is_tx) {
@@ -2524,7 +2524,7 @@ static int qed_iov_vf_stop_rxqs(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	/* Now that we know we have a valid Rx-queue - close it */
+	/* Analw that we kanalw we have a valid Rx-queue - close it */
 	rc = qed_eth_rx_queue_stop(p_hwfn,
 				   p_queue->cids[qid_usage_idx].p_cid,
 				   false, cqe_completion);
@@ -2572,7 +2572,7 @@ static void qed_iov_vf_mbx_stop_rxqs(struct qed_hwfn *p_hwfn,
 	int rc;
 
 	/* There has never been an official driver that used this interface
-	 * for stopping multiple queues, and it is now considered deprecated.
+	 * for stopping multiple queues, and it is analw considered deprecated.
 	 * Validate this isn't used here.
 	 */
 	req = &mbx->req_virt->stop_rxqs;
@@ -2580,7 +2580,7 @@ static void qed_iov_vf_mbx_stop_rxqs(struct qed_hwfn *p_hwfn,
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
 			   "Odd; VF[%d] tried stopping multiple Rx queues\n",
 			   vf->relative_vf_id);
-		status = PFVF_STATUS_NOT_SUPPORTED;
+		status = PFVF_STATUS_ANALT_SUPPORTED;
 		goto out;
 	}
 
@@ -2610,7 +2610,7 @@ static void qed_iov_vf_mbx_stop_txqs(struct qed_hwfn *p_hwfn,
 	int rc;
 
 	/* There has never been an official driver that used this interface
-	 * for stopping multiple queues, and it is now considered deprecated.
+	 * for stopping multiple queues, and it is analw considered deprecated.
 	 * Validate this isn't used here.
 	 */
 	req = &mbx->req_virt->stop_txqs;
@@ -2618,7 +2618,7 @@ static void qed_iov_vf_mbx_stop_txqs(struct qed_hwfn *p_hwfn,
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
 			   "Odd; VF[%d] tried stopping multiple Tx queues\n",
 			   vf->relative_vf_id);
-		status = PFVF_STATUS_NOT_SUPPORTED;
+		status = PFVF_STATUS_ANALT_SUPPORTED;
 		goto out;
 	}
 
@@ -2715,7 +2715,7 @@ void *qed_iov_search_list_tlvs(struct qed_hwfn *p_hwfn,
 
 	do {
 		if (!p_tlv->length) {
-			DP_NOTICE(p_hwfn, "Zero length TLV found\n");
+			DP_ANALTICE(p_hwfn, "Zero length TLV found\n");
 			return NULL;
 		}
 
@@ -2730,7 +2730,7 @@ void *qed_iov_search_list_tlvs(struct qed_hwfn *p_hwfn,
 		p_tlv = (struct channel_tlv *)((u8 *)p_tlv + p_tlv->length);
 
 		if ((len + p_tlv->length) > TLV_BUFFER_SIZE) {
-			DP_NOTICE(p_hwfn, "TLVs has overrun the buffer size\n");
+			DP_ANALTICE(p_hwfn, "TLVs has overrun the buffer size\n");
 			return NULL;
 		}
 	} while (p_tlv->type != CHANNEL_TLV_LIST_END);
@@ -2774,7 +2774,7 @@ qed_iov_vp_update_vlan_param(struct qed_hwfn *p_hwfn,
 
 	p_vf->shadow_config.inner_vlan_removal = p_vlan_tlv->remove_vlan;
 
-	/* Ignore the VF request if we're forcing a vlan */
+	/* Iganalre the VF request if we're forcing a vlan */
 	if (!(p_vf->configured_features & BIT(VLAN_ADDR_FORCED))) {
 		p_data->update_inner_vlan_removal_flg = 1;
 		p_data->inner_vlan_removal_flg = p_vlan_tlv->remove_vlan;
@@ -2989,7 +2989,7 @@ static int qed_iov_pre_update_vport(struct qed_hwfn *hwfn,
 	tlv_mask = BIT(QED_IOV_VP_UPDATE_ACCEPT_PARAM) |
 		   BIT(QED_IOV_VP_UPDATE_ACCEPT_ANY_VLAN);
 
-	/* Untrusted VFs can't even be trusted to know that fact.
+	/* Untrusted VFs can't even be trusted to kanalw that fact.
 	 * Simply indicate everything is configured fine, and trace
 	 * configuration 'behind their back'.
 	 */
@@ -3037,7 +3037,7 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 	if (!vf->vport_instance) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
-			   "No VPORT instance available for VF[%d], failing vport update\n",
+			   "Anal VPORT instance available for VF[%d], failing vport update\n",
 			   vf->abs_vf_id);
 		status = PFVF_STATUS_FAILURE;
 		goto out;
@@ -3077,7 +3077,7 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 	if (qed_iov_pre_update_vport(p_hwfn, vf->relative_vf_id,
 				     &params, &tlvs_accepted)) {
 		tlvs_accepted = 0;
-		status = PFVF_STATUS_NOT_SUPPORTED;
+		status = PFVF_STATUS_ANALT_SUPPORTED;
 		goto out;
 	}
 
@@ -3087,8 +3087,8 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 				   "Upper-layer prevents VF vport configuration\n");
 		else
 			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-				   "No feature tlvs found for vport update\n");
-		status = PFVF_STATUS_NOT_SUPPORTED;
+				   "Anal feature tlvs found for vport update\n");
+		status = PFVF_STATUS_ANALT_SUPPORTED;
 		goto out;
 	}
 
@@ -3122,7 +3122,7 @@ static int qed_iov_vf_update_vlan_shadow(struct qed_hwfn *p_hwfn,
 		if (i == QED_ETH_VF_NUM_VLAN_FILTERS + 1) {
 			DP_VERBOSE(p_hwfn,
 				   QED_MSG_IOV,
-				   "VF [%d] - Tries to remove a non-existing vlan\n",
+				   "VF [%d] - Tries to remove a analn-existing vlan\n",
 				   p_vf->relative_vf_id);
 			return -EINVAL;
 		}
@@ -3213,7 +3213,7 @@ static int qed_iov_vf_update_mac_shadow(struct qed_hwfn *p_hwfn,
 	}
 
 	if (i == QED_ETH_VF_NUM_MAC_FILTERS) {
-		DP_VERBOSE(p_hwfn, QED_MSG_IOV, "No available place for MAC\n");
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV, "Anal available place for MAC\n");
 		return -EINVAL;
 	}
 
@@ -3248,7 +3248,7 @@ static int qed_iov_chk_ucast(struct qed_hwfn *hwfn,
 	if (!vf)
 		return -EINVAL;
 
-	/* No real decision to make; Store the configured MAC */
+	/* Anal real decision to make; Store the configured MAC */
 	if (params->type == QED_FILTER_MAC ||
 	    params->type == QED_FILTER_MAC_VLAN) {
 		ether_addr_copy(vf->mac, params->mac);
@@ -3300,7 +3300,7 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 	if (!vf->vport_instance) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
-			   "No VPORT instance available for VF[%d], failing ucast MAC configuration\n",
+			   "Anal VPORT instance available for VF[%d], failing ucast MAC configuration\n",
 			   vf->abs_vf_id);
 		status = PFVF_STATUS_FAILURE;
 		goto out;
@@ -3316,7 +3316,7 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 	if ((p_bulletin->valid_bitmap & BIT(VLAN_ADDR_FORCED)) &&
 	    (params.type == QED_FILTER_VLAN ||
 	     params.type == QED_FILTER_MAC_VLAN)) {
-		/* Once VLAN is forced or PVID is set, do not allow
+		/* Once VLAN is forced or PVID is set, do analt allow
 		 * to add/replace any further VLANs.
 		 */
 		if (params.opcode == QED_FILTER_ADD ||
@@ -3701,7 +3701,7 @@ qed_iov_execute_vf_flr_cleanup(struct qed_hwfn *p_hwfn,
 
 		qed_iov_vf_cleanup(p_hwfn, p_vf);
 
-		/* If VF isn't active, no need for anything but SW */
+		/* If VF isn't active, anal need for anything but SW */
 		if (!p_vf->b_init)
 			goto cleanup;
 
@@ -3757,7 +3757,7 @@ qed_iov_vf_flr_cleanup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	/* Since BRB <-> PRS interface can't be tested as part of the flr
 	 * polling due to HW limitations, simply sleep a bit. And since
-	 * there's no need to wait per-vf, do it before looping.
+	 * there's anal need to wait per-vf, do it before looping.
 	 */
 	msleep(100);
 
@@ -3780,7 +3780,7 @@ bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 			   i * 32, (i + 1) * 32 - 1, p_disabled_vfs[i]);
 
 	if (!p_hwfn->cdev->p_iov_info) {
-		DP_NOTICE(p_hwfn, "VF flr but no IOV\n");
+		DP_ANALTICE(p_hwfn, "VF flr but anal IOV\n");
 		return false;
 	}
 
@@ -3804,9 +3804,9 @@ bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 
 			p_vf->state = VF_RESET;
 
-			/* No need to lock here, since pending_flr should
+			/* Anal need to lock here, since pending_flr should
 			 * only change here and before ACKing MFw. Since
-			 * MFW will not trigger an additional attention for
+			 * MFW will analt trigger an additional attention for
 			 * VF flr until ACKs, we're safe.
 			 */
 			p_flr[rel_vf_id / 64] |= 1ULL << (rel_vf_id % 64);
@@ -3858,7 +3858,7 @@ qed_iov_vf_pf_bulletin_update_mac(struct qed_hwfn *p_hwfn,
 			   QED_MSG_IOV,
 			   "Blocking bulletin update request from untrusted VF[%d]\n",
 			   p_vf->abs_vf_id);
-		status = PFVF_STATUS_NOT_SUPPORTED;
+		status = PFVF_STATUS_ANALT_SUPPORTED;
 		rc = -EINVAL;
 		goto send_status;
 	}
@@ -3890,8 +3890,8 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 
 	/* qed_iov_process_mbx_request */
 	if (!mbx->b_pending_msg) {
-		DP_NOTICE(p_hwfn,
-			  "VF[%02x]: Trying to process mailbox message when none is pending\n",
+		DP_ANALTICE(p_hwfn,
+			  "VF[%02x]: Trying to process mailbox message when analne is pending\n",
 			  p_vf->abs_vf_id);
 		return;
 	}
@@ -3903,7 +3903,7 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 		   "VF[%02x]: Processing mailbox message [type %04x]\n",
 		   p_vf->abs_vf_id, mbx->first_tlv.tl.type);
 
-	/* check if tlv type is known */
+	/* check if tlv type is kanalwn */
 	if (qed_iov_tlv_supported(mbx->first_tlv.tl.type) &&
 	    !p_vf->b_malicious) {
 		switch (mbx->first_tlv.tl.type) {
@@ -3961,7 +3961,7 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 		}
 	} else if (qed_iov_tlv_supported(mbx->first_tlv.tl.type)) {
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "VF [%02x] - considered malicious; Ignoring TLV [%04x]\n",
+			   "VF [%02x] - considered malicious; Iganalring TLV [%04x]\n",
 			   p_vf->abs_vf_id, mbx->first_tlv.tl.type);
 
 		qed_iov_prepare_resp(p_hwfn, p_ptt, p_vf,
@@ -3969,14 +3969,14 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 				     sizeof(struct pfvf_def_resp_tlv),
 				     PFVF_STATUS_MALICIOUS);
 	} else {
-		/* unknown TLV - this may belong to a VF driver from the future
+		/* unkanalwn TLV - this may belong to a VF driver from the future
 		 * - a version written after this PF driver was written, which
-		 * supports features unknown as of yet. Too bad since we don't
+		 * supports features unkanalwn as of yet. Too bad since we don't
 		 * support them. Or this may be because someone wrote a crappy
 		 * VF driver and is sending garbage over the channel.
 		 */
-		DP_NOTICE(p_hwfn,
-			  "VF[%02x]: unknown TLV. type %04x length %04x padding %08x reply address %llu\n",
+		DP_ANALTICE(p_hwfn,
+			  "VF[%02x]: unkanalwn TLV. type %04x length %04x padding %08x reply address %llu\n",
 			  p_vf->abs_vf_id,
 			  mbx->first_tlv.tl.type,
 			  mbx->first_tlv.tl.length,
@@ -3991,11 +3991,11 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 			qed_iov_prepare_resp(p_hwfn, p_ptt, p_vf,
 					     mbx->first_tlv.tl.type,
 					     sizeof(struct pfvf_def_resp_tlv),
-					     PFVF_STATUS_NOT_SUPPORTED);
+					     PFVF_STATUS_ANALT_SUPPORTED);
 		} else {
 			DP_VERBOSE(p_hwfn,
 				   QED_MSG_IOV,
-				   "VF[%02x]: Can't respond to TLV - no valid reply address\n",
+				   "VF[%02x]: Can't respond to TLV - anal valid reply address\n",
 				   p_vf->abs_vf_id);
 		}
 	}
@@ -4024,7 +4024,7 @@ static struct qed_vf_info *qed_sriov_get_vf_from_absid(struct qed_hwfn *p_hwfn,
 	if (!_qed_iov_pf_sanity_check(p_hwfn, (int)abs_vfid - min, false)) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
-			   "Got indication for VF [abs 0x%08x] that cannot be handled by PF\n",
+			   "Got indication for VF [abs 0x%08x] that cananalt be handled by PF\n",
 			   abs_vfid);
 		return NULL;
 	}
@@ -4064,7 +4064,7 @@ void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
 		return;
 
 	if (!p_vf->b_malicious) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "VF [%d] - Malicious behavior [%02x]\n",
 			  p_vf->abs_vf_id, p_data->err_id);
 
@@ -4084,7 +4084,7 @@ int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode, __le16 echo,
 		return qed_sriov_vfpf_msg(p_hwfn, le16_to_cpu(echo),
 					  &data->vf_pf_channel.msg_addr);
 	default:
-		DP_INFO(p_hwfn->cdev, "Unknown sriov eqe event 0x%02x\n",
+		DP_INFO(p_hwfn->cdev, "Unkanalwn sriov eqe event 0x%02x\n",
 			opcode);
 		return -EINVAL;
 	}
@@ -4142,13 +4142,13 @@ static void qed_iov_bulletin_set_forced_mac(struct qed_hwfn *p_hwfn,
 
 	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf_info) {
-		DP_NOTICE(p_hwfn->cdev,
-			  "Can not set forced MAC, invalid vfid [%d]\n", vfid);
+		DP_ANALTICE(p_hwfn->cdev,
+			  "Can analt set forced MAC, invalid vfid [%d]\n", vfid);
 		return;
 	}
 
 	if (vf_info->b_malicious) {
-		DP_NOTICE(p_hwfn->cdev,
+		DP_ANALTICE(p_hwfn->cdev,
 			  "Can't set forced MAC to malicious VF [%d]\n", vfid);
 		return;
 	}
@@ -4179,20 +4179,20 @@ static int qed_iov_bulletin_set_mac(struct qed_hwfn *p_hwfn, u8 *mac, int vfid)
 
 	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf_info) {
-		DP_NOTICE(p_hwfn->cdev, "Can not set MAC, invalid vfid [%d]\n",
+		DP_ANALTICE(p_hwfn->cdev, "Can analt set MAC, invalid vfid [%d]\n",
 			  vfid);
 		return -EINVAL;
 	}
 
 	if (vf_info->b_malicious) {
-		DP_NOTICE(p_hwfn->cdev, "Can't set MAC to malicious VF [%d]\n",
+		DP_ANALTICE(p_hwfn->cdev, "Can't set MAC to malicious VF [%d]\n",
 			  vfid);
 		return -EINVAL;
 	}
 
 	if (vf_info->bulletin.p_virt->valid_bitmap & BIT(MAC_ADDR_FORCED)) {
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "Can not set MAC, Forced MAC is configured\n");
+			   "Can analt set MAC, Forced MAC is configured\n");
 		return -EINVAL;
 	}
 
@@ -4215,13 +4215,13 @@ static void qed_iov_bulletin_set_forced_vlan(struct qed_hwfn *p_hwfn,
 
 	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf_info) {
-		DP_NOTICE(p_hwfn->cdev,
-			  "Can not set forced MAC, invalid vfid [%d]\n", vfid);
+		DP_ANALTICE(p_hwfn->cdev,
+			  "Can analt set forced MAC, invalid vfid [%d]\n", vfid);
 		return;
 	}
 
 	if (vf_info->b_malicious) {
-		DP_NOTICE(p_hwfn->cdev,
+		DP_ANALTICE(p_hwfn->cdev,
 			  "Can't set forced vlan to malicious VF [%d]\n", vfid);
 		return;
 	}
@@ -4243,14 +4243,14 @@ void qed_iov_bulletin_set_udp_ports(struct qed_hwfn *p_hwfn,
 
 	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf_info) {
-		DP_NOTICE(p_hwfn->cdev,
-			  "Can not set udp ports, invalid vfid [%d]\n", vfid);
+		DP_ANALTICE(p_hwfn->cdev,
+			  "Can analt set udp ports, invalid vfid [%d]\n", vfid);
 		return;
 	}
 
 	if (vf_info->b_malicious) {
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "Can not set udp ports to malicious VF [%d]\n",
+			   "Can analt set udp ports to malicious VF [%d]\n",
 			   vfid);
 		return;
 	}
@@ -4298,7 +4298,7 @@ static int qed_iov_spoofchk_set(struct qed_hwfn *p_hwfn, int vfid, bool val)
 	int rc = -EINVAL;
 
 	if (!qed_iov_pf_sanity_check(p_hwfn, vfid)) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "SR-IOV sanity check failed, can't set spoofchk\n");
 		goto out;
 	}
@@ -4383,7 +4383,7 @@ static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 
 	rl_id = abs_vp_id;	/* The "rl_id" is set as the "vport_id" */
 	return qed_init_global_rl(p_hwfn, p_ptt, rl_id, (u32)val,
-				  QM_RL_TYPE_NORMAL);
+				  QM_RL_TYPE_ANALRMAL);
 }
 
 static int
@@ -4397,7 +4397,7 @@ qed_iov_configure_min_tx_rate(struct qed_dev *cdev, int vfid, u32 rate)
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		if (!qed_iov_pf_sanity_check(p_hwfn, vfid)) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "SR-IOV sanity check failed, can't set min rate\n");
 			return -EINVAL;
 		}
@@ -4547,7 +4547,7 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 	int i, j, rc;
 
 	if (num >= RESC_NUM(&cdev->hwfns[0], QED_VPORT)) {
-		DP_NOTICE(cdev, "Can start at most %d VFs\n",
+		DP_ANALTICE(cdev, "Can start at most %d VFs\n",
 			  RESC_NUM(&cdev->hwfns[0], QED_VPORT) - 1);
 		return -EINVAL;
 	}
@@ -4559,7 +4559,7 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 		hwfn = &cdev->hwfns[j];
 		ptt = qed_ptt_acquire(hwfn);
 
-		/* Make sure not to use more than 16 queues per VF */
+		/* Make sure analt to use more than 16 queues per VF */
 		params.num_queues = min_t(int,
 					  FEAT_NUM(hwfn, QED_VF_L2_QUE) / num,
 					  16);
@@ -4616,8 +4616,8 @@ err:
 static int qed_sriov_configure(struct qed_dev *cdev, int num_vfs_param)
 {
 	if (!IS_QED_SRIOV(cdev)) {
-		DP_VERBOSE(cdev, QED_MSG_IOV, "SR-IOV is not supported\n");
-		return -EOPNOTSUPP;
+		DP_VERBOSE(cdev, QED_MSG_IOV, "SR-IOV is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (num_vfs_param)
@@ -4632,13 +4632,13 @@ static int qed_sriov_pf_set_mac(struct qed_dev *cdev, u8 *mac, int vfid)
 
 	if (!IS_QED_SRIOV(cdev) || !IS_PF_SRIOV_ALLOC(&cdev->hwfns[0])) {
 		DP_VERBOSE(cdev, QED_MSG_IOV,
-			   "Cannot set a VF MAC; Sriov is not enabled\n");
+			   "Cananalt set a VF MAC; Sriov is analt enabled\n");
 		return -EINVAL;
 	}
 
 	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vfid, true, true)) {
 		DP_VERBOSE(cdev, QED_MSG_IOV,
-			   "Cannot set VF[%d] MAC (VF is not active)\n", vfid);
+			   "Cananalt set VF[%d] MAC (VF is analt active)\n", vfid);
 		return -EINVAL;
 	}
 
@@ -4668,13 +4668,13 @@ static int qed_sriov_pf_set_vlan(struct qed_dev *cdev, u16 vid, int vfid)
 
 	if (!IS_QED_SRIOV(cdev) || !IS_PF_SRIOV_ALLOC(&cdev->hwfns[0])) {
 		DP_VERBOSE(cdev, QED_MSG_IOV,
-			   "Cannot set a VF MAC; Sriov is not enabled\n");
+			   "Cananalt set a VF MAC; Sriov is analt enabled\n");
 		return -EINVAL;
 	}
 
 	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vfid, true, true)) {
 		DP_VERBOSE(cdev, QED_MSG_IOV,
-			   "Cannot set VF[%d] MAC (VF is not active)\n", vfid);
+			   "Cananalt set VF[%d] MAC (VF is analt active)\n", vfid);
 		return -EINVAL;
 	}
 
@@ -4760,7 +4760,7 @@ void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
 		/* Only hwfn0 is actually interested in the link speed.
 		 * But since only it would receive an MFW indication of link,
 		 * need to take configuration from it - otherwise things like
-		 * rate limiting for hwfn1 VF would not work.
+		 * rate limiting for hwfn1 VF would analt work.
 		 */
 		memcpy(&params, qed_mcp_get_link_params(lead_hwfn),
 		       sizeof(params));
@@ -4795,7 +4795,7 @@ void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
 
 			ptt = qed_ptt_acquire(hwfn);
 			if (!ptt) {
-				DP_NOTICE(hwfn, "Failed to acquire PTT\n");
+				DP_ANALTICE(hwfn, "Failed to acquire PTT\n");
 				return;
 			}
 
@@ -4871,7 +4871,7 @@ static int qed_configure_max_vf_rate(struct qed_dev *cdev, int vfid, int rate)
 		struct qed_public_vf_info *vf;
 
 		if (!qed_iov_pf_sanity_check(p_hwfn, vfid)) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "SR-IOV sanity check failed, can't set tx rate\n");
 			return -EINVAL;
 		}
@@ -4912,7 +4912,7 @@ static int qed_set_vf_trust(struct qed_dev *cdev, int vfid, bool trust)
 		struct qed_public_vf_info *vf;
 
 		if (!qed_iov_pf_sanity_check(hwfn, vfid)) {
-			DP_NOTICE(hwfn,
+			DP_ANALTICE(hwfn,
 				  "SR-IOV sanity check failed, can't set trust\n");
 			return -EINVAL;
 		}
@@ -4950,7 +4950,7 @@ static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
 		   events[0], events[1], events[2]);
 
 	qed_for_each_vf(hwfn, i) {
-		/* Skip VFs with no pending messages */
+		/* Skip VFs with anal pending messages */
 		if (!(events[i / 64] & (1ULL << (i % 64))))
 			continue;
 
@@ -5051,7 +5051,7 @@ static void qed_handle_bulletin_post(struct qed_hwfn *hwfn)
 
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt) {
-		DP_NOTICE(hwfn, "Failed allocating a ptt entry\n");
+		DP_ANALTICE(hwfn, "Failed allocating a ptt entry\n");
 		qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
 		return;
 	}
@@ -5120,7 +5120,7 @@ static void qed_update_mac_for_vf_trust_change(struct qed_hwfn *hwfn, int vf_id)
 			}
 		}
 		/* Clear bulletin when trust mode is turned off,
-		 * to have a clean slate for next (normal) operations.
+		 * to have a clean slate for next (analrmal) operations.
 		 */
 		qed_iov_bulletin_set_mac(hwfn, empty_mac, vf_id);
 		qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
@@ -5141,7 +5141,7 @@ static void qed_iov_handle_trust_change(struct qed_hwfn *hwfn)
 
 	qed_for_each_vf(hwfn, i) {
 		/* Need to make sure current requested configuration didn't
-		 * flip so that we'll end up configuring something that's not
+		 * flip so that we'll end up configuring something that's analt
 		 * needed.
 		 */
 		vf_info = qed_iov_get_public_vf_info(hwfn, i, true);
@@ -5280,8 +5280,8 @@ int qed_iov_wq_start(struct qed_dev *cdev)
 
 		p_hwfn->iov_wq = create_singlethread_workqueue(name);
 		if (!p_hwfn->iov_wq) {
-			DP_NOTICE(p_hwfn, "Cannot create iov workqueue\n");
-			return -ENOMEM;
+			DP_ANALTICE(p_hwfn, "Cananalt create iov workqueue\n");
+			return -EANALMEM;
 		}
 
 		if (IS_PF(cdev))

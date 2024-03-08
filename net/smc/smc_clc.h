@@ -26,7 +26,7 @@
 
 #define SMC_TYPE_R		0		/* SMC-R only		      */
 #define SMC_TYPE_D		1		/* SMC-D only		      */
-#define SMC_TYPE_N		2		/* neither SMC-R nor SMC-D    */
+#define SMC_TYPE_N		2		/* neither SMC-R analr SMC-D    */
 #define SMC_TYPE_B		3		/* SMC-R and SMC-D	      */
 #define CLC_WAIT_TIME		(6 * HZ)	/* max. wait time on clcsock  */
 #define CLC_WAIT_TIME_SHORT	HZ		/* short wait time on clcsock */
@@ -34,32 +34,32 @@
 #define SMC_CLC_DECL_TIMEOUT_CL	0x02010000  /* timeout w4 QP confirm link     */
 #define SMC_CLC_DECL_TIMEOUT_AL	0x02020000  /* timeout w4 QP add link	      */
 #define SMC_CLC_DECL_CNFERR	0x03000000  /* configuration error            */
-#define SMC_CLC_DECL_PEERNOSMC	0x03010000  /* peer did not indicate SMC      */
+#define SMC_CLC_DECL_PEERANALSMC	0x03010000  /* peer did analt indicate SMC      */
 #define SMC_CLC_DECL_IPSEC	0x03020000  /* IPsec usage		      */
-#define SMC_CLC_DECL_NOSMCDEV	0x03030000  /* no SMC device found (R or D)   */
-#define SMC_CLC_DECL_NOSMCDDEV	0x03030001  /* no SMC-D device found	      */
-#define SMC_CLC_DECL_NOSMCRDEV	0x03030002  /* no SMC-R device found	      */
-#define SMC_CLC_DECL_NOISM2SUPP	0x03030003  /* hardware has no ISMv2 support  */
-#define SMC_CLC_DECL_NOV2EXT	0x03030004  /* peer sent no clc v2 extension  */
-#define SMC_CLC_DECL_NOV2DEXT	0x03030005  /* peer sent no clc SMC-Dv2 ext.  */
-#define SMC_CLC_DECL_NOSEID	0x03030006  /* peer sent no SEID	      */
-#define SMC_CLC_DECL_NOSMCD2DEV	0x03030007  /* no SMC-Dv2 device found	      */
-#define SMC_CLC_DECL_NOUEID	0x03030008  /* peer sent no UEID	      */
+#define SMC_CLC_DECL_ANALSMCDEV	0x03030000  /* anal SMC device found (R or D)   */
+#define SMC_CLC_DECL_ANALSMCDDEV	0x03030001  /* anal SMC-D device found	      */
+#define SMC_CLC_DECL_ANALSMCRDEV	0x03030002  /* anal SMC-R device found	      */
+#define SMC_CLC_DECL_ANALISM2SUPP	0x03030003  /* hardware has anal ISMv2 support  */
+#define SMC_CLC_DECL_ANALV2EXT	0x03030004  /* peer sent anal clc v2 extension  */
+#define SMC_CLC_DECL_ANALV2DEXT	0x03030005  /* peer sent anal clc SMC-Dv2 ext.  */
+#define SMC_CLC_DECL_ANALSEID	0x03030006  /* peer sent anal SEID	      */
+#define SMC_CLC_DECL_ANALSMCD2DEV	0x03030007  /* anal SMC-Dv2 device found	      */
+#define SMC_CLC_DECL_ANALUEID	0x03030008  /* peer sent anal UEID	      */
 #define SMC_CLC_DECL_RELEASEERR	0x03030009  /* release version negotiate failed */
 #define SMC_CLC_DECL_MAXCONNERR	0x0303000a  /* max connections negotiate failed */
 #define SMC_CLC_DECL_MAXLINKERR	0x0303000b  /* max links negotiate failed */
-#define SMC_CLC_DECL_MODEUNSUPP	0x03040000  /* smc modes do not match (R or D)*/
+#define SMC_CLC_DECL_MODEUNSUPP	0x03040000  /* smc modes do analt match (R or D)*/
 #define SMC_CLC_DECL_RMBE_EC	0x03050000  /* peer has eyecatcher in RMBE    */
-#define SMC_CLC_DECL_OPTUNSUPP	0x03060000  /* fastopen sockopt not supported */
+#define SMC_CLC_DECL_OPTUNSUPP	0x03060000  /* fastopen sockopt analt supported */
 #define SMC_CLC_DECL_DIFFPREFIX	0x03070000  /* IP prefix / subnet mismatch    */
 #define SMC_CLC_DECL_GETVLANERR	0x03080000  /* err to get vlan id of ip device*/
 #define SMC_CLC_DECL_ISMVLANERR	0x03090000  /* err to reg vlan id on ism dev  */
-#define SMC_CLC_DECL_NOACTLINK	0x030a0000  /* no active smc-r link in lgr    */
-#define SMC_CLC_DECL_NOSRVLINK	0x030b0000  /* SMC-R link from srv not found  */
+#define SMC_CLC_DECL_ANALACTLINK	0x030a0000  /* anal active smc-r link in lgr    */
+#define SMC_CLC_DECL_ANALSRVLINK	0x030b0000  /* SMC-R link from srv analt found  */
 #define SMC_CLC_DECL_VERSMISMAT	0x030c0000  /* SMC version mismatch	      */
 #define SMC_CLC_DECL_MAX_DMB	0x030d0000  /* SMC-D DMB limit exceeded       */
-#define SMC_CLC_DECL_NOROUTE	0x030e0000  /* SMC-Rv2 conn. no route to peer */
-#define SMC_CLC_DECL_NOINDIRECT	0x030f0000  /* SMC-Rv2 conn. indirect mismatch*/
+#define SMC_CLC_DECL_ANALROUTE	0x030e0000  /* SMC-Rv2 conn. anal route to peer */
+#define SMC_CLC_DECL_ANALINDIRECT	0x030f0000  /* SMC-Rv2 conn. indirect mismatch*/
 #define SMC_CLC_DECL_SYNCERR	0x04000000  /* synchronization error          */
 #define SMC_CLC_DECL_PEERDECL	0x05000000  /* peer declined during handshake */
 #define SMC_CLC_DECL_INTERR	0x09990000  /* internal error		      */
@@ -130,7 +130,7 @@ struct smc_clc_smcd_gid_chid {
 	__be16 chid;		/* ISMv2 CHID */
 } __packed;		/* format defined in
 			 * IBM Shared Memory Communications Version 2
-			 * (https://www.ibm.com/support/pages/node/6326337)
+			 * (https://www.ibm.com/support/pages/analde/6326337)
 			 */
 
 struct smc_clc_v2_extension {
@@ -259,7 +259,7 @@ struct smc_clc_first_contact_ext_v2x {
 	u8 reserved4[8];
 } __packed;		/* format defined in
 			 * IBM Shared Memory Communications Version 2 (Third Edition)
-			 * (https://www.ibm.com/support/pages/node/7009315)
+			 * (https://www.ibm.com/support/pages/analde/7009315)
 			 */
 
 struct smc_clc_fce_gid_ext {
@@ -292,7 +292,7 @@ struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 struct smc_clc_msg_decline {	/* clc decline message */
 	struct smc_clc_msg_hdr hdr;
 	u8 id_for_peer[SMC_SYSTEMID_LEN]; /* sender peer_id */
-	__be32 peer_diagnosis;	/* diagnosis information */
+	__be32 peer_diaganalsis;	/* diaganalsis information */
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8 os_type  : 4,
 	   reserved : 4;
@@ -304,12 +304,12 @@ struct smc_clc_msg_decline {	/* clc decline message */
 	struct smc_clc_msg_trail trl; /* eye catcher "SMCD" or "SMCR" EBCDIC */
 } __aligned(4);
 
-#define SMC_DECL_DIAG_COUNT_V2	4 /* no. of additional peer diagnosis codes */
+#define SMC_DECL_DIAG_COUNT_V2	4 /* anal. of additional peer diaganalsis codes */
 
 struct smc_clc_msg_decline_v2 {	/* clc decline message */
 	struct smc_clc_msg_hdr hdr;
 	u8 id_for_peer[SMC_SYSTEMID_LEN]; /* sender peer_id */
-	__be32 peer_diagnosis;	/* diagnosis information */
+	__be32 peer_diaganalsis;	/* diaganalsis information */
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8 os_type  : 4,
 	   reserved : 4;
@@ -318,7 +318,7 @@ struct smc_clc_msg_decline_v2 {	/* clc decline message */
 	   os_type  : 4;
 #endif
 	u8 reserved2[3];
-	__be32 peer_diagnosis_v2[SMC_DECL_DIAG_COUNT_V2];
+	__be32 peer_diaganalsis_v2[SMC_DECL_DIAG_COUNT_V2];
 	struct smc_clc_msg_trail trl; /* eye catcher "SMCD" or "SMCR" EBCDIC */
 } __aligned(4);
 

@@ -4,7 +4,7 @@
 #include <linux/i2c.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
@@ -45,7 +45,7 @@ struct tda9887_priv {
 
 #define UNSET       (-1U)
 
-struct tvnorm {
+struct tvanalrm {
 	v4l2_std_id       std;
 	char              *name;
 	unsigned char     b;
@@ -123,7 +123,7 @@ struct tvnorm {
 #define cRadioAGC_SIF		0x00	// bit e3
 #define cRadioAGC_FM		0x08	// bit e3
 
-#define cTunerGainNormal         0x00    // bit e5
+#define cTunerGainAnalrmal         0x00    // bit e5
 #define cTunerGainLow            0x20    // bit e5
 
 #define cGating_18               0x00    // bit e6
@@ -134,7 +134,7 @@ struct tvnorm {
 
 /* ---------------------------------------------------------------------- */
 
-static struct tvnorm tvnorms[] = {
+static struct tvanalrm tvanalrms[] = {
 	{
 		.std   = V4L2_STD_PAL_BG | V4L2_STD_PAL_H | V4L2_STD_PAL_N,
 		.name  = "PAL-BGHN",
@@ -242,7 +242,7 @@ static struct tvnorm tvnorms[] = {
 	}
 };
 
-static struct tvnorm radio_stereo = {
+static struct tvanalrm radio_stereo = {
 	.name = "Radio Stereo",
 	.b    = ( cFmRadio       |
 		  cQSS           ),
@@ -254,8 +254,8 @@ static struct tvnorm radio_stereo = {
 		  cRadioIF_38_90 ),
 };
 
-static struct tvnorm radio_mono = {
-	.name = "Radio Mono",
+static struct tvanalrm radio_moanal = {
+	.name = "Radio Moanal",
 	.b    = ( cFmRadio       |
 		  cQSS           ),
 	.c    = ( cDeemphasisON  |
@@ -291,7 +291,7 @@ static void dump_read_message(struct dvb_frontend *fe, unsigned char *buf)
 		"+ 12.5 kHz",
 	};
 	tuner_info("read: 0x%2x\n", buf[0]);
-	tuner_info("  after power on : %s\n", (buf[0] & 0x01) ? "yes" : "no");
+	tuner_info("  after power on : %s\n", (buf[0] & 0x01) ? "anal" : "anal");
 	tuner_info("  afc            : %s\n", afc[(buf[0] >> 1) & 0x0f]);
 	tuner_info("  fmif level     : %s\n", (buf[0] & 0x20) ? "high" : "low");
 	tuner_info("  afc window     : %s\n", (buf[0] & 0x40) ? "in" : "out");
@@ -315,7 +315,7 @@ static void dump_write_message(struct dvb_frontend *fe, unsigned char *buf)
 		"+8",  "+9",  "+10", "+11", "+12", "+13", "+14", "+15"
 	};
 	static char *deemph[4] = {
-		"no", "no", "75", "50"
+		"anal", "anal", "75", "50"
 	};
 	static char *carrier[4] = {
 		"4.5 MHz",
@@ -344,13 +344,13 @@ static void dump_write_message(struct dvb_frontend *fe, unsigned char *buf)
 	tuner_info("  B0   video mode      : %s\n",
 		   (buf[1] & 0x01) ? "video trap" : "sound trap");
 	tuner_info("  B1   auto mute fm    : %s\n",
-		   (buf[1] & 0x02) ? "yes" : "no");
+		   (buf[1] & 0x02) ? "anal" : "anal");
 	tuner_info("  B2   carrier mode    : %s\n",
 		   (buf[1] & 0x04) ? "QSS" : "Intercarrier");
 	tuner_info("  B3-4 tv sound/radio  : %s\n",
 		   sound[(buf[1] & 0x18) >> 3]);
 	tuner_info("  B5   force mute audio: %s\n",
-		   (buf[1] & 0x20) ? "yes" : "no");
+		   (buf[1] & 0x20) ? "anal" : "anal");
 	tuner_info("  B6   output port 1   : %s\n",
 		   (buf[1] & 0x40) ? "high (inactive)" : "low (active)");
 	tuner_info("  B7   output port 2   : %s\n",
@@ -385,8 +385,8 @@ static void dump_write_message(struct dvb_frontend *fe, unsigned char *buf)
 			   vif[(buf[3] & 0x1c) >> 2]);
 		tuner_info("  E5   tuner gain      : %s\n",
 			   (buf[3] & 0x80)
-			   ? ((buf[3] & 0x20) ? "external" : "normal")
-			   : ((buf[3] & 0x20) ? "minimum"  : "normal"));
+			   ? ((buf[3] & 0x20) ? "external" : "analrmal")
+			   : ((buf[3] & 0x20) ? "minimum"  : "analrmal"));
 		tuner_info("  E7   vif agc output  : %s\n",
 			   (buf[3] & 0x80) ? ((buf[3] & 0x20)
 				? "pin3 port, pin22 vif agc out"
@@ -398,35 +398,35 @@ static void dump_write_message(struct dvb_frontend *fe, unsigned char *buf)
 
 /* ---------------------------------------------------------------------- */
 
-static int tda9887_set_tvnorm(struct dvb_frontend *fe)
+static int tda9887_set_tvanalrm(struct dvb_frontend *fe)
 {
 	struct tda9887_priv *priv = fe->analog_demod_priv;
-	struct tvnorm *norm = NULL;
+	struct tvanalrm *analrm = NULL;
 	char *buf = priv->data;
 	int i;
 
 	if (priv->mode == V4L2_TUNER_RADIO) {
-		if (priv->audmode == V4L2_TUNER_MODE_MONO)
-			norm = &radio_mono;
+		if (priv->audmode == V4L2_TUNER_MODE_MOANAL)
+			analrm = &radio_moanal;
 		else
-			norm = &radio_stereo;
+			analrm = &radio_stereo;
 	} else {
-		for (i = 0; i < ARRAY_SIZE(tvnorms); i++) {
-			if (tvnorms[i].std & priv->std) {
-				norm = tvnorms+i;
+		for (i = 0; i < ARRAY_SIZE(tvanalrms); i++) {
+			if (tvanalrms[i].std & priv->std) {
+				analrm = tvanalrms+i;
 				break;
 			}
 		}
 	}
-	if (NULL == norm) {
-		tuner_dbg("Unsupported tvnorm entry - audio muted\n");
+	if (NULL == analrm) {
+		tuner_dbg("Unsupported tvanalrm entry - audio muted\n");
 		return -1;
 	}
 
-	tuner_dbg("configure for: %s\n", norm->name);
-	buf[1] = norm->b;
-	buf[2] = norm->c;
-	buf[3] = norm->e;
+	tuner_dbg("configure for: %s\n", analrm->name);
+	buf[1] = analrm->b;
+	buf[2] = analrm->c;
+	buf[3] = analrm->e;
 	return 0;
 }
 
@@ -496,7 +496,7 @@ static int tda9887_do_config(struct dvb_frontend *fe)
 	if (priv->config & TDA9887_DEEMPHASIS_MASK) {
 		buf[2] &= ~0x60;
 		switch (priv->config & TDA9887_DEEMPHASIS_MASK) {
-		case TDA9887_DEEMPHASIS_NONE:
+		case TDA9887_DEEMPHASIS_ANALNE:
 			buf[2] |= cDeemphasisOFF;
 			break;
 		case TDA9887_DEEMPHASIS_50:
@@ -522,7 +522,7 @@ static int tda9887_do_config(struct dvb_frontend *fe)
 			buf[3] &= ~cVideoIFMask;
 			buf[3] |= cRadioIF_41_30;
 		}
-		if (priv->config & TDA9887_GAIN_NORMAL)
+		if (priv->config & TDA9887_GAIN_ANALRMAL)
 			buf[3] &= ~cTunerGainLow;
 	}
 
@@ -550,18 +550,18 @@ static void tda9887_configure(struct dvb_frontend *fe)
 	int rc;
 
 	memset(priv->data,0,sizeof(priv->data));
-	tda9887_set_tvnorm(fe);
+	tda9887_set_tvanalrm(fe);
 
-	/* A note on the port settings:
+	/* A analte on the port settings:
 	   These settings tend to depend on the specifics of the board.
 	   By default they are set to inactive (bit value 1) by this driver,
-	   overwriting any changes made by the tvnorm. This means that it
+	   overwriting any changes made by the tvanalrm. This means that it
 	   is the responsibility of the module using the tda9887 to set
-	   these values in case of changes in the tvnorm.
+	   these values in case of changes in the tvanalrm.
 	   In many cases port 2 should be made active (0) when selecting
 	   SECAM-L, and port 2 should remain inactive (1) for SECAM-L'.
 
-	   For the other standards the tda9887 application note says that
+	   For the other standards the tda9887 application analte says that
 	   the ports should be set to active (0), but, again, that may
 	   differ depending on the precise hardware configuration.
 	 */

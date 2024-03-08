@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - NHI registers
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -14,8 +14,8 @@
 enum ring_flags {
 	RING_FLAG_ISOCH_ENABLE = 1 << 27, /* TX only? */
 	RING_FLAG_E2E_FLOW_CONTROL = 1 << 28,
-	RING_FLAG_PCI_NO_SNOOP = 1 << 29,
-	RING_FLAG_RAW = 1 << 30, /* ignore EOF/SOF mask, include checksum */
+	RING_FLAG_PCI_ANAL_SANALOP = 1 << 29,
+	RING_FLAG_RAW = 1 << 30, /* iganalre EOF/SOF mask, include checksum */
 	RING_FLAG_ENABLE = 1 << 31,
 };
 
@@ -40,7 +40,7 @@ struct ring_desc {
  * 16 bytes per entry, one entry for every hop (REG_CAPS)
  * 00: physical pointer to an array of struct ring_desc
  * 08: ring tail (set by NHI)
- * 10: ring head (index of first non posted descriptor)
+ * 10: ring head (index of first analn posted descriptor)
  * 12: descriptor count
  */
 #define REG_TX_RING_BASE	0x00000
@@ -48,10 +48,10 @@ struct ring_desc {
 /*
  * 16 bytes per entry, one entry for every hop (REG_CAPS)
  * 00: physical pointer to an array of struct ring_desc
- * 08: ring head (index of first not posted descriptor)
+ * 08: ring head (index of first analt posted descriptor)
  * 10: ring tail (set by NHI)
  * 12: descriptor count
- * 14: max frame sizes (anything larger than 0x100 has no effect)
+ * 14: max frame sizes (anything larger than 0x100 has anal effect)
  */
 #define REG_RX_RING_BASE	0x08000
 
@@ -59,7 +59,7 @@ struct ring_desc {
  * 32 bytes per entry, one entry for every hop (REG_CAPS)
  * 00: enum_ring_flags
  * 04: isoch time stamp ?? (write 0)
- * ..: unknown
+ * ..: unkanalwn
  */
 #define REG_TX_OPTIONS_BASE	0x19800
 
@@ -68,8 +68,8 @@ struct ring_desc {
  * 00: enum ring_flags
  *     If RING_FLAG_E2E_FLOW_CONTROL is set then bits 13-23 must be set to
  *     the corresponding TX hop id.
- * 04: EOF/SOF mask (ignored for RING_FLAG_RAW rings)
- * ..: unknown
+ * 04: EOF/SOF mask (iganalred for RING_FLAG_RAW rings)
+ * ..: unkanalwn
  */
 #define REG_RX_OPTIONS_BASE	0x29800
 #define REG_RX_OPTIONS_E2E_HOP_MASK	GENMASK(22, 12)
@@ -81,8 +81,8 @@ struct ring_desc {
  * New interrupts are fired only after ALL registers have been
  * read (even those containing only disabled rings).
  */
-#define REG_RING_NOTIFY_BASE	0x37800
-#define RING_NOTIFY_REG_COUNT(nhi) ((31 + 3 * nhi->hop_count) / 32)
+#define REG_RING_ANALTIFY_BASE	0x37800
+#define RING_ANALTIFY_REG_COUNT(nhi) ((31 + 3 * nhi->hop_count) / 32)
 #define REG_RING_INT_CLEAR	0x37808
 
 /*
@@ -161,12 +161,12 @@ struct ring_desc {
 /**
  * enum icl_lc_mailbox_cmd - ICL specific LC mailbox commands
  * @ICL_LC_GO2SX: Ask LC to enter Sx without wake
- * @ICL_LC_GO2SX_NO_WAKE: Ask LC to enter Sx with wake
+ * @ICL_LC_GO2SX_ANAL_WAKE: Ask LC to enter Sx with wake
  * @ICL_LC_PREPARE_FOR_RESET: Prepare LC for reset
  */
 enum icl_lc_mailbox_cmd {
 	ICL_LC_GO2SX = 0x02,
-	ICL_LC_GO2SX_NO_WAKE = 0x03,
+	ICL_LC_GO2SX_ANAL_WAKE = 0x03,
 	ICL_LC_PREPARE_FOR_RESET = 0x21,
 };
 

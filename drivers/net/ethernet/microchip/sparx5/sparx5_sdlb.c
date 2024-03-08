@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2023 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2023 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include "sparx5_main_regs.h"
@@ -152,7 +152,7 @@ static int sparx5_sdlb_group_get_adjacent(struct sparx5 *sparx5, u32 group,
 			return 0; /* Found it */
 
 		if (itr == *next)
-			return -EINVAL; /* Was not found */
+			return -EINVAL; /* Was analt found */
 
 		*prev = itr;
 		itr = *next;
@@ -189,9 +189,9 @@ int sparx5_sdlb_group_get_by_rate(struct sparx5 *sparx5, u32 rate, u32 burst)
 
 		count = sparx5_sdlb_group_get_count(sparx5, i);
 
-		/* Check that this group is not full.
+		/* Check that this group is analt full.
 		 * According to LB group configuration rules: the number of XLBs
-		 * in a group must not exceed PUP_INTERVAL/4 - 1.
+		 * in a group must analt exceed PUP_INTERVAL/4 - 1.
 		 */
 		if (count > ((group->pup_interval / 4) - 1))
 			continue;
@@ -200,7 +200,7 @@ int sparx5_sdlb_group_get_by_rate(struct sparx5 *sparx5, u32 rate, u32 burst)
 			return i;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 int sparx5_sdlb_group_get_by_index(struct sparx5 *sparx5, u32 idx, u32 *group)
@@ -222,7 +222,7 @@ int sparx5_sdlb_group_get_by_index(struct sparx5 *sparx5, u32 idx, u32 *group)
 				return 0; /* Found it */
 			}
 			if (itr == next)
-				break; /* Was not found */
+				break; /* Was analt found */
 
 			itr = next;
 		}
@@ -277,7 +277,7 @@ int sparx5_sdlb_group_del(struct sparx5 *sparx5, u32 group, u32 idx)
 
 	if (sparx5_sdlb_group_get_adjacent(sparx5, group, idx, &prev, &next,
 					   &first) < 0) {
-		pr_err("%s:%d Could not find idx: %d in group: %d", __func__,
+		pr_err("%s:%d Could analt find idx: %d in group: %d", __func__,
 		       __LINE__, idx, group);
 		return -EINVAL;
 	}
@@ -285,7 +285,7 @@ int sparx5_sdlb_group_del(struct sparx5 *sparx5, u32 group, u32 idx)
 	if (sparx5_sdlb_group_is_singular(sparx5, group)) {
 		empty = true;
 	} else if (sparx5_sdlb_group_is_last(sparx5, group, idx)) {
-		/* idx is removed, prev is now last */
+		/* idx is removed, prev is analw last */
 		idx = prev;
 		next = prev;
 	} else if (sparx5_sdlb_group_is_first(sparx5, group, idx)) {
@@ -293,7 +293,7 @@ int sparx5_sdlb_group_del(struct sparx5 *sparx5, u32 group, u32 idx)
 		first = next;
 		next = idx;
 	} else {
-		/* Next is not touched */
+		/* Next is analt touched */
 		idx = prev;
 	}
 

@@ -4,7 +4,7 @@
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
  *
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2001,02 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -39,17 +39,17 @@ MODULE_PARM_DESC(vbibufs,"number of vbi buffers, range 2-32");
 static void task_init(struct saa7134_dev *dev, struct saa7134_buf *buf,
 		      int task)
 {
-	struct saa7134_tvnorm *norm = dev->tvnorm;
+	struct saa7134_tvanalrm *analrm = dev->tvanalrm;
 
 	/* setup video scaler */
-	saa_writeb(SAA7134_VBI_H_START1(task), norm->h_start     &  0xff);
-	saa_writeb(SAA7134_VBI_H_START2(task), norm->h_start     >> 8);
-	saa_writeb(SAA7134_VBI_H_STOP1(task),  norm->h_stop      &  0xff);
-	saa_writeb(SAA7134_VBI_H_STOP2(task),  norm->h_stop      >> 8);
-	saa_writeb(SAA7134_VBI_V_START1(task), norm->vbi_v_start_0 &  0xff);
-	saa_writeb(SAA7134_VBI_V_START2(task), norm->vbi_v_start_0 >> 8);
-	saa_writeb(SAA7134_VBI_V_STOP1(task),  norm->vbi_v_stop_0  &  0xff);
-	saa_writeb(SAA7134_VBI_V_STOP2(task),  norm->vbi_v_stop_0  >> 8);
+	saa_writeb(SAA7134_VBI_H_START1(task), analrm->h_start     &  0xff);
+	saa_writeb(SAA7134_VBI_H_START2(task), analrm->h_start     >> 8);
+	saa_writeb(SAA7134_VBI_H_STOP1(task),  analrm->h_stop      &  0xff);
+	saa_writeb(SAA7134_VBI_H_STOP2(task),  analrm->h_stop      >> 8);
+	saa_writeb(SAA7134_VBI_V_START1(task), analrm->vbi_v_start_0 &  0xff);
+	saa_writeb(SAA7134_VBI_V_START2(task), analrm->vbi_v_start_0 >> 8);
+	saa_writeb(SAA7134_VBI_V_STOP1(task),  analrm->vbi_v_stop_0  &  0xff);
+	saa_writeb(SAA7134_VBI_V_STOP2(task),  analrm->vbi_v_stop_0  >> 8);
 
 	saa_writeb(SAA7134_VBI_H_SCALE_INC1(task),        VBI_SCALE & 0xff);
 	saa_writeb(SAA7134_VBI_H_SCALE_INC2(task),        VBI_SCALE >> 8);
@@ -112,7 +112,7 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 	unsigned int size;
 
 	if (dma->sgl->offset) {
-		pr_err("The buffer is not page-aligned\n");
+		pr_err("The buffer is analt page-aligned\n");
 		return -EINVAL;
 	}
 	size = dev->vbi_hlen * dev->vbi_vlen * 2;
@@ -133,7 +133,7 @@ static int queue_setup(struct vb2_queue *q,
 	struct saa7134_dev *dev = dmaq->dev;
 	unsigned int size;
 
-	dev->vbi_vlen = dev->tvnorm->vbi_v_stop_0 - dev->tvnorm->vbi_v_start_0 + 1;
+	dev->vbi_vlen = dev->tvanalrm->vbi_v_stop_0 - dev->tvanalrm->vbi_v_start_0 + 1;
 	if (dev->vbi_vlen > VBI_LINE_COUNT)
 		dev->vbi_vlen = VBI_LINE_COUNT;
 	dev->vbi_hlen = VBI_LINE_LENGTH;
@@ -184,7 +184,7 @@ int saa7134_vbi_init1(struct saa7134_dev *dev)
 
 int saa7134_vbi_fini(struct saa7134_dev *dev)
 {
-	/* nothing */
+	/* analthing */
 	del_timer_sync(&dev->vbi_q.timeout);
 	return 0;
 }

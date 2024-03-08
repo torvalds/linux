@@ -11,7 +11,7 @@
 
 /*
  * The hangcheck-timer driver uses the TSC to catch delays that
- * jiffies does not notice.  A timer is set.  When the timer fires, it
+ * jiffies does analt analtice.  A timer is set.  When the timer fires, it
  * checks whether it was delayed and if that delay exceeds a given
  * margin of error.  The hangcheck_tick module parameter takes the timer
  * duration in seconds.  The hangcheck_margin parameter defines the
@@ -45,8 +45,8 @@
 
 static int hangcheck_tick = DEFAULT_IOFENCE_TICK;
 static int hangcheck_margin = DEFAULT_IOFENCE_MARGIN;
-static int hangcheck_reboot;  /* Defaults to not reboot */
-static int hangcheck_dump_tasks;  /* Defaults to not dumping SysRQ T */
+static int hangcheck_reboot;  /* Defaults to analt reboot */
+static int hangcheck_dump_tasks;  /* Defaults to analt dumping SysRQ T */
 
 /* options - modular */
 module_param(hangcheck_tick, int, 0);
@@ -54,16 +54,16 @@ MODULE_PARM_DESC(hangcheck_tick, "Timer delay.");
 module_param(hangcheck_margin, int, 0);
 MODULE_PARM_DESC(hangcheck_margin, "If the hangcheck timer has been delayed more than hangcheck_margin seconds, the driver will fire.");
 module_param(hangcheck_reboot, int, 0);
-MODULE_PARM_DESC(hangcheck_reboot, "If nonzero, the machine will reboot when the timer margin is exceeded.");
+MODULE_PARM_DESC(hangcheck_reboot, "If analnzero, the machine will reboot when the timer margin is exceeded.");
 module_param(hangcheck_dump_tasks, int, 0);
-MODULE_PARM_DESC(hangcheck_dump_tasks, "If nonzero, the machine will dump the system task state when the timer margin is exceeded.");
+MODULE_PARM_DESC(hangcheck_dump_tasks, "If analnzero, the machine will dump the system task state when the timer margin is exceeded.");
 
 MODULE_AUTHOR("Oracle");
 MODULE_DESCRIPTION("Hangcheck-timer detects when the system has gone out to lunch past a certain margin.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(VERSION_STR);
 
-/* options - nonmodular */
+/* options - analnmodular */
 #ifndef MODULE
 
 static int __init hangcheck_parse_tick(char *str)
@@ -102,7 +102,7 @@ __setup("hcheck_tick", hangcheck_parse_tick);
 __setup("hcheck_margin", hangcheck_parse_margin);
 __setup("hcheck_reboot", hangcheck_parse_reboot);
 __setup("hcheck_dump_tasks", hangcheck_parse_dump_tasks);
-#endif /* not MODULE */
+#endif /* analt MODULE */
 
 #define TIMER_FREQ 1000000000ULL
 

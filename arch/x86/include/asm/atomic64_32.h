@@ -53,7 +53,7 @@ ATOMIC64_DECL(sub_return);
 ATOMIC64_DECL(inc_return);
 ATOMIC64_DECL(dec_return);
 ATOMIC64_DECL(dec_if_positive);
-ATOMIC64_DECL(inc_not_zero);
+ATOMIC64_DECL(inc_analt_zero);
 ATOMIC64_DECL(add_unless);
 
 #undef ATOMIC64_DECL
@@ -83,7 +83,7 @@ static __always_inline void arch_atomic64_set(atomic64_t *v, s64 i)
 {
 	unsigned high = (unsigned)(i >> 32);
 	unsigned low = (unsigned)i;
-	alternative_atomic64(set, /* no output */,
+	alternative_atomic64(set, /* anal output */,
 			     "S" (v), "b" (low), "c" (high)
 			     : "eax", "edx", "memory");
 }
@@ -99,7 +99,7 @@ static __always_inline s64 arch_atomic64_add_return(s64 i, atomic64_t *v)
 {
 	alternative_atomic64(add_return,
 			     ASM_OUTPUT2("+A" (i), "+c" (v)),
-			     ASM_NO_INPUT_CLOBBER("memory"));
+			     ASM_ANAL_INPUT_CLOBBER("memory"));
 	return i;
 }
 #define arch_atomic64_add_return arch_atomic64_add_return
@@ -108,7 +108,7 @@ static __always_inline s64 arch_atomic64_sub_return(s64 i, atomic64_t *v)
 {
 	alternative_atomic64(sub_return,
 			     ASM_OUTPUT2("+A" (i), "+c" (v)),
-			     ASM_NO_INPUT_CLOBBER("memory"));
+			     ASM_ANAL_INPUT_CLOBBER("memory"));
 	return i;
 }
 #define arch_atomic64_sub_return arch_atomic64_sub_return
@@ -135,7 +135,7 @@ static __always_inline s64 arch_atomic64_add(s64 i, atomic64_t *v)
 {
 	__alternative_atomic64(add, add_return,
 			       ASM_OUTPUT2("+A" (i), "+c" (v)),
-			       ASM_NO_INPUT_CLOBBER("memory"));
+			       ASM_ANAL_INPUT_CLOBBER("memory"));
 	return i;
 }
 
@@ -143,20 +143,20 @@ static __always_inline s64 arch_atomic64_sub(s64 i, atomic64_t *v)
 {
 	__alternative_atomic64(sub, sub_return,
 			       ASM_OUTPUT2("+A" (i), "+c" (v)),
-			       ASM_NO_INPUT_CLOBBER("memory"));
+			       ASM_ANAL_INPUT_CLOBBER("memory"));
 	return i;
 }
 
 static __always_inline void arch_atomic64_inc(atomic64_t *v)
 {
-	__alternative_atomic64(inc, inc_return, /* no output */,
+	__alternative_atomic64(inc, inc_return, /* anal output */,
 			       "S" (v) : "memory", "eax", "ecx", "edx");
 }
 #define arch_atomic64_inc arch_atomic64_inc
 
 static __always_inline void arch_atomic64_dec(atomic64_t *v)
 {
-	__alternative_atomic64(dec, dec_return, /* no output */,
+	__alternative_atomic64(dec, dec_return, /* anal output */,
 			       "S" (v) : "memory", "eax", "ecx", "edx");
 }
 #define arch_atomic64_dec arch_atomic64_dec
@@ -172,14 +172,14 @@ static __always_inline int arch_atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 }
 #define arch_atomic64_add_unless arch_atomic64_add_unless
 
-static __always_inline int arch_atomic64_inc_not_zero(atomic64_t *v)
+static __always_inline int arch_atomic64_inc_analt_zero(atomic64_t *v)
 {
 	int r;
-	alternative_atomic64(inc_not_zero, "=&a" (r),
+	alternative_atomic64(inc_analt_zero, "=&a" (r),
 			     "S" (v) : "ecx", "edx", "memory");
 	return r;
 }
-#define arch_atomic64_inc_not_zero arch_atomic64_inc_not_zero
+#define arch_atomic64_inc_analt_zero arch_atomic64_inc_analt_zero
 
 static __always_inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 {

@@ -5,7 +5,7 @@
  */
 
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>

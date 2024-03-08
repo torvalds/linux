@@ -17,12 +17,12 @@
 #define OTG_SYSCONFIG		0x404
 #	define	MIDLEMODE	12	/* bit position */
 #	define	FORCESTDBY		(0 << MIDLEMODE)
-#	define	NOSTDBY			(1 << MIDLEMODE)
+#	define	ANALSTDBY			(1 << MIDLEMODE)
 #	define	SMARTSTDBY		(2 << MIDLEMODE)
 
 #	define	SIDLEMODE		3	/* bit position */
 #	define	FORCEIDLE		(0 << SIDLEMODE)
-#	define	NOIDLE			(1 << SIDLEMODE)
+#	define	ANALIDLE			(1 << SIDLEMODE)
 #	define	SMARTIDLE		(2 << SIDLEMODE)
 
 #	define	ENABLEWAKEUP		(1 << 2)

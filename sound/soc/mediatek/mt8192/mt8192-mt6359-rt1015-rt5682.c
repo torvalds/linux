@@ -571,18 +571,18 @@ SND_SOC_DAILINK_DEFS(capture8,
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-SND_SOC_DAILINK_DEFS(capture_mono1,
-		     DAILINK_COMP_ARRAY(COMP_CPU("UL_MONO_1")),
+SND_SOC_DAILINK_DEFS(capture_moanal1,
+		     DAILINK_COMP_ARRAY(COMP_CPU("UL_MOANAL_1")),
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-SND_SOC_DAILINK_DEFS(capture_mono2,
-		     DAILINK_COMP_ARRAY(COMP_CPU("UL_MONO_2")),
+SND_SOC_DAILINK_DEFS(capture_moanal2,
+		     DAILINK_COMP_ARRAY(COMP_CPU("UL_MOANAL_2")),
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-SND_SOC_DAILINK_DEFS(capture_mono3,
-		     DAILINK_COMP_ARRAY(COMP_CPU("UL_MONO_3")),
+SND_SOC_DAILINK_DEFS(capture_moanal3,
+		     DAILINK_COMP_ARRAY(COMP_CPU("UL_MOANAL_3")),
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
@@ -849,31 +849,31 @@ static struct snd_soc_dai_link mt8192_mt6359_dai_links[] = {
 		SND_SOC_DAILINK_REG(capture8),
 	},
 	{
-		.name = "Capture_Mono_1",
-		.stream_name = "Capture_Mono_1",
+		.name = "Capture_Moanal_1",
+		.stream_name = "Capture_Moanal_1",
 		.trigger = {SND_SOC_DPCM_TRIGGER_PRE,
 			    SND_SOC_DPCM_TRIGGER_PRE},
 		.dynamic = 1,
 		.dpcm_capture = 1,
-		SND_SOC_DAILINK_REG(capture_mono1),
+		SND_SOC_DAILINK_REG(capture_moanal1),
 	},
 	{
-		.name = "Capture_Mono_2",
-		.stream_name = "Capture_Mono_2",
+		.name = "Capture_Moanal_2",
+		.stream_name = "Capture_Moanal_2",
 		.trigger = {SND_SOC_DPCM_TRIGGER_PRE,
 			    SND_SOC_DPCM_TRIGGER_PRE},
 		.dynamic = 1,
 		.dpcm_capture = 1,
-		SND_SOC_DAILINK_REG(capture_mono2),
+		SND_SOC_DAILINK_REG(capture_moanal2),
 	},
 	{
-		.name = "Capture_Mono_3",
-		.stream_name = "Capture_Mono_3",
+		.name = "Capture_Moanal_3",
+		.stream_name = "Capture_Moanal_3",
 		.trigger = {SND_SOC_DPCM_TRIGGER_PRE,
 			    SND_SOC_DPCM_TRIGGER_PRE},
 		.dynamic = 1,
 		.dpcm_capture = 1,
-		SND_SOC_DAILINK_REG(capture_mono3),
+		SND_SOC_DAILINK_REG(capture_moanal3),
 	},
 	{
 		.name = "playback_hdmi",
@@ -887,96 +887,96 @@ static struct snd_soc_dai_link mt8192_mt6359_dai_links[] = {
 	/* Back End DAI links */
 	{
 		.name = "Primary Codec",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.init = mt8192_mt6359_init,
 		SND_SOC_DAILINK_REG(primary_codec),
 	},
 	{
 		.name = "Primary Codec CH34",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(primary_codec_ch34),
 	},
 	{
 		.name = "AP_DMIC",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(ap_dmic),
 	},
 	{
 		.name = "AP_DMIC_CH34",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(ap_dmic_ch34),
 	},
 	{
 		.name = "I2S0",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s0),
 	},
 	{
 		.name = "I2S1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s1),
 	},
 	{
 		.name = "I2S2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s2),
 	},
 	{
 		.name = "I2S3",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s3),
 	},
 	{
 		.name = "I2S5",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s5),
 	},
 	{
 		.name = "I2S6",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s6),
 	},
 	{
 		.name = "I2S7",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s7),
 	},
 	{
 		.name = "I2S8",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.init = mt8192_rt5682_init,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s8),
@@ -984,46 +984,46 @@ static struct snd_soc_dai_link mt8192_mt6359_dai_links[] = {
 	},
 	{
 		.name = "I2S9",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s9),
 		.ops = &mt8192_rt5682x_i2s_ops,
 	},
 	{
 		.name = "CONNSYS_I2S",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(connsys_i2s),
 	},
 	{
 		.name = "PCM 1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm1),
 	},
 	{
 		.name = "PCM 2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm2),
 	},
 	{
 		.name = "TDM",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_A |
 			   SND_SOC_DAIFMT_IB_NF |
 			   SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
-		.ignore = 1,
+		.iganalre = 1,
 		.init = mt8192_mt6359_hdmi_init,
 		SND_SOC_DAILINK_REG(tdm),
 	},
@@ -1120,13 +1120,13 @@ static struct snd_soc_card mt8192_mt6359_rt1015p_rt5682x_card = {
 
 static int mt8192_mt6359_card_set_be_link(struct snd_soc_card *card,
 					  struct snd_soc_dai_link *link,
-					  struct device_node *node,
+					  struct device_analde *analde,
 					  char *link_name)
 {
 	int ret;
 
-	if (node && strcmp(link->name, link_name) == 0) {
-		ret = snd_soc_of_get_dai_link_codecs(card->dev, node, link);
+	if (analde && strcmp(link->name, link_name) == 0) {
+		ret = snd_soc_of_get_dai_link_codecs(card->dev, analde, link);
 		if (ret < 0) {
 			dev_err_probe(card->dev, ret, "get dai link codecs fail\n");
 			return ret;
@@ -1139,7 +1139,7 @@ static int mt8192_mt6359_card_set_be_link(struct snd_soc_card *card,
 static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
-	struct device_node *platform_node, *hdmi_codec, *headset_codec, *speaker_codec;
+	struct device_analde *platform_analde, *hdmi_codec, *headset_codec, *speaker_codec;
 	int ret, i;
 	struct snd_soc_dai_link *dai_link;
 	struct mt8192_mt6359_priv *priv;
@@ -1149,32 +1149,32 @@ static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	card->dev = &pdev->dev;
 
-	if (of_device_is_compatible(pdev->dev.of_node, RT1015P_RT5682_OF_NAME))
+	if (of_device_is_compatible(pdev->dev.of_analde, RT1015P_RT5682_OF_NAME))
 		card->name = RT1015P_RT5682_CARD_NAME;
-	else if (of_device_is_compatible(pdev->dev.of_node, RT1015P_RT5682S_OF_NAME))
+	else if (of_device_is_compatible(pdev->dev.of_analde, RT1015P_RT5682S_OF_NAME))
 		card->name = RT1015P_RT5682S_CARD_NAME;
 	else
-		dev_dbg(&pdev->dev, "No need to set card name\n");
+		dev_dbg(&pdev->dev, "Anal need to set card name\n");
 
-	hdmi_codec = of_parse_phandle(pdev->dev.of_node, "mediatek,hdmi-codec", 0);
+	hdmi_codec = of_parse_phandle(pdev->dev.of_analde, "mediatek,hdmi-codec", 0);
 	if (!hdmi_codec)
-		dev_dbg(&pdev->dev, "The machine has no hdmi-codec\n");
+		dev_dbg(&pdev->dev, "The machine has anal hdmi-codec\n");
 
-	platform_node = of_parse_phandle(pdev->dev.of_node, "mediatek,platform", 0);
-	if (!platform_node) {
+	platform_analde = of_parse_phandle(pdev->dev.of_analde, "mediatek,platform", 0);
+	if (!platform_analde) {
 		ret = -EINVAL;
 		dev_err_probe(&pdev->dev, ret, "Property 'platform' missing or invalid\n");
-		goto err_platform_node;
+		goto err_platform_analde;
 	}
 
-	speaker_codec = of_get_child_by_name(pdev->dev.of_node, "speaker-codecs");
+	speaker_codec = of_get_child_by_name(pdev->dev.of_analde, "speaker-codecs");
 	if (!speaker_codec) {
 		ret = -EINVAL;
 		dev_err_probe(&pdev->dev, ret, "Property 'speaker-codecs' missing or invalid\n");
 		goto err_speaker_codec;
 	}
 
-	headset_codec = of_get_child_by_name(pdev->dev.of_node, "headset-codec");
+	headset_codec = of_get_child_by_name(pdev->dev.of_analde, "headset-codec");
 	if (!headset_codec) {
 		ret = -EINVAL;
 		dev_err_probe(&pdev->dev, ret, "Property 'headset-codec' missing or invalid\n");
@@ -1204,8 +1204,8 @@ static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 		}
 
 		if (hdmi_codec && strcmp(dai_link->name, "TDM") == 0) {
-			dai_link->codecs->of_node = hdmi_codec;
-			dai_link->ignore = 0;
+			dai_link->codecs->of_analde = hdmi_codec;
+			dai_link->iganalre = 0;
 		}
 
 		if (dai_link->num_codecs && dai_link->codecs[0].dai_name &&
@@ -1213,12 +1213,12 @@ static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 			dai_link->ops = &mt8192_rt1015_i2s_ops;
 
 		if (!dai_link->platforms->name)
-			dai_link->platforms->of_node = platform_node;
+			dai_link->platforms->of_analde = platform_analde;
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_probe;
 	}
 	snd_soc_card_set_drvdata(card, priv);
@@ -1234,13 +1234,13 @@ static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 		dev_err_probe(&pdev->dev, ret, "%s snd_soc_register_card fail\n", __func__);
 
 err_probe:
-	of_node_put(headset_codec);
+	of_analde_put(headset_codec);
 err_headset_codec:
-	of_node_put(speaker_codec);
+	of_analde_put(speaker_codec);
 err_speaker_codec:
-	of_node_put(platform_node);
-err_platform_node:
-	of_node_put(hdmi_codec);
+	of_analde_put(platform_analde);
+err_platform_analde:
+	of_analde_put(hdmi_codec);
 	return ret;
 }
 

@@ -192,7 +192,7 @@ static int tegra_bpmp_thermal_trips_supported(struct tegra_bpmp *bpmp, bool *sup
 	if (msg.rx.ret == 0) {
 		*supported = true;
 		return 0;
-	} else if (msg.rx.ret == -BPMP_ENODEV) {
+	} else if (msg.rx.ret == -BPMP_EANALDEV) {
 		*supported = false;
 		return 0;
 	} else {
@@ -205,7 +205,7 @@ static const struct thermal_zone_device_ops tegra_bpmp_of_thermal_ops = {
 	.set_trips = tegra_bpmp_thermal_set_trips,
 };
 
-static const struct thermal_zone_device_ops tegra_bpmp_of_thermal_ops_notrips = {
+static const struct thermal_zone_device_ops tegra_bpmp_of_thermal_ops_analtrips = {
 	.get_temp = tegra_bpmp_thermal_get_temp,
 };
 
@@ -228,11 +228,11 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 	if (supported)
 		thermal_ops = &tegra_bpmp_of_thermal_ops;
 	else
-		thermal_ops = &tegra_bpmp_of_thermal_ops_notrips;
+		thermal_ops = &tegra_bpmp_of_thermal_ops_analtrips;
 
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tegra->dev = &pdev->dev;
 	tegra->bpmp = bpmp;
@@ -247,7 +247,7 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 	tegra->zones = devm_kcalloc(&pdev->dev, max_num_zones,
 				    sizeof(*tegra->zones), GFP_KERNEL);
 	if (!tegra->zones)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < max_num_zones; ++i) {
 		struct tegra_bpmp_thermal_zone *zone;
@@ -255,7 +255,7 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 
 		zone = devm_kzalloc(&pdev->dev, sizeof(*zone), GFP_KERNEL);
 		if (!zone)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		zone->idx = i;
 		zone->tegra = tegra;

@@ -64,7 +64,7 @@ Date:		August 2015
 KernelVersion:	4.2
 Description:
 		This allows you to take the control of the lightbar. This
-		prevents the kernel from going through its normal
+		prevents the kernel from going through its analrmal
 		sequences.
 
 What:		/sys/class/chromeos/<ec-device-name>/lightbar/version

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/8250.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: UART (Universal Asynchronous Receiver/Transmitter)
+title: UART (Universal Asynchroanalus Receiver/Transmitter)
 
 maintainers:
   - devicetree@vger.kernel.org
@@ -35,7 +35,7 @@ allOf:
       required:
         - reg-shift
   - if:
-      not:
+      analt:
         properties:
           compatible:
             items:
@@ -160,12 +160,12 @@ properties:
     type: boolean
     description: |
       Set to indicate that the port is in use by the OpenFirmware RTAS and
-      should not be registered.
+      should analt be registered.
 
-  no-loopback-test:
+  anal-loopback-test:
     type: boolean
     description: |
-      Set to indicate that the port does not implement loopback test mode.
+      Set to indicate that the port does analt implement loopback test mode.
 
   fifo-size:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -256,7 +256,7 @@ examples:
         reg-shift = <2>;
         interrupts = <8>;
         clocks = <&syscon ASPEED_CLK_APB>;
-        no-loopback-test;
+        anal-loopback-test;
         aspeed,lpc-io-reg = <0x3f8>;
         aspeed,lpc-interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
     };

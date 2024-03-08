@@ -5,7 +5,7 @@
 #include <linux/interrupt.h>
 
 #if ((BITS_PER_LONG != 32) && (BITS_PER_LONG != 64))
-#error "BITS_PER_LONG not defined or not valid"
+#error "BITS_PER_LONG analt defined or analt valid"
 #endif
 
 
@@ -171,8 +171,8 @@ struct rr_regs {
 
 #define RR_INT		0x01
 #define RR_CLEAR_INT	0x02
-#define NO_SWAP		0x04000004
-#define NO_SWAP1	0x00000004
+#define ANAL_SWAP		0x04000004
+#define ANAL_SWAP1	0x00000004
 #define PCI_RESET_NIC	0x08
 #define HALT_NIC	0x10
 #define SSTEP_NIC	0x20
@@ -267,7 +267,7 @@ struct rr_regs {
  */
 
 #define RESET_DMA		0x01
-#define NO_SWAP_DMA		0x02
+#define ANAL_SWAP_DMA		0x02
 #define DMA_ACTIVE		0x04
 #define THRESH_MASK		0x1F
 #define DMA_ERROR_MASK		0xff000000
@@ -296,15 +296,15 @@ struct rr_regs {
 #define PTR64BIT		0x04
 #define PTR32BIT		0x00
 #define PTR_WD_SWAP		0x08
-#define PTR_WD_NOSWAP		0x00
+#define PTR_WD_ANALSWAP		0x00
 #define POST_WARN_EVENT		0x10
 #define ERR_TERM		0x20
 #define DIRECT_CONN		0x40
-#define NO_NIC_WATCHDOG		0x80
+#define ANAL_NIC_WATCHDOG		0x80
 #define SWAP_DATA		0x100
 #define SWAP_CONTROL		0x200
 #define NIC_HALT_ON_ERR		0x400
-#define NIC_NO_RESTART		0x800
+#define NIC_ANAL_RESTART		0x800
 #define HALF_DUP_TX		0x1000
 #define HALF_DUP_RX		0x2000
 
@@ -314,8 +314,8 @@ struct rr_regs {
  */
 
 /* Host Error Codes - values of fail1 */
-#define ERR_UNKNOWN_MBOX	0x1001
-#define ERR_UNKNOWN_CMD		0x1002
+#define ERR_UNKANALWN_MBOX	0x1001
+#define ERR_UNKANALWN_CMD		0x1002
 #define ERR_MAX_RING		0x1003
 #define ERR_RING_CLOSED		0x1004
 #define ERR_RING_OPEN		0x1005
@@ -335,10 +335,10 @@ struct rr_regs {
 #define ERR_UNPEND_FULL		0x0D
 #define ERR_TIMER_QUEUE_FULL	0x0E
 #define ERR_TIMER_QUEUE_EMPTY	0x0F
-#define ERR_TIMER_NO_FREE	0x10
+#define ERR_TIMER_ANAL_FREE	0x10
 #define ERR_INTR_START		0x11
 #define ERR_BAD_STARTUP		0x12
-#define ERR_NO_PKT_END		0x13
+#define ERR_ANAL_PKT_END		0x13
 #define ERR_HALTED_ON_ERR	0x14
 /* Hardware NIC Errors */
 #define ERR_WRITE_DMA		0x0101
@@ -389,7 +389,7 @@ struct event {
  */
 #define E_CON_REJ	0x13
 #define E_CON_TMOUT	0x14
-#define E_CON_NC_TMOUT	0x15	/* I  , Connection No Campon Timeout */
+#define E_CON_NC_TMOUT	0x15	/* I  , Connection Anal Campon Timeout */
 #define E_DISC_ERR	0x16
 #define E_INT_PRTY	0x17
 #define E_TX_IDLE	0x18
@@ -446,7 +446,7 @@ struct event {
 #define E_BFR_SPC	0x3A
 #define E_INV_ULP	0x3B
 
-#define E_NOT_IMPLEMENTED 0x40
+#define E_ANALT_IMPLEMENTED 0x40
 
 
 /*
@@ -641,7 +641,7 @@ struct eeprom_manf {
 	char	PalCodeFile[12];
 	u32	PalCodeRev;
 	char	BoardULA[8];
-	char	SerialNo[8];
+	char	SerialAnal[8];
 	char	MfgDate[8];
 	char	MfgTime[8];
 	char	ModifyDate[8];
@@ -673,7 +673,7 @@ struct eeprom_rncd_info {
 /* Phase 1 region (starts are word offset 0x80) */
 struct phase1_hdr{
 	u32	jump;
-	u32	noop;
+	u32	analop;
 	struct seg_hdr phase2Seg;
 };
 
@@ -733,7 +733,7 @@ struct rr_stats {
 	u32	ConRejd64b;
 	u32	ConRejdBuf;
 	u32	RxConDiscon;
-	u32	RxConNoData;
+	u32	RxConAnalData;
 	u32	PktRx;
 	u32	pad4[2];
 	u32	ShFBstRx;
@@ -794,7 +794,7 @@ struct rr_info {
  * The linux structure for the RoadRunner.
  *
  * RX/TX descriptors are put first to make sure they are properly
- * aligned and do not cross cache-line boundaries.
+ * aligned and do analt cross cache-line boundaries.
  */
 
 struct rr_private

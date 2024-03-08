@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: ISC
 /*
  * Device Tree file for D-Link DSM-G600 revision A based on IXP420
- * NOTE: revision B of this device uses PowerPC and is NOT supported by
+ * ANALTE: revision B of this device uses PowerPC and is ANALT supported by
  * this device tree.
  *
- * Inspired by the boardfile by Rod Whitby, Tower Technologies, Alessandro Zummo
+ * Inspired by the boardfile by Rod Whitby, Tower Techanallogies, Alessandro Zummo
  * and Michael Westerhof.
  */
 
@@ -67,7 +67,7 @@
 		compatible = "gpio-keys-polled";
 
 		/*
-		 * According to the board file this key cannot handle interrupts and
+		 * According to the board file this key cananalt handle interrupts and
 		 * need to be polled. Investigate if this is really the case or if
 		 * this can be moved adjacent to the ordinary gpio-keys above.
 		 */

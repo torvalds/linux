@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Synopsys DesignWare PCIe host controller driver
+ * Syanalpsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		https://www.samsung.com
@@ -59,7 +59,7 @@ irqreturn_t dw_handle_msi_irq(struct dw_pcie_rp *pp)
 	int i, pos;
 	unsigned long val;
 	u32 status, num_ctrls;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
@@ -199,7 +199,7 @@ static int dw_pcie_irq_domain_alloc(struct irq_domain *domain,
 	raw_spin_unlock_irqrestore(&pp->lock, flags);
 
 	if (bit < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_set_info(domain, virq + i, bit + i,
@@ -233,24 +233,24 @@ static const struct irq_domain_ops dw_pcie_msi_domain_ops = {
 int dw_pcie_allocate_domains(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct fwnode_handle *fwnode = of_node_to_fwnode(pci->dev->of_node);
+	struct fwanalde_handle *fwanalde = of_analde_to_fwanalde(pci->dev->of_analde);
 
-	pp->irq_domain = irq_domain_create_linear(fwnode, pp->num_vectors,
+	pp->irq_domain = irq_domain_create_linear(fwanalde, pp->num_vectors,
 					       &dw_pcie_msi_domain_ops, pp);
 	if (!pp->irq_domain) {
 		dev_err(pci->dev, "Failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_domain_update_bus_token(pp->irq_domain, DOMAIN_BUS_NEXUS);
 
-	pp->msi_domain = pci_msi_create_irq_domain(fwnode,
+	pp->msi_domain = pci_msi_create_irq_domain(fwanalde,
 						   &dw_pcie_msi_domain_info,
 						   pp->irq_domain);
 	if (!pp->msi_domain) {
 		dev_err(pci->dev, "Failed to create MSI domain\n");
 		irq_domain_remove(pp->irq_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -307,7 +307,7 @@ static int dw_pcie_parse_split_msi_irq(struct dw_pcie_rp *pp)
 		pp->msi_irq[ctrl] = irq;
 	}
 
-	/* If no "msiX" IRQs, caller should fallback to "msi" IRQ */
+	/* If anal "msiX" IRQs, caller should fallback to "msi" IRQ */
 	if (ctrl == 0)
 		return -ENXIO;
 
@@ -371,23 +371,23 @@ static int dw_pcie_msi_host_init(struct dw_pcie_rp *pp)
 	/*
 	 * Even though the iMSI-RX Module supports 64-bit addresses some
 	 * peripheral PCIe devices may lack 64-bit message support. In
-	 * order not to miss MSI TLPs from those devices the MSI target
+	 * order analt to miss MSI TLPs from those devices the MSI target
 	 * address has to be within the lowest 4GB.
 	 *
-	 * Note until there is a better alternative found the reservation is
+	 * Analte until there is a better alternative found the reservation is
 	 * done by allocating from the artificially limited DMA-coherent
 	 * memory.
 	 */
 	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret)
-		dev_warn(dev, "Failed to set DMA mask to 32-bit. Devices with only 32-bit MSI support may not work properly\n");
+		dev_warn(dev, "Failed to set DMA mask to 32-bit. Devices with only 32-bit MSI support may analt work properly\n");
 
 	msi_vaddr = dmam_alloc_coherent(dev, sizeof(u64), &pp->msi_data,
 					GFP_KERNEL);
 	if (!msi_vaddr) {
 		dev_err(dev, "Failed to alloc and map MSI data\n");
 		dw_pcie_free_msi(pp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -397,7 +397,7 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource_entry *win;
 	struct pci_host_bridge *bridge;
@@ -420,12 +420,12 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 			return PTR_ERR(pp->va_cfg0_base);
 	} else {
 		dev_err(dev, "Missing *config* reg space\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pp->bridge = bridge;
 
@@ -493,7 +493,7 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 			goto err_remove_edma;
 	}
 
-	/* Ignore errors, the link may come up later */
+	/* Iganalre errors, the link may come up later */
 	dw_pcie_wait_for_link(pci);
 
 	bridge->sysdata = pp;
@@ -556,7 +556,7 @@ static void __iomem *dw_pcie_other_conf_map_bus(struct pci_bus *bus,
 	 * Checking whether the link is up here is a last line of defense
 	 * against platforms that forward errors on the system bus as
 	 * SError upon PCI configuration transactions issued when the link
-	 * is down. This check is racy by definition and does not stop
+	 * is down. This check is racy by definition and does analt stop
 	 * the system from triggering an SError if the link goes down
 	 * after this check is performed.
 	 */
@@ -653,9 +653,9 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	struct resource_entry *entry;
 	int i, ret;
 
-	/* Note the very first outbound ATU is used for CFG IOs */
+	/* Analte the very first outbound ATU is used for CFG IOs */
 	if (!pci->num_ob_windows) {
-		dev_err(pci->dev, "No outbound iATU found\n");
+		dev_err(pci->dev, "Anal outbound iATU found\n");
 		return -EINVAL;
 	}
 
@@ -790,7 +790,7 @@ int dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 	/*
 	 * If the platform provides its own child bus config accesses, it means
 	 * the platform uses its own address translation component rather than
-	 * ATU, so we should not program the ATU here.
+	 * ATU, so we should analt program the ATU here.
 	 */
 	if (pp->bridge->child_ops == &dw_child_pcie_ops) {
 		ret = dw_pcie_iatu_setup(pp);
@@ -813,14 +813,14 @@ int dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 }
 EXPORT_SYMBOL_GPL(dw_pcie_setup_rc);
 
-int dw_pcie_suspend_noirq(struct dw_pcie *pci)
+int dw_pcie_suspend_analirq(struct dw_pcie *pci)
 {
 	u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 	u32 val;
 	int ret;
 
 	/*
-	 * If L1SS is supported, then do not put the link into L2 as some
+	 * If L1SS is supported, then do analt put the link into L2 as some
 	 * devices such as NVMe expect low resume latency.
 	 */
 	if (dw_pcie_readw_dbi(pci, offset + PCI_EXP_LNKCTL) & PCI_EXP_LNKCTL_ASPM_L1)
@@ -849,9 +849,9 @@ int dw_pcie_suspend_noirq(struct dw_pcie *pci)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dw_pcie_suspend_noirq);
+EXPORT_SYMBOL_GPL(dw_pcie_suspend_analirq);
 
-int dw_pcie_resume_noirq(struct dw_pcie *pci)
+int dw_pcie_resume_analirq(struct dw_pcie *pci)
 {
 	int ret;
 
@@ -880,4 +880,4 @@ int dw_pcie_resume_noirq(struct dw_pcie *pci)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dw_pcie_resume_noirq);
+EXPORT_SYMBOL_GPL(dw_pcie_resume_analirq);

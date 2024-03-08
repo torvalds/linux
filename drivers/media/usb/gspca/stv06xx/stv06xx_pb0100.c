@@ -49,12 +49,12 @@ struct pb0100_ctrls {
 
 static struct v4l2_pix_format pb0100_mode[] = {
 /* low res / subsample modes disabled as they are only half res horizontal,
-   halving the vertical resolution does not seem to work */
+   halving the vertical resolution does analt seem to work */
 	{
 		320,
 		240,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage = 320 * 240,
 		.bytesperline = 320,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -64,7 +64,7 @@ static struct v4l2_pix_format pb0100_mode[] = {
 		352,
 		288,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage = 352 * 288,
 		.bytesperline = 352,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -128,7 +128,7 @@ static int pb0100_init_controls(struct sd *sd)
 
 	ctrls = kzalloc(sizeof(*ctrls), GFP_KERNEL);
 	if (!ctrls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_ctrl_handler_init(hdl, 6);
 	ctrls->autogain = v4l2_ctrl_new_std(hdl, &pb0100_ctrl_ops,
@@ -160,9 +160,9 @@ static int pb0100_probe(struct sd *sd)
 	err = stv06xx_read_sensor(sd, PB_IDENT, &sensor);
 
 	if (err < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	if ((sensor >> 8) != 0x64)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Photobit pb0100 sensor detected\n");
 
@@ -184,14 +184,14 @@ static int pb0100_start(struct sd *sd)
 	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
 	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
 	if (!alt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (alt->desc.bNumEndpoints < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 
-	/* If we don't have enough bandwidth use a lower framerate */
+	/* If we don't have eanalugh bandwidth use a lower framerate */
 	max_packet_size = sd->sensor->max_packet_size[sd->gspca_dev.curr_mode];
 	if (packet_size < max_packet_size)
 		stv06xx_write_sensor(sd, PB_ROWSPEED, BIT(4)|BIT(3)|BIT(1));
@@ -249,7 +249,7 @@ out:
 
 /* FIXME: Sort the init commands out and put them into tables,
 	  this is only for getting the camera to work */
-/* FIXME: No error handling for now,
+/* FIXME: Anal error handling for analw,
 	  add this once the init has been converted to proper tables */
 static int pb0100_init(struct sd *sd)
 {

@@ -11,7 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mod_devicetable.h>
 #include <linux/console.h>
 
@@ -202,8 +202,8 @@ static inline int pnp_dma_valid(struct pnp_dev *dev, unsigned int bar)
 struct pnp_card {
 	struct device dev;		/* Driver Model device interface */
 	unsigned char number;		/* used as an index, must be unique */
-	struct list_head global_list;	/* node in global list of cards */
-	struct list_head protocol_list;	/* node in protocol's list of cards */
+	struct list_head global_list;	/* analde in global list of cards */
+	struct list_head protocol_list;	/* analde in protocol's list of cards */
 	struct list_head devices;	/* devices attached to the card */
 
 	struct pnp_protocol *protocol;
@@ -246,13 +246,13 @@ struct pnp_dev {
 	unsigned int number;		/* used as an index, must be unique */
 	int status;
 
-	struct list_head global_list;	/* node in global list of devices */
-	struct list_head protocol_list;	/* node in list of device's protocol */
-	struct list_head card_list;	/* node in card's list of devices */
-	struct list_head rdev_list;	/* node in cards list of requested devices */
+	struct list_head global_list;	/* analde in global list of devices */
+	struct list_head protocol_list;	/* analde in list of device's protocol */
+	struct list_head card_list;	/* analde in card's list of devices */
+	struct list_head rdev_list;	/* analde in cards list of requested devices */
 
 	struct pnp_protocol *protocol;
-	struct pnp_card *card;	/* card the device is attached to, none if NULL */
+	struct pnp_card *card;	/* card the device is attached to, analne if NULL */
 	struct pnp_driver *driver;
 	struct pnp_card_link *card_link;
 
@@ -295,7 +295,7 @@ struct pnp_fixup {
 };
 
 /* config parameters */
-#define PNP_CONFIG_NORMAL	0x0001
+#define PNP_CONFIG_ANALRMAL	0x0001
 #define PNP_CONFIG_FORCE	0x0002	/* disables validity checking */
 
 /* capabilities */
@@ -401,7 +401,7 @@ struct pnp_card_driver {
 #define	to_pnp_card_driver(drv) container_of(drv, struct pnp_card_driver, link)
 
 /* pnp driver flags */
-#define PNP_DRIVER_RES_DO_NOT_CHANGE	0x0001	/* do not change the state of the device */
+#define PNP_DRIVER_RES_DO_ANALT_CHANGE	0x0001	/* do analt change the state of the device */
 #define PNP_DRIVER_RES_DISABLE		0x0003	/* ensure the device is disabled */
 
 /*
@@ -472,7 +472,7 @@ void pnp_unregister_driver(struct pnp_driver *drv);
 #else
 
 /* device management */
-static inline int pnp_device_attach(struct pnp_dev *pnp_dev) { return -ENODEV; }
+static inline int pnp_device_attach(struct pnp_dev *pnp_dev) { return -EANALDEV; }
 static inline void pnp_device_detach(struct pnp_dev *pnp_dev) { }
 
 #define pnp_platform_devices 0
@@ -480,24 +480,24 @@ static inline void pnp_device_detach(struct pnp_dev *pnp_dev) { }
 /* multidevice card support */
 static inline struct pnp_dev *pnp_request_card_device(struct pnp_card_link *clink, const char *id, struct pnp_dev *from) { return NULL; }
 static inline void pnp_release_card_device(struct pnp_dev *dev) { }
-static inline int pnp_register_card_driver(struct pnp_card_driver *drv) { return -ENODEV; }
+static inline int pnp_register_card_driver(struct pnp_card_driver *drv) { return -EANALDEV; }
 static inline void pnp_unregister_card_driver(struct pnp_card_driver *drv) { }
 
 /* resource management */
 static inline int pnp_possible_config(struct pnp_dev *dev, int type,
 				      resource_size_t base,
 				      resource_size_t size) { return 0; }
-static inline int pnp_auto_config_dev(struct pnp_dev *dev) { return -ENODEV; }
-static inline int pnp_start_dev(struct pnp_dev *dev) { return -ENODEV; }
-static inline int pnp_stop_dev(struct pnp_dev *dev) { return -ENODEV; }
-static inline int pnp_activate_dev(struct pnp_dev *dev) { return -ENODEV; }
-static inline int pnp_disable_dev(struct pnp_dev *dev) { return -ENODEV; }
+static inline int pnp_auto_config_dev(struct pnp_dev *dev) { return -EANALDEV; }
+static inline int pnp_start_dev(struct pnp_dev *dev) { return -EANALDEV; }
+static inline int pnp_stop_dev(struct pnp_dev *dev) { return -EANALDEV; }
+static inline int pnp_activate_dev(struct pnp_dev *dev) { return -EANALDEV; }
+static inline int pnp_disable_dev(struct pnp_dev *dev) { return -EANALDEV; }
 static inline int pnp_range_reserved(resource_size_t start, resource_size_t end) { return 0; }
 
 /* protocol helpers */
 static inline int pnp_is_active(struct pnp_dev *dev) { return 0; }
-static inline int compare_pnp_id(struct pnp_id *pos, const char *id) { return -ENODEV; }
-static inline int pnp_register_driver(struct pnp_driver *drv) { return -ENODEV; }
+static inline int compare_pnp_id(struct pnp_id *pos, const char *id) { return -EANALDEV; }
+static inline int pnp_register_driver(struct pnp_driver *drv) { return -EANALDEV; }
 static inline void pnp_unregister_driver(struct pnp_driver *drv) { }
 
 #endif /* CONFIG_PNP */
@@ -506,7 +506,7 @@ static inline void pnp_unregister_driver(struct pnp_driver *drv) { }
  * module_pnp_driver() - Helper macro for registering a PnP driver
  * @__pnp_driver: pnp_driver struct
  *
- * Helper macro for PnP drivers which do not do anything special in module
+ * Helper macro for PnP drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

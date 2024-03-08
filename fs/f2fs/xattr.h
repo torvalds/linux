@@ -42,7 +42,7 @@
 struct f2fs_xattr_header {
 	__le32  h_magic;        /* magic number for identification */
 	__le32  h_refcount;     /* reference count */
-	__u32   h_reserved[4];  /* zero right now */
+	__u32   h_reserved[4];  /* zero right analw */
 };
 
 struct f2fs_xattr_entry {
@@ -71,7 +71,7 @@ struct f2fs_xattr_entry {
 		for (entry = XATTR_FIRST_ENTRY(addr);\
 				!IS_XATTR_LAST_ENTRY(entry);\
 				entry = XATTR_NEXT_ENTRY(entry))
-#define VALID_XATTR_BLOCK_SIZE	(PAGE_SIZE - sizeof(struct node_footer))
+#define VALID_XATTR_BLOCK_SIZE	(PAGE_SIZE - sizeof(struct analde_footer))
 #define XATTR_PADDING_SIZE	(sizeof(__u32))
 #define XATTR_SIZE(i)		((F2FS_I(i)->i_xattr_nid ?		\
 					VALID_XATTR_BLOCK_SIZE : 0) +	\
@@ -85,7 +85,7 @@ struct f2fs_xattr_entry {
 
 #define MIN_INLINE_XATTR_SIZE (sizeof(struct f2fs_xattr_header) / sizeof(__le32))
 #define MAX_INLINE_XATTR_SIZE						\
-			(DEF_ADDRS_PER_INODE -				\
+			(DEF_ADDRS_PER_IANALDE -				\
 			F2FS_TOTAL_EXTRA_ATTR_SIZE / sizeof(__le32) -	\
 			DEF_INLINE_RESERVED_SIZE -			\
 			MIN_INLINE_DENTRY_SIZE / sizeof(__le32))
@@ -113,8 +113,8 @@ struct f2fs_xattr_entry {
  * |        Free        |
  * |                    |
  * +--------------------+<- MIN_OFFSET
- * |   node_footer      |
- * | (nid, ino, offset) |
+ * |   analde_footer      |
+ * | (nid, ianal, offset) |
  * +--------------------+
  *
  **/
@@ -127,9 +127,9 @@ extern const struct xattr_handler f2fs_xattr_security_handler;
 
 extern const struct xattr_handler * const f2fs_xattr_handlers[];
 
-extern int f2fs_setxattr(struct inode *, int, const char *,
+extern int f2fs_setxattr(struct ianalde *, int, const char *,
 				const void *, size_t, struct page *, int);
-extern int f2fs_getxattr(struct inode *, int, const char *, void *,
+extern int f2fs_getxattr(struct ianalde *, int, const char *, void *,
 						size_t, struct page *);
 extern ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
 extern int f2fs_init_xattr_caches(struct f2fs_sb_info *);
@@ -138,27 +138,27 @@ extern void f2fs_destroy_xattr_caches(struct f2fs_sb_info *);
 
 #define f2fs_xattr_handlers	NULL
 #define f2fs_listxattr		NULL
-static inline int f2fs_setxattr(struct inode *inode, int index,
+static inline int f2fs_setxattr(struct ianalde *ianalde, int index,
 		const char *name, const void *value, size_t size,
 		struct page *page, int flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
-static inline int f2fs_getxattr(struct inode *inode, int index,
+static inline int f2fs_getxattr(struct ianalde *ianalde, int index,
 			const char *name, void *buffer,
 			size_t buffer_size, struct page *dpage)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int f2fs_init_xattr_caches(struct f2fs_sb_info *sbi) { return 0; }
 static inline void f2fs_destroy_xattr_caches(struct f2fs_sb_info *sbi) { }
 #endif
 
 #ifdef CONFIG_F2FS_FS_SECURITY
-extern int f2fs_init_security(struct inode *, struct inode *,
+extern int f2fs_init_security(struct ianalde *, struct ianalde *,
 				const struct qstr *, struct page *);
 #else
-static inline int f2fs_init_security(struct inode *inode, struct inode *dir,
+static inline int f2fs_init_security(struct ianalde *ianalde, struct ianalde *dir,
 				const struct qstr *qstr, struct page *ipage)
 {
 	return 0;

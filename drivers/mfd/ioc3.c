@@ -12,7 +12,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/mfd/core.h>
@@ -108,7 +108,7 @@ static void ioc3_irq_handler(struct irq_desc *desc)
 
 	pending = readl(&regs->sio_ir);
 	mask = readl(&regs->sio_ies);
-	pending &= mask; /* Mask off not enabled interrupts */
+	pending &= mask; /* Mask off analt enabled interrupts */
 
 	if (pending)
 		generic_handle_domain_irq(domain, __ffs(pending));
@@ -119,7 +119,7 @@ static void ioc3_irq_handler(struct irq_desc *desc)
 /*
  * System boards/BaseIOs use more interrupt pins of the bridge ASIC
  * to which the IOC3 is connected. Since the IOC3 MFD driver
- * knows wiring of these extra pins, we use the map_irq function
+ * kanalws wiring of these extra pins, we use the map_irq function
  * to get interrupts activated
  */
 static int ioc3_map_irq(struct pci_dev *pdev, int slot, int pin)
@@ -132,15 +132,15 @@ static int ioc3_map_irq(struct pci_dev *pdev, int slot, int pin)
 static int ioc3_irq_domain_setup(struct ioc3_priv_data *ipd, int irq)
 {
 	struct irq_domain *domain;
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 
-	fn = irq_domain_alloc_named_fwnode("IOC3");
+	fn = irq_domain_alloc_named_fwanalde("IOC3");
 	if (!fn)
 		goto err;
 
 	domain = irq_domain_create_linear(fn, 24, &ioc3_irq_domain_ops, ipd);
 	if (!domain) {
-		irq_domain_free_fwnode(fn);
+		irq_domain_free_fwanalde(fn);
 		goto err;
 	}
 
@@ -152,7 +152,7 @@ static int ioc3_irq_domain_setup(struct ioc3_priv_data *ipd, int irq)
 
 err:
 	dev_err(&ipd->pdev->dev, "irq domain setup failed\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static const struct resource ioc3_uarta_resources[] = {
@@ -318,7 +318,7 @@ static int ioc3_m48t35_setup(struct ioc3_priv_data *ipd)
 
 static struct ds1685_rtc_platform_data ip30_rtc_platform_data = {
 	.bcd_mode = false,
-	.no_irq = false,
+	.anal_irq = false,
 	.uie_unsupported = true,
 	.access_type = ds1685_reg_indirect,
 };
@@ -336,7 +336,7 @@ static struct mfd_cell ioc3_ds1685_cells[] = {
 		.num_resources = ARRAY_SIZE(ioc3_rtc_ds1685_resources),
 		.platform_data = &ip30_rtc_platform_data,
 		.pdata_size = sizeof(ip30_rtc_platform_data),
-		.id = PLATFORM_DEVID_NONE,
+		.id = PLATFORM_DEVID_ANALNE,
 	}
 };
 
@@ -368,7 +368,7 @@ static struct mfd_cell ioc3_led_cells[] = {
 		.name = "ip30-leds",
 		.resources = ioc3_leds_resources,
 		.num_resources = ARRAY_SIZE(ioc3_leds_resources),
-		.id = PLATFORM_DEVID_NONE,
+		.id = PLATFORM_DEVID_ANALNE,
 	}
 };
 
@@ -557,7 +557,7 @@ static int ioc3_setup(struct ioc3_priv_data *ipd)
 			return ioc3_infos[i].setup(ipd);
 		}
 
-	/* Treat everything not identified by PCI subid as CAD DUO */
+	/* Treat everything analt identified by PCI subid as CAD DUO */
 	pr_info("ioc3: CAD DUO\n");
 	return ioc3_cad_duo_setup(ipd);
 }
@@ -578,7 +578,7 @@ static int ioc3_mfd_probe(struct pci_dev *pdev,
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
-		pr_err("%s: No usable DMA configuration, aborting.\n",
+		pr_err("%s: Anal usable DMA configuration, aborting.\n",
 		       pci_name(pdev));
 		goto out_disable_device;
 	}
@@ -587,7 +587,7 @@ static int ioc3_mfd_probe(struct pci_dev *pdev,
 	ipd = devm_kzalloc(&pdev->dev, sizeof(struct ioc3_priv_data),
 			   GFP_KERNEL);
 	if (!ipd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_disable_device;
 	}
 	ipd->pdev = pdev;
@@ -600,7 +600,7 @@ static int ioc3_mfd_probe(struct pci_dev *pdev,
 	if (!regs) {
 		dev_warn(&pdev->dev, "ioc3: Unable to remap PCI BAR for %s.\n",
 			 pci_name(pdev));
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_disable_device;
 	}
 	ipd->regs = regs;
@@ -613,10 +613,10 @@ static int ioc3_mfd_probe(struct pci_dev *pdev,
 		/* Remove all already added MFD devices */
 		mfd_remove_devices(&ipd->pdev->dev);
 		if (ipd->domain) {
-			struct fwnode_handle *fn = ipd->domain->fwnode;
+			struct fwanalde_handle *fn = ipd->domain->fwanalde;
 
 			irq_domain_remove(ipd->domain);
-			irq_domain_free_fwnode(fn);
+			irq_domain_free_fwanalde(fn);
 			free_irq(ipd->domain_irq, (void *)ipd);
 		}
 		pci_iounmap(pdev, regs);
@@ -643,10 +643,10 @@ static void ioc3_mfd_remove(struct pci_dev *pdev)
 	/* Release resources */
 	mfd_remove_devices(&ipd->pdev->dev);
 	if (ipd->domain) {
-		struct fwnode_handle *fn = ipd->domain->fwnode;
+		struct fwanalde_handle *fn = ipd->domain->fwanalde;
 
 		irq_domain_remove(ipd->domain);
-		irq_domain_free_fwnode(fn);
+		irq_domain_free_fwanalde(fn);
 		free_irq(ipd->domain_irq, (void *)ipd);
 	}
 	pci_iounmap(pdev, ipd->regs);

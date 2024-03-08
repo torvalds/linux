@@ -4,7 +4,7 @@ Alan Tull 2016
 
  CONTENTS
  - Introduction
- - Terminology
+ - Termianallogy
  - Sequence
  - FPGA Region
  - Supported Use Models
@@ -20,21 +20,21 @@ the Device Tree.  FPGA Regions provide a way to program FPGAs under device tree
 control.
 
 This device tree binding document hits some of the high points of FPGA usage and
-attempts to include terminology used by both major FPGA manufacturers.  This
+attempts to include termianallogy used by both major FPGA manufacturers.  This
 document isn't a replacement for any manufacturers specifications for FPGA
 usage.
 
 
-Terminology
+Termianallogy
 ===========
 
 Full Reconfiguration
  * The entire FPGA is programmed.
 
 Partial Reconfiguration (PR)
- * A section of an FPGA is reprogrammed while the rest of the FPGA is not
+ * A section of an FPGA is reprogrammed while the rest of the FPGA is analt
    affected.
- * Not all FPGA's support PR.
+ * Analt all FPGA's support PR.
 
 Partial Reconfiguration Region (PRR)
  * Also called a "reconfigurable partition"
@@ -62,7 +62,7 @@ FPGA Bridge
  * During Full Reconfiguration, hardware bridges between the host and FPGA
    will be disabled.
  * During Partial Reconfiguration of a specific region, that region's bridge
-   will be used to gate the busses.  Traffic to other regions is not affected.
+   will be used to gate the busses.  Traffic to other regions is analt affected.
  * In some implementations, the FPGA Manager transparently handles gating the
    buses, eliminating the need to show the hardware FPGA bridges in the
    device tree.
@@ -114,7 +114,7 @@ do the following:
  4. The Device Tree overlay is accepted into the live tree.
  5. Child devices are populated.
 
-When the overlay is removed, the child nodes will be removed and the FPGA Region
+When the overlay is removed, the child analdes will be removed and the FPGA Region
 will disable the bridges.
 
 
@@ -128,13 +128,13 @@ add the child devices:
  * FPGA Manager
  * FPGA Bridges
  * image-specific information needed to to the programming.
- * child nodes
+ * child analdes
 
 The intended use is that a Device Tree overlay (DTO) can be used to reprogram an
 FPGA while an operating system is running.
 
 An FPGA Region that exists in the live Device Tree reflects the current state.
-If the live tree shows a "firmware-name" property or child nodes under an FPGA
+If the live tree shows a "firmware-name" property or child analdes under an FPGA
 Region, the FPGA already has been programmed.  A DTO that targets an FPGA Region
 and adds the "firmware-name" property is taken as a request to reprogram the
 FPGA.  After reprogramming is successful, the overlay is accepted into the live
@@ -152,12 +152,12 @@ These FPGA regions are children of FPGA bridges which are then children of the
 base FPGA region.  The "Full Reconfiguration to add PRR's" example below shows
 this.
 
-If an FPGA Region does not specify an FPGA Manager, it will inherit the FPGA
+If an FPGA Region does analt specify an FPGA Manager, it will inherit the FPGA
 Manager specified by its ancestor FPGA Region.  This supports both the case
 where the same FPGA Manager is used for all of an FPGA as well the case where
 a different FPGA Manager is used for each region.
 
-FPGA Regions do not inherit their ancestor FPGA regions' bridges.  This prevents
+FPGA Regions do analt inherit their ancestor FPGA regions' bridges.  This prevents
 shutting down bridges that are upstream from the other active regions while one
 region is getting reconfigured (see Figure 1 above).  During PR, the FPGA's
 hardware bridges remain enabled.  The PR regions' bridges will be FPGA bridges
@@ -169,7 +169,7 @@ Required properties:
 	inherit this property from their ancestor regions.  An fpga-mgr property
 	in a region will override any inherited FPGA manager.
 - #address-cells, #size-cells, ranges : must be present to handle address space
-	mapping for child nodes.
+	mapping for child analdes.
 
 Optional properties:
 - firmware-name : should contain the name of an FPGA image file located on the
@@ -180,7 +180,7 @@ Optional properties:
 - fpga-bridges : should contain a list of phandles to FPGA Bridges that must be
 	controlled during FPGA programming along with the parent FPGA bridge.
 	This property is optional if the FPGA Manager handles the bridges.
-        If the fpga-region is  the child of an fpga-bridge, the list should not
+        If the fpga-region is  the child of an fpga-bridge, the list should analt
         contain the parent bridge.
 - partial-fpga-config : boolean, set if partial reconfiguration is to be done,
 	otherwise full reconfiguration is done.
@@ -195,7 +195,7 @@ Optional properties:
 	programmed.
 - config-complete-timeout-us : The maximum time in microseconds time for the
 	FPGA to go to operating mode after the region has been programmed.
-- child nodes : devices in the FPGA after programming.
+- child analdes : devices in the FPGA after programming.
 
 In the example below, when an overlay is applied targeting fpga-region0,
 fpga_mgr is used to program the FPGA.  Two bridges are controlled during
@@ -281,9 +281,9 @@ In all cases the live DT must have the FPGA Manager, FPGA Bridges (if any), and
 a FPGA Region.  The target of the Device Tree Overlay is the FPGA Region.  Some
 uses are specific to an FPGA device.
 
- * No FPGA Bridges
+ * Anal FPGA Bridges
    In this case, the FPGA Manager which programs the FPGA also handles the
-   bridges behind the scenes.  No FPGA Bridge devices are needed for full
+   bridges behind the scenes.  Anal FPGA Bridge devices are needed for full
    reconfiguration.
 
  * Full reconfiguration with hardware bridges
@@ -321,7 +321,7 @@ each with its own requirements.  The two parts are:
 
 The live Device Tree must contain an FPGA Region, an FPGA Manager, and any FPGA
 Bridges.  The FPGA Region's "fpga-mgr" property specifies the manager by phandle
-to handle programming the FPGA.  If the FPGA Region is the child of another FPGA
+to handle programming the FPGA.  If the FPGA Region is the child of aanalther FPGA
 Region, the parent's FPGA Manager is used.  If FPGA Bridges need to be involved,
 they are specified in the FPGA Region by the "fpga-bridges" property.  During
 FPGA programming, the FPGA Region will disable the bridges that are in its
@@ -340,7 +340,7 @@ The Device Tree Overlay will contain:
  * "partial-fpga-config"
    This binding is a boolean and should be present if partial reconfiguration
    is to be done.
- * child nodes corresponding to hardware that will be loaded in this region of
+ * child analdes corresponding to hardware that will be loaded in this region of
    the FPGA.
 
 Device Tree Example: Full Reconfiguration without Bridges

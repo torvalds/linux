@@ -68,7 +68,7 @@
 /* bits set to set sensor read_mode via misensor_rmw_reg */
 #define MISENSOR_SKIPPING_SET	0x0011
 #define MISENSOR_SUMMING_SET	0x0033
-#define MISENSOR_NORMAL_SET	0x0000
+#define MISENSOR_ANALRMAL_SET	0x0000
 
 /* sensor register that control sensor read-mode and mirror */
 #define MISENSOR_READ_MODE	0xC834
@@ -101,7 +101,7 @@
 #define REG_COMM_Register               0x0080 /* command_register */
 
 #define SENSOR_DETECTED		1
-#define SENSOR_NOT_DETECTED	0
+#define SENSOR_ANALT_DETECTED	0
 
 #define I2C_RETRY_COUNT		5
 #define MSG_LEN_OFFSET		2
@@ -141,22 +141,22 @@
 #define MT9M114_FLICKER_MODE_60HZ	2
 /*
  * focal length bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
+ * bits 31-16: numerator, bits 15-0: deanalminator
  */
 #define MT9M114_FOCAL_LENGTH_DEFAULT 0xD00064
 
 /*
  * current f-number bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
+ * bits 31-16: numerator, bits 15-0: deanalminator
  */
 #define MT9M114_F_NUMBER_DEFAULT 0x18000a
 
 /*
  * f-number range bits definition:
  * bits 31-24: max f-number numerator
- * bits 23-16: max f-number denominator
+ * bits 23-16: max f-number deanalminator
  * bits 15-8: min f-number numerator
- * bits 7-0: min f-number denominator
+ * bits 7-0: min f-number deanalminator
  */
 #define MT9M114_F_NUMBER_RANGE 0x180a180a
 
@@ -198,7 +198,7 @@ enum {
 
 /* completion status polling requirements, usage based on Aptina .INI Rev2 */
 enum poll_reg {
-	NO_POLLING,
+	ANAL_POLLING,
 	PRE_POLLING,
 	POST_POLLING,
 };
@@ -814,7 +814,7 @@ static struct misensor_reg const mt9m114_iq[] = {
 	{MISENSOR_16BIT,	0x30D4, 0x6080},
 	{MISENSOR_16BIT,	0xA802, 0x0008},
 
-	/* This register is from vender to avoid low light color noise */
+	/* This register is from vender to avoid low light color analise */
 	{MISENSOR_16BIT,	0x31E0, 0x0001},
 
 	/* LOAD=Errata item 1 */

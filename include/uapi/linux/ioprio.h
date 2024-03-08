@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_IOPRIO_H
 #define _UAPI_LINUX_IOPRIO_H
 
@@ -23,10 +23,10 @@
  * ATA disks supporting NCQ IO priority, RT class IOs will be processed using
  * high priority NCQ commands. BE is the best-effort scheduling class, the
  * default for any process. IDLE is the idle scheduling class, it is only
- * served when no one else is using the disk.
+ * served when anal one else is using the disk.
  */
 enum {
-	IOPRIO_CLASS_NONE	= 0,
+	IOPRIO_CLASS_ANALNE	= 0,
 	IOPRIO_CLASS_RT		= 1,
 	IOPRIO_CLASS_BE		= 2,
 	IOPRIO_CLASS_IDLE	= 3,
@@ -59,8 +59,8 @@ enum {
 /*
  * Fallback BE class priority level.
  */
-#define IOPRIO_NORM	4
-#define IOPRIO_BE_NORM	IOPRIO_NORM
+#define IOPRIO_ANALRM	4
+#define IOPRIO_BE_ANALRM	IOPRIO_ANALRM
 
 /*
  * The 10 bits between the priority class and the priority level are used to
@@ -81,8 +81,8 @@ enum {
  * I/O hints.
  */
 enum {
-	/* No hint */
-	IOPRIO_HINT_NONE = 0,
+	/* Anal hint */
+	IOPRIO_HINT_ANALNE = 0,
 
 	/*
 	 * Device command duration limits: indicate to the device a desired
@@ -120,7 +120,7 @@ static __always_inline __u16 ioprio_value(int prioclass, int priolevel,
 }
 
 #define IOPRIO_PRIO_VALUE(prioclass, priolevel)			\
-	ioprio_value(prioclass, priolevel, IOPRIO_HINT_NONE)
+	ioprio_value(prioclass, priolevel, IOPRIO_HINT_ANALNE)
 #define IOPRIO_PRIO_VALUE_HINT(prioclass, priolevel, priohint)	\
 	ioprio_value(prioclass, priolevel, priohint)
 

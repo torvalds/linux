@@ -98,7 +98,7 @@ static int pfe_pmbus_probe(struct i2c_client *client)
 	client->dev.platform_data = &pfe_plat_data;
 
 	/*
-	 * PFE3000-12-069RA devices may not stay in page 0 during device
+	 * PFE3000-12-069RA devices may analt stay in page 0 during device
 	 * probe which leads to probe failure (read status word failed).
 	 * So let's set the device to page 0 at the beginning.
 	 */

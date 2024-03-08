@@ -145,13 +145,13 @@ static DECLARE_DELAYED_WORK(psz_cleaner, psz_flush_all_dirty_zones);
 /**
  * enum psz_flush_mode - flush mode for psz_zone_write()
  *
- * @FLUSH_NONE: do not flush to storage but update data on memory
+ * @FLUSH_ANALNE: do analt flush to storage but update data on memory
  * @FLUSH_PART: just flush part of data including meta data to storage
  * @FLUSH_META: just flush meta data of zone to storage
  * @FLUSH_ALL: flush all of zone
  */
 enum psz_flush_mode {
-	FLUSH_NONE = 0,
+	FLUSH_ANALNE = 0,
 	FLUSH_PART,
 	FLUSH_META,
 	FLUSH_ALL,
@@ -223,7 +223,7 @@ static int psz_zone_write(struct pstore_zone *zone,
 		goto dirty;
 
 	switch (flush_mode) {
-	case FLUSH_NONE:
+	case FLUSH_ANALNE:
 		if (unlikely(buf && wlen))
 			goto dirty;
 		return 0;
@@ -249,9 +249,9 @@ static int psz_zone_write(struct pstore_zone *zone,
 
 	return 0;
 dirty:
-	/* no need to mark dirty if going to try next zone */
-	if (wcnt == -ENOMSG)
-		return -ENOMSG;
+	/* anal need to mark dirty if going to try next zone */
+	if (wcnt == -EANALMSG)
+		return -EANALMSG;
 	atomic_set(&zone->dirty, true);
 	/* flush dirty zones nicely */
 	if (wcnt == -EBUSY && !is_on_panic())
@@ -394,7 +394,7 @@ static int psz_kmsg_recover_meta(struct psz_context *cxt)
 			return -EINVAL;
 
 		rcnt = info->read((char *)buf, len, zone->off);
-		if (rcnt == -ENOMSG) {
+		if (rcnt == -EANALMSG) {
 			pr_debug("%s with id %lu may be broken, skip\n",
 					zone->name, i);
 			continue;
@@ -404,7 +404,7 @@ static int psz_kmsg_recover_meta(struct psz_context *cxt)
 		}
 
 		if (buf->sig != zone->buffer->sig) {
-			pr_debug("no valid data in kmsg dump zone %lu\n", i);
+			pr_debug("anal valid data in kmsg dump zone %lu\n", i);
 			continue;
 		}
 
@@ -506,7 +506,7 @@ static int psz_recover_zone(struct psz_context *cxt, struct pstore_zone *zone)
 	}
 
 	if (tmpbuf.sig != zone->buffer->sig) {
-		pr_debug("no valid data in zone %s\n", zone->name);
+		pr_debug("anal valid data in zone %s\n", zone->name);
 		return 0;
 	}
 
@@ -532,7 +532,7 @@ static int psz_recover_zone(struct psz_context *cxt, struct pstore_zone *zone)
 	len = atomic_read(&tmpbuf.datalen) + sizeof(*oldbuf);
 	oldbuf = kzalloc(len, GFP_KERNEL);
 	if (!oldbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(oldbuf, &tmpbuf, sizeof(*oldbuf));
 	buf = (char *)oldbuf + sizeof(*oldbuf);
@@ -665,7 +665,7 @@ static inline int psz_kmsg_erase(struct psz_context *cxt,
 	if (unlikely(!psz_ok(zone)))
 		return 0;
 
-	/* this zone is already updated, no need to erase */
+	/* this zone is already updated, anal need to erase */
 	if (record->count != hdr->counter)
 		return 0;
 
@@ -687,7 +687,7 @@ static inline int psz_record_erase(struct psz_context *cxt,
 	zone->oldbuf = NULL;
 	/*
 	 * if there are new data in zone buffer, that means the old data
-	 * are already invalid. It is no need to flush 0 (erase) to
+	 * are already invalid. It is anal need to flush 0 (erase) to
 	 * block device.
 	 */
 	if (!buffer_datalen(zone))
@@ -742,7 +742,7 @@ static void psz_write_kmsg_hdr(struct pstore_zone *zone,
  * In case zone is broken, which may occur to MTD device, we try each zones,
  * start at cxt->kmsg_write_cnt.
  */
-static inline int notrace psz_kmsg_write_record(struct psz_context *cxt,
+static inline int analtrace psz_kmsg_write_record(struct psz_context *cxt,
 		struct pstore_record *record)
 {
 	size_t size, hlen;
@@ -756,7 +756,7 @@ static inline int notrace psz_kmsg_write_record(struct psz_context *cxt,
 		zonenum = (cxt->kmsg_write_cnt + i) % cxt->kmsg_max_cnt;
 		zone = cxt->kpszs[zonenum];
 		if (unlikely(!zone))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		/* avoid destroying old data, allocate a new one */
 		len = zone->buffer_size + sizeof(*zone->buffer);
@@ -764,7 +764,7 @@ static inline int notrace psz_kmsg_write_record(struct psz_context *cxt,
 		zone->buffer = kzalloc(len, GFP_ATOMIC);
 		if (!zone->buffer) {
 			zone->buffer = zone->oldbuf;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		zone->buffer->sig = zone->oldbuf->sig;
 
@@ -773,10 +773,10 @@ static inline int notrace psz_kmsg_write_record(struct psz_context *cxt,
 		hlen = sizeof(struct psz_kmsg_header);
 		size = min_t(size_t, record->size, zone->buffer_size - hlen);
 		ret = psz_zone_write(zone, FLUSH_ALL, record->buf, size, hlen);
-		if (likely(!ret || ret != -ENOMSG)) {
+		if (likely(!ret || ret != -EANALMSG)) {
 			cxt->kmsg_write_cnt = zonenum + 1;
 			cxt->kmsg_write_cnt %= cxt->kmsg_max_cnt;
-			/* no need to try next zone, free last zone buffer */
+			/* anal need to try next zone, free last zone buffer */
 			kfree(zone->oldbuf);
 			zone->oldbuf = NULL;
 			return ret;
@@ -792,7 +792,7 @@ static inline int notrace psz_kmsg_write_record(struct psz_context *cxt,
 	return -EBUSY;
 }
 
-static int notrace psz_kmsg_write(struct psz_context *cxt,
+static int analtrace psz_kmsg_write(struct psz_context *cxt,
 		struct pstore_record *record)
 {
 	int ret;
@@ -804,10 +804,10 @@ static int notrace psz_kmsg_write(struct psz_context *cxt,
 	 * report split across multiple records.
 	 */
 	if (record->part != 1)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (!cxt->kpszs)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	ret = psz_kmsg_write_record(cxt, record);
 	if (!ret && is_on_panic()) {
@@ -820,7 +820,7 @@ static int notrace psz_kmsg_write(struct psz_context *cxt,
 	return 0;
 }
 
-static int notrace psz_record_write(struct pstore_zone *zone,
+static int analtrace psz_record_write(struct pstore_zone *zone,
 		struct pstore_record *record)
 {
 	size_t start, rem;
@@ -829,7 +829,7 @@ static int notrace psz_record_write(struct pstore_zone *zone,
 	int cnt;
 
 	if (!zone || !record)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (atomic_read(&zone->buffer->datalen) >= zone->buffer_size)
 		is_full_data = true;
@@ -869,7 +869,7 @@ static int notrace psz_record_write(struct pstore_zone *zone,
 	return 0;
 }
 
-static int notrace psz_pstore_write(struct pstore_record *record)
+static int analtrace psz_pstore_write(struct pstore_record *record)
 {
 	struct psz_context *cxt = record->psi->data;
 
@@ -878,7 +878,7 @@ static int notrace psz_pstore_write(struct pstore_record *record)
 		atomic_set(&cxt->on_panic, 1);
 
 	/*
-	 * if on panic, do not write except panic records
+	 * if on panic, do analt write except panic records
 	 * Fix case that panic_write prints log which wakes up console backend.
 	 */
 	if (is_on_panic() && record->type != PSTORE_TYPE_DMESG)
@@ -895,7 +895,7 @@ static int notrace psz_pstore_write(struct pstore_record *record)
 		int zonenum = smp_processor_id();
 
 		if (!cxt->fpszs)
-			return -ENOSPC;
+			return -EANALSPC;
 		return psz_record_write(cxt->fpszs[zonenum], record);
 	}
 	default:
@@ -915,7 +915,7 @@ static struct pstore_zone *psz_read_next_zone(struct psz_context *cxt)
 
 	if (cxt->ftrace_read_cnt < cxt->ftrace_max_cnt)
 		/*
-		 * No need psz_old_ok(). Let psz_ftrace_read() do so for
+		 * Anal need psz_old_ok(). Let psz_ftrace_read() do so for
 		 * combination. psz_ftrace_read() should traverse over
 		 * all zones in case of some zone without data.
 		 */
@@ -961,11 +961,11 @@ static ssize_t psz_kmsg_read(struct pstore_zone *zone,
 	ssize_t size, hlen = 0;
 
 	size = buffer_datalen(zone);
-	/* Clear and skip this kmsg dump record if it has no valid header */
+	/* Clear and skip this kmsg dump record if it has anal valid header */
 	if (psz_kmsg_read_hdr(zone, record)) {
 		atomic_set(&zone->buffer->datalen, 0);
 		atomic_set(&zone->dirty, 0);
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 	size -= sizeof(struct psz_kmsg_header);
 
@@ -977,19 +977,19 @@ static ssize_t psz_kmsg_read(struct pstore_zone *zone,
 		record->buf = krealloc(buf, hlen + size, GFP_KERNEL);
 		if (!record->buf) {
 			kfree(buf);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		record->buf = kmalloc(size, GFP_KERNEL);
 		if (!record->buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	size = psz_zone_read_buffer(zone, record->buf + hlen, size,
 			sizeof(struct psz_kmsg_header));
 	if (unlikely(size < 0)) {
 		kfree(record->buf);
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 
 	return size + hlen;
@@ -1004,14 +1004,14 @@ static ssize_t psz_ftrace_read(struct pstore_zone *zone,
 	int ret;
 
 	if (!zone || !record)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (!psz_old_ok(zone))
 		goto out;
 
 	buf = (struct psz_buffer *)zone->oldbuf;
 	if (!buf)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	ret = pstore_ftrace_combine_log(&record->buf, &record->size,
 			(char *)buf->data, atomic_read(&buf->datalen));
@@ -1022,9 +1022,9 @@ out:
 	cxt = record->psi->data;
 	if (cxt->ftrace_read_cnt < cxt->ftrace_max_cnt)
 		/* then, read next ftrace zone */
-		return -ENOMSG;
+		return -EANALMSG;
 	record->id = 0;
-	return record->size ? record->size : -ENOMSG;
+	return record->size ? record->size : -EANALMSG;
 }
 
 static ssize_t psz_record_read(struct pstore_zone *zone,
@@ -1034,20 +1034,20 @@ static ssize_t psz_record_read(struct pstore_zone *zone,
 	struct psz_buffer *buf;
 
 	if (!zone || !record)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	buf = (struct psz_buffer *)zone->oldbuf;
 	if (!buf)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	len = atomic_read(&buf->datalen);
 	record->buf = kmalloc(len, GFP_KERNEL);
 	if (!record->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (unlikely(psz_zone_read_oldbuf(zone, record->buf, len, 0))) {
 		kfree(record->buf);
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 
 	return len;
@@ -1089,7 +1089,7 @@ next_zone:
 	}
 
 	ret = readop(zone, record);
-	if (ret == -ENOMSG)
+	if (ret == -EANALMSG)
 		goto next_zone;
 	return ret;
 }
@@ -1158,19 +1158,19 @@ static struct pstore_zone *psz_init_zone(enum pstore_type_id type,
 		return NULL;
 
 	if (*off + size > info->total_size) {
-		pr_err("no room for %s (0x%zx@0x%llx over 0x%lx)\n",
+		pr_err("anal room for %s (0x%zx@0x%llx over 0x%lx)\n",
 			name, size, *off, info->total_size);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	zone = kzalloc(sizeof(struct pstore_zone), GFP_KERNEL);
 	if (!zone)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	zone->buffer = kmalloc(size, GFP_KERNEL);
 	if (!zone->buffer) {
 		kfree(zone);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	memset(zone->buffer, 0xFF, size);
 	zone->off = *off;
@@ -1204,16 +1204,16 @@ static struct pstore_zone **psz_init_zones(enum pstore_type_id type,
 		return NULL;
 
 	if (*off + total_size > info->total_size) {
-		pr_err("no room for zones %s (0x%zx@0x%llx over 0x%lx)\n",
+		pr_err("anal room for zones %s (0x%zx@0x%llx over 0x%lx)\n",
 			name, total_size, *off, info->total_size);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	c = total_size / record_size;
 	zones = kcalloc(c, sizeof(*zones), GFP_KERNEL);
 	if (!zones) {
 		pr_err("allocate for zones %s failed\n", name);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	memset(zones, 0, c * sizeof(*zones));
 
@@ -1306,7 +1306,7 @@ int register_pstore_zone(struct pstore_zone_info *info)
 
 	if (!info->kmsg_size && !info->pmsg_size && !info->console_size &&
 	    !info->ftrace_size) {
-		pr_warn("at least one record size must be non-zero\n");
+		pr_warn("at least one record size must be analn-zero\n");
 		return -EINVAL;
 	}
 
@@ -1335,17 +1335,17 @@ int register_pstore_zone(struct pstore_zone_info *info)
 
 	/*
 	 * the @read and @write must be applied.
-	 * if no @read, pstore may mount failed.
-	 * if no @write, pstore do not support to remove record file.
+	 * if anal @read, pstore may mount failed.
+	 * if anal @write, pstore do analt support to remove record file.
 	 */
 	if (!info->read || !info->write) {
-		pr_err("no valid general read/write interface\n");
+		pr_err("anal valid general read/write interface\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&cxt->pstore_zone_info_lock);
 	if (cxt->pstore_zone_info) {
-		pr_warn("'%s' already loaded: ignoring '%s'\n",
+		pr_warn("'%s' already loaded: iganalring '%s'\n",
 				cxt->pstore_zone_info->name, info->name);
 		mutex_unlock(&cxt->pstore_zone_info_lock);
 		return -EBUSY;
@@ -1370,7 +1370,7 @@ int register_pstore_zone(struct pstore_zone_info *info)
 			sizeof(struct psz_kmsg_header);
 		cxt->pstore.buf = kzalloc(cxt->pstore.bufsize, GFP_KERNEL);
 		if (!cxt->pstore.buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail_free;
 		}
 	}

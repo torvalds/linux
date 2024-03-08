@@ -54,7 +54,7 @@ struct cs_dsp_region {
 
 /**
  * struct cs_dsp_alg_region - Describes a logical algorithm region in DSP address space
- * @list:	List node for internal use
+ * @list:	List analde for internal use
  * @alg:	Algorithm id
  * @ver:	Expected algorithm version
  * @type:	Memory region type
@@ -70,7 +70,7 @@ struct cs_dsp_alg_region {
 
 /**
  * struct cs_dsp_coeff_ctl - Describes a coefficient control
- * @list:		List node for internal use
+ * @list:		List analde for internal use
  * @dsp:		DSP instance associated with this control
  * @cache:		Cached value of the control
  * @fw_name:		Name of the firmware
@@ -156,7 +156,7 @@ struct cs_dsp {
 	unsigned int sysclk_reg;
 	unsigned int sysclk_mask;
 	unsigned int sysclk_shift;
-	bool no_core_startstop;
+	bool anal_core_startstop;
 
 	struct list_head alg_regions;
 

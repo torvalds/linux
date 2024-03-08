@@ -39,7 +39,7 @@
 #define	BT_PTA_MODE_ON		1
 
 /* Penalty Tx Rate Adaptive */
-#define	BT_TX_RATE_ADAPTIVE_NORMAL	0
+#define	BT_TX_RATE_ADAPTIVE_ANALRMAL	0
 #define	BT_TX_RATE_ADAPTIVE_LOW_PENALTY	1
 
 /* RF Corner */
@@ -57,7 +57,7 @@ enum bt_traffic_mode {
 };
 
 enum bt_traffic_mode_profile {
-	BT_PROFILE_NONE,
+	BT_PROFILE_ANALNE,
 	BT_PROFILE_A2DP,
 	BT_PROFILE_PAN,
 	BT_PROFILE_HID,
@@ -66,7 +66,7 @@ enum bt_traffic_mode_profile {
 
 /*
 enum hci_ext_bt_operation {
-	HCI_BT_OP_NONE = 0x0,
+	HCI_BT_OP_ANALNE = 0x0,
 	HCI_BT_OP_INQUIRE_START	= 0x1,
 	HCI_BT_OP_INQUIRE_FINISH = 0x2,
 	HCI_BT_OP_PAGING_START = 0x3,
@@ -98,7 +98,7 @@ struct c2h_evt_hdr {
 
 enum bt_state {
 	BT_INFO_STATE_DISABLED = 0,
-	BT_INFO_STATE_NO_CONNECTION = 1,
+	BT_INFO_STATE_ANAL_CONNECTION = 1,
 	BT_INFO_STATE_CONNECT_IDLE = 2,
 	BT_INFO_STATE_INQ_OR_PAG = 3,
 	BT_INFO_STATE_ACL_ONLY_BUSY = 4,
@@ -113,7 +113,7 @@ enum rtl8723e_c2h_evt_v0 {
 	C2H_V0_DBG = 0,
 	C2H_V0_TSF = 1,
 	C2H_V0_AP_RPT_RSP = 2,
-	/* The FW notify the report of the specific tx packet. */
+	/* The FW analtify the report of the specific tx packet. */
 	C2H_V0_CCX_TX_RPT = 3,
 	C2H_V0_BT_RSSI = 4,
 	C2H_V0_BT_OP_MODE = 5,
@@ -130,7 +130,7 @@ void rtl8723e_dm_bt_coexist_8723(struct ieee80211_hw *hw);
 void rtl8723e_dm_bt_set_bt_dm(struct ieee80211_hw *hw,
 			      struct btdm_8723 *p_btdm);
 void rtl_8723e_c2h_command_handle(struct ieee80211_hw *hw);
-void rtl_8723e_bt_wifi_media_status_notify(struct ieee80211_hw *hw,
+void rtl_8723e_bt_wifi_media_status_analtify(struct ieee80211_hw *hw,
 					bool mstatus);
 void rtl8723e_dm_bt_turn_off_bt_coexist_before_enter_lps(
 				struct ieee80211_hw *hw);

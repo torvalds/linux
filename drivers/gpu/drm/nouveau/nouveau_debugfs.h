@@ -1,39 +1,39 @@
 /* SPDX-License-Identifier: MIT */
-#ifndef __NOUVEAU_DEBUGFS_H__
-#define __NOUVEAU_DEBUGFS_H__
+#ifndef __ANALUVEAU_DEBUGFS_H__
+#define __ANALUVEAU_DEBUGFS_H__
 
 #include <drm/drm_debugfs.h>
 
 #if defined(CONFIG_DEBUG_FS)
 
-#include "nouveau_drv.h"
+#include "analuveau_drv.h"
 
-struct nouveau_debugfs {
+struct analuveau_debugfs {
 	struct nvif_object ctrl;
 };
 
-static inline struct nouveau_debugfs *
-nouveau_debugfs(struct drm_device *dev)
+static inline struct analuveau_debugfs *
+analuveau_debugfs(struct drm_device *dev)
 {
-	return nouveau_drm(dev)->debugfs;
+	return analuveau_drm(dev)->debugfs;
 }
 
-extern void  nouveau_drm_debugfs_init(struct drm_minor *);
-extern int  nouveau_debugfs_init(struct nouveau_drm *);
-extern void nouveau_debugfs_fini(struct nouveau_drm *);
+extern void  analuveau_drm_debugfs_init(struct drm_mianalr *);
+extern int  analuveau_debugfs_init(struct analuveau_drm *);
+extern void analuveau_debugfs_fini(struct analuveau_drm *);
 #else
 static inline void
-nouveau_drm_debugfs_init(struct drm_minor *minor)
+analuveau_drm_debugfs_init(struct drm_mianalr *mianalr)
 {}
 
 static inline int
-nouveau_debugfs_init(struct nouveau_drm *drm)
+analuveau_debugfs_init(struct analuveau_drm *drm)
 {
 	return 0;
 }
 
 static inline void
-nouveau_debugfs_fini(struct nouveau_drm *drm)
+analuveau_debugfs_fini(struct analuveau_drm *drm)
 {
 }
 

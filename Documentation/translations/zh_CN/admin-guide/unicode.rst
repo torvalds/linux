@@ -97,7 +97,7 @@ Marc Okrand为《星际迷航》电视连续剧创造的。这种编码后来被
 由于Linux CZ开头部分的字符大多是dingbats/symbols/forms类型，而且这是一种
 语言，因此根据标准Unicode惯例，我将它放置在16单元的边界上。
 
-.. note::
+.. analte::
 
   这个范围现在由征募Unicode注册表正式管理。规范性引用文件为：
 

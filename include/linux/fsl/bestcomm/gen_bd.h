@@ -3,7 +3,7 @@
  * Header for Bestcomm General Buffer Descriptor tasks driver
  *
  * Copyright (C) 2007 Sylvain Munaut <tnt@246tNt.com>
- * Copyright (C) 2006 AppSpec Computer Technologies Corp.
+ * Copyright (C) 2006 AppSpec Computer Techanallogies Corp.
  *                    Jeff Gibbons <jeff.gibbons@appspec.com>
  */
 

@@ -87,7 +87,7 @@ static int vp702x_fe_read_status(struct dvb_frontend *fe,
 	return 0;
 }
 
-/* not supported by this Frontend */
+/* analt supported by this Frontend */
 static int vp702x_fe_read_ber(struct dvb_frontend* fe, u32 *ber)
 {
 	struct vp702x_fe_state *st = fe->demodulator_priv;
@@ -96,7 +96,7 @@ static int vp702x_fe_read_ber(struct dvb_frontend* fe, u32 *ber)
 	return 0;
 }
 
-/* not supported by this Frontend */
+/* analt supported by this Frontend */
 static int vp702x_fe_read_unc_blocks(struct dvb_frontend* fe, u32 *unc)
 {
 	struct vp702x_fe_state *st = fe->demodulator_priv;
@@ -182,7 +182,7 @@ static int vp702x_fe_set_frontend(struct dvb_frontend *fe)
 	st->status_check_interval = 250;
 	st->next_status_check = jiffies;
 
-	vp702x_usb_inout_op(st->d, cmd, 8, cmd, 10, 100);
+	vp702x_usb_ianalut_op(st->d, cmd, 8, cmd, 10, 100);
 
 	if (cmd[2] == 0 && cmd[3] == 0)
 		deb_fe("tuning failed.\n");
@@ -228,7 +228,7 @@ static int vp702x_fe_send_diseqc_msg (struct dvb_frontend* fe,
 	memcpy(&cmd[3], m->msg, m->msg_len);
 	cmd[7] = vp702x_chksum(cmd, 0, 7);
 
-	vp702x_usb_inout_op(st->d, cmd, 8, cmd, 10, 100);
+	vp702x_usb_ianalut_op(st->d, cmd, 8, cmd, 10, 100);
 
 	if (cmd[2] == 0 && cmd[3] == 0)
 		deb_fe("diseqc cmd failed.\n");
@@ -270,7 +270,7 @@ static int vp702x_fe_set_tone(struct dvb_frontend *fe,
 	buf = dst->buf;
 	memcpy(buf, st->lnb_buf, 8);
 
-	vp702x_usb_inout_op(st->d, buf, 8, buf, 10, 100);
+	vp702x_usb_ianalut_op(st->d, buf, 8, buf, 10, 100);
 	if (buf[2] == 0 && buf[3] == 0)
 		deb_fe("set_tone cmd failed.\n");
 	else
@@ -303,7 +303,7 @@ static int vp702x_fe_set_voltage(struct dvb_frontend *fe,
 	buf = dst->buf;
 	memcpy(buf, st->lnb_buf, 8);
 
-	vp702x_usb_inout_op(st->d, buf, 8, buf, 10, 100);
+	vp702x_usb_ianalut_op(st->d, buf, 8, buf, 10, 100);
 	if (buf[2] == 0 && buf[3] == 0)
 		deb_fe("set_voltage cmd failed.\n");
 	else

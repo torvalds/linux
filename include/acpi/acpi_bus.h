@@ -112,7 +112,7 @@ struct acpi_device;
 struct acpi_hotplug_profile {
 	struct kobject kobj;
 	int (*scan_dependent)(struct acpi_device *adev);
-	void (*notify_online)(struct acpi_device *adev);
+	void (*analtify_online)(struct acpi_device *adev);
 	bool enabled:1;
 	bool demand_offline:1;
 };
@@ -125,7 +125,7 @@ static inline struct acpi_hotplug_profile *to_acpi_hotplug_profile(
 
 struct acpi_scan_handler {
 	const struct acpi_device_id *ids;
-	struct list_head list_node;
+	struct list_head list_analde;
 	bool (*match)(const char *idstr, const struct acpi_device_id **matchid);
 	int (*attach)(struct acpi_device *dev, const struct acpi_device_id *id);
 	void (*detach)(struct acpi_device *dev);
@@ -141,7 +141,7 @@ struct acpi_scan_handler {
 
 struct acpi_hotplug_context {
 	struct acpi_device *self;
-	int (*notify)(struct acpi_device *, u32);
+	int (*analtify)(struct acpi_device *, u32);
 	void (*uevent)(struct acpi_device *, u32);
 	void (*fixup)(struct acpi_device *);
 };
@@ -153,15 +153,15 @@ struct acpi_hotplug_context {
 
 typedef int (*acpi_op_add) (struct acpi_device * device);
 typedef void (*acpi_op_remove) (struct acpi_device *device);
-typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
+typedef void (*acpi_op_analtify) (struct acpi_device * device, u32 event);
 
 struct acpi_device_ops {
 	acpi_op_add add;
 	acpi_op_remove remove;
-	acpi_op_notify notify;
+	acpi_op_analtify analtify;
 };
 
-#define ACPI_DRIVER_ALL_NOTIFY_EVENTS	0x1	/* system AND device events */
+#define ACPI_DRIVER_ALL_ANALTIFY_EVENTS	0x1	/* system AND device events */
 
 struct acpi_driver {
 	char name[80];
@@ -199,13 +199,13 @@ struct acpi_device_flags {
 	u32 match_driver:1;
 	u32 initialized:1;
 	u32 visited:1;
-	u32 hotplug_notify:1;
+	u32 hotplug_analtify:1;
 	u32 is_dock_station:1;
 	u32 of_compatible_ok:1;
 	u32 coherent_dma:1;
 	u32 cca_seen:1;
 	u32 enumeration_by_parent:1;
-	u32 honor_deps:1;
+	u32 hoanalr_deps:1;
 	u32 reserved:18;
 };
 
@@ -239,7 +239,7 @@ struct acpi_pnp_type {
 
 struct acpi_device_pnp {
 	acpi_bus_id bus_id;		/* Object name */
-	int instance_no;		/* Instance number of this object */
+	int instance_anal;		/* Instance number of this object */
 	struct acpi_pnp_type type;	/* ID type */
 	acpi_bus_address bus_address;	/* _ADR */
 	char *unique_id;		/* _UID */
@@ -263,7 +263,7 @@ struct acpi_device_power_flags {
 	u32 power_resources:1;	/* Power resources */
 	u32 inrush_current:1;	/* Serialize Dx->D0 */
 	u32 power_removed:1;	/* Optimize Dx->D0 */
-	u32 ignore_parent:1;	/* Power is independent of parent power state */
+	u32 iganalre_parent:1;	/* Power is independent of parent power state */
 	u32 dsw_present:1;	/* _DSW present? */
 	u32 reserved:26;
 };
@@ -287,10 +287,10 @@ struct acpi_device_power {
 };
 
 struct acpi_dep_data {
-	struct list_head node;
+	struct list_head analde;
 	acpi_handle supplier;
 	acpi_handle consumer;
-	bool honor_dep;
+	bool hoanalr_dep;
 	bool met;
 	bool free_when_met;
 };
@@ -321,7 +321,7 @@ struct acpi_device_perf {
 /* Wakeup Management */
 struct acpi_device_wakeup_flags {
 	u8 valid:1;		/* Can successfully enable wakeup? */
-	u8 notifier_present:1;  /* Wake-up notify handler has been installed */
+	u8 analtifier_present:1;  /* Wake-up analtify handler has been installed */
 };
 
 struct acpi_device_wakeup_context {
@@ -341,9 +341,9 @@ struct acpi_device_wakeup {
 	int enable_count;
 };
 
-struct acpi_device_physical_node {
-	unsigned int node_id;
-	struct list_head node;
+struct acpi_device_physical_analde {
+	unsigned int analde_id;
+	struct list_head analde;
 	struct device *dev;
 	bool put_online:1;
 };
@@ -360,63 +360,63 @@ struct acpi_device_data {
 	const union acpi_object *pointer;
 	struct list_head properties;
 	const union acpi_object *of_compatible;
-	struct list_head subnodes;
+	struct list_head subanaldes;
 };
 
 struct acpi_gpio_mapping;
 
-#define ACPI_DEVICE_SWNODE_ROOT			0
+#define ACPI_DEVICE_SWANALDE_ROOT			0
 
 /*
  * The maximum expected number of CSI-2 data lanes.
  *
- * This number is not expected to ever have to be equal to or greater than the
+ * This number is analt expected to ever have to be equal to or greater than the
  * number of bits in an unsigned long variable, but if it needs to be increased
  * above that limit, code will need to be adjusted accordingly.
  */
 #define ACPI_DEVICE_CSI2_DATA_LANES		8
 
-#define ACPI_DEVICE_SWNODE_PORT_NAME_LENGTH	8
+#define ACPI_DEVICE_SWANALDE_PORT_NAME_LENGTH	8
 
-enum acpi_device_swnode_dev_props {
-	ACPI_DEVICE_SWNODE_DEV_ROTATION,
-	ACPI_DEVICE_SWNODE_DEV_CLOCK_FREQUENCY,
-	ACPI_DEVICE_SWNODE_DEV_LED_MAX_MICROAMP,
-	ACPI_DEVICE_SWNODE_DEV_FLASH_MAX_MICROAMP,
-	ACPI_DEVICE_SWNODE_DEV_FLASH_MAX_TIMEOUT_US,
-	ACPI_DEVICE_SWNODE_DEV_NUM_OF,
-	ACPI_DEVICE_SWNODE_DEV_NUM_ENTRIES
+enum acpi_device_swanalde_dev_props {
+	ACPI_DEVICE_SWANALDE_DEV_ROTATION,
+	ACPI_DEVICE_SWANALDE_DEV_CLOCK_FREQUENCY,
+	ACPI_DEVICE_SWANALDE_DEV_LED_MAX_MICROAMP,
+	ACPI_DEVICE_SWANALDE_DEV_FLASH_MAX_MICROAMP,
+	ACPI_DEVICE_SWANALDE_DEV_FLASH_MAX_TIMEOUT_US,
+	ACPI_DEVICE_SWANALDE_DEV_NUM_OF,
+	ACPI_DEVICE_SWANALDE_DEV_NUM_ENTRIES
 };
 
-enum acpi_device_swnode_port_props {
-	ACPI_DEVICE_SWNODE_PORT_REG,
-	ACPI_DEVICE_SWNODE_PORT_NUM_OF,
-	ACPI_DEVICE_SWNODE_PORT_NUM_ENTRIES
+enum acpi_device_swanalde_port_props {
+	ACPI_DEVICE_SWANALDE_PORT_REG,
+	ACPI_DEVICE_SWANALDE_PORT_NUM_OF,
+	ACPI_DEVICE_SWANALDE_PORT_NUM_ENTRIES
 };
 
-enum acpi_device_swnode_ep_props {
-	ACPI_DEVICE_SWNODE_EP_REMOTE_EP,
-	ACPI_DEVICE_SWNODE_EP_BUS_TYPE,
-	ACPI_DEVICE_SWNODE_EP_REG,
-	ACPI_DEVICE_SWNODE_EP_CLOCK_LANES,
-	ACPI_DEVICE_SWNODE_EP_DATA_LANES,
-	ACPI_DEVICE_SWNODE_EP_LANE_POLARITIES,
+enum acpi_device_swanalde_ep_props {
+	ACPI_DEVICE_SWANALDE_EP_REMOTE_EP,
+	ACPI_DEVICE_SWANALDE_EP_BUS_TYPE,
+	ACPI_DEVICE_SWANALDE_EP_REG,
+	ACPI_DEVICE_SWANALDE_EP_CLOCK_LANES,
+	ACPI_DEVICE_SWANALDE_EP_DATA_LANES,
+	ACPI_DEVICE_SWANALDE_EP_LANE_POLARITIES,
 	/* TX only */
-	ACPI_DEVICE_SWNODE_EP_LINK_FREQUENCIES,
-	ACPI_DEVICE_SWNODE_EP_NUM_OF,
-	ACPI_DEVICE_SWNODE_EP_NUM_ENTRIES
+	ACPI_DEVICE_SWANALDE_EP_LINK_FREQUENCIES,
+	ACPI_DEVICE_SWANALDE_EP_NUM_OF,
+	ACPI_DEVICE_SWANALDE_EP_NUM_ENTRIES
 };
 
 /*
- * Each device has a root software node plus two times as many nodes as the
+ * Each device has a root software analde plus two times as many analdes as the
  * number of CSI-2 ports.
  */
-#define ACPI_DEVICE_SWNODE_PORT(port)	(2 * (port) + 1)
-#define ACPI_DEVICE_SWNODE_EP(endpoint)	\
-		(ACPI_DEVICE_SWNODE_PORT(endpoint) + 1)
+#define ACPI_DEVICE_SWANALDE_PORT(port)	(2 * (port) + 1)
+#define ACPI_DEVICE_SWANALDE_EP(endpoint)	\
+		(ACPI_DEVICE_SWANALDE_PORT(endpoint) + 1)
 
 /**
- * struct acpi_device_software_node_port - MIPI DisCo for Imaging CSI-2 port
+ * struct acpi_device_software_analde_port - MIPI DisCo for Imaging CSI-2 port
  * @port_name: Port name.
  * @data_lanes: "data-lanes" property values.
  * @lane_polarities: "lane-polarities" property values.
@@ -427,33 +427,33 @@ enum acpi_device_swnode_ep_props {
  * @ep_props: Endpoint properties.
  * @remote_ep: Reference to the remote endpoint.
  */
-struct acpi_device_software_node_port {
-	char port_name[ACPI_DEVICE_SWNODE_PORT_NAME_LENGTH + 1];
+struct acpi_device_software_analde_port {
+	char port_name[ACPI_DEVICE_SWANALDE_PORT_NAME_LENGTH + 1];
 	u32 data_lanes[ACPI_DEVICE_CSI2_DATA_LANES];
 	u32 lane_polarities[ACPI_DEVICE_CSI2_DATA_LANES + 1 /* clock lane */];
 	u64 link_frequencies[ACPI_DEVICE_CSI2_DATA_LANES];
 	unsigned int port_nr;
 	bool crs_csi2_local;
 
-	struct property_entry port_props[ACPI_DEVICE_SWNODE_PORT_NUM_ENTRIES];
-	struct property_entry ep_props[ACPI_DEVICE_SWNODE_EP_NUM_ENTRIES];
+	struct property_entry port_props[ACPI_DEVICE_SWANALDE_PORT_NUM_ENTRIES];
+	struct property_entry ep_props[ACPI_DEVICE_SWANALDE_EP_NUM_ENTRIES];
 
-	struct software_node_ref_args remote_ep[1];
+	struct software_analde_ref_args remote_ep[1];
 };
 
 /**
- * struct acpi_device_software_nodes - Software nodes for an ACPI device
+ * struct acpi_device_software_analdes - Software analdes for an ACPI device
  * @dev_props: Device properties.
- * @nodes: Software nodes for root as well as ports and endpoints.
- * @nodeprts: Array of software node pointers, for (un)registering them.
+ * @analdes: Software analdes for root as well as ports and endpoints.
+ * @analdeprts: Array of software analde pointers, for (un)registering them.
  * @ports: Information related to each port and endpoint within a port.
  * @num_ports: The number of ports.
  */
-struct acpi_device_software_nodes {
-	struct property_entry dev_props[ACPI_DEVICE_SWNODE_DEV_NUM_ENTRIES];
-	struct software_node *nodes;
-	const struct software_node **nodeptrs;
-	struct acpi_device_software_node_port *ports;
+struct acpi_device_software_analdes {
+	struct property_entry dev_props[ACPI_DEVICE_SWANALDE_DEV_NUM_ENTRIES];
+	struct software_analde *analdes;
+	const struct software_analde **analdeptrs;
+	struct acpi_device_software_analde_port *ports;
 	unsigned int num_ports;
 };
 
@@ -461,8 +461,8 @@ struct acpi_device_software_nodes {
 struct acpi_device {
 	u32 pld_crc;
 	int device_type;
-	acpi_handle handle;		/* no handle for fixed hardware */
-	struct fwnode_handle fwnode;
+	acpi_handle handle;		/* anal handle for fixed hardware */
+	struct fwanalde_handle fwanalde;
 	struct list_head wakeup_list;
 	struct list_head del_list;
 	struct acpi_device_status status;
@@ -475,77 +475,77 @@ struct acpi_device {
 	struct acpi_device_data data;
 	struct acpi_scan_handler *handler;
 	struct acpi_hotplug_context *hp;
-	struct acpi_device_software_nodes *swnodes;
+	struct acpi_device_software_analdes *swanaldes;
 	const struct acpi_gpio_mapping *driver_gpios;
 	void *driver_data;
 	struct device dev;
-	unsigned int physical_node_count;
+	unsigned int physical_analde_count;
 	unsigned int dep_unmet;
-	struct list_head physical_node_list;
-	struct mutex physical_node_lock;
+	struct list_head physical_analde_list;
+	struct mutex physical_analde_lock;
 	void (*remove)(struct acpi_device *);
 };
 
-/* Non-device subnode */
-struct acpi_data_node {
+/* Analn-device subanalde */
+struct acpi_data_analde {
 	const char *name;
 	acpi_handle handle;
-	struct fwnode_handle fwnode;
-	struct fwnode_handle *parent;
+	struct fwanalde_handle fwanalde;
+	struct fwanalde_handle *parent;
 	struct acpi_device_data data;
 	struct list_head sibling;
 	struct kobject kobj;
 	struct completion kobj_done;
 };
 
-extern const struct fwnode_operations acpi_device_fwnode_ops;
-extern const struct fwnode_operations acpi_data_fwnode_ops;
-extern const struct fwnode_operations acpi_static_fwnode_ops;
+extern const struct fwanalde_operations acpi_device_fwanalde_ops;
+extern const struct fwanalde_operations acpi_data_fwanalde_ops;
+extern const struct fwanalde_operations acpi_static_fwanalde_ops;
 
-bool is_acpi_device_node(const struct fwnode_handle *fwnode);
-bool is_acpi_data_node(const struct fwnode_handle *fwnode);
+bool is_acpi_device_analde(const struct fwanalde_handle *fwanalde);
+bool is_acpi_data_analde(const struct fwanalde_handle *fwanalde);
 
-static inline bool is_acpi_node(const struct fwnode_handle *fwnode)
+static inline bool is_acpi_analde(const struct fwanalde_handle *fwanalde)
 {
-	return (is_acpi_device_node(fwnode) || is_acpi_data_node(fwnode));
+	return (is_acpi_device_analde(fwanalde) || is_acpi_data_analde(fwanalde));
 }
 
-#define to_acpi_device_node(__fwnode)					\
+#define to_acpi_device_analde(__fwanalde)					\
 	({								\
-		typeof(__fwnode) __to_acpi_device_node_fwnode = __fwnode; \
+		typeof(__fwanalde) __to_acpi_device_analde_fwanalde = __fwanalde; \
 									\
-		is_acpi_device_node(__to_acpi_device_node_fwnode) ?	\
-			container_of(__to_acpi_device_node_fwnode,	\
-				     struct acpi_device, fwnode) :	\
+		is_acpi_device_analde(__to_acpi_device_analde_fwanalde) ?	\
+			container_of(__to_acpi_device_analde_fwanalde,	\
+				     struct acpi_device, fwanalde) :	\
 			NULL;						\
 	})
 
-#define to_acpi_data_node(__fwnode)					\
+#define to_acpi_data_analde(__fwanalde)					\
 	({								\
-		typeof(__fwnode) __to_acpi_data_node_fwnode = __fwnode;	\
+		typeof(__fwanalde) __to_acpi_data_analde_fwanalde = __fwanalde;	\
 									\
-		is_acpi_data_node(__to_acpi_data_node_fwnode) ?		\
-			container_of(__to_acpi_data_node_fwnode,	\
-				     struct acpi_data_node, fwnode) :	\
+		is_acpi_data_analde(__to_acpi_data_analde_fwanalde) ?		\
+			container_of(__to_acpi_data_analde_fwanalde,	\
+				     struct acpi_data_analde, fwanalde) :	\
 			NULL;						\
 	})
 
-static inline bool is_acpi_static_node(const struct fwnode_handle *fwnode)
+static inline bool is_acpi_static_analde(const struct fwanalde_handle *fwanalde)
 {
-	return !IS_ERR_OR_NULL(fwnode) &&
-		fwnode->ops == &acpi_static_fwnode_ops;
+	return !IS_ERR_OR_NULL(fwanalde) &&
+		fwanalde->ops == &acpi_static_fwanalde_ops;
 }
 
-static inline bool acpi_data_node_match(const struct fwnode_handle *fwnode,
+static inline bool acpi_data_analde_match(const struct fwanalde_handle *fwanalde,
 					const char *name)
 {
-	return is_acpi_data_node(fwnode) ?
-		(!strcmp(to_acpi_data_node(fwnode)->name, name)) : false;
+	return is_acpi_data_analde(fwanalde) ?
+		(!strcmp(to_acpi_data_analde(fwanalde)->name, name)) : false;
 }
 
-static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
+static inline struct fwanalde_handle *acpi_fwanalde_handle(struct acpi_device *adev)
 {
-	return &adev->fwnode;
+	return &adev->fwanalde;
 }
 
 static inline void *acpi_driver_data(struct acpi_device *d)
@@ -578,7 +578,7 @@ static inline void acpi_set_hp_context(struct acpi_device *adev,
 
 void acpi_initialize_hp_context(struct acpi_device *adev,
 				struct acpi_hotplug_context *hp,
-				int (*notify)(struct acpi_device *, u32),
+				int (*analtify)(struct acpi_device *, u32),
 				void (*uevent)(struct acpi_device *, u32));
 
 /* acpi_device.dev.bus == &acpi_bus_type */
@@ -597,7 +597,7 @@ int acpi_dev_for_each_child_reverse(struct acpi_device *adev,
  */
 
 struct acpi_bus_event {
-	struct list_head node;
+	struct list_head analde;
 	acpi_device_class device_class;
 	acpi_bus_id bus_id;
 	u32 type;
@@ -610,15 +610,15 @@ void acpi_bus_private_data_handler(acpi_handle, void *);
 int acpi_bus_get_private_data(acpi_handle, void **);
 int acpi_bus_attach_private_data(acpi_handle, void *);
 void acpi_bus_detach_private_data(acpi_handle);
-int acpi_dev_install_notify_handler(struct acpi_device *adev,
+int acpi_dev_install_analtify_handler(struct acpi_device *adev,
 				    u32 handler_type,
-				    acpi_notify_handler handler, void *context);
-void acpi_dev_remove_notify_handler(struct acpi_device *adev,
+				    acpi_analtify_handler handler, void *context);
+void acpi_dev_remove_analtify_handler(struct acpi_device *adev,
 				    u32 handler_type,
-				    acpi_notify_handler handler);
-extern int acpi_notifier_call_chain(struct acpi_device *, u32, u32);
-extern int register_acpi_notifier(struct notifier_block *);
-extern int unregister_acpi_notifier(struct notifier_block *);
+				    acpi_analtify_handler handler);
+extern int acpi_analtifier_call_chain(struct acpi_device *, u32, u32);
+extern int register_acpi_analtifier(struct analtifier_block *);
+extern int unregister_acpi_analtifier(struct analtifier_block *);
 
 /*
  * External Functions
@@ -675,7 +675,7 @@ static inline bool acpi_device_enumerated(struct acpi_device *adev)
  * module_acpi_driver(acpi_driver) - Helper macro for registering an ACPI driver
  * @__acpi_driver: acpi_driver struct
  *
- * Helper macro for ACPI drivers which do not do anything special in module
+ * Helper macro for ACPI drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */
@@ -724,7 +724,7 @@ struct iommu_ops;
 bool acpi_dma_supported(const struct acpi_device *adev);
 enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
 int acpi_iommu_fwspec_init(struct device *dev, u32 id,
-			   struct fwnode_handle *fwnode,
+			   struct fwanalde_handle *fwanalde,
 			   const struct iommu_ops *ops);
 int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map);
 int acpi_dma_configure_id(struct device *dev, enum dev_dma_attr attr,
@@ -791,9 +791,9 @@ static inline bool acpi_quirk_skip_gpio_event_handlers(void)
 
 #ifdef CONFIG_PM
 void acpi_pm_wakeup_event(struct device *dev);
-acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
+acpi_status acpi_add_pm_analtifier(struct acpi_device *adev, struct device *dev,
 			void (*func)(struct acpi_device_wakeup_context *context));
-acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
+acpi_status acpi_remove_pm_analtifier(struct acpi_device *adev);
 bool acpi_pm_device_can_wakeup(struct device *dev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 int acpi_pm_set_device_wakeup(struct device *dev, bool enable);
@@ -801,13 +801,13 @@ int acpi_pm_set_device_wakeup(struct device *dev, bool enable);
 static inline void acpi_pm_wakeup_event(struct device *dev)
 {
 }
-static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
+static inline acpi_status acpi_add_pm_analtifier(struct acpi_device *adev,
 					       struct device *dev,
 					       void (*func)(struct acpi_device_wakeup_context *context))
 {
 	return AE_SUPPORT;
 }
-static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
+static inline acpi_status acpi_remove_pm_analtifier(struct acpi_device *adev)
 {
 	return AE_SUPPORT;
 }
@@ -825,7 +825,7 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 }
 static inline int acpi_pm_set_device_wakeup(struct device *dev, bool enable)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -911,7 +911,7 @@ static inline bool acpi_int_uid_match(struct acpi_device *adev, u64 uid2)
  * acpi_dev_hid_uid_match - Match device by supplied HID and UID
  * @adev: ACPI device to match.
  * @hid2: Hardware ID of the device.
- * @uid2: Unique ID of the device, pass 0 or NULL to not check _UID.
+ * @uid2: Unique ID of the device, pass 0 or NULL to analt check _UID.
  *
  * Matches HID and UID in @adev with given @hid2 and @uid2. Absence of @uid2
  * will be treated as a match. If user wants to validate @uid2, it should be
@@ -948,8 +948,8 @@ acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv);
  * for_each_acpi_dev_match - iterate over ACPI devices that matching the criteria
  * @adev: pointer to the matching ACPI device, NULL at the end of the loop
  * @hid: Hardware ID of the device.
- * @uid: Unique ID of the device, pass NULL to not check _UID
- * @hrv: Hardware Revision of the device, pass -1 to not check _HRV
+ * @uid: Unique ID of the device, pass NULL to analt check _UID
+ * @hrv: Hardware Revision of the device, pass -1 to analt check _HRV
  *
  * The caller is responsible for invoking acpi_dev_put() on the returned device.
  */

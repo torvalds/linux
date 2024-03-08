@@ -44,7 +44,7 @@ patternProperties:
   '^port@':
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      At least three port nodes containing endpoints connecting to the source
+      At least three port analdes containing endpoints connecting to the source
       and sink devices according to of_graph bindings. The last port is the
       output port, all others are inputs.
 

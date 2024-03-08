@@ -39,7 +39,7 @@
 #define ST7703_CMD_SETEXTC	 0xB9
 #define ST7703_CMD_SETMIPI	 0xBA
 #define ST7703_CMD_SETVDC	 0xBC
-#define ST7703_CMD_UNKNOWN_BF	 0xBF
+#define ST7703_CMD_UNKANALWN_BF	 0xBF
 #define ST7703_CMD_SETSCR	 0xC0
 #define ST7703_CMD_SETPOWER	 0xC1
 #define ST7703_CMD_SETECO	 0xC6
@@ -50,7 +50,7 @@
 #define ST7703_CMD_SETEQ	 0xE3
 #define ST7703_CMD_SETGIP1	 0xE9
 #define ST7703_CMD_SETGIP2	 0xEA
-#define ST7703_CMD_UNKNOWN_EF	 0xEF
+#define ST7703_CMD_UNKANALWN_EF	 0xEF
 
 struct st7703 {
 	struct device *dev;
@@ -105,7 +105,7 @@ static int jh057n_init_sequence(struct st7703 *ctx)
 	msleep(20);
 
 	mipi_dsi_generic_write_seq(dsi, ST7703_CMD_SETVCOM, 0x3F, 0x3F);
-	mipi_dsi_generic_write_seq(dsi, ST7703_CMD_UNKNOWN_BF, 0x02, 0x11, 0x00);
+	mipi_dsi_generic_write_seq(dsi, ST7703_CMD_UNKANALWN_BF, 0x02, 0x11, 0x00);
 	mipi_dsi_generic_write_seq(dsi, ST7703_CMD_SETGIP1,
 				   0x82, 0x10, 0x06, 0x05, 0x9E, 0x0A, 0xA5, 0x12,
 				   0x31, 0x23, 0x37, 0x83, 0x04, 0xBC, 0x27, 0x38,
@@ -202,9 +202,9 @@ static int xbd599_init_sequence(struct st7703 *ctx)
 	/* Source driving settings. */
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETSCR,
 			       0x73, /* N_POPON */
-			       0x73, /* N_NOPON */
+			       0x73, /* N_ANALPON */
 			       0x50, /* I_POPON */
-			       0x50, /* I_NOPON */
+			       0x50, /* I_ANALPON */
 			       0x00, /* SCR[31,24] */
 			       0xC0, /* SCR[23,16] */
 			       0x08, /* SCR[15,8] */
@@ -215,8 +215,8 @@ static int xbd599_init_sequence(struct st7703 *ctx)
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETVDC, 0x4E);
 
 	/*
-	 * SS_PANEL = 1 (reverse scan), GS_PANEL = 0 (normal scan)
-	 * REV_PANEL = 1 (normally black panel), BGR_PANEL = 1 (BGR)
+	 * SS_PANEL = 1 (reverse scan), GS_PANEL = 0 (analrmal scan)
+	 * REV_PANEL = 1 (analrmally black panel), BGR_PANEL = 1 (BGR)
 	 */
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETPANEL, 0x0B);
 
@@ -235,8 +235,8 @@ static int xbd599_init_sequence(struct st7703 *ctx)
 				      */);
 
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETEQ,
-			       0x00, /* PNOEQ */
-			       0x00, /* NNOEQ */
+			       0x00, /* PANALEQ */
+			       0x00, /* NANALEQ */
 			       0x0B, /* PEQGND */
 			       0x0B, /* NEQGND */
 			       0x10, /* PEQVCI */
@@ -248,8 +248,8 @@ static int xbd599_init_sequence(struct st7703 *ctx)
 			       0xFF, /* reserved */
 			       0x00, /* reserved */
 			       0xC0, /* ESD_DET_DATA_WHITE = 1, ESD_WHITE_EN = 1 */
-			       0x10  /* SLPIN_OPTION = 1 (no need vsync after sleep-in)
-				      * VEDIO_NO_CHECK_EN = 0
+			       0x10  /* SLPIN_OPTION = 1 (anal need vsync after sleep-in)
+				      * VEDIO_ANAL_CHECK_EN = 0
 				      * ESD_WHITE_GND_EN = 0
 				      * ESD_DET_TIME_SEL = 0 frames
 				      */);
@@ -283,7 +283,7 @@ static int xbd599_init_sequence(struct st7703 *ctx)
 			       0x2C  /* VCOMDC_B = -0.67V */);
 
 	/* Undocumented command. */
-	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKNOWN_BF, 0x02, 0x11, 0x00);
+	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKANALWN_BF, 0x02, 0x11, 0x00);
 
 	/* This command is to set forward GIP timing. */
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETGIP1,
@@ -365,7 +365,7 @@ static int rg353v2_init_sequence(struct st7703 *ctx)
 			       0x00, 0x00, 0x00, 0x44, 0x25, 0x00, 0x90, 0x0a,
 			       0x00, 0x00, 0x01, 0x4f, 0x01, 0x00, 0x00, 0x37);
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETVDC, 0x47);
-	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKNOWN_BF, 0x02, 0x11, 0x00);
+	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKANALWN_BF, 0x02, 0x11, 0x00);
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETSCR, 0x73, 0x73, 0x50, 0x50,
 			       0x00, 0x00, 0x12, 0x50, 0x00);
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETPOWER, 0x53, 0xc0, 0x32,
@@ -404,7 +404,7 @@ static int rg353v2_init_sequence(struct st7703 *ctx)
 			       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			       0x00);
-	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKNOWN_EF, 0xff, 0xff, 0x01);
+	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKANALWN_EF, 0xff, 0xff, 0x01);
 
 	return 0;
 }
@@ -428,7 +428,7 @@ static const struct st7703_panel_desc rg353v2_desc = {
 	.mode = &rg353v2_mode,
 	.lanes = 4,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		      MIPI_DSI_MODE_NO_EOT_PACKET | MIPI_DSI_MODE_LPM,
+		      MIPI_DSI_MODE_ANAL_EOT_PACKET | MIPI_DSI_MODE_LPM,
 	.format = MIPI_DSI_FMT_RGB888,
 	.init_sequence = rg353v2_init_sequence,
 };
@@ -441,7 +441,7 @@ static int rgb30panel_init_sequence(struct st7703 *ctx)
 
 	/*
 	 * For some reason this specific panel must be taken out of sleep
-	 * before the full init sequence, or else it will not display.
+	 * before the full init sequence, or else it will analt display.
 	 */
 	mipi_dsi_dcs_exit_sleep_mode(dsi);
 	msleep(250);
@@ -453,7 +453,7 @@ static int rgb30panel_init_sequence(struct st7703 *ctx)
 			       0x00, 0x01, 0x4f, 0x01, 0x00, 0x00, 0x37);
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETPOWER_EXT, 0x25, 0x22, 0xf0,
 			       0x63);
-	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKNOWN_BF, 0x02, 0x11, 0x00);
+	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_UNKANALWN_BF, 0x02, 0x11, 0x00);
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETRGBIF, 0x10, 0x10, 0x28,
 			       0x28, 0x03, 0xff, 0x00, 0x00, 0x00, 0x00);
 	mipi_dsi_dcs_write_seq(dsi, ST7703_CMD_SETSCR, 0x73, 0x73, 0x50, 0x50,
@@ -516,7 +516,7 @@ static const struct st7703_panel_desc rgb30panel_desc = {
 	.mode = &rgb30panel_mode,
 	.lanes = 4,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		      MIPI_DSI_MODE_NO_EOT_PACKET | MIPI_DSI_MODE_LPM,
+		      MIPI_DSI_MODE_ANAL_EOT_PACKET | MIPI_DSI_MODE_LPM,
 	.format = MIPI_DSI_FMT_RGB888,
 	.init_sequence = rgb30panel_init_sequence,
 };
@@ -636,7 +636,7 @@ static int st7703_get_modes(struct drm_panel *panel,
 		dev_err(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
 			drm_mode_vrefresh(ctx->desc->mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -703,7 +703,7 @@ static int st7703_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio))

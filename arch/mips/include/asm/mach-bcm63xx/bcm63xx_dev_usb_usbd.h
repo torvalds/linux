@@ -10,7 +10,7 @@ struct bcm63xx_usbd_platform_data {
 	int use_fullspeed;
 
 	/* 0-based port index, for chips with >1 USB PHY */
-	int port_no;
+	int port_anal;
 };
 
 int bcm63xx_usbd_register(const struct bcm63xx_usbd_platform_data *pd);

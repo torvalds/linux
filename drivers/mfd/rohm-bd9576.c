@@ -53,8 +53,8 @@ static const struct regmap_range volatile_ranges[] = {
 };
 
 static const struct regmap_access_table volatile_regs = {
-	.yes_ranges = &volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(volatile_ranges),
+	.anal_ranges = &volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(volatile_ranges),
 };
 
 static struct regmap_config bd957x_regmap = {
@@ -110,13 +110,13 @@ static int bd957x_i2c_probe(struct i2c_client *i2c)
 		cells = bd9573_mfd_cells;
 		num_cells = ARRAY_SIZE(bd9573_mfd_cells);
 		/*
-		 * BD9573 only supports fatal IRQs which we can not handle
+		 * BD9573 only supports fatal IRQs which we can analt handle
 		 * because SoC is going to lose the power.
 		 */
 		usable_irqs = false;
 		break;
 	default:
-		dev_err(&i2c->dev, "Unknown device type");
+		dev_err(&i2c->dev, "Unkanalwn device type");
 		return -EINVAL;
 	}
 
@@ -129,9 +129,9 @@ static int bd957x_i2c_probe(struct i2c_client *i2c)
 	 * BD9576 behaves badly. It kepts IRQ line asserted for the whole
 	 * duration of detected HW condition (like over temperature). So we
 	 * don't require IRQ to be populated.
-	 * If IRQ information is not given, then we mask all IRQs and do not
+	 * If IRQ information is analt given, then we mask all IRQs and do analt
 	 * provide IRQ resources to regulator driver - which then just omits
-	 * the notifiers.
+	 * the analtifiers.
 	 */
 	if (usable_irqs) {
 		struct regmap_irq_chip_data *irq_data;

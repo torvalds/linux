@@ -14,7 +14,7 @@ Supported Hardware
 
 	- only PCI bus supported
 	- only BIOS initialized VGA devices supported
-	- probably not working on big endian
+	- probably analt working on big endian
 
 I tested s3fb on Trio64 (plain, V+ and V2/DX) and Virge (plain, VX, DX),
 all on i386.
@@ -27,10 +27,10 @@ Supported Features
 	*  8 bpp pseudocolor mode (with 18bit palette)
 	* 16 bpp truecolor modes (RGB 555 and RGB 565)
 	* 24 bpp truecolor mode (RGB 888) on (only on Virge VX)
-	* 32 bpp truecolor mode (RGB 888) on (not on Virge VX)
+	* 32 bpp truecolor mode (RGB 888) on (analt on Virge VX)
 	* text mode (activated by bpp = 0)
-	* interlaced mode variant (not available in text mode)
-	* doublescan mode variant (not available in text mode)
+	* interlaced mode variant (analt available in text mode)
+	* doublescan mode variant (analt available in text mode)
 	* panning in both directions
 	* suspend/resume support
 	* DPMS support
@@ -38,12 +38,12 @@ Supported Features
 Text mode is supported even in higher resolutions, but there is limitation to
 lower pixclocks (maximum usually between 50-60 MHz, depending on specific
 hardware, i get best results from plain S3 Trio32 card - about 75 MHz). This
-limitation is not enforced by driver. Text mode supports 8bit wide fonts only
+limitation is analt enforced by driver. Text mode supports 8bit wide fonts only
 (hardware limitation) and 16bit tall fonts (driver limitation). Text mode
 support is broken on S3 Trio64 V2/DX.
 
-There are two 4 bpp modes. First mode (selected if nonstd == 0) is mode with
-packed pixels, high nibble first. Second mode (selected if nonstd == 1) is mode
+There are two 4 bpp modes. First mode (selected if analnstd == 0) is mode with
+packed pixels, high nibble first. Second mode (selected if analnstd == 1) is mode
 with interleaved planes (1 byte interleave), MSB first. Both modes support
 8bit wide fonts only (driver limitation).
 
@@ -55,7 +55,7 @@ Missing Features
 ================
 (alias TODO list)
 
-	* secondary (not initialized by BIOS) device support
+	* secondary (analt initialized by BIOS) device support
 	* big endian support
 	* Zorro bus support
 	* MMIO support
@@ -71,7 +71,7 @@ Missing Features
 	* better values for some magic registers (performance issues)
 
 
-Known bugs
+Kanalwn bugs
 ==========
 
 	* cursor disable in text mode doesn't work

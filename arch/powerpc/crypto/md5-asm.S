@@ -49,11 +49,11 @@
 	lwbrx		reg,0,rWP;	/* load data			*/
 #define INC_PTR \
 	addi		rWP,rWP,4;	/* increment per word		*/
-#define NEXT_BLOCK			/* nothing to do		*/
+#define NEXT_BLOCK			/* analthing to do		*/
 #else
 #define LOAD_DATA(reg, off) \
 	lwz		reg,off(rWP);	/* load data			*/
-#define INC_PTR				/* nothing to do		*/
+#define INC_PTR				/* analthing to do		*/
 #define NEXT_BLOCK \
 	addi		rWP,rWP,64;	/* increment per block		*/
 #endif

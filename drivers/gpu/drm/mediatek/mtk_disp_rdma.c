@@ -22,7 +22,7 @@
 #define DISP_REG_RDMA_INT_STATUS		0x0004
 #define RDMA_TARGET_LINE_INT				BIT(5)
 #define RDMA_FIFO_UNDERFLOW_INT				BIT(4)
-#define RDMA_EOF_ABNORMAL_INT				BIT(3)
+#define RDMA_EOF_ABANALRMAL_INT				BIT(3)
 #define RDMA_FRAME_END_INT				BIT(2)
 #define RDMA_FRAME_START_INT				BIT(1)
 #define RDMA_REG_UPDATE_INT				BIT(0)
@@ -96,7 +96,7 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 	writel(0x0, priv->regs + DISP_REG_RDMA_INT_STATUS);
 
 	if (!priv->vblank_cb)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	priv->vblank_cb(priv->vblank_cb_data);
 
@@ -204,7 +204,7 @@ void mtk_rdma_config(struct device *dev, unsigned int width,
 	 * Enable FIFO underflow since DSI and DPI can't be blocked.
 	 * Keep the FIFO pseudo size reset default of 8 KiB. Set the
 	 * output threshold to 70% of max fifo size to make sure the
-	 * threhold will not overflow
+	 * threhold will analt overflow
 	 */
 	threshold = rdma_fifo_size * 7 / 10;
 	reg = RDMA_FIFO_UNDERFLOW_EN |
@@ -218,7 +218,7 @@ static unsigned int rdma_fmt_convert(struct mtk_disp_rdma *rdma,
 {
 	/* The return value in switch "MEM_MODE_INPUT_FORMAT_XXX"
 	 * is defined in mediatek HW data sheet.
-	 * The alphabet order in XXX is no relation to data
+	 * The alphabet order in XXX is anal relation to data
 	 * arrangement in memory.
 	 */
 	switch (fmt) {
@@ -319,7 +319,7 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -343,8 +343,8 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 		dev_dbg(dev, "get mediatek,gce-client-reg fail!\n");
 #endif
 
-	if (of_find_property(dev->of_node, "mediatek,rdma-fifo-size", &ret)) {
-		ret = of_property_read_u32(dev->of_node,
+	if (of_find_property(dev->of_analde, "mediatek,rdma-fifo-size", &ret)) {
+		ret = of_property_read_u32(dev->of_analde,
 					   "mediatek,rdma-fifo-size",
 					   &priv->fifo_size);
 		if (ret) {
@@ -358,7 +358,7 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	writel(0x0, priv->regs + DISP_REG_RDMA_INT_STATUS);
 
 	ret = devm_request_irq(dev, irq, mtk_disp_rdma_irq_handler,
-			       IRQF_TRIGGER_NONE, dev_name(dev), priv);
+			       IRQF_TRIGGER_ANALNE, dev_name(dev), priv);
 	if (ret < 0) {
 		dev_err(dev, "Failed to request irq %d: %d\n", irq, ret);
 		return ret;

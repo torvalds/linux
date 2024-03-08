@@ -128,7 +128,7 @@ static void digital_wq_cmd_complete(struct work_struct *work)
 	mutex_unlock(&ddev->cmd_lock);
 
 	if (!IS_ERR(cmd->resp))
-		print_hex_dump_debug("DIGITAL RX: ", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_debug("DIGITAL RX: ", DUMP_PREFIX_ANALNE, 16, 1,
 				     cmd->resp->data, cmd->resp->len, false);
 
 	cmd->cmd_cb(ddev, cmd->cb_context, cmd->resp);
@@ -172,7 +172,7 @@ static void digital_wq_cmd(struct work_struct *work)
 	mutex_unlock(&ddev->cmd_lock);
 
 	if (cmd->req)
-		print_hex_dump_debug("DIGITAL TX: ", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_debug("DIGITAL TX: ", DUMP_PREFIX_ANALNE, 16, 1,
 				     cmd->req->data, cmd->req->len, false);
 
 	switch (cmd->type) {
@@ -204,7 +204,7 @@ static void digital_wq_cmd(struct work_struct *work)
 		break;
 
 	default:
-		pr_err("Unknown cmd type %d\n", cmd->type);
+		pr_err("Unkanalwn cmd type %d\n", cmd->type);
 		return;
 	}
 
@@ -233,7 +233,7 @@ int digital_send_cmd(struct nfc_digital_dev *ddev, u8 cmd_type,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->type = cmd_type;
 	cmd->timeout = timeout;
@@ -281,7 +281,7 @@ static int digital_tg_listen_mdaa(struct nfc_digital_dev *ddev, u8 rf_tech)
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	params->sens_res = DIGITAL_SENS_RES_NFC_DEP;
 	get_random_bytes(params->nfcid1, sizeof(params->nfcid1));
@@ -377,8 +377,8 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 	ddev->curr_rf_tech = rf_tech;
 
 	if (DIGITAL_DRV_CAPS_IN_CRC(ddev)) {
-		ddev->skb_add_crc = digital_skb_add_crc_none;
-		ddev->skb_check_crc = digital_skb_check_crc_none;
+		ddev->skb_add_crc = digital_skb_add_crc_analne;
+		ddev->skb_check_crc = digital_skb_check_crc_analne;
 	} else {
 		ddev->skb_add_crc = add_crc;
 		ddev->skb_check_crc = check_crc;
@@ -468,7 +468,7 @@ static void digital_add_poll_tech(struct nfc_digital_dev *ddev, u8 rf_tech,
  * @tm_protocols: bitset of nfc transport protocols to be used for polling
  *
  * For every supported protocol, the corresponding polling function is added
- * to the table of polling technologies (ddev->poll_techs[]) using
+ * to the table of polling techanallogies (ddev->poll_techs[]) using
  * digital_add_poll_tech().
  * When a polling function fails (by timeout or protocol error) the next one is
  * schedule by digital_poll_next_tech() on the poll workqueue (ddev->poll_work).
@@ -486,7 +486,7 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 	matching_tm_protocols = ddev->protocols & tm_protocols;
 
 	if (!matching_im_protocols && !matching_tm_protocols) {
-		pr_err("Unknown protocol\n");
+		pr_err("Unkanalwn protocol\n");
 		return -EINVAL;
 	}
 
@@ -560,7 +560,7 @@ static void digital_stop_poll(struct nfc_dev *nfc_dev)
 	mutex_lock(&ddev->poll_lock);
 
 	if (!ddev->poll_tech_count) {
-		pr_err("Polling operation was not running\n");
+		pr_err("Polling operation was analt running\n");
 		mutex_unlock(&ddev->poll_lock);
 		return;
 	}
@@ -645,7 +645,7 @@ static void digital_deactivate_target(struct nfc_dev *nfc_dev,
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
 
 	if (!ddev->curr_protocol) {
-		pr_err("No active target\n");
+		pr_err("Anal active target\n");
 		return;
 	}
 
@@ -708,7 +708,7 @@ static int digital_in_send(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	data_exch = kzalloc(sizeof(*data_exch), GFP_KERNEL);
 	if (!data_exch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data_exch->cb = cb;
 	data_exch->cb_context = cb_context;
@@ -845,12 +845,12 @@ void nfc_digital_unregister_device(struct nfc_digital_dev *ddev)
 	list_for_each_entry_safe(cmd, n, &ddev->cmd_queue, queue) {
 		list_del(&cmd->queue);
 
-		/* Call the command callback if any and pass it a ENODEV error.
+		/* Call the command callback if any and pass it a EANALDEV error.
 		 * This gives a chance to the command issuer to free any
 		 * allocated buffer.
 		 */
 		if (cmd->cmd_cb)
-			cmd->cmd_cb(ddev, cmd->cb_context, ERR_PTR(-ENODEV));
+			cmd->cmd_cb(ddev, cmd->cb_context, ERR_PTR(-EANALDEV));
 
 		kfree(cmd->mdaa_params);
 		kfree(cmd);

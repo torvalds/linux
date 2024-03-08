@@ -31,13 +31,13 @@ pmd_t tmp_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
 static __init void *kasan_alloc_block_raw(size_t size)
 {
 	return memblock_alloc_try_nid_raw(size, size, __pa(MAX_DMA_ADDRESS),
-				      MEMBLOCK_ALLOC_NOLEAKTRACE, NUMA_NO_NODE);
+				      MEMBLOCK_ALLOC_ANALLEAKTRACE, NUMA_ANAL_ANALDE);
 }
 
 static __init void *kasan_alloc_block(size_t size)
 {
 	return memblock_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
-				      MEMBLOCK_ALLOC_NOLEAKTRACE, NUMA_NO_NODE);
+				      MEMBLOCK_ALLOC_ANALLEAKTRACE, NUMA_ANAL_ANALDE);
 }
 
 static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
@@ -53,7 +53,7 @@ static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
 		next = addr + PAGE_SIZE;
 
 		if (!early) {
-			if (!pte_none(READ_ONCE(*ptep)))
+			if (!pte_analne(READ_ONCE(*ptep)))
 				continue;
 
 			p = kasan_alloc_block_raw(PAGE_SIZE);
@@ -65,7 +65,7 @@ static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
 			memset(p, KASAN_SHADOW_INIT, PAGE_SIZE);
 			entry = pfn_pte(virt_to_pfn(p),
 					__pgprot(pgprot_val(PAGE_KERNEL)));
-		} else if (pte_none(READ_ONCE(*ptep))) {
+		} else if (pte_analne(READ_ONCE(*ptep))) {
 			/*
 			 * The early shadow memory is mapping all KASan
 			 * operations to one and the same page in memory,
@@ -97,7 +97,7 @@ static void __init kasan_pmd_populate(pud_t *pudp, unsigned long addr,
 	pmd_t *pmdp = pmd_offset(pudp, addr);
 
 	do {
-		if (pmd_none(*pmdp)) {
+		if (pmd_analne(*pmdp)) {
 			/*
 			 * We attempt to allocate a shadow block for the PMDs
 			 * used by the PTEs for this address if it isn't already
@@ -135,7 +135,7 @@ static void __init kasan_pgd_populate(unsigned long addr, unsigned long end,
 		 * Allocate and populate the shadow block of p4d folded into
 		 * pud folded into pmd if it doesn't already exist
 		 */
-		if (!early && pgd_none(*pgdp)) {
+		if (!early && pgd_analne(*pgdp)) {
 			void *p = kasan_alloc_block(PAGE_SIZE);
 
 			if (!p) {
@@ -150,7 +150,7 @@ static void __init kasan_pgd_populate(unsigned long addr, unsigned long end,
 		/*
 		 * We just immediately jump over the p4d and pud page
 		 * directories since we believe ARM32 will never gain four
-		 * nor five level page tables.
+		 * analr five level page tables.
 		 */
 		p4dp = p4d_offset(pgdp, addr);
 		pudp = pud_offset(p4dp, addr);
@@ -252,7 +252,7 @@ void __init kasan_init(void)
 		void *start = __va(pa_start);
 		void *end = __va(pa_end);
 
-		/* Do not attempt to shadow highmem */
+		/* Do analt attempt to shadow highmem */
 		if (pa_start >= arm_lowmem_limit) {
 			pr_info("Skip highmem block at %pa-%pa\n", &pa_start, &pa_end);
 			continue;

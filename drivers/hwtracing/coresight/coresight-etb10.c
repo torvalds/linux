@@ -180,7 +180,7 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/* No need to continue if the component is already in used by sysFS. */
+	/* Anal need to continue if the component is already in used by sysFS. */
 	if (drvdata->mode == CS_MODE_SYSFS) {
 		ret = -EBUSY;
 		goto out;
@@ -195,7 +195,7 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	}
 
 	/*
-	 * No HW configuration is needed if the sink is already in
+	 * Anal HW configuration is needed if the sink is already in
 	 * use for this session.
 	 */
 	if (drvdata->pid == pid) {
@@ -300,7 +300,7 @@ static void etb_dump_hw(struct etb_drvdata *drvdata)
 	frame_endoff = ETB_FRAME_SIZE_WORDS - frame_off;
 	if (frame_off) {
 		dev_err(dev,
-			"write_ptr: %lu not aligned to formatter frame size\n",
+			"write_ptr: %lu analt aligned to formatter frame size\n",
 			(unsigned long)write_ptr);
 		dev_err(dev, "frameoff: %lu, frame_endoff: %lu\n",
 			(unsigned long)frame_off, (unsigned long)frame_endoff);
@@ -377,12 +377,12 @@ static void *etb_alloc_buffer(struct coresight_device *csdev,
 			      struct perf_event *event, void **pages,
 			      int nr_pages, bool overwrite)
 {
-	int node;
+	int analde;
 	struct cs_buffers *buf;
 
-	node = (event->cpu == -1) ? NUMA_NO_NODE : cpu_to_node(event->cpu);
+	analde = (event->cpu == -1) ? NUMA_ANAL_ANALDE : cpu_to_analde(event->cpu);
 
-	buf = kzalloc_node(sizeof(struct cs_buffers), GFP_KERNEL, node);
+	buf = kzalloc_analde(sizeof(struct cs_buffers), GFP_KERNEL, analde);
 	if (!buf)
 		return NULL;
 
@@ -446,25 +446,25 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/* Don't do anything if another tracer is using this sink */
+	/* Don't do anything if aanalther tracer is using this sink */
 	if (atomic_read(&csdev->refcnt) != 1)
 		goto out;
 
 	__etb_disable_hw(drvdata);
 	CS_UNLOCK(drvdata->base);
 
-	/* unit is in words, not bytes */
+	/* unit is in words, analt bytes */
 	read_ptr = readl_relaxed(drvdata->base + ETB_RAM_READ_POINTER);
 	write_ptr = readl_relaxed(drvdata->base + ETB_RAM_WRITE_POINTER);
 
 	/*
-	 * Entries should be aligned to the frame size.  If they are not
+	 * Entries should be aligned to the frame size.  If they are analt
 	 * go back to the last alignment point to give decoding tools a
 	 * chance to fix things.
 	 */
 	if (write_ptr % ETB_FRAME_SIZE_WORDS) {
 		dev_err(&csdev->dev,
-			"write_ptr: %lu not aligned to formatter frame size\n",
+			"write_ptr: %lu analt aligned to formatter frame size\n",
 			(unsigned long)write_ptr);
 
 		write_ptr &= ~(ETB_FRAME_SIZE_WORDS - 1);
@@ -494,7 +494,7 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 	 * to take only the last traces.
 	 *
 	 * In snapshot mode we are looking to get the latest traces only and as
-	 * such, we don't care about not overwriting data that hasn't been
+	 * such, we don't care about analt overwriting data that hasn't been
 	 * processed by user space.
 	 */
 	if (!buf->snapshot && to_read > handle->size) {
@@ -511,7 +511,7 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 		/* Wrap around if need be*/
 		if (read_ptr > (drvdata->buffer_depth - 1))
 			read_ptr -= drvdata->buffer_depth;
-		/* let the decoder know we've skipped ahead */
+		/* let the decoder kanalw we've skipped ahead */
 		lost = true;
 	}
 
@@ -599,7 +599,7 @@ static void etb_dump(struct etb_drvdata *drvdata)
 	dev_dbg(&drvdata->csdev->dev, "ETB dumped\n");
 }
 
-static int etb_open(struct inode *inode, struct file *file)
+static int etb_open(struct ianalde *ianalde, struct file *file)
 {
 	struct etb_drvdata *drvdata = container_of(file->private_data,
 						   struct etb_drvdata, miscdev);
@@ -638,7 +638,7 @@ static ssize_t etb_read(struct file *file, char __user *data,
 	return len;
 }
 
-static int etb_release(struct inode *inode, struct file *file)
+static int etb_release(struct ianalde *ianalde, struct file *file)
 {
 	struct etb_drvdata *drvdata = container_of(file->private_data,
 						   struct etb_drvdata, miscdev);
@@ -653,7 +653,7 @@ static const struct file_operations etb_fops = {
 	.open		= etb_open,
 	.read		= etb_read,
 	.release	= etb_release,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct attribute *coresight_etb_mgmt_attrs[] = {
@@ -726,11 +726,11 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 
 	desc.name = coresight_alloc_device_name(&etb_devs, dev);
 	if (!desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->atclk = devm_clk_get(&adev->dev, "atclk"); /* optional */
 	if (!IS_ERR(drvdata->atclk)) {
@@ -758,9 +758,9 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->buf = devm_kcalloc(dev,
 				    drvdata->buffer_depth, 4, GFP_KERNEL);
 	if (!drvdata->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* This device is not associated with a session */
+	/* This device is analt associated with a session */
 	drvdata->pid = -1;
 
 	pdata = coresight_get_platform_data(dev);
@@ -779,7 +779,7 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(drvdata->csdev);
 
 	drvdata->miscdev.name = desc.name;
-	drvdata->miscdev.minor = MISC_DYNAMIC_MINOR;
+	drvdata->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	drvdata->miscdev.fops = &etb_fops;
 	ret = misc_register(&drvdata->miscdev);
 	if (ret)

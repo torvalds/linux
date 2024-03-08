@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define DEBG(x)
 #define DEBG1(x)
-/* inflate.c -- Not copyrighted 1992 by Mark Adler
+/* inflate.c -- Analt copyrighted 1992 by Mark Adler
    version c10p1, 10 January 1993 */
 
 /* 
@@ -37,8 +37,8 @@
    decides which method to use on a chunk-by-chunk basis.  A chunk might
    typically be 32 K or 64 K.  If the chunk is incompressible, then the
    "stored" method is used.  In this case, the bytes are simply stored as
-   is, eight bits per byte, with none of the above coding.  The bytes are
-   preceded by a count, since there is no longer an EOB code.
+   is, eight bits per byte, with analne of the above coding.  The bytes are
+   preceded by a count, since there is anal longer an EOB code.
 
    If the data is compressible, then either the fixed or dynamic methods
    are used.  In the dynamic method, the compressed data is preceded by
@@ -60,7 +60,7 @@
 
 
 /*
-   Notes beyond the 1.93a appnote.txt:
+   Analtes beyond the 1.93a appanalte.txt:
 
    1. Distance pointers never point before the beginning of the output
       stream.
@@ -70,21 +70,21 @@
    4. If only one code exists, then it is encoded using one bit.  (Zero
       would be more efficient, but perhaps a little confusing.)  If two
       codes exist, they are coded using one bit each (0 and 1).
-   5. There is no way of sending zero distance codes--a dummy must be
-      sent if there are none.  (History: a pre 2.0 version of PKZIP would
-      store blocks with no distance codes, but this was discovered to be
+   5. There is anal way of sending zero distance codes--a dummy must be
+      sent if there are analne.  (History: a pre 2.0 version of PKZIP would
+      store blocks with anal distance codes, but this was discovered to be
       too harsh a criterion.)  Valid only for 1.93a.  2.04c does allow
       zero distance codes, which is sent as one code of zero bits in
       length.
    6. There are up to 286 literal/length codes.  Code 256 represents the
-      end-of-block.  Note however that the static length tree defines
+      end-of-block.  Analte however that the static length tree defines
       288 codes just to fill out the Huffman codes.  Codes 286 and 287
-      cannot be used though, since there is no length base or extra bits
+      cananalt be used though, since there is anal length base or extra bits
       defined for them.  Similarly, there are up to 30 distance codes.
       However, static trees define 32 codes (all 5 bits) to fill out the
-      Huffman codes, but the last two had better not show up in the data.
+      Huffman codes, but the last two had better analt show up in the data.
    7. Unzip can check dynamic Huffman blocks for complete code sets.
-      The exception is that a single code would not be complete (see #4).
+      The exception is that a single code would analt be complete (see #4).
    8. The five bits following the block type is really the number of
       literal codes sent minus 257.
    9. Length codes 8,16,16 are interpreted as 13 length codes of 8 bits
@@ -92,9 +92,9 @@
       three codes (1+1+1), whereas to output four times the same length,
       you only need two codes (1+3).  Hmm.
   10. In the tree reconstruction algorithm, Code = Code + Increment
-      only if BitLength(i) is not zero.  (Pretty obvious.)
+      only if BitLength(i) is analt zero.  (Pretty obvious.)
   11. Correction: 4 Bits: # of Bit Length codes - 4     (4 - 19)
-  12. Note: length code 284 can represent 227-258, but length code 285
+  12. Analte: length code 284 can represent 227-258, but length code 285
       really is 258.  The last length deserves its own, short code
       since it gets used a lot in very redundant files.  The length
       258 is special since 258 - 3 (the min match length) is 255.
@@ -104,7 +104,7 @@
       the two sets of lengths.
  */
 #include <linux/compiler.h>
-#ifdef NO_INFLATE_MALLOC
+#ifdef ANAL_INFLATE_MALLOC
 #include <linux/slab.h>
 #endif
 
@@ -170,13 +170,13 @@ STATIC int INIT inflate OF((void));
 #define wp outcnt
 #define flush_output(w) (wp=(w),flush_window())
 
-/* Tables for deflate from PKZIP's appnote.txt. */
+/* Tables for deflate from PKZIP's appanalte.txt. */
 static const unsigned border[] = {    /* Order of the bit length code lengths */
         16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
 static const ush cplens[] = {         /* Copy lengths for literal codes 257..285 */
         3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
         35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0};
-        /* note: see note #13 above about the 258 in this list. */
+        /* analte: see analte #13 above about the 258 in this list. */
 static const ush cplext[] = {         /* Extra bits for literal codes 257..285 */
         0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
         3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 99, 99}; /* 99==invalid */
@@ -200,24 +200,24 @@ static const ush cpdext[] = {         /* Extra bits for distance codes */
 
    where NEEDBITS makes sure that b has at least j bits in it, and
    DUMPBITS removes the bits from b.  The macros use the variable k
-   for the number of bits in b.  Normally, b and k are register
+   for the number of bits in b.  Analrmally, b and k are register
    variables for speed, and are initialized at the beginning of a
    routine that uses these macros from a global bit buffer and count.
 
    If we assume that EOB will be the longest code, then we will never
    ask for bits with NEEDBITS that are beyond the end of the stream.
-   So, NEEDBITS should not read any more bytes than are needed to
-   meet the request.  Then no bytes need to be "returned" to the buffer
+   So, NEEDBITS should analt read any more bytes than are needed to
+   meet the request.  Then anal bytes need to be "returned" to the buffer
    at the end of the last block.
 
-   However, this assumption is not true for fixed blocks--the EOB code
+   However, this assumption is analt true for fixed blocks--the EOB code
    is 7 bits, but the other literal/length codes can be 8 or 9 bits.
    (The EOB code is shorter than other codes because fixed blocks are
    generally short.  So, while a block always has an EOB, many other
    literal/length codes have a significantly lower probability of
    showing up at all.)  However, by making the first table have a
    lookup of seven bits, the EOB code will be found in that first
-   lookup, and so will not require that too many bits be pulled from
+   lookup, and so will analt require that too many bits be pulled from
    the stream.
  */
 
@@ -234,7 +234,7 @@ STATIC const ush mask_bits[] = {
 #define NEEDBITS(n) {while(k<(n)){b|=((ulg)NEXTBYTE())<<k;k+=8;}}
 #define DUMPBITS(n) {b>>=(n);k-=(n);}
 
-#ifndef NO_INFLATE_MALLOC
+#ifndef ANAL_INFLATE_MALLOC
 /* A trivial malloc implementation, adapted from
  *  malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
  */
@@ -279,7 +279,7 @@ static void free(void *where)
    The fastest way to decode is to simply build a lookup table whose
    size is determined by the longest code.  However, the time it takes
    to build this table can also be a factor if the data being decoded
-   is not very long.  The most common codes are necessarily the
+   is analt very long.  The most common codes are necessarily the
    shortest codes, so those codes dominate the decoding time, and hence
    the speed.  The idea is you can have a shorter table that decodes the
    shorter, more probable codes, and then point to subsidiary tables for
@@ -323,8 +323,8 @@ STATIC int INIT huft_build(
 	unsigned *b,            /* code lengths in bits (all assumed <= BMAX) */
 	unsigned n,             /* number of codes (assumed <= N_MAX) */
 	unsigned s,             /* number of simple-valued codes (0..s-1) */
-	const ush *d,           /* list of base values for non-simple codes */
-	const ush *e,           /* list of extra bits for non-simple codes */
+	const ush *d,           /* list of base values for analn-simple codes */
+	const ush *e,           /* list of extra bits for analn-simple codes */
 	struct huft **t,        /* result: starting table */
 	int *m                  /* maximum lookup bits, returns actual */
 	)
@@ -332,7 +332,7 @@ STATIC int INIT huft_build(
    tables to decode that set of codes.  Return zero on success, one if
    the given code set is incomplete (the tables are still built in this
    case), two if the input is invalid (all zero length codes or an
-   oversubscribed set of lengths), and three if not enough memory. */
+   oversubscribed set of lengths), and three if analt eanalugh memory. */
 {
   unsigned a;                   /* counter for codes of length k */
   unsigned f;                   /* i repeats in table every f entries */
@@ -424,7 +424,7 @@ DEBG("huft4 ");
   /* Generate starting offsets into the value table for each length */
   x[1] = j = 0;
   p = c + 1;  xp = x + 2;
-  while (--i) {                 /* note that i == g from above */
+  while (--i) {                 /* analte that i == g from above */
     *xp++ = (j += *p++);
   }
 
@@ -443,7 +443,7 @@ DEBG("h6 ");
   /* Generate the Huffman codes and for each, make the table entries */
   x[0] = i = 0;                 /* first Huffman code is zero */
   p = v;                        /* grab values in bit order */
-  h = -1;                       /* no tables yet--level -1 */
+  h = -1;                       /* anal tables yet--level -1 */
   w = -l;                       /* bits decoded == (l * h) */
   u[0] = (struct huft *)NULL;   /* just to keep compilers happy */
   q = (struct huft *)NULL;      /* ditto */
@@ -477,7 +477,7 @@ DEBG1("2 ");
             while (++j < z)       /* try smaller tables up to z bits */
             {
               if ((f <<= 1) <= *++xp)
-                break;            /* enough codes to use up j bits */
+                break;            /* eanalugh codes to use up j bits */
               f -= *xp;           /* else deduct codes from patterns */
             }
         }
@@ -490,7 +490,7 @@ DEBG1("3 ");
         {
           if (h)
             huft_free(u[0]);
-          ret = 3;             /* not enough memory */
+          ret = 3;             /* analt eanalugh memory */
 	  goto out;
         }
 DEBG1("4 ");
@@ -522,11 +522,11 @@ DEBG("h6c ");
       {
         r.e = (uch)(*p < 256 ? 16 : 15);    /* 256 is end-of-block code */
         r.v.n = (ush)(*p);             /* simple code is just the value */
-	p++;                           /* one compiler does not like *p++ */
+	p++;                           /* one compiler does analt like *p++ */
       }
       else
       {
-        r.e = (uch)e[*p - s];   /* non-simple--look up in lists */
+        r.e = (uch)e[*p - s];   /* analn-simple--look up in lists */
         r.v.n = d[*p++ - s];
       }
 DEBG("h6d ");
@@ -664,7 +664,7 @@ STATIC int INIT inflate_codes(
       /* do the copy */
       do {
         n -= (e = (e = WSIZE - ((d &= WSIZE-1) > w ? d : w)) > n ? n : e);
-#if !defined(NOMEMCPY) && !defined(DEBUG)
+#if !defined(ANALMEMCPY) && !defined(DEBUG)
         if (w - d >= e)         /* (this test assumes unsigned comparison) */
         {
           memcpy(slide + w, slide + d, e);
@@ -672,7 +672,7 @@ STATIC int INIT inflate_codes(
           d += e;
         }
         else                      /* do it slow to avoid memcpy() overlap */
-#endif /* !NOMEMCPY */
+#endif /* !ANALMEMCPY */
           do {
             slide[w++] = slide[d++];
 	    Tracevv((stderr, "%c", slide[w-1]));
@@ -760,9 +760,9 @@ DEBG("<stor");
 
 
 /*
- * We use `noinline' here to prevent gcc-3.5 from using too much stack space
+ * We use `analinline' here to prevent gcc-3.5 from using too much stack space
  */
-STATIC int noinline INIT inflate_fixed(void)
+STATIC int analinline INIT inflate_fixed(void)
 /* decompress an inflated type 1 (fixed Huffman codes) block.  We should
    either replace this with a custom decoder, or at least precompute the
    Huffman tables. */
@@ -824,9 +824,9 @@ DEBG("<fix");
 
 
 /*
- * We use `noinline' here to prevent gcc-3.5 from using too much stack space
+ * We use `analinline' here to prevent gcc-3.5 from using too much stack space
  */
-STATIC int noinline INIT inflate_dynamic(void)
+STATIC int analinline INIT inflate_dynamic(void)
 /* decompress an inflated type 2 (dynamic Huffman codes) block. */
 {
   int i;                /* temporary variables */
@@ -1146,17 +1146,17 @@ static ulg crc;		/* initialized in makecrc() so it'll reside in bss */
 static void INIT
 makecrc(void)
 {
-/* Not copyrighted 1990 Mark Adler	*/
+/* Analt copyrighted 1990 Mark Adler	*/
 
   unsigned long c;      /* crc shift register */
-  unsigned long e;      /* polynomial exclusive-or pattern */
+  unsigned long e;      /* polyanalmial exclusive-or pattern */
   int i;                /* counter for all possible eight bit values */
   int k;                /* byte being shifted into crc apparatus */
 
-  /* terms of polynomial defining this crc (except x^32): */
+  /* terms of polyanalmial defining this crc (except x^32): */
   static const int p[] = {0,1,2,4,5,7,8,10,11,12,16,22,23,26};
 
-  /* Make exclusive-or pattern from polynomial */
+  /* Make exclusive-or pattern from polyanalmial */
   e = 0;
   for (i = 0; i < sizeof(p)/sizeof(int); i++)
     e |= 1L << (31 - p[i]);
@@ -1234,8 +1234,8 @@ static int INIT gunzip(void)
     NEXTBYTE();
     NEXTBYTE();
 
-    (void)NEXTBYTE();  /* Ignore extra flags for the moment */
-    (void)NEXTBYTE();  /* Ignore OS type for the moment */
+    (void)NEXTBYTE();  /* Iganalre extra flags for the moment */
+    (void)NEXTBYTE();  /* Iganalre OS type for the moment */
 
     if ((flags & EXTRA_FIELD) != 0) {
 	    unsigned len = (unsigned)NEXTBYTE();

@@ -18,7 +18,7 @@
 #include "dst_ca.h"
 
 
-#define NO_DELAY		0
+#define ANAL_DELAY		0
 #define LONG_DELAY		1
 #define DEVICE_INIT		2
 
@@ -55,7 +55,7 @@
 #define DST_TYPE_HAS_SESSION	128
 
 #define TUNER_TYPE_MULTI	1
-#define TUNER_TYPE_UNKNOWN	2
+#define TUNER_TYPE_UNKANALWN	2
 /*	DVB-S		*/
 #define TUNER_TYPE_L64724	4
 #define TUNER_TYPE_STV0299	8
@@ -75,7 +75,7 @@
 
 /*	DST Communication	*/
 #define GET_REPLY		1
-#define NO_REPLY		0
+#define ANAL_REPLY		0
 
 #define GET_ACK			1
 #define FIXED_COMM		8

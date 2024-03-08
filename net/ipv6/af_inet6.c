@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -88,7 +88,7 @@ struct ipv6_params ipv6_defaults = {
 static int disable_ipv6_mod;
 
 module_param_named(disable, disable_ipv6_mod, int, 0444);
-MODULE_PARM_DESC(disable, "Disable IPv6 module such that it is non-functional");
+MODULE_PARM_DESC(disable, "Disable IPv6 module such that it is analn-functional");
 
 module_param_named(disable_ipv6, ipv6_defaults.disable_ipv6, int, 0444);
 MODULE_PARM_DESC(disable_ipv6, "Disable IPv6 on all interfaces");
@@ -133,12 +133,12 @@ static int inet6_create(struct net *net, struct socket *sock, int protocol,
 
 	/* Look for the requested type/protocol pair. */
 lookup_protocol:
-	err = -ESOCKTNOSUPPORT;
+	err = -ESOCKTANALSUPPORT;
 	rcu_read_lock();
 	list_for_each_entry_rcu(answer, &inetsw6[sock->type], list) {
 
 		err = 0;
-		/* Check the non-wild match. */
+		/* Check the analn-wild match. */
 		if (protocol == answer->protocol) {
 			if (protocol != IPPROTO_IP)
 				break;
@@ -151,7 +151,7 @@ lookup_protocol:
 			if (IPPROTO_IP == answer->protocol)
 				break;
 		}
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 	}
 
 	if (err) {
@@ -188,7 +188,7 @@ lookup_protocol:
 
 	WARN_ON(!answer_prot->slab);
 
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	sk = sk_alloc(net, PF_INET6, GFP_KERNEL, answer_prot, kern);
 	if (!sk)
 		goto out;
@@ -239,7 +239,7 @@ lookup_protocol:
 	RCU_INIT_POINTER(inet->mc_list, NULL);
 	inet->rcv_tos	= 0;
 
-	if (READ_ONCE(net->ipv4.sysctl_ip_no_pmtu_disc))
+	if (READ_ONCE(net->ipv4.sysctl_ip_anal_pmtu_disc))
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
@@ -292,14 +292,14 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 	int err = 0;
 
 	if (addr->sin6_family != AF_INET6)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	addr_type = ipv6_addr_type(&addr->sin6_addr);
 	if ((addr_type & IPV6_ADDR_MULTICAST) && sk->sk_type == SOCK_STREAM)
 		return -EINVAL;
 
 	snum = ntohs(addr->sin6_port);
-	if (!(flags & BIND_NO_CAP_NET_BIND_SERVICE) &&
+	if (!(flags & BIND_ANAL_CAP_NET_BIND_SERVICE) &&
 	    snum && inet_port_requires_bind_service(net, snum) &&
 	    !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE))
 		return -EACCES;
@@ -319,7 +319,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		int chk_addr_ret;
 
 		/* Binding to v4-mapped address on a v6-only socket
-		 * makes no sense
+		 * makes anal sense
 		 */
 		if (ipv6_only_sock(sk)) {
 			err = -EINVAL;
@@ -330,7 +330,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		if (sk->sk_bound_dev_if) {
 			dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
 			if (!dev) {
-				err = -ENODEV;
+				err = -EANALDEV;
 				goto out_unlock;
 			}
 		}
@@ -340,9 +340,9 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		chk_addr_ret = inet_addr_type_dev_table(net, dev, v4addr);
 		rcu_read_unlock();
 
-		if (!inet_addr_valid_or_nonlocal(net, inet, v4addr,
+		if (!inet_addr_valid_or_analnlocal(net, inet, v4addr,
 						 chk_addr_ret)) {
-			err = -EADDRNOTAVAIL;
+			err = -EADDRANALTAVAIL;
 			goto out;
 		}
 	} else {
@@ -353,7 +353,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			if (__ipv6_addr_needs_scope_id(addr_type)) {
 				if (addr_len >= sizeof(struct sockaddr_in6) &&
 				    addr->sin6_scope_id) {
-					/* Override any existing binding, if another one
+					/* Override any existing binding, if aanalther one
 					 * is supplied by user.
 					 */
 					sk->sk_bound_dev_if = addr->sin6_scope_id;
@@ -369,7 +369,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			if (sk->sk_bound_dev_if) {
 				dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
 				if (!dev) {
-					err = -ENODEV;
+					err = -EANALDEV;
 					goto out_unlock;
 				}
 			}
@@ -379,10 +379,10 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			 */
 			v4addr = LOOPBACK4_IPV6;
 			if (!(addr_type & IPV6_ADDR_MULTICAST))	{
-				if (!ipv6_can_nonlocal_bind(net, inet) &&
+				if (!ipv6_can_analnlocal_bind(net, inet) &&
 				    !ipv6_chk_addr(net, &addr->sin6_addr,
 						   dev, 0)) {
-					err = -EADDRNOTAVAIL;
+					err = -EADDRANALTAVAIL;
 					goto out_unlock;
 				}
 			}
@@ -403,8 +403,8 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		sk->sk_ipv6only = 1;
 
 	/* Make sure we are allowed to bind here. */
-	if (snum || !(inet_test_bit(BIND_ADDRESS_NO_PORT, sk) ||
-		      (flags & BIND_FORCE_ADDRESS_NO_PORT))) {
+	if (snum || !(inet_test_bit(BIND_ADDRESS_ANAL_PORT, sk) ||
+		      (flags & BIND_FORCE_ADDRESS_ANAL_PORT))) {
 		err = sk->sk_prot->get_port(sk, snum);
 		if (err) {
 			sk->sk_ipv6only = saved_ipv6only;
@@ -537,7 +537,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		    (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_SYN_SENT)) &&
 		    peer == 1)) {
 			release_sock(sk);
-			return -ENOTCONN;
+			return -EANALTCONN;
 		}
 		sin->sin6_port = inet->inet_dport;
 		sin->sin6_addr = sk->sk_v6_daddr;
@@ -587,10 +587,10 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		/* IPV6_ADDRFORM can change sk->sk_prot under us. */
 		prot = READ_ONCE(sk->sk_prot);
 		if (!prot->ioctl)
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 		return sk_ioctl(sk, cmd, (void __user *)arg);
 	}
-	/*NOTREACHED*/
+	/*ANALTREACHED*/
 	return 0;
 }
 EXPORT_SYMBOL(inet6_ioctl);
@@ -639,7 +639,7 @@ int inet6_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCDELRT:
 		return inet6_compat_routing_ioctl(sk, cmd, argp);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 EXPORT_SYMBOL_GPL(inet6_compat_ioctl);
@@ -689,7 +689,7 @@ const struct proto_ops inet6_stream_ops = {
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
 	.connect	   = inet_stream_connect,	/* ok		*/
-	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
+	.socketpair	   = sock_anal_socketpair,	/* a do analthing	*/
 	.accept		   = inet_accept,		/* ok		*/
 	.getname	   = inet6_getname,
 	.poll		   = tcp_poll,			/* ok		*/
@@ -722,20 +722,20 @@ const struct proto_ops inet6_dgram_ops = {
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
 	.connect	   = inet_dgram_connect,	/* ok		*/
-	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
-	.accept		   = sock_no_accept,		/* a do nothing	*/
+	.socketpair	   = sock_anal_socketpair,	/* a do analthing	*/
+	.accept		   = sock_anal_accept,		/* a do analthing	*/
 	.getname	   = inet6_getname,
 	.poll		   = udp_poll,			/* ok		*/
 	.ioctl		   = inet6_ioctl,		/* must change  */
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,		/* ok		*/
+	.listen		   = sock_anal_listen,		/* ok		*/
 	.shutdown	   = inet_shutdown,		/* ok		*/
 	.setsockopt	   = sock_common_setsockopt,	/* ok		*/
 	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
 	.sendmsg	   = inet6_sendmsg,		/* retpoline's sake */
 	.recvmsg	   = inet6_recvmsg,		/* retpoline's sake */
 	.read_skb	   = udp_read_skb,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 	.set_peek_off	   = sk_set_peek_off,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	   = inet6_compat_ioctl,
@@ -769,7 +769,7 @@ int inet6_register_protosw(struct inet_protosw *p)
 	list_for_each(lh, &inetsw6[p->type]) {
 		answer = list_entry(lh, struct inet_protosw, list);
 
-		/* Check only the non-wild match. */
+		/* Check only the analn-wild match. */
 		if (INET_PROTOSW_PERMANENT & answer->flags) {
 			if (protocol == answer->protocol)
 				break;
@@ -782,9 +782,9 @@ int inet6_register_protosw(struct inet_protosw *p)
 		goto out_permanent;
 
 	/* Add the new entry after the last permanent entry if any, so that
-	 * the new entry does not override a permanent entry when matched with
+	 * the new entry does analt override a permanent entry when matched with
 	 * a wild-card protocol. But it is allowed to override any existing
-	 * non-permanent entry.  This means that when we remove this entry, the
+	 * analn-permanent entry.  This means that when we remove this entry, the
 	 * system automatically returns to the old behavior.
 	 */
 	list_add_rcu(&p->list, last_perm);
@@ -798,7 +798,7 @@ out_permanent:
 	goto out;
 
 out_illegal:
-	pr_err("Ignoring attempt to register invalid socket type %d\n",
+	pr_err("Iganalring attempt to register invalid socket type %d\n",
 	       p->type);
 	goto out;
 }
@@ -906,7 +906,7 @@ static int __net_init ipv6_init_mibs(struct net *net)
 
 	net->mib.udp_stats_in6 = alloc_percpu(struct udp_mib);
 	if (!net->mib.udp_stats_in6)
-		return -ENOMEM;
+		return -EANALMEM;
 	net->mib.udplite_stats_in6 = alloc_percpu(struct udp_mib);
 	if (!net->mib.udplite_stats_in6)
 		goto err_udplite_mib;
@@ -938,7 +938,7 @@ err_ip_mib:
 	free_percpu(net->mib.udplite_stats_in6);
 err_udplite_mib:
 	free_percpu(net->mib.udp_stats_in6);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ipv6_cleanup_mibs(struct net *net)
@@ -956,9 +956,9 @@ static int __net_init inet6_net_init(struct net *net)
 
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
-	net->ipv6.sysctl.icmpv6_echo_ignore_all = 0;
-	net->ipv6.sysctl.icmpv6_echo_ignore_multicast = 0;
-	net->ipv6.sysctl.icmpv6_echo_ignore_anycast = 0;
+	net->ipv6.sysctl.icmpv6_echo_iganalre_all = 0;
+	net->ipv6.sysctl.icmpv6_echo_iganalre_multicast = 0;
+	net->ipv6.sysctl.icmpv6_echo_iganalre_anycast = 0;
 	net->ipv6.sysctl.icmpv6_error_anycast_as_unicast = 0;
 
 	/* By default, rate limit error messages.
@@ -978,7 +978,7 @@ static int __net_init inet6_net_init(struct net *net)
 	net->ipv6.sysctl.max_hbh_opts_cnt = IP6_DEFAULT_MAX_HBH_OPTS_CNT;
 	net->ipv6.sysctl.max_dst_opts_len = IP6_DEFAULT_MAX_DST_OPTS_LEN;
 	net->ipv6.sysctl.max_hbh_opts_len = IP6_DEFAULT_MAX_HBH_OPTS_LEN;
-	net->ipv6.sysctl.fib_notify_on_flag_change = 0;
+	net->ipv6.sysctl.fib_analtify_on_flag_change = 0;
 	atomic_set(&net->ipv6.fib6_sernum, 1);
 
 	net->ipv6.sysctl.ioam6_id = IOAM6_DEFAULT_ID;
@@ -1149,7 +1149,7 @@ static int __init inet6_init(void)
 		goto netfilter_fail;
 	/* Create /proc/foo6 entries. */
 #ifdef CONFIG_PROC_FS
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (raw6_proc_init())
 		goto proc_raw6_fail;
 	if (udplite6_proc_init())

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_FWIF_SHARED_H
 #define PVR_ROGUE_FWIF_SHARED_H
@@ -18,9 +18,9 @@
  * Maximum number of UFOs in a CCB command.
  * The number is based on having 32 sync prims (as originally), plus 32 sync
  * checkpoints.
- * Once the use of sync prims is no longer supported, we will retain
+ * Once the use of sync prims is anal longer supported, we will retain
  * the same total (64) as the number of sync checkpoints which may be
- * supporting a fence is not visible to the client driver and has to
+ * supporting a fence is analt visible to the client driver and has to
  * allow for the number of different timelines involved in fence merges.
  */
 #define ROGUE_FWIF_CCB_CMD_MAX_UFOS (32U + 32U)
@@ -113,7 +113,7 @@ struct rogue_fwif_cmd_geom_frag_shared {
  *
  * Cmd 1    : Currently executing on the GPU data master.
  * Cmd 2,3,4: Fence dependencies met, commands runnable.
- * Cmd 5... : Fence dependency not met yet.
+ * Cmd 5... : Fence dependency analt met yet.
  */
 struct rogue_fwif_cccb_ctl {
 	/* Host write offset into CCB. This must be aligned to 16 bytes. */
@@ -124,8 +124,8 @@ struct rogue_fwif_cccb_ctl {
 	 */
 	u32 read_offset;
 	/*
-	 * Firmware fence dependency offset. Points to commands not ready, i.e.
-	 * fence dependencies are not met.
+	 * Firmware fence dependency offset. Points to commands analt ready, i.e.
+	 * fence dependencies are analt met.
 	 */
 	u32 dep_offset;
 	/* Offset wrapping mask, total capacity in bytes of the CCB-1 */
@@ -224,27 +224,27 @@ struct rogue_fwif_prbuffer {
 
 /* Last reset reason for a context. */
 enum rogue_context_reset_reason {
-	/* No reset reason recorded */
-	ROGUE_CONTEXT_RESET_REASON_NONE = 0,
+	/* Anal reset reason recorded */
+	ROGUE_CONTEXT_RESET_REASON_ANALNE = 0,
 	/* Caused a reset due to locking up */
 	ROGUE_CONTEXT_RESET_REASON_GUILTY_LOCKUP = 1,
-	/* Affected by another context locking up */
-	ROGUE_CONTEXT_RESET_REASON_INNOCENT_LOCKUP = 2,
+	/* Affected by aanalther context locking up */
+	ROGUE_CONTEXT_RESET_REASON_INANALCENT_LOCKUP = 2,
 	/* Overran the global deadline */
 	ROGUE_CONTEXT_RESET_REASON_GUILTY_OVERRUNING = 3,
-	/* Affected by another context overrunning */
-	ROGUE_CONTEXT_RESET_REASON_INNOCENT_OVERRUNING = 4,
+	/* Affected by aanalther context overrunning */
+	ROGUE_CONTEXT_RESET_REASON_INANALCENT_OVERRUNING = 4,
 	/* Forced reset to ensure scheduling requirements */
 	ROGUE_CONTEXT_RESET_REASON_HARD_CONTEXT_SWITCH = 5,
 	/* FW Safety watchdog triggered */
 	ROGUE_CONTEXT_RESET_REASON_FW_WATCHDOG = 12,
-	/* FW page fault (no HWR) */
+	/* FW page fault (anal HWR) */
 	ROGUE_CONTEXT_RESET_REASON_FW_PAGEFAULT = 13,
 	/* FW execution error (GPU reset requested) */
 	ROGUE_CONTEXT_RESET_REASON_FW_EXEC_ERR = 14,
 	/* Host watchdog detected FW error */
 	ROGUE_CONTEXT_RESET_REASON_HOST_WDG_FW_ERR = 15,
-	/* Geometry DM OOM event is not allowed */
+	/* Geometry DM OOM event is analt allowed */
 	ROGUE_CONTEXT_GEOM_OOM_DISABLED = 16,
 };
 

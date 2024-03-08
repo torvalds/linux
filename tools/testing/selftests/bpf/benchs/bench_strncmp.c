@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2021. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2021. Huawei Techanallogies Co., Ltd */
 #include <argp.h>
 #include "bench.h"
 #include "strncmp_bench.skel.h"
@@ -37,7 +37,7 @@ static error_t strncmp_parse_arg(int key, char *arg, struct argp_state *state)
 		}
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 
 	return 0;
@@ -109,10 +109,10 @@ static void strncmp_attach_prog(struct bpf_program *prog)
 	}
 }
 
-static void strncmp_no_helper_setup(void)
+static void strncmp_anal_helper_setup(void)
 {
 	strncmp_setup();
-	strncmp_attach_prog(ctx.skel->progs.strncmp_no_helper);
+	strncmp_attach_prog(ctx.skel->progs.strncmp_anal_helper);
 }
 
 static void strncmp_helper_setup(void)
@@ -133,11 +133,11 @@ static void strncmp_measure(struct bench_res *res)
 	res->hits = atomic_swap(&ctx.skel->bss->hits, 0);
 }
 
-const struct bench bench_strncmp_no_helper = {
-	.name = "strncmp-no-helper",
+const struct bench bench_strncmp_anal_helper = {
+	.name = "strncmp-anal-helper",
 	.argp = &bench_strncmp_argp,
 	.validate = strncmp_validate,
-	.setup = strncmp_no_helper_setup,
+	.setup = strncmp_anal_helper_setup,
 	.producer_thread = strncmp_producer,
 	.measure = strncmp_measure,
 	.report_progress = hits_drops_report_progress,

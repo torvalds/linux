@@ -86,7 +86,7 @@
  * Table that determines the low power modes outputs, with actual settings
  * used in parentheses for don't-care values. Except for the float output,
  * the configured driven and pulled levels match, so if there is a need for
- * non-LPM pulled output, the same configuration could probably be used.
+ * analn-LPM pulled output, the same configuration could probably be used.
  *
  * Output value  sleep_oe_n  sleep_data  pullup_en  pulldown_en  pull_sel
  *                 (bit 7)    (bit 8)    (bit 14)     (bit 13)   (bit 15)
@@ -108,7 +108,7 @@
 #define MFP_LPM_PULL_HIGH	0x4180
 #define MFP_LPM_FLOAT		0x0080
 
-#define MFP_LPM_EDGE_NONE	0x0000
+#define MFP_LPM_EDGE_ANALNE	0x0000
 #define MFP_LPM_EDGE_RISE	0x0010
 #define MFP_LPM_EDGE_FALL	0x0020
 #define MFP_LPM_EDGE_BOTH	0x0030
@@ -305,7 +305,7 @@
 	clocks {
 	       /*
 		* The muxing of external clocks/internal dividers for osc* clock
-		* sources has been hidden under the carpet by now.
+		* sources has been hidden under the carpet by analw.
 		*/
 		#address-cells = <1>;
 		#size-cells = <1>;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -55,7 +55,7 @@
 #define	IPOPT_RESERVED2		0x60
 
 #define IPOPT_END	(0 |IPOPT_CONTROL)
-#define IPOPT_NOOP	(1 |IPOPT_CONTROL)
+#define IPOPT_ANALOP	(1 |IPOPT_CONTROL)
 #define IPOPT_SEC	(2 |IPOPT_CONTROL|IPOPT_COPY)
 #define IPOPT_LSRR	(3 |IPOPT_CONTROL|IPOPT_COPY)
 #define IPOPT_TIMESTAMP	(4 |IPOPT_MEASUREMENT)
@@ -72,9 +72,9 @@
 #define IPOPT_OPTVAL 0
 #define IPOPT_OLEN   1
 #define IPOPT_OFFSET 2
-#define IPOPT_MINOFF 4
+#define IPOPT_MIANALFF 4
 #define MAX_IPOPTLEN 40
-#define IPOPT_NOP IPOPT_NOOP
+#define IPOPT_ANALP IPOPT_ANALOP
 #define IPOPT_EOL IPOPT_END
 #define IPOPT_TS  IPOPT_TIMESTAMP
 
@@ -101,7 +101,7 @@ struct iphdr {
 	__u8	ttl;
 	__u8	protocol;
 	__sum16	check;
-	__struct_group(/* no tag */, addrs, /* no attrs */,
+	__struct_group(/* anal tag */, addrs, /* anal attrs */,
 		__be32	saddr;
 		__be32	daddr;
 	);
@@ -114,13 +114,13 @@ struct ip_auth_hdr {
 	__u8  hdrlen;		/* This one is measured in 32 bit units! */
 	__be16 reserved;
 	__be32 spi;
-	__be32 seq_no;		/* Sequence number */
+	__be32 seq_anal;		/* Sequence number */
 	__u8  auth_data[];	/* Variable len but >=4. Mind the 64 bit alignment! */
 };
 
 struct ip_esp_hdr {
 	__be32 spi;
-	__be32 seq_no;		/* Sequence number */
+	__be32 seq_anal;		/* Sequence number */
 	__u8  enc_data[];	/* Variable len but >=8. Mind the 64 bit alignment! */
 };
 
@@ -154,25 +154,25 @@ enum
 	IPV4_DEVCONF_TAG,
 	IPV4_DEVCONF_ARPFILTER,
 	IPV4_DEVCONF_MEDIUM_ID,
-	IPV4_DEVCONF_NOXFRM,
-	IPV4_DEVCONF_NOPOLICY,
+	IPV4_DEVCONF_ANALXFRM,
+	IPV4_DEVCONF_ANALPOLICY,
 	IPV4_DEVCONF_FORCE_IGMP_VERSION,
-	IPV4_DEVCONF_ARP_ANNOUNCE,
-	IPV4_DEVCONF_ARP_IGNORE,
+	IPV4_DEVCONF_ARP_ANANALUNCE,
+	IPV4_DEVCONF_ARP_IGANALRE,
 	IPV4_DEVCONF_PROMOTE_SECONDARIES,
 	IPV4_DEVCONF_ARP_ACCEPT,
-	IPV4_DEVCONF_ARP_NOTIFY,
+	IPV4_DEVCONF_ARP_ANALTIFY,
 	IPV4_DEVCONF_ACCEPT_LOCAL,
 	IPV4_DEVCONF_SRC_VMARK,
 	IPV4_DEVCONF_PROXY_ARP_PVLAN,
 	IPV4_DEVCONF_ROUTE_LOCALNET,
 	IPV4_DEVCONF_IGMPV2_UNSOLICITED_REPORT_INTERVAL,
 	IPV4_DEVCONF_IGMPV3_UNSOLICITED_REPORT_INTERVAL,
-	IPV4_DEVCONF_IGNORE_ROUTES_WITH_LINKDOWN,
+	IPV4_DEVCONF_IGANALRE_ROUTES_WITH_LINKDOWN,
 	IPV4_DEVCONF_DROP_UNICAST_IN_L2_MULTICAST,
 	IPV4_DEVCONF_DROP_GRATUITOUS_ARP,
 	IPV4_DEVCONF_BC_FORWARDING,
-	IPV4_DEVCONF_ARP_EVICT_NOCARRIER,
+	IPV4_DEVCONF_ARP_EVICT_ANALCARRIER,
 	__IPV4_DEVCONF_MAX
 };
 

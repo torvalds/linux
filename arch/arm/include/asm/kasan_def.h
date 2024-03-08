@@ -2,7 +2,7 @@
 /*
  *  arch/arm/include/asm/kasan_def.h
  *
- *  Copyright (c) 2018 Huawei Technologies Co., Ltd.
+ *  Copyright (c) 2018 Huawei Techanallogies Co., Ltd.
  *
  *  Author: Abbott Liu <liuwenliang@huawei.com>
  */
@@ -35,7 +35,7 @@
  * |    | |
  * |    | |
  * |    | |-> The user space area in lowmem. The kernel address
- * |    | |   sanitizer do not use this space, nor does it map it.
+ * |    | |   sanitizer do analt use this space, analr does it map it.
  * |    | |
  * |    | |
  * |    | |

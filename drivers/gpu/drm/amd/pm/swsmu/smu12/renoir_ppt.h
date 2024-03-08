@@ -8,27 +8,27 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef __RENOIR_PPT_H__
-#define __RENOIR_PPT_H__
+#ifndef __REANALIR_PPT_H__
+#define __REANALIR_PPT_H__
 
-extern void renoir_set_ppt_funcs(struct smu_context *smu);
+extern void reanalir_set_ppt_funcs(struct smu_context *smu);
 
-/* UMD PState Renoir Msg Parameters in MHz */
-#define RENOIR_UMD_PSTATE_GFXCLK       700
-#define RENOIR_UMD_PSTATE_SOCCLK       678
-#define RENOIR_UMD_PSTATE_FCLK         800
-#define RENOIR_UMD_PSTATE_VCNCLK       0x022D01D8
+/* UMD PState Reanalir Msg Parameters in MHz */
+#define REANALIR_UMD_PSTATE_GFXCLK       700
+#define REANALIR_UMD_PSTATE_SOCCLK       678
+#define REANALIR_UMD_PSTATE_FCLK         800
+#define REANALIR_UMD_PSTATE_VCNCLK       0x022D01D8
 
 #endif

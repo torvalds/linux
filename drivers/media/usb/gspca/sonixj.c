@@ -108,26 +108,26 @@ static void qual_upd(struct work_struct *work);
 #define DEF_EN		0x80	/* defect pixel by 0: soft, 1: hard */
 
 static const struct v4l2_pix_format cif_mode[] = {
-	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
 static const struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
-		/* Note 3 / 8 is not large enough, not even 5 / 8 is ?! */
+		/* Analte 3 / 8 is analt large eanalugh, analt even 5 / 8 is ?! */
 		.sizeimage = 640 * 480 * 3 / 4 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
@@ -848,7 +848,7 @@ static const u8 ov7660_sensor_init[][8] = {
 	{0xc1, 0x21, 0x88, 0xaf, 0xc7, 0xdf, 0x00, 0x10}, /* gamma curve */
 	{0xc1, 0x21, 0x8b, 0x99, 0x99, 0xcf, 0x00, 0x10}, /* reserved */
 	{0xb1, 0x21, 0x92, 0x00, 0x00, 0x00, 0x00, 0x10}, /* DM_LNL/H */
-/* not in all ms-win traces*/
+/* analt in all ms-win traces*/
 	{0xa1, 0x21, 0xa1, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{}
 };
@@ -1404,7 +1404,7 @@ static void mi0360_probe(struct gspca_dev *gspca_dev)
 		gspca_dbg(gspca_dev, D_PROBE, "Sensor mi0360\n");
 		break;
 	default:
-		gspca_dbg(gspca_dev, D_PROBE, "Unknown sensor %04x - forced to mi0360\n",
+		gspca_dbg(gspca_dev, D_PROBE, "Unkanalwn sensor %04x - forced to mi0360\n",
 			  val);
 		break;
 	}
@@ -1469,7 +1469,7 @@ static void ov7648_probe(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_PO1030;
 		return;
 	}
-	pr_err("Unknown sensor %04x\n", val);
+	pr_err("Unkanalwn sensor %04x\n", val);
 }
 
 /* 0c45:6142 sensor may be po2030n, gc0305 or gc0307 */
@@ -1507,7 +1507,7 @@ static void po2030n_probe(struct gspca_dev *gspca_dev)
 		gspca_dbg(gspca_dev, D_PROBE, "Sensor po2030n\n");
 /*		sd->sensor = SENSOR_PO2030N; */
 	} else {
-		pr_err("Unknown sensor ID %04x\n", val);
+		pr_err("Unkanalwn sensor ID %04x\n", val);
 	}
 }
 
@@ -1545,7 +1545,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	const u8 *sn9c1xx;
-	u8 regGpio[] = { 0x29, 0x70 };		/* no audio */
+	u8 regGpio[] = { 0x29, 0x70 };		/* anal audio */
 	u8 regF1;
 
 	/* setup a selector by bridge */
@@ -1563,13 +1563,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	case BRIDGE_SN9C102P:
 	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	default:
 /*	case BRIDGE_SN9C110: */
 /*	case BRIDGE_SN9C120: */
 		if (regF1 != 0x12)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	switch (sd->sensor) {
@@ -1596,7 +1596,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	/* Note we do not disable the sensor clock here (power saving mode),
+	/* Analte we do analt disable the sensor clock here (power saving mode),
 	   as that also disables the button on the cam. */
 	reg_w1(gspca_dev, 0xf1, 0x00);
 
@@ -1677,7 +1677,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 
@@ -1891,10 +1891,10 @@ static void setredblue(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->sensor == SENSOR_PO2030N) {
-		u8 rg1b[] =		/* red  green1 blue (no g2) */
+		u8 rg1b[] =		/* red  green1 blue (anal g2) */
 			{0xc1, 0x6e, 0x16, 0x00, 0x40, 0x00, 0x00, 0x10};
 
-		/* 0x40 = normal value = gain x 1 */
+		/* 0x40 = analrmal value = gain x 1 */
 		rg1b[3] = sd->red_bal->val * 2;
 		rg1b[5] = sd->blue_bal->val * 2;
 		i2c_w8(gspca_dev, rg1b);
@@ -2111,7 +2111,7 @@ static void setfreq(struct gspca_dev *gspca_dev)
 			reg2b = 0xac;
 			reg2d |= 0x04;
 			break;
-		case 2: /* 60 hz (filter on, no framerate adj) */
+		case 2: /* 60 hz (filter on, anal framerate adj) */
 			reg2a |= 0x80;
 			reg2d |= 0x04;
 			break;
@@ -2128,7 +2128,7 @@ static void setjpegqual(struct gspca_dev *gspca_dev)
 
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 #if USB_BUF_SZ < 64
-#error "No room enough in usb_buf for quantization table"
+#error "Anal room eanalugh in usb_buf for quantization table"
 #endif
 	memcpy(gspca_dev->usb_buf, &sd->jpeg_hdr[JPEG_QT0_OFFSET], 64);
 	usb_control_msg(gspca_dev->dev,
@@ -2325,7 +2325,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	setgamma(gspca_dev);
 
-/*fixme: 8 times with all zeroes and 1 or 2 times with normal values */
+/*fixme: 8 times with all zeroes and 1 or 2 times with analrmal values */
 	for (i = 0; i < 8; i++)
 		reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
 	switch (sd->sensor) {
@@ -2574,7 +2574,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	u8 luma_mean = 130;
 	u8 luma_delta = 20;
 
-	/* Thanks S., without your advice, autobright should not work :) */
+	/* Thanks S., without your advice, autobright should analt work :) */
 	if (sd->ag_cnt < 0)
 		return;
 	if (--sd->ag_cnt >= 0)
@@ -2635,7 +2635,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	}
 }
 
-/* set the average luminosity from an isoc marker */
+/* set the average lumianalsity from an isoc marker */
 static void set_lum(struct sd *sd,
 		    u8 *data)
 {
@@ -2671,7 +2671,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 * A frame ends on the marker
 	 *		ff ff 00 c4 c4 96 ..
 	 * which is 62 bytes long and is followed by various information
-	 * including statuses and luminosity.
+	 * including statuses and lumianalsity.
 	 *
 	 * A marker may be split on two packets.
 	 *
@@ -2680,7 +2680,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 *	0xc0: frame sequence
 	 * When the bit 'USB full' is set, the frame must be discarded;
 	 * this is also the case when the 2 bytes before the marker are
-	 * not the JPEG end of frame ('ff d9').
+	 * analt the JPEG end of frame ('ff d9').
 	 */
 
 	/* count the packets and their size */
@@ -2723,7 +2723,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 	}
 
-	/* no marker found */
+	/* anal marker found */
 	/* add the JPEG header if first fragment */
 	if (data[len - 1] == 0xff)
 		sd->short_mark = -1;
@@ -2784,7 +2784,7 @@ marker_found:
 
 	/* if the marker is smaller than 62 bytes,
 	 * memorize the number of bytes to skip in the next packet */
-	if (i + 62 > len) {			/* no more usable data */
+	if (i + 62 > len) {			/* anal more usable data */
 		sd->short_mark = i + 62 - len;
 		return;
 	}

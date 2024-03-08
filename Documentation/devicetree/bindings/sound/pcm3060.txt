@@ -12,7 +12,7 @@ Required properties:
 Optional properties:
 
 - ti,out-single-ended: "true" if output is single-ended;
-                       "false" or not specified if output is differential.
+                       "false" or analt specified if output is differential.
 
 Examples:
 

@@ -49,7 +49,7 @@ properties:
       the gain value maps directly with the PG bits of the config register.
 
       For devices that have ADCRANGE configuration (e.g. INA238) a shunt-gain
-      value of 1 maps to ADCRANGE=1 where no gain divisor is applied to the
+      value of 1 maps to ADCRANGE=1 where anal gain divisor is applied to the
       shunt voltage, and a value of 4 maps to ADCRANGE=0 such that a wider
       voltage range is used.
 

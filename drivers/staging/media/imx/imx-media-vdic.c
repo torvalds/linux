@@ -22,8 +22,8 @@
  * can be sent to memory via IDMAC channel 13). This pipeline only works
  * in VDIC's high motion mode, which only requires a single field for
  * processing. The other motion modes (low and medium) require three
- * fields, so this pipeline does not work in those modes. Also, it is
- * not clear how this pipeline can deal with the various field orders
+ * fields, so this pipeline does analt work in those modes. Also, it is
+ * analt clear how this pipeline can deal with the various field orders
  * (sequential BT/TB, interlaced BT/TB).
  *
  * MEM -> CH8,9,10 -> VDIC
@@ -33,7 +33,7 @@
  * These memory buffers can come from a video output or mem2mem device.
  * All motion modes are supported by this pipeline.
  *
- * The "direct" CSI->VDIC pipeline requires no DMA, but it can only be
+ * The "direct" CSI->VDIC pipeline requires anal DMA, but it can only be
  * used in high motion mode.
  */
 
@@ -174,7 +174,7 @@ static int vdic_get_ipu_resources(struct vdic_priv *priv)
 	return 0;
 
 out_err_chan:
-	v4l2_err(&priv->sd, "could not get IDMAC channel %u\n", err_chan);
+	v4l2_err(&priv->sd, "could analt get IDMAC channel %u\n", err_chan);
 out:
 	vdic_put_ipu_resources(priv);
 	return ret;
@@ -195,7 +195,7 @@ static void __maybe_unused prepare_vdi_in_buffers(struct vdic_priv *priv,
 	u32 fs = priv->field_size;
 	u32 is = priv->in_stride;
 
-	/* current input buffer is now previous */
+	/* current input buffer is analw previous */
 	priv->prev_in_buf = priv->curr_in_buf;
 	priv->curr_in_buf = curr;
 	prev = priv->prev_in_buf ? priv->prev_in_buf : curr;
@@ -372,13 +372,13 @@ static int vdic_start(struct vdic_priv *priv)
 	/*
 	 * init the VDIC.
 	 *
-	 * note we don't give infmt->code to ipu_vdi_setup(). The VDIC
+	 * analte we don't give infmt->code to ipu_vdi_setup(). The VDIC
 	 * only supports 4:2:2 or 4:2:0, and this subdev will only
 	 * negotiate 4:2:2 at its sink pads.
 	 */
 	ipu_vdi_setup(priv->vdi, MEDIA_BUS_FMT_UYVY8_2X8,
 		      infmt->width, infmt->height);
-	ipu_vdi_set_field_order(priv->vdi, V4L2_STD_UNKNOWN, infmt->field);
+	ipu_vdi_set_field_order(priv->vdi, V4L2_STD_UNKANALWN, infmt->field);
 	ipu_vdi_set_motion(priv->vdi, priv->motion);
 
 	ret = priv->ops->setup(priv);
@@ -445,7 +445,7 @@ static const struct v4l2_ctrl_ops vdic_ctrl_ops = {
 };
 
 static const char * const vdic_ctrl_motion_menu[] = {
-	"No Motion Compensation",
+	"Anal Motion Compensation",
 	"Low Motion",
 	"Medium Motion",
 	"High Motion",
@@ -514,7 +514,7 @@ static int vdic_s_stream(struct v4l2_subdev *sd, int enable)
 	if (src_sd) {
 		/* start/stop upstream */
 		ret = v4l2_subdev_call(src_sd, video, s_stream, enable);
-		ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
+		ret = (ret && ret != -EANALIOCTLCMD) ? ret : 0;
 		if (ret) {
 			if (enable)
 				vdic_stop(priv);
@@ -601,7 +601,7 @@ static void vdic_try_fmt(struct vdic_priv *priv,
 	case VDIC_SRC_PAD_DIRECT:
 		sdformat->format = *infmt;
 		/* output is always progressive! */
-		sdformat->format.field = V4L2_FIELD_NONE;
+		sdformat->format.field = V4L2_FIELD_ANALNE;
 		break;
 	case VDIC_SINK_PAD_DIRECT:
 	case VDIC_SINK_PAD_IDMAC:
@@ -610,7 +610,7 @@ static void vdic_try_fmt(struct vdic_priv *priv,
 				      &sdformat->format.height,
 				      MIN_H, MAX_H_VDIC, H_ALIGN, S_ALIGN);
 
-		/* input must be interlaced! Choose SEQ_TB if not */
+		/* input must be interlaced! Choose SEQ_TB if analt */
 		if (!V4L2_FIELD_HAS_BOTH(sdformat->format.field))
 			sdformat->format.field = V4L2_FIELD_SEQ_TB;
 		break;
@@ -724,7 +724,7 @@ static int vdic_link_setup(struct media_entity *entity,
 			goto out;
 		}
 		if (!vdev) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto out;
 		}
 
@@ -748,7 +748,7 @@ static int vdic_link_setup(struct media_entity *entity,
 	}
 
 	priv->src = remote->entity;
-	/* record which input pad is now active */
+	/* record which input pad is analw active */
 	priv->active_input_pad = local->index;
 out:
 	mutex_unlock(&priv->lock);
@@ -828,14 +828,14 @@ static int vdic_set_frame_interval(struct v4l2_subdev *sd,
 	switch (fi->pad) {
 	case VDIC_SINK_PAD_DIRECT:
 	case VDIC_SINK_PAD_IDMAC:
-		/* No limits on valid input frame intervals */
+		/* Anal limits on valid input frame intervals */
 		if (fi->interval.numerator == 0 ||
-		    fi->interval.denominator == 0)
+		    fi->interval.deanalminator == 0)
 			fi->interval = priv->frame_interval[fi->pad];
 		/* Reset output interval */
 		*output_fi = fi->interval;
 		if (priv->csi_direct)
-			output_fi->denominator *= 2;
+			output_fi->deanalminator *= 2;
 		break;
 	case VDIC_SRC_PAD_DIRECT:
 		/*
@@ -846,7 +846,7 @@ static int vdic_set_frame_interval(struct v4l2_subdev *sd,
 		 */
 		fi->interval = *input_fi;
 		if (priv->csi_direct)
-			fi->interval.denominator *= 2;
+			fi->interval.deanalminator *= 2;
 		break;
 	default:
 		ret = -EINVAL;
@@ -874,15 +874,15 @@ static int vdic_registered(struct v4l2_subdev *sd)
 		ret = imx_media_init_mbus_fmt(&priv->format_mbus[i],
 					      IMX_MEDIA_DEF_PIX_WIDTH,
 					      IMX_MEDIA_DEF_PIX_HEIGHT, code,
-					      V4L2_FIELD_NONE, &priv->cc[i]);
+					      V4L2_FIELD_ANALNE, &priv->cc[i]);
 		if (ret)
 			return ret;
 
 		/* init default frame interval */
 		priv->frame_interval[i].numerator = 1;
-		priv->frame_interval[i].denominator = 30;
+		priv->frame_interval[i].deanalminator = 30;
 		if (i == VDIC_SRC_PAD_DIRECT)
-			priv->frame_interval[i].denominator *= 2;
+			priv->frame_interval[i].deanalminator *= 2;
 	}
 
 	priv->active_input_pad = VDIC_SINK_PAD_DIRECT;
@@ -936,7 +936,7 @@ struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
 
 	priv = devm_kzalloc(ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->ipu_dev = ipu_dev;
 	priv->ipu = ipu;
@@ -947,7 +947,7 @@ struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
 	priv->sd.entity.ops = &vdic_entity_ops;
 	priv->sd.entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	priv->sd.owner = ipu_dev->driver->owner;
-	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	priv->sd.grp_id = grp_id;
 	imx_media_grp_id_to_sd_name(priv->sd.name, sizeof(priv->sd.name),
 				    priv->sd.grp_id, ipu_get_num(ipu));

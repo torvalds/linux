@@ -3,7 +3,7 @@
  * Mac80211 STA API for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #include <linux/vmalloc.h>
@@ -33,9 +33,9 @@ static int cw1200_start_ap(struct cw1200_common *priv);
 static int cw1200_update_beaconing(struct cw1200_common *priv);
 static int cw1200_enable_beaconing(struct cw1200_common *priv,
 				   bool enable);
-static void __cw1200_sta_notify(struct ieee80211_hw *dev,
+static void __cw1200_sta_analtify(struct ieee80211_hw *dev,
 				struct ieee80211_vif *vif,
-				enum sta_notify_cmd notify_cmd,
+				enum sta_analtify_cmd analtify_cmd,
 				int link_id);
 static int __cw1200_flush(struct cw1200_common *priv, bool drop);
 
@@ -217,7 +217,7 @@ int cw1200_add_interface(struct ieee80211_hw *dev,
 
 	if (priv->mode != NL80211_IFTYPE_MONITOR) {
 		mutex_unlock(&priv->conf_mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (vif->type) {
@@ -229,7 +229,7 @@ int cw1200_add_interface(struct ieee80211_hw *dev,
 		break;
 	default:
 		mutex_unlock(&priv->conf_mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->vif = vif;
@@ -379,7 +379,7 @@ int cw1200_config(struct ieee80211_hw *dev, u32 changed)
 
 		/* Firmware requires that value for this 1-byte field must
 		 * be specified in units of 500us. Values above the 128ms
-		 * threshold are not supported.
+		 * threshold are analt supported.
 		 */
 		if (conf->dynamic_ps_timeout >= 0x80)
 			priv->powersave_mode.fast_psm_idle_period = 0xFF;
@@ -396,7 +396,7 @@ int cw1200_config(struct ieee80211_hw *dev, u32 changed)
 		/* TBD: It looks like it's transparent
 		 * there's a monitor interface present -- use this
 		 * to determine for example whether to calculate
-		 * timestamps for packets or not, do not use instead
+		 * timestamps for packets or analt, do analt use instead
 		 * of filter flags!
 		 */
 	}
@@ -447,18 +447,18 @@ void cw1200_update_filtering(struct cw1200_common *priv)
 	static struct wsm_mib_beacon_filter_table bf_tbl = {
 		.entry[0].ie_id = WLAN_EID_VENDOR_SPECIFIC,
 		.entry[0].flags = WSM_BEACON_FILTER_IE_HAS_CHANGED |
-					WSM_BEACON_FILTER_IE_NO_LONGER_PRESENT |
+					WSM_BEACON_FILTER_IE_ANAL_LONGER_PRESENT |
 					WSM_BEACON_FILTER_IE_HAS_APPEARED,
 		.entry[0].oui[0] = 0x50,
 		.entry[0].oui[1] = 0x6F,
 		.entry[0].oui[2] = 0x9A,
 		.entry[1].ie_id = WLAN_EID_HT_OPERATION,
 		.entry[1].flags = WSM_BEACON_FILTER_IE_HAS_CHANGED |
-					WSM_BEACON_FILTER_IE_NO_LONGER_PRESENT |
+					WSM_BEACON_FILTER_IE_ANAL_LONGER_PRESENT |
 					WSM_BEACON_FILTER_IE_HAS_APPEARED,
 		.entry[2].ie_id = WLAN_EID_ERP_INFO,
 		.entry[2].flags = WSM_BEACON_FILTER_IE_HAS_CHANGED |
-					WSM_BEACON_FILTER_IE_NO_LONGER_PRESENT |
+					WSM_BEACON_FILTER_IE_ANAL_LONGER_PRESENT |
 					WSM_BEACON_FILTER_IE_HAS_APPEARED,
 	};
 
@@ -682,7 +682,7 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		   struct ieee80211_key_conf *key)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	struct cw1200_common *priv = dev->priv;
 	struct ieee80211_key_seq seq;
 
@@ -810,7 +810,7 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		default:
 			pr_warn("Unhandled key type %d\n", key->cipher);
 			cw1200_free_key(priv, idx);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto finally;
 		}
 		ret = wsm_add_key(priv, wsm_key);
@@ -1017,7 +1017,7 @@ void cw1200_event_handler(struct work_struct *work)
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW :
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
 			pr_debug("[CQM] RSSI event: %d.\n", rcpi_rssi);
-			ieee80211_cqm_rssi_notify(priv->vif, cqm_evt, rcpi_rssi,
+			ieee80211_cqm_rssi_analtify(priv->vif, cqm_evt, rcpi_rssi,
 						  GFP_KERNEL);
 			break;
 		}
@@ -1082,7 +1082,7 @@ static int cw1200_parse_sdd_file(struct cw1200_common *priv)
 				break;
 			}
 			v = le16_to_cpu(*((__le16 *)(p + 2)));
-			if (!v)  /* non-zero means this is enabled */
+			if (!v)  /* analn-zero means this is enabled */
 				break;
 
 			v = le16_to_cpu(*((__le16 *)(p + 4)));
@@ -1105,7 +1105,7 @@ static int cw1200_parse_sdd_file(struct cw1200_common *priv)
 	}
 
 	if (!priv->bt_present) {
-		pr_debug("PTA element NOT found.\n");
+		pr_debug("PTA element ANALT found.\n");
 		priv->conf_listen_interval = 0;
 	}
 	return ret;
@@ -1115,12 +1115,12 @@ int cw1200_setup_mac(struct cw1200_common *priv)
 {
 	int ret = 0;
 
-	/* NOTE: There is a bug in FW: it reports signal
+	/* ANALTE: There is a bug in FW: it reports signal
 	 * as RSSI if RSSI subscription is enabled.
-	 * It's not enough to set WSM_RCPI_RSSI_USE_RSSI.
+	 * It's analt eanalugh to set WSM_RCPI_RSSI_USE_RSSI.
 	 *
-	 * NOTE2: RSSI based reports have been switched to RCPI, since
-	 * FW has a bug and RSSI reported values are not stable,
+	 * ANALTE2: RSSI based reports have been switched to RCPI, since
+	 * FW has a bug and RSSI reported values are analt stable,
 	 * what can lead to signal level oscilations in user-end applications
 	 */
 	struct wsm_rcpi_rssi_threshold threshold = {
@@ -1302,7 +1302,7 @@ static void cw1200_do_join(struct cw1200_common *priv)
 			cw1200_rate_mask_to_wsm(priv, 0xFF0);
 	}
 
-	/* Enable asynchronous join calls */
+	/* Enable asynchroanalus join calls */
 	if (!priv->vif->cfg.ibss_joined) {
 		join.flags |= WSM_JOIN_FLAGS_FORCE;
 		join.flags |= WSM_JOIN_FLAGS_FORCE_WITH_COMPLETE_IND;
@@ -1350,7 +1350,7 @@ static void cw1200_do_join(struct cw1200_common *priv)
 		cw1200_upload_keys(priv);
 
 		/* Due to beacon filtering it is possible that the
-		 * AP's beacon is not known for the mac80211 stack.
+		 * AP's beacon is analt kanalwn for the mac80211 stack.
 		 * Disable filtering temporary to make sure the stack
 		 * receives at least one
 		 */
@@ -1520,7 +1520,7 @@ int cw1200_set_uapsd_param(struct cw1200_common *priv,
 	if (arg->uapsd_enable[3])
 		uapsd_flags |= 1;
 
-	/* Currently pseudo U-APSD operation is not supported, so setting
+	/* Currently pseudo U-APSD operation is analt supported, so setting
 	 * MinAutoTriggerInterval, MaxAutoTriggerInterval and
 	 * AutoTriggerStep to 0
 	 */
@@ -1552,8 +1552,8 @@ int cw1200_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	sta_priv->link_id = cw1200_find_link_id(priv, sta->addr);
 	if (WARN_ON(!sta_priv->link_id)) {
 		wiphy_info(priv->hw->wiphy,
-			   "[AP] No more link IDs available.\n");
-		return -ENOENT;
+			   "[AP] Anal more link IDs available.\n");
+		return -EANALENT;
 	}
 
 	entry = &priv->link_id_db[sta_priv->link_id - 1];
@@ -1591,9 +1591,9 @@ int cw1200_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static void __cw1200_sta_notify(struct ieee80211_hw *dev,
+static void __cw1200_sta_analtify(struct ieee80211_hw *dev,
 				struct ieee80211_vif *vif,
-				enum sta_notify_cmd notify_cmd,
+				enum sta_analtify_cmd analtify_cmd,
 				int link_id)
 {
 	struct cw1200_common *priv = dev->priv;
@@ -1602,14 +1602,14 @@ static void __cw1200_sta_notify(struct ieee80211_hw *dev,
 	/* Zero link id means "for all link IDs" */
 	if (link_id)
 		bit = BIT(link_id);
-	else if (WARN_ON_ONCE(notify_cmd != STA_NOTIFY_AWAKE))
+	else if (WARN_ON_ONCE(analtify_cmd != STA_ANALTIFY_AWAKE))
 		bit = 0;
 	else
 		bit = priv->link_id_map;
 	prev = priv->sta_asleep_mask & bit;
 
-	switch (notify_cmd) {
-	case STA_NOTIFY_SLEEP:
+	switch (analtify_cmd) {
+	case STA_ANALTIFY_SLEEP:
 		if (!prev) {
 			if (priv->buffered_multicasts &&
 			    !priv->sta_asleep_mask)
@@ -1618,7 +1618,7 @@ static void __cw1200_sta_notify(struct ieee80211_hw *dev,
 			priv->sta_asleep_mask |= bit;
 		}
 		break;
-	case STA_NOTIFY_AWAKE:
+	case STA_ANALTIFY_AWAKE:
 		if (prev) {
 			priv->sta_asleep_mask &= ~bit;
 			priv->pspoll_mask &= ~bit;
@@ -1632,9 +1632,9 @@ static void __cw1200_sta_notify(struct ieee80211_hw *dev,
 	}
 }
 
-void cw1200_sta_notify(struct ieee80211_hw *dev,
+void cw1200_sta_analtify(struct ieee80211_hw *dev,
 		       struct ieee80211_vif *vif,
-		       enum sta_notify_cmd notify_cmd,
+		       enum sta_analtify_cmd analtify_cmd,
 		       struct ieee80211_sta *sta)
 {
 	struct cw1200_common *priv = dev->priv;
@@ -1642,11 +1642,11 @@ void cw1200_sta_notify(struct ieee80211_hw *dev,
 		(struct cw1200_sta_priv *)&sta->drv_priv;
 
 	spin_lock_bh(&priv->ps_state_lock);
-	__cw1200_sta_notify(dev, vif, notify_cmd, sta_priv->link_id);
+	__cw1200_sta_analtify(dev, vif, analtify_cmd, sta_priv->link_id);
 	spin_unlock_bh(&priv->ps_state_lock);
 }
 
-static void cw1200_ps_notify(struct cw1200_common *priv,
+static void cw1200_ps_analtify(struct cw1200_common *priv,
 		      int link_id, bool ps)
 {
 	if (link_id > CW1200_MAX_STA_IN_AP_MODE)
@@ -1656,8 +1656,8 @@ static void cw1200_ps_notify(struct cw1200_common *priv,
 		 ps ? "Stop" : "Start",
 		 link_id, priv->sta_asleep_mask);
 
-	__cw1200_sta_notify(priv->hw, priv->vif,
-			    ps ? STA_NOTIFY_SLEEP : STA_NOTIFY_AWAKE, link_id);
+	__cw1200_sta_analtify(priv->hw, priv->vif,
+			    ps ? STA_ANALTIFY_SLEEP : STA_ANALTIFY_AWAKE, link_id);
 }
 
 static int cw1200_set_tim_impl(struct cw1200_common *priv, bool aid0_bit_set)
@@ -1676,11 +1676,11 @@ static int cw1200_set_tim_impl(struct cw1200_common *priv, bool aid0_bit_set)
 	if (!skb) {
 		if (!__cw1200_flush(priv, true))
 			wsm_unlock_tx(priv);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (tim_offset && tim_length >= 6) {
-		/* Ignore DTIM count from mac80211:
+		/* Iganalre DTIM count from mac80211:
 		 * firmware handles DTIM internally.
 		 */
 		skb->data[tim_offset + 2] = 0;
@@ -1741,7 +1741,7 @@ void cw1200_set_cts_work(struct work_struct *work)
 
 	pr_debug("[STA] ERP information 0x%x\n", erp_info);
 
-	wsm_write_mib(priv, WSM_MIB_ID_NON_ERP_PROTECTION,
+	wsm_write_mib(priv, WSM_MIB_ID_ANALN_ERP_PROTECTION,
 		      &use_cts_prot, sizeof(use_cts_prot));
 	wsm_update_ie(priv, &update_ie);
 
@@ -1772,21 +1772,21 @@ static int cw1200_set_btcoexinfo(struct cw1200_common *priv)
 			arg.internalTxRate = (__ffs(
 			priv->bss_params.operational_rate_set & ~0xF));
 		} else {
-			pr_debug("[STA] STA has non ERP rates\n");
+			pr_debug("[STA] STA has analn ERP rates\n");
 			/* B only mode */
 			arg.internalTxRate = (__ffs(le32_to_cpu(priv->association_mode.basic_rate_set)));
 		}
-		arg.nonErpInternalTxRate = (__ffs(le32_to_cpu(priv->association_mode.basic_rate_set)));
+		arg.analnErpInternalTxRate = (__ffs(le32_to_cpu(priv->association_mode.basic_rate_set)));
 	} else {
 		/* P2P mode */
 		arg.internalTxRate = (__ffs(priv->bss_params.operational_rate_set & ~0xF));
-		arg.nonErpInternalTxRate = (__ffs(priv->bss_params.operational_rate_set & ~0xF));
+		arg.analnErpInternalTxRate = (__ffs(priv->bss_params.operational_rate_set & ~0xF));
 	}
 
-	pr_debug("[STA] BTCOEX_INFO MODE %d, internalTxRate : %x, nonErpInternalTxRate: %x\n",
+	pr_debug("[STA] BTCOEX_INFO MODE %d, internalTxRate : %x, analnErpInternalTxRate: %x\n",
 		 priv->mode,
 		 arg.internalTxRate,
-		 arg.nonErpInternalTxRate);
+		 arg.analnErpInternalTxRate);
 
 	ret = wsm_write_mib(priv, WSM_MIB_ID_OVERRIDE_INTERNAL_TX_RATE,
 			    &arg, sizeof(arg));
@@ -1921,10 +1921,10 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			}
 			rcu_read_unlock();
 
-			/* Non Greenfield stations present */
+			/* Analn Greenfield stations present */
 			if (priv->ht_info.operation_mode &
-			    IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
-				htprot |= cpu_to_le32(WSM_NON_GREENFIELD_STA_PRESENT);
+			    IEEE80211_HT_OP_MODE_ANALN_GF_STA_PRSNT)
+				htprot |= cpu_to_le32(WSM_ANALN_GREENFIELD_STA_PRESENT);
 
 			/* Set HT protection method */
 			htprot |= cpu_to_le32((priv->ht_info.operation_mode & IEEE80211_HT_OP_MODE_PROTECTION) << 2);
@@ -1940,7 +1940,7 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			priv->association_mode.greenfield =
 				cw1200_ht_greenfield(&priv->ht_info);
 			priv->association_mode.flags =
-				WSM_ASSOCIATION_MODE_SNOOP_ASSOC_FRAMES |
+				WSM_ASSOCIATION_MODE_SANALOP_ASSOC_FRAMES |
 				WSM_ASSOCIATION_MODE_USE_PREAMBLE_TYPE |
 				WSM_ASSOCIATION_MODE_USE_HT_MODE |
 				WSM_ASSOCIATION_MODE_USE_BASIC_RATE_SET |
@@ -2002,7 +2002,7 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 		u32 prev_erp_info = priv->erp_info;
 		if (info->use_cts_prot)
 			priv->erp_info |= WLAN_ERP_USE_PROTECTION;
-		else if (!(prev_erp_info & WLAN_ERP_NON_ERP_PRESENT))
+		else if (!(prev_erp_info & WLAN_ERP_ANALN_ERP_PRESENT))
 			priv->erp_info &= ~WLAN_ERP_USE_PROTECTION;
 
 		if (info->use_short_preamble)
@@ -2037,7 +2037,7 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 
 		if (info->cqm_rssi_thold || info->cqm_rssi_hyst) {
 			/* RSSI subscription enabled */
-			/* TODO: It's not a correct way of setting threshold.
+			/* TODO: It's analt a correct way of setting threshold.
 			 * Upper and lower must be set equal here and adjusted
 			 * in callback. However current implementation is much
 			 * more relaible and stable.
@@ -2129,13 +2129,13 @@ int cw1200_ampdu_action(struct ieee80211_hw *hw,
 			struct ieee80211_ampdu_params *params)
 {
 	/* Aggregation is implemented fully in firmware,
-	 * including block ack negotiation. Do not allow
+	 * including block ack negotiation. Do analt allow
 	 * mac80211 stack to do anything: it interferes with
 	 * the firmware.
 	 */
 
-	/* Note that we still need this function stubbed. */
-	return -ENOTSUPP;
+	/* Analte that we still need this function stubbed. */
+	return -EANALTSUPP;
 }
 
 /* ******************************************************************** */
@@ -2154,7 +2154,7 @@ void cw1200_suspend_resume(struct cw1200_common *priv,
 			priv->tx_multicast = false;
 		} else {
 			/* Firmware sends this indication every DTIM if there
-			 * is a STA in powersave connected. There is no reason
+			 * is a STA in powersave connected. There is anal reason
 			 * to suspend, following wakeup will consume much more
 			 * power than it could be saved.
 			 */
@@ -2173,7 +2173,7 @@ void cw1200_suspend_resume(struct cw1200_common *priv,
 			del_timer_sync(&priv->mcast_timeout);
 	} else {
 		spin_lock_bh(&priv->ps_state_lock);
-		cw1200_ps_notify(priv, arg->link_id, arg->stop);
+		cw1200_ps_analtify(priv, arg->link_id, arg->stop);
 		spin_unlock_bh(&priv->ps_state_lock);
 		if (!arg->stop)
 			cw1200_bh_wakeup(priv);
@@ -2206,7 +2206,7 @@ static int cw1200_upload_beacon(struct cw1200_common *priv)
 	frame.skb = ieee80211_beacon_get_tim(priv->hw, priv->vif,
 					     &tim_offset, &tim_len, 0);
 	if (!frame.skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = wsm_set_template_frame(priv, &frame);
 
@@ -2246,7 +2246,7 @@ static int cw1200_upload_pspoll(struct cw1200_common *priv)
 
 	frame.skb = ieee80211_pspoll_get(priv->hw, priv->vif);
 	if (!frame.skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = wsm_set_template_frame(priv, &frame);
 
@@ -2265,7 +2265,7 @@ static int cw1200_upload_null(struct cw1200_common *priv)
 
 	frame.skb = ieee80211_nullfunc_get(priv->hw, priv->vif,-1, false);
 	if (!frame.skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = wsm_set_template_frame(priv, &frame);
 
@@ -2285,7 +2285,7 @@ static int cw1200_upload_qosnull(struct cw1200_common *priv)
 
 	frame.skb = ieee80211_qosnullfunc_get(priv->hw, priv->vif);
 	if (!frame.skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = wsm_set_template_frame(priv, &frame);
 

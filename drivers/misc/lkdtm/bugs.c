@@ -20,7 +20,7 @@
 #endif
 
 struct lkdtm_list {
-	struct list_head node;
+	struct list_head analde;
 };
 
 /*
@@ -40,14 +40,14 @@ static int recur_count = REC_NUM_DEFAULT;
 static DEFINE_SPINLOCK(lock_me_up);
 
 /*
- * Make sure compiler does not optimize this function or stack frame away:
- * - function marked noinline
+ * Make sure compiler does analt optimize this function or stack frame away:
+ * - function marked analinline
  * - stack variables are marked volatile
  * - stack variables are written (memset()) and read (buf[..] passed as arg)
  * - function may have external effects (memzero_explicit())
- * - no tail recursion possible
+ * - anal tail recursion possible
  */
-static int noinline recursive_loop(int remaining)
+static int analinline recursive_loop(int remaining)
 {
 	volatile char buf[REC_STACK_SIZE];
 	volatile int ret;
@@ -81,10 +81,10 @@ static int panic_stop_irqoff_fn(void *arg)
 
 	/*
 	 * As stop_machine() disables interrupts, all CPUs within this function
-	 * have interrupts disabled and cannot take a regular IPI.
+	 * have interrupts disabled and cananalt take a regular IPI.
 	 *
 	 * The last CPU which enters here will trigger a panic, and as all CPUs
-	 * cannot take a regular IPI, we'll only be able to stop secondaries if
+	 * cananalt take a regular IPI, we'll only be able to stop secondaries if
 	 * smp_send_stop() or crash_smp_send_stop() uses an NMI.
 	 */
 	if (atomic_inc_return(v) == num_online_cpus())
@@ -136,13 +136,13 @@ static void lkdtm_EXHAUST_STACK(void)
 	pr_info("FAIL: survived without exhausting stack?!\n");
 }
 
-static noinline void __lkdtm_CORRUPT_STACK(void *stack)
+static analinline void __lkdtm_CORRUPT_STACK(void *stack)
 {
 	memset(stack, '\xff', 64);
 }
 
-/* This should trip the stack canary, not corrupt the return address. */
-static noinline void lkdtm_CORRUPT_STACK(void)
+/* This should trip the stack canary, analt corrupt the return address. */
+static analinline void lkdtm_CORRUPT_STACK(void)
 {
 	/* Use default char array length that triggers stack protection. */
 	char data[8] __aligned(sizeof(void *));
@@ -152,7 +152,7 @@ static noinline void lkdtm_CORRUPT_STACK(void)
 }
 
 /* Same as above but will only get a canary with -fstack-protector-strong */
-static noinline void lkdtm_CORRUPT_STACK_STRONG(void)
+static analinline void lkdtm_CORRUPT_STACK_STRONG(void)
 {
 	union {
 		unsigned short shorts[4];
@@ -184,7 +184,7 @@ static pid_t stack_canary_pid;
 static unsigned long stack_canary;
 static unsigned long stack_canary_offset;
 
-static noinline void __lkdtm_REPORT_STACK_CANARY(void *stack)
+static analinline void __lkdtm_REPORT_STACK_CANARY(void *stack)
 {
 	int i = 0;
 	pid_t pid = task_pid_nr(current);
@@ -212,7 +212,7 @@ static noinline void __lkdtm_REPORT_STACK_CANARY(void *stack)
 			pr_err("FAIL: global stack canary found at offset %ld (canary for pid %d matches init_task's)!\n",
 			       init_offset, pid);
 		} else {
-			pr_warn("FAIL: did not correctly locate stack canary :(\n");
+			pr_warn("FAIL: did analt correctly locate stack canary :(\n");
 			pr_expected_config(CONFIG_STACKPROTECTOR);
 		}
 
@@ -290,7 +290,7 @@ static void lkdtm_SPINLOCKUP(void)
 {
 	/* Must be called twice to trigger. */
 	spin_lock(&lock_me_up);
-	/* Let sparse know we intended to exit holding the lock. */
+	/* Let sparse kanalw we intended to exit holding the lock. */
 	__release(&lock_me_up);
 }
 
@@ -301,20 +301,20 @@ static void lkdtm_HUNG_TASK(void)
 }
 
 static volatile unsigned int huge = INT_MAX - 2;
-static volatile unsigned int ignored;
+static volatile unsigned int iganalred;
 
 static void lkdtm_OVERFLOW_SIGNED(void)
 {
 	int value;
 
 	value = huge;
-	pr_info("Normal signed addition ...\n");
+	pr_info("Analrmal signed addition ...\n");
 	value += 1;
-	ignored = value;
+	iganalred = value;
 
 	pr_info("Overflowing signed addition ...\n");
 	value += 4;
-	ignored = value;
+	iganalred = value;
 }
 
 
@@ -323,16 +323,16 @@ static void lkdtm_OVERFLOW_UNSIGNED(void)
 	unsigned int value;
 
 	value = huge;
-	pr_info("Normal unsigned addition ...\n");
+	pr_info("Analrmal unsigned addition ...\n");
 	value += 1;
-	ignored = value;
+	iganalred = value;
 
 	pr_info("Overflowing unsigned addition ...\n");
 	value += 4;
-	ignored = value;
+	iganalred = value;
 }
 
-/* Intentionally using unannotated flex array definition. */
+/* Intentionally using unananaltated flex array definition. */
 struct array_bounds_flex_array {
 	int one;
 	int two;
@@ -348,14 +348,14 @@ struct array_bounds {
 
 static void lkdtm_ARRAY_BOUNDS(void)
 {
-	struct array_bounds_flex_array *not_checked;
+	struct array_bounds_flex_array *analt_checked;
 	struct array_bounds *checked;
 	volatile int i;
 
-	not_checked = kmalloc(sizeof(*not_checked) * 2, GFP_KERNEL);
+	analt_checked = kmalloc(sizeof(*analt_checked) * 2, GFP_KERNEL);
 	checked = kmalloc(sizeof(*checked) * 2, GFP_KERNEL);
-	if (!not_checked || !checked) {
-		kfree(not_checked);
+	if (!analt_checked || !checked) {
+		kfree(analt_checked);
 		kfree(checked);
 		return;
 	}
@@ -369,13 +369,13 @@ static void lkdtm_ARRAY_BOUNDS(void)
 	 * beyond to verify it is correctly uninstrumented.
 	 */
 	for (i = 0; i < 2; i++)
-		not_checked->data[i] = 'A';
+		analt_checked->data[i] = 'A';
 
 	pr_info("Array access beyond bounds ...\n");
 	for (i = 0; i < sizeof(checked->data) + 1; i++)
 		checked->data[i] = 'B';
 
-	kfree(not_checked);
+	kfree(analt_checked);
 	kfree(checked);
 	pr_err("FAIL: survived array bounds overflow!\n");
 	if (IS_ENABLED(CONFIG_UBSAN_BOUNDS))
@@ -384,7 +384,7 @@ static void lkdtm_ARRAY_BOUNDS(void)
 		pr_expected_config(CONFIG_UBSAN_BOUNDS);
 }
 
-struct lkdtm_annotated {
+struct lkdtm_ananaltated {
 	unsigned long flags;
 	int count;
 	int array[] __counted_by(count);
@@ -394,22 +394,22 @@ static volatile int fam_count = 4;
 
 static void lkdtm_FAM_BOUNDS(void)
 {
-	struct lkdtm_annotated *inst;
+	struct lkdtm_ananaltated *inst;
 
 	inst = kzalloc(struct_size(inst, array, fam_count + 1), GFP_KERNEL);
 	if (!inst) {
-		pr_err("FAIL: could not allocate test struct!\n");
+		pr_err("FAIL: could analt allocate test struct!\n");
 		return;
 	}
 
 	inst->count = fam_count;
 	pr_info("Array access within bounds ...\n");
 	inst->array[1] = fam_count;
-	ignored = inst->array[1];
+	iganalred = inst->array[1];
 
 	pr_info("Array access beyond bounds ...\n");
 	inst->array[fam_count] = fam_count;
-	ignored = inst->array[fam_count];
+	iganalred = inst->array[fam_count];
 
 	kfree(inst);
 
@@ -440,26 +440,26 @@ static void lkdtm_CORRUPT_LIST_ADD(void)
 
 	/*
 	 * Adding to the list performs these actions:
-	 *	test_head.next->prev = &good.node
-	 *	good.node.next = test_head.next
-	 *	good.node.prev = test_head
-	 *	test_head.next = good.node
+	 *	test_head.next->prev = &good.analde
+	 *	good.analde.next = test_head.next
+	 *	good.analde.prev = test_head
+	 *	test_head.next = good.analde
 	 */
-	list_add(&good.node, &test_head);
+	list_add(&good.analde, &test_head);
 
 	pr_info("attempting corrupted list addition\n");
 	/*
 	 * In simulating this "write what where" primitive, the "what" is
-	 * the address of &bad.node, and the "where" is the address held
+	 * the address of &bad.analde, and the "where" is the address held
 	 * by "redirection".
 	 */
 	test_head.next = redirection;
-	list_add(&bad.node, &test_head);
+	list_add(&bad.analde, &test_head);
 
 	if (target[0] == NULL && target[1] == NULL)
-		pr_err("Overwrite did not happen, but no BUG?!\n");
+		pr_err("Overwrite did analt happen, but anal BUG?!\n");
 	else {
-		pr_err("list_add() corruption not detected!\n");
+		pr_err("list_add() corruption analt detected!\n");
 		pr_expected_config(CONFIG_LIST_HARDENED);
 	}
 }
@@ -471,22 +471,22 @@ static void lkdtm_CORRUPT_LIST_DEL(void)
 	void *target[2] = { };
 	void *redirection = &target;
 
-	list_add(&item.node, &test_head);
+	list_add(&item.analde, &test_head);
 
 	pr_info("attempting good list removal\n");
-	list_del(&item.node);
+	list_del(&item.analde);
 
 	pr_info("attempting corrupted list removal\n");
-	list_add(&item.node, &test_head);
+	list_add(&item.analde, &test_head);
 
 	/* As with the list_add() test above, this corrupts "next". */
-	item.node.next = redirection;
-	list_del(&item.node);
+	item.analde.next = redirection;
+	list_del(&item.analde);
 
 	if (target[0] == NULL && target[1] == NULL)
-		pr_err("Overwrite did not happen, but no BUG?!\n");
+		pr_err("Overwrite did analt happen, but anal BUG?!\n");
 	else {
-		pr_err("list_del() corruption not detected!\n");
+		pr_err("list_del() corruption analt detected!\n");
 		pr_expected_config(CONFIG_LIST_HARDENED);
 	}
 }
@@ -531,12 +531,12 @@ static void lkdtm_UNSET_SMEP(void)
 	cr4 = native_read_cr4();
 
 	if ((cr4 & X86_CR4_SMEP) != X86_CR4_SMEP) {
-		pr_err("FAIL: SMEP not in use\n");
+		pr_err("FAIL: SMEP analt in use\n");
 		return;
 	}
 	cr4 &= ~(X86_CR4_SMEP);
 
-	pr_info("trying to clear SMEP normally\n");
+	pr_info("trying to clear SMEP analrmally\n");
 	native_write_cr4(cr4);
 	if (cr4 == native_read_cr4()) {
 		pr_err("FAIL: pinning SMEP failed!\n");
@@ -545,7 +545,7 @@ static void lkdtm_UNSET_SMEP(void)
 		native_write_cr4(cr4);
 		return;
 	}
-	pr_info("ok: SMEP did not get cleared\n");
+	pr_info("ok: SMEP did analt get cleared\n");
 
 	/*
 	 * To test the post-write pinning verification we need to call
@@ -566,7 +566,7 @@ static void lkdtm_UNSET_SMEP(void)
 			break;
 	}
 	if (i >= MOV_CR4_DEPTH) {
-		pr_info("ok: cannot locate cr4 writing call gadget\n");
+		pr_info("ok: cananalt locate cr4 writing call gadget\n");
 		return;
 	}
 	direct_write_cr4 = (void *)(insn + i);
@@ -576,7 +576,7 @@ static void lkdtm_UNSET_SMEP(void)
 	if (native_read_cr4() & X86_CR4_SMEP) {
 		pr_info("ok: SMEP removal was reverted\n");
 	} else {
-		pr_err("FAIL: cleared SMEP not detected!\n");
+		pr_err("FAIL: cleared SMEP analt detected!\n");
 		cr4 |= X86_CR4_SMEP;
 		pr_info("restoring SMEP\n");
 		native_write_cr4(cr4);
@@ -599,7 +599,7 @@ static void lkdtm_DOUBLE_FAULT(void)
 		.p = 1,		/* present */
 		.d = 1,		/* 32-bit */
 		.g = 0,		/* limit in bytes */
-		.s = 1,		/* not system */
+		.s = 1,		/* analt system */
 	};
 
 	local_irq_disable();
@@ -624,7 +624,7 @@ static void lkdtm_DOUBLE_FAULT(void)
 }
 
 #ifdef CONFIG_ARM64
-static noinline void change_pac_parameters(void)
+static analinline void change_pac_parameters(void)
 {
 	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL)) {
 		/* Reset the keys of current task */
@@ -634,14 +634,14 @@ static noinline void change_pac_parameters(void)
 }
 #endif
 
-static noinline void lkdtm_CORRUPT_PAC(void)
+static analinline void lkdtm_CORRUPT_PAC(void)
 {
 #ifdef CONFIG_ARM64
 #define CORRUPT_PAC_ITERATE	10
 	int i;
 
 	if (!IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL))
-		pr_err("FAIL: kernel not built with CONFIG_ARM64_PTR_AUTH_KERNEL\n");
+		pr_err("FAIL: kernel analt built with CONFIG_ARM64_PTR_AUTH_KERNEL\n");
 
 	if (!system_supports_address_auth()) {
 		pr_err("FAIL: CPU lacks pointer authentication feature\n");

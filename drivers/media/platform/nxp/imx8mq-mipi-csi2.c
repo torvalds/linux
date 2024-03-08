@@ -8,7 +8,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interconnect.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -26,7 +26,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
@@ -57,7 +57,7 @@
 #define CSI2RX_PPI_ERRSYNCESC			0x124
 #define CSI2RX_PPI_ERRCONTROL			0x128
 #define CSI2RX_CFG_DISABLE_PAYLOAD_0		0x12c
-#define CSI2RX_CFG_VID_VC_IGNORE		0x180
+#define CSI2RX_CFG_VID_VC_IGANALRE		0x180
 #define CSI2RX_CFG_VID_VC			0x184
 #define CSI2RX_CFG_VID_P_FIFO_SEND_LEVEL	0x188
 #define CSI2RX_CFG_DISABLE_PAYLOAD_1		0x130
@@ -100,7 +100,7 @@ static const char * const imx8mq_mipi_csi_clk_id[CSI2_NUM_CLKS] = {
  * video bandwidth is 10% faster than the incoming mipi data and the video
  * line length is 500 pixels, then the fifo should be allowed to fill
  * 10% of the line length or 50 pixels. If the gap data is ok, then the level
- * can be set to 16 and ignored.
+ * can be set to 16 and iganalred.
  */
 #define CSI2RX_SEND_LEVEL			64
 
@@ -113,7 +113,7 @@ struct csi_state {
 
 	struct v4l2_subdev sd;
 	struct media_pad pads[MIPI_CSI2_PADS_NUM];
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *src_sd;
 
 	struct v4l2_mbus_config_mipi_csi2 bus;
@@ -254,11 +254,11 @@ static void imx8mq_mipi_csi_set_params(struct csi_state *state)
 	imx8mq_mipi_csi_write(state, CSI2RX_IRQ_MASK, CSI2RX_IRQ_MASK_ALL);
 	/*
 	 * 0x180 bit 0 controls the Virtual Channel behaviour: when set the
-	 * interface ignores the Virtual Channel (VC) field in received packets;
+	 * interface iganalres the Virtual Channel (VC) field in received packets;
 	 * when cleared it causes the interface to only accept packets whose VC
 	 * matches the value to which VC is set at offset 0x184.
 	 */
-	imx8mq_mipi_csi_write(state, CSI2RX_CFG_VID_VC_IGNORE, 1);
+	imx8mq_mipi_csi_write(state, CSI2RX_CFG_VID_VC_IGANALRE, 1);
 	imx8mq_mipi_csi_write(state, CSI2RX_CFG_VID_P_FIFO_SEND_LEVEL,
 			      CSI2RX_SEND_LEVEL);
 }
@@ -330,7 +330,7 @@ static int imx8mq_mipi_csi_calc_hs_settle(struct csi_state *state,
 	 */
 	esc_clk_rate = clk_get_rate(state->clks[CSI2_CLK_ESC].clk);
 	if (!esc_clk_rate) {
-		dev_err(state->dev, "Could not get esc clock rate.\n");
+		dev_err(state->dev, "Could analt get esc clock rate.\n");
 		return -EINVAL;
 	}
 
@@ -450,7 +450,7 @@ static int imx8mq_mipi_csi_init_state(struct v4l2_subdev *sd,
 	fmt_sink->code = MEDIA_BUS_FMT_SGBRG10_1X10;
 	fmt_sink->width = MIPI_CSI2_DEF_PIX_WIDTH;
 	fmt_sink->height = MIPI_CSI2_DEF_PIX_HEIGHT;
-	fmt_sink->field = V4L2_FIELD_NONE;
+	fmt_sink->field = V4L2_FIELD_ANALNE;
 
 	fmt_sink->colorspace = V4L2_COLORSPACE_RAW;
 	fmt_sink->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt_sink->colorspace);
@@ -555,61 +555,61 @@ static const struct v4l2_subdev_internal_ops imx8mq_mipi_csi_internal_ops = {
 
 static const struct media_entity_operations imx8mq_mipi_csi_entity_ops = {
 	.link_validate	= v4l2_subdev_link_validate,
-	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.get_fwanalde_pad = v4l2_subdev_get_fwanalde_pad_1_to_1,
 };
 
 /* -----------------------------------------------------------------------------
- * Async subdev notifier
+ * Async subdev analtifier
  */
 
 static struct csi_state *
-mipi_notifier_to_csi2_state(struct v4l2_async_notifier *n)
+mipi_analtifier_to_csi2_state(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct csi_state, notifier);
+	return container_of(n, struct csi_state, analtifier);
 }
 
-static int imx8mq_mipi_csi_notify_bound(struct v4l2_async_notifier *notifier,
+static int imx8mq_mipi_csi_analtify_bound(struct v4l2_async_analtifier *analtifier,
 					struct v4l2_subdev *sd,
 					struct v4l2_async_connection *asd)
 {
-	struct csi_state *state = mipi_notifier_to_csi2_state(notifier);
+	struct csi_state *state = mipi_analtifier_to_csi2_state(analtifier);
 	struct media_pad *sink = &state->sd.entity.pads[MIPI_CSI2_PAD_SINK];
 
 	state->src_sd = sd;
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink, MEDIA_LNK_FL_ENABLED |
+	return v4l2_create_fwanalde_links_to_pad(sd, sink, MEDIA_LNK_FL_ENABLED |
 					       MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static const struct v4l2_async_notifier_operations imx8mq_mipi_csi_notify_ops = {
-	.bound = imx8mq_mipi_csi_notify_bound,
+static const struct v4l2_async_analtifier_operations imx8mq_mipi_csi_analtify_ops = {
+	.bound = imx8mq_mipi_csi_analtify_bound,
 };
 
 static int imx8mq_mipi_csi_async_register(struct csi_state *state)
 {
-	struct v4l2_fwnode_endpoint vep = {
+	struct v4l2_fwanalde_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned int i;
 	int ret;
 
-	v4l2_async_subdev_nf_init(&state->notifier, &state->sd);
+	v4l2_async_subdev_nf_init(&state->analtifier, &state->sd);
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(state->dev), 0, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(state->dev), 0, 0,
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
 	if (ret)
 		goto err_parse;
 
 	for (i = 0; i < vep.bus.mipi_csi2.num_data_lanes; ++i) {
 		if (vep.bus.mipi_csi2.data_lanes[i] != i + 1) {
 			dev_err(state->dev,
-				"data lanes reordering is not supported");
+				"data lanes reordering is analt supported");
 			ret = -EINVAL;
 			goto err_parse;
 		}
@@ -621,25 +621,25 @@ static int imx8mq_mipi_csi_async_register(struct csi_state *state)
 		state->bus.num_data_lanes,
 		state->bus.flags);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&state->notifier, ep,
+	asd = v4l2_async_nf_add_fwanalde_remote(&state->analtifier, ep,
 					      struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto err_parse;
 	}
 
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
-	state->notifier.ops = &imx8mq_mipi_csi_notify_ops;
+	state->analtifier.ops = &imx8mq_mipi_csi_analtify_ops;
 
-	ret = v4l2_async_nf_register(&state->notifier);
+	ret = v4l2_async_nf_register(&state->analtifier);
 	if (ret)
 		return ret;
 
 	return v4l2_async_register_subdev(&state->sd);
 
 err_parse:
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	return ret;
 }
@@ -768,7 +768,7 @@ static int imx8mq_mipi_csi_subdev_init(struct csi_state *state)
 	snprintf(sd->name, sizeof(sd->name), "%s %s",
 		 MIPI_CSI2_SUBDEV_NAME, dev_name(state->dev));
 
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &imx8mq_mipi_csi_entity_ops;
@@ -819,8 +819,8 @@ static int imx8mq_mipi_csi_init_icc(struct platform_device *pdev)
 static int imx8mq_mipi_csi_parse_dt(struct csi_state *state)
 {
 	struct device *dev = state->dev;
-	struct device_node *np = state->dev->of_node;
-	struct device_node *node;
+	struct device_analde *np = state->dev->of_analde;
+	struct device_analde *analde;
 	phandle ph;
 	u32 out_val[2];
 	int ret = 0;
@@ -834,19 +834,19 @@ static int imx8mq_mipi_csi_parse_dt(struct csi_state *state)
 	ret = of_property_read_u32_array(np, "fsl,mipi-phy-gpr", out_val,
 					 ARRAY_SIZE(out_val));
 	if (ret) {
-		dev_err(dev, "no fsl,mipi-phy-gpr property found: %d\n", ret);
+		dev_err(dev, "anal fsl,mipi-phy-gpr property found: %d\n", ret);
 		return ret;
 	}
 
 	ph = *out_val;
 
-	node = of_find_node_by_phandle(ph);
-	if (!node) {
-		dev_err(dev, "Error finding node by phandle\n");
-		return -ENODEV;
+	analde = of_find_analde_by_phandle(ph);
+	if (!analde) {
+		dev_err(dev, "Error finding analde by phandle\n");
+		return -EANALDEV;
 	}
-	state->phy_gpr = syscon_node_to_regmap(node);
-	of_node_put(node);
+	state->phy_gpr = syscon_analde_to_regmap(analde);
+	of_analde_put(analde);
 	if (IS_ERR(state->phy_gpr)) {
 		dev_err(dev, "failed to get gpr regmap: %pe\n", state->phy_gpr);
 		return PTR_ERR(state->phy_gpr);
@@ -866,7 +866,7 @@ static int imx8mq_mipi_csi_probe(struct platform_device *pdev)
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->dev = dev;
 
@@ -917,8 +917,8 @@ cleanup:
 
 	media_entity_cleanup(&state->sd.entity);
 	v4l2_subdev_cleanup(&state->sd);
-	v4l2_async_nf_unregister(&state->notifier);
-	v4l2_async_nf_cleanup(&state->notifier);
+	v4l2_async_nf_unregister(&state->analtifier);
+	v4l2_async_nf_cleanup(&state->analtifier);
 	v4l2_async_unregister_subdev(&state->sd);
 icc:
 	imx8mq_mipi_csi_release_icc(pdev);
@@ -933,8 +933,8 @@ static void imx8mq_mipi_csi_remove(struct platform_device *pdev)
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
 
-	v4l2_async_nf_unregister(&state->notifier);
-	v4l2_async_nf_cleanup(&state->notifier);
+	v4l2_async_nf_unregister(&state->analtifier);
+	v4l2_async_nf_cleanup(&state->analtifier);
 	v4l2_async_unregister_subdev(&state->sd);
 
 	pm_runtime_disable(&pdev->dev);

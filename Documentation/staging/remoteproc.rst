@@ -23,7 +23,7 @@ platform-specific remoteproc drivers only need to provide a few low-level
 handlers, and then all rpmsg drivers will then just work
 (for more information about the virtio-based rpmsg bus and its drivers,
 please read Documentation/staging/rpmsg.rst).
-Registration of other types of virtio devices is now also possible. Firmwares
+Registration of other types of virtio devices is analw also possible. Firmwares
 just need to publish what kind of virtio devices do they support, and then
 remoteproc will add those devices. This makes it possible to reuse the
 existing virtio drivers with remote processor backends at a minimal development
@@ -42,7 +42,7 @@ If the remote processor is already powered on, this function immediately
 returns (successfully).
 
 Returns 0 on success, and an appropriate error value otherwise.
-Note: to use this function you should already have a valid rproc
+Analte: to use this function you should already have a valid rproc
 handle. There are several ways to achieve that cleanly (devres, pdata,
 the way remoteproc_rpmsg.c does this, or, if this becomes prevalent, we
 might also consider using dev_archdata for this).
@@ -60,9 +60,9 @@ Returns 0 on success, and an appropriate error value otherwise.
 Every call to rproc_boot() must (eventually) be accompanied by a call
 to rproc_shutdown(). Calling rproc_shutdown() redundantly is a bug.
 
-.. note::
+.. analte::
 
-  we're not decrementing the rproc's refcount, only the power refcount.
+  we're analt decrementing the rproc's refcount, only the power refcount.
   which means that the @rproc handle stays valid even after
   rproc_shutdown() returns, and users can still use it with a subsequent
   rproc_boot(), if needed.
@@ -97,10 +97,10 @@ Typical usage
 	}
 
 	/*
-	 * our remote processor is now powered on... give it some work
+	 * our remote processor is analw powered on... give it some work
 	 */
 
-	/* let's shut it down now */
+	/* let's shut it down analw */
 	rproc_shutdown(my_rproc);
   }
 
@@ -128,9 +128,9 @@ the registration of the remote processor.
 
 On success, the new rproc is returned, and on failure, NULL.
 
-.. note::
+.. analte::
 
-  **never** directly deallocate @rproc, even if it was not registered
+  **never** directly deallocate @rproc, even if it was analt registered
   yet. Instead, when you need to unroll rproc_alloc(), use rproc_free().
 
 ::
@@ -141,7 +141,7 @@ Free an rproc handle that was allocated by rproc_alloc.
 
 This function essentially unrolls rproc_alloc(), by decrementing the
 rproc's refcount. It doesn't directly free rproc; that would happen
-only if there are no other references to rproc and its refcount now
+only if there are anal other references to rproc and its refcount analw
 dropped to zero.
 
 ::
@@ -155,7 +155,7 @@ This is called by the platform-specific rproc implementation, whenever
 a new remote processor device is probed.
 
 Returns 0 on success and an appropriate error code otherwise.
-Note: this function initiates an asynchronous firmware loading
+Analte: this function initiates an asynchroanalus firmware loading
 context, which will look for virtio devices supported by the rproc's
 firmware.
 
@@ -186,8 +186,8 @@ Returns 0 on success and -EINVAL if @rproc isn't valid.
 Report a crash in a remoteproc
 
 This function must be called every time a crash is detected by the
-platform specific rproc implementation. This should not be called from a
-non-remoteproc driver. This function can be called from atomic/interrupt
+platform specific rproc implementation. This should analt be called from a
+analn-remoteproc driver. This function can be called from atomic/interrupt
 context.
 
 Implementation callbacks
@@ -223,8 +223,8 @@ On success, 0 is returned, and on failure, an appropriate error code.
 
 The ->kick() handler takes an rproc handle, and an index of a virtqueue
 where new message was placed in. Implementations should interrupt the remote
-processor and let it know it has pending messages. Notifying remote processors
-the exact virtqueue index to look in is optional: it is easy (and not
+processor and let it kanalw it has pending messages. Analtifying remote processors
+the exact virtqueue index to look in is optional: it is easy (and analt
 too expensive) to go through the existing virtqueues and look for new buffers
 in the used rings.
 
@@ -295,7 +295,7 @@ each of which begins with the following resource entry header::
 	u8 data[0];
   } __packed;
 
-Some resources entries are mere announcements, where the host is informed
+Some resources entries are mere ananaluncements, where the host is informed
 of specific remoteproc configuration. Other entries require the host to
 do something (e.g. allocate a system resource). Sometimes a negotiation
 is expected, where the firmware requests a resource, and once allocated,
@@ -310,7 +310,7 @@ Here are the various resource types that are currently supported::
    * @RSC_CARVEOUT:   request for allocation of a physically contiguous
    *		    memory region.
    * @RSC_DEVMEM:     request to iommu_map a memory-based peripheral.
-   * @RSC_TRACE:	    announces the availability of a trace buffer into which
+   * @RSC_TRACE:	    ananalunces the availability of a trace buffer into which
    *		    the remote processor will be writing logs.
    * @RSC_VDEV:       declare support for a virtio device, and serve as its
    *		    virtio header.
@@ -318,7 +318,7 @@ Here are the various resource types that are currently supported::
    * @RSC_VENDOR_START:	start of the vendor specific resource types range
    * @RSC_VENDOR_END:	end of the vendor specific resource types range
    *
-   * Please note that these values are used as indices to the rproc_handle_rsc
+   * Please analte that these values are used as indices to the rproc_handle_rsc
    * lookup table, so please keep them sane. Moreover, @RSC_LAST is used to
    * check the validity of an index before the lookup table is accessed, so
    * please update it as needed.
@@ -354,7 +354,7 @@ it supports. A firmware may support any number of virtio devices, and
 of any type (a single remote processor can also easily support several
 rpmsg virtio devices this way, if desired).
 
-Of course, RSC_VDEV resource entries are only good enough for static
+Of course, RSC_VDEV resource entries are only good eanalugh for static
 allocation of virtio devices. Dynamic allocations will also be made possible
 using the rpmsg bus (similar to how we already do dynamic allocations of
 rpmsg channels; read more about it in rpmsg.txt).

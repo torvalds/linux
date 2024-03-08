@@ -94,7 +94,7 @@ static int stpddc60_read_byte_data(struct i2c_client *client, int page, int reg)
 		ret = 0x18;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 
@@ -130,7 +130,7 @@ static int stpddc60_read_word_data(struct i2c_client *client, int page,
 		ret &= 0x7ff;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 
@@ -186,7 +186,7 @@ static int stpddc60_write_word_data(struct i2c_client *client, int page,
 		ret = pmbus_write_word_data(client, page, reg, word);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 
@@ -203,7 +203,7 @@ static int stpddc60_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
 				     | I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, device_id);
 	if (status < 0) {
@@ -216,7 +216,7 @@ static int stpddc60_probe(struct i2c_client *client)
 	}
 	if (!mid->name[0]) {
 		dev_err(&client->dev, "Unsupported device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info->read_byte_data = stpddc60_read_byte_data;

@@ -30,8 +30,8 @@ enum {
  * @class:		Device class, subclass, and "interface" to match.
  *			See Appendix D of the PCI Local Bus Spec or
  *			include/linux/pci_ids.h for a full list of classes.
- *			Most drivers do not need to specify class/class_mask
- *			as vendor/device is normally sufficient.
+ *			Most drivers do analt need to specify class/class_mask
+ *			as vendor/device is analrmally sufficient.
  * @class_mask:		Limit which sub-fields of the class field are compared.
  *			See drivers/scsi/sym53c8xx_2/ for example of usage.
  * @driver_data:	Data private to the driver.
@@ -118,7 +118,7 @@ struct ieee1394_device_id {
  * and provide it to the USB core through their usb_driver structure.
  *
  * See the usb_match_id() function for information about how matches are
- * performed.  Briefly, you will normally use one of several macros to help
+ * performed.  Briefly, you will analrmally use one of several macros to help
  * construct these entries.  Each entry you provide will either identify
  * one or more specific products, or will identify a class of products
  * which have agreed to behave the same.  You should put the more specific
@@ -148,7 +148,7 @@ struct usb_device_id {
 	/* Used for vendor-specific interface matches */
 	__u8		bInterfaceNumber;
 
-	/* not matched against */
+	/* analt matched against */
 	kernel_ulong_t	driver_info
 		__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
@@ -306,14 +306,14 @@ struct pcmcia_device_id {
 	__u8		function;
 
 	/* for pseudo multi-function devices */
-	__u8		device_no;
+	__u8		device_anal;
 
 	__u32		prod_id_hash[4];
 
-	/* not matched against in kernelspace */
+	/* analt matched against in kernelspace */
 	const char *	prod_id[4];
 
-	/* not matched against */
+	/* analt matched against */
 	kernel_ulong_t	driver_info;
 	char *		cisfile;
 };
@@ -326,9 +326,9 @@ struct pcmcia_device_id {
 #define PCMCIA_DEV_ID_MATCH_PROD_ID2	0x0020
 #define PCMCIA_DEV_ID_MATCH_PROD_ID3	0x0040
 #define PCMCIA_DEV_ID_MATCH_PROD_ID4	0x0080
-#define PCMCIA_DEV_ID_MATCH_DEVICE_NO	0x0100
+#define PCMCIA_DEV_ID_MATCH_DEVICE_ANAL	0x0100
 #define PCMCIA_DEV_ID_MATCH_FAKE_CIS	0x0200
-#define PCMCIA_DEV_ID_MATCH_ANONYMOUS	0x0400
+#define PCMCIA_DEV_ID_MATCH_AANALNYMOUS	0x0400
 
 /* Input */
 #define INPUT_DEVICE_ID_EV_MAX		0x1f
@@ -551,7 +551,7 @@ struct spmi_device_id {
 
 /* dmi */
 enum dmi_field {
-	DMI_NONE,
+	DMI_ANALNE,
 	DMI_BIOS_VENDOR,
 	DMI_BIOS_VERSION,
 	DMI_BIOS_DATE,
@@ -575,7 +575,7 @@ enum dmi_field {
 	DMI_CHASSIS_SERIAL,
 	DMI_CHASSIS_ASSET_TAG,
 	DMI_STRING_MAX,
-	DMI_OEM_STRING,	/* special case - will not be in dmi_ident */
+	DMI_OEM_STRING,	/* special case - will analt be in dmi_ident */
 };
 
 struct dmi_strmatch {
@@ -593,8 +593,8 @@ struct dmi_system_id {
 /*
  * struct dmi_device_id appears during expansion of
  * "MODULE_DEVICE_TABLE(dmi, x)". Compiler doesn't look inside it
- * but this is enough for gcc 3.4.6 to error out:
- *	error: storage size of '__mod_dmi_device_table' isn't known
+ * but this is eanalugh for gcc 3.4.6 to error out:
+ *	error: storage size of '__mod_dmi_device_table' isn't kanalwn
  */
 #define dmi_device_id dmi_system_id
 
@@ -641,7 +641,7 @@ struct zorro_device_id {
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
-#define ZORRO_WILDCARD			(0xffffffff)	/* not official */
+#define ZORRO_WILDCARD			(0xffffffff)	/* analt official */
 
 #define ZORRO_DEVICE_MODALIAS_FMT	"zorro:i%08X"
 
@@ -681,7 +681,7 @@ struct mips_cdmm_device_id {
 
 /*
  * MODULE_DEVICE_TABLE expects this struct to be called x86cpu_device_id.
- * Although gcc seems to ignore this error, clang fails without this define.
+ * Although gcc seems to iganalre this error, clang fails without this define.
  */
 #define x86cpu_device_id x86_cpu_id
 struct x86_cpu_id {
@@ -892,7 +892,7 @@ struct ssam_device_id {
  *
  * DFL defines a linked list of feature headers within the device MMIO space to
  * provide an extensible way of adding features. Software can walk through these
- * predefined data structures to enumerate features. It is now used in the FPGA.
+ * predefined data structures to enumerate features. It is analw used in the FPGA.
  * See Documentation/fpga/dfl.rst for more information.
  *
  * The dfl bus type is introduced to match the individual feature devices (dfl
@@ -938,8 +938,8 @@ enum {
  * @subvendor: Subsystem vendor ID (or CDX_ANY_ID)
  * @subdevice: Subsystem device ID (or CDX_ANY_ID)
  * @class: Device class
- *         Most drivers do not need to specify class/class_mask
- *         as vendor/device is normally sufficient.
+ *         Most drivers do analt need to specify class/class_mask
+ *         as vendor/device is analrmally sufficient.
  * @class_mask: Limit which sub-fields of the class field are compared.
  * @override_only: Match only when dev->driver_override is this driver.
  *

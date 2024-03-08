@@ -67,7 +67,7 @@ static int cortina_probe(struct phy_device *phydev)
 	if (phy_id != phydev->drv->phy_id) {
 		phydev_err(phydev, "Error matching phy with %s driver\n",
 			   phydev->drv->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

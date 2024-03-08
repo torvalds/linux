@@ -14,12 +14,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -28,7 +28,7 @@
 
 #define NVOS02_FLAGS_PHYSICALITY                                   7:4
 #define NVOS02_FLAGS_PHYSICALITY_CONTIGUOUS                        (0x00000000)
-#define NVOS02_FLAGS_PHYSICALITY_NONCONTIGUOUS                     (0x00000001)
+#define NVOS02_FLAGS_PHYSICALITY_ANALNCONTIGUOUS                     (0x00000001)
 #define NVOS02_FLAGS_LOCATION                                      11:8
 #define NVOS02_FLAGS_LOCATION_PCI                                  (0x00000000)
 #define NVOS02_FLAGS_LOCATION_AGP                                  (0x00000001)
@@ -41,25 +41,25 @@
 #define NVOS02_FLAGS_COHERENCY_WRITE_PROTECT                       (0x00000004)
 #define NVOS02_FLAGS_COHERENCY_WRITE_BACK                          (0x00000005)
 #define NVOS02_FLAGS_ALLOC                                         17:16
-#define NVOS02_FLAGS_ALLOC_NONE                                    (0x00000001)
+#define NVOS02_FLAGS_ALLOC_ANALNE                                    (0x00000001)
 #define NVOS02_FLAGS_GPU_CACHEABLE                                 18:18
-#define NVOS02_FLAGS_GPU_CACHEABLE_NO                              (0x00000000)
-#define NVOS02_FLAGS_GPU_CACHEABLE_YES                             (0x00000001)
+#define NVOS02_FLAGS_GPU_CACHEABLE_ANAL                              (0x00000000)
+#define NVOS02_FLAGS_GPU_CACHEABLE_ANAL                             (0x00000001)
 
 #define NVOS02_FLAGS_KERNEL_MAPPING                                19:19
-#define NVOS02_FLAGS_KERNEL_MAPPING_NO_MAP                         (0x00000000)
+#define NVOS02_FLAGS_KERNEL_MAPPING_ANAL_MAP                         (0x00000000)
 #define NVOS02_FLAGS_KERNEL_MAPPING_MAP                            (0x00000001)
 #define NVOS02_FLAGS_ALLOC_NISO_DISPLAY                            20:20
-#define NVOS02_FLAGS_ALLOC_NISO_DISPLAY_NO                         (0x00000000)
-#define NVOS02_FLAGS_ALLOC_NISO_DISPLAY_YES                        (0x00000001)
+#define NVOS02_FLAGS_ALLOC_NISO_DISPLAY_ANAL                         (0x00000000)
+#define NVOS02_FLAGS_ALLOC_NISO_DISPLAY_ANAL                        (0x00000001)
 
 #define NVOS02_FLAGS_ALLOC_USER_READ_ONLY                          21:21
-#define NVOS02_FLAGS_ALLOC_USER_READ_ONLY_NO                       (0x00000000)
-#define NVOS02_FLAGS_ALLOC_USER_READ_ONLY_YES                      (0x00000001)
+#define NVOS02_FLAGS_ALLOC_USER_READ_ONLY_ANAL                       (0x00000000)
+#define NVOS02_FLAGS_ALLOC_USER_READ_ONLY_ANAL                      (0x00000001)
 
 #define NVOS02_FLAGS_ALLOC_DEVICE_READ_ONLY                        22:22
-#define NVOS02_FLAGS_ALLOC_DEVICE_READ_ONLY_NO                     (0x00000000)
-#define NVOS02_FLAGS_ALLOC_DEVICE_READ_ONLY_YES                    (0x00000001)
+#define NVOS02_FLAGS_ALLOC_DEVICE_READ_ONLY_ANAL                     (0x00000000)
+#define NVOS02_FLAGS_ALLOC_DEVICE_READ_ONLY_ANAL                    (0x00000001)
 
 #define NVOS02_FLAGS_PEER_MAP_OVERRIDE                             23:23
 #define NVOS02_FLAGS_PEER_MAP_OVERRIDE_DEFAULT                     (0x00000000)
@@ -75,7 +75,7 @@
 
 #define NVOS02_FLAGS_MAPPING                                       31:30
 #define NVOS02_FLAGS_MAPPING_DEFAULT                               (0x00000000)
-#define NVOS02_FLAGS_MAPPING_NO_MAP                                (0x00000001)
+#define NVOS02_FLAGS_MAPPING_ANAL_MAP                                (0x00000001)
 #define NVOS02_FLAGS_MAPPING_NEVER_MAP                             (0x00000002)
 
 #define NV01_EVENT_CLIENT_RM                                       (0x04000000)
@@ -83,17 +83,17 @@
 typedef struct
 {
     NvV32    channelInstance;            // One of the n channel instances of a given channel type.
-                                         // Note that core channel has only one instance
+                                         // Analte that core channel has only one instance
                                          // while all others have two (one per head).
     NvHandle hObjectBuffer;              // ctx dma handle for DMA push buffer
-    NvHandle hObjectNotify;              // ctx dma handle for an area (of type NvNotification defined in sdk/nvidia/inc/nvtypes.h) where RM can write errors/notifications
+    NvHandle hObjectAnaltify;              // ctx dma handle for an area (of type NvAnaltification defined in sdk/nvidia/inc/nvtypes.h) where RM can write errors/analtifications
     NvU32    offset;                     // Initial offset for put/get, usually zero.
     NvP64    pControl NV_ALIGN_BYTES(8); // pControl gives virt addr of UDISP GET/PUT regs
 
     NvU32    flags;
 #define NV50VAIO_CHANNELDMA_ALLOCATION_FLAGS_CONNECT_PB_AT_GRAB                1:1
-#define NV50VAIO_CHANNELDMA_ALLOCATION_FLAGS_CONNECT_PB_AT_GRAB_YES            0x00000000
-#define NV50VAIO_CHANNELDMA_ALLOCATION_FLAGS_CONNECT_PB_AT_GRAB_NO             0x00000001
+#define NV50VAIO_CHANNELDMA_ALLOCATION_FLAGS_CONNECT_PB_AT_GRAB_ANAL            0x00000000
+#define NV50VAIO_CHANNELDMA_ALLOCATION_FLAGS_CONNECT_PB_AT_GRAB_ANAL             0x00000001
 
 } NV50VAIO_CHANNELDMA_ALLOCATION_PARAMETERS;
 
@@ -101,7 +101,7 @@ typedef struct
 {
     NvV32    channelInstance;            // One of the n channel instances of a given channel type.
                                          // All PIO channels have two instances (one per head).
-    NvHandle hObjectNotify;              // ctx dma handle for an area (of type NvNotification defined in sdk/nvidia/inc/nvtypes.h) where RM can write errors.
+    NvHandle hObjectAnaltify;              // ctx dma handle for an area (of type NvAnaltification defined in sdk/nvidia/inc/nvtypes.h) where RM can write errors.
     NvP64    pControl NV_ALIGN_BYTES(8); // pControl gives virt addr of control region for PIO channel
 } NV50VAIO_CHANNELPIO_ALLOCATION_PARAMETERS;
 

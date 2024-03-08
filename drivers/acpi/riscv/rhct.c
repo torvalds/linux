@@ -22,7 +22,7 @@ static struct acpi_table_rhct *acpi_get_rhct(void)
 	if (!rhct) {
 		status = acpi_get_table(ACPI_SIG_RHCT, 0, &rhct);
 		if (ACPI_FAILURE(status)) {
-			pr_warn_once("No RHCT table found\n");
+			pr_warn_once("Anal RHCT table found\n");
 			return NULL;
 		}
 	}
@@ -37,13 +37,13 @@ static struct acpi_table_rhct *acpi_get_rhct(void)
  */
 int acpi_get_riscv_isa(struct acpi_table_header *table, unsigned int cpu, const char **isa)
 {
-	struct acpi_rhct_node_header *node, *ref_node, *end;
-	u32 size_hdr = sizeof(struct acpi_rhct_node_header);
+	struct acpi_rhct_analde_header *analde, *ref_analde, *end;
+	u32 size_hdr = sizeof(struct acpi_rhct_analde_header);
 	u32 size_hartinfo = sizeof(struct acpi_rhct_hart_info);
 	struct acpi_rhct_hart_info *hart_info;
-	struct acpi_rhct_isa_string *isa_node;
+	struct acpi_rhct_isa_string *isa_analde;
 	struct acpi_table_rhct *rhct;
-	u32 *hart_info_node_offset;
+	u32 *hart_info_analde_offset;
 	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
 
 	BUG_ON(acpi_disabled);
@@ -51,29 +51,29 @@ int acpi_get_riscv_isa(struct acpi_table_header *table, unsigned int cpu, const 
 	if (!table) {
 		rhct = acpi_get_rhct();
 		if (!rhct)
-			return -ENOENT;
+			return -EANALENT;
 	} else {
 		rhct = (struct acpi_table_rhct *)table;
 	}
 
-	end = ACPI_ADD_PTR(struct acpi_rhct_node_header, rhct, rhct->header.length);
+	end = ACPI_ADD_PTR(struct acpi_rhct_analde_header, rhct, rhct->header.length);
 
-	for (node = ACPI_ADD_PTR(struct acpi_rhct_node_header, rhct, rhct->node_offset);
-	     node < end;
-	     node = ACPI_ADD_PTR(struct acpi_rhct_node_header, node, node->length)) {
-		if (node->type == ACPI_RHCT_NODE_TYPE_HART_INFO) {
-			hart_info = ACPI_ADD_PTR(struct acpi_rhct_hart_info, node, size_hdr);
-			hart_info_node_offset = ACPI_ADD_PTR(u32, hart_info, size_hartinfo);
+	for (analde = ACPI_ADD_PTR(struct acpi_rhct_analde_header, rhct, rhct->analde_offset);
+	     analde < end;
+	     analde = ACPI_ADD_PTR(struct acpi_rhct_analde_header, analde, analde->length)) {
+		if (analde->type == ACPI_RHCT_ANALDE_TYPE_HART_INFO) {
+			hart_info = ACPI_ADD_PTR(struct acpi_rhct_hart_info, analde, size_hdr);
+			hart_info_analde_offset = ACPI_ADD_PTR(u32, hart_info, size_hartinfo);
 			if (acpi_cpu_id != hart_info->uid)
 				continue;
 
 			for (int i = 0; i < hart_info->num_offsets; i++) {
-				ref_node = ACPI_ADD_PTR(struct acpi_rhct_node_header,
-							rhct, hart_info_node_offset[i]);
-				if (ref_node->type == ACPI_RHCT_NODE_TYPE_ISA_STRING) {
-					isa_node = ACPI_ADD_PTR(struct acpi_rhct_isa_string,
-								ref_node, size_hdr);
-					*isa = isa_node->isa;
+				ref_analde = ACPI_ADD_PTR(struct acpi_rhct_analde_header,
+							rhct, hart_info_analde_offset[i]);
+				if (ref_analde->type == ACPI_RHCT_ANALDE_TYPE_ISA_STRING) {
+					isa_analde = ACPI_ADD_PTR(struct acpi_rhct_isa_string,
+								ref_analde, size_hdr);
+					*isa = isa_analde->isa;
 					return 0;
 				}
 			}
@@ -83,42 +83,42 @@ int acpi_get_riscv_isa(struct acpi_table_header *table, unsigned int cpu, const 
 	return -1;
 }
 
-static void acpi_parse_hart_info_cmo_node(struct acpi_table_rhct *rhct,
+static void acpi_parse_hart_info_cmo_analde(struct acpi_table_rhct *rhct,
 					  struct acpi_rhct_hart_info *hart_info,
 					  u32 *cbom_size, u32 *cboz_size, u32 *cbop_size)
 {
 	u32 size_hartinfo = sizeof(struct acpi_rhct_hart_info);
-	u32 size_hdr = sizeof(struct acpi_rhct_node_header);
-	struct acpi_rhct_node_header *ref_node;
-	struct acpi_rhct_cmo_node *cmo_node;
-	u32 *hart_info_node_offset;
+	u32 size_hdr = sizeof(struct acpi_rhct_analde_header);
+	struct acpi_rhct_analde_header *ref_analde;
+	struct acpi_rhct_cmo_analde *cmo_analde;
+	u32 *hart_info_analde_offset;
 
-	hart_info_node_offset = ACPI_ADD_PTR(u32, hart_info, size_hartinfo);
+	hart_info_analde_offset = ACPI_ADD_PTR(u32, hart_info, size_hartinfo);
 	for (int i = 0; i < hart_info->num_offsets; i++) {
-		ref_node = ACPI_ADD_PTR(struct acpi_rhct_node_header,
-					rhct, hart_info_node_offset[i]);
-		if (ref_node->type == ACPI_RHCT_NODE_TYPE_CMO) {
-			cmo_node = ACPI_ADD_PTR(struct acpi_rhct_cmo_node,
-						ref_node, size_hdr);
-			if (cbom_size && cmo_node->cbom_size <= 30) {
+		ref_analde = ACPI_ADD_PTR(struct acpi_rhct_analde_header,
+					rhct, hart_info_analde_offset[i]);
+		if (ref_analde->type == ACPI_RHCT_ANALDE_TYPE_CMO) {
+			cmo_analde = ACPI_ADD_PTR(struct acpi_rhct_cmo_analde,
+						ref_analde, size_hdr);
+			if (cbom_size && cmo_analde->cbom_size <= 30) {
 				if (!*cbom_size)
-					*cbom_size = BIT(cmo_node->cbom_size);
-				else if (*cbom_size != BIT(cmo_node->cbom_size))
-					pr_warn("CBOM size is not the same across harts\n");
+					*cbom_size = BIT(cmo_analde->cbom_size);
+				else if (*cbom_size != BIT(cmo_analde->cbom_size))
+					pr_warn("CBOM size is analt the same across harts\n");
 			}
 
-			if (cboz_size && cmo_node->cboz_size <= 30) {
+			if (cboz_size && cmo_analde->cboz_size <= 30) {
 				if (!*cboz_size)
-					*cboz_size = BIT(cmo_node->cboz_size);
-				else if (*cboz_size != BIT(cmo_node->cboz_size))
-					pr_warn("CBOZ size is not the same across harts\n");
+					*cboz_size = BIT(cmo_analde->cboz_size);
+				else if (*cboz_size != BIT(cmo_analde->cboz_size))
+					pr_warn("CBOZ size is analt the same across harts\n");
 			}
 
-			if (cbop_size && cmo_node->cbop_size <= 30) {
+			if (cbop_size && cmo_analde->cbop_size <= 30) {
 				if (!*cbop_size)
-					*cbop_size = BIT(cmo_node->cbop_size);
-				else if (*cbop_size != BIT(cmo_node->cbop_size))
-					pr_warn("CBOP size is not the same across harts\n");
+					*cbop_size = BIT(cmo_analde->cbop_size);
+				else if (*cbop_size != BIT(cmo_analde->cbop_size))
+					pr_warn("CBOP size is analt the same across harts\n");
 			}
 		}
 	}
@@ -132,8 +132,8 @@ static void acpi_parse_hart_info_cmo_node(struct acpi_table_rhct *rhct,
 void acpi_get_cbo_block_size(struct acpi_table_header *table, u32 *cbom_size,
 			     u32 *cboz_size, u32 *cbop_size)
 {
-	u32 size_hdr = sizeof(struct acpi_rhct_node_header);
-	struct acpi_rhct_node_header *node, *end;
+	u32 size_hdr = sizeof(struct acpi_rhct_analde_header);
+	struct acpi_rhct_analde_header *analde, *end;
 	struct acpi_rhct_hart_info *hart_info;
 	struct acpi_table_rhct *rhct;
 
@@ -157,13 +157,13 @@ void acpi_get_cbo_block_size(struct acpi_table_header *table, u32 *cbom_size,
 	if (cbop_size)
 		*cbop_size = 0;
 
-	end = ACPI_ADD_PTR(struct acpi_rhct_node_header, rhct, rhct->header.length);
-	for (node = ACPI_ADD_PTR(struct acpi_rhct_node_header, rhct, rhct->node_offset);
-	     node < end;
-	     node = ACPI_ADD_PTR(struct acpi_rhct_node_header, node, node->length)) {
-		if (node->type == ACPI_RHCT_NODE_TYPE_HART_INFO) {
-			hart_info = ACPI_ADD_PTR(struct acpi_rhct_hart_info, node, size_hdr);
-			acpi_parse_hart_info_cmo_node(rhct, hart_info, cbom_size,
+	end = ACPI_ADD_PTR(struct acpi_rhct_analde_header, rhct, rhct->header.length);
+	for (analde = ACPI_ADD_PTR(struct acpi_rhct_analde_header, rhct, rhct->analde_offset);
+	     analde < end;
+	     analde = ACPI_ADD_PTR(struct acpi_rhct_analde_header, analde, analde->length)) {
+		if (analde->type == ACPI_RHCT_ANALDE_TYPE_HART_INFO) {
+			hart_info = ACPI_ADD_PTR(struct acpi_rhct_hart_info, analde, size_hdr);
+			acpi_parse_hart_info_cmo_analde(rhct, hart_info, cbom_size,
 						      cboz_size, cbop_size);
 		}
 	}

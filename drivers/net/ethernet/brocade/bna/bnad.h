@@ -156,7 +156,7 @@ struct bnad_drv_stats {
 	u64		tx_skb_mss_too_long;
 	u64		tx_skb_tso_too_short;
 	u64		tx_skb_tso_prepare;
-	u64		tx_skb_non_tso_too_long;
+	u64		tx_skb_analn_tso_too_long;
 	u64		tx_skb_tcp_hdr;
 	u64		tx_skb_udp_hdr;
 	u64		tx_skb_csum_err;
@@ -236,7 +236,7 @@ struct bnad_rx_unmap {
 };
 
 enum bnad_rxbuf_type {
-	BNAD_RXBUF_NONE		= 0,
+	BNAD_RXBUF_ANALNE		= 0,
 	BNAD_RXBUF_SK_BUFF	= 1,
 	BNAD_RXBUF_PAGE		= 2,
 	BNAD_RXBUF_MULTI_BUFF	= 3

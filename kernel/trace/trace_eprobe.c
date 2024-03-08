@@ -6,7 +6,7 @@
  * Masami Hiramatsu <mhiramat@kernel.org>
  *
  * Copyright (C) 2021, VMware Inc, Steven Rostedt <rostedt@goodmis.org>
- * Copyright (C) 2021, VMware Inc, Tzvetomir Stoyanov tz.stoyanov@gmail.com>
+ * Copyright (C) 2021, VMware Inc, Tzvetomir Stoyaanalv tz.stoyaanalv@gmail.com>
  *
  */
 #include <linux/module.h>
@@ -92,7 +92,7 @@ static int unregister_trace_eprobe(struct trace_eprobe *ep)
 	if (trace_probe_has_sibling(&ep->tp))
 		goto unreg;
 
-	/* Enabled event can not be unregistered */
+	/* Enabled event can analt be unregistered */
 	if (trace_probe_is_enabled(&ep->tp))
 		return -EBUSY;
 
@@ -146,8 +146,8 @@ static bool eprobe_dyn_event_match(const char *system, const char *event,
 	 */
 
 	/*
-	 * If system exists, but this probe is not part of that system
-	 * do not match.
+	 * If system exists, but this probe is analt part of that system
+	 * do analt match.
 	 */
 	if (system && strcmp(trace_probe_group_name(&ep->tp), system) != 0)
 		return false;
@@ -156,7 +156,7 @@ static bool eprobe_dyn_event_match(const char *system, const char *event,
 	if (event[0] != '\0' && strcmp(trace_probe_name(&ep->tp), event) != 0)
 		return false;
 
-	/* No arguments match all */
+	/* Anal arguments match all */
 	if (argc < 1)
 		return true;
 
@@ -176,7 +176,7 @@ static bool eprobe_dyn_event_match(const char *system, const char *event,
 	argc--;
 	argv++;
 
-	/* If there are no other args, then match */
+	/* If there are anal other args, then match */
 	if (argc < 1)
 		return true;
 
@@ -199,10 +199,10 @@ static struct trace_eprobe *alloc_event_probe(const char *group,
 	struct trace_eprobe *ep;
 	const char *event_name;
 	const char *sys_name;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (!event)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	sys_name = event->class->system;
 	event_name = trace_event_name(event);
@@ -238,7 +238,7 @@ static int eprobe_event_define_fields(struct trace_event_call *event_call)
 
 	tp = trace_probe_primary_from_call(event_call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENOENT;
+		return -EANALENT;
 
 	return traceprobe_define_arg_fields(event_call, sizeof(field), tp);
 }
@@ -293,7 +293,7 @@ print_eprobe_event(struct trace_iterator *iter, int flags,
 	return trace_handle_return(s);
 }
 
-static nokprobe_inline unsigned long
+static analkprobe_inline unsigned long
 get_event_field(struct fetch_insn *code, void *rec)
 {
 	struct ftrace_event_field *field = code->data;
@@ -369,7 +369,7 @@ static int get_eprobe_size(struct trace_probe *tp, void *rec)
 			case FETCH_OP_TP_ARG:
 				val = get_event_field(code, rec);
 				break;
-			case FETCH_NOP_SYMBOL:	/* Ignore a place holder */
+			case FETCH_ANALP_SYMBOL:	/* Iganalre a place holder */
 				code++;
 				goto retry;
 			default:
@@ -388,7 +388,7 @@ static int get_eprobe_size(struct trace_probe *tp, void *rec)
 
 /* Kprobe specific fetch functions */
 
-/* Note that we don't verify it, since the code does not come from user space */
+/* Analte that we don't verify it, since the code does analt come from user space */
 static int
 process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 		   void *base)
@@ -401,7 +401,7 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 	case FETCH_OP_TP_ARG:
 		val = get_event_field(code, rec);
 		break;
-	case FETCH_NOP_SYMBOL:	/* Ignore a place holder */
+	case FETCH_ANALP_SYMBOL:	/* Iganalre a place holder */
 		code++;
 		goto retry;
 	default:
@@ -412,7 +412,7 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 	code++;
 	return process_fetch_insn_bottom(code, val, dest, base);
 }
-NOKPROBE_SYMBOL(process_fetch_insn)
+ANALKPROBE_SYMBOL(process_fetch_insn)
 
 /* eprobe handler */
 static inline void
@@ -445,7 +445,7 @@ __eprobe_trace_func(struct eprobe_data *edata, void *rec)
 
 /*
  * The event probe implementation uses event triggers to get access to
- * the event it is attached to, but is not an actual trigger. The below
+ * the event it is attached to, but is analt an actual trigger. The below
  * functions are just stubs to fulfill what is needed to use the trigger
  * infrastructure.
  */
@@ -462,7 +462,7 @@ static void eprobe_trigger_free(struct event_trigger_data *data)
 static int eprobe_trigger_print(struct seq_file *m,
 				struct event_trigger_data *data)
 {
-	/* Do not print eprobe event triggers */
+	/* Do analt print eprobe event triggers */
 	return 0;
 }
 
@@ -536,7 +536,7 @@ new_eprobe_trigger(struct trace_eprobe *ep, struct trace_event_file *file)
 	edata = kzalloc(sizeof(*edata), GFP_KERNEL);
 	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
 	if (!trigger || !edata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -545,8 +545,8 @@ new_eprobe_trigger(struct trace_eprobe *ep, struct trace_event_file *file)
 	trigger->ops = &eprobe_trigger_ops;
 
 	/*
-	 * EVENT PROBE triggers are not registered as commands with
-	 * register_event_command(), as they are not controlled by the user
+	 * EVENT PROBE triggers are analt registered as commands with
+	 * register_event_command(), as they are analt controlled by the user
 	 * from the trigger file
 	 */
 	trigger->cmd_ops = &event_trigger_cmd;
@@ -582,7 +582,7 @@ static int enable_eprobe(struct trace_eprobe *ep,
 
 	file = find_event_file(tr, ep->event_system, ep->event_name);
 	if (!file)
-		return -ENOENT;
+		return -EANALENT;
 	trigger = new_eprobe_trigger(ep, eprobe_file);
 	if (IS_ERR(trigger))
 		return PTR_ERR(trigger);
@@ -609,7 +609,7 @@ static int disable_eprobe(struct trace_eprobe *ep,
 
 	file = find_event_file(tr, ep->event_system, ep->event_name);
 	if (!file)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_for_each_entry(iter, &file->triggers, list) {
 		if (!(iter->flags & EVENT_TRIGGER_FL_PROBE))
@@ -621,14 +621,14 @@ static int disable_eprobe(struct trace_eprobe *ep,
 		}
 	}
 	if (!trigger)
-		return -ENODEV;
+		return -EANALDEV;
 
 	list_del_rcu(&trigger->list);
 
 	trace_event_trigger_enable_disable(file, 0);
 	update_cond_flag(file);
 
-	/* Make sure nothing is using the edata or trigger */
+	/* Make sure analthing is using the edata or trigger */
 	tracepoint_synchronize_unregister();
 
 	filter = rcu_access_pointer(trigger->filter);
@@ -652,7 +652,7 @@ static int enable_trace_eprobe(struct trace_event_call *call,
 
 	tp = trace_probe_primary_from_call(call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENODEV;
+		return -EANALDEV;
 	enabled = trace_probe_is_enabled(tp);
 
 	/* This also changes "enabled" state */
@@ -679,9 +679,9 @@ static int enable_trace_eprobe(struct trace_event_call *call,
 		if (enabled) {
 			/*
 			 * It's a bug if one failed for something other than memory
-			 * not being available but another eprobe succeeded.
+			 * analt being available but aanalther eprobe succeeded.
 			 */
-			WARN_ON_ONCE(ret != -ENOMEM);
+			WARN_ON_ONCE(ret != -EANALMEM);
 
 			for_each_trace_eprobe_tp(ep, tp) {
 				disable_eprobe(ep, file->tr);
@@ -706,11 +706,11 @@ static int disable_trace_eprobe(struct trace_event_call *call,
 
 	tp = trace_probe_primary_from_call(call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (file) {
 		if (!trace_probe_get_file_link(tp, file))
-			return -ENOENT;
+			return -EANALENT;
 		if (!trace_probe_has_single_file(tp))
 			goto out;
 		trace_probe_clear_flag(tp, TP_FLAG_TRACE);
@@ -777,7 +777,7 @@ find_and_get_event(const char *system, const char *event_name)
 	list_for_each_entry(tp_event, &ftrace_events, list) {
 		/* Skip other probes and ftrace events */
 		if (tp_event->flags &
-		    (TRACE_EVENT_FL_IGNORE_ENABLE |
+		    (TRACE_EVENT_FL_IGANALRE_ENABLE |
 		     TRACE_EVENT_FL_KPROBE |
 		     TRACE_EVENT_FL_UPROBE |
 		     TRACE_EVENT_FL_EPROBE))
@@ -819,7 +819,7 @@ static int trace_eprobe_parse_filter(struct trace_eprobe *ep, int argc, const ch
 	char *p;
 
 	if (argc == 0) {
-		trace_probe_log_err(0, NO_EP_FILTER);
+		trace_probe_log_err(0, ANAL_EP_FILTER);
 		return -EINVAL;
 	}
 
@@ -829,7 +829,7 @@ static int trace_eprobe_parse_filter(struct trace_eprobe *ep, int argc, const ch
 
 	ep->filter_str = kzalloc(len, GFP_KERNEL);
 	if (!ep->filter_str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = ep->filter_str;
 	for (i = 0; i < argc; i++) {
@@ -842,8 +842,8 @@ static int trace_eprobe_parse_filter(struct trace_eprobe *ep, int argc, const ch
 	}
 
 	/*
-	 * Ensure the filter string can be parsed correctly. Note, this
-	 * filter string is for the original event, not for the eprobe.
+	 * Ensure the filter string can be parsed correctly. Analte, this
+	 * filter string is for the original event, analt for the eprobe.
 	 */
 	ret = create_event_filter(top_trace_array(), ep->event, ep->filter_str,
 				  true, &dummy);
@@ -863,7 +863,7 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	/*
 	 * Argument syntax:
 	 *      e[:[GRP/][ENAME]] SYSTEM.EVENT [FETCHARGS] [if FILTER]
-	 * Fetch args (no space):
+	 * Fetch args (anal space):
 	 *  <name>=$<field>[:TYPE]
 	 */
 	const char *event = NULL, *group = EPROBE_EVENT_SYSTEM;
@@ -894,7 +894,7 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	sys_event = argv[1];
 	ret = traceprobe_parse_event_name(&sys_event, &sys_name, buf2, 0);
 	if (ret || !sys_event || !sys_name) {
-		trace_probe_log_err(0, NO_EVENT_INFO);
+		trace_probe_log_err(0, ANAL_EVENT_INFO);
 		goto parse_error;
 	}
 
@@ -919,10 +919,10 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 
 	if (IS_ERR(ep)) {
 		ret = PTR_ERR(ep);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			trace_probe_log_err(0, BAD_ATTACH_EVENT);
-		/* This must return -ENOMEM or missing event, else there is a bug */
-		WARN_ON_ONCE(ret != -ENOMEM && ret != -ENODEV);
+		/* This must return -EANALMEM or missing event, else there is a bug */
+		WARN_ON_ONCE(ret != -EANALMEM && ret != -EANALDEV);
 		ep = NULL;
 		goto error;
 	}
@@ -977,7 +977,7 @@ static __init int trace_events_eprobe_init_early(void)
 
 	err = dyn_event_register(&eprobe_dyn_event_ops);
 	if (err)
-		pr_warn("Could not register eprobe_dyn_event_ops\n");
+		pr_warn("Could analt register eprobe_dyn_event_ops\n");
 
 	return err;
 }

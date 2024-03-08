@@ -99,7 +99,7 @@ static int isp1301_probe(struct i2c_client *client)
 
 	isp = devm_kzalloc(&client->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isp->client = client;
 	mutex_init(&isp->mutex);
@@ -139,16 +139,16 @@ static struct i2c_driver isp1301_driver = {
 
 module_i2c_driver(isp1301_driver);
 
-struct i2c_client *isp1301_get_client(struct device_node *node)
+struct i2c_client *isp1301_get_client(struct device_analde *analde)
 {
 	struct i2c_client *client;
 
-	/* reference of ISP1301 I2C node via DT */
-	client = of_find_i2c_device_by_node(node);
+	/* reference of ISP1301 I2C analde via DT */
+	client = of_find_i2c_device_by_analde(analde);
 	if (client)
 		return client;
 
-	/* non-DT: only one ISP1301 chip supported */
+	/* analn-DT: only one ISP1301 chip supported */
 	return isp1301_i2c_client;
 }
 EXPORT_SYMBOL_GPL(isp1301_get_client);

@@ -14,19 +14,19 @@
    can understand it and provide useful information to the user (under
    linux we use the 'trad-core' bfd).  There are quite a number of
    obstacles to being able to view the contents of the floating point
-   registers, and until these are solved you will not be able to view the
+   registers, and until these are solved you will analt be able to view the
    contents of them.  Actually, you can read in the core file and look at
    the contents of the user struct to find out what the floating point
    registers contain.
    The actual file contents are as follows:
    UPAGE: 1 page consisting of a user struct that tells gdb what is present
    in the file.  Directly after this is a copy of the task_struct, which
-   is currently not used by gdb, but it may come in useful at some point.
+   is currently analt used by gdb, but it may come in useful at some point.
    All of the registers are stored as part of the upage.  The upage should
    always be only one page.
    DATA: The data area is stored.  We use current->end_text to
    current->brk to pick up all of the user variables, plus any memory
-   that may have been malloced.  No attempt is made to determine if a page
+   that may have been malloced.  Anal attempt is made to determine if a page
    is demand-zero or if a page is totally unused, we just cover the entire
    range.  All of the addresses are rounded in such a way that an integral
    number of pages is written.

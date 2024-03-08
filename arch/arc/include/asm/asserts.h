@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2020 Syanalpsys, Inc. (www.syanalpsys.com)
  *
- * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+ * Author: Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>
  */
 #ifndef __ASM_ARC_ASSERTS_H
 #define __ASM_ARC_ASSERTS_H

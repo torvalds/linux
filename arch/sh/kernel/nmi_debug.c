@@ -4,7 +4,7 @@
  */
 #include <linux/delay.h>
 #include <linux/kdebug.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/hardirq.h>
@@ -18,13 +18,13 @@ enum nmi_action {
 
 static unsigned long nmi_actions;
 
-static int nmi_debug_notify(struct notifier_block *self,
+static int nmi_debug_analtify(struct analtifier_block *self,
 		unsigned long val, void *data)
 {
 	struct die_args *args = data;
 
 	if (likely(val != DIE_NMI))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (nmi_actions & NMI_SHOW_STATE)
 		show_state();
@@ -33,20 +33,20 @@ static int nmi_debug_notify(struct notifier_block *self,
 	if (nmi_actions & NMI_DEBOUNCE)
 		mdelay(10);
 	if (nmi_actions & NMI_DIE)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block nmi_debug_nb = {
-	.notifier_call = nmi_debug_notify,
+static struct analtifier_block nmi_debug_nb = {
+	.analtifier_call = nmi_debug_analtify,
 };
 
 static int __init nmi_debug_setup(char *str)
 {
 	char *p, *sep;
 
-	register_die_notifier(&nmi_debug_nb);
+	register_die_analtifier(&nmi_debug_nb);
 
 	if (*str != '=')
 		return 1;

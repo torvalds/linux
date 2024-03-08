@@ -35,7 +35,7 @@ Most commonly used is the `ip` command from `iproute2`::
                0        0       0       0       128
     altname enp58s0u1u1
 
-Note that `-s` has been specified twice to see all members of
+Analte that `-s` has been specified twice to see all members of
 :c:type:`struct rtnl_link_stats64 <rtnl_link_stats64>`.
 If `-s` is specified once the detailed errors won't be shown.
 
@@ -52,14 +52,14 @@ ethtool
 
 Ethtool exposes common low-level statistics.
 All the standard statistics are expected to be maintained
-by the device, not the driver (as opposed to driver-defined stats
+by the device, analt the driver (as opposed to driver-defined stats
 described in the next section which mix software and hardware stats).
 For devices which contain unmanaged
 switches (e.g. legacy SR-IOV or multi-host NICs) the events counted
-may not pertain exclusively to the packets destined to
+may analt pertain exclusively to the packets destined to
 the local host interface. In other words the events may
 be counted at the network port (MAC/PHY blocks) without separation
-for different host side (PCIe) devices. Such ambiguity must not
+for different host side (PCIe) devices. Such ambiguity must analt
 be present when internal switch is managed by Linux (so called
 switchdev mode for NICs).
 
@@ -76,7 +76,7 @@ to configure pause frames can report corresponding hardware counters::
     tx_pause_frames: 1
     rx_pause_frames: 1
 
-General Ethernet statistics not associated with any particular
+General Ethernet statistics analt associated with any particular
 functionality are exposed via ``ethtool -S $ifc`` by specifying
 the ``--groups`` parameter::
 
@@ -116,7 +116,7 @@ procfs
 The historical `/proc/net/dev` text interface gives access to the list
 of interfaces as well as their statistics.
 
-Note that even though this interface is using
+Analte that even though this interface is using
 :c:type:`struct rtnl_link_stats64 <rtnl_link_stats64>`
 internally it combines some of the fields.
 
@@ -152,7 +152,7 @@ ethtool
 
 Ethtool IOCTL interface allows drivers to report implementation
 specific statistics. Historically it has also been used to report
-statistics for which other APIs did not exist, like per-device-queue
+statistics for which other APIs did analt exist, like per-device-queue
 statistics, or standard-based statistics (e.g. RFC 2863).
 
 Statistics and their string identifiers are retrieved separately.
@@ -184,22 +184,22 @@ struct rtnl_link_stats64
 .. kernel-doc:: include/uapi/linux/if_link.h
     :identifiers: rtnl_link_stats64
 
-Notes for driver authors
+Analtes for driver authors
 ========================
 
 Drivers should report all statistics which have a matching member in
 :c:type:`struct rtnl_link_stats64 <rtnl_link_stats64>` exclusively
 via `.ndo_get_stats64`. Reporting such standard stats via ethtool
-or debugfs will not be accepted.
+or debugfs will analt be accepted.
 
 Drivers must ensure best possible compliance with
 :c:type:`struct rtnl_link_stats64 <rtnl_link_stats64>`.
-Please note for example that detailed error statistics must be
+Please analte for example that detailed error statistics must be
 added into the general `rx_error` / `tx_error` counters.
 
-The `.ndo_get_stats64` callback can not sleep because of accesses
+The `.ndo_get_stats64` callback can analt sleep because of accesses
 via `/proc/net/dev`. If driver may sleep when retrieving the statistics
-from the device it should do so periodically asynchronously and only return
+from the device it should do so periodically asynchroanalusly and only return
 a recent copy from `.ndo_get_stats64`. Ethtool interrupt coalescing interface
 allows setting the frequency of refreshing statistics, if needed.
 
@@ -214,7 +214,7 @@ Kernel-internal data structures
 -------------------------------
 
 The following structures are internal to the kernel, their members are
-translated to netlink attributes when dumped. Drivers must not overwrite
+translated to netlink attributes when dumped. Drivers must analt overwrite
 the statistics they don't report with 0.
 
 - ethtool_pause_stats()

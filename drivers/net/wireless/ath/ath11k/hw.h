@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HW_H
@@ -247,7 +247,7 @@ struct ath11k_hw_ops {
 	bool (*rx_desc_get_ldpc_support)(struct hal_rx_desc *desc);
 	bool (*rx_desc_get_mpdu_seq_ctl_vld)(struct hal_rx_desc *desc);
 	bool (*rx_desc_get_mpdu_fc_valid)(struct hal_rx_desc *desc);
-	u16 (*rx_desc_get_mpdu_start_seq_no)(struct hal_rx_desc *desc);
+	u16 (*rx_desc_get_mpdu_start_seq_anal)(struct hal_rx_desc *desc);
 	u16 (*rx_desc_get_msdu_len)(struct hal_rx_desc *desc);
 	u8 (*rx_desc_get_msdu_sgi)(struct hal_rx_desc *desc);
 	u8 (*rx_desc_get_msdu_rate_mcs)(struct hal_rx_desc *desc);
@@ -429,7 +429,7 @@ static inline const char *ath11k_bd_ie_type_str(enum ath11k_bd_ie_type type)
 		return "regdb data";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 extern const struct cfg80211_sar_capa ath11k_hw_sar_capa_wcn6855;

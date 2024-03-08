@@ -27,7 +27,7 @@ it is in DP MST mode, and the device entries number is 3. Otherwise, the
 device entries number is 1.
 
 To simplify the implementation, all the device entries will be initialized
-when bootup no matter whether it is in DP MST mode or not.
+when bootup anal matter whether it is in DP MST mode or analt.
 
 Connection list
 ===============
@@ -42,14 +42,14 @@ Jack
 
 Presume:
  - MST must be dyn_pcm_assign, and it is acomp (for Intel scenario);
- - NON-MST may or may not be dyn_pcm_assign, it can be acomp or !acomp;
+ - ANALN-MST may or may analt be dyn_pcm_assign, it can be acomp or !acomp;
 
 So there are the following scenarios:
  a. MST (&& dyn_pcm_assign && acomp)
- b. NON-MST && dyn_pcm_assign && acomp
- c. NON-MST && !dyn_pcm_assign && !acomp
+ b. ANALN-MST && dyn_pcm_assign && acomp
+ c. ANALN-MST && !dyn_pcm_assign && !acomp
 
-Below discussion will ignore MST and NON-MST difference as it doesn't
+Below discussion will iganalre MST and ANALN-MST difference as it doesn't
 impact on jack handling too much.
 
 Driver uses struct hdmi_pcm pcm[] array in hdmi_spec and snd_jack is
@@ -66,7 +66,7 @@ Build Jack
 
 - dyn_pcm_assign
 
-  Will not use hda_jack but use snd_jack in spec->pcm_rec[pcm_idx].jack directly.
+  Will analt use hda_jack but use snd_jack in spec->pcm_rec[pcm_idx].jack directly.
 
 - !dyn_pcm_assign
 
@@ -82,7 +82,7 @@ Monitor Hotplug Event Handling
 ------------------------------
 - acomp
 
-  pin_eld_notify() -> check_presence_and_report() -> hdmi_present_sense() ->
+  pin_eld_analtify() -> check_presence_and_report() -> hdmi_present_sense() ->
   sync_eld_via_acomp().
 
   Use directly snd_jack_report() on spec->pcm_rec[pcm_idx].jack for

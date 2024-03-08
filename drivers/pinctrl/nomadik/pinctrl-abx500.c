@@ -195,7 +195,7 @@ static int abx500_gpio_direction_output(struct gpio_chip *chip,
 	ret = abx500_gpio_set_bits(chip,
 				AB8500_GPIO_PUD1_REG,
 				offset,
-				ABX500_GPIO_PULL_NONE);
+				ABX500_GPIO_PULL_ANALNE);
 
 out:
 	if (ret < 0) {
@@ -268,7 +268,7 @@ static int abx500_set_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 		return -EINVAL;
 	}
 
-	/* on ABx5xx, there is no GPIO0, so adjust the offset */
+	/* on ABx5xx, there is anal GPIO0, so adjust the offset */
 	offset = gpio - 1;
 
 	switch (alt_setting) {
@@ -352,7 +352,7 @@ static int abx500_set_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 		break;
 
 	default:
-		dev_dbg(pct->dev, "unknown alt_setting %d\n", alt_setting);
+		dev_dbg(pct->dev, "unkanalwn alt_setting %d\n", alt_setting);
 
 		return -EINVAL;
 	}
@@ -373,13 +373,13 @@ static int abx500_get_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 	bool alt_bit2;
 	struct abx500_pinctrl *pct = pinctrl_dev_get_drvdata(pctldev);
 	struct alternate_functions af = pct->soc->alternate_functions[gpio];
-	/* on ABx5xx, there is no GPIO0, so adjust the offset */
+	/* on ABx5xx, there is anal GPIO0, so adjust the offset */
 	unsigned offset = gpio - 1;
 	int ret;
 
 	/*
 	 * if gpiosel_bit is set to unused,
-	 * it means no GPIO or special case
+	 * it means anal GPIO or special case
 	 */
 	if (af.gpiosel_bit == UNUSED)
 		return ABX500_DEFAULT;
@@ -396,7 +396,7 @@ static int abx500_get_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 	if ((af.alt_bit1 < UNUSED) || (af.alt_bit1 > 7) ||
 	    (af.alt_bit2 < UNUSED) || (af.alt_bit2 > 7)) {
 		dev_err(pct->dev,
-			"alt_bitX value not in correct range (-1 to 7)\n");
+			"alt_bitX value analt in correct range (-1 to 7)\n");
 		return -EINVAL;
 	}
 
@@ -459,7 +459,7 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 	int mode = -1;
 	bool is_out;
 	bool pd;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	const char *modes[] = {
 		[ABX500_DEFAULT]	= "default",
@@ -470,8 +470,8 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 
 	const char *pull_up_down[] = {
 		[ABX500_GPIO_PULL_DOWN]		= "pull down",
-		[ABX500_GPIO_PULL_NONE]		= "pull none",
-		[ABX500_GPIO_PULL_NONE + 1]	= "pull none",
+		[ABX500_GPIO_PULL_ANALNE]		= "pull analne",
+		[ABX500_GPIO_PULL_ANALNE + 1]	= "pull analne",
 		[ABX500_GPIO_PULL_UP]		= "pull up",
 	};
 
@@ -485,7 +485,7 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 		goto out;
 
 	seq_printf(s, " gpio-%-3d (%-20.20s) %-3s",
-		   gpio, label ?: "(none)",
+		   gpio, label ?: "(analne)",
 		   is_out ? "out" : "in ");
 
 	if (!is_out) {
@@ -500,7 +500,7 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 
 	mode = abx500_get_mode(pctldev, chip, offset);
 
-	seq_printf(s, " %s", (mode < 0) ? "unknown" : modes[mode]);
+	seq_printf(s, " %s", (mode < 0) ? "unkanalwn" : modes[mode]);
 
 out:
 	if (ret < 0)
@@ -515,7 +515,7 @@ static void abx500_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	struct pinctrl_dev *pctldev = pct->pctldev;
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
-		/* On AB8500, there is no GPIO0, the first is the GPIO 1 */
+		/* On AB8500, there is anal GPIO0, the first is the GPIO 1 */
 		abx500_gpio_dbg_show_one(s, pctldev, chip, i + 1, gpio);
 		seq_putc(s, '\n');
 	}
@@ -623,7 +623,7 @@ static int abx500_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	if (i == pct->soc->gpio_num_ranges) {
 		dev_err(pct->dev, "%s failed to locate range\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(pct->dev, "enable GPIO by altfunc %d at gpio %d\n",
@@ -696,7 +696,7 @@ static int abx500_dt_add_map_mux(struct pinctrl_map **map,
 		const char *function)
 {
 	if (*num_maps == *reserved_maps)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_MUX_GROUP;
 	(*map)[*num_maps].data.mux.group = group;
@@ -714,12 +714,12 @@ static int abx500_dt_add_map_configs(struct pinctrl_map **map,
 	unsigned long *dup_configs;
 
 	if (*num_maps == *reserved_maps)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
 			      GFP_KERNEL);
 	if (!dup_configs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_CONFIGS_PIN;
 
@@ -744,8 +744,8 @@ static const char *abx500_find_pin_name(struct pinctrl_dev *pctldev,
 	return NULL;
 }
 
-static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-		struct device_node *np,
+static int abx500_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+		struct device_analde *np,
 		struct pinctrl_map **map,
 		unsigned *reserved_maps,
 		unsigned *num_maps)
@@ -806,24 +806,24 @@ exit:
 	return ret;
 }
 
-static int abx500_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np_config,
+static int abx500_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_analde *np_config,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	unsigned reserved_maps;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	reserved_maps = 0;
 	*map = NULL;
 	*num_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
-		ret = abx500_dt_subnode_to_map(pctldev, np, map,
+	for_each_child_of_analde(np_config, np) {
+		ret = abx500_dt_subanalde_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}
@@ -836,7 +836,7 @@ static const struct pinctrl_ops abx500_pinctrl_ops = {
 	.get_group_name = abx500_get_group_name,
 	.get_group_pins = abx500_get_group_pins,
 	.pin_dbg_show = abx500_pin_dbg_show,
-	.dt_node_to_map = abx500_dt_node_to_map,
+	.dt_analde_to_map = abx500_dt_analde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -844,7 +844,7 @@ static int abx500_pin_config_get(struct pinctrl_dev *pctldev,
 			  unsigned pin,
 			  unsigned long *config)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
@@ -871,7 +871,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			(argument ? "high" : "low") :
 			(argument ? "pull up" : "pull down"));
 
-		/* on ABx500, there is no GPIO0, so adjust the offset */
+		/* on ABx500, there is anal GPIO0, so adjust the offset */
 		offset = pin - 1;
 
 		switch (param) {
@@ -883,7 +883,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			/* Chip only supports pull down */
 			ret = abx500_gpio_set_bits(chip,
 				AB8500_GPIO_PUD1_REG, offset,
-				ABX500_GPIO_PULL_NONE);
+				ABX500_GPIO_PULL_ANALNE);
 			break;
 
 		case PIN_CONFIG_BIAS_PULL_DOWN:
@@ -899,7 +899,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			AB8500_GPIO_PUD1_REG,
 				offset,
 				argument ? ABX500_GPIO_PULL_DOWN :
-				ABX500_GPIO_PULL_NONE);
+				ABX500_GPIO_PULL_ANALNE);
 			break;
 
 		case PIN_CONFIG_BIAS_PULL_UP:
@@ -990,20 +990,20 @@ static const struct of_device_id abx500_gpio_match[] = {
 
 static int abx500_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct abx500_pinctrl *pct;
 	unsigned int id = -1;
 	int ret;
 	int i;
 
 	if (!np) {
-		dev_err(&pdev->dev, "gpio dt node missing\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "gpio dt analde missing\n");
+		return -EANALDEV;
 	}
 
 	pct = devm_kzalloc(&pdev->dev, sizeof(*pct), GFP_KERNEL);
 	if (!pct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pct->dev = &pdev->dev;
 	pct->parent = dev_get_drvdata(pdev->dev.parent);
@@ -1048,7 +1048,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 					     pct);
 	if (IS_ERR(pct->pctldev)) {
 		dev_err(&pdev->dev,
-			"could not register abx500 pinctrl driver\n");
+			"could analt register abx500 pinctrl driver\n");
 		ret = PTR_ERR(pct->pctldev);
 		goto out_rem_chip;
 	}

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -90,7 +90,7 @@ static void df_v3_6_set_fica(struct amdgpu_device *adev, uint32_t ficaa_val,
 /*
  * df_v3_6_perfmon_rreg - read perfmon lo and hi
  *
- * required to be atomic.  no mmio method provided so subsequent reads for lo
+ * required to be atomic.  anal mmio method provided so subsequent reads for lo
  * and hi require to preserve df finite state machine
  */
 static void df_v3_6_perfmon_rreg(struct amdgpu_device *adev,
@@ -113,8 +113,8 @@ static void df_v3_6_perfmon_rreg(struct amdgpu_device *adev,
 /*
  * df_v3_6_perfmon_wreg - write to perfmon lo and hi
  *
- * required to be atomic.  no mmio method provided so subsequent reads after
- * data writes cannot occur to preserve data fabrics finite state machine.
+ * required to be atomic.  anal mmio method provided so subsequent reads after
+ * data writes cananalt occur to preserve data fabrics finite state machine.
  */
 static void df_v3_6_perfmon_wreg(struct amdgpu_device *adev, uint32_t lo_addr,
 			    uint32_t lo_val, uint32_t hi_addr, uint32_t hi_val)
@@ -416,7 +416,7 @@ static int df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 				hi_base_addr);
 
 	if ((*lo_base_addr == 0) || (*hi_base_addr == 0)) {
-		DRM_ERROR("[DF PMC] addressing not retrieved! Lo: %x, Hi: %x",
+		DRM_ERROR("[DF PMC] addressing analt retrieved! Lo: %x, Hi: %x",
 				*lo_base_addr, *hi_base_addr);
 		return -ENXIO;
 	}
@@ -453,7 +453,7 @@ static int df_v3_6_pmc_add_cntr(struct amdgpu_device *adev,
 		}
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 #define DEFERRED_ARM_MASK	(1 << 31)

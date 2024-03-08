@@ -3,7 +3,7 @@
 // Author: Roman Gushchin <guro@fb.com>
 
 #define _XOPEN_SOURCE 500
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <ftw.h>
 #include <mntent.h>
@@ -184,21 +184,21 @@ static int count_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type)
 static int cgroup_has_attached_progs(int cgroup_fd)
 {
 	enum bpf_attach_type type;
-	bool no_prog = true;
+	bool anal_prog = true;
 
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++) {
 		int count = count_attached_bpf_progs(cgroup_fd, type);
 
-		if (count < 0 && errno != EINVAL)
+		if (count < 0 && erranal != EINVAL)
 			return -1;
 
 		if (count > 0) {
-			no_prog = false;
+			anal_prog = false;
 			break;
 		}
 	}
 
-	return no_prog ? 0 : 1;
+	return anal_prog ? 0 : 1;
 }
 
 static int show_effective_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
@@ -265,7 +265,7 @@ static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
 			attach_flags_str = "";
 			break;
 		default:
-			snprintf(buf, sizeof(buf), "unknown(%x)", attach_flags);
+			snprintf(buf, sizeof(buf), "unkanalwn(%x)", attach_flags);
 			attach_flags_str = buf;
 		}
 
@@ -307,7 +307,7 @@ static int do_show(int argc, char **argv)
 			query_flags |= BPF_F_QUERY_EFFECTIVE;
 			NEXT_ARG();
 		} else {
-			p_err("expected no more arguments, 'effective', got: '%s'?",
+			p_err("expected anal more arguments, 'effective', got: '%s'?",
 			      *argv);
 			return -1;
 		}
@@ -322,7 +322,7 @@ static int do_show(int argc, char **argv)
 	has_attached_progs = cgroup_has_attached_progs(cgroup_fd);
 	if (has_attached_progs < 0) {
 		p_err("can't query bpf programs attached to %s: %s",
-		      path, strerror(errno));
+		      path, strerror(erranal));
 		goto exit_cgroup;
 	} else if (!has_attached_progs) {
 		ret = 0;
@@ -340,7 +340,7 @@ static int do_show(int argc, char **argv)
 	btf_vmlinux = libbpf_find_kernel_btf();
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++) {
 		/*
-		 * Not all attach types may be supported, so it's expected,
+		 * Analt all attach types may be supported, so it's expected,
 		 * that some requests will fail.
 		 * If we were able to get the show for at least one
 		 * attach type, let's return 0.
@@ -377,14 +377,14 @@ static int do_show_tree_fn(const char *fpath, const struct stat *sb,
 
 	cgroup_fd = open(fpath, O_RDONLY);
 	if (cgroup_fd < 0) {
-		p_err("can't open cgroup %s: %s", fpath, strerror(errno));
+		p_err("can't open cgroup %s: %s", fpath, strerror(erranal));
 		return SHOW_TREE_FN_ERR;
 	}
 
 	has_attached_progs = cgroup_has_attached_progs(cgroup_fd);
 	if (has_attached_progs < 0) {
 		p_err("can't query bpf programs attached to %s: %s",
-		      fpath, strerror(errno));
+		      fpath, strerror(erranal));
 		close(cgroup_fd);
 		return SHOW_TREE_FN_ERR;
 	} else if (!has_attached_progs) {
@@ -405,12 +405,12 @@ static int do_show_tree_fn(const char *fpath, const struct stat *sb,
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++)
 		show_bpf_progs(cgroup_fd, type, ftw->level);
 
-	if (errno == EINVAL)
-		/* Last attach type does not support query.
-		 * Do not report an error for this, especially because batch
+	if (erranal == EINVAL)
+		/* Last attach type does analt support query.
+		 * Do analt report an error for this, especially because batch
 		 * mode would stop processing commands.
 		 */
-		errno = 0;
+		erranal = 0;
 
 	if (json_output) {
 		jsonw_end_array(json_wtr);
@@ -468,7 +468,7 @@ static int do_show_tree(int argc, char **argv)
 				query_flags |= BPF_F_QUERY_EFFECTIVE;
 				NEXT_ARG();
 			} else {
-				p_err("expected no more arguments, 'effective', got: '%s'?",
+				p_err("expected anal more arguments, 'effective', got: '%s'?",
 				      *argv);
 				return -1;
 			}
@@ -491,7 +491,7 @@ static int do_show_tree(int argc, char **argv)
 	switch (nftw(cgroup_root, do_show_tree_fn, 1024, FTW_MOUNT)) {
 	case NFTW_ERR:
 		p_err("can't iterate over %s: %s", cgroup_root,
-		      strerror(errno));
+		      strerror(erranal));
 		ret = -1;
 		break;
 	case SHOW_TREE_FN_ERR:
@@ -546,7 +546,7 @@ static int do_attach(int argc, char **argv)
 		} else if (is_prefix(argv[i], "override")) {
 			attach_flags |= BPF_F_ALLOW_OVERRIDE;
 		} else {
-			p_err("unknown option: %s", argv[i]);
+			p_err("unkanalwn option: %s", argv[i]);
 			goto exit_cgroup;
 		}
 	}

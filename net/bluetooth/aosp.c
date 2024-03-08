@@ -74,7 +74,7 @@ void aosp_do_open(struct hci_dev *hdev)
 	bt_dev_info(hdev, "AOSP extensions version v%u.%02u",
 		    version_supported >> 8, version_supported & 0xff);
 
-	/* Do not support very old versions. */
+	/* Do analt support very old versions. */
 	if (version_supported < 95) {
 		bt_dev_warn(hdev, "AOSP capabilities version %u too old",
 			    version_supported);
@@ -82,7 +82,7 @@ void aosp_do_open(struct hci_dev *hdev)
 	}
 
 	if (version_supported < 98) {
-		bt_dev_warn(hdev, "AOSP quality report is not supported");
+		bt_dev_warn(hdev, "AOSP quality report is analt supported");
 		goto done;
 	}
 
@@ -133,7 +133,7 @@ void aosp_do_close(struct hci_dev *hdev)
 #define DEFAULT_BQR_EVENT_MASK	(QUALITY_MONITORING | APPRAOCHING_LSTO | \
 				 A2DP_AUDIO_CHOPPY | SCO_VOICE_CHOPPY)
 
-/* Reporting at milliseconds so as not to stress the controller too much.
+/* Reporting at milliseconds so as analt to stress the controller too much.
  * Range: 0 ~ 65535 ms
  */
 #define DEFALUT_REPORT_INTERVAL_MS	5000
@@ -198,7 +198,7 @@ bool aosp_has_quality_report(struct hci_dev *hdev)
 int aosp_set_quality_report(struct hci_dev *hdev, bool enable)
 {
 	if (!aosp_has_quality_report(hdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	bt_dev_dbg(hdev, "quality report enable %d", enable);
 

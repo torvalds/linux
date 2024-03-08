@@ -22,7 +22,7 @@
 #include <linux/iio/sysfs.h>
 
 /**
- *  struct inv_mpu6050_reg_map - Notable registers.
+ *  struct inv_mpu6050_reg_map - Analtable registers.
  *  @sample_rate_div:	Divider applied to gyro output rate.
  *  @lpf:		Configures internal low pass filter.
  *  @accel_lpf:		Configures accelerometer low pass filter.
@@ -421,14 +421,14 @@ enum inv_mpu6050_scan {
 };
 
 enum inv_mpu6050_filter_e {
-	INV_MPU6050_FILTER_NOLPF2 = 0,
+	INV_MPU6050_FILTER_ANALLPF2 = 0,
 	INV_MPU6050_FILTER_200HZ,
 	INV_MPU6050_FILTER_100HZ,
 	INV_MPU6050_FILTER_45HZ,
 	INV_MPU6050_FILTER_20HZ,
 	INV_MPU6050_FILTER_10HZ,
 	INV_MPU6050_FILTER_5HZ,
-	INV_MPU6050_FILTER_NOLPF,
+	INV_MPU6050_FILTER_ANALLPF,
 	NUM_MPU6050_FILTER
 };
 

@@ -13,8 +13,8 @@ int lan966x_mirror_port_add(struct lan966x_port *port,
 
 	if (!lan966x_netdevice_check(action->dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Destination not an lan966x port");
-		return -EOPNOTSUPP;
+				   "Destination analt an lan966x port");
+		return -EOPANALTSUPP;
 	}
 
 	monitor_port = netdev_priv(action->dev);
@@ -28,13 +28,13 @@ int lan966x_mirror_port_add(struct lan966x_port *port,
 	if (lan966x->mirror_monitor &&
 	    lan966x->mirror_monitor != monitor_port) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot change mirror port while in use");
+				   "Cananalt change mirror port while in use");
 		return -EBUSY;
 	}
 
 	if (port == monitor_port) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot mirror the monitor port");
+				   "Cananalt mirror the monitor port");
 		return -EINVAL;
 	}
 
@@ -70,8 +70,8 @@ int lan966x_mirror_port_del(struct lan966x_port *port,
 
 	if (!(lan966x->mirror_mask[ingress] & BIT(port->chip_port))) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "There is no mirroring for this port");
-		return -ENOENT;
+				   "There is anal mirroring for this port");
+		return -EANALENT;
 	}
 
 	lan966x->mirror_mask[ingress] &= ~BIT(port->chip_port);

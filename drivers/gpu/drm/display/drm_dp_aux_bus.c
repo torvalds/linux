@@ -47,7 +47,7 @@ static int dp_aux_ep_match(struct device *dev, struct device_driver *drv)
  *
  * Calls through to the endpoint driver probe.
  *
- * Return: 0 if no error or negative error code.
+ * Return: 0 if anal error or negative error code.
  */
 static int dp_aux_ep_probe(struct device *dev)
 {
@@ -69,7 +69,7 @@ static int dp_aux_ep_probe(struct device *dev)
 		ret = aux_ep_with_data->done_probing(aux_ep->aux);
 		if (ret) {
 			/*
-			 * The done_probing() callback should not return
+			 * The done_probing() callback should analt return
 			 * -EPROBE_DEFER to us. If it does, we treat it as an
 			 * error. Passing it on as-is would cause the _panel_
 			 * to defer.
@@ -175,31 +175,31 @@ static struct device_type dp_aux_device_type_type = {
 /**
  * of_dp_aux_ep_destroy() - Destroy an DP AUX endpoint device
  * @dev: The device to destroy.
- * @data: Not used
+ * @data: Analt used
  *
  * This is just used as a callback by of_dp_aux_depopulate_bus() and
  * is called for _all_ of the child devices of the device providing the AUX bus.
  * We'll only act on those that are of type "dp_aux_bus_type".
  *
  * This function is effectively an inverse of what's in
- * of_dp_aux_populate_bus(). NOTE: since we only populate one child
+ * of_dp_aux_populate_bus(). ANALTE: since we only populate one child
  * then it's expected that only one device will match all the "if" tests in
  * this function and get to the device_unregister().
  *
- * Return: 0 if no error or negative error code.
+ * Return: 0 if anal error or negative error code.
  */
 static int of_dp_aux_ep_destroy(struct device *dev, void *data)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	if (dev->bus != &dp_aux_bus_type)
 		return 0;
 
-	if (!of_node_check_flag(np, OF_POPULATED))
+	if (!of_analde_check_flag(np, OF_POPULATED))
 		return 0;
 
-	of_node_clear_flag(np, OF_POPULATED);
-	of_node_put(np);
+	of_analde_clear_flag(np, OF_POPULATED);
+	of_analde_put(np);
 
 	device_unregister(dev);
 
@@ -224,19 +224,19 @@ EXPORT_SYMBOL_GPL(of_dp_aux_depopulate_bus);
  * @aux: The AUX channel whose device we want to populate. It is required that
  *       drm_dp_aux_init() has already been called for this AUX channel.
  * @done_probing: Callback functions to call after EP device finishes probing.
- *                Will not be called if there are no EP devices and this
- *                function will return -ENODEV.
+ *                Will analt be called if there are anal EP devices and this
+ *                function will return -EANALDEV.
  *
  * This will populate the device (expected to be an eDP panel) under the
- * "aux-bus" node of the device providing the AUX channel (AKA aux->dev).
+ * "aux-bus" analde of the device providing the AUX channel (AKA aux->dev).
  *
- * When this function finishes, it is _possible_ (but not guaranteed) that
- * our sub-device will have finished probing. It should be noted that if our
- * sub-device returns -EPROBE_DEFER or is probing asynchronously for some
- * reason that we will not return any error codes ourselves but our
- * sub-device will _not_ have actually probed successfully yet.
+ * When this function finishes, it is _possible_ (but analt guaranteed) that
+ * our sub-device will have finished probing. It should be analted that if our
+ * sub-device returns -EPROBE_DEFER or is probing asynchroanalusly for some
+ * reason that we will analt return any error codes ourselves but our
+ * sub-device will _analt_ have actually probed successfully yet.
  *
- * In many cases it's important for the caller of this function to be notified
+ * In many cases it's important for the caller of this function to be analtified
  * when our sub device finishes probing. Our sub device is expected to be an
  * eDP panel and the caller is expected to be an eDP controller. The eDP
  * controller needs to be able to get a reference to the panel when it finishes
@@ -247,33 +247,33 @@ EXPORT_SYMBOL_GPL(of_dp_aux_depopulate_bus);
  * of_dp_aux_depopulate_bus() to undo it, or just use the devm version
  * of this function.
  *
- * Return: 0 if no error or negative error code; returns -ENODEV if there are
- *         no children. The done_probing() function won't be called in that
+ * Return: 0 if anal error or negative error code; returns -EANALDEV if there are
+ *         anal children. The done_probing() function won't be called in that
  *         case.
  */
 int of_dp_aux_populate_bus(struct drm_dp_aux *aux,
 			   int (*done_probing)(struct drm_dp_aux *aux))
 {
-	struct device_node *bus = NULL, *np = NULL;
+	struct device_analde *bus = NULL, *np = NULL;
 	struct dp_aux_ep_device *aux_ep;
 	struct dp_aux_ep_device_with_data *aux_ep_with_data;
 	int ret;
 
-	/* drm_dp_aux_init() should have been called already; warn if not */
+	/* drm_dp_aux_init() should have been called already; warn if analt */
 	WARN_ON_ONCE(!aux->ddc.algo);
 
-	if (!aux->dev->of_node)
-		return -ENODEV;
-	bus = of_get_child_by_name(aux->dev->of_node, "aux-bus");
+	if (!aux->dev->of_analde)
+		return -EANALDEV;
+	bus = of_get_child_by_name(aux->dev->of_analde, "aux-bus");
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	np = of_get_next_available_child(bus, NULL);
-	of_node_put(bus);
+	of_analde_put(bus);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (of_node_test_and_set_flag(np, OF_POPULATED)) {
+	if (of_analde_test_and_set_flag(np, OF_POPULATED)) {
 		dev_err(aux->dev, "DP AUX EP device already populated\n");
 		ret = -EINVAL;
 		goto err_did_get_np;
@@ -281,7 +281,7 @@ int of_dp_aux_populate_bus(struct drm_dp_aux *aux,
 
 	aux_ep_with_data = kzalloc(sizeof(*aux_ep_with_data), GFP_KERNEL);
 	if (!aux_ep_with_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_did_set_populated;
 	}
 
@@ -292,7 +292,7 @@ int of_dp_aux_populate_bus(struct drm_dp_aux *aux,
 	aux_ep->dev.parent = aux->dev;
 	aux_ep->dev.bus = &dp_aux_bus_type;
 	aux_ep->dev.type = &dp_aux_device_type_type;
-	aux_ep->dev.of_node = of_node_get(np);
+	aux_ep->dev.of_analde = of_analde_get(np);
 	dev_set_name(&aux_ep->dev, "aux-%s", dev_name(aux->dev));
 
 	ret = device_register(&aux_ep->dev);
@@ -311,10 +311,10 @@ int of_dp_aux_populate_bus(struct drm_dp_aux *aux,
 	return 0;
 
 err_did_set_populated:
-	of_node_clear_flag(np, OF_POPULATED);
+	of_analde_clear_flag(np, OF_POPULATED);
 
 err_did_get_np:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return ret;
 }
@@ -329,13 +329,13 @@ static void of_dp_aux_depopulate_bus_void(void *data)
  * devm_of_dp_aux_populate_bus() - devm wrapper for of_dp_aux_populate_bus()
  * @aux: The AUX channel whose device we want to populate
  * @done_probing: Callback functions to call after EP device finishes probing.
- *                Will not be called if there are no EP devices and this
- *                function will return -ENODEV.
+ *                Will analt be called if there are anal EP devices and this
+ *                function will return -EANALDEV.
  *
  * Handles freeing w/ devm on the device "aux->dev".
  *
- * Return: 0 if no error or negative error code; returns -ENODEV if there are
- *         no children. The done_probing() function won't be called in that
+ * Return: 0 if anal error or negative error code; returns -EANALDEV if there are
+ *         anal children. The done_probing() function won't be called in that
  *         case.
  */
 int devm_of_dp_aux_populate_bus(struct drm_dp_aux *aux,

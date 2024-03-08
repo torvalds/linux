@@ -19,14 +19,14 @@ struct bfa_port_fc_stats {
 	u64	tx_frames;	/*!< Tx frames			*/
 	u64	tx_words;	/*!< Tx words			*/
 	u64	tx_lip;		/*!< Tx LIP			*/
-	u64	tx_nos;		/*!< Tx NOS			*/
+	u64	tx_anals;		/*!< Tx ANALS			*/
 	u64	tx_ols;		/*!< Tx OLS			*/
 	u64	tx_lr;		/*!< Tx LR			*/
 	u64	tx_lrr;		/*!< Tx LRR			*/
 	u64	rx_frames;	/*!< Rx frames			*/
 	u64	rx_words;	/*!< Rx words			*/
 	u64	lip_count;	/*!< Rx LIP			*/
-	u64	nos_count;	/*!< Rx NOS			*/
+	u64	anals_count;	/*!< Rx ANALS			*/
 	u64	ols_count;	/*!< Rx OLS			*/
 	u64	lr_count;	/*!< Rx LR			*/
 	u64	lrr_count;	/*!< Rx LRR			*/
@@ -42,7 +42,7 @@ struct bfa_port_fc_stats {
 	u64	loss_of_signals; /*!< Loss of signal count	*/
 	u64	primseq_errs;	/*!< Primitive sequence protocol err. */
 	u64	bad_os_count;	/*!< Invalid ordered sets	*/
-	u64	err_enc_out;	/*!< Encoding err nonframe_8b10b */
+	u64	err_enc_out;	/*!< Encoding err analnframe_8b10b */
 	u64	err_enc;	/*!< Encoding err frame_8b10b	*/
 	u64	bbsc_frames_lost; /*!< Credit Recovery-Frames Lost  */
 	u64	bbsc_credits_lost; /*!< Credit Recovery-Credits Lost */
@@ -73,7 +73,7 @@ struct bfa_port_eth_stats {
 	u64	rx_mcast_packets; /*!< Rx multicast packets	*/
 	u64	rx_bcast_packets; /*!< Rx broadcast packets	*/
 	u64	rx_control_frames; /*!< Rx control frames	*/
-	u64	rx_unknown_opcode; /*!< Rx unknown opcode	*/
+	u64	rx_unkanalwn_opcode; /*!< Rx unkanalwn opcode	*/
 	u64	rx_drop;	/*!< Rx drops			*/
 	u64	rx_jabber;	/*!< Rx jabber			*/
 	u64	rx_fcs_error;	/*!< Rx FCS errors		*/
@@ -143,8 +143,8 @@ enum bfa_cee_dcbx_version {
 };
 
 enum bfa_cee_lls {
-	/* LLS is down because the TLV not sent by the peer */
-	CEE_LLS_DOWN_NO_TLV = 0,
+	/* LLS is down because the TLV analt sent by the peer */
+	CEE_LLS_DOWN_ANAL_TLV = 0,
 	/* LLS is down as advertised by the peer */
 	CEE_LLS_DOWN	= 1,
 	CEE_LLS_UP	= 2,

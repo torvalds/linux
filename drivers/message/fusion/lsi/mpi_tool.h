@@ -19,8 +19,8 @@
  *  01-16-04  01.02.03  Added defines and structures for new tools
  *.                     MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL and
  *                      MPI_TOOLBOX_FC_MANAGEMENT_TOOL.
- *  04-29-04  01.02.04  Added message structures for Diagnostic Buffer Post and
- *                      Diagnostic Release requests and replies.
+ *  04-29-04  01.02.04  Added message structures for Diaganalstic Buffer Post and
+ *                      Diaganalstic Release requests and replies.
  *  05-11-04  01.03.01  Original release for MPI v1.3.
  *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  10-06-04  01.05.02  Added define for MPI_DIAG_BUF_TYPE_COUNT.
@@ -110,7 +110,7 @@ typedef struct _MSG_TOOLBOX_MEM_MOVE_REQUEST
 
 
 /****************************************************************************/
-/* Toolbox Diagnostic Data Upload request                                   */
+/* Toolbox Diaganalstic Data Upload request                                   */
 /****************************************************************************/
 
 typedef struct _MSG_TOOLBOX_DIAG_DATA_UPLOAD_REQUEST
@@ -265,7 +265,7 @@ typedef struct _MSG_TOOLBOX_BEACON_REQUEST
 
 
 /****************************************************************************/
-/* Diagnostic Buffer Post request                                           */
+/* Diaganalstic Buffer Post request                                           */
 /****************************************************************************/
 
 typedef struct _MSG_DIAG_BUFFER_POST_REQUEST
@@ -295,7 +295,7 @@ typedef struct _MSG_DIAG_BUFFER_POST_REQUEST
 #define MPI_DIAG_EXTENDED_QTAG                      (0x00000001)
 
 
-/* Diagnostic Buffer Post reply */
+/* Diaganalstic Buffer Post reply */
 typedef struct _MSG_DIAG_BUFFER_POST_REPLY
 {
     U8                      Reserved1;                  /* 00h */
@@ -315,7 +315,7 @@ typedef struct _MSG_DIAG_BUFFER_POST_REPLY
 
 
 /****************************************************************************/
-/* Diagnostic Release request                                               */
+/* Diaganalstic Release request                                               */
 /****************************************************************************/
 
 typedef struct _MSG_DIAG_RELEASE_REQUEST
@@ -332,7 +332,7 @@ typedef struct _MSG_DIAG_RELEASE_REQUEST
   DiagReleaseRequest_t, MPI_POINTER pDiagReleaseRequest_t;
 
 
-/* Diagnostic Release reply */
+/* Diaganalstic Release reply */
 typedef struct _MSG_DIAG_RELEASE_REPLY
 {
     U8                      Reserved1;                  /* 00h */

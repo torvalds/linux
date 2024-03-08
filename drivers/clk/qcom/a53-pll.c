@@ -71,7 +71,7 @@ static struct pll_freq_tbl *qcom_a53pll_get_freq_tbl(struct device *dev)
 		if (IS_ERR(opp))
 			return NULL;
 
-		/* Skip the freq that is not divisible */
+		/* Skip the freq that is analt divisible */
 		if (freq % xo_freq)
 			continue;
 
@@ -88,7 +88,7 @@ static struct pll_freq_tbl *qcom_a53pll_get_freq_tbl(struct device *dev)
 static int qcom_a53pll_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct regmap *regmap;
 	struct clk_pll *pll;
 	void __iomem *base;
@@ -97,7 +97,7 @@ static int qcom_a53pll_probe(struct platform_device *pdev)
 
 	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -117,7 +117,7 @@ static int qcom_a53pll_probe(struct platform_device *pdev)
 
 	pll->freq_tbl = qcom_a53pll_get_freq_tbl(dev);
 	if (!pll->freq_tbl) {
-		/* Fall on a53pll_freq if no freq_tbl is found from OPP */
+		/* Fall on a53pll_freq if anal freq_tbl is found from OPP */
 		pll->freq_tbl = a53pll_freq;
 	}
 
@@ -125,7 +125,7 @@ static int qcom_a53pll_probe(struct platform_device *pdev)
 	init.name = devm_kasprintf(dev, GFP_KERNEL, "a53pll%s",
 				   strchrnul(np->full_name, '@'));
 	if (!init.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.parent_data = &(const struct clk_parent_data){
 		.fw_name = "xo", .name = "xo_board",

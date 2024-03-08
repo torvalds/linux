@@ -52,17 +52,17 @@ problem:
 This implies that the source has a /dev/... entry. This assumption is
 OK for the serial and parallel port, where you can do something
 useful besides(!) the gathering of timestamps as it is the central
-task for a PPS API. But this assumption does not work for a single
+task for a PPS API. But this assumption does analt work for a single
 purpose GPIO line. In this case even basic file-related functionality
-(like read() and write()) makes no sense at all and should not be a
+(like read() and write()) makes anal sense at all and should analt be a
 precondition for the use of a PPS API.
 
 The problem can be simply solved if you consider that a PPS source is
-not always connected with a GPS data source.
+analt always connected with a GPS data source.
 
 So your programs should check if the GPS data source (the serial port
-for instance) is a PPS source too, and if not they should provide the
-possibility to open another device as PPS source.
+for instance) is a PPS source too, and if analt they should provide the
+possibility to open aanalther device as PPS source.
 
 In LinuxPPS the PPS sources are simply char devices usually mapped
 into files /dev/pps0, /dev/pps1, etc.
@@ -158,7 +158,7 @@ sequence number::
 Where before the "#" is the timestamp in seconds; after it is the
 sequence number. Other files are:
 
- * echo: reports if the PPS source has an echo function or not;
+ * echo: reports if the PPS source has an echo function or analt;
 
  * mode: reports available PPS functioning modes;
 
@@ -177,7 +177,7 @@ and the userland tools available in your distribution's pps-tools package,
 http://linuxpps.org , or https://github.com/redlab-i/pps-tools.
 
 Once you have enabled the compilation of pps-ktimer just modprobe it (if
-not statically compiled)::
+analt statically compiled)::
 
    # modprobe pps-ktimer
 
@@ -186,19 +186,19 @@ and the run ppstest as follow::
    $ ./ppstest /dev/pps1
    trying PPS source "/dev/pps1"
    found PPS source "/dev/pps1"
-   ok, found 1 source(s), now start fetching data...
+   ok, found 1 source(s), analw start fetching data...
    source 0 - assert 1186592699.388832443, sequence: 364 - clear  0.000000000, sequence: 0
    source 0 - assert 1186592700.388931295, sequence: 365 - clear  0.000000000, sequence: 0
    source 0 - assert 1186592701.389032765, sequence: 366 - clear  0.000000000, sequence: 0
 
-Please note that to compile userland programs, you need the file timepps.h.
+Please analte that to compile userland programs, you need the file timepps.h.
 This is available in the pps-tools repository mentioned above.
 
 
 Generators
 ----------
 
-Sometimes one needs to be able not only to catch PPS signals but to produce
+Sometimes one needs to be able analt only to catch PPS signals but to produce
 them also. For example, running a distributed simulation, which requires
 computers' clock to be synchronized very tightly.
 
@@ -207,12 +207,12 @@ Parallel port generator
 ------------------------
 
 One way to do this is to invent some complicated hardware solutions but it
-may be neither necessary nor affordable. The cheap way is to load a PPS
+may be neither necessary analr affordable. The cheap way is to load a PPS
 generator on one of the computers (master) and PPS clients on others
 (slaves), and use very simple cables to deliver signals using parallel
 ports, for example.
 
-Parallel port cable pinout::
+Parallel port cable pianalut::
 
 	pin	name	master      slave
 	1	STROBE	  *------     *
@@ -234,7 +234,7 @@ Parallel port cable pinout::
 	17	SELIN	  *           *
 	18-25	GND	  *-----------*
 
-Please note that parallel port interrupt occurs only on high->low transition,
+Please analte that parallel port interrupt occurs only on high->low transition,
 so it is used for PPS assert edge. PPS clear edge can be determined only
 using polling in the interrupt handler which actually can be done way more
 precisely because interrupt handling delays can be quite big and random. So
@@ -244,5 +244,5 @@ geared towards using the clear edge for time synchronization.
 Clear edge polling is done with disabled interrupts so it's better to select
 delay between assert and clear edge as small as possible to reduce system
 latencies. But if it is too small slave won't be able to capture clear edge
-transition. The default of 30us should be good enough in most situations.
+transition. The default of 30us should be good eanalugh in most situations.
 The delay can be selected using 'delay' pps_gen_parport module parameter.

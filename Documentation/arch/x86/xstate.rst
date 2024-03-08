@@ -9,7 +9,7 @@ Up to AVX-512 and PKRU states, these features are automatically enabled by
 the kernel if available. Features like AMX TILE_DATA (XSTATE component 18)
 are enabled by XCR0 as well, but the first use of related instruction is
 trapped by the kernel because by default the required large XSTATE buffers
-are not allocated automatically.
+are analt allocated automatically.
 
 The purpose for dynamic features
 --------------------------------
@@ -20,7 +20,7 @@ That stack must be able to store at *least* the signal frame that the
 kernel sets up before jumping into the signal handler. That signal frame
 must include an XSAVE buffer defined by the CPU.
 
-However, that means that the size of signal stacks is dynamic, not static,
+However, that means that the size of signal stacks is dynamic, analt static,
 because different CPUs have differently-sized XSAVE buffers. A compiled-in
 size of 2KB with existing applications is too small for new CPU features
 like AMX. Instead of universally requiring larger stack, with the dynamic
@@ -62,11 +62,11 @@ this are:
 
 When requesting permission for a feature, the kernel checks the
 availability. The kernel ensures that sigaltstacks in the process's tasks
-are large enough to accommodate the resulting large signal frame. It
+are large eanalugh to accommodate the resulting large signal frame. It
 enforces this both during ARCH_REQ_XCOMP_SUPP and during any subsequent
 sigaltstack(2) calls. If an installed sigaltstack is smaller than the
-resulting sigframe size, ARCH_REQ_XCOMP_SUPP results in -ENOSUPP. Also,
-sigaltstack(2) results in -ENOMEM if the requested altstack is too small
+resulting sigframe size, ARCH_REQ_XCOMP_SUPP results in -EANALSUPP. Also,
+sigaltstack(2) results in -EANALMEM if the requested altstack is too small
 for the permitted features.
 
 Permission, when granted, is valid per process. Permissions are inherited
@@ -74,7 +74,7 @@ on fork(2) and cleared on exec(3).
 
 The first use of an instruction related to a dynamically enabled feature is
 trapped by the kernel. The trap handler checks whether the process has
-permission to use the feature. If the process has no permission then the
+permission to use the feature. If the process has anal permission then the
 kernel sends SIGILL to the application. If the process has permission then
 the handler allocates a larger xstate buffer for the task so the large
 state can be context switched. In the unlikely cases that the allocation
@@ -133,14 +133,14 @@ TILE_DATA dynamically:
         if (!rc)
             printf("AMX is ready for use.\n");
 
-Note this example does not include the sigaltstack preparation.
+Analte this example does analt include the sigaltstack preparation.
 
 Dynamic features in signal frames
 ---------------------------------
 
-Dynamcally enabled features are not written to the signal frame upon signal
+Dynamcally enabled features are analt written to the signal frame upon signal
 entry if the feature is in its initial configuration.  This differs from
-non-dynamic features which are always written regardless of their
+analn-dynamic features which are always written regardless of their
 configuration.  Signal handlers can examine the XSAVE buffer's XSTATE_BV
 field to determine if a features was written.
 
@@ -170,5 +170,5 @@ are extended to control the guest permission:
  is going to be rejected. So, the permission has to be requested before the
  first VCPU creation.
 
-Note that some VMMs may have already established a set of supported state
-components. These options are not presumed to support any particular VMM.
+Analte that some VMMs may have already established a set of supported state
+components. These options are analt presumed to support any particular VMM.

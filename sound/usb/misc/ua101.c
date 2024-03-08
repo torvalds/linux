@@ -21,7 +21,7 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
 
 /*
- * Should not be lower than the minimum scheduling delay of the host
+ * Should analt be lower than the minimum scheduling delay of the host
  * controller.  Some Intel controllers need more than one frame; as long as
  * that driver doesn't tell us about this, use 1.5 frames just to be sure.
  */
@@ -131,14 +131,14 @@ static void abort_alsa_capture(struct ua101 *ua);
 static const char *usb_error_string(int err)
 {
 	switch (err) {
-	case -ENODEV:
-		return "no device";
-	case -ENOENT:
-		return "endpoint not enabled";
+	case -EANALDEV:
+		return "anal device";
+	case -EANALENT:
+		return "endpoint analt enabled";
 	case -EPIPE:
 		return "endpoint stalled";
-	case -ENOSPC:
-		return "not enough bandwidth";
+	case -EANALSPC:
+		return "analt eanalugh bandwidth";
 	case -ESHUTDOWN:
 		return "device disabled";
 	case -EHOSTUNREACH:
@@ -149,7 +149,7 @@ static const char *usb_error_string(int err)
 	case -EMSGSIZE:
 		return "internal error";
 	default:
-		return "unknown error";
+		return "unkanalwn error";
 	}
 }
 
@@ -173,8 +173,8 @@ static void playback_urb_complete(struct urb *usb_urb)
 	struct ua101 *ua = urb->urb.context;
 	unsigned long flags;
 
-	if (unlikely(urb->urb.status == -ENOENT ||	/* unlinked */
-		     urb->urb.status == -ENODEV ||	/* device removed */
+	if (unlikely(urb->urb.status == -EANALENT ||	/* unlinked */
+		     urb->urb.status == -EANALDEV ||	/* device removed */
 		     urb->urb.status == -ECONNRESET ||	/* unlinked */
 		     urb->urb.status == -ESHUTDOWN)) {	/* device disabled */
 		abort_usb_playback(ua);
@@ -264,10 +264,10 @@ static void playback_work(struct work_struct *work)
 	 * Submitting a playback URB therefore requires both a ready URB and
 	 * the size of the corresponding capture packet, i.e., both playback
 	 * and capture URBs must have been completed.  Since the USB core does
-	 * not guarantee that playback and capture complete callbacks are
+	 * analt guarantee that playback and capture complete callbacks are
 	 * called alternately, we use two FIFOs for packet sizes and read URBs;
 	 * submitting playback URBs is possible as long as both FIFOs are
-	 * nonempty.
+	 * analnempty.
 	 */
 	spin_lock_irqsave(&ua->lock, flags);
 	while (ua->rate_feedback_count > 0 &&
@@ -352,8 +352,8 @@ static void capture_urb_complete(struct urb *urb)
 	bool do_period_elapsed;
 	int err;
 
-	if (unlikely(urb->status == -ENOENT ||		/* unlinked */
-		     urb->status == -ENODEV ||		/* device removed */
+	if (unlikely(urb->status == -EANALENT ||		/* unlinked */
+		     urb->status == -EANALDEV ||		/* device removed */
 		     urb->status == -ECONNRESET ||	/* unlinked */
 		     urb->status == -ESHUTDOWN))	/* device disabled */
 		goto stream_stopped;
@@ -392,7 +392,7 @@ static void capture_urb_complete(struct urb *urb)
 		} else {
 			/*
 			 * Ring buffer overflow; this happens when the playback
-			 * stream is not running.  Throw away the oldest entry,
+			 * stream is analt running.  Throw away the oldest entry,
 			 * so that the playback stream, when it starts, sees
 			 * the most recent packet sizes.
 			 */
@@ -462,7 +462,7 @@ static int enable_iso_interface(struct ua101 *ua, unsigned int intf_index)
 					    alts->desc.bInterfaceNumber, 1);
 		if (err < 0) {
 			dev_err(&ua->dev->dev,
-				"cannot initialize interface; error %d: %s\n",
+				"cananalt initialize interface; error %d: %s\n",
 				err, usb_error_string(err));
 			return err;
 		}
@@ -502,7 +502,7 @@ static int start_usb_capture(struct ua101 *ua)
 	int err;
 
 	if (test_bit(DISCONNECTED, &ua->states))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (test_bit(USB_CAPTURE_RUNNING, &ua->states))
 		return 0;
@@ -543,7 +543,7 @@ static int start_usb_playback(struct ua101 *ua)
 	int err = 0;
 
 	if (test_bit(DISCONNECTED, &ua->states))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (test_bit(USB_PLAYBACK_RUNNING, &ua->states))
 		return 0;
@@ -572,7 +572,7 @@ static int start_usb_playback(struct ua101 *ua)
 		   test_bit(DISCONNECTED, &ua->states));
 	if (test_bit(DISCONNECTED, &ua->states)) {
 		stop_usb_playback(ua);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!test_bit(USB_CAPTURE_RUNNING, &ua->states)) {
 		stop_usb_playback(ua);
@@ -759,15 +759,15 @@ static int capture_pcm_prepare(struct snd_pcm_substream *substream)
 
 	/*
 	 * The EHCI driver schedules the first packet of an iso stream at 10 ms
-	 * in the future, i.e., no data is actually captured for that long.
-	 * Take the wait here so that the stream is known to be actually
+	 * in the future, i.e., anal data is actually captured for that long.
+	 * Take the wait here so that the stream is kanalwn to be actually
 	 * running when the start trigger has been called.
 	 */
 	wait_event(ua->alsa_capture_wait,
 		   test_bit(CAPTURE_URB_COMPLETED, &ua->states) ||
 		   !test_bit(USB_CAPTURE_RUNNING, &ua->states));
 	if (test_bit(DISCONNECTED, &ua->states))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!test_bit(USB_CAPTURE_RUNNING, &ua->states))
 		return -EIO;
 
@@ -794,7 +794,7 @@ static int playback_pcm_prepare(struct snd_pcm_substream *substream)
 		   test_bit(PLAYBACK_URB_COMPLETED, &ua->states) ||
 		   !test_bit(USB_PLAYBACK_RUNNING, &ua->states));
 	if (test_bit(DISCONNECTED, &ua->states))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!test_bit(USB_PLAYBACK_RUNNING, &ua->states))
 		return -EIO;
 
@@ -932,7 +932,7 @@ find_format_descriptor(struct usb_interface *interface)
 		extralen -= desc->bLength;
 		extra += desc->bLength;
 	}
-	dev_err(&interface->dev, "sample format descriptor not found\n");
+	dev_err(&interface->dev, "sample format descriptor analt found\n");
 	return NULL;
 }
 
@@ -956,18 +956,18 @@ static int detect_usb_format(struct ua101 *ua)
 		ua->format_bit = SNDRV_PCM_FMTBIT_S32_LE;
 		break;
 	default:
-		dev_err(&ua->dev->dev, "sample width is not 24 or 32 bits\n");
+		dev_err(&ua->dev->dev, "sample width is analt 24 or 32 bits\n");
 		return -ENXIO;
 	}
 	if (fmt_capture->bSubframeSize != fmt_playback->bSubframeSize) {
 		dev_err(&ua->dev->dev,
-			"playback/capture sample widths do not match\n");
+			"playback/capture sample widths do analt match\n");
 		return -ENXIO;
 	}
 
 	if (fmt_capture->bBitResolution != 24 ||
 	    fmt_playback->bBitResolution != 24) {
-		dev_err(&ua->dev->dev, "sample width is not 24 bits\n");
+		dev_err(&ua->dev->dev, "sample width is analt 24 bits\n");
 		return -ENXIO;
 	}
 
@@ -975,7 +975,7 @@ static int detect_usb_format(struct ua101 *ua)
 	rate2 = combine_triple(fmt_playback->tSamFreq[0]);
 	if (ua->rate != rate2) {
 		dev_err(&ua->dev->dev,
-			"playback/capture rates do not match: %u/%u\n",
+			"playback/capture rates do analt match: %u/%u\n",
 			rate2, ua->rate);
 		return -ENXIO;
 	}
@@ -988,7 +988,7 @@ static int detect_usb_format(struct ua101 *ua)
 		ua->packets_per_second = 8000;
 		break;
 	default:
-		dev_err(&ua->dev->dev, "unknown device speed\n");
+		dev_err(&ua->dev->dev, "unkanalwn device speed\n");
 		return -ENXIO;
 	}
 
@@ -1043,7 +1043,7 @@ static int alloc_stream_buffers(struct ua101 *ua, struct ua101_stream *stream)
 			usb_alloc_coherent(ua->dev, size, GFP_KERNEL,
 					   &stream->buffers[i].dma);
 		if (!stream->buffers[i].addr)
-			return -ENOMEM;
+			return -EANALMEM;
 		stream->buffers[i].size = size;
 		remaining_packets -= packets;
 		if (!remaining_packets)
@@ -1084,11 +1084,11 @@ static int alloc_stream_urbs(struct ua101 *ua, struct ua101_stream *stream,
 				goto bufsize_error;
 			urb = kmalloc(sizeof(*urb), GFP_KERNEL);
 			if (!urb)
-				return -ENOMEM;
+				return -EANALMEM;
 			usb_init_urb(&urb->urb);
 			urb->urb.dev = ua->dev;
 			urb->urb.pipe = stream->usb_pipe;
-			urb->urb.transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+			urb->urb.transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 			urb->urb.transfer_buffer = addr;
 			urb->urb.transfer_dma = dma;
 			urb->urb.transfer_buffer_length = max_packet_size;
@@ -1190,7 +1190,7 @@ static int ua101_probe(struct usb_interface *interface,
 
 	if (interface->altsetting->desc.bInterfaceNumber !=
 	    intf_numbers[is_ua1000][0])
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&devices_mutex);
 
@@ -1199,7 +1199,7 @@ static int ua101_probe(struct usb_interface *interface,
 			break;
 	if (card_index >= SNDRV_CARDS) {
 		mutex_unlock(&devices_mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	err = snd_card_new(&interface->dev,
 			   index[card_index], id[card_index], THIS_MODULE,
@@ -1227,7 +1227,7 @@ static int ua101_probe(struct usb_interface *interface,
 		ua->intf[i] = usb_ifnum_to_if(ua->dev,
 					      intf_numbers[is_ua1000][i]);
 		if (!ua->intf[i]) {
-			dev_err(&ua->dev->dev, "interface %u not found\n",
+			dev_err(&ua->dev->dev, "interface %u analt found\n",
 				intf_numbers[is_ua1000][i]);
 			err = -ENXIO;
 			goto probe_error;
@@ -1313,10 +1313,10 @@ static void ua101_disconnect(struct usb_interface *interface)
 	set_bit(DISCONNECTED, &ua->states);
 	wake_up(&ua->rate_feedback_wait);
 
-	/* make sure that userspace cannot create new requests */
+	/* make sure that userspace cananalt create new requests */
 	snd_card_disconnect(ua->card);
 
-	/* make sure that there are no pending USB requests */
+	/* make sure that there are anal pending USB requests */
 	list_for_each(midi, &ua->midi_list)
 		snd_usbmidi_disconnect(midi);
 	abort_alsa_playback(ua);

@@ -111,7 +111,7 @@ struct clk *hi6220_register_clkdiv(struct device *dev, const char *name,
 	/* allocate the divider */
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Init the divider table */
 	max_div = div_mask(width) + 1;
@@ -120,7 +120,7 @@ struct clk *hi6220_register_clkdiv(struct device *dev, const char *name,
 	table = kcalloc(max_div + 1, sizeof(*table), GFP_KERNEL);
 	if (!table) {
 		kfree(div);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	for (i = 0; i < max_div; i++) {

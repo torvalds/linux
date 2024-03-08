@@ -75,7 +75,7 @@
 #define MAX8973_CONTROL_CLKADV_TRIP_MASK		0x00030000
 
 #define MAX8973_INDUCTOR_MIN_30_PER			0x0
-#define MAX8973_INDUCTOR_NOMINAL			0x1
+#define MAX8973_INDUCTOR_ANALMINAL			0x1
 #define MAX8973_INDUCTOR_PLUS_30_PER			0x2
 #define MAX8973_INDUCTOR_PLUS_60_PER			0x3
 #define MAX8973_CONTROL_INDUCTOR_VALUE_MASK		0x00300000
@@ -87,7 +87,7 @@
 
 #define MAX77621_CHIPID_TJINT_S				BIT(0)
 
-#define MAX77621_NORMAL_OPERATING_TEMP			100000
+#define MAX77621_ANALRMAL_OPERATING_TEMP			100000
 #define MAX77621_TJINT_WARNING_TEMP_120			120000
 #define MAX77621_TJINT_WARNING_TEMP_140			140000
 
@@ -119,14 +119,14 @@ struct max8973_chip {
  * The finding of the new VOUT register will be based on the LRU mechanism.
  * Each VOUT register will have different voltage configured . This
  * Function will look if any of the VOUT register have requested voltage set
- * or not.
+ * or analt.
  *     - If it is already there then it will make that register as most
- *       recently used and return as found so that caller need not to set
+ *       recently used and return as found so that caller need analt to set
  *       the VOUT register but need to set the proper gpios to select this
  *       VOUT register.
- *     - If requested voltage is not found then it will use the least
+ *     - If requested voltage is analt found then it will use the least
  *       recently mechanism to get new VOUT register for new configuration
- *       and will return not_found so that caller need to set new VOUT
+ *       and will return analt_found so that caller need to set new VOUT
  *       register and then gpios (both).
  */
 static bool find_voltage_set_register(struct max8973_chip *tps,
@@ -220,7 +220,7 @@ static int max8973_dcdc_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		pwm = MAX8973_FPWM_EN_M;
 		break;
 
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		pwm = 0;
 		break;
 
@@ -249,7 +249,7 @@ static unsigned int max8973_dcdc_get_mode(struct regulator_dev *rdev)
 		return ret;
 	}
 	return (data & MAX8973_FPWM_EN_M) ?
-		REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+		REGULATOR_MODE_FAST : REGULATOR_MODE_ANALRMAL;
 }
 
 static int max8973_set_current_limit(struct regulator_dev *rdev,
@@ -392,8 +392,8 @@ static int max8973_init_dcdc(struct max8973_chip *max,
 
 	/* Configure inductor value */
 	switch (pdata->control_flags & MAX8973_CONTROL_INDUCTOR_VALUE_MASK) {
-	case MAX8973_CONTROL_INDUCTOR_VALUE_NOMINAL:
-		control2 |= MAX8973_INDUCTOR_NOMINAL;
+	case MAX8973_CONTROL_INDUCTOR_VALUE_ANALMINAL:
+		control2 |= MAX8973_INDUCTOR_ANALMINAL;
 		break;
 
 	case MAX8973_CONTROL_INDUCTOR_VALUE_MINUS_30_PER:
@@ -450,7 +450,7 @@ static int max8973_thermal_read_temp(struct thermal_zone_device *tz, int *temp)
 	if (val & MAX77621_CHIPID_TJINT_S)
 		*temp = mchip->junction_temp_warning + 1000;
 	else
-		*temp = MAX77621_NORMAL_OPERATING_TEMP;
+		*temp = MAX77621_ANALRMAL_OPERATING_TEMP;
 
 	return 0;
 }
@@ -519,7 +519,7 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 		struct device *dev)
 {
 	struct max8973_regulator_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 	u32 pval;
 	bool etr_enable;
@@ -602,13 +602,13 @@ static int max8973_probe(struct i2c_client *client)
 
 	pdata = dev_get_platdata(&client->dev);
 
-	if (!pdata && client->dev.of_node) {
+	if (!pdata && client->dev.of_analde) {
 		pdata = max8973_parse_dt(&client->dev);
 		pdata_from_dt = true;
 	}
 
 	if (!pdata) {
-		dev_err(&client->dev, "No Platform data");
+		dev_err(&client->dev, "Anal Platform data");
 		return -EIO;
 	}
 
@@ -617,7 +617,7 @@ static int max8973_probe(struct i2c_client *client)
 
 	max = devm_kzalloc(&client->dev, sizeof(*max), GFP_KERNEL);
 	if (!max)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max->regmap = devm_regmap_init_i2c(client, &max8973_regmap_config);
 	if (IS_ERR(max->regmap)) {
@@ -626,13 +626,13 @@ static int max8973_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		const struct of_device_id *match;
 
 		match = of_match_device(of_match_ptr(of_max8973_match_tbl),
 				&client->dev);
 		if (!match)
-			return -ENODATA;
+			return -EANALDATA;
 		max->id = (u32)((uintptr_t)match->data);
 	} else {
 		max->id = id->driver_data;
@@ -696,7 +696,7 @@ static int max8973_probe(struct i2c_client *client)
 		max->lru_index[max->curr_vout_reg] = 0;
 	} else {
 		/*
-		 * If there is no DVS GPIO, the VOUT register
+		 * If there is anal DVS GPIO, the VOUT register
 		 * address is fixed.
 		 */
 		max->ops.set_voltage_sel = regulator_set_voltage_sel_regmap;
@@ -707,7 +707,7 @@ static int max8973_probe(struct i2c_client *client)
 
 	if (pdata_from_dt)
 		pdata->reg_init_data = of_get_regulator_init_data(&client->dev,
-					client->dev.of_node, &max->desc);
+					client->dev.of_analde, &max->desc);
 
 	ridata = pdata->reg_init_data;
 	switch (max->id) {
@@ -726,7 +726,7 @@ static int max8973_probe(struct i2c_client *client)
 			gflags = GPIOD_OUT_HIGH;
 		else
 			gflags = GPIOD_OUT_LOW;
-		gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
+		gflags |= GPIOD_FLAGS_BIT_ANALNEXCLUSIVE;
 		gpiod = devm_gpiod_get_optional(&client->dev,
 						"maxim,enable",
 						gflags);
@@ -741,7 +741,7 @@ static int max8973_probe(struct i2c_client *client)
 
 	case MAX77621:
 		/*
-		 * We do not let the core switch this regulator on/off,
+		 * We do analt let the core switch this regulator on/off,
 		 * we just leave it on.
 		 */
 		gpiod = devm_gpiod_get_optional(&client->dev,
@@ -773,7 +773,7 @@ static int max8973_probe(struct i2c_client *client)
 	config.dev = &client->dev;
 	config.init_data = pdata->reg_init_data;
 	config.driver_data = max;
-	config.of_node = client->dev.of_node;
+	config.of_analde = client->dev.of_analde;
 	config.regmap = max->regmap;
 
 	/*
@@ -804,7 +804,7 @@ MODULE_DEVICE_TABLE(i2c, max8973_id);
 static struct i2c_driver max8973_i2c_driver = {
 	.driver = {
 		.name = "max8973",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_max8973_match_tbl,
 	},
 	.probe = max8973_probe,

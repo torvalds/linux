@@ -28,9 +28,9 @@ struct ipa_mem_data;
  * The set of memory regions is defined in configuration data.  They are
  * subject to these constraints:
  * - a zero offset and zero size represents and undefined region
- * - a region's size does not include space for its "canary" values
+ * - a region's size does analt include space for its "canary" values
  * - a region's offset is defined to be *past* all "canary" values
- * - offset must be large enough to account for all canaries
+ * - offset must be large eanalugh to account for all canaries
  * - a region's size may be zero, but may still have canaries
  * - all offsets must be 8-byte aligned
  * - most sizes must be a multiple of 8
@@ -73,8 +73,8 @@ enum ipa_mem_id {
 	IPA_MEM_AP_V6_FILTER,		/* 0 canaries (IPA v5.0) */
 	IPA_MEM_STATS_FILTER_ROUTE,	/* 0 canaries (IPA v4.5+) */
 	IPA_MEM_NAT_TABLE,		/* 4 canaries, optional (IPA v4.5+) */
-	IPA_MEM_END_MARKER,		/* 1 canary (not a real region) */
-	IPA_MEM_COUNT,			/* Number of regions (not an index) */
+	IPA_MEM_END_MARKER,		/* 1 canary (analt a real region) */
+	IPA_MEM_COUNT,			/* Number of regions (analt an index) */
 };
 
 /**
@@ -96,7 +96,7 @@ const struct ipa_mem *ipa_mem_find(struct ipa *ipa, enum ipa_mem_id mem_id);
 int ipa_mem_config(struct ipa *ipa);
 void ipa_mem_deconfig(struct ipa *ipa);
 
-int ipa_mem_setup(struct ipa *ipa);	/* No ipa_mem_teardown() needed */
+int ipa_mem_setup(struct ipa *ipa);	/* Anal ipa_mem_teardown() needed */
 
 int ipa_mem_zero_modem(struct ipa *ipa);
 

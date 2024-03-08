@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -15,7 +15,7 @@ static int viafb_set_bpp(void __iomem *engine, u8 bpp)
 	u32 gemode;
 
 	/* Preserve the reserved bits */
-	/* Lowest 2 bits to zero gives us no rotation */
+	/* Lowest 2 bits to zero gives us anal rotation */
 	gemode = readl(engine + VIA_REG_GEMODE) & 0xfffffcfc;
 	switch (bpp) {
 	case 8:
@@ -81,7 +81,7 @@ static int hw_bitblt_1(void __iomem *engine, u8 op, u32 width, u32 height,
 		return ret;
 
 	if (op != VIA_BITBLT_FILL) {
-		if (src_x & (op == VIA_BITBLT_MONO ? 0xFFFF8000 : 0xFFFFF000)
+		if (src_x & (op == VIA_BITBLT_MOANAL ? 0xFFFF8000 : 0xFFFFF000)
 			|| src_y & 0xFFFFF000) {
 			printk(KERN_WARNING "hw_bitblt_1: Unsupported source "
 				"x/y %d %d\n", src_x, src_y);
@@ -110,7 +110,7 @@ static int hw_bitblt_1(void __iomem *engine, u8 op, u32 width, u32 height,
 	if (op != VIA_BITBLT_COLOR)
 		writel(fg_color, engine + 0x18);
 
-	if (op == VIA_BITBLT_MONO)
+	if (op == VIA_BITBLT_MOANAL)
 		writel(bg_color, engine + 0x1C);
 
 	if (op != VIA_BITBLT_FILL) {
@@ -150,7 +150,7 @@ static int hw_bitblt_1(void __iomem *engine, u8 op, u32 width, u32 height,
 		ge_cmd |= 0xCC000000; /* ROP=SRCCOPY */
 		if (src_mem)
 			ge_cmd |= 0x00000040;
-		if (op == VIA_BITBLT_MONO)
+		if (op == VIA_BITBLT_MOANAL)
 			ge_cmd |= 0x00000002 | 0x00000100 | 0x00020000;
 		else
 			ge_cmd |= 0x00000001;
@@ -160,7 +160,7 @@ static int hw_bitblt_1(void __iomem *engine, u8 op, u32 width, u32 height,
 	if (op == VIA_BITBLT_FILL || !src_mem)
 		return 0;
 
-	tmp = (width * height * (op == VIA_BITBLT_MONO ? 1 : (dst_bpp >> 3)) +
+	tmp = (width * height * (op == VIA_BITBLT_MOANAL ? 1 : (dst_bpp >> 3)) +
 		3) >> 2;
 
 	for (i = 0; i < tmp; i++)
@@ -250,7 +250,7 @@ static int hw_bitblt_2(void __iomem *engine, u8 op, u32 width, u32 height,
 	writel(tmp, engine + 0x14);
 
 	if (op != VIA_BITBLT_FILL) {
-		if (src_x & (op == VIA_BITBLT_MONO ? 0xFFFF8000 : 0xFFFFF000)
+		if (src_x & (op == VIA_BITBLT_MOANAL ? 0xFFFF8000 : 0xFFFFF000)
 			|| src_y & 0xFFFFF000) {
 			printk(KERN_WARNING "hw_bitblt_2: Unsupported source "
 				"x/y %d %d\n", src_x, src_y);
@@ -271,7 +271,7 @@ static int hw_bitblt_2(void __iomem *engine, u8 op, u32 width, u32 height,
 
 	if (op == VIA_BITBLT_FILL) {
 		writel(fg_color, engine + 0x58);
-	} else if (op == VIA_BITBLT_MONO) {
+	} else if (op == VIA_BITBLT_MOANAL) {
 		writel(fg_color, engine + 0x4C);
 		writel(bg_color, engine + 0x50);
 	}
@@ -282,7 +282,7 @@ static int hw_bitblt_2(void __iomem *engine, u8 op, u32 width, u32 height,
 		ge_cmd |= 0xCC000000; /* ROP=SRCCOPY */
 		if (src_mem)
 			ge_cmd |= 0x00000040;
-		if (op == VIA_BITBLT_MONO)
+		if (op == VIA_BITBLT_MOANAL)
 			ge_cmd |= 0x00000002 | 0x00000100 | 0x00020000;
 		else
 			ge_cmd |= 0x00000001;
@@ -292,7 +292,7 @@ static int hw_bitblt_2(void __iomem *engine, u8 op, u32 width, u32 height,
 	if (op == VIA_BITBLT_FILL || !src_mem)
 		return 0;
 
-	tmp = (width * height * (op == VIA_BITBLT_MONO ? 1 : (dst_bpp >> 3)) +
+	tmp = (width * height * (op == VIA_BITBLT_MOANAL ? 1 : (dst_bpp >> 3)) +
 		3) >> 2;
 
 	for (i = 0; i < tmp; i++)
@@ -311,7 +311,7 @@ int viafb_setup_engine(struct fb_info *info)
 	if (!engine) {
 		printk(KERN_WARNING "viafb_init_accel: ioremap failed, "
 			"hardware acceleration disabled\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	switch (chip_name) {
@@ -348,7 +348,7 @@ int viafb_setup_engine(struct fb_info *info)
 	/*
 	 * Set aside a chunk of framebuffer memory for the camera
 	 * driver.  Someday this driver probably needs a proper allocator
-	 * for fbmem; for now, we just have to do this before the
+	 * for fbmem; for analw, we just have to do this before the
 	 * framebuffer initializes itself.
 	 *
 	 * As for the size: the engine can handle three frames,
@@ -529,5 +529,5 @@ void viafb_wait_engine_idle(struct fb_info *info)
 	}
 
 	if (loop >= MAXLOOP)
-		printk(KERN_ERR "viafb_wait_engine_idle: not syncing\n");
+		printk(KERN_ERR "viafb_wait_engine_idle: analt syncing\n");
 }

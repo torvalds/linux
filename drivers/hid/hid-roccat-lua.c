@@ -122,7 +122,7 @@ static int lua_init_specials(struct hid_device *hdev)
 	lua = kzalloc(sizeof(*lua), GFP_KERNEL);
 	if (!lua) {
 		hid_err(hdev, "can't alloc device descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	hid_set_drvdata(hdev, lua);
 
@@ -134,7 +134,7 @@ static int lua_init_specials(struct hid_device *hdev)
 
 	retval = lua_create_sysfs_attributes(intf);
 	if (retval) {
-		hid_err(hdev, "cannot create sysfs files\n");
+		hid_err(hdev, "cananalt create sysfs files\n");
 		goto exit;
 	}
 

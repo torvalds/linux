@@ -3,14 +3,14 @@
 #define _ASM_X86_SPECCTRL_H_
 
 #include <linux/thread_info.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/msr.h>
 
 /*
  * On VMENTER we must preserve whatever view of the SPEC_CTRL MSR
  * the guest has, while on VMEXIT we restore the host view. This
  * would be easier if SPEC_CTRL were architecturally maskable or
- * shadowable for guests but this is not (currently) the case.
+ * shadowable for guests but this is analt (currently) the case.
  * Takes the guest view of SPEC_CTRL MSR as a parameter and also
  * the guest's version of VIRT_SPEC_CTRL, if emulated.
  */
@@ -78,7 +78,7 @@ static inline u64 ssbd_tif_to_amd_ls_cfg(u64 tifn)
 }
 
 /*
- * This can be used in noinstr functions & should only be called in bare
+ * This can be used in analinstr functions & should only be called in bare
  * metal context.
  */
 static __always_inline void __update_spec_ctrl(u64 val)

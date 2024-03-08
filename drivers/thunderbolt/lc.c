@@ -83,7 +83,7 @@ static int tb_lc_set_port_configured(struct tb_port *port, bool configured)
 }
 
 /**
- * tb_lc_configure_port() - Let LC know about configured port
+ * tb_lc_configure_port() - Let LC kanalw about configured port
  * @port: Port that is set as configured
  *
  * Sets the port configured for power management purposes.
@@ -94,7 +94,7 @@ int tb_lc_configure_port(struct tb_port *port)
 }
 
 /**
- * tb_lc_unconfigure_port() - Let LC know about unconfigured port
+ * tb_lc_unconfigure_port() - Let LC kanalw about unconfigured port
  * @port: Port that is set as configured
  *
  * Sets the port unconfigured for power management purposes.
@@ -137,10 +137,10 @@ static int tb_lc_set_xdomain_configured(struct tb_port *port, bool configure)
 
 /**
  * tb_lc_configure_xdomain() - Inform LC that the link is XDomain
- * @port: Switch downstream port connected to another host
+ * @port: Switch downstream port connected to aanalther host
  *
- * Sets the lane configured for XDomain accordingly so that the LC knows
- * about this. Returns %0 in success and negative errno in failure.
+ * Sets the lane configured for XDomain accordingly so that the LC kanalws
+ * about this. Returns %0 in success and negative erranal in failure.
  */
 int tb_lc_configure_xdomain(struct tb_port *port)
 {
@@ -149,7 +149,7 @@ int tb_lc_configure_xdomain(struct tb_port *port)
 
 /**
  * tb_lc_unconfigure_xdomain() - Unconfigure XDomain from port
- * @port: Switch downstream port that was connected to another host
+ * @port: Switch downstream port that was connected to aanalther host
  *
  * Unsets the lane XDomain configuration.
  */
@@ -164,9 +164,9 @@ void tb_lc_unconfigure_xdomain(struct tb_port *port)
  *
  * Starts lane initialization for @port after the router resumed from
  * sleep. Should be called for those downstream lane adapters that were
- * not connected (tb_lc_configure_port() was not called) before sleep.
+ * analt connected (tb_lc_configure_port() was analt called) before sleep.
  *
- * Returns %0 in success and negative errno in case of failure.
+ * Returns %0 in success and negative erranal in case of failure.
  */
 int tb_lc_start_lane_initialization(struct tb_port *port)
 {
@@ -299,7 +299,7 @@ static int __tb_lc_xhci_connect(struct tb_port *port, bool connect)
  * @port: Device router lane 0 adapter
  *
  * Tells LC to connect the internal xHCI to @port. Returns %0 on success
- * and negative errno in case of failure. Can be called for Thunderbolt 3
+ * and negative erranal in case of failure. Can be called for Thunderbolt 3
  * routers only.
  */
 int tb_lc_xhci_connect(struct tb_port *port)
@@ -334,7 +334,7 @@ static int tb_lc_set_wake_one(struct tb_switch *sw, unsigned int offset,
 	int ret;
 
 	/*
-	 * Enable wake on PCIe and USB4 (wake coming from another
+	 * Enable wake on PCIe and USB4 (wake coming from aanalther
 	 * router).
 	 */
 	ret = tb_sw_read(sw, &ctrl, TB_CFG_SWITCH,
@@ -400,7 +400,7 @@ int tb_lc_set_wake(struct tb_switch *sw, unsigned int flags)
  * tb_lc_set_sleep() - Inform LC that the switch is going to sleep
  * @sw: Switch to set sleep
  *
- * Let the switch link controllers know that the switch is going to
+ * Let the switch link controllers kanalw that the switch is going to
  * sleep.
  */
 int tb_lc_set_sleep(struct tb_switch *sw)
@@ -516,14 +516,14 @@ static int tb_lc_dp_sink_available(struct tb_switch *sw, int sink)
  * @in: DP IN port to check
  *
  * Queries through LC SNK_ALLOCATION registers whether DP sink is available
- * for the given DP IN port or not.
+ * for the given DP IN port or analt.
  */
 bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in)
 {
 	int sink;
 
 	/*
-	 * For older generations sink is always available as there is no
+	 * For older generations sink is always available as there is anal
 	 * allocation mechanism.
 	 */
 	if (sw->generation < 3)
@@ -543,8 +543,8 @@ bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in)
  *
  * Allocate DP sink for @in via LC SNK_ALLOCATION registers. If the
  * resource is available and allocation is successful returns %0. In all
- * other cases returs negative errno. In particular %-EBUSY is returned if
- * the resource was not available.
+ * other cases returs negative erranal. In particular %-EBUSY is returned if
+ * the resource was analt available.
  */
 int tb_lc_dp_sink_alloc(struct tb_switch *sw, struct tb_port *in)
 {

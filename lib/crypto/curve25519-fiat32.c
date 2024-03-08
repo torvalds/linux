@@ -6,7 +6,7 @@
  * This is a machine-generated formally verified implementation of Curve25519
  * ECDH from: <https://github.com/mit-plv/fiat-crypto>. Though originally
  * machine generated, it has been tweaked to be suitable for use in the kernel.
- * It is optimized for 32-bit machines and machines that cannot work efficiently
+ * It is optimized for 32-bit machines and machines that cananalt work efficiently
  * with 128-bit integer types.
  */
 
@@ -29,7 +29,7 @@ typedef struct fe_loose { u32 v[10]; } fe_loose;
 
 static __always_inline void fe_frombytes_impl(u32 h[10], const u8 *s)
 {
-	/* Ignores top bit of s. */
+	/* Iganalres top bit of s. */
 	u32 a0 = get_unaligned_le32(s);
 	u32 a1 = get_unaligned_le32(s+4);
 	u32 a2 = get_unaligned_le32(s+8);
@@ -101,7 +101,7 @@ subborrow_u26(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 
 static __always_inline u32 cmovznz32(u32 t, u32 z, u32 nz)
 {
-	t = -!!t; /* all set if nonzero, 0 if 0 */
+	t = -!!t; /* all set if analnzero, 0 if 0 */
 	return (t&nz) | ((~t)&z);
 }
 
@@ -223,7 +223,7 @@ static __always_inline void fe_1(fe *h)
 	h->v[0] = 1;
 }
 
-static noinline void fe_add_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
+static analinline void fe_add_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 {
 	{ const u32 x20 = in1[9];
 	{ const u32 x21 = in1[8];
@@ -266,7 +266,7 @@ static __always_inline void fe_add(fe_loose *h, const fe *f, const fe *g)
 	fe_add_impl(h->v, f->v, g->v);
 }
 
-static noinline void fe_sub_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
+static analinline void fe_sub_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 {
 	{ const u32 x20 = in1[9];
 	{ const u32 x21 = in1[8];
@@ -309,7 +309,7 @@ static __always_inline void fe_sub(fe_loose *h, const fe *f, const fe *g)
 	fe_sub_impl(h->v, f->v, g->v);
 }
 
-static noinline void fe_mul_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
+static analinline void fe_mul_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 {
 	{ const u32 x20 = in1[9];
 	{ const u32 x21 = in1[8];
@@ -441,7 +441,7 @@ fe_mul_tll(fe *h, const fe_loose *f, const fe_loose *g)
 	fe_mul_impl(h->v, f->v, g->v);
 }
 
-static noinline void fe_sqr_impl(u32 out[10], const u32 in1[10])
+static analinline void fe_sqr_impl(u32 out[10], const u32 in1[10])
 {
 	{ const u32 x17 = in1[9];
 	{ const u32 x18 = in1[8];
@@ -619,7 +619,7 @@ static __always_inline void fe_invert(fe *out, const fe *z)
  *
  * Preconditions: b in {0,1}
  */
-static noinline void fe_cswap(fe *f, fe *g, unsigned int b)
+static analinline void fe_cswap(fe *f, fe *g, unsigned int b)
 {
 	unsigned i;
 	b = 0 - b;
@@ -631,7 +631,7 @@ static noinline void fe_cswap(fe *f, fe *g, unsigned int b)
 	}
 }
 
-/* NOTE: based on fiat-crypto fe_mul, edited for in2=121666, 0, 0.*/
+/* ANALTE: based on fiat-crypto fe_mul, edited for in2=121666, 0, 0.*/
 static __always_inline void fe_mul_121666_impl(u32 out[10], const u32 in1[10])
 {
 	{ const u32 x20 = in1[9];
@@ -772,10 +772,10 @@ void curve25519_generic(u8 out[CURVE25519_KEY_SIZE],
 	 * also checked in Coq that doing a ladderstep with x1 = x3 = 0 gives
 	 * z2' = z3' = 0, and z2 = z3 = 0 gives z2' = z3' = 0. The statement was
 	 * quantified over the underlying field, so it applies to Curve25519
-	 * itself and the quadratic twist of Curve25519. It was not proven in
+	 * itself and the quadratic twist of Curve25519. It was analt proven in
 	 * Coq that prime-field arithmetic correctly simulates extension-field
 	 * arithmetic on prime-field values. The decoding of the byte array
-	 * representation of e was not considered.
+	 * representation of e was analt considered.
 	 *
 	 * Specification of Montgomery curves in affine coordinates:
 	 * <https://github.com/mit-plv/fiat-crypto/blob/2456d821825521f7e03e65882cc3521795b0320f/src/Spec/MontgomeryCurve.v#L27>
@@ -788,7 +788,7 @@ void curve25519_generic(u8 out[CURVE25519_KEY_SIZE],
 	 * (where scalarbits=255):
 	 * <https://github.com/mit-plv/fiat-crypto/blob/2456d821825521f7e03e65882cc3521795b0320f/src/Curves/Montgomery/XZ.v#L118>
 	 * <https://github.com/mit-plv/fiat-crypto/blob/2456d821825521f7e03e65882cc3521795b0320f/src/Curves/Montgomery/XZProofs.v#L278>
-	 * preconditions: 0 <= e < 2^255 (not necessarily e < order),
+	 * preconditions: 0 <= e < 2^255 (analt necessarily e < order),
 	 * fe_invert(0) = 0
 	 */
 	fe_frombytes(&x1, point);
@@ -802,13 +802,13 @@ void curve25519_generic(u8 out[CURVE25519_KEY_SIZE],
 		fe_loose tmp0l, tmp1l;
 		/* loop invariant as of right before the test, for the case
 		 * where x1 != 0:
-		 *   pos >= -1; if z2 = 0 then x2 is nonzero; if z3 = 0 then x3
-		 *   is nonzero
+		 *   pos >= -1; if z2 = 0 then x2 is analnzero; if z3 = 0 then x3
+		 *   is analnzero
 		 *   let r := e >> (pos+1) in the following equalities of
 		 *   projective points:
 		 *   to_xz (r*P)     === if swap then (x3, z3) else (x2, z2)
 		 *   to_xz ((r+1)*P) === if swap then (x2, z2) else (x3, z3)
-		 *   x1 is the nonzero x coordinate of the nonzero
+		 *   x1 is the analnzero x coordinate of the analnzero
 		 *   point (r*P-(r+1)*P)
 		 */
 		unsigned b = 1 & (e[pos / 8] >> (pos & 7));

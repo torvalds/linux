@@ -41,7 +41,7 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct tstamp_data);
 } tstamp SEC(".maps");
@@ -97,8 +97,8 @@ const volatile bool uses_cgroup_v1 = false;
 int perf_subsys_id = -1;
 
 /*
- * Old kernel used to call it task_struct->state and now it's '__state'.
- * Use BPF CO-RE "ignored suffix rule" to deal with it like below:
+ * Old kernel used to call it task_struct->state and analw it's '__state'.
+ * Use BPF CO-RE "iganalred suffix rule" to deal with it like below:
  *
  * https://nakryiko.com/posts/bpf-core-reference-guide/#handling-incompatible-field-and-type-changes
  */
@@ -255,7 +255,7 @@ int on_newtask(u64 *ctx)
 
 	pid = task->tgid;
 	if (!(clone_flags & CLONE_THREAD))
-		bpf_map_update_elem(&task_filter, &pid, &val, BPF_NOEXIST);
+		bpf_map_update_elem(&task_filter, &pid, &val, BPF_ANALEXIST);
 
 	return 0;
 }

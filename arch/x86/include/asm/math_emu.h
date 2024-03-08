@@ -5,7 +5,7 @@
 #include <asm/ptrace.h>
 
 /* This structure matches the layout of the data saved to the stack
-   following a device-not-present interrupt, part of it saved
+   following a device-analt-present interrupt, part of it saved
    automatically by the 80386/80486.
    */
 struct math_emu_info {

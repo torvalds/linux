@@ -19,7 +19,7 @@
 
 static inline int xt_ct_target(struct sk_buff *skb, struct nf_conn *ct)
 {
-	/* Previously seen (loopback)? Ignore. */
+	/* Previously seen (loopback)? Iganalre. */
 	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
@@ -79,21 +79,21 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 
 	proto = xt_ct_find_proto(par);
 	if (!proto) {
-		pr_info_ratelimited("You must specify a L4 protocol and not use inversions on it\n");
-		return -ENOENT;
+		pr_info_ratelimited("You must specify a L4 protocol and analt use inversions on it\n");
+		return -EANALENT;
 	}
 
 	helper = nf_conntrack_helper_try_module_get(helper_name, par->family,
 						    proto);
 	if (helper == NULL) {
-		pr_info_ratelimited("No such helper \"%s\"\n", helper_name);
-		return -ENOENT;
+		pr_info_ratelimited("Anal such helper \"%s\"\n", helper_name);
+		return -EANALENT;
 	}
 
 	help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 	if (help == NULL) {
 		nf_conntrack_helper_put(helper);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rcu_assign_pointer(help->helper, helper);
@@ -110,7 +110,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 
 	proto = xt_ct_find_proto(par);
 	if (!proto) {
-		pr_info_ratelimited("You must specify a L4 protocol and not "
+		pr_info_ratelimited("You must specify a L4 protocol and analt "
 				    "use inversions on it");
 		return -EINVAL;
 	}
@@ -119,7 +119,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 				 timeout_name);
 
 #else
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 #endif
 }
 
@@ -143,7 +143,7 @@ static void xt_ct_put_helper(struct nf_conn_help *help)
 	if (!help)
 		return;
 
-	/* not yet exposed to other cpus, or ruleset
+	/* analt yet exposed to other cpus, or ruleset
 	 * already detached (post-replacement).
 	 */
 	helper = rcu_dereference_raw(help->helper);
@@ -157,9 +157,9 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	struct nf_conntrack_zone zone;
 	struct nf_conn_help *help;
 	struct nf_conn *ct;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
-	if (info->flags & XT_CT_NOTRACK) {
+	if (info->flags & XT_CT_ANALTRACK) {
 		ct = NULL;
 		goto out;
 	}
@@ -183,7 +183,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 
 	ct = nf_ct_tmpl_alloc(par->net, &zone, GFP_KERNEL);
 	if (!ct) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err2;
 	}
 
@@ -242,7 +242,7 @@ static int xt_ct_tg_check_v0(const struct xt_tgchk_param *par)
 	};
 	int ret;
 
-	if (info->flags & ~XT_CT_NOTRACK)
+	if (info->flags & ~XT_CT_ANALTRACK)
 		return -EINVAL;
 
 	memcpy(info_v1.helper, info->helper, sizeof(info->helper));
@@ -260,7 +260,7 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 {
 	struct xt_ct_target_info_v1 *info = par->targinfo;
 
-	if (info->flags & ~XT_CT_NOTRACK)
+	if (info->flags & ~XT_CT_ANALTRACK)
 		return -EINVAL;
 
 	return xt_ct_tg_check(par, par->targinfo);
@@ -352,9 +352,9 @@ static struct xt_target xt_ct_tg_reg[] __read_mostly = {
 };
 
 static unsigned int
-notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
+analtrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	/* Previously seen (loopback)? Ignore. */
+	/* Previously seen (loopback)? Iganalre. */
 	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
@@ -363,11 +363,11 @@ notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	return XT_CONTINUE;
 }
 
-static struct xt_target notrack_tg_reg __read_mostly = {
-	.name		= "NOTRACK",
+static struct xt_target analtrack_tg_reg __read_mostly = {
+	.name		= "ANALTRACK",
 	.revision	= 0,
 	.family		= NFPROTO_UNSPEC,
-	.target		= notrack_tg,
+	.target		= analtrack_tg,
 	.table		= "raw",
 	.me		= THIS_MODULE,
 };
@@ -376,13 +376,13 @@ static int __init xt_ct_tg_init(void)
 {
 	int ret;
 
-	ret = xt_register_target(&notrack_tg_reg);
+	ret = xt_register_target(&analtrack_tg_reg);
 	if (ret < 0)
 		return ret;
 
 	ret = xt_register_targets(xt_ct_tg_reg, ARRAY_SIZE(xt_ct_tg_reg));
 	if (ret < 0) {
-		xt_unregister_target(&notrack_tg_reg);
+		xt_unregister_target(&analtrack_tg_reg);
 		return ret;
 	}
 	return 0;
@@ -391,7 +391,7 @@ static int __init xt_ct_tg_init(void)
 static void __exit xt_ct_tg_exit(void)
 {
 	xt_unregister_targets(xt_ct_tg_reg, ARRAY_SIZE(xt_ct_tg_reg));
-	xt_unregister_target(&notrack_tg_reg);
+	xt_unregister_target(&analtrack_tg_reg);
 }
 
 module_init(xt_ct_tg_init);
@@ -401,5 +401,5 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Xtables: connection tracking target");
 MODULE_ALIAS("ipt_CT");
 MODULE_ALIAS("ip6t_CT");
-MODULE_ALIAS("ipt_NOTRACK");
-MODULE_ALIAS("ip6t_NOTRACK");
+MODULE_ALIAS("ipt_ANALTRACK");
+MODULE_ALIAS("ip6t_ANALTRACK");

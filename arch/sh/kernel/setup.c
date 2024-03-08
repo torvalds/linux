@@ -13,7 +13,7 @@
 #include <linux/console.h>
 #include <linux/root_dev.h>
 #include <linux/utsname.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/cpu.h>
 #include <linux/pfn.h>
 #include <linux/fs.h>
@@ -49,12 +49,12 @@
 /*
  * Initialize loops_per_jiffy as 10000000 (1000MIPS).
  * This value will be used at the very early stage of serial setup.
- * The bigger value means no problem.
+ * The bigger value means anal problem.
  */
 struct sh_cpuinfo cpu_data[NR_CPUS] __read_mostly = {
 	[0] = {
-		.type			= CPU_SH_NONE,
-		.family			= CPU_FAMILY_UNKNOWN,
+		.type			= CPU_SH_ANALNE,
+		.family			= CPU_FAMILY_UNKANALWN,
 		.loops_per_jiffy	= 10000000,
 		.phys_bits		= MAX_PHYSMEM_BITS,
 	},
@@ -97,7 +97,7 @@ unsigned long memory_end = 0;
 EXPORT_SYMBOL(memory_end);
 unsigned long memory_limit = 0;
 
-static struct resource mem_resources[MAX_NUMNODES];
+static struct resource mem_resources[MAX_NUMANALDES];
 
 int l1i_cache_shape, l1d_cache_shape, l2_cache_shape;
 
@@ -108,7 +108,7 @@ static int __init early_parse_mem(char *p)
 
 	memory_limit = PAGE_ALIGN(memparse(p, &p));
 
-	pr_notice("Memory limited to %ldMB\n", memory_limit >> 20);
+	pr_analtice("Memory limited to %ldMB\n", memory_limit >> 20);
 
 	return 0;
 }
@@ -196,7 +196,7 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	struct resource *res = &mem_resources[nid];
 	unsigned long start, end;
 
-	WARN_ON(res->name); /* max one active range per node for now */
+	WARN_ON(res->name); /* max one active range per analde for analw */
 
 	start = start_pfn << PAGE_SHIFT;
 	end = end_pfn << PAGE_SHIFT;
@@ -213,7 +213,7 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	}
 
 	/*
-	 * We don't know which RAM region contains kernel data or
+	 * We don't kanalw which RAM region contains kernel data or
 	 * the reserved crashkernel region, so try it repeatedly
 	 * and let the resource manager test it.
 	 */
@@ -232,7 +232,7 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	pmb_bolt_mapping((unsigned long)__va(start), start, end - start,
 			 PAGE_KERNEL);
 
-	memblock_set_node(PFN_PHYS(start_pfn), PFN_PHYS(end_pfn - start_pfn),
+	memblock_set_analde(PFN_PHYS(start_pfn), PFN_PHYS(end_pfn - start_pfn),
 			  &memblock.memory, nid);
 }
 
@@ -273,7 +273,7 @@ void __init setup_arch(char **cmdline_p)
 
 	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
 
-	printk(KERN_NOTICE "Boot params:\n"
+	printk(KERN_ANALTICE "Boot params:\n"
 			   "... MOUNT_ROOT_RDONLY - %08lx\n"
 			   "... RAMDISK_FLAGS     - %08lx\n"
 			   "... ORIG_ROOT_DEV     - %08lx\n"
@@ -386,9 +386,9 @@ void __init arch_cpu_finalize_init(void)
 		*p++ = 's';
 		*p++ = 'p';
 		break;
-	case CPU_FAMILY_UNKNOWN:
+	case CPU_FAMILY_UNKANALWN:
 		/*
-		 * Specifically use CPU_FAMILY_UNKNOWN rather than
+		 * Specifically use CPU_FAMILY_UNKANALWN rather than
 		 * default:, so we're able to have the compiler whine
 		 * about unhandled enumerations.
 		 */

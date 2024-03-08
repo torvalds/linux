@@ -8,14 +8,14 @@
 #include "adf_pfvf_vf_proto.h"
 
 /**
- * adf_vf2pf_notify_init() - send init msg to PF
+ * adf_vf2pf_analtify_init() - send init msg to PF
  * @accel_dev:  Pointer to acceleration VF device.
  *
  * Function sends an init message from the VF to a PF
  *
  * Return: 0 on success, error code otherwise.
  */
-int adf_vf2pf_notify_init(struct adf_accel_dev *accel_dev)
+int adf_vf2pf_analtify_init(struct adf_accel_dev *accel_dev)
 {
 	struct pfvf_message msg = { .type = ADF_VF2PF_MSGTYPE_INIT };
 
@@ -27,17 +27,17 @@ int adf_vf2pf_notify_init(struct adf_accel_dev *accel_dev)
 	set_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(adf_vf2pf_notify_init);
+EXPORT_SYMBOL_GPL(adf_vf2pf_analtify_init);
 
 /**
- * adf_vf2pf_notify_shutdown() - send shutdown msg to PF
+ * adf_vf2pf_analtify_shutdown() - send shutdown msg to PF
  * @accel_dev:  Pointer to acceleration VF device.
  *
  * Function sends a shutdown message from the VF to a PF
  *
  * Return: void
  */
-void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev)
+void adf_vf2pf_analtify_shutdown(struct adf_accel_dev *accel_dev)
 {
 	struct pfvf_message msg = { .type = ADF_VF2PF_MSGTYPE_SHUTDOWN };
 
@@ -46,7 +46,7 @@ void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev)
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to send Shutdown event to PF\n");
 }
-EXPORT_SYMBOL_GPL(adf_vf2pf_notify_shutdown);
+EXPORT_SYMBOL_GPL(adf_vf2pf_analtify_shutdown);
 
 int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 {
@@ -75,17 +75,17 @@ int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 	switch (compat) {
 	case ADF_PF2VF_VF_COMPATIBLE:
 		break;
-	case ADF_PF2VF_VF_COMPAT_UNKNOWN:
-		/* VF is newer than PF - compatible for now */
+	case ADF_PF2VF_VF_COMPAT_UNKANALWN:
+		/* VF is newer than PF - compatible for analw */
 		break;
 	case ADF_PF2VF_VF_INCOMPATIBLE:
 		dev_err(&GET_DEV(accel_dev),
-			"PF (vers %d) and VF (vers %d) are not compatible\n",
+			"PF (vers %d) and VF (vers %d) are analt compatible\n",
 			pf_version, ADF_PFVF_COMPAT_THIS_VERSION);
 		return -EINVAL;
 	default:
 		dev_err(&GET_DEV(accel_dev),
-			"Invalid response from PF; assume not compatible\n");
+			"Invalid response from PF; assume analt compatible\n");
 		return -EINVAL;
 	}
 
@@ -112,19 +112,19 @@ int adf_vf2pf_get_capabilities(struct adf_accel_dev *accel_dev)
 
 	switch (cap_msg.hdr.version) {
 	default:
-		/* Newer version received, handle only the know parts */
+		/* Newer version received, handle only the kanalw parts */
 		fallthrough;
 	case ADF_PFVF_CAPABILITIES_V3_VERSION:
 		if (likely(len >= sizeof(struct capabilities_v3)))
 			hw_data->clock_frequency = cap_msg.frequency;
 		else
-			dev_info(&GET_DEV(accel_dev), "Could not get frequency");
+			dev_info(&GET_DEV(accel_dev), "Could analt get frequency");
 		fallthrough;
 	case ADF_PFVF_CAPABILITIES_V2_VERSION:
 		if (likely(len >= sizeof(struct capabilities_v2)))
 			hw_data->accel_capabilities_mask = cap_msg.capabilities;
 		else
-			dev_info(&GET_DEV(accel_dev), "Could not get capabilities");
+			dev_info(&GET_DEV(accel_dev), "Could analt get capabilities");
 		fallthrough;
 	case ADF_PFVF_CAPABILITIES_V1_VERSION:
 		if (likely(len >= sizeof(struct capabilities_v1))) {

@@ -100,13 +100,13 @@ static int st21nfca_hci_dm_get_info(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST21NFCA_VENDOR_OUI,
 					     HCI_DM_GET_INFO, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -135,13 +135,13 @@ static int st21nfca_hci_dm_get_data(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST21NFCA_VENDOR_OUI,
 					     HCI_DM_GET_DATA, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -198,13 +198,13 @@ static int st21nfca_hci_get_param(struct nfc_dev *dev, void *data,
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST21NFCA_VENDOR_OUI,
 					     HCI_GET_PARAM, skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 
@@ -277,14 +277,14 @@ static int st21nfca_hci_loopback(struct nfc_dev *dev, void *data,
 					HCI_LOOPBACK,
 					info->vendor_info.rx_skb->len);
 	if (!msg) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_skb;
 	}
 
 	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, info->vendor_info.rx_skb->len,
 		    info->vendor_info.rx_skb->data)) {
 		kfree_skb(msg);
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto free_skb;
 	}
 

@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 #include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -34,8 +34,8 @@
 
 /*
  * To test returning from a sigsys with selector blocked, the test
- * requires some per-architecture support (i.e. knowledge about the
- * signal trampoline address).  On i386, we know it is on the vdso, and
+ * requires some per-architecture support (i.e. kanalwledge about the
+ * signal trampoline address).  On i386, we kanalw it is on the vdso, and
  * a small trampoline is open-coded for x86_64.  Other architectures
  * that have a trampoline in the vdso will support TEST_BLOCKED_RETURN
  * out of the box, but don't enable them until they support syscall user
@@ -70,10 +70,10 @@ static double one_sysinfo_step(void)
 	int i;
 	struct sysinfo info;
 
-	clock_gettime(CLOCK_MONOTONIC, &t1);
+	clock_gettime(CLOCK_MOANALTONIC, &t1);
 	for (i = 0; i < CALIBRATION_STEP; i++)
 		sysinfo(&info);
-	clock_gettime(CLOCK_MONOTONIC, &t2);
+	clock_gettime(CLOCK_MOANALTONIC, &t2);
 	return (t2.tv_sec - t1.tv_sec) + 1.0e-9 * (t2.tv_nsec - t1.tv_nsec);
 }
 
@@ -108,7 +108,7 @@ static void handle_sigsys(int sig, siginfo_t *info, void *ucontext)
 
 	SYSCALL_UNBLOCK;
 
-	/* printf and friends are not signal-safe. */
+	/* printf and friends are analt signal-safe. */
 	len = snprintf(buf, 1024, "Caught sys_%x\n", info->si_syscall);
 	write(1, buf, len);
 
@@ -127,7 +127,7 @@ static void handle_sigsys(int sig, siginfo_t *info, void *ucontext)
 	__asm__ volatile("add $0x8, %rsp");
 	__asm__ volatile("syscall_dispatcher_start:");
 	__asm__ volatile("syscall");
-	__asm__ volatile("nop"); /* Landing pad within dispatcher area */
+	__asm__ volatile("analp"); /* Landing pad within dispatcher area */
 	__asm__ volatile("syscall_dispatcher_end:");
 #endif
 
@@ -181,7 +181,7 @@ int main(void)
 	SYSCALL_UNBLOCK;
 
 	if (!trapped_call_count) {
-		fprintf(stderr, "syscall trapping does not work.\n");
+		fprintf(stderr, "syscall trapping does analt work.\n");
 		exit(-1);
 	}
 

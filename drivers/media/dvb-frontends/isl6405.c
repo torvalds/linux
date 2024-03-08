@@ -8,7 +8,7 @@
  * the project's page is at https://linuxtv.org
  */
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -125,7 +125,7 @@ struct dvb_frontend *isl6405_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	/* bits which should be forced to '0' */
 	isl6405->override_and = ~override_clear;
 
-	/* detect if it is present or not */
+	/* detect if it is present or analt */
 	if (isl6405_set_voltage(fe, SEC_VOLTAGE_OFF)) {
 		kfree(isl6405);
 		fe->sec_priv = NULL;

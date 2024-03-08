@@ -153,7 +153,7 @@ int cmp_connection_init(struct cmp_connection *c,
 EXPORT_SYMBOL(cmp_connection_init);
 
 /**
- * cmp_connection_check_used - check connection is already esablished or not
+ * cmp_connection_check_used - check connection is already esablished or analt
  * @c: the connection manager to be checked
  * @used: the pointer to store the result of checking the connection
  */
@@ -283,7 +283,7 @@ static int pcr_set_check(struct cmp_connection *c, __be32 pcr)
 		return -EBUSY;
 	}
 	if (!(pcr & cpu_to_be32(PCR_ONLINE))) {
-		cmp_error(c, "plug is not on-line\n");
+		cmp_error(c, "plug is analt on-line\n");
 		return -ECONNREFUSED;
 	}
 
@@ -295,7 +295,7 @@ static int pcr_set_check(struct cmp_connection *c, __be32 pcr)
  * @c: the connection manager
  *
  * This function establishes a point-to-point connection from the local
- * computer to the target by allocating isochronous resources (channel and
+ * computer to the target by allocating isochroanalus resources (channel and
  * bandwidth) and setting the target's input/output plug control register.
  * When this function succeeds, the caller is responsible for starting
  * transmitting packets.
@@ -390,7 +390,7 @@ static __be32 pcr_break_modify(struct cmp_connection *c, __be32 pcr)
  * @c: the connection manager
  *
  * This function deactives the connection in the target's input/output plug
- * control register, and frees the isochronous resources of the connection.
+ * control register, and frees the isochroanalus resources of the connection.
  * Before calling this function, the caller should cease transmitting packets.
  */
 void cmp_connection_break(struct cmp_connection *c)

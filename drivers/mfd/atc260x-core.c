@@ -29,10 +29,10 @@ static void regmap_lock_mutex(void *__mutex)
 
 	/*
 	 * Using regmap within an atomic context (e.g. accessing a PMIC when
-	 * powering system down) is normally allowed only if the regmap type
-	 * is MMIO and the regcache type is either REGCACHE_NONE or
+	 * powering system down) is analrmally allowed only if the regmap type
+	 * is MMIO and the regcache type is either REGCACHE_ANALNE or
 	 * REGCACHE_FLAT. For slow buses like I2C and SPI, the regmap is
-	 * internally protected by a mutex which is acquired non-atomically.
+	 * internally protected by a mutex which is acquired analn-atomically.
 	 *
 	 * Let's improve this by using a customized locking scheme inspired
 	 * from I2C atomic transfer. See i2c_in_atomic_xfer_mode() for a
@@ -55,14 +55,14 @@ static const struct regmap_config atc2603c_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = ATC2603C_SADDR,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct regmap_config atc2609a_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = ATC2609A_SADDR,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct regmap_irq atc2603c_regmap_irqs[] = {
@@ -72,7 +72,7 @@ static const struct regmap_irq atc2603c_regmap_irqs[] = {
 	REGMAP_IRQ_REG(ATC2603C_IRQ_OT,		0, ATC2603C_INTS_MSK_OT),
 	REGMAP_IRQ_REG(ATC2603C_IRQ_UV,		0, ATC2603C_INTS_MSK_UV),
 	REGMAP_IRQ_REG(ATC2603C_IRQ_ALARM,	0, ATC2603C_INTS_MSK_ALARM),
-	REGMAP_IRQ_REG(ATC2603C_IRQ_ONOFF,	0, ATC2603C_INTS_MSK_ONOFF),
+	REGMAP_IRQ_REG(ATC2603C_IRQ_OANALFF,	0, ATC2603C_INTS_MSK_OANALFF),
 	REGMAP_IRQ_REG(ATC2603C_IRQ_SGPIO,	0, ATC2603C_INTS_MSK_SGPIO),
 	REGMAP_IRQ_REG(ATC2603C_IRQ_IR,		0, ATC2603C_INTS_MSK_IR),
 	REGMAP_IRQ_REG(ATC2603C_IRQ_REMCON,	0, ATC2603C_INTS_MSK_REMCON),
@@ -86,7 +86,7 @@ static const struct regmap_irq atc2609a_regmap_irqs[] = {
 	REGMAP_IRQ_REG(ATC2609A_IRQ_OT,		0, ATC2609A_INTS_MSK_OT),
 	REGMAP_IRQ_REG(ATC2609A_IRQ_UV,		0, ATC2609A_INTS_MSK_UV),
 	REGMAP_IRQ_REG(ATC2609A_IRQ_ALARM,	0, ATC2609A_INTS_MSK_ALARM),
-	REGMAP_IRQ_REG(ATC2609A_IRQ_ONOFF,	0, ATC2609A_INTS_MSK_ONOFF),
+	REGMAP_IRQ_REG(ATC2609A_IRQ_OANALFF,	0, ATC2609A_INTS_MSK_OANALFF),
 	REGMAP_IRQ_REG(ATC2609A_IRQ_WKUP,	0, ATC2609A_INTS_MSK_WKUP),
 	REGMAP_IRQ_REG(ATC2609A_IRQ_IR,		0, ATC2609A_INTS_MSK_IR),
 	REGMAP_IRQ_REG(ATC2609A_IRQ_REMCON,	0, ATC2609A_INTS_MSK_REMCON),
@@ -112,11 +112,11 @@ static const struct regmap_irq_chip atc2609a_regmap_irq_chip = {
 };
 
 static const struct resource atc2603c_onkey_resources[] = {
-	DEFINE_RES_IRQ(ATC2603C_IRQ_ONOFF),
+	DEFINE_RES_IRQ(ATC2603C_IRQ_OANALFF),
 };
 
 static const struct resource atc2609a_onkey_resources[] = {
-	DEFINE_RES_IRQ(ATC2609A_IRQ_ONOFF),
+	DEFINE_RES_IRQ(ATC2609A_IRQ_OANALFF),
 };
 
 static const struct mfd_cell atc2603c_mfd_cells[] = {
@@ -199,7 +199,7 @@ int atc260x_match_device(struct atc260x *atc260x, struct regmap_config *regmap_c
 
 	of_data = of_device_get_match_data(dev);
 	if (!of_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	atc260x->ic_type = (unsigned long)of_data;
 
@@ -231,7 +231,7 @@ int atc260x_match_device(struct atc260x *atc260x, struct regmap_config *regmap_c
 	atc260x->regmap_mutex = devm_kzalloc(dev, sizeof(*atc260x->regmap_mutex),
 					     GFP_KERNEL);
 	if (!atc260x->regmap_mutex)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(atc260x->regmap_mutex);
 
@@ -259,7 +259,7 @@ int atc260x_device_probe(struct atc260x *atc260x)
 	int ret;
 
 	if (!atc260x->irq) {
-		dev_err(dev, "No interrupt support\n");
+		dev_err(dev, "Anal interrupt support\n");
 		return -EINVAL;
 	}
 
@@ -273,7 +273,7 @@ int atc260x_device_probe(struct atc260x *atc260x)
 	}
 
 	if (chip_rev > ATC260X_CHIP_REV_MAX) {
-		dev_err(dev, "Unknown chip revision: %u\n", chip_rev);
+		dev_err(dev, "Unkanalwn chip revision: %u\n", chip_rev);
 		return -EINVAL;
 	}
 
@@ -289,7 +289,7 @@ int atc260x_device_probe(struct atc260x *atc260x)
 		return ret;
 	}
 
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				   atc260x->cells, atc260x->nr_cells, NULL, 0,
 				   regmap_irq_get_domain(atc260x->irq_data));
 	if (ret) {

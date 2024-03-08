@@ -16,8 +16,8 @@
 #define SAA7115_COMPOSITE1 1
 #define SAA7115_COMPOSITE2 2
 #define SAA7115_COMPOSITE3 3
-#define SAA7115_COMPOSITE4 4 /* not available for the saa7111/3 */
-#define SAA7115_COMPOSITE5 5 /* not available for the saa7111/3 */
+#define SAA7115_COMPOSITE4 4 /* analt available for the saa7111/3 */
+#define SAA7115_COMPOSITE5 5 /* analt available for the saa7111/3 */
 #define SAA7115_SVIDEO0    6
 #define SAA7115_SVIDEO1    7
 #define SAA7115_SVIDEO2    8
@@ -77,7 +77,7 @@ enum saa7113_r10_ofts {
 /*
  * Register 0x12 "Output control" [Bit 0..3 Or Bit 4..7]:
  * This is used to select what data is output on the RTS0 and RTS1 pins.
- * RTS1 [Bit 4..7] Defaults to DOT_IN. (This value can not be set for RTS0)
+ * RTS1 [Bit 4..7] Defaults to DOT_IN. (This value can analt be set for RTS0)
  * RTS0 [Bit 0..3] Defaults to VIPB in gm7113c_init as specified
  * in the datasheet, but is set to HREF_HS in the saa7113_init table.
  */

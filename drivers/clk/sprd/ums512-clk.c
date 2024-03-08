@@ -24,11 +24,11 @@
 #include "pll.h"
 
 #define UMS512_MUX_FLAG	\
-	(CLK_GET_RATE_NOCACHE | CLK_SET_RATE_NO_REPARENT)
+	(CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_ANAL_REPARENT)
 
 /* pll gate clock */
-/* some pll clocks configure CLK_IGNORE_UNUSED because hw dvfs does not call
- * clock interface. hw dvfs can not gate the pll clock.
+/* some pll clocks configure CLK_IGANALRE_UNUSED because hw dvfs does analt call
+ * clock interface. hw dvfs can analt gate the pll clock.
  */
 static CLK_FIXED_FACTOR_FW_NAME(clk_26m_aud, "clk-26m-aud", "ext-26m", 1, 1, 0);
 static CLK_FIXED_FACTOR_FW_NAME(clk_13m, "clk-13m", "ext-26m", 2, 1, 0);
@@ -41,27 +41,27 @@ static CLK_FIXED_FACTOR_FW_NAME(rco_25m, "rco-25m", "rco-100m", 4, 1, 0);
 static CLK_FIXED_FACTOR_FW_NAME(rco_4m, "rco-4m", "rco-100m", 25, 1, 0);
 static CLK_FIXED_FACTOR_FW_NAME(rco_2m, "rco-2m", "rco-100m", 50, 1, 0);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(isppll_gate, "isppll-gate", "ext-26m", 0x8c,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(dpll0_gate, "dpll0-gate", "ext-26m", 0x98,
 				    0x1000, BIT(0), 0, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(dpll1_gate, "dpll1-gate", "ext-26m", 0x9c,
 				    0x1000, BIT(0), 0, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(lpll_gate, "lpll-gate", "ext-26m", 0xa0,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(twpll_gate, "twpll-gate", "ext-26m", 0xa4,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(gpll_gate, "gpll-gate", "ext-26m", 0xa8,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(rpll_gate, "rpll-gate", "ext-26m", 0xac,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(cppll_gate, "cppll-gate", "ext-26m", 0xe4,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(mpll0_gate, "mpll0-gate", "ext-26m", 0x190,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(mpll1_gate, "mpll1-gate", "ext-26m", 0x194,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 static SPRD_PLL_SC_GATE_CLK_FW_NAME(mpll2_gate, "mpll2-gate", "ext-26m", 0x198,
-				    0x1000, BIT(0), CLK_IGNORE_UNUSED, 0, 240);
+				    0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0, 240);
 
 static struct sprd_clk_common *ums512_pmu_gate_clks[] = {
 	/* address base is 0x327e0000 */
@@ -220,7 +220,7 @@ static SPRD_PLL_FW_NAME(rpll, "rpll", "ext-26m", 0x0, 3,
 			itable, f_pll, 240, 1000, 1000, 1, 750000000);
 
 static SPRD_SC_GATE_CLK_FW_NAME(audio_gate, "audio-gate", "ext-26m", 0x24,
-				0x1000, BIT(1), CLK_IGNORE_UNUSED, 0);
+				0x1000, BIT(1), CLK_IGANALRE_UNUSED, 0);
 
 static struct clk_bit_field f_mpll2[PLL_FACT_MAX] = {
 	{ .shift = 16,	.width = 1 },	/* lock_done	*/
@@ -418,9 +418,9 @@ static SPRD_SC_GATE_CLK_FW_NAME(dma_sec_eb, "dma-sec-eb", "ext-26m",
 static SPRD_SC_GATE_CLK_FW_NAME(ipi_eb, "ipi-eb", "ext-26m",
 				0x0, 0x1000, BIT(6), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ahb_ckg_eb, "ahb-ckg-eb", "ext-26m",
-				0x0, 0x1000, BIT(7), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(7), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(bm_clk_eb, "bm-clk-eb", "ext-26m",
-				0x0, 0x1000, BIT(8), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(8), CLK_IGANALRE_UNUSED, 0);
 
 static struct sprd_clk_common *ums512_apahb_gate[] = {
 	/* address base is 0x20100000 */
@@ -1132,11 +1132,11 @@ static struct sprd_clk_desc ums512_aon_apb_desc = {
 
 /* aon apb gates */
 static SPRD_SC_GATE_CLK_FW_NAME(rc100m_cal_eb, "rc100m-cal-eb", "ext-26m",
-				0x0, 0x1000, BIT(0), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(djtag_tck_eb, "djtag-tck-eb", "ext-26m",
-				0x0, 0x1000, BIT(2), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(2), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(djtag_eb, "djtag-eb", "ext-26m",
-				0x0, 0x1000, BIT(3), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(3), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(aux0_eb, "aux0-eb", "ext-26m",
 				0x0, 0x1000, BIT(4), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(aux1_eb, "aux1-eb", "ext-26m",
@@ -1150,87 +1150,87 @@ static SPRD_SC_GATE_CLK_FW_NAME(mm_eb, "mm-eb", "ext-26m",
 static SPRD_SC_GATE_CLK_FW_NAME(gpu_eb, "gpu-eb", "ext-26m",
 				0x0, 0x1000, BIT(11), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(mspi_eb, "mspi-eb", "ext-26m",
-				0x0, 0x1000, BIT(12), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(12), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(apcpu_dap_eb, "apcpu-dap-eb", "ext-26m",
-				0x0, 0x1000, BIT(14), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(14), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(aon_cssys_eb, "aon-cssys-eb", "ext-26m",
-				0x0, 0x1000, BIT(15), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(15), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(cssys_apb_eb, "cssys-apb-eb", "ext-26m",
-				0x0, 0x1000, BIT(16), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(16), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(cssys_pub_eb, "cssys-pub-eb", "ext-26m",
-				0x0, 0x1000, BIT(17), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(17), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(sdphy_cfg_eb, "sdphy-cfg-eb", "ext-26m",
 				0x0, 0x1000, BIT(19), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(sdphy_ref_eb, "sdphy-ref-eb", "ext-26m",
 				0x0, 0x1000, BIT(20), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(efuse_eb, "efuse-eb", "ext-26m",
-				0x4, 0x1000, BIT(0), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(gpio_eb, "gpio-eb", "ext-26m",
-				0x4, 0x1000, BIT(1), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(1), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(mbox_eb, "mbox-eb", "ext-26m",
-				0x4, 0x1000, BIT(2), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(2), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(kpd_eb, "kpd-eb", "ext-26m",
 				0x4, 0x1000, BIT(3), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(aon_syst_eb, "aon-syst-eb", "ext-26m",
-				0x4, 0x1000, BIT(4), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(4), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_syst_eb, "ap-syst-eb", "ext-26m",
-				0x4, 0x1000, BIT(5), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(5), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(aon_tmr_eb, "aon-tmr-eb", "ext-26m",
-				0x4, 0x1000, BIT(6), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(6), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(otg_utmi_eb, "otg-utmi-eb", "ext-26m",
-				0x4, 0x1000, BIT(8), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(8), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(otg_phy_eb, "otg-phy-eb", "ext-26m",
-				0x4, 0x1000, BIT(9), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(9), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(splk_eb, "splk-eb", "ext-26m",
-				0x4, 0x1000, BIT(10), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(10), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(pin_eb, "pin-eb", "ext-26m",
-				0x4, 0x1000, BIT(11), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(11), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ana_eb, "ana-eb", "ext-26m",
-				0x4, 0x1000, BIT(12), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(12), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(apcpu_ts0_eb, "apcpu-ts0-eb", "ext-26m",
-				0x4, 0x1000, BIT(17), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(17), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(apb_busmon_eb, "apb-busmon-eb", "ext-26m",
-				0x4, 0x1000, BIT(18), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(18), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(aon_iis_eb, "aon-iis-eb", "ext-26m",
-				0x4, 0x1000, BIT(19), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(19), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(scc_eb, "scc-eb", "ext-26m",
-				0x4, 0x1000, BIT(20), CLK_IGNORE_UNUSED, 0);
+				0x4, 0x1000, BIT(20), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(thm0_eb, "thm0-eb", "ext-26m",
-				0x8, 0x1000, BIT(0), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(thm1_eb, "thm1-eb", "ext-26m",
-				0x8, 0x1000, BIT(1), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(1), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(thm2_eb, "thm2-eb", "ext-26m",
-				0x8, 0x1000, BIT(2), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(2), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(asim_top_eb, "asim-top", "ext-26m",
-				0x8, 0x1000, BIT(3), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(3), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(i2c_eb, "i2c-eb", "ext-26m",
-				0x8, 0x1000, BIT(7), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(7), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(pmu_eb, "pmu-eb", "ext-26m",
-				0x8, 0x1000, BIT(8), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(8), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(adi_eb, "adi-eb", "ext-26m",
-				0x8, 0x1000, BIT(9), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(9), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(eic_eb, "eic-eb", "ext-26m",
-				0x8, 0x1000, BIT(10), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(10), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_intc0_eb, "ap-intc0-eb", "ext-26m",
-				0x8, 0x1000, BIT(11), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(11), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_intc1_eb, "ap-intc1-eb", "ext-26m",
-				0x8, 0x1000, BIT(12), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(12), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_intc2_eb, "ap-intc2-eb", "ext-26m",
-				0x8, 0x1000, BIT(13), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(13), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_intc3_eb, "ap-intc3-eb", "ext-26m",
-				0x8, 0x1000, BIT(14), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(14), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_intc4_eb, "ap-intc4-eb", "ext-26m",
-				0x8, 0x1000, BIT(15), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(15), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_intc5_eb, "ap-intc5-eb", "ext-26m",
-				0x8, 0x1000, BIT(16), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(16), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(audcp_intc_eb, "audcp-intc-eb", "ext-26m",
-				0x8, 0x1000, BIT(17), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(17), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_tmr0_eb, "ap-tmr0-eb", "ext-26m",
-				0x8, 0x1000, BIT(22), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(22), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_tmr1_eb, "ap-tmr1-eb", "ext-26m",
-				0x8, 0x1000, BIT(23), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(23), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_tmr2_eb, "ap-tmr2-eb", "ext-26m",
-				0x8, 0x1000, BIT(24), CLK_IGNORE_UNUSED, 0);
+				0x8, 0x1000, BIT(24), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(pwm0_eb, "pwm0-eb", "ext-26m",
 				0x8, 0x1000, BIT(25), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(pwm1_eb, "pwm1-eb", "ext-26m",
@@ -1246,67 +1246,67 @@ static SPRD_SC_GATE_CLK_FW_NAME(apcpu_wdg_eb, "apcpu-wdg-eb", "ext-26m",
 static SPRD_SC_GATE_CLK_FW_NAME(serdes_eb, "serdes-eb", "ext-26m",
 				0x8, 0x1000, BIT(31), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(arch_rtc_eb, "arch-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(0), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(0), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(kpd_rtc_eb, "kpd-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(1), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(1), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(aon_syst_rtc_eb, "aon-syst-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(2), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(2), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_syst_rtc_eb, "ap-syst-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(3), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(3), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(aon_tmr_rtc_eb, "aon-tmr-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(4), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(4), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(eic_rtc_eb, "eic-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(5), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(5), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(eic_rtcdv5_eb, "eic-rtcdv5-eb", "ext-26m",
-				0x18, 0x1000, BIT(6), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(6), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_wdg_rtc_eb, "ap-wdg-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(7), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(7), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ac_wdg_rtc_eb, "ac-wdg-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(8), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(8), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_tmr0_rtc_eb, "ap-tmr0-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(9), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(9), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_tmr1_rtc_eb, "ap-tmr1-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(10), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(10), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_tmr2_rtc_eb, "ap-tmr2-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(11), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(11), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(dcxo_lc_rtc_eb, "dcxo-lc-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(12), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(12), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(bb_cal_rtc_eb, "bb-cal-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(13), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(13), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_emmc_rtc_eb, "ap-emmc-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(14), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(14), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_sdio0_rtc_eb, "ap-sdio0-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(15), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(15), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_sdio1_rtc_eb, "ap-sdio1-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(16), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(16), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_sdio2_rtc_eb, "ap-sdio2-rtc-eb", "ext-26m",
-				0x18, 0x1000, BIT(17), CLK_IGNORE_UNUSED, 0);
+				0x18, 0x1000, BIT(17), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(dsi_csi_test_eb, "dsi-csi-test-eb", "ext-26m",
 				0x138, 0x1000, BIT(8), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(djtag_tck_en, "djtag-tck-en", "ext-26m",
-				0x138, 0x1000, BIT(9), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(9), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(dphy_ref_eb, "dphy-ref-eb", "ext-26m",
-				0x138, 0x1000, BIT(10), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(10), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(dmc_ref_eb, "dmc-ref-eb", "ext-26m",
-				0x138, 0x1000, BIT(11), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(11), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(otg_ref_eb, "otg-ref-eb", "ext-26m",
-				0x138, 0x1000, BIT(12), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(12), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(tsen_eb, "tsen-eb", "ext-26m",
 				0x138, 0x1000, BIT(13), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(tmr_eb, "tmr-eb", "ext-26m",
-				0x138, 0x1000, BIT(14), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(14), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(rc100m_ref_eb, "rc100m-ref-eb", "ext-26m",
-				0x138, 0x1000, BIT(15), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(15), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(rc100m_fdk_eb, "rc100m-fdk-eb", "ext-26m",
-				0x138, 0x1000, BIT(16), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(16), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(debounce_eb, "debounce-eb", "ext-26m",
-				0x138, 0x1000, BIT(17), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(17), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(det_32k_eb, "det-32k-eb", "ext-26m",
-				0x138, 0x1000, BIT(18), CLK_IGNORE_UNUSED, 0);
+				0x138, 0x1000, BIT(18), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(top_cssys_en, "top-cssys-en", "ext-26m",
 				0x13c, 0x1000, BIT(0), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(ap_axi_en, "ap-axi-en", "ext-26m",
-				0x13c, 0x1000, BIT(1), CLK_IGNORE_UNUSED, 0);
+				0x13c, 0x1000, BIT(1), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(sdio0_2x_en, "sdio0-2x-en", "ext-26m",
 				0x13c, 0x1000, BIT(2), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(sdio0_1x_en, "sdio0-1x-en", "ext-26m",
@@ -1549,22 +1549,22 @@ static struct sprd_clk_desc ums512_aon_gate_desc = {
 };
 
 /* audcp apb gates */
-/* Audcp apb clocks configure CLK_IGNORE_UNUSED because these clocks may be
+/* Audcp apb clocks configure CLK_IGANALRE_UNUSED because these clocks may be
  * controlled by audcp sys at the same time. It may be cause an execption if
  * kernel gates these clock.
  */
 static SPRD_SC_GATE_CLK_HW(audcp_wdg_eb, "audcp-wdg-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(1),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_rtc_wdg_eb, "audcp-rtc-wdg-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(2),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_tmr0_eb, "audcp-tmr0-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(5),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_tmr1_eb, "audcp-tmr1-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(6),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 
 static struct sprd_clk_common *ums512_audcpapb_gate[] = {
 	/* address base is 0x3350d000 */
@@ -1591,64 +1591,64 @@ static const struct sprd_clk_desc ums512_audcpapb_gate_desc = {
 };
 
 /* audcp ahb gates */
-/* Audcp aphb clocks configure CLK_IGNORE_UNUSED because these clocks may be
+/* Audcp aphb clocks configure CLK_IGANALRE_UNUSED because these clocks may be
  * controlled by audcp sys at the same time. It may be cause an execption if
  * kernel gates these clock.
  */
 static SPRD_SC_GATE_CLK_HW(audcp_iis0_eb, "audcp-iis0-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(0),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_iis1_eb, "audcp-iis1-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(1),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_iis2_eb, "audcp-iis2-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(2),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_uart_eb, "audcp-uart-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(4),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_dma_cp_eb, "audcp-dma-cp-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(5),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_dma_ap_eb, "audcp-dma-ap-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(6),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_src48k_eb, "audcp-src48k-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(10),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_mcdt_eb, "audcp-mcdt-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(12),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_vbcifd_eb, "audcp-vbcifd-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(13),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_vbc_eb, "audcp-vbc-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(14),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_splk_eb,  "audcp-splk-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(15),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_icu_eb, "audcp-icu-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(16),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(dma_ap_ashb_eb, "dma-ap-ashb-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(17),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(dma_cp_ashb_eb, "dma-cp-ashb-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(18),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_aud_eb, "audcp-aud-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(19),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_vbc_24m_eb, "audcp-vbc-24m-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(21),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_tmr_26m_eb, "audcp-tmr-26m-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(22),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 static SPRD_SC_GATE_CLK_HW(audcp_dvfs_ashb_eb, "audcp-dvfs-ashb-eb",
 			   &access_aud_en.common.hw, 0x0, 0x100, BIT(23),
-			   CLK_IGNORE_UNUSED, SPRD_GATE_NON_AON);
+			   CLK_IGANALRE_UNUSED, SPRD_GATE_ANALN_AON);
 
 static struct sprd_clk_common *ums512_audcpahb_gate[] = {
 	/* address base is 0x335e0000 */
@@ -1850,13 +1850,13 @@ static SPRD_MUX_CLK_DATA(isp_clk, "isp-clk", isp_parents,
 			 0x48, 0, 3, UMS512_MUX_FLAG);
 
 static SPRD_GATE_CLK_HW(mipi_csi0, "mipi-csi0", &mm_eb.common.hw,
-			0x4c, BIT(16), CLK_IGNORE_UNUSED, 0);
+			0x4c, BIT(16), CLK_IGANALRE_UNUSED, 0);
 
 static SPRD_GATE_CLK_HW(mipi_csi1, "mipi-csi1", &mm_eb.common.hw,
-			0x50, BIT(16), CLK_IGNORE_UNUSED, 0);
+			0x50, BIT(16), CLK_IGANALRE_UNUSED, 0);
 
 static SPRD_GATE_CLK_HW(mipi_csi2, "mipi-csi2", &mm_eb.common.hw,
-			0x54, BIT(16), CLK_IGNORE_UNUSED, 0);
+			0x54, BIT(16), CLK_IGANALRE_UNUSED, 0);
 
 static struct sprd_clk_common *ums512_mm_clk[] = {
 	/* address base is 0x62100000 */
@@ -2010,7 +2010,7 @@ static SPRD_SC_GATE_CLK_FW_NAME(iis1_eb, "iis1-eb", "ext-26m",
 static SPRD_SC_GATE_CLK_FW_NAME(iis2_eb, "iis2-eb", "ext-26m",
 				0x0, 0x1000, BIT(3), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(apb_reg_eb, "apb-reg-eb", "ext-26m",
-				0x0, 0x1000, BIT(4), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(4), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(spi0_eb, "spi0-eb", "ext-26m",
 				0x0, 0x1000, BIT(5), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(spi1_eb, "spi1-eb", "ext-26m",
@@ -2030,21 +2030,21 @@ static SPRD_SC_GATE_CLK_FW_NAME(i2c3_eb, "i2c3-eb", "ext-26m",
 static SPRD_SC_GATE_CLK_FW_NAME(i2c4_eb, "i2c4-eb", "ext-26m",
 				0x0, 0x1000, BIT(13), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(uart0_eb, "uart0-eb", "ext-26m",
-				0x0, 0x1000, BIT(14), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(14), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(uart1_eb, "uart1-eb", "ext-26m",
-				0x0, 0x1000, BIT(15), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(15), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(uart2_eb, "uart2-eb", "ext-26m",
-				0x0, 0x1000, BIT(16), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(16), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(sim0_32k_eb, "sim0-32k-eb", "ext-26m",
-				0x0, 0x1000, BIT(17), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(17), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(spi0_lfin_eb, "spi0-lfin-eb", "ext-26m",
-				0x0, 0x1000, BIT(18), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(18), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(spi1_lfin_eb, "spi1-lfin-eb", "ext-26m",
-				0x0, 0x1000, BIT(19), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(19), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(spi2_lfin_eb, "spi2-lfin-eb", "ext-26m",
-				0x0, 0x1000, BIT(20), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(20), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(spi3_lfin_eb, "spi3-lfin-eb", "ext-26m",
-				0x0, 0x1000, BIT(21), CLK_IGNORE_UNUSED, 0);
+				0x0, 0x1000, BIT(21), CLK_IGANALRE_UNUSED, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(sdio0_eb, "sdio0-eb", "ext-26m",
 				0x0, 0x1000, BIT(22), 0, 0);
 static SPRD_SC_GATE_CLK_FW_NAME(sdio1_eb, "sdio1-eb", "ext-26m",
@@ -2180,7 +2180,7 @@ static int ums512_clk_probe(struct platform_device *pdev)
 
 	desc = device_get_match_data(&pdev->dev);
 	if (!desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = sprd_clk_regmap_init(pdev, desc);
 	if (ret)

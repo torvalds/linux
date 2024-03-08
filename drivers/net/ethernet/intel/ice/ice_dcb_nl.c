@@ -8,7 +8,7 @@
 #include <net/dcbnl.h>
 
 /**
- * ice_dcbnl_devreset - perform enough of a ifdown/ifup to sync DCBNL info
+ * ice_dcbnl_devreset - perform eanalugh of a ifdown/ifup to sync DCBNL info
  * @netdev: device associated with interface that needs reset
  */
 static void ice_dcbnl_devreset(struct net_device *netdev)
@@ -71,7 +71,7 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 		return -EINVAL;
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
 		return -EINVAL;
 	}
 
@@ -86,7 +86,7 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 		bwcfg += ets->tc_tx_bw[i];
 		new_cfg->etscfg.tsatable[i] = ets->tc_tsa[i];
 		if (new_cfg->pfc_mode == ICE_QOS_MODE_VLAN) {
-			/* in DSCP mode up->tc mapping cannot change */
+			/* in DSCP mode up->tc mapping cananalt change */
 			new_cfg->etscfg.prio_table[i] = ets->prio_tc[i];
 			new_cfg->etsrec.prio_table[i] = ets->reco_prio_tc[i];
 		}
@@ -112,7 +112,7 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 	/* return of zero indicates new cfg applied */
 	if (err == ICE_DCB_HW_CHG_RST)
 		ice_dcbnl_devreset(netdev);
-	if (err == ICE_DCB_NO_HW_CHG)
+	if (err == ICE_DCB_ANAL_HW_CHG)
 		err = ICE_DCB_HW_CHG_RST;
 
 ets_out:
@@ -161,30 +161,30 @@ static u8 ice_dcbnl_setdcbx(struct net_device *netdev, u8 mode)
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_qos_cfg *qos_cfg;
 
-	/* if FW LLDP agent is running, DCBNL not allowed to change mode */
+	/* if FW LLDP agent is running, DCBNL analt allowed to change mode */
 	if (test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
-		return ICE_DCB_NO_HW_CHG;
+		return ICE_DCB_ANAL_HW_CHG;
 
-	/* No support for LLD_MANAGED modes or CEE+IEEE */
+	/* Anal support for LLD_MANAGED modes or CEE+IEEE */
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
 	    ((mode & DCB_CAP_DCBX_VER_IEEE) && (mode & DCB_CAP_DCBX_VER_CEE)) ||
 	    !(mode & DCB_CAP_DCBX_HOST))
-		return ICE_DCB_NO_HW_CHG;
+		return ICE_DCB_ANAL_HW_CHG;
 
-	/* Already set to the given mode no change */
+	/* Already set to the given mode anal change */
 	if (mode == pf->dcbx_cap)
-		return ICE_DCB_NO_HW_CHG;
+		return ICE_DCB_ANAL_HW_CHG;
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
-		return ICE_DCB_NO_HW_CHG;
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
+		return ICE_DCB_ANAL_HW_CHG;
 	}
 
 	qos_cfg = &pf->hw.port_info->qos_cfg;
 
-	/* DSCP configuration is not DCBx negotiated */
+	/* DSCP configuration is analt DCBx negotiated */
 	if (qos_cfg->local_dcbx_cfg.pfc_mode == ICE_QOS_MODE_DSCP)
-		return ICE_DCB_NO_HW_CHG;
+		return ICE_DCB_ANAL_HW_CHG;
 
 	pf->dcbx_cap = mode;
 
@@ -272,7 +272,7 @@ static int ice_dcbnl_setpfc(struct net_device *netdev, struct ieee_pfc *pfc)
 		return -EINVAL;
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
 		return -EINVAL;
 	}
 
@@ -290,7 +290,7 @@ static int ice_dcbnl_setpfc(struct net_device *netdev, struct ieee_pfc *pfc)
 	err = ice_pf_dcb_cfg(pf, new_cfg, true);
 	if (err == ICE_DCB_HW_CHG_RST)
 		ice_dcbnl_devreset(netdev);
-	if (err == ICE_DCB_NO_HW_CHG)
+	if (err == ICE_DCB_ANAL_HW_CHG)
 		err = ICE_DCB_HW_CHG_RST;
 	mutex_unlock(&pf->tc_mutex);
 	return err;
@@ -339,7 +339,7 @@ static void ice_dcbnl_set_pfc_cfg(struct net_device *netdev, int prio, u8 set)
 		return;
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
 		return;
 	}
 
@@ -397,16 +397,16 @@ static u8 ice_dcbnl_setstate(struct net_device *netdev, u8 state)
 
 	if ((pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED) ||
 	    !(pf->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return ICE_DCB_NO_HW_CHG;
+		return ICE_DCB_ANAL_HW_CHG;
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
-		return ICE_DCB_NO_HW_CHG;
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
+		return ICE_DCB_ANAL_HW_CHG;
 	}
 
-	/* Nothing to do */
+	/* Analthing to do */
 	if (!!state == test_bit(ICE_FLAG_DCB_ENA, pf->flags))
-		return ICE_DCB_NO_HW_CHG;
+		return ICE_DCB_ANAL_HW_CHG;
 
 	if (state) {
 		set_bit(ICE_FLAG_DCB_ENA, pf->flags);
@@ -477,13 +477,13 @@ ice_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 		return;
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
 		return;
 	}
 
 	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
 
-	/* prio_type, bwg_id and bw_pct per UP are not supported */
+	/* prio_type, bwg_id and bw_pct per UP are analt supported */
 
 	ice_for_each_traffic_class(i) {
 		if (up_map & BIT(i))
@@ -536,7 +536,7 @@ ice_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int pgid, u8 bw_pct)
 		return;
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
 		return;
 	}
 
@@ -582,7 +582,7 @@ ice_dcbnl_get_pg_tc_cfg_rx(struct net_device *netdev, int prio,
  * @bw_pct: BW percentage for corresponding BWG
  * @up_map: prio mapped to corresponding TC
  *
- * lldpad requires this function pointer to be non-NULL to complete CEE config.
+ * lldpad requires this function pointer to be analn-NULL to complete CEE config.
  */
 static void
 ice_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev,
@@ -594,7 +594,7 @@ ice_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev,
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 
-	dev_dbg(ice_pf_to_dev(pf), "Rx TC PG Config Not Supported.\n");
+	dev_dbg(ice_pf_to_dev(pf), "Rx TC PG Config Analt Supported.\n");
 }
 
 /**
@@ -622,7 +622,7 @@ ice_dcbnl_get_pg_bwg_cfg_rx(struct net_device *netdev, int __always_unused pgid,
  * @pgid: corresponding TC
  * @bw_pct: BW percentage for given TC
  *
- * lldpad requires this function pointer to be non-NULL to complete CEE config.
+ * lldpad requires this function pointer to be analn-NULL to complete CEE config.
  */
 static void
 ice_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int __always_unused pgid,
@@ -630,7 +630,7 @@ ice_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int __always_unused pgid,
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 
-	dev_dbg(ice_pf_to_dev(pf), "Rx BWG PG Config Not Supported.\n");
+	dev_dbg(ice_pf_to_dev(pf), "Rx BWG PG Config Analt Supported.\n");
 }
 
 /**
@@ -644,7 +644,7 @@ static u8 ice_dcbnl_get_cap(struct net_device *netdev, int capid, u8 *cap)
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 
 	if (!(test_bit(ICE_FLAG_DCB_CAPABLE, pf->flags)))
-		return ICE_DCB_NO_HW_CHG;
+		return ICE_DCB_ANAL_HW_CHG;
 
 	switch (capid) {
 	case DCB_CAP_ATTR_PG:
@@ -752,7 +752,7 @@ static int ice_dcbnl_setapp(struct net_device *netdev, struct dcb_app *app)
 		return -EINVAL;
 
 	if (!ice_is_feature_supported(pf, ICE_F_DSCP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (app->protocol >= ICE_DSCP_NUM_VAL) {
 		netdev_err(netdev, "DSCP value 0x%04X out of range\n",
@@ -761,7 +761,7 @@ static int ice_dcbnl_setapp(struct net_device *netdev, struct dcb_app *app)
 	}
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
 		return -EINVAL;
 	}
 
@@ -796,7 +796,7 @@ static int ice_dcbnl_setapp(struct net_device *netdev, struct dcb_app *app)
 	new_app.prot_id = app->protocol;
 	new_app.priority = app->priority;
 
-	/* If port is not in DSCP mode, need to set */
+	/* If port is analt in DSCP mode, need to set */
 	if (old_cfg->pfc_mode == ICE_QOS_MODE_VLAN) {
 		int i, j;
 
@@ -850,7 +850,7 @@ static int ice_dcbnl_setapp(struct net_device *netdev, struct dcb_app *app)
 	if (ret == ICE_DCB_HW_CHG_RST)
 		ice_dcbnl_devreset(netdev);
 	else
-		ret = ICE_DCB_NO_HW_CHG;
+		ret = ICE_DCB_ANAL_HW_CHG;
 
 setapp_out:
 	mutex_unlock(&pf->tc_mutex);
@@ -862,7 +862,7 @@ setapp_out:
  * @netdev: relevant netdev
  * @app: struct to hold app too delete
  *
- * Will not delete first application required by the FW
+ * Will analt delete first application required by the FW
  */
 static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 {
@@ -877,7 +877,7 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 	}
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
 		return -EINVAL;
 	}
 
@@ -901,7 +901,7 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 		}
 	}
 
-	/* Did not find DCB App */
+	/* Did analt find DCB App */
 	if (i == new_cfg->numapps) {
 		ret = -EINVAL;
 		goto delapp_out;
@@ -915,7 +915,7 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 		new_cfg->app[j].priority = old_cfg->app[j + 1].priority;
 	}
 
-	/* if not a DSCP APP TLV or DSCP is not supported, we are done */
+	/* if analt a DSCP APP TLV or DSCP is analt supported, we are done */
 	if (app->selector != IEEE_8021QAZ_APP_SEL_DSCP ||
 	    !ice_is_feature_supported(pf, ICE_F_DSCP)) {
 		ret = ICE_DCB_HW_CHG;
@@ -956,11 +956,11 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 	if (ret == ICE_DCB_HW_CHG_RST)
 		ice_dcbnl_devreset(netdev);
 
-	/* if the change was not siginificant enough to actually call
+	/* if the change was analt siginificant eanalugh to actually call
 	 * the reconfiguration flow, we still need to tell caller that
 	 * their request was successfully handled
 	 */
-	if (ret == ICE_DCB_NO_HW_CHG)
+	if (ret == ICE_DCB_ANAL_HW_CHG)
 		ret = ICE_DCB_HW_CHG;
 
 delapp_out:
@@ -980,11 +980,11 @@ static u8 ice_dcbnl_cee_set_all(struct net_device *netdev)
 
 	if ((pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED) ||
 	    !(pf->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return ICE_DCB_NO_HW_CHG;
+		return ICE_DCB_ANAL_HW_CHG;
 
 	if (pf->lag && pf->lag->bonded) {
-		netdev_err(netdev, "DCB changes not allowed when in a bond\n");
-		return ICE_DCB_NO_HW_CHG;
+		netdev_err(netdev, "DCB changes analt allowed when in a bond\n");
+		return ICE_DCB_ANAL_HW_CHG;
 	}
 
 	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
@@ -994,7 +994,7 @@ static u8 ice_dcbnl_cee_set_all(struct net_device *netdev)
 	err = ice_pf_dcb_cfg(pf, new_cfg, true);
 
 	mutex_unlock(&pf->tc_mutex);
-	return (err != ICE_DCB_HW_CHG_RST) ? ICE_DCB_NO_HW_CHG : err;
+	return (err != ICE_DCB_HW_CHG_RST) ? ICE_DCB_ANAL_HW_CHG : err;
 }
 
 static const struct dcbnl_rtnl_ops dcbnl_ops = {
@@ -1054,7 +1054,7 @@ void ice_dcbnl_set_all(struct ice_vsi *vsi)
 	if (pf->dcbx_cap & DCB_CAP_DCBX_HOST)
 		return;
 
-	/* DCB not enabled */
+	/* DCB analt enabled */
 	if (!test_bit(ICE_FLAG_DCB_ENA, pf->flags))
 		return;
 
@@ -1074,8 +1074,8 @@ void ice_dcbnl_set_all(struct ice_vsi *vsi)
 			dcb_ieee_setapp(netdev, &sapp);
 		}
 	}
-	/* Notify user-space of the changes */
-	dcbnl_ieee_notify(netdev, RTM_SETDCB, DCB_CMD_IEEE_SET, 0, 0);
+	/* Analtify user-space of the changes */
+	dcbnl_ieee_analtify(netdev, RTM_SETDCB, DCB_CMD_IEEE_SET, 0, 0);
 }
 
 /**
@@ -1106,7 +1106,7 @@ ice_dcbnl_vsi_del_app(struct ice_vsi *vsi,
  * @old_cfg: old DCBX configuration data
  * @new_cfg: new DCBX configuration data
  *
- * Find and delete all APPS that are not present in the passed
+ * Find and delete all APPS that are analt present in the passed
  * DCB configuration
  */
 void
@@ -1122,7 +1122,7 @@ ice_dcbnl_flush_apps(struct ice_pf *pf, struct ice_dcbx_cfg *old_cfg,
 	for (i = 0; i < old_cfg->numapps; i++) {
 		struct ice_dcb_app_priority_table app = old_cfg->app[i];
 
-		/* The APP is not available anymore delete it */
+		/* The APP is analt available anymore delete it */
 		if (!ice_dcbnl_find_app(new_cfg, &app))
 			ice_dcbnl_vsi_del_app(main_vsi, &app);
 	}

@@ -72,7 +72,7 @@ struct iommu_dma_cookie {
 			atomic64_t		fq_flush_finish_cnt;
 			/* Timer to regularily empty the flush queues */
 			struct timer_list	fq_timer;
-			/* 1 when timer is active, 0 when not */
+			/* 1 when timer is active, 0 when analt */
 			atomic_t		fq_timer_on;
 		};
 		/* Trivial linear page allocator for IOMMU_DMA_MSI_COOKIE */
@@ -80,7 +80,7 @@ struct iommu_dma_cookie {
 	};
 	struct list_head		msi_page_list;
 
-	/* Domain for flush queue callback; NULL if flush queue not in use */
+	/* Domain for flush queue callback; NULL if flush queue analt in use */
 	struct iommu_domain		*fq_domain;
 	/* Options for dma-iommu use */
 	struct iommu_dma_options	options;
@@ -223,7 +223,7 @@ static void queue_iova(struct iommu_dma_cookie *cookie,
 
 	/*
 	 * First remove all entries from the flush queue that have already been
-	 * flushed out on another CPU. This makes the fq_full() check below less
+	 * flushed out on aanalther CPU. This makes the fq_full() check below less
 	 * likely to be true.
 	 */
 	fq_ring_free_locked(cookie, fq);
@@ -306,7 +306,7 @@ static int iommu_dma_init_fq_single(struct iommu_dma_cookie *cookie)
 
 	queue = vmalloc(struct_size(queue, entries, fq_size));
 	if (!queue)
-		return -ENOMEM;
+		return -EANALMEM;
 	iommu_dma_init_one_fq(queue, fq_size);
 	cookie->single_fq = queue;
 
@@ -320,9 +320,9 @@ static int iommu_dma_init_fq_percpu(struct iommu_dma_cookie *cookie)
 	int cpu;
 
 	queue = __alloc_percpu(struct_size(queue, entries, fq_size),
-			       __alignof__(*queue));
+			       __aliganalf__(*queue));
 	if (!queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(cpu)
 		iommu_dma_init_one_fq(per_cpu_ptr(queue, cpu), fq_size);
@@ -349,7 +349,7 @@ int iommu_dma_init_fq(struct iommu_domain *domain)
 
 	if (rc) {
 		pr_warn("iova flush queue initialization failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	timer_setup(&cookie->fq_timer, fq_flush_timeout, 0);
@@ -393,7 +393,7 @@ int iommu_get_dma_cookie(struct iommu_domain *domain)
 
 	domain->iova_cookie = cookie_alloc(IOMMU_DMA_IOVA_COOKIE);
 	if (!domain->iova_cookie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&domain->iova_cookie->mutex);
 	return 0;
@@ -404,10 +404,10 @@ int iommu_get_dma_cookie(struct iommu_domain *domain)
  * @domain: IOMMU domain to prepare
  * @base: Start address of IOVA region for MSI mappings
  *
- * Users who manage their own IOVA allocation and do not want DMA API support,
+ * Users who manage their own IOVA allocation and do analt want DMA API support,
  * but would still like to take advantage of automatic MSI remapping, can use
  * this to initialise their own domain appropriately. Users should reserve a
- * contiguous IOVA region, starting at @base, large enough to accommodate the
+ * contiguous IOVA region, starting at @base, large eanalugh to accommodate the
  * number of PAGE_SIZE mappings necessary to cover every MSI doorbell address
  * used by the devices attached to @domain.
  */
@@ -423,7 +423,7 @@ int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
 
 	cookie = cookie_alloc(IOMMU_DMA_MSI_COOKIE);
 	if (!cookie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cookie->msi_iova = base;
 	domain->iova_cookie = cookie;
@@ -463,17 +463,17 @@ void iommu_put_dma_cookie(struct iommu_domain *domain)
  * @list: Reserved region list from iommu_get_resv_regions()
  *
  * IOMMU drivers can use this to implement their .get_resv_regions callback
- * for general non-IOMMU-specific reservations. Currently, this covers GICv3
+ * for general analn-IOMMU-specific reservations. Currently, this covers GICv3
  * ITS region reservation on ACPI based ARM platforms that may require HW MSI
  * reservation.
  */
 void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list)
 {
 
-	if (!is_of_node(dev_iommu_fwspec_get(dev)->iommu_fwnode))
+	if (!is_of_analde(dev_iommu_fwspec_get(dev)->iommu_fwanalde))
 		iort_iommu_get_resv_regions(dev, list);
 
-	if (dev->of_node)
+	if (dev->of_analde)
 		of_iommu_get_resv_regions(dev, list);
 }
 EXPORT_SYMBOL(iommu_dma_get_resv_regions);
@@ -491,7 +491,7 @@ static int cookie_init_hw_msi_region(struct iommu_dma_cookie *cookie,
 	for (i = 0; i < num_pages; i++) {
 		msi_page = kmalloc(sizeof(*msi_page), GFP_KERNEL);
 		if (!msi_page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		msi_page->phys = start;
 		msi_page->iova = start;
@@ -506,8 +506,8 @@ static int cookie_init_hw_msi_region(struct iommu_dma_cookie *cookie,
 static int iommu_dma_ranges_sort(void *priv, const struct list_head *a,
 		const struct list_head *b)
 {
-	struct resource_entry *res_a = list_entry(a, typeof(*res_a), node);
-	struct resource_entry *res_b = list_entry(b, typeof(*res_b), node);
+	struct resource_entry *res_a = list_entry(a, typeof(*res_a), analde);
+	struct resource_entry *res_b = list_entry(b, typeof(*res_b), analde);
 
 	return res_a->res->start > res_b->res->start;
 }
@@ -539,7 +539,7 @@ resv_iova:
 			hi = iova_pfn(iovad, end);
 			reserve_iova(iovad, lo, hi);
 		} else if (end < start) {
-			/* DMA ranges should be non-overlapping */
+			/* DMA ranges should be analn-overlapping */
 			dev_err(&dev->dev,
 				"Failed to reserve IOVA [%pa-%pa]\n",
 				&start, &end);
@@ -548,7 +548,7 @@ resv_iova:
 
 		start = window->res->end - window->offset + 1;
 		/* If window is last entry */
-		if (window->node.next == &bridge->dma_ranges &&
+		if (window->analde.next == &bridge->dma_ranges &&
 		    end != ~(phys_addr_t)0) {
 			end = ~(phys_addr_t)0;
 			goto resv_iova;
@@ -622,7 +622,7 @@ static bool dev_use_sg_swiotlb(struct device *dev, struct scatterlist *sg,
 		return true;
 
 	/*
-	 * If kmalloc() buffers are not DMA-safe for this device and
+	 * If kmalloc() buffers are analt DMA-safe for this device and
 	 * direction, check the individual lengths in the sg list. If any
 	 * element is deemed unsafe, use the swiotlb for bouncing.
 	 */
@@ -698,7 +698,7 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 				domain->geometry.aperture_start >> order);
 	}
 
-	/* start_pfn is always nonzero for an already-initialised domain */
+	/* start_pfn is always analnzero for an already-initialised domain */
 	mutex_lock(&cookie->mutex);
 	if (iovad->start_pfn) {
 		if (1UL << order != iovad->granule ||
@@ -775,20 +775,20 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	shift = iova_shift(iovad);
 	iova_len = size >> shift;
 
-	dma_limit = min_not_zero(dma_limit, dev->bus_dma_limit);
+	dma_limit = min_analt_zero(dma_limit, dev->bus_dma_limit);
 
 	if (domain->geometry.force_aperture)
 		dma_limit = min(dma_limit, (u64)domain->geometry.aperture_end);
 
 	/*
 	 * Try to use all the 32-bit PCI addresses first. The original SAC vs.
-	 * DAC reasoning loses relevance with PCIe, but enough hardware and
-	 * firmware bugs are still lurking out there that it's safest not to
+	 * DAC reasoning loses relevance with PCIe, but eanalugh hardware and
+	 * firmware bugs are still lurking out there that it's safest analt to
 	 * venture into the 64-bit space until necessary.
 	 *
-	 * If your device goes wrong after seeing the notice then likely either
-	 * its driver is not setting DMA masks accurately, the hardware has
-	 * some inherent bug in handling >32-bit addresses, or not all the
+	 * If your device goes wrong after seeing the analtice then likely either
+	 * its driver is analt setting DMA masks accurately, the hardware has
+	 * some inherent bug in handling >32-bit addresses, or analt all the
 	 * expected address bits are wired up between the device and the IOMMU.
 	 */
 	if (dma_limit > DMA_BIT_MASK(32) && dev->iommu->pci_32bit_workaround) {
@@ -798,7 +798,7 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 			goto done;
 
 		dev->iommu->pci_32bit_workaround = false;
-		dev_notice(dev, "Using %d-bit DMA addresses\n", bits_per(dma_limit));
+		dev_analtice(dev, "Using %d-bit DMA addresses\n", bits_per(dma_limit));
 	}
 
 	iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift, true);
@@ -883,7 +883,7 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 		unsigned int count, unsigned long order_mask, gfp_t gfp)
 {
 	struct page **pages;
-	unsigned int i = 0, nid = dev_to_node(dev);
+	unsigned int i = 0, nid = dev_to_analde(dev);
 
 	order_mask &= GENMASK(MAX_PAGE_ORDER, 0);
 	if (!order_mask)
@@ -894,7 +894,7 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 		return NULL;
 
 	/* IOMMU can map any pages, so himem can also be used here */
-	gfp |= __GFP_NOWARN | __GFP_HIGHMEM;
+	gfp |= __GFP_ANALWARN | __GFP_HIGHMEM;
 
 	while (count) {
 		struct page *page = NULL;
@@ -902,7 +902,7 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 
 		/*
 		 * Higher-order allocations are a convenience rather
-		 * than a necessity, hence using __GFP_NORETRY until
+		 * than a necessity, hence using __GFP_ANALRETRY until
 		 * falling back to minimum-order allocations.
 		 */
 		for (order_mask &= GENMASK(__fls(count), 0);
@@ -912,8 +912,8 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 
 			order_size = 1U << order;
 			if (order_mask > order_size)
-				alloc_flags |= __GFP_NORETRY;
-			page = alloc_pages_node(nid, alloc_flags, order);
+				alloc_flags |= __GFP_ANALRETRY;
+			page = alloc_pages_analde(nid, alloc_flags, order);
 			if (!page)
 				continue;
 			if (order)
@@ -933,9 +933,9 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 
 /*
  * If size is less than PAGE_SIZE, then a full CPU page will be allocated,
- * but an IOMMU which supports smaller pages might not map the whole thing.
+ * but an IOMMU which supports smaller pages might analt map the whole thing.
  */
-static struct page **__iommu_dma_alloc_noncontiguous(struct device *dev,
+static struct page **__iommu_dma_alloc_analncontiguous(struct device *dev,
 		size_t size, struct sg_table *sgt, gfp_t gfp, pgprot_t prot,
 		unsigned long attrs)
 {
@@ -976,7 +976,7 @@ static struct page **__iommu_dma_alloc_noncontiguous(struct device *dev,
 
 	/*
 	 * Remove the zone/policy flags from the GFP - these are applied to the
-	 * __iommu_dma_alloc_pages() but are not used for the supporting
+	 * __iommu_dma_alloc_pages() but are analt used for the supporting
 	 * internal allocations that follow.
 	 */
 	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM | __GFP_COMP);
@@ -1018,7 +1018,7 @@ static void *iommu_dma_alloc_remap(struct device *dev, size_t size,
 	struct sg_table sgt;
 	void *vaddr;
 
-	pages = __iommu_dma_alloc_noncontiguous(dev, size, &sgt, gfp, prot,
+	pages = __iommu_dma_alloc_analncontiguous(dev, size, &sgt, gfp, prot,
 						attrs);
 	if (!pages)
 		return NULL;
@@ -1036,7 +1036,7 @@ out_unmap:
 	return NULL;
 }
 
-static struct sg_table *iommu_dma_alloc_noncontiguous(struct device *dev,
+static struct sg_table *iommu_dma_alloc_analncontiguous(struct device *dev,
 		size_t size, enum dma_data_direction dir, gfp_t gfp,
 		unsigned long attrs)
 {
@@ -1046,7 +1046,7 @@ static struct sg_table *iommu_dma_alloc_noncontiguous(struct device *dev,
 	if (!sh)
 		return NULL;
 
-	sh->pages = __iommu_dma_alloc_noncontiguous(dev, size, &sh->sgt, gfp,
+	sh->pages = __iommu_dma_alloc_analncontiguous(dev, size, &sh->sgt, gfp,
 						    PAGE_KERNEL, attrs);
 	if (!sh->pages) {
 		kfree(sh);
@@ -1055,7 +1055,7 @@ static struct sg_table *iommu_dma_alloc_noncontiguous(struct device *dev,
 	return &sh->sgt;
 }
 
-static void iommu_dma_free_noncontiguous(struct device *dev, size_t size,
+static void iommu_dma_free_analncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt, enum dma_data_direction dir)
 {
 	struct dma_sgt_handle *sh = sgt_handle(sgt);
@@ -1249,7 +1249,7 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
 		s->length = s_length;
 
 		/*
-		 * Now fill in the real DMA data. If...
+		 * Analw fill in the real DMA data. If...
 		 * - there is a valid output segment to append to
 		 * - and this segment starts on an IOVA page boundary
 		 * - but doesn't fall at a segment boundary
@@ -1396,7 +1396,7 @@ static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 				/*
 				 * Mapping through host bridge should be
 				 * mapped with regular IOVAs, thus we
-				 * do nothing here and continue below.
+				 * do analthing here and continue below.
 				 */
 				break;
 			default:
@@ -1414,14 +1414,14 @@ static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		/*
 		 * Due to the alignment of our single IOVA allocation, we can
 		 * depend on these assumptions about the segment boundary mask:
-		 * - If mask size >= IOVA size, then the IOVA range cannot
+		 * - If mask size >= IOVA size, then the IOVA range cananalt
 		 *   possibly fall across a boundary, so we don't care.
 		 * - If mask size < IOVA size, then the IOVA range must start
 		 *   exactly on a boundary, therefore we can lay things out
-		 *   based purely on segment lengths without needing to know
+		 *   based purely on segment lengths without needing to kanalw
 		 *   the actual addresses beforehand.
 		 * - The mask must be a power of 2, so pad_len == 0 if
-		 *   iova_len == 0, thus we cannot dereference prev the first
+		 *   iova_len == 0, thus we cananalt dereference prev the first
 		 *   time through here (i.e. before it has a meaningful value).
 		 */
 		if (pad_len && pad_len < s_length - 1) {
@@ -1438,13 +1438,13 @@ static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 
 	iova = iommu_dma_alloc_iova(domain, iova_len, dma_get_mask(dev), dev);
 	if (!iova) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_restore_sg;
 	}
 
 	/*
 	 * We'll leave any physical concatenation to the IOMMU driver's
-	 * implementation - it knows better than we do.
+	 * implementation - it kanalws better than we do.
 	 */
 	ret = iommu_map_sg(domain, iova, sg, nents, prot, GFP_ATOMIC);
 	if (ret < 0 || ret < iova_len)
@@ -1457,7 +1457,7 @@ out_free_iova:
 out_restore_sg:
 	__invalidate_sg(sg, nents);
 out:
-	if (ret != -ENOMEM && ret != -EREMOTEIO)
+	if (ret != -EANALMEM && ret != -EREMOTEIO)
 		return -EINVAL;
 	return ret;
 }
@@ -1532,14 +1532,14 @@ static void __iommu_dma_free(struct device *dev, size_t size, void *cpu_addr)
 	int count = alloc_size >> PAGE_SHIFT;
 	struct page *page = NULL, **pages = NULL;
 
-	/* Non-coherent atomic allocation? Easy */
+	/* Analn-coherent atomic allocation? Easy */
 	if (IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
 	    dma_free_from_pool(dev, cpu_addr, alloc_size))
 		return;
 
 	if (is_vmalloc_addr(cpu_addr)) {
 		/*
-		 * If it the address is remapped, then it's either non-coherent
+		 * If it the address is remapped, then it's either analn-coherent
 		 * or highmem CMA, or an iommu_dma_alloc_remap() construction.
 		 */
 		pages = dma_common_find_pages(cpu_addr);
@@ -1569,13 +1569,13 @@ static void *iommu_dma_alloc_pages(struct device *dev, size_t size,
 {
 	bool coherent = dev_is_dma_coherent(dev);
 	size_t alloc_size = PAGE_ALIGN(size);
-	int node = dev_to_node(dev);
+	int analde = dev_to_analde(dev);
 	struct page *page = NULL;
 	void *cpu_addr;
 
 	page = dma_alloc_contiguous(dev, alloc_size, gfp);
 	if (!page)
-		page = alloc_pages_node(node, gfp, get_order(alloc_size));
+		page = alloc_pages_analde(analde, gfp, get_order(alloc_size));
 	if (!page)
 		return NULL;
 
@@ -1712,8 +1712,8 @@ static const struct dma_map_ops iommu_dma_ops = {
 	.free			= iommu_dma_free,
 	.alloc_pages		= dma_common_alloc_pages,
 	.free_pages		= dma_common_free_pages,
-	.alloc_noncontiguous	= iommu_dma_alloc_noncontiguous,
-	.free_noncontiguous	= iommu_dma_free_noncontiguous,
+	.alloc_analncontiguous	= iommu_dma_alloc_analncontiguous,
+	.free_analncontiguous	= iommu_dma_free_analncontiguous,
 	.mmap			= iommu_dma_mmap,
 	.get_sgtable		= iommu_dma_get_sgtable,
 	.map_page		= iommu_dma_map_page,
@@ -1764,7 +1764,7 @@ static struct iommu_dma_msi_page *iommu_dma_get_msi_page(struct device *dev,
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iommu_dma_msi_page *msi_page;
 	dma_addr_t iova;
-	int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
+	int prot = IOMMU_WRITE | IOMMU_ANALEXEC | IOMMU_MMIO;
 	size_t size = cookie_msi_granule(cookie);
 
 	msi_addr &= ~(phys_addr_t)(size - 1);
@@ -1827,7 +1827,7 @@ int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
 	msi_desc_set_iommu_cookie(desc, msi_page);
 
 	if (!msi_page)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

@@ -20,7 +20,7 @@
 
 #define DEVNAME "lm95241"
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x19, 0x2a, 0x2b, I2C_CLIENT_END };
 
 /* LM95241 registers */
@@ -136,7 +136,7 @@ static int lm95241_read_chip(struct device *dev, u32 attr, int channel,
 		*val = data->interval;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -179,7 +179,7 @@ static int lm95241_read_temp(struct device *dev, u32 attr, int channel,
 			*val = !!(data->status & R2DM);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -192,7 +192,7 @@ static int lm95241_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return lm95241_read_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -228,7 +228,7 @@ static int lm95241_write_chip(struct device *dev, u32 attr, int channel,
 						LM95241_REG_RW_CONFIG, config);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	mutex_unlock(&data->update_lock);
@@ -310,7 +310,7 @@ static int lm95241_write_temp(struct device *dev, u32 attr, int channel,
 						data->trutherm);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -328,7 +328,7 @@ static int lm95241_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return lm95241_write_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -361,7 +361,7 @@ static umode_t lm95241_is_visible(const void *data,
 	return 0;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm95241_detect(struct i2c_client *new_client,
 			  struct i2c_board_info *info)
 {
@@ -370,11 +370,11 @@ static int lm95241_detect(struct i2c_client *new_client,
 	int mfg_id, chip_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mfg_id = i2c_smbus_read_byte_data(new_client, LM95241_REG_R_MAN_ID);
 	if (mfg_id != NATSEMI_MAN_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip_id = i2c_smbus_read_byte_data(new_client, LM95241_REG_R_CHIP_ID);
 	switch (chip_id) {
@@ -385,7 +385,7 @@ static int lm95241_detect(struct i2c_client *new_client,
 		name = "lm95241";
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Fill the i2c board info */
@@ -440,7 +440,7 @@ static int lm95241_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm95241_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -471,7 +471,7 @@ static struct i2c_driver lm95241_driver = {
 	.probe		= lm95241_probe,
 	.id_table	= lm95241_id,
 	.detect		= lm95241_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm95241_driver);

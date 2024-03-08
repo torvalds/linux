@@ -432,7 +432,7 @@ int regulator_map_voltage_linear_range(struct regulator_dev *rdev,
 
 		/*
 		 * Map back into a voltage to verify we're still in bounds.
-		 * If we are not, then continue checking rest of the ranges.
+		 * If we are analt, then continue checking rest of the ranges.
 		 */
 		voltage = rdev->desc->ops->list_voltage(rdev, sel);
 		if (voltage >= min_uV && voltage <= max_uV)
@@ -590,7 +590,7 @@ int regulator_list_voltage_pickable_linear_range(struct regulator_dev *rdev,
 			 * long as the first selector for each pickable
 			 * range is 0, and the each subsequent range for
 			 * this 'pick' follow immediately at next unused
-			 * selector (Eg. there is no gaps between ranges).
+			 * selector (Eg. there is anal gaps between ranges).
 			 * I think this is fine but it probably should be
 			 * documented. OTOH, whole pickable range stuff
 			 * might benefit from some documentation
@@ -880,7 +880,7 @@ EXPORT_SYMBOL_GPL(regulator_get_current_limit_regmap);
  * @supply_names: array of supply name strings
  * @num_supplies: number of supply names to initialize
  *
- * Note: the 'consumers' array must be the size of 'num_supplies'.
+ * Analte: the 'consumers' array must be the size of 'num_supplies'.
  */
 void regulator_bulk_set_supply_names(struct regulator_bulk_data *consumers,
 				     const char *const *supply_names,
@@ -915,7 +915,7 @@ EXPORT_SYMBOL_GPL(regulator_is_equal);
  *
  * This is the internal helper used by regulator_set_ramp_delay_regmap to
  * map ramp delay to register value. It should only be used directly if
- * regulator_set_ramp_delay_regmap cannot handle a specific device setup
+ * regulator_set_ramp_delay_regmap cananalt handle a specific device setup
  * (e.g. because the value is split over multiple registers).
  */
 int regulator_find_closest_bigger(unsigned int target, const unsigned int *table,

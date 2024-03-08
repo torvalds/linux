@@ -80,12 +80,12 @@ static int __engine_unpark(struct intel_wakeref *wf)
 		/* Scrub the context image after our loss of control */
 		ce->ops->reset(ce);
 
-		CE_TRACE(ce, "reset { seqno:%x, *hwsp:%x, ring:%x }\n",
-			 ce->timeline->seqno,
-			 READ_ONCE(*ce->timeline->hwsp_seqno),
+		CE_TRACE(ce, "reset { seqanal:%x, *hwsp:%x, ring:%x }\n",
+			 ce->timeline->seqanal,
+			 READ_ONCE(*ce->timeline->hwsp_seqanal),
 			 ce->ring->emit);
-		GEM_BUG_ON(ce->timeline->seqno !=
-			   READ_ONCE(*ce->timeline->hwsp_seqno));
+		GEM_BUG_ON(ce->timeline->seqanal !=
+			   READ_ONCE(*ce->timeline->hwsp_seqanal));
 	}
 
 	if (engine->unpark)
@@ -117,7 +117,7 @@ __queue_and_release_pm(struct i915_request *rq,
 	/*
 	 * Open coded one half of intel_context_enter, which we have to omit
 	 * here (see the large comment below) and because the other part must
-	 * not be called due constructing directly with __i915_request_create
+	 * analt be called due constructing directly with __i915_request_create
 	 * which increments active count via intel_context_mark_active.
 	 */
 	GEM_BUG_ON(rq->context->active_count != 1);
@@ -129,8 +129,8 @@ __queue_and_release_pm(struct i915_request *rq,
 	 * submission, as we don't want to underflow either the
 	 * engine->wakeref.counter or our timeline->active_count.
 	 *
-	 * Equally, we cannot allow a new submission to start until
-	 * after we finish queueing, nor could we allow that submitter
+	 * Equally, we cananalt allow a new submission to start until
+	 * after we finish queueing, analr could we allow that submitter
 	 * to retire us before we are ready!
 	 */
 	spin_lock(&timelines->lock);
@@ -156,9 +156,9 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 
 	/*
 	 * This is execlist specific behaviour intended to ensure the GPU is
-	 * idle by switching to a known 'safe' context. With GuC submission, the
+	 * idle by switching to a kanalwn 'safe' context. With GuC submission, the
 	 * same idle guarantee is achieved by other means (disabling
-	 * scheduling). Further, switching to a 'safe' context has no effect
+	 * scheduling). Further, switching to a 'safe' context has anal effect
 	 * with GuC submission as the scheduler can just switch back again.
 	 *
 	 * FIXME: Move this backend scheduler specific behaviour into the
@@ -179,7 +179,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 		return true;
 
 	/*
-	 * Note, we do this without taking the timeline->mutex. We cannot
+	 * Analte, we do this without taking the timeline->mutex. We cananalt
 	 * as we may be called while retiring the kernel context and so
 	 * already underneath the timeline->mutex. Instead we rely on the
 	 * exclusive property of the __engine_park that prevents anyone
@@ -209,7 +209,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	set_bit(CONTEXT_IS_PARKING, &ce->flags);
 	GEM_BUG_ON(atomic_read(&ce->timeline->active_count) < 0);
 
-	rq = __i915_request_create(ce, GFP_NOWAIT);
+	rq = __i915_request_create(ce, GFP_ANALWAIT);
 	if (IS_ERR(rq))
 		/* Context switch failed, hope for the best! Maybe reset? */
 		goto out_unlock;
@@ -244,12 +244,12 @@ out_unlock:
 
 static void call_idle_barriers(struct intel_engine_cs *engine)
 {
-	struct llist_node *node, *next;
+	struct llist_analde *analde, *next;
 
-	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
+	llist_for_each_safe(analde, next, llist_del_all(&engine->barrier_tasks)) {
 		struct dma_fence_cb *cb =
-			container_of((struct list_head *)node,
-				     typeof(*cb), node);
+			container_of((struct list_head *)analde,
+				     typeof(*cb), analde);
 
 		cb->func(ERR_PTR(-EAGAIN), cb);
 	}
@@ -264,8 +264,8 @@ static int __engine_park(struct intel_wakeref *wf)
 
 	/*
 	 * If one and only one request is completed between pm events,
-	 * we know that we are inside the kernel context and it is
-	 * safe to power down. (We are paranoid in case that runtime
+	 * we kanalw that we are inside the kernel context and it is
+	 * safe to power down. (We are paraanalid in case that runtime
 	 * suspend causes corruption to the active context image, and
 	 * want to avoid that impacting userspace.)
 	 */

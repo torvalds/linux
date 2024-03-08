@@ -10,8 +10,8 @@ int __init mpc85xx_setup_pmc(void);
 #else
 static inline void mpc85xx_smp_init(void)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 #endif
 
-#endif /* not POWERPC_85XX_SMP_H_ */
+#endif /* analt POWERPC_85XX_SMP_H_ */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR X11)
 /*
- * Copyright 2019 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright 2019 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 /dts-v1/;
@@ -147,7 +147,7 @@
 	vqmmc-supply = <&reg_dcdc3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -207,7 +207,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "winbond,w25q128", "jedec,spi-nor";
+		compatible = "winbond,w25q128", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 	};

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -452,7 +452,7 @@ struct vi_de_ib_state {
 }; /* Total of 17 DWORD */
 
 struct vi_ce_ib_state_chained_ib {
-	/* section of non chained ib part */
+	/* section of analn chained ib part */
 	uint32_t    ce_ib_completion_status;
 	uint32_t    ce_constegnine_count;
 	uint32_t    ce_ibOffset_ib1;
@@ -468,7 +468,7 @@ struct vi_ce_ib_state_chained_ib {
 }; /* total 10 DWORD */
 
 struct vi_de_ib_state_chained_ib {
-	/* section of non chained ib part */
+	/* section of analn chained ib part */
 	uint32_t    ib_completion_status;
 	uint32_t    de_constEngine_count;
 	uint32_t    ib_offset_ib1;
@@ -482,7 +482,7 @@ struct vi_de_ib_state_chained_ib {
 	uint32_t    chain_ib_size_ib1;
 	uint32_t    chain_ib_size_ib2;
 
-	/* section of non chained ib part */
+	/* section of analn chained ib part */
 	uint32_t    preamble_begin_ib1;
 	uint32_t    preamble_begin_ib2;
 	uint32_t    preamble_end_ib1;
@@ -494,7 +494,7 @@ struct vi_de_ib_state_chained_ib {
 	uint32_t    chain_ib_pream_addrhi_ib1;
 	uint32_t    chain_ib_pream_addrhi_ib2;
 
-	/* section of non chained ib part */
+	/* section of analn chained ib part */
 	uint32_t    draw_indirect_baseLo;
 	uint32_t    draw_indirect_baseHi;
 	uint32_t    disp_indirect_baseLo;

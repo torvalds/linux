@@ -3,7 +3,7 @@
  * SDRAM timing related functions for OMAP2xxx
  *
  * Copyright (C) 2005, 2008 Texas Instruments Inc.
- * Copyright (C) 2005, 2008 Nokia Corporation
+ * Copyright (C) 2005, 2008 Analkia Corporation
  *
  * Tony Lindgren <tony@atomide.com>
  * Paul Walmsley
@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -148,7 +148,7 @@ void omap2xxx_sdrc_init_params(u32 force_lock_to_unlock_mode)
 	/* set fast timings with DLL filter disabled */
 	mem_timings.fast_dll_ctrl = (fast_dll | (3 << 8));
 
-	/* No disruptions, DDR will be offline & C-ABI not followed */
+	/* Anal disruptions, DDR will be offline & C-ABI analt followed */
 	omap2_sram_ddr_init(&mem_timings.slow_dll_ctrl,
 			    mem_timings.fast_dll_ctrl,
 			    mem_timings.base_cs,

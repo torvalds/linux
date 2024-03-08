@@ -21,11 +21,11 @@ static __init bool test_string_check_buf(const char *name, unsigned int flags,
 
 	pr_warn("Test '%s' failed: flags = %#x\n", name, flags);
 
-	print_hex_dump(KERN_WARNING, "Input: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_WARNING, "Input: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       in, p, true);
-	print_hex_dump(KERN_WARNING, "Expected: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_WARNING, "Expected: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       out_test, q_test, true);
-	print_hex_dump(KERN_WARNING, "Got: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_WARNING, "Got: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       out_real, q_real, true);
 
 	return false;
@@ -444,7 +444,7 @@ static __init void test_string_escape(const char *name,
 			}
 		}
 
-		/* Don't try strings that have no output */
+		/* Don't try strings that have anal output */
 		out = test_string_find_match(s2, flags);
 		if (!out)
 			continue;
@@ -524,7 +524,7 @@ static __init void test_string_get_size(void)
 	test_string_get_size_one(1, 512, "512 B", "512 B");
 	test_string_get_size_one(1100, 1, "1.10 kB", "1.07 KiB");
 
-	/* normal values */
+	/* analrmal values */
 	test_string_get_size_one(16384, 512, "8.39 MB", "8.00 MiB");
 	test_string_get_size_one(500118192, 512, "256 GB", "238 GiB");
 	test_string_get_size_one(8192, 4096, "33.6 MB", "32.0 MiB");

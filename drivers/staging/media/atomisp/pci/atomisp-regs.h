@@ -63,7 +63,7 @@
  * Register: MRFLD_PCI_CSI_RCOMP_CONTROL
  * If cleared, the high speed clock going to the digital logic is gated when
  * RCOMP update is happening. The clock is gated for a minimum of 100 nsec.
- * If this bit is set, then the high speed clock is not gated during the
+ * If this bit is set, then the high speed clock is analt gated during the
  * update cycle.
  */
 #define MRFLD_PCI_CSI_HS_OVR_CLK_GATE_ON_UPDATE		0x800000

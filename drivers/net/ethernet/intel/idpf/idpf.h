@@ -26,7 +26,7 @@ struct idpf_vport_max_q;
 
 #define GETMAXVAL(num_bits)		GENMASK((num_bits) - 1, 0)
 
-#define IDPF_NO_FREE_SLOT		0xffff
+#define IDPF_ANAL_FREE_SLOT		0xffff
 
 /* Default Mailbox settings */
 #define IDPF_NUM_FILTERS_PER_MSG	20
@@ -48,7 +48,7 @@ struct idpf_vport_max_q;
 #define IDPF_DIM_PROFILE_SLOTS  5
 
 #define IDPF_VIRTCHNL_VERSION_MAJOR VIRTCHNL2_VERSION_MAJOR_2
-#define IDPF_VIRTCHNL_VERSION_MINOR VIRTCHNL2_VERSION_MINOR_0
+#define IDPF_VIRTCHNL_VERSION_MIANALR VIRTCHNL2_VERSION_MIANALR_0
 
 /**
  * struct idpf_mac_filter
@@ -109,7 +109,7 @@ enum idpf_flags {
  * @IDPF_OTHER_CAPS: miscellaneous offloads
  *
  * Used when checking for a specific capability flag since different capability
- * sets are not mutually exclusive numerically, the caller must specify which
+ * sets are analt mutually exclusive numerically, the caller must specify which
  * type of capability they are checking for.
  */
 enum idpf_cap_field {
@@ -328,7 +328,7 @@ struct idpf_port_stats {
  * @crc_enable: Enable CRC insertion offload
  * @num_rxq: Number of allocated RX queues
  * @num_bufq: Number of allocated buffer queues
- * @rxq_desc_count: RX queue descriptor count. *MUST* have enough descriptors
+ * @rxq_desc_count: RX queue descriptor count. *MUST* have eanalugh descriptors
  *		    to complete all buffer descriptors for all buffer queues in
  *		    the worst case.
  * @num_bufqs_per_qgrp: Buffer queues per RX queue in a given grouping
@@ -476,8 +476,8 @@ struct idpf_vport_user_config_data {
  * enum idpf_vport_config_flags - Vport config flags
  * @IDPF_VPORT_REG_NETDEV: Register netdev
  * @IDPF_VPORT_UP_REQUESTED: Set if interface up is requested on core reset
- * @IDPF_VPORT_ADD_MAC_REQ: Asynchronous add ether address in flight
- * @IDPF_VPORT_DEL_MAC_REQ: Asynchronous delete ether address in flight
+ * @IDPF_VPORT_ADD_MAC_REQ: Asynchroanalus add ether address in flight
+ * @IDPF_VPORT_DEL_MAC_REQ: Asynchroanalus delete ether address in flight
  * @IDPF_VPORT_CONFIG_FLAGS_NBITS: Must be last
  */
 enum idpf_vport_config_flags {
@@ -564,7 +564,7 @@ struct idpf_vport_config {
  * struct idpf_adapter - Device data struct generated on probe
  * @pdev: PCI device struct given on probe
  * @virt_ver_maj: Virtchnl version major
- * @virt_ver_min: Virtchnl version minor
+ * @virt_ver_min: Virtchnl version mianalr
  * @msg_enable: Debug message level enabled
  * @mb_wait_count: Number of times mailbox was attempted initialization
  * @state: Init state machine
@@ -596,7 +596,7 @@ struct idpf_vport_config {
  * @serv_wq: Workqueue for service task
  * @mbx_task: Task to handle mailbox interrupts
  * @mbx_wq: Workqueue for mailbox responses
- * @vc_event_task: Task to handle out of band virtchnl event notifications
+ * @vc_event_task: Task to handle out of band virtchnl event analtifications
  * @vc_event_wq: Workqueue for virtchnl events
  * @stats_task: Periodic statistics retrieval task
  * @stats_wq: Workqueue for statistics task
@@ -605,7 +605,7 @@ struct idpf_vport_config {
  * @vc_state: Virtchnl message state
  * @vc_msg: Virtchnl message buffer
  * @dev_ops: See idpf_dev_ops
- * @num_vfs: Number of allocated VFs through sysfs. PF does not directly talk
+ * @num_vfs: Number of allocated VFs through sysfs. PF does analt directly talk
  *	     to VFs but is used to initialize them
  * @crc_enable: Enable CRC insertion offload
  * @req_tx_splitq: TX split or single queue model to request
@@ -875,7 +875,7 @@ static inline u16 idpf_get_max_tx_hdr_size(struct idpf_adapter *adapter)
  * idpf_vport_ctrl_lock - Acquire the vport control lock
  * @netdev: Network interface device structure
  *
- * This lock should be used by non-datapath code to protect against vport
+ * This lock should be used by analn-datapath code to protect against vport
  * destruction.
  */
 static inline void idpf_vport_ctrl_lock(struct net_device *netdev)

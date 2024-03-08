@@ -70,7 +70,7 @@ flat_put_addr_at_rp(u32 __user *rp, u32 addr, u32 relval)
 		put_unaligned(val_hi, p);
 		put_unaligned(val_lo, p+1);
 	} else {
-		/* Put it straight in, no messing around */
+		/* Put it straight in, anal messing around */
 		put_unaligned(addr, p);
 	}
 	return 0;

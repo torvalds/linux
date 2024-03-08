@@ -9,9 +9,9 @@
 #define __LINUX_PCS_MIIC_H
 
 struct phylink;
-struct device_node;
+struct device_analde;
 
-struct phylink_pcs *miic_create(struct device *dev, struct device_node *np);
+struct phylink_pcs *miic_create(struct device *dev, struct device_analde *np);
 
 void miic_destroy(struct phylink_pcs *pcs);
 

@@ -2,7 +2,7 @@
 /*
  * hcd_ddma.c - DesignWare HS OTG Controller descriptor DMA routines
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syanalpsys, Inc.
  */
 
 /*
@@ -71,7 +71,7 @@ static int dwc2_desc_list_alloc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 
 	qh->desc_list = kmem_cache_zalloc(desc_cache, flags | GFP_DMA);
 	if (!qh->desc_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qh->desc_list_dma = dma_map_single(hsotg->dev, qh->desc_list,
 					   qh->desc_list_sz,
@@ -84,7 +84,7 @@ static int dwc2_desc_list_alloc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 				 DMA_FROM_DEVICE);
 		kmem_cache_free(desc_cache, qh->desc_list);
 		qh->desc_list = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -119,7 +119,7 @@ static int dwc2_frame_list_alloc(struct dwc2_hsotg *hsotg, gfp_t mem_flags)
 	hsotg->frame_list_sz = 4 * FRLISTEN_64_SIZE;
 	hsotg->frame_list = kzalloc(hsotg->frame_list_sz, GFP_ATOMIC | GFP_DMA);
 	if (!hsotg->frame_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsotg->frame_list_dma = dma_map_single(hsotg->dev, hsotg->frame_list,
 					       hsotg->frame_list_sz,
@@ -266,11 +266,11 @@ static void dwc2_release_channel_ddma(struct dwc2_hsotg *hsotg,
 {
 	struct dwc2_host_chan *chan = qh->channel;
 
-	if (dwc2_qh_is_non_per(qh)) {
+	if (dwc2_qh_is_analn_per(qh)) {
 		if (hsotg->params.uframe_sched)
 			hsotg->available_host_channels++;
 		else
-			hsotg->non_periodic_channels--;
+			hsotg->analn_periodic_channels--;
 	} else {
 		dwc2_update_frame_list(hsotg, qh, 0);
 		hsotg->available_host_channels++;
@@ -316,7 +316,7 @@ int dwc2_hcd_qh_init_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 
 	if (qh->do_split) {
 		dev_err(hsotg->dev,
-			"SPLIT Transfers are not supported in Descriptor DMA mode.\n");
+			"SPLIT Transfers are analt supported in Descriptor DMA mode.\n");
 		retval = -EINVAL;
 		goto err0;
 	}
@@ -363,7 +363,7 @@ void dwc2_hcd_qh_free_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	/*
 	 * Channel still assigned due to some reasons.
-	 * Seen on Isoc URB dequeue. Channel halted but no subsequent
+	 * Seen on Isoc URB dequeue. Channel halted but anal subsequent
 	 * ChHalted interrupt to release the channel. Afterwards
 	 * when it comes here from endpoint disable routine
 	 * channel remains assigned.
@@ -392,7 +392,7 @@ static u8 dwc2_frame_to_desc_idx(struct dwc2_qh *qh, u16 frame_idx)
 }
 
 /*
- * Determine starting frame for Isochronous transfer.
+ * Determine starting frame for Isochroanalus transfer.
  * Few frames skipped to prevent race condition with HC.
  */
 static u16 dwc2_calc_starting_frame(struct dwc2_hsotg *hsotg,
@@ -403,7 +403,7 @@ static u16 dwc2_calc_starting_frame(struct dwc2_hsotg *hsotg,
 	hsotg->frame_number = dwc2_hcd_get_frame_number(hsotg);
 
 	/*
-	 * next_active_frame is always frame number (not uFrame) both in FS
+	 * next_active_frame is always frame number (analt uFrame) both in FS
 	 * and HS!
 	 */
 
@@ -444,7 +444,7 @@ static u16 dwc2_calc_starting_frame(struct dwc2_hsotg *hsotg,
 		/*
 		 * Two frames are skipped for FS - the current and the next.
 		 * But for descriptor programming, 1 frame (descriptor) is
-		 * enough, see example above.
+		 * eanalugh, see example above.
 		 */
 		*skip_frames = 1;
 		frame = dwc2_frame_num_inc(hsotg->frame_number, 2);
@@ -454,7 +454,7 @@ static u16 dwc2_calc_starting_frame(struct dwc2_hsotg *hsotg,
 }
 
 /*
- * Calculate initial descriptor index for isochronous transfer based on
+ * Calculate initial descriptor index for isochroanalus transfer based on
  * scheduled frame
  */
 static u16 dwc2_recalc_initial_desc_idx(struct dwc2_hsotg *hsotg,
@@ -464,12 +464,12 @@ static u16 dwc2_recalc_initial_desc_idx(struct dwc2_hsotg *hsotg,
 
 	/*
 	 * With current ISOC processing algorithm the channel is being released
-	 * when no more QTDs in the list (qh->ntd == 0). Thus this function is
+	 * when anal more QTDs in the list (qh->ntd == 0). Thus this function is
 	 * called only when qh->ntd == 0 and qh->channel == 0.
 	 *
-	 * So qh->channel != NULL branch is not used and just not removed from
-	 * the source file. It is required for another possible approach which
-	 * is, do not disable and release the channel when ISOC session
+	 * So qh->channel != NULL branch is analt used and just analt removed from
+	 * the source file. It is required for aanalther possible approach which
+	 * is, do analt disable and release the channel when ISOC session
 	 * completed, just move QH to inactive schedule until new QTD arrives.
 	 * On new QTD, the QH moved back to 'ready' schedule, starting frame and
 	 * therefore starting desc_index are recalculated. In this case channel
@@ -567,7 +567,7 @@ static void dwc2_init_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 	 * descriptor. If it happens, the only way to recover is to move
 	 * qh->td_last to current frame number + 1.
 	 * So that next isoc descriptor will be scheduled on frame number + 1
-	 * and not on a past frame.
+	 * and analt on a past frame.
 	 */
 	if (dwc2_frame_idx_num_gt(cur_idx, next_idx) || (cur_idx == next_idx)) {
 		if (inc < 32) {
@@ -642,7 +642,7 @@ static void dwc2_init_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 	else
 		/*
 		 * Set the IOC for the latest descriptor if either number of
-		 * descriptors is not greater than threshold or no more new
+		 * descriptors is analt greater than threshold or anal more new
 		 * descriptors activated
 		 */
 		idx = dwc2_desclist_idx_dec(qh->td_last, inc, qh->dev_speed);
@@ -708,7 +708,7 @@ static void dwc2_fill_host_dma_desc(struct dwc2_hsotg *hsotg,
 	}
 }
 
-static void dwc2_init_non_isoc_dma_desc(struct dwc2_hsotg *hsotg,
+static void dwc2_init_analn_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 					struct dwc2_qh *qh)
 {
 	struct dwc2_qtd *qtd;
@@ -721,7 +721,7 @@ static void dwc2_init_non_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 	/*
 	 * Start with chan->xfer_dma initialized in assign_and_init_hc(), then
 	 * if SG transfer consists of multiple URBs, this pointer is re-assigned
-	 * to the buffer of the currently processed QTD. For non-SG request
+	 * to the buffer of the currently processed QTD. For analn-SG request
 	 * there is always one QTD active.
 	 */
 
@@ -804,14 +804,14 @@ static void dwc2_init_non_isoc_dma_desc(struct dwc2_hsotg *hsotg,
  * Return: 0 if successful, negative error code otherwise
  *
  * For Control and Bulk endpoints, initializes descriptor list and starts the
- * transfer. For Interrupt and Isochronous endpoints, initializes descriptor
+ * transfer. For Interrupt and Isochroanalus endpoints, initializes descriptor
  * list then updates FrameList, marking appropriate entries as active.
  *
- * For Isochronous endpoints the starting descriptor index is calculated based
+ * For Isochroanalus endpoints the starting descriptor index is calculated based
  * on the scheduled frame, but only on the first transfer descriptor within a
  * session. Then the transfer is started via enabling the channel.
  *
- * For Isochronous endpoints the channel is not halted on XferComplete
+ * For Isochroanalus endpoints the channel is analt halted on XferComplete
  * interrupt so remains assigned to the endpoint(QH) until session is done.
  */
 void dwc2_hcd_start_xfer_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
@@ -823,11 +823,11 @@ void dwc2_hcd_start_xfer_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	switch (chan->ep_type) {
 	case USB_ENDPOINT_XFER_CONTROL:
 	case USB_ENDPOINT_XFER_BULK:
-		dwc2_init_non_isoc_dma_desc(hsotg, qh);
+		dwc2_init_analn_isoc_dma_desc(hsotg, qh);
 		dwc2_hc_start_transfer_ddma(hsotg, chan);
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		dwc2_init_non_isoc_dma_desc(hsotg, qh);
+		dwc2_init_analn_isoc_dma_desc(hsotg, qh);
 		dwc2_update_frame_list(hsotg, qh, 1);
 		dwc2_hc_start_transfer_ddma(hsotg, chan);
 		break;
@@ -841,7 +841,7 @@ void dwc2_hcd_start_xfer_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 			/*
 			 * Always set to max, instead of actual size. Otherwise
-			 * ntd will be changed with channel being enabled. Not
+			 * ntd will be changed with channel being enabled. Analt
 			 * recommended.
 			 */
 			chan->ntd = dwc2_max_desc_num(qh);
@@ -902,7 +902,7 @@ static int dwc2_cmpl_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 
 	if (++qtd->isoc_frame_index == qtd->urb->packet_count) {
 		/*
-		 * urb->status is not used for isoc transfers here. The
+		 * urb->status is analt used for isoc transfers here. The
 		 * individual frame_desc status are used instead.
 		 */
 		dwc2_host_complete(hsotg, qtd, 0);
@@ -911,7 +911,7 @@ static int dwc2_cmpl_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 		/*
 		 * This check is necessary because urb_dequeue can be called
 		 * from urb complete callback (sound driver for example). All
-		 * pending URBs are dequeued there, so no need for further
+		 * pending URBs are dequeued there, so anal need for further
 		 * processing.
 		 */
 		if (chan->halt_status == DWC2_HC_XFER_URB_DEQUEUE)
@@ -953,7 +953,7 @@ static void dwc2_complete_isoc_xfer_ddma(struct dwc2_hsotg *hsotg,
 		 * Channel is halted in these error cases, considered as serious
 		 * issues.
 		 * Complete all URBs marking all frames as failed, irrespective
-		 * whether some of the descriptors (frames) succeeded or not.
+		 * whether some of the descriptors (frames) succeeded or analt.
 		 * Pass error code to completion routine as well, to update
 		 * urb->status, some of class drivers might use it to stop
 		 * queing transfer requests.
@@ -1034,7 +1034,7 @@ stop_scan:
 	qh->td_first = idx;
 }
 
-static int dwc2_update_non_isoc_urb_state_ddma(struct dwc2_hsotg *hsotg,
+static int dwc2_update_analn_isoc_urb_state_ddma(struct dwc2_hsotg *hsotg,
 					       struct dwc2_host_chan *chan,
 					struct dwc2_qtd *qtd,
 					struct dwc2_dma_desc *dma_desc,
@@ -1091,7 +1091,7 @@ static int dwc2_update_non_isoc_urb_state_ddma(struct dwc2_hsotg *hsotg,
 			urb->actual_length += n_bytes - remain;
 			if (remain || urb->actual_length >= urb->length) {
 				/*
-				 * For Control Data stage do not set urb->status
+				 * For Control Data stage do analt set urb->status
 				 * to 0, to prevent URB callback. Set it when
 				 * Status phase is done. See below.
 				 */
@@ -1101,7 +1101,7 @@ static int dwc2_update_non_isoc_urb_state_ddma(struct dwc2_hsotg *hsotg,
 			urb->status = 0;
 			*xfer_done = 1;
 		}
-		/* No handling for SETUP stage */
+		/* Anal handling for SETUP stage */
 	} else {
 		/* BULK and INTR */
 		urb->actual_length += n_bytes - remain;
@@ -1116,7 +1116,7 @@ static int dwc2_update_non_isoc_urb_state_ddma(struct dwc2_hsotg *hsotg,
 	return 0;
 }
 
-static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
+static int dwc2_process_analn_isoc_desc(struct dwc2_hsotg *hsotg,
 				      struct dwc2_host_chan *chan,
 				      int chnum, struct dwc2_qtd *qtd,
 				      int desc_num,
@@ -1145,7 +1145,7 @@ static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
 	dev_vdbg(hsotg->dev,
 		 "qtd=%p dwc2_urb=%p desc_num=%d desc=%p n_bytes=%d\n",
 		 qtd, urb, desc_num, dma_desc, n_bytes);
-	failed = dwc2_update_non_isoc_urb_state_ddma(hsotg, chan, qtd, dma_desc,
+	failed = dwc2_update_analn_isoc_urb_state_ddma(hsotg, chan, qtd, dma_desc,
 						     halt_status, n_bytes,
 						     xfer_done);
 	if (failed || (*xfer_done && urb->status != -EINPROGRESS)) {
@@ -1174,7 +1174,7 @@ static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
 			} else if (desc_num + 1 == qtd->n_desc) {
 				/*
 				 * Last descriptor for Control data stage which
-				 * is not completed yet
+				 * is analt completed yet
 				 */
 				dwc2_hcd_save_data_toggle(hsotg, chan, chnum,
 							  qtd);
@@ -1188,7 +1188,7 @@ static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
 	return 0;
 }
 
-static void dwc2_complete_non_isoc_xfer_ddma(struct dwc2_hsotg *hsotg,
+static void dwc2_complete_analn_isoc_xfer_ddma(struct dwc2_hsotg *hsotg,
 					     struct dwc2_host_chan *chan,
 					     int chnum,
 					     enum dwc2_halt_status halt_status)
@@ -1214,7 +1214,7 @@ static void dwc2_complete_non_isoc_xfer_ddma(struct dwc2_hsotg *hsotg,
 		qtd_desc_count = qtd->n_desc;
 
 		for (i = 0; i < qtd_desc_count; i++) {
-			if (dwc2_process_non_isoc_desc(hsotg, chan, chnum, qtd,
+			if (dwc2_process_analn_isoc_desc(hsotg, chan, chnum, qtd,
 						       desc_num, halt_status,
 						       &xfer_done)) {
 				qtd = NULL;
@@ -1258,10 +1258,10 @@ stop_scan:
  * @chan:        Host channel the transfer is completed on
  * @chnum:       Index of Host channel registers
  * @halt_status: Reason the channel is being halted or just XferComplete
- *               for isochronous transfers
+ *               for isochroanalus transfers
  *
  * Releases the channel to be used by other transfers.
- * In case of Isochronous endpoint the channel is not halted until the end of
+ * In case of Isochroanalus endpoint the channel is analt halted until the end of
  * the session, i.e. QTD list is empty.
  * If periodic channel released the FrameList is updated accordingly.
  * Calls transaction selection routines to activate pending transfers.
@@ -1320,14 +1320,14 @@ void dwc2_hcd_complete_xfer_ddma(struct dwc2_hsotg *hsotg,
 		 * Scan descriptor list to complete the URB(s), then release
 		 * the channel
 		 */
-		dwc2_complete_non_isoc_xfer_ddma(hsotg, chan, chnum,
+		dwc2_complete_analn_isoc_xfer_ddma(hsotg, chan, chnum,
 						 halt_status);
 		dwc2_release_channel_ddma(hsotg, qh);
 		dwc2_hcd_qh_unlink(hsotg, qh);
 
 		if (!list_empty(&qh->qtd_list)) {
 			/*
-			 * Add back to inactive non-periodic schedule on normal
+			 * Add back to inactive analn-periodic schedule on analrmal
 			 * completion
 			 */
 			dwc2_hcd_qh_add(hsotg, qh);
@@ -1335,11 +1335,11 @@ void dwc2_hcd_complete_xfer_ddma(struct dwc2_hsotg *hsotg,
 	}
 
 	tr_type = dwc2_hcd_select_transactions(hsotg);
-	if (tr_type != DWC2_TRANSACTION_NONE || continue_isoc_xfer) {
+	if (tr_type != DWC2_TRANSACTION_ANALNE || continue_isoc_xfer) {
 		if (continue_isoc_xfer) {
-			if (tr_type == DWC2_TRANSACTION_NONE)
+			if (tr_type == DWC2_TRANSACTION_ANALNE)
 				tr_type = DWC2_TRANSACTION_PERIODIC;
-			else if (tr_type == DWC2_TRANSACTION_NON_PERIODIC)
+			else if (tr_type == DWC2_TRANSACTION_ANALN_PERIODIC)
 				tr_type = DWC2_TRANSACTION_ALL;
 		}
 		dwc2_hcd_queue_transactions(hsotg, tr_type);

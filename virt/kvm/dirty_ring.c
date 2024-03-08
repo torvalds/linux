@@ -75,7 +75,7 @@ int kvm_dirty_ring_alloc(struct kvm_dirty_ring *ring, int index, u32 size)
 {
 	ring->dirty_gfns = vzalloc(size);
 	if (!ring->dirty_gfns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->size = size / sizeof(struct kvm_dirty_gfn);
 	ring->soft_limit = ring->size - kvm_dirty_ring_get_rsvd_entries();
@@ -180,7 +180,7 @@ void kvm_dirty_ring_push(struct kvm_vcpu *vcpu, u32 slot, u64 offset)
 	entry->offset = offset;
 	/*
 	 * Make sure the data is filled in before we publish this to
-	 * the userspace program.  There's no paired kernel-side reader.
+	 * the userspace program.  There's anal paired kernel-side reader.
 	 */
 	smp_wmb();
 	kvm_dirty_gfn_set_dirtied(entry);

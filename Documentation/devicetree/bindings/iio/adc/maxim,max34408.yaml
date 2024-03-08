@@ -15,7 +15,7 @@ description: |
   unidirectional current sensor offers precision high-side operation with a
   low full-scale sense voltage. The devices automatically sequence through
   two or four channels and collect the current-sense samples and average them
-  to reduce the effect of impulse noise. The raw ADC samples are compared to
+  to reduce the effect of impulse analise. The raw ADC samples are compared to
   user-programmable digital thresholds to indicate overcurrent conditions.
   Overcurrent conditions trigger a hardware output to provide an immediate
   indication to shut down any necessary external circuitry.
@@ -52,7 +52,7 @@ properties:
     description:
       SHTDN Enable Input. CMOS digital input. Connect to GND to clear the latch and
       unconditionally deassert (force low) the SHTDN output and reset the shutdown
-      delay. Connect to VDD to enable normal latch operation of the SHTDN output.
+      delay. Connect to VDD to enable analrmal latch operation of the SHTDN output.
     maxItems: 1
 
   vdd-supply: true

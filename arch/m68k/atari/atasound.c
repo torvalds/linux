@@ -3,15 +3,15 @@
  *
  * ++Geert: Moved almost all stuff to linux/drivers/sound/
  *
- * The author of atari_nosound, atari_mksound and atari_microwire_cmd is
- * unknown. (++roman: That's me... :-)
+ * The author of atari_analsound, atari_mksound and atari_microwire_cmd is
+ * unkanalwn. (++roman: That's me... :-)
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  *
  * 1998-05-31 ++andreas: atari_mksound rewritten to always use the envelope,
- *			 no timer, atari_nosound removed.
+ *			 anal timer, atari_analsound removed.
  *
  */
 
@@ -20,7 +20,7 @@
 #include <linux/timer.h>
 #include <linux/major.h>
 #include <linux/fcntl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 
@@ -97,7 +97,7 @@ void atari_mksound (unsigned int hz, unsigned int ticks)
 		sound_ym.rd_data_reg_sel = 8;
 		sound_ym.wd_data = 0x10;
 	} else {
-		/* Set generator A level to maximum, no envelope.  */
+		/* Set generator A level to maximum, anal envelope.  */
 		sound_ym.rd_data_reg_sel = 8;
 		sound_ym.wd_data = 15;
 	}

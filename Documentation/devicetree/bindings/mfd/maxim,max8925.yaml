@@ -75,14 +75,14 @@ properties:
         maximum: 7
         default: 0
 
-      no-temp-support:
-        description: set to 1 if temperature sensing is not supported
+      anal-temp-support:
+        description: set to 1 if temperature sensing is analt supported
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1]
         default: 0
 
-      no-insert-detect:
-        description: set to 1 if AC detection is not supported
+      anal-insert-detect:
+        description: set to 1 if AC detection is analt supported
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1]
         default: 0
@@ -138,8 +138,8 @@ examples:
                 batt-detect = <0>;
                 topoff-threshold = <1>;
                 fast-charge = <7>;
-                no-temp-support = <0>;
-                no-insert-detect = <0>;
+                anal-temp-support = <0>;
+                anal-insert-detect = <0>;
             };
         };
     };

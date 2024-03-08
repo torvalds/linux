@@ -179,20 +179,20 @@ static const struct regmap_config fsl_mqs_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = REG_MQS_CTRL,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int fsl_mqs_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *gpr_np = NULL;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *gpr_np = NULL;
 	struct fsl_mqs *mqs_priv;
 	void __iomem *regs;
 	int ret;
 
 	mqs_priv = devm_kzalloc(&pdev->dev, sizeof(*mqs_priv), GFP_KERNEL);
 	if (!mqs_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* On i.MX6sx the MQS control register is in GPR domain
 	 * But in i.MX8QM/i.MX8QXP the control register is moved
@@ -203,12 +203,12 @@ static int fsl_mqs_probe(struct platform_device *pdev)
 	if (mqs_priv->soc->use_gpr) {
 		gpr_np = of_parse_phandle(np, "gpr", 0);
 		if (!gpr_np) {
-			dev_err(&pdev->dev, "failed to get gpr node by phandle\n");
+			dev_err(&pdev->dev, "failed to get gpr analde by phandle\n");
 			return -EINVAL;
 		}
 
-		mqs_priv->regmap = syscon_node_to_regmap(gpr_np);
-		of_node_put(gpr_np);
+		mqs_priv->regmap = syscon_analde_to_regmap(gpr_np);
+		of_analde_put(gpr_np);
 		if (IS_ERR(mqs_priv->regmap)) {
 			dev_err(&pdev->dev, "failed to get gpr regmap\n");
 			return PTR_ERR(mqs_priv->regmap);

@@ -8,7 +8,7 @@
  *   Dudley Du <dudl@cypress.com>
  *
  * Additional contributors include:
- *   Kamal Mostafa <kamal@canonical.com>
+ *   Kamal Mostafa <kamal@caanalnical.com>
  *   Kyle Fazzari <git@status.e4ward.com>
  */
 
@@ -203,11 +203,11 @@ int cypress_detect(struct psmouse *psmouse, bool set_properties)
 	unsigned char param[3];
 
 	if (cypress_send_ext_cmd(psmouse, CYTP_CMD_READ_CYPRESS_ID, param))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check for Cypress Trackpad signature bytes: 0x33 0xCC */
 	if (param[0] != 0x33 || param[1] != 0xCC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (set_properties) {
 		psmouse->vendor = "Cypress";
@@ -223,18 +223,18 @@ static int cypress_read_fw_version(struct psmouse *psmouse)
 	unsigned char param[3];
 
 	if (cypress_send_ext_cmd(psmouse, CYTP_CMD_READ_CYPRESS_ID, param))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check for Cypress Trackpad signature bytes: 0x33 0xCC */
 	if (param[0] != 0x33 || param[1] != 0xCC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cytp->fw_version = param[2] & FW_VERSION_MASX;
 	cytp->tp_metrics_supported = (param[2] & TP_METRICS_MASK) ? 1 : 0;
 
 	/*
 	 * Trackpad fw_version 11 (in Dell XPS12) yields a bogus response to
-	 * CYTP_CMD_READ_TP_METRICS so do not try to use it. LP: #1103594.
+	 * CYTP_CMD_READ_TP_METRICS so do analt try to use it. LP: #1103594.
 	 */
 	if (cytp->fw_version >= 11)
 		cytp->tp_metrics_supported = 0;
@@ -431,7 +431,7 @@ static int cypress_get_finger_count(unsigned char header_byte)
 			case 0:	return 4;
 			case 2: return 5;
 			default:
-				/* Invalid contact (e.g. palm). Ignore it. */
+				/* Invalid contact (e.g. palm). Iganalre it. */
 				return 0;
 		}
 	}
@@ -579,7 +579,7 @@ static psmouse_ret_t cypress_validate_byte(struct psmouse *psmouse)
 		return PSMOUSE_GOOD_DATA;
 
 	/*
-	 * If absolute/relative mode bit has not been set yet, just pass
+	 * If absolute/relative mode bit has analt been set yet, just pass
 	 * the byte through.
 	 */
 	if ((cytp->mode & CYTP_BIT_ABS_REL_MASK) == 0)
@@ -589,7 +589,7 @@ static psmouse_ret_t cypress_validate_byte(struct psmouse *psmouse)
 		return PSMOUSE_BAD_DATA;
 
 	contact_cnt = cypress_get_finger_count(packet[0]);
-	if (cytp->mode & CYTP_BIT_ABS_NO_PRESSURE)
+	if (cytp->mode & CYTP_BIT_ABS_ANAL_PRESSURE)
 		cypress_set_packet_size(psmouse, contact_cnt == 2 ? 7 : 4);
 	else
 		cypress_set_packet_size(psmouse, contact_cnt == 2 ? 8 : 5);
@@ -661,7 +661,7 @@ int cypress_init(struct psmouse *psmouse)
 
 	cytp = kzalloc(sizeof(struct cytp_data), GFP_KERNEL);
 	if (!cytp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psmouse->private = cytp;
 	psmouse->pktsize = 8;

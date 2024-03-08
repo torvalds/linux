@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -298,7 +298,7 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 
 	/*XXX: there does appear to be some kind of condition here, simply
 	 *     modifying these bits in the vbios from the default pl0
-	 *     entries shows no change.  however, the data does appear to
+	 *     entries shows anal change.  however, the data does appear to
 	 *     be correct and may be required for the transition back
 	 */
 	mask = 0x800f07e0;
@@ -520,7 +520,7 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 		data |= 0x20200000;
 	if (!next->bios.ramcfg_11_07_80)
 		data |= 0x12800000;
-	/*XXX: see note above about there probably being some condition
+	/*XXX: see analte above about there probably being some condition
 	 *     for the 10f824 stuff that uses ramcfg 3...
 	 */
 	if (next->bios.ramcfg_11_03_f0) {
@@ -607,7 +607,7 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 	}
 
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x80000000);
-	ram_wr32(fuc, 0x10f318, 0x00000001); /* NOP? */
+	ram_wr32(fuc, 0x10f318, 0x00000001); /* ANALP? */
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x00000000);
 	ram_nsec(fuc, 1000);
 	ram_nuts(ram, 0x10f200, 0x18808800, 0x00000000, 0x18808800);
@@ -640,7 +640,7 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 		data = 0xa40e0000;
 	}
 	gk104_ram_train(fuc, 0xbc0f0000, data);
-	if (1) /* XXX: not always? */
+	if (1) /* XXX: analt always? */
 		ram_nsec(fuc, 1000);
 
 	if (ram->mode == 2) { /*XXX*/
@@ -743,7 +743,7 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 
 	/*XXX: there does appear to be some kind of condition here, simply
 	 *     modifying these bits in the vbios from the default pl0
-	 *     entries shows no change.  however, the data does appear to
+	 *     entries shows anal change.  however, the data does appear to
 	 *     be correct and may be required for the transition back
 	 */
 	mask = 0x00010000;
@@ -870,7 +870,7 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 		data |= 0x20200000;
 	if (!next->bios.ramcfg_11_07_80)
 		data |= 0x12800000;
-	/*XXX: see note above about there probably being some condition
+	/*XXX: see analte above about there probably being some condition
 	 *     for the 10f824 stuff that uses ramcfg 3...
 	 */
 	if (next->bios.ramcfg_11_03_f0) {
@@ -937,7 +937,7 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 	}
 
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x80000000);
-	ram_wr32(fuc, 0x10f318, 0x00000001); /* NOP? */
+	ram_wr32(fuc, 0x10f318, 0x00000001); /* ANALP? */
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x00000000);
 	ram_nsec(fuc, 1000);
 
@@ -974,7 +974,7 @@ gk104_ram_calc_data(struct gk104_ram *ram, u32 khz, struct nvkm_ram_data *data)
 		}
 	}
 
-	nvkm_error(subdev, "ramcfg data for %dMHz not found\n", mhz);
+	nvkm_error(subdev, "ramcfg data for %dMHz analt found\n", mhz);
 	return -EINVAL;
 }
 
@@ -1052,13 +1052,13 @@ gk104_ram_calc_xits(struct gk104_ram *ram, struct nvkm_ram_data *next)
 	ram->mode = (next->freq > fuc->refpll.vco1.max_freq) ? 2 : 1;
 	ram->from = ram_rd32(fuc, 0x1373f4) & 0x0000000f;
 
-	/* XXX: this is *not* what nvidia do.  on fermi nvidia generally
-	 * select, based on some unknown condition, one of the two possible
+	/* XXX: this is *analt* what nvidia do.  on fermi nvidia generally
+	 * select, based on some unkanalwn condition, one of the two possible
 	 * reference frequencies listed in the vbios table for mempll and
 	 * program refpll to that frequency.
 	 *
 	 * so far, i've seen very weird values being chosen by nvidia on
-	 * kepler boards, no idea how/why they're chosen.
+	 * kepler boards, anal idea how/why they're chosen.
 	 */
 	refclk = next->freq;
 	if (ram->mode == 2) {
@@ -1101,7 +1101,7 @@ gk104_ram_calc_xits(struct gk104_ram *ram, struct nvkm_ram_data *next)
 			ret = gk104_ram_calc_gddr5(ram, next->freq);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		break;
 	}
 
@@ -1282,7 +1282,7 @@ gk104_ram_train_type(struct nvkm_ram *ram, int i, u8 ramcfg,
 
 	/* determine type of data for this index */
 	if (!(data = nvbios_M0205Ep(bios, i, &ver, &hdr, &cnt, &len, &M0205E)))
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (M0205E.type) {
 	case 0x00: value = &train->type00; break;
@@ -1310,7 +1310,7 @@ gk104_ram_train_type(struct nvkm_ram *ram, int i, u8 ramcfg,
 		return -EINVAL;
 
 	if (M0209E.v02_07 == 2) {
-		/* of course! why wouldn't we have a pointer to another entry
+		/* of course! why wouldn't we have a pointer to aanalther entry
 		 * in the same table, and use the first one as an array of
 		 * remap indices...
 		 */
@@ -1372,11 +1372,11 @@ gk104_ram_train_init(struct nvkm_ram *ram)
 	int ret, i;
 
 	if (!(train = kzalloc(sizeof(*train), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < 0x100; i++) {
 		ret = gk104_ram_train_type(ram, i, ramcfg, train);
-		if (ret && ret != -ENOENT)
+		if (ret && ret != -EANALENT)
 			break;
 	}
 
@@ -1407,7 +1407,7 @@ gk104_ram_init(struct nvkm_ram *ram)
 	 * individual pointers for each rammap entry too, but, nvidia
 	 * seem to just run the last two entries' scripts early on in
 	 * their init, and never again.. we'll just run 'em all once
-	 * for now.
+	 * for analw.
 	 *
 	 * i strongly suspect that each script is for a separate mode
 	 * (likely selected by 0x10f65c's lower bits?), and the
@@ -1447,15 +1447,15 @@ gk104_ram_ctor_data(struct gk104_ram *ram, u8 ramcfg, int i)
 	int ret;
 
 	if (!(cfg = kmalloc(sizeof(*cfg), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	p = &list_last_entry(&ram->cfg, typeof(*cfg), head)->bios;
 	n = &cfg->bios;
 
 	/* memory config data for a range of target frequencies */
 	data = nvbios_rammapEp(bios, i, &ver, &hdr, &cnt, &len, &cfg->bios);
-	if (ret = -ENOENT, !data)
+	if (ret = -EANALENT, !data)
 		goto done;
-	if (ret = -ENOSYS, ver != 0x11 || hdr < 0x12)
+	if (ret = -EANALSYS, ver != 0x11 || hdr < 0x12)
 		goto done;
 
 	/* ... and a portion specific to the attached memory */
@@ -1463,7 +1463,7 @@ gk104_ram_ctor_data(struct gk104_ram *ram, u8 ramcfg, int i)
 			       &ver, &hdr, &cfg->bios);
 	if (ret = -EINVAL, !data)
 		goto done;
-	if (ret = -ENOSYS, ver != 0x11 || hdr < 0x0a)
+	if (ret = -EANALSYS, ver != 0x11 || hdr < 0x0a)
 		goto done;
 
 	/* lookup memory timings, if bios says they're present */
@@ -1473,7 +1473,7 @@ gk104_ram_ctor_data(struct gk104_ram *ram, u8 ramcfg, int i)
 				       &cfg->bios);
 		if (ret = -EINVAL, !data)
 			goto done;
-		if (ret = -ENOSYS, ver != 0x20 || hdr < 0x33)
+		if (ret = -EANALSYS, ver != 0x20 || hdr < 0x33)
 			goto done;
 	}
 
@@ -1531,7 +1531,7 @@ gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	u32 tmp;
 
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pram = &ram->base;
 
 	ret = gf100_ram_ctor(func, fb, &ram->base);
@@ -1541,7 +1541,7 @@ gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	INIT_LIST_HEAD(&ram->cfg);
 
 	/* calculate a mask of differently configured memory partitions,
-	 * because, of course reclocking wasn't complicated enough
+	 * because, of course reclocking wasn't complicated eanalugh
 	 * already without having to treat some of them differently to
 	 * the others....
 	 */
@@ -1563,16 +1563,16 @@ gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	 * build information on whether certain fields differ between
 	 * any of the entries.
 	 *
-	 * the binary driver appears to completely ignore some fields
+	 * the binary driver appears to completely iganalre some fields
 	 * when all entries contain the same value.  at first, it was
 	 * hoped that these were mere optimisations and the bios init
 	 * tables had configured as per the values here, but there is
-	 * evidence now to suggest that this isn't the case and we do
+	 * evidence analw to suggest that this isn't the case and we do
 	 * need to treat this condition as a "don't touch" indicator.
 	 */
 	for (i = 0; !ret; i++) {
 		ret = gk104_ram_ctor_data(ram, ramcfg, i);
-		if (ret && ret != -ENOENT) {
+		if (ret && ret != -EANALENT) {
 			nvkm_error(subdev, "failed to parse ramcfg data\n");
 			return ret;
 		}
@@ -1581,13 +1581,13 @@ gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	/* parse bios data for both pll's */
 	ret = nvbios_pll_parse(bios, 0x0c, &ram->fuc.refpll);
 	if (ret) {
-		nvkm_error(subdev, "mclk refpll data not found\n");
+		nvkm_error(subdev, "mclk refpll data analt found\n");
 		return ret;
 	}
 
 	ret = nvbios_pll_parse(bios, 0x04, &ram->fuc.mempll);
 	if (ret) {
-		nvkm_error(subdev, "mclk pll data not found\n");
+		nvkm_error(subdev, "mclk pll data analt found\n");
 		return ret;
 	}
 

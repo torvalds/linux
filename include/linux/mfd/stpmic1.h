@@ -21,7 +21,7 @@
 #define LDO14_PD_CR		0x13
 #define LDO56_VREF_PD_CR	0x14
 #define VBUS_DET_VIN_CR		0x15
-#define PKEY_TURNOFF_CR		0x16
+#define PKEY_TURANALFF_CR		0x16
 #define BUCKS_MASK_RANK_CR	0x17
 #define BUCKS_MASK_RESET_CR	0x18
 #define LDOS_MASK_RANK_CR	0x19
@@ -188,13 +188,13 @@
 #define USBSW_OTG_SWITCH_ENABLED	BIT(1)
 #define BOOST_ENABLED			BIT(0)
 
-/* PKEY_TURNOFF_CR
+/* PKEY_TURANALFF_CR
  * Address : 0x16
  */
 #define PONKEY_PWR_OFF			BIT(7)
 #define PONKEY_CC_FLAG_CLEAR		BIT(6)
-#define PONKEY_TURNOFF_TIMER_MASK	GENMASK(3, 0)
-#define PONKEY_TURNOFF_MASK		GENMASK(7, 0)
+#define PONKEY_TURANALFF_TIMER_MASK	GENMASK(3, 0)
+#define PONKEY_TURANALFF_MASK		GENMASK(7, 0)
 
 /*
  * struct stpmic1 - stpmic1 master device for sub-drivers

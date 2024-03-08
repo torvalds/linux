@@ -13,7 +13,7 @@
 
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/types.h>
 #include <xen/interface/event_channel.h>
 #include <xen/grant_table.h>
@@ -36,7 +36,7 @@ struct gntdev_priv {
 #endif
 };
 
-struct gntdev_unmap_notify {
+struct gntdev_unmap_analtify {
 	int flags;
 	/* Address relative to the start of the gntdev_grant_map. */
 	int addr;
@@ -45,14 +45,14 @@ struct gntdev_unmap_notify {
 
 struct gntdev_grant_map {
 	atomic_t in_use;
-	struct mmu_interval_notifier notifier;
-	bool notifier_init;
+	struct mmu_interval_analtifier analtifier;
+	bool analtifier_init;
 	struct list_head next;
 	int index;
 	int count;
 	int flags;
 	refcount_t users;
-	struct gntdev_unmap_notify notify;
+	struct gntdev_unmap_analtify analtify;
 	struct ioctl_gntdev_grant_ref *grants;
 	struct gnttab_map_grant_ref   *map_ops;
 	struct gnttab_unmap_grant_ref *unmap_ops;
@@ -64,7 +64,7 @@ struct gntdev_grant_map {
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 	/*
-	 * If dmabuf_vaddr is not NULL then this mapping is backed by DMA
+	 * If dmabuf_vaddr is analt NULL then this mapping is backed by DMA
 	 * capable memory.
 	 */
 

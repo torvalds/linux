@@ -405,7 +405,7 @@ MODULE_DEVICE_TABLE(of, sti_sas_dev_match);
 
 static int sti_sas_driver_probe(struct platform_device *pdev)
 {
-	struct device_node *pnode = pdev->dev.of_node;
+	struct device_analde *panalde = pdev->dev.of_analde;
 	struct sti_sas_data *drvdata;
 	const struct of_device_id *of_id;
 
@@ -413,10 +413,10 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct sti_sas_data),
 			       GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Populate data structure depending on compatibility */
-	of_id = of_match_node(sti_sas_dev_match, pnode);
+	of_id = of_match_analde(sti_sas_dev_match, panalde);
 	if (!of_id->data) {
 		dev_err(&pdev->dev, "data associated to device is missing\n");
 		return -EINVAL;
@@ -431,15 +431,15 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 	drvdata->dac.virt_regmap = devm_regmap_init(&pdev->dev, NULL, drvdata,
 						    drvdata->dev_data->regmap);
 	if (IS_ERR(drvdata->dac.virt_regmap)) {
-		dev_err(&pdev->dev, "audio registers not enabled\n");
+		dev_err(&pdev->dev, "audio registers analt enabled\n");
 		return PTR_ERR(drvdata->dac.virt_regmap);
 	}
 
 	/* Request the syscon region */
 	drvdata->dac.regmap =
-		syscon_regmap_lookup_by_phandle(pnode, "st,syscfg");
+		syscon_regmap_lookup_by_phandle(panalde, "st,syscfg");
 	if (IS_ERR(drvdata->dac.regmap)) {
-		dev_err(&pdev->dev, "syscon registers not available\n");
+		dev_err(&pdev->dev, "syscon registers analt available\n");
 		return PTR_ERR(drvdata->dac.regmap);
 	}
 	drvdata->spdif.regmap = drvdata->dac.regmap;

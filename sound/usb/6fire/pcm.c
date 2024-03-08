@@ -34,7 +34,7 @@ enum { /* settings for pcm */
 };
 
 enum { /* pcm streaming states */
-	STREAM_DISABLED, /* no pcm streaming */
+	STREAM_DISABLED, /* anal pcm streaming */
 	STREAM_STARTING, /* pcm streaming requested, waiting to become ready */
 	STREAM_RUNNING, /* pcm streaming running */
 	STREAM_STOPPING
@@ -256,7 +256,7 @@ static void usb6fire_pcm_playback(struct pcm_substream *sub,
 	else if (alsa_rt->format == SNDRV_PCM_FORMAT_S24_LE)
 		dest = (u32 *) (urb->buffer);
 	else {
-		dev_err(&rt->chip->dev->dev, "Unknown sample format.");
+		dev_err(&rt->chip->dev->dev, "Unkanalwn sample format.");
 		return;
 	}
 
@@ -336,7 +336,7 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 	}
 	memset(out_urb->buffer, 0, total_length);
 
-	/* now send our playback data (if a free out urb was found) */
+	/* analw send our playback data (if a free out urb was found) */
 	sub = &rt->playback;
 	spin_lock_irqsave(&sub->lock, flags);
 	if (sub->active) {
@@ -456,7 +456,7 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	if (rt->panic)
 		return -EPIPE;
 	if (!sub)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&rt->stream_mutex);
 	sub->dma_off = 0;
@@ -483,7 +483,7 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 		if (ret) {
 			mutex_unlock(&rt->stream_mutex);
 			dev_err(&rt->chip->dev->dev,
-				"could not start pcm stream.\n");
+				"could analt start pcm stream.\n");
 			return ret;
 		}
 	}
@@ -500,7 +500,7 @@ static int usb6fire_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd)
 	if (rt->panic)
 		return -EPIPE;
 	if (!sub)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -574,12 +574,12 @@ static int usb6fire_pcm_buffers_init(struct pcm_runtime *rt)
 						 PCM_N_PACKETS_PER_URB,
 						 GFP_KERNEL);
 		if (!rt->out_urbs[i].buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		rt->in_urbs[i].buffer = kcalloc(PCM_MAX_PACKET_SIZE,
 						PCM_N_PACKETS_PER_URB,
 						GFP_KERNEL);
 		if (!rt->in_urbs[i].buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -603,7 +603,7 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 			kzalloc(sizeof(struct pcm_runtime), GFP_KERNEL);
 
 	if (!rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb6fire_pcm_buffers_init(rt);
 	if (ret) {
@@ -635,7 +635,7 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	if (ret < 0) {
 		usb6fire_pcm_buffers_destroy(rt);
 		kfree(rt);
-		dev_err(&chip->dev->dev, "cannot create pcm instance.\n");
+		dev_err(&chip->dev->dev, "cananalt create pcm instance.\n");
 		return ret;
 	}
 

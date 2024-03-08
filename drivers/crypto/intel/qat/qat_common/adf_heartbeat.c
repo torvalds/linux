@@ -10,7 +10,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include "adf_accel_devices.h"
 #include "adf_admin.h"
 #include "adf_cfg.h"
@@ -52,7 +52,7 @@ static int adf_hb_check_polling_freq(struct adf_accel_dev *accel_dev)
  *
  * Return:
  * * true - hb_ctrs must increased by ADF_NUM_PKE_STRAND
- * * false - no changes needed
+ * * false - anal changes needed
  */
 static bool validate_hb_ctrs_cnt(struct adf_accel_dev *accel_dev)
 {
@@ -114,7 +114,7 @@ static int get_timer_ticks(struct adf_accel_dev *accel_dev, unsigned int *value)
 	}
 
 	if (timer_ms < ADF_CFG_HB_TIMER_MIN_MS) {
-		dev_err(&GET_DEV(accel_dev), "Timer cannot be less than %u\n",
+		dev_err(&GET_DEV(accel_dev), "Timer cananalt be less than %u\n",
 			ADF_CFG_HB_TIMER_MIN_MS);
 		return -EINVAL;
 	}
@@ -190,7 +190,7 @@ static int adf_hb_get_status(struct adf_accel_dev *accel_dev)
 
 	curr_stats = kmemdup(live_stats, stats_size, GFP_KERNEL);
 	if (!curr_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* loop through active AEs */
 	for_each_set_bit(ae, &ae_mask, max_aes) {
@@ -232,7 +232,7 @@ void adf_heartbeat_status(struct adf_accel_dev *accel_dev,
 
 	if (adf_hb_get_status(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev),
-			"Heartbeat ERROR: QAT is not responding.\n");
+			"Heartbeat ERROR: QAT is analt responding.\n");
 		*hb_status = HB_DEV_UNRESPONSIVE;
 		hb->hb_failed_counter++;
 		return;
@@ -294,7 +294,7 @@ int adf_heartbeat_init(struct adf_accel_dev *accel_dev)
 err_free:
 	kfree(hb);
 err_ret:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int adf_heartbeat_start(struct adf_accel_dev *accel_dev)
@@ -303,7 +303,7 @@ int adf_heartbeat_start(struct adf_accel_dev *accel_dev)
 	int ret;
 
 	if (!accel_dev->heartbeat) {
-		dev_warn(&GET_DEV(accel_dev), "Heartbeat instance not found!");
+		dev_warn(&GET_DEV(accel_dev), "Heartbeat instance analt found!");
 		return -EFAULT;
 	}
 
@@ -316,7 +316,7 @@ int adf_heartbeat_start(struct adf_accel_dev *accel_dev)
 
 	ret = adf_send_admin_hb_timer(accel_dev, timer_ticks);
 	if (ret)
-		dev_warn(&GET_DEV(accel_dev), "Heartbeat not supported!");
+		dev_warn(&GET_DEV(accel_dev), "Heartbeat analt supported!");
 
 	return ret;
 }

@@ -24,13 +24,13 @@ int init_cache_level(unsigned int cpu)
 	int levels = 0, leaves = 0;
 
 	/*
-	 * If Dcache is not set, we assume the cache structures
-	 * are not properly initialized.
+	 * If Dcache is analt set, we assume the cache structures
+	 * are analt properly initialized.
 	 */
 	if (c->dcache.waysize)
 		levels += 1;
 	else
-		return -ENOENT;
+		return -EANALENT;
 
 
 	leaves += (c->icache.waysize) ? 2 : 1;

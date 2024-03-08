@@ -133,12 +133,12 @@
  * struct voltage_device - VM single input parameters.
  * @vm_map: Map channel number to VM index.
  * @ch_map: Map channel number to channel index.
- * @pre_scaler: Pre scaler value (1 or 2) used to normalize the voltage output
+ * @pre_scaler: Pre scaler value (1 or 2) used to analrmalize the voltage output
  *              result.
  *
  * The structure provides mapping between channel-number (0..N-1) to VM-index
  * (0..num_vm-1) and channel-index (0..ch_num-1) where N = num_vm * ch_num.
- * It also provides normalization factor for the VM equation.
+ * It also provides analrmalization factor for the VM equation.
  */
 struct voltage_device {
 	u32 vm_map;
@@ -304,7 +304,7 @@ static int pvt_read_temp(struct device *dev, u32 attr, int channel, long *val)
 
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -345,7 +345,7 @@ static int pvt_read_in(struct device *dev, u32 attr, int channel, long *val)
 		 * Division is used instead of right shift, because for signed
 		 * numbers, the sign bit is used to fill the vacated bit
 		 * positions, and if the number is negative, 1 is used.
-		 * BIT(x) may not be used instead of (1 << x) because it's
+		 * BIT(x) may analt be used instead of (1 << x) because it's
 		 * unsigned.
 		 */
 		*val = pre_scaler * (PVT_N_CONST * (long)n - PVT_R_CONST) /
@@ -353,7 +353,7 @@ static int pvt_read_in(struct device *dev, u32 attr, int channel, long *val)
 
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -366,7 +366,7 @@ static int pvt_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_in:
 		return pvt_read_in(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -639,7 +639,7 @@ static int pvt_get_active_channel(struct device *dev, struct pvt_device *pvt,
 					    vm_active_ch, vm_num);
 	if (ret) {
 		/*
-		 * Incase "moortec,vm-active-channels" property is not defined,
+		 * Incase "moortec,vm-active-channels" property is analt defined,
 		 * we assume each VM sensor has all of its channels active.
 		 */
 		memset(vm_active_ch, ch_num, vm_num);
@@ -669,7 +669,7 @@ static int pvt_get_active_channel(struct device *dev, struct pvt_device *pvt,
 	pvt->vd = devm_kcalloc(dev, pvt->vm_channels.total, sizeof(*pvt->vd),
 			       GFP_KERNEL);
 	if (!pvt->vd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	k = 0;
 	for (i = 0; i < vm_num; i++) {
@@ -701,7 +701,7 @@ static int pvt_get_pre_scaler(struct device *dev, struct pvt_device *pvt)
 	pre_scaler_ch_list = kcalloc(num_ch, sizeof(*pre_scaler_ch_list),
 				     GFP_KERNEL);
 	if (!pre_scaler_ch_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get list of all channels that have pre-scaler of 2. */
 	ret = device_property_read_u8_array(dev, "moortec,vm-pre-scaler-x2",
@@ -726,7 +726,7 @@ static int pvt_set_temp_coeff(struct device *dev, struct pvt_device *pvt)
 	u32 series;
 	int ret;
 
-	/* Incase ts-series property is not defined, use default 5. */
+	/* Incase ts-series property is analt defined, use default 5. */
 	ret = device_property_read_u32(dev, "moortec,ts-series", &series);
 	if (ret)
 		series = TEMPERATURE_SENSOR_SERIES_5;
@@ -776,7 +776,7 @@ static int mr75203_probe(struct platform_device *pdev)
 
 	pvt = devm_kzalloc(dev, sizeof(*pvt), GFP_KERNEL);
 	if (!pvt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pvt_get_regmap(pdev, "common", pvt);
 	if (ret)
@@ -795,7 +795,7 @@ static int mr75203_probe(struct platform_device *pdev)
 		ret = pvt_reset_control_deassert(dev, pvt);
 		if (ret)
 			return dev_err_probe(dev, ret,
-					     "cannot deassert reset control\n");
+					     "cananalt deassert reset control\n");
 	}
 
 	ret = regmap_read(pvt->c_map, PVT_IP_CONFIG, &val);
@@ -815,11 +815,11 @@ static int mr75203_probe(struct platform_device *pdev)
 	if (vm_num)
 		val++;
 	if (!val)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pvt_info = devm_kcalloc(dev, val + 2, sizeof(*pvt_info), GFP_KERNEL);
 	if (!pvt_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	pvt_info[0] = HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ);
 	index = 1;
 
@@ -835,7 +835,7 @@ static int mr75203_probe(struct platform_device *pdev)
 		temp_config = devm_kcalloc(dev, ts_num + 1,
 					   sizeof(*temp_config), GFP_KERNEL);
 		if (!temp_config)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset32(temp_config, HWMON_T_INPUT, ts_num);
 		pvt_temp.config = temp_config;
@@ -861,7 +861,7 @@ static int mr75203_probe(struct platform_device *pdev)
 						    vm_num);
 		if (ret) {
 			/*
-			 * Incase intel,vm-map property is not defined, we
+			 * Incase intel,vm-map property is analt defined, we
 			 * assume incremental channel numbers.
 			 */
 			for (i = 0; i < vm_num; i++)
@@ -886,7 +886,7 @@ static int mr75203_probe(struct platform_device *pdev)
 		in_config = devm_kcalloc(dev, pvt->vm_channels.total + 1,
 					 sizeof(*in_config), GFP_KERNEL);
 		if (!in_config)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset32(in_config, HWMON_I_INPUT, pvt->vm_channels.total);
 		in_config[pvt->vm_channels.total] = 0;

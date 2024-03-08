@@ -35,15 +35,15 @@ Configuration
 
 Viewing Link Messages
 ---------------------
-  Link messages will not be displayed to the console if the distribution is
+  Link messages will analt be displayed to the console if the distribution is
   restricting system messages. In order to see network driver link messages on
   your console, set dmesg to eight by entering the following::
 
        dmesg -n 8
 
-  .. note::
+  .. analte::
 
-     This setting is not saved across reboots.
+     This setting is analt saved across reboots.
 
 Jumbo Frames
 ------------
@@ -57,7 +57,7 @@ Jumbo Frames
 ethtool
 -------
   The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information. The latest
+  diaganalstics, as well as displaying statistical information. The latest
   ethtool version is required for this functionality.
 
 NAPI
@@ -84,29 +84,29 @@ Viewing adapter settings
 			    2500baseT/Full
 			    5000baseT/Full
     Supported pause frame use: Symmetric
-    Supports auto-negotiation: Yes
-    Supported FEC modes: Not reported
+    Supports auto-negotiation: Anal
+    Supported FEC modes: Analt reported
     Advertised link modes:  100baseT/Full
 			    1000baseT/Full
 			    10000baseT/Full
 			    2500baseT/Full
 			    5000baseT/Full
     Advertised pause frame use: Symmetric
-    Advertised auto-negotiation: Yes
-    Advertised FEC modes: Not reported
+    Advertised auto-negotiation: Anal
+    Advertised FEC modes: Analt reported
     Speed: 10000Mb/s
     Duplex: Full
     Port: Twisted Pair
     PHYAD: 0
     Transceiver: internal
     Auto-negotiation: on
-    MDI-X: Unknown
+    MDI-X: Unkanalwn
     Supports Wake-on: g
     Wake-on: d
-    Link detected: yes
+    Link detected: anal
 
 
- .. note::
+ .. analte::
 
     AQrate speeds (2.5/5 Gb/s) will be displayed only with linux kernels > 4.10.
     But you can still use these speeds::
@@ -127,11 +127,11 @@ Viewing adapter information
   firmware-version: 3.1.78
   expansion-rom-version:
   bus-info: 0000:01:00.0
-  supports-statistics: yes
-  supports-test: no
-  supports-eeprom-access: no
-  supports-register-dump: yes
-  supports-priv-flags: no
+  supports-statistics: anal
+  supports-test: anal
+  supports-eeprom-access: anal
+  supports-register-dump: anal
+  supports-priv-flags: anal
 
 
 Viewing Ethernet adapter statistics
@@ -299,7 +299,7 @@ RX flow rules (ntuple filters)
  For ``flow-type ip4|udp4|tcp4|sctp4|ip6|udp6|tcp6|sctp6`` you can set 8 rules
  for traffic IPv4 or you can set 2 rules for traffic IPv6. Loc number traffic
  IPv6 is 32 and 36.
- At the moment you can not use IPv4 and IPv6 filters at the same time.
+ At the moment you can analt use IPv4 and IPv6 filters at the same time.
 
  Example filter for IPv6 filter traffic::
 
@@ -355,7 +355,7 @@ RX flow rules (ntuple filters)
 RSS for UDP
 -----------
 
- Currently, NIC does not support RSS for fragmented IP packets, which leads to
+ Currently, NIC does analt support RSS for fragmented IP packets, which leads to
  incorrect working of RSS for fragmented UDP traffic. To disable RSS for UDP the
  RX Flow L3/L4 rule may be used.
 
@@ -441,7 +441,7 @@ Default value: 0
 RX side throttling in microseconds. Adapter will setup maximum interrupt delay
 to this value. Minimum interrupt delay will be a half of this value
 
-.. note::
+.. analte::
 
    ITR settings could be changed in runtime by ethtool -c means (see below)
 
@@ -467,7 +467,7 @@ AQ_CFG_RX_REFILL_THRES
 
 Default value: 32
 
-RX refill threshold. RX path will not refill freed descriptors until the
+RX refill threshold. RX path will analt refill freed descriptors until the
 specified number of free descriptors is observed. Larger values may help
 better page reuse but may lead to packet drops as well.
 
@@ -480,7 +480,7 @@ Valid Range: 0 - 8 (up to AQ_CFG_VECS_MAX)
 
 Default value: 8
 
-Notice this value will be capped by the number of cores available on the system.
+Analtice this value will be capped by the number of cores available on the system.
 
 AQ_CFG_IS_RSS_DEF
 -----------------

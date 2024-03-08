@@ -55,7 +55,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock Control Module node:
+  # Clock Control Module analde:
   - |
     #include <dt-bindings/clock/imx8mp-clock.h>
 

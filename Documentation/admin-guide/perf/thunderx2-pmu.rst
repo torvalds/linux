@@ -12,9 +12,9 @@ to the total number of channels/tiles.
 
 The DMC and L3C support up to 4 counters, while the CCPI2 supports up to 8
 counters. Counters are independently programmable to different events and
-can be started and stopped individually. None of the counters support an
+can be started and stopped individually. Analne of the counters support an
 overflow interrupt. DMC and L3C counters are 32-bit and read every 2 seconds.
-The CCPI2 counters are 64-bit and assumed not to overflow in normal operation.
+The CCPI2 counters are 64-bit and assumed analt to overflow in analrmal operation.
 
 PMU UNCORE (perf) driver:
 
@@ -24,8 +24,8 @@ L3C devices.  Each PMU can be used to count up to 4 (DMC/L3C) or up to 8
 available events and configuration options under sysfs, see
 /sys/devices/uncore_<l3c_S/dmc_S/ccpi2_S/>; S is the socket id.
 
-The driver does not support sampling, therefore "perf record" will not
-work. Per-task perf sessions are also not supported.
+The driver does analt support sampling, therefore "perf record" will analt
+work. Per-task perf sessions are also analt supported.
 
 Examples::
 

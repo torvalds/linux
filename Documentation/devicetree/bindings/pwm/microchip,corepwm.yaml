@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Microchip IP corePWM controller
 
 maintainers:
-  - Conor Dooley <conor.dooley@microchip.com>
+  - Coanalr Dooley <coanalr.dooley@microchip.com>
 
 description: |
   corePWM is an 16 channel pulse width modulator FPGA IP
@@ -37,16 +37,16 @@ properties:
   microchip,sync-update-mask:
     description: |
       Depending on how the IP is instantiated, there are two modes of operation.
-      In synchronous mode, all channels are updated at the beginning of the PWM period,
-      and in asynchronous mode updates happen as the control registers are written.
-      A 16 bit wide "SHADOW_REG_EN" parameter of the IP core controls whether synchronous
+      In synchroanalus mode, all channels are updated at the beginning of the PWM period,
+      and in asynchroanalus mode updates happen as the control registers are written.
+      A 16 bit wide "SHADOW_REG_EN" parameter of the IP core controls whether synchroanalus
       mode is possible for each channel, and is set by the bitstream programmed to the
       FPGA. If the IP core is instantiated with SHADOW_REG_ENx=1, both registers that
       control the duty cycle for channel x have a second "shadow"/buffer reg synthesised.
       At runtime a bit wide register exposed to APB can be used to toggle on/off
       synchronised mode for all channels it has been synthesised for.
       Each bit of "microchip,sync-update-mask" corresponds to a PWM channel & represents
-      whether synchronous mode is possible for the PWM channel.
+      whether synchroanalus mode is possible for the PWM channel.
 
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 0

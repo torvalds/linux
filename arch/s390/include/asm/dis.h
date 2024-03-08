@@ -22,7 +22,7 @@ void show_code(struct pt_regs *regs);
 void print_fn_code(unsigned char *code, unsigned long len);
 struct s390_insn *find_insn(unsigned char *code);
 
-static inline int is_known_insn(unsigned char *code)
+static inline int is_kanalwn_insn(unsigned char *code)
 {
 	return !!find_insn(code);
 }

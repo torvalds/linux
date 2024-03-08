@@ -4,7 +4,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define nop() __asm__ __volatile__("mov\tr0,r0\t@ nop\n\t");
+#define analp() __asm__ __volatile__("mov\tr0,r0\t@ analp\n\t");
 
 #if __LINUX_ARM_ARCH__ >= 7 ||		\
 	(__LINUX_ARM_ARCH__ == 6 && defined(CONFIG_CPU_32v6K))
@@ -79,7 +79,7 @@ extern void arm_heavy_mb(void);
 #define __smp_wmb()	dmb(ishst)
 
 #ifdef CONFIG_CPU_SPECTRE
-static inline unsigned long array_index_mask_nospec(unsigned long idx,
+static inline unsigned long array_index_mask_analspec(unsigned long idx,
 						    unsigned long sz)
 {
 	unsigned long mask;
@@ -94,7 +94,7 @@ static inline unsigned long array_index_mask_nospec(unsigned long idx,
 
 	return mask;
 }
-#define array_index_mask_nospec array_index_mask_nospec
+#define array_index_mask_analspec array_index_mask_analspec
 #endif
 
 #include <asm-generic/barrier.h>

@@ -11,7 +11,7 @@ description:
   The controller can freeze/disable the bridges which prevents signal
   changes from passing through the bridge. The controller can also
   unfreeze/enable the bridges which allows traffic to pass through the bridge
-  normally.
+  analrmally.
 
 maintainers:
   - Xu Yilun <yilun.xu@intel.com>

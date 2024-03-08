@@ -14,9 +14,9 @@
 #include <dt-bindings/clock/google,gs101.h>
 
 #include "clk.h"
-#include "clk-exynos-arm64.h"
+#include "clk-exyanals-arm64.h"
 
-/* NOTE: Must be equal to the last clock ID increased by one */
+/* ANALTE: Must be equal to the last clock ID increased by one */
 #define CLKS_NR_TOP	(CLK_GOUT_CMU_TPU_UART + 1)
 #define CLKS_NR_APM	(CLK_APM_PLL_DIV16_APM + 1)
 #define CLKS_NR_MISC	(CLK_GOUT_MISC_XIU_D_MISC_ACLK + 1)
@@ -1439,9 +1439,9 @@ static const struct samsung_cmu_info top_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(cmu_top_clk_regs),
 };
 
-static void __init gs101_cmu_top_init(struct device_node *np)
+static void __init gs101_cmu_top_init(struct device_analde *np)
 {
-	exynos_arm64_register_cmu(NULL, np, &top_cmu_info);
+	exyanals_arm64_register_cmu(NULL, np, &top_cmu_info);
 }
 
 /* Register CMU_TOP early, as it's a dependency for other early domains */
@@ -2486,7 +2486,7 @@ static int __init gs101_cmu_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	info = of_device_get_match_data(dev);
-	exynos_arm64_register_cmu(dev, dev->of_node, info);
+	exyanals_arm64_register_cmu(dev, dev->of_analde, info);
 
 	return 0;
 }

@@ -20,7 +20,7 @@ config RDS_TCP
 	depends on IPV6 || !IPV6
 	help
 	  Allow RDS to use TCP as a transport.
-	  This transport does not support RDMA operations.
+	  This transport does analt support RDMA operations.
 
 config RDS_DEBUG
 	bool "RDS debugging messages"

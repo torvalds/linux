@@ -42,8 +42,8 @@
 	PORT_1(288, fn, pfx##288, sfx), PORT_1(289, fn, pfx##289, sfx),	\
 	PORT_10(290, fn, pfx##29, sfx), PORT_10(300, fn, pfx##30, sfx)
 
-#define CPU_ALL_NOGP(fn)	\
-	PIN_NOGP(A11, "F26", fn)
+#define CPU_ALL_ANALGP(fn)	\
+	PIN_ANALGP(A11, "F26", fn)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -1161,11 +1161,11 @@ static const u16 pinmux_data[] = {
 #define SH73A0_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
 
 /*
- * Pins not associated with a GPIO port.
+ * Pins analt associated with a GPIO port.
  */
 enum {
 	PORT_ASSIGN_LAST(),
-	NOGP_ALL(),
+	ANALGP_ALL(),
 };
 
 static const struct sh_pfc_pin pinmux_pins[] = {
@@ -1440,8 +1440,8 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 	SH73A0_PIN_I_PU(308),
 	SH73A0_PIN_O(309),
 
-	/* Pins not associated with a GPIO port */
-	PINMUX_NOGP_ALL(),
+	/* Pins analt associated with a GPIO port */
+	PINMUX_ANALGP_ALL(),
 };
 
 /* - BSC -------------------------------------------------------------------- */

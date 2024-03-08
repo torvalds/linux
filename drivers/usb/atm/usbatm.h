@@ -57,7 +57,7 @@
 
 #define UDSL_SKIP_HEAVY_INIT	(1<<0)
 #define UDSL_USE_ISOC		(1<<1)
-#define UDSL_IGNORE_EILSEQ	(1<<2)
+#define UDSL_IGANALRE_EILSEQ	(1<<2)
 
 
 /* mini driver */
@@ -90,7 +90,7 @@ struct usbatm_driver {
 	void (*atm_stop) (struct usbatm_data *, struct atm_dev *);
 
 	int bulk_in;	/* bulk rx endpoint */
-	int isoc_in;	/* isochronous rx endpoint */
+	int isoc_in;	/* isochroanalus rx endpoint */
 	int bulk_out;	/* bulk tx endpoint */
 
 	unsigned rx_padding;
@@ -136,7 +136,7 @@ struct usbatm_data {
 	struct atm_dev *atm_dev;
 
 	/********************************
-	*  private fields - do not use  *
+	*  private fields - do analt use  *
 	********************************/
 
 	struct kref refcount;

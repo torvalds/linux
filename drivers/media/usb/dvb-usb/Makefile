@@ -29,8 +29,8 @@ obj-$(CONFIG_DVB_USB_DIBUSB_MB) += dvb-usb-dibusb-common.o dvb-usb-dibusb-mb.o
 dvb-usb-dibusb-mc-objs := dibusb-mc.o
 obj-$(CONFIG_DVB_USB_DIBUSB_MC) += dvb-usb-dibusb-mc.o
 
-dvb-usb-nova-t-usb2-objs := nova-t-usb2.o
-obj-$(CONFIG_DVB_USB_NOVA_T_USB2) += dvb-usb-nova-t-usb2.o
+dvb-usb-analva-t-usb2-objs := analva-t-usb2.o
+obj-$(CONFIG_DVB_USB_ANALVA_T_USB2) += dvb-usb-analva-t-usb2.o
 
 dvb-usb-umt-010-objs := umt-010.o
 obj-$(CONFIG_DVB_USB_UMT_010) += dvb-usb-umt-010.o

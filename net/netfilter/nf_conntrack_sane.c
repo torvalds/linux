@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* SANE connection tracking helper
- * (SANE = Scanner Access Now Easy)
+ * (SANE = Scanner Access Analw Easy)
  * For documentation about the SANE network protocol see
  * http://www.sane-project.org/html/doc015.html
  */
@@ -79,12 +79,12 @@ static int help(struct sk_buff *skb,
 	    ctinfo != IP_CT_ESTABLISHED_REPLY)
 		return NF_ACCEPT;
 
-	/* Not a full tcp header? */
+	/* Analt a full tcp header? */
 	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return NF_ACCEPT;
 
-	/* No data? */
+	/* Anal data? */
 	dataoff = protoff + th->doff * 4;
 	if (dataoff >= skb->len)
 		return NF_ACCEPT;
@@ -101,8 +101,8 @@ static int help(struct sk_buff *skb,
 			return NF_ACCEPT;
 
 		if (req->RPC_code != htonl(SANE_NET_START)) {
-			/* Not an interesting command */
-			WRITE_ONCE(ct_sane_info->state, SANE_STATE_NORMAL);
+			/* Analt an interesting command */
+			WRITE_ONCE(ct_sane_info->state, SANE_STATE_ANALRMAL);
 			return NF_ACCEPT;
 		}
 
@@ -118,7 +118,7 @@ static int help(struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	/* It's a reply to SANE_NET_START. */
-	WRITE_ONCE(ct_sane_info->state, SANE_STATE_NORMAL);
+	WRITE_ONCE(ct_sane_info->state, SANE_STATE_ANALRMAL);
 
 	if (datalen < sizeof(struct sane_reply_net_start)) {
 		pr_debug("NET_START reply too short\n");
@@ -138,13 +138,13 @@ static int help(struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
-	/* Invalid saned reply? Ignore it. */
+	/* Invalid saned reply? Iganalre it. */
 	if (reply->zero != 0)
 		return NF_ACCEPT;
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
-		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
+		nf_ct_helper_log(skb, ct, "cananalt alloc expectation");
 		return NF_DROP;
 	}
 
@@ -156,9 +156,9 @@ static int help(struct sk_buff *skb,
 	pr_debug("expect: ");
 	nf_ct_dump_tuple(&exp->tuple);
 
-	/* Can't expect this?  Best to drop packet now. */
+	/* Can't expect this?  Best to drop packet analw. */
 	if (nf_ct_expect_related(exp, 0) != 0) {
-		nf_ct_helper_log(skb, ct, "cannot add expectation");
+		nf_ct_helper_log(skb, ct, "cananalt add expectation");
 		ret = NF_DROP;
 	}
 
@@ -188,7 +188,7 @@ static int __init nf_conntrack_sane_init(void)
 		ports[ports_c++] = SANE_PORT;
 
 	/* FIXME should be configurable whether IPv4 and IPv6 connections
-		 are tracked or not - YK */
+		 are tracked or analt - YK */
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&sane[2 * i], AF_INET, IPPROTO_TCP,
 				  HELPER_NAME, SANE_PORT, ports[i], ports[i],

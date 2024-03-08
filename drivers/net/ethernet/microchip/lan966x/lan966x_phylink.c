@@ -35,7 +35,7 @@ static int lan966x_phylink_mac_prepare(struct phylink_config *config,
 				       serdes_mode);
 		if (err) {
 			netdev_err(to_net_dev(config->dev),
-				   "Could not set mode of SerDes\n");
+				   "Could analt set mode of SerDes\n");
 			return err;
 		}
 	}
@@ -119,7 +119,7 @@ static int lan966x_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 
 static void lan966x_pcs_aneg_restart(struct phylink_pcs *pcs)
 {
-	/* Currently not used */
+	/* Currently analt used */
 }
 
 const struct phylink_mac_ops lan966x_phylink_mac_ops = {

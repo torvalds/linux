@@ -59,7 +59,7 @@ static void __init armada_8k_get_sharing_cpus(struct clk *cur_clk,
 
 		clk = clk_get(cpu_dev, NULL);
 		if (IS_ERR(clk)) {
-			pr_warn("Cannot get clock for CPU %d\n", cpu);
+			pr_warn("Cananalt get clock for CPU %d\n", cpu);
 		} else {
 			if (clk_is_match(clk, cur_clk))
 				cpumask_set_cpu(cpu, cpumask);
@@ -77,7 +77,7 @@ static int __init armada_8k_add_opp(struct clk *clk, struct device *cpu_dev,
 	unsigned int freq;
 	int i, ret;
 
-	/* Get nominal (current) CPU frequency. */
+	/* Get analminal (current) CPU frequency. */
 	cur_frequency = clk_get_rate(clk);
 	if (!cur_frequency) {
 		dev_err(cpu_dev, "Failed to get clock rate for this CPU\n");
@@ -112,9 +112,9 @@ static void armada_8k_cpufreq_free_table(struct freq_table *freq_tables)
 
 		for (i = 0; i < ARRAY_SIZE(opps_div); i++) {
 			/*
-			 * A 0Hz frequency is not valid, this meant
-			 * that it was not yet initialized so there is
-			 * no more opp to free
+			 * A 0Hz frequency is analt valid, this meant
+			 * that it was analt yet initialized so there is
+			 * anal more opp to free
 			 */
 			if (freq_tables[opps_index].freq[i] == 0)
 				break;
@@ -131,26 +131,26 @@ static int __init armada_8k_cpufreq_init(void)
 {
 	int ret = 0, opps_index = 0, cpu, nb_cpus;
 	struct freq_table *freq_tables;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct cpumask cpus;
 
-	node = of_find_matching_node_and_match(NULL, armada_8k_cpufreq_of_match,
+	analde = of_find_matching_analde_and_match(NULL, armada_8k_cpufreq_of_match,
 					       NULL);
-	if (!node || !of_device_is_available(node)) {
-		of_node_put(node);
-		return -ENODEV;
+	if (!analde || !of_device_is_available(analde)) {
+		of_analde_put(analde);
+		return -EANALDEV;
 	}
-	of_node_put(node);
+	of_analde_put(analde);
 
 	nb_cpus = num_possible_cpus();
 	freq_tables = kcalloc(nb_cpus, sizeof(*freq_tables), GFP_KERNEL);
 	if (!freq_tables)
-		return -ENOMEM;
+		return -EANALMEM;
 	cpumask_copy(&cpus, cpu_possible_mask);
 
 	/*
 	 * For each CPU, this loop registers the operating points
-	 * supported (which are the nominal CPU frequency and full integer
+	 * supported (which are the analminal CPU frequency and full integer
 	 * divisions of it).
 	 */
 	for_each_cpu(cpu, &cpus) {
@@ -161,14 +161,14 @@ static int __init armada_8k_cpufreq_init(void)
 		cpu_dev = get_cpu_device(cpu);
 
 		if (!cpu_dev) {
-			pr_err("Cannot get CPU %d\n", cpu);
+			pr_err("Cananalt get CPU %d\n", cpu);
 			continue;
 		}
 
 		clk = clk_get(cpu_dev, NULL);
 
 		if (IS_ERR(clk)) {
-			pr_err("Cannot get clock for CPU %d\n", cpu);
+			pr_err("Cananalt get clock for CPU %d\n", cpu);
 			ret = PTR_ERR(clk);
 			goto remove_opp;
 		}
@@ -183,7 +183,7 @@ static int __init armada_8k_cpufreq_init(void)
 		cpumask_clear(&shared_cpus);
 		armada_8k_get_sharing_cpus(clk, &shared_cpus);
 		dev_pm_opp_set_sharing_cpus(cpu_dev, &shared_cpus);
-		cpumask_andnot(&cpus, &cpus, &shared_cpus);
+		cpumask_andanalt(&cpus, &cpus, &shared_cpus);
 		clk_put(clk);
 	}
 

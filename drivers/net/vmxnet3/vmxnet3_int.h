@@ -5,16 +5,16 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and anal later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * The full GNU General Public License is included in this distribution in
@@ -191,7 +191,7 @@ struct vmxnet3_tx_data_ring {
 	dma_addr_t          basePA;
 };
 
-#define VMXNET3_MAP_NONE	0
+#define VMXNET3_MAP_ANALNE	0
 #define VMXNET3_MAP_SINGLE	BIT(0)
 #define VMXNET3_MAP_PAGE	BIT(1)
 #define VMXNET3_MAP_XDP		BIT(2)
@@ -263,7 +263,7 @@ struct vmxnet3_tx_queue {
 } ____cacheline_aligned;
 
 enum vmxnet3_rx_buf_type {
-	VMXNET3_RX_BUF_NONE = 0,
+	VMXNET3_RX_BUF_ANALNE = 0,
 	VMXNET3_RX_BUF_SKB = 1,
 	VMXNET3_RX_BUF_PAGE = 2,
 	VMXNET3_RX_BUF_XDP = 3,

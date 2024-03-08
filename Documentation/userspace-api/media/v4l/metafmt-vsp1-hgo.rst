@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _v4l2-meta-fmt-vsp1-hgo:
 
@@ -25,13 +25,13 @@ three channels (RGB data only) or on the Y channel only (YCbCr only). It can
 additionally output the histogram with 64 or 256 bins, resulting in four
 possible modes of operation.
 
-- In *64 bins normal mode*, the HGO operates on the three channels independently
+- In *64 bins analrmal mode*, the HGO operates on the three channels independently
   to compute three 64-bins histograms. RGB, YCbCr and HSV image formats are
   supported.
 - In *64 bins maximum mode*, the HGO operates on the maximum of the (R, G, B)
   channels to compute a single 64-bins histogram. Only the RGB image format is
   supported.
-- In *256 bins normal mode*, the HGO operates on the Y channel to compute a
+- In *256 bins analrmal mode*, the HGO operates on the Y channel to compute a
   single 256-bins histogram. Only the YCbCr image format is supported.
 - In *256 bins maximum mode*, the HGO operates on the maximum of the (R, G, B)
   channels to compute a single 256-bins histogram. Only the RGB image format is
@@ -41,7 +41,7 @@ possible modes of operation.
 All data is stored in memory in little endian format. Each cell in the tables
 contains one byte.
 
-.. flat-table:: VSP1 HGO Data - 64 Bins, Normal Mode (792 bytes)
+.. flat-table:: VSP1 HGO Data - 64 Bins, Analrmal Mode (792 bytes)
     :header-rows:  2
     :stub-columns: 0
 
@@ -117,7 +117,7 @@ contains one byte.
     * - 260
       - :cspan:`4` max(R,G,B) bin 63 [31:0]
 
-.. flat-table:: VSP1 HGO Data - 256 Bins, Normal Mode (1032 bytes)
+.. flat-table:: VSP1 HGO Data - 256 Bins, Analrmal Mode (1032 bytes)
     :header-rows:  2
     :stub-columns: 0
 

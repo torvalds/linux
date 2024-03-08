@@ -39,7 +39,7 @@ static void asd_propagate_sas_addr(struct asd_ha_struct *asd_ha)
 	for (i = 0; i < ASD_MAX_PHYS; i++) {
 		if (asd_ha->hw_prof.phy_desc[i].sas_addr[0] == 0)
 			continue;
-		/* Set a phy's address only if it has none.
+		/* Set a phy's address only if it has analne.
 		 */
 		ASD_DPRINTK("setting phy%d addr to %llx\n", i,
 			    SAS_ADDR(asd_ha->hw_prof.sas_addr));
@@ -75,15 +75,15 @@ static int asd_init_phy(struct asd_phy *phy)
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
 	sas_phy->role = PHY_ROLE_INITIATOR;
-	sas_phy->oob_mode = OOB_NOT_CONNECTED;
-	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
+	sas_phy->oob_mode = OOB_ANALT_CONNECTED;
+	sas_phy->linkrate = SAS_LINK_RATE_UNKANALWN;
 
 	phy->id_frm_tok = asd_alloc_coherent(asd_ha,
 					     sizeof(*phy->identify_frame),
 					     GFP_KERNEL);
 	if (!phy->id_frm_tok) {
-		asd_printk("no mem for IDENTIFY for phy%d\n", sas_phy->id);
-		return -ENOMEM;
+		asd_printk("anal mem for IDENTIFY for phy%d\n", sas_phy->id);
+		return -EANALMEM;
 	} else
 		asd_init_phy_identify(phy);
 
@@ -126,7 +126,7 @@ static int asd_init_phys(struct asd_ha_struct *asd_ha)
 		phy->sas_phy.lldd_phy = phy;
 	}
 
-	/* Now enable and initialize only the enabled phys. */
+	/* Analw enable and initialize only the enabled phys. */
 	for_each_phy(phy_mask, phy_mask, i) {
 		int err = asd_init_phy(&asd_ha->phys[i]);
 		if (err)
@@ -204,7 +204,7 @@ static int asd_init_scbs(struct asd_ha_struct *asd_ha)
 					     sizeof(void *),
 					     GFP_KERNEL);
 	if (!asd_ha->seq.tc_index_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bitmap_bytes = (asd_ha->seq.tc_index_bitmap_bits+7)/8;
 	bitmap_bytes = BITS_TO_LONGS(bitmap_bytes*8)*sizeof(unsigned long);
@@ -212,7 +212,7 @@ static int asd_init_scbs(struct asd_ha_struct *asd_ha)
 	if (!asd_ha->seq.tc_index_bitmap) {
 		kfree(asd_ha->seq.tc_index_array);
 		asd_ha->seq.tc_index_array = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_init(&seq->tc_index_lock);
@@ -225,7 +225,7 @@ static int asd_init_scbs(struct asd_ha_struct *asd_ha)
 		kfree(asd_ha->seq.tc_index_array);
 		asd_ha->seq.tc_index_bitmap = NULL;
 		asd_ha->seq.tc_index_array = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	seq->pending = 0;
@@ -255,7 +255,7 @@ static int asd_init_dl(struct asd_ha_struct *asd_ha)
 			     ASD_DL_SIZE * sizeof(struct done_list_struct),
 				     GFP_KERNEL);
 	if (!asd_ha->seq.actual_dl)
-		return -ENOMEM;
+		return -EANALMEM;
 	asd_ha->seq.dl = asd_ha->seq.actual_dl->vaddr;
 	asd_ha->seq.dl_toggle = ASD_DEF_DL_TOGGLE;
 	asd_ha->seq.dl_next = 0;
@@ -275,7 +275,7 @@ static int asd_alloc_edbs(struct asd_ha_struct *asd_ha, gfp_t gfp_flags)
 	seq->edb_arr = kmalloc_array(seq->num_edbs, sizeof(*seq->edb_arr),
 				     gfp_flags);
 	if (!seq->edb_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < seq->num_edbs; i++) {
 		seq->edb_arr[i] = asd_alloc_coherent(asd_ha, ASD_EDB_SIZE,
@@ -295,7 +295,7 @@ Err_unroll:
 	kfree(seq->edb_arr);
 	seq->edb_arr = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
@@ -308,7 +308,7 @@ static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
 	seq->escb_arr = kmalloc_array(seq->num_escbs, sizeof(*seq->escb_arr),
 				      gfp_flags);
 	if (!seq->escb_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	escbs = seq->num_escbs;
 	escb = asd_ascb_alloc_list(asd_ha, &escbs, gfp_flags);
@@ -316,7 +316,7 @@ static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
 		asd_printk("couldn't allocate list of escbs\n");
 		goto Err;
 	}
-	seq->num_escbs -= escbs;  /* subtract what was not allocated */
+	seq->num_escbs -= escbs;  /* subtract what was analt allocated */
 	ASD_DPRINTK("num_escbs:%d\n", seq->num_escbs);
 
 	for (i = 0; i < seq->num_escbs; i++, escb = list_entry(escb->list.next,
@@ -330,7 +330,7 @@ static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
 Err:
 	kfree(seq->escb_arr);
 	seq->escb_arr = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 
 }
 
@@ -389,8 +389,8 @@ static int asd_init_escbs(struct asd_ha_struct *asd_ha)
 	}
 
 	asd_assign_edbs2escbs(asd_ha);
-	/* In order to insure that normal SCBs do not overfill sequencer
-	 * memory and leave no space for escbs (halting condition),
+	/* In order to insure that analrmal SCBs do analt overfill sequencer
+	 * memory and leave anal space for escbs (halting condition),
 	 * we increment pending here by the number of escbs.  However,
 	 * escbs are never pending.
 	 */
@@ -406,8 +406,8 @@ static int asd_init_escbs(struct asd_ha_struct *asd_ha)
  * asd_chip_hardrst -- hard reset the chip
  * @asd_ha: pointer to host adapter structure
  *
- * This takes 16 cycles and is synchronous to CFCLK, which runs
- * at 200 MHz, so this should take at most 80 nanoseconds.
+ * This takes 16 cycles and is synchroanalus to CFCLK, which runs
+ * at 200 MHz, so this should take at most 80 naanalseconds.
  */
 int asd_chip_hardrst(struct asd_ha_struct *asd_ha)
 {
@@ -429,7 +429,7 @@ int asd_chip_hardrst(struct asd_ha_struct *asd_ha)
 		}
 	} while (--count > 0);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -475,7 +475,7 @@ out:
 static int max_devs = 0;
 module_param_named(max_devs, max_devs, int, S_IRUGO);
 MODULE_PARM_DESC(max_devs, "\n"
-	"\tMaximum number of SAS devices to support (not LUs).\n"
+	"\tMaximum number of SAS devices to support (analt LUs).\n"
 	"\tDefault: 2176, Maximum: 65663.\n");
 
 static int max_cmnds = 0;
@@ -519,7 +519,7 @@ static int asd_extend_devctx(struct asd_ha_struct *asd_ha)
 		asd_printk("couldn't allocate memory for %d devices\n",
 			   max_devs);
 		max_devs = asd_ha->hw_prof.max_ddbs;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dma_handle = asd_ha->hw_prof.ddb_ext->dma_handle;
 	dma_addr = ALIGN((unsigned long) dma_handle, ASD_DDB_SIZE);
@@ -555,7 +555,7 @@ static int asd_extend_cmdctx(struct asd_ha_struct *asd_ha)
 		asd_printk("couldn't allocate memory for %d commands\n",
 			   max_cmnds);
 		max_cmnds = asd_ha->hw_prof.max_scbs;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dma_handle = asd_ha->hw_prof.scb_ext->dma_handle;
 	dma_addr = ALIGN((unsigned long) dma_handle, ASD_SCB_SIZE);
@@ -576,7 +576,7 @@ static int asd_extend_cmdctx(struct asd_ha_struct *asd_ha)
  * @asd_ha: pointer to host adapter structure
  *
  * This function sets the maximum number of SCBs and
- * DDBs which can be used by the sequencer.  This is normally
+ * DDBs which can be used by the sequencer.  This is analrmally
  * 512 and 128 respectively.  If support for more SCBs or more DDBs
  * is required then CMDCTXBASE, DEVCTXBASE and CTXDOMAIN are
  * initialized here to extend context memory to point to host memory,
@@ -596,7 +596,7 @@ static int asd_init_ctxmem(struct asd_ha_struct *asd_ha)
 	bitmap_bytes = BITS_TO_LONGS(bitmap_bytes*8)*sizeof(unsigned long);
 	asd_ha->hw_prof.ddb_bitmap = kzalloc(bitmap_bytes, GFP_KERNEL);
 	if (!asd_ha->hw_prof.ddb_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&asd_ha->hw_prof.ddb_lock);
 
 	return 0;
@@ -628,14 +628,14 @@ int asd_init_hw(struct asd_ha_struct *asd_ha)
 	err = asd_read_ocm(asd_ha);
 	if (err) {
 		asd_printk("couldn't read ocm(%d)\n", err);
-		/* While suspicios, it is not an error that we
+		/* While suspicios, it is analt an error that we
 		 * couldn't read the OCM. */
 	}
 
 	err = asd_read_flash(asd_ha);
 	if (err) {
 		asd_printk("couldn't read flash(%d)\n", err);
-		/* While suspicios, it is not an error that we
+		/* While suspicios, it is analt an error that we
 		 * couldn't read FLASH memory.
 		 */
 	}
@@ -643,9 +643,9 @@ int asd_init_hw(struct asd_ha_struct *asd_ha)
 	asd_init_ctxmem(asd_ha);
 
 	if (asd_get_user_sas_addr(asd_ha)) {
-		asd_printk("No SAS Address provided for %s\n",
+		asd_printk("Anal SAS Address provided for %s\n",
 			   pci_name(asd_ha->pcidev));
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto Out;
 	}
 
@@ -696,7 +696,7 @@ Out:
  * @asd_ha: pointer to host adapter structure of interest
  *
  * Called from the ISR.  Hard reset the chip.  Let everything
- * timeout.  This should be no different than hot-unplugging the
+ * timeout.  This should be anal different than hot-unplugging the
  * host adapter.  Once everything times out we'll init the chip with
  * a call to asd_init_chip() and enable interrupts with asd_enable_ints().
  * XXX finish.
@@ -727,7 +727,7 @@ static void asd_dl_tasklet_handler(unsigned long data)
 		ascb = asd_tc_index_find(seq, (int)le16_to_cpu(dl->index));
 		spin_unlock_irqrestore(&seq->tc_index_lock, flags);
 		if (unlikely(!ascb)) {
-			ASD_DPRINTK("BUG:sequencer:dl:no ascb?!\n");
+			ASD_DPRINTK("BUG:sequencer:dl:anal ascb?!\n");
 			goto next_1;
 		} else if (ascb->scb->header.opcode == EMPTY_SCB) {
 			goto out;
@@ -816,8 +816,8 @@ static void asd_arp2_err(struct asd_ha_struct *asd_ha, u32 dchstatus)
 		"UNEXPECTED_INTERRUPT8",
 		"UNEXPECTED_INTERRUPT9",
 		"UNEXPECTED_INTERRUPT10",
-		[11 ... 19] = "unknown[11,19]",
-		"NO_FREE_SCB_AVAILABLE",
+		[11 ... 19] = "unkanalwn[11,19]",
+		"ANAL_FREE_SCB_AVAILABLE",
 		"INVALID_SCB_OPCODE",
 		"INVALID_MBX_OPCODE",
 		"INVALID_ATA_STATE",
@@ -827,20 +827,20 @@ static void asd_arp2_err(struct asd_ha_struct *asd_ha, u32 dchstatus)
 		"BAD_LINK_QUEUE_STATE",
 		"DMA2CHIM_QUEUE_ERROR",
 		"EMPTY_SCB_LIST_FULL",
-		"unknown[30]",
+		"unkanalwn[30]",
 		"IN_USE_SCB_ON_FREE_LIST",
 		"BAD_OPEN_WAIT_STATE",
 		"INVALID_STP_AFFILIATION",
-		"unknown[34]",
+		"unkanalwn[34]",
 		"EXEC_QUEUE_ERROR",
 		"TOO_MANY_EMPTIES_NEEDED",
 		"EMPTY_REQ_QUEUE_ERROR",
 		"Q_MONIRTT_MGMT_ERROR",
 		"TARGET_MODE_FLOW_ERROR",
-		"DEVICE_QUEUE_NOT_FOUND",
+		"DEVICE_QUEUE_ANALT_FOUND",
 		"START_IRTT_TIMER_ERROR",
 		"ABORT_TASK_ILLEGAL_REQ",
-		[43 ... 255] = "unknown[43,255]"
+		[43 ... 255] = "unkanalwn[43,255]"
 	};
 
 	if (dchstatus & CSEQINT) {
@@ -909,7 +909,7 @@ static void asd_rbi_exsi_isr(struct asd_ha_struct *asd_ha)
 	u32 stat0r = asd_read_reg_dword(asd_ha, ASISTAT0R);
 
 	if (!(stat0r & ASIERR)) {
-		asd_printk("hmm, EXSI interrupted but no error?\n");
+		asd_printk("hmm, EXSI interrupted but anal error?\n");
 		return;
 	}
 
@@ -980,7 +980,7 @@ static void asd_hst_pcix_isr(struct asd_ha_struct *asd_ha)
 		asd_printk("unexpected split completion for %s\n",
 			   pci_name(asd_ha->pcidev));
 		pci_write_config_dword(asd_ha->pcidev,PCIX_STATUS,pcix_status);
-		/* ignore */
+		/* iganalre */
 		return;
 	} else if (pcix_status & SC_DISCARD)
 		asd_printk("split completion discarded for %s\n",
@@ -993,7 +993,7 @@ static void asd_hst_pcix_isr(struct asd_ha_struct *asd_ha)
 
 /**
  * asd_hw_isr -- host adapter interrupt service routine
- * @irq: ignored
+ * @irq: iganalred
  * @dev_id: pointer to host adapter structure
  *
  * The ISR processes done list entries and level 3 error handling.
@@ -1004,7 +1004,7 @@ irqreturn_t asd_hw_isr(int irq, void *dev_id)
 	u32 chimint = asd_read_reg_dword(asd_ha, CHIMINT);
 
 	if (!chimint)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	asd_write_reg_dword(asd_ha, CHIMINT, chimint);
 	(void) asd_read_reg_dword(asd_ha, CHIMINT);
@@ -1060,7 +1060,7 @@ undo:
 	dma_pool_free(asd_ha->scb_pool, ascb->dma_scb.vaddr,
 		      ascb->dma_scb.dma_handle);
 	kmem_cache_free(asd_ascb_cache, ascb);
-	ASD_DPRINTK("no index for ascb\n");
+	ASD_DPRINTK("anal index for ascb\n");
 	return NULL;
 }
 
@@ -1075,9 +1075,9 @@ undo:
  * a linked list in two ways: by their list field of the ascb struct
  * and by the next_scb field of the scb_header.
  *
- * Returns NULL if no memory was available, else pointer to a list
+ * Returns NULL if anal memory was available, else pointer to a list
  * of ascbs.  When this function returns, @num would be the number
- * of SCBs which were not able to be allocated, 0 if all requested
+ * of SCBs which were analt able to be allocated, 0 if all requested
  * were able to be allocated.
  */
 struct asd_ascb *asd_ascb_alloc_list(struct asd_ha_struct
@@ -1111,12 +1111,12 @@ struct asd_ascb *asd_ascb_alloc_list(struct asd_ha_struct
  * @asd_ha: pointer to host adapter structure
  * @ascb: pointer to the head of an ascb list
  *
- * The sequencer knows the DMA address of the next SCB to be DMAed to
+ * The sequencer kanalws the DMA address of the next SCB to be DMAed to
  * the host adapter, from initialization or from the last list DMAed.
  * seq->next_scb keeps the address of this SCB.  The sequencer will
  * DMA to the host adapter this list of SCBs.  But the head (first
- * element) of this list is not known to the sequencer.  Here we swap
- * the head of the list with the known SCB (memcpy()).
+ * element) of this list is analt kanalwn to the sequencer.  Here we swap
+ * the head of the list with the kanalwn SCB (memcpy()).
  * Only one memcpy() is required per list so it is in our interest
  * to keep the list of SCB as long as possible so that the ratio
  * of number of memcpy calls to the number of SCB DMA-ed is as small
@@ -1145,7 +1145,7 @@ static void asd_swap_head_scb(struct asd_ha_struct *asd_ha,
  * asd_start_scb_timers -- (add and) start timers of SCBs
  * @list: pointer to struct list_head of the scbs
  *
- * If an SCB in the @list has no timer function, assign the default
+ * If an SCB in the @list has anal timer function, assign the default
  * one,  then start the timer of the SCB.  This function is
  * intended to be called from asd_post_ascb_list(), just prior to
  * posting the SCBs to the sequencer.
@@ -1170,7 +1170,7 @@ static void asd_start_scb_timers(struct list_head *list)
  *
  * See queueing comment in asd_post_escb_list().
  *
- * Additional note on queuing: In order to minimize the ratio of memcpy()
+ * Additional analte on queuing: In order to minimize the ratio of memcpy()
  * to the number of ascbs sent, we try to batch-send as many ascbs as possible
  * in one go.
  * Two cases are possible:
@@ -1221,7 +1221,7 @@ int asd_post_ascb_list(struct asd_ha_struct *asd_ha, struct asd_ascb *ascb,
  * @ascb: pointer to the first empty SCB in the list
  * @num: number of aSCBs in the list (to be posted)
  *
- * This is essentially the same as asd_post_ascb_list, but we do not
+ * This is essentially the same as asd_post_ascb_list, but we do analt
  * increment pending, add those to the pending list or get indexes.
  * See asd_init_escbs() and asd_init_post_escbs().
  *
@@ -1350,8 +1350,8 @@ int asd_enable_phys(struct asd_ha_struct *asd_ha, const u8 phy_mask)
 	k = num;
 	ascb_list = asd_ascb_alloc_list(asd_ha, &k, GFP_KERNEL);
 	if (!ascb_list) {
-		asd_printk("no memory for control phy ascb list\n");
-		return -ENOMEM;
+		asd_printk("anal memory for control phy ascb list\n");
+		return -EANALMEM;
 	}
 	num -= k;
 

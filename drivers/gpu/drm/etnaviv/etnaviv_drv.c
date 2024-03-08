@@ -56,7 +56,7 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = xa_alloc_cyclic(&priv->active_contexts, &ctx->id, ctx,
 			      xa_limit_32b, &priv->next_context_id, GFP_KERNEL);
@@ -66,7 +66,7 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 	ctx->mmu = etnaviv_iommu_context_init(priv->mmu_global,
 					      priv->cmdbuf_suballoc);
 	if (!ctx->mmu) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -77,7 +77,7 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 		if (gpu) {
 			sched = &gpu->sched;
 			drm_sched_entity_init(&ctx->sched_entity[i],
-					      DRM_SCHED_PRIORITY_NORMAL, &sched,
+					      DRM_SCHED_PRIORITY_ANALRMAL, &sched,
 					      1, NULL);
 			}
 	}
@@ -144,7 +144,7 @@ static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 	seq_printf(m, "Active Objects (%s):\n", dev_name(gpu->dev));
 
 	/*
-	 * Lock the GPU to avoid a MMU context switch just now and elevate
+	 * Lock the GPU to avoid a MMU context switch just analw and elevate
 	 * the refcount of the current context to avoid it disappearing from
 	 * under our feet.
 	 */
@@ -200,22 +200,22 @@ static int etnaviv_ring_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 static int show_unlocked(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	int (*show)(struct drm_device *dev, struct seq_file *m) =
-			node->info_ent->data;
+			analde->info_ent->data;
 
 	return show(dev, m);
 }
 
 static int show_each_gpu(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct etnaviv_gpu *gpu;
 	int (*show)(struct etnaviv_gpu *gpu, struct seq_file *m) =
-			node->info_ent->data;
+			analde->info_ent->data;
 	unsigned int i;
 	int ret = 0;
 
@@ -240,11 +240,11 @@ static struct drm_info_list etnaviv_debugfs_list[] = {
 		{"ring", show_each_gpu, 0, etnaviv_ring_show},
 };
 
-static void etnaviv_debugfs_init(struct drm_minor *minor)
+static void etnaviv_debugfs_init(struct drm_mianalr *mianalr)
 {
 	drm_debugfs_create_files(etnaviv_debugfs_list,
 				 ARRAY_SIZE(etnaviv_debugfs_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 }
 #endif
 
@@ -289,12 +289,12 @@ static int etnaviv_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 	struct drm_gem_object *obj;
 	int ret;
 
-	if (args->op & ~(ETNA_PREP_READ | ETNA_PREP_WRITE | ETNA_PREP_NOSYNC))
+	if (args->op & ~(ETNA_PREP_READ | ETNA_PREP_WRITE | ETNA_PREP_ANALSYNC))
 		return -EINVAL;
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = etnaviv_gem_cpu_prep(obj, args->op, &args->timeout);
 
@@ -315,7 +315,7 @@ static int etnaviv_ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = etnaviv_gem_cpu_fini(obj);
 
@@ -336,7 +336,7 @@ static int etnaviv_ioctl_gem_info(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = etnaviv_gem_mmap_offset(obj, &args->offset);
 	drm_gem_object_put(obj);
@@ -352,7 +352,7 @@ static int etnaviv_ioctl_wait_fence(struct drm_device *dev, void *data,
 	struct drm_etnaviv_timespec *timeout = &args->timeout;
 	struct etnaviv_gpu *gpu;
 
-	if (args->flags & ~(ETNA_WAIT_NONBLOCK))
+	if (args->flags & ~(ETNA_WAIT_ANALNBLOCK))
 		return -EINVAL;
 
 	if (args->pipe >= ETNA_MAX_PIPES)
@@ -362,7 +362,7 @@ static int etnaviv_ioctl_wait_fence(struct drm_device *dev, void *data,
 	if (!gpu)
 		return -ENXIO;
 
-	if (args->flags & ETNA_WAIT_NONBLOCK)
+	if (args->flags & ETNA_WAIT_ANALNBLOCK)
 		timeout = NULL;
 
 	return etnaviv_gpu_wait_fence_interruptible(gpu, args->fence,
@@ -403,7 +403,7 @@ static int etnaviv_ioctl_gem_wait(struct drm_device *dev, void *data,
 	struct etnaviv_gpu *gpu;
 	int ret;
 
-	if (args->flags & ~(ETNA_WAIT_NONBLOCK))
+	if (args->flags & ~(ETNA_WAIT_ANALNBLOCK))
 		return -EINVAL;
 
 	if (args->pipe >= ETNA_MAX_PIPES)
@@ -415,9 +415,9 @@ static int etnaviv_ioctl_gem_wait(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
-	if (args->flags & ETNA_WAIT_NONBLOCK)
+	if (args->flags & ETNA_WAIT_ANALNBLOCK)
 		timeout = NULL;
 
 	ret = etnaviv_gem_wait_bo(gpu, obj, timeout);
@@ -494,7 +494,7 @@ static const struct drm_driver etnaviv_drm_driver = {
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
 	.major              = 1,
-	.minor              = 3,
+	.mianalr              = 3,
 };
 
 /*
@@ -513,7 +513,7 @@ static int etnaviv_bind(struct device *dev)
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(dev, "failed to allocate private data\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 	drm->dev_private = priv;
@@ -525,7 +525,7 @@ static int etnaviv_bind(struct device *dev)
 	mutex_init(&priv->gem_lock);
 	INIT_LIST_HEAD(&priv->gem_list);
 	priv->num_gpus = 0;
-	priv->shm_gfp_mask = GFP_HIGHUSER | __GFP_RETRY_MAYFAIL | __GFP_NOWARN;
+	priv->shm_gfp_mask = GFP_HIGHUSER | __GFP_RETRY_MAYFAIL | __GFP_ANALWARN;
 
 	priv->cmdbuf_suballoc = etnaviv_cmdbuf_suballoc_new(drm->dev);
 	if (IS_ERR(priv->cmdbuf_suballoc)) {
@@ -587,21 +587,21 @@ static const struct component_master_ops etnaviv_master_ops = {
 static int etnaviv_pdev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *first_node = NULL;
+	struct device_analde *first_analde = NULL;
 	struct component_match *match = NULL;
 
 	if (!dev->platform_data) {
-		struct device_node *core_node;
+		struct device_analde *core_analde;
 
-		for_each_compatible_node(core_node, NULL, "vivante,gc") {
-			if (!of_device_is_available(core_node))
+		for_each_compatible_analde(core_analde, NULL, "vivante,gc") {
+			if (!of_device_is_available(core_analde))
 				continue;
 
-			if (!first_node)
-				first_node = core_node;
+			if (!first_analde)
+				first_analde = core_analde;
 
 			drm_of_component_match_add(&pdev->dev, &match,
-						   component_compare_of, core_node);
+						   component_compare_of, core_analde);
 		}
 	} else {
 		char **names = dev->platform_data;
@@ -625,8 +625,8 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 	 */
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(40)) ||
 	    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		dev_dbg(&pdev->dev, "No suitable DMA available\n");
-		return -ENODEV;
+		dev_dbg(&pdev->dev, "Anal suitable DMA available\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -634,8 +634,8 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 	 * device as the GPU we found. This assumes that all Vivante
 	 * GPUs in the system share the same DMA constraints.
 	 */
-	if (first_node)
-		of_dma_configure(&pdev->dev, first_node, true);
+	if (first_analde)
+		of_dma_configure(&pdev->dev, first_analde, true);
 
 	return component_master_add_with_match(dev, &etnaviv_master_ops, match);
 }
@@ -659,7 +659,7 @@ static int __init etnaviv_init(void)
 {
 	struct platform_device *pdev;
 	int ret;
-	struct device_node *np;
+	struct device_analde *np;
 
 	etnaviv_validate_init();
 
@@ -675,26 +675,26 @@ static int __init etnaviv_init(void)
 	 * If the DT contains at least one available GPU device, instantiate
 	 * the DRM platform device.
 	 */
-	for_each_compatible_node(np, NULL, "vivante,gc") {
+	for_each_compatible_analde(np, NULL, "vivante,gc") {
 		if (!of_device_is_available(np))
 			continue;
 
-		pdev = platform_device_alloc("etnaviv", PLATFORM_DEVID_NONE);
+		pdev = platform_device_alloc("etnaviv", PLATFORM_DEVID_ANALNE);
 		if (!pdev) {
-			ret = -ENOMEM;
-			of_node_put(np);
+			ret = -EANALMEM;
+			of_analde_put(np);
 			goto unregister_platform_driver;
 		}
 
 		ret = platform_device_add(pdev);
 		if (ret) {
 			platform_device_put(pdev);
-			of_node_put(np);
+			of_analde_put(np);
 			goto unregister_platform_driver;
 		}
 
 		etnaviv_drm = pdev;
-		of_node_put(np);
+		of_analde_put(np);
 		break;
 	}
 

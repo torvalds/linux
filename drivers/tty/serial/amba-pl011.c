@@ -9,9 +9,9 @@
  *  Copyright (C) 2010 ST-Ericsson SA
  *
  * This is a generic driver for ARM AMBA-type serial ports.  They
- * have a lot of 16550-like features, but are not register compatible.
- * Note that although they do have CTS, DCD and DSR inputs, they do
- * not have an RI input, nor do they have DTR or RTS outputs.  If
+ * have a lot of 16550-like features, but are analt register compatible.
+ * Analte that although they do have CTS, DCD and DSR inputs, they do
+ * analt have an RI input, analr do they have DTR or RTS outputs.  If
  * required, these have to be supplied via some other means (eg, GPIO)
  * and hooked into this driver.
  */
@@ -45,7 +45,7 @@
 #define UART_NR			14
 
 #define SERIAL_AMBA_MAJOR	204
-#define SERIAL_AMBA_MINOR	64
+#define SERIAL_AMBA_MIANALR	64
 #define SERIAL_AMBA_NR		UART_NR
 
 #define AMBA_ISR_PASS_LIMIT	256
@@ -99,7 +99,7 @@ static u16 pl011_std_offsets[REG_ARRAY_SIZE] = {
 	[REG_DMACR] = UART011_DMACR,
 };
 
-/* There is by now at least one vendor with differing details, so handle it */
+/* There is by analw at least one vendor with differing details, so handle it */
 struct vendor_data {
 	const u16		*reg_offset;
 	unsigned int		ifls;
@@ -321,7 +321,7 @@ static int pl011_fifo_to_tty(struct uart_amba_port *uap)
 
 		/* Take chars from the FIFO and update status */
 		ch = pl011_read(uap, REG_DR) | UART_DUMMY_DR_RX;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		uap->port.icount.rx++;
 
 		if (unlikely(ch & UART_DR_ERROR)) {
@@ -362,7 +362,7 @@ static int pl011_fifo_to_tty(struct uart_amba_port *uap)
 /*
  * All the DMA operation mode stuff goes inside this ifdef.
  * This assumes that you have a generic DMA device interface,
- * no custom DMA interfaces are supported.
+ * anal custom DMA interfaces are supported.
  */
 #ifdef CONFIG_DMA_ENGINE
 
@@ -374,7 +374,7 @@ static int pl011_dmabuf_init(struct dma_chan *chan, struct pl011_dmabuf *db,
 	db->buf = dma_alloc_coherent(chan->device->dev, PL011_DMA_BUFFER_SIZE,
 				     &db->dma, GFP_KERNEL);
 	if (!db->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	db->len = PL011_DMA_BUFFER_SIZE;
 
 	return 0;
@@ -391,7 +391,7 @@ static void pl011_dmabuf_free(struct dma_chan *chan, struct pl011_dmabuf *db,
 
 static void pl011_dma_probe(struct uart_amba_port *uap)
 {
-	/* DMA is the sole user of the platform data right now */
+	/* DMA is the sole user of the platform data right analw */
 	struct amba_pl011_data *plat = dev_get_platdata(uap->port.dev);
 	struct device *dev = uap->port.dev;
 	struct dma_slave_config tx_conf = {
@@ -415,7 +415,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 
 		/* We need platform data */
 		if (!plat || !plat->dma_filter) {
-			dev_dbg(uap->port.dev, "no DMA platform data\n");
+			dev_dbg(uap->port.dev, "anal DMA platform data\n");
 			return;
 		}
 
@@ -426,7 +426,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 		chan = dma_request_channel(mask, plat->dma_filter,
 					   plat->dma_tx_param);
 		if (!chan) {
-			dev_err(uap->port.dev, "no TX DMA channel!\n");
+			dev_err(uap->port.dev, "anal TX DMA channel!\n");
 			return;
 		}
 	}
@@ -444,7 +444,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 		chan = dma_request_channel(mask, plat->dma_filter, plat->dma_rx_param);
 
 		if (!chan) {
-			dev_err(uap->port.dev, "no RX DMA channel!\n");
+			dev_err(uap->port.dev, "anal RX DMA channel!\n");
 			return;
 		}
 	}
@@ -470,7 +470,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 					DMA_RESIDUE_GRANULARITY_DESCRIPTOR) {
 				dma_release_channel(chan);
 				dev_info(uap->port.dev,
-					 "RX DMA disabled - no residue processing\n");
+					 "RX DMA disabled - anal residue processing\n");
 				return;
 			}
 		}
@@ -485,30 +485,30 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 				uap->dmarx.poll_rate = plat->dma_rx_poll_rate;
 			} else {
 				/*
-				 * 100 ms defaults to poll rate if not
+				 * 100 ms defaults to poll rate if analt
 				 * specified. This will be adjusted with
 				 * the baud rate at set_termios.
 				 */
 				uap->dmarx.auto_poll_rate = true;
 				uap->dmarx.poll_rate =  100;
 			}
-			/* 3 secs defaults poll_timeout if not specified. */
+			/* 3 secs defaults poll_timeout if analt specified. */
 			if (plat->dma_rx_poll_timeout)
 				uap->dmarx.poll_timeout =
 					plat->dma_rx_poll_timeout;
 			else
 				uap->dmarx.poll_timeout = 3000;
-		} else if (!plat && dev->of_node) {
+		} else if (!plat && dev->of_analde) {
 			uap->dmarx.auto_poll_rate =
-					of_property_read_bool(dev->of_node, "auto-poll");
+					of_property_read_bool(dev->of_analde, "auto-poll");
 			if (uap->dmarx.auto_poll_rate) {
 				u32 x;
 
-				if (of_property_read_u32(dev->of_node, "poll-rate-ms", &x) == 0)
+				if (of_property_read_u32(dev->of_analde, "poll-rate-ms", &x) == 0)
 					uap->dmarx.poll_rate = x;
 				else
 					uap->dmarx.poll_rate = 100;
-				if (of_property_read_u32(dev->of_node, "poll-timeout-ms", &x) == 0)
+				if (of_property_read_u32(dev->of_analde, "poll-timeout-ms", &x) == 0)
 					uap->dmarx.poll_timeout = x;
 				else
 					uap->dmarx.poll_timeout = 3000;
@@ -533,7 +533,7 @@ static void pl011_start_tx_pio(struct uart_amba_port *uap);
 
 /*
  * The current DMA TX buffer has been sent.
- * Try to queue up another DMA buffer.
+ * Try to queue up aanalther DMA buffer.
  */
 static void pl011_dma_tx_callback(void *data)
 {
@@ -555,7 +555,7 @@ static void pl011_dma_tx_callback(void *data)
 	 * If TX DMA was disabled, it means that we've stopped the DMA for
 	 * some reason (eg, XOFF received, or we want to send an X-char.)
 	 *
-	 * Note: we need to be careful here of a potential race between DMA
+	 * Analte: we need to be careful here of a potential race between DMA
 	 * and the rest of the driver - if the driver disables TX DMA while
 	 * a TX buffer completing, we must update the tx queued status to
 	 * get further refills (hence we check dmacr).
@@ -608,7 +608,7 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 
 	/*
 	 * Bodge: don't send the last character by DMA, as this
-	 * will prevent XON from notifying us to restart DMA.
+	 * will prevent XON from analtifying us to restart DMA.
 	 */
 	count -= 1;
 
@@ -646,7 +646,7 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 		dma_unmap_single(dma_dev->dev, dmatx->dma, dmatx->len, DMA_TO_DEVICE);
 		uap->dmatx.queued = false;
 		/*
-		 * If DMA cannot be used right now, we complete this
+		 * If DMA cananalt be used right analw, we complete this
 		 * transaction via IRQ and let the TTY layer retry.
 		 */
 		dev_dbg(uap->port.dev, "TX DMA busy\n");
@@ -668,7 +668,7 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 	uap->dmatx.queued = true;
 
 	/*
-	 * Now we know that DMA will fire, so advance the ring buffer
+	 * Analw we kanalw that DMA will fire, so advance the ring buffer
 	 * with the stuff we just dispatched.
 	 */
 	uart_xmit_advance(&uap->port, count);
@@ -745,7 +745,7 @@ static inline bool pl011_dma_tx_start(struct uart_amba_port *uap)
 		return false;
 
 	if (!uap->port.x_char) {
-		/* no X-char, try to push chars out in DMA mode */
+		/* anal X-char, try to push chars out in DMA mode */
 		bool ret = true;
 
 		if (!uap->dmatx.queued) {
@@ -772,8 +772,8 @@ static inline bool pl011_dma_tx_start(struct uart_amba_port *uap)
 
 	if (pl011_read(uap, REG_FR) & UART01x_FR_TXFF) {
 		/*
-		 * No space in the FIFO, so enable the transmit interrupt
-		 * so we know when there is space.  Note that once we've
+		 * Anal space in the FIFO, so enable the transmit interrupt
+		 * so we kanalw when there is space.  Analte that once we've
 		 * loaded the character, we should just re-enable DMA.
 		 */
 		return false;
@@ -834,8 +834,8 @@ static int pl011_dma_rx_trigger_dma(struct uart_amba_port *uap)
 					   DMA_DEV_TO_MEM,
 					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	/*
-	 * If the DMA engine is busy and cannot prepare a
-	 * channel, no big deal, the driver will fall back
+	 * If the DMA engine is busy and cananalt prepare a
+	 * channel, anal big deal, the driver will fall back
 	 * to interrupt mode as a result of this error code.
 	 */
 	if (!desc) {
@@ -890,7 +890,7 @@ static void pl011_dma_rx_chars(struct uart_amba_port *uap,
 	if (pending) {
 		/*
 		 * First take all chars in the DMA pipe, then look in the FIFO.
-		 * Note that tty_insert_flip_buf() tries to take as many chars
+		 * Analte that tty_insert_flip_buf() tries to take as many chars
 		 * as it can.
 		 */
 		dma_count = tty_insert_flip_string(port, dbuf->buf + dmataken, pending);
@@ -963,7 +963,7 @@ static void pl011_dma_rx_irq(struct uart_amba_port *uap)
 
 	pending = dbuf->len - state.residue;
 	BUG_ON(pending > PL011_DMA_BUFFER_SIZE);
-	/* Then we terminate the transfer - we now know our residue */
+	/* Then we terminate the transfer - we analw kanalw our residue */
 	dmaengine_terminate_all(rxchan);
 
 	/*
@@ -976,7 +976,7 @@ static void pl011_dma_rx_irq(struct uart_amba_port *uap)
 	dmarx->use_buf_b = !dmarx->use_buf_b;
 	if (pl011_dma_rx_trigger_dma(uap)) {
 		dev_dbg(uap->port.dev,
-			"could not retrigger RX DMA job fall back to interrupt mode\n");
+			"could analt retrigger RX DMA job fall back to interrupt mode\n");
 		uap->im |= UART011_RXIM;
 		pl011_write(uap->im, uap, REG_IMSC);
 	}
@@ -996,7 +996,7 @@ static void pl011_dma_rx_callback(void *data)
 
 	/*
 	 * This completion interrupt occurs typically when the
-	 * RX buffer is totally stuffed but no timeout has yet
+	 * RX buffer is totally stuffed but anal timeout has yet
 	 * occurred. When that happens, we just want the RX
 	 * routine to flush out the secondary DMA buffer while
 	 * we immediately trigger the next DMA job.
@@ -1009,7 +1009,7 @@ static void pl011_dma_rx_callback(void *data)
 	rxchan->device->device_tx_status(rxchan, dmarx->cookie, &state);
 	pending = dbuf->len - state.residue;
 	BUG_ON(pending > PL011_DMA_BUFFER_SIZE);
-	/* Then we terminate the transfer - we now know our residue */
+	/* Then we terminate the transfer - we analw kanalw our residue */
 	dmaengine_terminate_all(rxchan);
 
 	uap->dmarx.running = false;
@@ -1024,7 +1024,7 @@ static void pl011_dma_rx_callback(void *data)
 	 */
 	if (ret) {
 		dev_dbg(uap->port.dev,
-			"could not retrigger RX DMA job fall back to interrupt mode\n");
+			"could analt retrigger RX DMA job fall back to interrupt mode\n");
 		uap->im |= UART011_RXIM;
 		pl011_write(uap->im, uap, REG_IMSC);
 	}
@@ -1077,7 +1077,7 @@ static void pl011_dma_rx_poll(struct timer_list *t)
 	tty_flip_buffer_push(port);
 
 	/*
-	 * If no data is received in poll_timeout, the driver will fall back
+	 * If anal data is received in poll_timeout, the driver will fall back
 	 * to interrupt mode. We will retrigger DMA at the first interrupt.
 	 */
 	if (jiffies_to_msecs(jiffies - dmarx->last_jiffies)
@@ -1115,7 +1115,7 @@ static void pl011_dma_startup(struct uart_amba_port *uap)
 
 	uap->dmatx.len = PL011_DMA_BUFFER_SIZE;
 
-	/* The DMA buffer is now the FIFO the TTY subsystem can use */
+	/* The DMA buffer is analw the FIFO the TTY subsystem can use */
 	uap->port.fifosize = PL011_DMA_BUFFER_SIZE;
 	uap->using_tx_dma = true;
 
@@ -1160,7 +1160,7 @@ skip_rx:
 	if (uap->using_rx_dma) {
 		if (pl011_dma_rx_trigger_dma(uap))
 			dev_dbg(uap->port.dev,
-				"could not trigger initial RX DMA job, fall back to interrupt mode\n");
+				"could analt trigger initial RX DMA job, fall back to interrupt mode\n");
 		if (uap->dmarx.poll_rate) {
 			timer_setup(&uap->dmarx.timer, pl011_dma_rx_poll, 0);
 			mod_timer(&uap->dmarx.timer,
@@ -1221,7 +1221,7 @@ static inline bool pl011_dma_rx_running(struct uart_amba_port *uap)
 }
 
 #else
-/* Blank functions if the DMA engine is not available */
+/* Blank functions if the DMA engine is analt available */
 static inline void pl011_dma_remove(struct uart_amba_port *uap)
 {
 }
@@ -1330,7 +1330,7 @@ static void pl011_stop_tx(struct uart_port *port)
 
 static bool pl011_tx_chars(struct uart_amba_port *uap, bool from_irq);
 
-/* Start TX with programmed I/O only (no DMA) */
+/* Start TX with programmed I/O only (anal DMA) */
 static void pl011_start_tx_pio(struct uart_amba_port *uap)
 {
 	if (pl011_tx_chars(uap, false)) {
@@ -1423,7 +1423,7 @@ __acquires(&uap->port.lock)
 	if (pl011_dma_rx_available(uap)) {
 		if (pl011_dma_rx_trigger_dma(uap)) {
 			dev_dbg(uap->port.dev,
-				"could not trigger RX DMA job fall back to interrupt mode again\n");
+				"could analt trigger RX DMA job fall back to interrupt mode again\n");
 			uap->im |= UART011_RXIM;
 			pl011_write(uap->im, uap, REG_IMSC);
 		} else {
@@ -1667,11 +1667,11 @@ static void pl011_quiesce_irqs(struct uart_port *port)
 
 	pl011_write(pl011_read(uap, REG_MIS), uap, REG_ICR);
 	/*
-	 * There is no way to clear TXIM as this is "ready to transmit IRQ", so
+	 * There is anal way to clear TXIM as this is "ready to transmit IRQ", so
 	 * we simply mask it. start_tx() will unmask it.
 	 *
-	 * Note we can race with start_tx(), and if the race happens, the
-	 * polling user might get another interrupt just after we clear it.
+	 * Analte we can race with start_tx(), and if the race happens, the
+	 * polling user might get aanalther interrupt just after we clear it.
 	 * But it should be OK and can happen even w/o the race, e.g.
 	 * controller immediately got some new data and raised the IRQ.
 	 *
@@ -1697,7 +1697,7 @@ static int pl011_get_poll_char(struct uart_port *port)
 
 	status = pl011_read(uap, REG_FR);
 	if (status & UART01x_FR_RXFE)
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return pl011_read(uap, REG_DR);
 }
@@ -1801,7 +1801,7 @@ static void pl011_enable_interrupts(struct uart_amba_port *uap)
 	/*
 	 * RXIS is asserted only when the RX FIFO transitions from below
 	 * to above the trigger threshold.  If the RX FIFO is already
-	 * full to the threshold this can't happen and RXIS will now be
+	 * full to the threshold this can't happen and RXIS will analw be
 	 * stuck off.  Drain the RX FIFO explicitly to fix this:
 	 */
 	for (i = 0; i < uap->fifosize * 2; ++i) {
@@ -1895,7 +1895,7 @@ static int sbsa_uart_startup(struct uart_port *port)
 	if (retval)
 		return retval;
 
-	/* The SBSA UART does not support any modem status lines. */
+	/* The SBSA UART does analt support any modem status lines. */
 	uap->old_status = 0;
 
 	pl011_enable_interrupts(uap);
@@ -1913,7 +1913,7 @@ static void pl011_shutdown_channel(struct uart_amba_port *uap, unsigned int lcrh
 }
 
 /*
- * disable the port. It should not disable RTS and DTR.
+ * disable the port. It should analt disable RTS and DTR.
  * Also RTS and DTR state should be preserved to restore
  * it during startup().
  */
@@ -2007,26 +2007,26 @@ pl011_setup_status_masks(struct uart_port *port, struct ktermios *termios)
 		port->read_status_mask |= UART011_DR_BE;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= UART011_DR_FE | UART011_DR_PE;
+		port->iganalre_status_mask |= UART011_DR_FE | UART011_DR_PE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= UART011_DR_BE;
+		port->iganalre_status_mask |= UART011_DR_BE;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= UART011_DR_OE;
+			port->iganalre_status_mask |= UART011_DR_OE;
 	}
 
 	/*
-	 * Ignore all characters if CREAD is not set.
+	 * Iganalre all characters if CREAD is analt set.
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_DUMMY_DR_RX;
+		port->iganalre_status_mask |= UART_DUMMY_DR_RX;
 }
 
 static void
@@ -2052,7 +2052,7 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 				  port->uartclk / clkdiv);
 #ifdef CONFIG_DMA_ENGINE
 	/*
-	 * Adjust RX DMA polling rate with baud rate if not specified.
+	 * Adjust RX DMA polling rate with baud rate if analt specified.
 	 */
 	if (uap->dmarx.auto_poll_rate)
 		uap->dmarx.poll_rate = DIV_ROUND_UP(10000000, baud);
@@ -2151,7 +2151,7 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/*
 	 * ----------v----------v----------v----------v-----
-	 * NOTE: REG_LCRH_TX and REG_LCRH_RX MUST BE WRITTEN AFTER
+	 * ANALTE: REG_LCRH_TX and REG_LCRH_RX MUST BE WRITTEN AFTER
 	 * REG_FBRD & REG_IBRD.
 	 * ----------^----------^----------^----------^-----
 	 */
@@ -2212,7 +2212,7 @@ static int pl011_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	int ret = 0;
 
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_AMBA)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_AMBA)
 		ret = -EINVAL;
 	if (ser->irq < 0 || ser->irq >= nr_irqs)
 		ret = -EINVAL;
@@ -2411,7 +2411,7 @@ static int pl011_console_setup(struct console *co, char *options)
 		co->index = 0;
 	uap = amba_ports[co->index];
 	if (!uap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Allow pins to be muxed in and configured */
 	pinctrl_pm_select_default_state(uap->port.dev);
@@ -2444,7 +2444,7 @@ static int pl011_console_setup(struct console *co, char *options)
 }
 
 /**
- *	pl011_console_match - non-standard console matching
+ *	pl011_console_match - analn-standard console matching
  *	@co:	  registering console
  *	@name:	  name from console command line
  *	@idx:	  index from console command line
@@ -2457,9 +2457,9 @@ static int pl011_console_setup(struct console *co, char *options)
  *	replace it with the amba_console at pl011 driver init.
  *
  *	Performs console setup for a match (as required by interface)
- *	If no <options> are specified, then assume the h/w is already setup.
+ *	If anal <options> are specified, then assume the h/w is already setup.
  *
- *	Returns 0 if console matches; otherwise non-zero to use default matching
+ *	Returns 0 if console matches; otherwise analn-zero to use default matching
  */
 static int pl011_console_match(struct console *co, char *name, int idx,
 			       char *options)
@@ -2469,19 +2469,19 @@ static int pl011_console_match(struct console *co, char *name, int idx,
 	int i;
 
 	/*
-	 * Systems affected by the Qualcomm Technologies QDF2400 E44 erratum
+	 * Systems affected by the Qualcomm Techanallogies QDF2400 E44 erratum
 	 * have a distinct console name, so make sure we check for that.
 	 * The actual implementation of the erratum occurs in the probe
 	 * function.
 	 */
 	if ((strcmp(name, "qdf2400_e44") != 0) && (strcmp(name, "pl011") != 0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (uart_parse_earlycon(options, &iotype, &addr, &options))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (iotype != UPIO_MEM && iotype != UPIO_MEM32)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* try to match the port specified on the command line */
 	for (i = 0; i < ARRAY_SIZE(amba_ports); i++) {
@@ -2500,7 +2500,7 @@ static int pl011_console_match(struct console *co, char *name, int idx,
 		return pl011_console_setup(co, options);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct uart_driver amba_reg;
@@ -2556,7 +2556,7 @@ static void pl011_early_write(struct console *con, const char *s, unsigned int n
 static int pl011_getc(struct uart_port *port)
 {
 	if (readl(port->membase + UART01x_FR) & UART01x_FR_RXFE)
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	if (port->iotype == UPIO_MEM32)
 		return readl(port->membase + UART01x_DR);
@@ -2571,7 +2571,7 @@ static int pl011_early_read(struct console *con, char *s, unsigned int n)
 
 	while (num_read < n) {
 		ch = pl011_getc(&dev->port);
-		if (ch == NO_POLL_CHAR)
+		if (ch == ANAL_POLL_CHAR)
 			break;
 
 		s[num_read++] = ch;
@@ -2584,7 +2584,7 @@ static int pl011_early_read(struct console *con, char *s, unsigned int n)
 #endif
 
 /*
- * On non-ACPI systems, earlycon is enabled by specifying
+ * On analn-ACPI systems, earlycon is enabled by specifying
  * "earlycon=pl011,<address>" on the kernel command line.
  *
  * On ACPI ARM64 systems, an "early" console is enabled via the SPCR table,
@@ -2599,7 +2599,7 @@ static int __init pl011_early_console_setup(struct earlycon_device *device,
 					    const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = pl011_early_write;
 	device->con->read = pl011_early_read;
@@ -2612,9 +2612,9 @@ OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
 OF_EARLYCON_DECLARE(pl011, "arm,sbsa-uart", pl011_early_console_setup);
 
 /*
- * On Qualcomm Datacenter Technologies QDF2400 SOCs affected by
+ * On Qualcomm Datacenter Techanallogies QDF2400 SOCs affected by
  * Erratum 44, traditional earlycon can be enabled by specifying
- * "earlycon=qdf2400_e44,<address>".  Any options are ignored.
+ * "earlycon=qdf2400_e44,<address>".  Any options are iganalred.
  *
  * Alternatively, you can just specify "earlycon", and the early console
  * will be enabled with the information from the SPCR table.  In this
@@ -2626,7 +2626,7 @@ qdf2400_e44_early_console_setup(struct earlycon_device *device,
 				const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = qdf2400_e44_early_write;
 	return 0;
@@ -2643,14 +2643,14 @@ static struct uart_driver amba_reg = {
 	.driver_name		= "ttyAMA",
 	.dev_name		= "ttyAMA",
 	.major			= SERIAL_AMBA_MAJOR,
-	.minor			= SERIAL_AMBA_MINOR,
+	.mianalr			= SERIAL_AMBA_MIANALR,
 	.nr			= UART_NR,
 	.cons			= AMBA_CONSOLE,
 };
 
 static int pl011_probe_dt_alias(int index, struct device *dev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	static bool seen_dev_with_alias;
 	static bool seen_dev_without_alias;
 	int ret = index;
@@ -2658,7 +2658,7 @@ static int pl011_probe_dt_alias(int index, struct device *dev)
 	if (!IS_ENABLED(CONFIG_OF))
 		return ret;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	if (!np)
 		return ret;
 
@@ -2669,18 +2669,18 @@ static int pl011_probe_dt_alias(int index, struct device *dev)
 	} else {
 		seen_dev_with_alias = true;
 		if (ret >= ARRAY_SIZE(amba_ports) || amba_ports[ret]) {
-			dev_warn(dev, "requested serial port %d  not available.\n", ret);
+			dev_warn(dev, "requested serial port %d  analt available.\n", ret);
 			ret = index;
 		}
 	}
 
 	if (seen_dev_with_alias && seen_dev_without_alias)
-		dev_warn(dev, "aliased and non-aliased serial devices found in device tree. Serial port enumeration may be unpredictable.\n");
+		dev_warn(dev, "aliased and analn-aliased serial devices found in device tree. Serial port enumeration may be unpredictable.\n");
 
 	return ret;
 }
 
-/* unregisters the driver also if no more ports are left */
+/* unregisters the driver also if anal more ports are left */
 static void pl011_unregister_port(struct uart_amba_port *uap)
 {
 	int i;
@@ -2797,7 +2797,7 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	uap = devm_kzalloc(&dev->dev, sizeof(struct uart_amba_port),
 			   GFP_KERNEL);
 	if (!uap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uap->clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(uap->clk))
@@ -2893,11 +2893,11 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 	int baudrate;
 
 	/*
-	 * Check the mandatory baud rate parameter in the DT node early
+	 * Check the mandatory baud rate parameter in the DT analde early
 	 * so that we can easily exit with the error.
 	 */
-	if (pdev->dev.of_node) {
-		struct device_node *np = pdev->dev.of_node;
+	if (pdev->dev.of_analde) {
+		struct device_analde *np = pdev->dev.of_analde;
 
 		ret = of_property_read_u32(np, "current-speed", &baudrate);
 		if (ret)
@@ -2913,7 +2913,7 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 	uap = devm_kzalloc(&pdev->dev, sizeof(struct uart_amba_port),
 			   GFP_KERNEL);
 	if (!uap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
@@ -3007,7 +3007,7 @@ static int __init pl011_init(void)
 	pr_info("Serial: AMBA PL011 UART driver\n");
 
 	if (platform_driver_register(&arm_sbsa_uart_platform_driver))
-		pr_warn("could not register SBSA UART platform driver\n");
+		pr_warn("could analt register SBSA UART platform driver\n");
 	return amba_driver_register(&pl011_driver);
 }
 

@@ -12,7 +12,7 @@
 #include <linux/cred.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hash.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/gss_api.h>
@@ -171,7 +171,7 @@ rpcauth_put_authops(const struct rpc_authops *ops)
  *
  * Verifies that an appropriate kernel module is available or already loaded.
  * Returns an equivalent pseudoflavor, or RPC_AUTH_MAXFLAVOR if "flavor" is
- * not supported locally.
+ * analt supported locally.
  */
 rpc_authflavor_t
 rpcauth_get_pseudoflavor(rpc_authflavor_t flavor, struct rpcsec_gss_info *info)
@@ -207,9 +207,9 @@ rpcauth_get_gssinfo(rpc_authflavor_t pseudoflavor, struct rpcsec_gss_info *info)
 
 	ops = rpcauth_get_authops(flavor);
 	if (ops == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
-	result = -ENOENT;
+	result = -EANALENT;
 	if (ops->flavor2info != NULL)
 		result = ops->flavor2info(pseudoflavor, info);
 
@@ -292,19 +292,19 @@ rpcauth_init_credcache(struct rpc_auth *auth)
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		goto out_nocache;
+		goto out_analcache;
 	new->hashbits = auth_hashbits;
 	hashsize = 1U << new->hashbits;
 	new->hashtable = kcalloc(hashsize, sizeof(new->hashtable[0]), GFP_KERNEL);
 	if (!new->hashtable)
-		goto out_nohashtbl;
+		goto out_analhashtbl;
 	spin_lock_init(&new->lock);
 	auth->au_credcache = new;
 	return 0;
-out_nohashtbl:
+out_analhashtbl:
 	kfree(new);
-out_nocache:
-	return -ENOMEM;
+out_analcache:
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_credcache);
 
@@ -372,7 +372,7 @@ rpcauth_lru_remove(struct rpc_cred *cred)
 
 /*
  * Clear the RPC credential cache, and delete those credentials
- * that are not referenced.
+ * that are analt referenced.
  */
 void
 rpcauth_clear_credcache(struct rpc_cred_cache *cache)
@@ -390,7 +390,7 @@ rpcauth_clear_credcache(struct rpc_cred_cache *cache)
 		while (!hlist_empty(head)) {
 			cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
 			rpcauth_unhash_cred_locked(cred);
-			/* Note: We now hold a reference to cred */
+			/* Analte: We analw hold a reference to cred */
 			rpcauth_lru_remove_locked(cred);
 			list_add_tail(&cred->cr_lru, &free);
 		}
@@ -440,7 +440,7 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 		}
 		/*
 		 * Enforce a 60 second garbage collection moratorium
-		 * Note that the cred_unused list must be time-ordered.
+		 * Analte that the cred_unused list must be time-ordered.
 		 */
 		if (time_in_range(cred->cr_expire, expired, jiffies))
 			continue;
@@ -478,7 +478,7 @@ rpcauth_cache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	if ((sc->gfp_mask & GFP_KERNEL) != GFP_KERNEL)
 		return SHRINK_STOP;
 
-	/* nothing left, don't come back */
+	/* analthing left, don't come back */
 	if (list_empty(&cred_unused))
 		return SHRINK_STOP;
 
@@ -592,7 +592,7 @@ void
 rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 		  struct rpc_auth *auth, const struct rpc_credops *ops)
 {
-	INIT_HLIST_NODE(&cred->cr_hash);
+	INIT_HLIST_ANALDE(&cred->cr_hash);
 	INIT_LIST_HEAD(&cred->cr_lru);
 	refcount_set(&cred->cr_count, 1);
 	cred->cr_auth = auth;
@@ -718,7 +718,7 @@ EXPORT_SYMBOL_GPL(put_rpccred);
  *
  * On success, an appropriate verifier is added to @xdr, @xdr is
  * updated to point past the verifier, and zero is returned.
- * Otherwise, @xdr is in an undefined state and a negative errno
+ * Otherwise, @xdr is in an undefined state and a negative erranal
  * is returned.
  */
 int rpcauth_marshcred(struct rpc_task *task, struct xdr_stream *xdr)
@@ -752,7 +752,7 @@ EXPORT_SYMBOL_GPL(rpcauth_wrap_req_encode);
  *
  * On success, @xdr contains the encoded and wrapped message,
  * and zero is returned. Otherwise, @xdr is in an undefined
- * state and a negative errno is returned.
+ * state and a negative erranal is returned.
  */
 int rpcauth_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
 {
@@ -767,12 +767,12 @@ int rpcauth_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
  * @xdr: xdr_stream containing RPC Reply header
  *
  * Return values:
- *   %0: Verifier is valid. @xdr now points past the verifier.
+ *   %0: Verifier is valid. @xdr analw points past the verifier.
  *   %-EIO: Verifier is corrupted or message ended early.
- *   %-EACCES: Verifier is intact but not valid.
- *   %-EPROTONOSUPPORT: Server does not support the requested auth type.
+ *   %-EACCES: Verifier is intact but analt valid.
+ *   %-EPROTOANALSUPPORT: Server does analt support the requested auth type.
  *
- * When a negative errno is returned, @xdr is left in an undefined
+ * When a negative erranal is returned, @xdr is left in an undefined
  * state.
  */
 int
@@ -788,7 +788,7 @@ rpcauth_checkverf(struct rpc_task *task, struct xdr_stream *xdr)
  * @task: controlling RPC task
  * @xdr: stream where the Reply message resides
  *
- * Returns zero on success; otherwise a negative errno is returned.
+ * Returns zero on success; otherwise a negative erranal is returned.
  */
 int
 rpcauth_unwrap_resp_decode(struct rpc_task *task, struct xdr_stream *xdr)
@@ -804,7 +804,7 @@ EXPORT_SYMBOL_GPL(rpcauth_unwrap_resp_decode);
  * @task: controlling RPC task
  * @xdr: stream where the Reply message resides
  *
- * Returns zero on success; otherwise a negative errno is returned.
+ * Returns zero on success; otherwise a negative erranal is returned.
  */
 int
 rpcauth_unwrap_resp(struct rpc_task *task, struct xdr_stream *xdr)
@@ -874,7 +874,7 @@ int __init rpcauth_init_module(void)
 		goto out1;
 	rpc_cred_shrinker = shrinker_alloc(0, "sunrpc_cred");
 	if (!rpc_cred_shrinker) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out2;
 	}
 

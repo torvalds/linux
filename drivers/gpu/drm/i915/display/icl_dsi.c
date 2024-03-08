@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -68,7 +68,7 @@ static bool wait_for_header_credits(struct drm_i915_private *dev_priv,
 {
 	if (wait_for_us(header_credits_available(dev_priv, dsi_trans) >=
 			hdr_credit, 100)) {
-		drm_err(&dev_priv->drm, "DSI header credits not released\n");
+		drm_err(&dev_priv->drm, "DSI header credits analt released\n");
 		return false;
 	}
 
@@ -80,7 +80,7 @@ static bool wait_for_payload_credits(struct drm_i915_private *dev_priv,
 {
 	if (wait_for_us(payload_credits_available(dev_priv, dsi_trans) >=
 			payld_credit, 100)) {
-		drm_err(&dev_priv->drm, "DSI payload credits not released\n");
+		drm_err(&dev_priv->drm, "DSI payload credits analt released\n");
 		return false;
 	}
 
@@ -111,15 +111,15 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 		wait_for_payload_credits(dev_priv, dsi_trans, MAX_PLOAD_CREDIT);
 	}
 
-	/* send nop DCS command */
+	/* send analp DCS command */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi = intel_dsi->dsi_hosts[port]->device;
 		dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 		dsi->channel = 0;
-		ret = mipi_dsi_dcs_nop(dsi);
+		ret = mipi_dsi_dcs_analp(dsi);
 		if (ret < 0)
 			drm_err(&dev_priv->drm,
-				"error sending DCS NOP command\n");
+				"error sending DCS ANALP command\n");
 	}
 
 	/* wait for header credits to be released */
@@ -133,7 +133,7 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 		dsi_trans = dsi_port_to_transcoder(port);
 		if (wait_for_us(!(intel_de_read(dev_priv, DSI_LP_MSG(dsi_trans)) &
 				  LPTX_IN_PROGRESS), 20))
-			drm_err(&dev_priv->drm, "LPTX bit not cleared\n");
+			drm_err(&dev_priv->drm, "LPTX bit analt cleared\n");
 	}
 }
 
@@ -266,7 +266,7 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 		      CURSOR_COEFF(0x3f);
 		intel_de_rmw(dev_priv, ICL_PORT_TX_DW4_AUX(phy), mask, val);
 
-		/* Bspec: must not use GRP register for write */
+		/* Bspec: must analt use GRP register for write */
 		for (lane = 0; lane <= 3; lane++)
 			intel_de_rmw(dev_priv, ICL_PORT_TX_DW4_LN(lane, phy),
 				     mask, val);
@@ -477,7 +477,7 @@ static void gen11_dsi_voltage_swing_program_seq(struct intel_encoder *encoder)
 
 	/*
 	 * Set SUS Clock Config bitfield to 11b
-	 * Note: loadgen select program is done
+	 * Analte: loadgen select program is done
 	 * as part of lane phy sequence configuration
 	 */
 	for_each_dsi_phy(phy, intel_dsi->phys)
@@ -756,10 +756,10 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			default:
 				MISSING_CASE(intel_dsi->video_mode);
 				fallthrough;
-			case NON_BURST_SYNC_EVENTS:
+			case ANALN_BURST_SYNC_EVENTS:
 				tmp |= VIDEO_MODE_SYNC_EVENT;
 				break;
-			case NON_BURST_SYNC_PULSE:
+			case ANALN_BURST_SYNC_PULSE:
 				tmp |= VIDEO_MODE_SYNC_PULSE;
 				break;
 			}
@@ -769,7 +769,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			 * As per the spec when dsi transcoder is operating
 			 * in TE GATE mode, TE comes from GPIO
 			 * which is UTIL PIN for DSI 0.
-			 * Also this GPIO would not be used for other
+			 * Also this GPIO would analt be used for other
 			 * purposes is an assumption.
 			 */
 			tmp &= ~OP_MODE_MASK;
@@ -810,13 +810,13 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			tmp |= TRANS_DDI_EDP_INPUT_A_ON;
 			break;
 		case PIPE_B:
-			tmp |= TRANS_DDI_EDP_INPUT_B_ONOFF;
+			tmp |= TRANS_DDI_EDP_INPUT_B_OANALFF;
 			break;
 		case PIPE_C:
-			tmp |= TRANS_DDI_EDP_INPUT_C_ONOFF;
+			tmp |= TRANS_DDI_EDP_INPUT_C_OANALFF;
 			break;
 		case PIPE_D:
-			tmp |= TRANS_DDI_EDP_INPUT_D_ONOFF;
+			tmp |= TRANS_DDI_EDP_INPUT_D_OANALFF;
 			break;
 		}
 
@@ -830,7 +830,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 		if (wait_for_us((intel_de_read(dev_priv, DSI_TRANS_FUNC_CONF(dsi_trans)) &
 				 LINK_READY), 2500))
-			drm_err(&dev_priv->drm, "DSI link not ready\n");
+			drm_err(&dev_priv->drm, "DSI link analt ready\n");
 	}
 }
 
@@ -856,8 +856,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	 * for slower link speed if DSC is enabled.
 	 *
 	 * The compression frequency ratio is the ratio between compressed and
-	 * non-compressed link speeds, and simplifies down to the ratio between
-	 * compressed and non-compressed bpp.
+	 * analn-compressed link speeds, and simplifies down to the ratio between
+	 * compressed and analn-compressed bpp.
 	 */
 	if (crtc_state->dsc.compression_enable) {
 		mul = to_bpp_int(crtc_state->dsc.compressed_bpp_x16);
@@ -910,7 +910,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	/* if RGB666 format, then hactive must be multiple of 4 pixels */
 	if (intel_dsi->pixel_format == MIPI_DSI_FMT_RGB666 && hactive % 4 != 0)
 		drm_err(&dev_priv->drm,
-			"hactive pixels are not multiple of 4\n");
+			"hactive pixels are analt multiple of 4\n");
 
 	/* program TRANS_HTOTAL register */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -921,7 +921,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 
 	/* TRANS_HSYNC register to be programmed only for video mode */
 	if (is_vid_mode(intel_dsi)) {
-		if (intel_dsi->video_mode == NON_BURST_SYNC_PULSE) {
+		if (intel_dsi->video_mode == ANALN_BURST_SYNC_PULSE) {
 			/* BSPEC: hsync size should be atleast 16 pixels */
 			if (hsync_size < 16)
 				drm_err(&dev_priv->drm,
@@ -948,7 +948,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 		/*
 		 * FIXME: Programing this by assuming progressive mode, since
-		 * non-interlaced info from VBT is not saved inside
+		 * analn-interlaced info from VBT is analt saved inside
 		 * struct drm_display_mode.
 		 * For interlace mode: program required pixel minus 2
 		 */
@@ -989,7 +989,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	 * program TRANS_VBLANK register, should be same as vtotal programmed
 	 *
 	 * FIXME get rid of these local hacks and do it right,
-	 * this will not handle eg. delayed vblank correctly.
+	 * this will analt handle eg. delayed vblank correctly.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		for_each_dsi_port(port, intel_dsi->ports) {
@@ -1015,7 +1015,7 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 		if (intel_de_wait_for_set(dev_priv, TRANSCONF(dsi_trans),
 					  TRANSCONF_STATE_ENABLE, 10))
 			drm_err(&dev_priv->drm,
-				"DSI transcoder not enabled\n");
+				"DSI transcoder analt enabled\n");
 	}
 }
 
@@ -1141,7 +1141,7 @@ static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
 
 		/*
 		 * FIXME: This uses the number of DW's currently in the payload
-		 * receive queue. This is probably not what we want here.
+		 * receive queue. This is probably analt what we want here.
 		 */
 		tmp = intel_de_read(dev_priv, DSI_CMD_RXCTL(dsi_trans));
 		tmp &= NUMBER_RX_PLOAD_DW_MASK;
@@ -1215,8 +1215,8 @@ static void icl_apply_kvmr_pipe_a_wa(struct intel_encoder *encoder,
 
 	if (DISPLAY_VER(dev_priv) == 11 && pipe == PIPE_B)
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
-			     IGNORE_KVMR_PIPE_A,
-			     enable ? IGNORE_KVMR_PIPE_A : 0);
+			     IGANALRE_KVMR_PIPE_A,
+			     enable ? IGANALRE_KVMR_PIPE_A : 0);
 }
 
 /*
@@ -1280,7 +1280,7 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 		if (intel_de_wait_for_clear(dev_priv, TRANSCONF(dsi_trans),
 					    TRANSCONF_STATE_ENABLE, 50))
 			drm_err(&dev_priv->drm,
-				"DSI trancoder not disabled\n");
+				"DSI trancoder analt disabled\n");
 	}
 }
 
@@ -1320,7 +1320,7 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 		if (wait_for_us((intel_de_read(dev_priv, DSI_LP_MSG(dsi_trans)) &
 				 LINK_IN_ULPS),
 				10))
-			drm_err(&dev_priv->drm, "DSI link not in ULPS\n");
+			drm_err(&dev_priv->drm, "DSI link analt in ULPS\n");
 	}
 
 	/* disable ddi function */
@@ -1354,7 +1354,7 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 				 DDI_BUF_IS_IDLE),
 				 8))
 			drm_err(&dev_priv->drm,
-				"DDI port:%c buffer not idle\n",
+				"DDI port:%c buffer analt idle\n",
 				port_name(port));
 	}
 	gen11_dsi_gate_clocks(encoder);
@@ -1556,9 +1556,9 @@ static void gen11_dsi_sync_state(struct intel_encoder *encoder,
 
 	/* wa verify 1409054076:icl,jsl,ehl */
 	if (DISPLAY_VER(dev_priv) == 11 && pipe == PIPE_B &&
-	    !(intel_de_read(dev_priv, CHICKEN_PAR1_1) & IGNORE_KVMR_PIPE_A))
+	    !(intel_de_read(dev_priv, CHICKEN_PAR1_1) & IGANALRE_KVMR_PIPE_A))
 		drm_dbg_kms(&dev_priv->drm,
-			    "[ENCODER:%d:%s] BIOS left IGNORE_KVMR_PIPE_A cleared with pipe B enabled\n",
+			    "[ENCODER:%d:%s] BIOS left IGANALRE_KVMR_PIPE_A cleared with pipe B enabled\n",
 			    encoder->base.base.id,
 			    encoder->base.name);
 }
@@ -1696,13 +1696,13 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 		case TRANS_DDI_EDP_INPUT_A_ON:
 			*pipe = PIPE_A;
 			break;
-		case TRANS_DDI_EDP_INPUT_B_ONOFF:
+		case TRANS_DDI_EDP_INPUT_B_OANALFF:
 			*pipe = PIPE_B;
 			break;
-		case TRANS_DDI_EDP_INPUT_C_ONOFF:
+		case TRANS_DDI_EDP_INPUT_C_OANALFF:
 			*pipe = PIPE_C;
 			break;
-		case TRANS_DDI_EDP_INPUT_D_ONOFF:
+		case TRANS_DDI_EDP_INPUT_D_OANALFF:
 			*pipe = PIPE_D;
 			break;
 		default:
@@ -1939,7 +1939,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv,
 	enum port port;
 
 	port = intel_bios_encoder_port(devdata);
-	if (port == PORT_NONE)
+	if (port == PORT_ANALNE)
 		return;
 
 	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
@@ -2032,7 +2032,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv,
 	}
 
 	if (!intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID)) {
-		drm_dbg_kms(&dev_priv->drm, "no device found\n");
+		drm_dbg_kms(&dev_priv->drm, "anal device found\n");
 		goto err;
 	}
 

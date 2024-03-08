@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -50,7 +50,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "common.h"
 #include "cxgb3_ioctl.h"
@@ -134,11 +134,11 @@ MODULE_PARM_DESC(msi, "whether to use MSI or MSI-X");
 static int ofld_disable = 0;
 
 module_param(ofld_disable, int, 0644);
-MODULE_PARM_DESC(ofld_disable, "whether to enable offload at init time or not");
+MODULE_PARM_DESC(ofld_disable, "whether to enable offload at init time or analt");
 
 /*
  * We have work elements that we need to cancel when an interface is taken
- * down.  Normally the work elements would be executed by keventd but that
+ * down.  Analrmally the work elements would be executed by keventd but that
  * can deadlock because of linkwatch.  If our close method takes the rtnl
  * lock and linkwatch is ahead of our work elements in keventd, linkwatch
  * will block keventd as it needs the rtnl lock, and we'll deadlock waiting
@@ -314,13 +314,13 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 void t3_os_phymod_changed(struct adapter *adap, int port_id)
 {
 	static const char *mod_str[] = {
-		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX", "unknown"
+		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX", "unkanalwn"
 	};
 
 	const struct net_device *dev = adap->port[port_id];
 	const struct port_info *pi = netdev_priv(dev);
 
-	if (pi->phy.modtype == phy_modtype_none)
+	if (pi->phy.modtype == phy_modtype_analne)
 		netdev_info(dev, "PHY module unplugged\n");
 	else
 		netdev_info(dev, "%s PHY module inserted\n",
@@ -367,7 +367,7 @@ static inline void cxgb_disable_msi(struct adapter *adapter)
 }
 
 /*
- * Interrupt handler for asynchronous events used with MSI-X.
+ * Interrupt handler for asynchroanalus events used with MSI-X.
  */
 static irqreturn_t t3_async_intr_handler(int irq, void *cookie)
 {
@@ -465,7 +465,7 @@ static int init_tp_parity(struct adapter *adap)
 
 		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
 		if (!skb)
-			skb = adap->nofail_skb;
+			skb = adap->analfail_skb;
 		if (!skb)
 			goto alloc_skb_fail;
 
@@ -475,10 +475,10 @@ static int init_tp_parity(struct adapter *adap)
 		req->mtu_idx = NMTUS - 1;
 		req->iff = i;
 		t3_mgmt_tx(adap, skb);
-		if (skb == adap->nofail_skb) {
+		if (skb == adap->analfail_skb) {
 			await_mgmt_replies(adap, cnt, i + 1);
-			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
-			if (!adap->nofail_skb)
+			adap->analfail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->analfail_skb)
 				goto alloc_skb_fail;
 		}
 	}
@@ -488,7 +488,7 @@ static int init_tp_parity(struct adapter *adap)
 
 		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
 		if (!skb)
-			skb = adap->nofail_skb;
+			skb = adap->analfail_skb;
 		if (!skb)
 			goto alloc_skb_fail;
 
@@ -497,10 +497,10 @@ static int init_tp_parity(struct adapter *adap)
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, i));
 		req->params = htonl(V_L2T_W_IDX(i));
 		t3_mgmt_tx(adap, skb);
-		if (skb == adap->nofail_skb) {
+		if (skb == adap->analfail_skb) {
 			await_mgmt_replies(adap, cnt, 16 + i + 1);
-			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
-			if (!adap->nofail_skb)
+			adap->analfail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->analfail_skb)
 				goto alloc_skb_fail;
 		}
 	}
@@ -510,7 +510,7 @@ static int init_tp_parity(struct adapter *adap)
 
 		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
 		if (!skb)
-			skb = adap->nofail_skb;
+			skb = adap->analfail_skb;
 		if (!skb)
 			goto alloc_skb_fail;
 
@@ -519,17 +519,17 @@ static int init_tp_parity(struct adapter *adap)
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RTE_WRITE_REQ, i));
 		req->l2t_idx = htonl(V_L2T_W_IDX(i));
 		t3_mgmt_tx(adap, skb);
-		if (skb == adap->nofail_skb) {
+		if (skb == adap->analfail_skb) {
 			await_mgmt_replies(adap, cnt, 16 + 2048 + i + 1);
-			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
-			if (!adap->nofail_skb)
+			adap->analfail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->analfail_skb)
 				goto alloc_skb_fail;
 		}
 	}
 
 	skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
 	if (!skb)
-		skb = adap->nofail_skb;
+		skb = adap->analfail_skb;
 	if (!skb)
 		goto alloc_skb_fail;
 
@@ -540,9 +540,9 @@ static int init_tp_parity(struct adapter *adap)
 	t3_mgmt_tx(adap, skb);
 
 	i = await_mgmt_replies(adap, cnt, 16 + 2048 + 2048 + 1);
-	if (skb == adap->nofail_skb) {
+	if (skb == adap->analfail_skb) {
 		i = await_mgmt_replies(adap, cnt, 16 + 2048 + 2048 + 1);
-		adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+		adap->analfail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
 	}
 
 	t3_tp_set_offload_mode(adap, 0);
@@ -550,7 +550,7 @@ static int init_tp_parity(struct adapter *adap)
 
 alloc_skb_fail:
 	t3_tp_set_offload_mode(adap, 0);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -613,8 +613,8 @@ static void init_napi(struct adapter *adap)
 
 	/*
 	 * netif_napi_add() can be called only once per napi_struct because it
-	 * adds each new napi_struct to a list.  Be careful not to call it a
-	 * second time, e.g., during EEH recovery, by making a note of it.
+	 * adds each new napi_struct to a list.  Be careful analt to call it a
+	 * second time, e.g., during EEH recovery, by making a analte of it.
 	 */
 	adap->flags |= NAPI_INIT;
 }
@@ -904,7 +904,7 @@ static int write_smt_entry(struct adapter *adapter, int idx)
 	struct sk_buff *skb = alloc_skb(sizeof(*req), GFP_KERNEL);
 
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = __skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
@@ -945,9 +945,9 @@ static int send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 
 	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
 	if (!skb)
-		skb = adap->nofail_skb;
+		skb = adap->analfail_skb;
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = skb_put(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
@@ -958,11 +958,11 @@ static int send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 	req->max = hi;
 	req->binding = port;
 	ret = t3_mgmt_tx(adap, skb);
-	if (skb == adap->nofail_skb) {
-		adap->nofail_skb = alloc_skb(sizeof(struct cpl_set_tcb_field),
+	if (skb == adap->analfail_skb) {
+		adap->analfail_skb = alloc_skb(sizeof(struct cpl_set_tcb_field),
 					     GFP_KERNEL);
-		if (!adap->nofail_skb)
-			ret = -ENOMEM;
+		if (!adap->analfail_skb)
+			ret = -EANALMEM;
 	}
 
 	return ret;
@@ -988,10 +988,10 @@ static int bind_qsets(struct adapter *adap)
 }
 
 #define FW_VERSION __stringify(FW_VERSION_MAJOR) "."			\
-	__stringify(FW_VERSION_MINOR) "." __stringify(FW_VERSION_MICRO)
+	__stringify(FW_VERSION_MIANALR) "." __stringify(FW_VERSION_MICRO)
 #define FW_FNAME "cxgb3/t3fw-" FW_VERSION ".bin"
 #define TPSRAM_VERSION __stringify(TP_VERSION_MAJOR) "."		\
-	__stringify(TP_VERSION_MINOR) "." __stringify(TP_VERSION_MICRO)
+	__stringify(TP_VERSION_MIANALR) "." __stringify(TP_VERSION_MICRO)
 #define TPSRAM_NAME "cxgb3/t3%c_psram-" TPSRAM_VERSION ".bin"
 #define AEL2005_OPT_EDC_NAME "cxgb3/ael2005_opt_edc.bin"
 #define AEL2005_TWX_EDC_NAME "cxgb3/ael2005_twx_edc.bin"
@@ -1036,7 +1036,7 @@ int t3_get_edc_fw(struct cphy *phy, int edc_idx, int size)
 		ret = request_firmware(&fw, fw_name, &adapter->pdev->dev);
 	if (ret < 0) {
 		dev_err(&adapter->pdev->dev,
-			"could not upgrade firmware: unable to load %s\n",
+			"could analt upgrade firmware: unable to load %s\n",
 			fw_name);
 		return ret;
 	}
@@ -1077,7 +1077,7 @@ static int upgrade_fw(struct adapter *adap)
 
 	ret = request_firmware(&fw, FW_FNAME, dev);
 	if (ret < 0) {
-		dev_err(dev, "could not upgrade firmware: unable to load %s\n",
+		dev_err(dev, "could analt upgrade firmware: unable to load %s\n",
 			FW_FNAME);
 		return ret;
 	}
@@ -1086,10 +1086,10 @@ static int upgrade_fw(struct adapter *adap)
 
 	if (ret == 0)
 		dev_info(dev, "successful upgrade to firmware %d.%d.%d\n",
-			 FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_MICRO);
+			 FW_VERSION_MAJOR, FW_VERSION_MIANALR, FW_VERSION_MICRO);
 	else
 		dev_err(dev, "failed to upgrade to firmware %d.%d.%d\n",
-			FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_MICRO);
+			FW_VERSION_MAJOR, FW_VERSION_MIANALR, FW_VERSION_MICRO);
 
 	return ret;
 }
@@ -1126,7 +1126,7 @@ static int update_tpsram(struct adapter *adap)
 
 	ret = request_firmware(&tpsram, buf, dev);
 	if (ret < 0) {
-		dev_err(dev, "could not load TP SRAM: unable to load %s\n",
+		dev_err(dev, "could analt load TP SRAM: unable to load %s\n",
 			buf);
 		return ret;
 	}
@@ -1140,10 +1140,10 @@ static int update_tpsram(struct adapter *adap)
 		dev_info(dev,
 			 "successful update of protocol engine "
 			 "to %d.%d.%d\n",
-			 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+			 TP_VERSION_MAJOR, TP_VERSION_MIANALR, TP_VERSION_MICRO);
 	else
 		dev_err(dev, "failed to update of protocol engine %d.%d.%d\n",
-			TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+			TP_VERSION_MAJOR, TP_VERSION_MIANALR, TP_VERSION_MICRO);
 	if (ret)
 		dev_err(dev, "loading protocol SRAM failed\n");
 
@@ -1215,7 +1215,7 @@ static int cxgb_up(struct adapter *adap)
 		if (err == -EINVAL) {
 			err = upgrade_fw(adap);
 			CH_WARN(adap, "FW upgrade to %d.%d.%d %s\n",
-				FW_VERSION_MAJOR, FW_VERSION_MINOR,
+				FW_VERSION_MAJOR, FW_VERSION_MIANALR,
 				FW_VERSION_MICRO, err ? "failed" : "succeeded");
 		}
 
@@ -1223,12 +1223,12 @@ static int cxgb_up(struct adapter *adap)
 		if (err == -EINVAL) {
 			err = update_tpsram(adap);
 			CH_WARN(adap, "TP upgrade to %d.%d.%d %s\n",
-				TP_VERSION_MAJOR, TP_VERSION_MINOR,
+				TP_VERSION_MAJOR, TP_VERSION_MIANALR,
 				TP_VERSION_MICRO, err ? "failed" : "succeeded");
 		}
 
 		/*
-		 * Clear interrupts now to catch errors if t3_init_hw fails.
+		 * Clear interrupts analw to catch errors if t3_init_hw fails.
 		 * We clear them again later as initialization may trigger
 		 * conditions that can interrupt.
 		 */
@@ -1371,7 +1371,7 @@ static int offload_open(struct net_device *dev)
 	init_smt(adapter);
 
 	if (sysfs_create_group(&tdev->lldev->dev.kobj, &offload_attr_group))
-		dev_dbg(&dev->dev, "cannot create sysfs group\n");
+		dev_dbg(&dev->dev, "cananalt create sysfs group\n");
 
 	/* Call back all registered clients */
 	cxgb3_add_clients(tdev);
@@ -1428,7 +1428,7 @@ static int cxgb_open(struct net_device *dev)
 	if (is_offload(adapter) && !ofld_disable) {
 		err = offload_open(dev);
 		if (err)
-			pr_warn("Could not initialize offload capabilities\n");
+			pr_warn("Could analt initialize offload capabilities\n");
 	}
 
 	netif_set_real_num_tx_queues(dev, pi->nqsets);
@@ -1441,7 +1441,7 @@ static int cxgb_open(struct net_device *dev)
 	if (!other_ports)
 		schedule_chk_task(adapter);
 
-	cxgb3_event_notify(&adapter->tdev, OFFLOAD_PORT_UP, pi->port_id);
+	cxgb3_event_analtify(&adapter->tdev, OFFLOAD_PORT_UP, pi->port_id);
 	return 0;
 }
 
@@ -1474,7 +1474,7 @@ static int __cxgb_close(struct net_device *dev, int on_wq)
 	if (!adapter->open_device_map)
 		cxgb_down(adapter, on_wq);
 
-	cxgb3_event_notify(&adapter->tdev, OFFLOAD_PORT_DOWN, pi->port_id);
+	cxgb3_event_analtify(&adapter->tdev, OFFLOAD_PORT_DOWN, pi->port_id);
 	return 0;
 }
 
@@ -1583,7 +1583,7 @@ static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"RxCsumGood         ",
 	"LroAggregated      ",
 	"LroFlushed         ",
-	"LroNoDesc          ",
+	"LroAnalDesc          ",
 	"RxDrops            ",
 
 	"CheckTXEnToggled   ",
@@ -1598,7 +1598,7 @@ static int get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(stats_strings);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1634,10 +1634,10 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 			 "%s %u.%u.%u TP %u.%u.%u",
 			 G_FW_VERSION_TYPE(fw_vers) ? "T" : "N",
 			 G_FW_VERSION_MAJOR(fw_vers),
-			 G_FW_VERSION_MINOR(fw_vers),
+			 G_FW_VERSION_MIANALR(fw_vers),
 			 G_FW_VERSION_MICRO(fw_vers),
 			 G_TP_VERSION_MAJOR(tp_vers),
-			 G_TP_VERSION_MINOR(tp_vers),
+			 G_TP_VERSION_MIANALR(tp_vers),
 			 G_TP_VERSION_MICRO(tp_vers));
 }
 
@@ -1813,8 +1813,8 @@ static int get_link_ksettings(struct net_device *dev,
 		cmd->base.speed = p->link_config.speed;
 		cmd->base.duplex = p->link_config.duplex;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	ethtool_convert_link_mode_to_legacy_u32(&supported,
@@ -2069,7 +2069,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (aligned_offset != eeprom->offset || aligned_len != eeprom->len) {
 		buf = kmalloc(aligned_len, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		err = pci_read_vpd(adapter->pdev, aligned_offset, aligned_len,
 				   buf);
 		if (err < 0)
@@ -2140,7 +2140,7 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 	int ret;
 
 	if (cmd != SIOCCHIOCTL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
 		return -EFAULT;
@@ -2225,7 +2225,7 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 			if (adapter->flags & USING_MSIX)
 				q->polling = t.polling;
 			else {
-				/* No polling with INTx for T3A */
+				/* Anal polling with INTx for T3A */
 				if (adapter->params.rev == 0 &&
 					!(adapter->flags & USING_MSI))
 					t.polling = 0;
@@ -2272,7 +2272,7 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 
 		if (t.qset_idx >= nqsets)
 			return -EINVAL;
-		t.qset_idx = array_index_nospec(t.qset_idx, nqsets);
+		t.qset_idx = array_index_analspec(t.qset_idx, nqsets);
 
 		q = &adapter->params.sge.qset[q1 + t.qset_idx];
 		t.rspq_size = q->rspq_size;
@@ -2366,7 +2366,7 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 		int i;
 
 		if (!is_offload(adapter))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		if (offload_running(adapter))
@@ -2394,7 +2394,7 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 		struct ch_pm m = {.cmd = CHELSIO_GET_PM };
 
 		if (!is_offload(adapter))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		m.tx_pg_sz = p->tx_pg_size;
 		m.tx_num_pg = p->tx_num_pgs;
 		m.rx_pg_sz = p->rx_pg_size;
@@ -2409,7 +2409,7 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 		struct tp_params *p = &adapter->params.tp;
 
 		if (!is_offload(adapter))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		if (adapter->flags & FULL_INIT_DONE)
@@ -2420,9 +2420,9 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 			return -EINVAL;
 		if (!is_power_of_2(m.rx_pg_sz) ||
 			!is_power_of_2(m.tx_pg_sz))
-			return -EINVAL;	/* not power of 2 */
+			return -EINVAL;	/* analt power of 2 */
 		if (!(m.rx_pg_sz & 0x14000))
-			return -EINVAL;	/* not 16KB or 64KB */
+			return -EINVAL;	/* analt 16KB or 64KB */
 		if (!(m.tx_pg_sz & 0x1554000))
 			return -EINVAL;
 		if (m.tx_num_pg == -1)
@@ -2446,7 +2446,7 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 		u64 buf[32];
 
 		if (!is_offload(adapter))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		if (!(adapter->flags & FULL_INIT_DONE))
@@ -2522,7 +2522,7 @@ static int cxgb_siocdevprivate(struct net_device *dev,
 		break;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -2547,7 +2547,7 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	case SIOCGMIIPHY:
 		return mdio_mii_ioctl(&pi->phy.mdio, data, cmd);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2575,7 +2575,7 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, addr->sa_data);
 	t3_mac_set_address(&pi->mac, LAN_MAC_IDX, dev->dev_addr);
@@ -2588,7 +2588,7 @@ static netdev_features_t cxgb_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is anal support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -2740,7 +2740,7 @@ static void t3_adap_check_task(struct work_struct *work)
 	 * Scan the XGMAC's to check for various conditions which we want to
 	 * monitor in a periodic polling manner rather than via an interrupt
 	 * condition.  This is used for conditions which would otherwise flood
-	 * the system with interrupts and we only really need to know that the
+	 * the system with interrupts and we only really need to kanalw that the
 	 * conditions are "happening" ...  For each condition we count the
 	 * detection of the condition and reset it for the next polling loop.
 	 */
@@ -2796,7 +2796,7 @@ static void db_full_task(struct work_struct *work)
 	struct adapter *adapter = container_of(work, struct adapter,
 					       db_full_task);
 
-	cxgb3_event_notify(&adapter->tdev, OFFLOAD_DB_FULL, 0);
+	cxgb3_event_analtify(&adapter->tdev, OFFLOAD_DB_FULL, 0);
 }
 
 static void db_empty_task(struct work_struct *work)
@@ -2804,7 +2804,7 @@ static void db_empty_task(struct work_struct *work)
 	struct adapter *adapter = container_of(work, struct adapter,
 					       db_empty_task);
 
-	cxgb3_event_notify(&adapter->tdev, OFFLOAD_DB_EMPTY, 0);
+	cxgb3_event_analtify(&adapter->tdev, OFFLOAD_DB_EMPTY, 0);
 }
 
 static void db_drop_task(struct work_struct *work)
@@ -2814,7 +2814,7 @@ static void db_drop_task(struct work_struct *work)
 	unsigned long delay = 1000;
 	unsigned short r;
 
-	cxgb3_event_notify(&adapter->tdev, OFFLOAD_DB_DROP, 0);
+	cxgb3_event_analtify(&adapter->tdev, OFFLOAD_DB_DROP, 0);
 
 	/*
 	 * Sleep a while before ringing the driver qset dbs.
@@ -2851,7 +2851,7 @@ static void ext_intr_task(struct work_struct *work)
 	for_each_port(adapter, i)
 		t3_xgm_intr_enable(adapter, i);
 
-	/* Now reenable external interrupts */
+	/* Analw reenable external interrupts */
 	spin_lock_irq(&adapter->work_lock);
 	if (adapter->slow_intr_mask) {
 		adapter->slow_intr_mask |= F_T3DBG;
@@ -2899,7 +2899,7 @@ static int t3_adapter_error(struct adapter *adapter, int reset, int on_wq)
 
 	if (is_offload(adapter) &&
 	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map)) {
-		cxgb3_event_notify(&adapter->tdev, OFFLOAD_STATUS_DOWN, 0);
+		cxgb3_event_analtify(&adapter->tdev, OFFLOAD_STATUS_DOWN, 0);
 		offload_close(&adapter->tdev);
 	}
 
@@ -2928,7 +2928,7 @@ static int t3_reenable_adapter(struct adapter *adapter)
 {
 	if (pci_enable_device(adapter->pdev)) {
 		dev_err(&adapter->pdev->dev,
-			"Cannot re-enable PCI device after reset.\n");
+			"Cananalt re-enable PCI device after reset.\n");
 		goto err;
 	}
 	pci_set_master(adapter->pdev);
@@ -2965,7 +2965,7 @@ static void t3_resume_ports(struct adapter *adapter)
 	}
 
 	if (is_offload(adapter) && !ofld_disable)
-		cxgb3_event_notify(&adapter->tdev, OFFLOAD_STATUS_UP, 0);
+		cxgb3_event_analtify(&adapter->tdev, OFFLOAD_STATUS_UP, 0);
 }
 
 /*
@@ -3055,7 +3055,7 @@ static pci_ers_result_t t3_io_slot_reset(struct pci_dev *pdev)
  * @pdev: Pointer to PCI device
  *
  * This callback is called when the error recovery driver tells us that
- * its OK to resume normal operation.
+ * its OK to resume analrmal operation.
  */
 static void t3_io_resume(struct pci_dev *pdev)
 {
@@ -3077,7 +3077,7 @@ static const struct pci_error_handlers t3_err_handler = {
 
 /*
  * Set the number of qsets based on the number of CPUs and the number of ports,
- * not to exceed the number of available qsets, assuming there are enough qsets
+ * analt to exceed the number of available qsets, assuming there are eanalugh qsets
  * per port in HW.
  */
 static void set_nqsets(struct adapter *adap)
@@ -3212,27 +3212,27 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!cxgb3_wq) {
 		cxgb3_wq = create_singlethread_workqueue(DRV_NAME);
 		if (!cxgb3_wq) {
-			pr_err("cannot initialize work queue\n");
-			return -ENOMEM;
+			pr_err("cananalt initialize work queue\n");
+			return -EANALMEM;
 		}
 	}
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
+		dev_err(&pdev->dev, "cananalt enable PCI device\n");
 		goto out;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		/* Just info, some other driver may have claimed the device. */
-		dev_info(&pdev->dev, "cannot obtain PCI resources\n");
+		dev_info(&pdev->dev, "cananalt obtain PCI resources\n");
 		goto out_disable_device;
 	}
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		dev_err(&pdev->dev, "no usable DMA configuration\n");
+		dev_err(&pdev->dev, "anal usable DMA configuration\n");
 		goto out_release_regions;
 	}
 
@@ -3245,23 +3245,23 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_release_regions;
 	}
 
-	adapter->nofail_skb =
+	adapter->analfail_skb =
 		alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_KERNEL);
-	if (!adapter->nofail_skb) {
-		dev_err(&pdev->dev, "cannot allocate nofail buffer\n");
-		err = -ENOMEM;
+	if (!adapter->analfail_skb) {
+		dev_err(&pdev->dev, "cananalt allocate analfail buffer\n");
+		err = -EANALMEM;
 		goto out_free_adapter;
 	}
 
 	adapter->regs = ioremap(mmio_start, mmio_len);
 	if (!adapter->regs) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
-		err = -ENOMEM;
-		goto out_free_adapter_nofail;
+		dev_err(&pdev->dev, "cananalt map device registers\n");
+		err = -EANALMEM;
+		goto out_free_adapter_analfail;
 	}
 
 	adapter->pdev = pdev;
@@ -3288,7 +3288,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		netdev = alloc_etherdev_mq(sizeof(struct port_info), SGE_QSETS);
 		if (!netdev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_free_dev;
 		}
 
@@ -3319,13 +3319,13 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, adapter);
 	if (t3_prep_adapter(adapter, ai, 1) < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_free_dev;
 	}
 
 	/*
-	 * The card is now ready to go.  If any errors occur during device
-	 * registration we do not fail the whole card but rather proceed only
+	 * The card is analw ready to go.  If any errors occur during device
+	 * registration we do analt fail the whole card but rather proceed only
 	 * with the ports we manage to register successfully.  However we must
 	 * register at least one net device.
 	 */
@@ -3333,7 +3333,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = register_netdev(adapter->port[i]);
 		if (err)
 			dev_warn(&pdev->dev,
-				 "cannot register net device %s, skipping\n",
+				 "cananalt register net device %s, skipping\n",
 				 adapter->port[i]->name);
 		else {
 			/*
@@ -3347,8 +3347,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 	if (!adapter->registered_device_map) {
-		dev_err(&pdev->dev, "could not register any net devices\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "could analt register any net devices\n");
+		err = -EANALDEV;
 		goto out_free_dev;
 	}
 
@@ -3374,7 +3374,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = sysfs_create_group(&adapter->port[0]->dev.kobj,
 				 &cxgb3_attr_group);
 	if (err) {
-		dev_err(&pdev->dev, "cannot create sysfs group\n");
+		dev_err(&pdev->dev, "cananalt create sysfs group\n");
 		goto out_close_led;
 	}
 
@@ -3390,8 +3390,8 @@ out_free_dev:
 		if (adapter->port[i])
 			free_netdev(adapter->port[i]);
 
-out_free_adapter_nofail:
-	kfree_skb(adapter->nofail_skb);
+out_free_adapter_analfail:
+	kfree_skb(adapter->analfail_skb);
 
 out_free_adapter:
 	kfree(adapter);
@@ -3416,7 +3416,7 @@ static void remove_one(struct pci_dev *pdev)
 				   &cxgb3_attr_group);
 
 		if (is_offload(adapter)) {
-			cxgb3_adapter_unofld(adapter);
+			cxgb3_adapter_uanalfld(adapter);
 			if (test_bit(OFFLOAD_DEVMAP_BIT,
 				     &adapter->open_device_map))
 				offload_close(&adapter->tdev);
@@ -3435,7 +3435,7 @@ static void remove_one(struct pci_dev *pdev)
 				free_netdev(adapter->port[i]);
 
 		iounmap(adapter->regs);
-		kfree_skb(adapter->nofail_skb);
+		kfree_skb(adapter->analfail_skb);
 		kfree(adapter);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

@@ -12,8 +12,8 @@
  * Target address alignments required for GPU access e.g.
  * MI_STORE_DWORD_IMM.
  */
-#define alignof_dword 4
-#define alignof_qword 8
+#define aliganalf_dword 4
+#define aliganalf_qword 8
 
 /*
  * Instruction field definitions used by the command parser
@@ -39,7 +39,7 @@
 /* Many MI commands use bit 22 of the header dword for GGTT vs PPGTT */
 #define  MI_GLOBAL_GTT    (1<<22)
 
-#define MI_NOOP			MI_INSTR(0, 0)
+#define MI_ANALOP			MI_INSTR(0, 0)
 #define MI_SET_PREDICATE	MI_INSTR(0x01, 0)
 #define   MI_SET_PREDICATE_DISABLE	(0 << 0)
 #define MI_USER_INTERRUPT	MI_INSTR(0x02, 0)
@@ -51,7 +51,7 @@
 #define MI_FLUSH		MI_INSTR(0x04, 0)
 #define   MI_READ_FLUSH		(1 << 0)
 #define   MI_EXE_FLUSH		(1 << 1)
-#define   MI_NO_WRITE_FLUSH	(1 << 2)
+#define   MI_ANAL_WRITE_FLUSH	(1 << 2)
 #define   MI_SCENE_COUNT	(1 << 3) /* just increment scene count */
 #define   MI_END_SCENE		(1 << 4) /* flush binner and incr scene count */
 #define   MI_INVALIDATE_ISP	(1 << 5) /* invalidate indirect state pointers */
@@ -147,8 +147,8 @@
 
 /*
  * Official intel docs are somewhat sloppy concerning MI_LOAD_REGISTER_IMM:
- * - Always issue a MI_NOOP _before_ the MI_LOAD_REGISTER_IMM - otherwise hw
- *   simply ignores the register load under certain conditions.
+ * - Always issue a MI_ANALOP _before_ the MI_LOAD_REGISTER_IMM - otherwise hw
+ *   simply iganalres the register load under certain conditions.
  * - One can actually load arbitrary many arbitrary registers: Simply issue x
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
@@ -169,7 +169,7 @@
 #define   MI_FLUSH_DW_OP_STOREDW	(1<<14)
 #define   MI_FLUSH_DW_OP_MASK		(3<<14)
 #define   MI_FLUSH_DW_LLC		(1<<9)
-#define   MI_FLUSH_DW_NOTIFY		(1<<8)
+#define   MI_FLUSH_DW_ANALTIFY		(1<<8)
 #define   MI_INVALIDATE_BSD		(1<<7)
 #define   MI_FLUSH_DW_USE_GTT		(1<<2)
 #define   MI_FLUSH_DW_USE_PPGTT		(0<<2)
@@ -178,11 +178,11 @@
 #define MI_LOAD_REGISTER_REG    MI_INSTR(0x2A, 1)
 #define   MI_LRR_SOURCE_CS_MMIO		REG_BIT(18)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
-#define   MI_BATCH_NON_SECURE		(1)
+#define   MI_BATCH_ANALN_SECURE		(1)
 /* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */
-#define   MI_BATCH_NON_SECURE_I965	(1<<8)
+#define   MI_BATCH_ANALN_SECURE_I965	(1<<8)
 #define   MI_BATCH_PPGTT_HSW		(1<<8)
-#define   MI_BATCH_NON_SECURE_HSW	(1<<13)
+#define   MI_BATCH_ANALN_SECURE_HSW	(1<<13)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
@@ -258,7 +258,7 @@
 #define   XY_FAST_COPY_BLT_D1_DST_TILE4	REG_BIT(30)
 #define BLIT_CCTL_SRC_MOCS_MASK  REG_GENMASK(6, 0)
 #define BLIT_CCTL_DST_MOCS_MASK  REG_GENMASK(14, 8)
-/* Note:  MOCS value = (index << 1) */
+/* Analte:  MOCS value = (index << 1) */
 #define BLIT_CCTL_SRC_MOCS(idx) \
 	REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, (idx) << 1)
 #define BLIT_CCTL_DST_MOCS(idx) \
@@ -267,7 +267,7 @@
 #define SRC_COPY_BLT_CMD		(2 << 29 | 0x43 << 22)
 #define GEN9_XY_FAST_COPY_BLT_CMD	(2 << 29 | 0x42 << 22)
 #define XY_SRC_COPY_BLT_CMD		(2 << 29 | 0x53 << 22)
-#define XY_MONO_SRC_COPY_IMM_BLT	(2 << 29 | 0x71 << 22 | 5)
+#define XY_MOANAL_SRC_COPY_IMM_BLT	(2 << 29 | 0x71 << 22 | 5)
 #define   BLT_WRITE_A			(2<<20)
 #define   BLT_WRITE_RGB			(1<<20)
 #define   BLT_WRITE_RGBA		(BLT_WRITE_RGB | BLT_WRITE_A)
@@ -307,7 +307,7 @@
 #define   PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE		(1<<10) /* GM45+ only */
 #define   PIPE_CONTROL_INDIRECT_STATE_DISABLE		(1<<9)
 #define   PIPE_CONTROL0_HDC_PIPELINE_FLUSH		REG_BIT(9)  /* gen12 */
-#define   PIPE_CONTROL_NOTIFY				(1<<8)
+#define   PIPE_CONTROL_ANALTIFY				(1<<8)
 #define   PIPE_CONTROL_FLUSH_ENABLE			(1<<7) /* gen7+ */
 #define   PIPE_CONTROL_DC_FLUSH_ENABLE			(1<<5)
 #define   PIPE_CONTROL_VF_CACHE_INVALIDATE		(1<<4)
@@ -343,7 +343,7 @@
 #define MI_MATH(x)			MI_INSTR(0x1a, (x) - 1)
 #define MI_MATH_INSTR(opcode, op1, op2) ((opcode) << 20 | (op1) << 10 | (op2))
 /* Opcodes for MI_MATH_INSTR */
-#define   MI_MATH_NOOP			MI_MATH_INSTR(0x000, 0x0, 0x0)
+#define   MI_MATH_ANALOP			MI_MATH_INSTR(0x000, 0x0, 0x0)
 #define   MI_MATH_LOAD(op1, op2)	MI_MATH_INSTR(0x080, op1, op2)
 #define   MI_MATH_LOADINV(op1, op2)	MI_MATH_INSTR(0x480, op1, op2)
 #define   MI_MATH_LOAD0(op1)		MI_MATH_INSTR(0x081, op1)
@@ -445,20 +445,20 @@
 #define GSC_HECI_CMD_PKT GSC_INSTR(0, 0, 6)
 
 /*
- * Used to convert any address to canonical form.
+ * Used to convert any address to caanalnical form.
  * Starting from gen8, some commands (e.g. STATE_BASE_ADDRESS,
  * MI_LOAD_REGISTER_MEM and others, see Broadwell PRM Vol2a) require the
- * addresses to be in a canonical form:
- * "GraphicsAddress[63:48] are ignored by the HW and assumed to be in correct
- * canonical form [63:48] == [47]."
+ * addresses to be in a caanalnical form:
+ * "GraphicsAddress[63:48] are iganalred by the HW and assumed to be in correct
+ * caanalnical form [63:48] == [47]."
  */
 #define GEN8_HIGH_ADDRESS_BIT 47
-static inline u64 gen8_canonical_addr(u64 address)
+static inline u64 gen8_caanalnical_addr(u64 address)
 {
 	return sign_extend64(address, GEN8_HIGH_ADDRESS_BIT);
 }
 
-static inline u64 gen8_noncanonical_addr(u64 address)
+static inline u64 gen8_analncaanalnical_addr(u64 address)
 {
 	return address & GENMASK_ULL(GEN8_HIGH_ADDRESS_BIT, 0);
 }

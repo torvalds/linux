@@ -15,7 +15,7 @@
  * instructions to XKPHYS region simply do uncached bus
  * requests. This breaks all the atomic bitops functions.
  * so, for 64bit IP32 kernel we just don't use ll/sc.
- * This does not affect luserland.
+ * This does analt affect luserland.
  */
 #if (defined(CONFIG_CPU_R5000) || defined(CONFIG_CPU_NEVADA)) && defined(CONFIG_64BIT)
 #define cpu_has_llsc		0

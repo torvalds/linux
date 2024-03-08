@@ -22,7 +22,7 @@
     },
     {
         "id": "438f",
-        "name": "Create ETF with delta nanos setting",
+        "name": "Create ETF with delta naanals setting",
         "category": [
             "qdisc",
             "etf"

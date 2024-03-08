@@ -27,7 +27,7 @@
 #define MUX_MODE14	0xe
 #define MUX_MODE15	0xf
 
-/* Certain pins need virtual mode, but note: they may glitch */
+/* Certain pins need virtual mode, but analte: they may glitch */
 #define MUX_VIRTUAL_MODE0	(MODE_SELECT | (0x0 << 4))
 #define MUX_VIRTUAL_MODE1	(MODE_SELECT | (0x1 << 4))
 #define MUX_VIRTUAL_MODE2	(MODE_SELECT | (0x2 << 4))

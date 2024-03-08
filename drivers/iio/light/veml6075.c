@@ -283,12 +283,12 @@ static int veml6075_read_responsivity(int chan, int *val, int *val2)
 		/* resp = 0.93 c/uW/cm2: scale = 1.75268817 */
 		*val = 1;
 		*val2 = 75268817;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case CH_UVB:
 		/* resp = 2.1 c/uW/cm2: scale = 0.476190476 */
 		*val = 0;
 		*val2 = 476190476;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -413,7 +413,7 @@ static int veml6075_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &veml6075_regmap_config);
 	if (IS_ERR(regmap))

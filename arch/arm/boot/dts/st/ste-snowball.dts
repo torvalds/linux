@@ -9,8 +9,8 @@
 #include "ste-href-family-pinctrl.dtsi"
 
 / {
-	model = "Calao Systems Snowball platform with device tree";
-	compatible = "calaosystems,snowball-a9500", "st-ericsson,u9500";
+	model = "Calao Systems Sanalwball platform with device tree";
+	compatible = "calaosystems,sanalwball-a9500", "st-ericsson,u9500";
 
 	memory {
 		device_type = "memory";
@@ -104,7 +104,7 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&gpioled_snowball_mode>;
+		pinctrl-0 = <&gpioled_sanalwball_mode>;
 		used-led {
 			label = "user_led";
 			gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
@@ -114,7 +114,7 @@
 	};
 
 	soc {
-		/* Name the GPIO muxed rails on the Snowball board */
+		/* Name the GPIO muxed rails on the Sanalwball board */
 		gpio@8012e000 {
 			/* GPIOs 0 - 31 */
 			gpio-line-names = "", "", "", "", "", "", "", "",
@@ -210,7 +210,7 @@
 				vdd33a-supply = <&en_3v3_reg>;
 				vddvario-supply = <&db8500_vape_reg>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&eth_snowball_mode>;
+				pinctrl-0 = <&eth_sanalwball_mode>;
 
 				reg-shift = <1>;
 				reg-io-width = <2>;
@@ -298,8 +298,8 @@
 		        max-frequency = <100000000>;
 			bus-width = <8>;
 			cap-mmc-highspeed;
-			no-sdio;
-			no-sd;
+			anal-sdio;
+			anal-sd;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc4_a_1_default>;
@@ -356,7 +356,7 @@
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&accel_snowball_mode>;
+				pinctrl-0 = <&accel_sanalwball_mode>;
 				interrupt-parent = <&gpio5>;
 				interrupts = <3 IRQ_TYPE_EDGE_RISING>, /* INT1 */
 					     <4 IRQ_TYPE_EDGE_RISING>; /* INT2 */
@@ -368,7 +368,7 @@
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&magneto_snowball_mode>;
+				pinctrl-0 = <&magneto_sanalwball_mode>;
 				interrupt-parent = <&gpio5>;
 				interrupts = <5 IRQ_TYPE_EDGE_RISING>; /* DRDY line */
 			};
@@ -380,7 +380,7 @@
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&gyro_snowball_mode>;
+				pinctrl-0 = <&gyro_sanalwball_mode>;
 				interrupt-parent = <&gpio5>;
 				interrupts = <6 IRQ_TYPE_EDGE_RISING>, /* DRDY line */
 					     <9 IRQ_TYPE_EDGE_RISING>; /* INT1 */
@@ -403,7 +403,7 @@
 
 		spi@80002000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&ssp0_snowball_mode>;
+			pinctrl-0 = <&ssp0_sanalwball_mode>;
 			status = "okay";
 		};
 
@@ -414,7 +414,7 @@
 					 * AB8500 GPIOs are numbered starting from 1, so the first
 					 * index 0 is what in the datasheet is called "GPIO1", and
 					 * the second is "GPIO2" and so forth. Confusingly, the
-					 * Snowball schematic then names the "GPIO2" line "PM_GPIO1".
+					 * Sanalwball schematic then names the "GPIO2" line "PM_GPIO1".
 					 * while later naming "GPIO4" as "PM_GPIO4".
 					 */
 					gpio-line-names = "", /* AB8500 GPIO1 */
@@ -501,26 +501,26 @@
 			 * can be moved over to being controlled by respective device.
 			 */
 			pinctrl-names = "default";
-			pinctrl-0 = <&gbf_snowball_mode>,
-				  <&wlan_snowball_mode>;
+			pinctrl-0 = <&gbf_sanalwball_mode>,
+				  <&wlan_sanalwball_mode>;
 
 			ethernet {
 				/*
 				 * Mux in "SM" which is used for the
 				 * SMSC911x Ethernet adapter
 				 */
-				eth_snowball_mode: eth_snowball {
-					snowball_mux {
+				eth_sanalwball_mode: eth_sanalwball {
+					sanalwball_mux {
 						function = "sm";
 						groups = "sm_b_1";
 					};
 					/* LAN IRQ pin */
-					snowball_cfg1 {
+					sanalwball_cfg1 {
 						pins = "GPIO140_B11";
-						ste,config = <&in_nopull>;
+						ste,config = <&in_analpull>;
 					};
 					/* LAN reset pin */
-					snowball_cfg2 {
+					sanalwball_cfg2 {
 						pins = "GPIO141_C12";
 						ste,config = <&gpio_out_hi>;
 					};
@@ -529,47 +529,47 @@
 			};
 			sdi0 {
 				sdi0_default_mode: sdi0_default {
-					snowball_mux {
+					sanalwball_mux {
 						function = "mc0";
-						/* Add the DAT31 pin even if it is not really used */
+						/* Add the DAT31 pin even if it is analt really used */
 						groups = "mc0dat31dir_a_1";
 					};
-					snowball_cfg1 {
+					sanalwball_cfg1 {
 						pins = "GPIO21_AB3"; /* DAT31DIR */
 						ste,config = <&out_hi>;
 					};
 					/* SD card detect GPIO pin, extend default state */
-					snowball_cfg2 {
+					sanalwball_cfg2 {
 						pins = "GPIO218_AH11";
 						ste,config = <&gpio_in_pu>;
 					};
 					/* VMMCI level-shifter enable */
-					snowball_cfg3 {
+					sanalwball_cfg3 {
 						pins = "GPIO217_AH12";
 						ste,config = <&gpio_out_hi>;
 					};
 					/* VMMCI level-shifter voltage select */
-					snowball_cfg4 {
+					sanalwball_cfg4 {
 						pins = "GPIO228_AJ6";
 						ste,config = <&gpio_out_hi>;
 					};
 				};
 			};
 			ssp0 {
-				ssp0_snowball_mode: ssp0_snowball_default {
-					snowball_mux {
+				ssp0_sanalwball_mode: ssp0_sanalwball_default {
+					sanalwball_mux {
 						function = "ssp0";
 						groups = "ssp0_a_1";
 					};
-					snowball_cfg1 {
+					sanalwball_cfg1 {
 						pins = "GPIO144_B13"; /* FRM */
 						ste,config = <&gpio_out_hi>;
 					};
-					snowball_cfg2 {
+					sanalwball_cfg2 {
 						pins = "GPIO145_C13"; /* RXD */
 						ste,config = <&in_pd>;
 					};
-					snowball_cfg3 {
+					sanalwball_cfg3 {
 						pins =
 						"GPIO146_D13", /* TXD */
 						"GPIO143_D12"; /* CLK */
@@ -579,8 +579,8 @@
 				};
 			};
 			gpio_led {
-				gpioled_snowball_mode: gpioled_default {
-					snowball_cfg1 {
+				gpioled_sanalwball_mode: gpioled_default {
+					sanalwball_cfg1 {
 						pins = "GPIO142_C11";
 						ste,config = <&gpio_out_hi>;
 					};
@@ -588,9 +588,9 @@
 				};
 			};
 			accelerometer {
-				accel_snowball_mode: accel_snowball {
+				accel_sanalwball_mode: accel_sanalwball {
 					/* Accelerometer lines */
-					snowball_cfg1 {
+					sanalwball_cfg1 {
 						pins =
 						"GPIO163_C20", /* ACCEL_IRQ1 */
 						"GPIO164_B21"; /* ACCEL_IRQ2 */
@@ -599,8 +599,8 @@
 				};
 			};
 			gyro {
-				gyro_snowball_mode: gyro_snowball {
-					snowball_cfg1 {
+				gyro_sanalwball_mode: gyro_sanalwball {
+					sanalwball_cfg1 {
 						pins =
 						"GPIO166_A22", /* DRDY */
 						"GPIO169_D22"; /* INT */
@@ -609,38 +609,38 @@
 				};
 			};
 			magnetometer {
-				magneto_snowball_mode: magneto_snowball {
-					snowball_cfg1 {
+				magneto_sanalwball_mode: magneto_sanalwball {
+					sanalwball_cfg1 {
 						pins = "GPIO165_C21"; /* MAG_DRDY */
 						ste,config = <&gpio_in_pu>;
 					};
 				};
 			};
 			gbf {
-				gbf_snowball_mode: gbf_snowball {
+				gbf_sanalwball_mode: gbf_sanalwball {
 					/*
 					 * GBF (GPS, Bluetooth, FM-radio) interface,
 					 * pull low to reset state
 					 */
-					snowball_cfg1 {
+					sanalwball_cfg1 {
 						pins = "GPIO171_D23"; /* GBF_ENA_RESET */
 						ste,config = <&gpio_out_lo>;
 					};
 				 };
 			};
 			wlan {
-				wlan_snowball_mode: wlan_snowball {
+				wlan_sanalwball_mode: wlan_sanalwball {
 					/*
 					 * Activate this mode with the WLAN chip.
 					 * These are plain GPIO pins used by WLAN
 					 */
-					snowball_cfg1 {
+					sanalwball_cfg1 {
 						pins =
 						"GPIO161_D21", /* WLAN_PMU_EN */
 						"GPIO215_AH13"; /* WLAN_ENA */
 						ste,config = <&gpio_out_lo>;
 					};
-					snowball_cfg2 {
+					sanalwball_cfg2 {
 						pins = "GPIO216_AG12"; /* WLAN_IRQ */
 						ste,config = <&gpio_in_pu>;
 					};

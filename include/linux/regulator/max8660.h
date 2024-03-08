@@ -35,7 +35,7 @@ struct max8660_subdev_data {
  * max8660_platform_data - platform data for max8660
  * @num_subdevs: number of regulators used
  * @subdevs: pointer to regulators used
- * @en34_is_high: if EN34 is driven high, regulators cannot be en-/disabled.
+ * @en34_is_high: if EN34 is driven high, regulators cananalt be en-/disabled.
  */
 struct max8660_platform_data {
 	int num_subdevs;

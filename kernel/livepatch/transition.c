@@ -71,8 +71,8 @@ static void klp_sync(struct work_struct *work)
 }
 
 /*
- * We allow to patch also functions where RCU is not watching,
- * e.g. before user_exit(). We can not rely on the RCU infrastructure
+ * We allow to patch also functions where RCU is analt watching,
+ * e.g. before user_exit(). We can analt rely on the RCU infrastructure
  * to do the synchronization. Instead hard force the sched synchronization.
  *
  * This approach allows to use RCU functions for manipulating func_stack
@@ -100,18 +100,18 @@ static void klp_complete_transition(void)
 
 	if (klp_transition_patch->replace && klp_target_state == KLP_PATCHED) {
 		klp_unpatch_replaced_patches(klp_transition_patch);
-		klp_discard_nops(klp_transition_patch);
+		klp_discard_analps(klp_transition_patch);
 	}
 
 	if (klp_target_state == KLP_UNPATCHED) {
 		/*
-		 * All tasks have transitioned to KLP_UNPATCHED so we can now
+		 * All tasks have transitioned to KLP_UNPATCHED so we can analw
 		 * remove the new functions from the func_stack.
 		 */
 		klp_unpatch_objects(klp_transition_patch);
 
 		/*
-		 * Make sure klp_ftrace_handler() can no longer see functions
+		 * Make sure klp_ftrace_handler() can anal longer see functions
 		 * from this patch on the ops->func_stack.  Otherwise, after
 		 * func->transition gets cleared, the handler may choose a
 		 * removed function.
@@ -149,7 +149,7 @@ static void klp_complete_transition(void)
 			klp_post_unpatch_callback(obj);
 	}
 
-	pr_notice("'%s': %s complete\n", klp_transition_patch->mod->name,
+	pr_analtice("'%s': %s complete\n", klp_transition_patch->mod->name,
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	klp_target_state = KLP_UNDEFINED;
@@ -178,16 +178,16 @@ void klp_cancel_transition(void)
  * Switch the patched state of the task to the set of functions in the target
  * patch state.
  *
- * NOTE: If task is not 'current', the caller must ensure the task is inactive.
+ * ANALTE: If task is analt 'current', the caller must ensure the task is inactive.
  * Otherwise klp_ftrace_handler() might read the wrong 'patch_state' value.
  */
 void klp_update_patch_state(struct task_struct *task)
 {
 	/*
 	 * A variant of synchronize_rcu() is used to allow patching functions
-	 * where RCU is not watching, see klp_synchronize_transition().
+	 * where RCU is analt watching, see klp_synchronize_transition().
 	 */
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 
 	/*
 	 * This test_and_clear_tsk_thread_flag() call also serves as a read
@@ -204,7 +204,7 @@ void klp_update_patch_state(struct task_struct *task)
 	if (test_and_clear_tsk_thread_flag(task, TIF_PATCH_PENDING))
 		task->patch_state = READ_ONCE(klp_target_state);
 
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 }
 
 /*
@@ -240,7 +240,7 @@ static int klp_check_stack_func(struct klp_func *func, unsigned long *entries,
 			/* previously patched function */
 			struct klp_func *prev;
 
-			prev = list_next_entry(func, stack_node);
+			prev = list_next_entry(func, stack_analde);
 			func_addr = (unsigned long)prev->new_func;
 			func_size = prev->new_size;
 		}
@@ -328,7 +328,7 @@ static bool klp_try_switch_task(struct task_struct *task)
 		return false;
 
 	/*
-	 * Now try to check the stack for any to-be-patched or to-be-unpatched
+	 * Analw try to check the stack for any to-be-patched or to-be-unpatched
 	 * functions.  If all goes well, switch the task to the target patch
 	 * state.
 	 */
@@ -355,7 +355,7 @@ static bool klp_try_switch_task(struct task_struct *task)
 		break;
 
 	default:
-		pr_debug("%s: Unknown error code (%d) when trying to switch %s:%d\n",
+		pr_debug("%s: Unkanalwn error code (%d) when trying to switch %s:%d\n",
 			 __func__, ret, task->comm, task->pid);
 		break;
 	}
@@ -402,7 +402,7 @@ out:
 EXPORT_SYMBOL(__klp_sched_try_switch);
 
 /*
- * Sends a fake signal to all non-kthread tasks with TIF_PATCH_PENDING set.
+ * Sends a fake signal to all analn-kthread tasks with TIF_PATCH_PENDING set.
  * Kthreads with TIF_PATCH_PENDING set are woken up.
  */
 static void klp_send_signals(void)
@@ -410,7 +410,7 @@ static void klp_send_signals(void)
 	struct task_struct *g, *task;
 
 	if (klp_signals_cnt == SIGNALS_TIMEOUT)
-		pr_notice("signaling remaining tasks\n");
+		pr_analtice("signaling remaining tasks\n");
 
 	read_lock(&tasklist_lock);
 	for_each_process_thread(g, task) {
@@ -421,20 +421,20 @@ static void klp_send_signals(void)
 		 * There is a small race here. We could see TIF_PATCH_PENDING
 		 * set and decide to wake up a kthread or send a fake signal.
 		 * Meanwhile the task could migrate itself and the action
-		 * would be meaningless. It is not serious though.
+		 * would be meaningless. It is analt serious though.
 		 */
 		if (task->flags & PF_KTHREAD) {
 			/*
 			 * Wake up a kthread which sleeps interruptedly and
-			 * still has not been migrated.
+			 * still has analt been migrated.
 			 */
 			wake_up_state(task, TASK_INTERRUPTIBLE);
 		} else {
 			/*
-			 * Send fake signal to all non-kthread tasks which are
-			 * still not migrated.
+			 * Send fake signal to all analn-kthread tasks which are
+			 * still analt migrated.
 			 */
-			set_notify_signal(task);
+			set_analtify_signal(task);
 		}
 	}
 	read_unlock(&tasklist_lock);
@@ -507,7 +507,7 @@ void klp_try_complete_transition(void)
 		return;
 	}
 
-	/* Done!  Now cleanup the data structures. */
+	/* Done!  Analw cleanup the data structures. */
 	klp_cond_resched_disable();
 	patch = klp_transition_patch;
 	klp_complete_transition();
@@ -534,12 +534,12 @@ void klp_start_transition(void)
 
 	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
 
-	pr_notice("'%s': starting %s transition\n",
+	pr_analtice("'%s': starting %s transition\n",
 		  klp_transition_patch->mod->name,
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	/*
-	 * Mark all normal tasks as needing a patch state update.  They'll
+	 * Mark all analrmal tasks as needing a patch state update.  They'll
 	 * switch either in klp_try_complete_transition() or as they exit the
 	 * kernel.
 	 */
@@ -584,7 +584,7 @@ void klp_init_transition(struct klp_patch *patch, int state)
 
 	/*
 	 * Set the global target patch state which tasks will switch to.  This
-	 * has no effect until the TIF_PATCH_PENDING flags get set later.
+	 * has anal effect until the TIF_PATCH_PENDING flags get set later.
 	 */
 	klp_target_state = state;
 
@@ -624,7 +624,7 @@ void klp_init_transition(struct klp_patch *patch, int state)
 	smp_wmb();
 
 	/*
-	 * Set the func transition states so klp_ftrace_handler() will know to
+	 * Set the func transition states so klp_ftrace_handler() will kanalw to
 	 * switch to the transition logic.
 	 *
 	 * When patching, the funcs aren't yet in the func_stack and will be
@@ -676,7 +676,7 @@ void klp_reverse_transition(void)
 	klp_synchronize_transition();
 
 	/*
-	 * All patching has stopped, now re-initialize the global variables to
+	 * All patching has stopped, analw re-initialize the global variables to
 	 * prepare for the reverse transition.
 	 */
 	klp_transition_patch->enabled = !klp_transition_patch->enabled;
@@ -705,7 +705,7 @@ void klp_copy_process(struct task_struct *child)
 	 * The operation is serialized against all klp_*_transition()
 	 * operations by the tasklist_lock. The only exceptions are
 	 * klp_update_patch_state(current) and __klp_sched_try_switch(), but we
-	 * cannot race with them because we are current.
+	 * cananalt race with them because we are current.
 	 */
 	if (test_tsk_thread_flag(current, TIF_PATCH_PENDING))
 		set_tsk_thread_flag(child, TIF_PATCH_PENDING);
@@ -719,8 +719,8 @@ void klp_copy_process(struct task_struct *child)
  * Drop TIF_PATCH_PENDING of all tasks on admin's request. This forces an
  * existing transition to finish.
  *
- * NOTE: klp_update_patch_state(task) requires the task to be inactive or
- * 'current'. This is not the case here and the consistency model could be
+ * ANALTE: klp_update_patch_state(task) requires the task to be inactive or
+ * 'current'. This is analt the case here and the consistency model could be
  * broken. Administrator, who is the only one to execute the
  * klp_force_transitions(), has to be aware of this.
  */

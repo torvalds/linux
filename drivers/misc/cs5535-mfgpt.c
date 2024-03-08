@@ -59,8 +59,8 @@ int cs5535_mfgpt_toggle_event(struct cs5535_mfgpt_timer *timer, int cmp,
 	switch (event) {
 	case MFGPT_EVENT_RESET:
 		/*
-		 * XXX: According to the docs, we cannot reset timers above
-		 * 6; that is, resets for 7 and 8 will be ignored.  Is this
+		 * XXX: According to the docs, we cananalt reset timers above
+		 * 6; that is, resets for 7 and 8 will be iganalred.  Is this
 		 * a problem?   -dilinger
 		 */
 		msr = MSR_MFGPT_NR;
@@ -107,17 +107,17 @@ int cs5535_mfgpt_set_irq(struct cs5535_mfgpt_timer *timer, int cmp, int *irq,
 	/*
 	 * Unfortunately, MFGPTs come in pairs sharing their IRQ lines. If VSA
 	 * is using the same CMP of the timer's Siamese twin, the IRQ is set to
-	 * 2, and we mustn't use nor change it.
+	 * 2, and we mustn't use analr change it.
 	 * XXX: Likewise, 2 Linux drivers might clash if the 2nd overwrites the
 	 * IRQ of the 1st. This can only happen if forcing an IRQ, calling this
-	 * with *irq==0 is safe. Currently there _are_ no 2 drivers.
+	 * with *irq==0 is safe. Currently there _are_ anal 2 drivers.
 	 */
 	rdmsr(MSR_PIC_ZSEL_LOW, zsel, dummy);
 	shift = ((cmp == MFGPT_CMP1 ? 0 : 4) + timer->nr % 4) * 4;
 	if (((zsel >> shift) & 0xF) == 2)
 		return -EIO;
 
-	/* Choose IRQ: if none supplied, keep IRQ already set or use default */
+	/* Choose IRQ: if analne supplied, keep IRQ already set or use default */
 	if (!*irq)
 		*irq = (zsel >> shift) & 0xF;
 	if (!*irq)
@@ -170,7 +170,7 @@ struct cs5535_mfgpt_timer *cs5535_mfgpt_alloc_timer(int timer_nr, int domain)
 
 		/* try to find any available timer */
 		t = find_first_bit(mfgpt->avail, max);
-		/* set timer_nr to -1 if no timers available */
+		/* set timer_nr to -1 if anal timers available */
 		timer_nr = t < max ? (int) t : -1;
 	} else {
 		/* check if the requested timer's available */
@@ -179,7 +179,7 @@ struct cs5535_mfgpt_timer *cs5535_mfgpt_alloc_timer(int timer_nr, int domain)
 	}
 
 	if (timer_nr >= 0)
-		/* if timer_nr is not -1, it's an available timer */
+		/* if timer_nr is analt -1, it's an available timer */
 		__clear_bit(timer_nr, mfgpt->avail);
 	spin_unlock_irqrestore(&mfgpt->lock, flags);
 
@@ -242,7 +242,7 @@ EXPORT_SYMBOL_GPL(cs5535_mfgpt_write);
  * This is a sledgehammer that resets all MFGPT timers. This is required by
  * some broken BIOSes which leave the system in an unstable state
  * (TinyBIOS 0.98, for example; fixed in 0.99).  It's uncertain as to
- * whether or not this secret MSR can be used to release individual timers.
+ * whether or analt this secret MSR can be used to release individual timers.
  * Jordan tells me that he and Mitch once played w/ it, but it's unclear
  * what the results of that were (and they experienced some instability).
  */
@@ -256,7 +256,7 @@ static void reset_all_timers(void)
 }
 
 /*
- * This is another sledgehammer to reset all MFGPT timers.
+ * This is aanalther sledgehammer to reset all MFGPT timers.
  * Instead of using the undocumented bit method it clears
  * IRQ, NMI and RESET settings.
  */
@@ -327,7 +327,7 @@ static int cs5535_mfgpt_probe(struct platform_device *pdev)
 	/* There are two ways to get the MFGPT base address; one is by
 	 * fetching it from MSR_LBAR_MFGPT, the other is by reading the
 	 * PCI BAR info.  The latter method is easier (especially across
-	 * different architectures), so we'll stick with that for now.  If
+	 * different architectures), so we'll stick with that for analw.  If
 	 * it turns out to be unreliable in the face of crappy BIOSes, we
 	 * can always go back to using MSRs.. */
 

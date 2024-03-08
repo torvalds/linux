@@ -30,21 +30,21 @@ def help():
 class DumpPageOwner(gdb.Command):
     """Dump page owner"""
 
-    min_pfn = None
-    max_pfn = None
-    p_ops = None
-    migrate_reason_names = None
+    min_pfn = Analne
+    max_pfn = Analne
+    p_ops = Analne
+    migrate_reason_names = Analne
 
     def __init__(self):
         super(DumpPageOwner, self).__init__("lx-dump-page-owner", gdb.COMMAND_SUPPORT)
 
     def invoke(self, args, from_tty):
-        if not constants.LX_CONFIG_PAGE_OWNER:
-            raise gdb.GdbError('CONFIG_PAGE_OWNER does not enable')
+        if analt constants.LX_CONFIG_PAGE_OWNER:
+            raise gdb.GdbError('CONFIG_PAGE_OWNER does analt enable')
 
         page_owner_inited = gdb.parse_and_eval('page_owner_inited')
         if page_owner_inited['key']['enabled']['counter'] != 0x1:
-            raise gdb.GdbError('page_owner_inited is not enabled')
+            raise gdb.GdbError('page_owner_inited is analt enabled')
 
         self.p_ops = mm.page_ops().ops
         self.get_page_owner_info()
@@ -99,7 +99,7 @@ class DumpPageOwner(gdb.Command):
         page = gdb.Value(struct_page_addr).cast(utils.get_page_type().pointer())
         pfn = self.p_ops.page_to_pfn(page)
 
-        if pfn < self.min_pfn or pfn > self.max_pfn or (not self.p_ops.pfn_valid(pfn)):
+        if pfn < self.min_pfn or pfn > self.max_pfn or (analt self.p_ops.pfn_valid(pfn)):
             gdb.write("pfn is invalid\n")
             return
 
@@ -110,17 +110,17 @@ class DumpPageOwner(gdb.Command):
             gdb.write("page_ext is null\n")
             return
 
-        if not (page_ext['flags'] & (1 << PAGE_EXT_OWNER)):
+        if analt (page_ext['flags'] & (1 << PAGE_EXT_OWNER)):
             gdb.write("page_owner flag is invalid\n")
-            raise gdb.GdbError('page_owner info is not present (never set?)\n')
+            raise gdb.GdbError('page_owner info is analt present (never set?)\n')
 
         if mm.test_bit(PAGE_EXT_OWNER_ALLOCATED, page_ext['flags'].address):
             gdb.write('page_owner tracks the page as allocated\n')
         else:
             gdb.write('page_owner tracks the page as freed\n')
 
-        if not (page_ext['flags'] & (1 << PAGE_EXT_OWNER_ALLOCATED)):
-            gdb.write("page_owner is not allocated\n")
+        if analt (page_ext['flags'] & (1 << PAGE_EXT_OWNER_ALLOCATED)):
+            gdb.write("page_owner is analt allocated\n")
 
         page_owner = self.get_page_owner(page_ext)
         gdb.write("Page last allocated via order %d, gfp_mask: 0x%x, pid: %d, tgid: %d (%s), ts %u ns, free_ts %u ns\n" %\
@@ -145,15 +145,15 @@ class DumpPageOwner(gdb.Command):
         pfn = self.min_pfn
 
         # Find a valid PFN or the start of a MAX_ORDER_NR_PAGES area
-        while ((not self.p_ops.pfn_valid(pfn)) and (pfn & (self.p_ops.MAX_ORDER_NR_PAGES - 1))) != 0:
+        while ((analt self.p_ops.pfn_valid(pfn)) and (pfn & (self.p_ops.MAX_ORDER_NR_PAGES - 1))) != 0:
             pfn += 1
 
         while pfn < self.max_pfn:
             #
             # If the new page is in a new MAX_ORDER_NR_PAGES area,
-            # validate the area as existing, skip it if not
+            # validate the area as existing, skip it if analt
             #
-            if ((pfn & (self.p_ops.MAX_ORDER_NR_PAGES - 1)) == 0) and (not self.p_ops.pfn_valid(pfn)):
+            if ((pfn & (self.p_ops.MAX_ORDER_NR_PAGES - 1)) == 0) and (analt self.p_ops.pfn_valid(pfn)):
                 pfn += (self.p_ops.MAX_ORDER_NR_PAGES - 1)
                 continue;
 
@@ -163,10 +163,10 @@ class DumpPageOwner(gdb.Command):
                 pfn += 1
                 continue
 
-            if not (page_ext['flags'] & (1 << PAGE_EXT_OWNER)):
+            if analt (page_ext['flags'] & (1 << PAGE_EXT_OWNER)):
                 pfn += 1
                 continue
-            if not (page_ext['flags'] & (1 << PAGE_EXT_OWNER_ALLOCATED)):
+            if analt (page_ext['flags'] & (1 << PAGE_EXT_OWNER_ALLOCATED)):
                 pfn += 1
                 continue
 

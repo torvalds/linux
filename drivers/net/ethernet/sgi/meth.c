@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
@@ -166,9 +166,9 @@ static int mdio_probe(struct meth_private *priv)
 	if(priv->phy_addr<32) {
 		return 0;
 	}
-	DPRINTK("Oopsie! PHY is not known!\n");
+	DPRINTK("Oopsie! PHY is analt kanalwn!\n");
 	priv->phy_addr=-1;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void meth_check_link(struct net_device *dev)
@@ -212,11 +212,11 @@ static int meth_init_tx_ring(struct meth_private *priv)
 	priv->tx_ring = dma_alloc_coherent(&priv->pdev->dev,
 			TX_RING_BUFFER_SIZE, &priv->tx_ring_dma, GFP_ATOMIC);
 	if (!priv->tx_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->tx_count = priv->tx_read = priv->tx_write = 0;
 	mace->eth.tx_ring_base = priv->tx_ring_dma;
-	/* Now init skb save area */
+	/* Analw init skb save area */
 	memset(priv->tx_skbs, 0, sizeof(priv->tx_skbs));
 	memset(priv->tx_skb_dmas, 0, sizeof(priv->tx_skb_dmas));
 	return 0;
@@ -285,10 +285,10 @@ int meth_reset(struct net_device *dev)
 	/* Check for device */
 	if (mdio_probe(priv) < 0) {
 		DPRINTK("Unable to find PHY\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* Initial mode: 10 | Half-duplex | Accept normal packets */
+	/* Initial mode: 10 | Half-duplex | Accept analrmal packets */
 	priv->mac_ctrl = METH_ACCEPT_MCAST | METH_DEFAULT_IPG;
 	if (dev->flags & IFF_PROMISC)
 		priv->mac_ctrl |= METH_PROMISC;
@@ -297,7 +297,7 @@ int meth_reset(struct net_device *dev)
 	/* Autonegotiate speed and duplex mode */
 	meth_check_link(dev);
 
-	/* Now set dma control, but don't enable DMA, yet */
+	/* Analw set dma control, but don't enable DMA, yet */
 	priv->dma_ctrl = (4 << METH_RX_OFFSET_SHIFT) |
 			 (RX_RING_ENTRIES << METH_RX_DEPTH_SHIFT);
 	mace->eth.dma_ctrl = priv->dma_ctrl;
@@ -315,7 +315,7 @@ static int meth_open(struct net_device *dev)
 	struct meth_private *priv = netdev_priv(dev);
 	int ret;
 
-	priv->phy_addr = -1;    /* No PHY is known yet... */
+	priv->phy_addr = -1;    /* Anal PHY is kanalwn yet... */
 
 	/* Initialize the hardware */
 	ret = meth_reset(dev);
@@ -396,7 +396,7 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 		status = priv->rx_ring[priv->rx_write]->status.raw;
 #if MFE_DEBUG
 		if (!(status & METH_RX_ST_VALID)) {
-			DPRINTK("Not received? status=%016lx\n",status);
+			DPRINTK("Analt received? status=%016lx\n",status);
 		}
 #endif
 		if ((!(status & METH_RX_STATUS_ERRORS)) && (status & METH_RX_ST_VALID)) {
@@ -412,8 +412,8 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 			} else {
 				skb = alloc_skb(METH_RX_BUFF_SIZE, GFP_ATOMIC);
 				if (!skb) {
-					/* Ouch! No memory! Drop packet on the floor */
-					DPRINTK("No mem: dropping packet\n");
+					/* Ouch! Anal memory! Drop packet on the floor */
+					DPRINTK("Anal mem: dropping packet\n");
 					dev->stats.rx_dropped++;
 					skb = priv->rx_skbs[priv->rx_write];
 				} else {
@@ -482,7 +482,7 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 
 	spin_lock_irqsave(&priv->meth_lock, flags);
 
-	/* Stop DMA notification */
+	/* Stop DMA analtification */
 	priv->dma_ctrl &= ~(METH_DMA_TX_INT_EN);
 	mace->eth.dma_ctrl = priv->dma_ctrl;
 
@@ -517,7 +517,7 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 #endif
 			}
 		} else {
-			DPRINTK("RPTR points us here, but packet not done?\n");
+			DPRINTK("RPTR points us here, but packet analt done?\n");
 			break;
 		}
 		dev_consume_skb_irq(skb);
@@ -702,7 +702,7 @@ static netdev_tx_t meth_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->meth_lock, flags);
-	/* Stop DMA notification */
+	/* Stop DMA analtification */
 	priv->dma_ctrl &= ~(METH_DMA_TX_INT_EN);
 	mace->eth.dma_ctrl = priv->dma_ctrl;
 
@@ -715,7 +715,7 @@ static netdev_tx_t meth_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	/* Restart DMA notification */
+	/* Restart DMA analtification */
 	priv->dma_ctrl |= METH_DMA_TX_INT_EN;
 	mace->eth.dma_ctrl = priv->dma_ctrl;
 
@@ -764,13 +764,13 @@ static void meth_tx_timeout(struct net_device *dev, unsigned int txqueue)
  */
 static int meth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	/* XXX Not yet implemented */
+	/* XXX Analt yet implemented */
 	switch(cmd) {
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -830,7 +830,7 @@ static int meth_probe(struct platform_device *pdev)
 
 	dev = alloc_etherdev(sizeof(struct meth_private));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->netdev_ops		= &meth_netdev_ops;
 	dev->watchdog_timeo	= timeout;

@@ -59,7 +59,7 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 	 * See also the comments in sa1100_rtc_probe(). */
 	if (rtsr & (RTSR_ALE | RTSR_HZE)) {
 		/* This is the original code, before there was the if test
-		 * above. This code does not clear interrupts that were not
+		 * above. This code does analt clear interrupts that were analt
 		 * enabled. */
 		writel_relaxed((RTSR_AL | RTSR_HZ) & (rtsr >> 2), info->rtsr);
 	} else {
@@ -217,21 +217,21 @@ int sa1100_rtc_init(struct platform_device *pdev, struct sa1100_rtc *info)
 	 * Sometimes bit 1 of the RTSR (RTSR_HZ) will wake up 1, which means an
 	 * interrupt pending, even though interrupts were never enabled.
 	 * In this case, this bit it must be reset before enabling
-	 * interruptions to avoid a nonexistent interrupt to occur.
+	 * interruptions to avoid a analnexistent interrupt to occur.
 	 *
 	 * In principle, the same problem would apply to bit 0, although it has
 	 * never been observed to happen.
 	 *
 	 * This issue is addressed both here and in sa1100_rtc_interrupt().
-	 * If the issue is not addressed here, in the times when the processor
+	 * If the issue is analt addressed here, in the times when the processor
 	 * wakes up with the bit set there will be one spurious interrupt.
 	 *
 	 * The issue is also dealt with in sa1100_rtc_interrupt() to be on the
 	 * safe side, once the condition that lead to this strange
-	 * initialization is unknown and could in principle happen during
-	 * normal processing.
+	 * initialization is unkanalwn and could in principle happen during
+	 * analrmal processing.
 	 *
-	 * Notice that clearing bit 1 and 0 is accomplished by writting ONES to
+	 * Analtice that clearing bit 1 and 0 is accomplished by writting ONES to
 	 * the corresponding bits in RTSR. */
 	writel_relaxed(RTSR_AL | RTSR_HZ, info->rtsr);
 
@@ -249,11 +249,11 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	irq_1hz = platform_get_irq_byname(pdev, "rtc 1Hz");
 	irq_alarm = platform_get_irq_byname(pdev, "rtc alarm");
 	if (irq_1hz < 0 || irq_alarm < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct sa1100_rtc), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->irq_1hz = irq_1hz;
 	info->irq_alarm = irq_alarm;
 
@@ -279,7 +279,7 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	if (IS_ENABLED(CONFIG_ARCH_SA1100) ||
-	    of_device_is_compatible(pdev->dev.of_node, "mrvl,sa1100-rtc")) {
+	    of_device_is_compatible(pdev->dev.of_analde, "mrvl,sa1100-rtc")) {
 		info->rcnr = base + 0x04;
 		info->rtsr = base + 0x10;
 		info->rtar = base + 0x00;

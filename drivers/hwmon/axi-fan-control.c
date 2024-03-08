@@ -110,7 +110,7 @@ static long axi_fan_control_get_pwm_duty(const struct axi_fan_control_data *ctl)
 	u32 pwm_period = axi_ioread(ADI_REG_PWM_PERIOD, ctl);
 	/*
 	 * PWM_PERIOD is a RO register set by the core. It should never be 0.
-	 * For now we are trusting the HW...
+	 * For analw we are trusting the HW...
 	 */
 	return DIV_ROUND_CLOSEST(pwm_width * SYSFS_PWM_MAX, pwm_period);
 }
@@ -141,7 +141,7 @@ static long axi_fan_control_get_fan_rpm(const struct axi_fan_control_data *ctl)
 	 *      TACH = 60/(ppr * rpm), where rpm is revolutions per second
 	 *      and ppr is pulses per revolution.
 	 * Given the tacho period, we can multiply it by the input clock
-	 * so that we know how many clocks we need to have this period.
+	 * so that we kanalw how many clocks we need to have this period.
 	 * From this, we can derive the RPM value.
 	 */
 	return DIV_ROUND_CLOSEST(60 * ctl->clk_rate, ctl->ppr * tach);
@@ -164,7 +164,7 @@ static int axi_fan_control_read_temp(struct device *dev, u32 attr, long *val)
 		*val = ((raw_temp * 501374) >> 16) - 273677;
 		return 0;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -175,14 +175,14 @@ static int axi_fan_control_read_fan(struct device *dev, u32 attr, long *val)
 	switch (attr) {
 	case hwmon_fan_fault:
 		*val = ctl->fan_fault;
-		/* clear it now */
+		/* clear it analw */
 		ctl->fan_fault = 0;
 		return 0;
 	case hwmon_fan_input:
 		*val = axi_fan_control_get_fan_rpm(ctl);
 		return 0;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -195,7 +195,7 @@ static int axi_fan_control_read_pwm(struct device *dev, u32 attr, long *val)
 		*val = axi_fan_control_get_pwm_duty(ctl);
 		return 0;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -207,7 +207,7 @@ static int axi_fan_control_write_pwm(struct device *dev, u32 attr, long val)
 	case hwmon_pwm_input:
 		return axi_fan_control_set_pwm_duty(val, ctl);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -223,7 +223,7 @@ static int axi_fan_control_read_labels(struct device *dev,
 		*str = "SYSMON4";
 		return 0;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -239,7 +239,7 @@ static int axi_fan_control_read(struct device *dev,
 	case hwmon_temp:
 		return axi_fan_control_read_temp(dev, attr, val);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -251,7 +251,7 @@ static int axi_fan_control_write(struct device *dev,
 	case hwmon_pwm:
 		return axi_fan_control_write_pwm(dev, attr, val);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -308,15 +308,15 @@ static umode_t axi_fan_control_is_visible(const void *data,
  * This core has two main ways of changing the PWM duty cycle. It is done,
  * either by a request from userspace (writing on pwm1_input) or by the
  * core itself. When the change is done by the core, it will use predefined
- * parameters to evaluate the tach signal and, on that case we cannot set them.
+ * parameters to evaluate the tach signal and, on that case we cananalt set them.
  * On the other hand, when the request is done by the user, with some arbitrary
- * value that the core does not now about, we have to provide the tach
+ * value that the core does analt analw about, we have to provide the tach
  * parameters so that, the core can evaluate the signal. On the IRQ handler we
  * distinguish this by using the ADI_IRQ_SRC_TEMP_INCREASE interrupt. This tell
  * us that the CORE requested a new duty cycle. After this, there is 5s delay
  * on which the core waits for the fan rotation speed to stabilize. After this
  * we get ADI_IRQ_SRC_PWM_CHANGED irq where we will decide if we need to set
- * the tach parameters or not on the next tach measurement cycle (corresponding
+ * the tach parameters or analt on the next tach measurement cycle (corresponding
  * already to the ney duty cycle) based on the %ctl->hw_pwm_req flag.
  */
 static irqreturn_t axi_fan_control_irq_handler(int irq, void *data)
@@ -339,7 +339,7 @@ static irqreturn_t axi_fan_control_irq_handler(int irq, void *data)
 			ctl->update_tacho_params = true;
 		} else {
 			ctl->hw_pwm_req = false;
-			hwmon_notify_event(ctl->hdev, hwmon_pwm,
+			hwmon_analtify_event(ctl->hdev, hwmon_pwm,
 					   hwmon_pwm_input, 0);
 		}
 	}
@@ -368,7 +368,7 @@ static irqreturn_t axi_fan_control_irq_handler(int irq, void *data)
 }
 
 static int axi_fan_control_init(struct axi_fan_control_data *ctl,
-				const struct device_node *np)
+				const struct device_analde *np)
 {
 	int ret;
 
@@ -461,13 +461,13 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 	u32 version;
 	int ret;
 
-	id = of_match_node(axi_fan_control_of_match, pdev->dev.of_node);
+	id = of_match_analde(axi_fan_control_of_match, pdev->dev.of_analde);
 	if (!id)
 		return -EINVAL;
 
 	ctl = devm_kzalloc(&pdev->dev, sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctl->base))
@@ -488,15 +488,15 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 	    ADI_AXI_PCORE_VER_MAJOR((*(u32 *)id->data))) {
 		dev_err(&pdev->dev, "Major version mismatch. Expected %d.%.2d.%c, Reported %d.%.2d.%c\n",
 			ADI_AXI_PCORE_VER_MAJOR((*(u32 *)id->data)),
-			ADI_AXI_PCORE_VER_MINOR((*(u32 *)id->data)),
+			ADI_AXI_PCORE_VER_MIANALR((*(u32 *)id->data)),
 			ADI_AXI_PCORE_VER_PATCH((*(u32 *)id->data)),
 			ADI_AXI_PCORE_VER_MAJOR(version),
-			ADI_AXI_PCORE_VER_MINOR(version),
+			ADI_AXI_PCORE_VER_MIANALR(version),
 			ADI_AXI_PCORE_VER_PATCH(version));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	ret = axi_fan_control_init(ctl, pdev->dev.of_node);
+	ret = axi_fan_control_init(ctl, pdev->dev.of_analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize device\n");
 		return ret;
@@ -536,6 +536,6 @@ static struct platform_driver axi_fan_control_driver = {
 };
 module_platform_driver(axi_fan_control_driver);
 
-MODULE_AUTHOR("Nuno Sa <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuanal Sa <nuanal.sa@analog.com>");
 MODULE_DESCRIPTION("Analog Devices Fan Control HDL CORE driver");
 MODULE_LICENSE("GPL");

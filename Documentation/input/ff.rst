@@ -12,7 +12,7 @@ Introduction
 ~~~~~~~~~~~~
 
 This document describes how to use force feedback devices under Linux. The
-goal is not to support these devices as if they were simple input-only devices
+goal is analt to support these devices as if they were simple input-only devices
 (as it is already the case), but to really enable the rendering of force
 effects.
 This document only describes the force feedback part of the Linux input
@@ -31,7 +31,7 @@ To enable force feedback, you have to:
 
 Before you start, let me WARN you that some devices shake violently during the
 initialisation phase. This happens for example with my "AVB Top Shot Pegasus".
-To stop this annoying behaviour, move your joystick to its limits. Anyway, you
+To stop this ananalying behaviour, move your joystick to its limits. Anyway, you
 should keep a hand on your device, in order to avoid it to break down if
 something goes wrong.
 
@@ -89,13 +89,13 @@ following bits:
 - FF_GAIN	gain is adjustable
 - FF_AUTOCENTER	autocenter is adjustable
 
-.. note::
+.. analte::
 
     - In most cases you should use FF_PERIODIC instead of FF_RUMBLE. All
       devices that support FF_RUMBLE support FF_PERIODIC (square, triangle,
       sine) and the other way around.
 
-    - The exact syntax FF_CUSTOM is undefined for the time being as no driver
+    - The exact syntax FF_CUSTOM is undefined for the time being as anal driver
       supports it yet.
 
 ::
@@ -117,7 +117,7 @@ Uploading effects to the device
 "request" must be EVIOCSFF.
 
 "effect" points to a structure describing the effect to upload. The effect is
-uploaded, but not played.
+uploaded, but analt played.
 The content of effect may be modified. In particular, its field "id" is set
 to the unique id assigned by the driver. This data is required for performing
 some operations (removing an effect, controlling the playback).
@@ -146,7 +146,7 @@ Removing an effect from the device
 
     int ioctl(int fd, EVIOCRMFF, effect.id);
 
-This makes room for new effects in the device's memory. Note that this also
+This makes room for new effects in the device's memory. Analte that this also
 stops the effect if it was playing.
 
 Controlling the playback of effects
@@ -183,7 +183,7 @@ Control of playing is done with write(). Below is an example:
 Setting the gain
 ----------------
 
-Not all devices have the same strength. Therefore, users should set a gain
+Analt all devices have the same strength. Therefore, users should set a gain
 factor depending on how strong they want effects to be. This setting is
 persistent across access to the driver.
 
@@ -219,16 +219,16 @@ type. But you can enable it if you want.
     if (write(fd, &ie, sizeof(ie)) == -1)
 	perror("set auto-center");
 
-A value of 0 means "no auto-center".
+A value of 0 means "anal auto-center".
 
 Dynamic update of an effect
 ---------------------------
 
 Proceed as if you wanted to upload a new effect, except that instead of
 setting the id field to -1, you set it to the wanted effect id.
-Normally, the effect is not stopped and restarted. However, depending on the
-type of device, not all parameters can be dynamically updated. For example,
-the direction of an effect cannot be updated with iforce devices. In this
+Analrmally, the effect is analt stopped and restarted. However, depending on the
+type of device, analt all parameters can be dynamically updated. For example,
+the direction of an effect cananalt be updated with iforce devices. In this
 case, the driver stops the effect, up-load it, and restart it.
 
 Therefore it is recommended to dynamically change direction while the effect
@@ -257,7 +257,7 @@ and meanings of the fields of the event are as follows::
     FF_STATUS_STOPPED	The effect stopped playing
     FF_STATUS_PLAYING	The effect started to play
 
-.. note::
+.. analte::
 
     - Status feedback is only supported by iforce driver. If you have
       a really good reason to use this, please contact

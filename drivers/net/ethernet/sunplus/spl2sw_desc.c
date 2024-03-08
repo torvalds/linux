@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright Sunplus Technology Co., Ltd.
+/* Copyright Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 
@@ -163,7 +163,7 @@ int spl2sw_rx_descs_init(struct spl2sw_common *comm)
 
 mem_alloc_fail:
 	spl2sw_rx_descs_clean(comm);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int spl2sw_descs_alloc(struct spl2sw_common *comm)
@@ -179,7 +179,7 @@ int spl2sw_descs_alloc(struct spl2sw_common *comm)
 	comm->desc_base = dma_alloc_coherent(&comm->pdev->dev, desc_size, &comm->desc_dma,
 					     GFP_KERNEL);
 	if (!comm->desc_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	comm->desc_size = desc_size;
 

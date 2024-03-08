@@ -16,7 +16,7 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (!phb->controller_ops.setup_msi_irqs ||
 	    !phb->controller_ops.teardown_msi_irqs) {
 		pr_debug("msi: Platform doesn't provide MSI callbacks.\n");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	/* PowerPC doesn't support multiple MSI yet */
@@ -31,7 +31,7 @@ void arch_teardown_msi_irqs(struct pci_dev *dev)
 	struct pci_controller *phb = pci_bus_to_host(dev->bus);
 
 	/*
-	 * We can be called even when arch_setup_msi_irqs() returns -ENOSYS,
+	 * We can be called even when arch_setup_msi_irqs() returns -EANALSYS,
 	 * so check the pointer again.
 	 */
 	if (phb->controller_ops.teardown_msi_irqs)

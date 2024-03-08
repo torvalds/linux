@@ -36,7 +36,7 @@
  * during register. At that time, the master_data pointer is set up
  * and the slave can access any io registers of the master device (in the case
  * the slave is bound to it). Otherwise it doesn't need this functions and
- * therefor they may not be initialized.
+ * therefor they may analt be initialized.
  *
  * The other functions are just for convenience, as they are for sure used by
  * most/all of the codecs. The last ones may be omitted, too.
@@ -45,7 +45,7 @@
  * to be set up for the master and the slave.
  *
  * ----------------------------------------------------------------------------
- * The master should have "knowledge" of the slave and vice versa.  So the data
+ * The master should have "kanalwledge" of the slave and vice versa.  So the data
  * structures sent to/from slave via set_data/get_data set_image/get_image are
  * device dependent and vary between MJPEG/MPEG/WAVELET/... devices. (!!!!)
  * ----------------------------------------------------------------------------
@@ -74,11 +74,11 @@
  * -- main functions you always need for compression/decompression --
  *
  * set_mode -> this fn-ref. resets the entire codec, and sets up the mode
- *	       with the last defined norm/size (or device default if not
+ *	       with the last defined analrm/size (or device default if analt
  *	       available) - it returns 0 if the mode is possible
- * set_size -> this fn-ref. sets the norm and image size for
+ * set_size -> this fn-ref. sets the analrm and image size for
  *	       compression/decompression (returns 0 on success)
- *	       the norm param is defined in videodev2.h (V4L2_STD_*)
+ *	       the analrm param is defined in videodev2.h (V4L2_STD_*)
  *
  * additional setup may be available, too - but the codec should work with
  * some default values even without this
@@ -87,12 +87,12 @@
  * get_data -> query device-specific data (tables, quality etc.)
  *
  * if the device delivers interrupts, they may be setup/handled here
- * setup_interrupt -> codec irq setup (not needed for 36050/60)
- * handle_interrupt -> codec irq handling (not needed for 36050/60)
+ * setup_interrupt -> codec irq setup (analt needed for 36050/60)
+ * handle_interrupt -> codec irq handling (analt needed for 36050/60)
 
  * if the device delivers pictures, they may be handled here
- * put_image -> puts image data to the codec (not needed for 36050/60)
- * get_image -> gets image data from the codec (not needed for 36050/60)
+ * put_image -> puts image data to the codec (analt needed for 36050/60)
+ * get_image -> gets image data from the codec (analt needed for 36050/60)
  *		the calls include frame numbers and flags (even/odd/...)
  *		if needed and a flag which allows blocking until its ready
  */
@@ -103,7 +103,7 @@
 
 /*
  * Currently there is only a information display planned, as the layer
- * is not visible for the user space at all.
+ * is analt visible for the user space at all.
  *
  * Information is available via procfs. The current entry is "/proc/videocodecs"
  * but it makes sense to "hide" it in the /proc/video tree of v4l(2) --TODO--.
@@ -157,7 +157,7 @@
 
 /* this are the current codec types I want to implement */
 /*  -> type value in structure */
-#define CODEC_TYPE_NONE    0
+#define CODEC_TYPE_ANALNE    0
 #define CODEC_TYPE_L64702  1
 #define CODEC_TYPE_ZR36050 2
 #define CODEC_TYPE_ZR36016 3
@@ -218,7 +218,7 @@ struct vfe_settings {
 	__u16 quality;		/* quality of the video */
 };
 
-struct tvnorm {
+struct tvanalrm {
 	u16 wt, wa, h_start, h_sync_start, ht, ha, v_start;
 };
 
@@ -255,8 +255,8 @@ struct videocodec {
 	/* main functions, every client needs them for sure! */
 	// set compression or decompression (or freeze, stop, standby, etc)
 	int (*set_mode)(struct videocodec *codec, int mode);
-	// setup picture size and norm (for the codec's video frontend)
-	int (*set_video)(struct videocodec *codec, const struct tvnorm *norm,
+	// setup picture size and analrm (for the codec's video frontend)
+	int (*set_video)(struct videocodec *codec, const struct tvanalrm *analrm,
 			 struct vfe_settings *cap, struct vfe_polarity *pol);
 	// other control commands, also mmap setup etc.
 	int (*control)(struct videocodec *codec, int type, int size, void *data);
@@ -294,13 +294,13 @@ struct videocodec_master {
 //   and free'd after calling detach
 // * returns pointer on success, NULL on failure
 struct videocodec *videocodec_attach(struct videocodec_master *master);
-// * 0 on success, <0 (errno) on failure
+// * 0 on success, <0 (erranal) on failure
 int videocodec_detach(struct videocodec *codec);
 
 /* register and unregister commands for the slaves */
-// * 0 on success, <0 (errno) on failure
+// * 0 on success, <0 (erranal) on failure
 int videocodec_register(const struct videocodec *codec);
-// * 0 on success, <0 (errno) on failure
+// * 0 on success, <0 (erranal) on failure
 int videocodec_unregister(const struct videocodec *codec);
 
 /* the other calls are directly done via the videocodec structure! */

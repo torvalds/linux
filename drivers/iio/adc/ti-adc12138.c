@@ -2,7 +2,7 @@
 /*
  * ADC12130/ADC12132/ADC12138 12-bit plus sign ADC driver
  *
- * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2016 Akianalbu Mita <akianalbu.mita@gmail.com>
  *
  * Datasheet: http://www.ti.com/lit/ds/symlink/adc12138.pdf
  */
@@ -50,7 +50,7 @@ struct adc12138 {
 	unsigned int acquisition_time;
 	/*
 	 * Maximum size needed: 16x 2 bytes ADC data + 8 bytes timestamp.
-	 * Less may be need if not all channels are enabled, as long as
+	 * Less may be need if analt all channels are enabled, as long as
 	 * the 8 byte alignment of the timestamp is maintained.
 	 */
 	__be16 data[20] __aligned(8);
@@ -297,7 +297,7 @@ static int adc12138_init(struct adc12138 *adc)
 	if (ret)
 		return ret;
 
-	/* data output at this time has no significance */
+	/* data output at this time has anal significance */
 	status = adc12138_read_status(adc);
 	if (status < 0)
 		return status;
@@ -382,7 +382,7 @@ static irqreturn_t adc12138_trigger_handler(int irq, void *p)
 out:
 	mutex_unlock(&adc->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -405,7 +405,7 @@ static int adc12138_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
@@ -447,11 +447,11 @@ static int adc12138_probe(struct spi_device *spi)
 	adc->vref_n = devm_regulator_get_optional(&spi->dev, "vref-n");
 	if (IS_ERR(adc->vref_n)) {
 		/*
-		 * Assume vref_n is 0V if an optional regulator is not
+		 * Assume vref_n is 0V if an optional regulator is analt
 		 * specified, otherwise return the error code.
 		 */
 		ret = PTR_ERR(adc->vref_n);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return ret;
 	}
 
@@ -543,6 +543,6 @@ static struct spi_driver adc12138_driver = {
 };
 module_spi_driver(adc12138_driver);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akianalbu Mita <akianalbu.mita@gmail.com>");
 MODULE_DESCRIPTION("ADC12130/ADC12132/ADC12138 driver");
 MODULE_LICENSE("GPL v2");

@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/proc_fs.h>
@@ -48,7 +48,7 @@
 
 #define NFQNL_QMAX_DEFAULT 1024
 
-/* We're using struct nlattr which has 16bit nla_len. Note that nla_len
+/* We're using struct nlattr which has 16bit nla_len. Analte that nla_len
  * includes the header length. Thus, the maximum packet length that we
  * support is 65531 bytes. We send truncated packets if the specified length
  * is larger than that.  Userspace can check for presence of NFQA_CAP_LEN
@@ -57,7 +57,7 @@
 #define NFQNL_MAX_COPY_RANGE (0xffff - NLA_HDRLEN)
 
 struct nfqnl_instance {
-	struct hlist_node hlist;		/* global list of queues */
+	struct hlist_analde hlist;		/* global list of queues */
 	struct rcu_head rcu;
 
 	u32 peer_portid;
@@ -129,7 +129,7 @@ instance_create(struct nfnl_queue_net *q, u_int16_t queue_num, u32 portid)
 
 	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
 	if (!inst) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -137,7 +137,7 @@ instance_create(struct nfnl_queue_net *q, u_int16_t queue_num, u32 portid)
 	inst->peer_portid = portid;
 	inst->queue_maxlen = NFQNL_QMAX_DEFAULT;
 	inst->copy_range = NFQNL_MAX_COPY_RANGE;
-	inst->copy_mode = NFQNL_COPY_NONE;
+	inst->copy_mode = NFQNL_COPY_ANALNE;
 	spin_lock_init(&inst->lock);
 	INIT_LIST_HEAD(&inst->queue_list);
 
@@ -278,9 +278,9 @@ nfqnl_put_packet_info(struct sk_buff *nlskb, struct sk_buff *packet,
 	__u32 flags = 0;
 
 	if (packet->ip_summed == CHECKSUM_PARTIAL)
-		flags = NFQA_SKB_CSUMNOTREADY;
+		flags = NFQA_SKB_CSUMANALTREADY;
 	else if (csum_verify)
-		flags = NFQA_SKB_CSUM_NOTVERIFIED;
+		flags = NFQA_SKB_CSUM_ANALTVERIFIED;
 
 	if (skb_is_gso(packet))
 		flags |= NFQA_SKB_GSO;
@@ -452,7 +452,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	switch ((enum nfqnl_config_mode)READ_ONCE(queue->copy_mode)) {
 	case NFQNL_COPY_META:
-	case NFQNL_COPY_NONE:
+	case NFQNL_COPY_ANALNE:
 		break;
 
 	case NFQNL_COPY_PACKET:
@@ -689,13 +689,13 @@ __nfqnl_enqueue_packet(struct net *net, struct nfqnl_instance *queue,
 			struct nf_queue_entry *entry)
 {
 	struct sk_buff *nskb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 	__be32 *packet_id_ptr;
 	int failopen = 0;
 
 	nskb = nfqnl_build_packet_message(net, queue, entry, &packet_id_ptr);
 	if (nskb == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 	spin_lock_bh(&queue->lock);
@@ -784,12 +784,12 @@ static int
 __nfqnl_enqueue_packet_gso(struct net *net, struct nfqnl_instance *queue,
 			   struct sk_buff *skb, struct nf_queue_entry *entry)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct nf_queue_entry *entry_seg;
 
 	nf_bridge_adjust_segmented_data(skb);
 
-	if (skb->next == NULL) { /* last packet, no need to copy entry */
+	if (skb->next == NULL) { /* last packet, anal need to copy entry */
 		struct sk_buff *gso_skb = entry->skb;
 		entry->skb = skb;
 		ret = __nfqnl_enqueue_packet(net, queue, entry);
@@ -798,7 +798,7 @@ __nfqnl_enqueue_packet_gso(struct net *net, struct nfqnl_instance *queue,
 		return ret;
 	}
 
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 
 	entry_seg = nf_queue_entry_dup(entry);
 	if (entry_seg) {
@@ -816,7 +816,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	unsigned int queued;
 	struct nfqnl_instance *queue;
 	struct sk_buff *skb, *segs, *nskb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 	struct net *net = entry->state.net;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
@@ -825,7 +825,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	if (!queue)
 		return -ESRCH;
 
-	if (queue->copy_mode == NFQNL_COPY_NONE)
+	if (queue->copy_mode == NFQNL_COPY_ANALNE)
 		return -EINVAL;
 
 	skb = entry->skb;
@@ -844,9 +844,9 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 
 	nf_bridge_adjust_skb_data(skb);
 	segs = skb_gso_segment(skb, 0);
-	/* Does not use PTR_ERR to limit the number of error codes that can be
+	/* Does analt use PTR_ERR to limit the number of error codes that can be
 	 * returned by nf_queue.  For instance, callers rely on -ESRCH to
-	 * mean 'ignore this hook'.
+	 * mean 'iganalre this hook'.
 	 */
 	if (IS_ERR_OR_NULL(segs))
 		goto out_err;
@@ -885,7 +885,7 @@ nfqnl_mangle(void *data, unsigned int data_len, struct nf_queue_entry *e, int di
 			return -EINVAL;
 
 		if (pskb_trim(e->skb, data_len))
-			return -ENOMEM;
+			return -EANALMEM;
 	} else if (diff > 0) {
 		if (data_len > 0xFFFF)
 			return -EINVAL;
@@ -893,16 +893,16 @@ nfqnl_mangle(void *data, unsigned int data_len, struct nf_queue_entry *e, int di
 			nskb = skb_copy_expand(e->skb, skb_headroom(e->skb),
 					       diff, GFP_ATOMIC);
 			if (!nskb)
-				return -ENOMEM;
+				return -EANALMEM;
 			kfree_skb(e->skb);
 			e->skb = nskb;
 		}
 		skb_put(e->skb, diff);
 	}
 	if (skb_ensure_writable(e->skb, data_len))
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_copy_to_linear_data(e->skb, data, data_len);
-	e->skb->ip_summed = CHECKSUM_NONE;
+	e->skb->ip_summed = CHECKSUM_ANALNE;
 	return 0;
 }
 
@@ -914,7 +914,7 @@ nfqnl_set_mode(struct nfqnl_instance *queue,
 
 	spin_lock_bh(&queue->lock);
 	switch (mode) {
-	case NFQNL_COPY_NONE:
+	case NFQNL_COPY_ANALNE:
 	case NFQNL_COPY_META:
 		queue->copy_mode = mode;
 		queue->copy_range = 0;
@@ -981,19 +981,19 @@ nfqnl_dev_drop(struct net *net, int ifindex)
 }
 
 static int
-nfqnl_rcv_dev_event(struct notifier_block *this,
+nfqnl_rcv_dev_event(struct analtifier_block *this,
 		    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	/* Drop any packets associated with the downed device */
 	if (event == NETDEV_DOWN)
 		nfqnl_dev_drop(dev_net(dev), dev->ifindex);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block nfqnl_dev_notifier = {
-	.notifier_call	= nfqnl_rcv_dev_event,
+static struct analtifier_block nfqnl_dev_analtifier = {
+	.analtifier_call	= nfqnl_rcv_dev_event,
 };
 
 static void nfqnl_nf_hook_drop(struct net *net)
@@ -1021,10 +1021,10 @@ static void nfqnl_nf_hook_drop(struct net *net)
 }
 
 static int
-nfqnl_rcv_nl_event(struct notifier_block *this,
+nfqnl_rcv_nl_event(struct analtifier_block *this,
 		   unsigned long event, void *ptr)
 {
-	struct netlink_notify *n = ptr;
+	struct netlink_analtify *n = ptr;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(n->net);
 
 	if (event == NETLINK_URELEASE && n->protocol == NETLINK_NETFILTER) {
@@ -1033,7 +1033,7 @@ nfqnl_rcv_nl_event(struct notifier_block *this,
 		/* destroy all instances for this portid */
 		spin_lock(&q->instances_lock);
 		for (i = 0; i < INSTANCE_BUCKETS; i++) {
-			struct hlist_node *t2;
+			struct hlist_analde *t2;
 			struct nfqnl_instance *inst;
 			struct hlist_head *head = &q->instance_table[i];
 
@@ -1044,11 +1044,11 @@ nfqnl_rcv_nl_event(struct notifier_block *this,
 		}
 		spin_unlock(&q->instances_lock);
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block nfqnl_rtnl_notifier = {
-	.notifier_call	= nfqnl_rcv_nl_event,
+static struct analtifier_block nfqnl_rtnl_analtifier = {
+	.analtifier_call	= nfqnl_rcv_nl_event,
 };
 
 static const struct nla_policy nfqa_vlan_policy[NFQA_VLAN_MAX + 1] = {
@@ -1079,7 +1079,7 @@ verdict_instance_lookup(struct nfnl_queue_net *q, u16 queue_num, u32 nlportid)
 
 	queue = instance_lookup(q, queue_num);
 	if (!queue)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (queue->peer_portid != nlportid)
 		return ERR_PTR(-EPERM);
@@ -1144,7 +1144,7 @@ static int nfqnl_recv_verdict_batch(struct sk_buff *skb,
 	spin_unlock_bh(&queue->lock);
 
 	if (list_empty(&batch_list))
-		return -ENOENT;
+		return -EANALENT;
 
 	list_for_each_entry_safe(entry, tmp, &batch_list, list) {
 		if (nfqa[NFQA_MARK])
@@ -1247,7 +1247,7 @@ static int nfqnl_recv_verdict(struct sk_buff *skb, const struct nfnl_info *info,
 
 	entry = find_dequeue_entry(queue, ntohl(vhdr->id));
 	if (entry == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* rcu lock already held from nfnl->call_rcu. */
 	nfnl_ct = rcu_dereference(nfnl_ct_hook);
@@ -1289,7 +1289,7 @@ static int nfqnl_recv_verdict(struct sk_buff *skb, const struct nfnl_info *info,
 static int nfqnl_recv_unsupp(struct sk_buff *skb, const struct nfnl_info *info,
 			     const struct nlattr * const cda[])
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
@@ -1326,7 +1326,7 @@ static int nfqnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 	}
 
 	/* Check if we support these flags in first place, dependencies should
-	 * be there too not to break atomicity.
+	 * be there too analt to break atomicity.
 	 */
 	if (nfqa[NFQA_CFG_FLAGS]) {
 		if (!nfqa[NFQA_CFG_MASK]) {
@@ -1340,11 +1340,11 @@ static int nfqnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 		mask = ntohl(nla_get_be32(nfqa[NFQA_CFG_MASK]));
 
 		if (flags >= NFQA_CFG_F_MAX)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 #if !IS_ENABLED(CONFIG_NETWORK_SECMARK)
 		if (flags & mask & NFQA_CFG_F_SECCTX)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 #endif
 		if ((flags & mask & NFQA_CFG_F_CONNTRACK) &&
 		    !rcu_access_pointer(nfnl_ct_hook)) {
@@ -1355,7 +1355,7 @@ static int nfqnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 			if (rcu_access_pointer(nfnl_ct_hook))
 				return -EAGAIN;
 #endif
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -1382,7 +1382,7 @@ static int nfqnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 			break;
 		case NFQNL_CFG_CMD_UNBIND:
 			if (!queue) {
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto err_out_unlock;
 			}
 			instance_destroy(q, queue);
@@ -1391,13 +1391,13 @@ static int nfqnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 		case NFQNL_CFG_CMD_PF_UNBIND:
 			break;
 		default:
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 			goto err_out_unlock;
 		}
 	}
 
 	if (!queue) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out_unlock;
 	}
 
@@ -1468,7 +1468,7 @@ struct iter_state {
 	unsigned int bucket;
 };
 
-static struct hlist_node *get_first(struct seq_file *seq)
+static struct hlist_analde *get_first(struct seq_file *seq)
 {
 	struct iter_state *st = seq->private;
 	struct net *net;
@@ -1486,7 +1486,7 @@ static struct hlist_node *get_first(struct seq_file *seq)
 	return NULL;
 }
 
-static struct hlist_node *get_next(struct seq_file *seq, struct hlist_node *h)
+static struct hlist_analde *get_next(struct seq_file *seq, struct hlist_analde *h)
 {
 	struct iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
@@ -1504,9 +1504,9 @@ static struct hlist_node *get_next(struct seq_file *seq, struct hlist_node *h)
 	return h;
 }
 
-static struct hlist_node *get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_analde *get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct hlist_node *head;
+	struct hlist_analde *head;
 	head = get_first(seq);
 
 	if (head)
@@ -1568,7 +1568,7 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 #ifdef CONFIG_PROC_FS
 	if (!proc_create_net("nfnetlink_queue", 0440, net->nf.proc_netfilter,
 			&nfqnl_seq_ops, sizeof(struct iter_state)))
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 	return 0;
 }
@@ -1602,16 +1602,16 @@ static int __init nfnetlink_queue_init(void)
 		goto out;
 	}
 
-	netlink_register_notifier(&nfqnl_rtnl_notifier);
+	netlink_register_analtifier(&nfqnl_rtnl_analtifier);
 	status = nfnetlink_subsys_register(&nfqnl_subsys);
 	if (status < 0) {
 		pr_err("failed to create netlink socket\n");
-		goto cleanup_netlink_notifier;
+		goto cleanup_netlink_analtifier;
 	}
 
-	status = register_netdevice_notifier(&nfqnl_dev_notifier);
+	status = register_netdevice_analtifier(&nfqnl_dev_analtifier);
 	if (status < 0) {
-		pr_err("failed to register netdevice notifier\n");
+		pr_err("failed to register netdevice analtifier\n");
 		goto cleanup_netlink_subsys;
 	}
 
@@ -1621,8 +1621,8 @@ static int __init nfnetlink_queue_init(void)
 
 cleanup_netlink_subsys:
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
-cleanup_netlink_notifier:
-	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
+cleanup_netlink_analtifier:
+	netlink_unregister_analtifier(&nfqnl_rtnl_analtifier);
 	unregister_pernet_subsys(&nfnl_queue_net_ops);
 out:
 	return status;
@@ -1631,9 +1631,9 @@ out:
 static void __exit nfnetlink_queue_fini(void)
 {
 	nf_unregister_queue_handler();
-	unregister_netdevice_notifier(&nfqnl_dev_notifier);
+	unregister_netdevice_analtifier(&nfqnl_dev_analtifier);
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
-	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
+	netlink_unregister_analtifier(&nfqnl_rtnl_analtifier);
 	unregister_pernet_subsys(&nfnl_queue_net_ops);
 
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

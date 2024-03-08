@@ -7,15 +7,15 @@
  */
 
 /*
- * The MMCIF driver is now processing MMC requests asynchronously, according
+ * The MMCIF driver is analw processing MMC requests asynchroanalusly, according
  * to the Linux MMC API requirement.
  *
  * The MMCIF driver processes MMC requests in up to 3 stages: command, optional
- * data, and optional stop. To achieve asynchronous processing each of these
+ * data, and optional stop. To achieve asynchroanalus processing each of these
  * stages is split into two halves: a top and a bottom half. The top half
  * initialises the hardware, installs a timeout handler to handle completion
  * timeouts, and returns. In case of the command stage this immediately returns
- * control to the caller, leaving all further processing to run asynchronously.
+ * control to the caller, leaving all further processing to run asynchroanalusly.
  * All further request processing is performed by the bottom halves.
  *
  * The bottom half further consists of a "hard" IRQ handler, an IRQ handler
@@ -59,23 +59,23 @@
 
 /* CE_CMD_SET */
 #define CMD_MASK		0x3f000000
-#define CMD_SET_RTYP_NO		((0 << 23) | (0 << 22))
+#define CMD_SET_RTYP_ANAL		((0 << 23) | (0 << 22))
 #define CMD_SET_RTYP_6B		((0 << 23) | (1 << 22)) /* R1/R1b/R3/R4/R5 */
 #define CMD_SET_RTYP_17B	((1 << 23) | (0 << 22)) /* R2 */
 #define CMD_SET_RBSY		(1 << 21) /* R1b */
 #define CMD_SET_CCSEN		(1 << 20)
-#define CMD_SET_WDAT		(1 << 19) /* 1: on data, 0: no data */
+#define CMD_SET_WDAT		(1 << 19) /* 1: on data, 0: anal data */
 #define CMD_SET_DWEN		(1 << 18) /* 1: write, 0: read */
 #define CMD_SET_CMLTE		(1 << 17) /* 1: multi block trans, 0: single */
 #define CMD_SET_CMD12EN		(1 << 16) /* 1: CMD12 auto issue */
 #define CMD_SET_RIDXC_INDEX	((0 << 15) | (0 << 14)) /* index check */
 #define CMD_SET_RIDXC_BITS	((0 << 15) | (1 << 14)) /* check bits check */
-#define CMD_SET_RIDXC_NO	((1 << 15) | (0 << 14)) /* no check */
+#define CMD_SET_RIDXC_ANAL	((1 << 15) | (0 << 14)) /* anal check */
 #define CMD_SET_CRC7C		((0 << 13) | (0 << 12)) /* CRC7 check*/
 #define CMD_SET_CRC7C_BITS	((0 << 13) | (1 << 12)) /* check bits check*/
 #define CMD_SET_CRC7C_INTERNAL	((1 << 13) | (0 << 12)) /* internal CRC7 check*/
 #define CMD_SET_CRC16C		(1 << 10) /* 0: CRC16 check*/
-#define CMD_SET_CRCSTE		(1 << 8) /* 1: not receive CRC status */
+#define CMD_SET_CRCSTE		(1 << 8) /* 1: analt receive CRC status */
 #define CMD_SET_TBIT		(1 << 7) /* 1: tran mission bit "Low" */
 #define CMD_SET_OPDM		(1 << 6) /* 1: open/drain */
 #define CMD_SET_CCSH		(1 << 5)
@@ -425,7 +425,7 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host)
 	struct device *dev = sh_mmcif_host_to_dev(host);
 	host->dma_active = false;
 
-	/* We can only either use DMA for both Tx and Rx or not use it at all */
+	/* We can only either use DMA for both Tx and Rx or analt use it at all */
 	if (IS_ENABLED(CONFIG_SUPERH) && dev->platform_data) {
 		struct sh_mmcif_plat_data *pdata = dev->platform_data;
 
@@ -809,8 +809,8 @@ static u32 sh_mmcif_set_cmd(struct sh_mmcif_host *host,
 
 	/* Response Type check */
 	switch (mmc_resp_type(cmd)) {
-	case MMC_RSP_NONE:
-		tmp |= CMD_SET_RTYP_NO;
+	case MMC_RSP_ANALNE:
+		tmp |= CMD_SET_RTYP_ANAL;
 		break;
 	case MMC_RSP_R1:
 	case MMC_RSP_R3:
@@ -1200,7 +1200,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 
 	/*
 	 * All handlers return true, if processing continues, and false, if the
-	 * request has to be completed - successfully or not
+	 * request has to be completed - successfully or analt
 	 */
 	switch (wait_work) {
 	case MMCIF_WAIT_FOR_REQUEST:
@@ -1383,7 +1383,7 @@ static void sh_mmcif_init_ocr(struct sh_mmcif_host *host)
 	if (!mmc->ocr_avail)
 		mmc->ocr_avail = pd->ocr;
 	else if (pd->ocr)
-		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
+		dev_warn(mmc_dev(mmc), "Platform OCR mask is iganalred\n");
 }
 
 static int sh_mmcif_probe(struct platform_device *pdev)
@@ -1407,7 +1407,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(struct sh_mmcif_host), dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
@@ -1428,7 +1428,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	sh_mmcif_init_ocr(host);
 
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_WAIT_WHILE_BUSY;
-	mmc->caps2 |= MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
+	mmc->caps2 |= MMC_CAP2_ANAL_SD | MMC_CAP2_ANAL_SDIO;
 	mmc->max_busy_timeout = 10000;
 
 	if (pd && pd->caps)
@@ -1444,7 +1444,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	host->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
-		dev_err(dev, "cannot get clock: %d\n", ret);
+		dev_err(dev, "cananalt get clock: %d\n", ret);
 		goto err_host;
 	}
 
@@ -1561,7 +1561,7 @@ static struct platform_driver sh_mmcif_driver = {
 	.remove_new	= sh_mmcif_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &sh_mmcif_dev_pm_ops,
 		.of_match_table = sh_mmcif_of_match,
 	},

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Device Tree file for the USRobotics USR8200 firewall
- * VPN and NAS. Based on know-how from Peter Denison.
+ * VPN and NAS. Based on kanalw-how from Peter Denison.
  *
  * This machine is based on IXP422, the USR internal codename
  * is "Jeeves".
@@ -53,7 +53,7 @@
 		};
 		wireless_led: led-wireless {
 			/*
-			 * This LED is mounted inside the case but cannot be
+			 * This LED is mounted inside the case but cananalt be
 			 * seen from the outside: probably USR planned at one
 			 * point for the device to have a wireless card, then
 			 * changed their mind and didn't mount it, leaving the
@@ -106,8 +106,8 @@
 				 * IXP4XX_EXP_CS2 = 0x3fff000 | IXP4XX_EXP_BUS_SIZE(0) | IXP4XX_EXP_BUS_WR_EN |
 				 *                  IXP4XX_EXP_BUS_CS_EN | IXP4XX_EXP_BUS_BYTE_EN;
 				 */
-				intel,ixp4xx-eb-t1 = <0>; // no cycles extra address phase
-				intel,ixp4xx-eb-t2 = <0>; // no cycles extra setup phase
+				intel,ixp4xx-eb-t1 = <0>; // anal cycles extra address phase
+				intel,ixp4xx-eb-t2 = <0>; // anal cycles extra setup phase
 				intel,ixp4xx-eb-t3 = <15>; // 15 cycles extra strobe phase
 				intel,ixp4xx-eb-t4 = <3>; // 3 cycles extra hold phase
 				intel,ixp4xx-eb-t5 = <15>; // 15 cycles extra recovery phase

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2020 Nuvoton Technology corporation.
+// Copyright (c) 2020 Nuvoton Techanallogy corporation.
 
 #include <linux/bits.h>
 #include <linux/device.h>
@@ -76,7 +76,7 @@
 
 #define NPCM8XX_GPIO_PER_BANK	32
 #define NPCM8XX_GPIO_BANK_NUM	8
-#define NPCM8XX_GCR_NONE	0
+#define NPCM8XX_GCR_ANALNE	0
 
 #define NPCM8XX_DEBOUNCE_MAX		4
 #define NPCM8XX_DEBOUNCE_NSEC		40
@@ -86,7 +86,7 @@
 /* Structure for register banks */
 struct debounce_time {
 	bool	set_val[NPCM8XX_DEBOUNCE_MAX];
-	u32	nanosec_val[NPCM8XX_DEBOUNCE_MAX];
+	u32	naanalsec_val[NPCM8XX_DEBOUNCE_MAX];
 };
 
 struct npcm8xx_gpio {
@@ -827,7 +827,7 @@ struct npcm8xx_pingroup {
 enum {
 #define NPCM8XX_GRP(x) fn_ ## x
 	NPCM8XX_GRPS
-	NPCM8XX_GRP(none),
+	NPCM8XX_GRP(analne),
 	NPCM8XX_GRP(gpio),
 #undef NPCM8XX_GRP
 };
@@ -1314,8 +1314,8 @@ static struct npcm8xx_func npcm8xx_funcs[] = {
 #define DSLO(x)		(((x) >> DRIVE_STRENGTH_LO_SHIFT) & GENMASK(3, 0))
 #define DSHI(x)		(((x) >> DRIVE_STRENGTH_HI_SHIFT) & GENMASK(3, 0))
 
-#define GPI		BIT(0) /* Not GPO */
-#define GPO		BIT(1) /* Not GPI */
+#define GPI		BIT(0) /* Analt GPO */
+#define GPO		BIT(1) /* Analt GPI */
 #define SLEW		BIT(2) /* Has Slew Control, NPCM8XX_GP_N_OSRC */
 #define SLEWLPC		BIT(3) /* Has Slew Control, SRCNT.3 */
 
@@ -1330,247 +1330,247 @@ struct npcm8xx_pincfg {
 
 static const struct npcm8xx_pincfg pincfg[] = {
 	/*		PIN	  FUNCTION 1		   FUNCTION 2		  FUNCTION 3		FUNCTION 4		FUNCTION 5		FLAGS */
-	NPCM8XX_PINCFG(0,	iox1, MFSEL1, 30,	smb6c, I2CSEGSEL, 25,	smb18, MFSEL5, 26,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(1,	iox1, MFSEL1, 30,	smb6c, I2CSEGSEL, 25,	smb18, MFSEL5, 26,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(2,	iox1, MFSEL1, 30,	smb6b, I2CSEGSEL, 24,	smb17, MFSEL5, 25,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(3,	iox1, MFSEL1, 30,	smb6b, I2CSEGSEL, 24,	smb17, MFSEL5, 25,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(4,	iox2, MFSEL3, 14,	smb1d, I2CSEGSEL, 7,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(5,	iox2, MFSEL3, 14,	smb1d, I2CSEGSEL, 7,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(6,	iox2, MFSEL3, 14,	smb2d, I2CSEGSEL, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(7,	iox2, MFSEL3, 14,	smb2d, I2CSEGSEL, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(8,	lkgpo1,	FLOCKR1, 4,	tp_gpio0b, MFSEL7, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12)),
-	NPCM8XX_PINCFG(9,	lkgpo2,	FLOCKR1, 8,	tp_gpio1b, MFSEL7, 9,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12)),
-	NPCM8XX_PINCFG(10,	ioxh, MFSEL3, 18,	smb6d, I2CSEGSEL, 26,	smb16, MFSEL5, 24,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(11,	ioxh, MFSEL3, 18,	smb6d, I2CSEGSEL, 26,	smb16, MFSEL5, 24,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(12,	gspi, MFSEL1, 24,	smb5b, I2CSEGSEL, 19,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(13,	gspi, MFSEL1, 24,	smb5b, I2CSEGSEL, 19,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(14,	gspi, MFSEL1, 24,	smb5c, I2CSEGSEL, 20,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(15,	gspi, MFSEL1, 24,	smb5c, I2CSEGSEL, 20,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(16,	lkgpo0, FLOCKR1, 0,	smb7b, I2CSEGSEL, 27,	tp_gpio2b, MFSEL7, 10,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(17,	pspi, MFSEL3, 13,	cp1gpio5, MFSEL6, 7,	smb4den, I2CSEGSEL, 23,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(18,	pspi, MFSEL3, 13,	smb4b, I2CSEGSEL, 14,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(19,	pspi, MFSEL3, 13,	smb4b, I2CSEGSEL, 14,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(20,	hgpio0,	MFSEL2, 24,	smb15, MFSEL3, 8,	smb4c, I2CSEGSEL, 15,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(21,	hgpio1,	MFSEL2, 25,	smb15, MFSEL3, 8,	smb4c, I2CSEGSEL, 15,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(22,	hgpio2,	MFSEL2, 26,	smb14, MFSEL3, 7,	smb4d, I2CSEGSEL, 16,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(23,	hgpio3,	MFSEL2, 27,	smb14, MFSEL3, 7,	smb4d, I2CSEGSEL, 16,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(24,	hgpio4,	MFSEL2, 28,	ioxh, MFSEL3, 18,	smb7c, I2CSEGSEL, 28,	tp_smb2, MFSEL7, 28,	none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(25,	hgpio5,	MFSEL2, 29,	ioxh, MFSEL3, 18,	smb7c, I2CSEGSEL, 28,	tp_smb2, MFSEL7, 28,	none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(26,	smb5, MFSEL1, 2,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(27,	smb5, MFSEL1, 2,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(28,	smb4, MFSEL1, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(29,	smb4, MFSEL1, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(30,	smb3, MFSEL1, 0,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(31,	smb3, MFSEL1, 0,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(32,	spi0cs1, MFSEL1, 3,	smb14b, MFSEL7, 26,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(33,	i3c4, MFSEL6, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(34,	i3c4, MFSEL6, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(37,	smb3c, I2CSEGSEL, 12,	smb23, MFSEL5, 31,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(38,	smb3c, I2CSEGSEL, 12,	smb23, MFSEL5, 31,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(39,	smb3b, I2CSEGSEL, 11,	smb22, MFSEL5, 30,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(40,	smb3b, I2CSEGSEL, 11,	smb22, MFSEL5, 30,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(41,	bmcuart0a, MFSEL1, 9,	cp1urxd, MFSEL6, 31,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(42,	bmcuart0a, MFSEL1, 9,	cp1utxd, MFSEL6, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(2, 4) | GPO),
-	NPCM8XX_PINCFG(43,	uart1, MFSEL1, 10,	bmcuart1, MFSEL3, 24,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
+	NPCM8XX_PINCFG(0,	iox1, MFSEL1, 30,	smb6c, I2CSEGSEL, 25,	smb18, MFSEL5, 26,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(1,	iox1, MFSEL1, 30,	smb6c, I2CSEGSEL, 25,	smb18, MFSEL5, 26,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(2,	iox1, MFSEL1, 30,	smb6b, I2CSEGSEL, 24,	smb17, MFSEL5, 25,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(3,	iox1, MFSEL1, 30,	smb6b, I2CSEGSEL, 24,	smb17, MFSEL5, 25,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(4,	iox2, MFSEL3, 14,	smb1d, I2CSEGSEL, 7,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(5,	iox2, MFSEL3, 14,	smb1d, I2CSEGSEL, 7,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(6,	iox2, MFSEL3, 14,	smb2d, I2CSEGSEL, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(7,	iox2, MFSEL3, 14,	smb2d, I2CSEGSEL, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(8,	lkgpo1,	FLOCKR1, 4,	tp_gpio0b, MFSEL7, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12)),
+	NPCM8XX_PINCFG(9,	lkgpo2,	FLOCKR1, 8,	tp_gpio1b, MFSEL7, 9,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12)),
+	NPCM8XX_PINCFG(10,	ioxh, MFSEL3, 18,	smb6d, I2CSEGSEL, 26,	smb16, MFSEL5, 24,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(11,	ioxh, MFSEL3, 18,	smb6d, I2CSEGSEL, 26,	smb16, MFSEL5, 24,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(12,	gspi, MFSEL1, 24,	smb5b, I2CSEGSEL, 19,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(13,	gspi, MFSEL1, 24,	smb5b, I2CSEGSEL, 19,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(14,	gspi, MFSEL1, 24,	smb5c, I2CSEGSEL, 20,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(15,	gspi, MFSEL1, 24,	smb5c, I2CSEGSEL, 20,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(16,	lkgpo0, FLOCKR1, 0,	smb7b, I2CSEGSEL, 27,	tp_gpio2b, MFSEL7, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(17,	pspi, MFSEL3, 13,	cp1gpio5, MFSEL6, 7,	smb4den, I2CSEGSEL, 23,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(18,	pspi, MFSEL3, 13,	smb4b, I2CSEGSEL, 14,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(19,	pspi, MFSEL3, 13,	smb4b, I2CSEGSEL, 14,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(20,	hgpio0,	MFSEL2, 24,	smb15, MFSEL3, 8,	smb4c, I2CSEGSEL, 15,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(21,	hgpio1,	MFSEL2, 25,	smb15, MFSEL3, 8,	smb4c, I2CSEGSEL, 15,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(22,	hgpio2,	MFSEL2, 26,	smb14, MFSEL3, 7,	smb4d, I2CSEGSEL, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(23,	hgpio3,	MFSEL2, 27,	smb14, MFSEL3, 7,	smb4d, I2CSEGSEL, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(24,	hgpio4,	MFSEL2, 28,	ioxh, MFSEL3, 18,	smb7c, I2CSEGSEL, 28,	tp_smb2, MFSEL7, 28,	analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(25,	hgpio5,	MFSEL2, 29,	ioxh, MFSEL3, 18,	smb7c, I2CSEGSEL, 28,	tp_smb2, MFSEL7, 28,	analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(26,	smb5, MFSEL1, 2,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(27,	smb5, MFSEL1, 2,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(28,	smb4, MFSEL1, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(29,	smb4, MFSEL1, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(30,	smb3, MFSEL1, 0,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(31,	smb3, MFSEL1, 0,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(32,	spi0cs1, MFSEL1, 3,	smb14b, MFSEL7, 26,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(33,	i3c4, MFSEL6, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(34,	i3c4, MFSEL6, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(37,	smb3c, I2CSEGSEL, 12,	smb23, MFSEL5, 31,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(38,	smb3c, I2CSEGSEL, 12,	smb23, MFSEL5, 31,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(39,	smb3b, I2CSEGSEL, 11,	smb22, MFSEL5, 30,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(40,	smb3b, I2CSEGSEL, 11,	smb22, MFSEL5, 30,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(41,	bmcuart0a, MFSEL1, 9,	cp1urxd, MFSEL6, 31,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(42,	bmcuart0a, MFSEL1, 9,	cp1utxd, MFSEL6, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(2, 4) | GPO),
+	NPCM8XX_PINCFG(43,	uart1, MFSEL1, 10,	bmcuart1, MFSEL3, 24,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
 	NPCM8XX_PINCFG(44,	hsi1b, MFSEL1, 28,	nbu1crts, MFSEL6, 15,	jtag2, MFSEL4, 0,	tp_jtag3, MFSEL7, 13,	j2j3, MFSEL5, 2,	GPO),
-	NPCM8XX_PINCFG(45,	hsi1c, MFSEL1, 4,	jtag2, MFSEL4, 0,	j2j3, MFSEL5, 2,	tp_jtag3, MFSEL7, 13,	none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(46,	hsi1c, MFSEL1, 4,	jtag2, MFSEL4, 0,	j2j3, MFSEL5, 2,	tp_jtag3, MFSEL7, 13,	none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(47,	hsi1c, MFSEL1, 4,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(2, 8)),
-	NPCM8XX_PINCFG(48,	hsi2a, MFSEL1, 11,	bmcuart0b, MFSEL4, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(49,	hsi2a, MFSEL1, 11,	bmcuart0b, MFSEL4, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(50,	hsi2b, MFSEL1, 29,	bu6, MFSEL5, 6,		tp_uart, MFSEL7, 12,	none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(51,	hsi2b, MFSEL1, 29,	bu6, MFSEL5, 6,		tp_uart, MFSEL7, 12,	none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(52,	hsi2c, MFSEL1, 5,	bu5, MFSEL5, 7,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(53,	hsi2c, MFSEL1, 5,	bu5, MFSEL5, 7,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(54,	hsi2c, MFSEL1, 5,	bu4, MFSEL5, 8,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(55,	hsi2c, MFSEL1, 5,	bu4, MFSEL5, 8,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(56,	r1err, MFSEL1, 12,	r1oen, MFSEL5, 9,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(57,	r1md, MFSEL1, 13,	tpgpio4b, MFSEL5, 20,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(2, 4)),
-	NPCM8XX_PINCFG(58,	r1md, MFSEL1, 13,	tpgpio5b, MFSEL5, 22,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(2, 4)),
-	NPCM8XX_PINCFG(59,	hgpio6, MFSEL2, 30,	smb3d, I2CSEGSEL, 13,	smb19, MFSEL5, 27,	none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(60,	hgpio7, MFSEL2, 31,	smb3d, I2CSEGSEL, 13,	smb19, MFSEL5, 27,	none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(61,	hsi1c, MFSEL1, 4,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
+	NPCM8XX_PINCFG(45,	hsi1c, MFSEL1, 4,	jtag2, MFSEL4, 0,	j2j3, MFSEL5, 2,	tp_jtag3, MFSEL7, 13,	analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(46,	hsi1c, MFSEL1, 4,	jtag2, MFSEL4, 0,	j2j3, MFSEL5, 2,	tp_jtag3, MFSEL7, 13,	analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(47,	hsi1c, MFSEL1, 4,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(2, 8)),
+	NPCM8XX_PINCFG(48,	hsi2a, MFSEL1, 11,	bmcuart0b, MFSEL4, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(49,	hsi2a, MFSEL1, 11,	bmcuart0b, MFSEL4, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(50,	hsi2b, MFSEL1, 29,	bu6, MFSEL5, 6,		tp_uart, MFSEL7, 12,	analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(51,	hsi2b, MFSEL1, 29,	bu6, MFSEL5, 6,		tp_uart, MFSEL7, 12,	analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(52,	hsi2c, MFSEL1, 5,	bu5, MFSEL5, 7,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(53,	hsi2c, MFSEL1, 5,	bu5, MFSEL5, 7,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(54,	hsi2c, MFSEL1, 5,	bu4, MFSEL5, 8,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(55,	hsi2c, MFSEL1, 5,	bu4, MFSEL5, 8,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(56,	r1err, MFSEL1, 12,	r1oen, MFSEL5, 9,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(57,	r1md, MFSEL1, 13,	tpgpio4b, MFSEL5, 20,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(2, 4)),
+	NPCM8XX_PINCFG(58,	r1md, MFSEL1, 13,	tpgpio5b, MFSEL5, 22,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(2, 4)),
+	NPCM8XX_PINCFG(59,	hgpio6, MFSEL2, 30,	smb3d, I2CSEGSEL, 13,	smb19, MFSEL5, 27,	analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(60,	hgpio7, MFSEL2, 31,	smb3d, I2CSEGSEL, 13,	smb19, MFSEL5, 27,	analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(61,	hsi1c, MFSEL1, 4,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
 	NPCM8XX_PINCFG(62,	hsi1b, MFSEL1, 28,	jtag2, MFSEL4, 0,	j2j3, MFSEL5, 2,	nbu1crts, MFSEL6, 15,	tp_jtag3, MFSEL7, 13,	GPO),
-	NPCM8XX_PINCFG(63,	hsi1a, MFSEL1, 10,	bmcuart1, MFSEL3, 24,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(64,	fanin0, MFSEL2, 0,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(65,	fanin1, MFSEL2, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(66,	fanin2, MFSEL2, 2,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(67,	fanin3, MFSEL2, 3,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(68,	fanin4, MFSEL2, 4,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(69,	fanin5, MFSEL2, 5,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(70,	fanin6, MFSEL2, 6,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(71,	fanin7, MFSEL2, 7,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(72,	fanin8, MFSEL2, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(73,	fanin9, MFSEL2, 9,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(74,	fanin10, MFSEL2, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(75,	fanin11, MFSEL2, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(76,	fanin12, MFSEL2, 12,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(77,	fanin13, MFSEL2, 13,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(78,	fanin14, MFSEL2, 14,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(79,	fanin15, MFSEL2, 15,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(80,	pwm0, MFSEL2, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(81,	pwm1, MFSEL2, 17,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(82,	pwm2, MFSEL2, 18,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(83,	pwm3, MFSEL2, 19,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(84,	r2, MFSEL1, 14,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(85,	r2, MFSEL1, 14,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(86,	r2, MFSEL1, 14,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(87,	r2, MFSEL1, 14,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(88,	r2, MFSEL1, 14,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(89,	r2, MFSEL1, 14,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(90,	r2err, MFSEL1, 15,	r2oen, MFSEL5, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(91,	r2md, MFSEL1, 16,	cp1gpio6, MFSEL6, 8,	tp_gpio0, MFSEL7, 0,	none, NONE, 0,		none, NONE, 0,		DSTR(2, 4)),
-	NPCM8XX_PINCFG(92,	r2md, MFSEL1, 16,	cp1gpio7, MFSEL6, 9,	tp_gpio1, MFSEL7, 1,	none, NONE, 0,		none, NONE, 0,		DSTR(2, 4)),
-	NPCM8XX_PINCFG(93,	ga20kbc, MFSEL1, 17,	smb5d, I2CSEGSEL, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(94,	ga20kbc, MFSEL1, 17,	smb5d, I2CSEGSEL, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(95,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(96,	cp1gpio7b, MFSEL6, 24,	tp_gpio7, MFSEL7, 7,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(97,	cp1gpio6b, MFSEL6, 25,	tp_gpio6, MFSEL7, 6,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(98,	bu4b, MFSEL5, 13,	cp1gpio5b, MFSEL6, 26,	tp_gpio5, MFSEL7, 5,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(99,	bu4b, MFSEL5, 13,	cp1gpio4b, MFSEL6, 27,	tp_gpio4, MFSEL7, 4,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(100,	bu5b, MFSEL5, 12,	cp1gpio3c, MFSEL6, 28,	tp_gpio3, MFSEL7, 3,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(101,	bu5b, MFSEL5, 12,	cp1gpio2c, MFSEL6, 29,	tp_gpio2, MFSEL7, 2,	none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(102,	vgadig, MFSEL7, 29,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(103,	vgadig, MFSEL7, 29,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(104,	vgadig, MFSEL7, 29,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(105,	vgadig, MFSEL7, 29,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(106,	i3c5, MFSEL3, 22,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(107,	i3c5, MFSEL3, 22,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(108,	sg1mdio, MFSEL4, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(109,	sg1mdio, MFSEL4, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(110,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(111,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(112,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(113,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(114,	smb0, MFSEL1, 6,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(115,	smb0, MFSEL1, 6,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(116,	smb1, MFSEL1, 7,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(117,	smb1, MFSEL1, 7,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(118,	smb2, MFSEL1, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(119,	smb2, MFSEL1, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(120,	smb2c, I2CSEGSEL, 9,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(121,	smb2c, I2CSEGSEL, 9,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(122,	smb2b, I2CSEGSEL, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(123,	smb2b, I2CSEGSEL, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(124,	smb1c, I2CSEGSEL, 6,	cp1gpio3b, MFSEL6, 23,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(125,	smb1c, I2CSEGSEL, 6,	cp1gpio2b, MFSEL6, 22,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(126,	smb1b, I2CSEGSEL, 5,	cp1gpio1b, MFSEL6, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(127,	smb1b, I2CSEGSEL, 5,	cp1gpio0b, MFSEL6, 20,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(128,	smb8, MFSEL4, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(129,	smb8, MFSEL4, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(130,	smb9, MFSEL4, 12,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(131,	smb9, MFSEL4, 12,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(132,	smb10, MFSEL4, 13,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(133,	smb10, MFSEL4, 13,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(134,	smb11, MFSEL4, 14,	smb23b, MFSEL6, 0,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(135,	smb11, MFSEL4, 14,	smb23b, MFSEL6, 0,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(136,	jm1, MFSEL5, 15,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(137,	jm1, MFSEL5, 15,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(138,	jm1, MFSEL5, 15,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(139,	jm1, MFSEL5, 15,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(140,	jm1, MFSEL5, 15,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(141,	smb7b, I2CSEGSEL, 27,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(142,	smb7d, I2CSEGSEL, 29,	tp_smb1, MFSEL7, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(143,	smb7d, I2CSEGSEL, 29,	tp_smb1, MFSEL7, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(144,	pwm4, MFSEL2, 20,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(145,	pwm5, MFSEL2, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(146,	pwm6, MFSEL2, 22,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(147,	pwm7, MFSEL2, 23,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 8)),
-	NPCM8XX_PINCFG(148,	mmc8, MFSEL3, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(149,	mmc8, MFSEL3, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(150,	mmc8, MFSEL3, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(151,	mmc8, MFSEL3, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(152,	mmc, MFSEL3, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(153,	mmcwp, FLOCKR1, 24,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(154,	mmc, MFSEL3, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(155,	mmccd, MFSEL3, 25,	mmcrst, MFSEL4, 6,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(156,	mmc, MFSEL3, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(157,	mmc, MFSEL3, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(158,	mmc, MFSEL3, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(159,	mmc, MFSEL3, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(160,	clkout, MFSEL1, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(161,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(162,	serirq, MFSEL1, 31,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12)),
-	NPCM8XX_PINCFG(163,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(164,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(165,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(166,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(167,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(168,	lpcclk, MFSEL1, 31,	espi, MFSEL4, 8,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(169,	scipme, MFSEL3, 0,	smb21, MFSEL5, 29,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(170,	smi, MFSEL1, 22,	smb21, MFSEL5, 29,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(171,	smb6, MFSEL3, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(172,	smb6, MFSEL3, 1,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(173,	smb7, MFSEL3, 2,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(174,	smb7, MFSEL3, 2,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(175,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12)),
-	NPCM8XX_PINCFG(176,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12)),
-	NPCM8XX_PINCFG(177,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12)),
-	NPCM8XX_PINCFG(178,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(179,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(180,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(181,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(182,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(183,	gpio1836, MFSEL6, 19,	spi3, MFSEL4, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(184,	gpio1836, MFSEL6, 19,	spi3, MFSEL4, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(185,	gpio1836, MFSEL6, 19,	spi3, MFSEL4, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(186,	gpio1836, MFSEL6, 19,	spi3, MFSEL4, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12)),
-	NPCM8XX_PINCFG(187,	gpo187, MFSEL7, 24,	smb14b, MFSEL7, 26,	spi3cs1, MFSEL4, 17,	none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(188,	gpio1889, MFSEL7, 25,	spi3cs2, MFSEL4, 18,	spi3quad, MFSEL4, 20,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(189,	gpio1889, MFSEL7, 25,	spi3cs3, MFSEL4, 19,	spi3quad, MFSEL4, 20,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(190,	nprd_smi, FLOCKR1, 20,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(2, 4)),
-	NPCM8XX_PINCFG(191,	spi1d23, MFSEL5, 3,	spi1cs2, MFSEL5, 4,	fm1, MFSEL6, 17,	smb15, MFSEL7, 27,	none, NONE, 0,		DSTR(0, 2)),  /* XX */
-	NPCM8XX_PINCFG(192,	spi1d23, MFSEL5, 3,	spi1cs3, MFSEL5, 5,	fm1, MFSEL6, 17,	smb15, MFSEL7, 27,	none, NONE, 0,		DSTR(0, 2)),  /* XX */
-	NPCM8XX_PINCFG(193,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(194,	smb0b, I2CSEGSEL, 0,	fm0, MFSEL6, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(0, 1)),
-	NPCM8XX_PINCFG(195,	smb0b, I2CSEGSEL, 0,	fm0, MFSEL6, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(0, 1)),
-	NPCM8XX_PINCFG(196,	smb0c, I2CSEGSEL, 1,	fm0, MFSEL6, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(0, 1)),
-	NPCM8XX_PINCFG(197,	smb0den, I2CSEGSEL, 22,	fm0, MFSEL6, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(0, 1)),
-	NPCM8XX_PINCFG(198,	smb0d, I2CSEGSEL, 2,	fm0, MFSEL6, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(0, 1)),
-	NPCM8XX_PINCFG(199,	smb0d, I2CSEGSEL, 2,	fm0, MFSEL6, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(0, 1)),
-	NPCM8XX_PINCFG(200,	r2, MFSEL1, 14,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(201,	r1, MFSEL3, 9,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO),
-	NPCM8XX_PINCFG(202,	smb0c, I2CSEGSEL, 1,	fm0, MFSEL6, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(0, 1)),
-	NPCM8XX_PINCFG(203,	faninx, MFSEL3, 3,	spi1cs0, MFSEL3, 4,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12)),
-	NPCM8XX_PINCFG(208,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW), /* DSCNT */
-	NPCM8XX_PINCFG(209,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		SLEW), /* DSCNT */
-	NPCM8XX_PINCFG(210,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(211,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(212,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	r3rxer, MFSEL6, 30,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(213,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	r3oen, MFSEL5, 14,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(214,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(215,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(216,	rg2mdio, MFSEL4, 23,	ddr, MFSEL3, 26,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(217,	rg2mdio, MFSEL4, 23,	ddr, MFSEL3, 26,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(218,	wdog1, MFSEL3, 19,	smb16b, MFSEL7, 30,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(219,	wdog2, MFSEL3, 20,	smb16b, MFSEL7, 30,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(220,	smb12, MFSEL3, 5,	pwm8, MFSEL6, 11,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(221,	smb12, MFSEL3, 5,	pwm9, MFSEL6, 12,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(222,	smb13, MFSEL3, 6,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(223,	smb13, MFSEL3, 6,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(224,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(225,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(226,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPO | DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(227,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(228,	spixcs1, MFSEL4, 28,	fm2, MFSEL6, 18,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(229,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(230,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(8, 12) | SLEW),
-	NPCM8XX_PINCFG(231,	clkreq, MFSEL4, 9,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		DSTR(4, 12) | SLEW),
-	NPCM8XX_PINCFG(233,	spi1cs1, MFSEL5, 0,	fm1, MFSEL6, 17,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEWLPC), /* slewlpc ? */
-	NPCM8XX_PINCFG(234,	pwm10, MFSEL6, 13,	smb20, MFSEL5, 28,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
-	NPCM8XX_PINCFG(235,	pwm11, MFSEL6, 14,	smb20, MFSEL5, 28,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(240,	i3c0, MFSEL5, 17,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(241,	i3c0, MFSEL5, 17,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(242,	i3c1, MFSEL5, 19,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(243,	i3c1, MFSEL5, 19,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(244,	i3c2, MFSEL5, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(245,	i3c2, MFSEL5, 21,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(246,	i3c3, MFSEL5, 23,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(247,	i3c3, MFSEL5, 23,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(251,	jm2, MFSEL5, 1,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
-	NPCM8XX_PINCFG(253,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPI), /* SDHC1 power */
-	NPCM8XX_PINCFG(254,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPI), /* SDHC2 power */
-	NPCM8XX_PINCFG(255,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		GPI), /* DACOSEL */
+	NPCM8XX_PINCFG(63,	hsi1a, MFSEL1, 10,	bmcuart1, MFSEL3, 24,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(64,	fanin0, MFSEL2, 0,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(65,	fanin1, MFSEL2, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(66,	fanin2, MFSEL2, 2,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(67,	fanin3, MFSEL2, 3,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(68,	fanin4, MFSEL2, 4,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(69,	fanin5, MFSEL2, 5,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(70,	fanin6, MFSEL2, 6,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(71,	fanin7, MFSEL2, 7,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(72,	fanin8, MFSEL2, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(73,	fanin9, MFSEL2, 9,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(74,	fanin10, MFSEL2, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(75,	fanin11, MFSEL2, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(76,	fanin12, MFSEL2, 12,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(77,	fanin13, MFSEL2, 13,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(78,	fanin14, MFSEL2, 14,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(79,	fanin15, MFSEL2, 15,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(80,	pwm0, MFSEL2, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(81,	pwm1, MFSEL2, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(82,	pwm2, MFSEL2, 18,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(83,	pwm3, MFSEL2, 19,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(84,	r2, MFSEL1, 14,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(85,	r2, MFSEL1, 14,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(86,	r2, MFSEL1, 14,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(87,	r2, MFSEL1, 14,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(88,	r2, MFSEL1, 14,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(89,	r2, MFSEL1, 14,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(90,	r2err, MFSEL1, 15,	r2oen, MFSEL5, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(91,	r2md, MFSEL1, 16,	cp1gpio6, MFSEL6, 8,	tp_gpio0, MFSEL7, 0,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(2, 4)),
+	NPCM8XX_PINCFG(92,	r2md, MFSEL1, 16,	cp1gpio7, MFSEL6, 9,	tp_gpio1, MFSEL7, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(2, 4)),
+	NPCM8XX_PINCFG(93,	ga20kbc, MFSEL1, 17,	smb5d, I2CSEGSEL, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(94,	ga20kbc, MFSEL1, 17,	smb5d, I2CSEGSEL, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(95,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(96,	cp1gpio7b, MFSEL6, 24,	tp_gpio7, MFSEL7, 7,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(97,	cp1gpio6b, MFSEL6, 25,	tp_gpio6, MFSEL7, 6,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(98,	bu4b, MFSEL5, 13,	cp1gpio5b, MFSEL6, 26,	tp_gpio5, MFSEL7, 5,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(99,	bu4b, MFSEL5, 13,	cp1gpio4b, MFSEL6, 27,	tp_gpio4, MFSEL7, 4,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(100,	bu5b, MFSEL5, 12,	cp1gpio3c, MFSEL6, 28,	tp_gpio3, MFSEL7, 3,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(101,	bu5b, MFSEL5, 12,	cp1gpio2c, MFSEL6, 29,	tp_gpio2, MFSEL7, 2,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(102,	vgadig, MFSEL7, 29,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(103,	vgadig, MFSEL7, 29,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(104,	vgadig, MFSEL7, 29,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(105,	vgadig, MFSEL7, 29,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(106,	i3c5, MFSEL3, 22,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(107,	i3c5, MFSEL3, 22,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(108,	sg1mdio, MFSEL4, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(109,	sg1mdio, MFSEL4, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(110,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(111,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(112,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(113,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(114,	smb0, MFSEL1, 6,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(115,	smb0, MFSEL1, 6,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(116,	smb1, MFSEL1, 7,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(117,	smb1, MFSEL1, 7,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(118,	smb2, MFSEL1, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(119,	smb2, MFSEL1, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(120,	smb2c, I2CSEGSEL, 9,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(121,	smb2c, I2CSEGSEL, 9,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(122,	smb2b, I2CSEGSEL, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(123,	smb2b, I2CSEGSEL, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(124,	smb1c, I2CSEGSEL, 6,	cp1gpio3b, MFSEL6, 23,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(125,	smb1c, I2CSEGSEL, 6,	cp1gpio2b, MFSEL6, 22,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(126,	smb1b, I2CSEGSEL, 5,	cp1gpio1b, MFSEL6, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(127,	smb1b, I2CSEGSEL, 5,	cp1gpio0b, MFSEL6, 20,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(128,	smb8, MFSEL4, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(129,	smb8, MFSEL4, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(130,	smb9, MFSEL4, 12,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(131,	smb9, MFSEL4, 12,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(132,	smb10, MFSEL4, 13,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(133,	smb10, MFSEL4, 13,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(134,	smb11, MFSEL4, 14,	smb23b, MFSEL6, 0,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(135,	smb11, MFSEL4, 14,	smb23b, MFSEL6, 0,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(136,	jm1, MFSEL5, 15,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(137,	jm1, MFSEL5, 15,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(138,	jm1, MFSEL5, 15,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(139,	jm1, MFSEL5, 15,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(140,	jm1, MFSEL5, 15,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(141,	smb7b, I2CSEGSEL, 27,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(142,	smb7d, I2CSEGSEL, 29,	tp_smb1, MFSEL7, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(143,	smb7d, I2CSEGSEL, 29,	tp_smb1, MFSEL7, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(144,	pwm4, MFSEL2, 20,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(145,	pwm5, MFSEL2, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(146,	pwm6, MFSEL2, 22,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(147,	pwm7, MFSEL2, 23,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 8)),
+	NPCM8XX_PINCFG(148,	mmc8, MFSEL3, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(149,	mmc8, MFSEL3, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(150,	mmc8, MFSEL3, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(151,	mmc8, MFSEL3, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(152,	mmc, MFSEL3, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(153,	mmcwp, FLOCKR1, 24,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(154,	mmc, MFSEL3, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(155,	mmccd, MFSEL3, 25,	mmcrst, MFSEL4, 6,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(156,	mmc, MFSEL3, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(157,	mmc, MFSEL3, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(158,	mmc, MFSEL3, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(159,	mmc, MFSEL3, 10,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(160,	clkout, MFSEL1, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(161,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(162,	serirq, MFSEL1, 31,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12)),
+	NPCM8XX_PINCFG(163,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(164,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(165,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(166,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(167,	lpc, MFSEL1, 26,	espi, MFSEL4, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(168,	lpcclk, MFSEL1, 31,	espi, MFSEL4, 8,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(169,	scipme, MFSEL3, 0,	smb21, MFSEL5, 29,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(170,	smi, MFSEL1, 22,	smb21, MFSEL5, 29,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(171,	smb6, MFSEL3, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(172,	smb6, MFSEL3, 1,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(173,	smb7, MFSEL3, 2,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(174,	smb7, MFSEL3, 2,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(175,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12)),
+	NPCM8XX_PINCFG(176,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12)),
+	NPCM8XX_PINCFG(177,	spi1, MFSEL3, 4,	faninx, MFSEL3, 3,	fm1, MFSEL6, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12)),
+	NPCM8XX_PINCFG(178,	r1, MFSEL3, 9,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(179,	r1, MFSEL3, 9,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(180,	r1, MFSEL3, 9,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(181,	r1, MFSEL3, 9,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(182,	r1, MFSEL3, 9,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(183,	gpio1836, MFSEL6, 19,	spi3, MFSEL4, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(184,	gpio1836, MFSEL6, 19,	spi3, MFSEL4, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(185,	gpio1836, MFSEL6, 19,	spi3, MFSEL4, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(186,	gpio1836, MFSEL6, 19,	spi3, MFSEL4, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12)),
+	NPCM8XX_PINCFG(187,	gpo187, MFSEL7, 24,	smb14b, MFSEL7, 26,	spi3cs1, MFSEL4, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(188,	gpio1889, MFSEL7, 25,	spi3cs2, MFSEL4, 18,	spi3quad, MFSEL4, 20,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(189,	gpio1889, MFSEL7, 25,	spi3cs3, MFSEL4, 19,	spi3quad, MFSEL4, 20,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(190,	nprd_smi, FLOCKR1, 20,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(2, 4)),
+	NPCM8XX_PINCFG(191,	spi1d23, MFSEL5, 3,	spi1cs2, MFSEL5, 4,	fm1, MFSEL6, 17,	smb15, MFSEL7, 27,	analne, ANALNE, 0,		DSTR(0, 2)),  /* XX */
+	NPCM8XX_PINCFG(192,	spi1d23, MFSEL5, 3,	spi1cs3, MFSEL5, 5,	fm1, MFSEL6, 17,	smb15, MFSEL7, 27,	analne, ANALNE, 0,		DSTR(0, 2)),  /* XX */
+	NPCM8XX_PINCFG(193,	r1, MFSEL3, 9,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(194,	smb0b, I2CSEGSEL, 0,	fm0, MFSEL6, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(0, 1)),
+	NPCM8XX_PINCFG(195,	smb0b, I2CSEGSEL, 0,	fm0, MFSEL6, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(0, 1)),
+	NPCM8XX_PINCFG(196,	smb0c, I2CSEGSEL, 1,	fm0, MFSEL6, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(0, 1)),
+	NPCM8XX_PINCFG(197,	smb0den, I2CSEGSEL, 22,	fm0, MFSEL6, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(0, 1)),
+	NPCM8XX_PINCFG(198,	smb0d, I2CSEGSEL, 2,	fm0, MFSEL6, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(0, 1)),
+	NPCM8XX_PINCFG(199,	smb0d, I2CSEGSEL, 2,	fm0, MFSEL6, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(0, 1)),
+	NPCM8XX_PINCFG(200,	r2, MFSEL1, 14,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(201,	r1, MFSEL3, 9,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO),
+	NPCM8XX_PINCFG(202,	smb0c, I2CSEGSEL, 1,	fm0, MFSEL6, 16,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(0, 1)),
+	NPCM8XX_PINCFG(203,	faninx, MFSEL3, 3,	spi1cs0, MFSEL3, 4,	fm1, MFSEL6, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12)),
+	NPCM8XX_PINCFG(208,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW), /* DSCNT */
+	NPCM8XX_PINCFG(209,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW), /* DSCNT */
+	NPCM8XX_PINCFG(210,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(211,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(212,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	r3rxer, MFSEL6, 30,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(213,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	r3oen, MFSEL5, 14,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(214,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(215,	rg2, MFSEL4, 24,	ddr, MFSEL3, 26,	rmii3, MFSEL5, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(216,	rg2mdio, MFSEL4, 23,	ddr, MFSEL3, 26,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(217,	rg2mdio, MFSEL4, 23,	ddr, MFSEL3, 26,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(218,	wdog1, MFSEL3, 19,	smb16b, MFSEL7, 30,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(219,	wdog2, MFSEL3, 20,	smb16b, MFSEL7, 30,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(220,	smb12, MFSEL3, 5,	pwm8, MFSEL6, 11,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(221,	smb12, MFSEL3, 5,	pwm9, MFSEL6, 12,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(222,	smb13, MFSEL3, 6,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(223,	smb13, MFSEL3, 6,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(224,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(225,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(226,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPO | DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(227,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(228,	spixcs1, MFSEL4, 28,	fm2, MFSEL6, 18,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(229,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(230,	spix, MFSEL4, 27,	fm2, MFSEL6, 18,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(8, 12) | SLEW),
+	NPCM8XX_PINCFG(231,	clkreq, MFSEL4, 9,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		DSTR(4, 12) | SLEW),
+	NPCM8XX_PINCFG(233,	spi1cs1, MFSEL5, 0,	fm1, MFSEL6, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEWLPC), /* slewlpc ? */
+	NPCM8XX_PINCFG(234,	pwm10, MFSEL6, 13,	smb20, MFSEL5, 28,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		0),
+	NPCM8XX_PINCFG(235,	pwm11, MFSEL6, 14,	smb20, MFSEL5, 28,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(240,	i3c0, MFSEL5, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(241,	i3c0, MFSEL5, 17,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(242,	i3c1, MFSEL5, 19,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(243,	i3c1, MFSEL5, 19,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(244,	i3c2, MFSEL5, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(245,	i3c2, MFSEL5, 21,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(246,	i3c3, MFSEL5, 23,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(247,	i3c3, MFSEL5, 23,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(251,	jm2, MFSEL5, 1,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		SLEW),
+	NPCM8XX_PINCFG(253,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPI), /* SDHC1 power */
+	NPCM8XX_PINCFG(254,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPI), /* SDHC2 power */
+	NPCM8XX_PINCFG(255,	analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		analne, ANALNE, 0,		GPI), /* DACOSEL */
 };
 
 /* number, name, drv_data */
@@ -1950,7 +1950,7 @@ static int npcm8xx_set_drive_strength(struct npcm8xx_pinctrl *npcm,
 	else if (DSHI(v) == nval)
 		npcm_gpio_set(&bank->gc, bank->base + NPCM8XX_GP_N_ODSC, gpio);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return 0;
 }
@@ -1978,12 +1978,12 @@ static int npcm8xx_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int npcm8xx_dt_node_to_map(struct pinctrl_dev *pctldev,
-				  struct device_node *np_config,
+static int npcm8xx_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				  struct device_analde *np_config,
 				  struct pinctrl_map **map,
 				  u32 *num_maps)
 {
-	return pinconf_generic_dt_node_to_map(pctldev, np_config,
+	return pinconf_generic_dt_analde_to_map(pctldev, np_config,
 					      map, num_maps,
 					      PIN_MAP_TYPE_INVALID);
 }
@@ -1998,7 +1998,7 @@ static const struct pinctrl_ops npcm8xx_pinctrl_ops = {
 	.get_groups_count = npcm8xx_get_groups_count,
 	.get_group_name = npcm8xx_get_group_name,
 	.get_group_pins = npcm8xx_get_group_pins,
-	.dt_node_to_map = npcm8xx_dt_node_to_map,
+	.dt_analde_to_map = npcm8xx_dt_analde_to_map,
 	.dt_free_map = npcm8xx_dt_free_map,
 };
 
@@ -2092,7 +2092,7 @@ static const struct pinmux_ops npcm8xx_pinmux_ops = {
 };
 
 static int debounce_timing_setting(struct npcm8xx_gpio *bank, u32 gpio,
-				   u32 nanosecs)
+				   u32 naanalsecs)
 {
 	void __iomem *DBNCS_offset = bank->base + NPCM8XX_GP_N_DBNCS0 + (gpio / 4);
 	int gpio_debounce = (gpio % 16) * 2, debounce_select, i;
@@ -2100,7 +2100,7 @@ static int debounce_timing_setting(struct npcm8xx_gpio *bank, u32 gpio,
 
 	for (i = 0 ; i < NPCM8XX_DEBOUNCE_MAX ; i++) {
 		if (bank->debounce.set_val[i]) {
-			if (bank->debounce.nanosec_val[i] == nanosecs) {
+			if (bank->debounce.naanalsec_val[i] == naanalsecs) {
 				debounce_select = i << gpio_debounce;
 				npcm_gpio_set(&bank->gc, DBNCS_offset,
 					      debounce_select);
@@ -2108,10 +2108,10 @@ static int debounce_timing_setting(struct npcm8xx_gpio *bank, u32 gpio,
 			}
 		} else {
 			bank->debounce.set_val[i] = true;
-			bank->debounce.nanosec_val[i] = nanosecs;
+			bank->debounce.naanalsec_val[i] = naanalsecs;
 			debounce_select = i << gpio_debounce;
 			npcm_gpio_set(&bank->gc, DBNCS_offset, debounce_select);
-			switch (nanosecs) {
+			switch (naanalsecs) {
 			case 1 ... 1040:
 				iowrite32(0, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
 				break;
@@ -2137,9 +2137,9 @@ static int debounce_timing_setting(struct npcm8xx_gpio *bank, u32 gpio,
 				iowrite32(0x70, bank->base + NPCM8XX_GP_N_DBNCP0 + (i * 4));
 				break;
 			default:
-				dbncp_val = DIV_ROUND_CLOSEST(nanosecs, NPCM8XX_DEBOUNCE_NSEC);
+				dbncp_val = DIV_ROUND_CLOSEST(naanalsecs, NPCM8XX_DEBOUNCE_NSEC);
 				if (dbncp_val > NPCM8XX_DEBOUNCE_MAX_VAL)
-					return -ENOTSUPP;
+					return -EANALTSUPP;
 				dbncp_val_mod = dbncp_val & GENMASK(3, 0);
 				if (dbncp_val_mod > GENMASK(2, 0))
 					dbncp_val += 0x10;
@@ -2152,22 +2152,22 @@ static int debounce_timing_setting(struct npcm8xx_gpio *bank, u32 gpio,
 	}
 
 	if (i == 4)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return 0;
 }
 
 static int npcm_set_debounce(struct npcm8xx_pinctrl *npcm, unsigned int pin,
-			     u32 nanosecs)
+			     u32 naanalsecs)
 {
 	struct npcm8xx_gpio *bank =
 		&npcm->gpio_bank[pin / NPCM8XX_GPIO_PER_BANK];
 	int gpio = BIT(pin % bank->gc.ngpio);
 	int ret;
 
-	if (nanosecs) {
+	if (naanalsecs) {
 		ret = debounce_timing_setting(bank, pin % bank->gc.ngpio,
-					      nanosecs);
+					      naanalsecs);
 		if (ret)
 			dev_err(npcm->dev, "Pin %d, All four debounce timing values are used, please use one of exist debounce values\n", pin);
 		else
@@ -2236,7 +2236,7 @@ static int npcm8xx_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			*config = pinconf_to_config_packed(param, rc);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (!rc)
@@ -2288,7 +2288,7 @@ static int npcm8xx_config_set_one(struct npcm8xx_pinctrl *npcm,
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		return npcm8xx_set_drive_strength(npcm, pin, arg);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -2337,16 +2337,16 @@ static int npcmgpio_add_pin_ranges(struct gpio_chip *chip)
 
 static int npcm8xx_gpio_fw(struct npcm8xx_pinctrl *pctrl)
 {
-	struct fwnode_reference_args args;
+	struct fwanalde_reference_args args;
 	struct device *dev = pctrl->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int ret = -ENXIO;
 	int id = 0, i;
 
-	for_each_gpiochip_node(dev, child) {
-		pctrl->gpio_bank[id].base = fwnode_iomap(child, 0);
+	for_each_gpiochip_analde(dev, child) {
+		pctrl->gpio_bank[id].base = fwanalde_iomap(child, 0);
 		if (!pctrl->gpio_bank[id].base)
-			return dev_err_probe(dev, -ENXIO, "fwnode_iomap id %d failed\n", id);
+			return dev_err_probe(dev, -ENXIO, "fwanalde_iomap id %d failed\n", id);
 
 		ret = bgpio_init(&pctrl->gpio_bank[id].gc, dev, 4,
 				 pctrl->gpio_bank[id].base + NPCM8XX_GP_N_DIN,
@@ -2358,13 +2358,13 @@ static int npcm8xx_gpio_fw(struct npcm8xx_pinctrl *pctrl)
 		if (ret)
 			return dev_err_probe(dev, ret, "bgpio_init() failed\n");
 
-		ret = fwnode_property_get_reference_args(child, "gpio-ranges", NULL, 3, 0, &args);
+		ret = fwanalde_property_get_reference_args(child, "gpio-ranges", NULL, 3, 0, &args);
 		if (ret < 0)
 			return dev_err_probe(dev, ret, "gpio-ranges fail for GPIO bank %u\n", id);
 
-		ret = fwnode_irq_get(child, 0);
+		ret = fwanalde_irq_get(child, 0);
 		if (!ret)
-			return dev_err_probe(dev, ret, "No IRQ for GPIO bank %u\n", id);
+			return dev_err_probe(dev, ret, "Anal IRQ for GPIO bank %u\n", id);
 
 		pctrl->gpio_bank[id].irq = ret;
 		pctrl->gpio_bank[id].irq_chip = npcmgpio_irqchip;
@@ -2374,7 +2374,7 @@ static int npcm8xx_gpio_fw(struct npcm8xx_pinctrl *pctrl)
 		pctrl->gpio_bank[id].gc.ngpio = args.args[2];
 		pctrl->gpio_bank[id].gc.owner = THIS_MODULE;
 		pctrl->gpio_bank[id].gc.parent = dev;
-		pctrl->gpio_bank[id].gc.fwnode = child;
+		pctrl->gpio_bank[id].gc.fwanalde = child;
 		pctrl->gpio_bank[id].gc.label = devm_kasprintf(dev, GFP_KERNEL, "%pfw", child);
 		pctrl->gpio_bank[id].gc.dbg_show = npcmgpio_dbg_show;
 		pctrl->gpio_bank[id].direction_input = pctrl->gpio_bank[id].gc.direction_input;
@@ -2409,10 +2409,10 @@ static int npcm8xx_gpio_register(struct npcm8xx_pinctrl *pctrl)
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		girq->parents[0] = pctrl->gpio_bank[id].irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_level_irq;
 		ret = devm_gpiochip_add_data(pctrl->dev,
 					     &pctrl->gpio_bank[id].gc,
@@ -2432,13 +2432,13 @@ static int npcm8xx_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->dev = dev;
 	platform_set_drvdata(pdev, pctrl);
 
 	pctrl->gcr_regmap =
-		syscon_regmap_lookup_by_phandle(dev->of_node, "nuvoton,sysgcr");
+		syscon_regmap_lookup_by_phandle(dev->of_analde, "nuvoton,sysgcr");
 	if (IS_ERR(pctrl->gcr_regmap))
 		return dev_err_probe(dev, PTR_ERR(pctrl->gcr_regmap),
 				      "Failed to find nuvoton,sysgcr property\n");

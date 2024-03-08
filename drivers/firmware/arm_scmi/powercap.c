@@ -5,7 +5,7 @@
  * Copyright (C) 2022 ARM Ltd.
  */
 
-#define pr_fmt(fmt) "SCMI Notifications POWERCAP - " fmt
+#define pr_fmt(fmt) "SCMI Analtifications POWERCAP - " fmt
 
 #include <linux/bitfield.h>
 #include <linux/io.h>
@@ -15,7 +15,7 @@
 #include <trace/events/scmi.h>
 
 #include "protocols.h"
-#include "notify.h"
+#include "analtify.h"
 
 /* Updated only after ALL the mandatory features for that version are merged */
 #define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
@@ -28,8 +28,8 @@ enum scmi_powercap_protocol_cmd {
 	POWERCAP_PAI_SET = 0x7,
 	POWERCAP_DOMAIN_NAME_GET = 0x8,
 	POWERCAP_MEASUREMENTS_GET = 0x9,
-	POWERCAP_CAP_NOTIFY = 0xa,
-	POWERCAP_MEASUREMENTS_NOTIFY = 0xb,
+	POWERCAP_CAP_ANALTIFY = 0xa,
+	POWERCAP_MEASUREMENTS_ANALTIFY = 0xb,
 	POWERCAP_DESCRIBE_FASTCHANNEL = 0xc,
 };
 
@@ -41,8 +41,8 @@ enum {
 
 struct scmi_msg_resp_powercap_domain_attributes {
 	__le32 attributes;
-#define SUPPORTS_POWERCAP_CAP_CHANGE_NOTIFY(x)		((x) & BIT(31))
-#define SUPPORTS_POWERCAP_MEASUREMENTS_CHANGE_NOTIFY(x)	((x) & BIT(30))
+#define SUPPORTS_POWERCAP_CAP_CHANGE_ANALTIFY(x)		((x) & BIT(31))
+#define SUPPORTS_POWERCAP_MEASUREMENTS_CHANGE_ANALTIFY(x)	((x) & BIT(30))
 #define SUPPORTS_ASYNC_POWERCAP_CAP_SET(x)		((x) & BIT(29))
 #define SUPPORTS_EXTENDED_NAMES(x)			((x) & BIT(28))
 #define SUPPORTS_POWERCAP_CAP_CONFIGURATION(x)		((x) & BIT(27))
@@ -71,7 +71,7 @@ struct scmi_msg_powercap_set_cap_or_pai {
 	__le32 domain;
 	__le32 flags;
 #define CAP_SET_ASYNC		BIT(1)
-#define CAP_SET_IGNORE_DRESP	BIT(0)
+#define CAP_SET_IGANALRE_DRESP	BIT(0)
 	__le32 value;
 };
 
@@ -85,26 +85,26 @@ struct scmi_msg_resp_powercap_meas_get {
 	__le32 pai;
 };
 
-struct scmi_msg_powercap_notify_cap {
+struct scmi_msg_powercap_analtify_cap {
 	__le32 domain;
-	__le32 notify_enable;
+	__le32 analtify_enable;
 };
 
-struct scmi_msg_powercap_notify_thresh {
+struct scmi_msg_powercap_analtify_thresh {
 	__le32 domain;
-	__le32 notify_enable;
+	__le32 analtify_enable;
 	__le32 power_thresh_low;
 	__le32 power_thresh_high;
 };
 
-struct scmi_powercap_cap_changed_notify_payld {
+struct scmi_powercap_cap_changed_analtify_payld {
 	__le32 agent_id;
 	__le32 domain_id;
 	__le32 power_cap;
 	__le32 pai;
 };
 
-struct scmi_powercap_meas_changed_notify_payld {
+struct scmi_powercap_meas_changed_analtify_payld {
 	__le32 agent_id;
 	__le32 domain_id;
 	__le32 power;
@@ -113,7 +113,7 @@ struct scmi_powercap_meas_changed_notify_payld {
 struct scmi_powercap_state {
 	bool enabled;
 	u32 last_pcap;
-	bool meas_notif_enabled;
+	bool meas_analtif_enabled;
 	u64 thresholds;
 #define THRESH_LOW(p, id)				\
 	(lower_32_bits((p)->states[(id)].thresholds))
@@ -129,11 +129,11 @@ struct powercap_info {
 };
 
 static enum scmi_powercap_protocol_cmd evt_2_cmd[] = {
-	POWERCAP_CAP_NOTIFY,
-	POWERCAP_MEASUREMENTS_NOTIFY,
+	POWERCAP_CAP_ANALTIFY,
+	POWERCAP_MEASUREMENTS_ANALTIFY,
 };
 
-static int scmi_powercap_notify(const struct scmi_protocol_handle *ph,
+static int scmi_powercap_analtify(const struct scmi_protocol_handle *ph,
 				u32 domain, int message_id, bool enable);
 
 static int
@@ -200,10 +200,10 @@ scmi_powercap_domain_attributes_get(const struct scmi_protocol_handle *ph,
 		flags = le32_to_cpu(resp->attributes);
 
 		dom_info->id = domain;
-		dom_info->notify_powercap_cap_change =
-			SUPPORTS_POWERCAP_CAP_CHANGE_NOTIFY(flags);
-		dom_info->notify_powercap_measurement_change =
-			SUPPORTS_POWERCAP_MEASUREMENTS_CHANGE_NOTIFY(flags);
+		dom_info->analtify_powercap_cap_change =
+			SUPPORTS_POWERCAP_CAP_CHANGE_ANALTIFY(flags);
+		dom_info->analtify_powercap_measurement_change =
+			SUPPORTS_POWERCAP_MEASUREMENTS_CHANGE_ANALTIFY(flags);
 		dom_info->async_powercap_cap_set =
 			SUPPORTS_ASYNC_POWERCAP_CAP_SET(flags);
 		dom_info->powercap_cap_config =
@@ -260,7 +260,7 @@ scmi_powercap_domain_attributes_get(const struct scmi_protocol_handle *ph,
 			dev_err(ph->dev,
 				"Platform reported inconsistent parent ID for domain %d - %s\n",
 				dom_info->id, dom_info->name);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		}
 	}
 
@@ -349,7 +349,7 @@ static int scmi_powercap_cap_get(const struct scmi_protocol_handle *ph,
 
 static int scmi_powercap_xfer_cap_set(const struct scmi_protocol_handle *ph,
 				      const struct scmi_powercap_info *pc,
-				      u32 power_cap, bool ignore_dresp)
+				      u32 power_cap, bool iganalre_dresp)
 {
 	int ret;
 	struct scmi_xfer *t;
@@ -364,10 +364,10 @@ static int scmi_powercap_xfer_cap_set(const struct scmi_protocol_handle *ph,
 	msg->domain = cpu_to_le32(pc->id);
 	msg->flags =
 		cpu_to_le32(FIELD_PREP(CAP_SET_ASYNC, pc->async_powercap_cap_set) |
-			    FIELD_PREP(CAP_SET_IGNORE_DRESP, ignore_dresp));
+			    FIELD_PREP(CAP_SET_IGANALRE_DRESP, iganalre_dresp));
 	msg->value = cpu_to_le32(power_cap);
 
-	if (!pc->async_powercap_cap_set || ignore_dresp) {
+	if (!pc->async_powercap_cap_set || iganalre_dresp) {
 		ret = ph->xops->do_xfer(ph, t);
 	} else {
 		ret = ph->xops->do_xfer_with_response(ph, t);
@@ -391,7 +391,7 @@ static int scmi_powercap_xfer_cap_set(const struct scmi_protocol_handle *ph,
 
 static int __scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 				   struct powercap_info *pi, u32 domain_id,
-				   u32 power_cap, bool ignore_dresp)
+				   u32 power_cap, bool iganalre_dresp)
 {
 	int ret = -EINVAL;
 	const struct scmi_powercap_info *pc;
@@ -414,10 +414,10 @@ static int __scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 		ret = 0;
 	} else {
 		ret = scmi_powercap_xfer_cap_set(ph, pc, power_cap,
-						 ignore_dresp);
+						 iganalre_dresp);
 	}
 
-	/* Save the last explicitly set non-zero powercap value */
+	/* Save the last explicitly set analn-zero powercap value */
 	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x2 && !ret && power_cap)
 		pi->states[domain_id].last_pcap = power_cap;
 
@@ -426,7 +426,7 @@ static int __scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 
 static int scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 				 u32 domain_id, u32 power_cap,
-				 bool ignore_dresp)
+				 bool iganalre_dresp)
 {
 	struct powercap_info *pi = ph->get_priv(ph);
 
@@ -445,7 +445,7 @@ static int scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 	}
 
 	return __scmi_powercap_cap_set(ph, pi, domain_id,
-				       power_cap, ignore_dresp);
+				       power_cap, iganalre_dresp);
 }
 
 static int scmi_powercap_xfer_pai_get(const struct scmi_protocol_handle *ph,
@@ -603,10 +603,10 @@ scmi_powercap_measurements_threshold_set(const struct scmi_protocol_handle *ph,
 		(FIELD_PREP(GENMASK_ULL(31, 0), power_thresh_low) |
 		 FIELD_PREP(GENMASK_ULL(63, 32), power_thresh_high));
 
-	/* Update thresholds if notification already enabled */
-	if (pi->states[domain_id].meas_notif_enabled)
-		ret = scmi_powercap_notify(ph, domain_id,
-					   POWERCAP_MEASUREMENTS_NOTIFY,
+	/* Update thresholds if analtification already enabled */
+	if (pi->states[domain_id].meas_analtif_enabled)
+		ret = scmi_powercap_analtify(ph, domain_id,
+					   POWERCAP_MEASUREMENTS_ANALTIFY,
 					   true);
 
 	return ret;
@@ -626,7 +626,7 @@ static int scmi_powercap_cap_enable_set(const struct scmi_protocol_handle *ph,
 		return 0;
 
 	if (enable) {
-		/* Cannot enable with a zero powercap. */
+		/* Cananalt enable with a zero powercap. */
 		if (!pi->states[domain_id].last_pcap)
 			return -EINVAL;
 
@@ -642,7 +642,7 @@ static int scmi_powercap_cap_enable_set(const struct scmi_protocol_handle *ph,
 
 	/*
 	 * Update our internal state to reflect final platform state: the SCMI
-	 * server could have ignored a disable request and kept enforcing some
+	 * server could have iganalred a disable request and kept enforcing some
 	 * powercap limit requested by other agents.
 	 */
 	ret = scmi_powercap_cap_get(ph, domain_id, &power_cap);
@@ -664,7 +664,7 @@ static int scmi_powercap_cap_enable_get(const struct scmi_protocol_handle *ph,
 		return 0;
 
 	/*
-	 * Report always real platform state; platform could have ignored
+	 * Report always real platform state; platform could have iganalred
 	 * a previous disable request. Default true on any error.
 	 */
 	ret = scmi_powercap_cap_get(ph, domain_id, &power_cap);
@@ -721,36 +721,36 @@ static void scmi_powercap_domain_init_fc(const struct scmi_protocol_handle *ph,
 	*p_fc = fc;
 }
 
-static int scmi_powercap_notify(const struct scmi_protocol_handle *ph,
+static int scmi_powercap_analtify(const struct scmi_protocol_handle *ph,
 				u32 domain, int message_id, bool enable)
 {
 	int ret;
 	struct scmi_xfer *t;
 
 	switch (message_id) {
-	case POWERCAP_CAP_NOTIFY:
+	case POWERCAP_CAP_ANALTIFY:
 	{
-		struct scmi_msg_powercap_notify_cap *notify;
+		struct scmi_msg_powercap_analtify_cap *analtify;
 
 		ret = ph->xops->xfer_get_init(ph, message_id,
-					      sizeof(*notify), 0, &t);
+					      sizeof(*analtify), 0, &t);
 		if (ret)
 			return ret;
 
-		notify = t->tx.buf;
-		notify->domain = cpu_to_le32(domain);
-		notify->notify_enable = cpu_to_le32(enable ? BIT(0) : 0);
+		analtify = t->tx.buf;
+		analtify->domain = cpu_to_le32(domain);
+		analtify->analtify_enable = cpu_to_le32(enable ? BIT(0) : 0);
 		break;
 	}
-	case POWERCAP_MEASUREMENTS_NOTIFY:
+	case POWERCAP_MEASUREMENTS_ANALTIFY:
 	{
 		u32 low, high;
-		struct scmi_msg_powercap_notify_thresh *notify;
+		struct scmi_msg_powercap_analtify_thresh *analtify;
 
 		/*
-		 * Note that we have to pick the most recently configured
-		 * thresholds to build a proper POWERCAP_MEASUREMENTS_NOTIFY
-		 * enable request and we fail, complaining, if no thresholds
+		 * Analte that we have to pick the most recently configured
+		 * thresholds to build a proper POWERCAP_MEASUREMENTS_ANALTIFY
+		 * enable request and we fail, complaining, if anal thresholds
 		 * were ever set, since this is an indication the API has been
 		 * used wrongly.
 		 */
@@ -761,21 +761,21 @@ static int scmi_powercap_notify(const struct scmi_protocol_handle *ph,
 
 		if (enable && !low && !high) {
 			dev_err(ph->dev,
-				"Invalid Measurements Notify thresholds: %u/%u\n",
+				"Invalid Measurements Analtify thresholds: %u/%u\n",
 				low, high);
 			return -EINVAL;
 		}
 
 		ret = ph->xops->xfer_get_init(ph, message_id,
-					      sizeof(*notify), 0, &t);
+					      sizeof(*analtify), 0, &t);
 		if (ret)
 			return ret;
 
-		notify = t->tx.buf;
-		notify->domain = cpu_to_le32(domain);
-		notify->notify_enable = cpu_to_le32(enable ? BIT(0) : 0);
-		notify->power_thresh_low = cpu_to_le32(low);
-		notify->power_thresh_high = cpu_to_le32(high);
+		analtify = t->tx.buf;
+		analtify->domain = cpu_to_le32(domain);
+		analtify->analtify_enable = cpu_to_le32(enable ? BIT(0) : 0);
+		analtify->power_thresh_low = cpu_to_le32(low);
+		analtify->power_thresh_high = cpu_to_le32(high);
 		break;
 	}
 	default:
@@ -789,7 +789,7 @@ static int scmi_powercap_notify(const struct scmi_protocol_handle *ph,
 }
 
 static int
-scmi_powercap_set_notify_enabled(const struct scmi_protocol_handle *ph,
+scmi_powercap_set_analtify_enabled(const struct scmi_protocol_handle *ph,
 				 u8 evt_id, u32 src_id, bool enable)
 {
 	int ret, cmd_id;
@@ -799,29 +799,29 @@ scmi_powercap_set_notify_enabled(const struct scmi_protocol_handle *ph,
 		return -EINVAL;
 
 	cmd_id = evt_2_cmd[evt_id];
-	ret = scmi_powercap_notify(ph, src_id, cmd_id, enable);
+	ret = scmi_powercap_analtify(ph, src_id, cmd_id, enable);
 	if (ret)
 		pr_debug("FAIL_ENABLED - evt[%X] dom[%d] - ret:%d\n",
 			 evt_id, src_id, ret);
-	else if (cmd_id == POWERCAP_MEASUREMENTS_NOTIFY)
+	else if (cmd_id == POWERCAP_MEASUREMENTS_ANALTIFY)
 		/*
-		 * On success save the current notification enabled state, so
-		 * as to be able to properly update the notification thresholds
+		 * On success save the current analtification enabled state, so
+		 * as to be able to properly update the analtification thresholds
 		 * when they are modified on a domain for which measurement
-		 * notifications were currently enabled.
+		 * analtifications were currently enabled.
 		 *
-		 * This is needed because the SCMI Notification core machinery
-		 * and API does not support passing per-notification custom
+		 * This is needed because the SCMI Analtification core machinery
+		 * and API does analt support passing per-analtification custom
 		 * arguments at callback registration time.
 		 *
-		 * Note that this can be done here with a simple flag since the
-		 * SCMI core Notifications code takes care of keeping proper
+		 * Analte that this can be done here with a simple flag since the
+		 * SCMI core Analtifications code takes care of keeping proper
 		 * per-domain enables refcounting, so that this helper function
 		 * will be called only once (for enables) when the first user
 		 * registers a callback on this domain and once more (disable)
 		 * when the last user de-registers its callback.
 		 */
-		pi->states[src_id].meas_notif_enabled = enable;
+		pi->states[src_id].meas_analtif_enabled = enable;
 
 	return ret;
 }
@@ -837,7 +837,7 @@ scmi_powercap_fill_custom_report(const struct scmi_protocol_handle *ph,
 	switch (evt_id) {
 	case SCMI_EVENT_POWERCAP_CAP_CHANGED:
 	{
-		const struct scmi_powercap_cap_changed_notify_payld *p = payld;
+		const struct scmi_powercap_cap_changed_analtify_payld *p = payld;
 		struct scmi_powercap_cap_changed_report *r = report;
 
 		if (sizeof(*p) != payld_sz)
@@ -854,7 +854,7 @@ scmi_powercap_fill_custom_report(const struct scmi_protocol_handle *ph,
 	}
 	case SCMI_EVENT_POWERCAP_MEASUREMENTS_CHANGED:
 	{
-		const struct scmi_powercap_meas_changed_notify_payld *p = payld;
+		const struct scmi_powercap_meas_changed_analtify_payld *p = payld;
 		struct scmi_powercap_meas_changed_report *r = report;
 
 		if (sizeof(*p) != payld_sz)
@@ -890,14 +890,14 @@ static const struct scmi_event powercap_events[] = {
 	{
 		.id = SCMI_EVENT_POWERCAP_CAP_CHANGED,
 		.max_payld_sz =
-			sizeof(struct scmi_powercap_cap_changed_notify_payld),
+			sizeof(struct scmi_powercap_cap_changed_analtify_payld),
 		.max_report_sz =
 			sizeof(struct scmi_powercap_cap_changed_report),
 	},
 	{
 		.id = SCMI_EVENT_POWERCAP_MEASUREMENTS_CHANGED,
 		.max_payld_sz =
-			sizeof(struct scmi_powercap_meas_changed_notify_payld),
+			sizeof(struct scmi_powercap_meas_changed_analtify_payld),
 		.max_report_sz =
 			sizeof(struct scmi_powercap_meas_changed_report),
 	},
@@ -905,7 +905,7 @@ static const struct scmi_event powercap_events[] = {
 
 static const struct scmi_event_ops powercap_event_ops = {
 	.get_num_sources = scmi_powercap_get_num_sources,
-	.set_notify_enabled = scmi_powercap_set_notify_enabled,
+	.set_analtify_enabled = scmi_powercap_set_analtify_enabled,
 	.fill_custom_report = scmi_powercap_fill_custom_report,
 };
 
@@ -928,11 +928,11 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 		return ret;
 
 	dev_dbg(ph->dev, "Powercap Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MIANALR(version));
 
 	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = scmi_powercap_attributes_get(ph, pinfo);
 	if (ret)
@@ -942,15 +942,15 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 					sizeof(*pinfo->powercaps),
 					GFP_KERNEL);
 	if (!pinfo->powercaps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pinfo->states = devm_kcalloc(ph->dev, pinfo->num_domains,
 				     sizeof(*pinfo->states), GFP_KERNEL);
 	if (!pinfo->states)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Note that any failure in retrieving any domain attribute leads to
+	 * Analte that any failure in retrieving any domain attribute leads to
 	 * the whole Powercap protocol initialization failure: this way the
 	 * reported Powercap domains are all assured, when accessed, to be well
 	 * formed and correlated by sane parent-child relationship (if any).

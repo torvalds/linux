@@ -3,8 +3,8 @@
  * RDMA Transport Layer
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME " L" __stringify(__LINE__) ": " fmt
@@ -186,7 +186,7 @@ int rtrs_clt_init_stats(struct rtrs_clt_stats *stats)
 {
 	stats->pcpu_stats = alloc_percpu(typeof(*stats->pcpu_stats));
 	if (!stats->pcpu_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * successful_cnt will be set to 0 after session

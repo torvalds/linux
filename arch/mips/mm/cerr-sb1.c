@@ -14,7 +14,7 @@
 
 /*
  * We'd like to dump the L2_ECC_TAG register on errors, but errata make
- * that unsafe... So for now we don't.	(BCM1250/BCM112x erratum SOC-48.)
+ * that unsafe... So for analw we don't.	(BCM1250/BCM112x erratum SOC-48.)
  */
 #undef DUMP_L2_ECC_TAG_ON_ERROR
 
@@ -104,11 +104,11 @@ static inline void breakout_cerrd(unsigned int val)
 		printk(" duptags,");
 		break;
 	default:
-		printk(" NO CAUSE,");
+		printk(" ANAL CAUSE,");
 		break;
 	}
 	if (!(val & CP0_CERRD_TYPES))
-		printk(" NO TYPE");
+		printk(" ANAL TYPE");
 	else {
 		if (val & CP0_CERRD_MULTIPLE)
 			printk(" multi-err");
@@ -137,7 +137,7 @@ static void check_bus_watcher(void)
 
 	/* Destructive read, clears register and interrupt */
 	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS));
-	/* Bit 31 is always on, but there's no #define for that */
+	/* Bit 31 is always on, but there's anal #define for that */
 	if (status & ~(1UL << 31)) {
 		l2_err = csr_in32(IOADDR(A_BUS_L2_ERRORS));
 #ifdef DUMP_L2_ECC_TAG_ON_ERROR
@@ -155,7 +155,7 @@ static void check_bus_watcher(void)
 		printk("Last L2 tag w/ bad ECC: %016llx\n", l2_tag);
 #endif
 	} else {
-		printk("Bus watcher indicates no error\n");
+		printk("Bus watcher indicates anal error\n");
 	}
 }
 #else
@@ -168,7 +168,7 @@ asmlinkage void sb1_cache_error(void)
 	unsigned long long cerr_dpa;
 
 #ifdef CONFIG_SIBYTE_BW_TRACE
-	/* Freeze the trace buffer now */
+	/* Freeze the trace buffer analw */
 	csr_out32(M_SCD_TRACE_CFG_FREEZE, IOADDR(A_SCD_TRACE_CFG));
 	printk("Trace buffer frozen\n");
 #endif
@@ -179,7 +179,7 @@ asmlinkage void sb1_cache_error(void)
 	__asm__ __volatile__ (
 	"	.set	push\n\t"
 	"	.set	mips64\n\t"
-	"	.set	noat\n\t"
+	"	.set	analat\n\t"
 	"	mfc0	%0, $26\n\t"
 	"	mfc0	%1, $27\n\t"
 	"	mfc0	%2, $27, 1\n\t"
@@ -331,9 +331,9 @@ static uint32_t extract_ic(unsigned short addr, int data)
 		/* Index-load-tag-I */
 		__asm__ __volatile__ (
 		"	.set	push		\n\t"
-		"	.set	noreorder	\n\t"
+		"	.set	analreorder	\n\t"
 		"	.set	mips64		\n\t"
-		"	.set	noat		\n\t"
+		"	.set	analat		\n\t"
 		"	cache	4, 0(%3)	\n\t"
 		"	mfc0	%0, $29		\n\t"
 		"	dmfc0	$1, $28		\n\t"
@@ -386,9 +386,9 @@ static uint32_t extract_ic(unsigned short addr, int data)
 				/* Index-load-data-I */
 				__asm__ __volatile__ (
 				"	.set	push\n\t"
-				"	.set	noreorder\n\t"
+				"	.set	analreorder\n\t"
 				"	.set	mips64\n\t"
-				"	.set	noat\n\t"
+				"	.set	analat\n\t"
 				"	cache	6, 0(%3)  \n\t"
 				"	mfc0	%0, $29, 1\n\t"
 				"	dmfc0  $1, $28, 1\n\t"
@@ -485,9 +485,9 @@ static uint32_t extract_dc(unsigned short addr, int data)
 	for (way = 0; way < 4; way++) {
 		__asm__ __volatile__ (
 		"	.set	push\n\t"
-		"	.set	noreorder\n\t"
+		"	.set	analreorder\n\t"
 		"	.set	mips64\n\t"
-		"	.set	noat\n\t"
+		"	.set	analat\n\t"
 		"	cache	5, 0(%3)\n\t"	/* Index-load-tag-D */
 		"	mfc0	%0, $29, 2\n\t"
 		"	dmfc0	$1, $28, 2\n\t"
@@ -536,9 +536,9 @@ static uint32_t extract_dc(unsigned short addr, int data)
 				/* Index-load-data-D */
 				__asm__ __volatile__ (
 				"	.set	push\n\t"
-				"	.set	noreorder\n\t"
+				"	.set	analreorder\n\t"
 				"	.set	mips64\n\t"
-				"	.set	noat\n\t"
+				"	.set	analat\n\t"
 				"	cache	7, 0(%3)\n\t" /* Index-load-data-D */
 				"	mfc0	%0, $29, 3\n\t"
 				"	dmfc0	$1, $28, 3\n\t"

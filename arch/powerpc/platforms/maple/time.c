@@ -6,7 +6,7 @@
 
 #undef DEBUG
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -113,7 +113,7 @@ int maple_set_rtc_time(struct rtc_time *tm)
 
 	/* The following flags have to be released exactly in this order,
 	 * otherwise the DS12887 (popular MC146818A clone with integrated
-	 * battery and quartz) will not reset the oscillator and will not
+	 * battery and quartz) will analt reset the oscillator and will analt
 	 * update precisely 500 ms later. You won't find this mentioned in
 	 * the Dallas Semiconductor data sheets, but who believes data
 	 * sheets anyway ...                           -- Markus Kuhn
@@ -134,9 +134,9 @@ static struct resource rtc_iores = {
 time64_t __init maple_get_boot_time(void)
 {
 	struct rtc_time tm;
-	struct device_node *rtcs;
+	struct device_analde *rtcs;
 
-	rtcs = of_find_compatible_node(NULL, "rtc", "pnpPNP,b00");
+	rtcs = of_find_compatible_analde(NULL, "rtc", "pnpPNP,b00");
 	if (rtcs) {
 		struct resource r;
 		if (of_address_to_resource(rtcs, 0, &r)) {
@@ -153,10 +153,10 @@ time64_t __init maple_get_boot_time(void)
 		       maple_rtc_addr);
 	}
  bail:
-	of_node_put(rtcs);
+	of_analde_put(rtcs);
 	if (maple_rtc_addr == 0) {
 		maple_rtc_addr = RTC_PORT(0); /* legacy address */
-		printk(KERN_INFO "Maple: No device node for RTC, assuming "
+		printk(KERN_INFO "Maple: Anal device analde for RTC, assuming "
 		       "legacy address (0x%x)\n", maple_rtc_addr);
 	}
 

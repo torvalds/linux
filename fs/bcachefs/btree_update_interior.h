@@ -6,26 +6,26 @@
 #include "btree_locking.h"
 #include "btree_update.h"
 
-#define BTREE_UPDATE_NODES_MAX		((BTREE_MAX_DEPTH - 2) * 2 + GC_MERGE_NODES)
+#define BTREE_UPDATE_ANALDES_MAX		((BTREE_MAX_DEPTH - 2) * 2 + GC_MERGE_ANALDES)
 
-#define BTREE_UPDATE_JOURNAL_RES	(BTREE_UPDATE_NODES_MAX * (BKEY_BTREE_PTR_U64s_MAX + 1))
+#define BTREE_UPDATE_JOURNAL_RES	(BTREE_UPDATE_ANALDES_MAX * (BKEY_BTREE_PTR_U64s_MAX + 1))
 
 /*
- * Tracks an in progress split/rewrite of a btree node and the update to the
- * parent node:
+ * Tracks an in progress split/rewrite of a btree analde and the update to the
+ * parent analde:
  *
- * When we split/rewrite a node, we do all the updates in memory without
- * waiting for any writes to complete - we allocate the new node(s) and update
- * the parent node, possibly recursively up to the root.
+ * When we split/rewrite a analde, we do all the updates in memory without
+ * waiting for any writes to complete - we allocate the new analde(s) and update
+ * the parent analde, possibly recursively up to the root.
  *
- * The end result is that we have one or more new nodes being written -
+ * The end result is that we have one or more new analdes being written -
  * possibly several, if there were multiple splits - and then a write (updating
- * an interior node) which will make all these new nodes visible.
+ * an interior analde) which will make all these new analdes visible.
  *
- * Additionally, as we split/rewrite nodes we free the old nodes - but the old
- * nodes can't be freed (their space on disk can't be reclaimed) until the
- * update to the interior node that makes the new node visible completes -
- * until then, the old nodes are still reachable on disk.
+ * Additionally, as we split/rewrite analdes we free the old analdes - but the old
+ * analdes can't be freed (their space on disk can't be reclaimed) until the
+ * update to the interior analde that makes the new analde visible completes -
+ * until then, the old analdes are still reachable on disk.
  *
  */
 struct btree_update {
@@ -38,13 +38,13 @@ struct btree_update {
 
 	/* What kind of update are we doing? */
 	enum {
-		BTREE_INTERIOR_NO_UPDATE,
-		BTREE_INTERIOR_UPDATING_NODE,
+		BTREE_INTERIOR_ANAL_UPDATE,
+		BTREE_INTERIOR_UPDATING_ANALDE,
 		BTREE_INTERIOR_UPDATING_ROOT,
 		BTREE_INTERIOR_UPDATING_AS,
 	} mode;
 
-	unsigned			nodes_written:1;
+	unsigned			analdes_written:1;
 	unsigned			took_gc_lock:1;
 
 	enum btree_id			btree_id;
@@ -53,10 +53,10 @@ struct btree_update {
 	struct disk_reservation		disk_res;
 
 	/*
-	 * BTREE_INTERIOR_UPDATING_NODE:
-	 * The update that made the new nodes visible was a regular update to an
-	 * existing interior node - @b. We can't write out the update to @b
-	 * until the new nodes we created are finished writing, so we block @b
+	 * BTREE_INTERIOR_UPDATING_ANALDE:
+	 * The update that made the new analdes visible was a regular update to an
+	 * existing interior analde - @b. We can't write out the update to @b
+	 * until the new analdes we created are finished writing, so we block @b
 	 * from writing by putting this btree_interior update on the
 	 * @b->write_blocked list with @write_blocked_list:
 	 */
@@ -64,38 +64,38 @@ struct btree_update {
 	struct list_head		write_blocked_list;
 
 	/*
-	 * We may be freeing nodes that were dirty, and thus had journal entries
+	 * We may be freeing analdes that were dirty, and thus had journal entries
 	 * pinned: we need to transfer the oldest of those pins to the
-	 * btree_update operation, and release it when the new node(s)
+	 * btree_update operation, and release it when the new analde(s)
 	 * are all persistent and reachable:
 	 */
 	struct journal_entry_pin	journal;
 
-	/* Preallocated nodes we reserve when we start the update: */
-	struct prealloc_nodes {
-		struct btree		*b[BTREE_UPDATE_NODES_MAX];
+	/* Preallocated analdes we reserve when we start the update: */
+	struct prealloc_analdes {
+		struct btree		*b[BTREE_UPDATE_ANALDES_MAX];
 		unsigned		nr;
-	}				prealloc_nodes[2];
+	}				prealloc_analdes[2];
 
-	/* Nodes being freed: */
+	/* Analdes being freed: */
 	struct keylist			old_keys;
-	u64				_old_keys[BTREE_UPDATE_NODES_MAX *
+	u64				_old_keys[BTREE_UPDATE_ANALDES_MAX *
 						  BKEY_BTREE_PTR_U64s_MAX];
 
-	/* Nodes being added: */
+	/* Analdes being added: */
 	struct keylist			new_keys;
-	u64				_new_keys[BTREE_UPDATE_NODES_MAX *
+	u64				_new_keys[BTREE_UPDATE_ANALDES_MAX *
 						  BKEY_BTREE_PTR_U64s_MAX];
 
-	/* New nodes, that will be made reachable by this update: */
-	struct btree			*new_nodes[BTREE_UPDATE_NODES_MAX];
-	unsigned			nr_new_nodes;
+	/* New analdes, that will be made reachable by this update: */
+	struct btree			*new_analdes[BTREE_UPDATE_ANALDES_MAX];
+	unsigned			nr_new_analdes;
 
-	struct btree			*old_nodes[BTREE_UPDATE_NODES_MAX];
-	__le64				old_nodes_seq[BTREE_UPDATE_NODES_MAX];
-	unsigned			nr_old_nodes;
+	struct btree			*old_analdes[BTREE_UPDATE_ANALDES_MAX];
+	__le64				old_analdes_seq[BTREE_UPDATE_ANALDES_MAX];
+	unsigned			nr_old_analdes;
 
-	open_bucket_idx_t		open_buckets[BTREE_UPDATE_NODES_MAX *
+	open_bucket_idx_t		open_buckets[BTREE_UPDATE_ANALDES_MAX *
 						     BCH_REPLICAS_MAX];
 	open_bucket_idx_t		nr_open_buckets;
 
@@ -105,14 +105,14 @@ struct btree_update {
 	/* Only here to reduce stack usage on recursive splits: */
 	struct keylist			parent_keys;
 	/*
-	 * Enough room for btree_split's keys without realloc - btree node
+	 * Eanalugh room for btree_split's keys without realloc - btree analde
 	 * pointers never have crc/compression info, so we only need to acount
 	 * for the pointers for three keys
 	 */
 	u64				inline_keys[BKEY_BTREE_PTR_U64s_MAX * 3];
 };
 
-struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
+struct btree *__bch2_btree_analde_alloc_replacement(struct btree_update *,
 						  struct btree_trans *,
 						  struct btree *,
 						  struct bkey_format);
@@ -120,17 +120,17 @@ struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 int bch2_btree_split_leaf(struct btree_trans *, btree_path_idx_t, unsigned);
 
 int __bch2_foreground_maybe_merge(struct btree_trans *, btree_path_idx_t,
-				  unsigned, unsigned, enum btree_node_sibling);
+				  unsigned, unsigned, enum btree_analde_sibling);
 
 static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
 					btree_path_idx_t path_idx,
 					unsigned level, unsigned flags,
-					enum btree_node_sibling sib)
+					enum btree_analde_sibling sib)
 {
 	struct btree_path *path = trans->paths + path_idx;
 	struct btree *b;
 
-	EBUG_ON(!btree_node_locked(path, level));
+	EBUG_ON(!btree_analde_locked(path, level));
 
 	b = path->l[level].b;
 	if (b->sib_u64s[sib] > trans->c->btree_foreground_merge_threshold)
@@ -150,13 +150,13 @@ static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
 						    btree_next_sib);
 }
 
-int bch2_btree_node_rewrite(struct btree_trans *, struct btree_iter *,
+int bch2_btree_analde_rewrite(struct btree_trans *, struct btree_iter *,
 			    struct btree *, unsigned);
-void bch2_btree_node_rewrite_async(struct bch_fs *, struct btree *);
-int bch2_btree_node_update_key(struct btree_trans *, struct btree_iter *,
+void bch2_btree_analde_rewrite_async(struct bch_fs *, struct btree *);
+int bch2_btree_analde_update_key(struct btree_trans *, struct btree_iter *,
 			       struct btree *, struct bkey_i *,
 			       unsigned, bool);
-int bch2_btree_node_update_key_get_iter(struct btree_trans *, struct btree *,
+int bch2_btree_analde_update_key_get_iter(struct btree_trans *, struct btree *,
 					struct bkey_i *, unsigned, bool);
 
 void bch2_btree_set_root_for_read(struct bch_fs *, struct btree *);
@@ -165,10 +165,10 @@ void bch2_btree_root_alloc(struct bch_fs *, enum btree_id);
 static inline unsigned btree_update_reserve_required(struct bch_fs *c,
 						     struct btree *b)
 {
-	unsigned depth = btree_node_root(c, b)->c.level + 1;
+	unsigned depth = btree_analde_root(c, b)->c.level + 1;
 
 	/*
-	 * Number of nodes we might have to allocate in a worst case btree
+	 * Number of analdes we might have to allocate in a worst case btree
 	 * split operation - we split all the way up to the root, then allocate
 	 * a new root, unless we're already at max depth:
 	 */
@@ -178,7 +178,7 @@ static inline unsigned btree_update_reserve_required(struct bch_fs *c,
 		return (depth - b->c.level) * 2 - 1;
 }
 
-static inline void btree_node_reset_sib_u64s(struct btree *b)
+static inline void btree_analde_reset_sib_u64s(struct btree *b)
 {
 	b->sib_u64s[0] = b->nr.live_u64s;
 	b->sib_u64s[1] = b->nr.live_u64s;
@@ -255,10 +255,10 @@ static inline unsigned btree_write_set_buffer(struct btree *b)
 	return 8 << BTREE_WRITE_SET_U64s_BITS;
 }
 
-static inline struct btree_node_entry *want_new_bset(struct bch_fs *c, struct btree *b)
+static inline struct btree_analde_entry *want_new_bset(struct bch_fs *c, struct btree *b)
 {
 	struct bset_tree *t = bset_tree_last(b);
-	struct btree_node_entry *bne = max(write_block(b),
+	struct btree_analde_entry *bne = max(write_block(b),
 			(void *) btree_bkey_last(b, bset_tree_last(b)));
 	ssize_t remaining_space =
 		__bch2_btree_u64s_remaining(b, bne->keys.start);
@@ -280,7 +280,7 @@ static inline void push_whiteout(struct btree *b, struct bpos pos)
 	struct bkey_packed k;
 
 	BUG_ON(bch2_btree_keys_u64s_remaining(b) < BKEY_U64s);
-	EBUG_ON(btree_node_just_written(b));
+	EBUG_ON(btree_analde_just_written(b));
 
 	if (!bkey_pack_pos(&k, pos, b)) {
 		struct bkey *u = (void *) &k;
@@ -299,9 +299,9 @@ static inline void push_whiteout(struct btree *b, struct bpos pos)
  * write lock must be held on @b (else the dirty bset that we were going to
  * insert into could be written out from under us)
  */
-static inline bool bch2_btree_node_insert_fits(struct btree *b, unsigned u64s)
+static inline bool bch2_btree_analde_insert_fits(struct btree *b, unsigned u64s)
 {
-	if (unlikely(btree_node_need_rewrite(b)))
+	if (unlikely(btree_analde_need_rewrite(b)))
 		return false;
 
 	return u64s <= bch2_btree_keys_u64s_remaining(b);
@@ -315,8 +315,8 @@ void bch2_journal_entry_to_btree_root(struct bch_fs *, struct jset_entry *);
 struct jset_entry *bch2_btree_roots_to_journal_entries(struct bch_fs *,
 					struct jset_entry *, unsigned long);
 
-void bch2_do_pending_node_rewrites(struct bch_fs *);
-void bch2_free_pending_node_rewrites(struct bch_fs *);
+void bch2_do_pending_analde_rewrites(struct bch_fs *);
+void bch2_free_pending_analde_rewrites(struct bch_fs *);
 
 void bch2_fs_btree_interior_update_exit(struct bch_fs *);
 void bch2_fs_btree_interior_update_init_early(struct bch_fs *);

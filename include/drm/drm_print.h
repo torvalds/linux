@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@
 
 #include <drm/drm.h>
 
-/* Do *not* use outside of drm_print.[ch]! */
+/* Do *analt* use outside of drm_print.[ch]! */
 extern unsigned long __drm_debug;
 
 /**
@@ -70,7 +70,7 @@ extern unsigned long __drm_debug;
 /**
  * struct drm_printer - drm output "stream"
  *
- * Do not use struct members directly.  Use drm_printer_seq_file(),
+ * Do analt use struct members directly.  Use drm_printer_seq_file(),
  * drm_printer_info(), etc to initialize.  And drm_printf() for output.
  */
 struct drm_printer {
@@ -270,7 +270,7 @@ static inline struct drm_printer drm_err_printer(const char *prefix)
  *  - drm.debug=0x1ff will enable all messages
  *
  * An interesting feature is that it's possible to enable verbose logging at
- * run-time by echoing the debug value in its sysfs node::
+ * run-time by echoing the debug value in its sysfs analde::
  *
  *   # echo 0xf > /sys/module/drm/parameters/debug
  *
@@ -328,7 +328,7 @@ static inline bool drm_debug_enabled_raw(enum drm_debug_category category)
 
 #define drm_debug_enabled_instrumented(category)			\
 	({								\
-		pr_debug("todo: is this frequent enough to optimize ?\n"); \
+		pr_debug("todo: is this frequent eanalugh to optimize ?\n"); \
 		drm_debug_enabled_raw(category);			\
 	})
 
@@ -362,7 +362,7 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 /**
  * DRM_DEV_ERROR() - Error output.
  *
- * NOTE: this is deprecated in favor of drm_err() or dev_err().
+ * ANALTE: this is deprecated in favor of drm_err() or dev_err().
  *
  * @dev: device pointer
  * @fmt: printf() like format string.
@@ -373,7 +373,7 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 /**
  * DRM_DEV_ERROR_RATELIMITED() - Rate limited error output.
  *
- * NOTE: this is deprecated in favor of drm_err_ratelimited() or
+ * ANALTE: this is deprecated in favor of drm_err_ratelimited() or
  * dev_err_ratelimited().
  *
  * @dev: device pointer
@@ -391,11 +391,11 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 		DRM_DEV_ERROR(dev, fmt, ##__VA_ARGS__);			\
 })
 
-/* NOTE: this is deprecated in favor of drm_info() or dev_info(). */
+/* ANALTE: this is deprecated in favor of drm_info() or dev_info(). */
 #define DRM_DEV_INFO(dev, fmt, ...)				\
 	drm_dev_printk(dev, KERN_INFO, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_info_once() or dev_info_once(). */
+/* ANALTE: this is deprecated in favor of drm_info_once() or dev_info_once(). */
 #define DRM_DEV_INFO_ONCE(dev, fmt, ...)				\
 ({									\
 	static bool __print_once __read_mostly;				\
@@ -417,7 +417,7 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 /**
  * DRM_DEV_DEBUG() - Debug output for generic drm code
  *
- * NOTE: this is deprecated in favor of drm_dbg_core().
+ * ANALTE: this is deprecated in favor of drm_dbg_core().
  *
  * @dev: device pointer
  * @fmt: printf() like format string.
@@ -427,7 +427,7 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 /**
  * DRM_DEV_DEBUG_DRIVER() - Debug output for vendor specific part of the driver
  *
- * NOTE: this is deprecated in favor of drm_dbg() or dev_dbg().
+ * ANALTE: this is deprecated in favor of drm_dbg() or dev_dbg().
  *
  * @dev: device pointer
  * @fmt: printf() like format string.
@@ -437,7 +437,7 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 /**
  * DRM_DEV_DEBUG_KMS() - Debug output for modesetting code
  *
- * NOTE: this is deprecated in favor of drm_dbg_kms().
+ * ANALTE: this is deprecated in favor of drm_dbg_kms().
  *
  * @dev: device pointer
  * @fmt: printf() like format string.
@@ -459,8 +459,8 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 #define drm_info(drm, fmt, ...)					\
 	__drm_printk((drm), info,, fmt, ##__VA_ARGS__)
 
-#define drm_notice(drm, fmt, ...)				\
-	__drm_printk((drm), notice,, fmt, ##__VA_ARGS__)
+#define drm_analtice(drm, fmt, ...)				\
+	__drm_printk((drm), analtice,, fmt, ##__VA_ARGS__)
 
 #define drm_warn(drm, fmt, ...)					\
 	__drm_printk((drm), warn,, fmt, ##__VA_ARGS__)
@@ -472,8 +472,8 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 #define drm_info_once(drm, fmt, ...)				\
 	__drm_printk((drm), info, _once, fmt, ##__VA_ARGS__)
 
-#define drm_notice_once(drm, fmt, ...)				\
-	__drm_printk((drm), notice, _once, fmt, ##__VA_ARGS__)
+#define drm_analtice_once(drm, fmt, ...)				\
+	__drm_printk((drm), analtice, _once, fmt, ##__VA_ARGS__)
 
 #define drm_warn_once(drm, fmt, ...)				\
 	__drm_printk((drm), warn, _once, fmt, ##__VA_ARGS__)
@@ -533,63 +533,63 @@ void __drm_err(const char *format, ...);
 #define _DRM_PRINTK(once, level, fmt, ...)				\
 	printk##once(KERN_##level "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of pr_info(). */
+/* ANALTE: this is deprecated in favor of pr_info(). */
 #define DRM_INFO(fmt, ...)						\
 	_DRM_PRINTK(, INFO, fmt, ##__VA_ARGS__)
-/* NOTE: this is deprecated in favor of pr_notice(). */
-#define DRM_NOTE(fmt, ...)						\
-	_DRM_PRINTK(, NOTICE, fmt, ##__VA_ARGS__)
-/* NOTE: this is deprecated in favor of pr_warn(). */
+/* ANALTE: this is deprecated in favor of pr_analtice(). */
+#define DRM_ANALTE(fmt, ...)						\
+	_DRM_PRINTK(, ANALTICE, fmt, ##__VA_ARGS__)
+/* ANALTE: this is deprecated in favor of pr_warn(). */
 #define DRM_WARN(fmt, ...)						\
 	_DRM_PRINTK(, WARNING, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of pr_info_once(). */
+/* ANALTE: this is deprecated in favor of pr_info_once(). */
 #define DRM_INFO_ONCE(fmt, ...)						\
 	_DRM_PRINTK(_once, INFO, fmt, ##__VA_ARGS__)
-/* NOTE: this is deprecated in favor of pr_notice_once(). */
-#define DRM_NOTE_ONCE(fmt, ...)						\
-	_DRM_PRINTK(_once, NOTICE, fmt, ##__VA_ARGS__)
-/* NOTE: this is deprecated in favor of pr_warn_once(). */
+/* ANALTE: this is deprecated in favor of pr_analtice_once(). */
+#define DRM_ANALTE_ONCE(fmt, ...)						\
+	_DRM_PRINTK(_once, ANALTICE, fmt, ##__VA_ARGS__)
+/* ANALTE: this is deprecated in favor of pr_warn_once(). */
 #define DRM_WARN_ONCE(fmt, ...)						\
 	_DRM_PRINTK(_once, WARNING, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of pr_err(). */
+/* ANALTE: this is deprecated in favor of pr_err(). */
 #define DRM_ERROR(fmt, ...)						\
 	__drm_err(fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of pr_err_ratelimited(). */
+/* ANALTE: this is deprecated in favor of pr_err_ratelimited(). */
 #define DRM_ERROR_RATELIMITED(fmt, ...)					\
 	DRM_DEV_ERROR_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg_core(NULL, ...). */
+/* ANALTE: this is deprecated in favor of drm_dbg_core(NULL, ...). */
 #define DRM_DEBUG(fmt, ...)						\
 	__drm_dbg(DRM_UT_CORE, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg(NULL, ...). */
+/* ANALTE: this is deprecated in favor of drm_dbg(NULL, ...). */
 #define DRM_DEBUG_DRIVER(fmt, ...)					\
 	__drm_dbg(DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg_kms(NULL, ...). */
+/* ANALTE: this is deprecated in favor of drm_dbg_kms(NULL, ...). */
 #define DRM_DEBUG_KMS(fmt, ...)						\
 	__drm_dbg(DRM_UT_KMS, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg_prime(NULL, ...). */
+/* ANALTE: this is deprecated in favor of drm_dbg_prime(NULL, ...). */
 #define DRM_DEBUG_PRIME(fmt, ...)					\
 	__drm_dbg(DRM_UT_PRIME, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg_atomic(NULL, ...). */
+/* ANALTE: this is deprecated in favor of drm_dbg_atomic(NULL, ...). */
 #define DRM_DEBUG_ATOMIC(fmt, ...)					\
 	__drm_dbg(DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg_vbl(NULL, ...). */
+/* ANALTE: this is deprecated in favor of drm_dbg_vbl(NULL, ...). */
 #define DRM_DEBUG_VBL(fmt, ...)						\
 	__drm_dbg(DRM_UT_VBL, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg_lease(NULL, ...). */
+/* ANALTE: this is deprecated in favor of drm_dbg_lease(NULL, ...). */
 #define DRM_DEBUG_LEASE(fmt, ...)					\
 	__drm_dbg(DRM_UT_LEASE, fmt, ##__VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg_dp(NULL, ...). */
+/* ANALTE: this is deprecated in favor of drm_dbg_dp(NULL, ...). */
 #define DRM_DEBUG_DP(fmt, ...)						\
 	__drm_dbg(DRM_UT_DP, fmt, ## __VA_ARGS__)
 
@@ -609,7 +609,7 @@ void __drm_err(const char *format, ...);
  * struct drm_device based WARNs
  *
  * drm_WARN*() acts like WARN*(), but with the key difference of
- * using device specific information so that we know from which device
+ * using device specific information so that we kanalw from which device
  * warning is originating from.
  *
  * Prefer drm_device based drm_WARN* over regular WARN*

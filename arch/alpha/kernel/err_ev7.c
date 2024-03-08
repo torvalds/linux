@@ -108,7 +108,7 @@ ev7_collect_logout_frame_subpackets(struct el_subpacket *el_ptr,
 				
 		default:
 			/*
-			 * Don't know what kind of frame this is.
+			 * Don't kanalw what kind of frame this is.
 			 */
 			return NULL;
 		}
@@ -144,7 +144,7 @@ ev7_machine_check(unsigned long vector, unsigned long la_ptr)
 	mb();
 }
 
-static char *el_ev7_processor_subpacket_annotation[] = {
+static char *el_ev7_processor_subpacket_ananaltation[] = {
 	"Subpacket Header",	"I_STAT",	"DC_STAT",
 	"C_ADDR",		"C_SYNDROME_1",	"C_SYNDROME_0",
 	"C_STAT",		"C_STS",	"MM_STAT",
@@ -156,7 +156,7 @@ static char *el_ev7_processor_subpacket_annotation[] = {
 	"BBOX_DAT_RMP",		NULL
 };
 
-static char *el_ev7_zbox_subpacket_annotation[] = {
+static char *el_ev7_zbox_subpacket_ananaltation[] = {
 	"Subpacket Header", 	
 	"ZBOX(0): DRAM_ERR_STATUS_2 / DRAM_ERR_STATUS_1",
 	"ZBOX(0): DRAM_ERROR_CTL    / DRAM_ERR_STATUS_3",
@@ -174,7 +174,7 @@ static char *el_ev7_zbox_subpacket_annotation[] = {
 	NULL
 };
 
-static char *el_ev7_rbox_subpacket_annotation[] = {
+static char *el_ev7_rbox_subpacket_ananaltation[] = {
 	"Subpacket Header",	"RBOX_CFG",	"RBOX_N_CFG",
 	"RBOX_S_CFG",		"RBOX_E_CFG",	"RBOX_W_CFG",
 	"RBOX_N_ERR",		"RBOX_S_ERR",	"RBOX_E_ERR",
@@ -183,7 +183,7 @@ static char *el_ev7_rbox_subpacket_annotation[] = {
 	"RBOX_INTQ",		"RBOX_INT",	NULL
 };
 
-static char *el_ev7_io_subpacket_annotation[] = {
+static char *el_ev7_io_subpacket_ananaltation[] = {
 	"Subpacket Header",	"IO_ASIC_REV",	"IO_SYS_REV",
 	"IO7_UPH",		"HPI_CTL",	"CRD_CTL",
 	"HEI_CTL",		"PO7_ERROR_SUM","PO7_UNCRR_SYM",
@@ -208,27 +208,27 @@ static char *el_ev7_io_subpacket_annotation[] = {
 	NULL
 };
 	
-static struct el_subpacket_annotation el_ev7_pal_annotations[] = {
-	SUBPACKET_ANNOTATION(EL_CLASS__PAL,
+static struct el_subpacket_ananaltation el_ev7_pal_ananaltations[] = {
+	SUBPACKET_ANANALTATION(EL_CLASS__PAL,
 			     EL_TYPE__PAL__EV7_PROCESSOR,
 			     1,
 			     "EV7 Processor Subpacket",
-			     el_ev7_processor_subpacket_annotation),
-	SUBPACKET_ANNOTATION(EL_CLASS__PAL,
+			     el_ev7_processor_subpacket_ananaltation),
+	SUBPACKET_ANANALTATION(EL_CLASS__PAL,
 			     EL_TYPE__PAL__EV7_ZBOX,
 			     1,
 			     "EV7 ZBOX Subpacket",
-			     el_ev7_zbox_subpacket_annotation),
-	SUBPACKET_ANNOTATION(EL_CLASS__PAL,
+			     el_ev7_zbox_subpacket_ananaltation),
+	SUBPACKET_ANANALTATION(EL_CLASS__PAL,
 			     EL_TYPE__PAL__EV7_RBOX,
 			     1,
 			     "EV7 RBOX Subpacket",
-			     el_ev7_rbox_subpacket_annotation),
-	SUBPACKET_ANNOTATION(EL_CLASS__PAL,
+			     el_ev7_rbox_subpacket_ananaltation),
+	SUBPACKET_ANANALTATION(EL_CLASS__PAL,
 			     EL_TYPE__PAL__EV7_IO,
 			     1,
 			     "EV7 IO Subpacket",
-			     el_ev7_io_subpacket_annotation)
+			     el_ev7_io_subpacket_ananaltation)
 };
 
 static struct el_subpacket *
@@ -264,7 +264,7 @@ ev7_process_pal_subpacket(struct el_subpacket *header)
 		printk("%s  ** PAL TYPE %d SUBPACKET\n", 
 		       err_print_prefix,
 		       header->type);
-		el_annotate_subpacket(header);
+		el_ananaltate_subpacket(header);
 		break;
 	}
 	
@@ -279,8 +279,8 @@ ev7_register_error_handlers(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(el_ev7_pal_annotations); i++)
-		cdl_register_subpacket_annotation(&el_ev7_pal_annotations[i]);
+	for (i = 0; i < ARRAY_SIZE(el_ev7_pal_ananaltations); i++)
+		cdl_register_subpacket_ananaltation(&el_ev7_pal_ananaltations[i]);
 
 	cdl_register_subpacket_handler(&ev7_pal_subpacket_handler);
 }

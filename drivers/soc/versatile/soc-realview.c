@@ -35,7 +35,7 @@ static const char *realview_arch_str(u32 id)
 	case 0x05:
 		return "Multi-layer AXI";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -86,7 +86,7 @@ static int realview_soc_probe(struct platform_device *pdev)
 	struct regmap *syscon_regmap;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	syscon_regmap = syscon_regmap_lookup_by_phandle(np, "regmap");
@@ -95,7 +95,7 @@ static int realview_soc_probe(struct platform_device *pdev)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_string(np, "compatible",
 				      &soc_dev_attr->soc_id);
@@ -108,12 +108,12 @@ static int realview_soc_probe(struct platform_device *pdev)
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = regmap_read(syscon_regmap, REALVIEW_SYS_ID_OFFSET,
 			  &realview_coreid);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_info(&pdev->dev, "RealView Syscon Core ID: 0x%08x, HBI-%03x\n",
 		 realview_coreid,

@@ -44,7 +44,7 @@
  */
 
 enum fsl_usb2_controller_ver {
-	FSL_USB_VER_NONE = -1,
+	FSL_USB_VER_ANALNE = -1,
 	FSL_USB_VER_OLD = 0,
 	FSL_USB_VER_1_6 = 1,
 	FSL_USB_VER_2_2 = 2,
@@ -60,7 +60,7 @@ enum fsl_usb2_operating_modes {
 };
 
 enum fsl_usb2_phy_modes {
-	FSL_USB2_PHY_NONE,
+	FSL_USB2_PHY_ANALNE,
 	FSL_USB2_PHY_ULPI,
 	FSL_USB2_PHY_UTMI,
 	FSL_USB2_PHY_UTMI_WIDE,
@@ -142,7 +142,7 @@ struct mpc8xx_pcmcia_ops {
 	int(*voltage_set)(int slot, int vcc, int vpp);
 };
 
-/* Returns non-zero if the current suspend operation would
+/* Returns analn-zero if the current suspend operation would
  * lead to a deep sleep (i.e. power removed from the core,
  * instead of just the clock).
  */

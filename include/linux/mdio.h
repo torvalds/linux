@@ -15,12 +15,12 @@ struct mii_bus;
 struct reset_control;
 
 /* Multiple levels of nesting are possible. However typically this is
- * limited to nested DSA like layer, a MUX layer, and the normal
+ * limited to nested DSA like layer, a MUX layer, and the analrmal
  * user. Instead of trying to handle the general case, just define
  * these cases.
  */
 enum mdio_mutex_lock_class {
-	MDIO_MUTEX_NORMAL,
+	MDIO_MUTEX_ANALRMAL,
 	MDIO_MUTEX_MUX,
 	MDIO_MUTEX_NESTED,
 };
@@ -134,12 +134,12 @@ static inline __u16 mdio_phy_id_devad(int phy_id)
 
 /**
  * struct mdio_if_info - Ethernet controller MDIO interface
- * @prtad: PRTAD of the PHY (%MDIO_PRTAD_NONE if not present/unknown)
+ * @prtad: PRTAD of the PHY (%MDIO_PRTAD_ANALNE if analt present/unkanalwn)
  * @mmds: Mask of MMDs expected to be present in the PHY.  This must be
- *	non-zero unless @prtad = %MDIO_PRTAD_NONE.
+ *	analn-zero unless @prtad = %MDIO_PRTAD_ANALNE.
  * @mode_support: MDIO modes supported.  If %MDIO_SUPPORTS_C22 is set then
  *	MII register access will be passed through with @devad =
- *	%MDIO_DEVAD_NONE.  If %MDIO_EMULATE_C22 is set then access to
+ *	%MDIO_DEVAD_ANALNE.  If %MDIO_EMULATE_C22 is set then access to
  *	commonly used clause 22 registers will be translated into
  *	clause 45 registers.
  * @dev: Net device structure
@@ -158,8 +158,8 @@ struct mdio_if_info {
 			  u16 addr, u16 val);
 };
 
-#define MDIO_PRTAD_NONE			(-1)
-#define MDIO_DEVAD_NONE			(-1)
+#define MDIO_PRTAD_ANALNE			(-1)
+#define MDIO_DEVAD_ANALNE			(-1)
 #define MDIO_SUPPORTS_C22		1
 #define MDIO_SUPPORTS_C45		2
 #define MDIO_EMULATE_C22		4
@@ -185,8 +185,8 @@ mdio45_ethtool_ksettings_get_npage(const struct mdio_if_info *mdio,
  * @mdio: MDIO interface
  * @ecmd: Ethtool request structure
  *
- * Since the CSRs for auto-negotiation using next pages are not fully
- * standardised, this function does not attempt to decode them.  Use
+ * Since the CSRs for auto-negotiation using next pages are analt fully
+ * standardised, this function does analt attempt to decode them.  Use
  * mdio45_ethtool_gset_npage() to specify advertisement bits from next
  * pages.
  */
@@ -201,8 +201,8 @@ static inline void mdio45_ethtool_gset(const struct mdio_if_info *mdio,
  * @mdio: MDIO interface
  * @cmd: Ethtool request structure
  *
- * Since the CSRs for auto-negotiation using next pages are not fully
- * standardised, this function does not attempt to decode them.  Use
+ * Since the CSRs for auto-negotiation using next pages are analt fully
+ * standardised, this function does analt attempt to decode them.  Use
  * mdio45_ethtool_ksettings_get_npage() to specify advertisement bits
  * from next pages.
  */
@@ -518,12 +518,12 @@ static inline void mii_c73_mod_linkmode(unsigned long *adv, u16 *lpa)
 			 adv, lpa[1] & MDIO_AN_C73_1_40GBASE_KR4);
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
 			 adv, lpa[1] & MDIO_AN_C73_1_40GBASE_CR4);
-	/* 100GBASE_CR10 and 100GBASE_KP4 not implemented */
+	/* 100GBASE_CR10 and 100GBASE_KP4 analt implemented */
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
 			 adv, lpa[1] & MDIO_AN_C73_1_100GBASE_KR4);
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
 			 adv, lpa[1] & MDIO_AN_C73_1_100GBASE_CR4);
-	/* 25GBASE_R_S not implemented */
+	/* 25GBASE_R_S analt implemented */
 	/* The 25GBASE_R bit can be used for 25Gbase KR or CR modes */
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
 			 adv, lpa[1] & MDIO_AN_C73_1_25GBASE_R);
@@ -533,7 +533,7 @@ static inline void mii_c73_mod_linkmode(unsigned long *adv, u16 *lpa)
 			 adv, lpa[1] & MDIO_AN_C73_1_10GBASE_KR);
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
 			 adv, lpa[2] & MDIO_AN_C73_2_2500BASE_KX);
-	/* 5GBASE_KR not implemented */
+	/* 5GBASE_KR analt implemented */
 }
 
 int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
@@ -652,7 +652,7 @@ struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr);
  * mdio_module_driver() - Helper macro for registering mdio drivers
  * @_mdio_driver: driver to register
  *
- * Helper macro for MDIO drivers which do not do anything special in module
+ * Helper macro for MDIO drivers which do analt do anything special in module
  * init/exit. Each module may only use this macro once, and calling it
  * replaces module_init() and module_exit().
  */

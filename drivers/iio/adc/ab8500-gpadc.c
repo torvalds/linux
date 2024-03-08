@@ -71,7 +71,7 @@ enum ab8500_gpadc_channel {
 	AB8500_GPADC_CHAN_UNUSED = 0x00,
 	AB8500_GPADC_CHAN_BAT_CTRL = 0x01,
 	AB8500_GPADC_CHAN_BAT_TEMP = 0x02,
-	/* This is not used on AB8505 */
+	/* This is analt used on AB8505 */
 	AB8500_GPADC_CHAN_MAIN_CHARGER = 0x03,
 	AB8500_GPADC_CHAN_ACC_DET_1 = 0x04,
 	AB8500_GPADC_CHAN_ACC_DET_2 = 0x05,
@@ -98,7 +98,7 @@ enum ab8500_gpadc_channel {
 	AB8500_GPADC_CHAN_BAT_TEMP_AND_IBAT = 0x1f,
 	/*
 	 * Virtual channel used only for ibat conversion to ampere.
-	 * Battery current conversion (ibat) cannot be requested as a
+	 * Battery current conversion (ibat) cananalt be requested as a
 	 * single conversion but it is always requested in combination
 	 * with other input requests.
 	 */
@@ -167,10 +167,10 @@ enum ab8500_gpadc_channel {
 #define AB8500_GPADC_IBAT_VDROP_L	(-56)  /* mV */
 #define AB8500_GPADC_IBAT_VDROP_H	56
 
-/* This is used to not lose precision when dividing to get gain and offset */
+/* This is used to analt lose precision when dividing to get gain and offset */
 #define AB8500_GPADC_CALIB_SCALE	1000
 /*
- * Number of bits shift used to not lose precision
+ * Number of bits shift used to analt lose precision
  * when dividing to get ibat gain.
  */
 #define AB8500_GPADC_CALIB_SHIFT_IBAT	20
@@ -209,7 +209,7 @@ struct ab8500_adc_cal_data {
  * @id: the internal AB8500 ID number for the channel
  * @hardware_control: indicate that we want to use hardware ADC control
  * on this channel, the default is software ADC control. Hardware control
- * is normally only used to test the battery voltage during GSM bursts
+ * is analrmally only used to test the battery voltage during GSM bursts
  * and needs a hardware trigger on the GPADCTrig pin of the ASIC.
  * @falling_edge: indicate that we want to trigger on falling edge
  * rather than rising edge, rising edge is the default
@@ -282,7 +282,7 @@ static int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
 
 	switch (ch) {
 	case AB8500_GPADC_CHAN_MAIN_CHARGER:
-		/* No calibration data available: just interpolate */
+		/* Anal calibration data available: just interpolate */
 		if (!gpadc->cal_data[AB8500_CAL_VMAIN].gain) {
 			res = AB8500_ADC_CH_CHG_V_MIN + (AB8500_ADC_CH_CHG_V_MAX -
 				AB8500_ADC_CH_CHG_V_MIN) * ad_value /
@@ -300,7 +300,7 @@ static int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
 	case AB8500_GPADC_CHAN_ADC_AUX_1:
 	case AB8500_GPADC_CHAN_ADC_AUX_2:
 	case AB8500_GPADC_CHAN_XTAL_TEMP:
-		/* No calibration data available: just interpolate */
+		/* Anal calibration data available: just interpolate */
 		if (!gpadc->cal_data[AB8500_CAL_BTEMP].gain) {
 			res = AB8500_ADC_CH_BTEMP_MIN + (AB8500_ADC_CH_BTEMP_MAX -
 				AB8500_ADC_CH_BTEMP_MIN) * ad_value /
@@ -314,7 +314,7 @@ static int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
 
 	case AB8500_GPADC_CHAN_VBAT_A:
 	case AB8500_GPADC_CHAN_VBAT_TRUE_MEAS:
-		/* No calibration data available: just interpolate */
+		/* Anal calibration data available: just interpolate */
 		if (!gpadc->cal_data[AB8500_CAL_VBAT].gain) {
 			res = AB8500_ADC_CH_VBAT_MIN + (AB8500_ADC_CH_VBAT_MAX -
 				AB8500_ADC_CH_VBAT_MIN) * ad_value /
@@ -358,7 +358,7 @@ static int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
 		break;
 
 	case AB8500_GPADC_CHAN_IBAT_VIRTUAL:
-		/* No calibration data available: just interpolate */
+		/* Anal calibration data available: just interpolate */
 		if (!gpadc->cal_data[AB8500_CAL_IBAT].gain) {
 			res = AB8500_ADC_CH_IBAT_MIN + (AB8500_ADC_CH_IBAT_MAX -
 				AB8500_ADC_CH_IBAT_MIN) * ad_value /
@@ -373,7 +373,7 @@ static int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
 
 	default:
 		dev_err(gpadc->dev,
-			"unknown channel ID: %d, not possible to convert\n",
+			"unkanalwn channel ID: %d, analt possible to convert\n",
 			ch);
 		res = -EINVAL;
 		break;
@@ -399,18 +399,18 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 	u8 data_low_addr, data_high_addr;
 
 	if (!gpadc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* check if conversion is supported */
 	if ((gpadc->irq_sw <= 0) && !ch->hardware_control)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	if ((gpadc->irq_hw <= 0) && ch->hardware_control)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* Enable vddadc by grabbing PM runtime */
 	pm_runtime_get_sync(gpadc->dev);
 
-	/* Check if ADC is not busy, lock and proceed */
+	/* Check if ADC is analt busy, lock and proceed */
 	do {
 		ret = abx500_get_register_interruptible(gpadc->dev,
 			AB8500_GPADC, AB8500_GPADC_STAT_REG, &val);
@@ -477,7 +477,7 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 			ctrl1 |= AB8500_GPADC_CTRL1_BUF_ENA |
 				AB8500_GPADC_CTRL1_BTEMP_PULL_UP;
 			/*
-			 * Delay might be needed for ABB8500 cut 3.0, if not,
+			 * Delay might be needed for ABB8500 cut 3.0, if analt,
 			 * remove when hardware will be available
 			 */
 			delay_min = 1000; /* Delay in micro seconds */
@@ -564,8 +564,8 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 	    (ch->id == AB8500_GPADC_CHAN_BAT_TEMP_AND_IBAT)) {
 
 		if (ch->hardware_control) {
-			/* not supported */
-			ret = -ENOTSUPP;
+			/* analt supported */
+			ret = -EANALTSUPP;
 			dev_err(gpadc->dev,
 				"gpadc_conversion: only SW double conversion supported\n");
 			goto out;
@@ -592,7 +592,7 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 				*ibat = (high_data2 << 8) | low_data2;
 			} else {
 				dev_warn(gpadc->dev,
-					"gpadc_conversion: ibat not stored\n");
+					"gpadc_conversion: ibat analt stored\n");
 			}
 
 		}
@@ -617,7 +617,7 @@ out:
 	 * It has shown to be needed to turn off the GPADC if an error occurs,
 	 * otherwise we might have problem when waiting for the busy bit in the
 	 * GPADC status register to go low. In V1.1 there wait_for_completion
-	 * seems to timeout when waiting for an interrupt.. Not seen in V2.0
+	 * seems to timeout when waiting for an interrupt.. Analt seen in V2.0
 	 */
 	(void) abx500_set_register_interruptible(gpadc->dev, AB8500_GPADC,
 		AB8500_GPADC_CTRL1_REG, AB8500_GPADC_CTRL1_DISABLE);
@@ -634,7 +634,7 @@ out:
  * @data: pointer to the data passed during request irq
  *
  * This is a interrupt service routine for gpadc conversion completion.
- * Notifies the gpadc completion is completed and the converted raw value
+ * Analtifies the gpadc completion is completed and the converted raw value
  * can be read from the registers.
  * Returns IRQ status(IRQ_HANDLED)
  */
@@ -898,7 +898,7 @@ static int ab8500_gpadc_read_raw(struct iio_dev *indio_dev,
 
 	ch = ab8500_gpadc_get_channel(gpadc, chan->address);
 	if (!ch) {
-		dev_err(gpadc->dev, "no such channel %lu\n",
+		dev_err(gpadc->dev, "anal such channel %lu\n",
 			chan->address);
 		return -EINVAL;
 	}
@@ -925,8 +925,8 @@ static int ab8500_gpadc_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static int ab8500_gpadc_fwnode_xlate(struct iio_dev *indio_dev,
-				     const struct fwnode_reference_args *iiospec)
+static int ab8500_gpadc_fwanalde_xlate(struct iio_dev *indio_dev,
+				     const struct fwanalde_reference_args *iiospec)
 {
 	int i;
 
@@ -938,7 +938,7 @@ static int ab8500_gpadc_fwnode_xlate(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info ab8500_gpadc_info = {
-	.fwnode_xlate = ab8500_gpadc_fwnode_xlate,
+	.fwanalde_xlate = ab8500_gpadc_fwanalde_xlate,
 	.read_raw = ab8500_gpadc_read_raw,
 };
 
@@ -968,7 +968,7 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
 /**
  * ab8500_gpadc_parse_channel() - process devicetree channel configuration
  * @dev: pointer to containing device
- * @fwnode: fw node for the channel to configure
+ * @fwanalde: fw analde for the channel to configure
  * @ch: channel info to fill in
  * @iio_chan: IIO channel specification to fill in
  *
@@ -976,15 +976,15 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
  * and define usage for things like AUX GPADC inputs more precisely.
  */
 static int ab8500_gpadc_parse_channel(struct device *dev,
-				      struct fwnode_handle *fwnode,
+				      struct fwanalde_handle *fwanalde,
 				      struct ab8500_gpadc_chan_info *ch,
 				      struct iio_chan_spec *iio_chan)
 {
-	const char *name = fwnode_get_name(fwnode);
+	const char *name = fwanalde_get_name(fwanalde);
 	u32 chan;
 	int ret;
 
-	ret = fwnode_property_read_u32(fwnode, "reg", &chan);
+	ret = fwanalde_property_read_u32(fwanalde, "reg", &chan);
 	if (ret) {
 		dev_err(dev, "invalid channel number %s\n", name);
 		return ret;
@@ -1028,31 +1028,31 @@ static int ab8500_gpadc_parse_channels(struct ab8500_gpadc *gpadc,
 				       struct iio_chan_spec **chans_parsed,
 				       unsigned int *nchans_parsed)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct ab8500_gpadc_chan_info *ch;
 	struct iio_chan_spec *iio_chans;
 	unsigned int nchans;
 	int i;
 
-	nchans = device_get_child_node_count(gpadc->dev);
+	nchans = device_get_child_analde_count(gpadc->dev);
 	if (!nchans) {
-		dev_err(gpadc->dev, "no channel children\n");
-		return -ENODEV;
+		dev_err(gpadc->dev, "anal channel children\n");
+		return -EANALDEV;
 	}
 	dev_info(gpadc->dev, "found %d ADC channels\n", nchans);
 
 	iio_chans = devm_kcalloc(gpadc->dev, nchans,
 				 sizeof(*iio_chans), GFP_KERNEL);
 	if (!iio_chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpadc->chans = devm_kcalloc(gpadc->dev, nchans,
 				    sizeof(*gpadc->chans), GFP_KERNEL);
 	if (!gpadc->chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	device_for_each_child_node(gpadc->dev, child) {
+	device_for_each_child_analde(gpadc->dev, child) {
 		struct iio_chan_spec *iio_chan;
 		int ret;
 
@@ -1062,7 +1062,7 @@ static int ab8500_gpadc_parse_channels(struct ab8500_gpadc *gpadc,
 		ret = ab8500_gpadc_parse_channel(gpadc->dev, child, ch,
 						 iio_chan);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 		i++;
@@ -1085,7 +1085,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*gpadc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, indio_dev);
 	gpadc = iio_priv(indio_dev);
@@ -1109,12 +1109,12 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 		gpadc->irq_hw = 0;
 	}
 
-	/* Initialize completion used to notify completion of conversion */
+	/* Initialize completion used to analtify completion of conversion */
 	init_completion(&gpadc->complete);
 
 	/* Request interrupts */
 	ret = devm_request_threaded_irq(dev, gpadc->irq_sw, NULL,
-		ab8500_bm_gpadcconvend_handler,	IRQF_NO_SUSPEND | IRQF_ONESHOT,
+		ab8500_bm_gpadcconvend_handler,	IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 		"ab8500-gpadc-sw", gpadc);
 	if (ret < 0) {
 		dev_err(dev,
@@ -1125,7 +1125,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 
 	if (gpadc->irq_hw) {
 		ret = devm_request_threaded_irq(dev, gpadc->irq_hw, NULL,
-			ab8500_bm_gpadcconvend_handler,	IRQF_NO_SUSPEND | IRQF_ONESHOT,
+			ab8500_bm_gpadcconvend_handler,	IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 			"ab8500-gpadc-hw", gpadc);
 		if (ret < 0) {
 			dev_err(dev,
@@ -1148,7 +1148,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	}
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, AB8500_GPADC_AUTOSUSPEND_DELAY);
@@ -1172,7 +1172,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 
 out_dis_pm:
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	regulator_disable(gpadc->vddadc);
 
@@ -1185,7 +1185,7 @@ static void ab8500_gpadc_remove(struct platform_device *pdev)
 	struct ab8500_gpadc *gpadc = iio_priv(indio_dev);
 
 	pm_runtime_get_sync(gpadc->dev);
-	pm_runtime_put_noidle(gpadc->dev);
+	pm_runtime_put_analidle(gpadc->dev);
 	pm_runtime_disable(gpadc->dev);
 	regulator_disable(gpadc->vddadc);
 }

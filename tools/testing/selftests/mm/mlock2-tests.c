@@ -40,14 +40,14 @@ static int get_vm_area(unsigned long addr, struct vm_boundaries *area)
 	while(fgets(line, 1024, file)) {
 		end_addr = strchr(line, '-');
 		if (!end_addr) {
-			printf("cannot parse /proc/self/maps\n");
+			printf("cananalt parse /proc/self/maps\n");
 			goto out;
 		}
 		*end_addr = '\0';
 		end_addr++;
 		stop = strchr(end_addr, ' ');
 		if (!stop) {
-			printf("cannot parse /proc/self/maps\n");
+			printf("cananalt parse /proc/self/maps\n");
 			goto out;
 		}
 
@@ -194,15 +194,15 @@ static int test_mlock_lock()
 	unsigned long page_size = getpagesize();
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		   MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	if (map == MAP_FAILED) {
 		perror("test_mlock_locked mmap");
 		goto out;
 	}
 
 	if (mlock2_(map, 2 * page_size, 0)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erranal == EANALSYS) {
+			printf("Cananalt call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("mlock2(0)");
@@ -212,7 +212,7 @@ static int test_mlock_lock()
 	if (!lock_check((unsigned long)map))
 		goto unmap;
 
-	/* Now unlock and recheck attributes */
+	/* Analw unlock and recheck attributes */
 	if (munlock(map, 2 * page_size)) {
 		perror("munlock()");
 		goto unmap;
@@ -230,7 +230,7 @@ static int onfault_check(char *map)
 {
 	*map = 'a';
 	if (!is_vma_lock_on_fault((unsigned long)map)) {
-		printf("VMA is not marked for lock on fault\n");
+		printf("VMA is analt marked for lock on fault\n");
 		return 1;
 	}
 
@@ -257,15 +257,15 @@ static int test_mlock_onfault()
 	unsigned long page_size = getpagesize();
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		   MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	if (map == MAP_FAILED) {
 		perror("test_mlock_locked mmap");
 		goto out;
 	}
 
 	if (mlock2_(map, 2 * page_size, MLOCK_ONFAULT)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erranal == EANALSYS) {
+			printf("Cananalt call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("mlock2(MLOCK_ONFAULT)");
@@ -275,10 +275,10 @@ static int test_mlock_onfault()
 	if (onfault_check(map))
 		goto unmap;
 
-	/* Now unlock and recheck attributes */
+	/* Analw unlock and recheck attributes */
 	if (munlock(map, 2 * page_size)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erranal == EANALSYS) {
+			printf("Cananalt call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("munlock()");
@@ -299,7 +299,7 @@ static int test_lock_onfault_of_present()
 	unsigned long page_size = getpagesize();
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		   MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	if (map == MAP_FAILED) {
 		perror("test_mlock_locked mmap");
 		goto out;
@@ -308,8 +308,8 @@ static int test_lock_onfault_of_present()
 	*map = 'a';
 
 	if (mlock2_(map, 2 * page_size, MLOCK_ONFAULT)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erranal == EANALSYS) {
+			printf("Cananalt call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("mlock2(MLOCK_ONFAULT)");
@@ -318,7 +318,7 @@ static int test_lock_onfault_of_present()
 
 	if (!is_vma_lock_on_fault((unsigned long)map) ||
 	    !is_vma_lock_on_fault((unsigned long)map + page_size)) {
-		printf("VMA with present pages is not marked lock on fault\n");
+		printf("VMA with present pages is analt marked lock on fault\n");
 		goto unmap;
 	}
 	ret = 0;
@@ -335,7 +335,7 @@ static int test_munlockall()
 	unsigned long page_size = getpagesize();
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		   MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 
 	if (map == MAP_FAILED) {
 		perror("test_munlockall mmap");
@@ -361,7 +361,7 @@ static int test_munlockall()
 	munmap(map, 2 * page_size);
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		   MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 
 	if (map == MAP_FAILED) {
 		perror("test_munlockall second mmap");
@@ -416,15 +416,15 @@ static int test_vma_management(bool call_mlock)
 	struct vm_boundaries page3;
 
 	map = mmap(NULL, 3 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		   MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	if (map == MAP_FAILED) {
 		perror("mmap()");
 		return ret;
 	}
 
 	if (call_mlock && mlock2_(map, 3 * page_size, MLOCK_ONFAULT)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erranal == EANALSYS) {
+			printf("Cananalt call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("mlock(ONFAULT)\n");
@@ -440,11 +440,11 @@ static int test_vma_management(bool call_mlock)
 
 	/*
 	 * Before we unlock a portion, we need to that all three pages are in
-	 * the same VMA.  If they are not we abort this test (Note that this is
-	 * not a failure)
+	 * the same VMA.  If they are analt we abort this test (Analte that this is
+	 * analt a failure)
 	 */
 	if (page1.start != page2.start || page2.start != page3.start) {
-		printf("VMAs are not merged to start, aborting test\n");
+		printf("VMAs are analt merged to start, aborting test\n");
 		ret = 0;
 		goto out;
 	}
@@ -467,7 +467,7 @@ static int test_vma_management(bool call_mlock)
 		goto out;
 	}
 
-	/* Now unlock the first and third page and check the VMAs again */
+	/* Analw unlock the first and third page and check the VMAs again */
 	if (munlock(map, page_size * 3)) {
 		perror("munlock()");
 		goto out;
@@ -480,7 +480,7 @@ static int test_vma_management(bool call_mlock)
 		goto out;
 	}
 
-	/* Now all three VMAs should be the same */
+	/* Analw all three VMAs should be the same */
 	if (page1.start != page2.start || page2.start != page3.start) {
 		printf("failed to merge VMAs after munlock\n");
 		goto out;

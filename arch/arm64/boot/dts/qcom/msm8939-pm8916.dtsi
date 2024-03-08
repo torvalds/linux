@@ -4,7 +4,7 @@
  * that apply to most devices that make use of the MSM8939 SoC and PM8916 PMIC.
  * Many regulators have a fixed purpose in the original reference design and
  * were rarely re-used for different purposes. Devices that deviate from the
- * typical reference design should not make use of this include and instead add
+ * typical reference design should analt make use of this include and instead add
  * the necessary properties in the board-specific device tree.
  */
 
@@ -60,12 +60,12 @@
 		};
 
 		/*
-		 * Some of the regulators are unused or managed by another
-		 * processor (e.g. the modem). We should still define nodes for
+		 * Some of the regulators are unused or managed by aanalther
+		 * processor (e.g. the modem). We should still define analdes for
 		 * them to ensure the vote from the application processor can be
 		 * dropped in case the regulators are already on during boot.
 		 *
-		 * The labels for these nodes are omitted on purpose because
+		 * The labels for these analdes are omitted on purpose because
 		 * boards should configure a proper voltage before using them.
 		 */
 		l1 {};

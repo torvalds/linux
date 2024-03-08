@@ -19,7 +19,7 @@ struct snd_soc_pcm_runtime;
  * or audio route changes triggered by muxes/mixers.
  */
 enum snd_soc_dpcm_update {
-	SND_SOC_DPCM_UPDATE_NO	= 0,
+	SND_SOC_DPCM_UPDATE_ANAL	= 0,
 	SND_SOC_DPCM_UPDATE_BE,
 	SND_SOC_DPCM_UPDATE_FE,
 };
@@ -97,7 +97,7 @@ struct snd_soc_dpcm_runtime {
 	enum snd_soc_dpcm_update runtime_update;
 	enum snd_soc_dpcm_state state;
 
-	int trigger_pending; /* trigger cmd + 1 if pending, 0 if not */
+	int trigger_pending; /* trigger cmd + 1 if pending, 0 if analt */
 
 	int be_start; /* refcount protected by BE stream pcm lock */
 	int be_pause; /* refcount protected by BE stream pcm lock */

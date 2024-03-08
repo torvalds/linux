@@ -13,7 +13,7 @@
 #include <linux/vfio.h>
 #include <linux/fsl/mc.h>
 #include <linux/delay.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 
 #include "vfio_fsl_mc_private.h"
 
@@ -30,11 +30,11 @@ static int vfio_fsl_mc_open_device(struct vfio_device *core_vdev)
 	vdev->regions = kcalloc(count, sizeof(struct vfio_fsl_mc_region),
 				GFP_KERNEL_ACCOUNT);
 	if (!vdev->regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		struct resource *res = &mc_dev->regions[i];
-		int no_mmap = is_fsl_mc_bus_dprc(mc_dev);
+		int anal_mmap = is_fsl_mc_bus_dprc(mc_dev);
 
 		vdev->regions[i].addr = res->start;
 		vdev->regions[i].size = resource_size(res);
@@ -43,7 +43,7 @@ static int vfio_fsl_mc_open_device(struct vfio_device *core_vdev)
 		 * Only regions addressed with PAGE granularity may be
 		 * MMAPed securely.
 		 */
-		if (!no_mmap && !(vdev->regions[i].addr & ~PAGE_MASK) &&
+		if (!anal_mmap && !(vdev->regions[i].addr & ~PAGE_MASK) &&
 				!(vdev->regions[i].size & ~PAGE_MASK))
 			vdev->regions[i].flags |=
 					VFIO_REGION_INFO_FLAG_MMAP;
@@ -74,7 +74,7 @@ static int vfio_fsl_mc_reset_device(struct vfio_fsl_mc_device *vdev)
 		return dprc_reset_container(mc_dev->mc_io, 0,
 					mc_dev->mc_handle,
 					mc_dev->obj_desc.id,
-					DPRC_RESET_OPTION_NON_RECURSIVE);
+					DPRC_RESET_OPTION_ANALN_RECURSIVE);
 	} else {
 		u16 token;
 
@@ -233,7 +233,7 @@ static long vfio_fsl_mc_ioctl(struct vfio_device *core_vdev,
 
 	}
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -260,7 +260,7 @@ static ssize_t vfio_fsl_mc_read(struct vfio_device *core_vdev, char __user *buf,
 	if (!region->ioaddr) {
 		region->ioaddr = ioremap(region->addr, region->size);
 		if (!region->ioaddr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (count != 64 || off != 0)
@@ -339,7 +339,7 @@ static ssize_t vfio_fsl_mc_write(struct vfio_device *core_vdev,
 	if (!region->ioaddr) {
 		region->ioaddr = ioremap(region->addr, region->size);
 		if (!region->ioaddr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (count != 64 || off != 0)
@@ -373,7 +373,7 @@ static int vfio_fsl_mc_mmap_mmio(struct vfio_fsl_mc_region region,
 	region_cacheable = (region.type & FSL_MC_REGION_CACHEABLE) &&
 			   (region.type & FSL_MC_REGION_SHAREABLE);
 	if (!region_cacheable)
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	vma->vm_pgoff = (region.addr >> PAGE_SHIFT) + pgoff;
 
@@ -419,7 +419,7 @@ static int vfio_fsl_mc_mmap(struct vfio_device *core_vdev,
 }
 
 static const struct vfio_device_ops vfio_fsl_mc_ops;
-static int vfio_fsl_mc_bus_notifier(struct notifier_block *nb,
+static int vfio_fsl_mc_bus_analtifier(struct analtifier_block *nb,
 				    unsigned long action, void *data)
 {
 	struct vfio_fsl_mc_device *vdev = container_of(nb,
@@ -428,7 +428,7 @@ static int vfio_fsl_mc_bus_notifier(struct notifier_block *nb,
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	struct fsl_mc_device *mc_cont = to_fsl_mc_device(mc_dev->dev.parent);
 
-	if (action == BUS_NOTIFY_ADD_DEVICE &&
+	if (action == BUS_ANALTIFY_ADD_DEVICE &&
 	    vdev->mc_dev == mc_cont) {
 		mc_dev->driver_override = kasprintf(GFP_KERNEL, "%s",
 						    vfio_fsl_mc_ops.name);
@@ -438,7 +438,7 @@ static int vfio_fsl_mc_bus_notifier(struct notifier_block *nb,
 		else
 			dev_info(dev, "VFIO_FSL_MC: Setting driver override for device in dprc %s\n",
 				 dev_name(&mc_cont->dev));
-	} else if (action == BUS_NOTIFY_BOUND_DRIVER &&
+	} else if (action == BUS_ANALTIFY_BOUND_DRIVER &&
 		vdev->mc_dev == mc_cont) {
 		struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
 
@@ -455,7 +455,7 @@ static int vfio_fsl_mc_init_device(struct vfio_fsl_mc_device *vdev)
 	struct fsl_mc_device *mc_dev = vdev->mc_dev;
 	int ret;
 
-	/* Non-dprc devices share mc_io from parent */
+	/* Analn-dprc devices share mc_io from parent */
 	if (!is_fsl_mc_bus_dprc(mc_dev)) {
 		struct fsl_mc_device *mc_cont = to_fsl_mc_device(mc_dev->dev.parent);
 
@@ -463,8 +463,8 @@ static int vfio_fsl_mc_init_device(struct vfio_fsl_mc_device *vdev)
 		return 0;
 	}
 
-	vdev->nb.notifier_call = vfio_fsl_mc_bus_notifier;
-	ret = bus_register_notifier(&fsl_mc_bus_type, &vdev->nb);
+	vdev->nb.analtifier_call = vfio_fsl_mc_bus_analtifier;
+	ret = bus_register_analtifier(&fsl_mc_bus_type, &vdev->nb);
 	if (ret)
 		return ret;
 
@@ -477,7 +477,7 @@ static int vfio_fsl_mc_init_device(struct vfio_fsl_mc_device *vdev)
 	return 0;
 
 out_nc_unreg:
-	bus_unregister_notifier(&fsl_mc_bus_type, &vdev->nb);
+	bus_unregister_analtifier(&fsl_mc_bus_type, &vdev->nb);
 	return ret;
 }
 
@@ -485,7 +485,7 @@ static int vfio_fsl_mc_scan_container(struct fsl_mc_device *mc_dev)
 {
 	int ret;
 
-	/* non dprc devices do not scan for other devices */
+	/* analn dprc devices do analt scan for other devices */
 	if (!is_fsl_mc_bus_dprc(mc_dev))
 		return 0;
 	ret = dprc_scan_container(mc_dev, false);
@@ -506,7 +506,7 @@ static void vfio_fsl_uninit_device(struct vfio_fsl_mc_device *vdev)
 		return;
 
 	dprc_cleanup(mc_dev);
-	bus_unregister_notifier(&fsl_mc_bus_type, &vdev->nb);
+	bus_unregister_analtifier(&fsl_mc_bus_type, &vdev->nb);
 }
 
 static int vfio_fsl_mc_init_dev(struct vfio_device *core_vdev)

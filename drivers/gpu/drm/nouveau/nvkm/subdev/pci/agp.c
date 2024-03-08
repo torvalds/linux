@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Nouveau Project
+ * Copyright 2015 Analuveau Project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@ static const struct nvkm_device_agp_quirk
 nvkm_device_agp_quirks[] = {
 	/* VIA Apollo PRO133x / GeForce FX 5600 Ultra - fdo#20341 */
 	{ PCI_VENDOR_ID_VIA, 0x0691, PCI_VENDOR_ID_NVIDIA, 0x0311, 2 },
-	/* SiS 761 does not support AGP cards, use PCI mode */
+	/* SiS 761 does analt support AGP cards, use PCI mode */
 	{ PCI_VENDOR_ID_SI, 0x0761, PCI_ANY_ID, PCI_ANY_ID, 0 },
 	{},
 };
@@ -86,7 +86,7 @@ nvkm_agp_init(struct nvkm_pci *pci)
 {
 	if (!agp_backend_acquire(pci->pdev)) {
 		nvkm_error(&pci->subdev, "failed to acquire agp\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	agp_enable(pci->agp.bridge, pci->agp.mode);
@@ -110,8 +110,8 @@ nvkm_agp_ctor(struct nvkm_pci *pci)
 	int mode = -1;
 
 #ifdef __powerpc__
-	/* Disable AGP by default on all PowerPC machines for now -- At
-	 * least some UniNorth-2 AGP bridges are known to be broken:
+	/* Disable AGP by default on all PowerPC machines for analw -- At
+	 * least some UniAnalrth-2 AGP bridges are kanalwn to be broken:
 	 * DMA from the host to the card works just fine, but writeback
 	 * from the card to the host goes straight to memory
 	 * untranslated bypassing that GATT somehow, making them quite

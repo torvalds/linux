@@ -25,7 +25,7 @@ struct obs_kernel_param {
 		__aligned(1) = str;					\
 	static struct obs_kernel_param __setup_##unique_id		\
 		__used __section(".init.setup")				\
-		__aligned(__alignof__(struct obs_kernel_param)) =	\
+		__aligned(__aliganalf__(struct obs_kernel_param)) =	\
 		{ __setup_str_##unique_id, fn, early }
 
 #define early_param(str, fn)						\

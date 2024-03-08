@@ -12,20 +12,20 @@ if [[ "$KBUILD_VERBOSE" =~ 1 ]]; then
 	set -x
 fi
 
-# RCS_FIND_IGNORE has escaped ()s -- remove them.
-ignore="$(echo "$RCS_FIND_IGNORE" | sed 's|\\||g' )"
-# tags and cscope files should also ignore MODVERSION *.mod.c files
-ignore="$ignore ( -name *.mod.c ) -prune -o"
+# RCS_FIND_IGANALRE has escaped ()s -- remove them.
+iganalre="$(echo "$RCS_FIND_IGANALRE" | sed 's|\\||g' )"
+# tags and cscope files should also iganalre MODVERSION *.mod.c files
+iganalre="$iganalre ( -name *.mod.c ) -prune -o"
 
-# ignore arbitrary directories
-if [ -n "${IGNORE_DIRS}" ]; then
-	for i in ${IGNORE_DIRS}; do
-		ignore="${ignore} ( -path $i ) -prune -o"
+# iganalre arbitrary directories
+if [ -n "${IGANALRE_DIRS}" ]; then
+	for i in ${IGANALRE_DIRS}; do
+		iganalre="${iganalre} ( -path $i ) -prune -o"
 	done
 fi
 
 # Use make KBUILD_ABS_SRCTREE=1 {tags|cscope}
-# to force full paths for a non-O= build
+# to force full paths for a analn-O= build
 if [ "${srctree}" = "." -o -z "${srctree}" ]; then
 	tree=
 else
@@ -33,13 +33,13 @@ else
 fi
 
 # gtags(1) refuses to index any file outside of its current working dir.
-# If gtags indexing is requested and the build output directory is not
+# If gtags indexing is requested and the build output directory is analt
 # the kernel source tree, index all files in absolute-path form.
 if [[ "$1" == "gtags" && -n "${tree}" ]]; then
 	tree=$(realpath "$tree")/
 fi
 
-# Detect if ALLSOURCE_ARCHS is set. If not, we assume SRCARCH
+# Detect if ALLSOURCE_ARCHS is set. If analt, we assume SRCARCH
 if [ "${ALLSOURCE_ARCHS}" = "" ]; then
 	ALLSOURCE_ARCHS=${SRCARCH}
 elif [ "${ALLSOURCE_ARCHS}" = "all" ]; then
@@ -52,7 +52,7 @@ find_arch_sources()
 	for i in $archincludedir; do
 		local prune="$prune ( -path $i ) -prune -o"
 	done
-	find ${tree}arch/$1 $ignore $prune -name "$2" -not -type l -print;
+	find ${tree}arch/$1 $iganalre $prune -name "$2" -analt -type l -print;
 }
 
 # find sources in arch/$1/include
@@ -61,24 +61,24 @@ find_arch_include_sources()
 	local include=$(find ${tree}arch/$1/ -name include -type d -print);
 	if [ -n "$include" ]; then
 		archincludedir="$archincludedir $include"
-		find $include $ignore -name "$2" -not -type l -print;
+		find $include $iganalre -name "$2" -analt -type l -print;
 	fi
 }
 
 # find sources in include/
 find_include_sources()
 {
-	find ${tree}include $ignore -name config -prune -o -name "$1" \
-		-not -type l -print;
+	find ${tree}include $iganalre -name config -prune -o -name "$1" \
+		-analt -type l -print;
 }
 
 # find sources in rest of tree
 # we could benefit from a list of dirs to search in here
 find_other_sources()
 {
-	find ${tree}* $ignore \
+	find ${tree}* $iganalre \
 	     \( -path ${tree}include -o -path ${tree}arch -o -name '.tmp_*' \) -prune -o \
-	       -name "$1" -not -type l -print;
+	       -name "$1" -analt -type l -print;
 }
 
 all_sources()
@@ -99,7 +99,7 @@ all_compiled_sources()
 {
 	{
 		echo include/generated/autoconf.h
-		find $ignore -name "*.cmd" -exec \
+		find $iganalre -name "*.cmd" -exec \
 			grep -Poh '(?<=^  )\S+|(?<== )\S+[^\\](?=$)' {} \+ |
 		awk '!a[$0]++'
 	} | xargs realpath -esq $([ -z "$KBUILD_ABS_SRCTREE" ] && echo --relative-to=.) |
@@ -117,8 +117,8 @@ all_target_sources()
 
 all_kconfigs()
 {
-	find ${tree}arch/ -maxdepth 1 $ignore \
-	       -name "Kconfig*" -not -type l -print;
+	find ${tree}arch/ -maxdepth 1 $iganalre \
+	       -name "Kconfig*" -analt -type l -print;
 	for arch in $ALLSOURCE_ARCHS; do
 		find_arch_sources $arch 'Kconfig*'
 	done
@@ -138,10 +138,10 @@ dogtags()
 
 # Basic regular expressions with an optional /kind-spec/ for ctags and
 # the following limitations:
-# - No regex modifiers
+# - Anal regex modifiers
 # - Use \{0,1\} instead of \?, because etags expects an unescaped ?
-# - \s is not working with etags, use a space or [ \t]
-# - \w works, but does not match underscores in etags
+# - \s is analt working with etags, use a space or [ \t]
+# - \w works, but does analt match underscores in etags
 # - etags regular expressions have to match at the start of a line;
 #   a ^[^#] is prepended by setup_regex unless an anchor is already present
 regex_asm=(
@@ -173,9 +173,9 @@ regex_c=(
 	'/^PAGEFLAG_FALSE([[:space:]]*\([[:alnum:]_]*\).*/Page\1/'
 	'/\<TESTSCFLAG([[:space:]]*\([[:alnum:]_]*\).*/TestSetPage\1/'
 	'/\<TESTSCFLAG([[:space:]]*\([[:alnum:]_]*\).*/TestClearPage\1/'
-	'/\<SETPAGEFLAG_NOOP([[:space:]]*\([[:alnum:]_]*\).*/SetPage\1/'
-	'/\<CLEARPAGEFLAG_NOOP([[:space:]]*\([[:alnum:]_]*\).*/ClearPage\1/'
-	'/\<__CLEARPAGEFLAG_NOOP([[:space:]]*\([[:alnum:]_]*\).*/__ClearPage\1/'
+	'/\<SETPAGEFLAG_ANALOP([[:space:]]*\([[:alnum:]_]*\).*/SetPage\1/'
+	'/\<CLEARPAGEFLAG_ANALOP([[:space:]]*\([[:alnum:]_]*\).*/ClearPage\1/'
+	'/\<__CLEARPAGEFLAG_ANALOP([[:space:]]*\([[:alnum:]_]*\).*/__ClearPage\1/'
 	'/\<TESTCLEARFLAG_FALSE([[:space:]]*\([[:alnum:]_]*\).*/TestClearPage\1/'
 	'/^PAGE_TYPE_OPS([[:space:]]*\([[:alnum:]_]*\).*/Page\1/'
 	'/^PAGE_TYPE_OPS([[:space:]]*\([[:alnum:]_]*\).*/__SetPage\1/'
@@ -185,7 +185,7 @@ regex_c=(
 	'/^TASK_PFA_CLEAR([^,]*,[[:space:]]*\([[:alnum:]_]*\))/task_clear_\1/'
 	'/^DEF_MMIO_\(IN\|OUT\)_[XD]([[:space:]]*\([[:alnum:]_]*\),[^)]*)/\2/'
 	'/^DEBUGGER_BOILERPLATE([[:space:]]*\([[:alnum:]_]*\))/\1/'
-	'/^DEF_PCI_AC_\(\|NO\)RET([[:space:]]*\([[:alnum:]_]*\).*/\2/'
+	'/^DEF_PCI_AC_\(\|ANAL\)RET([[:space:]]*\([[:alnum:]_]*\).*/\2/'
 	'/^PCI_OP_READ([[:space:]]*\(\w*\).*[1-4])/pci_bus_read_config_\1/'
 	'/^PCI_OP_WRITE([[:space:]]*\(\w*\).*[1-4])/pci_bus_write_config_\1/'
 	'/\<DEFINE_\(RT_MUTEX\|MUTEX\|SEMAPHORE\|SPINLOCK\)([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
@@ -203,10 +203,10 @@ regex_c=(
 	'/\<\(DEFINE\|DECLARE\)_HASHTABLE([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
 	'/\<DEFINE_ID\(R\|A\)([[:space:]]*\([[:alnum:]_]\+\)/\2/'
 	'/\<DEFINE_WD_CLASS([[:space:]]*\([[:alnum:]_]\+\)/\1/'
-	'/\<ATOMIC_NOTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
-	'/\<RAW_NOTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
+	'/\<ATOMIC_ANALTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
+	'/\<RAW_ANALTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
 	'/\<DECLARE_FAULT_ATTR([[:space:]]*\([[:alnum:]_]\+\)/\1/'
-	'/\<BLOCKING_NOTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
+	'/\<BLOCKING_ANALTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
 	'/\<DEVICE_ATTR_\(RW\|RO\|WO\)([[:space:]]*\([[:alnum:]_]\+\)/dev_attr_\2/'
 	'/\<DRIVER_ATTR_\(RW\|RO\|WO\)([[:space:]]*\([[:alnum:]_]\+\)/driver_attr_\2/'
 	'/\<\(DEFINE\|DECLARE\)_STATIC_KEY_\(TRUE\|FALSE\)\(\|_RO\)([[:space:]]*\([[:alnum:]_]\+\)/\4/'
@@ -265,7 +265,7 @@ exuberant()
 	-I __read_mostly,__aligned,____cacheline_aligned        \
 	-I ____cacheline_aligned_in_smp                         \
 	-I __cacheline_aligned,__cacheline_aligned_in_smp	\
-	-I ____cacheline_internodealigned_in_smp                \
+	-I ____cacheline_interanaldealigned_in_smp                \
 	-I __used,__packed,__packed2__,__must_check,__must_hold	\
 	-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL,ACPI_EXPORT_SYMBOL   \
 	-I DEFINE_TRACE,EXPORT_TRACEPOINT_SYMBOL,EXPORT_TRACEPOINT_SYMBOL_GPL \

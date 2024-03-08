@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2011 Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2011 Thomas Renninger <trenn@suse.de>, Analvell Inc.
  */
 
 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <getopt.h>
 #include <sys/utsname.h>
@@ -26,7 +26,7 @@ static struct option set_opts[] = {
 
 static void print_wrong_arg_exit(void)
 {
-	printf(_("invalid or unknown argument\n"));
+	printf(_("invalid or unkanalwn argument\n"));
 	exit(EXIT_FAILURE);
 }
 
@@ -53,7 +53,7 @@ int cmd_set(int argc, char **argv)
 	ret = uname(&uts);
 	if (!ret && (!strcmp(uts.machine, "ppc64le") ||
 		     !strcmp(uts.machine, "ppc64"))) {
-		fprintf(stderr, _("Subcommand not supported on POWER.\n"));
+		fprintf(stderr, _("Subcommand analt supported on POWER.\n"));
 		return ret;
 	}
 
@@ -140,7 +140,7 @@ int cmd_set(int argc, char **argv)
 			continue;
 
 		if (sysfs_is_cpu_online(cpu) != 1){
-			fprintf(stderr, _("Cannot set values on CPU %d:"), cpu);
+			fprintf(stderr, _("Cananalt set values on CPU %d:"), cpu);
 			fprintf(stderr, _(" *is offline\n"));
 			continue;
 		}

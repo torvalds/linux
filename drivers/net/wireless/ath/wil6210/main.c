@@ -22,18 +22,18 @@
 
 bool debug_fw; /* = false; */
 module_param(debug_fw, bool, 0444);
-MODULE_PARM_DESC(debug_fw, " do not perform card reset. For FW debug");
+MODULE_PARM_DESC(debug_fw, " do analt perform card reset. For FW debug");
 
 static u8 oob_mode;
 module_param(oob_mode, byte, 0444);
 MODULE_PARM_DESC(oob_mode,
-		 " enable out of the box (OOB) mode in FW, for diagnostics and certification");
+		 " enable out of the box (OOB) mode in FW, for diaganalstics and certification");
 
-bool no_fw_recovery;
-module_param(no_fw_recovery, bool, 0644);
-MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
+bool anal_fw_recovery;
+module_param(anal_fw_recovery, bool, 0644);
+MODULE_PARM_DESC(anal_fw_recovery, " disable automatic FW error recovery");
 
-/* if not set via modparam, will be set to default value of 1/8 of
+/* if analt set via modparam, will be set to default value of 1/8 of
  * rx ring size during init flow
  */
 unsigned short rx_ring_overflow_thrsh = WIL6210_RX_HIGH_TRSH_INIT;
@@ -49,7 +49,7 @@ static int mtu_max_set(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 
-	/* sets mtu_max directly. no need to restore it in case of
+	/* sets mtu_max directly. anal need to restore it in case of
 	 * illegal value since we assume this will fail insmod
 	 */
 	ret = param_set_uint(val, kp);
@@ -130,7 +130,7 @@ enum {
  * Due to a hardware issue,
  * one has to read/write to/from NIC in 32-bit chunks;
  * regular memcpy_fromio and siblings will
- * not work on 64-bit platform - it uses 64-bit transactions
+ * analt work on 64-bit platform - it uses 64-bit transactions
  *
  * Force 32-bit transactions to enable NIC on 64-bit platforms
  *
@@ -210,12 +210,12 @@ static void wil_ring_fini_tx(struct wil6210_priv *wil, int id)
 	spin_lock_bh(&txdata->lock);
 	txdata->dot1x_open = false;
 	txdata->mid = U8_MAX;
-	txdata->enabled = 0; /* no Tx can be in progress or start anew */
+	txdata->enabled = 0; /* anal Tx can be in progress or start anew */
 	spin_unlock_bh(&txdata->lock);
 	/* napi_synchronize waits for completion of the current NAPI but will
-	 * not prevent the next NAPI run.
+	 * analt prevent the next NAPI run.
 	 * Add a memory barrier to guarantee that txdata->enabled is zeroed
-	 * before napi_synchronize so that the next scheduled NAPI will not
+	 * before napi_synchronize so that the next scheduled NAPI will analt
 	 * handle this vring
 	 */
 	wmb();
@@ -302,7 +302,7 @@ static void _wil6210_disconnect_complete(struct wil6210_vif *vif,
 					 const u8 *bssid, u16 reason_code)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	int cid = -ENOENT;
+	int cid = -EANALENT;
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
 
@@ -406,7 +406,7 @@ static int wil_disconnect_cid(struct wil6210_vif *vif, int cid,
 		del_sta = true;
 
 	/* disconnect by sending command disconnect/del_sta and wait
-	 * synchronously for WMI_DISCONNECT_EVENTID event.
+	 * synchroanalusly for WMI_DISCONNECT_EVENTID event.
 	 */
 	return wmi_disconnect_sta(vif, sta->addr, reason_code, del_sta);
 }
@@ -416,7 +416,7 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 {
 	struct wil6210_priv *wil;
 	struct net_device *ndev;
-	int cid = -ENOENT;
+	int cid = -EANALENT;
 
 	if (unlikely(!vif))
 		return;
@@ -520,7 +520,7 @@ void wil_set_recovery_state(struct wil6210_priv *wil, int state)
 
 bool wil_is_recovery_blocked(struct wil6210_priv *wil)
 {
-	return no_fw_recovery && (wil->recovery_state == fw_recovery_pending);
+	return anal_fw_recovery && (wil->recovery_state == fw_recovery_pending);
 }
 
 static void wil_fw_error_worker(struct work_struct *work)
@@ -533,7 +533,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 	wil_dbg_misc(wil, "fw error worker\n");
 
 	if (!ndev || !(ndev->flags & IFF_UP)) {
-		wil_info(wil, "No recovery - interface is down\n");
+		wil_info(wil, "Anal recovery - interface is down\n");
 		return;
 	}
 	wdev = ndev->ieee80211_ptr;
@@ -557,7 +557,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 
 	wil_info(wil, "fw error recovery requested (try %d)...\n",
 		 wil->recovery_count);
-	if (!no_fw_recovery)
+	if (!anal_fw_recovery)
 		wil->recovery_state = fw_recovery_running;
 	if (wil_wait_for_recovery(wil) != 0)
 		return;
@@ -578,7 +578,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		if (no_fw_recovery) /* upper layers do recovery */
+		if (anal_fw_recovery) /* upper layers do recovery */
 			break;
 		/* silent recovery, upper layers will see disconnect */
 		__wil_down(wil);
@@ -589,7 +589,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 		wil_info(wil, "... completed\n");
 		break;
 	default:
-		wil_err(wil, "No recovery - unknown interface type %d\n",
+		wil_err(wil, "Anal recovery - unkanalwn interface type %d\n",
 			wdev->iftype);
 		break;
 	}
@@ -616,12 +616,12 @@ int wil_ring_init_tx(struct wil6210_vif *vif, int cid)
 	int rc = -EINVAL, ringid;
 
 	if (cid < 0) {
-		wil_err(wil, "No connection pending\n");
+		wil_err(wil, "Anal connection pending\n");
 		goto out;
 	}
 	ringid = wil_find_free_ring(wil);
 	if (ringid < 0) {
-		wil_err(wil, "No free vring found\n");
+		wil_err(wil, "Anal free vring found\n");
 		goto out;
 	}
 
@@ -789,7 +789,7 @@ void wil6210_bus_request(struct wil6210_priv *wil, u32 kbps)
  * Disconnect and release associated resources. Issue WMI
  * command(s) to trigger MAC disconnect. When command was issued
  * successfully, call the wil6210_disconnect_complete function
- * to handle the event synchronously
+ * to handle the event synchroanalusly
  */
 void wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 			u16 reason_code)
@@ -852,7 +852,7 @@ static void wil_shutdown_bl(struct wil6210_priv *wil)
 		return;
 	}
 
-	wil_err(wil, "BL did not report ready for halt\n");
+	wil_err(wil, "BL did analt report ready for halt\n");
 }
 
 /* this format is used by ARC embedded CPU for instruction memory */
@@ -900,10 +900,10 @@ static void wil_bl_prepare_halt(struct wil6210_priv *wil)
 {
 	u32 tmp, ver;
 
-	/* before halting device CPU driver must make sure BL is not accessing
+	/* before halting device CPU driver must make sure BL is analt accessing
 	 * host memory. This is done differently depending on BL version:
 	 * 1. For very old BL versions the procedure is skipped
-	 * (not supported).
+	 * (analt supported).
 	 * 2. For old BL version we use a special trick to freeze the BL
 	 * 3. For new BL versions we shutdown the BL using handshake procedure.
 	 */
@@ -969,13 +969,13 @@ static void wil_set_oob_mode(struct wil6210_priv *wil, u8 mode)
 	}
 }
 
-static int wil_wait_device_ready(struct wil6210_priv *wil, int no_flash)
+static int wil_wait_device_ready(struct wil6210_priv *wil, int anal_flash)
 {
 	int delay = 0;
 	u32 x, x1 = 0;
 
 	/* wait until device ready. */
-	if (no_flash) {
+	if (anal_flash) {
 		msleep(PMU_READY_DELAY_MS);
 
 		wil_dbg_misc(wil, "Reset completed\n");
@@ -991,7 +991,7 @@ static int wil_wait_device_ready(struct wil6210_priv *wil, int no_flash)
 				x1 = x;
 			}
 			if (delay++ > RST_COUNT) {
-				wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
+				wil_err(wil, "Reset analt completed, bl.ready 0x%08x\n",
 					x);
 				return -ETIME;
 			}
@@ -1050,7 +1050,7 @@ static int wil_wait_device_ready_talyn_mb(struct wil6210_priv *wil)
 			/* Unrecognized OTP signature found. Possibly a
 			 * corrupted production signature, access control
 			 * is applied as in production mode, therefore
-			 * do not fail
+			 * do analt fail
 			 */
 			wil->boot_config = WIL_BOOT_PRODUCTION;
 			break;
@@ -1073,7 +1073,7 @@ static int wil_wait_device_ready_talyn_mb(struct wil6210_priv *wil)
 		     delay * OTP_HW_DELAY, otp_hw, wil->boot_config);
 
 	if (wil->boot_config == WIL_BOOT_VANILLA)
-		/* Assuming not SPI boot (currently not supported) */
+		/* Assuming analt SPI boot (currently analt supported) */
 		goto out;
 
 	hw_section_done = otp_hw & BIT_OTP_HW_SECTION_DONE_TALYN_MB;
@@ -1104,7 +1104,7 @@ out:
 	return 0;
 }
 
-static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
+static int wil_target_reset(struct wil6210_priv *wil, int anal_flash)
 {
 	u32 x;
 	int rc;
@@ -1121,7 +1121,7 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 
 	wil_halt_cpu(wil);
 
-	if (!no_flash) {
+	if (!anal_flash) {
 		/* clear all boot loader "ready" bits */
 		wil_w(wil, RGF_USER_BL +
 		      offsetof(struct bl_dedicated_registers_v0,
@@ -1131,7 +1131,7 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 		      offsetof(struct bl_dedicated_registers_v1,
 			       bl_shutdown_handshake), 0);
 	}
-	/* Clear Fw Download notification */
+	/* Clear Fw Download analtification */
 	wil_c(wil, RGF_USER_USAGE_6, BIT(0));
 
 	wil_s(wil, RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
@@ -1180,7 +1180,7 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 	if (wil->hw_version == HW_VER_TALYN_MB)
 		rc = wil_wait_device_ready_talyn_mb(wil);
 	else
-		rc = wil_wait_device_ready(wil, no_flash);
+		rc = wil_wait_device_ready(wil, anal_flash);
 	if (rc)
 		return rc;
 
@@ -1190,7 +1190,7 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 	wil_s(wil, RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
 	      BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
 
-	if (wil->hw_version < HW_VER_TALYN_MB && no_flash) {
+	if (wil->hw_version < HW_VER_TALYN_MB && anal_flash) {
 		/* Reset OTP HW vectors to fit 40MHz */
 		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME1, 0x60001);
 		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME2, 0x20027);
@@ -1241,10 +1241,10 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 	else
 		wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
 
-	if (test_bit(WMI_FW_CAPABILITY_PNO, wil->fw_capabilities)) {
+	if (test_bit(WMI_FW_CAPABILITY_PANAL, wil->fw_capabilities)) {
 		wiphy->max_sched_scan_reqs = 1;
-		wiphy->max_sched_scan_ssids = WMI_MAX_PNO_SSID_NUM;
-		wiphy->max_match_sets = WMI_MAX_PNO_SSID_NUM;
+		wiphy->max_sched_scan_ssids = WMI_MAX_PANAL_SSID_NUM;
+		wiphy->max_match_sets = WMI_MAX_PANAL_SSID_NUM;
 		wiphy->max_sched_scan_ie_len = WMI_MAX_IE_LEN;
 		wiphy->max_sched_scan_plans = WMI_MAX_PLANS_NUM;
 	}
@@ -1328,17 +1328,17 @@ static int wil_get_bl_info(struct wil6210_priv *wil)
 	if (bl_ver == 0) {
 		le32_to_cpus(&bl.bl0.rf_type);
 		le32_to_cpus(&bl.bl0.baseband_type);
-		rf_status = 0; /* actually, unknown */
+		rf_status = 0; /* actually, unkanalwn */
 		wil_info(wil,
 			 "Boot Loader struct v%d: MAC = %pM RF = 0x%08x bband = 0x%08x\n",
 			 bl_ver, mac,
 			 bl.bl0.rf_type, bl.bl0.baseband_type);
-		wil_info(wil, "Boot Loader build unknown for struct v0\n");
+		wil_info(wil, "Boot Loader build unkanalwn for struct v0\n");
 	} else {
 		le16_to_cpus(&bl.bl1.rf_type);
 		rf_status = le16_to_cpu(bl.bl1.rf_status);
 		le32_to_cpus(&bl.bl1.baseband_type);
-		le16_to_cpus(&bl.bl1.bl_version_subminor);
+		le16_to_cpus(&bl.bl1.bl_version_submianalr);
 		le16_to_cpus(&bl.bl1.bl_version_build);
 		wil_info(wil,
 			 "Boot Loader struct v%d: MAC = %pM RF = 0x%04x (status 0x%04x) bband = 0x%08x\n",
@@ -1346,8 +1346,8 @@ static int wil_get_bl_info(struct wil6210_priv *wil)
 			 bl.bl1.rf_type, rf_status,
 			 bl.bl1.baseband_type);
 		wil_info(wil, "Boot Loader build %d.%d.%d.%d\n",
-			 bl.bl1.bl_version_major, bl.bl1.bl_version_minor,
-			 bl.bl1.bl_version_subminor, bl.bl1.bl_version_build);
+			 bl.bl1.bl_version_major, bl.bl1.bl_version_mianalr,
+			 bl.bl1.bl_version_submianalr, bl.bl1.bl_version_build);
 	}
 
 	if (!is_valid_ether_addr(mac)) {
@@ -1442,7 +1442,7 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 	ulong left = wait_for_completion_timeout(&wil->wmi_ready, to);
 
 	if (0 == left) {
-		wil_err(wil, "Firmware not ready\n");
+		wil_err(wil, "Firmware analt ready\n");
 		return -ETIME;
 	} else {
 		wil_info(wil, "FW ready after %d ms. HW version 0x%08x\n",
@@ -1499,8 +1499,8 @@ int wil_ps_update(struct wil6210_priv *wil, enum wmi_ps_profile_type ps_profile)
 	int rc;
 
 	if (!test_bit(WMI_FW_CAPABILITY_PS_CONFIG, wil->fw_capabilities)) {
-		wil_err(wil, "set_power_mgmt not supported\n");
-		return -EOPNOTSUPP;
+		wil_err(wil, "set_power_mgmt analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	rc  = wmi_ps_dev_profile_cfg(wil, ps_profile);
@@ -1529,7 +1529,7 @@ static void wil_pre_fw_config(struct wil6210_priv *wil)
 		wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
 	}
 	/* clear PAL_UNIT_ICR (potential D0->D3 leftover)
-	 * In Talyn-MB host cannot access this register due to
+	 * In Talyn-MB host cananalt access this register due to
 	 * access control, hence PAL_UNIT_ICR is cleared by the FW
 	 */
 	if (wil->hw_version < HW_VER_TALYN_MB)
@@ -1572,7 +1572,7 @@ static int wil_restore_vifs(struct wil6210_priv *wil)
 }
 
 /*
- * Clear FW and ucode log start addr to indicate FW log is not ready. The host
+ * Clear FW and ucode log start addr to indicate FW log is analt ready. The host
  * driver clears the addresses before FW starts and FW initializes the address
  * when it is ready to send logs.
  */
@@ -1594,7 +1594,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 {
 	int rc, i;
 	unsigned long status_flags = BIT(wil_status_resetting);
-	int no_flash;
+	int anal_flash;
 	struct wil6210_vif *vif;
 
 	wil_dbg_misc(wil, "reset\n");
@@ -1613,25 +1613,25 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		return 0;
 	}
 
-	if (wil->hw_version == HW_VER_UNKNOWN)
-		return -ENODEV;
+	if (wil->hw_version == HW_VER_UNKANALWN)
+		return -EANALDEV;
 
 	if (test_bit(WIL_PLATFORM_CAPA_T_PWR_ON_0, wil->platform_capa) &&
 	    wil->hw_version < HW_VER_TALYN_MB) {
-		wil_dbg_misc(wil, "Notify FW to set T_POWER_ON=0\n");
+		wil_dbg_misc(wil, "Analtify FW to set T_POWER_ON=0\n");
 		wil_s(wil, RGF_USER_USAGE_8, BIT_USER_SUPPORT_T_POWER_ON_0);
 	}
 
 	if (test_bit(WIL_PLATFORM_CAPA_EXT_CLK, wil->platform_capa)) {
-		wil_dbg_misc(wil, "Notify FW on ext clock configuration\n");
+		wil_dbg_misc(wil, "Analtify FW on ext clock configuration\n");
 		wil_s(wil, RGF_USER_USAGE_8, BIT_USER_EXT_CLK);
 	}
 
-	if (wil->platform_ops.notify) {
-		rc = wil->platform_ops.notify(wil->platform_handle,
+	if (wil->platform_ops.analtify) {
+		rc = wil->platform_ops.analtify(wil->platform_handle,
 					      WIL_PLATFORM_EVT_PRE_RESET);
 		if (rc)
-			wil_err(wil, "PRE_RESET platform notify failed, rc %d\n",
+			wil_err(wil, "PRE_RESET platform analtify failed, rc %d\n",
 				rc);
 	}
 
@@ -1672,27 +1672,27 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	flush_workqueue(wil->wq_service);
 	flush_workqueue(wil->wmi_wq);
 
-	no_flash = test_bit(hw_capa_no_flash, wil->hw_capa);
-	if (!no_flash)
+	anal_flash = test_bit(hw_capa_anal_flash, wil->hw_capa);
+	if (!anal_flash)
 		wil_bl_crash_info(wil, false);
 	wil_disable_irq(wil);
-	rc = wil_target_reset(wil, no_flash);
+	rc = wil_target_reset(wil, anal_flash);
 	wil6210_clear_irq(wil);
 	wil_enable_irq(wil);
 	wil->txrx_ops.rx_fini(wil);
 	wil->txrx_ops.tx_fini(wil);
 	if (rc) {
-		if (!no_flash)
+		if (!anal_flash)
 			wil_bl_crash_info(wil, true);
 		goto out;
 	}
 
-	if (no_flash) {
+	if (anal_flash) {
 		rc = wil_get_otp_info(wil);
 	} else {
 		rc = wil_get_bl_info(wil);
 		if (rc == -EAGAIN && !load_fw)
-			/* ignore RF error if not going up */
+			/* iganalre RF error if analt going up */
 			rc = 0;
 	}
 	if (rc)
@@ -1703,9 +1703,9 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		char board_file[WIL_BOARD_FILE_MAX_NAMELEN];
 
 		if  (wil->secured_boot) {
-			wil_err(wil, "secured boot is not supported\n");
+			wil_err(wil, "secured boot is analt supported\n");
 			up_write(&wil->mem_lock);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		board_file[0] = '\0';
@@ -1713,7 +1713,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		wil_info(wil, "Use firmware <%s> + board <%s>\n",
 			 wil->wil_fw_name, board_file);
 
-		if (!no_flash)
+		if (!anal_flash)
 			wil_bl_prepare_halt(wil);
 
 		wil_halt_cpu(wil);
@@ -1777,11 +1777,11 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		if (wil->ps_profile != WMI_PS_PROFILE_TYPE_DEFAULT)
 			wil_ps_update(wil, wil->ps_profile);
 
-		if (wil->platform_ops.notify) {
-			rc = wil->platform_ops.notify(wil->platform_handle,
+		if (wil->platform_ops.analtify) {
+			rc = wil->platform_ops.analtify(wil->platform_handle,
 						      WIL_PLATFORM_EVT_FW_RDY);
 			if (rc) {
-				wil_err(wil, "FW_RDY notify failed, rc %d\n",
+				wil_err(wil, "FW_RDY analtify failed, rc %d\n",
 					rc);
 				rc = 0;
 			}
@@ -1858,7 +1858,7 @@ int __wil_up(struct wil6210_priv *wil)
 		/* ARPHRD_IEEE80211 or ARPHRD_IEEE80211_RADIOTAP ? */
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* MAC address - pre-requisite for other commands */
@@ -1931,7 +1931,7 @@ int wil_down(struct wil6210_priv *wil)
 int wil_find_cid(struct wil6210_priv *wil, u8 mid, const u8 *mac)
 {
 	int i;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	for (i = 0; i < wil->max_assoc_sta; i++) {
 		if (wil->sta[i].mid == mid &&

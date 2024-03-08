@@ -26,7 +26,7 @@
 static const unsigned int palmas_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static void palmas_usb_wakeup(struct palmas *palmas, int enable)
@@ -175,7 +175,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
 	struct palmas_usb_platform_data	*pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct palmas_usb *palmas_usb;
 	int status;
 
@@ -186,13 +186,13 @@ static int palmas_usb_probe(struct platform_device *pdev)
 
 	palmas_usb = devm_kzalloc(&pdev->dev, sizeof(*palmas_usb), GFP_KERNEL);
 	if (!palmas_usb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (node && !pdata) {
-		palmas_usb->wakeup = of_property_read_bool(node, "ti,wakeup");
-		palmas_usb->enable_id_detection = of_property_read_bool(node,
+	if (analde && !pdata) {
+		palmas_usb->wakeup = of_property_read_bool(analde, "ti,wakeup");
+		palmas_usb->enable_id_detection = of_property_read_bool(analde,
 						"ti,enable-id-detection");
-		palmas_usb->enable_vbus_detection = of_property_read_bool(node,
+		palmas_usb->enable_vbus_detection = of_property_read_bool(analde,
 						"ti,enable-vbus-detection");
 	} else {
 		palmas_usb->wakeup = true;
@@ -228,7 +228,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	if (palmas_usb->enable_gpio_id_detection) {
 		u32 debounce;
 
-		if (of_property_read_u32(node, "debounce-delay-ms", &debounce))
+		if (of_property_read_u32(analde, "debounce-delay-ms", &debounce))
 			debounce = USB_GPIO_DEBOUNCE_MS;
 
 		status = gpiod_set_debounce(palmas_usb->id_gpiod,
@@ -256,7 +256,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 						    palmas_extcon_cable);
 	if (IS_ERR(palmas_usb->edev)) {
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	status = devm_extcon_dev_register(&pdev->dev, palmas_usb->edev);

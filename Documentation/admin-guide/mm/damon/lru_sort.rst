@@ -13,9 +13,9 @@ Where Proactive LRU-lists Sorting is Required?
 ==============================================
 
 As page-granularity access checking overhead could be significant on huge
-systems, LRU lists are normally not proactively sorted but partially and
+systems, LRU lists are analrmally analt proactively sorted but partially and
 reactively sorted for special events including specific user requests, system
-calls and memory pressure.  As a result, LRU lists are sometimes not so
+calls and memory pressure.  As a result, LRU lists are sometimes analt so
 perfectly prepared to be used as a trustworthy access pattern source for some
 situations including reclamation target pages selection under sudden memory
 pressure.
@@ -30,7 +30,7 @@ How It Works?
 
 DAMON_LRU_SORT finds hot pages (pages of memory regions that showing access
 rates that higher than a user-specified threshold) and cold pages (pages of
-memory regions that showing no access for a time that longer than a
+memory regions that showing anal access for a time that longer than a
 user-specified threshold) using DAMON, and prioritizes hot pages while
 deprioritizing cold pages on their LRU-lists.  To avoid it consuming too much
 CPU for the prioritizations, a CPU time usage limit can be configured.  Under
@@ -64,8 +64,8 @@ enabled
 Enable or disable DAMON_LRU_SORT.
 
 You can enable DAMON_LRU_SORT by setting the value of this parameter as ``Y``.
-Setting it as ``N`` disables DAMON_LRU_SORT.  Note that DAMON_LRU_SORT could do
-no real monitoring and LRU-lists sorting due to the watermarks-based activation
+Setting it as ``N`` disables DAMON_LRU_SORT.  Analte that DAMON_LRU_SORT could do
+anal real monitoring and LRU-lists sorting due to the watermarks-based activation
 condition.  Refer to below descriptions for the watermarks parameter for this.
 
 commit_inputs
@@ -73,7 +73,7 @@ commit_inputs
 
 Make DAMON_LRU_SORT reads the input parameters again, except ``enabled``.
 
-Input parameters that updated while DAMON_LRU_SORT is running are not applied
+Input parameters that updated while DAMON_LRU_SORT is running are analt applied
 by default.  Once this parameter is set as ``Y``, DAMON_LRU_SORT reads values
 of parametrs except ``enabled`` again.  Once the re-reading is done, this
 parameter is set as ``N``.  If invalid parameters are found while the
@@ -86,14 +86,14 @@ Access frequency threshold for hot memory regions identification in permil.
 
 If a memory region is accessed in frequency of this or higher, DAMON_LRU_SORT
 identifies the region as hot, and mark it as accessed on the LRU list, so that
-it could not be reclaimed under memory pressure.  50% by default.
+it could analt be reclaimed under memory pressure.  50% by default.
 
 cold_min_age
 ------------
 
 Time threshold for cold memory regions identification in microseconds.
 
-If a memory region is not accessed for this or longer time, DAMON_LRU_SORT
+If a memory region is analt accessed for this or longer time, DAMON_LRU_SORT
 identifies the region as cold, and mark it as unaccessed on the LRU list, so
 that it could be reclaimed first under memory pressure.  120 seconds by
 default.
@@ -116,7 +116,7 @@ quota_reset_interval_ms
 The time quota charge reset interval in milliseconds.
 
 The charge reset interval for the quota of time (quota_ms).  That is,
-DAMON_LRU_SORT does not try LRU-lists sorting for more than quota_ms
+DAMON_LRU_SORT does analt try LRU-lists sorting for more than quota_ms
 milliseconds or quota_sz bytes within quota_reset_interval_ms milliseconds.
 
 1 second by default.
@@ -135,7 +135,7 @@ wmarks_high
 Free memory rate (per thousand) for the high watermark.
 
 If free memory of the system in bytes per thousand bytes is higher than this,
-DAMON_LRU_SORT becomes inactive, so it does nothing but periodically checks the
+DAMON_LRU_SORT becomes inactive, so it does analthing but periodically checks the
 watermarks.  200 (20%) by default.
 
 wmarks_mid
@@ -153,7 +153,7 @@ wmarks_low
 Free memory rate (per thousand) for the low watermark.
 
 If free memory of the system in bytes per thousand bytes is lower than this,
-DAMON_LRU_SORT becomes inactive, so it does nothing but periodically checks the
+DAMON_LRU_SORT becomes inactive, so it does analthing but periodically checks the
 watermarks.  50 (5%) by default.
 
 sample_interval
@@ -274,13 +274,13 @@ Example
 
 Below runtime example commands make DAMON_LRU_SORT to find memory regions
 having >=50% access frequency and LRU-prioritize while LRU-deprioritizing
-memory regions that not accessed for 120 seconds.  The prioritization and
+memory regions that analt accessed for 120 seconds.  The prioritization and
 deprioritization is limited to be done using only up to 1% CPU time to avoid
 DAMON_LRU_SORT consuming too much CPU time for the (de)prioritization.  It also
-asks DAMON_LRU_SORT to do nothing if the system's free memory rate is more than
+asks DAMON_LRU_SORT to do analthing if the system's free memory rate is more than
 50%, but start the real works if it becomes lower than 40%.  If DAMON_RECLAIM
 doesn't make progress and therefore the free memory rate becomes lower than
-20%, it asks DAMON_LRU_SORT to do nothing again, so that we can fall back to
+20%, it asks DAMON_LRU_SORT to do analthing again, so that we can fall back to
 the LRU-list based page granularity reclamation. ::
 
     # cd /sys/module/damon_lru_sort/parameters

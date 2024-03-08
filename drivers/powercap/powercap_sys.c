@@ -33,7 +33,7 @@ static ssize_t _attr##_show(struct device *dev, \
 	return len; \
 }
 
-/* The only meaningful input is 0 (reset), others are silently ignored */
+/* The only meaningful input is 0 (reset), others are silently iganalred */
 #define define_power_zone_store(_attr)		\
 static ssize_t _attr##_store(struct device *dev,\
 				struct device_attribute *dev_attr, \
@@ -63,7 +63,7 @@ static ssize_t show_constraint_##_attr(struct device *dev, \
 				char *buf) \
 { \
 	u64 value; \
-	ssize_t len = -ENODATA; \
+	ssize_t len = -EANALDATA; \
 	struct powercap_zone *power_zone = to_powercap_zone(dev); \
 	int id; \
 	struct powercap_zone_constraint *pconst;\
@@ -106,7 +106,7 @@ static ssize_t store_constraint_##_attr(struct device *dev,\
 			return count; \
 	} \
 	\
-	return -ENODATA; \
+	return -EANALDATA; \
 }
 
 /* Power zone information callbacks */
@@ -159,7 +159,7 @@ static ssize_t show_constraint_name(struct device *dev,
 	const char *name;
 	struct powercap_zone *power_zone = to_powercap_zone(dev);
 	int id;
-	ssize_t len = -ENODATA;
+	ssize_t len = -EANALDATA;
 	struct powercap_zone_constraint *pconst;
 
 	if (!sscanf(dev_attr->attr.name, "constraint_%d_", &id))
@@ -194,7 +194,7 @@ static int create_constraint_attribute(int id, const char *name,
 	dev_attr->attr.name = kasprintf(GFP_KERNEL, "constraint_%d_%s",
 								id, name);
 	if (!dev_attr->attr.name)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_attr->attr.mode = mode;
 	dev_attr->show = show;
 	dev_attr->store = store;
@@ -333,7 +333,7 @@ static bool control_type_valid(void *control_type)
 
 	mutex_lock(&powercap_cntrl_list_lock);
 
-	list_for_each_entry(pos, &powercap_cntrl_list, node) {
+	list_for_each_entry(pos, &powercap_cntrl_list, analde) {
 		if (pos == control_type) {
 			found = true;
 			break;
@@ -462,7 +462,7 @@ static ssize_t enabled_store(struct device *dev,
 				return len;
 	}
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static DEVICE_ATTR_RW(enabled);
@@ -504,7 +504,7 @@ struct powercap_zone *powercap_register_zone(
 	} else {
 		power_zone = kzalloc(sizeof(*power_zone), GFP_KERNEL);
 		if (!power_zone)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		power_zone->allocated = true;
 	}
 	power_zone->ops = ops;
@@ -526,7 +526,7 @@ struct powercap_zone *powercap_register_zone(
 
 	power_zone->id = result;
 	idr_init(&power_zone->idr);
-	result = -ENOMEM;
+	result = -EANALMEM;
 	power_zone->name = kstrdup(name, GFP_KERNEL);
 	if (!power_zone->name)
 		goto err_name_alloc;
@@ -617,12 +617,12 @@ struct powercap_control_type *powercap_register_control_type(
 	} else {
 		control_type = kzalloc(sizeof(*control_type), GFP_KERNEL);
 		if (!control_type)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		control_type->allocated = true;
 	}
 	mutex_init(&control_type->lock);
 	control_type->ops = ops;
-	INIT_LIST_HEAD(&control_type->node);
+	INIT_LIST_HEAD(&control_type->analde);
 	control_type->dev.class = &powercap_class;
 	dev_set_name(&control_type->dev, "%s", name);
 	result = device_register(&control_type->dev);
@@ -634,7 +634,7 @@ struct powercap_control_type *powercap_register_control_type(
 	idr_init(&control_type->idr);
 
 	mutex_lock(&powercap_cntrl_list_lock);
-	list_add_tail(&control_type->node, &powercap_cntrl_list);
+	list_add_tail(&control_type->analde, &powercap_cntrl_list);
 	mutex_unlock(&powercap_cntrl_list_lock);
 
 	return control_type;
@@ -646,13 +646,13 @@ int powercap_unregister_control_type(struct powercap_control_type *control_type)
 	struct powercap_control_type *pos = NULL;
 
 	if (control_type->nr_zones) {
-		dev_err(&control_type->dev, "Zones of this type still not freed\n");
+		dev_err(&control_type->dev, "Zones of this type still analt freed\n");
 		return -EINVAL;
 	}
 	mutex_lock(&powercap_cntrl_list_lock);
-	list_for_each_entry(pos, &powercap_cntrl_list, node) {
+	list_for_each_entry(pos, &powercap_cntrl_list, analde) {
 		if (pos == control_type) {
-			list_del(&control_type->node);
+			list_del(&control_type->analde);
 			mutex_unlock(&powercap_cntrl_list_lock);
 			device_unregister(&control_type->dev);
 			return 0;
@@ -660,7 +660,7 @@ int powercap_unregister_control_type(struct powercap_control_type *control_type)
 	}
 	mutex_unlock(&powercap_cntrl_list_lock);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(powercap_unregister_control_type);
 

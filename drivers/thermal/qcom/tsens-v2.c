@@ -54,7 +54,7 @@ static const struct reg_field tsens_v2_regfields[MAX_REGFIELDS] = {
 	/* ----- SROT ------ */
 	/* VERSION */
 	[VER_MAJOR] = REG_FIELD(SROT_HW_VER_OFF, 28, 31),
-	[VER_MINOR] = REG_FIELD(SROT_HW_VER_OFF, 16, 27),
+	[VER_MIANALR] = REG_FIELD(SROT_HW_VER_OFF, 16, 27),
 	[VER_STEP]  = REG_FIELD(SROT_HW_VER_OFF,  0, 15),
 	/* CTRL_OFF */
 	[TSENS_EN]     = REG_FIELD(SROT_CTRL_OFF,    0,  0),

@@ -7,7 +7,7 @@ Description:
 		to set the cpu bandwidth a user is allowed. This is a
 		proportional value. What that means is that if there
 		are two users logged in, each with an equal number of
-		shares, then they will get equal CPU bandwidth. Another
+		shares, then they will get equal CPU bandwidth. Aanalther
 		example would be, if User A has shares = 1024 and user
 		B has shares = 2048, User B will get twice the CPU
 		bandwidth user A will. For more details refer

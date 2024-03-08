@@ -45,13 +45,13 @@
  *    again, being late doesn't loose the delta, just wrecks the sample.
  *
  *  - cpu_rq()->nr_uninterruptible isn't accurately tracked per-CPU because
- *    this would add another cross-CPU cacheline miss and atomic operation
+ *    this would add aanalther cross-CPU cacheline miss and atomic operation
  *    to the wakeup path. Instead we increment on whatever CPU the task ran
  *    when it went into uninterruptible state and decrement on whatever CPU
  *    did the wakeup. This means that only the sum of nr_uninterruptible over
  *    all CPUs yields the correct result.
  *
- *  This covers the NO_HZ=n code, for extra head-aches, see the comment below.
+ *  This covers the ANAL_HZ=n code, for extra head-aches, see the comment below.
  */
 
 /* Variables and functions for calc_load */
@@ -66,7 +66,7 @@ EXPORT_SYMBOL(avenrun); /* should be removed */
  * @offset:	offset to add
  * @shift:	shift count to shift the result left
  *
- * These values are estimates at best, so no need for locking.
+ * These values are estimates at best, so anal need for locking.
  */
 void get_avenrun(unsigned long *loads, unsigned long offset, int shift)
 {
@@ -159,25 +159,25 @@ calc_load_n(unsigned long load, unsigned long exp,
 	return calc_load(load, fixed_power_int(exp, FSHIFT, n), active);
 }
 
-#ifdef CONFIG_NO_HZ_COMMON
+#ifdef CONFIG_ANAL_HZ_COMMON
 /*
- * Handle NO_HZ for the global load-average.
+ * Handle ANAL_HZ for the global load-average.
  *
  * Since the above described distributed algorithm to compute the global
  * load-average relies on per-CPU sampling from the tick, it is affected by
- * NO_HZ.
+ * ANAL_HZ.
  *
- * The basic idea is to fold the nr_active delta into a global NO_HZ-delta upon
- * entering NO_HZ state such that we can include this as an 'extra' CPU delta
+ * The basic idea is to fold the nr_active delta into a global ANAL_HZ-delta upon
+ * entering ANAL_HZ state such that we can include this as an 'extra' CPU delta
  * when we read the global state.
  *
  * Obviously reality has to ruin such a delightfully simple scheme:
  *
- *  - When we go NO_HZ idle during the window, we can negate our sample
+ *  - When we go ANAL_HZ idle during the window, we can negate our sample
  *    contribution, causing under-accounting.
  *
- *    We avoid this by keeping two NO_HZ-delta counters and flipping them
- *    when the window starts, thus separating old and new NO_HZ load.
+ *    We avoid this by keeping two ANAL_HZ-delta counters and flipping them
+ *    when the window starts, thus separating old and new ANAL_HZ load.
  *
  *    The only trick is the slight shift in index flip for read vs write.
  *
@@ -187,22 +187,22 @@ calc_load_n(unsigned long load, unsigned long exp,
  *    r:0 0 1           1 0           0 1           1 0
  *    w:0 1 1           0 0           1 1           0 0
  *
- *    This ensures we'll fold the old NO_HZ contribution in this window while
+ *    This ensures we'll fold the old ANAL_HZ contribution in this window while
  *    accumulating the new one.
  *
- *  - When we wake up from NO_HZ during the window, we push up our
- *    contribution, since we effectively move our sample point to a known
+ *  - When we wake up from ANAL_HZ during the window, we push up our
+ *    contribution, since we effectively move our sample point to a kanalwn
  *    busy state.
  *
  *    This is solved by pushing the window forward, and thus skipping the
- *    sample, for this CPU (effectively using the NO_HZ-delta for this CPU which
+ *    sample, for this CPU (effectively using the ANAL_HZ-delta for this CPU which
  *    was in effect at the time the window opened). This also solves the issue
- *    of having to deal with a CPU having been in NO_HZ for multiple LOAD_FREQ
+ *    of having to deal with a CPU having been in ANAL_HZ for multiple LOAD_FREQ
  *    intervals.
  *
  * When making the ILB scale, we should try to pull this in as well.
  */
-static atomic_long_t calc_load_nohz[2];
+static atomic_long_t calc_load_analhz[2];
 static int calc_load_idx;
 
 static inline int calc_load_write_idx(void)
@@ -210,14 +210,14 @@ static inline int calc_load_write_idx(void)
 	int idx = calc_load_idx;
 
 	/*
-	 * See calc_global_nohz(), if we observe the new index, we also
+	 * See calc_global_analhz(), if we observe the new index, we also
 	 * need to observe the new update time.
 	 */
 	smp_rmb();
 
 	/*
 	 * If the folding window started, make sure we start writing in the
-	 * next NO_HZ-delta.
+	 * next ANAL_HZ-delta.
 	 */
 	if (!time_before(jiffies, READ_ONCE(calc_load_update)))
 		idx++;
@@ -230,7 +230,7 @@ static inline int calc_load_read_idx(void)
 	return calc_load_idx & 1;
 }
 
-static void calc_load_nohz_fold(struct rq *rq)
+static void calc_load_analhz_fold(struct rq *rq)
 {
 	long delta;
 
@@ -238,29 +238,29 @@ static void calc_load_nohz_fold(struct rq *rq)
 	if (delta) {
 		int idx = calc_load_write_idx();
 
-		atomic_long_add(delta, &calc_load_nohz[idx]);
+		atomic_long_add(delta, &calc_load_analhz[idx]);
 	}
 }
 
-void calc_load_nohz_start(void)
+void calc_load_analhz_start(void)
 {
 	/*
-	 * We're going into NO_HZ mode, if there's any pending delta, fold it
-	 * into the pending NO_HZ delta.
+	 * We're going into ANAL_HZ mode, if there's any pending delta, fold it
+	 * into the pending ANAL_HZ delta.
 	 */
-	calc_load_nohz_fold(this_rq());
+	calc_load_analhz_fold(this_rq());
 }
 
 /*
- * Keep track of the load for NOHZ_FULL, must be called between
- * calc_load_nohz_{start,stop}().
+ * Keep track of the load for ANALHZ_FULL, must be called between
+ * calc_load_analhz_{start,stop}().
  */
-void calc_load_nohz_remote(struct rq *rq)
+void calc_load_analhz_remote(struct rq *rq)
 {
-	calc_load_nohz_fold(rq);
+	calc_load_analhz_fold(rq);
 }
 
-void calc_load_nohz_stop(void)
+void calc_load_analhz_stop(void)
 {
 	struct rq *this_rq = this_rq();
 
@@ -273,34 +273,34 @@ void calc_load_nohz_stop(void)
 
 	/*
 	 * We woke inside or after the sample window, this means we're already
-	 * accounted through the nohz accounting, so skip the entire deal and
+	 * accounted through the analhz accounting, so skip the entire deal and
 	 * sync up for the next window.
 	 */
 	if (time_before(jiffies, this_rq->calc_load_update + 10))
 		this_rq->calc_load_update += LOAD_FREQ;
 }
 
-static long calc_load_nohz_read(void)
+static long calc_load_analhz_read(void)
 {
 	int idx = calc_load_read_idx();
 	long delta = 0;
 
-	if (atomic_long_read(&calc_load_nohz[idx]))
-		delta = atomic_long_xchg(&calc_load_nohz[idx], 0);
+	if (atomic_long_read(&calc_load_analhz[idx]))
+		delta = atomic_long_xchg(&calc_load_analhz[idx], 0);
 
 	return delta;
 }
 
 /*
- * NO_HZ can leave us missing all per-CPU ticks calling
- * calc_load_fold_active(), but since a NO_HZ CPU folds its delta into
- * calc_load_nohz per calc_load_nohz_start(), all we need to do is fold
- * in the pending NO_HZ delta if our NO_HZ period crossed a load cycle boundary.
+ * ANAL_HZ can leave us missing all per-CPU ticks calling
+ * calc_load_fold_active(), but since a ANAL_HZ CPU folds its delta into
+ * calc_load_analhz per calc_load_analhz_start(), all we need to do is fold
+ * in the pending ANAL_HZ delta if our ANAL_HZ period crossed a load cycle boundary.
  *
  * Once we've updated the global active value, we need to apply the exponential
  * weights adjusted to the number of cycles missed.
  */
-static void calc_global_nohz(void)
+static void calc_global_analhz(void)
 {
 	unsigned long sample_window;
 	long delta, active, n;
@@ -324,7 +324,7 @@ static void calc_global_nohz(void)
 	}
 
 	/*
-	 * Flip the NO_HZ index...
+	 * Flip the ANAL_HZ index...
 	 *
 	 * Make sure we first write the new time then flip the index, so that
 	 * calc_load_write_idx() will see the new time when it reads the new
@@ -333,12 +333,12 @@ static void calc_global_nohz(void)
 	smp_wmb();
 	calc_load_idx++;
 }
-#else /* !CONFIG_NO_HZ_COMMON */
+#else /* !CONFIG_ANAL_HZ_COMMON */
 
-static inline long calc_load_nohz_read(void) { return 0; }
-static inline void calc_global_nohz(void) { }
+static inline long calc_load_analhz_read(void) { return 0; }
+static inline void calc_global_analhz(void) { }
 
-#endif /* CONFIG_NO_HZ_COMMON */
+#endif /* CONFIG_ANAL_HZ_COMMON */
 
 /*
  * calc_load - update the avenrun load estimates 10 ticks after the
@@ -356,9 +356,9 @@ void calc_global_load(void)
 		return;
 
 	/*
-	 * Fold the 'old' NO_HZ-delta to include all NO_HZ CPUs.
+	 * Fold the 'old' ANAL_HZ-delta to include all ANAL_HZ CPUs.
 	 */
-	delta = calc_load_nohz_read();
+	delta = calc_load_analhz_read();
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 
@@ -372,10 +372,10 @@ void calc_global_load(void)
 	WRITE_ONCE(calc_load_update, sample_window + LOAD_FREQ);
 
 	/*
-	 * In case we went to NO_HZ for multiple LOAD_FREQ intervals
+	 * In case we went to ANAL_HZ for multiple LOAD_FREQ intervals
 	 * catch up in bulk.
 	 */
-	calc_global_nohz();
+	calc_global_analhz();
 }
 
 /*

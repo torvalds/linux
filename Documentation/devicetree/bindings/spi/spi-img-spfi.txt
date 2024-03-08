@@ -1,4 +1,4 @@
-IMG Synchronous Peripheral Flash Interface (SPFI) controller
+IMG Synchroanalus Peripheral Flash Interface (SPFI) controller
 
 Required properties:
 - compatible: Must be "img,spfi".

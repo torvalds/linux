@@ -74,14 +74,14 @@ static int cs3308_probe(struct i2c_client *client)
 		return -EIO;
 
 	if ((i2c_smbus_read_byte_data(client, 0x1c) & 0xf0) != 0xe0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 		 client->addr << 1, client->adapter->name);
 
 	sd = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
 	if (sd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(sd, client, &cs3308_ops);
 

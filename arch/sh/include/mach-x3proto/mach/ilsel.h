@@ -3,7 +3,7 @@
 #define __ASM_SH_ILSEL_H
 
 typedef enum {
-	ILSEL_NONE,
+	ILSEL_ANALNE,
 	ILSEL_LAN,
 	ILSEL_USBH_I,
 	ILSEL_USBH_S,

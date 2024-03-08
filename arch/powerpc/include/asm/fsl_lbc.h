@@ -93,7 +93,7 @@ struct fsl_lbc_regs {
 	__be32 mar;             /**< UPM Address Register */
 	u8 res1[0x4];
 	__be32 mamr;            /**< UPMA Mode Register */
-#define MxMR_OP_NO	(0 << 28) /**< normal operation */
+#define MxMR_OP_ANAL	(0 << 28) /**< analrmal operation */
 #define MxMR_OP_WA	(1 << 28) /**< write array */
 #define MxMR_OP_RA	(2 << 28) /**< read array */
 #define MxMR_OP_RP	(3 << 28) /**< run pattern */
@@ -188,7 +188,7 @@ struct fsl_lbc_regs {
 #define FIR_OP6_SHIFT         4
 #define FIR_OP7      0x0000000F
 #define FIR_OP7_SHIFT         0
-#define FIR_OP_NOP   0x0	/* No operation and end of sequence */
+#define FIR_OP_ANALP   0x0	/* Anal operation and end of sequence */
 #define FIR_OP_CA    0x1        /* Issue current column address */
 #define FIR_OP_PA    0x2        /* Issue current block+page address */
 #define FIR_OP_UA    0x3        /* Issue user defined address */
@@ -259,7 +259,7 @@ static inline void fsl_upm_start_pattern(struct fsl_upm *upm, u8 pat_offset)
  * fsl_upm_end_pattern - end UPM patterns execution
  * @upm:	pointer to the fsl_upm structure obtained via fsl_upm_find
  *
- * This routine reverts UPM to normal operation mode.
+ * This routine reverts UPM to analrmal operation mode.
  */
 static inline void fsl_upm_end_pattern(struct fsl_upm *upm)
 {

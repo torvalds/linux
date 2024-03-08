@@ -30,7 +30,7 @@ struct kernel_clone_args {
 	u32 kthread:1;
 	u32 io_thread:1;
 	u32 user_worker:1;
-	u32 no_files:1;
+	u32 anal_files:1;
 	unsigned long stack;
 	unsigned long stack_size;
 	unsigned long tls;
@@ -67,8 +67,8 @@ extern void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *k
 extern void sched_post_fork(struct task_struct *p);
 extern void sched_dead(struct task_struct *p);
 
-void __noreturn do_task_dead(void);
-void __noreturn make_task_dead(int signr);
+void __analreturn do_task_dead(void);
+void __analreturn make_task_dead(int signr);
 
 extern void mm_cache_init(void);
 extern void proc_caches_init(void);
@@ -88,15 +88,15 @@ static inline void exit_thread(struct task_struct *tsk)
 {
 }
 #endif
-extern __noreturn void do_group_exit(int);
+extern __analreturn void do_group_exit(int);
 
 extern void exit_files(struct task_struct *);
 extern void exit_itimers(struct task_struct *);
 
 extern pid_t kernel_clone(struct kernel_clone_args *kargs);
-struct task_struct *copy_process(struct pid *pid, int trace, int node,
+struct task_struct *copy_process(struct pid *pid, int trace, int analde,
 				 struct kernel_clone_args *args);
-struct task_struct *create_io_thread(int (*fn)(void *), void *arg, int node);
+struct task_struct *create_io_thread(int (*fn)(void *), void *arg, int analde);
 struct task_struct *fork_idle(int);
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, const char *name,
 			    unsigned long flags);
@@ -157,7 +157,7 @@ static inline void put_task_struct(struct task_struct *t)
 	 * zero after rcu_users 1 -> 0 transition.
 	 *
 	 * delayed_free_task() also uses ->rcu, but it is only called
-	 * when it fails to fork a process. Therefore, there is no
+	 * when it fails to fork a process. Therefore, there is anal
 	 * way it can conflict with put_task_struct().
 	 */
 	call_rcu(&t->rcu, __put_task_struct_rcu_cb);
@@ -184,7 +184,7 @@ extern int arch_task_struct_size __read_mostly;
 
 #ifndef CONFIG_HAVE_ARCH_THREAD_STRUCT_WHITELIST
 /*
- * If an architecture has not declared a thread_struct whitelist we
+ * If an architecture has analt declared a thread_struct whitelist we
  * must assume something there may need to be copied to userspace.
  */
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
@@ -215,8 +215,8 @@ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
  * ->cgroup.subsys[]. And ->vfork_done. And ->sysvshm.shm_clist.
  *
  * Nests both inside and outside of read_lock(&tasklist_lock).
- * It must not be nested with write_lock_irq(&tasklist_lock),
- * neither inside nor outside.
+ * It must analt be nested with write_lock_irq(&tasklist_lock),
+ * neither inside analr outside.
  */
 static inline void task_lock(struct task_struct *p)
 {

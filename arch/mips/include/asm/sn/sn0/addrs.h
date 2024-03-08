@@ -28,29 +28,29 @@
  * For more information on the address spaces, see the "Local Resources"
  * chapter of the Hub specification.
  *
- * NOTE: This header file is included both by C and by assembler source
+ * ANALTE: This header file is included both by C and by assembler source
  *	 files.	 Please bracket any language-dependent definitions
  *	 appropriately.
  */
 
 /*
  * Some of the macros here need to be casted to appropriate types when used
- * from C.  They definitely must not be casted from assembly language so we
+ * from C.  They definitely must analt be casted from assembly language so we
  * use some new ANSI preprocessor stuff to paste these on where needed.
  */
 
 /*
  * The following couple of definitions will eventually need to be variables,
- * since the amount of address space assigned to each node depends on
- * whether the system is running in N-mode (more nodes with less memory)
- * or M-mode (fewer nodes with more memory).  We expect that it will
+ * since the amount of address space assigned to each analde depends on
+ * whether the system is running in N-mode (more analdes with less memory)
+ * or M-mode (fewer analdes with more memory).  We expect that it will
  * be a while before we need to make this decision dynamically, though,
- * so for now we just use defines bracketed by an ifdef.
+ * so for analw we just use defines bracketed by an ifdef.
  */
 
 #ifdef CONFIG_SGI_SN_N_MODE
 
-#define NODE_SIZE_BITS		31
+#define ANALDE_SIZE_BITS		31
 #define BWIN_SIZE_BITS		28
 
 #define NASID_BITS		9
@@ -64,7 +64,7 @@
 
 #else /* !defined(CONFIG_SGI_SN_N_MODE), assume that M-mode is desired */
 
-#define NODE_SIZE_BITS		32
+#define ANALDE_SIZE_BITS		32
 #define BWIN_SIZE_BITS		29
 
 #define NASID_BITMASK		(0xffLL)
@@ -78,7 +78,7 @@
 
 #endif /* !defined(CONFIG_SGI_SN_N_MODE) */
 
-#define NODE_ADDRSPACE_SIZE	(UINT64_CAST 1 << NODE_SIZE_BITS)
+#define ANALDE_ADDRSPACE_SIZE	(UINT64_CAST 1 << ANALDE_SIZE_BITS)
 
 #define NASID_MASK		(UINT64_CAST NASID_BITMASK << NASID_SHFT)
 #define NASID_GET(_pa)		(int) ((UINT64_CAST (_pa) >>		\
@@ -86,62 +86,62 @@
 
 #if !defined(__ASSEMBLY__)
 
-#define NODE_SWIN_BASE(nasid, widget)					\
-	((widget == 0) ? NODE_BWIN_BASE((nasid), SWIN0_BIGWIN)		\
-	: RAW_NODE_SWIN_BASE(nasid, widget))
+#define ANALDE_SWIN_BASE(nasid, widget)					\
+	((widget == 0) ? ANALDE_BWIN_BASE((nasid), SWIN0_BIGWIN)		\
+	: RAW_ANALDE_SWIN_BASE(nasid, widget))
 #else /* __ASSEMBLY__ */
-#define NODE_SWIN_BASE(nasid, widget) \
-     (NODE_IO_BASE(nasid) + (UINT64_CAST(widget) << SWIN_SIZE_BITS))
+#define ANALDE_SWIN_BASE(nasid, widget) \
+     (ANALDE_IO_BASE(nasid) + (UINT64_CAST(widget) << SWIN_SIZE_BITS))
 #endif /* __ASSEMBLY__ */
 
 /*
  * The following definitions pertain to the IO special address
  * space.  They define the location of the big and little windows
- * of any given node.
+ * of any given analde.
  */
 
 #define BWIN_INDEX_BITS		3
 #define BWIN_SIZE		(UINT64_CAST 1 << BWIN_SIZE_BITS)
 #define BWIN_SIZEMASK		(BWIN_SIZE - 1)
 #define BWIN_WIDGET_MASK	0x7
-#define NODE_BWIN_BASE0(nasid)	(NODE_IO_BASE(nasid) + BWIN_SIZE)
-#define NODE_BWIN_BASE(nasid, bigwin)	(NODE_BWIN_BASE0(nasid) +	\
+#define ANALDE_BWIN_BASE0(nasid)	(ANALDE_IO_BASE(nasid) + BWIN_SIZE)
+#define ANALDE_BWIN_BASE(nasid, bigwin)	(ANALDE_BWIN_BASE0(nasid) +	\
 			(UINT64_CAST(bigwin) << BWIN_SIZE_BITS))
 
 #define BWIN_WIDGETADDR(addr)	((addr) & BWIN_SIZEMASK)
 #define BWIN_WINDOWNUM(addr)	(((addr) >> BWIN_SIZE_BITS) & BWIN_WIDGET_MASK)
 /*
- * Verify if addr belongs to large window address of node with "nasid"
+ * Verify if addr belongs to large window address of analde with "nasid"
  *
  *
- * NOTE: "addr" is expected to be XKPHYS address, and NOT physical
+ * ANALTE: "addr" is expected to be XKPHYS address, and ANALT physical
  * address
  *
  *
  */
 
-#define NODE_BWIN_ADDR(nasid, addr)	\
-		(((addr) >= NODE_BWIN_BASE0(nasid)) && \
-		 ((addr) < (NODE_BWIN_BASE(nasid, HUB_NUM_BIG_WINDOW) + \
+#define ANALDE_BWIN_ADDR(nasid, addr)	\
+		(((addr) >= ANALDE_BWIN_BASE0(nasid)) && \
+		 ((addr) < (ANALDE_BWIN_BASE(nasid, HUB_NUM_BIG_WINDOW) + \
 				BWIN_SIZE)))
 
 /*
  * The following define the major position-independent aliases used
  * in SN0.
  *	CALIAS -- Varies in size, points to the first n bytes of memory
- *			on the reader's node.
+ *			on the reader's analde.
  */
 
 #define CALIAS_BASE		CAC_BASE
 
-#define SN0_WIDGET_BASE(_nasid, _wid)	(NODE_SWIN_BASE((_nasid), (_wid)))
+#define SN0_WIDGET_BASE(_nasid, _wid)	(ANALDE_SWIN_BASE((_nasid), (_wid)))
 
 /* Turn on sable logging for the processors whose bits are set. */
 #define SABLE_LOG_TRIGGER(_map)
 
 #ifndef __ASSEMBLY__
 #define KERN_NMI_ADDR(nasid, slice)					\
-		    TO_NODE_UNCAC((nasid), IP27_NMI_KREGS_OFFSET +	\
+		    TO_ANALDE_UNCAC((nasid), IP27_NMI_KREGS_OFFSET +	\
 				  (IP27_NMI_KREGS_CPU_SIZE * (slice)))
 #endif /* !__ASSEMBLY__ */
 
@@ -202,7 +202,7 @@
 #define IO6DPROM_BASE		PHYS_TO_K0(0x01c00000)
 #define IO6DPROM_SIZE		0x200000
 
-#define NODEBUGUNIX_ADDR	PHYS_TO_K0(0x00019000)
+#define ANALDEBUGUNIX_ADDR	PHYS_TO_K0(0x00019000)
 #define DEBUGUNIX_ADDR		PHYS_TO_K0(0x00100000)
 
 #define IP27PROM_INT_LAUNCH	10	/* and 11 */

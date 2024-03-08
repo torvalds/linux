@@ -3,7 +3,7 @@
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #include <linux/skbuff.h>
@@ -62,7 +62,7 @@ static void wl1251_rx_status(struct wl1251 *wl,
 	 * FIXME: guessing that snr needs to be divided by two, otherwise
 	 * the values don't make any sense
 	 */
-	wl->noise = desc->rssi - desc->snr / 2;
+	wl->analise = desc->rssi - desc->snr / 2;
 
 	status->freq = ieee80211_channel_to_frequency(desc->channel,
 						      status->band);
@@ -213,7 +213,7 @@ void wl1251_rx(struct wl1251 *wl)
 	/* We first read the frame's header */
 	wl1251_rx_header(wl, rx_desc);
 
-	/* Now we can read the body */
+	/* Analw we can read the body */
 	wl1251_rx_body(wl, rx_desc);
 
 	/* Finally, we need to ACK the RX */

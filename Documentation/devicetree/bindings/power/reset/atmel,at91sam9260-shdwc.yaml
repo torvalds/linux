@@ -29,7 +29,7 @@ properties:
   atmel,wakeup-mode:
     description: operation mode of the wakeup mode
     $ref: /schemas/types.yaml#/definitions/string
-    enum: [ none, high, low, any ]
+    enum: [ analne, high, low, any ]
 
   atmel,wakeup-counter:
     description: counter on wake-up 0

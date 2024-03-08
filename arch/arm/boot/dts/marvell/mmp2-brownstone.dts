@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (C) 2012 Marvell Technology Group Ltd.
+ *  Copyright (C) 2012 Marvell Techanallogy Group Ltd.
  *  Author: Haojian Zhuang <haojian.zhuang@marvell.com>
  */
 
@@ -181,8 +181,8 @@
 			batt-detect = <0>;
 			topoff-threshold = <1>;
 			fast-charge = <7>;
-			no-temp-support = <0>;
-			no-insert-detect = <0>;
+			anal-temp-support = <0>;
+			anal-insert-detect = <0>;
 		};
 	};
 };

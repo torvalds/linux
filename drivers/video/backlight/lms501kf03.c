@@ -206,7 +206,7 @@ static int lms501kf03_ldi_disable(struct lms501kf03 *lcd)
 
 static int lms501kf03_power_is_on(int power)
 {
-	return (power) <= FB_BLANK_NORMAL;
+	return (power) <= FB_BLANK_ANALRMAL;
 }
 
 static int lms501kf03_power_on(struct lms501kf03 *lcd)
@@ -296,7 +296,7 @@ static int lms501kf03_set_power(struct lcd_device *ld, int power)
 	struct lms501kf03 *lcd = lcd_get_data(ld);
 
 	if (power != FB_BLANK_UNBLANK && power != FB_BLANK_POWERDOWN &&
-		power != FB_BLANK_NORMAL) {
+		power != FB_BLANK_ANALRMAL) {
 		dev_err(lcd->dev, "power value should be 0, 1 or 4.\n");
 		return -EINVAL;
 	}
@@ -317,7 +317,7 @@ static int lms501kf03_probe(struct spi_device *spi)
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(struct lms501kf03), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* lms501kf03 lcd panel uses 3-wire 9-bit SPI Mode. */
 	spi->bits_per_word = 9;

@@ -9,5 +9,5 @@ NetWinder's floating point emulator
 
    nwfpe
    netwinder-fpe
-   notes
+   analtes
    todo

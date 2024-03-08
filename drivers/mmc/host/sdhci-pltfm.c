@@ -89,8 +89,8 @@ void sdhci_get_property(struct platform_device *pdev)
 	if (device_property_present(dev, "broken-cd"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
-	if (device_property_present(dev, "no-1-8-v"))
-		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+	if (device_property_present(dev, "anal-1-8-v"))
+		host->quirks2 |= SDHCI_QUIRK2_ANAL_1_8_V;
 
 	sdhci_get_compatibility(pdev);
 

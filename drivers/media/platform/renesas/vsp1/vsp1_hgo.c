@@ -192,7 +192,7 @@ struct vsp1_hgo *vsp1_hgo_create(struct vsp1_device *vsp1)
 
 	hgo = devm_kzalloc(vsp1->dev, sizeof(*hgo), GFP_KERNEL);
 	if (hgo == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&hgo->ctrls.handler,

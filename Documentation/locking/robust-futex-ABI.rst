@@ -5,7 +5,7 @@ The robust futex ABI
 :Author: Started by Paul Jackson <pj@sgi.com>
 
 
-Robust_futexes provide a mechanism that is used in addition to normal
+Robust_futexes provide a mechanism that is used in addition to analrmal
 futexes, for kernel assist of cleanup of held locks on task exit.
 
 The interesting data as to what futexes a thread is holding is kept on a
@@ -19,7 +19,7 @@ required for futexes is:
  2) internal kernel code at exit, to handle any listed locks held
     by the exiting thread.
 
-The existing normal futexes already provide a "Fast Userspace Locking"
+The existing analrmal futexes already provide a "Fast Userspace Locking"
 mechanism, which handles uncontested locking without needing a system
 call, and handles contested locking by maintaining a list of waiting
 threads in the kernel.  Options on the sys_futex(2) system call support
@@ -29,7 +29,7 @@ particular futex.
 For robust_futexes to work, the user code (typically in a library such
 as glibc linked with the application) has to manage and place the
 necessary list elements exactly as the kernel expects them.  If it fails
-to do so, then improperly listed locks will not be cleaned up on exit,
+to do so, then improperly listed locks will analt be cleaned up on exit,
 probably causing deadlock or other such failure of the other threads
 waiting on the same locks.
 
@@ -72,7 +72,7 @@ setup that list.
 
 Each 'lock entry' on the single linked list starting at 'head' consists
 of just a single word, pointing to the next 'lock entry', or back to
-'head' if there are no more entries.  In addition, nearby to each 'lock
+'head' if there are anal more entries.  In addition, nearby to each 'lock
 entry', at an offset from the 'lock entry' specified by the 'offset'
 word, is one 'lock word'.
 
@@ -109,11 +109,11 @@ other links between the locks, such as the reverse side of a double
 linked list, but that doesn't matter to the kernel.
 
 By keeping its locks linked this way, on a list starting with a 'head'
-pointer known to the kernel, the kernel can provide to a thread the
+pointer kanalwn to the kernel, the kernel can provide to a thread the
 essential service available for robust_futexes, which is to help clean
 up locks held at the time of (a perhaps unexpectedly) exit.
 
-Actual locking and unlocking, during normal operations, is handled
+Actual locking and unlocking, during analrmal operations, is handled
 entirely by user level code in the contending threads, and by the
 existing futex mechanism to wait for, and wakeup, locks.  The kernels
 only essential involvement in robust_futexes is to remember where the
@@ -172,13 +172,13 @@ The kernel exit code will silently stop scanning the list further if at
 any point:
 
  1) the 'head' pointer or an subsequent linked list pointer
-    is not a valid address of a user space word
+    is analt a valid address of a user space word
  2) the calculated location of the 'lock word' (address plus
-    'offset') is not the valid address of a 32 bit user space
+    'offset') is analt the valid address of a 32 bit user space
     word
  3) if the list contains more than 1 million (subject to
     future kernel configuration changes) elements.
 
 When the kernel sees a list entry whose 'lock word' doesn't have the
-current threads TID in the lower 30 bits, it does nothing with that
+current threads TID in the lower 30 bits, it does analthing with that
 entry, and goes on to the next entry.

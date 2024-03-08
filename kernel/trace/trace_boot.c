@@ -22,15 +22,15 @@
 #define MAX_BUF_LEN 256
 
 static void __init
-trace_boot_set_instance_options(struct trace_array *tr, struct xbc_node *node)
+trace_boot_set_instance_options(struct trace_array *tr, struct xbc_analde *analde)
 {
-	struct xbc_node *anode;
+	struct xbc_analde *aanalde;
 	const char *p;
 	char buf[MAX_BUF_LEN];
 	unsigned long v = 0;
 
 	/* Common ftrace options */
-	xbc_node_for_each_array_value(node, "options", anode, p) {
+	xbc_analde_for_each_array_value(analde, "options", aanalde, p) {
 		if (strscpy(buf, p, ARRAY_SIZE(buf)) < 0) {
 			pr_err("String is too long: %s\n", p);
 			continue;
@@ -40,7 +40,7 @@ trace_boot_set_instance_options(struct trace_array *tr, struct xbc_node *node)
 			pr_err("Failed to set option: %s\n", buf);
 	}
 
-	p = xbc_node_find_value(node, "tracing_on", NULL);
+	p = xbc_analde_find_value(analde, "tracing_on", NULL);
 	if (p && *p != '\0') {
 		if (kstrtoul(p, 10, &v))
 			pr_err("Failed to set tracing on: %s\n", p);
@@ -50,13 +50,13 @@ trace_boot_set_instance_options(struct trace_array *tr, struct xbc_node *node)
 			tracer_tracing_off(tr);
 	}
 
-	p = xbc_node_find_value(node, "trace_clock", NULL);
+	p = xbc_analde_find_value(analde, "trace_clock", NULL);
 	if (p && *p != '\0') {
 		if (tracing_set_clock(tr, p) < 0)
 			pr_err("Failed to set trace clock: %s\n", p);
 	}
 
-	p = xbc_node_find_value(node, "buffer_size", NULL);
+	p = xbc_analde_find_value(analde, "buffer_size", NULL);
 	if (p && *p != '\0') {
 		v = memparse(p, NULL);
 		if (v < PAGE_SIZE)
@@ -65,7 +65,7 @@ trace_boot_set_instance_options(struct trace_array *tr, struct xbc_node *node)
 			pr_err("Failed to resize trace buffer to %s\n", p);
 	}
 
-	p = xbc_node_find_value(node, "cpumask", NULL);
+	p = xbc_analde_find_value(analde, "cpumask", NULL);
 	if (p && *p != '\0') {
 		cpumask_var_t new_mask;
 
@@ -80,13 +80,13 @@ trace_boot_set_instance_options(struct trace_array *tr, struct xbc_node *node)
 
 #ifdef CONFIG_EVENT_TRACING
 static void __init
-trace_boot_enable_events(struct trace_array *tr, struct xbc_node *node)
+trace_boot_enable_events(struct trace_array *tr, struct xbc_analde *analde)
 {
-	struct xbc_node *anode;
+	struct xbc_analde *aanalde;
 	char buf[MAX_BUF_LEN];
 	const char *p;
 
-	xbc_node_for_each_array_value(node, "events", anode, p) {
+	xbc_analde_for_each_array_value(analde, "events", aanalde, p) {
 		if (strscpy(buf, p, ARRAY_SIZE(buf)) < 0) {
 			pr_err("String is too long: %s\n", p);
 			continue;
@@ -99,15 +99,15 @@ trace_boot_enable_events(struct trace_array *tr, struct xbc_node *node)
 
 #ifdef CONFIG_KPROBE_EVENTS
 static int __init
-trace_boot_add_kprobe_event(struct xbc_node *node, const char *event)
+trace_boot_add_kprobe_event(struct xbc_analde *analde, const char *event)
 {
 	struct dynevent_cmd cmd;
-	struct xbc_node *anode;
+	struct xbc_analde *aanalde;
 	char buf[MAX_BUF_LEN];
 	const char *val;
 	int ret = 0;
 
-	xbc_node_for_each_array_value(node, "probes", anode, val) {
+	xbc_analde_for_each_array_value(analde, "probes", aanalde, val) {
 		kprobe_event_cmd_init(&cmd, buf, MAX_BUF_LEN);
 
 		ret = kprobe_event_gen_cmd_start(&cmd, event, val);
@@ -127,19 +127,19 @@ trace_boot_add_kprobe_event(struct xbc_node *node, const char *event)
 }
 #else
 static inline int __init
-trace_boot_add_kprobe_event(struct xbc_node *node, const char *event)
+trace_boot_add_kprobe_event(struct xbc_analde *analde, const char *event)
 {
-	pr_err("Kprobe event is not supported.\n");
-	return -ENOTSUPP;
+	pr_err("Kprobe event is analt supported.\n");
+	return -EANALTSUPP;
 }
 #endif
 
 #ifdef CONFIG_SYNTH_EVENTS
 static int __init
-trace_boot_add_synth_event(struct xbc_node *node, const char *event)
+trace_boot_add_synth_event(struct xbc_analde *analde, const char *event)
 {
 	struct dynevent_cmd cmd;
-	struct xbc_node *anode;
+	struct xbc_analde *aanalde;
 	char buf[MAX_BUF_LEN];
 	const char *p;
 	int ret;
@@ -150,7 +150,7 @@ trace_boot_add_synth_event(struct xbc_node *node, const char *event)
 	if (ret)
 		return ret;
 
-	xbc_node_for_each_array_value(node, "fields", anode, p) {
+	xbc_analde_for_each_array_value(analde, "fields", aanalde, p) {
 		ret = synth_event_add_field_str(&cmd, p);
 		if (ret)
 			return ret;
@@ -164,10 +164,10 @@ trace_boot_add_synth_event(struct xbc_node *node, const char *event)
 }
 #else
 static inline int __init
-trace_boot_add_synth_event(struct xbc_node *node, const char *event)
+trace_boot_add_synth_event(struct xbc_analde *analde, const char *event)
 {
-	pr_err("Synthetic event is not supported.\n");
-	return -ENOTSUPP;
+	pr_err("Synthetic event is analt supported.\n");
+	return -EANALTSUPP;
 }
 #endif
 
@@ -179,7 +179,7 @@ append_printf(char **bufp, char *end, const char *fmt, ...)
 	int ret;
 
 	if (*bufp == end)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	va_start(args, fmt);
 	ret = vsnprintf(*bufp, end - *bufp, fmt, args);
@@ -195,7 +195,7 @@ append_printf(char **bufp, char *end, const char *fmt, ...)
 }
 
 static int __init
-append_str_nospace(char **bufp, char *end, const char *str)
+append_str_analspace(char **bufp, char *end, const char *str)
 {
 	char *p = *bufp;
 	int len;
@@ -208,7 +208,7 @@ append_str_nospace(char **bufp, char *end, const char *str)
 	*p = '\0';
 	if (p == end - 1) {
 		*bufp = end;
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	len = p - *bufp;
 	*bufp = p;
@@ -216,78 +216,78 @@ append_str_nospace(char **bufp, char *end, const char *str)
 }
 
 static int __init
-trace_boot_hist_add_array(struct xbc_node *hnode, char **bufp,
+trace_boot_hist_add_array(struct xbc_analde *hanalde, char **bufp,
 			  char *end, const char *key)
 {
-	struct xbc_node *anode;
+	struct xbc_analde *aanalde;
 	const char *p;
 	char sep;
 
-	p = xbc_node_find_value(hnode, key, &anode);
+	p = xbc_analde_find_value(hanalde, key, &aanalde);
 	if (p) {
-		if (!anode) {
+		if (!aanalde) {
 			pr_err("hist.%s requires value(s).\n", key);
 			return -EINVAL;
 		}
 
 		append_printf(bufp, end, ":%s", key);
 		sep = '=';
-		xbc_array_for_each_value(anode, p) {
+		xbc_array_for_each_value(aanalde, p) {
 			append_printf(bufp, end, "%c%s", sep, p);
 			if (sep == '=')
 				sep = ',';
 		}
 	} else
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
 
 static int __init
-trace_boot_hist_add_one_handler(struct xbc_node *hnode, char **bufp,
+trace_boot_hist_add_one_handler(struct xbc_analde *hanalde, char **bufp,
 				char *end, const char *handler,
 				const char *param)
 {
-	struct xbc_node *knode, *anode;
+	struct xbc_analde *kanalde, *aanalde;
 	const char *p;
 	char sep;
 
 	/* Compose 'handler' parameter */
-	p = xbc_node_find_value(hnode, param, NULL);
+	p = xbc_analde_find_value(hanalde, param, NULL);
 	if (!p) {
 		pr_err("hist.%s requires '%s' option.\n",
-		       xbc_node_get_data(hnode), param);
+		       xbc_analde_get_data(hanalde), param);
 		return -EINVAL;
 	}
 	append_printf(bufp, end, ":%s(%s)", handler, p);
 
 	/* Compose 'action' parameter */
-	knode = xbc_node_find_subkey(hnode, "trace");
-	if (!knode)
-		knode = xbc_node_find_subkey(hnode, "save");
+	kanalde = xbc_analde_find_subkey(hanalde, "trace");
+	if (!kanalde)
+		kanalde = xbc_analde_find_subkey(hanalde, "save");
 
-	if (knode) {
-		anode = xbc_node_get_child(knode);
-		if (!anode || !xbc_node_is_value(anode)) {
+	if (kanalde) {
+		aanalde = xbc_analde_get_child(kanalde);
+		if (!aanalde || !xbc_analde_is_value(aanalde)) {
 			pr_err("hist.%s.%s requires value(s).\n",
-			       xbc_node_get_data(hnode),
-			       xbc_node_get_data(knode));
+			       xbc_analde_get_data(hanalde),
+			       xbc_analde_get_data(kanalde));
 			return -EINVAL;
 		}
 
-		append_printf(bufp, end, ".%s", xbc_node_get_data(knode));
+		append_printf(bufp, end, ".%s", xbc_analde_get_data(kanalde));
 		sep = '(';
-		xbc_array_for_each_value(anode, p) {
+		xbc_array_for_each_value(aanalde, p) {
 			append_printf(bufp, end, "%c%s", sep, p);
 			if (sep == '(')
 				sep = ',';
 		}
 		append_printf(bufp, end, ")");
-	} else if (xbc_node_find_subkey(hnode, "snapshot")) {
+	} else if (xbc_analde_find_subkey(hanalde, "snapshot")) {
 		append_printf(bufp, end, ".snapshot()");
 	} else {
 		pr_err("hist.%s requires an action.\n",
-		       xbc_node_get_data(hnode));
+		       xbc_analde_get_data(hanalde));
 		return -EINVAL;
 	}
 
@@ -295,27 +295,27 @@ trace_boot_hist_add_one_handler(struct xbc_node *hnode, char **bufp,
 }
 
 static int __init
-trace_boot_hist_add_handlers(struct xbc_node *hnode, char **bufp,
+trace_boot_hist_add_handlers(struct xbc_analde *hanalde, char **bufp,
 			     char *end, const char *param)
 {
-	struct xbc_node *node;
+	struct xbc_analde *analde;
 	const char *p, *handler;
 	int ret = 0;
 
-	handler = xbc_node_get_data(hnode);
+	handler = xbc_analde_get_data(hanalde);
 
-	xbc_node_for_each_subkey(hnode, node) {
-		p = xbc_node_get_data(node);
+	xbc_analde_for_each_subkey(hanalde, analde) {
+		p = xbc_analde_get_data(analde);
 		if (!isdigit(p[0]))
 			continue;
-		/* All digit started node should be instances. */
-		ret = trace_boot_hist_add_one_handler(node, bufp, end, handler, param);
+		/* All digit started analde should be instances. */
+		ret = trace_boot_hist_add_one_handler(analde, bufp, end, handler, param);
 		if (ret < 0)
 			break;
 	}
 
-	if (xbc_node_find_subkey(hnode, param))
-		ret = trace_boot_hist_add_one_handler(hnode, bufp, end, handler, param);
+	if (xbc_analde_find_subkey(hanalde, param))
+		ret = trace_boot_hist_add_one_handler(hanalde, bufp, end, handler, param);
 
 	return ret;
 }
@@ -343,67 +343,67 @@ trace_boot_hist_add_handlers(struct xbc_node *hnode, char **bufp,
  *	snapshot
  */
 static int __init
-trace_boot_compose_hist_cmd(struct xbc_node *hnode, char *buf, size_t size)
+trace_boot_compose_hist_cmd(struct xbc_analde *hanalde, char *buf, size_t size)
 {
-	struct xbc_node *node, *knode;
+	struct xbc_analde *analde, *kanalde;
 	char *end = buf + size;
 	const char *p;
 	int ret = 0;
 
 	append_printf(&buf, end, "hist");
 
-	ret = trace_boot_hist_add_array(hnode, &buf, end, "keys");
+	ret = trace_boot_hist_add_array(hanalde, &buf, end, "keys");
 	if (ret < 0) {
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			pr_err("hist requires keys.\n");
 		return -EINVAL;
 	}
 
-	ret = trace_boot_hist_add_array(hnode, &buf, end, "values");
+	ret = trace_boot_hist_add_array(hanalde, &buf, end, "values");
 	if (ret == -EINVAL)
 		return ret;
-	ret = trace_boot_hist_add_array(hnode, &buf, end, "sort");
+	ret = trace_boot_hist_add_array(hanalde, &buf, end, "sort");
 	if (ret == -EINVAL)
 		return ret;
 
-	p = xbc_node_find_value(hnode, "size", NULL);
+	p = xbc_analde_find_value(hanalde, "size", NULL);
 	if (p)
 		append_printf(&buf, end, ":size=%s", p);
 
-	p = xbc_node_find_value(hnode, "name", NULL);
+	p = xbc_analde_find_value(hanalde, "name", NULL);
 	if (p)
 		append_printf(&buf, end, ":name=%s", p);
 
-	node = xbc_node_find_subkey(hnode, "var");
-	if (node) {
-		xbc_node_for_each_key_value(node, knode, p) {
-			/* Expression must not include spaces. */
+	analde = xbc_analde_find_subkey(hanalde, "var");
+	if (analde) {
+		xbc_analde_for_each_key_value(analde, kanalde, p) {
+			/* Expression must analt include spaces. */
 			append_printf(&buf, end, ":%s=",
-				      xbc_node_get_data(knode));
-			append_str_nospace(&buf, end, p);
+				      xbc_analde_get_data(kanalde));
+			append_str_analspace(&buf, end, p);
 		}
 	}
 
 	/* Histogram control attributes (mutual exclusive) */
-	if (xbc_node_find_value(hnode, "pause", NULL))
+	if (xbc_analde_find_value(hanalde, "pause", NULL))
 		append_printf(&buf, end, ":pause");
-	else if (xbc_node_find_value(hnode, "continue", NULL))
+	else if (xbc_analde_find_value(hanalde, "continue", NULL))
 		append_printf(&buf, end, ":continue");
-	else if (xbc_node_find_value(hnode, "clear", NULL))
+	else if (xbc_analde_find_value(hanalde, "clear", NULL))
 		append_printf(&buf, end, ":clear");
 
 	/* Histogram handler and actions */
-	node = xbc_node_find_subkey(hnode, "onmax");
-	if (node && trace_boot_hist_add_handlers(node, &buf, end, "var") < 0)
+	analde = xbc_analde_find_subkey(hanalde, "onmax");
+	if (analde && trace_boot_hist_add_handlers(analde, &buf, end, "var") < 0)
 		return -EINVAL;
-	node = xbc_node_find_subkey(hnode, "onchange");
-	if (node && trace_boot_hist_add_handlers(node, &buf, end, "var") < 0)
+	analde = xbc_analde_find_subkey(hanalde, "onchange");
+	if (analde && trace_boot_hist_add_handlers(analde, &buf, end, "var") < 0)
 		return -EINVAL;
-	node = xbc_node_find_subkey(hnode, "onmatch");
-	if (node && trace_boot_hist_add_handlers(node, &buf, end, "event") < 0)
+	analde = xbc_analde_find_subkey(hanalde, "onmatch");
+	if (analde && trace_boot_hist_add_handlers(analde, &buf, end, "event") < 0)
 		return -EINVAL;
 
-	p = xbc_node_find_value(hnode, "filter", NULL);
+	p = xbc_analde_find_value(hanalde, "filter", NULL);
 	if (p)
 		append_printf(&buf, end, " if %s", p);
 
@@ -417,18 +417,18 @@ trace_boot_compose_hist_cmd(struct xbc_node *hnode, char *buf, size_t size)
 
 static void __init
 trace_boot_init_histograms(struct trace_event_file *file,
-			   struct xbc_node *hnode, char *buf, size_t size)
+			   struct xbc_analde *hanalde, char *buf, size_t size)
 {
-	struct xbc_node *node;
+	struct xbc_analde *analde;
 	const char *p;
 	char *tmp;
 
-	xbc_node_for_each_subkey(hnode, node) {
-		p = xbc_node_get_data(node);
+	xbc_analde_for_each_subkey(hanalde, analde) {
+		p = xbc_analde_get_data(analde);
 		if (!isdigit(p[0]))
 			continue;
-		/* All digit started node should be instances. */
-		if (trace_boot_compose_hist_cmd(node, buf, size) == 0) {
+		/* All digit started analde should be instances. */
+		if (trace_boot_compose_hist_cmd(analde, buf, size) == 0) {
 			tmp = kstrdup(buf, GFP_KERNEL);
 			if (!tmp)
 				return;
@@ -438,8 +438,8 @@ trace_boot_init_histograms(struct trace_event_file *file,
 		}
 	}
 
-	if (xbc_node_find_subkey(hnode, "keys")) {
-		if (trace_boot_compose_hist_cmd(hnode, buf, size) == 0) {
+	if (xbc_analde_find_subkey(hanalde, "keys")) {
+		if (trace_boot_compose_hist_cmd(hanalde, buf, size) == 0) {
 			tmp = kstrdup(buf, GFP_KERNEL);
 			if (!tmp)
 				return;
@@ -452,29 +452,29 @@ trace_boot_init_histograms(struct trace_event_file *file,
 #else
 static void __init
 trace_boot_init_histograms(struct trace_event_file *file,
-			   struct xbc_node *hnode, char *buf, size_t size)
+			   struct xbc_analde *hanalde, char *buf, size_t size)
 {
-	/* do nothing */
+	/* do analthing */
 }
 #endif
 
 static void __init
-trace_boot_init_one_event(struct trace_array *tr, struct xbc_node *gnode,
-			  struct xbc_node *enode)
+trace_boot_init_one_event(struct trace_array *tr, struct xbc_analde *ganalde,
+			  struct xbc_analde *eanalde)
 {
 	struct trace_event_file *file;
-	struct xbc_node *anode;
+	struct xbc_analde *aanalde;
 	char buf[MAX_BUF_LEN];
 	const char *p, *group, *event;
 
-	group = xbc_node_get_data(gnode);
-	event = xbc_node_get_data(enode);
+	group = xbc_analde_get_data(ganalde);
+	event = xbc_analde_get_data(eanalde);
 
 	if (!strcmp(group, "kprobes"))
-		if (trace_boot_add_kprobe_event(enode, event) < 0)
+		if (trace_boot_add_kprobe_event(eanalde, event) < 0)
 			return;
 	if (!strcmp(group, "synthetic"))
-		if (trace_boot_add_synth_event(enode, event) < 0)
+		if (trace_boot_add_synth_event(eanalde, event) < 0)
 			return;
 
 	mutex_lock(&event_mutex);
@@ -484,7 +484,7 @@ trace_boot_init_one_event(struct trace_array *tr, struct xbc_node *gnode,
 		goto out;
 	}
 
-	p = xbc_node_find_value(enode, "filter", NULL);
+	p = xbc_analde_find_value(eanalde, "filter", NULL);
 	if (p && *p != '\0') {
 		if (strscpy(buf, p, ARRAY_SIZE(buf)) < 0)
 			pr_err("filter string is too long: %s\n", p);
@@ -493,21 +493,21 @@ trace_boot_init_one_event(struct trace_array *tr, struct xbc_node *gnode,
 	}
 
 	if (IS_ENABLED(CONFIG_HIST_TRIGGERS)) {
-		xbc_node_for_each_array_value(enode, "actions", anode, p) {
+		xbc_analde_for_each_array_value(eanalde, "actions", aanalde, p) {
 			if (strscpy(buf, p, ARRAY_SIZE(buf)) < 0)
 				pr_err("action string is too long: %s\n", p);
 			else if (trigger_process_regex(file, buf) < 0)
 				pr_err("Failed to apply an action: %s\n", p);
 		}
-		anode = xbc_node_find_subkey(enode, "hist");
-		if (anode)
-			trace_boot_init_histograms(file, anode, buf, ARRAY_SIZE(buf));
-	} else if (xbc_node_find_value(enode, "actions", NULL))
-		pr_err("Failed to apply event actions because CONFIG_HIST_TRIGGERS is not set.\n");
+		aanalde = xbc_analde_find_subkey(eanalde, "hist");
+		if (aanalde)
+			trace_boot_init_histograms(file, aanalde, buf, ARRAY_SIZE(buf));
+	} else if (xbc_analde_find_value(eanalde, "actions", NULL))
+		pr_err("Failed to apply event actions because CONFIG_HIST_TRIGGERS is analt set.\n");
 
-	if (xbc_node_find_value(enode, "enable", NULL)) {
+	if (xbc_analde_find_value(eanalde, "enable", NULL)) {
 		if (trace_event_enable_disable(file, 1, 0) < 0)
-			pr_err("Failed to enable event node: %s:%s\n",
+			pr_err("Failed to enable event analde: %s:%s\n",
 				group, event);
 	}
 out:
@@ -515,34 +515,34 @@ out:
 }
 
 static void __init
-trace_boot_init_events(struct trace_array *tr, struct xbc_node *node)
+trace_boot_init_events(struct trace_array *tr, struct xbc_analde *analde)
 {
-	struct xbc_node *gnode, *enode;
+	struct xbc_analde *ganalde, *eanalde;
 	bool enable, enable_all = false;
 	const char *data;
 
-	node = xbc_node_find_subkey(node, "event");
-	if (!node)
+	analde = xbc_analde_find_subkey(analde, "event");
+	if (!analde)
 		return;
 	/* per-event key starts with "event.GROUP.EVENT" */
-	xbc_node_for_each_subkey(node, gnode) {
-		data = xbc_node_get_data(gnode);
+	xbc_analde_for_each_subkey(analde, ganalde) {
+		data = xbc_analde_get_data(ganalde);
 		if (!strcmp(data, "enable")) {
 			enable_all = true;
 			continue;
 		}
 		enable = false;
-		xbc_node_for_each_subkey(gnode, enode) {
-			data = xbc_node_get_data(enode);
+		xbc_analde_for_each_subkey(ganalde, eanalde) {
+			data = xbc_analde_get_data(eanalde);
 			if (!strcmp(data, "enable")) {
 				enable = true;
 				continue;
 			}
-			trace_boot_init_one_event(tr, gnode, enode);
+			trace_boot_init_one_event(tr, ganalde, eanalde);
 		}
 		/* Event enablement must be done after event settings */
 		if (enable) {
-			data = xbc_node_get_data(gnode);
+			data = xbc_analde_get_data(ganalde);
 			trace_array_set_clr_event(tr, data, NULL, true);
 		}
 	}
@@ -551,19 +551,19 @@ trace_boot_init_events(struct trace_array *tr, struct xbc_node *node)
 		trace_array_set_clr_event(tr, NULL, NULL, true);
 }
 #else
-#define trace_boot_enable_events(tr, node) do {} while (0)
-#define trace_boot_init_events(tr, node) do {} while (0)
+#define trace_boot_enable_events(tr, analde) do {} while (0)
+#define trace_boot_init_events(tr, analde) do {} while (0)
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 static void __init
-trace_boot_set_ftrace_filter(struct trace_array *tr, struct xbc_node *node)
+trace_boot_set_ftrace_filter(struct trace_array *tr, struct xbc_analde *analde)
 {
-	struct xbc_node *anode;
+	struct xbc_analde *aanalde;
 	const char *p;
 	char *q;
 
-	xbc_node_for_each_array_value(node, "ftrace.filters", anode, p) {
+	xbc_analde_for_each_array_value(analde, "ftrace.filters", aanalde, p) {
 		q = kstrdup(p, GFP_KERNEL);
 		if (!q)
 			return;
@@ -573,11 +573,11 @@ trace_boot_set_ftrace_filter(struct trace_array *tr, struct xbc_node *node)
 			ftrace_filter_param = true;
 		kfree(q);
 	}
-	xbc_node_for_each_array_value(node, "ftrace.notraces", anode, p) {
+	xbc_analde_for_each_array_value(analde, "ftrace.analtraces", aanalde, p) {
 		q = kstrdup(p, GFP_KERNEL);
 		if (!q)
 			return;
-		if (ftrace_set_notrace(tr->ops, q, strlen(q), 0) < 0)
+		if (ftrace_set_analtrace(tr->ops, q, strlen(q), 0) < 0)
 			pr_err("Failed to add %s to ftrace filter\n", p);
 		else
 			ftrace_filter_param = true;
@@ -585,51 +585,51 @@ trace_boot_set_ftrace_filter(struct trace_array *tr, struct xbc_node *node)
 	}
 }
 #else
-#define trace_boot_set_ftrace_filter(tr, node) do {} while (0)
+#define trace_boot_set_ftrace_filter(tr, analde) do {} while (0)
 #endif
 
 static void __init
-trace_boot_enable_tracer(struct trace_array *tr, struct xbc_node *node)
+trace_boot_enable_tracer(struct trace_array *tr, struct xbc_analde *analde)
 {
 	const char *p;
 
-	trace_boot_set_ftrace_filter(tr, node);
+	trace_boot_set_ftrace_filter(tr, analde);
 
-	p = xbc_node_find_value(node, "tracer", NULL);
+	p = xbc_analde_find_value(analde, "tracer", NULL);
 	if (p && *p != '\0') {
 		if (tracing_set_tracer(tr, p) < 0)
 			pr_err("Failed to set given tracer: %s\n", p);
 	}
 
 	/* Since tracer can free snapshot buffer, allocate snapshot here.*/
-	if (xbc_node_find_value(node, "alloc_snapshot", NULL)) {
+	if (xbc_analde_find_value(analde, "alloc_snapshot", NULL)) {
 		if (tracing_alloc_snapshot_instance(tr) < 0)
 			pr_err("Failed to allocate snapshot buffer\n");
 	}
 }
 
 static void __init
-trace_boot_init_one_instance(struct trace_array *tr, struct xbc_node *node)
+trace_boot_init_one_instance(struct trace_array *tr, struct xbc_analde *analde)
 {
-	trace_boot_set_instance_options(tr, node);
-	trace_boot_init_events(tr, node);
-	trace_boot_enable_events(tr, node);
-	trace_boot_enable_tracer(tr, node);
+	trace_boot_set_instance_options(tr, analde);
+	trace_boot_init_events(tr, analde);
+	trace_boot_enable_events(tr, analde);
+	trace_boot_enable_tracer(tr, analde);
 }
 
 static void __init
-trace_boot_init_instances(struct xbc_node *node)
+trace_boot_init_instances(struct xbc_analde *analde)
 {
-	struct xbc_node *inode;
+	struct xbc_analde *ianalde;
 	struct trace_array *tr;
 	const char *p;
 
-	node = xbc_node_find_subkey(node, "instance");
-	if (!node)
+	analde = xbc_analde_find_subkey(analde, "instance");
+	if (!analde)
 		return;
 
-	xbc_node_for_each_subkey(node, inode) {
-		p = xbc_node_get_data(inode);
+	xbc_analde_for_each_subkey(analde, ianalde) {
+		p = xbc_analde_get_data(ianalde);
 		if (!p || *p == '\0')
 			continue;
 
@@ -638,18 +638,18 @@ trace_boot_init_instances(struct xbc_node *node)
 			pr_err("Failed to get trace instance %s\n", p);
 			continue;
 		}
-		trace_boot_init_one_instance(tr, inode);
+		trace_boot_init_one_instance(tr, ianalde);
 		trace_array_put(tr);
 	}
 }
 
 static int __init trace_boot_init(void)
 {
-	struct xbc_node *trace_node;
+	struct xbc_analde *trace_analde;
 	struct trace_array *tr;
 
-	trace_node = xbc_find_node("ftrace");
-	if (!trace_node)
+	trace_analde = xbc_find_analde("ftrace");
+	if (!trace_analde)
 		return 0;
 
 	tr = top_trace_array();
@@ -657,8 +657,8 @@ static int __init trace_boot_init(void)
 		return 0;
 
 	/* Global trace array is also one instance */
-	trace_boot_init_one_instance(tr, trace_node);
-	trace_boot_init_instances(trace_node);
+	trace_boot_init_one_instance(tr, trace_analde);
+	trace_boot_init_instances(trace_analde);
 
 	disable_tracing_selftest("running boot-time tracing");
 

@@ -14,13 +14,13 @@ description: >
   coherent interconnect (CCI) that is capable of monitoring bus transactions
   and manage coherency, TLB invalidations and memory barriers.
 
-  It allows snooping and distributed virtual memory message broadcast across
+  It allows sanaloping and distributed virtual memory message broadcast across
   clusters, through memory mapped interface, with a global control register
   space and multiple sets of interface control registers, one per slave
   interface.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^cci(@[0-9a-f]+)?$"
 
   compatible:
@@ -125,7 +125,7 @@ examples:
           };
 
           /*
-           * This CCI node corresponds to a CCI component whose control
+           * This CCI analde corresponds to a CCI component whose control
            * registers sits at address 0x000000002c090000.
            *
            * CCI slave interface @0x000000002c091000 is connected to dma

@@ -10,47 +10,47 @@
 
 /*
  * Map a file extent to a stripe unit within an object.
- * Fill in objno, offset into object, and object extent length (i.e. the
+ * Fill in objanal, offset into object, and object extent length (i.e. the
  * number of bytes mapped, less than or equal to @l->stripe_unit).
  *
  * Example for stripe_count = 3, stripes_per_object = 4:
  *
- * blockno   |  0  3  6  9 |  1  4  7 10 |  2  5  8 11 | 12 15 18 21 | 13 16 19
- * stripeno  |  0  1  2  3 |  0  1  2  3 |  0  1  2  3 |  4  5  6  7 |  4  5  6
+ * blockanal   |  0  3  6  9 |  1  4  7 10 |  2  5  8 11 | 12 15 18 21 | 13 16 19
+ * stripeanal  |  0  1  2  3 |  0  1  2  3 |  0  1  2  3 |  4  5  6  7 |  4  5  6
  * stripepos |      0      |      1      |      2      |      0      |      1
- * objno     |      0      |      1      |      2      |      3      |      4
- * objsetno  |                    0                    |                    1
+ * objanal     |      0      |      1      |      2      |      3      |      4
+ * objsetanal  |                    0                    |                    1
  */
 void ceph_calc_file_object_mapping(struct ceph_file_layout *l,
 				   u64 off, u64 len,
-				   u64 *objno, u64 *objoff, u32 *xlen)
+				   u64 *objanal, u64 *objoff, u32 *xlen)
 {
 	u32 stripes_per_object = l->object_size / l->stripe_unit;
-	u64 blockno;	/* which su in the file (i.e. globally) */
+	u64 blockanal;	/* which su in the file (i.e. globally) */
 	u32 blockoff;	/* offset into su */
-	u64 stripeno;	/* which stripe */
+	u64 stripeanal;	/* which stripe */
 	u32 stripepos;	/* which su in the stripe,
 			   which object in the object set */
-	u64 objsetno;	/* which object set */
+	u64 objsetanal;	/* which object set */
 	u32 objsetpos;	/* which stripe in the object set */
 
-	blockno = div_u64_rem(off, l->stripe_unit, &blockoff);
-	stripeno = div_u64_rem(blockno, l->stripe_count, &stripepos);
-	objsetno = div_u64_rem(stripeno, stripes_per_object, &objsetpos);
+	blockanal = div_u64_rem(off, l->stripe_unit, &blockoff);
+	stripeanal = div_u64_rem(blockanal, l->stripe_count, &stripepos);
+	objsetanal = div_u64_rem(stripeanal, stripes_per_object, &objsetpos);
 
-	*objno = objsetno * l->stripe_count + stripepos;
+	*objanal = objsetanal * l->stripe_count + stripepos;
 	*objoff = objsetpos * l->stripe_unit + blockoff;
 	*xlen = min_t(u64, len, l->stripe_unit - blockoff);
 }
 EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 
 /*
- * Return the last extent with given objno (@object_extents is sorted
- * by objno).  If not found, return NULL and set @add_pos so that the
+ * Return the last extent with given objanal (@object_extents is sorted
+ * by objanal).  If analt found, return NULL and set @add_pos so that the
  * new extent can be added with list_add(add_pos, new_ex).
  */
 static struct ceph_object_extent *
-lookup_last(struct list_head *object_extents, u64 objno,
+lookup_last(struct list_head *object_extents, u64 objanal,
 	    struct list_head **add_pos)
 {
 	struct list_head *pos;
@@ -59,10 +59,10 @@ lookup_last(struct list_head *object_extents, u64 objno,
 		struct ceph_object_extent *ex =
 		    list_entry(pos, typeof(*ex), oe_item);
 
-		if (ex->oe_objno == objno)
+		if (ex->oe_objanal == objanal)
 			return ex;
 
-		if (ex->oe_objno < objno)
+		if (ex->oe_objanal < objanal)
 			break;
 	}
 
@@ -71,18 +71,18 @@ lookup_last(struct list_head *object_extents, u64 objno,
 }
 
 static struct ceph_object_extent *
-lookup_containing(struct list_head *object_extents, u64 objno,
+lookup_containing(struct list_head *object_extents, u64 objanal,
 		  u64 objoff, u32 xlen)
 {
 	struct ceph_object_extent *ex;
 
 	list_for_each_entry(ex, object_extents, oe_item) {
-		if (ex->oe_objno == objno &&
+		if (ex->oe_objanal == objanal &&
 		    ex->oe_off <= objoff &&
-		    ex->oe_off + ex->oe_len >= objoff + xlen) /* paranoia */
+		    ex->oe_off + ex->oe_len >= objoff + xlen) /* paraanalia */
 			return ex;
 
-		if (ex->oe_objno > objno)
+		if (ex->oe_objanal > objanal)
 			break;
 	}
 
@@ -118,19 +118,19 @@ int ceph_file_to_extents(struct ceph_file_layout *l, u64 off, u64 len,
 
 	while (len) {
 		struct list_head *add_pos = NULL;
-		u64 objno, objoff;
+		u64 objanal, objoff;
 		u32 xlen;
 
-		ceph_calc_file_object_mapping(l, off, len, &objno, &objoff,
+		ceph_calc_file_object_mapping(l, off, len, &objanal, &objoff,
 					      &xlen);
 
-		last_ex = lookup_last(object_extents, objno, &add_pos);
+		last_ex = lookup_last(object_extents, objanal, &add_pos);
 		if (!last_ex || last_ex->oe_off + last_ex->oe_len != objoff) {
 			ex = alloc_fn(alloc_arg);
 			if (!ex)
-				return -ENOMEM;
+				return -EANALMEM;
 
-			ex->oe_objno = objno;
+			ex->oe_objanal = objanal;
 			ex->oe_off = objoff;
 			ex->oe_len = xlen;
 			if (action_fn)
@@ -154,10 +154,10 @@ int ceph_file_to_extents(struct ceph_file_layout *l, u64 off, u64 len,
 	     ex = list_next_entry(last_ex, oe_item);
 	     &ex->oe_item != object_extents;
 	     last_ex = ex, ex = list_next_entry(ex, oe_item)) {
-		if (last_ex->oe_objno > ex->oe_objno ||
-		    (last_ex->oe_objno == ex->oe_objno &&
+		if (last_ex->oe_objanal > ex->oe_objanal ||
+		    (last_ex->oe_objanal == ex->oe_objanal &&
 		     last_ex->oe_off + last_ex->oe_len >= ex->oe_off)) {
-			WARN(1, "%s: object_extents list not sorted!\n",
+			WARN(1, "%s: object_extents list analt sorted!\n",
 			     __func__);
 			return -EINVAL;
 		}
@@ -168,7 +168,7 @@ int ceph_file_to_extents(struct ceph_file_layout *l, u64 off, u64 len,
 EXPORT_SYMBOL(ceph_file_to_extents);
 
 /*
- * A stripped down, non-allocating version of ceph_file_to_extents(),
+ * A stripped down, analn-allocating version of ceph_file_to_extents(),
  * for when @object_extents is already populated.
  */
 int ceph_iterate_extents(struct ceph_file_layout *l, u64 off, u64 len,
@@ -178,16 +178,16 @@ int ceph_iterate_extents(struct ceph_file_layout *l, u64 off, u64 len,
 {
 	while (len) {
 		struct ceph_object_extent *ex;
-		u64 objno, objoff;
+		u64 objanal, objoff;
 		u32 xlen;
 
-		ceph_calc_file_object_mapping(l, off, len, &objno, &objoff,
+		ceph_calc_file_object_mapping(l, off, len, &objanal, &objoff,
 					      &xlen);
 
-		ex = lookup_containing(object_extents, objno, objoff, xlen);
+		ex = lookup_containing(object_extents, objanal, objoff, xlen);
 		if (!ex) {
-			WARN(1, "%s: objno %llu %llu~%u not found!\n",
-			     __func__, objno, objoff, xlen);
+			WARN(1, "%s: objanal %llu %llu~%u analt found!\n",
+			     __func__, objanal, objoff, xlen);
 			return -EINVAL;
 		}
 
@@ -209,17 +209,17 @@ EXPORT_SYMBOL(ceph_iterate_extents);
  *     kfree(file_extents)
  */
 int ceph_extent_to_file(struct ceph_file_layout *l,
-			u64 objno, u64 objoff, u64 objlen,
+			u64 objanal, u64 objoff, u64 objlen,
 			struct ceph_file_extent **file_extents,
 			u32 *num_file_extents)
 {
 	u32 stripes_per_object = l->object_size / l->stripe_unit;
-	u64 blockno;	/* which su */
+	u64 blockanal;	/* which su */
 	u32 blockoff;	/* offset into su */
-	u64 stripeno;	/* which stripe */
+	u64 stripeanal;	/* which stripe */
 	u32 stripepos;	/* which su in the stripe,
 			   which object in the object set */
-	u64 objsetno;	/* which object set */
+	u64 objsetanal;	/* which object set */
 	u32 i = 0;
 
 	if (!objlen) {
@@ -231,19 +231,19 @@ int ceph_extent_to_file(struct ceph_file_layout *l,
 	*num_file_extents = DIV_ROUND_UP_ULL(objoff + objlen, l->stripe_unit) -
 				     DIV_ROUND_DOWN_ULL(objoff, l->stripe_unit);
 	*file_extents = kmalloc_array(*num_file_extents, sizeof(**file_extents),
-				      GFP_NOIO);
+				      GFP_ANALIO);
 	if (!*file_extents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	div_u64_rem(objoff, l->stripe_unit, &blockoff);
 	while (objlen) {
 		u64 off, len;
 
-		objsetno = div_u64_rem(objno, l->stripe_count, &stripepos);
-		stripeno = div_u64(objoff, l->stripe_unit) +
-						objsetno * stripes_per_object;
-		blockno = stripeno * l->stripe_count + stripepos;
-		off = blockno * l->stripe_unit + blockoff;
+		objsetanal = div_u64_rem(objanal, l->stripe_count, &stripepos);
+		stripeanal = div_u64(objoff, l->stripe_unit) +
+						objsetanal * stripes_per_object;
+		blockanal = stripeanal * l->stripe_count + stripepos;
+		off = blockanal * l->stripe_unit + blockoff;
 		len = min_t(u64, objlen, l->stripe_unit - blockoff);
 
 		(*file_extents)[i].fe_off = off;

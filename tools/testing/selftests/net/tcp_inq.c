@@ -12,7 +12,7 @@
 #include <netinet/tcp.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -75,7 +75,7 @@ void *start_server(void *arg)
 		}
 		do {
 			r = send(fd, buf, BUF_SIZE, 0);
-		} while (r < 0 && errno == EINTR);
+		} while (r < 0 && erranal == EINTR);
 		if (r < 0)
 			perror("send");
 		if (r != BUF_SIZE)
@@ -123,28 +123,28 @@ int main(int argc, char *argv[])
 
 	server_fd = socket(family, SOCK_STREAM, 0);
 	if (server_fd < 0)
-		error(1, errno, "server socket");
+		error(1, erranal, "server socket");
 	setup_loopback_addr(family, &listen_addr);
 	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
 		       &one, sizeof(one)) != 0)
-		error(1, errno, "setsockopt(SO_REUSEADDR)");
+		error(1, erranal, "setsockopt(SO_REUSEADDR)");
 	if (bind(server_fd, (const struct sockaddr *)&listen_addr,
 		 addr_len) == -1)
-		error(1, errno, "bind");
+		error(1, erranal, "bind");
 	if (listen(server_fd, 128) == -1)
-		error(1, errno, "listen");
+		error(1, erranal, "listen");
 	if (pthread_create(&server_thread, NULL, start_server,
 			   (void *)(unsigned long)server_fd) != 0)
-		error(1, errno, "pthread_create");
+		error(1, erranal, "pthread_create");
 
 	fd = socket(family, SOCK_STREAM, 0);
 	if (fd < 0)
-		error(1, errno, "client socket");
+		error(1, erranal, "client socket");
 	setup_loopback_addr(family, &addr);
 	if (connect(fd, (const struct sockaddr *)&addr, addr_len) == -1)
-		error(1, errno, "connect");
+		error(1, erranal, "connect");
 	if (setsockopt(fd, SOL_TCP, TCP_INQ, &one, sizeof(one)) != 0)
-		error(1, errno, "setsockopt(TCP_INQ)");
+		error(1, erranal, "setsockopt(TCP_INQ)");
 
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
 	iov[0].iov_len = BUF_SIZE / 2;
 
 	if (recvmsg(fd, &msg, 0) != iov[0].iov_len)
-		error(1, errno, "recvmsg");
+		error(1, erranal, "recvmsg");
 	if (msg.msg_flags & MSG_CTRUNC)
 		error(1, 0, "control message is truncated");
 

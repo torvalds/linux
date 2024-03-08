@@ -38,7 +38,7 @@ extern void usb_authorize_interface(struct usb_interface *);
 extern void usb_detect_quirks(struct usb_device *udev);
 extern void usb_detect_interface_quirks(struct usb_device *udev);
 extern void usb_release_quirk_list(void);
-extern bool usb_endpoint_is_ignored(struct usb_device *udev,
+extern bool usb_endpoint_is_iganalred(struct usb_device *udev,
 		struct usb_host_interface *intf,
 		struct usb_endpoint_descriptor *epd);
 extern int usb_remove_device(struct usb_device *udev);
@@ -108,8 +108,8 @@ extern int usb_runtime_idle(struct device *dev);
 extern int usb_enable_usb2_hardware_lpm(struct usb_device *udev);
 extern int usb_disable_usb2_hardware_lpm(struct usb_device *udev);
 
-extern void usbfs_notify_suspend(struct usb_device *udev);
-extern void usbfs_notify_resume(struct usb_device *udev);
+extern void usbfs_analtify_suspend(struct usb_device *udev);
+extern void usbfs_analtify_resume(struct usb_device *udev);
 
 #else
 
@@ -177,7 +177,7 @@ static inline int is_root_hub(struct usb_device *udev)
 
 extern bool is_usb_device_driver(const struct device_driver *drv);
 
-/* for labeling diagnostics */
+/* for labeling diaganalstics */
 extern const char *usbcore_name;
 
 /* sysfs stuff */
@@ -193,16 +193,16 @@ extern int usb_devio_init(void);
 extern void usb_devio_cleanup(void);
 
 /*
- * Firmware specific cookie identifying a port's location. '0' == no location
+ * Firmware specific cookie identifying a port's location. '0' == anal location
  * data available
  */
 typedef u32 usb_port_location_t;
 
-/* internal notify stuff */
-extern void usb_notify_add_device(struct usb_device *udev);
-extern void usb_notify_remove_device(struct usb_device *udev);
-extern void usb_notify_add_bus(struct usb_bus *ubus);
-extern void usb_notify_remove_bus(struct usb_bus *ubus);
+/* internal analtify stuff */
+extern void usb_analtify_add_device(struct usb_device *udev);
+extern void usb_analtify_remove_device(struct usb_device *udev);
+extern void usb_analtify_add_bus(struct usb_bus *ubus);
+extern void usb_analtify_remove_bus(struct usb_bus *ubus);
 extern void usb_hub_adjust_deviceremovable(struct usb_device *hdev,
 		struct usb_hub_descriptor *desc);
 

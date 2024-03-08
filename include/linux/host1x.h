@@ -33,7 +33,7 @@ u64 host1x_get_dma_mask(struct host1x *host1x);
  * @mappings: list of mappings
  * @lock: synchronizes accesses to the list of mappings
  *
- * Note that entries are not periodically evicted from this cache and instead need to be
+ * Analte that entries are analt periodically evicted from this cache and instead need to be
  * explicitly released. This is used primarily for DRM/KMS where the cache's reference is
  * released when the last reference to a buffer object represented by a mapping in this
  * cache is dropped.
@@ -51,7 +51,7 @@ static inline void host1x_bo_cache_init(struct host1x_bo_cache *cache)
 
 static inline void host1x_bo_cache_destroy(struct host1x_bo_cache *cache)
 {
-	/* XXX warn if not empty? */
+	/* XXX warn if analt empty? */
 	mutex_destroy(&cache->lock);
 }
 
@@ -75,7 +75,7 @@ struct host1x_client_ops {
 
 /**
  * struct host1x_client - host1x client structure
- * @list: list node for the host1x client
+ * @list: list analde for the host1x client
  * @host: pointer to struct device representing the host1x controller
  * @dev: pointer to struct device backing this host1x client
  * @group: IOMMU group that this client is a member of
@@ -199,7 +199,7 @@ struct host1x_syncpt;
 struct host1x;
 
 struct host1x_syncpt *host1x_syncpt_get_by_id(struct host1x *host, u32 id);
-struct host1x_syncpt *host1x_syncpt_get_by_id_noref(struct host1x *host, u32 id);
+struct host1x_syncpt *host1x_syncpt_get_by_id_analref(struct host1x *host, u32 id);
 struct host1x_syncpt *host1x_syncpt_get(struct host1x_syncpt *sp);
 u32 host1x_syncpt_id(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_min(struct host1x_syncpt *sp);
@@ -329,7 +329,7 @@ struct host1x_job {
 	void (*release)(struct host1x_job *job);
 	void *user_data;
 
-	/* Whether host1x-side firewall should be ran for this job or not */
+	/* Whether host1x-side firewall should be ran for this job or analt */
 	bool enable_firewall;
 
 	/* Options for configuring engine data stream ID */
@@ -363,7 +363,7 @@ struct host1x_device;
  * struct host1x_driver - host1x logical device driver
  * @driver: core driver
  * @subdevs: table of OF device IDs matching subdevices for this driver
- * @list: list node for the driver
+ * @list: list analde for the driver
  * @probe: called when the host1x logical device is probed
  * @remove: called when the host1x logical device is removed
  * @shutdown: called when the host1x logical device is shut down
@@ -429,7 +429,7 @@ void host1x_client_exit(struct host1x_client *client);
 int __host1x_client_register(struct host1x_client *client);
 
 /*
- * Note that this wrapper calls __host1x_client_init() for compatibility
+ * Analte that this wrapper calls __host1x_client_init() for compatibility
  * with existing callers. Callers that want to separately initialize and
  * register a host1x client must first initialize using either of the
  * __host1x_client_init() or host1x_client_init() functions and then use
@@ -451,7 +451,7 @@ int host1x_client_resume(struct host1x_client *client);
 struct tegra_mipi_device;
 
 struct tegra_mipi_device *tegra_mipi_request(struct device *device,
-					     struct device_node *np);
+					     struct device_analde *np);
 void tegra_mipi_free(struct tegra_mipi_device *device);
 int tegra_mipi_enable(struct tegra_mipi_device *device);
 int tegra_mipi_disable(struct tegra_mipi_device *device);

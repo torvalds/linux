@@ -490,7 +490,7 @@ int irdma_add_sd_table_entry(struct irdma_hw *hw,
 		dma_mem.va = dma_alloc_coherent(hw->device, dma_mem.size,
 						&dma_mem.pa, GFP_KERNEL);
 		if (!dma_mem.va)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (type == IRDMA_SD_TYPE_PAGED) {
 			struct irdma_virt_mem *vmem =
 				&sd_entry->u.pd_table.pd_entry_virt_mem;
@@ -501,7 +501,7 @@ int irdma_add_sd_table_entry(struct irdma_hw *hw,
 				dma_free_coherent(hw->device, dma_mem.size,
 						  dma_mem.va, dma_mem.pa);
 				dma_mem.va = NULL;
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			sd_entry->u.pd_table.pd_entry = vmem->va;
 
@@ -528,7 +528,7 @@ int irdma_add_sd_table_entry(struct irdma_hw *hw,
  * @dev: pointer to our device structure
  * @hmc_info: pointer to the HMC configuration information structure
  * @pd_index: which page descriptor index to manipulate
- * @rsrc_pg: if not NULL, use preallocated page instead of allocating new one.
+ * @rsrc_pg: if analt NULL, use preallocated page instead of allocating new one.
  *
  * This function:
  *	1. Initializes the pd entry
@@ -574,7 +574,7 @@ int irdma_add_pd_table_entry(struct irdma_sc_dev *dev,
 						      page->size, &page->pa,
 						      GFP_KERNEL);
 			if (!page->va)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			pd_entry->rsrc_pg = false;
 		}

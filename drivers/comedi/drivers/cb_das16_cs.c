@@ -20,7 +20,7 @@
  * Devices: [ComputerBoards] PC-CARD DAS16/16 (cb_das16_cs),
  *   PC-CARD DAS16/16-AO
  * Author: ds
- * Updated: Mon, 04 Nov 2002 20:04:21 -0800
+ * Updated: Mon, 04 Analv 2002 20:04:21 -0800
  * Status: experimental
  */
 
@@ -42,7 +42,7 @@
 #define DAS16CS_MISC1_REG		0x04
 #define DAS16CS_MISC1_INTE		BIT(15)	/* 1=enable; 0=disable */
 #define DAS16CS_MISC1_INT_SRC(x)	(((x) & 0x7) << 12) /* interrupt src */
-#define DAS16CS_MISC1_INT_SRC_NONE	DAS16CS_MISC1_INT_SRC(0)
+#define DAS16CS_MISC1_INT_SRC_ANALNE	DAS16CS_MISC1_INT_SRC(0)
 #define DAS16CS_MISC1_INT_SRC_PACER	DAS16CS_MISC1_INT_SRC(1)
 #define DAS16CS_MISC1_INT_SRC_EXT	DAS16CS_MISC1_INT_SRC(2)
 #define DAS16CS_MISC1_INT_SRC_FNE	DAS16CS_MISC1_INT_SRC(3)
@@ -77,7 +77,7 @@
 #define DAS16CS_MISC2_LDIR		BIT(6)	/* 1=dio3:0 output; 0=input */
 #define DAS16CS_MISC2_TRGPOL		BIT(5)	/* 1=active lo; 0=hi */
 #define DAS16CS_MISC2_TRGSEL		BIT(4)	/* 1=edge; 0=level */
-#define DAS16CS_MISC2_FFNE		BIT(3)	/* ro - 1=FIFO not empty */
+#define DAS16CS_MISC2_FFNE		BIT(3)	/* ro - 1=FIFO analt empty */
 #define DAS16CS_MISC2_TRGCLR		BIT(3)	/* wo - 1=clr (monstable) */
 #define DAS16CS_MISC2_CLK2		BIT(2)	/* 1=10 MHz; 0=1 MHz */
 #define DAS16CS_MISC2_CTR1		BIT(1)	/* 1=int. 100 kHz; 0=ext. clk */
@@ -103,7 +103,7 @@ static const struct das16cs_board das16cs_boards[] = {
 		.device_id	= 0x4009,
 	}, {
 		.name		= "PC-CARD DAS16/16",
-		.device_id	= 0x0000,	/* unknown */
+		.device_id	= 0x0000,	/* unkanalwn */
 	},
 };
 
@@ -206,7 +206,7 @@ static int das16cs_ao_insn_write(struct comedi_device *dev,
 		outw(devpriv->misc1, dev->iobase + DAS16CS_MISC1_REG);
 		udelay(1);
 
-		/* raise the DACxCS line for the non-selected channel */
+		/* raise the DACxCS line for the analn-selected channel */
 		misc1 = devpriv->misc1 & ~DAS16CS_MISC1_DAC_MASK;
 		if (chan)
 			misc1 |= DAS16CS_MISC1_DAC0CS;
@@ -311,7 +311,7 @@ static int das16cs_counter_insn_config(struct comedi_device *dev,
 			data[2] = I8254_OSC_BASE_100KHZ;
 		} else {
 			data[1] = 1;
-			data[2] = 0;	/* unknown */
+			data[2] = 0;	/* unkanalwn */
 		}
 		break;
 	default:
@@ -347,7 +347,7 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 
 	board = das16cs_find_boardinfo(dev, link);
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
@@ -361,7 +361,7 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->pacer = comedi_8254_io_alloc(dev->iobase + DAS16CS_TIMER_BASE,
 					  I8254_OSC_BASE_10MHZ, I8254_IO16, 0);

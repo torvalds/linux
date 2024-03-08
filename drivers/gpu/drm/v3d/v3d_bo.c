@@ -16,7 +16,7 @@
  *
  * Long term, we should support evicting pages from the MMU when under
  * memory pressure (thus the v3d_bo_get_pages() refcounting), but
- * that's not a high priority since our systems tend to not have swap.
+ * that's analt a high priority since our systems tend to analt have swap.
  */
 
 #include <linux/dma-buf.h>
@@ -44,7 +44,7 @@ void v3d_free_object(struct drm_gem_object *obj)
 	mutex_unlock(&v3d->bo_lock);
 
 	spin_lock(&v3d->mm_lock);
-	drm_mm_remove_node(&bo->node);
+	drm_mm_remove_analde(&bo->analde);
 	spin_unlock(&v3d->mm_lock);
 
 	/* GPU execution may have dirtied any pages in the BO. */
@@ -78,7 +78,7 @@ struct drm_gem_object *v3d_create_object(struct drm_device *dev, size_t size)
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	obj = &bo->base.base;
 
 	obj->funcs = &v3d_gem_funcs;
@@ -108,7 +108,7 @@ v3d_bo_create_finish(struct drm_gem_object *obj)
 	 * Inserting PTEs will happen later, but the offset is for the
 	 * lifetime of the BO.
 	 */
-	ret = drm_mm_insert_node_generic(&v3d->mm, &bo->node,
+	ret = drm_mm_insert_analde_generic(&v3d->mm, &bo->analde,
 					 obj->size >> PAGE_SHIFT,
 					 GMP_GRANULARITY >> PAGE_SHIFT, 0, 0);
 	spin_unlock(&v3d->mm_lock);
@@ -193,7 +193,7 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown create_bo flags: %d\n", args->flags);
+		DRM_INFO("unkanalwn create_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -201,7 +201,7 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
-	args->offset = bo->node.start << PAGE_SHIFT;
+	args->offset = bo->analde.start << PAGE_SHIFT;
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 	drm_gem_object_put(&bo->base.base);
@@ -216,17 +216,17 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem_obj;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown mmap_bo flags: %d\n", args->flags);
+		DRM_INFO("unkanalwn mmap_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+	args->offset = drm_vma_analde_offset_addr(&gem_obj->vma_analde);
 	drm_gem_object_put(gem_obj);
 
 	return 0;
@@ -242,11 +242,11 @@ int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	bo = to_v3d_bo(gem_obj);
 
-	args->offset = bo->node.start << PAGE_SHIFT;
+	args->offset = bo->analde.start << PAGE_SHIFT;
 
 	drm_gem_object_put(gem_obj);
 	return 0;

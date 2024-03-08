@@ -18,13 +18,13 @@
 
 /*
  * Since we want to track memory mappings to be able to force-unmap
- * when the AFU is no longer reachable, we need an inode. For devices
- * opened through the cxl user API, this is not a problem, but a
+ * when the AFU is anal longer reachable, we need an ianalde. For devices
+ * opened through the cxl user API, this is analt a problem, but a
  * userland process can also get a cxl fd through the cxl_get_fd()
  * API, which is used by the cxlflash driver.
  *
- * Therefore we implement our own simple pseudo-filesystem and inode
- * allocator. We don't use the anonymous inode, as we need the
+ * Therefore we implement our own simple pseudo-filesystem and ianalde
+ * allocator. We don't use the aanalnymous ianalde, as we need the
  * meta-data associated with it (address_space) and it is shared by
  * other drivers/processes, so it could lead to cxl unmapping VMAs
  * from random processes.
@@ -37,14 +37,14 @@ static struct vfsmount *cxl_vfs_mount;
 
 static int cxl_fs_init_fs_context(struct fs_context *fc)
 {
-	return init_pseudo(fc, CXL_PSEUDO_FS_MAGIC) ? 0 : -ENOMEM;
+	return init_pseudo(fc, CXL_PSEUDO_FS_MAGIC) ? 0 : -EANALMEM;
 }
 
 static struct file_system_type cxl_fs_type = {
 	.name		= "cxl",
 	.owner		= THIS_MODULE,
 	.init_fs_context = cxl_fs_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_aanaln_super,
 };
 
 
@@ -59,38 +59,38 @@ static struct file *cxl_getfile(const char *name,
 				void *priv, int flags)
 {
 	struct file *file;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int rc;
 
-	/* strongly inspired by anon_inode_getfile() */
+	/* strongly inspired by aanaln_ianalde_getfile() */
 
 	if (fops->owner && !try_module_get(fops->owner))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	rc = simple_pin_fs(&cxl_fs_type, &cxl_vfs_mount, &cxl_fs_cnt);
 	if (rc < 0) {
-		pr_err("Cannot mount cxl pseudo filesystem: %d\n", rc);
+		pr_err("Cananalt mount cxl pseudo filesystem: %d\n", rc);
 		file = ERR_PTR(rc);
 		goto err_module;
 	}
 
-	inode = alloc_anon_inode(cxl_vfs_mount->mnt_sb);
-	if (IS_ERR(inode)) {
-		file = ERR_CAST(inode);
+	ianalde = alloc_aanaln_ianalde(cxl_vfs_mount->mnt_sb);
+	if (IS_ERR(ianalde)) {
+		file = ERR_CAST(ianalde);
 		goto err_fs;
 	}
 
-	file = alloc_file_pseudo(inode, cxl_vfs_mount, name,
-				 flags & (O_ACCMODE | O_NONBLOCK), fops);
+	file = alloc_file_pseudo(ianalde, cxl_vfs_mount, name,
+				 flags & (O_ACCMODE | O_ANALNBLOCK), fops);
 	if (IS_ERR(file))
-		goto err_inode;
+		goto err_ianalde;
 
 	file->private_data = priv;
 
 	return file;
 
-err_inode:
-	iput(inode);
+err_ianalde:
+	iput(ianalde);
 err_fs:
 	simple_release_fs(&cxl_vfs_mount, &cxl_fs_cnt);
 err_module:
@@ -110,7 +110,7 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 
 	ctx = cxl_context_alloc();
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctx->kernelapi = true;
 
@@ -192,7 +192,7 @@ int cxl_allocate_afu_irqs(struct cxl_context *ctx, int num)
 		return res;
 
 	if (!cpu_has_feature(CPU_FTR_HVMODE)) {
-		/* In a guest, the PSL interrupt is not multiplexed. It was
+		/* In a guest, the PSL interrupt is analt multiplexed. It was
 		 * allocated above, and we need to set its handler
 		 */
 		hwirq = cxl_find_afu_irq(ctx, 0);
@@ -238,7 +238,7 @@ int cxl_map_afu_irq(struct cxl_context *ctx, int num,
 	 */
 	hwirq = cxl_find_afu_irq(ctx, num);
 	if (!hwirq)
-		return -ENOENT;
+		return -EANALENT;
 
 	return cxl_map_irq(ctx->afu->adapter, hwirq, handler, cookie, name);
 }
@@ -336,7 +336,7 @@ int cxl_process_element(struct cxl_context *ctx)
 }
 EXPORT_SYMBOL_GPL(cxl_process_element);
 
-/* Stop a context.  Returns 0 on success, otherwise -Errno */
+/* Stop a context.  Returns 0 on success, otherwise -Erranal */
 int cxl_stop_context(struct cxl_context *ctx)
 {
 	return __detach_context(ctx);
@@ -350,14 +350,14 @@ void cxl_set_master(struct cxl_context *ctx)
 EXPORT_SYMBOL_GPL(cxl_set_master);
 
 /* wrappers around afu_* file ops which are EXPORTED */
-int cxl_fd_open(struct inode *inode, struct file *file)
+int cxl_fd_open(struct ianalde *ianalde, struct file *file)
 {
-	return afu_open(inode, file);
+	return afu_open(ianalde, file);
 }
 EXPORT_SYMBOL_GPL(cxl_fd_open);
-int cxl_fd_release(struct inode *inode, struct file *file)
+int cxl_fd_release(struct ianalde *ianalde, struct file *file)
 {
-	return afu_release(inode, file);
+	return afu_release(ianalde, file);
 }
 EXPORT_SYMBOL_GPL(cxl_fd_release);
 long cxl_fd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -398,7 +398,7 @@ struct file *cxl_get_fd(struct cxl_context *ctx, struct file_operations *fops,
 
 	flags = O_RDWR | O_CLOEXEC;
 
-	/* This code is similar to anon_inode_getfd() */
+	/* This code is similar to aanaln_ianalde_getfd() */
 	rc = get_unused_fd_flags(flags);
 	if (rc < 0)
 		return ERR_PTR(rc);
@@ -525,7 +525,7 @@ ssize_t cxl_read_adapter_vpd(struct pci_dev *dev, void *buf, size_t count)
 {
 	struct cxl_afu *afu = cxl_pci_to_afu(dev);
 	if (IS_ERR(afu))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cxl_ops->read_adapter_vpd(afu->adapter, buf, count);
 }

@@ -9,7 +9,7 @@
  * Julian Anastasov
  *
  * Authors:
- * Ben North <ben@redfrontdoor.org>
+ * Ben Analrth <ben@redfrontdoor.org>
  * Julian Anastasov <ja@ssi.bg>		Reorganize and sync with latest kernels
  * Hannes Eder <heder@google.com>	Extend NFCT support for FTP, ipvs match
  *
@@ -17,17 +17,17 @@
  *
  * - provide conntrack confirmation for new and related connections, by
  * this way we can see their proper conntrack state in all hooks
- * - support for all forwarding methods, not only NAT
+ * - support for all forwarding methods, analt only NAT
  * - FTP support (NAT), ability to support other NAT apps with expectations
  * - to correctly create expectations for related NAT connections the proper
  * NF conntrack support must be already installed, eg. ip_vs_ftp requires
- * nf_conntrack_ftp ... iptables_nat for the same ports (but no iptables
+ * nf_conntrack_ftp ... iptables_nat for the same ports (but anal iptables
  * NAT rules are needed)
  * - alter reply for NAT when forwarding packet in original direction:
  * conntrack from client in NEW or RELATED (Passive FTP DATA) state or
  * when RELATED conntrack is created from real server (Active FTP DATA)
- * - if iptables_nat is not loaded the Passive FTP will not work (the
- * PASV response can not be NAT-ed) but Active FTP should work
+ * - if iptables_nat is analt loaded the Passive FTP will analt work (the
+ * PASV response can analt be NAT-ed) but Active FTP should work
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -36,7 +36,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/compiler.h>
 #include <linux/vmalloc.h>
 #include <linux/skbuff.h>
@@ -78,11 +78,11 @@ ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 	    nf_ct_is_dying(ct))
 		return;
 
-	/* Never alter conntrack for non-NAT conns */
+	/* Never alter conntrack for analn-NAT conns */
 	if (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ)
 		return;
 
-	/* Never alter conntrack for OPS conns (no reply is expected) */
+	/* Never alter conntrack for OPS conns (anal reply is expected) */
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		return;
 
@@ -96,7 +96,7 @@ ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 		return;
 
 	/*
-	 * The connection is not yet in the hashtable, so we update it.
+	 * The connection is analt yet in the hashtable, so we update it.
 	 * CIP->VIP will remain the same, so leave the tuple in
 	 * IP_CT_DIR_ORIGINAL untouched.  When the reply comes back from the
 	 * real-server we will see RIP->DIP.
@@ -146,9 +146,9 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 	struct net *net = nf_ct_net(ct);
 
 	/*
-	 * We assume that no NF locks are held before this callback.
+	 * We assume that anal NF locks are held before this callback.
 	 * ip_vs_conn_out_get and ip_vs_conn_in_get should match their
-	 * expectations even if they use wildcard values, now we provide the
+	 * expectations even if they use wildcard values, analw we provide the
 	 * actual values from the newly created original conntrack direction.
 	 * The conntrack is confirmed when packet reaches IPVS hooks.
 	 */
@@ -161,7 +161,7 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 	cp = ip_vs_conn_out_get(&p);
 	if (cp) {
 		/* Change reply CLIENT->RS to CLIENT->VS */
-		IP_VS_DBG_BUF(7, "%s: for ct=%p, status=0x%lX found inout cp="
+		IP_VS_DBG_BUF(7, "%s: for ct=%p, status=0x%lX found ianalut cp="
 			      FMT_CONN "\n",
 			      __func__, ct, ct->status, ARG_CONN(cp));
 		new_reply = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
@@ -190,12 +190,12 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 	}
 
 	IP_VS_DBG_BUF(7, "%s: ct=%p, status=0x%lX, tuple=" FMT_TUPLE
-		      " - unknown expect\n",
+		      " - unkanalwn expect\n",
 		      __func__, ct, ct->status, ARG_TUPLE(orig));
 	return;
 
 alter:
-	/* Never alter conntrack for non-NAT conns */
+	/* Never alter conntrack for analn-NAT conns */
 	if (IP_VS_FWD_METHOD(cp) == IP_VS_CONN_F_MASQ)
 		nf_conntrack_alter_reply(ct, &new_reply);
 	ip_vs_conn_put(cp);
@@ -267,13 +267,13 @@ void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 				      FMT_TUPLE "\n",
 				      __func__, ct, ARG_TUPLE(&tuple));
 		} else {
-			IP_VS_DBG_BUF(7, "%s: ct=%p, no conntrack for tuple="
+			IP_VS_DBG_BUF(7, "%s: ct=%p, anal conntrack for tuple="
 				      FMT_TUPLE "\n",
 				      __func__, ct, ARG_TUPLE(&tuple));
 		}
 		nf_ct_put(ct);
 	} else {
-		IP_VS_DBG_BUF(7, "%s: no conntrack for tuple=" FMT_TUPLE "\n",
+		IP_VS_DBG_BUF(7, "%s: anal conntrack for tuple=" FMT_TUPLE "\n",
 			      __func__, ARG_TUPLE(&tuple));
 	}
 }

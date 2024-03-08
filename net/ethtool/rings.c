@@ -31,7 +31,7 @@ static int rings_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_ringparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	data->supported_ring_params = dev->ethtool_ops->supported_ring_params;
 	ret = ethnl_ops_begin(dev);
@@ -143,51 +143,51 @@ ethnl_set_rings_validate(struct ethnl_req_info *req_info,
 	    !(ops->supported_ring_params & ETHTOOL_RING_USE_RX_BUF_LEN)) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_RINGS_RX_BUF_LEN],
-				    "setting rx buf len not supported");
-		return -EOPNOTSUPP;
+				    "setting rx buf len analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[ETHTOOL_A_RINGS_TCP_DATA_SPLIT] &&
 	    !(ops->supported_ring_params & ETHTOOL_RING_USE_TCP_DATA_SPLIT)) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_RINGS_TCP_DATA_SPLIT],
-				    "setting TCP data split is not supported");
-		return -EOPNOTSUPP;
+				    "setting TCP data split is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[ETHTOOL_A_RINGS_CQE_SIZE] &&
 	    !(ops->supported_ring_params & ETHTOOL_RING_USE_CQE_SIZE)) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_RINGS_CQE_SIZE],
-				    "setting cqe size not supported");
-		return -EOPNOTSUPP;
+				    "setting cqe size analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[ETHTOOL_A_RINGS_TX_PUSH] &&
 	    !(ops->supported_ring_params & ETHTOOL_RING_USE_TX_PUSH)) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_RINGS_TX_PUSH],
-				    "setting tx push not supported");
-		return -EOPNOTSUPP;
+				    "setting tx push analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[ETHTOOL_A_RINGS_RX_PUSH] &&
 	    !(ops->supported_ring_params & ETHTOOL_RING_USE_RX_PUSH)) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_RINGS_RX_PUSH],
-				    "setting rx push not supported");
-		return -EOPNOTSUPP;
+				    "setting rx push analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN] &&
 	    !(ops->supported_ring_params & ETHTOOL_RING_USE_TX_PUSH_BUF_LEN)) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN],
-				    "setting tx push buf len is not supported");
-		return -EOPNOTSUPP;
+				    "setting tx push buf len is analt supported");
+		return -EOPANALTSUPP;
 	}
 
-	return ops->get_ringparam && ops->set_ringparam ? 1 : -EOPNOTSUPP;
+	return ops->get_ringparam && ops->set_ringparam ? 1 : -EOPANALTSUPP;
 }
 
 static int

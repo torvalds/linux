@@ -95,7 +95,7 @@ enum connection_manager_assoc_states {
 #define IPW_CMD_TX_FLUSH                     24
 #define IPW_CMD_QOS_PARAMETERS               25
 #define IPW_CMD_SCAN_REQUEST_EXT             26
-#define IPW_CMD_DINO_CONFIG                  30
+#define IPW_CMD_DIANAL_CONFIG                  30
 #define IPW_CMD_RSN_CAPABILITIES             31
 #define IPW_CMD_RX_KEY                       32
 #define IPW_CMD_CARD_DISABLE                 33
@@ -134,8 +134,8 @@ enum connection_manager_assoc_states {
 #define TX_QUEUE_SIZE                        32
 #define RX_QUEUE_SIZE                        32
 
-#define DINO_CMD_WEP_KEY                   0x08
-#define DINO_CMD_TX                        0x0B
+#define DIANAL_CMD_WEP_KEY                   0x08
+#define DIANAL_CMD_TX                        0x0B
 #define DCT_ANTENNA_A                      0x01
 #define DCT_ANTENNA_B                      0x02
 
@@ -148,7 +148,7 @@ enum connection_manager_assoc_states {
  */
 
 /* tx wep key definition */
-#define DCT_WEP_KEY_NOT_IMMIDIATE	0x00
+#define DCT_WEP_KEY_ANALT_IMMIDIATE	0x00
 #define DCT_WEP_KEY_64Bit		0x40
 #define DCT_WEP_KEY_128Bit		0x80
 #define DCT_WEP_KEY_128bitIV		0xC0
@@ -174,7 +174,7 @@ enum connection_manager_assoc_states {
 #define DCT_FLAG_DUR_SET                   0x10
 
 /* even if MAC WEP set (allows pre-encrypt) */
-#define DCT_FLAG_NO_WEP              0x20
+#define DCT_FLAG_ANAL_WEP              0x20
 
 /* overwrite TSF field */
 #define DCT_FLAG_TSF_REQD                  0x40
@@ -187,7 +187,7 @@ enum connection_manager_assoc_states {
 #define DCT_FLAG_EXT_MODE_OFDM 0x00
 
 #define DCT_FLAG_EXT_SECURITY_WEP     0x00
-#define DCT_FLAG_EXT_SECURITY_NO      DCT_FLAG_EXT_SECURITY_WEP
+#define DCT_FLAG_EXT_SECURITY_ANAL      DCT_FLAG_EXT_SECURITY_WEP
 #define DCT_FLAG_EXT_SECURITY_CKIP    0x04
 #define DCT_FLAG_EXT_SECURITY_CCM     0x08
 #define DCT_FLAG_EXT_SECURITY_TKIP    0x0C
@@ -195,7 +195,7 @@ enum connection_manager_assoc_states {
 
 #define DCT_FLAG_EXT_QOS_ENABLED      0x10
 
-#define DCT_FLAG_EXT_HC_NO_SIFS_PIFS  0x00
+#define DCT_FLAG_EXT_HC_ANAL_SIFS_PIFS  0x00
 #define DCT_FLAG_EXT_HC_SIFS          0x20
 #define DCT_FLAG_EXT_HC_PIFS          0x40
 
@@ -203,33 +203,33 @@ enum connection_manager_assoc_states {
 #define TX_FRAME_TYPE                      0x00
 #define TX_HOST_COMMAND_TYPE               0x01
 #define RX_FRAME_TYPE                      0x09
-#define RX_HOST_NOTIFICATION_TYPE          0x03
+#define RX_HOST_ANALTIFICATION_TYPE          0x03
 #define RX_HOST_CMD_RESPONSE_TYPE          0x04
 #define RX_TX_FRAME_RESPONSE_TYPE          0x05
 #define TFD_NEED_IRQ_MASK                  0x04
 
-#define HOST_CMD_DINO_CONFIG               30
+#define HOST_CMD_DIANAL_CONFIG               30
 
-#define HOST_NOTIFICATION_STATUS_ASSOCIATED             10
-#define HOST_NOTIFICATION_STATUS_AUTHENTICATE           11
-#define HOST_NOTIFICATION_STATUS_SCAN_CHANNEL_RESULT    12
-#define HOST_NOTIFICATION_STATUS_SCAN_COMPLETED         13
-#define HOST_NOTIFICATION_STATUS_FRAG_LENGTH            14
-#define HOST_NOTIFICATION_STATUS_LINK_DETERIORATION     15
-#define HOST_NOTIFICATION_DINO_CONFIG_RESPONSE          16
-#define HOST_NOTIFICATION_STATUS_BEACON_STATE           17
-#define HOST_NOTIFICATION_STATUS_TGI_TX_KEY             18
-#define HOST_NOTIFICATION_TX_STATUS                     19
-#define HOST_NOTIFICATION_CALIB_KEEP_RESULTS            20
-#define HOST_NOTIFICATION_MEASUREMENT_STARTED           21
-#define HOST_NOTIFICATION_MEASUREMENT_ENDED             22
-#define HOST_NOTIFICATION_CHANNEL_SWITCHED              23
-#define HOST_NOTIFICATION_RX_DURING_QUIET_PERIOD        24
-#define HOST_NOTIFICATION_NOISE_STATS			25
-#define HOST_NOTIFICATION_S36_MEASUREMENT_ACCEPTED      30
-#define HOST_NOTIFICATION_S36_MEASUREMENT_REFUSED       31
+#define HOST_ANALTIFICATION_STATUS_ASSOCIATED             10
+#define HOST_ANALTIFICATION_STATUS_AUTHENTICATE           11
+#define HOST_ANALTIFICATION_STATUS_SCAN_CHANNEL_RESULT    12
+#define HOST_ANALTIFICATION_STATUS_SCAN_COMPLETED         13
+#define HOST_ANALTIFICATION_STATUS_FRAG_LENGTH            14
+#define HOST_ANALTIFICATION_STATUS_LINK_DETERIORATION     15
+#define HOST_ANALTIFICATION_DIANAL_CONFIG_RESPONSE          16
+#define HOST_ANALTIFICATION_STATUS_BEACON_STATE           17
+#define HOST_ANALTIFICATION_STATUS_TGI_TX_KEY             18
+#define HOST_ANALTIFICATION_TX_STATUS                     19
+#define HOST_ANALTIFICATION_CALIB_KEEP_RESULTS            20
+#define HOST_ANALTIFICATION_MEASUREMENT_STARTED           21
+#define HOST_ANALTIFICATION_MEASUREMENT_ENDED             22
+#define HOST_ANALTIFICATION_CHANNEL_SWITCHED              23
+#define HOST_ANALTIFICATION_RX_DURING_QUIET_PERIOD        24
+#define HOST_ANALTIFICATION_ANALISE_STATS			25
+#define HOST_ANALTIFICATION_S36_MEASUREMENT_ACCEPTED      30
+#define HOST_ANALTIFICATION_S36_MEASUREMENT_REFUSED       31
 
-#define HOST_NOTIFICATION_STATUS_BEACON_MISSING         1
+#define HOST_ANALTIFICATION_STATUS_BEACON_MISSING         1
 #define IPW_MB_SCAN_CANCEL_THRESHOLD                    3
 #define IPW_MB_ROAMING_THRESHOLD_MIN                    1
 #define IPW_MB_ROAMING_THRESHOLD_DEFAULT                8
@@ -339,7 +339,7 @@ enum connection_manager_assoc_states {
 #define QOS_PARAM_SET_DEF_CCK         1
 #define QOS_PARAM_SET_DEF_OFDM        2
 
-#define CTRL_QOS_NO_ACK               (0x0020)
+#define CTRL_QOS_ANAL_ACK               (0x0020)
 
 #define IPW_TX_QUEUE_1        1
 #define IPW_TX_QUEUE_2        2
@@ -353,7 +353,7 @@ struct ipw_qos_info {
 	struct libipw_qos_parameters *def_qos_parm_CCK;
 	u32 burst_duration_CCK;
 	u32 burst_duration_OFDM;
-	u16 qos_no_ack_mask;
+	u16 qos_anal_ack_mask;
 	int burst_enable;
 };
 
@@ -566,13 +566,13 @@ struct ipw_cmd_stats {
 	__le16 rssi_silence_threshold;
 	__le16 rx_ovfl_frame_supplied;
 	__le16 last_rx_frame_signal;
-	__le16 last_rx_frame_noise;
-	__le16 rx_autodetec_no_ofdm;
-	__le16 rx_autodetec_no_barker;
+	__le16 last_rx_frame_analise;
+	__le16 rx_autodetec_anal_ofdm;
+	__le16 rx_autodetec_anal_barker;
 	__le16 reserved;
 } __packed;
 
-struct notif_channel_result {
+struct analtif_channel_result {
 	u8 channel_num;
 	struct ipw_cmd_stats stats;
 	u8 uReserved;
@@ -581,24 +581,24 @@ struct notif_channel_result {
 #define SCAN_COMPLETED_STATUS_COMPLETE  1
 #define SCAN_COMPLETED_STATUS_ABORTED   2
 
-struct notif_scan_complete {
+struct analtif_scan_complete {
 	u8 scan_type;
 	u8 num_channels;
 	u8 status;
 	u8 reserved;
 } __packed;
 
-struct notif_frag_length {
+struct analtif_frag_length {
 	__le16 frag_length;
 	__le16 reserved;
 } __packed;
 
-struct notif_beacon_state {
+struct analtif_beacon_state {
 	__le32 state;
 	__le32 number;
 } __packed;
 
-struct notif_tgi_tx_key {
+struct analtif_tgi_tx_key {
 	u8 key_state;
 	u8 security_type;
 	u8 station_index;
@@ -608,49 +608,49 @@ struct notif_tgi_tx_key {
 #define SILENCE_OVER_THRESH (1)
 #define SILENCE_UNDER_THRESH (2)
 
-struct notif_link_deterioration {
+struct analtif_link_deterioration {
 	struct ipw_cmd_stats stats;
 	u8 rate;
 	u8 modulation;
 	struct rate_histogram histogram;
-	u8 silence_notification_type;	/* SILENCE_OVER/UNDER_THRESH */
+	u8 silence_analtification_type;	/* SILENCE_OVER/UNDER_THRESH */
 	__le16 silence_count;
 } __packed;
 
-struct notif_association {
+struct analtif_association {
 	u8 state;
 } __packed;
 
-struct notif_authenticate {
+struct analtif_authenticate {
 	u8 state;
 	struct machdr24 addr;
 	__le16 status;
 } __packed;
 
-struct notif_calibration {
+struct analtif_calibration {
 	u8 data[104];
 } __packed;
 
-struct notif_noise {
+struct analtif_analise {
 	__le32 value;
 } __packed;
 
-struct ipw_rx_notification {
+struct ipw_rx_analtification {
 	u8 reserved[8];
 	u8 subtype;
 	u8 flags;
 	__le16 size;
 	union {
-		struct notif_association assoc;
-		struct notif_authenticate auth;
-		struct notif_channel_result channel_result;
-		struct notif_scan_complete scan_complete;
-		struct notif_frag_length frag_len;
-		struct notif_beacon_state beacon_state;
-		struct notif_tgi_tx_key tgi_tx_key;
-		struct notif_link_deterioration link_deterioration;
-		struct notif_calibration calibration;
-		struct notif_noise noise;
+		struct analtif_association assoc;
+		struct analtif_authenticate auth;
+		struct analtif_channel_result channel_result;
+		struct analtif_scan_complete scan_complete;
+		struct analtif_frag_length frag_len;
+		struct analtif_beacon_state beacon_state;
+		struct analtif_tgi_tx_key tgi_tx_key;
+		struct analtif_link_deterioration link_deterioration;
+		struct analtif_calibration calibration;
+		struct analtif_analise analise;
 		DECLARE_FLEX_ARRAY(u8, raw);
 	} u;
 } __packed;
@@ -659,7 +659,7 @@ struct ipw_rx_frame {
 	__le32 reserved1;
 	u8 parent_tsf[4];	// fw_use[0] is boolean for OUR_TSF_IS_GREATER
 	u8 received_channel;	// The channel that this frame was received on.
-	// Note that for .11b this does not have to be
+	// Analte that for .11b this does analt have to be
 	// the same as the channel that it was sent.
 	// Filled by LMAC
 	u8 frameStatus;
@@ -668,7 +668,7 @@ struct ipw_rx_frame {
 	u8 agc;
 	u8 rssi_dbm;
 	__le16 signal;
-	__le16 noise;
+	__le16 analise;
 	u8 antennaAndPhy;
 	u8 control;		// control bit should be on in bg
 	u8 rtscts_rate;		// rate of rts or cts (in rts cts sequence rate
@@ -689,11 +689,11 @@ struct ipw_rx_packet {
 	struct ipw_rx_header header;
 	union {
 		struct ipw_rx_frame frame;
-		struct ipw_rx_notification notification;
+		struct ipw_rx_analtification analtification;
 	} u;
 } __packed;
 
-#define IPW_RX_NOTIFICATION_SIZE sizeof(struct ipw_rx_header) + 12
+#define IPW_RX_ANALTIFICATION_SIZE sizeof(struct ipw_rx_header) + 12
 #define IPW_RX_FRAME_SIZE        (unsigned int)(sizeof(struct ipw_rx_header) + \
                                  sizeof(struct ipw_rx_frame))
 
@@ -701,7 +701,7 @@ struct ipw_rx_mem_buffer {
 	dma_addr_t dma_addr;
 	struct sk_buff *skb;
 	struct list_head list;
-};				/* Not transferred over network, so not  __packed */
+};				/* Analt transferred over network, so analt  __packed */
 
 struct ipw_rx_queue {
 	struct ipw_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
@@ -712,9 +712,9 @@ struct ipw_rx_queue {
 	u32 free_count;		/* Number of pre-allocated buffers in rx_free */
 	/* Each of these lists is used as a FIFO for ipw_rx_mem_buffers */
 	struct list_head rx_free;	/* Own an SKBs */
-	struct list_head rx_used;	/* No SKB allocated */
+	struct list_head rx_used;	/* Anal SKB allocated */
 	spinlock_t lock;
-};				/* Not transferred over network, so not  __packed */
+};				/* Analt transferred over network, so analt  __packed */
 
 struct alive_command_responce {
 	u8 alive_command;
@@ -760,7 +760,7 @@ struct ipw_sys_config {
 	u8 reserved1;
 	u8 answer_broadcast_ssid_probe;
 	u8 accept_all_data_frames;
-	u8 accept_non_directed_frames;
+	u8 accept_analn_directed_frames;
 	u8 exclude_unicast_unencrypted;
 	u8 disable_unicast_decryption;
 	u8 exclude_multicast_unencrypted;
@@ -774,7 +774,7 @@ struct ipw_sys_config {
 	u8 silence_threshold;
 	u8 accept_all_mgmt_bcpr;
 	u8 accept_all_mgmt_frames;
-	u8 pass_noise_stats_to_host;
+	u8 pass_analise_stats_to_host;
 	u8 reserved3;
 } __packed;
 
@@ -912,10 +912,10 @@ struct ipw_retry_limit {
 	__le16 reserved;
 } __packed;
 
-struct ipw_dino_config {
-	__le32 dino_config_addr;
-	__le16 dino_config_size;
-	u8 dino_response;
+struct ipw_dianal_config {
+	__le32 dianal_config_addr;
+	__le16 dianal_config_size;
+	u8 dianal_response;
 	u8 reserved;
 } __packed;
 
@@ -938,7 +938,7 @@ struct ipw_rx_key {
 
 struct ipw_country_channel_info {
 	u8 first_channel;
-	u8 no_channels;
+	u8 anal_channels;
 	s8 max_tx_power;
 } __packed;
 
@@ -997,7 +997,7 @@ struct ipw_cmd {	 /* XXX */
 	u32 len;   /**< incoming parameters length, bytes */
   /**
    * command parameters.
-   * There should be enough space for incoming and
+   * There should be eanalugh space for incoming and
    * outcoming parameters.
    * Incoming parameters listed 1-st, followed by outcoming params.
    * nParams=(len+3)/4+status_len
@@ -1048,13 +1048,13 @@ struct ipw_cmd {	 /* XXX */
 #define CFG_ASSOCIATE           (1<<6)
 #define CFG_FIXED_RATE          (1<<7)
 #define CFG_ADHOC_CREATE        (1<<8)
-#define CFG_NO_LED              (1<<9)
+#define CFG_ANAL_LED              (1<<9)
 #define CFG_BACKGROUND_SCAN     (1<<10)
 #define CFG_SPEED_SCAN          (1<<11)
 #define CFG_NET_STATS           (1<<12)
 
 #define CAP_SHARED_KEY          (1<<0)	/* Off = OPEN */
-#define CAP_PRIVACY_ON          (1<<1)	/* Off = No privacy */
+#define CAP_PRIVACY_ON          (1<<1)	/* Off = Anal privacy */
 
 #define MAX_STATIONS            32
 #define IPW_INVALID_STATION     (0xff)
@@ -1117,11 +1117,11 @@ enum ipw_prom_filter {
 	IPW_PROM_MGMT_HEADER_ONLY = (1 << 1),
 	IPW_PROM_DATA_HEADER_ONLY = (1 << 2),
 	IPW_PROM_ALL_HEADER_ONLY = 0xf, /* bits 0..3 */
-	IPW_PROM_NO_TX = (1 << 4),
-	IPW_PROM_NO_RX = (1 << 5),
-	IPW_PROM_NO_CTL = (1 << 6),
-	IPW_PROM_NO_MGMT = (1 << 7),
-	IPW_PROM_NO_DATA = (1 << 8),
+	IPW_PROM_ANAL_TX = (1 << 4),
+	IPW_PROM_ANAL_RX = (1 << 5),
+	IPW_PROM_ANAL_CTL = (1 << 6),
+	IPW_PROM_ANAL_MGMT = (1 << 7),
+	IPW_PROM_ANAL_DATA = (1 << 8),
 };
 
 struct ipw_priv;
@@ -1135,7 +1135,7 @@ struct ipw_prom_priv {
 #endif
 
 #if defined(CONFIG_IPW2200_RADIOTAP) || defined(CONFIG_IPW2200_PROMISCUOUS)
-/* Magic struct that slots into the radiotap header -- no reason
+/* Magic struct that slots into the radiotap header -- anal reason
  * to build this manually element by element, we can write it much
  * more efficiently than we can parse it. ORDER MATTERS HERE
  *
@@ -1150,7 +1150,7 @@ struct ipw_rt_hdr {
 	__le16 rt_channel;	/* channel in mhz */
 	__le16 rt_chbitmask;	/* channel bitfield */
 	s8 rt_dbmsignal;	/* signal in dbM, kluged to signed */
-	s8 rt_dbmnoise;
+	s8 rt_dbmanalise;
 	u8 rt_antenna;	/* antenna number */
 	u8 payload[];  /* payload... */
 } __packed;
@@ -1181,7 +1181,7 @@ struct ipw_priv {
 	struct fw_image_desc sram_desc;
 
 	/* result of ucode download */
-	struct alive_command_responce dino_alive;
+	struct alive_command_responce dianal_alive;
 
 	wait_queue_head_t wait_command_queue;
 	wait_queue_head_t wait_state;
@@ -1196,7 +1196,7 @@ struct ipw_priv {
 
 	struct average average_missed_beacons;
 	s16 exp_avg_rssi;
-	s16 exp_avg_noise;
+	s16 exp_avg_analise;
 	u32 port_type;
 	int rx_bufs_min;	  /**< minimum number of bufs in Rx queue */
 	int rx_pend_max;	  /**< maximum pending buffers for one IRQ */
@@ -1213,13 +1213,13 @@ struct ipw_priv {
 	struct ipw_rates supp;		   /**< software defined */
 	struct ipw_rates extended;	   /**< use for corresp. IE, AP only */
 
-	struct notif_link_deterioration last_link_deterioration; /** for statistics */
+	struct analtif_link_deterioration last_link_deterioration; /** for statistics */
 	struct ipw_cmd *hcmd; /**< host command currently executed */
 
 	wait_queue_head_t hcmd_wq;     /**< host command waits for execution */
 	u32 tsf_bcn[2];		     /**< TSF from latest beacon */
 
-	struct notif_calibration calib;	/**< last calibration */
+	struct analtif_calibration calib;	/**< last calibration */
 
 	/* ordinal interface with firmware */
 	u32 table0_addr;
@@ -1245,9 +1245,9 @@ struct ipw_priv {
 	u8 short_retry_limit;
 	u8 long_retry_limit;
 
-	u32 notif_missed_beacons;
+	u32 analtif_missed_beacons;
 
-	/* Statistics and counters normalized with each association */
+	/* Statistics and counters analrmalized with each association */
 	u32 last_missed_beacons;
 	u32 last_tx_packets;
 	u32 last_rx_packets;
@@ -1412,7 +1412,7 @@ do { if (ipw_debug_level & (level)) \
  *
  * you simply need to add your entry to the ipw_debug_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have
+ * If you do analt see debug_level in /proc/net/ipw then you do analt have
  * CONFIG_IPW2200_DEBUG defined in your kernel configuration
  *
  */
@@ -1424,7 +1424,7 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DL_HOST_COMMAND  (1<<5)
 #define IPW_DL_STATE         (1<<6)
 
-#define IPW_DL_NOTIF         (1<<10)
+#define IPW_DL_ANALTIF         (1<<10)
 #define IPW_DL_SCAN          (1<<11)
 #define IPW_DL_ASSOC         (1<<12)
 #define IPW_DL_DROP          (1<<13)
@@ -1473,7 +1473,7 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DEBUG_IO(f, a...) IPW_LL_DEBUG(IPW_DL_IO, f, ## a)
 #define IPW_DEBUG_ORD(f, a...) IPW_LL_DEBUG(IPW_DL_ORD, f, ## a)
 #define IPW_DEBUG_FW_INFO(f, a...) IPW_LL_DEBUG(IPW_DL_FW_INFO, f, ## a)
-#define IPW_DEBUG_NOTIF(f, a...) IPW_DEBUG(IPW_DL_NOTIF, f, ## a)
+#define IPW_DEBUG_ANALTIF(f, a...) IPW_DEBUG(IPW_DL_ANALTIF, f, ## a)
 #define IPW_DEBUG_STATE(f, a...) IPW_DEBUG(IPW_DL_STATE | IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 #define IPW_DEBUG_ASSOC(f, a...) IPW_DEBUG(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 #define IPW_DEBUG_STATS(f, a...) IPW_LL_DEBUG(IPW_DL_STATS, f, ## a)
@@ -1532,11 +1532,11 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DOMAIN_0_END 0x1000
 #define CLX_MEM_BAR_SIZE 0x1000
 
-/* Dino/baseband control registers bits */
+/* Dianal/baseband control registers bits */
 
-#define DINO_ENABLE_SYSTEM 0x80	/* 1 = baseband processor on, 0 = reset */
-#define DINO_ENABLE_CS     0x40	/* 1 = enable ucode load */
-#define DINO_RXFIFO_DATA   0x01	/* 1 = data available */
+#define DIANAL_ENABLE_SYSTEM 0x80	/* 1 = baseband processor on, 0 = reset */
+#define DIANAL_ENABLE_CS     0x40	/* 1 = enable ucode load */
+#define DIANAL_RXFIFO_DATA   0x01	/* 1 = data available */
 #define IPW_BASEBAND_CONTROL_STATUS	0X00200000
 #define IPW_BASEBAND_TX_FIFO_WRITE	0X00200004
 #define IPW_BASEBAND_RX_FIFO_READ	0X00200004
@@ -1668,7 +1668,7 @@ do { if (ipw_debug_level & (level)) \
 #define EEPROM_CMD_READ                 0x2
 
 /* Interrupts masks */
-#define IPW_INTA_NONE   0x00000000
+#define IPW_INTA_ANALNE   0x00000000
 
 #define IPW_INTA_BIT_RX_TRANSFER                   0x00000002
 #define IPW_INTA_BIT_STATUS_CHANGE                 0x00000010
@@ -1735,7 +1735,7 @@ enum {
 	IPW_FW_ERROR_ALLOC_FAIL,
 	IPW_FW_ERROR_DMA_UNDERRUN,
 	IPW_FW_ERROR_DMA_STATUS,
-	IPW_FW_ERROR_DINO_ERROR,
+	IPW_FW_ERROR_DIANAL_ERROR,
 	IPW_FW_ERROR_EEPROM_ERROR,
 	IPW_FW_ERROR_SYSASSERT,
 	IPW_FW_ERROR_FATAL_ERROR
@@ -1744,7 +1744,7 @@ enum {
 #define AUTH_OPEN	0
 #define AUTH_SHARED_KEY	1
 #define AUTH_LEAP	2
-#define AUTH_IGNORE	3
+#define AUTH_IGANALRE	3
 
 #define HC_ASSOCIATE      0
 #define HC_REASSOCIATE    1
@@ -1814,30 +1814,30 @@ enum {
 	IPW_ORD_STAT_TX_DIR_DATA_G_36,
 	IPW_ORD_STAT_TX_DIR_DATA_G_48,
 	IPW_ORD_STAT_TX_DIR_DATA_G_54,
-	IPW_ORD_STAT_TX_NON_DIR_DATA,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_B_1,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_B_2,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_B_5_5,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_B_11,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_B_1,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_B_2,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_B_5_5,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_B_11,
 	/* Hole */
 
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_1 = IPW_ORD_TABLE_0_MASK + 44,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_2,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_5_5,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_6,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_9,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_11,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_12,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_18,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_24,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_36,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_48,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_54,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_1 = IPW_ORD_TABLE_0_MASK + 44,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_2,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_5_5,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_6,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_9,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_11,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_12,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_18,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_24,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_36,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_48,
+	IPW_ORD_STAT_TX_ANALN_DIR_DATA_G_54,
 	IPW_ORD_STAT_TX_RETRY,
 	IPW_ORD_STAT_TX_FAILURE,
 	IPW_ORD_STAT_RX_ERR_CRC,
 	IPW_ORD_STAT_RX_ERR_ICV,
-	IPW_ORD_STAT_RX_NO_BUFFER,
+	IPW_ORD_STAT_RX_ANAL_BUFFER,
 	IPW_ORD_STAT_FULL_SCANS,
 	IPW_ORD_STAT_PARTIAL_SCANS,
 	IPW_ORD_STAT_TGH_ABORTED_SCANS,
@@ -1900,7 +1900,7 @@ enum {
 	IPW_ORD_STAT_ROAM_CAUSE_RSSI,
 	IPW_ORD_STAT_ROAM_CAUSE_LINK_QUALITY,
 	IPW_ORD_STAT_ROAM_CAUSE_AP_LOAD_BALANCE,
-	IPW_ORD_STAT_ROAM_CAUSE_AP_NO_TX,
+	IPW_ORD_STAT_ROAM_CAUSE_AP_ANAL_TX,
 	IPW_ORD_STAT_LINK_UP,
 	IPW_ORD_STAT_LINK_DOWN,
 	IPW_ORD_ANTENNA_DIVERSITY,
@@ -1977,7 +1977,7 @@ struct ipw_cmd_log {
 #define CFG_SYS_ANTENNA_BOTH            0x00	/* NIC selects best antenna */
 #define CFG_SYS_ANTENNA_A               0x01	/* force antenna A */
 #define CFG_SYS_ANTENNA_B               0x03	/* force antenna B */
-#define CFG_SYS_ANTENNA_SLOW_DIV        0x02	/* consider background noise */
+#define CFG_SYS_ANTENNA_SLOW_DIV        0x02	/* consider background analise */
 
 #define IPW_MAX_CONFIG_RETRIES 10
 

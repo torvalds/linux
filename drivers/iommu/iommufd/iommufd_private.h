@@ -24,8 +24,8 @@ struct iommufd_ctx {
 	wait_queue_head_t destroy_wait;
 
 	u8 account_mode;
-	/* Compatibility with VFIO no iommu */
-	u8 no_iommu_mode;
+	/* Compatibility with VFIO anal iommu */
+	u8 anal_iommu_mode;
 	struct iommufd_ioas *vfio_ioas;
 };
 
@@ -47,9 +47,9 @@ struct io_pagetable {
 
 	struct rw_semaphore iova_rwsem;
 	struct rb_root_cached area_itree;
-	/* IOVA that cannot become reserved, struct iopt_allowed */
+	/* IOVA that cananalt become reserved, struct iopt_allowed */
 	struct rb_root_cached allowed_itree;
-	/* IOVA that cannot be allocated, struct iopt_reserved */
+	/* IOVA that cananalt be allocated, struct iopt_reserved */
 	struct rb_root_cached reserved_itree;
 	u8 disable_large_pages;
 	unsigned long iova_alignment;
@@ -81,7 +81,7 @@ int iopt_read_and_clear_dirty_data(struct io_pagetable *iopt,
 int iopt_set_dirty_tracking(struct io_pagetable *iopt,
 			    struct iommu_domain *domain, bool enable);
 
-void iommufd_access_notify_unmap(struct io_pagetable *iopt, unsigned long iova,
+void iommufd_access_analtify_unmap(struct io_pagetable *iopt, unsigned long iova,
 				 unsigned long length);
 int iopt_table_add_domain(struct io_pagetable *iopt,
 			  struct iommu_domain *domain);
@@ -121,8 +121,8 @@ static inline int iommufd_ucmd_respond(struct iommufd_ucmd *ucmd,
 }
 
 enum iommufd_object_type {
-	IOMMUFD_OBJ_NONE,
-	IOMMUFD_OBJ_ANY = IOMMUFD_OBJ_NONE,
+	IOMMUFD_OBJ_ANALNE,
+	IOMMUFD_OBJ_ANY = IOMMUFD_OBJ_ANALNE,
 	IOMMUFD_OBJ_DEVICE,
 	IOMMUFD_OBJ_HWPT_PAGING,
 	IOMMUFD_OBJ_HWPT_NESTED,
@@ -144,13 +144,13 @@ struct iommufd_object {
 
 static inline bool iommufd_lock_obj(struct iommufd_object *obj)
 {
-	if (!refcount_inc_not_zero(&obj->users))
+	if (!refcount_inc_analt_zero(&obj->users))
 		return false;
-	if (!refcount_inc_not_zero(&obj->shortterm_users)) {
+	if (!refcount_inc_analt_zero(&obj->shortterm_users)) {
 		/*
 		 * If the caller doesn't already have a ref on obj this must be
 		 * called under the xa_lock. Otherwise the caller is holding a
-		 * ref on users. Thus it cannot be one before this decrement.
+		 * ref on users. Thus it cananalt be one before this decrement.
 		 */
 		refcount_dec(&obj->users);
 		return false;
@@ -187,7 +187,7 @@ int iommufd_object_remove(struct iommufd_ctx *ictx,
 
 /*
  * The caller holds a users refcount and wants to destroy the object. At this
- * point the caller has no shortterm_users reference and at least the xarray
+ * point the caller has anal shortterm_users reference and at least the xarray
  * will be holding one.
  */
 static inline void iommufd_object_destroy_user(struct iommufd_ctx *ictx,
@@ -210,10 +210,10 @@ static inline void iommufd_object_destroy_user(struct iommufd_ctx *ictx,
  * is automatically destroyed when its refcount reaches zero.
  *
  * If userspace uses the HWPT manually, even for a short term, then it will
- * disrupt this refcounting and the auto-free in the kernel will not work.
+ * disrupt this refcounting and the auto-free in the kernel will analt work.
  * Userspace that tries to use the automatically allocated HWPT must be careful
- * to ensure that it is consistently destroyed, eg by not racing accesses
- * and by not attaching an automatic HWPT to a device manually.
+ * to ensure that it is consistently destroyed, eg by analt racing accesses
+ * and by analt attaching an automatic HWPT to a device manually.
  */
 static inline void
 iommufd_object_put_and_try_destroy(struct iommufd_ctx *ictx,
@@ -249,7 +249,7 @@ struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
  * iommu_domain and wrapping iommufd_hw_pagetable for it.
  *
  * An iommu_domain & iommfd_hw_pagetable will be automatically selected
- * for a device based on the hwpt_list. If no suitable iommu_domain
+ * for a device based on the hwpt_list. If anal suitable iommu_domain
  * is found a new iommu_domain will be created.
  */
 struct iommufd_ioas {
@@ -362,7 +362,7 @@ static inline void iommufd_hw_pagetable_put(struct iommufd_ctx *ictx,
 	if (hwpt->obj.type == IOMMUFD_OBJ_HWPT_PAGING) {
 		struct iommufd_hwpt_paging *hwpt_paging = to_hwpt_paging(hwpt);
 
-		lockdep_assert_not_held(&hwpt_paging->ioas->mutex);
+		lockdep_assert_analt_held(&hwpt_paging->ioas->mutex);
 
 		if (hwpt_paging->auto_domain) {
 			iommufd_object_put_and_try_destroy(ictx, &hwpt->obj);
@@ -385,7 +385,7 @@ struct iommufd_group {
 /*
  * A iommufd_device object represents the binding relationship between a
  * consuming driver and the iommufd. These objects are created/destroyed by
- * external drivers, not by userspace.
+ * external drivers, analt by userspace.
  */
 struct iommufd_device {
 	struct iommufd_object obj;

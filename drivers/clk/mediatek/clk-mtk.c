@@ -43,7 +43,7 @@ static void mtk_init_clk_data(struct clk_hw_onecell_data *clk_data,
 	clk_data->num = clk_num;
 
 	for (i = 0; i < clk_num; i++)
-		clk_data->hws[i] = ERR_PTR(-ENOENT);
+		clk_data->hws[i] = ERR_PTR(-EANALENT);
 }
 
 struct clk_hw_onecell_data *mtk_devm_alloc_clk_data(struct device *dev,
@@ -89,7 +89,7 @@ int mtk_clk_register_fixed_clks(const struct mtk_fixed_clk *clks, int num,
 	struct clk_hw *hw;
 
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
 		const struct mtk_fixed_clk *rc = &clks[i];
@@ -121,7 +121,7 @@ err:
 			continue;
 
 		clk_hw_unregister_fixed_rate(clk_data->hws[rc->id]);
-		clk_data->hws[rc->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[rc->id] = ERR_PTR(-EANALENT);
 	}
 
 	return PTR_ERR(hw);
@@ -143,7 +143,7 @@ void mtk_clk_unregister_fixed_clks(const struct mtk_fixed_clk *clks, int num,
 			continue;
 
 		clk_hw_unregister_fixed_rate(clk_data->hws[rc->id]);
-		clk_data->hws[rc->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[rc->id] = ERR_PTR(-EANALENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_fixed_clks);
@@ -155,7 +155,7 @@ int mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
 	struct clk_hw *hw;
 
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
 		const struct mtk_fixed_factor *ff = &clks[i];
@@ -187,7 +187,7 @@ err:
 			continue;
 
 		clk_hw_unregister_fixed_factor(clk_data->hws[ff->id]);
-		clk_data->hws[ff->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[ff->id] = ERR_PTR(-EANALENT);
 	}
 
 	return PTR_ERR(hw);
@@ -209,7 +209,7 @@ void mtk_clk_unregister_factors(const struct mtk_fixed_factor *clks, int num,
 			continue;
 
 		clk_hw_unregister_fixed_factor(clk_data->hws[ff->id]);
-		clk_data->hws[ff->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[ff->id] = ERR_PTR(-EANALENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_factors);
@@ -231,7 +231,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	if (mc->mux_shift >= 0) {
 		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 		if (!mux)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		mux->reg = base + mc->mux_reg;
 		mux->mask = BIT(mc->mux_width) - 1;
@@ -252,7 +252,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	if (mc->gate_shift >= 0) {
 		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 		if (!gate) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_out;
 		}
 
@@ -268,7 +268,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	if (mc->divider_shift >= 0) {
 		div = kzalloc(sizeof(*div), GFP_KERNEL);
 		if (!div) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_out;
 		}
 
@@ -334,7 +334,7 @@ int mtk_clk_register_composites(struct device *dev,
 	int i;
 
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
 		const struct mtk_composite *mc = &mcs[i];
@@ -366,7 +366,7 @@ err:
 			continue;
 
 		mtk_clk_unregister_composite(clk_data->hws[mc->id]);
-		clk_data->hws[mc->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[mc->id] = ERR_PTR(-EANALENT);
 	}
 
 	return PTR_ERR(hw);
@@ -388,7 +388,7 @@ void mtk_clk_unregister_composites(const struct mtk_composite *mcs, int num,
 			continue;
 
 		mtk_clk_unregister_composite(clk_data->hws[mc->id]);
-		clk_data->hws[mc->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[mc->id] = ERR_PTR(-EANALENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_composites);
@@ -402,7 +402,7 @@ int mtk_clk_register_dividers(struct device *dev,
 	int i;
 
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i <  num; i++) {
 		const struct mtk_clk_divider *mcd = &mcds[i];
@@ -436,7 +436,7 @@ err:
 			continue;
 
 		clk_hw_unregister_divider(clk_data->hws[mcd->id]);
-		clk_data->hws[mcd->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[mcd->id] = ERR_PTR(-EANALENT);
 	}
 
 	return PTR_ERR(hw);
@@ -458,13 +458,13 @@ void mtk_clk_unregister_dividers(const struct mtk_clk_divider *mcds, int num,
 			continue;
 
 		clk_hw_unregister_divider(clk_data->hws[mcd->id]);
-		clk_data->hws[mcd->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[mcd->id] = ERR_PTR(-EANALENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_dividers);
 
 static int __mtk_clk_simple_probe(struct platform_device *pdev,
-				  struct device_node *node)
+				  struct device_analde *analde)
 {
 	const struct platform_device_id *id;
 	const struct mtk_clk_desc *mcd;
@@ -488,10 +488,10 @@ static int __mtk_clk_simple_probe(struct platform_device *pdev,
 		if (!mcd->shared_io)
 			base = devm_platform_ioremap_resource(pdev, 0);
 		else
-			base = of_iomap(node, 0);
+			base = of_iomap(analde, 0);
 
 		if (IS_ERR_OR_NULL(base))
-			return IS_ERR(base) ? PTR_ERR(base) : -ENOMEM;
+			return IS_ERR(base) ? PTR_ERR(base) : -EANALMEM;
 	}
 
 	/* Calculate how many clk_hw_onecell_data entries to allocate */
@@ -501,7 +501,7 @@ static int __mtk_clk_simple_probe(struct platform_device *pdev,
 
 	clk_data = mtk_alloc_clk_data(num_clks);
 	if (!clk_data) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_base;
 	}
 
@@ -521,7 +521,7 @@ static int __mtk_clk_simple_probe(struct platform_device *pdev,
 
 	if (mcd->mux_clks) {
 		r = mtk_clk_register_muxes(&pdev->dev, mcd->mux_clks,
-					   mcd->num_mux_clks, node,
+					   mcd->num_mux_clks, analde,
 					   mcd->clk_lock, clk_data);
 		if (r)
 			goto unregister_factors;
@@ -547,21 +547,21 @@ static int __mtk_clk_simple_probe(struct platform_device *pdev,
 	}
 
 	if (mcd->clks) {
-		r = mtk_clk_register_gates(&pdev->dev, node, mcd->clks,
+		r = mtk_clk_register_gates(&pdev->dev, analde, mcd->clks,
 					   mcd->num_clks, clk_data);
 		if (r)
 			goto unregister_dividers;
 	}
 
-	if (mcd->clk_notifier_func) {
+	if (mcd->clk_analtifier_func) {
 		struct clk *mfg_mux = clk_data->hws[mcd->mfg_clk_idx]->clk;
 
-		r = mcd->clk_notifier_func(&pdev->dev, mfg_mux);
+		r = mcd->clk_analtifier_func(&pdev->dev, mfg_mux);
 		if (r)
 			goto unregister_clks;
 	}
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		goto unregister_clks;
 
@@ -608,12 +608,12 @@ free_base:
 }
 
 static void __mtk_clk_simple_remove(struct platform_device *pdev,
-				   struct device_node *node)
+				   struct device_analde *analde)
 {
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 	const struct mtk_clk_desc *mcd = device_get_match_data(&pdev->dev);
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	if (mcd->clks)
 		mtk_clk_unregister_gates(mcd->clks, mcd->num_clks, clk_data);
 	if (mcd->divider_clks)
@@ -637,32 +637,32 @@ static void __mtk_clk_simple_remove(struct platform_device *pdev,
 int mtk_clk_pdev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
+	struct device_analde *analde = dev->parent->of_analde;
 
-	return __mtk_clk_simple_probe(pdev, node);
+	return __mtk_clk_simple_probe(pdev, analde);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_pdev_probe);
 
 int mtk_clk_simple_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
-	return __mtk_clk_simple_probe(pdev, node);
+	return __mtk_clk_simple_probe(pdev, analde);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_simple_probe);
 
 void mtk_clk_pdev_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
+	struct device_analde *analde = dev->parent->of_analde;
 
-	__mtk_clk_simple_remove(pdev, node);
+	__mtk_clk_simple_remove(pdev, analde);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_pdev_remove);
 
 void mtk_clk_simple_remove(struct platform_device *pdev)
 {
-	__mtk_clk_simple_remove(pdev, pdev->dev.of_node);
+	__mtk_clk_simple_remove(pdev, pdev->dev.of_analde);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_simple_remove);
 

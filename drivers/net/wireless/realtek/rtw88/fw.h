@@ -25,12 +25,12 @@
 #define FW_START_ADDR_LEGACY		0x1000
 
 #define BCN_LOSS_CNT			10
-#define BCN_FILTER_NOTIFY_SIGNAL_CHANGE	0
+#define BCN_FILTER_ANALTIFY_SIGNAL_CHANGE	0
 #define BCN_FILTER_CONNECTION_LOSS	1
 #define BCN_FILTER_CONNECTED		2
-#define BCN_FILTER_NOTIFY_BEACON_LOSS	3
+#define BCN_FILTER_ANALTIFY_BEACON_LOSS	3
 
-#define SCAN_NOTIFY_TIMEOUT  msecs_to_jiffies(10)
+#define SCAN_ANALTIFY_TIMEOUT  msecs_to_jiffies(10)
 
 #define RTW_CHANNEL_TIME		45
 #define RTW_OFF_CHAN_TIME		100
@@ -55,7 +55,7 @@ enum rtw_c2h_cmd_id {
 	C2H_HW_FEATURE_REPORT = 0x19,
 	C2H_WLAN_INFO = 0x27,
 	C2H_WLAN_RFON = 0x32,
-	C2H_BCN_FILTER_NOTIFY = 0x36,
+	C2H_BCN_FILTER_ANALTIFY = 0x36,
 	C2H_ADAPTIVITY = 0x37,
 	C2H_SCAN_RESULT = 0x38,
 	C2H_HW_FEATURE_DUMP = 0xfd,
@@ -133,7 +133,7 @@ enum rtw_fw_feature {
 	FW_FEATURE_PG = BIT(3),
 	FW_FEATURE_TX_WAKE = BIT(4),
 	FW_FEATURE_BCN_FILTER = BIT(5),
-	FW_FEATURE_NOTIFY_SCAN = BIT(6),
+	FW_FEATURE_ANALTIFY_SCAN = BIT(6),
 	FW_FEATURE_ADAPTIVITY = BIT(7),
 	FW_FEATURE_SCAN_OFFLOAD = BIT(8),
 	FW_FEATURE_MAX = BIT(31),
@@ -260,25 +260,25 @@ enum rtw_scan_report_code {
 	RTW_SCAN_REPORT_FW_DISABLED = 0xF0,
 };
 
-enum rtw_scan_notify_id {
-	RTW_SCAN_NOTIFY_ID_PRESWITCH = 0x00,
-	RTW_SCAN_NOTIFY_ID_POSTSWITCH = 0x01,
-	RTW_SCAN_NOTIFY_ID_PROBE_PRETX = 0x02,
-	RTW_SCAN_NOTIFY_ID_PROBE_ISSUETX = 0x03,
-	RTW_SCAN_NOTIFY_ID_NULL0_PRETX = 0x04,
-	RTW_SCAN_NOTIFY_ID_NULL0_ISSUETX = 0x05,
-	RTW_SCAN_NOTIFY_ID_NULL0_POSTTX = 0x06,
-	RTW_SCAN_NOTIFY_ID_NULL1_PRETX = 0x07,
-	RTW_SCAN_NOTIFY_ID_NULL1_ISSUETX = 0x08,
-	RTW_SCAN_NOTIFY_ID_NULL1_POSTTX = 0x09,
-	RTW_SCAN_NOTIFY_ID_DWELLEXT = 0x0A,
+enum rtw_scan_analtify_id {
+	RTW_SCAN_ANALTIFY_ID_PRESWITCH = 0x00,
+	RTW_SCAN_ANALTIFY_ID_POSTSWITCH = 0x01,
+	RTW_SCAN_ANALTIFY_ID_PROBE_PRETX = 0x02,
+	RTW_SCAN_ANALTIFY_ID_PROBE_ISSUETX = 0x03,
+	RTW_SCAN_ANALTIFY_ID_NULL0_PRETX = 0x04,
+	RTW_SCAN_ANALTIFY_ID_NULL0_ISSUETX = 0x05,
+	RTW_SCAN_ANALTIFY_ID_NULL0_POSTTX = 0x06,
+	RTW_SCAN_ANALTIFY_ID_NULL1_PRETX = 0x07,
+	RTW_SCAN_ANALTIFY_ID_NULL1_ISSUETX = 0x08,
+	RTW_SCAN_ANALTIFY_ID_NULL1_POSTTX = 0x09,
+	RTW_SCAN_ANALTIFY_ID_DWELLEXT = 0x0A,
 };
 
-enum rtw_scan_notify_status {
-	RTW_SCAN_NOTIFY_STATUS_SUCCESS = 0x00,
-	RTW_SCAN_NOTIFY_STATUS_FAILURE = 0x01,
-	RTW_SCAN_NOTIFY_STATUS_RESOURCE = 0x02,
-	RTW_SCAN_NOTIFY_STATUS_TIMEOUT = 0x03,
+enum rtw_scan_analtify_status {
+	RTW_SCAN_ANALTIFY_STATUS_SUCCESS = 0x00,
+	RTW_SCAN_ANALTIFY_STATUS_FAILURE = 0x01,
+	RTW_SCAN_ANALTIFY_STATUS_RESOURCE = 0x02,
+	RTW_SCAN_ANALTIFY_STATUS_TIMEOUT = 0x03,
 };
 
 struct rtw_ch_switch_option {
@@ -288,9 +288,9 @@ struct rtw_ch_switch_option {
 	u8 dest_ch_en;
 	u8 absolute_time_en;
 	u8 dest_ch;
-	u8 normal_period;
-	u8 normal_period_sel;
-	u8 normal_cycle;
+	u8 analrmal_period;
+	u8 analrmal_period_sel;
+	u8 analrmal_cycle;
 	u8 slow_period;
 	u8 slow_period_sel;
 	u8 nlo_en;
@@ -367,9 +367,9 @@ struct rtw_fw_hdr_legacy {
 #define GET_RA_REPORT_BW(c2h_payload)		(c2h_payload[6])
 #define GET_RA_REPORT_MACID(c2h_payload)	(c2h_payload[1])
 
-#define GET_BCN_FILTER_NOTIFY_TYPE(c2h_payload)	(c2h_payload[1] & 0xf)
-#define GET_BCN_FILTER_NOTIFY_EVENT(c2h_payload)	(c2h_payload[1] & 0x10)
-#define GET_BCN_FILTER_NOTIFY_RSSI(c2h_payload)	(c2h_payload[2] - 100)
+#define GET_BCN_FILTER_ANALTIFY_TYPE(c2h_payload)	(c2h_payload[1] & 0xf)
+#define GET_BCN_FILTER_ANALTIFY_EVENT(c2h_payload)	(c2h_payload[1] & 0x10)
+#define GET_BCN_FILTER_ANALTIFY_RSSI(c2h_payload)	(c2h_payload[2] - 100)
 
 /* PKT H2C */
 #define H2C_PKT_CMD_ID 0xFF
@@ -486,15 +486,15 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(31, 28))
 #define CH_SWITCH_SET_DEST_CH(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(7, 0))
-#define CH_SWITCH_SET_NORMAL_PERIOD(h2c_pkt, value)			       \
+#define CH_SWITCH_SET_ANALRMAL_PERIOD(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(13, 8))
-#define CH_SWITCH_SET_NORMAL_PERIOD_SEL(h2c_pkt, value)			       \
+#define CH_SWITCH_SET_ANALRMAL_PERIOD_SEL(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(15, 14))
 #define CH_SWITCH_SET_SLOW_PERIOD(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(21, 16))
 #define CH_SWITCH_SET_SLOW_PERIOD_SEL(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(23, 22))
-#define CH_SWITCH_SET_NORMAL_CYCLE(h2c_pkt, value)			       \
+#define CH_SWITCH_SET_ANALRMAL_CYCLE(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(31, 24))
 #define CH_SWITCH_SET_TSF_HIGH(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x04, value, GENMASK(31, 0))
@@ -509,7 +509,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(1))
 #define SCAN_OFFLOAD_SET_RANDOM_SEQ_EN(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(2))
-#define SCAN_OFFLOAD_SET_NO_CCK_EN(h2c_pkt, value)			       \
+#define SCAN_OFFLOAD_SET_ANAL_CCK_EN(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(3))
 #define SCAN_OFFLOAD_SET_VERBOSE(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(4))
@@ -555,7 +555,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_COEX_TDMA_TYPE		0x60
 #define H2C_CMD_QUERY_BT_INFO		0x61
 #define H2C_CMD_FORCE_BT_TX_POWER	0x62
-#define H2C_CMD_IGNORE_WLAN_ACTION	0x63
+#define H2C_CMD_IGANALRE_WLAN_ACTION	0x63
 #define H2C_CMD_WL_CH_INFO		0x66
 #define H2C_CMD_QUERY_BT_MP_INFO	0x67
 #define H2C_CMD_BT_WIFI_CONTROL		0x69
@@ -656,7 +656,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(25, 24))
 #define SET_RA_INFO_LDPC(h2c_pkt, value)                                       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(26))
-#define SET_RA_INFO_NO_UPDATE(h2c_pkt, value)                                  \
+#define SET_RA_INFO_ANAL_UPDATE(h2c_pkt, value)                                  \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(27))
 #define SET_RA_INFO_VHT_EN(h2c_pkt, value)                                     \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(29, 28))
@@ -690,7 +690,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(15, 8))
 #define SET_BT_TX_POWER_INDEX(h2c_pkt, value)                                  \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(15, 8))
-#define SET_IGNORE_WLAN_ACTION_EN(h2c_pkt, value)                              \
+#define SET_IGANALRE_WLAN_ACTION_EN(h2c_pkt, value)                              \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
 #define SET_COEX_TDMA_TYPE_PARA1(h2c_pkt, value)                               \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(15, 8))
@@ -765,7 +765,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
 #define SET_NLO_PS_32K(h2c_pkt, value)                                         \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(9))
-#define SET_NLO_IGNORE_SECURITY(h2c_pkt, value)                                \
+#define SET_NLO_IGANALRE_SECURITY(h2c_pkt, value)                                \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(10))
 #define SET_NLO_LOC_NLO_INFO(h2c_pkt, value)                                   \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
@@ -827,7 +827,7 @@ void rtw_fw_wl_ch_info(struct rtw_dev *rtwdev, u8 link, u8 ch, u8 bw);
 void rtw_fw_query_bt_mp_info(struct rtw_dev *rtwdev,
 			     struct rtw_coex_info_req *req);
 void rtw_fw_force_bt_tx_power(struct rtw_dev *rtwdev, u8 bt_pwr_dec_lvl);
-void rtw_fw_bt_ignore_wlan_action(struct rtw_dev *rtwdev, bool enable);
+void rtw_fw_bt_iganalre_wlan_action(struct rtw_dev *rtwdev, bool enable);
 void rtw_fw_coex_tdma_type(struct rtw_dev *rtwdev,
 			   u8 para1, u8 para2, u8 para3, u8 para4, u8 para5);
 void rtw_fw_coex_query_hid_info(struct rtw_dev *rtwdev, u8 sub_id, u8 data);
@@ -846,7 +846,7 @@ void rtw_remove_rsvd_page(struct rtw_dev *rtwdev,
 			  struct rtw_vif *rtwvif);
 void rtw_add_rsvd_page_bcn(struct rtw_dev *rtwdev,
 			   struct rtw_vif *rtwvif);
-void rtw_add_rsvd_page_pno(struct rtw_dev *rtwdev,
+void rtw_add_rsvd_page_panal(struct rtw_dev *rtwdev,
 			   struct rtw_vif *rtwvif);
 void rtw_add_rsvd_page_sta(struct rtw_dev *rtwdev,
 			   struct rtw_vif *rtwvif);
@@ -872,7 +872,7 @@ void rtw_fw_h2c_cmd_dbg(struct rtw_dev *rtwdev, u8 *h2c);
 void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev);
 int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
 		     u32 *buffer);
-void rtw_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
+void rtw_fw_scan_analtify(struct rtw_dev *rtwdev, bool start);
 void rtw_fw_adaptivity(struct rtw_dev *rtwdev);
 void rtw_store_op_chan(struct rtw_dev *rtwdev, bool backup);
 void rtw_clear_op_chan(struct rtw_dev *rtwdev);

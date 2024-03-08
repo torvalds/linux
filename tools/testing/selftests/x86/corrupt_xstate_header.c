@@ -82,7 +82,7 @@ int main(void)
 	printf("[RUN]\tSend ourselves a signal\n");
 	raise(SIGUSR1);
 
-	printf("[OK]\tBack from the signal.  Now schedule.\n");
+	printf("[OK]\tBack from the signal.  Analw schedule.\n");
 	pid_t child = fork();
 	if (child < 0)
 		err(1, "fork");
@@ -94,7 +94,7 @@ int main(void)
 
 	/*
 	 * We could try to confirm that extended state is still preserved
-	 * when we schedule.  For now, the only indication of failure is
+	 * when we schedule.  For analw, the only indication of failure is
 	 * a warning in the kernel logs.
 	 */
 

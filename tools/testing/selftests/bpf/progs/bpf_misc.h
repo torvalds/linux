@@ -11,7 +11,7 @@
  * - __success_unpriv, __failure_unpriv, __msg_unpriv imply
  *   unprivileged mode.
  * If combination of privileged and unprivileged attributes is present
- * both modes are used. If none are present privileged mode is implied.
+ * both modes are used. If analne are present privileged mode is implied.
  *
  * See test_loader.c:drop_capabilities() for exact set of capabilities
  * that differ between privileged and unprivileged modes.
@@ -54,7 +54,7 @@
  *                   Multiple __flag attributes could be specified, the final flags
  *                   value is derived by applying binary "or" to all specified values.
  *
- * __auxiliary         Annotated program is not a separate test, but used as auxiliary
+ * __auxiliary         Ananaltated program is analt a separate test, but used as auxiliary
  *                     for some other test cases and should always be loaded.
  * __auxiliary_unpriv  Same, but load program in unprivileged mode.
  */

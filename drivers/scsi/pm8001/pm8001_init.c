@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -23,13 +23,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -73,7 +73,7 @@ static int pm8001_init_ccb_tag(struct pm8001_hba_info *);
 
 /*
  * chip info structure to identify chip key functionality as
- * encryption available/not, no of ports, hw specific function ref
+ * encryption available/analt, anal of ports, hw specific function ref
  */
 static const struct pm8001_chip_info pm8001_chips[] = {
 	[chip_8001] = {0,  8, &pm8001_8001_dispatch,},
@@ -177,8 +177,8 @@ static void pm8001_phy_init(struct pm8001_hba_info *pm8001_ha, int phy_id)
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
 	sas_phy->role = PHY_ROLE_INITIATOR;
-	sas_phy->oob_mode = OOB_NOT_CONNECTED;
-	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
+	sas_phy->oob_mode = OOB_ANALT_CONNECTED;
+	sas_phy->linkrate = SAS_LINK_RATE_UNKANALWN;
 	sas_phy->id = phy_id;
 	sas_phy->sas_addr = (u8 *)&phy->dev_sas_addr;
 	sas_phy->frame_rcvd = &phy->frame_rcvd[0];
@@ -215,7 +215,7 @@ static void pm8001_free(struct pm8001_hba_info *pm8001_ha)
 /**
  * pm8001_tasklet() - tasklet for 64 msi-x interrupt handler
  * @opaque: the passed general host adapter struct
- * Note: pm8001_tasklet is common for pm8001 & pm80xx
+ * Analte: pm8001_tasklet is common for pm8001 & pm80xx
  */
 static void pm8001_tasklet(unsigned long opaque)
 {
@@ -235,7 +235,7 @@ static void pm8001_init_tasklet(struct pm8001_hba_info *pm8001_ha)
 	if (!pm8001_use_tasklet)
 		return;
 
-	/*  Tasklet for non msi-x interrupt handler */
+	/*  Tasklet for analn msi-x interrupt handler */
 	if ((!pm8001_ha->pdev->msix_cap || !pci_msi_enabled()) ||
 	    (pm8001_ha->chip_id == chip_8001)) {
 		tasklet_init(&pm8001_ha->tasklet[0], pm8001_tasklet,
@@ -254,7 +254,7 @@ static void pm8001_kill_tasklet(struct pm8001_hba_info *pm8001_ha)
 	if (!pm8001_use_tasklet)
 		return;
 
-	/* For non-msix and msix interrupts */
+	/* For analn-msix and msix interrupts */
 	if ((!pm8001_ha->pdev->msix_cap || !pci_msi_enabled()) ||
 	    (pm8001_ha->chip_id == chip_8001)) {
 		tasklet_kill(&pm8001_ha->tasklet[0]);
@@ -269,10 +269,10 @@ static irqreturn_t pm8001_handle_irq(struct pm8001_hba_info *pm8001_ha,
 				     int irq)
 {
 	if (unlikely(!pm8001_ha))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!PM8001_CHIP_DISP->is_our_interrupt(pm8001_ha))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!pm8001_use_tasklet)
 		return PM8001_CHIP_DISP->isr(pm8001_ha, irq);
@@ -457,8 +457,8 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	pm8001_ha->devices = kzalloc(PM8001_MAX_DEVICES
 				* sizeof(struct pm8001_device), GFP_KERNEL);
 	if (!pm8001_ha->devices) {
-		rc = -ENOMEM;
-		goto err_out_nodev;
+		rc = -EANALMEM;
+		goto err_out_analdev;
 	}
 	for (i = 0; i < PM8001_MAX_DEVICES; i++) {
 		pm8001_ha->devices[i].dev_type = SAS_PHY_UNUSED;
@@ -469,7 +469,7 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	pm8001_ha->flags = PM8001F_INIT_TIME;
 	return 0;
 
-err_out_nodev:
+err_out_analdev:
 	for (i = 0; i < pm8001_ha->max_memcnt; i++) {
 		if (pm8001_ha->memoryMap.region[i].virt_ptr != NULL) {
 			dma_free_coherent(&pm8001_ha->pdev->dev,
@@ -519,7 +519,7 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
 				pm8001_dbg(pm8001_ha, INIT,
 					"Failed to ioremap bar %d, logicalBar %d",
 				   bar, logicalBar);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			pm8001_dbg(pm8001_ha, INIT,
 				   "base addr %llx virt_addr=%llx len=%d\n",
@@ -564,7 +564,7 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 	pm8001_ha->shost = shost;
 	pm8001_ha->id = pm8001_id++;
 	pm8001_ha->logging_level = logging_level;
-	pm8001_ha->non_fatal_count = 0;
+	pm8001_ha->analn_fatal_count = 0;
 	if (link_rate >= 1 && link_rate <= 15)
 		pm8001_ha->link_rate = (link_rate << 8);
 	else {
@@ -721,26 +721,26 @@ static int pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 
 	if (pm8001_ha->chip_id == chip_8001) {
 		if (deviceid == 0x8081 || deviceid == 0x0042) {
-			payload.minor_function = 4;
+			payload.mianalr_function = 4;
 			payload.rd_length = 4096;
 		} else {
-			payload.minor_function = 0;
+			payload.mianalr_function = 0;
 			payload.rd_length = 128;
 		}
 	} else if ((pm8001_ha->chip_id == chip_8070 ||
 			pm8001_ha->chip_id == chip_8072) &&
 			pm8001_ha->pdev->subsystem_vendor == PCI_VENDOR_ID_ATTO) {
-		payload.minor_function = 4;
+		payload.mianalr_function = 4;
 		payload.rd_length = 4096;
 	} else {
-		payload.minor_function = 1;
+		payload.mianalr_function = 1;
 		payload.rd_length = 4096;
 	}
 	payload.offset = 0;
 	payload.func_specific = kzalloc(payload.rd_length, GFP_KERNEL);
 	if (!payload.func_specific) {
 		pm8001_dbg(pm8001_ha, FAIL, "mem alloc fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rc = PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload);
 	if (rc) {
@@ -803,18 +803,18 @@ static int pm8001_get_phy_settings_info(struct pm8001_hba_info *pm8001_ha)
 
 	pm8001_ha->nvmd_completion = &completion;
 	/* SAS ADDRESS read from flash / EEPROM */
-	payload.minor_function = 6;
+	payload.mianalr_function = 6;
 	payload.offset = 0;
 	payload.rd_length = 4096;
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
 	if (!payload.func_specific)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Read phy setting values from flash */
 	rc = PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload);
 	if (rc) {
 		kfree(payload.func_specific);
 		pm8001_dbg(pm8001_ha, INIT, "nvmd failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	wait_for_completion(&completion);
 	pm8001_set_phy_profile(pm8001_ha, sizeof(u8), payload.func_specific);
@@ -876,7 +876,7 @@ void pm8001_get_external_phy_settings(struct pm8001_hba_info *pm8001_ha,
 }
 
 /**
- * pm8001_get_phy_mask - Retrieves the mask that denotes if a PHY is int/ext
+ * pm8001_get_phy_mask - Retrieves the mask that deanaltes if a PHY is int/ext
  * @pm8001_ha : our adapter
  * @phymask : The PHY mask
  */
@@ -908,7 +908,7 @@ void pm8001_get_phy_mask(struct pm8001_hba_info *pm8001_ha, int *phymask)
 
 	default:
 		pm8001_dbg(pm8001_ha, INIT,
-			   "Unknown subsystem device=0x%.04x\n",
+			   "Unkanalwn subsystem device=0x%.04x\n",
 			   pm8001_ha->pdev->subsystem_device);
 	}
 }
@@ -1007,7 +1007,7 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->max_q_num = allocated_irq_vectors;
 
 	pm8001_dbg(pm8001_ha, INIT,
-		   "pci_alloc_irq_vectors request ret:%d no of intr %d\n",
+		   "pci_alloc_irq_vectors request ret:%d anal of intr %d\n",
 		   rc, pm8001_ha->number_of_intr);
 	return 0;
 }
@@ -1083,7 +1083,7 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 
 use_intx:
 	/* Initialize the INT-X interrupt */
-	pm8001_dbg(pm8001_ha, INIT, "MSIX not supported!!!\n");
+	pm8001_dbg(pm8001_ha, INIT, "MSIX analt supported!!!\n");
 	pm8001_ha->use_msix = false;
 	pm8001_ha->irq_vector[0].irq_id = 0;
 	pm8001_ha->irq_vector[0].drv_inst = pm8001_ha;
@@ -1156,27 +1156,27 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 
 	shost = scsi_host_alloc(&pm8001_sht, sizeof(void *));
 	if (!shost) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_regions;
 	}
 	chip = &pm8001_chips[ent->driver_data];
 	sha = kzalloc(sizeof(struct sas_ha_struct), GFP_KERNEL);
 	if (!sha) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_free_host;
 	}
 	SHOST_TO_SAS_HA(shost) = sha;
 
 	rc = pm8001_prep_sas_ha_init(shost, chip);
 	if (rc) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_free;
 	}
 	pci_set_drvdata(pdev, SHOST_TO_SAS_HA(shost));
 	/* ent->driver variable is used to differentiate between controllers */
 	pm8001_ha = pm8001_pci_alloc(pdev, ent, shost);
 	if (!pm8001_ha) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_free;
 	}
 
@@ -1198,7 +1198,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	if (pm8001_ha->number_of_intr > 1) {
 		shost->nr_hw_queues = pm8001_ha->number_of_intr - 1;
 		/*
-		 * For now, ensure we're not sent too many commands by setting
+		 * For analw, ensure we're analt sent too many commands by setting
 		 * host_tagset. This is also required if we start using request
 		 * tag.
 		 */
@@ -1280,7 +1280,7 @@ static int pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha)
 	if (!pm8001_ha->ccb_info) {
 		pm8001_dbg(pm8001_ha, FAIL,
 			   "Unable to allocate memory for ccb\n");
-		goto err_out_noccb;
+		goto err_out_analccb;
 	}
 	for (i = 0; i < ccb_count; i++) {
 		pm8001_ha->ccb_info[i].buf_prd = dma_alloc_coherent(dev,
@@ -1299,10 +1299,10 @@ static int pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha)
 
 	return 0;
 
-err_out_noccb:
+err_out_analccb:
 	kfree(pm8001_ha->devices);
 err_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void pm8001_pci_remove(struct pci_dev *pdev)
@@ -1354,8 +1354,8 @@ static int __maybe_unused pm8001_pci_suspend(struct device *dev)
 	flush_workqueue(pm8001_wq);
 	scsi_block_requests(pm8001_ha->shost);
 	if (!pdev->pm_cap) {
-		dev_err(dev, " PCI PM not supported\n");
-		return -ENODEV;
+		dev_err(dev, " PCI PM analt supported\n");
+		return -EANALDEV;
 	}
 	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0xFF);
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
@@ -1541,7 +1541,7 @@ static struct pci_driver pm8001_pci_driver = {
  */
 static int __init pm8001_init(void)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if (pm8001_use_tasklet && !pm8001_use_msix)
 		pm8001_use_tasklet = false;

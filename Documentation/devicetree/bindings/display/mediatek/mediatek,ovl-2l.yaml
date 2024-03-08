@@ -13,7 +13,7 @@ maintainers:
 description: |
   Mediatek display overlay 2 layer, namely OVL-2L, provides 2 more layer
   for OVL.
-  OVL-2L device node must be siblings to the central MMSYS_CONFIG node.
+  OVL-2L device analde must be siblings to the central MMSYS_CONFIG analde.
   For a description of the MMSYS_CONFIG binding, see
   Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.yaml
   for details.

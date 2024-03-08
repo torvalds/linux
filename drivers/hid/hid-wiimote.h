@@ -42,7 +42,7 @@
 #define WIIPROTO_FLAG_EXITING		0x4000
 #define WIIPROTO_FLAG_DRM_LOCKED	0x8000
 #define WIIPROTO_FLAG_BUILTIN_MP	0x010000
-#define WIIPROTO_FLAG_NO_MP		0x020000
+#define WIIPROTO_FLAG_ANAL_MP		0x020000
 #define WIIPROTO_FLAG_PRO_CALIB_DONE	0x040000
 
 #define WIIPROTO_FLAGS_LEDS (WIIPROTO_FLAG_LED1 | WIIPROTO_FLAG_LED2 | \
@@ -70,7 +70,7 @@ enum wiiproto_keys {
 
 enum wiimote_devtype {
 	WIIMOTE_DEV_PENDING,
-	WIIMOTE_DEV_UNKNOWN,
+	WIIMOTE_DEV_UNKANALWN,
 	WIIMOTE_DEV_GENERIC,
 	WIIMOTE_DEV_GEN10,
 	WIIMOTE_DEV_GEN20,
@@ -80,8 +80,8 @@ enum wiimote_devtype {
 };
 
 enum wiimote_exttype {
-	WIIMOTE_EXT_NONE,
-	WIIMOTE_EXT_UNKNOWN,
+	WIIMOTE_EXT_ANALNE,
+	WIIMOTE_EXT_UNKANALWN,
 	WIIMOTE_EXT_NUNCHUK,
 	WIIMOTE_EXT_CLASSIC_CONTROLLER,
 	WIIMOTE_EXT_BALANCE_BOARD,
@@ -93,8 +93,8 @@ enum wiimote_exttype {
 };
 
 enum wiimote_mptype {
-	WIIMOTE_MP_NONE,
-	WIIMOTE_MP_UNKNOWN,
+	WIIMOTE_MP_ANALNE,
+	WIIMOTE_MP_UNKANALWN,
 	WIIMOTE_MP_SINGLE,
 	WIIMOTE_MP_PASSTHROUGH_NUNCHUK,
 	WIIMOTE_MP_PASSTHROUGH_CLASSIC,
@@ -122,13 +122,13 @@ struct wiimote_state {
 	__u8 exttype;
 	__u8 mp;
 
-	/* synchronous cmd requests */
+	/* synchroanalus cmd requests */
 	struct mutex sync;
 	struct completion ready;
 	int cmd;
 	__u32 opt;
 
-	/* results of synchronous requests */
+	/* results of synchroanalus requests */
 	__u8 cmd_battery;
 	__u8 cmd_err;
 	__u8 *cmd_read_buf;
@@ -178,7 +178,7 @@ enum wiimod_module {
 	WIIMOD_ACCEL,
 	WIIMOD_IR,
 	WIIMOD_BUILTIN_MP,
-	WIIMOD_NO_MP,
+	WIIMOD_ANAL_MP,
 	WIIMOD_NUM,
 	WIIMOD_NULL = WIIMOD_NUM,
 };
@@ -311,8 +311,8 @@ static inline void wiimote_cmd_complete(struct wiimote_data *wdata)
 /* requires the state.lock spinlock to be held */
 static inline void wiimote_cmd_abort(struct wiimote_data *wdata)
 {
-	/* Abort synchronous request by waking up the sleeping caller. But
-	 * reset the state.cmd field to an invalid value so no further event
+	/* Abort synchroanalus request by waking up the sleeping caller. But
+	 * reset the state.cmd field to an invalid value so anal further event
 	 * handlers will work with it. */
 	wdata->state.cmd = WIIPROTO_REQ_MAX;
 	complete(&wdata->state.ready);
@@ -323,7 +323,7 @@ static inline int wiimote_cmd_acquire(struct wiimote_data *wdata)
 	return mutex_lock_interruptible(&wdata->state.sync) ? -ERESTARTSYS : 0;
 }
 
-static inline void wiimote_cmd_acquire_noint(struct wiimote_data *wdata)
+static inline void wiimote_cmd_acquire_analint(struct wiimote_data *wdata)
 {
 	mutex_lock(&wdata->state.sync);
 }
@@ -361,11 +361,11 @@ static inline int wiimote_cmd_wait(struct wiimote_data *wdata)
 		return 0;
 }
 
-static inline int wiimote_cmd_wait_noint(struct wiimote_data *wdata)
+static inline int wiimote_cmd_wait_analint(struct wiimote_data *wdata)
 {
 	unsigned long ret;
 
-	/* no locking needed; see wiimote_cmd_wait() */
+	/* anal locking needed; see wiimote_cmd_wait() */
 	ret = wait_for_completion_timeout(&wdata->state.ready, HZ);
 	if (!ret)
 		return -EIO;

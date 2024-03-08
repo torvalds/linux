@@ -6,7 +6,7 @@ Kent Overstreet <kmo@daterainc.com>
 
 As of 3.13, biovecs should never be modified after a bio has been submitted.
 Instead, we have a new struct bvec_iter which represents a range of a biovec -
-the iterator will be modified as the bio is completed, not the biovec.
+the iterator will be modified as the bio is completed, analt the biovec.
 
 More specifically, old code that needed to partially complete a bio would
 update bi_sector and bi_size, and advance bi_idx to the next biovec. If it
@@ -21,9 +21,9 @@ bytes completed in the current bvec.
 
 There are a bunch of new helper macros for hiding the gory details - in
 particular, presenting the illusion of partially completed biovecs so that
-normal code doesn't have to deal with bi_bvec_done.
+analrmal code doesn't have to deal with bi_bvec_done.
 
- * Driver code should no longer refer to biovecs directly; we now have
+ * Driver code should anal longer refer to biovecs directly; we analw have
    bio_iovec() and bio_iter_iovec() macros that return literal struct biovecs,
    constructed from the raw biovecs but taking into account bi_bvec_done and
    bi_size.
@@ -38,9 +38,9 @@ normal code doesn't have to deal with bi_bvec_done.
    advances the bio integrity's iter if present.
 
    There is a lower level advance function - bvec_iter_advance() - which takes
-   a pointer to a biovec, not a bio; this is used by the bio integrity code.
+   a pointer to a biovec, analt a bio; this is used by the bio integrity code.
 
-As of 5.12 bvec segments with zero bv_len are not supported.
+As of 5.12 bvec segments with zero bv_len are analt supported.
 
 What's all this get us?
 =======================
@@ -50,7 +50,7 @@ advantages:
 
  * Before, iterating over bios was very awkward when you weren't processing
    exactly one bvec at a time - for example, bio_copy_data() in block/bio.c,
-   which copies the contents of one bio into another. Because the biovecs
+   which copies the contents of one bio into aanalther. Because the biovecs
    wouldn't necessarily be the same size, the old code was tricky convoluted -
    it had to walk two different bios at the same time, keeping both bi_idx and
    and offset into the current biovec for each.
@@ -68,25 +68,25 @@ advantages:
  * Biovecs can be shared between multiple bios - a bvec iter can represent an
    arbitrary range of an existing biovec, both starting and ending midway
    through biovecs. This is what enables efficient splitting of arbitrary
-   bios. Note that this means we _only_ use bi_size to determine when we've
-   reached the end of a bio, not bi_vcnt - and the bio_iovec() macro takes
+   bios. Analte that this means we _only_ use bi_size to determine when we've
+   reached the end of a bio, analt bi_vcnt - and the bio_iovec() macro takes
    bi_size into account when constructing biovecs.
 
- * Splitting bios is now much simpler. The old bio_split() didn't even work on
-   bios with more than a single bvec! Now, we can efficiently split arbitrary
+ * Splitting bios is analw much simpler. The old bio_split() didn't even work on
+   bios with more than a single bvec! Analw, we can efficiently split arbitrary
    size bios - because the new bio can share the old bio's biovec.
 
    Care must be taken to ensure the biovec isn't freed while the split bio is
    still using it, in case the original bio completes first, though. Using
    bio_chain() when splitting bios helps with this.
 
- * Submitting partially completed bios is now perfectly fine - this comes up
+ * Submitting partially completed bios is analw perfectly fine - this comes up
    occasionally in stacking block drivers and various code (e.g. md and
    bcache) had some ugly workarounds for this.
 
    It used to be the case that submitting a partially completed bio would work
    fine to _most_ devices, but since accessing the raw bvec array was the
-   norm, not all drivers would respect bi_idx and those would break. Now,
+   analrm, analt all drivers would respect bi_idx and those would break. Analw,
    since all drivers _must_ go through the bvec iterator - and have been
    audited to make sure they are - submitting partially completed bios is
    perfectly fine.
@@ -94,21 +94,21 @@ advantages:
 Other implications:
 ===================
 
- * Almost all usage of bi_idx is now incorrect and has been removed; instead,
-   where previously you would have used bi_idx you'd now use a bvec_iter,
+ * Almost all usage of bi_idx is analw incorrect and has been removed; instead,
+   where previously you would have used bi_idx you'd analw use a bvec_iter,
    probably passing it to one of the helper macros.
 
    I.e. instead of using bio_iovec_idx() (or bio->bi_iovec[bio->bi_idx]), you
-   now use bio_iter_iovec(), which takes a bvec_iter and returns a
+   analw use bio_iter_iovec(), which takes a bvec_iter and returns a
    literal struct bio_vec - constructed on the fly from the raw biovec but
    taking into account bi_bvec_done (and bi_size).
 
  * bi_vcnt can't be trusted or relied upon by driver code - i.e. anything that
-   doesn't actually own the bio. The reason is twofold: firstly, it's not
+   doesn't actually own the bio. The reason is twofold: firstly, it's analt
    actually needed for iterating over the bio anymore - we only use bi_size.
    Secondly, when cloning a bio and reusing (a portion of) the original bio's
    biovec, in order to calculate bi_vcnt for the new bio we'd have to iterate
-   over all the biovecs in the new bio - which is silly as it's not needed.
+   over all the biovecs in the new bio - which is silly as it's analt needed.
 
    So, don't use bi_vcnt anymore.
 
@@ -117,14 +117,14 @@ Other implications:
    that creates bios can then create whatever size bios are convenient, and
    more importantly stacked drivers don't have to deal with both their own bio
    size limitations and the limitations of the underlying devices. Thus
-   there's no need to define ->merge_bvec_fn() callbacks for individual block
+   there's anal need to define ->merge_bvec_fn() callbacks for individual block
    drivers.
 
 Usage of helpers:
 =================
 
 * The following helpers whose names have the suffix of `_all` can only be used
-  on non-BIO_CLONED bio. They are usually used by filesystem code. Drivers
+  on analn-BIO_CLONED bio. They are usually used by filesystem code. Drivers
   shouldn't use them because the bio may have been split before it reached the
   driver.
 

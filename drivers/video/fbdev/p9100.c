@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -133,14 +133,14 @@ struct p9100_par {
 
 /**
  *      p9100_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
+ *      @reganal: boolean, 0 copy local, 1 get_user() function
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
  *      @transp: If supported the alpha value which can be up to 16 bits wide.
  *      @info: frame buffer info structure
  */
-static int p9100_setcolreg(unsigned regno,
+static int p9100_setcolreg(unsigned reganal,
 			   unsigned red, unsigned green, unsigned blue,
 			   unsigned transp, struct fb_info *info)
 {
@@ -148,7 +148,7 @@ static int p9100_setcolreg(unsigned regno,
 	struct p9100_regs __iomem *regs = par->regs;
 	unsigned long flags;
 
-	if (regno >= 256)
+	if (reganal >= 256)
 		return 1;
 
 	red >>= 8;
@@ -157,7 +157,7 @@ static int p9100_setcolreg(unsigned regno,
 
 	spin_lock_irqsave(&par->lock, flags);
 
-	sbus_writel((regno << 16), &regs->ramdac_cmap_wridx);
+	sbus_writel((reganal << 16), &regs->ramdac_cmap_wridx);
 	sbus_writel((red << 16), &regs->ramdac_palette_data);
 	sbus_writel((green << 16), &regs->ramdac_palette_data);
 	sbus_writel((blue << 16), &regs->ramdac_palette_data);
@@ -190,7 +190,7 @@ p9100_blank(int blank, struct fb_info *info)
 		par->flags &= ~P9100_FLAG_BLANKED;
 		break;
 
-	case FB_BLANK_NORMAL: /* Normal blanking */
+	case FB_BLANK_ANALRMAL: /* Analrmal blanking */
 	case FB_BLANK_VSYNC_SUSPEND: /* VESA blank (vsync off) */
 	case FB_BLANK_HSYNC_SUSPEND: /* VESA blank (hsync off) */
 	case FB_BLANK_POWERDOWN: /* Poweroff */
@@ -231,7 +231,7 @@ static int p9100_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned l
  *  Initialisation
  */
 
-static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_node *dp)
+static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_analde *dp)
 {
 	snprintf(info->fix.id, sizeof(info->fix.id), "%pOFn", dp);
 
@@ -245,14 +245,14 @@ static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_no
 
 static int p9100_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 	struct fb_info *info;
 	struct p9100_par *par;
 	int linebytes, err;
 
 	info = framebuffer_alloc(sizeof(struct p9100_par), &op->dev);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!info)
 		goto out_err;
 	par = info->par;
@@ -353,7 +353,7 @@ static struct platform_driver p9100_driver = {
 static int __init p9100_init(void)
 {
 	if (fb_get_options("p9100fb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&p9100_driver);
 }

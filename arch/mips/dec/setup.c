@@ -108,7 +108,7 @@ int cpu_fpu_mask = DEC_CPU_IRQ_MASK(DEC_CPU_INR_FPU);
 int *fpu_kstat_irq;
 
 static irq_handler_t busirq_handler;
-static unsigned int busirq_flags = IRQF_NO_THREAD;
+static unsigned int busirq_flags = IRQF_ANAL_THREAD;
 
 /*
  * Bus error (DBE/IBE exceptions and bus interrupts) handling setup.
@@ -151,7 +151,7 @@ void __init plat_mem_setup(void)
 	ioport_resource.start = ~0UL;
 	ioport_resource.end = 0UL;
 
-	/* Stay away from the firmware working memory area for now. */
+	/* Stay away from the firmware working memory area for analw. */
 	memblock_reserve(PHYS_OFFSET, __pa_symbol(&_text) - PHYS_OFFSET);
 }
 
@@ -725,18 +725,18 @@ void __init arch_init_irq(void)
 		dec_init_kn02ca();
 		break;
 	case MACH_DS5800:	/* DS5800 Isis */
-		panic("Don't know how to set this up!");
+		panic("Don't kanalw how to set this up!");
 		break;
 	case MACH_DS5400:	/* DS5400 MIPSfair */
-		panic("Don't know how to set this up!");
+		panic("Don't kanalw how to set this up!");
 		break;
 	case MACH_DS5500:	/* DS5500 MIPSfair-2 */
-		panic("Don't know how to set this up!");
+		panic("Don't kanalw how to set this up!");
 		break;
 	}
 
 	/* Free the FPU interrupt if the exception is present. */
-	if (!cpu_has_nofpuex) {
+	if (!cpu_has_analfpuex) {
 		cpu_fpu_mask = 0;
 		dec_interrupt[DEC_IRQ_FPU] = -1;
 	}
@@ -752,15 +752,15 @@ void __init arch_init_irq(void)
 		int irq_fpu;
 
 		irq_fpu = dec_interrupt[DEC_IRQ_FPU];
-		if (request_irq(irq_fpu, no_action, IRQF_NO_THREAD, "fpu",
+		if (request_irq(irq_fpu, anal_action, IRQF_ANAL_THREAD, "fpu",
 				NULL))
 			pr_err("Failed to register fpu interrupt\n");
 		desc_fpu = irq_to_desc(irq_fpu);
 		fpu_kstat_irq = this_cpu_ptr(desc_fpu->kstat_irqs);
 	}
 	if (dec_interrupt[DEC_IRQ_CASCADE] >= 0) {
-		if (request_irq(dec_interrupt[DEC_IRQ_CASCADE], no_action,
-				IRQF_NO_THREAD, "cascade", NULL))
+		if (request_irq(dec_interrupt[DEC_IRQ_CASCADE], anal_action,
+				IRQF_ANAL_THREAD, "cascade", NULL))
 			pr_err("Failed to register cascade interrupt\n");
 	}
 	/* Register the bus error interrupt. */
@@ -772,7 +772,7 @@ void __init arch_init_irq(void)
 	/* Register the HALT interrupt. */
 	if (dec_interrupt[DEC_IRQ_HALT] >= 0) {
 		if (request_irq(dec_interrupt[DEC_IRQ_HALT], dec_intr_halt,
-				IRQF_NO_THREAD, "halt", NULL))
+				IRQF_ANAL_THREAD, "halt", NULL))
 			pr_err("Failed to register halt interrupt\n");
 	}
 }

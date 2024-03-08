@@ -8,7 +8,7 @@
 /*
  *  head.S contains the 32-bit startup code.
  *
- * NOTE!!! Startup happens at absolute address 0x00001000, which is also where
+ * ANALTE!!! Startup happens at absolute address 0x00001000, which is also where
  * the page directory will exist. The startup code will be overwritten by
  * the page directory. [According to comments etc elsewhere on a compressed
  * kernel it will end up at 0x1000 + 1Mb I hope so as I assume this. - AC]
@@ -58,7 +58,7 @@
  * This macro gives the relative virtual address of X, i.e. the offset of X
  * from startup_32. This is the same as the link-time virtual address of X,
  * since startup_32 is at 0, but defining it this way tells the
- * assembler/linker that we do not want the actual run-time address of X. This
+ * assembler/linker that we do analt want the actual run-time address of X. This
  * prevents the linker from trying to create unwanted run-time relocation
  * entries for the reference when the compressed kernel is linked as PIE.
  *
@@ -67,7 +67,7 @@
  * adds the 64-bit base address where the kernel is loaded.
  *
  * Replacing it with (X-startup_32)(%reg) results in the offset being stored,
- * and no run-time relocation.
+ * and anal run-time relocation.
  *
  * The macro should be used as a displacement with a base register containing
  * the run-time address of startup_32 [i.e. rva(X)(%reg)], or as an immediate
@@ -93,7 +93,7 @@ SYM_FUNC_START(startup_32)
 /*
  * Calculate the delta between where we were compiled to run
  * at and where we were actually loaded at.  This can only be done
- * with a short local call on x86.  Nothing  else will tell us what
+ * with a short local call on x86.  Analthing  else will tell us what
  * address we are running at.  The reserved chunk of the real-mode
  * data at 0x1e4 (defined as a scratch field) are used as the stack
  * for this calculation. Only 4 bytes are needed.
@@ -133,7 +133,7 @@ SYM_FUNC_START(startup_32)
 	/* Make sure cpu supports long mode. */
 	call	verify_cpu
 	testl	%eax, %eax
-	jnz	.Lno_longmode
+	jnz	.Lanal_longmode
 
 /*
  * Compute the delta between where we were compiled to run at
@@ -149,7 +149,7 @@ SYM_FUNC_START(startup_32)
 	movl	BP_kernel_alignment(%esi), %eax
 	decl	%eax
 	addl	%eax, %ebx
-	notl	%eax
+	analtl	%eax
 	andl	%eax, %ebx
 	cmpl	$LOAD_PHYSICAL_ADDR, %ebx
 	jae	1f
@@ -191,7 +191,7 @@ SYM_FUNC_START(startup_32)
 	 * startup32_check_sev_cbit() will do a check. sev_enable() will
 	 * initialize sev_status with all the bits reported by
 	 * MSR_AMD_SEV_STATUS later, but only MSR_AMD64_SEV_ENABLED_BIT
-	 * needs to be set for now.
+	 * needs to be set for analw.
 	 */
 	movl	$1, rva(sev_status)(%ebp)
 1:
@@ -315,7 +315,7 @@ SYM_CODE_START(startup_64)
 	 * from load address aligned to 2MB addr, otherwise decompress and
 	 * run the kernel from LOAD_PHYSICAL_ADDR
 	 *
-	 * We cannot rely on the calculation done in 32-bit mode, since we
+	 * We cananalt rely on the calculation done in 32-bit mode, since we
 	 * may have been invoked via the 64-bit entry point.
 	 */
 
@@ -325,7 +325,7 @@ SYM_CODE_START(startup_64)
 	movl	BP_kernel_alignment(%rsi), %eax
 	decl	%eax
 	addq	%rax, %rbp
-	notq	%rax
+	analtq	%rax
 	andq	%rax, %rbp
 	cmpq	$LOAD_PHYSICAL_ADDR, %rbp
 	jae	1f
@@ -345,7 +345,7 @@ SYM_CODE_START(startup_64)
 	 * At this point we are in long mode with 4-level paging enabled,
 	 * but we might want to enable 5-level paging or vice versa.
 	 *
-	 * The problem is that we cannot do it directly. Setting or clearing
+	 * The problem is that we cananalt do it directly. Setting or clearing
 	 * CR4.LA57 in long mode would trigger #GP. So we need to switch off
 	 * long mode and paging first.
 	 *
@@ -385,11 +385,11 @@ SYM_CODE_START(startup_64)
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	/*
-	 * Now that the stage1 interrupt handlers are set up, #VC exceptions from
+	 * Analw that the stage1 interrupt handlers are set up, #VC exceptions from
 	 * CPUID instructions can be properly handled for SEV-ES guests.
 	 *
 	 * For SEV-SNP, the CPUID table also needs to be set up in advance of any
-	 * CPUID instructions being issued, so go ahead and do that now via
+	 * CPUID instructions being issued, so go ahead and do that analw via
 	 * sev_enable(), which will also handle the rest of the SEV-related
 	 * detection/setup to ensure that has been done in advance of any dependent
 	 * code. Pass the boot_params pointer as the first argument.
@@ -401,7 +401,7 @@ SYM_CODE_START(startup_64)
 	/*
 	 * configure_5level_paging() updates the number of paging levels using
 	 * a trampoline in 32-bit addressable memory if the current number does
-	 * not match the desired number.
+	 * analt match the desired number.
 	 *
 	 * Pass the boot_params pointer as the first argument. The second
 	 * argument is the relocated address of the page table to use instead
@@ -445,7 +445,7 @@ SYM_CODE_START(startup_64)
 SYM_CODE_END(startup_64)
 
 	.text
-SYM_FUNC_START_LOCAL_NOALIGN(.Lrelocated)
+SYM_FUNC_START_LOCAL_ANALALIGN(.Lrelocated)
 
 /*
  * Clear BSS (stack is currently empty)
@@ -492,7 +492,7 @@ SYM_FUNC_END(.Lrelocated)
 SYM_CODE_START(trampoline_32bit_src)
 	/*
 	 * Preserve callee save 64-bit registers on the stack: this is
-	 * necessary because the architecture does not guarantee that GPRs will
+	 * necessary because the architecture does analt guarantee that GPRs will
 	 * retain their full 64-bit values across a 32-bit mode switch.
 	 */
 	pushq	%r15
@@ -545,7 +545,7 @@ SYM_CODE_START(trampoline_32bit_src)
 	movl	$MSR_EFER, %ecx
 	rdmsr
 	btsl	$_EFER_LME, %eax
-	/* Avoid writing EFER if no change was made (for TDX guest) */
+	/* Avoid writing EFER if anal change was made (for TDX guest) */
 	jc	1f
 	wrmsr
 1:
@@ -582,12 +582,12 @@ SYM_DATA(trampoline_ljmp_imm_offset, .word  .Ljmp + 1 - trampoline_32bit_src)
 	.org	trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_SIZE
 
 	.text
-SYM_FUNC_START_LOCAL_NOALIGN(.Lno_longmode)
-	/* This isn't an x86-64 CPU, so hang intentionally, we cannot continue */
+SYM_FUNC_START_LOCAL_ANALALIGN(.Lanal_longmode)
+	/* This isn't an x86-64 CPU, so hang intentionally, we cananalt continue */
 1:
 	hlt
 	jmp     1b
-SYM_FUNC_END(.Lno_longmode)
+SYM_FUNC_END(.Lanal_longmode)
 
 	.globl	verify_cpu
 #include "../../kernel/verify_cpu.S"
@@ -632,9 +632,9 @@ SYM_DATA_START_LOCAL(boot_stack)
 SYM_DATA_END_LABEL(boot_stack, SYM_L_LOCAL, boot_stack_end)
 
 /*
- * Space for page tables (not in .bss so not zeroed)
+ * Space for page tables (analt in .bss so analt zeroed)
  */
-	.section ".pgtable","aw",@nobits
+	.section ".pgtable","aw",@analbits
 	.balign 4096
 SYM_DATA_LOCAL(pgtable,		.fill BOOT_PGT_SIZE, 1, 0)
 

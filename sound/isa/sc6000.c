@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Driver for Gallant SC-6000 soundcard. This card is also known as
+ *  Driver for Gallant SC-6000 soundcard. This card is also kanalwn as
  *  Audio Excel DSP 16 or Zoltrix AV302.
  *  These cards use CompuMedia ASC-9308 chip + AD1848 codec.
  *  SC-6600 and SC-7000 cards are also supported. They are based on
@@ -75,7 +75,7 @@ MODULE_PARM_DESC(joystick, "Enable gameport.");
 #define COMMAND_66	0x66	/*					*/
 #define COMMAND_6C	0x6c	/*					*/
 #define COMMAND_6E	0x6e	/*					*/
-#define COMMAND_88	0x88	/* Unknown command 			*/
+#define COMMAND_88	0x88	/* Unkanalwn command 			*/
 #define DSP_INIT_MSS	0x8c	/* Enable Microsoft Sound System mode	*/
 #define COMMAND_C5	0xc5	/*					*/
 #define GET_DSP_VERSION	0xe1	/* Get DSP Version			*/
@@ -247,8 +247,8 @@ static int sc6000_dsp_get_answer(char __iomem *vport, int command,
 	} while (len < data_len);
 
 	/*
-	 * If no more data available, return to the caller, no error if len>0.
-	 * We have no other way to know when the string is finished.
+	 * If anal more data available, return to the caller, anal error if len>0.
+	 * We have anal other way to kanalw when the string is finished.
 	 */
 	return len ? len : -EIO;
 }
@@ -261,7 +261,7 @@ static int sc6000_dsp_reset(char __iomem *vport)
 	udelay(20);
 	if (sc6000_read(vport) == 0xaa)
 		return 0;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* detection and initialization */
@@ -324,7 +324,7 @@ static int sc6000_setup_board(char __iomem *vport, int config)
 	}
 
 	if (sc6000_cfg_write(vport, config))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -392,18 +392,18 @@ static int sc6000_init_board(char __iomem *vport,
 	err = sc6000_dsp_get_answer(vport, GET_DSP_COPYRIGHT, answer, 15);
 	if (err <= 0) {
 		snd_printk(KERN_ERR "sc6000_dsp_copyright: failed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/*
 	 * My SC-6000 card return "SC-6000" in DSPCopyright, so
 	 * if we have something different, we have to be warned.
 	 */
 	if (strncmp("SC-6000", answer, 7))
-		snd_printk(KERN_WARNING "Warning: non SC-6000 audio card!\n");
+		snd_printk(KERN_WARNING "Warning: analn SC-6000 audio card!\n");
 
 	if (sc6000_dsp_get_answer(vport, GET_DSP_VERSION, version, 2) < 2) {
 		snd_printk(KERN_ERR "sc6000_dsp_version: failed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	printk(KERN_INFO PFX "Detected model: %s, DSP version %d.%d\n",
 		answer, version[0], version[1]);
@@ -425,7 +425,7 @@ static int sc6000_init_board(char __iomem *vport,
 	err = sc6000_setup_board(vport, config);
 	if (err < 0) {
 		snd_printk(KERN_ERR "sc6000_setup_board: failed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sc6000_dsp_reset(vport);
@@ -439,13 +439,13 @@ static int sc6000_init_board(char __iomem *vport,
 	err = sc6000_setup_board(vport, config);
 	if (err < 0) {
 		snd_printk(KERN_ERR "sc6000_setup_board: failed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	err = sc6000_init_mss(vport, config, vmss_port, mss_config);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot initialize "
+		snd_printk(KERN_ERR "Cananalt initialize "
 			   "Microsoft Sound System mode.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -579,7 +579,7 @@ static int __snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	vport = devm_ioport_map(devptr, port[dev], 0x10);
 	if (!vport) {
 		snd_printk(KERN_ERR PFX
-			   "I/O port cannot be iomapped.\n");
+			   "I/O port cananalt be iomapped.\n");
 		return -EBUSY;
 	}
 	card->private_data = (void __force *)vport;
@@ -593,7 +593,7 @@ static int __snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	vmss_port = devm_ioport_map(devptr, mss_port[dev], 4);
 	if (!vmss_port) {
 		snd_printk(KERN_ERR PFX
-			   "MSS port I/O cannot be iomapped.\n");
+			   "MSS port I/O cananalt be iomapped.\n");
 		return -EBUSY;
 	}
 
@@ -630,7 +630,7 @@ static int __snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	if (snd_opl3_create(card,
 			    0x388, 0x388 + 2,
 			    OPL3_HW_AUTO, 0, &opl3) < 0) {
-		snd_printk(KERN_ERR PFX "no OPL device at 0x%x-0x%x ?\n",
+		snd_printk(KERN_ERR PFX "anal OPL device at 0x%x-0x%x ?\n",
 			   0x388, 0x388 + 2);
 	} else {
 		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
@@ -645,7 +645,7 @@ static int __snd_sc6000_probe(struct device *devptr, unsigned int dev)
 					MPU401_HW_MPU401,
 					mpu_port[dev], 0,
 					mpu_irq[dev], NULL) < 0)
-			snd_printk(KERN_ERR "no MPU-401 device at 0x%lx ?\n",
+			snd_printk(KERN_ERR "anal MPU-401 device at 0x%lx ?\n",
 					mpu_port[dev]);
 	}
 

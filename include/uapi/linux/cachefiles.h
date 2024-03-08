@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_CACHEFILES_H
 #define _LINUX_CACHEFILES_H
 
@@ -7,7 +7,7 @@
 
 /*
  * Fscache ensures that the maximum length of cookie key is 255. The volume key
- * is controlled by netfs, and generally no bigger than 255.
+ * is controlled by netfs, and generally anal bigger than 255.
  */
 #define CACHEFILES_MSG_MAX_SIZE	1024
 
@@ -40,7 +40,7 @@ struct cachefiles_msg {
  * key in bytes. cookie_key is binary data, which is netfs specific;
  * @cookie_key_size indicates the size of the cookie key in bytes.
  *
- * @fd identifies an anon_fd referring to the cache file.
+ * @fd identifies an aanaln_fd referring to the cache file.
  */
 struct cachefiles_open {
 	__u32 volume_key_size;

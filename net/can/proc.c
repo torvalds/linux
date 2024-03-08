@@ -9,28 +9,28 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this analtice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are analt restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -298,14 +298,14 @@ static inline void can_rcvlist_proc_show_one(struct seq_file *m, int idx,
 		can_print_recv_banner(m);
 		can_print_rcvlist(m, &dev_rcv_lists->rx[idx], dev);
 	} else
-		seq_printf(m, "  (%s: no entry)\n", DNAME(dev));
+		seq_printf(m, "  (%s: anal entry)\n", DNAME(dev));
 
 }
 
 static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 {
 	/* double cast to prevent GCC warning */
-	int idx = (int)(long)pde_data(m->file->f_inode);
+	int idx = (int)(long)pde_data(m->file->f_ianalde);
 	struct net_device *dev;
 	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = m->private;
@@ -341,7 +341,7 @@ static inline void can_rcvlist_proc_show_array(struct seq_file *m,
 	unsigned int i;
 	int all_empty = 1;
 
-	/* check whether at least one list is non-empty */
+	/* check whether at least one list is analn-empty */
 	for (i = 0; i < rcv_array_sz; i++)
 		if (!hlist_empty(&rcv_array[i])) {
 			all_empty = 0;
@@ -355,7 +355,7 @@ static inline void can_rcvlist_proc_show_array(struct seq_file *m,
 				can_print_rcvlist(m, &rcv_array[i], dev);
 		}
 	} else
-		seq_printf(m, "  (%s: no entry)\n", DNAME(dev));
+		seq_printf(m, "  (%s: anal entry)\n", DNAME(dev));
 }
 
 static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)

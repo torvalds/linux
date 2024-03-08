@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  *
- * Test handler for the s390x DIAGNOSE 0x0318 instruction.
+ * Test handler for the s390x DIAGANALSE 0x0318 instruction.
  *
  * Copyright (C) 2020, IBM
  */

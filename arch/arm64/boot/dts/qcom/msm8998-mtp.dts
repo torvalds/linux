@@ -9,7 +9,7 @@
 #include "pmi8998.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM8998 v1 MTP";
+	model = "Qualcomm Techanallogies, Inc. MSM8998 v1 MTP";
 	compatible = "qcom,msm8998-mtp", "qcom,msm8998";
 	chassis-type = "handset";
 
@@ -52,7 +52,7 @@
 		/*
 		 * Configure a pull-up on 45 (RX). This is needed to
 		 * avoid garbage data when the TX pin of the Bluetooth
-		 * module is in tri-state (module powered off or not
+		 * module is in tri-state (module powered off or analt
 		 * driving the signal yet).
 		 */
 		bias-pull-up;

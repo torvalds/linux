@@ -48,7 +48,7 @@ void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring);
 enum ena_xdp_errors_t {
 	ENA_XDP_ALLOWED = 0,
 	ENA_XDP_CURRENT_MTU_TOO_LARGE,
-	ENA_XDP_NO_ENOUGH_QUEUES,
+	ENA_XDP_ANAL_EANALUGH_QUEUES,
 };
 
 static inline bool ena_xdp_present(struct ena_adapter *adapter)
@@ -74,7 +74,7 @@ static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
 	if (adapter->netdev->mtu > ENA_XDP_MAX_MTU)
 		rc = ENA_XDP_CURRENT_MTU_TOO_LARGE;
 	else if (!ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
-		rc = ENA_XDP_NO_ENOUGH_QUEUES;
+		rc = ENA_XDP_ANAL_EANALUGH_QUEUES;
 
 	return rc;
 }

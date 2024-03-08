@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2021, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2021, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
  */
 
@@ -15,10 +15,10 @@
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
-/delete-node/ &adsp_mem;
-/delete-node/ &slpi_mem;
-/delete-node/ &venus_mem;
-/delete-node/ &gpu_mem;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &slpi_mem;
+/delete-analde/ &venus_mem;
+/delete-analde/ &gpu_mem;
 
 / {
 	qcom,msm-id = <246 0x30001>; /* MSM8996 V3.1 (Final) */
@@ -41,23 +41,23 @@
 
 		adsp_mem: adsp@8ea00000 {
 			reg = <0x0 0x8ea00000 0x0 0x1a00000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: gpu@90400000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x90400000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		slpi_mem: memory@90500000 {
 			reg = <0 0x90500000 0 0xa00000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@90f00000 {
 			reg = <0 0x90f00000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -139,7 +139,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f11@11 {
@@ -232,31 +232,31 @@
 		"PMK_SLEEP_CLK";
 
 	/*
-	 * We don't yet know for sure which GPIOs are of our interest, but what
-	 * we do know is that if a vendor sets the pins to a non-default state, there's
+	 * We don't yet kanalw for sure which GPIOs are of our interest, but what
+	 * we do kanalw is that if a vendor sets the pins to a analn-default state, there's
 	 * probably a reason for it, and just to be on the safe side, we follow suit.
 	 */
 	pm8994_gpios_defaults: pm8994-gpios-default-state {
 		pm8994-gpio1-nc-pins {
 			pins = "gpio1";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			bias-high-impedance;
 		};
 
 		vol-down-n-pins {
 			pins = "gpio2";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			input-enable;
 			bias-pull-up;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>;
 		};
 
 		vol-up-n-pins {
 			pins = "gpio3";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			input-enable;
 			bias-pull-up;
@@ -265,27 +265,27 @@
 
 		camera-snapshot-n-pins {
 			pins = "gpio4";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			input-enable;
 			bias-pull-up;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>;
 		};
 
 		camera-focus-n-pins {
 			pins = "gpio5";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			input-enable;
 			bias-pull-up;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>;
 		};
 
 		pm8994-gpio6-nc-pins {
 			pins = "gpio6";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			bias-high-impedance;
 			power-source = <PM8994_GPIO_VPH>;
@@ -293,7 +293,7 @@
 
 		nfc-download-pins {
 			pins = "gpio7";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			drive-push-pull;
 			bias-disable;
@@ -303,17 +303,17 @@
 
 		pm8994-gpio8-nc-pins {
 			pins = "gpio8";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			drive-push-pull;
 			bias-high-impedance;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
 		pm8994-gpio9-nc-pins {
 			pins = "gpio9";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-high;
 			drive-push-pull;
 			bias-high-impedance;
@@ -323,17 +323,17 @@
 
 		nfc-clock-pins {
 			pins = "gpio10";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			input-enable;
 			drive-push-pull;
 			bias-pull-down;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>;
 		};
 
 		pm8994-gpio11-nc-pins {
 			pins = "gpio11";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			bias-high-impedance;
 			power-source = <PM8994_GPIO_VPH>;
@@ -341,7 +341,7 @@
 
 		pm8994-gpio12-nc-pins {
 			pins = "gpio12";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			bias-high-impedance;
 			power-source = <PM8994_GPIO_VPH>;
@@ -349,7 +349,7 @@
 
 		ear-enable-pins {
 			pins = "gpio13";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-high;
 			drive-push-pull;
 			bias-disable;
@@ -359,7 +359,7 @@
 
 		pm8994-gpio14-nc-pins {
 			pins = "gpio14";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			input-enable;
 			bias-high-impedance;
@@ -379,13 +379,13 @@
 
 		pmi-clk-gpio-pins {
 			pins = "gpio16";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 		};
 
 		pm8994-gpio17-nc-pins {
 			pins = "gpio17";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			bias-high-impedance;
 			power-source = <PM8994_GPIO_VPH>;
@@ -403,17 +403,17 @@
 
 		pm8994-gpio19-nc-pins {
 			pins = "gpio19";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			drive-push-pull;
 			bias-high-impedance;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
 		pm8994-gpio22-nc-pins {
 			pins = "gpio22";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			bias-high-impedance;
 			power-source = <PM8994_GPIO_VPH>;
@@ -496,7 +496,7 @@
 	pmi8994_gpios_defaults: pmi8994-gpios-default-state {
 		vib-ldo-en-gpio-pins {
 			pins = "gpio1";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			output-low;
 			bias-disable;
@@ -505,27 +505,27 @@
 
 		pmi-gpio2-nc-pins {
 			pins = "gpio2";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			input-enable;
 			bias-high-impedance;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
 		pmi-gpio3-nc-pins {
 			pins = "gpio3";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			input-enable;
 			bias-high-impedance;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
 		pmi-gpio4-nc-pins {
 			pins = "gpio4";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			output-high;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -534,16 +534,16 @@
 
 		pmi-gpio5-nc-pins {
 			pins = "gpio5";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			output-high;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>;
 		};
 
 		pmi-gpio6-nc-pins {
 			pins = "gpio6";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			output-high;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -552,7 +552,7 @@
 
 		pmi-gpio7-nc-pins {
 			pins = "gpio7";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			output-high;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -561,7 +561,7 @@
 
 		pmi-gpio8-nc-pins {
 			pins = "gpio8";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 			output-high;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -570,17 +570,17 @@
 
 		usb-switch-sel-pins {
 			pins = "gpio9";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			drive-push-pull;
 		};
 
 		pmi-gpio10-nc-pins {
 			pins = "gpio10";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			drive-push-pull;
 			bias-disable;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 			power-source = <PM8994_GPIO_S4>;
 		};
 	};
@@ -637,7 +637,7 @@
 &pmi8994_spmi_regulators {
 	vdd_gfx:
 	pmi8994_s2: s2 {
-		/* Pinned to a high value for now to avoid random crashes. */
+		/* Pinned to a high value for analw to avoid random crashes. */
 		regulator-min-microvolt = <1015000>;
 		regulator-max-microvolt = <1015000>;
 		regulator-name = "vdd_gfx";

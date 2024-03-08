@@ -15,13 +15,13 @@ bool tp_btf_called = false;
 bool kprobe_called = false;
 bool fentry_called = false;
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("tp/syscalls/sys_enter_naanalsleep")
 int handle__tp(struct syscall_trace_enter *args)
 {
 	struct __kernel_timespec *ts;
 	long tv_nsec;
 
-	if (args->nr != __NR_nanosleep)
+	if (args->nr != __NR_naanalsleep)
 		return 0;
 
 	ts = (void *)args->args[0];
@@ -39,7 +39,7 @@ int BPF_PROG(handle__raw_tp, struct pt_regs *regs, long id)
 	struct __kernel_timespec *ts;
 	long tv_nsec;
 
-	if (id != __NR_nanosleep)
+	if (id != __NR_naanalsleep)
 		return 0;
 
 	ts = (void *)PT_REGS_PARM1_CORE_SYSCALL(regs);
@@ -57,7 +57,7 @@ int BPF_PROG(handle__tp_btf, struct pt_regs *regs, long id)
 	struct __kernel_timespec *ts;
 	long tv_nsec;
 
-	if (id != __NR_nanosleep)
+	if (id != __NR_naanalsleep)
 		return 0;
 
 	ts = (void *)PT_REGS_PARM1_CORE_SYSCALL(regs);

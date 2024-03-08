@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@
 #include "asic_reg/smuio/smuio_12_0_0_sh_mask.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -74,7 +74,7 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version = 0xff, smu_version = 0xff;
-	uint8_t smu_program, smu_major, smu_minor, smu_debug;
+	uint8_t smu_program, smu_major, smu_mianalr, smu_debug;
 	int ret = 0;
 
 	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
@@ -83,13 +83,13 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 
 	smu_program = (smu_version >> 24) & 0xff;
 	smu_major = (smu_version >> 16) & 0xff;
-	smu_minor = (smu_version >> 8) & 0xff;
+	smu_mianalr = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 	if (smu->is_apu)
 		adev->pm.fw_version = smu_version;
 
 	/*
-	 * 1. if_version mismatch is not critical as our fw is designed
+	 * 1. if_version mismatch is analt critical as our fw is designed
 	 * to be backward compatible.
 	 * 2. New fw usually brings some optimizations. But that's visible
 	 * only on the paired driver.
@@ -100,8 +100,8 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 		dev_info(smu->adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw program = %d, smu fw version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_driver_if_version, if_version,
-			smu_program, smu_version, smu_major, smu_minor, smu_debug);
-		dev_info(smu->adev->dev, "SMU driver if version not matched\n");
+			smu_program, smu_version, smu_major, smu_mianalr, smu_debug);
+		dev_info(smu->adev->dev, "SMU driver if version analt matched\n");
 	}
 
 	return ret;
@@ -120,7 +120,7 @@ int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 
 int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
 {
-	/* Until now the SMU12 only implemented for Renoir series so here neen't do APU check. */
+	/* Until analw the SMU12 only implemented for Reanalir series so here neen't do APU check. */
 	if (!(smu->adev->pg_flags & AMD_PG_SUPPORT_GFX_PG) || smu->adev->in_s0ix)
 		return 0;
 
@@ -139,7 +139,7 @@ int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
  *
  * Returns 0=GFXOFF(default).
  * Returns 1=Transition out of GFX State.
- * Returns 2=Not in GFXOFF.
+ * Returns 2=Analt in GFXOFF.
  * Returns 3=Transition into GFXOFF.
  */
 uint32_t smu_v12_0_get_gfxoff_status(struct smu_context *smu)
@@ -329,7 +329,7 @@ int smu_v12_0_get_vbios_bootup_values(struct smu_context *smu)
 		return ret;
 
 	if (header->format_revision != 3) {
-		dev_err(smu->adev->dev, "unknown atom_firmware_info version! for smu12\n");
+		dev_err(smu->adev->dev, "unkanalwn atom_firmware_info version! for smu12\n");
 		return -EINVAL;
 	}
 

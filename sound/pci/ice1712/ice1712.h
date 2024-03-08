@@ -179,7 +179,7 @@
 #define   ICE1712_CFG_CLOCK384  0x40	/* 16.9344Mhz, 44.1kHz*384 */
 #define   ICE1712_CFG_EXT	0x80	/* external clock */
 #define ICE1712_CFG_2xMPU401	0x20	/* two MPU401 UARTs */
-#define ICE1712_CFG_NO_CON_AC97 0x10	/* consumer AC'97 codec is not present */
+#define ICE1712_CFG_ANAL_CON_AC97 0x10	/* consumer AC'97 codec is analt present */
 #define ICE1712_CFG_ADC_MASK	0x0c	/* one, two, three, four stereo ADCs */
 #define ICE1712_CFG_DAC_MASK	0x03	/* one, two, three, four stereo DACs */
 /* PCI[61] AC-Link Configuration */
@@ -245,7 +245,7 @@ enum {
 	ICE_EEP1_ADC_ID3
 };
 
-#define ice_has_con_ac97(ice)	(!((ice)->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_NO_CON_AC97))
+#define ice_has_con_ac97(ice)	(!((ice)->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_ANAL_CON_AC97))
 
 
 struct snd_ak4xxx_private {
@@ -255,7 +255,7 @@ struct snd_ak4xxx_private {
 	unsigned int clk_mask;		/* CLK gpio bit */
 	unsigned int cs_mask;		/* bit mask for select/deselect address */
 	unsigned int cs_addr;		/* bits to select address */
-	unsigned int cs_none;		/* bits to deselect address */
+	unsigned int cs_analne;		/* bits to deselect address */
 	unsigned int add_flags;		/* additional bits at init */
 	unsigned int mask_flags;	/* total mask bits */
 	struct snd_akm4xxx_ops {
@@ -324,8 +324,8 @@ struct snd_ice1712 {
 	unsigned int vt1724:1;
 	unsigned int vt1720:1;
 	unsigned int has_spdif:1;	/* VT1720/4 - has SPDIF I/O */
-	unsigned int force_pdma4:1;	/* VT1720/4 - PDMA4 as non-spdif */
-	unsigned int force_rdma1:1;	/* VT1720/4 - RDMA1 as non-spdif */
+	unsigned int force_pdma4:1;	/* VT1720/4 - PDMA4 as analn-spdif */
+	unsigned int force_rdma1:1;	/* VT1720/4 - RDMA1 as analn-spdif */
 	unsigned int midi_output:1;	/* VT1720/4: MIDI output triggered */
 	unsigned int midi_input:1;	/* VT1720/4: MIDI input triggered */
 	unsigned int own_routing:1;	/* VT1720/4: use own routing ctls */
@@ -357,7 +357,7 @@ struct snd_ice1712 {
 		unsigned int (*get_dir)(struct snd_ice1712 *ice);
 		void (*set_data)(struct snd_ice1712 *ice, unsigned int data);
 		unsigned int (*get_data)(struct snd_ice1712 *ice);
-		/* misc operators - move to another place? */
+		/* misc operators - move to aanalther place? */
 		void (*set_pro_rate)(struct snd_ice1712 *ice, unsigned int rate);
 		void (*i2s_mclk_changed)(struct snd_ice1712 *ice);
 	} gpio;
@@ -440,7 +440,7 @@ static inline void snd_ice1712_restore_gpio_status(struct snd_ice1712 *ice)
 
 /* for bit controls */
 #define ICE1712_GPIO(xiface, xname, xindex, mask, invert, xaccess) \
-{ .iface = xiface, .name = xname, .access = xaccess, .info = snd_ctl_boolean_mono_info, \
+{ .iface = xiface, .name = xname, .access = xaccess, .info = snd_ctl_boolean_moanal_info, \
   .get = snd_ice1712_gpio_get, .put = snd_ice1712_gpio_put, \
   .private_value = mask | (invert << 24) }
 
@@ -512,7 +512,7 @@ struct snd_ice1712_card_info {
 	int (*chip_init)(struct snd_ice1712 *);
 	void (*chip_exit)(struct snd_ice1712 *);
 	int (*build_controls)(struct snd_ice1712 *);
-	unsigned int no_mpu401:1;
+	unsigned int anal_mpu401:1;
 	unsigned int mpu401_1_info_flags;
 	unsigned int mpu401_2_info_flags;
 	const char *mpu401_1_name;

@@ -26,8 +26,8 @@ properties:
       - const: cam_ahb_clk
       - const: cam_hf_axi
       - const: cam_sf_axi
-      - const: camnoc_axi
-      - const: camnoc_axi_src
+      - const: camanalc_axi
+      - const: camanalc_axi_src
       - const: core_ahb
       - const: cpas_ahb
       - const: csiphy0
@@ -93,9 +93,9 @@ properties:
   interconnect-names:
     items:
       - const: cam_ahb
-      - const: cam_hf_0_mnoc
-      - const: cam_sf_0_mnoc
-      - const: cam_sf_icp_mnoc
+      - const: cam_hf_0_manalc
+      - const: cam_sf_0_manalc
+      - const: cam_sf_icp_manalc
 
   power-domains:
     items:
@@ -365,8 +365,8 @@ examples:
             clocks = <&gcc GCC_CAMERA_AHB_CLK>,
                      <&gcc GCC_CAMERA_HF_AXI_CLK>,
                      <&gcc GCC_CAMERA_SF_AXI_CLK>,
-                     <&camcc CAM_CC_CAMNOC_AXI_CLK>,
-                     <&camcc CAM_CC_CAMNOC_AXI_CLK_SRC>,
+                     <&camcc CAM_CC_CAMANALC_AXI_CLK>,
+                     <&camcc CAM_CC_CAMANALC_AXI_CLK_SRC>,
                      <&camcc CAM_CC_CORE_AHB_CLK>,
                      <&camcc CAM_CC_CPAS_AHB_CLK>,
                      <&camcc CAM_CC_CSIPHY0_CLK>,
@@ -402,8 +402,8 @@ examples:
             clock-names = "cam_ahb_clk",
                           "cam_hf_axi",
                           "cam_sf_axi",
-                          "camnoc_axi",
-                          "camnoc_axi_src",
+                          "camanalc_axi",
+                          "camanalc_axi_src",
                           "core_ahb",
                           "cpas_ahb",
                           "csiphy0",
@@ -446,14 +446,14 @@ examples:
                      <&apps_smmu 0xC40 0x400>,
                      <&apps_smmu 0xC41 0x400>;
 
-            interconnects = <&gem_noc MASTER_AMPSS_M0 &config_noc SLAVE_CAMERA_CFG>,
-                            <&mmss_noc MASTER_CAMNOC_HF &mc_virt SLAVE_EBI_CH0>,
-                            <&mmss_noc MASTER_CAMNOC_SF &mc_virt SLAVE_EBI_CH0>,
-                            <&mmss_noc MASTER_CAMNOC_ICP &mc_virt SLAVE_EBI_CH0>;
+            interconnects = <&gem_analc MASTER_AMPSS_M0 &config_analc SLAVE_CAMERA_CFG>,
+                            <&mmss_analc MASTER_CAMANALC_HF &mc_virt SLAVE_EBI_CH0>,
+                            <&mmss_analc MASTER_CAMANALC_SF &mc_virt SLAVE_EBI_CH0>,
+                            <&mmss_analc MASTER_CAMANALC_ICP &mc_virt SLAVE_EBI_CH0>;
             interconnect-names = "cam_ahb",
-                                 "cam_hf_0_mnoc",
-                                 "cam_sf_0_mnoc",
-                                 "cam_sf_icp_mnoc";
+                                 "cam_hf_0_manalc",
+                                 "cam_sf_0_manalc",
+                                 "cam_sf_icp_manalc";
 
             ports {
                 #address-cells = <1>;

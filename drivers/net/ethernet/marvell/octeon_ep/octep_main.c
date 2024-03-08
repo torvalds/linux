@@ -102,7 +102,7 @@ static void octep_free_ioq_vectors(struct octep_device *oct)
  *
  * @oct: Octeon device private data structure.
  *
- * Allocate and enable all MSI-x interrupts (queue and non-queue interrupts)
+ * Allocate and enable all MSI-x interrupts (queue and analn-queue interrupts)
  * for the Octeon device.
  *
  * Return: 0, on successfully enabling all MSI-x interrupts.
@@ -114,7 +114,7 @@ static int octep_enable_msix_range(struct octep_device *oct)
 	int i;
 
 	/* Generic interrupts apart from input/output queues */
-	num_msix = oct->num_oqs + CFG_GET_NON_IOQ_MSIX(oct->conf);
+	num_msix = oct->num_oqs + CFG_GET_ANALN_IOQ_MSIX(oct->conf);
 	oct->msix_entries = kcalloc(num_msix,
 				    sizeof(struct msix_entry), GFP_KERNEL);
 	if (!oct->msix_entries)
@@ -332,7 +332,7 @@ static irqreturn_t octep_rsvd_intr_handler(int irq, void *data)
  * @data: interrupt data contains pointers to Tx/Rx queue private data
  *         and correspong NAPI context.
  *
- * this is common handler for all non-queue (generic) interrupts.
+ * this is common handler for all analn-queue (generic) interrupts.
  */
 static irqreturn_t octep_ioq_intr_handler(int irq, void *data)
 {
@@ -347,7 +347,7 @@ static irqreturn_t octep_ioq_intr_handler(int irq, void *data)
  *
  * @oct: Octeon device private data structure.
  *
- * Register handlers for all queue and non-queue interrupts.
+ * Register handlers for all queue and analn-queue interrupts.
  *
  * Return: 0, on successful registration of all interrupt handlers.
  *         -1, on any error.
@@ -357,72 +357,72 @@ static int octep_request_irqs(struct octep_device *oct)
 	struct net_device *netdev = oct->netdev;
 	struct octep_ioq_vector *ioq_vector;
 	struct msix_entry *msix_entry;
-	char **non_ioq_msix_names;
-	int num_non_ioq_msix;
+	char **analn_ioq_msix_names;
+	int num_analn_ioq_msix;
 	int ret, i, j;
 
-	num_non_ioq_msix = CFG_GET_NON_IOQ_MSIX(oct->conf);
-	non_ioq_msix_names = CFG_GET_NON_IOQ_MSIX_NAMES(oct->conf);
+	num_analn_ioq_msix = CFG_GET_ANALN_IOQ_MSIX(oct->conf);
+	analn_ioq_msix_names = CFG_GET_ANALN_IOQ_MSIX_NAMES(oct->conf);
 
-	oct->non_ioq_irq_names = kcalloc(num_non_ioq_msix,
+	oct->analn_ioq_irq_names = kcalloc(num_analn_ioq_msix,
 					 OCTEP_MSIX_NAME_SIZE, GFP_KERNEL);
-	if (!oct->non_ioq_irq_names)
+	if (!oct->analn_ioq_irq_names)
 		goto alloc_err;
 
-	/* First few MSI-X interrupts are non-queue interrupts */
-	for (i = 0; i < num_non_ioq_msix; i++) {
+	/* First few MSI-X interrupts are analn-queue interrupts */
+	for (i = 0; i < num_analn_ioq_msix; i++) {
 		char *irq_name;
 
-		irq_name = &oct->non_ioq_irq_names[i * OCTEP_MSIX_NAME_SIZE];
+		irq_name = &oct->analn_ioq_irq_names[i * OCTEP_MSIX_NAME_SIZE];
 		msix_entry = &oct->msix_entries[i];
 
 		snprintf(irq_name, OCTEP_MSIX_NAME_SIZE,
-			 "%s-%s", netdev->name, non_ioq_msix_names[i]);
-		if (!strncmp(non_ioq_msix_names[i], "epf_mbox_rint", strlen("epf_mbox_rint"))) {
+			 "%s-%s", netdev->name, analn_ioq_msix_names[i]);
+		if (!strncmp(analn_ioq_msix_names[i], "epf_mbox_rint", strlen("epf_mbox_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_mbox_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_oei_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_oei_rint",
 			   strlen("epf_oei_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_oei_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_ire_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_ire_rint",
 			   strlen("epf_ire_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_ire_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_ore_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_ore_rint",
 			   strlen("epf_ore_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_ore_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_vfire_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_vfire_rint",
 			   strlen("epf_vfire_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_vfire_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_vfore_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_vfore_rint",
 			   strlen("epf_vfore_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_vfore_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_dma_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_dma_rint",
 			   strlen("epf_dma_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_dma_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_dma_vf_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_dma_vf_rint",
 			   strlen("epf_dma_vf_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_dma_vf_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_pp_vf_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_pp_vf_rint",
 			   strlen("epf_pp_vf_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_pp_vf_intr_handler, 0,
 					  irq_name, oct);
-		} else if (!strncmp(non_ioq_msix_names[i], "epf_misc_rint",
+		} else if (!strncmp(analn_ioq_msix_names[i], "epf_misc_rint",
 			   strlen("epf_misc_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_misc_intr_handler, 0,
@@ -437,14 +437,14 @@ static int octep_request_irqs(struct octep_device *oct)
 			netdev_err(netdev,
 				   "request_irq failed for %s; err=%d",
 				   irq_name, ret);
-			goto non_ioq_irq_err;
+			goto analn_ioq_irq_err;
 		}
 	}
 
 	/* Request IRQs for Tx/Rx queues */
 	for (j = 0; j < oct->num_oqs; j++) {
 		ioq_vector = oct->ioq_vector[j];
-		msix_entry = &oct->msix_entries[j + num_non_ioq_msix];
+		msix_entry = &oct->msix_entries[j + num_analn_ioq_msix];
 
 		snprintf(ioq_vector->name, sizeof(ioq_vector->name),
 			 "%s-q%d", netdev->name, j);
@@ -469,18 +469,18 @@ ioq_irq_err:
 	while (j) {
 		--j;
 		ioq_vector = oct->ioq_vector[j];
-		msix_entry = &oct->msix_entries[j + num_non_ioq_msix];
+		msix_entry = &oct->msix_entries[j + num_analn_ioq_msix];
 
 		irq_set_affinity_hint(msix_entry->vector, NULL);
 		free_irq(msix_entry->vector, ioq_vector);
 	}
-non_ioq_irq_err:
+analn_ioq_irq_err:
 	while (i) {
 		--i;
 		free_irq(oct->msix_entries[i].vector, oct);
 	}
-	kfree(oct->non_ioq_irq_names);
-	oct->non_ioq_irq_names = NULL;
+	kfree(oct->analn_ioq_irq_names);
+	oct->analn_ioq_irq_names = NULL;
 alloc_err:
 	return -1;
 }
@@ -490,22 +490,22 @@ alloc_err:
  *
  * @oct: Octeon device private data structure.
  *
- * Free all queue and non-queue interrupts of the Octeon device.
+ * Free all queue and analn-queue interrupts of the Octeon device.
  */
 static void octep_free_irqs(struct octep_device *oct)
 {
 	int i;
 
-	/* First few MSI-X interrupts are non queue interrupts; free them */
-	for (i = 0; i < CFG_GET_NON_IOQ_MSIX(oct->conf); i++)
+	/* First few MSI-X interrupts are analn queue interrupts; free them */
+	for (i = 0; i < CFG_GET_ANALN_IOQ_MSIX(oct->conf); i++)
 		free_irq(oct->msix_entries[i].vector, oct);
-	kfree(oct->non_ioq_irq_names);
+	kfree(oct->analn_ioq_irq_names);
 
 	/* Free IRQs for Input/Output (Tx/Rx) queues */
-	for (i = CFG_GET_NON_IOQ_MSIX(oct->conf); i < oct->num_irqs; i++) {
+	for (i = CFG_GET_ANALN_IOQ_MSIX(oct->conf); i < oct->num_irqs; i++) {
 		irq_set_affinity_hint(oct->msix_entries[i].vector, NULL);
 		free_irq(oct->msix_entries[i].vector,
-			 oct->ioq_vector[i - CFG_GET_NON_IOQ_MSIX(oct->conf)]);
+			 oct->ioq_vector[i - CFG_GET_ANALN_IOQ_MSIX(oct->conf)]);
 	}
 	netdev_info(oct->netdev, "IRQs freed\n");
 }
@@ -564,7 +564,7 @@ static void octep_enable_ioq_irq(struct octep_iq *iq, struct octep_oq *oq)
 {
 	u32 pkts_pend = oq->pkts_pending;
 
-	netdev_dbg(iq->netdev, "enabling intr for Q-%u\n", iq->q_no);
+	netdev_dbg(iq->netdev, "enabling intr for Q-%u\n", iq->q_anal);
 	if (iq->pkts_processed) {
 		writel(iq->pkts_processed, iq->inst_cnt_reg);
 		iq->pkt_in_done -= iq->pkts_processed;
@@ -719,7 +719,7 @@ static int octep_open(struct net_device *netdev)
 				    false);
 	octep_ctrl_net_set_link_status(oct, OCTEP_CTRL_NET_INVALID_VFID, true,
 				       false);
-	oct->poll_non_ioq_intr = false;
+	oct->poll_analn_ioq_intr = false;
 
 	/* Enable the input and output queues for this Octeon device */
 	oct->hw_ops.enable_io_queues(oct);
@@ -784,7 +784,7 @@ static int octep_stop(struct net_device *netdev)
 	octep_free_oqs(oct);
 	octep_free_iqs(oct);
 
-	oct->poll_non_ioq_intr = true;
+	oct->poll_analn_ioq_intr = true;
 	queue_delayed_work(octep_wq, &oct->intr_poll_task,
 			   msecs_to_jiffies(OCTEP_INTR_POLL_TIME_MSECS));
 
@@ -797,7 +797,7 @@ static int octep_stop(struct net_device *netdev)
  *
  * @iq: Octeon Tx queue data structure.
  *
- * Return: 0, if the Tx queue is not full.
+ * Return: 0, if the Tx queue is analt full.
  *         1, if the Tx queue is full.
  */
 static inline int octep_iq_full_check(struct octep_iq *iq)
@@ -807,7 +807,7 @@ static inline int octep_iq_full_check(struct octep_iq *iq)
 		return 0;
 
 	/* Stop the queue if unable to send */
-	netif_stop_subqueue(iq->netdev, iq->q_no);
+	netif_stop_subqueue(iq->netdev, iq->q_anal);
 
 	/* Allow for pending updates in write index
 	 * from iq_process_completion in other cpus
@@ -817,11 +817,11 @@ static inline int octep_iq_full_check(struct octep_iq *iq)
 	smp_mb();
 
 	/* check again and restart the queue, in case NAPI has just freed
-	 * enough Tx ring entries.
+	 * eanalugh Tx ring entries.
 	 */
 	if (unlikely(IQ_INSTR_SPACE(iq) >
 		     OCTEP_WAKE_QUEUE_THRESHOLD)) {
-		netif_start_subqueue(iq->netdev, iq->q_no);
+		netif_start_subqueue(iq->netdev, iq->q_anal);
 		iq->stats.restart_cnt++;
 		return 0;
 	}
@@ -852,18 +852,18 @@ static netdev_tx_t octep_start_xmit(struct sk_buff *skb,
 	skb_frag_t *frag;
 	u16 nr_frags, si;
 	int xmit_more;
-	u16 q_no, wi;
+	u16 q_anal, wi;
 
 	if (skb_put_padto(skb, ETH_ZLEN))
 		return NETDEV_TX_OK;
 
-	q_no = skb_get_queue_mapping(skb);
-	if (q_no >= oct->num_iqs) {
-		netdev_err(netdev, "Invalid Tx skb->queue_mapping=%d\n", q_no);
-		q_no = q_no % oct->num_iqs;
+	q_anal = skb_get_queue_mapping(skb);
+	if (q_anal >= oct->num_iqs) {
+		netdev_err(netdev, "Invalid Tx skb->queue_mapping=%d\n", q_anal);
+		q_anal = q_anal % oct->num_iqs;
 	}
 
-	iq = oct->iq[q_no];
+	iq = oct->iq[q_anal];
 
 	shinfo = skb_shinfo(skb);
 	nr_frags = shinfo->nr_frags;
@@ -958,7 +958,7 @@ static netdev_tx_t octep_start_xmit(struct sk_buff *skb,
 
 	/* Flush the hw descriptor before writing to doorbell */
 	wmb();
-	/* Ring Doorbell to notify the NIC of new packets */
+	/* Ring Doorbell to analtify the NIC of new packets */
 	writel(iq->fill_cnt, iq->doorbell_reg);
 	iq->stats.instr_posted += iq->fill_cnt;
 	iq->fill_cnt = 0;
@@ -1069,7 +1069,7 @@ static int octep_set_mac(struct net_device *netdev, void *p)
 	int err;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	err = octep_ctrl_net_set_mac_addr(oct, OCTEP_CTRL_NET_INVALID_VFID,
 					  addr->sa_data, true);
@@ -1149,23 +1149,23 @@ static const struct net_device_ops octep_netdev_ops = {
 };
 
 /**
- * octep_intr_poll_task - work queue task to process non-ioq interrupts.
+ * octep_intr_poll_task - work queue task to process analn-ioq interrupts.
  *
  * @work: pointer to mbox work_struct
  *
- * Process non-ioq interrupts to handle control mailbox, pfvf mailbox.
+ * Process analn-ioq interrupts to handle control mailbox, pfvf mailbox.
  **/
 static void octep_intr_poll_task(struct work_struct *work)
 {
 	struct octep_device *oct = container_of(work, struct octep_device,
 						intr_poll_task.work);
 
-	if (!oct->poll_non_ioq_intr) {
+	if (!oct->poll_analn_ioq_intr) {
 		dev_info(&oct->pdev->dev, "Interrupt poll task stopped.\n");
 		return;
 	}
 
-	oct->hw_ops.poll_non_ioq_interrupts(oct);
+	oct->hw_ops.poll_analn_ioq_interrupts(oct);
 	queue_delayed_work(octep_wq, &oct->intr_poll_task,
 			   msecs_to_jiffies(OCTEP_INTR_POLL_TIME_MSECS));
 }
@@ -1253,7 +1253,7 @@ int octep_device_setup(struct octep_device *oct)
 	/* allocate memory for oct->conf */
 	oct->conf = kzalloc(sizeof(*oct->conf), GFP_KERNEL);
 	if (!oct->conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map BAR regions */
 	for (i = 0; i < OCTEP_MMIO_REGIONS; i++) {
@@ -1276,7 +1276,7 @@ int octep_device_setup(struct octep_device *oct)
 	case OCTEP_PCI_DEVICE_ID_CNF95N_PF:
 		dev_info(&pdev->dev, "Setting up OCTEON %s PF PASS%d.%d\n",
 			 octep_devid_to_str(oct), OCTEP_MAJOR_REV(oct),
-			 OCTEP_MINOR_REV(oct));
+			 OCTEP_MIANALR_REV(oct));
 		octep_device_setup_cn93_pf(oct);
 		break;
 	case OCTEP_PCI_DEVICE_ID_CNF10KA_PF:
@@ -1284,7 +1284,7 @@ int octep_device_setup(struct octep_device *oct)
 	case OCTEP_PCI_DEVICE_ID_CNF10KB_PF:
 	case OCTEP_PCI_DEVICE_ID_CN10KB_PF:
 		dev_info(&pdev->dev, "Setting up OCTEON %s PF PASS%d.%d\n",
-			 octep_devid_to_str(oct), OCTEP_MAJOR_REV(oct), OCTEP_MINOR_REV(oct));
+			 octep_devid_to_str(oct), OCTEP_MAJOR_REV(oct), OCTEP_MIANALR_REV(oct));
 		octep_device_setup_cnxk_pf(oct);
 		break;
 	default:
@@ -1301,7 +1301,7 @@ int octep_device_setup(struct octep_device *oct)
 	INIT_WORK(&oct->tx_timeout_task, octep_tx_timeout_task);
 	INIT_WORK(&oct->ctrl_mbox_task, octep_ctrl_mbox_task);
 	INIT_DELAYED_WORK(&oct->intr_poll_task, octep_intr_poll_task);
-	oct->poll_non_ioq_intr = true;
+	oct->poll_analn_ioq_intr = true;
 	queue_delayed_work(octep_wq, &oct->intr_poll_task,
 			   msecs_to_jiffies(OCTEP_INTR_POLL_TIME_MSECS));
 
@@ -1331,7 +1331,7 @@ static void octep_device_cleanup(struct octep_device *oct)
 {
 	int i;
 
-	oct->poll_non_ioq_intr = false;
+	oct->poll_analn_ioq_intr = false;
 	cancel_delayed_work_sync(&oct->intr_poll_task);
 	cancel_work_sync(&oct->ctrl_mbox_task);
 
@@ -1414,7 +1414,7 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	if (!get_fw_ready_status(pdev)) {
-		dev_notice(&pdev->dev, "Firmware not ready; defer probe.\n");
+		dev_analtice(&pdev->dev, "Firmware analt ready; defer probe.\n");
 		err = -EPROBE_DEFER;
 		goto err_alloc_netdev;
 	}
@@ -1423,7 +1423,7 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				   OCTEP_MAX_QUEUES);
 	if (!netdev) {
 		dev_err(&pdev->dev, "Failed to allocate netdev\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_netdev;
 	}
 	SET_NETDEV_DEV(netdev, &pdev->dev);
@@ -1616,7 +1616,7 @@ static int __init octep_init_module(void)
 	if (!octep_wq) {
 		pr_err("%s: Failed to create common workqueue\n",
 		       OCTEP_DRV_NAME);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = pci_register_driver(&octep_driver);

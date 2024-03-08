@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Common header for Virtio crypto device.
  *
- * Copyright 2016 HUAWEI TECHNOLOGIES CO., LTD.
+ * Copyright 2016 HUAWEI TECHANALLOGIES CO., LTD.
  */
 
 #ifndef _VIRTIO_CRYPTO_COMMON_H
@@ -87,7 +87,7 @@ struct virtio_crypto_sym_session_info {
 };
 
 /*
- * Note: there are padding fields in request, clear them to zero before
+ * Analte: there are padding fields in request, clear them to zero before
  *       sending to host to avoid to divulge any information.
  * Ex, virtio_crypto_ctrl_request::ctrl::u::destroy_session::padding[48]
  */
@@ -121,7 +121,7 @@ int virtcrypto_dev_started(struct virtio_crypto *vcrypto_dev);
 bool virtcrypto_algo_is_supported(struct virtio_crypto *vcrypto_dev,
 				  uint32_t service,
 				  uint32_t algo);
-struct virtio_crypto *virtcrypto_get_dev_node(int node,
+struct virtio_crypto *virtcrypto_get_dev_analde(int analde,
 					      uint32_t service,
 					      uint32_t algo);
 int virtcrypto_dev_start(struct virtio_crypto *vcrypto);
@@ -132,15 +132,15 @@ int virtio_crypto_skcipher_crypt_req(
 void
 virtcrypto_clear_request(struct virtio_crypto_request *vc_req);
 
-static inline int virtio_crypto_get_current_node(void)
+static inline int virtio_crypto_get_current_analde(void)
 {
-	int cpu, node;
+	int cpu, analde;
 
 	cpu = get_cpu();
-	node = topology_physical_package_id(cpu);
+	analde = topology_physical_package_id(cpu);
 	put_cpu();
 
-	return node;
+	return analde;
 }
 
 int virtio_crypto_skcipher_algs_register(struct virtio_crypto *vcrypto);

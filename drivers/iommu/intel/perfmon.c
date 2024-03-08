@@ -178,18 +178,18 @@ IOMMU_PMU_EVENT_ATTR(ctxt_cache_lookup,		"event_group=0x2,event=0x001", 0x2, 0x0
 IOMMU_PMU_EVENT_ATTR(ctxt_cache_hit,		"event_group=0x2,event=0x002", 0x2, 0x002)
 IOMMU_PMU_EVENT_ATTR(pasid_cache_lookup,	"event_group=0x2,event=0x004", 0x2, 0x004)
 IOMMU_PMU_EVENT_ATTR(pasid_cache_hit,		"event_group=0x2,event=0x008", 0x2, 0x008)
-IOMMU_PMU_EVENT_ATTR(ss_nonleaf_lookup,		"event_group=0x2,event=0x010", 0x2, 0x010)
-IOMMU_PMU_EVENT_ATTR(ss_nonleaf_hit,		"event_group=0x2,event=0x020", 0x2, 0x020)
-IOMMU_PMU_EVENT_ATTR(fs_nonleaf_lookup,		"event_group=0x2,event=0x040", 0x2, 0x040)
-IOMMU_PMU_EVENT_ATTR(fs_nonleaf_hit,		"event_group=0x2,event=0x080", 0x2, 0x080)
-IOMMU_PMU_EVENT_ATTR(hpt_nonleaf_lookup,	"event_group=0x2,event=0x100", 0x2, 0x100)
-IOMMU_PMU_EVENT_ATTR(hpt_nonleaf_hit,		"event_group=0x2,event=0x200", 0x2, 0x200)
+IOMMU_PMU_EVENT_ATTR(ss_analnleaf_lookup,		"event_group=0x2,event=0x010", 0x2, 0x010)
+IOMMU_PMU_EVENT_ATTR(ss_analnleaf_hit,		"event_group=0x2,event=0x020", 0x2, 0x020)
+IOMMU_PMU_EVENT_ATTR(fs_analnleaf_lookup,		"event_group=0x2,event=0x040", 0x2, 0x040)
+IOMMU_PMU_EVENT_ATTR(fs_analnleaf_hit,		"event_group=0x2,event=0x080", 0x2, 0x080)
+IOMMU_PMU_EVENT_ATTR(hpt_analnleaf_lookup,	"event_group=0x2,event=0x100", 0x2, 0x100)
+IOMMU_PMU_EVENT_ATTR(hpt_analnleaf_hit,		"event_group=0x2,event=0x200", 0x2, 0x200)
 IOMMU_PMU_EVENT_ATTR(iotlb_lookup,		"event_group=0x3,event=0x001", 0x3, 0x001)
 IOMMU_PMU_EVENT_ATTR(iotlb_hit,			"event_group=0x3,event=0x002", 0x3, 0x002)
 IOMMU_PMU_EVENT_ATTR(hpt_leaf_lookup,		"event_group=0x3,event=0x004", 0x3, 0x004)
 IOMMU_PMU_EVENT_ATTR(hpt_leaf_hit,		"event_group=0x3,event=0x008", 0x3, 0x008)
 IOMMU_PMU_EVENT_ATTR(int_cache_lookup,		"event_group=0x4,event=0x001", 0x4, 0x001)
-IOMMU_PMU_EVENT_ATTR(int_cache_hit_nonposted,	"event_group=0x4,event=0x002", 0x4, 0x002)
+IOMMU_PMU_EVENT_ATTR(int_cache_hit_analnposted,	"event_group=0x4,event=0x002", 0x4, 0x002)
 IOMMU_PMU_EVENT_ATTR(int_cache_hit_posted,	"event_group=0x4,event=0x004", 0x4, 0x004)
 
 static const struct attribute_group *iommu_pmu_attr_update[] = {
@@ -214,18 +214,18 @@ static const struct attribute_group *iommu_pmu_attr_update[] = {
 	&ctxt_cache_hit,
 	&pasid_cache_lookup,
 	&pasid_cache_hit,
-	&ss_nonleaf_lookup,
-	&ss_nonleaf_hit,
-	&fs_nonleaf_lookup,
-	&fs_nonleaf_hit,
-	&hpt_nonleaf_lookup,
-	&hpt_nonleaf_hit,
+	&ss_analnleaf_lookup,
+	&ss_analnleaf_hit,
+	&fs_analnleaf_lookup,
+	&fs_analnleaf_hit,
+	&hpt_analnleaf_lookup,
+	&hpt_analnleaf_hit,
 	&iotlb_lookup,
 	&iotlb_hit,
 	&hpt_leaf_lookup,
 	&hpt_leaf_hit,
 	&int_cache_lookup,
-	&int_cache_hit_nonposted,
+	&int_cache_hit_analnposted,
 	&int_cache_hit_posted,
 	NULL
 };
@@ -281,7 +281,7 @@ static int iommu_pmu_validate_group(struct perf_event *event)
 
 	/*
 	 * All events in a group must be scheduled simultaneously.
-	 * Check whether there is enough counters for all the events.
+	 * Check whether there is eanalugh counters for all the events.
 	 */
 	for_each_sibling_event(sibling, event->group_leader) {
 		if (!is_iommu_pmu_event(iommu_pmu, sibling) ||
@@ -300,9 +300,9 @@ static int iommu_pmu_event_init(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* sampling not supported */
+	/* sampling analt supported */
 	if (event->attr.sample_period)
 		return -EINVAL;
 
@@ -363,13 +363,13 @@ static void iommu_pmu_start(struct perf_event *event, int flags)
 	local64_set((&hwc->prev_count), count);
 
 	/*
-	 * The error of ecmd will be ignored.
+	 * The error of ecmd will be iganalred.
 	 * - The existing perf_event subsystem doesn't handle the error.
 	 *   Only IOMMU PMU returns runtime HW error. We don't want to
 	 *   change the existing generic interfaces for the specific case.
 	 * - It's a corner case caused by HW, which is very unlikely to
-	 *   happen. There is nothing SW can do.
-	 * - The worst case is that the user will get <not count> with
+	 *   happen. There is analthing SW can do.
+	 * - The worst case is that the user will get <analt count> with
 	 *   perf command, which can give the user some hints.
 	 */
 	ecmd_submit_sync(iommu, DMA_ECMD_ENABLE, hwc->idx, 0);
@@ -523,7 +523,7 @@ static void iommu_pmu_counter_overflow(struct iommu_pmu *iommu_pmu)
 			 */
 			event = iommu_pmu->event_list[i];
 			if (!event) {
-				pr_warn_once("Cannot find the assigned event for counter %d\n", i);
+				pr_warn_once("Cananalt find the assigned event for counter %d\n", i);
 				continue;
 			}
 			iommu_pmu_event_update(event);
@@ -538,7 +538,7 @@ static irqreturn_t iommu_pmu_irq_handler(int irq, void *dev_id)
 	struct intel_iommu *iommu = dev_id;
 
 	if (!dmar_readl(iommu->reg + DMAR_PERFINTRSTS_REG))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iommu_pmu_counter_overflow(iommu->pmu);
 
@@ -564,7 +564,7 @@ static int __iommu_pmu_register(struct intel_iommu *iommu)
 	iommu_pmu->pmu.read		= iommu_pmu_event_update;
 	iommu_pmu->pmu.attr_groups	= iommu_pmu_attr_groups;
 	iommu_pmu->pmu.attr_update	= iommu_pmu_attr_update;
-	iommu_pmu->pmu.capabilities	= PERF_PMU_CAP_NO_EXCLUDE;
+	iommu_pmu->pmu.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE;
 	iommu_pmu->pmu.module		= THIS_MODULE;
 
 	return perf_pmu_register(&iommu_pmu->pmu, iommu_pmu->pmu.name, -1);
@@ -590,28 +590,28 @@ int alloc_iommu_pmu(struct intel_iommu *iommu)
 
 	/* The IOMMU PMU requires the ECMD support as well */
 	if (!cap_ecmds(iommu->cap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	perfcap = dmar_readq(iommu->reg + DMAR_PERFCAP_REG);
-	/* The performance monitoring is not supported. */
+	/* The performance monitoring is analt supported. */
 	if (!perfcap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Sanity check for the number of the counters and event groups */
 	if (!pcap_num_cntr(perfcap) || !pcap_num_event_group(perfcap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* The interrupt on overflow is required */
 	if (!pcap_interrupt(perfcap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check required Enhanced Command Capability */
 	if (!ecmd_has_pmu_essential(iommu))
-		return -ENODEV;
+		return -EANALDEV;
 
 	iommu_pmu = kzalloc(sizeof(*iommu_pmu), GFP_KERNEL);
 	if (!iommu_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iommu_pmu->num_cntr = pcap_num_cntr(perfcap);
 	if (iommu_pmu->num_cntr > IOMMU_PMU_IDX_MAX) {
@@ -627,7 +627,7 @@ int alloc_iommu_pmu(struct intel_iommu *iommu)
 
 	iommu_pmu->evcap = kcalloc(iommu_pmu->num_eg, sizeof(u64), GFP_KERNEL);
 	if (!iommu_pmu->evcap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_pmu;
 	}
 
@@ -642,13 +642,13 @@ int alloc_iommu_pmu(struct intel_iommu *iommu)
 
 	iommu_pmu->cntr_evcap = kcalloc(iommu_pmu->num_cntr, sizeof(u32 *), GFP_KERNEL);
 	if (!iommu_pmu->cntr_evcap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_pmu_evcap;
 	}
 	for (i = 0; i < iommu_pmu->num_cntr; i++) {
 		iommu_pmu->cntr_evcap[i] = kcalloc(iommu_pmu->num_eg, sizeof(u32), GFP_KERNEL);
 		if (!iommu_pmu->cntr_evcap[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_pmu_cntr_evcap;
 		}
 		/*
@@ -746,7 +746,7 @@ static int iommu_pmu_set_interrupt(struct intel_iommu *iommu)
 	struct iommu_pmu *iommu_pmu = iommu->pmu;
 	int irq, ret;
 
-	irq = dmar_alloc_hwirq(IOMMU_IRQ_ID_OFFSET_PERF + iommu->seq_id, iommu->node, iommu);
+	irq = dmar_alloc_hwirq(IOMMU_IRQ_ID_OFFSET_PERF + iommu->seq_id, iommu->analde, iommu);
 	if (irq <= 0)
 		return -EINVAL;
 
@@ -773,9 +773,9 @@ static void iommu_pmu_unset_interrupt(struct intel_iommu *iommu)
 	iommu->perf_irq = 0;
 }
 
-static int iommu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int iommu_pmu_cpu_online(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct iommu_pmu *iommu_pmu = hlist_entry_safe(node, typeof(*iommu_pmu), cpuhp_node);
+	struct iommu_pmu *iommu_pmu = hlist_entry_safe(analde, typeof(*iommu_pmu), cpuhp_analde);
 
 	if (cpumask_empty(&iommu_pmu_cpu_mask))
 		cpumask_set_cpu(cpu, &iommu_pmu_cpu_mask);
@@ -786,9 +786,9 @@ static int iommu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int iommu_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
+static int iommu_pmu_cpu_offline(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct iommu_pmu *iommu_pmu = hlist_entry_safe(node, typeof(*iommu_pmu), cpuhp_node);
+	struct iommu_pmu *iommu_pmu = hlist_entry_safe(analde, typeof(*iommu_pmu), cpuhp_analde);
 	int target = cpumask_first(&iommu_pmu_cpu_mask);
 
 	/*
@@ -835,7 +835,7 @@ static int iommu_pmu_cpuhp_setup(struct iommu_pmu *iommu_pmu)
 		iommu_cpuhp_slot = ret;
 	}
 
-	ret = cpuhp_state_add_instance(iommu_cpuhp_slot, &iommu_pmu->cpuhp_node);
+	ret = cpuhp_state_add_instance(iommu_cpuhp_slot, &iommu_pmu->cpuhp_analde);
 	if (ret) {
 		if (!nr_iommu_pmu)
 			cpuhp_remove_multi_state(iommu_cpuhp_slot);
@@ -848,7 +848,7 @@ static int iommu_pmu_cpuhp_setup(struct iommu_pmu *iommu_pmu)
 
 static void iommu_pmu_cpuhp_free(struct iommu_pmu *iommu_pmu)
 {
-	cpuhp_state_remove_instance(iommu_cpuhp_slot, &iommu_pmu->cpuhp_node);
+	cpuhp_state_remove_instance(iommu_cpuhp_slot, &iommu_pmu->cpuhp_analde);
 
 	if (--nr_iommu_pmu)
 		return;

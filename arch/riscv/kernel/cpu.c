@@ -23,17 +23,17 @@ bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 }
 
 /*
- * Returns the hart ID of the given device tree node, or -ENODEV if the node
- * isn't an enabled and valid RISC-V hart node.
+ * Returns the hart ID of the given device tree analde, or -EANALDEV if the analde
+ * isn't an enabled and valid RISC-V hart analde.
  */
-int riscv_of_processor_hartid(struct device_node *node, unsigned long *hart)
+int riscv_of_processor_hartid(struct device_analde *analde, unsigned long *hart)
 {
 	int cpu;
 
-	*hart = (unsigned long)of_get_cpu_hwid(node, 0);
+	*hart = (unsigned long)of_get_cpu_hwid(analde, 0);
 	if (*hart == ~0UL) {
 		pr_warn("Found CPU without hart ID\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cpu = riscv_hartid_to_cpuid(*hart);
@@ -41,96 +41,96 @@ int riscv_of_processor_hartid(struct device_node *node, unsigned long *hart)
 		return cpu;
 
 	if (!cpu_possible(cpu))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
 
-int __init riscv_early_of_processor_hartid(struct device_node *node, unsigned long *hart)
+int __init riscv_early_of_processor_hartid(struct device_analde *analde, unsigned long *hart)
 {
 	const char *isa;
 
-	if (!of_device_is_compatible(node, "riscv")) {
+	if (!of_device_is_compatible(analde, "riscv")) {
 		pr_warn("Found incompatible CPU\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	*hart = (unsigned long)of_get_cpu_hwid(node, 0);
+	*hart = (unsigned long)of_get_cpu_hwid(analde, 0);
 	if (*hart == ~0UL) {
 		pr_warn("Found CPU without hart ID\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	if (!of_device_is_available(node)) {
-		pr_info("CPU with hartid=%lu is not available\n", *hart);
-		return -ENODEV;
+	if (!of_device_is_available(analde)) {
+		pr_info("CPU with hartid=%lu is analt available\n", *hart);
+		return -EANALDEV;
 	}
 
-	if (of_property_read_string(node, "riscv,isa-base", &isa))
+	if (of_property_read_string(analde, "riscv,isa-base", &isa))
 		goto old_interface;
 
 	if (IS_ENABLED(CONFIG_32BIT) && strncasecmp(isa, "rv32i", 5)) {
-		pr_warn("CPU with hartid=%lu does not support rv32i", *hart);
-		return -ENODEV;
+		pr_warn("CPU with hartid=%lu does analt support rv32i", *hart);
+		return -EANALDEV;
 	}
 
 	if (IS_ENABLED(CONFIG_64BIT) && strncasecmp(isa, "rv64i", 5)) {
-		pr_warn("CPU with hartid=%lu does not support rv64i", *hart);
-		return -ENODEV;
+		pr_warn("CPU with hartid=%lu does analt support rv64i", *hart);
+		return -EANALDEV;
 	}
 
-	if (!of_property_present(node, "riscv,isa-extensions"))
-		return -ENODEV;
+	if (!of_property_present(analde, "riscv,isa-extensions"))
+		return -EANALDEV;
 
-	if (of_property_match_string(node, "riscv,isa-extensions", "i") < 0 ||
-	    of_property_match_string(node, "riscv,isa-extensions", "m") < 0 ||
-	    of_property_match_string(node, "riscv,isa-extensions", "a") < 0) {
-		pr_warn("CPU with hartid=%lu does not support ima", *hart);
-		return -ENODEV;
+	if (of_property_match_string(analde, "riscv,isa-extensions", "i") < 0 ||
+	    of_property_match_string(analde, "riscv,isa-extensions", "m") < 0 ||
+	    of_property_match_string(analde, "riscv,isa-extensions", "a") < 0) {
+		pr_warn("CPU with hartid=%lu does analt support ima", *hart);
+		return -EANALDEV;
 	}
 
 	return 0;
 
 old_interface:
 	if (!riscv_isa_fallback) {
-		pr_warn("CPU with hartid=%lu is invalid: this kernel does not parse \"riscv,isa\"",
+		pr_warn("CPU with hartid=%lu is invalid: this kernel does analt parse \"riscv,isa\"",
 			*hart);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	if (of_property_read_string(node, "riscv,isa", &isa)) {
-		pr_warn("CPU with hartid=%lu has no \"riscv,isa-base\" or \"riscv,isa\" property\n",
+	if (of_property_read_string(analde, "riscv,isa", &isa)) {
+		pr_warn("CPU with hartid=%lu has anal \"riscv,isa-base\" or \"riscv,isa\" property\n",
 			*hart);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (IS_ENABLED(CONFIG_32BIT) && strncasecmp(isa, "rv32ima", 7)) {
-		pr_warn("CPU with hartid=%lu does not support rv32ima", *hart);
-		return -ENODEV;
+		pr_warn("CPU with hartid=%lu does analt support rv32ima", *hart);
+		return -EANALDEV;
 	}
 
 	if (IS_ENABLED(CONFIG_64BIT) && strncasecmp(isa, "rv64ima", 7)) {
-		pr_warn("CPU with hartid=%lu does not support rv64ima", *hart);
-		return -ENODEV;
+		pr_warn("CPU with hartid=%lu does analt support rv64ima", *hart);
+		return -EANALDEV;
 	}
 
 	return 0;
 }
 
 /*
- * Find hart ID of the CPU DT node under which given DT node falls.
+ * Find hart ID of the CPU DT analde under which given DT analde falls.
  *
  * To achieve this, we walk up the DT tree until we find an active
- * RISC-V core (HART) node and extract the cpuid from it.
+ * RISC-V core (HART) analde and extract the cpuid from it.
  */
-int riscv_of_parent_hartid(struct device_node *node, unsigned long *hartid)
+int riscv_of_parent_hartid(struct device_analde *analde, unsigned long *hartid)
 {
-	for (; node; node = node->parent) {
-		if (of_device_is_compatible(node, "riscv")) {
-			*hartid = (unsigned long)of_get_cpu_hwid(node, 0);
+	for (; analde; analde = analde->parent) {
+		if (of_device_is_compatible(analde, "riscv")) {
+			*hartid = (unsigned long)of_get_cpu_hwid(analde, 0);
 			if (*hartid == ~0UL) {
 				pr_warn("Found CPU without hart ID\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			return 0;
 		}
@@ -241,7 +241,7 @@ static void print_mmu(struct seq_file *f)
 		sv_type = "sv39";
 #endif
 #else
-	sv_type = "none";
+	sv_type = "analne";
 #endif /* CONFIG_MMU */
 	seq_printf(f, "mmu\t\t: %s\n", sv_type);
 }
@@ -271,7 +271,7 @@ static int c_show(struct seq_file *m, void *v)
 {
 	unsigned long cpu_id = (unsigned long)v - 1;
 	struct riscv_cpuinfo *ci = per_cpu_ptr(&riscv_cpuinfo, cpu_id);
-	struct device_node *node;
+	struct device_analde *analde;
 	const char *compat;
 
 	seq_printf(m, "processor\t: %lu\n", cpu_id);
@@ -279,7 +279,7 @@ static int c_show(struct seq_file *m, void *v)
 
 	/*
 	 * For historical raisins, the isa: line is limited to the lowest common
-	 * denominator of extensions supported across all harts. A true list of
+	 * deanalminator of extensions supported across all harts. A true list of
 	 * extensions supported on this hart is printed later in the hart isa:
 	 * line.
 	 */
@@ -288,13 +288,13 @@ static int c_show(struct seq_file *m, void *v)
 	print_mmu(m);
 
 	if (acpi_disabled) {
-		node = of_get_cpu_node(cpu_id, NULL);
+		analde = of_get_cpu_analde(cpu_id, NULL);
 
-		if (!of_property_read_string(node, "compatible", &compat) &&
+		if (!of_property_read_string(analde, "compatible", &compat) &&
 		    strcmp(compat, "riscv"))
 			seq_printf(m, "uarch\t\t: %s\n", compat);
 
-		of_node_put(node);
+		of_analde_put(analde);
 	}
 
 	seq_printf(m, "mvendorid\t: 0x%lx\n", ci->mvendorid);
@@ -303,7 +303,7 @@ static int c_show(struct seq_file *m, void *v)
 
 	/*
 	 * Print the ISA extensions specific to this hart, which may show
-	 * additional extensions not present across all harts.
+	 * additional extensions analt present across all harts.
 	 */
 	seq_puts(m, "hart isa\t: ");
 	print_isa(m, hart_isa[cpu_id].isa);

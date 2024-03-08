@@ -58,15 +58,15 @@ void __init prom_setup_cmdline(void)
 	prom_argv = (char **) fw_arg1;
 
 	cp = cmd_line;
-		/* Note: it is common that parameters start
-		 * at argv[1] and not argv[0],
+		/* Analte: it is common that parameters start
+		 * at argv[1] and analt argv[0],
 		 * however, our elf loader starts at [0] */
 	for (i = 0; i < prom_argc; i++) {
 		if (match_tag(prom_argv[i], FREQ_TAG)) {
 			idt_cpu_freq = tag2ul(prom_argv[i], FREQ_TAG);
 			continue;
 		}
-#ifdef IGNORE_CMDLINE_MEM
+#ifdef IGANALRE_CMDLINE_MEM
 		/* parses out the "mem=xx" arg */
 		if (match_tag(prom_argv[i], MEM_TAG))
 			continue;

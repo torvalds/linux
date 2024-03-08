@@ -13,7 +13,7 @@
 /* Return codes */
 #define U_BUSY			H_BUSY
 #define U_FUNCTION		H_FUNCTION
-#define U_NOT_AVAILABLE		H_NOT_AVAILABLE
+#define U_ANALT_AVAILABLE		H_ANALT_AVAILABLE
 #define U_P2			H_P2
 #define U_P3			H_P3
 #define U_P4			H_P4

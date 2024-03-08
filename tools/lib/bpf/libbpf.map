@@ -182,11 +182,11 @@ LIBBPF_0.1.0 {
 		bpf_map__key_size;
 		bpf_map__map_flags;
 		bpf_map__max_entries;
-		bpf_map__numa_node;
+		bpf_map__numa_analde;
 		bpf_map__set_key_size;
 		bpf_map__set_map_flags;
 		bpf_map__set_max_entries;
-		bpf_map__set_numa_node;
+		bpf_map__set_numa_analde;
 		bpf_map__set_type;
 		bpf_map__set_value_size;
 		bpf_map__type;
@@ -307,7 +307,7 @@ LIBBPF_0.6.0 {
 		btf__type_cnt;
 		btf_dump__new;
 		libbpf_major_version;
-		libbpf_minor_version;
+		libbpf_mianalr_version;
 		libbpf_version_string;
 		perf_buffer__new;
 		perf_buffer__new_raw;

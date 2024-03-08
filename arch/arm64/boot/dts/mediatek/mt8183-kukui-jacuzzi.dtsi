@@ -93,7 +93,7 @@
 	status = "okay";
 	/delete-property/#size-cells;
 	/delete-property/#address-cells;
-	/delete-node/panel@0;
+	/delete-analde/panel@0;
 	ports {
 		port {
 			dsi_out: endpoint {

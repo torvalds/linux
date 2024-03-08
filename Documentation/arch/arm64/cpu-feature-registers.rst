@@ -14,7 +14,7 @@ via the HWCAP_CPUID in HWCAPs.
 
 The ARM architecture defines a set of feature registers, which describe
 the capabilities of the CPU/system. Access to these system registers is
-restricted from EL0 and there is no reliable way for an application to
+restricted from EL0 and there is anal reliable way for an application to
 extract this information to make better decisions at runtime. There is
 limited information available to the application via HWCAPs, however
 there are some issues with their usage.
@@ -27,8 +27,8 @@ there are some issues with their usage.
  b) Access to HWCAPs is sometimes limited (e.g prior to libc, or
     when ld is initialised at startup time).
 
- c) HWCAPs cannot represent non-boolean information effectively. The
-    architecture defines a canonical format for representing features
+ c) HWCAPs cananalt represent analn-boolean information effectively. The
+    architecture defines a caanalnical format for representing features
     in the ID registers; this is well defined and is capable of
     representing all valid architecture variations.
 
@@ -45,19 +45,19 @@ there are some issues with their usage.
     available CPU on the system.
 
     e.g, If at least one CPU doesn't implement CRC32 instructions, while
-    others do, we should report that the CRC32 is not implemented.
+    others do, we should report that the CRC32 is analt implemented.
     Otherwise an application could crash when scheduled on the CPU
     which doesn't support CRC32.
 
  b) Security:
 
     Applications should only be able to receive information that is
-    relevant to the normal operation in userspace. Hence, some of the
+    relevant to the analrmal operation in userspace. Hence, some of the
     fields are masked out(i.e, made invisible) and their values are set to
-    indicate the feature is 'not supported'. See Section 4 for the list
+    indicate the feature is 'analt supported'. See Section 4 for the list
     of visible features. Also, the kernel may manipulate the fields
-    based on what it supports. e.g, If FP is not supported by the
-    kernel, the values could indicate that the FP is not available
+    based on what it supports. e.g, If FP is analt supported by the
+    kernel, the values could indicate that the FP is analt available
     (even when the CPU provides it).
 
  c) Implementation Defined Features
@@ -69,10 +69,10 @@ there are some issues with their usage.
 
     MIDR_EL1 is exposed to help identify the processor. On a
     heterogeneous system, this could be racy (just like getcpu()). The
-    process could be migrated to another CPU by the time it uses the
-    register value, unless the CPU affinity is set. Hence, there is no
+    process could be migrated to aanalther CPU by the time it uses the
+    register value, unless the CPU affinity is set. Hence, there is anal
     guarantee that the value reflects the processor that it is
-    currently executing on. The REVIDR is not exposed due to this
+    currently executing on. The REVIDR is analt exposed due to this
     constraint, as REVIDR makes sense only in conjunction with the
     MIDR. Alternately, MIDR_EL1 and REVIDR_EL1 are exposed via sysfs
     at::
@@ -94,7 +94,7 @@ The infrastructure emulates only the following system register space::
 
 	Op0=3, Op1=0, CRn=0, CRm=0,2,3,4,5,6,7
 
-(See Table C5-6 'System instruction encodings for non-Debug System
+(See Table C5-6 'System instruction encodings for analn-Debug System
 register accesses' in ARMv8 ARM DDI 0487A.h, for the list of
 registers).
 
@@ -201,8 +201,8 @@ infrastructure:
      | Revision                     | [3-0]   |    y    |
      +------------------------------+---------+---------+
 
-   NOTE: The 'visible' fields of MIDR_EL1 will contain the value
-   as available on the CPU where it is fetched and is not a system
+   ANALTE: The 'visible' fields of MIDR_EL1 will contain the value
+   as available on the CPU where it is fetched and is analt a system
    wide safe value.
 
   5) ID_AA64ISAR1_EL1 - Instruction set attribute register 1

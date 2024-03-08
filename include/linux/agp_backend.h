@@ -1,5 +1,5 @@
 /*
- * AGPGART backend specific includes. Not for userspace consumption.
+ * AGPGART backend specific includes. Analt for userspace consumption.
  *
  * Copyright (C) 2004 Silicon Graphics, Inc.
  * Copyright (C) 2002-2003 Dave Jones
@@ -14,12 +14,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * JEFF HARTMANN, OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM, 
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
@@ -33,13 +33,13 @@
 #include <linux/list.h>
 
 enum chipset_type {
-	NOT_SUPPORTED,
+	ANALT_SUPPORTED,
 	SUPPORTED,
 };
 
 struct agp_version {
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 };
 
 struct agp_kern_info {
@@ -59,7 +59,7 @@ struct agp_kern_info {
 /*
  * The agp_memory structure has information about the block of agp memory
  * allocated.  A caller may manipulate the next and prev pointers to link
- * each allocated item into a list.  These pointers are ignored by the backend.
+ * each allocated item into a list.  These pointers are iganalred by the backend.
  * Everything else should never be written to, but the caller may read any of
  * the items to determine the status of this block of agp memory.
  */
@@ -86,7 +86,7 @@ struct agp_memory {
 	int num_sg;
 };
 
-#define AGP_NORMAL_MEMORY 0
+#define AGP_ANALRMAL_MEMORY 0
 
 #define AGP_USER_TYPES (1 << 16)
 #define AGP_USER_MEMORY (AGP_USER_TYPES)

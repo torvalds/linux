@@ -8,7 +8,7 @@
 
 */
 
-/* Note that this is a complete rewrite of Simon Vogl's i2c-dev module.
+/* Analte that this is a complete rewrite of Simon Vogl's i2c-dev module.
    But I have used so much of his original code and ideas that it seems
    only fair to recognize him as co-author -- Frodo */
 
@@ -27,17 +27,17 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
 /*
- * An i2c_dev represents an i2c_adapter ... an I2C or SMBus master, not a
+ * An i2c_dev represents an i2c_adapter ... an I2C or SMBus master, analt a
  * slave (i2c_client) with which messages will be exchanged.  It's coupled
  * with a character special file which is accessed by user mode drivers.
  *
  * The list of i2c_dev structures is parallel to the i2c_adapter lists
- * maintained by the driver model, and is updated using bus notifications.
+ * maintained by the driver model, and is updated using bus analtifications.
  */
 struct i2c_dev {
 	struct list_head list;
@@ -46,11 +46,11 @@ struct i2c_dev {
 	struct cdev cdev;
 };
 
-#define I2C_MINORS	(MINORMASK + 1)
+#define I2C_MIANALRS	(MIANALRMASK + 1)
 static LIST_HEAD(i2c_dev_list);
 static DEFINE_SPINLOCK(i2c_dev_list_lock);
 
-static struct i2c_dev *i2c_dev_get_by_minor(unsigned index)
+static struct i2c_dev *i2c_dev_get_by_mianalr(unsigned index)
 {
 	struct i2c_dev *i2c_dev;
 
@@ -69,14 +69,14 @@ static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
 
-	if (adap->nr >= I2C_MINORS) {
-		pr_err("Out of device minors (%d)\n", adap->nr);
-		return ERR_PTR(-ENODEV);
+	if (adap->nr >= I2C_MIANALRS) {
+		pr_err("Out of device mianalrs (%d)\n", adap->nr);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	i2c_dev = kzalloc(sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	i2c_dev->adap = adap;
 
 	spin_lock(&i2c_dev_list_lock);
@@ -98,10 +98,10 @@ static void put_i2c_dev(struct i2c_dev *i2c_dev, bool del_cdev)
 static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
-	struct i2c_dev *i2c_dev = i2c_dev_get_by_minor(MINOR(dev->devt));
+	struct i2c_dev *i2c_dev = i2c_dev_get_by_mianalr(MIANALR(dev->devt));
 
 	if (!i2c_dev)
-		return -ENODEV;
+		return -EANALDEV;
 	return sysfs_emit(buf, "%s\n", i2c_dev->adap->name);
 }
 static DEVICE_ATTR_RO(name);
@@ -126,7 +126,7 @@ ATTRIBUTE_GROUPS(i2c);
  *
  * To use read()/write() system calls on that file descriptor, or to use
  * SMBus interfaces (and work with SMBus-only hosts!), you must first issue
- * an I2C_SLAVE (or I2C_SLAVE_FORCE) ioctl.  That configures an anonymous
+ * an I2C_SLAVE (or I2C_SLAVE_FORCE) ioctl.  That configures an aanalnymous
  * (never registered) i2c_client so it holds the addressing information
  * needed by those system calls and by this SMBus interface.
  */
@@ -144,9 +144,9 @@ static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
 
 	tmp = kzalloc(count, GFP_KERNEL);
 	if (tmp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pr_debug("i2c-%d reading %zu bytes.\n", iminor(file_inode(file)), count);
+	pr_debug("i2c-%d reading %zu bytes.\n", imianalr(file_ianalde(file)), count);
 
 	ret = i2c_master_recv(client, tmp, count);
 	if (ret >= 0)
@@ -170,7 +170,7 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
-	pr_debug("i2c-%d writing %zu bytes.\n", iminor(file_inode(file)), count);
+	pr_debug("i2c-%d writing %zu bytes.\n", imianalr(file_ianalde(file)), count);
 
 	ret = i2c_master_send(client, tmp, count);
 	kfree(tmp);
@@ -215,8 +215,8 @@ static int i2cdev_check_mux_children(struct device *dev, void *addrp)
 }
 
 /* This address checking function differs from the one in i2c-core
-   in that it considers an address with a registered device, but no
-   driver bound to it, as NOT busy. */
+   in that it considers an address with a registered device, but anal
+   driver bound to it, as ANALT busy. */
 static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 {
 	struct i2c_adapter *parent = i2c_parent_is_i2c_adapter(adapter);
@@ -232,7 +232,7 @@ static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 	return result;
 }
 
-static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
+static analinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 		unsigned nmsgs, struct i2c_msg *msgs)
 {
 	u8 __user **data_ptrs;
@@ -241,7 +241,7 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 	data_ptrs = kmalloc_array(nmsgs, sizeof(u8 __user *), GFP_KERNEL);
 	if (data_ptrs == NULL) {
 		kfree(msgs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	res = 0;
@@ -264,7 +264,7 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 		/*
 		 * If the message length is received from the slave (similar
 		 * to SMBus block read), we must ensure that the buffer will
-		 * be large enough to cope with a message length of
+		 * be large eanalugh to cope with a message length of
 		 * I2C_SMBUS_BLOCK_MAX as this is the maximum underlying bus
 		 * drivers allow. The first byte in the buffer must be
 		 * pre-filled with the number of extra bytes, which must be
@@ -308,7 +308,7 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 	return res;
 }
 
-static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
+static analinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 		u8 read_write, u8 command, u32 size,
 		union i2c_smbus_data __user *data)
 {
@@ -329,7 +329,7 @@ static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 			size);
 		return -EINVAL;
 	}
-	/* Note that I2C_SMBUS_READ and I2C_SMBUS_WRITE are 0 and 1,
+	/* Analte that I2C_SMBUS_READ and I2C_SMBUS_WRITE are 0 and 1,
 	   so the check is valid if size==I2C_SMBUS_QUICK too. */
 	if ((read_write != I2C_SMBUS_READ) &&
 	    (read_write != I2C_SMBUS_WRITE)) {
@@ -339,12 +339,12 @@ static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	/* Note that command values are always valid! */
+	/* Analte that command values are always valid! */
 
 	if ((size == I2C_SMBUS_QUICK) ||
 	    ((size == I2C_SMBUS_BYTE) &&
 	    (read_write == I2C_SMBUS_WRITE)))
-		/* These are special: we do not use data */
+		/* These are special: we do analt use data */
 		return i2c_smbus_xfer(client->adapter, client->addr,
 				      client->flags, read_write,
 				      command, size, NULL);
@@ -417,7 +417,7 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case I2C_PEC:
 		/*
 		 * Setting the PEC flag here won't affect kernel drivers,
-		 * which will be using the i2c_client node registered with
+		 * which will be using the i2c_client analde registered with
 		 * the driver model core.  Likewise, when that client has
 		 * the PEC flag already set, the i2c-dev driver won't see
 		 * (or use) this setting.
@@ -485,12 +485,12 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		client->adapter->timeout = msecs_to_jiffies(arg * 10);
 		break;
 	default:
-		/* NOTE:  returning a fault code here could cause trouble
+		/* ANALTE:  returning a fault code here could cause trouble
 		 * in buggy userspace code.  Some old kernel bugs returned
 		 * zero in this case, and userspace code might accidentally
 		 * have depended on that bug.
 		 */
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 	return 0;
 }
@@ -544,7 +544,7 @@ static long compat_i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned lo
 		rdwr_pa = kmalloc_array(rdwr_arg.nmsgs, sizeof(struct i2c_msg),
 				      GFP_KERNEL);
 		if (!rdwr_pa)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		p = compat_ptr(rdwr_arg.msgs);
 		for (i = 0; i < rdwr_arg.nmsgs; i++) {
@@ -582,17 +582,17 @@ static long compat_i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned lo
 #define compat_i2cdev_ioctl NULL
 #endif
 
-static int i2cdev_open(struct inode *inode, struct file *file)
+static int i2cdev_open(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int mianalr = imianalr(ianalde);
 	struct i2c_client *client;
 	struct i2c_adapter *adap;
 
-	adap = i2c_get_adapter(minor);
+	adap = i2c_get_adapter(mianalr);
 	if (!adap)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* This creates an anonymous i2c_client, which may later be
+	/* This creates an aanalnymous i2c_client, which may later be
 	 * pointed to some address using I2C_SLAVE or I2C_SLAVE_FORCE.
 	 *
 	 * This client is ** NEVER REGISTERED ** with the driver model
@@ -602,7 +602,7 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client) {
 		i2c_put_adapter(adap);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	snprintf(client->name, I2C_NAME_SIZE, "i2c-dev %d", adap->nr);
 
@@ -612,7 +612,7 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int i2cdev_release(struct inode *inode, struct file *file)
+static int i2cdev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct i2c_client *client = file->private_data;
 
@@ -625,7 +625,7 @@ static int i2cdev_release(struct inode *inode, struct file *file)
 
 static const struct file_operations i2cdev_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= i2cdev_read,
 	.write		= i2cdev_write,
 	.unlocked_ioctl	= i2cdev_ioctl,
@@ -656,12 +656,12 @@ static int i2cdev_attach_adapter(struct device *dev)
 	int res;
 
 	if (dev->type != &i2c_adapter_type)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	adap = to_i2c_adapter(dev);
 
 	i2c_dev = get_free_i2c_dev(adap);
 	if (IS_ERR(i2c_dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	cdev_init(&i2c_dev->cdev, &i2cdev_fops);
 	i2c_dev->cdev.owner = THIS_MODULE;
@@ -680,12 +680,12 @@ static int i2cdev_attach_adapter(struct device *dev)
 	if (res)
 		goto err_put_i2c_dev;
 
-	pr_debug("adapter [%s] registered as minor %d\n", adap->name, adap->nr);
-	return NOTIFY_OK;
+	pr_debug("adapter [%s] registered as mianalr %d\n", adap->name, adap->nr);
+	return ANALTIFY_OK;
 
 err_put_i2c_dev:
 	put_i2c_dev(i2c_dev, false);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int i2cdev_detach_adapter(struct device *dev)
@@ -694,36 +694,36 @@ static int i2cdev_detach_adapter(struct device *dev)
 	struct i2c_dev *i2c_dev;
 
 	if (dev->type != &i2c_adapter_type)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	adap = to_i2c_adapter(dev);
 
-	i2c_dev = i2c_dev_get_by_minor(adap->nr);
+	i2c_dev = i2c_dev_get_by_mianalr(adap->nr);
 	if (!i2c_dev) /* attach_adapter must have failed */
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	put_i2c_dev(i2c_dev, true);
 
 	pr_debug("adapter [%s] unregistered\n", adap->name);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
+static int i2cdev_analtifier_call(struct analtifier_block *nb, unsigned long action,
 			 void *data)
 {
 	struct device *dev = data;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		return i2cdev_attach_adapter(dev);
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		return i2cdev_detach_adapter(dev);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block i2cdev_notifier = {
-	.notifier_call = i2cdev_notifier_call,
+static struct analtifier_block i2cdev_analtifier = {
+	.analtifier_call = i2cdev_analtifier_call,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -750,7 +750,7 @@ static int __init i2c_dev_init(void)
 
 	pr_info("i2c /dev entries driver\n");
 
-	res = register_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS, "i2c");
+	res = register_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MIANALRS, "i2c");
 	if (res)
 		goto out;
 
@@ -759,7 +759,7 @@ static int __init i2c_dev_init(void)
 		goto out_unreg_chrdev;
 
 	/* Keep track of adapters which will be added or removed later */
-	res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);
+	res = bus_register_analtifier(&i2c_bus_type, &i2cdev_analtifier);
 	if (res)
 		goto out_unreg_class;
 
@@ -771,7 +771,7 @@ static int __init i2c_dev_init(void)
 out_unreg_class:
 	class_unregister(&i2c_dev_class);
 out_unreg_chrdev:
-	unregister_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS);
+	unregister_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MIANALRS);
 out:
 	pr_err("Driver Initialisation failed\n");
 	return res;
@@ -779,10 +779,10 @@ out:
 
 static void __exit i2c_dev_exit(void)
 {
-	bus_unregister_notifier(&i2c_bus_type, &i2cdev_notifier);
+	bus_unregister_analtifier(&i2c_bus_type, &i2cdev_analtifier);
 	i2c_for_each_dev(NULL, i2c_dev_detach_adapter);
 	class_unregister(&i2c_dev_class);
-	unregister_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS);
+	unregister_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MIANALRS);
 }
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");

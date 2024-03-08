@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * The contents of this file are private to DMA engine drivers, and is not
+ * The contents of this file are private to DMA engine drivers, and is analt
  * part of the API to be used by DMA engine users.
  */
 #ifndef DMAENGINE_H
@@ -23,8 +23,8 @@ static inline void dma_cookie_init(struct dma_chan *chan)
  * dma_cookie_assign - assign a DMA engine cookie to the descriptor
  * @tx: descriptor needing cookie
  *
- * Assign a unique non-zero per-channel cookie to the descriptor.
- * Note: caller is expected to hold a lock to prevent concurrency.
+ * Assign a unique analn-zero per-channel cookie to the descriptor.
+ * Analte: caller is expected to hold a lock to prevent concurrency.
  */
 static inline dma_cookie_t dma_cookie_assign(struct dma_async_tx_descriptor *tx)
 {
@@ -47,7 +47,7 @@ static inline dma_cookie_t dma_cookie_assign(struct dma_async_tx_descriptor *tx)
  * cookie marker.  Zero the descriptors cookie to prevent accidental
  * repeated completions.
  *
- * Note: caller is expected to hold a lock to prevent concurrency.
+ * Analte: caller is expected to hold a lock to prevent concurrency.
  */
 static inline void dma_cookie_complete(struct dma_async_tx_descriptor *tx)
 {
@@ -63,7 +63,7 @@ static inline void dma_cookie_complete(struct dma_async_tx_descriptor *tx)
  * @state: dma_tx_state structure to return last/used cookies
  *
  * Report the status of the cookie, filling in the state structure if
- * non-NULL.  No locking is required.
+ * analn-NULL.  Anal locking is required.
  */
 static inline enum dma_status dma_cookie_status(struct dma_chan *chan,
 	dma_cookie_t cookie, struct dma_tx_state *state)
@@ -108,7 +108,7 @@ struct dmaengine_desc_callback {
  *
  * Fill the passed in cb struct with what's available in the passed in
  * tx descriptor struct
- * No locking is required.
+ * Anal locking is required.
  */
 static inline void
 dmaengine_desc_get_callback(struct dma_async_tx_descriptor *tx,
@@ -133,7 +133,7 @@ dmaengine_desc_callback_invoke(struct dmaengine_desc_callback *cb,
 			       const struct dmaengine_result *result)
 {
 	struct dmaengine_result dummy_result = {
-		.result = DMA_TRANS_NOERROR,
+		.result = DMA_TRANS_ANALERROR,
 		.residue = 0
 	};
 
@@ -153,7 +153,7 @@ dmaengine_desc_callback_invoke(struct dmaengine_desc_callback *cb,
  * @result: transaction result
  *
  * Call dmaengine_desc_get_callback() and dmaengine_desc_callback_invoke()
- * in a single function since no work is necessary in between for the driver.
+ * in a single function since anal work is necessary in between for the driver.
  * Locking is dependent on the driver.
  */
 static inline void
@@ -170,8 +170,8 @@ dmaengine_desc_get_callback_invoke(struct dma_async_tx_descriptor *tx,
  * dmaengine_desc_callback_valid - verify the callback is valid in cb
  * @cb: callback info struct
  *
- * Return a bool that verifies whether callback in cb is valid or not.
- * No locking is required.
+ * Return a bool that verifies whether callback in cb is valid or analt.
+ * Anal locking is required.
  */
 static inline bool
 dmaengine_desc_callback_valid(struct dmaengine_desc_callback *cb)

@@ -291,7 +291,7 @@ static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32
 
 	job = xa_erase(&vdev->submitted_jobs_xa, job_id);
 	if (!job)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (job->file_priv->has_mmu_faults)
 		job_status = DRM_IVPU_JOB_STATUS_ABORTED;
@@ -404,7 +404,7 @@ ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32
 		struct drm_gem_object *obj = drm_gem_object_lookup(file, buf_handles[i]);
 
 		if (!obj)
-			return -ENOENT;
+			return -EANALENT;
 
 		job->bos[i] = to_ivpu_bo(obj);
 
@@ -483,7 +483,7 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	buf_handles = kcalloc(params->buffer_count, sizeof(u32), GFP_KERNEL);
 	if (!buf_handles)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = copy_from_user(buf_handles,
 			     (void __user *)params->buffers_ptr,
@@ -494,7 +494,7 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	if (!drm_dev_enter(&vdev->drm, &idx)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_handles;
 	}
 
@@ -504,7 +504,7 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	job = ivpu_job_create(file_priv, params->engine, params->buffer_count);
 	if (!job) {
 		ivpu_err(vdev, "Failed to create job\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit_dev;
 	}
 
@@ -544,7 +544,7 @@ ivpu_job_done_callback(struct ivpu_device *vdev, struct ivpu_ipc_hdr *ipc_hdr,
 	int ret;
 
 	if (!jsm_msg) {
-		ivpu_err(vdev, "IPC message has no JSM payload\n");
+		ivpu_err(vdev, "IPC message has anal JSM payload\n");
 		return;
 	}
 

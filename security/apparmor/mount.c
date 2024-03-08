@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor mediation of files
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2017 Caanalnical Ltd.
  */
 
 #include <linux/fs.h>
@@ -30,13 +30,13 @@ static void audit_mnt_flags(struct audit_buffer *ab, unsigned long flags)
 		audit_log_format(ab, "ro");
 	else
 		audit_log_format(ab, "rw");
-	if (flags & MS_NOSUID)
-		audit_log_format(ab, ", nosuid");
-	if (flags & MS_NODEV)
-		audit_log_format(ab, ", nodev");
-	if (flags & MS_NOEXEC)
-		audit_log_format(ab, ", noexec");
-	if (flags & MS_SYNCHRONOUS)
+	if (flags & MS_ANALSUID)
+		audit_log_format(ab, ", analsuid");
+	if (flags & MS_ANALDEV)
+		audit_log_format(ab, ", analdev");
+	if (flags & MS_ANALEXEC)
+		audit_log_format(ab, ", analexec");
+	if (flags & MS_SYNCHROANALUS)
 		audit_log_format(ab, ", sync");
 	if (flags & MS_REMOUNT)
 		audit_log_format(ab, ", remount");
@@ -44,10 +44,10 @@ static void audit_mnt_flags(struct audit_buffer *ab, unsigned long flags)
 		audit_log_format(ab, ", mand");
 	if (flags & MS_DIRSYNC)
 		audit_log_format(ab, ", dirsync");
-	if (flags & MS_NOATIME)
-		audit_log_format(ab, ", noatime");
-	if (flags & MS_NODIRATIME)
-		audit_log_format(ab, ", nodiratime");
+	if (flags & MS_ANALATIME)
+		audit_log_format(ab, ", analatime");
+	if (flags & MS_ANALDIRATIME)
+		audit_log_format(ab, ", analdiratime");
 	if (flags & MS_BIND)
 		audit_log_format(ab, flags & MS_REC ? ", rbind" : ", bind");
 	if (flags & MS_MOVE)
@@ -74,14 +74,14 @@ static void audit_mnt_flags(struct audit_buffer *ab, unsigned long flags)
 		audit_log_format(ab, ", iversion");
 	if (flags & MS_STRICTATIME)
 		audit_log_format(ab, ", strictatime");
-	if (flags & MS_NOUSER)
-		audit_log_format(ab, ", nouser");
+	if (flags & MS_ANALUSER)
+		audit_log_format(ab, ", analuser");
 }
 
 /**
  * audit_cb - call back for mount specific audit fields
- * @ab: audit_buffer  (NOT NULL)
- * @va: audit struct to audit values of  (NOT NULL)
+ * @ab: audit_buffer  (ANALT NULL)
+ * @va: audit struct to audit values of  (ANALT NULL)
  */
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
@@ -114,8 +114,8 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 /**
  * audit_mount - handle the auditing of mount operations
  * @subj_cred: cred of the subject
- * @profile: the profile being enforced  (NOT NULL)
- * @op: operation being mediated (NOT NULL)
+ * @profile: the profile being enforced  (ANALT NULL)
+ * @op: operation being mediated (ANALT NULL)
  * @name: name of object being mediated (MAYBE NULL)
  * @src_name: src_name of object being mediated (MAYBE_NULL)
  * @type: type of filesystem (MAYBE_NULL)
@@ -123,7 +123,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * @flags: filesystem independent mount flags
  * @data: filesystem mount flags
  * @request: permissions requested
- * @perms: the permissions computed for the request (NOT NULL)
+ * @perms: the permissions computed for the request (ANALT NULL)
  * @info: extra information message (MAYBE NULL)
  * @error: 0 if operation allowed else failure error code
  *
@@ -137,7 +137,7 @@ static int audit_mount(const struct cred *subj_cred,
 		       struct aa_perms *perms, const char *info, int error)
 {
 	int audit_type = AUDIT_APPARMOR_AUTO;
-	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_MOUNT, op);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_ANALNE, AA_CLASS_MOUNT, op);
 
 	if (likely(!error)) {
 		u32 mask = perms->audit;
@@ -145,7 +145,7 @@ static int audit_mount(const struct cred *subj_cred,
 		if (unlikely(AUDIT_MODE(profile) == AUDIT_ALL))
 			mask = 0xffff;
 
-		/* mask off perms that are not being force audited */
+		/* mask off perms that are analt being force audited */
 		request &= mask;
 
 		if (likely(!request))
@@ -158,9 +158,9 @@ static int audit_mount(const struct cred *subj_cred,
 		if (request & perms->kill)
 			audit_type = AUDIT_APPARMOR_KILL;
 
-		/* quiet known rejects, assumes quiet and kill do not overlap */
+		/* quiet kanalwn rejects, assumes quiet and kill do analt overlap */
 		if ((request & perms->quiet) &&
-		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
+		    AUDIT_MODE(profile) != AUDIT_ANALQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
 			request &= ~perms->quiet;
 
@@ -257,7 +257,7 @@ static int do_match_mnt(struct aa_policydb *policy, aa_state_t start,
 	if (perms->allow & AA_MAY_MOUNT)
 		return 0;
 
-	/* only match data if not binary and the DFA flags data is expected */
+	/* only match data if analt binary and the DFA flags data is expected */
 	if (data && !binary && (perms->allow & AA_MNT_CONT_MATCH)) {
 		state = aa_dfa_null_transition(policy->dfa, state);
 		if (!state)
@@ -282,14 +282,14 @@ static int path_flags(struct aa_profile *profile, const struct path *path)
 	AA_BUG(!path);
 
 	return profile->path_flags |
-		(S_ISDIR(path->dentry->d_inode->i_mode) ? PATH_IS_DIR : 0);
+		(S_ISDIR(path->dentry->d_ianalde->i_mode) ? PATH_IS_DIR : 0);
 }
 
 /**
  * match_mnt_path_str - handle path matching for mount
  * @subj_cred: cred of confined subject
  * @profile: the confining profile
- * @mntpath: for the mntpnt (NOT NULL)
+ * @mntpath: for the mntpnt (ANALT NULL)
  * @buffer: buffer to be used to lookup mntpath
  * @devname: string for the devname/src_name (MAY BE NULL OR ERRPTR)
  * @type: string for the dev type (MAYBE NULL)
@@ -351,7 +351,7 @@ audit:
  * match_mnt - handle path matching for mount
  * @subj_cred: cred of the subject
  * @profile: the confining profile
- * @path: for the mntpnt (NOT NULL)
+ * @path: for the mntpnt (ANALT NULL)
  * @buffer: buffer to be used to lookup mntpath
  * @devpath: path devname/src_name (MAYBE NULL)
  * @devbuffer: buffer to be used to lookup devname/src_name
@@ -407,7 +407,7 @@ int aa_remount(const struct cred *subj_cred,
 
 	buffer = aa_get_buffer(false);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	error = fn_for_each_confined(label, profile,
 			match_mnt(subj_cred, profile, path, buffer, NULL,
 				  NULL, NULL,
@@ -440,7 +440,7 @@ int aa_bind_mount(const struct cred *subj_cred,
 
 	buffer = aa_get_buffer(false);
 	old_buffer = aa_get_buffer(false);
-	error = -ENOMEM;
+	error = -EANALMEM;
 	if (!buffer || !old_buffer)
 		goto out;
 
@@ -472,7 +472,7 @@ int aa_mount_change_type(const struct cred *subj_cred,
 
 	buffer = aa_get_buffer(false);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	error = fn_for_each_confined(label, profile,
 			match_mnt(subj_cred, profile, path, buffer, NULL,
 				  NULL, NULL,
@@ -496,7 +496,7 @@ int aa_move_mount(const struct cred *subj_cred,
 
 	to_buffer = aa_get_buffer(false);
 	from_buffer = aa_get_buffer(false);
-	error = -ENOMEM;
+	error = -EANALMEM;
 	if (!to_buffer || !from_buffer)
 		goto out;
 
@@ -551,14 +551,14 @@ int aa_new_mount(const struct cred *subj_cred, struct aa_label *label,
 
 		fstype = get_fs_type(type);
 		if (!fstype)
-			return -ENODEV;
+			return -EANALDEV;
 		binary = fstype->fs_flags & FS_BINARY_MOUNTDATA;
 		requires_dev = fstype->fs_flags & FS_REQUIRES_DEV;
 		put_filesystem(fstype);
 
 		if (requires_dev) {
 			if (!dev_name || !*dev_name)
-				return -ENOENT;
+				return -EANALENT;
 
 			error = kern_path(dev_name, LOOKUP_FOLLOW, &tmp_path);
 			if (error)
@@ -569,13 +569,13 @@ int aa_new_mount(const struct cred *subj_cred, struct aa_label *label,
 
 	buffer = aa_get_buffer(false);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 	if (dev_path) {
 		dev_buffer = aa_get_buffer(false);
 		if (!dev_buffer) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out;
 		}
 		error = fn_for_each_confined(label, profile,
@@ -646,7 +646,7 @@ int aa_umount(const struct cred *subj_cred, struct aa_label *label,
 
 	buffer = aa_get_buffer(false);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = fn_for_each_confined(label, profile,
 			profile_umount(subj_cred, profile, &path, buffer));
@@ -657,7 +657,7 @@ int aa_umount(const struct cred *subj_cred, struct aa_label *label,
 
 /* helper fn for transition on pivotroot
  *
- * Returns: label for transition or ERR_PTR. Does not return NULL
+ * Returns: label for transition or ERR_PTR. Does analt return NULL
  */
 static struct aa_label *build_pivotroot(const struct cred *subj_cred,
 					struct aa_profile *profile,
@@ -730,7 +730,7 @@ int aa_pivotroot(const struct cred *subj_cred, struct aa_label *label,
 
 	old_buffer = aa_get_buffer(false);
 	new_buffer = aa_get_buffer(false);
-	error = -ENOMEM;
+	error = -EANALMEM;
 	if (!old_buffer || !new_buffer)
 		goto out;
 	target = fn_label_build(label, profile, GFP_KERNEL,
@@ -739,7 +739,7 @@ int aa_pivotroot(const struct cred *subj_cred, struct aa_label *label,
 					old_path, old_buffer));
 	if (!target) {
 		info = "label build failed";
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	} else if (!IS_ERR(target)) {
 		error = aa_replace_current_label(target);

@@ -100,7 +100,7 @@
 	eor		RX0.16b, RX0.16b, s1.16b;               \
 	eor		RX0.16b, RX0.16b, RTMP1.16b;            \
                                                                 \
-	/* sbox, non-linear part */                             \
+	/* sbox, analn-linear part */                             \
 	movi		RTMP3.16b, #64;  /* sizeof(sbox) / 4 */ \
 	tbl		RTMP0.16b, {v16.16b-v19.16b}, RX0.16b;  \
 	sub		RX0.16b, RX0.16b, RTMP3.16b;            \
@@ -169,7 +169,7 @@
 	eor		RX0.16b, RX0.16b, RTMP0.16b;            \
 	eor		RX1.16b, RX1.16b, RTMP1.16b;            \
                                                                 \
-	/* sbox, non-linear part */                             \
+	/* sbox, analn-linear part */                             \
 	movi		RTMP3.16b, #64;  /* sizeof(sbox) / 4 */ \
 	tbl		RTMP0.16b, {v16.16b-v19.16b}, RX0.16b;  \
 	tbl		RTMP1.16b, {v16.16b-v19.16b}, RX1.16b;  \
@@ -217,7 +217,7 @@
 	eor		s0.16b, s0.16b, RTMP0.16b;              \
 	eor		t0.16b, t0.16b, RTMP1.16b;
 
-#define SM4_CRYPT_BLK8_norotate(b0, b1, b2, b3, b4, b5, b6, b7) \
+#define SM4_CRYPT_BLK8_analrotate(b0, b1, b2, b3, b4, b5, b6, b7) \
 	rev32		b0.16b, b0.16b;                         \
 	rev32		b1.16b, b1.16b;                         \
 	rev32		b2.16b, b2.16b;                         \
@@ -252,7 +252,7 @@
 	sub		x0, x0, #128;
 
 #define SM4_CRYPT_BLK8(b0, b1, b2, b3, b4, b5, b6, b7)			\
-	SM4_CRYPT_BLK8_norotate(b0, b1, b2, b3, b4, b5, b6, b7);	\
+	SM4_CRYPT_BLK8_analrotate(b0, b1, b2, b3, b4, b5, b6, b7);	\
 	rotate_clockwise_4x4_2x(b0, b1, b2, b3, b4, b5, b6, b7);	\
 
 
@@ -340,7 +340,7 @@ SYM_FUNC_START(sm4_neon_cbc_dec)
 	ld4		{v0.4s-v3.4s}, [x2], #64
 	ld4		{v4.4s-v7.4s}, [x2]
 
-	SM4_CRYPT_BLK8_norotate(v0, v1, v2, v3, v4, v5, v6, v7)
+	SM4_CRYPT_BLK8_analrotate(v0, v1, v2, v3, v4, v5, v6, v7)
 
 	/* Avoid overwriting the RIV register */
 	rotate_clockwise_4x4(v0, v1, v2, v3)

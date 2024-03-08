@@ -6,7 +6,7 @@
  *     Atish Patra <atish.patra@wdc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/version.h>
@@ -24,7 +24,7 @@ static int kvm_sbi_ext_base_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case SBI_EXT_BASE_GET_SPEC_VERSION:
 		*out_val = (KVM_SBI_VERSION_MAJOR <<
 			    SBI_SPEC_VERSION_MAJOR_SHIFT) |
-			    KVM_SBI_VERSION_MINOR;
+			    KVM_SBI_VERSION_MIANALR;
 		break;
 	case SBI_EXT_BASE_GET_IMP_ID:
 		*out_val = KVM_SBI_IMPID;
@@ -59,7 +59,7 @@ static int kvm_sbi_ext_base_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		*out_val = vcpu->arch.mimpid;
 		break;
 	default:
-		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
+		retdata->err_val = SBI_ERR_ANALT_SUPPORTED;
 		break;
 	}
 

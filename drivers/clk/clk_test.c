@@ -115,7 +115,7 @@ static const struct clk_ops clk_dummy_single_parent_ops = {
 	 * This is due to the fact that it has the undocumented
 	 * behaviour to always pick up the closest rate higher than the
 	 * requested rate. If we get something lower, it thus considers
-	 * that it's not acceptable and will return an error.
+	 * that it's analt acceptable and will return an error.
 	 *
 	 * It's somewhat inconsistent and creates a weird threshold
 	 * between rates above the parent rate which would be rounded to
@@ -160,8 +160,8 @@ static const struct clk_ops clk_multiple_parents_mux_ops = {
 	.determine_rate = __clk_mux_determine_rate_closest,
 };
 
-static const struct clk_ops clk_multiple_parents_no_reparent_mux_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+static const struct clk_ops clk_multiple_parents_anal_reparent_mux_ops = {
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = clk_multiple_parents_mux_get_parent,
 	.set_parent = clk_multiple_parents_mux_set_parent,
 };
@@ -174,7 +174,7 @@ static int clk_test_init_with_ops(struct kunit *test, const struct clk_ops *ops)
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->rate = DUMMY_CLOCK_INIT_RATE;
 	test->priv = ctx;
 
@@ -336,13 +336,13 @@ static int clk_uncached_test_init(struct kunit *test)
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
 
 	ctx->rate = DUMMY_CLOCK_INIT_RATE;
-	ctx->hw.init = CLK_HW_INIT_NO_PARENT("test-clk",
+	ctx->hw.init = CLK_HW_INIT_ANAL_PARENT("test-clk",
 					     &clk_dummy_rate_ops,
-					     CLK_GET_RATE_NOCACHE);
+					     CLK_GET_RATE_ANALCACHE);
 
 	ret = clk_hw_register(NULL, &ctx->hw);
 	if (ret)
@@ -407,7 +407,7 @@ static void clk_test_uncached_set_range(struct kunit *test)
  *
  * In this case, it means that if the rate wasn't initially in the range
  * we're trying to set, but got changed at some point into the range
- * without the kernel knowing about it, its rate shouldn't be affected.
+ * without the kernel kanalwing about it, its rate shouldn't be affected.
  */
 static void clk_test_uncached_updated_rate_set_range(struct kunit *test)
 {
@@ -459,10 +459,10 @@ clk_multiple_parents_mux_test_init(struct kunit *test)
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
 
-	ctx->parents_ctx[0].hw.init = CLK_HW_INIT_NO_PARENT("parent-0",
+	ctx->parents_ctx[0].hw.init = CLK_HW_INIT_ANAL_PARENT("parent-0",
 							    &clk_dummy_rate_ops,
 							    0);
 	ctx->parents_ctx[0].rate = DUMMY_CLOCK_RATE_1;
@@ -470,7 +470,7 @@ clk_multiple_parents_mux_test_init(struct kunit *test)
 	if (ret)
 		return ret;
 
-	ctx->parents_ctx[1].hw.init = CLK_HW_INIT_NO_PARENT("parent-1",
+	ctx->parents_ctx[1].hw.init = CLK_HW_INIT_ANAL_PARENT("parent-1",
 							    &clk_dummy_rate_ops,
 							    0);
 	ctx->parents_ctx[1].rate = DUMMY_CLOCK_RATE_2;
@@ -547,7 +547,7 @@ clk_test_multiple_parents_mux_has_parent(struct kunit *test)
  *
  * FIXME: clk_set_parent() only does the reparenting but doesn't
  * reevaluate whether the new clock rate is within its boundaries or
- * not.
+ * analt.
  */
 static void
 clk_test_multiple_parents_mux_set_range_set_parent_get_rate(struct kunit *test)
@@ -562,11 +562,11 @@ clk_test_multiple_parents_mux_set_range_set_parent_get_rate(struct kunit *test)
 	kunit_skip(test, "This needs to be fixed in the core.");
 
 	parent1 = clk_hw_get_clk(&ctx->parents_ctx[0].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent1);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent1);
 	KUNIT_ASSERT_TRUE(test, clk_is_match(clk_get_parent(clk), parent1));
 
 	parent2 = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent2);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent2);
 
 	ret = clk_set_rate(parent1, DUMMY_CLOCK_RATE_1);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -623,10 +623,10 @@ clk_orphan_transparent_multiple_parent_mux_test_init(struct kunit *test)
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
 
-	ctx->parents_ctx[1].hw.init = CLK_HW_INIT_NO_PARENT("proper-parent",
+	ctx->parents_ctx[1].hw.init = CLK_HW_INIT_ANAL_PARENT("proper-parent",
 							    &clk_dummy_rate_ops,
 							    0);
 	ctx->parents_ctx[1].rate = DUMMY_CLOCK_INIT_RATE;
@@ -684,13 +684,13 @@ clk_test_orphan_transparent_multiple_parent_mux_set_parent(struct kunit *test)
 	int ret;
 
 	parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent);
 
 	ret = clk_set_parent(clk, parent);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	new_parent = clk_get_parent(clk);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent);
 	KUNIT_EXPECT_TRUE(test, clk_is_match(parent, new_parent));
 
 	clk_put(parent);
@@ -713,7 +713,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_parent_drop_range(struct kun
 	int ret;
 
 	parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent);
 
 	parent_rate = clk_get_rate(parent);
 	KUNIT_ASSERT_GT(test, parent_rate, 0);
@@ -747,7 +747,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_parent_get_rate(struct kunit
 	int ret;
 
 	parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent);
 
 	parent_rate = clk_get_rate(parent);
 	KUNIT_ASSERT_GT(test, parent_rate, 0);
@@ -776,10 +776,10 @@ clk_test_orphan_transparent_multiple_parent_mux_set_parent_put(struct kunit *tes
 	int ret;
 
 	parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent);
 
 	clk = clk_hw_get_clk(&ctx->hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, clk);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, clk);
 
 	parent_rate = clk_get_rate(parent);
 	KUNIT_ASSERT_GT(test, parent_rate, 0);
@@ -812,7 +812,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_parent_set_range_modified(st
 	int ret;
 
 	parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent);
 
 	ret = clk_set_parent(clk, parent);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -845,7 +845,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_parent_set_range_untouched(s
 	int ret;
 
 	parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent);
 
 	parent_rate = clk_get_rate(parent);
 	KUNIT_ASSERT_GT(test, parent_rate, 0);
@@ -915,7 +915,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_range_set_parent_get_rate(st
 	clk_hw_set_rate_range(hw, DUMMY_CLOCK_RATE_1, DUMMY_CLOCK_RATE_2);
 
 	parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, parent);
 
 	ret = clk_set_parent(clk, parent);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -970,12 +970,12 @@ static int clk_single_parent_mux_test_init(struct kunit *test)
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
 
 	ctx->parent_ctx.rate = DUMMY_CLOCK_INIT_RATE;
 	ctx->parent_ctx.hw.init =
-		CLK_HW_INIT_NO_PARENT("parent-clk",
+		CLK_HW_INIT_ANAL_PARENT("parent-clk",
 				      &clk_dummy_rate_ops,
 				      0);
 
@@ -1045,7 +1045,7 @@ clk_test_single_parent_mux_has_parent(struct kunit *test)
  * the second will return an error.
  *
  * FIXME: clk_set_rate_range() only considers the current clock when
- * evaluating whether ranges are disjoints and not the upstream clocks
+ * evaluating whether ranges are disjoints and analt the upstream clocks
  * ranges.
  */
 static void
@@ -1077,7 +1077,7 @@ clk_test_single_parent_mux_set_range_disjoint_child_last(struct kunit *test)
  * the second will return an error.
  *
  * FIXME: clk_set_rate_range() only considers the current clock when
- * evaluating whether ranges are disjoints and not the downstream clocks
+ * evaluating whether ranges are disjoints and analt the downstream clocks
  * ranges.
  */
 static void
@@ -1244,7 +1244,7 @@ static int clk_orphan_transparent_single_parent_mux_test_init(struct kunit *test
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
 
 	init.name = "test_orphan_dummy_parent";
@@ -1309,7 +1309,7 @@ static struct kunit_case clk_orphan_transparent_single_parent_mux_test_cases[] =
 /*
  * Test suite for a basic mux clock with one parent. The parent is
  * registered after its child. The clock will thus be an orphan when
- * registered, but will no longer be when the tests run.
+ * registered, but will anal longer be when the tests run.
  *
  * These tests make sure a clock that used to be orphan has a sane,
  * consistent, behaviour.
@@ -1335,7 +1335,7 @@ clk_orphan_two_level_root_last_test_init(struct kunit *test)
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
 
 	ctx->parent_ctx.hw.init =
@@ -1357,7 +1357,7 @@ clk_orphan_two_level_root_last_test_init(struct kunit *test)
 
 	ctx->parent_parent_ctx.rate = DUMMY_CLOCK_INIT_RATE;
 	ctx->parent_parent_ctx.hw.init =
-		CLK_HW_INIT_NO_PARENT("root-parent",
+		CLK_HW_INIT_ANAL_PARENT("root-parent",
 				      &clk_dummy_rate_ops,
 				      0);
 	ret = clk_hw_register(NULL, &ctx->parent_parent_ctx.hw);
@@ -1400,7 +1400,7 @@ clk_orphan_two_level_root_last_test_get_rate(struct kunit *test)
  * clk_set_rate_range() won't affect its rate if it is already within
  * range.
  *
- * See (for Exynos 4210):
+ * See (for Exyanals 4210):
  * https://lore.kernel.org/linux-clk/366a0232-bb4a-c357-6aa8-636e398e05eb@samsung.com/
  */
 static void
@@ -1507,10 +1507,10 @@ static void clk_range_test_multiple_disjoints_range(struct kunit *test)
 	struct clk *user1, *user2;
 
 	user1 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user1);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user1);
 
 	user2 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user2);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user2);
 
 	KUNIT_ASSERT_EQ(test,
 			clk_set_rate_range(user1, 1000, 2000),
@@ -1855,10 +1855,10 @@ static void clk_range_test_multiple_set_range_rate_maximized(struct kunit *test)
 	unsigned long rate;
 
 	user1 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user1);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user1);
 
 	user2 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user2);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user2);
 
 	KUNIT_ASSERT_EQ(test,
 			clk_set_rate(clk, DUMMY_CLOCK_RATE_2 + 1000),
@@ -1914,10 +1914,10 @@ static void clk_range_test_multiple_set_range_rate_put_maximized(struct kunit *t
 	unsigned long rate;
 
 	user1 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user1);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user1);
 
 	user2 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user2);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user2);
 
 	KUNIT_ASSERT_EQ(test,
 			clk_set_rate(clk, DUMMY_CLOCK_RATE_2 + 1000),
@@ -2043,10 +2043,10 @@ static void clk_range_test_multiple_set_range_rate_minimized(struct kunit *test)
 	unsigned long rate;
 
 	user1 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user1);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user1);
 
 	user2 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user2);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user2);
 
 	KUNIT_ASSERT_EQ(test,
 			clk_set_rate_range(user1,
@@ -2098,10 +2098,10 @@ static void clk_range_test_multiple_set_range_rate_put_minimized(struct kunit *t
 	unsigned long rate;
 
 	user1 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user1);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user1);
 
 	user2 = clk_hw_get_clk(hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, user2);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, user2);
 
 	KUNIT_ASSERT_EQ(test,
 			clk_set_rate_range(user1,
@@ -2193,10 +2193,10 @@ clk_leaf_mux_set_rate_parent_test_init(struct kunit *test)
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
 
-	ctx->mux_ctx.parents_ctx[0].hw.init = CLK_HW_INIT_NO_PARENT("parent-0",
+	ctx->mux_ctx.parents_ctx[0].hw.init = CLK_HW_INIT_ANAL_PARENT("parent-0",
 								    &clk_dummy_rate_ops,
 								    0);
 	ctx->mux_ctx.parents_ctx[0].rate = DUMMY_CLOCK_RATE_1;
@@ -2204,7 +2204,7 @@ clk_leaf_mux_set_rate_parent_test_init(struct kunit *test)
 	if (ret)
 		return ret;
 
-	ctx->mux_ctx.parents_ctx[1].hw.init = CLK_HW_INIT_NO_PARENT("parent-1",
+	ctx->mux_ctx.parents_ctx[1].hw.init = CLK_HW_INIT_ANAL_PARENT("parent-1",
 								    &clk_dummy_rate_ops,
 								    0);
 	ctx->mux_ctx.parents_ctx[1].rate = DUMMY_CLOCK_RATE_2;
@@ -2292,13 +2292,13 @@ clk_leaf_mux_set_rate_parent_determine_rate_test_cases[] = {
 	},
 	{
 		/*
-		 * Test that clk_hw_determine_rate_no_reparent() on the parent
+		 * Test that clk_hw_determine_rate_anal_reparent() on the parent
 		 * that can't change rate doesn't return a clk_rate_request
 		 * structure with the best_parent_hw pointer pointing to
 		 * the parent.
 		 */
-		.desc = "clk_leaf_mux_set_rate_parent_clk_hw_determine_rate_no_reparent_proper_parent",
-		.determine_rate_func = clk_hw_determine_rate_no_reparent,
+		.desc = "clk_leaf_mux_set_rate_parent_clk_hw_determine_rate_anal_reparent_proper_parent",
+		.determine_rate_func = clk_hw_determine_rate_anal_reparent,
 	},
 };
 
@@ -2359,29 +2359,29 @@ static struct kunit_suite clk_leaf_mux_set_rate_parent_test_suite = {
 	.test_cases = clk_leaf_mux_set_rate_parent_test_cases,
 };
 
-struct clk_mux_notifier_rate_change {
+struct clk_mux_analtifier_rate_change {
 	bool done;
 	unsigned long old_rate;
 	unsigned long new_rate;
 	wait_queue_head_t wq;
 };
 
-struct clk_mux_notifier_ctx {
+struct clk_mux_analtifier_ctx {
 	struct clk_multiple_parent_ctx mux_ctx;
 	struct clk *clk;
-	struct notifier_block clk_nb;
-	struct clk_mux_notifier_rate_change pre_rate_change;
-	struct clk_mux_notifier_rate_change post_rate_change;
+	struct analtifier_block clk_nb;
+	struct clk_mux_analtifier_rate_change pre_rate_change;
+	struct clk_mux_analtifier_rate_change post_rate_change;
 };
 
-#define NOTIFIER_TIMEOUT_MS 100
+#define ANALTIFIER_TIMEOUT_MS 100
 
-static int clk_mux_notifier_callback(struct notifier_block *nb,
+static int clk_mux_analtifier_callback(struct analtifier_block *nb,
 				     unsigned long action, void *data)
 {
-	struct clk_notifier_data *clk_data = data;
-	struct clk_mux_notifier_ctx *ctx = container_of(nb,
-							struct clk_mux_notifier_ctx,
+	struct clk_analtifier_data *clk_data = data;
+	struct clk_mux_analtifier_ctx *ctx = container_of(nb,
+							struct clk_mux_analtifier_ctx,
 							clk_nb);
 
 	if (action & PRE_RATE_CHANGE) {
@@ -2401,21 +2401,21 @@ static int clk_mux_notifier_callback(struct notifier_block *nb,
 	return 0;
 }
 
-static int clk_mux_notifier_test_init(struct kunit *test)
+static int clk_mux_analtifier_test_init(struct kunit *test)
 {
-	struct clk_mux_notifier_ctx *ctx;
+	struct clk_mux_analtifier_ctx *ctx;
 	const char *top_parents[2] = { "parent-0", "parent-1" };
 	int ret;
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
-	ctx->clk_nb.notifier_call = clk_mux_notifier_callback;
+	ctx->clk_nb.analtifier_call = clk_mux_analtifier_callback;
 	init_waitqueue_head(&ctx->pre_rate_change.wq);
 	init_waitqueue_head(&ctx->post_rate_change.wq);
 
-	ctx->mux_ctx.parents_ctx[0].hw.init = CLK_HW_INIT_NO_PARENT("parent-0",
+	ctx->mux_ctx.parents_ctx[0].hw.init = CLK_HW_INIT_ANAL_PARENT("parent-0",
 								    &clk_dummy_rate_ops,
 								    0);
 	ctx->mux_ctx.parents_ctx[0].rate = DUMMY_CLOCK_RATE_1;
@@ -2423,7 +2423,7 @@ static int clk_mux_notifier_test_init(struct kunit *test)
 	if (ret)
 		return ret;
 
-	ctx->mux_ctx.parents_ctx[1].hw.init = CLK_HW_INIT_NO_PARENT("parent-1",
+	ctx->mux_ctx.parents_ctx[1].hw.init = CLK_HW_INIT_ANAL_PARENT("parent-1",
 								    &clk_dummy_rate_ops,
 								    0);
 	ctx->mux_ctx.parents_ctx[1].rate = DUMMY_CLOCK_RATE_2;
@@ -2440,19 +2440,19 @@ static int clk_mux_notifier_test_init(struct kunit *test)
 		return ret;
 
 	ctx->clk = clk_hw_get_clk(&ctx->mux_ctx.hw, NULL);
-	ret = clk_notifier_register(ctx->clk, &ctx->clk_nb);
+	ret = clk_analtifier_register(ctx->clk, &ctx->clk_nb);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static void clk_mux_notifier_test_exit(struct kunit *test)
+static void clk_mux_analtifier_test_exit(struct kunit *test)
 {
-	struct clk_mux_notifier_ctx *ctx = test->priv;
+	struct clk_mux_analtifier_ctx *ctx = test->priv;
 	struct clk *clk = ctx->clk;
 
-	clk_notifier_unregister(clk, &ctx->clk_nb);
+	clk_analtifier_unregister(clk, &ctx->clk_nb);
 	clk_put(clk);
 
 	clk_hw_unregister(&ctx->mux_ctx.hw);
@@ -2461,13 +2461,13 @@ static void clk_mux_notifier_test_exit(struct kunit *test)
 }
 
 /*
- * Test that if the we have a notifier registered on a mux, the core
- * will notify us when we switch to another parent, and with the proper
+ * Test that if the we have a analtifier registered on a mux, the core
+ * will analtify us when we switch to aanalther parent, and with the proper
  * old and new rates.
  */
-static void clk_mux_notifier_set_parent_test(struct kunit *test)
+static void clk_mux_analtifier_set_parent_test(struct kunit *test)
 {
-	struct clk_mux_notifier_ctx *ctx = test->priv;
+	struct clk_mux_analtifier_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->mux_ctx.hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
 	struct clk *new_parent = clk_hw_get_clk(&ctx->mux_ctx.parents_ctx[1].hw, NULL);
@@ -2478,7 +2478,7 @@ static void clk_mux_notifier_set_parent_test(struct kunit *test)
 
 	ret = wait_event_interruptible_timeout(ctx->pre_rate_change.wq,
 					       ctx->pre_rate_change.done,
-					       msecs_to_jiffies(NOTIFIER_TIMEOUT_MS));
+					       msecs_to_jiffies(ANALTIFIER_TIMEOUT_MS));
 	KUNIT_ASSERT_GT(test, ret, 0);
 
 	KUNIT_EXPECT_EQ(test, ctx->pre_rate_change.old_rate, DUMMY_CLOCK_RATE_1);
@@ -2486,7 +2486,7 @@ static void clk_mux_notifier_set_parent_test(struct kunit *test)
 
 	ret = wait_event_interruptible_timeout(ctx->post_rate_change.wq,
 					       ctx->post_rate_change.done,
-					       msecs_to_jiffies(NOTIFIER_TIMEOUT_MS));
+					       msecs_to_jiffies(ANALTIFIER_TIMEOUT_MS));
 	KUNIT_ASSERT_GT(test, ret, 0);
 
 	KUNIT_EXPECT_EQ(test, ctx->post_rate_change.old_rate, DUMMY_CLOCK_RATE_1);
@@ -2496,26 +2496,26 @@ static void clk_mux_notifier_set_parent_test(struct kunit *test)
 	clk_put(clk);
 }
 
-static struct kunit_case clk_mux_notifier_test_cases[] = {
-	KUNIT_CASE(clk_mux_notifier_set_parent_test),
+static struct kunit_case clk_mux_analtifier_test_cases[] = {
+	KUNIT_CASE(clk_mux_analtifier_set_parent_test),
 	{}
 };
 
 /*
- * Test suite for a mux with multiple parents, and a notifier registered
+ * Test suite for a mux with multiple parents, and a analtifier registered
  * on the mux.
  *
- * These tests exercise the behaviour of notifiers.
+ * These tests exercise the behaviour of analtifiers.
  */
-static struct kunit_suite clk_mux_notifier_test_suite = {
-	.name = "clk-mux-notifier",
-	.init = clk_mux_notifier_test_init,
-	.exit = clk_mux_notifier_test_exit,
-	.test_cases = clk_mux_notifier_test_cases,
+static struct kunit_suite clk_mux_analtifier_test_suite = {
+	.name = "clk-mux-analtifier",
+	.init = clk_mux_analtifier_test_init,
+	.exit = clk_mux_analtifier_test_exit,
+	.test_cases = clk_mux_analtifier_test_cases,
 };
 
 static int
-clk_mux_no_reparent_test_init(struct kunit *test)
+clk_mux_anal_reparent_test_init(struct kunit *test)
 {
 	struct clk_multiple_parent_ctx *ctx;
 	const char *parents[2] = { "parent-0", "parent-1"};
@@ -2523,10 +2523,10 @@ clk_mux_no_reparent_test_init(struct kunit *test)
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = ctx;
 
-	ctx->parents_ctx[0].hw.init = CLK_HW_INIT_NO_PARENT("parent-0",
+	ctx->parents_ctx[0].hw.init = CLK_HW_INIT_ANAL_PARENT("parent-0",
 							    &clk_dummy_rate_ops,
 							    0);
 	ctx->parents_ctx[0].rate = DUMMY_CLOCK_RATE_1;
@@ -2534,7 +2534,7 @@ clk_mux_no_reparent_test_init(struct kunit *test)
 	if (ret)
 		return ret;
 
-	ctx->parents_ctx[1].hw.init = CLK_HW_INIT_NO_PARENT("parent-1",
+	ctx->parents_ctx[1].hw.init = CLK_HW_INIT_ANAL_PARENT("parent-1",
 							    &clk_dummy_rate_ops,
 							    0);
 	ctx->parents_ctx[1].rate = DUMMY_CLOCK_RATE_2;
@@ -2544,7 +2544,7 @@ clk_mux_no_reparent_test_init(struct kunit *test)
 
 	ctx->current_parent = 0;
 	ctx->hw.init = CLK_HW_INIT_PARENTS("test-mux", parents,
-					   &clk_multiple_parents_no_reparent_mux_ops,
+					   &clk_multiple_parents_anal_reparent_mux_ops,
 					   0);
 	ret = clk_hw_register(NULL, &ctx->hw);
 	if (ret)
@@ -2554,7 +2554,7 @@ clk_mux_no_reparent_test_init(struct kunit *test)
 }
 
 static void
-clk_mux_no_reparent_test_exit(struct kunit *test)
+clk_mux_anal_reparent_test_exit(struct kunit *test)
 {
 	struct clk_multiple_parent_ctx *ctx = test->priv;
 
@@ -2564,11 +2564,11 @@ clk_mux_no_reparent_test_exit(struct kunit *test)
 }
 
 /*
- * Test that if the we have a mux that cannot change parent and we call
+ * Test that if the we have a mux that cananalt change parent and we call
  * clk_round_rate() on it with a rate that should cause it to change
  * parent, it won't.
  */
-static void clk_mux_no_reparent_round_rate(struct kunit *test)
+static void clk_mux_anal_reparent_round_rate(struct kunit *test)
 {
 	struct clk_multiple_parent_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
@@ -2585,7 +2585,7 @@ static void clk_mux_no_reparent_round_rate(struct kunit *test)
 	KUNIT_ASSERT_GT(test, parent_rate, 0);
 
 	other_parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, other_parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, other_parent);
 	KUNIT_ASSERT_FALSE(test, clk_is_match(parent, other_parent));
 
 	other_parent_rate = clk_get_rate(other_parent);
@@ -2600,11 +2600,11 @@ static void clk_mux_no_reparent_round_rate(struct kunit *test)
 }
 
 /*
- * Test that if the we have a mux that cannot change parent and we call
+ * Test that if the we have a mux that cananalt change parent and we call
  * clk_set_rate() on it with a rate that should cause it to change
  * parent, it won't.
  */
-static void clk_mux_no_reparent_set_rate(struct kunit *test)
+static void clk_mux_anal_reparent_set_rate(struct kunit *test)
 {
 	struct clk_multiple_parent_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
@@ -2622,7 +2622,7 @@ static void clk_mux_no_reparent_set_rate(struct kunit *test)
 	KUNIT_ASSERT_GT(test, parent_rate, 0);
 
 	other_parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, other_parent);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, other_parent);
 	KUNIT_ASSERT_FALSE(test, clk_is_match(parent, other_parent));
 
 	other_parent_rate = clk_get_rate(other_parent);
@@ -2639,32 +2639,32 @@ static void clk_mux_no_reparent_set_rate(struct kunit *test)
 	clk_put(clk);
 }
 
-static struct kunit_case clk_mux_no_reparent_test_cases[] = {
-	KUNIT_CASE(clk_mux_no_reparent_round_rate),
-	KUNIT_CASE(clk_mux_no_reparent_set_rate),
+static struct kunit_case clk_mux_anal_reparent_test_cases[] = {
+	KUNIT_CASE(clk_mux_anal_reparent_round_rate),
+	KUNIT_CASE(clk_mux_anal_reparent_set_rate),
 	{}
 };
 
 /*
  * Test suite for a clock mux that isn't allowed to change parent, using
- * the clk_hw_determine_rate_no_reparent() helper.
+ * the clk_hw_determine_rate_anal_reparent() helper.
  *
  * These tests exercise that helper, and the proper selection of
  * rates and parents.
  */
-static struct kunit_suite clk_mux_no_reparent_test_suite = {
-	.name = "clk-mux-no-reparent",
-	.init = clk_mux_no_reparent_test_init,
-	.exit = clk_mux_no_reparent_test_exit,
-	.test_cases = clk_mux_no_reparent_test_cases,
+static struct kunit_suite clk_mux_anal_reparent_test_suite = {
+	.name = "clk-mux-anal-reparent",
+	.init = clk_mux_anal_reparent_test_init,
+	.exit = clk_mux_anal_reparent_test_exit,
+	.test_cases = clk_mux_anal_reparent_test_cases,
 };
 
 kunit_test_suites(
 	&clk_leaf_mux_set_rate_parent_test_suite,
 	&clk_test_suite,
 	&clk_multiple_parents_mux_test_suite,
-	&clk_mux_no_reparent_test_suite,
-	&clk_mux_notifier_test_suite,
+	&clk_mux_anal_reparent_test_suite,
+	&clk_mux_analtifier_test_suite,
 	&clk_orphan_transparent_multiple_parent_mux_test_suite,
 	&clk_orphan_transparent_single_parent_test_suite,
 	&clk_orphan_two_level_root_last_test_suite,

@@ -93,7 +93,7 @@ static int g12a_toacodec_mux_put_enum(struct snd_kcontrol *kcontrol,
 	 * controller instead of going the through the TDM interface.
 	 *
 	 * Here we assume interface A uses clock A, etc ... While it is
-	 * true for now, it could be different. Instead the glue should
+	 * true for analw, it could be different. Instead the glue should
 	 * find out the clock used by the interface and select the same
 	 * source. For that, we will need regmap backed clock mux which
 	 * is a work in progress
@@ -130,16 +130,16 @@ static const struct snd_kcontrol_new g12a_toacodec_out_enable =
 				    CTRL0_ENABLE_SHIFT, 1, 0);
 
 static const struct snd_soc_dapm_widget g12a_toacodec_widgets[] = {
-	SND_SOC_DAPM_MUX("SRC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("SRC", SND_SOC_ANALPM, 0, 0,
 			 &g12a_toacodec_mux),
-	SND_SOC_DAPM_SWITCH("OUT EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("OUT EN", SND_SOC_ANALPM, 0, 0,
 			    &g12a_toacodec_out_enable),
 };
 
 static const struct snd_soc_dapm_widget sm1_toacodec_widgets[] = {
-	SND_SOC_DAPM_MUX("SRC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("SRC", SND_SOC_ANALPM, 0, 0,
 			 &sm1_toacodec_mux),
-	SND_SOC_DAPM_SWITCH("OUT EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("OUT EN", SND_SOC_ANALPM, 0, 0,
 			    &g12a_toacodec_out_enable),
 };
 
@@ -303,12 +303,12 @@ static int g12a_toacodec_probe(struct platform_device *pdev)
 	data = device_get_match_data(dev);
 	if (!data) {
 		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 

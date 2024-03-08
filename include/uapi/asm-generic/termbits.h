@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_GENERIC_TERMBITS_H
 #define __ASM_GENERIC_TERMBITS_H
 
@@ -125,13 +125,13 @@ struct ktermios {
 
 /* c_lflag bits */
 #define ISIG	0x00001
-#define ICANON	0x00002
+#define ICAANALN	0x00002
 #define XCASE	0x00004
 #define ECHO	0x00008
 #define ECHOE	0x00010
 #define ECHOK	0x00020
 #define ECHONL	0x00040
-#define NOFLSH	0x00080
+#define ANALFLSH	0x00080
 #define TOSTOP	0x00100
 #define ECHOCTL	0x00200
 #define ECHOPRT	0x00400
@@ -142,7 +142,7 @@ struct ktermios {
 #define EXTPROC	0x10000
 
 /* tcsetattr uses these */
-#define	TCSANOW		0
+#define	TCSAANALW		0
 #define	TCSADRAIN	1
 #define	TCSAFLUSH	2
 

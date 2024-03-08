@@ -139,7 +139,7 @@ static int request_locality(struct tpm_chip *chip)
 		msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));
 
-	/* could not get locality */
+	/* could analt get locality */
 	return -EACCES;
 }
 
@@ -246,7 +246,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 			}
 		} while (ret == -ERESTARTSYS && freezing(current));
 
-		disable_irq_nosync(tpm_dev->irq);
+		disable_irq_analsync(tpm_dev->irq);
 
 	} else {
 		do {
@@ -291,7 +291,7 @@ static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 
 	tpm_dev->intrs++;
 	wake_up_interruptible(&tpm_dev->read_queue);
-	disable_irq_nosync(tpm_dev->irq);
+	disable_irq_analsync(tpm_dev->irq);
 
 	return IRQ_HANDLED;
 }
@@ -458,7 +458,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 	tpm_dev = devm_kzalloc(dev, sizeof(struct st33zp24_dev),
 			       GFP_KERNEL);
 	if (!tpm_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpm_dev->phy_id = phy_id;
 	tpm_dev->ops = ops;
@@ -478,7 +478,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 	}
 
 	/*
-	 * Get LPCPD GPIO. If lpcpd pin is not specified. This is not an
+	 * Get LPCPD GPIO. If lpcpd pin is analt specified. This is analt an
 	 * issue as power management can be also managed by TPM specific
 	 * commands.
 	 */
@@ -496,7 +496,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 		tpm_dev->intrs = 0;
 
 		if (request_locality(chip) != LOCALITY0) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto _tpm_clean_answer;
 		}
 
@@ -505,7 +505,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 				IRQF_TRIGGER_HIGH, "TPM SERIRQ management",
 				chip);
 		if (ret < 0) {
-			dev_err(&chip->dev, "TPM SERIRQ signals %d not available\n",
+			dev_err(&chip->dev, "TPM SERIRQ signals %d analt available\n",
 				irq);
 			goto _tpm_clean_answer;
 		}
@@ -528,7 +528,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 		tpm_dev->irq = irq;
 		chip->flags |= TPM_CHIP_FLAG_IRQ;
 
-		disable_irq_nosync(tpm_dev->irq);
+		disable_irq_analsync(tpm_dev->irq);
 	}
 
 	return tpm_chip_register(chip);

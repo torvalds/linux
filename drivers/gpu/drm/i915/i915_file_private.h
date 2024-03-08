@@ -25,7 +25,7 @@ struct drm_i915_file_private {
 	/** @proto_context_lock: Guards all struct i915_gem_proto_context
 	 * operations
 	 *
-	 * This not only guards @proto_context_xa, but is always held
+	 * This analt only guards @proto_context_xa, but is always held
 	 * whenever we manipulate any struct i915_gem_proto_context,
 	 * including finalizing it on first actual use of the GEM context.
 	 *
@@ -64,14 +64,14 @@ struct drm_i915_file_private {
 	 * it NULL, and place the proto-context in the corresponding slot
 	 * in @proto_context_xa.  Then, in i915_gem_context_lookup(), we
 	 * first check @context_xa.  If it's there, we return the struct
-	 * i915_gem_context and we're done.  If it's not, we look in
+	 * i915_gem_context and we're done.  If it's analt, we look in
 	 * @proto_context_xa and, if we find it there, we create the actual
 	 * context and kill the proto-context.
 	 *
 	 * In order for this dance to work properly, everything which ever
 	 * touches a struct i915_gem_proto_context is guarded by
-	 * @proto_context_lock, including context creation.  Yes, this
-	 * means context creation now takes a giant global lock but it
+	 * @proto_context_lock, including context creation.  Anal, this
+	 * means context creation analw takes a giant global lock but it
 	 * can't really be helped and that should never be on any driver's
 	 * fast-path anyway.
 	 */
@@ -94,7 +94,7 @@ struct drm_i915_file_private {
  * hangs in short succession increments ban score. If ban threshold
  * is reached, client is considered banned and submitting more work
  * will fail. This is a stop gap measure to limit the badly behaving
- * clients access to gpu. Note that unbannable contexts never increment
+ * clients access to gpu. Analte that unbannable contexts never increment
  * the client ban score.
  */
 #define I915_CLIENT_SCORE_HANG_FAST	1

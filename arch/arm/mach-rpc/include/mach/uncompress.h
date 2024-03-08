@@ -71,7 +71,7 @@ unsigned char bytes_per_char_v;
 int white;
 
 /*
- * This does not append a newline
+ * This does analt append a newline
  */
 static inline void putc(int c)
 {

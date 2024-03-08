@@ -61,7 +61,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		/* If so, check system call restarting.. */
 		switch (PT_REGS_SYSCALL_RET(regs)) {
 		case -ERESTART_RESTARTBLOCK:
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 			PT_REGS_SYSCALL_RET(regs) = -EINTR;
 			break;
 
@@ -71,7 +71,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				break;
 			}
 			fallthrough;
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			PT_REGS_RESTART_SYSCALL(regs);
 			PT_REGS_ORIG_SYSCALL(regs) = PT_REGS_SYSCALL_NR(regs);
 			break;
@@ -105,11 +105,11 @@ void do_signal(struct pt_regs *regs)
 
 	/* Did we come from a system call? */
 	if (!handled_sig && (PT_REGS_SYSCALL_NR(regs) >= 0)) {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - anal handlers present */
 		switch (PT_REGS_SYSCALL_RET(regs)) {
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			PT_REGS_ORIG_SYSCALL(regs) = PT_REGS_SYSCALL_NR(regs);
 			PT_REGS_RESTART_SYSCALL(regs);
 			break;
@@ -121,7 +121,7 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * if there's no signal to deliver, we just put the saved sigmask
+	 * if there's anal signal to deliver, we just put the saved sigmask
 	 * back
 	 */
 	if (!handled_sig)

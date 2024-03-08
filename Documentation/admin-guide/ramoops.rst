@@ -26,11 +26,11 @@ and type of the memory area are set using three variables:
 
 Typically the default value of ``mem_type=0`` should be used as that sets the pstore
 mapping to pgprot_writecombine. Setting ``mem_type=1`` attempts to use
-``pgprot_noncached``, which only works on some platforms. This is because pstore
-depends on atomic operations. At least on ARM, pgprot_noncached causes the
+``pgprot_analncached``, which only works on some platforms. This is because pstore
+depends on atomic operations. At least on ARM, pgprot_analncached causes the
 memory to be mapped strongly ordered, and atomic operations on strongly ordered
 memory are implementation defined, and won't work on many ARMs such as omaps.
-Setting ``mem_type=2`` attempts to treat the memory region as normal memory,
+Setting ``mem_type=2`` attempts to treat the memory region as analrmal memory,
 which enables full cache on it. This can improve the performance.
 
 The memory area is divided into ``record_size`` chunks (also rounded down to
@@ -155,7 +155,7 @@ file. Here is an example of usage::
  0 ffffffff8101ea64  ffffffff8101bcda  native_apic_mem_read <- disconnect_bsp_APIC+0x6a/0xc0
  0 ffffffff8101ea44  ffffffff8101bcf6  native_apic_mem_write <- disconnect_bsp_APIC+0x86/0xc0
  0 ffffffff81020084  ffffffff8101a4b5  hpet_disable <- native_machine_shutdown+0x75/0x90
- 0 ffffffff81005f94  ffffffff8101a4bb  iommu_shutdown_noop <- native_machine_shutdown+0x7b/0x90
+ 0 ffffffff81005f94  ffffffff8101a4bb  iommu_shutdown_analop <- native_machine_shutdown+0x7b/0x90
  0 ffffffff8101a6a1  ffffffff8101a437  native_machine_emergency_restart <- native_machine_restart+0x37/0x40
  0 ffffffff811f9876  ffffffff8101a73a  acpi_reboot <- native_machine_emergency_restart+0xaa/0x1e0
  0 ffffffff8101a514  ffffffff8101a772  mach_reboot_fixups <- native_machine_emergency_restart+0xe2/0x1e0

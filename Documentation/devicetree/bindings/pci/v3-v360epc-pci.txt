@@ -14,17 +14,17 @@ Required properties:
 - bus-range: see pci.txt
 - ranges: this follows the standard PCI bindings in the IEEE Std
   1275-1994 (see pci.txt) with the following restriction:
-  - The non-prefetchable and prefetchable memory windows must
+  - The analn-prefetchable and prefetchable memory windows must
     each be exactly 256MB (0x10000000) in size.
   - The prefetchable memory window must be immediately adjacent
-    to the non-prefetcable memory window
+    to the analn-prefetcable memory window
 - dma-ranges: three ranges for the inbound memory region. The ranges must
   be aligned to a 1MB boundary, and may be 1MB, 2MB, 4MB, 8MB, 16MB, 32MB,
   64MB, 128MB, 256MB, 512MB, 1GB or 2GB in size. The memory should be marked
   as pre-fetchable. Two ranges are supported by the hardware.
 
 Integrator-specific required properties:
-- syscon: should contain a link to the syscon device node, since
+- syscon: should contain a link to the syscon device analde, since
   on the Integrator, some registers in the syscon are required to
   operate the V3 host bridge.
 
@@ -42,7 +42,7 @@ pci: pciv3@62000000 {
 	bus-range = <0x00 0xff>;
 	ranges = 0x01000000 0 0x00000000 /* I/O space @00000000 */
 		0x60000000 0 0x01000000 /* 16 MiB @ LB 60000000 */
-		0x02000000 0 0x40000000 /* non-prefectable memory @40000000 */
+		0x02000000 0 0x40000000 /* analn-prefectable memory @40000000 */
 		0x40000000 0 0x10000000 /* 256 MiB @ LB 40000000 1:1 */
 		0x42000000 0 0x50000000 /* prefetchable memory @50000000 */
 		0x50000000 0 0x10000000>; /* 256 MiB @ LB 50000000 1:1 */

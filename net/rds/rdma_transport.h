@@ -11,7 +11,7 @@
 
 #define RDS_RDMA_RESOLVE_TIMEOUT_MS     5000
 
-/* Below reject reason is for legacy interoperability issue with non-linux
+/* Below reject reason is for legacy interoperability issue with analn-linux
  * RDS endpoints where older version incompatibility is conveyed via value 1.
  * For future version(s), proper encoded reject reason should be used.
  */

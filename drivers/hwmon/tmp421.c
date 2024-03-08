@@ -24,7 +24,7 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
+static const unsigned short analrmal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
 					     I2C_CLIENT_END };
 
 enum chips { tmp421, tmp422, tmp423, tmp441, tmp442 };
@@ -206,13 +206,13 @@ static int tmp421_read(struct device *dev, enum hwmon_sensor_types type,
 	switch (attr) {
 	case hwmon_temp_input:
 		if (!tmp421->channel[channel].enabled)
-			return -ENODATA;
+			return -EANALDATA;
 		*val = temp_from_raw(tmp421->channel[channel].temp,
 				     tmp421->config & TMP421_CONFIG_RANGE);
 		return 0;
 	case hwmon_temp_fault:
 		if (!tmp421->channel[channel].enabled)
-			return -ENODATA;
+			return -EANALDATA;
 		/*
 		 * Any of OPEN or /PVLD bits indicate a hardware mulfunction
 		 * and the conversion result may be incorrect
@@ -223,7 +223,7 @@ static int tmp421_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = tmp421->channel[channel].enabled;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 }
@@ -250,7 +250,7 @@ static int tmp421_write(struct device *dev, enum hwmon_sensor_types type,
 		ret = tmp421_enable_channels(data);
 		break;
 	default:
-	    ret = -EOPNOTSUPP;
+	    ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -284,7 +284,7 @@ static int tmp421_init_client(struct tmp421_data *data)
 	config = i2c_smbus_read_byte_data(client, TMP421_CONFIG_REG_1);
 	if (config < 0) {
 		dev_err(&client->dev,
-			"Could not read configuration register (%d)\n", config);
+			"Could analt read configuration register (%d)\n", config);
 		return config;
 	}
 
@@ -312,19 +312,19 @@ static int tmp421_detect(struct i2c_client *client,
 	u8 reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, TMP421_MANUFACTURER_ID_REG);
 	if (reg != TMP421_MANUFACTURER_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, TMP421_CONVERSION_RATE_REG);
 	if (reg & 0xf8)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, TMP421_STATUS_REG);
 	if (reg & 0x7f)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, TMP421_DEVICE_ID_REG);
 	switch (reg) {
@@ -333,12 +333,12 @@ static int tmp421_detect(struct i2c_client *client,
 		break;
 	case TMP422_DEVICE_ID:
 		if (addr == 0x2a)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp422;
 		break;
 	case TMP423_DEVICE_ID:
 		if (addr != 0x4c && addr != 0x4d)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp423;
 		break;
 	case TMP441_DEVICE_ID:
@@ -346,11 +346,11 @@ static int tmp421_detect(struct i2c_client *client,
 		break;
 	case TMP442_DEVICE_ID:
 		if (addr != 0x4c && addr != 0x4d)
-			return -ENODEV;
+			return -EANALDEV;
 		kind = tmp442;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, tmp421_id[kind].name, I2C_NAME_SIZE);
@@ -361,7 +361,7 @@ static int tmp421_detect(struct i2c_client *client,
 }
 
 static int tmp421_probe_child_from_dt(struct i2c_client *client,
-				      struct device_node *child,
+				      struct device_analde *child,
 				      struct tmp421_data *data)
 
 {
@@ -409,17 +409,17 @@ static int tmp421_probe_child_from_dt(struct i2c_client *client,
 static int tmp421_probe_from_dt(struct i2c_client *client, struct tmp421_data *data)
 {
 	struct device *dev = &client->dev;
-	const struct device_node *np = dev->of_node;
-	struct device_node *child;
+	const struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	int err;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (strcmp(child->name, "channel"))
 			continue;
 
 		err = tmp421_probe_child_from_dt(client, child, data);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 	}
@@ -443,10 +443,10 @@ static int tmp421_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct tmp421_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->update_lock);
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		data->channels = (unsigned long)
 			of_device_get_match_data(&client->dev);
 	else
@@ -490,7 +490,7 @@ static struct i2c_driver tmp421_driver = {
 	.probe = tmp421_probe,
 	.id_table = tmp421_id,
 	.detect = tmp421_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 };
 
 module_i2c_driver(tmp421_driver);

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _dvb_video:
 
@@ -11,8 +11,8 @@ TV hardware. It can be accessed through **/dev/dvb/adapter0/video0**. Data
 types and ioctl definitions can be accessed by including
 **linux/dvb/video.h** in your application.
 
-Note that the Digital TV video device only controls decoding of the MPEG video
-stream, not its presentation on the TV or computer screen. On PCs this
+Analte that the Digital TV video device only controls decoding of the MPEG video
+stream, analt its presentation on the TV or computer screen. On PCs this
 is typically handled by an associated video4linux device, e.g.
 **/dev/video**, which allows scaling and defining output windows.
 

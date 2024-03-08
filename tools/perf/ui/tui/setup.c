@@ -1,4 +1,4 @@
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -76,7 +76,7 @@ int ui__getch(int delay_secs)
 		return K_TIMER;
 
 	if (err == -1) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			return K_RESIZE;
 		return K_ERROR;
 	}
@@ -108,7 +108,7 @@ static void ui__signal_backtrace(int sig)
 
 	printf("-------- backtrace --------\n");
 	size = backtrace(stackdump, ARRAY_SIZE(stackdump));
-	backtrace_symbols_fd(stackdump, size, STDOUT_FILENO);
+	backtrace_symbols_fd(stackdump, size, STDOUT_FILEANAL);
 
 	exit(0);
 }
@@ -128,13 +128,13 @@ static void ui__sigcont(int sig)
 	static struct termios tty;
 
 	if (sig == SIGTSTP) {
-		while (tcgetattr(SLang_TT_Read_FD, &tty) == -1 && errno == EINTR)
+		while (tcgetattr(SLang_TT_Read_FD, &tty) == -1 && erranal == EINTR)
 			;
-		while (write(SLang_TT_Read_FD, PERF_COLOR_RESET, sizeof(PERF_COLOR_RESET) - 1) == -1 && errno == EINTR)
+		while (write(SLang_TT_Read_FD, PERF_COLOR_RESET, sizeof(PERF_COLOR_RESET) - 1) == -1 && erranal == EINTR)
 			;
 		raise(SIGSTOP);
 	} else {
-		while (tcsetattr(SLang_TT_Read_FD, TCSADRAIN, &tty) == -1 && errno == EINTR)
+		while (tcsetattr(SLang_TT_Read_FD, TCSADRAIN, &tty) == -1 && erranal == EINTR)
 			;
 		raise(SIGWINCH);
 	}

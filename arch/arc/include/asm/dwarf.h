@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2016-17 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016-17 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef _ASM_ARC_DWARF_H
@@ -23,18 +23,18 @@
 
 #else
 
-#define CFI_IGNORE	#
+#define CFI_IGANALRE	#
 
-#define CFI_STARTPROC		CFI_IGNORE
-#define CFI_ENDPROC		CFI_IGNORE
-#define CFI_DEF_CFA		CFI_IGNORE
-#define CFI_DEF_CFA_OFFSET	CFI_IGNORE
-#define CFI_DEF_CFA_REGISTER	CFI_IGNORE
-#define CFI_OFFSET		CFI_IGNORE
-#define CFI_REL_OFFSET		CFI_IGNORE
-#define CFI_REGISTER		CFI_IGNORE
-#define CFI_RESTORE		CFI_IGNORE
-#define CFI_UNDEFINED		CFI_IGNORE
+#define CFI_STARTPROC		CFI_IGANALRE
+#define CFI_ENDPROC		CFI_IGANALRE
+#define CFI_DEF_CFA		CFI_IGANALRE
+#define CFI_DEF_CFA_OFFSET	CFI_IGANALRE
+#define CFI_DEF_CFA_REGISTER	CFI_IGANALRE
+#define CFI_OFFSET		CFI_IGANALRE
+#define CFI_REL_OFFSET		CFI_IGANALRE
+#define CFI_REGISTER		CFI_IGANALRE
+#define CFI_RESTORE		CFI_IGANALRE
+#define CFI_UNDEFINED		CFI_IGANALRE
 
 #endif	/* !ARC_DW2_UNWIND_AS_CFI */
 

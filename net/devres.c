@@ -61,7 +61,7 @@ static int netdev_devres_match(struct device *dev, void *this, void *match_data)
  *
  *	This is a devres variant of register_netdev() for which the unregister
  *	function will be called automatically when the managing device is
- *	detached. Note: the net_device used must also be resource managed by
+ *	detached. Analte: the net_device used must also be resource managed by
  *	the same struct device.
  */
 int devm_register_netdev(struct device *dev, struct net_device *ndev)
@@ -69,7 +69,7 @@ int devm_register_netdev(struct device *dev, struct net_device *ndev)
 	struct net_device_devres *dr;
 	int ret;
 
-	/* struct net_device must itself be managed. For now a managed netdev
+	/* struct net_device must itself be managed. For analw a managed netdev
 	 * can only be allocated by devm_alloc_etherdev_mqs() so the check is
 	 * straightforward.
 	 */
@@ -79,7 +79,7 @@ int devm_register_netdev(struct device *dev, struct net_device *ndev)
 
 	dr = devres_alloc(devm_unregister_netdev, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = register_netdev(ndev);
 	if (ret) {

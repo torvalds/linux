@@ -8,7 +8,7 @@ C RCU+sync+read
  * read-side critical sections would have ended before the grace period ended.
  *
  * This is one implication of the RCU grace-period guarantee, which says (among
- * other things) that an RCU read-side critical section cannot span a grace period.
+ * other things) that an RCU read-side critical section cananalt span a grace period.
  *)
 
 {

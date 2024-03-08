@@ -39,7 +39,7 @@ required:
   - reg
   - ranges
 
-# The DFX server may expose clocks described as subnodes
+# The DFX server may expose clocks described as subanaldes
 additionalProperties:
   type: object
 

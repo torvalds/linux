@@ -2,7 +2,7 @@
  *
  * simple_card_utils.h
  *
- * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (c) 2016 Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 
 #ifndef __SIMPLE_CARD_UTILS_H
@@ -131,11 +131,11 @@ struct link_info {
 };
 
 int simple_util_parse_daifmt(struct device *dev,
-			     struct device_node *node,
-			     struct device_node *codec,
+			     struct device_analde *analde,
+			     struct device_analde *codec,
 			     char *prefix,
 			     unsigned int *retfmt);
-int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
+int simple_util_parse_tdm_width_map(struct device *dev, struct device_analde *np,
 				    struct simple_util_dai *dai);
 
 __printf(3, 4)
@@ -146,7 +146,7 @@ int simple_util_parse_card_name(struct snd_soc_card *card,
 				char *prefix);
 
 int simple_util_parse_clk(struct device *dev,
-			  struct device_node *node,
+			  struct device_analde *analde,
 			  struct simple_util_dai *simple_dai,
 			  struct snd_soc_dai_link_component *dlc);
 int simple_util_startup(struct snd_pcm_substream *substream);
@@ -163,14 +163,14 @@ int simple_util_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					&(dai)->slots,		\
 					&(dai)->slot_width);
 
-void simple_util_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
+void simple_util_caanalnicalize_platform(struct snd_soc_dai_link_component *platforms,
 				       struct snd_soc_dai_link_component *cpus);
-void simple_util_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
+void simple_util_caanalnicalize_cpu(struct snd_soc_dai_link_component *cpus,
 				  int is_single_links);
 
 void simple_util_clean_reference(struct snd_soc_card *card);
 
-void simple_util_parse_convert(struct device_node *np, char *prefix,
+void simple_util_parse_convert(struct device_analde *np, char *prefix,
 			       struct simple_util_data *data);
 bool simple_util_is_convert_required(const struct simple_util_data *data);
 
@@ -191,11 +191,11 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 void simple_util_remove(struct platform_device *pdev);
 
 int graph_util_card_probe(struct snd_soc_card *card);
-int graph_util_is_ports0(struct device_node *port);
-int graph_util_parse_dai(struct device *dev, struct device_node *ep,
+int graph_util_is_ports0(struct device_analde *port);
+int graph_util_parse_dai(struct device *dev, struct device_analde *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link);
 
-int graph_util_parse_link_direction(struct device_node *np,
+int graph_util_parse_link_direction(struct device_analde *np,
 				    bool *is_playback_only, bool *is_capture_only);
 
 #ifdef DEBUG

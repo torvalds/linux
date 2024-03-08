@@ -54,7 +54,7 @@ struct smb_query_info {
 
 /*
  * Dumping the commonly used 16 byte (e.g. CCM and GCM128) keys still supported
- * for backlevel compatibility, but is not sufficient for dumping the less
+ * for backlevel compatibility, but is analt sufficient for dumping the less
  * frequently used GCM256 (32 byte) keys (see the newer "CIFS_DUMP_FULL_KEY"
  * ioctl for dumping decryption info for GCM256 mounts)
  */
@@ -91,16 +91,16 @@ struct smb3_full_key_debug_info {
 	 */
 } __packed;
 
-struct smb3_notify {
+struct smb3_analtify {
 	__u32	completion_filter;
 	bool	watch_tree;
 } __packed;
 
-struct smb3_notify_info {
+struct smb3_analtify_info {
 	__u32	completion_filter;
 	bool	watch_tree;
-	__u32   data_len; /* size of notify data below */
-	__u8	notify_data[];
+	__u32   data_len; /* size of analtify data below */
+	__u8	analtify_data[];
 } __packed;
 
 #define CIFS_IOCTL_MAGIC	0xCF
@@ -110,9 +110,9 @@ struct smb3_notify_info {
 #define CIFS_ENUMERATE_SNAPSHOTS _IOR(CIFS_IOCTL_MAGIC, 6, struct smb_snapshot_array)
 #define CIFS_QUERY_INFO _IOWR(CIFS_IOCTL_MAGIC, 7, struct smb_query_info)
 #define CIFS_DUMP_KEY _IOWR(CIFS_IOCTL_MAGIC, 8, struct smb3_key_debug_info)
-#define CIFS_IOC_NOTIFY _IOW(CIFS_IOCTL_MAGIC, 9, struct smb3_notify)
+#define CIFS_IOC_ANALTIFY _IOW(CIFS_IOCTL_MAGIC, 9, struct smb3_analtify)
 #define CIFS_DUMP_FULL_KEY _IOWR(CIFS_IOCTL_MAGIC, 10, struct smb3_full_key_debug_info)
-#define CIFS_IOC_NOTIFY_INFO _IOWR(CIFS_IOCTL_MAGIC, 11, struct smb3_notify_info)
+#define CIFS_IOC_ANALTIFY_INFO _IOWR(CIFS_IOCTL_MAGIC, 11, struct smb3_analtify_info)
 #define CIFS_IOC_GET_TCON_INFO _IOR(CIFS_IOCTL_MAGIC, 12, struct smb_mnt_tcon_info)
 #define CIFS_IOC_SHUTDOWN _IOR('X', 125, __u32)
 
@@ -120,8 +120,8 @@ struct smb3_notify_info {
  * Flags for going down operation
  */
 #define CIFS_GOING_FLAGS_DEFAULT                0x0     /* going down */
-#define CIFS_GOING_FLAGS_LOGFLUSH               0x1     /* flush log but not data */
-#define CIFS_GOING_FLAGS_NOLOGFLUSH             0x2     /* don't flush log nor data */
+#define CIFS_GOING_FLAGS_LOGFLUSH               0x1     /* flush log but analt data */
+#define CIFS_GOING_FLAGS_ANALLOGFLUSH             0x2     /* don't flush log analr data */
 
 static inline bool cifs_forced_shutdown(struct cifs_sb_info *sbi)
 {

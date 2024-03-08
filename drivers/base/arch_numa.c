@@ -15,10 +15,10 @@
 
 #include <asm/sections.h>
 
-struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
-EXPORT_SYMBOL(node_data);
-nodemask_t numa_nodes_parsed __initdata;
-static int cpu_to_node_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
+struct pglist_data *analde_data[MAX_NUMANALDES] __read_mostly;
+EXPORT_SYMBOL(analde_data);
+analdemask_t numa_analdes_parsed __initdata;
+static int cpu_to_analde_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_ANAL_ANALDE };
 
 static int numa_distance_cnt;
 static u8 *numa_distance;
@@ -35,43 +35,43 @@ static __init int numa_parse_early_param(char *opt)
 }
 early_param("numa", numa_parse_early_param);
 
-cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
-EXPORT_SYMBOL(node_to_cpumask_map);
+cpumask_var_t analde_to_cpumask_map[MAX_NUMANALDES];
+EXPORT_SYMBOL(analde_to_cpumask_map);
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 
 /*
- * Returns a pointer to the bitmask of CPUs on Node 'node'.
+ * Returns a pointer to the bitmask of CPUs on Analde 'analde'.
  */
-const struct cpumask *cpumask_of_node(int node)
+const struct cpumask *cpumask_of_analde(int analde)
 {
 
-	if (node == NUMA_NO_NODE)
+	if (analde == NUMA_ANAL_ANALDE)
 		return cpu_all_mask;
 
-	if (WARN_ON(node < 0 || node >= nr_node_ids))
-		return cpu_none_mask;
+	if (WARN_ON(analde < 0 || analde >= nr_analde_ids))
+		return cpu_analne_mask;
 
-	if (WARN_ON(node_to_cpumask_map[node] == NULL))
+	if (WARN_ON(analde_to_cpumask_map[analde] == NULL))
 		return cpu_online_mask;
 
-	return node_to_cpumask_map[node];
+	return analde_to_cpumask_map[analde];
 }
-EXPORT_SYMBOL(cpumask_of_node);
+EXPORT_SYMBOL(cpumask_of_analde);
 
 #endif
 
 static void numa_update_cpu(unsigned int cpu, bool remove)
 {
-	int nid = cpu_to_node(cpu);
+	int nid = cpu_to_analde(cpu);
 
-	if (nid == NUMA_NO_NODE)
+	if (nid == NUMA_ANAL_ANALDE)
 		return;
 
 	if (remove)
-		cpumask_clear_cpu(cpu, node_to_cpumask_map[nid]);
+		cpumask_clear_cpu(cpu, analde_to_cpumask_map[nid]);
 	else
-		cpumask_set_cpu(cpu, node_to_cpumask_map[nid]);
+		cpumask_set_cpu(cpu, analde_to_cpumask_map[nid]);
 }
 
 void numa_add_cpu(unsigned int cpu)
@@ -84,74 +84,74 @@ void numa_remove_cpu(unsigned int cpu)
 	numa_update_cpu(cpu, true);
 }
 
-void numa_clear_node(unsigned int cpu)
+void numa_clear_analde(unsigned int cpu)
 {
 	numa_remove_cpu(cpu);
-	set_cpu_numa_node(cpu, NUMA_NO_NODE);
+	set_cpu_numa_analde(cpu, NUMA_ANAL_ANALDE);
 }
 
 /*
- * Allocate node_to_cpumask_map based on number of available nodes
- * Requires node_possible_map to be valid.
+ * Allocate analde_to_cpumask_map based on number of available analdes
+ * Requires analde_possible_map to be valid.
  *
- * Note: cpumask_of_node() is not valid until after this is done.
+ * Analte: cpumask_of_analde() is analt valid until after this is done.
  * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
  */
-static void __init setup_node_to_cpumask_map(void)
+static void __init setup_analde_to_cpumask_map(void)
 {
-	int node;
+	int analde;
 
-	/* setup nr_node_ids if not done yet */
-	if (nr_node_ids == MAX_NUMNODES)
-		setup_nr_node_ids();
+	/* setup nr_analde_ids if analt done yet */
+	if (nr_analde_ids == MAX_NUMANALDES)
+		setup_nr_analde_ids();
 
 	/* allocate and clear the mapping */
-	for (node = 0; node < nr_node_ids; node++) {
-		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
-		cpumask_clear(node_to_cpumask_map[node]);
+	for (analde = 0; analde < nr_analde_ids; analde++) {
+		alloc_bootmem_cpumask_var(&analde_to_cpumask_map[analde]);
+		cpumask_clear(analde_to_cpumask_map[analde]);
 	}
 
-	/* cpumask_of_node() will now work */
-	pr_debug("Node to cpumask map for %u nodes\n", nr_node_ids);
+	/* cpumask_of_analde() will analw work */
+	pr_debug("Analde to cpumask map for %u analdes\n", nr_analde_ids);
 }
 
 /*
- * Set the cpu to node and mem mapping
+ * Set the cpu to analde and mem mapping
  */
 void numa_store_cpu_info(unsigned int cpu)
 {
-	set_cpu_numa_node(cpu, cpu_to_node_map[cpu]);
+	set_cpu_numa_analde(cpu, cpu_to_analde_map[cpu]);
 }
 
-void __init early_map_cpu_to_node(unsigned int cpu, int nid)
+void __init early_map_cpu_to_analde(unsigned int cpu, int nid)
 {
-	/* fallback to node 0 */
-	if (nid < 0 || nid >= MAX_NUMNODES || numa_off)
+	/* fallback to analde 0 */
+	if (nid < 0 || nid >= MAX_NUMANALDES || numa_off)
 		nid = 0;
 
-	cpu_to_node_map[cpu] = nid;
+	cpu_to_analde_map[cpu] = nid;
 
 	/*
-	 * We should set the numa node of cpu0 as soon as possible, because it
-	 * has already been set up online before. cpu_to_node(0) will soon be
+	 * We should set the numa analde of cpu0 as soon as possible, because it
+	 * has already been set up online before. cpu_to_analde(0) will soon be
 	 * called.
 	 */
 	if (!cpu)
-		set_cpu_numa_node(cpu, nid);
+		set_cpu_numa_analde(cpu, nid);
 }
 
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
 
-int __init early_cpu_to_node(int cpu)
+int __init early_cpu_to_analde(int cpu)
 {
-	return cpu_to_node_map[cpu];
+	return cpu_to_analde_map[cpu];
 }
 
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	return node_distance(early_cpu_to_node(from), early_cpu_to_node(to));
+	return analde_distance(early_cpu_to_analde(from), early_cpu_to_analde(to));
 }
 
 void __init setup_per_cpu_areas(void)
@@ -168,7 +168,7 @@ void __init setup_per_cpu_areas(void)
 		rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
 					    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE,
 					    pcpu_cpu_distance,
-					    early_cpu_to_node);
+					    early_cpu_to_analde);
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 		if (rc < 0)
 			pr_warn("PERCPU: %s allocator failed (%d), falling back to page size\n",
@@ -178,7 +178,7 @@ void __init setup_per_cpu_areas(void)
 
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 	if (rc < 0)
-		rc = pcpu_page_first_chunk(PERCPU_MODULE_RESERVE, early_cpu_to_node);
+		rc = pcpu_page_first_chunk(PERCPU_MODULE_RESERVE, early_cpu_to_analde);
 #endif
 	if (rc < 0)
 		panic("Failed to initialize percpu areas (err=%d).", rc);
@@ -190,33 +190,33 @@ void __init setup_per_cpu_areas(void)
 #endif
 
 /**
- * numa_add_memblk() - Set node id to memblk
- * @nid: NUMA node ID of the new memblk
+ * numa_add_memblk() - Set analde id to memblk
+ * @nid: NUMA analde ID of the new memblk
  * @start: Start address of the new memblk
  * @end:  End address of the new memblk
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
 int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
 	int ret;
 
-	ret = memblock_set_node(start, (end - start), &memblock.memory, nid);
+	ret = memblock_set_analde(start, (end - start), &memblock.memory, nid);
 	if (ret < 0) {
-		pr_err("memblock [0x%llx - 0x%llx] failed to add on node %d\n",
+		pr_err("memblock [0x%llx - 0x%llx] failed to add on analde %d\n",
 			start, (end - 1), nid);
 		return ret;
 	}
 
-	node_set(nid, numa_nodes_parsed);
+	analde_set(nid, numa_analdes_parsed);
 	return ret;
 }
 
 /*
- * Initialize NODE_DATA for a node on the local memory
+ * Initialize ANALDE_DATA for a analde on the local memory
  */
-static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+static void __init setup_analde_data(int nid, u64 start_pfn, u64 end_pfn)
 {
 	const size_t nd_size = roundup(sizeof(pg_data_t), SMP_CACHE_BYTES);
 	u64 nd_pa;
@@ -224,27 +224,27 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	int tnid;
 
 	if (start_pfn >= end_pfn)
-		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
+		pr_info("Initmem setup analde %d [<memory-less analde>]\n", nid);
 
 	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	if (!nd_pa)
-		panic("Cannot allocate %zu bytes for node %d data\n",
+		panic("Cananalt allocate %zu bytes for analde %d data\n",
 		      nd_size, nid);
 
 	nd = __va(nd_pa);
 
 	/* report and initialize */
-	pr_info("NODE_DATA [mem %#010Lx-%#010Lx]\n",
+	pr_info("ANALDE_DATA [mem %#010Lx-%#010Lx]\n",
 		nd_pa, nd_pa + nd_size - 1);
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
 	if (tnid != nid)
-		pr_info("NODE_DATA(%d) on node %d\n", nid, tnid);
+		pr_info("ANALDE_DATA(%d) on analde %d\n", nid, tnid);
 
-	node_data[nid] = nd;
-	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
-	NODE_DATA(nid)->node_id = nid;
-	NODE_DATA(nid)->node_start_pfn = start_pfn;
-	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
+	analde_data[nid] = nd;
+	memset(ANALDE_DATA(nid), 0, sizeof(pg_data_t));
+	ANALDE_DATA(nid)->analde_id = nid;
+	ANALDE_DATA(nid)->analde_start_pfn = start_pfn;
+	ANALDE_DATA(nid)->analde_spanned_pages = end_pfn - start_pfn;
 }
 
 /*
@@ -275,12 +275,12 @@ static int __init numa_alloc_distance(void)
 	size_t size;
 	int i, j;
 
-	size = nr_node_ids * nr_node_ids * sizeof(numa_distance[0]);
+	size = nr_analde_ids * nr_analde_ids * sizeof(numa_distance[0]);
 	numa_distance = memblock_alloc(size, PAGE_SIZE);
 	if (WARN_ON(!numa_distance))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	numa_distance_cnt = nr_node_ids;
+	numa_distance_cnt = nr_analde_ids;
 
 	/* fill with the default distances */
 	for (i = 0; i < numa_distance_cnt; i++)
@@ -294,27 +294,27 @@ static int __init numa_alloc_distance(void)
 }
 
 /**
- * numa_set_distance() - Set inter node NUMA distance from node to node.
- * @from: the 'from' node to set distance
- * @to: the 'to'  node to set distance
+ * numa_set_distance() - Set inter analde NUMA distance from analde to analde.
+ * @from: the 'from' analde to set distance
+ * @to: the 'to'  analde to set distance
  * @distance: NUMA distance
  *
- * Set the distance from node @from to @to to @distance.
+ * Set the distance from analde @from to @to to @distance.
  * If distance table doesn't exist, a warning is printed.
  *
- * If @from or @to is higher than the highest known node or lower than zero
- * or @distance doesn't make sense, the call is ignored.
+ * If @from or @to is higher than the highest kanalwn analde or lower than zero
+ * or @distance doesn't make sense, the call is iganalred.
  */
 void __init numa_set_distance(int from, int to, int distance)
 {
 	if (!numa_distance) {
-		pr_warn_once("Warning: distance table not allocated yet\n");
+		pr_warn_once("Warning: distance table analt allocated yet\n");
 		return;
 	}
 
 	if (from >= numa_distance_cnt || to >= numa_distance_cnt ||
 			from < 0 || to < 0) {
-		pr_warn_once("Warning: node ids are out of bound, from=%d to=%d distance=%d\n",
+		pr_warn_once("Warning: analde ids are out of bound, from=%d to=%d distance=%d\n",
 			    from, to, distance);
 		return;
 	}
@@ -332,43 +332,43 @@ void __init numa_set_distance(int from, int to, int distance)
 /*
  * Return NUMA distance @from to @to
  */
-int __node_distance(int from, int to)
+int __analde_distance(int from, int to)
 {
 	if (from >= numa_distance_cnt || to >= numa_distance_cnt)
 		return from == to ? LOCAL_DISTANCE : REMOTE_DISTANCE;
 	return numa_distance[from * numa_distance_cnt + to];
 }
-EXPORT_SYMBOL(__node_distance);
+EXPORT_SYMBOL(__analde_distance);
 
-static int __init numa_register_nodes(void)
+static int __init numa_register_analdes(void)
 {
 	int nid;
 	struct memblock_region *mblk;
 
 	/* Check that valid nid is set to memblks */
 	for_each_mem_region(mblk) {
-		int mblk_nid = memblock_get_region_node(mblk);
+		int mblk_nid = memblock_get_region_analde(mblk);
 		phys_addr_t start = mblk->base;
 		phys_addr_t end = mblk->base + mblk->size - 1;
 
-		if (mblk_nid == NUMA_NO_NODE || mblk_nid >= MAX_NUMNODES) {
-			pr_warn("Warning: invalid memblk node %d [mem %pap-%pap]\n",
+		if (mblk_nid == NUMA_ANAL_ANALDE || mblk_nid >= MAX_NUMANALDES) {
+			pr_warn("Warning: invalid memblk analde %d [mem %pap-%pap]\n",
 				mblk_nid, &start, &end);
 			return -EINVAL;
 		}
 	}
 
-	/* Finally register nodes. */
-	for_each_node_mask(nid, numa_nodes_parsed) {
+	/* Finally register analdes. */
+	for_each_analde_mask(nid, numa_analdes_parsed) {
 		unsigned long start_pfn, end_pfn;
 
 		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-		setup_node_data(nid, start_pfn, end_pfn);
-		node_set_online(nid);
+		setup_analde_data(nid, start_pfn, end_pfn);
+		analde_set_online(nid);
 	}
 
-	/* Setup online nodes to actual nodes*/
-	node_possible_map = numa_nodes_parsed;
+	/* Setup online analdes to actual analdes*/
+	analde_possible_map = numa_analdes_parsed;
 
 	return 0;
 }
@@ -377,9 +377,9 @@ static int __init numa_init(int (*init_func)(void))
 {
 	int ret;
 
-	nodes_clear(numa_nodes_parsed);
-	nodes_clear(node_possible_map);
-	nodes_clear(node_online_map);
+	analdes_clear(numa_analdes_parsed);
+	analdes_clear(analde_possible_map);
+	analdes_clear(analde_online_map);
 
 	ret = numa_alloc_distance();
 	if (ret < 0)
@@ -389,17 +389,17 @@ static int __init numa_init(int (*init_func)(void))
 	if (ret < 0)
 		goto out_free_distance;
 
-	if (nodes_empty(numa_nodes_parsed)) {
-		pr_info("No NUMA configuration found\n");
+	if (analdes_empty(numa_analdes_parsed)) {
+		pr_info("Anal NUMA configuration found\n");
 		ret = -EINVAL;
 		goto out_free_distance;
 	}
 
-	ret = numa_register_nodes();
+	ret = numa_register_analdes();
 	if (ret < 0)
 		goto out_free_distance;
 
-	setup_node_to_cpumask_map();
+	setup_analde_to_cpumask_map();
 
 	return 0;
 out_free_distance:
@@ -410,13 +410,13 @@ out_free_distance:
 /**
  * dummy_numa_init() - Fallback dummy NUMA init
  *
- * Used if there's no underlying NUMA architecture, NUMA initialization
+ * Used if there's anal underlying NUMA architecture, NUMA initialization
  * fails, or NUMA is disabled on the command line.
  *
- * Must online at least one node (node 0) and add memory blocks that cover all
+ * Must online at least one analde (analde 0) and add memory blocks that cover all
  * allowed memory. It is unlikely that this function fails.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int __init dummy_numa_init(void)
 {
@@ -426,7 +426,7 @@ static int __init dummy_numa_init(void)
 
 	if (numa_off)
 		pr_info("NUMA disabled\n"); /* Forced off on command line. */
-	pr_info("Faking a node at [mem %pap-%pap]\n", &start, &end);
+	pr_info("Faking a analde at [mem %pap-%pap]\n", &start, &end);
 
 	ret = numa_add_memblk(0, start, end + 1);
 	if (ret) {
@@ -454,7 +454,7 @@ static int __init arch_acpi_numa_init(void)
 #else
 static int __init arch_acpi_numa_init(void)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -462,7 +462,7 @@ static int __init arch_acpi_numa_init(void)
  * arch_numa_init() - Initialize NUMA
  *
  * Try each configured NUMA initialization method until one succeeds. The
- * last fallback is dummy single node config encompassing whole memory.
+ * last fallback is dummy single analde config encompassing whole memory.
  */
 void __init arch_numa_init(void)
 {

@@ -71,7 +71,7 @@
 #define  CMD_TYPE_SHIFT				24
 #define  CMD_TYPE_MASK				0xff
 /* XUSB_CFG_ARU_MBOX_OWNER */
-#define  MBOX_OWNER_NONE			0
+#define  MBOX_OWNER_ANALNE			0
 #define  MBOX_OWNER_FW				1
 #define  MBOX_OWNER_SW				2
 #define XUSB_CFG_ARU_SMI_INTR			0x428
@@ -299,7 +299,7 @@ struct tegra_xusb {
 	int otg_usb2_port;
 	int otg_usb3_port;
 	bool host_mode;
-	struct notifier_block id_nb;
+	struct analtifier_block id_nb;
 	struct work_struct id_work;
 
 	/* Firmware loading related */
@@ -481,7 +481,7 @@ enum tegra_xusb_mbox_cmd {
 	MBOX_CMD_DEC_FALC_CLOCK,
 	MBOX_CMD_INC_SSPI_CLOCK,
 	MBOX_CMD_DEC_SSPI_CLOCK,
-	MBOX_CMD_SET_BW, /* no ACK/NAK required */
+	MBOX_CMD_SET_BW, /* anal ACK/NAK required */
 	MBOX_CMD_SET_SS_PWR_GATING,
 	MBOX_CMD_SET_SS_PWR_UNGATING,
 	MBOX_CMD_SAVE_DFE_CTLE_CTX,
@@ -545,7 +545,7 @@ static int tegra_xusb_mbox_send(struct tegra_xusb *tegra,
 	 */
 	if (!(msg->cmd == MBOX_CMD_ACK || msg->cmd == MBOX_CMD_NAK)) {
 		value = ops->mbox_reg_readl(tegra, tegra->soc->mbox.owner);
-		if (value != MBOX_OWNER_NONE) {
+		if (value != MBOX_OWNER_ANALNE) {
 			dev_err(tegra->dev, "mailbox is busy\n");
 			return -EBUSY;
 		}
@@ -573,7 +573,7 @@ static int tegra_xusb_mbox_send(struct tegra_xusb *tegra,
 
 		while (time_before(jiffies, timeout)) {
 			value = ops->mbox_reg_readl(tegra, tegra->soc->mbox.owner);
-			if (value == MBOX_OWNER_NONE)
+			if (value == MBOX_OWNER_ANALNE)
 				break;
 
 			usleep_range(10, 20);
@@ -582,7 +582,7 @@ static int tegra_xusb_mbox_send(struct tegra_xusb *tegra,
 		if (time_after(jiffies, timeout))
 			value = ops->mbox_reg_readl(tegra, tegra->soc->mbox.owner);
 
-		if (value != MBOX_OWNER_NONE)
+		if (value != MBOX_OWNER_ANALNE)
 			return -ETIMEDOUT;
 	}
 
@@ -650,7 +650,7 @@ static void tegra_xusb_mbox_handle(struct tegra_xusb *tegra,
 	case MBOX_CMD_SET_BW:
 		/*
 		 * TODO: Request bandwidth once EMC scaling is supported.
-		 * Ignore for now since ACK/NAK is not required for SET_BW
+		 * Iganalre for analw since ACK/NAK is analt required for SET_BW
 		 * messages.
 		 */
 		break;
@@ -734,7 +734,7 @@ static void tegra_xusb_mbox_handle(struct tegra_xusb *tegra,
 		break;
 
 	default:
-		dev_warn(dev, "unknown message: %#x\n", msg->cmd);
+		dev_warn(dev, "unkanalwn message: %#x\n", msg->cmd);
 		break;
 	}
 
@@ -766,9 +766,9 @@ static irqreturn_t tegra_xusb_mbox_thread(int irq, void *data)
 	value &= ~MBOX_DEST_SMI;
 	ops->mbox_reg_writel(tegra, value, tegra->soc->mbox.cmd);
 
-	/* clear mailbox owner if no ACK/NAK is required */
+	/* clear mailbox owner if anal ACK/NAK is required */
 	if (!tegra_xusb_mbox_cmd_requires_ack(msg.cmd))
-		ops->mbox_reg_writel(tegra, MBOX_OWNER_NONE, tegra->soc->mbox.owner);
+		ops->mbox_reg_writel(tegra, MBOX_OWNER_ANALNE, tegra->soc->mbox.owner);
 
 	tegra_xusb_mbox_handle(tegra, &msg);
 
@@ -930,12 +930,12 @@ static int tegra_xusb_init_context(struct tegra_xusb *tegra)
 	tegra->context.ipfs = devm_kcalloc(tegra->dev, soc->ipfs.num_offsets,
 					   sizeof(u32), GFP_KERNEL);
 	if (!tegra->context.ipfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tegra->context.fpci = devm_kcalloc(tegra->dev, soc->fpci.num_offsets,
 					   sizeof(u32), GFP_KERNEL);
 	if (!tegra->context.fpci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -967,7 +967,7 @@ static int tegra_xusb_request_firmware(struct tegra_xusb *tegra)
 	if (!tegra->fw.virt) {
 		dev_err(tegra->dev, "failed to allocate memory for firmware\n");
 		release_firmware(fw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	header = (struct tegra_xusb_fw_header *)tegra->fw.virt;
@@ -990,7 +990,7 @@ static int tegra_xusb_wait_for_falcon(struct tegra_xusb *tegra)
 	ret = readl_poll_timeout(&op_regs->status, value, !(value & STS_CNR), 1000, 200000);
 
 	if (ret)
-		dev_err(tegra->dev, "XHCI Controller not ready. Falcon state: 0x%x\n",
+		dev_err(tegra->dev, "XHCI Controller analt ready. Falcon state: 0x%x\n",
 			csb_readl(tegra, XUSB_FALC_CPUCTL));
 
 	return ret;
@@ -1068,7 +1068,7 @@ static int tegra_xusb_load_firmware_rom(struct tegra_xusb *tegra)
 				 XUSB_CSB_MEMPOOL_L2IMEMOP_RESULT, value,
 				 value & L2IMEMOP_RESULT_VLD, 100, 10000);
 	if (err < 0) {
-		dev_err(dev, "DMA controller not ready %#010x\n", value);
+		dev_err(dev, "DMA controller analt ready %#010x\n", value);
 		return err;
 	}
 #undef tegra_csb_readl
@@ -1093,7 +1093,7 @@ static u32 tegra_xusb_read_firmware_header(struct tegra_xusb *tegra, u32 offset)
 {
 	/*
 	 * We only accept reading the firmware config table
-	 * The offset should not exceed the fw header structure
+	 * The offset should analt exceed the fw header structure
 	 */
 	if (offset >= sizeof(struct tegra_xusb_fw_header))
 		return 0;
@@ -1356,7 +1356,7 @@ static void tegra_xhci_id_work(struct work_struct *work)
 	if (tegra->host_mode)
 		phy_set_mode_ext(phy, PHY_MODE_USB_OTG, USB_ROLE_HOST);
 	else
-		phy_set_mode_ext(phy, PHY_MODE_USB_OTG, USB_ROLE_NONE);
+		phy_set_mode_ext(phy, PHY_MODE_USB_OTG, USB_ROLE_ANALNE);
 
 	mutex_unlock(&tegra->lock);
 
@@ -1460,7 +1460,7 @@ static int tegra_xusb_get_usb2_port(struct tegra_xusb *tegra,
 	return -1;
 }
 
-static int tegra_xhci_id_notify(struct notifier_block *nb,
+static int tegra_xhci_id_analtify(struct analtifier_block *nb,
 					 unsigned long action, void *data)
 {
 	struct tegra_xusb *tegra = container_of(nb, struct tegra_xusb,
@@ -1471,9 +1471,9 @@ static int tegra_xhci_id_notify(struct notifier_block *nb,
 
 	if ((tegra->host_mode && usbphy->last_event == USB_EVENT_ID) ||
 		(!tegra->host_mode && usbphy->last_event != USB_EVENT_ID)) {
-		dev_dbg(tegra->dev, "Same role(%d) received. Ignore",
+		dev_dbg(tegra->dev, "Same role(%d) received. Iganalre",
 			tegra->host_mode);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	tegra->otg_usb2_port = tegra_xusb_get_usb2_port(tegra, usbphy);
@@ -1482,7 +1482,7 @@ static int tegra_xhci_id_notify(struct notifier_block *nb,
 
 	schedule_work(&tegra->id_work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int tegra_xusb_init_usb_phy(struct tegra_xusb *tegra)
@@ -1492,10 +1492,10 @@ static int tegra_xusb_init_usb_phy(struct tegra_xusb *tegra)
 	tegra->usbphy = devm_kcalloc(tegra->dev, tegra->num_usb_phys,
 				   sizeof(*tegra->usbphy), GFP_KERNEL);
 	if (!tegra->usbphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&tegra->id_work, tegra_xhci_id_work);
-	tegra->id_nb.notifier_call = tegra_xhci_id_notify;
+	tegra->id_nb.analtifier_call = tegra_xhci_id_analtify;
 	tegra->otg_usb2_port = -EINVAL;
 	tegra->otg_usb3_port = -EINVAL;
 
@@ -1505,15 +1505,15 @@ static int tegra_xusb_init_usb_phy(struct tegra_xusb *tegra)
 		if (!phy)
 			continue;
 
-		tegra->usbphy[i] = devm_usb_get_phy_by_node(tegra->dev,
-							phy->dev.of_node,
+		tegra->usbphy[i] = devm_usb_get_phy_by_analde(tegra->dev,
+							phy->dev.of_analde,
 							&tegra->id_nb);
 		if (!IS_ERR(tegra->usbphy[i])) {
 			dev_dbg(tegra->dev, "usbphy-%d registered", i);
 			otg_set_host(tegra->usbphy[i]->otg, &tegra->hcd->self);
 		} else {
 			/*
-			 * usb-phy is optional, continue if its not available.
+			 * usb-phy is optional, continue if its analt available.
 			 */
 			tegra->usbphy[i] = NULL;
 		}
@@ -1536,7 +1536,7 @@ static void tegra_xusb_deinit_usb_phy(struct tegra_xusb *tegra)
 static int tegra_xusb_probe(struct platform_device *pdev)
 {
 	struct tegra_xusb *tegra;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource *regs;
 	struct xhci_hcd *xhci;
 	unsigned int i, j, k;
@@ -1547,7 +1547,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tegra->soc = of_device_get_match_data(&pdev->dev);
 	mutex_init(&tegra->lock);
@@ -1587,9 +1587,9 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	if (IS_ERR(tegra->padctl))
 		return PTR_ERR(tegra->padctl);
 
-	np = of_parse_phandle(pdev->dev.of_node, "nvidia,xusb-padctl", 0);
+	np = of_parse_phandle(pdev->dev.of_analde, "nvidia,xusb-padctl", 0);
 	if (!np) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto put_padctl;
 	}
 
@@ -1667,7 +1667,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_padctl;
 	}
 
-	if (!of_property_read_bool(pdev->dev.of_node, "power-domains")) {
+	if (!of_property_read_bool(pdev->dev.of_analde, "power-domains")) {
 		tegra->host_rst = devm_reset_control_get(&pdev->dev,
 							 "xusb_host");
 		if (IS_ERR(tegra->host_rst)) {
@@ -1693,7 +1693,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	tegra->supplies = devm_kcalloc(&pdev->dev, tegra->soc->num_supplies,
 				       sizeof(*tegra->supplies), GFP_KERNEL);
 	if (!tegra->supplies) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_powerdomains;
 	}
 
@@ -1717,7 +1717,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	tegra->phys = devm_kcalloc(&pdev->dev, tegra->num_phys,
 				   sizeof(*tegra->phys), GFP_KERNEL);
 	if (!tegra->phys) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_powerdomains;
 	}
 
@@ -1744,7 +1744,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	tegra->hcd = usb_create_hcd(&tegra_xhci_hc_driver, &pdev->dev,
 				    dev_name(&pdev->dev));
 	if (!tegra->hcd) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_powerdomains;
 	}
 
@@ -1824,7 +1824,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 						 tegra->hcd);
 	if (!xhci->shared_hcd) {
 		dev_err(&pdev->dev, "failed to create shared HCD\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto remove_usb2;
 	}
 
@@ -1907,7 +1907,7 @@ put_hcd:
 put_powerdomains:
 	tegra_xusb_powerdomain_remove(&pdev->dev, tegra);
 put_padctl:
-	of_node_put(np);
+	of_analde_put(np);
 	tegra_xusb_padctl_put(tegra->padctl);
 	return err;
 }
@@ -2052,7 +2052,7 @@ static enum usb_device_speed tegra_xhci_portsc_to_speed(struct tegra_xusb *tegra
 	if (DEV_SUPERSPEED_ANY(portsc))
 		return USB_SPEED_SUPER;
 
-	return USB_SPEED_UNKNOWN;
+	return USB_SPEED_UNKANALWN;
 }
 
 static void tegra_xhci_enable_phy_sleepwalk_wake(struct tegra_xusb *tegra)
@@ -2120,7 +2120,7 @@ static void tegra_xhci_disable_phy_wake(struct tegra_xusb *tegra)
 
 		if (tegra_xusb_padctl_remote_wake_detected(padctl, tegra->phys[i]))
 			dev_dbg(tegra->dev, "%pOF remote wake detected\n",
-				tegra->phys[i]->dev.of_node);
+				tegra->phys[i]->dev.of_analde);
 
 		tegra_xusb_padctl_disable_phy_wake(padctl, tegra->phys[i]);
 	}
@@ -2179,7 +2179,7 @@ static int tegra_xusb_enter_elpg(struct tegra_xusb *tegra, bool runtime)
 
 	err = tegra_xusb_check_ports(tegra);
 	if (err < 0) {
-		dev_err(tegra->dev, "not all ports suspended: %d\n", err);
+		dev_err(tegra->dev, "analt all ports suspended: %d\n", err);
 		goto out;
 	}
 

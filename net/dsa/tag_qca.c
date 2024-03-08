@@ -95,7 +95,7 @@ static int qca_tag_connect(struct dsa_switch *ds)
 
 	tagger_data = kzalloc(sizeof(*tagger_data), GFP_KERNEL);
 	if (!tagger_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds->tagger_data = tagger_data;
 

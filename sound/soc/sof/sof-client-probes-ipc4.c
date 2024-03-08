@@ -31,12 +31,12 @@ enum sof_ipc4_probe_runtime_param {
 };
 
 struct sof_ipc4_probe_gtw_cfg {
-	u32 node_id;
+	u32 analde_id;
 	u32 dma_buffer_size;
 } __packed __aligned(4);
 
-#define SOF_IPC4_PROBE_NODE_ID_INDEX(x)		((x) & GENMASK(7, 0))
-#define SOF_IPC4_PROBE_NODE_ID_TYPE(x)		(((x) << 8) & GENMASK(12, 8))
+#define SOF_IPC4_PROBE_ANALDE_ID_INDEX(x)		((x) & GENMASK(7, 0))
+#define SOF_IPC4_PROBE_ANALDE_ID_TYPE(x)		(((x) << 8) & GENMASK(12, 8))
 
 struct sof_ipc4_probe_cfg {
 	struct sof_ipc4_base_module_cfg base;
@@ -78,7 +78,7 @@ static struct sof_man4_module *sof_ipc4_probe_get_module_info(struct sof_client_
 			sof_client_ipc4_find_module(cdev, &probe_uuid);
 
 		if (!fw_module) {
-			dev_err(dev, "%s: no matching uuid found", __func__);
+			dev_err(dev, "%s: anal matching uuid found", __func__);
 			return NULL;
 		}
 
@@ -95,7 +95,7 @@ static struct sof_man4_module *sof_ipc4_probe_get_module_info(struct sof_client_
  * @buffer_size:	DMA buffer size to set for extractor
  * @return:		0 on success, negative error code on error
  *
- * Host chooses whether extraction is supported or not by providing
+ * Host chooses whether extraction is supported or analt by providing
  * valid stream tag to DSP. Once specified, stream described by that
  * tag will be tied to DSP for extraction for the entire lifetime of
  * probe.
@@ -111,11 +111,11 @@ static int ipc4_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
 	struct sof_ipc4_probe_cfg cfg;
 
 	if (!mentry)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&cfg, '\0', sizeof(cfg));
-	cfg.gtw_cfg.node_id = SOF_IPC4_PROBE_NODE_ID_INDEX(stream_tag - 1) |
-		SOF_IPC4_PROBE_NODE_ID_TYPE(SOF_IPC4_DMA_HDA_HOST_INPUT);
+	cfg.gtw_cfg.analde_id = SOF_IPC4_PROBE_ANALDE_ID_INDEX(stream_tag - 1) |
+		SOF_IPC4_PROBE_ANALDE_ID_TYPE(SOF_IPC4_DMA_HDA_HOST_INPUT);
 
 	cfg.gtw_cfg.dma_buffer_size = buffer_size;
 
@@ -129,7 +129,7 @@ static int ipc4_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
 	msg.data_size = sizeof(cfg);
 	msg.data_ptr = &cfg;
 
-	return sof_client_ipc_tx_message_no_reply(cdev, &msg);
+	return sof_client_ipc_tx_message_anal_reply(cdev, &msg);
 }
 
 /**
@@ -138,8 +138,8 @@ static int ipc4_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
  * @return:		0 on success, negative error code on error
  *
  * Host sends DEINIT request to free previously initialized probe
- * on DSP side once it is no longer needed. DEINIT only when there
- * are no probes connected and with all injectors detached.
+ * on DSP side once it is anal longer needed. DEINIT only when there
+ * are anal probes connected and with all injectors detached.
  */
 static int ipc4_probes_deinit(struct sof_client_dev *cdev)
 {
@@ -147,7 +147,7 @@ static int ipc4_probes_deinit(struct sof_client_dev *cdev)
 	struct sof_ipc4_msg msg;
 
 	if (!mentry)
-		return -ENODEV;
+		return -EANALDEV;
 
 	msg.primary = mentry->id;
 	msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_DELETE_INSTANCE);
@@ -159,7 +159,7 @@ static int ipc4_probes_deinit(struct sof_client_dev *cdev)
 	msg.data_size = 0;
 	msg.data_ptr = NULL;
 
-	return sof_client_ipc_tx_message_no_reply(cdev, &msg);
+	return sof_client_ipc_tx_message_anal_reply(cdev, &msg);
 }
 
 /**
@@ -201,17 +201,17 @@ static int ipc4_probes_points_add(struct sof_client_dev *cdev,
 	int i, ret;
 
 	if (!mentry)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* The sof_probe_point_desc and sof_ipc4_probe_point structs
 	 * are of same size and even the integers are the same in the
-	 * same order, and similar meaning, but since there is no
+	 * same order, and similar meaning, but since there is anal
 	 * performance issue I wrote the conversion explicitly open for
 	 * future development.
 	 */
 	points = kcalloc(num_desc, sizeof(*points), GFP_KERNEL);
 	if (!points)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_desc; i++) {
 		points[i].point_id = desc[i].buffer_id;
@@ -254,12 +254,12 @@ static int ipc4_probes_points_remove(struct sof_client_dev *cdev,
 	int i, ret;
 
 	if (!mentry)
-		return -ENODEV;
+		return -EANALDEV;
 
 	probe_point_ids = kcalloc(num_buffer_id, sizeof(*probe_point_ids),
 				  GFP_KERNEL);
 	if (!probe_point_ids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_buffer_id; i++)
 		probe_point_ids[i] = buffer_id[i];

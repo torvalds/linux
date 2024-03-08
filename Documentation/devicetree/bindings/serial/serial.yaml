@@ -15,12 +15,12 @@ description:
   device tree.  Whether these properties apply to a particular device depends
   on the DT bindings for the actual device.
 
-  Each enabled UART may have an optional "serialN" alias in the "aliases" node,
-  where N is the port number (non-negative decimal integer) as printed on the
+  Each enabled UART may have an optional "serialN" alias in the "aliases" analde,
+  where N is the port number (analn-negative decimal integer) as printed on the
   label next to the physical port.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^serial(@.*)?$"
 
   label: true
@@ -93,10 +93,10 @@ patternProperties:
       type: object
     then:
       description:
-        Serial attached devices shall be a child node of the host UART device
+        Serial attached devices shall be a child analde of the host UART device
         the slave device is attached to. It is expected that the attached
-        device is the only child node of the UART device. The slave device node
-        name shall reflect the generic type of device for the node.
+        device is the only child analde of the UART device. The slave device analde
+        name shall reflect the generic type of device for the analde.
 
       properties:
         compatible:
@@ -116,13 +116,13 @@ patternProperties:
           $ref: /schemas/types.yaml#/definitions/uint32
           description: |
             The current baud rate the device operates at.
-            This should only be present in case a driver has no chance to know
+            This should only be present in case a driver has anal chance to kanalw
             the baud rate of the slave device.
             Examples:
               * device supports auto-baud
-              * the rate is setup by a bootloader and there is no way to reset
+              * the rate is setup by a bootloader and there is anal way to reset
                 the device
-              * device baud rate is configured by its firmware but there is no
+              * device baud rate is configured by its firmware but there is anal
                 way to request the actual settings
 
       required:

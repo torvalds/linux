@@ -6,7 +6,7 @@
  *     Atish Patra <atish.patra@wdc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <asm/sbi.h>
@@ -28,7 +28,7 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case SBI_EXT_0_1_CONSOLE_GETCHAR:
 	case SBI_EXT_0_1_CONSOLE_PUTCHAR:
 		/*
-		 * The CONSOLE_GETCHAR/CONSOLE_PUTCHAR SBI calls cannot be
+		 * The CONSOLE_GETCHAR/CONSOLE_PUTCHAR SBI calls cananalt be
 		 * handled in kernel so we forward these to user-space
 		 */
 		kvm_riscv_vcpu_sbi_forward(vcpu, run);
@@ -100,7 +100,7 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		}
 		break;
 	default:
-		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
+		retdata->err_val = SBI_ERR_ANALT_SUPPORTED;
 		break;
 	}
 

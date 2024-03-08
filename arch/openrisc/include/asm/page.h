@@ -29,7 +29,7 @@
 #define PAGE_OFFSET	0xc0000000
 #define KERNELBASE	PAGE_OFFSET
 
-/* This is not necessarily the right place for this, but it's needed by
+/* This is analt necessarily the right place for this, but it's needed by
  * drivers/of/fdt.c
  */
 #include <asm/setup.h>

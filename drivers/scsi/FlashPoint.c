@@ -3,7 +3,7 @@
   FlashPoint.c -- FlashPoint SCCB Manager for Linux
 
   This file contains the FlashPoint SCCB Manager from BusLogic's FlashPoint
-  Driver Developer's Kit, with minor modifications by Leonard N. Zubkoff for
+  Driver Developer's Kit, with mianalr modifications by Leonard N. Zubkoff for
   Linux compatibility.  It was provided by BusLogic in the form of 16 separate
   source files, which would have unnecessarily cluttered the scsi directory, so
   the individual files have been combined into this single file.
@@ -38,7 +38,7 @@ struct sccb_mgr_info {
 	u16 si_per_targ_init_sync;
 	u16 si_per_targ_fast_nego;
 	u16 si_per_targ_ultra_nego;
-	u16 si_per_targ_no_disc;
+	u16 si_per_targ_anal_disc;
 	u16 si_per_targ_wide_nego;
 	u16 si_mflags;
 	unsigned char si_card_family;
@@ -126,7 +126,7 @@ struct sccb {
 #define SCCB_DATA_XFER_OUT       0x10	/* Write */
 #define SCCB_DATA_XFER_IN        0x08	/* Read */
 
-#define NO_AUTO_REQUEST_SENSE    0x01	/* No Request Sense Buffer */
+#define ANAL_AUTO_REQUEST_SENSE    0x01	/* Anal Request Sense Buffer */
 
 #define BUS_FREE_ST     0
 #define SELECT_ST       1
@@ -145,7 +145,7 @@ struct sccb {
 #define F_SG_XFER                      0x04
 #define F_AUTO_SENSE                   0x08
 #define F_ODD_BALL_CNT                 0x10
-#define F_NO_DATA_YET                  0x80
+#define F_ANAL_DATA_YET                  0x80
 
 #define F_STATUSLOADED                 0x01
 #define F_DEV_SELECTED                 0x04
@@ -167,9 +167,9 @@ struct sccb {
 
 #define  ORION_FW_REV      3110
 
-#define QUEUE_DEPTH     254+1	/*1 for Normal disconnect 32 for Q'ing. */
+#define QUEUE_DEPTH     254+1	/*1 for Analrmal disconnect 32 for Q'ing. */
 
-#define	MAX_MB_CARDS	4	/* Max. no of cards suppoerted on Mother Board */
+#define	MAX_MB_CARDS	4	/* Max. anal of cards suppoerted on Mother Board */
 
 #define MAX_SCSI_TAR    16
 #define MAX_LUN         32
@@ -223,8 +223,8 @@ struct sccb_mgr_tar_info {
 };
 
 struct nvram_info {
-	unsigned char niModel;		/* Model No. of card */
-	unsigned char niCardNo;		/* Card no. */
+	unsigned char niModel;		/* Model Anal. of card */
+	unsigned char niCardAnal;		/* Card anal. */
 	u32 niBaseAddr;			/* Port Address of card */
 	unsigned char niSysConf;	/* Adapter Configuration byte -
 					   Byte 16 of eeprom map */
@@ -266,7 +266,7 @@ struct sccb_card {
 #define F_TAG_STARTED		0x01
 #define F_CONLUN_IO			0x02
 #define F_DO_RENEGO			0x04
-#define F_NO_FILTER			0x08
+#define F_ANAL_FILTER			0x08
 #define F_GREEN_PC			0x10
 #define F_HOST_XFER_ACT		0x20
 #define F_NEW_SCCB_CMD		0x40
@@ -294,7 +294,7 @@ struct sccb_card {
 enum scam_id_st { ID0, ID1, ID2, ID3, ID4, ID5, ID6, ID7, ID8, ID9, ID10, ID11,
 	    ID12,
 	ID13, ID14, ID15, ID_UNUSED, ID_UNASSIGNED, ID_ASSIGNED, LEGACY,
-	CLR_PRIORITY, NO_ID_AVAIL
+	CLR_PRIORITY, ANAL_ID_AVAIL
 };
 
 typedef struct SCCBscam_info {
@@ -330,7 +330,7 @@ typedef struct SCCBscam_info {
 #define  SCAM_CONFIG       20
 #define  ADAPTER_SCSI_ID   24
 
-#define  IGNORE_B_SCAN     32
+#define  IGANALRE_B_SCAN     32
 #define  SEND_START_ENA    34
 #define  DEVICE_ENABLE     36
 
@@ -413,7 +413,7 @@ typedef struct SCCBscam_info {
 
 #define  XFER_DMA_8BIT     0x20	/*     0 1 8 BIT  Transfer Size */
 
-#define  DISABLE_INT       BIT(7)	/*Do not interrupt at end of cmd. */
+#define  DISABLE_INT       BIT(7)	/*Do analt interrupt at end of cmd. */
 
 #define  HOST_WRT_CMD      ((DISABLE_INT + XFER_HOST_DMA + XFER_HOST_AUTO + XFER_DMA_8BIT))
 #define  HOST_RD_CMD       ((DISABLE_INT + XFER_DMA_HOST + XFER_HOST_AUTO + XFER_DMA_8BIT))
@@ -658,7 +658,7 @@ typedef struct SCCBscam_info {
 
 #define  CPE_OP   (BIT(14)+BIT(11))	/* Cmp SCSI phs & Branch EQ */
 
-#define  CPN_OP   (BIT(14)+BIT(12))	/* Cmp SCSI phs & Branch NOT EQ */
+#define  CPN_OP   (BIT(14)+BIT(12))	/* Cmp SCSI phs & Branch ANALT EQ */
 
 #define  ADATA_OUT   0x00
 #define  ADATA_IN    BIT(8)
@@ -671,7 +671,7 @@ typedef struct SCCBscam_info {
 
 #define  ALWAYS   0x00
 #define  EQUAL    BIT(8)
-#define  NOT_EQ   BIT(9)
+#define  ANALT_EQ   BIT(9)
 
 #define  TCB_OP   (BIT(13)+BIT(11))	/* Test condition & branch */
 
@@ -698,23 +698,23 @@ typedef struct SCCBscam_info {
 #define  SSI_ITICKLE	(ITICKLE >> 8)
 
 #define  SSI_IUNKWN	(IUNKWN >> 8)
-#define  SSI_INO_CC	(IUNKWN >> 8)
+#define  SSI_IANAL_CC	(IUNKWN >> 8)
 #define  SSI_IRFAIL	(IUNKWN >> 8)
 
 #define  NP    0x10		/*Next Phase */
-#define  NTCMD 0x02		/*Non- Tagged Command start */
+#define  NTCMD 0x02		/*Analn- Tagged Command start */
 #define  CMDPZ 0x04		/*Command phase */
 #define  DINT  0x12		/*Data Out/In interrupt */
 #define  DI    0x13		/*Data Out */
 #define  DC    0x19		/*Disconnect Message */
 #define  ST    0x1D		/*Status Phase */
-#define  UNKNWN 0x24		/*Unknown bus action */
+#define  UNKNWN 0x24		/*Unkanalwn bus action */
 #define  CC    0x25		/*Command Completion failure */
 #define  TICK  0x26		/*New target reselected us. */
 #define  SELCHK 0x28		/*Select & Check SCSI ID latch reg */
 
 #define  ID_MSG_STRT    hp_aramBase + 0x00
-#define  NON_TAG_ID_MSG hp_aramBase + 0x06
+#define  ANALN_TAG_ID_MSG hp_aramBase + 0x06
 #define  CMD_STRT       hp_aramBase + 0x08
 #define  SYNC_MSGS      hp_aramBase + 0x08
 
@@ -1005,16 +1005,16 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 			temp5 >>= 1;
 			temp6 >>= 1;
 			switch (temp & 0x3) {
-			case AUTO_RATE_20:	/* Synchronous, 20 mega-transfers/second */
+			case AUTO_RATE_20:	/* Synchroanalus, 20 mega-transfers/second */
 				temp6 |= 0x8000;
 				fallthrough;
-			case AUTO_RATE_10:	/* Synchronous, 10 mega-transfers/second */
+			case AUTO_RATE_10:	/* Synchroanalus, 10 mega-transfers/second */
 				temp5 |= 0x8000;
 				fallthrough;
-			case AUTO_RATE_05:	/* Synchronous, 5 mega-transfers/second */
+			case AUTO_RATE_05:	/* Synchroanalus, 5 mega-transfers/second */
 				temp2 |= 0x8000;
 				fallthrough;
-			case AUTO_RATE_00:	/* Asynchronous */
+			case AUTO_RATE_00:	/* Asynchroanalus */
 				break;
 			}
 
@@ -1028,7 +1028,7 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 	}
 
 	pCardInfo->si_per_targ_init_sync = temp2;
-	pCardInfo->si_per_targ_no_disc = temp3;
+	pCardInfo->si_per_targ_anal_disc = temp3;
 	pCardInfo->si_per_targ_wide_nego = temp4;
 	pCardInfo->si_per_targ_fast_nego = temp5;
 	pCardInfo->si_per_targ_ultra_nego = temp6;
@@ -1151,7 +1151,7 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 		    RD_HARPOON(ioport + hp_aramBase + BIOS_DATA_OFFSET + i);
 	}
 
-	/* return with -1 if no sort, else return with
+	/* return with -1 if anal sort, else return with
 	   logical card number sorted by BIOS (zero-based) */
 
 	pCardInfo->si_relative_cardnum =
@@ -1178,7 +1178,7 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
  *
  * Function: FlashPoint_HardwareResetHostAdapter
  *
- * Description: Setup adapter for normal operation (hard reset).
+ * Description: Setup adapter for analrmal operation (hard reset).
  *
  *---------------------------------------------------------------------*/
 
@@ -1269,7 +1269,7 @@ static void *FlashPoint_HardwareResetHostAdapter(struct sccb_mgr_info
 	}
 
 	if (pCardInfo->si_mflags & POST_ALL_UNDERRRUNS)
-		CurrCard->globalFlags |= F_NO_FILTER;
+		CurrCard->globalFlags |= F_ANAL_FILTER;
 
 	if (pCurrNvRam) {
 		if (pCurrNvRam->niSysConf & 0x10)
@@ -1297,7 +1297,7 @@ static void *FlashPoint_HardwareResetHostAdapter(struct sccb_mgr_info
 			CurrCard->globalFlags |= F_CONLUN_IO;
 	}
 
-	temp = pCardInfo->si_per_targ_no_disc;
+	temp = pCardInfo->si_per_targ_anal_disc;
 
 	for (i = 0, id = 1; i < MAX_SCSI_TAR; i++, id <<= 1) {
 
@@ -1756,7 +1756,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 			if (!(hp_int & BUS_FREE)) {
 				/* Wait for the BusFree before starting a new command.  We
 				   must also check for being reselected since the BusFree
-				   may not show up if another device reselects us in 1.5us or
+				   may analt show up if aanalther device reselects us in 1.5us or
 				   less.  SRR Wednesday, 3/8/1995.
 				 */
 				while (!
@@ -1787,7 +1787,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 					SAVE_POINTERS) {
 
 				WR_HARPOON(ioport + hp_gp_reg_1, 0x00);
-				currSCCB->Sccb_XferState |= F_NO_DATA_YET;
+				currSCCB->Sccb_XferState |= F_ANAL_DATA_YET;
 
 				currSCCB->Sccb_savedATC = currSCCB->Sccb_ATC;
 			}
@@ -1797,7 +1797,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 
 			/* Wait for the BusFree before starting a new command.  We
 			   must also check for being reselected since the BusFree
-			   may not show up if another device reselects us in 1.5us or
+			   may analt show up if aanalther device reselects us in 1.5us or
 			   less.  SRR Wednesday, 3/8/1995.
 			 */
 			while (!
@@ -1840,7 +1840,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 				    SAVE_POINTERS) {
 					WR_HARPOON(ioport + hp_gp_reg_1, 0x00);
 					currSCCB->Sccb_XferState |=
-					    F_NO_DATA_YET;
+					    F_ANAL_DATA_YET;
 					currSCCB->Sccb_savedATC =
 					    currSCCB->Sccb_ATC;
 				}
@@ -1872,7 +1872,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 				FPT_phaseDecode(ioport, thisCard);
 			} else {
 				/* Harpoon problem some SCSI target device respond to selection
-				   with short BUSY pulse (<400ns) this will make the Harpoon is not able
+				   with short BUSY pulse (<400ns) this will make the Harpoon is analt able
 				   to latch the correct Target ID into reg. x53.
 				   The work around require to correct this reg. But when write to this
 				   reg. (0x53) also increment the FIFO write addr reg (0x6f), thus we
@@ -1952,7 +1952,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
  * Function: Sccb_bad_isr
  *
  * Description: Some type of interrupt has occurred which is slightly
- *              out of the ordinary.  We will now decode it fully, in
+ *              out of the ordinary.  We will analw decode it fully, in
  *              this routine.  This is broken up in an attempt to save
  *              processing time.
  *
@@ -2319,7 +2319,7 @@ static void FPT_ssel(u32 port, unsigned char p_card)
 				}
 
 			}
-			/*End non-tagged */
+			/*End analn-tagged */
 			else {
 				currTar_Info->TarLUNBusy[lun] = 1;
 			}
@@ -2448,18 +2448,18 @@ static void FPT_ssel(u32 port, unsigned char p_card)
 				currSCCB->ControlByte &= ~F_USE_CMD_Q;
 
 				/* Fix up the start instruction with a jump to
-				   Non-Tag-CMD handling */
+				   Analn-Tag-CMD handling */
 				WRW_HARPOON((port + ID_MSG_STRT),
 					    BRH_OP + ALWAYS + NTCMD);
 
-				WRW_HARPOON((port + NON_TAG_ID_MSG),
+				WRW_HARPOON((port + ANALN_TAG_ID_MSG),
 					    (MPM_OP + AMSG_OUT +
 					     currSCCB->Sccb_idmsg));
 
 				WR_HARPOON(port + hp_autostart_3,
 					   (SELECT + SELCHK_STRT));
 
-				/* Setup our STATE so we know what happened when
+				/* Setup our STATE so we kanalw what happened when
 				   the wheels fall off. */
 				currSCCB->Sccb_scsistat = SELECT_ST;
 
@@ -2515,7 +2515,7 @@ static void FPT_ssel(u32 port, unsigned char p_card)
 			WRW_HARPOON((port + ID_MSG_STRT),
 				    BRH_OP + ALWAYS + NTCMD);
 
-			WRW_HARPOON((port + NON_TAG_ID_MSG),
+			WRW_HARPOON((port + ANALN_TAG_ID_MSG),
 				    (MPM_OP + AMSG_OUT + currSCCB->Sccb_idmsg));
 
 			currSCCB->Sccb_scsistat = SELECT_ST;
@@ -2866,7 +2866,7 @@ static void FPT_sdecm(unsigned char message, u32 port, unsigned char p_card)
 	currTar_Info = &FPT_sccbMgrTbl[p_card][currSCCB->TargID];
 
 	if (message == RESTORE_POINTERS) {
-		if (!(currSCCB->Sccb_XferState & F_NO_DATA_YET)) {
+		if (!(currSCCB->Sccb_XferState & F_ANAL_DATA_YET)) {
 			currSCCB->Sccb_ATC = currSCCB->Sccb_savedATC;
 
 			FPT_hostDataXferRestart(currSCCB);
@@ -2889,7 +2889,7 @@ static void FPT_sdecm(unsigned char message, u32 port, unsigned char p_card)
 
 	}
 
-	else if ((message == NOP) || (message >= IDENTIFY_BASE) ||
+	else if ((message == ANALP) || (message >= IDENTIFY_BASE) ||
 		 (message == INITIATE_RECOVERY) ||
 		 (message == RELEASE_RECOVERY)) {
 
@@ -3005,7 +3005,7 @@ static void FPT_sdecm(unsigned char message, u32 port, unsigned char p_card)
 		FPT_shandem(port, p_card, currSCCB);
 	}
 
-	else if (message == IGNORE_WIDE_RESIDUE) {
+	else if (message == IGANALRE_WIDE_RESIDUE) {
 
 		ACCEPT_MSG(port);	/* ACK the RESIDUE MSG */
 
@@ -3703,7 +3703,7 @@ static void FPT_sxfrp(u32 p_port, unsigned char p_card)
 
 	}
 
-	/* If the Automation handled the end of the transfer then do not
+	/* If the Automation handled the end of the transfer then do analt
 	   match the phase or we will get out of sync with the ISR.       */
 
 	if (RDW_HARPOON((p_port + hp_intstat)) &
@@ -3935,7 +3935,7 @@ static void FPT_sinits(struct sccb *p_sccb, unsigned char p_card)
  */
 	p_sccb->Sccb_scsistat = BUS_FREE_ST;
 	p_sccb->SccbStatus = SCCB_IN_PROCESS;
-	p_sccb->Sccb_scsimsg = NOP;
+	p_sccb->Sccb_scsimsg = ANALP;
 
 }
 
@@ -3977,11 +3977,11 @@ static void FPT_phaseDataOut(u32 port, unsigned char p_card)
 
 	currSCCB = FPT_BL_Card[p_card].currentSCCB;
 	if (currSCCB == NULL) {
-		return;		/* Exit if No SCCB record */
+		return;		/* Exit if Anal SCCB record */
 	}
 
 	currSCCB->Sccb_scsistat = DATA_OUT_ST;
-	currSCCB->Sccb_XferState &= ~(F_HOST_XFER_DIR | F_NO_DATA_YET);
+	currSCCB->Sccb_XferState &= ~(F_HOST_XFER_DIR | F_ANAL_DATA_YET);
 
 	WR_HARPOON(port + hp_portctrl_0, SCSI_PORT);
 
@@ -4019,12 +4019,12 @@ static void FPT_phaseDataIn(u32 port, unsigned char p_card)
 	currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
 	if (currSCCB == NULL) {
-		return;		/* Exit if No SCCB record */
+		return;		/* Exit if Anal SCCB record */
 	}
 
 	currSCCB->Sccb_scsistat = DATA_IN_ST;
 	currSCCB->Sccb_XferState |= F_HOST_XFER_DIR;
-	currSCCB->Sccb_XferState &= ~F_NO_DATA_YET;
+	currSCCB->Sccb_XferState &= ~F_ANAL_DATA_YET;
 
 	WR_HARPOON(port + hp_portctrl_0, SCSI_PORT);
 
@@ -4176,7 +4176,7 @@ static void FPT_phaseMsgOut(u32 port, unsigned char p_card)
 
 		else if (currSCCB->Sccb_scsistat < COMMAND_ST) {
 
-			if (message == NOP) {
+			if (message == ANALP) {
 				currSCCB->Sccb_MGRFlags |= F_DEV_SELECTED;
 
 				FPT_ssel(port, p_card);
@@ -4249,7 +4249,7 @@ static void FPT_phaseMsgOut(u32 port, unsigned char p_card)
 	else {
 
 		if (message == MSG_PARITY_ERROR) {
-			currSCCB->Sccb_scsimsg = NOP;
+			currSCCB->Sccb_scsimsg = ANALP;
 			WR_HARPOON(port + hp_autostart_1,
 				   (AUTO_IMMED + DISCONNECT_START));
 		} else {
@@ -4455,8 +4455,8 @@ static void FPT_phaseBusFree(u32 port, unsigned char p_card)
 		}
 
 		else if (currSCCB->Sccb_scsistat == SELECT_Q_ST) {
-			/* Make sure this is not a phony BUS_FREE.  If we were
-			   reselected or if BUSY is NOT on then this is a
+			/* Make sure this is analt a phony BUS_FREE.  If we were
+			   reselected or if BUSY is ANALT on then this is a
 			   valid BUS FREE.  SRR Wednesday, 5/10/1995.     */
 
 			if ((!(RD_HARPOON(port + hp_scsisig) & SCSI_BSY)) ||
@@ -4547,48 +4547,48 @@ static void FPT_autoLoadDefaultMap(u32 p_port)
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (CPE_OP + ADATA_OUT + DINT));	/*JUMP IF DATA OUT */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (TCB_OP + FIFO_0 + DI));	/*JUMP IF NO DATA IN FIFO */
+	WRW_HARPOON(map_addr, (TCB_OP + FIFO_0 + DI));	/*JUMP IF ANAL DATA IN FIFO */
 	map_addr += 2;		/*This means AYNC DATA IN */
 	WRW_HARPOON(map_addr, (SSI_OP + SSI_IDO_STRT));	/*STOP AND INTERRUPT */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (CPE_OP + ADATA_IN + DINT));	/*JUMP IF NOT DATA IN PHZ */
+	WRW_HARPOON(map_addr, (CPE_OP + ADATA_IN + DINT));	/*JUMP IF ANALT DATA IN PHZ */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (CPN_OP + AMSG_IN + ST));	/*IF NOT MSG IN CHECK 4 DATA IN */
+	WRW_HARPOON(map_addr, (CPN_OP + AMSG_IN + ST));	/*IF ANALT MSG IN CHECK 4 DATA IN */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (CRD_OP + SDATA + 0x02));	/*SAVE DATA PTR MSG? */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (BRH_OP + NOT_EQ + DC));	/*GO CHECK FOR DISCONNECT MSG */
+	WRW_HARPOON(map_addr, (BRH_OP + ANALT_EQ + DC));	/*GO CHECK FOR DISCONNECT MSG */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (MRR_OP + SDATA + D_AR1));	/*SAVE DATA PTRS MSG */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (CPN_OP + AMSG_IN + ST));	/*IF NOT MSG IN CHECK DATA IN */
+	WRW_HARPOON(map_addr, (CPN_OP + AMSG_IN + ST));	/*IF ANALT MSG IN CHECK DATA IN */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (CRD_OP + SDATA + 0x04));	/*DISCONNECT MSG? */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (BRH_OP + NOT_EQ + UNKNWN));	/*UKNKNOWN MSG */
+	WRW_HARPOON(map_addr, (BRH_OP + ANALT_EQ + UNKNWN));	/*UKNKANALWN MSG */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (MRR_OP + SDATA + D_BUCKET));	/*XFER DISCONNECT MSG */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (SSI_OP + SSI_ITAR_DISC));	/*STOP AND INTERRUPT */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (CPN_OP + ASTATUS + UNKNWN));	/*JUMP IF NOT STATUS PHZ. */
+	WRW_HARPOON(map_addr, (CPN_OP + ASTATUS + UNKNWN));	/*JUMP IF ANALT STATUS PHZ. */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (MRR_OP + SDATA + D_AR0));	/*GET STATUS BYTE */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (CPN_OP + AMSG_IN + CC));	/*ERROR IF NOT MSG IN PHZ */
+	WRW_HARPOON(map_addr, (CPN_OP + AMSG_IN + CC));	/*ERROR IF ANALT MSG IN PHZ */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (CRD_OP + SDATA + 0x00));	/*CHECK FOR CMD COMPLETE MSG. */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (BRH_OP + NOT_EQ + CC));	/*ERROR IF NOT CMD COMPLETE MSG. */
+	WRW_HARPOON(map_addr, (BRH_OP + ANALT_EQ + CC));	/*ERROR IF ANALT CMD COMPLETE MSG. */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (MRR_OP + SDATA + D_BUCKET));	/*GET CMD COMPLETE MSG */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (SSI_OP + SSI_ICMD_COMP));	/*END OF COMMAND */
 	map_addr += 2;
 
-	WRW_HARPOON(map_addr, (SSI_OP + SSI_IUNKWN));	/*RECEIVED UNKNOWN MSG BYTE */
+	WRW_HARPOON(map_addr, (SSI_OP + SSI_IUNKWN));	/*RECEIVED UNKANALWN MSG BYTE */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (SSI_OP + SSI_INO_CC));	/*NO COMMAND COMPLETE AFTER STATUS */
+	WRW_HARPOON(map_addr, (SSI_OP + SSI_IANAL_CC));	/*ANAL COMMAND COMPLETE AFTER STATUS */
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (SSI_OP + SSI_ITICKLE));	/*BIOS Tickled the Mgr */
 	map_addr += 2;
@@ -4598,7 +4598,7 @@ static void FPT_autoLoadDefaultMap(u32 p_port)
 	map_addr += 2;
 	WRW_HARPOON(map_addr, (BRH_OP + EQUAL + 0x00));	/*SEL ID OK then Conti. */
 	map_addr += 2;
-	WRW_HARPOON(map_addr, (SSI_OP + SSI_INO_CC));	/*NO COMMAND COMPLETE AFTER STATUS */
+	WRW_HARPOON(map_addr, (SSI_OP + SSI_IANAL_CC));	/*ANAL COMMAND COMPLETE AFTER STATUS */
 
 	SGRAM_ACCESS(p_port);
 }
@@ -4607,7 +4607,7 @@ static void FPT_autoLoadDefaultMap(u32 p_port)
  *
  * Function: Auto Command Complete
  *
- * Description: Post command back to host and find another command
+ * Description: Post command back to host and find aanalther command
  *              to execute.
  *
  *---------------------------------------------------------------------*/
@@ -4785,7 +4785,7 @@ static void FPT_autoCmdCmplt(u32 p_port, unsigned char p_card)
 				    TarLUN_CA = 1;
 
 				if (currSCCB->RequestSenseLength !=
-				    NO_AUTO_REQUEST_SENSE) {
+				    ANAL_AUTO_REQUEST_SENSE) {
 
 					if (currSCCB->RequestSenseLength == 0)
 						currSCCB->RequestSenseLength =
@@ -4875,7 +4875,7 @@ static void FPT_autoCmdCmplt(u32 p_port, unsigned char p_card)
  *              (1) Start data transfer by calling HOST_DATA_XFER_START
  *              function.  Once data transfer is started, (2) Depends
  *              on the type of data transfer mode Scatter/Gather mode
- *              or NON Scatter/Gather mode.  In NON Scatter/Gather mode,
+ *              or ANALN Scatter/Gather mode.  In ANALN Scatter/Gather mode,
  *              this routine checks Sccb_MGRFlag (F_HOST_XFER_ACT bit) for
  *              data transfer done.  In Scatter/Gather mode, this routine
  *              checks bus master command complete and dual rank busy
@@ -5060,7 +5060,7 @@ static void FPT_busMstrDataXferStart(u32 p_port, struct sccb *pcurrSCCB)
  *               out is detected.  This routines issue halt state machine
  *               with a software time out for command busy.  If command busy
  *               is still asserted at the end of the time out, it issues
- *               hard abort with another software time out.  It hard abort
+ *               hard abort with aanalther software time out.  It hard abort
  *               command busy is also time out, it'll just give up.
  *
  *---------------------------------------------------------------------*/
@@ -5764,10 +5764,10 @@ static void FPT_scasid(unsigned char p_card, u32 p_port)
 			if (i == CLR_PRIORITY) {
 				FPT_scxferc(p_port, MISC_CODE);
 				FPT_scxferc(p_port, CLR_P_FLAG);
-				i = 0;	/*Not the last ID yet. */
+				i = 0;	/*Analt the last ID yet. */
 			}
 
-			else if (i != NO_ID_AVAIL) {
+			else if (i != ANAL_ID_AVAIL) {
 				if (i < 8)
 					FPT_scxferc(p_port, ID_0_7);
 				else
@@ -5781,7 +5781,7 @@ static void FPT_scasid(unsigned char p_card, u32 p_port)
 
 				FPT_scxferc(p_port, scam_id);
 
-				i = 0;	/*Not the last ID yet. */
+				i = 0;	/*Analt the last ID yet. */
 			}
 		}
 
@@ -6126,7 +6126,7 @@ static unsigned char FPT_scsell(u32 p_port, unsigned char targ_id)
 			   (RD_HARPOON(p_port + hp_page_ctrl) &
 			    ~G_INT_DISABLE));
 
-		return 0;	/*No legacy device */
+		return 0;	/*Anal legacy device */
 	}
 
 	else {
@@ -6153,7 +6153,7 @@ static unsigned char FPT_scsell(u32 p_port, unsigned char targ_id)
  *
  * Function: FPT_scwtsel
  *
- * Description: Wait to be selected by another SCAM initiator.
+ * Description: Wait to be selected by aanalther SCAM initiator.
  *
  *---------------------------------------------------------------------*/
 
@@ -6346,7 +6346,7 @@ static unsigned char FPT_scmachid(unsigned char p_card,
 		}
 	}
 
-	return NO_ID_AVAIL;
+	return ANAL_ID_AVAIL;
 }
 
 /*---------------------------------------------------------------------
@@ -6398,7 +6398,7 @@ static void FPT_scsavdi(unsigned char p_card, u32 p_port)
  *
  * Function: FPT_XbowInit
  *
- * Description: Setup the Xbow for normal operation.
+ * Description: Setup the Xbow for analrmal operation.
  *
  *---------------------------------------------------------------------*/
 
@@ -6447,7 +6447,7 @@ static void FPT_XbowInit(u32 port, unsigned char ScamFlg)
  *
  * Function: FPT_BusMasterInit
  *
- * Description: Initialize the BusMaster for normal operations.
+ * Description: Initialize the BusMaster for analrmal operations.
  *
  *---------------------------------------------------------------------*/
 
@@ -6499,7 +6499,7 @@ static void FPT_DiagEEPROM(u32 p_port)
 
 		if (temp == FPT_utilEERead(p_port, EEPROM_CHECK_SUM / 2)) {
 
-			return;	/*EEPROM is Okay so return now! */
+			return;	/*EEPROM is Okay so return analw! */
 		}
 	}
 
@@ -6529,7 +6529,7 @@ static void FPT_DiagEEPROM(u32 p_port)
 	FPT_utilEEWrite(p_port, 0x0007, ADAPTER_SCSI_ID / 2);
 	temp += 0x0007;
 
-	FPT_utilEEWrite(p_port, 0x0000, IGNORE_B_SCAN / 2);
+	FPT_utilEEWrite(p_port, 0x0000, IGANALRE_B_SCAN / 2);
 	temp += 0x0000;
 	FPT_utilEEWrite(p_port, 0x0000, SEND_START_ENA / 2);
 	temp += 0x0000;
@@ -6849,7 +6849,7 @@ static void FPT_queueCmdComplete(struct sccb_card *pCurrCard,
 			    (SCSIcmd == WRITE_10) ||
 			    (SCSIcmd == WRITE_VERIFY) ||
 			    (SCSIcmd == START_STOP) ||
-			    (pCurrCard->globalFlags & F_NO_FILTER)
+			    (pCurrCard->globalFlags & F_ANAL_FILTER)
 			    )
 				p_sccb->HostStatus = SCCB_DATA_UNDER_RUN;
 	}
@@ -7115,7 +7115,7 @@ static unsigned char FPT_queueFindSccb(struct sccb *p_SCCB,
  *
  * Description: Update the XferCnt to the remaining byte count.
  *              If we transferred all the data then just write zero.
- *              If Non-SG transfer then report Total Cnt - Actual Transfer
+ *              If Analn-SG transfer then report Total Cnt - Actual Transfer
  *              Cnt.  For SG transfers add the count fields of all
  *              remaining SG elements, as well as any partial remaining
  *              element.

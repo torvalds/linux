@@ -33,7 +33,7 @@
 /* cpu_has_dc_aliases */
 #define cpu_has_ic_fills_f_dc		0
 #define cpu_has_pindexed_dcache		0
-#define cpu_icache_snoops_remote_store	0
+#define cpu_icache_sanalops_remote_store	0
 
 #define cpu_has_mips_2			1
 #define cpu_has_mips_3			0
@@ -56,7 +56,7 @@
 #define cpu_has_mipsmt			0
 /* cpu_has_userlocal */
 
-#define cpu_has_nofpuex			0
+#define cpu_has_analfpuex			0
 #define cpu_has_64bits			0
 #define cpu_has_64bit_zero_reg		0
 #if defined(CONFIG_BCM47XX_BCMA) && !defined(CONFIG_BCM47XX_SSB)

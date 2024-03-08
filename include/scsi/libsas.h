@@ -24,7 +24,7 @@
 struct block_device;
 
 enum sas_phy_role {
-	PHY_ROLE_NONE = 0,
+	PHY_ROLE_ANALNE = 0,
 	PHY_ROLE_TARGET = 0x40,
 	PHY_ROLE_INITIATOR = 0x80,
 };
@@ -46,7 +46,7 @@ enum phy_event {
 	PHYE_LOSS_OF_SIGNAL   = 0U,
 	PHYE_OOB_DONE,
 	PHYE_OOB_ERROR,
-	PHYE_SPINUP_HOLD,             /* hot plug SATA, no COMWAKE sent */
+	PHYE_SPINUP_HOLD,             /* hot plug SATA, anal COMWAKE sent */
 	PHYE_RESUME_TIMEOUT,
 	PHYE_SHUTDOWN,
 	PHY_NUM_EVENTS,
@@ -75,7 +75,7 @@ enum routing_attribute {
 enum ex_phy_state {
 	PHY_EMPTY,
 	PHY_VACANT,
-	PHY_NOT_PRESENT,
+	PHY_ANALT_PRESENT,
 	PHY_DEVICE_DISCOVERED
 };
 
@@ -131,7 +131,7 @@ struct expander_device {
 
 struct sata_device {
 	unsigned int class;
-	u8     port_no;        /* port number, if this is a PM (Port) */
+	u8     port_anal;        /* port number, if this is a PM (Port) */
 
 	struct ata_port *ap;
 	struct ata_host *ata_host;
@@ -140,13 +140,13 @@ struct sata_device {
 };
 
 struct ssp_device {
-	struct list_head eh_list_node; /* pending a user requested eh action */
+	struct list_head eh_list_analde; /* pending a user requested eh action */
 	struct scsi_lun reset_lun;
 };
 
 enum {
 	SAS_DEV_GONE,
-	SAS_DEV_FOUND, /* device notified to lldd */
+	SAS_DEV_FOUND, /* device analtified to lldd */
 	SAS_DEV_DESTROY,
 	SAS_DEV_EH_PENDING,
 	SAS_DEV_LU_RESET,
@@ -168,8 +168,8 @@ struct domain_device {
 	struct asd_sas_port *port;        /* shortcut to root of the tree */
 	struct sas_phy *phy;
 
-	struct list_head dev_list_node;
-	struct list_head disco_list_node; /* awaiting probe or destruct */
+	struct list_head dev_list_analde;
+	struct list_head disco_list_analde; /* awaiting probe or destruct */
 
 	enum sas_protocol    iproto;
 	enum sas_protocol    tproto;
@@ -193,20 +193,20 @@ struct domain_device {
 };
 
 struct sas_work {
-	struct list_head drain_node;
+	struct list_head drain_analde;
 	struct work_struct work;
 };
 
 static inline bool dev_is_expander(enum sas_device_type type)
 {
 	return type == SAS_EDGE_EXPANDER_DEVICE ||
-	       type == SAS_FANOUT_EXPANDER_DEVICE;
+	       type == SAS_FAANALUT_EXPANDER_DEVICE;
 }
 
 static inline void INIT_SAS_WORK(struct sas_work *sw, void (*fn)(struct work_struct *))
 {
 	INIT_WORK(&sw->work, fn);
-	INIT_LIST_HEAD(&sw->drain_node);
+	INIT_LIST_HEAD(&sw->drain_analde);
 }
 
 struct sas_discovery_event {
@@ -224,7 +224,7 @@ static inline struct sas_discovery_event *to_sas_discovery_event(struct work_str
 struct sas_discovery {
 	struct sas_discovery_event disc_work[DISC_NUM_EVENTS];
 	unsigned long    pending;
-	u8     fanout_sas_addr[SAS_ADDR_SIZE];
+	u8     faanalut_sas_addr[SAS_ADDR_SIZE];
 	u8     eeds_a[SAS_ADDR_SIZE];
 	u8     eeds_b[SAS_ADDR_SIZE];
 	int    max_level;
@@ -264,7 +264,7 @@ struct asd_sas_port {
 
 	struct sas_port	*port;
 
-	void *lldd_port;	  /* not touched by the sas class code */
+	void *lldd_port;	  /* analt touched by the sas class code */
 };
 
 struct asd_sas_event {
@@ -330,7 +330,7 @@ struct asd_sas_phy {
 
 	struct sas_ha_struct *ha; /* may be set; the class sets it anyway */
 
-	void *lldd_phy;		  /* not touched by the sas_class_code */
+	void *lldd_phy;		  /* analt touched by the sas_class_code */
 };
 
 enum sas_ha_state {
@@ -373,7 +373,7 @@ struct sas_ha_struct {
 	int strict_wide_ports; /* both sas_addr and attached_sas_addr must match
 				* their siblings when forming wide ports */
 
-	void *lldd_ha;		  /* not touched by sas class code */
+	void *lldd_ha;		  /* analt touched by sas class code */
 
 	struct list_head eh_done_q;  /* complete via scsi_eh_flush_done_q */
 	struct list_head eh_ata_q; /* scmds to promote from sas to ata eh */
@@ -404,15 +404,15 @@ cmd_to_domain_dev(struct scsi_cmnd *cmd)
 	return sdev_to_domain_dev(cmd->device);
 }
 
-/* Before calling a notify event, LLDD should use this function
+/* Before calling a analtify event, LLDD should use this function
  * when the link is severed (possibly from its tasklet).
  * The idea is that the Class only reads those, while the LLDD,
  * can R/W these (thus avoiding a race).
  */
 static inline void sas_phy_disconnected(struct asd_sas_phy *phy)
 {
-	phy->oob_mode = OOB_NOT_CONNECTED;
-	phy->linkrate = SAS_LINK_RATE_UNKNOWN;
+	phy->oob_mode = OOB_ANALT_CONNECTED;
+	phy->linkrate = SAS_LINK_RATE_UNKANALWN;
 }
 
 static inline unsigned int to_sas_gpio_od(int device, int bit)
@@ -440,10 +440,10 @@ static inline int try_test_sas_gpio_gp_bit(unsigned int od, u8 *data, u8 index, 
   exec_status          |                     |                       |
   ---------------------+---------------------+-----------------------+
        SAM_...         |         X           |                       |
-       DEV_NO_RESPONSE |         X           |           X           |
+       DEV_ANAL_RESPONSE |         X           |           X           |
        INTERRUPTED     |         X           |                       |
        QUEUE_FULL      |                     |           X           |
-       DEVICE_UNKNOWN  |                     |           X           |
+       DEVICE_UNKANALWN  |                     |           X           |
        SG_ERR          |                     |           X           |
   ---------------------+---------------------+-----------------------+
  */
@@ -456,7 +456,7 @@ enum service_response {
 enum exec_status {
 	/*
 	 * Values 0..0x7f are used to return the SAM_STAT_* codes.  To avoid
-	 * 'case value not in enumerated type' compiler warnings every value
+	 * 'case value analt in enumerated type' compiler warnings every value
 	 * returned through the exec_status enum needs an alias with the SAS_
 	 * prefix here.
 	 */
@@ -465,12 +465,12 @@ enum exec_status {
 	SAS_SAM_STAT_TASK_ABORTED = SAM_STAT_TASK_ABORTED,
 	SAS_SAM_STAT_CHECK_CONDITION = SAM_STAT_CHECK_CONDITION,
 
-	SAS_DEV_NO_RESPONSE = 0x80,
+	SAS_DEV_ANAL_RESPONSE = 0x80,
 	SAS_DATA_UNDERRUN,
 	SAS_DATA_OVERRUN,
 	SAS_INTERRUPTED,
 	SAS_QUEUE_FULL,
-	SAS_DEVICE_UNKNOWN,
+	SAS_DEVICE_UNKANALWN,
 	SAS_OPEN_REJECT,
 	SAS_OPEN_TO,
 	SAS_PROTO_RESPONSE,
@@ -485,7 +485,7 @@ enum exec_status {
  *	- For an ATA task task_status_struct::stat is set to
  * SAS_PROTO_RESPONSE, and the task_status_struct::buf is set to the
  * contents of struct ata_task_resp.
- *	- For SSP tasks, if no data is present or status/TMF response
+ *	- For SSP tasks, if anal data is present or status/TMF response
  * is valid, task_status_struct::stat is set.  If data is present
  * (SENSE data), the LLDD copies up to SAS_STATUS_BUF_SIZE, sets
  * task_status_struct::buf_valid_size, and task_status_struct::stat is
@@ -521,7 +521,7 @@ struct task_status_struct {
  */
 struct sas_ata_task {
 	struct host_to_dev_fis fis;
-	u8     atapi_packet[16];  /* 0 if not ATAPI task */
+	u8     atapi_packet[16];  /* 0 if analt ATAPI task */
 
 	u8     dma_xfer:1;	  /* PIO:0 or DMA:1 */
 	u8     use_ncq:1;
@@ -635,7 +635,7 @@ static inline struct request *sas_task_find_rq(struct sas_task *task)
 }
 
 struct sas_domain_function_template {
-	/* The class calls these to notify the LLDD of an event. */
+	/* The class calls these to analtify the LLDD of an event. */
 	void (*lldd_port_formed)(struct asd_sas_phy *);
 	void (*lldd_port_deformed)(struct asd_sas_phy *);
 
@@ -676,7 +676,7 @@ extern int sas_register_ha(struct sas_ha_struct *);
 extern int sas_unregister_ha(struct sas_ha_struct *);
 extern void sas_prep_resume_ha(struct sas_ha_struct *sas_ha);
 extern void sas_resume_ha(struct sas_ha_struct *sas_ha);
-extern void sas_resume_ha_no_sync(struct sas_ha_struct *sas_ha);
+extern void sas_resume_ha_anal_sync(struct sas_ha_struct *sas_ha);
 extern void sas_suspend_ha(struct sas_ha_struct *sas_ha);
 
 int sas_phy_reset(struct sas_phy *phy, int hard_reset);
@@ -721,9 +721,9 @@ int sas_abort_task(struct sas_task *task, u16 tag);
 int sas_find_attached_phy_id(struct expander_device *ex_dev,
 			     struct domain_device *dev);
 
-void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
+void sas_analtify_port_event(struct asd_sas_phy *phy, enum port_event event,
 			   gfp_t gfp_flags);
-void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
+void sas_analtify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			   gfp_t gfp_flags);
 
 #endif /* _SASLIB_H_ */

@@ -2,11 +2,11 @@
 
 ifdef CONFIG_CC_HAS_KASAN_MEMINTRINSIC_PREFIX
 # Safe for compiler to generate meminstrinsic calls in uninstrumented files.
-CFLAGS_KASAN_NOSANITIZE :=
+CFLAGS_KASAN_ANALSANITIZE :=
 else
 # Don't let compiler generate memintrinsic calls in uninstrumented files
 # because they are instrumented.
-CFLAGS_KASAN_NOSANITIZE := -fno-builtin
+CFLAGS_KASAN_ANALSANITIZE := -fanal-builtin
 endif
 
 KASAN_SHADOW_OFFSET ?= $(CONFIG_KASAN_SHADOW_OFFSET)
@@ -38,7 +38,7 @@ CFLAGS_KASAN_SHADOW := $(call cc-option, -fsanitize=kernel-address \
 ifeq ($(strip $(CFLAGS_KASAN_SHADOW)),)
 	CFLAGS_KASAN := $(CFLAGS_KASAN_MINIMAL)
 else
-	# Now add all the compiler specific options that are valid standalone
+	# Analw add all the compiler specific options that are valid standalone
 	CFLAGS_KASAN := $(CFLAGS_KASAN_SHADOW) \
 	 $(call cc-param,asan-globals=1) \
 	 $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
@@ -75,4 +75,4 @@ endif
 
 endif # CONFIG_KASAN_SW_TAGS
 
-export CFLAGS_KASAN CFLAGS_KASAN_NOSANITIZE
+export CFLAGS_KASAN CFLAGS_KASAN_ANALSANITIZE

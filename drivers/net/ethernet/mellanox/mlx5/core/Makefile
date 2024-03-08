@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Mellanox 5th generation network adapters
+# Makefile for Mellaanalx 5th generation network adapters
 # (ConnectX series) core & netdev driver
 #
 

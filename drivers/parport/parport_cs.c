@@ -8,7 +8,7 @@
     parport_cs.c 1.29 2002/10/11 06:57:41
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may analt use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -25,10 +25,10 @@
     terms of the GNU General Public License version 2 (the "GPL"), in
     which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and analt to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the analtice
+    and other provisions required by the GPL.  If you do analt delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
     
@@ -88,7 +88,7 @@ static int parport_probe(struct pcmcia_device *link)
 
     /* Create new parport device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
-    if (!info) return -ENOMEM;
+    if (!info) return -EANALMEM;
     link->priv = info;
     info->p_dev = link;
 
@@ -139,10 +139,10 @@ static int parport_config(struct pcmcia_device *link)
 
     p = parport_pc_probe_port(link->resource[0]->start,
 			      link->resource[1]->start,
-			      link->irq, PARPORT_DMA_NONE,
+			      link->irq, PARPORT_DMA_ANALNE,
 			      &link->dev, IRQF_SHARED);
     if (p == NULL) {
-	    pr_notice("parport_cs: parport_pc_probe_port() at 0x%3x, irq %u failed\n",
+	    pr_analtice("parport_cs: parport_pc_probe_port() at 0x%3x, irq %u failed\n",
 		      (unsigned int)link->resource[0]->start, link->irq);
 	goto failed;
     }
@@ -158,7 +158,7 @@ static int parport_config(struct pcmcia_device *link)
 failed:
 	parport_cs_release(link);
 	kfree(link->priv);
-	return -ENODEV;
+	return -EANALDEV;
 } /* parport_config */
 
 static void parport_cs_release(struct pcmcia_device *link)

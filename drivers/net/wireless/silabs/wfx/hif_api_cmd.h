@@ -166,13 +166,13 @@ enum wfx_hif_queue_id {
 };
 
 enum wfx_hif_frame_format {
-	HIF_FRAME_FORMAT_NON_HT                    = 0x0,
+	HIF_FRAME_FORMAT_ANALN_HT                    = 0x0,
 	HIF_FRAME_FORMAT_MIXED_FORMAT_HT           = 0x1,
 	HIF_FRAME_FORMAT_GF_HT_11N                 = 0x2
 };
 
 struct wfx_hif_req_tx {
-	/* packet_id is not interpreted by the device, so it is not necessary to declare it little
+	/* packet_id is analt interpreted by the device, so it is analt necessary to declare it little
 	 * endian
 	 */
 	u32    packet_id;
@@ -202,16 +202,16 @@ struct wfx_hif_req_tx {
 } __packed;
 
 enum wfx_hif_qos_ackplcy {
-	HIF_QOS_ACKPLCY_NORMAL                         = 0x0,
-	HIF_QOS_ACKPLCY_TXNOACK                        = 0x1,
-	HIF_QOS_ACKPLCY_NOEXPACK                       = 0x2,
+	HIF_QOS_ACKPLCY_ANALRMAL                         = 0x0,
+	HIF_QOS_ACKPLCY_TXANALACK                        = 0x1,
+	HIF_QOS_ACKPLCY_ANALEXPACK                       = 0x2,
 	HIF_QOS_ACKPLCY_BLCKACK                        = 0x3
 };
 
 struct wfx_hif_cnf_tx {
 	__le32 status;
 	/* packet_id is copied from struct wfx_hif_req_tx without been interpreted by the device, so
-	 * it is not necessary to declare it little endian
+	 * it is analt necessary to declare it little endian
 	 */
 	u32    packet_id;
 	u8     txed_rate;
@@ -301,7 +301,7 @@ struct wfx_hif_req_join {
 	u8     probe_for_join;
 	u8     reserved4;
 	u8     reserved5:2;
-	u8     force_no_beacon:1;
+	u8     force_anal_beacon:1;
 	u8     force_with_ind:1;
 	u8     reserved6:4;
 	__le32 ssid_length;
@@ -379,7 +379,7 @@ struct wfx_hif_cnf_beacon_transmit {
 } __packed;
 
 #define HIF_LINK_ID_MAX            14
-#define HIF_LINK_ID_NOT_ASSOCIATED (HIF_LINK_ID_MAX + 1)
+#define HIF_LINK_ID_ANALT_ASSOCIATED (HIF_LINK_ID_MAX + 1)
 
 struct wfx_hif_req_map_link {
 	u8     mac_addr[ETH_ALEN];
@@ -425,7 +425,7 @@ enum wfx_hif_key_type {
 	HIF_KEY_TYPE_WAPI_GROUP                    = 0x6,
 	HIF_KEY_TYPE_WAPI_PAIRWISE                 = 0x7,
 	HIF_KEY_TYPE_IGTK_GROUP                    = 0x8,
-	HIF_KEY_TYPE_NONE                          = 0x9
+	HIF_KEY_TYPE_ANALNE                          = 0x9
 };
 
 struct wfx_hif_wep_pairwise_key {
@@ -534,11 +534,11 @@ enum wfx_hif_event_ind {
 };
 
 enum wfx_hif_ps_mode_error {
-	HIF_PS_ERROR_NO_ERROR                      = 0,
-	HIF_PS_ERROR_AP_NOT_RESP_TO_POLL           = 1,
-	HIF_PS_ERROR_AP_NOT_RESP_TO_UAPSD_TRIGGER  = 2,
+	HIF_PS_ERROR_ANAL_ERROR                      = 0,
+	HIF_PS_ERROR_AP_ANALT_RESP_TO_POLL           = 1,
+	HIF_PS_ERROR_AP_ANALT_RESP_TO_UAPSD_TRIGGER  = 2,
 	HIF_PS_ERROR_AP_SENT_UNICAST_IN_DOZE       = 3,
-	HIF_PS_ERROR_AP_NO_DATA_AFTER_TIM          = 4
+	HIF_PS_ERROR_AP_ANAL_DATA_AFTER_TIM          = 4
 };
 
 struct wfx_hif_ind_event {

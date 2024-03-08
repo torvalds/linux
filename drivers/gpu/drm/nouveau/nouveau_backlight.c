@@ -9,14 +9,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -35,18 +35,18 @@
 #include <linux/idr.h>
 #include <drm/drm_probe_helper.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
-#include "nouveau_encoder.h"
-#include "nouveau_connector.h"
-#include "nouveau_acpi.h"
+#include "analuveau_drv.h"
+#include "analuveau_reg.h"
+#include "analuveau_encoder.h"
+#include "analuveau_connector.h"
+#include "analuveau_acpi.h"
 
 static struct ida bl_ida;
 #define BL_NAME_SIZE 15 // 12 for name + 2 for digits + 1 for '\0'
 
 static bool
-nouveau_get_backlight_name(char backlight_name[BL_NAME_SIZE],
-			   struct nouveau_backlight *bl)
+analuveau_get_backlight_name(char backlight_name[BL_NAME_SIZE],
+			   struct analuveau_backlight *bl)
 {
 	const int nb = ida_alloc_max(&bl_ida, 99, GFP_KERNEL);
 
@@ -63,8 +63,8 @@ nouveau_get_backlight_name(char backlight_name[BL_NAME_SIZE],
 static int
 nv40_get_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct analuveau_encoder *nv_encoder = bl_get_data(bd);
+	struct analuveau_drm *drm = analuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int val = (nvif_rd32(device, NV40_PMC_BACKLIGHT) &
 		   NV40_PMC_BACKLIGHT_MASK) >> 16;
@@ -75,8 +75,8 @@ nv40_get_intensity(struct backlight_device *bd)
 static int
 nv40_set_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct analuveau_encoder *nv_encoder = bl_get_data(bd);
+	struct analuveau_drm *drm = analuveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int val = bd->props.brightness;
 	int reg = nvif_rd32(device, NV40_PMC_BACKLIGHT);
@@ -94,15 +94,15 @@ static const struct backlight_ops nv40_bl_ops = {
 };
 
 static int
-nv40_backlight_init(struct nouveau_encoder *encoder,
+nv40_backlight_init(struct analuveau_encoder *encoder,
 		    struct backlight_properties *props,
 		    const struct backlight_ops **ops)
 {
-	struct nouveau_drm *drm = nouveau_drm(encoder->base.base.dev);
+	struct analuveau_drm *drm = analuveau_drm(encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 
 	if (!(nvif_rd32(device, NV40_PMC_BACKLIGHT) & NV40_PMC_BACKLIGHT_MASK))
-		return -ENODEV;
+		return -EANALDEV;
 
 	props->max_brightness = 31;
 	*ops = &nv40_bl_ops;
@@ -158,11 +158,11 @@ static int
 nv50_edp_set_brightness(struct backlight_device *bd)
 {
 	struct drm_connector *connector = dev_get_drvdata(bd->dev.parent);
-	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct analuveau_connector *nv_connector = analuveau_connector(connector);
 	struct drm_device *dev = connector->dev;
 	struct drm_crtc *crtc;
 	struct drm_dp_aux *aux = &nv_connector->aux;
-	struct nouveau_backlight *nv_bl = nv_connector->backlight;
+	struct analuveau_backlight *nv_bl = nv_connector->backlight;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
@@ -204,7 +204,7 @@ static const struct backlight_ops nv50_edp_bl_ops = {
 static int
 nv50_get_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
+	struct analuveau_encoder *nv_encoder = bl_get_data(bd);
 
 	return nvif_outp_bl_get(&nv_encoder->outp);
 }
@@ -212,7 +212,7 @@ nv50_get_intensity(struct backlight_device *bd)
 static int
 nv50_set_intensity(struct backlight_device *bd)
 {
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
+	struct analuveau_encoder *nv_encoder = bl_get_data(bd);
 
 	return nvif_outp_bl_set(&nv_encoder->outp, backlight_get_brightness(bd));
 }
@@ -227,21 +227,21 @@ static const struct backlight_ops nv50_bl_ops = {
  * registration which happens after the initial modeset
  */
 static int
-nv50_backlight_init(struct nouveau_backlight *bl,
-		    struct nouveau_connector *nv_conn,
-		    struct nouveau_encoder *nv_encoder,
+nv50_backlight_init(struct analuveau_backlight *bl,
+		    struct analuveau_connector *nv_conn,
+		    struct analuveau_encoder *nv_encoder,
 		    struct backlight_properties *props,
 		    const struct backlight_ops **ops)
 {
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
+	struct analuveau_drm *drm = analuveau_drm(nv_encoder->base.base.dev);
 
 	/*
-	 * Note when this runs the connectors have not been probed yet,
-	 * so nv_conn->base.status is not set yet.
+	 * Analte when this runs the connectors have analt been probed yet,
+	 * so nv_conn->base.status is analt set yet.
 	 */
 	if (nvif_outp_bl_get(&nv_encoder->outp) < 0 ||
 	    drm_helper_probe_detect(&nv_conn->base, NULL, false) != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (nv_conn->type == DCB_CONNECTOR_eDP) {
 		int ret;
@@ -287,11 +287,11 @@ nv50_backlight_init(struct nouveau_backlight *bl,
 }
 
 int
-nouveau_backlight_init(struct drm_connector *connector)
+analuveau_backlight_init(struct drm_connector *connector)
 {
-	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_backlight *bl;
-	struct nouveau_encoder *nv_encoder = NULL;
+	struct analuveau_drm *drm = analuveau_drm(connector->dev);
+	struct analuveau_backlight *bl;
+	struct analuveau_encoder *nv_encoder = NULL;
 	struct nvif_device *device = &drm->client.device;
 	char backlight_name[BL_NAME_SIZE];
 	struct backlight_properties props = {0};
@@ -299,7 +299,7 @@ nouveau_backlight_init(struct drm_connector *connector)
 	int ret;
 
 	if (apple_gmux_present()) {
-		NV_INFO_ONCE(drm, "Apple GMUX detected: not registering Nouveau backlight interface\n");
+		NV_INFO_ONCE(drm, "Apple GMUX detected: analt registering Analuveau backlight interface\n");
 		return 0;
 	}
 
@@ -315,7 +315,7 @@ nouveau_backlight_init(struct drm_connector *connector)
 
 	bl = kzalloc(sizeof(*bl), GFP_KERNEL);
 	if (!bl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (device->info.family) {
 	case NV_DEVICE_INFO_V0_CURIE:
@@ -328,8 +328,8 @@ nouveau_backlight_init(struct drm_connector *connector)
 	case NV_DEVICE_INFO_V0_PASCAL:
 	case NV_DEVICE_INFO_V0_VOLTA:
 	case NV_DEVICE_INFO_V0_TURING:
-	case NV_DEVICE_INFO_V0_AMPERE: //XXX: not confirmed
-		ret = nv50_backlight_init(bl, nouveau_connector(connector),
+	case NV_DEVICE_INFO_V0_AMPERE: //XXX: analt confirmed
+		ret = nv50_backlight_init(bl, analuveau_connector(connector),
 					  nv_encoder, &props, &ops);
 		break;
 	default:
@@ -338,17 +338,17 @@ nouveau_backlight_init(struct drm_connector *connector)
 	}
 
 	if (ret) {
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			ret = 0;
 		goto fail_alloc;
 	}
 
-	if (!nouveau_acpi_video_backlight_use_native()) {
+	if (!analuveau_acpi_video_backlight_use_native()) {
 		NV_INFO(drm, "Skipping nv_backlight registration\n");
 		goto fail_alloc;
 	}
 
-	if (!nouveau_get_backlight_name(backlight_name, bl)) {
+	if (!analuveau_get_backlight_name(backlight_name, bl)) {
 		NV_ERROR(drm, "Failed to retrieve a unique name for the backlight interface\n");
 		goto fail_alloc;
 	}
@@ -363,7 +363,7 @@ nouveau_backlight_init(struct drm_connector *connector)
 		goto fail_alloc;
 	}
 
-	nouveau_connector(connector)->backlight = bl;
+	analuveau_connector(connector)->backlight = bl;
 	if (!bl->dev->props.brightness)
 		bl->dev->props.brightness =
 			bl->dev->ops->get_brightness(bl->dev);
@@ -374,20 +374,20 @@ nouveau_backlight_init(struct drm_connector *connector)
 fail_alloc:
 	kfree(bl);
 	/*
-	 * If we get here we have an internal panel, but no nv_backlight,
+	 * If we get here we have an internal panel, but anal nv_backlight,
 	 * try registering an ACPI video backlight device instead.
 	 */
 	if (ret == 0)
-		nouveau_acpi_video_register_backlight();
+		analuveau_acpi_video_register_backlight();
 
 	return ret;
 }
 
 void
-nouveau_backlight_fini(struct drm_connector *connector)
+analuveau_backlight_fini(struct drm_connector *connector)
 {
-	struct nouveau_connector *nv_conn = nouveau_connector(connector);
-	struct nouveau_backlight *bl = nv_conn->backlight;
+	struct analuveau_connector *nv_conn = analuveau_connector(connector);
+	struct analuveau_backlight *bl = nv_conn->backlight;
 
 	if (!bl)
 		return;
@@ -401,13 +401,13 @@ nouveau_backlight_fini(struct drm_connector *connector)
 }
 
 void
-nouveau_backlight_ctor(void)
+analuveau_backlight_ctor(void)
 {
 	ida_init(&bl_ida);
 }
 
 void
-nouveau_backlight_dtor(void)
+analuveau_backlight_dtor(void)
 {
 	ida_destroy(&bl_ida);
 }

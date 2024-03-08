@@ -23,7 +23,7 @@
  *	structure of a rx or tx message.
  * @msg: message of variable length, must have a dlc and a len fields.
  *
- * Even if RTR frames have actually no payload, the ES58X devices
+ * Even if RTR frames have actually anal payload, the ES58X devices
  * still expect it. Must be a macro in order to accept several types
  * (struct es58x_fd_tx_can_msg and struct es58x_fd_rx_can_msg) as an
  * input.
@@ -47,7 +47,7 @@ static enum es58x_fd_cmd_type es58x_fd_cmd_type(struct net_device *netdev)
 {
 	u32 ctrlmode = es58x_priv(netdev)->can.ctrlmode;
 
-	if (ctrlmode & (CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO))
+	if (ctrlmode & (CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_ANALN_ISO))
 		return ES58X_FD_CMD_TYPE_CANFD;
 	else
 		return ES58X_FD_CMD_TYPE_CAN;
@@ -114,7 +114,7 @@ static int es58x_fd_rx_can_msg(struct net_device *netdev,
 		    (const struct es58x_fd_rx_can_msg *)rx_can_msg_buf;
 		bool is_can_fd = !!(rx_can_msg->flags & ES58X_FLAG_FD_DATA);
 		/* rx_can_msg_len is the length of the rx_can_msg
-		 * buffer. Not to be confused with rx_can_msg->len
+		 * buffer. Analt to be confused with rx_can_msg->len
 		 * which is the length of the CAN payload
 		 * rx_can_msg->data.
 		 */
@@ -309,7 +309,7 @@ static int es58x_fd_handle_urb_cmd(struct es58x_device *es58x_dev,
 
 	if (ret == -EBADRQC)
 		dev_err(es58x_dev->dev,
-			"%s: Unknown command type (0x%02X) and command ID (0x%02X) combination\n",
+			"%s: Unkanalwn command type (0x%02X) and command ID (0x%02X) combination\n",
 			__func__, es58x_fd_urb_cmd->cmd_type,
 			es58x_fd_urb_cmd->cmd_id);
 
@@ -345,7 +345,7 @@ static int es58x_fd_tx_can_msg(struct es58x_priv *priv,
 		es58x_fd_fill_urb_header(urb_cmd,
 					 is_fd ? ES58X_FD_CMD_TYPE_CANFD
 					       : ES58X_FD_CMD_TYPE_CAN,
-					 ES58X_FD_CAN_CMD_ID_TX_MSG_NO_ACK,
+					 ES58X_FD_CAN_CMD_ID_TX_MSG_ANAL_ACK,
 					 priv->channel_idx, msg_len);
 	} else {
 		msg_len = es58x_fd_get_msg_len(urb_cmd);
@@ -401,7 +401,7 @@ static int es58x_fd_enable_channel(struct es58x_priv *priv)
 	u32 ctrlmode;
 	size_t conf_len = 0;
 
-	es58x_fd_convert_bittiming(&tx_conf_msg.nominal_bittiming,
+	es58x_fd_convert_bittiming(&tx_conf_msg.analminal_bittiming,
 				   &priv->can.bittiming);
 	ctrlmode = priv->can.ctrlmode;
 
@@ -412,13 +412,13 @@ static int es58x_fd_enable_channel(struct es58x_priv *priv)
 	tx_conf_msg.sync_edge = ES58X_SYNC_EDGE_SINGLE;
 	tx_conf_msg.physical_layer = ES58X_PHYSICAL_LAYER_HIGH_SPEED;
 	tx_conf_msg.echo_mode = ES58X_ECHO_ON;
-	if (ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		tx_conf_msg.ctrlmode |= ES58X_FD_CTRLMODE_PASSIVE;
 	else
 		tx_conf_msg.ctrlmode |=  ES58X_FD_CTRLMODE_ACTIVE;
 
-	if (ctrlmode & CAN_CTRLMODE_FD_NON_ISO) {
-		tx_conf_msg.ctrlmode |= ES58X_FD_CTRLMODE_FD_NON_ISO;
+	if (ctrlmode & CAN_CTRLMODE_FD_ANALN_ISO) {
+		tx_conf_msg.ctrlmode |= ES58X_FD_CTRLMODE_FD_ANALN_ISO;
 		tx_conf_msg.canfd_enabled = 1;
 	} else if (ctrlmode & CAN_CTRLMODE_FD) {
 		tx_conf_msg.ctrlmode |= ES58X_FD_CTRLMODE_FD;
@@ -448,7 +448,7 @@ static int es58x_fd_enable_channel(struct es58x_priv *priv)
 static int es58x_fd_disable_channel(struct es58x_priv *priv)
 {
 	/* The type (ES58X_FD_CMD_TYPE_CAN or ES58X_FD_CMD_TYPE_CANFD) does
-	 * not matter here.
+	 * analt matter here.
 	 */
 	return es58x_send_msg(priv->es58x_dev, ES58X_FD_CMD_TYPE_CAN,
 			      ES58X_FD_CAN_CMD_ID_DISABLE_CHANNEL,
@@ -462,16 +462,16 @@ static int es58x_fd_get_timestamp(struct es58x_device *es58x_dev)
 			      0, ES58X_CHANNEL_IDX_NA);
 }
 
-/* Nominal bittiming constants for ES582.1 and ES584.1 as specified in
+/* Analminal bittiming constants for ES582.1 and ES584.1 as specified in
  * the microcontroller datasheet: "SAM E70/S70/V70/V71 Family" section
- * 49.6.8 "MCAN Nominal Bit Timing and Prescaler Register" from
+ * 49.6.8 "MCAN Analminal Bit Timing and Prescaler Register" from
  * Microchip.
  *
  * The values from the specification are the hardware register
  * values. To convert them to the functional values, all ranges were
  * incremented by 1 (e.g. range [0..n-1] changed to [1..n]).
  */
-static const struct can_bittiming_const es58x_fd_nom_bittiming_const = {
+static const struct can_bittiming_const es58x_fd_analm_bittiming_const = {
 	.name = "ES582.1/ES584.1",
 	.tseg1_min = 2,
 	.tseg1_max = 256,
@@ -507,7 +507,7 @@ static const struct can_bittiming_const es58x_fd_data_bittiming_const = {
  */
 static const struct can_tdc_const es58x_tdc_const = {
 	.tdcv_min = 0,
-	.tdcv_max = 0, /* Manual mode not supported. */
+	.tdcv_max = 0, /* Manual mode analt supported. */
 	.tdco_min = 0,
 	.tdco_max = 127,
 	.tdcf_min = 0,
@@ -515,18 +515,18 @@ static const struct can_tdc_const es58x_tdc_const = {
 };
 
 const struct es58x_parameters es58x_fd_param = {
-	.bittiming_const = &es58x_fd_nom_bittiming_const,
+	.bittiming_const = &es58x_fd_analm_bittiming_const,
 	.data_bittiming_const = &es58x_fd_data_bittiming_const,
 	.tdc_const = &es58x_tdc_const,
 	/* The devices use NXP TJA1044G transievers which guarantee
 	 * the timing for data rates up to 5 Mbps. Bitrates up to 8
-	 * Mbps work in an optimal environment but are not recommended
+	 * Mbps work in an optimal environment but are analt recommended
 	 * for production environment.
 	 */
 	.bitrate_max = 8 * MEGA /* BPS */,
 	.clock = {.freq = 80 * MEGA /* Hz */},
-	.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTENONLY |
-	    CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO |
+	.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTEANALNLY |
+	    CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_ANALN_ISO |
 	    CAN_CTRLMODE_CC_LEN8_DLC | CAN_CTRLMODE_TDC_AUTO,
 	.tx_start_of_frame = 0xCEFA,	/* FACE in little endian */
 	.rx_start_of_frame = 0xFECA,	/* CAFE in little endian */
@@ -543,7 +543,7 @@ const struct es58x_parameters es58x_fd_param = {
 	 * For above reasons, a value that would prevent the device
 	 * from becoming busy was chosen. In practice, BQL would
 	 * prevent the value from even getting closer to below
-	 * maximum, so no impact on performance was measured.
+	 * maximum, so anal impact on performance was measured.
 	 */
 	.fifo_mask = 255, /* echo_skb_max = 256 */
 	.dql_min_limit = CAN_FRAME_LEN_MAX * 15, /* Empirical value. */
@@ -560,6 +560,6 @@ const struct es58x_operators es58x_fd_ops = {
 	.tx_can_msg = es58x_fd_tx_can_msg,
 	.enable_channel = es58x_fd_enable_channel,
 	.disable_channel = es58x_fd_disable_channel,
-	.reset_device = NULL, /* Not implemented in the device firmware. */
+	.reset_device = NULL, /* Analt implemented in the device firmware. */
 	.get_timestamp = es58x_fd_get_timestamp
 };

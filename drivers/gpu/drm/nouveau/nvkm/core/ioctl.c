@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,17 +30,17 @@
 #include <nvif/ioctl.h>
 
 static int
-nvkm_ioctl_nop(struct nvkm_client *client,
+nvkm_ioctl_analp(struct nvkm_client *client,
 	       struct nvkm_object *object, void *data, u32 size)
 {
 	union {
-		struct nvif_ioctl_nop_v0 v0;
+		struct nvif_ioctl_analp_v0 v0;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
-	nvif_ioctl(object, "nop size %d\n", size);
+	nvif_ioctl(object, "analp size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "nop vers %lld\n", args->v0.version);
+		nvif_ioctl(object, "analp vers %lld\n", args->v0.version);
 		args->v0.version = NVIF_VERSION_LATEST;
 	}
 
@@ -64,7 +64,7 @@ nvkm_ioctl_sclass_(struct nvkm_object *object, int index, struct nvkm_oclass *oc
 	if (object->func->sclass)
 		return object->func->sclass(object, index, oclass);
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int
@@ -75,7 +75,7 @@ nvkm_ioctl_sclass(struct nvkm_client *client,
 		struct nvif_ioctl_sclass_v0 v0;
 	} *args = data;
 	struct nvkm_oclass oclass = { .client = client };
-	int ret = -ENOSYS, i = 0;
+	int ret = -EANALSYS, i = 0;
 
 	nvif_ioctl(object, "sclass size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
@@ -108,7 +108,7 @@ nvkm_ioctl_new(struct nvkm_client *client,
 	} *args = data;
 	struct nvkm_object *object = NULL;
 	struct nvkm_oclass oclass;
-	int ret = -ENOSYS, i = 0;
+	int ret = -EANALSYS, i = 0;
 
 	nvif_ioctl(parent, "new size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
@@ -120,7 +120,7 @@ nvkm_ioctl_new(struct nvkm_client *client,
 		return ret;
 
 	if (!parent->func->sclass && !parent->func->uevent) {
-		nvif_ioctl(parent, "cannot have children\n");
+		nvif_ioctl(parent, "cananalt have children\n");
 		return -EINVAL;
 	}
 
@@ -167,12 +167,12 @@ nvkm_ioctl_del(struct nvkm_client *client,
 	       struct nvkm_object *object, void *data, u32 size)
 {
 	union {
-		struct nvif_ioctl_del none;
+		struct nvif_ioctl_del analne;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "delete size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->analne))) {
 		nvif_ioctl(object, "delete\n");
 		nvkm_object_fini(object, false);
 		nvkm_object_del(&object);
@@ -188,7 +188,7 @@ nvkm_ioctl_mthd(struct nvkm_client *client,
 	union {
 		struct nvif_ioctl_mthd_v0 v0;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "mthd size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
@@ -213,7 +213,7 @@ nvkm_ioctl_rd(struct nvkm_client *client,
 		u16 b16;
 		u32 b32;
 	} v;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "rd size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -248,7 +248,7 @@ nvkm_ioctl_wr(struct nvkm_client *client,
 	union {
 		struct nvif_ioctl_wr_v0 v0;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "wr size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -278,7 +278,7 @@ nvkm_ioctl_map(struct nvkm_client *client,
 		struct nvif_ioctl_map_v0 v0;
 	} *args = data;
 	enum nvkm_object_map type;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "map size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
@@ -300,12 +300,12 @@ nvkm_ioctl_unmap(struct nvkm_client *client,
 		 struct nvkm_object *object, void *data, u32 size)
 {
 	union {
-		struct nvif_ioctl_unmap none;
+		struct nvif_ioctl_unmap analne;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "unmap size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->analne))) {
 		nvif_ioctl(object, "unmap\n");
 		ret = nvkm_object_unmap(object);
 	}
@@ -318,7 +318,7 @@ static struct {
 	int (*func)(struct nvkm_client *, struct nvkm_object *, void *, u32);
 }
 nvkm_ioctl_v0[] = {
-	{ 0x00, nvkm_ioctl_nop },
+	{ 0x00, nvkm_ioctl_analp },
 	{ 0x00, nvkm_ioctl_sclass },
 	{ 0x00, nvkm_ioctl_new },
 	{ 0x00, nvkm_ioctl_del },
@@ -338,7 +338,7 @@ nvkm_ioctl_path(struct nvkm_client *client, u64 handle, u32 type,
 
 	object = nvkm_object_search(client, handle, NULL);
 	if (IS_ERR(object)) {
-		nvif_ioctl(&client->object, "object not found\n");
+		nvif_ioctl(&client->object, "object analt found\n");
 		return PTR_ERR(object);
 	}
 
@@ -364,7 +364,7 @@ nvkm_ioctl(struct nvkm_client *client, void *data, u32 size, void **hack)
 	union {
 		struct nvif_ioctl_v0 v0;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "size %d\n", size);
 

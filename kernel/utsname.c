@@ -40,7 +40,7 @@ static struct uts_namespace *create_uts_ns(void)
 /*
  * Clone a new ns copying an original utsname, setting refcount to 1
  * @old_ns: namespace to clone
- * Return ERR_PTR(-ENOMEM) on error (failure to allocate), new ns otherwise
+ * Return ERR_PTR(-EANALMEM) on error (failure to allocate), new ns otherwise
  */
 static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 					  struct uts_namespace *old_ns)
@@ -49,12 +49,12 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 	struct ucounts *ucounts;
 	int err;
 
-	err = -ENOSPC;
+	err = -EANALSPC;
 	ucounts = inc_uts_namespaces(user_ns);
 	if (!ucounts)
 		goto fail;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ns = create_uts_ns();
 	if (!ns)
 		goto fail_dec;

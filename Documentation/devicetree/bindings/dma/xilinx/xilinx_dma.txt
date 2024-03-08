@@ -1,11 +1,11 @@
 Xilinx AXI VDMA engine, it does transfers between memory and video devices.
 It can be configured to have one channel or two channels. If configured
-as two channels, one is to transmit to the video device and another is
+as two channels, one is to transmit to the video device and aanalther is
 to receive from the video device.
 
 Xilinx AXI DMA engine, it does transfers between memory and AXI4 stream
 target devices. It can be configured to have one channel or two channels.
-If configured as two channels, one is to transmit to the device and another
+If configured as two channels, one is to transmit to the device and aanalther
 is to receive from the device.
 
 Xilinx AXI CDMA engine, it does transfers between memory-mapped source
@@ -25,9 +25,9 @@ Required properties:
 - reg: Should contain VDMA registers location and length.
 - xlnx,addrwidth: Should be the vdma addressing size in bits(ex: 32 bits).
 - dma-ranges: Should be as the following <dma_addr cpu_addr max_len>.
-- dma-channel child node: Should have at least one channel and can have up to
-	two channels per device. This node specifies the properties of each
-	DMA channel (see child node properties below).
+- dma-channel child analde: Should have at least one channel and can have up to
+	two channels per device. This analde specifies the properties of each
+	DMA channel (see child analde properties below).
 - clocks: Input clock specifier. Refer to common clock bindings.
 - clock-names: List of input clocks
 	For VDMA:
@@ -62,7 +62,7 @@ Optional properties for VDMA:
 	{2}, flush mm2s channel
 	{3}, flush s2mm channel
 
-Required child node properties:
+Required child analde properties:
 - compatible:
 	For VDMA: It should be either "xlnx,axi-vdma-mm2s-channel" or
 	"xlnx,axi-vdma-s2mm-channel".
@@ -73,16 +73,16 @@ Required child node properties:
 - xlnx,datawidth: Should contain the stream data width, take values
 	{32,64...1024}.
 
-Optional child node properties:
+Optional child analde properties:
 - xlnx,include-dre: Tells hardware is configured for Data
 	Realignment Engine.
-Optional child node properties for VDMA:
+Optional child analde properties for VDMA:
 - xlnx,genlock-mode: Tells Genlock synchronization is
 	enabled/disabled in hardware.
 - xlnx,enable-vert-flip: Tells vertical flip is
 	enabled/disabled in hardware(S2MM path).
-Optional child node properties for MCDMA:
-- dma-channels: Number of dma channels in child node.
+Optional child analde properties for MCDMA:
+- dma-channels: Number of dma channels in child analde.
 
 Example:
 ++++++++

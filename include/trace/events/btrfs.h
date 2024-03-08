@@ -11,11 +11,11 @@
 
 struct btrfs_root;
 struct btrfs_fs_info;
-struct btrfs_inode;
+struct btrfs_ianalde;
 struct extent_map;
 struct btrfs_file_extent_item;
 struct btrfs_ordered_extent;
-struct btrfs_delayed_ref_node;
+struct btrfs_delayed_ref_analde;
 struct btrfs_delayed_tree_ref;
 struct btrfs_delayed_data_ref;
 struct btrfs_delayed_ref_head;
@@ -64,7 +64,7 @@ struct find_free_extent_ctl;
 	       obj <= BTRFS_QUOTA_TREE_OBJECTID)) ? __show_root_type(obj) : "-"
 
 #define FLUSH_ACTIONS								\
-	EM( BTRFS_RESERVE_NO_FLUSH,		"BTRFS_RESERVE_NO_FLUSH")	\
+	EM( BTRFS_RESERVE_ANAL_FLUSH,		"BTRFS_RESERVE_ANAL_FLUSH")	\
 	EM( BTRFS_RESERVE_FLUSH_LIMIT,		"BTRFS_RESERVE_FLUSH_LIMIT")	\
 	EM( BTRFS_RESERVE_FLUSH_ALL,		"BTRFS_RESERVE_FLUSH_ALL")	\
 	EMe(BTRFS_RESERVE_FLUSH_ALL_STEAL,	"BTRFS_RESERVE_FLUSH_ALL_STEAL")
@@ -82,12 +82,12 @@ struct find_free_extent_ctl;
 #define IO_TREE_OWNER						    \
 	EM( IO_TREE_FS_PINNED_EXTENTS, 	  "PINNED_EXTENTS")	    \
 	EM( IO_TREE_FS_EXCLUDED_EXTENTS,  "EXCLUDED_EXTENTS")	    \
-	EM( IO_TREE_BTREE_INODE_IO,	  "BTREE_INODE_IO")	    \
-	EM( IO_TREE_INODE_IO,		  "INODE_IO")		    \
+	EM( IO_TREE_BTREE_IANALDE_IO,	  "BTREE_IANALDE_IO")	    \
+	EM( IO_TREE_IANALDE_IO,		  "IANALDE_IO")		    \
 	EM( IO_TREE_RELOC_BLOCKS,	  "RELOC_BLOCKS")	    \
 	EM( IO_TREE_TRANS_DIRTY_PAGES,	  "TRANS_DIRTY_PAGES")      \
 	EM( IO_TREE_ROOT_DIRTY_LOG_PAGES, "ROOT_DIRTY_LOG_PAGES")   \
-	EM( IO_TREE_INODE_FILE_EXTENT,	  "INODE_FILE_EXTENT")      \
+	EM( IO_TREE_IANALDE_FILE_EXTENT,	  "IANALDE_FILE_EXTENT")      \
 	EM( IO_TREE_LOG_CSUM_RANGE,	  "LOG_CSUM_RANGE")         \
 	EMe(IO_TREE_SELFTEST,		  "SELFTEST")
 
@@ -121,7 +121,7 @@ IO_TREE_OWNER
 FLUSH_STATES
 
 /*
- * Now redefine the EM and EMe macros to map the enums to the strings that will
+ * Analw redefine the EM and EMe macros to map the enums to the strings that will
  * be printed in the output
  */
 
@@ -150,10 +150,10 @@ FLUSH_STATES
 	{ EXTENT_DELALLOC,		"DELALLOC"},		\
 	{ EXTENT_DEFRAG,		"DEFRAG"},		\
 	{ EXTENT_BOUNDARY,		"BOUNDARY"},		\
-	{ EXTENT_NODATASUM,		"NODATASUM"},		\
+	{ EXTENT_ANALDATASUM,		"ANALDATASUM"},		\
 	{ EXTENT_CLEAR_META_RESV,	"CLEAR_META_RESV"},	\
 	{ EXTENT_NEED_WAIT,		"NEED_WAIT"},		\
-	{ EXTENT_NORESERVE,		"NORESERVE"},		\
+	{ EXTENT_ANALRESERVE,		"ANALRESERVE"},		\
 	{ EXTENT_QGROUP_RESERVED,	"QGROUP_RESERVED"},	\
 	{ EXTENT_CLEAR_DATA_RESV,	"CLEAR_DATA_RESV"},	\
 	{ EXTENT_DELALLOC_NEW,		"DELALLOC_NEW"}
@@ -202,14 +202,14 @@ TRACE_EVENT(btrfs_transaction_commit,
 		  __entry->generation)
 );
 
-DECLARE_EVENT_CLASS(btrfs__inode,
+DECLARE_EVENT_CLASS(btrfs__ianalde,
 
-	TP_PROTO(const struct inode *inode),
+	TP_PROTO(const struct ianalde *ianalde),
 
-	TP_ARGS(inode),
+	TP_ARGS(ianalde),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,  ino			)
+		__field(	u64,  ianal			)
 		__field(	u64,  blocks			)
 		__field(	u64,  disk_i_size		)
 		__field(	u64,  generation		)
@@ -218,47 +218,47 @@ DECLARE_EVENT_CLASS(btrfs__inode,
 		__field(	u64,  root_objectid		)
 	),
 
-	TP_fast_assign_btrfs(btrfs_sb(inode->i_sb),
-		__entry->ino	= btrfs_ino(BTRFS_I(inode));
-		__entry->blocks	= inode->i_blocks;
-		__entry->disk_i_size  = BTRFS_I(inode)->disk_i_size;
-		__entry->generation = BTRFS_I(inode)->generation;
-		__entry->last_trans = BTRFS_I(inode)->last_trans;
-		__entry->logged_trans = BTRFS_I(inode)->logged_trans;
+	TP_fast_assign_btrfs(btrfs_sb(ianalde->i_sb),
+		__entry->ianal	= btrfs_ianal(BTRFS_I(ianalde));
+		__entry->blocks	= ianalde->i_blocks;
+		__entry->disk_i_size  = BTRFS_I(ianalde)->disk_i_size;
+		__entry->generation = BTRFS_I(ianalde)->generation;
+		__entry->last_trans = BTRFS_I(ianalde)->last_trans;
+		__entry->logged_trans = BTRFS_I(ianalde)->logged_trans;
 		__entry->root_objectid =
-				BTRFS_I(inode)->root->root_key.objectid;
+				BTRFS_I(ianalde)->root->root_key.objectid;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) gen=%llu ino=%llu blocks=%llu "
+	TP_printk_btrfs("root=%llu(%s) gen=%llu ianal=%llu blocks=%llu "
 		  "disk_i_size=%llu last_trans=%llu logged_trans=%llu",
 		  show_root_type(__entry->root_objectid),
 		  __entry->generation,
-		  __entry->ino,
+		  __entry->ianal,
 		  __entry->blocks,
 		  __entry->disk_i_size,
 		  __entry->last_trans,
 		  __entry->logged_trans)
 );
 
-DEFINE_EVENT(btrfs__inode, btrfs_inode_new,
+DEFINE_EVENT(btrfs__ianalde, btrfs_ianalde_new,
 
-	TP_PROTO(const struct inode *inode),
+	TP_PROTO(const struct ianalde *ianalde),
 
-	TP_ARGS(inode)
+	TP_ARGS(ianalde)
 );
 
-DEFINE_EVENT(btrfs__inode, btrfs_inode_request,
+DEFINE_EVENT(btrfs__ianalde, btrfs_ianalde_request,
 
-	TP_PROTO(const struct inode *inode),
+	TP_PROTO(const struct ianalde *ianalde),
 
-	TP_ARGS(inode)
+	TP_ARGS(ianalde)
 );
 
-DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
+DEFINE_EVENT(btrfs__ianalde, btrfs_ianalde_evict,
 
-	TP_PROTO(const struct inode *inode),
+	TP_PROTO(const struct ianalde *ianalde),
 
-	TP_ARGS(inode)
+	TP_ARGS(ianalde)
 );
 
 #define __show_map_type(type)						\
@@ -282,16 +282,16 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
-	TP_PROTO(const struct btrfs_root *root, const struct btrfs_inode *inode,
+	TP_PROTO(const struct btrfs_root *root, const struct btrfs_ianalde *ianalde,
 		 const struct extent_map *map),
 
-	TP_ARGS(root, inode, map),
+	TP_ARGS(root, ianalde, map),
 
 	TP_CONDITION(map),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  root_objectid	)
-		__field(	u64,  ino		)
+		__field(	u64,  ianal		)
 		__field(	u64,  start		)
 		__field(	u64,  len		)
 		__field(	u64,  orig_start	)
@@ -303,7 +303,7 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 
 	TP_fast_assign_btrfs(root->fs_info,
 		__entry->root_objectid	= root->root_key.objectid;
-		__entry->ino		= btrfs_ino(inode);
+		__entry->ianal		= btrfs_ianal(ianalde);
 		__entry->start		= map->start;
 		__entry->len		= map->len;
 		__entry->orig_start	= map->orig_start;
@@ -313,11 +313,11 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__entry->refs		= refcount_read(&map->refs);
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu len=%llu "
+	TP_printk_btrfs("root=%llu(%s) ianal=%llu start=%llu len=%llu "
 		  "orig_start=%llu block_start=%llu(%s) "
 		  "block_len=%llu flags=%s refs=%u",
 		  show_root_type(__entry->root_objectid),
-		  __entry->ino,
+		  __entry->ianal,
 		  __entry->start,
 		  __entry->len,
 		  __entry->orig_start,
@@ -367,14 +367,14 @@ TRACE_EVENT(btrfs_handle_em_exist,
 /* file extent item */
 DECLARE_EVENT_CLASS(btrfs__file_extent_item_regular,
 
-	TP_PROTO(const struct btrfs_inode *bi, const struct extent_buffer *l,
+	TP_PROTO(const struct btrfs_ianalde *bi, const struct extent_buffer *l,
 		 const struct btrfs_file_extent_item *fi, u64 start),
 
 	TP_ARGS(bi, l, fi, start),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,	root_obj	)
-		__field(	u64,	ino		)
+		__field(	u64,	ianal		)
 		__field(	loff_t,	isize		)
 		__field(	u64,	disk_isize	)
 		__field(	u64,	num_bytes	)
@@ -390,8 +390,8 @@ DECLARE_EVENT_CLASS(btrfs__file_extent_item_regular,
 
 	TP_fast_assign_btrfs(bi->root->fs_info,
 		__entry->root_obj	= bi->root->root_key.objectid;
-		__entry->ino		= btrfs_ino(bi);
-		__entry->isize		= bi->vfs_inode.i_size;
+		__entry->ianal		= btrfs_ianal(bi);
+		__entry->isize		= bi->vfs_ianalde.i_size;
 		__entry->disk_isize	= bi->disk_i_size;
 		__entry->num_bytes	= btrfs_file_extent_num_bytes(l, fi);
 		__entry->ram_bytes	= btrfs_file_extent_ram_bytes(l, fi);
@@ -405,12 +405,12 @@ DECLARE_EVENT_CLASS(btrfs__file_extent_item_regular,
 	),
 
 	TP_printk_btrfs(
-		"root=%llu(%s) inode=%llu size=%llu disk_isize=%llu "
+		"root=%llu(%s) ianalde=%llu size=%llu disk_isize=%llu "
 		"file extent range=[%llu %llu] "
 		"(num_bytes=%llu ram_bytes=%llu disk_bytenr=%llu "
 		"disk_num_bytes=%llu extent_offset=%llu type=%s "
 		"compression=%u",
-		show_root_type(__entry->root_obj), __entry->ino,
+		show_root_type(__entry->root_obj), __entry->ianal,
 		__entry->isize,
 		__entry->disk_isize, __entry->extent_start,
 		__entry->extent_end, __entry->num_bytes, __entry->ram_bytes,
@@ -422,14 +422,14 @@ DECLARE_EVENT_CLASS(btrfs__file_extent_item_regular,
 DECLARE_EVENT_CLASS(
 	btrfs__file_extent_item_inline,
 
-	TP_PROTO(const struct btrfs_inode *bi, const struct extent_buffer *l,
+	TP_PROTO(const struct btrfs_ianalde *bi, const struct extent_buffer *l,
 		 const struct btrfs_file_extent_item *fi, int slot, u64 start),
 
 	TP_ARGS(bi, l, fi, slot,  start),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,	root_obj	)
-		__field(	u64,	ino		)
+		__field(	u64,	ianal		)
 		__field(	loff_t,	isize		)
 		__field(	u64,	disk_isize	)
 		__field(	u8,	extent_type	)
@@ -441,8 +441,8 @@ DECLARE_EVENT_CLASS(
 	TP_fast_assign_btrfs(
 		bi->root->fs_info,
 		__entry->root_obj	= bi->root->root_key.objectid;
-		__entry->ino		= btrfs_ino(bi);
-		__entry->isize		= bi->vfs_inode.i_size;
+		__entry->ianal		= btrfs_ianal(bi);
+		__entry->isize		= bi->vfs_ianalde.i_size;
 		__entry->disk_isize	= bi->disk_i_size;
 		__entry->extent_type	= btrfs_file_extent_type(l, fi);
 		__entry->compression	= btrfs_file_extent_compression(l, fi);
@@ -451,10 +451,10 @@ DECLARE_EVENT_CLASS(
 	),
 
 	TP_printk_btrfs(
-		"root=%llu(%s) inode=%llu size=%llu disk_isize=%llu "
+		"root=%llu(%s) ianalde=%llu size=%llu disk_isize=%llu "
 		"file extent range=[%llu %llu] "
 		"extent_type=%s compression=%u",
-		show_root_type(__entry->root_obj), __entry->ino, __entry->isize,
+		show_root_type(__entry->root_obj), __entry->ianal, __entry->isize,
 		__entry->disk_isize, __entry->extent_start,
 		__entry->extent_end, __print_symbolic(__entry->extent_type, FI_TYPES),
 		__entry->compression)
@@ -463,7 +463,7 @@ DECLARE_EVENT_CLASS(
 DEFINE_EVENT(
 	btrfs__file_extent_item_regular, btrfs_get_extent_show_fi_regular,
 
-	TP_PROTO(const struct btrfs_inode *bi, const struct extent_buffer *l,
+	TP_PROTO(const struct btrfs_ianalde *bi, const struct extent_buffer *l,
 		 const struct btrfs_file_extent_item *fi, u64 start),
 
 	TP_ARGS(bi, l, fi, start)
@@ -472,7 +472,7 @@ DEFINE_EVENT(
 DEFINE_EVENT(
 	btrfs__file_extent_item_regular, btrfs_truncate_show_fi_regular,
 
-	TP_PROTO(const struct btrfs_inode *bi, const struct extent_buffer *l,
+	TP_PROTO(const struct btrfs_ianalde *bi, const struct extent_buffer *l,
 		 const struct btrfs_file_extent_item *fi, u64 start),
 
 	TP_ARGS(bi, l, fi, start)
@@ -481,7 +481,7 @@ DEFINE_EVENT(
 DEFINE_EVENT(
 	btrfs__file_extent_item_inline, btrfs_get_extent_show_fi_inline,
 
-	TP_PROTO(const struct btrfs_inode *bi, const struct extent_buffer *l,
+	TP_PROTO(const struct btrfs_ianalde *bi, const struct extent_buffer *l,
 		 const struct btrfs_file_extent_item *fi, int slot, u64 start),
 
 	TP_ARGS(bi, l, fi, slot, start)
@@ -490,7 +490,7 @@ DEFINE_EVENT(
 DEFINE_EVENT(
 	btrfs__file_extent_item_inline, btrfs_truncate_show_fi_inline,
 
-	TP_PROTO(const struct btrfs_inode *bi, const struct extent_buffer *l,
+	TP_PROTO(const struct btrfs_ianalde *bi, const struct extent_buffer *l,
 		 const struct btrfs_file_extent_item *fi, int slot, u64 start),
 
 	TP_ARGS(bi, l, fi, slot, start)
@@ -499,7 +499,7 @@ DEFINE_EVENT(
 #define show_ordered_flags(flags)					   \
 	__print_flags(flags, "|",					   \
 		{ (1 << BTRFS_ORDERED_REGULAR), 	"REGULAR" 	}, \
-		{ (1 << BTRFS_ORDERED_NOCOW), 		"NOCOW" 	}, \
+		{ (1 << BTRFS_ORDERED_ANALCOW), 		"ANALCOW" 	}, \
 		{ (1 << BTRFS_ORDERED_PREALLOC), 	"PREALLOC" 	}, \
 		{ (1 << BTRFS_ORDERED_COMPRESSED), 	"COMPRESSED" 	}, \
 		{ (1 << BTRFS_ORDERED_DIRECT),	 	"DIRECT" 	}, \
@@ -511,13 +511,13 @@ DEFINE_EVENT(
 
 DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 
-	TP_PROTO(const struct btrfs_inode *inode,
+	TP_PROTO(const struct btrfs_ianalde *ianalde,
 		 const struct btrfs_ordered_extent *ordered),
 
-	TP_ARGS(inode, ordered),
+	TP_ARGS(ianalde, ordered),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,  ino		)
+		__field(	u64,  ianal		)
 		__field(	u64,  file_offset	)
 		__field(	u64,  start		)
 		__field(	u64,  len		)
@@ -530,8 +530,8 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 		__field(	u64,  truncated_len	)
 	),
 
-	TP_fast_assign_btrfs(inode->root->fs_info,
-		__entry->ino 		= btrfs_ino(inode);
+	TP_fast_assign_btrfs(ianalde->root->fs_info,
+		__entry->ianal 		= btrfs_ianal(ianalde);
 		__entry->file_offset	= ordered->file_offset;
 		__entry->start		= ordered->disk_bytenr;
 		__entry->len		= ordered->num_bytes;
@@ -540,17 +540,17 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 		__entry->flags		= ordered->flags;
 		__entry->compress_type	= ordered->compress_type;
 		__entry->refs		= refcount_read(&ordered->refs);
-		__entry->root_objectid	= inode->root->root_key.objectid;
+		__entry->root_objectid	= ianalde->root->root_key.objectid;
 		__entry->truncated_len	= ordered->truncated_len;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu file_offset=%llu "
+	TP_printk_btrfs("root=%llu(%s) ianal=%llu file_offset=%llu "
 		  "start=%llu len=%llu disk_len=%llu "
 		  "truncated_len=%llu "
 		  "bytes_left=%llu flags=%s compress_type=%d "
 		  "refs=%d",
 		  show_root_type(__entry->root_objectid),
-		  __entry->ino,
+		  __entry->ianal,
 		  __entry->file_offset,
 		  __entry->start,
 		  __entry->len,
@@ -563,138 +563,138 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_add,
 
-	TP_PROTO(const struct btrfs_inode *inode,
+	TP_PROTO(const struct btrfs_ianalde *ianalde,
 		 const struct btrfs_ordered_extent *ordered),
 
-	TP_ARGS(inode, ordered)
+	TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_remove,
 
-	TP_PROTO(const struct btrfs_inode *inode,
+	TP_PROTO(const struct btrfs_ianalde *ianalde,
 		 const struct btrfs_ordered_extent *ordered),
 
-	TP_ARGS(inode, ordered)
+	TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_start,
 
-	TP_PROTO(const struct btrfs_inode *inode,
+	TP_PROTO(const struct btrfs_ianalde *ianalde,
 		 const struct btrfs_ordered_extent *ordered),
 
-	TP_ARGS(inode, ordered)
+	TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_put,
 
-	TP_PROTO(const struct btrfs_inode *inode,
+	TP_PROTO(const struct btrfs_ianalde *ianalde,
 		 const struct btrfs_ordered_extent *ordered),
 
-	TP_ARGS(inode, ordered)
+	TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup,
 
-	     TP_PROTO(const struct btrfs_inode *inode,
+	     TP_PROTO(const struct btrfs_ianalde *ianalde,
 		      const struct btrfs_ordered_extent *ordered),
 
-	     TP_ARGS(inode, ordered)
+	     TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_range,
 
-	     TP_PROTO(const struct btrfs_inode *inode,
+	     TP_PROTO(const struct btrfs_ianalde *ianalde,
 		      const struct btrfs_ordered_extent *ordered),
 
-	     TP_ARGS(inode, ordered)
+	     TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_first_range,
 
-	     TP_PROTO(const struct btrfs_inode *inode,
+	     TP_PROTO(const struct btrfs_ianalde *ianalde,
 		      const struct btrfs_ordered_extent *ordered),
 
-	     TP_ARGS(inode, ordered)
+	     TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_for_logging,
 
-	     TP_PROTO(const struct btrfs_inode *inode,
+	     TP_PROTO(const struct btrfs_ianalde *ianalde,
 		      const struct btrfs_ordered_extent *ordered),
 
-	     TP_ARGS(inode, ordered)
+	     TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_first,
 
-	     TP_PROTO(const struct btrfs_inode *inode,
+	     TP_PROTO(const struct btrfs_ianalde *ianalde,
 		      const struct btrfs_ordered_extent *ordered),
 
-	     TP_ARGS(inode, ordered)
+	     TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_split,
 
-	     TP_PROTO(const struct btrfs_inode *inode,
+	     TP_PROTO(const struct btrfs_ianalde *ianalde,
 		      const struct btrfs_ordered_extent *ordered),
 
-	     TP_ARGS(inode, ordered)
+	     TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_dec_test_pending,
 
-	     TP_PROTO(const struct btrfs_inode *inode,
+	     TP_PROTO(const struct btrfs_ianalde *ianalde,
 		      const struct btrfs_ordered_extent *ordered),
 
-	     TP_ARGS(inode, ordered)
+	     TP_ARGS(ianalde, ordered)
 );
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_mark_finished,
 
-	     TP_PROTO(const struct btrfs_inode *inode,
+	     TP_PROTO(const struct btrfs_ianalde *ianalde,
 		      const struct btrfs_ordered_extent *ordered),
 
-	     TP_ARGS(inode, ordered)
+	     TP_ARGS(ianalde, ordered)
 );
 
 TRACE_EVENT(btrfs_finish_ordered_extent,
 
-	TP_PROTO(const struct btrfs_inode *inode, u64 start, u64 len,
+	TP_PROTO(const struct btrfs_ianalde *ianalde, u64 start, u64 len,
 		 bool uptodate),
 
-	TP_ARGS(inode, start, len, uptodate),
+	TP_ARGS(ianalde, start, len, uptodate),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,	 ino		)
+		__field(	u64,	 ianal		)
 		__field(	u64,	 start		)
 		__field(	u64,	 len		)
 		__field(	bool,	 uptodate	)
 		__field(	u64,	 root_objectid	)
 	),
 
-	TP_fast_assign_btrfs(inode->root->fs_info,
-		__entry->ino	= btrfs_ino(inode);
+	TP_fast_assign_btrfs(ianalde->root->fs_info,
+		__entry->ianal	= btrfs_ianal(ianalde);
 		__entry->start	= start;
 		__entry->len	= len;
 		__entry->uptodate = uptodate;
-		__entry->root_objectid = inode->root->root_key.objectid;
+		__entry->root_objectid = ianalde->root->root_key.objectid;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu len=%llu uptodate=%d",
+	TP_printk_btrfs("root=%llu(%s) ianal=%llu start=%llu len=%llu uptodate=%d",
 		  show_root_type(__entry->root_objectid),
-		  __entry->ino, __entry->start,
+		  __entry->ianal, __entry->start,
 		  __entry->len, !!__entry->uptodate)
 );
 
 DECLARE_EVENT_CLASS(btrfs__writepage,
 
-	TP_PROTO(const struct page *page, const struct inode *inode,
+	TP_PROTO(const struct page *page, const struct ianalde *ianalde,
 		 const struct writeback_control *wbc),
 
-	TP_ARGS(page, inode, wbc),
+	TP_ARGS(page, ianalde, wbc),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,	ino			)
+		__field(	u64,	ianal			)
 		__field(	pgoff_t,  index			)
 		__field(	long,   nr_to_write		)
 		__field(	long,   pages_skipped		)
@@ -707,8 +707,8 @@ DECLARE_EVENT_CLASS(btrfs__writepage,
 		__field(	u64,    root_objectid		)
 	),
 
-	TP_fast_assign_btrfs(btrfs_sb(inode->i_sb),
-		__entry->ino		= btrfs_ino(BTRFS_I(inode));
+	TP_fast_assign_btrfs(btrfs_sb(ianalde->i_sb),
+		__entry->ianal		= btrfs_ianal(BTRFS_I(ianalde));
 		__entry->index		= page->index;
 		__entry->nr_to_write	= wbc->nr_to_write;
 		__entry->pages_skipped	= wbc->pages_skipped;
@@ -717,17 +717,17 @@ DECLARE_EVENT_CLASS(btrfs__writepage,
 		__entry->for_kupdate	= wbc->for_kupdate;
 		__entry->for_reclaim	= wbc->for_reclaim;
 		__entry->range_cyclic	= wbc->range_cyclic;
-		__entry->writeback_index = inode->i_mapping->writeback_index;
+		__entry->writeback_index = ianalde->i_mapping->writeback_index;
 		__entry->root_objectid	=
-				 BTRFS_I(inode)->root->root_key.objectid;
+				 BTRFS_I(ianalde)->root->root_key.objectid;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu page_index=%lu "
+	TP_printk_btrfs("root=%llu(%s) ianal=%llu page_index=%lu "
 		  "nr_to_write=%ld pages_skipped=%ld range_start=%llu "
 		  "range_end=%llu for_kupdate=%d "
 		  "for_reclaim=%d range_cyclic=%d writeback_index=%lu",
 		  show_root_type(__entry->root_objectid),
-		  __entry->ino, __entry->index,
+		  __entry->ianal, __entry->index,
 		  __entry->nr_to_write, __entry->pages_skipped,
 		  __entry->range_start, __entry->range_end,
 		  __entry->for_kupdate,
@@ -737,38 +737,38 @@ DECLARE_EVENT_CLASS(btrfs__writepage,
 
 DEFINE_EVENT(btrfs__writepage, __extent_writepage,
 
-	TP_PROTO(const struct page *page, const struct inode *inode,
+	TP_PROTO(const struct page *page, const struct ianalde *ianalde,
 		 const struct writeback_control *wbc),
 
-	TP_ARGS(page, inode, wbc)
+	TP_ARGS(page, ianalde, wbc)
 );
 
 TRACE_EVENT(btrfs_writepage_end_io_hook,
 
-	TP_PROTO(const struct btrfs_inode *inode, u64 start, u64 end,
+	TP_PROTO(const struct btrfs_ianalde *ianalde, u64 start, u64 end,
 		 int uptodate),
 
-	TP_ARGS(inode, start, end, uptodate),
+	TP_ARGS(ianalde, start, end, uptodate),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,	 ino		)
+		__field(	u64,	 ianal		)
 		__field(	u64,	 start		)
 		__field(	u64,	 end		)
 		__field(	int,	 uptodate	)
 		__field(	u64,    root_objectid	)
 	),
 
-	TP_fast_assign_btrfs(inode->root->fs_info,
-		__entry->ino	= btrfs_ino(inode);
+	TP_fast_assign_btrfs(ianalde->root->fs_info,
+		__entry->ianal	= btrfs_ianal(ianalde);
 		__entry->start	= start;
 		__entry->end	= end;
 		__entry->uptodate = uptodate;
-		__entry->root_objectid = inode->root->root_key.objectid;
+		__entry->root_objectid = ianalde->root->root_key.objectid;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu end=%llu uptodate=%d",
+	TP_printk_btrfs("root=%llu(%s) ianal=%llu start=%llu end=%llu uptodate=%d",
 		  show_root_type(__entry->root_objectid),
-		  __entry->ino, __entry->start,
+		  __entry->ianal, __entry->start,
 		  __entry->end, __entry->uptodate)
 );
 
@@ -779,7 +779,7 @@ TRACE_EVENT(btrfs_sync_file,
 	TP_ARGS(file, datasync),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,	ino		)
+		__field(	u64,	ianal		)
 		__field(	u64,	parent		)
 		__field(	int,    datasync	)
 		__field(	u64,    root_objectid	)
@@ -787,19 +787,19 @@ TRACE_EVENT(btrfs_sync_file,
 
 	TP_fast_assign(
 		const struct dentry *dentry = file->f_path.dentry;
-		const struct inode *inode = d_inode(dentry);
+		const struct ianalde *ianalde = d_ianalde(dentry);
 
 		TP_fast_assign_fsid(btrfs_sb(file->f_path.dentry->d_sb));
-		__entry->ino		= btrfs_ino(BTRFS_I(inode));
-		__entry->parent		= btrfs_ino(BTRFS_I(d_inode(dentry->d_parent)));
+		__entry->ianal		= btrfs_ianal(BTRFS_I(ianalde));
+		__entry->parent		= btrfs_ianal(BTRFS_I(d_ianalde(dentry->d_parent)));
 		__entry->datasync	= datasync;
 		__entry->root_objectid	=
-				 BTRFS_I(inode)->root->root_key.objectid;
+				 BTRFS_I(ianalde)->root->root_key.objectid;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu parent=%llu datasync=%d",
+	TP_printk_btrfs("root=%llu(%s) ianal=%llu parent=%llu datasync=%d",
 		  show_root_type(__entry->root_objectid),
-		  __entry->ino,
+		  __entry->ianal,
 		  __entry->parent,
 		  __entry->datasync)
 );
@@ -869,7 +869,7 @@ TRACE_EVENT(btrfs_add_block_group,
 DECLARE_EVENT_CLASS(btrfs_delayed_tree_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
+		 const struct btrfs_delayed_ref_analde *ref,
 		 const struct btrfs_delayed_tree_ref *full_ref,
 		 int action),
 
@@ -912,7 +912,7 @@ DECLARE_EVENT_CLASS(btrfs_delayed_tree_ref,
 DEFINE_EVENT(btrfs_delayed_tree_ref,  add_delayed_tree_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
+		 const struct btrfs_delayed_ref_analde *ref,
 		 const struct btrfs_delayed_tree_ref *full_ref,
 		 int action),
 
@@ -922,7 +922,7 @@ DEFINE_EVENT(btrfs_delayed_tree_ref,  add_delayed_tree_ref,
 DEFINE_EVENT(btrfs_delayed_tree_ref,  run_delayed_tree_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
+		 const struct btrfs_delayed_ref_analde *ref,
 		 const struct btrfs_delayed_tree_ref *full_ref,
 		 int action),
 
@@ -932,7 +932,7 @@ DEFINE_EVENT(btrfs_delayed_tree_ref,  run_delayed_tree_ref,
 DECLARE_EVENT_CLASS(btrfs_delayed_data_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
+		 const struct btrfs_delayed_ref_analde *ref,
 		 const struct btrfs_delayed_data_ref *full_ref,
 		 int action),
 
@@ -979,7 +979,7 @@ DECLARE_EVENT_CLASS(btrfs_delayed_data_ref,
 DEFINE_EVENT(btrfs_delayed_data_ref,  add_delayed_data_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
+		 const struct btrfs_delayed_ref_analde *ref,
 		 const struct btrfs_delayed_data_ref *full_ref,
 		 int action),
 
@@ -989,7 +989,7 @@ DEFINE_EVENT(btrfs_delayed_data_ref,  add_delayed_data_ref,
 DEFINE_EVENT(btrfs_delayed_data_ref,  run_delayed_data_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
+		 const struct btrfs_delayed_ref_analde *ref,
 		 const struct btrfs_delayed_data_ref *full_ref,
 		 int action),
 
@@ -1558,7 +1558,7 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__field(	const void *,	wq			)
 		__field(	const void *,	func			)
 		__field(	const void *,	ordered_func		)
-		__field(	const void *,	normal_work		)
+		__field(	const void *,	analrmal_work		)
 	),
 
 	TP_fast_assign_btrfs(btrfs_work_owner(work),
@@ -1566,18 +1566,18 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__entry->wq		= work->wq;
 		__entry->func		= work->func;
 		__entry->ordered_func	= work->ordered_func;
-		__entry->normal_work	= &work->normal_work;
+		__entry->analrmal_work	= &work->analrmal_work;
 	),
 
-	TP_printk_btrfs("work=%p (normal_work=%p) wq=%p func=%ps ordered_func=%p",
-		  __entry->work, __entry->normal_work, __entry->wq,
+	TP_printk_btrfs("work=%p (analrmal_work=%p) wq=%p func=%ps ordered_func=%p",
+		  __entry->work, __entry->analrmal_work, __entry->wq,
 		   __entry->func, __entry->ordered_func)
 );
 
 /*
  * For situations when the work is freed, we pass fs_info and a tag that matches
  * the address of the work structure so it can be paired with the scheduling
- * event. DO NOT add anything here that dereferences wtag.
+ * event. DO ANALT add anything here that dereferences wtag.
  */
 DECLARE_EVENT_CLASS(btrfs__work__done,
 
@@ -1682,32 +1682,32 @@ DEFINE_EVENT(btrfs_workqueue_done, btrfs_workqueue_destroy,
 
 DECLARE_EVENT_CLASS(btrfs__qgroup_rsv_data,
 
-	TP_PROTO(const struct inode *inode, u64 start, u64 len,
+	TP_PROTO(const struct ianalde *ianalde, u64 start, u64 len,
 		 u64 reserved, int op),
 
-	TP_ARGS(inode, start, len, reserved, op),
+	TP_ARGS(ianalde, start, len, reserved, op),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,		rootid		)
-		__field(	u64,		ino		)
+		__field(	u64,		ianal		)
 		__field(	u64,		start		)
 		__field(	u64,		len		)
 		__field(	u64,		reserved	)
 		__field(	int,		op		)
 	),
 
-	TP_fast_assign_btrfs(btrfs_sb(inode->i_sb),
+	TP_fast_assign_btrfs(btrfs_sb(ianalde->i_sb),
 		__entry->rootid		=
-			BTRFS_I(inode)->root->root_key.objectid;
-		__entry->ino		= btrfs_ino(BTRFS_I(inode));
+			BTRFS_I(ianalde)->root->root_key.objectid;
+		__entry->ianal		= btrfs_ianal(BTRFS_I(ianalde));
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->reserved	= reserved;
 		__entry->op		= op;
 	),
 
-	TP_printk_btrfs("root=%llu ino=%llu start=%llu len=%llu reserved=%llu op=%s",
-		  __entry->rootid, __entry->ino, __entry->start, __entry->len,
+	TP_printk_btrfs("root=%llu ianal=%llu start=%llu len=%llu reserved=%llu op=%s",
+		  __entry->rootid, __entry->ianal, __entry->start, __entry->len,
 		  __entry->reserved,
 		  __print_flags((unsigned long)__entry->op, "",
 				BTRFS_QGROUP_OPERATIONS)
@@ -1716,18 +1716,18 @@ DECLARE_EVENT_CLASS(btrfs__qgroup_rsv_data,
 
 DEFINE_EVENT(btrfs__qgroup_rsv_data, btrfs_qgroup_reserve_data,
 
-	TP_PROTO(const struct inode *inode, u64 start, u64 len,
+	TP_PROTO(const struct ianalde *ianalde, u64 start, u64 len,
 		 u64 reserved, int op),
 
-	TP_ARGS(inode, start, len, reserved, op)
+	TP_ARGS(ianalde, start, len, reserved, op)
 );
 
 DEFINE_EVENT(btrfs__qgroup_rsv_data, btrfs_qgroup_release_data,
 
-	TP_PROTO(const struct inode *inode, u64 start, u64 len,
+	TP_PROTO(const struct ianalde *ianalde, u64 start, u64 len,
 		 u64 reserved, int op),
 
-	TP_ARGS(inode, start, len, reserved, op)
+	TP_ARGS(ianalde, start, len, reserved, op)
 );
 
 DECLARE_EVENT_CLASS(btrfs_qgroup_extent,
@@ -1978,7 +1978,7 @@ DECLARE_EVENT_CLASS(btrfs__prelim_ref,
 		__entry->tree_size	= tree_size;
 	),
 
-	TP_printk_btrfs("root_id=%llu key=[%llu,%u,%llu] level=%d count=[%d+%d=%d] parent=%llu wanted_disk_byte=%llu nodes=%llu",
+	TP_printk_btrfs("root_id=%llu key=[%llu,%u,%llu] level=%d count=[%d+%d=%d] parent=%llu wanted_disk_byte=%llu analdes=%llu",
 			__entry->root_id,
 			__entry->objectid, __entry->type,
 			__entry->offset, __entry->level,
@@ -2003,28 +2003,28 @@ DEFINE_EVENT(btrfs__prelim_ref, btrfs_prelim_ref_insert,
 	TP_ARGS(fs_info, oldref, newref, tree_size)
 );
 
-TRACE_EVENT(btrfs_inode_mod_outstanding_extents,
-	TP_PROTO(const struct btrfs_root *root, u64 ino, int mod, unsigned outstanding),
+TRACE_EVENT(btrfs_ianalde_mod_outstanding_extents,
+	TP_PROTO(const struct btrfs_root *root, u64 ianal, int mod, unsigned outstanding),
 
-	TP_ARGS(root, ino, mod, outstanding),
+	TP_ARGS(root, ianal, mod, outstanding),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64, root_objectid	)
-		__field(	u64, ino		)
+		__field(	u64, ianal		)
 		__field(	int, mod		)
 		__field(	unsigned, outstanding	)
 	),
 
 	TP_fast_assign_btrfs(root->fs_info,
 		__entry->root_objectid	= root->root_key.objectid;
-		__entry->ino		= ino;
+		__entry->ianal		= ianal;
 		__entry->mod		= mod;
 		__entry->outstanding    = outstanding;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu mod=%d outstanding=%u",
+	TP_printk_btrfs("root=%llu(%s) ianal=%llu mod=%d outstanding=%u",
 			show_root_type(__entry->root_objectid),
-			__entry->ino, __entry->mod, __entry->outstanding)
+			__entry->ianal, __entry->mod, __entry->outstanding)
 );
 
 DECLARE_EVENT_CLASS(btrfs__block_group,
@@ -2089,7 +2089,7 @@ TRACE_EVENT(btrfs_set_extent_bit,
 
 	TP_STRUCT__entry_btrfs(
 		__field(	unsigned,	owner	)
-		__field(	u64,		ino	)
+		__field(	u64,		ianal	)
 		__field(	u64,		rootid	)
 		__field(	u64,		start	)
 		__field(	u64,		len	)
@@ -2097,19 +2097,19 @@ TRACE_EVENT(btrfs_set_extent_bit,
 	),
 
 	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
-		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
+		const struct btrfs_ianalde *ianalde = extent_io_tree_to_ianalde_const(tree);
 
 		__entry->owner		= tree->owner;
-		__entry->ino		= inode ? btrfs_ino(inode) : 0;
-		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
+		__entry->ianal		= ianalde ? btrfs_ianal(ianalde) : 0;
+		__entry->rootid		= ianalde ? ianalde->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->set_bits	= set_bits;
 	),
 
 	TP_printk_btrfs(
-		"io_tree=%s ino=%llu root=%llu start=%llu len=%llu set_bits=%s",
-		__print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
+		"io_tree=%s ianal=%llu root=%llu start=%llu len=%llu set_bits=%s",
+		__print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ianal,
 		__entry->rootid, __entry->start, __entry->len,
 		__print_flags(__entry->set_bits, "|", EXTENT_FLAGS))
 );
@@ -2122,7 +2122,7 @@ TRACE_EVENT(btrfs_clear_extent_bit,
 
 	TP_STRUCT__entry_btrfs(
 		__field(	unsigned,	owner	)
-		__field(	u64,		ino	)
+		__field(	u64,		ianal	)
 		__field(	u64,		rootid	)
 		__field(	u64,		start	)
 		__field(	u64,		len	)
@@ -2130,19 +2130,19 @@ TRACE_EVENT(btrfs_clear_extent_bit,
 	),
 
 	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
-		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
+		const struct btrfs_ianalde *ianalde = extent_io_tree_to_ianalde_const(tree);
 
 		__entry->owner		= tree->owner;
-		__entry->ino		= inode ? btrfs_ino(inode) : 0;
-		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
+		__entry->ianal		= ianalde ? btrfs_ianal(ianalde) : 0;
+		__entry->rootid		= ianalde ? ianalde->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->clear_bits	= clear_bits;
 	),
 
 	TP_printk_btrfs(
-		"io_tree=%s ino=%llu root=%llu start=%llu len=%llu clear_bits=%s",
-		__print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
+		"io_tree=%s ianal=%llu root=%llu start=%llu len=%llu clear_bits=%s",
+		__print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ianal,
 		__entry->rootid, __entry->start, __entry->len,
 		__print_flags(__entry->clear_bits, "|", EXTENT_FLAGS))
 );
@@ -2155,7 +2155,7 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 
 	TP_STRUCT__entry_btrfs(
 		__field(	unsigned,	owner	)
-		__field(	u64,		ino	)
+		__field(	u64,		ianal	)
 		__field(	u64,		rootid	)
 		__field(	u64,		start	)
 		__field(	u64,		len	)
@@ -2164,11 +2164,11 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 	),
 
 	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
-		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
+		const struct btrfs_ianalde *ianalde = extent_io_tree_to_ianalde_const(tree);
 
 		__entry->owner		= tree->owner;
-		__entry->ino		= inode ? btrfs_ino(inode) : 0;
-		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
+		__entry->ianal		= ianalde ? btrfs_ianal(ianalde) : 0;
+		__entry->rootid		= ianalde ? ianalde->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->set_bits	= set_bits;
@@ -2176,8 +2176,8 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 	),
 
 	TP_printk_btrfs(
-"io_tree=%s ino=%llu root=%llu start=%llu len=%llu set_bits=%s clear_bits=%s",
-		  __print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
+"io_tree=%s ianal=%llu root=%llu start=%llu len=%llu set_bits=%s clear_bits=%s",
+		  __print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ianal,
 		  __entry->rootid, __entry->start, __entry->len,
 		  __print_flags(__entry->set_bits , "|", EXTENT_FLAGS),
 		  __print_flags(__entry->clear_bits, "|", EXTENT_FLAGS))

@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/log2.h>
@@ -99,7 +99,7 @@ int bcm63xx_set_cs_param(unsigned int cs, u32 params)
 	if (!is_valid_cs(cs))
 		return -EINVAL;
 
-	/* none of this fields apply to pcmcia */
+	/* analne of this fields apply to pcmcia */
 	if (cs == MPI_CS_PCMCIA_COMMON ||
 	    cs == MPI_CS_PCMCIA_ATTR ||
 	    cs == MPI_CS_PCMCIA_IO)

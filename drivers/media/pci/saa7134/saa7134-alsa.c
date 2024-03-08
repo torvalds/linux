@@ -38,7 +38,7 @@ static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
 module_param_array(index, int, NULL, 0444);
 module_param_array(enable, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for SAA7134 capture interface(s).");
-MODULE_PARM_DESC(enable, "Enable (or not) the SAA7134 capture interface(s).");
+MODULE_PARM_DESC(enable, "Enable (or analt) the SAA7134 capture interface(s).");
 
 /*
  * Main chip structure
@@ -114,7 +114,7 @@ static void saa7134_dma_start(struct saa7134_dev *dev)
  *
  *   Called whenever we get an SAA7134_IRQ_REPORT_DONE_RA3 interrupt
  *   Handles shifting between the 2 buffers, manages the read counters,
- *  and notifies ALSA when periods elapse
+ *  and analtifies ALSA when periods elapse
  *
  *   - Mostly copied from saa7134-oss's saa7134_irq_oss_done.
  *
@@ -225,7 +225,7 @@ out:
  *   - One of the ALSA capture callbacks.
  *
  *   Called whenever a capture is started or stopped. Must be defined,
- *   but there's nothing we want to do here
+ *   but there's analthing we want to do here
  *
  */
 
@@ -262,7 +262,7 @@ static int saa7134_alsa_dma_init(struct saa7134_dev *dev,
 	dma->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == dma->vaddr) {
 		pr_debug("vmalloc_32(%lu pages) failed\n", nr_pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pr_debug("vmalloc is at addr %p, size=%lu\n",
@@ -290,7 +290,7 @@ vmalloc_to_page_err:
 vzalloc_err:
 	vfree(dma->vaddr);
 	dma->vaddr = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int saa7134_alsa_dma_map(struct saa7134_dev *dev)
@@ -302,7 +302,7 @@ static int saa7134_alsa_dma_map(struct saa7134_dev *dev)
 
 	if (0 == dma->sglen) {
 		pr_warn("%s: saa7134_alsa_map_sg failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -376,7 +376,7 @@ static int dsp_buffer_free(struct saa7134_dev *dev)
  * Setting the capture source and updating the ALSA controls
  */
 static int snd_saa7134_capsrc_set(struct snd_kcontrol *kcontrol,
-				  int left, int right, bool force_notify)
+				  int left, int right, bool force_analtify)
 {
 	snd_card_saa7134_t *chip = snd_kcontrol_chip(kcontrol);
 	int change = 0, addr = kcontrol->private_value;
@@ -392,7 +392,7 @@ static int snd_saa7134_capsrc_set(struct snd_kcontrol *kcontrol,
 	active = left != 0 || right != 0;
 	old_addr = chip->capture_source_addr;
 
-	/* The active capture source cannot be deactivated */
+	/* The active capture source cananalt be deactivated */
 	if (active) {
 		change = old_addr != addr ||
 			 chip->capture_source[0] != left ||
@@ -468,13 +468,13 @@ static int snd_saa7134_capsrc_set(struct snd_kcontrol *kcontrol,
 	}
 
 	if (change) {
-		if (force_notify)
-			snd_ctl_notify(chip->card,
+		if (force_analtify)
+			snd_ctl_analtify(chip->card,
 				       SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->capture_ctl[addr]->id);
 
 		if (old_addr != MIXER_ADDR_UNSELECTED && old_addr != addr)
-			snd_ctl_notify(chip->card,
+			snd_ctl_analtify(chip->card,
 				       SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->capture_ctl[old_addr]->id);
 	}
@@ -801,7 +801,7 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 
 	if (!saa7134) {
 		pr_err("BUG: saa7134 can't find device struct. Can't proceed with open\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev = saa7134->dev;
 	mutex_lock(&dev->dmasound.lock);
@@ -818,7 +818,7 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (pcm == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcm->dev=saa7134->dev;
 
@@ -1120,9 +1120,9 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 
 
 	if (devnum >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[devnum])
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = snd_card_new(&dev->pci->dev, index[devnum], id[devnum],
 			   THIS_MODULE, sizeof(snd_card_saa7134_t), &card);
@@ -1154,7 +1154,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	if (err < 0) {
 		pr_err("%s: can't get IRQ %d for ALSA\n",
 			dev->name, dev->pci->irq);
-		goto __nodev;
+		goto __analdev;
 	}
 
 	chip->irq = dev->pci->irq;
@@ -1162,10 +1162,10 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	mutex_init(&dev->dmasound.lock);
 
 	if ((err = snd_card_saa7134_new_mixer(chip)) < 0)
-		goto __nodev;
+		goto __analdev;
 
 	if ((err = snd_card_saa7134_pcm(chip, 0)) < 0)
-		goto __nodev;
+		goto __analdev;
 
 	/* End of "creation" */
 
@@ -1181,7 +1181,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 		return 0;
 	}
 
-__nodev:
+__analdev:
 	snd_card_free(card);
 	return err;
 }
@@ -1230,7 +1230,7 @@ static int saa7134_alsa_init(void)
 	}
 
 	if (list_empty(&saa7134_devlist))
-		pr_info("saa7134 ALSA: no saa7134 cards found\n");
+		pr_info("saa7134 ALSA: anal saa7134 cards found\n");
 
 	return 0;
 

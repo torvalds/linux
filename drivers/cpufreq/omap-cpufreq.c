@@ -2,7 +2,7 @@
 /*
  *  CPU frequency scaling for OMAP using OPP information
  *
- *  Copyright (C) 2005 Nokia Corporation
+ *  Copyright (C) 2005 Analkia Corporation
  *  Written by Tony Lindgren <tony@atomide.com>
  *
  *  Based on cpu-sa1110.c, Copyright (C) 2001 Russell King
@@ -53,7 +53,7 @@ static int omap_target(struct cpufreq_policy *policy, unsigned int index)
 	ret = clk_round_rate(policy->clk, freq);
 	if (ret < 0) {
 		dev_warn(mpu_dev,
-			 "CPUfreq: Cannot find matching frequency for %lu\n",
+			 "CPUfreq: Cananalt find matching frequency for %lu\n",
 			 freq);
 		return ret;
 	}
@@ -172,7 +172,7 @@ static int omap_cpufreq_probe(struct platform_device *pdev)
 		 * (e.g. could be dummy regulator.)
 		 */
 		if (regulator_get_voltage(mpu_reg) < 0) {
-			pr_warn("%s: physical regulator not present for MPU\n",
+			pr_warn("%s: physical regulator analt present for MPU\n",
 				__func__);
 			regulator_put(mpu_reg);
 			mpu_reg = NULL;

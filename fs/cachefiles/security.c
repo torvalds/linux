@@ -22,7 +22,7 @@ int cachefiles_get_security_ID(struct cachefiles_cache *cache)
 
 	new = prepare_kernel_cred(current);
 	if (!new) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -30,7 +30,7 @@ int cachefiles_get_security_ID(struct cachefiles_cache *cache)
 		ret = set_security_override_from_ctx(new, cache->secctx);
 		if (ret < 0) {
 			put_cred(new);
-			pr_err("Security denies permission to nominate security context: error %d\n",
+			pr_err("Security denies permission to analminate security context: error %d\n",
 			       ret);
 			goto error;
 		}
@@ -51,14 +51,14 @@ static int cachefiles_check_cache_dir(struct cachefiles_cache *cache,
 {
 	int ret;
 
-	ret = security_inode_mkdir(d_backing_inode(root), root, 0);
+	ret = security_ianalde_mkdir(d_backing_ianalde(root), root, 0);
 	if (ret < 0) {
 		pr_err("Security denies permission to make dirs: error %d",
 		       ret);
 		return ret;
 	}
 
-	ret = security_inode_create(d_backing_inode(root), root, 0);
+	ret = security_ianalde_create(d_backing_ianalde(root), root, 0);
 	if (ret < 0)
 		pr_err("Security denies permission to create files: error %d",
 		       ret);
@@ -85,13 +85,13 @@ int cachefiles_determine_cache_security(struct cachefiles_cache *cache,
 	 * force, so we can use prepare_creds() to do this) */
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cachefiles_end_secure(cache, *_saved_cred);
 
 	/* use the cache root dir's security context as the basis with
 	 * which create files */
-	ret = set_create_files_as(new, d_backing_inode(root));
+	ret = set_create_files_as(new, d_backing_ianalde(root));
 	if (ret < 0) {
 		abort_creds(new);
 		cachefiles_begin_secure(cache, _saved_cred);
@@ -105,7 +105,7 @@ int cachefiles_determine_cache_security(struct cachefiles_cache *cache,
 	cachefiles_begin_secure(cache, _saved_cred);
 	ret = cachefiles_check_cache_dir(cache, root);
 
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		ret = 0;
 	_leave(" = %d", ret);
 	return ret;

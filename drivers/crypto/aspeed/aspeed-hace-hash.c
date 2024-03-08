@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 2021 Aspeed Technology Inc.
+ * Copyright (c) 2021 Aspeed Techanallogy Inc.
  */
 
 #include "aspeed-hace.h"
@@ -147,7 +147,7 @@ static int aspeed_ahash_dma_prepare(struct aspeed_hace_dev *hace_dev)
 					       DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(hace_dev->dev, rctx->digest_dma_addr)) {
 		dev_warn(hace_dev->dev, "dma_map() rctx digest error\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hash_engine->src_length = length - remain;
@@ -182,7 +182,7 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 			    DMA_TO_DEVICE);
 	if (!sg_len) {
 		dev_warn(hace_dev->dev, "dma_map_sg() src error\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto end;
 	}
 
@@ -192,7 +192,7 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 					       DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(hace_dev->dev, rctx->digest_dma_addr)) {
 		dev_warn(hace_dev->dev, "dma_map() rctx digest error\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_src_sg;
 	}
 
@@ -206,7 +206,7 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 						       DMA_TO_DEVICE);
 		if (dma_mapping_error(hace_dev->dev, rctx->buffer_dma_addr)) {
 			dev_warn(hace_dev->dev, "dma_map() rctx buffer error\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto free_rctx_digest;
 		}
 
@@ -376,7 +376,7 @@ static int aspeed_ahash_hmac_resume(struct aspeed_hace_dev *hace_dev)
 					       DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(hace_dev->dev, rctx->digest_dma_addr)) {
 		dev_warn(hace_dev->dev, "dma_map() rctx digest error\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto end;
 	}
 
@@ -385,7 +385,7 @@ static int aspeed_ahash_hmac_resume(struct aspeed_hace_dev *hace_dev)
 					       DMA_TO_DEVICE);
 	if (dma_mapping_error(hace_dev->dev, rctx->buffer_dma_addr)) {
 		dev_warn(hace_dev->dev, "dma_map() rctx buffer error\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_rctx_digest;
 	}
 
@@ -419,7 +419,7 @@ static int aspeed_ahash_req_final(struct aspeed_hace_dev *hace_dev)
 					       DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(hace_dev->dev, rctx->digest_dma_addr)) {
 		dev_warn(hace_dev->dev, "dma_map() rctx digest error\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto end;
 	}
 
@@ -429,7 +429,7 @@ static int aspeed_ahash_req_final(struct aspeed_hace_dev *hace_dev)
 					       DMA_TO_DEVICE);
 	if (dma_mapping_error(hace_dev->dev, rctx->buffer_dma_addr)) {
 		dev_warn(hace_dev->dev, "dma_map() rctx buffer error\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_rctx_digest;
 	}
 
@@ -722,7 +722,7 @@ static int aspeed_sham_init(struct ahash_request *req)
 		memcpy(rctx->digest, sha512_iv, rctx->ivsize);
 		break;
 	default:
-		dev_warn(tctx->hace_dev->dev, "digest size %d not support\n",
+		dev_warn(tctx->hace_dev->dev, "digest size %d analt support\n",
 			 crypto_ahash_digestsize(tfm));
 		return -EINVAL;
 	}
@@ -807,7 +807,7 @@ static int aspeed_sham_cra_init(struct crypto_tfm *tfm)
 						 CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(bctx->shash)) {
 			dev_warn(ast_alg->hace_dev->dev,
-				 "base driver '%s' could not be loaded.\n",
+				 "base driver '%s' could analt be loaded.\n",
 				 ast_alg->alg_base);
 			return PTR_ERR(bctx->shash);
 		}

@@ -32,7 +32,7 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
     U32 f7b = 0;
     U32 f7c = 0;
 #if defined(__i386__) && defined(__PIC__) && !defined(__clang__) && defined(__GNUC__)
-    /* The following block like the normal cpuid branch below, but gcc
+    /* The following block like the analrmal cpuid branch below, but gcc
      * reserves ebx for use of its pic register so we must specially
      * handle the save and restore to avoid clobbering the register
      */

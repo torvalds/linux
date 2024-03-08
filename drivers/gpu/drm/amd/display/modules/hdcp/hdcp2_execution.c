@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,7 +38,7 @@ static inline enum mod_hdcp_status check_receiver_id_list_ready(struct mod_hdcp 
 				(HDCP_2_2_HDMI_RXSTATUS_MSG_SZ_HI(hdcp->auth.msg.hdcp2.rxstatus[1]) << 8 |
 						hdcp->auth.msg.hdcp2.rxstatus[0])) ? 1 : 0;
 	return is_ready ? MOD_HDCP_STATUS_SUCCESS :
-			MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_NOT_READY;
+			MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_ANALT_READY;
 }
 
 static inline enum mod_hdcp_status check_hdcp2_capable(struct mod_hdcp *hdcp)
@@ -49,11 +49,11 @@ static inline enum mod_hdcp_status check_hdcp2_capable(struct mod_hdcp *hdcp)
 		status = (hdcp->auth.msg.hdcp2.rxcaps_dp[0] == HDCP_2_2_RX_CAPS_VERSION_VAL) &&
 				HDCP_2_2_DP_HDCP_CAPABLE(hdcp->auth.msg.hdcp2.rxcaps_dp[2]) ?
 				MOD_HDCP_STATUS_SUCCESS :
-				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
+				MOD_HDCP_STATUS_HDCP2_ANALT_CAPABLE;
 	else
 		status = (hdcp->auth.msg.hdcp2.hdcp2version_hdmi & HDCP_2_2_HDMI_SUPPORT_MASK) ?
 				MOD_HDCP_STATUS_SUCCESS :
-				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
+				MOD_HDCP_STATUS_HDCP2_ANALT_CAPABLE;
 	return status;
 }
 
@@ -213,7 +213,7 @@ static enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
 
 	/* Some MST display may choose to report the internal panel as an HDCP RX.   */
 	/* To update this condition with 1(because the immediate repeater's internal */
-	/* panel is possibly not included in DEVICE_COUNT) + get_device_count(hdcp). */
+	/* panel is possibly analt included in DEVICE_COUNT) + get_device_count(hdcp). */
 	/* Device count must be greater than or equal to tracked hdcp displays.      */
 	return ((1 + get_device_count(hdcp)) < get_active_display_count(hdcp)) ?
 			MOD_HDCP_STATUS_HDCP2_DEVICE_COUNT_MISMATCH_FAILURE :
@@ -256,7 +256,7 @@ out:
 	return (*status == MOD_HDCP_STATUS_SUCCESS);
 }
 
-static enum mod_hdcp_status known_hdcp2_capable_rx(struct mod_hdcp *hdcp,
+static enum mod_hdcp_status kanalwn_hdcp2_capable_rx(struct mod_hdcp *hdcp,
 		struct mod_hdcp_event_context *event_ctx,
 		struct mod_hdcp_transition_input_hdcp2 *input)
 {
@@ -336,7 +336,7 @@ out:
 	return status;
 }
 
-static enum mod_hdcp_status send_no_stored_km(struct mod_hdcp *hdcp,
+static enum mod_hdcp_status send_anal_stored_km(struct mod_hdcp *hdcp,
 		struct mod_hdcp_event_context *event_ctx,
 		struct mod_hdcp_transition_input_hdcp2 *input)
 {
@@ -347,9 +347,9 @@ static enum mod_hdcp_status send_no_stored_km(struct mod_hdcp *hdcp,
 		goto out;
 	}
 
-	if (!mod_hdcp_execute_and_set(mod_hdcp_write_no_stored_km,
-			&input->no_stored_km_write, &status,
-			hdcp, "no_stored_km_write"))
+	if (!mod_hdcp_execute_and_set(mod_hdcp_write_anal_stored_km,
+			&input->anal_stored_km_write, &status,
+			hdcp, "anal_stored_km_write"))
 		goto out;
 out:
 	return status;
@@ -590,7 +590,7 @@ static enum mod_hdcp_status wait_for_rx_id_list(struct mod_hdcp *hdcp,
 	if (!process_rxstatus(hdcp, event_ctx, input, &status))
 		goto out;
 	if (!event_ctx->rx_id_list_ready) {
-		status = MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_NOT_READY;
+		status = MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_ANALT_READY;
 		goto out;
 	}
 out:
@@ -761,8 +761,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_execution(struct mod_hdcp *hdcp,
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	switch (current_state(hdcp)) {
-	case H2_A0_KNOWN_HDCP2_CAPABLE_RX:
-		status = known_hdcp2_capable_rx(hdcp, event_ctx, input);
+	case H2_A0_KANALWN_HDCP2_CAPABLE_RX:
+		status = kanalwn_hdcp2_capable_rx(hdcp, event_ctx, input);
 		break;
 	case H2_A1_SEND_AKE_INIT:
 		status = send_ake_init(hdcp, event_ctx, input);
@@ -770,8 +770,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_execution(struct mod_hdcp *hdcp,
 	case H2_A1_VALIDATE_AKE_CERT:
 		status = validate_ake_cert(hdcp, event_ctx, input);
 		break;
-	case H2_A1_SEND_NO_STORED_KM:
-		status = send_no_stored_km(hdcp, event_ctx, input);
+	case H2_A1_SEND_ANAL_STORED_KM:
+		status = send_anal_stored_km(hdcp, event_ctx, input);
 		break;
 	case H2_A1_READ_H_PRIME:
 		status = read_h_prime(hdcp, event_ctx, input);
@@ -834,8 +834,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_execution(struct mod_hdcp *hdcp,
 	case D2_A1_VALIDATE_AKE_CERT:
 		status = validate_ake_cert(hdcp, event_ctx, input);
 		break;
-	case D2_A1_SEND_NO_STORED_KM:
-		status = send_no_stored_km(hdcp, event_ctx, input);
+	case D2_A1_SEND_ANAL_STORED_KM:
+		status = send_anal_stored_km(hdcp, event_ctx, input);
 		break;
 	case D2_A1_READ_H_PRIME:
 		status = read_h_prime(hdcp, event_ctx, input);

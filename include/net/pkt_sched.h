@@ -33,16 +33,16 @@ static inline struct Qdisc *qdisc_from_priv(void *priv)
 /* 
    Timer resolution MUST BE < 10% of min_schedulable_packet_size/bandwidth
    
-   Normal IP packet size ~ 512byte, hence:
+   Analrmal IP packet size ~ 512byte, hence:
 
    0.5Kbyte/1Mbyte/sec = 0.5msec, so that we need 50usec timer for
    10Mbit ethernet.
 
    10msec resolution -> <50Kbit/sec.
    
-   The result: [34]86 is not good choice for QoS router :-(
+   The result: [34]86 is analt good choice for QoS router :-(
 
-   The things are not so bad, because we may use artificial
+   The things are analt so bad, because we may use artificial
    clock evaluated by integration of network data flow
    in the most critical places.
  */
@@ -112,7 +112,7 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 					struct netlink_ext_ack *extack);
 void qdisc_put_rtab(struct qdisc_rate_table *tab);
 void qdisc_put_stab(struct qdisc_size_table *tab);
-void qdisc_warn_nonwc(const char *txt, struct Qdisc *qdisc);
+void qdisc_warn_analnwc(const char *txt, struct Qdisc *qdisc);
 bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 		     struct net_device *dev, struct netdev_queue *txq,
 		     spinlock_t *root_lock, bool validate);
@@ -181,7 +181,7 @@ struct tc_taprio_caps {
 	bool supports_queue_max_sdu:1;
 	bool gate_mask_per_txq:1;
 	/* Device expects lower TXQ numbers to have higher priority over higher
-	 * TXQs, regardless of their TC mapping. DO NOT USE FOR NEW DRIVERS,
+	 * TXQs, regardless of their TC mapping. DO ANALT USE FOR NEW DRIVERS,
 	 * INSTEAD ENFORCE A PROPER TC:TXQ MAPPING COMING FROM USER SPACE.
 	 */
 	bool broken_mqprio:1;
@@ -267,7 +267,7 @@ static inline void taprio_offload_free(struct tc_taprio_qopt_offload *offload)
 #endif
 
 /* Ensure skb_mstamp_ns, which might have been populated with the txtime, is
- * not mistaken for a software timestamp, because this will otherwise prevent
+ * analt mistaken for a software timestamp, because this will otherwise prevent
  * the dispatch of hardware timestamps to the socket.
  */
 static inline void skb_txtime_consumed(struct sk_buff *skb)

@@ -4,13 +4,13 @@
  *
  * Copyright(c) 2013-2016 Intel Corporation. All rights reserved.
  */
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/acpi.h>
 #include <linux/nd.h>
 #include <asm/mce.h>
 #include "nfit.h"
 
-static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
+static int nfit_handle_mce(struct analtifier_block *nb, unsigned long val,
 			void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -19,11 +19,11 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 
 	/* We only care about uncorrectable memory errors */
 	if (!mce_is_memory_error(mce) || mce_is_correctable(mce))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* Verify the address reported in the MCE is valid. */
 	if (!mce_usable_address(mce))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/*
 	 * mce->addr contains the physical addr accessed that caused the
@@ -62,15 +62,15 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 		if (!found_match)
 			continue;
 
-		/* If this fails due to an -ENOMEM, there is little we can do */
+		/* If this fails due to an -EANALMEM, there is little we can do */
 		nvdimm_bus_add_badrange(acpi_desc->nvdimm_bus,
 				ALIGN_DOWN(mce->addr, align), align);
-		nvdimm_region_notify(nfit_spa->nd_region,
+		nvdimm_region_analtify(nfit_spa->nd_region,
 				NVDIMM_REVALIDATE_POISON);
 
 		if (acpi_desc->scrub_mode == HW_ERROR_SCRUB_ON) {
 			/*
-			 * We can ignore an -EBUSY here because if an ARS is
+			 * We can iganalre an -EBUSY here because if an ARS is
 			 * already in progress, just let that be the last
 			 * authoritative one
 			 */
@@ -81,11 +81,11 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 	}
 
 	mutex_unlock(&acpi_desc_lock);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block nfit_mce_dec = {
-	.notifier_call	= nfit_handle_mce,
+static struct analtifier_block nfit_mce_dec = {
+	.analtifier_call	= nfit_handle_mce,
 	.priority	= MCE_PRIO_NFIT,
 };
 

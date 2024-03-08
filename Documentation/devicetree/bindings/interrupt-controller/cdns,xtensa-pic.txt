@@ -2,7 +2,7 @@
 
 Required properties:
 - compatible: Should be "cdns,xtensa-pic".
-- interrupt-controller: Identifies the node as an interrupt controller.
+- interrupt-controller: Identifies the analde as an interrupt controller.
 - #interrupt-cells: The number of cells to define the interrupts.
   It may be either 1 or 2.
   When it's 1, the first cell is the internal IRQ number.
@@ -10,7 +10,7 @@ Required properties:
   specifies whether it's internal (0) or external (1).
   Periferals are usually connected to a fixed external IRQ, but for different
   core variants it may be mapped to different internal IRQ.
-  IRQ sensitivity and priority are fixed for each core variant and may not be
+  IRQ sensitivity and priority are fixed for each core variant and may analt be
   changed at runtime.
 
 Examples:

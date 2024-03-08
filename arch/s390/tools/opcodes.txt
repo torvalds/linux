@@ -527,7 +527,7 @@ b938	sortl	RRE_RR
 b939	dfltcc	RRF_R0RR2
 b93a	kdsa	RRE_RR
 b93b	nnpa	RRE_00
-b93c	ppno	RRE_RR
+b93c	ppanal	RRE_RR
 b93e	kimd	RRE_RR
 b93f	klmd	RRE_RR
 b941	cfdtr	RRF_UURF
@@ -547,13 +547,13 @@ b960	cgrt	RRF_U0RR
 b961	clgrt	RRF_U0RR
 b964	nngrk	RRF_R0RR2
 b965	ocgrk	RRF_R0RR2
-b966	nogrk	RRF_R0RR2
+b966	analgrk	RRF_R0RR2
 b967	nxgrk	RRF_R0RR2
 b972	crt	RRF_U0RR
 b973	clrt	RRF_U0RR
 b974	nnrk	RRF_R0RR2
 b975	ocrk	RRF_R0RR2
-b976	nork	RRF_R0RR2
+b976	analrk	RRF_R0RR2
 b977	nxrk	RRF_R0RR2
 b980	ngr	RRE_RR
 b981	ogr	RRE_RR
@@ -961,7 +961,7 @@ e767	vsumq	VRR_VVV0U
 e768	vn	VRR_VVV
 e769	vnc	VRR_VVV
 e76a	vo	VRR_VVV
-e76b	vno	VRR_VVV
+e76b	vanal	VRR_VVV
 e76c	vnx	VRR_VVV
 e76d	vx	VRR_VVV
 e76e	vnn	VRR_VVV

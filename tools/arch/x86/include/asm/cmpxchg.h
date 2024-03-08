@@ -5,7 +5,7 @@
 #include <linux/compiler.h>
 
 /*
- * Non-existant functions to indicate usage errors at link time
+ * Analn-existant functions to indicate usage errors at link time
  * (or compile-time if the compiler implements __compiletime_error().
  */
 extern void __cmpxchg_wrong_size(void)

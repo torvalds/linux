@@ -48,7 +48,7 @@
 #define MMS136_EVENT_SIZE		6
 
 /* Touch type */
-#define MMS114_TYPE_NONE		0
+#define MMS114_TYPE_ANALNE		0
 #define MMS114_TYPE_TOUCHSCREEN		1
 #define MMS114_TYPE_TOUCHKEY		2
 
@@ -485,8 +485,8 @@ static int mms114_probe(struct i2c_client *client)
 	int i;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "Not supported I2C adapter\n");
-		return -ENODEV;
+		dev_err(&client->dev, "Analt supported I2C adapter\n");
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(&client->dev, sizeof(struct mms114_data),
@@ -494,7 +494,7 @@ static int mms114_probe(struct i2c_client *client)
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!data || !input_dev) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->client = client;
@@ -517,7 +517,7 @@ static int mms114_probe(struct i2c_client *client)
 		return data->num_keycodes;
 	} else if (data->num_keycodes > MMS114_MAX_TOUCHKEYS) {
 		dev_warn(&client->dev,
-			"Found %d linux,keycodes but max is %d, ignoring the rest\n",
+			"Found %d linux,keycodes but max is %d, iganalring the rest\n",
 			 data->num_keycodes, MMS114_MAX_TOUCHKEYS);
 		data->num_keycodes = MMS114_MAX_TOUCHKEYS;
 	}
@@ -581,7 +581,7 @@ static int mms114_probe(struct i2c_client *client)
 					 "MELFAS MMS%d Touchscreen",
 					 data->type);
 	if (!input_dev->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
@@ -614,7 +614,7 @@ static int mms114_probe(struct i2c_client *client)
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, mms114_interrupt,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					  dev_name(&client->dev), data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");

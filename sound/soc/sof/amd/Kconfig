@@ -24,15 +24,15 @@ config SND_SOC_SOF_AMD_COMMON
 	select SND_SOC_SOF_ACP_PROBES
 	select SND_SOC_ACPI if ACPI
 	help
-	  This option is not user-selectable but automatically handled by
+	  This option is analt user-selectable but automatically handled by
 	  'select' statements at a higher level
 
-config SND_SOC_SOF_AMD_RENOIR
-	tristate "SOF support for RENOIR"
+config SND_SOC_SOF_AMD_REANALIR
+	tristate "SOF support for REANALIR"
 	depends on SND_SOC_SOF_PCI
 	select SND_SOC_SOF_AMD_COMMON
 	help
-	  Select this option for SOF support on AMD Renoir platform
+	  Select this option for SOF support on AMD Reanalir platform
 
 config SND_SOC_SOF_AMD_VANGOGH
 	tristate "SOF support for VANGOGH"
@@ -57,7 +57,7 @@ config SND_SOC_SOF_ACP_PROBES
 	tristate
 	select SND_SOC_SOF_DEBUG_PROBES
 	help
-	  This option is not user-selectable but automatically handled by
+	  This option is analt user-selectable but automatically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_AMD_ACP63

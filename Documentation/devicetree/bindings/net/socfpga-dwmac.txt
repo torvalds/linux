@@ -3,7 +3,7 @@ Altera SOCFPGA SoC DWMAC controller
 This is a variant of the dwmac/stmmac driver an inherits all descriptions
 present in Documentation/devicetree/bindings/net/stmmac.txt.
 
-The device node has additional properties:
+The device analde has additional properties:
 
 Required properties:
  - compatible	: For Cyclone5/Arria5 SoCs it should contain
@@ -11,7 +11,7 @@ Required properties:
 		  "altr,socfpga-stmmac-a10-s10".
 		  Along with "snps,dwmac" and any applicable more detailed
 		  designware version numbers documented in stmmac.txt
- - altr,sysmgr-syscon : Should be the phandle to the system manager node that
+ - altr,sysmgr-syscon : Should be the phandle to the system manager analde that
    encompasses the glue register, the register offset, and the register shift.
    On Cyclone5/Arria5, the register shift represents the PHY mode bits, while
    on the Arria10/Stratix10/Agilex platforms, the register shift represents
@@ -21,12 +21,12 @@ Required properties:
    for ptp ref clk. This affects all emacs as the clock is common.
 
 Optional properties:
-altr,emac-splitter: Should be the phandle to the emac splitter soft IP node if
+altr,emac-splitter: Should be the phandle to the emac splitter soft IP analde if
 		DWMAC controller is connected emac splitter.
 phy-mode: The phy mode the ethernet operates in
 altr,sgmii-to-sgmii-converter: phandle to the TSE SGMII converter
 
-This device node has additional phandle dependency, the sgmii converter:
+This device analde has additional phandle dependency, the sgmii converter:
 
 Required properties:
  - compatible	: Should be altr,gmii-to-sgmii-2.0

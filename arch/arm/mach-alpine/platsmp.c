@@ -6,7 +6,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/of.h>
 

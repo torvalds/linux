@@ -53,8 +53,8 @@ tls_handshake_req_init(struct handshake_req *req,
 	treq->th_peername = args->ta_peername;
 	treq->th_keyring = args->ta_keyring;
 	treq->th_num_peerids = 0;
-	treq->th_certificate = TLS_NO_CERT;
-	treq->th_privkey = TLS_NO_PRIVKEY;
+	treq->th_certificate = TLS_ANAL_CERT;
+	treq->th_privkey = TLS_ANAL_PRIVKEY;
 	return treq;
 }
 
@@ -97,7 +97,7 @@ static void tls_handshake_done(struct handshake_req *req,
 {
 	struct tls_handshake_req *treq = handshake_req_private(req);
 
-	treq->th_peerid[0] = TLS_NO_PEERID;
+	treq->th_peerid[0] = TLS_ANAL_PEERID;
 	if (info)
 		tls_handshake_remote_peerids(treq, info);
 
@@ -114,7 +114,7 @@ static int tls_handshake_private_keyring(struct tls_handshake_req *treq)
 	key_ref_t process_keyring_ref, keyring_ref;
 	int ret;
 
-	if (treq->th_keyring == TLS_NO_KEYRING)
+	if (treq->th_keyring == TLS_ANAL_KEYRING)
 		return 0;
 
 	process_keyring_ref = lookup_user_key(KEY_SPEC_PROCESS_KEYRING,
@@ -165,8 +165,8 @@ static int tls_handshake_put_certificate(struct sk_buff *msg,
 {
 	struct nlattr *entry_attr;
 
-	if (treq->th_certificate == TLS_NO_CERT &&
-	    treq->th_privkey == TLS_NO_PRIVKEY)
+	if (treq->th_certificate == TLS_ANAL_CERT &&
+	    treq->th_privkey == TLS_ANAL_PRIVKEY)
 		return 0;
 
 	entry_attr = nla_nest_start(msg, HANDSHAKE_A_ACCEPT_CERTIFICATE);
@@ -191,7 +191,7 @@ static int tls_handshake_put_certificate(struct sk_buff *msg,
  * @info: generic netlink message context
  * @fd: file descriptor to be returned
  *
- * Returns zero on success, or a negative errno on failure.
+ * Returns zero on success, or a negative erranal on failure.
  */
 static int tls_handshake_accept(struct handshake_req *req,
 				struct genl_info *info, int fd)
@@ -205,7 +205,7 @@ static int tls_handshake_accept(struct handshake_req *req,
 	if (ret < 0)
 		goto out;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	msg = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		goto out;
@@ -261,37 +261,37 @@ out:
 static const struct handshake_proto tls_handshake_proto = {
 	.hp_handler_class	= HANDSHAKE_HANDLER_CLASS_TLSHD,
 	.hp_privsize		= sizeof(struct tls_handshake_req),
-	.hp_flags		= BIT(HANDSHAKE_F_PROTO_NOTIFY),
+	.hp_flags		= BIT(HANDSHAKE_F_PROTO_ANALTIFY),
 
 	.hp_accept		= tls_handshake_accept,
 	.hp_done		= tls_handshake_done,
 };
 
 /**
- * tls_client_hello_anon - request an anonymous TLS handshake on a socket
+ * tls_client_hello_aanaln - request an aanalnymous TLS handshake on a socket
  * @args: socket and handshake parameters for this request
  * @flags: memory allocation control flags
  *
  * Return values:
  *   %0: Handshake request enqueue; ->done will be called when complete
- *   %-ESRCH: No user agent is available
- *   %-ENOMEM: Memory allocation failed
+ *   %-ESRCH: Anal user agent is available
+ *   %-EANALMEM: Memory allocation failed
  */
-int tls_client_hello_anon(const struct tls_handshake_args *args, gfp_t flags)
+int tls_client_hello_aanaln(const struct tls_handshake_args *args, gfp_t flags)
 {
 	struct tls_handshake_req *treq;
 	struct handshake_req *req;
 
 	req = handshake_req_alloc(&tls_handshake_proto, flags);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 	treq = tls_handshake_req_init(req, args);
 	treq->th_type = HANDSHAKE_MSG_TYPE_CLIENTHELLO;
 	treq->th_auth_mode = HANDSHAKE_AUTH_UNAUTH;
 
 	return handshake_req_submit(args->ta_sock, req, flags);
 }
-EXPORT_SYMBOL(tls_client_hello_anon);
+EXPORT_SYMBOL(tls_client_hello_aanaln);
 
 /**
  * tls_client_hello_x509 - request an x.509-based TLS handshake on a socket
@@ -300,8 +300,8 @@ EXPORT_SYMBOL(tls_client_hello_anon);
  *
  * Return values:
  *   %0: Handshake request enqueue; ->done will be called when complete
- *   %-ESRCH: No user agent is available
- *   %-ENOMEM: Memory allocation failed
+ *   %-ESRCH: Anal user agent is available
+ *   %-EANALMEM: Memory allocation failed
  */
 int tls_client_hello_x509(const struct tls_handshake_args *args, gfp_t flags)
 {
@@ -310,7 +310,7 @@ int tls_client_hello_x509(const struct tls_handshake_args *args, gfp_t flags)
 
 	req = handshake_req_alloc(&tls_handshake_proto, flags);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 	treq = tls_handshake_req_init(req, args);
 	treq->th_type = HANDSHAKE_MSG_TYPE_CLIENTHELLO;
 	treq->th_auth_mode = HANDSHAKE_AUTH_X509;
@@ -329,8 +329,8 @@ EXPORT_SYMBOL(tls_client_hello_x509);
  * Return values:
  *   %0: Handshake request enqueue; ->done will be called when complete
  *   %-EINVAL: Wrong number of local peer IDs
- *   %-ESRCH: No user agent is available
- *   %-ENOMEM: Memory allocation failed
+ *   %-ESRCH: Anal user agent is available
+ *   %-EANALMEM: Memory allocation failed
  */
 int tls_client_hello_psk(const struct tls_handshake_args *args, gfp_t flags)
 {
@@ -344,7 +344,7 @@ int tls_client_hello_psk(const struct tls_handshake_args *args, gfp_t flags)
 
 	req = handshake_req_alloc(&tls_handshake_proto, flags);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 	treq = tls_handshake_req_init(req, args);
 	treq->th_type = HANDSHAKE_MSG_TYPE_CLIENTHELLO;
 	treq->th_auth_mode = HANDSHAKE_AUTH_PSK;
@@ -363,8 +363,8 @@ EXPORT_SYMBOL(tls_client_hello_psk);
  *
  * Return values:
  *   %0: Handshake request enqueue; ->done will be called when complete
- *   %-ESRCH: No user agent is available
- *   %-ENOMEM: Memory allocation failed
+ *   %-ESRCH: Anal user agent is available
+ *   %-EANALMEM: Memory allocation failed
  */
 int tls_server_hello_x509(const struct tls_handshake_args *args, gfp_t flags)
 {
@@ -373,7 +373,7 @@ int tls_server_hello_x509(const struct tls_handshake_args *args, gfp_t flags)
 
 	req = handshake_req_alloc(&tls_handshake_proto, flags);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 	treq = tls_handshake_req_init(req, args);
 	treq->th_type = HANDSHAKE_MSG_TYPE_SERVERHELLO;
 	treq->th_auth_mode = HANDSHAKE_AUTH_X509;
@@ -391,8 +391,8 @@ EXPORT_SYMBOL(tls_server_hello_x509);
  *
  * Return values:
  *   %0: Handshake request enqueue; ->done will be called when complete
- *   %-ESRCH: No user agent is available
- *   %-ENOMEM: Memory allocation failed
+ *   %-ESRCH: Anal user agent is available
+ *   %-EANALMEM: Memory allocation failed
  */
 int tls_server_hello_psk(const struct tls_handshake_args *args, gfp_t flags)
 {
@@ -401,7 +401,7 @@ int tls_server_hello_psk(const struct tls_handshake_args *args, gfp_t flags)
 
 	req = handshake_req_alloc(&tls_handshake_proto, flags);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 	treq = tls_handshake_req_init(req, args);
 	treq->th_type = HANDSHAKE_MSG_TYPE_SERVERHELLO;
 	treq->th_auth_mode = HANDSHAKE_AUTH_PSK;
@@ -421,7 +421,7 @@ EXPORT_SYMBOL(tls_server_hello_psk);
  *
  * Return values:
  *   %true - Uncompleted handshake request was canceled
- *   %false - Handshake request already completed or not found
+ *   %false - Handshake request already completed or analt found
  */
 bool tls_handshake_cancel(struct sock *sk)
 {
@@ -444,6 +444,6 @@ void tls_handshake_close(struct socket *sock)
 	if (!test_and_clear_bit(HANDSHAKE_F_REQ_SESSION, &req->hr_flags))
 		return;
 	tls_alert_send(sock, TLS_ALERT_LEVEL_WARNING,
-		       TLS_ALERT_DESC_CLOSE_NOTIFY);
+		       TLS_ALERT_DESC_CLOSE_ANALTIFY);
 }
 EXPORT_SYMBOL(tls_handshake_close);

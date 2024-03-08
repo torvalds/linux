@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -35,7 +35,7 @@
 #include "cvmx-coremask.h"
 
 /*
- * Current major and minor versions of the CVMX bootinfo block that is
+ * Current major and mianalr versions of the CVMX bootinfo block that is
  * passed from the bootloader to the application.  This is versioned
  * so that applications can properly handle multiple bootloader
  * versions.
@@ -48,16 +48,16 @@
 /*
  * This structure is populated by the bootloader.  For binary
  * compatibility the only changes that should be made are
- * adding members to the end of the structure, and the minor
+ * adding members to the end of the structure, and the mianalr
  * version should be incremented at that time.
  * If an incompatible change is made, the major version
- * must be incremented, and the minor version should be reset
+ * must be incremented, and the mianalr version should be reset
  * to 0.
  */
 struct cvmx_bootinfo {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t major_version;
-	uint32_t minor_version;
+	uint32_t mianalr_version;
 
 	uint64_t stack_top;
 	uint64_t heap_base;
@@ -84,7 +84,7 @@ struct cvmx_bootinfo {
 	uint32_t reserved0;
 	uint16_t board_type;
 	uint8_t board_rev_major;
-	uint8_t board_rev_minor;
+	uint8_t board_rev_mianalr;
 	uint16_t reserved1;
 	uint8_t reserved2;
 	uint8_t reserved3;
@@ -98,13 +98,13 @@ struct cvmx_bootinfo {
 	 * addresses on different boards.  These are the physical
 	 * addresses, so care must be taken to use the correct
 	 * XKPHYS/KSEG0 addressing depending on the application's
-	 * ABI.	 These values will be 0 if CF is not present.
+	 * ABI.	 These values will be 0 if CF is analt present.
 	 */
 	uint64_t compact_flash_common_base_addr;
 	uint64_t compact_flash_attribute_base_addr;
 	/*
 	 * Base address of the LED display (as on EBT3000 board)
-	 * This will be 0 if LED display not present.
+	 * This will be 0 if LED display analt present.
 	 */
 	uint64_t led_display_base_addr;
 #endif
@@ -139,7 +139,7 @@ struct cvmx_bootinfo {
 	 * little-endian, the view of the structure has some of the
 	 * fields swapped.
 	 */
-	uint32_t minor_version;
+	uint32_t mianalr_version;
 	uint32_t major_version;
 
 	uint64_t stack_top;
@@ -165,7 +165,7 @@ struct cvmx_bootinfo {
 	uint8_t reserved3;
 	uint8_t reserved2;
 	uint16_t reserved1;
-	uint8_t board_rev_minor;
+	uint8_t board_rev_mianalr;
 	uint8_t board_rev_major;
 	uint16_t board_type;
 
@@ -195,8 +195,8 @@ struct cvmx_bootinfo {
 #define CVMX_BOOTINFO_CFG_FLAG_PCI_HOST			(1ull << 0)
 #define CVMX_BOOTINFO_CFG_FLAG_PCI_TARGET		(1ull << 1)
 #define CVMX_BOOTINFO_CFG_FLAG_DEBUG			(1ull << 2)
-#define CVMX_BOOTINFO_CFG_FLAG_NO_MAGIC			(1ull << 3)
-/* This flag is set if the TLB mappings are not contained in the
+#define CVMX_BOOTINFO_CFG_FLAG_ANAL_MAGIC			(1ull << 3)
+/* This flag is set if the TLB mappings are analt contained in the
  * 0x10000000 - 0x20000000 boot bus region. */
 #define CVMX_BOOTINFO_CFG_FLAG_OVERSIZE_TLB_MAPPING	(1ull << 4)
 #define CVMX_BOOTINFO_CFG_FLAG_BREAK			(1ull << 5)

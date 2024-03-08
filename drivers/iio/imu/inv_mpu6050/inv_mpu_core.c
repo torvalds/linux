@@ -322,7 +322,7 @@ static int inv_mpu6050_clock_switch(struct inv_mpu6050_state *st,
 		st->chip_config.clk = clock;
 		break;
 	default:
-		/* automatic clock switching, nothing to do */
+		/* automatic clock switching, analthing to do */
 		break;
 	}
 
@@ -497,7 +497,7 @@ static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
 	case INV_MPU6050:
 	case INV_MPU6000:
 	case INV_MPU9150:
-		/* old chips, nothing to do */
+		/* old chips, analthing to do */
 		return 0;
 	case INV_ICM20689:
 	case INV_ICM20690:
@@ -556,7 +556,7 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 			NSEC_PER_SEC / INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
 	inv_sensors_timestamp_init(&st->timestamp, &timestamp);
 
-	/* magn chip init, noop if not present in the chip */
+	/* magn chip init, analop if analt present in the chip */
 	result = inv_mpu_magn_probe(st);
 	if (result)
 		return result;
@@ -715,7 +715,7 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 			*val2 = gyro_scale_6050[st->chip_config.fsr];
 			mutex_unlock(&st->lock);
 
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_ACCEL:
 			mutex_lock(&st->lock);
 			*val = 0;
@@ -792,7 +792,7 @@ static int inv_write_raw_get_fmt(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		default:
 			return IIO_VAL_INT_PLUS_MICRO;
 		}
@@ -837,7 +837,7 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 
 	/*
 	 * we should only update scale when the chip is disabled, i.e.
-	 * not running
+	 * analt running
 	 */
 	result = iio_device_claim_direct_mode(indio_dev);
 	if (result)
@@ -897,7 +897,7 @@ error_write_raw_unlock:
  *  inv_mpu6050_set_lpf() - set low pass filer based on fifo rate.
  *
  *                  Based on the Nyquist principle, the bandwidth of the low
- *                  pass filter must not exceed the signal sampling rate divided
+ *                  pass filter must analt exceed the signal sampling rate divided
  *                  by 2, or there would be aliasing.
  *                  This function basically search for the correct low pass
  *                  parameters based on the fifo rate, e.g, sampling frequency.
@@ -984,7 +984,7 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	if (result)
 		goto fifo_rate_fail_power_off;
 
-	/* update rate for magn, noop if not present in chip */
+	/* update rate for magn, analop if analt present in chip */
 	result = inv_mpu_magn_set_rate(st, fifo_rate);
 	if (result)
 		goto fifo_rate_fail_power_off;
@@ -1345,7 +1345,7 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	       sizeof(st->chip_config));
 	st->data = devm_kzalloc(regmap_get_device(st->map), st->hw->fifo_size, GFP_KERNEL);
 	if (st->data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* check chip self-identification */
 	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
@@ -1366,11 +1366,11 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 			dev_err(regmap_get_device(st->map),
 				"invalid whoami 0x%02x expected 0x%02x (%s)\n",
 				regval, st->hw->whoami, st->hw->name);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
-	/* reset to make sure previous state are not there */
+	/* reset to make sure previous state are analt there */
 	result = regmap_write(st->map, st->reg->pwr_mgmt_1,
 			      INV_MPU6050_BIT_H_RESET);
 	if (result)
@@ -1479,13 +1479,13 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	BUILD_BUG_ON(ARRAY_SIZE(hw_info) != INV_NUM_PARTS);
 	if (chip_type < 0 || chip_type >= INV_NUM_PARTS) {
 		dev_err(dev, "Bad invensense chip_type=%d name=%s\n",
 				chip_type, name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
@@ -1510,7 +1510,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	if (irq > 0) {
 		desc = irq_get_irq_data(irq);
 		if (!desc) {
-			dev_err(dev, "Could not find IRQ %d\n", irq);
+			dev_err(dev, "Could analt find IRQ %d\n", irq);
 			return -EINVAL;
 		}
 
@@ -1581,7 +1581,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 
 	result = inv_mpu6050_init_config(indio_dev);
 	if (result) {
-		dev_err(dev, "Could not initialize device.\n");
+		dev_err(dev, "Could analt initialize device.\n");
 		goto error_power_off;
 	}
 
@@ -1603,7 +1603,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	result = pm_runtime_set_active(dev);
 	if (result)
 		goto error_power_off;
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, INV_MPU6050_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
@@ -1637,7 +1637,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		break;
 	}
 	/*
-	 * Use magnetometer inside the chip only if there is no i2c
+	 * Use magnetometer inside the chip only if there is anal i2c
 	 * auxiliary device in use. Otherwise Going back to 6-axis only.
 	 */
 	if (st->magn_disabled) {
@@ -1651,7 +1651,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	if (irq > 0) {
 		/*
 		 * The driver currently only supports buffered capture with its
-		 * own trigger. So no IRQ, no trigger, no buffer
+		 * own trigger. So anal IRQ, anal trigger, anal buffer
 		 */
 		result = devm_iio_triggered_buffer_setup(dev, indio_dev,
 							 iio_pollfunc_store_time,

@@ -5,7 +5,7 @@
 
 #include "xe_exec_queue.h"
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
@@ -46,7 +46,7 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 
 	q = kzalloc(sizeof(*q) + sizeof(struct xe_lrc) * width, GFP_KERNEL);
 	if (!q)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&q->refcount);
 	q->flags = flags;
@@ -70,15 +70,15 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	    q->flags & EXEC_QUEUE_FLAG_HIGH_PRIORITY)
 		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
 	else
-		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_NORMAL;
+		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_ANALRMAL;
 
 	if (xe_exec_queue_is_parallel(q)) {
 		q->parallel.composite_fence_ctx = dma_fence_context_alloc(1);
-		q->parallel.composite_fence_seqno = XE_FENCE_INITIAL_SEQNO;
+		q->parallel.composite_fence_seqanal = XE_FENCE_INITIAL_SEQANAL;
 	}
 	if (q->flags & EXEC_QUEUE_FLAG_VM) {
 		q->bind.fence_ctx = dma_fence_context_alloc(1);
-		q->bind.fence_seqno = XE_FENCE_INITIAL_SEQNO;
+		q->bind.fence_seqanal = XE_FENCE_INITIAL_SEQANAL;
 	}
 
 	for (i = 0; i < width; ++i) {
@@ -92,9 +92,9 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 		goto err_lrc;
 
 	/*
-	 * Normally the user vm holds an rpm ref to keep the device
+	 * Analrmally the user vm holds an rpm ref to keep the device
 	 * awake, and the context holds a ref for the vm, however for
-	 * some engines we use the kernels migrate vm underneath which offers no
+	 * some engines we use the kernels migrate vm underneath which offers anal
 	 * such rpm ref, or we lack a vm. Make sure we keep a ref here, so we
 	 * can perform GuC CT actions when needed. Caller is expected to have
 	 * already grabbed the rpm ref outside any sensitive locks.
@@ -150,7 +150,7 @@ struct xe_exec_queue *xe_exec_queue_create_class(struct xe_device *xe, struct xe
 	}
 
 	if (!logical_mask)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return xe_exec_queue_create(xe, vm, logical_mask, 1, hwe0, flags);
 }
@@ -227,7 +227,7 @@ enum xe_exec_queue_priority
 xe_exec_queue_device_get_max_priority(struct xe_device *xe)
 {
 	return capable(CAP_SYS_NICE) ? XE_EXEC_QUEUE_PRIORITY_HIGH :
-				       XE_EXEC_QUEUE_PRIORITY_NORMAL;
+				       XE_EXEC_QUEUE_PRIORITY_ANALRMAL;
 }
 
 static int exec_queue_set_priority(struct xe_device *xe, struct xe_exec_queue *q,
@@ -339,7 +339,7 @@ static int exec_queue_user_ext_set_property(struct xe_device *xe,
 			 ext.property != DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE))
 		return -EINVAL;
 
-	idx = array_index_nospec(ext.property, ARRAY_SIZE(exec_queue_set_property_funcs));
+	idx = array_index_analspec(ext.property, ARRAY_SIZE(exec_queue_set_property_funcs));
 	if (!exec_queue_set_property_funcs[idx])
 		return -EINVAL;
 
@@ -376,7 +376,7 @@ static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue
 			 ARRAY_SIZE(exec_queue_user_extension_funcs)))
 		return -EINVAL;
 
-	idx = array_index_nospec(ext.name,
+	idx = array_index_analspec(ext.name,
 				 ARRAY_SIZE(exec_queue_user_extension_funcs));
 	err = exec_queue_user_extension_funcs[idx](xe, q, extensions, create);
 	if (XE_IOCTL_DBG(xe, err))
@@ -409,7 +409,7 @@ find_hw_engine(struct xe_device *xe,
 	if (eci.gt_id >= xe->info.gt_count)
 		return NULL;
 
-	idx = array_index_nospec(eci.engine_class,
+	idx = array_index_analspec(eci.engine_class,
 				 ARRAY_SIZE(user_to_xe_engine_class));
 
 	return xe_gt_hw_engine(xe_device_get_gt(xe, eci.gt_id),
@@ -562,7 +562,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 						    EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD :
 						    0));
 
-			xe_device_mem_access_put(xe); /* now held by engine */
+			xe_device_mem_access_put(xe); /* analw held by engine */
 
 			xe_vm_put(migrate_vm);
 			if (IS_ERR(new)) {
@@ -591,7 +591,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 
 		vm = xe_vm_lookup(xef, args->vm_id);
 		if (XE_IOCTL_DBG(xe, !vm))
-			return -ENOENT;
+			return -EANALENT;
 
 		err = down_read_interruptible(&vm->lock);
 		if (err) {
@@ -602,7 +602,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 		if (XE_IOCTL_DBG(xe, xe_vm_is_closed_or_banned(vm))) {
 			up_read(&vm->lock);
 			xe_vm_put(vm);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		q = xe_exec_queue_create(xe, vm, logical_mask,
@@ -659,7 +659,7 @@ int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
 
 	q = xe_exec_queue_lookup(xef, args->exec_queue_id);
 	if (XE_IOCTL_DBG(xe, !q))
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (args->property) {
 	case DRM_XE_EXEC_QUEUE_GET_PROPERTY_BAN:
@@ -689,7 +689,7 @@ bool xe_exec_queue_is_lr(struct xe_exec_queue *q)
 
 static s32 xe_exec_queue_num_job_inflight(struct xe_exec_queue *q)
 {
-	return q->lrc->fence_ctx.next_seqno - xe_lrc_seqno(q->lrc) - 1;
+	return q->lrc->fence_ctx.next_seqanal - xe_lrc_seqanal(q->lrc) - 1;
 }
 
 /**
@@ -714,7 +714,7 @@ bool xe_exec_queue_ring_full(struct xe_exec_queue *q)
  * timeline lock for the exec_queues, so that the return value
  * of this function becomes more than just an advisory
  * snapshot in time. The timeline lock must protect the
- * seqno from racing submissions on the same exec_queue.
+ * seqanal from racing submissions on the same exec_queue.
  * Typically vm->resv, but user-created timeline locks use the migrate vm
  * and never grabs the migrate vm->resv so we have a race there.
  *
@@ -726,16 +726,16 @@ bool xe_exec_queue_is_idle(struct xe_exec_queue *q)
 		int i;
 
 		for (i = 0; i < q->width; ++i) {
-			if (xe_lrc_seqno(&q->lrc[i]) !=
-			    q->lrc[i].fence_ctx.next_seqno - 1)
+			if (xe_lrc_seqanal(&q->lrc[i]) !=
+			    q->lrc[i].fence_ctx.next_seqanal - 1)
 				return false;
 		}
 
 		return true;
 	}
 
-	return xe_lrc_seqno(&q->lrc[0]) ==
-		q->lrc[0].fence_ctx.next_seqno - 1;
+	return xe_lrc_seqanal(&q->lrc[0]) ==
+		q->lrc[0].fence_ctx.next_seqanal - 1;
 }
 
 void xe_exec_queue_kill(struct xe_exec_queue *q)
@@ -768,7 +768,7 @@ int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 	q = xa_erase(&xef->exec_queue.xa, args->exec_queue_id);
 	mutex_unlock(&xef->exec_queue.lock);
 	if (XE_IOCTL_DBG(xe, !q))
-		return -ENOENT;
+		return -EANALENT;
 
 	xe_exec_queue_kill(q);
 
@@ -823,7 +823,7 @@ void xe_exec_queue_last_fence_put_unlocked(struct xe_exec_queue *q)
  *
  * Get last fence, takes a ref
  *
- * Returns: last fence if not signaled, dma fence stub if signaled
+ * Returns: last fence if analt signaled, dma fence stub if signaled
  */
 struct dma_fence *xe_exec_queue_last_fence_get(struct xe_exec_queue *q,
 					       struct xe_vm *vm)

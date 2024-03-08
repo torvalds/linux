@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -34,7 +34,7 @@
 
 #define B53_SPI_CMD_READ	0x00
 #define B53_SPI_CMD_WRITE	0x01
-#define B53_SPI_CMD_NORMAL	0x60
+#define B53_SPI_CMD_ANALRMAL	0x60
 #define B53_SPI_CMD_FAST	0x10
 
 #define B53_SPI_PAGE_SELECT	0xff
@@ -44,7 +44,7 @@ static inline int b53_spi_read_reg(struct spi_device *spi, u8 reg, u8 *val,
 {
 	u8 txbuf[2];
 
-	txbuf[0] = B53_SPI_CMD_NORMAL | B53_SPI_CMD_READ;
+	txbuf[0] = B53_SPI_CMD_ANALRMAL | B53_SPI_CMD_READ;
 	txbuf[1] = reg;
 
 	return spi_write_then_read(spi, txbuf, 2, val, len);
@@ -77,7 +77,7 @@ static inline int b53_spi_set_page(struct spi_device *spi, u8 page)
 {
 	u8 txbuf[3];
 
-	txbuf[0] = B53_SPI_CMD_NORMAL | B53_SPI_CMD_WRITE;
+	txbuf[0] = B53_SPI_CMD_ANALRMAL | B53_SPI_CMD_WRITE;
 	txbuf[1] = B53_SPI_PAGE_SELECT;
 	txbuf[2] = page;
 
@@ -205,7 +205,7 @@ static int b53_spi_write8(struct b53_device *dev, u8 page, u8 reg, u8 value)
 	if (ret)
 		return ret;
 
-	txbuf[0] = B53_SPI_CMD_NORMAL | B53_SPI_CMD_WRITE;
+	txbuf[0] = B53_SPI_CMD_ANALRMAL | B53_SPI_CMD_WRITE;
 	txbuf[1] = reg;
 	txbuf[2] = value;
 
@@ -222,7 +222,7 @@ static int b53_spi_write16(struct b53_device *dev, u8 page, u8 reg, u16 value)
 	if (ret)
 		return ret;
 
-	txbuf[0] = B53_SPI_CMD_NORMAL | B53_SPI_CMD_WRITE;
+	txbuf[0] = B53_SPI_CMD_ANALRMAL | B53_SPI_CMD_WRITE;
 	txbuf[1] = reg;
 	put_unaligned_le16(value, &txbuf[2]);
 
@@ -239,7 +239,7 @@ static int b53_spi_write32(struct b53_device *dev, u8 page, u8 reg, u32 value)
 	if (ret)
 		return ret;
 
-	txbuf[0] = B53_SPI_CMD_NORMAL | B53_SPI_CMD_WRITE;
+	txbuf[0] = B53_SPI_CMD_ANALRMAL | B53_SPI_CMD_WRITE;
 	txbuf[1] = reg;
 	put_unaligned_le32(value, &txbuf[2]);
 
@@ -256,7 +256,7 @@ static int b53_spi_write48(struct b53_device *dev, u8 page, u8 reg, u64 value)
 	if (ret)
 		return ret;
 
-	txbuf[0] = B53_SPI_CMD_NORMAL | B53_SPI_CMD_WRITE;
+	txbuf[0] = B53_SPI_CMD_ANALRMAL | B53_SPI_CMD_WRITE;
 	txbuf[1] = reg;
 	put_unaligned_le64(value, &txbuf[2]);
 
@@ -273,7 +273,7 @@ static int b53_spi_write64(struct b53_device *dev, u8 page, u8 reg, u64 value)
 	if (ret)
 		return ret;
 
-	txbuf[0] = B53_SPI_CMD_NORMAL | B53_SPI_CMD_WRITE;
+	txbuf[0] = B53_SPI_CMD_ANALRMAL | B53_SPI_CMD_WRITE;
 	txbuf[1] = reg;
 	put_unaligned_le64(value, &txbuf[2]);
 
@@ -300,7 +300,7 @@ static int b53_spi_probe(struct spi_device *spi)
 
 	dev = b53_switch_alloc(&spi->dev, &b53_spi_ops, spi);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (spi->dev.platform_data)
 		dev->pdata = spi->dev.platform_data;

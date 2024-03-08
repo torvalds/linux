@@ -3,7 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -59,7 +59,7 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 		    IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED),
 		    IS_ENABLED(CONFIG_NL80211_TESTMODE));
 
-	firmware = ar->normal_mode_fw.fw_file.firmware;
+	firmware = ar->analrmal_mode_fw.fw_file.firmware;
 	if (firmware)
 		crc = crc32_le(0, firmware->data, firmware->size);
 
@@ -82,7 +82,7 @@ void ath10k_debug_print_board_info(struct ath10k *ar)
 	else
 		scnprintf(boardinfo, sizeof(boardinfo), "N/A");
 
-	board = ar->normal_mode_fw.board;
+	board = ar->analrmal_mode_fw.board;
 	if (!IS_ERR_OR_NULL(board))
 		crc = crc32_le(0, board->data, board->size);
 	else
@@ -98,9 +98,9 @@ void ath10k_debug_print_boot_info(struct ath10k *ar)
 {
 	ath10k_info(ar, "htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d\n",
 		    ar->htt.target_version_major,
-		    ar->htt.target_version_minor,
-		    ar->normal_mode_fw.fw_file.wmi_op_version,
-		    ar->normal_mode_fw.fw_file.htt_op_version,
+		    ar->htt.target_version_mianalr,
+		    ar->analrmal_mode_fw.fw_file.wmi_op_version,
+		    ar->analrmal_mode_fw.fw_file.htt_op_version,
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations,
 		    test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags),
@@ -162,7 +162,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -175,7 +175,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 			if (enabled)
 				len += scnprintf(buf + len, buf_len - len,
 						 "%-40s %s (bit %d)\n",
-						 "unknown", "enabled", i);
+						 "unkanalwn", "enabled", i);
 
 			continue;
 		}
@@ -277,11 +277,11 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	 * splits the stats data and delivers it in a ping-pong fashion of
 	 * request cmd-update event.
 	 *
-	 * However there is no explicit end-of-data. Instead start-of-data is
+	 * However there is anal explicit end-of-data. Instead start-of-data is
 	 * used as an implicit one. This works as follows:
 	 *  a) discard stat update events until one with pdev stats is
 	 *     delivered - this skips session started at end of (b)
-	 *  b) consume stat update events until another one with pdev stats is
+	 *  b) consume stat update events until aanalther one with pdev stats is
 	 *     delivered which is treated as end-of-data and is itself discarded
 	 */
 	if (ath10k_peer_stats_enabled(ar))
@@ -294,8 +294,8 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 		goto free;
 	}
 
-	num_peers = list_count_nodes(&ar->debug.fw_stats.peers);
-	num_vdevs = list_count_nodes(&ar->debug.fw_stats.vdevs);
+	num_peers = list_count_analdes(&ar->debug.fw_stats.peers);
+	num_vdevs = list_count_analdes(&ar->debug.fw_stats.vdevs);
 	is_start = (list_empty(&ar->debug.fw_stats.pdevs) &&
 		    !list_empty(&stats.pdevs));
 	is_end = (!list_empty(&ar->debug.fw_stats.pdevs) &&
@@ -341,7 +341,7 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 
 free:
 	/* In some cases lists have been spliced and cleared. Free up
-	 * resources if that is not the case.
+	 * resources if that is analt the case.
 	 */
 	ath10k_fw_stats_pdevs_free(&stats.pdevs);
 	ath10k_fw_stats_vdevs_free(&stats.vdevs);
@@ -370,7 +370,7 @@ int ath10k_debug_fw_stats_request(struct ath10k *ar)
 
 		ret = ath10k_wmi_request_stats(ar, ar->fw_stats_req_mask);
 		if (ret) {
-			ath10k_warn(ar, "could not request stats (%d)\n", ret);
+			ath10k_warn(ar, "could analt request stats (%d)\n", ret);
 			return ret;
 		}
 
@@ -391,9 +391,9 @@ int ath10k_debug_fw_stats_request(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_fw_stats_open(struct inode *inode, struct file *file)
+static int ath10k_fw_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ath10k *ar = inode->i_private;
+	struct ath10k *ar = ianalde->i_private;
 	void *buf = NULL;
 	int ret;
 
@@ -406,7 +406,7 @@ static int ath10k_fw_stats_open(struct inode *inode, struct file *file)
 
 	buf = vmalloc(ATH10K_FW_STATS_BUF_SIZE);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -435,7 +435,7 @@ err_unlock:
 	return ret;
 }
 
-static int ath10k_fw_stats_release(struct inode *inode, struct file *file)
+static int ath10k_fw_stats_release(struct ianalde *ianalde, struct file *file)
 {
 	vfree(file->private_data);
 
@@ -470,7 +470,7 @@ static ssize_t ath10k_debug_fw_reset_stats_read(struct file *file,
 
 	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&ar->data_lock);
 
@@ -507,12 +507,12 @@ static int ath10k_debug_fw_assert(struct ath10k *ar)
 
 	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd) + 16);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = (struct wmi_vdev_install_key_cmd *)skb->data;
 	memset(cmd, 0, sizeof(*cmd));
 
-	/* big enough number so that firmware asserts */
+	/* big eanalugh number so that firmware asserts */
 	cmd->vdev_id = __cpu_to_le32(0x7ffe);
 
 	return ath10k_wmi_cmd_send(ar, skb,
@@ -536,7 +536,7 @@ static ssize_t ath10k_read_simulate_fw_crash(struct file *file,
 /* Simulate firmware crash:
  * 'soft': Call wmi command causing firmware hang. This firmware hang is
  * recoverable by warm firmware reset.
- * 'hard': Force firmware crash by setting any vdev parameter for not allowed
+ * 'hard': Force firmware crash by setting any vdev parameter for analt allowed
  * vdev id. This is hard firmware crash because it is recoverable only by cold
  * firmware reset.
  */
@@ -768,7 +768,7 @@ static ssize_t ath10k_mem_value_read(struct file *file,
 
 	buf = vmalloc(count);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -780,7 +780,7 @@ static ssize_t ath10k_mem_value_read(struct file *file,
 
 	ret = ath10k_hif_diag_read(ar, *ppos, buf, count);
 	if (ret) {
-		ath10k_warn(ar, "failed to read address 0x%08x via diagnose window from debugfs: %d\n",
+		ath10k_warn(ar, "failed to read address 0x%08x via diaganalse window from debugfs: %d\n",
 			    (u32)(*ppos), ret);
 		goto exit;
 	}
@@ -820,7 +820,7 @@ static ssize_t ath10k_mem_value_write(struct file *file,
 
 	buf = vmalloc(count);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -838,7 +838,7 @@ static ssize_t ath10k_mem_value_write(struct file *file,
 
 	ret = ath10k_hif_diag_write(ar, *ppos, buf, count);
 	if (ret) {
-		ath10k_warn(ar, "failed to write address 0x%08x via diagnose window from debugfs: %d\n",
+		ath10k_warn(ar, "failed to write address 0x%08x via diaganalse window from debugfs: %d\n",
 			    (u32)(*ppos), ret);
 		goto exit;
 	}
@@ -927,7 +927,7 @@ static ssize_t ath10k_write_htt_stats_mask(struct file *file,
 	if (ret)
 		return ret;
 
-	/* max 17 bit masks (for now) */
+	/* max 17 bit masks (for analw) */
 	if (mask > HTT_STATS_BIT_MASK)
 		return -E2BIG;
 
@@ -1052,7 +1052,7 @@ static ssize_t ath10k_write_fw_dbglog(struct file *file,
 		return -EINVAL;
 
 	if (ret == 1)
-		/* default if user did not specify */
+		/* default if user did analt specify */
 		log_level = ATH10K_DBGLOG_LEVEL_WARN;
 
 	mutex_lock(&ar->conf_mutex);
@@ -1089,7 +1089,7 @@ static const char ath10k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_bytes_nic",
 	"rx_pkts_nic",
 	"rx_bytes_nic",
-	"d_noise_floor",
+	"d_analise_floor",
 	"d_cycle_count",
 	"d_phy_error",
 	"d_rts_bad",
@@ -1097,7 +1097,7 @@ static const char ath10k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"d_tx_power", /* in .5 dbM I think */
 	"d_rx_crc_err", /* fcs_bad */
 	"d_rx_crc_err_drop", /* frame with FCS error, dropped late in kernel */
-	"d_no_beacon",
+	"d_anal_beacon",
 	"d_tx_mpdus_queued",
 	"d_tx_msdu_queued",
 	"d_tx_msdu_dropped",
@@ -1179,7 +1179,7 @@ void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
 					      struct ath10k_fw_stats_pdev,
 					      list);
 	if (!pdev_stats) {
-		/* no results available so just return zeroes */
+		/* anal results available so just return zeroes */
 		pdev_stats = &zero_stats;
 	}
 
@@ -1189,7 +1189,7 @@ void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
 	data[i++] = 0; /* tx bytes */
 	data[i++] = pdev_stats->htt_mpdus;
 	data[i++] = 0; /* rx bytes */
-	data[i++] = pdev_stats->ch_noise_floor;
+	data[i++] = pdev_stats->ch_analise_floor;
 	data[i++] = pdev_stats->cycle_count;
 	data[i++] = pdev_stats->phy_err_count;
 	data[i++] = pdev_stats->rts_bad;
@@ -1197,7 +1197,7 @@ void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
 	data[i++] = pdev_stats->chan_tx_power;
 	data[i++] = pdev_stats->fcs_bad;
 	data[i++] = ar->stats.rx_crc_err_drop;
-	data[i++] = pdev_stats->no_beacons;
+	data[i++] = pdev_stats->anal_beacons;
 	data[i++] = pdev_stats->mpdu_enqued;
 	data[i++] = pdev_stats->msdu_enqued;
 	data[i++] = pdev_stats->wmm_drop;
@@ -1260,7 +1260,7 @@ static int ath10k_debug_cal_data_fetch(struct ath10k *ar)
 		return -EINVAL;
 
 	if (ar->hw_params.cal_data_len == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	hi_addr = host_interest_item_address(HI_ITEM(hi_board_data));
 
@@ -1281,9 +1281,9 @@ static int ath10k_debug_cal_data_fetch(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
+static int ath10k_debug_cal_data_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ath10k *ar = inode->i_private;
+	struct ath10k *ar = ianalde->i_private;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -1404,7 +1404,7 @@ static ssize_t ath10k_write_nf_cal_period(struct file *file,
 	if (period > WMI_PDEV_PARAM_CAL_PERIOD_MAX)
 		return -EINVAL;
 
-	/* there's no way to switch back to the firmware default */
+	/* there's anal way to switch back to the firmware default */
 	if (period == 0)
 		return -EINVAL;
 
@@ -1413,7 +1413,7 @@ static ssize_t ath10k_write_nf_cal_period(struct file *file,
 	ar->debug.nf_cal_period = period;
 
 	if (ar->state != ATH10K_STATE_ON) {
-		/* firmware is not running, nothing else to do */
+		/* firmware is analt running, analthing else to do */
 		ret = count;
 		goto exit;
 	}
@@ -1518,7 +1518,7 @@ static void ath10k_tpc_stats_print(struct ath10k_tpc_stats *tpc_stats,
 	*len += scnprintf(buf + *len, buf_len - *len,
 			  "********************************\n");
 	*len += scnprintf(buf + *len, buf_len - *len,
-			  "No.  Preamble Rate_code ");
+			  "Anal.  Preamble Rate_code ");
 
 	for (i = 0; i < tpc_stats->num_tx_chain; i++)
 		*len += scnprintf(buf + *len, buf_len - *len,
@@ -1586,7 +1586,7 @@ static void ath10k_tpc_stats_fill(struct ath10k *ar,
 		case WMI_TPC_TABLE_TYPE_CDD:
 			if (tpc_stats->flag[j] == ATH10K_TPC_TABLE_TYPE_FLAG) {
 				len += scnprintf(buf + len, buf_len - len,
-						 "CDD not supported\n");
+						 "CDD analt supported\n");
 				break;
 			}
 
@@ -1595,7 +1595,7 @@ static void ath10k_tpc_stats_fill(struct ath10k *ar,
 		case WMI_TPC_TABLE_TYPE_STBC:
 			if (tpc_stats->flag[j] == ATH10K_TPC_TABLE_TYPE_FLAG) {
 				len += scnprintf(buf + len, buf_len - len,
-						 "STBC not supported\n");
+						 "STBC analt supported\n");
 				break;
 			}
 
@@ -1604,7 +1604,7 @@ static void ath10k_tpc_stats_fill(struct ath10k *ar,
 		case WMI_TPC_TABLE_TYPE_TXBF:
 			if (tpc_stats->flag[j] == ATH10K_TPC_TABLE_TYPE_FLAG) {
 				len += scnprintf(buf + len, buf_len - len,
-						 "TXBF not supported\n***************************\n");
+						 "TXBF analt supported\n***************************\n");
 				break;
 			}
 
@@ -1626,9 +1626,9 @@ unlock:
 		buf[len] = 0;
 }
 
-static int ath10k_tpc_stats_open(struct inode *inode, struct file *file)
+static int ath10k_tpc_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ath10k *ar = inode->i_private;
+	struct ath10k *ar = ianalde->i_private;
 	void *buf = NULL;
 	int ret;
 
@@ -1641,7 +1641,7 @@ static int ath10k_tpc_stats_open(struct inode *inode, struct file *file)
 
 	buf = vmalloc(ATH10K_TPC_CONFIG_BUF_SIZE);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -1666,7 +1666,7 @@ err_unlock:
 	return ret;
 }
 
-static int ath10k_tpc_stats_release(struct inode *inode, struct file *file)
+static int ath10k_tpc_stats_release(struct ianalde *ianalde, struct file *file)
 {
 	vfree(file->private_data);
 
@@ -1698,7 +1698,7 @@ int ath10k_debug_start(struct ath10k *ar)
 
 	ret = ath10k_debug_htt_stats_req(ar);
 	if (ret)
-		/* continue normally anyway, this isn't serious */
+		/* continue analrmally anyway, this isn't serious */
 		ath10k_warn(ar, "failed to start htt stats workqueue: %d\n",
 			    ret);
 
@@ -1706,7 +1706,7 @@ int ath10k_debug_start(struct ath10k *ar)
 		ret = ath10k_wmi_dbglog_cfg(ar, ar->debug.fw_dbglog_mask,
 					    ATH10K_DBGLOG_LEVEL_WARN);
 		if (ret)
-			/* not serious */
+			/* analt serious */
 			ath10k_warn(ar, "failed to enable dbglog during start: %d",
 				    ret);
 	}
@@ -1715,25 +1715,25 @@ int ath10k_debug_start(struct ath10k *ar)
 		ret = ath10k_wmi_pdev_pktlog_enable(ar,
 						    ar->pktlog_filter);
 		if (ret)
-			/* not serious */
+			/* analt serious */
 			ath10k_warn(ar,
 				    "failed to enable pktlog filter %x: %d\n",
 				    ar->pktlog_filter, ret);
 	} else {
 		ret = ath10k_wmi_pdev_pktlog_disable(ar);
 		if (ret)
-			/* not serious */
+			/* analt serious */
 			ath10k_warn(ar, "failed to disable pktlog: %d\n", ret);
 	}
 
 	if (ar->debug.nf_cal_period &&
-	    !test_bit(ATH10K_FW_FEATURE_NON_BMI,
-		      ar->normal_mode_fw.fw_file.fw_features)) {
+	    !test_bit(ATH10K_FW_FEATURE_ANALN_BMI,
+		      ar->analrmal_mode_fw.fw_file.fw_features)) {
 		ret = ath10k_wmi_pdev_set_param(ar,
 						ar->wmi.pdev_param->cal_period,
 						ar->debug.nf_cal_period);
 		if (ret)
-			/* not serious */
+			/* analt serious */
 			ath10k_warn(ar, "cal period cfg failed from debug start: %d\n",
 				    ret);
 	}
@@ -1745,11 +1745,11 @@ void ath10k_debug_stop(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
-	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
-		      ar->normal_mode_fw.fw_file.fw_features))
+	if (!test_bit(ATH10K_FW_FEATURE_ANALN_BMI,
+		      ar->analrmal_mode_fw.fw_file.fw_features))
 		ath10k_debug_cal_data_fetch(ar);
 
-	/* Must not use _sync to avoid deadlock, we do that in
+	/* Must analt use _sync to avoid deadlock, we do that in
 	 * ath10k_debug_destroy(). The check for htt_stats_mask is to avoid
 	 * warning from del_timer().
 	 */
@@ -1804,10 +1804,10 @@ static ssize_t ath10k_read_dfs_stats(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!ar->dfs_detector) {
-		len += scnprintf(buf + len, size - len, "DFS not enabled\n");
+		len += scnprintf(buf + len, size - len, "DFS analt enabled\n");
 		goto exit;
 	}
 
@@ -1927,7 +1927,7 @@ static ssize_t ath10k_write_quiet_period(struct file *file,
 		return -EINVAL;
 
 	if (period < ATH10K_QUIET_PERIOD_MIN) {
-		ath10k_warn(ar, "Quiet period %u can not be lesser than 25ms\n",
+		ath10k_warn(ar, "Quiet period %u can analt be lesser than 25ms\n",
 			    period);
 		return -EINVAL;
 	}
@@ -1974,7 +1974,7 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 		return ret;
 
 	if (!ar->coex_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -2165,34 +2165,34 @@ static ssize_t ath10k_debug_fw_checksums_read(struct file *file,
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ar->conf_mutex);
 
 	len += scnprintf(buf + len, buf_len - len,
 			 "firmware-N.bin\t\t%08x\n",
-			 crc32_le(0, ar->normal_mode_fw.fw_file.firmware->data,
-				  ar->normal_mode_fw.fw_file.firmware->size));
+			 crc32_le(0, ar->analrmal_mode_fw.fw_file.firmware->data,
+				  ar->analrmal_mode_fw.fw_file.firmware->size));
 	len += scnprintf(buf + len, buf_len - len,
 			 "athwlan\t\t\t%08x\n",
-			 crc32_le(0, ar->normal_mode_fw.fw_file.firmware_data,
-				  ar->normal_mode_fw.fw_file.firmware_len));
+			 crc32_le(0, ar->analrmal_mode_fw.fw_file.firmware_data,
+				  ar->analrmal_mode_fw.fw_file.firmware_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "otp\t\t\t%08x\n",
-			 crc32_le(0, ar->normal_mode_fw.fw_file.otp_data,
-				  ar->normal_mode_fw.fw_file.otp_len));
+			 crc32_le(0, ar->analrmal_mode_fw.fw_file.otp_data,
+				  ar->analrmal_mode_fw.fw_file.otp_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "codeswap\t\t%08x\n",
-			 crc32_le(0, ar->normal_mode_fw.fw_file.codeswap_data,
-				  ar->normal_mode_fw.fw_file.codeswap_len));
+			 crc32_le(0, ar->analrmal_mode_fw.fw_file.codeswap_data,
+				  ar->analrmal_mode_fw.fw_file.codeswap_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "board-N.bin\t\t%08x\n",
-			 crc32_le(0, ar->normal_mode_fw.board->data,
-				  ar->normal_mode_fw.board->size));
+			 crc32_le(0, ar->analrmal_mode_fw.board->data,
+				  ar->analrmal_mode_fw.board->size));
 	len += scnprintf(buf + len, buf_len - len,
 			 "board\t\t\t%08x\n",
-			 crc32_le(0, ar->normal_mode_fw.board_data,
-				  ar->normal_mode_fw.board_len));
+			 crc32_le(0, ar->analrmal_mode_fw.board_data,
+				  ar->analrmal_mode_fw.board_len));
 
 	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 
@@ -2269,9 +2269,9 @@ static int ath10k_debug_tpc_stats_final_request(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_tpc_stats_final_open(struct inode *inode, struct file *file)
+static int ath10k_tpc_stats_final_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ath10k *ar = inode->i_private;
+	struct ath10k *ar = ianalde->i_private;
 	void *buf;
 	int ret;
 
@@ -2284,7 +2284,7 @@ static int ath10k_tpc_stats_final_open(struct inode *inode, struct file *file)
 
 	buf = vmalloc(ATH10K_TPC_CONFIG_BUF_SIZE);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -2309,7 +2309,7 @@ err_unlock:
 	return ret;
 }
 
-static int ath10k_tpc_stats_final_release(struct inode *inode,
+static int ath10k_tpc_stats_final_release(struct ianalde *ianalde,
 					  struct file *file)
 {
 	vfree(file->private_data);
@@ -2499,7 +2499,7 @@ int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.cal_data = vzalloc(ATH10K_DEBUG_CAL_DATA_LEN);
 	if (!ar->debug.cal_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ar->debug.fw_stats.pdevs);
 	INIT_LIST_HEAD(&ar->debug.fw_stats.vdevs);
@@ -2528,7 +2528,7 @@ int ath10k_debug_register(struct ath10k *ar)
 		if (IS_ERR(ar->debug.debugfs_phy))
 			return PTR_ERR(ar->debug.debugfs_phy);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,
@@ -2570,8 +2570,8 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("fw_dbglog", 0600, ar->debug.debugfs_phy, ar,
 			    &fops_fw_dbglog);
 
-	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
-		      ar->normal_mode_fw.fw_file.fw_features)) {
+	if (!test_bit(ATH10K_FW_FEATURE_ANALN_BMI,
+		      ar->analrmal_mode_fw.fw_file.fw_features)) {
 		debugfs_create_file("cal_data", 0400, ar->debug.debugfs_phy, ar,
 				    &fops_cal_data);
 

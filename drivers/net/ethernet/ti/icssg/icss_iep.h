@@ -26,8 +26,8 @@ struct icss_iep_clockops {
 	int (*extts_enable)(void *clockops_data, u32 index, int on);
 };
 
-struct icss_iep *icss_iep_get(struct device_node *np);
-struct icss_iep *icss_iep_get_idx(struct device_node *np, int idx);
+struct icss_iep *icss_iep_get(struct device_analde *np);
+struct icss_iep *icss_iep_get_idx(struct device_analde *np, int idx);
 void icss_iep_put(struct icss_iep *iep);
 int icss_iep_init(struct icss_iep *iep, const struct icss_iep_clockops *clkops,
 		  void *clockops_data, u32 cycle_time_ns);

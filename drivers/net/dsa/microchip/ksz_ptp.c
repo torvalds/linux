@@ -2,7 +2,7 @@
 /* Microchip KSZ PTP Implementation
  *
  * Copyright (C) 2020 ARRI Lighting
- * Copyright (C) 2022 Microchip Technology Inc.
+ * Copyright (C) 2022 Microchip Techanallogy Inc.
  */
 
 #include <linux/dsa/ksz_common.h>
@@ -21,7 +21,7 @@
 #define work_to_xmit_work(w) \
 		container_of((w), struct ksz_deferred_xmit_work, work)
 
-/* Sub-nanoseconds-adj,max * sub-nanoseconds / 40ns * 1ns
+/* Sub-naanalseconds-adj,max * sub-naanalseconds / 40ns * 1ns
  * = (2^30-1) * (2 ^ 32) / 40 ns * 1 ns = 6249999
  */
 #define KSZ_MAX_DRIFT_CORR 6249999
@@ -59,7 +59,7 @@ static int ksz_ptp_tou_reset(struct ksz_device *dev, u8 unit)
 	u32 data;
 	int ret;
 
-	/* Reset trigger unit (clears TRIGGER_EN, but not GPIOSTATx) */
+	/* Reset trigger unit (clears TRIGGER_EN, but analt GPIOSTATx) */
 	ret = ksz_rmw32(dev, REG_PTP_CTRL_STAT__4, TRIG_RESET, TRIG_RESET);
 
 	data = FIELD_PREP(TRIG_DONE_M, BIT(unit));
@@ -100,7 +100,7 @@ static int ksz_ptp_tou_target_time_set(struct ksz_device *dev,
 	if ((ts->tv_sec & 0xffffffff) != ts->tv_sec)
 		return -EINVAL;
 
-	ret = ksz_write32(dev, REG_TRIG_TARGET_NANOSEC, ts->tv_nsec);
+	ret = ksz_write32(dev, REG_TRIG_TARGET_NAANALSEC, ts->tv_nsec);
 	if (ret)
 		return ret;
 
@@ -121,7 +121,7 @@ static int ksz_ptp_tou_start(struct ksz_device *dev, u8 unit)
 		return ret;
 
 	/* Check error flag:
-	 * - the ACTIVE flag is NOT cleared an error!
+	 * - the ACTIVE flag is ANALT cleared an error!
 	 */
 	ret = ksz_read32(dev, REG_PTP_TRIG_STATUS__4, &data);
 	if (ret)
@@ -146,7 +146,7 @@ static int ksz_ptp_configure_perout(struct ksz_device *dev,
 	u32 data;
 	int ret;
 
-	data = FIELD_PREP(TRIG_NOTIFY, 1) |
+	data = FIELD_PREP(TRIG_ANALTIFY, 1) |
 		FIELD_PREP(TRIG_GPO_M, index) |
 		FIELD_PREP(TRIG_PATTERN_M, TRIG_POS_PERIOD);
 	ret = ksz_write32(dev, REG_TRIG_CTRL__4, data);
@@ -187,7 +187,7 @@ static int ksz_ptp_enable_perout(struct ksz_device *dev,
 	int ret;
 
 	if (request->flags & ~PTP_PEROUT_DUTY_CYCLE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ptp_data->tou_mode != KSZ_PTP_TOU_PEROUT &&
 	    ptp_data->tou_mode != KSZ_PTP_TOU_IDLE)
@@ -301,7 +301,7 @@ int ksz_get_ts_info(struct dsa_switch *ds, int port, struct ethtool_ts_info *ts)
 	ptp_data = &dev->ptp_data;
 
 	if (!ptp_data->clock)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ts->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
 			      SOF_TIMESTAMPING_RX_HARDWARE |
@@ -312,7 +312,7 @@ int ksz_get_ts_info(struct dsa_switch *ds, int port, struct ethtool_ts_info *ts)
 	if (is_lan937x(dev))
 		ts->tx_types |= BIT(HWTSTAMP_TX_ON);
 
-	ts->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	ts->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			 BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
 			 BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 			 BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
@@ -381,7 +381,7 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 	}
 
 	switch (config->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		prt->hwts_rx_en = false;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
@@ -400,7 +400,7 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 		prt->hwts_rx_en = true;
 		break;
 	default:
-		config->rx_filter = HWTSTAMP_FILTER_NONE;
+		config->rx_filter = HWTSTAMP_FILTER_ANALNE;
 		return -ERANGE;
 	}
 
@@ -515,7 +515,7 @@ void ksz_port_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 		return;
 
 	type = ptp_classify_raw(skb);
-	if (type == PTP_CLASS_NONE)
+	if (type == PTP_CLASS_ANALNE)
 		return;
 
 	hdr = ptp_parse_header(skb, type);
@@ -594,7 +594,7 @@ void ksz_port_deferred_xmit(struct kthread_work *work)
 
 static int _ksz_ptp_gettime(struct ksz_device *dev, struct timespec64 *ts)
 {
-	u32 nanoseconds;
+	u32 naanalseconds;
 	u32 seconds;
 	u8 phase;
 	int ret;
@@ -604,11 +604,11 @@ static int _ksz_ptp_gettime(struct ksz_device *dev, struct timespec64 *ts)
 	if (ret)
 		return ret;
 
-	ret = ksz_read8(dev, REG_PTP_RTC_SUB_NANOSEC__2, &phase);
+	ret = ksz_read8(dev, REG_PTP_RTC_SUB_NAANALSEC__2, &phase);
 	if (ret)
 		return ret;
 
-	ret = ksz_read32(dev, REG_PTP_RTC_NANOSEC, &nanoseconds);
+	ret = ksz_read32(dev, REG_PTP_RTC_NAANALSEC, &naanalseconds);
 	if (ret)
 		return ret;
 
@@ -617,7 +617,7 @@ static int _ksz_ptp_gettime(struct ksz_device *dev, struct timespec64 *ts)
 		return ret;
 
 	ts->tv_sec = seconds;
-	ts->tv_nsec = nanoseconds + phase * 8;
+	ts->tv_nsec = naanalseconds + phase * 8;
 
 	return 0;
 }
@@ -638,34 +638,34 @@ static int ksz_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 static int ksz_ptp_restart_perout(struct ksz_device *dev)
 {
 	struct ksz_ptp_data *ptp_data = &dev->ptp_data;
-	s64 now_ns, first_ns, period_ns, next_ns;
+	s64 analw_ns, first_ns, period_ns, next_ns;
 	struct ptp_perout_request request;
 	struct timespec64 next;
-	struct timespec64 now;
+	struct timespec64 analw;
 	unsigned int count;
 	int ret;
 
 	dev_info(dev->dev, "Restarting periodic output signal\n");
 
-	ret = _ksz_ptp_gettime(dev, &now);
+	ret = _ksz_ptp_gettime(dev, &analw);
 	if (ret)
 		return ret;
 
-	now_ns = timespec64_to_ns(&now);
+	analw_ns = timespec64_to_ns(&analw);
 	first_ns = timespec64_to_ns(&ptp_data->perout_target_time_first);
 
 	/* Calculate next perout event based on start time and period */
 	period_ns = timespec64_to_ns(&ptp_data->perout_period);
 
-	if (first_ns < now_ns) {
-		count = div_u64(now_ns - first_ns, period_ns);
+	if (first_ns < analw_ns) {
+		count = div_u64(analw_ns - first_ns, period_ns);
 		next_ns = first_ns + count * period_ns;
 	} else {
 		next_ns = first_ns;
 	}
 
 	/* Ensure 100 ms guard time prior next event */
-	while (next_ns < now_ns + 100000000)
+	while (next_ns < analw_ns + 100000000)
 		next_ns += period_ns;
 
 	/* Restart periodic output signal */
@@ -690,11 +690,11 @@ static int ksz_ptp_settime(struct ptp_clock_info *ptp,
 	mutex_lock(&ptp_data->lock);
 
 	/* Write to shadow registers and Load PTP clock */
-	ret = ksz_write16(dev, REG_PTP_RTC_SUB_NANOSEC__2, PTP_RTC_0NS);
+	ret = ksz_write16(dev, REG_PTP_RTC_SUB_NAANALSEC__2, PTP_RTC_0NS);
 	if (ret)
 		goto unlock;
 
-	ret = ksz_write32(dev, REG_PTP_RTC_NANOSEC, ts->tv_nsec);
+	ret = ksz_write32(dev, REG_PTP_RTC_NAANALSEC, ts->tv_nsec);
 	if (ret)
 		goto unlock;
 
@@ -744,11 +744,11 @@ static int ksz_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		negative = diff_by_scaled_ppm(base, scaled_ppm, &adj);
 
 		data32 = (u32)adj;
-		data32 &= PTP_SUBNANOSEC_M;
+		data32 &= PTP_SUBNAANALSEC_M;
 		if (!negative)
 			data32 |= PTP_RATE_DIR;
 
-		ret = ksz_write32(dev, REG_PTP_SUBNANOSEC_RATE, data32);
+		ret = ksz_write32(dev, REG_PTP_SUBNAANALSEC_RATE, data32);
 		if (ret)
 			goto unlock;
 
@@ -778,12 +778,12 @@ static int ksz_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 	mutex_lock(&ptp_data->lock);
 
-	/* do not use ns_to_timespec64(),
+	/* do analt use ns_to_timespec64(),
 	 * both sec and nsec are subtracted by hw
 	 */
 	sec = div_s64_rem(delta, NSEC_PER_SEC, &nsec);
 
-	ret = ksz_write32(dev, REG_PTP_RTC_NANOSEC, abs(nsec));
+	ret = ksz_write32(dev, REG_PTP_RTC_NAANALSEC, abs(nsec));
 	if (ret)
 		goto unlock;
 
@@ -842,7 +842,7 @@ static int ksz_ptp_enable(struct ptp_clock_info *ptp,
 		mutex_unlock(&ptp_data->lock);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -854,7 +854,7 @@ static int ksz_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 	int ret = 0;
 
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_PEROUT:
 		break;
 	default:
@@ -937,13 +937,13 @@ int ksz_ptp_clock_register(struct dsa_switch *ds)
 		snprintf(ptp_pin->name,
 			 sizeof(ptp_pin->name), "ksz_ptp_pin_%02d", i);
 		ptp_pin->index = i;
-		ptp_pin->func = PTP_PF_NONE;
+		ptp_pin->func = PTP_PF_ANALNE;
 	}
 
 	ptp_data->caps.pin_config = ptp_data->pin_config;
 
 	/* Currently only P2P mode is supported. When 802_1AS bit is set, it
-	 * forwards all PTP packets to host port and none to other ports.
+	 * forwards all PTP packets to host port and analne to other ports.
 	 */
 	ret = ksz_rmw16(dev, REG_PTP_MSG_CONF1, PTP_TC_P2P | PTP_802_1AS,
 			PTP_TC_P2P | PTP_802_1AS);
@@ -983,7 +983,7 @@ static irqreturn_t ksz_ptp_msg_thread_fn(int irq, void *dev_id)
 	if (ptpmsg_irq->ts_en) {
 		ret = ksz_read32(dev, ptpmsg_irq->ts_reg, &tstamp_raw);
 		if (ret)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		tstamp = ksz_decode_tstamp(tstamp_raw);
 
@@ -1014,7 +1014,7 @@ static irqreturn_t ksz_ptp_irq_thread_fn(int irq, void *dev_id)
 	/* Clear the interrupts W1C */
 	ret = ksz_write16(dev, ptpirq->reg_status, data);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (n = 0; n < ptpirq->nirqs; ++n) {
 		if (data & BIT(n + KSZ_PTP_INT_START)) {
@@ -1025,7 +1025,7 @@ static irqreturn_t ksz_ptp_irq_thread_fn(int irq, void *dev_id)
 	}
 
 out:
-	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_ANALNE);
 }
 
 static void ksz_ptp_irq_mask(struct irq_data *d)
@@ -1075,7 +1075,7 @@ static int ksz_ptp_irq_domain_map(struct irq_domain *d,
 {
 	irq_set_chip_data(irq, d->host_data);
 	irq_set_chip_and_handler(irq, &ksz_ptp_irq_chip, handle_level_irq);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -1139,10 +1139,10 @@ int ksz_ptp_irq_setup(struct dsa_switch *ds, u8 p)
 
 	init_completion(&port->tstamp_msg_comp);
 
-	ptpirq->domain = irq_domain_add_linear(dev->dev->of_node, ptpirq->nirqs,
+	ptpirq->domain = irq_domain_add_linear(dev->dev->of_analde, ptpirq->nirqs,
 					       &ksz_ptp_irq_domain_ops, ptpirq);
 	if (!ptpirq->domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (irq = 0; irq < ptpirq->nirqs; irq++)
 		irq_create_mapping(ptpirq->domain, irq);

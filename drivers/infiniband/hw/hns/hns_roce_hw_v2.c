@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -80,7 +80,7 @@ static const struct {
 	  HNS_ROCE_CMD_READ_MPT_BT0, HNS_ROCE_CMD_WRITE_MPT_BT0 },
 	{ "ECC_RESOURCE_SRQC",
 	  HNS_ROCE_CMD_READ_SRQC_BT0, HNS_ROCE_CMD_WRITE_SRQC_BT0 },
-	/* ECC_RESOURCE_GMV is handled by cmdq, not mailbox */
+	/* ECC_RESOURCE_GMV is handled by cmdq, analt mailbox */
 	{ "ECC_RESOURCE_GMV",
 	  0, 0 },
 	{ "ECC_RESOURCE_QPC_TIMER",
@@ -201,7 +201,7 @@ static int fill_ext_sge_inl_data(struct hns_roce_qp *qp,
 
 	if (msg_len > qp->sq.ext_sge_cnt * HNS_ROCE_SGE_SIZE) {
 		ibdev_err(ibdev,
-			  "no enough extended sge space for inline data.\n");
+			  "anal eanalugh extended sge space for inline data.\n");
 		return -EINVAL;
 	}
 
@@ -211,7 +211,7 @@ static int fill_ext_sge_inl_data(struct hns_roce_qp *qp,
 	addr = (void *)(unsigned long)(wr->sg_list[0].addr);
 
 	/* When copying data to extended sge space, the left length in page may
-	 * not long enough for current user's sge. So the data should be
+	 * analt long eanalugh for current user's sge. So the data should be
 	 * splited into several parts, one in the first page, and the others in
 	 * the subsequent pages.
 	 */
@@ -548,7 +548,7 @@ static int set_rc_opcode(struct hns_roce_dev *hr_dev,
 		if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
 			set_frmr_seg(rc_sq_wqe, reg_wr(wr));
 		else
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		break;
 	case IB_WR_SEND_WITH_INV:
 		rc_sq_wqe->inv_key = cpu_to_le32(wr->ex.invalidate_rkey);
@@ -713,7 +713,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		if (hns_roce_wq_overflow(&qp->sq, nreq, qp->ibqp.send_cq)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			*bad_wr = wr;
 			goto out;
 		}
@@ -794,7 +794,7 @@ static void fill_recv_sge_to_wqe(const struct ib_recv_wr *wr, void *wqe,
 		dseg[cnt].addr = 0;
 		dseg[cnt].len = cpu_to_le32(HNS_ROCE_INVALID_SGE_LENGTH);
 	} else {
-		/* Clear remaining segments to make ROCEE ignore sges */
+		/* Clear remaining segments to make ROCEE iganalre sges */
 		if (cnt < max_sge)
 			memset(dseg + cnt, 0,
 			       (max_sge - cnt) * HNS_ROCE_SGE_SIZE);
@@ -834,7 +834,7 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		if (unlikely(hns_roce_wq_overflow(&hr_qp->rq, nreq,
 						  hr_qp->ibqp.recv_cq))) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			*bad_wr = wr;
 			goto out;
 		}
@@ -907,7 +907,7 @@ static int check_post_srq_valid(struct hns_roce_srq *srq, u32 max_sge,
 	if (unlikely(hns_roce_srqwq_overflow(srq))) {
 		ibdev_err(ib_dev,
 			  "failed to check srqwq status, srqwq is full.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -920,7 +920,7 @@ static int get_srq_wqe_idx(struct hns_roce_srq *srq, u32 *wqe_idx)
 
 	pos = find_first_zero_bit(idx_que->bitmap, srq->wqe_cnt);
 	if (unlikely(pos == srq->wqe_cnt))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	bitmap_set(idx_que->bitmap, pos, 1);
 	*wqe_idx = pos;
@@ -1005,12 +1005,12 @@ static u32 hns_roce_v2_cmd_hw_reseted(struct hns_roce_dev *hr_dev,
 				      unsigned long reset_stage)
 {
 	/* When hardware reset has been completed once or more, we should stop
-	 * sending mailbox&cmq&doorbell to hardware. If now in .init_instance()
-	 * function, we should exit with error. If now at HNAE3_INIT_CLIENT
+	 * sending mailbox&cmq&doorbell to hardware. If analw in .init_instance()
+	 * function, we should exit with error. If analw at HNAE3_INIT_CLIENT
 	 * stage of soft reset process, we should exit with error, and then
 	 * HNAE3_INIT_CLIENT related process can rollback the operation like
-	 * notifing hardware to free resources, HNAE3_INIT_CLIENT related
-	 * process will exit with error to notify NIC driver to reschedule soft
+	 * analtifing hardware to free resources, HNAE3_INIT_CLIENT related
+	 * process will exit with error to analtify NIC driver to reschedule soft
 	 * reset process once again.
 	 */
 	hr_dev->is_reset = true;
@@ -1037,12 +1037,12 @@ static u32 hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
 	int ret;
 
 	/* When hardware reset is detected, we should stop sending mailbox&cmq&
-	 * doorbell to hardware. If now in .init_instance() function, we should
-	 * exit with error. If now at HNAE3_INIT_CLIENT stage of soft reset
+	 * doorbell to hardware. If analw in .init_instance() function, we should
+	 * exit with error. If analw at HNAE3_INIT_CLIENT stage of soft reset
 	 * process, we should exit with error, and then HNAE3_INIT_CLIENT
-	 * related process can rollback the operation like notifing hardware to
+	 * related process can rollback the operation like analtifing hardware to
 	 * free resources, HNAE3_INIT_CLIENT related process will exit with
-	 * error to notify NIC driver to reschedule soft reset process once
+	 * error to analtify NIC driver to reschedule soft reset process once
 	 * again.
 	 */
 	hr_dev->dis_db = true;
@@ -1091,8 +1091,8 @@ static u32 check_aedev_reset_status(struct hns_roce_dev *hr_dev,
 	 * the meaning of the following variables from NIC driver are described
 	 * as below:
 	 * reset_cnt -- The count value of completed hardware reset.
-	 * hw_resetting -- Whether hardware device is resetting now.
-	 * sw_resetting -- Whether NIC's software reset process is running now.
+	 * hw_resetting -- Whether hardware device is resetting analw.
+	 * sw_resetting -- Whether NIC's software reset process is running analw.
 	 */
 	instance_stage = handle->rinfo.instance_state;
 	reset_stage = handle->rinfo.reset_state;
@@ -1154,7 +1154,7 @@ static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 	ring->desc = dma_alloc_coherent(hr_dev->dev, size,
 					&ring->desc_dma_addr, GFP_KERNEL);
 	if (!ring->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1249,19 +1249,19 @@ static void update_cmdq_status(struct hns_roce_dev *hr_dev)
 		hr_dev->cmd.state = HNS_ROCE_CMDQ_STATE_FATAL_ERR;
 }
 
-static int hns_roce_cmd_err_convert_errno(u16 desc_ret)
+static int hns_roce_cmd_err_convert_erranal(u16 desc_ret)
 {
 	struct hns_roce_cmd_errcode errcode_table[] = {
 		{CMD_EXEC_SUCCESS, 0},
-		{CMD_NO_AUTH, -EPERM},
-		{CMD_NOT_EXIST, -EOPNOTSUPP},
+		{CMD_ANAL_AUTH, -EPERM},
+		{CMD_ANALT_EXIST, -EOPANALTSUPP},
 		{CMD_CRQ_FULL, -EXFULL},
-		{CMD_NEXT_ERR, -ENOSR},
-		{CMD_NOT_EXEC, -ENOTBLK},
+		{CMD_NEXT_ERR, -EANALSR},
+		{CMD_ANALT_EXEC, -EANALTBLK},
 		{CMD_PARA_ERR, -EINVAL},
 		{CMD_RESULT_ERR, -ERANGE},
 		{CMD_TIMEOUT, -ETIME},
-		{CMD_HILINK_ERR, -ENOLINK},
+		{CMD_HILINK_ERR, -EANALLINK},
 		{CMD_INFO_ILLEGAL, -ENXIO},
 		{CMD_INVALID, -EBADR},
 	};
@@ -1269,7 +1269,7 @@ static int hns_roce_cmd_err_convert_errno(u16 desc_ret)
 
 	for (i = 0; i < ARRAY_SIZE(errcode_table); i++)
 		if (desc_ret == errcode_table[i].return_status)
-			return errcode_table[i].errno;
+			return errcode_table[i].erranal;
 	return -EIO;
 }
 
@@ -1320,7 +1320,7 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 			dev_err_ratelimited(hr_dev->dev,
 					    "Cmdq IO error, opcode = 0x%x, return = 0x%x.\n",
 					    desc->opcode, desc_ret);
-			ret = hns_roce_cmd_err_convert_errno(desc_ret);
+			ret = hns_roce_cmd_err_convert_erranal(desc_ret);
 		}
 	} else {
 		/* FW/HW reset or incorrect number of desc */
@@ -1640,7 +1640,7 @@ static int hns_roce_hw_v2_query_counter(struct hns_roce_dev *hr_dev,
 	desc_num = DIV_ROUND_UP(HNS_ROCE_HW_CNT_TOTAL, CNT_PER_DESC);
 	desc = kcalloc(desc_num, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < desc_num; i++) {
 		hns_roce_cmq_setup_basic_desc(&desc[i],
@@ -1970,7 +1970,7 @@ static void calc_pg_sz(u32 obj_num, u32 obj_size, u32 hop_num, u32 ctx_bt_num,
 		obj_per_chunk = ctx_bt_num * obj_per_chunk_default;
 		break;
 	default:
-		pr_err("table %u not support hop_num = %u!\n", hem_type,
+		pr_err("table %u analt support hop_num = %u!\n", hem_type,
 		       hop_num);
 		return;
 	}
@@ -2080,7 +2080,7 @@ static void apply_func_caps(struct hns_roce_dev *hr_dev)
 		caps->num_comp_vectors =
 			min_t(u32, caps->eqc_bt_num - HNS_ROCE_V2_AEQE_VEC_NUM,
 				(u32)priv->handle->rinfo.num_vectors -
-		(HNS_ROCE_V2_AEQE_VEC_NUM + HNS_ROCE_V2_ABNORMAL_VEC_NUM));
+		(HNS_ROCE_V2_AEQE_VEC_NUM + HNS_ROCE_V2_ABANALRMAL_VEC_NUM));
 
 	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
 		caps->eqe_hop_num = HNS_ROCE_V3_EQE_HOP_NUM;
@@ -2092,7 +2092,7 @@ static void apply_func_caps(struct hns_roce_dev *hr_dev)
 		caps->cqe_sz = HNS_ROCE_V3_CQE_SIZE;
 		caps->sccc_sz = HNS_ROCE_V3_SCCC_SZ;
 
-		/* The following configurations are not got from firmware */
+		/* The following configurations are analt got from firmware */
 		caps->gmv_entry_sz = HNS_ROCE_V3_GMV_ENTRY_SZ;
 
 		caps->gmv_hop_num = HNS_ROCE_HOP_NUM_0;
@@ -2394,7 +2394,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	}
 
 	hr_dev->vendor_part_id = hr_dev->pci_dev->device;
-	hr_dev->sys_image_guid = be64_to_cpu(hr_dev->ib_dev.node_guid);
+	hr_dev->sys_image_guid = be64_to_cpu(hr_dev->ib_dev.analde_guid);
 
 	if (hr_dev->is_vf)
 		return hns_roce_v2_vf_profile(hr_dev);
@@ -2473,7 +2473,7 @@ alloc_link_table_buf(struct hns_roce_dev *hr_dev)
 	size = max(size, min_size);
 	link_tbl->buf = hns_roce_buf_alloc(hr_dev, size, pg_shift, 0);
 	if (IS_ERR(link_tbl->buf))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Alloc config table */
 	size = link_tbl->buf->npages * sizeof(u64);
@@ -2482,7 +2482,7 @@ alloc_link_table_buf(struct hns_roce_dev *hr_dev)
 						 GFP_KERNEL);
 	if (!link_tbl->table.buf) {
 		hns_roce_buf_free(hr_dev, link_tbl->buf);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return link_tbl;
@@ -2508,7 +2508,7 @@ static int hns_roce_init_link_table(struct hns_roce_dev *hr_dev)
 
 	link_tbl = alloc_link_table_buf(hr_dev);
 	if (IS_ERR(link_tbl))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (WARN_ON(link_tbl->buf->npages > HNS_ROCE_V2_EXT_LLM_MAX_DEPTH)) {
 		ret = -EINVAL;
@@ -2542,8 +2542,8 @@ static void free_dip_list(struct hns_roce_dev *hr_dev)
 
 	spin_lock_irqsave(&hr_dev->dip_list_lock, flags);
 
-	list_for_each_entry_safe(hr_dip, tmp, &hr_dev->dip_list, node) {
-		list_del(&hr_dip->node);
+	list_for_each_entry_safe(hr_dip, tmp, &hr_dev->dip_list, analde) {
+		list_del(&hr_dip->analde);
 		kfree(hr_dip);
 	}
 
@@ -2624,7 +2624,7 @@ static int free_mr_init_qp(struct hns_roce_dev *hr_dev, struct ib_cq *cq,
 
 	hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(hr_qp))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qp = &hr_qp->ibqp;
 	qp->device = ibdev;
@@ -2684,11 +2684,11 @@ static int free_mr_alloc_res(struct hns_roce_dev *hr_dev)
 
 	pd = free_mr_init_pd(hr_dev);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cq = free_mr_init_cq(hr_dev);
 	if (!cq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto create_failed_cq;
 	}
 
@@ -2992,7 +2992,7 @@ static int v2_wait_mbox_complete(struct hns_roce_dev *hr_dev, u32 timeout,
 		ret = __hns_roce_cmq_send(hr_dev, &desc, 1);
 		if (!ret) {
 			status = le32_to_cpu(mb_st->mb_status_hw_run);
-			/* No pending message exists in ROCEE mbox. */
+			/* Anal pending message exists in ROCEE mbox. */
 			if (!(status & MB_ST_HW_RUN_M))
 				break;
 		} else if (!v2_chk_mbox_is_avail(hr_dev, &busy)) {
@@ -3013,7 +3013,7 @@ static int v2_wait_mbox_complete(struct hns_roce_dev *hr_dev, u32 timeout,
 	if (!ret) {
 		*complete_status = (u8)(status & MB_ST_COMPLETE_M);
 	} else if (!v2_chk_mbox_is_avail(hr_dev, &busy)) {
-		/* Ignore all errors if the mbox is unavailable. */
+		/* Iganalre all errors if the mbox is unavailable. */
 		ret = 0;
 		*complete_status = MB_ST_COMPLETE_M;
 	}
@@ -3203,7 +3203,7 @@ static int set_mtpt_pbl(struct hns_roce_dev *hr_dev,
 	if (count < 1) {
 		ibdev_err(ibdev, "failed to find PBL mtr, count = %d.\n",
 			  count);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	/* Aligned to the hardware address access unit */
@@ -3317,7 +3317,7 @@ static int hns_roce_v2_frmr_write_mtpt(struct hns_roce_dev *hr_dev,
 
 	if (hns_roce_mtr_find(hr_dev, &mr->pbl_mtr, 0, NULL, 0, &pbl_ba) < 0) {
 		ibdev_err(ibdev, "failed to find frmr mtr.\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	hr_reg_write(mpt_entry, MPT_ST, V2_MPT_ST_FREE);
@@ -3416,8 +3416,8 @@ static void free_mr_send_cmd_to_hw(struct hns_roce_dev *hr_dev)
 	int i;
 
 	/*
-	 * If the device initialization is not complete or in the uninstall
-	 * process, then there is no need to execute free mr.
+	 * If the device initialization is analt complete or in the uninstall
+	 * process, then there is anal need to execute free mr.
 	 */
 	if (priv->handle->rinfo.reset_state == HNS_ROCE_STATE_RST_INIT ||
 	    priv->handle->rinfo.instance_state == HNS_ROCE_STATE_INIT ||
@@ -3517,7 +3517,7 @@ static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 	}
 
 	/*
-	 * Now backwards through the CQ, removing CQ entries
+	 * Analw backwards through the CQ, removing CQ entries
 	 * that match our QP by overwriting them with next entries.
 	 */
 	while ((int) --prod_index - (int) hr_cq->cons_index >= 0) {
@@ -3561,7 +3561,7 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 	memset(cq_context, 0, sizeof(*cq_context));
 
 	hr_reg_write(cq_context, CQC_CQ_ST, V2_CQ_STATE_VALID);
-	hr_reg_write(cq_context, CQC_ARM_ST, NO_ARMED);
+	hr_reg_write(cq_context, CQC_ARM_ST, ANAL_ARMED);
 	hr_reg_write(cq_context, CQC_SHIFT, ilog2(hr_cq->cq_depth));
 	hr_reg_write(cq_context, CQC_CEQN, hr_cq->vector);
 	hr_reg_write(cq_context, CQC_CQN, hr_cq->cqn);
@@ -3600,26 +3600,26 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 		     HNS_ROCE_V2_CQ_DEFAULT_INTERVAL);
 }
 
-static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
-				     enum ib_cq_notify_flags flags)
+static int hns_roce_v2_req_analtify_cq(struct ib_cq *ibcq,
+				     enum ib_cq_analtify_flags flags)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibcq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
 	struct hns_roce_v2_db cq_db = {};
-	u32 notify_flag;
+	u32 analtify_flag;
 
 	/*
-	 * flags = 0, then notify_flag : next
-	 * flags = 1, then notify flag : solocited
+	 * flags = 0, then analtify_flag : next
+	 * flags = 1, then analtify flag : solocited
 	 */
-	notify_flag = (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
-		      V2_CQ_DB_REQ_NOT : V2_CQ_DB_REQ_NOT_SOL;
+	analtify_flag = (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
+		      V2_CQ_DB_REQ_ANALT : V2_CQ_DB_REQ_ANALT_SOL;
 
 	hr_reg_write(&cq_db, DB_TAG, hr_cq->cqn);
-	hr_reg_write(&cq_db, DB_CMD, HNS_ROCE_V2_CQ_DB_NOTIFY);
+	hr_reg_write(&cq_db, DB_CMD, HNS_ROCE_V2_CQ_DB_ANALTIFY);
 	hr_reg_write(&cq_db, DB_CQ_CI, hr_cq->cons_index);
 	hr_reg_write(&cq_db, DB_CQ_CMD_SN, hr_cq->arm_sn);
-	hr_reg_write(&cq_db, DB_CQ_NOTIFY, notify_flag);
+	hr_reg_write(&cq_db, DB_CQ_ANALTIFY, analtify_flag);
 
 	hns_roce_write64(hr_dev, (__le32 *)&cq_db, hr_cq->db_reg);
 
@@ -3657,14 +3657,14 @@ static int hns_roce_v2_sw_poll_cq(struct hns_roce_cq *hr_cq, int num_entries,
 	struct hns_roce_qp *hr_qp;
 	int npolled = 0;
 
-	list_for_each_entry(hr_qp, &hr_cq->sq_list, sq_node) {
+	list_for_each_entry(hr_qp, &hr_cq->sq_list, sq_analde) {
 		npolled += sw_comp(hr_qp, &hr_qp->sq,
 				   num_entries - npolled, wc + npolled);
 		if (npolled >= num_entries)
 			goto out;
 	}
 
-	list_for_each_entry(hr_qp, &hr_cq->rq_list, rq_node) {
+	list_for_each_entry(hr_qp, &hr_cq->rq_list, rq_analde) {
 		npolled += sw_comp(hr_qp, &hr_qp->rq,
 				   num_entries - npolled, wc + npolled);
 		if (npolled >= num_entries)
@@ -3716,13 +3716,13 @@ static void get_cqe_status(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 		return;
 
 	ibdev_err(&hr_dev->ib_dev, "error cqe status 0x%x:\n", cqe_status);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_NONE, 16, 4, cqe,
+	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ANALNE, 16, 4, cqe,
 		       cq->cqe_size, false);
 	wc->vendor_err = hr_reg_read(cqe, CQE_SUB_STATUS);
 
 	/*
-	 * For hns ROCEE, GENERAL_ERR is an error type that is not defined in
-	 * the standard protocol, the driver must ignore it and needn't to set
+	 * For hns ROCEE, GENERAL_ERR is an error type that is analt defined in
+	 * the standard protocol, the driver must iganalre it and needn't to set
 	 * the QP to an error state.
 	 */
 	if (cqe_status == HNS_ROCE_CQE_V2_GENERAL_ERR)
@@ -3744,7 +3744,7 @@ static int get_cur_qp(struct hns_roce_cq *hr_cq, struct hns_roce_v2_cqe *cqe,
 		hr_qp = __hns_roce_qp_lookup(hr_dev, qpn);
 		if (unlikely(!hr_qp)) {
 			ibdev_err(&hr_dev->ib_dev,
-				  "CQ %06lx with entry for unknown QPN %06x\n",
+				  "CQ %06lx with entry for unkanalwn QPN %06x\n",
 				  hr_cq->cqn, qpn);
 			return -EINVAL;
 		}
@@ -3962,9 +3962,9 @@ static int hns_roce_v2_poll_cq(struct ib_cq *ibcq, int num_entries,
 
 	/*
 	 * When the device starts to reset, the state is RST_DOWN. At this time,
-	 * there may still be some valid CQEs in the hardware that are not
-	 * polled. Therefore, it is not allowed to switch to the software mode
-	 * immediately. When the state changes to UNINIT, CQE no longer exists
+	 * there may still be some valid CQEs in the hardware that are analt
+	 * polled. Therefore, it is analt allowed to switch to the software mode
+	 * immediately. When the state changes to UNINIT, CQE anal longer exists
 	 * in the hardware, and then switch to software mode.
 	 */
 	if (hr_dev->state == HNS_ROCE_DEVICE_STATE_UNINIT) {
@@ -4149,7 +4149,7 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 	case HEM_TYPE_GMV:
 		return 0;
 	default:
-		dev_warn(dev, "table %u not to be destroyed by mailbox!\n",
+		dev_warn(dev, "table %u analt to be destroyed by mailbox!\n",
 			 table->type);
 		return 0;
 	}
@@ -4270,7 +4270,7 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 
 	set_qpc_wqe_cnt(hr_qp, context, qpc_mask);
 
-	/* No VLAN need to set 0xFFF */
+	/* Anal VLAN need to set 0xFFF */
 	hr_reg_write(context, QPC_VLAN_ID, 0xfff);
 
 	if (ibqp->qp_type == IB_QPT_XRC_TGT) {
@@ -4635,7 +4635,7 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int ret;
 
-	/* Not support alternate path and path migration */
+	/* Analt support alternate path and path migration */
 	if (attr_mask & (IB_QP_ALT_PATH | IB_QP_PATH_MIG_STATE)) {
 		ibdev_err(ibdev, "RTR2RTS attr_mask (0x%x)error\n", attr_mask);
 		return -EINVAL;
@@ -4649,7 +4649,7 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 
 	/*
 	 * Set some fields in context to zero, Because the default values
-	 * of all fields in context are zero, we need not set them to 0 again.
+	 * of all fields in context are zero, we need analt set them to 0 again.
 	 * but we should set the relevant fields of context mask to 0.
 	 */
 	hr_reg_clear(qpc_mask, QPC_IRRL_SGE_IDX);
@@ -4690,26 +4690,26 @@ static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	spare_idx[*tail] = ibqp->qp_num;
 	*tail = (*tail == hr_dev->caps.num_qps - 1) ? 0 : (*tail + 1);
 
-	list_for_each_entry(hr_dip, &hr_dev->dip_list, node) {
+	list_for_each_entry(hr_dip, &hr_dev->dip_list, analde) {
 		if (!memcmp(grh->dgid.raw, hr_dip->dgid, 16)) {
 			*dip_idx = hr_dip->dip_idx;
 			goto out;
 		}
 	}
 
-	/* If no dgid is found, a new dip and a mapping between dgid and
+	/* If anal dgid is found, a new dip and a mapping between dgid and
 	 * dip_idx will be created.
 	 */
 	hr_dip = kzalloc(sizeof(*hr_dip), GFP_ATOMIC);
 	if (!hr_dip) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	memcpy(hr_dip->dgid, grh->dgid.raw, sizeof(grh->dgid.raw));
 	hr_dip->dip_idx = *dip_idx = spare_idx[*head];
 	*head = (*head == hr_dev->caps.num_qps - 1) ? 0 : (*head + 1);
-	list_add_tail(&hr_dip->node, &hr_dev->dip_list);
+	list_add_tail(&hr_dip->analde, &hr_dev->dip_list);
 
 out:
 	spin_unlock_irqrestore(&hr_dev->dip_list_lock, flags);
@@ -4819,11 +4819,11 @@ static int fill_cong_field(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	hr_reg_clear(&qpc_mask->ext, QPCEX_CONG_ALG_SUB_SEL);
 	hr_reg_write(&context->ext, QPCEX_DIP_CTX_IDX_VLD, cong_field.dip_vld);
 	hr_reg_clear(&qpc_mask->ext, QPCEX_DIP_CTX_IDX_VLD);
-	hr_reg_write(&context->ext, QPCEX_SQ_RQ_NOT_FORBID_EN,
+	hr_reg_write(&context->ext, QPCEX_SQ_RQ_ANALT_FORBID_EN,
 		     cong_field.wnd_mode_sel);
-	hr_reg_clear(&qpc_mask->ext, QPCEX_SQ_RQ_NOT_FORBID_EN);
+	hr_reg_clear(&qpc_mask->ext, QPCEX_SQ_RQ_ANALT_FORBID_EN);
 
-	/* if dip is disabled, there is no need to set dip idx */
+	/* if dip is disabled, there is anal need to set dip idx */
 	if (cong_field.dip_vld == 0)
 		return 0;
 
@@ -4912,7 +4912,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	}
 
 	if (attr->ah_attr.type != RDMA_AH_ATTR_TYPE_ROCE) {
-		ibdev_err(ibdev, "ah attr is not RDMA roce type\n");
+		ibdev_err(ibdev, "ah attr is analt RDMA roce type\n");
 		return -EINVAL;
 	}
 
@@ -5190,7 +5190,7 @@ static void v2_set_flushed_fields(struct ib_qp *ibqp,
 	hr_qp->state = IB_QPS_ERR;
 	spin_unlock_irqrestore(&hr_qp->sq.lock, sq_flag);
 
-	if (ibqp->srq || ibqp->qp_type == IB_QPT_XRC_INI) /* no RQ */
+	if (ibqp->srq || ibqp->qp_type == IB_QPT_XRC_INI) /* anal RQ */
 		return;
 
 	spin_lock_irqsave(&hr_qp->rq.lock, rq_flag);
@@ -5213,7 +5213,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	int ret;
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * In v2 engine, software pass context and context mask to hardware
@@ -5545,7 +5545,7 @@ static int hns_roce_v2_qp_flow_control_init(struct hns_roce_dev *hr_dev,
 		goto out;
 	}
 
-	/* query scc context clear is done or not */
+	/* query scc context clear is done or analt */
 	resp = (struct hns_roce_sccc_clr_done *)desc.data;
 	for (i = 0; i <= HNS_ROCE_CMQ_SCC_CLR_DONE_CNT; i++) {
 		hns_roce_cmq_setup_basic_desc(&desc,
@@ -5590,7 +5590,7 @@ static int hns_roce_v2_write_srqc_index_queue(struct hns_roce_srq *srq,
 	if (ret < 1) {
 		ibdev_err(ibdev, "failed to find mtr for SRQ idx, ret = %d.\n",
 			  ret);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	hr_reg_write(ctx, SRQC_IDX_HOP_NUM,
@@ -5635,7 +5635,7 @@ static int hns_roce_v2_write_srqc(struct hns_roce_srq *srq, void *mb_buf)
 	if (ret < 1) {
 		ibdev_err(ibdev, "failed to find mtr for SRQ WQE, ret = %d.\n",
 			  ret);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	hr_reg_write(ctx, SRQC_SRQ_ST, 1);
@@ -5685,9 +5685,9 @@ static int hns_roce_v2_modify_srq(struct ib_srq *ibsrq,
 	struct hns_roce_cmd_mailbox *mailbox;
 	int ret = 0;
 
-	/* Resizing SRQs is not supported yet */
+	/* Resizing SRQs is analt supported yet */
 	if (srq_attr_mask & IB_SRQ_MAX_WR) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -5987,7 +5987,7 @@ static irqreturn_t hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 {
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_aeqe *aeqe = next_aeqe_sw_v2(eq);
-	irqreturn_t aeqe_found = IRQ_NONE;
+	irqreturn_t aeqe_found = IRQ_ANALNE;
 	int event_type;
 	u32 queue_num;
 	int sub_type;
@@ -6071,7 +6071,7 @@ static irqreturn_t hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
 				       struct hns_roce_eq *eq)
 {
 	struct hns_roce_ceqe *ceqe = next_ceqe_sw_v2(eq);
-	irqreturn_t ceqe_found = IRQ_NONE;
+	irqreturn_t ceqe_found = IRQ_ANALNE;
 	u32 cqn;
 
 	while (ceqe) {
@@ -6106,19 +6106,19 @@ static irqreturn_t hns_roce_v2_msix_interrupt_eq(int irq, void *eq_ptr)
 		/* Completion event interrupt */
 		int_work = hns_roce_v2_ceq_int(hr_dev, eq);
 	else
-		/* Asynchronous event interrupt */
+		/* Asynchroanalus event interrupt */
 		int_work = hns_roce_v2_aeq_int(hr_dev, eq);
 
 	return IRQ_RETVAL(int_work);
 }
 
-static irqreturn_t abnormal_interrupt_basic(struct hns_roce_dev *hr_dev,
+static irqreturn_t abanalrmal_interrupt_basic(struct hns_roce_dev *hr_dev,
 					    u32 int_st)
 {
 	struct pci_dev *pdev = hr_dev->pci_dev;
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 	const struct hnae3_ae_ops *ops = ae_dev->ops;
-	irqreturn_t int_work = IRQ_NONE;
+	irqreturn_t int_work = IRQ_ANALNE;
 	u32 int_en;
 
 	int_en = roce_read(hr_dev, ROCEE_VF_ABN_INT_EN_REG);
@@ -6141,7 +6141,7 @@ static irqreturn_t abnormal_interrupt_basic(struct hns_roce_dev *hr_dev,
 
 		int_work = IRQ_HANDLED;
 	} else {
-		dev_err(hr_dev->dev, "there is no basic abn irq found.\n");
+		dev_err(hr_dev->dev, "there is anal basic abn irq found.\n");
 	}
 
 	return IRQ_RETVAL(int_work);
@@ -6276,7 +6276,7 @@ static void fmea_ram_ecc_work(struct work_struct *ecc_work)
 	}
 
 	if (!ecc_info.is_ecc_err) {
-		dev_err(hr_dev->dev, "there is no fmea ram ecc err found.\n");
+		dev_err(hr_dev->dev, "there is anal fmea ram ecc err found.\n");
 		return;
 	}
 
@@ -6286,18 +6286,18 @@ static void fmea_ram_ecc_work(struct work_struct *ecc_work)
 static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 {
 	struct hns_roce_dev *hr_dev = dev_id;
-	irqreturn_t int_work = IRQ_NONE;
+	irqreturn_t int_work = IRQ_ANALNE;
 	u32 int_st;
 
 	int_st = roce_read(hr_dev, ROCEE_VF_ABN_INT_ST_REG);
 
 	if (int_st) {
-		int_work = abnormal_interrupt_basic(hr_dev, int_st);
+		int_work = abanalrmal_interrupt_basic(hr_dev, int_st);
 	} else if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
 		queue_work(hr_dev->irq_workq, &hr_dev->ecc_work);
 		int_work = IRQ_HANDLED;
 	} else {
-		dev_err(hr_dev->dev, "there is no abnormal irq found.\n");
+		dev_err(hr_dev->dev, "there is anal abanalrmal irq found.\n");
 	}
 
 	return IRQ_RETVAL(int_work);
@@ -6341,7 +6341,7 @@ static void init_eq_config(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 {
 	eq->db_reg = hr_dev->reg_base + ROCEE_VF_EQ_DB_CFG0_REG;
 	eq->cons_index = 0;
-	eq->over_ignore = HNS_ROCE_V2_EQ_OVER_IGNORE_0;
+	eq->over_iganalre = HNS_ROCE_V2_EQ_OVER_IGANALRE_0;
 	eq->coalesce = HNS_ROCE_V2_EQ_COALESCE_0;
 	eq->arm_st = HNS_ROCE_V2_EQ_ALWAYS_ARMED;
 	eq->shift = ilog2((unsigned int)eq->entries);
@@ -6360,17 +6360,17 @@ static int config_eqc(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq,
 
 	init_eq_config(hr_dev, eq);
 
-	/* if not multi-hop, eqe buffer only use one trunk */
+	/* if analt multi-hop, eqe buffer only use one trunk */
 	count = hns_roce_mtr_find(hr_dev, &eq->mtr, 0, eqe_ba, MTT_MIN_COUNT,
 				  &bt_ba);
 	if (count < 1) {
 		dev_err(hr_dev->dev, "failed to find EQE mtr\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	hr_reg_write(eqc, EQC_EQ_ST, HNS_ROCE_V2_EQ_STATE_VALID);
 	hr_reg_write(eqc, EQC_EQE_HOP_NUM, eq->hop_num);
-	hr_reg_write(eqc, EQC_OVER_IGNORE, eq->over_ignore);
+	hr_reg_write(eqc, EQC_OVER_IGANALRE, eq->over_iganalre);
 	hr_reg_write(eqc, EQC_COALESCE, eq->coalesce);
 	hr_reg_write(eqc, EQC_ARM_ST, eq->arm_st);
 	hr_reg_write(eqc, EQC_EQN, eq->eqn);
@@ -6481,12 +6481,12 @@ static int __hns_roce_request_irq(struct hns_roce_dev *hr_dev, int irq_num,
 		hr_dev->irq_names[i] = kzalloc(HNS_ROCE_INT_NAME_LEN,
 					       GFP_KERNEL);
 		if (!hr_dev->irq_names[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_kzalloc_failed;
 		}
 	}
 
-	/* irq contains: abnormal + AEQ + CEQ */
+	/* irq contains: abanalrmal + AEQ + CEQ */
 	for (j = 0; j < other_num; j++)
 		snprintf((char *)hr_dev->irq_names[j], HNS_ROCE_INT_NAME_LEN,
 			 "hns-%s-abn-%d", pci_name(hr_dev->pci_dev), j);
@@ -6581,7 +6581,7 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 
 	eq_table->eq = kcalloc(eq_num, sizeof(*eq_table->eq), GFP_KERNEL);
 	if (!eq_table->eq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create eq */
 	for (i = 0; i < eq_num; i++) {
@@ -6620,7 +6620,7 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 	hr_dev->irq_workq = alloc_ordered_workqueue("hns_roce_irq_workq", 0);
 	if (!hr_dev->irq_workq) {
 		dev_err(dev, "failed to create irq workqueue.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_create_eq_fail;
 	}
 
@@ -6677,7 +6677,7 @@ static const struct ib_device_ops hns_roce_v2_dev_ops = {
 	.post_recv = hns_roce_v2_post_recv,
 	.post_send = hns_roce_v2_post_send,
 	.query_qp = hns_roce_v2_query_qp,
-	.req_notify_cq = hns_roce_v2_req_notify_cq,
+	.req_analtify_cq = hns_roce_v2_req_analtify_cq,
 };
 
 static const struct ib_device_ops hns_roce_v2_dev_srq_ops = {
@@ -6756,7 +6756,7 @@ static void hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 	hr_dev->iboe.netdevs[0] = handle->rinfo.netdev;
 	hr_dev->iboe.phy_port[0] = 0;
 
-	addrconf_addr_eui48((u8 *)&hr_dev->ib_dev.node_guid,
+	addrconf_addr_eui48((u8 *)&hr_dev->ib_dev.analde_guid,
 			    hr_dev->iboe.netdevs[0]->dev_addr);
 
 	for (i = 0; i < handle->rinfo.num_vectors; i++)
@@ -6778,11 +6778,11 @@ static int __hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 
 	hr_dev = ib_alloc_device(hns_roce_dev, ib_dev);
 	if (!hr_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hr_dev->priv = kzalloc(sizeof(struct hns_roce_v2_priv), GFP_KERNEL);
 	if (!hr_dev->priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_failed_kzalloc;
 	}
 
@@ -6849,7 +6849,7 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	handle->rinfo.instance_state = HNS_ROCE_STATE_INIT;
 
 	if (ops->ae_dev_resetting(handle) || ops->get_hw_reset_stat(handle)) {
-		handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
+		handle->rinfo.instance_state = HNS_ROCE_STATE_ANALN_INIT;
 		goto reset_chk_err;
 	}
 
@@ -6862,7 +6862,7 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 
 	ret = __hns_roce_hw_v2_init_instance(handle);
 	if (ret) {
-		handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
+		handle->rinfo.instance_state = HNS_ROCE_STATE_ANALN_INIT;
 		dev_err(dev, "RoCE instance init failed! ret = %d\n", ret);
 		if (ops->ae_dev_resetting(handle) ||
 		    ops->get_hw_reset_stat(handle))
@@ -6892,9 +6892,9 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 
 	__hns_roce_hw_v2_uninit_instance(handle, reset);
 
-	handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
+	handle->rinfo.instance_state = HNS_ROCE_STATE_ANALN_INIT;
 }
-static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
+static int hns_roce_hw_v2_reset_analtify_down(struct hnae3_handle *handle)
 {
 	struct hns_roce_dev *hr_dev;
 
@@ -6917,7 +6917,7 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 	return 0;
 }
 
-static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
+static int hns_roce_hw_v2_reset_analtify_init(struct hnae3_handle *handle)
 {
 	struct device *dev = &handle->pdev->dev;
 	int ret;
@@ -6933,7 +6933,7 @@ static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 	dev_info(&handle->pdev->dev, "In reset process RoCE client reinit.\n");
 	ret = __hns_roce_hw_v2_init_instance(handle);
 	if (ret) {
-		/* when reset notify type is HNAE3_INIT_CLIENT In reset notify
+		/* when reset analtify type is HNAE3_INIT_CLIENT In reset analtify
 		 * callback function, RoCE Engine reinitialize. If RoCE reinit
 		 * failed, we should inform NIC driver.
 		 */
@@ -6947,7 +6947,7 @@ static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 	return ret;
 }
 
-static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
+static int hns_roce_hw_v2_reset_analtify_uninit(struct hnae3_handle *handle)
 {
 	if (test_bit(HNS_ROCE_RST_DIRECT_RETURN, &handle->rinfo.state))
 		return 0;
@@ -6960,20 +6960,20 @@ static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
 	return 0;
 }
 
-static int hns_roce_hw_v2_reset_notify(struct hnae3_handle *handle,
-				       enum hnae3_reset_notify_type type)
+static int hns_roce_hw_v2_reset_analtify(struct hnae3_handle *handle,
+				       enum hnae3_reset_analtify_type type)
 {
 	int ret = 0;
 
 	switch (type) {
 	case HNAE3_DOWN_CLIENT:
-		ret = hns_roce_hw_v2_reset_notify_down(handle);
+		ret = hns_roce_hw_v2_reset_analtify_down(handle);
 		break;
 	case HNAE3_INIT_CLIENT:
-		ret = hns_roce_hw_v2_reset_notify_init(handle);
+		ret = hns_roce_hw_v2_reset_analtify_init(handle);
 		break;
 	case HNAE3_UNINIT_CLIENT:
-		ret = hns_roce_hw_v2_reset_notify_uninit(handle);
+		ret = hns_roce_hw_v2_reset_analtify_uninit(handle);
 		break;
 	default:
 		break;
@@ -6985,7 +6985,7 @@ static int hns_roce_hw_v2_reset_notify(struct hnae3_handle *handle,
 static const struct hnae3_client_ops hns_roce_hw_v2_ops = {
 	.init_instance = hns_roce_hw_v2_init_instance,
 	.uninit_instance = hns_roce_hw_v2_uninit_instance,
-	.reset_notify = hns_roce_hw_v2_reset_notify,
+	.reset_analtify = hns_roce_hw_v2_reset_analtify,
 };
 
 static struct hnae3_client hns_roce_hw_v2_client = {

@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_MME1_RTR_MASKS_H_
@@ -645,8 +645,8 @@
 #define MME1_RTR_SCRAMB_EN_VAL_SHIFT                                 0
 #define MME1_RTR_SCRAMB_EN_VAL_MASK                                  0x1
 
-/* MME1_RTR_NON_LIN_SCRAMB */
-#define MME1_RTR_NON_LIN_SCRAMB_EN_SHIFT                             0
-#define MME1_RTR_NON_LIN_SCRAMB_EN_MASK                              0x1
+/* MME1_RTR_ANALN_LIN_SCRAMB */
+#define MME1_RTR_ANALN_LIN_SCRAMB_EN_SHIFT                             0
+#define MME1_RTR_ANALN_LIN_SCRAMB_EN_MASK                              0x1
 
 #endif /* ASIC_REG_MME1_RTR_MASKS_H_ */

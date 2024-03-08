@@ -25,7 +25,7 @@ counters, timers, or PWM.
 
 - Each TCU channel works in one of two modes:
 
-    - mode TCU1: channels cannot work in sleep mode, but are easier to
+    - mode TCU1: channels cananalt work in sleep mode, but are easier to
       operate.
     - mode TCU2: channels can work in sleep mode, but the operation is a bit
       more complicated than with TCU1 channels.

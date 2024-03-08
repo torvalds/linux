@@ -48,7 +48,7 @@
 struct tegra_rtc_info {
 	struct platform_device *pdev;
 	struct rtc_device *rtc;
-	void __iomem *base; /* NULL if not initialized */
+	void __iomem *base; /* NULL if analt initialized */
 	struct clk *clk;
 	int irq; /* alarm and periodic IRQ */
 	spinlock_t lock;
@@ -68,7 +68,7 @@ static inline u32 tegra_rtc_check_busy(struct tegra_rtc_info *info)
  * Wait for hardware to be ready for writing. This function tries to maximize
  * the amount of time before the next update. It does this by waiting for the
  * RTC to become busy with its periodic update, then returning once the RTC
- * first becomes not busy.
+ * first becomes analt busy.
  *
  * This periodic update (where the seconds and milliseconds are copied to the
  * AHB side) occurs every eight 32 kHz clocks (~250 us). The behavior of this
@@ -91,7 +91,7 @@ static int tegra_rtc_wait_while_busy(struct device *dev)
 		udelay(1);
 	}
 
-	/* now we have about 250 us to manipulate registers */
+	/* analw we have about 250 us to manipulate registers */
 	return 0;
 
 retry_failed:
@@ -281,7 +281,7 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->base))
@@ -333,7 +333,7 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_clk;
 
-	dev_notice(&pdev->dev, "Tegra internal Real Time Clock\n");
+	dev_analtice(&pdev->dev, "Tegra internal Real Time Clock\n");
 
 	return 0;
 

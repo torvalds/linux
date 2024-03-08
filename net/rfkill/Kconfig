@@ -30,5 +30,5 @@ config RFKILL_GPIO
 	depends on GPIOLIB || COMPILE_TEST
 	default n
 	help
-	  If you say yes here you get support of a generic gpio RFKILL
+	  If you say anal here you get support of a generic gpio RFKILL
 	  driver.

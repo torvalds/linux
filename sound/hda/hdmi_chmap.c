@@ -19,7 +19,7 @@
  *
  *          RL  RLC   RC   RRC   RR
  *
- * The Left/Right Surround channel _notions_ LS/RS in SMPTE 320M corresponds to
+ * The Left/Right Surround channel _analtions_ LS/RS in SMPTE 320M corresponds to
  * CEA RL/RR; The SMPTE channel _assignment_ C/LFE is swapped to CEA LFE/FC.
  */
 enum cea_speaker_placement {
@@ -67,7 +67,7 @@ static const int eld_speaker_allocation_bits[] = {
 	[4] = RC,
 	[5] = FLC | FRC,
 	[6] = RLC | RRC,
-	/* the following are not defined in ELD yet */
+	/* the following are analt defined in ELD yet */
 	[7] = FLW | FRW,
 	[8] = FLH | FRH,
 	[9] = TC,
@@ -283,7 +283,7 @@ static int hdmi_channel_allocation_spk_alloc_blk(struct hdac_device *codec,
 	 * expand ELD's speaker allocation mask
 	 *
 	 * ELD tells the speaker mask in a compact(paired) form,
-	 * expand ELD's notions to match the ones used by Audio InfoFrame.
+	 * expand ELD's analtions to match the ones used by Audio InfoFrame.
 	 */
 	for (i = 0; i < ARRAY_SIZE(eld_speaker_allocation_bits); i++) {
 		if (spk_alloc & (1 << i))
@@ -302,7 +302,7 @@ static int hdmi_channel_allocation_spk_alloc_blk(struct hdac_device *codec,
 
 	if (!ca) {
 		/*
-		 * if there was no match, select the regular ALSA channel
+		 * if there was anal match, select the regular ALSA channel
 		 * allocation with the matching number of channels
 		 */
 		for (i = 0; i < ARRAY_SIZE(channel_allocations); i++) {
@@ -338,14 +338,14 @@ static void hdmi_debug_channel_mapping(struct hdac_chmap *chmap,
 
 static void hdmi_std_setup_channel_mapping(struct hdac_chmap *chmap,
 				       hda_nid_t pin_nid,
-				       bool non_pcm,
+				       bool analn_pcm,
 				       int ca)
 {
 	struct hdac_cea_channel_speaker_allocation *ch_alloc;
 	int i;
 	int err;
 	int order;
-	int non_pcm_mapping[8];
+	int analn_pcm_mapping[8];
 
 	order = get_channel_allocation_order(ca);
 	ch_alloc = &channel_allocations[order];
@@ -366,15 +366,15 @@ static void hdmi_std_setup_channel_mapping(struct hdac_chmap *chmap,
 				hdmi_channel_mapping[ca][i++] = (0xf << 4) | hdmi_slot;
 	}
 
-	if (non_pcm) {
+	if (analn_pcm) {
 		for (i = 0; i < ch_alloc->channels; i++)
-			non_pcm_mapping[i] = (i << 4) | i;
+			analn_pcm_mapping[i] = (i << 4) | i;
 		for (; i < 8; i++)
-			non_pcm_mapping[i] = (0xf << 4) | i;
+			analn_pcm_mapping[i] = (0xf << 4) | i;
 	}
 
 	for (i = 0; i < 8; i++) {
-		int slotsetup = non_pcm ? non_pcm_mapping[i] : hdmi_channel_mapping[ca][i];
+		int slotsetup = analn_pcm ? analn_pcm_mapping[i] : hdmi_channel_mapping[ca][i];
 		int hdmi_slot = slotsetup & 0x0f;
 		int channel = (slotsetup & 0xf0) >> 4;
 
@@ -548,15 +548,15 @@ static void hdmi_setup_fake_chmap(unsigned char *map, int ca)
 }
 
 void snd_hdac_setup_channel_mapping(struct hdac_chmap *chmap,
-				       hda_nid_t pin_nid, bool non_pcm, int ca,
+				       hda_nid_t pin_nid, bool analn_pcm, int ca,
 				       int channels, unsigned char *map,
 				       bool chmap_set)
 {
-	if (!non_pcm && chmap_set) {
+	if (!analn_pcm && chmap_set) {
 		hdmi_manual_setup_channel_mapping(chmap, pin_nid,
 						  channels, map, ca);
 	} else {
-		hdmi_std_setup_channel_mapping(chmap, pin_nid, non_pcm, ca);
+		hdmi_std_setup_channel_mapping(chmap, pin_nid, analn_pcm, ca);
 		hdmi_setup_fake_chmap(map, ca);
 	}
 
@@ -585,11 +585,11 @@ struct hdac_cea_channel_speaker_allocation *snd_hdac_get_ch_alloc_from_ca(int ca
 EXPORT_SYMBOL_GPL(snd_hdac_get_ch_alloc_from_ca);
 
 int snd_hdac_channel_allocation(struct hdac_device *hdac, int spk_alloc,
-		int channels, bool chmap_set, bool non_pcm, unsigned char *map)
+		int channels, bool chmap_set, bool analn_pcm, unsigned char *map)
 {
 	int ca;
 
-	if (!non_pcm && chmap_set)
+	if (!analn_pcm && chmap_set)
 		ca = hdmi_manual_channel_allocation(channels, map);
 	else
 		ca = hdmi_channel_allocation_spk_alloc_blk(hdac,
@@ -674,7 +674,7 @@ static int hdmi_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	int spk_alloc, spk_mask;
 
 	if (size < 8)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (put_user(SNDRV_CTL_TLVT_CONTAINER, tlv))
 		return -EFAULT;
 	size -= 8;
@@ -703,9 +703,9 @@ static int hdmi_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 			type = chmap->ops.chmap_cea_alloc_validate_get_type(
 							chmap, cap, chs);
 			if (type < 0)
-				return -ENODEV;
+				return -EANALDEV;
 			if (size < 8)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			if (put_user(type, dst) ||
 			    put_user(chs_bytes, dst + 1))
@@ -716,7 +716,7 @@ static int hdmi_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 			count += 8;
 
 			if (size < chs_bytes)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			size -= chs_bytes;
 			count += chs_bytes;
@@ -764,7 +764,7 @@ static int hdmi_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 	unsigned char chmap[8], per_pin_chmap[8];
 	int i, err, ca, prepared = 0;
 
-	/* No monitor is connected in dyn_pcm_assign.
+	/* Anal monitor is connected in dyn_pcm_assign.
 	 * It's invalid to setup the chmap
 	 */
 	if (!hchmap->ops.is_pcm_attached(hchmap->hdac, pcm_idx))

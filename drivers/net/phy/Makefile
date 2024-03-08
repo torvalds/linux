@@ -10,7 +10,7 @@ obj-y				+= mdio-boardinfo.o
 endif
 
 # PHYLIB implies MDIO_DEVICE, in that case, we have a bunch of circular
-# dependencies that does not make it possible to split mdio-bus objects into a
+# dependencies that does analt make it possible to split mdio-bus objects into a
 # dedicated loadable module, so we bundle them all together into libphy.ko
 ifdef CONFIG_PHYLIB
 libphy-y			+= $(mdio-bus-y)

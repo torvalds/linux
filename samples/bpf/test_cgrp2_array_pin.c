@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 
 #include <bpf/bpf.h>
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 	cg2_fd = open(cg2, O_RDONLY);
 	if (cg2_fd < 0) {
 		fprintf(stderr, "open(%s,...): %s(%d)\n",
-			cg2, strerror(errno), errno);
+			cg2, strerror(erranal), erranal);
 		goto out;
 	}
 
@@ -70,14 +70,14 @@ int main(int argc, char **argv)
 		if (array_fd < 0) {
 			fprintf(stderr,
 				"bpf_create_map(BPF_MAP_TYPE_CGROUP_ARRAY,...): %s(%d)\n",
-				strerror(errno), errno);
+				strerror(erranal), erranal);
 			goto out;
 		}
 	} else {
 		array_fd = bpf_obj_get(pinned_file);
 		if (array_fd < 0) {
 			fprintf(stderr, "bpf_obj_get(%s): %s(%d)\n",
-				pinned_file, strerror(errno), errno);
+				pinned_file, strerror(erranal), erranal);
 			goto out;
 		}
 	}
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 		ret = bpf_obj_pin(array_fd, pinned_file);
 		if (ret) {
 			fprintf(stderr, "bpf_obj_pin(..., %s): %s(%d)\n",
-				pinned_file, strerror(errno), errno);
+				pinned_file, strerror(erranal), erranal);
 			goto out;
 		}
 	}

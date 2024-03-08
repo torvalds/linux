@@ -27,7 +27,7 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	int cnt;
 	int i;
 	struct device *dev = hba->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const char *name;
 	u32 *clkfreq = NULL;
 	struct ufs_clk_info *clki;
@@ -51,7 +51,7 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 		goto out;
 
 	if (!of_get_property(np, "freq-table-hz", &len)) {
-		dev_info(dev, "freq-table-hz property not specified\n");
+		dev_info(dev, "freq-table-hz property analt specified\n");
 		goto out;
 	}
 
@@ -68,7 +68,7 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	clkfreq = devm_kcalloc(dev, sz, sizeof(*clkfreq),
 			       GFP_KERNEL);
 	if (!clkfreq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -88,7 +88,7 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 
 		clki = devm_kzalloc(dev, sizeof(*clki), GFP_KERNEL);
 		if (!clki) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -96,7 +96,7 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 		clki->max_freq = clkfreq[i+1];
 		clki->name = devm_kstrdup(dev, name, GFP_KERNEL);
 		if (!clki->name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -110,13 +110,13 @@ out:
 	return ret;
 }
 
-static bool phandle_exists(const struct device_node *np,
+static bool phandle_exists(const struct device_analde *np,
 			   const char *phandle_name, int index)
 {
-	struct device_node *parse_np = of_parse_phandle(np, phandle_name, index);
+	struct device_analde *parse_np = of_parse_phandle(np, phandle_name, index);
 
 	if (parse_np)
-		of_node_put(parse_np);
+		of_analde_put(parse_np);
 
 	return parse_np != NULL;
 }
@@ -127,10 +127,10 @@ int ufshcd_populate_vreg(struct device *dev, const char *name,
 {
 	char prop_name[MAX_PROP_SIZE];
 	struct ufs_vreg *vreg = NULL;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	if (!np) {
-		dev_err(dev, "%s: non DT initialization\n", __func__);
+		dev_err(dev, "%s: analn DT initialization\n", __func__);
 		goto out;
 	}
 
@@ -143,11 +143,11 @@ int ufshcd_populate_vreg(struct device *dev, const char *name,
 
 	vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
 	if (!vreg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vreg->name = devm_kstrdup(dev, name, GFP_KERNEL);
 	if (!vreg->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (skip_current) {
 		vreg->max_uA = 0;
@@ -170,7 +170,7 @@ EXPORT_SYMBOL_GPL(ufshcd_populate_vreg);
  * @hba: per adapter instance
  *
  * Get regulator info from device tree for vcc, vccq, vccq2 power supplies.
- * If any of the supplies are not defined it is assumed that they are always-on
+ * If any of the supplies are analt defined it is assumed that they are always-on
  * and hence return zero. If the property is defined but parsing is failed
  * then return corresponding error.
  *
@@ -204,7 +204,7 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
 	struct device *dev = hba->dev;
 	int ret;
 
-	ret = of_property_read_u32(dev->of_node, "lanes-per-direction",
+	ret = of_property_read_u32(dev->of_analde, "lanes-per-direction",
 		&hba->lanes_per_direction);
 	if (ret) {
 		dev_dbg(hba->dev,
@@ -221,7 +221,7 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
  * This function parses MIN and MAX frequencies of all clocks required
  * by the host drivers.
  *
- * Returns 0 for success and non-zero for failure
+ * Returns 0 for success and analn-zero for failure
  */
 static int ufshcd_parse_clock_min_max_freq(struct ufs_hba *hba)
 {
@@ -266,7 +266,7 @@ static int ufshcd_parse_clock_min_max_freq(struct ufs_hba *hba)
 static int ufshcd_parse_operating_points(struct ufs_hba *hba)
 {
 	struct device *dev = hba->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct dev_pm_opp_config config = {};
 	struct ufs_clk_info *clki;
 	const char **clk_names;
@@ -284,13 +284,13 @@ static int ufshcd_parse_operating_points(struct ufs_hba *hba)
 	cnt = of_property_count_strings(np, "clock-names");
 	if (cnt <= 0) {
 		dev_err(dev, "%s: Missing clock-names\n",  __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* OPP expects clk_names to be NULL terminated */
 	clk_names = devm_kcalloc(dev, cnt + 1, sizeof(*clk_names), GFP_KERNEL);
 	if (!clk_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We still need to get reference to all clocks as the UFS core uses
@@ -304,11 +304,11 @@ static int ufshcd_parse_operating_points(struct ufs_hba *hba)
 
 		clki = devm_kzalloc(dev, sizeof(*clki), GFP_KERNEL);
 		if (!clki)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		clki->name = devm_kstrdup(dev, clk_names[i], GFP_KERNEL);
 		if (!clki->name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (!strcmp(clk_names[i], "ref_clk"))
 			clki->keep_link_active = true;
@@ -345,7 +345,7 @@ static int ufshcd_parse_operating_points(struct ufs_hba *hba)
  * @dev_max: pointer to device attributes
  * @agreed_pwr: returned agreed attributes
  *
- * Return: 0 on success, non-zero value on failure.
+ * Return: 0 on success, analn-zero value on failure.
  */
 int ufshcd_negotiate_pwr_params(const struct ufs_host_params *host_params,
 				const struct ufs_pa_layer_attr *dev_max,
@@ -375,7 +375,7 @@ int ufshcd_negotiate_pwr_params(const struct ufs_host_params *host_params,
 	if (!is_dev_sup_hs && is_host_max_hs) {
 		pr_info("%s: device doesn't support HS\n",
 			__func__);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	} else if (is_dev_sup_hs && is_host_max_hs) {
 		/*
 		 * since device supports HS, it supports FAST_MODE.
@@ -458,7 +458,7 @@ EXPORT_SYMBOL_GPL(ufshcd_init_host_params);
  * @pdev: pointer to Platform device handle
  * @vops: pointer to variant ops
  *
- * Return: 0 on success, non-zero value on failure.
+ * Return: 0 on success, analn-zero value on failure.
  */
 int ufshcd_pltfrm_init(struct platform_device *pdev,
 		       const struct ufs_hba_variant_ops *vops)

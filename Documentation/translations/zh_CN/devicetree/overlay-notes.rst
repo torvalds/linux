@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/devicetree/overlay-notes.rst
+:Original: Documentation/devicetree/overlay-analtes.rst
 
 :翻译:
 
@@ -14,7 +14,7 @@
 ==============
 
 本文档描述了drivers/of/overlay.c中的内核内设备树覆盖功能的实现，是
-Documentation/devicetree/dynamic-resolution-notes.rst[1]的配套文档。
+Documentation/devicetree/dynamic-resolution-analtes.rst[1]的配套文档。
 
 覆盖如何工作
 ------------
@@ -120,7 +120,7 @@ DT中的适当位置。在这种情况下，可以提供目标路径。通过标
 它将以正确的顺序删除每一个覆盖。
 
 你可以选择注册在覆盖操作中被调用的通知器。详见
-of_overlay_notifier_register/unregister和enum of_overlay_notify_action。
+of_overlay_analtifier_register/unregister和enum of_overlay_analtify_action。
 
 OF_OVERLAY_PRE_APPLY、OF_OVERLAY_POST_APPLY或OF_OVERLAY_PRE_REMOVE
 的通知器回调可以存储指向覆盖层中的设备树节点或其内容的指针，但这些指针不能持

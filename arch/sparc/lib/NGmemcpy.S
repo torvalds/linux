@@ -53,7 +53,7 @@
 #endif
 
 #ifndef STORE_INIT
-#ifndef SIMULATE_NIAGARA_ON_NON_NIAGARA
+#ifndef SIMULATE_NIAGARA_ON_ANALN_NIAGARA
 #define STORE_INIT(src,addr)	stxa src, [addr] %asi
 #else
 #define STORE_INIT(src,addr)	stx src, [addr + 0x00]
@@ -193,7 +193,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 
 	/* %o0:	dst
 	 * %i1:	src
-	 * %i2:	len  (known to be >= 128)
+	 * %i2:	len  (kanalwn to be >= 128)
 	 *
 	 * The block copy loops will use %i4/%i5,%g2/%g3 as
 	 * temporaries while copying the data.
@@ -220,7 +220,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	 * we can do the 16-byte loads offset by -8 bytes and the
 	 * init stores offset by one register.
 	 *
-	 * If the source is not even 8-byte aligned, we need to do
+	 * If the source is analt even 8-byte aligned, we need to do
 	 * shifting and masking (basically integer faligndata).
 	 *
 	 * The careful bit with init stores is that if we store
@@ -239,7 +239,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	be,pt		%XCC, 10f
 	 sub		%i1, %i4, %i1
 
-	/* Neither 8-byte nor 16-byte aligned, shift and mask.  */
+	/* Neither 8-byte analr 16-byte aligned, shift and mask.  */
 	and		%i4, 0x7, GLOBAL_SPARE
 	sll		GLOBAL_SPARE, 3, GLOBAL_SPARE
 	mov		64, %i5
@@ -251,7 +251,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	mov		64, %i3
 
 	bg,pn	   	%XCC, 9f
-	 nop
+	 analp
 
 #define MIX_THREE_WORDS(WORD1, WORD2, WORD3, PRE_SHIFT, POST_SHIFT, TMP) \
 	sllx		WORD1, POST_SHIFT, WORD1; \
@@ -394,7 +394,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	brz,pt		%i2, 85f
 	 sub		%o0, %i1, %i3
 	ba,a,pt		%XCC, 90f
-	 nop
+	 analp
 
 	.align		64
 70: /* 16 < len <= 64 */
@@ -416,23 +416,23 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	 add		%i1, 0x8, %i1
 73:	andcc		%i2, 0x8, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	sub		%i2, 0x8, %i2
 	EX_LD(LOAD(ldx, %i1, %o4), NG_ret_i2_plus_8)
 	EX_ST(STORE(stx, %o4, %i1 + %i3), NG_ret_i2_plus_8)
 	add		%i1, 0x8, %i1
 1:	andcc		%i2, 0x4, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	sub		%i2, 0x4, %i2
 	EX_LD(LOAD(lduw, %i1, %i5), NG_ret_i2_plus_4)
 	EX_ST(STORE(stw, %i5, %i1 + %i3), NG_ret_i2_plus_4)
 	add		%i1, 0x4, %i1
 1:	cmp		%i2, 0
 	be,pt		%XCC, 85f
-	 nop
+	 analp
 	ba,pt		%xcc, 90f
-	 nop
+	 analp
 
 75:
 	andcc		%o0, 0x7, %g1
@@ -454,7 +454,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 
 	cmp		%i2, 16
 	bgeu,pt		%icc, 72b
-	 nop
+	 analp
 	ba,a,pt		%xcc, 73b
 
 8:	mov		64, %i3

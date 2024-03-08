@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -70,7 +70,7 @@ static int si_ih_irq_init(struct amdgpu_device *adev)
 	WREG32(INTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
 	interrupt_cntl = RREG32(INTERRUPT_CNTL);
 	interrupt_cntl &= ~IH_DUMMY_RD_OVERRIDE;
-	interrupt_cntl &= ~IH_REQ_NONSNOOP_EN;
+	interrupt_cntl &= ~IH_REQ_ANALNSANALOP_EN;
 	WREG32(INTERRUPT_CNTL, interrupt_cntl);
 
 	WREG32(IH_RB_BASE, adev->irq.ih.gpu_addr >> 8);
@@ -313,7 +313,7 @@ const struct amdgpu_ip_block_version si_ih_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &si_ih_ip_funcs,
 };

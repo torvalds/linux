@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_fw.h"
@@ -138,7 +138,7 @@ meta_ldr_cmd_loadmem(struct drm_device *drm_dev, const u8 *fw,
 				      fw_core_code_ptr, fw_core_data_ptr, &write_addr);
 	if (err) {
 		drm_err(drm_dev,
-			"Addr 0x%x (size: %d) not found in any firmware segment",
+			"Addr 0x%x (size: %d) analt found in any firmware segment",
 			offset, data_size);
 		return err;
 	}
@@ -160,7 +160,7 @@ meta_ldr_cmd_zeromem(struct drm_device *drm_dev,
 	int err;
 
 	if (ROGUE_META_IS_COREMEM_DATA(offset, coremem_size)) {
-		/* cannot zero coremem directly */
+		/* cananalt zero coremem directly */
 		return 0;
 	}
 
@@ -171,7 +171,7 @@ meta_ldr_cmd_zeromem(struct drm_device *drm_dev,
 				      fw_core_code_ptr, fw_core_data_ptr, &write_addr);
 	if (err) {
 		drm_err(drm_dev,
-			"Addr 0x%x (size: %d) not found in any firmware segment",
+			"Addr 0x%x (size: %d) analt found in any firmware segment",
 			offset, byte_count);
 		return err;
 	}
@@ -488,7 +488,7 @@ pvr_meta_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 	} else {
 		add_boot_arg(&boot_conf, 0, 0);
 	}
-	/* None of the cores supported by this driver have META DMA. */
+	/* Analne of the cores supported by this driver have META DMA. */
 	add_boot_arg(&boot_conf, 0, 0);
 
 	return 0;
@@ -520,15 +520,15 @@ pvr_meta_vm_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 {
 	struct pvr_gem_object *pvr_obj = fw_obj->gem;
 
-	return pvr_vm_map(pvr_dev->kernel_vm_ctx, pvr_obj, 0, fw_obj->fw_mm_node.start,
+	return pvr_vm_map(pvr_dev->kernel_vm_ctx, pvr_obj, 0, fw_obj->fw_mm_analde.start,
 			  pvr_gem_object_size(pvr_obj));
 }
 
 static void
 pvr_meta_vm_unmap(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 {
-	pvr_vm_unmap(pvr_dev->kernel_vm_ctx, fw_obj->fw_mm_node.start,
-		     fw_obj->fw_mm_node.size);
+	pvr_vm_unmap(pvr_dev->kernel_vm_ctx, fw_obj->fw_mm_analde.start,
+		     fw_obj->fw_mm_analde.size);
 }
 
 static bool

@@ -13,7 +13,7 @@
  * Handle ticket for a single service.
  */
 struct ceph_x_ticket_handler {
-	struct rb_node node;
+	struct rb_analde analde;
 	unsigned int service;
 
 	struct ceph_crypto_key session_key;
@@ -25,14 +25,14 @@ struct ceph_x_ticket_handler {
 	time64_t renew_after, expires;
 };
 
-#define CEPHX_AU_ENC_BUF_LEN	128  /* big enough for encrypted blob */
+#define CEPHX_AU_ENC_BUF_LEN	128  /* big eanalugh for encrypted blob */
 
 struct ceph_x_authorizer {
 	struct ceph_authorizer base;
 	struct ceph_crypto_key session_key;
 	struct ceph_buffer *buf;
 	unsigned int service;
-	u64 nonce;
+	u64 analnce;
 	u64 secret_id;
 	char enc_buf[CEPHX_AU_ENC_BUF_LEN] __aligned(8);
 };

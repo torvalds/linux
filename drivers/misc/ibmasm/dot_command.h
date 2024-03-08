@@ -58,7 +58,7 @@ static inline unsigned int get_dot_command_timeout(void *buffer)
 		if (cmd[0] == 8)
 			return IBMASM_CMD_TIMEOUT_EXTRA;
 	}
-	return IBMASM_CMD_TIMEOUT_NORMAL;
+	return IBMASM_CMD_TIMEOUT_ANALRMAL;
 }
 
 #endif /* __DOT_COMMAND_H__ */

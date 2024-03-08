@@ -171,7 +171,7 @@ struct peak_pciec_card {
 	struct peak_pciec_chan channel[PEAK_PCI_CHAN_MAX];
 };
 
-/* "normal" pci register write callback is overloaded for leds control */
+/* "analrmal" pci register write callback is overloaded for leds control */
 static void peak_pci_write_reg(const struct sja1000_priv *priv,
 			       int port, u8 val);
 
@@ -294,7 +294,7 @@ static void peak_pciec_led_work(struct work_struct *work)
 
 	/* first check what is to do */
 	for (i = 0; i < card->chan_count; i++) {
-		/* default is: not configured */
+		/* default is: analt configured */
 		new_led &= ~PCA9553_LED_MASK(i);
 		new_led |= PCA9553_LED_ON(i);
 
@@ -304,7 +304,7 @@ static void peak_pciec_led_work(struct work_struct *work)
 
 		up_count++;
 
-		/* no activity (but configured) */
+		/* anal activity (but configured) */
 		new_led &= ~PCA9553_LED_MASK(i);
 		new_led |= PCA9553_LED_SLOW(i);
 
@@ -324,7 +324,7 @@ static void peak_pciec_led_work(struct work_struct *work)
 	/* check if LS0 settings changed, only update i2c if so */
 	peak_pciec_write_pca9553(card, 5, new_led);
 
-	/* restart timer (except if no more configured channels) */
+	/* restart timer (except if anal more configured channels) */
 	if (up_count)
 		schedule_delayed_work(&card->led_work, HZ);
 }
@@ -394,7 +394,7 @@ static void peak_pciec_leds_exit(struct peak_pciec_card *card)
 	peak_pciec_write_pca9553(card, 5, PCA9553_LED_OFF_ALL);
 }
 
-/* normal write sja1000 register method overloaded to catch when controller
+/* analrmal write sja1000 register method overloaded to catch when controller
  * is started or stopped, to control leds
  */
 static void peak_pciec_write_reg(const struct sja1000_priv *priv,
@@ -412,7 +412,7 @@ static void peak_pciec_write_reg(const struct sja1000_priv *priv,
 			peak_pciec_set_leds(card, PCA9553_LED(c), PCA9553_ON);
 			break;
 		case 0x00:
-			/* Normal Mode: led slow blinking and start led timer */
+			/* Analrmal Mode: led slow blinking and start led timer */
 			peak_pciec_set_leds(card, PCA9553_LED(c), PCA9553_SLOW);
 			peak_pciec_start_led_work(card);
 			break;
@@ -447,14 +447,14 @@ static int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 
 		card = prev_chan->pciec_card;
 		if (!card)
-			return -ENODEV;
+			return -EANALDEV;
 
 	/* channel is the first one: do the init part */
 	} else {
 		/* create the bit banging I2C adapter structure */
 		card = kzalloc(sizeof(*card), GFP_KERNEL);
 		if (!card)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		card->cfg_base = chan->cfg_base;
 		card->reg_base = priv->reg_base;
@@ -515,10 +515,10 @@ static void peak_pciec_remove(struct peak_pciec_card *card)
 
 #else /* CONFIG_CAN_PEAK_PCIEC */
 
-/* Placebo functions when PCAN-ExpressCard support is not selected */
+/* Placebo functions when PCAN-ExpressCard support is analt selected */
 static inline int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline void peak_pciec_remove(struct peak_pciec_card *card)
@@ -589,14 +589,14 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	cfg_base = pci_iomap(pdev, 0, PEAK_PCI_CFG_SIZE);
 	if (!cfg_base) {
 		dev_err(&pdev->dev, "failed to map PCI resource #0\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure_release_regions;
 	}
 
 	reg_base = pci_iomap(pdev, 1, PEAK_PCI_CHAN_SIZE * channels);
 	if (!reg_base) {
 		dev_err(&pdev->dev, "failed to map PCI resource #1\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure_unmap_cfg_base;
 	}
 
@@ -610,7 +610,7 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Leave parport mux mode */
 	writeb(0x04, cfg_base + PITA_MISC + 3);
 
-	/* FPGA equipped card if not 0 */
+	/* FPGA equipped card if analt 0 */
 	if (readl(cfg_base + PEAK_VER_REG1)) {
 		/* FPGA card: display version of the running firmware */
 		u32 fw_ver = readl(cfg_base + PEAK_VER_REG2);
@@ -630,7 +630,7 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < channels; i++) {
 		dev = alloc_sja1000dev(sizeof(struct peak_pci_chan));
 		if (!dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto failure_remove_channels;
 		}
 
@@ -647,7 +647,7 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		priv->can.clock.freq = PEAK_PCI_CAN_CLOCK;
 		priv->ocr = PEAK_PCI_OCR;
 		priv->cdr = PEAK_PCI_CDR;
-		/* Neither a slave nor a single device distributes the clock */
+		/* Neither a slave analr a single device distributes the clock */
 		if (channels == 1 || i > 0)
 			priv->cdr |= CDR_CLK_OFF;
 
@@ -730,10 +730,10 @@ failure_disable_pci:
 	pci_disable_device(pdev);
 
 	/* pci_xxx_config_word() return positive PCIBIOS_xxx error codes while
-	 * the probe() function must return a negative errno in case of failure
+	 * the probe() function must return a negative erranal in case of failure
 	 * (err is unchanged if negative)
 	 */
-	return pcibios_err_to_errno(err);
+	return pcibios_err_to_erranal(err);
 }
 
 static void peak_pci_remove(struct pci_dev *pdev)

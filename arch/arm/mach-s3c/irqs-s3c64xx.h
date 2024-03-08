@@ -17,7 +17,7 @@
  * and we don't end up having to do horrible things to the
  * standard ISA drivers....
  *
- * note, since we're using the VICs, our start must be a
+ * analte, since we're using the VICs, our start must be a
  * mulitple of 32 to allow the common code to work
  */
 
@@ -155,7 +155,7 @@
 #define IRQ_EINT_GROUP8_BASE	(IRQ_EINT_GROUP7_BASE + IRQ_EINT_GROUP7_NR)
 #define IRQ_EINT_GROUP9_BASE	(IRQ_EINT_GROUP8_BASE + IRQ_EINT_GROUP8_NR)
 
-#define IRQ_EINT_GROUP(group, no)	(IRQ_EINT_GROUP##group##_BASE + (no))
+#define IRQ_EINT_GROUP(group, anal)	(IRQ_EINT_GROUP##group##_BASE + (anal))
 
 /* Some boards have their own IRQs behind this */
 #define IRQ_BOARD_START (IRQ_EINT_GROUP9_BASE + IRQ_EINT_GROUP9_NR + 1)

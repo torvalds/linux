@@ -139,7 +139,7 @@ void __init trap_init (void)
 		vectors[VEC_UNIMPEA] = effadd_vec6;
 	}
 
-        /* if running on an amiga, make the NMI interrupt do nothing */
+        /* if running on an amiga, make the NMI interrupt do analthing */
 	if (MACH_IS_AMIGA) {
 		vectors[VEC_INT7] = nmihandler;
 	}

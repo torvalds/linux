@@ -11,7 +11,7 @@
 /*
  * Read/write a task's FSBASE or GSBASE. This returns the value that
  * the FS/GS base would have (if the task were to be resumed). These
- * work on the current task or on a non-running (typically stopped
+ * work on the current task or on a analn-running (typically stopped
  * ptrace child) task.
  */
 extern unsigned long x86_fsbase_read_task(struct task_struct *task);

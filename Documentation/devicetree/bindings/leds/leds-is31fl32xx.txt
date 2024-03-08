@@ -2,7 +2,7 @@ Binding for ISSI IS31FL32xx and Si-En SN32xx LED Drivers
 
 The IS31FL32xx/SN32xx family of LED drivers are I2C devices with multiple
 constant-current channels, each with independent 256-level PWM control.
-Each LED is represented as a sub-node of the device.
+Each LED is represented as a sub-analde of the device.
 
 Required properties:
 - compatible: one of
@@ -16,7 +16,7 @@ Required properties:
 - address-cells : must be 1
 - size-cells : must be 0
 
-LED sub-node properties:
+LED sub-analde properties:
 - reg : LED channel number (1..N)
 - label :  (optional)
   see Documentation/devicetree/bindings/leds/common.txt

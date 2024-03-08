@@ -4,13 +4,13 @@
  * in the media subsystem. It can also aid developers working on userspace
  * applications.
  *
- * This file contains the code for an AES3 (also known as AES/EBU) encoder.
+ * This file contains the code for an AES3 (also kanalwn as AES/EBU) encoder.
  * It is based on EBU Tech 3250 and SMPTE 302M technical documents.
  *
  * This encoder currently supports 16bit AES3 subframes using 16bit signed
  * integers.
  *
- * Note: AU stands for Access Unit, and AAU stands for Audio Access Unit
+ * Analte: AU stands for Access Unit, and AAU stands for Audio Access Unit
  *
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
@@ -32,9 +32,9 @@
  * struct vidtv_s302m_ctx - s302m encoder context.
  * @enc: A pointer to the containing encoder structure.
  * @frame_index: The current frame in a block
- * @au_count: The total number of access units encoded up to now
+ * @au_count: The total number of access units encoded up to analw
  * @last_duration: Duration of the tone currently being played
- * @note_offset: Position at the music tone array
+ * @analte_offset: Position at the music tone array
  * @last_tone: Tone currently being played
  */
 struct vidtv_s302m_ctx {
@@ -42,8 +42,8 @@ struct vidtv_s302m_ctx {
 	u32 frame_index;
 	u32 au_count;
 	int last_duration;
-	unsigned int note_offset;
-	enum musical_notes last_tone;
+	unsigned int analte_offset;
+	enum musical_analtes last_tone;
 };
 
 /*
@@ -74,7 +74,7 @@ struct vidtv_s302m_frame_16 {
  * @src_buf: The source buffer, encoder will default to a sine wave if this is NULL.
  * @src_buf_sz: The size of the source buffer.
  * @es_pid: The MPEG Elementary Stream PID to use.
- * @sync: Attempt to synchronize audio with this video encoder, if not NULL.
+ * @sync: Attempt to synchronize audio with this video encoder, if analt NULL.
  * @last_sample_cb: A callback called when the encoder runs out of data.
  * @head: Add to this chain
  */
@@ -84,7 +84,7 @@ struct vidtv_s302m_encoder_init_args {
 	u32 src_buf_sz;
 	u16 es_pid;
 	struct vidtv_encoder *sync;
-	void (*last_sample_cb)(u32 sample_no);
+	void (*last_sample_cb)(u32 sample_anal);
 
 	struct vidtv_encoder *head;
 };

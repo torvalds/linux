@@ -103,7 +103,7 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *devattr,
 	u64 x;
 
 	if (sdata->sgrp_data && !sdata->sgrp_data->enable)
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret =  opal_get_sensor_data_u64(sdata->id, &x);
 
@@ -177,10 +177,10 @@ static int get_logical_cpu(int hwcpu)
 		if (get_hard_smp_processor_id(cpu) == hwcpu)
 			return cpu;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
-static void make_sensor_label(struct device_node *np,
+static void make_sensor_label(struct device_analde *np,
 			      struct sensor_data *sdata, const char *label)
 {
 	u32 id;
@@ -265,30 +265,30 @@ static const char *convert_opal_attr_name(enum sensors type,
 }
 
 /*
- * This function translates the DT node name into the 'hwmon' attribute name.
- * IBMPOWERNV device node appear like cooling-fan#2-data, amb-temp#1-thrs etc.
+ * This function translates the DT analde name into the 'hwmon' attribute name.
+ * IBMPOWERNV device analde appear like cooling-fan#2-data, amb-temp#1-thrs etc.
  * which need to be mapped as fan2_input, temp1_max respectively before
  * populating them inside hwmon device class.
  */
-static const char *parse_opal_node_name(const char *node_name,
+static const char *parse_opal_analde_name(const char *analde_name,
 					enum sensors type, u32 *index)
 {
 	char attr_suffix[MAX_ATTR_LEN];
 	const char *attr_name;
 	int err;
 
-	err = get_sensor_index_attr(node_name, index, attr_suffix);
+	err = get_sensor_index_attr(analde_name, index, attr_suffix);
 	if (err)
 		return ERR_PTR(err);
 
 	attr_name = convert_opal_attr_name(type, attr_suffix);
 	if (!attr_name)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return attr_name;
 }
 
-static int get_sensor_type(struct device_node *np)
+static int get_sensor_type(struct device_analde *np)
 {
 	enum sensors type;
 	const char *str;
@@ -335,15 +335,15 @@ static int init_sensor_group_data(struct platform_device *pdev,
 				  struct platform_data *pdata)
 {
 	struct sensor_group_data *sgrp_data;
-	struct device_node *groups, *sgrp;
+	struct device_analde *groups, *sgrp;
 	int count = 0, ret = 0;
 	enum sensors type;
 
-	groups = of_find_compatible_node(NULL, NULL, "ibm,opal-sensor-group");
+	groups = of_find_compatible_analde(NULL, NULL, "ibm,opal-sensor-group");
 	if (!groups)
 		return ret;
 
-	for_each_child_of_node(groups, sgrp) {
+	for_each_child_of_analde(groups, sgrp) {
 		type = get_sensor_type(sgrp);
 		if (type != MAX_SENSOR_TYPE)
 			pdata->nr_sensor_groups++;
@@ -355,11 +355,11 @@ static int init_sensor_group_data(struct platform_device *pdev,
 	sgrp_data = devm_kcalloc(&pdev->dev, pdata->nr_sensor_groups,
 				 sizeof(*sgrp_data), GFP_KERNEL);
 	if (!sgrp_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	for_each_child_of_node(groups, sgrp) {
+	for_each_child_of_analde(groups, sgrp) {
 		u32 gid;
 
 		type = get_sensor_type(sgrp);
@@ -380,22 +380,22 @@ static int init_sensor_group_data(struct platform_device *pdev,
 
 	pdata->sgrp_data = sgrp_data;
 out:
-	of_node_put(groups);
+	of_analde_put(groups);
 	return ret;
 }
 
 static struct sensor_group_data *get_sensor_group(struct platform_data *pdata,
-						  struct device_node *node,
+						  struct device_analde *analde,
 						  enum sensors gtype)
 {
 	struct sensor_group_data *sgrp_data = pdata->sgrp_data;
-	struct device_node *groups, *sgrp;
+	struct device_analde *groups, *sgrp;
 
-	groups = of_find_compatible_node(NULL, NULL, "ibm,opal-sensor-group");
+	groups = of_find_compatible_analde(NULL, NULL, "ibm,opal-sensor-group");
 	if (!groups)
 		return NULL;
 
-	for_each_child_of_node(groups, sgrp) {
+	for_each_child_of_analde(groups, sgrp) {
 		struct of_phandle_iterator it;
 		u32 gid;
 		int rc, i;
@@ -409,8 +409,8 @@ static struct sensor_group_data *get_sensor_group(struct platform_data *pdata,
 			continue;
 
 		of_for_each_phandle(&it, rc, sgrp, "sensors", NULL, 0)
-			if (it.phandle == node->phandle) {
-				of_node_put(it.node);
+			if (it.phandle == analde->phandle) {
+				of_analde_put(it.analde);
 				break;
 			}
 
@@ -419,13 +419,13 @@ static struct sensor_group_data *get_sensor_group(struct platform_data *pdata,
 
 		for (i = 0; i < pdata->nr_sensor_groups; i++)
 			if (gid == sgrp_data[i].gid) {
-				of_node_put(sgrp);
-				of_node_put(groups);
+				of_analde_put(sgrp);
+				of_analde_put(groups);
 				return &sgrp_data[i];
 			}
 	}
 
-	of_node_put(groups);
+	of_analde_put(groups);
 	return NULL;
 }
 
@@ -433,7 +433,7 @@ static int populate_attr_groups(struct platform_device *pdev)
 {
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	const struct attribute_group **pgroups = pdata->attr_groups;
-	struct device_node *opal, *np;
+	struct device_analde *opal, *np;
 	enum sensors type;
 	int ret;
 
@@ -441,8 +441,8 @@ static int populate_attr_groups(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	opal = of_find_node_by_path("/ibm,opal/sensors");
-	for_each_child_of_node(opal, np) {
+	opal = of_find_analde_by_path("/ibm,opal/sensors");
+	for_each_child_of_analde(opal, np) {
 		const char *label;
 
 		type = get_sensor_type(np);
@@ -462,7 +462,7 @@ static int populate_attr_groups(struct platform_device *pdev)
 			sensor_groups[type].attr_count++;
 	}
 
-	of_node_put(opal);
+	of_analde_put(opal);
 
 	for (type = 0; type < MAX_SENSOR_TYPE; type++) {
 		sensor_groups[type].group.attrs = devm_kcalloc(&pdev->dev,
@@ -470,7 +470,7 @@ static int populate_attr_groups(struct platform_device *pdev)
 					sizeof(struct attribute *),
 					GFP_KERNEL);
 		if (!sensor_groups[type].group.attrs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pgroups[type] = &sensor_groups[type].group;
 		pdata->sensors_count += sensor_groups[type].attr_count;
@@ -544,8 +544,8 @@ static char *get_min_attr(enum sensors type)
 }
 
 /*
- * Iterate through the device tree for each child of 'sensors' node, create
- * a sysfs attribute file, the file is named by translating the DT node name
+ * Iterate through the device tree for each child of 'sensors' analde, create
+ * a sysfs attribute file, the file is named by translating the DT analde name
  * to the name required by the higher 'hwmon' driver like fan1_input, temp1_max
  * etc..
  */
@@ -553,7 +553,7 @@ static int create_device_attrs(struct platform_device *pdev)
 {
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	const struct attribute_group **pgroups = pdata->attr_groups;
-	struct device_node *opal, *np;
+	struct device_analde *opal, *np;
 	struct sensor_data *sdata;
 	u32 count = 0;
 	u32 group_attr_id[MAX_SENSOR_TYPE] = {0};
@@ -562,10 +562,10 @@ static int create_device_attrs(struct platform_device *pdev)
 			     pdata->sensors_count, sizeof(*sdata),
 			     GFP_KERNEL);
 	if (!sdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	opal = of_find_node_by_path("/ibm,opal/sensors");
-	for_each_child_of_node(opal, np) {
+	opal = of_find_analde_by_path("/ibm,opal/sensors");
+	for_each_child_of_analde(opal, np) {
 		struct sensor_group_data *sgrp_data;
 		const char *attr_name;
 		u32 opal_index, hw_id;
@@ -584,7 +584,7 @@ static int create_device_attrs(struct platform_device *pdev)
 		if (of_property_read_u32(np, "sensor-id", &sensor_id) &&
 		    of_property_read_u32(np, "sensor-data", &sensor_id)) {
 			dev_info(&pdev->dev,
-				 "'sensor-id' missing in the node '%pOFn'\n",
+				 "'sensor-id' missing in the analde '%pOFn'\n",
 				 np);
 			continue;
 		}
@@ -593,12 +593,12 @@ static int create_device_attrs(struct platform_device *pdev)
 		sdata[count].type = type;
 
 		/*
-		 * If we can not parse the node name, it means we are
+		 * If we can analt parse the analde name, it means we are
 		 * running on a newer device tree. We can just forget
 		 * about the OPAL index and use a defaut value for the
 		 * hwmon attribute name
 		 */
-		attr_name = parse_opal_node_name(np->name, type, &opal_index);
+		attr_name = parse_opal_analde_name(np->name, type, &opal_index);
 		if (IS_ERR(attr_name)) {
 			attr_name = "input";
 			opal_index = INVALID_INDEX;
@@ -655,7 +655,7 @@ static int create_device_attrs(struct platform_device *pdev)
 		}
 	}
 
-	of_node_put(opal);
+	of_analde_put(opal);
 	return 0;
 }
 
@@ -667,7 +667,7 @@ static int ibmpowernv_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pdata);
 	pdata->sensors_count = 0;

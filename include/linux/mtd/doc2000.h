@@ -38,12 +38,12 @@
 #define DoC_ReadPipeInit 	0x101d
 #define DoC_WritePipeTerm 	0x101e
 #define DoC_LastDataRead 	0x101f
-#define DoC_NOP 		0x1020
+#define DoC_ANALP 		0x1020
 
 #define DoC_Mil_CDSN_IO 	0x0800
 #define DoC_2k_CDSN_IO 		0x1800
 
-#define DoC_Mplus_NOP			0x1002
+#define DoC_Mplus_ANALP			0x1002
 #define DoC_Mplus_AliasResolution	0x1004
 #define DoC_Mplus_DOCControl		0x1006
 #define DoC_Mplus_AccessStatus		0x1008
@@ -115,7 +115,7 @@ static inline void WriteDOC_(u8 data, u16 __iomem *addr, unsigned long reg)
 #define WriteDOC(d, adr, reg)  WriteDOC_(d,adr,DoC_##reg)
 
 #define DOC_MODE_RESET 		0
-#define DOC_MODE_NORMAL 	1
+#define DOC_MODE_ANALRMAL 	1
 #define DOC_MODE_RESERVED1 	2
 #define DOC_MODE_RESERVED2 	3
 
@@ -147,7 +147,7 @@ static inline void WriteDOC_(u8 data, u16 __iomem *addr, unsigned long reg)
 #define DOC_ECC__EN 		0x08
 #define DOC_TOGGLE_BIT 		0x04
 #define DOC_ECC_RESV 		0x02
-#define DOC_ECC_IGNORE		0x01
+#define DOC_ECC_IGANALRE		0x01
 
 #define DOC_FLASH_CE		0x80
 #define DOC_FLASH_WP		0x40

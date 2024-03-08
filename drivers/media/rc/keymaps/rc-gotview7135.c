@@ -46,14 +46,14 @@ static struct rc_map_table gotview7135[] = {
 	{ 0x2a, KEY_F21 },	/* LIVE TIMESHIFT */
 	{ 0x0e, KEY_F22 },	/* MIN TIMESHIFT */
 	{ 0x1e, KEY_TIME },	/* TIMESHIFT */
-	{ 0x38, KEY_F24 },	/* NORMAL TIMESHIFT */
+	{ 0x38, KEY_F24 },	/* ANALRMAL TIMESHIFT */
 };
 
 static struct rc_map_list gotview7135_map = {
 	.map = {
 		.scan     = gotview7135,
 		.size     = ARRAY_SIZE(gotview7135),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_GOTVIEW7135,
 	}
 };

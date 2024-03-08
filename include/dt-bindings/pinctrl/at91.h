@@ -8,7 +8,7 @@
 #ifndef __DT_BINDINGS_AT91_PINCTRL_H__
 #define __DT_BINDINGS_AT91_PINCTRL_H__
 
-#define AT91_PINCTRL_NONE		(0 << 0)
+#define AT91_PINCTRL_ANALNE		(0 << 0)
 #define AT91_PINCTRL_PULL_UP		(1 << 0)
 #define AT91_PINCTRL_MULTI_DRIVE	(1 << 1)
 #define AT91_PINCTRL_DEGLITCH		(1 << 2)

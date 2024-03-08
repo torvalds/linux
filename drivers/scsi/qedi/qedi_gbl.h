@@ -10,9 +10,9 @@
 #include "qedi_iscsi.h"
 
 #ifdef CONFIG_DEBUG_FS
-extern int qedi_do_not_recover;
+extern int qedi_do_analt_recover;
 #else
-#define qedi_do_not_recover (0)
+#define qedi_do_analt_recover (0)
 #endif
 
 extern uint qedi_io_tracing;
@@ -34,14 +34,14 @@ int qedi_send_iscsi_logout(struct qedi_conn *qedi_conn,
 int qedi_send_iscsi_tmf(struct qedi_conn *qedi_conn, struct iscsi_task *mtask);
 int qedi_send_iscsi_text(struct qedi_conn *qedi_conn,
 			 struct iscsi_task *task);
-int qedi_send_iscsi_nopout(struct qedi_conn *qedi_conn,
+int qedi_send_iscsi_analpout(struct qedi_conn *qedi_conn,
 			   struct iscsi_task *task,
 			   char *datap, int data_len, int unsol);
 int qedi_iscsi_send_ioreq(struct iscsi_task *task);
 int qedi_get_task_idx(struct qedi_ctx *qedi);
 void qedi_clear_task_idx(struct qedi_ctx *qedi, int idx);
 int qedi_iscsi_cleanup_task(struct iscsi_task *task,
-			    bool mark_cmd_node_deleted);
+			    bool mark_cmd_analde_deleted);
 void qedi_iscsi_unmap_sg_list(struct qedi_cmd *cmd);
 void qedi_update_itt_map(struct qedi_ctx *qedi, u32 tid, u32 proto_itt,
 			 struct qedi_cmd *qedi_cmd);

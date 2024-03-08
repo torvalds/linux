@@ -33,8 +33,8 @@ properties:
 
   interrupts:
     description:
-      Interrupt used to announce the preceding reading request has finished
-      and that data is available.  If no interrupt is specified the device
+      Interrupt used to ananalunce the preceding reading request has finished
+      and that data is available.  If anal interrupt is specified the device
       driver falls back to wait a fixed amount of time until data can be
       retrieved.
     maxItems: 1

@@ -21,7 +21,7 @@ FUNC_START(gpr_child_loop)
 	// r6 = fpr_buf
 	PUSH_BASIC_STACK(STACK_SIZE)
 
-	// Save non-volatile GPRs
+	// Save analn-volatile GPRs
 	OP_REGS PPC_STL, GPR_SIZE, FIRST_GPR, 31, %r1, STACK_FRAME_LOCAL(0, 0), FIRST_GPR
 
 	// Load GPRs with expected values
@@ -45,7 +45,7 @@ FUNC_START(gpr_child_loop)
 	// Save FPRs
 	OP_REGS stfd, 8, 0, 31, r6
 
-	// Reload non-volatile GPRs
+	// Reload analn-volatile GPRs
 	OP_REGS PPC_LL, GPR_SIZE, FIRST_GPR, 31, %r1, STACK_FRAME_LOCAL(0, 0), FIRST_GPR
 
 	POP_BASIC_STACK(STACK_SIZE)

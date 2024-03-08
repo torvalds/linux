@@ -16,13 +16,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -63,32 +63,32 @@ struct drm_info_list {
 	 * @show:
 	 *
 	 * Show callback. &seq_file->private will be set to the &struct
-	 * drm_info_node corresponding to the instance of this info on a given
-	 * &struct drm_minor.
+	 * drm_info_analde corresponding to the instance of this info on a given
+	 * &struct drm_mianalr.
 	 */
 	int (*show)(struct seq_file*, void*);
 	/** @driver_features: Required driver features for this entry */
 	u32 driver_features;
-	/** @data: Driver-private data, should not be device-specific. */
+	/** @data: Driver-private data, should analt be device-specific. */
 	void *data;
 };
 
 /**
- * struct drm_info_node - Per-minor debugfs node structure
+ * struct drm_info_analde - Per-mianalr debugfs analde structure
  *
  * This structure represents a debugfs file, as an instantiation of a &struct
- * drm_info_list on a &struct drm_minor.
+ * drm_info_list on a &struct drm_mianalr.
  *
  * FIXME:
  *
- * No it doesn't make a hole lot of sense that we duplicate debugfs entries for
- * both the render and the primary nodes, but that's how this has organically
+ * Anal it doesn't make a hole lot of sense that we duplicate debugfs entries for
+ * both the render and the primary analdes, but that's how this has organically
  * grown. It should probably be fixed, with a compatibility link, if needed.
  */
-struct drm_info_node {
-	/** @minor: &struct drm_minor for this node. */
-	struct drm_minor *minor;
-	/** @info_ent: template for this node. */
+struct drm_info_analde {
+	/** @mianalr: &struct drm_mianalr for this analde. */
+	struct drm_mianalr *mianalr;
+	/** @info_ent: template for this analde. */
 	const struct drm_info_list *info_ent;
 	/* private: */
 	struct list_head list;
@@ -117,33 +117,33 @@ struct drm_debugfs_info {
 	/** @driver_features: Required driver features for this entry. */
 	u32 driver_features;
 
-	/** @data: Driver-private data, should not be device-specific. */
+	/** @data: Driver-private data, should analt be device-specific. */
 	void *data;
 };
 
 /**
- * struct drm_debugfs_entry - Per-device debugfs node structure
+ * struct drm_debugfs_entry - Per-device debugfs analde structure
  *
  * This structure represents a debugfs file, as an instantiation of a &struct
  * drm_debugfs_info on a &struct drm_device.
  */
 struct drm_debugfs_entry {
-	/** @dev: &struct drm_device for this node. */
+	/** @dev: &struct drm_device for this analde. */
 	struct drm_device *dev;
 
-	/** @file: Template for this node. */
+	/** @file: Template for this analde. */
 	struct drm_debugfs_info file;
 
-	/** @list: Linked list of all device nodes. */
+	/** @list: Linked list of all device analdes. */
 	struct list_head list;
 };
 
 #if defined(CONFIG_DEBUG_FS)
 void drm_debugfs_create_files(const struct drm_info_list *files,
 			      int count, struct dentry *root,
-			      struct drm_minor *minor);
+			      struct drm_mianalr *mianalr);
 int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
-			     struct dentry *root, struct drm_minor *minor);
+			     struct dentry *root, struct drm_mianalr *mianalr);
 
 void drm_debugfs_add_file(struct drm_device *dev, const char *name,
 			  int (*show)(struct seq_file*, void*), void *data);
@@ -156,12 +156,12 @@ int drm_debugfs_gpuva_info(struct seq_file *m,
 #else
 static inline void drm_debugfs_create_files(const struct drm_info_list *files,
 					    int count, struct dentry *root,
-					    struct drm_minor *minor)
+					    struct drm_mianalr *mianalr)
 {}
 
 static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
 					   int count, struct dentry *root,
-					   struct drm_minor *minor)
+					   struct drm_mianalr *mianalr)
 {
 	return 0;
 }

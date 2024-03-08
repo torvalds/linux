@@ -18,7 +18,7 @@
 
 #define PHY_CTRL1			0x4
 #define PHY_CTRL1_RESET			BIT(0)
-#define PHY_CTRL1_COMMONONN		BIT(1)
+#define PHY_CTRL1_COMMOANALNN		BIT(1)
 #define PHY_CTRL1_ATERESET		BIT(3)
 #define PHY_CTRL1_VDATSRCENB0		BIT(19)
 #define PHY_CTRL1_VDATDETENB0		BIT(20)
@@ -214,7 +214,7 @@ static void imx8m_phy_tune(struct imx8mq_usb_phy *imx_phy)
 	if ((imx_phy->tx_vref_tune & imx_phy->tx_rise_tune &
 	     imx_phy->tx_preemp_amp_tune & imx_phy->comp_dis_tune &
 	     imx_phy->tx_vboost_level) == PHY_TUNE_DEFAULT)
-		/* If all are the default values, no need update. */
+		/* If all are the default values, anal need update. */
 		return;
 
 	value = readl(imx_phy->base + PHY_CTRL3);
@@ -259,7 +259,7 @@ static int imx8mq_usb_phy_init(struct phy *phy)
 
 	value = readl(imx_phy->base + PHY_CTRL1);
 	value &= ~(PHY_CTRL1_VDATSRCENB0 | PHY_CTRL1_VDATDETENB0 |
-		   PHY_CTRL1_COMMONONN);
+		   PHY_CTRL1_COMMOANALNN);
 	value |= PHY_CTRL1_RESET | PHY_CTRL1_ATERESET;
 	writel(value, imx_phy->base + PHY_CTRL1);
 
@@ -372,7 +372,7 @@ static int imx8mq_usb_phy_probe(struct platform_device *pdev)
 
 	imx_phy = devm_kzalloc(dev, sizeof(*imx_phy), GFP_KERNEL);
 	if (!imx_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx_phy->clk = devm_clk_get(dev, "phy");
 	if (IS_ERR(imx_phy->clk)) {

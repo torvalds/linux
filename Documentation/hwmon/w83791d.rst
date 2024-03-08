@@ -41,7 +41,7 @@ Module Parameters
 
     Use 'init=1' to have the driver do extra software initializations.
     The default behavior is to do the minimum initialization possible
-    and depend on the BIOS to properly setup the chip. If you know you
+    and depend on the BIOS to properly setup the chip. If you kanalw you
     have a w83791d and you're having problems, try init=1 before trying
     reset=1.
 
@@ -49,7 +49,7 @@ Module Parameters
     (default 0)
 
     Use 'reset=1' to reset the chip (via index 0x40, bit 7). The default
-    behavior is no chip reset to preserve BIOS settings.
+    behavior is anal chip reset to preserve BIOS settings.
 
 * force_subclients=bus,caddr,saddr,saddr
     This is used to force the i2c addresses for subclients of
@@ -65,8 +65,8 @@ This driver implements support for the Winbond W83791D chip. The W83791G
 chip appears to be the same as the W83791D but is lead free.
 
 Detection of the chip can sometimes be foiled because it can be in an
-internal state that allows no clean access (Bank with ID register is not
-currently selected). If you know the address of the chip, use a 'force'
+internal state that allows anal clean access (Bank with ID register is analt
+currently selected). If you kanalw the address of the chip, use a 'force'
 parameter; this will put it into a more well-behaved state first.
 
 The driver implements three temperature sensors, ten voltage sensors,
@@ -77,7 +77,7 @@ degC for temp1 and 0.5 degC for temp2 and temp3. An alarm is triggered when
 the temperature gets higher than the Overtemperature Shutdown value; it stays
 on until the temperature falls below the Hysteresis value.
 
-Voltage sensors (also known as IN sensors) report their values in millivolts.
+Voltage sensors (also kanalwn as IN sensors) report their values in millivolts.
 An alarm is triggered if the voltage has crossed a programmable minimum
 or maximum limit.
 
@@ -113,9 +113,9 @@ Since both methods read and write the underlying hardware, they can be used
 interchangeably and changes in one will automatically be reflected by
 the other. If you use the legacy bitmask method, your user-space code is
 responsible for handling the fact that the alarms and beep_mask bitmaps
-are not the same (see the table below).
+are analt the same (see the table below).
 
-NOTE: All new code should be written to use the newer sysfs-interface
+ANALTE: All new code should be written to use the newer sysfs-interface
 specification as that avoids bitmap problems and is the preferred interface
 going forward.
 
@@ -133,7 +133,7 @@ pwm[1-3]_enable		this file controls mode of fan/temperature control for
 
 			    * 1 Manual mode
 			    * 2 Thermal Cruise mode
-			    * 3 Fan Speed Cruise mode (no further support)
+			    * 3 Fan Speed Cruise mode (anal further support)
 
 temp[1-3]_target	defines the target temperature for Thermal Cruise mode.
 			Unit: millidegree Celsius
@@ -141,7 +141,7 @@ temp[1-3]_target	defines the target temperature for Thermal Cruise mode.
 
 temp[1-3]_tolerance	temperature tolerance for Thermal Cruise mode.
 			Specifies an interval around the target temperature
-			in which the fan speed is not changed.
+			in which the fan speed is analt changed.
 			Unit: millidegree Celsius
 			RW
 ======================= =======================================================

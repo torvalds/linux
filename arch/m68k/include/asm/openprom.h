@@ -11,7 +11,7 @@
 
 /* Empirical constants... */
 #ifdef CONFIG_SUN3
-#define KADB_DEBUGGER_BEGVM     0x0fee0000    /* There is no kadb yet but...*/
+#define KADB_DEBUGGER_BEGVM     0x0fee0000    /* There is anal kadb yet but...*/
 #define LINUX_OPPROM_BEGVM      0x0fef0000
 #define LINUX_OPPROM_ENDVM      0x0ff10000    /* I think this is right - tm */
 #else
@@ -147,7 +147,7 @@ struct linux_romvec {
 	int		(*pv_setleds)(void);
 
 	/*
-	 * Non-maskable interrupt  (nmi) information
+	 * Analn-maskable interrupt  (nmi) information
 	 */
 
 	int		(*pv_nmiaddr)(void);
@@ -194,8 +194,8 @@ struct linux_romvec {
 	/* Version 0 memory descriptors. */
 	struct linux_mem_v0 pv_v0mem;
 
-	/* Node operations. */
-	struct linux_nodeops *pv_nodeops;
+	/* Analde operations. */
+	struct linux_analdeops *pv_analdeops;
 
 	char **pv_bootstr;
 	struct linux_dev_v0_funcs pv_v0devops;
@@ -207,11 +207,11 @@ struct linux_romvec {
 #define	PROMDEV_TTYA	1		/* in/out to ttya */
 #define	PROMDEV_TTYB	2		/* in/out to ttyb */
 
-	/* Blocking getchar/putchar.  NOT REENTRANT! (grr) */
+	/* Blocking getchar/putchar.  ANALT REENTRANT! (grr) */
 	int (*pv_getchar)(void);
 	void (*pv_putchar)(int ch);
 
-	/* Non-blocking variants. */
+	/* Analn-blocking variants. */
 	int (*pv_nbgetchar)(void);
 	int (*pv_nbputchar)(int ch);
 
@@ -225,7 +225,7 @@ struct linux_romvec {
 	void (*pv_halt)(void);
 	void (**pv_synchook)(void);
 
-	/* Evaluate a forth string, not different proto for V0 and V2->up. */
+	/* Evaluate a forth string, analt different proto for V0 and V2->up. */
 	union {
 		void (*v0_eval)(int len, char *str);
 		void (*v2_eval)(char *str);
@@ -245,7 +245,7 @@ struct linux_romvec {
 	void (*pv_setctxt)(int ctxt, char *va, int pmeg);
 
 	/* Prom version 3 Multiprocessor routines. This stuff is crazy.
-	 * No joke. Calling these when there is only one cpu probably
+	 * Anal joke. Calling these when there is only one cpu probably
 	 * crashes the machine, have to test this. :-)
 	 */
 
@@ -274,13 +274,13 @@ struct linux_romvec {
 #endif
 
 /* Routines for traversing the prom device tree. */
-struct linux_nodeops {
-	int (*no_nextnode)(int node);
-	int (*no_child)(int node);
-	int (*no_proplen)(int node, char *name);
-	int (*no_getprop)(int node, char *name, char *val);
-	int (*no_setprop)(int node, char *name, char *val, int len);
-	char * (*no_nextprop)(int node, char *name);
+struct linux_analdeops {
+	int (*anal_nextanalde)(int analde);
+	int (*anal_child)(int analde);
+	int (*anal_proplen)(int analde, char *name);
+	int (*anal_getprop)(int analde, char *name, char *val);
+	int (*anal_setprop)(int analde, char *name, char *val, int len);
+	char * (*anal_nextprop)(int analde, char *name);
 };
 
 /* More fun PROM structures for device probing. */

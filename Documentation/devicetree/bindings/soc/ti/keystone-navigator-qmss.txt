@@ -12,7 +12,7 @@ perform QMSS related functions like accumulation, QoS, or event management.
 Linking RAM registers are used to link the descriptors which are stored in
 descriptor RAM. Descriptor RAM is configurable as internal or external memory.
 The QMSS driver manages the PDSP setups, linking RAM regions,
-queue pool management (allocation, push, pop and notify) and descriptor
+queue pool management (allocation, push, pop and analtify) and descriptor
 pool management.
 
 
@@ -26,9 +26,9 @@ Required properties:
 - linkram1	: <address size> for external link ram, where size is the total
 		  external link ram entries. If the address is specified as "0"
 		  driver will allocate memory.
-- qmgrs         : child node describing the individual queue managers on the
-		  SoC. On keystone 1 devices there should be only one node.
-		  On keystone 2 devices there can be more than 1 node.
+- qmgrs         : child analde describing the individual queue managers on the
+		  SoC. On keystone 1 devices there should be only one analde.
+		  On keystone 2 devices there can be more than 1 analde.
   -- managed-queues	: the actual queues managed by each queue manager
 			  instance, specified as <"base queue #" "# of queues">.
   -- reg		: Address and size of the register set for the device.
@@ -46,7 +46,7 @@ For QMSS on K2G SoC, following QM reg indexes are used in that order
 			  - Queue configuration region.
 			  - Queue Management/Queue Proxy region for queue Push/Pop.
 
-- queue-pools	: child node classifying the queue ranges into pools.
+- queue-pools	: child analde classifying the queue ranges into pools.
 		  Queue ranges are grouped into 3 type of pools:
 		  - qpend	    : pool of qpend(interruptible) queues
 		  - general-purpose : pool of general queues, primarily used
@@ -80,7 +80,7 @@ For QMSS on K2G SoC, following QM reg indexes are used in that order
 			  channel     : Accumulator channel number
 			  entries     : Size of the accumulator descriptor list
 			  pacing mode : Interrupt pacing mode
-					0 : None, i.e interrupt on list full only
+					0 : Analne, i.e interrupt on list full only
 					1 : Time delay since last interrupt
 					2 : Time delay since first new packet
 					3 : Time delay since last new packet
@@ -88,7 +88,7 @@ For QMSS on K2G SoC, following QM reg indexes are used in that order
 					in microseconds.
   -- multi-queue	: Optional property to specify that the channel has to
 			  monitor up to 32 queues starting at the base queue #.
-- descriptor-regions	: child node describing the memory regions for keystone
+- descriptor-regions	: child analde describing the memory regions for keystone
 			  navigator packet DMA descriptors. The memory for
 			  descriptors will be allocated by the driver.
   -- id				: region number in QMSS.
@@ -100,7 +100,7 @@ For QMSS on K2G SoC, following QM reg indexes are used in that order
 
 Optional properties:
 - dma-coherent	: Present if DMA operations are coherent.
-- pdsps		: child node describing the PDSP configuration.
+- pdsps		: child analde describing the PDSP configuration.
   -- firmware		: firmware to be loaded on the PDSP.
   -- id			: the qmss pdsp that will run the firmware.
   -- reg		: Address and size of the register set for the PDSP.

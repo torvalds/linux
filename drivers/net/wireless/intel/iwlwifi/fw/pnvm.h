@@ -6,14 +6,14 @@
 #define __IWL_PNVM_H__
 
 #include "iwl-drv.h"
-#include "fw/notif-wait.h"
+#include "fw/analtif-wait.h"
 
 #define MVM_UCODE_PNVM_TIMEOUT	(HZ / 4)
 
 #define MAX_PNVM_NAME  64
 
 int iwl_pnvm_load(struct iwl_trans *trans,
-		  struct iwl_notif_wait_data *notif_wait,
+		  struct iwl_analtif_wait_data *analtif_wait,
 		  const struct iwl_ucode_capabilities *capa);
 
 static inline

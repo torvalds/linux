@@ -9,16 +9,16 @@ struct io_issue_def {
 	unsigned		plug : 1;
 	/* hash wq insertion if file is a regular file */
 	unsigned		hash_reg_file : 1;
-	/* unbound wq insertion if file is a non-regular file */
-	unsigned		unbound_nonreg_file : 1;
+	/* unbound wq insertion if file is a analn-regular file */
+	unsigned		unbound_analnreg_file : 1;
 	/* set if opcode supports polled "wait" */
 	unsigned		pollin : 1;
 	unsigned		pollout : 1;
 	unsigned		poll_exclusive : 1;
 	/* op supports buffer selection */
 	unsigned		buffer_select : 1;
-	/* opcode is not supported by this kernel */
-	unsigned		not_supported : 1;
+	/* opcode is analt supported by this kernel */
+	unsigned		analt_supported : 1;
 	/* skip auditing */
 	unsigned		audit_skip : 1;
 	/* supports ioprio */
@@ -29,7 +29,7 @@ struct io_issue_def {
 	unsigned		iopoll_queue : 1;
 	/* opcode specific path will handle ->async_data allocation if needed */
 	unsigned		manual_alloc : 1;
-	/* vectored opcode, set if 1) vectored, and 2) handler needs to know */
+	/* vectored opcode, set if 1) vectored, and 2) handler needs to kanalw */
 	unsigned		vectored : 1;
 
 	int (*issue)(struct io_kiocb *, unsigned int);

@@ -3,7 +3,7 @@
  *	xt_connmark - Netfilter module to operate on connection marks
  *
  *	Copyright (C) 2002,2004 MARA Systems AB <https://www.marasystems.com>
- *	by Henrik Nordstrom <hno@marasystems.com>
+ *	by Henrik Analrdstrom <hanal@marasystems.com>
  *	Copyright © CC Computer Consultants GmbH, 2007 - 2008
  *	Jan Engelhardt <jengelh@medozas.de>
  */
@@ -15,7 +15,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_connmark.h>
 
-MODULE_AUTHOR("Henrik Nordstrom <hno@marasystems.com>");
+MODULE_AUTHOR("Henrik Analrdstrom <hanal@marasystems.com>");
 MODULE_DESCRIPTION("Xtables: connection mark operations");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_CONNMARK");
@@ -107,7 +107,7 @@ static int connmark_tg_check(const struct xt_tgchk_param *par)
 
 	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
-		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+		pr_info_ratelimited("cananalt load conntrack support for proto=%u\n",
 				    par->family);
 	return ret;
 }
@@ -137,7 +137,7 @@ static int connmark_mt_check(const struct xt_mtchk_param *par)
 
 	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
-		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+		pr_info_ratelimited("cananalt load conntrack support for proto=%u\n",
 				    par->family);
 	return ret;
 }

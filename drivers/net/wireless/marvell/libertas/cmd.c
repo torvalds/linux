@@ -41,13 +41,13 @@ int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
 EXPORT_SYMBOL_GPL(lbs_cmd_copyback);
 
 /**
- *  lbs_cmd_async_callback - Simple callback that ignores the result.
+ *  lbs_cmd_async_callback - Simple callback that iganalres the result.
  *  Use this if you just want to send a command to the hardware, but don't
  *  care for the result.
  *
- *  @priv:	ignored
- *  @extra:	ignored
- *  @resp:	ignored
+ *  @priv:	iganalred
+ *  @extra:	iganalred
+ *  @resp:	iganalred
  *
  *  returns:	0 for success
  */
@@ -63,7 +63,7 @@ static int lbs_cmd_async_callback(struct lbs_private *priv, unsigned long extra,
  *
  *  @cmd:	the command ID
  *
- *  returns:	1 if allowed, 0 if not allowed
+ *  returns:	1 if allowed, 0 if analt allowed
  */
 static u8 is_command_allowed_in_ps(u16 cmd)
 {
@@ -123,7 +123,7 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 
 	/* Clamp region code to 8-bit since FW spec indicates that it should
 	 * only ever be 8-bit, even though the field size is 16-bit.  Some firmware
-	 * returns non-zero high 8 bits here.
+	 * returns analn-zero high 8 bits here.
 	 *
 	 * Firmware version 4.0.102 used in CF8381 has region code shifted.  We
 	 * need to check for this problem and handle it properly.
@@ -183,7 +183,7 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 	int ret;
 
 	/*
-	 * Certain firmware versions do not support EHS_REMOVE_WAKEUP command
+	 * Certain firmware versions do analt support EHS_REMOVE_WAKEUP command
 	 * and the card will return a failure.  Since we need to be
 	 * able to reset the mask, in those cases we set a 0 mask instead.
 	 */
@@ -199,7 +199,7 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 		memcpy((uint8_t *)&cmd_config.wol_conf, (uint8_t *)p_wol_config,
 				sizeof(struct wol_config));
 	else
-		cmd_config.wol_conf.action = CMD_ACT_ACTION_NONE;
+		cmd_config.wol_conf.action = CMD_ACT_ACTION_ANALNE;
 
 	ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_CFG, &cmd_config.hdr,
 			le16_to_cpu(cmd_config.hdr.size),
@@ -223,7 +223,7 @@ EXPORT_SYMBOL_GPL(lbs_host_sleep_cfg);
  *  @priv:	A pointer to &struct lbs_private structure
  *  @cmd_action: The Power Save operation (PS_MODE_ACTION_ENTER_PS or
  *                         PS_MODE_ACTION_EXIT_PS)
- *  @block:	Whether to block on a response or not
+ *  @block:	Whether to block on a response or analt
  *
  *  returns:	0 on success, error on failure
  */
@@ -245,8 +245,8 @@ int lbs_set_ps_mode(struct lbs_private *priv, u16 cmd_action, bool block)
 		/* We don't handle CONFIRM_SLEEP here because it needs to
 		 * be fastpathed to the firmware.
 		 */
-		lbs_deb_cmd("PS_MODE: unknown action 0x%X\n", cmd_action);
-		ret = -EOPNOTSUPP;
+		lbs_deb_cmd("PS_MODE: unkanalwn action 0x%X\n", cmd_action);
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -655,11 +655,11 @@ out:
 }
 
 /**
- * lbs_get_rssi - Get current RSSI and noise floor
+ * lbs_get_rssi - Get current RSSI and analise floor
  *
  * @priv:	A pointer to &struct lbs_private structure
  * @rssi:	On successful return, signal level in mBm
- * @nf:		On successful return, Noise floor
+ * @nf:		On successful return, Analise floor
  *
  * returns:	The channel on success, error on failure
  */
@@ -725,7 +725,7 @@ int lbs_set_11d_domain_info(struct lbs_private *priv)
 	domain->country_code[1] = priv->country_code[1];
 	domain->country_code[2] = ' ';
 
-	/* Now set up the channel triplets; firmware is somewhat picky here
+	/* Analw set up the channel triplets; firmware is somewhat picky here
 	 * and doesn't validate channel numbers and spans; hence it would
 	 * interpret a triplet of (36, 4, 20) as channels 36, 37, 38, 39.  Since
 	 * the last 3 aren't valid channels, the driver is responsible for
@@ -887,24 +887,24 @@ out:
 }
 
 static void lbs_queue_cmd(struct lbs_private *priv,
-			  struct cmd_ctrl_node *cmdnode)
+			  struct cmd_ctrl_analde *cmdanalde)
 {
 	unsigned long flags;
 	int addtail = 1;
 
-	if (!cmdnode) {
-		lbs_deb_host("QUEUE_CMD: cmdnode is NULL\n");
+	if (!cmdanalde) {
+		lbs_deb_host("QUEUE_CMD: cmdanalde is NULL\n");
 		return;
 	}
-	if (!cmdnode->cmdbuf->size) {
+	if (!cmdanalde->cmdbuf->size) {
 		lbs_deb_host("DNLD_CMD: cmd size is zero\n");
 		return;
 	}
-	cmdnode->result = 0;
+	cmdanalde->result = 0;
 
 	/* Exit_PS command needs to be queued in the header always. */
-	if (le16_to_cpu(cmdnode->cmdbuf->command) == CMD_802_11_PS_MODE) {
-		struct cmd_ds_802_11_ps_mode *psm = (void *)cmdnode->cmdbuf;
+	if (le16_to_cpu(cmdanalde->cmdbuf->command) == CMD_802_11_PS_MODE) {
+		struct cmd_ds_802_11_ps_mode *psm = (void *)cmdanalde->cmdbuf;
 
 		if (psm->action == cpu_to_le16(PS_MODE_ACTION_EXIT_PS)) {
 			if (priv->psstate != PS_STATE_FULL_POWER)
@@ -912,24 +912,24 @@ static void lbs_queue_cmd(struct lbs_private *priv,
 		}
 	}
 
-	if (le16_to_cpu(cmdnode->cmdbuf->command) == CMD_802_11_WAKEUP_CONFIRM)
+	if (le16_to_cpu(cmdanalde->cmdbuf->command) == CMD_802_11_WAKEUP_CONFIRM)
 		addtail = 0;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (addtail)
-		list_add_tail(&cmdnode->list, &priv->cmdpendingq);
+		list_add_tail(&cmdanalde->list, &priv->cmdpendingq);
 	else
-		list_add(&cmdnode->list, &priv->cmdpendingq);
+		list_add(&cmdanalde->list, &priv->cmdpendingq);
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbs_deb_host("QUEUE_CMD: inserted command 0x%04x into cmdpendingq\n",
-		     le16_to_cpu(cmdnode->cmdbuf->command));
+		     le16_to_cpu(cmdanalde->cmdbuf->command));
 }
 
 static void lbs_submit_command(struct lbs_private *priv,
-			       struct cmd_ctrl_node *cmdnode)
+			       struct cmd_ctrl_analde *cmdanalde)
 {
 	unsigned long flags;
 	struct cmd_header *cmd;
@@ -938,12 +938,12 @@ static void lbs_submit_command(struct lbs_private *priv,
 	int timeo = 3 * HZ;
 	int ret;
 
-	cmd = cmdnode->cmdbuf;
+	cmd = cmdanalde->cmdbuf;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	priv->seqnum++;
 	cmd->seqnum = cpu_to_le16(priv->seqnum);
-	priv->cur_cmd = cmdnode;
+	priv->cur_cmd = cmdanalde;
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	cmdsize = le16_to_cpu(cmd->size);
@@ -955,7 +955,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 
 	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
 		     command, le16_to_cpu(cmd->seqnum), cmdsize);
-	lbs_deb_hex(LBS_DEB_CMD, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
+	lbs_deb_hex(LBS_DEB_CMD, "DNLD_CMD", (void *) cmdanalde->cmdbuf, cmdsize);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
 
@@ -964,7 +964,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 			    ret);
 		/* Reset dnld state machine, report failure */
 		priv->dnld_sent = DNLD_RES_RECEIVED;
-		lbs_complete_command(priv, cmdnode, ret);
+		lbs_complete_command(priv, cmdanalde, ret);
 	}
 
 	if (command == CMD_802_11_DEEP_SLEEP) {
@@ -973,7 +973,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 			priv->dnld_sent = 0;
 		}
 		priv->is_deep_sleep = 1;
-		lbs_complete_command(priv, cmdnode, 0);
+		lbs_complete_command(priv, cmdanalde, 0);
 	} else {
 		/* Setup the timer after transmit command */
 		mod_timer(&priv->command_timer, jiffies + timeo);
@@ -981,25 +981,25 @@ static void lbs_submit_command(struct lbs_private *priv,
 }
 
 /*
- *  This function inserts command node to cmdfreeq
+ *  This function inserts command analde to cmdfreeq
  *  after cleans it. Requires priv->driver_lock held.
  */
 static void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
-					 struct cmd_ctrl_node *cmdnode)
+					 struct cmd_ctrl_analde *cmdanalde)
 {
-	if (!cmdnode)
+	if (!cmdanalde)
 		return;
 
-	cmdnode->callback = NULL;
-	cmdnode->callback_arg = 0;
+	cmdanalde->callback = NULL;
+	cmdanalde->callback_arg = 0;
 
-	memset(cmdnode->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
+	memset(cmdanalde->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
 
-	list_add_tail(&cmdnode->list, &priv->cmdfreeq);
+	list_add_tail(&cmdanalde->list, &priv->cmdfreeq);
 }
 
 static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
-	struct cmd_ctrl_node *ptempcmd)
+	struct cmd_ctrl_analde *ptempcmd)
 {
 	unsigned long flags;
 
@@ -1008,11 +1008,11 @@ static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
-void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_analde *cmd,
 			    int result)
 {
 	/*
-	 * Normally, commands are removed from cmdpendingq before being
+	 * Analrmally, commands are removed from cmdpendingq before being
 	 * submitted. However, we can arrive here on alternative codepaths
 	 * where the command is still pending. Make sure the command really
 	 * isn't part of a list at this point.
@@ -1029,7 +1029,7 @@ void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 	wake_up(&priv->waitq);
 }
 
-void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_analde *cmd,
 			  int result)
 {
 	unsigned long flags;
@@ -1115,10 +1115,10 @@ int lbs_allocate_cmd_buffer(struct lbs_private *priv)
 	int ret = 0;
 	u32 bufsize;
 	u32 i;
-	struct cmd_ctrl_node *cmdarray;
+	struct cmd_ctrl_analde *cmdarray;
 
 	/* Allocate and initialize the command array */
-	bufsize = sizeof(struct cmd_ctrl_node) * LBS_NUM_CMD_BUFFERS;
+	bufsize = sizeof(struct cmd_ctrl_analde) * LBS_NUM_CMD_BUFFERS;
 	if (!(cmdarray = kzalloc(bufsize, GFP_KERNEL))) {
 		lbs_deb_host("ALLOC_CMD_BUF: tempcmd_array is NULL\n");
 		ret = -1;
@@ -1155,10 +1155,10 @@ done:
  */
 int lbs_free_cmd_buffer(struct lbs_private *priv)
 {
-	struct cmd_ctrl_node *cmdarray;
+	struct cmd_ctrl_analde *cmdarray;
 	unsigned int i;
 
-	/* need to check if cmd array is allocated or not */
+	/* need to check if cmd array is allocated or analt */
 	if (priv->cmd_array == NULL) {
 		lbs_deb_host("FREE_CMD_BUF: cmd_array is NULL\n");
 		goto done;
@@ -1174,7 +1174,7 @@ int lbs_free_cmd_buffer(struct lbs_private *priv)
 		}
 	}
 
-	/* Release cmd_ctrl_node */
+	/* Release cmd_ctrl_analde */
 	if (priv->cmd_array) {
 		kfree(priv->cmd_array);
 		priv->cmd_array = NULL;
@@ -1185,17 +1185,17 @@ done:
 }
 
 /**
- *  lbs_get_free_cmd_node - gets a free command node if available in
+ *  lbs_get_free_cmd_analde - gets a free command analde if available in
  *  command free queue
  *
  *  @priv:	A pointer to &struct lbs_private structure
  *
- *  returns:	A pointer to &cmd_ctrl_node structure on success
+ *  returns:	A pointer to &cmd_ctrl_analde structure on success
  *		or %NULL on error
  */
-static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
+static struct cmd_ctrl_analde *lbs_get_free_cmd_analde(struct lbs_private *priv)
 {
-	struct cmd_ctrl_node *tempnode;
+	struct cmd_ctrl_analde *tempanalde;
 	unsigned long flags;
 
 	if (!priv)
@@ -1204,17 +1204,17 @@ static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (!list_empty(&priv->cmdfreeq)) {
-		tempnode = list_first_entry(&priv->cmdfreeq,
-					    struct cmd_ctrl_node, list);
-		list_del_init(&tempnode->list);
+		tempanalde = list_first_entry(&priv->cmdfreeq,
+					    struct cmd_ctrl_analde, list);
+		list_del_init(&tempanalde->list);
 	} else {
-		lbs_deb_host("GET_CMD_NODE: cmd_ctrl_node is not available\n");
-		tempnode = NULL;
+		lbs_deb_host("GET_CMD_ANALDE: cmd_ctrl_analde is analt available\n");
+		tempanalde = NULL;
 	}
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	return tempnode;
+	return tempanalde;
 }
 
 /**
@@ -1227,12 +1227,12 @@ static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
  */
 int lbs_execute_next_command(struct lbs_private *priv)
 {
-	struct cmd_ctrl_node *cmdnode = NULL;
+	struct cmd_ctrl_analde *cmdanalde = NULL;
 	struct cmd_header *cmd;
 	unsigned long flags;
 	int ret = 0;
 
-	/* Debug group is LBS_DEB_THREAD and not LBS_DEB_HOST, because the
+	/* Debug group is LBS_DEB_THREAD and analt LBS_DEB_HOST, because the
 	 * only caller to us is lbs_thread() and we get even when a
 	 * data packet is received */
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -1246,20 +1246,20 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	}
 
 	if (!list_empty(&priv->cmdpendingq)) {
-		cmdnode = list_first_entry(&priv->cmdpendingq,
-					   struct cmd_ctrl_node, list);
+		cmdanalde = list_first_entry(&priv->cmdpendingq,
+					   struct cmd_ctrl_analde, list);
 	}
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	if (cmdnode) {
-		cmd = cmdnode->cmdbuf;
+	if (cmdanalde) {
+		cmd = cmdanalde->cmdbuf;
 
 		if (is_command_allowed_in_ps(le16_to_cpu(cmd->command))) {
 			if ((priv->psstate == PS_STATE_SLEEP) ||
 			    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 				lbs_deb_host(
-				       "EXEC_NEXT_CMD: cannot send cmd 0x%04x in psstate %d\n",
+				       "EXEC_NEXT_CMD: cananalt send cmd 0x%04x in psstate %d\n",
 				       le16_to_cpu(cmd->command),
 				       priv->psstate);
 				ret = -1;
@@ -1270,11 +1270,11 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				     le16_to_cpu(cmd->command), priv->psstate);
 		} else if (priv->psstate != PS_STATE_FULL_POWER) {
 			/*
-			 * 1. Non-PS command:
+			 * 1. Analn-PS command:
 			 * Queue it. set needtowakeup to TRUE if current state
 			 * is SLEEP, otherwise call send EXIT_PS.
-			 * 2. PS command but not EXIT_PS:
-			 * Ignore it.
+			 * 2. PS command but analt EXIT_PS:
+			 * Iganalre it.
 			 * 3. PS command EXIT_PS:
 			 * Set needtowakeup to TRUE if current state is SLEEP,
 			 * otherwise send this command down to firmware
@@ -1282,11 +1282,11 @@ int lbs_execute_next_command(struct lbs_private *priv)
 			 */
 			if (cmd->command != cpu_to_le16(CMD_802_11_PS_MODE)) {
 				/*  Prepare to send Exit PS,
-				 *  this non PS command will be sent later */
+				 *  this analn PS command will be sent later */
 				if ((priv->psstate == PS_STATE_SLEEP)
 				    || (priv->psstate == PS_STATE_PRE_SLEEP)
 				    ) {
-					/* w/ new scheme, it will not reach here.
+					/* w/ new scheme, it will analt reach here.
 					   since it is blocked in main_thread. */
 					priv->needtowakeup = 1;
 				} else {
@@ -1299,7 +1299,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				goto done;
 			} else {
 				/*
-				 * PS command. Ignore it if it is not Exit_PS.
+				 * PS command. Iganalre it if it is analt Exit_PS.
 				 * otherwise send it down immediately.
 				 */
 				struct cmd_ds_802_11_ps_mode *psm = (void *)cmd;
@@ -1310,8 +1310,8 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				if (psm->action !=
 				    cpu_to_le16(PS_MODE_ACTION_EXIT_PS)) {
 					lbs_deb_host(
-					       "EXEC_NEXT_CMD: ignore ENTER_PS cmd\n");
-					lbs_complete_command(priv, cmdnode, 0);
+					       "EXEC_NEXT_CMD: iganalre ENTER_PS cmd\n");
+					lbs_complete_command(priv, cmdanalde, 0);
 
 					ret = 0;
 					goto done;
@@ -1320,8 +1320,8 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				if ((priv->psstate == PS_STATE_SLEEP) ||
 				    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 					lbs_deb_host(
-					       "EXEC_NEXT_CMD: ignore EXIT_PS cmd in sleep\n");
-					lbs_complete_command(priv, cmdnode, 0);
+					       "EXEC_NEXT_CMD: iganalre EXIT_PS cmd in sleep\n");
+					lbs_complete_command(priv, cmdanalde, 0);
 					priv->needtowakeup = 1;
 
 					ret = 0;
@@ -1333,14 +1333,14 @@ int lbs_execute_next_command(struct lbs_private *priv)
 			}
 		}
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		list_del_init(&cmdnode->list);
+		list_del_init(&cmdanalde->list);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		lbs_deb_host("EXEC_NEXT_CMD: sending command 0x%04x\n",
 			    le16_to_cpu(cmd->command));
-		lbs_submit_command(priv, cmdnode);
+		lbs_submit_command(priv, cmdanalde);
 	} else {
 		/*
-		 * check if in power save mode, if yes, put the device back
+		 * check if in power save mode, if anal, put the device back
 		 * to PS mode
 		 */
 		if ((priv->psmode != LBS802_11POWERMODECAM) &&
@@ -1383,7 +1383,7 @@ static void lbs_send_confirmsleep(struct lbs_private *priv)
 		wake_up_interruptible(&priv->host_sleep_q);
 	}
 
-	/* If nothing to do, go back to sleep (?) */
+	/* If analthing to do, go back to sleep (?) */
 	if (!kfifo_len(&priv->event_fifo) && !priv->resp_len[priv->resp_idx])
 		priv->psstate = PS_STATE_SLEEP;
 
@@ -1439,7 +1439,7 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv)
  * @p0:		Power level when link quality is good (dBm).
  * @p1:		Power level when link quality is fair (dBm).
  * @p2:		Power level when link quality is poor (dBm).
- * @usesnr:	Use Signal to Noise Ratio in TPC
+ * @usesnr:	Use Signal to Analise Ratio in TPC
  *
  * returns:	0 on success
  */
@@ -1495,59 +1495,59 @@ int lbs_set_power_adapt_cfg(struct lbs_private *priv, int enable, int8_t p0,
 }
 
 
-struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
+struct cmd_ctrl_analde *__lbs_cmd_async(struct lbs_private *priv,
 	uint16_t command, struct cmd_header *in_cmd, int in_cmd_size,
 	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
 	unsigned long callback_arg)
 {
-	struct cmd_ctrl_node *cmdnode;
+	struct cmd_ctrl_analde *cmdanalde;
 
 	if (priv->surpriseremoved) {
 		lbs_deb_host("PREP_CMD: card removed\n");
-		cmdnode = ERR_PTR(-ENOENT);
+		cmdanalde = ERR_PTR(-EANALENT);
 		goto done;
 	}
 
-	/* No commands are allowed in Deep Sleep until we toggle the GPIO
+	/* Anal commands are allowed in Deep Sleep until we toggle the GPIO
 	 * to wake up the card and it has signaled that it's ready.
 	 */
 	if (!priv->is_auto_deep_sleep_enabled) {
 		if (priv->is_deep_sleep) {
-			lbs_deb_cmd("command not allowed in deep sleep\n");
-			cmdnode = ERR_PTR(-EBUSY);
+			lbs_deb_cmd("command analt allowed in deep sleep\n");
+			cmdanalde = ERR_PTR(-EBUSY);
 			goto done;
 		}
 	}
 
-	cmdnode = lbs_get_free_cmd_node(priv);
-	if (cmdnode == NULL) {
-		lbs_deb_host("PREP_CMD: cmdnode is NULL\n");
+	cmdanalde = lbs_get_free_cmd_analde(priv);
+	if (cmdanalde == NULL) {
+		lbs_deb_host("PREP_CMD: cmdanalde is NULL\n");
 
 		/* Wake up main thread to execute next command */
 		wake_up(&priv->waitq);
-		cmdnode = ERR_PTR(-ENOBUFS);
+		cmdanalde = ERR_PTR(-EANALBUFS);
 		goto done;
 	}
 
-	cmdnode->callback = callback;
-	cmdnode->callback_arg = callback_arg;
+	cmdanalde->callback = callback;
+	cmdanalde->callback_arg = callback_arg;
 
 	/* Copy the incoming command to the buffer */
-	memcpy(cmdnode->cmdbuf, in_cmd, in_cmd_size);
+	memcpy(cmdanalde->cmdbuf, in_cmd, in_cmd_size);
 
 	/* Set command, clean result, move to buffer */
-	cmdnode->cmdbuf->command = cpu_to_le16(command);
-	cmdnode->cmdbuf->size    = cpu_to_le16(in_cmd_size);
-	cmdnode->cmdbuf->result  = 0;
+	cmdanalde->cmdbuf->command = cpu_to_le16(command);
+	cmdanalde->cmdbuf->size    = cpu_to_le16(in_cmd_size);
+	cmdanalde->cmdbuf->result  = 0;
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", command);
 
-	cmdnode->cmdwaitqwoken = 0;
-	lbs_queue_cmd(priv, cmdnode);
+	cmdanalde->cmdwaitqwoken = 0;
+	lbs_queue_cmd(priv, cmdanalde);
 	wake_up(&priv->waitq);
 
  done:
-	return cmdnode;
+	return cmdanalde;
 }
 
 void lbs_cmd_async(struct lbs_private *priv, uint16_t command,
@@ -1562,14 +1562,14 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
 	      unsigned long callback_arg)
 {
-	struct cmd_ctrl_node *cmdnode;
+	struct cmd_ctrl_analde *cmdanalde;
 	unsigned long flags;
 	int ret = 0;
 
-	cmdnode = __lbs_cmd_async(priv, command, in_cmd, in_cmd_size,
+	cmdanalde = __lbs_cmd_async(priv, command, in_cmd, in_cmd_size,
 				  callback, callback_arg);
-	if (IS_ERR(cmdnode)) {
-		ret = PTR_ERR(cmdnode);
+	if (IS_ERR(cmdanalde)) {
+		ret = PTR_ERR(cmdanalde);
 		goto done;
 	}
 
@@ -1577,18 +1577,18 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 
 	/*
 	 * Be careful with signals here. A signal may be received as the system
-	 * goes into suspend or resume. We do not want this to interrupt the
+	 * goes into suspend or resume. We do analt want this to interrupt the
 	 * command, so we perform an uninterruptible sleep.
 	 */
-	wait_event(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
+	wait_event(cmdanalde->cmdwait_q, cmdanalde->cmdwaitqwoken);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	ret = cmdnode->result;
+	ret = cmdanalde->result;
 	if (ret)
 		netdev_info(priv->dev, "PREP_CMD: command 0x%04x failed: %d\n",
 			    command, ret);
 
-	__lbs_cleanup_and_insert_cmd(priv, cmdnode);
+	__lbs_cleanup_and_insert_cmd(priv, cmdanalde);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 done:

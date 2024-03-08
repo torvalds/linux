@@ -17,15 +17,15 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If analt, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -96,7 +96,7 @@ typedef struct {
 #define TUL_GCTRL_EEPROM_BIT    0x04
 #define TUL_GCTRL1      0x55	/* Global Control Register              */
 #define TUL_DMACFG      0x5B	/* DMA configuration                    */
-#define TUL_NVRAM       0x5D	/* Non-volatile RAM port                */
+#define TUL_NVRAM       0x5D	/* Analn-volatile RAM port                */
 
 #define TUL_SCnt0       0x80	/* 00 R/W Transfer Counter Low          */
 #define TUL_SCnt1       0x81	/* 01 R/W Transfer Counter Mid          */
@@ -410,10 +410,10 @@ struct scsi_ctrl_blk {
 #define SCF_POST        0x02
 #define SCF_SENSE       0x04
 #define SCF_DIR         0x18
-#define SCF_NO_DCHK     0x00
+#define SCF_ANAL_DCHK     0x00
 #define SCF_DIN         0x08
 #define SCF_DOUT        0x10
-#define SCF_NO_XF       0x18
+#define SCF_ANAL_XF       0x18
 #define SCF_WR_VF       0x20	/* Write verify turn on         */
 #define SCF_POLL        0x40
 #define SCF_SG          0x80
@@ -453,8 +453,8 @@ struct target_control {
 /* Bit Definition for TCF_Flags */
 #define TCF_SCSI_RATE           0x0007
 #define TCF_EN_DISC             0x0008
-#define TCF_NO_SYNC_NEGO        0x0010
-#define TCF_NO_WDTR             0x0020
+#define TCF_ANAL_SYNC_NEGO        0x0010
+#define TCF_ANAL_WDTR             0x0020
 #define TCF_EN_255              0x0040
 #define TCF_EN_START            0x0080
 #define TCF_WDTR_DONE           0x0100
@@ -601,7 +601,7 @@ typedef struct _NVRAM {
 /* Bit definition for SCSI Target configuration byte                    */
 #define NTC_DISCONNECT          0x08	/* Enable SCSI disconnect       */
 #define NTC_SYNC                0x10	/* SYNC_NEGO                    */
-#define NTC_NO_WDTR             0x20	/* SYNC_NEGO                    */
+#define NTC_ANAL_WDTR             0x20	/* SYNC_NEGO                    */
 #define NTC_1GIGA               0x40	/* 255 head / 63 sectors (64/32) */
 #define NTC_SPINUP              0x80	/* Start disk drive             */
 
@@ -609,30 +609,30 @@ typedef struct _NVRAM {
 #define INI_SIGNATURE           0xC925
 #define NBC1_DEFAULT            (NBC1_ENABLE)
 #define NCC1_DEFAULT            (NCC1_BUSRESET | NCC1_AUTOTERM | NCC1_PARITYCHK)
-#define NTC_DEFAULT             (NTC_NO_WDTR | NTC_1GIGA | NTC_DISCONNECT)
+#define NTC_DEFAULT             (NTC_ANAL_WDTR | NTC_1GIGA | NTC_DISCONNECT)
 
 /* SCSI related definition                                              */
-#define DISC_NOT_ALLOW          0x80	/* Disconnect is not allowed    */
+#define DISC_ANALT_ALLOW          0x80	/* Disconnect is analt allowed    */
 #define DISC_ALLOW              0xC0	/* Disconnect is allowed        */
 #define SCSICMD_RequestSense    0x03
 
-#define SCSI_ABORT_SNOOZE 0
+#define SCSI_ABORT_SANALOZE 0
 #define SCSI_ABORT_SUCCESS 1
 #define SCSI_ABORT_PENDING 2
 #define SCSI_ABORT_BUSY 3
-#define SCSI_ABORT_NOT_RUNNING 4
+#define SCSI_ABORT_ANALT_RUNNING 4
 #define SCSI_ABORT_ERROR 5
 
-#define SCSI_RESET_SNOOZE 0
+#define SCSI_RESET_SANALOZE 0
 #define SCSI_RESET_PUNT 1
 #define SCSI_RESET_SUCCESS 2
 #define SCSI_RESET_PENDING 3
 #define SCSI_RESET_WAKEUP 4
-#define SCSI_RESET_NOT_RUNNING 5
+#define SCSI_RESET_ANALT_RUNNING 5
 #define SCSI_RESET_ERROR 6
 
-#define SCSI_RESET_SYNCHRONOUS		0x01
-#define SCSI_RESET_ASYNCHRONOUS		0x02
+#define SCSI_RESET_SYNCHROANALUS		0x01
+#define SCSI_RESET_ASYNCHROANALUS		0x02
 #define SCSI_RESET_SUGGEST_BUS_RESET	0x04
 #define SCSI_RESET_SUGGEST_HOST_RESET	0x08
 

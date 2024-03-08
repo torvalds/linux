@@ -41,14 +41,14 @@
  *
  * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  *
- * Known Issues :
- *	LME2510: Non Intel USB chipsets fail to maintain High Speed on
+ * Kanalwn Issues :
+ *	LME2510: Analn Intel USB chipsets fail to maintain High Speed on
  * Boot or Hot Plug.
  *
- * QQbox suffers from noise on LNB voltage.
+ * QQbox suffers from analise on LNB voltage.
  *
- *	LME2510: SHARP:BS2F7HZ0194(MV0194) cannot cold reset and share system
- * with other tuners. After a cold reset streaming will not start.
+ *	LME2510: SHARP:BS2F7HZ0194(MV0194) cananalt cold reset and share system
+ * with other tuners. After a cold reset streaming will analt start.
  *
  * M88RS2000 suffers from loss of lock.
  */
@@ -116,7 +116,7 @@ struct lme2510_state {
 	u8 signal_level;
 	u8 signal_sn;
 	u8 time_key;
-	u8 i2c_talk_onoff;
+	u8 i2c_talk_oanalff;
 	u8 i2c_gate;
 	u8 i2c_tuner_gate_w;
 	u8 i2c_tuner_gate_r;
@@ -182,17 +182,17 @@ static int lme2510_enable_pid(struct dvb_usb_device *d, u8 index, u16 pid_out)
 	struct lme2510_state *st = d->priv;
 	static u8 pid_buff[] = LME_ZERO_PID;
 	static u8 rbuf[1];
-	u8 pid_no = index * 2;
-	u8 pid_len = pid_no + 2;
+	u8 pid_anal = index * 2;
+	u8 pid_len = pid_anal + 2;
 	int ret = 0;
 	deb_info(1, "PID Setting Pid %04x", pid_out);
 
 	if (st->pid_size == 0)
 		ret |= lme2510_stream_restart(d);
 
-	pid_buff[2] = pid_no;
+	pid_buff[2] = pid_anal;
 	pid_buff[3] = (u8)pid_out & 0xff;
-	pid_buff[4] = pid_no + 1;
+	pid_buff[4] = pid_anal + 1;
 	pid_buff[5] = (u8)(pid_out >> 8);
 
 	if (pid_len > st->pid_size)
@@ -224,19 +224,19 @@ static void lme2510_update_stats(struct dvb_usb_adapter *adap)
 	c = &fe->dtv_property_cache;
 
 	c->block_count.len = 1;
-	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_error.len = 1;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
-	if (st->i2c_talk_onoff) {
+	if (st->i2c_talk_oanalff) {
 		c->strength.len = 1;
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->cnr.len = 1;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		return;
 	}
 
@@ -278,7 +278,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 	case -ETIMEDOUT:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:
@@ -355,7 +355,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 			debug_data_snipet(1, "INT Control data snippet", ibuf);
 			break;
 		default:
-			debug_data_snipet(1, "INT Unknown data snippet", ibuf);
+			debug_data_snipet(1, "INT Unkanalwn data snippet", ibuf);
 		break;
 		}
 	}
@@ -377,7 +377,7 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 	lme_int->lme_urb = usb_alloc_urb(0, GFP_KERNEL);
 
 	if (lme_int->lme_urb == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 	usb_fill_int_urb(lme_int->lme_urb,
 			 d->udev,
@@ -400,7 +400,7 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int oanalff)
 {
 	struct dvb_usb_device *d = adap_to_d(adap);
 	struct lme2510_state *st = adap_to_priv(adap);
@@ -412,7 +412,7 @@ static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	mutex_lock(&d->i2c_mutex);
 
-	if (!onoff) {
+	if (!oanalff) {
 		ret |= lme2510_usb_talk(d, clear_pid_reg,
 			sizeof(clear_pid_reg), rbuf, sizeof(rbuf));
 		st->pid_off = true;
@@ -430,15 +430,15 @@ static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 }
 
 static int lme2510_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
-	int onoff)
+	int oanalff)
 {
 	struct dvb_usb_device *d = adap_to_d(adap);
 	int ret = 0;
 
-	deb_info(3, "%s PID=%04x Index=%04x onoff=%02x", __func__,
-		pid, index, onoff);
+	deb_info(3, "%s PID=%04x Index=%04x oanalff=%02x", __func__,
+		pid, index, oanalff);
 
-	if (onoff) {
+	if (oanalff) {
 		mutex_lock(&d->i2c_mutex);
 		ret |= lme2510_enable_pid(d, index, pid);
 		mutex_unlock(&d->i2c_mutex);
@@ -456,7 +456,7 @@ static int lme2510_return_status(struct dvb_usb_device *d)
 
 	data = kzalloc(6, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0),
 			      0x06, 0x80, 0x0302, 0x00,
@@ -477,7 +477,7 @@ static int lme2510_msg(struct dvb_usb_device *d,
 {
 	struct lme2510_state *st = d->priv;
 
-	st->i2c_talk_onoff = 1;
+	st->i2c_talk_oanalff = 1;
 
 	return lme2510_usb_talk(d, wbuf, wlen, rbuf, rlen);
 }
@@ -554,7 +554,7 @@ static struct i2c_algorithm lme2510_i2c_algo = {
 	.functionality = lme2510_i2c_func,
 };
 
-static int lme2510_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int lme2510_streaming_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct dvb_usb_adapter *adap = fe_to_adap(fe);
 	struct dvb_usb_device *d = adap_to_d(adap);
@@ -563,10 +563,10 @@ static int lme2510_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 	static u8 rbuf[1];
 	int ret = 0, rlen = sizeof(rbuf);
 
-	deb_info(1, "STM  (%02x)", onoff);
+	deb_info(1, "STM  (%02x)", oanalff);
 
 	/* Streaming is started by FE_HAS_LOCK */
-	if (onoff == 1)
+	if (oanalff == 1)
 		st->stream_on = 1;
 	else {
 		deb_info(1, "STM Steam Off");
@@ -576,12 +576,12 @@ static int lme2510_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 		ret = lme2510_usb_talk(d, clear_reg_3,
 				sizeof(clear_reg_3), rbuf, rlen);
 		st->stream_on = 0;
-		st->i2c_talk_onoff = 1;
+		st->i2c_talk_oanalff = 1;
 
 		mutex_unlock(&d->i2c_mutex);
 	}
 
-	return (ret < 0) ? -ENODEV : 0;
+	return (ret < 0) ? -EANALDEV : 0;
 }
 
 static u8 check_sum(u8 *p, u8 len)
@@ -606,9 +606,9 @@ static int lme2510_download_firmware(struct dvb_usb_device *d,
 
 	data = kzalloc(128, GFP_KERNEL);
 	if (!data) {
-		info("FRM Could not start Firmware Download"\
+		info("FRM Could analt start Firmware Download"\
 			"(Buffer allocation failed)");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info("FRM Starting Firmware Download");
@@ -830,7 +830,7 @@ static int dm04_lme2510_set_voltage(struct dvb_frontend *fe,
 			st->fe_set_voltage(fe, voltage);
 
 
-	return (ret < 0) ? -ENODEV : 0;
+	return (ret < 0) ? -EANALDEV : 0;
 }
 
 static int dm04_read_status(struct dvb_frontend *fe, enum fe_status *status)
@@ -839,7 +839,7 @@ static int dm04_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct lme2510_state *st = d->priv;
 	int ret = 0;
 
-	if (st->i2c_talk_onoff) {
+	if (st->i2c_talk_oanalff) {
 		if (st->fe_read_status) {
 			ret = st->fe_read_status(fe, status);
 			if (ret < 0)
@@ -851,7 +851,7 @@ static int dm04_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (*status & FE_HAS_LOCK && st->stream_on) {
 			mutex_lock(&d->i2c_mutex);
 
-			st->i2c_talk_onoff = 0;
+			st->i2c_talk_oanalff = 0;
 			ret = lme2510_stream_restart(d);
 
 			mutex_unlock(&d->i2c_mutex);
@@ -870,7 +870,7 @@ static int dm04_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (!(*status & FE_HAS_LOCK)) {
 		struct dvb_usb_adapter *adap = fe_to_adap(fe);
 
-		st->i2c_talk_onoff = 1;
+		st->i2c_talk_oanalff = 1;
 
 		lme2510_update_stats(adap);
 	}
@@ -956,7 +956,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	struct lme2510_state *st = d->priv;
 	int ret = 0;
 
-	st->i2c_talk_onoff = 1;
+	st->i2c_talk_oanalff = 1;
 	switch (le16_to_cpu(d->udev->descriptor.idProduct)) {
 	case 0x1122:
 	case 0x1120:
@@ -971,7 +971,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			st->tuner_config = TUNER_LG;
 			if (st->dvb_usb_lme2510_firmware != TUNER_LG) {
 				st->dvb_usb_lme2510_firmware = TUNER_LG;
-				ret = lme_firmware_switch(d, 1) ? 0 : -ENODEV;
+				ret = lme_firmware_switch(d, 1) ? 0 : -EANALDEV;
 			}
 			break;
 		}
@@ -987,7 +987,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			st->tuner_config = TUNER_S0194;
 			if (st->dvb_usb_lme2510_firmware != TUNER_S0194) {
 				st->dvb_usb_lme2510_firmware = TUNER_S0194;
-				ret = lme_firmware_switch(d, 1) ? 0 : -ENODEV;
+				ret = lme_firmware_switch(d, 1) ? 0 : -EANALDEV;
 			}
 			break;
 		}
@@ -1004,7 +1004,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			st->tuner_config = TUNER_S7395;
 			if (st->dvb_usb_lme2510_firmware != TUNER_S7395) {
 				st->dvb_usb_lme2510_firmware = TUNER_S7395;
-				ret = lme_firmware_switch(d, 1) ? 0 : -ENODEV;
+				ret = lme_firmware_switch(d, 1) ? 0 : -EANALDEV;
 			}
 			break;
 		}
@@ -1027,8 +1027,8 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	if (adap->fe[0] == NULL) {
-		info("DM04/QQBOX Not Powered up or not Supported");
-		return -ENODEV;
+		info("DM04/QQBOX Analt Powered up or analt Supported");
+		return -EANALDEV;
 	}
 
 	if (ret) {
@@ -1037,7 +1037,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			adap->fe[0] = NULL;
 		}
 		d->rc_map = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	st->fe_read_status = adap->fe[0]->ops.read_status;
@@ -1092,21 +1092,21 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 	if (ret) {
 		info("TUN Found %s tuner", tun_msg[ret]);
 	} else {
-		info("TUN No tuner found");
-		return -ENODEV;
+		info("TUN Anal tuner found");
+		return -EANALDEV;
 	}
 
 	/* Start the Interrupt*/
 	ret = lme2510_int_read(adap);
 	if (ret < 0) {
 		info("INT Unable to start Interrupt Service");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return ret;
 }
 
-static int lme2510_powerup(struct dvb_usb_device *d, int onoff)
+static int lme2510_powerup(struct dvb_usb_device *d, int oanalff)
 {
 	struct lme2510_state *st = d->priv;
 	static u8 lnb_on[] = LNB_ON;
@@ -1116,9 +1116,9 @@ static int lme2510_powerup(struct dvb_usb_device *d, int onoff)
 
 	mutex_lock(&d->i2c_mutex);
 
-	ret = lme2510_usb_talk(d, onoff ? lnb_on : lnb_off, len, rbuf, rlen);
+	ret = lme2510_usb_talk(d, oanalff ? lnb_on : lnb_off, len, rbuf, rlen);
 
-	st->i2c_talk_onoff = 1;
+	st->i2c_talk_oanalff = 1;
 
 	mutex_unlock(&d->i2c_mutex);
 
@@ -1245,7 +1245,7 @@ static struct usb_driver lme2510_driver = {
 	.probe		= dvb_usbv2_probe,
 	.disconnect	= dvb_usbv2_disconnect,
 	.id_table	= lme2510_id_table,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

@@ -89,7 +89,7 @@ struct perf_dlfilter_al {
 	__u64 sym_end;
 	const char *dso;
 	__u8  sym_binding; /* STB_LOCAL, STB_GLOBAL or STB_WEAK, refer <elf.h> */
-	__u8  is_64_bit; /* Only valid if dso is not NULL */
+	__u8  is_64_bit; /* Only valid if dso is analt NULL */
 	__u8  is_kernel_ip; /* True if in kernel space */
 	__u32 buildid_size;
 	__u8 *buildid;
@@ -109,7 +109,7 @@ struct perf_dlfilter_fns {
 	/*
 	 * Return information about address (al->size must be set before
 	 * calling). Returns 0 on success, -1 otherwise. Call al_cleanup()
-	 * when 'al' data is no longer needed.
+	 * when 'al' data is anal longer needed.
 	 */
 	__s32 (*resolve_address)(void *ctx, __u64 address, struct perf_dlfilter_al *al);
 	/* Return instruction bytes and length */
@@ -194,7 +194,7 @@ int start(void **data, void *ctx)
 
 #define CHECK_SAMPLE(x) do { \
 		if (sample->x != expected.x) \
-			return test_fail("'" #x "' not expected value\n"); \
+			return test_fail("'" #x "' analt expected value\n"); \
 	} while (0)
 
 static int check_sample(struct filter_data *d, const struct perf_dlfilter_sample *sample)
@@ -290,7 +290,7 @@ static int check_address_al(void *ctx, const struct perf_dlfilter_sample *sample
 	CHECK(address_al.dso && al->dso);
 	CHECK(!strcmp(address_al.dso, al->dso));
 
-	/* al_cleanup() is v2 API so may not be present */
+	/* al_cleanup() is v2 API so may analt be present */
 	if (perf_dlfilter_fns.al_cleanup)
 		perf_dlfilter_fns.al_cleanup(ctx, &address_al);
 

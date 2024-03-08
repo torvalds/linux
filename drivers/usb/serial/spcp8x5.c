@@ -11,7 +11,7 @@
  * Changes for 2.6.20 by Harald Klein <hari@vt100.at>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -23,8 +23,8 @@
 
 #define DRIVER_DESC	"SPCP8x5 USB to serial adaptor driver"
 
-#define SPCP825_QUIRK_NO_UART_STATUS	0x01
-#define SPCP825_QUIRK_NO_WORK_MODE	0x02
+#define SPCP825_QUIRK_ANAL_UART_STATUS	0x01
+#define SPCP825_QUIRK_ANAL_WORK_MODE	0x02
 
 #define SPCP8x5_007_VID		0x04FC
 #define SPCP8x5_007_PID		0x0201
@@ -43,8 +43,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(SPCP8x5_835_VID, SPCP8x5_835_PID)},
 	{ USB_DEVICE(SPCP8x5_008_VID, SPCP8x5_008_PID)},
 	{ USB_DEVICE(SPCP8x5_007_VID, SPCP8x5_007_PID),
-	  .driver_info = SPCP825_QUIRK_NO_UART_STATUS |
-				SPCP825_QUIRK_NO_WORK_MODE },
+	  .driver_info = SPCP825_QUIRK_ANAL_UART_STATUS |
+				SPCP825_QUIRK_ANAL_WORK_MODE },
 	{ }					/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -82,7 +82,7 @@ struct spcp8x5_usb_ctrl_arg {
 #define SET_UART_FORMAT_SIZE_8		0x03
 #define SET_UART_FORMAT_STOP_1		0x00
 #define SET_UART_FORMAT_STOP_2		0x04
-#define SET_UART_FORMAT_PAR_NONE	0x00
+#define SET_UART_FORMAT_PAR_ANALNE	0x00
 #define SET_UART_FORMAT_PAR_ODD		0x10
 #define SET_UART_FORMAT_PAR_EVEN	0x30
 #define SET_UART_FORMAT_PAR_MASK	0xD0
@@ -157,7 +157,7 @@ static int spcp8x5_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	priv->quirks = id->driver_info;
@@ -183,7 +183,7 @@ static int spcp8x5_set_ctrl_line(struct usb_serial_port *port, u8 mcr)
 	struct usb_device *dev = port->serial->dev;
 	int retval;
 
-	if (priv->quirks & SPCP825_QUIRK_NO_UART_STATUS)
+	if (priv->quirks & SPCP825_QUIRK_ANAL_UART_STATUS)
 		return -EPERM;
 
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
@@ -203,12 +203,12 @@ static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 	u8 *buf;
 	int ret;
 
-	if (priv->quirks & SPCP825_QUIRK_NO_UART_STATUS)
+	if (priv->quirks & SPCP825_QUIRK_ANAL_UART_STATUS)
 		return -EPERM;
 
 	buf = kzalloc(1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			      GET_UART_STATUS, GET_UART_STATUS_TYPE,
@@ -236,7 +236,7 @@ static void spcp8x5_set_work_mode(struct usb_serial_port *port, u16 value,
 	struct usb_device *dev = port->serial->dev;
 	int ret;
 
-	if (priv->quirks & SPCP825_QUIRK_NO_WORK_MODE)
+	if (priv->quirks & SPCP825_QUIRK_ANAL_WORK_MODE)
 		return;
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
@@ -369,7 +369,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 		buf[1] |= (cflag & PARODD) ?
 		SET_UART_FORMAT_PAR_ODD : SET_UART_FORMAT_PAR_EVEN ;
 	} else {
-		buf[1] |= SET_UART_FORMAT_PAR_NONE;
+		buf[1] |= SET_UART_FORMAT_PAR_ANALNE;
 	}
 	uartdata = buf[0] | buf[1]<<8;
 

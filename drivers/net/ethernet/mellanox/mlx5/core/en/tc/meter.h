@@ -30,7 +30,7 @@ struct mlx5e_flow_meter_handle {
 	u8 idx;
 
 	int refcnt;
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct mlx5e_flow_meter_params params;
 
 	struct mlx5_fc *act_counter;

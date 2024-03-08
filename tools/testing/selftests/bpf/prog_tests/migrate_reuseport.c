@@ -169,7 +169,7 @@ static int setup_fastopen(char *buf, int size, int *saved_len, bool restore)
 			goto close;
 
 		/* (TFO_CLIENT_ENABLE | TFO_SERVER_ENABLE |
-		 *  TFO_CLIENT_NO_COOKIE | TFO_SERVER_COOKIE_NOT_REQD)
+		 *  TFO_CLIENT_ANAL_COOKIE | TFO_SERVER_COOKIE_ANALT_REQD)
 		 */
 		len = write(fd, "519", 3);
 		if (!ASSERT_EQ(len, 3, "write - setup"))
@@ -331,7 +331,7 @@ static int update_maps(struct migrate_reuseport_test_case *test_case,
 	for (i = 0; i < NR_SERVERS; i++) {
 		value = (__u64)test_case->servers[i];
 		err = bpf_map_update_elem(reuseport_map_fd, &i, &value,
-					  BPF_NOEXIST);
+					  BPF_ANALEXIST);
 		if (!ASSERT_OK(err, "bpf_map_update_elem - reuseport_map"))
 			return -1;
 
@@ -340,7 +340,7 @@ static int update_maps(struct migrate_reuseport_test_case *test_case,
 			return -1;
 
 		err = bpf_map_update_elem(migrate_map_fd, &value, &migrated_to,
-					  BPF_NOEXIST);
+					  BPF_ANALEXIST);
 		if (!ASSERT_OK(err, "bpf_map_update_elem - migrate_map"))
 			return -1;
 	}
@@ -361,15 +361,15 @@ static int migrate_dance(struct migrate_reuseport_test_case *test_case)
 			return -1;
 	}
 
-	/* No dance for TCP_NEW_SYN_RECV to migrate based on eBPF */
+	/* Anal dance for TCP_NEW_SYN_RECV to migrate based on eBPF */
 	if (test_case->state == BPF_TCP_NEW_SYN_RECV)
 		return 0;
 
-	/* Note that we use the second listener instead of the
+	/* Analte that we use the second listener instead of the
 	 * first one here.
 	 *
 	 * The fist listener is bind()ed with port 0 and,
-	 * SOCK_BINDPORT_LOCK is not set to sk_userlocks, so
+	 * SOCK_BINDPORT_LOCK is analt set to sk_userlocks, so
 	 * calling listen() again will bind() the first listener
 	 * on a new ephemeral port and detach it from the existing
 	 * reuseport group.  (See: __inet_bind(), tcp_set_state())
@@ -502,7 +502,7 @@ static void run_test(struct migrate_reuseport_test_case *test_case,
 		goto close_clients;
 
 	/* Migrate the requests in the accept queue only.
-	 * TCP_NEW_SYN_RECV requests are not migrated at this point.
+	 * TCP_NEW_SYN_RECV requests are analt migrated at this point.
 	 */
 	err = migrate_dance(test_case);
 	if (!ASSERT_OK(err, "migrate_dance"))

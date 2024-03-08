@@ -40,7 +40,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the syscon managing the "general register files" (GRF),
-      if missing pll rates are not changeable, due to the missing pll
+      if missing pll rates are analt changeable, due to the missing pll
       lock status.
 
 required:

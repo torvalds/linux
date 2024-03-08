@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2022 Hewlett Packard Enterprise, Inc. All rights reserved.
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -11,7 +11,7 @@
  * struct rxe_mca ('mca'). An mcg is allocated each time a qp is
  * attached to a new mgid for the first time. These are indexed by
  * a red-black tree using the mgid. This data structure is searched
- * for the mcg when a multicast packet is received and when another
+ * for the mcg when a multicast packet is received and when aanalther
  * qp is attached to the same mgid. It is cleaned up when the last qp
  * is detached from the mcg. Each time a qp is attached to an mcg an
  * mca is created. It holds a pointer to the qp and is added to a list
@@ -55,7 +55,7 @@ static int rxe_mcast_del(struct rxe_dev *rxe, union ib_gid *mgid)
 
 /**
  * __rxe_insert_mcg - insert an mcg into red-black tree (rxe->mcg_tree)
- * @mcg: mcg object with an embedded red-black tree node
+ * @mcg: mcg object with an embedded red-black tree analde
  *
  * Context: caller must hold a reference to mcg and rxe->mcg_lock and
  * is responsible to avoid adding the same mcg twice to the tree.
@@ -63,14 +63,14 @@ static int rxe_mcast_del(struct rxe_dev *rxe, union ib_gid *mgid)
 static void __rxe_insert_mcg(struct rxe_mcg *mcg)
 {
 	struct rb_root *tree = &mcg->rxe->mcg_tree;
-	struct rb_node **link = &tree->rb_node;
-	struct rb_node *node = NULL;
+	struct rb_analde **link = &tree->rb_analde;
+	struct rb_analde *analde = NULL;
 	struct rxe_mcg *tmp;
 	int cmp;
 
 	while (*link) {
-		node = *link;
-		tmp = rb_entry(node, struct rxe_mcg, node);
+		analde = *link;
+		tmp = rb_entry(analde, struct rxe_mcg, analde);
 
 		cmp = memcmp(&tmp->mgid, &mcg->mgid, sizeof(mcg->mgid));
 		if (cmp > 0)
@@ -79,19 +79,19 @@ static void __rxe_insert_mcg(struct rxe_mcg *mcg)
 			link = &(*link)->rb_right;
 	}
 
-	rb_link_node(&mcg->node, node, link);
-	rb_insert_color(&mcg->node, tree);
+	rb_link_analde(&mcg->analde, analde, link);
+	rb_insert_color(&mcg->analde, tree);
 }
 
 /**
  * __rxe_remove_mcg - remove an mcg from red-black tree holding lock
- * @mcg: mcast group object with an embedded red-black tree node
+ * @mcg: mcast group object with an embedded red-black tree analde
  *
  * Context: caller must hold a reference to mcg and rxe->mcg_lock
  */
 static void __rxe_remove_mcg(struct rxe_mcg *mcg)
 {
-	rb_erase(&mcg->node, &mcg->rxe->mcg_tree);
+	rb_erase(&mcg->analde, &mcg->rxe->mcg_tree);
 }
 
 /**
@@ -107,25 +107,25 @@ static struct rxe_mcg *__rxe_lookup_mcg(struct rxe_dev *rxe,
 {
 	struct rb_root *tree = &rxe->mcg_tree;
 	struct rxe_mcg *mcg;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int cmp;
 
-	node = tree->rb_node;
+	analde = tree->rb_analde;
 
-	while (node) {
-		mcg = rb_entry(node, struct rxe_mcg, node);
+	while (analde) {
+		mcg = rb_entry(analde, struct rxe_mcg, analde);
 
 		cmp = memcmp(&mcg->mgid, mgid, sizeof(*mgid));
 
 		if (cmp > 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (cmp < 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			break;
 	}
 
-	if (node) {
+	if (analde) {
 		kref_get(&mcg->ref_cnt);
 		return mcg;
 	}
@@ -200,14 +200,14 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 
 	/* check to see if we have reached limit */
 	if (atomic_inc_return(&rxe->mcg_num) > rxe->attr.max_mcast_grp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_dec;
 	}
 
 	/* speculative alloc of new mcg */
 	mcg = kzalloc(sizeof(*mcg), GFP_KERNEL);
 	if (!mcg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_dec;
 	}
 
@@ -251,7 +251,7 @@ void rxe_cleanup_mcg(struct kref *kref)
  * @mcg: the mcg object
  *
  * Context: caller is holding rxe->mcg_lock
- * no qp's are attached to mcg
+ * anal qp's are attached to mcg
  */
 static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
 {
@@ -268,7 +268,7 @@ static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
  * rxe_destroy_mcg - destroy mcg object
  * @mcg: the mcg object
  *
- * Context: no qp's are attached to mcg
+ * Context: anal qp's are attached to mcg
  */
 static void rxe_destroy_mcg(struct rxe_mcg *mcg)
 {
@@ -300,14 +300,14 @@ static int __rxe_init_mca(struct rxe_qp *qp, struct rxe_mcg *mcg,
 	n = atomic_inc_return(&rxe->mcg_attach);
 	if (n > rxe->attr.max_total_mcast_qp_attach) {
 		atomic_dec(&rxe->mcg_attach);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	n = atomic_inc_return(&mcg->qp_num);
 	if (n > rxe->attr.max_mcast_qp_attach) {
 		atomic_dec(&mcg->qp_num);
 		atomic_dec(&rxe->mcg_attach);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	atomic_inc(&qp->mcg_num);
@@ -321,7 +321,7 @@ static int __rxe_init_mca(struct rxe_qp *qp, struct rxe_mcg *mcg,
 }
 
 /**
- * rxe_attach_mcg - attach qp to mcg if not already attached
+ * rxe_attach_mcg - attach qp to mcg if analt already attached
  * @qp: qp object
  * @mcg: mcg object
  *
@@ -347,7 +347,7 @@ static int rxe_attach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 	/* speculative alloc new mca without using GFP_ATOMIC */
 	mca = kzalloc(sizeof(*mca), GFP_KERNEL);
 	if (!mca)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&rxe->mcg_lock);
 	/* re-check to see if someone else just attached qp */
@@ -391,7 +391,7 @@ static void __rxe_cleanup_mca(struct rxe_mca *mca, struct rxe_mcg *mcg)
  * @mcg: mcg object
  * @qp: qp object
  *
- * Returns: 0 on success else an error if qp is not attached.
+ * Returns: 0 on success else an error if qp is analt attached.
  */
 static int rxe_detach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 {
@@ -405,7 +405,7 @@ static int rxe_detach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 
 			/* if the number of qp's attached to the
 			 * mcast group falls to zero go ahead and
-			 * tear it down. This will not free the
+			 * tear it down. This will analt free the
 			 * object since we are still holding a ref
 			 * from the caller
 			 */
@@ -426,9 +426,9 @@ static int rxe_detach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
  * rxe_attach_mcast - attach qp to multicast group (see IBA-11.3.1)
  * @ibqp: (IB) qp object
  * @mgid: multicast IP address
- * @mlid: multicast LID, ignored for RoCEv2 (see IBA-A17.5.6)
+ * @mlid: multicast LID, iganalred for RoCEv2 (see IBA-A17.5.6)
  *
- * Returns: 0 on success else an errno
+ * Returns: 0 on success else an erranal
  */
 int rxe_attach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 {
@@ -457,9 +457,9 @@ int rxe_attach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
  * rxe_detach_mcast - detach qp from multicast group (see IBA-11.3.2)
  * @ibqp: address of (IB) qp object
  * @mgid: multicast IP address
- * @mlid: multicast LID, ignored for RoCEv2 (see IBA-A17.5.6)
+ * @mlid: multicast LID, iganalred for RoCEv2 (see IBA-A17.5.6)
  *
- * Returns: 0 on success else an errno
+ * Returns: 0 on success else an erranal
  */
 int rxe_detach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/dma-buf.h>
@@ -55,7 +55,7 @@ static struct sg_table *lsdc_gem_prime_get_sg_table(struct drm_gem_object *obj)
 
 	if (!tt) {
 		drm_err(obj->dev, "sharing a buffer without backing memory\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return drm_prime_pages_to_sg(obj->dev, tt->pages, tt->num_pages);
@@ -107,7 +107,7 @@ static void lsdc_gem_object_vunmap(struct drm_gem_object *obj, struct iosys_map 
 	struct lsdc_bo *lbo = to_lsdc_bo(tbo);
 
 	if (unlikely(!lbo->vmap_count)) {
-		drm_warn(obj->dev, "%p is not mapped\n", lbo);
+		drm_warn(obj->dev, "%p is analt mapped\n", lbo);
 		return;
 	}
 
@@ -232,7 +232,7 @@ int lsdc_dumb_create(struct drm_file *file, struct drm_device *ddev,
 	/* Maximum single bo size allowed is the half vram size available */
 	if (size > ldev->vram_size / 2) {
 		drm_err(ddev, "Requesting(%zuMiB) failed\n", size >> 20);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gobj = lsdc_gem_object_create(ddev, domain, size, false, NULL, NULL);
@@ -243,7 +243,7 @@ int lsdc_dumb_create(struct drm_file *file, struct drm_device *ddev,
 
 	ret = drm_gem_handle_create(file, gobj, &handle);
 
-	/* drop reference from allocate, handle holds it now */
+	/* drop reference from allocate, handle holds it analw */
 	drm_gem_object_put(gobj);
 	if (ret)
 		return ret;
@@ -262,9 +262,9 @@ int lsdc_dumb_map_offset(struct drm_file *filp, struct drm_device *ddev,
 
 	gobj = drm_gem_object_lookup(filp, handle);
 	if (!gobj)
-		return -ENOENT;
+		return -EANALENT;
 
-	*offset = drm_vma_node_offset_addr(&gobj->vma_node);
+	*offset = drm_vma_analde_offset_addr(&gobj->vma_analde);
 
 	drm_gem_object_put(gobj);
 
@@ -281,8 +281,8 @@ void lsdc_gem_init(struct drm_device *ddev)
 
 int lsdc_show_buffer_object(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *ddev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct drm_device *ddev = analde->mianalr->dev;
 	struct lsdc_device *ldev = to_lsdc(ddev);
 	struct lsdc_bo *lbo;
 	unsigned int i;

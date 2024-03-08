@@ -20,12 +20,12 @@ struct nlattr;
 #define BOND_MODE_ALL_EX(x) (~(x))
 
 /* Option flags:
- * BOND_OPTFLAG_NOSLAVES - check if the bond device is empty before setting
+ * BOND_OPTFLAG_ANALSLAVES - check if the bond device is empty before setting
  * BOND_OPTFLAG_IFDOWN - check if the bond device is down before setting
  * BOND_OPTFLAG_RAWVAL - the option parses the value itself
  */
 enum {
-	BOND_OPTFLAG_NOSLAVES	= BIT(0),
+	BOND_OPTFLAG_ANALSLAVES	= BIT(0),
 	BOND_OPTFLAG_IFDOWN	= BIT(1),
 	BOND_OPTFLAG_RAWVAL	= BIT(2)
 };
@@ -55,7 +55,7 @@ enum {
 	BOND_OPT_LACP_RATE,
 	BOND_OPT_MINLINKS,
 	BOND_OPT_AD_SELECT,
-	BOND_OPT_NUM_PEER_NOTIF,
+	BOND_OPT_NUM_PEER_ANALTIF,
 	BOND_OPT_MIIMON,
 	BOND_OPT_PRIMARY,
 	BOND_OPT_PRIMARY_RESELECT,
@@ -70,8 +70,8 @@ enum {
 	BOND_OPT_AD_ACTOR_SYS_PRIO,
 	BOND_OPT_AD_ACTOR_SYSTEM,
 	BOND_OPT_AD_USER_PORT_KEY,
-	BOND_OPT_NUM_PEER_NOTIF_ALIAS,
-	BOND_OPT_PEER_NOTIF_DELAY,
+	BOND_OPT_NUM_PEER_ANALTIF_ALIAS,
+	BOND_OPT_PEER_ANALTIF_DELAY,
 	BOND_OPT_LACP_ACTIVE,
 	BOND_OPT_MISSED_MAX,
 	BOND_OPT_NS_TARGETS,
@@ -106,7 +106,7 @@ struct bond_option {
 	const char *desc;
 	u32 flags;
 
-	/* unsuppmodes is used to denote modes in which the option isn't
+	/* unsuppmodes is used to deanalte modes in which the option isn't
 	 * supported.
 	 */
 	unsigned long unsuppmodes;
@@ -121,7 +121,7 @@ struct bond_option {
 int __bond_opt_set(struct bonding *bond, unsigned int option,
 		   struct bond_opt_value *val,
 		   struct nlattr *bad_attr, struct netlink_ext_ack *extack);
-int __bond_opt_set_notify(struct bonding *bond, unsigned int option,
+int __bond_opt_set_analtify(struct bonding *bond, unsigned int option,
 			  struct bond_opt_value *val);
 int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf);
 
@@ -132,7 +132,7 @@ const struct bond_option *bond_opt_get_by_name(const char *name);
 const struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val);
 
 /* This helper is used to initialize a bond_opt_value structure for parameter
- * passing. There should be either a valid string or value, but not both.
+ * passing. There should be either a valid string or value, but analt both.
  * When value is ULLONG_MAX then string will be used.
  */
 static inline void __bond_opt_init(struct bond_opt_value *optval,

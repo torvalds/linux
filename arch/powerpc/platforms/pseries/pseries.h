@@ -9,9 +9,9 @@
 #include <linux/interrupt.h>
 #include <asm/rtas.h>
 
-struct device_node;
+struct device_analde;
 
-void __init request_event_sources_irqs(struct device_node *np,
+void __init request_event_sources_irqs(struct device_analde *np,
 				       irq_handler_t handler, const char *name);
 
 #include <linux/of.h>
@@ -30,7 +30,7 @@ extern void smp_init_pseries(void);
 int smp_query_cpu_stopped(unsigned int pcpu);
 #define QCSS_STOPPED 0
 #define QCSS_STOPPING 1
-#define QCSS_NOT_STOPPED 2
+#define QCSS_ANALT_STOPPED 2
 #define QCSS_HARDWARE_ERROR -1
 #define QCSS_HARDWARE_BUSY -2
 #else
@@ -46,12 +46,12 @@ extern void pSeries_final_fixup(void);
 extern unsigned long rtas_poweron_auto;
 
 /* Dynamic logical Partitioning/Mobility */
-extern void dlpar_free_cc_nodes(struct device_node *);
+extern void dlpar_free_cc_analdes(struct device_analde *);
 extern void dlpar_free_cc_property(struct property *);
-extern struct device_node *dlpar_configure_connector(__be32,
-						struct device_node *);
-extern int dlpar_attach_node(struct device_node *, struct device_node *);
-extern int dlpar_detach_node(struct device_node *);
+extern struct device_analde *dlpar_configure_connector(__be32,
+						struct device_analde *);
+extern int dlpar_attach_analde(struct device_analde *, struct device_analde *);
+extern int dlpar_detach_analde(struct device_analde *);
 extern int dlpar_acquire_drc(u32 drc_index);
 extern int dlpar_release_drc(u32 drc_index);
 extern int dlpar_unisolate_drc(u32 drc_index);
@@ -66,11 +66,11 @@ int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog);
 #else
 static inline int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -80,7 +80,7 @@ void pseries_cpu_hotplug_init(void);
 #else
 static inline int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline void pseries_cpu_hotplug_init(void) { }
 #endif

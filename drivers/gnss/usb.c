@@ -5,7 +5,7 @@
  * Copyright (C) 2021 Johan Hovold <johan@kernel.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gnss.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -41,7 +41,7 @@ static void gnss_usb_rx_complete(struct urb *urb)
 	switch (status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		dev_dbg(&gdev->dev, "urb stopped: %d\n", status);
@@ -50,7 +50,7 @@ static void gnss_usb_rx_complete(struct urb *urb)
 		dev_err(&gdev->dev, "urb stopped: %d\n", status);
 		return;
 	default:
-		dev_dbg(&gdev->dev, "nonzero urb status: %d\n", status);
+		dev_dbg(&gdev->dev, "analnzero urb status: %d\n", status);
 		goto resubmit;
 	}
 
@@ -63,7 +63,7 @@ static void gnss_usb_rx_complete(struct urb *urb)
 		dev_dbg(&gdev->dev, "dropped %d bytes\n", len - ret);
 resubmit:
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret && ret != -EPERM && ret != -ENODEV)
+	if (ret && ret != -EPERM && ret != -EANALDEV)
 		dev_err(&gdev->dev, "failed to resubmit urb: %d\n", ret);
 }
 
@@ -74,7 +74,7 @@ static int gnss_usb_open(struct gnss_device *gdev)
 
 	ret = usb_submit_urb(gusb->read_urb, GFP_KERNEL);
 	if (ret) {
-		if (ret != -EPERM && ret != -ENODEV)
+		if (ret != -EPERM && ret != -EANALDEV)
 			dev_err(&gdev->dev, "failed to submit urb: %d\n", ret);
 		return ret;
 	}
@@ -98,7 +98,7 @@ static int gnss_usb_write_raw(struct gnss_device *gdev,
 
 	tbuf = kmemdup(buf, count, GFP_KERNEL);
 	if (!tbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_bulk_msg(gusb->udev, gusb->write_pipe, tbuf, count, NULL,
 			GNSS_USB_WRITE_TIMEOUT);
@@ -133,11 +133,11 @@ static int gnss_usb_probe(struct usb_interface *intf, const struct usb_device_id
 
 	gusb = kzalloc(sizeof(*gusb), GFP_KERNEL);
 	if (!gusb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gdev = gnss_allocate_device(&intf->dev);
 	if (!gdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_gusb;
 	}
 
@@ -147,7 +147,7 @@ static int gnss_usb_probe(struct usb_interface *intf, const struct usb_device_id
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_gdev;
 	}
 
@@ -155,7 +155,7 @@ static int gnss_usb_probe(struct usb_interface *intf, const struct usb_device_id
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_urb;
 	}
 

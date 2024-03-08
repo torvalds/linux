@@ -20,8 +20,8 @@
  *
  * Heavily based on the ep93xx-ide.c driver:
  *
- * Copyright (c) 2009, Joao Ramos <joao.ramos@inov.pt>
- *		      INESC Inovacao (INOV)
+ * Copyright (c) 2009, Joao Ramos <joao.ramos@ianalv.pt>
+ *		      INESC Ianalvacao (IANALV)
  *
  * EP93XX PATA controller driver.
  * Copyright (C) 2007 Lennert Buytenhek <buytenh@wantstofly.org>
@@ -29,7 +29,7 @@
  * An ATA driver for the Cirrus Logic EP93xx PATA controller.
  *
  * Based on an earlier version by Alessandro Zummo, which is:
- *   Copyright (C) 2006 Tower Technologies
+ *   Copyright (C) 2006 Tower Techanallogies
  */
 
 #include <linux/err.h>
@@ -355,7 +355,7 @@ static void ep93xx_pata_set_piomode(struct ata_port *ap,
 			       adev->pio_mode - XFER_PIO_0);
 }
 
-/* Note: original code is ata_sff_check_status */
+/* Analte: original code is ata_sff_check_status */
 static u8 ep93xx_pata_check_status(struct ata_port *ap)
 {
 	struct ep93xx_pata_data *drv_data = ap->host->private_data;
@@ -370,7 +370,7 @@ static u8 ep93xx_pata_check_altstatus(struct ata_port *ap)
 	return ep93xx_pata_read_reg(drv_data, IDECTRL_ADDR_ALTSTATUS);
 }
 
-/* Note: original code is ata_sff_tf_load */
+/* Analte: original code is ata_sff_tf_load */
 static void ep93xx_pata_tf_load(struct ata_port *ap,
 				const struct ata_taskfile *tf)
 {
@@ -412,7 +412,7 @@ static void ep93xx_pata_tf_load(struct ata_port *ap,
 	ata_wait_idle(ap);
 }
 
-/* Note: original code is ata_sff_tf_read */
+/* Analte: original code is ata_sff_tf_read */
 static void ep93xx_pata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ep93xx_pata_data *drv_data = ap->host->private_data;
@@ -443,7 +443,7 @@ static void ep93xx_pata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	}
 }
 
-/* Note: original code is ata_sff_exec_command */
+/* Analte: original code is ata_sff_exec_command */
 static void ep93xx_pata_exec_command(struct ata_port *ap,
 				     const struct ata_taskfile *tf)
 {
@@ -454,7 +454,7 @@ static void ep93xx_pata_exec_command(struct ata_port *ap,
 	ata_sff_pause(ap);
 }
 
-/* Note: original code is ata_sff_dev_select */
+/* Analte: original code is ata_sff_dev_select */
 static void ep93xx_pata_dev_select(struct ata_port *ap, unsigned int device)
 {
 	struct ep93xx_pata_data *drv_data = ap->host->private_data;
@@ -467,7 +467,7 @@ static void ep93xx_pata_dev_select(struct ata_port *ap, unsigned int device)
 	ata_sff_pause(ap);	/* needed; also flushes, for mmio */
 }
 
-/* Note: original code is ata_sff_set_devctl */
+/* Analte: original code is ata_sff_set_devctl */
 static void ep93xx_pata_set_devctl(struct ata_port *ap, u8 ctl)
 {
 	struct ep93xx_pata_data *drv_data = ap->host->private_data;
@@ -475,7 +475,7 @@ static void ep93xx_pata_set_devctl(struct ata_port *ap, u8 ctl)
 	ep93xx_pata_write_reg(drv_data, ctl, IDECTRL_ADDR_CTL);
 }
 
-/* Note: original code is ata_sff_data_xfer */
+/* Analte: original code is ata_sff_data_xfer */
 static unsigned int ep93xx_pata_data_xfer(struct ata_queued_cmd *qc,
 					  unsigned char *buf,
 					  unsigned int buflen, int rw)
@@ -517,7 +517,7 @@ static unsigned int ep93xx_pata_data_xfer(struct ata_queued_cmd *qc,
 	return words << 1;
 }
 
-/* Note: original code is ata_devchk */
+/* Analte: original code is ata_devchk */
 static bool ep93xx_pata_device_is_present(struct ata_port *ap,
 					  unsigned int device)
 {
@@ -544,7 +544,7 @@ static bool ep93xx_pata_device_is_present(struct ata_port *ap,
 	return false;
 }
 
-/* Note: original code is ata_sff_wait_after_reset */
+/* Analte: original code is ata_sff_wait_after_reset */
 static int ep93xx_pata_wait_after_reset(struct ata_link *link,
 					unsigned int devmask,
 					unsigned long deadline)
@@ -560,7 +560,7 @@ static int ep93xx_pata_wait_after_reset(struct ata_link *link,
 	/* always check readiness of the master device */
 	rc = ata_sff_wait_ready(link, deadline);
 	/*
-	 * -ENODEV means the odd clown forgot the D7 pulldown resistor
+	 * -EANALDEV means the odd clown forgot the D7 pulldown resistor
 	 * and TF status is 0xff, bail out on it too.
 	 */
 	if (rc)
@@ -594,7 +594,7 @@ static int ep93xx_pata_wait_after_reset(struct ata_link *link,
 
 		rc = ata_sff_wait_ready(link, deadline);
 		if (rc) {
-			if (rc != -ENODEV)
+			if (rc != -EANALDEV)
 				return rc;
 			ret = rc;
 		}
@@ -609,7 +609,7 @@ static int ep93xx_pata_wait_after_reset(struct ata_link *link,
 	return ret;
 }
 
-/* Note: original code is ata_bus_softreset */
+/* Analte: original code is ata_bus_softreset */
 static int ep93xx_pata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 				     unsigned long deadline)
 {
@@ -656,7 +656,7 @@ static void ep93xx_pata_dma_init(struct ep93xx_pata_data *drv_data)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/*
-	 * Request two channels for IDE. Another possibility would be
+	 * Request two channels for IDE. Aanalther possibility would be
 	 * to request only one channel, and reprogram it's direction at
 	 * start of new transfer.
 	 */
@@ -746,7 +746,7 @@ static void ep93xx_pata_dma_stop(struct ata_queued_cmd *qc)
 	struct ep93xx_pata_data *drv_data = qc->ap->host->private_data;
 	void __iomem *base = drv_data->ide_base;
 
-	/* terminate all dma transfers, if not yet finished */
+	/* terminate all dma transfers, if analt yet finished */
 	dmaengine_terminate_all(drv_data->dma_rx_channel);
 	dmaengine_terminate_all(drv_data->dma_tx_channel);
 
@@ -780,10 +780,10 @@ static u8 ep93xx_pata_dma_status(struct ata_port *ap)
 	 * DMAIDE - DMA request signal from UDMA state machine,
 	 * INTIDE - INT line generated by UDMA because of errors in the
 	 *          state machine,
-	 * SBUSY - UDMA state machine busy, not in idle state,
-	 * NDO   - error for data-out not completed,
-	 * NDI   - error for data-in not completed,
-	 * N4X   - error for data transferred not multiplies of four
+	 * SBUSY - UDMA state machine busy, analt in idle state,
+	 * NDO   - error for data-out analt completed,
+	 * NDI   - error for data-in analt completed,
+	 * N4X   - error for data transferred analt multiplies of four
 	 *         32-bit words.
 	 * (EP93xx UG p27-17)
 	 */
@@ -801,7 +801,7 @@ static u8 ep93xx_pata_dma_status(struct ata_port *ap)
 	return 0;
 }
 
-/* Note: original code is ata_sff_softreset */
+/* Analte: original code is ata_sff_softreset */
 static int ep93xx_pata_softreset(struct ata_link *al, unsigned int *classes,
 				 unsigned long deadline)
 {
@@ -822,9 +822,9 @@ static int ep93xx_pata_softreset(struct ata_link *al, unsigned int *classes,
 
 	/* issue bus reset */
 	rc = ep93xx_pata_bus_softreset(ap, devmask, deadline);
-	/* if link is ocuppied, -ENODEV too is an error */
-	if (rc && (rc != -ENODEV || sata_scr_valid(al))) {
-		ata_link_err(al, "SRST failed (errno=%d)\n", rc);
+	/* if link is ocuppied, -EANALDEV too is an error */
+	if (rc && (rc != -EANALDEV || sata_scr_valid(al))) {
+		ata_link_err(al, "SRST failed (erranal=%d)\n", rc);
 		return rc;
 	}
 
@@ -838,7 +838,7 @@ static int ep93xx_pata_softreset(struct ata_link *al, unsigned int *classes,
 	return 0;
 }
 
-/* Note: original code is ata_sff_drain_fifo */
+/* Analte: original code is ata_sff_drain_fifo */
 static void ep93xx_pata_drain_fifo(struct ata_queued_cmd *qc)
 {
 	int count;
@@ -884,7 +884,7 @@ static const struct scsi_host_template ep93xx_pata_sht = {
 static struct ata_port_operations ep93xx_pata_port_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 
-	.qc_prep		= ata_noop_qc_prep,
+	.qc_prep		= ata_analop_qc_prep,
 
 	.softreset		= ep93xx_pata_softreset,
 	.hardreset		= ATA_OP_NULL,
@@ -907,7 +907,7 @@ static struct ata_port_operations ep93xx_pata_port_ops = {
 	.bmdma_stop		= ep93xx_pata_dma_stop,
 	.bmdma_status		= ep93xx_pata_dma_status,
 
-	.cable_detect		= ata_cable_unknown,
+	.cable_detect		= ata_cable_unkanalwn,
 	.port_start		= ep93xx_pata_port_start,
 };
 
@@ -946,7 +946,7 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 
 	drv_data = devm_kzalloc(&pdev->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_rel_gpio;
 	}
 
@@ -959,7 +959,7 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_rel_dma;
 	}
 

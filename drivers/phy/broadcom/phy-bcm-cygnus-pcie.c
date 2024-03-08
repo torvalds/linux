@@ -113,20 +113,20 @@ static const struct phy_ops cygnus_pcie_phy_ops = {
 static int cygnus_pcie_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node, *child;
+	struct device_analde *analde = dev->of_analde, *child;
 	struct cygnus_pcie_phy_core *core;
 	struct phy_provider *provider;
 	unsigned cnt = 0;
 	int ret;
 
-	if (of_get_child_count(node) == 0) {
-		dev_err(dev, "PHY no child node\n");
-		return -ENODEV;
+	if (of_get_child_count(analde) == 0) {
+		dev_err(dev, "PHY anal child analde\n");
+		return -EANALDEV;
 	}
 
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core->dev = dev;
 
@@ -136,7 +136,7 @@ static int cygnus_pcie_phy_probe(struct platform_device *pdev)
 
 	mutex_init(&core->lock);
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_analde(analde, child) {
 		unsigned int id;
 		struct cygnus_pcie_phy *p;
 
@@ -185,7 +185,7 @@ static int cygnus_pcie_phy_probe(struct platform_device *pdev)
 
 	return 0;
 put_child:
-	of_node_put(child);
+	of_analde_put(child);
 	return ret;
 }
 

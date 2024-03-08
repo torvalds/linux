@@ -10,11 +10,11 @@
 / {
 	model = "MENLO MX8MM EMBEDDED DEVICE";
 	compatible = "menlo,mx8menlo",
-		     "toradex,verdin-imx8mm-nonwifi",
+		     "toradex,verdin-imx8mm-analnwifi",
 		     "toradex,verdin-imx8mm",
 		     "fsl,imx8mm";
 
-	/delete-node/ gpio-keys;
+	/delete-analde/ gpio-keys;
 
 	leds {
 		compatible = "gpio-leds";
@@ -103,7 +103,7 @@
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <66000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <4>;
@@ -188,13 +188,13 @@
 };
 
 &i2c4 {
-	/* None of this is present on the SoM. */
-	/delete-node/ bridge@2c;
-	/delete-node/ hdmi@48;
-	/delete-node/ touch@4a;
-	/delete-node/ sensor@4f;
-	/delete-node/ eeprom@50;
-	/delete-node/ eeprom@57;
+	/* Analne of this is present on the SoM. */
+	/delete-analde/ bridge@2c;
+	/delete-analde/ hdmi@48;
+	/delete-analde/ touch@4a;
+	/delete-analde/ sensor@4f;
+	/delete-analde/ eeprom@50;
+	/delete-analde/ eeprom@57;
 };
 
 &iomuxc {

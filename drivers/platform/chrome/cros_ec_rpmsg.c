@@ -57,7 +57,7 @@ struct cros_ec_rpmsg {
  * @ec_dev: ChromeOS EC device
  * @ec_msg: Message to transfer
  *
- * This is only used for old EC proto version, and is not supported for this
+ * This is only used for old EC proto version, and is analt supported for this
  * driver.
  *
  * Return: -EINVAL
@@ -218,11 +218,11 @@ static int cros_ec_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ec_rpmsg = devm_kzalloc(dev, sizeof(*ec_rpmsg), GFP_KERNEL);
 	if (!ec_rpmsg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ec_dev->dev = dev;
 	ec_dev->priv = ec_rpmsg;
@@ -241,7 +241,7 @@ static int cros_ec_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	ec_rpmsg->ept = cros_ec_rpmsg_create_ept(rpdev);
 	if (!ec_rpmsg->ept)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cros_ec_register(ec_dev);
 	if (ret < 0) {

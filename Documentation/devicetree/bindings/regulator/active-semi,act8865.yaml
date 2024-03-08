@@ -139,9 +139,9 @@ examples:
             regulator-max-microvolt = <3300000>;
             regulator-always-on;
 
-            regulator-allowed-modes = <ACT8865_REGULATOR_MODE_NORMAL>,
+            regulator-allowed-modes = <ACT8865_REGULATOR_MODE_ANALRMAL>,
                                       <ACT8865_REGULATOR_MODE_LOWPOWER>;
-            regulator-initial-mode = <ACT8865_REGULATOR_MODE_NORMAL>;
+            regulator-initial-mode = <ACT8865_REGULATOR_MODE_ANALRMAL>;
 
             regulator-state-mem {
               regulator-off-in-suspend;

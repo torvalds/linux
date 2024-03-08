@@ -20,7 +20,7 @@
  * Return codes:
  * TEE_SUCCESS - Invoke command success
  * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
- * TEE_ERROR_ACCESS_DENIED - OTP not accessible by caller
+ * TEE_ERROR_ACCESS_DENIED - OTP analt accessible by caller
  */
 #define PTA_BSEC_READ_MEM		0x0
 
@@ -35,7 +35,7 @@
  * Return codes:
  * TEE_SUCCESS - Invoke command success
  * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
- * TEE_ERROR_ACCESS_DENIED - OTP not accessible by caller
+ * TEE_ERROR_ACCESS_DENIED - OTP analt accessible by caller
  */
 #define PTA_BSEC_WRITE_MEM		0x1
 
@@ -108,7 +108,7 @@ int stm32_bsec_optee_ta_open(struct tee_context **ctx)
 	tee_ctx = tee_client_open_context(NULL, stm32_bsec_optee_ta_match, NULL, NULL);
 	if (IS_ERR(tee_ctx)) {
 		rc = PTR_ERR(tee_ctx);
-		if (rc == -ENOENT)
+		if (rc == -EANALENT)
 			return -EPROBE_DEFER;
 		pr_err("%s: tee_client_open_context failed (%d)\n", __func__, rc);
 
@@ -266,7 +266,7 @@ int stm32_bsec_optee_ta_write(struct tee_context *ctx, unsigned int lower,
 		int i;
 
 		/*
-		 * don't lock the lower OTPs, no ECC protection and incremental
+		 * don't lock the lower OTPs, anal ECC protection and incremental
 		 * bit programming, a second write is allowed
 		 */
 		start = max_t(u32, offset, lower * 4);

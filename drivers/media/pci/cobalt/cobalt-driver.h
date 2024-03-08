@@ -38,15 +38,15 @@
 /* System device ID */
 #define PCI_DEVICE_ID_COBALT	0x2732
 
-/* Number of cobalt device nodes. */
+/* Number of cobalt device analdes. */
 #define COBALT_NUM_INPUTS	4
-#define COBALT_NUM_NODES	6
+#define COBALT_NUM_ANALDES	6
 
 /* Number of cobalt device streams. */
 #define COBALT_NUM_STREAMS	12
 
-#define COBALT_HSMA_IN_NODE	4
-#define COBALT_HSMA_OUT_NODE	5
+#define COBALT_HSMA_IN_ANALDE	4
+#define COBALT_HSMA_OUT_ANALDE	5
 
 /* Cobalt audio streams */
 #define COBALT_AUDIO_IN_STREAM	6
@@ -153,7 +153,7 @@
 
 /* debugging */
 extern int cobalt_debug;
-extern int cobalt_ignore_err;
+extern int cobalt_iganalre_err;
 
 #define cobalt_err(fmt, arg...)  v4l2_err(&cobalt->v4l2_dev, fmt, ## arg)
 #define cobalt_warn(fmt, arg...) v4l2_warn(&cobalt->v4l2_dev, fmt, ## arg)
@@ -259,7 +259,7 @@ struct cobalt {
 	u8 card_rev;
 	u16 device_id;
 
-	/* device nodes */
+	/* device analdes */
 	struct cobalt_stream streams[DMA_CHANNELS_MAX];
 	struct i2c_adapter i2c_adap[COBALT_NUM_ADAPTERS];
 	struct cobalt_i2c_data i2c_data[COBALT_NUM_ADAPTERS];
@@ -275,7 +275,7 @@ struct cobalt {
 	u32 irq_advout;
 	u32 irq_dma_tot;
 	u32 irq_dma[COBALT_NUM_STREAMS];
-	u32 irq_none;
+	u32 irq_analne;
 	u32 irq_full_fifo;
 
 	/* omnitek dma */
@@ -285,7 +285,7 @@ struct cobalt {
 
 	char hdl_info[COBALT_HDL_INFO_SIZE];
 
-	/* NOR flash */
+	/* ANALR flash */
 	struct mtd_info *mtd;
 };
 

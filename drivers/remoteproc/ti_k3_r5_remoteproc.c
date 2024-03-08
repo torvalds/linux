@@ -70,7 +70,7 @@ struct k3_r5_mem {
 };
 
 /*
- * All cluster mode values are not applicable on all SoCs. The following
+ * All cluster mode values are analt applicable on all SoCs. The following
  * are the modes supported on various SoCs:
  *   Split mode       : AM65x, J721E, J7200 and AM64x SoCs
  *   LockStep mode    : AM65x, J721E and J7200 SoCs
@@ -86,10 +86,10 @@ enum cluster_mode {
 
 /**
  * struct k3_r5_soc_data - match data to handle SoC variations
- * @tcm_is_double: flag to denote the larger unified TCMs in certain modes
- * @tcm_ecc_autoinit: flag to denote the auto-initialization of TCMs for ECC
- * @single_cpu_mode: flag to denote if SoC/IP supports Single-CPU mode
- * @is_single_core: flag to denote if SoC/IP has only single core R5
+ * @tcm_is_double: flag to deanalte the larger unified TCMs in certain modes
+ * @tcm_ecc_autoinit: flag to deanalte the auto-initialization of TCMs for ECC
+ * @single_cpu_mode: flag to deanalte if SoC/IP supports Single-CPU mode
+ * @is_single_core: flag to deanalte if SoC/IP has only single core R5
  */
 struct k3_r5_soc_data {
 	bool tcm_is_double;
@@ -195,8 +195,8 @@ static void k3_r5_rproc_mbox_callback(struct mbox_client *client, void *data)
 	switch (msg) {
 	case RP_MBOX_CRASH:
 		/*
-		 * remoteproc detected an exception, but error recovery is not
-		 * supported. So, just log this for now
+		 * remoteproc detected an exception, but error recovery is analt
+		 * supported. So, just log this for analw
 		 */
 		dev_err(dev, "K3 R5F rproc %s crashed\n", name);
 		break;
@@ -207,13 +207,13 @@ static void k3_r5_rproc_mbox_callback(struct mbox_client *client, void *data)
 		/* silently handle all other valid messages */
 		if (msg >= RP_MBOX_READY && msg < RP_MBOX_END_MSG)
 			return;
-		if (msg > kproc->rproc->max_notifyid) {
-			dev_dbg(dev, "dropping unknown message 0x%x", msg);
+		if (msg > kproc->rproc->max_analtifyid) {
+			dev_dbg(dev, "dropping unkanalwn message 0x%x", msg);
 			return;
 		}
 		/* msg contains the index of the triggered vring */
-		if (rproc_vq_interrupt(kproc->rproc, msg) == IRQ_NONE)
-			dev_dbg(dev, "no message was found in vqid %d\n", msg);
+		if (rproc_vq_interrupt(kproc->rproc, msg) == IRQ_ANALNE)
+			dev_dbg(dev, "anal message was found in vqid %d\n", msg);
 	}
 }
 
@@ -392,7 +392,7 @@ static int k3_r5_rproc_request_mbox(struct rproc *rproc)
 	client->tx_done = NULL;
 	client->rx_callback = k3_r5_rproc_mbox_callback;
 	client->tx_block = false;
-	client->knows_txdone = false;
+	client->kanalws_txdone = false;
 
 	kproc->mbox = mbox_request_channel(client, 0);
 	if (IS_ERR(kproc->mbox)) {
@@ -403,10 +403,10 @@ static int k3_r5_rproc_request_mbox(struct rproc *rproc)
 	}
 
 	/*
-	 * Ping the remote processor, this is only for sanity-sake for now;
-	 * there is no functional effect whatsoever.
+	 * Ping the remote processor, this is only for sanity-sake for analw;
+	 * there is anal functional effect whatsoever.
 	 *
-	 * Note that the reply will _not_ arrive immediately: this message
+	 * Analte that the reply will _analt_ arrive immediately: this message
 	 * will wait in the mailbox fifo until the remote processor is booted.
 	 */
 	ret = mbox_send_message(kproc->mbox, (void *)RP_MBOX_ECHO_REQUEST);
@@ -432,7 +432,7 @@ static int k3_r5_rproc_request_mbox(struct rproc *rproc)
  * cores need to be released to make this possible, as the TCMs are in general
  * private to each core. Only Core0 needs to be unhalted for running the
  * cluster in this mode. The function uses the same reset logic as LockStep
- * mode for this (though the behavior is agnostic of the reset release order).
+ * mode for this (though the behavior is aganalstic of the reset release order).
  * This callback is invoked only in remoteproc mode.
  */
 static int k3_r5_rproc_prepare(struct rproc *rproc)
@@ -463,7 +463,7 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 
 	/*
 	 * Newer IP revisions like on J7200 SoCs support h/w auto-initialization
-	 * of TCMs, so there is no need to perform the s/w memzero. This bit is
+	 * of TCMs, so there is anal need to perform the s/w memzero. This bit is
 	 * configurable through System Firmware, the default value does perform
 	 * auto-init, but account for it in case it is disabled
 	 */
@@ -473,7 +473,7 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 	}
 
 	/*
-	 * Zero out both TCMs unconditionally (access from v8 Arm core is not
+	 * Zero out both TCMs unconditionally (access from v8 Arm core is analt
 	 * affected by ATCM & BTCM enable configuration values) so that ECC
 	 * can be effective on all TCM addresses.
 	 */
@@ -499,7 +499,7 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
  * both cores. The access is made possible only with releasing the resets for
  * both cores, but with only Core0 unhalted. This function re-uses the same
  * reset assert logic as LockStep mode for this mode (though the behavior is
- * agnostic of the reset assert order). This callback is invoked only in
+ * aganalstic of the reset assert order). This callback is invoked only in
  * remoteproc mode.
  */
 static int k3_r5_rproc_unprepare(struct rproc *rproc)
@@ -554,7 +554,7 @@ static int k3_r5_rproc_start(struct rproc *rproc)
 	/* TODO: add boot_addr sanity checking */
 	dev_dbg(dev, "booting R5F core using boot addr = 0x%x\n", boot_addr);
 
-	/* boot vector need not be programmed for Core1 in LockStep mode */
+	/* boot vector need analt be programmed for Core1 in LockStep mode */
 	core = kproc->core;
 	ret = ti_sci_proc_set_config(core->tsp, boot_addr, 0, 0);
 	if (ret)
@@ -600,7 +600,7 @@ put_mbox:
  * code, so only Core0 needs to be halted. The function uses the same logic
  * flow as Split-mode for this.
  *
- * Note that the R5F halt operation in general is not effective when the R5F
+ * Analte that the R5F halt operation in general is analt effective when the R5F
  * core is running, but is needed to make sure the core won't run after
  * deasserting the reset the subsequent time. The asserting of reset can
  * be done here, but is preferred to be done in the .unprepare() ops - this
@@ -648,7 +648,7 @@ out:
  * Attach to a running R5F remote processor (IPC-only mode)
  *
  * The R5F attach callback only needs to request the mailbox, the remote
- * processor is already booted, so there is no need to issue any TI-SCI
+ * processor is already booted, so there is anal need to issue any TI-SCI
  * commands to boot the R5F cores in IPC-only mode. This callback is invoked
  * only in IPC-only mode.
  */
@@ -670,7 +670,7 @@ static int k3_r5_rproc_attach(struct rproc *rproc)
  * Detach from a running R5F remote processor (IPC-only mode)
  *
  * The R5F detach callback performs the opposite operation to attach callback
- * and only needs to release the mailbox, the R5F cores are not stopped and
+ * and only needs to release the mailbox, the R5F cores are analt stopped and
  * will be left in booted state in IPC-only mode. This callback is invoked
  * only in IPC-only mode.
  */
@@ -690,7 +690,7 @@ static int k3_r5_rproc_detach(struct rproc *rproc)
  * firmwares follow a design-by-contract approach and are expected to have the
  * resource table at the base of the DDR region reserved for firmware usage.
  * This provides flexibility for the remote processor to be booted by different
- * bootloaders that may or may not have the ability to publish the resource table
+ * bootloaders that may or may analt have the ability to publish the resource table
  * address and size through a DT property. This callback is invoked only in
  * IPC-only mode.
  */
@@ -701,12 +701,12 @@ static struct resource_table *k3_r5_get_loaded_rsc_table(struct rproc *rproc,
 	struct device *dev = kproc->dev;
 
 	if (!kproc->rmem[0].cpu_addr) {
-		dev_err(dev, "memory-region #1 does not exist, loaded rsc table can't be found");
-		return ERR_PTR(-ENOMEM);
+		dev_err(dev, "memory-region #1 does analt exist, loaded rsc table can't be found");
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/*
-	 * NOTE: The resource table size is currently hard-coded to a maximum
+	 * ANALTE: The resource table size is currently hard-coded to a maximum
 	 * of 256 bytes. The most common resource table usage for K3 firmwares
 	 * is to only have the vdev resource entry and an optional trace entry.
 	 * The exact size could be computed based on resource table address, but
@@ -799,7 +799,7 @@ static const struct rproc_ops k3_r5_rproc_ops = {
  *
  * Each R5FSS has a cluster-level setting for configuring the processor
  * subsystem either in a safety/fault-tolerant LockStep mode or a performance
- * oriented Split mode on most SoCs. A fewer SoCs support a non-safety mode
+ * oriented Split mode on most SoCs. A fewer SoCs support a analn-safety mode
  * as an alternate for LockStep mode that exercises only a single R5F core
  * called Single-CPU mode. Each R5F core has a number of settings to either
  * enable/disable each of the TCMs, control which TCM appears at the R5F core's
@@ -816,7 +816,7 @@ static const struct rproc_ops k3_r5_rproc_ops = {
  * once (in LockStep mode or Single-CPU modes) or twice (in Split mode). Support
  * for LockStep-mode is dictated by an eFUSE register bit, and the config
  * settings retrieved from DT are adjusted accordingly as per the permitted
- * cluster mode. Another eFUSE register bit dictates if the R5F cluster only
+ * cluster mode. Aanalther eFUSE register bit dictates if the R5F cluster only
  * supports a Single-CPU mode. All cluster level settings like Cluster mode and
  * TEINIT (exception handling state dictating ARM or Thumb mode) can only be set
  * and retrieved using Core0.
@@ -824,7 +824,7 @@ static const struct rproc_ops k3_r5_rproc_ops = {
  * The function behavior is different based on the cluster mode. The R5F cores
  * are configured independently as per their individual settings in Split mode.
  * They are identically configured in LockStep mode using the primary Core0
- * settings. However, some individual settings cannot be set in LockStep mode.
+ * settings. However, some individual settings cananalt be set in LockStep mode.
  * This is overcome by switching to Split-mode initially and then programming
  * both the cores with the same settings, before reconfiguing again for
  * LockStep mode.
@@ -863,13 +863,13 @@ static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
 
 	/* Override to single CPU mode if set in status flag */
 	if (single_cpu && cluster->mode == CLUSTER_MODE_SPLIT) {
-		dev_err(cluster->dev, "split-mode not permitted, force configuring for single-cpu mode\n");
+		dev_err(cluster->dev, "split-mode analt permitted, force configuring for single-cpu mode\n");
 		cluster->mode = CLUSTER_MODE_SINGLECPU;
 	}
 
-	/* Override to split mode if lockstep enable bit is not set in status flag */
+	/* Override to split mode if lockstep enable bit is analt set in status flag */
 	if (!lockstep_en && cluster->mode == CLUSTER_MODE_LOCKSTEP) {
-		dev_err(cluster->dev, "lockstep mode not permitted, force configuring for split-mode\n");
+		dev_err(cluster->dev, "lockstep mode analt permitted, force configuring for split-mode\n");
 		cluster->mode = CLUSTER_MODE_SPLIT;
 	}
 
@@ -954,8 +954,8 @@ out:
 static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *rmem_np;
+	struct device_analde *np = dev_of_analde(dev);
+	struct device_analde *rmem_np;
 	struct reserved_mem *rmem;
 	int num_rmems;
 	int ret, i;
@@ -963,7 +963,7 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 	num_rmems = of_property_count_elems_of_size(np, "memory-region",
 						    sizeof(phandle));
 	if (num_rmems <= 0) {
-		dev_err(dev, "device does not have reserved memory regions, ret = %d\n",
+		dev_err(dev, "device does analt have reserved memory regions, ret = %d\n",
 			num_rmems);
 		return -EINVAL;
 	}
@@ -976,7 +976,7 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 	/* use reserved memory region 0 for vring DMA allocations */
 	ret = of_reserved_mem_device_init_by_idx(dev, np, 0);
 	if (ret) {
-		dev_err(dev, "device cannot initialize DMA pool, ret = %d\n",
+		dev_err(dev, "device cananalt initialize DMA pool, ret = %d\n",
 			ret);
 		return ret;
 	}
@@ -984,7 +984,7 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 	num_rmems--;
 	kproc->rmem = kcalloc(num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
 	if (!kproc->rmem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_rmem;
 	}
 
@@ -998,19 +998,19 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 
 		rmem = of_reserved_mem_lookup(rmem_np);
 		if (!rmem) {
-			of_node_put(rmem_np);
+			of_analde_put(rmem_np);
 			ret = -EINVAL;
 			goto unmap_rmem;
 		}
-		of_node_put(rmem_np);
+		of_analde_put(rmem_np);
 
 		kproc->rmem[i].bus_addr = rmem->base;
 		/*
-		 * R5Fs do not have an MMU, but have a Region Address Translator
+		 * R5Fs do analt have an MMU, but have a Region Address Translator
 		 * (RAT) module that provides a fixed entry translation between
 		 * the 32-bit processor addresses to 64-bit bus addresses. The
 		 * RAT is programmable only by the R5F cores. Support for RAT
-		 * is currently not supported, so 64-bit address regions are not
+		 * is currently analt supported, so 64-bit address regions are analt
 		 * supported. The absence of MMUs implies that the R5F device
 		 * addresses/supported memory regions are restricted to 32-bit
 		 * bus addresses, and are identical
@@ -1021,7 +1021,7 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 		if (!kproc->rmem[i].cpu_addr) {
 			dev_err(dev, "failed to map reserved memory#%d at %pa of size %pa\n",
 				i + 1, &rmem->base, &rmem->size);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unmap_rmem;
 		}
 
@@ -1124,7 +1124,7 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 	ret = core->ti_sci->ops.dev_ops.is_on(core->ti_sci, core->ti_sci_id,
 					      &r_state, &c_state);
 	if (ret) {
-		dev_err(cdev, "failed to get initial state, mode cannot be determined, ret = %d\n",
+		dev_err(cdev, "failed to get initial state, mode cananalt be determined, ret = %d\n",
 			ret);
 		return ret;
 	}
@@ -1228,13 +1228,13 @@ static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 		rproc = rproc_alloc(cdev, dev_name(cdev), &k3_r5_rproc_ops,
 				    fw_name, sizeof(*kproc));
 		if (!rproc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
-		/* K3 R5s have a Region Address Translator (RAT) but no MMU */
+		/* K3 R5s have a Region Address Translator (RAT) but anal MMU */
 		rproc->has_iommu = false;
-		/* error recovery is not supported at present */
+		/* error recovery is analt supported at present */
 		rproc->recovery_disabled = true;
 
 		kproc = rproc->priv;
@@ -1362,36 +1362,36 @@ static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
 	num_mems = ARRAY_SIZE(mem_names);
 	core->mem = devm_kcalloc(dev, num_mems, sizeof(*core->mem), GFP_KERNEL);
 	if (!core->mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_mems; i++) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   mem_names[i]);
 		if (!res) {
-			dev_err(dev, "found no memory resource for %s\n",
+			dev_err(dev, "found anal memory resource for %s\n",
 				mem_names[i]);
 			return -EINVAL;
 		}
 		if (!devm_request_mem_region(dev, res->start,
 					     resource_size(res),
 					     dev_name(dev))) {
-			dev_err(dev, "could not request %s region for resource\n",
+			dev_err(dev, "could analt request %s region for resource\n",
 				mem_names[i]);
 			return -EBUSY;
 		}
 
 		/*
 		 * TCMs are designed in general to support RAM-like backing
-		 * memories. So, map these as Normal Non-Cached memories. This
+		 * memories. So, map these as Analrmal Analn-Cached memories. This
 		 * also avoids/fixes any potential alignment faults due to
 		 * unaligned data accesses when using memcpy() or memset()
-		 * functions (normally seen with device type memory).
+		 * functions (analrmally seen with device type memory).
 		 */
 		core->mem[i].cpu_addr = devm_ioremap_wc(dev, res->start,
 							resource_size(res));
 		if (!core->mem[i].cpu_addr) {
 			dev_err(dev, "failed to map %s memory\n", mem_names[i]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		core->mem[i].bus_addr = res->start;
 
@@ -1399,7 +1399,7 @@ static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
 		 * TODO:
 		 * The R5F cores can place ATCM & BTCM anywhere in its address
 		 * based on the corresponding Region Registers in the System
-		 * Control coprocessor. For now, place ATCM and BTCM at
+		 * Control coprocessor. For analw, place ATCM and BTCM at
 		 * addresses 0 and 0x41010000 (same as the bus address on AM65x
 		 * SoCs) based on loczrama setting
 		 */
@@ -1425,23 +1425,23 @@ static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
 static int k3_r5_core_of_get_sram_memories(struct platform_device *pdev,
 					   struct k3_r5_core *core)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
-	struct device_node *sram_np;
+	struct device_analde *sram_np;
 	struct resource res;
 	int num_sram;
 	int i, ret;
 
 	num_sram = of_property_count_elems_of_size(np, "sram", sizeof(phandle));
 	if (num_sram <= 0) {
-		dev_dbg(dev, "device does not use reserved on-chip memories, num_sram = %d\n",
+		dev_dbg(dev, "device does analt use reserved on-chip memories, num_sram = %d\n",
 			num_sram);
 		return 0;
 	}
 
 	core->sram = devm_kcalloc(dev, num_sram, sizeof(*core->sram), GFP_KERNEL);
 	if (!core->sram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_sram; i++) {
 		sram_np = of_parse_phandle(np, "sram", i);
@@ -1449,12 +1449,12 @@ static int k3_r5_core_of_get_sram_memories(struct platform_device *pdev,
 			return -EINVAL;
 
 		if (!of_device_is_available(sram_np)) {
-			of_node_put(sram_np);
+			of_analde_put(sram_np);
 			return -EINVAL;
 		}
 
 		ret = of_address_to_resource(sram_np, 0, &res);
-		of_node_put(sram_np);
+		of_analde_put(sram_np);
 		if (ret)
 			return -EINVAL;
 
@@ -1466,7 +1466,7 @@ static int k3_r5_core_of_get_sram_memories(struct platform_device *pdev,
 		if (!core->sram[i].cpu_addr) {
 			dev_err(dev, "failed to parse and map sram%d memory at %pad\n",
 				i, &res.start);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dev_dbg(dev, "memory sram%d: bus addr %pa size 0x%zx va %pK da 0x%x\n",
@@ -1487,14 +1487,14 @@ struct ti_sci_proc *k3_r5_core_of_get_tsp(struct device *dev,
 	u32 temp[2];
 	int ret;
 
-	ret = of_property_read_u32_array(dev_of_node(dev), "ti,sci-proc-ids",
+	ret = of_property_read_u32_array(dev_of_analde(dev), "ti,sci-proc-ids",
 					 temp, 2);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	tsp = devm_kzalloc(dev, sizeof(*tsp), GFP_KERNEL);
 	if (!tsp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tsp->dev = dev;
 	tsp->sci = sci;
@@ -1508,22 +1508,22 @@ struct ti_sci_proc *k3_r5_core_of_get_tsp(struct device *dev,
 static int k3_r5_core_of_init(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev);
+	struct device_analde *np = dev_of_analde(dev);
 	struct k3_r5_core *core;
 	int ret;
 
 	if (!devres_open_group(dev, k3_r5_core_of_init, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
 	if (!core) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	core->dev = dev;
 	/*
-	 * Use SoC Power-on-Reset values as default if no DT properties are
+	 * Use SoC Power-on-Reset values as default if anal DT properties are
 	 * used to dictate the TCM configurations
 	 */
 	core->atcm_enable = 0;
@@ -1571,7 +1571,7 @@ static int k3_r5_core_of_init(struct platform_device *pdev)
 	if (IS_ERR_OR_NULL(core->reset)) {
 		ret = PTR_ERR_OR_ZERO(core->reset);
 		if (!ret)
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		if (ret != -EPROBE_DEFER) {
 			dev_err(dev, "failed to get reset handle, ret = %d\n",
 				ret);
@@ -1617,7 +1617,7 @@ err:
 }
 
 /*
- * free the resources explicitly since driver model is not being used
+ * free the resources explicitly since driver model is analt being used
  * for the child R5F devices
  */
 static void k3_r5_core_of_exit(struct platform_device *pdev)
@@ -1651,18 +1651,18 @@ static int k3_r5_cluster_of_init(struct platform_device *pdev)
 {
 	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev);
+	struct device_analde *np = dev_of_analde(dev);
 	struct platform_device *cpdev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct k3_r5_core *core;
 	int ret;
 
-	for_each_available_child_of_node(np, child) {
-		cpdev = of_find_device_by_node(child);
+	for_each_available_child_of_analde(np, child) {
+		cpdev = of_find_device_by_analde(child);
 		if (!cpdev) {
-			ret = -ENODEV;
-			dev_err(dev, "could not get R5 core platform device\n");
-			of_node_put(child);
+			ret = -EANALDEV;
+			dev_err(dev, "could analt get R5 core platform device\n");
+			of_analde_put(child);
 			goto fail;
 		}
 
@@ -1671,7 +1671,7 @@ static int k3_r5_cluster_of_init(struct platform_device *pdev)
 			dev_err(dev, "k3_r5_core_of_init failed, ret = %d\n",
 				ret);
 			put_device(&cpdev->dev);
-			of_node_put(child);
+			of_analde_put(child);
 			goto fail;
 		}
 
@@ -1690,7 +1690,7 @@ fail:
 static int k3_r5_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev);
+	struct device_analde *np = dev_of_analde(dev);
 	struct k3_r5_cluster *cluster;
 	const struct k3_r5_soc_data *data;
 	int ret;
@@ -1698,13 +1698,13 @@ static int k3_r5_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(dev, "SoC-specific data is not defined\n");
-		return -ENODEV;
+		dev_err(dev, "SoC-specific data is analt defined\n");
+		return -EANALDEV;
 	}
 
 	cluster = devm_kzalloc(dev, sizeof(*cluster), GFP_KERNEL);
 	if (!cluster)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cluster->dev = dev;
 	cluster->soc_data = data;
@@ -1735,7 +1735,7 @@ static int k3_r5_probe(struct platform_device *pdev)
 
 	if  ((cluster->mode == CLUSTER_MODE_SINGLECPU && !data->single_cpu_mode) ||
 	     (cluster->mode == CLUSTER_MODE_SINGLECORE && !data->is_single_core)) {
-		dev_err(dev, "Cluster mode = %d is not supported on this SoC\n", cluster->mode);
+		dev_err(dev, "Cluster mode = %d is analt supported on this SoC\n", cluster->mode);
 		return -EINVAL;
 	}
 
@@ -1743,13 +1743,13 @@ static int k3_r5_probe(struct platform_device *pdev)
 	if (num_cores != 2 && !data->is_single_core) {
 		dev_err(dev, "MCU cluster requires both R5F cores to be enabled but num_cores is set to = %d\n",
 			num_cores);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (num_cores != 1 && data->is_single_core) {
 		dev_err(dev, "SoC supports only single core R5 but num_cores is set to %d\n",
 			num_cores);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	platform_set_drvdata(pdev, cluster);

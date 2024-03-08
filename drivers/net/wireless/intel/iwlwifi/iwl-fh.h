@@ -35,7 +35,7 @@
  *
  * Driver loads FH_KW_MEM_ADDR_REG with the physical address (bits 35:4)
  * of the buffer, which must be 4K aligned.  Once this is set up, the device
- * automatically invokes keep-warm accesses when normal accesses might not
+ * automatically invokes keep-warm accesses when analrmal accesses might analt
  * be sufficient to maintain fast DRAM response.
  *
  * Bit fields:
@@ -50,7 +50,7 @@
  * Device has 16 base pointer registers, one for each of 16 host-DRAM-resident
  * circular buffers (CBs/queues) containing Transmit Frame Descriptors (TFDs)
  * (see struct iwl_tfd_frame).  These 16 pointer registers are offset by 0x04
- * bytes from one another.  Each TFD circular buffer in DRAM must be 256-byte
+ * bytes from one aanalther.  Each TFD circular buffer in DRAM must be 256-byte
  * aligned (address bits 0-7 must be 0).
  * Later devices have 20 (5000 series) or 30 (higher) queues, but the registers
  * for them are in different places.
@@ -98,7 +98,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * Bit 10:
  * When bit is set and transfer size is set to 128B, the TFH will enable
  * reading chunks of more than 64B only if the read address is aligned to 128B.
- * In case of DRAM read address which is not aligned to 128B, the TFH will
+ * In case of DRAM read address which is analt aligned to 128B, the TFH will
  * enable transfer size which doesn't cross 64B DRAM address boundary.
 */
 #define TFH_TRANSFER_MODE		(0x1F40)
@@ -108,7 +108,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 /*
  * Defines the offset address in dwords referring from the beginning of the
  * Tx CMD which will be updated in DRAM.
- * Note that the TFH offset address for Tx CMD update is always referring to
+ * Analte that the TFH offset address for Tx CMD update is always referring to
  * the start of the TFD first TB.
  * In case of a DRAM Tx CMD update the TFH will update PN and Key ID
  */
@@ -120,14 +120,14 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *
  * Bits 31:30: Enable the SRAM DMA channel.
  * Turning on bit 31 will kick the SRAM2DRAM DMA.
- * Note that the sram2dram may be enabled only after configuring the DRAM and
+ * Analte that the sram2dram may be enabled only after configuring the DRAM and
  * SRAM addresses registers and the byte count register.
  * Bits 25:24: Defines the interrupt target upon dram2sram transfer done. When
  * set to 1 - interrupt is sent to the driver
- * Bit 0: Indicates the snoop configuration
+ * Bit 0: Indicates the sanalop configuration
 */
 #define TFH_SRV_DMA_CHNL0_CTRL	(0x1F60)
-#define TFH_SRV_DMA_SNOOP	BIT(0)
+#define TFH_SRV_DMA_SANALOP	BIT(0)
 #define TFH_SRV_DMA_TO_DRIVER	BIT(24)
 #define TFH_SRV_DMA_START	BIT(31)
 
@@ -139,7 +139,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 
 /*
  * Defines the number of bytes to transfer from DRAM to SRAM.
- * Note that this register may be configured with non-dword aligned size.
+ * Analte that this register may be configured with analn-dword aligned size.
  */
 #define TFH_SRV_DMA_CHNL0_BC	(0x1F70)
 
@@ -147,7 +147,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * Rx SRAM Control and Status Registers (RSCSR)
  *
  * These registers provide handshake between driver and device for the Rx queue
- * (this queue handles *all* command responses, notifications, Rx data, etc.
+ * (this queue handles *all* command responses, analtifications, Rx data, etc.
  * sent from uCode to host driver).  Unlike Tx, there is only one Rx
  * queue, and only one Rx DMA/FIFO channel.  Also unlike Tx, which can
  * concatenate up to 20 DRAM buffers to form a Tx frame, each Receive Buffer
@@ -175,9 +175,9 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *     the RB's corresponding RBD within the circular buffer.  Driver sets
  *     physical address [35:4] into FH_RSCSR_CHNL0_STTS_WPTR_REG [31:0].
  *
- *     Bit fields in lower dword of Rx status buffer (upper dword not used
+ *     Bit fields in lower dword of Rx status buffer (upper dword analt used
  *     by driver:
- *     31-12:  Not used by driver
+ *     31-12:  Analt used by driver
  *     11- 0:  Index of last filled Rx buffer descriptor
  *             (device writes, driver reads this value)
  *
@@ -192,7 +192,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * RBs), should be 8 after preparing the first 8 RBs (for example), and must
  * wrap back to 0 at the end of the circular buffer (but don't wrap before
  * "read" index has advanced past 1!  See below).
- * NOTE:  DEVICE EXPECTS THE WRITE INDEX TO BE INCREMENTED IN MULTIPLES OF 8.
+ * ANALTE:  DEVICE EXPECTS THE WRITE INDEX TO BE INCREMENTED IN MULTIPLES OF 8.
  *
  * As the device fills RBs (referenced from contiguous RBDs within the circular
  * buffer), it updates the Rx status buffer in host DRAM, 2) described above,
@@ -201,15 +201,15 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *
  * The driver must also internally keep track of a third index, which is the
  * next RBD to process.  When receiving an Rx interrupt, driver should process
- * all filled but unprocessed RBs up to, but not including, the RB
+ * all filled but unprocessed RBs up to, but analt including, the RB
  * corresponding to the "read" index.  For example, if "read" index becomes "1",
  * driver may process the RB pointed to by RBD 0.  Depending on volume of
  * traffic, there may be many RBs to process.
  *
- * If read index == write index, device thinks there is no room to put new data.
+ * If read index == write index, device thinks there is anal room to put new data.
  * Due to this, the maximum number of filled RBs is 255, instead of 256.  To
  * be safe, make sure that there is a gap of at least 2 RBDs between "write"
- * and "read" indexes; that is, make sure that there are no more than 254
+ * and "read" indexes; that is, make sure that there are anal more than 254
  * buffers waiting to be filled.
  */
 #define FH_MEM_RSCSR_LOWER_BOUND	(FH_MEM_LOWER_BOUND + 0xBC0)
@@ -234,7 +234,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * Rx write pointer (index, really!).
  * Bit fields:
  *  11-0:  Index of driver's most recent prepared-to-be-filled RBD, + 1.
- *         NOTE:  For 256-entry circular buffer, use only bits [7:0].
+ *         ANALTE:  For 256-entry circular buffer, use only bits [7:0].
  */
 #define FH_RSCSR_CHNL0_RBDCB_WPTR_REG	(FH_MEM_RSCSR_CHNL0 + 0x008)
 #define FH_RSCSR_CHNL0_WPTR        (FH_RSCSR_CHNL0_RBDCB_WPTR_REG)
@@ -247,7 +247,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * Rx Config Reg for channel 0 (only channel used)
  *
  * Driver must initialize FH_MEM_RCSR_CHNL0_CONFIG_REG as follows for
- * normal operation (see bit fields).
+ * analrmal operation (see bit fields).
  *
  * Clearing FH_MEM_RCSR_CHNL0_CONFIG_REG to 0 turns off Rx DMA.
  * Driver should poll FH_MEM_RSSR_RX_STATUS_REG	for
@@ -255,15 +255,15 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *
  * Bit fields:
  * 31-30: Rx DMA channel enable: '00' off/pause, '01' pause at end of frame,
- *        '10' operate normally
+ *        '10' operate analrmally
  * 29-24: reserved
- * 23-20: # RBDs in circular buffer = 2^value; use "8" for 256 RBDs (normal),
+ * 23-20: # RBDs in circular buffer = 2^value; use "8" for 256 RBDs (analrmal),
  *        min "5" for 32 RBDs, max "12" for 4096 RBDs.
  * 19-18: reserved
- * 17-16: size of each receive buffer; '00' 4K (normal), '01' 8K,
+ * 17-16: size of each receive buffer; '00' 4K (analrmal), '01' 8K,
  *        '10' 12K, '11' 16K.
  * 15-14: reserved
- * 13-12: IRQ destination; '00' none, '01' host driver (normal operation)
+ * 13-12: IRQ destination; '00' analne, '01' host driver (analrmal operation)
  * 11- 4: timeout for closing Rx buffer and interrupting host (units 32 usec)
  *        typical value 0x10 (about 1/2 msec)
  *  3- 0: reserved
@@ -296,8 +296,8 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_12K   (0x00020000)
 #define FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_16K   (0x00030000)
 
-#define FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY              (0x00000004)
-#define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL    (0x00000000)
+#define FH_RCSR_CHNL0_RX_IGANALRE_RXF_EMPTY              (0x00000004)
+#define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_ANAL_INT_VAL    (0x00000000)
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL  (0x00001000)
 
 /**
@@ -311,7 +311,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *  24:  1 = Channel 0 is idle
  *
  * FH_MEM_RSSR_SHARED_CTRL_REG and FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV
- * contain default values that should not be altered by the driver.
+ * contain default values that should analt be altered by the driver.
  */
 #define FH_MEM_RSSR_LOWER_BOUND           (FH_MEM_LOWER_BOUND + 0xC40)
 #define FH_MEM_RSSR_UPPER_BOUND           (FH_MEM_LOWER_BOUND + 0xD00)
@@ -362,18 +362,18 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * Bit fields:
  *
  * Bit 29: RBD_FETCH_IDLE
- * This status flag is set by the RFH when there is no active RBD fetch from
+ * This status flag is set by the RFH when there is anal active RBD fetch from
  * DRAM.
  * Once the RFH RBD controller starts fetching (or when there is a pending
  * RBD read response from DRAM), this flag is immediately turned off.
  *
  * Bit 30: SRAM_DMA_IDLE
- * This status flag is set by the RFH when there is no active transaction from
+ * This status flag is set by the RFH when there is anal active transaction from
  * SRAM to DRAM.
  * Once the SRAM to DRAM DMA is active, this flag is immediately turned off.
  *
  * Bit 31: RXF_DMA_IDLE
- * This status flag is set by the RFH when there is no active transaction from
+ * This status flag is set by the RFH when there is anal active transaction from
  * RXF to DRAM.
  * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
  */
@@ -422,8 +422,8 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define RFH_RXF_RXQ_ACTIVE 0xA0980C
 
 #define RFH_GEN_CFG	0xA09800
-#define RFH_GEN_CFG_SERVICE_DMA_SNOOP	BIT(0)
-#define RFH_GEN_CFG_RFH_DMA_SNOOP	BIT(1)
+#define RFH_GEN_CFG_SERVICE_DMA_SANALOP	BIT(0)
+#define RFH_GEN_CFG_RFH_DMA_SANALOP	BIT(1)
 #define RFH_GEN_CFG_RB_CHUNK_SIZE	BIT(4)
 #define RFH_GEN_CFG_RB_CHUNK_SIZE_128	1
 #define RFH_GEN_CFG_RB_CHUNK_SIZE_64	0
@@ -457,9 +457,9 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *
  * Bit fields:
  * 31-30: Tx DMA channel enable: '00' off/pause, '01' pause at end of frame,
- *        '10' operate normally
+ *        '10' operate analrmally
  * 29- 4: Reserved, set to "0"
- *     3: Enable internal DMA requests (1, normal operation), disable (0)
+ *     3: Enable internal DMA requests (1, analrmal operation), disable (0)
  *  2- 0: Reserved, set to "0"
  */
 #define FH_TCSR_LOWER_BOUND  (FH_MEM_LOWER_BOUND + 0xD00)
@@ -482,11 +482,11 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	(0x00000000)
 #define FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE	(0x00000008)
 
-#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_NOINT	(0x00000000)
+#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ANALINT	(0x00000000)
 #define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD	(0x00100000)
 #define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD	(0x00200000)
 
-#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_NOINT	(0x00000000)
+#define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_ANALINT	(0x00000000)
 #define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_ENDTFD	(0x00400000)
 #define FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_IFTFD	(0x00800000)
 
@@ -507,11 +507,11 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * After stopping Tx DMA channel (writing 0 to
  * FH_TCSR_CHNL_TX_CONFIG_REG(chnl)), driver must poll
  * FH_TSSR_TX_STATUS_REG until selected Tx channel is idle
- * (channel's buffers empty | no pending requests).
+ * (channel's buffers empty | anal pending requests).
  *
  * Bit fields:
  * 31-24:  1 = Channel buffers empty (channel 7:0)
- * 23-16:  1 = No pending requests (channel 7:0)
+ * 23-16:  1 = Anal pending requests (channel 7:0)
  */
 #define FH_TSSR_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xEA0)
 #define FH_TSSR_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xEC0)
@@ -522,7 +522,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * Bit fields for TSSR(Tx Shared Status & Control) error status register:
  * 31:  Indicates an address error when accessed to internal memory
  *	uCode/driver must write "1" in order to clear this flag
- * 30:  Indicates that Host did not send the expected number of dwords to FH
+ * 30:  Indicates that Host did analt send the expected number of dwords to FH
  *	uCode/driver must write "1" in order to clear this flag
  * 16-9:Each status bit is for one channel. Indicates that an (Error) ActDMA
  *	command was received from the scheduler while the TRB was already full
@@ -531,7 +531,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * 7-0: Each status bit indicates a channel's TxCredit error. When an error
  *	bit is set, it indicates that the FH has received a full indication
  *	from the RTC TxFIFO and the current value of the TxCredit counter was
- *	not equal to zero. This mean that the credit mechanism was not
+ *	analt equal to zero. This mean that the credit mechanism was analt
  *	synchronized to the TxFIFO status
  *	uCode/driver must write "1" in order to clear this flag
  */
@@ -608,7 +608,7 @@ struct iwl_rb_status {
 
 /* RFH S2D DMA registers */
 #define IMR_RFH_GEN_CFG_SERVICE_DMA_RS_MSK	0x0000000c
-#define IMR_RFH_GEN_CFG_SERVICE_DMA_SNOOP_MSK	0x00000002
+#define IMR_RFH_GEN_CFG_SERVICE_DMA_SANALOP_MSK	0x00000002
 
 /* TFH D2S DMA registers */
 #define IMR_UREG_CHICK_HALT_UMAC_PERMANENTLY_MSK	0x80000000
@@ -676,7 +676,7 @@ struct iwl_tfh_tb {
  * of (4K - 4).  The concatenates all of a TFD's buffers into a single
  * Tx frame, up to 8 KBytes in size.
  *
- * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
+ * A maximum of 255 (analt 256!) TFDs may be on a queue waiting for Tx.
  */
 
 /**
@@ -685,7 +685,7 @@ struct iwl_tfh_tb {
  * @num_tbs:
  *  0-4 number of active tbs
  *  5   reserved
- *  6-7 padding (not used)
+ *  6-7 padding (analt used)
  * @tbs: transmit frame buffer descriptors
  * @__pad: padding
  */
@@ -712,7 +712,7 @@ struct iwl_tfh_tfd {
 /* Keep Warm Size */
 #define IWL_KW_SIZE 0x1000	/* 4k */
 
-/* Fixed (non-configurable) rx data from phy */
+/* Fixed (analn-configurable) rx data from phy */
 
 /**
  * struct iwlagn_schedq_bc_tbl scheduler byte count table

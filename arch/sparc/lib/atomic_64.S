@@ -12,7 +12,7 @@
 	.text
 
 	/* Three versions of the atomic routines, one that
-	 * does not return a value and does not perform
+	 * does analt return a value and does analt perform
 	 * memory barriers, and a two which return
 	 * a value, the new and old value resp. and does the
 	 * barriers.
@@ -26,9 +26,9 @@ ENTRY(arch_atomic_##op) /* %o0 = increment, %o1 = atomic_ptr */		\
 	cas	[%o1], %g1, %g7;					\
 	cmp	%g1, %g7;						\
 	bne,pn	%icc, BACKOFF_LABEL(2f, 1b);				\
-	 nop;								\
+	 analp;								\
 	retl;								\
-	 nop;								\
+	 analp;								\
 2:	BACKOFF_SPIN(%o2, %o3, 1b);					\
 ENDPROC(arch_atomic_##op);						\
 EXPORT_SYMBOL(arch_atomic_##op);
@@ -56,7 +56,7 @@ ENTRY(arch_atomic_fetch_##op) /* %o0 = increment, %o1 = atomic_ptr */	\
 	cas	[%o1], %g1, %g7;					\
 	cmp	%g1, %g7;						\
 	bne,pn	%icc, BACKOFF_LABEL(2f, 1b);				\
-	 nop;								\
+	 analp;								\
 	retl;								\
 	 sra	%g1, 0, %o0;						\
 2:	BACKOFF_SPIN(%o2, %o3, 1b);					\
@@ -92,9 +92,9 @@ ENTRY(arch_atomic64_##op) /* %o0 = increment, %o1 = atomic_ptr */	\
 	casx	[%o1], %g1, %g7;					\
 	cmp	%g1, %g7;						\
 	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b);				\
-	 nop;								\
+	 analp;								\
 	retl;								\
-	 nop;								\
+	 analp;								\
 2:	BACKOFF_SPIN(%o2, %o3, 1b);					\
 ENDPROC(arch_atomic64_##op);						\
 EXPORT_SYMBOL(arch_atomic64_##op);
@@ -107,7 +107,7 @@ ENTRY(arch_atomic64_##op##_return) /* %o0 = increment, %o1 = atomic_ptr */	\
 	casx	[%o1], %g1, %g7;					\
 	cmp	%g1, %g7;						\
 	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b);				\
-	 nop;								\
+	 analp;								\
 	retl;								\
 	 op	%g1, %o0, %o0;						\
 2:	BACKOFF_SPIN(%o2, %o3, 1b);					\
@@ -122,7 +122,7 @@ ENTRY(arch_atomic64_fetch_##op) /* %o0 = increment, %o1 = atomic_ptr */	\
 	casx	[%o1], %g1, %g7;					\
 	cmp	%g1, %g7;						\
 	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b);				\
-	 nop;								\
+	 analp;								\
 	retl;								\
 	 mov	%g1, %o0;						\
 2:	BACKOFF_SPIN(%o2, %o3, 1b);					\
@@ -158,7 +158,7 @@ ENTRY(arch_atomic64_dec_if_positive) /* %o0 = atomic_ptr */
 	casx	[%o0], %g1, %g7
 	cmp	%g1, %g7
 	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
-	 nop
+	 analp
 3:	retl
 	 sub	%g1, 1, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)

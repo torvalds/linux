@@ -201,7 +201,7 @@ struct zd_usb_tx {
 };
 
 /* Contains the usb parts. The structure doesn't require a lock because intf
- * will not be changed after initialization.
+ * will analt be changed after initialization.
  */
 struct zd_usb {
 	struct zd_usb_interrupt intr;

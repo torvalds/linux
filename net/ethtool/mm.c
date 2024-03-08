@@ -37,7 +37,7 @@ static int mm_prepare_data(const struct ethnl_req_info *req_base,
 	ops = dev->ethtool_ops;
 
 	if (!ops->get_mm)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ethtool_stats_init((u64 *)&data->stats,
 			   sizeof(data->stats) / sizeof(u64));
@@ -83,7 +83,7 @@ static int mm_reply_size(const struct ethnl_req_info *req_base,
 
 static int mm_put_stat(struct sk_buff *skb, u64 val, u16 attrtype)
 {
-	if (val == ETHTOOL_STAT_NOT_SET)
+	if (val == ETHTOOL_STAT_ANALT_SET)
 		return 0;
 	if (nla_put_u64_64bit(skb, attrtype, val, ETHTOOL_A_MM_STAT_PAD))
 		return -EMSGSIZE;
@@ -177,7 +177,7 @@ ethnl_set_mm_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
 
-	return ops->get_mm && ops->set_mm ? 1 : -EOPNOTSUPP;
+	return ops->get_mm && ops->set_mm ? 1 : -EOPANALTSUPP;
 }
 
 static int ethnl_set_mm(struct ethnl_req_info *req_info, struct genl_info *info)
@@ -252,7 +252,7 @@ bool __ethtool_dev_mm_supported(struct net_device *dev)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct ethtool_mm_state state = {};
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (ops && ops->get_mm)
 		ret = ops->get_mm(dev, &state);

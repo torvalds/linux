@@ -105,7 +105,7 @@ static const char * const dmic_mux_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(mt8186_dmic_enum,
-			    SND_SOC_NOPM, 0, dmic_mux_text);
+			    SND_SOC_ANALPM, 0, dmic_mux_text);
 
 static const struct snd_kcontrol_new mt8186_dmic_mux_control =
 	SOC_DAPM_ENUM_EXT("DMIC Select Mux", mt8186_dmic_enum,
@@ -113,7 +113,7 @@ static const struct snd_kcontrol_new mt8186_dmic_mux_control =
 
 static const struct snd_soc_dapm_widget dmic_widgets[] = {
 	SND_SOC_DAPM_MIC("DMIC", NULL),
-	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_NOPM, 0, 0, &mt8186_dmic_mux_control),
+	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_ANALPM, 0, 0, &mt8186_dmic_mux_control),
 };
 
 static const struct snd_soc_dapm_route dmic_map[] = {
@@ -803,7 +803,7 @@ static struct snd_soc_dai_link mt8186_mt6366_rt1019_rt5682s_dai_links[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_lpbk),
 	},
 	{
@@ -814,7 +814,7 @@ static struct snd_soc_dai_link mt8186_mt6366_rt1019_rt5682s_dai_links[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_fm),
 	},
 	{
@@ -825,7 +825,7 @@ static struct snd_soc_dai_link mt8186_mt6366_rt1019_rt5682s_dai_links[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_src1),
 	},
 	{
@@ -836,7 +836,7 @@ static struct snd_soc_dai_link mt8186_mt6366_rt1019_rt5682s_dai_links[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_src_bargein),
 	},
 	{
@@ -846,7 +846,7 @@ static struct snd_soc_dai_link mt8186_mt6366_rt1019_rt5682s_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_PRE},
 		.dynamic = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_hw_gain_aaudio),
 	},
 	{
@@ -857,45 +857,45 @@ static struct snd_soc_dai_link mt8186_mt6366_rt1019_rt5682s_dai_links[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_src_aaudio),
 	},
 	/* Back End DAI links */
 	{
 		.name = "Primary Codec",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.init = primary_codec_init,
 		SND_SOC_DAILINK_REG(adda),
 	},
 	{
 		.name = "I2S3",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			   SND_SOC_DAIFMT_IB_IF |
 			   SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.init = mt8186_mt6366_rt1019_rt5682s_hdmi_init,
 		.be_hw_params_fixup = mt8186_it6505_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s3),
 	},
 	{
 		.name = "I2S0",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8186_i2s_hw_params_fixup,
 		.ops = &mt8186_rt5682s_i2s_ops,
 		SND_SOC_DAILINK_REG(i2s0),
 	},
 	{
 		.name = "I2S1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8186_i2s_hw_params_fixup,
 		.init = mt8186_rt5682s_init,
 		.ops = &mt8186_rt5682s_i2s_ops,
@@ -903,126 +903,126 @@ static struct snd_soc_dai_link mt8186_mt6366_rt1019_rt5682s_dai_links[] = {
 	},
 	{
 		.name = "I2S2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8186_i2s_hw_params_fixup,
 		SND_SOC_DAILINK_REG(i2s2),
 	},
 	{
 		.name = "HW Gain 1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hw_gain1),
 	},
 	{
 		.name = "HW Gain 2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hw_gain2),
 	},
 	{
 		.name = "HW_SRC_1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hw_src1),
 	},
 	{
 		.name = "HW_SRC_2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hw_src2),
 	},
 	{
 		.name = "CONNSYS_I2S",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(connsys_i2s),
 	},
 	{
 		.name = "PCM 1",
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			   SND_SOC_DAIFMT_NB_IF,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm1),
 	},
 	{
 		.name = "TDM IN",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(tdm_in),
 	},
 	/* dummy BE for ul memif to record from dl memif */
 	{
 		.name = "Hostless_UL1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_ul1),
 	},
 	{
 		.name = "Hostless_UL2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_ul2),
 	},
 	{
 		.name = "Hostless_UL3",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_ul3),
 	},
 	{
 		.name = "Hostless_UL5",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_ul5),
 	},
 	{
 		.name = "Hostless_UL6",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_ul6),
 	},
 	/* SOF BE */
 	{
 		.name = "AFE_SOF_DL1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		SND_SOC_DAILINK_REG(AFE_SOF_DL1),
 	},
 	{
 		.name = "AFE_SOF_DL2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		SND_SOC_DAILINK_REG(AFE_SOF_DL2),
 	},
 	{
 		.name = "AFE_SOF_UL1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(AFE_SOF_UL1),
 	},
 	{
 		.name = "AFE_SOF_UL2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(AFE_SOF_UL2),
 	},
@@ -1034,10 +1034,10 @@ mt8186_mt6366_rt1019_rt5682s_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_OUTPUT("HDMI1"),
-	SND_SOC_DAPM_MIXER(SOF_DMA_DL1, SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER(SOF_DMA_DL2, SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER(SOF_DMA_UL1, SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER(SOF_DMA_UL2, SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER(SOF_DMA_DL1, SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER(SOF_DMA_DL2, SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER(SOF_DMA_UL1, SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER(SOF_DMA_UL2, SND_SOC_ANALPM, 0, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route
@@ -1140,7 +1140,7 @@ static int mt8186_mt6366_rt1019_rt5682s_dev_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link *dai_link;
 	struct mtk_soc_card_data *soc_card_data;
 	struct mt8186_mt6366_rt1019_rt5682s_priv *mach_priv;
-	struct device_node *platform_node, *headset_codec, *playback_codec, *adsp_node;
+	struct device_analde *platform_analde, *headset_codec, *playback_codec, *adsp_analde;
 	int sof_on = 0;
 	int ret, i;
 
@@ -1151,10 +1151,10 @@ static int mt8186_mt6366_rt1019_rt5682s_dev_probe(struct platform_device *pdev)
 
 	soc_card_data = devm_kzalloc(&pdev->dev, sizeof(*soc_card_data), GFP_KERNEL);
 	if (!soc_card_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	mach_priv = devm_kzalloc(&pdev->dev, sizeof(*mach_priv), GFP_KERNEL);
 	if (!mach_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_card_data->mach_priv = mach_priv;
 
@@ -1166,14 +1166,14 @@ static int mt8186_mt6366_rt1019_rt5682s_dev_probe(struct platform_device *pdev)
 		return PTR_ERR(mach_priv->dmic_sel);
 	}
 
-	adsp_node = of_parse_phandle(pdev->dev.of_node, "mediatek,adsp", 0);
-	if (adsp_node) {
+	adsp_analde = of_parse_phandle(pdev->dev.of_analde, "mediatek,adsp", 0);
+	if (adsp_analde) {
 		struct mtk_sof_priv *sof_priv;
 
 		sof_priv = devm_kzalloc(&pdev->dev, sizeof(*sof_priv), GFP_KERNEL);
 		if (!sof_priv) {
-			ret = -ENOMEM;
-			goto err_adsp_node;
+			ret = -EANALMEM;
+			goto err_adsp_analde;
 		}
 		sof_priv->conn_streams = g_sof_conn_streams;
 		sof_priv->num_streams = ARRAY_SIZE(g_sof_conn_streams);
@@ -1191,14 +1191,14 @@ static int mt8186_mt6366_rt1019_rt5682s_dev_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Probe without adsp\n");
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node, "mediatek,dai-link")) {
-		ret = mtk_sof_dailink_parse_of(card, pdev->dev.of_node,
+	if (of_property_read_bool(pdev->dev.of_analde, "mediatek,dai-link")) {
+		ret = mtk_sof_dailink_parse_of(card, pdev->dev.of_analde,
 					       "mediatek,dai-link",
 					       mt8186_mt6366_rt1019_rt5682s_dai_links,
 					       ARRAY_SIZE(mt8186_mt6366_rt1019_rt5682s_dai_links));
 		if (ret) {
 			dev_dbg(&pdev->dev, "Parse dai-link fail\n");
-			goto err_adsp_node;
+			goto err_adsp_analde;
 		}
 	} else {
 		if (!sof_on)
@@ -1206,21 +1206,21 @@ static int mt8186_mt6366_rt1019_rt5682s_dev_probe(struct platform_device *pdev)
 					- ARRAY_SIZE(g_sof_conn_streams);
 	}
 
-	platform_node = of_parse_phandle(pdev->dev.of_node, "mediatek,platform", 0);
-	if (!platform_node) {
+	platform_analde = of_parse_phandle(pdev->dev.of_analde, "mediatek,platform", 0);
+	if (!platform_analde) {
 		ret = -EINVAL;
 		dev_err_probe(&pdev->dev, ret, "Property 'platform' missing or invalid\n");
-		goto err_platform_node;
+		goto err_platform_analde;
 	}
 
-	playback_codec = of_get_child_by_name(pdev->dev.of_node, "playback-codecs");
+	playback_codec = of_get_child_by_name(pdev->dev.of_analde, "playback-codecs");
 	if (!playback_codec) {
 		ret = -EINVAL;
 		dev_err_probe(&pdev->dev, ret, "Property 'playback-codecs' missing or invalid\n");
 		goto err_playback_codec;
 	}
 
-	headset_codec = of_get_child_by_name(pdev->dev.of_node, "headset-codec");
+	headset_codec = of_get_child_by_name(pdev->dev.of_analde, "headset-codec");
 	if (!headset_codec) {
 		ret = -EINVAL;
 		dev_err_probe(&pdev->dev, ret, "Property 'headset-codec' missing or invalid\n");
@@ -1250,10 +1250,10 @@ static int mt8186_mt6366_rt1019_rt5682s_dev_probe(struct platform_device *pdev)
 		}
 
 		if (!strncmp(dai_link->name, "AFE_SOF", strlen("AFE_SOF")) && sof_on)
-			dai_link->platforms->of_node = adsp_node;
+			dai_link->platforms->of_analde = adsp_analde;
 
-		if (!dai_link->platforms->name && !dai_link->platforms->of_node)
-			dai_link->platforms->of_node = platform_node;
+		if (!dai_link->platforms->name && !dai_link->platforms->of_analde)
+			dai_link->platforms->of_analde = platform_analde;
 	}
 
 	snd_soc_card_set_drvdata(card, soc_card_data);
@@ -1269,14 +1269,14 @@ static int mt8186_mt6366_rt1019_rt5682s_dev_probe(struct platform_device *pdev)
 		dev_err_probe(&pdev->dev, ret, "%s snd_soc_register_card fail\n", __func__);
 
 err_probe:
-	of_node_put(headset_codec);
+	of_analde_put(headset_codec);
 err_headset_codec:
-	of_node_put(playback_codec);
+	of_analde_put(playback_codec);
 err_playback_codec:
-	of_node_put(platform_node);
-err_platform_node:
-err_adsp_node:
-	of_node_put(adsp_node);
+	of_analde_put(platform_analde);
+err_platform_analde:
+err_adsp_analde:
+	of_analde_put(adsp_analde);
 
 	return ret;
 }

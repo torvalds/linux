@@ -37,7 +37,7 @@
 /*
  * SLPC exposes certain parameters for global configuration by the host.
  * These are referred to as override parameters, because in most cases
- * the host will not need to modify the default values used by SLPC.
+ * the host will analt need to modify the default values used by SLPC.
  * SLPC remembers the default values which allows the host to easily restore
  * them by simply unsetting the override. The host can set or unset override
  * parameters during SLPC (re-)initialization using the SLPC Reset event.
@@ -77,11 +77,11 @@ enum slpc_task_enable {
 	SLPC_PARAM_TASK_DEFAULT = 0,
 	SLPC_PARAM_TASK_ENABLED,
 	SLPC_PARAM_TASK_DISABLED,
-	SLPC_PARAM_TASK_UNKNOWN
+	SLPC_PARAM_TASK_UNKANALWN
 };
 
 enum slpc_global_state {
-	SLPC_GLOBAL_STATE_NOT_RUNNING = 0,
+	SLPC_GLOBAL_STATE_ANALT_RUNNING = 0,
 	SLPC_GLOBAL_STATE_INITIALIZING = 1,
 	SLPC_GLOBAL_STATE_RESETTING = 2,
 	SLPC_GLOBAL_STATE_RUNNING = 3,
@@ -109,7 +109,7 @@ enum slpc_param_id {
 	SLPC_PARAM_GLOBAL_ENABLE_IA_GT_BALANCING = 16,
 	SLPC_PARAM_GLOBAL_ENABLE_ADAPTIVE_BURST_TURBO = 17,
 	SLPC_PARAM_GLOBAL_ENABLE_EVAL_MODE = 18,
-	SLPC_PARAM_GLOBAL_ENABLE_BALANCER_IN_NON_GAMING_MODE = 19,
+	SLPC_PARAM_GLOBAL_ENABLE_BALANCER_IN_ANALN_GAMING_MODE = 19,
 	SLPC_PARAM_GLOBAL_RT_MODE_TURBO_FREQ_DELTA_MHZ = 20,
 	SLPC_PARAM_PWRGATE_RC_MODE = 21,
 	SLPC_PARAM_EDR_MODE_COMPUTE_TIMEOUT_MS = 22,
@@ -118,7 +118,7 @@ enum slpc_param_id {
 	SLPC_PARAM_ENABLE_IA_FREQ_LIMITING = 25,
 	SLPC_PARAM_STRATEGIES = 26,
 	SLPC_PARAM_POWER_PROFILE = 27,
-	SLPC_PARAM_IGNORE_EFFICIENT_FREQUENCY = 28,
+	SLPC_PARAM_IGANALRE_EFFICIENT_FREQUENCY = 28,
 	SLPC_MAX_PARAM = 32,
 };
 
@@ -130,7 +130,7 @@ enum slpc_media_ratio_mode {
 
 enum slpc_gucrc_mode {
 	SLPC_GUCRC_MODE_HW = 0,
-	SLPC_GUCRC_MODE_GUCRC_NO_RC6 = 1,
+	SLPC_GUCRC_MODE_GUCRC_ANAL_RC6 = 1,
 	SLPC_GUCRC_MODE_GUCRC_STATIC_TIMEOUT = 2,
 	SLPC_GUCRC_MODE_GUCRC_DYNAMIC_HYSTERESIS = 3,
 

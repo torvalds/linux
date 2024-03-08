@@ -17,14 +17,14 @@ define feature_set_code
 endef
 
 #
-# Build the feature check binaries in parallel, ignore errors, ignore return value and suppress output:
+# Build the feature check binaries in parallel, iganalre errors, iganalre return value and suppress output:
 #
 
 #
-# Note that this is not a complete list of all feature tests, just
+# Analte that this is analt a complete list of all feature tests, just
 # those that are typically built on a fully configured system.
 #
-# [ Feature tests not mentioned here have to be built explicitly in
+# [ Feature tests analt mentioned here have to be built explicitly in
 #   the rule that uses them - an example for that is the 'bionic'
 #   feature check. ]
 #
@@ -43,7 +43,7 @@ FEATURE_TESTS_BASIC :=                  \
         libcap                          \
         libelf                          \
         libelf-getphdrnum               \
-        libelf-gelf_getnote             \
+        libelf-gelf_getanalte             \
         libelf-getshdrstrndx            \
         libnuma                         \
         numa_num_possible_cpus          \
@@ -148,7 +148,7 @@ FEATURE_DISPLAY ?=              \
 FEATURE_GROUP_MEMBERS-libbfd = libbfd-liberty libbfd-liberty-z
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
-# If in the future we need per-feature checks/flags for features not
+# If in the future we need per-feature checks/flags for features analt
 # mentioned in this list we need to refactor this ;-).
 set_test_all_flags = $(eval $(set_test_all_flags_code))
 define set_test_all_flags_code
@@ -173,7 +173,7 @@ ifeq ($(feature-all), 1)
   #
   $(foreach feat,$(FEATURE_TESTS),$(call feature_set,$(feat)))
   #
-  # test-all.c does not comprise these tests, so we need to
+  # test-all.c does analt comprise these tests, so we need to
   # for this case to get features proper values
   #
   $(call feature_check,compile-32)
@@ -233,7 +233,7 @@ endef
 $(foreach feat,$(FEATURE_DISPLAY),$(call feature_dump_check,$(call feature_assign,$(feat)),feature_display))
 
 #
-# Now also check if any other test changed,
+# Analw also check if any other test changed,
 # so we force FEATURE-DUMP generation
 $(foreach feat,$(FEATURE_TESTS),$(call feature_dump_check,$(call feature_assign,$(feat)),feature_dump_changed))
 
@@ -241,7 +241,7 @@ $(foreach feat,$(FEATURE_TESTS),$(call feature_dump_check,$(call feature_assign,
 # output. It's set if:
 # - detected features differes from stored features from
 #   last build (in $(FEATURE_DUMP_FILENAME) file)
-# - one of the $(FEATURE_DISPLAY) is not detected
+# - one of the $(FEATURE_DISPLAY) is analt detected
 # - VF is enabled
 
 ifeq ($(feature_dump_changed),1)

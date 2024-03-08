@@ -17,7 +17,7 @@ int ww_mutex_trylock(struct ww_mutex *lock, struct ww_acquire_ctx *ww_ctx)
 		return rt_mutex_trylock(rtm);
 
 	/*
-	 * Reset the wounded flag after a kill. No other process can
+	 * Reset the wounded flag after a kill. Anal other process can
 	 * race and wound us here, since they can't have a valid owner
 	 * pointer if we don't have any locks held.
 	 */
@@ -49,7 +49,7 @@ __ww_rt_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ww_ctx,
 			return -EALREADY;
 
 		/*
-		 * Reset the wounded flag after a kill. No other process can
+		 * Reset the wounded flag after a kill. Anal other process can
 		 * race and wound us here, since they can't have a valid owner
 		 * pointer if we don't have any locks held.
 		 */

@@ -43,7 +43,7 @@ acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info)
 
 	gpe_register_info = gpe_event_info->register_info;
 	if (!gpe_register_info) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
@@ -92,7 +92,7 @@ acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
  * FUNCTION:    acpi_ev_mask_gpe
  *
  * PARAMETERS:  gpe_event_info          - GPE to be blocked/unblocked
- *              is_masked               - Whether the GPE is masked or not
+ *              is_masked               - Whether the GPE is masked or analt
  *
  * RETURN:      Status
  *
@@ -110,7 +110,7 @@ acpi_ev_mask_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 is_masked)
 
 	gpe_register_info = gpe_event_info->register_info;
 	if (!gpe_register_info) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
@@ -240,8 +240,8 @@ acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
  * PARAMETERS:  gpe_number          - Raw GPE number
  *              gpe_block           - A GPE info block
  *
- * RETURN:      A GPE event_info struct. NULL if not a valid GPE (The gpe_number
- *              is not within the specified GPE block)
+ * RETURN:      A GPE event_info struct. NULL if analt a valid GPE (The gpe_number
+ *              is analt within the specified GPE block)
  *
  * DESCRIPTION: Returns the event_info struct associated with this GPE. This is
  *              the low-level implementation of ev_get_gpe_event_info.
@@ -275,16 +275,16 @@ struct acpi_gpe_event_info *acpi_ev_low_get_gpe_info(u32 gpe_number,
  *
  * FUNCTION:    acpi_ev_get_gpe_event_info
  *
- * PARAMETERS:  gpe_device          - Device node. NULL for GPE0/GPE1
+ * PARAMETERS:  gpe_device          - Device analde. NULL for GPE0/GPE1
  *              gpe_number          - Raw GPE number
  *
- * RETURN:      A GPE event_info struct. NULL if not a valid GPE
+ * RETURN:      A GPE event_info struct. NULL if analt a valid GPE
  *
  * DESCRIPTION: Returns the event_info struct associated with this GPE.
  *              Validates the gpe_block and the gpe_number
  *
  *              Should be called only when the GPE lists are semaphore locked
- *              and not subject to change.
+ *              and analt subject to change.
  *
  ******************************************************************************/
 
@@ -312,15 +312,15 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 			}
 		}
 
-		/* The gpe_number was not in the range of either FADT GPE block */
+		/* The gpe_number was analt in the range of either FADT GPE block */
 
 		return (NULL);
 	}
 
-	/* A Non-NULL gpe_device means this is a GPE Block Device */
+	/* A Analn-NULL gpe_device means this is a GPE Block Device */
 
 	obj_desc =
-	    acpi_ns_get_attached_object((struct acpi_namespace_node *)
+	    acpi_ns_get_attached_object((struct acpi_namespace_analde *)
 					       gpe_device);
 	if (!obj_desc || !obj_desc->device.gpe_block) {
 		return (NULL);
@@ -337,7 +337,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
  * PARAMETERS:  gpe_xrupt_list      - Interrupt block for this interrupt.
  *                                    Can have multiple GPE blocks attached.
  *
- * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
+ * RETURN:      INTERRUPT_HANDLED or INTERRUPT_ANALT_HANDLED
  *
  * DESCRIPTION: Detect if any GP events have occurred. This function is
  *              executed at interrupt level.
@@ -347,18 +347,18 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 {
 	struct acpi_gpe_block_info *gpe_block;
-	struct acpi_namespace_node *gpe_device;
+	struct acpi_namespace_analde *gpe_device;
 	struct acpi_gpe_register_info *gpe_register_info;
 	struct acpi_gpe_event_info *gpe_event_info;
 	u32 gpe_number;
-	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
+	u32 int_status = ACPI_INTERRUPT_ANALT_HANDLED;
 	acpi_cpu_flags flags;
 	u32 i;
 	u32 j;
 
 	ACPI_FUNCTION_NAME(ev_gpe_detect);
 
-	/* Check for the case where there are no GPEs */
+	/* Check for the case where there are anal GPEs */
 
 	if (!gpe_xrupt_list) {
 		return (int_status);
@@ -366,7 +366,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 
 	/*
 	 * We need to obtain the GPE lock for both the data structs and registers
-	 * Note: Not necessary to obtain the hardware lock, since the GPE
+	 * Analte: Analt necessary to obtain the hardware lock, since the GPE
 	 * registers are owned by the gpe_lock.
 	 */
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
@@ -375,7 +375,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 
 	gpe_block = gpe_xrupt_list->gpe_block_list_head;
 	while (gpe_block) {
-		gpe_device = gpe_block->node;
+		gpe_device = gpe_block->analde;
 
 		/*
 		 * Read all of the 8-bit GPE status and enable registers in this GPE
@@ -388,13 +388,13 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 			gpe_register_info = &gpe_block->register_info[i];
 
 			/*
-			 * Optimization: If there are no GPEs enabled within this
-			 * register, we can safely ignore the entire register.
+			 * Optimization: If there are anal GPEs enabled within this
+			 * register, we can safely iganalre the entire register.
 			 */
 			if (!(gpe_register_info->enable_for_run |
 			      gpe_register_info->enable_for_wake)) {
 				ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
-						  "Ignore disabled registers for GPE %02X-%02X: "
+						  "Iganalre disabled registers for GPE %02X-%02X: "
 						  "RunEnable=%02X, WakeEnable=%02X\n",
 						  gpe_register_info->
 						  base_gpe_number,
@@ -408,7 +408,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 				continue;
 			}
 
-			/* Now look at the individual GPEs in this byte register */
+			/* Analw look at the individual GPEs in this byte register */
 
 			for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
 
@@ -442,12 +442,12 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
  *
  * PARAMETERS:  Context (gpe_event_info) - Info for this GPE
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Perform the actual execution of a GPE control method. This
  *              function is called from an invocation of acpi_os_execute and
- *              therefore does NOT execute at interrupt level - so that
- *              the control method itself is not executed in the context of
+ *              therefore does ANALT execute at interrupt level - so that
+ *              the control method itself is analt executed in the context of
  *              an interrupt handler.
  *
  ******************************************************************************/
@@ -457,32 +457,32 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	struct acpi_gpe_event_info *gpe_event_info = context;
 	acpi_status status = AE_OK;
 	struct acpi_evaluate_info *info;
-	struct acpi_gpe_notify_info *notify;
+	struct acpi_gpe_analtify_info *analtify;
 
 	ACPI_FUNCTION_TRACE(ev_asynch_execute_gpe_method);
 
-	/* Do the correct dispatch - normal method or implicit notify */
+	/* Do the correct dispatch - analrmal method or implicit analtify */
 
 	switch (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags)) {
-	case ACPI_GPE_DISPATCH_NOTIFY:
+	case ACPI_GPE_DISPATCH_ANALTIFY:
 		/*
-		 * Implicit notify.
-		 * Dispatch a DEVICE_WAKE notify to the appropriate handler.
-		 * NOTE: the request is queued for execution after this method
-		 * completes. The notify handlers are NOT invoked synchronously
+		 * Implicit analtify.
+		 * Dispatch a DEVICE_WAKE analtify to the appropriate handler.
+		 * ANALTE: the request is queued for execution after this method
+		 * completes. The analtify handlers are ANALT invoked synchroanalusly
 		 * from this thread -- because handlers may in turn run other
 		 * control methods.
 		 *
-		 * June 2012: Expand implicit notify mechanism to support
-		 * notifies on multiple device objects.
+		 * June 2012: Expand implicit analtify mechanism to support
+		 * analtifies on multiple device objects.
 		 */
-		notify = gpe_event_info->dispatch.notify_list;
-		while (ACPI_SUCCESS(status) && notify) {
+		analtify = gpe_event_info->dispatch.analtify_list;
+		while (ACPI_SUCCESS(status) && analtify) {
 			status =
-			    acpi_ev_queue_notify_request(notify->device_node,
-							 ACPI_NOTIFY_DEVICE_WAKE);
+			    acpi_ev_queue_analtify_request(analtify->device_analde,
+							 ACPI_ANALTIFY_DEVICE_WAKE);
 
-			notify = notify->next;
+			analtify = analtify->next;
 		}
 
 		break;
@@ -493,15 +493,15 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 		info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
 		if (!info) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 		} else {
 			/*
 			 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the
 			 * _Lxx/_Exx control method that corresponds to this GPE
 			 */
-			info->prefix_node =
-			    gpe_event_info->dispatch.method_node;
-			info->flags = ACPI_IGNORE_RETURN_VALUE;
+			info->prefix_analde =
+			    gpe_event_info->dispatch.method_analde;
+			info->flags = ACPI_IGANALRE_RETURN_VALUE;
 
 			status = acpi_ns_evaluate(info);
 			ACPI_FREE(info);
@@ -510,9 +510,9 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"while evaluating GPE method [%4.4s]",
-					acpi_ut_get_node_name(gpe_event_info->
+					acpi_ut_get_analde_name(gpe_event_info->
 							      dispatch.
-							      method_node)));
+							      method_analde)));
 		}
 		break;
 
@@ -521,9 +521,9 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 		goto error_exit;	/* Should never happen */
 	}
 
-	/* Defer enabling of GPE until all notify handlers are done */
+	/* Defer enabling of GPE until all analtify handlers are done */
 
-	status = acpi_os_execute(OSL_NOTIFY_HANDLER,
+	status = acpi_os_execute(OSL_ANALTIFY_HANDLER,
 				 acpi_ev_asynch_enable_gpe, gpe_event_info);
 	if (ACPI_SUCCESS(status)) {
 		return_VOID;
@@ -542,10 +542,10 @@ error_exit:
  * PARAMETERS:  Context (gpe_event_info) - Info for this GPE
  *              Callback from acpi_os_execute
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Asynchronous clear/enable for GPE. This allows the GPE to
- *              complete (i.e., finish execution of Notify)
+ * DESCRIPTION: Asynchroanalus clear/enable for GPE. This allows the GPE to
+ *              complete (i.e., finish execution of Analtify)
  *
  ******************************************************************************/
 
@@ -571,7 +571,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_enable_gpe(void *context)
  * RETURN:      Status
  *
  * DESCRIPTION: Clear/Enable a GPE. Common code that is used after execution
- *              of a GPE method or a synchronous or asynchronous GPE handler.
+ *              of a GPE method or a synchroanalus or asynchroanalus GPE handler.
  *
  ******************************************************************************/
 
@@ -606,15 +606,15 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
  *
  * FUNCTION:    acpi_ev_detect_gpe
  *
- * PARAMETERS:  gpe_device          - Device node. NULL for GPE0/GPE1
+ * PARAMETERS:  gpe_device          - Device analde. NULL for GPE0/GPE1
  *              gpe_event_info      - Info for this GPE
  *              gpe_number          - Number relative to the parent GPE block
  *
- * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
+ * RETURN:      INTERRUPT_HANDLED or INTERRUPT_ANALT_HANDLED
  *
  * DESCRIPTION: Detect and dispatch a General Purpose Event to either a function
  *              (e.g. EC) or method (e.g. _Lxx/_Exx) handler.
- * NOTE:        GPE is W1C, so it is possible to handle a single GPE from both
+ * ANALTE:        GPE is W1C, so it is possible to handle a single GPE from both
  *              task and irq context in parallel as long as the process to
  *              detect and mask the GPE is atomic.
  *              However the atomicity of ACPI_GPE_DISPATCH_RAW_HANDLER is
@@ -623,10 +623,10 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
  ******************************************************************************/
 
 u32
-acpi_ev_detect_gpe(struct acpi_namespace_node *gpe_device,
+acpi_ev_detect_gpe(struct acpi_namespace_analde *gpe_device,
 		   struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 {
-	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
+	u32 int_status = ACPI_INTERRUPT_ANALT_HANDLED;
 	u8 enabled_status_byte;
 	u64 status_reg;
 	u64 enable_reg;
@@ -703,10 +703,10 @@ acpi_ev_detect_gpe(struct acpi_namespace_node *gpe_device,
 		gpe_handler_info = gpe_event_info->dispatch.handler;
 
 		/*
-		 * There is no protection around the namespace node
+		 * There is anal protection around the namespace analde
 		 * and the GPE handler to ensure a safe destruction
 		 * because:
-		 * 1. The namespace node is expected to always
+		 * 1. The namespace analde is expected to always
 		 *    exist after loading a table.
 		 * 2. The GPE handler is expected to be flushed by
 		 *    acpi_os_wait_events_complete() before the
@@ -733,11 +733,11 @@ error_exit:
  *
  * FUNCTION:    acpi_ev_gpe_dispatch
  *
- * PARAMETERS:  gpe_device          - Device node. NULL for GPE0/GPE1
+ * PARAMETERS:  gpe_device          - Device analde. NULL for GPE0/GPE1
  *              gpe_event_info      - Info for this GPE
  *              gpe_number          - Number relative to the parent GPE block
  *
- * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
+ * RETURN:      INTERRUPT_HANDLED or INTERRUPT_ANALT_HANDLED
  *
  * DESCRIPTION: Dispatch a General Purpose Event to either a function (e.g. EC)
  *              or method (e.g. _Lxx/_Exx) handler.
@@ -745,7 +745,7 @@ error_exit:
  ******************************************************************************/
 
 u32
-acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
+acpi_ev_gpe_dispatch(struct acpi_namespace_analde *gpe_device,
 		     struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 {
 	acpi_status status;
@@ -754,11 +754,11 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	ACPI_FUNCTION_TRACE(ev_gpe_dispatch);
 
 	/*
-	 * Always disable the GPE so that it does not keep firing before
-	 * any asynchronous activity completes (either from the execution
-	 * of a GPE method or an asynchronous GPE handler.)
+	 * Always disable the GPE so that it does analt keep firing before
+	 * any asynchroanalus activity completes (either from the execution
+	 * of a GPE method or an asynchroanalus GPE handler.)
 	 *
-	 * If there is no handler or method to run, just disable the
+	 * If there is anal handler or method to run, just disable the
 	 * GPE and leave it disabled permanently to prevent further such
 	 * pointless events from firing.
 	 */
@@ -766,11 +766,11 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"Unable to disable GPE %02X", gpe_number));
-		return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
+		return_UINT32(ACPI_INTERRUPT_ANALT_HANDLED);
 	}
 
 	/*
-	 * If edge-triggered, clear the GPE status bit now. Note that
+	 * If edge-triggered, clear the GPE status bit analw. Analte that
 	 * level-triggered events are cleared after the GPE is serviced.
 	 */
 	if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
@@ -782,7 +782,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 					gpe_number));
 			(void)acpi_hw_low_set_gpe(gpe_event_info,
 						  ACPI_GPE_CONDITIONAL_ENABLE);
-			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
+			return_UINT32(ACPI_INTERRUPT_ANALT_HANDLED);
 		}
 	}
 
@@ -791,8 +791,8 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	/*
 	 * Dispatch the GPE to either an installed handler or the control
 	 * method associated with this GPE (_Lxx or _Exx). If a handler
-	 * exists, we invoke it and do not attempt to run the method.
-	 * If there is neither a handler nor a method, leave the GPE
+	 * exists, we invoke it and do analt attempt to run the method.
+	 * If there is neither a handler analr a method, leave the GPE
 	 * disabled.
 	 */
 	switch (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags)) {
@@ -815,10 +815,10 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 		break;
 
 	case ACPI_GPE_DISPATCH_METHOD:
-	case ACPI_GPE_DISPATCH_NOTIFY:
+	case ACPI_GPE_DISPATCH_ANALTIFY:
 		/*
 		 * Execute the method associated with the GPE
-		 * NOTE: Level-triggered GPEs are cleared after the method completes.
+		 * ANALTE: Level-triggered GPEs are cleared after the method completes.
 		 */
 		status = acpi_os_execute(OSL_GPE_HANDLER,
 					 acpi_ev_asynch_execute_gpe_method,
@@ -832,12 +832,12 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 
 	default:
 		/*
-		 * No handler or method to run!
-		 * 03/2010: This case should no longer be possible. We will not allow
-		 * a GPE to be enabled if it has no handler or method.
+		 * Anal handler or method to run!
+		 * 03/2010: This case should anal longer be possible. We will analt allow
+		 * a GPE to be enabled if it has anal handler or method.
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "No handler or method for GPE %02X, disabling event",
+			    "Anal handler or method for GPE %02X, disabling event",
 			    gpe_number));
 
 		break;

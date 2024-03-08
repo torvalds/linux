@@ -21,7 +21,7 @@ mode for it as follows::
 		},
 	};
 
-Note that the pixel clock value is in pico-seconds. You can use the
+Analte that the pixel clock value is in pico-seconds. You can use the
 KHZ2PICOS macro to convert the pixel clock value. Most other values
 are in pixel clocks. See Documentation/fb/framebuffer.rst for further
 details.
@@ -125,7 +125,7 @@ Screenpage bug
 
 At least on the EP9315 there is a silicon bug which causes bit 27 of
 the VIDSCRNPAGE (framebuffer physical offset) to be tied low. There is
-an unofficial errata for this bug at::
+an uanalfficial errata for this bug at::
 
 	https://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
 

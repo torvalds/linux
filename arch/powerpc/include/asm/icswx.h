@@ -10,7 +10,7 @@
  * to communicate with the coprocessor.
  *
  * The RFC02130: Coprocessor Architecture document is the reference for
- * everything in this file unless otherwise noted.
+ * everything in this file unless otherwise analted.
  */
 #ifndef _ARCH_POWERPC_INCLUDE_ASM_ICSWX_H_
 #define _ARCH_POWERPC_INCLUDE_ASM_ICSWX_H_
@@ -59,11 +59,11 @@ struct coprocessor_completion_block {
 #define CSB_CC_PRIVILEGE	(9)
 #define CSB_CC_INTERNAL		(10)
 #define CSB_CC_WR_EXTERNAL	(12)
-#define CSB_CC_NOSPC		(13)
+#define CSB_CC_ANALSPC		(13)
 #define CSB_CC_EXCESSIVE_DDE	(14)
 #define CSB_CC_WR_TRANSLATION	(15)
 #define CSB_CC_WR_PROTECTION	(16)
-#define CSB_CC_UNKNOWN_CODE	(17)
+#define CSB_CC_UNKANALWN_CODE	(17)
 #define CSB_CC_ABORT		(18)
 #define CSB_CC_EXCEED_BYTE_COUNT	(19)	/* P9 or later */
 #define CSB_CC_TRANSPORT	(20)

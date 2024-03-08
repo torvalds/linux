@@ -9,7 +9,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <video/kyro.h>
 
@@ -43,7 +43,7 @@ int InitialiseRamdac(volatile STG4000REG __iomem * pSTGReg,
 	tmp = STG_READ_REG(DACPixelFormat);
 	CLEAR_BITS_FRM_TO(0, 2);
 
-	/* Set LUT not used from 16bpp to 32 bpp ??? */
+	/* Set LUT analt used from 16bpp to 32 bpp ??? */
 	CLEAR_BITS_FRM_TO(8, 9);
 
 	switch (displayDepth) {

@@ -83,7 +83,7 @@ static int __init mac_scsi_setup(char *str)
 		setup_sg_tablesize = ints[3];
 	if (ints[0] >= 4)
 		setup_hostid = ints[4];
-	/* ints[5] (use_tagged_queuing) is ignored */
+	/* ints[5] (use_tagged_queuing) is iganalred */
 	if (ints[0] >= 6)
 		setup_use_pdma = ints[6];
 	if (ints[0] >= 7)
@@ -99,12 +99,12 @@ __setup("mac5380=", mac_scsi_setup);
  * specify the number of bytes between the delays expected from a SCSI target.
  * This allows the operating system to "prevent bus errors when a target fails
  * to deliver the next byte within the processor bus error timeout period."
- * Linux SCSI drivers lack knowledge of the timing behaviour of SCSI targets
+ * Linux SCSI drivers lack kanalwledge of the timing behaviour of SCSI targets
  * so bus errors are unavoidable.
  *
  * If a MOVE.B instruction faults, we assume that zero bytes were transferred
  * and simply retry. That assumption probably depends on target behaviour but
- * seems to hold up okay. The NOP provides synchronization: without it the
+ * seems to hold up okay. The ANALP provides synchronization: without it the
  * fault can sometimes occur after the program counter has moved past the
  * offending instruction. Post-increment addressing can't be used.
  */
@@ -112,7 +112,7 @@ __setup("mac5380=", mac_scsi_setup);
 #define MOVE_BYTE(operands) \
 	asm volatile ( \
 		"1:     moveb " operands "     \n" \
-		"11:    nop                    \n" \
+		"11:    analp                    \n" \
 		"       addq #1,%0             \n" \
 		"       subq #1,%1             \n" \
 		"40:                           \n" \
@@ -131,7 +131,7 @@ __setup("mac5380=", mac_scsi_setup);
 		: "+a" (addr), "+r" (n), "+r" (result) : "a" (io))
 
 /*
- * If a MOVE.W (or MOVE.L) instruction faults, it cannot be retried because
+ * If a MOVE.W (or MOVE.L) instruction faults, it cananalt be retried because
  * the residual byte count would be uncertain. In that situation the MOVE_WORD
  * macro clears n in the fixup section to abort the transfer.
  */
@@ -139,7 +139,7 @@ __setup("mac5380=", mac_scsi_setup);
 #define MOVE_WORD(operands) \
 	asm volatile ( \
 		"1:     movew " operands "     \n" \
-		"11:    nop                    \n" \
+		"11:    analp                    \n" \
 		"       subq #2,%1             \n" \
 		"40:                           \n" \
 		"                              \n" \
@@ -175,7 +175,7 @@ __setup("mac5380=", mac_scsi_setup);
 		"14:    movew " operands "     \n" \
 		"15:    movew " operands "     \n" \
 		"16:    movew " operands "     \n" \
-		"17:    nop                    \n" \
+		"17:    analp                    \n" \
 		"       subl  #32,%1           \n" \
 		"40:                           \n" \
 		"                              \n" \
@@ -406,7 +406,7 @@ static int macscsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
 {
 	int resid = NCR5380_to_ncmd(cmd)->this_residual;
 
-	if (hostdata->flags & FLAG_NO_PSEUDO_DMA || resid < setup_use_pdma)
+	if (hostdata->flags & FLAG_ANAL_PSEUDO_DMA || resid < setup_use_pdma)
 		return 0;
 
 	return resid;
@@ -449,7 +449,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 
 	pio_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pio_mem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdma_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 
@@ -457,8 +457,8 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 
 	if (!hwreg_present((unsigned char *)pio_mem->start +
 	                   (STATUS_REG << 4))) {
-		pr_info(PFX "no device detected at %pap\n", &pio_mem->start);
-		return -ENODEV;
+		pr_info(PFX "anal device detected at %pap\n", &pio_mem->start);
+		return -EANALDEV;
 	}
 
 	if (setup_can_queue > 0)
@@ -473,12 +473,12 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	instance = scsi_host_alloc(&mac_scsi_template,
 	                           sizeof(struct NCR5380_hostdata));
 	if (!instance)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (irq)
 		instance->irq = irq->start;
 	else
-		instance->irq = NO_IRQ;
+		instance->irq = ANAL_IRQ;
 
 	hostdata = shost_priv(instance);
 	hostdata->base = pio_mem->start;
@@ -487,7 +487,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	if (pdma_mem && setup_use_pdma)
 		hostdata->pdma_io = (u8 __iomem *)pdma_mem->start;
 	else
-		host_flags |= FLAG_NO_PSEUDO_DMA;
+		host_flags |= FLAG_ANAL_PSEUDO_DMA;
 
 	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
 
@@ -495,7 +495,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	if (error)
 		goto fail_init;
 
-	if (instance->irq != NO_IRQ) {
+	if (instance->irq != ANAL_IRQ) {
 		error = request_irq(instance->irq, macscsi_intr, IRQF_SHARED,
 		                    "NCR5380", instance);
 		if (error)
@@ -514,7 +514,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	return 0;
 
 fail_host:
-	if (instance->irq != NO_IRQ)
+	if (instance->irq != ANAL_IRQ)
 		free_irq(instance->irq, instance);
 fail_irq:
 	NCR5380_exit(instance);
@@ -528,7 +528,7 @@ static void __exit mac_scsi_remove(struct platform_device *pdev)
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 
 	scsi_remove_host(instance);
-	if (instance->irq != NO_IRQ)
+	if (instance->irq != ANAL_IRQ)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
 	scsi_host_put(instance);

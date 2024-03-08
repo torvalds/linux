@@ -40,7 +40,7 @@ EXPORT_SYMBOL(__pmd_frag_size_shift);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
  * This is called when relaxing access to a hugepage. It's also called in the page
- * fault path when we don't hit any of the major fault cases, ie, a minor
+ * fault path when we don't hit any of the major fault cases, ie, a mianalr
  * update of _PAGE_ACCESSED, _PAGE_DIRTY, etc... The generic code will have
  * handled those two for us, we additionally deal with missing execute
  * permission here on some processors
@@ -99,7 +99,7 @@ int pudp_test_and_clear_young(struct vm_area_struct *vma,
 }
 
 /*
- * set a new huge pmd. We should not be called for updating
+ * set a new huge pmd. We should analt be called for updating
  * an existing pmd entry. That should go via pmd_hugepage_update.
  */
 void set_pmd_at(struct mm_struct *mm, unsigned long addr,
@@ -107,11 +107,11 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 {
 #ifdef CONFIG_DEBUG_VM
 	/*
-	 * Make sure hardware valid bit is not set. We don't do
+	 * Make sure hardware valid bit is analt set. We don't do
 	 * tlb flush for this update.
 	 */
 
-	WARN_ON(pte_hw_valid(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
+	WARN_ON(pte_hw_valid(pmd_pte(*pmdp)) && !pte_protanalne(pmd_pte(*pmdp)));
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
 	WARN_ON(!(pmd_large(pmd)));
 #endif
@@ -124,7 +124,7 @@ void set_pud_at(struct mm_struct *mm, unsigned long addr,
 {
 #ifdef CONFIG_DEBUG_VM
 	/*
-	 * Make sure hardware valid bit is not set. We don't do
+	 * Make sure hardware valid bit is analt set. We don't do
 	 * tlb flush for this update.
 	 */
 
@@ -184,7 +184,7 @@ pmd_t pmdp_huge_get_and_clear_full(struct vm_area_struct *vma,
 		   !pmd_devmap(*pmdp)) || !pmd_present(*pmdp));
 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, addr, pmdp);
 	/*
-	 * if it not a fullmm flush, then we can possibly end up converting
+	 * if it analt a fullmm flush, then we can possibly end up converting
 	 * this PMD pte entry to a regular level 0 PTE by a parallel page fault.
 	 * Make sure we flush the tlb in this case.
 	 */
@@ -203,7 +203,7 @@ pud_t pudp_huge_get_and_clear_full(struct vm_area_struct *vma,
 		  !pud_present(*pudp));
 	pud = pudp_huge_get_and_clear(vma->vm_mm, addr, pudp);
 	/*
-	 * if it not a fullmm flush, then we can possibly end up converting
+	 * if it analt a fullmm flush, then we can possibly end up converting
 	 * this PMD pte entry to a regular level 0 PTE by a parallel page fault.
 	 * Make sure we flush the tlb in this case.
 	 */
@@ -261,7 +261,7 @@ pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /* For use by kexec, called with MMU off */
-notrace void mmu_cleanup_all(void)
+analtrace void mmu_cleanup_all(void)
 {
 	if (radix_enabled())
 		radix__mmu_cleanup_all();
@@ -295,14 +295,14 @@ void __init mmu_partition_table_init(void)
 	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
 	unsigned long ptcr;
 
-	/* Initialize the Partition Table with no entries */
+	/* Initialize the Partition Table with anal entries */
 	partition_tb = memblock_alloc(patb_size, patb_size);
 	if (!partition_tb)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
 		      __func__, patb_size, patb_size);
 
 	ptcr = __pa(partition_tb) | (PATB_SIZE_SHIFT - 12);
-	set_ptcr_when_no_uv(ptcr);
+	set_ptcr_when_anal_uv(ptcr);
 	powernv_set_nmmu_ptcr(ptcr);
 }
 
@@ -329,11 +329,11 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	/*
 	 * When ultravisor is enabled, the partition table is stored in secure
 	 * memory and can only be accessed doing an ultravisor call. However, we
-	 * maintain a copy of the partition table in normal memory to allow Nest
-	 * MMU translations to occur (for normal VMs).
+	 * maintain a copy of the partition table in analrmal memory to allow Nest
+	 * MMU translations to occur (for analrmal VMs).
 	 *
 	 * Therefore, here we always update partition_tb, regardless of whether
-	 * we are running under an ultravisor or not.
+	 * we are running under an ultravisor or analt.
 	 */
 	partition_tb[lpid].patb0 = cpu_to_be64(dw0);
 	partition_tb[lpid].patb1 = cpu_to_be64(dw1);
@@ -343,7 +343,7 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	 * partition table entry (PATE), which also do a global flush of TLBs
 	 * and partition table caches for the lpid. Otherwise, just do the
 	 * flush. The type of flush (hash or radix) depends on what the previous
-	 * use of the partition ID was, not the new use.
+	 * use of the partition ID was, analt the new use.
 	 */
 	if (firmware_has_feature(FW_FEATURE_ULTRAVISOR)) {
 		uv_register_pate(lpid, dw0, dw1);
@@ -351,7 +351,7 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 			dw0, dw1);
 	} else if (flush) {
 		/*
-		 * Boot does not need to flush, because MMU is off and each
+		 * Boot does analt need to flush, because MMU is off and each
 		 * CPU does a tlbiel_all() before switching them on, which
 		 * flushes everything.
 		 */
@@ -523,7 +523,7 @@ pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
 	unsigned long pte_val;
 
 	/*
-	 * Clear the _PAGE_PRESENT so that no hardware parallel update is
+	 * Clear the _PAGE_PRESENT so that anal hardware parallel update is
 	 * possible. Also keep the pte_present true so that we don't take
 	 * wrong fault.
 	 */
@@ -552,15 +552,15 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
  * pmd page. Hence if we have different pmd page we need to withdraw during pmd
  * move.
  *
- * With hash we use deposited table always irrespective of anon or not.
- * With radix we use deposited table only for anonymous mapping.
+ * With hash we use deposited table always irrespective of aanaln or analt.
+ * With radix we use deposited table only for aanalnymous mapping.
  */
 int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
 			   struct spinlock *old_pmd_ptl,
 			   struct vm_area_struct *vma)
 {
 	if (radix_enabled())
-		return (new_pmd_ptl != old_pmd_ptl) && vma_is_anonymous(vma);
+		return (new_pmd_ptl != old_pmd_ptl) && vma_is_aanalnymous(vma);
 
 	return true;
 }
@@ -599,8 +599,8 @@ static int __init pgtable_debugfs_setup(void)
 		return 0;
 
 	/*
-	 * There is no locking vs tlb flushing when changing this value.
-	 * The tlb flushers will see one value or another, and use either
+	 * There is anal locking vs tlb flushing when changing this value.
+	 * The tlb flushers will see one value or aanalther, and use either
 	 * tlbie or tlbiel with IPIs. In both cases the TLBs will be
 	 * invalidated as expected.
 	 */

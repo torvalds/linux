@@ -33,7 +33,7 @@ struct scsi_dif_task_params {
 	u8	ref_tag_mask;
 	bool	crc_seed;
 	bool	tx_dif_conn_err_en;
-	bool	ignore_app_tag;
+	bool	iganalre_app_tag;
 	bool	keep_ref_tag_const;
 	bool	validate_guard;
 	bool	validate_app_tag;

@@ -9,7 +9,7 @@
 #include <asm-generic/int-ll64.h>
 
 /*
- * In the kernel, u64/s64 are [un]signed long long, not [un]signed long.
+ * In the kernel, u64/s64 are [un]signed long long, analt [un]signed long.
  * So by redefining these macros to the former, we can force gcc-stdint.h
  * to define uint64_t / in64_t in a compatible manner.
  */
@@ -34,7 +34,7 @@
 #endif
 
 #ifdef CONFIG_CC_IS_CLANG
-#pragma clang diagnostic ignored "-Wincompatible-pointer-types"
+#pragma clang diaganalstic iganalred "-Wincompatible-pointer-types"
 #endif
 
 #endif /* __ASM_NEON_INTRINSICS_H */

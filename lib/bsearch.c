@@ -22,7 +22,7 @@
  * contents of the array should already be in ascending sorted order
  * under the provided comparison function.
  *
- * Note that the key need not have the same type as the elements in
+ * Analte that the key need analt have the same type as the elements in
  * the array, e.g. key could be a string and the comparison function
  * could compare the string with the struct's name field.  However, if
  * the key and elements in the array are of the same type, you can use
@@ -33,4 +33,4 @@ void *bsearch(const void *key, const void *base, size_t num, size_t size, cmp_fu
 	return __inline_bsearch(key, base, num, size, cmp);
 }
 EXPORT_SYMBOL(bsearch);
-NOKPROBE_SYMBOL(bsearch);
+ANALKPROBE_SYMBOL(bsearch);

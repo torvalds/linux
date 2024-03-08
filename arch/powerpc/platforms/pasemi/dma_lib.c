@@ -121,7 +121,7 @@ static int pasemi_alloc_tx_chan(enum pasemi_dmachan_type type)
 retry:
 	bit = find_next_bit(txch_free, MAX_TXCH, start);
 	if (bit >= limit)
-		return -ENOSPC;
+		return -EANALSPC;
 	if (!test_and_clear_bit(bit, txch_free))
 		goto retry;
 
@@ -140,7 +140,7 @@ static int pasemi_alloc_rx_chan(void)
 retry:
 	bit = find_first_bit(rxch_free, MAX_RXCH);
 	if (bit >= MAX_TXCH)
-		return -ENOSPC;
+		return -EANALSPC;
 	if (!test_and_clear_bit(bit, rxch_free))
 		goto retry;
 
@@ -159,7 +159,7 @@ static void pasemi_free_rx_chan(int chan)
  *		room behind the structure to be used by the client)
  * @offset: Offset in bytes from start of the total structure to the beginning
  *	    of struct pasemi_dmachan. Needed when struct pasemi_dmachan is
- *	    not the first member of the client structure.
+ *	    analt the first member of the client structure.
  *
  * pasemi_dma_alloc_chan allocates a DMA channel for use by a client. The
  * type argument specifies whether it's a RX or TX channel, and in the case
@@ -173,7 +173,7 @@ void *pasemi_dma_alloc_chan(enum pasemi_dmachan_type type,
 {
 	void *buf;
 	struct pasemi_dmachan *chan;
-	int chno;
+	int chanal;
 
 	BUG_ON(total_size < sizeof(struct pasemi_dmachan));
 
@@ -187,17 +187,17 @@ void *pasemi_dma_alloc_chan(enum pasemi_dmachan_type type,
 
 	switch (type & (TXCHAN|RXCHAN)) {
 	case RXCHAN:
-		chno = pasemi_alloc_rx_chan();
-		chan->chno = chno;
+		chanal = pasemi_alloc_rx_chan();
+		chan->chanal = chanal;
 		chan->irq = irq_create_mapping(NULL,
-					       base_hw_irq + num_txch + chno);
-		chan->status = &dma_status->rx_sta[chno];
+					       base_hw_irq + num_txch + chanal);
+		chan->status = &dma_status->rx_sta[chanal];
 		break;
 	case TXCHAN:
-		chno = pasemi_alloc_tx_chan(type);
-		chan->chno = chno;
-		chan->irq = irq_create_mapping(NULL, base_hw_irq + chno);
-		chan->status = &dma_status->tx_sta[chno];
+		chanal = pasemi_alloc_tx_chan(type);
+		chan->chanal = chanal;
+		chan->irq = irq_create_mapping(NULL, base_hw_irq + chanal);
+		chan->status = &dma_status->tx_sta[chanal];
 		break;
 	}
 
@@ -220,10 +220,10 @@ void pasemi_dma_free_chan(struct pasemi_dmachan *chan)
 
 	switch (chan->chan_type & (RXCHAN|TXCHAN)) {
 	case RXCHAN:
-		pasemi_free_rx_chan(chan->chno);
+		pasemi_free_rx_chan(chan->chanal);
 		break;
 	case TXCHAN:
-		pasemi_free_tx_chan(chan->chno);
+		pasemi_free_tx_chan(chan->chanal);
 		break;
 	}
 
@@ -235,7 +235,7 @@ EXPORT_SYMBOL(pasemi_dma_free_chan);
  * @chan: Channel for which to allocate
  * @ring_size: Ring size in 64-bit (8-byte) words
  *
- * Allocate a descriptor ring for a channel. Returns 0 on success, errno
+ * Allocate a descriptor ring for a channel. Returns 0 on success, erranal
  * on failure. The passed in struct pasemi_dmachan is updated with the
  * virtual and DMA addresses of the ring.
  */
@@ -250,7 +250,7 @@ int pasemi_dma_alloc_ring(struct pasemi_dmachan *chan, int ring_size)
 					     &chan->ring_dma, GFP_KERNEL);
 
 	if (!chan->ring_virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -282,10 +282,10 @@ EXPORT_SYMBOL(pasemi_dma_free_ring);
 void pasemi_dma_start_chan(const struct pasemi_dmachan *chan, const u32 cmdsta)
 {
 	if (chan->chan_type == RXCHAN)
-		pasemi_write_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(chan->chno),
+		pasemi_write_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(chan->chanal),
 				     cmdsta | PAS_DMA_RXCHAN_CCMDSTA_EN);
 	else
-		pasemi_write_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(chan->chno),
+		pasemi_write_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(chan->chanal),
 				     cmdsta | PAS_DMA_TXCHAN_TCMDSTA_EN);
 }
 EXPORT_SYMBOL(pasemi_dma_start_chan);
@@ -309,7 +309,7 @@ int pasemi_dma_stop_chan(const struct pasemi_dmachan *chan)
 	u32 sta;
 
 	if (chan->chan_type == RXCHAN) {
-		reg = PAS_DMA_RXCHAN_CCMDSTA(chan->chno);
+		reg = PAS_DMA_RXCHAN_CCMDSTA(chan->chanal);
 		pasemi_write_dma_reg(reg, PAS_DMA_RXCHAN_CCMDSTA_ST);
 		for (retries = 0; retries < MAX_RETRIES; retries++) {
 			sta = pasemi_read_dma_reg(reg);
@@ -320,7 +320,7 @@ int pasemi_dma_stop_chan(const struct pasemi_dmachan *chan)
 			cond_resched();
 		}
 	} else {
-		reg = PAS_DMA_TXCHAN_TCMDSTA(chan->chno);
+		reg = PAS_DMA_TXCHAN_TCMDSTA(chan->chanal);
 		pasemi_write_dma_reg(reg, PAS_DMA_TXCHAN_TCMDSTA_ST);
 		for (retries = 0; retries < MAX_RETRIES; retries++) {
 			sta = pasemi_read_dma_reg(reg);
@@ -379,7 +379,7 @@ int pasemi_dma_alloc_flag(void)
 retry:
 	bit = find_first_bit(flags_free, MAX_FLAGS);
 	if (bit >= MAX_FLAGS)
-		return -ENOSPC;
+		return -EANALSPC;
 	if (!test_and_clear_bit(bit, flags_free))
 		goto retry;
 
@@ -444,7 +444,7 @@ int pasemi_dma_alloc_fun(void)
 retry:
 	bit = find_first_bit(fun_free, MAX_FLAGS);
 	if (bit >= MAX_FLAGS)
-		return -ENOSPC;
+		return -EANALSPC;
 	if (!test_and_clear_bit(bit, fun_free))
 		goto retry;
 
@@ -469,10 +469,10 @@ EXPORT_SYMBOL(pasemi_dma_free_fun);
 
 static void *map_onedev(struct pci_dev *p, int index)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	void __iomem *ret;
 
-	dn = pci_device_to_OF_node(p);
+	dn = pci_device_to_OF_analde(p);
 	if (!dn)
 		goto fallback;
 
@@ -484,7 +484,7 @@ static void *map_onedev(struct pci_dev *p, int index)
 fallback:
 	/* This is hardcoded and ugly, but we have some firmware versions
 	 * that don't provide the register space in the device tree. Luckily
-	 * they are at well-known locations so we can just do the math here.
+	 * they are at well-kanalwn locations so we can just do the math here.
 	 */
 	return ioremap(0xe0000000 + (p->devfn << 12), 0x2000);
 }
@@ -494,7 +494,7 @@ fallback:
  * This function initializes the DMA library. It must be called before
  * any other function in the library.
  *
- * Returns 0 on success, errno on failure.
+ * Returns 0 on success, erranal on failure.
  */
 int pasemi_dma_init(void)
 {
@@ -502,13 +502,13 @@ int pasemi_dma_init(void)
 	struct pci_dev *iob_pdev;
 	struct pci_dev *pdev;
 	struct resource res;
-	struct device_node *dn;
+	struct device_analde *dn;
 	int i, intf, err = 0;
 	unsigned long timeout;
 	u32 tmp;
 
 	if (!machine_is(pasemi))
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock(&init_lock);
 
@@ -520,7 +520,7 @@ int pasemi_dma_init(void)
 	if (!iob_pdev) {
 		BUG();
 		pr_warn("Can't find I/O Bridge\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 	iob_regs = map_onedev(iob_pdev, 0);
@@ -529,7 +529,7 @@ int pasemi_dma_init(void)
 	if (!dma_pdev) {
 		BUG();
 		pr_warn("Can't find DMA controller\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 	dma_regs = map_onedev(dma_pdev, 0);
@@ -556,7 +556,7 @@ int pasemi_dma_init(void)
 
 	pci_dev_put(pdev);
 
-	dn = pci_device_to_OF_node(iob_pdev);
+	dn = pci_device_to_OF_analde(iob_pdev);
 	if (dn)
 		err = of_address_to_resource(dn, 1, &res);
 	if (!dn || err) {
@@ -577,7 +577,7 @@ int pasemi_dma_init(void)
 	pasemi_write_dma_reg(PAS_DMA_COM_RXCMD, 0);
 	while (pasemi_read_dma_reg(PAS_DMA_COM_RXSTA) & 1) {
 		if (time_after(jiffies, timeout)) {
-			pr_warn("Warning: Could not disable RX section\n");
+			pr_warn("Warning: Could analt disable RX section\n");
 			break;
 		}
 	}
@@ -586,7 +586,7 @@ int pasemi_dma_init(void)
 	pasemi_write_dma_reg(PAS_DMA_COM_TXCMD, 0);
 	while (pasemi_read_dma_reg(PAS_DMA_COM_TXSTA) & 1) {
 		if (time_after(jiffies, timeout)) {
-			pr_warn("Warning: Could not disable TX section\n");
+			pr_warn("Warning: Could analt disable TX section\n");
 			break;
 		}
 	}

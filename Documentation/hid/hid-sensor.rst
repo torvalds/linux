@@ -6,7 +6,7 @@ which are connected to a sensor hub. The sensor hub is a HID device and it provi
 a report descriptor conforming to HID 1.12 sensor usage tables.
 
 Description from the HID 1.12 "HID Sensor Usages" specification:
-"Standardization of HID usages for sensors would allow (but not require) sensor
+"Standardization of HID usages for sensors would allow (but analt require) sensor
 hardware vendors to provide a consistent Plug And Play interface at the USB boundary,
 thereby enabling some operating systems to incorporate common device drivers that
 could be reused between vendors, alleviating any need for the vendors to provide
@@ -95,7 +95,7 @@ Registration functions::
 			u32 usage_id,
 			struct hid_sensor_hub_callbacks *usage_callback):
 
-Registers callbacks for a usage id. The callback functions are not allowed
+Registers callbacks for a usage id. The callback functions are analt allowed
 to sleep::
 
 
@@ -144,7 +144,7 @@ individual field value::
 
 This is used to get a particular field value through input reports. For example
 accelerometer wants to poll X axis value, then it can call this function with
-the usage id of X axis. HID sensors can provide events, so this is not necessary
+the usage id of X axis. HID sensors can provide events, so this is analt necessary
 to poll for any field. If there is some new sample, the core driver will call
 registered callback function to process the sample.
 
@@ -156,10 +156,10 @@ HID Custom and generic Sensors
 
 
 HID Sensor specification defines two special sensor usage types. Since they
-don't represent a standard sensor, it is not possible to define using Linux IIO
+don't represent a standard sensor, it is analt possible to define using Linux IIO
 type interfaces.
 The purpose of these sensors is to extend the functionality or provide a
-way to obfuscate the data being communicated by a sensor. Without knowing the
+way to obfuscate the data being communicated by a sensor. Without kanalwing the
 mapping between the data and its encapsulated form, it is difficult for
 an application/driver to determine what data is being communicated by the sensor.
 This allows some differentiating use cases, where vendor can provide applications.

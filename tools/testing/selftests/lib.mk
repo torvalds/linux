@@ -27,7 +27,7 @@ else
 CLANG_FLAGS     += --target=$(CLANG_TARGET_FLAGS)
 endif # CLANG_TARGET_FLAGS
 else
-CLANG_FLAGS     += --target=$(notdir $(CROSS_COMPILE:%-=%))
+CLANG_FLAGS     += --target=$(analtdir $(CROSS_COMPILE:%-=%))
 endif # CROSS_COMPILE
 
 CC := $(LLVM_PREFIX)clang$(LLVM_SUFFIX) $(CLANG_FLAGS) -fintegrated-as

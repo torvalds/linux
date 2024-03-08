@@ -6,17 +6,17 @@
  *		Sam Lantinga (slouken@cs.ucdavis.edu)  02/01/95
  *
  *	Fixes:
- *		Alan Cox	:	Merged and made usable non modular (its so tiny its silly as
+ *		Alan Cox	:	Merged and made usable analn modular (its so tiny its silly as
  *					a module taking up 2 pages).
- *		Alan Cox	: 	Fixed bug with 1.3.18 and IPIP not working (now needs to set skb->h.iph)
+ *		Alan Cox	: 	Fixed bug with 1.3.18 and IPIP analt working (analw needs to set skb->h.iph)
  *					to keep ip_forward happy.
  *		Alan Cox	:	More fixes for 1.3.21, and firewall fix. Maybe this will work soon 8).
  *		Kai Schulte	:	Fixed #defines for IP_FIREWALL->FIREWALL
  *              David Woodhouse :       Perform some basic ICMP handling.
  *                                      IPIP Routing without decapsulation.
  *              Carlos Picoto   :       GRE over IP support
- *		Alexey Kuznetsov:	Reworked. Really, now it is truncated version of ipv4/ip_gre.c.
- *					I do not want to merge them together.
+ *		Alexey Kuznetsov:	Reworked. Really, analw it is truncated version of ipv4/ip_gre.c.
+ *					I do analt want to merge them together.
  */
 
 /* tunnel.c: an IP tunnel driver
@@ -29,11 +29,11 @@
 
 		-Sam Lantinga	(slouken@cs.ucdavis.edu)  02/01/95
 
-	Minor tweaks:
+	Mianalr tweaks:
 		Cleaned up the code a little and added some pre-1.3.0 tweaks.
-		dev->hard_header/hard_header_len changed to use no headers.
+		dev->hard_header/hard_header_len changed to use anal headers.
 		Comments/bracketing tweaked.
-		Made the tunnels use dev->name not tunnel: when error reporting.
+		Made the tunnels use dev->name analt tunnel: when error reporting.
 		Added tx_dropped stat
 
 		-Alan Cox	(alan@lxorguk.ukuu.org.uk) 21 March 95
@@ -42,13 +42,13 @@
 		Changed to tunnel to destination gateway in addition to the
 			tunnel's pointopoint address
 		Almost completely rewritten
-		Note:  There is currently no firewall or ICMP handling done.
+		Analte:  There is currently anal firewall or ICMP handling done.
 
 		-Sam Lantinga	(slouken@cs.ucdavis.edu) 02/13/96
 
 */
 
-/* Things I wish I had known when writing the tunnel driver:
+/* Things I wish I had kanalwn when writing the tunnel driver:
 
 	When the tunnel_xmit() function is called, the skb contains the
 	packet to be sent (plus a great deal of extra info), and dev
@@ -70,7 +70,7 @@
 	again with the additional amount of space you need.  You can
 	find out how much more space you can allocate by calling
 	"skb_tailroom(skb)".
-	Now, to add header space, call "skb_push(skb, header_len)".
+	Analw, to add header space, call "skb_push(skb, header_len)".
 	This creates space at the beginning of the buffer and returns
 	a pointer to this new space.  If later you need to strip a
 	header from a buffer, call "skb_pull(skb, header_len)".
@@ -135,10 +135,10 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	struct ip_tunnel *t;
 	int err = 0;
 
-	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
+	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_ANAL_KEY,
 			     iph->daddr, iph->saddr, 0);
 	if (!t) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -180,7 +180,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	}
 
 	if (t->parms.iph.daddr == 0) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -198,13 +198,13 @@ out:
 }
 
 static const struct tnl_ptk_info ipip_tpi = {
-	/* no tunnel info required for ipip. */
+	/* anal tunnel info required for ipip. */
 	.proto = htons(ETH_P_IP),
 };
 
 #if IS_ENABLED(CONFIG_MPLS)
 static const struct tnl_ptk_info mplsip_tpi = {
-	/* no tunnel info required for mplsip. */
+	/* anal tunnel info required for mplsip. */
 	.proto = htons(ETH_P_MPLS_UC),
 };
 #endif
@@ -218,7 +218,7 @@ static int ipip_tunnel_rcv(struct sk_buff *skb, u8 ipproto)
 	const struct iphdr *iph;
 
 	iph = ip_hdr(skb);
-	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
+	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_ANAL_KEY,
 			iph->saddr, iph->daddr, 0);
 	if (tunnel) {
 		const struct tnl_ptk_info *tpi;
@@ -367,7 +367,7 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->header_ops		= &ip_tunnel_header_ops;
 
 	dev->type		= ARPHRD_TUNNEL;
-	dev->flags		= IFF_NOARP;
+	dev->flags		= IFF_ANALARP;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_LLTX;
 	netif_keep_dst(dev);

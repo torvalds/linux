@@ -121,13 +121,13 @@ config IWLWIFI_DEVICE_TRACING
 	default y
 	help
 	  Say Y here to trace all commands, including TX frames and IO
-	  accesses, sent to the device. If you say yes, iwlwifi will
+	  accesses, sent to the device. If you say anal, iwlwifi will
 	  register with the ftrace framework for event tracing and dump
 	  all this information to the ringbuffer, you may need to
 	  increase the ringbuffer size. See the ftrace documentation
 	  for more information.
 
-	  When tracing is not enabled, this option still has some
+	  When tracing is analt enabled, this option still has some
 	  (though rather small) overhead.
 
 	  If unsure, say Y so we can help you better when problems
@@ -147,13 +147,13 @@ config IWLMEI
 
 	  CSME stands for Converged Security and Management Engine. It is a CPU
 	  on the chipset and runs a dedicated firmware. AMT (Active Management
-	  Technology) is one of the applications that run on that CPU. AMT
+	  Techanallogy) is one of the applications that run on that CPU. AMT
 	  allows to control the platform remotely.
 
 	  This kernel module allows to communicate with the Intel Management
 	  Engine over Wifi. This is supported starting from Tiger Lake
 	  platforms and has been tested on 9260 devices only.
-	  If AMT is configured not to use the wireless device, this module is
+	  If AMT is configured analt to use the wireless device, this module is
 	  harmless (and useless).
 	  Enabling this option on a platform that has a different device and
 	  has Wireless enabled on AMT can prevent WiFi from working correctly.

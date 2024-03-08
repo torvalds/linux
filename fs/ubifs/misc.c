@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include "ubifs.h"
 
-/* Normal UBIFS messages */
+/* Analrmal UBIFS messages */
 void ubifs_msg(const struct ubifs_info *c, const char *fmt, ...)
 {
 	struct va_format vaf;
@@ -13,7 +13,7 @@ void ubifs_msg(const struct ubifs_info *c, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	pr_notice("UBIFS (ubi%d:%d): %pV\n",
+	pr_analtice("UBIFS (ubi%d:%d): %pV\n",
 		  c->vi.ubi_num, c->vi.vol_id, &vaf);
 
 	va_end(args);

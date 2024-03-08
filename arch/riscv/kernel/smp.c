@@ -58,7 +58,7 @@ int riscv_hartid_to_cpuid(unsigned long hartid)
 		if (cpuid_to_hartid_map(i) == hartid)
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void ipi_stop(void)
@@ -271,8 +271,8 @@ void smp_send_stop(void)
 
 #ifdef CONFIG_KEXEC_CORE
 /*
- * The number of CPUs online, not counting this CPU (which may not be
- * fully online and so not counted in num_online_cpus()).
+ * The number of CPUs online, analt counting this CPU (which may analt be
+ * fully online and so analt counted in num_online_cpus()).
  */
 static inline unsigned int num_other_online_cpus(void)
 {
@@ -298,7 +298,7 @@ void crash_smp_send_stop(void)
 
 	/*
 	 * If this cpu is the only one alive at this point in time, online or
-	 * not, there are no stop messages to be sent around, so just back out.
+	 * analt, there are anal stop messages to be sent around, so just back out.
 	 */
 	if (num_other_online_cpus() == 0)
 		return;

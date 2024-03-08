@@ -4,7 +4,7 @@
  * Copyright (C) 2021 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
- * NOTE!!! See:
+ * ANALTE!!! See:
  *
  *	Documentation/filesystems/caching/netfs-api.rst
  *
@@ -38,7 +38,7 @@ struct fscache_cookie;
 
 #define FSCACHE_ADV_SINGLE_CHUNK	0x01 /* The object is a single chunk of data */
 #define FSCACHE_ADV_WRITE_CACHE		0x00 /* Do cache if written to locally */
-#define FSCACHE_ADV_WRITE_NOCACHE	0x02 /* Don't cache if written to locally */
+#define FSCACHE_ADV_WRITE_ANALCACHE	0x02 /* Don't cache if written to locally */
 #define FSCACHE_ADV_WANT_CACHE_SIZE	0x04 /* Retrieve cache size at runtime */
 
 #define FSCACHE_INVAL_DIO_WRITE		0x01 /* Invalidate due to DIO write */
@@ -77,7 +77,7 @@ struct fscache_volume {
 	unsigned int			key_hash;	/* Hash of key string */
 	u8				*key;		/* Volume ID, eg. "afs@example.com@1234" */
 	struct list_head		proc_link;	/* Link in /proc/fs/fscache/volumes */
-	struct hlist_bl_node		hash_link;	/* Link in hash table */
+	struct hlist_bl_analde		hash_link;	/* Link in hash table */
 	struct work_struct		work;
 	struct fscache_cache		*cache;		/* The cache in which this resides */
 	void				*cache_priv;	/* Cache private data */
@@ -95,7 +95,7 @@ struct fscache_volume {
 /*
  * Data file representation cookie.
  * - a file will only appear in one cache
- * - a request to cache a file may or may not be honoured, subject to
+ * - a request to cache a file may or may analt be hoanalured, subject to
  *   constraints such as disk space
  * - indices are created on disk just-in-time
  */
@@ -108,7 +108,7 @@ struct fscache_cookie {
 	spinlock_t			lock;
 	struct fscache_volume		*volume;	/* Parent volume of this file. */
 	void				*cache_priv;	/* Cache-side representation */
-	struct hlist_bl_node		hash_link;	/* Link in hash table */
+	struct hlist_bl_analde		hash_link;	/* Link in hash table */
 	struct list_head		proc_link;	/* Link in proc list */
 	struct list_head		commit_link;	/* Link in commit queue */
 	struct work_struct		work;		/* Commit/relinq/withdraw work */
@@ -118,12 +118,12 @@ struct fscache_cookie {
 #define FSCACHE_COOKIE_RELINQUISHED	0		/* T if cookie has been relinquished */
 #define FSCACHE_COOKIE_RETIRED		1		/* T if this cookie has retired on relinq */
 #define FSCACHE_COOKIE_IS_CACHING	2		/* T if this cookie is cached */
-#define FSCACHE_COOKIE_NO_DATA_TO_READ	3		/* T if this cookie has nothing to read */
+#define FSCACHE_COOKIE_ANAL_DATA_TO_READ	3		/* T if this cookie has analthing to read */
 #define FSCACHE_COOKIE_NEEDS_UPDATE	4		/* T if attrs have been updated */
 #define FSCACHE_COOKIE_HAS_BEEN_CACHED	5		/* T if cookie needs withdraw-on-relinq */
 #define FSCACHE_COOKIE_DISABLED		6		/* T if cookie has been disabled */
 #define FSCACHE_COOKIE_LOCAL_WRITE	7		/* T if cookie has been modified locally */
-#define FSCACHE_COOKIE_NO_ACCESS_WAKE	8		/* T if no wake when n_accesses goes 0 */
+#define FSCACHE_COOKIE_ANAL_ACCESS_WAKE	8		/* T if anal wake when n_accesses goes 0 */
 #define FSCACHE_COOKIE_DO_RELINQUISH	9		/* T if this cookie needs relinquishment */
 #define FSCACHE_COOKIE_DO_WITHDRAW	10		/* T if this cookie needs withdrawing */
 #define FSCACHE_COOKIE_DO_LRU_DISCARD	11		/* T if this cookie needs LRU discard */
@@ -139,20 +139,20 @@ struct fscache_cookie {
 	u32				key_hash;	/* Hash of volume, key, len */
 	union {
 		void			*key;		/* Index key */
-		u8			inline_key[16];	/* - If the key is short enough */
+		u8			inline_key[16];	/* - If the key is short eanalugh */
 	};
 	union {
 		void			*aux;		/* Auxiliary data */
-		u8			inline_aux[8];	/* - If the aux data is short enough */
+		u8			inline_aux[8];	/* - If the aux data is short eanalugh */
 	};
 };
 
 /*
  * slow-path functions for when there is actually caching available, and the
  * netfs does actually have a valid token
- * - these are not to be called directly
- * - these are undefined symbols when FS-Cache is not configured and the
- *   optimiser takes care of not using them
+ * - these are analt to be called directly
+ * - these are undefined symbols when FS-Cache is analt configured and the
+ *   optimiser takes care of analt using them
  */
 extern struct fscache_volume *__fscache_acquire_volume(const char *, const char *,
 						       const void *, size_t);
@@ -189,8 +189,8 @@ extern void __fscache_clear_page_bits(struct address_space *, loff_t, size_t);
  * cache it should be in.  If a preexisting volume entry is found in the cache,
  * the coherency data must match otherwise the entry will be invalidated.
  *
- * Returns a cookie pointer on success, -ENOMEM if out of memory or -EBUSY if a
- * cache volume of that name is already acquired.  Note that "NULL" is a valid
+ * Returns a cookie pointer on success, -EANALMEM if out of memory or -EBUSY if a
+ * cache volume of that name is already acquired.  Analte that "NULL" is a valid
  * cookie pointer and can be returned if caching is refused.
  */
 static inline
@@ -211,7 +211,7 @@ struct fscache_volume *fscache_acquire_volume(const char *volume_key,
  * @coherency_data: Piece of arbitrary coherency data to set (or NULL)
  * @invalidate: True if the volume should be invalidated
  *
- * Indicate that a filesystem no longer desires caching services for a volume.
+ * Indicate that a filesystem anal longer desires caching services for a volume.
  * The caller must have relinquished all file cookies prior to calling this.
  * The stored coherency data is updated.
  */
@@ -390,13 +390,13 @@ void fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size)
 }
 
 /**
- * fscache_invalidate - Notify cache that an object needs invalidation
+ * fscache_invalidate - Analtify cache that an object needs invalidation
  * @cookie: The cookie representing the cache object
  * @aux_data: The updated auxiliary data for the cookie (may be NULL)
  * @size: The revised size of the object.
  * @flags: Invalidation flags (FSCACHE_INVAL_*)
  *
- * Notify the cache that an object is needs to be invalidated and that it
+ * Analtify the cache that an object is needs to be invalidated and that it
  * should abort any retrievals or stores it is doing on the cache.  This
  * increments inval_counter on the cookie which can be used by the caller to
  * reconsider I/O requests as they complete.
@@ -420,7 +420,7 @@ void fscache_invalidate(struct fscache_cookie *cookie,
  * fscache_operation_valid - Return true if operations resources are usable
  * @cres: The resources to check.
  *
- * Returns a pointer to the operations table if usable or NULL if not.
+ * Returns a pointer to the operations table if usable or NULL if analt.
  */
 static inline
 const struct netfs_cache_ops *fscache_operation_valid(const struct netfs_cache_resources *cres)
@@ -443,8 +443,8 @@ const struct netfs_cache_ops *fscache_operation_valid(const struct netfs_cache_r
  *
  * Returns:
  * * 0		- Success
- * * -ENOBUFS	- No caching available
- * * Other error code from the cache, such as -ENOMEM.
+ * * -EANALBUFS	- Anal caching available
+ * * Other error code from the cache, such as -EANALMEM.
  */
 static inline
 int fscache_begin_read_operation(struct netfs_cache_resources *cres,
@@ -452,7 +452,7 @@ int fscache_begin_read_operation(struct netfs_cache_resources *cres,
 {
 	if (fscache_cookie_enabled(cookie))
 		return __fscache_begin_read_operation(cres, cookie);
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 /**
@@ -493,12 +493,12 @@ static inline void fscache_end_operation(struct netfs_cache_resources *cres)
  * @read_hole indicates how a partially populated region in the cache should be
  * handled.  It can be one of a number of settings:
  *
- *	NETFS_READ_HOLE_IGNORE - Just try to read (may return a short read).
+ *	NETFS_READ_HOLE_IGANALRE - Just try to read (may return a short read).
  *
  *	NETFS_READ_HOLE_CLEAR - Seek for data, clearing the part of the buffer
- *				skipped over, then do as for IGNORE.
+ *				skipped over, then do as for IGANALRE.
  *
- *	NETFS_READ_HOLE_FAIL - Give ENODATA if we encounter a hole.
+ *	NETFS_READ_HOLE_FAIL - Give EANALDATA if we encounter a hole.
  */
 static inline
 int fscache_read(struct netfs_cache_resources *cres,
@@ -528,8 +528,8 @@ int fscache_read(struct netfs_cache_resources *cres,
  *
  * Returns:
  * * 0		- Success
- * * -ENOBUFS	- No caching available
- * * Other error code from the cache, such as -ENOMEM.
+ * * -EANALBUFS	- Anal caching available
+ * * Other error code from the cache, such as -EANALMEM.
  */
 static inline
 int fscache_begin_write_operation(struct netfs_cache_resources *cres,
@@ -537,7 +537,7 @@ int fscache_begin_write_operation(struct netfs_cache_resources *cres,
 {
 	if (fscache_cookie_enabled(cookie))
 		return __fscache_begin_write_operation(cres, cookie);
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 /**
@@ -572,7 +572,7 @@ int fscache_write(struct netfs_cache_resources *cres,
 
 /**
  * fscache_clear_page_bits - Clear the PG_fscache bits from a set of pages
- * @mapping: The netfs inode to use as the source
+ * @mapping: The netfs ianalde to use as the source
  * @start: The start position in @mapping
  * @len: The amount of data to unlock
  * @caching: If PG_fscache has been set
@@ -591,24 +591,24 @@ static inline void fscache_clear_page_bits(struct address_space *mapping,
 /**
  * fscache_write_to_cache - Save a write to the cache and clear PG_fscache
  * @cookie: The cookie representing the cache object
- * @mapping: The netfs inode to use as the source
+ * @mapping: The netfs ianalde to use as the source
  * @start: The start position in @mapping
  * @len: The amount of data to write back
- * @i_size: The new size of the inode
+ * @i_size: The new size of the ianalde
  * @term_func: The function to call upon completion
  * @term_func_priv: The private data for @term_func
  * @caching: If PG_fscache has been set
  *
- * Helper function for a netfs to write dirty data from an inode into the cache
+ * Helper function for a netfs to write dirty data from an ianalde into the cache
  * object that's backing it.
  *
- * @start and @len describe the range of the data.  This does not need to be
+ * @start and @len describe the range of the data.  This does analt need to be
  * page-aligned, but to satisfy DIO requirements, the cache may expand it up to
  * the page boundaries on either end.  All the pages covering the range must be
  * marked with PG_fscache.
  *
  * If given, @term_func will be called upon completion and supplied with
- * @term_func_priv.  Note that the PG_fscache flags will have been cleared by
+ * @term_func_priv.  Analte that the PG_fscache flags will have been cleared by
  * this point, so the netfs must retain its own pin on the mapping.
  */
 static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
@@ -622,29 +622,29 @@ static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
 		__fscache_write_to_cache(cookie, mapping, start, len, i_size,
 					 term_func, term_func_priv, caching);
 	else if (term_func)
-		term_func(term_func_priv, -ENOBUFS, false);
+		term_func(term_func_priv, -EANALBUFS, false);
 
 }
 
 /**
- * fscache_note_page_release - Note that a netfs page got released
+ * fscache_analte_page_release - Analte that a netfs page got released
  * @cookie: The cookie corresponding to the file
  *
- * Note that a page that has been copied to the cache has been released.  This
+ * Analte that a page that has been copied to the cache has been released.  This
  * means that future reads will need to look in the cache to see if it's there.
  */
 static inline
-void fscache_note_page_release(struct fscache_cookie *cookie)
+void fscache_analte_page_release(struct fscache_cookie *cookie)
 {
 	/* If we've written data to the cache (HAVE_DATA) and there wasn't any
-	 * data in the cache when we started (NO_DATA_TO_READ), it may no
+	 * data in the cache when we started (ANAL_DATA_TO_READ), it may anal
 	 * longer be true that we can skip reading from the cache - so clear
 	 * the flag that causes reads to be skipped.
 	 */
 	if (cookie &&
 	    test_bit(FSCACHE_COOKIE_HAVE_DATA, &cookie->flags) &&
-	    test_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags))
-		clear_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+	    test_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags))
+		clear_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags);
 }
 
 #endif /* _LINUX_FSCACHE_H */

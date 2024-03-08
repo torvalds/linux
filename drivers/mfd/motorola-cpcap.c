@@ -73,13 +73,13 @@ static int cpcap_check_revision(struct cpcap_ddata *cpcap)
 
 	dev_info(&cpcap->spi->dev, "CPCAP vendor: %s rev: %i.%i (%x)\n",
 		 vendor == CPCAP_VENDOR_ST ? "ST" : "TI",
-		 CPCAP_REVISION_MAJOR(rev), CPCAP_REVISION_MINOR(rev),
+		 CPCAP_REVISION_MAJOR(rev), CPCAP_REVISION_MIANALR(rev),
 		 rev);
 
 	if (rev < CPCAP_REVISION_2_1) {
 		dev_info(&cpcap->spi->dev,
 			 "Please add old CPCAP revision support as needed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -158,7 +158,7 @@ static int cpcap_init_irq_chip(struct cpcap_ddata *cpcap, int irq_chip,
 				       IRQF_SHARED, -1,
 				       chip, &cpcap->irqdata[irq_chip]);
 	if (ret) {
-		dev_err(&cpcap->spi->dev, "could not add irq chip %i: %i\n",
+		dev_err(&cpcap->spi->dev, "could analt add irq chip %i: %i\n",
 			irq_chip, ret);
 		return ret;
 	}
@@ -176,7 +176,7 @@ static int cpcap_init_irq(struct cpcap_ddata *cpcap)
 					       cpcap->regmap_conf->val_bits),
 				   GFP_KERNEL);
 	if (!cpcap->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpcap_init_irq_chip(cpcap, 0, 0, 16);
 	if (ret)
@@ -216,7 +216,7 @@ static const struct regmap_config cpcap_regmap_config = {
 	.val_bits = 16,
 	.write_flag_mask = 0x8000,
 	.max_register = CPCAP_REG_ST_TEST2,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
@@ -295,7 +295,7 @@ static int cpcap_probe(struct spi_device *spi)
 
 	cpcap = devm_kzalloc(&spi->dev, sizeof(*cpcap), GFP_KERNEL);
 	if (!cpcap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpcap->spi = spi;
 	spi_set_drvdata(spi, cpcap);
@@ -327,7 +327,7 @@ static int cpcap_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	/* Parent SPI controller uses DMA, CPCAP and child devices do not */
+	/* Parent SPI controller uses DMA, CPCAP and child devices do analt */
 	spi->dev.coherent_dma_mask = 0;
 	spi->dev.dma_mask = &spi->dev.coherent_dma_mask;
 

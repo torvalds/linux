@@ -3,15 +3,15 @@
 #define _COMMON_SMB2PDU_H
 
 /*
- * Note that, due to trying to use names similar to the protocol specifications,
+ * Analte that, due to trying to use names similar to the protocol specifications,
  * there are many mixed case field names in the structures below.  Although
- * this does not match typical Linux kernel style, it is necessary to be
+ * this does analt match typical Linux kernel style, it is necessary to be
  * able to match against the protocol specfication.
  *
  * SMB2 commands
  * Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
- * (ie no useful data other than the SMB error code itself) and are marked such.
- * Knowing this helps avoid response buffer allocations and copy in some cases.
+ * (ie anal useful data other than the SMB error code itself) and are marked such.
+ * Kanalwing this helps avoid response buffer allocations and copy in some cases.
  */
 
 /* List of commands in host endian */
@@ -30,11 +30,11 @@
 #define SMB2_CANCEL_HE		0x000C
 #define SMB2_ECHO_HE		0x000D
 #define SMB2_QUERY_DIRECTORY_HE	0x000E
-#define SMB2_CHANGE_NOTIFY_HE	0x000F
+#define SMB2_CHANGE_ANALTIFY_HE	0x000F
 #define SMB2_QUERY_INFO_HE	0x0010
 #define SMB2_SET_INFO_HE	0x0011
 #define SMB2_OPLOCK_BREAK_HE	0x0012
-#define SMB2_SERVER_TO_CLIENT_NOTIFICATION 0x0013
+#define SMB2_SERVER_TO_CLIENT_ANALTIFICATION 0x0013
 
 /* The same list in little endian */
 #define SMB2_NEGOTIATE		cpu_to_le16(SMB2_NEGOTIATE_HE)
@@ -52,7 +52,7 @@
 #define SMB2_CANCEL		cpu_to_le16(SMB2_CANCEL_HE)
 #define SMB2_ECHO		cpu_to_le16(SMB2_ECHO_HE)
 #define SMB2_QUERY_DIRECTORY	cpu_to_le16(SMB2_QUERY_DIRECTORY_HE)
-#define SMB2_CHANGE_NOTIFY	cpu_to_le16(SMB2_CHANGE_NOTIFY_HE)
+#define SMB2_CHANGE_ANALTIFY	cpu_to_le16(SMB2_CHANGE_ANALTIFY_HE)
 #define SMB2_QUERY_INFO		cpu_to_le16(SMB2_QUERY_INFO_HE)
 #define SMB2_SET_INFO		cpu_to_le16(SMB2_SET_INFO_HE)
 #define SMB2_OPLOCK_BREAK	cpu_to_le16(SMB2_OPLOCK_BREAK_HE)
@@ -73,7 +73,7 @@
 
 /*
  * Size of the smb3 encryption/decryption keys
- * This size is big enough to store any cipher key types.
+ * This size is big eanalugh to store any cipher key types.
  */
 #define SMB3_ENC_DEC_KEY_SIZE		32
 
@@ -128,7 +128,7 @@
  *
  *  See MS-SMB2.PDF specification for protocol details.
  *  The Naming convention is the lower case version of the SMB2
- *  command code name for the struct. Note that structures must be packed.
+ *  command code name for the struct. Analte that structures must be packed.
  *
  */
 
@@ -193,15 +193,15 @@ struct smb2_err_rsp {
 	__u8   ErrorData[];  /* variable length */
 } __packed;
 
-#define SMB3_AES_CCM_NONCE 11
-#define SMB3_AES_GCM_NONCE 12
+#define SMB3_AES_CCM_ANALNCE 11
+#define SMB3_AES_GCM_ANALNCE 12
 
 /* Transform flags (for 3.0 dialect this flag indicates CCM */
 #define TRANSFORM_FLAG_ENCRYPTED	0x0001
 struct smb2_transform_hdr {
 	__le32 ProtocolId;	/* 0xFD 'S' 'M' 'B' */
 	__u8   Signature[16];
-	__u8   Nonce[16];
+	__u8   Analnce[16];
 	__le32 OriginalMessageSize;
 	__u16  Reserved1;
 	__le16 Flags; /* EncryptionAlgorithm for 3.0, enc enabled for 3.1.1 */
@@ -219,7 +219,7 @@ struct smb2_compression_transform_hdr_unchained {
 } __packed;
 
 /* See MS-SMB2 2.2.42.1 */
-#define SMB2_COMPRESSION_FLAG_NONE	0x0000
+#define SMB2_COMPRESSION_FLAG_ANALNE	0x0000
 #define SMB2_COMPRESSION_FLAG_CHAINED	0x0001
 
 struct compression_payload_header {
@@ -347,7 +347,7 @@ struct smb2_tree_connect_req {
 #define SMB2_SHAREFLAG_MANUAL_CACHING			0x00000000
 #define SMB2_SHAREFLAG_AUTO_CACHING			0x00000010
 #define SMB2_SHAREFLAG_VDO_CACHING			0x00000020
-#define SMB2_SHAREFLAG_NO_CACHING			0x00000030
+#define SMB2_SHAREFLAG_ANAL_CACHING			0x00000030
 #define SHI1005_FLAGS_DFS				0x00000001
 #define SHI1005_FLAGS_DFS_ROOT				0x00000002
 #define SMB2_SHAREFLAG_RESTRICT_EXCLUSIVE_OPENS		0x00000100
@@ -412,7 +412,7 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_GLOBAL_CAP_PERSISTENT_HANDLES 0x00000010 /* New to SMB3 */
 #define SMB2_GLOBAL_CAP_DIRECTORY_LEASING  0x00000020 /* New to SMB3 */
 #define SMB2_GLOBAL_CAP_ENCRYPTION	0x00000040 /* New to SMB3 */
-#define SMB2_GLOBAL_CAP_NOTIFICATIONS	0x00000080 /* New to SMB3.1.1 */
+#define SMB2_GLOBAL_CAP_ANALTIFICATIONS	0x00000080 /* New to SMB3.1.1 */
 /* Internal types */
 #define SMB2_NT_FIND			0x00100000
 #define SMB2_LARGE_FILES		0x00200000
@@ -421,7 +421,7 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_CREATE_GUID_SIZE		16
 
 /* Dialects */
-#define SMB10_PROT_ID  0x0000 /* local only, not sent on wire w/CIFS negprot */
+#define SMB10_PROT_ID  0x0000 /* local only, analt sent on wire w/CIFS negprot */
 #define SMB20_PROT_ID  0x0202
 #define SMB21_PROT_ID  0x0210
 #define SMB2X_PROT_ID  0x02FF
@@ -449,7 +449,7 @@ struct smb2_neg_context {
 	__le16	ContextType;
 	__le16	DataLength;
 	__le32	Reserved;
-	/* Followed by array of data. NOTE: some servers require padding to 8 byte boundary */
+	/* Followed by array of data. ANALTE: some servers require padding to 8 byte boundary */
 } __packed;
 
 /*
@@ -489,7 +489,7 @@ struct smb2_encryption_neg_context {
 } __packed;
 
 /* See MS-SMB2 2.2.3.1.3 */
-#define SMB3_COMPRESS_NONE	cpu_to_le16(0x0000)
+#define SMB3_COMPRESS_ANALNE	cpu_to_le16(0x0000)
 #define SMB3_COMPRESS_LZNT1	cpu_to_le16(0x0001)
 #define SMB3_COMPRESS_LZ77	cpu_to_le16(0x0002)
 #define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
@@ -497,7 +497,7 @@ struct smb2_encryption_neg_context {
 #define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004) /* Pattern_V1 */
 
 /* Compression Flags */
-#define SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE		cpu_to_le32(0x00000000)
+#define SMB2_COMPRESSION_CAPABILITIES_FLAG_ANALNE		cpu_to_le32(0x00000000)
 #define SMB2_COMPRESSION_CAPABILITIES_FLAG_CHAINED	cpu_to_le32(0x00000001)
 
 struct smb2_compression_capabilities_context {
@@ -545,7 +545,7 @@ struct smb2_transport_capabilities_context {
  */
 
 /* RDMA Transform IDs */
-#define SMB2_RDMA_TRANSFORM_NONE	0x0000
+#define SMB2_RDMA_TRANSFORM_ANALNE	0x0000
 #define SMB2_RDMA_TRANSFORM_ENCRYPTION	0x0001
 #define SMB2_RDMA_TRANSFORM_SIGNING	0x0002
 
@@ -619,7 +619,7 @@ struct smb2_negotiate_rsp {
 	__le64 ServerStartTime;
 	__le16 SecurityBufferOffset;
 	__le16 SecurityBufferLength;
-	__le32 NegotiateContextOffset;	/* Pre:SMB3.1.1 was reserved/ignored */
+	__le32 NegotiateContextOffset;	/* Pre:SMB3.1.1 was reserved/iganalred */
 	__u8   Buffer[];	/* variable length GSS security buffer */
 } __packed;
 
@@ -723,7 +723,7 @@ struct smb2_close_rsp {
 #define SMB2_READFLAG_REQUEST_COMPRESSED 0x02 /* See MS-SMB2 2.2.19 */
 
 /* Channel field for read and write: exactly one of following flags can be set*/
-#define SMB2_CHANNEL_NONE               cpu_to_le32(0x00000000)
+#define SMB2_CHANNEL_ANALNE               cpu_to_le32(0x00000000)
 #define SMB2_CHANNEL_RDMA_V1            cpu_to_le32(0x00000001)
 #define SMB2_CHANNEL_RDMA_V1_INVALIDATE cpu_to_le32(0x00000002)
 #define SMB2_CHANNEL_RDMA_TRANSFORM     cpu_to_le32(0x00000003)
@@ -747,7 +747,7 @@ struct smb2_read_req {
 } __packed;
 
 /* Read flags */
-#define SMB2_READFLAG_RESPONSE_NONE            cpu_to_le32(0x00000000)
+#define SMB2_READFLAG_RESPONSE_ANALNE            cpu_to_le32(0x00000000)
 #define SMB2_READFLAG_RESPONSE_RDMA_TRANSFORM  cpu_to_le32(0x00000001)
 
 struct smb2_read_rsp {
@@ -867,9 +867,9 @@ struct smb2_echo_rsp {
 /*
  * Valid FileInformation classes for query directory
  *
- * Note that these are a subset of the (file) QUERY_INFO levels defined
+ * Analte that these are a subset of the (file) QUERY_INFO levels defined
  * later in this file (but since QUERY_DIRECTORY uses equivalent numbers
- * we do not redefine them here)
+ * we do analt redefine them here)
  *
  * FileDirectoryInfomation		0x01
  * FileFullDirectoryInformation		0x02
@@ -937,26 +937,26 @@ struct smb2_set_info_rsp {
 } __packed;
 
 /*
- * SMB2_NOTIFY  See MS-SMB2 section 2.2.35
+ * SMB2_ANALTIFY  See MS-SMB2 section 2.2.35
  */
-/* notify flags */
+/* analtify flags */
 #define SMB2_WATCH_TREE			0x0001
 
-/* notify completion filter flags. See MS-FSCC 2.6 and MS-SMB2 2.2.35 */
-#define FILE_NOTIFY_CHANGE_FILE_NAME		0x00000001
-#define FILE_NOTIFY_CHANGE_DIR_NAME		0x00000002
-#define FILE_NOTIFY_CHANGE_ATTRIBUTES		0x00000004
-#define FILE_NOTIFY_CHANGE_SIZE			0x00000008
-#define FILE_NOTIFY_CHANGE_LAST_WRITE		0x00000010
-#define FILE_NOTIFY_CHANGE_LAST_ACCESS		0x00000020
-#define FILE_NOTIFY_CHANGE_CREATION		0x00000040
-#define FILE_NOTIFY_CHANGE_EA			0x00000080
-#define FILE_NOTIFY_CHANGE_SECURITY		0x00000100
-#define FILE_NOTIFY_CHANGE_STREAM_NAME		0x00000200
-#define FILE_NOTIFY_CHANGE_STREAM_SIZE		0x00000400
-#define FILE_NOTIFY_CHANGE_STREAM_WRITE		0x00000800
+/* analtify completion filter flags. See MS-FSCC 2.6 and MS-SMB2 2.2.35 */
+#define FILE_ANALTIFY_CHANGE_FILE_NAME		0x00000001
+#define FILE_ANALTIFY_CHANGE_DIR_NAME		0x00000002
+#define FILE_ANALTIFY_CHANGE_ATTRIBUTES		0x00000004
+#define FILE_ANALTIFY_CHANGE_SIZE			0x00000008
+#define FILE_ANALTIFY_CHANGE_LAST_WRITE		0x00000010
+#define FILE_ANALTIFY_CHANGE_LAST_ACCESS		0x00000020
+#define FILE_ANALTIFY_CHANGE_CREATION		0x00000040
+#define FILE_ANALTIFY_CHANGE_EA			0x00000080
+#define FILE_ANALTIFY_CHANGE_SECURITY		0x00000100
+#define FILE_ANALTIFY_CHANGE_STREAM_NAME		0x00000200
+#define FILE_ANALTIFY_CHANGE_STREAM_SIZE		0x00000400
+#define FILE_ANALTIFY_CHANGE_STREAM_WRITE		0x00000800
 
-/* SMB2 Notify Action Flags */
+/* SMB2 Analtify Action Flags */
 #define FILE_ACTION_ADDED                       0x00000001
 #define FILE_ACTION_REMOVED                     0x00000002
 #define FILE_ACTION_MODIFIED                    0x00000003
@@ -967,7 +967,7 @@ struct smb2_set_info_rsp {
 #define FILE_ACTION_MODIFIED_STREAM             0x00000008
 #define FILE_ACTION_REMOVED_BY_DELETE           0x00000009
 
-struct smb2_change_notify_req {
+struct smb2_change_analtify_req {
 	struct smb2_hdr hdr;
 	__le16	StructureSize;
 	__le16	Flags;
@@ -978,42 +978,42 @@ struct smb2_change_notify_req {
 	__u32	Reserved;
 } __packed;
 
-struct smb2_change_notify_rsp {
+struct smb2_change_analtify_rsp {
 	struct smb2_hdr hdr;
 	__le16	StructureSize;  /* Must be 9 */
 	__le16	OutputBufferOffset;
 	__le32	OutputBufferLength;
-	__u8	Buffer[]; /* array of file notify structs */
+	__u8	Buffer[]; /* array of file analtify structs */
 } __packed;
 
 /*
- * SMB2_SERVER_TO_CLIENT_NOTIFICATION: See MS-SMB2 section 2.2.44
+ * SMB2_SERVER_TO_CLIENT_ANALTIFICATION: See MS-SMB2 section 2.2.44
  */
 
-#define SMB2_NOTIFY_SESSION_CLOSED	0x0000
+#define SMB2_ANALTIFY_SESSION_CLOSED	0x0000
 
-struct smb2_server_client_notification {
+struct smb2_server_client_analtification {
 	struct smb2_hdr hdr;
 	__le16	StructureSize;
 	__u16	Reserved; /* MBZ */
-	__le32	NotificationType;
-	__u8	NotificationBuffer[4]; /* MBZ */
+	__le32	AnaltificationType;
+	__u8	AnaltificationBuffer[4]; /* MBZ */
 } __packed;
 
 /*
  * SMB2_CREATE  See MS-SMB2 section 2.2.13
  */
 /* Oplock levels */
-#define SMB2_OPLOCK_LEVEL_NONE		0x00
+#define SMB2_OPLOCK_LEVEL_ANALNE		0x00
 #define SMB2_OPLOCK_LEVEL_II		0x01
 #define SMB2_OPLOCK_LEVEL_EXCLUSIVE	0x08
 #define SMB2_OPLOCK_LEVEL_BATCH		0x09
 #define SMB2_OPLOCK_LEVEL_LEASE		0xFF
-/* Non-spec internal type */
-#define SMB2_OPLOCK_LEVEL_NOCHANGE	0x99
+/* Analn-spec internal type */
+#define SMB2_OPLOCK_LEVEL_ANALCHANGE	0x99
 
 /* Impersonation Levels. See MS-WPO section 9.7 and MSDN-IMPERS */
-#define IL_ANONYMOUS		cpu_to_le32(0x00000000)
+#define IL_AANALNYMOUS		cpu_to_le32(0x00000000)
 #define IL_IDENTIFICATION	cpu_to_le32(0x00000001)
 #define IL_IMPERSONATION	cpu_to_le32(0x00000002)
 #define IL_DELEGATE		cpu_to_le32(0x00000003)
@@ -1024,16 +1024,16 @@ struct smb2_server_client_notification {
 #define FILE_ATTRIBUTE_SYSTEM			0x00000004
 #define FILE_ATTRIBUTE_DIRECTORY		0x00000010
 #define FILE_ATTRIBUTE_ARCHIVE			0x00000020
-#define FILE_ATTRIBUTE_NORMAL			0x00000080
+#define FILE_ATTRIBUTE_ANALRMAL			0x00000080
 #define FILE_ATTRIBUTE_TEMPORARY		0x00000100
 #define FILE_ATTRIBUTE_SPARSE_FILE		0x00000200
 #define FILE_ATTRIBUTE_REPARSE_POINT		0x00000400
 #define FILE_ATTRIBUTE_COMPRESSED		0x00000800
 #define FILE_ATTRIBUTE_OFFLINE			0x00001000
-#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED	0x00002000
+#define FILE_ATTRIBUTE_ANALT_CONTENT_INDEXED	0x00002000
 #define FILE_ATTRIBUTE_ENCRYPTED		0x00004000
 #define FILE_ATTRIBUTE_INTEGRITY_STREAM		0x00008000
-#define FILE_ATTRIBUTE_NO_SCRUB_DATA		0x00020000
+#define FILE_ATTRIBUTE_ANAL_SCRUB_DATA		0x00020000
 #define FILE_ATTRIBUTE__MASK			0x00007FB7
 
 #define FILE_ATTRIBUTE_READONLY_LE              cpu_to_le32(0x00000001)
@@ -1041,16 +1041,16 @@ struct smb2_server_client_notification {
 #define FILE_ATTRIBUTE_SYSTEM_LE		cpu_to_le32(0x00000004)
 #define FILE_ATTRIBUTE_DIRECTORY_LE		cpu_to_le32(0x00000010)
 #define FILE_ATTRIBUTE_ARCHIVE_LE		cpu_to_le32(0x00000020)
-#define FILE_ATTRIBUTE_NORMAL_LE		cpu_to_le32(0x00000080)
+#define FILE_ATTRIBUTE_ANALRMAL_LE		cpu_to_le32(0x00000080)
 #define FILE_ATTRIBUTE_TEMPORARY_LE		cpu_to_le32(0x00000100)
 #define FILE_ATTRIBUTE_SPARSE_FILE_LE		cpu_to_le32(0x00000200)
 #define FILE_ATTRIBUTE_REPARSE_POINT_LE		cpu_to_le32(0x00000400)
 #define FILE_ATTRIBUTE_COMPRESSED_LE		cpu_to_le32(0x00000800)
 #define FILE_ATTRIBUTE_OFFLINE_LE		cpu_to_le32(0x00001000)
-#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED_LE	cpu_to_le32(0x00002000)
+#define FILE_ATTRIBUTE_ANALT_CONTENT_INDEXED_LE	cpu_to_le32(0x00002000)
 #define FILE_ATTRIBUTE_ENCRYPTED_LE		cpu_to_le32(0x00004000)
 #define FILE_ATTRIBUTE_INTEGRITY_STREAM_LE	cpu_to_le32(0x00008000)
-#define FILE_ATTRIBUTE_NO_SCRUB_DATA_LE		cpu_to_le32(0x00020000)
+#define FILE_ATTRIBUTE_ANAL_SCRUB_DATA_LE		cpu_to_le32(0x00020000)
 #define FILE_ATTRIBUTE_MASK_LE			cpu_to_le32(0x00007FB7)
 
 /* Desired Access Flags */
@@ -1111,27 +1111,27 @@ struct smb2_server_client_notification {
 
 /* CreateOptions Flags */
 #define FILE_DIRECTORY_FILE_LE		cpu_to_le32(0x00000001)
-/* same as #define CREATE_NOT_FILE_LE	cpu_to_le32(0x00000001) */
+/* same as #define CREATE_ANALT_FILE_LE	cpu_to_le32(0x00000001) */
 #define FILE_WRITE_THROUGH_LE		cpu_to_le32(0x00000002)
 #define FILE_SEQUENTIAL_ONLY_LE		cpu_to_le32(0x00000004)
-#define FILE_NO_INTERMEDIATE_BUFFERING_LE cpu_to_le32(0x00000008)
-/* FILE_SYNCHRONOUS_IO_ALERT_LE		cpu_to_le32(0x00000010) should be zero, ignored */
-/* FILE_SYNCHRONOUS_IO_NONALERT		cpu_to_le32(0x00000020) should be zero, ignored */
-#define FILE_NON_DIRECTORY_FILE_LE	cpu_to_le32(0x00000040)
+#define FILE_ANAL_INTERMEDIATE_BUFFERING_LE cpu_to_le32(0x00000008)
+/* FILE_SYNCHROANALUS_IO_ALERT_LE		cpu_to_le32(0x00000010) should be zero, iganalred */
+/* FILE_SYNCHROANALUS_IO_ANALNALERT		cpu_to_le32(0x00000020) should be zero, iganalred */
+#define FILE_ANALN_DIRECTORY_FILE_LE	cpu_to_le32(0x00000040)
 #define FILE_COMPLETE_IF_OPLOCKED_LE	cpu_to_le32(0x00000100)
-#define FILE_NO_EA_KNOWLEDGE_LE		cpu_to_le32(0x00000200)
-/* FILE_OPEN_REMOTE_INSTANCE		cpu_to_le32(0x00000400) should be zero, ignored */
+#define FILE_ANAL_EA_KANALWLEDGE_LE		cpu_to_le32(0x00000200)
+/* FILE_OPEN_REMOTE_INSTANCE		cpu_to_le32(0x00000400) should be zero, iganalred */
 #define FILE_RANDOM_ACCESS_LE		cpu_to_le32(0x00000800)
 #define FILE_DELETE_ON_CLOSE_LE		cpu_to_le32(0x00001000) /* MBZ */
 #define FILE_OPEN_BY_FILE_ID_LE		cpu_to_le32(0x00002000)
 #define FILE_OPEN_FOR_BACKUP_INTENT_LE	cpu_to_le32(0x00004000)
-#define FILE_NO_COMPRESSION_LE		cpu_to_le32(0x00008000)
-/* FILE_OPEN_REQUIRING_OPLOCK		cpu_to_le32(0x00010000) should be zero, ignored */
-/* FILE_DISALLOW_EXCLUSIVE		cpu_to_le32(0x00020000) should be zero, ignored */
+#define FILE_ANAL_COMPRESSION_LE		cpu_to_le32(0x00008000)
+/* FILE_OPEN_REQUIRING_OPLOCK		cpu_to_le32(0x00010000) should be zero, iganalred */
+/* FILE_DISALLOW_EXCLUSIVE		cpu_to_le32(0x00020000) should be zero, iganalred */
 /* FILE_RESERVE_OPFILTER		cpu_to_le32(0x00100000) MBZ */
 #define FILE_OPEN_REPARSE_POINT_LE	cpu_to_le32(0x00200000)
-#define FILE_OPEN_NO_RECALL_LE		cpu_to_le32(0x00400000)
-/* #define FILE_OPEN_FOR_FREE_SPACE_QUERY cpu_to_le32(0x00800000) should be zero, ignored */
+#define FILE_OPEN_ANAL_RECALL_LE		cpu_to_le32(0x00400000)
+/* #define FILE_OPEN_FOR_FREE_SPACE_QUERY cpu_to_le32(0x00800000) should be zero, iganalred */
 #define CREATE_OPTIONS_MASK_LE          cpu_to_le32(0x00FFFFFF)
 
 #define FILE_READ_RIGHTS_LE (FILE_READ_DATA_LE | FILE_READ_EA_LE \
@@ -1247,7 +1247,7 @@ struct create_mxac_rsp {
 	__le32 MaximalAccess;
 } __packed;
 
-#define SMB2_LEASE_NONE_LE			cpu_to_le32(0x00)
+#define SMB2_LEASE_ANALNE_LE			cpu_to_le32(0x00)
 #define SMB2_LEASE_READ_CACHING_LE		cpu_to_le32(0x01)
 #define SMB2_LEASE_HANDLE_CACHING_LE		cpu_to_le32(0x02)
 #define SMB2_LEASE_WRITE_CACHING_LE		cpu_to_le32(0x04)
@@ -1401,7 +1401,7 @@ struct fsctl_query_file_regions_req {
 /* DesiredUsage flags see MS-FSCC 2.3.56.1 */
 #define FILE_USAGE_INVALID_RANGE	0x00000000
 #define FILE_USAGE_VALID_CACHED_DATA	0x00000001
-#define FILE_USAGE_NONCACHED_DATA	0x00000002
+#define FILE_USAGE_ANALNCACHED_DATA	0x00000002
 
 struct file_region_info {
 	__le64	FileOffset;
@@ -1452,7 +1452,7 @@ struct fsctl_set_integrity_info_ex_req {
 } __packed;
 
 /* Integrity ChecksumAlgorithm choices for above */
-#define	CHECKSUM_TYPE_NONE	0x0000
+#define	CHECKSUM_TYPE_ANALNE	0x0000
 #define	CHECKSUM_TYPE_CRC64	0x0002
 #define	CHECKSUM_TYPE_UNCHANGED	0xFFFF	/* set only */
 
@@ -1528,7 +1528,7 @@ struct validate_negotiate_info_rsp {
 
 /* SMB2 Query Info see MS-SMB2 (2.2.37) or MS-DTYP */
 
-/* List of QUERY INFO levels (those also valid for QUERY_DIR are noted below */
+/* List of QUERY INFO levels (those also valid for QUERY_DIR are analted below */
 #define FILE_DIRECTORY_INFORMATION	1	/* also for QUERY_DIR */
 #define FILE_FULL_DIRECTORY_INFORMATION 2	/* also for QUERY_DIR */
 #define FILE_BOTH_DIRECTORY_INFORMATION 3	/* also for QUERY_DIR */
@@ -1558,7 +1558,7 @@ struct validate_negotiate_info_rsp {
 #define FILE_MAILSLOT_SET_INFORMATION	27
 #define FILE_COMPRESSION_INFORMATION	28
 #define FILE_OBJECT_ID_INFORMATION	29
-/* Number 30 not defined in documents */
+/* Number 30 analt defined in documents */
 #define FILE_MOVE_CLUSTER_INFORMATION	31
 #define FILE_QUOTA_INFORMATION		32
 #define FILE_REPARSE_POINT_INFORMATION	33
@@ -1572,7 +1572,7 @@ struct validate_negotiate_info_rsp {
 #define FILE_SFIO_RESERVE_INFORMATION	44
 #define FILE_SFIO_VOLUME_INFORMATION	45
 #define FILE_HARD_LINK_INFORMATION	46
-#define FILE_NORMALIZED_NAME_INFORMATION 48
+#define FILE_ANALRMALIZED_NAME_INFORMATION 48
 #define FILEID_GLOBAL_TX_DIRECTORY_INFORMATION 50
 #define FILE_STANDARD_LINK_INFORMATION	54
 #define FILE_ID_INFORMATION		59
@@ -1700,7 +1700,7 @@ struct smb311_posix_qinfo {
 	__le64 EndOfFile;
 	__le64 AllocationSize;
 	__le32 DosAttributes;
-	__le64 Inode;
+	__le64 Ianalde;
 	__le32 DeviceId;
 	__le32 Zero;
 	/* beginning of POSIX Create Context Response */
@@ -1739,7 +1739,7 @@ struct smb2_fs_full_size_info {
 
 #define SSINFO_FLAGS_ALIGNED_DEVICE		0x00000001
 #define SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE 0x00000002
-#define SSINFO_FLAGS_NO_SEEK_PENALTY		0x00000004
+#define SSINFO_FLAGS_ANAL_SEEK_PENALTY		0x00000004
 #define SSINFO_FLAGS_TRIM_ENABLED		0x00000008
 
 /* sector size info struct */
@@ -1786,7 +1786,7 @@ struct smb2_oplock_break {
 	__u64  VolatileFid;
 } __packed;
 
-#define SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED cpu_to_le32(0x01)
+#define SMB2_ANALTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED cpu_to_le32(0x01)
 
 struct smb2_lease_break {
 	struct smb2_hdr hdr;

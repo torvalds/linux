@@ -44,7 +44,7 @@ static int mte_dump_tag_range(struct coredump_params *cprm,
 
 		/*
 		 * Pages mapped in user space as !pte_access_permitted() (e.g.
-		 * PROT_EXEC only) may not have the PG_mte_tagged flag set.
+		 * PROT_EXEC only) may analt have the PG_mte_tagged flag set.
 		 */
 		if (!page_mte_tagged(page)) {
 			put_page(page);

@@ -29,7 +29,7 @@
 #include "bdc.h"
 #include "bdc_dbg.h"
 
-/* Poll till controller status is not OIP */
+/* Poll till controller status is analt OIP */
 static int poll_oip(struct bdc *bdc, u32 usec)
 {
 	u32 status;
@@ -100,8 +100,8 @@ int bdc_run(struct bdc *bdc)
 
 	dev_dbg(bdc->dev, "%s ()\n", __func__);
 	temp = bdc_readl(bdc->regs, BDC_BDCSC);
-	/* if BDC is already in running state then do not do anything */
-	if (BDC_CSTS(temp) == BDC_NOR) {
+	/* if BDC is already in running state then do analt do anything */
+	if (BDC_CSTS(temp) == BDC_ANALR) {
 		dev_warn(bdc->dev, "bdc is already in running state\n");
 		return 0;
 	}
@@ -115,8 +115,8 @@ int bdc_run(struct bdc *bdc)
 		return ret;
 	}
 	temp = bdc_readl(bdc->regs, BDC_BDCSC);
-	if (BDC_CSTS(temp) != BDC_NOR) {
-		dev_err(bdc->dev, "bdc not in normal mode after RUN op :%d\n",
+	if (BDC_CSTS(temp) != BDC_ANALR) {
+		dev_err(bdc->dev, "bdc analt in analrmal mode after RUN op :%d\n",
 								BDC_CSTS(temp));
 		return -ESHUTDOWN;
 	}
@@ -162,7 +162,7 @@ static int scratchpad_setup(struct bdc *bdc)
 	sp_buff_size = BDC_SPB(bdc_readl(bdc->regs, BDC_BDCCFG0));
 	dev_dbg(bdc->dev, "%s() sp_buff_size=%d\n", __func__, sp_buff_size);
 	if (!sp_buff_size) {
-		dev_dbg(bdc->dev, "Scratchpad buffer not needed\n");
+		dev_dbg(bdc->dev, "Scratchpad buffer analt needed\n");
 		return 0;
 	}
 	/* Refer to BDC spec, Table 4 for description of SPB */
@@ -188,7 +188,7 @@ static int scratchpad_setup(struct bdc *bdc)
 fail:
 	bdc->scratchpad.buff = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Allocate the status report ring */
@@ -203,7 +203,7 @@ static int setup_srr(struct bdc *bdc, int interrupter)
 					     NUM_SR_ENTRIES * sizeof(struct bdc_bd),
 					     &bdc->srr.dma_addr, GFP_KERNEL);
 	if (!bdc->srr.sr_bds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -290,7 +290,7 @@ static void bdc_mem_init(struct bdc *bdc, bool reinit)
 					NUM_SR_ENTRIES * sizeof(struct bdc_bd));
 		/*
 		 * clear ep flags to avoid post disconnect stops/deconfigs but
-		 * not during S2 exit
+		 * analt during S2 exit
 		 */
 		if (!bdc->gadget.speed)
 			for (i = 1; i < bdc->num_eps; ++i)
@@ -390,7 +390,7 @@ static int bdc_mem_alloc(struct bdc *bdc)
 
 	/* read from regs */
 	num_ieps = NUM_NCS(bdc_readl(bdc->regs, BDC_FSCNIC));
-	num_oeps = NUM_NCS(bdc_readl(bdc->regs, BDC_FSCNOC));
+	num_oeps = NUM_NCS(bdc_readl(bdc->regs, BDC_FSCANALC));
 	/* +2: 1 for ep0 and the other is rsvd i.e. bdc_ep[0] is rsvd */
 	bdc->num_eps = num_ieps + num_oeps + 2;
 	dev_dbg(bdc->dev,
@@ -411,7 +411,7 @@ fail:
 	dev_warn(bdc->dev, "Couldn't initialize memory\n");
 	bdc_mem_free(bdc);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* opposite to bdc_hw_init */
@@ -435,7 +435,7 @@ static int bdc_hw_init(struct bdc *bdc)
 	ret = bdc_mem_alloc(bdc);
 	if (ret) {
 		dev_err(bdc->dev, "Mem alloc failed, aborting\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	bdc_mem_init(bdc, 0);
 	bdc_dbg_regs(bdc);
@@ -494,7 +494,7 @@ static int bdc_probe(struct platform_device *pdev)
 
 	bdc = devm_kzalloc(dev, sizeof(*bdc), GFP_KERNEL);
 	if (!bdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bdc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bdc->regs))
@@ -509,13 +509,13 @@ static int bdc_probe(struct platform_device *pdev)
 	bdc->dev = dev;
 	dev_dbg(dev, "bdc->regs: %p irq=%d\n", bdc->regs, bdc->irq);
 
-	bdc->num_phys = of_count_phandle_with_args(dev->of_node,
+	bdc->num_phys = of_count_phandle_with_args(dev->of_analde,
 						"phys", "#phy-cells");
 	if (bdc->num_phys > 0) {
 		bdc->phys = devm_kcalloc(dev, bdc->num_phys,
 					sizeof(struct phy *), GFP_KERNEL);
 		if (!bdc->phys)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		bdc->num_phys = 0;
 	}
@@ -523,11 +523,11 @@ static int bdc_probe(struct platform_device *pdev)
 
 	for (phy_num = 0; phy_num < bdc->num_phys; phy_num++) {
 		bdc->phys[phy_num] = devm_of_phy_get_by_index(
-			dev, dev->of_node, phy_num);
+			dev, dev->of_analde, phy_num);
 		if (IS_ERR(bdc->phys[phy_num])) {
 			ret = PTR_ERR(bdc->phys[phy_num]);
 			dev_err(bdc->dev,
-				"BDC phy specified but not found:%d\n", ret);
+				"BDC phy specified but analt found:%d\n", ret);
 			return ret;
 		}
 	}
@@ -538,7 +538,7 @@ static int bdc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(bdc->clk);
 	if (ret) {
-		dev_err(dev, "could not enable clock\n");
+		dev_err(dev, "could analt enable clock\n");
 		return ret;
 	}
 
@@ -556,8 +556,8 @@ static int bdc_probe(struct platform_device *pdev)
 		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret) {
 			dev_err(dev,
-				"No suitable DMA config available, abort\n");
-			ret = -ENOTSUPP;
+				"Anal suitable DMA config available, abort\n");
+			ret = -EANALTSUPP;
 			goto phycleanup;
 		}
 		dev_dbg(dev, "Using 32-bit address\n");

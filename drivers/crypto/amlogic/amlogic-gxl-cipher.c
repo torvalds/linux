@@ -121,7 +121,7 @@ static int meson_cipher(struct skcipher_request *areq)
 	 */
 	bkeyiv = kzalloc(48, GFP_KERNEL | GFP_DMA);
 	if (!bkeyiv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(bkeyiv, op->key, op->keylen);
 	keyivlen = op->keylen;
@@ -138,7 +138,7 @@ static int meson_cipher(struct skcipher_request *areq)
 		if (rctx->op_dir == MESON_DECRYPT) {
 			backup_iv = kzalloc(ivsize, GFP_KERNEL);
 			if (!backup_iv) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto theend;
 			}
 			offset = areq->cryptlen - ivsize;
@@ -153,7 +153,7 @@ static int meson_cipher(struct skcipher_request *areq)
 				  DMA_TO_DEVICE);
 	err = dma_mapping_error(mc->dev, phykeyiv);
 	if (err) {
-		dev_err(mc->dev, "Cannot DMA MAP KEY IV\n");
+		dev_err(mc->dev, "Cananalt DMA MAP KEY IV\n");
 		goto theend;
 	}
 
@@ -322,7 +322,7 @@ int meson_cipher_init(struct crypto_tfm *tfm)
 
 	op->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(op->mc->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(op->mc->dev, "ERROR: Cananalt allocate fallback for %s %ld\n",
 			name, PTR_ERR(op->fallback_tfm));
 		return PTR_ERR(op->fallback_tfm);
 	}
@@ -365,7 +365,7 @@ int meson_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	op->keylen = keylen;
 	op->key = kmemdup(key, keylen, GFP_KERNEL | GFP_DMA);
 	if (!op->key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return crypto_skcipher_setkey(op->fallback_tfm, key, keylen);
 }

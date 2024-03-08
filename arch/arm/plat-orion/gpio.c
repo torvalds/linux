@@ -310,8 +310,8 @@ int orion_gpio_led_blink_set(struct gpio_desc *desc, int state,
 		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;
 
 	switch (state) {
-	case GPIO_LED_NO_BLINK_LOW:
-	case GPIO_LED_NO_BLINK_HIGH:
+	case GPIO_LED_ANAL_BLINK_LOW:
+	case GPIO_LED_ANAL_BLINK_HIGH:
 		orion_gpio_set_blink(gpio, 0);
 		gpiod_set_raw_value(desc, state);
 		break;
@@ -335,7 +335,7 @@ EXPORT_SYMBOL_GPL(orion_gpio_led_blink_set);
  *                     Interrupt are masked by EDGE_MASK registers.
  * Both-edge handlers: Similar to regular Edge handlers, but also swaps
  *                     the polarity to catch the next line transaction.
- *                     This is a race condition that might not perfectly
+ *                     This is a race condition that might analt perfectly
  *                     work on some use cases.
  *
  * Every eight GPIO lines are grouped (OR'ed) before going up to main
@@ -365,7 +365,7 @@ static int gpio_irq_set_type(struct irq_data *d, u32 type)
 	}
 
 	type &= IRQ_TYPE_SENSE_MASK;
-	if (type == IRQ_TYPE_NONE)
+	if (type == IRQ_TYPE_ANALNE)
 		return -EINVAL;
 
 	/* Check if we need to change chip and handler */
@@ -599,7 +599,7 @@ void __init orion_gpio_init(int gpio_base, int ngpio,
 	ct->chip.name = ochip->chip.label;
 
 	irq_setup_generic_chip(gc, IRQ_MSK(ngpio), IRQ_GC_INIT_MASK_CACHE,
-			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
+			       IRQ_ANALREQUEST, IRQ_LEVEL | IRQ_ANALPROBE);
 
 	/* Setup irq domain on top of the generic chip. */
 	ochip->domain = irq_domain_add_legacy(NULL,

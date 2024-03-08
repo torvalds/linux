@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -93,7 +93,7 @@ nv50_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	struct nv50_gr_chan *chan;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nv50_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
 	*pobject = &chan->object;
@@ -139,7 +139,7 @@ static const struct nvkm_bitfield nv50_tex_traps[] = {
 };
 
 static const struct nvkm_bitfield nv50_gr_trap_m2mf[] = {
-	{ 0x00000001, "NOTIFY" },
+	{ 0x00000001, "ANALTIFY" },
 	{ 0x00000002, "IN" },
 	{ 0x00000004, "OUT" },
 	{}
@@ -190,13 +190,13 @@ const struct nvkm_enum nv50_data_error_names[] = {
 	{ 0x00000023, "XY_OUT_OF_BOUNDS", NULL },
 	{ 0x00000024, "VP_ZERO_INPUTS", NULL },
 	{ 0x00000027, "CP_MORE_PARAMS_THAN_SHARED", NULL },
-	{ 0x00000028, "CP_NO_REG_SPACE_STRIPED", NULL },
-	{ 0x00000029, "CP_NO_REG_SPACE_PACKED", NULL },
-	{ 0x0000002a, "CP_NOT_ENOUGH_WARPS", NULL },
+	{ 0x00000028, "CP_ANAL_REG_SPACE_STRIPED", NULL },
+	{ 0x00000029, "CP_ANAL_REG_SPACE_PACKED", NULL },
+	{ 0x0000002a, "CP_ANALT_EANALUGH_WARPS", NULL },
 	{ 0x0000002b, "CP_BLOCK_SIZE_MISMATCH", NULL },
-	{ 0x0000002c, "CP_NOT_ENOUGH_LOCAL_WARPS", NULL },
-	{ 0x0000002d, "CP_NOT_ENOUGH_STACK_WARPS", NULL },
-	{ 0x0000002e, "CP_NO_BLOCKDIM_LATCH", NULL },
+	{ 0x0000002c, "CP_ANALT_EANALUGH_LOCAL_WARPS", NULL },
+	{ 0x0000002d, "CP_ANALT_EANALUGH_STACK_WARPS", NULL },
+	{ 0x0000002e, "CP_ANAL_BLOCKDIM_LATCH", NULL },
 	{ 0x00000031, "ENG2D_FORMAT_MISMATCH", NULL },
 	{ 0x0000003f, "PRIMITIVE_ID_NEEDS_GP", NULL },
 	{ 0x00000044, "SEMANTIC_VIEWPORT_OVER_LIMIT", NULL },
@@ -208,13 +208,13 @@ const struct nvkm_enum nv50_data_error_names[] = {
 };
 
 static const struct nvkm_bitfield nv50_gr_intr_name[] = {
-	{ 0x00000001, "NOTIFY" },
+	{ 0x00000001, "ANALTIFY" },
 	{ 0x00000002, "COMPUTE_QUERY" },
 	{ 0x00000010, "ILLEGAL_MTHD" },
 	{ 0x00000020, "ILLEGAL_CLASS" },
-	{ 0x00000040, "DOUBLE_NOTIFY" },
+	{ 0x00000040, "DOUBLE_ANALTIFY" },
 	{ 0x00001000, "CONTEXT_SWITCH" },
-	{ 0x00010000, "BUFFER_NOTIFY" },
+	{ 0x00010000, "BUFFER_ANALTIFY" },
 	{ 0x00100000, "DATA_ERROR" },
 	{ 0x00200000, "TRAP" },
 	{ 0x01000000, "SINGLE_STEP" },
@@ -263,7 +263,7 @@ nv50_gr_prop_trap(struct nv50_gr *gr, u32 ustatus_addr, u32 ustatus, u32 tp)
 				 tp, e14, e10 | ((e18 >> 7) & 0x1f));
 			e18 &= ~0x00000f80;
 		} else {
-			nvkm_error(subdev, "TRAP_PROP - TP %d - Unknown CUDA fault at address %02x%08x\n",
+			nvkm_error(subdev, "TRAP_PROP - TP %d - Unkanalwn CUDA fault at address %02x%08x\n",
 				 tp, e14, e10);
 		}
 		ustatus &= ~0x00000080;
@@ -318,7 +318,7 @@ nv50_gr_mp_trap(struct nv50_gr *gr, int tpid, int display)
 	}
 	if (!mps && display)
 		nvkm_error(subdev, "TRAP_MP_EXEC - TP %d: "
-				"No MPs claiming errors?\n", tpid);
+				"Anal MPs claiming errors?\n", tpid);
 }
 
 static void
@@ -344,7 +344,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 			continue;
 		tps++;
 		switch (type) {
-		case 6: /* texture error... unknown for now */
+		case 6: /* texture error... unkanalwn for analw */
 			if (display) {
 				nvkm_error(subdev, "magic set %d:\n", i);
 				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
@@ -388,7 +388,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 	}
 
 	if (!tps && display)
-		nvkm_warn(subdev, "%s - No TPs claiming errors?\n", name);
+		nvkm_warn(subdev, "%s - Anal TPs claiming errors?\n", name);
 }
 
 static int
@@ -402,22 +402,22 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 	char msg[128];
 
 	if (!status && display) {
-		nvkm_error(subdev, "TRAP: no units reporting traps?\n");
+		nvkm_error(subdev, "TRAP: anal units reporting traps?\n");
 		return 1;
 	}
 
-	/* DISPATCH: Relays commands to other units and handles NOTIFY,
+	/* DISPATCH: Relays commands to other units and handles ANALTIFY,
 	 * COND, QUERY. If you get a trap from it, the command is still stuck
 	 * in DISPATCH and you need to do something about it. */
 	if (status & 0x001) {
 		ustatus = nvkm_rd32(device, 0x400804) & 0x7fffffff;
 		if (!ustatus && display) {
-			nvkm_error(subdev, "TRAP_DISPATCH - no ustatus?\n");
+			nvkm_error(subdev, "TRAP_DISPATCH - anal ustatus?\n");
 		}
 
 		nvkm_wr32(device, 0x400500, 0x00000000);
 
-		/* Known to be triggered by screwed up NOTIFY and COND... */
+		/* Kanalwn to be triggered by screwed up ANALTIFY and COND... */
 		if (ustatus & 0x00000001) {
 			u32 addr = nvkm_rd32(device, 0x400808);
 			u32 subc = (addr & 0x00070000) >> 16;
@@ -437,7 +437,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 					   datah, datal, addr, r848);
 			} else
 			if (display) {
-				nvkm_error(subdev, "no stuck command?\n");
+				nvkm_error(subdev, "anal stuck command?\n");
 			}
 
 			nvkm_wr32(device, 0x400808, 0);
@@ -462,7 +462,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 					   subc, class, mthd, data, addr);
 			} else
 			if (display) {
-				nvkm_error(subdev, "no stuck command?\n");
+				nvkm_error(subdev, "anal stuck command?\n");
 			}
 
 			nvkm_wr32(device, 0x40084c, 0);
@@ -471,7 +471,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 
 		if (ustatus && display) {
 			nvkm_error(subdev, "TRAP_DISPATCH "
-					   "(unknown %08x)\n", ustatus);
+					   "(unkanalwn %08x)\n", ustatus);
 		}
 
 		nvkm_wr32(device, 0x400804, 0xc0000000);
@@ -496,7 +496,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 				   nvkm_rd32(device, 0x406810));
 		}
 
-		/* No sane way found yet -- just reset the bugger. */
+		/* Anal sane way found yet -- just reset the bugger. */
 		nvkm_wr32(device, 0x400040, 2);
 		nvkm_wr32(device, 0x400040, 0);
 		nvkm_wr32(device, 0x406800, 0xc0000000);
@@ -539,7 +539,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 				   nvkm_rd32(device, 0x401810));
 		}
 
-		/* No sane way found yet -- just reset the bugger. */
+		/* Anal sane way found yet -- just reset the bugger. */
 		nvkm_wr32(device, 0x400040, 0x80);
 		nvkm_wr32(device, 0x400040, 0);
 		nvkm_wr32(device, 0x401800, 0xc0000000);
@@ -571,15 +571,15 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 		status &= ~0x010;
 	}
 
-	/* Unknown, not seen yet... 0x402000 is the only trap status reg
+	/* Unkanalwn, analt seen yet... 0x402000 is the only trap status reg
 	 * remaining, so try to handle it anyway. Perhaps related to that
-	 * unknown DMA slot on tesla? */
+	 * unkanalwn DMA slot on tesla? */
 	if (status & 0x20) {
 		ustatus = nvkm_rd32(device, 0x402000) & 0x7fffffff;
 		if (display)
 			nvkm_error(subdev, "TRAP_UNKC04 %08x\n", ustatus);
 		nvkm_wr32(device, 0x402000, 0xc0000000);
-		/* no status modifiction on purpose */
+		/* anal status modifiction on purpose */
 	}
 
 	/* TEXTURE: CUDA texturing units */
@@ -609,7 +609,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 
 	if (status) {
 		if (display)
-			nvkm_error(subdev, "TRAP: unknown %08x\n", status);
+			nvkm_error(subdev, "TRAP: unkanalwn %08x\n", status);
 		nvkm_wr32(device, 0x400108, status);
 	}
 
@@ -633,7 +633,7 @@ nv50_gr_intr(struct nvkm_gr *base)
 	u32 show = stat, show_bitfield = stat;
 	const struct nvkm_enum *en;
 	unsigned long flags;
-	const char *name = "unknown";
+	const char *name = "unkanalwn";
 	char msg[128];
 	int chid = -1;
 
@@ -727,7 +727,7 @@ nv50_gr_init(struct nvkm_gr *base)
 	nvkm_wr32(device, 0x40032c, 0x00000000);
 	nvkm_wr32(device, 0x400330, 0x00000000);
 
-	/* some unknown zcull magic */
+	/* some unkanalwn zcull magic */
 	switch (device->chipset & 0xf0) {
 	case 0x50:
 	case 0x80:
@@ -766,7 +766,7 @@ nv50_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
 	struct nv50_gr *gr;
 
 	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&gr->lock);
 	*pgr = &gr->base;
 

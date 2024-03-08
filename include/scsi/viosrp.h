@@ -14,7 +14,7 @@
 /*                                                                           */
 /* SRP Information Units (IUs) are sent on a "Command/Response Queue" (CRQ)  */
 /* between partitions.  The definitions in this file are architected,        */
-/* and cannot be changed without breaking compatibility with other versions  */
+/* and cananalt be changed without breaking compatibility with other versions  */
 /* of Linux and other operating systems (AIX, OS/400) that talk this protocol*/
 /* between logical partitions                                                */
 /*****************************************************************************/
@@ -61,7 +61,7 @@ enum viosrp_crq_formats {
 
 enum viosrp_crq_status {
 	VIOSRP_OK = 0x0,
-	VIOSRP_NONRECOVERABLE_ERR = 0x1,
+	VIOSRP_ANALNRECOVERABLE_ERR = 0x1,
 	VIOSRP_VIOLATES_MAX_XFER = 0x2,
 	VIOSRP_PARTNER_PANIC = 0x3,
 	VIOSRP_DEVICE_BUSY = 0x8,
@@ -76,7 +76,7 @@ struct viosrp_crq {
 			u8 valid;		/* used by RPA */
 			u8 format;		/* SCSI vs out-of-band */
 			u8 reserved;
-			u8 status;		/* non-scsi failure? (e.g. DMA failure) */
+			u8 status;		/* analn-scsi failure? (e.g. DMA failure) */
 			__be16 timeout;		/* in seconds */
 			__be16 IU_length;	/* in bytes */
 		};
@@ -97,7 +97,7 @@ enum viosrp_mad_types {
 
 enum viosrp_mad_status {
 	VIOSRP_MAD_SUCCESS = 0x00,
-	VIOSRP_MAD_NOT_SUPPORTED = 0xF1,
+	VIOSRP_MAD_ANALT_SUPPORTED = 0xF1,
 	VIOSRP_MAD_FAILED = 0xF7,
 };
 
@@ -107,7 +107,7 @@ enum viosrp_capability_type {
 };
 
 enum viosrp_capability_support {
-	SERVER_DOES_NOT_SUPPORTS_CAP = 0x0,
+	SERVER_DOES_ANALT_SUPPORTS_CAP = 0x0,
 	SERVER_SUPPORTS_CAP = 0x01,
 	SERVER_CAP_DATA = 0x02,
 };
@@ -134,9 +134,9 @@ struct mad_common {
 };
 
 /*
- * All SRP (and MAD) requests normally flow from the
- * client to the server.  There is no way for the server to send
- * an asynchronous message back to the client.  The Empty IU is used
+ * All SRP (and MAD) requests analrmally flow from the
+ * client to the server.  There is anal way for the server to send
+ * an asynchroanalus message back to the client.  The Empty IU is used
  * to hang out a meaningless request to the server so that it can respond
  * asynchrouously with something like a SCSI AER
  */

@@ -4,7 +4,7 @@
  * device driver for philips saa7134 based TV cards
  * i2c interface support
  *
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2001,02 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -45,12 +45,12 @@ MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
 static char *str_i2c_status[] = {
 	"IDLE", "DONE_STOP", "BUSY", "TO_SCL", "TO_ARB", "DONE_WRITE",
-	"DONE_READ", "DONE_WRITE_TO", "DONE_READ_TO", "NO_DEVICE",
-	"NO_ACKN", "BUS_ERR", "ARB_LOST", "SEQ_ERR", "ST_ERR", "SW_ERR"
+	"DONE_READ", "DONE_WRITE_TO", "DONE_READ_TO", "ANAL_DEVICE",
+	"ANAL_ACKN", "BUS_ERR", "ARB_LOST", "SEQ_ERR", "ST_ERR", "SW_ERR"
 };
 
 enum i2c_status {
-	IDLE          = 0,  // no I2C command pending
+	IDLE          = 0,  // anal I2C command pending
 	DONE_STOP     = 1,  // I2C command done and STOP executed
 	BUSY          = 2,  // executing I2C command
 	TO_SCL        = 3,  // executing I2C command, time out on clock stretching
@@ -59,8 +59,8 @@ enum i2c_status {
 	DONE_READ     = 6,  // I2C command done and awaiting next read command
 	DONE_WRITE_TO = 7,  // see 5, and time out on status echo
 	DONE_READ_TO  = 8,  // see 6, and time out on status echo
-	NO_DEVICE     = 9,  // no acknowledge on device slave address
-	NO_ACKN       = 10, // no acknowledge after data byte transfer
+	ANAL_DEVICE     = 9,  // anal ackanalwledge on device slave address
+	ANAL_ACKN       = 10, // anal ackanalwledge after data byte transfer
 	BUS_ERR       = 11, // bus error
 	ARB_LOST      = 12, // arbitration lost during transfer
 	SEQ_ERR       = 13, // erroneous programming sequence
@@ -69,12 +69,12 @@ enum i2c_status {
 };
 
 static char *str_i2c_attr[] = {
-	"NOP", "STOP", "CONTINUE", "START"
+	"ANALP", "STOP", "CONTINUE", "START"
 };
 
 enum i2c_attr {
-	NOP           = 0,  // no operation on I2C bus
-	STOP          = 1,  // stop condition, no associated byte transfer
+	ANALP           = 0,  // anal operation on I2C bus
+	STOP          = 1,  // stop condition, anal associated byte transfer
 	CONTINUE      = 2,  // continue with byte transfer
 	START         = 3   // start condition with byte transfer
 };
@@ -104,8 +104,8 @@ static inline void i2c_set_attr(struct saa7134_dev *dev, enum i2c_attr attr)
 static inline int i2c_is_error(enum i2c_status status)
 {
 	switch (status) {
-	case NO_DEVICE:
-	case NO_ACKN:
+	case ANAL_DEVICE:
+	case ANAL_ACKN:
 	case BUS_ERR:
 	case ARB_LOST:
 	case SEQ_ERR:
@@ -178,7 +178,7 @@ static int i2c_reset(struct saa7134_dev *dev)
 	if (!i2c_is_idle(status))
 		return false;
 
-	i2c_set_attr(dev,NOP);
+	i2c_set_attr(dev,ANALP);
 	return true;
 }
 
@@ -240,7 +240,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 	i2c_dbg(2, "start xfer\n");
 	i2c_dbg(1, "i2c xfer:");
 	for (i = 0; i < num; i++) {
-		if (!(msgs[i].flags & I2C_M_NOSTART) || 0 == i) {
+		if (!(msgs[i].flags & I2C_M_ANALSTART) || 0 == i) {
 			/* send address */
 			i2c_dbg(2, "send address\n");
 			addr  = msgs[i].addr << 1;
@@ -276,7 +276,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 			}
 			/* discard mysterious extra byte when reading
 			   from Samsung S5H1411.  i2c bus gets error
-			   if we do not. */
+			   if we do analt. */
 			if (0x19 == msgs[i].addr) {
 				i2c_cont(1, " ?");
 				rc = i2c_recv_byte(dev);
@@ -386,7 +386,7 @@ saa7134_i2c_eeprom(struct saa7134_dev *dev, unsigned char *eedata, int len)
 	dev->i2c_client.addr = 0xa0 >> 1;
 	buf = 0;
 	if (1 != (err = i2c_master_send(&dev->i2c_client,&buf,1))) {
-		pr_info("%s: Huh, no eeprom present (err=%d)?\n",
+		pr_info("%s: Huh, anal eeprom present (err=%d)?\n",
 		       dev->name,err);
 		return -1;
 	}

@@ -35,7 +35,7 @@ enum {
 #define RT4831_VPOSSCP_MASK	BIT(3)
 #define RT4831_VNEGSCP_MASK	BIT(2)
 
-#define DSV_MODE_NORMAL		(0x4 << RT4831_DSVMODE_SHIFT)
+#define DSV_MODE_ANALRMAL		(0x4 << RT4831_DSVMODE_SHIFT)
 #define DSV_MODE_BYPASS		(0x6 << RT4831_DSVMODE_SHIFT)
 #define STEP_UV			50000
 #define VLCM_MIN_UV		4000000
@@ -97,7 +97,7 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.name = "DSVLCM",
 		.ops = &rt4831_dsvlcm_ops,
 		.of_match = of_match_ptr("DSVLCM"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.type = REGULATOR_VOLTAGE,
 		.id = DSV_OUT_VLCM,
 		.n_voltages = VLCM_N_VOLTAGES,
@@ -108,14 +108,14 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.bypass_reg = RT4831_REG_DSVEN,
 		.bypass_mask = RT4831_DSVMODE_MASK,
 		.bypass_val_on = DSV_MODE_BYPASS,
-		.bypass_val_off = DSV_MODE_NORMAL,
+		.bypass_val_off = DSV_MODE_ANALRMAL,
 		.owner = THIS_MODULE,
 	},
 	{
 		.name = "DSVP",
 		.ops = &rt4831_dsvpn_ops,
 		.of_match = of_match_ptr("DSVP"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.type = REGULATOR_VOLTAGE,
 		.id = DSV_OUT_VPOS,
 		.n_voltages = VPN_N_VOLTAGES,
@@ -134,7 +134,7 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.name = "DSVN",
 		.ops = &rt4831_dsvpn_ops,
 		.of_match = of_match_ptr("DSVN"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.type = REGULATOR_VOLTAGE,
 		.id = DSV_OUT_VNEG,
 		.n_voltages = VPN_N_VOLTAGES,
@@ -161,13 +161,13 @@ static int rt4831_regulator_probe(struct platform_device *pdev)
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap) {
 		dev_err(&pdev->dev, "Failed to init regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* Configure DSV mode to normal by default */
-	ret = regmap_update_bits(regmap, RT4831_REG_DSVEN, RT4831_DSVMODE_MASK, DSV_MODE_NORMAL);
+	/* Configure DSV mode to analrmal by default */
+	ret = regmap_update_bits(regmap, RT4831_REG_DSVEN, RT4831_DSVMODE_MASK, DSV_MODE_ANALRMAL);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to configure dsv mode to normal\n");
+		dev_err(&pdev->dev, "Failed to configure dsv mode to analrmal\n");
 		return ret;
 	}
 
@@ -194,7 +194,7 @@ MODULE_DEVICE_TABLE(platform, rt4831_regulator_match);
 static struct platform_driver rt4831_regulator_driver = {
 	.driver = {
 		.name = "rt4831-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table = rt4831_regulator_match,
 	.probe = rt4831_regulator_probe,

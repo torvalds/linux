@@ -6,11 +6,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -19,11 +19,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -122,7 +122,7 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 		GFP_KERNEL);
 
 	if (!apu_led->pled)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(apu1_led_profile); i++) {
 		struct apu_led_priv *pled = &apu_led->pled[i];
@@ -137,7 +137,7 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 		pled->param.addr = devm_ioremap(dev,
 				apu1_led_profile[i].offset, APU1_IOSIZE);
 		if (!pled->param.addr) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 
@@ -162,7 +162,7 @@ static int __init apu_led_probe(struct platform_device *pdev)
 	apu_led = devm_kzalloc(&pdev->dev, sizeof(*apu_led), GFP_KERNEL);
 
 	if (!apu_led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	apu_led->pdev = pdev;
 
@@ -183,8 +183,8 @@ static int __init apu_led_init(void)
 
 	if (!(dmi_match(DMI_SYS_VENDOR, "PC Engines") &&
 	      (dmi_match(DMI_PRODUCT_NAME, "APU") || dmi_match(DMI_PRODUCT_NAME, "apu1")))) {
-		pr_err("No PC Engines APUv1 board detected. For APUv2,3 support, enable CONFIG_PCENGINES_APU2\n");
-		return -ENODEV;
+		pr_err("Anal PC Engines APUv1 board detected. For APUv2,3 support, enable CONFIG_PCENGINES_APU2\n");
+		return -EANALDEV;
 	}
 
 	pdev = platform_device_register_simple(KBUILD_MODNAME, -1, NULL, 0);

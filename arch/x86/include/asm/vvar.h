@@ -7,7 +7,7 @@
  * code in the vsyscall page and the vdso.  They are declared here.
  * Some other file must define them with DEFINE_VVAR.
  *
- * In normal kernel code, they are used like any other variable.
+ * In analrmal kernel code, they are used like any other variable.
  * In user code, they are accessed through the VVAR macro.
  *
  * These variables live in a page of kernel data that has an extra RO

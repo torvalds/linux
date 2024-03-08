@@ -2,7 +2,7 @@
 //
 // Driver for AT91 USART Controllers as SPI
 //
-// Copyright (C) 2018 Microchip Technology Inc.
+// Copyright (C) 2018 Microchip Techanallogy Inc.
 //
 // Author: Radu Pirea <radu.pirea@microchip.com>
 
@@ -250,7 +250,7 @@ at91_usart_spi_err_dma:
 	at91_usart_spi_writel(aus, IER, US_IR_RXRDY);
 	at91_usart_spi_stop_dma(ctlr);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static unsigned long at91_usart_spi_dma_timeout(struct at91_usart_spi *aus)
@@ -339,7 +339,7 @@ static irqreturn_t at91_usart_spi_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&aus->lock);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int at91_usart_spi_setup(struct spi_device *spi)
@@ -366,7 +366,7 @@ static int at91_usart_spi_setup(struct spi_device *spi)
 	if (!ausd) {
 		ausd = kzalloc(sizeof(*ausd), GFP_KERNEL);
 		if (!ausd)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spi->controller_state = ausd;
 	}
@@ -496,7 +496,7 @@ static int at91_usart_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	controller = spi_alloc_host(&pdev->dev, sizeof(*aus));
 	if (!controller)
 		goto at91_usart_spi_probe_fail;
@@ -506,7 +506,7 @@ static int at91_usart_spi_probe(struct platform_device *pdev)
 		goto at91_usart_spi_probe_fail;
 
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_CS_HIGH;
-	controller->dev.of_node = pdev->dev.parent->of_node;
+	controller->dev.of_analde = pdev->dev.parent->of_analde;
 	controller->bits_per_word_mask = SPI_BPW_MASK(8);
 	controller->setup = at91_usart_spi_setup;
 	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;

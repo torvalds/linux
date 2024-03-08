@@ -19,7 +19,7 @@ config SND_DICE
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for devices based on the DICE chip family
-	  (DICE-II/TCD2210(Mini)/TCD2220(Jr.)) which TC Applied Technologies (TCAT) produced.
+	  (DICE-II/TCD2210(Mini)/TCD2220(Jr.)) which TC Applied Techanallogies (TCAT) produced.
 	   * Allen and Heath Zed R16
 	   * Alesis iO 14/26 FireWire, MasterControl, MultiMix 8/12/16 FireWire
 	   * Avid Mbox 3 Pro
@@ -27,7 +27,7 @@ config SND_DICE
 	   * Focusrite Liquid Saffire 56
 	   * Focusrite Saffire Pro 14, Pro 24, Pro 24 DSP, Pro 26, Pro 40(TCD2220)
 	   * Harman Music Group Lexicon I-ONIX FW810S
-	   * Loud Technologies Mackie Onyx Blackbird, Onyx 820i/1220i/1620i/1640i (latter models)
+	   * Loud Techanallogies Mackie Onyx Blackbird, Onyx 820i/1220i/1620i/1640i (latter models)
 	   * M-Audio ProFire 610/2626
 	   * Mytek Stereo192-DSD DAC
 	   * Midas Klark Teknik VeniceF series

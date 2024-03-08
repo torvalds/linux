@@ -11,7 +11,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -59,7 +59,7 @@ static int tps65910_rtc_alarm_irq_enable(struct device *dev,
 /*
  * Gets current tps65910 RTC time and date parameters.
  *
- * The RTC's time/alarm representation is not what gmtime(3) requires
+ * The RTC's time/alarm representation is analt what gmtime(3) requires
  * Linux to use:
  *
  *  - Months are 1..12 vs Linux 0-11
@@ -256,7 +256,7 @@ static int tps65910_rtc_get_calibration(struct device *dev, int *calibration)
 	if (ret < 0)
 		return ret;
 
-	/* If automatic compensation is not enabled report back zero */
+	/* If automatic compensation is analt enabled report back zero */
 	if (!(ctrl & TPS65910_RTC_CTRL_AUTO_COMP)) {
 		*calibration = 0;
 		return 0;
@@ -337,16 +337,16 @@ static irqreturn_t tps65910_rtc_interrupt(int irq, void *rtc)
 
 	ret = regmap_read(tps->regmap, TPS65910_RTC_STATUS, &rtc_reg);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (rtc_reg & TPS65910_RTC_STATUS_ALARM)
 		events = RTC_IRQF | RTC_AF;
 
 	ret = regmap_write(tps->regmap, TPS65910_RTC_STATUS, rtc_reg);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* Notify RTC core on event */
+	/* Analtify RTC core on event */
 	rtc_update_irq(tps_rtc->rtc, 1, events);
 
 	return IRQ_HANDLED;
@@ -375,7 +375,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	tps_rtc = devm_kzalloc(&pdev->dev, sizeof(struct tps65910_rtc),
 			GFP_KERNEL);
 	if (!tps_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(tps_rtc->rtc))

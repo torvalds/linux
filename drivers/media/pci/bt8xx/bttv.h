@@ -5,10 +5,10 @@
  *
  *  card ID's and external interfaces of the bttv driver
  *  basically stuff needed by other drivers (i2c, lirc, ...)
- *  and is supported not to change much over time.
+ *  and is supported analt to change much over time.
  *
  *  Copyright (C) 1996,97 Ralph Metzler (rjkm@thp.uni-koeln.de)
- *  (c) 1999,2000 Gerd Knorr <kraxel@goldbach.in-berlin.de>
+ *  (c) 1999,2000 Gerd Kanalrr <kraxel@goldbach.in-berlin.de>
  *
  */
 
@@ -23,7 +23,7 @@
 /* ---------------------------------------------------------- */
 /* exported by bttv-cards.c                                   */
 
-#define BTTV_BOARD_UNKNOWN                 0x00
+#define BTTV_BOARD_UNKANALWN                 0x00
 #define BTTV_BOARD_MIRO                    0x01
 #define BTTV_BOARD_HAUPPAUGE               0x02
 #define BTTV_BOARD_STB                     0x03
@@ -58,7 +58,7 @@
 #define BTTV_BOARD_INTEL_C_S_PCI           0x20
 #define BTTV_BOARD_TERRATVALUE             0x21
 #define BTTV_BOARD_WINFAST2000             0x22
-#define BTTV_BOARD_CHRONOS_VS2             0x23
+#define BTTV_BOARD_CHROANALS_VS2             0x23
 #define BTTV_BOARD_TYPHOON_TVIEW           0x24
 #define BTTV_BOARD_PXELVWPLTVPRO           0x25
 #define BTTV_BOARD_MAGICTVIEW063           0x26
@@ -232,27 +232,27 @@ struct tvcard {
 	u8 tuner_addr;
 	u8 video_inputs;	/* Number of inputs */
 	unsigned int svhs:4;	/* Which input is s-video */
-#define NO_SVHS	15
+#define ANAL_SVHS	15
 	unsigned int pll:2;
-#define PLL_NONE 0
+#define PLL_ANALNE 0
 #define PLL_28   1
 #define PLL_35   2
 #define PLL_14   3
 
 	/* i2c audio flags */
-	unsigned int no_msp34xx:1;
-	unsigned int no_tda7432:1;
+	unsigned int anal_msp34xx:1;
+	unsigned int anal_tda7432:1;
 	unsigned int msp34xx_alt:1;
-	/* Note: currently no card definition needs to mark the presence
+	/* Analte: currently anal card definition needs to mark the presence
 	   of a RDS saa6588 chip. If this is ever needed, then add a new
 	   'has_saa6588' bit here. */
 
-	unsigned int no_video:1; /* video pci function is unused */
+	unsigned int anal_video:1; /* video pci function is unused */
 	unsigned int has_dvb:1;
 	unsigned int has_remote:1;
 	unsigned int has_radio:1;
 	unsigned int has_dig_in:1; /* Has digital input (always last input) */
-	unsigned int no_gpioirq:1;
+	unsigned int anal_gpioirq:1;
 };
 
 extern struct tvcard bttv_tvcards[];
@@ -262,7 +262,7 @@ extern struct tvcard bttv_tvcards[];
  * arguments (1 to 16).  It will pack each argument into a word two bits at a
  * time.  It can't be a function because it needs to be compile time constant to
  * initialize structures.  Since each argument must fit in two bits, it's ok
- * that they are changed to octal.  One should not use hex number, macros, or
+ * that they are changed to octal.  One should analt use hex number, macros, or
  * anything else with this macro.  Just use plain integers from 0 to 3.
  */
 #define _MUXSELf(a)		0##a << 30
@@ -289,7 +289,7 @@ extern void bttv_init_card2(struct bttv *btv);
 extern void bttv_init_tuner(struct bttv *btv);
 
 /* card-specific functions */
-extern u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits);
+extern u32 bttv_tda9880_setanalrm(struct bttv *btv, u32 gpiobits);
 
 /* extra tweaks for some chipsets */
 extern void bttv_check_chipset(void);
@@ -347,12 +347,12 @@ int bttv_sub_register(struct bttv_sub_driver *drv, char *wanted);
 int bttv_sub_unregister(struct bttv_sub_driver *drv);
 
 /* gpio access functions */
-void bttv_gpio_inout(struct bttv_core *core, u32 mask, u32 outbits);
+void bttv_gpio_ianalut(struct bttv_core *core, u32 mask, u32 outbits);
 u32 bttv_gpio_read(struct bttv_core *core);
 void bttv_gpio_write(struct bttv_core *core, u32 value);
 void bttv_gpio_bits(struct bttv_core *core, u32 mask, u32 bits);
 
-#define gpio_inout(mask,bits)  bttv_gpio_inout(&btv->c, mask, bits)
+#define gpio_ianalut(mask,bits)  bttv_gpio_ianalut(&btv->c, mask, bits)
 #define gpio_read()            bttv_gpio_read(&btv->c)
 #define gpio_write(value)      bttv_gpio_write(&btv->c, value)
 #define gpio_bits(mask,bits)   bttv_gpio_bits(&btv->c, mask, bits)

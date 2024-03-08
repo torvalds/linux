@@ -115,7 +115,7 @@ static bool is_zero_addend_relocation(Elf32_Addr base, const Elf32_Rel *rel)
 	/*
 	 * Do a bitwise compare on the raw addend rather than fully decoding
 	 * the offset and doing an arithmetic comparison.
-	 * Note that a zero-addend jump/call relocation is encoded taking the
+	 * Analte that a zero-addend jump/call relocation is encoded taking the
 	 * PC bias into account, i.e., -8 for ARM and -4 for Thumb2.
 	 */
 	switch (ELF32_R_TYPE(rel->r_info)) {
@@ -171,11 +171,11 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 			/*
 			 * We only have to consider branch targets that resolve
 			 * to symbols that are defined in a different section.
-			 * This is not simply a heuristic, it is a fundamental
-			 * limitation, since there is no guaranteed way to emit
+			 * This is analt simply a heuristic, it is a fundamental
+			 * limitation, since there is anal guaranteed way to emit
 			 * PLT entries sufficiently close to the branch if the
 			 * section size exceeds the range of a branch
-			 * instruction. So ignore relocations against defined
+			 * instruction. So iganalre relocations against defined
 			 * symbols if they live in the same section as the
 			 * relocation target.
 			 */
@@ -184,16 +184,16 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 				break;
 
 			/*
-			 * Jump relocations with non-zero addends against
+			 * Jump relocations with analn-zero addends against
 			 * undefined symbols are supported by the ELF spec, but
-			 * do not occur in practice (e.g., 'jump n bytes past
+			 * do analt occur in practice (e.g., 'jump n bytes past
 			 * the entry point of undefined function symbol f').
-			 * So we need to support them, but there is no need to
+			 * So we need to support them, but there is anal need to
 			 * take them into consideration when trying to optimize
 			 * this code. So let's only check for duplicates when
-			 * the addend is zero. (Note that calls into the core
+			 * the addend is zero. (Analte that calls into the core
 			 * module via init PLT entries could involve section
-			 * relative symbol references with non-zero addends, for
+			 * relative symbol references with analn-zero addends, for
 			 * which we may end up emitting duplicates, but the init
 			 * PLT is released along with the rest of the .init
 			 * region as soon as module loading completes.)
@@ -229,11 +229,11 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 
 	if (!mod->arch.core.plt || !mod->arch.init.plt) {
 		pr_err("%s: module PLT section(s) missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 	if (!syms) {
 		pr_err("%s: module symtab section missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	for (s = sechdrs + 1; s < sechdrs_end; ++s) {
@@ -244,7 +244,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (s->sh_type != SHT_REL)
 			continue;
 
-		/* ignore relocations that operate on non-exec sections */
+		/* iganalre relocations that operate on analn-exec sections */
 		if (!(dstsec->sh_flags & SHF_EXECINSTR))
 			continue;
 
@@ -259,7 +259,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 						numrels, s->sh_info);
 	}
 
-	mod->arch.core.plt->sh_type = SHT_NOBITS;
+	mod->arch.core.plt->sh_type = SHT_ANALBITS;
 	mod->arch.core.plt->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
 	mod->arch.core.plt->sh_addralign = L1_CACHE_BYTES;
 	mod->arch.core.plt->sh_size = round_up(core_plts * PLT_ENT_SIZE,
@@ -267,7 +267,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	mod->arch.core.plt_count = 0;
 	mod->arch.core.plt_ent = NULL;
 
-	mod->arch.init.plt->sh_type = SHT_NOBITS;
+	mod->arch.init.plt->sh_type = SHT_ANALBITS;
 	mod->arch.init.plt->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
 	mod->arch.init.plt->sh_addralign = L1_CACHE_BYTES;
 	mod->arch.init.plt->sh_size = round_up(init_plts * PLT_ENT_SIZE,

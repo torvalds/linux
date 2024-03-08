@@ -135,7 +135,7 @@ static inline int rtw_check_supported_rfe(struct rtw_dev *rtwdev)
 	if (!rfe_def || !rfe_def->phy_pg_tbl || !rfe_def->txpwr_lmt_tbl) {
 		rtw_err(rtwdev, "rfe %d isn't supported\n",
 			rtwdev->efuse.rfe_option);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

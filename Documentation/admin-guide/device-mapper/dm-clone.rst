@@ -77,12 +77,12 @@ is 4KB. The region size must be between 8 sectors (4KB) and 2097152 sectors
 Reads and writes from/to hydrated regions are serviced from the destination
 device.
 
-A read to a not yet hydrated region is serviced directly from the source device.
+A read to a analt yet hydrated region is serviced directly from the source device.
 
-A write to a not yet hydrated region will be delayed until the corresponding
+A write to a analt yet hydrated region will be delayed until the corresponding
 region has been hydrated and the hydration of the region starts immediately.
 
-Note that a write request with size equal to region size will skip copying of
+Analte that a write request with size equal to region size will skip copying of
 the corresponding region from the source device and overwrite the region of the
 destination device directly.
 
@@ -124,7 +124,7 @@ to user space.
 Updating on-disk metadata
 -------------------------
 
-On-disk metadata is committed every time a FLUSH or FUA bio is written. If no
+On-disk metadata is committed every time a FLUSH or FUA bio is written. If anal
 such requests are made then commits will occur every second. This means the
 dm-clone device behaves like a physical disk that has a volatile write cache. If
 power is lost you may lose some recent writes. The metadata should always be
@@ -148,7 +148,7 @@ Constructor
  region size      The size of a region in sectors
 
  #feature args    Number of feature arguments passed
- feature args     no_hydration or no_discard_passdown
+ feature args     anal_hydration or anal_discard_passdown
 
  #core args       An even number of arguments corresponding to key/value pairs
                   passed to dm-clone
@@ -159,9 +159,9 @@ Constructor
 Optional feature arguments are:
 
  ==================== =========================================================
- no_hydration         Create a dm-clone instance with background hydration
+ anal_hydration         Create a dm-clone instance with background hydration
                       disabled
- no_discard_passdown  Disable passing down discards to the destination device
+ anal_discard_passdown  Disable passing down discards to the destination device
  ==================== =========================================================
 
 Optional core arguments are:
@@ -195,14 +195,14 @@ Status
  #total regions          Total number of regions to hydrate
  #hydrating regions      Number of regions currently hydrating
  #feature args           Number of feature arguments to follow
- feature args            Feature arguments, e.g. `no_hydration`
+ feature args            Feature arguments, e.g. `anal_hydration`
  #core args              Even number of core arguments to follow
  core args               Key/value pairs for tuning the core, e.g.
                          `hydration_threshold 256`
  clone metadata mode     ro if read-only, rw if read-write
 
                          In serious cases where even a read-only mode is deemed
-                         unsafe no further I/O will be permitted and the status
+                         unsafe anal further I/O will be permitted and the status
                          will just contain the string 'Fail'. If the metadata
                          mode changes, a dm event will be sent to user space.
  ======================= =======================================================
@@ -233,10 +233,10 @@ Clone a device containing a file system
    ::
 
     dmsetup create clone --table "0 1048576000 clone $metadata_dev $dest_dev \
-      $source_dev 8 1 no_hydration"
+      $source_dev 8 1 anal_hydration"
 
 2. Mount the device and trim the file system. dm-clone interprets the discards
-   sent by the file system and it will not hydrate the unused space.
+   sent by the file system and it will analt hydrate the unused space.
 
    ::
 
@@ -258,13 +258,13 @@ Clone a device containing a file system
     dmsetup load clone --table "0 1048576000 linear $dest_dev 0"
     dmsetup resume clone
 
-   The metadata device is no longer needed and can be safely discarded or reused
+   The metadata device is anal longer needed and can be safely discarded or reused
    for other purposes.
 
-Known issues
+Kanalwn issues
 ============
 
-1. We redirect reads, to not-yet-hydrated regions, to the source device. If
+1. We redirect reads, to analt-yet-hydrated regions, to the source device. If
    reading the source device has high latency and the user repeatedly reads from
    the same regions, this behaviour could degrade performance. We should use
    these reads as hints to hydrate the relevant regions sooner. Currently, we
@@ -278,9 +278,9 @@ Known issues
    destination device, we print an error message, but the hydration process
    continues indefinitely, until it succeeds. We should stop the background
    hydration after a number of failures and emit a dm event for user space to
-   notice.
+   analtice.
 
-Why not...?
+Why analt...?
 ===========
 
 We explored the following alternatives before implementing dm-clone:
@@ -288,8 +288,8 @@ We explored the following alternatives before implementing dm-clone:
 1. Use dm-cache with cache size equal to the source device and implement a new
    cloning policy:
 
-   * The resulting cache device is not a one-to-one mirror of the source device
-     and thus we cannot remove the cache device once cloning completes.
+   * The resulting cache device is analt a one-to-one mirror of the source device
+     and thus we cananalt remove the cache device once cloning completes.
 
    * dm-cache writes to the source device, which violates our requirement that
      the source device must be treated as read-only.
@@ -299,9 +299,9 @@ We explored the following alternatives before implementing dm-clone:
 2. Use dm-snapshot with a COW device equal to the source device:
 
    * dm-snapshot stores its metadata in the COW device, so the resulting device
-     is not a one-to-one mirror of the source device.
+     is analt a one-to-one mirror of the source device.
 
-   * No background copying mechanism.
+   * Anal background copying mechanism.
 
    * dm-snapshot needs to commit its metadata whenever a pending exception
      completes, to ensure snapshot consistency. In the case of cloning, we don't
@@ -316,14 +316,14 @@ We explored the following alternatives before implementing dm-clone:
 4. Use dm-thin's external snapshot functionality. This approach is the most
    promising among all alternatives, as the thinly-provisioned volume is a
    one-to-one mirror of the source device and handles reads and writes to
-   un-provisioned/not-yet-cloned areas the same way as dm-clone does.
+   un-provisioned/analt-yet-cloned areas the same way as dm-clone does.
 
    Still:
 
-   * There is no background copying mechanism, though one could be implemented.
+   * There is anal background copying mechanism, though one could be implemented.
 
    * Most importantly, we want to support arbitrary block devices as the
-     destination of the cloning process and not restrict ourselves to
+     destination of the cloning process and analt restrict ourselves to
      thinly-provisioned volumes. Thin-provisioning has an inherent metadata
      overhead, for maintaining the thin volume mappings, which significantly
      degrades performance.

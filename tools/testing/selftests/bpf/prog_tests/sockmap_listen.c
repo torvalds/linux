@@ -9,7 +9,7 @@
  */
 
 #include <linux/compiler.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <limits.h>
 #include <netinet/in.h>
@@ -37,14 +37,14 @@ static void test_insert_invalid(struct test_sockmap_listen *skel __always_unused
 	int err;
 
 	value = -1;
-	err = bpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
-	if (!err || errno != EINVAL)
-		FAIL_ERRNO("map_update: expected EINVAL");
+	err = bpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
+	if (!err || erranal != EINVAL)
+		FAIL_ERRANAL("map_update: expected EINVAL");
 
 	value = INT_MAX;
-	err = bpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
-	if (!err || errno != EBADF)
-		FAIL_ERRNO("map_update: expected EBADF");
+	err = bpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
+	if (!err || erranal != EBADF)
+		FAIL_ERRANAL("map_update: expected EBADF");
 }
 
 static void test_insert_opened(struct test_sockmap_listen *skel __always_unused,
@@ -58,14 +58,14 @@ static void test_insert_opened(struct test_sockmap_listen *skel __always_unused,
 	if (s == -1)
 		return;
 
-	errno = 0;
+	erranal = 0;
 	value = s;
-	err = bpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	err = bpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 	if (sotype == SOCK_STREAM) {
-		if (!err || errno != EOPNOTSUPP)
-			FAIL_ERRNO("map_update: expected EOPNOTSUPP");
+		if (!err || erranal != EOPANALTSUPP)
+			FAIL_ERRANAL("map_update: expected EOPANALTSUPP");
 	} else if (err)
-		FAIL_ERRNO("map_update: expected success");
+		FAIL_ERRANAL("map_update: expected success");
 	xclose(s);
 }
 
@@ -88,11 +88,11 @@ static void test_insert_bound(struct test_sockmap_listen *skel __always_unused,
 	if (err)
 		goto close;
 
-	errno = 0;
+	erranal = 0;
 	value = s;
-	err = bpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
-	if (!err || errno != EOPNOTSUPP)
-		FAIL_ERRNO("map_update: expected EOPNOTSUPP");
+	err = bpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
+	if (!err || erranal != EOPANALTSUPP)
+		FAIL_ERRANAL("map_update: expected EOPANALTSUPP");
 close:
 	xclose(s);
 }
@@ -110,7 +110,7 @@ static void test_insert(struct test_sockmap_listen *skel __always_unused,
 
 	key = 0;
 	value = s;
-	xbpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 	xclose(s);
 }
 
@@ -127,7 +127,7 @@ static void test_delete_after_insert(struct test_sockmap_listen *skel __always_u
 
 	key = 0;
 	value = s;
-	xbpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 	xbpf_map_delete_elem(mapfd, &key);
 	xclose(s);
 }
@@ -145,15 +145,15 @@ static void test_delete_after_close(struct test_sockmap_listen *skel __always_un
 
 	key = 0;
 	value = s;
-	xbpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 
 	xclose(s);
 
-	errno = 0;
+	erranal = 0;
 	err = bpf_map_delete_elem(mapfd, &key);
-	if (!err || (errno != EINVAL && errno != ENOENT))
+	if (!err || (erranal != EINVAL && erranal != EANALENT))
 		/* SOCKMAP and SOCKHASH return different error codes */
-		FAIL_ERRNO("map_delete: expected EINVAL/EINVAL");
+		FAIL_ERRANAL("map_delete: expected EINVAL/EINVAL");
 }
 
 static void test_lookup_after_insert(struct test_sockmap_listen *skel __always_unused,
@@ -170,7 +170,7 @@ static void test_lookup_after_insert(struct test_sockmap_listen *skel __always_u
 
 	key = 0;
 	value = s;
-	xbpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 
 	len = sizeof(cookie);
 	xgetsockopt(s, SOL_SOCKET, SO_COOKIE, &cookie, &len);
@@ -198,13 +198,13 @@ static void test_lookup_after_delete(struct test_sockmap_listen *skel __always_u
 
 	key = 0;
 	value = s;
-	xbpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 	xbpf_map_delete_elem(mapfd, &key);
 
-	errno = 0;
+	erranal = 0;
 	err = bpf_map_lookup_elem(mapfd, &key, &value);
-	if (!err || errno != ENOENT)
-		FAIL_ERRNO("map_lookup: expected ENOENT");
+	if (!err || erranal != EANALENT)
+		FAIL_ERRANAL("map_lookup: expected EANALENT");
 
 	xclose(s);
 }
@@ -222,18 +222,18 @@ static void test_lookup_32_bit_value(struct test_sockmap_listen *skel __always_u
 	mapfd = bpf_map_create(BPF_MAP_TYPE_SOCKMAP, NULL, sizeof(key),
 			       sizeof(value32), 1, NULL);
 	if (mapfd < 0) {
-		FAIL_ERRNO("map_create");
+		FAIL_ERRANAL("map_create");
 		goto close;
 	}
 
 	key = 0;
 	value32 = s;
-	xbpf_map_update_elem(mapfd, &key, &value32, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value32, BPF_ANALEXIST);
 
-	errno = 0;
+	erranal = 0;
 	err = bpf_map_lookup_elem(mapfd, &key, &value32);
-	if (!err || errno != ENOSPC)
-		FAIL_ERRNO("map_lookup: expected ENOSPC");
+	if (!err || erranal != EANALSPC)
+		FAIL_ERRANAL("map_lookup: expected EANALSPC");
 
 	xclose(mapfd);
 close:
@@ -257,7 +257,7 @@ static void test_update_existing(struct test_sockmap_listen *skel __always_unuse
 
 	key = 0;
 	value = s1;
-	xbpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 
 	value = s2;
 	xbpf_map_update_elem(mapfd, &key, &value, BPF_EXIST);
@@ -288,7 +288,7 @@ static void do_destroy_orphan_child(int family, int sotype, int mapfd)
 
 	key = 0;
 	value = s;
-	xbpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 
 	c = xsocket(family, sotype, 0);
 	if (c == -1)
@@ -350,7 +350,7 @@ static void test_clone_after_delete(struct test_sockmap_listen *skel __always_un
 
 	key = 0;
 	value = s;
-	xbpf_map_update_elem(mapfd, &key, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &key, &value, BPF_ANALEXIST);
 	xbpf_map_delete_elem(mapfd, &key);
 
 	c = xsocket(family, sotype, 0);
@@ -376,7 +376,7 @@ static void test_accept_after_delete(struct test_sockmap_listen *skel __always_u
 	socklen_t len;
 	u64 value;
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	s = socket_loopback(family, sotype | SOCK_ANALNBLOCK);
 	if (s == -1)
 		return;
 
@@ -386,7 +386,7 @@ static void test_accept_after_delete(struct test_sockmap_listen *skel __always_u
 		goto close_srv;
 
 	value = s;
-	err = xbpf_map_update_elem(mapfd, &zero, &value, BPF_NOEXIST);
+	err = xbpf_map_update_elem(mapfd, &zero, &value, BPF_ANALEXIST);
 	if (err)
 		goto close_srv;
 
@@ -404,13 +404,13 @@ static void test_accept_after_delete(struct test_sockmap_listen *skel __always_u
 	if (err)
 		goto close_cli;
 
-	p = xaccept_nonblock(s, NULL, NULL);
+	p = xaccept_analnblock(s, NULL, NULL);
 	if (p == -1)
 		goto close_cli;
 
-	/* Check that child sk_user_data is not set */
+	/* Check that child sk_user_data is analt set */
 	value = p;
-	xbpf_map_update_elem(mapfd, &zero, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &zero, &value, BPF_ANALEXIST);
 
 	xclose(p);
 close_cli:
@@ -431,7 +431,7 @@ static void test_accept_before_delete(struct test_sockmap_listen *skel __always_
 	socklen_t len;
 	u64 value;
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	s = socket_loopback(family, sotype | SOCK_ANALNBLOCK);
 	if (s == -1)
 		return;
 
@@ -441,7 +441,7 @@ static void test_accept_before_delete(struct test_sockmap_listen *skel __always_
 		goto close_srv;
 
 	value = s;
-	err = xbpf_map_update_elem(mapfd, &zero, &value, BPF_NOEXIST);
+	err = xbpf_map_update_elem(mapfd, &zero, &value, BPF_ANALEXIST);
 	if (err)
 		goto close_srv;
 
@@ -454,13 +454,13 @@ static void test_accept_before_delete(struct test_sockmap_listen *skel __always_
 	if (err)
 		goto close_cli;
 
-	p = xaccept_nonblock(s, NULL, NULL);
+	p = xaccept_analnblock(s, NULL, NULL);
 	if (p == -1)
 		goto close_cli;
 
-	/* Check that child sk_user_data is not set */
+	/* Check that child sk_user_data is analt set */
 	value = p;
-	xbpf_map_update_elem(mapfd, &one, &value, BPF_NOEXIST);
+	xbpf_map_update_elem(mapfd, &one, &value, BPF_ANALEXIST);
 
 	xclose(p);
 close_cli:
@@ -518,7 +518,7 @@ static void *connect_accept_thread(void *arg)
 			break;
 		}
 
-		p = xaccept_nonblock(s, NULL, NULL);
+		p = xaccept_analnblock(s, NULL, NULL);
 		if (p < 0) {
 			xclose(c);
 			break;
@@ -543,7 +543,7 @@ static void test_syn_recv_insert_delete(struct test_sockmap_listen *skel __alway
 	int err, s;
 	u64 value;
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	s = socket_loopback(family, sotype | SOCK_ANALNBLOCK);
 	if (s < 0)
 		return;
 
@@ -561,7 +561,7 @@ static void test_syn_recv_insert_delete(struct test_sockmap_listen *skel __alway
 
 	value = s;
 	while (!is_thread_done(&ctx)) {
-		err = xbpf_map_update_elem(mapfd, &zero, &value, BPF_NOEXIST);
+		err = xbpf_map_update_elem(mapfd, &zero, &value, BPF_ANALEXIST);
 		if (err)
 			break;
 
@@ -623,17 +623,17 @@ static void test_race_insert_listen(struct test_sockmap_listen *skel __always_un
 
 	value = s;
 	while (!is_thread_done(&ctx)) {
-		err = bpf_map_update_elem(mapfd, &zero, &value, BPF_NOEXIST);
-		/* Expecting EOPNOTSUPP before listen() */
-		if (err && errno != EOPNOTSUPP) {
-			FAIL_ERRNO("map_update");
+		err = bpf_map_update_elem(mapfd, &zero, &value, BPF_ANALEXIST);
+		/* Expecting EOPANALTSUPP before listen() */
+		if (err && erranal != EOPANALTSUPP) {
+			FAIL_ERRANAL("map_update");
 			break;
 		}
 
 		err = bpf_map_delete_elem(mapfd, &zero);
-		/* Expecting no entry after unhash on connect(AF_UNSPEC) */
-		if (err && errno != EINVAL && errno != ENOENT) {
-			FAIL_ERRNO("map_delete");
+		/* Expecting anal entry after unhash on connect(AF_UNSPEC) */
+		if (err && erranal != EINVAL && erranal != EANALENT) {
+			FAIL_ERRANAL("map_delete");
 			break;
 		}
 	}
@@ -667,7 +667,7 @@ static const char *redir_mode_str(enum redir_mode mode)
 	case REDIR_EGRESS:
 		return "egress";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -683,7 +683,7 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 
 	zero_verdict_count(verd_mapfd);
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	s = socket_loopback(family, sotype | SOCK_ANALNBLOCK);
 	if (s < 0)
 		return;
 
@@ -697,7 +697,7 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 
 	n = write(mode == REDIR_INGRESS ? c1 : p1, "a", 1);
 	if (n < 0)
-		FAIL_ERRNO("%s: write", log_prefix);
+		FAIL_ERRANAL("%s: write", log_prefix);
 	if (n == 0)
 		FAIL("%s: incomplete write", log_prefix);
 	if (n < 1)
@@ -711,7 +711,7 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
 	n = recv_timeout(c0, &b, 1, 0, IO_TIMEOUT_SEC);
 	if (n < 0)
-		FAIL_ERRNO("%s: recv_timeout", log_prefix);
+		FAIL_ERRANAL("%s: recv_timeout", log_prefix);
 	if (n == 0)
 		FAIL("%s: incomplete recv", log_prefix);
 
@@ -779,7 +779,7 @@ static void redir_to_listening(int family, int sotype, int sock_mapfd,
 
 	zero_verdict_count(verd_mapfd);
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	s = socket_loopback(family, sotype | SOCK_ANALNBLOCK);
 	if (s < 0)
 		return;
 
@@ -795,7 +795,7 @@ static void redir_to_listening(int family, int sotype, int sock_mapfd,
 	if (err)
 		goto close_cli;
 
-	p = xaccept_nonblock(s, NULL, NULL);
+	p = xaccept_analnblock(s, NULL, NULL);
 	if (p < 0)
 		goto close_cli;
 
@@ -804,8 +804,8 @@ static void redir_to_listening(int family, int sotype, int sock_mapfd,
 		goto close_peer;
 
 	n = write(mode == REDIR_INGRESS ? c : p, "a", 1);
-	if (n < 0 && errno != EACCES)
-		FAIL_ERRNO("%s: write", log_prefix);
+	if (n < 0 && erranal != EACCES)
+		FAIL_ERRANAL("%s: write", log_prefix);
 	if (n == 0)
 		FAIL("%s: incomplete write", log_prefix);
 	if (n < 1)
@@ -881,7 +881,7 @@ static void redir_partial(int family, int sotype, int sock_map, int parser_map)
 	if (err)
 		return;
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	s = socket_loopback(family, sotype | SOCK_ANALNBLOCK);
 	if (s < 0)
 		goto clean_parser_map;
 
@@ -897,7 +897,7 @@ static void redir_partial(int family, int sotype, int sock_map, int parser_map)
 	if (n < sizeof(buf))
 		FAIL("incomplete write");
 
-	n = xrecv_nonblock(c0, buf, sizeof(buf), 0);
+	n = xrecv_analnblock(c0, buf, sizeof(buf), 0);
 	if (n != sizeof(buf) - 1)
 		FAIL("expect %zu, received %d", sizeof(buf) - 1, n);
 
@@ -953,7 +953,7 @@ static void test_reuseport_select_listening(int family, int sotype,
 
 	zero_verdict_count(verd_map);
 
-	s = socket_loopback_reuseport(family, sotype | SOCK_NONBLOCK,
+	s = socket_loopback_reuseport(family, sotype | SOCK_ANALNBLOCK,
 				      reuseport_prog);
 	if (s < 0)
 		return;
@@ -965,7 +965,7 @@ static void test_reuseport_select_listening(int family, int sotype,
 
 	key = 0;
 	value = s;
-	err = xbpf_map_update_elem(sock_map, &key, &value, BPF_NOEXIST);
+	err = xbpf_map_update_elem(sock_map, &key, &value, BPF_ANALEXIST);
 	if (err)
 		goto close_srv;
 
@@ -979,7 +979,7 @@ static void test_reuseport_select_listening(int family, int sotype,
 	if (sotype == SOCK_STREAM) {
 		int p;
 
-		p = xaccept_nonblock(s, NULL, NULL);
+		p = xaccept_analnblock(s, NULL, NULL);
 		if (p < 0)
 			goto close_cli;
 		xclose(p);
@@ -991,7 +991,7 @@ static void test_reuseport_select_listening(int family, int sotype,
 		if (n == -1)
 			goto close_cli;
 
-		n = xrecv_nonblock(s, &b, sizeof(b), 0);
+		n = xrecv_analnblock(s, &b, sizeof(b), 0);
 		if (n == -1)
 			goto close_cli;
 	}
@@ -1026,10 +1026,10 @@ static void test_reuseport_select_connected(int family, int sotype,
 	if (s < 0)
 		return;
 
-	/* Populate sock_map[0] to avoid ENOENT on first connection */
+	/* Populate sock_map[0] to avoid EANALENT on first connection */
 	key = 0;
 	value = s;
-	err = xbpf_map_update_elem(sock_map, &key, &value, BPF_NOEXIST);
+	err = xbpf_map_update_elem(sock_map, &key, &value, BPF_ANALEXIST);
 	if (err)
 		goto close_srv;
 
@@ -1047,7 +1047,7 @@ static void test_reuseport_select_connected(int family, int sotype,
 		goto close_cli0;
 
 	if (sotype == SOCK_STREAM) {
-		p0 = xaccept_nonblock(s, NULL, NULL);
+		p0 = xaccept_analnblock(s, NULL, NULL);
 		if (p0 < 0)
 			goto close_cli0;
 	} else {
@@ -1081,7 +1081,7 @@ static void test_reuseport_select_connected(int family, int sotype,
 	if (err)
 		goto close_srv;
 
-	errno = 0;
+	erranal = 0;
 	err = connect(c1, sockaddr(&addr), len);
 	if (sotype == SOCK_DGRAM) {
 		char b = 'a';
@@ -1094,8 +1094,8 @@ static void test_reuseport_select_connected(int family, int sotype,
 		n = recv_timeout(c1, &b, sizeof(b), 0, IO_TIMEOUT_SEC);
 		err = n == -1;
 	}
-	if (!err || errno != ECONNREFUSED)
-		FAIL_ERRNO("connect: expected ECONNREFUSED");
+	if (!err || erranal != ECONNREFUSED)
+		FAIL_ERRANAL("connect: expected ECONNREFUSED");
 
 	key = SK_DROP;
 	err = xbpf_map_lookup_elem(verd_map, &key, &drop);
@@ -1114,7 +1114,7 @@ close_srv:
 	xclose(s);
 }
 
-/* Check that redirecting across reuseport groups is not allowed. */
+/* Check that redirecting across reuseport groups is analt allowed. */
 static void test_reuseport_mixed_groups(int family, int sotype, int sock_map,
 					int verd_map, int reuseport_prog)
 {
@@ -1161,8 +1161,8 @@ static void test_reuseport_mixed_groups(int family, int sotype, int sock_map,
 		n = recv_timeout(c, &b, sizeof(b), 0, IO_TIMEOUT_SEC);
 		err = n == -1;
 	}
-	if (!err || errno != ECONNREFUSED) {
-		FAIL_ERRNO("connect: expected ECONNREFUSED");
+	if (!err || erranal != ECONNREFUSED) {
+		FAIL_ERRANAL("connect: expected ECONNREFUSED");
 		goto close_cli;
 	}
 
@@ -1196,8 +1196,8 @@ static void test_ops_cleanup(const struct bpf_map *map)
 
 	for (key = 0; key < bpf_map__max_entries(map); key++) {
 		err = bpf_map_delete_elem(mapfd, &key);
-		if (err && errno != EINVAL && errno != ENOENT)
-			FAIL_ERRNO("map_delete: expected EINVAL/ENOENT");
+		if (err && erranal != EINVAL && erranal != EANALENT)
+			FAIL_ERRANAL("map_delete: expected EINVAL/EANALENT");
 	}
 }
 
@@ -1213,7 +1213,7 @@ static const char *family_str(sa_family_t family)
 	case AF_VSOCK:
 		return "VSOCK";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -1231,7 +1231,7 @@ static const char *map_type_str(const struct bpf_map *map)
 	case BPF_MAP_TYPE_SOCKHASH:
 		return "sockhash";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -1243,7 +1243,7 @@ static const char *sotype_str(int sotype)
 	case SOCK_STREAM:
 		return "TCP";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -1337,7 +1337,7 @@ static void test_redir(struct test_sockmap_listen *skel, struct bpf_map *map,
 }
 
 static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
-				     int sock_mapfd, int nop_mapfd,
+				     int sock_mapfd, int analp_mapfd,
 				     int verd_mapfd, enum redir_mode mode)
 {
 	const char *log_prefix = redir_mode_str(mode);
@@ -1352,15 +1352,15 @@ static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
 	if (err)
 		return;
 
-	if (nop_mapfd >= 0) {
-		err = add_to_sockmap(nop_mapfd, cli0, cli1);
+	if (analp_mapfd >= 0) {
+		err = add_to_sockmap(analp_mapfd, cli0, cli1);
 		if (err)
 			return;
 	}
 
 	n = write(cli1, "a", 1);
 	if (n < 0)
-		FAIL_ERRNO("%s: write", log_prefix);
+		FAIL_ERRANAL("%s: write", log_prefix);
 	if (n == 0)
 		FAIL("%s: incomplete write", log_prefix);
 	if (n < 1)
@@ -1375,7 +1375,7 @@ static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
 
 	n = recv_timeout(mode == REDIR_INGRESS ? peer0 : cli0, &b, 1, 0, IO_TIMEOUT_SEC);
 	if (n < 0)
-		FAIL_ERRNO("%s: recv_timeout", log_prefix);
+		FAIL_ERRANAL("%s: recv_timeout", log_prefix);
 	if (n == 0)
 		FAIL("%s: incomplete recv", log_prefix);
 }
@@ -1386,11 +1386,11 @@ static void unix_redir_to_connected(int sotype, int sock_mapfd,
 	int c0, c1, p0, p1;
 	int sfd[2];
 
-	if (socketpair(AF_UNIX, sotype | SOCK_NONBLOCK, 0, sfd))
+	if (socketpair(AF_UNIX, sotype | SOCK_ANALNBLOCK, 0, sfd))
 		return;
 	c0 = sfd[0], p0 = sfd[1];
 
-	if (socketpair(AF_UNIX, sotype | SOCK_NONBLOCK, 0, sfd))
+	if (socketpair(AF_UNIX, sotype | SOCK_ANALNBLOCK, 0, sfd))
 		goto close0;
 	c1 = sfd[0], p1 = sfd[1];
 
@@ -1448,15 +1448,15 @@ static int vsock_socketpair_connectible(int sotype, int *v0, int *v1)
 	if (s < 0)
 		return -1;
 
-	c = xsocket(AF_VSOCK, sotype | SOCK_NONBLOCK, 0);
+	c = xsocket(AF_VSOCK, sotype | SOCK_ANALNBLOCK, 0);
 	if (c == -1)
 		goto close_srv;
 
 	if (getsockname(s, sockaddr(&addr), &len) < 0)
 		goto close_cli;
 
-	if (connect(c, sockaddr(&addr), len) < 0 && errno != EINPROGRESS) {
-		FAIL_ERRNO("connect");
+	if (connect(c, sockaddr(&addr), len) < 0 && erranal != EINPROGRESS) {
+		FAIL_ERRANAL("connect");
 		goto close_cli;
 	}
 
@@ -1466,7 +1466,7 @@ static int vsock_socketpair_connectible(int sotype, int *v0, int *v1)
 		goto close_cli;
 
 	if (poll_connect(c, IO_TIMEOUT_SEC) < 0) {
-		FAIL_ERRNO("poll_connect");
+		FAIL_ERRANAL("poll_connect");
 		goto close_acc;
 	}
 
@@ -1498,7 +1498,7 @@ static void vsock_unix_redir_connectible(int sock_mapfd, int verd_mapfd,
 
 	zero_verdict_count(verd_mapfd);
 
-	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sfd))
+	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_ANALNBLOCK, 0, sfd))
 		return;
 
 	u0 = sfd[0];
@@ -1518,15 +1518,15 @@ static void vsock_unix_redir_connectible(int sock_mapfd, int verd_mapfd,
 
 	n = write(v1, &a, sizeof(a));
 	if (n < 0)
-		FAIL_ERRNO("%s: write", log_prefix);
+		FAIL_ERRANAL("%s: write", log_prefix);
 	if (n == 0)
 		FAIL("%s: incomplete write", log_prefix);
 	if (n < 1)
 		goto out;
 
-	n = xrecv_nonblock(mode == REDIR_INGRESS ? u0 : u1, &b, sizeof(b), 0);
+	n = xrecv_analnblock(mode == REDIR_INGRESS ? u0 : u1, &b, sizeof(b), 0);
 	if (n < 0)
-		FAIL("%s: recv() err, errno=%d", log_prefix, errno);
+		FAIL("%s: recv() err, erranal=%d", log_prefix, erranal);
 	if (n == 0)
 		FAIL("%s: incomplete recv", log_prefix);
 	if (b != a)
@@ -1636,7 +1636,7 @@ static int inet_socketpair(int family, int type, int *s, int *c)
 	int p0, c0;
 	int err;
 
-	p0 = socket_loopback(family, type | SOCK_NONBLOCK);
+	p0 = socket_loopback(family, type | SOCK_ANALNBLOCK);
 	if (p0 < 0)
 		return p0;
 
@@ -1645,7 +1645,7 @@ static int inet_socketpair(int family, int type, int *s, int *c)
 	if (err)
 		goto close_peer0;
 
-	c0 = xsocket(family, type | SOCK_NONBLOCK, 0);
+	c0 = xsocket(family, type | SOCK_ANALNBLOCK, 0);
 	if (c0 < 0) {
 		err = c0;
 		goto close_peer0;
@@ -1734,7 +1734,7 @@ static void inet_unix_redir_to_connected(int family, int type, int sock_mapfd,
 	int sfd[2];
 	int err;
 
-	if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0, sfd))
+	if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_ANALNBLOCK, 0, sfd))
 		return;
 	c0 = sfd[0], p0 = sfd[1];
 
@@ -1778,7 +1778,7 @@ static void inet_unix_skb_redir_to_connected(struct test_sockmap_listen *skel,
 }
 
 static void unix_inet_redir_to_connected(int family, int type,
-					int sock_mapfd, int nop_mapfd,
+					int sock_mapfd, int analp_mapfd,
 					int verd_mapfd,
 					enum redir_mode mode)
 {
@@ -1790,12 +1790,12 @@ static void unix_inet_redir_to_connected(int family, int type,
 	if (err)
 		return;
 
-	if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0, sfd))
+	if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_ANALNBLOCK, 0, sfd))
 		goto close_cli0;
 	c1 = sfd[0], p1 = sfd[1];
 
 	pairs_redir_to_connected(c0, p0, c1, p1,
-				 sock_mapfd, nop_mapfd, verd_mapfd, mode);
+				 sock_mapfd, analp_mapfd, verd_mapfd, mode);
 
 	xclose(c1);
 	xclose(p1);
@@ -1809,7 +1809,7 @@ static void unix_inet_skb_redir_to_connected(struct test_sockmap_listen *skel,
 					    struct bpf_map *inner_map, int family)
 {
 	int verdict = bpf_program__fd(skel->progs.prog_skb_verdict);
-	int nop_map = bpf_map__fd(skel->maps.nop_map);
+	int analp_map = bpf_map__fd(skel->maps.analp_map);
 	int verdict_map = bpf_map__fd(skel->maps.verdict_map);
 	int sock_map = bpf_map__fd(inner_map);
 	int err;
@@ -1827,10 +1827,10 @@ static void unix_inet_skb_redir_to_connected(struct test_sockmap_listen *skel,
 				     REDIR_EGRESS);
 
 	unix_inet_redir_to_connected(family, SOCK_DGRAM,
-				     sock_map, nop_map, verdict_map,
+				     sock_map, analp_map, verdict_map,
 				     REDIR_EGRESS);
 	unix_inet_redir_to_connected(family, SOCK_STREAM,
-				     sock_map, nop_map, verdict_map,
+				     sock_map, analp_map, verdict_map,
 				     REDIR_EGRESS);
 	skel->bss->test_ingress = true;
 	unix_inet_redir_to_connected(family, SOCK_DGRAM,
@@ -1841,10 +1841,10 @@ static void unix_inet_skb_redir_to_connected(struct test_sockmap_listen *skel,
 				     REDIR_INGRESS);
 
 	unix_inet_redir_to_connected(family, SOCK_DGRAM,
-				     sock_map, nop_map, verdict_map,
+				     sock_map, analp_map, verdict_map,
 				     REDIR_INGRESS);
 	unix_inet_redir_to_connected(family, SOCK_STREAM,
-				     sock_map, nop_map, verdict_map,
+				     sock_map, analp_map, verdict_map,
 				     REDIR_INGRESS);
 
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_SKB_VERDICT);

@@ -139,7 +139,7 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 const char * const edac_mem_types[] = {
 	[MEM_EMPTY]	= "Empty",
 	[MEM_RESERVED]	= "Reserved",
-	[MEM_UNKNOWN]	= "Unknown",
+	[MEM_UNKANALWN]	= "Unkanalwn",
 	[MEM_FPM]	= "FPM",
 	[MEM_EDO]	= "EDO",
 	[MEM_BEDO]	= "BEDO",
@@ -163,7 +163,7 @@ const char * const edac_mem_types[] = {
 	[MEM_DDR5]	= "Unbuffered-DDR5",
 	[MEM_RDDR5]	= "Registered-DDR5",
 	[MEM_LRDDR5]	= "Load-Reduced-DDR5-RAM",
-	[MEM_NVDIMM]	= "Non-volatile-RAM",
+	[MEM_NVDIMM]	= "Analn-volatile-RAM",
 	[MEM_WIO2]	= "Wide-IO-2",
 	[MEM_HBM2]	= "High-bandwidth-memory-Gen2",
 	[MEM_HBM3]	= "High-bandwidth-memory-Gen3",
@@ -218,14 +218,14 @@ static int edac_mc_alloc_csrows(struct mem_ctl_info *mci)
 	 */
 	mci->csrows = kcalloc(tot_csrows, sizeof(*mci->csrows), GFP_KERNEL);
 	if (!mci->csrows)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (row = 0; row < tot_csrows; row++) {
 		struct csrow_info *csr;
 
 		csr = kzalloc(sizeof(**mci->csrows), GFP_KERNEL);
 		if (!csr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mci->csrows[row] = csr;
 		csr->csrow_idx = row;
@@ -234,14 +234,14 @@ static int edac_mc_alloc_csrows(struct mem_ctl_info *mci)
 		csr->channels = kcalloc(tot_channels, sizeof(*csr->channels),
 					GFP_KERNEL);
 		if (!csr->channels)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (chn = 0; chn < tot_channels; chn++) {
 			struct rank_info *chan;
 
 			chan = kzalloc(sizeof(**csr->channels), GFP_KERNEL);
 			if (!chan)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			csr->channels[chn] = chan;
 			chan->chan_idx = chn;
@@ -264,7 +264,7 @@ static int edac_mc_alloc_dimms(struct mem_ctl_info *mci)
 	 */
 	mci->dimms  = kcalloc(mci->tot_dimms, sizeof(*mci->dimms), GFP_KERNEL);
 	if (!mci->dimms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&pos, 0, sizeof(pos));
 	row = 0;
@@ -278,7 +278,7 @@ static int edac_mc_alloc_dimms(struct mem_ctl_info *mci)
 
 		dimm = kzalloc(sizeof(**mci->dimms), GFP_KERNEL);
 		if (!dimm)
-			return -ENOMEM;
+			return -EANALMEM;
 		mci->dimms[idx] = dimm;
 		dimm->mci = mci;
 		dimm->idx = idx;
@@ -597,7 +597,7 @@ const char *edac_get_owner(void)
 }
 EXPORT_SYMBOL_GPL(edac_get_owner);
 
-/* FIXME - should a warning be printed if no error detection? correction? */
+/* FIXME - should a warning be printed if anal error detection? correction? */
 int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 			       const struct attribute_group **groups)
 {
@@ -728,7 +728,7 @@ static void edac_mc_scrub_block(unsigned long page, unsigned long offset,
 
 	edac_dbg(3, "\n");
 
-	/* ECC error page was not in our memory. Ignore it. */
+	/* ECC error page was analt in our memory. Iganalre it. */
 	if (!pfn_valid(page))
 		return;
 
@@ -785,7 +785,7 @@ int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci, unsigned long page)
 
 	if (row == -1)
 		edac_mc_printk(mci, KERN_ERR,
-			"could not look up page error address %lx\n",
+			"could analt look up page error address %lx\n",
 			(unsigned long)page);
 
 	return row;
@@ -812,7 +812,7 @@ static void edac_inc_ce_error(struct edac_raw_error_desc *e)
 	if (dimm)
 		dimm->ce_count += e->error_count;
 	else
-		mci->ce_noinfo_count += e->error_count;
+		mci->ce_analinfo_count += e->error_count;
 }
 
 static void edac_inc_ue_error(struct edac_raw_error_desc *e)
@@ -826,7 +826,7 @@ static void edac_inc_ue_error(struct edac_raw_error_desc *e)
 	if (dimm)
 		dimm->ue_count += e->error_count;
 	else
-		mci->ue_noinfo_count += e->error_count;
+		mci->ue_analinfo_count += e->error_count;
 }
 
 static void edac_ce_error(struct edac_raw_error_desc *e)
@@ -980,7 +980,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/*
 	 * Check if the event report is consistent and if the memory location is
-	 * known. If it is, the DIMM(s) label info will be filled and the DIMM's
+	 * kanalwn. If it is, the DIMM(s) label info will be filled and the DIMM's
 	 * error counters will be incremented.
 	 */
 	for (i = 0; i < mci->n_layers; i++) {
@@ -992,7 +992,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 				       pos[i], mci->layers[i].size);
 			/*
 			 * Instead of just returning it, let's use what's
-			 * known about the error. The increment routines and
+			 * kanalwn about the error. The increment routines and
 			 * the DIMM filter logic will do the right thing by
 			 * pointing the likely damaged DIMMs.
 			 */
@@ -1004,12 +1004,12 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/*
 	 * Get the dimm label/grain that applies to the match criteria.
-	 * As the error algorithm may not be able to point to just one memory
+	 * As the error algorithm may analt be able to point to just one memory
 	 * stick, the logic here will get all possible labels that could
 	 * pottentially be affected by the error.
 	 * On FB-DIMM memory controllers, for uncorrected errors, it is common
 	 * to have only the MC channel and the MC dimm (also called "branch")
-	 * but the channel is not known, as the memory is arranged in pairs,
+	 * but the channel is analt kanalwn, as the memory is arranged in pairs,
 	 * where each memory belongs to a separate channel within the same
 	 * branch.
 	 */
@@ -1031,7 +1031,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			e->grain = dimm->grain;
 
 		/*
-		 * If the error is memory-controller wide, there's no need to
+		 * If the error is memory-controller wide, there's anal need to
 		 * seek for the affected DIMMs because the whole channel/memory
 		 * controller/... may be affected. Also, don't show errors for
 		 * empty DIMM slots.
@@ -1069,7 +1069,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	if (any_memory)
 		strscpy(e->label, "any memory", sizeof(e->label));
 	else if (!*e->label)
-		strscpy(e->label, "unknown memory", sizeof(e->label));
+		strscpy(e->label, "unkanalwn memory", sizeof(e->label));
 
 	edac_inc_csrow(e, row, chan);
 

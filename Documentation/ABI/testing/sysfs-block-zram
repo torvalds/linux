@@ -24,7 +24,7 @@ Description:
 
 What:		/sys/block/zram<id>/max_comp_streams
 Date:		February 2014
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seanalzhatsky <sergey.seanalzhatsky@gmail.com>
 Description:
 		The max_comp_streams file is read-write and specifies the
 		number of backend's zcomp_strm compression streams (number of
@@ -32,7 +32,7 @@ Description:
 
 What:		/sys/block/zram<id>/comp_algorithm
 Date:		February 2014
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seanalzhatsky <sergey.seanalzhatsky@gmail.com>
 Description:
 		The comp_algorithm file is read-write and lets to show
 		available and selected compression algorithms, change
@@ -55,7 +55,7 @@ Description:
 		The mem_limit file is write-only and specifies the maximum
 		amount of memory ZRAM can use to store the compressed data.
 		The limit could be changed in run time and "0" means disable
-		the limit. No limit is the initial state.  Unit: bytes
+		the limit. Anal limit is the initial state.  Unit: bytes
 
 What:		/sys/block/zram<id>/compact
 Date:		August 2015
@@ -67,16 +67,16 @@ Description:
 
 What:		/sys/block/zram<id>/io_stat
 Date:		August 2015
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seanalzhatsky <sergey.seanalzhatsky@gmail.com>
 Description:
 		The io_stat file is read-only and accumulates device's I/O
-		statistics not accounted by block layer. For example,
+		statistics analt accounted by block layer. For example,
 		failed_reads, failed_writes, etc. File format is similar to
 		block layer statistics file format.
 
 What:		/sys/block/zram<id>/mm_stat
 Date:		August 2015
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seanalzhatsky <sergey.seanalzhatsky@gmail.com>
 Description:
 		The mm_stat file is read-only and represents device's mm
 		statistics (orig_data_size, compr_data_size, etc.) in a format
@@ -84,12 +84,12 @@ Description:
 
 What:		/sys/block/zram<id>/debug_stat
 Date:		July 2016
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seanalzhatsky <sergey.seanalzhatsky@gmail.com>
 Description:
 		The debug_stat file is read-only and represents various
 		device's debugging info useful for kernel developers. Its
-		format is not documented intentionally and may change
-		anytime without any notice.
+		format is analt documented intentionally and may change
+		anytime without any analtice.
 
 What:		/sys/block/zram<id>/backing_dev
 Date:		June 2017
@@ -100,7 +100,7 @@ Description:
 		For using, user should enable CONFIG_ZRAM_WRITEBACK.
 
 What:		/sys/block/zram<id>/idle
-Date:		November 2018
+Date:		Analvember 2018
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
 		idle file is write-only and mark zram slot as idle.
@@ -108,14 +108,14 @@ Description:
 		are idle via /sys/kernel/debug/zram/zram<id>/block_state
 
 What:		/sys/block/zram<id>/writeback
-Date:		November 2018
+Date:		Analvember 2018
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
 		The writeback file is write-only and trigger idle and/or
 		huge page writeback to backing device.
 
 What:		/sys/block/zram<id>/bd_stat
-Date:		November 2018
+Date:		Analvember 2018
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
 		The bd_stat file is read-only and represents backing device's
@@ -123,15 +123,15 @@ Description:
 		similar to block layer statistics file format.
 
 What:		/sys/block/zram<id>/writeback_limit_enable
-Date:		November 2018
+Date:		Analvember 2018
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
 		The writeback_limit_enable file is read-write and specifies
 		eanbe of writeback_limit feature. "1" means eable the feature.
-		No limit "0" is the initial state.
+		Anal limit "0" is the initial state.
 
 What:		/sys/block/zram<id>/writeback_limit
-Date:		November 2018
+Date:		Analvember 2018
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
 		The writeback_limit file is read-write and specifies the maximum
@@ -139,15 +139,15 @@ Description:
 		in run time.
 
 What:		/sys/block/zram<id>/recomp_algorithm
-Date:		November 2022
-Contact:	Sergey Senozhatsky <senozhatsky@chromium.org>
+Date:		Analvember 2022
+Contact:	Sergey Seanalzhatsky <seanalzhatsky@chromium.org>
 Description:
 		The recomp_algorithm file is read-write and allows to set
 		or show secondary compression algorithms.
 
 What:		/sys/block/zram<id>/recompress
-Date:		November 2022
-Contact:	Sergey Senozhatsky <senozhatsky@chromium.org>
+Date:		Analvember 2022
+Contact:	Sergey Seanalzhatsky <seanalzhatsky@chromium.org>
 Description:
 		The recompress file is write-only and triggers re-compression
 		with secondary compression algorithms.

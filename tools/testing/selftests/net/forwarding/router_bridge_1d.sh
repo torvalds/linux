@@ -108,12 +108,12 @@ router_destroy()
 	ip link set dev $swp2 down
 
 	__addr_add_del br2 del 192.0.2.18/28 2001:db8:3::2/64
-	ip link set dev $swp1.200 nomaster
+	ip link set dev $swp1.200 analmaster
 	ip link del dev br2
 	vlan_destroy $swp1 200
 
 	__addr_add_del br1 del 192.0.2.2/28 2001:db8:1::2/64
-	ip link set dev $swp1.100 nomaster
+	ip link set dev $swp1.100 analmaster
 	ip link del dev br1
 	vlan_destroy $swp1 100
 
@@ -124,8 +124,8 @@ config_remaster()
 {
 	log_info "Remaster bridge slaves"
 
-	ip link set dev $swp1.100 nomaster
-	ip link set dev $swp1.200 nomaster
+	ip link set dev $swp1.100 analmaster
+	ip link set dev $swp1.200 analmaster
 	sleep 2
 	ip link set dev $swp1.200 master br2
 	ip link set dev $swp1.100 master br1

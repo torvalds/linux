@@ -13,7 +13,7 @@
  * It could be called the x86 IOMMU as it's designed for AMD-Vi & Intel
  * VT-d, but that makes it harder to re-use as theoretically anyone
  * implementing a similar IOMMU could make use of this.  We expect the
- * IOMMU to support the IOMMU API and have few to no restrictions around
+ * IOMMU to support the IOMMU API and have few to anal restrictions around
  * the IOVA range that can be mapped.  The Type1 IOMMU is currently
  * optimized for relatively static mappings of a userspace process with
  * userspace pages pinned into memory.  We also assume devices and IOMMU
@@ -36,7 +36,7 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include "vfio.h"
 
 #define DRIVER_VERSION  "0.2"
@@ -70,7 +70,7 @@ struct vfio_iommu {
 	unsigned int		dma_avail;
 	unsigned int		vaddr_invalid_count;
 	uint64_t		pgsize_bitmap;
-	uint64_t		num_non_pinned_groups;
+	uint64_t		num_analn_pinned_groups;
 	bool			v2;
 	bool			nesting;
 	bool			dirty_page_tracking;
@@ -86,7 +86,7 @@ struct vfio_domain {
 };
 
 struct vfio_dma {
-	struct rb_node		node;
+	struct rb_analde		analde;
 	dma_addr_t		iova;		/* Device address */
 	unsigned long		vaddr;		/* Process virtual addr */
 	size_t			size;		/* Map size (bytes) */
@@ -125,7 +125,7 @@ struct vfio_iova {
  * Guest RAM pinning working set or DMA target
  */
 struct vfio_pfn {
-	struct rb_node		node;
+	struct rb_analde		analde;
 	dma_addr_t		iova;		/* Device address */
 	unsigned long		pfn;		/* Host pfn */
 	unsigned int		ref_count;
@@ -165,15 +165,15 @@ vfio_iommu_find_iommu_group(struct vfio_iommu *iommu,
 static struct vfio_dma *vfio_find_dma(struct vfio_iommu *iommu,
 				      dma_addr_t start, size_t size)
 {
-	struct rb_node *node = iommu->dma_list.rb_node;
+	struct rb_analde *analde = iommu->dma_list.rb_analde;
 
-	while (node) {
-		struct vfio_dma *dma = rb_entry(node, struct vfio_dma, node);
+	while (analde) {
+		struct vfio_dma *dma = rb_entry(analde, struct vfio_dma, analde);
 
 		if (start + size <= dma->iova)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (start >= dma->iova + dma->size)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return dma;
 	}
@@ -181,24 +181,24 @@ static struct vfio_dma *vfio_find_dma(struct vfio_iommu *iommu,
 	return NULL;
 }
 
-static struct rb_node *vfio_find_dma_first_node(struct vfio_iommu *iommu,
+static struct rb_analde *vfio_find_dma_first_analde(struct vfio_iommu *iommu,
 						dma_addr_t start, u64 size)
 {
-	struct rb_node *res = NULL;
-	struct rb_node *node = iommu->dma_list.rb_node;
+	struct rb_analde *res = NULL;
+	struct rb_analde *analde = iommu->dma_list.rb_analde;
 	struct vfio_dma *dma_res = NULL;
 
-	while (node) {
-		struct vfio_dma *dma = rb_entry(node, struct vfio_dma, node);
+	while (analde) {
+		struct vfio_dma *dma = rb_entry(analde, struct vfio_dma, analde);
 
 		if (start < dma->iova + dma->size) {
-			res = node;
+			res = analde;
 			dma_res = dma;
 			if (start >= dma->iova)
 				break;
-			node = node->rb_left;
+			analde = analde->rb_left;
 		} else {
-			node = node->rb_right;
+			analde = analde->rb_right;
 		}
 	}
 	if (res && size && dma_res->iova >= start + size)
@@ -208,12 +208,12 @@ static struct rb_node *vfio_find_dma_first_node(struct vfio_iommu *iommu,
 
 static void vfio_link_dma(struct vfio_iommu *iommu, struct vfio_dma *new)
 {
-	struct rb_node **link = &iommu->dma_list.rb_node, *parent = NULL;
+	struct rb_analde **link = &iommu->dma_list.rb_analde, *parent = NULL;
 	struct vfio_dma *dma;
 
 	while (*link) {
 		parent = *link;
-		dma = rb_entry(parent, struct vfio_dma, node);
+		dma = rb_entry(parent, struct vfio_dma, analde);
 
 		if (new->iova + new->size <= dma->iova)
 			link = &(*link)->rb_left;
@@ -221,13 +221,13 @@ static void vfio_link_dma(struct vfio_iommu *iommu, struct vfio_dma *new)
 			link = &(*link)->rb_right;
 	}
 
-	rb_link_node(&new->node, parent, link);
-	rb_insert_color(&new->node, &iommu->dma_list);
+	rb_link_analde(&new->analde, parent, link);
+	rb_insert_color(&new->analde, &iommu->dma_list);
 }
 
 static void vfio_unlink_dma(struct vfio_iommu *iommu, struct vfio_dma *old)
 {
-	rb_erase(&old->node, &iommu->dma_list);
+	rb_erase(&old->analde, &iommu->dma_list);
 }
 
 
@@ -246,7 +246,7 @@ static int vfio_dma_bitmap_alloc(struct vfio_dma *dma, size_t pgsize)
 	dma->bitmap = kvzalloc(DIRTY_BITMAP_BYTES(npages) + sizeof(u64),
 			       GFP_KERNEL);
 	if (!dma->bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -259,11 +259,11 @@ static void vfio_dma_bitmap_free(struct vfio_dma *dma)
 
 static void vfio_dma_populate_bitmap(struct vfio_dma *dma, size_t pgsize)
 {
-	struct rb_node *p;
+	struct rb_analde *p;
 	unsigned long pgshift = __ffs(pgsize);
 
 	for (p = rb_first(&dma->pfn_list); p; p = rb_next(p)) {
-		struct vfio_pfn *vpfn = rb_entry(p, struct vfio_pfn, node);
+		struct vfio_pfn *vpfn = rb_entry(p, struct vfio_pfn, analde);
 
 		bitmap_set(dma->bitmap, (vpfn->iova - dma->iova) >> pgshift, 1);
 	}
@@ -271,11 +271,11 @@ static void vfio_dma_populate_bitmap(struct vfio_dma *dma, size_t pgsize)
 
 static void vfio_iommu_populate_bitmap_full(struct vfio_iommu *iommu)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 	unsigned long pgshift = __ffs(iommu->pgsize_bitmap);
 
 	for (n = rb_first(&iommu->dma_list); n; n = rb_next(n)) {
-		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
+		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, analde);
 
 		bitmap_set(dma->bitmap, 0, dma->size >> pgshift);
 	}
@@ -283,19 +283,19 @@ static void vfio_iommu_populate_bitmap_full(struct vfio_iommu *iommu)
 
 static int vfio_dma_bitmap_alloc_all(struct vfio_iommu *iommu, size_t pgsize)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	for (n = rb_first(&iommu->dma_list); n; n = rb_next(n)) {
-		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
+		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, analde);
 		int ret;
 
 		ret = vfio_dma_bitmap_alloc(dma, pgsize);
 		if (ret) {
-			struct rb_node *p;
+			struct rb_analde *p;
 
 			for (p = rb_prev(n); p; p = rb_prev(p)) {
 				struct vfio_dma *dma = rb_entry(n,
-							struct vfio_dma, node);
+							struct vfio_dma, analde);
 
 				vfio_dma_bitmap_free(dma);
 			}
@@ -308,10 +308,10 @@ static int vfio_dma_bitmap_alloc_all(struct vfio_iommu *iommu, size_t pgsize)
 
 static void vfio_dma_bitmap_free_all(struct vfio_iommu *iommu)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	for (n = rb_first(&iommu->dma_list); n; n = rb_next(n)) {
-		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
+		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, analde);
 
 		vfio_dma_bitmap_free(dma);
 	}
@@ -323,15 +323,15 @@ static void vfio_dma_bitmap_free_all(struct vfio_iommu *iommu)
 static struct vfio_pfn *vfio_find_vpfn(struct vfio_dma *dma, dma_addr_t iova)
 {
 	struct vfio_pfn *vpfn;
-	struct rb_node *node = dma->pfn_list.rb_node;
+	struct rb_analde *analde = dma->pfn_list.rb_analde;
 
-	while (node) {
-		vpfn = rb_entry(node, struct vfio_pfn, node);
+	while (analde) {
+		vpfn = rb_entry(analde, struct vfio_pfn, analde);
 
 		if (iova < vpfn->iova)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (iova > vpfn->iova)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return vpfn;
 	}
@@ -341,13 +341,13 @@ static struct vfio_pfn *vfio_find_vpfn(struct vfio_dma *dma, dma_addr_t iova)
 static void vfio_link_pfn(struct vfio_dma *dma,
 			  struct vfio_pfn *new)
 {
-	struct rb_node **link, *parent = NULL;
+	struct rb_analde **link, *parent = NULL;
 	struct vfio_pfn *vpfn;
 
-	link = &dma->pfn_list.rb_node;
+	link = &dma->pfn_list.rb_analde;
 	while (*link) {
 		parent = *link;
-		vpfn = rb_entry(parent, struct vfio_pfn, node);
+		vpfn = rb_entry(parent, struct vfio_pfn, analde);
 
 		if (new->iova < vpfn->iova)
 			link = &(*link)->rb_left;
@@ -355,13 +355,13 @@ static void vfio_link_pfn(struct vfio_dma *dma,
 			link = &(*link)->rb_right;
 	}
 
-	rb_link_node(&new->node, parent, link);
-	rb_insert_color(&new->node, &dma->pfn_list);
+	rb_link_analde(&new->analde, parent, link);
+	rb_insert_color(&new->analde, &dma->pfn_list);
 }
 
 static void vfio_unlink_pfn(struct vfio_dma *dma, struct vfio_pfn *old)
 {
-	rb_erase(&old->node, &dma->pfn_list);
+	rb_erase(&old->analde, &dma->pfn_list);
 }
 
 static int vfio_add_to_pfn_list(struct vfio_dma *dma, dma_addr_t iova,
@@ -371,7 +371,7 @@ static int vfio_add_to_pfn_list(struct vfio_dma *dma, dma_addr_t iova,
 
 	vpfn = kzalloc(sizeof(*vpfn), GFP_KERNEL);
 	if (!vpfn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vpfn->iova = iova;
 	vpfn->pfn = pfn;
@@ -431,7 +431,7 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
 		return 0;
 
 	mm = dma->mm;
-	if (async && !mmget_not_zero(mm))
+	if (async && !mmget_analt_zero(mm))
 		return -ESRCH; /* process exited */
 
 	ret = mm_lock_acct(dma->task, mm, dma->lock_cap, npage);
@@ -446,7 +446,7 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
 
 /*
  * Some mappings aren't backed by a struct page, for example an mmap'd
- * MMIO range for our own or another device.  These use a different
+ * MMIO range for our own or aanalther device.  These use a different
  * pfn conversion and shouldn't be tracked as locked pages.
  * For compound pages, any driver that sets the reserved bit in head
  * page needs to set the reserved bit in all subpages to be safe.
@@ -622,7 +622,7 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 
 	/* This code path is only user initiated */
 	if (!mm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (batch->size) {
 		/* Leftover pages in batch from an earlier call. */
@@ -655,7 +655,7 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 		/*
 		 * pfn is preset for the first iteration of this inner loop and
 		 * updated at the end to handle a VM_PFNMAP pfn.  In that case,
-		 * batch->pages isn't valid (there's no struct page), so allow
+		 * batch->pages isn't valid (there's anal struct page), so allow
 		 * batch->pages to be touched only when there's more than one
 		 * pfn to check, which guarantees the pfns are from a
 		 * !VM_PFNMAP vma.
@@ -675,7 +675,7 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 				    mm->locked_vm + lock_acct + 1 > limit) {
 					pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n",
 						__func__, limit << PAGE_SHIFT);
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto unpin_out;
 				}
 				lock_acct++;
@@ -750,8 +750,8 @@ static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 	int ret;
 
 	mm = dma->mm;
-	if (!mmget_not_zero(mm))
-		return -ENODEV;
+	if (!mmget_analt_zero(mm))
+		return -EANALDEV;
 
 	ret = vaddr_get_pfns(mm, vaddr, 1, dma->prot, pfn_base, pages);
 	if (ret != 1)
@@ -763,7 +763,7 @@ static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 		ret = vfio_lock_acct(dma, 1, false);
 		if (ret) {
 			put_pfn(*pfn_base, dma->prot);
-			if (ret == -ENOMEM)
+			if (ret == -EANALMEM)
 				pr_warn("%s: Task %s (%d) RLIMIT_MEMLOCK "
 					"(%ld) exceeded\n", __func__,
 					dma->task->comm, task_pid_nr(dma->task),
@@ -816,12 +816,12 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 	mutex_lock(&iommu->lock);
 
 	if (WARN_ONCE(iommu->vaddr_invalid_count,
-		      "vfio_pin_pages not allowed with VFIO_UPDATE_VADDR\n")) {
+		      "vfio_pin_pages analt allowed with VFIO_UPDATE_VADDR\n")) {
 		ret = -EBUSY;
 		goto pin_done;
 	}
 
-	/* Fail if no dma_umap notifier is registered */
+	/* Fail if anal dma_umap analtifier is registered */
 	if (list_empty(&iommu->device_list)) {
 		ret = -EINVAL;
 		goto pin_done;
@@ -829,7 +829,7 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 
 	/*
 	 * If iommu capable domain exist in the container then all pages are
-	 * already pinned and accounted. Accounting should be done if there is no
+	 * already pinned and accounted. Accounting should be done if there is anal
 	 * iommu capable domain in the container.
 	 */
 	do_accounting = list_empty(&iommu->domain_list);
@@ -893,7 +893,7 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 	group = vfio_iommu_find_iommu_group(iommu, iommu_group);
 	if (!group->pinned_page_dirty_scope) {
 		group->pinned_page_dirty_scope = true;
-		iommu->num_non_pinned_groups--;
+		iommu->num_analn_pinned_groups--;
 	}
 
 	goto pin_done;
@@ -1055,7 +1055,7 @@ static long vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma,
 	 * need a much more complicated tracking system.  Unfortunately that
 	 * means we need to use one of the iommu domains to figure out the
 	 * pfns to unpin.  The rest need to be unmapped in advance so we have
-	 * no iommu translations remaining when the pages are unpinned.
+	 * anal iommu translations remaining when the pages are unpinned.
 	 */
 	domain = d = list_first_entry(&iommu->domain_list,
 				      struct vfio_domain, next);
@@ -1167,10 +1167,10 @@ static int update_user_bitmap(u64 __user *bitmap, struct vfio_iommu *iommu,
 	unsigned long leftover;
 
 	/*
-	 * mark all pages dirty if any IOMMU capable device is not able
+	 * mark all pages dirty if any IOMMU capable device is analt able
 	 * to report dirty pages and all pages are pinned and mapped.
 	 */
-	if (iommu->num_non_pinned_groups && dma->iommu_mapped)
+	if (iommu->num_analn_pinned_groups && dma->iommu_mapped)
 		bitmap_set(dma->bitmap, 0, nbits);
 
 	if (shift) {
@@ -1196,15 +1196,15 @@ static int vfio_iova_dirty_bitmap(u64 __user *bitmap, struct vfio_iommu *iommu,
 				  dma_addr_t iova, size_t size, size_t pgsize)
 {
 	struct vfio_dma *dma;
-	struct rb_node *n;
+	struct rb_analde *n;
 	unsigned long pgshift = __ffs(pgsize);
 	int ret;
 
 	/*
 	 * GET_BITMAP request must fully cover vfio_dma mappings.  Multiple
 	 * vfio_dma mappings may be clubbed by specifying large ranges, but
-	 * there must not be any previous mappings bisected by the range.
-	 * An error will be returned if these conditions are not met.
+	 * there must analt be any previous mappings bisected by the range.
+	 * An error will be returned if these conditions are analt met.
 	 */
 	dma = vfio_find_dma(iommu, iova, 1);
 	if (dma && dma->iova != iova)
@@ -1215,7 +1215,7 @@ static int vfio_iova_dirty_bitmap(u64 __user *bitmap, struct vfio_iommu *iommu,
 		return -EINVAL;
 
 	for (n = rb_first(&iommu->dma_list); n; n = rb_next(n)) {
-		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
+		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, analde);
 
 		if (dma->iova < iova)
 			continue;
@@ -1248,11 +1248,11 @@ static int verify_bitmap_size(uint64_t npages, uint64_t bitmap_size)
 }
 
 /*
- * Notify VFIO drivers using vfio_register_emulated_iommu_dev() to invalidate
+ * Analtify VFIO drivers using vfio_register_emulated_iommu_dev() to invalidate
  * and unmap iovas within the range we're about to unmap. Drivers MUST unpin
  * pages in response to an invalidation.
  */
-static void vfio_notify_dma_unmap(struct vfio_iommu *iommu,
+static void vfio_analtify_dma_unmap(struct vfio_iommu *iommu,
 				  struct vfio_dma *dma)
 {
 	struct vfio_device *device;
@@ -1288,11 +1288,11 @@ static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
 	u64 size = unmap->size;
 	bool unmap_all = unmap->flags & VFIO_DMA_UNMAP_FLAG_ALL;
 	bool invalidate_vaddr = unmap->flags & VFIO_DMA_UNMAP_FLAG_VADDR;
-	struct rb_node *n, *first_n;
+	struct rb_analde *n, *first_n;
 
 	mutex_lock(&iommu->lock);
 
-	/* Cannot update vaddr if mdev is present. */
+	/* Cananalt update vaddr if mdev is present. */
 	if (invalidate_vaddr && !list_empty(&iommu->emulated_iommu_groups)) {
 		ret = -EBUSY;
 		goto unlock;
@@ -1327,10 +1327,10 @@ again:
 	 * of the original mapping was lost and the user was allowed to attempt
 	 * to unmap any range.  Depending on the contiguousness of physical
 	 * memory and page sizes supported by the IOMMU, arbitrary unmaps may
-	 * or may not have worked.  We only guaranteed unmap granularity
+	 * or may analt have worked.  We only guaranteed unmap granularity
 	 * matching the original mapping; even though it was untracked here,
 	 * the original mappings are reflected in IOMMU mappings.  This
-	 * resulted in a couple unusual behaviors.  First, if a range is not
+	 * resulted in a couple unusual behaviors.  First, if a range is analt
 	 * able to be unmapped, ex. a set of 4k pages that was mapped as a
 	 * 2M hugepage into the IOMMU, the unmap ioctl returns success but with
 	 * a zero sized unmap.  Also, if an unmap request overlaps the first
@@ -1347,9 +1347,9 @@ again:
 	 * The v2 version of this interface intends to be more deterministic.
 	 * Unmap requests must fully cover previous mappings.  Multiple
 	 * mappings may still be unmaped by specifying large ranges, but there
-	 * must not be any previous mappings bisected by the range.  An error
-	 * will be returned if these conditions are not met.  The v2 interface
-	 * will only return success and a size of zero if there were no
+	 * must analt be any previous mappings bisected by the range.  An error
+	 * will be returned if these conditions are analt met.  The v2 interface
+	 * will only return success and a size of zero if there were anal
 	 * mappings within the range.
 	 */
 	if (iommu->v2 && !unmap_all) {
@@ -1363,10 +1363,10 @@ again:
 	}
 
 	ret = 0;
-	n = first_n = vfio_find_dma_first_node(iommu, iova, size);
+	n = first_n = vfio_find_dma_first_analde(iommu, iova, size);
 
 	while (n) {
-		dma = rb_entry(n, struct vfio_dma, node);
+		dma = rb_entry(n, struct vfio_dma, analde);
 		if (dma->iova >= iova + size)
 			break;
 
@@ -1375,11 +1375,11 @@ again:
 
 		if (invalidate_vaddr) {
 			if (dma->vaddr_invalid) {
-				struct rb_node *last_n = n;
+				struct rb_analde *last_n = n;
 
 				for (n = first_n; n != last_n; n = rb_next(n)) {
 					dma = rb_entry(n,
-						       struct vfio_dma, node);
+						       struct vfio_dma, analde);
 					dma->vaddr_invalid = false;
 					iommu->vaddr_invalid_count--;
 				}
@@ -1402,7 +1402,7 @@ again:
 				retries = 0;
 			}
 
-			vfio_notify_dma_unmap(iommu, dma);
+			vfio_analtify_dma_unmap(iommu, dma);
 			goto again;
 		}
 
@@ -1508,10 +1508,10 @@ static bool vfio_iommu_iova_dma_valid(struct vfio_iommu *iommu,
 				      dma_addr_t start, dma_addr_t end)
 {
 	struct list_head *iova = &iommu->iova_list;
-	struct vfio_iova *node;
+	struct vfio_iova *analde;
 
-	list_for_each_entry(node, iova, list) {
-		if (start >= node->start && end <= node->end)
+	list_for_each_entry(analde, iova, list) {
+		if (start >= analde->start && end <= analde->end)
 			return true;
 	}
 
@@ -1538,7 +1538,7 @@ static int vfio_change_dma_owner(struct vfio_dma *dma)
 	if (ret)
 		return ret;
 
-	if (mmget_not_zero(dma->mm)) {
+	if (mmget_analt_zero(dma->mm)) {
 		mm_lock_acct(dma->task, dma->mm, dma->lock_cap, -npage);
 		mmput(dma->mm);
 	}
@@ -1565,7 +1565,7 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 	size_t pgsize;
 	struct vfio_dma *dma;
 
-	/* Verify that none of our __u64 fields overflow */
+	/* Verify that analne of our __u64 fields overflow */
 	if (map->size != size || map->vaddr != vaddr || map->iova != iova)
 		return -EINVAL;
 
@@ -1598,7 +1598,7 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 	dma = vfio_find_dma(iommu, iova, size);
 	if (set_vaddr) {
 		if (!dma) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 		} else if (!dma->vaddr_invalid || dma->iova != iova ||
 			   dma->size != size) {
 			ret = -EINVAL;
@@ -1617,7 +1617,7 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 	}
 
 	if (!iommu->dma_avail) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out_unlock;
 	}
 
@@ -1628,7 +1628,7 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 
 	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
 	if (!dma) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -1640,7 +1640,7 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 	/*
 	 * We need to be able to both add to a task's locked memory and test
 	 * against the locked memory limit and we need to be able to do both
-	 * outside of this call path as pinning can be asynchronous via the
+	 * outside of this call path as pinning can be asynchroanalus via the
 	 * external interfaces for mdev devices.  RLIMIT_MEMLOCK requires a
 	 * task_struct. Save the group_leader so that all DMA tracking uses
 	 * the same task, to make debugging easier.  VM locked pages requires
@@ -1679,7 +1679,7 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 {
 	struct vfio_batch batch;
 	struct vfio_domain *d = NULL;
-	struct rb_node *n;
+	struct rb_analde *n;
 	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	int ret;
 
@@ -1696,7 +1696,7 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 		struct vfio_dma *dma;
 		dma_addr_t iova;
 
-		dma = rb_entry(n, struct vfio_dma, node);
+		dma = rb_entry(n, struct vfio_dma, analde);
 		iova = dma->iova;
 
 		while (iova < dma->iova + dma->size) {
@@ -1767,9 +1767,9 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 		}
 	}
 
-	/* All dmas are now mapped, defer to second tree walk for unwind */
+	/* All dmas are analw mapped, defer to second tree walk for unwind */
 	for (n = rb_first(&iommu->dma_list); n; n = rb_next(n)) {
-		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
+		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, analde);
 
 		dma->iommu_mapped = true;
 	}
@@ -1779,7 +1779,7 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 
 unwind:
 	for (; n; n = rb_prev(n)) {
-		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, node);
+		struct vfio_dma *dma = rb_entry(n, struct vfio_dma, analde);
 		dma_addr_t iova;
 
 		if (dma->iommu_mapped) {
@@ -1826,7 +1826,7 @@ unwind:
  * we don't need to look for contiguous chunks ourselves to make unmapping
  * more efficient.  On IOMMUs with coarse-grained super pages, like Intel VT-d
  * with discrete 2M/1G/512G/1T superpages, identifying contiguous chunks
- * significantly boosts non-hugetlbfs mappings and doesn't seem to hurt when
+ * significantly boosts analn-hugetlbfs mappings and doesn't seem to hurt when
  * hugetlbfs is in use.
  */
 static void vfio_test_domain_fgsp(struct vfio_domain *domain, struct list_head *regions)
@@ -1936,7 +1936,7 @@ static int vfio_iommu_iova_insert(struct list_head *head,
 
 	region = kmalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&region->list);
 	region->start = start;
@@ -1982,40 +1982,40 @@ static bool vfio_iommu_aper_conflict(struct vfio_iommu *iommu,
 
 /*
  * Resize iommu iova aperture window. This is called only if the new
- * aperture has no conflict with existing aperture and dma mappings.
+ * aperture has anal conflict with existing aperture and dma mappings.
  */
 static int vfio_iommu_aper_resize(struct list_head *iova,
 				  dma_addr_t start, dma_addr_t end)
 {
-	struct vfio_iova *node, *next;
+	struct vfio_iova *analde, *next;
 
 	if (list_empty(iova))
 		return vfio_iommu_iova_insert(iova, start, end);
 
 	/* Adjust iova list start */
-	list_for_each_entry_safe(node, next, iova, list) {
-		if (start < node->start)
+	list_for_each_entry_safe(analde, next, iova, list) {
+		if (start < analde->start)
 			break;
-		if (start >= node->start && start < node->end) {
-			node->start = start;
+		if (start >= analde->start && start < analde->end) {
+			analde->start = start;
 			break;
 		}
-		/* Delete nodes before new start */
-		list_del(&node->list);
-		kfree(node);
+		/* Delete analdes before new start */
+		list_del(&analde->list);
+		kfree(analde);
 	}
 
 	/* Adjust iova list end */
-	list_for_each_entry_safe(node, next, iova, list) {
-		if (end > node->end)
+	list_for_each_entry_safe(analde, next, iova, list) {
+		if (end > analde->end)
 			continue;
-		if (end > node->start && end <= node->end) {
-			node->end = end;
+		if (end > analde->start && end <= analde->end) {
+			analde->end = end;
 			continue;
 		}
-		/* Delete nodes after new end */
-		list_del(&node->list);
-		kfree(node);
+		/* Delete analdes after new end */
+		list_del(&analde->list);
+		kfree(analde);
 	}
 
 	return 0;
@@ -2063,14 +2063,14 @@ static int vfio_iommu_resv_exclude(struct list_head *iova,
 		list_for_each_entry_safe(n, next, iova, list) {
 			int ret = 0;
 
-			/* No overlap */
+			/* Anal overlap */
 			if (start > n->end || end < n->start)
 				continue;
 			/*
-			 * Insert a new node if current node overlaps with the
+			 * Insert a new analde if current analde overlaps with the
 			 * reserve region to exclude that from valid iova range.
-			 * Note that, new node is inserted before the current
-			 * node and finally the current node is deleted keeping
+			 * Analte that, new analde is inserted before the current
+			 * analde and finally the current analde is deleted keeping
 			 * the list updated and sorted.
 			 */
 			if (start > n->start)
@@ -2175,7 +2175,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	if (vfio_iommu_find_iommu_group(iommu, iommu_group))
 		goto out_unlock;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
 		goto out_unlock;
@@ -2184,7 +2184,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	if (type == VFIO_EMULATED_IOMMU) {
 		list_add(&group->next, &iommu->emulated_iommu_groups);
 		/*
-		 * An emulated IOMMU group cannot dirty memory directly, it can
+		 * An emulated IOMMU group cananalt dirty memory directly, it can
 		 * only use interfaces that provide dirty tracking.
 		 * The iommu scope can only be promoted with the addition of a
 		 * dirty tracking group.
@@ -2194,7 +2194,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 		goto out_unlock;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		goto out_free_group;
@@ -2262,15 +2262,15 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 
 	if (!allow_unsafe_interrupts &&
 	    !iommu_group_has_isolated_msi(iommu_group)) {
-		pr_warn("%s: No interrupt remapping support.  Use the module param \"allow_unsafe_interrupts\" to enable VFIO IOMMU support on this platform\n",
+		pr_warn("%s: Anal interrupt remapping support.  Use the module param \"allow_unsafe_interrupts\" to enable VFIO IOMMU support on this platform\n",
 		       __func__);
 		ret = -EPERM;
 		goto out_detach;
 	}
 
 	/*
-	 * If the IOMMU can block non-coherent operations (ie PCIe TLPs with
-	 * no-snoop set) then VFIO always turns this feature on because on Intel
+	 * If the IOMMU can block analn-coherent operations (ie PCIe TLPs with
+	 * anal-sanalop set) then VFIO always turns this feature on because on Intel
 	 * platforms it optimizes KVM to disable wbinvd emulation.
 	 */
 	if (domain->domain->ops->enforce_cache_coherency)
@@ -2314,7 +2314,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 
 	if (resv_msi) {
 		ret = iommu_get_msi_cookie(domain->domain, resv_msi_base);
-		if (ret && ret != -ENODEV)
+		if (ret && ret != -EANALDEV)
 			goto out_detach;
 	}
 
@@ -2329,7 +2329,7 @@ done:
 	 * demotes the iommu scope until it declares itself dirty tracking
 	 * capable via the page pinning interface.
 	 */
-	iommu->num_non_pinned_groups++;
+	iommu->num_analn_pinned_groups++;
 	mutex_unlock(&iommu->lock);
 	vfio_iommu_resv_free(&group_resv_regions);
 
@@ -2352,27 +2352,27 @@ out_unlock:
 
 static void vfio_iommu_unmap_unpin_all(struct vfio_iommu *iommu)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	while ((node = rb_first(&iommu->dma_list)))
-		vfio_remove_dma(iommu, rb_entry(node, struct vfio_dma, node));
+	while ((analde = rb_first(&iommu->dma_list)))
+		vfio_remove_dma(iommu, rb_entry(analde, struct vfio_dma, analde));
 }
 
 static void vfio_iommu_unmap_unpin_reaccount(struct vfio_iommu *iommu)
 {
-	struct rb_node *n, *p;
+	struct rb_analde *n, *p;
 
 	n = rb_first(&iommu->dma_list);
 	for (; n; n = rb_next(n)) {
 		struct vfio_dma *dma;
 		long locked = 0, unlocked = 0;
 
-		dma = rb_entry(n, struct vfio_dma, node);
+		dma = rb_entry(n, struct vfio_dma, analde);
 		unlocked += vfio_unmap_unpin(iommu, dma, false);
 		p = rb_first(&dma->pfn_list);
 		for (; p; p = rb_next(p)) {
 			struct vfio_pfn *vpfn = rb_entry(p, struct vfio_pfn,
-							 node);
+							 analde);
 
 			if (!is_invalid_reserved_pfn(vpfn->pfn))
 				locked++;
@@ -2390,7 +2390,7 @@ static void vfio_iommu_aper_expand(struct vfio_iommu *iommu,
 				   struct list_head *iova_copy)
 {
 	struct vfio_domain *domain;
-	struct vfio_iova *node;
+	struct vfio_iova *analde;
 	dma_addr_t start = 0;
 	dma_addr_t end = (dma_addr_t)~0;
 
@@ -2407,15 +2407,15 @@ static void vfio_iommu_aper_expand(struct vfio_iommu *iommu,
 	}
 
 	/* Modify aperture limits. The new aper is either same or bigger */
-	node = list_first_entry(iova_copy, struct vfio_iova, list);
-	node->start = start;
-	node = list_last_entry(iova_copy, struct vfio_iova, list);
-	node->end = end;
+	analde = list_first_entry(iova_copy, struct vfio_iova, list);
+	analde->start = start;
+	analde = list_last_entry(iova_copy, struct vfio_iova, list);
+	analde->end = end;
 }
 
 /*
  * Called when a group is detached. The reserved regions for that
- * group can be part of valid iova now. But since reserved regions
+ * group can be part of valid iova analw. But since reserved regions
  * may be duplicated among groups, populate the iova valid regions
  * list again.
  */
@@ -2424,7 +2424,7 @@ static int vfio_iommu_resv_refresh(struct vfio_iommu *iommu,
 {
 	struct vfio_domain *d;
 	struct vfio_iommu_group *g;
-	struct vfio_iova *node;
+	struct vfio_iova *analde;
 	dma_addr_t start, end;
 	LIST_HEAD(resv_regions);
 	int ret;
@@ -2441,10 +2441,10 @@ static int vfio_iommu_resv_refresh(struct vfio_iommu *iommu,
 		}
 	}
 
-	node = list_first_entry(iova_copy, struct vfio_iova, list);
-	start = node->start;
-	node = list_last_entry(iova_copy, struct vfio_iova, list);
-	end = node->end;
+	analde = list_first_entry(iova_copy, struct vfio_iova, list);
+	start = analde->start;
+	analde = list_last_entry(iova_copy, struct vfio_iova, list);
+	end = analde->end;
 
 	/* purge the iova list and create new one */
 	vfio_iommu_iova_free(iova_copy);
@@ -2487,7 +2487,7 @@ static void vfio_iommu_type1_detach_group(void *iommu_data,
 
 	/*
 	 * Get a copy of iova list. This will be used to update
-	 * and to replace the current one later. Please note that
+	 * and to replace the current one later. Please analte that
 	 * we will leave the original list as it is if update fails.
 	 */
 	vfio_iommu_iova_get_copy(iommu, &iova_copy);
@@ -2538,7 +2538,7 @@ detach_group_done:
 	 * to be promoted.
 	 */
 	if (update_dirty_scope) {
-		iommu->num_non_pinned_groups--;
+		iommu->num_analn_pinned_groups--;
 		if (iommu->dirty_page_tracking)
 			vfio_iommu_populate_bitmap_full(iommu);
 	}
@@ -2551,7 +2551,7 @@ static void *vfio_iommu_type1_open(unsigned long arg)
 
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	switch (arg) {
 	case VFIO_TYPE1_IOMMU:
@@ -2658,7 +2658,7 @@ static int vfio_iommu_type1_check_extension(struct vfio_iommu *iommu,
 		return 1;
 	case VFIO_UPDATE_VADDR:
 		/*
-		 * Disable this feature if mdevs are present.  They cannot
+		 * Disable this feature if mdevs are present.  They cananalt
 		 * safely pin/unpin/rw while vaddrs are being updated.
 		 */
 		return iommu && !vfio_iommu_has_emulated(iommu);
@@ -2715,7 +2715,7 @@ static int vfio_iommu_iova_build_caps(struct vfio_iommu *iommu,
 
 	cap_iovas = kzalloc(size, GFP_KERNEL);
 	if (!cap_iovas)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cap_iovas->nr_iovas = iovas;
 
@@ -3013,7 +3013,7 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 	case VFIO_IOMMU_DIRTY_PAGES:
 		return vfio_iommu_type1_dirty_pages(iommu, arg);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -3029,7 +3029,7 @@ static void vfio_iommu_type1_register_device(void *iommu_data,
 	 * list_empty(&iommu->device_list) is tested under the iommu->lock while
 	 * iteration for dma_unmap must be done under the device_list_lock.
 	 * Holding both locks here allows avoiding the device_list_lock in
-	 * several fast paths. See vfio_notify_dma_unmap()
+	 * several fast paths. See vfio_analtify_dma_unmap()
 	 */
 	mutex_lock(&iommu->lock);
 	mutex_lock(&iommu->device_list_lock);
@@ -3075,7 +3075,7 @@ static int vfio_iommu_type1_dma_rw_chunk(struct vfio_iommu *iommu,
 		return -EPERM;
 
 	mm = dma->mm;
-	if (!mmget_not_zero(mm))
+	if (!mmget_analt_zero(mm))
 		return -EPERM;
 
 	if (kthread)
@@ -3123,7 +3123,7 @@ static int vfio_iommu_type1_dma_rw(void *iommu_data, dma_addr_t user_iova,
 	mutex_lock(&iommu->lock);
 
 	if (WARN_ONCE(iommu->vaddr_invalid_count,
-		      "vfio_dma_rw not allowed with VFIO_UPDATE_VADDR\n")) {
+		      "vfio_dma_rw analt allowed with VFIO_UPDATE_VADDR\n")) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -3148,7 +3148,7 @@ static struct iommu_domain *
 vfio_iommu_type1_group_iommu_domain(void *iommu_data,
 				    struct iommu_group *iommu_group)
 {
-	struct iommu_domain *domain = ERR_PTR(-ENODEV);
+	struct iommu_domain *domain = ERR_PTR(-EANALDEV);
 	struct vfio_iommu *iommu = iommu_data;
 	struct vfio_domain *d;
 

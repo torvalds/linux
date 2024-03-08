@@ -2,7 +2,7 @@
 /*
  * JMicron JMC2x0 series PCIe Ethernet Linux Device Driver
  *
- * Copyright 2008 JMicron Technology Corporation
+ * Copyright 2008 JMicron Techanallogy Corporation
  * https://www.jmicron.com/
  * Copyright (c) 2009 - 2010 Guo-Fu Tseng <cooldavid@cooldavid.org>
  *
@@ -965,7 +965,7 @@ enum jme_tmcsr_bit_masks {
 enum jme_gpreg0_masks {
 	GPREG0_DISSH		= 0xFF000000,
 	GPREG0_PCIRLMT		= 0x00300000,
-	GPREG0_PCCNOMUTCLR	= 0x00040000,
+	GPREG0_PCCANALMUTCLR	= 0x00040000,
 	GPREG0_LNKINTPOLL	= 0x00001000,
 	GPREG0_PCCTMR		= 0x00000300,
 	GPREG0_PHYADDR		= 0x0000001F,
@@ -1148,14 +1148,14 @@ static char *MAC_REG_NAME[] = {
 	"JME_RXCS",      "JME_RXDBA_LO",  "JME_RXDBA_HI", "JME_RXQDC",
 	"JME_RXNDA",     "JME_RXMCS",     "JME_RXUMA_LO", "JME_RXUMA_HI",
 	"JME_RXMCHT_LO", "JME_RXMCHT_HI", "JME_WFODP",    "JME_WFOI",
-	"JME_SMI",       "JME_GHC",       "UNKNOWN",      "UNKNOWN",
+	"JME_SMI",       "JME_GHC",       "UNKANALWN",      "UNKANALWN",
 	"JME_PMCS"};
 
 static char *PE_REG_NAME[] = {
-	"UNKNOWN",      "UNKNOWN",     "UNKNOWN",    "UNKNOWN",
-	"UNKNOWN",      "UNKNOWN",     "UNKNOWN",    "UNKNOWN",
-	"UNKNOWN",      "UNKNOWN",     "JME_PHY_CS", "UNKNOWN",
-	"JME_PHY_LINK", "UNKNOWN",     "UNKNOWN",    "UNKNOWN",
+	"UNKANALWN",      "UNKANALWN",     "UNKANALWN",    "UNKANALWN",
+	"UNKANALWN",      "UNKANALWN",     "UNKANALWN",    "UNKANALWN",
+	"UNKANALWN",      "UNKANALWN",     "JME_PHY_CS", "UNKANALWN",
+	"JME_PHY_LINK", "UNKANALWN",     "UNKANALWN",    "UNKANALWN",
 	"JME_SMBCSR",   "JME_SMBINTF"};
 
 static char *MISC_REG_NAME[] = {
@@ -1163,10 +1163,10 @@ static char *MISC_REG_NAME[] = {
 	"JME_IEVE",   "JME_IREQ",     "JME_IENS",    "JME_IENC",
 	"JME_PCCRX0", "JME_PCCRX1",   "JME_PCCRX2",  "JME_PCCRX3",
 	"JME_PCCTX0", "JME_CHIPMODE", "JME_SHBA_HI", "JME_SHBA_LO",
-	"UNKNOWN",    "UNKNOWN",      "UNKNOWN",     "UNKNOWN",
-	"UNKNOWN",    "UNKNOWN",      "UNKNOWN",     "UNKNOWN",
-	"UNKNOWN",    "UNKNOWN",      "UNKNOWN",     "UNKNOWN",
-	"JME_TIMER1", "JME_TIMER2",   "UNKNOWN",     "JME_APMC",
+	"UNKANALWN",    "UNKANALWN",      "UNKANALWN",     "UNKANALWN",
+	"UNKANALWN",    "UNKANALWN",      "UNKANALWN",     "UNKANALWN",
+	"UNKANALWN",    "UNKANALWN",      "UNKANALWN",     "UNKANALWN",
+	"JME_TIMER1", "JME_TIMER2",   "UNKANALWN",     "JME_APMC",
 	"JME_PCCSRX0"};
 
 static inline void reg_dbg(const struct jme_adapter *jme,

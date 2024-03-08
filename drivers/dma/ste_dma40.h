@@ -55,7 +55,7 @@ enum stedma40_mode_opt {
 #define STEDMA40_MAX_PHYS 32
 
 enum stedma40_flow_ctrl {
-	STEDMA40_NO_FLOW_CTRL,
+	STEDMA40_ANAL_FLOW_CTRL,
 	STEDMA40_FLOW_CTRL,
 };
 

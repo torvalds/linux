@@ -6,7 +6,7 @@
 
 SEC("netfilter")
 __description("bpf_exit with invalid return code. test1")
-__failure __msg("R0 is not a known value")
+__failure __msg("R0 is analt a kanalwn value")
 __naked void with_invalid_return_code_test1(void)
 {
 	asm volatile ("					\

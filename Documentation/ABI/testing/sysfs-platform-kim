@@ -43,7 +43,7 @@ Description:
 		transport driver, which will signal the user-space for opening,
 		configuring baud and install line discipline via this sysfs
 		entry. This entry would be polled upon by the user-space
-		daemon managing the UART, and is notified about the change
-		by the sysfs_notify. The value would be '1' when UART needs
+		daemon managing the UART, and is analtified about the change
+		by the sysfs_analtify. The value would be '1' when UART needs
 		to be opened/ldisc installed, and would be '0' when UART
-		is no more required and needs to be closed.
+		is anal more required and needs to be closed.

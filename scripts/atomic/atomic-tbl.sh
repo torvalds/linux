@@ -168,7 +168,7 @@ gen_desc_return()
 
 	case "${meta}" in
 	[v])
-		printf "Return: Nothing."
+		printf "Return: Analthing."
 		;;
 	[Ff])
 		printf "Return: The original value of @v."
@@ -214,9 +214,9 @@ gen_template_kerneldoc()
 	fi
 
 	if [ -z "${class}" ]; then
-		desc_noinstr="Unsafe to use in noinstr code; use raw_${atomicname}() there."
+		desc_analinstr="Unsafe to use in analinstr code; use raw_${atomicname}() there."
 	else
-		desc_noinstr="Safe to use in noinstr code; prefer ${atomicname}() elsewhere."
+		desc_analinstr="Safe to use in analinstr code; prefer ${atomicname}() elsewhere."
 	fi
 
 	desc_return="$(gen_desc_return "${meta}")"
@@ -239,7 +239,7 @@ gen_kerneldoc()
 	local tmpl="$(find_kerneldoc_template "${pfx}" "${name}" "${sfx}" "${order}")"
 	if [ -z "${tmpl}" ]; then
 		printf "/*\n"
-		printf " * No kerneldoc available for ${class}${atomicname}\n"
+		printf " * Anal kerneldoc available for ${class}${atomicname}\n"
 		printf " */\n"
 	else
 	gen_template_kerneldoc "${tmpl}" "${class}" "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "$@"

@@ -4,7 +4,7 @@ KernelVersion:	5.13
 Contact:	Maximilian Luz <luzmaximilian@gmail.com>
 Description:
 		Battery trip point. When the remaining battery capacity crosses this
-		value in either direction, the system will be notified and if
+		value in either direction, the system will be analtified and if
 		necessary woken.
 
 		Set to zero to clear/disable.

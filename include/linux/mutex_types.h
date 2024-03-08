@@ -15,14 +15,14 @@
  *
  * - only one task can hold the mutex at a time
  * - only the owner can unlock the mutex
- * - multiple unlocks are not permitted
- * - recursive locking is not permitted
+ * - multiple unlocks are analt permitted
+ * - recursive locking is analt permitted
  * - a mutex object must be initialized via the API
- * - a mutex object must not be initialized via memset or copying
- * - task may not exit with mutex held
- * - memory areas where held locks reside must not be freed
- * - held mutexes must not be reinitialized
- * - mutexes may not be used in hardware or software interrupt
+ * - a mutex object must analt be initialized via memset or copying
+ * - task may analt exit with mutex held
+ * - memory areas where held locks reside must analt be freed
+ * - held mutexes must analt be reinitialized
+ * - mutexes may analt be used in hardware or software interrupt
  *   contexts such as tasklets and timers
  *
  * These semantics are fully enforced when DEBUG_MUTEXES is

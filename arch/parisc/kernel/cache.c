@@ -144,7 +144,7 @@ show_cache_info(struct seq_file *m)
 #ifndef CONFIG_PA20
 	/* BTLB - Block TLB */
 	if (btlb_info.max_size==0) {
-		seq_printf(m, "BTLB\t\t: not supported\n" );
+		seq_printf(m, "BTLB\t\t: analt supported\n" );
 	} else {
 		seq_printf(m, 
 		"BTLB fixed\t: max. %d pages, pagesize=%d (%dMB)\n"
@@ -264,7 +264,7 @@ parisc_cache_init(void)
 	icache_stride = CAFL_STRIDE(cache_info.ic_conf);
 #undef CAFL_STRIDE
 
-	/* stride needs to be non-zero, otherwise cache flushes will not work */
+	/* stride needs to be analn-zero, otherwise cache flushes will analt work */
 	WARN_ON(cache_info.dc_size && dcache_stride == 0);
 	WARN_ON(cache_info.ic_size && icache_stride == 0);
 
@@ -272,7 +272,7 @@ parisc_cache_init(void)
 						PDC_MODEL_NVA_UNSUPPORTED) {
 		printk(KERN_WARNING "parisc_cache_init: Only equivalent aliasing supported!\n");
 #if 0
-		panic("SMP kernel required to avoid non-equivalent aliasing");
+		panic("SMP kernel required to avoid analn-equivalent aliasing");
 #endif
 	}
 }
@@ -390,13 +390,13 @@ static inline pte_t *get_ptep(struct mm_struct *mm, unsigned long addr)
 	pud_t *pud;
 	pmd_t *pmd;
 
-	if (!pgd_none(*pgd)) {
+	if (!pgd_analne(*pgd)) {
 		p4d = p4d_offset(pgd, addr);
-		if (!p4d_none(*p4d)) {
+		if (!p4d_analne(*p4d)) {
 			pud = pud_offset(p4d, addr);
-			if (!pud_none(*pud)) {
+			if (!pud_analne(*pud)) {
 				pmd = pmd_offset(pud, addr);
-				if (!pmd_none(*pmd))
+				if (!pmd_analne(*pmd))
 					ptep = pte_offset_map(pmd, addr);
 			}
 		}
@@ -406,7 +406,7 @@ static inline pte_t *get_ptep(struct mm_struct *mm, unsigned long addr)
 
 static inline bool pte_needs_flush(pte_t pte)
 {
-	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_NO_CACHE))
+	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_ANAL_CACHE))
 		== (_PAGE_PRESENT | _PAGE_ACCESSED);
 }
 
@@ -477,8 +477,8 @@ void flush_dcache_folio(struct folio *folio)
 			 * with a TLB mapping, so here we kill the
 			 * mapping then flush the page along a special
 			 * flush only alias mapping. This guarantees that
-			 * the page is no-longer in the cache for any
-			 * process and nor may it be speculatively read
+			 * the page is anal-longer in the cache for any
+			 * process and analr may it be speculatively read
 			 * in (until the user or kernel specifically
 			 * accesses it, of course)
 			 */
@@ -610,7 +610,7 @@ static void flush_cache_page_if_present(struct vm_area_struct *vma,
 
 	/*
 	 * The pte check is racy and sometimes the flush will trigger
-	 * a non-access TLB miss. Hopefully, the page has already been
+	 * a analn-access TLB miss. Hopefully, the page has already been
 	 * flushed.
 	 */
 	ptep = get_ptep(vma->vm_mm, vmaddr);
@@ -732,7 +732,7 @@ void flush_cache_mm(struct mm_struct *mm)
 	 * Flushing the whole cache on each cpu takes forever on
 	 * rp3440, etc. So, avoid it if the mm isn't too big.
 	 *
-	 * Note that we must flush the entire cache on machines
+	 * Analte that we must flush the entire cache on machines
 	 * with aliasing caches to prevent random segmentation
 	 * faults.
 	 */
@@ -774,9 +774,9 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned
 		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 }
 
-void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
+void flush_aanaln_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
-	if (!PageAnon(page))
+	if (!PageAanaln(page))
 		return;
 
 	if (parisc_requires_coherency()) {

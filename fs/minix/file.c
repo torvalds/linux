@@ -25,29 +25,29 @@ const struct file_operations minix_file_operations = {
 static int minix_setattr(struct mnt_idmap *idmap,
 			 struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int error;
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	error = setattr_prepare(&analp_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = inode_newsize_ok(inode, attr->ia_size);
+	    attr->ia_size != i_size_read(ianalde)) {
+		error = ianalde_newsize_ok(ianalde, attr->ia_size);
 		if (error)
 			return error;
 
-		truncate_setsize(inode, attr->ia_size);
-		minix_truncate(inode);
+		truncate_setsize(ianalde, attr->ia_size);
+		minix_truncate(ianalde);
 	}
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(&analp_mnt_idmap, ianalde, attr);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
-const struct inode_operations minix_file_inode_operations = {
+const struct ianalde_operations minix_file_ianalde_operations = {
 	.setattr	= minix_setattr,
 	.getattr	= minix_getattr,
 };

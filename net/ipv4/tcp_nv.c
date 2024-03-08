@@ -17,8 +17,8 @@
  * detect congestion (congestion control) and those that use queue
  * buildup to detect congestion (congestion avoidance).
  *
- * Note: High NIC coalescence values may lower the performance of NV
- * due to the increased noise in RTT values. In particular, we have
+ * Analte: High NIC coalescence values may lower the performance of NV
+ * due to the increased analise in RTT values. In particular, we have
  * seen issues with rx-frames values greater than 8.
  *
  * TODO:
@@ -33,9 +33,9 @@
 /* TCP NV parameters
  *
  * nv_pad		Max number of queued packets allowed in network
- * nv_pad_buffer	Do not grow cwnd if this closed to nv_pad
+ * nv_pad_buffer	Do analt grow cwnd if this closed to nv_pad
  * nv_reset_period	How often (in) seconds)to reset min_rtt
- * nv_min_cwnd		Don't decrease cwnd below this if there are no losses
+ * nv_min_cwnd		Don't decrease cwnd below this if there are anal losses
  * nv_cong_dec_mult	Decrease cwnd by X% (30%) of congestion when detected
  * nv_ssthresh_factor	On congestion set ssthresh to this * <desired cwnd> / 8
  * nv_rtt_factor	RTT averaging factor
@@ -44,11 +44,11 @@
  * nv_inc_eval_min_calls	Wait this many RTT measurements before inc cwnd
  * nv_ssthresh_eval_min_calls	Wait this many RTT measurements before stopping
  *				slow-start due to congestion
- * nv_stop_rtt_cnt	Only grow cwnd for this many RTTs after non-congestion
+ * nv_stop_rtt_cnt	Only grow cwnd for this many RTTs after analn-congestion
  * nv_rtt_min_cnt	Wait these many RTTs before making congesion decision
  * nv_cwnd_growth_rate_neg
  * nv_cwnd_growth_rate_pos
- *	How quickly to double growth rate (not rate) of cwnd when not
+ *	How quickly to double growth rate (analt rate) of cwnd when analt
  *	congested. One value (nv_cwnd_growth_rate_neg) for when
  *	rate < 1 pkt/RTT (after losses). The other (nv_cwnd_growth_rate_pos)
  *	otherwise.
@@ -63,7 +63,7 @@ static int nv_ssthresh_factor __read_mostly = 8; /* = 1 */
 static int nv_rtt_factor __read_mostly = 128; /* = 1/2*old + 1/2*new */
 static int nv_loss_dec_factor __read_mostly = 819; /* => 80% */
 static int nv_cwnd_growth_rate_neg __read_mostly = 8;
-static int nv_cwnd_growth_rate_pos __read_mostly; /* 0 => fixed like Reno */
+static int nv_cwnd_growth_rate_pos __read_mostly; /* 0 => fixed like Reanal */
 static int nv_dec_eval_min_calls __read_mostly = 60;
 static int nv_inc_eval_min_calls __read_mostly = 20;
 static int nv_ssthresh_eval_min_calls __read_mostly = 30;
@@ -75,7 +75,7 @@ MODULE_PARM_DESC(nv_pad, "max queued packets allowed in network");
 module_param(nv_reset_period, int, 0644);
 MODULE_PARM_DESC(nv_reset_period, "nv_min_rtt reset period (secs)");
 module_param(nv_min_cwnd, int, 0644);
-MODULE_PARM_DESC(nv_min_cwnd, "NV will not decrease cwnd below this value"
+MODULE_PARM_DESC(nv_min_cwnd, "NV will analt decrease cwnd below this value"
 		 " without losses");
 
 /* TCP NV Parameters */
@@ -94,14 +94,14 @@ struct tcpnv {
 	u8  nv_min_cwnd;	/* nv won't make a ca decision if cwnd is
 				 * smaller than this. It may grow to handle
 				 * TSO, LRO and interrupt coalescence because
-				 * with these a small cwnd cannot saturate
-				 * the link. Note that this is different from
+				 * with these a small cwnd cananalt saturate
+				 * the link. Analte that this is different from
 				 * the file local nv_min_cwnd */
 	u8  nv_rtt_cnt;		/* RTTs without making ca decision */;
 	u32 nv_last_rtt;	/* last rtt */
 	u32 nv_min_rtt;		/* active min rtt. Used to determine slope */
 	u32 nv_min_rtt_new;	/* min rtt for future use */
-	u32 nv_base_rtt;        /* If non-zero it represents the threshold for
+	u32 nv_base_rtt;        /* If analn-zero it represents the threshold for
 				 * congestion */
 	u32 nv_lower_bound_rtt; /* Used in conjunction with nv_base_rtt. It is
 				 * set to 80% of nv_base_rtt. It helps reduce
@@ -112,7 +112,7 @@ struct tcpnv {
 	u32 nv_last_snd_una;	/* Previous value of tp->snd_una. It is
 				 * used to determine bytes acked since last
 				 * call to bictcp_acked */
-	u32 nv_no_cong_cnt;	/* Consecutive no congestion decisions */
+	u32 nv_anal_cong_cnt;	/* Consecutive anal congestion decisions */
 };
 
 #define NV_INIT_RTT	  U32_MAX
@@ -125,7 +125,7 @@ static inline void tcpnv_reset(struct tcpnv *ca, struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	ca->nv_reset = 0;
-	ca->nv_no_cong_cnt = 0;
+	ca->nv_anal_cong_cnt = 0;
 	ca->nv_rtt_cnt = 0;
 	ca->nv_last_rtt = 0;
 	ca->nv_rtt_max_rate = 0;
@@ -186,7 +186,7 @@ static void tcpnv_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
-	/* Only grow cwnd if NV has not detected congestion */
+	/* Only grow cwnd if NV has analt detected congestion */
 	if (!ca->nv_allow_cwnd_growth)
 		return;
 
@@ -223,7 +223,7 @@ static void tcpnv_state(struct sock *sk, u8 new_state)
 		ca->nv_reset = 1;
 		ca->nv_allow_cwnd_growth = 0;
 		if (new_state == TCP_CA_Loss) {
-			/* Reset cwnd growth factor to Reno value */
+			/* Reset cwnd growth factor to Reanal value */
 			if (ca->cwnd_growth_factor > 0)
 				ca->cwnd_growth_factor = 0;
 			/* Decrease growth rate if allowed */
@@ -241,7 +241,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcpnv *ca = inet_csk_ca(sk);
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	u64 rate64;
 	u32 rate, max_win, cwnd_by_slope;
 	u32 avg_rtt;
@@ -251,7 +251,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 	if (sample->rtt_us < 0)
 		return;
 
-	/* If not in TCP_CA_Open or TCP_CA_Disorder states, skip. */
+	/* If analt in TCP_CA_Open or TCP_CA_Disorder states, skip. */
 	if (icsk->icsk_ca_state != TCP_CA_Open &&
 	    icsk->icsk_ca_state != TCP_CA_Disorder)
 		return;
@@ -289,7 +289,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 	rate = (u32)rate64;
 
 	/* Remember the maximum rate seen during this RTT
-	 * Note: It may be more than one RTT. This function should be
+	 * Analte: It may be more than one RTT. This function should be
 	 *       called at least nv_dec_eval_min_calls times.
 	 */
 	if (ca->nv_rtt_max_rate < rate)
@@ -313,22 +313,22 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 	/* nv_min_rtt is updated with the minimum (possibley averaged) rtt
 	 * seen in the last sysctl_tcp_nv_reset_period seconds (i.e. a
 	 * warm reset). This new nv_min_rtt will be continued to be updated
-	 * and be used for another sysctl_tcp_nv_reset_period seconds,
+	 * and be used for aanalther sysctl_tcp_nv_reset_period seconds,
 	 * when it will be updated again.
 	 * In practice we introduce some randomness, so the actual period used
 	 * is chosen randomly from the range:
 	 *   [sysctl_tcp_nv_reset_period*3/4, sysctl_tcp_nv_reset_period*5/4)
 	 */
-	if (time_after_eq(now, ca->nv_min_rtt_reset_jiffies)) {
+	if (time_after_eq(analw, ca->nv_min_rtt_reset_jiffies)) {
 		unsigned char rand;
 
 		ca->nv_min_rtt = ca->nv_min_rtt_new;
 		ca->nv_min_rtt_new = NV_INIT_RTT;
 		get_random_bytes(&rand, 1);
 		ca->nv_min_rtt_reset_jiffies =
-			now + ((nv_reset_period * (384 + rand) * HZ) >> 9);
+			analw + ((nv_reset_period * (384 + rand) * HZ) >> 9);
 		/* Every so often we decrease ca->nv_min_cwnd in case previous
-		 *  value is no longer accurate.
+		 *  value is anal longer accurate.
 		 */
 		ca->nv_min_cwnd = max(ca->nv_min_cwnd / 2, NV_MIN_CWND);
 	}
@@ -394,7 +394,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 				return;
 			}
 
-			/* We have enough data to determine we are congested */
+			/* We have eanalugh data to determine we are congested */
 			ca->nv_allow_cwnd_growth = 0;
 			tp->snd_ssthresh =
 				(nv_ssthresh_factor * max_win) >> 3;
@@ -410,28 +410,28 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 			}
 			if (ca->cwnd_growth_factor > 0)
 				ca->cwnd_growth_factor = 0;
-			ca->nv_no_cong_cnt = 0;
+			ca->nv_anal_cong_cnt = 0;
 		} else if (tcp_snd_cwnd(tp) <= max_win - nv_pad_buffer) {
-			/* There is no congestion, grow cwnd if allowed*/
+			/* There is anal congestion, grow cwnd if allowed*/
 			if (ca->nv_eval_call_cnt < nv_inc_eval_min_calls)
 				return;
 
 			ca->nv_allow_cwnd_growth = 1;
-			ca->nv_no_cong_cnt++;
+			ca->nv_anal_cong_cnt++;
 			if (ca->cwnd_growth_factor < 0 &&
 			    nv_cwnd_growth_rate_neg > 0 &&
-			    ca->nv_no_cong_cnt > nv_cwnd_growth_rate_neg) {
+			    ca->nv_anal_cong_cnt > nv_cwnd_growth_rate_neg) {
 				ca->cwnd_growth_factor++;
-				ca->nv_no_cong_cnt = 0;
+				ca->nv_anal_cong_cnt = 0;
 			} else if (ca->cwnd_growth_factor >= 0 &&
 				   nv_cwnd_growth_rate_pos > 0 &&
-				   ca->nv_no_cong_cnt >
+				   ca->nv_anal_cong_cnt >
 				   nv_cwnd_growth_rate_pos) {
 				ca->cwnd_growth_factor++;
-				ca->nv_no_cong_cnt = 0;
+				ca->nv_anal_cong_cnt = 0;
 			}
 		} else {
-			/* cwnd is in-between, so do nothing */
+			/* cwnd is in-between, so do analthing */
 			return;
 		}
 
@@ -441,7 +441,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 		ca->nv_rtt_max_rate = 0;
 
 		/* Don't want to make cwnd < nv_min_cwnd
-		 * (it wasn't before, if it is now is because nv
+		 * (it wasn't before, if it is analw is because nv
 		 *  decreased it).
 		 */
 		if (tcp_snd_cwnd(tp) < nv_min_cwnd)
@@ -472,7 +472,7 @@ static struct tcp_congestion_ops tcpnv __read_mostly = {
 	.ssthresh	= tcpnv_recalc_ssthresh,
 	.cong_avoid	= tcpnv_cong_avoid,
 	.set_state	= tcpnv_state,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.undo_cwnd	= tcp_reanal_undo_cwnd,
 	.pkts_acked     = tcpnv_acked,
 	.get_info	= tcpnv_get_info,
 

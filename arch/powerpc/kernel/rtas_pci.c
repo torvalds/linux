@@ -50,7 +50,7 @@ int rtas_pci_dn_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 	int ret;
 
 	if (!pdn)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 #ifdef CONFIG_EEH
@@ -59,7 +59,7 @@ int rtas_pci_dn_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 		return PCIBIOS_SET_FAILED;
 #endif
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
+	addr = rtas_config_addr(pdn->busanal, pdn->devfn, where);
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_read_pci_config, 4, 2, &returnval,
@@ -70,7 +70,7 @@ int rtas_pci_dn_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 	*val = returnval;
 
 	if (ret)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -90,7 +90,7 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 	ret = rtas_pci_dn_read_config(pdn, where, size, val);
 	if (*val == EEH_IO_ERROR_VALUE(size) &&
 	    eeh_dev_check_failure(pdn_to_eeh_dev(pdn)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return ret;
 }
@@ -101,7 +101,7 @@ int rtas_pci_dn_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 	int ret;
 
 	if (!pdn)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 #ifdef CONFIG_EEH
@@ -110,7 +110,7 @@ int rtas_pci_dn_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 		return PCIBIOS_SET_FAILED;
 #endif
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
+	addr = rtas_config_addr(pdn->busanal, pdn->devfn, where);
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_write_pci_config, 5, 1, NULL, addr,
@@ -120,7 +120,7 @@ int rtas_pci_dn_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 	}
 
 	if (ret)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -142,7 +142,7 @@ static struct pci_ops rtas_pci_ops = {
 	.write = rtas_pci_write_config,
 };
 
-static int is_python(struct device_node *dev)
+static int is_python(struct device_analde *dev)
 {
 	const char *model = of_get_property(dev, "model", NULL);
 
@@ -152,7 +152,7 @@ static int is_python(struct device_node *dev)
 	return 0;
 }
 
-static void python_countermeasures(struct device_node *dev)
+static void python_countermeasures(struct device_analde *dev)
 {
 	struct resource registers;
 	void __iomem *chip_regs;
@@ -197,7 +197,7 @@ void __init init_pci_config_tokens(void)
 	ibm_write_pci_config = rtas_function_token(RTAS_FN_IBM_WRITE_PCI_CONFIG);
 }
 
-unsigned long get_phb_buid(struct device_node *phb)
+unsigned long get_phb_buid(struct device_analde *phb)
 {
 	struct resource r;
 
@@ -208,7 +208,7 @@ unsigned long get_phb_buid(struct device_node *phb)
 	return r.start;
 }
 
-static int phb_set_bus_ranges(struct device_node *dev,
+static int phb_set_bus_ranges(struct device_analde *dev,
 			      struct pci_controller *phb)
 {
 	const __be32 *bus_range;
@@ -219,15 +219,15 @@ static int phb_set_bus_ranges(struct device_node *dev,
 		return 1;
  	}
 
-	phb->first_busno = be32_to_cpu(bus_range[0]);
-	phb->last_busno  = be32_to_cpu(bus_range[1]);
+	phb->first_busanal = be32_to_cpu(bus_range[0]);
+	phb->last_busanal  = be32_to_cpu(bus_range[1]);
 
 	return 0;
 }
 
 int rtas_setup_phb(struct pci_controller *phb)
 {
-	struct device_node *dev = phb->dn;
+	struct device_analde *dev = phb->dn;
 
 	if (is_python(dev))
 		python_countermeasures(dev);

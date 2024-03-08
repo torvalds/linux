@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  *
  * pcibios_align_resource taken from arch/arm/kernel/bios32.c.
@@ -53,8 +53,8 @@ int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr)
 	unsigned long vaddr;
 
 	if (res->start != 0) {
-		WARN_ONCE(1, "resource start address is not zero\n");
-		return -ENODEV;
+		WARN_ONCE(1, "resource start address is analt zero\n");
+		return -EANALDEV;
 	}
 
 	vaddr = (unsigned long)ioremap(phys_addr, resource_size(res));

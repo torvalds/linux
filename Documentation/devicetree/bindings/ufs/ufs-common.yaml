@@ -26,7 +26,7 @@ properties:
 
       Array of <min max> operating frequencies in Hz stored in the same order
       as the clocks property. If either this property or operating-points-v2 is
-      not defined or a value in the array is "0" then it is assumed that the
+      analt defined or a value in the array is "0" then it is assumed that the
       frequency is set by the parent clock or a fixed rate clock source.
 
   operating-points-v2:
@@ -48,31 +48,31 @@ properties:
     enum: [1, 2]
     default: 2
     description:
-      Number of lanes available per direction.  Note that it is assume same
+      Number of lanes available per direction.  Analte that it is assume same
       number of lanes is used both directions at once.
 
   vdd-hba-supply:
     description:
-      Phandle to UFS host controller supply regulator node.
+      Phandle to UFS host controller supply regulator analde.
 
   vcc-supply:
     description:
-      Phandle to VCC supply regulator node.
+      Phandle to VCC supply regulator analde.
 
   vccq-supply:
     description:
-      Phandle to VCCQ supply regulator node.
+      Phandle to VCCQ supply regulator analde.
 
   vccq2-supply:
     description:
-      Phandle to VCCQ2 supply regulator node.
+      Phandle to VCCQ2 supply regulator analde.
 
   vcc-supply-1p8:
     type: boolean
     description:
       For embedded UFS devices, valid VCC range is 1.7-1.95V or 2.7-3.6V. This
       boolean property when set, specifies to use low voltage range of
-      1.7-1.95V. Note for external UFS cards this property is invalid and valid
+      1.7-1.95V. Analte for external UFS cards this property is invalid and valid
       VCC range is always 2.7-3.6V.
 
   vcc-max-microamp:

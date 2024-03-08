@@ -45,7 +45,7 @@ struct tb_nvm_vendor_ops {
  * @vendor: Vendor ID
  * @vops: Vendor specific NVM operations
  *
- * Maps vendor ID to NVM vendor operations. If there is no mapping then
+ * Maps vendor ID to NVM vendor operations. If there is anal mapping then
  * NVM firmware upgrade is disabled for the device.
  */
 struct tb_nvm_vendor {
@@ -61,7 +61,7 @@ static int intel_switch_nvm_version(struct tb_nvm *nvm)
 
 	/*
 	 * If the switch is in safe-mode the only accessible portion of
-	 * the NVM is the non-active one where userspace is expected to
+	 * the NVM is the analn-active one where userspace is expected to
 	 * write new functional NVM.
 	 */
 	if (sw->safe_mode)
@@ -80,7 +80,7 @@ static int intel_switch_nvm_version(struct tb_nvm *nvm)
 		return ret;
 
 	nvm->major = (val >> 16) & 0xff;
-	nvm->minor = (val >> 8) & 0xff;
+	nvm->mianalr = (val >> 8) & 0xff;
 	nvm->active_size = nvm_size;
 
 	return 0;
@@ -175,9 +175,9 @@ static int asmedia_switch_nvm_version(struct tb_nvm *nvm)
 	if (ret)
 		return ret;
 
-	nvm->minor = (val << 16) & 0xff0000;
-	nvm->minor |= val & 0x00ff00;
-	nvm->minor |= (val >> 16) & 0x0000ff;
+	nvm->mianalr = (val << 16) & 0xff0000;
+	nvm->mianalr |= val & 0x00ff00;
+	nvm->mianalr |= (val >> 16) & 0x0000ff;
 
 	/* ASMedia NVM size is fixed to 512k */
 	nvm->active_size = SZ_512K;
@@ -207,7 +207,7 @@ static int intel_retimer_nvm_version(struct tb_nvm *nvm)
 		return ret;
 
 	nvm->major = (val >> 16) & 0xff;
-	nvm->minor = (val >> 8) & 0xff;
+	nvm->mianalr = (val >> 8) & 0xff;
 
 	ret = tb_retimer_nvm_read(rt, INTEL_NVM_FLASH_SIZE, &val, sizeof(val));
 	if (ret)
@@ -279,8 +279,8 @@ static const struct tb_nvm_vendor retimer_nvm_vendors[] = {
  * @dev: Device owning the NVM
  *
  * Allocates new NVM structure with unique @id and returns it. In case
- * of error returns ERR_PTR(). Specifically returns %-EOPNOTSUPP if the
- * NVM format of the @dev is not known by the kernel.
+ * of error returns ERR_PTR(). Specifically returns %-EOPANALTSUPP if the
+ * NVM format of the @dev is analt kanalwn by the kernel.
  */
 struct tb_nvm *tb_nvm_alloc(struct device *dev)
 {
@@ -301,9 +301,9 @@ struct tb_nvm *tb_nvm_alloc(struct device *dev)
 		}
 
 		if (!vops) {
-			tb_sw_dbg(sw, "router NVM format of vendor %#x unknown\n",
+			tb_sw_dbg(sw, "router NVM format of vendor %#x unkanalwn\n",
 				  sw->config.vendor_id);
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 	} else if (tb_is_retimer(dev)) {
 		const struct tb_retimer *rt = tb_to_retimer(dev);
@@ -318,17 +318,17 @@ struct tb_nvm *tb_nvm_alloc(struct device *dev)
 		}
 
 		if (!vops) {
-			dev_dbg(dev, "retimer NVM format of vendor %#x unknown\n",
+			dev_dbg(dev, "retimer NVM format of vendor %#x unkanalwn\n",
 				rt->vendor);
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 	} else {
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
 	if (!nvm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = ida_simple_get(&nvm_ida, 0, 0, GFP_KERNEL);
 	if (ret < 0) {
@@ -348,7 +348,7 @@ struct tb_nvm *tb_nvm_alloc(struct device *dev)
  * @nvm: NVM structure
  *
  * Uses vendor specific means to read out and fill in the existing
- * active NVM version. Returns %0 in case of success and negative errno
+ * active NVM version. Returns %0 in case of success and negative erranal
  * otherwise.
  */
 int tb_nvm_read_version(struct tb_nvm *nvm)
@@ -358,7 +358,7 @@ int tb_nvm_read_version(struct tb_nvm *nvm)
 	if (vops && vops->read_version)
 		return vops->read_version(nvm);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -370,7 +370,7 @@ int tb_nvm_read_version(struct tb_nvm *nvm)
  * and @nvm->buf_data_size fields to match the actual data to be written
  * to the NVM.
  *
- * If the validation does not pass then returns negative errno.
+ * If the validation does analt pass then returns negative erranal.
  */
 int tb_nvm_validate(struct tb_nvm *nvm)
 {
@@ -381,7 +381,7 @@ int tb_nvm_validate(struct tb_nvm *nvm)
 	if (!buf)
 		return -EINVAL;
 	if (!vops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Just do basic image size checks */
 	image_size = nvm->buf_data_size;
@@ -403,9 +403,9 @@ int tb_nvm_validate(struct tb_nvm *nvm)
  *
  * If the vendor NVM format requires writing headers before the rest of
  * the image, this function does that. Can be called even if the device
- * does not need this.
+ * does analt need this.
  *
- * Returns %0 in case of success and negative errno otherwise.
+ * Returns %0 in case of success and negative erranal otherwise.
  */
 int tb_nvm_write_headers(struct tb_nvm *nvm)
 {
@@ -423,7 +423,7 @@ int tb_nvm_write_headers(struct tb_nvm *nvm)
  * Registers new active NVmem device for @nvm. The @reg_read is called
  * directly from NVMem so it must handle possible concurrent access if
  * needed. The first parameter passed to @reg_read is @nvm structure.
- * Returns %0 in success and negative errno otherwise.
+ * Returns %0 in success and negative erranal otherwise.
  */
 int tb_nvm_add_active(struct tb_nvm *nvm, nvmem_reg_read_t reg_read)
 {
@@ -468,7 +468,7 @@ int tb_nvm_write_buf(struct tb_nvm *nvm, unsigned int offset, void *val,
 	if (!nvm->buf) {
 		nvm->buf = vmalloc(NVM_MAX_SIZE);
 		if (!nvm->buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	nvm->flushed = false;
@@ -478,26 +478,26 @@ int tb_nvm_write_buf(struct tb_nvm *nvm, unsigned int offset, void *val,
 }
 
 /**
- * tb_nvm_add_non_active() - Adds non-active NVMem device to NVM
+ * tb_nvm_add_analn_active() - Adds analn-active NVMem device to NVM
  * @nvm: NVM structure
  * @reg_write: Pointer to the function to write the NVM (passed directly
  *	       to the NVMem device)
  *
- * Registers new non-active NVmem device for @nvm. The @reg_write is called
+ * Registers new analn-active NVmem device for @nvm. The @reg_write is called
  * directly from NVMem so it must handle possible concurrent access if
  * needed. The first parameter passed to @reg_write is @nvm structure.
  * The size of the NVMem device is set to %NVM_MAX_SIZE.
  *
- * Returns %0 in success and negative errno otherwise.
+ * Returns %0 in success and negative erranal otherwise.
  */
-int tb_nvm_add_non_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write)
+int tb_nvm_add_analn_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write)
 {
 	struct nvmem_config config;
 	struct nvmem_device *nvmem;
 
 	memset(&config, 0, sizeof(config));
 
-	config.name = "nvm_non_active";
+	config.name = "nvm_analn_active";
 	config.reg_write = reg_write;
 	config.root_only = true;
 	config.id = nvm->id;
@@ -512,7 +512,7 @@ int tb_nvm_add_non_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write)
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);
 
-	nvm->non_active = nvmem;
+	nvm->analn_active = nvmem;
 	return 0;
 }
 
@@ -525,7 +525,7 @@ int tb_nvm_add_non_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write)
 void tb_nvm_free(struct tb_nvm *nvm)
 {
 	if (nvm) {
-		nvmem_unregister(nvm->non_active);
+		nvmem_unregister(nvm->analn_active);
 		nvmem_unregister(nvm->active);
 		vfree(nvm->buf);
 		ida_simple_remove(&nvm_ida, nvm->id);
@@ -545,7 +545,7 @@ void tb_nvm_free(struct tb_nvm *nvm)
  * This is a generic function that reads data from NVM or NVM like
  * device.
  *
- * Returns %0 on success and negative errno otherwise.
+ * Returns %0 on success and negative erranal otherwise.
  */
 int tb_nvm_read_data(unsigned int address, void *buf, size_t size,
 		     unsigned int retries, read_block_fn read_block,
@@ -565,7 +565,7 @@ int tb_nvm_read_data(unsigned int address, void *buf, size_t size,
 
 		ret = read_block(read_block_data, dwaddress, data, dwords);
 		if (ret) {
-			if (ret != -ENODEV && retries--)
+			if (ret != -EANALDEV && retries--)
 				continue;
 			return ret;
 		}
@@ -592,7 +592,7 @@ int tb_nvm_read_data(unsigned int address, void *buf, size_t size,
  *
  * This is generic function that writes data to NVM or NVM like device.
  *
- * Returns %0 on success and negative errno otherwise.
+ * Returns %0 on success and negative erranal otherwise.
  */
 int tb_nvm_write_data(unsigned int address, const void *buf, size_t size,
 		      unsigned int retries, write_block_fn write_block,

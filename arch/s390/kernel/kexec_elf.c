@@ -7,7 +7,7 @@
  * Author(s): Philipp Rudo <prudo@linux.vnet.ibm.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <asm/ipl.h>
@@ -54,7 +54,7 @@ static int kexec_file_add_kernel_elf(struct kimage *image,
 		ipl_report_add_component(data->report, &buf,
 					 IPL_RB_COMPONENT_FLAG_SIGNED |
 					 IPL_RB_COMPONENT_FLAG_VERIFIED,
-					 IPL_RB_CERT_UNKNOWN);
+					 IPL_RB_CERT_UNKANALWN);
 		ret = kexec_add_buffer(&buf);
 		if (ret)
 			return ret;
@@ -112,17 +112,17 @@ static int s390_elf_probe(const char *buf, unsigned long len)
 	const Elf_Ehdr *ehdr;
 
 	if (len < sizeof(Elf_Ehdr))
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	ehdr = (Elf_Ehdr *)buf;
 
 	/* Only check the ELF magic number here and do proper validity check
 	 * in the loader. Any check here that fails would send the erroneous
-	 * ELF file to the image loader that does not care what it gets.
-	 * (Most likely) causing behavior not intended by the user.
+	 * ELF file to the image loader that does analt care what it gets.
+	 * (Most likely) causing behavior analt intended by the user.
 	 */
 	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	return 0;
 }

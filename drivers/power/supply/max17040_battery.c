@@ -295,7 +295,7 @@ static void max17040_work(struct work_struct *work)
 	max17040_queue_work(chip);
 }
 
-/* Returns true if alert cause was SOC change, not low SOC */
+/* Returns true if alert cause was SOC change, analt low SOC */
 static bool max17040_handle_soc_alert(struct max17040_chip *chip)
 {
 	bool ret = true;
@@ -394,7 +394,7 @@ static int max17040_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = max17040_get_online(chip);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = max17040_get_vcell(chip);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -408,7 +408,7 @@ static int max17040_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		if (!chip->channel_temp)
-			return -ENODATA;
+			return -EANALDATA;
 
 		iio_read_channel_processed_scale(chip->channel_temp,
 						 &val->intval, 10);
@@ -429,7 +429,7 @@ static const struct regmap_config max17040_regmap = {
 static enum power_supply_property max17040_battery_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN,
 	POWER_SUPPLY_PROP_STATUS,
@@ -461,14 +461,14 @@ static int max17040_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->client = client;
 	chip->regmap = devm_regmap_init_i2c(client, &max17040_regmap);
 	if (IS_ERR(chip->regmap))
 		return PTR_ERR(chip->regmap);
 	chip_id = (enum chip_id) id->driver_data;
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		ret = max17040_get_of_data(chip);
 		if (ret)
 			return ret;
@@ -483,7 +483,7 @@ static int max17040_probe(struct i2c_client *client)
 	chip->channel_temp = devm_iio_channel_get(&client->dev, "temp");
 	if (IS_ERR(chip->channel_temp)) {
 		ret = PTR_ERR(chip->channel_temp);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return dev_err_probe(&client->dev, PTR_ERR(chip->channel_temp),
 					     "failed to get temp\n");
 		else

@@ -73,7 +73,7 @@
 	nvmem-cell-names = "mac-address";
 };
 
-&spi_nor {
+&spi_analr {
 	status = "okay";
 };
 

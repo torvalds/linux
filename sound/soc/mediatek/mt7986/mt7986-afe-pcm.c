@@ -171,13 +171,13 @@ static const struct snd_kcontrol_new o019_mix[] = {
 
 static const struct snd_soc_dapm_widget mt7986_memif_widgets[] = {
 	/* DL */
-	SND_SOC_DAPM_MIXER("I032", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I033", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I032", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I033", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* UL */
-	SND_SOC_DAPM_MIXER("O018", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O018", SND_SOC_ANALPM, 0, 0,
 			   o018_mix, ARRAY_SIZE(o018_mix)),
-	SND_SOC_DAPM_MIXER("O019", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O019", SND_SOC_ANALPM, 0, 0,
 			   o019_mix, ARRAY_SIZE(o019_mix)),
 };
 
@@ -207,8 +207,8 @@ static const struct mtk_base_memif_data memif_data[MT7986_MEMIF_NUM] = {
 		.fs_reg = AFE_DL0_CON0,
 		.fs_shift =  DL0_MODE_SFT,
 		.fs_maskbit =  DL0_MODE_MASK,
-		.mono_reg = AFE_DL0_CON0,
-		.mono_shift = DL0_MONO_SFT,
+		.moanal_reg = AFE_DL0_CON0,
+		.moanal_shift = DL0_MOANAL_SFT,
 		.enable_reg = AFE_DL0_CON0,
 		.enable_shift = DL0_ON_SFT,
 		.hd_reg = AFE_DL0_CON0,
@@ -232,8 +232,8 @@ static const struct mtk_base_memif_data memif_data[MT7986_MEMIF_NUM] = {
 		.fs_reg = AFE_VUL0_CON0,
 		.fs_shift = VUL0_MODE_SFT,
 		.fs_maskbit = VUL0_MODE_MASK,
-		.mono_reg = AFE_VUL0_CON0,
-		.mono_shift = VUL0_MONO_SFT,
+		.moanal_reg = AFE_VUL0_CON0,
+		.moanal_shift = VUL0_MOANAL_SFT,
 		.enable_reg = AFE_VUL0_CON0,
 		.enable_shift = VUL0_ON_SFT,
 		.hd_reg = AFE_VUL0_CON0,
@@ -289,7 +289,7 @@ static bool mt7986_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/*
 	 * Those auto-gen regs are read-only, so put it as volatile because
-	 * volatile registers cannot be cached, which means that they cannot
+	 * volatile registers cananalt be cached, which means that they cananalt
 	 * be set when power is off
 	 */
 
@@ -326,7 +326,7 @@ static int mt7986_init_clock(struct mtk_base_afe *afe)
 	afe_priv->clks = devm_kcalloc(afe->dev, CLK_NUM,
 				sizeof(*afe_priv->clks), GFP_KERNEL);
 	if (!afe_priv->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 	afe_priv->num_clks = CLK_NUM;
 
 	for (i = 0; i < afe_priv->num_clks; i++)
@@ -358,7 +358,7 @@ static irqreturn_t mt7986_afe_irq_handler(int irq_id, void *dev)
 		dev_err(afe->dev, "%s(), irq status err, ret %d, status 0x%x, mcu_en 0x%x\n",
 			__func__, ret, status, mcu_en);
 
-		irq_ret = IRQ_NONE;
+		irq_ret = IRQ_ANALNE;
 		goto err_irq;
 	}
 
@@ -447,7 +447,7 @@ static int mt7986_dai_memif_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 
@@ -477,13 +477,13 @@ static int mt7986_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, afe);
 
 	afe->platform_priv = devm_kzalloc(&pdev->dev, sizeof(*afe_priv),
 					  GFP_KERNEL);
 	if (!afe->platform_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe_priv = afe->platform_priv;
 	afe->dev = &pdev->dev;
@@ -496,7 +496,7 @@ static int mt7986_afe_pcm_dev_probe(struct platform_device *pdev)
 	/* initial audio related clock */
 	ret = mt7986_init_clock(afe);
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot initialize clocks\n");
+		return dev_err_probe(dev, ret, "Cananalt initialize clocks\n");
 
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
@@ -520,7 +520,7 @@ static int mt7986_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->memif = devm_kcalloc(dev, afe->memif_size, sizeof(*afe->memif),
 				  GFP_KERNEL);
 	if (!afe->memif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < afe->memif_size; i++) {
 		afe->memif[i].data = &memif_data[i];
@@ -534,7 +534,7 @@ static int mt7986_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->irqs = devm_kcalloc(dev, afe->irqs_size, sizeof(*afe->irqs),
 				 GFP_KERNEL);
 	if (!afe->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < afe->irqs_size; i++)
 		afe->irqs[i].irq_data = &irq_data[i];
@@ -543,10 +543,10 @@ static int mt7986_afe_pcm_dev_probe(struct platform_device *pdev)
 	irq_id = platform_get_irq(pdev, 0);
 	if (irq_id < 0) {
 		ret = irq_id;
-		return dev_err_probe(dev, ret, "No irq found\n");
+		return dev_err_probe(dev, ret, "Anal irq found\n");
 	}
 	ret = devm_request_irq(dev, irq_id, mt7986_afe_irq_handler,
-			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
+			       IRQF_TRIGGER_ANALNE, "asys-isr", (void *)afe);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to request irq for asys-isr\n");
 
@@ -576,14 +576,14 @@ static int mt7986_afe_pcm_dev_probe(struct platform_device *pdev)
 					      &mt7986_afe_component,
 					      NULL, 0);
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot register AFE component\n");
+		return dev_err_probe(dev, ret, "Cananalt register AFE component\n");
 
 	ret = devm_snd_soc_register_component(afe->dev,
 					      &mt7986_afe_pcm_dai_component,
 					      afe->dai_drivers,
 					      afe->num_dai_drivers);
 	if (ret)
-		return dev_err_probe(dev, ret, "Cannot register PCM DAI component\n");
+		return dev_err_probe(dev, ret, "Cananalt register PCM DAI component\n");
 
 	return 0;
 }

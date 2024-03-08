@@ -14,7 +14,7 @@
  *       Copyright 2003 (c) Laurent Canet
  *       Copyright 2004 (c) Stuart Brady
  *
- * Notes:
+ * Analtes:
  *   - graveyard and silence buffers last for lifetime of
  *     the driver. playback and capture buffers are allocated
  *     per _open()/_close().
@@ -255,7 +255,7 @@ static const struct snd_pcm_hardware snd_harmony_playback =
 	.formats = (SNDRV_PCM_FMTBIT_S16_BE | SNDRV_PCM_FMTBIT_MU_LAW |
 		    SNDRV_PCM_FMTBIT_A_LAW),
 	.rates = (SNDRV_PCM_RATE_5512 | SNDRV_PCM_RATE_8000_48000 |
-		  SNDRV_PCM_RATE_KNOT),
+		  SNDRV_PCM_RATE_KANALT),
 	.rate_min = 5512,
 	.rate_max = 48000,
 	.channels_min =	1,
@@ -276,7 +276,7 @@ static const struct snd_pcm_hardware snd_harmony_capture =
         .formats = (SNDRV_PCM_FMTBIT_S16_BE | SNDRV_PCM_FMTBIT_MU_LAW |
                     SNDRV_PCM_FMTBIT_A_LAW),
         .rates = (SNDRV_PCM_RATE_5512 | SNDRV_PCM_RATE_8000_48000 |
-		  SNDRV_PCM_RATE_KNOT),
+		  SNDRV_PCM_RATE_KANALT),
         .rate_min = 5512,
         .rate_max = 48000,
         .channels_min = 1,
@@ -412,7 +412,7 @@ snd_harmony_playback_prepare(struct snd_pcm_substream *ss)
 	if (rt->channels == 2)
 		h->st.stereo = HARMONY_SS_STEREO;
 	else
-		h->st.stereo = HARMONY_SS_MONO;
+		h->st.stereo = HARMONY_SS_MOANAL;
 
 	harmony_set_control(h);
 
@@ -442,7 +442,7 @@ snd_harmony_capture_prepare(struct snd_pcm_substream *ss)
         if (rt->channels == 2)
                 h->st.stereo = HARMONY_SS_STEREO;
         else
-                h->st.stereo = HARMONY_SS_MONO;
+                h->st.stereo = HARMONY_SS_MOANAL;
 
         harmony_set_control(h);
 
@@ -615,7 +615,7 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 				  BUF_SIZE*GRAVEYARD_BUFS,
 				  &h->gdma);
 	if (err < 0) {
-		printk(KERN_ERR PFX "cannot allocate graveyard buffer!\n");
+		printk(KERN_ERR PFX "cananalt allocate graveyard buffer!\n");
 		return err;
 	}
 	
@@ -625,7 +625,7 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 				  BUF_SIZE*SILENCE_BUFS,
 				  &h->sdma);
 	if (err < 0) {
-		printk(KERN_ERR PFX "cannot allocate silence buffer!\n");
+		printk(KERN_ERR PFX "cananalt allocate silence buffer!\n");
 		return err;
 	}
 
@@ -875,7 +875,7 @@ snd_harmony_create(struct snd_card *card,
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (h == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	h->hpa = padev->hpa.start;
 	h->card = card;
@@ -892,7 +892,7 @@ snd_harmony_create(struct snd_card *card,
 	err = request_irq(padev->irq, snd_harmony_interrupt, 0,
 			  "harmony", h);
 	if (err) {
-		printk(KERN_ERR PFX "could not obtain interrupt %d",
+		printk(KERN_ERR PFX "could analt obtain interrupt %d",
 		       padev->irq);
 		goto free_and_ret;
 	}

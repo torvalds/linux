@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 file: media/v4l/capture.c
 =========================
@@ -23,7 +23,7 @@ file: media/v4l/capture.c
 
     #include <fcntl.h>              /* low-level i/o */
     #include <unistd.h>
-    #include <errno.h>
+    #include <erranal.h>
     #include <sys/stat.h>
     #include <sys/types.h>
     #include <sys/time.h>
@@ -54,9 +54,9 @@ file: media/v4l/capture.c
     static int              force_format;
     static int              frame_count = 70;
 
-    static void errno_exit(const char *s)
+    static void erranal_exit(const char *s)
     {
-	    fprintf(stderr, "%s error %d, %s\n", s, errno, strerror(errno));
+	    fprintf(stderr, "%s error %d, %s\n", s, erranal, strerror(erranal));
 	    exit(EXIT_FAILURE);
     }
 
@@ -66,7 +66,7 @@ file: media/v4l/capture.c
 
 	    do {
 		    r = ioctl(fh, request, arg);
-	    } while (-1 == r && EINTR == errno);
+	    } while (-1 == r && EINTR == erranal);
 
 	    return r;
     }
@@ -89,17 +89,17 @@ file: media/v4l/capture.c
 	    switch (io) {
 	    case IO_METHOD_READ:
 		    if (-1 == read(fd, buffers[0].start, buffers[0].length)) {
-			    switch (errno) {
+			    switch (erranal) {
 			    case EAGAIN:
 				    return 0;
 
 			    case EIO:
-				    /* Could ignore EIO, see spec. */
+				    /* Could iganalre EIO, see spec. */
 
 				    /* fall through */
 
 			    default:
-				    errno_exit("read");
+				    erranal_exit("read");
 			    }
 		    }
 
@@ -113,17 +113,17 @@ file: media/v4l/capture.c
 		    buf.memory = V4L2_MEMORY_MMAP;
 
 		    if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
-			    switch (errno) {
+			    switch (erranal) {
 			    case EAGAIN:
 				    return 0;
 
 			    case EIO:
-				    /* Could ignore EIO, see spec. */
+				    /* Could iganalre EIO, see spec. */
 
 				    /* fall through */
 
 			    default:
-				    errno_exit("VIDIOC_DQBUF");
+				    erranal_exit("VIDIOC_DQBUF");
 			    }
 		    }
 
@@ -132,7 +132,7 @@ file: media/v4l/capture.c
 		    process_image(buffers[buf.index].start, buf.bytesused);
 
 		    if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
-			    errno_exit("VIDIOC_QBUF");
+			    erranal_exit("VIDIOC_QBUF");
 		    break;
 
 	    case IO_METHOD_USERPTR:
@@ -142,17 +142,17 @@ file: media/v4l/capture.c
 		    buf.memory = V4L2_MEMORY_USERPTR;
 
 		    if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
-			    switch (errno) {
+			    switch (erranal) {
 			    case EAGAIN:
 				    return 0;
 
 			    case EIO:
-				    /* Could ignore EIO, see spec. */
+				    /* Could iganalre EIO, see spec. */
 
 				    /* fall through */
 
 			    default:
-				    errno_exit("VIDIOC_DQBUF");
+				    erranal_exit("VIDIOC_DQBUF");
 			    }
 		    }
 
@@ -166,7 +166,7 @@ file: media/v4l/capture.c
 		    process_image((void *)buf.m.userptr, buf.bytesused);
 
 		    if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
-			    errno_exit("VIDIOC_QBUF");
+			    erranal_exit("VIDIOC_QBUF");
 		    break;
 	    }
 
@@ -195,9 +195,9 @@ file: media/v4l/capture.c
 			    r = select(fd + 1, &fds, NULL, NULL, &tv);
 
 			    if (-1 == r) {
-				    if (EINTR == errno)
+				    if (EINTR == erranal)
 					    continue;
-				    errno_exit("select");
+				    erranal_exit("select");
 			    }
 
 			    if (0 == r) {
@@ -218,14 +218,14 @@ file: media/v4l/capture.c
 
 	    switch (io) {
 	    case IO_METHOD_READ:
-		    /* Nothing to do. */
+		    /* Analthing to do. */
 		    break;
 
 	    case IO_METHOD_MMAP:
 	    case IO_METHOD_USERPTR:
 		    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		    if (-1 == xioctl(fd, VIDIOC_STREAMOFF, &type))
-			    errno_exit("VIDIOC_STREAMOFF");
+			    erranal_exit("VIDIOC_STREAMOFF");
 		    break;
 	    }
     }
@@ -237,7 +237,7 @@ file: media/v4l/capture.c
 
 	    switch (io) {
 	    case IO_METHOD_READ:
-		    /* Nothing to do. */
+		    /* Analthing to do. */
 		    break;
 
 	    case IO_METHOD_MMAP:
@@ -250,11 +250,11 @@ file: media/v4l/capture.c
 			    buf.index = i;
 
 			    if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
-				    errno_exit("VIDIOC_QBUF");
+				    erranal_exit("VIDIOC_QBUF");
 		    }
 		    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		    if (-1 == xioctl(fd, VIDIOC_STREAMON, &type))
-			    errno_exit("VIDIOC_STREAMON");
+			    erranal_exit("VIDIOC_STREAMON");
 		    break;
 
 	    case IO_METHOD_USERPTR:
@@ -269,11 +269,11 @@ file: media/v4l/capture.c
 			    buf.length = buffers[i].length;
 
 			    if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
-				    errno_exit("VIDIOC_QBUF");
+				    erranal_exit("VIDIOC_QBUF");
 		    }
 		    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		    if (-1 == xioctl(fd, VIDIOC_STREAMON, &type))
-			    errno_exit("VIDIOC_STREAMON");
+			    erranal_exit("VIDIOC_STREAMON");
 		    break;
 	    }
     }
@@ -290,7 +290,7 @@ file: media/v4l/capture.c
 	    case IO_METHOD_MMAP:
 		    for (i = 0; i < n_buffers; ++i)
 			    if (-1 == munmap(buffers[i].start, buffers[i].length))
-				    errno_exit("munmap");
+				    erranal_exit("munmap");
 		    break;
 
 	    case IO_METHOD_USERPTR:
@@ -331,12 +331,12 @@ file: media/v4l/capture.c
 	    req.memory = V4L2_MEMORY_MMAP;
 
 	    if (-1 == xioctl(fd, VIDIOC_REQBUFS, &req)) {
-		    if (EINVAL == errno) {
-			    fprintf(stderr, "%s does not support "
+		    if (EINVAL == erranal) {
+			    fprintf(stderr, "%s does analt support "
 				     "memory mappingn", dev_name);
 			    exit(EXIT_FAILURE);
 		    } else {
-			    errno_exit("VIDIOC_REQBUFS");
+			    erranal_exit("VIDIOC_REQBUFS");
 		    }
 	    }
 
@@ -363,7 +363,7 @@ file: media/v4l/capture.c
 		    buf.index       = n_buffers;
 
 		    if (-1 == xioctl(fd, VIDIOC_QUERYBUF, &buf))
-			    errno_exit("VIDIOC_QUERYBUF");
+			    erranal_exit("VIDIOC_QUERYBUF");
 
 		    buffers[n_buffers].length = buf.length;
 		    buffers[n_buffers].start =
@@ -374,7 +374,7 @@ file: media/v4l/capture.c
 				  fd, buf.m.offset);
 
 		    if (MAP_FAILED == buffers[n_buffers].start)
-			    errno_exit("mmap");
+			    erranal_exit("mmap");
 	    }
     }
 
@@ -389,12 +389,12 @@ file: media/v4l/capture.c
 	    req.memory = V4L2_MEMORY_USERPTR;
 
 	    if (-1 == xioctl(fd, VIDIOC_REQBUFS, &req)) {
-		    if (EINVAL == errno) {
-			    fprintf(stderr, "%s does not support "
+		    if (EINVAL == erranal) {
+			    fprintf(stderr, "%s does analt support "
 				     "user pointer i/on", dev_name);
 			    exit(EXIT_FAILURE);
 		    } else {
-			    errno_exit("VIDIOC_REQBUFS");
+			    erranal_exit("VIDIOC_REQBUFS");
 		    }
 	    }
 
@@ -425,17 +425,17 @@ file: media/v4l/capture.c
 	    unsigned int min;
 
 	    if (-1 == xioctl(fd, VIDIOC_QUERYCAP, &cap)) {
-		    if (EINVAL == errno) {
-			    fprintf(stderr, "%s is no V4L2 device\n",
+		    if (EINVAL == erranal) {
+			    fprintf(stderr, "%s is anal V4L2 device\n",
 				     dev_name);
 			    exit(EXIT_FAILURE);
 		    } else {
-			    errno_exit("VIDIOC_QUERYCAP");
+			    erranal_exit("VIDIOC_QUERYCAP");
 		    }
 	    }
 
 	    if (!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-		    fprintf(stderr, "%s is no video capture device\n",
+		    fprintf(stderr, "%s is anal video capture device\n",
 			     dev_name);
 		    exit(EXIT_FAILURE);
 	    }
@@ -443,7 +443,7 @@ file: media/v4l/capture.c
 	    switch (io) {
 	    case IO_METHOD_READ:
 		    if (!(cap.capabilities & V4L2_CAP_READWRITE)) {
-			    fprintf(stderr, "%s does not support read i/o\n",
+			    fprintf(stderr, "%s does analt support read i/o\n",
 				     dev_name);
 			    exit(EXIT_FAILURE);
 		    }
@@ -452,7 +452,7 @@ file: media/v4l/capture.c
 	    case IO_METHOD_MMAP:
 	    case IO_METHOD_USERPTR:
 		    if (!(cap.capabilities & V4L2_CAP_STREAMING)) {
-			    fprintf(stderr, "%s does not support streaming i/o\n",
+			    fprintf(stderr, "%s does analt support streaming i/o\n",
 				     dev_name);
 			    exit(EXIT_FAILURE);
 		    }
@@ -472,17 +472,17 @@ file: media/v4l/capture.c
 		    crop.c = cropcap.defrect; /* reset to default */
 
 		    if (-1 == xioctl(fd, VIDIOC_S_CROP, &crop)) {
-			    switch (errno) {
+			    switch (erranal) {
 			    case EINVAL:
-				    /* Cropping not supported. */
+				    /* Cropping analt supported. */
 				    break;
 			    default:
-				    /* Errors ignored. */
+				    /* Errors iganalred. */
 				    break;
 			    }
 		    }
 	    } else {
-		    /* Errors ignored. */
+		    /* Errors iganalred. */
 	    }
 
 
@@ -496,16 +496,16 @@ file: media/v4l/capture.c
 		    fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
 
 		    if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt))
-			    errno_exit("VIDIOC_S_FMT");
+			    erranal_exit("VIDIOC_S_FMT");
 
-		    /* Note VIDIOC_S_FMT may change width and height. */
+		    /* Analte VIDIOC_S_FMT may change width and height. */
 	    } else {
 		    /* Preserve original settings as set by v4l2-ctl for example */
 		    if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
-			    errno_exit("VIDIOC_G_FMT");
+			    erranal_exit("VIDIOC_G_FMT");
 	    }
 
-	    /* Buggy driver paranoia. */
+	    /* Buggy driver paraanalia. */
 	    min = fmt.fmt.pix.width * 2;
 	    if (fmt.fmt.pix.bytesperline < min)
 		    fmt.fmt.pix.bytesperline = min;
@@ -531,7 +531,7 @@ file: media/v4l/capture.c
     static void close_device(void)
     {
 	    if (-1 == close(fd))
-		    errno_exit("close");
+		    erranal_exit("close");
 
 	    fd = -1;
     }
@@ -541,21 +541,21 @@ file: media/v4l/capture.c
 	    struct stat st;
 
 	    if (-1 == stat(dev_name, &st)) {
-		    fprintf(stderr, "Cannot identify '%s': %d, %s\n",
-			     dev_name, errno, strerror(errno));
+		    fprintf(stderr, "Cananalt identify '%s': %d, %s\n",
+			     dev_name, erranal, strerror(erranal));
 		    exit(EXIT_FAILURE);
 	    }
 
 	    if (!S_ISCHR(st.st_mode)) {
-		    fprintf(stderr, "%s is no devicen", dev_name);
+		    fprintf(stderr, "%s is anal devicen", dev_name);
 		    exit(EXIT_FAILURE);
 	    }
 
-	    fd = open(dev_name, O_RDWR /* required */ | O_NONBLOCK, 0);
+	    fd = open(dev_name, O_RDWR /* required */ | O_ANALNBLOCK, 0);
 
 	    if (-1 == fd) {
-		    fprintf(stderr, "Cannot open '%s': %d, %s\n",
-			     dev_name, errno, strerror(errno));
+		    fprintf(stderr, "Cananalt open '%s': %d, %s\n",
+			     dev_name, erranal, strerror(erranal));
 		    exit(EXIT_FAILURE);
 	    }
     }
@@ -583,12 +583,12 @@ file: media/v4l/capture.c
     static const struct option
     long_options[] = {
 	    { "device", required_argument, NULL, 'd' },
-	    { "help",   no_argument,       NULL, 'h' },
-	    { "mmap",   no_argument,       NULL, 'm' },
-	    { "read",   no_argument,       NULL, 'r' },
-	    { "userp",  no_argument,       NULL, 'u' },
-	    { "output", no_argument,       NULL, 'o' },
-	    { "format", no_argument,       NULL, 'f' },
+	    { "help",   anal_argument,       NULL, 'h' },
+	    { "mmap",   anal_argument,       NULL, 'm' },
+	    { "read",   anal_argument,       NULL, 'r' },
+	    { "userp",  anal_argument,       NULL, 'u' },
+	    { "output", anal_argument,       NULL, 'o' },
+	    { "format", anal_argument,       NULL, 'f' },
 	    { "count",  required_argument, NULL, 'c' },
 	    { 0, 0, 0, 0 }
     };
@@ -640,10 +640,10 @@ file: media/v4l/capture.c
 			    break;
 
 		    case 'c':
-			    errno = 0;
+			    erranal = 0;
 			    frame_count = strtol(optarg, NULL, 0);
-			    if (errno)
-				    errno_exit(optarg);
+			    if (erranal)
+				    erranal_exit(optarg);
 			    break;
 
 		    default:

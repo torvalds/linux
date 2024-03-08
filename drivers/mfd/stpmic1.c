@@ -46,18 +46,18 @@ static const struct regmap_range stpmic1_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table stpmic1_readable_table = {
-	.yes_ranges = stpmic1_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(stpmic1_readable_ranges),
+	.anal_ranges = stpmic1_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(stpmic1_readable_ranges),
 };
 
 static const struct regmap_access_table stpmic1_writeable_table = {
-	.yes_ranges = stpmic1_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(stpmic1_writeable_ranges),
+	.anal_ranges = stpmic1_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(stpmic1_writeable_ranges),
 };
 
 static const struct regmap_access_table stpmic1_volatile_table = {
-	.yes_ranges = stpmic1_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(stpmic1_volatile_ranges),
+	.anal_ranges = stpmic1_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(stpmic1_volatile_ranges),
 };
 
 static const struct regmap_config stpmic1_regmap_config = {
@@ -111,7 +111,7 @@ static const struct regmap_irq_chip stpmic1_regmap_irq_chip = {
 	.status_base = INT_PENDING_R1,
 	.mask_base = INT_SET_MASK_R1,
 	.unmask_base = INT_CLEAR_MASK_R1,
-	.mask_unmask_non_inverted = true,
+	.mask_unmask_analn_inverted = true,
 	.ack_base = INT_CLEAR_R1,
 	.num_regs = STPMIC1_PMIC_NUM_IRQ_REGS,
 	.irqs = stpmic1_irqs,
@@ -125,7 +125,7 @@ static int stpmic1_power_off(struct sys_off_data *data)
 	regmap_update_bits(ddata->regmap, MAIN_CR,
 			   SOFTWARE_SWITCH_OFF, SOFTWARE_SWITCH_OFF);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int stpmic1_probe(struct i2c_client *i2c)
@@ -133,12 +133,12 @@ static int stpmic1_probe(struct i2c_client *i2c)
 	struct stpmic1 *ddata;
 	struct device *dev = &i2c->dev;
 	int ret;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 reg;
 
 	ddata = devm_kzalloc(dev, sizeof(struct stpmic1), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, ddata);
 	ddata->dev = dev;

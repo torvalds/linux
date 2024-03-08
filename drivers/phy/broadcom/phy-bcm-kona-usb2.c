@@ -25,7 +25,7 @@
 
 #define P1CTL			(8)
 #define P1CTL_SOFT_RESET	BIT(1)
-#define P1CTL_NON_DRIVING	BIT(0)
+#define P1CTL_ANALN_DRIVING	BIT(0)
 
 struct bcm_kona_usb {
 	void __iomem *regs;
@@ -54,7 +54,7 @@ static int bcm_kona_usb_phy_init(struct phy *gphy)
 
 	/* Soft reset PHY */
 	val = readl(phy->regs + P1CTL);
-	val &= ~P1CTL_NON_DRIVING;
+	val &= ~P1CTL_ANALN_DRIVING;
 	val |= P1CTL_SOFT_RESET;
 	writel(val, phy->regs + P1CTL);
 	writel(val & ~P1CTL_SOFT_RESET, phy->regs + P1CTL);
@@ -99,7 +99,7 @@ static int bcm_kona_usb2_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy->regs))

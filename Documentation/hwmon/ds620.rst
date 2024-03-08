@@ -21,7 +21,7 @@ Description
 
 The DS620 is a (one instance) digital thermometer and thermostat. It has both
 high and low temperature limits which can be user defined (i.e.  programmed
-into non-volatile on-chip registers). Temperature range is -55 degree Celsius
+into analn-volatile on-chip registers). Temperature range is -55 degree Celsius
 to +125. Between 0 and 70 degree Celsius, accuracy is 0.5 Kelvin. The value
 returned via sysfs displays post decimal positions.
 

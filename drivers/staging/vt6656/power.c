@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Handles 802.11 power management functions
@@ -32,7 +32,7 @@
  * Enable hw power saving functions
  *
  * Return Value:
- *    None.
+ *    Analne.
  *
  */
 
@@ -92,7 +92,7 @@ int vnt_disable_power_saving(struct vnt_private *priv)
  * Check if Next TBTT must wake up
  *
  * Return Value:
- *    None.
+ *    Analne.
  *
  */
 

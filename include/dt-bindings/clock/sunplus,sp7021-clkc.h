@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (C) Sunplus Technology Co., Ltd.
+ * Copyright (C) Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 #ifndef _DT_BINDINGS_CLOCK_SUNPLUS_SP7021_H
@@ -9,7 +9,7 @@
 /* gates */
 #define CLK_RTC         0
 #define CLK_OTPRX       1
-#define CLK_NOC         2
+#define CLK_ANALC         2
 #define CLK_BR          3
 #define CLK_SPIFL       4
 #define CLK_PERI0       5

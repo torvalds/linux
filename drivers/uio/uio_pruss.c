@@ -34,7 +34,7 @@ MODULE_PARM_DESC(extram_pool_sz, "external ram pool size to allocate");
 /*
  * Host event IRQ numbers from PRUSS - PRUSS can generate up to 8 interrupt
  * events to AINTC of ARM host processor - which can be used for IPC b/w PRUSS
- * firmware and user space application, async notification from PRU firmware
+ * firmware and user space application, async analtification from PRU firmware
  * to user space application
  * 3	PRU_EVTOUT0
  * 4	PRU_EVTOUT1
@@ -49,7 +49,7 @@ MODULE_PARM_DESC(extram_pool_sz, "external ram pool size to allocate");
 
 #define PINTC_HIDISR	0x0038
 #define PINTC_HIPIR	0x0900
-#define HIPIR_NOPEND	0x80000000
+#define HIPIR_ANALPEND	0x80000000
 #define PINTC_HIER	0x1500
 
 struct uio_pruss_dev {
@@ -77,8 +77,8 @@ static irqreturn_t pruss_handler(int irq, struct uio_info *info)
 
 	val = ioread32(intren_reg);
 	/* Is interrupt enabled and active ? */
-	if (!(val & intr_mask) && (ioread32(intrstat_reg) & HIPIR_NOPEND))
-		return IRQ_NONE;
+	if (!(val & intr_mask) && (ioread32(intrstat_reg) & HIPIR_ANALPEND))
+		return IRQ_ANALNE;
 	/* Disable interrupt */
 	iowrite32(intr_bit, intrdis_reg);
 	return IRQ_HANDLED;
@@ -115,13 +115,13 @@ static int pruss_probe(struct platform_device *pdev)
 
 	gdev = devm_kzalloc(dev, sizeof(struct uio_pruss_dev), GFP_KERNEL);
 	if (!gdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gdev->info = devm_kcalloc(dev, MAX_PRUSS_EVT, sizeof(*p), GFP_KERNEL);
 	if (!gdev->info)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Power on PRU in case its not done as part of boot-loader */
+	/* Power on PRU in case its analt done as part of boot-loader */
 	gdev->pruss_clk = devm_clk_get(dev, "pruss");
 	if (IS_ERR(gdev->pruss_clk)) {
 		dev_err(dev, "Failed to get clock\n");
@@ -136,7 +136,7 @@ static int pruss_probe(struct platform_device *pdev)
 
 	regs_prussio = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs_prussio) {
-		dev_err(dev, "No PRUSS I/O resource specified\n");
+		dev_err(dev, "Anal PRUSS I/O resource specified\n");
 		ret = -EIO;
 		goto err_clk_disable;
 	}
@@ -153,8 +153,8 @@ static int pruss_probe(struct platform_device *pdev)
 			(unsigned long)gen_pool_dma_alloc(gdev->sram_pool,
 					sram_pool_sz, &gdev->sram_paddr);
 		if (!gdev->sram_vaddr) {
-			dev_err(dev, "Could not allocate SRAM pool\n");
-			ret = -ENOMEM;
+			dev_err(dev, "Could analt allocate SRAM pool\n");
+			ret = -EANALMEM;
 			goto err_clk_disable;
 		}
 	}
@@ -162,8 +162,8 @@ static int pruss_probe(struct platform_device *pdev)
 	gdev->ddr_vaddr = dma_alloc_coherent(dev, extram_pool_sz,
 				&(gdev->ddr_paddr), GFP_KERNEL | GFP_DMA);
 	if (!gdev->ddr_vaddr) {
-		dev_err(dev, "Could not allocate external memory\n");
-		ret = -ENOMEM;
+		dev_err(dev, "Could analt allocate external memory\n");
+		ret = -EANALMEM;
 		goto err_free_sram;
 	}
 
@@ -171,7 +171,7 @@ static int pruss_probe(struct platform_device *pdev)
 	gdev->prussio_vaddr = ioremap(regs_prussio->start, len);
 	if (!gdev->prussio_vaddr) {
 		dev_err(dev, "Can't remap PRUSS I/O  address range\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ddr_vaddr;
 	}
 

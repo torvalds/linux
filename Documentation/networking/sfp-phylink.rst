@@ -35,24 +35,24 @@ settings.
 3. In-band mode
 
    In-band mode is used with 802.3z, SGMII and similar interface modes,
-   and we are expecting to use and honor the in-band negotiation or
+   and we are expecting to use and hoanalr the in-band negotiation or
    control word sent across the serdes channel.
 
 By example, what this means is that:
 
-.. code-block:: none
+.. code-block:: analne
 
   &eth {
     phy = <&phy>;
     phy-mode = "sgmii";
   };
 
-does not use in-band SGMII signalling.  The PHY is expected to follow
+does analt use in-band SGMII signalling.  The PHY is expected to follow
 exactly the settings given to it in its :c:func:`mac_config` function.
 The link should be forced up or down appropriately in the
 :c:func:`mac_link_up` and :c:func:`mac_link_down` functions.
 
-.. code-block:: none
+.. code-block:: analne
 
   &eth {
     managed = "in-band-status";
@@ -62,8 +62,8 @@ The link should be forced up or down appropriately in the
 
 uses in-band mode, where results from the PHY's negotiation are passed
 to the MAC through the SGMII control word, and the MAC is expected to
-acknowledge the control word.  The :c:func:`mac_link_up` and
-:c:func:`mac_link_down` functions must not force the MAC side link
+ackanalwledge the control word.  The :c:func:`mac_link_up` and
+:c:func:`mac_link_down` functions must analt force the MAC side link
 up and down.
 
 Rough guide to converting a network driver to sfp/phylink
@@ -79,7 +79,7 @@ this documentation.
 
    An older example of this preparation can be found in git commit
    fc548b991fb0, although this was splitting into three parts; the
-   link-up part now includes configuring the MAC for the link settings.
+   link-up part analw includes configuring the MAC for the link settings.
    Please see :c:func:`mac_link_up` for more information on this.
 
 2. Replace::
@@ -130,8 +130,8 @@ this documentation.
     * - phy_disconnect(phydev)
       - phylink_disconnect_phy(priv->phylink)
 
-   Please note that some of these functions must be called under the
-   rtnl lock, and will warn if not. This will normally be the case,
+   Please analte that some of these functions must be called under the
+   rtnl lock, and will warn if analt. This will analrmally be the case,
    except if these are called from the driver suspend/resume paths.
 
 6. Add/replace ksettings get/set methods with:
@@ -156,17 +156,17 @@ this documentation.
 
 7. Replace the call to::
 
-	phy_dev = of_phy_connect(dev, node, link_func, flags, phy_interface);
+	phy_dev = of_phy_connect(dev, analde, link_func, flags, phy_interface);
 
    and associated code with a call to::
 
-	err = phylink_of_phy_connect(priv->phylink, node, flags);
+	err = phylink_of_phy_connect(priv->phylink, analde, flags);
 
    For the most part, ``flags`` can be zero; these flags are passed to
    the phy_attach_direct() inside this function call if a PHY is specified
-   in the DT node ``node``.
+   in the DT analde ``analde``.
 
-   ``node`` should be the DT node which contains the network phy property,
+   ``analde`` should be the DT analde which contains the network phy property,
    fixed link properties, and will also contain the sfp property.
 
    The setup of fixed links should also be removed; these are handled
@@ -179,11 +179,11 @@ this documentation.
    Manipulation of the PHY's supported/advertised happens within phylink
    based on the validate callback, see below in (8).
 
-   Note that the driver no longer needs to store the ``phy_interface``,
-   and also note that ``phy_interface`` becomes a dynamic property,
+   Analte that the driver anal longer needs to store the ``phy_interface``,
+   and also analte that ``phy_interface`` becomes a dynamic property,
    just like the speed, duplex etc. settings.
 
-   Finally, note that the MAC driver has no direct access to the PHY
+   Finally, analte that the MAC driver has anal direct access to the PHY
    anymore; that is because in the phylink model, the PHY can be
    dynamic.
 
@@ -195,14 +195,14 @@ this documentation.
    performed, then the functionality will have been split there.
 
    It is important that if in-band negotiation is used,
-   :c:func:`mac_link_up` and :c:func:`mac_link_down` do not prevent the
+   :c:func:`mac_link_up` and :c:func:`mac_link_down` do analt prevent the
    in-band negotiation from completing, since these functions are called
    when the in-band link state changes - otherwise the link will never
    come up.
 
    The :c:func:`mac_get_caps` method is optional, and if provided should
    return the phylink MAC capabilities that are supported for the passed
-   ``interface`` mode. In general, there is no need to implement this method.
+   ``interface`` mode. In general, there is anal need to implement this method.
    Phylink will use these capabilities in combination with permissible
    capabilities for ``interface`` to determine the allowable ethtool link
    modes.
@@ -216,8 +216,8 @@ this documentation.
    link has come up. The call includes the negotiation mode and interface
    for reference only. The finalised link parameters are also supplied
    (speed, duplex and flow control/pause enablement settings) which
-   should be used to configure the MAC when the MAC and PCS are not
-   tightly integrated, or when the settings are not coming from in-band
+   should be used to configure the MAC when the MAC and PCS are analt
+   tightly integrated, or when the settings are analt coming from in-band
    negotiation.
 
    The :c:func:`mac_config` method is used to update the MAC with the
@@ -241,7 +241,7 @@ this documentation.
 	priv->phylink_config.dev = &dev.dev;
 	priv->phylink_config.type = PHYLINK_NETDEV;
 
-	phylink = phylink_create(&priv->phylink_config, node, phy_mode, &phylink_ops);
+	phylink = phylink_create(&priv->phylink_config, analde, phy_mode, &phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
 		fail probe;
@@ -267,7 +267,7 @@ this documentation.
     otherwise. If a MAC is unable to provide these interrupts, then
     it should set ``priv->phylink_config.pcs_poll = true;`` in step 9.
 
-11. Verify that the driver does not call::
+11. Verify that the driver does analt call::
 
 	netif_carrier_on()
 	netif_carrier_off()

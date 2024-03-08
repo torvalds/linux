@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,13 +39,13 @@
 
 struct mlx5_vxlan {
 	struct mlx5_core_dev		*mdev;
-	/* max_num_ports is usually 4, 16 buckets is more than enough */
+	/* max_num_ports is usually 4, 16 buckets is more than eanalugh */
 	DECLARE_HASHTABLE(htable, 4);
 	struct mutex                    sync_lock; /* sync add/del port HW operations */
 };
 
 struct mlx5_vxlan_port {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	u16 udp_port;
 };
 
@@ -105,7 +105,7 @@ int mlx5_vxlan_add_port(struct mlx5_vxlan *vxlan, u16 port)
 
 	vxlanp = kzalloc(sizeof(*vxlanp), GFP_KERNEL);
 	if (!vxlanp)
-		return -ENOMEM;
+		return -EANALMEM;
 	vxlanp->udp_port = port;
 
 	ret = mlx5_vxlan_core_add_port_cmd(vxlan->mdev, port);
@@ -130,7 +130,7 @@ int mlx5_vxlan_del_port(struct mlx5_vxlan *vxlan, u16 port)
 
 	vxlanp = vxlan_lookup_port(vxlan, port);
 	if (WARN_ON(!vxlanp)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_unlock;
 	}
 
@@ -149,11 +149,11 @@ struct mlx5_vxlan *mlx5_vxlan_create(struct mlx5_core_dev *mdev)
 	struct mlx5_vxlan *vxlan;
 
 	if (!MLX5_CAP_ETH(mdev, tunnel_stateless_vxlan) || !mlx5_core_is_pf(mdev))
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EANALTSUPP);
 
 	vxlan = kzalloc(sizeof(*vxlan), GFP_KERNEL);
 	if (!vxlan)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vxlan->mdev = mdev;
 	mutex_init(&vxlan->sync_lock);
@@ -179,7 +179,7 @@ void mlx5_vxlan_destroy(struct mlx5_vxlan *vxlan)
 void mlx5_vxlan_reset_to_default(struct mlx5_vxlan *vxlan)
 {
 	struct mlx5_vxlan_port *vxlanp;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int bkt;
 
 	if (!mlx5_vxlan_allowed(vxlan))

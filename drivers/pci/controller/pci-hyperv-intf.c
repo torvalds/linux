@@ -22,7 +22,7 @@ int hyperv_read_cfg_blk(struct pci_dev *dev, void *buf, unsigned int buf_len,
 			unsigned int block_id, unsigned int *bytes_returned)
 {
 	if (!hvpci_block_ops.read_block)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return hvpci_block_ops.read_block(dev, buf, buf_len, block_id,
 					  bytes_returned);
@@ -33,7 +33,7 @@ int hyperv_write_cfg_blk(struct pci_dev *dev, void *buf, unsigned int len,
 			 unsigned int block_id)
 {
 	if (!hvpci_block_ops.write_block)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return hvpci_block_ops.write_block(dev, buf, len, block_id);
 }
@@ -44,7 +44,7 @@ int hyperv_reg_block_invalidate(struct pci_dev *dev, void *context,
 							 u64 block_mask))
 {
 	if (!hvpci_block_ops.reg_blk_invalidate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return hvpci_block_ops.reg_blk_invalidate(dev, context,
 						  block_invalidate);

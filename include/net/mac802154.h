@@ -143,8 +143,8 @@ enum ieee802154_hw_flags {
  *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
  *	  The low-level driver should send the frame based on available
  *	  configuration. This is called by a workqueue and useful for
- *	  synchronous 802.15.4 drivers.
- *	  This function should return zero or negative errno.
+ *	  synchroanalus 802.15.4 drivers.
+ *	  This function should return zero or negative erranal.
  *
  *	  WARNING:
  *	  This will be deprecated soon. We don't accept synced xmit callbacks
@@ -155,48 +155,48 @@ enum ieee802154_hw_flags {
  *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
  *	  The low-level driver should send the frame based on available
  *	  configuration.
- *	  This function should return zero or negative errno.
+ *	  This function should return zero or negative erranal.
  *
  * ed:    Handler that 802.15.4 module calls for Energy Detection.
  *	  This function should place the value for detected energy
  *	  (usually device-dependant) in the level pointer and return
- *	  either zero or negative errno. Called with pib_lock held.
+ *	  either zero or negative erranal. Called with pib_lock held.
  *
  * set_channel:
  * 	  Set radio for listening on specific channel.
  *	  Set the device for listening on specified channel.
- *	  Returns either zero, or negative errno. Called with pib_lock held.
+ *	  Returns either zero, or negative erranal. Called with pib_lock held.
  *
  * set_hw_addr_filt:
  *	  Set radio for listening on specific address.
  *	  Set the device for listening on specified address.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erranal.
  *
  * set_txpower:
  *	  Set radio transmit power in mBm. Called with pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erranal.
  *
  * set_lbt
  *	  Enables or disables listen before talk on the device. Called with
  *	  pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erranal.
  *
  * set_cca_mode
  *	  Sets the CCA mode used by the device. Called with pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erranal.
  *
  * set_cca_ed_level
  *	  Sets the CCA energy detection threshold in mBm. Called with pib_lock
  *	  held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erranal.
  *
  * set_csma_params
  *	  Sets the CSMA parameter set for the PHY. Called with pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erranal.
  *
  * set_frame_retries
  *	  Sets the retransmission attempt limit. Called with pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erranal.
  *
  * set_promiscuous_mode
  *	  Enables or disable promiscuous mode.
@@ -257,7 +257,7 @@ static inline unsigned char *ieee802154_skb_dst_pan(__le16 fc,
 	unsigned char *dst_pan;
 
 	switch (ieee802154_daddr_mode(fc)) {
-	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_ANALNE):
 		dst_pan = NULL;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_DADDR_SHORT):
@@ -286,12 +286,12 @@ static inline unsigned char *ieee802154_skb_src_pan(__le16 fc,
 	unsigned char *src_pan;
 
 	switch (ieee802154_saddr_mode(fc)) {
-	case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
+	case cpu_to_le16(IEEE802154_FCTL_ADDR_ANALNE):
 		src_pan = NULL;
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		/* if intra-pan and source addr mode is non none,
+		/* if intra-pan and source addr mode is analn analne,
 		 * then source pan id is equal destination pan id.
 		 */
 		if (ieee802154_is_intra_pan(fc)) {
@@ -300,7 +300,7 @@ static inline unsigned char *ieee802154_skb_src_pan(__le16 fc,
 		}
 
 		switch (ieee802154_daddr_mode(fc)) {
-		case cpu_to_le16(IEEE802154_FCTL_ADDR_NONE):
+		case cpu_to_le16(IEEE802154_FCTL_ADDR_ANALNE):
 			src_pan = skb_mac_header(skb) +
 				  IEEE802154_FC_LEN +
 				  IEEE802154_SEQ_LEN;
@@ -346,7 +346,7 @@ static inline bool ieee802154_skb_is_intra_pan_addressing(__le16 fc,
 	unsigned char *dst_pan = ieee802154_skb_dst_pan(fc, skb),
 		      *src_pan = ieee802154_skb_src_pan(fc, skb);
 
-	/* if one is NULL is no intra pan addressing */
+	/* if one is NULL is anal intra pan addressing */
 	if (!dst_pan || !src_pan)
 		return false;
 
@@ -425,7 +425,7 @@ void ieee802154_free_hw(struct ieee802154_hw *hw);
  * ieee802154_register_hw - Register hardware device
  *
  * You must call this function before any other functions in
- * mac802154. Note that before a hardware can be registered, you
+ * mac802154. Analte that before a hardware can be registered, you
  * need to fill the contained wpan_phy's information.
  *
  * @hw: the device to register as returned by ieee802154_alloc_hw()
@@ -478,7 +478,7 @@ void ieee802154_xmit_error(struct ieee802154_hw *hw, struct sk_buff *skb,
 			   int reason);
 
 /**
- * ieee802154_xmit_hw_error - frame could not be offloaded to the transmitter
+ * ieee802154_xmit_hw_error - frame could analt be offloaded to the transmitter
  *                            because of a hardware error (bus error, timeout, etc)
  *
  * @hw: pointer as obtained from ieee802154_alloc_hw().

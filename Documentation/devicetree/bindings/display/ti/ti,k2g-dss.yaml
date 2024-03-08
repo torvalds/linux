@@ -56,7 +56,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      The DSS DPI output port node
+      The DSS DPI output port analde
 
   max-memory-bandwidth:
     $ref: /schemas/types.yaml#/definitions/uint32

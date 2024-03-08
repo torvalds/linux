@@ -48,7 +48,7 @@
 #define WM831X_GPN_FN_SHIFT                          0  /* GPN_FN - [3:0] */
 #define WM831X_GPN_FN_WIDTH                          4  /* GPN_FN - [3:0] */
 
-#define WM831X_GPIO_PULL_NONE (0 << WM831X_GPN_PULL_SHIFT)
+#define WM831X_GPIO_PULL_ANALNE (0 << WM831X_GPN_PULL_SHIFT)
 #define WM831X_GPIO_PULL_DOWN (1 << WM831X_GPN_PULL_SHIFT)
 #define WM831X_GPIO_PULL_UP   (2 << WM831X_GPN_PULL_SHIFT)
 #endif

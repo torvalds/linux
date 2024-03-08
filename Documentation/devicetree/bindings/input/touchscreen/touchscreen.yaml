@@ -45,15 +45,15 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-fuzz-x:
-    description: horizontal noise value of the absolute input device (in pixels)
+    description: horizontal analise value of the absolute input device (in pixels)
     $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-fuzz-y:
-    description: vertical noise value of the absolute input device (in pixels)
+    description: vertical analise value of the absolute input device (in pixels)
     $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-fuzz-pressure:
-    description: pressure noise value of the absolute input device (arbitrary
+    description: pressure analise value of the absolute input device (arbitrary
       range dependent on the controller)
     $ref: /schemas/types.yaml#/definitions/uint32
 

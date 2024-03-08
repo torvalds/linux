@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -73,7 +73,7 @@ static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
 	struct mlx5_eq_tasklet *tasklet_ctx = cq->tasklet_ctx.priv;
 
 	spin_lock_irqsave(&tasklet_ctx->lock, flags);
-	/* When migrating CQs between EQs will be implemented, please note
+	/* When migrating CQs between EQs will be implemented, please analte
 	 * that you need to sync this point. It is possible that
 	 * while migrating a CQ, completions on the old EQs could
 	 * still arrive.
@@ -150,7 +150,7 @@ err_cmd:
 }
 EXPORT_SYMBOL(mlx5_create_cq);
 
-/* oubox is checked and err val is normalized */
+/* oubox is checked and err val is analrmalized */
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			u32 *in, int inlen, u32 *out, int outlen)
 {
@@ -192,7 +192,7 @@ int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 
 	MLX5_SET(query_cq_in, in, opcode, MLX5_CMD_OP_QUERY_CQ);
 	MLX5_SET(query_cq_in, in, cqn, cq->cqn);
-	return mlx5_cmd_exec_inout(dev, query_cq, in, out);
+	return mlx5_cmd_exec_ianalut(dev, query_cq, in, out);
 }
 EXPORT_SYMBOL(mlx5_core_query_cq);
 

@@ -55,10 +55,10 @@ struct nv50_wndw_func {
 
 	int (*sema_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	int (*sema_clr)(struct nv50_wndw *);
-	void (*ntfy_reset)(struct nouveau_bo *, u32 offset);
+	void (*ntfy_reset)(struct analuveau_bo *, u32 offset);
 	int (*ntfy_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	int (*ntfy_clr)(struct nv50_wndw *);
-	int (*ntfy_wait_begun)(struct nouveau_bo *, u32 offset,
+	int (*ntfy_wait_begun)(struct analuveau_bo *, u32 offset,
 			       struct nvif_device *);
 	void (*ilut)(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyh, int size);
 	void (*csc)(struct nv50_wndw *, struct nv50_wndw_atom *,
@@ -80,10 +80,10 @@ struct nv50_wndw_func {
 
 extern const struct drm_plane_funcs nv50_wndw;
 
-void base507c_ntfy_reset(struct nouveau_bo *, u32);
+void base507c_ntfy_reset(struct analuveau_bo *, u32);
 int base507c_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int base507c_ntfy_clr(struct nv50_wndw *);
-int base507c_ntfy_wait_begun(struct nouveau_bo *, u32, struct nvif_device *);
+int base507c_ntfy_wait_begun(struct analuveau_bo *, u32, struct nvif_device *);
 int base507c_image_clr(struct nv50_wndw *);
 int base507c_update(struct nv50_wndw *, u32 *);
 
@@ -106,9 +106,9 @@ nvif_chan_wait(struct nv50_dmac *dmac, u32 size)
 	return curs507a_space(wndw) ? 0 : -ETIMEDOUT;
 }
 
-int wndwc37e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
+int wndwc37e_new(struct analuveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);
-int wndwc37e_new_(const struct nv50_wndw_func *, struct nouveau_drm *,
+int wndwc37e_new_(const struct nv50_wndw_func *, struct analuveau_drm *,
 		  enum drm_plane_type type, int index, s32 oclass, u32 heads,
 		  struct nv50_wndw **);
 int wndwc37e_acquire(struct nv50_wndw *, struct nv50_wndw_atom *,
@@ -123,7 +123,7 @@ int wndwc37e_image_clr(struct nv50_wndw *);
 int wndwc37e_blend_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int wndwc37e_update(struct nv50_wndw *, u32 *);
 
-int wndwc57e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
+int wndwc57e_new(struct analuveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);
 void wndwc57e_ilut(struct nv50_wndw *, struct nv50_wndw_atom *, int);
 int wndwc57e_ilut_set(struct nv50_wndw *, struct nv50_wndw_atom *);
@@ -131,9 +131,9 @@ int wndwc57e_ilut_clr(struct nv50_wndw *);
 int wndwc57e_csc_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int wndwc57e_csc_clr(struct nv50_wndw *);
 
-int wndwc67e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
+int wndwc67e_new(struct analuveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);
 
-int nv50_wndw_new(struct nouveau_drm *, enum drm_plane_type, int index,
+int nv50_wndw_new(struct analuveau_drm *, enum drm_plane_type, int index,
 		  struct nv50_wndw **);
 #endif

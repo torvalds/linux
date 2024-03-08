@@ -20,7 +20,7 @@ union teid {
 };
 
 enum {
-	TEID_FSI_UNKNOWN = 0, /* Unknown whether fetch or store */
+	TEID_FSI_UNKANALWN = 0, /* Unkanalwn whether fetch or store */
 	TEID_FSI_STORE	 = 1, /* Exception was due to store operation */
 	TEID_FSI_FETCH	 = 2  /* Exception was due to fetch operation */
 };

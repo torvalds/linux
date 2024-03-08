@@ -98,7 +98,7 @@ static void create_main_memslot(struct kvm_vm *vm)
 {
 	int i;
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, 0, 0, MAIN_PAGE_COUNT, 0);
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS, 0, 0, MAIN_PAGE_COUNT, 0);
 	/* set the array of memslots to zero like __vm_create does */
 	for (i = 0; i < NR_MEM_REGIONS; i++)
 		vm->memslots[i] = 0;
@@ -107,7 +107,7 @@ static void create_main_memslot(struct kvm_vm *vm)
 static void create_test_memslot(struct kvm_vm *vm)
 {
 	vm_userspace_mem_region_add(vm,
-				    VM_MEM_SRC_ANONYMOUS,
+				    VM_MEM_SRC_AANALNYMOUS,
 				    TEST_DATA_START_GFN << vm->page_shift,
 				    TEST_DATA_MEMSLOT,
 				    TEST_DATA_PAGE_COUNT,
@@ -166,7 +166,7 @@ static void enable_cmma(struct kvm_vm *vm)
 	int r;
 
 	r = __kvm_device_attr_set(vm->fd, KVM_S390_VM_MEM_CTRL, KVM_S390_VM_MEM_ENABLE_CMMA, NULL);
-	TEST_ASSERT(!r, "enabling cmma failed r=%d errno=%d", r, errno);
+	TEST_ASSERT(!r, "enabling cmma failed r=%d erranal=%d", r, erranal);
 }
 
 static void enable_dirty_tracking(struct kvm_vm *vm)
@@ -188,7 +188,7 @@ static void enable_migration_mode(struct kvm_vm *vm)
 {
 	int r = __enable_migration_mode(vm);
 
-	TEST_ASSERT(!r, "enabling migration mode failed r=%d errno=%d", r, errno);
+	TEST_ASSERT(!r, "enabling migration mode failed r=%d erranal=%d", r, erranal);
 }
 
 static bool is_migration_mode_on(struct kvm_vm *vm)
@@ -201,16 +201,16 @@ static bool is_migration_mode_on(struct kvm_vm *vm)
 				  KVM_S390_VM_MIGRATION_STATUS,
 				  &out
 				 );
-	TEST_ASSERT(!r, "getting migration mode status failed r=%d errno=%d", r, errno);
+	TEST_ASSERT(!r, "getting migration mode status failed r=%d erranal=%d", r, erranal);
 	return out;
 }
 
-static int vm_get_cmma_bits(struct kvm_vm *vm, u64 flags, int *errno_out)
+static int vm_get_cmma_bits(struct kvm_vm *vm, u64 flags, int *erranal_out)
 {
 	struct kvm_s390_cmma_log args;
 	int rc;
 
-	errno = 0;
+	erranal = 0;
 
 	args = (struct kvm_s390_cmma_log){
 		.start_gfn = 0,
@@ -220,7 +220,7 @@ static int vm_get_cmma_bits(struct kvm_vm *vm, u64 flags, int *errno_out)
 	};
 	rc = __vm_ioctl(vm, KVM_S390_GET_CMMA_BITS, &args);
 
-	*errno_out = errno;
+	*erranal_out = erranal;
 	return rc;
 }
 
@@ -228,12 +228,12 @@ static void test_get_cmma_basic(void)
 {
 	struct kvm_vm *vm = create_vm_two_memslots();
 	struct kvm_vcpu *vcpu;
-	int rc, errno_out;
+	int rc, erranal_out;
 
 	/* GET_CMMA_BITS without CMMA enabled should fail */
-	rc = vm_get_cmma_bits(vm, 0, &errno_out);
+	rc = vm_get_cmma_bits(vm, 0, &erranal_out);
 	TEST_ASSERT_EQ(rc, -1);
-	TEST_ASSERT_EQ(errno_out, ENXIO);
+	TEST_ASSERT_EQ(erranal_out, ENXIO);
 
 	enable_cmma(vm);
 	vcpu = vm_vcpu_add(vm, 1, guest_do_one_essa);
@@ -241,22 +241,22 @@ static void test_get_cmma_basic(void)
 	vcpu_run(vcpu);
 
 	/* GET_CMMA_BITS without migration mode and without peeking should fail */
-	rc = vm_get_cmma_bits(vm, 0, &errno_out);
+	rc = vm_get_cmma_bits(vm, 0, &erranal_out);
 	TEST_ASSERT_EQ(rc, -1);
-	TEST_ASSERT_EQ(errno_out, EINVAL);
+	TEST_ASSERT_EQ(erranal_out, EINVAL);
 
 	/* GET_CMMA_BITS without migration mode and with peeking should work */
-	rc = vm_get_cmma_bits(vm, KVM_S390_CMMA_PEEK, &errno_out);
+	rc = vm_get_cmma_bits(vm, KVM_S390_CMMA_PEEK, &erranal_out);
 	TEST_ASSERT_EQ(rc, 0);
-	TEST_ASSERT_EQ(errno_out, 0);
+	TEST_ASSERT_EQ(erranal_out, 0);
 
 	enable_dirty_tracking(vm);
 	enable_migration_mode(vm);
 
 	/* GET_CMMA_BITS with invalid flags */
-	rc = vm_get_cmma_bits(vm, 0xfeedc0fe, &errno_out);
+	rc = vm_get_cmma_bits(vm, 0xfeedc0fe, &erranal_out);
 	TEST_ASSERT_EQ(rc, -1);
-	TEST_ASSERT_EQ(errno_out, EINVAL);
+	TEST_ASSERT_EQ(erranal_out, EINVAL);
 
 	kvm_vm_free(vm);
 }
@@ -279,9 +279,9 @@ static void test_migration_mode(void)
 	/* enabling migration mode on a VM without memory should fail */
 	rc = __enable_migration_mode(vm);
 	TEST_ASSERT_EQ(rc, -1);
-	TEST_ASSERT_EQ(errno, EINVAL);
+	TEST_ASSERT_EQ(erranal, EINVAL);
 	TEST_ASSERT(!is_migration_mode_on(vm), "migration mode should still be off");
-	errno = 0;
+	erranal = 0;
 
 	create_memslots(vm);
 	finish_vm_setup(vm);
@@ -292,7 +292,7 @@ static void test_migration_mode(void)
 
 	/*
 	 * Execute one essa instruction in the guest. Otherwise the guest will
-	 * not have use_cmm enabled and GET_CMMA_BITS will return no pages.
+	 * analt have use_cmm enabled and GET_CMMA_BITS will return anal pages.
 	 */
 	vcpu_run(vcpu);
 	assert_exit_was_hypercall(vcpu);
@@ -300,20 +300,20 @@ static void test_migration_mode(void)
 	/* migration mode when memslots have dirty tracking off should fail */
 	rc = __enable_migration_mode(vm);
 	TEST_ASSERT_EQ(rc, -1);
-	TEST_ASSERT_EQ(errno, EINVAL);
+	TEST_ASSERT_EQ(erranal, EINVAL);
 	TEST_ASSERT(!is_migration_mode_on(vm), "migration mode should still be off");
-	errno = 0;
+	erranal = 0;
 
 	/* enable dirty tracking */
 	enable_dirty_tracking(vm);
 
-	/* enabling migration mode should work now */
+	/* enabling migration mode should work analw */
 	rc = __enable_migration_mode(vm);
 	TEST_ASSERT_EQ(rc, 0);
 	TEST_ASSERT(is_migration_mode_on(vm), "migration mode should be on");
-	errno = 0;
+	erranal = 0;
 
-	/* execute another ESSA instruction to see this goes fine */
+	/* execute aanalther ESSA instruction to see this goes fine */
 	vcpu->run->psw_addr = orig_psw;
 	vcpu_run(vcpu);
 	assert_exit_was_hypercall(vcpu);
@@ -324,7 +324,7 @@ static void test_migration_mode(void)
 	 */
 	TEST_ASSERT(is_migration_mode_on(vm), "migration mode should be on");
 	vm_userspace_mem_region_add(vm,
-				    VM_MEM_SRC_ANONYMOUS,
+				    VM_MEM_SRC_AANALNYMOUS,
 				    TEST_DATA_TWO_START_GFN << vm->page_shift,
 				    TEST_DATA_TWO_MEMSLOT,
 				    TEST_DATA_TWO_PAGE_COUNT,
@@ -347,7 +347,7 @@ static void test_migration_mode(void)
 	rc = __enable_migration_mode(vm);
 	TEST_ASSERT_EQ(rc, 0);
 	TEST_ASSERT(is_migration_mode_on(vm), "migration mode should be on");
-	errno = 0;
+	erranal = 0;
 
 	/*
 	 * Turn off dirty tracking again, this time with just a flag change.
@@ -369,8 +369,8 @@ static void test_migration_mode(void)
 
 /**
  * Given a VM with the MAIN and TEST_DATA memslot, assert that both slots have
- * CMMA attributes of all pages in both memslots and nothing more dirty.
- * This has the useful side effect of ensuring nothing is CMMA dirty after this
+ * CMMA attributes of all pages in both memslots and analthing more dirty.
+ * This has the useful side effect of ensuring analthing is CMMA dirty after this
  * function.
  */
 static void assert_all_slots_cmma_dirty(struct kvm_vm *vm)
@@ -406,7 +406,7 @@ static void assert_all_slots_cmma_dirty(struct kvm_vm *vm)
 	TEST_ASSERT_EQ(args.start_gfn, TEST_DATA_START_GFN);
 	TEST_ASSERT_EQ(args.remaining, 0);
 
-	/* ...and nothing else should be there */
+	/* ...and analthing else should be there */
 	args = (struct kvm_s390_cmma_log){
 		.start_gfn = TEST_DATA_START_GFN + TEST_DATA_PAGE_COUNT,
 		.count = sizeof(cmma_value_buf),
@@ -421,13 +421,13 @@ static void assert_all_slots_cmma_dirty(struct kvm_vm *vm)
 }
 
 /**
- * Given a VM, assert no pages are CMMA dirty.
+ * Given a VM, assert anal pages are CMMA dirty.
  */
-static void assert_no_pages_cmma_dirty(struct kvm_vm *vm)
+static void assert_anal_pages_cmma_dirty(struct kvm_vm *vm)
 {
 	struct kvm_s390_cmma_log args;
 
-	/* If we start from GFN 0 again, nothing should be dirty. */
+	/* If we start from GFN 0 again, analthing should be dirty. */
 	args = (struct kvm_s390_cmma_log){
 		.start_gfn = 0,
 		.count = sizeof(cmma_value_buf),
@@ -454,7 +454,7 @@ static void test_get_inital_dirty(void)
 
 	/*
 	 * Execute one essa instruction in the guest. Otherwise the guest will
-	 * not have use_cmm enabled and GET_CMMA_BITS will return no pages.
+	 * analt have use_cmm enabled and GET_CMMA_BITS will return anal pages.
 	 */
 	vcpu_run(vcpu);
 	assert_exit_was_hypercall(vcpu);
@@ -464,8 +464,8 @@ static void test_get_inital_dirty(void)
 
 	assert_all_slots_cmma_dirty(vm);
 
-	/* Start from the beginning again and make sure nothing else is dirty */
-	assert_no_pages_cmma_dirty(vm);
+	/* Start from the beginning again and make sure analthing else is dirty */
+	assert_anal_pages_cmma_dirty(vm);
 
 	kvm_vm_free(vm);
 }
@@ -497,7 +497,7 @@ static void assert_cmma_dirty(u64 first_dirty_gfn,
 	TEST_ASSERT_EQ(res->count, dirty_gfn_count);
 	for (size_t i = 0; i < dirty_gfn_count; i++)
 		TEST_ASSERT_EQ(cmma_value_buf[0], 0x0); /* stable state */
-	TEST_ASSERT_EQ(cmma_value_buf[dirty_gfn_count], 0xff); /* not touched */
+	TEST_ASSERT_EQ(cmma_value_buf[dirty_gfn_count], 0xff); /* analt touched */
 }
 
 static void test_get_skip_holes(void)
@@ -515,7 +515,7 @@ static void test_get_skip_holes(void)
 
 	/*
 	 * Execute some essa instructions in the guest. Otherwise the guest will
-	 * not have use_cmm enabled and GET_CMMA_BITS will return no pages.
+	 * analt have use_cmm enabled and GET_CMMA_BITS will return anal pages.
 	 */
 	vcpu_run(vcpu);
 	assert_exit_was_hypercall(vcpu);
@@ -533,10 +533,10 @@ static void test_get_skip_holes(void)
 	gfn_offset = TEST_DATA_START_GFN;
 	/**
 	 * Query CMMA attributes of one page, starting at page 0. Since the
-	 * main memslot was not touched by the VM, this should yield the first
+	 * main memslot was analt touched by the VM, this should yield the first
 	 * page of the TEST_DATA memslot.
-	 * The dirty bitmap should now look like this:
-	 * 0: not dirty
+	 * The dirty bitmap should analw look like this:
+	 * 0: analt dirty
 	 * [0x1, 0x200): dirty
 	 */
 	query_cmma_range(vm, 0, 1, &log);
@@ -547,8 +547,8 @@ static void test_get_skip_holes(void)
 	 * Query CMMA attributes of 32 (0x20) pages past the end of the TEST_DATA
 	 * memslot. This should wrap back to the beginning of the TEST_DATA
 	 * memslot, page 1.
-	 * The dirty bitmap should now look like this:
-	 * [0, 0x21): not dirty
+	 * The dirty bitmap should analw look like this:
+	 * [0, 0x21): analt dirty
 	 * [0x21, 0x200): dirty
 	 */
 	query_cmma_range(vm, TEST_DATA_START_GFN + TEST_DATA_PAGE_COUNT, 0x20, &log);
@@ -560,10 +560,10 @@ static void test_get_skip_holes(void)
 
 	/**
 	 * After skipping 32 pages, query the next 32 (0x20) pages.
-	 * The dirty bitmap should now look like this:
-	 * [0, 0x21): not dirty
+	 * The dirty bitmap should analw look like this:
+	 * [0, 0x21): analt dirty
 	 * [0x21, 0x41): dirty
-	 * [0x41, 0x61): not dirty
+	 * [0x41, 0x61): analt dirty
 	 * [0x61, 0x200): dirty
 	 */
 	query_cmma_range(vm, gfn_offset, 0x20, &log);
@@ -573,10 +573,10 @@ static void test_get_skip_holes(void)
 	/**
 	 * Query 1 page from the beginning of the TEST_DATA memslot. This should
 	 * yield page 0x21.
-	 * The dirty bitmap should now look like this:
-	 * [0, 0x22): not dirty
+	 * The dirty bitmap should analw look like this:
+	 * [0, 0x22): analt dirty
 	 * [0x22, 0x41): dirty
-	 * [0x41, 0x61): not dirty
+	 * [0x41, 0x61): analt dirty
 	 * [0x61, 0x200): dirty
 	 */
 	query_cmma_range(vm, TEST_DATA_START_GFN, 1, &log);
@@ -586,12 +586,12 @@ static void test_get_skip_holes(void)
 	/**
 	 * Query 15 (0xF) pages from page 0x23 in TEST_DATA memslot.
 	 * This should yield pages [0x23, 0x33).
-	 * The dirty bitmap should now look like this:
-	 * [0, 0x22): not dirty
+	 * The dirty bitmap should analw look like this:
+	 * [0, 0x22): analt dirty
 	 * 0x22: dirty
-	 * [0x23, 0x33): not dirty
+	 * [0x23, 0x33): analt dirty
 	 * [0x33, 0x41): dirty
-	 * [0x41, 0x61): not dirty
+	 * [0x41, 0x61): analt dirty
 	 * [0x61, 0x200): dirty
 	 */
 	gfn_offset = TEST_DATA_START_GFN + 0x23;
@@ -601,10 +601,10 @@ static void test_get_skip_holes(void)
 	/**
 	 * Query 17 (0x11) pages from page 0x22 in TEST_DATA memslot.
 	 * This should yield page [0x22, 0x33)
-	 * The dirty bitmap should now look like this:
-	 * [0, 0x33): not dirty
+	 * The dirty bitmap should analw look like this:
+	 * [0, 0x33): analt dirty
 	 * [0x33, 0x41): dirty
-	 * [0x41, 0x61): not dirty
+	 * [0x41, 0x61): analt dirty
 	 * [0x61, 0x200): dirty
 	 */
 	gfn_offset = TEST_DATA_START_GFN + 0x22;
@@ -613,12 +613,12 @@ static void test_get_skip_holes(void)
 
 	/**
 	 * Query 25 (0x19) pages from page 0x40 in TEST_DATA memslot.
-	 * This should yield page 0x40 and nothing more, since there are more
-	 * than 16 non-dirty pages after page 0x40.
-	 * The dirty bitmap should now look like this:
-	 * [0, 0x33): not dirty
+	 * This should yield page 0x40 and analthing more, since there are more
+	 * than 16 analn-dirty pages after page 0x40.
+	 * The dirty bitmap should analw look like this:
+	 * [0, 0x33): analt dirty
 	 * [0x33, 0x40): dirty
-	 * [0x40, 0x61): not dirty
+	 * [0x40, 0x61): analt dirty
 	 * [0x61, 0x200): dirty
 	 */
 	gfn_offset = TEST_DATA_START_GFN + 0x40;
@@ -627,8 +627,8 @@ static void test_get_skip_holes(void)
 
 	/**
 	 * Query pages [0x33, 0x40).
-	 * The dirty bitmap should now look like this:
-	 * [0, 0x61): not dirty
+	 * The dirty bitmap should analw look like this:
+	 * [0, 0x61): analt dirty
 	 * [0x61, 0x200): dirty
 	 */
 	gfn_offset = TEST_DATA_START_GFN + 0x33;
@@ -642,7 +642,7 @@ static void test_get_skip_holes(void)
 	query_cmma_range(vm, gfn_offset, TEST_DATA_PAGE_COUNT - 0x61, &log);
 	assert_cmma_dirty(TEST_DATA_START_GFN + 0x61, TEST_DATA_PAGE_COUNT - 0x61, &log);
 
-	assert_no_pages_cmma_dirty(vm);
+	assert_anal_pages_cmma_dirty(vm);
 }
 
 struct testdef {
@@ -656,7 +656,7 @@ struct testdef {
 };
 
 /**
- * The kernel may support CMMA, but the machine may not (i.e. if running as
+ * The kernel may support CMMA, but the machine may analt (i.e. if running as
  * guest-3).
  *
  * In this case, the CMMA capabilities are all there, but the CMMA-related

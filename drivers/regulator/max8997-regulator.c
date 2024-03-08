@@ -34,7 +34,7 @@ struct max8997_data {
 	u8 buck5_vol[8];
 	int buck125_gpios[3];
 	int buck125_gpioindex;
-	bool ignore_gpiodvs_side_effect;
+	bool iganalre_gpiodvs_side_effect;
 
 	u8 saved_states[MAX8997_REG_MAX];
 };
@@ -232,7 +232,7 @@ static int max8997_get_enable_register(struct regulator_dev *rdev,
 		*pattern = 0x40;
 		break;
 	default:
-		/* Not controllable or not exists */
+		/* Analt controllable or analt exists */
 		return -EINVAL;
 	}
 
@@ -443,7 +443,7 @@ static int max8997_set_voltage_charger_cv(struct regulator_dev *rdev,
 
 /*
  * For LDO1 ~ LDO21, BUCK1~5, BUCK7, CHARGER, CHARGER_TOPOFF
- * BUCK1, 2, and 5 are available if they are not controlled by gpio
+ * BUCK1, 2, and 5 are available if they are analt controlled by gpio
  */
 static int max8997_set_voltage_ldobuck(struct regulator_dev *rdev,
 		int min_uV, int max_uV, unsigned *selector)
@@ -499,7 +499,7 @@ static int max8997_set_voltage_buck_time_sel(struct regulator_dev *rdev,
 	if (old_selector >= new_selector)
 		return 0;
 
-	/* No need to delay if gpio_dvs_mode */
+	/* Anal need to delay if gpio_dvs_mode */
 	switch (rid) {
 	case MAX8997_BUCK1:
 		if (max8997->buck1_gpiodvs)
@@ -531,7 +531,7 @@ static int max8997_set_voltage_buck_time_sel(struct regulator_dev *rdev,
  * Assess the damage on the voltage setting of BUCK1,2,5 by the change.
  *
  * When GPIO-DVS mode is used for multiple bucks, changing the voltage value
- * of one of the bucks may affect that of another buck, which is the side
+ * of one of the bucks may affect that of aanalther buck, which is the side
  * effect of the change (set_voltage). This function examines the GPIO-DVS
  * configurations and checks whether such side-effect exists.
  */
@@ -584,7 +584,7 @@ static int max8997_assess_side_effect(struct regulator_dev *rdev,
 			if (others == rid)
 				continue;
 			if (buckx_gpiodvs[others] == false)
-				continue; /* Not affected */
+				continue; /* Analt affected */
 			diff = (buckx_val[others])[i] -
 				(buckx_val[others])[max8997->buck125_gpioindex];
 			if (diff > 0)
@@ -594,7 +594,7 @@ static int max8997_assess_side_effect(struct regulator_dev *rdev,
 		}
 		if (side_effect[i] == 0) {
 			*best = i;
-			return 0; /* NO SIDE EFFECT! Use This! */
+			return 0; /* ANAL SIDE EFFECT! Use This! */
 		}
 		if (side_effect[i] < min_side_effect) {
 			min_side_effect = side_effect[i];
@@ -609,7 +609,7 @@ static int max8997_assess_side_effect(struct regulator_dev *rdev,
 }
 
 /*
- * For Buck 1 ~ 5 and 7. If it is not controlled by GPIO, this calls
+ * For Buck 1 ~ 5 and 7. If it is analt controlled by GPIO, this calls
  * max8997_set_voltage_ldobuck to do the job.
  */
 static int max8997_set_voltage_buck(struct regulator_dev *rdev,
@@ -668,7 +668,7 @@ static int max8997_set_voltage_buck(struct regulator_dev *rdev,
 	new_idx = tmp_idx;
 	new_val = tmp_val;
 
-	if (max8997->ignore_gpiodvs_side_effect == false)
+	if (max8997->iganalre_gpiodvs_side_effect == false)
 		return -EINVAL;
 
 	dev_warn(&rdev->dev,
@@ -875,7 +875,7 @@ static struct regulator_desc regulators[] = {
 #ifdef CONFIG_OF
 static int max8997_pmic_dt_parse_dvs_gpio(struct platform_device *pdev,
 			struct max8997_platform_data *pdata,
-			struct device_node *pmic_np)
+			struct device_analde *pmic_np)
 {
 	int i, gpio;
 
@@ -895,19 +895,19 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct max8997_platform_data *pdata)
 {
 	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *pmic_np, *regulators_np, *reg_np;
+	struct device_analde *pmic_np, *regulators_np, *reg_np;
 	struct max8997_regulator_data *rdata;
 	unsigned int i, dvs_voltage_nr = 1, ret;
 
-	pmic_np = iodev->dev->of_node;
+	pmic_np = iodev->dev->of_analde;
 	if (!pmic_np) {
-		dev_err(&pdev->dev, "could not find pmic sub-node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "could analt find pmic sub-analde\n");
+		return -EANALDEV;
 	}
 
 	regulators_np = of_get_child_by_name(pmic_np, "regulators");
 	if (!regulators_np) {
-		dev_err(&pdev->dev, "could not find regulators sub-node\n");
+		dev_err(&pdev->dev, "could analt find regulators sub-analde\n");
 		return -EINVAL;
 	}
 
@@ -918,18 +918,18 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 			     pdata->num_regulators, sizeof(*rdata),
 			     GFP_KERNEL);
 	if (!rdata) {
-		of_node_put(regulators_np);
-		return -ENOMEM;
+		of_analde_put(regulators_np);
+		return -EANALMEM;
 	}
 
 	pdata->regulators = rdata;
-	for_each_child_of_node(regulators_np, reg_np) {
+	for_each_child_of_analde(regulators_np, reg_np) {
 		for (i = 0; i < ARRAY_SIZE(regulators); i++)
-			if (of_node_name_eq(reg_np, regulators[i].name))
+			if (of_analde_name_eq(reg_np, regulators[i].name))
 				break;
 
 		if (i == ARRAY_SIZE(regulators)) {
-			dev_warn(&pdev->dev, "don't know how to configure regulator %pOFn\n",
+			dev_warn(&pdev->dev, "don't kanalw how to configure regulator %pOFn\n",
 				 reg_np);
 			continue;
 		}
@@ -938,10 +938,10 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 		rdata->initdata = of_get_regulator_init_data(&pdev->dev,
 							     reg_np,
 							     &regulators[i]);
-		rdata->reg_node = reg_np;
+		rdata->reg_analde = reg_np;
 		rdata++;
 	}
-	of_node_put(regulators_np);
+	of_analde_put(regulators_np);
 
 	pdata->buck1_gpiodvs = of_property_read_bool(pmic_np, "max8997,pmic-buck1-uses-gpio-dvs");
 	pdata->buck2_gpiodvs = of_property_read_bool(pmic_np, "max8997,pmic-buck2-uses-gpio-dvs");
@@ -965,8 +965,8 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 		}
 
 		if (of_get_property(pmic_np,
-			"max8997,pmic-ignore-gpiodvs-side-effect", NULL))
-			pdata->ignore_gpiodvs_side_effect = true;
+			"max8997,pmic-iganalre-gpiodvs-side-effect", NULL))
+			pdata->iganalre_gpiodvs_side_effect = true;
 
 		dvs_voltage_nr = 8;
 	}
@@ -974,21 +974,21 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 	if (of_property_read_u32_array(pmic_np,
 				"max8997,pmic-buck1-dvs-voltage",
 				pdata->buck1_voltage, dvs_voltage_nr)) {
-		dev_err(&pdev->dev, "buck1 voltages not specified\n");
+		dev_err(&pdev->dev, "buck1 voltages analt specified\n");
 		return -EINVAL;
 	}
 
 	if (of_property_read_u32_array(pmic_np,
 				"max8997,pmic-buck2-dvs-voltage",
 				pdata->buck2_voltage, dvs_voltage_nr)) {
-		dev_err(&pdev->dev, "buck2 voltages not specified\n");
+		dev_err(&pdev->dev, "buck2 voltages analt specified\n");
 		return -EINVAL;
 	}
 
 	if (of_property_read_u32_array(pmic_np,
 				"max8997,pmic-buck5-dvs-voltage",
 				pdata->buck5_voltage, dvs_voltage_nr)) {
-		dev_err(&pdev->dev, "buck5 voltages not specified\n");
+		dev_err(&pdev->dev, "buck5 voltages analt specified\n");
 		return -EINVAL;
 	}
 
@@ -1014,11 +1014,11 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 	u8 max_buck1 = 0, max_buck2 = 0, max_buck5 = 0;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "No platform init data supplied.\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal platform init data supplied.\n");
+		return -EANALDEV;
 	}
 
-	if (iodev->dev->of_node) {
+	if (iodev->dev->of_analde) {
 		ret = max8997_pmic_dt_parse_pdata(pdev, pdata);
 		if (ret)
 			return ret;
@@ -1027,7 +1027,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 	max8997 = devm_kzalloc(&pdev->dev, sizeof(struct max8997_data),
 			       GFP_KERNEL);
 	if (!max8997)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max8997->dev = &pdev->dev;
 	max8997->iodev = iodev;
@@ -1040,7 +1040,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 	max8997->buck2_gpiodvs = pdata->buck2_gpiodvs;
 	max8997->buck5_gpiodvs = pdata->buck5_gpiodvs;
 	memcpy(max8997->buck125_gpios, pdata->buck125_gpios, sizeof(int) * 3);
-	max8997->ignore_gpiodvs_side_effect = pdata->ignore_gpiodvs_side_effect;
+	max8997->iganalre_gpiodvs_side_effect = pdata->iganalre_gpiodvs_side_effect;
 
 	nr_dvs = (pdata->buck1_gpiodvs || pdata->buck2_gpiodvs ||
 			pdata->buck5_gpiodvs) ? 8 : 1;
@@ -1105,7 +1105,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If buck 1, 2, and 5 do not care DVS GPIO settings, ignore them.
+	 * If buck 1, 2, and 5 do analt care DVS GPIO settings, iganalre them.
 	 * If at least one of them cares, set gpios.
 	 */
 	if (pdata->buck1_gpiodvs || pdata->buck2_gpiodvs ||
@@ -1114,7 +1114,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 		if (!gpio_is_valid(pdata->buck125_gpios[0]) ||
 				!gpio_is_valid(pdata->buck125_gpios[1]) ||
 				!gpio_is_valid(pdata->buck125_gpios[2])) {
-			dev_err(&pdev->dev, "GPIO NOT VALID\n");
+			dev_err(&pdev->dev, "GPIO ANALT VALID\n");
 			return -EINVAL;
 		}
 
@@ -1174,7 +1174,7 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 		config.dev = max8997->dev;
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = max8997;
-		config.of_node = pdata->regulators[i].reg_node;
+		config.of_analde = pdata->regulators[i].reg_analde;
 
 		rdev = devm_regulator_register(&pdev->dev, &regulators[id],
 					       &config);
@@ -1197,7 +1197,7 @@ MODULE_DEVICE_TABLE(platform, max8997_pmic_id);
 static struct platform_driver max8997_pmic_driver = {
 	.driver = {
 		.name = "max8997-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = max8997_pmic_probe,
 	.id_table = max8997_pmic_id,

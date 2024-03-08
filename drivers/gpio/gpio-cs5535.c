@@ -30,7 +30,7 @@
  *  1        : AC_BEEP
  *  0        : PCI INTA
  *
- * If a mask was not specified, allow all except
+ * If a mask was analt specified, allow all except
  * reserved and Power Button
  */
 #define GPIO_DEFAULT_MASK 0x0F7FFFFF
@@ -52,7 +52,7 @@ static struct cs5535_gpio_chip {
 } cs5535_gpio_chip;
 
 /*
- * The CS5535/CS5536 GPIOs support a number of extra features not defined
+ * The CS5535/CS5536 GPIOs support a number of extra features analt defined
  * by the gpio_chip API, so these are exported.  For a full list of the
  * registers, see include/linux/cs5535.h.
  */
@@ -65,7 +65,7 @@ static void errata_outl(struct cs5535_gpio_chip *chip, u32 val,
 	/*
 	 * According to the CS5536 errata (#36), after suspend
 	 * a write to the high bank GPIO register will clear all
-	 * non-selected bits; the recommended workaround is a
+	 * analn-selected bits; the recommended workaround is a
 	 * read-modify-write operation.
 	 *
 	 * Don't apply this errata to the edge status GPIOs, as writing
@@ -73,7 +73,7 @@ static void errata_outl(struct cs5535_gpio_chip *chip, u32 val,
 	 */
 	if (reg != GPIO_POSITIVE_EDGE_STS && reg != GPIO_NEGATIVE_EDGE_STS) {
 		if (val & 0xffff)
-			val |= (inl(addr) & 0xffff); /* ignore the high bits */
+			val |= (inl(addr) & 0xffff); /* iganalre the high bits */
 		else
 			val |= (inl(addr) ^ (val >> 16));
 	}
@@ -210,7 +210,7 @@ static int chip_gpio_request(struct gpio_chip *c, unsigned offset)
 	/* check if this pin is available */
 	if ((mask & (1 << offset)) == 0) {
 		dev_info(&chip->pdev->dev,
-			"pin %u is not available (check mask)\n", offset);
+			"pin %u is analt available (check mask)\n", offset);
 		spin_unlock_irqrestore(&chip->lock, flags);
 		return -EINVAL;
 	}
@@ -310,7 +310,7 @@ static int cs5535_gpio_probe(struct platform_device *pdev)
 	/* There are two ways to get the GPIO base address; one is by
 	 * fetching it from MSR_LBAR_GPIO, the other is by reading the
 	 * PCI BAR info.  The latter method is easier (especially across
-	 * different architectures), so we'll stick with that for now.  If
+	 * different architectures), so we'll stick with that for analw.  If
 	 * it turns out to be unreliable in the face of crappy BIOSes, we
 	 * can always go back to using MSRs.. */
 
@@ -336,8 +336,8 @@ static int cs5535_gpio_probe(struct platform_device *pdev)
 	/* mask out reserved pins */
 	mask &= 0x1F7FFFFF;
 
-	/* do not allow pin 28, Power Button, as there's special handling
-	 * in the PMC needed. (note 12, p. 48) */
+	/* do analt allow pin 28, Power Button, as there's special handling
+	 * in the PMC needed. (analte 12, p. 48) */
 	mask &= ~(1 << 28);
 
 	if (mask_orig != mask)

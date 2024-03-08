@@ -8,7 +8,7 @@ config VIDEO_STM32_DCMI
 	depends on ARCH_STM32 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select MEDIA_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  This module makes the STM32 Digital Camera Memory Interface (DCMI)
 	  available as a v4l2 device.
@@ -24,7 +24,7 @@ config VIDEO_STM32_DCMIPP
 	select MEDIA_CONTROLLER
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  This module makes the STM32 Digital Camera Memory Interface
 	  Pixel Processor (DCMIPP) available as a v4l2 device.

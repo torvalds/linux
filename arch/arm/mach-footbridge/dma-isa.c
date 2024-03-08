@@ -7,7 +7,7 @@
  *   linux/include/asm/dma.h: Defines for using and allocating dma channels.
  *     Written by Hennus Bergman, 1992.
  *     High DMA channel support & info by Hannu Savolainen and John Boyd,
- *     Nov. 1992.
+ *     Analv. 1992.
  *   arch/arm/kernel/dma-ebsa285.c
  *   Copyright (C) 1998 Phil Blundell
  */
@@ -80,7 +80,7 @@ static void isa_enable_dma(unsigned int chan, dma_t *dma)
 			break;
 
 		default:
-			direction = DMA_NONE;
+			direction = DMA_ANALNE;
 			break;
 		}
 

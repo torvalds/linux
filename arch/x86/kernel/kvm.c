@@ -18,7 +18,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/hardirq.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/hash.h>
 #include <linux/sched.h>
@@ -48,22 +48,22 @@ DEFINE_STATIC_KEY_FALSE(kvm_async_pf_enabled);
 
 static int kvmapf = 1;
 
-static int __init parse_no_kvmapf(char *arg)
+static int __init parse_anal_kvmapf(char *arg)
 {
         kvmapf = 0;
         return 0;
 }
 
-early_param("no-kvmapf", parse_no_kvmapf);
+early_param("anal-kvmapf", parse_anal_kvmapf);
 
 static int steal_acc = 1;
-static int __init parse_no_stealacc(char *arg)
+static int __init parse_anal_stealacc(char *arg)
 {
         steal_acc = 0;
         return 0;
 }
 
-early_param("no-steal-acc", parse_no_stealacc);
+early_param("anal-steal-acc", parse_anal_stealacc);
 
 static DEFINE_PER_CPU_DECRYPTED(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
 DEFINE_PER_CPU_DECRYPTED(struct kvm_steal_time, steal_time) __aligned(64) __visible;
@@ -71,7 +71,7 @@ static int has_steal_clock = 0;
 
 static int has_guest_poll = 0;
 /*
- * No need for any "IO delay" on KVM
+ * Anal need for any "IO delay" on KVM
  */
 static void kvm_io_delay(void)
 {
@@ -80,8 +80,8 @@ static void kvm_io_delay(void)
 #define KVM_TASK_SLEEP_HASHBITS 8
 #define KVM_TASK_SLEEP_HASHSIZE (1<<KVM_TASK_SLEEP_HASHBITS)
 
-struct kvm_task_sleep_node {
-	struct hlist_node link;
+struct kvm_task_sleep_analde {
+	struct hlist_analde link;
 	struct swait_queue_head wq;
 	u32 token;
 	int cpu;
@@ -92,13 +92,13 @@ static struct kvm_task_sleep_head {
 	struct hlist_head list;
 } async_pf_sleepers[KVM_TASK_SLEEP_HASHSIZE];
 
-static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
+static struct kvm_task_sleep_analde *_find_apf_task(struct kvm_task_sleep_head *b,
 						  u32 token)
 {
-	struct hlist_node *p;
+	struct hlist_analde *p;
 
 	hlist_for_each(p, &b->list) {
-		struct kvm_task_sleep_node *n =
+		struct kvm_task_sleep_analde *n =
 			hlist_entry(p, typeof(*n), link);
 		if (n->token == token)
 			return n;
@@ -107,11 +107,11 @@ static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
 	return NULL;
 }
 
-static bool kvm_async_pf_queue_task(u32 token, struct kvm_task_sleep_node *n)
+static bool kvm_async_pf_queue_task(u32 token, struct kvm_task_sleep_analde *n)
 {
 	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
 	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
-	struct kvm_task_sleep_node *e;
+	struct kvm_task_sleep_analde *e;
 
 	raw_spin_lock(&b->lock);
 	e = _find_apf_task(b, token);
@@ -133,14 +133,14 @@ static bool kvm_async_pf_queue_task(u32 token, struct kvm_task_sleep_node *n)
 
 /*
  * kvm_async_pf_task_wait_schedule - Wait for pagefault to be handled
- * @token:	Token to identify the sleep node entry
+ * @token:	Token to identify the sleep analde entry
  *
  * Invoked from the async pagefault handling code or from the VM exit page
  * fault handler. In both cases RCU is watching.
  */
 void kvm_async_pf_task_wait_schedule(u32 token)
 {
-	struct kvm_task_sleep_node n;
+	struct kvm_task_sleep_analde n;
 	DECLARE_SWAITQUEUE(wait);
 
 	lockdep_assert_irqs_disabled();
@@ -161,7 +161,7 @@ void kvm_async_pf_task_wait_schedule(u32 token)
 }
 EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait_schedule);
 
-static void apf_task_wake_one(struct kvm_task_sleep_node *n)
+static void apf_task_wake_one(struct kvm_task_sleep_analde *n)
 {
 	hlist_del_init(&n->link);
 	if (swq_has_sleeper(&n->wq))
@@ -174,8 +174,8 @@ static void apf_task_wake_all(void)
 
 	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++) {
 		struct kvm_task_sleep_head *b = &async_pf_sleepers[i];
-		struct kvm_task_sleep_node *n;
-		struct hlist_node *p, *next;
+		struct kvm_task_sleep_analde *n;
+		struct hlist_analde *p, *next;
 
 		raw_spin_lock(&b->lock);
 		hlist_for_each_safe(p, next, &b->list) {
@@ -191,7 +191,7 @@ void kvm_async_pf_task_wake(u32 token)
 {
 	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
 	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
-	struct kvm_task_sleep_node *n, *dummy = NULL;
+	struct kvm_task_sleep_analde *n, *dummy = NULL;
 
 	if (token == ~0) {
 		apf_task_wake_all();
@@ -203,7 +203,7 @@ again:
 	n = _find_apf_task(b, token);
 	if (!n) {
 		/*
-		 * Async #PF not yet handled, add a dummy entry for the token.
+		 * Async #PF analt yet handled, add a dummy entry for the token.
 		 * Allocating the token must be down outside of the raw lock
 		 * as the allocator is preemptible on PREEMPT_RT kernels.
 		 */
@@ -214,7 +214,7 @@ again:
 			/*
 			 * Continue looping on allocation failure, eventually
 			 * the async #PF will be handled and allocating a new
-			 * node will be unnecessary.
+			 * analde will be unnecessary.
 			 */
 			if (!dummy)
 				cpu_relax();
@@ -235,12 +235,12 @@ again:
 	}
 	raw_spin_unlock(&b->lock);
 
-	/* A dummy token might be allocated and ultimately not used.  */
+	/* A dummy token might be allocated and ultimately analt used.  */
 	kfree(dummy);
 }
 EXPORT_SYMBOL_GPL(kvm_async_pf_task_wake);
 
-noinstr u32 kvm_read_and_reset_apf_flags(void)
+analinstr u32 kvm_read_and_reset_apf_flags(void)
 {
 	u32 flags = 0;
 
@@ -253,7 +253,7 @@ noinstr u32 kvm_read_and_reset_apf_flags(void)
 }
 EXPORT_SYMBOL_GPL(kvm_read_and_reset_apf_flags);
 
-noinstr bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
+analinstr bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 {
 	u32 flags = kvm_read_and_reset_apf_flags();
 	irqentry_state_t state;
@@ -266,13 +266,13 @@ noinstr bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 
 	/*
 	 * If the host managed to inject an async #PF into an interrupt
-	 * disabled region, then die hard as this is not going to end well
+	 * disabled region, then die hard as this is analt going to end well
 	 * and the host side is seriously broken.
 	 */
 	if (unlikely(!(regs->flags & X86_EFLAGS_IF)))
 		panic("Host injected async #PF in interrupt disabled region\n");
 
-	if (flags & KVM_PV_REASON_PAGE_NOT_PRESENT) {
+	if (flags & KVM_PV_REASON_PAGE_ANALT_PRESENT) {
 		if (unlikely(!(user_mode(regs))))
 			panic("Host injected async #PF in kernel mode\n");
 		/* Page is swapped out by the host. */
@@ -309,11 +309,11 @@ static void __init paravirt_ops_setup(void)
 {
 	pv_info.name = "KVM";
 
-	if (kvm_para_has_feature(KVM_FEATURE_NOP_IO_DELAY))
+	if (kvm_para_has_feature(KVM_FEATURE_ANALP_IO_DELAY))
 		pv_ops.cpu.io_delay = kvm_io_delay;
 
 #ifdef CONFIG_X86_IO_APIC
-	no_timer_check = 1;
+	anal_timer_check = 1;
 #endif
 }
 
@@ -332,13 +332,13 @@ static void kvm_register_steal_time(void)
 
 static DEFINE_PER_CPU_DECRYPTED(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
 
-static notrace __maybe_unused void kvm_guest_apic_eoi_write(void)
+static analtrace __maybe_unused void kvm_guest_apic_eoi_write(void)
 {
 	/**
 	 * This relies on __test_and_clear_bit to modify the memory
 	 * in a way that is atomic with respect to the local CPU.
 	 * The hypervisor only accesses this memory from the local CPU so
-	 * there's no need for lock or memory barriers.
+	 * there's anal need for lock or memory barriers.
 	 * An optimization barrier is implied in apic write.
 	 */
 	if (__test_and_clear_bit(KVM_PV_EOI_BIT, this_cpu_ptr(&kvm_apic_eoi)))
@@ -370,7 +370,7 @@ static void kvm_guest_cpu_init(void)
 		unsigned long pa;
 
 		/* Size alignment is implied but just to make it explicit. */
-		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
+		BUILD_BUG_ON(__aliganalf__(kvm_apic_eoi) < 4);
 		__this_cpu_write(kvm_apic_eoi, 0);
 		pa = slow_virt_to_phys(this_cpu_ptr(&kvm_apic_eoi))
 			| KVM_MSR_ENABLED;
@@ -426,7 +426,7 @@ static inline void __set_percpu_decrypted(void *ptr, unsigned long size)
  * Iterate through all possible CPUs and map the memory region pointed
  * by apf_reason, steal_time and kvm_apic_eoi as decrypted at once.
  *
- * Note: we iterate through all possible CPUs to ensure that CPUs
+ * Analte: we iterate through all possible CPUs to ensure that CPUs
  * hotplugged will have their per-cpu variable already mapped as
  * decrypted.
  */
@@ -587,7 +587,7 @@ static int __init setup_efi_kvm_sev_migration(void)
 		return 0;
 
 	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
-		pr_info("%s : EFI runtime services are not enabled\n", __func__);
+		pr_info("%s : EFI runtime services are analt enabled\n", __func__);
 		return 0;
 	}
 
@@ -597,8 +597,8 @@ static int __init setup_efi_kvm_sev_migration(void)
 	status = efi.get_variable(efi_sev_live_migration_enabled,
 				  &efi_variable_guid, NULL, &size, &enabled);
 
-	if (status == EFI_NOT_FOUND) {
-		pr_info("%s : EFI live migration variable not found\n", __func__);
+	if (status == EFI_ANALT_FOUND) {
+		pr_info("%s : EFI live migration variable analt found\n", __func__);
 		return 0;
 	}
 
@@ -660,7 +660,7 @@ static void kvm_flush_tlb_multi(const struct cpumask *cpumask,
 	 */
 	for_each_cpu(cpu, flushmask) {
 		/*
-		 * The local vCPU is never preempted, so we do not explicitly
+		 * The local vCPU is never preempted, so we do analt explicitly
 		 * skip check for local vCPU - it will never be cleared from
 		 * flushmask.
 		 */
@@ -680,13 +680,13 @@ static __init int kvm_alloc_cpumask(void)
 {
 	int cpu;
 
-	if (!kvm_para_available() || nopv)
+	if (!kvm_para_available() || analpv)
 		return 0;
 
 	if (pv_tlb_flush_supported() || pv_ipi_supported())
 		for_each_possible_cpu(cpu) {
-			zalloc_cpumask_var_node(per_cpu_ptr(&__pv_cpu_mask, cpu),
-				GFP_KERNEL, cpu_to_node(cpu));
+			zalloc_cpumask_var_analde(per_cpu_ptr(&__pv_cpu_mask, cpu),
+				GFP_KERNEL, cpu_to_analde(cpu));
 		}
 
 	return 0;
@@ -752,16 +752,16 @@ static void kvm_pv_guest_cpu_reboot(void *unused)
 	kvm_guest_cpu_offline(true);
 }
 
-static int kvm_pv_reboot_notify(struct notifier_block *nb,
+static int kvm_pv_reboot_analtify(struct analtifier_block *nb,
 				unsigned long code, void *unused)
 {
 	if (code == SYS_RESTART)
 		on_each_cpu(kvm_pv_guest_cpu_reboot, NULL, 1);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block kvm_pv_reboot_nb = {
-	.notifier_call = kvm_pv_reboot_notify,
+static struct analtifier_block kvm_pv_reboot_nb = {
+	.analtifier_call = kvm_pv_reboot_analtify,
 };
 
 /*
@@ -813,7 +813,7 @@ static void __init kvm_guest_init(void)
 	int i;
 
 	paravirt_ops_setup();
-	register_reboot_notifier(&kvm_pv_reboot_nb);
+	register_reboot_analtifier(&kvm_pv_reboot_nb);
 	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++)
 		raw_spin_lock_init(&async_pf_sleepers[i].lock);
 
@@ -845,7 +845,7 @@ static void __init kvm_guest_init(void)
 		smp_ops.send_call_func_ipi = kvm_smp_send_call_func_ipi;
 		pr_info("setup PV sched yield\n");
 	}
-	if (cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "x86/kvm:online",
+	if (cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN, "x86/kvm:online",
 				      kvm_cpu_online, kvm_cpu_down_prepare) < 0)
 		pr_err("failed to install cpu hotplug callbacks\n");
 #else
@@ -867,7 +867,7 @@ static void __init kvm_guest_init(void)
 	hardlockup_detector_disable();
 }
 
-static noinline uint32_t __kvm_cpuid_base(void)
+static analinline uint32_t __kvm_cpuid_base(void)
 {
 	if (boot_cpu_data.cpuid_level < 0)
 		return 0;	/* So we don't blow up on old processors */
@@ -936,7 +936,7 @@ static void __init kvm_init_platform(void)
 		unsigned long nr_pages;
 		int i;
 
-		pv_ops.mmu.notify_page_enc_status_changed =
+		pv_ops.mmu.analtify_page_enc_status_changed =
 			kvm_sev_hc_page_enc_status;
 
 		/*
@@ -945,7 +945,7 @@ static void __init kvm_init_platform(void)
 		 * new kernel by kexec. Reset the page encryption status
 		 * during early boot instead of just before kexec to avoid SMP
 		 * races during kvm_pv_guest_cpu_reboot().
-		 * NOTE: We cannot reset the complete shared pages list
+		 * ANALTE: We cananalt reset the complete shared pages list
 		 * here as we need to retain the UEFI/OVMF firmware
 		 * specific settings.
 		 */
@@ -971,7 +971,7 @@ static void __init kvm_init_platform(void)
 						__end_bss_decrypted - __start_bss_decrypted, 0);
 
 		/*
-		 * If not booted using EFI, enable Live migration support.
+		 * If analt booted using EFI, enable Live migration support.
 		 */
 		if (!efi_enabled(EFI_BOOT))
 			wrmsrl(MSR_KVM_MIGRATION_CONTROL,
@@ -993,7 +993,7 @@ static void kvm_sev_es_hcall_prepare(struct ghcb *ghcb, struct pt_regs *regs)
 
 static bool kvm_sev_es_hcall_finish(struct ghcb *ghcb, struct pt_regs *regs)
 {
-	/* No checking of the return state needed */
+	/* Anal checking of the return state needed */
 	return true;
 }
 #endif
@@ -1044,9 +1044,9 @@ static void kvm_wait(u8 *ptr, u8 val)
 		return;
 
 	/*
-	 * halt until it's our turn and kicked. Note that we do safe halt
+	 * halt until it's our turn and kicked. Analte that we do safe halt
 	 * for irq enabled case to avoid hang when lock info is overwritten
-	 * in irq spinlock slowpath and no spurious interrupt occur to save us.
+	 * in irq spinlock slowpath and anal spurious interrupt occur to save us.
 	 */
 	if (irqs_disabled()) {
 		if (READ_ONCE(*ptr) == val)
@@ -1073,7 +1073,7 @@ void __init kvm_spinlock_init(void)
 	 * preferred over native qspinlock when vCPU is preempted.
 	 */
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT)) {
-		pr_info("PV spinlocks disabled, no host support\n");
+		pr_info("PV spinlocks disabled, anal host support\n");
 		return;
 	}
 
@@ -1091,8 +1091,8 @@ void __init kvm_spinlock_init(void)
 		goto out;
 	}
 
-	if (nopvspin) {
-		pr_info("PV spinlocks disabled, forced by \"nopvspin\" parameter\n");
+	if (analpvspin) {
+		pr_info("PV spinlocks disabled, forced by \"analpvspin\" parameter\n");
 		goto out;
 	}
 
@@ -1131,7 +1131,7 @@ static void kvm_enable_host_haltpoll(void *i)
 void arch_haltpoll_enable(unsigned int cpu)
 {
 	if (!kvm_para_has_feature(KVM_FEATURE_POLL_CONTROL)) {
-		pr_err_once("host does not support poll control\n");
+		pr_err_once("host does analt support poll control\n");
 		pr_err_once("host upgrade recommended\n");
 		return;
 	}

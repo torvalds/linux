@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -132,8 +132,8 @@ static void dce60_timing_generator_enable_advanced_request(
 	uint32_t addr2 = CRTC_REG(mmCRTC_CONTROL);
 	uint32_t value2 = dm_read_reg(tg->ctx, addr2);
 
-	/* DCE6 does not support CRTC_LEGACY_REQUESTOR_EN bit
-	   so here is not possible to set bit based on enable argument */
+	/* DCE6 does analt support CRTC_LEGACY_REQUESTOR_EN bit
+	   so here is analt possible to set bit based on enable argument */
 
 	if ((timing->v_sync_width + timing->v_front_porch) <= 3) {
 		set_reg_field_value(
@@ -192,11 +192,11 @@ static bool dce60_is_tg_enabled(struct timing_generator *tg)
 static bool dce60_configure_crc(struct timing_generator *tg,
 				const struct crc_params *params)
 {
-	/* Cannot configure crc on a CRTC that is disabled */
+	/* Cananalt configure crc on a CRTC that is disabled */
 	if (!dce60_is_tg_enabled(tg))
 		return false;
 
-	/* DCE6 has no CRTC_CRC_CNTL register, nothing to do */
+	/* DCE6 has anal CRTC_CRC_CNTL register, analthing to do */
 
 	return true;
 }
@@ -209,7 +209,7 @@ static const struct timing_generator_funcs dce60_tg_funcs = {
 		.is_counter_moving = dce110_timing_generator_is_counter_moving,
 		.get_position = dce110_timing_generator_get_position,
 		.get_frame_count = dce110_timing_generator_get_vblank_counter,
-		.get_scanoutpos = dce110_timing_generator_get_crtc_scanoutpos,
+		.get_scaanalutpos = dce110_timing_generator_get_crtc_scaanalutpos,
 		.set_early_control = dce110_timing_generator_set_early_control,
 		.wait_for_state = dce110_tg_wait_for_state,
 		.set_blank = dce110_tg_set_blank,

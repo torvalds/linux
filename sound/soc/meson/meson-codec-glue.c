@@ -103,7 +103,7 @@ int meson_codec_glue_output_startup(struct snd_pcm_substream *substream,
 	struct meson_codec_glue_input *in_data = meson_codec_glue_output_get_input_data(w);
 
 	if (!in_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (WARN_ON(!rtd->dai_link->c2c_params)) {
 		dev_warn(dai->dev, "codec2codec link expected\n");
@@ -124,7 +124,7 @@ int meson_codec_glue_input_dai_probe(struct snd_soc_dai *dai)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_codec_glue_input_set_data(dai, data);
 	return 0;

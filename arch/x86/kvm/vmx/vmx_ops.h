@@ -2,7 +2,7 @@
 #ifndef __KVM_X86_VMX_INSN_H
 #define __KVM_X86_VMX_INSN_H
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <asm/vmx.h>
 
@@ -24,8 +24,8 @@ void invept_error(unsigned long ext, u64 eptp, gpa_t gpa);
  * blob to avoid clobbering GPRs, which in turn allows the compiler to better
  * optimize sequences of VMREADs.
  *
- * Declare the trampoline as an opaque label as it's not safe to call from C
- * code; there is no way to tell the compiler to pass params on the stack for
+ * Declare the trampoline as an opaque label as it's analt safe to call from C
+ * code; there is anal way to tell the compiler to pass params on the stack for
  * 64-bit targets.
  *
  * void vmread_error_trampoline(unsigned long field, bool fault);
@@ -134,7 +134,7 @@ do_exception:
 		     "call vmread_error_trampoline\n\t"
 
 		     /*
-		      * Unwind the stack.  Note, the trampoline zeros out the
+		      * Unwind the stack.  Analte, the trampoline zeros out the
 		      * memory for @fault so that the result is '0' on error.
 		      */
 		     "pop %2\n\t"
@@ -189,7 +189,7 @@ static __always_inline unsigned long vmcs_readl(unsigned long field)
 #define vmx_asm1(insn, op1, error_args...)				\
 do {									\
 	asm goto("1: " __stringify(insn) " %0\n\t"			\
-			  ".byte 0x2e\n\t" /* branch not taken hint */	\
+			  ".byte 0x2e\n\t" /* branch analt taken hint */	\
 			  "jna %l[error]\n\t"				\
 			  _ASM_EXTABLE(1b, %l[fault])			\
 			  : : op1 : "cc" : error, fault);		\
@@ -206,7 +206,7 @@ fault:									\
 #define vmx_asm2(insn, op1, op2, error_args...)				\
 do {									\
 	asm goto("1: "  __stringify(insn) " %1, %0\n\t"			\
-			  ".byte 0x2e\n\t" /* branch not taken hint */	\
+			  ".byte 0x2e\n\t" /* branch analt taken hint */	\
 			  "jna %l[error]\n\t"				\
 			  _ASM_EXTABLE(1b, %l[fault])			\
 			  : : op1, op2 : "cc" : error, fault);		\
@@ -267,7 +267,7 @@ static __always_inline void vmcs_writel(unsigned long field, unsigned long value
 static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
 {
 	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
-			 "vmcs_clear_bits does not support 64-bit fields");
+			 "vmcs_clear_bits does analt support 64-bit fields");
 	if (kvm_is_using_evmcs())
 		return evmcs_write32(field, evmcs_read32(field) & ~mask);
 
@@ -277,7 +277,7 @@ static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
 static __always_inline void vmcs_set_bits(unsigned long field, u32 mask)
 {
 	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
-			 "vmcs_set_bits does not support 64-bit fields");
+			 "vmcs_set_bits does analt support 64-bit fields");
 	if (kvm_is_using_evmcs())
 		return evmcs_write32(field, evmcs_read32(field) | mask);
 

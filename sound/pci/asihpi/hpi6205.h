@@ -26,7 +26,7 @@ Copyright AudioScience, Inc., 2003
 #define H620_HIF_DATA_MASK      0x10
 #define H620_HIF_SEND_DATA      0x14
 #define H620_HIF_GET_DATA       0x15
-#define H620_HIF_UNKNOWN                0x0000ffff
+#define H620_HIF_UNKANALWN                0x0000ffff
 
 /***********************************************************
 	Types used for mixer control caching

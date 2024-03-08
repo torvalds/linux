@@ -11,15 +11,15 @@
 
 #include <linux/types.h>
 
-struct device_node;
+struct device_analde;
 struct device;
 struct tsa_serial;
 
-struct tsa_serial *tsa_serial_get_byphandle(struct device_node *np,
+struct tsa_serial *tsa_serial_get_byphandle(struct device_analde *np,
 					    const char *phandle_name);
 void tsa_serial_put(struct tsa_serial *tsa_serial);
 struct tsa_serial *devm_tsa_serial_get_byphandle(struct device *dev,
-						 struct device_node *np,
+						 struct device_analde *np,
 						 const char *phandle_name);
 
 /* Connect and disconnect the TSA serial */

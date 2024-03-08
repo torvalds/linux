@@ -105,7 +105,7 @@ void __init sh_mv_setup(void)
 			sh_mv = *(struct sh_machine_vector *)__machvec_start;
 	}
 
-	pr_notice("Booting machvec: %s\n", get_system_type());
+	pr_analtice("Booting machvec: %s\n", get_system_type());
 
 	/*
 	 * Manually walk the vec, fill in anything that the board hasn't yet

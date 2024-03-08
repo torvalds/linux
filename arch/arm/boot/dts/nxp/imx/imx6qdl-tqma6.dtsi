@@ -24,7 +24,7 @@
 	status = "okay";
 
 	m25p80: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
 		#address-cells = <1>;
@@ -158,7 +158,7 @@
 		reg_vgen1_1v5: vgen1 {
 			regulator-min-microvolt = <800000>;
 			regulator-max-microvolt = <1550000>;
-			/* not used */
+			/* analt used */
 		};
 
 		reg_vgen2_1v2_eth: vgen2 {
@@ -198,10 +198,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	vmmc-supply = <&reg_3p3v>;
-	non-removable;
+	analn-removable;
 	disable-wp;
-	no-sd;
-	no-sdio;
+	anal-sd;
+	anal-sdio;
 	bus-width = <8>;
 	#address-cells = <1>;
 	#size-cells = <0>;

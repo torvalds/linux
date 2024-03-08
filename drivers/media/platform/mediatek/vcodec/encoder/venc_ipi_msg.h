@@ -165,7 +165,7 @@ struct venc_vpu_ipi_msg_common {
  * @venc_abi_version:	ABI version of the firmware. Kernel can use it to
  *			ensure that it is compatible with the firmware.
  *			For MT8173 the value of this field is undefined and
- *			should not be used.
+ *			should analt be used.
  */
 struct venc_vpu_ipi_msg_init {
 	uint32_t msg_id;

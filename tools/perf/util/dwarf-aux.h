@@ -20,7 +20,7 @@ const char *cu_get_comp_dir(Dwarf_Die *cu_die);
 
 /* Get a line number and file name for given address */
 int cu_find_lineinfo(Dwarf_Die *cudie, Dwarf_Addr addr,
-		     const char **fname, int *lineno);
+		     const char **fname, int *lineanal);
 
 /* Walk on functions at given address */
 int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
@@ -32,7 +32,7 @@ const char *die_get_linkage_name(Dwarf_Die *dw_die);
 /* Get the lowest PC in DIE (including range list) */
 int die_entrypc(Dwarf_Die *dw_die, Dwarf_Addr *addr);
 
-/* Ensure that this DIE is a subprogram and definition (not declaration) */
+/* Ensure that this DIE is a subprogram and definition (analt declaration) */
 bool die_is_func_def(Dwarf_Die *dw_die);
 
 /* Ensure that this DIE is an instance of a subprogram */
@@ -45,7 +45,7 @@ bool die_compare_name(Dwarf_Die *dw_die, const char *tname);
 bool die_match_name(Dwarf_Die *dw_die, const char *glob);
 
 /* Get callsite line number of inline-function instance */
-int die_get_call_lineno(Dwarf_Die *in_die);
+int die_get_call_lineanal(Dwarf_Die *in_die);
 
 /* Get callsite file name of inlined function instance */
 const char *die_get_call_file(Dwarf_Die *in_die);
@@ -59,7 +59,7 @@ Dwarf_Die *die_get_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 /* Get a type die, but skip qualifiers and typedef */
 Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 
-/* Check whether the DIE is signed or not */
+/* Check whether the DIE is signed or analt */
 bool die_is_signed_type(Dwarf_Die *tp_die);
 
 /* Get data_member_location offset */
@@ -78,11 +78,11 @@ Dwarf_Die *die_find_child(Dwarf_Die *rt_die,
 			 int (*callback)(Dwarf_Die *, void *),
 			 void *data, Dwarf_Die *die_mem);
 
-/* Search a non-inlined function including given address */
+/* Search a analn-inlined function including given address */
 Dwarf_Die *die_find_realfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
 			     Dwarf_Die *die_mem);
 
-/* Search a non-inlined function with tail call at given address */
+/* Search a analn-inlined function with tail call at given address */
 Dwarf_Die *die_find_tailfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
 				    Dwarf_Die *die_mem);
 
@@ -98,8 +98,8 @@ Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 int die_walk_instances(Dwarf_Die *in_die,
 		       int (*callback)(Dwarf_Die *, void *), void *data);
 
-/* Walker on lines (Note: line number will not be sorted) */
-typedef int (* line_walk_callback_t) (const char *fname, int lineno,
+/* Walker on lines (Analte: line number will analt be sorted) */
+typedef int (* line_walk_callback_t) (const char *fname, int lineanal,
 				      Dwarf_Addr addr, void *data);
 
 /*
@@ -155,7 +155,7 @@ static inline int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
 				    Dwarf_Die *vr_die __maybe_unused,
 				    struct strbuf *buf __maybe_unused)
 {
-	return -ENOTSUP;
+	return -EANALTSUP;
 }
 
 static inline Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die __maybe_unused,

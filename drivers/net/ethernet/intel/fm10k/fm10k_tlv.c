@@ -12,7 +12,7 @@
  **/
 s32 fm10k_tlv_msg_init(u32 *msg, u16 msg_id)
 {
-	/* verify pointer is not NULL */
+	/* verify pointer is analt NULL */
 	if (!msg)
 		return FM10K_ERR_PARAM;
 
@@ -37,7 +37,7 @@ static s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
 	u32 attr_data = 0, len = 0;
 	u32 *attr;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are analt NULL */
 	if (!string || !msg)
 		return FM10K_ERR_PARAM;
 
@@ -85,7 +85,7 @@ static s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
 {
 	u32 len;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are analt NULL */
 	if (!string || !attr)
 		return FM10K_ERR_PARAM;
 
@@ -115,7 +115,7 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
 	u32 len = ETH_ALEN << FM10K_TLV_LEN_SHIFT;
 	u32 *attr;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are analt NULL */
 	if (!msg || !mac_addr)
 		return FM10K_ERR_PARAM;
 
@@ -148,7 +148,7 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
  **/
 s32 fm10k_tlv_attr_get_mac_vlan(u32 *attr, u8 *mac_addr, u16 *vlan)
 {
-	/* verify pointers are not NULL */
+	/* verify pointers are analt NULL */
 	if (!mac_addr || !attr)
 		return FM10K_ERR_PARAM;
 
@@ -171,7 +171,7 @@ s32 fm10k_tlv_attr_get_mac_vlan(u32 *attr, u8 *mac_addr, u16 *vlan)
  **/
 s32 fm10k_tlv_attr_put_bool(u32 *msg, u16 attr_id)
 {
-	/* verify pointers are not NULL */
+	/* verify pointers are analt NULL */
 	if (!msg)
 		return FM10K_ERR_PARAM;
 
@@ -199,7 +199,7 @@ s32 fm10k_tlv_attr_put_value(u32 *msg, u16 attr_id, s64 value, u32 len)
 {
 	u32 *attr;
 
-	/* verify non-null msg and len is 1, 2, 4, or 8 */
+	/* verify analn-null msg and len is 1, 2, 4, or 8 */
 	if (!msg || !len || len > 8 || (len & (len - 1)))
 		return FM10K_ERR_PARAM;
 
@@ -237,7 +237,7 @@ s32 fm10k_tlv_attr_put_value(u32 *msg, u16 attr_id, s64 value, u32 len)
  **/
 s32 fm10k_tlv_attr_get_value(u32 *attr, void *value, u32 len)
 {
-	/* verify pointers are not NULL */
+	/* verify pointers are analt NULL */
 	if (!attr || !value)
 		return FM10K_ERR_PARAM;
 
@@ -265,7 +265,7 @@ s32 fm10k_tlv_attr_get_value(u32 *attr, void *value, u32 len)
  *
  *  This function will place a little endian structure value in a message
  *  attribute.  The function will return success provided that all pointers
- *  are valid and length is a non-zero multiple of 4.
+ *  are valid and length is a analn-zero multiple of 4.
  **/
 s32 fm10k_tlv_attr_put_le_struct(u32 *msg, u16 attr_id,
 				 const void *le_struct, u32 len)
@@ -274,7 +274,7 @@ s32 fm10k_tlv_attr_put_le_struct(u32 *msg, u16 attr_id,
 	u32 *attr;
 	u32 i;
 
-	/* verify non-null msg and len is in 32 bit words */
+	/* verify analn-null msg and len is in 32 bit words */
 	if (!msg || !len || (len % 4))
 		return FM10K_ERR_PARAM;
 
@@ -311,7 +311,7 @@ s32 fm10k_tlv_attr_get_le_struct(u32 *attr, void *le_struct, u32 len)
 	__le32 *le32_ptr = (__le32 *)le_struct;
 	u32 i;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are analt NULL */
 	if (!le_struct || !attr)
 		return FM10K_ERR_PARAM;
 
@@ -341,7 +341,7 @@ static u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
 {
 	u32 *attr;
 
-	/* verify pointer is not NULL */
+	/* verify pointer is analt NULL */
 	if (!msg)
 		return NULL;
 
@@ -367,7 +367,7 @@ static s32 fm10k_tlv_attr_nest_stop(u32 *msg)
 	u32 *attr;
 	u32 len;
 
-	/* verify pointer is not NULL */
+	/* verify pointer is analt NULL */
 	if (!msg)
 		return FM10K_ERR_PARAM;
 
@@ -401,7 +401,7 @@ static s32 fm10k_tlv_attr_validate(u32 *attr,
 	u32 attr_id = *attr & FM10K_TLV_ID_MASK;
 	u16 len = *attr >> FM10K_TLV_LEN_SHIFT;
 
-	/* verify this is an attribute and not a message */
+	/* verify this is an attribute and analt a message */
 	if (*attr & (FM10K_TLV_FLAGS_MSG << FM10K_TLV_FLAGS_SHIFT))
 		return FM10K_ERR_PARAM;
 
@@ -411,7 +411,7 @@ static s32 fm10k_tlv_attr_validate(u32 *attr,
 
 	/* if didn't find a match then we should exit */
 	if (tlv_attr->id != attr_id)
-		return FM10K_NOT_IMPLEMENTED;
+		return FM10K_ANALT_IMPLEMENTED;
 
 	/* move to start of attribute data */
 	attr++;
@@ -464,9 +464,9 @@ static s32 fm10k_tlv_attr_validate(u32 *attr,
  *  This function validates a stream of attributes and parses them
  *  up into an array of pointers stored in results.  The function will
  *  return FM10K_ERR_PARAM on any input or message error,
- *  FM10K_NOT_IMPLEMENTED for any attribute that is outside of the array
- *  and 0 on success. Any attributes not found in tlv_attr will be silently
- *  ignored.
+ *  FM10K_ANALT_IMPLEMENTED for any attribute that is outside of the array
+ *  and 0 on success. Any attributes analt found in tlv_attr will be silently
+ *  iganalred.
  **/
 static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 				const struct fm10k_tlv_attr *tlv_attr)
@@ -475,7 +475,7 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 	s32 err;
 	u16 len;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are analt NULL */
 	if (!attr || !results)
 		return FM10K_ERR_PARAM;
 
@@ -486,11 +486,11 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 	/* pull length from the message header */
 	len = *attr >> FM10K_TLV_LEN_SHIFT;
 
-	/* no attributes to parse if there is no length */
+	/* anal attributes to parse if there is anal length */
 	if (!len)
 		return 0;
 
-	/* no attributes to parse, just raw data, message becomes attribute */
+	/* anal attributes to parse, just raw data, message becomes attribute */
 	if (!tlv_attr) {
 		results[0] = attr;
 		return 0;
@@ -504,11 +504,11 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 		attr_id = *attr & FM10K_TLV_ID_MASK;
 
 		if (attr_id >= FM10K_TLV_RESULTS_MAX)
-			return FM10K_NOT_IMPLEMENTED;
+			return FM10K_ANALT_IMPLEMENTED;
 
 		err = fm10k_tlv_attr_validate(attr, tlv_attr);
-		if (err == FM10K_NOT_IMPLEMENTED)
-			; /* silently ignore non-implemented attributes */
+		if (err == FM10K_ANALT_IMPLEMENTED)
+			; /* silently iganalre analn-implemented attributes */
 		else if (err)
 			return err;
 		else
@@ -539,7 +539,7 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
  *  message.  The handler will identify the message type and call the correct
  *  handler for the given message.  It will return the value from the function
  *  call on a recognized message type, otherwise it will return
- *  FM10K_NOT_IMPLEMENTED on an unrecognized type.
+ *  FM10K_ANALT_IMPLEMENTED on an unrecognized type.
  **/
 s32 fm10k_tlv_msg_parse(struct fm10k_hw *hw, u32 *msg,
 			struct fm10k_mbx_info *mbx,
@@ -549,11 +549,11 @@ s32 fm10k_tlv_msg_parse(struct fm10k_hw *hw, u32 *msg,
 	u32 msg_id;
 	s32 err;
 
-	/* verify pointer is not NULL */
+	/* verify pointer is analt NULL */
 	if (!msg || !data)
 		return FM10K_ERR_PARAM;
 
-	/* verify this is a message and not an attribute */
+	/* verify this is a message and analt an attribute */
 	if (!(*msg & (FM10K_TLV_FLAGS_MSG << FM10K_TLV_FLAGS_SHIFT)))
 		return FM10K_ERR_PARAM;
 
@@ -591,7 +591,7 @@ s32 fm10k_tlv_msg_error(struct fm10k_hw __always_unused *hw,
 			u32 __always_unused **results,
 			struct fm10k_mbx_info __always_unused *mbx)
 {
-	return FM10K_NOT_IMPLEMENTED;
+	return FM10K_ANALT_IMPLEMENTED;
 }
 
 static const unsigned char test_str[] =	"fm10k";
@@ -610,7 +610,7 @@ static const __le32 test_le[2] = { cpu_to_le32(0x12345678),
 				   cpu_to_le32(0x9abcdef0)};
 
 /* The message below is meant to be used as a test message to demonstrate
- * how to use the TLV interface and to test the types.  Normally this code
+ * how to use the TLV interface and to test the types.  Analrmally this code
  * be compiled out by stripping the code wrapped in FM10K_TLV_TEST_MSG
  */
 const struct fm10k_tlv_attr fm10k_tlv_msg_test_attr[] = {

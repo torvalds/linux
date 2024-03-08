@@ -51,7 +51,7 @@
 #define GATE_SCLK(_id, cname, pname, o, b) \
 		GATE(_id, cname, pname, o, b, CLK_SET_RATE_PARENT, 0)
 #define GATE_ON(_id, cname, pname, o, b) \
-		GATE(_id, cname, pname, o, b, CLK_IGNORE_UNUSED, 0)
+		GATE(_id, cname, pname, o, b, CLK_IGANALRE_UNUSED, 0)
 
 static void __iomem *reg_base;
 static bool is_s3c6400;
@@ -86,9 +86,9 @@ static unsigned long s3c6410_clk_regs[] __initdata = {
 PNAME(spi_mmc_p)	= { "mout_epll", "dout_mpll", "fin_pll", "clk27m" };
 PNAME(uart_p)		= { "mout_epll", "dout_mpll" };
 PNAME(audio0_p)		= { "mout_epll", "dout_mpll", "fin_pll", "iiscdclk0",
-				"pcmcdclk0", "none", "none", "none" };
+				"pcmcdclk0", "analne", "analne", "analne" };
 PNAME(audio1_p)		= { "mout_epll", "dout_mpll", "fin_pll", "iiscdclk1",
-				"pcmcdclk0", "none", "none", "none" };
+				"pcmcdclk0", "analne", "analne", "analne" };
 PNAME(mfc_p)		= { "hclkx2", "mout_epll" };
 PNAME(apll_p)		= { "fin_pll", "fout_apll" };
 PNAME(mpll_p)		= { "fin_pll", "fout_mpll" };
@@ -96,17 +96,17 @@ PNAME(epll_p)		= { "fin_pll", "fout_epll" };
 PNAME(hclkx2_p)		= { "mout_mpll", "mout_apll" };
 
 /* S3C6400-specific parent clocks. */
-PNAME(scaler_lcd_p6400)	= { "mout_epll", "dout_mpll", "none", "none" };
-PNAME(irda_p6400)	= { "mout_epll", "dout_mpll", "none", "clk48m" };
-PNAME(uhost_p6400)	= { "clk48m", "mout_epll", "dout_mpll", "none" };
+PNAME(scaler_lcd_p6400)	= { "mout_epll", "dout_mpll", "analne", "analne" };
+PNAME(irda_p6400)	= { "mout_epll", "dout_mpll", "analne", "clk48m" };
+PNAME(uhost_p6400)	= { "clk48m", "mout_epll", "dout_mpll", "analne" };
 
 /* S3C6410-specific parent clocks. */
 PNAME(clk27_p6410)	= { "clk27m", "fin_pll" };
-PNAME(scaler_lcd_p6410)	= { "mout_epll", "dout_mpll", "fin_pll", "none" };
+PNAME(scaler_lcd_p6410)	= { "mout_epll", "dout_mpll", "fin_pll", "analne" };
 PNAME(irda_p6410)	= { "mout_epll", "dout_mpll", "fin_pll", "clk48m" };
 PNAME(uhost_p6410)	= { "clk48m", "mout_epll", "dout_mpll", "fin_pll" };
 PNAME(audio2_p6410)	= { "mout_epll", "dout_mpll", "fin_pll", "iiscdclk2",
-				"pcmcdclk1", "none", "none", "none" };
+				"pcmcdclk1", "analne", "analne", "analne" };
 
 /* Fixed rate clocks generated outside the SoC. */
 FIXED_RATE_CLOCKS(s3c64xx_fixed_rate_ext_clks) __initdata = {
@@ -365,7 +365,7 @@ static struct samsung_clock_alias s3c64xx_clock_aliases[] = {
 
 /* Aliases for s3c6400-specific clocks. */
 static struct samsung_clock_alias s3c6400_clock_aliases[] = {
-	/* Nothing to place here yet. */
+	/* Analthing to place here yet. */
 };
 
 /* Aliases for s3c6410-specific clocks. */
@@ -389,7 +389,7 @@ static void __init s3c64xx_clk_register_fixed_ext(
 }
 
 /* Register s3c64xx clocks. */
-void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
+void __init s3c64xx_clk_init(struct device_analde *np, unsigned long xtal_f,
 			     unsigned long xusbxti_f, bool s3c6400,
 			     void __iomem *base)
 {
@@ -467,13 +467,13 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 		clk_hw_get_rate(hws[ARMCLK]));
 }
 
-static void __init s3c6400_clk_init(struct device_node *np)
+static void __init s3c6400_clk_init(struct device_analde *np)
 {
 	s3c64xx_clk_init(np, 0, 0, true, NULL);
 }
 CLK_OF_DECLARE(s3c6400_clk, "samsung,s3c6400-clock", s3c6400_clk_init);
 
-static void __init s3c6410_clk_init(struct device_node *np)
+static void __init s3c6410_clk_init(struct device_analde *np)
 {
 	s3c64xx_clk_init(np, 0, 0, false, NULL);
 }

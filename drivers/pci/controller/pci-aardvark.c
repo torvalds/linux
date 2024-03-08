@@ -53,7 +53,7 @@
 #define   PIO_COMPLETION_STATUS_UR		1
 #define   PIO_COMPLETION_STATUS_CRS		2
 #define   PIO_COMPLETION_STATUS_CA		4
-#define   PIO_NON_POSTED_REQ			BIT(10)
+#define   PIO_ANALN_POSTED_REQ			BIT(10)
 #define   PIO_ERR_STATUS			BIT(11)
 #define PIO_ADDR_LS				(PIO_BASE_ADDR + 0x8)
 #define PIO_ADDR_MS				(PIO_BASE_ADDR + 0xc)
@@ -151,7 +151,7 @@
 #define     OB_WIN_ATTR_TC_MASK			GENMASK(10, 8)
 #define     OB_WIN_ATTR_TC_SHIFT		8
 #define     OB_WIN_ATTR_RELAXED			BIT(7)
-#define     OB_WIN_ATTR_NOSNOOP			BIT(6)
+#define     OB_WIN_ATTR_ANALSANALOP			BIT(6)
 #define     OB_WIN_ATTR_POISON			BIT(5)
 #define     OB_WIN_ATTR_IDO			BIT(4)
 #define     OB_WIN_TYPE_MASK			GENMASK(3, 0)
@@ -312,7 +312,7 @@ static u8 advk_pcie_ltssm_state(struct advk_pcie *pcie)
 
 static inline bool advk_pcie_link_up(struct advk_pcie *pcie)
 {
-	/* check if LTSSM is in normal operation - some L* state */
+	/* check if LTSSM is in analrmal operation - some L* state */
 	u8 ltssm_state = advk_pcie_ltssm_state(pcie);
 	return ltssm_state >= LTSSM_L0 && ltssm_state < LTSSM_DISABLED;
 }
@@ -349,7 +349,7 @@ static int advk_pcie_wait_for_link(struct advk_pcie *pcie)
 {
 	int retries;
 
-	/* check if the link is up or not */
+	/* check if the link is up or analt */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (advk_pcie_link_up(pcie))
 			return 0;
@@ -424,8 +424,8 @@ static void advk_pcie_train_link(struct advk_pcie *pcie)
 	advk_writel(pcie, reg, PCIE_CORE_CTRL0_REG);
 
 	/*
-	 * Reset PCIe card via PERST# signal. Some cards are not detected
-	 * during link training when they are in some non-initial state.
+	 * Reset PCIe card via PERST# signal. Some cards are analt detected
+	 * during link training when they are in some analn-initial state.
 	 */
 	advk_pcie_issue_perst(pcie);
 
@@ -518,8 +518,8 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 	 * Change Class Code of PCI Bridge device to PCI Bridge (0x600400),
 	 * because the default value is Mass storage controller (0x010400).
 	 *
-	 * Note that this Aardvark PCI Bridge does not have compliant Type 1
-	 * Configuration Space and it even cannot be accessed via Aardvark's
+	 * Analte that this Aardvark PCI Bridge does analt have compliant Type 1
+	 * Configuration Space and it even cananalt be accessed via Aardvark's
 	 * PCI config space access method. Something like config space is
 	 * available in internal Aardvark registers starting at offset 0x0
 	 * and is reported as Type 0. In range 0x10 - 0x34 it has totally
@@ -531,7 +531,7 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 	 */
 	reg = advk_readl(pcie, PCIE_CORE_DEV_REV_REG);
 	reg &= ~0xffffff00;
-	reg |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
+	reg |= PCI_CLASS_BRIDGE_PCI_ANALRMAL << 8;
 	advk_writel(pcie, reg, PCIE_CORE_DEV_REV_REG);
 
 	/* Disable Root Bridge I/O space, memory space and bus mastering */
@@ -549,7 +549,7 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 	/* Set PCIe Device Control register */
 	reg = advk_readl(pcie, PCIE_CORE_PCIEXP_CAP + PCI_EXP_DEVCTL);
 	reg &= ~PCI_EXP_DEVCTL_RELAX_EN;
-	reg &= ~PCI_EXP_DEVCTL_NOSNOOP_EN;
+	reg &= ~PCI_EXP_DEVCTL_ANALSANALOP_EN;
 	reg &= ~PCI_EXP_DEVCTL_PAYLOAD;
 	reg &= ~PCI_EXP_DEVCTL_READRQ;
 	reg |= PCI_EXP_DEVCTL_PAYLOAD_512B;
@@ -608,7 +608,7 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 	 * configurations (Default User Field: 0xD0074CFC)
 	 * are used to transparent address translation for
 	 * the outbound transactions. Thus, PCIe address
-	 * windows are not required for transparent memory
+	 * windows are analt required for transparent memory
 	 * access when default outbound window configuration
 	 * is set for memory access.
 	 */
@@ -618,7 +618,7 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 
 	/*
 	 * Set memory access in Default User Field so it
-	 * is not required to configure PCIe address for
+	 * is analt required to configure PCIe address for
 	 * transparent memory access.
 	 */
 	advk_writel(pcie, OB_WIN_TYPE_MEM, OB_WIN_DEFAULT_ACTIONS);
@@ -627,15 +627,15 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 	 * Bypass the address window mapping for PIO:
 	 * Since PIO access already contains all required
 	 * info over AXI interface by PIO registers, the
-	 * address window is not required.
+	 * address window is analt required.
 	 */
 	reg = advk_readl(pcie, PIO_CTRL);
 	reg |= PIO_CTRL_ADDR_WIN_DISABLE;
 	advk_writel(pcie, reg, PIO_CTRL);
 
 	/*
-	 * Configure PCIe address windows for non-memory or
-	 * non-transparent access as by default PCIe uses
+	 * Configure PCIe address windows for analn-memory or
+	 * analn-transparent access as by default PCIe uses
 	 * transparent memory access.
 	 */
 	for (i = 0; i < pcie->wins_count; i++)
@@ -666,7 +666,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 	 * According to HW spec, the PIO status check sequence as below:
 	 * 1) even if COMPLETION_STATUS(bit9:7) indicates successful,
 	 *    it still needs to check Error Status(bit11), only when this bit
-	 *    indicates no error happen, the operation is successful.
+	 *    indicates anal error happen, the operation is successful.
 	 * 2) value Unsupported Request(1) of COMPLETION_STATUS(bit9:7) only
 	 *    means a PIO write error, and for PIO read it is successful with
 	 *    a read value of 0xFFFFFFFF.
@@ -675,7 +675,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 	 *    with a read value of 0xFFFF0001.
 	 * 4) value Completer Abort (CA) of COMPLETION_STATUS(bit9:7) means
 	 *    error for both PIO read and PIO write operation.
-	 * 5) other errors are indicated as 'unknown'.
+	 * 5) other errors are indicated as 'unkanalwn'.
 	 */
 	switch (status) {
 	case PIO_COMPLETION_STATUS_OK:
@@ -687,13 +687,13 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 		/* Get the read result */
 		if (val)
 			*val = advk_readl(pcie, PIO_RD_DATA);
-		/* No error */
+		/* Anal error */
 		strcomp_status = NULL;
 		ret = 0;
 		break;
 	case PIO_COMPLETION_STATUS_UR:
 		strcomp_status = "UR";
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	case PIO_COMPLETION_STATUS_CRS:
 		if (allow_crs && val) {
@@ -707,7 +707,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 			 * all '1's for any additional bytes included in the
 			 * request.
 			 *
-			 * So CRS in this case is not an error status.
+			 * So CRS in this case is analt an error status.
 			 */
 			*val = CFG_RD_CRS_VAL;
 			strcomp_status = NULL;
@@ -715,7 +715,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 			break;
 		}
 		/* PCIe r4.0, sec 2.3.2, says:
-		 * If CRS Software Visibility is not enabled, the Root Complex
+		 * If CRS Software Visibility is analt enabled, the Root Complex
 		 * must re-issue the Configuration Request as a new Request.
 		 * If CRS Software Visibility is enabled: For a Configuration
 		 * Write Request or for any other Configuration Read Request,
@@ -738,7 +738,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 		ret = -ECANCELED;
 		break;
 	default:
-		strcomp_status = "Unknown";
+		strcomp_status = "Unkanalwn";
 		ret = -EINVAL;
 		break;
 	}
@@ -746,8 +746,8 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 	if (!strcomp_status)
 		return ret;
 
-	if (reg & PIO_NON_POSTED_REQ)
-		str_posted = "Non-posted";
+	if (reg & PIO_ANALN_POSTED_REQ)
+		str_posted = "Analn-posted";
 	else
 		str_posted = "Posted";
 
@@ -808,7 +808,7 @@ advk_pci_bridge_emul_base_conf_read(struct pci_bridge_emul *bridge,
 	}
 
 	default:
-		return PCI_BRIDGE_EMUL_NOT_HANDLED;
+		return PCI_BRIDGE_EMUL_ANALT_HANDLED;
 	}
 }
 
@@ -862,7 +862,7 @@ advk_pci_bridge_emul_pcie_conf_read(struct pci_bridge_emul *bridge,
 	switch (reg) {
 	/*
 	 * PCI_EXP_SLTCAP, PCI_EXP_SLTCTL, PCI_EXP_RTCTL and PCI_EXP_RTSTA are
-	 * also supported, but do not need to be handled here, because their
+	 * also supported, but do analt need to be handled here, because their
 	 * values are stored in emulated config space buffer, and we read them
 	 * from there when needed.
 	 */
@@ -901,7 +901,7 @@ advk_pci_bridge_emul_pcie_conf_read(struct pci_bridge_emul *bridge,
 		return PCI_BRIDGE_EMUL_HANDLED;
 
 	default:
-		return PCI_BRIDGE_EMUL_NOT_HANDLED;
+		return PCI_BRIDGE_EMUL_ANALT_HANDLED;
 	}
 
 }
@@ -928,7 +928,7 @@ advk_pci_bridge_emul_pcie_conf_write(struct pci_bridge_emul *bridge,
 	}
 
 	/*
-	 * PCI_EXP_RTSTA is also supported, but does not need to be handled
+	 * PCI_EXP_RTSTA is also supported, but does analt need to be handled
 	 * here, because its value is stored in emulated config space buffer,
 	 * and we write it there when needed.
 	 */
@@ -956,7 +956,7 @@ advk_pci_bridge_emul_ext_conf_read(struct pci_bridge_emul *bridge,
 
 		/*
 		 * PCI_EXT_CAP_NEXT bits are set to offset 0x150, but Armada
-		 * 3700 Functional Specification does not document registers
+		 * 3700 Functional Specification does analt document registers
 		 * at those addresses.
 		 *
 		 * Thus we clear PCI_EXT_CAP_NEXT bits to make Advanced Error
@@ -984,7 +984,7 @@ advk_pci_bridge_emul_ext_conf_read(struct pci_bridge_emul *bridge,
 		return PCI_BRIDGE_EMUL_HANDLED;
 
 	default:
-		return PCI_BRIDGE_EMUL_NOT_HANDLED;
+		return PCI_BRIDGE_EMUL_ANALT_HANDLED;
 	}
 }
 
@@ -1062,14 +1062,14 @@ static int advk_sw_pci_bridge_init(struct advk_pcie *pcie)
 	bridge->pcie_conf.cap = cpu_to_le16(2 | PCI_EXP_FLAGS_SLOT);
 
 	/*
-	 * Set Presence Detect State bit permanently since there is no support
-	 * for unplugging the card nor detecting whether it is plugged. (If a
+	 * Set Presence Detect State bit permanently since there is anal support
+	 * for unplugging the card analr detecting whether it is plugged. (If a
 	 * platform exists in the future that supports it, via a GPIO for
 	 * example, it should be implemented via this bit.)
 	 *
 	 * Set physical slot number to 1 since there is only one port and zero
 	 * value is reserved for ports within the same silicon as Root Port
-	 * which is not our case.
+	 * which is analt our case.
 	 */
 	bridge->pcie_conf.slotcap = cpu_to_le32(FIELD_PREP(PCI_EXP_SLTCAP_PSN,
 							   1));
@@ -1097,7 +1097,7 @@ static bool advk_pcie_valid_device(struct advk_pcie *pcie, struct pci_bus *bus,
 	/*
 	 * If the link goes down after we check for link-up, we have a problem:
 	 * if a PIO request is executed while link-down, the whole controller
-	 * gets stuck in a non-functional state, and even after link comes up
+	 * gets stuck in a analn-functional state, and even after link comes up
 	 * again, PIO requests won't work anymore, and a reset of the whole PCIe
 	 * controller is needed. Therefore we need to prevent sending PIO
 	 * requests while the link is down.
@@ -1113,17 +1113,17 @@ static bool advk_pcie_pio_is_running(struct advk_pcie *pcie)
 	struct device *dev = &pcie->pdev->dev;
 
 	/*
-	 * Trying to start a new PIO transfer when previous has not completed
+	 * Trying to start a new PIO transfer when previous has analt completed
 	 * cause External Abort on CPU which results in kernel panic:
 	 *
 	 *     SError Interrupt on CPU0, code 0xbf000002 -- SError
-	 *     Kernel panic - not syncing: Asynchronous SError Interrupt
+	 *     Kernel panic - analt syncing: Asynchroanalus SError Interrupt
 	 *
 	 * Functions advk_pcie_rd_conf() and advk_pcie_wr_conf() are protected
 	 * by raw_spin_lock_irqsave() at pci_lock_config() level to prevent
 	 * concurrent calls at the same time. But because PIO transfer may take
 	 * about 1.5s when link is down or card is disconnected, it means that
-	 * advk_pcie_wait_pio() does not always have to wait for completion.
+	 * advk_pcie_wait_pio() does analt always have to wait for completion.
 	 *
 	 * Some versions of ARM Trusted Firmware handles this External Abort at
 	 * EL3 level and mask it to prevent kernel panic. Relevant TF-A commit:
@@ -1147,7 +1147,7 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 	int ret;
 
 	if (!advk_pcie_valid_device(pcie, bus, devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (pci_is_root_bus(bus))
 		return pci_bridge_emul_conf_read(&pcie->bridge, where,
@@ -1234,7 +1234,7 @@ static int advk_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	int ret;
 
 	if (!advk_pcie_valid_device(pcie, bus, devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (pci_is_root_bus(bus))
 		return pci_bridge_emul_conf_write(&pcie->bridge, where,
@@ -1371,7 +1371,7 @@ static int advk_msi_irq_domain_alloc(struct irq_domain *domain,
 					order_base_2(nr_irqs));
 	mutex_unlock(&pcie->msi_used_lock);
 	if (hwirq < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_set_info(domain, virq + i, hwirq + i,
@@ -1467,15 +1467,15 @@ static int advk_pcie_init_msi_irq_domain(struct advk_pcie *pcie)
 		irq_domain_add_linear(NULL, MSI_IRQ_NUM,
 				      &advk_msi_domain_ops, pcie);
 	if (!pcie->msi_inner_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie->msi_domain =
-		pci_msi_create_irq_domain(dev_fwnode(dev),
+		pci_msi_create_irq_domain(dev_fwanalde(dev),
 					  &advk_msi_domain_info,
 					  pcie->msi_inner_domain);
 	if (!pcie->msi_domain) {
 		irq_domain_remove(pcie->msi_inner_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1490,17 +1490,17 @@ static void advk_pcie_remove_msi_irq_domain(struct advk_pcie *pcie)
 static int advk_pcie_init_irq_domain(struct advk_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *pcie_intc_analde;
 	struct irq_chip *irq_chip;
 	int ret = 0;
 
 	raw_spin_lock_init(&pcie->irq_lock);
 
-	pcie_intc_node =  of_get_next_child(node, NULL);
-	if (!pcie_intc_node) {
-		dev_err(dev, "No PCIe Intc node found\n");
-		return -ENODEV;
+	pcie_intc_analde =  of_get_next_child(analde, NULL);
+	if (!pcie_intc_analde) {
+		dev_err(dev, "Anal PCIe Intc analde found\n");
+		return -EANALDEV;
 	}
 
 	irq_chip = &pcie->irq_chip;
@@ -1508,24 +1508,24 @@ static int advk_pcie_init_irq_domain(struct advk_pcie *pcie)
 	irq_chip->name = devm_kasprintf(dev, GFP_KERNEL, "%s-irq",
 					dev_name(dev));
 	if (!irq_chip->name) {
-		ret = -ENOMEM;
-		goto out_put_node;
+		ret = -EANALMEM;
+		goto out_put_analde;
 	}
 
 	irq_chip->irq_mask = advk_pcie_irq_mask;
 	irq_chip->irq_unmask = advk_pcie_irq_unmask;
 
 	pcie->irq_domain =
-		irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+		irq_domain_add_linear(pcie_intc_analde, PCI_NUM_INTX,
 				      &advk_pcie_irq_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
-		ret = -ENOMEM;
-		goto out_put_node;
+		ret = -EANALMEM;
+		goto out_put_analde;
 	}
 
-out_put_node:
-	of_node_put(pcie_intc_node);
+out_put_analde:
+	of_analde_put(pcie_intc_analde);
 	return ret;
 }
 
@@ -1561,7 +1561,7 @@ static int advk_pcie_init_rp_irq_domain(struct advk_pcie *pcie)
 						    pcie);
 	if (!pcie->rp_irq_domain) {
 		dev_err(&pcie->pdev->dev, "Failed to add Root Port IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1580,8 +1580,8 @@ static void advk_pcie_handle_pme(struct advk_pcie *pcie)
 
 	/*
 	 * PCIE_MSG_LOG_REG contains the last inbound message, so store
-	 * the requester ID only when PME was not asserted yet.
-	 * Also do not trigger PME interrupt when PME is still asserted.
+	 * the requester ID only when PME was analt asserted yet.
+	 * Also do analt trigger PME interrupt when PME is still asserted.
 	 */
 	if (!(le32_to_cpu(pcie->bridge.pcie_conf.rootsta) & PCI_EXP_RTSTA_PME)) {
 		pcie->bridge.pcie_conf.rootsta = cpu_to_le32(requester | PCI_EXP_RTSTA_PME);
@@ -1633,7 +1633,7 @@ static void advk_pcie_handle_int(struct advk_pcie *pcie)
 	isr1_mask = advk_readl(pcie, PCIE_ISR1_MASK_REG);
 	isr1_status = isr1_val & ((~isr1_mask) & PCIE_ISR1_ALL_MASK);
 
-	/* Process PME interrupt as the first one to do not miss PME requester id */
+	/* Process PME interrupt as the first one to do analt miss PME requester id */
 	if (isr0_status & PCIE_MSG_PM_PME_MASK)
 		advk_pcie_handle_pme(pcie);
 
@@ -1674,7 +1674,7 @@ static irqreturn_t advk_pcie_irq_handler(int irq, void *arg)
 
 	status = advk_readl(pcie, HOST_CTRL_INT_STATUS_REG);
 	if (!(status & PCIE_IRQ_CORE_INT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	advk_pcie_handle_int(pcie);
 
@@ -1734,10 +1734,10 @@ static int advk_pcie_enable_phy(struct advk_pcie *pcie)
 static int advk_pcie_setup_phy(struct advk_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	int ret = 0;
 
-	pcie->phy = devm_of_phy_get(dev, node, NULL);
+	pcie->phy = devm_of_phy_get(dev, analde, NULL);
 	if (IS_ERR(pcie->phy) && (PTR_ERR(pcie->phy) == -EPROBE_DEFER))
 		return PTR_ERR(pcie->phy);
 
@@ -1765,7 +1765,7 @@ static int advk_pcie_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(struct advk_pcie));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = pci_host_bridge_priv(bridge);
 	pcie->pdev = pdev;
@@ -1781,7 +1781,7 @@ static int advk_pcie_probe(struct platform_device *pdev)
 		 * Aardvark hardware allows to configure also PCIe window
 		 * for config type 0 and type 1 mapping, but driver uses
 		 * only PIO for issuing configuration transfers which does
-		 * not use PCIe window configuration.
+		 * analt use PCIe window configuration.
 		 */
 		if (type != IORESOURCE_MEM && type != IORESOURCE_IO)
 			continue;
@@ -1789,7 +1789,7 @@ static int advk_pcie_probe(struct platform_device *pdev)
 		/*
 		 * Skip transparent memory resources. Default outbound access
 		 * configuration is set to transparent memory access so it
-		 * does not need window configuration.
+		 * does analt need window configuration.
 		 */
 		if (type == IORESOURCE_MEM && entry->offset == 0)
 			continue;
@@ -1852,7 +1852,7 @@ static int advk_pcie_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_irq(dev, irq, advk_pcie_irq_handler,
-			       IRQF_SHARED | IRQF_NO_THREAD, "advk-pcie",
+			       IRQF_SHARED | IRQF_ANAL_THREAD, "advk-pcie",
 			       pcie);
 	if (ret) {
 		dev_err(dev, "Failed to register interrupt\n");
@@ -1873,7 +1873,7 @@ static int advk_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_pci_get_max_link_speed(dev->of_node);
+	ret = of_pci_get_max_link_speed(dev->of_analde);
 	if (ret <= 0 || ret > 3)
 		pcie->link_gen = 3;
 	else

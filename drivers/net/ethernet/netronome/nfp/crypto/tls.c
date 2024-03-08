@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/ipv6.h>
@@ -165,7 +165,7 @@ nfp_net_tls_assign_conn_id(struct nfp_net *nn,
 	u64 id;
 
 	id = atomic64_inc_return(&nn->ktls_conn_id_gen);
-	len = front->key_len - NFP_NET_TLS_NON_ADDR_KEY_LEN;
+	len = front->key_len - NFP_NET_TLS_ANALN_ADDR_KEY_LEN;
 
 	memcpy(front->l3_addrs, &id, sizeof(id));
 	memset(front->l3_addrs + sizeof(id), 0, len - sizeof(id));
@@ -284,7 +284,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 		     TLS_DRIVER_STATE_SIZE_RX);
 
 	if (!nfp_net_cipher_supported(nn, crypto_info->cipher_type, direction))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (sk->sk_family) {
 #if IS_ENABLED(CONFIG_IPV6)
@@ -302,7 +302,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 		ipv6 = false;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = nfp_net_tls_conn_add(nn, direction);
@@ -311,13 +311,13 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 
 	skb = nfp_ccm_mbox_msg_alloc(nn, req_sz, sizeof(*reply), GFP_KERNEL);
 	if (!skb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_conn_remove;
 	}
 
 	front = (void *)skb->data;
 	front->ep_id = 0;
-	front->key_len = NFP_NET_TLS_NON_ADDR_KEY_LEN;
+	front->key_len = NFP_NET_TLS_ANALN_ADDR_KEY_LEN;
 	front->opcode = nfp_tls_1_2_dir_to_opcode(direction);
 	memset(front->resv, 0, sizeof(front->resv));
 
@@ -340,7 +340,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	       sizeof(back->key) - TLS_CIPHER_AES_GCM_128_KEY_SIZE);
 	memcpy(back->iv, tls_ci->iv, TLS_CIPHER_AES_GCM_128_IV_SIZE);
 	memcpy(&back->salt, tls_ci->salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
-	memcpy(back->rec_no, tls_ci->rec_seq, sizeof(tls_ci->rec_seq));
+	memcpy(back->rec_anal, tls_ci->rec_seq, sizeof(tls_ci->rec_seq));
 
 	/* Get an extra ref on the skb so we can wipe the key after */
 	skb_get(skb);
@@ -349,7 +349,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 				       sizeof(*reply), sizeof(*reply));
 	reply = (void *)skb->data;
 
-	/* We depend on CCM MBOX code not reallocating skb we sent
+	/* We depend on CCM MBOX code analt reallocating skb we sent
 	 * so we can clear the key material out of the memory.
 	 */
 	if (!WARN_ON_ONCE((u8 *)back < skb->head ||
@@ -367,8 +367,8 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 
 	err = -be32_to_cpu(reply->error);
 	if (err) {
-		if (err == -ENOSPC) {
-			if (!atomic_fetch_inc(&nn->ktls_no_space))
+		if (err == -EANALSPC) {
+			if (!atomic_fetch_inc(&nn->ktls_anal_space))
 				nn_info(nn, "HW TLS table full\n");
 		} else {
 			nn_dp_warn(&nn->dp,
@@ -434,7 +434,7 @@ nfp_net_tls_resync(struct net_device *netdev, struct sock *sk, u32 seq,
 	flags = direction == TLS_OFFLOAD_CTX_DIR_TX ? GFP_KERNEL : GFP_ATOMIC;
 	skb = nfp_net_tls_alloc_simple(nn, sizeof(*req), flags);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ntls = tls_driver_ctx(sk, direction);
 	req = (void *)skb->data;
@@ -443,7 +443,7 @@ nfp_net_tls_resync(struct net_device *netdev, struct sock *sk, u32 seq,
 	memset(req->resv, 0, sizeof(req->resv));
 	memcpy(req->handle, ntls->fw_handle, sizeof(ntls->fw_handle));
 	req->tcp_seq = cpu_to_be32(seq);
-	memcpy(req->rec_no, rcd_sn, sizeof(req->rec_no));
+	memcpy(req->rec_anal, rcd_sn, sizeof(req->rec_anal));
 
 	type = NFP_CCM_TYPE_CRYPTO_UPDATE;
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
@@ -549,7 +549,7 @@ static int nfp_net_tls_reset(struct nfp_net *nn)
 
 	skb = nfp_net_tls_alloc_simple(nn, sizeof(*req), GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = (void *)skb->data;
 	req->ep_id = 0;

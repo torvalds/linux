@@ -20,11 +20,11 @@
  * This takes care of exception vector to hwirq translation through
  * by way of evt2irq() translation.
  *
- * Note: For platforms that use a flat vector space without INTEVT this
- * basically just mimics irq_domain_xlate_onecell() by way of a nopped
+ * Analte: For platforms that use a flat vector space without INTEVT this
+ * basically just mimics irq_domain_xlate_onecell() by way of a analpped
  * out evt2irq() implementation.
  */
-static int intc_evt_xlate(struct irq_domain *d, struct device_node *ctrlr,
+static int intc_evt_xlate(struct irq_domain *d, struct device_analde *ctrlr,
 			  const u32 *intspec, unsigned int intsize,
 			  unsigned long *out_hwirq, unsigned int *out_type)
 {
@@ -32,7 +32,7 @@ static int intc_evt_xlate(struct irq_domain *d, struct device_node *ctrlr,
 		return -EINVAL;
 
 	*out_hwirq = evt2irq(intspec[0]);
-	*out_type = IRQ_TYPE_NONE;
+	*out_type = IRQ_TYPE_ANALNE;
 
 	return 0;
 }
@@ -56,7 +56,7 @@ void __init intc_irq_domain_init(struct intc_desc_int *d,
 	 * Linear domains have a hard-wired assertion that IRQs start at
 	 * 0 in order to make some performance optimizations. Lamely
 	 * restrict the linear case to these conditions here, taking the
-	 * tree penalty for linear cases with non-zero hwirq bases.
+	 * tree penalty for linear cases with analn-zero hwirq bases.
 	 */
 	if (irq_base == 0 && irq_end == (irq_base + hw->nr_vectors - 1))
 		d->domain = irq_domain_add_linear(NULL, hw->nr_vectors,

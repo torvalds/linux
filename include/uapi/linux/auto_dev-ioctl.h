@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright 2008 Red Hat, Inc. All rights reserved.
  * Copyright 2008 Ian Kent <raven@themaw.net>
@@ -17,7 +17,7 @@
 #define AUTOFS_DEVICE_NAME		"autofs"
 
 #define AUTOFS_DEV_IOCTL_VERSION_MAJOR	1
-#define AUTOFS_DEV_IOCTL_VERSION_MINOR	1
+#define AUTOFS_DEV_IOCTL_VERSION_MIANALR	1
 
 #define AUTOFS_DEV_IOCTL_SIZE		sizeof(struct autofs_dev_ioctl)
 
@@ -88,7 +88,7 @@ struct args_ismountpoint {
 
 struct autofs_dev_ioctl {
 	__u32 ver_major;
-	__u32 ver_minor;
+	__u32 ver_mianalr;
 	__u32 size;		/* total size of data passed in
 				 * including this struct */
 	__s32 ioctlfd;		/* automount command fd */
@@ -116,7 +116,7 @@ static inline void init_autofs_dev_ioctl(struct autofs_dev_ioctl *in)
 {
 	memset(in, 0, AUTOFS_DEV_IOCTL_SIZE);
 	in->ver_major = AUTOFS_DEV_IOCTL_VERSION_MAJOR;
-	in->ver_minor = AUTOFS_DEV_IOCTL_VERSION_MINOR;
+	in->ver_mianalr = AUTOFS_DEV_IOCTL_VERSION_MIANALR;
 	in->size = AUTOFS_DEV_IOCTL_SIZE;
 	in->ioctlfd = -1;
 }

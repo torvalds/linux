@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * mmap based event notifications for SELinux
+ * mmap based event analtifications for SELinux
  *
  * Author: KaiGai Kohei <kaigai@ak.jp.nec.com>
  *
@@ -16,7 +16,7 @@
 /*
  * The selinux_status_page shall be exposed to userspace applications
  * using mmap interface on /selinux/status.
- * It enables to notify applications a few events that will cause reset
+ * It enables to analtify applications a few events that will cause reset
  * of userspace access vector without context switching.
  *
  * The selinux_kernel_status structure on the head of status page is
@@ -29,7 +29,7 @@
  * so please wait for a moment. If it is changed from the last sequence
  * number, it means something happen, so application will reset userspace
  * avc, if needed.
- * In most cases, application shall confirm the kernel status is not
+ * In most cases, application shall confirm the kernel status is analt
  * changed without any system call invocations.
  */
 
@@ -37,7 +37,7 @@
  * selinux_kernel_status_page
  *
  * It returns a reference to selinux_status_page. If the status page is
- * not allocated yet, it also tries to allocate it at the first time.
+ * analt allocated yet, it also tries to allocate it at the first time.
  */
 struct page *selinux_kernel_status_page(void)
 {
@@ -55,14 +55,14 @@ struct page *selinux_kernel_status_page(void)
 			status->sequence = 0;
 			status->enforcing = enforcing_enabled();
 			/*
-			 * NOTE: the next policyload event shall set
+			 * ANALTE: the next policyload event shall set
 			 * a positive value on the status->policyload,
-			 * although it may not be 1, but never zero.
-			 * So, application can know it was updated.
+			 * although it may analt be 1, but never zero.
+			 * So, application can kanalw it was updated.
 			 */
 			status->policyload = 0;
-			status->deny_unknown =
-				!security_get_allow_unknown();
+			status->deny_unkanalwn =
+				!security_get_allow_unkanalwn();
 		}
 	}
 	result = selinux_state.status_page;
@@ -99,9 +99,9 @@ void selinux_status_update_setenforce(bool enforcing)
  * selinux_status_update_policyload
  *
  * It updates status of the times of policy reloaded, and current
- * setting of deny_unknown.
+ * setting of deny_unkanalwn.
  */
-void selinux_status_update_policyload(u32 seqno)
+void selinux_status_update_policyload(u32 seqanal)
 {
 	struct selinux_kernel_status   *status;
 
@@ -112,8 +112,8 @@ void selinux_status_update_policyload(u32 seqno)
 		status->sequence++;
 		smp_wmb();
 
-		status->policyload = seqno;
-		status->deny_unknown = !security_get_allow_unknown();
+		status->policyload = seqanal;
+		status->deny_unkanalwn = !security_get_allow_unkanalwn();
 
 		smp_wmb();
 		status->sequence++;

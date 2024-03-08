@@ -124,7 +124,7 @@ static int men_z127_set_config(struct gpio_chip *gc, unsigned offset,
 		break;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int men_z127_probe(struct mcb_device *mdev,
@@ -137,7 +137,7 @@ static int men_z127_probe(struct mcb_device *mdev,
 	men_z127_gpio = devm_kzalloc(dev, sizeof(struct men_z127_gpio),
 				     GFP_KERNEL);
 	if (!men_z127_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	men_z127_gpio->mem = mcb_request_mem(mdev, dev_name(dev));
 	if (IS_ERR(men_z127_gpio->mem)) {

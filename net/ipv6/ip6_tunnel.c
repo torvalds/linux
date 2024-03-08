@@ -17,7 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
 #include <linux/icmp.h>
@@ -297,8 +297,8 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct __ip6_tnl_parm *p)
 	} else {
 		sprintf(name, "ip6tnl%%d");
 	}
-	err = -ENOMEM;
-	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
+	err = -EANALMEM;
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKANALWN,
 			   ip6_tnl_dev_setup);
 	if (!dev)
 		goto failed;
@@ -324,7 +324,7 @@ failed:
  * ip6_tnl_locate - find or create tunnel matching given parameters
  *   @net: network namespace
  *   @p: tunnel parameters
- *   @create: != 0 if allowed to create new tunnel if no match found
+ *   @create: != 0 if allowed to create new tunnel if anal match found
  *
  * Description:
  *   ip6_tnl_locate() first tries to locate an existing tunnel
@@ -357,7 +357,7 @@ static struct ip6_tnl *ip6_tnl_locate(struct net *net,
 		}
 	}
 	if (!create)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	return ip6_tnl_create(net, p);
 }
 
@@ -390,7 +390,7 @@ ip6_tnl_dev_uninit(struct net_device *dev)
  *   @raw: the ICMPv6 error message data
  *
  * Return:
- *   0 if none was found,
+ *   0 if analne was found,
  *   else index to encapsulation limit
  **/
 
@@ -401,7 +401,7 @@ __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw)
 	unsigned int off = nhoff + sizeof(*ipv6h);
 	u8 nexthdr = ipv6h->nexthdr;
 
-	while (ipv6_ext_hdr(nexthdr) && nexthdr != NEXTHDR_NONE) {
+	while (ipv6_ext_hdr(nexthdr) && nexthdr != NEXTHDR_ANALNE) {
 		struct ipv6_opt_hdr *hdr;
 		u16 optlen;
 
@@ -433,7 +433,7 @@ __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw)
 			while (1) {
 				struct ipv6_tlv_tnl_enc_lim *tel;
 
-				/* No more room for encapsulation limit */
+				/* Anal more room for encapsulation limit */
 				if (i + sizeof(*tel) > optlen)
 					break;
 
@@ -469,7 +469,7 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 	u8 rel_code = ICMPV6_ADDR_UNREACH;
 	__u32 rel_info = 0;
 	struct ip6_tnl *t;
-	int err = -ENOENT;
+	int err = -EANALENT;
 	int rel_msg = 0;
 	u8 tproto;
 	__u16 len;
@@ -639,7 +639,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (rel_info > dst_mtu(skb_dst(skb2)))
 			goto out;
 
-		skb_dst_update_pmtu_no_confirm(skb2, rel_info);
+		skb_dst_update_pmtu_anal_confirm(skb2, rel_info);
 	}
 
 	icmp_send(skb2, rel_type, rel_code, htonl(rel_info));
@@ -731,7 +731,7 @@ static inline int mplsip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
 					       const struct ipv6hdr *ipv6h,
 					       struct sk_buff *skb)
 {
-	/* ECN is not supported in AF_MPLS */
+	/* ECN is analt supported in AF_MPLS */
 	return 0;
 }
 
@@ -810,13 +810,13 @@ static int __ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
 
 	if (tunnel->parms.i_flags & TUNNEL_SEQ) {
 		if (!(tpi->flags & TUNNEL_SEQ) ||
-		    (tunnel->i_seqno &&
-		     (s32)(ntohl(tpi->seq) - tunnel->i_seqno) < 0)) {
+		    (tunnel->i_seqanal &&
+		     (s32)(ntohl(tpi->seq) - tunnel->i_seqanal) < 0)) {
 			DEV_STATS_INC(tunnel->dev, rx_fifo_errors);
 			DEV_STATS_INC(tunnel->dev, rx_errors);
 			goto drop;
 		}
-		tunnel->i_seqno = ntohl(tpi->seq) + 1;
+		tunnel->i_seqanal = ntohl(tpi->seq) + 1;
 	}
 
 	skb->protocol = tpi->proto;
@@ -860,7 +860,7 @@ static int __ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
 	err = dscp_ecn_decapsulate(tunnel, ipv6h, skb);
 	if (unlikely(err)) {
 		if (log_ecn_err)
-			net_info_ratelimited("non-ECT from %pI6 with DS=%#x\n",
+			net_info_ratelimited("analn-ECT from %pI6 with DS=%#x\n",
 					     &ipv6h->saddr,
 					     ipv6_get_dsfield(ipv6h));
 		if (err > 1) {
@@ -906,17 +906,17 @@ int ip6_tnl_rcv(struct ip6_tnl *t, struct sk_buff *skb,
 EXPORT_SYMBOL(ip6_tnl_rcv);
 
 static const struct tnl_ptk_info tpi_v6 = {
-	/* no tunnel info required for ipxip6. */
+	/* anal tunnel info required for ipxip6. */
 	.proto = htons(ETH_P_IPV6),
 };
 
 static const struct tnl_ptk_info tpi_v4 = {
-	/* no tunnel info required for ipxip6. */
+	/* anal tunnel info required for ipxip6. */
 	.proto = htons(ETH_P_IP),
 };
 
 static const struct tnl_ptk_info tpi_mpls = {
-	/* no tunnel info required for mplsip6. */
+	/* anal tunnel info required for mplsip6. */
 	.proto = htons(ETH_P_MPLS_UC),
 };
 
@@ -1044,13 +1044,13 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
 
 		if (unlikely(!ipv6_chk_addr_and_flags(net, laddr, ldev, false,
 						      0, IFA_F_TENTATIVE)))
-			pr_warn_ratelimited("%s xmit: Local address not yet configured!\n",
+			pr_warn_ratelimited("%s xmit: Local address analt yet configured!\n",
 					    p->name);
 		else if (!(p->flags & IP6_TNL_F_ALLOW_LOCAL_REMOTE) &&
 			 !ipv6_addr_is_multicast(raddr) &&
 			 unlikely(ipv6_chk_addr_and_flags(net, raddr, ldev,
 							  true, 0, IFA_F_TENTATIVE)))
-			pr_warn_ratelimited("%s xmit: Routing loop! Remote address found on this node!\n",
+			pr_warn_ratelimited("%s xmit: Routing loop! Remote address found on this analde!\n",
 					    p->name);
 		else
 			ret = 1;
@@ -1143,7 +1143,7 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 	} else if (t->parms.proto != 0 && !(t->parms.flags &
 					    (IP6_TNL_F_USE_ORIG_TCLASS |
 					     IP6_TNL_F_USE_ORIG_FWMARK))) {
-		/* enable the cache only if neither the outer protocol nor the
+		/* enable the cache only if neither the outer protocol analr the
 		 * routing decision depends on the current inner header value
 		 */
 		use_cache = true;
@@ -1193,7 +1193,7 @@ route_lookup:
 	mtu = max(mtu, skb->protocol == htons(ETH_P_IPV6) ?
 		       IPV6_MIN_MTU : IPV4_MIN_MTU);
 
-	skb_dst_update_pmtu_no_confirm(skb, mtu);
+	skb_dst_update_pmtu_anal_confirm(skb, mtu);
 	if (skb->len - t->tun_hlen - eth_hlen > mtu && !skb_is_gso(skb)) {
 		*pmtu = mtu;
 		err = -EMSGSIZE;
@@ -1214,7 +1214,7 @@ route_lookup:
 	skb_scrub_packet(skb, !net_eq(t->net, dev_net(dev)));
 
 	/*
-	 * Okay, now see if we can stuff it in the buffer as-is.
+	 * Okay, analw see if we can stuff it in the buffer as-is.
 	 */
 	max_headroom += LL_RESERVED_SPACE(tdev);
 
@@ -1233,7 +1233,7 @@ route_lookup:
 	}
 
 	if (t->parms.collect_md) {
-		if (t->encap.type != TUNNEL_ENCAP_NONE)
+		if (t->encap.type != TUNNEL_ENCAP_ANALNE)
 			goto tx_err_dst_release;
 	} else {
 		if (use_cache && ndst)
@@ -1399,7 +1399,7 @@ ipxip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev,
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
 			   protocol);
 	if (err != 0) {
-		/* XXX: send ICMP error even if DF is not set. */
+		/* XXX: send ICMP error even if DF is analt set. */
 		if (err == -EMSGSIZE)
 			switch (protocol) {
 			case IPPROTO_IPIP:
@@ -1620,7 +1620,7 @@ ip6_tnl_parm_to_user(struct ip6_tnl_parm *u, const struct __ip6_tnl_parm *p)
  *   %-EPERM if current process hasn't %CAP_NET_ADMIN set
  *   %-EINVAL if passed tunnel parameters are invalid,
  *   %-EEXIST if changing a tunnel's parameters would cause a conflict
- *   %-ENODEV if attempting to change or delete a nonexisting device
+ *   %-EANALDEV if attempting to change or delete a analnexisting device
  **/
 
 static int
@@ -1700,7 +1700,7 @@ ip6_tnl_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 			err = -EFAULT;
 			if (copy_from_user(&p, data, sizeof(p)))
 				break;
-			err = -ENOENT;
+			err = -EANALENT;
 			ip6_tnl_parm_from_user(&p1, &p);
 			t = ip6_tnl_locate(net, &p1, 0);
 			if (IS_ERR(t))
@@ -1845,7 +1845,7 @@ static void ip6_tnl_dev_setup(struct net_device *dev)
 	dev->priv_destructor = ip6_dev_free;
 
 	dev->type = ARPHRD_TUNNEL6;
-	dev->flags |= IFF_NOARP;
+	dev->flags |= IFF_ANALARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	dev->features |= NETIF_F_LLTX;
 	netif_keep_dst(dev);
@@ -1875,7 +1875,7 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 	t->net = dev_net(dev);
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dst_cache_init(&t->dst_cache, GFP_KERNEL);
 	if (ret)
@@ -1910,7 +1910,7 @@ free_stats:
 }
 
 /**
- * ip6_tnl_dev_init - initializer for all non fallback tunnel devices
+ * ip6_tnl_dev_init - initializer for all analn fallback tunnel devices
  *   @dev: virtual device associated with tunnel
  **/
 
@@ -2250,16 +2250,16 @@ static int __net_init ip6_tnl_init_net(struct net *net)
 
 	if (!net_has_fallback_tunnels(net))
 		return 0;
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ip6n->fb_tnl_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6tnl0",
-					NET_NAME_UNKNOWN, ip6_tnl_dev_setup);
+					NET_NAME_UNKANALWN, ip6_tnl_dev_setup);
 
 	if (!ip6n->fb_tnl_dev)
 		goto err_alloc_dev;
 	dev_net_set(ip6n->fb_tnl_dev, net);
 	ip6n->fb_tnl_dev->rtnl_link_ops = &ip6_link_ops;
 	/* FB netdevice is special: we have one, and only one per netns.
-	 * Allowing to move it to another netns is clearly unsafe.
+	 * Allowing to move it to aanalther netns is clearly unsafe.
 	 */
 	ip6n->fb_tnl_dev->features |= NETIF_F_NETNS_LOCAL;
 
@@ -2312,7 +2312,7 @@ static int __init ip6_tunnel_init(void)
 	int  err;
 
 	if (!ipv6_mod_enabled())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = register_pernet_device(&ip6_tnl_net_ops);
 	if (err < 0)

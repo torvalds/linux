@@ -60,7 +60,7 @@ static int bpf_mprog_tuple_relative(struct bpf_tuple *tuple,
 	memset(tuple, 0, sizeof(*tuple));
 	if (link)
 		return bpf_mprog_link(tuple, id_or_fd, flags, type);
-	/* If no relevant flag is set and no id_or_fd was passed, then
+	/* If anal relevant flag is set and anal id_or_fd was passed, then
 	 * tuple link/prog is just NULLed. This is the case when before/
 	 * after selects first/last position without passing fd.
 	 */
@@ -172,7 +172,7 @@ static int bpf_mprog_delete(struct bpf_mprog_entry *entry,
  * program/link that needs to be replaced, inserted or deleted for
  * each "rule" independently. If all rules agree on that position
  * or existing element, then enact replacement, addition or deletion.
- * If this is not the case, then the request cannot be satisfied and
+ * If this is analt the case, then the request cananalt be satisfied and
  * we bail out with an error.
  */
 static int bpf_mprog_pos_exact(struct bpf_mprog_entry *entry,
@@ -187,7 +187,7 @@ static int bpf_mprog_pos_exact(struct bpf_mprog_entry *entry,
 		if (tuple->prog == READ_ONCE(fp->prog))
 			return tuple->link == cp->link ? i : -EBUSY;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int bpf_mprog_pos_before(struct bpf_mprog_entry *entry,
@@ -203,7 +203,7 @@ static int bpf_mprog_pos_before(struct bpf_mprog_entry *entry,
 		    (!tuple->link || tuple->link == cp->link))
 			return i - 1;
 	}
-	return tuple->prog ? -ENOENT : -1;
+	return tuple->prog ? -EANALENT : -1;
 }
 
 static int bpf_mprog_pos_after(struct bpf_mprog_entry *entry,
@@ -219,7 +219,7 @@ static int bpf_mprog_pos_after(struct bpf_mprog_entry *entry,
 		    (!tuple->link || tuple->link == cp->link))
 			return i + 1;
 	}
-	return tuple->prog ? -ENOENT : bpf_mprog_total(entry);
+	return tuple->prog ? -EANALENT : bpf_mprog_total(entry);
 }
 
 int bpf_mprog_attach(struct bpf_mprog_entry *entry,
@@ -313,7 +313,7 @@ static int bpf_mprog_fetch(struct bpf_mprog_entry *entry,
 	/* The deletion request can either be without filled tuple in which
 	 * case it gets populated here based on idx, or with filled tuple
 	 * where the only thing we end up doing is the WARN_ON_ONCE() assert.
-	 * If we hit a BPF link at the given index, it must not be removed
+	 * If we hit a BPF link at the given index, it must analt be removed
 	 * from opts path.
 	 */
 	if (link && !tuple->link)
@@ -341,7 +341,7 @@ int bpf_mprog_detach(struct bpf_mprog_entry *entry,
 	if (revision && revision != bpf_mprog_revision(entry))
 		return -ESTALE;
 	if (!bpf_mprog_total(entry))
-		return -ENOENT;
+		return -EANALENT;
 	ret = bpf_mprog_tuple_relative(&rtuple, id_or_fd, flags,
 				       prog ? prog->type :
 				       BPF_PROG_TYPE_UNSPEC);
@@ -425,7 +425,7 @@ int bpf_mprog_query(const union bpf_attr *attr, union bpf_attr __user *uattr,
 		return 0;
 	if (attr->query.count < count) {
 		count = attr->query.count;
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 	}
 	for (i = 0; i < bpf_mprog_max(); i++) {
 		bpf_mprog_read(entry, i, &fp, &cp);

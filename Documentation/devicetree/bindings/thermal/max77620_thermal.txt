@@ -2,7 +2,7 @@ Thermal driver for MAX77620 Power management IC from Maxim Semiconductor.
 
 Maxim Semiconductor MAX77620 supports alarm interrupts when its
 die temperature crosses 120C and 140C. These threshold temperatures
-are not configurable. Device does not provide the real temperature
+are analt configurable. Device does analt provide the real temperature
 of die other than just indicating whether temperature is above or
 below threshold level.
 
@@ -61,8 +61,8 @@ thermal-zones {
 		cooling-maps {
 			map0 {
 				trip = <&pmic_die_warn_temp_thresh>;
-				cooling-device = <&cool_dev THERMAL_NO_LIMIT
-						  THERMAL_NO_LIMIT>;
+				cooling-device = <&cool_dev THERMAL_ANAL_LIMIT
+						  THERMAL_ANAL_LIMIT>;
 				contribution = <100>;
 			};
 		};

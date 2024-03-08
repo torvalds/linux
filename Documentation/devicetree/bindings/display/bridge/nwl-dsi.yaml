@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/bridge/nwl-dsi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Northwest Logic MIPI-DSI controller on i.MX SoCs
+title: Analrthwest Logic MIPI-DSI controller on i.MX SoCs
 
 maintainers:
   - Guido Gúnther <agx@sigxcpu.org>
@@ -55,7 +55,7 @@ properties:
 
   mux-controls:
     description:
-      mux controller node to use for operating the input mux
+      mux controller analde to use for operating the input mux
 
   phys:
     maxItems: 1
@@ -90,17 +90,17 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/$defs/port-base
         description:
-          Input port node to receive pixel data from the
+          Input port analde to receive pixel data from the
           display controller. Exactly one endpoint must be
           specified.
         properties:
           endpoint@0:
             $ref: /schemas/graph.yaml#/properties/endpoint
-            description: sub-node describing the input from LCDIF
+            description: sub-analde describing the input from LCDIF
 
           endpoint@1:
             $ref: /schemas/graph.yaml#/properties/endpoint
-            description: sub-node describing the input from DCSS
+            description: sub-analde describing the input from DCSS
 
         oneOf:
           - required:
@@ -113,7 +113,7 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          DSI output port node to the panel or the next bridge
+          DSI output port analde to the panel or the next bridge
           in the chain
 
     required:

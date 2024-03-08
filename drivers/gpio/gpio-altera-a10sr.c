@@ -84,13 +84,13 @@ static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->regmap = a10sr->regmap;
 
 	gpio->gp = altr_a10sr_gc;
 	gpio->gp.parent = pdev->dev.parent;
-	gpio->gp.fwnode = dev_fwnode(&pdev->dev);
+	gpio->gp.fwanalde = dev_fwanalde(&pdev->dev);
 
 	return devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
 }

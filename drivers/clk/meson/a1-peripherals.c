@@ -748,7 +748,7 @@ static struct clk_regmap fclk_div2_divn = {
 
 /*
  * the index 2 is sys_pll_div16, it will be implemented in the CPU clock driver,
- * the index 4 is the clock measurement source, it's not supported yet
+ * the index 4 is the clock measurement source, it's analt supported yet
  */
 static u32 gen_table[] = { 0, 1, 3, 5, 6, 7, 8 };
 static const struct clk_parent_data gen_parent_data[] = {
@@ -780,7 +780,7 @@ static struct clk_regmap gen_sel = {
 		 * clock, so in certain situations, it may be necessary
 		 * to freeze its parent.
 		 */
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 

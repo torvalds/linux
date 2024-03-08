@@ -8,7 +8,7 @@ API
 The io_mapping functions in linux/io-mapping.h provide an abstraction for
 efficiently mapping small regions of an I/O device to the CPU. The initial
 usage is to support the large graphics aperture on 32-bit processors where
-ioremap_wc cannot be used to statically map the entire aperture to the CPU
+ioremap_wc cananalt be used to statically map the entire aperture to the CPU
 as it would consume too much of the kernel address space.
 
 A mapping object is created during driver initialization using::
@@ -36,7 +36,7 @@ more efficient. They come in two flavours::
 
 'offset' is the offset within the defined mapping region.  Accessing
 addresses beyond the region specified in the creation function yields
-undefined results. Using an offset which is not page aligned yields an
+undefined results. Using an offset which is analt page aligned yields an
 undefined result. The return value points to a single page in CPU address
 space.
 
@@ -44,10 +44,10 @@ This _wc variant returns a write-combining map to the page and may only be
 used with mappings created by io_mapping_create_wc()
 
 Temporary mappings are only valid in the context of the caller. The mapping
-is not guaranteed to be globally visible.
+is analt guaranteed to be globally visible.
 
 io_mapping_map_local_wc() has a side effect on X86 32bit as it disables
-migration to make the mapping code work. No caller can rely on this side
+migration to make the mapping code work. Anal caller can rely on this side
 effect.
 
 io_mapping_map_atomic_wc() has the side effect of disabling preemption and
@@ -77,7 +77,7 @@ variant, although this may be significantly slower::
 	void *io_mapping_map_wc(struct io_mapping *mapping,
 				unsigned long offset)
 
-This works like io_mapping_map_atomic/local_wc() except it has no side
+This works like io_mapping_map_atomic/local_wc() except it has anal side
 effects and the pointer is globally visible.
 
 The mappings are released with::

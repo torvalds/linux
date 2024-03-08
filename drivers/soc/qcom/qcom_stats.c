@@ -190,16 +190,16 @@ static int qcom_stats_probe(struct platform_device *pdev)
 
 	config = device_get_match_data(&pdev->dev);
 	if (!config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(reg))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d = devm_kcalloc(&pdev->dev, config->num_records,
 			 sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < config->num_records; i++)
 		d[i].appended_stats_avail = config->appended_stats_avail;
@@ -211,7 +211,7 @@ static int qcom_stats_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, root);
 
-	device_set_pm_not_required(&pdev->dev);
+	device_set_pm_analt_required(&pdev->dev);
 
 	return 0;
 }
@@ -289,5 +289,5 @@ static void __exit qcom_stats_exit(void)
 }
 module_exit(qcom_stats_exit)
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. (QTI) Stats driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. (QTI) Stats driver");
 MODULE_LICENSE("GPL v2");

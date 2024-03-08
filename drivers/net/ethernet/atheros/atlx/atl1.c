@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
- * Copyright(c) 2006 - 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2006 - 2007 Chris Sanalok <csanalok@redhat.com>
  * Copyright(c) 2006 - 2008 Jay Cliburn <jcliburn@gmail.com>
  *
  * Derived from Intel e1000 driver
@@ -10,7 +10,7 @@
  * Contact Information:
  * Xiong Huang <xiong.huang@atheros.com>
  * Jie Yang <jie.yang@atheros.com>
- * Chris Snook <csnook@redhat.com>
+ * Chris Sanalok <csanalok@redhat.com>
  * Jay Cliburn <jcliburn@gmail.com>
  *
  * This version is adapted from the Attansic reference driver.
@@ -66,7 +66,7 @@
 #include "atl1.h"
 
 MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, "
-	      "Chris Snook <csnook@redhat.com>, "
+	      "Chris Sanalok <csanalok@redhat.com>, "
 	      "Jay Cliburn <jcliburn@gmail.com>");
 MODULE_LICENSE("GPL");
 
@@ -181,7 +181,7 @@ static int atl1_validate_option(int *value, struct atl1_option *opt,
  * @adapter: board private structure
  *
  * This routine checks all command line parameters for valid user
- * input.  If an invalid value is given, or if no user specified
+ * input.  If an invalid value is given, or if anal user specified
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  */
@@ -190,8 +190,8 @@ static void atl1_check_options(struct atl1_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	int bd = adapter->bd_number;
 	if (bd >= ATL1_MAX_NIC) {
-		dev_notice(&pdev->dev, "no configuration for board#%i\n", bd);
-		dev_notice(&pdev->dev, "using defaults for all values\n");
+		dev_analtice(&pdev->dev, "anal configuration for board#%i\n", bd);
+		dev_analtice(&pdev->dev, "using defaults for all values\n");
 	}
 	{			/* Interrupt Moderate Timer */
 		struct atl1_option opt = {
@@ -228,7 +228,7 @@ static const u32 atl1_default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 
 static int debug = -1;
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Message level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Message level (0=analne,...,16=all)");
 
 /*
  * Reset the transmit and receive units; mask and clear all interrupts.
@@ -253,7 +253,7 @@ static s32 atl1_reset_hw(struct atl1_hw *hw)
 
 	/*
 	 * Issue Soft Reset to the MAC.  This will reset the chip's
-	 * transmit, receive, DMA.  It will not effect
+	 * transmit, receive, DMA.  It will analt effect
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
@@ -310,7 +310,7 @@ static bool atl1_read_eeprom(struct atl1_hw *hw, u32 offset, u32 *p_value)
 	u32 control;
 
 	if (offset & 3)
-		/* address do not align */
+		/* address do analt align */
 		return false;
 
 	iowrite32(0, hw->hw_addr + REG_VPD_DATA);
@@ -494,7 +494,7 @@ static int atl1_get_permanent_address(struct atl1_hw *hw)
 	/*
 	 * On some motherboards, the MAC address is written by the
 	 * BIOS directly to the MAC register during POST, and is
-	 * not stored in eeprom.  If all else thus far has failed
+	 * analt stored in eeprom.  If all else thus far has failed
 	 * to fetch the permanent MAC address, try reading it directly.
 	 */
 	addr[0] = ioread32(hw->hw_addr + REG_MAC_STA_ADDR);
@@ -765,7 +765,7 @@ static s32 atl1_phy_setup_autoneg_adv(struct atl1_hw *hw)
  * Configures link settings.
  * hw - Struct containing variables accessed by shared code
  * Assumes the hardware has previously been reset and the
- * transmitter and receiver are not enabled.
+ * transmitter and receiver are analt enabled.
  */
 static s32 atl1_setup_link(struct atl1_hw *hw)
 {
@@ -777,7 +777,7 @@ static s32 atl1_setup_link(struct atl1_hw *hw)
 	 * Options:
 	 *  PHY will advertise value(s) parsed from
 	 *  autoneg_advertised and fc
-	 *  no matter what autoneg is , We will not wait link result.
+	 *  anal matter what autoneg is , We will analt wait link result.
 	 */
 	ret_val = atl1_phy_setup_autoneg_adv(hw);
 	if (ret_val) {
@@ -1032,7 +1032,7 @@ static s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 		if (netif_msg_drv(adapter))
 			dev_err(&pdev->dev, "kzalloc failed , size = D%d\n",
 				size);
-		goto err_nomem;
+		goto err_analmem;
 	}
 	rfd_ring->buffer_info =
 		(tpd_ring->buffer_info + tpd_ring->count);
@@ -1055,7 +1055,7 @@ static s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 	if (unlikely(!ring_header->desc)) {
 		if (netif_msg_drv(adapter))
 			dev_err(&pdev->dev, "dma_alloc_coherent failed\n");
-		goto err_nomem;
+		goto err_analmem;
 	}
 
 	/* init TPD ring */
@@ -1098,9 +1098,9 @@ static s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 
 	return 0;
 
-err_nomem:
+err_analmem:
 	kfree(tpd_ring->buffer_info);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void atl1_init_ring_ptrs(struct atl1_adapter *adapter)
@@ -1790,13 +1790,13 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 	 * PACKET_FLAG_ERR and ERR_FLAG_L4_CHKSUM bits whenever a
 	 * fragmented IP packet is received, even though the packet
 	 * is perfectly valid and its checksum is correct. There's
-	 * no way to distinguish between one of these good packets
+	 * anal way to distinguish between one of these good packets
 	 * and a packet that actually contains a TCP/UDP checksum
 	 * error, so all we can do is allow it to be handed up to
 	 * the higher layers and let it be sorted out there.
 	 */
 
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
 	if (unlikely(rrd->pkt_flg & PACKET_FLAG_ERR)) {
 		if (rrd->err_flg & (ERR_FLAG_CRC | ERR_FLAG_TRUNC |
@@ -1809,9 +1809,9 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 		}
 	}
 
-	/* not IPv4 */
+	/* analt IPv4 */
 	if (!(rrd->pkt_flg & PACKET_FLAG_IPV4))
-		/* checksum is invalid, but it's not an IPv4 pkt, so ok */
+		/* checksum is invalid, but it's analt an IPv4 pkt, so ok */
 		return;
 
 	/* IPv4 packet */
@@ -1886,7 +1886,7 @@ next:
 	if (num_alloc) {
 		/*
 		 * Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kanalw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -1945,7 +1945,7 @@ chk_rrd:
 
 			/* rrd seems to be bad */
 			if (unlikely(i-- > 0)) {
-				/* rrd may not be DMAed completely */
+				/* rrd may analt be DMAed completely */
 				udelay(1);
 				goto chk_rrd;
 			}
@@ -1963,7 +1963,7 @@ chk_rrd:
 				rrd_next_to_clean = 0;
 			count++;
 			continue;
-		} else {	/* current rrd still not be updated */
+		} else {	/* current rrd still analt be updated */
 
 			break;
 		}
@@ -2170,7 +2170,7 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 			/* L1 hardware requires an even number here */
 			if (netif_msg_tx_err(adapter))
 				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
-					"payload offset not an even number\n");
+					"payload offset analt an even number\n");
 			return -1;
 		}
 		ptpd->word3 |= (css & TPD_PLOADOFFSET_MASK) <<
@@ -2247,7 +2247,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 			}
 		}
 	} else {
-		/* not TSO */
+		/* analt TSO */
 		buffer_info->length = buf_len;
 		page = virt_to_page(skb->data);
 		offset = offset_in_page(skb->data);
@@ -2328,7 +2328,7 @@ static void atl1_tx_queue(struct atl1_adapter *adapter, u16 count,
 	}
 	/*
 	 * Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
+	 * kanalw there are new descriptors to fetch.  (Only
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64).
 	 */
@@ -2384,7 +2384,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 	}
 
 	if (atl1_tpd_avail(&adapter->tpd_ring) < count) {
-		/* not enough descriptors */
+		/* analt eanalugh descriptors */
 		netif_stop_queue(netdev);
 		if (netif_msg_tx_queued(adapter))
 			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
@@ -2440,7 +2440,7 @@ static int atl1_rings_clean(struct napi_struct *napi, int budget)
 	napi_complete_done(napi, work_done);
 	/* re-enable Interrupt */
 	if (likely(adapter->int_enabled))
-		atlx_imr_set(adapter, IMR_NORMAL_MASK);
+		atlx_imr_set(adapter, IMR_ANALRMAL_MASK);
 	return work_done;
 }
 
@@ -2448,9 +2448,9 @@ static inline int atl1_sched_rings_clean(struct atl1_adapter* adapter)
 {
 	if (!napi_schedule(&adapter->napi))
 		/* It is possible in case even the RX/TX ints are disabled via IMR
-		 * register the ISR bits are set anyway (but do not produce IRQ).
+		 * register the ISR bits are set anyway (but do analt produce IRQ).
 		 * To handle such situation the napi functions used to check is
-		 * something scheduled or not.
+		 * something scheduled or analt.
 		 */
 		return 0;
 
@@ -2462,7 +2462,7 @@ static inline int atl1_sched_rings_clean(struct atl1_adapter* adapter)
 	if (!adapter->int_enabled)
 		return 1;
 
-	atlx_imr_set(adapter, IMR_NORXTX_MASK);
+	atlx_imr_set(adapter, IMR_ANALRXTX_MASK);
 	return 1;
 }
 
@@ -2478,7 +2478,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 
 	status = adapter->cmb.cmb->int_stats;
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* clear CMB interrupt status at once,
 	 * but leave rx/tx interrupt status in case it should be dropped
@@ -2575,7 +2575,7 @@ static void atl1_phy_config(struct timer_list *t)
  * If TPD Buffer size equal to 0, PCIE DMAR_TO_INT
  * will assert. We do soft reset <0x1400=1> according
  * with the SPEC. BUT, it seemes that PCIE or DMA
- * state-machine will not be reset. DMAR_TO_INT will
+ * state-machine will analt be reset. DMAR_TO_INT will
  * assert again and again.
  * </vendor comment>
  */
@@ -2601,8 +2601,8 @@ static s32 atl1_up(struct atl1_adapter *adapter)
 	atlx_restore_vlan(adapter);
 	err = atl1_alloc_rx_buffers(adapter);
 	if (unlikely(!err))
-		/* no RX BUFFER allocated */
-		return -ENOMEM;
+		/* anal RX BUFFER allocated */
+		return -EANALMEM;
 
 	if (unlikely(atl1_configure(adapter))) {
 		err = -EIO;
@@ -2706,7 +2706,7 @@ static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is analtified that the interface is ready.
  */
 static int atl1_open(struct net_device *netdev)
 {
@@ -2735,7 +2735,7 @@ err_up:
  * atl1_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is analt allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -2926,7 +2926,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "no usable DMA configuration\n");
+		dev_err(&pdev->dev, "anal usable DMA configuration\n");
 		goto err_dma;
 	}
 	/*
@@ -2945,7 +2945,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev = alloc_etherdev(sizeof(struct atl1_adapter));
 	if (!netdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_etherdev;
 	}
 	SET_NETDEV_DEV(netdev, &pdev->dev);
@@ -3005,7 +3005,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/*
 	 * patch for some L1 of old version,
-	 * the final version of L1 may not need these
+	 * the final version of L1 may analt need these
 	 * patches
 	 */
 	/* atl1_pcie_patch(adapter); */
@@ -3015,7 +3015,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/*
 	 * reset the controller to
-	 * put the device in a known good starting state
+	 * put the device in a kanalwn good starting state
 	 */
 	if (atl1_reset_hw(&adapter->hw)) {
 		err = -EIO;
@@ -3044,7 +3044,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	atl1_pcie_patch(adapter);
-	/* assume we have no link for now */
+	/* assume we have anal link for analw */
 	netif_carrier_off(netdev);
 
 	timer_setup(&adapter->phy_config_timer, atl1_phy_config, 0);
@@ -3087,7 +3087,7 @@ static void atl1_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1_adapter *adapter;
-	/* Device not available. Return. */
+	/* Device analt available. Return. */
 	if (!netdev)
 		return;
 
@@ -3184,7 +3184,7 @@ static int atl1_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(atl1_gstrings_stats);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3228,8 +3228,8 @@ static int atl1_get_link_ksettings(struct net_device *netdev,
 		else
 			cmd->base.duplex = DUPLEX_HALF;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 	if (hw->media_type == MEDIA_TYPE_AUTO_SENSOR ||
 	    hw->media_type == MEDIA_TYPE_1000M_FULL)
@@ -3364,7 +3364,7 @@ static int atl1_set_wol(struct net_device *netdev,
 
 	if (wol->wolopts & (WAKE_PHY | WAKE_UCAST | WAKE_MCAST | WAKE_BCAST |
 		WAKE_ARP | WAKE_MAGICSECURE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	adapter->wol = 0;
 	if (wol->wolopts & WAKE_MAGIC)
 		adapter->wol |= ATLX_WUFC_MAG;

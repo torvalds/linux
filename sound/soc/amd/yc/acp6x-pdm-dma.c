@@ -302,7 +302,7 @@ static int acp6x_pdm_dai_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		acp6x_writel(ch_mask, rtd->acp6x_base + ACP_WOV_PDM_NO_OF_CHANNELS);
+		acp6x_writel(ch_mask, rtd->acp6x_base + ACP_WOV_PDM_ANAL_OF_CHANNELS);
 		acp6x_writel(PDM_DECIMATION_FACTOR, rtd->acp6x_base +
 			     ACP_WOV_PDM_DECIMATION_FACTOR);
 		rtd->bytescount = acp6x_pdm_get_byte_count(rtd, substream->stream);
@@ -359,16 +359,16 @@ static int acp6x_pdm_audio_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata = devm_kzalloc(&pdev->dev, sizeof(*adata), GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->acp6x_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!adata->acp6x_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->capture_stream = NULL;
 
@@ -379,7 +379,7 @@ static int acp6x_pdm_audio_probe(struct platform_device *pdev)
 	if (status) {
 		dev_err(&pdev->dev, "Fail to register acp pdm dai\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);

@@ -24,7 +24,7 @@
  \param	reg_addr[in]		register byte address
  \param value[in]			The data to be written
 
- \return none, TIMED_CTRL[ID].ctrl[reg] = value
+ \return analne, TIMED_CTRL[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_TIMED_CTRL_H void timed_ctrl_reg_store(
     const timed_ctrl_ID_t	ID,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver of Inno codec for rk3036 by Rockchip Inc.
+ * Driver of Inanal codec for rk3036 by Rockchip Inc.
  *
  * Author: Rockchip Inc.
  * Author: Zheng ShunQian<zhengsq@rock-chips.com>
@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-#include "inno_rk3036.h"
+#include "inanal_rk3036.h"
 
 struct rk3036_codec_priv {
 	void __iomem *base;
@@ -50,13 +50,13 @@ static int rk3036_codec_antipop_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int val, regval;
 
-	regval = snd_soc_component_read(component, INNO_R09);
-	val = ((regval >> INNO_R09_HPL_ANITPOP_SHIFT) &
-	       INNO_R09_HP_ANTIPOP_MSK) == INNO_R09_HP_ANTIPOP_ON;
+	regval = snd_soc_component_read(component, INANAL_R09);
+	val = ((regval >> INANAL_R09_HPL_ANITPOP_SHIFT) &
+	       INANAL_R09_HP_ANTIPOP_MSK) == INANAL_R09_HP_ANTIPOP_ON;
 	ucontrol->value.integer.value[0] = val;
 
-	val = ((regval >> INNO_R09_HPR_ANITPOP_SHIFT) &
-	       INNO_R09_HP_ANTIPOP_MSK) == INNO_R09_HP_ANTIPOP_ON;
+	val = ((regval >> INANAL_R09_HPR_ANITPOP_SHIFT) &
+	       INANAL_R09_HP_ANTIPOP_MSK) == INANAL_R09_HP_ANTIPOP_ON;
 	ucontrol->value.integer.value[1] = val;
 
 	return 0;
@@ -69,16 +69,16 @@ static int rk3036_codec_antipop_put(struct snd_kcontrol *kcontrol,
 	int val, ret, regmsk;
 
 	val = (ucontrol->value.integer.value[0] ?
-	       INNO_R09_HP_ANTIPOP_ON : INNO_R09_HP_ANTIPOP_OFF) <<
-	      INNO_R09_HPL_ANITPOP_SHIFT;
+	       INANAL_R09_HP_ANTIPOP_ON : INANAL_R09_HP_ANTIPOP_OFF) <<
+	      INANAL_R09_HPL_ANITPOP_SHIFT;
 	val |= (ucontrol->value.integer.value[1] ?
-		INNO_R09_HP_ANTIPOP_ON : INNO_R09_HP_ANTIPOP_OFF) <<
-	       INNO_R09_HPR_ANITPOP_SHIFT;
+		INANAL_R09_HP_ANTIPOP_ON : INANAL_R09_HP_ANTIPOP_OFF) <<
+	       INANAL_R09_HPR_ANITPOP_SHIFT;
 
-	regmsk = INNO_R09_HP_ANTIPOP_MSK << INNO_R09_HPL_ANITPOP_SHIFT |
-		 INNO_R09_HP_ANTIPOP_MSK << INNO_R09_HPR_ANITPOP_SHIFT;
+	regmsk = INANAL_R09_HP_ANTIPOP_MSK << INANAL_R09_HPL_ANITPOP_SHIFT |
+		 INANAL_R09_HP_ANTIPOP_MSK << INANAL_R09_HPR_ANITPOP_SHIFT;
 
-	ret = snd_soc_component_update_bits(component, INNO_R09,
+	ret = snd_soc_component_update_bits(component, INANAL_R09,
 					    regmsk, val);
 	if (ret < 0)
 		return ret;
@@ -92,73 +92,73 @@ static int rk3036_codec_antipop_put(struct snd_kcontrol *kcontrol,
 	.put = rk3036_codec_antipop_put, }
 
 static const struct snd_kcontrol_new rk3036_codec_dapm_controls[] = {
-	SOC_DOUBLE_R_RANGE_TLV("Headphone Volume", INNO_R07, INNO_R08,
-		INNO_HP_GAIN_SHIFT, INNO_HP_GAIN_N39DB,
-		INNO_HP_GAIN_0DB, 0, rk3036_codec_hp_tlv),
-	SOC_DOUBLE("Zero Cross Switch", INNO_R06, INNO_R06_VOUTL_CZ_SHIFT,
-		INNO_R06_VOUTR_CZ_SHIFT, 1, 0),
-	SOC_DOUBLE("Headphone Switch", INNO_R09, INNO_R09_HPL_MUTE_SHIFT,
-		INNO_R09_HPR_MUTE_SHIFT, 1, 0),
+	SOC_DOUBLE_R_RANGE_TLV("Headphone Volume", INANAL_R07, INANAL_R08,
+		INANAL_HP_GAIN_SHIFT, INANAL_HP_GAIN_N39DB,
+		INANAL_HP_GAIN_0DB, 0, rk3036_codec_hp_tlv),
+	SOC_DOUBLE("Zero Cross Switch", INANAL_R06, INANAL_R06_VOUTL_CZ_SHIFT,
+		INANAL_R06_VOUTR_CZ_SHIFT, 1, 0),
+	SOC_DOUBLE("Headphone Switch", INANAL_R09, INANAL_R09_HPL_MUTE_SHIFT,
+		INANAL_R09_HPR_MUTE_SHIFT, 1, 0),
 	SOC_RK3036_CODEC_ANTIPOP_DECL("Anti-pop Switch"),
 };
 
 static const struct snd_kcontrol_new rk3036_codec_hpl_mixer_controls[] = {
-	SOC_DAPM_SINGLE("DAC Left Out Switch", INNO_R09,
-			INNO_R09_DACL_SWITCH_SHIFT, 1, 0),
+	SOC_DAPM_SINGLE("DAC Left Out Switch", INANAL_R09,
+			INANAL_R09_DACL_SWITCH_SHIFT, 1, 0),
 };
 
 static const struct snd_kcontrol_new rk3036_codec_hpr_mixer_controls[] = {
-	SOC_DAPM_SINGLE("DAC Right Out Switch", INNO_R09,
-			INNO_R09_DACR_SWITCH_SHIFT, 1, 0),
+	SOC_DAPM_SINGLE("DAC Right Out Switch", INANAL_R09,
+			INANAL_R09_DACR_SWITCH_SHIFT, 1, 0),
 };
 
 static const struct snd_kcontrol_new rk3036_codec_hpl_switch_controls[] = {
-	SOC_DAPM_SINGLE("HP Left Out Switch", INNO_R05,
-			INNO_R05_HPL_WORK_SHIFT, 1, 0),
+	SOC_DAPM_SINGLE("HP Left Out Switch", INANAL_R05,
+			INANAL_R05_HPL_WORK_SHIFT, 1, 0),
 };
 
 static const struct snd_kcontrol_new rk3036_codec_hpr_switch_controls[] = {
-	SOC_DAPM_SINGLE("HP Right Out Switch", INNO_R05,
-			INNO_R05_HPR_WORK_SHIFT, 1, 0),
+	SOC_DAPM_SINGLE("HP Right Out Switch", INANAL_R05,
+			INANAL_R05_HPR_WORK_SHIFT, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget rk3036_codec_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY_S("DAC PWR", 1, INNO_R06,
-			      INNO_R06_DAC_EN_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACL VREF", 2, INNO_R04,
-			      INNO_R04_DACL_VREF_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACR VREF", 2, INNO_R04,
-			      INNO_R04_DACR_VREF_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACL HiLo VREF", 3, INNO_R06,
-			      INNO_R06_DACL_HILO_VREF_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACR HiLo VREF", 3, INNO_R06,
-			      INNO_R06_DACR_HILO_VREF_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACR CLK", 3, INNO_R04,
-			      INNO_R04_DACR_CLK_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACL CLK", 3, INNO_R04,
-			      INNO_R04_DACL_CLK_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("DAC PWR", 1, INANAL_R06,
+			      INANAL_R06_DAC_EN_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("DACL VREF", 2, INANAL_R04,
+			      INANAL_R04_DACL_VREF_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("DACR VREF", 2, INANAL_R04,
+			      INANAL_R04_DACR_VREF_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("DACL HiLo VREF", 3, INANAL_R06,
+			      INANAL_R06_DACL_HILO_VREF_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("DACR HiLo VREF", 3, INANAL_R06,
+			      INANAL_R06_DACR_HILO_VREF_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("DACR CLK", 3, INANAL_R04,
+			      INANAL_R04_DACR_CLK_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("DACL CLK", 3, INANAL_R04,
+			      INANAL_R04_DACL_CLK_SHIFT, 0, NULL, 0),
 
-	SND_SOC_DAPM_DAC("DACL", "Left Playback", INNO_R04,
-			 INNO_R04_DACL_SW_SHIFT, 0),
-	SND_SOC_DAPM_DAC("DACR", "Right Playback", INNO_R04,
-			 INNO_R04_DACR_SW_SHIFT, 0),
+	SND_SOC_DAPM_DAC("DACL", "Left Playback", INANAL_R04,
+			 INANAL_R04_DACL_SW_SHIFT, 0),
+	SND_SOC_DAPM_DAC("DACR", "Right Playback", INANAL_R04,
+			 INANAL_R04_DACR_SW_SHIFT, 0),
 
-	SND_SOC_DAPM_MIXER("Left Headphone Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Headphone Mixer", SND_SOC_ANALPM, 0, 0,
 		rk3036_codec_hpl_mixer_controls,
 		ARRAY_SIZE(rk3036_codec_hpl_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Right Headphone Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Headphone Mixer", SND_SOC_ANALPM, 0, 0,
 		rk3036_codec_hpr_mixer_controls,
 		ARRAY_SIZE(rk3036_codec_hpr_mixer_controls)),
 
-	SND_SOC_DAPM_PGA("HP Left Out", INNO_R05,
-			 INNO_R05_HPL_EN_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("HP Right Out", INNO_R05,
-			 INNO_R05_HPR_EN_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HP Left Out", INANAL_R05,
+			 INANAL_R05_HPL_EN_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HP Right Out", INANAL_R05,
+			 INANAL_R05_HPR_EN_SHIFT, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("HP Left Switch",  SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HP Left Switch",  SND_SOC_ANALPM, 0, 0,
 			   rk3036_codec_hpl_switch_controls,
 			   ARRAY_SIZE(rk3036_codec_hpl_switch_controls)),
-	SND_SOC_DAPM_MIXER("HP Right Switch",  SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HP Right Switch",  SND_SOC_ANALPM, 0, 0,
 			   rk3036_codec_hpr_switch_controls,
 			   ARRAY_SIZE(rk3036_codec_hpr_switch_controls)),
 
@@ -202,12 +202,12 @@ static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBC_CFC:
-		reg01_val |= INNO_R01_PINDIR_IN_SLAVE |
-			     INNO_R01_I2SMODE_SLAVE;
+		reg01_val |= INANAL_R01_PINDIR_IN_SLAVE |
+			     INANAL_R01_I2SMODE_SLAVE;
 		break;
 	case SND_SOC_DAIFMT_CBP_CFP:
-		reg01_val |= INNO_R01_PINDIR_OUT_MASTER |
-			     INNO_R01_I2SMODE_MASTER;
+		reg01_val |= INANAL_R01_PINDIR_OUT_MASTER |
+			     INANAL_R01_I2SMODE_MASTER;
 		break;
 	default:
 		dev_err(component->dev, "invalid fmt\n");
@@ -216,16 +216,16 @@ static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
-		reg02_val |= INNO_R02_DACM_PCM;
+		reg02_val |= INANAL_R02_DACM_PCM;
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		reg02_val |= INNO_R02_DACM_I2S;
+		reg02_val |= INANAL_R02_DACM_I2S;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		reg02_val |= INNO_R02_DACM_RJM;
+		reg02_val |= INANAL_R02_DACM_RJM;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		reg02_val |= INNO_R02_DACM_LJM;
+		reg02_val |= INANAL_R02_DACM_LJM;
 		break;
 	default:
 		dev_err(component->dev, "set dai format failed\n");
@@ -234,31 +234,31 @@ static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		reg02_val |= INNO_R02_LRCP_NORMAL;
-		reg03_val |= INNO_R03_BCP_NORMAL;
+		reg02_val |= INANAL_R02_LRCP_ANALRMAL;
+		reg03_val |= INANAL_R03_BCP_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
-		reg02_val |= INNO_R02_LRCP_REVERSAL;
-		reg03_val |= INNO_R03_BCP_REVERSAL;
+		reg02_val |= INANAL_R02_LRCP_REVERSAL;
+		reg03_val |= INANAL_R03_BCP_REVERSAL;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		reg02_val |= INNO_R02_LRCP_REVERSAL;
-		reg03_val |= INNO_R03_BCP_NORMAL;
+		reg02_val |= INANAL_R02_LRCP_REVERSAL;
+		reg03_val |= INANAL_R03_BCP_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		reg02_val |= INNO_R02_LRCP_NORMAL;
-		reg03_val |= INNO_R03_BCP_REVERSAL;
+		reg02_val |= INANAL_R02_LRCP_ANALRMAL;
+		reg03_val |= INANAL_R03_BCP_REVERSAL;
 		break;
 	default:
 		dev_err(component->dev, "set dai format failed\n");
 		return -EINVAL;
 	}
 
-	snd_soc_component_update_bits(component, INNO_R01, INNO_R01_I2SMODE_MSK |
-			    INNO_R01_PINDIR_MSK, reg01_val);
-	snd_soc_component_update_bits(component, INNO_R02, INNO_R02_LRCP_MSK |
-			    INNO_R02_DACM_MSK, reg02_val);
-	snd_soc_component_update_bits(component, INNO_R03, INNO_R03_BCP_MSK, reg03_val);
+	snd_soc_component_update_bits(component, INANAL_R01, INANAL_R01_I2SMODE_MSK |
+			    INANAL_R01_PINDIR_MSK, reg01_val);
+	snd_soc_component_update_bits(component, INANAL_R02, INANAL_R02_LRCP_MSK |
+			    INANAL_R02_DACM_MSK, reg02_val);
+	snd_soc_component_update_bits(component, INANAL_R03, INANAL_R03_BCP_MSK, reg03_val);
 
 	return 0;
 }
@@ -272,28 +272,28 @@ static int rk3036_codec_dai_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(hw_params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		reg02_val |= INNO_R02_VWL_16BIT;
+		reg02_val |= INANAL_R02_VWL_16BIT;
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		reg02_val |= INNO_R02_VWL_20BIT;
+		reg02_val |= INANAL_R02_VWL_20BIT;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		reg02_val |= INNO_R02_VWL_24BIT;
+		reg02_val |= INANAL_R02_VWL_24BIT;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		reg02_val |= INNO_R02_VWL_32BIT;
+		reg02_val |= INANAL_R02_VWL_32BIT;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	reg02_val |= INNO_R02_LRCP_NORMAL;
-	reg03_val |= INNO_R03_FWL_32BIT | INNO_R03_DACR_WORK;
+	reg02_val |= INANAL_R02_LRCP_ANALRMAL;
+	reg03_val |= INANAL_R03_FWL_32BIT | INANAL_R03_DACR_WORK;
 
-	snd_soc_component_update_bits(component, INNO_R02, INNO_R02_LRCP_MSK |
-			    INNO_R02_VWL_MSK, reg02_val);
-	snd_soc_component_update_bits(component, INNO_R03, INNO_R03_DACR_MSK |
-			    INNO_R03_FWL_MSK, reg03_val);
+	snd_soc_component_update_bits(component, INANAL_R02, INANAL_R02_LRCP_MSK |
+			    INANAL_R02_VWL_MSK, reg02_val);
+	snd_soc_component_update_bits(component, INANAL_R03, INANAL_R03_DACR_MSK |
+			    INANAL_R03_FWL_MSK, reg03_val);
 	return 0;
 }
 
@@ -331,10 +331,10 @@ static struct snd_soc_dai_driver rk3036_codec_dai_driver[] = {
 
 static void rk3036_codec_reset(struct snd_soc_component *component)
 {
-	snd_soc_component_write(component, INNO_R00,
-		      INNO_R00_CSR_RESET | INNO_R00_CDCR_RESET);
-	snd_soc_component_write(component, INNO_R00,
-		      INNO_R00_CSR_WORK | INNO_R00_CDCR_WORK);
+	snd_soc_component_write(component, INANAL_R00,
+		      INANAL_R00_CSR_RESET | INANAL_R00_CDCR_RESET);
+	snd_soc_component_write(component, INANAL_R00,
+		      INANAL_R00_CSR_WORK | INANAL_R00_CDCR_WORK);
 }
 
 static int rk3036_codec_probe(struct snd_soc_component *component)
@@ -354,17 +354,17 @@ static int rk3036_codec_set_bias_level(struct snd_soc_component *component,
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
 		/* set a big current for capacitor charging. */
-		snd_soc_component_write(component, INNO_R10, INNO_R10_MAX_CUR);
+		snd_soc_component_write(component, INANAL_R10, INANAL_R10_MAX_CUR);
 		/* start precharge */
-		snd_soc_component_write(component, INNO_R06, INNO_R06_DAC_PRECHARGE);
+		snd_soc_component_write(component, INANAL_R06, INANAL_R06_DAC_PRECHARGE);
 
 		break;
 
 	case SND_SOC_BIAS_OFF:
 		/* set a big current for capacitor discharging. */
-		snd_soc_component_write(component, INNO_R10, INNO_R10_MAX_CUR);
+		snd_soc_component_write(component, INANAL_R10, INANAL_R10_MAX_CUR);
 		/* start discharge. */
-		snd_soc_component_write(component, INNO_R06, INNO_R06_DAC_DISCHARGE);
+		snd_soc_component_write(component, INANAL_R06, INANAL_R06_DAC_DISCHARGE);
 
 		break;
 	default:
@@ -401,14 +401,14 @@ static const struct regmap_config rk3036_codec_regmap_config = {
 static int rk3036_codec_platform_probe(struct platform_device *pdev)
 {
 	struct rk3036_codec_priv *priv;
-	struct device_node *of_node = pdev->dev.of_node;
+	struct device_analde *of_analde = pdev->dev.of_analde;
 	void __iomem *base;
 	struct regmap *grf;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -422,14 +422,14 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->regmap);
 	}
 
-	grf = syscon_regmap_lookup_by_phandle(of_node, "rockchip,grf");
+	grf = syscon_regmap_lookup_by_phandle(of_analde, "rockchip,grf");
 	if (IS_ERR(grf)) {
 		dev_err(&pdev->dev, "needs 'rockchip,grf' property\n");
 		return PTR_ERR(grf);
 	}
 	ret = regmap_write(grf, GRF_SOC_CON0, GRF_ACODEC_SEL);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not write to GRF: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt write to GRF: %d\n", ret);
 		return ret;
 	}
 

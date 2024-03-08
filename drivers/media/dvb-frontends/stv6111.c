@@ -401,7 +401,7 @@ static void init_state(struct stv *state)
 static int attach_init(struct stv *state)
 {
 	if (write_regs(state, 0, 11))
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -650,7 +650,7 @@ struct dvb_frontend *stv6111_attach(struct dvb_frontend *fe,
 				    struct i2c_adapter *i2c, u8 adr)
 {
 	struct stv *state;
-	int stat = -ENODEV;
+	int stat = -EANALDEV;
 	int gatestat = 0;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);

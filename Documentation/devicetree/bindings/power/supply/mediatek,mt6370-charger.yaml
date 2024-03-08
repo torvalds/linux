@@ -20,10 +20,10 @@ properties:
   interrupts:
     description: |
       Specify what irqs are needed to be handled by MT6370 Charger driver.
-      We need to use the IRQ "MT6370_IRQ_OVPCTRL_UVP_D" to know when USB
+      We need to use the IRQ "MT6370_IRQ_OVPCTRL_UVP_D" to kanalw when USB
       is plugged in, and then the driver will enable BC1.2 detection.
       After the hardware of MT6370 completes the BC1.2 detection,
-      IRQ "MT6370_IRQ_ATTACH" will be triggered, and the driver will know
+      IRQ "MT6370_IRQ_ATTACH" will be triggered, and the driver will kanalw
       the result of BC1.2 detection.
       When the IRQ "MT6370_IRQ_CHG_MIVR" is triggered, it means that the
       hardware enters the "Minimum Input Voltage Regulation loop" and

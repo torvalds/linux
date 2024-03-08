@@ -216,7 +216,7 @@ static void intc_enable_disable(struct intc_desc_int *d,
 	if (do_enable) {
 		for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_E(handle)); cpu++) {
 			addr = INTC_REG(d, _INTC_ADDR_E(handle), cpu);
-			fn = intc_enable_noprio_fns[_INTC_MODE(handle)];
+			fn = intc_enable_analprio_fns[_INTC_MODE(handle)];
 			fn(addr, handle, intc_reg_fns[_INTC_FN(handle)], 0);
 		}
 	} else {
@@ -290,7 +290,7 @@ void intc_set_ack_handle(unsigned int irq, struct intc_desc *desc,
 	unsigned long flags;
 
 	/*
-	 * Nothing to do for this IRQ.
+	 * Analthing to do for this IRQ.
 	 */
 	if (!desc->hw.ack_regs)
 		return;

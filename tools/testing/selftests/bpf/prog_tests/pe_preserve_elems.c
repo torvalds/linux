@@ -45,8 +45,8 @@ static void test_one_map(struct bpf_map *map, struct bpf_program *prog,
 		CHECK(opts.retval != 0, "bpf_perf_event_read_value",
 		      "failed with %d\n", opts.retval);
 	} else {
-		CHECK(opts.retval != -ENOENT, "bpf_perf_event_read_value",
-		      "should have failed with %d, but got %d\n", -ENOENT,
+		CHECK(opts.retval != -EANALENT, "bpf_perf_event_read_value",
+		      "should have failed with %d, but got %d\n", -EANALENT,
 		      opts.retval);
 	}
 }

@@ -11,7 +11,7 @@ maintainers:
   - Shenghao Ding <shenghao-ding@ti.com>
 
 description: |
-  The TAS2563/TAS2781 is a mono, digital input Class-D audio
+  The TAS2563/TAS2781 is a moanal, digital input Class-D audio
   amplifier optimized for efficiently driving high peak power into
   small loudspeakers. An integrated on-chip DSP supports Texas
   Instruments Smart Amp speaker protection algorithm. The

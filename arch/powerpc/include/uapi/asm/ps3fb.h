@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2006 Sony Computer Entertainment Inc.
  * Copyright 2006, 2007 Sony Corporation
@@ -13,7 +13,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if analt, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
@@ -28,7 +28,7 @@
 #define PS3FB_IOCTL_GETMODE       _IOR('r',  2, int) /* get video mode */
 #define PS3FB_IOCTL_SCREENINFO    _IOR('r',  3, int) /* get screen info */
 #define PS3FB_IOCTL_ON            _IO('r', 4)        /* use IOCTL_FSEL */
-#define PS3FB_IOCTL_OFF           _IO('r', 5)        /* return to normal-flip */
+#define PS3FB_IOCTL_OFF           _IO('r', 5)        /* return to analrmal-flip */
 #define PS3FB_IOCTL_FSEL          _IOW('r', 6, int)  /* blit and flip request */
 
 #ifndef FBIO_WAITFORVSYNC

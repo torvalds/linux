@@ -2,7 +2,7 @@
 /*
  * max44009.c - Support for MAX44009 Ambient Light Sensor
  *
- * Copyright (c) 2019 Robert Eshleman <bobbyeshleman@gmail.com>
+ * Copyright (c) 2019 Robert Eshleman <bobbanalhleman@gmail.com>
  *
  * Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX44009.pdf
  *
@@ -48,9 +48,9 @@
 
 #define MAX44009_UPPER_THR_MINIMUM 15
 
-/* The max44009 always scales raw readings by 0.045 and is non-configurable */
+/* The max44009 always scales raw readings by 0.045 and is analn-configurable */
 #define MAX44009_SCALE_NUMERATOR 45
-#define MAX44009_SCALE_DENOMINATOR 1000
+#define MAX44009_SCALE_DEANALMINATOR 1000
 
 /* The fixed-point fractional multiplier for de-scaling threshold values */
 #define MAX44009_FRACT_MULT 1000000
@@ -166,7 +166,7 @@ static int max44009_write_raw_get_fmt(struct iio_dev *indio_dev,
 				      struct iio_chan_spec const *chan,
 				      long mask)
 {
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static int max44009_lux_raw(u8 hi, u8 lo)
@@ -230,7 +230,7 @@ static int max44009_read_lux_raw(struct max44009_data *data)
 
 	/*
 	 * Use i2c_transfer instead of smbus read because i2c_transfer
-	 * does NOT use a stop bit between address write and data read.
+	 * does ANALT use a stop bit between address write and data read.
 	 * Using a stop bit causes disjoint upper/lower byte reads and
 	 * reduces accuracy.
 	 */
@@ -261,7 +261,7 @@ static int max44009_read_raw(struct iio_dev *indio_dev,
 			lux_raw = ret;
 
 			*val = lux_raw * MAX44009_SCALE_NUMERATOR;
-			*val2 = MAX44009_SCALE_DENOMINATOR;
+			*val2 = MAX44009_SCALE_DEANALMINATOR;
 			return IIO_VAL_FRACTIONAL;
 		default:
 			return -EINVAL;
@@ -275,7 +275,7 @@ static int max44009_read_raw(struct iio_dev *indio_dev,
 
 			*val2 = ret;
 			*val = 0;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		default:
 			return -EINVAL;
 		}
@@ -306,12 +306,12 @@ static int max44009_threshold_byte_from_fraction(int integral, int fractional)
 		return -EINVAL;
 
 	/* Reverse scaling of fixed-point integral */
-	mantissa = integral * MAX44009_SCALE_DENOMINATOR;
+	mantissa = integral * MAX44009_SCALE_DEANALMINATOR;
 	mantissa /= MAX44009_SCALE_NUMERATOR;
 
 	/* Reverse scaling of fixed-point fractional */
 	mantissa += fractional / MAX44009_FRACT_MULT *
-		    (MAX44009_SCALE_DENOMINATOR / MAX44009_SCALE_NUMERATOR);
+		    (MAX44009_SCALE_DEANALMINATOR / MAX44009_SCALE_NUMERATOR);
 
 	for (exp = 0; mantissa > 0xff; exp++)
 		mantissa >>= 1;
@@ -413,7 +413,7 @@ static int max44009_read_event_value(struct iio_dev *indio_dev,
 	threshold = ret;
 
 	*val = threshold * MAX44009_SCALE_NUMERATOR;
-	*val2 = MAX44009_SCALE_DENOMINATOR;
+	*val2 = MAX44009_SCALE_DEANALMINATOR;
 
 	return IIO_VAL_FRACTIONAL;
 }
@@ -484,7 +484,7 @@ static irqreturn_t max44009_threaded_irq_handler(int irq, void *p)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int max44009_probe(struct i2c_client *client)
@@ -495,7 +495,7 @@ static int max44009_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -549,6 +549,6 @@ static struct i2c_driver max44009_driver = {
 };
 module_i2c_driver(max44009_driver);
 
-MODULE_AUTHOR("Robert Eshleman <bobbyeshleman@gmail.com>");
+MODULE_AUTHOR("Robert Eshleman <bobbanalhleman@gmail.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MAX44009 ambient light sensor driver");

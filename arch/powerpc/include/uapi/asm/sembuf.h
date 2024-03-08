@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef _ASM_POWERPC_SEMBUF_H
 #define _ASM_POWERPC_SEMBUF_H
 
@@ -13,7 +13,7 @@
 
 /*
  * The semid64_ds structure for PPC architecture.
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * Pad space is left for:
@@ -31,7 +31,7 @@ struct semid64_ds {
 	long		sem_otime;	/* last semop time */
 	long		sem_ctime;	/* last change time */
 #endif
-	unsigned long	sem_nsems;	/* no. of semaphores in array */
+	unsigned long	sem_nsems;	/* anal. of semaphores in array */
 	unsigned long	__unused3;
 	unsigned long	__unused4;
 };

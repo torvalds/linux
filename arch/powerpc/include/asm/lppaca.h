@@ -30,12 +30,12 @@
  * H_REGISTER_VPA etc.
  *
  * According to PAPR, the structure is 640 bytes long, must be L1 cache line
- * aligned, and must not cross a 4kB boundary. Its size field must be at
+ * aligned, and must analt cross a 4kB boundary. Its size field must be at
  * least 640 bytes (but may be more).
  *
  * Pre-v4.14 KVM hypervisors reject the VPA if its size field is smaller than
  * 1kB, so we dynamically allocate 1kB and advertise size as 1kB, but keep
- * this structure as the canonical 640 byte size.
+ * this structure as the caanalnical 640 byte size.
  */
 struct lppaca {
 	/* cacheline 1 contains read-only data */
@@ -45,10 +45,10 @@ struct lppaca {
 	u8	reserved1[3];
 	u8	__old_status;		/* Old status, including shared proc */
 	u8	reserved3[14];
-	volatile __be32 dyn_hw_node_id;	/* Dynamic hardware node id */
+	volatile __be32 dyn_hw_analde_id;	/* Dynamic hardware analde id */
 	volatile __be32 dyn_hw_proc_id;	/* Dynamic hardware proc id */
 	u8	reserved4[56];
-	volatile u8 vphn_assoc_counts[8]; /* Virtual processor home node */
+	volatile u8 vphn_assoc_counts[8]; /* Virtual processor home analde */
 					  /* associativity change counters */
 	u8	reserved5[32];
 
@@ -76,8 +76,8 @@ struct lppaca {
 	 * the processor is yielded (either because of an OS yield or a
 	 * hypervisor preempt).  An even value implies that the processor is
 	 * currently executing.
-	 * NOTE: Even dedicated processor partitions can yield so this
-	 * field cannot be used to determine if we are shared or dedicated.
+	 * ANALTE: Even dedicated processor partitions can yield so this
+	 * field cananalt be used to determine if we are shared or dedicated.
 	 */
 	volatile __be32 yield_count;
 	volatile __be32 dispersion_count; /* dispatch changed physical cpu */
@@ -100,7 +100,7 @@ struct lppaca {
 #define lppaca_of(cpu)	(*paca_ptrs[cpu]->lppaca_ptr)
 
 /*
- * We are using a non architected field to determine if a partition is
+ * We are using a analn architected field to determine if a partition is
  * shared or dedicated. This currently works on both KVM and PHYP, but
  * we will have to transition to something better.
  */

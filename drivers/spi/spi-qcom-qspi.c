@@ -57,15 +57,15 @@
 #define MSTR_INT_EN		0x000C
 #define MSTR_INT_STATUS		0x0010
 #define RESP_FIFO_UNDERRUN	BIT(0)
-#define RESP_FIFO_NOT_EMPTY	BIT(1)
+#define RESP_FIFO_ANALT_EMPTY	BIT(1)
 #define RESP_FIFO_RDY		BIT(2)
-#define HRESP_FROM_NOC_ERR	BIT(3)
+#define HRESP_FROM_ANALC_ERR	BIT(3)
 #define WR_FIFO_EMPTY		BIT(9)
 #define WR_FIFO_FULL		BIT(10)
 #define WR_FIFO_OVERRUN		BIT(11)
 #define TRANSACTION_DONE	BIT(16)
 #define DMA_CHAIN_DONE		BIT(31)
-#define QSPI_ERR_IRQS		(RESP_FIFO_UNDERRUN | HRESP_FROM_NOC_ERR | \
+#define QSPI_ERR_IRQS		(RESP_FIFO_UNDERRUN | HRESP_FROM_ANALC_ERR | \
 				 WR_FIFO_OVERRUN)
 #define QSPI_ALL_IRQS		(QSPI_ERR_IRQS | RESP_FIFO_RDY | \
 				 WR_FIFO_EMPTY | WR_FIFO_FULL | \
@@ -160,7 +160,7 @@ enum qspi_clocks {
  * Number of entries in sgt returned from spi framework that-
  * will be supported. Can be modified as required.
  * In practice, given max_dma_len is 64KB, the number of
- * entries is not expected to exceed 1.
+ * entries is analt expected to exceed 1.
  */
 #define QSPI_MAX_SG 5
 
@@ -351,7 +351,7 @@ static int qcom_qspi_setup_dma_desc(struct qcom_qspi *ctrl,
 
 	sgt = (ctrl->xfer.dir == QSPI_READ) ? &xfer->rx_sg : &xfer->tx_sg;
 	if (!sgt->nents || sgt->nents > QSPI_MAX_SG) {
-		dev_warn_once(ctrl->dev, "Cannot handle %d entries in scatter list\n", sgt->nents);
+		dev_warn_once(ctrl->dev, "Cananalt handle %d entries in scatter list\n", sgt->nents);
 		return -EAGAIN;
 	}
 
@@ -359,7 +359,7 @@ static int qcom_qspi_setup_dma_desc(struct qcom_qspi *ctrl,
 		dma_ptr_sg = sg_dma_address(sgt->sgl + i);
 		dma_len_sg = sg_dma_len(sgt->sgl + i);
 		if (!IS_ALIGNED(dma_ptr_sg, QSPI_ALIGN_REQ)) {
-			dev_warn_once(ctrl->dev, "dma_address not aligned to %d\n", QSPI_ALIGN_REQ);
+			dev_warn_once(ctrl->dev, "dma_address analt aligned to %d\n", QSPI_ALIGN_REQ);
 			return -EAGAIN;
 		}
 		/*
@@ -516,7 +516,7 @@ static int qcom_qspi_alloc_dma(struct qcom_qspi *ctrl)
 	ctrl->dma_cmd_pool = dmam_pool_create("qspi cmd desc pool",
 		ctrl->dev, sizeof(struct qspi_cmd_desc), 0, 0);
 	if (!ctrl->dma_cmd_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -536,7 +536,7 @@ static irqreturn_t pio_read(struct qcom_qspi *ctrl)
 
 	if (!(rd_fifo_status & FIFO_RDY)) {
 		dev_dbg(ctrl->dev, "Spurious IRQ %#x\n", rd_fifo_status);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	wr_cnts = (rd_fifo_status & WR_CNTS_MSK) >> WR_CNTS_SHFT;
@@ -612,14 +612,14 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 {
 	u32 int_status;
 	struct qcom_qspi *ctrl = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	spin_lock(&ctrl->lock);
 
 	int_status = readl(ctrl->base + MSTR_INT_STATUS);
 	writel(int_status, ctrl->base + MSTR_INT_STATUS);
 
-	/* Ignore disabled interrupts */
+	/* Iganalre disabled interrupts */
 	int_status &= readl(ctrl->base + MSTR_INT_EN);
 
 	/* PIO mode handling */
@@ -636,8 +636,8 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 			dev_err(ctrl->dev, "IRQ error: FIFO underrun\n");
 		if (int_status & WR_FIFO_OVERRUN)
 			dev_err(ctrl->dev, "IRQ error: FIFO overrun\n");
-		if (int_status & HRESP_FROM_NOC_ERR)
-			dev_err(ctrl->dev, "IRQ error: NOC response error\n");
+		if (int_status & HRESP_FROM_ANALC_ERR)
+			dev_err(ctrl->dev, "IRQ error: ANALC response error\n");
 		ret = IRQ_HANDLED;
 	}
 
@@ -677,7 +677,7 @@ static int qcom_qspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 
 	/*
 	 * When reading, the transfer needs to be a multiple of 4 bytes so
-	 * shrink the transfer if that's not true. The caller will then do a
+	 * shrink the transfer if that's analt true. The caller will then do a
 	 * second transfer to finish things up.
 	 */
 	if (op->data.dir == SPI_MEM_DATA_IN && (op->data.nbytes & 0x3))
@@ -701,7 +701,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(dev, sizeof(*ctrl));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 
@@ -716,7 +716,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	ctrl->clks = devm_kcalloc(dev, QSPI_NUM_CLKS,
 				  sizeof(*ctrl->clks), GFP_KERNEL);
 	if (!ctrl->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->clks[QSPI_CLK_CORE].id = "core";
 	ctrl->clks[QSPI_CLK_IFACE].id = "iface";
@@ -756,14 +756,14 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
-		return dev_err_probe(dev, ret, "could not set DMA mask\n");
+		return dev_err_probe(dev, ret, "could analt set DMA mask\n");
 
 	host->max_speed_hz = 300000000;
 	host->max_dma_len = 65536; /* as per HPG */
 	host->dma_alignment = QSPI_ALIGN_REQ;
 	host->num_chipselect = QSPI_NUM_CS;
 	host->bus_num = -1;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->mode_bits = SPI_MODE_0 |
 			  SPI_TX_DUAL | SPI_RX_DUAL |
 			  SPI_TX_QUAD | SPI_RX_QUAD;
@@ -771,7 +771,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	host->prepare_message = qcom_qspi_prepare_message;
 	host->transfer_one = qcom_qspi_transfer_one;
 	host->handle_err = qcom_qspi_handle_err;
-	if (of_property_read_bool(pdev->dev.of_node, "iommus"))
+	if (of_property_read_bool(pdev->dev.of_analde, "iommus"))
 		host->can_dma = qcom_qspi_can_dma;
 	host->auto_runtime_pm = true;
 	host->mem_ops = &qcom_qspi_mem_ops;
@@ -781,7 +781,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 		return ret;
 	/* OPP table is optional */
 	ret = devm_pm_opp_of_add_table(&pdev->dev);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -EANALDEV) {
 		dev_err(&pdev->dev, "invalid OPP table in device tree\n");
 		return ret;
 	}

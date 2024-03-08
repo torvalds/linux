@@ -73,7 +73,7 @@ struct dloarea {
 	int w, h;
 };
 
-struct urb_node {
+struct urb_analde {
 	struct list_head entry;
 	struct ufx_data *dev;
 	struct delayed_work release_urb_work;
@@ -96,8 +96,8 @@ struct ufx_data {
 	struct urb_list urbs;
 	struct kref kref;
 	int fb_count;
-	bool virtualized; /* true when physical usb device not present */
-	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
+	bool virtualized; /* true when physical usb device analt present */
+	atomic_t usb_active; /* 0 = update virtual buffer, but anal usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 	u8 *edid; /* null until we read edid from hw or get from sysfs */
 	size_t edid_size;
@@ -111,7 +111,7 @@ static struct fb_fix_screeninfo ufx_fix = {
 	.xpanstep =     0,
 	.ypanstep =     0,
 	.ywrapstep =    0,
-	.accel =        FB_ACCEL_NONE,
+	.accel =        FB_ACCEL_ANALNE,
 };
 
 static const u32 smscufx_info_flags = FBINFO_READS_FAST |
@@ -147,7 +147,7 @@ static int ufx_reg_read(struct ufx_data *dev, u32 index, u32 *data)
 	BUG_ON(!dev);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
 		USB_VENDOR_REQUEST_READ_REGISTER,
@@ -173,7 +173,7 @@ static int ufx_reg_write(struct ufx_data *dev, u32 index, u32 data)
 	BUG_ON(!dev);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*buf = data;
 	cpu_to_le32s(buf);
@@ -873,13 +873,13 @@ static int ufx_handle_damage(struct ufx_data *dev, int x, int y,
 			return 0;
 		}
 
-		/* assume we have enough space to transfer at least one line */
+		/* assume we have eanalugh space to transfer at least one line */
 		BUG_ON(urb->transfer_buffer_length < (24 + (width * 2)));
 
 		/* calculate the maximum number of lines we could fit in */
 		urb_lines = (urb->transfer_buffer_length - 24) / packed_line_len;
 
-		/* but we might not need this many */
+		/* but we might analt need this many */
 		urb_lines = min(urb_lines, (height - start_line));
 
 		memset(urb->transfer_buffer, 0, urb->transfer_buffer_length);
@@ -896,7 +896,7 @@ static int ufx_handle_damage(struct ufx_data *dev, int x, int y,
 	return 0;
 }
 
-/* NOTE: fb_defio.c is holding info->fbdefio.mutex
+/* ANALTE: fb_defio.c is holding info->fbdefio.mutex
  *   Touching ANY framebuffer memory that triggers a page fault
  *   in fb_defio will cause a deadlock, when it also tries to
  *   grab the same mutex. */
@@ -951,7 +951,7 @@ static int ufx_ops_ioctl(struct fb_info *info, unsigned int cmd,
 		 * To avoid perf imact of unnecessary page fault handling.
 		 * Done by resetting the delay for this fb_info to a very
 		 * long period. Pages will become writable and stay that way.
-		 * Reset to normal value when all clients have closed this fb.
+		 * Reset to analrmal value when all clients have closed this fb.
 		 */
 		if (info->fbdefio)
 			info->fbdefio->delay = UFX_DEFIO_WRITE_DISABLE;
@@ -978,23 +978,23 @@ static int ufx_ops_ioctl(struct fb_info *info, unsigned int cmd,
 
 /* taken from vesafb */
 static int
-ufx_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
+ufx_ops_setcolreg(unsigned reganal, unsigned red, unsigned green,
 	       unsigned blue, unsigned transp, struct fb_info *info)
 {
 	int err = 0;
 
-	if (regno >= info->cmap.len)
+	if (reganal >= info->cmap.len)
 		return 1;
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		if (info->var.red.offset == 10) {
 			/* 1:5:5:5 */
-			((u32 *) (info->pseudo_palette))[regno] =
+			((u32 *) (info->pseudo_palette))[reganal] =
 			    ((red & 0xf800) >> 1) |
 			    ((green & 0xf800) >> 6) | ((blue & 0xf800) >> 11);
 		} else {
 			/* 0:5:6:5 */
-			((u32 *) (info->pseudo_palette))[regno] =
+			((u32 *) (info->pseudo_palette))[reganal] =
 			    ((red & 0xf800)) |
 			    ((green & 0xfc00) >> 5) | ((blue & 0xf800) >> 11);
 		}
@@ -1012,7 +1012,7 @@ static int ufx_ops_open(struct fb_info *info, int user)
 
 	/* fbcon aggressively connects to first framebuffer it finds,
 	 * preventing other clients (X) from working properly. Usually
-	 * not what the user wants. Fail by default with option to enable. */
+	 * analt what the user wants. Fail by default with option to enable. */
 	if (user == 0 && !console)
 		return -EBUSY;
 
@@ -1021,7 +1021,7 @@ static int ufx_ops_open(struct fb_info *info, int user)
 	/* If the USB device is gone, we don't accept new opens */
 	if (dev->virtualized) {
 		mutex_unlock(&disconnect_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev->fb_count++;
@@ -1029,7 +1029,7 @@ static int ufx_ops_open(struct fb_info *info, int user)
 	kref_get(&dev->kref);
 
 	if (fb_defio && (info->fbdefio == NULL)) {
-		/* enable defio at last moment if not disabled by client */
+		/* enable defio at last moment if analt disabled by client */
 
 		struct fb_deferred_io *fbdefio;
 
@@ -1044,7 +1044,7 @@ static int ufx_ops_open(struct fb_info *info, int user)
 	}
 
 	pr_debug("open /dev/fb%d user=%d fb_info=%p count=%d",
-		info->node, user, info, dev->fb_count);
+		info->analde, user, info, dev->fb_count);
 
 	mutex_unlock(&disconnect_mutex);
 
@@ -1054,7 +1054,7 @@ static int ufx_ops_open(struct fb_info *info, int user)
 /*
  * Called when all client interfaces to start transactions have been disabled,
  * and all references to our device instance (ufx_data) are released.
- * Every transaction must have a reference, so we know are fully spun down
+ * Every transaction must have a reference, so we kanalw are fully spun down
  */
 static void ufx_free(struct kref *kref)
 {
@@ -1066,12 +1066,12 @@ static void ufx_free(struct kref *kref)
 static void ufx_ops_destory(struct fb_info *info)
 {
 	struct ufx_data *dev = info->par;
-	int node = info->node;
+	int analde = info->analde;
 
 	/* Assume info structure is freed after this point */
 	framebuffer_release(info);
 
-	pr_debug("fb_info for /dev/fb%d has been freed", node);
+	pr_debug("fb_info for /dev/fb%d has been freed", analde);
 
 	/* release reference taken by kref_init in probe() */
 	kref_put(&dev->kref, ufx_free);
@@ -1080,10 +1080,10 @@ static void ufx_ops_destory(struct fb_info *info)
 
 static void ufx_release_urb_work(struct work_struct *work)
 {
-	struct urb_node *unode = container_of(work, struct urb_node,
+	struct urb_analde *uanalde = container_of(work, struct urb_analde,
 					      release_urb_work.work);
 
-	up(&unode->dev->urbs.limit_sem);
+	up(&uanalde->dev->urbs.limit_sem);
 }
 
 static void ufx_free_framebuffer(struct ufx_data *dev)
@@ -1126,7 +1126,7 @@ static int ufx_ops_release(struct fb_info *info, int user)
 	}
 
 	pr_debug("released /dev/fb%d user=%d count=%d",
-		  info->node, user, dev->fb_count);
+		  info->analde, user, dev->fb_count);
 
 	kref_put(&dev->kref, ufx_free);
 
@@ -1259,7 +1259,7 @@ static const struct fb_ops ufx_ops = {
 };
 
 /* Assumes &info->lock held by caller
- * Assumes no active clients have framebuffer open */
+ * Assumes anal active clients have framebuffer open */
 static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 {
 	int old_len = info->fix.smem_len;
@@ -1277,7 +1277,7 @@ static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 		 */
 		new_fb = vmalloc(new_len);
 		if (!new_fb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (info->screen_buffer) {
 			memcpy(new_fb, old_fb, old_len);
@@ -1293,7 +1293,7 @@ static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 }
 
 /* sets up I2C Controller for 100 Kbps, std. speed, 7-bit addr, master,
- * restart enabled, but no start byte, enable controller */
+ * restart enabled, but anal start byte, enable controller */
 static int ufx_i2c_init(struct ufx_data *dev)
 {
 	u32 tmp;
@@ -1318,7 +1318,7 @@ static int ufx_i2c_init(struct ufx_data *dev)
 	tmp &= ~(0x06);
 	tmp |= 0x02;
 
-	/* 7-bit (not 10-bit) addressing */
+	/* 7-bit (analt 10-bit) addressing */
 	tmp &= ~(0x10);
 
 	/* enable restart conditions and master mode */
@@ -1327,7 +1327,7 @@ static int ufx_i2c_init(struct ufx_data *dev)
 	status = ufx_reg_write(dev, 0x1000, tmp);
 	check_warn_return(status, "error writing 0x1000");
 
-	/* Set normal tx using target address 0 */
+	/* Set analrmal tx using target address 0 */
 	status = ufx_reg_clear_and_set_bits(dev, 0x1004, 0xC00, 0x000);
 	check_warn_return(status, "error setting TX mode bits in 0x1004");
 
@@ -1357,8 +1357,8 @@ static int ufx_i2c_configure(struct ufx_data *dev)
 	return 0;
 }
 
-/* wait for BUSY to clear, with a timeout of 50ms with 10ms sleeps. if no
- * monitor is connected, there is no error except for timeout */
+/* wait for BUSY to clear, with a timeout of 50ms with 10ms sleeps. if anal
+ * monitor is connected, there is anal error except for timeout */
 static int ufx_i2c_wait_busy(struct ufx_data *dev)
 {
 	u32 tmp;
@@ -1426,7 +1426,7 @@ static int ufx_read_edid(struct ufx_data *dev, u8 *edid, int edid_len)
 		}
 	}
 
-	/* all FF's in the first 16 bytes indicates nothing is connected */
+	/* all FF's in the first 16 bytes indicates analthing is connected */
 	for (i = 0; i < 16; i++) {
 		if (edid[i] != 0xFF) {
 			pr_debug("edid data read successfully");
@@ -1447,7 +1447,7 @@ static int ufx_read_edid(struct ufx_data *dev, u8 *edid, int edid_len)
  * fb_info.monspecs is full parsed EDID info, including monspecs.modedb
  * fb_info.modelist is a linked list of all monitor & VESA modes which work
  *
- * If EDID is not readable/valid, then modelist is all VESA modes,
+ * If EDID is analt readable/valid, then modelist is all VESA modes,
  * monspecs is NULL, and fb_var_screeninfo is set to safe VESA mode
  * Returns 0 if successful */
 static int ufx_setup_modes(struct ufx_data *dev, struct fb_info *info,
@@ -1462,7 +1462,7 @@ static int ufx_setup_modes(struct ufx_data *dev, struct fb_info *info,
 
 	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!edid) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto error;
 	}
 
@@ -1470,8 +1470,8 @@ static int ufx_setup_modes(struct ufx_data *dev, struct fb_info *info,
 	memset(&info->monspecs, 0, sizeof(info->monspecs));
 
 	/* Try to (re)read EDID from hardware first
-	 * EDID data may return, but not parse as valid
-	 * Try again a few times, in case of e.g. analog cable noise */
+	 * EDID data may return, but analt parse as valid
+	 * Try again a few times, in case of e.g. analog cable analise */
 	while (tries--) {
 		i = ufx_read_edid(dev, edid, EDID_LENGTH);
 
@@ -1551,13 +1551,13 @@ static int ufx_setup_modes(struct ufx_data *dev, struct fb_info *info,
 						     &info->modelist);
 	}
 
-	/* If we have good mode and no active clients */
+	/* If we have good mode and anal active clients */
 	if ((default_vmode != NULL) && (dev->fb_count == 0)) {
 
 		fb_videomode_to_var(&info->var, default_vmode);
 		ufx_var_color_format(&info->var);
 
-		/* with mode size info, we can now alloc our framebuffer */
+		/* with mode size info, we can analw alloc our framebuffer */
 		memcpy(&info->fix, &ufx_fix, sizeof(ufx_fix));
 		info->fix.line_length = info->var.xres *
 			(info->var.bits_per_pixel / 8);
@@ -1583,7 +1583,7 @@ static int ufx_usb_probe(struct usb_interface *interface,
 	struct usb_device *usbdev;
 	struct ufx_data *dev;
 	struct fb_info *info;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	u32 id_rev, fpga_rev;
 
 	/* usb initialization */
@@ -1593,7 +1593,7 @@ static int ufx_usb_probe(struct usb_interface *interface,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		dev_err(&usbdev->dev, "ufx_usb_probe: failed alloc of dev struct\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* we need to wait for both usb and fbdev to spin down on disconnect */
@@ -1620,7 +1620,7 @@ static int ufx_usb_probe(struct usb_interface *interface,
 
 	/* We don't register a new USB class. Our client interface is fbdev */
 
-	/* allocates framebuffer driver structure, not framebuffer memory */
+	/* allocates framebuffer driver structure, analt framebuffer memory */
 	info = framebuffer_alloc(0, &usbdev->dev);
 	if (!info) {
 		dev_err(dev->gdev, "framebuffer_alloc failed\n");
@@ -1698,7 +1698,7 @@ static int ufx_usb_probe(struct usb_interface *interface,
 	}
 
 	dev_info(dev->gdev, "SMSC UDX USB device /dev/fb%d attached. %dx%d resolution."
-		" Using %dK framebuffer memory\n", info->node,
+		" Using %dK framebuffer memory\n", info->analde,
 		info->var.xres, info->var.yres, info->fix.smem_len >> 10);
 
 	return 0;
@@ -1737,7 +1737,7 @@ static void ufx_usb_disconnect(struct usb_interface *interface)
 	/* we virtualize until all fb clients release. Then we free */
 	dev->virtualized = true;
 
-	/* When non-active we'll update virtual framebuffer, but no new urbs */
+	/* When analn-active we'll update virtual framebuffer, but anal new urbs */
 	atomic_set(&dev->usb_active, 0);
 
 	usb_set_intfdata(interface, NULL);
@@ -1768,16 +1768,16 @@ module_usb_driver(ufx_driver);
 
 static void ufx_urb_completion(struct urb *urb)
 {
-	struct urb_node *unode = urb->context;
-	struct ufx_data *dev = unode->dev;
+	struct urb_analde *uanalde = urb->context;
+	struct ufx_data *dev = uanalde->dev;
 	unsigned long flags;
 
 	/* sync/async unlink faults aren't errors */
 	if (urb->status) {
-		if (!(urb->status == -ENOENT ||
+		if (!(urb->status == -EANALENT ||
 		    urb->status == -ECONNRESET ||
 		    urb->status == -ESHUTDOWN)) {
-			pr_err("%s - nonzero write bulk status received: %d\n",
+			pr_err("%s - analnzero write bulk status received: %d\n",
 				__func__, urb->status);
 			atomic_set(&dev->lost_pixels, 1);
 		}
@@ -1786,14 +1786,14 @@ static void ufx_urb_completion(struct urb *urb)
 	urb->transfer_buffer_length = dev->urbs.size; /* reset to actual */
 
 	spin_lock_irqsave(&dev->urbs.lock, flags);
-	list_add_tail(&unode->entry, &dev->urbs.list);
+	list_add_tail(&uanalde->entry, &dev->urbs.list);
 	dev->urbs.available++;
 	spin_unlock_irqrestore(&dev->urbs.lock, flags);
 
 	/* When using fb_defio, we deadlock if up() is called
-	 * while another is waiting. So queue to another process */
+	 * while aanalther is waiting. So queue to aanalther process */
 	if (fb_defio)
-		schedule_delayed_work(&unode->release_urb_work, 0);
+		schedule_delayed_work(&uanalde->release_urb_work, 0);
 	else
 		up(&dev->urbs.limit_sem);
 }
@@ -1801,8 +1801,8 @@ static void ufx_urb_completion(struct urb *urb)
 static void ufx_free_urb_list(struct ufx_data *dev)
 {
 	int count = dev->urbs.count;
-	struct list_head *node;
-	struct urb_node *unode;
+	struct list_head *analde;
+	struct urb_analde *uanalde;
 	struct urb *urb;
 	int ret;
 	unsigned long flags;
@@ -1818,19 +1818,19 @@ static void ufx_free_urb_list(struct ufx_data *dev)
 
 		spin_lock_irqsave(&dev->urbs.lock, flags);
 
-		node = dev->urbs.list.next; /* have reserved one with sem */
-		list_del_init(node);
+		analde = dev->urbs.list.next; /* have reserved one with sem */
+		list_del_init(analde);
 
 		spin_unlock_irqrestore(&dev->urbs.lock, flags);
 
-		unode = list_entry(node, struct urb_node, entry);
-		urb = unode->urb;
+		uanalde = list_entry(analde, struct urb_analde, entry);
+		urb = uanalde->urb;
 
 		/* Free each separately allocated piece */
 		usb_free_coherent(urb->dev, dev->urbs.size,
 				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
-		kfree(node);
+		kfree(analde);
 	}
 }
 
@@ -1838,7 +1838,7 @@ static int ufx_alloc_urb_list(struct ufx_data *dev, int count, size_t size)
 {
 	int i = 0;
 	struct urb *urb;
-	struct urb_node *unode;
+	struct urb_analde *uanalde;
 	char *buf;
 
 	spin_lock_init(&dev->urbs.lock);
@@ -1847,35 +1847,35 @@ static int ufx_alloc_urb_list(struct ufx_data *dev, int count, size_t size)
 	INIT_LIST_HEAD(&dev->urbs.list);
 
 	while (i < count) {
-		unode = kzalloc(sizeof(*unode), GFP_KERNEL);
-		if (!unode)
+		uanalde = kzalloc(sizeof(*uanalde), GFP_KERNEL);
+		if (!uanalde)
 			break;
-		unode->dev = dev;
+		uanalde->dev = dev;
 
-		INIT_DELAYED_WORK(&unode->release_urb_work,
+		INIT_DELAYED_WORK(&uanalde->release_urb_work,
 			  ufx_release_urb_work);
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			kfree(unode);
+			kfree(uanalde);
 			break;
 		}
-		unode->urb = urb;
+		uanalde->urb = urb;
 
 		buf = usb_alloc_coherent(dev->udev, size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
-			kfree(unode);
+			kfree(uanalde);
 			usb_free_urb(urb);
 			break;
 		}
 
 		/* urb->transfer_buffer_length set to actual before submit */
 		usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, 1),
-			buf, size, ufx_urb_completion, unode);
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+			buf, size, ufx_urb_completion, uanalde);
+		urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
-		list_add_tail(&unode->entry, &dev->urbs.list);
+		list_add_tail(&uanalde->entry, &dev->urbs.list);
 
 		i++;
 	}
@@ -1893,7 +1893,7 @@ static struct urb *ufx_get_urb(struct ufx_data *dev)
 {
 	int ret = 0;
 	struct list_head *entry;
-	struct urb_node *unode;
+	struct urb_analde *uanalde;
 	struct urb *urb = NULL;
 	unsigned long flags;
 
@@ -1915,8 +1915,8 @@ static struct urb *ufx_get_urb(struct ufx_data *dev)
 
 	spin_unlock_irqrestore(&dev->urbs.lock, flags);
 
-	unode = list_entry(entry, struct urb_node, entry);
-	urb = unode->urb;
+	uanalde = list_entry(entry, struct urb_analde, entry);
+	urb = uanalde->urb;
 
 error:
 	return urb;
@@ -1931,7 +1931,7 @@ static int ufx_submit_urb(struct ufx_data *dev, struct urb *urb, size_t len)
 	urb->transfer_buffer_length = len; /* set to actual payload len */
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret) {
-		ufx_urb_completion(urb); /* because no one else will */
+		ufx_urb_completion(urb); /* because anal one else will */
 		atomic_set(&dev->lost_pixels, 1);
 		pr_err("usb_submit_urb error %x\n", ret);
 	}

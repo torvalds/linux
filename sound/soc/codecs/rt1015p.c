@@ -57,7 +57,7 @@ static int rt1015p_sdb_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget rt1015p_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Speaker"),
-	SND_SOC_DAPM_OUT_DRV_E("SDB", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_OUT_DRV_E("SDB", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			rt1015p_sdb_event,
 			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
@@ -108,7 +108,7 @@ static int rt1015p_platform_probe(struct platform_device *pdev)
 
 	rt1015p = devm_kzalloc(&pdev->dev, sizeof(*rt1015p), GFP_KERNEL);
 	if (!rt1015p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt1015p->sdb = devm_gpiod_get_optional(&pdev->dev,
 				"sdb", GPIOD_OUT_LOW);

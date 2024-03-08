@@ -12,7 +12,7 @@
 
 struct address_space;
 struct fiemap_extent_info;
-struct inode;
+struct ianalde;
 struct iomap_iter;
 struct iomap_dio;
 struct iomap_writepage_ctx;
@@ -25,19 +25,19 @@ struct vm_fault;
 /*
  * Types of block ranges for iomap mappings:
  */
-#define IOMAP_HOLE	0	/* no blocks allocated, need allocation */
+#define IOMAP_HOLE	0	/* anal blocks allocated, need allocation */
 #define IOMAP_DELALLOC	1	/* delayed allocation blocks */
 #define IOMAP_MAPPED	2	/* blocks allocated at @addr */
 #define IOMAP_UNWRITTEN	3	/* blocks allocated at @addr in unwritten state */
-#define IOMAP_INLINE	4	/* data inline in the inode */
+#define IOMAP_INLINE	4	/* data inline in the ianalde */
 
 /*
  * Flags reported by the file system from iomap_begin:
  *
  * IOMAP_F_NEW indicates that the blocks have been newly allocated and need
- * zeroing for areas that no data is copied to.
+ * zeroing for areas that anal data is copied to.
  *
- * IOMAP_F_DIRTY indicates the inode has uncommitted metadata needed to access
+ * IOMAP_F_DIRTY indicates the ianalde has uncommitted metadata needed to access
  * written data and requires fdatasync to commit them to persistent storage.
  * This needs to take into account metadata changes that *may* be made at IO
  * completion, such as file size updates from direct IO.
@@ -71,7 +71,7 @@ struct vm_fault;
  * IOMAP_F_SIZE_CHANGED indicates to the iomap_end method that the file size
  * has changed as the result of this write operation.
  *
- * IOMAP_F_STALE indicates that the iomap is not valid any longer and the file
+ * IOMAP_F_STALE indicates that the iomap is analt valid any longer and the file
  * range it covers needs to be remapped by the high level before the operation
  * can proceed.
  */
@@ -87,7 +87,7 @@ struct vm_fault;
 /*
  * Magic value for addr:
  */
-#define IOMAP_NULL_ADDR -1ULL	/* addr is not valid */
+#define IOMAP_NULL_ADDR -1ULL	/* addr is analt valid */
 
 struct iomap_folio_ops;
 
@@ -131,7 +131,7 @@ static inline bool iomap_inline_data_valid(const struct iomap *iomap)
 /*
  * When a filesystem sets folio_ops in an iomap mapping it returns, get_folio
  * and put_folio will be called for each folio written to.  This only applies
- * to buffered writes as unbuffered writes will not typically have folios
+ * to buffered writes as unbuffered writes will analt typically have folios
  * associated with them.
  *
  * When get_folio succeeds, put_folio will always be called to do any
@@ -141,7 +141,7 @@ static inline bool iomap_inline_data_valid(const struct iomap *iomap)
 struct iomap_folio_ops {
 	struct folio *(*get_folio)(struct iomap_iter *iter, loff_t pos,
 			unsigned len);
-	void (*put_folio)(struct inode *inode, loff_t pos, unsigned copied,
+	void (*put_folio)(struct ianalde *ianalde, loff_t pos, unsigned copied,
 			struct folio *folio);
 
 	/*
@@ -159,18 +159,18 @@ struct iomap_folio_ops {
 	 * This is called with the folio over the specified file position held
 	 * locked by the iomap code.
 	 */
-	bool (*iomap_valid)(struct inode *inode, const struct iomap *iomap);
+	bool (*iomap_valid)(struct ianalde *ianalde, const struct iomap *iomap);
 };
 
 /*
- * Flags for iomap_begin / iomap_end.  No flag implies a read.
+ * Flags for iomap_begin / iomap_end.  Anal flag implies a read.
  */
 #define IOMAP_WRITE		(1 << 0) /* writing, must allocate blocks */
 #define IOMAP_ZERO		(1 << 1) /* zeroing operation, may skip holes */
 #define IOMAP_REPORT		(1 << 2) /* report extent status, e.g. FIEMAP */
 #define IOMAP_FAULT		(1 << 3) /* mapping for page fault */
 #define IOMAP_DIRECT		(1 << 4) /* direct I/O */
-#define IOMAP_NOWAIT		(1 << 5) /* do not block */
+#define IOMAP_ANALWAIT		(1 << 5) /* do analt block */
 #define IOMAP_OVERWRITE_ONLY	(1 << 6) /* only pure overwrites allowed */
 #define IOMAP_UNSHARE		(1 << 7) /* unshare_file_range */
 #ifdef CONFIG_FS_DAX
@@ -185,7 +185,7 @@ struct iomap_ops {
 	 * pos for up to length, as long as we can do it as a single mapping.
 	 * The actual length is returned in iomap->length.
 	 */
-	int (*iomap_begin)(struct inode *inode, loff_t pos, loff_t length,
+	int (*iomap_begin)(struct ianalde *ianalde, loff_t pos, loff_t length,
 			unsigned flags, struct iomap *iomap,
 			struct iomap *srcmap);
 
@@ -193,27 +193,27 @@ struct iomap_ops {
 	 * Commit and/or unreserve space previous allocated using iomap_begin.
 	 * Written indicates the length of the successful write operation which
 	 * needs to be commited, while the rest needs to be unreserved.
-	 * Written might be zero if no data was written.
+	 * Written might be zero if anal data was written.
 	 */
-	int (*iomap_end)(struct inode *inode, loff_t pos, loff_t length,
+	int (*iomap_end)(struct ianalde *ianalde, loff_t pos, loff_t length,
 			ssize_t written, unsigned flags, struct iomap *iomap);
 };
 
 /**
  * struct iomap_iter - Iterate through a range of a file
- * @inode: Set at the start of the iteration and should not change.
+ * @ianalde: Set at the start of the iteration and should analt change.
  * @pos: The current file position we are operating on.  It is updated by
  *	calls to iomap_iter().  Treat as read-only in the body.
  * @len: The remaining length of the file segment we're operating on.
  *	It is updated at the same time as @pos.
  * @processed: The number of bytes processed by the body in the most recent
- *	iteration, or a negative errno. 0 causes the iteration to stop.
+ *	iteration, or a negative erranal. 0 causes the iteration to stop.
  * @flags: Zero or more of the iomap_begin flags above.
  * @iomap: Map describing the I/O iteration
  * @srcmap: Source map for COW operations
  */
 struct iomap_iter {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	loff_t pos;
 	u64 len;
 	s64 processed;
@@ -246,7 +246,7 @@ static inline u64 iomap_length(const struct iomap_iter *iter)
  *
  * Write operations on file systems with reflink support might require a
  * source and a destination map.  This function retourns the source map
- * for a given operation, which may or may no be identical to the destination
+ * for a given operation, which may or may anal be identical to the destination
  * map in &i->iomap.
  */
 static inline const struct iomap *iomap_iter_srcmap(const struct iomap_iter *i)
@@ -258,9 +258,9 @@ static inline const struct iomap *iomap_iter_srcmap(const struct iomap_iter *i)
 
 ssize_t iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *from,
 		const struct iomap_ops *ops);
-int iomap_file_buffered_write_punch_delalloc(struct inode *inode,
+int iomap_file_buffered_write_punch_delalloc(struct ianalde *ianalde,
 		struct iomap *iomap, loff_t pos, loff_t length, ssize_t written,
-		int (*punch)(struct inode *inode, loff_t pos, loff_t length));
+		int (*punch)(struct ianalde *ianalde, loff_t pos, loff_t length));
 
 int iomap_read_folio(struct folio *folio, const struct iomap_ops *ops);
 void iomap_readahead(struct readahead_control *, const struct iomap_ops *ops);
@@ -269,21 +269,21 @@ struct folio *iomap_get_folio(struct iomap_iter *iter, loff_t pos, size_t len);
 bool iomap_release_folio(struct folio *folio, gfp_t gfp_flags);
 void iomap_invalidate_folio(struct folio *folio, size_t offset, size_t len);
 bool iomap_dirty_folio(struct address_space *mapping, struct folio *folio);
-int iomap_file_unshare(struct inode *inode, loff_t pos, loff_t len,
+int iomap_file_unshare(struct ianalde *ianalde, loff_t pos, loff_t len,
 		const struct iomap_ops *ops);
-int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,
+int iomap_zero_range(struct ianalde *ianalde, loff_t pos, loff_t len,
 		bool *did_zero, const struct iomap_ops *ops);
-int iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
+int iomap_truncate_page(struct ianalde *ianalde, loff_t pos, bool *did_zero,
 		const struct iomap_ops *ops);
 vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf,
 			const struct iomap_ops *ops);
-int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int iomap_fiemap(struct ianalde *ianalde, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 len, const struct iomap_ops *ops);
-loff_t iomap_seek_hole(struct inode *inode, loff_t offset,
+loff_t iomap_seek_hole(struct ianalde *ianalde, loff_t offset,
 		const struct iomap_ops *ops);
-loff_t iomap_seek_data(struct inode *inode, loff_t offset,
+loff_t iomap_seek_data(struct ianalde *ianalde, loff_t offset,
 		const struct iomap_ops *ops);
-sector_t iomap_bmap(struct address_space *mapping, sector_t bno,
+sector_t iomap_bmap(struct address_space *mapping, sector_t banal,
 		const struct iomap_ops *ops);
 
 /*
@@ -294,7 +294,7 @@ struct iomap_ioend {
 	u16			io_type;
 	u16			io_flags;	/* IOMAP_F_* */
 	u32			io_folios;	/* folios added to ioend */
-	struct inode		*io_inode;	/* file being written to */
+	struct ianalde		*io_ianalde;	/* file being written to */
 	size_t			io_size;	/* size of the extent */
 	loff_t			io_offset;	/* offset in the file */
 	sector_t		io_sector;	/* start sector of ioend */
@@ -307,7 +307,7 @@ struct iomap_writeback_ops {
 	 * Required, maps the blocks so that writeback can be performed on
 	 * the range starting at offset.
 	 */
-	int (*map_blocks)(struct iomap_writepage_ctx *wpc, struct inode *inode,
+	int (*map_blocks)(struct iomap_writepage_ctx *wpc, struct ianalde *ianalde,
 				loff_t offset);
 
 	/*
@@ -363,20 +363,20 @@ struct iomap_dio_ops {
 };
 
 /*
- * Wait for the I/O to complete in iomap_dio_rw even if the kiocb is not
- * synchronous.
+ * Wait for the I/O to complete in iomap_dio_rw even if the kiocb is analt
+ * synchroanalus.
  */
 #define IOMAP_DIO_FORCE_WAIT	(1 << 0)
 
 /*
- * Do not allocate blocks or zero partial blocks, but instead fall back to
+ * Do analt allocate blocks or zero partial blocks, but instead fall back to
  * the caller by returning -EAGAIN.  Used to optimize direct I/O writes that
- * are not aligned to the file system block size.
+ * are analt aligned to the file system block size.
   */
 #define IOMAP_DIO_OVERWRITE_ONLY	(1 << 1)
 
 /*
- * When a page fault occurs, return a partial synchronous result and allow
+ * When a page fault occurs, return a partial synchroanalus result and allow
  * the caller to retry the rest of the operation after dealing with the page
  * fault.
  */

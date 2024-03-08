@@ -48,7 +48,7 @@ static int gapspci_read(struct pci_bus *bus, unsigned int devfn, int where, int 
 	*val = 0xffffffff;
 
 	if (!gapspci_config_access(bus->number, devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1: *val = inb(GAPSPCI_BBA_CONFIG+where); break;
@@ -62,7 +62,7 @@ static int gapspci_read(struct pci_bus *bus, unsigned int devfn, int where, int 
 static int gapspci_write(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 val)
 {
 	if (!gapspci_config_access(bus->number, devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1: outb(( u8)val, GAPSPCI_BBA_CONFIG+where); break;

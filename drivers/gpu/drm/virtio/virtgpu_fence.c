@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -45,13 +45,13 @@ static bool virtio_gpu_fence_signaled(struct dma_fence *f)
 	/* leaked fence outside driver before completing
 	 * initialization with virtio_gpu_fence_emit.
 	 */
-	WARN_ON_ONCE(f->seqno == 0);
+	WARN_ON_ONCE(f->seqanal == 0);
 	return false;
 }
 
 static void virtio_gpu_fence_value_str(struct dma_fence *f, char *str, int size)
 {
-	snprintf(str, size, "[%llu, %llu]", f->context, f->seqno);
+	snprintf(str, size, "[%llu, %llu]", f->context, f->seqanal);
 }
 
 static void virtio_gpu_timeline_value_str(struct dma_fence *f, char *str,
@@ -87,8 +87,8 @@ struct virtio_gpu_fence *virtio_gpu_fence_alloc(struct virtio_gpu_device *vgdev,
 	fence->ring_idx = ring_idx;
 	fence->emit_fence_info = !(base_fence_ctx == drv->context);
 
-	/* This only partially initializes the fence because the seqno is
-	 * unknown yet.  The fence must not be used outside of the driver
+	/* This only partially initializes the fence because the seqanal is
+	 * unkanalwn yet.  The fence must analt be used outside of the driver
 	 * until virtio_gpu_fence_emit is called.
 	 */
 
@@ -106,9 +106,9 @@ void virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&drv->lock, irq_flags);
-	fence->fence_id = fence->f.seqno = ++drv->current_fence_id;
+	fence->fence_id = fence->f.seqanal = ++drv->current_fence_id;
 	dma_fence_get(&fence->f);
-	list_add_tail(&fence->node, &drv->fences);
+	list_add_tail(&fence->analde, &drv->fences);
 	spin_unlock_irqrestore(&drv->lock, irq_flags);
 
 	trace_dma_fence_emit(&fence->f);
@@ -133,7 +133,7 @@ void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
 
 	spin_lock_irqsave(&drv->lock, irq_flags);
 	atomic64_set(&vgdev->fence_drv.last_fence_id, fence_id);
-	list_for_each_entry_safe(curr, tmp, &drv->fences, node) {
+	list_for_each_entry_safe(curr, tmp, &drv->fences, analde) {
 		if (fence_id != curr->fence_id)
 			continue;
 
@@ -143,7 +143,7 @@ void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
 		 * Signal any fences with a strictly smaller sequence number
 		 * than the current signaled fence.
 		 */
-		list_for_each_entry_safe(curr, tmp, &drv->fences, node) {
+		list_for_each_entry_safe(curr, tmp, &drv->fences, analde) {
 			/* dma-fence contexts must match */
 			if (signaled->f.context != curr->f.context)
 				continue;
@@ -157,7 +157,7 @@ void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
 				curr->e = NULL;
 			}
 
-			list_del(&curr->node);
+			list_del(&curr->analde);
 			dma_fence_put(&curr->f);
 		}
 
@@ -167,7 +167,7 @@ void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
 			signaled->e = NULL;
 		}
 
-		list_del(&signaled->node);
+		list_del(&signaled->analde);
 		dma_fence_put(&signaled->f);
 		break;
 	}

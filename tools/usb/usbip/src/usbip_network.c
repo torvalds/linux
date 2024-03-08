@@ -30,7 +30,7 @@ void usbip_setup_port_number(char *arg)
 	unsigned long int port = strtoul(arg, &end, 10);
 
 	if (end == arg) {
-		err("port: could not parse '%s' as a decimal integer", arg);
+		err("port: could analt parse '%s' as a decimal integer", arg);
 		return;
 	}
 
@@ -89,7 +89,7 @@ void usbip_net_pack_usb_interface(int pack __attribute__((unused)),
 				  struct usbip_usb_interface *udev
 				  __attribute__((unused)))
 {
-	/* uint8_t members need nothing */
+	/* uint8_t members need analthing */
 }
 
 static ssize_t usbip_net_xmit(int sockfd, void *buff, size_t bufflen,
@@ -219,14 +219,14 @@ int usbip_net_set_reuseaddr(int sockfd)
 	return ret;
 }
 
-int usbip_net_set_nodelay(int sockfd)
+int usbip_net_set_analdelay(int sockfd)
 {
 	const int val = 1;
 	int ret;
 
-	ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
+	ret = setsockopt(sockfd, IPPROTO_TCP, TCP_ANALDELAY, &val, sizeof(val));
 	if (ret < 0)
-		dbg("setsockopt: TCP_NODELAY");
+		dbg("setsockopt: TCP_ANALDELAY");
 
 	return ret;
 }
@@ -283,8 +283,8 @@ int usbip_net_tcp_connect(char *hostname, char *service)
 		if (sockfd < 0)
 			continue;
 
-		/* should set TCP_NODELAY for usbip */
-		usbip_net_set_nodelay(sockfd);
+		/* should set TCP_ANALDELAY for usbip */
+		usbip_net_set_analdelay(sockfd);
 		/* TODO: write code for heartbeat */
 		usbip_net_set_keepalive(sockfd);
 

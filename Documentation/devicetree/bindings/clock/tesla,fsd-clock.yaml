@@ -178,7 +178,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock controller node for CMU_FSYS1
+  # Clock controller analde for CMU_FSYS1
   - |
     #include <dt-bindings/clock/fsd-clk.h>
 

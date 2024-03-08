@@ -75,7 +75,7 @@
 #define MIDDLE_PAD(p)	(FRONT_PAD(p) + CEPH_GCM_BLOCK_LEN)
 #define DATA_PAD(p)	(MIDDLE_PAD(p) + CEPH_GCM_BLOCK_LEN)
 
-#define CEPH_MSG_FLAGS (MSG_DONTWAIT | MSG_NOSIGNAL)
+#define CEPH_MSG_FLAGS (MSG_DONTWAIT | MSG_ANALSIGNAL)
 
 static int do_recvmsg(struct socket *sock, struct iov_iter *it)
 {
@@ -102,7 +102,7 @@ static int do_recvmsg(struct socket *sock, struct iov_iter *it)
  * Read as much as possible.
  *
  * Return:
- *   1 - done, nothing (else) to read
+ *   1 - done, analthing (else) to read
  *   0 - socket is empty, need to wait
  *  <0 - error
  */
@@ -157,7 +157,7 @@ static int do_try_sendpage(struct socket *sock, struct iov_iter *it)
 			      it->bvec->bv_offset + it->iov_offset);
 
 		/*
-		 * MSG_SPLICE_PAGES cannot properly handle pages with
+		 * MSG_SPLICE_PAGES cananalt properly handle pages with
 		 * page_count == 0, we need to fall back to sendmsg if
 		 * that's the case.
 		 *
@@ -189,7 +189,7 @@ static int do_try_sendpage(struct socket *sock, struct iov_iter *it)
  * so we don't bother with MSG_MORE here.
  *
  * Return:
- *   1 - done, nothing (else) to write
+ *   1 - done, analthing (else) to write
  *   0 - socket is full, need to wait
  *  <0 - error
  */
@@ -309,7 +309,7 @@ static void *alloc_conn_buf(struct ceph_connection *con, int len)
 	if (WARN_ON(con->v2.conn_buf_cnt >= ARRAY_SIZE(con->v2.conn_bufs)))
 		return NULL;
 
-	buf = kvmalloc(len, GFP_NOIO);
+	buf = kvmalloc(len, GFP_ANALIO);
 	if (!buf)
 		return NULL;
 
@@ -704,7 +704,7 @@ static int setup_crypto(struct ceph_connection *con,
 			const u8 *session_key, int session_key_len,
 			const u8 *con_secret, int con_secret_len)
 {
-	unsigned int noio_flag;
+	unsigned int analio_flag;
 	int ret;
 
 	dout("%s con %p con_mode %d session_key_len %d con_secret_len %d\n",
@@ -720,12 +720,12 @@ static int setup_crypto(struct ceph_connection *con,
 	if (!session_key_len) {
 		WARN_ON(con->v2.con_mode != CEPH_CON_MODE_CRC);
 		WARN_ON(con_secret_len);
-		return 0;  /* auth_none */
+		return 0;  /* auth_analne */
 	}
 
-	noio_flag = memalloc_noio_save();
+	analio_flag = memalloc_analio_save();
 	con->v2.hmac_tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	memalloc_noio_restore(noio_flag);
+	memalloc_analio_restore(analio_flag);
 	if (IS_ERR(con->v2.hmac_tfm)) {
 		ret = PTR_ERR(con->v2.hmac_tfm);
 		con->v2.hmac_tfm = NULL;
@@ -750,9 +750,9 @@ static int setup_crypto(struct ceph_connection *con,
 		return -EINVAL;
 	}
 
-	noio_flag = memalloc_noio_save();
+	analio_flag = memalloc_analio_save();
 	con->v2.gcm_tfm = crypto_alloc_aead("gcm(aes)", 0, 0);
-	memalloc_noio_restore(noio_flag);
+	memalloc_analio_restore(analio_flag);
 	if (IS_ERR(con->v2.gcm_tfm)) {
 		ret = PTR_ERR(con->v2.gcm_tfm);
 		con->v2.gcm_tfm = NULL;
@@ -775,19 +775,19 @@ static int setup_crypto(struct ceph_connection *con,
 		return ret;
 	}
 
-	con->v2.gcm_req = aead_request_alloc(con->v2.gcm_tfm, GFP_NOIO);
+	con->v2.gcm_req = aead_request_alloc(con->v2.gcm_tfm, GFP_ANALIO);
 	if (!con->v2.gcm_req) {
 		pr_err("failed to allocate gcm request\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	crypto_init_wait(&con->v2.gcm_wait);
 	aead_request_set_callback(con->v2.gcm_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				  crypto_req_done, &con->v2.gcm_wait);
 
-	memcpy(&con->v2.in_gcm_nonce, con_secret + CEPH_GCM_KEY_LEN,
+	memcpy(&con->v2.in_gcm_analnce, con_secret + CEPH_GCM_KEY_LEN,
 	       CEPH_GCM_IV_LEN);
-	memcpy(&con->v2.out_gcm_nonce,
+	memcpy(&con->v2.out_gcm_analnce,
 	       con_secret + CEPH_GCM_KEY_LEN + CEPH_GCM_IV_LEN,
 	       CEPH_GCM_IV_LEN);
 	return 0;  /* auth_x, secure mode */
@@ -796,7 +796,7 @@ static int setup_crypto(struct ceph_connection *con,
 static int hmac_sha256(struct ceph_connection *con, const struct kvec *kvecs,
 		       int kvec_cnt, u8 *hmac)
 {
-	SHASH_DESC_ON_STACK(desc, con->v2.hmac_tfm);  /* tfm arg is ignored */
+	SHASH_DESC_ON_STACK(desc, con->v2.hmac_tfm);  /* tfm arg is iganalred */
 	int ret;
 	int i;
 
@@ -805,7 +805,7 @@ static int hmac_sha256(struct ceph_connection *con, const struct kvec *kvecs,
 
 	if (!con->v2.hmac_tfm) {
 		memset(hmac, 0, SHA256_DIGEST_SIZE);
-		return 0;  /* auth_none */
+		return 0;  /* auth_analne */
 	}
 
 	desc->tfm = con->v2.hmac_tfm;
@@ -827,32 +827,32 @@ out:
 	return ret;  /* auth_x, both plain and secure modes */
 }
 
-static void gcm_inc_nonce(struct ceph_gcm_nonce *nonce)
+static void gcm_inc_analnce(struct ceph_gcm_analnce *analnce)
 {
 	u64 counter;
 
-	counter = le64_to_cpu(nonce->counter);
-	nonce->counter = cpu_to_le64(counter + 1);
+	counter = le64_to_cpu(analnce->counter);
+	analnce->counter = cpu_to_le64(counter + 1);
 }
 
 static int gcm_crypt(struct ceph_connection *con, bool encrypt,
 		     struct scatterlist *src, struct scatterlist *dst,
 		     int src_len)
 {
-	struct ceph_gcm_nonce *nonce;
+	struct ceph_gcm_analnce *analnce;
 	int ret;
 
-	nonce = encrypt ? &con->v2.out_gcm_nonce : &con->v2.in_gcm_nonce;
+	analnce = encrypt ? &con->v2.out_gcm_analnce : &con->v2.in_gcm_analnce;
 
-	aead_request_set_ad(con->v2.gcm_req, 0);  /* no AAD */
-	aead_request_set_crypt(con->v2.gcm_req, src, dst, src_len, (u8 *)nonce);
+	aead_request_set_ad(con->v2.gcm_req, 0);  /* anal AAD */
+	aead_request_set_crypt(con->v2.gcm_req, src, dst, src_len, (u8 *)analnce);
 	ret = crypto_wait_req(encrypt ? crypto_aead_encrypt(con->v2.gcm_req) :
 					crypto_aead_decrypt(con->v2.gcm_req),
 			      &con->v2.gcm_wait);
 	if (ret)
 		return ret;
 
-	gcm_inc_nonce(nonce);
+	gcm_inc_analnce(analnce);
 	return 0;
 }
 
@@ -1031,7 +1031,7 @@ static int setup_message_sgs(struct sg_table *sgt, struct ceph_msg *msg,
 		}
 	}
 
-	ret = sg_alloc_table(sgt, sg_cnt, GFP_NOIO);
+	ret = sg_alloc_table(sgt, sg_cnt, GFP_ANALIO);
 	if (ret)
 		return ret;
 
@@ -1136,7 +1136,7 @@ static int decrypt_tail(struct ceph_connection *con)
 	tail_len = tail_onwire_len(con->in_msg, true);
 	ret = sg_alloc_table_from_pages(&enc_sgt, con->v2.in_enc_pages,
 					con->v2.in_enc_page_cnt, 0, tail_len,
-					GFP_NOIO);
+					GFP_ANALIO);
 	if (ret)
 		goto out;
 
@@ -1182,7 +1182,7 @@ static int prepare_banner(struct ceph_connection *con)
 
 	buf = alloc_conn_buf(con, buf_len);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = buf;
 	ceph_encode_copy(&p, CEPH_BANNER_V2, CEPH_BANNER_V2_LEN);
@@ -1328,7 +1328,7 @@ static int __prepare_control(struct ceph_connection *con, int tag,
 	dout("%s con %p tag %d len %d (%d+%d)\n", __func__, con, tag,
 	     total_len, ctrl_len, extdata_len);
 
-	/* extdata may be vmalloc'ed but not base */
+	/* extdata may be vmalloc'ed but analt base */
 	if (WARN_ON(is_vmalloc_addr(base) || !ctrl_len))
 		return -EINVAL;
 
@@ -1370,7 +1370,7 @@ static int prepare_hello(struct ceph_connection *con)
 	ctrl_len = 1 + ceph_entity_addr_encoding_len(&con->peer_addr);
 	buf = alloc_conn_buf(con, head_onwire_len(ctrl_len, false));
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = CTRL_BODY(buf);
 	ceph_encode_8(&p, CEPH_ENTITY_TYPE_CLIENT);
@@ -1394,7 +1394,7 @@ static int prepare_auth_request(struct ceph_connection *con)
 	ctrl_len = AUTH_BUF_LEN;
 	buf = alloc_conn_buf(con, head_onwire_len(ctrl_len, false));
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_unlock(&con->mutex);
 	ret = con->ops->get_auth_request(con, CTRL_BODY(buf), &ctrl_len,
@@ -1412,7 +1412,7 @@ static int prepare_auth_request(struct ceph_connection *con)
 
 	authorizer_copy = alloc_conn_buf(con, authorizer_len);
 	if (!authorizer_copy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(authorizer_copy, authorizer, authorizer_len);
 
@@ -1431,7 +1431,7 @@ static int prepare_auth_request_more(struct ceph_connection *con,
 	ctrl_len = AUTH_BUF_LEN;
 	buf = alloc_conn_buf(con, head_onwire_len(ctrl_len, false));
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_unlock(&con->mutex);
 	ret = con->ops->handle_auth_reply_more(con, reply, reply_len,
@@ -1460,7 +1460,7 @@ static int prepare_auth_signature(struct ceph_connection *con)
 	buf = alloc_conn_buf(con, head_onwire_len(SHA256_DIGEST_SIZE,
 						  con_secure(con)));
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hmac_sha256(con, con->v2.in_sign_kvecs, con->v2.in_sign_kvec_cnt,
 			  CTRL_BODY(buf));
@@ -1496,8 +1496,8 @@ static int prepare_client_ident(struct ceph_connection *con)
 	}
 
 	dout("%s con %p my_addr %s/%u peer_addr %s/%u global_id %llu global_seq %llu features 0x%llx required_features 0x%llx cookie 0x%llx\n",
-	     __func__, con, ceph_pr_addr(my_addr), le32_to_cpu(my_addr->nonce),
-	     ceph_pr_addr(&con->peer_addr), le32_to_cpu(con->peer_addr.nonce),
+	     __func__, con, ceph_pr_addr(my_addr), le32_to_cpu(my_addr->analnce),
+	     ceph_pr_addr(&con->peer_addr), le32_to_cpu(con->peer_addr.analnce),
 	     global_id, con->v2.global_seq, client->supported_features,
 	     client->required_features, con->v2.client_cookie);
 
@@ -1505,7 +1505,7 @@ static int prepare_client_ident(struct ceph_connection *con)
 		   ceph_entity_addr_encoding_len(&con->peer_addr) + 6 * 8;
 	buf = alloc_conn_buf(con, head_onwire_len(ctrl_len, con_secure(con)));
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = CTRL_BODY(buf);
 	ceph_encode_8(&p, 2);  /* addrvec marker */
@@ -1535,14 +1535,14 @@ static int prepare_session_reconnect(struct ceph_connection *con)
 	WARN_ON(!con->v2.peer_global_seq);
 
 	dout("%s con %p my_addr %s/%u client_cookie 0x%llx server_cookie 0x%llx global_seq %llu connect_seq %llu in_seq %llu\n",
-	     __func__, con, ceph_pr_addr(my_addr), le32_to_cpu(my_addr->nonce),
+	     __func__, con, ceph_pr_addr(my_addr), le32_to_cpu(my_addr->analnce),
 	     con->v2.client_cookie, con->v2.server_cookie, con->v2.global_seq,
 	     con->v2.connect_seq, con->in_seq);
 
 	ctrl_len = 1 + 4 + ceph_entity_addr_encoding_len(my_addr) + 5 * 8;
 	buf = alloc_conn_buf(con, head_onwire_len(ctrl_len, con_secure(con)));
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = CTRL_BODY(buf);
 	ceph_encode_8(&p, 2);  /* entity_addrvec_t marker */
@@ -1561,13 +1561,13 @@ static int prepare_session_reconnect(struct ceph_connection *con)
 static int prepare_keepalive2(struct ceph_connection *con)
 {
 	struct ceph_timespec *ts = CTRL_BODY(con->v2.out_buf);
-	struct timespec64 now;
+	struct timespec64 analw;
 
-	ktime_get_real_ts64(&now);
-	dout("%s con %p timestamp %lld.%09ld\n", __func__, con, now.tv_sec,
-	     now.tv_nsec);
+	ktime_get_real_ts64(&analw);
+	dout("%s con %p timestamp %lld.%09ld\n", __func__, con, analw.tv_sec,
+	     analw.tv_nsec);
 
-	ceph_encode_timespec64(ts, &now);
+	ceph_encode_timespec64(ts, &analw);
 
 	reset_out_kvecs(con);
 	return prepare_control(con, FRAME_TAG_KEEPALIVE2, con->v2.out_buf,
@@ -1614,7 +1614,7 @@ static void prepare_message_plain(struct ceph_connection *con)
 		if (!data_len(msg)) {
 			/*
 			 * Empty message: once the head is written,
-			 * we are done -- there is no epilogue.
+			 * we are done -- there is anal epilogue.
 			 */
 			con->v2.out_state = OUT_S_FINISH_MESSAGE;
 			return;
@@ -1678,7 +1678,7 @@ static int prepare_message_secure(struct ceph_connection *con)
 	if (!tail_len) {
 		/*
 		 * Empty message: once the head is written,
-		 * we are done -- there is no epilogue.
+		 * we are done -- there is anal epilogue.
 		 */
 		con->v2.out_state = OUT_S_FINISH_MESSAGE;
 		return 0;
@@ -1691,7 +1691,7 @@ static int prepare_message_secure(struct ceph_connection *con)
 		goto out;
 
 	enc_page_cnt = calc_pages_for(0, tail_len);
-	enc_pages = ceph_alloc_page_vector(enc_page_cnt, GFP_NOIO);
+	enc_pages = ceph_alloc_page_vector(enc_page_cnt, GFP_ANALIO);
 	if (IS_ERR(enc_pages)) {
 		ret = PTR_ERR(enc_pages);
 		goto out;
@@ -1704,7 +1704,7 @@ static int prepare_message_secure(struct ceph_connection *con)
 	con->v2.out_enc_i = 0;
 
 	ret = sg_alloc_table_from_pages(&enc_sgt, enc_pages, enc_page_cnt,
-					0, tail_len, GFP_NOIO);
+					0, tail_len, GFP_ANALIO);
 	if (ret)
 		goto out;
 
@@ -1767,7 +1767,7 @@ static int prepare_read_banner_prefix(struct ceph_connection *con)
 
 	buf = alloc_conn_buf(con, CEPH_BANNER_V2_PREFIX_LEN);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset_in_kvecs(con);
 	add_in_kvec(con, buf, CEPH_BANNER_V2_PREFIX_LEN);
@@ -1783,7 +1783,7 @@ static int prepare_read_banner_payload(struct ceph_connection *con,
 
 	buf = alloc_conn_buf(con, payload_len);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset_in_kvecs(con);
 	add_in_kvec(con, buf, payload_len);
@@ -1813,7 +1813,7 @@ static int prepare_read_control(struct ceph_connection *con)
 		head_len = head_onwire_len(ctrl_len, false);
 		buf = alloc_conn_buf(con, head_len);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* preserve preamble */
 		memcpy(buf, con->v2.in_buf, CEPH_PREAMBLE_LEN);
@@ -1825,7 +1825,7 @@ static int prepare_read_control(struct ceph_connection *con)
 		if (ctrl_len > CEPH_PREAMBLE_INLINE_LEN) {
 			buf = alloc_conn_buf(con, ctrl_len);
 			if (!buf)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			add_in_kvec(con, buf, ctrl_len);
 		} else {
@@ -1845,7 +1845,7 @@ static int prepare_read_control_remainder(struct ceph_connection *con)
 
 	buf = alloc_conn_buf(con, ctrl_len);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(buf, CTRL_BODY(con->v2.in_buf), CEPH_PREAMBLE_INLINE_LEN);
 
@@ -1868,10 +1868,10 @@ static int prepare_read_data(struct ceph_connection *con)
 	get_bvec_at(&con->v2.in_cursor, &bv);
 	if (ceph_test_opt(from_msgr(con->msgr), RXBOUNCE)) {
 		if (unlikely(!con->bounce_page)) {
-			con->bounce_page = alloc_page(GFP_NOIO);
+			con->bounce_page = alloc_page(GFP_ANALIO);
 			if (!con->bounce_page) {
 				pr_err("failed to allocate bounce page\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 
@@ -1966,7 +1966,7 @@ static int prepare_sparse_read_cont(struct ceph_connection *con)
 			return 0;
 		}
 	} else if (iov_iter_is_kvec(&con->v2.in_iter)) {
-		/* On first call, we have no kvec so don't compute crc */
+		/* On first call, we have anal kvec so don't compute crc */
 		if (con->v2.in_kvec_cnt) {
 			WARN_ON_ONCE(con->v2.in_kvec_cnt > 1);
 			con->in_data_crc = crc32c(con->in_data_crc,
@@ -2007,10 +2007,10 @@ static int prepare_sparse_read_cont(struct ceph_connection *con)
 		bv.bv_len = cursor->sr_resid;
 	if (ceph_test_opt(from_msgr(con->msgr), RXBOUNCE)) {
 		if (unlikely(!con->bounce_page)) {
-			con->bounce_page = alloc_page(GFP_NOIO);
+			con->bounce_page = alloc_page(GFP_ANALIO);
 			if (!con->bounce_page) {
 				pr_err("failed to allocate bounce page\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 
@@ -2029,7 +2029,7 @@ static int prepare_sparse_read_data(struct ceph_connection *con)
 	dout("%s: starting sparse read\n", __func__);
 
 	if (WARN_ON_ONCE(!con->ops->sparse_read))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!con_secure(con))
 		con->in_data_crc = -1;
@@ -2109,7 +2109,7 @@ static int prepare_read_tail_secure(struct ceph_connection *con)
 	WARN_ON(!tail_len);
 
 	enc_page_cnt = calc_pages_for(0, tail_len);
-	enc_pages = ceph_alloc_page_vector(enc_page_cnt, GFP_NOIO);
+	enc_pages = ceph_alloc_page_vector(enc_page_cnt, GFP_ANALIO);
 	if (IS_ERR(enc_pages))
 		return PTR_ERR(enc_pages);
 
@@ -2199,7 +2199,7 @@ static int process_banner_payload(struct ceph_connection *con)
 		return -EINVAL;
 	}
 
-	/* no reset_out_kvecs() as our banner may still be pending */
+	/* anal reset_out_kvecs() as our banner may still be pending */
 	ret = prepare_hello(con);
 	if (ret) {
 		pr_err("prepare_hello failed: %d\n", ret);
@@ -2247,7 +2247,7 @@ static int process_hello(struct ceph_connection *con, void *p, void *end)
 	/*
 	 * Set our address to the address our first peer (i.e. monitor)
 	 * sees that we are connecting from.  If we are behind some sort
-	 * of NAT and want to be identified by some private (not NATed)
+	 * of NAT and want to be identified by some private (analt NATed)
 	 * address, ip option should be used.
 	 */
 	if (ceph_addr_is_blank(my_addr)) {
@@ -2264,9 +2264,9 @@ static int process_hello(struct ceph_connection *con, void *p, void *end)
 
 	WARN_ON(ceph_addr_is_blank(my_addr) || ceph_addr_port(my_addr));
 	WARN_ON(my_addr->type != CEPH_ENTITY_ADDR_TYPE_ANY);
-	WARN_ON(!my_addr->nonce);
+	WARN_ON(!my_addr->analnce);
 
-	/* no reset_out_kvecs() as our hello may still be pending */
+	/* anal reset_out_kvecs() as our hello may still be pending */
 	ret = prepare_auth_request(con);
 	if (ret) {
 		if (ret != -EAGAIN)
@@ -2470,7 +2470,7 @@ static int process_auth_signature(struct ceph_connection *con,
 
 	dout("%s con %p auth signature ok\n", __func__, con);
 
-	/* no reset_out_kvecs() as our auth_signature may still be pending */
+	/* anal reset_out_kvecs() as our auth_signature may still be pending */
 	if (!con->v2.server_cookie) {
 		ret = prepare_client_ident(con);
 		if (ret) {
@@ -2527,15 +2527,15 @@ static int process_server_ident(struct ceph_connection *con,
 	ceph_decode_64_safe(&p, end, cookie, bad);
 
 	dout("%s con %p addr %s/%u global_id %llu global_seq %llu features 0x%llx required_features 0x%llx flags 0x%llx cookie 0x%llx\n",
-	     __func__, con, ceph_pr_addr(&addr), le32_to_cpu(addr.nonce),
+	     __func__, con, ceph_pr_addr(&addr), le32_to_cpu(addr.analnce),
 	     global_id, global_seq, features, required_features, flags, cookie);
 
 	/* is this who we intended to talk to? */
 	if (memcmp(&addr, &con->peer_addr, sizeof(con->peer_addr))) {
-		pr_err("bad peer addr/nonce, want %s/%u, got %s/%u\n",
+		pr_err("bad peer addr/analnce, want %s/%u, got %s/%u\n",
 		       ceph_pr_addr(&con->peer_addr),
-		       le32_to_cpu(con->peer_addr.nonce),
-		       ceph_pr_addr(&addr), le32_to_cpu(addr.nonce));
+		       le32_to_cpu(con->peer_addr.analnce),
+		       ceph_pr_addr(&addr), le32_to_cpu(addr.analnce));
 		con->error_msg = "wrong peer at address";
 		return -EINVAL;
 	}
@@ -3006,7 +3006,7 @@ static int handle_control(struct ceph_connection *con)
 	if (con->state == CEPH_CON_S_V2_AUTH) {
 		buf = alloc_conn_buf(con, ctrl_len);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(buf, con->v2.in_kvecs[0].iov_base, ctrl_len);
 		return __handle_control(con, buf);
@@ -3075,7 +3075,7 @@ static void finish_skip(struct ceph_connection *con)
 	dout("%s con %p\n", __func__, con);
 
 	if (con_secure(con))
-		gcm_inc_nonce(&con->v2.in_gcm_nonce);
+		gcm_inc_analnce(&con->v2.in_gcm_analnce);
 
 	__finish_skip(con);
 }
@@ -3143,7 +3143,7 @@ static int populate_in_iter(struct ceph_connection *con)
 	}
 
 	if (WARN_ON(!iov_iter_count(&con->v2.in_iter)))
-		return -ENODATA;
+		return -EANALDATA;
 	dout("%s con %p populated %zu\n", __func__, con,
 	     iov_iter_count(&con->v2.in_iter));
 	return 1;
@@ -3160,12 +3160,12 @@ int ceph_con_v2_try_read(struct ceph_connection *con)
 		return 0;
 
 	/*
-	 * We should always have something pending here.  If not,
+	 * We should always have something pending here.  If analt,
 	 * avoid calling populate_in_iter() as if we read something
 	 * (ceph_tcp_recv() would immediately return 1).
 	 */
 	if (WARN_ON(!iov_iter_count(&con->v2.in_iter)))
-		return -ENODATA;
+		return -EANALDATA;
 
 	for (;;) {
 		ret = ceph_tcp_recv(con);
@@ -3300,7 +3300,7 @@ static int populate_out_iter(struct ceph_connection *con)
 	if (con->state != CEPH_CON_S_OPEN) {
 		WARN_ON(con->state < CEPH_CON_S_V2_BANNER_PREFIX ||
 			con->state > CEPH_CON_S_V2_SESSION_RECONNECT);
-		goto nothing_pending;
+		goto analthing_pending;
 	}
 
 	switch (con->v2.out_state) {
@@ -3350,19 +3350,19 @@ static int populate_out_iter(struct ceph_connection *con)
 			return ret;
 		}
 	} else {
-		goto nothing_pending;
+		goto analthing_pending;
 	}
 
 populated:
 	if (WARN_ON(!iov_iter_count(&con->v2.out_iter)))
-		return -ENODATA;
+		return -EANALDATA;
 	dout("%s con %p populated %zu\n", __func__, con,
 	     iov_iter_count(&con->v2.out_iter));
 	return 1;
 
-nothing_pending:
+analthing_pending:
 	WARN_ON(iov_iter_count(&con->v2.out_iter));
-	dout("%s con %p nothing pending\n", __func__, con);
+	dout("%s con %p analthing pending\n", __func__, con);
 	ceph_con_flag_clear(con, CEPH_CON_F_WRITE_PENDING);
 	return 0;
 }
@@ -3579,7 +3579,7 @@ static void revoke_at_finish_message(struct ceph_connection *con)
 	if (!front_len(con->out_msg) && !middle_len(con->out_msg) &&
 	    !data_len(con->out_msg)) {
 		WARN_ON(!resid || resid > MESSAGE_HEAD_PLAIN_LEN);
-		dout("%s con %p was sending head (empty message) - noop\n",
+		dout("%s con %p was sending head (empty message) - analop\n",
 		     __func__, con);
 		return;
 	}
@@ -3623,7 +3623,7 @@ static void revoke_at_finish_message(struct ceph_connection *con)
 	}
 
 	WARN_ON(!resid);
-	dout("%s con %p was sending epilogue - noop\n", __func__, con);
+	dout("%s con %p was sending epilogue - analop\n", __func__, con);
 }
 
 void ceph_con_v2_revoke(struct ceph_connection *con)
@@ -3633,7 +3633,7 @@ void ceph_con_v2_revoke(struct ceph_connection *con)
 	if (con_secure(con)) {
 		WARN_ON(con->v2.out_state != OUT_S_QUEUE_ENC_PAGE &&
 			con->v2.out_state != OUT_S_FINISH_MESSAGE);
-		dout("%s con %p secure - noop\n", __func__, con);
+		dout("%s con %p secure - analop\n", __func__, con);
 		return;
 	}
 
@@ -3699,7 +3699,7 @@ static void revoke_at_prepare_read_data_cont(struct ceph_connection *con)
 
 static void revoke_at_prepare_read_enc_page(struct ceph_connection *con)
 {
-	int resid;  /* current enc page (not necessarily data) */
+	int resid;  /* current enc page (analt necessarily data) */
 
 	WARN_ON(!con_secure(con));
 	WARN_ON(!iov_iter_is_bvec(&con->v2.in_iter));
@@ -3807,9 +3807,9 @@ void ceph_con_v2_reset_protocol(struct ceph_connection *con)
 		con->v2.out_enc_page_cnt = 0;
 	}
 
-	con->v2.con_mode = CEPH_CON_MODE_UNKNOWN;
-	memzero_explicit(&con->v2.in_gcm_nonce, CEPH_GCM_IV_LEN);
-	memzero_explicit(&con->v2.out_gcm_nonce, CEPH_GCM_IV_LEN);
+	con->v2.con_mode = CEPH_CON_MODE_UNKANALWN;
+	memzero_explicit(&con->v2.in_gcm_analnce, CEPH_GCM_IV_LEN);
+	memzero_explicit(&con->v2.out_gcm_analnce, CEPH_GCM_IV_LEN);
 
 	if (con->v2.hmac_tfm) {
 		crypto_free_shash(con->v2.hmac_tfm);

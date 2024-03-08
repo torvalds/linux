@@ -504,7 +504,7 @@ static void pm860x_init_battery(struct pm860x_battery_info *info)
 	bat_remove = data & BAT_WU_LOG;
 
 	dev_dbg(info->dev, "battery wake up? %s\n",
-		bat_remove != 0 ? "yes" : "no");
+		bat_remove != 0 ? "anal" : "anal");
 
 	/* restore SOC from RTC domain register */
 	if (bat_remove == 0) {
@@ -822,15 +822,15 @@ static int pm860x_batt_get_prop(struct power_supply *psy,
 			data = 0;
 		else if (data > 100)
 			data = 100;
-		/* return 100 if battery is not attached */
+		/* return 100 if battery is analt attached */
 		if (!info->present)
 			data = 100;
 		val->intval = data;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		/* return real vbatt Voltage */
 		ret = measure_vbatt(info, OCV_MODE_ACTIVE, &data);
 		if (ret)
@@ -838,13 +838,13 @@ static int pm860x_batt_get_prop(struct power_supply *psy,
 		val->intval = data * 1000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
-		/* return Open Circuit Voltage (not measured voltage) */
+		/* return Open Circuit Voltage (analt measured voltage) */
 		ret = calc_ocv(info, &data);
 		if (ret)
 			return ret;
 		val->intval = data * 1000;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = measure_current(info, &data);
 		if (ret)
 			return ret;
@@ -863,7 +863,7 @@ static int pm860x_batt_get_prop(struct power_supply *psy,
 		val->intval = data;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -892,10 +892,10 @@ static int pm860x_batt_set_prop(struct power_supply *psy,
 static enum power_supply_property pm860x_batt_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 };
 
@@ -918,7 +918,7 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->irq_cc = platform_get_irq(pdev, 0);
 	if (info->irq_cc < 0)
@@ -932,7 +932,7 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 	info->i2c =
 	    (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
 	info->dev = &pdev->dev;
-	info->status = POWER_SUPPLY_STATUS_UNKNOWN;
+	info->status = POWER_SUPPLY_STATUS_UNKANALWN;
 	pdata = pdev->dev.platform_data;
 
 	mutex_init(&info->lock);

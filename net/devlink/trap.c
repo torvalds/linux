@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include <trace/events/devlink.h>
@@ -313,17 +313,17 @@ int devlink_nl_trap_get_doit(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	if (list_empty(&devlink->trap_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trap_item = devlink_trap_item_get_from_info(devlink, info);
 	if (!trap_item) {
-		NL_SET_ERR_MSG(extack, "Device did not register this trap");
-		return -ENOENT;
+		NL_SET_ERR_MSG(extack, "Device did analt register this trap");
+		return -EANALENT;
 	}
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_trap_fill(msg, devlink, trap_item,
 				   DEVLINK_CMD_TRAP_NEW, info->snd_portid,
@@ -380,7 +380,7 @@ static int __devlink_trap_action_set(struct devlink *devlink,
 
 	if (trap_item->action != trap_action &&
 	    trap_item->trap->type != DEVLINK_TRAP_TYPE_DROP) {
-		NL_SET_ERR_MSG(extack, "Cannot change action of non-drop traps. Skipping");
+		NL_SET_ERR_MSG(extack, "Cananalt change action of analn-drop traps. Skipping");
 		return 0;
 	}
 
@@ -421,12 +421,12 @@ int devlink_nl_trap_set_doit(struct sk_buff *skb, struct genl_info *info)
 	struct devlink_trap_item *trap_item;
 
 	if (list_empty(&devlink->trap_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trap_item = devlink_trap_item_get_from_info(devlink, info);
 	if (!trap_item) {
-		NL_SET_ERR_MSG(extack, "Device did not register this trap");
-		return -ENOENT;
+		NL_SET_ERR_MSG(extack, "Device did analt register this trap");
+		return -EANALENT;
 	}
 
 	return devlink_trap_action_set(devlink, trap_item, info);
@@ -522,17 +522,17 @@ int devlink_nl_trap_group_get_doit(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	if (list_empty(&devlink->trap_group_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	group_item = devlink_trap_group_item_get_from_info(devlink, info);
 	if (!group_item) {
-		NL_SET_ERR_MSG(extack, "Device did not register this trap group");
-		return -ENOENT;
+		NL_SET_ERR_MSG(extack, "Device did analt register this trap group");
+		return -EANALENT;
 	}
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_trap_group_fill(msg, devlink, group_item,
 					 DEVLINK_CMD_TRAP_GROUP_NEW,
@@ -664,13 +664,13 @@ static int devlink_trap_group_set(struct devlink *devlink,
 		return 0;
 
 	if (!devlink->ops->trap_group_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	policer_id = nla_get_u32(attrs[DEVLINK_ATTR_TRAP_POLICER_ID]);
 	policer_item = devlink_trap_policer_item_lookup(devlink, policer_id);
 	if (policer_id && !policer_item) {
-		NL_SET_ERR_MSG(extack, "Device did not register this trap policer");
-		return -ENOENT;
+		NL_SET_ERR_MSG(extack, "Device did analt register this trap policer");
+		return -EANALENT;
 	}
 	policer = policer_item ? policer_item->policer : NULL;
 
@@ -693,12 +693,12 @@ int devlink_nl_trap_group_set_doit(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	if (list_empty(&devlink->trap_group_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	group_item = devlink_trap_group_item_get_from_info(devlink, info);
 	if (!group_item) {
-		NL_SET_ERR_MSG(extack, "Device did not register this trap group");
-		return -ENOENT;
+		NL_SET_ERR_MSG(extack, "Device did analt register this trap group");
+		return -EANALENT;
 	}
 
 	err = devlink_trap_group_action_set(devlink, group_item, info,
@@ -815,17 +815,17 @@ int devlink_nl_trap_policer_get_doit(struct sk_buff *skb,
 	int err;
 
 	if (list_empty(&devlink->trap_policer_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	policer_item = devlink_trap_policer_item_get_from_info(devlink, info);
 	if (!policer_item) {
-		NL_SET_ERR_MSG(extack, "Device did not register this trap policer");
-		return -ENOENT;
+		NL_SET_ERR_MSG(extack, "Device did analt register this trap policer");
+		return -EANALENT;
 	}
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_trap_policer_fill(msg, devlink, policer_item,
 					   DEVLINK_CMD_TRAP_POLICER_NEW,
@@ -933,15 +933,15 @@ int devlink_nl_trap_policer_set_doit(struct sk_buff *skb,
 	struct devlink *devlink = info->user_ptr[0];
 
 	if (list_empty(&devlink->trap_policer_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!devlink->ops->trap_policer_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	policer_item = devlink_trap_policer_item_get_from_info(devlink, info);
 	if (!policer_item) {
-		NL_SET_ERR_MSG(extack, "Device did not register this trap policer");
-		return -ENOENT;
+		NL_SET_ERR_MSG(extack, "Device did analt register this trap policer");
+		return -EANALENT;
 	}
 
 	return devlink_trap_policer_set(devlink, policer_item, info);
@@ -964,7 +964,7 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(BLACKHOLE_ROUTE, DROP),
 	DEVLINK_TRAP(TTL_ERROR, EXCEPTION),
 	DEVLINK_TRAP(TAIL_DROP, DROP),
-	DEVLINK_TRAP(NON_IP_PACKET, DROP),
+	DEVLINK_TRAP(ANALN_IP_PACKET, DROP),
 	DEVLINK_TRAP(UC_DIP_MC_DMAC, DROP),
 	DEVLINK_TRAP(DIP_LB, DROP),
 	DEVLINK_TRAP(SIP_MC, DROP),
@@ -979,7 +979,7 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(REJECT_ROUTE, EXCEPTION),
 	DEVLINK_TRAP(IPV4_LPM_UNICAST_MISS, EXCEPTION),
 	DEVLINK_TRAP(IPV6_LPM_UNICAST_MISS, EXCEPTION),
-	DEVLINK_TRAP(NON_ROUTABLE, DROP),
+	DEVLINK_TRAP(ANALN_ROUTABLE, DROP),
 	DEVLINK_TRAP(DECAP_ERROR, EXCEPTION),
 	DEVLINK_TRAP(OVERLAY_SMAC_MC, DROP),
 	DEVLINK_TRAP(INGRESS_FLOW_ACTION_DROP, DROP),
@@ -1017,7 +1017,7 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(LOCAL_ROUTE, CONTROL),
 	DEVLINK_TRAP(EXTERNAL_ROUTE, CONTROL),
 	DEVLINK_TRAP(IPV6_UC_DIP_LINK_LOCAL_SCOPE, CONTROL),
-	DEVLINK_TRAP(IPV6_DIP_ALL_NODES, CONTROL),
+	DEVLINK_TRAP(IPV6_DIP_ALL_ANALDES, CONTROL),
 	DEVLINK_TRAP(IPV6_DIP_ALL_ROUTERS, CONTROL),
 	DEVLINK_TRAP(IPV6_ROUTER_SOLICIT, CONTROL),
 	DEVLINK_TRAP(IPV6_ROUTER_ADVERT, CONTROL),
@@ -1067,7 +1067,7 @@ static const struct devlink_trap_group devlink_trap_group_generic[] = {
 	DEVLINK_TRAP_GROUP(STP),
 	DEVLINK_TRAP_GROUP(LACP),
 	DEVLINK_TRAP_GROUP(LLDP),
-	DEVLINK_TRAP_GROUP(MC_SNOOPING),
+	DEVLINK_TRAP_GROUP(MC_SANALOPING),
 	DEVLINK_TRAP_GROUP(DHCP),
 	DEVLINK_TRAP_GROUP(NEIGH_DISCOVERY),
 	DEVLINK_TRAP_GROUP(BFD),
@@ -1164,7 +1164,7 @@ static int devlink_trap_group_verify(const struct devlink_trap_group *group)
 }
 
 static void
-devlink_trap_group_notify(struct devlink *devlink,
+devlink_trap_group_analtify(struct devlink *devlink,
 			  const struct devlink_trap_group_item *group_item,
 			  enum devlink_command cmd)
 {
@@ -1174,7 +1174,7 @@ devlink_trap_group_notify(struct devlink *devlink,
 	WARN_ON_ONCE(cmd != DEVLINK_CMD_TRAP_GROUP_NEW &&
 		     cmd != DEVLINK_CMD_TRAP_GROUP_DEL);
 
-	if (!devl_is_registered(devlink) || !devlink_nl_notify_need(devlink))
+	if (!devl_is_registered(devlink) || !devlink_nl_analtify_need(devlink))
 		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -1188,24 +1188,24 @@ devlink_trap_group_notify(struct devlink *devlink,
 		return;
 	}
 
-	devlink_nl_notify_send(devlink, msg);
+	devlink_nl_analtify_send(devlink, msg);
 }
 
-void devlink_trap_groups_notify_register(struct devlink *devlink)
+void devlink_trap_groups_analtify_register(struct devlink *devlink)
 {
 	struct devlink_trap_group_item *group_item;
 
 	list_for_each_entry(group_item, &devlink->trap_group_list, list)
-		devlink_trap_group_notify(devlink, group_item,
+		devlink_trap_group_analtify(devlink, group_item,
 					  DEVLINK_CMD_TRAP_GROUP_NEW);
 }
 
-void devlink_trap_groups_notify_unregister(struct devlink *devlink)
+void devlink_trap_groups_analtify_unregister(struct devlink *devlink)
 {
 	struct devlink_trap_group_item *group_item;
 
 	list_for_each_entry_reverse(group_item, &devlink->trap_group_list, list)
-		devlink_trap_group_notify(devlink, group_item,
+		devlink_trap_group_analtify(devlink, group_item,
 					  DEVLINK_CMD_TRAP_GROUP_DEL);
 }
 
@@ -1225,7 +1225,7 @@ devlink_trap_item_group_link(struct devlink *devlink,
 	return 0;
 }
 
-static void devlink_trap_notify(struct devlink *devlink,
+static void devlink_trap_analtify(struct devlink *devlink,
 				const struct devlink_trap_item *trap_item,
 				enum devlink_command cmd)
 {
@@ -1235,7 +1235,7 @@ static void devlink_trap_notify(struct devlink *devlink,
 	WARN_ON_ONCE(cmd != DEVLINK_CMD_TRAP_NEW &&
 		     cmd != DEVLINK_CMD_TRAP_DEL);
 
-	if (!devl_is_registered(devlink) || !devlink_nl_notify_need(devlink))
+	if (!devl_is_registered(devlink) || !devlink_nl_analtify_need(devlink))
 		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -1248,23 +1248,23 @@ static void devlink_trap_notify(struct devlink *devlink,
 		return;
 	}
 
-	devlink_nl_notify_send(devlink, msg);
+	devlink_nl_analtify_send(devlink, msg);
 }
 
-void devlink_traps_notify_register(struct devlink *devlink)
+void devlink_traps_analtify_register(struct devlink *devlink)
 {
 	struct devlink_trap_item *trap_item;
 
 	list_for_each_entry(trap_item, &devlink->trap_list, list)
-		devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
+		devlink_trap_analtify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
 }
 
-void devlink_traps_notify_unregister(struct devlink *devlink)
+void devlink_traps_analtify_unregister(struct devlink *devlink)
 {
 	struct devlink_trap_item *trap_item;
 
 	list_for_each_entry_reverse(trap_item, &devlink->trap_list, list)
-		devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
+		devlink_trap_analtify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
 }
 
 static int
@@ -1279,11 +1279,11 @@ devlink_trap_register(struct devlink *devlink,
 
 	trap_item = kzalloc(sizeof(*trap_item), GFP_KERNEL);
 	if (!trap_item)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trap_item->stats = netdev_alloc_pcpu_stats(struct devlink_stats);
 	if (!trap_item->stats) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_stats_alloc;
 	}
 
@@ -1300,7 +1300,7 @@ devlink_trap_register(struct devlink *devlink,
 		goto err_trap_init;
 
 	list_add_tail(&trap_item->list, &devlink->trap_list);
-	devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
+	devlink_trap_analtify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
 
 	return 0;
 
@@ -1321,7 +1321,7 @@ static void devlink_trap_unregister(struct devlink *devlink,
 	if (WARN_ON_ONCE(!trap_item))
 		return;
 
-	devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
+	devlink_trap_analtify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
 	list_del(&trap_item->list);
 	if (devlink->ops->trap_fini)
 		devlink->ops->trap_fini(devlink, trap, trap_item);
@@ -1350,7 +1350,7 @@ static void devlink_trap_disable(struct devlink *devlink,
  * @traps_count: Count of provided packet traps.
  * @priv: Driver private information.
  *
- * Return: Non-zero value on failure.
+ * Return: Analn-zero value on failure.
  */
 int devl_traps_register(struct devlink *devlink,
 			const struct devlink_trap *traps,
@@ -1393,7 +1393,7 @@ EXPORT_SYMBOL_GPL(devl_traps_register);
  *
  * Context: Takes and release devlink->lock <mutex>.
  *
- * Return: Non-zero value on failure.
+ * Return: Analn-zero value on failure.
  */
 int devlink_traps_register(struct devlink *devlink,
 			   const struct devlink_trap *traps,
@@ -1421,7 +1421,7 @@ void devl_traps_unregister(struct devlink *devlink,
 	int i;
 
 	devl_assert_locked(devlink);
-	/* Make sure we do not have any packets in-flight while unregistering
+	/* Make sure we do analt have any packets in-flight while unregistering
 	 * traps by disabling all of them and waiting for a grace period.
 	 */
 	for (i = traps_count - 1; i >= 0; i--)
@@ -1553,11 +1553,11 @@ devlink_trap_group_register(struct devlink *devlink,
 
 	group_item = kzalloc(sizeof(*group_item), GFP_KERNEL);
 	if (!group_item)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	group_item->stats = netdev_alloc_pcpu_stats(struct devlink_stats);
 	if (!group_item->stats) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_stats_alloc;
 	}
 
@@ -1574,7 +1574,7 @@ devlink_trap_group_register(struct devlink *devlink,
 	}
 
 	list_add_tail(&group_item->list, &devlink->trap_group_list);
-	devlink_trap_group_notify(devlink, group_item,
+	devlink_trap_group_analtify(devlink, group_item,
 				  DEVLINK_CMD_TRAP_GROUP_NEW);
 
 	return 0;
@@ -1597,7 +1597,7 @@ devlink_trap_group_unregister(struct devlink *devlink,
 	if (WARN_ON_ONCE(!group_item))
 		return;
 
-	devlink_trap_group_notify(devlink, group_item,
+	devlink_trap_group_analtify(devlink, group_item,
 				  DEVLINK_CMD_TRAP_GROUP_DEL);
 	list_del(&group_item->list);
 	free_percpu(group_item->stats);
@@ -1610,7 +1610,7 @@ devlink_trap_group_unregister(struct devlink *devlink,
  * @groups: Packet trap groups.
  * @groups_count: Count of provided packet trap groups.
  *
- * Return: Non-zero value on failure.
+ * Return: Analn-zero value on failure.
  */
 int devl_trap_groups_register(struct devlink *devlink,
 			      const struct devlink_trap_group *groups,
@@ -1649,7 +1649,7 @@ EXPORT_SYMBOL_GPL(devl_trap_groups_register);
  *
  * Context: Takes and release devlink->lock <mutex>.
  *
- * Return: Non-zero value on failure.
+ * Return: Analn-zero value on failure.
  */
 int devlink_trap_groups_register(struct devlink *devlink,
 				 const struct devlink_trap_group *groups,
@@ -1701,7 +1701,7 @@ void devlink_trap_groups_unregister(struct devlink *devlink,
 EXPORT_SYMBOL_GPL(devlink_trap_groups_unregister);
 
 static void
-devlink_trap_policer_notify(struct devlink *devlink,
+devlink_trap_policer_analtify(struct devlink *devlink,
 			    const struct devlink_trap_policer_item *policer_item,
 			    enum devlink_command cmd)
 {
@@ -1711,7 +1711,7 @@ devlink_trap_policer_notify(struct devlink *devlink,
 	WARN_ON_ONCE(cmd != DEVLINK_CMD_TRAP_POLICER_NEW &&
 		     cmd != DEVLINK_CMD_TRAP_POLICER_DEL);
 
-	if (!devl_is_registered(devlink) || !devlink_nl_notify_need(devlink))
+	if (!devl_is_registered(devlink) || !devlink_nl_analtify_need(devlink))
 		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -1725,25 +1725,25 @@ devlink_trap_policer_notify(struct devlink *devlink,
 		return;
 	}
 
-	devlink_nl_notify_send(devlink, msg);
+	devlink_nl_analtify_send(devlink, msg);
 }
 
-void devlink_trap_policers_notify_register(struct devlink *devlink)
+void devlink_trap_policers_analtify_register(struct devlink *devlink)
 {
 	struct devlink_trap_policer_item *policer_item;
 
 	list_for_each_entry(policer_item, &devlink->trap_policer_list, list)
-		devlink_trap_policer_notify(devlink, policer_item,
+		devlink_trap_policer_analtify(devlink, policer_item,
 					    DEVLINK_CMD_TRAP_POLICER_NEW);
 }
 
-void devlink_trap_policers_notify_unregister(struct devlink *devlink)
+void devlink_trap_policers_analtify_unregister(struct devlink *devlink)
 {
 	struct devlink_trap_policer_item *policer_item;
 
 	list_for_each_entry_reverse(policer_item, &devlink->trap_policer_list,
 				    list)
-		devlink_trap_policer_notify(devlink, policer_item,
+		devlink_trap_policer_analtify(devlink, policer_item,
 					    DEVLINK_CMD_TRAP_POLICER_DEL);
 }
 
@@ -1759,7 +1759,7 @@ devlink_trap_policer_register(struct devlink *devlink,
 
 	policer_item = kzalloc(sizeof(*policer_item), GFP_KERNEL);
 	if (!policer_item)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	policer_item->policer = policer;
 	policer_item->rate = policer->init_rate;
@@ -1772,7 +1772,7 @@ devlink_trap_policer_register(struct devlink *devlink,
 	}
 
 	list_add_tail(&policer_item->list, &devlink->trap_policer_list);
-	devlink_trap_policer_notify(devlink, policer_item,
+	devlink_trap_policer_analtify(devlink, policer_item,
 				    DEVLINK_CMD_TRAP_POLICER_NEW);
 
 	return 0;
@@ -1792,7 +1792,7 @@ devlink_trap_policer_unregister(struct devlink *devlink,
 	if (WARN_ON_ONCE(!policer_item))
 		return;
 
-	devlink_trap_policer_notify(devlink, policer_item,
+	devlink_trap_policer_analtify(devlink, policer_item,
 				    DEVLINK_CMD_TRAP_POLICER_DEL);
 	list_del(&policer_item->list);
 	if (devlink->ops->trap_policer_fini)
@@ -1806,7 +1806,7 @@ devlink_trap_policer_unregister(struct devlink *devlink,
  * @policers: Packet trap policers.
  * @policers_count: Count of provided packet trap policers.
  *
- * Return: Non-zero value on failure.
+ * Return: Analn-zero value on failure.
  */
 int
 devl_trap_policers_register(struct devlink *devlink,

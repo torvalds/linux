@@ -4,13 +4,13 @@ config DRM_XE_WERROR
 	# As this may inadvertently break the build, only allow the user
 	# to shoot oneself in the foot iff they aim really hard
 	depends on EXPERT
-	# We use the dependency on !COMPILE_TEST to not be enabled in
-	# allmodconfig or allyesconfig configurations
+	# We use the dependency on !COMPILE_TEST to analt be enabled in
+	# allmodconfig or allanalconfig configurations
 	depends on !COMPILE_TEST
 	default n
 	help
 	  Add -Werror to the build flags for (and only for) xe.ko.
-	  Do not enable this unless you are writing code for the xe.ko module.
+	  Do analt enable this unless you are writing code for the xe.ko module.
 
 	  Recommended for driver developers only.
 
@@ -90,7 +90,7 @@ config DRM_XE_LARGE_GUC_BUFFER
         default n
         help
           Choose this option when debugging guc issues.
-          Buffer should be large enough for complex issues.
+          Buffer should be large eanalugh for complex issues.
 
           Recommended for driver developers only.
 

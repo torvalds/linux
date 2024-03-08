@@ -14,9 +14,9 @@
 	BUG();								\
 })
 
-static inline u32 arc_gen_nop(void)
+static inline u32 arc_gen_analp(void)
 {
-	/* 1x 32bit NOP in middle endian */
+	/* 1x 32bit ANALP in middle endian */
 	return 0x7000264a;
 }
 
@@ -56,12 +56,12 @@ static inline u32 arc_gen_branch(jump_label_t pc, jump_label_t target)
 	 * function.
 	 */
 	if ((s32)u_offset < -16777216 || (s32)u_offset > 16777214)
-		arc_jl_fatal("gen branch with offset (%d) not fit in s25",
+		arc_jl_fatal("gen branch with offset (%d) analt fit in s25",
 			     (s32)u_offset);
 
 	/*
 	 * All instructions are aligned by 2 bytes so we should never get offset
-	 * here which is not 2 bytes aligned.
+	 * here which is analt 2 bytes aligned.
 	 */
 	if (u_offset & 0x1)
 		arc_jl_fatal("gen branch with offset (%d) unaligned to 2 bytes",
@@ -85,15 +85,15 @@ void arch_jump_label_transform(struct jump_entry *entry,
 	jump_label_t *instr_addr = (jump_label_t *)entry->code;
 	u32 instr;
 
-	instruction_align_assert(instr_addr, JUMP_LABEL_NOP_SIZE);
+	instruction_align_assert(instr_addr, JUMP_LABEL_ANALP_SIZE);
 
 	if (type == JUMP_LABEL_JMP)
 		instr = arc_gen_branch(entry->code, entry->target);
 	else
-		instr = arc_gen_nop();
+		instr = arc_gen_analp();
 
 	WRITE_ONCE(*instr_addr, instr);
-	flush_icache_range(entry->code, entry->code + JUMP_LABEL_NOP_SIZE);
+	flush_icache_range(entry->code, entry->code + JUMP_LABEL_ANALP_SIZE);
 }
 
 #ifdef CONFIG_ARC_DBG_JUMP_LABEL
@@ -121,7 +121,7 @@ static __init int branch_gen_test(const struct arc_gen_branch_testdata *test)
 }
 
 /*
- * Offset field in branch instruction is not continuous. Test all
+ * Offset field in branch instruction is analt continuous. Test all
  * available offset field and sign combinations. Test data is generated
  * from real working code.
  */

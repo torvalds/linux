@@ -14,14 +14,14 @@
  * `REKEY_TIMEOUT + jitter` ms.
  *
  * - Timer for sending empty packet if we have received a packet but after have
- * not sent one for `KEEPALIVE_TIMEOUT` ms.
+ * analt sent one for `KEEPALIVE_TIMEOUT` ms.
  *
  * - Timer for initiating new handshake if we have sent a packet but after have
- * not received one (even empty) for `(KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) +
+ * analt received one (even empty) for `(KEEPALIVE_TIMEOUT + REKEY_TIMEOUT) +
  * jitter` ms.
  *
  * - Timer for zeroing out all ephemeral keys after `(REJECT_AFTER_TIME * 3)` ms
- * if no new keys have been received.
+ * if anal new keys have been received.
  *
  * - Timer for, if enabled, sending an empty authenticated packet every user-
  * specified seconds.
@@ -44,7 +44,7 @@ static void wg_expired_retransmit_handshake(struct timer_list *timer)
 					  timer_retransmit_handshake);
 
 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
-		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d attempts, giving up\n",
+		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did analt complete after %d attempts, giving up\n",
 			 peer->device->dev->name, peer->internal_id,
 			 &peer->endpoint.addr, (int)MAX_TIMER_HANDSHAKES + 2);
 
@@ -62,7 +62,7 @@ static void wg_expired_retransmit_handshake(struct timer_list *timer)
 				       jiffies + REJECT_AFTER_TIME * 3 * HZ);
 	} else {
 		++peer->timer_handshake_attempts;
-		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n",
+		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did analt complete after %d seconds, retrying (try %d)\n",
 			 peer->device->dev->name, peer->internal_id,
 			 &peer->endpoint.addr, (int)REKEY_TIMEOUT,
 			 peer->timer_handshake_attempts + 1);
@@ -81,8 +81,8 @@ static void wg_expired_send_keepalive(struct timer_list *timer)
 	struct wg_peer *peer = from_timer(peer, timer, timer_send_keepalive);
 
 	wg_packet_send_keepalive(peer);
-	if (peer->timer_need_another_keepalive) {
-		peer->timer_need_another_keepalive = false;
+	if (peer->timer_need_aanalther_keepalive) {
+		peer->timer_need_aanalther_keepalive = false;
 		mod_peer_timer(peer, &peer->timer_send_keepalive,
 			       jiffies + KEEPALIVE_TIMEOUT * HZ);
 	}
@@ -127,8 +127,8 @@ static void wg_queued_expired_zero_key_material(struct work_struct *work)
 	pr_debug("%s: Zeroing out all keys for peer %llu (%pISpfsc), since we haven't received a new one in %d seconds\n",
 		 peer->device->dev->name, peer->internal_id,
 		 &peer->endpoint.addr, (int)REJECT_AFTER_TIME * 3);
-	wg_noise_handshake_clear(&peer->handshake);
-	wg_noise_keypairs_clear(&peer->keypairs);
+	wg_analise_handshake_clear(&peer->handshake);
+	wg_analise_keypairs_clear(&peer->keypairs);
 	wg_peer_put(peer);
 }
 
@@ -158,7 +158,7 @@ void wg_timers_data_received(struct wg_peer *peer)
 			mod_peer_timer(peer, &peer->timer_send_keepalive,
 				       jiffies + KEEPALIVE_TIMEOUT * HZ);
 		else
-			peer->timer_need_another_keepalive = true;
+			peer->timer_need_aanalther_keepalive = true;
 	}
 }
 
@@ -229,7 +229,7 @@ void wg_timers_init(struct wg_peer *peer)
 	INIT_WORK(&peer->clear_peer_work, wg_queued_expired_zero_key_material);
 	peer->timer_handshake_attempts = 0;
 	peer->sent_lastminute_handshake = false;
-	peer->timer_need_another_keepalive = false;
+	peer->timer_need_aanalther_keepalive = false;
 }
 
 void wg_timers_stop(struct wg_peer *peer)

@@ -79,7 +79,7 @@ static int __mptcp_socket_create(struct mptcp_sock *msk)
 	msk->scaling_ratio = tcp_sk(ssock->sk)->scaling_ratio;
 	WRITE_ONCE(msk->first, ssock->sk);
 	subflow = mptcp_subflow_ctx(ssock->sk);
-	list_add(&subflow->node, &msk->conn_list);
+	list_add(&subflow->analde, &msk->conn_list);
 	sock_hold(ssock->sk);
 	subflow->request_mptcp = 1;
 	subflow->subflow_id = msk->subflow_id++;
@@ -87,12 +87,12 @@ static int __mptcp_socket_create(struct mptcp_sock *msk)
 	/* This is the first subflow, always with id 0 */
 	WRITE_ONCE(subflow->local_id, 0);
 	mptcp_sock_graft(msk->first, sk->sk_socket);
-	iput(SOCK_INODE(ssock));
+	iput(SOCK_IANALDE(ssock));
 
 	return 0;
 }
 
-/* If the MPC handshake is not started, returns the first subflow,
+/* If the MPC handshake is analt started, returns the first subflow,
  * eventually allocating it.
  */
 struct sock *__mptcp_nmpc_sk(struct mptcp_sock *msk)
@@ -144,8 +144,8 @@ static bool mptcp_try_coalesce(struct sock *sk, struct sk_buff *to,
 		 to->len, MPTCP_SKB_CB(from)->end_seq);
 	MPTCP_SKB_CB(to)->end_seq = MPTCP_SKB_CB(from)->end_seq;
 
-	/* note the fwd memory can reach a negative value after accounting
-	 * for the delta, but the later skb free will restore a non
+	/* analte the fwd memory can reach a negative value after accounting
+	 * for the delta, but the later skb free will restore a analn
 	 * negative one
 	 */
 	atomic_add(delta, &sk->sk_rmem_alloc);
@@ -209,7 +209,7 @@ void mptcp_set_owner_r(struct sk_buff *skb, struct sock *sk)
 static void mptcp_data_queue_ofo(struct mptcp_sock *msk, struct sk_buff *skb)
 {
 	struct sock *sk = (struct sock *)msk;
-	struct rb_node **p, *parent;
+	struct rb_analde **p, *parent;
 	u64 seq, end_seq, max_seq;
 	struct sk_buff *skb1;
 
@@ -225,15 +225,15 @@ static void mptcp_data_queue_ofo(struct mptcp_sock *msk, struct sk_buff *skb)
 		pr_debug("oow by %lld, rcv_wnd_sent %llu\n",
 			 (unsigned long long)end_seq - (unsigned long)max_seq,
 			 (unsigned long long)atomic64_read(&msk->rcv_wnd_sent));
-		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_NODSSWINDOW);
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ANALDSSWINDOW);
 		return;
 	}
 
-	p = &msk->out_of_order_queue.rb_node;
+	p = &msk->out_of_order_queue.rb_analde;
 	MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_OFOQUEUE);
 	if (RB_EMPTY_ROOT(&msk->out_of_order_queue)) {
-		rb_link_node(&skb->rbnode, NULL, p);
-		rb_insert_color(&skb->rbnode, &msk->out_of_order_queue);
+		rb_link_analde(&skb->rbanalde, NULL, p);
+		rb_insert_color(&skb->rbanalde, &msk->out_of_order_queue);
 		msk->ooo_last_skb = skb;
 		goto end;
 	}
@@ -250,7 +250,7 @@ static void mptcp_data_queue_ofo(struct mptcp_sock *msk, struct sk_buff *skb)
 	/* Can avoid an rbtree lookup if we are adding skb after ooo_last_skb */
 	if (!before64(seq, MPTCP_SKB_CB(msk->ooo_last_skb)->end_seq)) {
 		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_OFOQUEUETAIL);
-		parent = &msk->ooo_last_skb->rbnode;
+		parent = &msk->ooo_last_skb->rbanalde;
 		p = &parent->rb_right;
 		goto insert;
 	}
@@ -281,7 +281,7 @@ static void mptcp_data_queue_ofo(struct mptcp_sock *msk, struct sk_buff *skb)
 				/* skb's seq == skb1's seq and skb covers skb1.
 				 * Replace skb1 with skb.
 				 */
-				rb_replace_node(&skb1->rbnode, &skb->rbnode,
+				rb_replace_analde(&skb1->rbanalde, &skb->rbanalde,
 						&msk->out_of_order_queue);
 				mptcp_drop(sk, skb1);
 				MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_DUPDATA);
@@ -296,19 +296,19 @@ static void mptcp_data_queue_ofo(struct mptcp_sock *msk, struct sk_buff *skb)
 
 insert:
 	/* Insert segment into RB tree. */
-	rb_link_node(&skb->rbnode, parent, p);
-	rb_insert_color(&skb->rbnode, &msk->out_of_order_queue);
+	rb_link_analde(&skb->rbanalde, parent, p);
+	rb_insert_color(&skb->rbanalde, &msk->out_of_order_queue);
 
 merge_right:
 	/* Remove other segments covered by skb. */
 	while ((skb1 = skb_rb_next(skb)) != NULL) {
 		if (before64(end_seq, MPTCP_SKB_CB(skb1)->end_seq))
 			break;
-		rb_erase(&skb1->rbnode, &msk->out_of_order_queue);
+		rb_erase(&skb1->rbanalde, &msk->out_of_order_queue);
 		mptcp_drop(sk, skb1);
 		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_DUPDATA);
 	}
-	/* If there is no skb after us, we are the last_skb ! */
+	/* If there is anal skb after us, we are the last_skb ! */
 	if (!skb1)
 		msk->ooo_last_skb = skb;
 
@@ -423,7 +423,7 @@ static void mptcp_check_data_fin_ack(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
-	/* Look for an acknowledged DATA_FIN */
+	/* Look for an ackanalwledged DATA_FIN */
 	if (mptcp_pending_data_fin_ack(sk)) {
 		WRITE_ONCE(msk->snd_data_fin_enable, 0);
 
@@ -575,13 +575,13 @@ static bool mptcp_check_data_fin(struct sock *sk)
 	/* Need to ack a DATA_FIN received from a peer while this side
 	 * of the connection is in ESTABLISHED, FIN_WAIT1, or FIN_WAIT2.
 	 * msk->rcv_data_fin was set when parsing the incoming options
-	 * at the subflow level and the msk lock was not held, so this
+	 * at the subflow level and the msk lock was analt held, so this
 	 * is the first opportunity to act on the DATA_FIN and change
 	 * the msk state.
 	 *
 	 * If we are caught up to the sequence number of the incoming
-	 * DATA_FIN, send the DATA_ACK now and do state transition.  If
-	 * not caught up, do nothing and let the recv code send DATA_ACK
+	 * DATA_FIN, send the DATA_ACK analw and do state transition.  If
+	 * analt caught up, do analthing and let the recv code send DATA_ACK
 	 * when catching up.
 	 */
 
@@ -603,7 +603,7 @@ static bool mptcp_check_data_fin(struct sock *sk)
 			mptcp_set_state(sk, TCP_CLOSE);
 			break;
 		default:
-			/* Other states not expected */
+			/* Other states analt expected */
 			WARN_ON_ONCE(1);
 			break;
 		}
@@ -663,7 +663,7 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 		}
 
 		if (__mptcp_check_fallback(msk)) {
-			/* Under fallback skbs have no MPTCP extension and TCP could
+			/* Under fallback skbs have anal MPTCP extension and TCP could
 			 * collapse them between the dummy map creation and the
 			 * current dequeue. Be sure to adjust the map size.
 			 */
@@ -714,7 +714,7 @@ static bool __mptcp_ofo_queue(struct mptcp_sock *msk)
 	struct sock *sk = (struct sock *)msk;
 	struct sk_buff *skb, *tail;
 	bool moved = false;
-	struct rb_node *p;
+	struct rb_analde *p;
 	u64 end_seq;
 
 	p = rb_first(&msk->out_of_order_queue);
@@ -725,7 +725,7 @@ static bool __mptcp_ofo_queue(struct mptcp_sock *msk)
 			break;
 
 		p = rb_next(p);
-		rb_erase(&skb->rbnode, &msk->out_of_order_queue);
+		rb_erase(&skb->rbanalde, &msk->out_of_order_queue);
 
 		if (unlikely(!after64(MPTCP_SKB_CB(skb)->end_seq,
 				      msk->ack_seq))) {
@@ -813,7 +813,7 @@ static bool move_skbs_to_msk(struct mptcp_sock *msk, struct sock *ssk)
 
 	/* If the moves have caught up with the DATA_FIN sequence number
 	 * it's time to ack the DATA_FIN and change socket state, but
-	 * this is not a good place to change state. Let the workqueue
+	 * this is analt a good place to change state. Let the workqueue
 	 * do it.
 	 */
 	if (mptcp_pending_data_fin(sk, NULL))
@@ -839,7 +839,7 @@ void mptcp_data_ready(struct sock *sk, struct sock *ssk)
 	if (unlikely(ssk_rbuf > sk_rbuf))
 		sk_rbuf = ssk_rbuf;
 
-	/* over limit? can't append more skbs to msk, Also, no need to wake-up*/
+	/* over limit? can't append more skbs to msk, Also, anal need to wake-up*/
 	if (__mptcp_rmem(sk) > sk_rbuf) {
 		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_RCVPRUNED);
 		return;
@@ -885,11 +885,11 @@ static void __mptcp_flush_join_list(struct sock *sk, struct list_head *join_list
 	struct mptcp_subflow_context *tmp, *subflow;
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
-	list_for_each_entry_safe(subflow, tmp, join_list, node) {
+	list_for_each_entry_safe(subflow, tmp, join_list, analde) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 		bool slow = lock_sock_fast(ssk);
 
-		list_move_tail(&subflow->node, &msk->conn_list);
+		list_move_tail(&subflow->analde, &msk->conn_list);
 		if (!__mptcp_finish_join(msk, ssk))
 			mptcp_subflow_reset(ssk);
 		unlock_sock_fast(ssk, slow);
@@ -949,7 +949,7 @@ static bool mptcp_skb_can_collapse_to(u64 write_seq,
 		return false;
 
 	/* can collapse only if MPTCP level sequence is in order and this
-	 * mapping has not been xmitted yet
+	 * mapping has analt been xmitted yet
 	 */
 	return mpext && mpext->data_seq + mpext->data_len == write_seq &&
 	       !mpext->frozen;
@@ -1075,7 +1075,7 @@ static void mptcp_enter_memory_pressure(struct sock *sk)
 	__mptcp_sync_sndbuf(sk);
 }
 
-/* ensure we get enough memory for the frag hdr, beyond some minimal amount of
+/* ensure we get eanalugh memory for the frag hdr, beyond some minimal amount of
  * data
  */
 static bool mptcp_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
@@ -1107,7 +1107,7 @@ mptcp_carve_data_frag(const struct mptcp_sock *msk, struct page_frag *pfrag,
 }
 
 struct mptcp_sendmsg_info {
-	int mss_now;
+	int mss_analw;
 	int size_goal;
 	u16 limit;
 	u16 sent;
@@ -1188,7 +1188,7 @@ static struct sk_buff *mptcp_alloc_tx_skb(struct sock *sk, struct sock *ssk, boo
 	return __mptcp_alloc_tx_skb(sk, ssk, gfp);
 }
 
-/* note: this always recompute the csum on the whole skb, even
+/* analte: this always recompute the csum on the whole skb, even
  * if we just appended a single frag. More status info needed
  */
 static void mptcp_update_data_checksum(struct sk_buff *skb, int added)
@@ -1246,7 +1246,7 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	/* compute send limit */
 	if (unlikely(ssk->sk_gso_max_size > MPTCP_MAX_GSO_SIZE))
 		ssk->sk_gso_max_size = MPTCP_MAX_GSO_SIZE;
-	info->mss_now = tcp_send_mss(ssk, &info->size_goal, info->flags);
+	info->mss_analw = tcp_send_mss(ssk, &info->size_goal, info->flags);
 	copy = info->size_goal;
 
 	skb = tcp_write_queue_tail(ssk);
@@ -1276,7 +1276,7 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 alloc_skb:
 		skb = mptcp_alloc_tx_skb(sk, ssk, info->data_lock_held);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		i = skb_shinfo(skb)->nr_frags;
 		reuse_skb = false;
@@ -1301,7 +1301,7 @@ alloc_skb:
 	copy = min_t(size_t, copy, info->limit - info->sent);
 	if (!sk_wmem_schedule(ssk, copy)) {
 		tcp_remove_empty_skb(ssk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (can_coalesce) {
@@ -1439,7 +1439,7 @@ struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 	}
 	__mptcp_set_timeout(sk, tout);
 
-	/* pick the best backup if no other subflow is active */
+	/* pick the best backup if anal other subflow is active */
 	if (!nr_active)
 		send_info[SSK_MODE_ACTIVE].ssk = send_info[SSK_MODE_BACKUP].ssk;
 
@@ -1449,10 +1449,10 @@ struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 	 * - use the above to estimate the amount of byte transferred
 	 *   by the faster flow
 	 * - check that the amount of queued data is greter than the above,
-	 *   otherwise do not use the picked, slower, subflow
+	 *   otherwise do analt use the picked, slower, subflow
 	 * We select the subflow with the shorter estimated time to flush
 	 * the queued mem, which basically ensure the above. We just need
-	 * to check that subflow has a non empty cwin.
+	 * to check that subflow has a analn empty cwin.
 	 */
 	ssk = send_info[SSK_MODE_ACTIVE].ssk;
 	if (!ssk || !sk_stream_memory_free(ssk))
@@ -1473,7 +1473,7 @@ struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 
 static void mptcp_push_release(struct sock *ssk, struct mptcp_sendmsg_info *info)
 {
-	tcp_push(ssk, 0, info->mss_now, tcp_sk(ssk)->nonagle, info->size_goal);
+	tcp_push(ssk, 0, info->mss_analw, tcp_sk(ssk)->analnagle, info->size_goal);
 	release_sock(ssk);
 }
 
@@ -1673,10 +1673,10 @@ static void __mptcp_subflow_push_pending(struct sock *sk, struct sock *ssk, bool
 
 out:
 	/* __mptcp_alloc_tx_skb could have released some wmem and we are
-	 * not going to flush it via release_sock()
+	 * analt going to flush it via release_sock()
 	 */
 	if (copied) {
-		tcp_push(ssk, 0, info.mss_now, tcp_sk(ssk)->nonagle,
+		tcp_push(ssk, 0, info.mss_analw, tcp_sk(ssk)->analnagle,
 			 info.size_goal);
 		if (!mptcp_rtx_timer_pending(sk))
 			mptcp_reset_rtx_timer(sk);
@@ -1687,13 +1687,13 @@ out:
 	}
 }
 
-static void mptcp_set_nospace(struct sock *sk)
+static void mptcp_set_analspace(struct sock *sk)
 {
 	/* enable autotune */
-	set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+	set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 
 	/* will be cleared on avail space */
-	set_bit(MPTCP_NOSPACE, &mptcp_sk(sk)->flags);
+	set_bit(MPTCP_ANALSPACE, &mptcp_sk(sk)->flags);
 }
 
 static int mptcp_disconnect(struct sock *sk, int flags);
@@ -1707,10 +1707,10 @@ static int mptcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	int ret;
 
 	/* on flags based fastopen the mptcp is supposed to create the
-	 * first subflow right now. Otherwise we are in the defer_connect
+	 * first subflow right analw. Otherwise we are in the defer_connect
 	 * path, and the first subflow must be already present.
 	 * Since the defer_connect flag is cleared after the first succsful
-	 * fastopen attempt, no need to check for additional subflow status.
+	 * fastopen attempt, anal need to check for additional subflow status.
 	 */
 	if (msg->msg_flags & MSG_FASTOPEN) {
 		ssk = __mptcp_nmpc_sk(msk);
@@ -1754,11 +1754,11 @@ static int mptcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	return ret;
 }
 
-static int do_copy_data_nocache(struct sock *sk, int copy,
+static int do_copy_data_analcache(struct sock *sk, int copy,
 				struct iov_iter *from, char *to)
 {
-	if (sk->sk_route_caps & NETIF_F_NOCACHE_COPY) {
-		if (!copy_from_iter_full_nocache(to, copy, from))
+	if (sk->sk_route_caps & NETIF_F_ANALCACHE_COPY) {
+		if (!copy_from_iter_full_analcache(to, copy, from))
 			return -EFAULT;
 	} else if (!copy_from_iter_full(to, copy, from)) {
 		return -EFAULT;
@@ -1774,8 +1774,8 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int ret = 0;
 	long timeo;
 
-	/* silently ignore everything else */
-	msg->msg_flags &= MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL | MSG_FASTOPEN;
+	/* silently iganalre everything else */
+	msg->msg_flags &= MSG_MORE | MSG_DONTWAIT | MSG_ANALSIGNAL | MSG_FASTOPEN;
 
 	lock_sock(sk);
 
@@ -1827,7 +1827,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			frag_truesize = dfrag->overhead;
 		}
 
-		/* we do not bound vs wspace, to allow a single packet.
+		/* we do analt bound vs wspace, to allow a single packet.
 		 * memory accounting will prevent execessive memory usage
 		 * anyway
 		 */
@@ -1839,7 +1839,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (!sk_wmem_schedule(sk, total_ts))
 			goto wait_for_memory;
 
-		ret = do_copy_data_nocache(sk, psize, &msg->msg_iter,
+		ret = do_copy_data_analcache(sk, psize, &msg->msg_iter,
 					   page_address(dfrag->page) + offset);
 		if (ret)
 			goto do_error;
@@ -1853,7 +1853,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		WRITE_ONCE(msk->write_seq, msk->write_seq + psize);
 
 		/* charge data on mptcp pending queue to the msk socket
-		 * Note: we charge such data both to sk and ssk
+		 * Analte: we charge such data both to sk and ssk
 		 */
 		sk_wmem_queued_add(sk, frag_truesize);
 		if (!dfrag_collapsed) {
@@ -1869,7 +1869,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		continue;
 
 wait_for_memory:
-		mptcp_set_nospace(sk);
+		mptcp_set_analspace(sk);
 		__mptcp_push_pending(sk, msg->msg_flags);
 		ret = sk_stream_wait_memory(sk, &timeo);
 		if (ret)
@@ -2021,9 +2021,9 @@ static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
 			window_clamp = __tcp_win_from_space(scaling_ratio, rcvbuf);
 			WRITE_ONCE(sk->sk_rcvbuf, rcvbuf);
 
-			/* Make subflows follow along.  If we do not do this, we
+			/* Make subflows follow along.  If we do analt do this, we
 			 * get drops at subflow level if skbs can't be moved to
-			 * the mptcp rx queue fast enough (announced rcv_win can
+			 * the mptcp rx queue fast eanalugh (ananalunced rcv_win can
 			 * exceed ssk->sk_rcvbuf).
 			 */
 			mptcp_for_each_subflow(msk, subflow) {
@@ -2138,13 +2138,13 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int target;
 	long timeo;
 
-	/* MSG_ERRQUEUE is really a no-op till we support IP_RECVERR */
+	/* MSG_ERRQUEUE is really a anal-op till we support IP_RECVERR */
 	if (unlikely(flags & MSG_ERRQUEUE))
 		return inet_recv_error(sk, msg, len, addr_len);
 
 	lock_sock(sk);
 	if (unlikely(sk->sk_state == TCP_LISTEN)) {
-		copied = -ENOTCONN;
+		copied = -EANALTCONN;
 		goto out_err;
 	}
 
@@ -2203,7 +2203,7 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			}
 
 			if (sk->sk_state == TCP_CLOSE) {
-				copied = -ENOTCONN;
+				copied = -EANALTCONN;
 				break;
 			}
 
@@ -2213,7 +2213,7 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			}
 
 			if (signal_pending(current)) {
-				copied = sock_intr_errno(timeo);
+				copied = sock_intr_erranal(timeo);
 				break;
 			}
 		}
@@ -2309,7 +2309,7 @@ struct sock *mptcp_subflow_get_retrans(struct mptcp_sock *msk)
 	if (pick)
 		return pick;
 
-	/* use backup only if there are no progresses anywhere */
+	/* use backup only if there are anal progresses anywhere */
 	return min_stale_count > 1 ? backup : NULL;
 }
 
@@ -2322,7 +2322,7 @@ bool __mptcp_retransmit_pending_data(struct sock *sk)
 		return false;
 
 	/* the closing socket has some data untransmitted and/or unacked:
-	 * some data in the mptcp rtx queue has not really xmitted yet.
+	 * some data in the mptcp rtx queue has analt really xmitted yet.
 	 * keep it simple and re-inject the whole mptcp level rtx queue
 	 */
 	mptcp_data_lock(sk);
@@ -2378,7 +2378,7 @@ static void __mptcp_subflow_disconnect(struct sock *ssk,
  * (accept).
  *
  * Outgoing subflows use in-kernel sockets.
- * Incoming subflows do not have their own 'struct socket' allocated,
+ * Incoming subflows do analt have their own 'struct socket' allocated,
  * so we need to use tcp_close() after detaching them from the mptcp
  * parent socket.
  */
@@ -2406,7 +2406,7 @@ static void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 
 	dispose_it = msk->free_first || ssk != msk->first;
 	if (dispose_it)
-		list_del(&subflow->node);
+		list_del(&subflow->analde);
 
 	lock_sock_nested(ssk, SINGLE_DEPTH_NESTING);
 
@@ -2635,7 +2635,7 @@ static void __mptcp_retrans(struct sock *sk)
 			}
 			if (copied) {
 				len = max(copied, len);
-				tcp_push(ssk, 0, info.mss_now, tcp_sk(ssk)->nonagle,
+				tcp_push(ssk, 0, info.mss_analw, tcp_sk(ssk)->analnagle,
 					 info.size_goal);
 				WRITE_ONCE(msk->allow_infinite_fallback, false);
 			}
@@ -2676,7 +2676,7 @@ void mptcp_reset_tout_timer(struct mptcp_sock *msk, unsigned long fail_tout)
 	sk_reset_timer(sk, &sk->sk_timer, timeout);
 }
 
-static void mptcp_mp_fail_no_response(struct mptcp_sock *msk)
+static void mptcp_mp_fail_anal_response(struct mptcp_sock *msk)
 {
 	struct sock *ssk = msk->first;
 	bool slow;
@@ -2741,7 +2741,7 @@ static void mptcp_worker(struct work_struct *work)
 
 	fail_tout = msk->first ? READ_ONCE(mptcp_subflow_ctx(msk->first)->fail_tout) : 0;
 	if (fail_tout && time_after(jiffies, fail_tout))
-		mptcp_mp_fail_no_response(msk);
+		mptcp_mp_fail_anal_response(msk);
 
 unlock:
 	release_sock(sk);
@@ -2785,7 +2785,7 @@ static void mptcp_ca_reset(struct sock *sk)
 	tcp_assign_congestion_control(sk);
 	strcpy(mptcp_sk(sk)->ca_name, icsk->icsk_ca_ops->name);
 
-	/* no need to keep a reference to the ops, the name will suffice */
+	/* anal need to keep a reference to the ops, the name will suffice */
 	tcp_cleanup_congestion_control(sk);
 	icsk->icsk_ca_ops = NULL;
 }
@@ -2798,10 +2798,10 @@ static int mptcp_init_sock(struct sock *sk)
 	__mptcp_init_sock(sk);
 
 	if (!mptcp_is_enabled(net))
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	if (unlikely(!net->mib.mptcp_statistics) && !mptcp_mib_alloc(net))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mptcp_init_sched(mptcp_sk(sk),
 			       mptcp_sched_find(mptcp_get_scheduler(net)));
@@ -2850,7 +2850,7 @@ void mptcp_subflow_shutdown(struct sock *sk, struct sock *ssk, int how)
 			break;
 		fallthrough;
 	case TCP_SYN_SENT:
-		WARN_ON_ONCE(tcp_disconnect(ssk, O_NONBLOCK));
+		WARN_ON_ONCE(tcp_disconnect(ssk, O_ANALNBLOCK));
 		break;
 	default:
 		if (__mptcp_check_fallback(mptcp_sk(sk))) {
@@ -2901,13 +2901,13 @@ static const unsigned char new_state[16] = {
 	[TCP_SYN_RECV]      = TCP_FIN_WAIT1 | TCP_ACTION_FIN,
 	[TCP_FIN_WAIT1]     = TCP_FIN_WAIT1,
 	[TCP_FIN_WAIT2]     = TCP_FIN_WAIT2,
-	[TCP_TIME_WAIT]     = TCP_CLOSE,	/* should not happen ! */
+	[TCP_TIME_WAIT]     = TCP_CLOSE,	/* should analt happen ! */
 	[TCP_CLOSE]         = TCP_CLOSE,
 	[TCP_CLOSE_WAIT]    = TCP_LAST_ACK  | TCP_ACTION_FIN,
 	[TCP_LAST_ACK]      = TCP_LAST_ACK,
 	[TCP_LISTEN]        = TCP_CLOSE,
 	[TCP_CLOSING]       = TCP_CLOSING,
-	[TCP_NEW_SYN_RECV]  = TCP_CLOSE,	/* should not happen ! */
+	[TCP_NEW_SYN_RECV]  = TCP_CLOSE,	/* should analt happen ! */
 };
 
 static int mptcp_close_state(struct sock *sk)
@@ -2929,7 +2929,7 @@ static void mptcp_check_send_data_fin(struct sock *sk)
 		 msk, msk->snd_data_fin_enable, !!mptcp_send_head(sk),
 		 msk->snd_nxt, msk->write_seq);
 
-	/* we still need to enqueue subflows or not really shutting down,
+	/* we still need to enqueue subflows or analt really shutting down,
 	 * skip this
 	 */
 	if (!msk->snd_data_fin_enable || msk->snd_nxt + 1 != msk->write_seq ||
@@ -2953,7 +2953,7 @@ static void __mptcp_wr_shutdown(struct sock *sk)
 		 msk, msk->snd_data_fin_enable, sk->sk_shutdown, sk->sk_state,
 		 !!mptcp_send_head(sk));
 
-	/* will be ignored by fallback sockets */
+	/* will be iganalred by fallback sockets */
 	WRITE_ONCE(msk->write_seq, msk->write_seq + 1);
 	WRITE_ONCE(msk->snd_data_fin_enable, 1);
 
@@ -2992,7 +2992,7 @@ void __mptcp_unaccepted_force_close(struct sock *sk)
 
 static __poll_t mptcp_check_readable(struct sock *sk)
 {
-	return mptcp_epollin_ready(sk) ? EPOLLIN | EPOLLRDNORM : 0;
+	return mptcp_epollin_ready(sk) ? EPOLLIN | EPOLLRDANALRM : 0;
 }
 
 static void mptcp_check_listen_stop(struct sock *sk)
@@ -3066,7 +3066,7 @@ cleanup:
 	sock_orphan(sk);
 
 	/* all the subflows are closed, only timeout can change the msk
-	 * state, let's not keep resources busy for no reasons
+	 * state, let's analt keep resources busy for anal reasons
 	 */
 	if (subflows_alive == 0)
 		mptcp_set_state(sk, TCP_CLOSE);
@@ -3143,7 +3143,7 @@ static int mptcp_disconnect(struct sock *sk, int flags)
 	if (msk->token)
 		mptcp_event(MPTCP_EVENT_CLOSED, msk, NULL, GFP_KERNEL);
 
-	/* msk->subflow is still intact, the following will not free the first
+	/* msk->subflow is still intact, the following will analt free the first
 	 * subflow
 	 */
 	mptcp_destroy_common(msk, MPTCP_CF_FASTCLOSE);
@@ -3271,14 +3271,14 @@ struct sock *mptcp_sk_clone_init(const struct sock *sk,
 	security_inet_csk_clone(nsk, req);
 
 	/* this can't race with mptcp_close(), as the msk is
-	 * not yet exposted to user-space
+	 * analt yet exposted to user-space
 	 */
 	mptcp_set_state(nsk, TCP_ESTABLISHED);
 
 	/* The msk maintain a ref to each subflow in the connections list */
 	WRITE_ONCE(msk->first, ssk);
 	subflow = mptcp_subflow_ctx(ssk);
-	list_add(&subflow->node, &msk->conn_list);
+	list_add(&subflow->analde, &msk->conn_list);
 	sock_hold(ssk);
 
 	/* new mpc subflow takes ownership of the newly
@@ -3298,7 +3298,7 @@ struct sock *mptcp_sk_clone_init(const struct sock *sk,
 		__mptcp_subflow_fully_established(msk, subflow, mp_opt);
 	bh_unlock_sock(nsk);
 
-	/* note: the newly allocated socket refcount is 2 now */
+	/* analte: the newly allocated socket refcount is 2 analw */
 	return nsk;
 }
 
@@ -3343,7 +3343,7 @@ void mptcp_destroy_common(struct mptcp_sock *msk, unsigned int flags)
 	sk_forward_alloc_add(sk, msk->rmem_fwd_alloc);
 	WRITE_ONCE(msk->rmem_fwd_alloc, 0);
 	mptcp_token_destroy(msk);
-	mptcp_pm_free_anno_list(msk);
+	mptcp_pm_free_ananal_list(msk);
 	mptcp_free_local_addr_list(msk);
 }
 
@@ -3492,7 +3492,7 @@ void mptcp_subflow_process_delegated(struct sock *ssk, long status)
 static int mptcp_hash(struct sock *sk)
 {
 	/* should never be called,
-	 * we hash the TCP subflows not the master socket
+	 * we hash the TCP subflows analt the master socket
 	 */
 	WARN_ON_ONCE(1);
 	return 0;
@@ -3500,7 +3500,7 @@ static int mptcp_hash(struct sock *sk)
 
 static void mptcp_unhash(struct sock *sk)
 {
-	/* called from sk_common_release(), but nothing to do here */
+	/* called from sk_common_release(), but analthing to do here */
 }
 
 static int mptcp_get_port(struct sock *sk, unsigned short snum)
@@ -3529,7 +3529,7 @@ void mptcp_finish_connect(struct sock *ssk)
 	subflow->map_seq = subflow->iasn;
 	subflow->map_subflow_seq = 1;
 
-	/* the socket is not connected yet, no msk/subflow ops can access/race
+	/* the socket is analt connected yet, anal msk/subflow ops can access/race
 	 * accessing the field below
 	 */
 	WRITE_ONCE(msk->local_key, subflow->local_key);
@@ -3542,7 +3542,7 @@ void mptcp_sock_graft(struct sock *sk, struct socket *parent)
 	write_lock_bh(&sk->sk_callback_lock);
 	rcu_assign_pointer(sk->sk_wq, &parent->wq);
 	sk_set_socket(sk, parent);
-	sk->sk_uid = SOCK_INODE(parent)->i_uid;
+	sk->sk_uid = SOCK_IANALDE(parent)->i_uid;
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -3562,7 +3562,7 @@ bool mptcp_finish_join(struct sock *ssk)
 	}
 
 	/* active subflow, already present inside the conn_list */
-	if (!list_empty(&subflow->node)) {
+	if (!list_empty(&subflow->analde)) {
 		mptcp_subflow_joined(msk, ssk);
 		mptcp_propagate_sndbuf(parent, ssk);
 		return true;
@@ -3579,11 +3579,11 @@ bool mptcp_finish_join(struct sock *ssk)
 		ret = __mptcp_finish_join(msk, ssk);
 		if (ret) {
 			sock_hold(ssk);
-			list_add_tail(&subflow->node, &msk->conn_list);
+			list_add_tail(&subflow->analde, &msk->conn_list);
 		}
 	} else {
 		sock_hold(ssk);
-		list_add_tail(&subflow->node, &msk->join_list);
+		list_add_tail(&subflow->analde, &msk->join_list);
 		__set_bit(MPTCP_FLUSH_JOIN_LIST, &msk->cb_flags);
 	}
 	mptcp_data_unlock(parent);
@@ -3628,7 +3628,7 @@ static int mptcp_ioctl_outq(const struct mptcp_sock *msk, u64 v)
 
 		/* the first subflow is disconnected after close - see
 		 * __mptcp_close_ssk(). tcp_disconnect() moves the write_seq
-		 * so ignore that status, too.
+		 * so iganalre that status, too.
 		 */
 		if (!((1 << msk->first->sk_state) &
 		      (TCPF_SYN_SENT | TCPF_SYN_RECV | TCPF_CLOSE)))
@@ -3666,7 +3666,7 @@ static int mptcp_ioctl(struct sock *sk, int cmd, int *karg)
 		unlock_sock_fast(sk, slow);
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -3693,7 +3693,7 @@ static int mptcp_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	mptcp_set_state(sk, TCP_SYN_SENT);
 	subflow = mptcp_subflow_ctx(ssk);
 #ifdef CONFIG_TCP_MD5SIG
-	/* no MPTCP if MD5SIG is enabled on this socket or we may run out of
+	/* anal MPTCP if MD5SIG is enabled on this socket or we may run out of
 	 * TCP option space.
 	 */
 	if (rcu_access_pointer(tcp_sk(ssk)->md5sig_info))
@@ -3778,7 +3778,7 @@ static struct proto mptcp_prot = {
 	.sysctl_mem	= sysctl_tcp_mem,
 	.obj_size	= sizeof(struct mptcp_sock),
 	.slab_flags	= SLAB_TYPESAFE_BY_RCU,
-	.no_autobind	= true,
+	.anal_autobind	= true,
 };
 
 static int mptcp_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
@@ -3858,7 +3858,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 	pr_debug("msk=%p", msk);
 
 	/* Buggy applications can call accept on socket states other then LISTEN
-	 * but no need to allocate the first subflow just to error out.
+	 * but anal need to allocate the first subflow just to error out.
 	 */
 	ssk = READ_ONCE(msk->first);
 	if (!ssk)
@@ -3897,7 +3897,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 		msk->in_accept_queue = 0;
 
 		/* set ssk->sk_socket of accept()ed flows to mptcp socket.
-		 * This is needed so NOSPACE flag can be set from tcp stack.
+		 * This is needed so ANALSPACE flag can be set from tcp stack.
 		 */
 		mptcp_for_each_subflow(msk, subflow) {
 			struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
@@ -3907,7 +3907,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 		}
 
 		/* Do late cleanup for the first subflow as necessary. Also
-		 * deal with bad peers not doing a complete shutdown.
+		 * deal with bad peers analt doing a complete shutdown.
 		 */
 		if (unlikely(inet_sk_state_load(msk->first) == TCP_CLOSE)) {
 			__mptcp_close_ssk(newsk, msk->first,
@@ -3922,8 +3922,8 @@ tcpfallback:
 		newsk->sk_kern_sock = kern;
 		lock_sock(newsk);
 		__inet_accept(sock, newsock, newsk);
-		/* we are being invoked after accepting a non-mp-capable
-		 * flow: sk is a tcp_sk, not an mptcp one.
+		/* we are being invoked after accepting a analn-mp-capable
+		 * flow: sk is a tcp_sk, analt an mptcp one.
 		 *
 		 * Hand the socket over to tcp so all further socket ops
 		 * bypass mptcp.
@@ -3941,12 +3941,12 @@ static __poll_t mptcp_check_writeable(struct mptcp_sock *msk)
 	struct sock *sk = (struct sock *)msk;
 
 	if (sk_stream_is_writeable(sk))
-		return EPOLLOUT | EPOLLWRNORM;
+		return EPOLLOUT | EPOLLWRANALRM;
 
-	mptcp_set_nospace(sk);
+	mptcp_set_analspace(sk);
 	smp_mb__after_atomic(); /* msk->flags is changed by write_space cb */
 	if (sk_stream_is_writeable(sk))
-		return EPOLLOUT | EPOLLWRNORM;
+		return EPOLLOUT | EPOLLWRANALRM;
 
 	return 0;
 }
@@ -3978,18 +3978,18 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 	if (shutdown == SHUTDOWN_MASK || state == TCP_CLOSE)
 		mask |= EPOLLHUP;
 	if (shutdown & RCV_SHUTDOWN)
-		mask |= EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
+		mask |= EPOLLIN | EPOLLRDANALRM | EPOLLRDHUP;
 
 	if (state != TCP_SYN_SENT && state != TCP_SYN_RECV) {
 		mask |= mptcp_check_readable(sk);
 		if (shutdown & SEND_SHUTDOWN)
-			mask |= EPOLLOUT | EPOLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRANALRM;
 		else
 			mask |= mptcp_check_writeable(msk);
 	} else if (state == TCP_SYN_SENT &&
 		   inet_test_bit(DEFER_CONNECT, sk)) {
-		/* cf tcp_poll() note about TFO */
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		/* cf tcp_poll() analte about TFO */
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 	}
 
 	/* This barrier is coupled with smp_wmb() in __mptcp_error_report() */
@@ -4006,7 +4006,7 @@ static const struct proto_ops mptcp_stream_ops = {
 	.release	   = inet_release,
 	.bind		   = mptcp_bind,
 	.connect	   = inet_stream_connect,
-	.socketpair	   = sock_no_socketpair,
+	.socketpair	   = sock_anal_socketpair,
 	.accept		   = mptcp_stream_accept,
 	.getname	   = inet_getname,
 	.poll		   = mptcp_poll,
@@ -4018,7 +4018,7 @@ static const struct proto_ops mptcp_stream_ops = {
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = inet_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 	.set_rcvlowat	   = mptcp_set_rcvlowat,
 };
 
@@ -4060,7 +4060,7 @@ static int mptcp_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	/* always provide a 0 'work_done' argument, so that napi_complete_done
-	 * will not try accessing the NULL napi->dev ptr
+	 * will analt try accessing the NULL napi->dev ptr
 	 */
 	napi_complete_done(napi, 0);
 	return work_done;
@@ -4105,7 +4105,7 @@ static const struct proto_ops mptcp_v6_stream_ops = {
 	.release	   = inet6_release,
 	.bind		   = mptcp_bind,
 	.connect	   = inet_stream_connect,
-	.socketpair	   = sock_no_socketpair,
+	.socketpair	   = sock_anal_socketpair,
 	.accept		   = mptcp_stream_accept,
 	.getname	   = inet6_getname,
 	.poll		   = mptcp_poll,
@@ -4117,7 +4117,7 @@ static const struct proto_ops mptcp_v6_stream_ops = {
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet6_sendmsg,
 	.recvmsg	   = inet6_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	   = inet6_compat_ioctl,
 #endif

@@ -154,14 +154,14 @@
 				map0 {
 					trip = <&core_cluster_alert>;
 					cooling-device =
-						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -184,7 +184,7 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 13 IRQ_TYPE_LEVEL_LOW>,/* Physical Secure PPI */
-			     <1 14 IRQ_TYPE_LEVEL_LOW>,/* Physical Non-Secure PPI */
+			     <1 14 IRQ_TYPE_LEVEL_LOW>,/* Physical Analn-Secure PPI */
 			     <1 11 IRQ_TYPE_LEVEL_LOW>,/* Virtual PPI */
 			     <1 10 IRQ_TYPE_LEVEL_LOW>;/* Hypervisor PPI */
 	};
@@ -574,7 +574,7 @@
 			num-viewport = <256>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x20 0x00010000 0x0 0x00010000   /* downstream I/O */
-				  0x82000000 0x0 0x40000000 0x20 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+				  0x82000000 0x0 0x40000000 0x20 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -611,7 +611,7 @@
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x28 0x00010000 0x0 0x00010000   /* downstream I/O */
-				  0x82000000 0x0 0x40000000 0x28 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+				  0x82000000 0x0 0x40000000 0x28 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -647,7 +647,7 @@
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x30 0x00010000 0x0 0x00010000   /* downstream I/O */
-				  0x82000000 0x0 0x40000000 0x30 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+				  0x82000000 0x0 0x40000000 0x30 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -680,9 +680,9 @@
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     // combined secure
 				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
-				     // global non-secure fault
+				     // global analn-secure fault
 				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
-				     // combined non-secure
+				     // combined analn-secure
 				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
 				     // performance counter interrupts 0-7
 				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,

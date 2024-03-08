@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: devlink
 
@@ -20,7 +20,7 @@ definitions:
     name: port-type
     entries:
       -
-        name: notset
+        name: analtset
       -
         name: auto
       -
@@ -82,7 +82,7 @@ definitions:
       -
         name: leaf
       -
-        name: node
+        name: analde
   -
     type: enum
     name: sb-threshold-type
@@ -104,7 +104,7 @@ definitions:
     name: eswitch-inline-mode
     entries:
       -
-        name: none
+        name: analne
       -
         name: link
       -
@@ -116,7 +116,7 @@ definitions:
     name: eswitch-encap-mode
     entries:
       -
-        name: none
+        name: analne
       -
         name: basic
   -
@@ -146,7 +146,7 @@ definitions:
     name: dpipe-field-mapping-type
     entries:
       -
-        name: none
+        name: analne
       -
         name: ifindex
   -
@@ -782,10 +782,10 @@ attribute-sets:
         name: rate-tx-max
         type: u64
       -
-        name: rate-node-name
+        name: rate-analde-name
         type: string
       -
-        name: rate-parent-node-name
+        name: rate-parent-analde-name
         type: string
       -
          name: region-max-snapshots
@@ -1924,8 +1924,8 @@ operations:
           attributes: *health-reporter-id-attrs
 
     -
-      name: health-reporter-diagnose
-      doc: Diagnose health reporter instances.
+      name: health-reporter-diaganalse
+      doc: Diaganalse health reporter instances.
       attribute-set: devlink
       dont-validate: [ strict ]
       flags: [ admin-perm ]
@@ -2121,7 +2121,7 @@ operations:
             - bus-name
             - dev-name
             - port-index
-            - rate-node-name
+            - rate-analde-name
         reply: &rate-get-reply
           value: 76
           attributes: *rate-id-attrs
@@ -2143,12 +2143,12 @@ operations:
           attributes:
             - bus-name
             - dev-name
-            - rate-node-name
+            - rate-analde-name
             - rate-tx-share
             - rate-tx-max
             - rate-tx-priority
             - rate-tx-weight
-            - rate-parent-node-name
+            - rate-parent-analde-name
 
     -
       name: rate-new
@@ -2163,12 +2163,12 @@ operations:
           attributes:
             - bus-name
             - dev-name
-            - rate-node-name
+            - rate-analde-name
             - rate-tx-share
             - rate-tx-max
             - rate-tx-priority
             - rate-tx-weight
-            - rate-parent-node-name
+            - rate-parent-analde-name
 
     -
       name: rate-del
@@ -2183,7 +2183,7 @@ operations:
           attributes:
             - bus-name
             - dev-name
-            - rate-node-name
+            - rate-analde-name
 
     -
       name: linecard-get
@@ -2256,8 +2256,8 @@ operations:
             - selftests
 
     -
-      name: notify-filter-set
-      doc: Set notification messages socket filter.
+      name: analtify-filter-set
+      doc: Set analtification messages socket filter.
       attribute-set: devlink
       do:
         request:

@@ -49,7 +49,7 @@ struct lv1_atapi_cmnd_block {
 };
 
 enum lv1_atapi_proto {
-	NON_DATA_PROTO     = 0,
+	ANALN_DATA_PROTO     = 0,
 	PIO_DATA_IN_PROTO  = 1,
 	PIO_DATA_OUT_PROTO = 2,
 	DMA_PROTO = 3
@@ -118,7 +118,7 @@ static int ps3rom_atapi_request(struct ps3_storage_device *dev,
 		break;
 
 	default:
-		atapi_cmnd.proto = NON_DATA_PROTO;
+		atapi_cmnd.proto = ANALN_DATA_PROTO;
 		break;
 	}
 
@@ -345,7 +345,7 @@ static int ps3rom_probe(struct ps3_system_bus_device *_dev)
 
 	if (dev->blk_size != CD_FRAMESIZE) {
 		dev_err(&dev->sbd.core,
-			"%s:%u: cannot handle block size %llu\n", __func__,
+			"%s:%u: cananalt handle block size %llu\n", __func__,
 			__LINE__, dev->blk_size);
 		return -EINVAL;
 	}
@@ -353,7 +353,7 @@ static int ps3rom_probe(struct ps3_system_bus_device *_dev)
 	dev->bounce_size = BOUNCE_SIZE;
 	dev->bounce_buf = kmalloc(BOUNCE_SIZE, GFP_DMA);
 	if (!dev->bounce_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = ps3stor_setup(dev, ps3rom_interrupt);
 	if (error)
@@ -364,7 +364,7 @@ static int ps3rom_probe(struct ps3_system_bus_device *_dev)
 	if (!host) {
 		dev_err(&dev->sbd.core, "%s:%u: scsi_host_alloc failed\n",
 			__func__, __LINE__);
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_teardown;
 	}
 
@@ -380,7 +380,7 @@ static int ps3rom_probe(struct ps3_system_bus_device *_dev)
 	if (error) {
 		dev_err(&dev->sbd.core, "%s:%u: scsi_host_alloc failed %d\n",
 			__func__, __LINE__, error);
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto fail_host_put;
 	}
 

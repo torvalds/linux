@@ -1,13 +1,13 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
-# description: event tracing - restricts events based on pid notrace filtering
-# requires: set_event events/sched set_event_pid set_event_notrace_pid
+# description: event tracing - restricts events based on pid analtrace filtering
+# requires: set_event events/sched set_event_pid set_event_analtrace_pid
 # flags: instance
 
 do_reset() {
     echo > set_event
     echo > set_event_pid
-    echo > set_event_notrace_pid
+    echo > set_event_analtrace_pid
     echo 0 > options/event-fork
     echo 0 > events/enable
     clear_trace
@@ -26,7 +26,7 @@ count_pid() {
     cat trace | grep -v '^#' | sed -e 's/[^-]*-\([0-9]*\).*/\1/' | grep $pid | wc -l
 }
 
-count_no_pid() {
+count_anal_pid() {
     pid=$1
     cat trace | grep -v '^#' | sed -e 's/[^-]*-\([0-9]*\).*/\1/' | grep -v $pid | wc -l
 }
@@ -67,8 +67,8 @@ do_reset
 
 read mypid rest < /proc/self/stat
 
-echo $mypid > set_event_notrace_pid
-grep -q $mypid set_event_notrace_pid
+echo $mypid > set_event_analtrace_pid
+grep -q $mypid set_event_analtrace_pid
 
 enable_events
 
@@ -81,14 +81,14 @@ if [ $cnt -ne 0 ]; then
     fail "Filtered out task has events"
 fi
 
-cnt=`count_no_pid $mypid`
+cnt=`count_anal_pid $mypid`
 if [ $cnt -eq 0 ]; then
-    fail "No other events were recorded"
+    fail "Anal other events were recorded"
 fi
 
 do_reset
 
-echo $mypid > set_event_notrace_pid
+echo $mypid > set_event_analtrace_pid
 echo 1 > options/event-fork
 
 enable_events
@@ -113,9 +113,9 @@ if [ $cnt -ne 0 ]; then
     fail "Child of filtered out taskhas events"
 fi
 
-cnt=`count_no_pid $mypid`
+cnt=`count_anal_pid $mypid`
 if [ $cnt -eq 0 ]; then
-    fail "No other events were recorded"
+    fail "Anal other events were recorded"
 fi
 
 do_reset

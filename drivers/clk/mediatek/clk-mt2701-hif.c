@@ -17,7 +17,7 @@ static const struct mtk_gate_regs hif_cg_regs = {
 };
 
 #define GATE_HIF(_id, _name, _parent, _shift)				\
-	GATE_MTK(_id, _name, _parent, &hif_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &hif_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate hif_clks[] = {
 	GATE_DUMMY(CLK_DUMMY, "hif_dummy"),

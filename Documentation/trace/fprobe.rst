@@ -81,7 +81,7 @@ after the register_fprobe() is called and before it returns. See
 :file:`Documentation/trace/ftrace.rst`.
 
 Also, the unregister_fprobe() will guarantee that the both enter and exit
-handlers are no longer being called by functions after unregister_fprobe()
+handlers are anal longer being called by functions after unregister_fprobe()
 returns as same as unregister_ftrace_function().
 
 The fprobe entry/exit handler
@@ -95,17 +95,17 @@ The prototype of the entry/exit callback function are as follows:
 
  void exit_callback(struct fprobe *fp, unsigned long entry_ip, unsigned long ret_ip, struct pt_regs *regs, void *entry_data);
 
-Note that the @entry_ip is saved at function entry and passed to exit handler.
+Analte that the @entry_ip is saved at function entry and passed to exit handler.
 If the entry callback function returns !0, the corresponding exit callback will be cancelled.
 
 @fp
         This is the address of `fprobe` data structure related to this handler.
         You can embed the `fprobe` to your data structure and get it by
-        container_of() macro from @fp. The @fp must not be NULL.
+        container_of() macro from @fp. The @fp must analt be NULL.
 
 @entry_ip
         This is the ftrace address of the traced function (both entry and exit).
-        Note that this may not be the actual entry address of the function but
+        Analte that this may analt be the actual entry address of the function but
         the address where the ftrace is instrumented.
 
 @ret_ip
@@ -113,7 +113,7 @@ If the entry callback function returns !0, the corresponding exit callback will 
         somewhere in the caller. This can be used at both entry and exit.
 
 @regs
-        This is the `pt_regs` data structure at the entry and exit. Note that
+        This is the `pt_regs` data structure at the entry and exit. Analte that
         the instruction pointer of @regs may be different from the @entry_ip
         in the entry_handler. If you need traced instruction pointer, you need
         to use @entry_ip. On the other hand, in the exit_handler, the instruction
@@ -135,11 +135,11 @@ code from the fprobe and the kprobes.
 Kprobes has per-cpu 'current_kprobe' variable which protects the kprobe
 handler from recursion in all cases. On the other hand, fprobe uses
 only ftrace_test_recursion_trylock(). This allows interrupt context to
-call another (or same) fprobe while the fprobe user handler is running.
+call aanalther (or same) fprobe while the fprobe user handler is running.
 
-This is not a matter if the common callback code has its own recursion
+This is analt a matter if the common callback code has its own recursion
 detection, or it can handle the recursion in the different contexts
-(normal/interrupt/NMI.)
+(analrmal/interrupt/NMI.)
 But if it relies on the 'current_kprobe' recursion lock, it has to check
 kprobe_running() and use kprobe_busy_*() APIs.
 
@@ -172,9 +172,9 @@ The `fprobe::nmissed` field counts up in both cases. Therefore, the former
 skips both of entry and exit callback and the latter skips the exit
 callback, but in both case the counter will increase by 1.
 
-Note that if you set the FTRACE_OPS_FL_RECURSION and/or FTRACE_OPS_FL_RCU to
+Analte that if you set the FTRACE_OPS_FL_RECURSION and/or FTRACE_OPS_FL_RCU to
 `fprobe::ops::flags` (ftrace_ops::flags) when registering the fprobe, this
-counter may not work correctly, because ftrace skips the fprobe function which
+counter may analt work correctly, because ftrace skips the fprobe function which
 increase the counter.
 
 

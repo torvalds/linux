@@ -16,7 +16,7 @@
 /**
  * struct ec_i2c_device - Driver data for I2C tunnel
  *
- * @dev: Device node
+ * @dev: Device analde
  * @adap: I2C adapter
  * @ec: Pointer to EC device
  * @remote_bus: The EC bus number we tunnel to on the other side.
@@ -63,7 +63,7 @@ static int ec_i2c_count_message(const struct i2c_msg i2c_msgs[], int num)
  * This function effectively stuffs the standard i2c_msg format of Linux into
  * a format that the EC understands.
  *
- * @buf: The buffer to fill.  We assume that the buffer is big enough.
+ * @buf: The buffer to fill.  We assume that the buffer is big eanalugh.
  * @i2c_msgs: The i2c messages to read.
  * @num: The number of i2c messages.
  * @bus_num: The remote bus number we want to talk to.
@@ -154,7 +154,7 @@ static int ec_i2c_parse_response(const u8 *buf, struct i2c_msg i2c_msgs[],
 	else if (resp->i2c_status & EC_I2C_STATUS_ERROR)
 		return -EIO;
 
-	/* Other side could send us back fewer messages, but not more */
+	/* Other side could send us back fewer messages, but analt more */
 	if (resp->num_msgs > *num)
 		return -EPROTO;
 	*num = resp->num_msgs;
@@ -191,7 +191,7 @@ static int ec_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg i2c_msgs[],
 
 	response_len = ec_i2c_count_response(i2c_msgs, num);
 	if (response_len < 0) {
-		/* Unexpected; no errors should come when NULL response */
+		/* Unexpected; anal errors should come when NULL response */
 		dev_warn(dev, "Error preparing response %d\n", response_len);
 		return response_len;
 	}
@@ -199,7 +199,7 @@ static int ec_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg i2c_msgs[],
 	alloc_size = max(request_len, response_len);
 	msg = kmalloc(sizeof(*msg) + alloc_size, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = ec_i2c_construct_message(msg->data, i2c_msgs, num, bus_num);
 	if (result) {
@@ -254,7 +254,7 @@ static int ec_i2c_probe(struct platform_device *pdev)
 
 	bus = devm_kzalloc(dev, sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = device_property_read_u32(dev, "google,remote-bus", &remote_bus);
 	if (err) {
@@ -271,7 +271,7 @@ static int ec_i2c_probe(struct platform_device *pdev)
 	bus->adap.algo = &ec_i2c_algorithm;
 	bus->adap.algo_data = bus;
 	bus->adap.dev.parent = &pdev->dev;
-	bus->adap.dev.of_node = pdev->dev.of_node;
+	bus->adap.dev.of_analde = pdev->dev.of_analde;
 	bus->adap.retries = I2C_MAX_RETRIES;
 	ACPI_COMPANION_SET(&bus->adap.dev, ACPI_COMPANION(&pdev->dev));
 

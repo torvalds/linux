@@ -27,7 +27,7 @@
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define MEI_CSI_ENTITY_NAME "Intel IVSC CSI"
@@ -43,7 +43,7 @@
 
 /*
  * identify the command id supported by firmware
- * IPC, as well as the privacy notification id
+ * IPC, as well as the privacy analtification id
  * used when processing privacy event.
  */
 enum csi_cmd_id {
@@ -53,8 +53,8 @@ enum csi_cmd_id {
 	/* used to configure CSI-2 link */
 	CSI_SET_CONF = 2,
 
-	/* privacy notification id used when privacy state changes */
-	CSI_PRIVACY_NOTIF = 6,
+	/* privacy analtification id used when privacy state changes */
+	CSI_PRIVACY_ANALTIF = 6,
 };
 
 /* CSI-2 link ownership definition */
@@ -97,8 +97,8 @@ struct csi_cmd {
 	} param;
 } __packed;
 
-/* CSI notification structure */
-struct csi_notif {
+/* CSI analtification structure */
+struct csi_analtif {
 	u32 cmd_id;
 	int status;
 	union _resp_cont {
@@ -111,7 +111,7 @@ struct mei_csi {
 	struct mei_cl_device *cldev;
 
 	/* command response */
-	struct csi_notif cmd_response;
+	struct csi_analtif cmd_response;
 	/* used to wait for command response from firmware */
 	struct completion cmd_completion;
 	/* protect command download */
@@ -119,12 +119,12 @@ struct mei_csi {
 
 	struct v4l2_subdev subdev;
 	struct v4l2_subdev *remote;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *freq_ctrl;
 	struct v4l2_ctrl *privacy_ctrl;
 	unsigned int remote_pad;
-	/* start streaming or not */
+	/* start streaming or analt */
 	int streaming;
 
 	struct media_pad pads[CSI_NUM_PADS];
@@ -143,16 +143,16 @@ static const struct v4l2_mbus_framefmt mei_csi_format_mbus_default = {
 	.width = 1,
 	.height = 1,
 	.code = MEDIA_BUS_FMT_Y8_1X8,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 };
 
 static s64 link_freq_menu_items[] = {
 	MEI_CSI_LINK_FREQ_400MHZ
 };
 
-static inline struct mei_csi *notifier_to_csi(struct v4l2_async_notifier *n)
+static inline struct mei_csi *analtifier_to_csi(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct mei_csi, notifier);
+	return container_of(n, struct mei_csi, analtifier);
 }
 
 static inline struct mei_csi *sd_to_csi(struct v4l2_subdev *sd)
@@ -252,25 +252,25 @@ static int csi_set_link_cfg(struct mei_csi *csi)
 static void mei_csi_rx(struct mei_cl_device *cldev)
 {
 	struct mei_csi *csi = mei_cldev_get_drvdata(cldev);
-	struct csi_notif notif = { 0 };
+	struct csi_analtif analtif = { 0 };
 	int ret;
 
-	ret = mei_cldev_recv(cldev, (u8 *)&notif, sizeof(notif));
+	ret = mei_cldev_recv(cldev, (u8 *)&analtif, sizeof(analtif));
 	if (ret < 0) {
 		dev_err(&cldev->dev, "recv error: %d\n", ret);
 		return;
 	}
 
-	switch (notif.cmd_id) {
-	case CSI_PRIVACY_NOTIF:
-		if (notif.cont.cont < CSI_PRIVACY_MAX) {
-			csi->status = notif.cont.cont;
+	switch (analtif.cmd_id) {
+	case CSI_PRIVACY_ANALTIF:
+		if (analtif.cont.cont < CSI_PRIVACY_MAX) {
+			csi->status = analtif.cont.cont;
 			v4l2_ctrl_s_ctrl(csi->privacy_ctrl, csi->status);
 		}
 		break;
 	case CSI_SET_OWNER:
 	case CSI_SET_CONF:
-		memcpy(&csi->cmd_response, &notif, ret);
+		memcpy(&csi->cmd_response, &analtif, ret);
 
 		complete(&csi->cmd_completion);
 		break;
@@ -502,7 +502,7 @@ static int mei_csi_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (format->format.field == V4L2_FIELD_ANY)
-		format->format.field = V4L2_FIELD_NONE;
+		format->format.field = V4L2_FIELD_ANALNE;
 
 	mutex_lock(&csi->lock);
 
@@ -571,14 +571,14 @@ static const struct media_entity_operations mei_csi_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static int mei_csi_notify_bound(struct v4l2_async_notifier *notifier,
+static int mei_csi_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				struct v4l2_subdev *subdev,
 				struct v4l2_async_connection *asd)
 {
-	struct mei_csi *csi = notifier_to_csi(notifier);
+	struct mei_csi *csi = analtifier_to_csi(analtifier);
 	int pad;
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
+	pad = media_entity_get_fwanalde_pad(&subdev->entity, asd->match.fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0)
 		return pad;
@@ -592,18 +592,18 @@ static int mei_csi_notify_bound(struct v4l2_async_notifier *notifier,
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static void mei_csi_notify_unbind(struct v4l2_async_notifier *notifier,
+static void mei_csi_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_connection *asd)
 {
-	struct mei_csi *csi = notifier_to_csi(notifier);
+	struct mei_csi *csi = analtifier_to_csi(analtifier);
 
 	csi->remote = NULL;
 }
 
-static const struct v4l2_async_notifier_operations mei_csi_notify_ops = {
-	.bound = mei_csi_notify_bound,
-	.unbind = mei_csi_notify_unbind,
+static const struct v4l2_async_analtifier_operations mei_csi_analtify_ops = {
+	.bound = mei_csi_analtify_bound,
+	.unbind = mei_csi_analtify_unbind,
 };
 
 static int mei_csi_init_controls(struct mei_csi *csi)
@@ -643,71 +643,71 @@ static int mei_csi_init_controls(struct mei_csi *csi)
 
 static int mei_csi_parse_firmware(struct mei_csi *csi)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep = {
+	struct v4l2_fwanalde_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	struct device *dev = &csi->cldev->dev;
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *sink_ep, *source_ep;
+	struct fwanalde_handle *sink_ep, *source_ep;
 	int ret;
 
-	sink_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
+	sink_ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), 0, 0, 0);
 	if (!sink_ep) {
 		dev_err(dev, "can't obtain sink endpoint\n");
 		return -EINVAL;
 	}
 
-	v4l2_async_subdev_nf_init(&csi->notifier, &csi->subdev);
-	csi->notifier.ops = &mei_csi_notify_ops;
+	v4l2_async_subdev_nf_init(&csi->analtifier, &csi->subdev);
+	csi->analtifier.ops = &mei_csi_analtify_ops;
 
-	ret = v4l2_fwnode_endpoint_parse(sink_ep, &v4l2_ep);
+	ret = v4l2_fwanalde_endpoint_parse(sink_ep, &v4l2_ep);
 	if (ret) {
-		dev_err(dev, "could not parse v4l2 sink endpoint\n");
+		dev_err(dev, "could analt parse v4l2 sink endpoint\n");
 		goto out_nf_cleanup;
 	}
 
 	csi->nr_of_lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
 
-	source_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 1, 0, 0);
+	source_ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), 1, 0, 0);
 	if (!source_ep) {
-		ret = -ENOTCONN;
+		ret = -EANALTCONN;
 		dev_err(dev, "can't obtain source endpoint\n");
 		goto out_nf_cleanup;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(source_ep, &v4l2_ep);
-	fwnode_handle_put(source_ep);
+	ret = v4l2_fwanalde_endpoint_parse(source_ep, &v4l2_ep);
+	fwanalde_handle_put(source_ep);
 	if (ret) {
-		dev_err(dev, "could not parse v4l2 source endpoint\n");
+		dev_err(dev, "could analt parse v4l2 source endpoint\n");
 		goto out_nf_cleanup;
 	}
 
 	if (csi->nr_of_lanes != v4l2_ep.bus.mipi_csi2.num_data_lanes) {
 		ret = -EINVAL;
 		dev_err(dev,
-			"the number of lanes does not match (%u vs. %u)\n",
+			"the number of lanes does analt match (%u vs. %u)\n",
 			csi->nr_of_lanes, v4l2_ep.bus.mipi_csi2.num_data_lanes);
 		goto out_nf_cleanup;
 	}
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, sink_ep,
+	asd = v4l2_async_nf_add_fwanalde_remote(&csi->analtifier, sink_ep,
 					      struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out_nf_cleanup;
 	}
 
-	ret = v4l2_async_nf_register(&csi->notifier);
+	ret = v4l2_async_nf_register(&csi->analtifier);
 	if (ret)
 		goto out_nf_cleanup;
 
-	fwnode_handle_put(sink_ep);
+	fwanalde_handle_put(sink_ep);
 
 	return 0;
 
 out_nf_cleanup:
-	v4l2_async_nf_cleanup(&csi->notifier);
-	fwnode_handle_put(sink_ep);
+	v4l2_async_nf_cleanup(&csi->analtifier);
+	fwanalde_handle_put(sink_ep);
 
 	return ret;
 }
@@ -719,12 +719,12 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 	struct mei_csi *csi;
 	int ret;
 
-	if (!dev_fwnode(dev))
+	if (!dev_fwanalde(dev))
 		return -EPROBE_DEFER;
 
 	csi = devm_kzalloc(dev, sizeof(struct mei_csi), GFP_KERNEL);
 	if (!csi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi->cldev = cldev;
 	mutex_init(&csi->lock);
@@ -752,7 +752,7 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 	v4l2_subdev_init(&csi->subdev, &mei_csi_subdev_ops);
 	csi->subdev.internal_ops = &mei_csi_internal_ops;
 	v4l2_set_subdevdata(&csi->subdev, csi);
-	csi->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE |
+	csi->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	csi->subdev.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	csi->subdev.entity.ops = &mei_csi_entity_ops;
@@ -794,8 +794,8 @@ err_entity:
 
 err_ctrl_handler:
 	v4l2_ctrl_handler_free(&csi->ctrl_handler);
-	v4l2_async_nf_unregister(&csi->notifier);
-	v4l2_async_nf_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->analtifier);
+	v4l2_async_nf_cleanup(&csi->analtifier);
 
 err_disable:
 	mei_cldev_disable(cldev);
@@ -810,8 +810,8 @@ static void mei_csi_remove(struct mei_cl_device *cldev)
 {
 	struct mei_csi *csi = mei_cldev_get_drvdata(cldev);
 
-	v4l2_async_nf_unregister(&csi->notifier);
-	v4l2_async_nf_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->analtifier);
+	v4l2_async_nf_cleanup(&csi->analtifier);
 	v4l2_ctrl_handler_free(&csi->ctrl_handler);
 	v4l2_async_unregister_subdev(&csi->subdev);
 	v4l2_subdev_cleanup(&csi->subdev);

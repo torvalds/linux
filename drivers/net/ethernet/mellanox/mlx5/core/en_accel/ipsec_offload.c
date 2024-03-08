@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2017, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2017, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include "mlx5_core.h"
 #include "en.h"
@@ -51,9 +51,9 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, decap))
 			caps |= MLX5_IPSEC_CAP_PACKET_OFFLOAD;
 
-		if ((MLX5_CAP_FLOWTABLE_NIC_TX(mdev, ignore_flow_level) &&
-		     MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ignore_flow_level)) ||
-		    MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, ignore_flow_level))
+		if ((MLX5_CAP_FLOWTABLE_NIC_TX(mdev, iganalre_flow_level) &&
+		     MLX5_CAP_FLOWTABLE_NIC_RX(mdev, iganalre_flow_level)) ||
+		    MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, iganalre_flow_level))
 			caps |= MLX5_IPSEC_CAP_PRIO;
 
 		if (MLX5_CAP_FLOWTABLE_NIC_TX(mdev,
@@ -267,7 +267,7 @@ static int mlx5_modify_ipsec_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
 	/* esn */
 	if (!(modify_field_select & MLX5_MODIFY_IPSEC_BITMASK_ESN_OVERLAP) ||
 	    !(modify_field_select & MLX5_MODIFY_IPSEC_BITMASK_ESN_MSB))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	obj = MLX5_ADDR_OF(modify_ipsec_obj_in, in, ipsec_object);
 	MLX5_SET64(ipsec_obj, obj, modify_field_select,
@@ -374,7 +374,7 @@ static void mlx5e_ipsec_handle_limits(struct mlx5e_ipsec_sa_entry *sa_entry)
 	soft_arm = !MLX5_GET(ipsec_aso, aso->ctx, soft_lft_arm);
 	hard_arm = !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm);
 	if (!soft_arm && !hard_arm)
-		/* It is not lifetime event */
+		/* It is analt lifetime event */
 		return;
 
 	hard_cnt = MLX5_GET(ipsec_aso, aso->ctx, remove_flow_pkt_cnt);
@@ -384,11 +384,11 @@ static void mlx5e_ipsec_handle_limits(struct mlx5e_ipsec_sa_entry *sa_entry)
 		 * decreased, while we handled soft limit event.
 		 *
 		 * However it will be HW/FW bug if hard limit event is raised
-		 * and packet counter is not zero.
+		 * and packet counter is analt zero.
 		 */
 		WARN_ON_ONCE(hard_arm && hard_cnt);
 
-		/* Notify about hard limit */
+		/* Analtify about hard limit */
 		xfrm_state_check_expire(sa_entry->x);
 		return;
 	}
@@ -397,20 +397,20 @@ static void mlx5e_ipsec_handle_limits(struct mlx5e_ipsec_sa_entry *sa_entry)
 	if (!sa_entry->limits.soft_limit_hit &&
 	    sa_entry->limits.round == attrs->lft.numb_rounds_soft) {
 		sa_entry->limits.soft_limit_hit = true;
-		/* Notify about soft limit */
+		/* Analtify about soft limit */
 		xfrm_state_check_expire(sa_entry->x);
 
 		if (sa_entry->limits.round == attrs->lft.numb_rounds_hard)
 			goto hard;
 
 		if (attrs->lft.soft_packet_limit > BIT_ULL(31)) {
-			/* We cannot avoid a soft_value that might have the high
-			 * bit set. For instance soft_value=2^31+1 cannot be
+			/* We cananalt avoid a soft_value that might have the high
+			 * bit set. For instance soft_value=2^31+1 cananalt be
 			 * adjusted to the low bit clear version of soft_value=1
 			 * because it is too close to 0.
 			 *
 			 * Thus we have this corner case where we can hit the
-			 * soft_limit with the high bit set, but cannot adjust
+			 * soft_limit with the high bit set, but cananalt adjust
 			 * the counter. Thus we set a temporary interrupt_value
 			 * at least 2^30 away from here and do the adjustment
 			 * then.
@@ -474,7 +474,7 @@ unlock:
 	kfree(work);
 }
 
-static int mlx5e_ipsec_event(struct notifier_block *nb, unsigned long event,
+static int mlx5e_ipsec_event(struct analtifier_block *nb, unsigned long event,
 			     void *data)
 {
 	struct mlx5e_ipsec *ipsec = container_of(nb, struct mlx5e_ipsec, nb);
@@ -485,27 +485,27 @@ static int mlx5e_ipsec_event(struct notifier_block *nb, unsigned long event,
 	u16 type;
 
 	if (event != MLX5_EVENT_TYPE_OBJECT_CHANGE)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	object = &eqe->data.obj_change;
 	type = be16_to_cpu(object->obj_type);
 
 	if (type != MLX5_GENERAL_OBJECT_TYPES_IPSEC)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	sa_entry = xa_load(&ipsec->sadb, be32_to_cpu(object->obj_id));
 	if (!sa_entry)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	INIT_WORK(&work->work, mlx5e_ipsec_handle_event);
 	work->data = sa_entry;
 
 	queue_work(ipsec->wq, &work->work);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
@@ -518,7 +518,7 @@ int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
 
 	aso = kzalloc(sizeof(*ipsec->aso), GFP_KERNEL);
 	if (!aso)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = &mdev->mlx5e_res.hw_objs;
 
@@ -536,8 +536,8 @@ int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
 	}
 
 	spin_lock_init(&aso->lock);
-	ipsec->nb.notifier_call = mlx5e_ipsec_event;
-	mlx5_notifier_register(mdev, &ipsec->nb);
+	ipsec->nb.analtifier_call = mlx5e_ipsec_event;
+	mlx5_analtifier_register(mdev, &ipsec->nb);
 
 	ipsec->aso = aso;
 	return 0;
@@ -559,7 +559,7 @@ void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec)
 	aso = ipsec->aso;
 	pdev = mlx5_core_dma_dev(mdev);
 
-	mlx5_notifier_unregister(mdev, &ipsec->nb);
+	mlx5_analtifier_unregister(mdev, &ipsec->nb);
 	mlx5_aso_destroy(aso->aso);
 	dma_unmap_single(pdev, aso->dma_addr, sizeof(aso->ctx),
 			 DMA_BIDIRECTIONAL);

@@ -3,7 +3,7 @@
 #include <linux/ctype.h>	/* for isdigit() and friends */
 #include <linux/fs.h>
 #include <linux/mm.h>		/* for verify_area */
-#include <linux/errno.h>	/* for -EBUSY */
+#include <linux/erranal.h>	/* for -EBUSY */
 #include <linux/ioport.h>	/* for check_region, request_region */
 #include <linux/interrupt.h>
 #include <linux/delay.h>	/* for loops_per_sec */
@@ -48,7 +48,7 @@ static int do_synth_init(struct spk_synth *in_synth);
  * Main loop of the progression thread: keep eating from the buffer
  * and push to the serial port, waiting as needed
  *
- * For devices that have a "full" notification mechanism, the driver can
+ * For devices that have a "full" analtification mechanism, the driver can
  * adapt the loop the way they prefer.
  */
 static void _spk_do_catch_up(struct spk_synth *synth, int unicode)
@@ -82,7 +82,7 @@ static void _spk_do_catch_up(struct spk_synth *synth, int unicode)
 			continue;
 		}
 		if (!unicode)
-			synth_buffer_skip_nonlatin1();
+			synth_buffer_skip_analnlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -144,16 +144,16 @@ EXPORT_SYMBOL_GPL(spk_synth_flush);
 
 unsigned char spk_synth_get_index(struct spk_synth *synth)
 {
-	return synth->io_ops->synth_in_nowait(synth);
+	return synth->io_ops->synth_in_analwait(synth);
 }
 EXPORT_SYMBOL_GPL(spk_synth_get_index);
 
-int spk_synth_is_alive_nop(struct spk_synth *synth)
+int spk_synth_is_alive_analp(struct spk_synth *synth)
 {
 	synth->alive = 1;
 	return 1;
 }
-EXPORT_SYMBOL_GPL(spk_synth_is_alive_nop);
+EXPORT_SYMBOL_GPL(spk_synth_is_alive_analp);
 
 int spk_synth_is_alive_restart(struct spk_synth *synth)
 {
@@ -361,7 +361,7 @@ int synth_init(char *synth_name)
 	if (!synth_name)
 		return 0;
 
-	if (strcmp(synth_name, "none") == 0) {
+	if (strcmp(synth_name, "analne") == 0) {
 		mutex_lock(&spk_mutex);
 		synth_release();
 		mutex_unlock(&spk_mutex);
@@ -370,16 +370,16 @@ int synth_init(char *synth_name)
 
 	mutex_lock(&spk_mutex);
 	/* First, check if we already have it loaded. */
-	list_for_each_entry(tmp, &synths, node) {
+	list_for_each_entry(tmp, &synths, analde) {
 		if (strcmp(tmp->name, synth_name) == 0)
 			synth = tmp;
 	}
 
-	/* If we got one, initialize it now. */
+	/* If we got one, initialize it analw. */
 	if (synth)
 		ret = do_synth_init(synth);
 	else
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	mutex_unlock(&spk_mutex);
 
 	return ret;
@@ -399,7 +399,7 @@ static int do_synth_init(struct spk_synth *in_synth)
 	if (synth->probe(synth) < 0) {
 		pr_warn("%s: device probe failed\n", in_synth->name);
 		synth = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	synth_time_vars[0].u.n.value =
 		synth_time_vars[0].u.n.default_val = synth->delay;
@@ -419,7 +419,7 @@ static int do_synth_init(struct spk_synth *in_synth)
 		synth_printf("%s found\n", synth->long_name);
 	if (synth->attributes.name &&
 	    sysfs_create_group(speakup_kobj, &synth->attributes) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	synth_flags = synth->flags;
 	wake_up_interruptible_all(&speakup_event);
 	if (speakup_task)
@@ -455,7 +455,7 @@ int synth_add(struct spk_synth *in_synth)
 
 	mutex_lock(&spk_mutex);
 
-	list_for_each_entry(tmp, &synths, node) {
+	list_for_each_entry(tmp, &synths, analde) {
 		if (tmp == in_synth) {
 			mutex_unlock(&spk_mutex);
 			return 0;
@@ -466,7 +466,7 @@ int synth_add(struct spk_synth *in_synth)
 		status = do_synth_init(in_synth);
 
 	if (!status)
-		list_add_tail(&in_synth->node, &synths);
+		list_add_tail(&in_synth->analde, &synths);
 
 	mutex_unlock(&spk_mutex);
 	return status;
@@ -478,7 +478,7 @@ void synth_remove(struct spk_synth *in_synth)
 	mutex_lock(&spk_mutex);
 	if (synth == in_synth)
 		synth_release();
-	list_del(&in_synth->node);
+	list_del(&in_synth->analde);
 	module_status = 0;
 	mutex_unlock(&spk_mutex);
 }

@@ -14,13 +14,13 @@ config ASPEED_LPC_CTRL
 	  also provides a read/write interface to a BMC ram region where the
 	  host LPC read/write region can be buffered.
 
-config ASPEED_LPC_SNOOP
-	tristate "ASPEED LPC snoop support"
+config ASPEED_LPC_SANALOP
+	tristate "ASPEED LPC sanalop support"
 	select REGMAP
 	select MFD_SYSCON
 	default ARCH_ASPEED
 	help
-	  Provides a driver to control the LPC snoop interface which
+	  Provides a driver to control the LPC sanalop interface which
 	  allows the BMC to listen on and save the data written by
 	  the host to an arbitrary LPC I/O port.
 
@@ -50,7 +50,7 @@ config ASPEED_SOCINFO
 	select SOC_BUS
 	default ARCH_ASPEED
 	help
-	  Say yes to support decoding of ASPEED BMC information.
+	  Say anal to support decoding of ASPEED BMC information.
 
 endmenu
 

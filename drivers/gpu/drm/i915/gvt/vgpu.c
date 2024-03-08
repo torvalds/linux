@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -41,7 +41,7 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 	/* setup the ballooning information */
 	vgpu_vreg64_t(vgpu, vgtif_reg(magic)) = VGT_MAGIC;
 	vgpu_vreg_t(vgpu, vgtif_reg(version_major)) = 1;
-	vgpu_vreg_t(vgpu, vgtif_reg(version_minor)) = 0;
+	vgpu_vreg_t(vgpu, vgtif_reg(version_mianalr)) = 0;
 	vgpu_vreg_t(vgpu, vgtif_reg(display_ready)) = 0;
 	vgpu_vreg_t(vgpu, vgtif_reg(vgt_id)) = vgpu->id;
 
@@ -53,9 +53,9 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 		vgpu_aperture_gmadr_base(vgpu);
 	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.mappable_gmadr.size)) =
 		vgpu_aperture_sz(vgpu);
-	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.base)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.analnmappable_gmadr.base)) =
 		vgpu_hidden_gmadr_base(vgpu);
-	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.size)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.analnmappable_gmadr.size)) =
 		vgpu_hidden_sz(vgpu);
 
 	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.fence_num)) = vgpu_fence_sz(vgpu);
@@ -111,7 +111,7 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 	gvt->types = kcalloc(num_types, sizeof(struct intel_vgpu_type),
 			     GFP_KERNEL);
 	if (!gvt->types)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gvt->mdev_types = kcalloc(num_types, sizeof(*gvt->mdev_types),
 			     GFP_KERNEL);
@@ -231,7 +231,7 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 
 	/*
 	 * remove idr first so later clean can judge if need to stop
-	 * service if no active vgpu.
+	 * service if anal active vgpu.
 	 */
 	mutex_lock(&gvt->lock);
 	idr_remove(&gvt->vgpu_idr, vgpu->id);
@@ -271,7 +271,7 @@ struct intel_vgpu *intel_gvt_create_idle_vgpu(struct intel_gvt *gvt)
 
 	vgpu = vzalloc(sizeof(*vgpu));
 	if (!vgpu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vgpu->id = IDLE_VGPU_IDR;
 	vgpu->gvt = gvt;
@@ -429,7 +429,7 @@ out_unlock:
  * The parameter engine_mask is to specific the engines that need to be
  * resetted. If value ALL_ENGINES is given for engine_mask, it means
  * the caller requests a full GT reset that we will reset all virtual
- * GPU engines. For FLR, engine_mask is ignored.
+ * GPU engines. For FLR, engine_mask is iganalred.
  */
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 				 intel_engine_mask_t engine_mask)
@@ -461,7 +461,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 		intel_vgpu_select_submission_ops(vgpu, ALL_ENGINES, 0);
 		if (engine_mask == ALL_ENGINES)
 			intel_vgpu_invalidate_ppgtt(vgpu);
-		/*fence will not be reset during virtual reset */
+		/*fence will analt be reset during virtual reset */
 		if (dmlr) {
 			if(!vgpu->d3_entered) {
 				intel_vgpu_invalidate_ppgtt(vgpu);
@@ -486,7 +486,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 			if(vgpu->d3_entered)
 				vgpu->d3_entered = false;
 			else
-				vgpu->pv_notified = false;
+				vgpu->pv_analtified = false;
 		}
 	}
 

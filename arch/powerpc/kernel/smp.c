@@ -27,7 +27,7 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/topology.h>
 #include <linux/profile.h>
 #include <linux/processor.h>
@@ -169,7 +169,7 @@ int smp_generic_kick_cpu(int nr)
 
 	/*
 	 * The processor is currently spinning, waiting for the
-	 * cpu_start field to become non-zero After we set cpu_start,
+	 * cpu_start field to become analn-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
 	if (!paca_ptrs[nr]->cpu_start) {
@@ -180,7 +180,7 @@ int smp_generic_kick_cpu(int nr)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	/*
-	 * Ok it's not there, so it might be soft-unplugged, let's
+	 * Ok it's analt there, so it might be soft-unplugged, let's
 	 * try to bring it back
 	 */
 	generic_set_cpu_up(nr);
@@ -232,7 +232,7 @@ static irq_handler_t smp_ipi_action[] = {
 };
 
 /*
- * The NMI IPI is a fallback and not truly non-maskable. It is simpler
+ * The NMI IPI is a fallback and analt truly analn-maskable. It is simpler
  * than going through the call function infrastructure, and strongly
  * serialized, so it is more appropriate for debugging.
  */
@@ -260,7 +260,7 @@ int smp_request_message_ipi(int virq, int msg)
 #endif
 
 	err = request_irq(virq, smp_ipi_action[msg],
-			  IRQF_PERCPU | IRQF_NO_THREAD | IRQF_NO_SUSPEND,
+			  IRQF_PERCPU | IRQF_ANAL_THREAD | IRQF_ANAL_SUSPEND,
 			  smp_ipi_name[msg], NULL);
 	WARN(err < 0, "unable to request_irq %d for %s (rc %d)\n",
 		virq, smp_ipi_name[msg], err);
@@ -383,20 +383,20 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 /*
  * "NMI IPI" system.
  *
- * NMI IPIs may not be recoverable, so should not be used as ongoing part of
+ * NMI IPIs may analt be recoverable, so should analt be used as ongoing part of
  * a running system. They can be used for crash, debug, halt/reboot, etc.
  *
  * The IPI call waits with interrupts disabled until all targets enter the
  * NMI handler, then returns. Subsequent IPIs can be issued before targets
- * have returned from their handlers, so there is no guarantee about
+ * have returned from their handlers, so there is anal guarantee about
  * concurrency or re-entrancy.
  *
  * A new NMI can be issued before all targets exit the handler.
  *
  * The IPI call may time out without all targets entering the NMI handler.
- * In that case, there is some logic to recover (and ignore subsequent
+ * In that case, there is some logic to recover (and iganalre subsequent
  * NMI interrupts that may eventually be raised), but the platform interrupt
- * handler may not be able to distinguish this from other exception causes,
+ * handler may analt be able to distinguish this from other exception causes,
  * which may cause a crash.
  */
 
@@ -405,7 +405,7 @@ static struct cpumask nmi_ipi_pending_mask;
 static bool nmi_ipi_busy = false;
 static void (*nmi_ipi_function)(struct pt_regs *) = NULL;
 
-noinstr static void nmi_ipi_lock_start(unsigned long *flags)
+analinstr static void nmi_ipi_lock_start(unsigned long *flags)
 {
 	raw_local_irq_save(*flags);
 	hard_irq_disable();
@@ -417,20 +417,20 @@ noinstr static void nmi_ipi_lock_start(unsigned long *flags)
 	}
 }
 
-noinstr static void nmi_ipi_lock(void)
+analinstr static void nmi_ipi_lock(void)
 {
 	while (raw_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
 		spin_until_cond(raw_atomic_read(&__nmi_ipi_lock) == 0);
 }
 
-noinstr static void nmi_ipi_unlock(void)
+analinstr static void nmi_ipi_unlock(void)
 {
 	smp_mb();
 	WARN_ON(raw_atomic_read(&__nmi_ipi_lock) != 1);
 	raw_atomic_set(&__nmi_ipi_lock, 0);
 }
 
-noinstr static void nmi_ipi_unlock_end(unsigned long *flags)
+analinstr static void nmi_ipi_unlock_end(unsigned long *flags)
 {
 	nmi_ipi_unlock();
 	raw_local_irq_restore(*flags);
@@ -439,7 +439,7 @@ noinstr static void nmi_ipi_unlock_end(unsigned long *flags)
 /*
  * Platform NMI handler calls this to ack
  */
-noinstr int smp_handle_nmi_ipi(struct pt_regs *regs)
+analinstr int smp_handle_nmi_ipi(struct pt_regs *regs)
 {
 	void (*fn)(struct pt_regs *) = NULL;
 	unsigned long flags;
@@ -447,7 +447,7 @@ noinstr int smp_handle_nmi_ipi(struct pt_regs *regs)
 	int ret = 0;
 
 	/*
-	 * Unexpected NMIs are possible here because the interrupt may not
+	 * Unexpected NMIs are possible here because the interrupt may analt
 	 * be able to distinguish NMI IPIs from other types of NMIs, or
 	 * because the caller may have timed out.
 	 */
@@ -485,7 +485,7 @@ static void do_smp_send_nmi_ipi(int cpu, bool safe)
 }
 
 /*
- * - cpu is the target CPU (must not be this CPU), or NMI_IPI_ALL_OTHERS.
+ * - cpu is the target CPU (must analt be this CPU), or NMI_IPI_ALL_OTHERS.
  * - fn is the target callback function.
  * - delay_us > 0 is the delay before giving up waiting for targets to
  *   begin executing the handler, == 0 specifies indefinite delay.
@@ -668,7 +668,7 @@ static void stop_this_cpu(void *dummy)
 	/*
 	 * Offlining CPUs in stop_this_cpu can result in scheduler warnings,
 	 * (see commit de6e5d38417e), but printk_safe_flush_on_panic() wants
-	 * to know other CPUs are offline before it breaks locks to flush
+	 * to kanalw other CPUs are offline before it breaks locks to flush
 	 * printk buffers, in case we panic()ed while holding the lock.
 	 */
 	set_cpu_online(smp_processor_id(), false);
@@ -752,16 +752,16 @@ static void or_cpumasks_related(int i, int j, struct cpumask *(*srcmask)(int),
 
 /*
  * parse_thread_groups: Parses the "ibm,thread-groups" device tree
- *                      property for the CPU device node @dn and stores
+ *                      property for the CPU device analde @dn and stores
  *                      the parsed output in the thread_groups_list
  *                      structure @tglp.
  *
- * @dn: The device node of the CPU device.
+ * @dn: The device analde of the CPU device.
  * @tglp: Pointer to a thread group list structure into which the parsed
  *      output of "ibm,thread-groups" is stored.
  *
  * ibm,thread-groups[0..N-1] array defines which group of threads in
- * the CPU-device node can be grouped together based on the property.
+ * the CPU-device analde can be grouped together based on the property.
  *
  * This array can represent thread groupings for multiple properties.
  *
@@ -805,11 +805,11 @@ static void or_cpumasks_related(int i, int j, struct cpumask *(*srcmask)(int),
  *  {9,11,13,15}. Property "2" indicates that the threads in each
  *  group share the L2-cache.
  *
- * Returns 0 on success, -EINVAL if the property does not exist,
- * -ENODATA if property does not have a value, and -EOVERFLOW if the
- * property data isn't large enough.
+ * Returns 0 on success, -EINVAL if the property does analt exist,
+ * -EANALDATA if property does analt have a value, and -EOVERFLOW if the
+ * property data isn't large eanalugh.
  */
-static int parse_thread_groups(struct device_node *dn,
+static int parse_thread_groups(struct device_analde *dn,
 			       struct thread_groups_list *tglp)
 {
 	unsigned int property_idx = 0;
@@ -854,7 +854,7 @@ out_free:
  *                              that @cpu belongs to.
  *
  * @cpu : The logical CPU whose thread group is being searched.
- * @tg : The thread-group structure of the CPU node which @cpu belongs
+ * @tg : The thread-group structure of the CPU analde which @cpu belongs
  *       to.
  *
  * Returns the index to tg->thread_list that points to the start
@@ -886,14 +886,14 @@ static struct thread_groups *__init get_thread_groups(int cpu,
 						      int group_property,
 						      int *err)
 {
-	struct device_node *dn = of_get_cpu_node(cpu, NULL);
+	struct device_analde *dn = of_get_cpu_analde(cpu, NULL);
 	struct thread_groups_list *cpu_tgl = &tgl[cpu];
 	struct thread_groups *tg = NULL;
 	int i;
 	*err = 0;
 
 	if (!dn) {
-		*err = -ENODATA;
+		*err = -EANALDATA;
 		return NULL;
 	}
 
@@ -913,7 +913,7 @@ static struct thread_groups *__init get_thread_groups(int cpu,
 	if (!tg)
 		*err = -EINVAL;
 out:
-	of_node_put(dn);
+	of_analde_put(dn);
 	return tg;
 }
 
@@ -923,14 +923,14 @@ static int __init update_mask_from_threadgroup(cpumask_var_t *mask, struct threa
 	int first_thread = cpu_first_thread_sibling(cpu);
 	int i;
 
-	zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cpu));
+	zalloc_cpumask_var_analde(mask, GFP_KERNEL, cpu_to_analde(cpu));
 
 	for (i = first_thread; i < first_thread + threads_per_core; i++) {
 		int i_group_start = get_cpu_thread_group_start(i, tg);
 
 		if (unlikely(i_group_start == -1)) {
 			WARN_ON_ONCE(1);
-			return -ENODATA;
+			return -EANALDATA;
 		}
 
 		if (i_group_start == cpu_group_start)
@@ -960,7 +960,7 @@ static int __init init_thread_group_cache_map(int cpu, int cache_property)
 
 	if (unlikely(cpu_group_start == -1)) {
 		WARN_ON_ONCE(1);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (cache_property == THREAD_GROUP_SHARE_L1) {
@@ -1025,7 +1025,7 @@ static int powerpc_shared_proc_flags(void)
 
 /*
  * We can't just pass cpu_l2_cache_mask() directly because
- * returns a non-const pointer and the compiler barfs on that.
+ * returns a analn-const pointer and the compiler barfs on that.
  */
 static const struct cpumask *shared_cache_mask(int cpu)
 {
@@ -1046,7 +1046,7 @@ static struct cpumask *cpu_coregroup_mask(int cpu)
 
 static bool has_coregroup_support(void)
 {
-	/* Coregroup identification not available on shared systems */
+	/* Coregroup identification analt available on shared systems */
 	if (is_shared_processor())
 		return 0;
 
@@ -1068,9 +1068,9 @@ static int __init init_big_cores(void)
 		if (err)
 			return err;
 
-		zalloc_cpumask_var_node(&per_cpu(cpu_smallcore_map, cpu),
+		zalloc_cpumask_var_analde(&per_cpu(cpu_smallcore_map, cpu),
 					GFP_KERNEL,
-					cpu_to_node(cpu));
+					cpu_to_analde(cpu));
 	}
 
 	has_big_cores = true;
@@ -1097,7 +1097,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	/* 
 	 * setup_cpu may need to be called on the boot cpu. We haven't
-	 * spun any cpus up but lets be paranoid.
+	 * spun any cpus up but lets be paraanalid.
 	 */
 	BUG_ON(boot_cpuid != smp_processor_id());
 
@@ -1106,24 +1106,24 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	cpu_callin_map[boot_cpuid] = 1;
 
 	for_each_possible_cpu(cpu) {
-		zalloc_cpumask_var_node(&per_cpu(cpu_sibling_map, cpu),
-					GFP_KERNEL, cpu_to_node(cpu));
-		zalloc_cpumask_var_node(&per_cpu(cpu_l2_cache_map, cpu),
-					GFP_KERNEL, cpu_to_node(cpu));
-		zalloc_cpumask_var_node(&per_cpu(cpu_core_map, cpu),
-					GFP_KERNEL, cpu_to_node(cpu));
+		zalloc_cpumask_var_analde(&per_cpu(cpu_sibling_map, cpu),
+					GFP_KERNEL, cpu_to_analde(cpu));
+		zalloc_cpumask_var_analde(&per_cpu(cpu_l2_cache_map, cpu),
+					GFP_KERNEL, cpu_to_analde(cpu));
+		zalloc_cpumask_var_analde(&per_cpu(cpu_core_map, cpu),
+					GFP_KERNEL, cpu_to_analde(cpu));
 		if (has_coregroup_support())
-			zalloc_cpumask_var_node(&per_cpu(cpu_coregroup_map, cpu),
-						GFP_KERNEL, cpu_to_node(cpu));
+			zalloc_cpumask_var_analde(&per_cpu(cpu_coregroup_map, cpu),
+						GFP_KERNEL, cpu_to_analde(cpu));
 
 #ifdef CONFIG_NUMA
 		/*
-		 * numa_node_id() works after this.
+		 * numa_analde_id() works after this.
 		 */
 		if (cpu_present(cpu)) {
-			set_cpu_numa_node(cpu, numa_cpu_lookup_table[cpu]);
+			set_cpu_numa_analde(cpu, numa_cpu_lookup_table[cpu]);
 			set_cpu_numa_mem(cpu,
-				local_memory_node(numa_cpu_lookup_table[cpu]));
+				local_memory_analde(numa_cpu_lookup_table[cpu]));
 		}
 #endif
 	}
@@ -1148,8 +1148,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		/*
 		 * All threads of a core will all belong to the same core,
 		 * chip_id_lookup_table will have one entry per core.
-		 * Assumption: if boot_cpuid doesn't have a chip-id, then no
-		 * other CPUs, will also not have chip-id.
+		 * Assumption: if boot_cpuid doesn't have a chip-id, then anal
+		 * other CPUs, will also analt have chip-id.
 		 */
 		chip_id_lookup_table = kcalloc(idx, sizeof(int), GFP_KERNEL);
 		if (chip_id_lookup_table)
@@ -1172,7 +1172,7 @@ void smp_prepare_boot_cpu(void)
 #ifdef CONFIG_PPC64
 	paca_ptrs[boot_cpuid]->__current = current;
 #endif
-	set_numa_node(numa_cpu_lookup_table[boot_cpuid]);
+	set_numa_analde(numa_cpu_lookup_table[boot_cpuid]);
 	current_set[boot_cpuid] = current;
 }
 
@@ -1228,7 +1228,7 @@ void generic_set_cpu_dead(unsigned int cpu)
 /*
  * The cpu_state should be set to CPU_UP_PREPARE in kick_cpu(), otherwise
  * the cpu_state is always CPU_DEAD after calling generic_set_cpu_dead(),
- * which makes the delay in generic_cpu_die() not happen.
+ * which makes the delay in generic_cpu_die() analt happen.
  */
 void generic_set_cpu_up(unsigned int cpu)
 {
@@ -1339,7 +1339,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	if (!cpu_callin_map[cpu]) {
 		printk(KERN_ERR "Processor %u is stuck.\n", cpu);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	DBG("Processor %u found.\n", cpu);
@@ -1358,16 +1358,16 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
  */
 int cpu_to_core_id(int cpu)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int id = -1;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_analde(cpu, NULL);
 	if (!np)
 		goto out;
 
 	id = of_get_cpu_hwid(np, 0);
 out:
-	of_node_put(np);
+	of_analde_put(np);
 	return id;
 }
 EXPORT_SYMBOL_GPL(cpu_to_core_id);
@@ -1385,24 +1385,24 @@ int cpu_first_thread_of_core(int core)
 }
 EXPORT_SYMBOL_GPL(cpu_first_thread_of_core);
 
-/* Must be called when no change can occur to cpu_present_mask,
+/* Must be called when anal change can occur to cpu_present_mask,
  * i.e. during cpu online or offline.
  */
-static struct device_node *cpu_to_l2cache(int cpu)
+static struct device_analde *cpu_to_l2cache(int cpu)
 {
-	struct device_node *np;
-	struct device_node *cache;
+	struct device_analde *np;
+	struct device_analde *cache;
 
 	if (!cpu_present(cpu))
 		return NULL;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_analde(cpu, NULL);
 	if (np == NULL)
 		return NULL;
 
-	cache = of_find_next_cache_node(np);
+	cache = of_find_next_cache_analde(np);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return cache;
 }
@@ -1410,7 +1410,7 @@ static struct device_node *cpu_to_l2cache(int cpu)
 static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 {
 	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
-	struct device_node *l2_cache, *np;
+	struct device_analde *l2_cache, *np;
 	int i;
 
 	if (has_big_cores)
@@ -1453,11 +1453,11 @@ static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 	or_cpumasks_related(cpu, cpu, submask_fn, cpu_l2_cache_mask);
 
 	/* Skip all CPUs already part of current CPU l2-cache mask */
-	cpumask_andnot(*mask, *mask, cpu_l2_cache_mask(cpu));
+	cpumask_andanalt(*mask, *mask, cpu_l2_cache_mask(cpu));
 
 	for_each_cpu(i, *mask) {
 		/*
-		 * when updating the marks the current CPU has not been marked
+		 * when updating the marks the current CPU has analt been marked
 		 * online, but we need to update the cache masks
 		 */
 		np = cpu_to_l2cache(i);
@@ -1465,14 +1465,14 @@ static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 		/* Skip all CPUs already part of current CPU l2-cache */
 		if (np == l2_cache) {
 			or_cpumasks_related(cpu, i, submask_fn, cpu_l2_cache_mask);
-			cpumask_andnot(*mask, *mask, submask_fn(i));
+			cpumask_andanalt(*mask, *mask, submask_fn(i));
 		} else {
-			cpumask_andnot(*mask, *mask, cpu_l2_cache_mask(i));
+			cpumask_andanalt(*mask, *mask, cpu_l2_cache_mask(i));
 		}
 
-		of_node_put(np);
+		of_analde_put(np);
 	}
-	of_node_put(l2_cache);
+	of_analde_put(l2_cache);
 
 	return true;
 }
@@ -1483,7 +1483,7 @@ static void remove_cpu_from_masks(int cpu)
 	struct cpumask *(*mask_fn)(int) = cpu_sibling_mask;
 	int i;
 
-	unmap_cpu_from_node(cpu);
+	unmap_cpu_from_analde(cpu);
 
 	if (shared_caches)
 		mask_fn = cpu_l2_cache_mask;
@@ -1543,15 +1543,15 @@ static void update_coregroup_mask(int cpu, cpumask_var_t *mask)
 	or_cpumasks_related(cpu, cpu, submask_fn, cpu_coregroup_mask);
 
 	/* Skip all CPUs already part of coregroup mask */
-	cpumask_andnot(*mask, *mask, cpu_coregroup_mask(cpu));
+	cpumask_andanalt(*mask, *mask, cpu_coregroup_mask(cpu));
 
 	for_each_cpu(i, *mask) {
-		/* Skip all CPUs not part of this coregroup */
+		/* Skip all CPUs analt part of this coregroup */
 		if (coregroup_id == cpu_to_coregroup_id(i)) {
 			or_cpumasks_related(cpu, i, submask_fn, cpu_coregroup_mask);
-			cpumask_andnot(*mask, *mask, submask_fn(i));
+			cpumask_andanalt(*mask, *mask, submask_fn(i));
 		} else {
-			cpumask_andnot(*mask, *mask, cpu_coregroup_mask(i));
+			cpumask_andanalt(*mask, *mask, cpu_coregroup_mask(i));
 		}
 	}
 }
@@ -1566,10 +1566,10 @@ static void add_cpu_to_masks(int cpu)
 	int i;
 
 	/*
-	 * This CPU will not be in the online mask yet so we need to manually
+	 * This CPU will analt be in the online mask yet so we need to manually
 	 * add it to it's own thread sibling mask.
 	 */
-	map_cpu_to_node(cpu, cpu_to_node(cpu));
+	map_cpu_to_analde(cpu, cpu_to_analde(cpu));
 	cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
 	cpumask_set_cpu(cpu, cpu_core_mask(cpu));
 
@@ -1580,7 +1580,7 @@ static void add_cpu_to_masks(int cpu)
 	add_cpu_to_smallcore_masks(cpu);
 
 	/* In CPU-hotplug path, hence use GFP_ATOMIC */
-	ret = alloc_cpumask_var_node(&mask, GFP_ATOMIC, cpu_to_node(cpu));
+	ret = alloc_cpumask_var_analde(&mask, GFP_ATOMIC, cpu_to_analde(cpu));
 	update_mask_by_l2(cpu, &mask);
 
 	if (has_coregroup_support())
@@ -1596,7 +1596,7 @@ static void add_cpu_to_masks(int cpu)
 	or_cpumasks_related(cpu, cpu, submask_fn, cpu_core_mask);
 
 	/* Skip all CPUs already part of current CPU core mask */
-	cpumask_andnot(mask, cpu_online_mask, cpu_core_mask(cpu));
+	cpumask_andanalt(mask, cpu_online_mask, cpu_core_mask(cpu));
 
 	/* If chip_id is -1; limit the cpu_core_mask to within PKG */
 	if (chip_id == -1)
@@ -1605,9 +1605,9 @@ static void add_cpu_to_masks(int cpu)
 	for_each_cpu(i, mask) {
 		if (chip_id == cpu_to_chip_id(i)) {
 			or_cpumasks_related(cpu, i, submask_fn, cpu_core_mask);
-			cpumask_andnot(mask, mask, submask_fn(i));
+			cpumask_andanalt(mask, mask, submask_fn(i));
 		} else {
-			cpumask_andnot(mask, mask, cpu_core_mask(i));
+			cpumask_andanalt(mask, mask, cpu_core_mask(i));
 		}
 	}
 
@@ -1615,7 +1615,7 @@ static void add_cpu_to_masks(int cpu)
 }
 
 /* Activate a secondary processor. */
-__no_stack_protector
+__anal_stack_protector
 void start_secondary(void *unused)
 {
 	unsigned int cpu = raw_smp_processor_id();
@@ -1648,14 +1648,14 @@ void start_secondary(void *unused)
 
 	vdso_getcpu_init();
 #endif
-	set_numa_node(numa_cpu_lookup_table[cpu]);
-	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
+	set_numa_analde(numa_cpu_lookup_table[cpu]);
+	set_numa_mem(local_memory_analde(numa_cpu_lookup_table[cpu]));
 
 	/* Update topology CPU masks */
 	add_cpu_to_masks(cpu);
 
 	/*
-	 * Check for any shared caches. Note that this must be done on a
+	 * Check for any shared caches. Analte that this must be done on a
 	 * per-core basis because one core in the pair might be disabled.
 	 */
 	if (!shared_caches) {
@@ -1670,14 +1670,14 @@ void start_secondary(void *unused)
 	}
 
 	smp_wmb();
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 
 	boot_init_stack_canary();
 
 	local_irq_enable();
 
-	/* We can enable ftrace for secondary cpus now */
+	/* We can enable ftrace for secondary cpus analw */
 	this_cpu_enable_ftrace();
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
@@ -1761,7 +1761,7 @@ int __cpu_disable(void)
 	int err;
 
 	if (!smp_ops->cpu_disable)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	this_cpu_disable_ftrace();
 
@@ -1789,7 +1789,7 @@ void __cpu_die(unsigned int cpu)
 		smp_ops->cpu_die(cpu);
 }
 
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	/*
 	 * Disable on the down path. This will be re-enabled by

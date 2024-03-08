@@ -165,11 +165,11 @@ static int param_set_trace_method_name(const char *val,
 	if ((is_abs_path && strlen(val) > 1023) ||
 	    (!is_abs_path && strlen(val) > 1022)) {
 		pr_err("%s: string parameter too long\n", kp->name);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	/*
-	 * It's not safe to update acpi_gbl_trace_method_name without
+	 * It's analt safe to update acpi_gbl_trace_method_name without
 	 * having the tracer stopped, so we save the original tracer
 	 * state and disable it.
 	 */
@@ -310,7 +310,7 @@ struct acpi_table_attr {
 	char name[ACPI_NAMESEG_SIZE];
 	int instance;
 	char filename[ACPI_NAMESEG_SIZE+ACPI_INST_SIZE];
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct acpi_data_attr {
@@ -331,7 +331,7 @@ static ssize_t acpi_table_show(struct file *filp, struct kobject *kobj,
 	status = acpi_get_table(table_attr->name, table_attr->instance,
 				&table_header);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = memory_read_from_buffer(buf, count, &offset, table_header,
 			table_header->length);
@@ -350,7 +350,7 @@ static int acpi_table_attr_init(struct kobject *tables_obj,
 	sysfs_attr_init(&table_attr->attr.attr);
 	ACPI_COPY_NAMESEG(table_attr->name, table_header->signature);
 
-	list_for_each_entry(attr, &acpi_table_attr_list, node) {
+	list_for_each_entry(attr, &acpi_table_attr_list, analde) {
 		if (ACPI_COMPARE_NAMESEG(table_attr->name, attr->name))
 			if (table_attr->instance < attr->instance)
 				table_attr->instance = attr->instance;
@@ -387,21 +387,21 @@ acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context)
 	case ACPI_TABLE_EVENT_INSTALL:
 		table_attr = kzalloc(sizeof(*table_attr), GFP_KERNEL);
 		if (!table_attr)
-			return AE_NO_MEMORY;
+			return AE_ANAL_MEMORY;
 
 		if (acpi_table_attr_init(dynamic_tables_kobj,
 					 table_attr, table)) {
 			kfree(table_attr);
 			return AE_ERROR;
 		}
-		list_add_tail(&table_attr->node, &acpi_table_attr_list);
+		list_add_tail(&table_attr->analde, &acpi_table_attr_list);
 		break;
 	case ACPI_TABLE_EVENT_LOAD:
 	case ACPI_TABLE_EVENT_UNLOAD:
 	case ACPI_TABLE_EVENT_UNINSTALL:
 		/*
-		 * we do not need to do anything right now
-		 * because the table is not deleted from the
+		 * we do analt need to do anything right analw
+		 * because the table is analt deleted from the
 		 * global table list when unloading it.
 		 */
 		break;
@@ -433,7 +433,7 @@ static ssize_t acpi_data_show(struct file *filp, struct kobject *kobj,
 
 	base = acpi_os_map_iomem(data_attr->addr, size);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(buf, base + offset, count);
 
@@ -493,7 +493,7 @@ static int acpi_table_data_init(struct acpi_table_header *th)
 		if (ACPI_COMPARE_NAMESEG(th->signature, acpi_data_objs[i].name)) {
 			data_attr = kzalloc(sizeof(*data_attr), GFP_KERNEL);
 			if (!data_attr)
-				return -ENOMEM;
+				return -EANALMEM;
 			sysfs_attr_init(&data_attr->attr.attr);
 			data_attr->attr.read = acpi_data_show;
 			data_attr->attr.attr.mode = 0400;
@@ -534,7 +534,7 @@ static int acpi_tables_sysfs_init(void)
 
 		table_attr = kzalloc(sizeof(*table_attr), GFP_KERNEL);
 		if (!table_attr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = acpi_table_attr_init(tables_kobj,
 					   table_attr, table_header);
@@ -542,7 +542,7 @@ static int acpi_tables_sysfs_init(void)
 			kfree(table_attr);
 			return ret;
 		}
-		list_add_tail(&table_attr->node, &acpi_table_attr_list);
+		list_add_tail(&table_attr->analde, &acpi_table_attr_list);
 		acpi_table_data_init(table_header);
 	}
 
@@ -556,7 +556,7 @@ err_dynamic_tables:
 err_tables_data:
 	kobject_put(tables_kobj);
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -565,11 +565,11 @@ err:
  */
 
 u32 acpi_irq_handled;
-u32 acpi_irq_not_handled;
+u32 acpi_irq_analt_handled;
 
 #define COUNT_GPE 0
 #define COUNT_SCI 1		/* acpi_irq_handled */
-#define COUNT_SCI_NOT 2		/* acpi_irq_not_handled */
+#define COUNT_SCI_ANALT 2		/* acpi_irq_analt_handled */
 #define COUNT_ERROR 3		/* other */
 #define NUM_COUNTERS_EXTRA 4
 
@@ -683,8 +683,8 @@ static ssize_t counter_show(struct kobject *kobj,
 
 	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI].count =
 	    acpi_irq_handled;
-	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI_NOT].count =
-	    acpi_irq_not_handled;
+	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI_ANALT].count =
+	    acpi_irq_analt_handled;
 	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_GPE].count =
 	    acpi_gpe_count;
 	size = sprintf(buf, "%8u", all_counters[index].count);
@@ -745,7 +745,7 @@ static ssize_t counter_set(struct kobject *kobj,
 			all_counters[i].count = 0;
 		acpi_gpe_count = 0;
 		acpi_irq_handled = 0;
-		acpi_irq_not_handled = 0;
+		acpi_irq_analt_handled = 0;
 		goto end;
 	}
 
@@ -755,7 +755,7 @@ static ssize_t counter_set(struct kobject *kobj,
 		goto end;
 
 	if (!(status & ACPI_EVENT_FLAG_HAS_HANDLER)) {
-		pr_warn("Can not change Invalid GPE/Fixed Event status\n");
+		pr_warn("Can analt change Invalid GPE/Fixed Event status\n");
 		return -EINVAL;
 	}
 
@@ -781,10 +781,10 @@ static ssize_t counter_set(struct kobject *kobj,
 		int event = index - num_gpes;
 		if (!strcmp(buf, "disable\n") &&
 		    (status & ACPI_EVENT_FLAG_ENABLE_SET))
-			result = acpi_disable_event(event, ACPI_NOT_ISR);
+			result = acpi_disable_event(event, ACPI_ANALT_ISR);
 		else if (!strcmp(buf, "enable\n") &&
 			 !(status & ACPI_EVENT_FLAG_ENABLE_SET))
-			result = acpi_enable_event(event, ACPI_NOT_ISR);
+			result = acpi_enable_event(event, ACPI_ANALT_ISR);
 		else if (!strcmp(buf, "clear\n") &&
 			 (status & ACPI_EVENT_FLAG_STATUS_SET))
 			result = acpi_clear_event(event);
@@ -805,15 +805,15 @@ end:
  * A Quirk Mechanism for GPE Flooding Prevention:
  *
  * Quirks may be needed to prevent GPE flooding on a specific GPE. The
- * flooding typically cannot be detected and automatically prevented by
- * ACPI_GPE_DISPATCH_NONE check because there is a _Lxx/_Exx prepared in
- * the AML tables. This normally indicates a feature gap in Linux, thus
+ * flooding typically cananalt be detected and automatically prevented by
+ * ACPI_GPE_DISPATCH_ANALNE check because there is a _Lxx/_Exx prepared in
+ * the AML tables. This analrmally indicates a feature gap in Linux, thus
  * instead of providing endless quirk tables, we provide a boot parameter
  * for those who want this quirk. For example, if the users want to prevent
  * the GPE flooding for GPE 00, they need to specify the following boot
  * parameter:
  *   acpi_mask_gpe=0x00
- * Note, the parameter can be a list (see bitmap_parselist() for the details).
+ * Analte, the parameter can be a list (see bitmap_parselist() for the details).
  * The masking status can be modified by the following runtime controlling
  * interface:
  *   echo unmask > /sys/firmware/acpi/interrupts/gpe00
@@ -900,8 +900,8 @@ void acpi_irq_stats_init(void)
 			sprintf(buffer, "gpe_all");
 		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI)
 			sprintf(buffer, "sci");
-		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI_NOT)
-			sprintf(buffer, "sci_not");
+		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI_ANALT)
+			sprintf(buffer, "sci_analt");
 		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_ERROR)
 			sprintf(buffer, "error");
 		else
@@ -1015,7 +1015,7 @@ static ssize_t force_remove_store(struct kobject *kobj,
 		return ret;
 
 	if (val) {
-		pr_err("Enabling force_remove is not supported anymore. Please report to linux-acpi@vger.kernel.org if you depend on this functionality\n");
+		pr_err("Enabling force_remove is analt supported anymore. Please report to linux-acpi@vger.kernel.org if you depend on this functionality\n");
 		return -EINVAL;
 	}
 	return size;
@@ -1033,7 +1033,7 @@ int __init acpi_sysfs_init(void)
 
 	hotplug_kobj = kobject_create_and_add("hotplug", acpi_kobj);
 	if (!hotplug_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = sysfs_create_file(hotplug_kobj, &force_remove_attr.attr);
 	if (result)

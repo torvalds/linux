@@ -35,7 +35,7 @@ properties:
 
   reg:
     description:
-      The I2C Address, SPI chip select address. Not required on UART buses.
+      The I2C Address, SPI chip select address. Analt required on UART buses.
 
   vcc-supply:
     description:
@@ -46,7 +46,7 @@ properties:
     description: An optional active low reset line, should be flagged with
       GPIO_ACTIVE_LOW.
 
-  sirf,onoff-gpios:
+  sirf,oanalff-gpios:
     maxItems: 1
     description: GPIO used to power on and off device, pin name ON_OFF.
 
@@ -69,7 +69,7 @@ examples:
             compatible = "wi2wi,w2sg0084i";
             vcc-supply = <&gnss_vcc_reg>;
             reset-gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
-            sirf,onoff-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+            sirf,oanalff-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
             sirf,wakeup-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
             current-speed = <38400>;
         };

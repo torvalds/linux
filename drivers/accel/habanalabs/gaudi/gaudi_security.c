@@ -563,11 +563,11 @@ static void gaudi_init_mme_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmMME0_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME0_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME0_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME0_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME0_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME0_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME0_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME0_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME0_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME0_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME0_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME0_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME0_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME0_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME0_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME0_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -860,7 +860,7 @@ static void gaudi_init_mme_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmMME0_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmMME0_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME0_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmMME0_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmMME0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1041,11 +1041,11 @@ static void gaudi_init_mme_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmMME2_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME2_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME2_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME2_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME2_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME2_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME2_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmMME2_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME2_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME2_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME2_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME2_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmMME2_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME2_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME2_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME2_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -1339,7 +1339,7 @@ static void gaudi_init_mme_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmMME2_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmMME2_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmMME2_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmMME2_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmMME2_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1520,11 +1520,11 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA0_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA0_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA0_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA0_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA0_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA0_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA0_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA0_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA0_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA0_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA0_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA0_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -1819,7 +1819,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA0_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA0_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA0_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA0_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -1914,11 +1914,11 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA1_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA1_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA1_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA1_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA1_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA1_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA1_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA1_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA1_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA1_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA1_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA1_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA1_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA1_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA1_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA1_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -2214,7 +2214,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA1_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA1_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA1_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA1_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA1_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -2309,11 +2309,11 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA2_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA2_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA2_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA2_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA2_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA2_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA2_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA2_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA2_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA2_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA2_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -2609,7 +2609,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA2_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA2_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA2_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA2_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA2_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -2704,11 +2704,11 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA3_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA3_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA3_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA3_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA3_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA3_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA3_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA3_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA3_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA3_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA3_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA3_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA3_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA3_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA3_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA3_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -3004,7 +3004,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA3_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA3_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA3_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA3_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA3_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -3099,11 +3099,11 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA4_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA4_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA4_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA4_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA4_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA4_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA4_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA4_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA4_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA4_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA4_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA4_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA4_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA4_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA4_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA4_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -3399,7 +3399,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA4_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA4_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA4_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA4_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA4_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -3494,11 +3494,11 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA5_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA5_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA5_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA5_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA5_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA5_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA5_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA5_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA5_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA5_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA5_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA5_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA5_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA5_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA5_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA5_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -3794,7 +3794,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA5_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA5_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA5_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA5_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA5_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -3889,11 +3889,11 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA6_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA6_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA6_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA6_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA6_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA6_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA6_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA6_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA6_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA6_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA6_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA6_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA6_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA6_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA6_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA6_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -4190,7 +4190,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA6_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA6_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA6_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA6_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA6_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -4285,11 +4285,11 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA7_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA7_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA7_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA7_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA7_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA7_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA7_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA7_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA7_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA7_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA7_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA7_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA7_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA7_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA7_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA7_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -4585,7 +4585,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmDMA7_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA7_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA7_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA7_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA7_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -4681,7 +4681,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	word_offset = ((mmDMA0_CORE_PROT & PROT_BITS_OFFS) >> 7) << 2;
 	mask = 1U << ((mmDMA0_CORE_PROT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA0_CORE_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA0_CORE_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA0_CORE_ANALN_SECURE_PROPS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -4746,7 +4746,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	word_offset = ((mmDMA1_CORE_PROT & PROT_BITS_OFFS) >> 7) << 2;
 	mask = 1U << ((mmDMA1_CORE_PROT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA1_CORE_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA1_CORE_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA1_CORE_ANALN_SECURE_PROPS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -4811,7 +4811,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	word_offset = ((mmDMA2_CORE_PROT & PROT_BITS_OFFS) >> 7) << 2;
 	mask = 1U << ((mmDMA2_CORE_PROT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA2_CORE_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA2_CORE_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA2_CORE_ANALN_SECURE_PROPS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -4875,7 +4875,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	word_offset = ((mmDMA3_CORE_PROT & PROT_BITS_OFFS) >> 7) << 2;
 	mask = 1U << ((mmDMA3_CORE_PROT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA3_CORE_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA3_CORE_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA3_CORE_ANALN_SECURE_PROPS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -4939,7 +4939,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	word_offset = ((mmDMA4_CORE_PROT & PROT_BITS_OFFS) >> 7) << 2;
 	mask = 1U << ((mmDMA4_CORE_PROT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA4_CORE_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA4_CORE_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA4_CORE_ANALN_SECURE_PROPS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -5003,7 +5003,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	word_offset = ((mmDMA5_CORE_PROT & PROT_BITS_OFFS) >> 7) << 2;
 	mask = 1U << ((mmDMA5_CORE_PROT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA5_CORE_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA5_CORE_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA5_CORE_ANALN_SECURE_PROPS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -5067,7 +5067,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	word_offset = ((mmDMA6_CORE_PROT & PROT_BITS_OFFS) >> 7) << 2;
 	mask = 1U << ((mmDMA6_CORE_PROT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA6_CORE_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA6_CORE_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA6_CORE_ANALN_SECURE_PROPS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -5131,7 +5131,7 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	word_offset = ((mmDMA7_CORE_PROT & PROT_BITS_OFFS) >> 7) << 2;
 	mask = 1U << ((mmDMA7_CORE_PROT & 0x7F) >> 2);
 	mask |= 1U << ((mmDMA7_CORE_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1U << ((mmDMA7_CORE_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1U << ((mmDMA7_CORE_ANALN_SECURE_PROPS & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -5203,11 +5203,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC0_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM0_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM0_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM0_GLBL_STS1_1 & 0x7F) >> 2);
@@ -5502,7 +5502,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM0_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -5598,11 +5598,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC0_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM1_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM1_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM1_GLBL_STS1_1 & 0x7F) >> 2);
@@ -5897,7 +5897,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC0_QM1_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -5996,11 +5996,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC1_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM0_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM0_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM0_GLBL_STS1_1 & 0x7F) >> 2);
@@ -6295,7 +6295,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM0_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 	WREG32(pb_addr + word_offset, ~mask);
 
 	pb_addr = (mmNIC1_QM0_ARB_STATE_STS & ~0xFFF) + PROT_BITS_OFFS;
@@ -6390,11 +6390,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC1_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM1_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM1_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM1_GLBL_STS1_1 & 0x7F) >> 2);
@@ -6689,7 +6689,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC1_QM1_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -6788,11 +6788,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC2_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM0_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM0_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM0_GLBL_STS1_1 & 0x7F) >> 2);
@@ -7088,7 +7088,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM0_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -7184,11 +7184,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC2_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM1_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM1_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM1_GLBL_STS1_1 & 0x7F) >> 2);
@@ -7483,7 +7483,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC2_QM1_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -7582,11 +7582,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC3_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM0_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM0_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM0_GLBL_STS1_1 & 0x7F) >> 2);
@@ -7881,7 +7881,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM0_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -7977,11 +7977,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC3_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM1_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM1_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM1_GLBL_STS1_1 & 0x7F) >> 2);
@@ -8276,7 +8276,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC3_QM1_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -8375,11 +8375,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC4_QM0_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM0_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM0_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM0_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM0_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM0_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM0_GLBL_STS1_1 & 0x7F) >> 2);
@@ -8674,7 +8674,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM0_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -8770,11 +8770,11 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC4_QM1_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM1_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM1_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM1_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM1_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM1_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM1_GLBL_STS1_1 & 0x7F) >> 2);
@@ -9069,7 +9069,7 @@ static void gaudi_init_nic_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmNIC4_QM1_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -9185,11 +9185,11 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC0_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC0_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC0_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC0_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC0_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC0_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC0_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC0_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC0_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC0_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC0_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC0_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC0_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC0_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC0_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC0_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -9486,7 +9486,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC0_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC0_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC0_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC0_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -9642,11 +9642,11 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC1_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC1_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC1_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC1_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC1_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC1_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC1_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC1_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC1_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC1_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC1_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC1_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC1_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC1_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC1_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC1_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -9941,7 +9941,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC1_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC1_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC1_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC1_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC1_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -10097,11 +10097,11 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC2_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC2_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC2_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC2_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC2_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC2_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC2_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC2_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC2_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC2_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC2_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC2_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC2_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC2_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC2_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC2_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -10395,7 +10395,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC2_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC2_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC2_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC2_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC2_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -10551,11 +10551,11 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC3_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC3_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC3_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC3_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC3_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC3_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC3_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC3_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC3_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC3_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC3_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC3_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC3_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC3_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC3_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC3_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -10849,7 +10849,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC3_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC3_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC3_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC3_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC3_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -11005,11 +11005,11 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC4_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC4_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC4_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC4_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC4_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC4_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC4_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC4_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC4_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC4_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC4_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC4_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC4_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC4_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC4_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC4_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -11303,7 +11303,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC4_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC4_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC4_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC4_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC4_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -11459,11 +11459,11 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC5_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC5_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC5_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC5_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC5_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC5_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC5_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC5_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC5_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC5_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC5_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -11757,7 +11757,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC5_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC5_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC5_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC5_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC5_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -11913,11 +11913,11 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC6_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC6_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC6_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC6_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC6_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC6_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC6_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC6_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC6_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC6_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC6_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC6_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC6_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC6_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC6_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC6_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -12212,7 +12212,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC6_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC6_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC6_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC6_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC6_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -12369,11 +12369,11 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC7_QM_GLBL_SECURE_PROPS_2 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC7_QM_GLBL_SECURE_PROPS_3 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC7_QM_GLBL_SECURE_PROPS_4 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC7_QM_GLBL_NON_SECURE_PROPS_0 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC7_QM_GLBL_NON_SECURE_PROPS_1 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC7_QM_GLBL_NON_SECURE_PROPS_2 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC7_QM_GLBL_NON_SECURE_PROPS_3 & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC7_QM_GLBL_NON_SECURE_PROPS_4 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC7_QM_GLBL_ANALN_SECURE_PROPS_0 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC7_QM_GLBL_ANALN_SECURE_PROPS_1 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC7_QM_GLBL_ANALN_SECURE_PROPS_2 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC7_QM_GLBL_ANALN_SECURE_PROPS_3 & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC7_QM_GLBL_ANALN_SECURE_PROPS_4 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC7_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC7_QM_GLBL_STS1_0 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC7_QM_GLBL_STS1_1 & 0x7F) >> 2);
@@ -12669,7 +12669,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1U << ((mmTPC7_QM_ARB_MSG_MAX_INFLIGHT & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC7_QM_ARB_MSG_AWUSER_31_11 & 0x7F) >> 2);
 	mask |= 1U << ((mmTPC7_QM_ARB_MSG_AWUSER_SEC_PROP & 0x7F) >> 2);
-	mask |= 1U << ((mmTPC7_QM_ARB_MSG_AWUSER_NON_SEC_PROP & 0x7F) >> 2);
+	mask |= 1U << ((mmTPC7_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP & 0x7F) >> 2);
 
 	WREG32(pb_addr + word_offset, ~mask);
 
@@ -12817,7 +12817,7 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
  *
  * @hdev: pointer to hl_device structure
  *
- * All protection bits are 1 by default, means not protected. Need to set to 0
+ * All protection bits are 1 by default, means analt protected. Need to set to 0
  * each bit that belongs to a protected register.
  *
  */
@@ -13047,8 +13047,8 @@ static void gaudi_init_range_registers_hbw(struct hl_device *hdev)
 void gaudi_init_security(struct hl_device *hdev)
 {
 	/* Due to H/W errata GAUDI0500, need to override default security
-	 * property configuration of MME SBAB and ACC to be non-privileged and
-	 * non-secured
+	 * property configuration of MME SBAB and ACC to be analn-privileged and
+	 * analn-secured
 	 */
 	if (!hdev->asic_prop.fw_security_enabled) {
 		WREG32(mmMME0_SBAB_PROT, 0x2);

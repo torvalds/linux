@@ -47,7 +47,7 @@ static int __init intel_pconfig_init(void)
 	/*
 	 * Scan subleafs of PCONFIG CPUID leaf.
 	 *
-	 * Subleafs of the same type need not to be consecutive.
+	 * Subleafs of the same type need analt to be consecutive.
 	 *
 	 * Stop on the first invalid subleaf type. All subleafs after the first
 	 * invalid are invalid too.
@@ -72,7 +72,7 @@ static int __init intel_pconfig_init(void)
 				targets_supported |= (1ULL << regs.edx);
 			break;
 		default:
-			/* Unknown CPUID.PCONFIG subleaf: ignore */
+			/* Unkanalwn CPUID.PCONFIG subleaf: iganalre */
 			break;
 		}
 	}

@@ -17,13 +17,13 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/omapfb.h>
 #include <linux/platform_data/keypad-omap.h>
@@ -51,7 +51,7 @@ int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
 
 	adap = i2c_get_adapter(0);
 	if (!adap)
-		return -ENODEV;
+		return -EANALDEV;
 	msg->addr = devaddr;	/* I2C address of chip */
 	msg->flags = 0;
 	msg->len = 2;
@@ -75,7 +75,7 @@ int sx1_i2c_read_byte(u8 devaddr, u8 regoffset, u8 *value)
 
 	adap = i2c_get_adapter(0);
 	if (!adap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	msg->addr = devaddr;	/* I2C address of chip */
 	msg->flags = 0;
@@ -123,14 +123,14 @@ int sx1_getbacklight (u8 * backlight)
 				 backlight);
 }
 /* set LCD backlight power on/off */
-int sx1_setmmipower(u8 onoff)
+int sx1_setmmipower(u8 oanalff)
 {
 	int err;
 	u8 dat = 0;
 	err = sx1_i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
 	if (err < 0)
 		return err;
-	if (onoff)
+	if (oanalff)
 		dat |= SOFIA_MMILIGHT_POWER;
 	else
 		dat &= ~SOFIA_MMILIGHT_POWER;
@@ -138,14 +138,14 @@ int sx1_setmmipower(u8 onoff)
 }
 
 /* set USB power on/off */
-int sx1_setusbpower(u8 onoff)
+int sx1_setusbpower(u8 oanalff)
 {
 	int err;
 	u8 dat = 0;
 	err = sx1_i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
 	if (err < 0)
 		return err;
-	if (onoff)
+	if (oanalff)
 		dat |= SOFIA_USB_POWER;
 	else
 		dat &= ~SOFIA_USB_POWER;
@@ -339,7 +339,7 @@ static void __init omap_sx1_init(void)
 	gpiod_add_lookup_table(&sx1_gpio_table);
 
 	/* turn on USB power */
-	/* sx1_setusbpower(1); can't do it here because i2c is not ready */
+	/* sx1_setusbpower(1); can't do it here because i2c is analt ready */
 	d = gpiod_get(NULL, "irda_off", GPIOD_OUT_HIGH);
 	if (IS_ERR(d))
 		pr_err("Unable to get IRDA OFF GPIO descriptor\n");

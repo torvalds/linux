@@ -6,7 +6,7 @@ menuconfig ARCH_FOOTBRIDGE
 	depends on ATAGS
 	depends on CPU_LITTLE_ENDIAN
 	depends on MMU
-	select ARCH_NO_SG_CHAIN
+	select ARCH_ANAL_SG_CHAIN
 	select CPU_SA110
 	select FOOTBRIDGE
 	select NEED_MACH_MEMORY_H

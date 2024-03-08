@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 ******************************
 Single-planar format structure
@@ -65,7 +65,7 @@ Single-planar format structure
     * - :cspan:`2`
 
 	Both applications and drivers can set this field to request
-	padding bytes at the end of each line. Drivers however may ignore
+	padding bytes at the end of each line. Drivers however may iganalre
 	the value requested by the application, returning ``width`` times
 	bytes per pixel or a larger value required by the hardware. That
 	implies applications can just set this field to zero to get a
@@ -75,7 +75,7 @@ Single-planar format structure
 	reside in accessible memory. Consider cases where padding bytes
 	after the last line of an image cross a system page boundary.
 	Input devices may write padding bytes, the value is undefined.
-	Output devices ignore the contents of padding bytes.
+	Output devices iganalre the contents of padding bytes.
 
 	When the image format is planar the ``bytesperline`` value applies
 	to the first plane and is divided by the same factor as the
@@ -85,7 +85,7 @@ Single-planar format structure
 	must return a ``bytesperline`` value rounded up to a multiple of
 	the scale factor.
 
-	For compressed formats the ``bytesperline`` value makes no sense.
+	For compressed formats the ``bytesperline`` value makes anal sense.
 	Applications and drivers must set this to 0 in that case.
     * - __u32
       - ``sizeimage``
@@ -99,7 +99,7 @@ Single-planar format structure
 
 	Clients are allowed to set the sizeimage field for variable length
 	compressed data flagged with ``V4L2_FMT_FLAG_COMPRESSED`` at
-	:ref:`VIDIOC_ENUM_FMT`, but the driver may ignore it and set the
+	:ref:`VIDIOC_ENUM_FMT`, but the driver may iganalre it and set the
 	value itself, or it may modify the provided value based on
 	alignment requirements or minimum/maximum size requirements.
 	If the client wants to leave this to the driver, then it should
@@ -112,8 +112,8 @@ Single-planar format structure
 	output streams, see :ref:`colorspaces`. If the application sets the
 	flag ``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set
 	this field for a capture stream to request a specific colorspace
-	for the captured image data. If the driver cannot handle requested
-	conversion, it will return another supported colorspace.
+	for the captured image data. If the driver cananalt handle requested
+	conversion, it will return aanalther supported colorspace.
 	The driver indicates that colorspace conversion is supported by setting
 	the flag V4L2_FMT_FLAG_CSC_COLORSPACE in the corresponding struct
 	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
@@ -130,7 +130,7 @@ Single-planar format structure
 	must first ensure that the feature is supported by querying the
 	device for the :ref:`V4L2_CAP_EXT_PIX_FORMAT <querycap>`
 	capability. If the capability isn't set the pixel format extended
-	fields are not supported and using the extended fields will lead
+	fields are analt supported and using the extended fields will lead
 	to undefined results.
 
 	To use the extended fields, applications must set the ``priv``
@@ -147,7 +147,7 @@ Single-planar format structure
       - ``flags``
       - Flags set by the application or driver, see :ref:`format-flags`.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
     * - __u32
       - ``ycbcr_enc``
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
@@ -156,9 +156,9 @@ Single-planar format structure
 	streams, see :ref:`colorspaces`. If the application sets the
 	flag ``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set
 	this field for a capture stream to request a specific Y'CbCr encoding
-	for the captured image data. If the driver cannot handle requested
-	conversion, it will return another supported encoding.
-	This field is ignored for HSV pixelformats. The driver indicates that
+	for the captured image data. If the driver cananalt handle requested
+	conversion, it will return aanalther supported encoding.
+	This field is iganalred for HSV pixelformats. The driver indicates that
 	ycbcr_enc conversion is supported by setting the flag
 	V4L2_FMT_FLAG_CSC_YCBCR_ENC in the corresponding struct
 	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
@@ -170,9 +170,9 @@ Single-planar format structure
 	streams, see :ref:`colorspaces`. If the application sets the flag
 	``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set this
 	field for a capture stream to request a specific HSV encoding for the
-	captured image data. If the driver cannot handle requested
-	conversion, it will return another supported encoding.
-	This field is ignored for non-HSV pixelformats. The driver indicates
+	captured image data. If the driver cananalt handle requested
+	conversion, it will return aanalther supported encoding.
+	This field is iganalred for analn-HSV pixelformats. The driver indicates
 	that hsv_enc conversion is supported by setting the flag
 	V4L2_FMT_FLAG_CSC_HSV_ENC in the corresponding struct
 	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
@@ -186,8 +186,8 @@ Single-planar format structure
 	streams, see :ref:`colorspaces`. If the application sets the flag
 	``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set
 	this field for a capture stream to request a specific quantization
-	range for the captured image data. If the driver cannot handle requested
-	conversion, it will return another supported quantization.
+	range for the captured image data. If the driver cananalt handle requested
+	conversion, it will return aanalther supported quantization.
 	The driver indicates that quantization conversion is supported by setting
 	the flag V4L2_FMT_FLAG_CSC_QUANTIZATION in the corresponding struct
 	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
@@ -199,8 +199,8 @@ Single-planar format structure
 	streams, see :ref:`colorspaces`. If the application sets the flag
 	``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set
 	this field for a capture stream to request a specific transfer function
-	for the captured image data. If the driver cannot handle requested
-	conversion, it will return another supported transfer function.
+	for the captured image data. If the driver cananalt handle requested
+	conversion, it will return aanalther supported transfer function.
 	The driver indicates that xfer_func conversion is supported by setting
 	the flag V4L2_FMT_FLAG_CSC_XFER_FUNC in the corresponding struct
 	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
@@ -226,13 +226,13 @@ Single-planar format structure
       - ``V4L2_PIX_FMT_FLAG_SET_CSC``
       - 0x00000002
       - Set by the application. It is only used for capture and is
-        ignored for output streams. If set, then request the device to do
+        iganalred for output streams. If set, then request the device to do
 	colorspace conversion from the received colorspace to the requested
 	colorspace values. If the colorimetry field (``colorspace``, ``xfer_func``,
 	``ycbcr_enc``, ``hsv_enc`` or ``quantization``) is set to ``*_DEFAULT``,
 	then that colorimetry setting will remain unchanged from what was received.
 	So in order to change the quantization, only the ``quantization`` field shall
-	be set to non default value (``V4L2_QUANTIZATION_FULL_RANGE`` or
+	be set to analn default value (``V4L2_QUANTIZATION_FULL_RANGE`` or
 	``V4L2_QUANTIZATION_LIM_RANGE``) and all other colorimetry fields shall
 	be set to ``*_DEFAULT``.
 

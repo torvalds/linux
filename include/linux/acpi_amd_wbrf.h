@@ -8,7 +8,7 @@
 #define _ACPI_AMD_WBRF_H
 
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 /* The maximum number of frequency band ranges */
 #define MAX_NUM_OF_WBRF_RANGES		11
@@ -38,11 +38,11 @@ struct wbrf_ranges_in_out {
 };
 
 /**
- * enum wbrf_notifier_actions - wbrf notifier actions index
+ * enum wbrf_analtifier_actions - wbrf analtifier actions index
  * @WBRF_CHANGED: there was some frequency band updates. The consumers
  *               should retrieve the latest active frequency bands.
  */
-enum wbrf_notifier_actions {
+enum wbrf_analtifier_actions {
 	WBRF_CHANGED,
 };
 
@@ -51,8 +51,8 @@ bool acpi_amd_wbrf_supported_producer(struct device *dev);
 int acpi_amd_wbrf_add_remove(struct device *dev, uint8_t action, struct wbrf_ranges_in_out *in);
 bool acpi_amd_wbrf_supported_consumer(struct device *dev);
 int amd_wbrf_retrieve_freq_band(struct device *dev, struct wbrf_ranges_in_out *out);
-int amd_wbrf_register_notifier(struct notifier_block *nb);
-int amd_wbrf_unregister_notifier(struct notifier_block *nb);
+int amd_wbrf_register_analtifier(struct analtifier_block *nb);
+int amd_wbrf_unregister_analtifier(struct analtifier_block *nb);
 #else
 static inline
 bool acpi_amd_wbrf_supported_consumer(struct device *dev)
@@ -63,7 +63,7 @@ bool acpi_amd_wbrf_supported_consumer(struct device *dev)
 static inline
 int acpi_amd_wbrf_add_remove(struct device *dev, uint8_t action, struct wbrf_ranges_in_out *in)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline
@@ -74,17 +74,17 @@ bool acpi_amd_wbrf_supported_producer(struct device *dev)
 static inline
 int amd_wbrf_retrieve_freq_band(struct device *dev, struct wbrf_ranges_in_out *out)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline
-int amd_wbrf_register_notifier(struct notifier_block *nb)
+int amd_wbrf_register_analtifier(struct analtifier_block *nb)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline
-int amd_wbrf_unregister_notifier(struct notifier_block *nb)
+int amd_wbrf_unregister_analtifier(struct analtifier_block *nb)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_AMD_WBRF */
 

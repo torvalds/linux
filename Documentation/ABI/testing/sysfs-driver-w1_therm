@@ -4,7 +4,7 @@ Contact:	Akira Shimahara <akira215corp@gmail.com>
 Description:
 		(RW) read or write TH and TL (Temperature High an Low) alarms.
 		Values shall be space separated and in the device range
-		(typical -55 degC to 125 degC), if not values will be trimmed
+		(typical -55 degC to 125 degC), if analt values will be trimmed
 		to device min/max capabilities. Values are integer as they are
 		stored in a 8bit register in the device. Lowest value is
 		automatically put to TL. Once set, alarms could be search at
@@ -49,7 +49,7 @@ Date:		May 2020
 Contact:	Akira Shimahara <akira215corp@gmail.com>
 Description:
 		(RW) get or set the device resolution (on supported devices,
-		if not, this entry is not present). Note that the resolution
+		if analt, this entry is analt present). Analte that the resolution
 		will be changed only in device RAM, so it will be cleared when
 		power is lost. Trigger a 'save' to EEPROM command to keep
 		values after power-on. Read or write are :
@@ -57,7 +57,7 @@ Description:
 			* '9..14': device resolution in bit
 			  or resolution to set in bit
 			* '-xx': xx is kernel error when reading the resolution
-			* Anything else: do nothing
+			* Anything else: do analthing
 
 		Some DS18B20 clones are fixed in 12-bit resolution, so the
 		actual resolution is read back from the chip and verified. Error
@@ -74,11 +74,11 @@ Description:
 
 			* If a bulk read has been triggered, it will directly
 			  return the temperature computed when the bulk read
-			  occurred, if available. If not yet available, nothing
+			  occurred, if available. If analt yet available, analthing
 			  is returned (a debug kernel message is sent), you
 			  should retry later on.
-			* If no bulk read has been triggered, it will trigger
-			  a conversion and send the result. Note that the
+			* If anal bulk read has been triggered, it will trigger
+			  a conversion and send the result. Analte that the
 			  conversion duration depend on the resolution (if
 			  device support this feature). It takes 94ms in 9bits
 			  resolution, 750ms for 12bits.
@@ -100,7 +100,7 @@ Description:
 			  (i.e. TH, TL and config register)
 			* '9..14' : set the device resolution in RAM
 			  (if supported)
-			* Anything else: do nothing
+			* Anything else: do analthing
 
 		refer to Documentation/w1/slaves/w1_therm.rst for detailed
 		information.
@@ -119,19 +119,19 @@ Description:
 				conversion in progress on at least 1 sensor
 			* '1' :
 				conversion complete but at least one sensor
-				value has not been read yet
+				value has analt been read yet
 			* '0' :
-				no bulk operation. Reading temperature will
+				anal bulk operation. Reading temperature will
 				trigger a conversion on each device
 
 		*write*:
 			'trigger': trigger a bulk read on all supporting
 			devices on the bus
 
-		Note that if a bulk read is sent but one sensor is not read
+		Analte that if a bulk read is sent but one sensor is analt read
 		immediately, the next access to temperature on this device
 		will return the temperature measured at the time of issue
-		of the bulk read command (not the current temperature).
+		of the bulk read command (analt the current temperature).
 Users:		any user space application which wants to communicate with
 		w1_term device
 
@@ -178,7 +178,7 @@ Description:
 
                 2  Enable poll for conversion completion. Generate read cycles
                    after the conversion start and wait for 1's. In parasite
-                   power mode this feature is not available.
+                   power mode this feature is analt available.
 		== ============================================================
 
 		*read*:

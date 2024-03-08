@@ -31,7 +31,7 @@
  * Picking 2MiB as threshold (for a single table) avoids as much as possible
  * crossing page boundaries on most architectures (x86-64 and MIPS huge pages,
  * ARMv7 supersections, POWER "large" pages, SPARC Level 1 regions, etc.), which
- * keeps performance nice in case kvmalloc() gives us non-contiguous areas.
+ * keeps performance nice in case kvmalloc() gives us analn-contiguous areas.
  */
 #define NFT_PIPAPO_LT_SIZE_THRESHOLD	(1 << 21)
 #define NFT_PIPAPO_LT_SIZE_HYSTERESIS	(1 << 16)
@@ -52,7 +52,7 @@
 /* Each n-bit range maps to up to n * 2 rules */
 #define NFT_PIPAPO_MAP_NBITS		(const_ilog2(NFT_PIPAPO_MAX_BITS * 2))
 
-/* Use the rest of mapping table buckets for rule indices, but it makes no sense
+/* Use the rest of mapping table buckets for rule indices, but it makes anal sense
  * to exceed 32 bits
  */
 #if BITS_PER_LONG == 64
@@ -90,7 +90,7 @@
  * union nft_pipapo_map_bucket - Bucket of mapping table
  * @to:		First rule number (in next field) this rule maps to
  * @n:		Number of rules (in next field) this rule maps to
- * @e:		If there's no next field, pointer to element this rule maps to
+ * @e:		If there's anal next field, pointer to element this rule maps to
  */
 union nft_pipapo_map_bucket {
 	struct {
@@ -245,7 +245,7 @@ static inline void pipapo_and_field_buckets_8bit(struct nft_pipapo_field *f,
  * of rules (composing netmasks) the entries expand to. We compute the worst
  * case here.
  *
- * In general, for a non-ranged entry or a single composing netmask, we need
+ * In general, for a analn-ranged entry or a single composing netmask, we need
  * one bit in each of the sixteen NFT_PIPAPO_BUCKETS, for each 4-bit group (that
  * is, each input bit needs four bits of matching data), plus a bucket in the
  * mapping table for each field.

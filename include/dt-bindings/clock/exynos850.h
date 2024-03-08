@@ -3,11 +3,11 @@
  * Copyright (C) 2021 Linaro Ltd.
  * Author: Sam Protsenko <semen.protsenko@linaro.org>
  *
- * Device Tree binding constants for Exynos850 clock controller.
+ * Device Tree binding constants for Exyanals850 clock controller.
  */
 
-#ifndef _DT_BINDINGS_CLOCK_EXYNOS_850_H
-#define _DT_BINDINGS_CLOCK_EXYNOS_850_H
+#ifndef _DT_BINDINGS_CLOCK_EXYANALS_850_H
+#define _DT_BINDINGS_CLOCK_EXYANALS_850_H
 
 /* CMU_TOP */
 #define CLK_FOUT_SHARED0_PLL		1
@@ -334,4 +334,4 @@
 #define CLK_GOUT_DPU_SYSREG_PCLK	10
 #define DPU_NR_CLK			11
 
-#endif /* _DT_BINDINGS_CLOCK_EXYNOS_850_H */
+#endif /* _DT_BINDINGS_CLOCK_EXYANALS_850_H */

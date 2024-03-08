@@ -10,8 +10,8 @@ maintainers:
   - Toke Høiland-Jørgensen <toke@toke.dk>
 
 description: |
-  This node provides properties for configuring the ath9k wireless device.
-  The node is expected to be specified as a child node of the PCI controller
+  This analde provides properties for configuring the ath9k wireless device.
+  The analde is expected to be specified as a child analde of the PCI controller
   to which the wireless chip is connected.
 
 allOf:
@@ -44,15 +44,15 @@ properties:
 
   ieee80211-freq-limit: true
 
-  qca,no-eeprom:
+  qca,anal-eeprom:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Indicates that there is no physical EEPROM connected
+      Indicates that there is anal physical EEPROM connected
 
   nvmem-cells:
     items:
-      - description: Reference to an nvmem node for the MAC address
-      - description: Reference to an nvmem node for calibration data
+      - description: Reference to an nvmem analde for the MAC address
+      - description: Reference to an nvmem analde for calibration data
 
   nvmem-cell-names:
     items:
@@ -74,7 +74,7 @@ examples:
         compatible = "pci168c,002d";
         reg = <0 0 0 0 0>;
         interrupts = <3>;
-        qca,no-eeprom;
+        qca,anal-eeprom;
       };
     };
   - |

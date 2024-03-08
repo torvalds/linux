@@ -31,29 +31,29 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 	spinlock_t *ptl;
 
 	pgd = pgd_offset(current->mm, addr);
-	if (unlikely(pgd_none(*pgd) || pgd_bad(*pgd)))
+	if (unlikely(pgd_analne(*pgd) || pgd_bad(*pgd)))
 		return 0;
 
 	p4d = p4d_offset(pgd, addr);
-	if (unlikely(p4d_none(*p4d) || p4d_bad(*p4d)))
+	if (unlikely(p4d_analne(*p4d) || p4d_bad(*p4d)))
 		return 0;
 
 	pud = pud_offset(p4d, addr);
-	if (unlikely(pud_none(*pud) || pud_bad(*pud)))
+	if (unlikely(pud_analne(*pud) || pud_bad(*pud)))
 		return 0;
 
 	pmd = pmd_offset(pud, addr);
-	if (unlikely(pmd_none(*pmd)))
+	if (unlikely(pmd_analne(*pmd)))
 		return 0;
 
 	/*
 	 * A pmd can be bad if it refers to a HugeTLB or THP page.
 	 *
 	 * Both THP and HugeTLB pages have the same pmd layout
-	 * and should not be manipulated by the pte functions.
+	 * and should analt be manipulated by the pte functions.
 	 *
 	 * Lock the page table for the destination and check
-	 * to see that it's still huge and whether or not we will
+	 * to see that it's still huge and whether or analt we will
 	 * need to fault on write.
 	 */
 	if (unlikely(pmd_thp_or_huge(*pmd))) {
@@ -89,13 +89,13 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 	return 1;
 }
 
-static unsigned long noinline
+static unsigned long analinline
 __copy_to_user_memcpy(void __user *to, const void *from, unsigned long n)
 {
 	unsigned long ua_flags;
 	int atomic;
 
-	/* the mmap semaphore is taken only if not in an atomic context */
+	/* the mmap semaphore is taken only if analt in an atomic context */
 	atomic = faulthandler_disabled();
 
 	if (!atomic)
@@ -158,7 +158,7 @@ arm_copy_to_user(void __user *to, const void *from, unsigned long n)
 	return n;
 }
 	
-static unsigned long noinline
+static unsigned long analinline
 __clear_user_memset(void __user *addr, unsigned long n)
 {
 	unsigned long ua_flags;
@@ -219,7 +219,7 @@ unsigned long arm_clear_user(void __user *addr, unsigned long n)
  * so far the measurement on concerned targets didn't show a worthwhile
  * variation.
  *
- * Note that a fairly precise sched_clock() implementation is needed
+ * Analte that a fairly precise sched_clock() implementation is needed
  * for results to make some sense.
  */
 
@@ -232,17 +232,17 @@ static int __init test_size_treshold(void)
 	unsigned long long t0, t1, t2;
 	int size, ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	src_page = alloc_page(GFP_KERNEL);
 	if (!src_page)
-		goto no_src;
+		goto anal_src;
 	dst_page = alloc_page(GFP_KERNEL);
 	if (!dst_page)
-		goto no_dst;
+		goto anal_dst;
 	kernel_ptr = page_address(src_page);
 	user_ptr = vmap(&dst_page, 1, VM_IOREMAP, __pgprot(__PAGE_COPY));
 	if (!user_ptr)
-		goto no_vmap;
+		goto anal_vmap;
 
 	/* warm up the src page dcache */
 	ret = __copy_to_user_memcpy(user_ptr, kernel_ptr, PAGE_SIZE);
@@ -269,11 +269,11 @@ static int __init test_size_treshold(void)
 		ret = -EFAULT;
 
 	vunmap(user_ptr);
-no_vmap:
+anal_vmap:
 	put_page(dst_page);
-no_dst:
+anal_dst:
 	put_page(src_page);
-no_src:
+anal_src:
 	return ret;
 }
 

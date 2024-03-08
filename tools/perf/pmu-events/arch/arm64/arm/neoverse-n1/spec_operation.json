@@ -13,7 +13,7 @@
     },
     {
         "ArchStdEvent": "UNALIGNED_LD_SPEC",
-        "PublicDescription": "Counts unaligned memory read operations issued by the CPU. This event counts unaligned accesses (as defined by the actual instruction), even if they are subsequently issued as multiple aligned accesses. The event does not count preload operations (PLD, PLI)."
+        "PublicDescription": "Counts unaligned memory read operations issued by the CPU. This event counts unaligned accesses (as defined by the actual instruction), even if they are subsequently issued as multiple aligned accesses. The event does analt count preload operations (PLD, PLI)."
     },
     {
         "ArchStdEvent": "UNALIGNED_ST_SPEC",
@@ -33,7 +33,7 @@
     },
     {
         "ArchStdEvent": "STREX_FAIL_SPEC",
-        "PublicDescription": "Counts store-exclusive operations that have been speculatively executed and have not successfully completed the store operation."
+        "PublicDescription": "Counts store-exclusive operations that have been speculatively executed and have analt successfully completed the store operation."
     },
     {
         "ArchStdEvent": "STREX_SPEC",
@@ -57,7 +57,7 @@
     },
     {
         "ArchStdEvent": "VFP_SPEC",
-        "PublicDescription": "Counts speculatively executed floating point operations. This event does not count operations that move data to or from floating point (vector) registers."
+        "PublicDescription": "Counts speculatively executed floating point operations. This event does analt count operations that move data to or from floating point (vector) registers."
     },
     {
         "ArchStdEvent": "PC_WRITE_SPEC",
@@ -89,7 +89,7 @@
     },
     {
         "ArchStdEvent": "DMB_SPEC",
-        "PublicDescription": "Counts DMB operations that are speculatively issued to the Load/Store unit in the CPU. This event does not count implied barriers from load acquire/store release operations."
+        "PublicDescription": "Counts DMB operations that are speculatively issued to the Load/Store unit in the CPU. This event does analt count implied barriers from load acquire/store release operations."
     },
     {
         "ArchStdEvent": "RC_LD_SPEC",

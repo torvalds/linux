@@ -17,8 +17,8 @@
  * BNA debufs interface
  *
  * To access the interface, debugfs file system should be mounted
- * if not already mounted using:
- *	mount -t debugfs none /sys/kernel/debug
+ * if analt already mounted using:
+ *	mount -t debugfs analne /sys/kernel/debug
  *
  * BNA Hierarchy:
  *	- bna/pci_dev:<pci_name>
@@ -38,16 +38,16 @@ struct bnad_debug_info {
 };
 
 static int
-bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
+bnad_debugfs_open_fwtrc(struct ianalde *ianalde, struct file *file)
 {
-	struct bnad *bnad = inode->i_private;
+	struct bnad *bnad = ianalde->i_private;
 	struct bnad_debug_info *fw_debug;
 	unsigned long flags;
 	int rc;
 
 	fw_debug = kzalloc(sizeof(struct bnad_debug_info), GFP_KERNEL);
 	if (!fw_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_debug->buffer_len = BNA_DBG_FWTRC_LEN;
 
@@ -55,7 +55,7 @@ bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		fw_debug = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -69,7 +69,7 @@ bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 		kfree(fw_debug);
 		fw_debug = NULL;
 		netdev_warn(bnad->netdev, "failed to collect fwtrc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	file->private_data = fw_debug;
@@ -78,16 +78,16 @@ bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 }
 
 static int
-bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
+bnad_debugfs_open_fwsave(struct ianalde *ianalde, struct file *file)
 {
-	struct bnad *bnad = inode->i_private;
+	struct bnad *bnad = ianalde->i_private;
 	struct bnad_debug_info *fw_debug;
 	unsigned long flags;
 	int rc;
 
 	fw_debug = kzalloc(sizeof(struct bnad_debug_info), GFP_KERNEL);
 	if (!fw_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_debug->buffer_len = BNA_DBG_FWTRC_LEN;
 
@@ -95,7 +95,7 @@ bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		fw_debug = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -103,13 +103,13 @@ bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 			fw_debug->debug_buffer,
 			&fw_debug->buffer_len);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
-	if (rc != BFA_STATUS_OK && rc != BFA_STATUS_ENOFSAVE) {
+	if (rc != BFA_STATUS_OK && rc != BFA_STATUS_EANALFSAVE) {
 		kfree(fw_debug->debug_buffer);
 		fw_debug->debug_buffer = NULL;
 		kfree(fw_debug);
 		fw_debug = NULL;
 		netdev_warn(bnad->netdev, "failed to collect fwsave\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	file->private_data = fw_debug;
@@ -118,15 +118,15 @@ bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 }
 
 static int
-bnad_debugfs_open_reg(struct inode *inode, struct file *file)
+bnad_debugfs_open_reg(struct ianalde *ianalde, struct file *file)
 {
 	struct bnad_debug_info *reg_debug;
 
 	reg_debug = kzalloc(sizeof(struct bnad_debug_info), GFP_KERNEL);
 	if (!reg_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	reg_debug->i_private = inode->i_private;
+	reg_debug->i_private = ianalde->i_private;
 
 	file->private_data = reg_debug;
 
@@ -179,15 +179,15 @@ out:
 }
 
 static int
-bnad_debugfs_open_drvinfo(struct inode *inode, struct file *file)
+bnad_debugfs_open_drvinfo(struct ianalde *ianalde, struct file *file)
 {
-	struct bnad *bnad = inode->i_private;
+	struct bnad *bnad = ianalde->i_private;
 	struct bnad_debug_info *drv_info;
 	int rc;
 
 	drv_info = kzalloc(sizeof(struct bnad_debug_info), GFP_KERNEL);
 	if (!drv_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv_info->buffer_len = sizeof(struct bnad_drvinfo);
 
@@ -195,7 +195,7 @@ bnad_debugfs_open_drvinfo(struct inode *inode, struct file *file)
 	if (!drv_info->debug_buffer) {
 		kfree(drv_info);
 		drv_info = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_lock(&bnad->conf_mutex);
@@ -208,7 +208,7 @@ bnad_debugfs_open_drvinfo(struct inode *inode, struct file *file)
 		kfree(drv_info);
 		drv_info = NULL;
 		netdev_warn(bnad->netdev, "failed to collect drvinfo\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	file->private_data = drv_info;
@@ -329,7 +329,7 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 
 	bnad->regdata = kzalloc(len << 2, GFP_KERNEL);
 	if (!bnad->regdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bnad->reglen = len << 2;
 	rb = bfa_ioc_bar0(ioc);
@@ -402,7 +402,7 @@ bnad_debugfs_write_regwr(struct file *file, const char __user *buf,
 }
 
 static int
-bnad_debugfs_release(struct inode *inode, struct file *file)
+bnad_debugfs_release(struct ianalde *ianalde, struct file *file)
 {
 	struct bnad_debug_info *debug = file->private_data;
 
@@ -415,7 +415,7 @@ bnad_debugfs_release(struct inode *inode, struct file *file)
 }
 
 static int
-bnad_debugfs_buffer_release(struct inode *inode, struct file *file)
+bnad_debugfs_buffer_release(struct ianalde *ianalde, struct file *file)
 {
 	struct bnad_debug_info *debug = file->private_data;
 

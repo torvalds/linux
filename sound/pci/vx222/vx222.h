@@ -78,7 +78,7 @@ extern const struct snd_vx_ops vx222_old_ops;
 #define VX_GPIO_IN_BIT_OFFSET           0             // leave input as bit 2 and 3
 
 /* Constants used to access the MICRO INPUT SELECT register (0x40). */
-#define MICRO_SELECT_INPUT_NORM        0x00
+#define MICRO_SELECT_INPUT_ANALRM        0x00
 #define MICRO_SELECT_INPUT_MUTE        0x01
 #define MICRO_SELECT_INPUT_LIMIT       0x02
 #define MICRO_SELECT_INPUT_MASK        0x03
@@ -92,10 +92,10 @@ extern const struct snd_vx_ops vx222_old_ops;
 
 #define MICRO_SELECT_RAISE_COMPR       0x10
 
-#define MICRO_SELECT_NOISE_T_52DB      0x00
-#define MICRO_SELECT_NOISE_T_42DB      0x20
-#define MICRO_SELECT_NOISE_T_32DB      0x40
-#define MICRO_SELECT_NOISE_T_MASK      0x60
+#define MICRO_SELECT_ANALISE_T_52DB      0x00
+#define MICRO_SELECT_ANALISE_T_42DB      0x20
+#define MICRO_SELECT_ANALISE_T_32DB      0x40
+#define MICRO_SELECT_ANALISE_T_MASK      0x60
 
 #define MICRO_SELECT_PHANTOM_ALIM      0x80
 

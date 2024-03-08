@@ -6,7 +6,7 @@
 **   Description: SCSI RAID Device Driver for
 **                ARECA RAID Host adapter
 *******************************************************************************
-** Copyright (C) 2002 - 2005, Areca Technology Corporation All rights reserved.
+** Copyright (C) 2002 - 2005, Areca Techanallogy Corporation All rights reserved.
 **
 **     Web site: www.areca.com.tw
 **       E-mail: support@areca.com.tw
@@ -23,19 +23,19 @@
 ** modification, are permitted provided that the following conditions
 ** are met:
 ** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
+**    analtice, this list of conditions and the following disclaimer.
 ** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
+**    analtice, this list of conditions and the following disclaimer in the
 **    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
+** 3. The name of the author may analt be used to endorse or promote products
 **    derived from this software without specific prior written permission.
 **
 ** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+** IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
 ** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+** IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
 ** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES(INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+** ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
 ** DATA, OR PROFITS; OR BUSINESS INTERRUPTION)HOWEVER CAUSED AND ON ANY
 ** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 **(INCLUDING NEGLIGENCE OR OTHERWISE)ARISING IN ANY WAY OUT OF THE USE OF
@@ -220,7 +220,7 @@ struct FIRMWARE_INFO
 #define ARCMSR_SIGNATURE_GET_CONFIG		0x87974060
 #define ARCMSR_SIGNATURE_SET_CONFIG		0x87974063
 /* message code of inbound message register */
-#define ARCMSR_INBOUND_MESG0_NOP		0x00000000
+#define ARCMSR_INBOUND_MESG0_ANALP		0x00000000
 #define ARCMSR_INBOUND_MESG0_GET_CONFIG		0x00000001
 #define ARCMSR_INBOUND_MESG0_SET_CONFIG		0x00000002
 #define ARCMSR_INBOUND_MESG0_ABORT_CMD		0x00000003
@@ -323,7 +323,7 @@ struct FIRMWARE_INFO
 /* Host Interrupt Mask */
 #define ARCMSR_HBCMU_UTILITY_A_ISR_MASK		0x00000001 /* When clear, the Utility_A interrupt routes to the host.*/
 #define ARCMSR_HBCMU_OUTBOUND_DOORBELL_ISR_MASK	0x00000004 /* When clear, the General Outbound Doorbell interrupt routes to the host.*/
-#define ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR_MASK	0x00000008 /* When clear, the Outbound Post List FIFO Not Empty interrupt routes to the host.*/
+#define ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR_MASK	0x00000008 /* When clear, the Outbound Post List FIFO Analt Empty interrupt routes to the host.*/
 #define ARCMSR_HBCMU_ALL_INTMASKENABLE		0x0000000D /* disable all ISR */
 /* Host Interrupt Status */
 #define ARCMSR_HBCMU_UTILITY_A_ISR		0x00000001
@@ -333,7 +333,7 @@ struct FIRMWARE_INFO
 	*/
 #define ARCMSR_HBCMU_OUTBOUND_DOORBELL_ISR	0x00000004
 	/*
-	** Set if Outbound Doorbell register bits 30:1 have a non-zero
+	** Set if Outbound Doorbell register bits 30:1 have a analn-zero
 	** value. This bit clears only when Outbound Doorbell bits
 	** 30:1 are ALL clear. Only a write to the Outbound Doorbell
 	** Clear register clears bits in the Outbound Doorbell register.
@@ -341,13 +341,13 @@ struct FIRMWARE_INFO
 #define ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR	0x00000008
 	/*
 	** Set whenever the Outbound Post List Producer/Consumer
-	** Register (FIFO) is not empty. It clears when the Outbound
+	** Register (FIFO) is analt empty. It clears when the Outbound
 	** Post List FIFO is empty.
 	*/
 #define ARCMSR_HBCMU_SAS_ALL_INT		0x00000010
 	/*
 	** This bit indicates a SAS interrupt from a source external to
-	** the PCIe core. This bit is not maskable.
+	** the PCIe core. This bit is analt maskable.
 	*/
 	/* DoorBell*/
 #define ARCMSR_HBCMU_DRV2IOP_DATA_WRITE_OK			0x00000002
@@ -456,7 +456,7 @@ struct FIRMWARE_INFO
 //set host rw buffer physical address at inbound message 0, 1 (low,high)
 #define ARCMSR_HBFMU_DOORBELL_SYNC1		0x300
 #define ARCMSR_HBFMU_MESSAGE_FIRMWARE_OK	0x80000000
-#define ARCMSR_HBFMU_MESSAGE_NO_VOLUME_CHANGE	0x20000000
+#define ARCMSR_HBFMU_MESSAGE_ANAL_VOLUME_CHANGE	0x20000000
 
 /*
 *******************************************************************************
@@ -556,9 +556,9 @@ struct MessageUnit_C{
 	uint32_t	master_error_address_high;		/*0018 001B*/
 	uint32_t	hcb_size;				/*001C 001F*/
 	uint32_t	inbound_doorbell;			/*0020 0023*/
-	uint32_t	diagnostic_rw_data;			/*0024 0027*/
-	uint32_t	diagnostic_rw_address_low;		/*0028 002B*/
-	uint32_t	diagnostic_rw_address_high;		/*002C 002F*/
+	uint32_t	diaganalstic_rw_data;			/*0024 0027*/
+	uint32_t	diaganalstic_rw_address_low;		/*0028 002B*/
+	uint32_t	diaganalstic_rw_address_high;		/*002C 002F*/
 	uint32_t	host_int_status;			/*0030 0033*/
 	uint32_t	host_int_mask;				/*0034 0037*/
 	uint32_t	dcr_data;				/*0038 003B*/
@@ -581,7 +581,7 @@ struct MessageUnit_C{
 	uint32_t	last_used_message_source_address_high;	/*007C 007F*/
 	uint32_t	pull_mode_data_byte_count[4];		/*0080 008F*/
 	uint32_t	message_dest_address_index;		/*0090 0093*/
-	uint32_t	done_queue_not_empty_int_counter_timer;	/*0094 0097*/
+	uint32_t	done_queue_analt_empty_int_counter_timer;	/*0094 0097*/
 	uint32_t	utility_A_int_counter_timer;		/*0098 009B*/
 	uint32_t	outbound_doorbell;			/*009C 009F*/
 	uint32_t	outbound_doorbell_clear;		/*00A0 00A3*/
@@ -606,7 +606,7 @@ struct MessageUnit_C{
 	uint32_t	last_used_message_dest_address_high;	/*00EC 00EF*/
 	uint32_t	message_done_queue_base_address_low;	/*00F0 00F3*/
 	uint32_t	message_done_queue_base_address_high;	/*00F4 00F7*/
-	uint32_t	host_diagnostic;			/*00F8 00FB*/
+	uint32_t	host_diaganalstic;			/*00F8 00FB*/
 	uint32_t	write_sequence;				/*00FC 00FF*/
 	uint32_t	reserved1[34];				/*0100 0187*/
 	uint32_t	reserved2[1950];			/*0188 1FFF*/
@@ -674,16 +674,16 @@ struct MessageUnit_D {
 struct MessageUnit_E{
 	uint32_t	iobound_doorbell;			/*0000 0003*/
 	uint32_t	write_sequence_3xxx;			/*0004 0007*/
-	uint32_t	host_diagnostic_3xxx;			/*0008 000B*/
+	uint32_t	host_diaganalstic_3xxx;			/*0008 000B*/
 	uint32_t	posted_outbound_doorbell;		/*000C 000F*/
 	uint32_t	master_error_attribute;			/*0010 0013*/
 	uint32_t	master_error_address_low;		/*0014 0017*/
 	uint32_t	master_error_address_high;		/*0018 001B*/
 	uint32_t	hcb_size;				/*001C 001F*/
 	uint32_t	inbound_doorbell;			/*0020 0023*/
-	uint32_t	diagnostic_rw_data;			/*0024 0027*/
-	uint32_t	diagnostic_rw_address_low;		/*0028 002B*/
-	uint32_t	diagnostic_rw_address_high;		/*002C 002F*/
+	uint32_t	diaganalstic_rw_data;			/*0024 0027*/
+	uint32_t	diaganalstic_rw_address_low;		/*0028 002B*/
+	uint32_t	diaganalstic_rw_address_high;		/*002C 002F*/
 	uint32_t	host_int_status;			/*0030 0033*/
 	uint32_t	host_int_mask;				/*0034 0037*/
 	uint32_t	dcr_data;				/*0038 003B*/
@@ -706,7 +706,7 @@ struct MessageUnit_E{
 	uint32_t	last_used_message_source_address_high;	/*007C 007F*/
 	uint32_t	pull_mode_data_byte_count[4];		/*0080 008F*/
 	uint32_t	message_dest_address_index;		/*0090 0093*/
-	uint32_t	done_queue_not_empty_int_counter_timer;	/*0094 0097*/
+	uint32_t	done_queue_analt_empty_int_counter_timer;	/*0094 0097*/
 	uint32_t	utility_A_int_counter_timer;		/*0098 009B*/
 	uint32_t	outbound_doorbell;			/*009C 009F*/
 	uint32_t	outbound_doorbell_clear;		/*00A0 00A3*/
@@ -731,7 +731,7 @@ struct MessageUnit_E{
 	uint32_t	last_used_message_dest_address_high;	/*00EC 00EF*/
 	uint32_t	message_done_queue_base_address_low;	/*00F0 00F3*/
 	uint32_t	message_done_queue_base_address_high;	/*00F4 00F7*/
-	uint32_t	host_diagnostic;			/*00F8 00FB*/
+	uint32_t	host_diaganalstic;			/*00F8 00FB*/
 	uint32_t	write_sequence;				/*00FC 00FF*/
 	uint32_t	reserved1[34];				/*0100 0187*/
 	uint32_t	reserved2[1950];			/*0188 1FFF*/
@@ -750,16 +750,16 @@ struct MessageUnit_E{
 struct MessageUnit_F {
 	uint32_t	iobound_doorbell;			/*0000 0003*/
 	uint32_t	write_sequence_3xxx;			/*0004 0007*/
-	uint32_t	host_diagnostic_3xxx;			/*0008 000B*/
+	uint32_t	host_diaganalstic_3xxx;			/*0008 000B*/
 	uint32_t	posted_outbound_doorbell;		/*000C 000F*/
 	uint32_t	master_error_attribute;			/*0010 0013*/
 	uint32_t	master_error_address_low;		/*0014 0017*/
 	uint32_t	master_error_address_high;		/*0018 001B*/
 	uint32_t	hcb_size;				/*001C 001F*/
 	uint32_t	inbound_doorbell;			/*0020 0023*/
-	uint32_t	diagnostic_rw_data;			/*0024 0027*/
-	uint32_t	diagnostic_rw_address_low;		/*0028 002B*/
-	uint32_t	diagnostic_rw_address_high;		/*002C 002F*/
+	uint32_t	diaganalstic_rw_data;			/*0024 0027*/
+	uint32_t	diaganalstic_rw_address_low;		/*0028 002B*/
+	uint32_t	diaganalstic_rw_address_high;		/*002C 002F*/
 	uint32_t	host_int_status;			/*0030 0033*/
 	uint32_t	host_int_mask;				/*0034 0037*/
 	uint32_t	dcr_data;				/*0038 003B*/
@@ -782,7 +782,7 @@ struct MessageUnit_F {
 	uint32_t	last_used_message_source_address_high;	/*007C 007F*/
 	uint32_t	pull_mode_data_byte_count[4];		/*0080 008F*/
 	uint32_t	message_dest_address_index;		/*0090 0093*/
-	uint32_t	done_queue_not_empty_int_counter_timer;	/*0094 0097*/
+	uint32_t	done_queue_analt_empty_int_counter_timer;	/*0094 0097*/
 	uint32_t	utility_A_int_counter_timer;		/*0098 009B*/
 	uint32_t	outbound_doorbell;			/*009C 009F*/
 	uint32_t	outbound_doorbell_clear;		/*00A0 00A3*/
@@ -807,7 +807,7 @@ struct MessageUnit_F {
 	uint32_t	last_used_message_dest_address_high;	/*00EC 00EF*/
 	uint32_t	message_done_queue_base_address_low;	/*00F0 00F3*/
 	uint32_t	message_done_queue_base_address_high;	/*00F4 00F7*/
-	uint32_t	host_diagnostic;			/*00F8 00FB*/
+	uint32_t	host_diaganalstic;			/*00F8 00FB*/
 	uint32_t	write_sequence;				/*00FC 00FF*/
 	uint32_t	reserved1[46];				/*0100 01B7*/
 	uint32_t	reply_post_producer_index1;		/*01B8 01BB*/
@@ -954,7 +954,7 @@ struct AdapterControlBlock
 	struct work_struct 	arcmsr_do_message_isr_bh;
 	struct timer_list	eternal_timer;
 	unsigned short		fw_flag;
-#define	FW_NORMAL			0x0000
+#define	FW_ANALRMAL			0x0000
 #define	FW_BOG				0x0001
 #define	FW_DEADLOCK			0x0010
 	uint32_t		maxOutstanding;

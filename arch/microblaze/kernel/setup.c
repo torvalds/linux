@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2007-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -67,7 +67,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_MTD_UCLINUX
 /* Handle both romfs and cramfs types, without generating unnecessary
- code (ie no point checking for CRAMFS if it's not even enabled) */
+ code (ie anal point checking for CRAMFS if it's analt even enabled) */
 inline unsigned get_romfs_len(unsigned *addr)
 {
 #ifdef CONFIG_ROMFS_FS
@@ -153,12 +153,12 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	}
 #else
 	if (!msr) {
-		pr_info("!!!Your kernel not setup MSR instruction but ");
+		pr_info("!!!Your kernel analt setup MSR instruction but ");
 		pr_cont("CPU have it %x\n", msr);
 	}
 #endif
 
-	/* Do not copy reset vectors. offset = 0x2 means skip the first
+	/* Do analt copy reset vectors. offset = 0x2 means skip the first
 	 * two instructions. dst is pointer to MB vectors which are placed
 	 * in block ram. If you want to copy reset vector setup offset to 0x0 */
 #if !CONFIG_MANUAL_RESET_VECTOR

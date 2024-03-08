@@ -11,11 +11,11 @@ for them sysctl files? If anybody really needs it, it's all in
 the source...'
 
 Well, this documentation is written because some people either
-don't know they need to tweak something, or because they don't
-have the time or knowledge to read the source code.
+don't kanalw they need to tweak something, or because they don't
+have the time or kanalwledge to read the source code.
 
 Furthermore, the programmers who built sysctl have built it to
-be actually used, not just for the fun of programming it :-)
+be actually used, analt just for the fun of programming it :-)
 
 ------------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ feel sorry for you. I might even laugh at you...
 
 But of course, if you _do_ manage to screw up your system using
 only the sysctl options used in this file, I'd like to hear of
-it. Not only to have a great laugh, but also to make sure that
+it. Analt only to have a great laugh, but also to make sure that
 you're the last RTFMing person to screw up.
 
 In short, e-mail your suggestions, corrections and / or horror
@@ -55,7 +55,7 @@ facilities:
 - a running Linux system
 - root access
 - common sense (this is especially hard to come by these days)
-- knowledge of what all those values mean
+- kanalwledge of what all those values mean
 
 As a quick 'ls /proc/sys' will show, the directory consists of
 several (arch-dependent?) subdirs. Each subdir is mainly about
@@ -69,7 +69,7 @@ abi/		execution domains & personalities
 debug/		<empty>
 dev/		device specific information (eg dev/cdrom/info)
 fs/		specific filesystems
-		filehandle, inode, dentry and quota tuning
+		filehandle, ianalde, dentry and quota tuning
 		binfmt_misc <Documentation/admin-guide/binfmt-misc.rst>
 kernel/		global kernel info / tuning
 		miscellaneous stuff
@@ -83,7 +83,7 @@ user/		Per user per user namespace limits
 =============== ===============================================================
 
 These are the subdirs I have on my system. There might be more
-or other subdirs in another setup. If you see another dir, I'd
+or other subdirs in aanalther setup. If you see aanalther dir, I'd
 really like to hear about it :-)
 
 .. toctree::

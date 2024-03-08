@@ -59,20 +59,20 @@ sscale:
 	cmpiw		#0x400c,%d0	|test for too large
 	bge		src_out
 |
-| The source input is below 1, so we check for denormalized numbers
+| The source input is below 1, so we check for deanalrmalized numbers
 | and set unfl.
 |
 src_small:
 	moveb		DTAG(%a6),%d0
 	andib		#0xe0,%d0
 	tstb		%d0
-	beqs		no_denorm
+	beqs		anal_deanalrm
 	st		STORE_FLG(%a6)	|dest already contains result
 	orl		#unfl_mask,USER_FPSR(%a6) |set UNFL
 den_done:
 	leal		FPTEMP(%a6),%a0
 	bra		t_resdnrm
-no_denorm:
+anal_deanalrm:
 	fmovel		USER_FPCR(%a6),%FPCR
 	fmovex		FPTEMP(%a6),%fp0	|simply return dest
 	rts
@@ -91,14 +91,14 @@ src_in:
 	blt		src_neg
 |
 | Source is positive.  Add the src to the dest exponent.
-| The result can be denormalized, if src = 0, or overflow,
+| The result can be deanalrmalized, if src = 0, or overflow,
 | if the result of the add sets a bit in the upper word.
 |
 src_pos:
-	tstw		%d1		|check for denorm
+	tstw		%d1		|check for deanalrm
 	beq		dst_dnrm
 	addl		%d0,%d1		|add src to dest exp
-	beqs		denorm		|if zero, result is denorm
+	beqs		deanalrm		|if zero, result is deanalrm
 	cmpil		#0x7fff,%d1	|test for overflow
 	bges		ovfl
 	tstb		L_SCR1(%a6)
@@ -119,13 +119,13 @@ sovl_pos:
 	movel		FPTEMP_LO(%a6),ETEMP_LO(%a6)
 	bra		t_ovfl2
 
-denorm:
+deanalrm:
 	tstb		L_SCR1(%a6)
 	beqs		den_pos
 	orw		#0x8000,%d1
 den_pos:
 	tstl		FPTEMP_HI(%a6)	|check j bit
-	blts		nden_exit	|if set, not denorm
+	blts		nden_exit	|if set, analt deanalrm
 	movew		%d1,ETEMP(%a6)	|input expected in ETEMP
 	movel		FPTEMP_HI(%a6),ETEMP_HI(%a6)
 	movel		FPTEMP_LO(%a6),ETEMP_LO(%a6)
@@ -141,13 +141,13 @@ nden_exit:
 |
 | Source is negative.  Add the src to the dest exponent.
 | (The result exponent will be reduced).  The result can be
-| denormalized.
+| deanalrmalized.
 |
 src_neg:
 	addl		%d0,%d1		|add src to dest
-	beqs		denorm		|if zero, result is denorm
+	beqs		deanalrm		|if zero, result is deanalrm
 	blts		fix_dnrm	|if negative, result is
-|					;needing denormalization
+|					;needing deanalrmalization
 	tstb		L_SCR1(%a6)
 	beqs		sneg_pos
 	orw		#0x8000,%d1
@@ -159,15 +159,15 @@ sneg_pos:
 
 
 |
-| The result exponent is below denorm value.  Test for catastrophic
-| underflow and force zero if true.  If not, try to shift the
+| The result exponent is below deanalrm value.  Test for catastrophic
+| underflow and force zero if true.  If analt, try to shift the
 | mantissa right until a zero exponent exists.
 |
 fix_dnrm:
-	cmpiw		#0xffc0,%d1	|lower bound for normalization
+	cmpiw		#0xffc0,%d1	|lower bound for analrmalization
 	blt		fix_unfl	|if lower, catastrophic unfl
 	movew		%d1,%d0		|use d0 for exp
-	movel		%d2,-(%a7)	|free d2 for norm
+	movel		%d2,-(%a7)	|free d2 for analrm
 	movel		FPTEMP_HI(%a6),%d1
 	movel		FPTEMP_LO(%a6),%d2
 	clrl		L_SCR2(%a6)
@@ -175,9 +175,9 @@ fix_loop:
 	addw		#1,%d0		|drive d0 to 0
 	lsrl		#1,%d1		|while shifting the
 	roxrl		#1,%d2		|mantissa to the right
-	bccs		no_carry
+	bccs		anal_carry
 	st		L_SCR2(%a6)	|use L_SCR2 to capture inex
-no_carry:
+anal_carry:
 	tstw		%d0		|it is finished when
 	blts		fix_loop	|d0 is zero or the mantissa
 	tstb		L_SCR2(%a6)
@@ -198,37 +198,37 @@ tst_con:
 	movel		%d2,FPTEMP_LO(%a6)
 	movel		(%a7)+,%d2
 	tstl		%d1
-	bnes		not_zero
+	bnes		analt_zero
 	tstl		FPTEMP_LO(%a6)
-	bnes		not_zero
+	bnes		analt_zero
 |
 | Result is zero.  Check for rounding mode to set lsb.  If the
-| mode is rp, and the zero is positive, return smallest denorm.
+| mode is rp, and the zero is positive, return smallest deanalrm.
 | If the mode is rm, and the zero is negative, return smallest
-| negative denorm.
+| negative deanalrm.
 |
 	btstb		#5,FPCR_MODE(%a6) |test if rm or rp
-	beqs		no_dir
+	beqs		anal_dir
 	btstb		#4,FPCR_MODE(%a6) |check which one
 	beqs		zer_rm
 zer_rp:
 	tstb		L_SCR1(%a6)	|check sign
-	bnes		no_dir		|if set, neg op, no inc
+	bnes		anal_dir		|if set, neg op, anal inc
 	movel		#1,FPTEMP_LO(%a6) |set lsb
 	bras		sm_dnrm
 zer_rm:
 	tstb		L_SCR1(%a6)	|check sign
-	beqs		no_dir		|if clr, neg op, no inc
+	beqs		anal_dir		|if clr, neg op, anal inc
 	movel		#1,FPTEMP_LO(%a6) |set lsb
 	orl		#neg_mask,USER_FPSR(%a6) |set N
 	bras		sm_dnrm
-no_dir:
+anal_dir:
 	fmovel		USER_FPCR(%a6),%FPCR
 	fmovex		FPTEMP(%a6),%fp0	|use fmove to set cc's
 	rts
 
 |
-| The rounding mode changed the zero to a smallest denorm. Call
+| The rounding mode changed the zero to a smallest deanalrm. Call
 | t_resdnrm with exceptional operand in ETEMP.
 |
 sm_dnrm:
@@ -239,9 +239,9 @@ sm_dnrm:
 	bra		t_resdnrm
 
 |
-| Result is still denormalized.
+| Result is still deanalrmalized.
 |
-not_zero:
+analt_zero:
 	orl		#unfl_mask,USER_FPSR(%a6) |set unfl
 	tstb		L_SCR1(%a6)	|check for sign
 	beqs		fix_exit
@@ -257,26 +257,26 @@ fix_exit:
 fix_unfl:
 	orl		#unfl_inx_mask,USER_FPSR(%a6)
 	btstb		#5,FPCR_MODE(%a6) |test if rm or rp
-	beqs		no_dir2
+	beqs		anal_dir2
 	btstb		#4,FPCR_MODE(%a6) |check which one
 	beqs		zer_rm2
 zer_rp2:
 	tstb		L_SCR1(%a6)	|check sign
-	bnes		no_dir2		|if set, neg op, no inc
+	bnes		anal_dir2		|if set, neg op, anal inc
 	clrl		FPTEMP_EX(%a6)
 	clrl		FPTEMP_HI(%a6)
 	movel		#1,FPTEMP_LO(%a6) |set lsb
-	bras		sm_dnrm		|return smallest denorm
+	bras		sm_dnrm		|return smallest deanalrm
 zer_rm2:
 	tstb		L_SCR1(%a6)	|check sign
-	beqs		no_dir2		|if clr, neg op, no inc
+	beqs		anal_dir2		|if clr, neg op, anal inc
 	movew		#0x8000,FPTEMP_EX(%a6)
 	clrl		FPTEMP_HI(%a6)
 	movel		#1,FPTEMP_LO(%a6) |set lsb
 	orl		#neg_mask,USER_FPSR(%a6) |set N
-	bra		sm_dnrm		|return smallest denorm
+	bra		sm_dnrm		|return smallest deanalrm
 
-no_dir2:
+anal_dir2:
 	tstb		L_SCR1(%a6)
 	bges		pos_zero
 neg_zero:
@@ -293,8 +293,8 @@ pos_zero:
 	rts
 
 |
-| The destination is a denormalized number.  It must be handled
-| by first shifting the bits in the mantissa until it is normalized,
+| The destination is a deanalrmalized number.  It must be handled
+| by first shifting the bits in the mantissa until it is analrmalized,
 | then adding the remainder of the source to the exponent.
 |
 dst_dnrm:
@@ -303,8 +303,8 @@ dst_dnrm:
 	movel		FPTEMP_HI(%a6),%d2
 	movel		FPTEMP_LO(%a6),%d3
 dst_loop:
-	tstl		%d2		|test for normalized result
-	blts		dst_norm	|exit loop if so
+	tstl		%d2		|test for analrmalized result
+	blts		dst_analrm	|exit loop if so
 	tstl		%d0		|otherwise, test shift count
 	beqs		dst_fin		|if zero, shifting is done
 	subil		#1,%d0		|dec src
@@ -312,11 +312,11 @@ dst_loop:
 	roxll		#1,%d2
 	bras		dst_loop
 |
-| Destination became normalized.  Simply add the remaining
+| Destination became analrmalized.  Simply add the remaining
 | portion of the src to the exponent.
 |
-dst_norm:
-	addw		%d0,%d1		|dst is normalized; add src
+dst_analrm:
+	addw		%d0,%d1		|dst is analrmalized; add src
 	tstb		L_SCR1(%a6)
 	beqs		dnrm_pos
 	orl		#0x8000,%d1
@@ -330,7 +330,7 @@ dnrm_pos:
 	rts
 
 |
-| Destination remained denormalized.  Call t_excdnrm with
+| Destination remained deanalrmalized.  Call t_excdnrm with
 | exceptional operand in ETEMP.
 |
 dst_fin:

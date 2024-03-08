@@ -140,7 +140,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 
 	adata = dev_id;
 	if (!adata)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	/* ACP interrupts will be cleared by reading particular bit and writing
 	 * same value to the status register. writing zero's doesn't have any
 	 * effect.
@@ -234,13 +234,13 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	if (irq_flag)
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static int sdw_amd_scan_controller(struct device *dev)
 {
 	struct acp63_dev_data *acp_data;
-	struct fwnode_handle *link;
+	struct fwanalde_handle *link;
 	char name[32];
 	u32 sdw_manager_bitmap;
 	u8 count = 0;
@@ -253,7 +253,7 @@ static int sdw_amd_scan_controller(struct device *dev)
 	 * Current implementation is based on MIPI DisCo 2.0 spec.
 	 * Found controller, find links supported.
 	 */
-	ret = fwnode_property_read_u32_array((acp_data->sdw_fw_node), "mipi-sdw-manager-list",
+	ret = fwanalde_property_read_u32_array((acp_data->sdw_fw_analde), "mipi-sdw-manager-list",
 					     &sdw_manager_bitmap, 1);
 
 	if (ret) {
@@ -268,20 +268,20 @@ static int sdw_amd_scan_controller(struct device *dev)
 	}
 
 	if (!count) {
-		dev_dbg(dev, "No SoundWire Managers detected\n");
+		dev_dbg(dev, "Anal SoundWire Managers detected\n");
 		return -EINVAL;
 	}
 	dev_dbg(dev, "ACPI reports %d SoundWire Manager devices\n", count);
 	acp_data->sdw_manager_count = count;
 	for (index = 0; index < count; index++) {
 		scnprintf(name, sizeof(name), "mipi-sdw-link-%d-subproperties", index);
-		link = fwnode_get_named_child_node(acp_data->sdw_fw_node, name);
+		link = fwanalde_get_named_child_analde(acp_data->sdw_fw_analde, name);
 		if (!link) {
-			dev_err(dev, "Manager node %s not found\n", name);
+			dev_err(dev, "Manager analde %s analt found\n", name);
 			return -EIO;
 		}
 
-		ret = fwnode_property_read_u32(link, "amd-sdw-power-mode", &acp_sdw_power_mode);
+		ret = fwanalde_property_read_u32(link, "amd-sdw-power-mode", &acp_sdw_power_mode);
 		if (ret)
 			return ret;
 		/*
@@ -318,14 +318,14 @@ static int get_acp63_device_config(u32 config, struct pci_dev *pci, struct acp63
 
 	sdw_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_SDW_ADDR, 0);
 	if (sdw_dev) {
-		acp_data->sdw_fw_node = acpi_fwnode_handle(sdw_dev);
+		acp_data->sdw_fw_analde = acpi_fwanalde_handle(sdw_dev);
 		ret = sdw_amd_scan_controller(&pci->dev);
 		/* is_sdw_dev flag will be set when SoundWire Manager device exists */
 		if (!ret)
 			is_sdw_dev = true;
 	}
 	if (!is_dmic_dev && !is_sdw_dev)
-		return -ENODEV;
+		return -EANALDEV;
 	dev_dbg(&pci->dev, "Audio Mode %d\n", config);
 	switch (config) {
 	case ACP_CONFIG_4:
@@ -399,7 +399,7 @@ static int get_acp63_device_config(u32 config, struct pci_dev *pci, struct acp63
 
 static void acp63_fill_platform_dev_info(struct platform_device_info *pdevinfo,
 					 struct device *parent,
-					 struct fwnode_handle *fw_node,
+					 struct fwanalde_handle *fw_analde,
 					 char *name, unsigned int id,
 					 const struct resource *res,
 					 unsigned int num_res,
@@ -413,7 +413,7 @@ static void acp63_fill_platform_dev_info(struct platform_device_info *pdevinfo,
 	pdevinfo->res = res;
 	pdevinfo->data = data;
 	pdevinfo->size_data = size_data;
-	pdevinfo->fwnode = fw_node;
+	pdevinfo->fwanalde = fw_analde;
 }
 
 static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data *adata, u32 addr)
@@ -431,7 +431,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 	if (adata->pdev_config) {
 		adata->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
 		if (!adata->res) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto de_init;
 		}
 		adata->res->flags = IORESOURCE_MEM;
@@ -455,7 +455,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata),
 						 GFP_KERNEL);
 			if (!sdw_pdata) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto de_init;
 			}
 
@@ -463,7 +463,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 			sdw_pdata->acp_sdw_lock = &adata->acp_lock;
 			adata->sdw0_dev_index = 0;
 			adata->sdw_dma_dev_index = 1;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, adata->sdw_fw_node,
+			acp63_fill_platform_dev_info(&pdevinfo[0], parent, adata->sdw_fw_analde,
 						     "amd_sdw_manager", 0, adata->res, 1,
 						     sdw_pdata, sizeof(struct acp_sdw_pdata));
 			acp63_fill_platform_dev_info(&pdevinfo[1], parent, NULL, "amd_ps_sdw_dma",
@@ -472,7 +472,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata) * 2,
 						 GFP_KERNEL);
 			if (!sdw_pdata) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto de_init;
 			}
 
@@ -484,10 +484,10 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 			adata->sdw0_dev_index = 0;
 			adata->sdw1_dev_index = 1;
 			adata->sdw_dma_dev_index = 2;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, adata->sdw_fw_node,
+			acp63_fill_platform_dev_info(&pdevinfo[0], parent, adata->sdw_fw_analde,
 						     "amd_sdw_manager", 0, adata->res, 1,
 						     &sdw_pdata[0], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
+			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_analde,
 						     "amd_sdw_manager", 1, adata->res, 1,
 						     &sdw_pdata[1], sizeof(struct acp_sdw_pdata));
 			acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "amd_ps_sdw_dma",
@@ -499,7 +499,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata),
 						 GFP_KERNEL);
 			if (!sdw_pdata) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto de_init;
 			}
 
@@ -510,7 +510,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 			adata->sdw_dma_dev_index = 2;
 			acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
 						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
+			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_analde,
 						     "amd_sdw_manager", 0, adata->res, 1,
 						     sdw_pdata, sizeof(struct acp_sdw_pdata));
 			acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "amd_ps_sdw_dma",
@@ -521,7 +521,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata) * 2,
 						 GFP_KERNEL);
 			if (!sdw_pdata) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto de_init;
 			}
 			sdw_pdata[0].instance = 0;
@@ -534,10 +534,10 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 			adata->sdw_dma_dev_index = 3;
 			acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
 						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
+			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_analde,
 						     "amd_sdw_manager", 0, adata->res, 1,
 						     &sdw_pdata[0], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[2], parent, adata->sdw_fw_node,
+			acp63_fill_platform_dev_info(&pdevinfo[2], parent, adata->sdw_fw_analde,
 						     "amd_sdw_manager", 1, adata->res, 1,
 						     &sdw_pdata[1], sizeof(struct acp_sdw_pdata));
 			acp63_fill_platform_dev_info(&pdevinfo[3], parent, NULL, "amd_ps_sdw_dma",
@@ -547,7 +547,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 		}
 		break;
 	default:
-		dev_dbg(&pci->dev, "No PDM or SoundWire manager devices found\n");
+		dev_dbg(&pci->dev, "Anal PDM or SoundWire manager devices found\n");
 		return 0;
 	}
 
@@ -555,7 +555,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 		adata->pdev[index] = platform_device_register_full(&pdevinfo[index]);
 		if (IS_ERR(adata->pdev[index])) {
 			dev_err(&pci->dev,
-				"cannot register %s device\n", pdevinfo[index].name);
+				"cananalt register %s device\n", pdevinfo[index].name);
 			ret = PTR_ERR(adata->pdev[index]);
 			goto unregister_devs;
 		}
@@ -584,19 +584,19 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	/* Return if acp config flag is defined */
 	flag = snd_amd_acp_find_config(pci);
 	if (flag)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Pink Sardine device check */
 	switch (pci->revision) {
 	case 0x63:
 		break;
 	default:
-		dev_dbg(&pci->dev, "acp63 pci device not found\n");
-		return -ENODEV;
+		dev_dbg(&pci->dev, "acp63 pci device analt found\n");
+		return -EANALDEV;
 	}
 	if (pci_enable_device(pci)) {
 		dev_err(&pci->dev, "pci_enable_device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = pci_request_regions(pci, "AMD ACP6.2 audio");
@@ -607,7 +607,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	adata = devm_kzalloc(&pci->dev, sizeof(struct acp63_dev_data),
 			     GFP_KERNEL);
 	if (!adata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 
@@ -615,7 +615,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	adata->acp63_base = devm_ioremap(&pci->dev, addr,
 					 pci_resource_len(pci, 0));
 	if (!adata->acp63_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 	/*
@@ -639,7 +639,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	}
 	val = readl(adata->acp63_base + ACP_PIN_CONFIG);
 	ret = get_acp63_device_config(val, pci, adata);
-	/* ACP PCI driver probe should be continued even PDM or SoundWire Devices are not found */
+	/* ACP PCI driver probe should be continued even PDM or SoundWire Devices are analt found */
 	if (ret) {
 		dev_dbg(&pci->dev, "get acp device config failed:%d\n", ret);
 		goto skip_pdev_creation;
@@ -653,7 +653,7 @@ skip_pdev_creation:
 	device_set_wakeup_enable(&pci->dev, true);
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pci->dev);
-	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_put_analidle(&pci->dev);
 	pm_runtime_allow(&pci->dev);
 	return 0;
 de_init:
@@ -712,7 +712,7 @@ static void snd_acp63_remove(struct pci_dev *pci)
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	pm_runtime_forbid(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
 }

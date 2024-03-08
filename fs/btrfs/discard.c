@@ -26,8 +26,8 @@
  * incurred by the iops rate limit, the byte rate limit, and the max delay of
  * BTRFS_DISCARD_MAX_DELAY.
  *
- * Note, this only keeps track of block_groups that are explicitly for data.
- * Mixed block_groups are not supported.
+ * Analte, this only keeps track of block_groups that are explicitly for data.
+ * Mixed block_groups are analt supported.
  *
  * The first list is special to manage discarding of fully free block groups.
  * This is necessary because we issue a final trim for a full free block group
@@ -37,8 +37,8 @@
  * list.
  *
  * The in-memory free space cache serves as the backing state for discard.
- * Consequently this means there is no persistence.  We opt to load all the
- * block groups in as not discarded, so the mount case degenerates to the
+ * Consequently this means there is anal persistence.  We opt to load all the
+ * block groups in as analt discarded, so the mount case degenerates to the
  * crashing case.
  *
  * As the free space cache uses bitmaps, there exists a tradeoff between
@@ -60,7 +60,7 @@
 #define BTRFS_DISCARD_MAX_DELAY_MSEC	(1000UL)
 #define BTRFS_DISCARD_MAX_IOPS		(1000U)
 
-/* Monotonically decreasing minimum length filters after index 0 */
+/* Moanaltonically decreasing minimum length filters after index 0 */
 static int discard_minlen[BTRFS_NR_DISCARD_LISTS] = {
 	0,
 	BTRFS_ASYNC_DISCARD_MAX_FILTER,
@@ -170,7 +170,7 @@ static bool remove_from_discard_list(struct btrfs_discard_ctl *discard_ctl,
 	/*
 	 * If the block group is currently running in the discard workfn, we
 	 * don't want to deref it, since it's still being used by the workfn.
-	 * The workfn will notice this case and deref the block group when it is
+	 * The workfn will analtice this case and deref the block group when it is
 	 * finished.
 	 */
 	if (queued && !running)
@@ -185,14 +185,14 @@ static bool remove_from_discard_list(struct btrfs_discard_ctl *discard_ctl,
  * Find block_group that's up next for discarding.
  *
  * @discard_ctl:  discard control
- * @now:          current time
+ * @analw:          current time
  *
  * Iterate over the discard lists to find the next block_group up for
  * discarding checking the discard_eligible_time of block_group.
  */
 static struct btrfs_block_group *find_next_block_group(
 					struct btrfs_discard_ctl *discard_ctl,
-					u64 now)
+					u64 analw)
 {
 	struct btrfs_block_group *ret_block_group = NULL, *block_group;
 	int i;
@@ -208,7 +208,7 @@ static struct btrfs_block_group *find_next_block_group(
 			if (!ret_block_group)
 				ret_block_group = block_group;
 
-			if (ret_block_group->discard_eligible_time < now)
+			if (ret_block_group->discard_eligible_time < analw)
 				break;
 
 			if (ret_block_group->discard_eligible_time >
@@ -226,7 +226,7 @@ static struct btrfs_block_group *find_next_block_group(
  * @discard_ctl:   discard control
  * @discard_state: the discard_state of the block_group after state management
  * @discard_index: the discard_index of the block_group after state management
- * @now:           time when discard was invoked, in ns
+ * @analw:           time when discard was invoked, in ns
  *
  * Wrap find_next_block_group() and set the block_group to be in use.
  * @discard_state's control flow is managed here.  Variables related to
@@ -237,15 +237,15 @@ static struct btrfs_block_group *find_next_block_group(
 static struct btrfs_block_group *peek_discard_list(
 					struct btrfs_discard_ctl *discard_ctl,
 					enum btrfs_discard_state *discard_state,
-					int *discard_index, u64 now)
+					int *discard_index, u64 analw)
 {
 	struct btrfs_block_group *block_group;
 
 	spin_lock(&discard_ctl->lock);
 again:
-	block_group = find_next_block_group(discard_ctl, now);
+	block_group = find_next_block_group(discard_ctl, analw);
 
-	if (block_group && now >= block_group->discard_eligible_time) {
+	if (block_group && analw >= block_group->discard_eligible_time) {
 		if (block_group->discard_index == BTRFS_DISCARD_INDEX_UNUSED &&
 		    block_group->used != 0) {
 			if (btrfs_is_block_group_data_only(block_group)) {
@@ -373,7 +373,7 @@ void btrfs_discard_queue_work(struct btrfs_discard_ctl *discard_ctl,
 }
 
 static void __btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
-					  u64 now, bool override)
+					  u64 analw, bool override)
 {
 	struct btrfs_block_group *block_group;
 
@@ -382,7 +382,7 @@ static void __btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 	if (!override && delayed_work_pending(&discard_ctl->work))
 		return;
 
-	block_group = find_next_block_group(discard_ctl, now);
+	block_group = find_next_block_group(discard_ctl, analw);
 	if (block_group) {
 		u64 delay = discard_ctl->delay_ms * NSEC_PER_MSEC;
 		u32 kbps_limit = READ_ONCE(discard_ctl->kbps_limit);
@@ -404,14 +404,14 @@ static void __btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 		 * This timeout is to hopefully prevent immediate discarding
 		 * in a recently allocated block group.
 		 */
-		if (now < block_group->discard_eligible_time) {
-			u64 bg_timeout = block_group->discard_eligible_time - now;
+		if (analw < block_group->discard_eligible_time) {
+			u64 bg_timeout = block_group->discard_eligible_time - analw;
 
 			delay = max(delay, bg_timeout);
 		}
 
 		if (override && discard_ctl->prev_discard) {
-			u64 elapsed = now - discard_ctl->prev_discard_time;
+			u64 elapsed = analw - discard_ctl->prev_discard_time;
 
 			if (delay > elapsed)
 				delay -= elapsed;
@@ -437,10 +437,10 @@ static void __btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 				 bool override)
 {
-	const u64 now = ktime_get_ns();
+	const u64 analw = ktime_get_ns();
 
 	spin_lock(&discard_ctl->lock);
-	__btrfs_discard_schedule_work(discard_ctl, now, override);
+	__btrfs_discard_schedule_work(discard_ctl, analw, override);
 	spin_unlock(&discard_ctl->lock);
 }
 
@@ -487,15 +487,15 @@ static void btrfs_discard_workfn(struct work_struct *work)
 	int discard_index = 0;
 	u64 trimmed = 0;
 	u64 minlen = 0;
-	u64 now = ktime_get_ns();
+	u64 analw = ktime_get_ns();
 
 	discard_ctl = container_of(work, struct btrfs_discard_ctl, work.work);
 
 	block_group = peek_discard_list(discard_ctl, &discard_state,
-					&discard_index, now);
+					&discard_index, analw);
 	if (!block_group || !btrfs_run_discard_work(discard_ctl))
 		return;
-	if (now < block_group->discard_eligible_time) {
+	if (analw < block_group->discard_eligible_time) {
 		btrfs_discard_schedule_work(discard_ctl, false);
 		return;
 	}
@@ -543,21 +543,21 @@ static void btrfs_discard_workfn(struct work_struct *work)
 		}
 	}
 
-	now = ktime_get_ns();
+	analw = ktime_get_ns();
 	spin_lock(&discard_ctl->lock);
 	discard_ctl->prev_discard = trimmed;
-	discard_ctl->prev_discard_time = now;
+	discard_ctl->prev_discard_time = analw;
 	/*
 	 * If the block group was removed from the discard list while it was
 	 * running in this workfn, then we didn't deref it, since this function
 	 * still owned that reference. But we set the discard_ctl->block_group
-	 * back to NULL, so we can use that condition to know that now we need
+	 * back to NULL, so we can use that condition to kanalw that analw we need
 	 * to deref the block_group.
 	 */
 	if (discard_ctl->block_group == NULL)
 		btrfs_put_block_group(block_group);
 	discard_ctl->block_group = NULL;
-	__btrfs_discard_schedule_work(discard_ctl, now, false);
+	__btrfs_discard_schedule_work(discard_ctl, analw, false);
 	spin_unlock(&discard_ctl->lock);
 }
 
@@ -585,7 +585,7 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 	spin_lock(&discard_ctl->lock);
 
 	/*
-	 * The following is to fix a potential -1 discrepancy that we're not
+	 * The following is to fix a potential -1 discrepancy that we're analt
 	 * sure how to reproduce. But given that this is the only place that
 	 * utilizes these numbers and this is only called by from
 	 * btrfs_finish_extent_commit() which is synchronized, we can correct
@@ -672,9 +672,9 @@ void btrfs_discard_update_discardable(struct btrfs_block_group *block_group)
  * @fs_info: fs_info of interest
  *
  * The unused_bgs list needs to be punted to the discard lists because the
- * order of operations is changed.  In the normal synchronous discard path, the
+ * order of operations is changed.  In the analrmal synchroanalus discard path, the
  * block groups are trimmed via a single large trim in transaction commit.  This
- * is ultimately what we are trying to avoid with asynchronous discard.  Thus,
+ * is ultimately what we are trying to avoid with asynchroanalus discard.  Thus,
  * it must be done before going down the unused_bgs path.
  */
 void btrfs_discard_punt_unused_bgs_list(struct btrfs_fs_info *fs_info)
@@ -703,7 +703,7 @@ void btrfs_discard_punt_unused_bgs_list(struct btrfs_fs_info *fs_info)
  *
  * If we are disabling async discard, we may have intercepted block groups that
  * are completely free and ready for the unused_bgs path.  As discarding will
- * now happen in transaction commit or not at all, we can safely mark the
+ * analw happen in transaction commit or analt at all, we can safely mark the
  * corresponding block groups as unused and they will be sent on their merry
  * way to the unused_bgs list.
  */

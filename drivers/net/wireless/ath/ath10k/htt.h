@@ -3,7 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021, 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021, 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _HTT_H_
@@ -132,9 +132,9 @@ struct htt_msdu_ext_desc_64 {
 
 enum htt_data_tx_desc_flags0 {
 	HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT = 1 << 0,
-	HTT_DATA_TX_DESC_FLAGS0_NO_AGGR         = 1 << 1,
-	HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT      = 1 << 2,
-	HTT_DATA_TX_DESC_FLAGS0_NO_CLASSIFY     = 1 << 3,
+	HTT_DATA_TX_DESC_FLAGS0_ANAL_AGGR         = 1 << 1,
+	HTT_DATA_TX_DESC_FLAGS0_ANAL_ENCRYPT      = 1 << 2,
+	HTT_DATA_TX_DESC_FLAGS0_ANAL_CLASSIFY     = 1 << 3,
 	HTT_DATA_TX_DESC_FLAGS0_RSVD0           = 1 << 4
 #define HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE_MASK 0xE0
 #define HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE_LSB 5
@@ -165,7 +165,7 @@ enum htt_data_tx_desc_flags1 {
 	    (((word) & HTT_TX_CREDIT_SIGN_BIT_M) >> HTT_TX_CREDIT_SIGN_BIT_S)
 
 enum htt_data_tx_ext_tid {
-	HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST = 16,
+	HTT_DATA_TX_EXT_TID_ANALN_QOS_MCAST_BCAST = 16,
 	HTT_DATA_TX_EXT_TID_MGMT                = 17,
 	HTT_DATA_TX_EXT_TID_INVALID             = 31
 };
@@ -175,7 +175,7 @@ enum htt_data_tx_ext_tid {
 /*
  * htt_data_tx_desc - used for data tx path
  *
- * Note: vdev_id irrelevant for pkt_type == raw and no_classify == 1.
+ * Analte: vdev_id irrelevant for pkt_type == raw and anal_classify == 1.
  *       ext_tid: for qos-data frames (0-15), see %HTT_DATA_TX_EXT_TID_
  *                for special kinds of tids
  *       postponed: only for HL hosts. indicates if this is a resend
@@ -425,7 +425,7 @@ enum htt_10x_t2h_msg_type {
 	HTT_10X_T2H_MSG_TYPE_TEST                      = 0xe,
 	HTT_10X_T2H_MSG_TYPE_CHAN_CHANGE               = 0xf,
 	HTT_10X_T2H_MSG_TYPE_AGGR_CONF                 = 0x11,
-	HTT_10X_T2H_MSG_TYPE_STATS_NOUPLOAD            = 0x12,
+	HTT_10X_T2H_MSG_TYPE_STATS_ANALUPLOAD            = 0x12,
 	HTT_10X_T2H_MSG_TYPE_MGMT_TX_COMPL_IND         = 0x13,
 	/* keep this last */
 	HTT_10X_T2H_NUM_MSGS
@@ -485,7 +485,7 @@ enum htt_10_4_t2h_msg_type {
 	HTT_10_4_T2H_MSG_TYPE_AGGR_CONF              = 0x15,
 	HTT_10_4_T2H_MSG_TYPE_TX_FETCH_IND           = 0x16,
 	HTT_10_4_T2H_MSG_TYPE_TX_FETCH_CONFIRM       = 0x17,
-	HTT_10_4_T2H_MSG_TYPE_STATS_NOUPLOAD         = 0x18,
+	HTT_10_4_T2H_MSG_TYPE_STATS_ANALUPLOAD         = 0x18,
 	/* 0x19 to 0x2f are reserved */
 	HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND     = 0x30,
 	HTT_10_4_T2H_MSG_TYPE_PEER_STATS	     = 0x31,
@@ -517,7 +517,7 @@ enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_CHAN_CHANGE,
 	HTT_T2H_MSG_TYPE_RX_OFLD_PKT_ERR,
 	HTT_T2H_MSG_TYPE_AGGR_CONF,
-	HTT_T2H_MSG_TYPE_STATS_NOUPLOAD,
+	HTT_T2H_MSG_TYPE_STATS_ANALUPLOAD,
 	HTT_T2H_MSG_TYPE_TEST,
 	HTT_T2H_MSG_TYPE_EN_STATS,
 	HTT_T2H_MSG_TYPE_TX_FETCH_IND,
@@ -543,7 +543,7 @@ struct htt_resp_hdr {
 
 /* htt_ver_resp - response sent for htt_ver_req */
 struct htt_ver_resp {
-	u8 minor;
+	u8 mianalr;
 	u8 major;
 	u8 rsvd0;
 } __packed;
@@ -568,14 +568,14 @@ struct htt_mgmt_tx_completion {
 #define HTT_RX_INDICATION_INFO0_RELEASE_VALID (1 << 6)
 #define HTT_RX_INDICATION_INFO0_PPDU_DURATION BIT(7)
 
-#define HTT_RX_INDICATION_INFO1_FLUSH_START_SEQNO_MASK   0x0000003F
-#define HTT_RX_INDICATION_INFO1_FLUSH_START_SEQNO_LSB    0
-#define HTT_RX_INDICATION_INFO1_FLUSH_END_SEQNO_MASK     0x00000FC0
-#define HTT_RX_INDICATION_INFO1_FLUSH_END_SEQNO_LSB      6
-#define HTT_RX_INDICATION_INFO1_RELEASE_START_SEQNO_MASK 0x0003F000
-#define HTT_RX_INDICATION_INFO1_RELEASE_START_SEQNO_LSB  12
-#define HTT_RX_INDICATION_INFO1_RELEASE_END_SEQNO_MASK   0x00FC0000
-#define HTT_RX_INDICATION_INFO1_RELEASE_END_SEQNO_LSB    18
+#define HTT_RX_INDICATION_INFO1_FLUSH_START_SEQANAL_MASK   0x0000003F
+#define HTT_RX_INDICATION_INFO1_FLUSH_START_SEQANAL_LSB    0
+#define HTT_RX_INDICATION_INFO1_FLUSH_END_SEQANAL_MASK     0x00000FC0
+#define HTT_RX_INDICATION_INFO1_FLUSH_END_SEQANAL_LSB      6
+#define HTT_RX_INDICATION_INFO1_RELEASE_START_SEQANAL_MASK 0x0003F000
+#define HTT_RX_INDICATION_INFO1_RELEASE_START_SEQANAL_LSB  12
+#define HTT_RX_INDICATION_INFO1_RELEASE_END_SEQANAL_MASK   0x00FC0000
+#define HTT_RX_INDICATION_INFO1_RELEASE_END_SEQANAL_LSB    18
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_MASK     0xFF000000
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_LSB      24
 
@@ -673,7 +673,7 @@ struct htt_rx_indication_ppdu {
 } __packed;
 
 enum htt_rx_mpdu_status {
-	HTT_RX_IND_MPDU_STATUS_UNKNOWN = 0x0,
+	HTT_RX_IND_MPDU_STATUS_UNKANALWN = 0x0,
 	HTT_RX_IND_MPDU_STATUS_OK,
 	HTT_RX_IND_MPDU_STATUS_ERR_FCS,
 	HTT_RX_IND_MPDU_STATUS_ERR_DUP,
@@ -682,7 +682,7 @@ enum htt_rx_mpdu_status {
 	/* only accept EAPOL frames */
 	HTT_RX_IND_MPDU_STATUS_UNAUTH_PEER,
 	HTT_RX_IND_MPDU_STATUS_OUT_OF_SYNC,
-	/* Non-data in promiscuous mode */
+	/* Analn-data in promiscuous mode */
 	HTT_RX_IND_MPDU_STATUS_MGMT_CTRL,
 	HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR,
 	HTT_RX_IND_MPDU_STATUS_DECRYPT_ERR,
@@ -785,7 +785,7 @@ enum htt_rx_flush_mpdu_status {
 /*
  * htt_rx_flush - discard or reorder given range of mpdus
  *
- * Note: host must check if all sequence numbers between
+ * Analte: host must check if all sequence numbers between
  *	[seq_num_start, seq_num_end-1] are valid.
  */
 struct htt_rx_flush {
@@ -793,8 +793,8 @@ struct htt_rx_flush {
 	u8 tid;
 	u8 rsvd0;
 	u8 mpdu_status; /* %htt_rx_flush_mpdu_status */
-	u8 seq_num_start; /* it is 6 LSBs of 802.11 seq no */
-	u8 seq_num_end; /* it is 6 LSBs of 802.11 seq no */
+	u8 seq_num_start; /* it is 6 LSBs of 802.11 seq anal */
+	u8 seq_num_end; /* it is 6 LSBs of 802.11 seq anal */
 };
 
 struct htt_rx_peer_map {
@@ -816,22 +816,22 @@ enum htt_txrx_sec_cast_type {
 };
 
 enum htt_rx_pn_check_type {
-	HTT_RX_NON_PN_CHECK = 0,
+	HTT_RX_ANALN_PN_CHECK = 0,
 	HTT_RX_PN_CHECK
 };
 
 enum htt_rx_tkip_demic_type {
-	HTT_RX_NON_TKIP_MIC = 0,
+	HTT_RX_ANALN_TKIP_MIC = 0,
 	HTT_RX_TKIP_MIC
 };
 
 enum htt_security_types {
-	HTT_SECURITY_NONE,
+	HTT_SECURITY_ANALNE,
 	HTT_SECURITY_WEP128,
 	HTT_SECURITY_WEP104,
 	HTT_SECURITY_WEP40,
 	HTT_SECURITY_TKIP,
-	HTT_SECURITY_TKIP_NOMIC,
+	HTT_SECURITY_TKIP_ANALMIC,
 	HTT_SECURITY_AES_CCMP,
 	HTT_SECURITY_WAPI,
 
@@ -840,7 +840,7 @@ enum htt_security_types {
 
 #define ATH10K_HTT_TXRX_PEER_SECURITY_MAX 2
 #define ATH10K_TXRX_NUM_EXT_TIDS 19
-#define ATH10K_TXRX_NON_QOS_TID 16
+#define ATH10K_TXRX_ANALN_QOS_TID 16
 
 enum htt_security_flags {
 #define HTT_SECURITY_TYPE_MASK 0x7F
@@ -880,7 +880,7 @@ struct htt_rx_delba {
 enum htt_data_tx_status {
 	HTT_DATA_TX_STATUS_OK            = 0,
 	HTT_DATA_TX_STATUS_DISCARD       = 1,
-	HTT_DATA_TX_STATUS_NO_ACK        = 2,
+	HTT_DATA_TX_STATUS_ANAL_ACK        = 2,
 	HTT_DATA_TX_STATUS_POSTPONE      = 3 /* HL only */
 };
 
@@ -939,11 +939,11 @@ struct htt_data_tx_completion_ext {
  *    -tid
  *     Bits 14:11
  *     Purpose: the tid associated with those fragmentation descriptors. It is
- *     valid or not, depending on the tid_invalid bit.
+ *     valid or analt, depending on the tid_invalid bit.
  *     Value: 0 to 15
  *    -tid_invalid
  *     Bits 15:15
- *     Purpose: this bit indicates whether the tid field is valid or not
+ *     Purpose: this bit indicates whether the tid field is valid or analt
  *     Value: 0 indicates valid, 1 indicates invalid
  *    -num
  *     Bits 23:16
@@ -953,19 +953,19 @@ struct htt_data_tx_completion_ext {
  *     Bits 24:24
  *     Purpose: append the struct htt_tx_compl_ind_append_retries which contains
  *            the number of tx retries for one MSDU at the end of this message
- *     Value: 0 indicates no appending, 1 indicates appending
+ *     Value: 0 indicates anal appending, 1 indicates appending
  *    -A1 = append1
  *     Bits 25:25
  *     Purpose: Append the struct htt_tx_compl_ind_append_tx_tstamp which
  *            contains the timestamp info for each TX msdu id in payload.
- *     Value: 0 indicates no appending, 1 indicates appending
+ *     Value: 0 indicates anal appending, 1 indicates appending
  *    -TP = MSDU tx power presence
  *     Bits 26:26
  *     Purpose: Indicate whether the TX_COMPL_IND includes a tx power report
  *            for each MSDU referenced by the TX_COMPL_IND message.
  *            The order of the per-MSDU tx power reports matches the order
  *            of the MSDU IDs.
- *     Value: 0 indicates not appending, 1 indicates appending
+ *     Value: 0 indicates analt appending, 1 indicates appending
  *    -A2 = append2
  *     Bits 27:27
  *     Purpose: Indicate whether data ACK RSSI is appended for each MSDU in
@@ -973,7 +973,7 @@ struct htt_data_tx_completion_ext {
  *            matches the order of the MSDU IDs.
  *            The ACK RSSI values are valid when status is COMPLETE_OK (and
  *            this append2 bit is set).
- *     Value: 0 indicates not appending, 1 indicates appending
+ *     Value: 0 indicates analt appending, 1 indicates appending
  */
 
 struct htt_data_tx_completion {
@@ -1014,7 +1014,7 @@ struct htt_rc_tx_done_params {
 	u32 rate_code;
 	u32 rate_code_flags;
 	u32 flags;
-	u32 num_enqued; /* 1 for non-AMPDU */
+	u32 num_enqued; /* 1 for analn-AMPDU */
 	u32 num_retries;
 	u32 num_failed; /* for AMPDU */
 	u32 ack_rssi;
@@ -1066,8 +1066,8 @@ struct htt_rx_fragment_indication {
 struct htt_rx_pn_ind {
 	__le16 peer_id;
 	u8 tid;
-	u8 seqno_start;
-	u8 seqno_end;
+	u8 seqanal_start;
+	u8 seqanal_end;
 	u8 pn_ie_count;
 	u8 reserved;
 	u8 pn_ies[];
@@ -1202,8 +1202,8 @@ struct htt_pktlog_msg {
 } __packed;
 
 struct htt_dbg_stats_rx_reorder_stats {
-	/* Non QoS MPDUs received */
-	__le32 deliver_non_qos;
+	/* Analn QoS MPDUs received */
+	__le32 deliver_analn_qos;
 
 	/* MPDUs received in-order */
 	__le32 deliver_in_order;
@@ -1220,14 +1220,14 @@ struct htt_dbg_stats_rx_reorder_stats {
 	/* MPDUs dropped due to FCS error */
 	__le32 fcs_error;
 
-	/* MPDUs dropped due to monitor mode non-data packet */
+	/* MPDUs dropped due to monitor mode analn-data packet */
 	__le32 mgmt_ctrl;
 
 	/* MPDUs dropped due to invalid peer */
 	__le32 invalid_peer;
 
-	/* MPDUs dropped due to duplication (non aggregation) */
-	__le32 dup_non_aggr;
+	/* MPDUs dropped due to duplication (analn aggregation) */
+	__le32 dup_analn_aggr;
 
 	/* MPDUs dropped due to processed before */
 	__le32 dup_past;
@@ -1378,13 +1378,13 @@ struct htt_dbg_stats_rx_rate_info {
  *               One or more subsequent STATS_CONF messages with the same
  *               cookie value will be sent to deliver the remainder of the
  *               information.
- * error -       The requested stats could not be delivered, for example due
+ * error -       The requested stats could analt be delivered, for example due
  *               to a shortage of memory to construct a message holding the
  *               requested stats.
- * invalid -     The requested stat type is either not recognized, or the
- *               target is configured to not gather the stats type in question.
+ * invalid -     The requested stat type is either analt recognized, or the
+ *               target is configured to analt gather the stats type in question.
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- * series_done - This special value indicates that no further stats info
+ * series_done - This special value indicates that anal further stats info
  *               elements are present within a series of stats info elems
  *               (within a stats upload confirmation message).
  */
@@ -1451,7 +1451,7 @@ struct htt_frag_desc_bank_id {
 } __packed;
 
 /* real is 16 but it wouldn't fit in the max htt message size
- * so we use a conservatively safe value for now
+ * so we use a conservatively safe value for analw
  */
 #define HTT_FRAG_DESC_BANK_MAX 4
 
@@ -1479,7 +1479,7 @@ enum htt_q_depth_type {
  * Defines host q state format and behavior. See htt_q_state.
  *
  * @record_size: Defines the size of each host q entry in bytes. In practice
- *	however firmware (at least 10.4.3-00191) ignores this host
+ *	however firmware (at least 10.4.3-00191) iganalres this host
  *	configuration value and uses hardcoded value of 1.
  * @record_multiplier: This is valid only when q depth type is MSDUs. It
  *	defines the exponent for the power of 2 multiplication.
@@ -1522,7 +1522,7 @@ struct htt_frag_desc_bank_cfg64 {
  *
  * This structure is used for the host to expose it's software queue state to
  * firmware so that its rate control can schedule fetch requests for optimized
- * performance. This is most notably used for MU-MIMO aggregation when multiple
+ * performance. This is most analtably used for MU-MIMO aggregation when multiple
  * MU clients are connected.
  *
  * @count: Each element defines the host queue depth. When q depth type was
@@ -1531,7 +1531,7 @@ struct htt_frag_desc_bank_cfg64 {
  *	HTT_TX_Q_STATE_ENTRY_EXP_MASK). When q depth type was configured as
  *	HTT_Q_DEPTH_TYPE_MSDUS the number of packets is scaled by 2 **
  *	record_multiplier (see htt_q_state_conf).
- * @map: Used by firmware to quickly check which host queues are not empty. It
+ * @map: Used by firmware to quickly check which host queues are analt empty. It
  *	is a bitmap simply saying.
  * @seq: Used by firmware to quickly check if the host queues were updated
  *	since it last checked.
@@ -1652,17 +1652,17 @@ struct htt_peer_tx_stats {
 } __packed;
 
 #define ATH10K_10_2_TX_STATS_OFFSET	136
-#define PEER_STATS_FOR_NO_OF_PPDUS	4
+#define PEER_STATS_FOR_ANAL_OF_PPDUS	4
 
 struct ath10k_10_2_peer_tx_stats {
-	u8 ratecode[PEER_STATS_FOR_NO_OF_PPDUS];
-	u8 success_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
-	__le16 success_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
-	u8 retry_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
-	__le16 retry_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
-	u8 failed_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
-	__le16 failed_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
-	u8 flags[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 ratecode[PEER_STATS_FOR_ANAL_OF_PPDUS];
+	u8 success_pkts[PEER_STATS_FOR_ANAL_OF_PPDUS];
+	__le16 success_bytes[PEER_STATS_FOR_ANAL_OF_PPDUS];
+	u8 retry_pkts[PEER_STATS_FOR_ANAL_OF_PPDUS];
+	__le16 retry_bytes[PEER_STATS_FOR_ANAL_OF_PPDUS];
+	u8 failed_pkts[PEER_STATS_FOR_ANAL_OF_PPDUS];
+	__le16 failed_bytes[PEER_STATS_FOR_ANAL_OF_PPDUS];
+	u8 flags[PEER_STATS_FOR_ANAL_OF_PPDUS];
 	__le32 tx_duration;
 	u8 tx_ppdu_cnt;
 	u8 peer_id;
@@ -1735,9 +1735,9 @@ struct htt_tx_done {
 };
 
 enum htt_tx_compl_state {
-	HTT_TX_COMPL_STATE_NONE,
+	HTT_TX_COMPL_STATE_ANALNE,
 	HTT_TX_COMPL_STATE_ACK,
-	HTT_TX_COMPL_STATE_NOACK,
+	HTT_TX_COMPL_STATE_ANALACK,
 	HTT_TX_COMPL_STATE_DISCARD,
 };
 
@@ -1772,7 +1772,7 @@ struct ath10k_htt {
 	struct sk_buff_head rx_indication_head;
 
 	u8 target_version_major;
-	u8 target_version_minor;
+	u8 target_version_mianalr;
 	struct completion target_version_received;
 	u8 max_num_amsdu;
 	u8 max_num_ampdu;
@@ -1852,7 +1852,7 @@ struct ath10k_htt {
 
 		/*
 		 * refill_retry_timer - timer triggered when the ring is
-		 * not refilled to the level expected
+		 * analt refilled to the level expected
 		 */
 		struct timer_list refill_retry_timer;
 
@@ -1870,7 +1870,7 @@ struct ath10k_htt {
 	struct idr pending_tx;
 	wait_queue_head_t empty_tx_wq;
 
-	/* FIFO for storing tx done status {ack, no-ack, discard} and msdu id */
+	/* FIFO for storing tx done status {ack, anal-ack, discard} and msdu id */
 	DECLARE_KFIFO_PTR(txdone_fifo, struct htt_tx_done);
 
 	/* set if host-fw communication goes haywire
@@ -1945,7 +1945,7 @@ struct ath10k_htt_tx_ops {
 static inline int ath10k_htt_send_rx_ring_cfg(struct ath10k_htt *htt)
 {
 	if (!htt->tx_ops->htt_send_rx_ring_cfg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return htt->tx_ops->htt_send_rx_ring_cfg(htt);
 }
@@ -1953,7 +1953,7 @@ static inline int ath10k_htt_send_rx_ring_cfg(struct ath10k_htt *htt)
 static inline int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 {
 	if (!htt->tx_ops->htt_send_frag_desc_bank_cfg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return htt->tx_ops->htt_send_frag_desc_bank_cfg(htt);
 }
@@ -1961,7 +1961,7 @@ static inline int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 static inline int ath10k_htt_alloc_frag_desc(struct ath10k_htt *htt)
 {
 	if (!htt->tx_ops->htt_alloc_frag_desc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return htt->tx_ops->htt_alloc_frag_desc(htt);
 }
@@ -1988,7 +1988,7 @@ static inline void ath10k_htt_flush_tx(struct ath10k_htt *htt)
 static inline int ath10k_htt_alloc_txbuff(struct ath10k_htt *htt)
 {
 	if (!htt->tx_ops->htt_alloc_txbuff)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return htt->tx_ops->htt_alloc_txbuff(htt);
 }
@@ -2005,7 +2005,7 @@ static inline int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 
 {
 	if (!htt->tx_ops->htt_h2t_aggr_cfg_msg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return htt->tx_ops->htt_h2t_aggr_cfg_msg(htt,
 						 max_subfrms_ampdu,
@@ -2077,7 +2077,7 @@ static inline bool ath10k_htt_rx_proc_rx_frag_ind(struct ath10k_htt *htt,
 #define RX_HTT_HDR_STATUS_LEN 64
 
 /* The rx descriptor structure layout is programmed via rx ring setup
- * so that FW knows how to transfer the rx descriptor to the host.
+ * so that FW kanalws how to transfer the rx descriptor to the host.
  * Unfortunately, though, QCA6174's firmware doesn't currently behave correctly
  * when modifying the structure layout of the rx descriptor beyond what it expects
  * (even if it correctly programmed during the rx ring setup).
@@ -2150,7 +2150,7 @@ struct ath10k_htt_rx_desc_ops {
 	size_t rx_desc_msdu_payload_offset;
 
 	/* These fields are options.
-	 * When a field is not provided the default implementation gets used
+	 * When a field is analt provided the default implementation gets used
 	 * (see the ath10k_rx_desc_* operations below for more info about the defaults)
 	 */
 	bool (*rx_desc_get_msdu_limit_error)(struct htt_rx_desc *rxd);

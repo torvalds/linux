@@ -209,7 +209,7 @@ static struct clk_hw *clk_reg_prcmu(const char *name,
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk->cg_sel = cg_sel;
 	clk->opp_requested = 0;
@@ -233,7 +233,7 @@ static struct clk_hw *clk_reg_prcmu(const char *name,
 free_clk:
 	kfree(clk);
 	pr_err("clk_prcmu: %s failed to register clk\n", __func__);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 struct clk_hw *clk_reg_prcmu_scalable(const char *name,
@@ -344,7 +344,7 @@ static const struct clk_ops clk_prcmu_clkout_ops = {
 	.prepare = clk_prcmu_clkout_prepare,
 	.unprepare = clk_prcmu_clkout_unprepare,
 	.recalc_rate = clk_prcmu_clkout_recalc_rate,
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = clk_prcmu_clkout_get_parent,
 	.set_parent = clk_prcmu_clkout_set_parent,
 };
@@ -376,7 +376,7 @@ struct clk_hw *clk_reg_prcmu_clkout(const char *name,
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk->clkout_id = clkout_id;
 	clk->source = source;
@@ -384,7 +384,7 @@ struct clk_hw *clk_reg_prcmu_clkout(const char *name,
 
 	clk_prcmu_clkout_init.name = name;
 	clk_prcmu_clkout_init.ops = &clk_prcmu_clkout_ops;
-	clk_prcmu_clkout_init.flags = CLK_GET_RATE_NOCACHE;
+	clk_prcmu_clkout_init.flags = CLK_GET_RATE_ANALCACHE;
 	clk_prcmu_clkout_init.parent_names = parent_names;
 	clk_prcmu_clkout_init.num_parents = num_parents;
 	clk->hw.init = &clk_prcmu_clkout_init;
@@ -397,5 +397,5 @@ struct clk_hw *clk_reg_prcmu_clkout(const char *name,
 free_clkout:
 	kfree(clk);
 	pr_err("clk_prcmu_clkout: %s failed to register clk\n", __func__);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }

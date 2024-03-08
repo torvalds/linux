@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2018, Breno Leitao, Gustavo Romero, IBM Corp.
+ * Copyright 2018, Breanal Leitao, Gustavo Romero, IBM Corp.
  *
  * This test raises a SIGUSR1 signal, and toggle the MSR[TS]
  * fields at the signal handler. With MSR[TS] being set, the kernel will
@@ -33,8 +33,8 @@
 
 /*
  * This test only runs on 64 bits system. Unsetting MSR_TS_S to avoid
- * compilation issue on 32 bits system. There is no side effect, since the
- * whole test will be skipped if it is not running on 64 bits system.
+ * compilation issue on 32 bits system. There is anal side effect, since the
+ * whole test will be skipped if it is analt running on 64 bits system.
  */
 #ifndef __powerpc64__
 #undef  MSR_TS_S
@@ -47,7 +47,7 @@ ucontext_t init_context;
 /* count is changed in the signal handler, so it must be volatile */
 static volatile int count;
 
-void usr_signal_handler(int signo, siginfo_t *si, void *uc)
+void usr_signal_handler(int siganal, siginfo_t *si, void *uc)
 {
 	ucontext_t *ucp = uc;
 	int ret;
@@ -59,7 +59,7 @@ void usr_signal_handler(int signo, siginfo_t *si, void *uc)
 	 */
 	ucp->uc_link = mmap(NULL, sizeof(ucontext_t),
 			    PROT_READ | PROT_WRITE,
-			    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+			    MAP_PRIVATE | MAP_AANALNYMOUS, 0, 0);
 	if (ucp->uc_link == (void *)-1) {
 		perror("Mmap failed");
 		exit(-1);
@@ -92,12 +92,12 @@ void usr_signal_handler(int signo, siginfo_t *si, void *uc)
 	}
 
 	/*
-	 * If the change above does not hit the bug, it will cause a
+	 * If the change above does analt hit the bug, it will cause a
 	 * segmentation fault, since the ck structures are NULL.
 	 */
 }
 
-void seg_signal_handler(int signo, siginfo_t *si, void *uc)
+void seg_signal_handler(int siganal, siginfo_t *si, void *uc)
 {
 	count++;
 
@@ -125,7 +125,7 @@ void tm_trap_test(void)
 	while (count < COUNT_MAX) {
 		/* Allocated an alternative signal stack area */
 		ss.ss_sp = mmap(NULL, SIGSTKSZ, PROT_READ | PROT_WRITE,
-				MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+				MAP_PRIVATE | MAP_AANALNYMOUS, 0, 0);
 		ss.ss_size = SIGSTKSZ;
 		ss.ss_flags = 0;
 
@@ -151,7 +151,7 @@ void tm_trap_test(void)
 
 		/* The signal handler will enable MSR_TS */
 		sigaction(SIGUSR1, &usr_sa, NULL);
-		/* If it does not crash, it might segfault, avoid it to retest */
+		/* If it does analt crash, it might segfault, avoid it to retest */
 		sigaction(SIGSEGV, &seg_sa, NULL);
 
 		raise(SIGUSR1);
@@ -163,8 +163,8 @@ int tm_signal_context_force_tm(void)
 {
 	SKIP_IF(!have_htm());
 	/*
-	 * Skipping if not running on 64 bits system, since I think it is
-	 * not possible to set mcontext's [MSR] with TS, due to it being 32
+	 * Skipping if analt running on 64 bits system, since I think it is
+	 * analt possible to set mcontext's [MSR] with TS, due to it being 32
 	 * bits.
 	 */
 	SKIP_IF(!is_ppc64le());

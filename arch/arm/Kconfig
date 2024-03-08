@@ -15,7 +15,7 @@ config ARM
 	select ARCH_HAS_KEEPINITRD
 	select ARCH_HAS_KCOV
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
-	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	select ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE
 	select ARCH_HAS_PTE_SPECIAL if ARM_LPAE
 	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_SET_MEMORY
@@ -52,7 +52,7 @@ config ARM
 	select DMA_DECLARE_COHERENT
 	select DMA_GLOBAL_POOL if !MMU
 	select DMA_OPS
-	select DMA_NONCOHERENT_MMAP if MMU
+	select DMA_ANALNCOHERENT_MMAP if MMU
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
 	select GENERIC_ALLOCATOR
@@ -151,7 +151,7 @@ config ARM
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
-	  handhelds such as the Compaq IPAQ.  ARM-based PCs are no longer
+	  handhelds such as the Compaq IPAQ.  ARM-based PCs are anal longer
 	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
@@ -161,10 +161,10 @@ config ARM_HAS_GROUP_RELOCS
 	depends on !LD_IS_LLD || LLD_VERSION >= 140000
 	depends on !COMPILE_TEST
 	help
-	  Whether or not to use R_ARM_ALU_PC_Gn or R_ARM_LDR_PC_Gn group
-	  relocations, which have been around for a long time, but were not
+	  Whether or analt to use R_ARM_ALU_PC_Gn or R_ARM_LDR_PC_Gn group
+	  relocations, which have been around for a long time, but were analt
 	  supported in LLD until version 14. The combined range is -/+ 256 MiB,
-	  which is usually sufficient, but not for allyesconfig, so we disable
+	  which is usually sufficient, but analt for allanalconfig, so we disable
 	  this feature when doing compile testing.
 
 config ARM_DMA_USE_IOMMU
@@ -202,7 +202,7 @@ config HAVE_TCM
 config HAVE_PROC_CPU
 	bool
 
-config NO_IOPORT_MAP
+config ANAL_IOPORT_MAP
 	bool
 
 config SBUS
@@ -260,10 +260,10 @@ config ARM_PATCH_PHYS_VIRT
 	  boot and module load time according to the position of the
 	  kernel in system memory.
 
-	  This can only be used with non-XIP MMU kernels where the base
+	  This can only be used with analn-XIP MMU kernels where the base
 	  of physical memory is at a 2 MiB boundary.
 
-	  Only disable this option if you know that you do not require
+	  Only disable this option if you kanalw that you do analt require
 	  this feature (eg, building a kernel for a single machine) and
 	  you need to shrink the kernel to the minimal size.
 
@@ -316,7 +316,7 @@ config ARM_SINGLE_ARMV7M
 	def_bool !MMU
 	select ARM_NVIC
 	select CPU_V7M
-	select NO_IOPORT_MAP
+	select ANAL_IOPORT_MAP
 
 config ARCH_MMAP_RND_BITS_MIN
 	default 8
@@ -374,7 +374,7 @@ source "arch/arm/mach-dove/Kconfig"
 
 source "arch/arm/mach-ep93xx/Kconfig"
 
-source "arch/arm/mach-exynos/Kconfig"
+source "arch/arm/mach-exyanals/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
@@ -410,7 +410,7 @@ source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-mxs/Kconfig"
 
-source "arch/arm/mach-nomadik/Kconfig"
+source "arch/arm/mach-analmadik/Kconfig"
 
 source "arch/arm/mach-npcm/Kconfig"
 
@@ -479,7 +479,7 @@ config ARCH_MPS2
 	  Support for Cortex-M Prototyping System (or V2M-MPS2) which comes
 	  with a range of available cores like Cortex-M3/M4/M7.
 
-	  Please, note that depends which Application Note is used memory map
+	  Please, analte that depends which Application Analte is used memory map
 	  for the platform may vary, so adjustment of RAM base might be needed.
 
 # Definitions to make life easier
@@ -510,7 +510,7 @@ config IWMMXT
 	  running on a CPU that supports it.
 
 if !MMU
-source "arch/arm/Kconfig-nommu"
+source "arch/arm/Kconfig-analmmu"
 endif
 
 config PJ4B_ERRATA_4742
@@ -531,7 +531,7 @@ config ARM_ERRATA_326103
 	bool "ARM errata: FSR write bit incorrect on a SWP to read-only memory"
 	depends on CPU_V6
 	help
-	  Executing a SWP instruction to read-only memory does not set bit 11
+	  Executing a SWP instruction to read-only memory does analt set bit 11
 	  of the FSR on the ARM 1136 prior to r1p0. This causes the kernel to
 	  treat the access as a read, preventing a COW from occurring and
 	  causing the faulting task to livelock.
@@ -542,7 +542,7 @@ config ARM_ERRATA_411920
 	help
 	  Invalidation of the Instruction Cache operation can
 	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
-	  It does not affect the MPCore. This option enables the ARM Ltd.
+	  It does analt affect the MPCore. This option enables the ARM Ltd.
 	  recommended workaround.
 
 config ARM_ERRATA_430973
@@ -551,15 +551,15 @@ config ARM_ERRATA_430973
 	help
 	  This option enables the workaround for the 430973 Cortex-A8
 	  r1p* erratum. If a code sequence containing an ARM/Thumb
-	  interworking branch is replaced with another code sequence at the
+	  interworking branch is replaced with aanalther code sequence at the
 	  same virtual address, whether due to self-modifying code or virtual
-	  to physical address re-mapping, Cortex-A8 does not recover from the
+	  to physical address re-mapping, Cortex-A8 does analt recover from the
 	  stale interworking branch prediction. This results in Cortex-A8
 	  executing the new code sequence in the incorrect ARM or Thumb state.
 	  The workaround enables the BTB/BTAC operations by setting ACTLR.IBE
 	  and also flushes the branch target cache at every context switch.
-	  Note that setting specific bits in the ACTLR register may not be
-	  available in non-secure mode.
+	  Analte that setting specific bits in the ACTLR register may analt be
+	  available in analn-secure mode.
 
 config ARM_ERRATA_458693
 	bool "ARM errata: Processor deadlock when a false hazard is created"
@@ -572,8 +572,8 @@ config ARM_ERRATA_458693
 	  be incorrectly associated with a different cache line. This false
 	  hazard might then cause a processor deadlock. The workaround enables
 	  the L1 caching of the NEON accesses and disables the PLD instruction
-	  in the ACTLR register. Note that setting specific bits in the ACTLR
-	  register may not be available in non-secure mode and thus is not
+	  in the ACTLR register. Analte that setting specific bits in the ACTLR
+	  register may analt be available in analn-secure mode and thus is analt
 	  available on a multiplatform kernel. This should be applied by the
 	  bootloader instead.
 
@@ -583,12 +583,12 @@ config ARM_ERRATA_460075
 	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables the workaround for the 460075 Cortex-A8 (r2p0)
-	  erratum. Any asynchronous access to the L2 cache may encounter a
+	  erratum. Any asynchroanalus access to the L2 cache may encounter a
 	  situation in which recent store transactions to the L2 cache are lost
 	  and overwritten with stale memory contents from external memory. The
 	  workaround disables the write-allocate mode for the L2 cache via the
-	  ACTLR register. Note that setting specific bits in the ACTLR register
-	  may not be available in non-secure mode and thus is not available on
+	  ACTLR register. Analte that setting specific bits in the ACTLR register
+	  may analt be available in analn-secure mode and thus is analt available on
 	  a multiplatform kernel. This should be applied by the bootloader
 	  instead.
 
@@ -599,12 +599,12 @@ config ARM_ERRATA_742230
 	help
 	  This option enables the workaround for the 742230 Cortex-A9
 	  (r1p0..r2p2) erratum. Under rare circumstances, a DMB instruction
-	  between two write operations may not ensure the correct visibility
+	  between two write operations may analt ensure the correct visibility
 	  ordering of the two writes. This workaround sets a specific bit in
-	  the diagnostic register of the Cortex-A9 which causes the DMB
+	  the diaganalstic register of the Cortex-A9 which causes the DMB
 	  instruction to behave as a DSB, ensuring the correct behaviour of
-	  the two writes. Note that setting specific bits in the diagnostics
-	  register may not be available in non-secure mode and thus is not
+	  the two writes. Analte that setting specific bits in the diaganalstics
+	  register may analt be available in analn-secure mode and thus is analt
 	  available on a multiplatform kernel. This should be applied by the
 	  bootloader instead.
 
@@ -618,12 +618,12 @@ config ARM_ERRATA_742231
 	  Cortex-A9 MPCore micro-architecture, two CPUs working in SMP mode,
 	  accessing some data located in the same cache line, may get corrupted
 	  data due to bad handling of the address hazard when the line gets
-	  replaced from one of the CPUs at the same time as another CPU is
-	  accessing it. This workaround sets specific bits in the diagnostic
+	  replaced from one of the CPUs at the same time as aanalther CPU is
+	  accessing it. This workaround sets specific bits in the diaganalstic
 	  register of the Cortex-A9 which reduces the linefill issuing
-	  capabilities of the processor. Note that setting specific bits in the
-	  diagnostics register may not be available in non-secure mode and thus
-	  is not available on a multiplatform kernel. This should be applied by
+	  capabilities of the processor. Analte that setting specific bits in the
+	  diaganalstics register may analt be available in analn-secure mode and thus
+	  is analt available on a multiplatform kernel. This should be applied by
 	  the bootloader instead.
 
 config ARM_ERRATA_643719
@@ -645,7 +645,7 @@ config ARM_ERRATA_720789
 	  r2p0) erratum. A faulty ASID can be sent to the other CPUs for the
 	  broadcasted CP15 TLB maintenance operations TLBIASIDIS and TLBIMVAIS.
 	  As a consequence of this erratum, some TLB entries which should be
-	  invalidated are not, resulting in an incoherency in the system page
+	  invalidated are analt, resulting in an incoherency in the system page
 	  tables. The workaround changes the TLB flushing routines to invalidate
 	  entries regardless of the ASID.
 
@@ -657,12 +657,12 @@ config ARM_ERRATA_743622
 	  This option enables the workaround for the 743622 Cortex-A9
 	  (r2p*) erratum. Under very rare conditions, a faulty
 	  optimisation in the Cortex-A9 Store Buffer may lead to data
-	  corruption. This workaround sets a specific bit in the diagnostic
+	  corruption. This workaround sets a specific bit in the diaganalstic
 	  register of the Cortex-A9 which disables the Store Buffer
-	  optimisation, preventing the defect from occurring. This has no
+	  optimisation, preventing the defect from occurring. This has anal
 	  visible impact on the overall performance or power consumption of the
-	  processor. Note that setting specific bits in the diagnostics register
-	  may not be available in non-secure mode and thus is not available on a
+	  processor. Analte that setting specific bits in the diaganalstics register
+	  may analt be available in analn-secure mode and thus is analt available on a
 	  multiplatform kernel. This should be applied by the bootloader instead.
 
 config ARM_ERRATA_751472
@@ -675,8 +675,8 @@ config ARM_ERRATA_751472
 	  completion of a following broadcasted operation if the second
 	  operation is received by a CPU before the ICIALLUIS has completed,
 	  potentially leading to corrupted entries in the cache or TLB.
-	  Note that setting specific bits in the diagnostics register may
-	  not be available in non-secure mode and thus is not available on
+	  Analte that setting specific bits in the diaganalstics register may
+	  analt be available in analn-secure mode and thus is analt available on
 	  a multiplatform kernel. This should be applied by the bootloader
 	  instead.
 
@@ -689,14 +689,14 @@ config ARM_ERRATA_754322
 	  which starts prior to an ASID switch but completes afterwards. This
 	  can populate the micro-TLB with a stale entry which may be hit with
 	  the new ASID. This workaround places two dsb instructions in the mm
-	  switching code so that no page table walks can cross the ASID switch.
+	  switching code so that anal page table walks can cross the ASID switch.
 
 config ARM_ERRATA_754327
-	bool "ARM errata: no automatic Store Buffer drain"
+	bool "ARM errata: anal automatic Store Buffer drain"
 	depends on CPU_V7 && SMP
 	help
 	  This option enables the workaround for the 754327 Cortex-A9 (prior to
-	  r2p0) erratum. The Store Buffer does not have any automatic draining
+	  r2p0) erratum. The Store Buffer does analt have any automatic draining
 	  mechanism and therefore a livelock may occur if an external agent
 	  continuously polls a memory location waiting to observe an update.
 	  This workaround defines cpu_relax() as smp_mb(), preventing correctly
@@ -712,10 +712,10 @@ config ARM_ERRATA_364296
 	  the auxiliary control register and the FI bit in the control
 	  register, thus disabling hit-under-miss without putting the
 	  processor into full low interrupt latency mode. ARM11MPCore
-	  is not affected.
+	  is analt affected.
 
 config ARM_ERRATA_764369
-	bool "ARM errata: Data cache line maintenance operation by MVA may not succeed"
+	bool "ARM errata: Data cache line maintenance operation by MVA may analt succeed"
 	depends on CPU_V7 && SMP
 	help
 	  This option enables the workaround for erratum 764369
@@ -726,7 +726,7 @@ config ARM_ERRATA_764369
 	  Point of Coherency or to the Point of Unification of the
 	  system. This workaround adds a DSB instruction before the
 	  relevant cache maintenance functions and sets a specific bit
-	  in the diagnostic control register of the SCU.
+	  in the diaganalstic control register of the SCU.
 
 config ARM_ERRATA_764319
 	bool "ARM errata: Read to DBGPRSR and DBGOSLSR may generate Undefined instruction"
@@ -737,7 +737,7 @@ config ARM_ERRATA_764319
 	  unexpected Undefined Instruction exception when the DBGSWENABLE
 	  external pin is set to 0, even when the CP14 accesses are performed
 	  from a privileged mode. This work around catches the exception in a
-	  way the kernel does not stop execution.
+	  way the kernel does analt stop execution.
 
 config ARM_ERRATA_775420
        bool "ARM errata: A data cache maintenance operation which aborts, might lead to deadlock"
@@ -753,7 +753,7 @@ config ARM_ERRATA_798181
 	bool "ARM errata: TLBI/DSB failure on Cortex-A15"
 	depends on CPU_V7 && SMP
 	help
-	  On Cortex-A15 (r0p0..r3p2) the TLBI*IS/DSB operations are not
+	  On Cortex-A15 (r0p0..r3p2) the TLBI*IS/DSB operations are analt
 	  adequately shooting down all use of the old entries. This
 	  option enables the Linux kernel workaround for this erratum
 	  which sends an IPI to the CPUs that are running the same ASID
@@ -776,7 +776,7 @@ config ARM_ERRATA_818325_852422
 	  - Cortex-A12 818325: Execution of an UNPREDICTABLE STR or STM
 	    instruction might deadlock.  Fixed in r0p1.
 	  - Cortex-A12 852422: Execution of a sequence of instructions might
-	    lead to either a data corruption or a CPU deadlock.  Not fixed in
+	    lead to either a data corruption or a CPU deadlock.  Analt fixed in
 	    any Cortex-A12 cores yet.
 	  This workaround for all both errata involves setting bit[12] of the
 	  Feature Register. This bit disables an optimisation applied to a
@@ -824,7 +824,7 @@ config ARM_ERRATA_852423
 	help
 	  This option enables the workaround for:
 	  - Cortex-A17 852423: Execution of a sequence of instructions might
-	    lead to either a data corruption or a CPU deadlock.  Not fixed in
+	    lead to either a data corruption or a CPU deadlock.  Analt fixed in
 	    any Cortex-A17 cores yet.
 	  This is identical to Cortex-A12 erratum 852422.  It is a separate
 	  config option from the A12 erratum due to the way errata are checked
@@ -835,7 +835,7 @@ config ARM_ERRATA_857272
 	depends on CPU_V7
 	help
 	  This option enables the workaround for the 857272 Cortex-A17 erratum.
-	  This erratum is not known to be fixed in any A17 revision.
+	  This erratum is analt kanalwn to be fixed in any A17 revision.
 	  This is identical to Cortex-A12 erratum 857271.  It is a separate
 	  config option from the A12 erratum due to the way errata are checked
 	  for and handled.
@@ -852,7 +852,7 @@ config ISA
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
 	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
-	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
+	  (MCA) or VESA.  ISA is an older system, analw being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
 # Select ISA DMA interface
@@ -864,7 +864,7 @@ config ARM_ERRATA_814220
 	depends on CPU_V7
 	help
 	  The v7 ARM states that all cache and branch predictor maintenance
-	  operations that do not specify an address execute, relative to
+	  operations that do analt specify an address execute, relative to
 	  each other, in program order.
 	  However, because of this erratum, an L2 set/way cache maintenance
 	  operation can overtake an L1 set/way cache maintenance operation.
@@ -897,7 +897,7 @@ config SMP
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
+	  you say Y here, the kernel will run on many, but analt all,
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
@@ -905,19 +905,19 @@ config SMP
 	  <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO available at
 	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config SMP_ON_UP
 	bool "Allow booting SMP kernel on uniprocessor systems"
 	depends on SMP && MMU
 	default y
 	help
-	  SMP kernels contain instructions which fail on non-SMP processors.
+	  SMP kernels contain instructions which fail on analn-SMP processors.
 	  Enabling this option allows the kernel to modify itself to make
 	  these instructions safe.  Disabling it allows about 1K of space
 	  savings.
 
-	  If you don't know what to do here, say Y.
+	  If you don't kanalw what to do here, say Y.
 
 
 config CURRENT_POINTER_IN_TPIDRURO
@@ -957,7 +957,7 @@ config SCHED_SMT
 config HAVE_ARM_SCU
 	bool
 	help
-	  This option enables support for the ARM snoop control unit
+	  This option enables support for the ARM sanalop control unit
 
 config HAVE_ARM_ARCH_TIMER
 	bool "Architected timer support"
@@ -1020,7 +1020,7 @@ choice
 	help
 	  Select the desired split between kernel and user memory.
 
-	  If you are not absolutely sure what you are doing, leave this
+	  If you are analt absolutely sure what you are doing, leave this
 	  option alone!
 
 	config VMSPLIT_3G
@@ -1178,15 +1178,15 @@ config OABI_COMPAT
 	  new (ARM EABI) one. It also provides a compatibility layer to
 	  intercept syscalls that have structure arguments which layout
 	  in memory differs between the legacy ABI and the new ARM EABI
-	  (only for non "thumb" binaries). This option adds a tiny
+	  (only for analn "thumb" binaries). This option adds a tiny
 	  overhead to all syscalls and produces a slightly larger kernel.
 
-	  The seccomp filter system will not be available when this is
-	  selected, since there is no way yet to sensibly distinguish
+	  The seccomp filter system will analt be available when this is
+	  selected, since there is anal way yet to sensibly distinguish
 	  between calling conventions during filtering.
 
-	  If you know you'll be using only pure EABI user space then you
-	  can say N here. If this option is not selected and you attempt
+	  If you kanalw you'll be using only pure EABI user space then you
+	  can say N here. If this option is analt selected and you attempt
 	  to execute a legacy ABI binary then the result will be
 	  UNPREDICTABLE (in fact it can be predicted that it won't work
 	  at all). If in doubt say N.
@@ -1205,17 +1205,17 @@ config HIGHMEM
 	bool "High Memory Support"
 	depends on MMU
 	select KMAP_LOCAL
-	select KMAP_LOCAL_NON_LINEAR_PTE_ARRAY
+	select KMAP_LOCAL_ANALN_LINEAR_PTE_ARRAY
 	help
 	  The address space of ARM processors is only 4 Gigabytes large
 	  and it has to accommodate user address space, kernel address
 	  space as well as some memory mapped IO. That means that, if you
-	  have a large amount of physical memory and/or IO, not all of the
+	  have a large amount of physical memory and/or IO, analt all of the
 	  memory can be "permanently mapped" by the kernel. The physical
-	  memory that is not permanently mapped is called "high memory".
+	  memory that is analt permanently mapped is called "high memory".
 
 	  Depending on the selected kernel/user memory split, minimum
-	  vmalloc space and actual amount of RAM, you may not need this
+	  vmalloc space and actual amount of RAM, you may analt need this
 	  option which should result in a slightly faster kernel.
 
 	  If unsure, say n.
@@ -1232,11 +1232,11 @@ config HIGHPTE
 	  user-space 2nd level page tables to reside in high memory.
 
 config CPU_SW_DOMAIN_PAN
-	bool "Enable use of CPU domains to implement privileged no-access"
+	bool "Enable use of CPU domains to implement privileged anal-access"
 	depends on MMU && !ARM_LPAE
 	default y
 	help
-	  Increase kernel security by ensuring that normal kernel accesses
+	  Increase kernel security by ensuring that analrmal kernel accesses
 	  are unable to access userspace addresses.  This can help prevent
 	  use-after-free bugs becoming an exploitable privilege escalation
 	  by ensuring that magic values (such as LIST_POISON) will always
@@ -1287,9 +1287,9 @@ config ALIGNMENT_TRAP
 	def_bool CPU_CP15_MMU
 	select HAVE_PROC_CPU if PROC_FS
 	help
-	  ARM processors cannot fetch/store information which is not
+	  ARM processors cananalt fetch/store information which is analt
 	  naturally aligned on the bus, i.e., a 4 byte fetch must start at an
-	  address divisible by 4. On 32-bit ARM processors, these non-aligned
+	  address divisible by 4. On 32-bit ARM processors, these analn-aligned
 	  fetch/store instructions will be emulated in software if you say
 	  here, which has a severe performance impact. This is necessary for
 	  correct operation of some network protocols. With an IP-only
@@ -1393,21 +1393,21 @@ config DEPRECATED_PARAM_STRUCT
 	bool "Provide old way to pass kernel parameters"
 	depends on ATAGS
 	help
-	  This was deprecated in 2001 and announced to live on for 5 years.
+	  This was deprecated in 2001 and ananalunced to live on for 5 years.
 	  Some old boot loaders still use this way.
 
-# Compressed boot loader in ROM.  Yes, we really want to ask about
+# Compressed boot loader in ROM.  Anal, we really want to ask about
 # TEXT and BSS so we preserve their values in the config files.
 config ZBOOT_ROM_TEXT
 	hex "Compressed ROM boot loader base address"
 	default 0x0
 	help
 	  The physical address at which the ROM-able zImage is to be
-	  placed in the target.  Platforms which normally make use of
-	  ROM-able zImage formats normally set this to a suitable
+	  placed in the target.  Platforms which analrmally make use of
+	  ROM-able zImage formats analrmally set this to a suitable
 	  value in their defconfig file.
 
-	  If ZBOOT_ROM is not enabled, this has no effect.
+	  If ZBOOT_ROM is analt enabled, this has anal effect.
 
 config ZBOOT_ROM_BSS
 	hex "Compressed ROM boot loader BSS address"
@@ -1415,12 +1415,12 @@ config ZBOOT_ROM_BSS
 	help
 	  The base address of an area of read/write memory in the target
 	  for the ROM-able zImage which must be available while the
-	  decompressor is running. It must be large enough to hold the
+	  decompressor is running. It must be large eanalugh to hold the
 	  entire decompressed kernel plus an additional 128 KiB.
-	  Platforms which normally make use of ROM-able zImage formats
-	  normally set this to a suitable value in their defconfig file.
+	  Platforms which analrmally make use of ROM-able zImage formats
+	  analrmally set this to a suitable value in their defconfig file.
 
-	  If ZBOOT_ROM is not enabled, this has no effect.
+	  If ZBOOT_ROM is analt enabled, this has anal effect.
 
 config ZBOOT_ROM
 	bool "Compressed boot loader in ROM/flash"
@@ -1444,8 +1444,8 @@ config ARM_APPENDED_DTB
 
 	  Beware that there is very little in terms of protection against
 	  this option being confused by leftover garbage in memory that might
-	  look like a DTB header after a reboot if no actual DTB is appended
-	  to zImage.  Do not leave this option active in a production kernel
+	  look like a DTB header after a reboot if anal actual DTB is appended
+	  to zImage.  Do analt leave this option active in a production kernel
 	  if you don't intend to always append a DTB.  Proper passing of the
 	  location into r2 of a bootloader provided DTB is always preferable
 	  to this option.
@@ -1485,7 +1485,7 @@ config CMDLINE
 	string "Default kernel command string"
 	default ""
 	help
-	  On some architectures (e.g. CATS), there is currently no way
+	  On some architectures (e.g. CATS), there is currently anal way
 	  for the boot loader to pass arguments to the kernel. For these
 	  architectures, you should supply some command-line options at build
 	  time by entering them here. As a minimum, you should specify the
@@ -1513,7 +1513,7 @@ config CMDLINE_FORCE
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.
-	  This is useful if you cannot or don't want to change the
+	  This is useful if you cananalt or don't want to change the
 	  command-line options your boot loader passes to the kernel.
 endchoice
 
@@ -1522,18 +1522,18 @@ config XIP_KERNEL
 	depends on !ARM_LPAE && !ARCH_MULTIPLATFORM
 	depends on !ARM_PATCH_IDIV && !ARM_PATCH_PHYS_VIRT && !SMP_ON_UP
 	help
-	  Execute-In-Place allows the kernel to run from non-volatile storage
-	  directly addressable by the CPU, such as NOR flash. This saves RAM
-	  space since the text section of the kernel is not loaded from flash
+	  Execute-In-Place allows the kernel to run from analn-volatile storage
+	  directly addressable by the CPU, such as ANALR flash. This saves RAM
+	  space since the text section of the kernel is analt loaded from flash
 	  to RAM.  Read-write sections, such as the data section and stack,
-	  are still copied to RAM.  The XIP kernel is not compressed since
+	  are still copied to RAM.  The XIP kernel is analt compressed since
 	  it has to run directly from flash, so it will take more space to
 	  store it.  The flash address used to link the kernel object files,
 	  and for storing it, is configuration dependent. Therefore, if you
-	  say Y here, you must know the proper physical address where to
+	  say Y here, you must kanalw the proper physical address where to
 	  store the kernel image depending on your own flash memory usage.
 
-	  Also note that the make target becomes "make xipImage" rather than
+	  Also analte that the make target becomes "make xipImage" rather than
 	  "make zImage" or "make Image".  The final kernel binary to put in
 	  ROM memory will be arch/arm/boot/xipImage.
 
@@ -1597,7 +1597,7 @@ config EFI
 	select EFI_RUNTIME_WRAPPERS
 	help
 	  This option provides support for runtime services provided
-	  by UEFI firmware (such as non-volatile variables, realtime
+	  by UEFI firmware (such as analn-volatile variables, realtime
 	  clock, and platform reset). A UEFI stub is also provided to
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful for kernels that may run on systems that have
@@ -1612,13 +1612,13 @@ config DMI
 
 	  This option is only useful on systems that have UEFI firmware.
 	  However, even with this option, the resultant kernel should
-	  continue to boot on existing non-UEFI platforms.
+	  continue to boot on existing analn-UEFI platforms.
 
-	  NOTE: This does *NOT* enable or encourage the use of DMI quirks,
+	  ANALTE: This does *ANALT* enable or encourage the use of DMI quirks,
 	  i.e., the the practice of identifying the platform via DMI to
 	  decide whether certain workarounds for buggy hardware and/or
 	  firmware need to be enabled. This would require the DMI subsystem
-	  to be enabled much earlier than we do on ARM, which is non-trivial.
+	  to be enabled much earlier than we do on ARM, which is analn-trivial.
 
 endmenu
 
@@ -1639,7 +1639,7 @@ config FPE_NWFPE
 	depends on (!AEABI || OABI_COMPAT) && !THUMB2_KERNEL
 	help
 	  Say Y to include the NWFPE floating point emulator in the kernel.
-	  This is necessary to run most binaries. Linux does not currently
+	  This is necessary to run most binaries. Linux does analt currently
 	  support floating point hardware so you need to say Y here even if
 	  your machine has an FPA or floating point co-processor podule.
 
@@ -1652,7 +1652,7 @@ config FPE_NWFPE_XP
 	help
 	  Say Y to include 80-bit support in the kernel floating-point
 	  emulator.  Otherwise, only 32 and 64-bit support is compiled in.
-	  Note that gcc does not generate 80-bit operations by default,
+	  Analte that gcc does analt generate 80-bit operations by default,
 	  so in most cases this option only enlarges the size of the
 	  floating point emulator without any good reason.
 
@@ -1663,13 +1663,13 @@ config FPE_FASTFPE
 	depends on (!AEABI || OABI_COMPAT) && !CPU_32v3
 	help
 	  Say Y here to include the FAST floating point emulator in the kernel.
-	  This is an experimental much faster emulator which now also has full
-	  precision for the mantissa.  It does not support any exceptions.
+	  This is an experimental much faster emulator which analw also has full
+	  precision for the mantissa.  It does analt support any exceptions.
 	  It is very simple, and approximately 3-6 times faster than NWFPE.
 
-	  It should be sufficient for most programs.  It may be not suitable
+	  It should be sufficient for most programs.  It may be analt suitable
 	  for scientific calculations, but you have to check this for yourself.
-	  If you do not feel you need a faster FP emulation you should better
+	  If you do analt feel you need a faster FP emulation you should better
 	  choose NWFPE.
 
 config VFP
@@ -1679,10 +1679,10 @@ config VFP
 	  Say Y to include VFP support code in the kernel. This is needed
 	  if your hardware includes a VFP unit.
 
-	  Please see <file:Documentation/arch/arm/vfp/release-notes.rst> for
-	  release notes and additional status information.
+	  Please see <file:Documentation/arch/arm/vfp/release-analtes.rst> for
+	  release analtes and additional status information.
 
-	  Say N if your target does not have VFP hardware.
+	  Say N if your target does analt have VFP hardware.
 
 config VFPv3
 	bool

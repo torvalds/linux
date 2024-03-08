@@ -76,18 +76,18 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle of a gpio-range node
+          - description: phandle of a gpio-range analde
           - description: pin base
           - description: number of pins
           - description: gpio function
 
   '#gpio-range-cells':
-    description: No longer needed, may exist in older files for gpio-ranges
+    description: Anal longer needed, may exist in older files for gpio-ranges
     deprecated: true
     const: 3
 
   gpio-range:
-    description: Optional node for gpio range cells
+    description: Optional analde for gpio range cells
     type: object
     additionalProperties: false
     properties:
@@ -99,7 +99,7 @@ properties:
 patternProperties:
   '-pins(-[0-9]+)?$|-pin$':
     description:
-      Pin group node name using naming ending in -pins followed by an optional
+      Pin group analde name using naming ending in -pins followed by an optional
       instance number
     type: object
     additionalProperties: false
@@ -107,7 +107,7 @@ patternProperties:
     properties:
       pinctrl-single,pins:
         description:
-          Array of pins as described in pinmux-node.yaml for pinctrl-pin-array
+          Array of pins as described in pinmux-analde.yaml for pinctrl-pin-array
         $ref: /schemas/types.yaml#/definitions/uint32-array
 
       pinctrl-single,bits:

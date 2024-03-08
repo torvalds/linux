@@ -30,7 +30,7 @@ struct hfi1_ibdev;
 struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 				struct rvt_qp *qp);
 
-#define VERBS_TXREQ_GFP (GFP_ATOMIC | __GFP_NOWARN)
+#define VERBS_TXREQ_GFP (GFP_ATOMIC | __GFP_ANALWARN)
 static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
 					    struct rvt_qp *qp)
 	__must_hold(&qp->slock)

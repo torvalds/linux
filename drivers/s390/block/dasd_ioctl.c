@@ -51,7 +51,7 @@ dasd_ioctl_enable(struct block_device *bdev)
 
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dasd_enable_device(base);
 	dasd_put_device(base);
@@ -72,7 +72,7 @@ dasd_ioctl_disable(struct block_device *bdev)
 
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 	/*
 	 * Man this is sick. We don't do a real disable but only downgrade
 	 * the device to DASD_STATE_BASIC. The reason is that dasdfmt uses
@@ -150,7 +150,7 @@ static int dasd_ioctl_abortio(struct dasd_block *block)
 
 	if (test_and_set_bit(DASD_FLAG_ABORTALL, &base->flags))
 		return 0;
-	DBF_DEV_EVENT(DBF_NOTICE, base, "%s", "abortall flag set");
+	DBF_DEV_EVENT(DBF_ANALTICE, base, "%s", "abortall flag set");
 
 	spin_lock_irqsave(&block->request_queue_lock, flags);
 	spin_lock(&block->queue_lock);
@@ -183,14 +183,14 @@ static int dasd_ioctl_allowio(struct dasd_block *block)
 		return -EACCES;
 
 	if (test_and_clear_bit(DASD_FLAG_ABORTALL, &base->flags))
-		DBF_DEV_EVENT(DBF_NOTICE, base, "%s", "abortall flag unset");
+		DBF_DEV_EVENT(DBF_ANALTICE, base, "%s", "abortall flag unset");
 
 	return 0;
 }
 
 /*
  * performs formatting of _device_ according to _fdata_
- * Note: The discipline's format_function is assumed to deliver formatting
+ * Analte: The discipline's format_function is assumed to deliver formatting
  * commands to format multiple units of the device. In terms of the ECKD
  * devices this means CCWs are generated to format multiple tracks.
  */
@@ -205,23 +205,23 @@ dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		return -EPERM;
 
 	if (base->state != DASD_STATE_BASIC) {
-		pr_warn("%s: The DASD cannot be formatted while it is enabled\n",
+		pr_warn("%s: The DASD cananalt be formatted while it is enabled\n",
 			dev_name(&base->cdev->dev));
 		return -EBUSY;
 	}
 
-	DBF_DEV_EVENT(DBF_NOTICE, base,
+	DBF_DEV_EVENT(DBF_ANALTICE, base,
 		      "formatting units %u to %u (%u B blocks) flags %u",
 		      fdata->start_unit,
 		      fdata->stop_unit, fdata->blksize, fdata->intensity);
 
 	/* Since dasdfmt keeps the device open after it was disabled,
-	 * there still exists an inode for this device.
+	 * there still exists an ianalde for this device.
 	 * We must update i_blkbits, otherwise we might get errors when
 	 * enabling the device later.
 	 */
 	if (fdata->start_unit == 0) {
-		block->gdp->part0->bd_inode->i_blkbits =
+		block->gdp->part0->bd_ianalde->i_blkbits =
 			blksize_bits(fdata->blksize);
 	}
 
@@ -240,7 +240,7 @@ static int dasd_check_format(struct dasd_block *block,
 
 	base = block->base;
 	if (!base->discipline->check_device_format)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	rc = base->discipline->check_device_format(base, cdata, 1);
 	if (rc == -EAGAIN)
@@ -265,7 +265,7 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 		return -EINVAL;
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 	if (base->features & DASD_FEATURE_READONLY ||
 	    test_bit(DASD_FLAG_DEVICE_RO, &base->flags)) {
 		dasd_put_device(base);
@@ -276,7 +276,7 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 		return -EFAULT;
 	}
 	if (bdev_is_partition(bdev)) {
-		pr_warn("%s: The specified DASD is a partition and cannot be formatted\n",
+		pr_warn("%s: The specified DASD is a partition and cananalt be formatted\n",
 			dev_name(&base->cdev->dev));
 		dasd_put_device(base);
 		return -EINVAL;
@@ -301,9 +301,9 @@ static int dasd_ioctl_check_format(struct block_device *bdev, void __user *argp)
 
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 	if (bdev_is_partition(bdev)) {
-		pr_warn("%s: The specified DASD is a partition and cannot be checked\n",
+		pr_warn("%s: The specified DASD is a partition and cananalt be checked\n",
 			dev_name(&base->cdev->dev));
 		rc = -EINVAL;
 		goto out_err;
@@ -331,9 +331,9 @@ static int dasd_release_space(struct dasd_device *device,
 			      struct format_data_t *rdata)
 {
 	if (!device->discipline->is_ese && !device->discipline->is_ese(device))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	if (!device->discipline->release_space)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return device->discipline->release_space(device, rdata);
 }
@@ -354,14 +354,14 @@ static int dasd_ioctl_release_space(struct block_device *bdev, void __user *argp
 
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 	if (base->features & DASD_FEATURE_READONLY ||
 	    test_bit(DASD_FLAG_DEVICE_RO, &base->flags)) {
 		rc = -EROFS;
 		goto out_err;
 	}
 	if (bdev_is_partition(bdev)) {
-		pr_warn("%s: The specified DASD is a partition and tracks cannot be released\n",
+		pr_warn("%s: The specified DASD is a partition and tracks cananalt be released\n",
 			dev_name(&base->cdev->dev));
 		rc = -EINVAL;
 		goto out_err;
@@ -395,7 +395,7 @@ dasd_ioctl_copy_pair_swap(struct block_device *bdev, void __user *argp)
 
 	device = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!device)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (copy_from_user(&data, argp, sizeof(struct dasd_copypair_swap_data_t))) {
 		dasd_put_device(device);
@@ -408,20 +408,20 @@ dasd_ioctl_copy_pair_swap(struct block_device *bdev, void __user *argp)
 		return DASD_COPYPAIRSWAP_INVALID;
 	}
 	if (bdev_is_partition(bdev)) {
-		pr_warn("%s: The specified DASD is a partition and cannot be swapped\n",
+		pr_warn("%s: The specified DASD is a partition and cananalt be swapped\n",
 			dev_name(&device->cdev->dev));
 		dasd_put_device(device);
 		return DASD_COPYPAIRSWAP_INVALID;
 	}
 	if (!device->copy) {
-		pr_warn("%s: The specified DASD has no copy pair set up\n",
+		pr_warn("%s: The specified DASD has anal copy pair set up\n",
 			dev_name(&device->cdev->dev));
 		dasd_put_device(device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!device->discipline->copy_pair_swap) {
 		dasd_put_device(device);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	rc = device->discipline->copy_pair_swap(device, data.primary,
 						data.secondary);
@@ -450,7 +450,7 @@ static int dasd_ioctl_read_profile(struct dasd_block *block, void __user *argp)
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&block->profile.lock);
 	if (block->profile.data) {
@@ -489,12 +489,12 @@ out:
 #else
 static int dasd_ioctl_reset_profile(struct dasd_block *block)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static int dasd_ioctl_read_profile(struct dasd_block *block, void __user *argp)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 #endif
 
@@ -524,8 +524,8 @@ static int __dasd_ioctl_information(struct dasd_block *block,
 	ccw_device_get_id(cdev, &dev_id);
 	ccw_device_get_schid(cdev, &sch_id);
 
-	dasd_info->devno = dev_id.devno;
-	dasd_info->schid = sch_id.sch_no;
+	dasd_info->devanal = dev_id.devanal;
+	dasd_info->schid = sch_id.sch_anal;
 	dasd_info->cu_type = cdev->id.cu_type;
 	dasd_info->cu_model = cdev->id.cu_model;
 	dasd_info->dev_type = cdev->id.dev_type;
@@ -546,7 +546,7 @@ static int __dasd_ioctl_information(struct dasd_block *block,
 	 */
 	if ((base->state < DASD_STATE_READY) ||
 	    (dasd_check_blocksize(block->bp_block)))
-		dasd_info->format = DASD_FORMAT_NONE;
+		dasd_info->format = DASD_FORMAT_ANALNE;
 
 	dasd_info->features |=
 		((base->features & DASD_FEATURE_READONLY) != 0);
@@ -568,7 +568,7 @@ static int dasd_ioctl_information(struct dasd_block *block, void __user *argp,
 
 	dasd_info = kzalloc(sizeof(*dasd_info), GFP_KERNEL);
 	if (!dasd_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = __dasd_ioctl_information(block, dasd_info);
 	if (!error && copy_to_user(argp, dasd_info, copy_size))
@@ -585,13 +585,13 @@ int dasd_set_read_only(struct block_device *bdev, bool ro)
 	struct dasd_device *base;
 	int rc;
 
-	/* do not manipulate hardware state for partitions */
+	/* do analt manipulate hardware state for partitions */
 	if (bdev_is_partition(bdev))
 		return 0;
 
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!ro && test_bit(DASD_FLAG_DEVICE_RO, &base->flags))
 		rc = -EROFS;
 	else
@@ -626,12 +626,12 @@ int dasd_ioctl(struct block_device *bdev, blk_mode_t mode,
 	else
 		argp = (void __user *)arg;
 
-	if ((_IOC_DIR(cmd) != _IOC_NONE) && !arg)
+	if ((_IOC_DIR(cmd) != _IOC_ANALNE) && !arg)
 		return -EINVAL;
 
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 	block = base->block;
 	rc = 0;
 	switch (cmd) {
@@ -693,7 +693,7 @@ int dasd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		break;
 	default:
 		/* if the discipline has an ioctl method try it. */
-		rc = -ENOTTY;
+		rc = -EANALTTY;
 		if (base->discipline->ioctl)
 			rc = base->discipline->ioctl(block, cmd, argp);
 	}
@@ -710,7 +710,7 @@ int dasd_ioctl(struct block_device *bdev, blk_mode_t mode,
  * Provide access to DASD specific information.
  * The gendisk structure is checked if it belongs to the DASD driver by
  * comparing the gendisk->fops pointer.
- * If it does not belong to the DASD driver -EINVAL is returned.
+ * If it does analt belong to the DASD driver -EINVAL is returned.
  * Otherwise the provided dasd_information2_t structure is filled out.
  *
  * Returns:
@@ -726,7 +726,7 @@ int dasd_biodasdinfo(struct gendisk *disk, struct dasd_information2_t *info)
 
 	base = dasd_device_from_gendisk(disk);
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 	error = __dasd_ioctl_information(base->block, info);
 	dasd_put_device(base);
 	return error;

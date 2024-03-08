@@ -51,10 +51,10 @@
 
 #define AD74115_RTD3W4W_CONFIG_REG		0x07
 
-#define AD74115_BURNOUT_CONFIG_REG		0x0a
-#define AD74115_BURNOUT_EXT2_EN_MASK		BIT(10)
-#define AD74115_BURNOUT_EXT1_EN_MASK		BIT(5)
-#define AD74115_BURNOUT_VIOUT_EN_MASK		BIT(0)
+#define AD74115_BURANALUT_CONFIG_REG		0x0a
+#define AD74115_BURANALUT_EXT2_EN_MASK		BIT(10)
+#define AD74115_BURANALUT_EXT1_EN_MASK		BIT(5)
+#define AD74115_BURANALUT_VIOUT_EN_MASK		BIT(0)
 
 #define AD74115_DAC_CODE_REG			0x0b
 
@@ -81,7 +81,7 @@
 #define AD74115_CMD_KEY_RESET1			0x15fa
 #define AD74115_CMD_KEY_RESET2			0xaf51
 
-#define AD74115_CRC_POLYNOMIAL			0x7
+#define AD74115_CRC_POLYANALMIAL			0x7
 DECLARE_CRC8_TABLE(ad74115_crc8_table);
 
 #define AD74115_ADC_CODE_MAX			((int)GENMASK(15, 0))
@@ -321,11 +321,11 @@ static const unsigned int ad74115_rtd_excitation_current_ua_tbl[] = {
 	250, 500, 750, 1000
 };
 
-static const unsigned int ad74115_burnout_current_na_tbl[] = {
+static const unsigned int ad74115_buranalut_current_na_tbl[] = {
 	0, 50, 0, 500, 1000, 0, 10000, 0
 };
 
-static const unsigned int ad74115_viout_burnout_current_na_tbl[] = {
+static const unsigned int ad74115_viout_buranalut_current_na_tbl[] = {
 	0, 0, 0, 0, 1000, 0, 10000, 0
 };
 
@@ -592,7 +592,7 @@ static int ad74115_comp_gpio_set_config(struct gpio_chip *chip,
 	case PIN_CONFIG_INPUT_DEBOUNCE:
 		return ad74115_set_comp_debounce(st, arg);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -623,7 +623,7 @@ static irqreturn_t ad74115_trigger_handler(int irq, void *p)
 	iio_push_to_buffers(indio_dev, st->adc_samples_rx_buf);
 
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -748,7 +748,7 @@ static int ad74115_buffer_predisable(struct iio_dev *indio_dev)
 		goto out;
 
 	/*
-	 * update_scan_mode() is not called in the disable path, disable all
+	 * update_scan_mode() is analt called in the disable path, disable all
 	 * channels here.
 	 */
 	for (i = 0; i < AD74115_ADC_CH_NUM; i++) {
@@ -834,7 +834,7 @@ static int _ad74115_get_adc_code(struct ad74115_state *st,
 		 * See datasheet page 98, Table 62. Bit Descriptions for
 		 * LIVE_STATUS.
 		 * Although the datasheet mentions that the bit will auto-clear
-		 * when writing to the ADC_CONV_CTRL register, this does not
+		 * when writing to the ADC_CONV_CTRL register, this does analt
 		 * seem to happen.
 		 */
 		ret = regmap_write_bits(st->regmap, AD74115_LIVE_STATUS_REG,
@@ -1407,20 +1407,20 @@ static const struct ad74115_fw_prop ad74115_din_range_fw_prop =
 	AD74115_FW_PROP_BOOL("adi,digital-input-sink-range-high",
 			     AD74115_DIN_CONFIG1_REG, BIT(12));
 
-static const struct ad74115_fw_prop ad74115_ext2_burnout_current_fw_prop =
-	AD74115_FW_PROP_TBL("adi,ext2-burnout-current-nanoamp",
-			    ad74115_burnout_current_na_tbl,
-			    AD74115_BURNOUT_CONFIG_REG, GENMASK(14, 12));
+static const struct ad74115_fw_prop ad74115_ext2_buranalut_current_fw_prop =
+	AD74115_FW_PROP_TBL("adi,ext2-buranalut-current-naanalamp",
+			    ad74115_buranalut_current_na_tbl,
+			    AD74115_BURANALUT_CONFIG_REG, GENMASK(14, 12));
 
-static const struct ad74115_fw_prop ad74115_ext1_burnout_current_fw_prop =
-	AD74115_FW_PROP_TBL("adi,ext1-burnout-current-nanoamp",
-			    ad74115_burnout_current_na_tbl,
-			    AD74115_BURNOUT_CONFIG_REG, GENMASK(9, 7));
+static const struct ad74115_fw_prop ad74115_ext1_buranalut_current_fw_prop =
+	AD74115_FW_PROP_TBL("adi,ext1-buranalut-current-naanalamp",
+			    ad74115_buranalut_current_na_tbl,
+			    AD74115_BURANALUT_CONFIG_REG, GENMASK(9, 7));
 
-static const struct ad74115_fw_prop ad74115_viout_burnout_current_fw_prop =
-	AD74115_FW_PROP_TBL("adi,viout-burnout-current-nanoamp",
-			    ad74115_viout_burnout_current_na_tbl,
-			    AD74115_BURNOUT_CONFIG_REG, GENMASK(4, 2));
+static const struct ad74115_fw_prop ad74115_viout_buranalut_current_fw_prop =
+	AD74115_FW_PROP_TBL("adi,viout-buranalut-current-naanalamp",
+			    ad74115_viout_buranalut_current_na_tbl,
+			    AD74115_BURANALUT_CONFIG_REG, GENMASK(4, 2));
 
 static const struct ad74115_fw_prop ad74115_fw_props[] = {
 	AD74115_FW_PROP("adi,conv2-mux", 3,
@@ -1458,12 +1458,12 @@ static const struct ad74115_fw_prop ad74115_fw_props[] = {
 			    ad74115_rtd_excitation_current_ua_tbl,
 			    AD74115_RTD3W4W_CONFIG_REG, GENMASK(1, 0)),
 
-	AD74115_FW_PROP_BOOL("adi,ext2-burnout-current-polarity-sourcing",
-			     AD74115_BURNOUT_CONFIG_REG, BIT(11)),
-	AD74115_FW_PROP_BOOL("adi,ext1-burnout-current-polarity-sourcing",
-			     AD74115_BURNOUT_CONFIG_REG, BIT(6)),
-	AD74115_FW_PROP_BOOL("adi,viout-burnout-current-polarity-sourcing",
-			     AD74115_BURNOUT_CONFIG_REG, BIT(1)),
+	AD74115_FW_PROP_BOOL("adi,ext2-buranalut-current-polarity-sourcing",
+			     AD74115_BURANALUT_CONFIG_REG, BIT(11)),
+	AD74115_FW_PROP_BOOL("adi,ext1-buranalut-current-polarity-sourcing",
+			     AD74115_BURANALUT_CONFIG_REG, BIT(6)),
+	AD74115_FW_PROP_BOOL("adi,viout-buranalut-current-polarity-sourcing",
+			     AD74115_BURANALUT_CONFIG_REG, BIT(1)),
 
 	AD74115_FW_PROP_BOOL("adi,charge-pump",
 			     AD74115_CHARGE_PUMP_REG, BIT(0)),
@@ -1546,7 +1546,7 @@ static int ad74115_setup_iio_channels(struct iio_dev *indio_dev)
 	channels = devm_kcalloc(dev, sizeof(*channels),
 				indio_dev->num_channels, GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->channels = channels;
 
@@ -1694,38 +1694,38 @@ static int ad74115_setup(struct iio_dev *indio_dev)
 
 	st->rtd_mode_4_wire = val;
 
-	ret = ad74115_apply_fw_prop(st, &ad74115_ext2_burnout_current_fw_prop, &val);
+	ret = ad74115_apply_fw_prop(st, &ad74115_ext2_buranalut_current_fw_prop, &val);
 	if (ret)
 		return ret;
 
 	if (val) {
-		ret = regmap_update_bits(st->regmap, AD74115_BURNOUT_CONFIG_REG,
-					 AD74115_BURNOUT_EXT2_EN_MASK,
-					 FIELD_PREP(AD74115_BURNOUT_EXT2_EN_MASK, 1));
+		ret = regmap_update_bits(st->regmap, AD74115_BURANALUT_CONFIG_REG,
+					 AD74115_BURANALUT_EXT2_EN_MASK,
+					 FIELD_PREP(AD74115_BURANALUT_EXT2_EN_MASK, 1));
 		if (ret)
 			return ret;
 	}
 
-	ret = ad74115_apply_fw_prop(st, &ad74115_ext1_burnout_current_fw_prop, &val);
+	ret = ad74115_apply_fw_prop(st, &ad74115_ext1_buranalut_current_fw_prop, &val);
 	if (ret)
 		return ret;
 
 	if (val) {
-		ret = regmap_update_bits(st->regmap, AD74115_BURNOUT_CONFIG_REG,
-					 AD74115_BURNOUT_EXT1_EN_MASK,
-					 FIELD_PREP(AD74115_BURNOUT_EXT1_EN_MASK, 1));
+		ret = regmap_update_bits(st->regmap, AD74115_BURANALUT_CONFIG_REG,
+					 AD74115_BURANALUT_EXT1_EN_MASK,
+					 FIELD_PREP(AD74115_BURANALUT_EXT1_EN_MASK, 1));
 		if (ret)
 			return ret;
 	}
 
-	ret = ad74115_apply_fw_prop(st, &ad74115_viout_burnout_current_fw_prop, &val);
+	ret = ad74115_apply_fw_prop(st, &ad74115_viout_buranalut_current_fw_prop, &val);
 	if (ret)
 		return ret;
 
 	if (val) {
-		ret = regmap_update_bits(st->regmap, AD74115_BURNOUT_CONFIG_REG,
-					 AD74115_BURNOUT_VIOUT_EN_MASK,
-					 FIELD_PREP(AD74115_BURNOUT_VIOUT_EN_MASK, 1));
+		ret = regmap_update_bits(st->regmap, AD74115_BURANALUT_CONFIG_REG,
+					 AD74115_BURANALUT_VIOUT_EN_MASK,
+					 FIELD_PREP(AD74115_BURANALUT_VIOUT_EN_MASK, 1));
 		if (ret)
 			return ret;
 	}
@@ -1799,7 +1799,7 @@ static int ad74115_setup_trigger(struct iio_dev *indio_dev)
 	struct device *dev = &st->spi->dev;
 	int ret;
 
-	st->irq = fwnode_irq_get_byname(dev_fwnode(dev), "adc_rdy");
+	st->irq = fwanalde_irq_get_byname(dev_fwanalde(dev), "adc_rdy");
 
 	if (st->irq == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
@@ -1817,7 +1817,7 @@ static int ad74115_setup_trigger(struct iio_dev *indio_dev)
 	st->trig = devm_iio_trigger_alloc(dev, "%s-dev%d", AD74115_NAME,
 					  iio_device_id(indio_dev));
 	if (!st->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->trig->ops = &ad74115_trigger_ops;
 	iio_trigger_set_drvdata(st->trig, st);
@@ -1843,7 +1843,7 @@ static int ad74115_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -1908,7 +1908,7 @@ static int ad74115_unregister_driver(struct spi_driver *spi)
 
 static int __init ad74115_register_driver(struct spi_driver *spi)
 {
-	crc8_populate_msb(ad74115_crc8_table, AD74115_CRC_POLYNOMIAL);
+	crc8_populate_msb(ad74115_crc8_table, AD74115_CRC_POLYANALMIAL);
 
 	return spi_register_driver(spi);
 }

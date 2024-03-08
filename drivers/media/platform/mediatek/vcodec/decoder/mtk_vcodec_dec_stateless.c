@@ -327,7 +327,7 @@ static void mtk_vdec_worker(struct work_struct *work)
 	vb2_v4l2_src = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
 	if (!vb2_v4l2_src) {
 		v4l2_m2m_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx);
-		mtk_v4l2_vdec_dbg(1, ctx, "[%d] no available source buffer", ctx->id);
+		mtk_v4l2_vdec_dbg(1, ctx, "[%d] anal available source buffer", ctx->id);
 		return;
 	}
 
@@ -423,7 +423,7 @@ static int mtk_vcodec_get_pic_info(struct mtk_vcodec_dec_ctx *ctx)
 
 	q_data = &ctx->q_data[MTK_Q_DATA_DST];
 	if (q_data->fmt->num_planes == 1) {
-		mtk_v4l2_vdec_err(ctx, "[%d]Error!! 10bit mode not support one plane", ctx->id);
+		mtk_v4l2_vdec_err(ctx, "[%d]Error!! 10bit mode analt support one plane", ctx->id);
 		return -EINVAL;
 	}
 
@@ -516,7 +516,7 @@ static int mtk_vdec_s_ctrl(struct v4l2_ctrl *ctrl)
 		}
 		break;
 	default:
-		mtk_v4l2_vdec_dbg(3, ctx, "Not supported to set ctrl id: 0x%x\n", hdr_ctrl->id);
+		mtk_v4l2_vdec_dbg(3, ctx, "Analt supported to set ctrl id: 0x%x\n", hdr_ctrl->id);
 		return ret;
 	}
 
@@ -720,8 +720,8 @@ static int fops_media_request_validate(struct media_request *mreq)
 		/* We expect exactly one buffer with the request */
 		break;
 	case 0:
-		pr_debug(MTK_DBG_VCODEC_STR "No buffer provided with the request.");
-		return -ENOENT;
+		pr_debug(MTK_DBG_VCODEC_STR "Anal buffer provided with the request.");
+		return -EANALENT;
 	default:
 		pr_debug(MTK_DBG_VCODEC_STR "Too many buffers (%d) provided with the request.",
 			 buffer_cnt);
@@ -771,7 +771,7 @@ static void mtk_vcodec_add_formats(unsigned int fourcc,
 		mtk_video_formats[count_formats].num_planes = 2;
 		break;
 	default:
-		mtk_v4l2_vdec_err(ctx, "Can not add unsupported format type");
+		mtk_v4l2_vdec_err(ctx, "Can analt add unsupported format type");
 		return;
 	}
 
@@ -850,7 +850,7 @@ static int vb2ops_vdec_out_buf_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 

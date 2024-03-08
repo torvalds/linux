@@ -1096,9 +1096,9 @@ struct bnx2i_logout_response {
 
 
 /*
- * iSCSI Nop-In CQE
+ * iSCSI Analp-In CQE
  */
-struct bnx2i_nop_in_msg {
+struct bnx2i_analp_in_msg {
 #if defined(__BIG_ENDIAN)
 	u8 op_code;
 	u8 reserved1;
@@ -1128,16 +1128,16 @@ struct bnx2i_nop_in_msg {
 #if defined(__BIG_ENDIAN)
 	u16 reserved7;
 	u16 itt;
-#define ISCSI_NOP_IN_MSG_INDEX (0x3FFF<<0)
-#define ISCSI_NOP_IN_MSG_INDEX_SHIFT 0
-#define ISCSI_NOP_IN_MSG_TYPE (0x3<<14)
-#define ISCSI_NOP_IN_MSG_TYPE_SHIFT 14
+#define ISCSI_ANALP_IN_MSG_INDEX (0x3FFF<<0)
+#define ISCSI_ANALP_IN_MSG_INDEX_SHIFT 0
+#define ISCSI_ANALP_IN_MSG_TYPE (0x3<<14)
+#define ISCSI_ANALP_IN_MSG_TYPE_SHIFT 14
 #elif defined(__LITTLE_ENDIAN)
 	u16 itt;
-#define ISCSI_NOP_IN_MSG_INDEX (0x3FFF<<0)
-#define ISCSI_NOP_IN_MSG_INDEX_SHIFT 0
-#define ISCSI_NOP_IN_MSG_TYPE (0x3<<14)
-#define ISCSI_NOP_IN_MSG_TYPE_SHIFT 14
+#define ISCSI_ANALP_IN_MSG_INDEX (0x3FFF<<0)
+#define ISCSI_ANALP_IN_MSG_INDEX_SHIFT 0
+#define ISCSI_ANALP_IN_MSG_TYPE (0x3<<14)
+#define ISCSI_ANALP_IN_MSG_TYPE_SHIFT 14
 	u16 reserved7;
 #endif
 	u32 cq_req_sn;
@@ -1145,24 +1145,24 @@ struct bnx2i_nop_in_msg {
 
 
 /*
- * iSCSI NOP-OUT SQ WQE
+ * iSCSI ANALP-OUT SQ WQE
  */
-struct bnx2i_nop_out_request {
+struct bnx2i_analp_out_request {
 #if defined(__BIG_ENDIAN)
 	u8 op_code;
 	u8 op_attr;
-#define ISCSI_NOP_OUT_REQUEST_RESERVED1 (0x7F<<0)
-#define ISCSI_NOP_OUT_REQUEST_RESERVED1_SHIFT 0
-#define ISCSI_NOP_OUT_REQUEST_ALWAYS_ONE (0x1<<7)
-#define ISCSI_NOP_OUT_REQUEST_ALWAYS_ONE_SHIFT 7
+#define ISCSI_ANALP_OUT_REQUEST_RESERVED1 (0x7F<<0)
+#define ISCSI_ANALP_OUT_REQUEST_RESERVED1_SHIFT 0
+#define ISCSI_ANALP_OUT_REQUEST_ALWAYS_ONE (0x1<<7)
+#define ISCSI_ANALP_OUT_REQUEST_ALWAYS_ONE_SHIFT 7
 	u16 reserved0;
 #elif defined(__LITTLE_ENDIAN)
 	u16 reserved0;
 	u8 op_attr;
-#define ISCSI_NOP_OUT_REQUEST_RESERVED1 (0x7F<<0)
-#define ISCSI_NOP_OUT_REQUEST_RESERVED1_SHIFT 0
-#define ISCSI_NOP_OUT_REQUEST_ALWAYS_ONE (0x1<<7)
-#define ISCSI_NOP_OUT_REQUEST_ALWAYS_ONE_SHIFT 7
+#define ISCSI_ANALP_OUT_REQUEST_RESERVED1 (0x7F<<0)
+#define ISCSI_ANALP_OUT_REQUEST_RESERVED1_SHIFT 0
+#define ISCSI_ANALP_OUT_REQUEST_ALWAYS_ONE (0x1<<7)
+#define ISCSI_ANALP_OUT_REQUEST_ALWAYS_ONE_SHIFT 7
 	u8 op_code;
 #endif
 	u32 data_length;
@@ -1170,16 +1170,16 @@ struct bnx2i_nop_out_request {
 #if defined(__BIG_ENDIAN)
 	u16 reserved2;
 	u16 itt;
-#define ISCSI_NOP_OUT_REQUEST_INDEX (0x3FFF<<0)
-#define ISCSI_NOP_OUT_REQUEST_INDEX_SHIFT 0
-#define ISCSI_NOP_OUT_REQUEST_TYPE (0x3<<14)
-#define ISCSI_NOP_OUT_REQUEST_TYPE_SHIFT 14
+#define ISCSI_ANALP_OUT_REQUEST_INDEX (0x3FFF<<0)
+#define ISCSI_ANALP_OUT_REQUEST_INDEX_SHIFT 0
+#define ISCSI_ANALP_OUT_REQUEST_TYPE (0x3<<14)
+#define ISCSI_ANALP_OUT_REQUEST_TYPE_SHIFT 14
 #elif defined(__LITTLE_ENDIAN)
 	u16 itt;
-#define ISCSI_NOP_OUT_REQUEST_INDEX (0x3FFF<<0)
-#define ISCSI_NOP_OUT_REQUEST_INDEX_SHIFT 0
-#define ISCSI_NOP_OUT_REQUEST_TYPE (0x3<<14)
-#define ISCSI_NOP_OUT_REQUEST_TYPE_SHIFT 14
+#define ISCSI_ANALP_OUT_REQUEST_INDEX (0x3FFF<<0)
+#define ISCSI_ANALP_OUT_REQUEST_INDEX_SHIFT 0
+#define ISCSI_ANALP_OUT_REQUEST_TYPE (0x3<<14)
+#define ISCSI_ANALP_OUT_REQUEST_TYPE_SHIFT 14
 	u16 reserved2;
 #endif
 	u32 ttt;
@@ -1188,28 +1188,28 @@ struct bnx2i_nop_out_request {
 	u32 resp_bd_list_addr_lo;
 	u32 resp_bd_list_addr_hi;
 	u32 resp_buffer;
-#define ISCSI_NOP_OUT_REQUEST_RESP_BUFFER_LENGTH (0xFFFFFF<<0)
-#define ISCSI_NOP_OUT_REQUEST_RESP_BUFFER_LENGTH_SHIFT 0
-#define ISCSI_NOP_OUT_REQUEST_NUM_RESP_BDS (0xFF<<24)
-#define ISCSI_NOP_OUT_REQUEST_NUM_RESP_BDS_SHIFT 24
+#define ISCSI_ANALP_OUT_REQUEST_RESP_BUFFER_LENGTH (0xFFFFFF<<0)
+#define ISCSI_ANALP_OUT_REQUEST_RESP_BUFFER_LENGTH_SHIFT 0
+#define ISCSI_ANALP_OUT_REQUEST_NUM_RESP_BDS (0xFF<<24)
+#define ISCSI_ANALP_OUT_REQUEST_NUM_RESP_BDS_SHIFT 24
 #if defined(__BIG_ENDIAN)
 	u16 reserved7;
 	u8 reserved6;
 	u8 flags;
-#define ISCSI_NOP_OUT_REQUEST_RESERVED4 (0x1<<0)
-#define ISCSI_NOP_OUT_REQUEST_RESERVED4_SHIFT 0
-#define ISCSI_NOP_OUT_REQUEST_LOCAL_COMPLETION (0x1<<1)
-#define ISCSI_NOP_OUT_REQUEST_LOCAL_COMPLETION_SHIFT 1
-#define ISCSI_NOP_OUT_REQUEST_ZERO_FILL (0x3F<<2)
-#define ISCSI_NOP_OUT_REQUEST_ZERO_FILL_SHIFT 2
+#define ISCSI_ANALP_OUT_REQUEST_RESERVED4 (0x1<<0)
+#define ISCSI_ANALP_OUT_REQUEST_RESERVED4_SHIFT 0
+#define ISCSI_ANALP_OUT_REQUEST_LOCAL_COMPLETION (0x1<<1)
+#define ISCSI_ANALP_OUT_REQUEST_LOCAL_COMPLETION_SHIFT 1
+#define ISCSI_ANALP_OUT_REQUEST_ZERO_FILL (0x3F<<2)
+#define ISCSI_ANALP_OUT_REQUEST_ZERO_FILL_SHIFT 2
 #elif defined(__LITTLE_ENDIAN)
 	u8 flags;
-#define ISCSI_NOP_OUT_REQUEST_RESERVED4 (0x1<<0)
-#define ISCSI_NOP_OUT_REQUEST_RESERVED4_SHIFT 0
-#define ISCSI_NOP_OUT_REQUEST_LOCAL_COMPLETION (0x1<<1)
-#define ISCSI_NOP_OUT_REQUEST_LOCAL_COMPLETION_SHIFT 1
-#define ISCSI_NOP_OUT_REQUEST_ZERO_FILL (0x3F<<2)
-#define ISCSI_NOP_OUT_REQUEST_ZERO_FILL_SHIFT 2
+#define ISCSI_ANALP_OUT_REQUEST_RESERVED4 (0x1<<0)
+#define ISCSI_ANALP_OUT_REQUEST_RESERVED4_SHIFT 0
+#define ISCSI_ANALP_OUT_REQUEST_LOCAL_COMPLETION (0x1<<1)
+#define ISCSI_ANALP_OUT_REQUEST_LOCAL_COMPLETION_SHIFT 1
+#define ISCSI_ANALP_OUT_REQUEST_ZERO_FILL (0x3F<<2)
+#define ISCSI_ANALP_OUT_REQUEST_ZERO_FILL_SHIFT 2
 	u8 reserved6;
 	u16 reserved7;
 #endif
@@ -1393,7 +1393,7 @@ struct bnx2i_text_request {
 union iscsi_request {
 	struct bnx2i_cmd_request cmd;
 	struct bnx2i_tmf_request tmf;
-	struct bnx2i_nop_out_request nop_out;
+	struct bnx2i_analp_out_request analp_out;
 	struct bnx2i_login_request login_req;
 	struct bnx2i_text_request text;
 	struct bnx2i_logout_request logout_req;
@@ -1520,7 +1520,7 @@ union iscsi_response {
 	struct bnx2i_cleanup_response cleanup;
 	struct bnx2i_reject_msg reject;
 	struct bnx2i_async_msg async;
-	struct bnx2i_nop_in_msg nop_in;
+	struct bnx2i_analp_in_msg analp_in;
 };
 
 #endif /* __57XX_ISCSI_HSI_LINUX_LE__ */

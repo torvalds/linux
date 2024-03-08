@@ -236,7 +236,7 @@ struct mt6358_regulator_info {
 }
 
 
-/* VDRAM2 voltage selector not shown in datasheet */
+/* VDRAM2 voltage selector analt shown in datasheet */
 static const unsigned int vdram2_selectors[] = { 0, 12 };
 static const struct linear_range vdram2_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 10, 10000),
@@ -264,7 +264,7 @@ static const struct linear_range vibr_ranges[] = {
 	REGULATOR_LINEAR_RANGE(3300000, 0, 10, 10000),
 };
 
-/* VUSB voltage selector not shown in datasheet */
+/* VUSB voltage selector analt shown in datasheet */
 static const unsigned int vusb_selectors[] = { 3, 4 };
 static const struct linear_range vusb_ranges[] = {
 	REGULATOR_LINEAR_RANGE(3000000, 0, 10, 10000),
@@ -365,7 +365,7 @@ static const struct linear_range mt6366_vcn18_vm18_ranges[] = {
 static unsigned int mt6358_map_mode(unsigned int mode)
 {
 	return mode == MT6397_BUCK_MODE_AUTO ?
-		REGULATOR_MODE_NORMAL : REGULATOR_MODE_FAST;
+		REGULATOR_MODE_ANALRMAL : REGULATOR_MODE_FAST;
 }
 
 static int mt6358_get_buck_voltage_sel(struct regulator_dev *rdev)
@@ -411,7 +411,7 @@ static int mt6358_regulator_set_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = MT6397_BUCK_MODE_FORCE_PWM;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = MT6397_BUCK_MODE_AUTO;
 		break;
 	default:
@@ -441,7 +441,7 @@ static unsigned int mt6358_regulator_get_mode(struct regulator_dev *rdev)
 
 	switch ((regval & info->modeset_mask) >> (ffs(info->modeset_mask) - 1)) {
 	case MT6397_BUCK_MODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case MT6397_BUCK_MODE_FORCE_PWM:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -732,7 +732,7 @@ MODULE_DEVICE_TABLE(platform, mt6358_platform_ids);
 static struct platform_driver mt6358_regulator_driver = {
 	.driver = {
 		.name = "mt6358-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = mt6358_regulator_probe,
 	.id_table = mt6358_platform_ids,

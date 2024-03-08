@@ -4,7 +4,7 @@
 #include <drm/drm_atomic.h>
 #include "crc.h"
 
-struct nouveau_encoder;
+struct analuveau_encoder;
 
 struct nv50_atom {
 	struct drm_atomic_state state;

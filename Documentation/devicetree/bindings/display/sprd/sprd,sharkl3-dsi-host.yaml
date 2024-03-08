@@ -42,7 +42,7 @@ properties:
       port@0:
         type: object
         description:
-          A port node with endpoint definitions as defined in
+          A port analde with endpoint definitions as defined in
           Documentation/devicetree/bindings/media/video-interfaces.txt.
           That port should be the input endpoint, usually coming from
           the associated DPU.

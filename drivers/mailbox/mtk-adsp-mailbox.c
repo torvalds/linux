@@ -113,7 +113,7 @@ static int mtk_adsp_mbox_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox = &priv->mbox;
 	mbox->dev = dev;
@@ -124,7 +124,7 @@ static int mtk_adsp_mbox_probe(struct platform_device *pdev)
 	mbox->num_chans = 1;
 	mbox->chans = devm_kzalloc(dev, sizeof(*mbox->chans), GFP_KERNEL);
 	if (!mbox->chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->va_mboxreg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->va_mboxreg))
@@ -140,7 +140,7 @@ static int mtk_adsp_mbox_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_threaded_irq(dev, irq, mtk_adsp_mbox_irq,
-					mtk_adsp_mbox_isr, IRQF_TRIGGER_NONE,
+					mtk_adsp_mbox_isr, IRQF_TRIGGER_ANALNE,
 					dev_name(dev), mbox->chans);
 	if (ret < 0)
 		return ret;

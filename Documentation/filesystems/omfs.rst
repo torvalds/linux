@@ -13,7 +13,7 @@ block sizes from 2k to 8k, with hash-based directories.  This
 filesystem driver may be used to read and write disks from these
 devices.
 
-Note, it is not recommended that this FS be used in place of a general
+Analte, it is analt recommended that this FS be used in place of a general
 filesystem for your own streaming media device.  Native Linux filesystems
 will likely perform better.
 
@@ -44,7 +44,7 @@ OMFS supports the following mount-time options:
 Disk format
 ===========
 
-OMFS discriminates between "sysblocks" and normal data blocks.  The sysblock
+OMFS discriminates between "sysblocks" and analrmal data blocks.  The sysblock
 group consists of super block information, file metadata, directory structures,
 and extents.  Each sysblock has a header containing CRCs of the entire
 sysblock, and may be mirrored in successive blocks on the disk.  A sysblock may
@@ -60,18 +60,18 @@ Sysblock header information::
 	    __be16 h_crc;                   /* crc-ccitt of body_size bytes */
 	    char h_fill1[2];
 	    u8 h_version;                   /* version, always 1 */
-	    char h_type;                    /* OMFS_INODE_X */
+	    char h_type;                    /* OMFS_IANALDE_X */
 	    u8 h_magic;                     /* OMFS_IMAGIC */
 	    u8 h_check_xor;                 /* XOR of header bytes before this */
 	    __be32 h_fill2;
     };
 
-Files and directories are both represented by omfs_inode::
+Files and directories are both represented by omfs_ianalde::
 
-    struct omfs_inode {
+    struct omfs_ianalde {
 	    struct omfs_header i_head;      /* header */
-	    __be64 i_parent;                /* parent containing this inode */
-	    __be64 i_sibling;               /* next inode in hash bucket */
+	    __be64 i_parent;                /* parent containing this ianalde */
+	    __be64 i_sibling;               /* next ianalde in hash bucket */
 	    __be64 i_ctime;                 /* ctime, in milliseconds */
 	    char i_fill1[35];
 	    char i_type;                    /* OMFS_[DIR,FILE] */
@@ -87,7 +87,7 @@ Lookup requires hashing the filename, then seeking across i_sibling pointers
 until a match is found on i_name.  Empty buckets are represented by block
 pointers with all-1s (~0).
 
-A file is an omfs_inode structure followed by an extent table beginning at
+A file is an omfs_ianalde structure followed by an extent table beginning at
 OMFS_EXTENT_START::
 
     struct omfs_extent_entry {
@@ -107,6 +107,6 @@ the extent.  The final extent in each table is a terminator with e_cluster
 being ~0 and e_blocks being ones'-complement of the total number of blocks
 in the table.
 
-If this table overflows, a continuation inode is written and pointed to by
-e_next.  These have a header but lack the rest of the inode structure.
+If this table overflows, a continuation ianalde is written and pointed to by
+e_next.  These have a header but lack the rest of the ianalde structure.
 

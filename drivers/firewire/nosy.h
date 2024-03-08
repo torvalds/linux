@@ -70,7 +70,7 @@
 #define PCL_CMD_LBUS_TO_PCI    (0x9<<24)
 
 /* aux commands */
-#define PCL_CMD_NOP            (0x0<<24)
+#define PCL_CMD_ANALP            (0x0<<24)
 #define PCL_CMD_LOAD           (0x3<<24)
 #define PCL_CMD_STOREQ         (0x4<<24)
 #define PCL_CMD_STORED         (0xb<<24)
@@ -180,14 +180,14 @@
 #define DMA_WORD1_CMP_MATCH_OTHERBUS      (1<<15)
 #define DMA_WORD1_CMP_MATCH_BROADCAST     (1<<14)
 #define DMA_WORD1_CMP_MATCH_BUS_BCAST     (1<<13)
-#define DMA_WORD1_CMP_MATCH_LOCAL_NODE    (1<<12)
+#define DMA_WORD1_CMP_MATCH_LOCAL_ANALDE    (1<<12)
 #define DMA_WORD1_CMP_MATCH_EXACT         (1<<11)
 #define DMA_WORD1_CMP_ENABLE_SELF_ID      (1<<10)
 #define DMA_WORD1_CMP_ENABLE_MASTER       (1<<8)
 
 #define LINK_ID                           0xf00
 #define LINK_ID_BUS(id)                   (id<<22)
-#define LINK_ID_NODE(id)                  (id<<16)
+#define LINK_ID_ANALDE(id)                  (id<<16)
 
 #define LINK_CONTROL                      0xf04
 #define LINK_CONTROL_BUSY                 (1<<29)
@@ -201,7 +201,7 @@
 #define LINK_CONTROL_CYCSOURCE            (1<<10)
 #define LINK_CONTROL_CYCTIMEREN           (1<<9)
 #define LINK_CONTROL_RCV_CMP_VALID        (1<<7)
-#define LINK_CONTROL_SNOOP_ENABLE         (1<<6)
+#define LINK_CONTROL_SANALOP_ENABLE         (1<<6)
 
 #define CYCLE_TIMER                       0xf08
 

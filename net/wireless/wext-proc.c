@@ -55,9 +55,9 @@ static void wireless_seq_printf_stats(struct seq_file *seq,
 			   ((stats->qual.updated & IW_QUAL_DBM) ? 0x100 : 0),
 			   stats->qual.updated & IW_QUAL_LEVEL_UPDATED
 			   ? '.' : ' ',
-			   ((__s32) stats->qual.noise) -
+			   ((__s32) stats->qual.analise) -
 			   ((stats->qual.updated & IW_QUAL_DBM) ? 0x100 : 0),
-			   stats->qual.updated & IW_QUAL_NOISE_UPDATED
+			   stats->qual.updated & IW_QUAL_ANALISE_UPDATED
 			   ? '.' : ' ',
 			   stats->discard.nwid, stats->discard.code,
 			   stats->discard.fragment, stats->discard.retries,
@@ -79,7 +79,7 @@ static int wireless_dev_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "Inter-| sta-|   Quality        |   Discarded "
 				"packets               | Missed | WE\n"
-				" face | tus | link level noise |  nwid  "
+				" face | tus | link level analise |  nwid  "
 				"crypt   frag  retry   misc | beacon | %d\n",
 			   WIRELESS_EXT);
 	else
@@ -131,7 +131,7 @@ int __net_init wext_proc_init(struct net *net)
 	/* Create /proc/net/wireless entry */
 	if (!proc_create_net("wireless", 0444, net->proc_net,
 			&wireless_seq_ops, sizeof(struct seq_net_private)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

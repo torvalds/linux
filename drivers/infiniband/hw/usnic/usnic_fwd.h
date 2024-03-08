@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -51,7 +51,7 @@ struct usnic_fwd_dev {
 	/*
 	 * The following fields can be read directly off the device.
 	 * However, they should be set by a accessor function, except name,
-	 * which cannot be changed.
+	 * which cananalt be changed.
 	 */
 	bool				link_up;
 	char				mac[ETH_ALEN];
@@ -84,7 +84,7 @@ void usnic_fwd_set_mtu(struct usnic_fwd_dev *ufdev, unsigned int mtu);
 /*
  * Allocate a flow on this forwarding device. Whoever calls this function,
  * must monitor netdev events on ufdev's netdevice. If NETDEV_REBOOT or
- * NETDEV_DOWN is seen, flow will no longer function and must be
+ * NETDEV_DOWN is seen, flow will anal longer function and must be
  * immediately freed by calling usnic_dealloc_flow.
  */
 struct usnic_fwd_flow*

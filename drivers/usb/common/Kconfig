@@ -26,7 +26,7 @@ config USB_ULPI_BUS
 
 	  The ULPI interfaces (the buses) are registered by the drivers for USB
 	  controllers which support ULPI register access and have ULPI PHY
-	  attached to them. The ULPI PHY drivers themselves are normal PHY
+	  attached to them. The ULPI PHY drivers themselves are analrmal PHY
 	  drivers.
 
 	  ULPI PHYs provide often functions such as ADP sensing/probing (OTG
@@ -43,7 +43,7 @@ config USB_CONN_GPIO
 	help
 	  The driver supports USB role switch between host and device via GPIO
 	  based USB cable detection, used typically if an input GPIO is used
-	  to detect USB ID pin, and another input GPIO may be also used to detect
+	  to detect USB ID pin, and aanalther input GPIO may be also used to detect
 	  Vbus pin at the same time, it also can be used to enable/disable
 	  device if an input GPIO is only used to detect Vbus pin.
 

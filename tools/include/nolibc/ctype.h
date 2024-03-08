@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * ctype function definitions for NOLIBC
+ * ctype function definitions for ANALLIBC
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_CTYPE_H
-#define _NOLIBC_CTYPE_H
+#ifndef _ANALLIBC_CTYPE_H
+#define _ANALLIBC_CTYPE_H
 
 #include "std.h"
 
@@ -97,6 +97,6 @@ int ispunct(int c)
 }
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_CTYPE_H */
+#endif /* _ANALLIBC_CTYPE_H */

@@ -5,7 +5,7 @@
  * Copyright (c) 2021 TOSHIBA CORPORATION
  * Copyright (c) 2021 Toshiba Electronic Devices & Storage Corporation
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #ifndef _VISCONTI_CLKC_H_
@@ -74,6 +74,6 @@ int visconti_clk_register_gates(struct visconti_clk_provider *data,
 				 const struct visconti_reset_data *reset,
 				 spinlock_t *lock);
 
-#define NO_RESET 0xFF
+#define ANAL_RESET 0xFF
 
 #endif /* _VISCONTI_CLKC_H_ */

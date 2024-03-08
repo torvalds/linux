@@ -1,5 +1,5 @@
 #
-# Automatically generated file; DO NOT EDIT.
+# Automatically generated file; DO ANALT EDIT.
 # User Mode Linux/x86 4.12.0-rc3 Kernel Configuration
 #
 CONFIG_UML=y
@@ -12,6 +12,6 @@ CONFIG_MMU=y
 #
 # Host processor type and features
 #
-# CONFIG_MK8 is not set
+# CONFIG_MK8 is analt set
 CONFIG_TEST=y
 CONFIG_EXAMPLE_TEST=y

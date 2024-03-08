@@ -58,9 +58,9 @@ static int sharp_panel_write(struct sharp_panel *sharp, u16 offset, u8 value)
 		return err;
 	}
 
-	err = mipi_dsi_dcs_nop(dsi);
+	err = mipi_dsi_dcs_analp(dsi);
 	if (err < 0) {
-		dev_err(&dsi->dev, "failed to send DCS nop: %zd\n", err);
+		dev_err(&dsi->dev, "failed to send DCS analp: %zd\n", err);
 		return err;
 	}
 
@@ -173,8 +173,8 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 
 	/*
 	 * According to the datasheet, the panel needs around 10 ms to fully
-	 * power up. At least another 120 ms is required before exiting sleep
-	 * mode to make sure the panel is ready. Throw in another 20 ms for
+	 * power up. At least aanalther 120 ms is required before exiting sleep
+	 * mode to make sure the panel is ready. Throw in aanalther 20 ms for
 	 * good measure.
 	 */
 	msleep(150);
@@ -281,7 +281,7 @@ static int sharp_panel_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%ux@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -343,7 +343,7 @@ static int sharp_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct mipi_dsi_device *secondary = NULL;
 	struct sharp_panel *sharp;
-	struct device_node *np;
+	struct device_analde *np;
 	int err;
 
 	dsi->lanes = 4;
@@ -351,10 +351,10 @@ static int sharp_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_LPM;
 
 	/* Find DSI-LINK1 */
-	np = of_parse_phandle(dsi->dev.of_node, "link2", 0);
+	np = of_parse_phandle(dsi->dev.of_analde, "link2", 0);
 	if (np) {
-		secondary = of_find_mipi_dsi_device_by_node(np);
-		of_node_put(np);
+		secondary = of_find_mipi_dsi_device_by_analde(np);
+		of_analde_put(np);
 
 		if (!secondary)
 			return -EPROBE_DEFER;
@@ -365,7 +365,7 @@ static int sharp_panel_probe(struct mipi_dsi_device *dsi)
 		sharp = devm_kzalloc(&dsi->dev, sizeof(*sharp), GFP_KERNEL);
 		if (!sharp) {
 			put_device(&secondary->dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		mipi_dsi_set_drvdata(dsi, sharp);
@@ -417,7 +417,7 @@ static void sharp_panel_shutdown(struct mipi_dsi_device *dsi)
 {
 	struct sharp_panel *sharp = mipi_dsi_get_drvdata(dsi);
 
-	/* nothing to do for DSI-LINK2 */
+	/* analthing to do for DSI-LINK2 */
 	if (!sharp)
 		return;
 

@@ -18,7 +18,7 @@ static unsigned int *cp1_base;
 unsigned int *ltq_get_cp1_base(void)
 {
 	if (!cp1_base)
-		panic("no cp1 base was set\n");
+		panic("anal cp1 base was set\n");
 
 	return cp1_base;
 }

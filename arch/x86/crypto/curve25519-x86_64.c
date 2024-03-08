@@ -102,7 +102,7 @@ static inline void fadd(u64 *out, const u64 *f1, const u64 *f2)
 		"  adcx %%rcx, %%r11;"
 		"  movq %%r11, 24(%1);"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %0, %%rax;"
 		"  add %%rax, %%r8;"
@@ -139,7 +139,7 @@ static inline void fsub(u64 *out, const u64 *f1, const u64 *f2)
 		"  sbb $0, %%r10;"
 		"  sbb $0, %%r11;"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %%rcx, %%rax;"
 		"  sub %%rax, %%r8;"
@@ -276,7 +276,7 @@ static inline void fmul(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 		"  adcx %1, %%r11;"
 		"  movq %%r11, 24(%2);"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %%rdx, %%rax;"
 		"  add %%rax, %%r8;"
@@ -494,7 +494,7 @@ static inline void fmul2(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 		"  adcx %1, %%r11;"
 		"  movq %%r11, 24(%2);"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %%rdx, %%rax;"
 		"  add %%rax, %%r8;"
@@ -527,7 +527,7 @@ static inline void fmul2(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 		"  adcx %1, %%r11;"
 		"  movq %%r11, 56(%2);"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %%rdx, %%rax;"
 		"  add %%rax, %%r8;"
@@ -571,7 +571,7 @@ static inline void fmul_scalar(u64 *out, const u64 *f1, u64 f2)
 		"  adcx %%rcx, %%r11;"
 		"  movq %%r11, 24(%1);"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %%rdx, %%rax;"
 		"  add %%rax, %%r8;"
@@ -763,7 +763,7 @@ static inline void fsqr(u64 *out, const u64 *f, u64 *tmp)
 		"  adcx %%rcx, %%r11;"
 		"  movq %%r11, 24(%1);"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %%rdx, %%rax;"
 		"  add %%rax, %%r8;"
@@ -928,7 +928,7 @@ static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 		"  adcx %%rcx, %%r11;"
 		"  movq %%r11, 24(%1);"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %%rdx, %%rax;"
 		"  add %%rax, %%r8;"
@@ -961,7 +961,7 @@ static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 		"  adcx %%rcx, %%r11;"
 		"  movq %%r11, 56(%1);"
 
-		/* Step 3: Fold the carry bit back in; guaranteed not to carry at this point */
+		/* Step 3: Fold the carry bit back in; guaranteed analt to carry at this point */
 		"  mov $0, %%rax;"
 		"  cmovc %%rdx, %%rax;"
 		"  add %%rax, %%r8;"

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -62,7 +62,7 @@ nvkm_acr_lsfw_add(const struct nvkm_acr_lsf_func *func, struct nvkm_acr *acr,
 	struct nvkm_acr_lsfw *lsfw;
 
 	if (!acr || list_empty(&acr->hsfw))
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EANALSYS);
 
 	lsfw = nvkm_acr_lsfw_get(acr, id);
 	if (lsfw && lsfw->func) {
@@ -72,7 +72,7 @@ nvkm_acr_lsfw_add(const struct nvkm_acr_lsf_func *func, struct nvkm_acr *acr,
 
 	if (!lsfw) {
 		if (!(lsfw = kzalloc(sizeof(*lsfw), GFP_KERNEL)))
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		lsfw->id = id;
 		list_add_tail(&lsfw->head, &acr->lsfw);
@@ -240,7 +240,7 @@ nvkm_acr_lsfw_load_sig_image_desc_v2(struct nvkm_subdev *subdev,
 				     lsfw->sig_nr * lsfw->sig_size, GFP_KERNEL);
 		nvkm_firmware_put(hsbl);
 		if (!lsfw->sigs)
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 	}
 
 	return ret;
@@ -298,7 +298,7 @@ nvkm_acr_lsfw_load_bl_inst_data_sig(struct nvkm_subdev *subdev,
 
 	lsfw->img.size = lsfw->bootloader_size + lsfw->app_size;
 	if (!(lsfw->img.data = kzalloc(lsfw->img.size, GFP_KERNEL))) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -375,7 +375,7 @@ nvkm_acr_lsfw_load_bl_sig_net(struct nvkm_subdev *subdev,
 
 	lsfw->img.size = lsfw->bootloader_size + lsfw->app_size;
 	if (!(lsfw->img.data = kzalloc(lsfw->img.size, GFP_KERNEL))) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 

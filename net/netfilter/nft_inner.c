@@ -31,7 +31,7 @@ struct __nft_expr {
 	union {
 		struct nft_payload	payload;
 		struct nft_meta		meta;
-	} __attribute__((aligned(__alignof__(u64))));
+	} __attribute__((aligned(__aliganalf__(u64))));
 };
 
 enum {
@@ -175,7 +175,7 @@ static int nft_inner_parse_tunhdr(const struct nft_inner *priv,
 				  struct nft_inner_tun_ctx *ctx, u32 *off)
 {
 	if (pkt->tprot == IPPROTO_GRE) {
-		ctx->inner_tunoff = pkt->thoff;
+		ctx->inner_tuanalff = pkt->thoff;
 		ctx->flags |= NFT_PAYLOAD_CTX_INNER_TUN;
 		return 0;
 	}
@@ -183,7 +183,7 @@ static int nft_inner_parse_tunhdr(const struct nft_inner *priv,
 	if (pkt->tprot != IPPROTO_UDP)
 		return -1;
 
-	ctx->inner_tunoff = *off;
+	ctx->inner_tuanalff = *off;
 	ctx->flags |= NFT_PAYLOAD_CTX_INNER_TUN;
 	*off += priv->hdrsize;
 
@@ -306,11 +306,11 @@ static int nft_inner_init(const struct nft_ctx *ctx,
 
 	flags = ntohl(nla_get_be32(tb[NFTA_INNER_FLAGS]));
 	if (flags & ~NFT_INNER_MASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	num = ntohl(nla_get_be32(tb[NFTA_INNER_NUM]));
 	if (num != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	hdrsize = ntohl(nla_get_be32(tb[NFTA_INNER_HDRSIZE]));
 	type = ntohl(nla_get_be32(tb[NFTA_INNER_TYPE]));
@@ -320,7 +320,7 @@ static int nft_inner_init(const struct nft_ctx *ctx,
 
 	if (flags & NFT_INNER_HDRSIZE) {
 		if (hdrsize == 0 || hdrsize > 64)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	priv->flags = flags;

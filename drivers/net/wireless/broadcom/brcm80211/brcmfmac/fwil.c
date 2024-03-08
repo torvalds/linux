@@ -28,45 +28,45 @@ static const char * const brcmf_fil_errstr[] = {
 	"BCME_ERROR",
 	"BCME_BADARG",
 	"BCME_BADOPTION",
-	"BCME_NOTUP",
-	"BCME_NOTDOWN",
-	"BCME_NOTAP",
-	"BCME_NOTSTA",
+	"BCME_ANALTUP",
+	"BCME_ANALTDOWN",
+	"BCME_ANALTAP",
+	"BCME_ANALTSTA",
 	"BCME_BADKEYIDX",
 	"BCME_RADIOOFF",
-	"BCME_NOTBANDLOCKED",
-	"BCME_NOCLK",
+	"BCME_ANALTBANDLOCKED",
+	"BCME_ANALCLK",
 	"BCME_BADRATESET",
 	"BCME_BADBAND",
 	"BCME_BUFTOOSHORT",
 	"BCME_BUFTOOLONG",
 	"BCME_BUSY",
-	"BCME_NOTASSOCIATED",
+	"BCME_ANALTASSOCIATED",
 	"BCME_BADSSIDLEN",
 	"BCME_OUTOFRANGECHAN",
 	"BCME_BADCHAN",
 	"BCME_BADADDR",
-	"BCME_NORESOURCE",
+	"BCME_ANALRESOURCE",
 	"BCME_UNSUPPORTED",
 	"BCME_BADLEN",
-	"BCME_NOTREADY",
+	"BCME_ANALTREADY",
 	"BCME_EPERM",
-	"BCME_NOMEM",
+	"BCME_ANALMEM",
 	"BCME_ASSOCIATED",
 	"BCME_RANGE",
-	"BCME_NOTFOUND",
-	"BCME_WME_NOT_ENABLED",
-	"BCME_TSPEC_NOTFOUND",
-	"BCME_ACM_NOTSUPPORTED",
-	"BCME_NOT_WME_ASSOCIATION",
+	"BCME_ANALTFOUND",
+	"BCME_WME_ANALT_ENABLED",
+	"BCME_TSPEC_ANALTFOUND",
+	"BCME_ACM_ANALTSUPPORTED",
+	"BCME_ANALT_WME_ASSOCIATION",
 	"BCME_SDIO_ERROR",
 	"BCME_DONGLE_DOWN",
 	"BCME_VERSION",
 	"BCME_TXFAIL",
 	"BCME_RXFAIL",
-	"BCME_NODEVICE",
+	"BCME_ANALDEVICE",
 	"BCME_NMODE_DISABLED",
-	"BCME_NONRESIDENT",
+	"BCME_ANALNRESIDENT",
 	"BCME_SCANREJECT",
 	"BCME_USAGE_ERROR",
 	"BCME_IOCTL_ERROR",
@@ -76,13 +76,13 @@ static const char * const brcmf_fil_errstr[] = {
 	"BCME_ENCERR",
 	"BCME_MICERR",
 	"BCME_REPLAY",
-	"BCME_IE_NOTFOUND",
+	"BCME_IE_ANALTFOUND",
 };
 
 static const char *brcmf_fil_get_errstr(u32 err)
 {
 	if (err >= ARRAY_SIZE(brcmf_fil_errstr))
-		return "(unknown)";
+		return "(unkanalwn)";
 
 	return brcmf_fil_errstr[err];
 }
@@ -100,7 +100,7 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 	s32 err, fwerr;
 
 	if (drvr->bus_if->state != BRCMF_BUS_UP) {
-		bphy_err(drvr, "bus is down. we have nothing to do.\n");
+		bphy_err(drvr, "bus is down. we have analthing to do.\n");
 		return -EIO;
 	}
 
@@ -316,7 +316,7 @@ brcmf_create_bsscfg(s32 bsscfgidx, const char *name, char *data, u32 datalen,
 
 	p = buf;
 
-	/* copy prefix, no null */
+	/* copy prefix, anal null */
 	memcpy(p, prefix, prefixlen);
 	p += prefixlen;
 

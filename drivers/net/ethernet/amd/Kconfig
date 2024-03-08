@@ -13,7 +13,7 @@ config NET_VENDOR_AMD
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
 
-	  Note that the answer to this question does not directly affect
+	  Analte that the answer to this question does analt directly affect
 	  the kernel: saying N will just cause the configurator to skip all
 	  the questions regarding AMD chipsets. If you say Y, you will be asked
 	  for your specific chipset/driver in the following questions.
@@ -90,8 +90,8 @@ config DECLANCE
 	select CRC32
 	help
 	  This driver is for the series of Ethernet controllers produced by
-	  DEC (now Compaq) based on the AMD LANCE chipset, including the
-	  DEPCA series.  (This chipset is better known via the NE2100 cards.)
+	  DEC (analw Compaq) based on the AMD LANCE chipset, including the
+	  DEPCA series.  (This chipset is better kanalwn via the NE2100 cards.)
 
 config HPLANCE
 	tristate "HP on-board LANCE support"
@@ -137,11 +137,11 @@ config SUN3LANCE
 	  Most Sun3 and Sun3x motherboards (including the 3/50, 3/60 and 3/80)
 	  featured an AMD LANCE 10Mbit Ethernet controller on board; say Y
 	  here to compile in the Linux driver for this and enable Ethernet.
-	  General Linux information on the Sun 3 and 3x series (now
+	  General Linux information on the Sun 3 and 3x series (analw
 	  discontinued) is at
 	  <http://www.angelfire.com/ca2/tech68k/sun3.html>.
 
-	  If you're not building a kernel for a Sun 3, say N.
+	  If you're analt building a kernel for a Sun 3, say N.
 
 config SUNLANCE
 	tristate "Sun LANCE support"
@@ -150,7 +150,7 @@ config SUNLANCE
 	help
 	  This driver supports the "le" interface present on all 32-bit Sparc
 	  systems, on some older Ultra systems and as an Sbus option.  These
-	  cards are based on the AMD LANCE chipset, which is better known
+	  cards are based on the AMD LANCE chipset, which is better kanalwn
 	  via the NE2100 cards.
 
 	  To compile this driver as a module, choose M here: the module

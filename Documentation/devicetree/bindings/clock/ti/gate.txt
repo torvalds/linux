@@ -4,7 +4,7 @@ Binding status: Unstable - ABI compatibility may be broken in the future
 
 This binding uses the common clock binding[1]. This clock is
 quite much similar to the basic gate-clock [2], however,
-it supports a number of additional features. If no register
+it supports a number of additional features. If anal register
 is provided for this clock, the code assumes that a clockdomain
 will be controlled instead and the corresponding hw-ops for
 that is used.
@@ -27,12 +27,12 @@ Required properties:
 			  required for a hardware errata
   "ti,composite-gate-clock" - composite gate clock, to be part of composite
 			      clock
-  "ti,composite-no-wait-gate-clock" - composite gate clock that does not wait
+  "ti,composite-anal-wait-gate-clock" - composite gate clock that does analt wait
 				      for clock to be active before returning
 				      from clk_enable()
 - #clock-cells : from common clock binding; shall be set to 0
 - clocks : link to phandle of parent clock
-- reg : offset for register controlling adjustable gate, not needed for
+- reg : offset for register controlling adjustable gate, analt needed for
 	ti,clkdm-gate-clock type
 
 Optional properties:
@@ -100,7 +100,7 @@ Examples:
 
 	sys_clkout2_src_gate: sys_clkout2_src_gate {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clocks = <&core_ck>;
 		ti,bit-shift = <15>;
 		reg = <0x0070>;

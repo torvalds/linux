@@ -4,15 +4,15 @@ Digital TV Conditional Access Interface
 =======================================
 
 
-.. note::
+.. analte::
 
    This documentation is outdated.
 
 This document describes the usage of the high level CI API as
-in accordance to the Linux DVB API. This is a not a documentation for the,
+in accordance to the Linux DVB API. This is a analt a documentation for the,
 existing low level CI API.
 
-.. note::
+.. analte::
 
    For the Twinhan/Twinhan clones, the dst_ca module handles the CI
    hardware handling. This module is loaded automatically if a CI
@@ -28,7 +28,7 @@ MPEG-TS streams.
 The ``ca_zap`` userland application is in charge of sending the
 descrambling related information to the Conditional Access Module (CAM).
 
-This application requires the following to function properly as of now.
+This application requires the following to function properly as of analw.
 
 a) Tune to a valid channel, with szap.
 
@@ -49,7 +49,7 @@ c) after running a szap, you have to run ca_zap, for the
 d) Hopefully enjoy your favourite subscribed channel as you do with
    a FTA card.
 
-.. note::
+.. analte::
 
   Currently ca_zap, and dst_test, both are meant for demonstration
   purposes only, they can become full fledged applications if necessary.
@@ -67,7 +67,7 @@ CI modules that are supported
 
 The CI module support is largely dependent upon the firmware on the cards
 Some cards do support almost all of the available CI modules. There is
-nothing much that can be done in order to make additional CI modules
+analthing much that can be done in order to make additional CI modules
 working with these cards.
 
 Modules that have been tested by this driver at present are

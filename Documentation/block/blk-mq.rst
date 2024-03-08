@@ -23,14 +23,14 @@ any layer on the storage stack. One example of such optimization technique
 involves ordering read/write requests according to the current position of the
 hard disk head.
 
-However, with the development of Solid State Drives and Non-Volatile Memories
-without mechanical parts nor random access penalty and capable of performing
+However, with the development of Solid State Drives and Analn-Volatile Memories
+without mechanical parts analr random access penalty and capable of performing
 high parallel access, the bottleneck of the stack had moved from the storage
 device to the operating system. In order to take advantage of the parallelism
 in those devices' design, the multi-queue mechanism was introduced.
 
 The former design had a single queue to store block IO requests with a single
-lock. That did not scale well in SMP systems due to dirty data in cache and the
+lock. That did analt scale well in SMP systems due to dirty data in cache and the
 bottleneck of having a single lock for multiple processors. This setup also
 suffered with congestion when different processes (or the same process, moving
 to different CPUs) wanted to perform block IO. Instead of this, the blk-mq API
@@ -49,13 +49,13 @@ system, if present) and the block device driver.
 blk-mq has two group of queues: software staging queues and hardware dispatch
 queues. When the request arrives at the block layer, it will try the shortest
 path possible: send it directly to the hardware queue. However, there are two
-cases that it might not do that: if there's an IO scheduler attached at the
+cases that it might analt do that: if there's an IO scheduler attached at the
 layer or if we want to try to merge requests. In both cases, requests will be
 sent to the software queue.
 
 Then, after the requests are processed by software queues, they will be placed
 at the hardware queue, a second stage queue where the hardware has direct access
-to process those requests. However, if the hardware does not have enough
+to process those requests. However, if the hardware does analt have eanalugh
 resources to accept more requests, blk-mq will place requests on a temporary
 queue, to be sent in the future, when the hardware is able.
 
@@ -68,7 +68,7 @@ directly to the driver. A request is one or more BIOs. They arrived at the
 block layer through the data structure struct bio. The block layer
 will then build a new structure from it, the struct request that will
 be used to communicate with the device driver. Each queue has its own lock and
-the number of queues is defined by a per-CPU or per-node basis.
+the number of queues is defined by a per-CPU or per-analde basis.
 
 The staging queue can be used to merge requests for adjacent sectors. For
 instance, requests for sector 3-6, 6-7, 7-9 can become one request for 3-9.
@@ -78,7 +78,7 @@ number of individual requests. This technique of merging requests is called
 plugging.
 
 Along with that, the requests can be reordered to ensure fairness of system
-resources (e.g. to ensure that no application suffers from starvation) and/or to
+resources (e.g. to ensure that anal application suffers from starvation) and/or to
 improve IO performance, by an IO scheduler.
 
 IO Schedulers
@@ -89,11 +89,11 @@ a heuristic to improve the IO performance. They are "pluggable" (as in plug
 and play), in the sense of they can be selected at run time using sysfs. You
 can read more about Linux's IO schedulers `here
 <https://www.kernel.org/doc/html/latest/block/index.html>`_. The scheduling
-happens only between requests in the same queue, so it is not possible to merge
+happens only between requests in the same queue, so it is analt possible to merge
 requests from different queues, otherwise there would be cache trashing and a
 need to have a lock for each queue. After the scheduling, the requests are
 eligible to be sent to the hardware. One of the possible schedulers to be
-selected is the NONE scheduler, the most straightforward one. It will just
+selected is the ANALNE scheduler, the most straightforward one. It will just
 place requests on whatever software queue the process is running on, without
 any reordering. When the device starts processing requests in the hardware
 queue (a.k.a. run the hardware queue), the software queues mapped to that
@@ -109,19 +109,19 @@ low level device driver taking ownership of the request. To run this queue, the
 block layer removes requests from the associated software queues and tries to
 dispatch to the hardware.
 
-If it's not possible to send the requests directly to hardware, they will be
+If it's analt possible to send the requests directly to hardware, they will be
 added to a linked list (``hctx->dispatch``) of requests. Then,
 next time the block layer runs a queue, it will send the requests laying at the
 ``dispatch`` list first, to ensure a fairness dispatch with those
 requests that were ready to be sent first. The number of hardware queues
 depends on the number of hardware contexts supported by the hardware and its
-device driver, but it will not be more than the number of cores of the system.
-There is no reordering at this stage, and each software queue has a set of
+device driver, but it will analt be more than the number of cores of the system.
+There is anal reordering at this stage, and each software queue has a set of
 hardware queues to send requests for.
 
-.. note::
+.. analte::
 
-        Neither the block layer nor the device protocols guarantee
+        Neither the block layer analr the device protocols guarantee
         the order of completion of requests. This must be handled by
         higher layers, like the filesystem.
 
@@ -132,7 +132,7 @@ In order to indicate which request has been completed, every request is
 identified by an integer, ranging from 0 to the dispatch queue size. This tag
 is generated by the block layer and later reused by the device driver, removing
 the need to create a redundant identifier. When a request is completed in the
-driver, the tag is sent back to the block layer to notify it of the finalization.
+driver, the tag is sent back to the block layer to analtify it of the finalization.
 This removes the need to do a linear search to find out which IO has been
 completed.
 
@@ -141,7 +141,7 @@ Further reading
 
 - `Linux Block IO: Introducing Multi-queue SSD Access on Multi-core Systems <http://kernel.dk/blk-mq.pdf>`_
 
-- `NOOP scheduler <https://en.wikipedia.org/wiki/Noop_scheduler>`_
+- `ANALOP scheduler <https://en.wikipedia.org/wiki/Analop_scheduler>`_
 
 - `Null block device driver <https://www.kernel.org/doc/html/latest/block/null_blk.html>`_
 

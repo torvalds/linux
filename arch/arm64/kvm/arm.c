@@ -7,7 +7,7 @@
 #include <linux/bug.h>
 #include <linux/cpu_pm.h>
 #include <linux/entry-kvm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/list.h>
@@ -104,7 +104,7 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		mutex_lock(&kvm->slots_lock);
 		/*
 		 * To keep things simple, allow changing the chunk
-		 * size only when no memory slots have been created.
+		 * size only when anal memory slots have been created.
 		 */
 		if (!kvm_are_all_memslots_empty(kvm)) {
 			r = -EINVAL;
@@ -156,7 +156,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		goto err_unshare_kvm;
 
 	if (!zalloc_cpumask_var(&kvm->arch.supported_cpus, GFP_KERNEL_ACCOUNT)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unshare_kvm;
 	}
 	cpumask_copy(kvm->arch.supported_cpus, cpu_possible_mask);
@@ -250,8 +250,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_NR_VCPUS:
 		/*
 		 * ARM64 treats KVM_CAP_NR_CPUS differently from all other
-		 * architectures, as it does not always bound it to
-		 * KVM_CAP_MAX_VCPUS. It should not matter much because
+		 * architectures, as it does analt always bound it to
+		 * KVM_CAP_MAX_VCPUS. It should analt matter much because
 		 * this is just an advisory value.
 		 */
 		r = min_t(unsigned int, num_online_cpus(),
@@ -553,7 +553,7 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
  * kvm_arch_vcpu_runnable - determine if the vcpu can be scheduled
  * @v:		The VCPU pointer
  *
- * If the guest CPU is not waiting for interrupts or an interrupt line is
+ * If the guest CPU is analt waiting for interrupts or an interrupt line is
  * asserted, the CPU is by definition runnable.
  */
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
@@ -608,7 +608,7 @@ static void kvm_init_mpidr_data(struct kvm *kvm)
 	/*
 	 * Don't let userspace fool us. If we need more than a single page
 	 * to describe the compressed MPIDR array, just fall back to the
-	 * iterative method. Single vcpu VMs do not need this either.
+	 * iterative method. Single vcpu VMs do analt need this either.
 	 */
 	if (struct_size(data, cmpidr_to_idx, nr_entries) <= PAGE_SIZE)
 		data = kzalloc(struct_size(data, cmpidr_to_idx, nr_entries),
@@ -642,7 +642,7 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 	int ret;
 
 	if (!kvm_vcpu_initialized(vcpu))
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	if (!kvm_arm_vcpu_is_finalized(vcpu))
 		return -EPERM;
@@ -698,7 +698,7 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Initialize traps for protected VMs.
-	 * NOTE: Move to run in EL2 directly, rather than via a hypercall, once
+	 * ANALTE: Move to run in EL2 directly, rather than via a hypercall, once
 	 * the code is in place for first run initialization at EL2.
 	 */
 	if (kvm_vm_is_protected(kvm))
@@ -763,7 +763,7 @@ static void kvm_vcpu_sleep(struct kvm_vcpu *vcpu)
  * @vcpu:	The VCPU pointer
  *
  * Suspend execution of a vCPU until a valid wake event is detected, i.e. until
- * the vCPU is runnable.  The vCPU may or may not be scheduled out, depending
+ * the vCPU is runnable.  The vCPU may or may analt be scheduled out, depending
  * on when a wake event arrives, e.g. there may already be a pending wake event.
  */
 void kvm_vcpu_wfi(struct kvm_vcpu *vcpu)
@@ -801,7 +801,7 @@ static int kvm_vcpu_suspend(struct kvm_vcpu *vcpu)
 	kvm_vcpu_wfi(vcpu);
 
 	/*
-	 * The suspend state is sticky; we do not leave it until userspace
+	 * The suspend state is sticky; we do analt leave it until userspace
 	 * explicitly marks the vCPU as runnable. Request that we suspend again
 	 * later.
 	 */
@@ -889,7 +889,7 @@ static bool vcpu_mode_is_bad_32bit(struct kvm_vcpu *vcpu)
 }
 
 /**
- * kvm_vcpu_exit_request - returns true if the VCPU should *not* enter the guest
+ * kvm_vcpu_exit_request - returns true if the VCPU should *analt* enter the guest
  * @vcpu:	The VCPU pointer
  * @ret:	Pointer to write optional return code
  *
@@ -914,8 +914,8 @@ static bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu, int *ret)
 	 * kvm_pmu_update_run below).
 	 */
 	if (static_branch_unlikely(&userspace_irqchip_in_use)) {
-		if (kvm_timer_should_notify_user(vcpu) ||
-		    kvm_pmu_should_notify_user(vcpu)) {
+		if (kvm_timer_should_analtify_user(vcpu) ||
+		    kvm_pmu_should_analtify_user(vcpu)) {
 			*ret = -EINTR;
 			run->exit_reason = KVM_EXIT_INTR;
 			return true;
@@ -938,10 +938,10 @@ static bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu, int *ret)
  * Actually run the vCPU, entering an RCU extended quiescent state (EQS) while
  * the vCPU is running.
  *
- * This must be noinstr as instrumentation may make use of RCU, and this is not
+ * This must be analinstr as instrumentation may make use of RCU, and this is analt
  * safe during the EQS.
  */
-static int noinstr kvm_arm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
+static int analinstr kvm_arm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 {
 	int ret;
 
@@ -983,7 +983,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	kvm_sigset_activate(vcpu);
 
 	ret = 1;
-	run->exit_reason = KVM_EXIT_UNKNOWN;
+	run->exit_reason = KVM_EXIT_UNKANALWN;
 	run->flags = 0;
 	while (ret > 0) {
 		/*
@@ -999,16 +999,16 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		/*
 		 * Preparing the interrupts to be injected also
 		 * involves poking the GIC, which must be done in a
-		 * non-preemptible context.
+		 * analn-preemptible context.
 		 */
 		preempt_disable();
 
 		/*
 		 * The VMID allocator only tracks active VMIDs per
-		 * physical CPU, and therefore the VMID allocated may not be
+		 * physical CPU, and therefore the VMID allocated may analt be
 		 * preserved on VMID roll-over if the task was preempted,
 		 * making a thread's VMID inactive. So we need to call
-		 * kvm_arm_vmid_update() in non-premptible context.
+		 * kvm_arm_vmid_update() in analn-premptible context.
 		 */
 		if (kvm_arm_vmid_update(&vcpu->arch.hw_mmu->vmid) &&
 		    has_vhe())
@@ -1071,7 +1071,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 		/*
 		 * Sync the vgic state before syncing the timer state because
-		 * the timer code needs to know if the virtual timer
+		 * the timer code needs to kanalw if the virtual timer
 		 * interrupts are active.
 		 */
 		kvm_vgic_sync_hwstate(vcpu);
@@ -1148,7 +1148,7 @@ out:
 	 * In the unlikely event that we are returning to userspace
 	 * with pending exceptions or PC adjustment, commit these
 	 * adjustments in order to give userspace a consistent view of
-	 * the vcpu state. Note that this relies on __kvm_adjust_pc()
+	 * the vcpu state. Analte that this relies on __kvm_adjust_pc()
 	 * being preempt-safe on VHE.
 	 */
 	if (unlikely(vcpu_get_flag(vcpu, PENDING_EXCEPTION) ||
@@ -1177,7 +1177,7 @@ static int vcpu_interrupt_line(struct kvm_vcpu *vcpu, int number, bool level)
 		set = test_and_clear_bit(bit_index, hcr);
 
 	/*
-	 * If we didn't change anything, no need to wake up or kick other CPUs
+	 * If we didn't change anything, anal need to wake up or kick other CPUs
 	 */
 	if (set == level)
 		return 0;
@@ -1277,18 +1277,18 @@ static int kvm_vcpu_init_check_features(struct kvm_vcpu *vcpu,
 	int i;
 
 	if (features & ~KVM_VCPU_VALID_FEATURES)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 1; i < ARRAY_SIZE(init->features); i++) {
 		if (init->features[i])
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	if (features & ~system_supported_vcpu_features())
 		return -EINVAL;
 
 	/*
-	 * For now make sure that both address/generic pointer authentication
+	 * For analw make sure that both address/generic pointer authentication
 	 * features are requested by the userspace together.
 	 */
 	if (test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, &features) !=
@@ -1329,7 +1329,7 @@ static int kvm_setup_vcpu(struct kvm_vcpu *vcpu)
 	int ret = 0;
 
 	/*
-	 * When the vCPU has a PMU, but no PMU is set for the guest
+	 * When the vCPU has a PMU, but anal PMU is set for the guest
 	 * yet, set the default one.
 	 */
 	if (kvm_vcpu_has_pmu(vcpu) && !kvm->arch.arm_pmu)
@@ -1357,7 +1357,7 @@ static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	if (ret)
 		goto out_unlock;
 
-	/* Now we know what it is, we can reset it. */
+	/* Analw we kanalw what it is, we can reset it. */
 	kvm_reset_vcpu(vcpu);
 
 	set_bit(KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED, &kvm->arch.flags);
@@ -1417,7 +1417,7 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 	 *
 	 * S2FWB enforces all memory accesses to RAM being cacheable,
 	 * ensuring that the data side is always coherent. We still
-	 * need to invalidate the I-cache though, as FWB does *not*
+	 * need to invalidate the I-cache though, as FWB does *analt*
 	 * imply CTR_EL0.DIC.
 	 */
 	if (vcpu_has_run_once(vcpu)) {
@@ -1536,7 +1536,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_GET_ONE_REG: {
 		struct kvm_one_reg reg;
 
-		r = -ENOEXEC;
+		r = -EANALEXEC;
 		if (unlikely(!kvm_vcpu_initialized(vcpu)))
 			break;
 
@@ -1563,7 +1563,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		struct kvm_reg_list reg_list;
 		unsigned n;
 
-		r = -ENOEXEC;
+		r = -EANALEXEC;
 		if (unlikely(!kvm_vcpu_initialized(vcpu)))
 			break;
 
@@ -1628,7 +1628,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		int what;
 
 		if (!kvm_vcpu_initialized(vcpu))
-			return -ENOEXEC;
+			return -EANALEXEC;
 
 		if (get_user(what, (const int __user *)argp))
 			return -EFAULT;
@@ -1656,7 +1656,7 @@ static int kvm_vm_ioctl_set_device_addr(struct kvm *kvm,
 			return -ENXIO;
 		return kvm_set_legacy_vgic_v2_addr(kvm, dev_addr);
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -1781,7 +1781,7 @@ bool lock_all_vcpus(struct kvm *kvm)
 	 * Any time a vcpu is in an ioctl (including running), the
 	 * core KVM code tries to grab the vcpu->mutex.
 	 *
-	 * By grabbing the vcpu->mutex of all VCPUs we ensure that no
+	 * By grabbing the vcpu->mutex of all VCPUs we ensure that anal
 	 * other VCPUs can fiddle with the state while we access it.
 	 */
 	kvm_for_each_vcpu(c, tmp_vcpu, kvm) {
@@ -1912,7 +1912,7 @@ static void cpu_init_hyp_mode(void)
 	hyp_install_host_vector();
 
 	/*
-	 * Disabling SSBD on a non-VHE system requires us to enable SSBS
+	 * Disabling SSBD on a analn-VHE system requires us to enable SSBS
 	 * at EL2.
 	 */
 	if (this_cpu_has_cap(ARM64_SSBS) &&
@@ -1943,9 +1943,9 @@ static void cpu_hyp_reset(void)
  *   empty slot is selected, mapped next to the idmap page, and
  *   executed before jumping to the real vectors.
  *
- * Note that ARM64_SPECTRE_V3A is somewhat incompatible with
+ * Analte that ARM64_SPECTRE_V3A is somewhat incompatible with
  * VHE, as we don't have hypervisor-specific mappings. If the system
- * is VHE and yet selects this capability, it will be ignored.
+ * is VHE and yet selects this capability, it will be iganalred.
  */
 static void cpu_set_hyp_vector(void)
 {
@@ -2005,8 +2005,8 @@ int kvm_arch_hardware_enable(void)
 {
 	/*
 	 * Most calls to this function are made with migration
-	 * disabled, but not with preemption disabled. The former is
-	 * enough to ensure correctness, but most of the helpers
+	 * disabled, but analt with preemption disabled. The former is
+	 * eanalugh to ensure correctness, but most of the helpers
 	 * expect the later and will throw a tantrum otherwise.
 	 */
 	preempt_disable();
@@ -2031,7 +2031,7 @@ void kvm_arch_hardware_disable(void)
 }
 
 #ifdef CONFIG_CPU_PM
-static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
+static int hyp_init_cpu_pm_analtifier(struct analtifier_block *self,
 				    unsigned long cmd,
 				    void *v)
 {
@@ -2050,33 +2050,33 @@ static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
 			 */
 			cpu_hyp_reset();
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
 		if (__this_cpu_read(kvm_hyp_initialized))
 			/* The hyp was enabled before suspend. */
 			cpu_hyp_reinit();
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
-static struct notifier_block hyp_init_cpu_pm_nb = {
-	.notifier_call = hyp_init_cpu_pm_notifier,
+static struct analtifier_block hyp_init_cpu_pm_nb = {
+	.analtifier_call = hyp_init_cpu_pm_analtifier,
 };
 
 static void __init hyp_cpu_pm_init(void)
 {
 	if (!is_protected_kvm_enabled())
-		cpu_pm_register_notifier(&hyp_init_cpu_pm_nb);
+		cpu_pm_register_analtifier(&hyp_init_cpu_pm_nb);
 }
 static void __init hyp_cpu_pm_exit(void)
 {
 	if (!is_protected_kvm_enabled())
-		cpu_pm_unregister_notifier(&hyp_init_cpu_pm_nb);
+		cpu_pm_unregister_analtifier(&hyp_init_cpu_pm_nb);
 }
 #else
 static inline void __init hyp_cpu_pm_init(void)
@@ -2094,7 +2094,7 @@ static void __init init_cpu_logical_map(void)
 	/*
 	 * Copy the MPIDR <-> logical CPU ID mapping to hyp.
 	 * Only copy the set of online CPUs whose features have been checked
-	 * against the finalized system capabilities. The hypervisor will not
+	 * against the finalized system capabilities. The hypervisor will analt
 	 * allow any other CPUs from the `possible` set to boot.
 	 */
 	for_each_online_cpu(cpu)
@@ -2107,11 +2107,11 @@ static void __init init_cpu_logical_map(void)
 static bool __init init_psci_relay(void)
 {
 	/*
-	 * If PSCI has not been initialized, protected KVM cannot install
+	 * If PSCI has analt been initialized, protected KVM cananalt install
 	 * itself on newly booted CPUs.
 	 */
 	if (!psci_ops.get_version) {
-		kvm_err("Cannot initialize protected mode without PSCI\n");
+		kvm_err("Cananalt initialize protected mode without PSCI\n");
 		return false;
 	}
 
@@ -2138,7 +2138,7 @@ static int __init init_subsystems(void)
 	on_each_cpu(cpu_hyp_init, NULL, 1);
 
 	/*
-	 * Register CPU lower-power notifier
+	 * Register CPU lower-power analtifier
 	 */
 	hyp_cpu_pm_init();
 
@@ -2150,7 +2150,7 @@ static int __init init_subsystems(void)
 	case 0:
 		vgic_present = true;
 		break;
-	case -ENODEV:
+	case -EANALDEV:
 	case -ENXIO:
 		vgic_present = false;
 		err = 0;
@@ -2208,7 +2208,7 @@ static int __init do_pkvm_init(u32 hyp_va_bits)
 	cpu_hyp_init_features();
 
 	/*
-	 * The stub hypercalls are now disabled, so set our local flag to
+	 * The stub hypercalls are analw disabled, so set our local flag to
 	 * prevent a later re-init attempt in kvm_arch_hardware_enable().
 	 */
 	__this_cpu_write(kvm_hyp_initialized, 1);
@@ -2222,10 +2222,10 @@ static u64 get_hyp_id_aa64pfr0_el1(void)
 	/*
 	 * Track whether the system isn't affected by spectre/meltdown in the
 	 * hypervisor's view of id_aa64pfr0_el1, used for protected VMs.
-	 * Although this is per-CPU, we make it global for simplicity, e.g., not
+	 * Although this is per-CPU, we make it global for simplicity, e.g., analt
 	 * to have to worry about vcpu migration.
 	 *
-	 * Unlike for non-protected VMs, userspace cannot override this for
+	 * Unlike for analn-protected VMs, userspace cananalt override this for
 	 * protected VMs.
 	 */
 	u64 val = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
@@ -2299,10 +2299,10 @@ static int __init init_hyp_mode(void)
 {
 	u32 hyp_va_bits;
 	int cpu;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/*
-	 * The protected Hyp-mode cannot be initialized if the memory pool
+	 * The protected Hyp-mode cananalt be initialized if the memory pool
 	 * allocation has failed.
 	 */
 	if (is_protected_kvm_enabled() && !hyp_mem_base)
@@ -2323,7 +2323,7 @@ static int __init init_hyp_mode(void)
 
 		stack_page = __get_free_page(GFP_KERNEL);
 		if (!stack_page) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_err;
 		}
 
@@ -2339,7 +2339,7 @@ static int __init init_hyp_mode(void)
 
 		page = alloc_pages(GFP_KERNEL, nvhe_percpu_order());
 		if (!page) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_err;
 		}
 
@@ -2354,21 +2354,21 @@ static int __init init_hyp_mode(void)
 	err = create_hyp_mappings(kvm_ksym_ref(__hyp_text_start),
 				  kvm_ksym_ref(__hyp_text_end), PAGE_HYP_EXEC);
 	if (err) {
-		kvm_err("Cannot map world-switch code\n");
+		kvm_err("Cananalt map world-switch code\n");
 		goto out_err;
 	}
 
 	err = create_hyp_mappings(kvm_ksym_ref(__hyp_rodata_start),
 				  kvm_ksym_ref(__hyp_rodata_end), PAGE_HYP_RO);
 	if (err) {
-		kvm_err("Cannot map .hyp.rodata section\n");
+		kvm_err("Cananalt map .hyp.rodata section\n");
 		goto out_err;
 	}
 
 	err = create_hyp_mappings(kvm_ksym_ref(__start_rodata),
 				  kvm_ksym_ref(__end_rodata), PAGE_HYP_RO);
 	if (err) {
-		kvm_err("Cannot map rodata section\n");
+		kvm_err("Cananalt map rodata section\n");
 		goto out_err;
 	}
 
@@ -2380,14 +2380,14 @@ static int __init init_hyp_mode(void)
 	err = create_hyp_mappings(kvm_ksym_ref(__hyp_bss_start),
 				  kvm_ksym_ref(__hyp_bss_end), PAGE_HYP);
 	if (err) {
-		kvm_err("Cannot map hyp bss section: %d\n", err);
+		kvm_err("Cananalt map hyp bss section: %d\n", err);
 		goto out_err;
 	}
 
 	err = create_hyp_mappings(kvm_ksym_ref(__hyp_bss_end),
 				  kvm_ksym_ref(__bss_stop), PAGE_HYP_RO);
 	if (err) {
-		kvm_err("Cannot map bss section\n");
+		kvm_err("Cananalt map bss section\n");
 		goto out_err;
 	}
 
@@ -2400,7 +2400,7 @@ static int __init init_hyp_mode(void)
 
 		err = create_hyp_stack(__pa(stack_page), &params->stack_hyp_va);
 		if (err) {
-			kvm_err("Cannot map hyp stack\n");
+			kvm_err("Cananalt map hyp stack\n");
 			goto out_err;
 		}
 
@@ -2420,7 +2420,7 @@ static int __init init_hyp_mode(void)
 		/* Map Hyp percpu pages */
 		err = create_hyp_mappings(percpu_begin, percpu_end, PAGE_HYP);
 		if (err) {
-			kvm_err("Cannot map hyp percpu region\n");
+			kvm_err("Cananalt map hyp percpu region\n");
 			goto out_err;
 		}
 
@@ -2438,7 +2438,7 @@ static int __init init_hyp_mode(void)
 		init_cpu_logical_map();
 
 		if (!init_psci_relay()) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out_err;
 		}
 
@@ -2534,13 +2534,13 @@ static __init int kvm_arm_init(void)
 	bool in_hyp_mode;
 
 	if (!is_hyp_mode_available()) {
-		kvm_info("HYP mode not available\n");
-		return -ENODEV;
+		kvm_info("HYP mode analt available\n");
+		return -EANALDEV;
 	}
 
-	if (kvm_get_mode() == KVM_MODE_NONE) {
+	if (kvm_get_mode() == KVM_MODE_ANALNE) {
 		kvm_info("KVM disabled from command line\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = kvm_sys_reg_table_init();
@@ -2578,7 +2578,7 @@ static __init int kvm_arm_init(void)
 
 	err = kvm_init_vector_slots();
 	if (err) {
-		kvm_err("Cannot initialise vector slots\n");
+		kvm_err("Cananalt initialise vector slots\n");
 		goto out_hyp;
 	}
 
@@ -2621,13 +2621,13 @@ static int __init early_kvm_mode_cfg(char *arg)
 	if (!arg)
 		return -EINVAL;
 
-	if (strcmp(arg, "none") == 0) {
-		kvm_mode = KVM_MODE_NONE;
+	if (strcmp(arg, "analne") == 0) {
+		kvm_mode = KVM_MODE_ANALNE;
 		return 0;
 	}
 
 	if (!is_hyp_mode_available()) {
-		pr_warn_once("KVM is not available. Ignoring kvm-arm.mode\n");
+		pr_warn_once("KVM is analt available. Iganalring kvm-arm.mode\n");
 		return 0;
 	}
 
@@ -2635,7 +2635,7 @@ static int __init early_kvm_mode_cfg(char *arg)
 		if (!is_kernel_in_hyp_mode())
 			kvm_mode = KVM_MODE_PROTECTED;
 		else
-			pr_warn_once("Protected KVM not available with VHE\n");
+			pr_warn_once("Protected KVM analt available with VHE\n");
 
 		return 0;
 	}

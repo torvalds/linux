@@ -88,7 +88,7 @@ static const struct reset_control_ops rockchip_softrst_ops = {
 	.deassert	= rockchip_softrst_deassert,
 };
 
-void rockchip_register_softrst_lut(struct device_node *np,
+void rockchip_register_softrst_lut(struct device_analde *np,
 				   const int *lookup_table,
 				   unsigned int num_regs,
 				   void __iomem *base, u8 flags)
@@ -115,10 +115,10 @@ void rockchip_register_softrst_lut(struct device_node *np,
 	else
 		softrst->rcdev.nr_resets = num_regs * softrst->num_per_reg;
 	softrst->rcdev.ops = &rockchip_softrst_ops;
-	softrst->rcdev.of_node = np;
+	softrst->rcdev.of_analde = np;
 	ret = reset_controller_register(&softrst->rcdev);
 	if (ret) {
-		pr_err("%s: could not register reset controller, %d\n",
+		pr_err("%s: could analt register reset controller, %d\n",
 		       __func__, ret);
 		kfree(softrst);
 	}

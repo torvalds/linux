@@ -38,14 +38,14 @@ int sk_msg_alloc(struct sock *sk, struct sk_msg *msg, int len,
 		int use, i;
 
 		if (!sk_page_frag_refill(sk, pfrag)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto msg_trim;
 		}
 
 		orig_offset = pfrag->offset;
 		use = min_t(int, len, pfrag->size - orig_offset);
 		if (!sk_wmem_schedule(sk, use)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto msg_trim;
 		}
 
@@ -59,7 +59,7 @@ int sk_msg_alloc(struct sock *sk, struct sk_msg *msg, int len,
 			sge->length += use;
 		} else {
 			if (sk_msg_full(msg)) {
-				ret = -ENOSPC;
+				ret = -EANALSPC;
 				break;
 			}
 
@@ -98,7 +98,7 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 		off -= sge->length;
 		sk_msg_iter_var_next(i);
 		if (i == src->sg.end && off)
-			return -ENOSPC;
+			return -EANALSPC;
 		sge = sk_msg_elem(src, i);
 	}
 
@@ -119,7 +119,7 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 			sge_off = sge->offset + off;
 			sk_msg_page_add(dst, sg_page(sge), sge_len, sge_off);
 		} else {
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		off = 0;
@@ -127,7 +127,7 @@ int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
 		sk_mem_charge(sk, sge_len);
 		sk_msg_iter_var_next(i);
 		if (i == src->sg.end && len)
-			return -ENOSPC;
+			return -EANALSPC;
 		sge = sk_msg_elem(src, i);
 	}
 
@@ -208,11 +208,11 @@ static int __sk_msg_free(struct sock *sk, struct sk_msg *msg, u32 i,
 	return freed;
 }
 
-int sk_msg_free_nocharge(struct sock *sk, struct sk_msg *msg)
+int sk_msg_free_analcharge(struct sock *sk, struct sk_msg *msg)
 {
 	return __sk_msg_free(sk, msg, msg->sg.start, false);
 }
-EXPORT_SYMBOL_GPL(sk_msg_free_nocharge);
+EXPORT_SYMBOL_GPL(sk_msg_free_analcharge);
 
 int sk_msg_free(struct sock *sk, struct sk_msg *msg)
 {
@@ -254,7 +254,7 @@ void sk_msg_free_partial(struct sock *sk, struct sk_msg *msg, u32 bytes)
 }
 EXPORT_SYMBOL_GPL(sk_msg_free_partial);
 
-void sk_msg_free_partial_nocharge(struct sock *sk, struct sk_msg *msg,
+void sk_msg_free_partial_analcharge(struct sock *sk, struct sk_msg *msg,
 				  u32 bytes)
 {
 	__sk_msg_free_partial(sk, msg, bytes, false);
@@ -293,8 +293,8 @@ out:
 	/* If we trim data a full sg elem before curr pointer update
 	 * copybreak and current so that any future copy operations
 	 * start at new copy location.
-	 * However trimed data that has not yet been used in a copy op
-	 * does not require an update.
+	 * However trimed data that has analt yet been used in a copy op
+	 * does analt require an update.
 	 */
 	if (!msg->sg.size) {
 		msg->sg.curr = msg->sg.start;
@@ -368,7 +368,7 @@ EXPORT_SYMBOL_GPL(sk_msg_zerocopy_from_iter);
 int sk_msg_memcopy_from_iter(struct sock *sk, struct iov_iter *from,
 			     struct sk_msg *msg, u32 bytes)
 {
-	int ret = -ENOSPC, i = msg->sg.curr;
+	int ret = -EANALSPC, i = msg->sg.curr;
 	struct scatterlist *sge;
 	u32 copy, buf_size;
 	void *to;
@@ -388,8 +388,8 @@ int sk_msg_memcopy_from_iter(struct sock *sk, struct iov_iter *from,
 		copy = (buf_size > bytes) ? bytes : buf_size;
 		to = sg_virt(sge) + msg->sg.copybreak;
 		msg->sg.copybreak += copy;
-		if (sk->sk_route_caps & NETIF_F_NOCACHE_COPY)
-			ret = copy_from_iter_nocache(to, copy, from);
+		if (sk->sk_route_caps & NETIF_F_ANALCACHE_COPY)
+			ret = copy_from_iter_analcache(to, copy, from);
 		else
 			ret = copy_from_iter(to, copy, from);
 		if (ret != copy) {
@@ -454,7 +454,7 @@ int sk_msg_recvmsg(struct sock *sk, struct sk_psock *psock, struct msghdr *msg,
 						put_page(page);
 				}
 			} else {
-				/* Lets not optimize peek case if copy_page_to_iter
+				/* Lets analt optimize peek case if copy_page_to_iter
 				 * didn't copy the entire length lets just break.
 				 */
 				if (copy != sge->length)
@@ -503,7 +503,7 @@ static struct sk_msg *alloc_sk_msg(gfp_t gfp)
 {
 	struct sk_msg *msg;
 
-	msg = kzalloc(sizeof(*msg), gfp | __GFP_NOWARN);
+	msg = kzalloc(sizeof(*msg), gfp | __GFP_ANALWARN);
 	if (unlikely(!msg))
 		return NULL;
 	sg_init_marker(msg->sg.data, NR_MSG_FRAG_IDS);
@@ -532,10 +532,10 @@ static int sk_psock_skb_ingress_enqueue(struct sk_buff *skb,
 
 	num_sge = skb_to_sgvec(skb, msg->sg.data, off, len);
 	if (num_sge < 0) {
-		/* skb linearize may fail with ENOMEM, but lets simply try again
+		/* skb linearize may fail with EANALMEM, but lets simply try again
 		 * later if this happens. Under memory pressure we don't want to
 		 * drop the skb. We need to linearize the skb so that the mapping
-		 * in skb_to_sgvec can not error.
+		 * in skb_to_sgvec can analt error.
 		 */
 		if (skb_linearize(skb))
 			return -EAGAIN;
@@ -590,7 +590,7 @@ static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb,
 }
 
 /* Puts an skb on the ingress queue of the socket already assigned to the
- * skb. In this case we do not need to check memory limits or skb_set_owner_r
+ * skb. In this case we do analt need to check memory limits or skb_set_owner_r
  * because the skb is already accounted for here.
  */
 static int sk_psock_skb_ingress_self(struct sk_psock *psock, struct sk_buff *skb,
@@ -697,7 +697,7 @@ end:
 	mutex_unlock(&psock->work_mutex);
 }
 
-struct sk_psock *sk_psock_init(struct sock *sk, int node)
+struct sk_psock *sk_psock_init(struct sock *sk, int analde)
 {
 	struct sk_psock *psock;
 	struct proto *prot;
@@ -714,15 +714,15 @@ struct sk_psock *sk_psock_init(struct sock *sk, int node)
 		goto out;
 	}
 
-	psock = kzalloc_node(sizeof(*psock), GFP_ATOMIC | __GFP_NOWARN, node);
+	psock = kzalloc_analde(sizeof(*psock), GFP_ATOMIC | __GFP_ANALWARN, analde);
 	if (!psock) {
-		psock = ERR_PTR(-ENOMEM);
+		psock = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
 	prot = READ_ONCE(sk->sk_prot);
 	psock->sk = sk;
-	psock->eval = __SK_NONE;
+	psock->eval = __SK_ANALNE;
 	psock->sk_proto = prot;
 	psock->saved_unhash = prot->unhash;
 	psock->saved_destroy = prot->destroy;
@@ -742,7 +742,7 @@ struct sk_psock *sk_psock_init(struct sock *sk, int node)
 	refcount_set(&psock->refcnt, 1);
 
 	__rcu_assign_sk_user_data_with_flags(sk, psock,
-					     SK_USER_DATA_NOCOPY |
+					     SK_USER_DATA_ANALCOPY |
 					     SK_USER_DATA_PSOCK);
 	sock_hold(sk);
 
@@ -811,7 +811,7 @@ static void sk_psock_destroy(struct work_struct *work)
 {
 	struct sk_psock *psock = container_of(to_rcu_work(work),
 					      struct sk_psock, rwork);
-	/* No sk_callback_lock since already detached. */
+	/* Anal sk_callback_lock since already detached. */
 
 	sk_psock_done_strp(psock);
 
@@ -915,7 +915,7 @@ static int sk_psock_skb_redirect(struct sk_psock *from, struct sk_buff *skb)
 		return -EIO;
 	}
 	psock_other = sk_psock(sk_other);
-	/* This error indicates the socket is being torn down or had another
+	/* This error indicates the socket is being torn down or had aanalther
 	 * error that caused the pipe to break. We can't send a packet on
 	 * a socket that is in this state so we drop the skb.
 	 */
@@ -991,7 +991,7 @@ static int sk_psock_verdict_apply(struct sk_psock *psock, struct sk_buff *skb,
 		skb_bpf_set_ingress(skb);
 
 		/* If the queue is empty then we can submit directly
-		 * into the msg queue. If its not empty we have to
+		 * into the msg queue. If its analt empty we have to
 		 * queue work otherwise we may get OOO data. Otherwise,
 		 * if sk_psock_skb_ingress errors will be handled by
 		 * retrying later from workqueue.

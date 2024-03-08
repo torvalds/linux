@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -261,7 +261,7 @@ void color_space_to_black_color(
 	 * so when we forget to add new color space
 	 * compiler will give a warning
 	 */
-	case COLOR_SPACE_UNKNOWN:
+	case COLOR_SPACE_UNKANALWN:
 	case COLOR_SPACE_SRGB:
 	case COLOR_SPACE_XR_RGB:
 	case COLOR_SPACE_MSREF_SCRGB:
@@ -288,7 +288,7 @@ bool hwss_wait_for_blank_complete(
 {
 	int counter;
 
-	/* Not applicable if the pipe is not primary, save 300ms of boot time */
+	/* Analt applicable if the pipe is analt primary, save 300ms of boot time */
 	if (!tg->funcs->is_blanked)
 		return true;
 	for (counter = 0; counter < 100; counter++) {
@@ -542,12 +542,12 @@ void set_p_state_switch_method(
 			}
 		}
 
-		if (enable_subvp && dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_NONE) {
+		if (enable_subvp && dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_ANALNE) {
 			if (pipe_ctx->stream->allow_freesync == 1) {
 				/* SubVP enable and DRR on - green */
 				pipe_ctx->p_state_type = P_STATE_DRR_SUB_VP;
 			} else {
-				/* SubVP enable and No DRR - blue */
+				/* SubVP enable and Anal DRR - blue */
 				pipe_ctx->p_state_type = P_STATE_V_BLANK_SUB_VP;
 			}
 		}

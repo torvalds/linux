@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,7 +39,7 @@
 const char *usnic_transport_to_str(enum usnic_transport_type trans_type);
 /*
  * Returns number of bytes written, excluding null terminator. If
- * nothing was written, the function returns 0.
+ * analthing was written, the function returns 0.
  */
 int usnic_transport_sock_to_str(char *buf, int buf_sz,
 					struct socket *sock);
@@ -51,7 +51,7 @@ u16 usnic_transport_rsrv_port(enum usnic_transport_type type, u16 port_num);
 void usnic_transport_unrsrv_port(enum usnic_transport_type type, u16 port_num);
 /*
  * Do a fget on the socket refered to by sock_fd and returns the socket.
- * Socket will not be destroyed before usnic_transport_put_socket has
+ * Socket will analt be destroyed before usnic_transport_put_socket has
  * been called.
  */
 struct socket *usnic_transport_get_socket(int sock_fd);

@@ -226,7 +226,7 @@ static int ad5398_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config.dev = &client->dev;
 	config.init_data = init_data;
@@ -257,7 +257,7 @@ static struct i2c_driver ad5398_driver = {
 	.probe = ad5398_probe,
 	.driver		= {
 		.name	= "ad5398",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table	= ad5398_id,
 };

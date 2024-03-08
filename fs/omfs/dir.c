@@ -21,23 +21,23 @@ static int omfs_hash(const char *name, int namelen, int mod)
  * Finds the bucket for a given name and reads the containing block;
  * *ofs is set to the offset of the first list entry.
  */
-static struct buffer_head *omfs_get_bucket(struct inode *dir,
+static struct buffer_head *omfs_get_bucket(struct ianalde *dir,
 		const char *name, int namelen, int *ofs)
 {
 	int nbuckets = (dir->i_size - OMFS_DIR_START)/8;
 	int bucket = omfs_hash(name, namelen, nbuckets);
 
 	*ofs = OMFS_DIR_START + bucket * 8;
-	return omfs_bread(dir->i_sb, dir->i_ino);
+	return omfs_bread(dir->i_sb, dir->i_ianal);
 }
 
-static struct buffer_head *omfs_scan_list(struct inode *dir, u64 block,
+static struct buffer_head *omfs_scan_list(struct ianalde *dir, u64 block,
 				const char *name, int namelen,
 				u64 *prev_block)
 {
 	struct buffer_head *bh;
-	struct omfs_inode *oi;
-	int err = -ENOENT;
+	struct omfs_ianalde *oi;
+	int err = -EANALENT;
 	*prev_block = ~0;
 
 	while (block != ~0) {
@@ -47,7 +47,7 @@ static struct buffer_head *omfs_scan_list(struct inode *dir, u64 block,
 			goto err;
 		}
 
-		oi = (struct omfs_inode *) bh->b_data;
+		oi = (struct omfs_ianalde *) bh->b_data;
 		if (omfs_is_bad(OMFS_SB(dir->i_sb), &oi->i_head, block)) {
 			brelse(bh);
 			goto err;
@@ -64,7 +64,7 @@ err:
 	return ERR_PTR(err);
 }
 
-static struct buffer_head *omfs_find_entry(struct inode *dir,
+static struct buffer_head *omfs_find_entry(struct ianalde *dir,
 					   const char *name, int namelen)
 {
 	struct buffer_head *bh;
@@ -81,26 +81,26 @@ static struct buffer_head *omfs_find_entry(struct inode *dir,
 	return omfs_scan_list(dir, block, name, namelen, &dummy);
 }
 
-int omfs_make_empty(struct inode *inode, struct super_block *sb)
+int omfs_make_empty(struct ianalde *ianalde, struct super_block *sb)
 {
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 	struct buffer_head *bh;
-	struct omfs_inode *oi;
+	struct omfs_ianalde *oi;
 
-	bh = omfs_bread(sb, inode->i_ino);
+	bh = omfs_bread(sb, ianalde->i_ianal);
 	if (!bh)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	memset(bh->b_data, 0, sizeof(struct omfs_inode));
+	memset(bh->b_data, 0, sizeof(struct omfs_ianalde));
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(ianalde->i_mode)) {
 		memset(&bh->b_data[OMFS_DIR_START], 0xff,
 			sbi->s_sys_blocksize - OMFS_DIR_START);
 	} else
 		omfs_make_empty_table(bh, OMFS_EXTENT_START);
 
-	oi = (struct omfs_inode *) bh->b_data;
-	oi->i_head.h_self = cpu_to_be64(inode->i_ino);
+	oi = (struct omfs_ianalde *) bh->b_data;
+	oi->i_head.h_self = cpu_to_be64(ianalde->i_ianal);
 	oi->i_sibling = ~cpu_to_be64(0ULL);
 
 	mark_buffer_dirty(bh);
@@ -108,12 +108,12 @@ int omfs_make_empty(struct inode *inode, struct super_block *sb)
 	return 0;
 }
 
-static int omfs_add_link(struct dentry *dentry, struct inode *inode)
+static int omfs_add_link(struct dentry *dentry, struct ianalde *ianalde)
 {
-	struct inode *dir = d_inode(dentry->d_parent);
+	struct ianalde *dir = d_ianalde(dentry->d_parent);
 	const char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
-	struct omfs_inode *oi;
+	struct omfs_ianalde *oi;
 	struct buffer_head *bh;
 	u64 block;
 	__be64 *entry;
@@ -126,47 +126,47 @@ static int omfs_add_link(struct dentry *dentry, struct inode *inode)
 
 	entry = (__be64 *) &bh->b_data[ofs];
 	block = be64_to_cpu(*entry);
-	*entry = cpu_to_be64(inode->i_ino);
+	*entry = cpu_to_be64(ianalde->i_ianal);
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
-	/* now set the sibling and parent pointers on the new inode */
-	bh = omfs_bread(dir->i_sb, inode->i_ino);
+	/* analw set the sibling and parent pointers on the new ianalde */
+	bh = omfs_bread(dir->i_sb, ianalde->i_ianal);
 	if (!bh)
 		goto out;
 
-	oi = (struct omfs_inode *) bh->b_data;
+	oi = (struct omfs_ianalde *) bh->b_data;
 	memcpy(oi->i_name, name, namelen);
 	memset(oi->i_name + namelen, 0, OMFS_NAMELEN - namelen);
 	oi->i_sibling = cpu_to_be64(block);
-	oi->i_parent = cpu_to_be64(dir->i_ino);
+	oi->i_parent = cpu_to_be64(dir->i_ianal);
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
-	inode_set_ctime_current(dir);
+	ianalde_set_ctime_current(dir);
 
-	/* mark affected inodes dirty to rebuild checksums */
-	mark_inode_dirty(dir);
-	mark_inode_dirty(inode);
+	/* mark affected ianaldes dirty to rebuild checksums */
+	mark_ianalde_dirty(dir);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int omfs_delete_entry(struct dentry *dentry)
 {
-	struct inode *dir = d_inode(dentry->d_parent);
-	struct inode *dirty;
+	struct ianalde *dir = d_ianalde(dentry->d_parent);
+	struct ianalde *dirty;
 	const char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
-	struct omfs_inode *oi;
+	struct omfs_ianalde *oi;
 	struct buffer_head *bh, *bh2;
 	__be64 *entry, next;
 	u64 block, prev;
 	int ofs;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
-	/* delete the proper node in the bucket's linked list */
+	/* delete the proper analde in the bucket's linked list */
 	bh = omfs_get_bucket(dir, name, namelen, &ofs);
 	if (!bh)
 		goto out;
@@ -180,7 +180,7 @@ static int omfs_delete_entry(struct dentry *dentry)
 		goto out_free_bh;
 	}
 
-	oi = (struct omfs_inode *) bh2->b_data;
+	oi = (struct omfs_ianalde *) bh2->b_data;
 	next = oi->i_sibling;
 	brelse(bh2);
 
@@ -191,7 +191,7 @@ static int omfs_delete_entry(struct dentry *dentry)
 		if (!bh)
 			goto out;
 
-		oi = (struct omfs_inode *) bh->b_data;
+		oi = (struct omfs_ianalde *) bh->b_data;
 		entry = &oi->i_sibling;
 	}
 
@@ -201,7 +201,7 @@ static int omfs_delete_entry(struct dentry *dentry)
 	if (prev != ~0) {
 		dirty = omfs_iget(dir->i_sb, prev);
 		if (!IS_ERR(dirty)) {
-			mark_inode_dirty(dirty);
+			mark_ianalde_dirty(dirty);
 			iput(dirty);
 		}
 	}
@@ -213,14 +213,14 @@ out:
 	return err;
 }
 
-static int omfs_dir_is_empty(struct inode *inode)
+static int omfs_dir_is_empty(struct ianalde *ianalde)
 {
-	int nbuckets = (inode->i_size - OMFS_DIR_START) / 8;
+	int nbuckets = (ianalde->i_size - OMFS_DIR_START) / 8;
 	struct buffer_head *bh;
 	u64 *ptr;
 	int i;
 
-	bh = omfs_bread(inode->i_sb, inode->i_ino);
+	bh = omfs_bread(ianalde->i_sb, ianalde->i_ianal);
 
 	if (!bh)
 		return 0;
@@ -235,81 +235,81 @@ static int omfs_dir_is_empty(struct inode *inode)
 	return *ptr != ~0;
 }
 
-static int omfs_remove(struct inode *dir, struct dentry *dentry)
+static int omfs_remove(struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int ret;
 
 
-	if (S_ISDIR(inode->i_mode) &&
-	    !omfs_dir_is_empty(inode))
-		return -ENOTEMPTY;
+	if (S_ISDIR(ianalde->i_mode) &&
+	    !omfs_dir_is_empty(ianalde))
+		return -EANALTEMPTY;
 
 	ret = omfs_delete_entry(dentry);
 	if (ret)
 		return ret;
 	
-	clear_nlink(inode);
-	mark_inode_dirty(inode);
-	mark_inode_dirty(dir);
+	clear_nlink(ianalde);
+	mark_ianalde_dirty(ianalde);
+	mark_ianalde_dirty(dir);
 	return 0;
 }
 
-static int omfs_add_node(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int omfs_add_analde(struct ianalde *dir, struct dentry *dentry, umode_t mode)
 {
 	int err;
-	struct inode *inode = omfs_new_inode(dir, mode);
+	struct ianalde *ianalde = omfs_new_ianalde(dir, mode);
 
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (IS_ERR(ianalde))
+		return PTR_ERR(ianalde);
 
-	err = omfs_make_empty(inode, dir->i_sb);
+	err = omfs_make_empty(ianalde, dir->i_sb);
 	if (err)
-		goto out_free_inode;
+		goto out_free_ianalde;
 
-	err = omfs_add_link(dentry, inode);
+	err = omfs_add_link(dentry, ianalde);
 	if (err)
-		goto out_free_inode;
+		goto out_free_ianalde;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, ianalde);
 	return 0;
 
-out_free_inode:
-	iput(inode);
+out_free_ianalde:
+	iput(ianalde);
 	return err;
 }
 
-static int omfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static int omfs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 		      struct dentry *dentry, umode_t mode)
 {
-	return omfs_add_node(dir, dentry, mode | S_IFDIR);
+	return omfs_add_analde(dir, dentry, mode | S_IFDIR);
 }
 
-static int omfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int omfs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
-	return omfs_add_node(dir, dentry, mode | S_IFREG);
+	return omfs_add_analde(dir, dentry, mode | S_IFREG);
 }
 
-static struct dentry *omfs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *omfs_lookup(struct ianalde *dir, struct dentry *dentry,
 				  unsigned int flags)
 {
 	struct buffer_head *bh;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
 	if (dentry->d_name.len > OMFS_NAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	bh = omfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len);
 	if (!IS_ERR(bh)) {
-		struct omfs_inode *oi = (struct omfs_inode *)bh->b_data;
-		ino_t ino = be64_to_cpu(oi->i_head.h_self);
+		struct omfs_ianalde *oi = (struct omfs_ianalde *)bh->b_data;
+		ianal_t ianal = be64_to_cpu(oi->i_head.h_self);
 		brelse(bh);
-		inode = omfs_iget(dir->i_sb, ino);
-	} else if (bh != ERR_PTR(-ENOENT)) {
-		inode = ERR_CAST(bh);
+		ianalde = omfs_iget(dir->i_sb, ianal);
+	} else if (bh != ERR_PTR(-EANALENT)) {
+		ianalde = ERR_CAST(bh);
 	}
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
 /* sanity check block's self pointer */
@@ -317,9 +317,9 @@ int omfs_is_bad(struct omfs_sb_info *sbi, struct omfs_header *header,
 	u64 fsblock)
 {
 	int is_bad;
-	u64 ino = be64_to_cpu(header->h_self);
-	is_bad = ((ino != fsblock) || (ino < sbi->s_root_ino) ||
-		(ino > sbi->s_num_blocks));
+	u64 ianal = be64_to_cpu(header->h_self);
+	is_bad = ((ianal != fsblock) || (ianal < sbi->s_root_ianal) ||
+		(ianal > sbi->s_num_blocks));
 
 	if (is_bad)
 		printk(KERN_WARNING "omfs: bad hash chain detected\n");
@@ -327,20 +327,20 @@ int omfs_is_bad(struct omfs_sb_info *sbi, struct omfs_header *header,
 	return is_bad;
 }
 
-static bool omfs_fill_chain(struct inode *dir, struct dir_context *ctx,
+static bool omfs_fill_chain(struct ianalde *dir, struct dir_context *ctx,
 		u64 fsblock, int hindex)
 {
 	/* follow chain in this bucket */
 	while (fsblock != ~0) {
 		struct buffer_head *bh = omfs_bread(dir->i_sb, fsblock);
-		struct omfs_inode *oi;
+		struct omfs_ianalde *oi;
 		u64 self;
 		unsigned char d_type;
 
 		if (!bh)
 			return true;
 
-		oi = (struct omfs_inode *) bh->b_data;
+		oi = (struct omfs_ianalde *) bh->b_data;
 		if (omfs_is_bad(OMFS_SB(dir->i_sb), &oi->i_head, fsblock)) {
 			brelse(bh);
 			return true;
@@ -349,7 +349,7 @@ static bool omfs_fill_chain(struct inode *dir, struct dir_context *ctx,
 		self = fsblock;
 		fsblock = be64_to_cpu(oi->i_sibling);
 
-		/* skip visited nodes */
+		/* skip visited analdes */
 		if (hindex) {
 			hindex--;
 			brelse(bh);
@@ -370,18 +370,18 @@ static bool omfs_fill_chain(struct inode *dir, struct dir_context *ctx,
 	return true;
 }
 
-static int omfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
-		       struct dentry *old_dentry, struct inode *new_dir,
+static int omfs_rename(struct mnt_idmap *idmap, struct ianalde *old_dir,
+		       struct dentry *old_dentry, struct ianalde *new_dir,
 		       struct dentry *new_dentry, unsigned int flags)
 {
-	struct inode *new_inode = d_inode(new_dentry);
-	struct inode *old_inode = d_inode(old_dentry);
+	struct ianalde *new_ianalde = d_ianalde(new_dentry);
+	struct ianalde *old_ianalde = d_ianalde(old_dentry);
 	int err;
 
-	if (flags & ~RENAME_NOREPLACE)
+	if (flags & ~RENAME_ANALREPLACE)
 		return -EINVAL;
 
-	if (new_inode) {
+	if (new_ianalde) {
 		/* overwriting existing file/dir */
 		err = omfs_remove(new_dir, new_dentry);
 		if (err)
@@ -394,20 +394,20 @@ static int omfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	if (err)
 		goto out;
 
-	mark_inode_dirty(old_dir);
-	err = omfs_add_link(new_dentry, old_inode);
+	mark_ianalde_dirty(old_dir);
+	err = omfs_add_link(new_dentry, old_ianalde);
 	if (err)
 		goto out;
 
-	inode_set_ctime_current(old_inode);
-	mark_inode_dirty(old_inode);
+	ianalde_set_ctime_current(old_ianalde);
+	mark_ianalde_dirty(old_ianalde);
 out:
 	return err;
 }
 
 static int omfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *dir = file_inode(file);
+	struct ianalde *dir = file_ianalde(file);
 	struct buffer_head *bh;
 	__be64 *p;
 	unsigned int hchain, hindex;
@@ -428,7 +428,7 @@ static int omfs_readdir(struct file *file, struct dir_context *ctx)
 	hchain = (ctx->pos >> 20) - 1;
 	hindex = ctx->pos & 0xfffff;
 
-	bh = omfs_bread(dir->i_sb, dir->i_ino);
+	bh = omfs_bread(dir->i_sb, dir->i_ianal);
 	if (!bh)
 		return -EINVAL;
 
@@ -445,7 +445,7 @@ static int omfs_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-const struct inode_operations omfs_dir_inops = {
+const struct ianalde_operations omfs_dir_ianalps = {
 	.lookup = omfs_lookup,
 	.mkdir = omfs_mkdir,
 	.rename = omfs_rename,

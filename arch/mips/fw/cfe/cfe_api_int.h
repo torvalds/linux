@@ -87,7 +87,7 @@ struct xiocb_meminfo {
 };
 
 struct xiocb_fwinfo {
-	s64 fwi_version;		/* major, minor, eco version */
+	s64 fwi_version;		/* major, mianalr, eco version */
 	s64 fwi_totalmem;	/* total installed mem */
 	s64 fwi_flags;		/* various flags */
 	s64 fwi_boardid;		/* board ID */

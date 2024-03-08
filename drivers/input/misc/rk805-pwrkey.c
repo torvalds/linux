@@ -7,7 +7,7 @@
  * Author: Joseph Chen <chenjh@rock-chips.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -44,7 +44,7 @@ static int rk805_pwrkey_probe(struct platform_device *pdev)
 	pwr = devm_input_allocate_device(&pdev->dev);
 	if (!pwr) {
 		dev_err(&pdev->dev, "Can't allocate power button\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pwr->name = "rk805 pwrkey";

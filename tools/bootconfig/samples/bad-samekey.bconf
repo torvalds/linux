@@ -1,4 +1,4 @@
-# Same key value is not allowed
+# Same key value is analt allowed
 key {
 	foo = value
 	bar = value2

@@ -47,7 +47,7 @@ static int mtd_get_sb(struct fs_context *fc,
 		/*
 		 * Would usually have been set with @sb_lock held but in
 		 * contrast to sb->s_bdev that's checked with only
-		 * @sb_lock held, nothing checks sb->s_mtd without also
+		 * @sb_lock held, analthing checks sb->s_mtd without also
 		 * holding sb->s_umount and we're holding sb->s_umount
 		 * here.
 		 */
@@ -104,7 +104,7 @@ int get_tree_mtd(struct fs_context *fc,
 	int mtdnr;
 
 	if (!fc->source)
-		return invalf(fc, "No source specified");
+		return invalf(fc, "Anal source specified");
 
 	pr_debug("MTDSB: dev_name \"%s\"\n", fc->source);
 
@@ -127,7 +127,7 @@ int get_tree_mtd(struct fs_context *fc,
 			if (!IS_ERR(mtd))
 				return mtd_get_sb(fc, mtd, fill_super);
 
-			errorf(fc, "MTD: MTD device with name \"%s\" not found",
+			errorf(fc, "MTD: MTD device with name \"%s\" analt found",
 			       fc->source + 4);
 
 		} else if (isdigit(fc->source[3])) {
@@ -155,12 +155,12 @@ int get_tree_mtd(struct fs_context *fc,
 	pr_debug("MTDSB: lookup_bdev() returned 0\n");
 
 	if (MAJOR(dev) == MTD_BLOCK_MAJOR)
-		return mtd_get_sb_by_nr(fc, MINOR(dev), fill_super);
+		return mtd_get_sb_by_nr(fc, MIANALR(dev), fill_super);
 
 #endif /* CONFIG_BLOCK */
 
 	if (!(fc->sb_flags & SB_SILENT))
-		errorf(fc, "MTD: Attempt to mount non-MTD device \"%s\"",
+		errorf(fc, "MTD: Attempt to mount analn-MTD device \"%s\"",
 		       fc->source);
 	return -EINVAL;
 }

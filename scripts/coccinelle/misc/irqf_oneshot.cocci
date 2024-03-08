@@ -8,7 +8,7 @@
 //
 // Confidence: Moderate
 // Comments:
-// Options: --no-includes
+// Options: --anal-includes
 
 virtual patch
 virtual context
@@ -103,11 +103,11 @@ devm_request_threaded_irq@p(dev, irq, NULL, ...)
 @script:python depends on org@
 p << match.p;
 @@
-msg = "WARNING: Threaded IRQ with no primary handler requested without IRQF_ONESHOT (unless it is nested IRQ)"
+msg = "WARNING: Threaded IRQ with anal primary handler requested without IRQF_ONESHOT (unless it is nested IRQ)"
 coccilib.org.print_todo(p[0],msg)
 
 @script:python depends on report@
 p << match.p;
 @@
-msg = "WARNING: Threaded IRQ with no primary handler requested without IRQF_ONESHOT (unless it is nested IRQ)"
+msg = "WARNING: Threaded IRQ with anal primary handler requested without IRQF_ONESHOT (unless it is nested IRQ)"
 coccilib.report.print_report(p[0],msg)

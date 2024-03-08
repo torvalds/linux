@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - Histogram module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: David Cohen <dacohen@gmail.com>

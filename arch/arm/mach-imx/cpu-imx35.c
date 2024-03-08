@@ -16,12 +16,12 @@ static int mx35_cpu_rev = -1;
 static int mx35_read_cpu_rev(void)
 {
 	void __iomem *iim_base;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 rev;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx35-iim");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx35-iim");
 	iim_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	BUG_ON(!iim_base);
 
 	rev = imx_readl(iim_base + MXC_IIMSREV);
@@ -33,7 +33,7 @@ static int mx35_read_cpu_rev(void)
 	case 0x11:
 		return IMX_CHIP_REVISION_2_1;
 	default:
-		return IMX_CHIP_REVISION_UNKNOWN;
+		return IMX_CHIP_REVISION_UNKANALWN;
 	}
 }
 

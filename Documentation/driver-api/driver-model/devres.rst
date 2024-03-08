@@ -26,15 +26,15 @@ native mode makes use of 5 PCI BARs and all of them should be
 maintained.
 
 As with many other device drivers, libata low level drivers have
-sufficient bugs in ->remove and ->probe failure path.  Well, yes,
+sufficient bugs in ->remove and ->probe failure path.  Well, anal,
 that's probably because libata low level driver developers are lazy
 bunch, but aren't all low level driver developers?  After spending a
-day fiddling with braindamaged hardware with no document or
+day fiddling with braindamaged hardware with anal document or
 braindamaged document, if it's finally working, well, it's working.
 
-For one reason or another, low level drivers don't receive as much
+For one reason or aanalther, low level drivers don't receive as much
 attention or testing as core code, and bugs on driver detach or
-initialization failure don't happen often enough to be noticeable.
+initialization failure don't happen often eanalugh to be analticeable.
 Init failure path is worse because it's much less travelled while
 needs to handle multiple entry points.
 
@@ -49,7 +49,7 @@ adds more to this mix.  So do msi and msix.
 
 devres is basically linked list of arbitrarily sized memory areas
 associated with a struct device.  Each devres entry is associated with
-a release function.  A devres can be released in several ways.  No
+a release function.  A devres can be released in several ways.  Anal
 matter what, all devres entries are released on driver detach.  On
 release, the associated release function is invoked and then the
 devres entry is freed.
@@ -108,11 +108,11 @@ looks like the following::
 
 	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d->ring = dmam_alloc_coherent(...);
 	if (!d->ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (check something)
 		return -EINVAL;
@@ -134,11 +134,11 @@ devres.  Complexity is shifted from less maintained low level drivers
 to better maintained higher layer.  Also, as init failure path is
 shared with exit path, both can get more testing.
 
-Note though that when converting current calls or assignments to
+Analte though that when converting current calls or assignments to
 managed devm_* versions it is up to you to check if internal operations
 like allocating memory, have failed. Managed resources pertains to the
 freeing of these resources *only* - all other checks needed are still
-on you. In some cases this may mean introducing checks that were not
+on you. In some cases this may mean introducing checks that were analt
 necessary before moving to the managed devm_* calls.
 
 
@@ -146,12 +146,12 @@ necessary before moving to the managed devm_* calls.
 ---------------
 
 Devres entries can be grouped using devres group.  When a group is
-released, all contained normal devres entries and properly nested
+released, all contained analrmal devres entries and properly nested
 groups are released.  One usage is to rollback series of acquired
 resources on failure.  For example::
 
   if (!devres_open_group(dev, NULL, GFP_KERNEL))
-	return -ENOMEM;
+	return -EANALMEM;
 
   acquire A;
   if (failed)
@@ -187,7 +187,7 @@ For example, you can do something like the following::
   int my_midlayer_create_something()
   {
 	if (!devres_open_group(dev, my_midlayer_create_something, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	...
 
@@ -205,14 +205,14 @@ For example, you can do something like the following::
 ----------
 
 Lifetime of a devres entry begins on devres allocation and finishes
-when it is released or destroyed (removed and freed) - no reference
+when it is released or destroyed (removed and freed) - anal reference
 counting.
 
 devres core guarantees atomicity to all basic devres operations and
 has support for single-instance devres types (atomic
-lookup-and-add-if-not-found).  Other than that, synchronizing
+lookup-and-add-if-analt-found).  Other than that, synchronizing
 concurrent accesses to allocated devres data is caller's
-responsibility.  This is usually non-issue because bus ops and
+responsibility.  This is usually analn-issue because bus ops and
 resource allocations already do the job.
 
 For an example of single-instance devres type, read pcim_iomap_table()
@@ -296,7 +296,7 @@ IIO
   devm_iio_channel_get()
   devm_iio_channel_get_all()
   devm_iio_hw_consumer_alloc()
-  devm_fwnode_iio_channel_get_by_name()
+  devm_fwanalde_iio_channel_get_by_name()
 
 INPUT
   devm_input_allocate_device()
@@ -323,7 +323,7 @@ IOMAP
   devm_platform_get_and_ioremap_resource()
   devm_iounmap()
 
-  Note: For the PCI devices the specific pcim_*() functions may be used, see below.
+  Analte: For the PCI devices the specific pcim_*() functions may be used, see below.
 
 IRQ
   devm_free_irq()
@@ -403,7 +403,7 @@ PCI
 
 PHY
   devm_usb_get_phy()
-  devm_usb_get_phy_by_node()
+  devm_usb_get_phy_by_analde()
   devm_usb_get_phy_by_phandle()
   devm_usb_put_phy()
 
@@ -422,7 +422,7 @@ POWER
 PWM
   devm_pwmchip_add()
   devm_pwm_get()
-  devm_fwnode_pwm_get()
+  devm_fwanalde_pwm_get()
 
 REGULATOR
   devm_regulator_bulk_register_supply_alias()
@@ -438,9 +438,9 @@ REGULATOR
   devm_regulator_irq_helper()
   devm_regulator_put()
   devm_regulator_register()
-  devm_regulator_register_notifier()
+  devm_regulator_register_analtifier()
   devm_regulator_register_supply_alias()
-  devm_regulator_unregister_notifier()
+  devm_regulator_unregister_analtifier()
 
 RESET
   devm_reset_control_get()

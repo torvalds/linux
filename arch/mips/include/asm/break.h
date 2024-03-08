@@ -10,7 +10,7 @@
 #define __ASM_BREAK_H
 
 #ifdef __UAPI_ASM_BREAK_H
-#error "Error: Do not directly include <uapi/asm/break.h>"
+#error "Error: Do analt directly include <uapi/asm/break.h>"
 #endif
 #include <uapi/asm/break.h>
 

@@ -28,7 +28,7 @@ Required properties:
 Property rules described in Documentation/devicetree/bindings/spi/spi-bus.txt
 apply. In particular, "reg" and "spi-max-frequency" properties must be given.
 
-Optional LED sub-node properties:
+Optional LED sub-analde properties:
 - function:
 	see Documentation/devicetree/bindings/leds/common.txt
 - color:

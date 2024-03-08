@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center. All rights reserved.
  *
  * Authors:
  *	Asutosh Das <quic_asutoshd@quicinc.com>
@@ -121,7 +121,7 @@ struct ufs_hw_queue *ufshcd_mcq_req_to_hwq(struct ufs_hba *hba,
  * ufshcd_mcq_decide_queue_depth - decide the queue depth
  * @hba: per adapter instance
  *
- * Return: queue-depth on success, non-zero on error
+ * Return: queue-depth on success, analn-zero on error
  *
  * MAC - Max. Active Command of the Host Controller (HC)
  * HC wouldn't send more than this commands to the device.
@@ -163,7 +163,7 @@ static int ufshcd_mcq_config_nr_queues(struct ufs_hba *hba)
 	if (hba_maxq < tot_queues) {
 		dev_err(hba->dev, "Total queues (%d) exceeds HC capacity (%d)\n",
 			tot_queues, hba_maxq);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rem = hba_maxq;
@@ -212,7 +212,7 @@ int ufshcd_mcq_memory_alloc(struct ufs_hba *hba)
 							 GFP_KERNEL);
 		if (!hwq->sqe_dma_addr) {
 			dev_err(hba->dev, "SQE allocation failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		cqe_size = sizeof(struct cq_entry) * hwq->max_entries;
@@ -221,7 +221,7 @@ int ufshcd_mcq_memory_alloc(struct ufs_hba *hba)
 							 GFP_KERNEL);
 		if (!hwq->cqe_dma_addr) {
 			dev_err(hba->dev, "CQE allocation failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -373,7 +373,7 @@ void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba)
 		/* Reinitializing is needed upon HC reset */
 		hwq->sq_tail_slot = hwq->cq_tail_slot = hwq->cq_head_slot = 0;
 
-		/* Enable Tail Entry Push Status interrupt only for non-poll queues */
+		/* Enable Tail Entry Push Status interrupt only for analn-poll queues */
 		if (i < hba->nr_hw_queues - hba->nr_queues[HCTX_TYPE_POLL])
 			writel(1, mcq_opr_base(hba, OPR_CQIS, i) + REG_CQIE);
 
@@ -431,7 +431,7 @@ int ufshcd_mcq_init(struct ufs_hba *hba)
 				GFP_KERNEL);
 	if (!hba->uhq) {
 		dev_err(hba->dev, "ufs hw queue memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < hba->nr_hw_queues; i++) {
@@ -551,7 +551,7 @@ unlock:
 
 /**
  * ufshcd_mcq_nullify_sqe - Nullify the submission queue entry.
- * Write the sqe's Command Type to 0xF. The host controller will not
+ * Write the sqe's Command Type to 0xF. The host controller will analt
  * fetch any sqe with Command Type = 0xF.
  *
  * @utrd: UTP Transfer Request Descriptor to be nullified.
@@ -563,7 +563,7 @@ static void ufshcd_mcq_nullify_sqe(struct utp_transfer_req_desc *utrd)
 
 /**
  * ufshcd_mcq_sqe_search - Search for the command in the submission queue
- * If the command is in the submission queue and not issued to the device yet,
+ * If the command is in the submission queue and analt issued to the device yet,
  * nullify the sqe so the host controller will skip fetching the sqe.
  *
  * @hba: per adapter instance.
@@ -571,7 +571,7 @@ static void ufshcd_mcq_nullify_sqe(struct utp_transfer_req_desc *utrd)
  * @task_tag: The command's task tag.
  *
  * Return: true if the SQE containing the command is present in the SQ
- * (not fetched by the controller); returns false if the SQE is not in the SQ.
+ * (analt fetched by the controller); returns false if the SQE is analt in the SQ.
  */
 static bool ufshcd_mcq_sqe_search(struct ufs_hba *hba,
 				  struct ufs_hw_queue *hwq, int task_tag)
@@ -651,7 +651,7 @@ int ufshcd_mcq_abort(struct scsi_cmnd *cmd)
 
 	if (ufshcd_mcq_sqe_search(hba, hwq, tag)) {
 		/*
-		 * Failure. The command should not be "stuck" in SQ for
+		 * Failure. The command should analt be "stuck" in SQ for
 		 * a long time which resulted in command being aborted.
 		 */
 		dev_err(hba->dev, "%s: cmd found in sq. hwq=%d, tag=%d\n",
@@ -660,7 +660,7 @@ int ufshcd_mcq_abort(struct scsi_cmnd *cmd)
 	}
 
 	/*
-	 * The command is not in the submission queue, and it is not
+	 * The command is analt in the submission queue, and it is analt
 	 * in the completion queue either. Query the device to see if
 	 * the command is being processed in the device.
 	 */

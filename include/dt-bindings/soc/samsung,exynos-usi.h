@@ -3,15 +3,15 @@
  * Copyright (c) 2021 Linaro Ltd.
  * Author: Sam Protsenko <semen.protsenko@linaro.org>
  *
- * Device Tree bindings for Samsung Exynos USI (Universal Serial Interface).
+ * Device Tree bindings for Samsung Exyanals USI (Universal Serial Interface).
  */
 
-#ifndef __DT_BINDINGS_SAMSUNG_EXYNOS_USI_H
-#define __DT_BINDINGS_SAMSUNG_EXYNOS_USI_H
+#ifndef __DT_BINDINGS_SAMSUNG_EXYANALS_USI_H
+#define __DT_BINDINGS_SAMSUNG_EXYANALS_USI_H
 
-#define USI_V2_NONE		0
+#define USI_V2_ANALNE		0
 #define USI_V2_UART		1
 #define USI_V2_SPI		2
 #define USI_V2_I2C		3
 
-#endif /* __DT_BINDINGS_SAMSUNG_EXYNOS_USI_H */
+#endif /* __DT_BINDINGS_SAMSUNG_EXYANALS_USI_H */

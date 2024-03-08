@@ -100,17 +100,17 @@ static int sanitycheck(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
 	array = mock_array(1, f);
 	if (!array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chain = mock_chain(NULL, array);
 	if (!chain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_put(chain);
 	return err;
@@ -124,21 +124,21 @@ static int unwrap_array(void *arg)
 
 	f1 = mock_fence();
 	if (!f1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
 		dma_fence_put(f1);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dma_fence_enable_sw_signaling(f2);
 
 	array = mock_array(2, f1, f2);
 	if (!array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_unwrap_for_each(fence, &iter, array) {
 		if (fence == f1) {
@@ -152,7 +152,7 @@ static int unwrap_array(void *arg)
 	}
 
 	if (f1 || f2) {
-		pr_err("Not all fences seen!\n");
+		pr_err("Analt all fences seen!\n");
 		err = -EINVAL;
 	}
 
@@ -168,21 +168,21 @@ static int unwrap_chain(void *arg)
 
 	f1 = mock_fence();
 	if (!f1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
 		dma_fence_put(f1);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dma_fence_enable_sw_signaling(f2);
 
 	chain = mock_chain(f1, f2);
 	if (!chain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_unwrap_for_each(fence, &iter, chain) {
 		if (fence == f1) {
@@ -196,7 +196,7 @@ static int unwrap_chain(void *arg)
 	}
 
 	if (f1 || f2) {
-		pr_err("Not all fences seen!\n");
+		pr_err("Analt all fences seen!\n");
 		err = -EINVAL;
 	}
 
@@ -212,25 +212,25 @@ static int unwrap_chain_array(void *arg)
 
 	f1 = mock_fence();
 	if (!f1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
 		dma_fence_put(f1);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dma_fence_enable_sw_signaling(f2);
 
 	array = mock_array(2, f1, f2);
 	if (!array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chain = mock_chain(NULL, array);
 	if (!chain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_unwrap_for_each(fence, &iter, chain) {
 		if (fence == f1) {
@@ -244,7 +244,7 @@ static int unwrap_chain_array(void *arg)
 	}
 
 	if (f1 || f2) {
-		pr_err("Not all fences seen!\n");
+		pr_err("Analt all fences seen!\n");
 		err = -EINVAL;
 	}
 
@@ -260,13 +260,13 @@ static int unwrap_merge(void *arg)
 
 	f1 = mock_fence();
 	if (!f1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_put_f1;
 	}
 
@@ -274,7 +274,7 @@ static int unwrap_merge(void *arg)
 
 	f3 = dma_fence_unwrap_merge(f1, f2);
 	if (!f3) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_put_f2;
 	}
 
@@ -292,7 +292,7 @@ static int unwrap_merge(void *arg)
 	}
 
 	if (f1 || f2) {
-		pr_err("Not all fences seen!\n");
+		pr_err("Analt all fences seen!\n");
 		err = -EINVAL;
 	}
 
@@ -308,11 +308,11 @@ static int unwrap_merge_complex(void *arg)
 {
 	struct dma_fence *fence, *f1, *f2, *f3, *f4, *f5;
 	struct dma_fence_unwrap iter;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	f1 = mock_fence();
 	if (!f1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f1);
 
@@ -351,7 +351,7 @@ static int unwrap_merge_complex(void *arg)
 	}
 
 	if (f1 || f2) {
-		pr_err("Not all fences seen!\n");
+		pr_err("Analt all fences seen!\n");
 		err = -EINVAL;
 	}
 

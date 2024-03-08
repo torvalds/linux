@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -172,7 +172,7 @@ uint32_t DIDTEDCConfig_P12[] = {
 static const unsigned long PhwVIslands_Magic = (unsigned long)(PHM_VIslands_Magic);
 static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
-static int smu7_notify_has_display(struct pp_hwmgr *hwmgr);
+static int smu7_analtify_has_display(struct pp_hwmgr *hwmgr);
 
 static struct smu7_power_state *cast_phw_smu7_power_state(
 				  struct pp_hw_power_state *hw_ps)
@@ -266,7 +266,7 @@ static bool smu7_voltage_control(const struct pp_hwmgr *hwmgr)
 	const struct smu7_hwmgr *data =
 			(const struct smu7_hwmgr *)(hwmgr->backend);
 
-	return (SMU7_VOLTAGE_CONTROL_NONE != data->voltage_control);
+	return (SMU7_VOLTAGE_CONTROL_ANALNE != data->voltage_control);
 }
 
 /**
@@ -455,7 +455,7 @@ static int smu7_enable_display_gap(struct pp_hwmgr *hwmgr)
 					ixCG_DISPLAY_GAP_CNTL);
 
 	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL,
-			DISP_GAP, DISPLAY_GAP_IGNORE);
+			DISP_GAP, DISPLAY_GAP_IGANALRE);
 
 	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL,
 			DISP_GAP_MCHG, DISPLAY_GAP_VBLANK);
@@ -507,7 +507,7 @@ static int smu7_clear_voting_clients(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-/* Copy one arb setting to another and then switch the active set.
+/* Copy one arb setting to aanalther and then switch the active set.
  * arb_src and arb_dest is one of the MC_CG_ARB_FREQ_Fx constants.
  */
 static int smu7_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
@@ -643,7 +643,7 @@ static int smu7_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 	uint32_t tmp;
 
 	PP_ASSERT_WITH_CODE((data->use_pcie_performance_levels ||
-			data->use_pcie_power_saving_levels), "No pcie performance levels!",
+			data->use_pcie_power_saving_levels), "Anal pcie performance levels!",
 			return -EINVAL);
 
 	if (table_info != NULL)
@@ -667,7 +667,7 @@ static int smu7_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 		/* max_entry is used to make sure we reserve one PCIE level
 		 * for boot level (fix for A+A PSPP issue).
 		 * If PCIE table from PPTable have ULV entry + 8 entries,
-		 * then ignore the last entry.*/
+		 * then iganalre the last entry.*/
 		max_entry = (tmp < pcie_table->count) ? tmp : pcie_table->count;
 		for (i = 1; i < max_entry; i++) {
 			phm_setup_pcie_table_entry(&data->dpm_table.pcie_speed_table, i - 1,
@@ -713,7 +713,7 @@ static int smu7_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 
 		data->dpm_table.pcie_speed_table.count = 6;
 	}
-	/* Populate last level for boot PCIE level, but do not increment count. */
+	/* Populate last level for boot PCIE level, but do analt increment count. */
 	if (hwmgr->chip_family == AMDGPU_FAMILY_CI) {
 		for (i = 0; i <= data->dpm_table.pcie_speed_table.count; i++)
 			phm_setup_pcie_table_entry(&data->dpm_table.pcie_speed_table, i,
@@ -1381,7 +1381,7 @@ static void smu7_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sources)
 
 	switch (sources) {
 	default:
-		pr_err("Unknown throttling event sources.");
+		pr_err("Unkanalwn throttling event sources.");
 		fallthrough;
 	case 0:
 		protection = false;
@@ -1627,11 +1627,11 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	if (hwmgr->chip_id >= CHIP_POLARIS10 &&
 	    hwmgr->chip_id <= CHIP_VEGAM) {
-		tmp_result = smu7_notify_has_display(hwmgr);
+		tmp_result = smu7_analtify_has_display(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == tmp_result),
 				"Failed to enable display setting!", result = tmp_result);
 	} else {
-		smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_NoDisplay, NULL);
+		smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_AnalDisplay, NULL);
 	}
 
 	if (hwmgr->chip_id >= CHIP_POLARIS10 &&
@@ -1825,9 +1825,9 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->sclk_dpm_key_disabled = hwmgr->feature_mask & PP_SCLK_DPM_MASK ? false : true;
 	data->pcie_dpm_key_disabled = !(hwmgr->feature_mask & PP_PCIE_DPM_MASK);
 	/* need to set voltage control types before EVV patching */
-	data->voltage_control = SMU7_VOLTAGE_CONTROL_NONE;
-	data->vddci_control = SMU7_VOLTAGE_CONTROL_NONE;
-	data->mvdd_control = SMU7_VOLTAGE_CONTROL_NONE;
+	data->voltage_control = SMU7_VOLTAGE_CONTROL_ANALNE;
+	data->vddci_control = SMU7_VOLTAGE_CONTROL_ANALNE;
+	data->mvdd_control = SMU7_VOLTAGE_CONTROL_ANALNE;
 	data->enable_tdc_limit_feature = true;
 	data->enable_pkg_pwr_tracking_feature = true;
 	data->force_pcie_gen = PP_PCIEGenInvalid;
@@ -1896,7 +1896,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			data->mvdd_control = SMU7_VOLTAGE_CONTROL_BY_SVID2;
 	}
 
-	if (SMU7_VOLTAGE_CONTROL_NONE == data->vdd_gfx_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE == data->vdd_gfx_control)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDGFX);
 
@@ -1910,11 +1910,11 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			data->vddci_control = SMU7_VOLTAGE_CONTROL_BY_SVID2;
 	}
 
-	if (data->mvdd_control == SMU7_VOLTAGE_CONTROL_NONE)
+	if (data->mvdd_control == SMU7_VOLTAGE_CONTROL_ANALNE)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_EnableMVDDControl);
 
-	if (data->vddci_control == SMU7_VOLTAGE_CONTROL_NONE)
+	if (data->vddci_control == SMU7_VOLTAGE_CONTROL_ANALNE)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ControlVDDCI);
 
@@ -2084,7 +2084,7 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 					/* need to make sure vddgfx is less than 2v or else, it could burn the ASIC. */
 					PP_ASSERT_WITH_CODE((vddgfx < 2000 && vddgfx != 0), "Invalid VDDGFX value!", return -EINVAL);
 
-					/* the voltage should not be zero nor equal to leakage ID */
+					/* the voltage should analt be zero analr equal to leakage ID */
 					if (vddgfx != 0 && vddgfx != vv_id) {
 						data->vddcgfx_leakage.actual_voltage[data->vddcgfx_leakage.count] = vddgfx;
 						data->vddcgfx_leakage.leakage_id[data->vddcgfx_leakage.count] = vv_id;
@@ -2123,7 +2123,7 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 					continue;
 				}
 
-				/* the voltage should not be zero nor equal to leakage ID */
+				/* the voltage should analt be zero analr equal to leakage ID */
 				if (vddc != 0 && vddc != vv_id) {
 					data->vddc_leakage.actual_voltage[data->vddc_leakage.count] = (uint16_t)(vddc);
 					data->vddc_leakage.leakage_id[data->vddc_leakage.count] = vv_id;
@@ -2159,7 +2159,7 @@ static void smu7_patch_ppt_v1_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 	}
 
 	if (*voltage > ATOM_VIRTUAL_VOLTAGE_ID0)
-		pr_info("Voltage value looks like a Leakage ID but it's not patched\n");
+		pr_info("Voltage value looks like a Leakage ID but it's analt patched\n");
 }
 
 /**
@@ -2270,7 +2270,7 @@ static int phm_add_voltage(struct pp_hwmgr *hwmgr,
 	look_up_table->entries[i].us_cac_low = record->us_cac_low;
 	look_up_table->entries[i].us_cac_mid = record->us_cac_mid;
 	look_up_table->entries[i].us_cac_high = record->us_cac_high;
-	/* Only increment the count when we're appending, not replacing duplicate entry. */
+	/* Only increment the count when we're appending, analt replacing duplicate entry. */
 	if (i == look_up_table->count)
 		look_up_table->count++;
 
@@ -2642,7 +2642,7 @@ static void smu7_patch_ppt_v0_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 	}
 
 	if (*voltage > ATOM_VIRTUAL_VOLTAGE_ID0)
-		pr_info("Voltage value looks like a Leakage ID but it's not patched\n");
+		pr_info("Voltage value looks like a Leakage ID but it's analt patched\n");
 }
 
 
@@ -2962,7 +2962,7 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	data = kzalloc(sizeof(struct smu7_hwmgr), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->backend = data;
 	smu7_patch_voltage_workaround(hwmgr);
@@ -3016,7 +3016,7 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 		smu7_thermal_parameter_init(hwmgr);
 	} else {
-		/* Ignore return value in here, we are cleaning up a mess. */
+		/* Iganalre return value in here, we are cleaning up a mess. */
 		smu7_hwmgr_backend_fini(hwmgr);
 	}
 
@@ -3336,7 +3336,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	data->battery_state = (PP_StateUILabel_Battery ==
 			request_ps->classification.ui_label);
-	data->mclk_ignore_signal = false;
+	data->mclk_iganalre_signal = false;
 
 	max_limits = adev->pm.ac_power ?
 			&(hwmgr->dyn_state.max_clock_voltage_on_ac) :
@@ -3393,7 +3393,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	if (hwmgr->display_config->num_display == 0) {
 		if (hwmgr->chip_id >= CHIP_POLARIS10 && hwmgr->chip_id <= CHIP_VEGAM)
-			data->mclk_ignore_signal = true;
+			data->mclk_iganalre_signal = true;
 		else
 			disable_mclk_switching = false;
 	}
@@ -3448,9 +3448,9 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 					}
 				}
 				if ((i >= data->mclk_latency_table.count - 1) && !latency_allowed) {
-					data->mclk_ignore_signal = true;
+					data->mclk_iganalre_signal = true;
 				} else {
-					data->mclk_ignore_signal = false;
+					data->mclk_iganalre_signal = false;
 				}
 			}
 
@@ -3543,7 +3543,7 @@ static int smu7_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,
 	fw_info = (ATOM_FIRMWARE_INFO_V2_2 *)smu_atom_get_data_table(hwmgr->adev, index,
 			&size, &frev, &crev);
 	if (!fw_info)
-		/* During a test, there is no firmware info table. */
+		/* During a test, there is anal firmware info table. */
 		return 0;
 
 	/* Patch the state. */
@@ -3608,13 +3608,13 @@ static int smu7_get_pp_table_entry_callback_func_v1(struct pp_hwmgr *hwmgr,
 			(((unsigned long)powerplay_table) +
 				le16_to_cpu(powerplay_table->usMclkDependencyTableOffset));
 
-	/* The following fields are not initialized here: id orderedList allStatesList */
+	/* The following fields are analt initialized here: id orderedList allStatesList */
 	power_state->classification.ui_label =
 			(le16_to_cpu(state_entry->usClassification) &
 			ATOM_PPLIB_CLASSIFICATION_UI_MASK) >>
 			ATOM_PPLIB_CLASSIFICATION_UI_SHIFT;
 	power_state->classification.flags = classification_flag;
-	/* NOTE: There is a classification2 flag in BIOS that is not being used right now */
+	/* ANALTE: There is a classification2 flag in BIOS that is analt being used right analw */
 
 	power_state->classification.temporary_state = false;
 	power_state->classification.to_be_deleted = false;
@@ -3711,11 +3711,11 @@ static int smu7_get_pp_table_entry_v1(struct pp_hwmgr *hwmgr,
 		if (dep_mclk_table->entries[0].clk !=
 				data->vbios_boot_state.mclk_bootup_value)
 			pr_debug("Single MCLK entry VDDCI/MCLK dependency table "
-					"does not match VBIOS boot MCLK level");
+					"does analt match VBIOS boot MCLK level");
 		if (dep_mclk_table->entries[0].vddci !=
 				data->vbios_boot_state.vddci_bootup_value)
 			pr_debug("Single VDDCI entry VDDCI/MCLK dependency table "
-					"does not match VBIOS boot VDDCI level");
+					"does analt match VBIOS boot VDDCI level");
 	}
 
 	/* set DC compatible flag if this state supports DC */
@@ -3859,11 +3859,11 @@ static int smu7_get_pp_table_entry_v0(struct pp_hwmgr *hwmgr,
 		if (dep_mclk_table->entries[0].clk !=
 				data->vbios_boot_state.mclk_bootup_value)
 			pr_debug("Single MCLK entry VDDCI/MCLK dependency table "
-					"does not match VBIOS boot MCLK level");
+					"does analt match VBIOS boot MCLK level");
 		if (dep_mclk_table->entries[0].v !=
 				data->vbios_boot_state.vddci_bootup_value)
 			pr_debug("Single VDDCI entry VDDCI/MCLK dependency table "
-					"does not match VBIOS boot VDDCI level");
+					"does analt match VBIOS boot VDDCI level");
 	}
 
 	/* set DC compatible flag if this state supports DC */
@@ -3958,7 +3958,7 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 		return -EINVAL;
 
 	/*
-	 * PPSMC_MSG_GetCurrPkgPwr is not supported on:
+	 * PPSMC_MSG_GetCurrPkgPwr is analt supported on:
 	 *  - Hawaii
 	 *  - Bonaire
 	 *  - Fiji
@@ -4049,13 +4049,13 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		    (adev->asic_type != CHIP_TONGA))
 			return smu7_get_gpu_power(hwmgr, (uint32_t *)value);
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 		if ((adev->asic_type != CHIP_HAWAII) &&
 		    (adev->asic_type != CHIP_BONAIRE) &&
 		    (adev->asic_type != CHIP_FIJI) &&
 		    (adev->asic_type != CHIP_TONGA))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		else
 			return smu7_get_gpu_power(hwmgr, (uint32_t *)value);
 	case AMDGPU_PP_SENSOR_VDDGFX:
@@ -4070,7 +4070,7 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = (uint32_t)convert_to_vddc(val_vid);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -4173,7 +4173,7 @@ static int smu7_request_link_speed_change_before_state_change(
 		current_link_speed = data->force_pcie_gen;
 
 	data->force_pcie_gen = PP_PCIEGenInvalid;
-	data->pspp_notify_required = false;
+	data->pspp_analtify_required = false;
 
 	if (target_link_speed > current_link_speed) {
 		switch (target_link_speed) {
@@ -4196,7 +4196,7 @@ static int smu7_request_link_speed_change_before_state_change(
 		}
 	} else {
 		if (target_link_speed < current_link_speed)
-			data->pspp_notify_required = true;
+			data->pspp_analtify_required = true;
 	}
 
 	return 0;
@@ -4223,7 +4223,7 @@ static int smu7_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	}
 
 	if ((0 == data->mclk_dpm_key_disabled) &&
-		!data->mclk_ignore_signal &&
+		!data->mclk_iganalre_signal &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
@@ -4315,7 +4315,7 @@ static int smu7_trim_dpm_states(struct pp_hwmgr *hwmgr,
 	uint32_t high_limit_count;
 
 	PP_ASSERT_WITH_CODE((smu7_ps->performance_level_count >= 1),
-			"power state did not have any performance level",
+			"power state did analt have any performance level",
 			return -EINVAL);
 
 	high_limit_count = (1 == smu7_ps->performance_level_count) ? 0 : 1;
@@ -4380,7 +4380,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	}
 
 	if ((0 == data->mclk_dpm_key_disabled) &&
-		!data->mclk_ignore_signal &&
+		!data->mclk_iganalre_signal &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
@@ -4398,7 +4398,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int smu7_notify_link_speed_change_after_state_change(
+static int smu7_analtify_link_speed_change_after_state_change(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
 	const struct phm_set_power_state_input *states =
@@ -4409,7 +4409,7 @@ static int smu7_notify_link_speed_change_after_state_change(
 	uint16_t target_link_speed = smu7_get_maximum_link_speed(hwmgr, smu7_ps);
 	uint8_t  request;
 
-	if (data->pspp_notify_required) {
+	if (data->pspp_analtify_required) {
 		if (target_link_speed == PP_PCIEGen3)
 			request = PCIE_PERF_REQ_GEN3;
 		else if (target_link_speed == PP_PCIEGen2)
@@ -4434,12 +4434,12 @@ static int smu7_notify_link_speed_change_after_state_change(
 	return 0;
 }
 
-static int smu7_notify_no_display(struct pp_hwmgr *hwmgr)
+static int smu7_analtify_anal_display(struct pp_hwmgr *hwmgr)
 {
-	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_NoDisplay, NULL) == 0) ?  0 : -EINVAL;
+	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_AnalDisplay, NULL) == 0) ?  0 : -EINVAL;
 }
 
-static int smu7_notify_has_display(struct pp_hwmgr *hwmgr)
+static int smu7_analtify_has_display(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -4458,15 +4458,15 @@ static int smu7_notify_has_display(struct pp_hwmgr *hwmgr)
 	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay, NULL) == 0) ?  0 : -EINVAL;
 }
 
-static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
+static int smu7_analtify_smc_display(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int result = 0;
 
-	if (data->mclk_ignore_signal)
-		result = smu7_notify_no_display(hwmgr);
+	if (data->mclk_iganalre_signal)
+		result = smu7_analtify_anal_display(hwmgr);
 	else
-		result = smu7_notify_has_display(hwmgr);
+		result = smu7_analtify_has_display(hwmgr);
 
 	return result;
 }
@@ -4531,17 +4531,17 @@ static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 			"Failed to upload DPM level enabled mask!",
 			result = tmp_result);
 
-	tmp_result = smu7_notify_smc_display(hwmgr);
+	tmp_result = smu7_analtify_smc_display(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
-			"Failed to notify smc display settings!",
+			"Failed to analtify smc display settings!",
 			result = tmp_result);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PCIEPerformanceRequest)) {
 		tmp_result =
-			smu7_notify_link_speed_change_after_state_change(hwmgr, input);
+			smu7_analtify_link_speed_change_after_state_change(hwmgr, input);
 		PP_ASSERT_WITH_CODE((0 == tmp_result),
-				"Failed to notify link speed change after state change!",
+				"Failed to analtify link speed change after state change!",
 				result = tmp_result);
 	}
 	data->apply_optimized_settings = false;
@@ -4559,7 +4559,7 @@ static int smu7_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 }
 
 static int
-smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
+smu7_analtify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	return 0;
 }
@@ -4579,7 +4579,7 @@ static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 	uint32_t frame_time_in_us;
 	uint32_t ref_clock, refresh_rate;
 
-	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL, DISP_GAP, (hwmgr->display_config->num_display > 0) ? DISPLAY_GAP_VBLANK_OR_WM : DISPLAY_GAP_IGNORE);
+	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL, DISP_GAP, (hwmgr->display_config->num_display > 0) ? DISPLAY_GAP_VBLANK_OR_WM : DISPLAY_GAP_IGANALRE);
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL, display_gap);
 
 	ref_clock =  amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
@@ -4649,7 +4649,7 @@ static int smu7_register_irq_handlers(struct pp_hwmgr *hwmgr)
 		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
 
 	if (!source)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	source->funcs = &smu7_irq_funcs;
 
@@ -4720,7 +4720,7 @@ static int smu7_check_states_equal(struct pp_hwmgr *hwmgr,
 
 	psa = cast_const_phw_smu7_power_state(pstate1);
 	psb = cast_const_phw_smu7_power_state(pstate2);
-	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
+	/* If the two states don't even have the same number of performance levels they cananalt be the same state. */
 	if (psa->performance_level_count != psb->performance_level_count) {
 		*equal = false;
 		return 0;
@@ -4754,7 +4754,7 @@ static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 
 	/* Read MC indirect register offset 0x9F bits [3:0] to see
 	 * if VBIOS has already loaded a full version of MC ucode
-	 * or not.
+	 * or analt.
 	 */
 
 	smu7_get_mc_microcode_version(hwmgr);
@@ -4966,7 +4966,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct phm_odn_clock_levels *odn_sclk_table = &(odn_table->odn_core_clock_dpm_levels);
 	struct phm_odn_clock_levels *odn_mclk_table = &(odn_table->odn_memory_clock_dpm_levels);
 	int size = 0;
-	uint32_t i, now, clock, pcie_speed;
+	uint32_t i, analw, clock, pcie_speed;
 
 	switch (type) {
 	case PP_SCLK:
@@ -4977,12 +4977,12 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 				continue;
 			break;
 		}
-		now = i;
+		analw = i;
 
 		for (i = 0; i < sclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, sclk_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
+					(i == analw) ? "*" : "");
 		break;
 	case PP_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetMclkFrequency, &clock);
@@ -4992,12 +4992,12 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 				continue;
 			break;
 		}
-		now = i;
+		analw = i;
 
 		for (i = 0; i < mclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, mclk_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
+					(i == analw) ? "*" : "");
 		break;
 	case PP_PCIE:
 		pcie_speed = smu7_get_current_pcie_speed(hwmgr);
@@ -5006,14 +5006,14 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 				continue;
 			break;
 		}
-		now = i;
+		analw = i;
 
 		for (i = 0; i < pcie_table->count; i++)
 			size += sprintf(buf + size, "%d: %s %s\n", i,
 					(pcie_table->dpm_levels[i].value == 0) ? "2.5GT/s, x8" :
 					(pcie_table->dpm_levels[i].value == 1) ? "5.0GT/s, x16" :
 					(pcie_table->dpm_levels[i].value == 2) ? "8.0GT/s, x16" : "",
-					(i == now) ? "*" : "");
+					(i == analw) ? "*" : "");
 		break;
 	case OD_SCLK:
 		if (hwmgr->od_enabled) {
@@ -5056,7 +5056,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 static void smu7_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
 	switch (mode) {
-	case AMD_FAN_CTRL_NONE:
+	case AMD_FAN_CTRL_ANALNE:
 		smu7_fan_ctrl_set_fan_speed_pwm(hwmgr, 255);
 		break;
 	case AMD_FAN_CTRL_MANUAL:
@@ -5351,7 +5351,7 @@ static int smu7_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 				}
 			}
 			PP_ASSERT_WITH_CODE(valid_entry,
-					"Clock is not in range of specified clock range for watermark from DAL!  Using highest water mark set.",
+					"Clock is analt in range of specified clock range for watermark from DAL!  Using highest water mark set.",
 					table->DisplayWatermark[i][j] = watermarks->wm_clk_ranges[k - 1].wm_set_id);
 		}
 	}
@@ -5363,7 +5363,7 @@ static int smu7_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 				      SMC_RAM_END);
 }
 
-static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+static int smu7_analtify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
 					uint32_t mc_addr_low,
@@ -5498,7 +5498,7 @@ static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 				return -EINVAL);
 
 	if (!hwmgr->od_enabled) {
-		pr_info("OverDrive feature not enabled\n");
+		pr_info("OverDrive feature analt enabled\n");
 		return -EINVAL;
 	}
 
@@ -5751,7 +5751,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.powergate_vce = smu7_powergate_vce,
 	.disable_clock_power_gating = smu7_disable_clock_power_gating,
 	.update_clock_gatings = smu7_update_clock_gatings,
-	.notify_smc_display_config_after_ps_adjustment = smu7_notify_smc_display_config_after_ps_adjustment,
+	.analtify_smc_display_config_after_ps_adjustment = smu7_analtify_smc_display_config_after_ps_adjustment,
 	.display_config_changed = smu7_display_configuration_changed_task,
 	.set_max_fan_pwm_output = smu7_set_max_fan_pwm_output,
 	.set_max_fan_rpm_output = smu7_set_max_fan_rpm_output,
@@ -5783,7 +5783,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.avfs_control = smu7_avfs_control,
 	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 	.start_thermal_controller = smu7_start_thermal_controller,
-	.notify_cac_buffer_info = smu7_notify_cac_buffer_info,
+	.analtify_cac_buffer_info = smu7_analtify_cac_buffer_info,
 	.get_max_high_clocks = smu7_get_max_high_clocks,
 	.get_thermal_temperature_range = smu7_get_thermal_temperature_range,
 	.odn_edit_dpm_table = smu7_odn_edit_dpm_table,

@@ -13,11 +13,11 @@
 #define PARPORT_MAX  16
 
 /* Magic numbers */
-#define PARPORT_IRQ_NONE  -1
-#define PARPORT_DMA_NONE  -1
+#define PARPORT_IRQ_ANALNE  -1
+#define PARPORT_DMA_ANALNE  -1
 #define PARPORT_IRQ_AUTO  -2
 #define PARPORT_DMA_AUTO  -2
-#define PARPORT_DMA_NOFIFO -3
+#define PARPORT_DMA_ANALFIFO -3
 #define PARPORT_DISABLE   -2
 #define PARPORT_IRQ_PROBEONLY -3
 #define PARPORT_IOHI_AUTO -1
@@ -35,7 +35,7 @@
 
 /* Type classes for Plug-and-Play probe.  */
 typedef enum {
-	PARPORT_CLASS_LEGACY = 0,       /* Non-IEEE1284 device */
+	PARPORT_CLASS_LEGACY = 0,       /* Analn-IEEE1284 device */
 	PARPORT_CLASS_PRINTER,
 	PARPORT_CLASS_MODEM,
 	PARPORT_CLASS_NET,
@@ -47,7 +47,7 @@ typedef enum {
 	PARPORT_CLASS_SCANNER,
 	PARPORT_CLASS_DIGCAM,
 	PARPORT_CLASS_OTHER,            /* Anything else */
-	PARPORT_CLASS_UNSPEC,           /* No CLS field in ID */
+	PARPORT_CLASS_UNSPEC,           /* Anal CLS field in ID */
 	PARPORT_CLASS_SCSIADAPTER
 } parport_device_class;
 
@@ -82,7 +82,7 @@ typedef enum {
 						 * bits 0-6. */
 
 /* For the benefit of parport_read/write, you can use these with
- * parport_negotiate to use address operations.  They have no effect
+ * parport_negotiate to use address operations.  They have anal effect
  * other than to make parport_read/write use address transfers. */
 #define IEEE1284_ADDR			(1<<13)	/* This is a flag */
 #define IEEE1284_DATA			 0	/* So is this */

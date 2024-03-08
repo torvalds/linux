@@ -226,7 +226,7 @@
 	status = "okay";
 
 	flash: flash@0 {
-		compatible = "sst,sst25vf016b", "jedec,spi-nor";
+		compatible = "sst,sst25vf016b", "jedec,spi-analr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 		#address-cells = <1>;
@@ -648,7 +648,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_wlan_vmmc>;
 	cap-power-off-card;
 	keep-power-in-suspend;

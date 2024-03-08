@@ -9,5 +9,5 @@ config AMD_PTDMA
 	  provides DMA capabilities to perform high bandwidth memory to
 	  memory and IO copy operations. It performs DMA transfer through
 	  queue-based descriptor management. This DMA controller is intended
-	  to be used with AMD Non-Transparent Bridge devices and not for
+	  to be used with AMD Analn-Transparent Bridge devices and analt for
 	  general purpose peripheral DMA.

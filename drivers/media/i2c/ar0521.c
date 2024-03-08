@@ -10,7 +10,7 @@
 #include <linux/pm_runtime.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* External clock (extclk) frequencies */
@@ -284,7 +284,7 @@ static void ar0521_calc_pll(struct ar0521_dev *sensor)
 	int bpp;
 
 	/*
-	 * PLL1 and PLL2 are computed equally even if the application note
+	 * PLL1 and PLL2 are computed equally even if the application analte
 	 * suggests a slower PLL1 clock. Maintain pll1 and pll2 divider and
 	 * multiplier separated to later specialize the calculation procedure.
 	 *
@@ -302,7 +302,7 @@ static void ar0521_calc_pll(struct ar0521_dev *sensor)
 	 * - vt_pix = bpp / 2
 	 * - WORD_CLOCK = PIXEL_CLOCK / 2
 	 * - SERIAL_CLOCK = MIPI data rate (Mbps / lane) = WORD_CLOCK * bpp
-	 *   NOTE: this implies the MIPI clock is divided internally by 2
+	 *   ANALTE: this implies the MIPI clock is divided internally by 2
 	 *         to account for DDR.
 	 *
 	 * As op_sys_div is fixed to 1:
@@ -326,7 +326,7 @@ static void ar0521_calc_pll(struct ar0521_dev *sensor)
 	 *   VCO = (320MHz - 1280MHz)
 	 *
 	 * TODO: in case we have less data lanes we have to reduce the desired
-	 * VCO not to exceed the limits specified by the datasheet and
+	 * VCO analt to exceed the limits specified by the datasheet and
 	 * consequentially reduce the obtained pixel clock.
 	 */
 	pixel_clock = AR0521_PIXEL_CLOCK_RATE * 2 / sensor->lane_count;
@@ -429,7 +429,7 @@ static void ar0521_adj_fmt(struct v4l2_mbus_framefmt *fmt)
 	fmt->height = clamp(ALIGN(fmt->height, 4), AR0521_HEIGHT_MIN,
 			    AR0521_HEIGHT_MAX);
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
@@ -683,7 +683,7 @@ static const struct initial_reg {
 	/* corrections_recommended_bayer */
 	REGS(be(0x3042),
 	     be(0x0004),  /* 3042: RNC: enable b/w rnc mode */
-	     be(0x4580)), /* 3044: RNC: enable row noise correction */
+	     be(0x4580)), /* 3044: RNC: enable row analise correction */
 
 	REGS(be(0x30D2),
 	     be(0x0000),  /* 30D2: CRM/CC: enable crm on Visible and CC rows */
@@ -788,7 +788,7 @@ static const struct initial_reg {
 	     /* 3EC4: FSC clamps for HDR mode and adc comp power down co */
 	     be(0x3300),
 	     be(0xEA44),  /* 3EC6: VLN and clk gating controls */
-	     be(0x6F6F),  /* 3EC8: Txl0 and Txlo1 settings for normal mode */
+	     be(0x6F6F),  /* 3EC8: Txl0 and Txlo1 settings for analrmal mode */
 	     be(0x2F4A),  /* 3ECA: CDAC/Txlo2/RSTGHI/RSTGLO settings */
 	     be(0x0506),  /* 3ECC: RSTDHI/RSTDLO/CDAC/TXHI settings */
 	     /* 3ECE: Ramp buffer settings and Booster enable (bits 0-5) */
@@ -806,15 +806,15 @@ static const struct initial_reg {
 	REGS(be(0x3F00),
 	     be(0x0017),  /* 3F00: BM_T0 */
 	     be(0x02DD),  /* 3F02: BM_T1 */
-	     /* 3F04: if Ana_gain less than 2, use noise_floor0, multipl */
+	     /* 3F04: if Ana_gain less than 2, use analise_floor0, multipl */
 	     be(0x0020),
-	     /* 3F06: if Ana_gain between 4 and 7, use noise_floor2 and */
+	     /* 3F06: if Ana_gain between 4 and 7, use analise_floor2 and */
 	     be(0x0040),
-	     /* 3F08: if Ana_gain between 4 and 7, use noise_floor2 and */
+	     /* 3F08: if Ana_gain between 4 and 7, use analise_floor2 and */
 	     be(0x0070),
-	     /* 3F0A: Define noise_floor0(low address) and noise_floor1 */
+	     /* 3F0A: Define analise_floor0(low address) and analise_floor1 */
 	     be(0x0101),
-	     be(0x0302)), /* 3F0C: Define noise_floor2 and noise_floor3 */
+	     be(0x0302)), /* 3F0C: Define analise_floor2 and analise_floor3 */
 
 	REGS(be(0x3F10),
 	     be(0x0505),  /* 3F10: single k factor 0 */
@@ -894,7 +894,7 @@ static int ar0521_power_on(struct device *dev)
 	if (ret)
 		goto off;
 
-	/* set MIPI test mode - disabled for now */
+	/* set MIPI test mode - disabled for analw */
 	ret = ar0521_write_reg(sensor, AR0521_REG_HISPI_TEST_MODE,
 			       ((0x40 << sensor->lane_count) - 0x40) |
 			       AR0521_REG_HISPI_TEST_MODE_LP11);
@@ -1019,34 +1019,34 @@ static const struct v4l2_subdev_ops ar0521_subdev_ops = {
 
 static int ar0521_probe(struct i2c_client *client)
 {
-	struct v4l2_fwnode_endpoint ep = {
+	struct v4l2_fwanalde_endpoint ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	struct device *dev = &client->dev;
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 	struct ar0521_dev *sensor;
 	unsigned int cnt;
 	int ret;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->i2c_client = client;
 	sensor->fmt.width = AR0521_WIDTH_MAX;
 	sensor->fmt.height = AR0521_HEIGHT_MAX;
 
-	endpoint = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0,
-						   FWNODE_GRAPH_ENDPOINT_NEXT);
+	endpoint = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), 0, 0,
+						   FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(endpoint, &ep);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_parse(endpoint, &ep);
+	fwanalde_handle_put(endpoint);
 	if (ret) {
-		dev_err(dev, "could not parse endpoint\n");
+		dev_err(dev, "could analt parse endpoint\n");
 		return ret;
 	}
 
@@ -1088,7 +1088,7 @@ static int ar0521_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ar0521_subdev_ops);
 
-	sensor->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sensor->sd.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sensor->sd.entity, 1, &sensor->pad);
@@ -1100,7 +1100,7 @@ static int ar0521_probe(struct i2c_client *client)
 						ar0521_supply_names[cnt]);
 
 		if (IS_ERR(supply)) {
-			dev_info(dev, "no %s regulator found: %li\n",
+			dev_info(dev, "anal %s regulator found: %li\n",
 				 ar0521_supply_names[cnt], PTR_ERR(supply));
 			return PTR_ERR(supply);
 		}

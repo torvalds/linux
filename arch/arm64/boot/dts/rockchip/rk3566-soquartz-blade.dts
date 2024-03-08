@@ -17,7 +17,7 @@
 		ethernet0 = &gmac1;
 	};
 
-	/* labeled VCC3V0_SD in schematic to not conflict with PMIC regulator */
+	/* labeled VCC3V0_SD in schematic to analt conflict with PMIC regulator */
 	vcc3v0_sd: vcc3v0-sd-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v0_sd";

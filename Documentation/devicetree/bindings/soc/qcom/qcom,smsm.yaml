@@ -15,7 +15,7 @@ description:
   The Shared Memory State Machine facilitates broadcasting of single bit state
   information between the processors in a Qualcomm SoC. Each processor is
   assigned 32 bits of state that can be modified. A processor can through a
-  matrix of bitmaps signal subscription of notifications upon changes to a
+  matrix of bitmaps signal subscription of analtifications upon changes to a
   certain bit owned by a certain remote processor.
 
 properties:
@@ -41,7 +41,7 @@ patternProperties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to a syscon node representing the APCS registers
+          - description: phandle to a syscon analde representing the APCS registers
           - description: u32 representing offset to the register within the syscon
           - description: u32 representing the ipc bit within the register
     description:
@@ -51,10 +51,10 @@ patternProperties:
   "@[0-9a-f]$":
     type: object
     description:
-      Each processor's state bits are described by a subnode of the SMSM device
-      node.  Nodes can either be flagged as an interrupt-controller to denote a
-      remote processor's state bits or the local processors bits.  The node
-      names are not important.
+      Each processor's state bits are described by a subanalde of the SMSM device
+      analde.  Analdes can either be flagged as an interrupt-controller to deanalte a
+      remote processor's state bits or the local processors bits.  The analde
+      names are analt important.
 
     properties:
       reg:
@@ -78,7 +78,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         const: 1
         description:
-          Required for local entry. Denotes bit number.
+          Required for local entry. Deanaltes bit number.
 
     required:
       - reg

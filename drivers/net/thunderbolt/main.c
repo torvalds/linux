@@ -56,7 +56,7 @@
  * @frame_count: how many frames assembles a full packet
  *
  * Each data frame passed to the high-speed DMA ring has this header. If
- * the XDomain network directory announces that %TBNET_MATCH_FRAGS_ID is
+ * the XDomain network directory ananalunces that %TBNET_MATCH_FRAGS_ID is
  * supported then @frame_id is filled, otherwise it stays %0.
  */
 struct thunderbolt_ip_frame_header {
@@ -223,7 +223,7 @@ static void tbnet_fill_header(struct thunderbolt_ip_header *hdr, u64 route,
 {
 	u32 length_sn;
 
-	/* Length does not include route_hi/lo and length_sn fields */
+	/* Length does analt include route_hi/lo and length_sn fields */
 	length_sn = (size - 3 * 4) / 4;
 	length_sn |= (sequence << TBIP_HDR_SN_SHIFT) & TBIP_HDR_SN_MASK;
 
@@ -457,7 +457,7 @@ static int tbnet_handle_packet(const void *buf, size_t size, void *data)
 			net->remote_transmit_path = pkg->transmit_path;
 
 			/* If we reached the number of max retries or
-			 * previous logout, schedule another round of
+			 * previous logout, schedule aanalther round of
 			 * login retries
 			 */
 			if (net->login_retries >= TBNET_LOGIN_RETRIES ||
@@ -516,14 +516,14 @@ static int tbnet_alloc_rx_buffers(struct tbnet *net, unsigned int nbuffers)
 		 */
 		tf->page = dev_alloc_pages(TBNET_RX_PAGE_ORDER);
 		if (!tf->page) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free;
 		}
 
 		dma_addr = dma_map_page(dma_dev, tf->page, 0,
 					TBNET_RX_PAGE_SIZE, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dma_dev, dma_addr)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free;
 		}
 
@@ -592,7 +592,7 @@ static int tbnet_alloc_tx_buffers(struct tbnet *net)
 		tf->page = alloc_page(GFP_KERNEL);
 		if (!tf->page) {
 			tbnet_free_buffers(ring);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dma_addr = dma_map_page(dma_dev, tf->page, 0, TBNET_FRAME_SIZE,
@@ -601,7 +601,7 @@ static int tbnet_alloc_tx_buffers(struct tbnet *net)
 			__free_page(tf->page);
 			tf->page = NULL;
 			tbnet_free_buffers(ring);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		tf->dev = net->dev;
@@ -646,7 +646,7 @@ static void tbnet_connected_work(struct work_struct *work)
 	/* Both logins successful so enable the rings, high-speed DMA
 	 * paths and start the network device queue.
 	 *
-	 * Note we enable the DMA paths last to make sure we have primed
+	 * Analte we enable the DMA paths last to make sure we have primed
 	 * the Rx ring before any incoming packets are allowed to
 	 * arrive.
 	 */
@@ -928,7 +928,7 @@ static int tbnet_open(struct net_device *dev)
 				RING_FLAG_FRAME);
 	if (!ring) {
 		netdev_err(dev, "failed to allocate Tx ring\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	net->tx_ring.ring = ring;
 
@@ -957,7 +957,7 @@ static int tbnet_open(struct net_device *dev)
 		tb_xdomain_release_out_hopid(xd, hopid);
 		tb_ring_free(net->tx_ring.ring);
 		net->tx_ring.ring = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	net->rx_ring.ring = ring;
 
@@ -1001,7 +1001,7 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 	__sum16 *tucso;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		/* No need to calculate checksum so we just update the
+		/* Anal need to calculate checksum so we just update the
 		 * total frame count and sync the frames for DMA.
 		 */
 		for (i = 0; i < frame_count; i++) {
@@ -1081,7 +1081,7 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 	*tucso = csum_fold(wsum);
 
 	/* Checksum is finally calculated and we don't touch the memory
-	 * anymore, so DMA sync the frames now.
+	 * anymore, so DMA sync the frames analw.
 	 */
 	for (i = 0; i < frame_count; i++) {
 		dma_sync_single_for_device(dma_dev, frames[i]->frame.buffer_phy,
@@ -1293,7 +1293,7 @@ static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)
 
 	dev = alloc_etherdev(sizeof(*net));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(dev, &svc->dev);
 
@@ -1323,7 +1323,7 @@ static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)
 	 * sized smaller packets.
 	 *
 	 * In order to receive large packets from the networking stack,
-	 * we need to announce support for most of the offloading
+	 * we need to ananalunce support for most of the offloading
 	 * features here.
 	 */
 	dev->hw_features = NETIF_F_SG | NETIF_F_ALL_TSO | NETIF_F_GRO |
@@ -1426,7 +1426,7 @@ static int __init tbnet_init(void)
 
 	tbnet_dir = tb_property_create_dir(&tbnet_dir_uuid);
 	if (!tbnet_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tb_property_add_immediate(tbnet_dir, "prtcid", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcvers", 1);

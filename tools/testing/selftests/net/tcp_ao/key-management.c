@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Author: Dmitry Safonov <dima@arista.com> */
+/* Author: Dmitry Safoanalv <dima@arista.com> */
 #include <inttypes.h>
 #include "../../../../include/linux/kernel.h"
 #include "aolib.h"
@@ -88,7 +88,7 @@ static int test_del_key(int sk, uint8_t sndid, uint8_t rcvid, bool async,
 
 	err = setsockopt(sk, IPPROTO_TCP, TCP_AO_DEL_KEY, &del, sizeof(del));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	if (async)
 		return 0;
@@ -105,9 +105,9 @@ static int test_del_key(int sk, uint8_t sndid, uint8_t rcvid, bool async,
 	if (test_get_ao_info(sk, &ao_info))
 		test_error("getsockopt(TCP_AO_INFO) failed");
 	if (current_key >= 0 && ao_info.current_key != (uint8_t)current_key)
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 	if (rnext_key >= 0 && ao_info.rnext != (uint8_t)rnext_key)
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 	return 0;
 }
 
@@ -159,9 +159,9 @@ static int test_set_key(int sk, int current_keyid, int rnext_keyid)
 	if (test_get_ao_info(sk, &ao_info))
 		test_error("getsockopt(TCP_AO_INFO) failed");
 	if (current_keyid >= 0 && ao_info.current_key != (uint8_t)current_keyid)
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 	if (rnext_keyid >= 0 && ao_info.rnext != (uint8_t)rnext_keyid)
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 	return 0;
 }
 
@@ -183,7 +183,7 @@ static int test_add_current_rnext_key(int sk, const char *key, uint8_t keyflags,
 
 	err = setsockopt(sk, IPPROTO_TCP, TCP_AO_ADD_KEY, &tmp, sizeof(tmp));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	return test_verify_socket_key(sk, &tmp);
 }
@@ -204,9 +204,9 @@ static int __try_add_current_rnext_key(int sk, const char *key, uint8_t keyflags
 	if (test_get_ao_info(sk, &ao_info))
 		test_error("getsockopt(TCP_AO_INFO) failed");
 	if (set_current && ao_info.current_key != sndid)
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 	if (set_rnext && ao_info.rnext != rcvid)
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 	return 0;
 }
 
@@ -274,25 +274,25 @@ static void check_closed_socket(void)
 	close(sk);
 }
 
-static void assert_no_current_rnext(const char *tst_msg, int sk)
+static void assert_anal_current_rnext(const char *tst_msg, int sk)
 {
 	struct tcp_ao_info_opt ao_info = {};
 
 	if (test_get_ao_info(sk, &ao_info))
 		test_error("getsockopt(TCP_AO_INFO) failed");
 
-	errno = 0;
+	erranal = 0;
 	if (ao_info.set_current || ao_info.set_rnext) {
 		test_xfail("%s: the socket has current/rnext keys: %d:%d",
 			   tst_msg,
 			   (ao_info.set_current) ? ao_info.current_key : -1,
 			   (ao_info.set_rnext) ? ao_info.rnext : -1);
 	} else {
-		test_ok("%s: the socket has no current/rnext keys", tst_msg);
+		test_ok("%s: the socket has anal current/rnext keys", tst_msg);
 	}
 }
 
-static void assert_no_tcp_repair(void)
+static void assert_anal_tcp_repair(void)
 {
 	struct tcp_ao_repair ao_img = {};
 	socklen_t len = sizeof(ao_img);
@@ -302,15 +302,15 @@ static void assert_no_tcp_repair(void)
 	test_enable_repair(sk);
 	if (listen(sk, 10))
 		test_error("listen()");
-	errno = 0;
+	erranal = 0;
 	err = getsockopt(sk, SOL_TCP, TCP_AO_REPAIR, &ao_img, &len);
-	if (err && errno == EPERM)
+	if (err && erranal == EPERM)
 		test_ok("listen socket, getsockopt(TCP_AO_REPAIR) is restricted");
 	else
 		test_fail("listen socket, getsockopt(TCP_AO_REPAIR) works");
-	errno = 0;
+	erranal = 0;
 	err = setsockopt(sk, SOL_TCP, TCP_AO_REPAIR, &ao_img, sizeof(ao_img));
-	if (err && errno == EPERM)
+	if (err && erranal == EPERM)
 		test_ok("listen socket, setsockopt(TCP_AO_REPAIR) is restricted");
 	else
 		test_fail("listen socket, setsockopt(TCP_AO_REPAIR) works");
@@ -329,12 +329,12 @@ static void check_listen_socket(void)
 	sk = prepare_lsk(&this_ip_dest, 200, 200);
 	err = test_set_key(sk, 100, -1);
 	if (err == -EINVAL)
-		test_ok("listen socket, setting current key not allowed");
+		test_ok("listen socket, setting current key analt allowed");
 	else
 		test_fail("listen socket, set current key");
 	err = test_set_key(sk, -1, 200);
 	if (err == -EINVAL)
-		test_ok("listen socket, setting rnext key not allowed");
+		test_ok("listen socket, setting rnext key analt allowed");
 	else
 		test_fail("listen socket, set rnext key");
 	close(sk);
@@ -344,12 +344,12 @@ static void check_listen_socket(void)
 		test_error("failed to set current/rnext keys");
 	if (listen(sk, 10))
 		test_error("listen()");
-	assert_no_current_rnext("listen() after current/rnext keys set", sk);
+	assert_anal_current_rnext("listen() after current/rnext keys set", sk);
 	try_delete_key("listen socket, delete current key from before listen()", sk, 100, 100, 0, -1, -1, FAULT_FIXME);
 	try_delete_key("listen socket, delete rnext key from before listen()", sk, 200, 200, 0, -1, -1, FAULT_FIXME);
 	close(sk);
 
-	assert_no_tcp_repair();
+	assert_anal_tcp_repair();
 
 	sk = prepare_lsk(&this_ip_dest, 200, 200);
 	if (test_add_key(sk, "Glory to heros!", this_ip_dest,
@@ -390,7 +390,7 @@ static bool is_fips_enabled(void)
 	if (fips_checked >= 0)
 		return !!fips_checked;
 	if (access(fips_fpath, R_OK)) {
-		if (errno != ENOENT)
+		if (erranal != EANALENT)
 			test_error("Can't open %s", fips_fpath);
 		fips_checked = 0;
 		return false;
@@ -435,7 +435,7 @@ const char *test_algos[] = {
 	"hmac(sha1)", "hmac(sha512)", "hmac(sha384)", "hmac(sha256)",
 	"hmac(sha224)", "hmac(sha3-512)",
 	/* only if !CONFIG_FIPS */
-#define TEST_NON_FIPS_ALGOS	2
+#define TEST_ANALN_FIPS_ALGOS	2
 	"hmac(rmd160)", "hmac(md5)"
 };
 const unsigned int test_maclens[] = { 1, 4, 12, 16 };
@@ -454,13 +454,13 @@ static void init_key_in_collection(unsigned int index, bool randomized)
 	struct test_key *key = &collection.keys[index];
 	unsigned int algos_nr, algos_index;
 
-	/* Same for randomized and non-randomized test flows */
+	/* Same for randomized and analn-randomized test flows */
 	key->client_keyid = index;
 	key->server_keyid = 127 + index;
 	key->matches_client = 1;
 	key->matches_server = 1;
 	key->matches_vrf = 1;
-	/* not really even random, but good enough for a test */
+	/* analt really even random, but good eanalugh for a test */
 	key->len = rand() % (TCP_AO_MAXKEYLEN - TEST_TCP_AO_MINKEYLEN);
 	key->len += TEST_TCP_AO_MINKEYLEN;
 	randomize_buffer(key->password, key->len);
@@ -476,7 +476,7 @@ static void init_key_in_collection(unsigned int index, bool randomized)
 	}
 	algos_nr = ARRAY_SIZE(test_algos);
 	if (is_fips_enabled())
-		algos_nr -= TEST_NON_FIPS_ALGOS;
+		algos_nr -= TEST_ANALN_FIPS_ALGOS;
 	key->alg = test_algos[algos_index % algos_nr];
 }
 
@@ -500,7 +500,7 @@ static int init_default_key_collection(unsigned int nr_keys, bool randomized)
 
 	collection.keys = reallocarray(collection.keys, nr_keys, key_sz);
 	if (!collection.keys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(collection.keys, 0, nr_keys * key_sz);
 	collection.nr_keys = nr_keys;
@@ -541,7 +541,7 @@ static int test_add_key_cr(int sk, const char *pwd, unsigned int pwd_len,
 
 	err = setsockopt(sk, IPPROTO_TCP, TCP_AO_ADD_KEY, &tmp, sizeof(tmp));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	return test_verify_socket_key(sk, &tmp);
 }
@@ -554,12 +554,12 @@ static void verify_current_rnext(const char *tst, int sk,
 	if (test_get_ao_info(sk, &ao_info))
 		test_error("getsockopt(TCP_AO_INFO) failed");
 
-	errno = 0;
+	erranal = 0;
 	if (current_keyid >= 0) {
 		if (!ao_info.set_current)
 			test_fail("%s: the socket doesn't have current key", tst);
 		else if (ao_info.current_key != current_keyid)
-			test_fail("%s: current key is not the expected one %d != %u",
+			test_fail("%s: current key is analt the expected one %d != %u",
 				  tst, current_keyid, ao_info.current_key);
 		else
 			test_ok("%s: current key %u as expected",
@@ -569,7 +569,7 @@ static void verify_current_rnext(const char *tst, int sk,
 		if (!ao_info.set_rnext)
 			test_fail("%s: the socket doesn't have rnext key", tst);
 		else if (ao_info.rnext != rnext_keyid)
-			test_fail("%s: rnext key is not the expected one %d != %u",
+			test_fail("%s: rnext key is analt the expected one %d != %u",
 				  tst, rnext_keyid, ao_info.rnext);
 		else
 			test_ok("%s: rnext key %u as expected", tst, ao_info.rnext);
@@ -717,7 +717,7 @@ static void verify_keys(const char *tst_name, int sk,
 		}
 		if (!key->matches_vrf)
 			matches = false;
-		/* no keys get removed on the original listener socket */
+		/* anal keys get removed on the original listener socket */
 		if (is_listen_sk)
 			matches = true;
 
@@ -983,11 +983,11 @@ static void try_unmatched_keys(int sk, int *rnext_index)
 			      0, key->client_keyid, key->server_keyid,
 			      key->maclen, key->alg, 0, 0);
 	if (!err) {
-		test_fail("Added a key with non-matching ip-address for established sk");
+		test_fail("Added a key with analn-matching ip-address for established sk");
 		return;
 	}
 	if (err == -EINVAL)
-		test_ok("Can't add a key with non-matching ip-address for established sk");
+		test_ok("Can't add a key with analn-matching ip-address for established sk");
 	else
 		test_error("Failed to add a key");
 
@@ -996,11 +996,11 @@ static void try_unmatched_keys(int sk, int *rnext_index)
 			      key->client_keyid, key->server_keyid,
 			      key->maclen, key->alg, 0, 0);
 	if (!err) {
-		test_fail("Added a key with non-matching VRF for established sk");
+		test_fail("Added a key with analn-matching VRF for established sk");
 		return;
 	}
 	if (err == -EINVAL)
-		test_ok("Can't add a key with non-matching VRF for established sk");
+		test_ok("Can't add a key with analn-matching VRF for established sk");
 	else
 		test_error("Failed to add a key");
 
@@ -1018,7 +1018,7 @@ static void try_unmatched_keys(int sk, int *rnext_index)
 	*rnext_index = i;
 }
 
-static int client_non_matching(const char *tst_name, unsigned int port,
+static int client_analn_matching(const char *tst_name, unsigned int port,
 			       unsigned int nr_keys,
 			       int current_index, int rnext_index,
 			       const size_t msg_sz, const size_t msg_nr)
@@ -1120,7 +1120,7 @@ static void try_client_match(const char *tst_name, unsigned int port,
 {
 	int sk;
 
-	sk = client_non_matching(tst_name, port, nr_keys, current_index,
+	sk = client_analn_matching(tst_name, port, nr_keys, current_index,
 				 rnext_index, msg_len, nr_packets);
 	if (sk < 0)
 		return;

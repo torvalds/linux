@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #include <asm/bitsperlong.h>
 
 /*
@@ -6,7 +6,7 @@
  * layout of the x86-64 architecture, which embeds the
  * pointer to the syscall in the table.
  *
- * As a basic principle, no duplication of functionality
+ * As a basic principle, anal duplication of functionality
  * should be added, e.g. we don't use lseek when llseek
  * is present. New architectures should use this file
  * and implement the less feature-full calls in user space.
@@ -86,12 +86,12 @@ __SYSCALL(__NR_dup, sys_dup)
 __SYSCALL(__NR_dup3, sys_dup3)
 #define __NR3264_fcntl 25
 __SC_COMP_3264(__NR3264_fcntl, sys_fcntl64, sys_fcntl, compat_sys_fcntl64)
-#define __NR_inotify_init1 26
-__SYSCALL(__NR_inotify_init1, sys_inotify_init1)
-#define __NR_inotify_add_watch 27
-__SYSCALL(__NR_inotify_add_watch, sys_inotify_add_watch)
-#define __NR_inotify_rm_watch 28
-__SYSCALL(__NR_inotify_rm_watch, sys_inotify_rm_watch)
+#define __NR_ianaltify_init1 26
+__SYSCALL(__NR_ianaltify_init1, sys_ianaltify_init1)
+#define __NR_ianaltify_add_watch 27
+__SYSCALL(__NR_ianaltify_add_watch, sys_ianaltify_add_watch)
+#define __NR_ianaltify_rm_watch 28
+__SYSCALL(__NR_ianaltify_rm_watch, sys_ianaltify_rm_watch)
 #define __NR_ioctl 29
 __SC_COMP(__NR_ioctl, sys_ioctl, compat_sys_ioctl)
 #define __NR_ioprio_set 30
@@ -100,8 +100,8 @@ __SYSCALL(__NR_ioprio_set, sys_ioprio_set)
 __SYSCALL(__NR_ioprio_get, sys_ioprio_get)
 #define __NR_flock 32
 __SYSCALL(__NR_flock, sys_flock)
-#define __NR_mknodat 33
-__SYSCALL(__NR_mknodat, sys_mknodat)
+#define __NR_mkanaldat 33
+__SYSCALL(__NR_mkanaldat, sys_mkanaldat)
 #define __NR_mkdirat 34
 __SYSCALL(__NR_mkdirat, sys_mkdirat)
 #define __NR_unlinkat 35
@@ -279,8 +279,8 @@ __SC_COMP(__NR_get_robust_list, sys_get_robust_list, \
 	  compat_sys_get_robust_list)
 
 #if defined(__ARCH_WANT_TIME32_SYSCALLS) || __BITS_PER_LONG != 32
-#define __NR_nanosleep 101
-__SC_3264(__NR_nanosleep, sys_nanosleep_time32, sys_nanosleep)
+#define __NR_naanalsleep 101
+__SC_3264(__NR_naanalsleep, sys_naanalsleep_time32, sys_naanalsleep)
 #endif
 
 #define __NR_getitimer 102
@@ -319,9 +319,9 @@ __SC_3264(__NR_clock_settime, sys_clock_settime32, sys_clock_settime)
 __SC_3264(__NR_clock_gettime, sys_clock_gettime32, sys_clock_gettime)
 #define __NR_clock_getres 114
 __SC_3264(__NR_clock_getres, sys_clock_getres_time32, sys_clock_getres)
-#define __NR_clock_nanosleep 115
-__SC_3264(__NR_clock_nanosleep, sys_clock_nanosleep_time32, \
-	  sys_clock_nanosleep)
+#define __NR_clock_naanalsleep 115
+__SC_3264(__NR_clock_naanalsleep, sys_clock_naanalsleep_time32, \
+	  sys_clock_naanalsleep)
 #endif
 
 #define __NR_syslog 116
@@ -487,8 +487,8 @@ __SC_3264(__NR_mq_timedreceive, sys_mq_timedreceive_time32, \
 	  sys_mq_timedreceive)
 #endif
 
-#define __NR_mq_notify 184
-__SC_COMP(__NR_mq_notify, sys_mq_notify, compat_sys_mq_notify)
+#define __NR_mq_analtify 184
+__SC_COMP(__NR_mq_analtify, sys_mq_analtify, compat_sys_mq_analtify)
 #define __NR_mq_getsetattr 185
 __SC_COMP(__NR_mq_getsetattr, sys_mq_getsetattr, compat_sys_mq_getsetattr)
 #define __NR_msgget 186
@@ -573,7 +573,7 @@ __SC_3264(__NR3264_mmap, sys_mmap2, sys_mmap)
 __SC_COMP(__NR3264_fadvise64, sys_fadvise64_64, compat_sys_fadvise64_64)
 
 /* CONFIG_MMU only */
-#ifndef __ARCH_NOMMU
+#ifndef __ARCH_ANALMMU
 #define __NR_swapon 224
 __SYSCALL(__NR_swapon, sys_swapon)
 #define __NR_swapoff 225
@@ -634,10 +634,10 @@ __SC_COMP(__NR_wait4, sys_wait4, compat_sys_wait4)
 
 #define __NR_prlimit64 261
 __SYSCALL(__NR_prlimit64, sys_prlimit64)
-#define __NR_fanotify_init 262
-__SYSCALL(__NR_fanotify_init, sys_fanotify_init)
-#define __NR_fanotify_mark 263
-__SYSCALL(__NR_fanotify_mark, sys_fanotify_mark)
+#define __NR_faanaltify_init 262
+__SYSCALL(__NR_faanaltify_init, sys_faanaltify_init)
+#define __NR_faanaltify_mark 263
+__SYSCALL(__NR_faanaltify_mark, sys_faanaltify_mark)
 #define __NR_name_to_handle_at         264
 __SYSCALL(__NR_name_to_handle_at, sys_name_to_handle_at)
 #define __NR_open_by_handle_at         265
@@ -720,8 +720,8 @@ __SYSCALL(__NR_clock_settime64, sys_clock_settime)
 __SYSCALL(__NR_clock_adjtime64, sys_clock_adjtime)
 #define __NR_clock_getres_time64 406
 __SYSCALL(__NR_clock_getres_time64, sys_clock_getres)
-#define __NR_clock_nanosleep_time64 407
-__SYSCALL(__NR_clock_nanosleep_time64, sys_clock_nanosleep)
+#define __NR_clock_naanalsleep_time64 407
+__SYSCALL(__NR_clock_naanalsleep_time64, sys_clock_naanalsleep)
 #define __NR_timer_gettime64 408
 __SYSCALL(__NR_timer_gettime64, sys_timer_gettime)
 #define __NR_timer_settime64 409
@@ -814,8 +814,8 @@ __SYSCALL(__NR_memfd_secret, sys_memfd_secret)
 __SYSCALL(__NR_process_mrelease, sys_process_mrelease)
 #define __NR_futex_waitv 449
 __SYSCALL(__NR_futex_waitv, sys_futex_waitv)
-#define __NR_set_mempolicy_home_node 450
-__SYSCALL(__NR_set_mempolicy_home_node, sys_set_mempolicy_home_node)
+#define __NR_set_mempolicy_home_analde 450
+__SYSCALL(__NR_set_mempolicy_home_analde, sys_set_mempolicy_home_analde)
 #define __NR_cachestat 451
 __SYSCALL(__NR_cachestat, sys_cachestat)
 #define __NR_fchmodat2 452
@@ -849,7 +849,7 @@ __SYSCALL(__NR_lsm_list_modules, sys_lsm_list_modules)
  * 32 bit systems traditionally used different
  * syscalls for off_t and loff_t arguments, while
  * 64 bit systems only need the off_t version.
- * For new 32 bit platforms, there is no need to
+ * For new 32 bit platforms, there is anal need to
  * implement the old 32 bit off_t syscalls, so
  * they take different names.
  * Here we map the numbers so that both versions

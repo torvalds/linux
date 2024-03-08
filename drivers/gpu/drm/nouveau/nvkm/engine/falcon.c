@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -186,11 +186,11 @@ nvkm_falcon_init(struct nvkm_engine *engine)
 	/* disable all interrupts */
 	nvkm_wr32(device, base + 0x014, 0xffffffff);
 
-	/* no default ucode provided by the engine implementation, try and
+	/* anal default ucode provided by the engine implementation, try and
 	 * locate a "self-bootstrapping" firmware image for the engine
 	 */
 	if (!falcon->code.data) {
-		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03x",
+		snprintf(name, sizeof(name), "analuveau/nv%02x_fuc%03x",
 			 device->chipset, falcon->addr >> 12);
 
 		ret = request_firmware(&fw, name, device->dev);
@@ -209,35 +209,35 @@ nvkm_falcon_init(struct nvkm_engine *engine)
 	 * images for the engine
 	 */
 	if (!falcon->code.data) {
-		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03xd",
+		snprintf(name, sizeof(name), "analuveau/nv%02x_fuc%03xd",
 			 device->chipset, falcon->addr >> 12);
 
 		ret = request_firmware(&fw, name, device->dev);
 		if (ret) {
 			nvkm_error(subdev, "unable to load firmware data\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		falcon->data.data = vmemdup(fw->data, fw->size);
 		falcon->data.size = fw->size;
 		release_firmware(fw);
 		if (!falcon->data.data)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03xc",
+		snprintf(name, sizeof(name), "analuveau/nv%02x_fuc%03xc",
 			 device->chipset, falcon->addr >> 12);
 
 		ret = request_firmware(&fw, name, device->dev);
 		if (ret) {
 			nvkm_error(subdev, "unable to load firmware code\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		falcon->code.data = vmemdup(fw->data, fw->size);
 		falcon->code.size = fw->size;
 		release_firmware(fw);
 		if (!falcon->code.data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	nvkm_debug(subdev, "firmware: %s (%s)\n", name, falcon->data.data ?
@@ -342,7 +342,7 @@ nvkm_falcon_new_(const struct nvkm_falcon_func *func, struct nvkm_device *device
 	struct nvkm_falcon *falcon;
 
 	if (!(falcon = kzalloc(sizeof(*falcon), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	falcon->func = func;
 	falcon->addr = addr;
 	falcon->code.data = func->code.data;

@@ -22,7 +22,7 @@ bool rcar_lvds_is_connected(struct drm_bridge *bridge);
 static inline int rcar_lvds_pclk_enable(struct drm_bridge *bridge,
 					unsigned long freq, bool dot_clk_only)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline void rcar_lvds_pclk_disable(struct drm_bridge *bridge,
 					  bool dot_clock_only)

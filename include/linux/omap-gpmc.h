@@ -64,7 +64,7 @@ extern int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
 			     struct gpmc_settings *gpmc_s,
 			     struct gpmc_device_timings *dev_t);
 
-struct device_node;
+struct device_analde;
 
 extern int gpmc_get_client_irq(unsigned irq_config);
 
@@ -78,7 +78,7 @@ extern int gpmc_cs_program_settings(int cs, struct gpmc_settings *p);
 extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
 extern int gpmc_configure(int cmd, int wval);
-extern void gpmc_read_settings_dt(struct device_node *np,
+extern void gpmc_read_settings_dt(struct device_analde *np,
 				  struct gpmc_settings *p);
 
 struct gpmc_timings;

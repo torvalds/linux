@@ -24,22 +24,22 @@ static efi_system_table_t efi_systab_xen __initdata = {
 	.hdr = {
 		.signature	= EFI_SYSTEM_TABLE_SIGNATURE,
 		.revision	= 0, /* Initialized later. */
-		.headersize	= 0, /* Ignored by Linux Kernel. */
-		.crc32		= 0, /* Ignored by Linux Kernel. */
+		.headersize	= 0, /* Iganalred by Linux Kernel. */
+		.crc32		= 0, /* Iganalred by Linux Kernel. */
 		.reserved	= 0
 	},
 	.fw_vendor	= EFI_INVALID_TABLE_ADDR, /* Initialized later. */
 	.fw_revision	= 0,			  /* Initialized later. */
-	.con_in_handle	= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
-	.con_in		= NULL,			  /* Not used under Xen. */
-	.con_out_handle	= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
-	.con_out	= NULL, 		  /* Not used under Xen. */
-	.stderr_handle	= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
-	.stderr		= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
+	.con_in_handle	= EFI_INVALID_TABLE_ADDR, /* Analt used under Xen. */
+	.con_in		= NULL,			  /* Analt used under Xen. */
+	.con_out_handle	= EFI_INVALID_TABLE_ADDR, /* Analt used under Xen. */
+	.con_out	= NULL, 		  /* Analt used under Xen. */
+	.stderr_handle	= EFI_INVALID_TABLE_ADDR, /* Analt used under Xen. */
+	.stderr		= EFI_INVALID_TABLE_ADDR, /* Analt used under Xen. */
 	.runtime	= (efi_runtime_services_t *)EFI_INVALID_TABLE_ADDR,
-						  /* Not used under Xen. */
+						  /* Analt used under Xen. */
 	.boottime	= (efi_boot_services_t *)EFI_INVALID_TABLE_ADDR,
-						  /* Not used under Xen. */
+						  /* Analt used under Xen. */
 	.nr_tables	= 0,			  /* Initialized later. */
 	.tables		= EFI_INVALID_TABLE_ADDR  /* Initialized later. */
 };
@@ -58,7 +58,7 @@ static efi_system_table_t __init *xen_efi_probe(void)
 	if (!xen_initial_domain() || HYPERVISOR_platform_op(&op) < 0)
 		return NULL;
 
-	/* Here we know that Xen runs on EFI platform. */
+	/* Here we kanalw that Xen runs on EFI platform. */
 	xen_efi_runtime_setup();
 
 	efi_systab_xen.tables = info->cfg.addr;
@@ -74,7 +74,7 @@ static efi_system_table_t __init *xen_efi_probe(void)
 		efi_systab_xen.fw_vendor = __pa_symbol(vendor);
 		efi_systab_xen.fw_revision = info->vendor.revision;
 	} else
-		efi_systab_xen.fw_vendor = __pa_symbol(L"UNKNOWN");
+		efi_systab_xen.fw_vendor = __pa_symbol(L"UNKANALWN");
 
 	op.cmd = XENPF_firmware_info;
 	op.u.firmware_info.type = XEN_FW_EFI_INFO;
@@ -105,9 +105,9 @@ static enum efi_secureboot_mode xen_efi_get_secureboot(void)
 	unsigned long size;
 
 	mode = efi_get_secureboot_mode(efi.get_variable);
-	if (mode == efi_secureboot_mode_unknown) {
-		pr_err("Could not determine UEFI Secure Boot status.\n");
-		return efi_secureboot_mode_unknown;
+	if (mode == efi_secureboot_mode_unkanalwn) {
+		pr_err("Could analt determine UEFI Secure Boot status.\n");
+		return efi_secureboot_mode_unkanalwn;
 	}
 	if (mode != efi_secureboot_mode_enabled)
 		return mode;

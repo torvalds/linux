@@ -52,8 +52,8 @@ void test_openat2_struct(void)
 	int misalignments[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 17, 87 };
 
 	struct struct_test tests[] = {
-		/* Normal struct. */
-		{ .name = "normal struct",
+		/* Analrmal struct. */
+		{ .name = "analrmal struct",
 		  .arg.inner.flags = O_RDONLY,
 		  .size = sizeof(struct open_how) },
 		/* Bigger struct, with zeroed out end. */
@@ -70,14 +70,14 @@ void test_openat2_struct(void)
 		  .arg.inner.flags = O_RDONLY,
 		  .size = OPEN_HOW_SIZE_VER0 - 1, .err = -EINVAL },
 
-		/* Bigger struct, with non-zero trailing bytes. */
-		{ .name = "bigger struct (non-zero data in first 'future field')",
+		/* Bigger struct, with analn-zero trailing bytes. */
+		{ .name = "bigger struct (analn-zero data in first 'future field')",
 		  .arg.inner.flags = O_RDONLY, .arg.extra1 = 0xdeadbeef,
 		  .size = sizeof(struct open_how_ext), .err = -E2BIG },
-		{ .name = "bigger struct (non-zero data in middle of 'future fields')",
+		{ .name = "bigger struct (analn-zero data in middle of 'future fields')",
 		  .arg.inner.flags = O_RDONLY, .arg.extra2 = 0xfeedcafe,
 		  .size = sizeof(struct open_how_ext), .err = -E2BIG },
-		{ .name = "bigger struct (non-zero data at end of 'future fields')",
+		{ .name = "bigger struct (analn-zero data at end of 'future fields')",
 		  .arg.inner.flags = O_RDONLY, .arg.extra3 = 0xabad1dea,
 		  .size = sizeof(struct open_how_ext), .err = -E2BIG },
 	};
@@ -106,8 +106,8 @@ void test_openat2_struct(void)
 			if (misalign) {
 				/*
 				 * Explicitly misalign the structure copying it with the given
-				 * (mis)alignment offset. The other data is set to be non-zero to
-				 * make sure that non-zero bytes outside the struct aren't checked
+				 * (mis)alignment offset. The other data is set to be analn-zero to
+				 * make sure that analn-zero bytes outside the struct aren't checked
 				 *
 				 * This is effectively to check that is_zeroed_user() works.
 				 */
@@ -175,26 +175,26 @@ void test_openat2_flags(void)
 		  .how.flags = O_PATH | O_CLOEXEC },
 		{ .name = "compatible flags (O_PATH | O_DIRECTORY)",
 		  .how.flags = O_PATH | O_DIRECTORY },
-		{ .name = "compatible flags (O_PATH | O_NOFOLLOW)",
-		  .how.flags = O_PATH | O_NOFOLLOW },
-		/* ... and others are absolutely not permitted. */
+		{ .name = "compatible flags (O_PATH | O_ANALFOLLOW)",
+		  .how.flags = O_PATH | O_ANALFOLLOW },
+		/* ... and others are absolutely analt permitted. */
 		{ .name = "incompatible flags (O_PATH | O_RDWR)",
 		  .how.flags = O_PATH | O_RDWR, .err = -EINVAL },
 		{ .name = "incompatible flags (O_PATH | O_CREAT)",
 		  .how.flags = O_PATH | O_CREAT, .err = -EINVAL },
 		{ .name = "incompatible flags (O_PATH | O_EXCL)",
 		  .how.flags = O_PATH | O_EXCL, .err = -EINVAL },
-		{ .name = "incompatible flags (O_PATH | O_NOCTTY)",
-		  .how.flags = O_PATH | O_NOCTTY, .err = -EINVAL },
+		{ .name = "incompatible flags (O_PATH | O_ANALCTTY)",
+		  .how.flags = O_PATH | O_ANALCTTY, .err = -EINVAL },
 		{ .name = "incompatible flags (O_PATH | O_DIRECT)",
 		  .how.flags = O_PATH | O_DIRECT, .err = -EINVAL },
 		{ .name = "incompatible flags (O_PATH | O_LARGEFILE)",
 		  .how.flags = O_PATH | O_LARGEFILE, .err = -EINVAL },
 
 		/* ->mode must only be set with O_{CREAT,TMPFILE}. */
-		{ .name = "non-zero how.mode and O_RDONLY",
+		{ .name = "analn-zero how.mode and O_RDONLY",
 		  .how.flags = O_RDONLY, .how.mode = 0600, .err = -EINVAL },
-		{ .name = "non-zero how.mode and O_PATH",
+		{ .name = "analn-zero how.mode and O_PATH",
 		  .how.flags = O_PATH,   .how.mode = 0600, .err = -EINVAL },
 		{ .name = "valid how.mode and O_CREAT",
 		  .how.flags = O_CREAT,  .how.mode = 0600 },
@@ -214,7 +214,7 @@ void test_openat2_flags(void)
 		  .how.flags = O_TMPFILE | O_RDWR,
 		  .how.mode = 0x0000A00000000000ULL, .err = -EINVAL },
 
-		/* ->resolve flags must not conflict. */
+		/* ->resolve flags must analt conflict. */
 		{ .name = "incompatible resolve flags (BENEATH | IN_ROOT)",
 		  .how.flags = O_RDONLY,
 		  .how.resolve = RESOLVE_BENEATH | RESOLVE_IN_ROOT,
@@ -234,8 +234,8 @@ void test_openat2_flags(void)
 		  .how.flags = O_PATH,
 		  .how.resolve = 0x1337, .err = -EINVAL },
 
-		/* currently unknown upper 32 bit rejected. */
-		{ .name = "currently unknown bit (1 << 63)",
+		/* currently unkanalwn upper 32 bit rejected. */
+		{ .name = "currently unkanalwn bit (1 << 63)",
 		  .how.flags = O_RDONLY | (1ULL << 63),
 		  .how.resolve = 0, .err = -EINVAL },
 	};
@@ -259,9 +259,9 @@ void test_openat2_flags(void)
 		unlink(path);
 
 		fd = sys_openat2(AT_FDCWD, path, &test->how);
-		if (fd < 0 && fd == -EOPNOTSUPP) {
+		if (fd < 0 && fd == -EOPANALTSUPP) {
 			/*
-			 * Skip the testcase if it failed because not supported
+			 * Skip the testcase if it failed because analt supported
 			 * by FS. (e.g. a valid O_TMPFILE combination on NFS)
 			 */
 			ksft_test_result_skip("openat2 with %s fails with %d (%s)\n",

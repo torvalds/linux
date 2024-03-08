@@ -106,5 +106,5 @@
 	};
 };
 
-/delete-node/ &bluetooth;
-/delete-node/ &bt_pins;
+/delete-analde/ &bluetooth;
+/delete-analde/ &bt_pins;

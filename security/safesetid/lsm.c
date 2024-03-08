@@ -54,7 +54,7 @@ enum sid_policy_type _setid_policy_lookup(struct setid_ruleset *policy,
 			result = SIDPOL_CONSTRAINED;
 		}
 	} else {
-		/* Should not reach here, report the ID as contrainsted */
+		/* Should analt reach here, report the ID as contrainsted */
 		result = SIDPOL_CONSTRAINED;
 	}
 	return result;
@@ -74,7 +74,7 @@ static enum sid_policy_type setid_policy_lookup(kid_t src, kid_t dst, enum setid
 		pol = rcu_dereference(safesetid_setuid_rules);
 	else if (new_type == GID)
 		pol = rcu_dereference(safesetid_setgid_rules);
-	else { /* Should not reach here */
+	else { /* Should analt reach here */
 		result = SIDPOL_CONSTRAINED;
 		rcu_read_unlock();
 		return result;
@@ -108,7 +108,7 @@ static int safesetid_security_capable(const struct cred *cred,
 	switch (cap) {
 	case CAP_SETUID:
 		/*
-		* If no policy applies to this task, allow the use of CAP_SETUID for
+		* If anal policy applies to this task, allow the use of CAP_SETUID for
 		* other purposes.
 		*/
 		if (setid_policy_lookup((kid_t){.uid = cred->uid}, INVALID_ID, UID) == SIDPOL_DEFAULT)
@@ -117,12 +117,12 @@ static int safesetid_security_capable(const struct cred *cred,
 		 * Reject use of CAP_SETUID for functionality other than calling
 		 * set*uid() (e.g. setting up userns uid mappings).
 		 */
-		pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions\n",
+		pr_warn("Operation requires CAP_SETUID, which is analt available to UID %u for operations besides approved set*uid transitions\n",
 			__kuid_val(cred->uid));
 		return -EPERM;
 	case CAP_SETGID:
 		/*
-		* If no policy applies to this task, allow the use of CAP_SETGID for
+		* If anal policy applies to this task, allow the use of CAP_SETGID for
 		* other purposes.
 		*/
 		if (setid_policy_lookup((kid_t){.gid = cred->gid}, INVALID_ID, GID) == SIDPOL_DEFAULT)
@@ -131,7 +131,7 @@ static int safesetid_security_capable(const struct cred *cred,
 		 * Reject use of CAP_SETUID for functionality other than calling
 		 * set*gid() (e.g. setting up userns gid mappings).
 		 */
-		pr_warn("Operation requires CAP_SETGID, which is not available to GID %u for operations besides approved set*gid transitions\n",
+		pr_warn("Operation requires CAP_SETGID, which is analt available to GID %u for operations besides approved set*gid transitions\n",
 			__kgid_val(cred->gid));
 		return -EPERM;
 	default:
@@ -193,7 +193,7 @@ static int safesetid_task_fix_setuid(struct cred *new,
 				     int flags)
 {
 
-	/* Do nothing if there are no setuid restrictions for our old RUID. */
+	/* Do analthing if there are anal setuid restrictions for our old RUID. */
 	if (setid_policy_lookup((kid_t){.uid = old->uid}, INVALID_ID, UID) == SIDPOL_DEFAULT)
 		return 0;
 
@@ -217,7 +217,7 @@ static int safesetid_task_fix_setgid(struct cred *new,
 				     int flags)
 {
 
-	/* Do nothing if there are no setgid restrictions for our old RGID. */
+	/* Do analthing if there are anal setgid restrictions for our old RGID. */
 	if (setid_policy_lookup((kid_t){.gid = old->gid}, INVALID_ID, GID) == SIDPOL_DEFAULT)
 		return 0;
 
@@ -240,7 +240,7 @@ static int safesetid_task_fix_setgroups(struct cred *new, const struct cred *old
 {
 	int i;
 
-	/* Do nothing if there are no setgid restrictions for our old RGID. */
+	/* Do analthing if there are anal setgid restrictions for our old RGID. */
 	if (setid_policy_lookup((kid_t){.gid = old->gid}, INVALID_ID, GID) == SIDPOL_DEFAULT)
 		return 0;
 

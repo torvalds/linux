@@ -282,7 +282,7 @@ int coda_h264_sps_fixup(struct coda_ctx *ctx, int width, int height, char *buf,
 	    profile_idc == 138 || profile_idc == 139 || profile_idc == 134 ||
 	    profile_idc == 135) {
 		dev_err(ctx->fh.vdev->dev_parent,
-			"%s: Handling profile_idc %d not implemented\n",
+			"%s: Handling profile_idc %d analt implemented\n",
 			__func__, profile_idc);
 		return -EINVAL;
 	}
@@ -308,7 +308,7 @@ int coda_h264_sps_fixup(struct coda_ctx *ctx, int width, int height, char *buf,
 		ret = rbsp_read_bit(&sps);
 		if (ret < 0)
 			return ret;
-		/* offset_for_non_ref_pic */
+		/* offset_for_analn_ref_pic */
 		ret = rbsp_read_sev(&sps, NULL);
 		if (ret)
 			return ret;
@@ -384,7 +384,7 @@ int coda_h264_sps_fixup(struct coda_ctx *ctx, int width, int height, char *buf,
 		return ret;
 	if (vui_parameters_present_flag) {
 		dev_err(ctx->fh.vdev->dev_parent,
-			"%s: Handling vui_parameters not implemented\n",
+			"%s: Handling vui_parameters analt implemented\n",
 			__func__);
 		return -EINVAL;
 	}

@@ -25,9 +25,9 @@
  *  but only for some part of the active area due to special "aspect ratio"
  *  correction and only half by default since it assumes it will be used
  *  with a phone in portraid mode, while using the tablet in landscape mode.
- *  Also stylus + pad button events are not reported here.
+ *  Also stylus + pad button events are analt reported here.
  *
- * Interface 2 EP 0x83 bootclass keybd, rdesc len 64, report id none, Std Kbd
+ * Interface 2 EP 0x83 bootclass keybd, rdesc len 64, report id analne, Std Kbd
  *  This interfaces send various hard-coded key-combos for the pad buttons
  *  and "e" keypresses for the 2nd stylus button
  *
@@ -106,7 +106,7 @@ static int letsketch_setup_input_tablet(struct letsketch_data *data)
 
 	input = letsketch_alloc_input_dev(data);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_abs_params(input, ABS_X, 0, 50800, 0, 0);
 	input_set_abs_params(input, ABS_Y, 0, 31750, 0, 0);
@@ -118,7 +118,7 @@ static int letsketch_setup_input_tablet(struct letsketch_data *data)
 	input_set_capability(input, EV_KEY, BTN_STYLUS);
 	input_set_capability(input, EV_KEY, BTN_STYLUS2);
 
-	/* All known brands selling this tablet use WP9620[N] as model name */
+	/* All kanalwn brands selling this tablet use WP9620[N] as model name */
 	input->name = "WP9620 Tablet";
 
 	data->input_tablet = input;
@@ -133,7 +133,7 @@ static int letsketch_setup_input_tablet_pad(struct letsketch_data *data)
 
 	input = letsketch_alloc_input_dev(data);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < LETSKETCH_PAD_BUTTONS; i++)
 		input_set_capability(input, EV_KEY, BTN_0 + i);
@@ -187,7 +187,7 @@ static int letsketch_raw_event(struct hid_device *hdev,
 		input_report_abs(input, ABS_PRESSURE,
 				 get_unaligned_le16(raw_data + 6));
 		/*
-		 * There is no out of range event, so use a timer for this
+		 * There is anal out of range event, so use a timer for this
 		 * when in range we get an event approx. every 8 ms.
 		 */
 		mod_timer(&data->inrange_timer, jiffies + msecs_to_jiffies(100));
@@ -198,7 +198,7 @@ static int letsketch_raw_event(struct hid_device *hdev,
 			input_report_key(input, BTN_0 + i, raw_data[4] == (i + 1));
 		break;
 	default:
-		hid_warn(data->hdev, "Warning unknown data header: 0x%02x\n",
+		hid_warn(data->hdev, "Warning unkanalwn data header: 0x%02x\n",
 			 raw_data[0]);
 		return 0;
 	}
@@ -209,9 +209,9 @@ static int letsketch_raw_event(struct hid_device *hdev,
 
 /*
  * The tablets magic handshake to put it in raw mode relies on getting
- * string descriptors. But the firmware is buggy and does not like it if
+ * string descriptors. But the firmware is buggy and does analt like it if
  * we do this too fast. Even if we go slow sometimes the usb_string() call
- * fails. Ignore errors and retry it a couple of times if necessary.
+ * fails. Iganalre errors and retry it a couple of times if necessary.
  */
 static int letsketch_get_string(struct usb_device *udev, int index, char *buf, int size)
 {
@@ -239,11 +239,11 @@ static int letsketch_probe(struct hid_device *hdev, const struct hid_device_id *
 	int i, ret;
 
 	if (!hid_is_usb(hdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	intf = to_usb_interface(hdev->dev.parent);
 	if (intf->altsetting->desc.bInterfaceNumber != LETSKETCH_RAW_IF)
-		return -ENODEV; /* Ignore the other interfaces */
+		return -EANALDEV; /* Iganalre the other interfaces */
 
 	udev = interface_to_usbdev(intf);
 
@@ -276,7 +276,7 @@ static int letsketch_probe(struct hid_device *hdev, const struct hid_device_id *
 		return ret;
 
 	/*
-	 * The tablet should be in raw mode now, end with a final delay before
+	 * The tablet should be in raw mode analw, end with a final delay before
 	 * doing further IO to the device.
 	 */
 	usleep_range(5000, 7000);
@@ -287,7 +287,7 @@ static int letsketch_probe(struct hid_device *hdev, const struct hid_device_id *
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->hdev = hdev;
 	timer_setup(&data->inrange_timer, letsketch_inrange_timeout, 0);

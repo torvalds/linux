@@ -72,7 +72,7 @@ patternProperties:
 
       reg:
         description:
-          The reg should be the unique silicon id register, and not backwards
+          The reg should be the unique silicon id register, and analt backwards
           compatible one in eg. the 2600.
         minItems: 1
         items:

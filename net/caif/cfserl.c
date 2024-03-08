@@ -72,7 +72,7 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 		pkt = layr->incomplete_frm;
 		if (pkt == NULL) {
 			spin_unlock(&layr->sync);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		pkt = newpkt;
@@ -144,7 +144,7 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 		}
 
 		/*
-		 * Enough data for at least one frame.
+		 * Eanalugh data for at least one frame.
 		 * Split the frame, if too long
 		 */
 		if (pkt_len > expectlen)

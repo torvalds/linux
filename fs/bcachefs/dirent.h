@@ -22,7 +22,7 @@ struct file;
 struct dir_context;
 struct bch_fs;
 struct bch_hash_info;
-struct bch_inode_info;
+struct bch_ianalde_info;
 
 struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent d);
 

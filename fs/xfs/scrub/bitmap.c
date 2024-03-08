@@ -18,8 +18,8 @@
 
 /* u64 bitmap */
 
-struct xbitmap64_node {
-	struct rb_node	bn_rbnode;
+struct xbitmap64_analde {
+	struct rb_analde	bn_rbanalde;
 
 	/* First set bit of this interval and subtree. */
 	uint64_t	bn_start;
@@ -27,43 +27,43 @@ struct xbitmap64_node {
 	/* Last set bit of this interval. */
 	uint64_t	bn_last;
 
-	/* Last set bit of this subtree.  Do not touch this. */
+	/* Last set bit of this subtree.  Do analt touch this. */
 	uint64_t	__bn_subtree_last;
 };
 
 /* Define our own interval tree type with uint64_t parameters. */
 
-#define START(node) ((node)->bn_start)
-#define LAST(node)  ((node)->bn_last)
+#define START(analde) ((analde)->bn_start)
+#define LAST(analde)  ((analde)->bn_last)
 
 /*
  * These functions are defined by the INTERVAL_TREE_DEFINE macro, but we'll
  * forward-declare them anyway for clarity.
  */
 static inline void
-xbitmap64_tree_insert(struct xbitmap64_node *node, struct rb_root_cached *root);
+xbitmap64_tree_insert(struct xbitmap64_analde *analde, struct rb_root_cached *root);
 
 static inline void
-xbitmap64_tree_remove(struct xbitmap64_node *node, struct rb_root_cached *root);
+xbitmap64_tree_remove(struct xbitmap64_analde *analde, struct rb_root_cached *root);
 
-static inline struct xbitmap64_node *
+static inline struct xbitmap64_analde *
 xbitmap64_tree_iter_first(struct rb_root_cached *root, uint64_t start,
 			uint64_t last);
 
-static inline struct xbitmap64_node *
-xbitmap64_tree_iter_next(struct xbitmap64_node *node, uint64_t start,
+static inline struct xbitmap64_analde *
+xbitmap64_tree_iter_next(struct xbitmap64_analde *analde, uint64_t start,
 		       uint64_t last);
 
-INTERVAL_TREE_DEFINE(struct xbitmap64_node, bn_rbnode, uint64_t,
+INTERVAL_TREE_DEFINE(struct xbitmap64_analde, bn_rbanalde, uint64_t,
 		__bn_subtree_last, START, LAST, static inline, xbitmap64_tree)
 
-/* Iterate each interval of a bitmap.  Do not change the bitmap. */
+/* Iterate each interval of a bitmap.  Do analt change the bitmap. */
 #define for_each_xbitmap64_extent(bn, bitmap) \
 	for ((bn) = rb_entry_safe(rb_first(&(bitmap)->xb_root.rb_root), \
-				   struct xbitmap64_node, bn_rbnode); \
+				   struct xbitmap64_analde, bn_rbanalde); \
 	     (bn) != NULL; \
-	     (bn) = rb_entry_safe(rb_next(&(bn)->bn_rbnode), \
-				   struct xbitmap64_node, bn_rbnode))
+	     (bn) = rb_entry_safe(rb_next(&(bn)->bn_rbanalde), \
+				   struct xbitmap64_analde, bn_rbanalde))
 
 /* Clear a range of this bitmap. */
 int
@@ -72,8 +72,8 @@ xbitmap64_clear(
 	uint64_t		start,
 	uint64_t		len)
 {
-	struct xbitmap64_node	*bn;
-	struct xbitmap64_node	*new_bn;
+	struct xbitmap64_analde	*bn;
+	struct xbitmap64_analde	*new_bn;
 	uint64_t		last = start + len - 1;
 
 	while ((bn = xbitmap64_tree_iter_first(&bitmap->xb_root, start, last))) {
@@ -86,10 +86,10 @@ xbitmap64_clear(
 			xbitmap64_tree_insert(bn, &bitmap->xb_root);
 
 			/* add an extent */
-			new_bn = kmalloc(sizeof(struct xbitmap64_node),
+			new_bn = kmalloc(sizeof(struct xbitmap64_analde),
 					XCHK_GFP_FLAGS);
 			if (!new_bn)
-				return -ENOMEM;
+				return -EANALMEM;
 			new_bn->bn_start = last + 1;
 			new_bn->bn_last = old_last;
 			xbitmap64_tree_insert(new_bn, &bitmap->xb_root);
@@ -121,8 +121,8 @@ xbitmap64_set(
 	uint64_t		start,
 	uint64_t		len)
 {
-	struct xbitmap64_node	*left;
-	struct xbitmap64_node	*right;
+	struct xbitmap64_analde	*left;
+	struct xbitmap64_analde	*right;
 	uint64_t		last = start + len - 1;
 	int			error;
 
@@ -163,9 +163,9 @@ xbitmap64_set(
 		xbitmap64_tree_insert(right, &bitmap->xb_root);
 	} else {
 		/* add an extent */
-		left = kmalloc(sizeof(struct xbitmap64_node), XCHK_GFP_FLAGS);
+		left = kmalloc(sizeof(struct xbitmap64_analde), XCHK_GFP_FLAGS);
 		if (!left)
-			return -ENOMEM;
+			return -EANALMEM;
 		left->bn_start = start;
 		left->bn_last = last;
 		xbitmap64_tree_insert(left, &bitmap->xb_root);
@@ -179,7 +179,7 @@ void
 xbitmap64_destroy(
 	struct xbitmap64	*bitmap)
 {
-	struct xbitmap64_node	*bn;
+	struct xbitmap64_analde	*bn;
 
 	while ((bn = xbitmap64_tree_iter_first(&bitmap->xb_root, 0, -1ULL))) {
 		xbitmap64_tree_remove(bn, &bitmap->xb_root);
@@ -200,10 +200,10 @@ xbitmap64_init(
  *
  * The intent is that callers will iterate the rmapbt for all of its records
  * for a given owner to generate @bitmap; and iterate all the blocks of the
- * metadata structures that are not being rebuilt and have the same rmapbt
+ * metadata structures that are analt being rebuilt and have the same rmapbt
  * owner to generate @sub.  This routine subtracts all the extents
  * mentioned in sub from all the extents linked in @bitmap, which leaves
- * @bitmap as the list of blocks that are not accounted for, which we assume
+ * @bitmap as the list of blocks that are analt accounted for, which we assume
  * are the dead blocks of the old metadata structure.  The blocks mentioned in
  * @bitmap can be reaped.
  *
@@ -214,7 +214,7 @@ xbitmap64_disunion(
 	struct xbitmap64	*bitmap,
 	struct xbitmap64	*sub)
 {
-	struct xbitmap64_node	*bn;
+	struct xbitmap64_analde	*bn;
 	int			error;
 
 	if (xbitmap64_empty(bitmap) || xbitmap64_empty(sub))
@@ -235,7 +235,7 @@ uint64_t
 xbitmap64_hweight(
 	struct xbitmap64	*bitmap)
 {
-	struct xbitmap64_node	*bn;
+	struct xbitmap64_analde	*bn;
 	uint64_t		ret = 0;
 
 	for_each_xbitmap64_extent(bn, bitmap)
@@ -251,7 +251,7 @@ xbitmap64_walk(
 	xbitmap64_walk_fn		fn,
 	void			*priv)
 {
-	struct xbitmap64_node	*bn;
+	struct xbitmap64_analde	*bn;
 	int			error = 0;
 
 	for_each_xbitmap64_extent(bn, bitmap) {
@@ -263,12 +263,12 @@ xbitmap64_walk(
 	return error;
 }
 
-/* Does this bitmap have no bits set at all? */
+/* Does this bitmap have anal bits set at all? */
 bool
 xbitmap64_empty(
 	struct xbitmap64	*bitmap)
 {
-	return bitmap->xb_root.rb_root.rb_node == NULL;
+	return bitmap->xb_root.rb_root.rb_analde == NULL;
 }
 
 /* Is the start of the range set or clear?  And for how long? */
@@ -278,7 +278,7 @@ xbitmap64_test(
 	uint64_t		start,
 	uint64_t		*len)
 {
-	struct xbitmap64_node	*bn;
+	struct xbitmap64_analde	*bn;
 	uint64_t		last = start + *len - 1;
 
 	bn = xbitmap64_tree_iter_first(&bitmap->xb_root, start, last);
@@ -295,8 +295,8 @@ xbitmap64_test(
 
 /* u32 bitmap */
 
-struct xbitmap32_node {
-	struct rb_node	bn_rbnode;
+struct xbitmap32_analde {
+	struct rb_analde	bn_rbanalde;
 
 	/* First set bit of this interval and subtree. */
 	uint32_t	bn_start;
@@ -304,7 +304,7 @@ struct xbitmap32_node {
 	/* Last set bit of this interval. */
 	uint32_t	bn_last;
 
-	/* Last set bit of this subtree.  Do not touch this. */
+	/* Last set bit of this subtree.  Do analt touch this. */
 	uint32_t	__bn_subtree_last;
 };
 
@@ -315,29 +315,29 @@ struct xbitmap32_node {
  * forward-declare them anyway for clarity.
  */
 static inline void
-xbitmap32_tree_insert(struct xbitmap32_node *node, struct rb_root_cached *root);
+xbitmap32_tree_insert(struct xbitmap32_analde *analde, struct rb_root_cached *root);
 
 static inline void
-xbitmap32_tree_remove(struct xbitmap32_node *node, struct rb_root_cached *root);
+xbitmap32_tree_remove(struct xbitmap32_analde *analde, struct rb_root_cached *root);
 
-static inline struct xbitmap32_node *
+static inline struct xbitmap32_analde *
 xbitmap32_tree_iter_first(struct rb_root_cached *root, uint32_t start,
 			  uint32_t last);
 
-static inline struct xbitmap32_node *
-xbitmap32_tree_iter_next(struct xbitmap32_node *node, uint32_t start,
+static inline struct xbitmap32_analde *
+xbitmap32_tree_iter_next(struct xbitmap32_analde *analde, uint32_t start,
 			 uint32_t last);
 
-INTERVAL_TREE_DEFINE(struct xbitmap32_node, bn_rbnode, uint32_t,
+INTERVAL_TREE_DEFINE(struct xbitmap32_analde, bn_rbanalde, uint32_t,
 		__bn_subtree_last, START, LAST, static inline, xbitmap32_tree)
 
-/* Iterate each interval of a bitmap.  Do not change the bitmap. */
+/* Iterate each interval of a bitmap.  Do analt change the bitmap. */
 #define for_each_xbitmap32_extent(bn, bitmap) \
 	for ((bn) = rb_entry_safe(rb_first(&(bitmap)->xb_root.rb_root), \
-				   struct xbitmap32_node, bn_rbnode); \
+				   struct xbitmap32_analde, bn_rbanalde); \
 	     (bn) != NULL; \
-	     (bn) = rb_entry_safe(rb_next(&(bn)->bn_rbnode), \
-				   struct xbitmap32_node, bn_rbnode))
+	     (bn) = rb_entry_safe(rb_next(&(bn)->bn_rbanalde), \
+				   struct xbitmap32_analde, bn_rbanalde))
 
 /* Clear a range of this bitmap. */
 int
@@ -346,8 +346,8 @@ xbitmap32_clear(
 	uint32_t		start,
 	uint32_t		len)
 {
-	struct xbitmap32_node	*bn;
-	struct xbitmap32_node	*new_bn;
+	struct xbitmap32_analde	*bn;
+	struct xbitmap32_analde	*new_bn;
 	uint32_t		last = start + len - 1;
 
 	while ((bn = xbitmap32_tree_iter_first(&bitmap->xb_root, start, last))) {
@@ -360,10 +360,10 @@ xbitmap32_clear(
 			xbitmap32_tree_insert(bn, &bitmap->xb_root);
 
 			/* add an extent */
-			new_bn = kmalloc(sizeof(struct xbitmap32_node),
+			new_bn = kmalloc(sizeof(struct xbitmap32_analde),
 					XCHK_GFP_FLAGS);
 			if (!new_bn)
-				return -ENOMEM;
+				return -EANALMEM;
 			new_bn->bn_start = last + 1;
 			new_bn->bn_last = old_last;
 			xbitmap32_tree_insert(new_bn, &bitmap->xb_root);
@@ -395,8 +395,8 @@ xbitmap32_set(
 	uint32_t		start,
 	uint32_t		len)
 {
-	struct xbitmap32_node	*left;
-	struct xbitmap32_node	*right;
+	struct xbitmap32_analde	*left;
+	struct xbitmap32_analde	*right;
 	uint32_t		last = start + len - 1;
 	int			error;
 
@@ -437,9 +437,9 @@ xbitmap32_set(
 		xbitmap32_tree_insert(right, &bitmap->xb_root);
 	} else {
 		/* add an extent */
-		left = kmalloc(sizeof(struct xbitmap32_node), XCHK_GFP_FLAGS);
+		left = kmalloc(sizeof(struct xbitmap32_analde), XCHK_GFP_FLAGS);
 		if (!left)
-			return -ENOMEM;
+			return -EANALMEM;
 		left->bn_start = start;
 		left->bn_last = last;
 		xbitmap32_tree_insert(left, &bitmap->xb_root);
@@ -453,7 +453,7 @@ void
 xbitmap32_destroy(
 	struct xbitmap32	*bitmap)
 {
-	struct xbitmap32_node	*bn;
+	struct xbitmap32_analde	*bn;
 
 	while ((bn = xbitmap32_tree_iter_first(&bitmap->xb_root, 0, -1U))) {
 		xbitmap32_tree_remove(bn, &bitmap->xb_root);
@@ -474,10 +474,10 @@ xbitmap32_init(
  *
  * The intent is that callers will iterate the rmapbt for all of its records
  * for a given owner to generate @bitmap; and iterate all the blocks of the
- * metadata structures that are not being rebuilt and have the same rmapbt
+ * metadata structures that are analt being rebuilt and have the same rmapbt
  * owner to generate @sub.  This routine subtracts all the extents
  * mentioned in sub from all the extents linked in @bitmap, which leaves
- * @bitmap as the list of blocks that are not accounted for, which we assume
+ * @bitmap as the list of blocks that are analt accounted for, which we assume
  * are the dead blocks of the old metadata structure.  The blocks mentioned in
  * @bitmap can be reaped.
  *
@@ -488,7 +488,7 @@ xbitmap32_disunion(
 	struct xbitmap32	*bitmap,
 	struct xbitmap32	*sub)
 {
-	struct xbitmap32_node	*bn;
+	struct xbitmap32_analde	*bn;
 	int			error;
 
 	if (xbitmap32_empty(bitmap) || xbitmap32_empty(sub))
@@ -509,7 +509,7 @@ uint32_t
 xbitmap32_hweight(
 	struct xbitmap32	*bitmap)
 {
-	struct xbitmap32_node	*bn;
+	struct xbitmap32_analde	*bn;
 	uint32_t		ret = 0;
 
 	for_each_xbitmap32_extent(bn, bitmap)
@@ -525,7 +525,7 @@ xbitmap32_walk(
 	xbitmap32_walk_fn	fn,
 	void			*priv)
 {
-	struct xbitmap32_node	*bn;
+	struct xbitmap32_analde	*bn;
 	int			error = 0;
 
 	for_each_xbitmap32_extent(bn, bitmap) {
@@ -537,12 +537,12 @@ xbitmap32_walk(
 	return error;
 }
 
-/* Does this bitmap have no bits set at all? */
+/* Does this bitmap have anal bits set at all? */
 bool
 xbitmap32_empty(
 	struct xbitmap32	*bitmap)
 {
-	return bitmap->xb_root.rb_root.rb_node == NULL;
+	return bitmap->xb_root.rb_root.rb_analde == NULL;
 }
 
 /* Is the start of the range set or clear?  And for how long? */
@@ -552,7 +552,7 @@ xbitmap32_test(
 	uint32_t		start,
 	uint32_t		*len)
 {
-	struct xbitmap32_node	*bn;
+	struct xbitmap32_analde	*bn;
 	uint32_t		last = start + *len - 1;
 
 	bn = xbitmap32_tree_iter_first(&bitmap->xb_root, start, last);

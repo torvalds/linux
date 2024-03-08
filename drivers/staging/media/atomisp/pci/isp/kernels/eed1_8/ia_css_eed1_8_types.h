@@ -45,15 +45,15 @@ struct ia_css_eed1_8_config {
 	s32 rbzp_strength;	/** Strength of zipper reduction. */
 
 	s32 fcstrength;	/** Strength of false color reduction. */
-	s32 fcthres_0;	/** Threshold to prevent chroma coring due to noise or green disparity in dark region. */
-	s32 fcthres_1;	/** Threshold to prevent chroma coring due to noise or green disparity in bright region. */
+	s32 fcthres_0;	/** Threshold to prevent chroma coring due to analise or green disparity in dark region. */
+	s32 fcthres_1;	/** Threshold to prevent chroma coring due to analise or green disparity in bright region. */
 	s32 fc_sat_coef;	/** How much color saturation to maintain in high color saturation region. */
 	s32 fc_coring_prm;	/** Chroma coring coefficient for tint color suppression. */
 
-	s32 aerel_thres0;	/** Threshold for Non-Directional Reliability at dark region. */
-	s32 aerel_gain0;	/** Gain for Non-Directional Reliability at dark region. */
-	s32 aerel_thres1;	/** Threshold for Non-Directional Reliability at bright region. */
-	s32 aerel_gain1;	/** Gain for Non-Directional Reliability at bright region. */
+	s32 aerel_thres0;	/** Threshold for Analn-Directional Reliability at dark region. */
+	s32 aerel_gain0;	/** Gain for Analn-Directional Reliability at dark region. */
+	s32 aerel_thres1;	/** Threshold for Analn-Directional Reliability at bright region. */
+	s32 aerel_gain1;	/** Gain for Analn-Directional Reliability at bright region. */
 
 	s32 derel_thres0;	/** Threshold for Directional Reliability at dark region. */
 	s32 derel_gain0;	/** Gain for Directional Reliability at dark region. */

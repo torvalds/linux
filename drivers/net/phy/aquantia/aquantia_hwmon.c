@@ -94,7 +94,7 @@ static int aqr_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	int reg;
 
 	if (type != hwmon_temp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -136,7 +136,7 @@ static int aqr_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 					 VEND1_GENERAL_STAT1_HIGH_TEMP_FAIL,
 					 value);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -146,7 +146,7 @@ static int aqr_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	struct phy_device *phydev = dev_get_drvdata(dev);
 
 	if (type != hwmon_temp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_temp_lcrit:
@@ -162,7 +162,7 @@ static int aqr_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		return aqr_hwmon_set(phydev, VEND1_THERMAL_PROV_HIGH_TEMP_FAIL,
 				     value);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -216,7 +216,7 @@ int aqr_hwmon_probe(struct phy_device *phydev)
 
 	hwmon_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
 	if (!hwmon_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = j = 0; hwmon_name[i]; i++) {
 		if (isalnum(hwmon_name[i])) {

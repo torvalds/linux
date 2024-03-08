@@ -37,14 +37,14 @@ properties:
 
   fsl,phy-tx-vref-tune-percent:
     description:
-      Tunes the HS DC level relative to the nominal level
+      Tunes the HS DC level relative to the analminal level
     minimum: 94
     maximum: 124
 
   fsl,phy-tx-rise-tune-percent:
     description:
       Adjusts the rise/fall time duration of the HS waveform relative to
-      its nominal value
+      its analminal value
     minimum: 97
     maximum: 103
 
@@ -64,13 +64,13 @@ properties:
   fsl,phy-comp-dis-tune-percent:
     description:
       Adjust the voltage level used to detect a disconnect event at the host
-      relative to the nominal value
+      relative to the analminal value
     minimum: 91
     maximum: 115
 
   fsl,phy-pcs-tx-deemph-3p5db-attenuation-db:
     description:
-      Adjust TX de-emphasis attenuation in dB at nominal
+      Adjust TX de-emphasis attenuation in dB at analminal
       3.5dB point as per USB specification
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0

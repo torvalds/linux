@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -32,7 +32,7 @@
  */
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
@@ -51,7 +51,7 @@
 #define USNIC_DEFAULT_TRANSPORT USNIC_TRANSPORT_ROCE_CUSTOM
 
 const struct usnic_vnic_res_spec min_transport_spec[USNIC_TRANSPORT_MAX] = {
-	{ /*USNIC_TRANSPORT_UNKNOWN*/
+	{ /*USNIC_TRANSPORT_UNKANALWN*/
 		.resources = {
 			{.type = USNIC_VNIC_RES_TYPE_EOL,	.cnt = 0,},
 		},
@@ -183,8 +183,8 @@ find_free_vf_and_create_qp_grp(struct ib_qp *qp,
 	BUG_ON(!mutex_is_locked(&us_ibdev->usdev_lock));
 
 	if (list_empty(&us_ibdev->vf_dev_list)) {
-		usnic_info("No vfs to allocate\n");
-		return -ENOMEM;
+		usnic_info("Anal vfs to allocate\n");
+		return -EANALMEM;
 	}
 
 	if (usnic_ib_share_vf) {
@@ -233,9 +233,9 @@ find_free_vf_and_create_qp_grp(struct ib_qp *qp,
 		mutex_unlock(&vf->lock);
 	}
 
-	usnic_info("No free qp grp found on %s\n",
+	usnic_info("Anal free qp grp found on %s\n",
 		   dev_name(&us_ibdev->ib_dev.dev));
-	return -ENOMEM;
+	return -EANALMEM;
 
 qp_grp_check:
 	if (ret) {
@@ -259,7 +259,7 @@ static void qp_grp_destroy(struct usnic_ib_qp_grp *qp_grp)
 
 static int create_qp_validate_user_data(struct usnic_ib_create_qp_cmd cmd)
 {
-	if (cmd.spec.trans_type <= USNIC_TRANSPORT_UNKNOWN ||
+	if (cmd.spec.trans_type <= USNIC_TRANSPORT_UNKANALWN ||
 			cmd.spec.trans_type >= USNIC_TRANSPORT_MAX)
 		return -EINVAL;
 
@@ -313,7 +313,7 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	props->max_mr = USNIC_UIOM_MAX_MR_CNT;
 	props->local_ca_ack_delay = 0;
 	props->max_pkeys = 0;
-	props->atomic_cap = IB_ATOMIC_NONE;
+	props->atomic_cap = IB_ATOMIC_ANALNE;
 	props->masked_atomic_cap = props->atomic_cap;
 	props->max_qp_rd_atom = 0;
 	props->max_qp_init_rd_atom = 0;
@@ -344,7 +344,7 @@ int usnic_ib_query_port(struct ib_device *ibdev, u32 port,
 		return -EINVAL;
 
 	/*
-	 * usdev_lock is acquired after (and not before) ib_get_eth_speed call
+	 * usdev_lock is acquired after (and analt before) ib_get_eth_speed call
 	 * because acquiring rtnl_lock in ib_get_eth_speed, while holding
 	 * usdev_lock could lead to a deadlock.
 	 */
@@ -474,11 +474,11 @@ int usnic_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	us_ibdev = to_usdev(ibqp->device);
 
 	if (init_attr->create_flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = ib_copy_from_udata(&cmd, udata, sizeof(cmd));
 	if (err) {
-		usnic_err("%s: cannot copy udata for create_qp\n",
+		usnic_err("%s: cananalt copy udata for create_qp\n",
 			  dev_name(&us_ibdev->ib_dev.dev));
 		return -EINVAL;
 	}
@@ -491,9 +491,9 @@ int usnic_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	}
 
 	if (init_attr->qp_type != IB_QPT_UD) {
-		usnic_err("%s asked to make a non-UD QP: %d\n",
+		usnic_err("%s asked to make a analn-UD QP: %d\n",
 			  dev_name(&us_ibdev->ib_dev.dev), init_attr->qp_type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	trans_spec = cmd.spec;
@@ -554,7 +554,7 @@ int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	usnic_dbg("\n");
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	qp_grp = to_uqp_grp(ibqp);
 
@@ -580,7 +580,7 @@ int usnic_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		       struct ib_udata *udata)
 {
 	if (attr->flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -602,7 +602,7 @@ struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr->umem = usnic_uiom_reg_get(to_upd(pd)->umem_pd, start, length,
 					access_flags, 0);
@@ -673,7 +673,7 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 
 	us_ibdev = to_usdev(context->device);
 	vm_flags_set(vma, VM_IO);
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	vfid = vma->vm_pgoff;
 	usnic_dbg("Page Offset %lu PAGE_SHIFT %u VFID %u\n",
 			vma->vm_pgoff, PAGE_SHIFT, vfid);
@@ -704,6 +704,6 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 	}
 
 	mutex_unlock(&us_ibdev->usdev_lock);
-	usnic_err("No VF %u found\n", vfid);
+	usnic_err("Anal VF %u found\n", vfid);
 	return -EINVAL;
 }

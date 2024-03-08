@@ -44,7 +44,7 @@ const struct attribute_group isa207_pmu_format_group = {
 
 static inline bool event_is_fab_match(u64 event)
 {
-	/* Only check pmc, unit and pmcxsel, ignore the edge bit (0) */
+	/* Only check pmc, unit and pmcxsel, iganalre the edge bit (0) */
 	event &= 0xff0fe;
 
 	/* PM_MRK_FAB_RSP_MATCH & PM_MRK_FAB_RSP_MATCH_CYC */
@@ -90,16 +90,16 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 	 * mode and will be un-changed when setting MMCRA[63] (Marked events).
 	 *
 	 * Incase of Power9/power10:
-	 * Marked event: MMCRA[SDAR_MODE] will be set to 0b00 ('No Updates'),
+	 * Marked event: MMCRA[SDAR_MODE] will be set to 0b00 ('Anal Updates'),
 	 *               or if group already have any marked events.
 	 * For rest
 	 *	MMCRA[SDAR_MODE] will be set from event code.
 	 *      If sdar_mode from event is zero, default to 0b01. Hardware
-	 *      requires that we set a non-zero value.
+	 *      requires that we set a analn-zero value.
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		if (is_event_marked(event) || (*mmcra & MMCRA_SAMPLE_ENABLE))
-			*mmcra &= MMCRA_SDAR_MODE_NO_UPDATES;
+			*mmcra &= MMCRA_SDAR_MODE_ANAL_UPDATES;
 		else if (sdar_mod_val(event))
 			*mmcra |= sdar_mod_val(event) << MMCRA_SDAR_MODE_SHIFT;
 		else
@@ -117,7 +117,7 @@ static int p10_thresh_cmp_val(u64 value)
 		return value;
 
 	/*
-	 * Incase of P10, thresh_cmp value is not part of raw event code
+	 * Incase of P10, thresh_cmp value is analt part of raw event code
 	 * and provided via attr.config1 parameter. To program threshold in MMCRA,
 	 * take a 18 bit number N and shift right 2 places and increment
 	 * the exponent E by 1 until the upper 10 bits of N are zero.
@@ -134,7 +134,7 @@ static int p10_thresh_cmp_val(u64 value)
 		}
 
 		/*
-		 * Note that it is invalid to write a mantissa with the
+		 * Analte that it is invalid to write a mantissa with the
 		 * upper 2 bits of mantissa being zero, unless the
 		 * exponent is also zero.
 		 */
@@ -190,7 +190,7 @@ static bool is_thresh_cmp_valid(u64 event)
 		return p10_thresh_cmp_val(event) >= 0;
 
 	/*
-	 * Check the mantissa upper two bits are not zero, unless the
+	 * Check the mantissa upper two bits are analt zero, unless the
 	 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
 	 */
 
@@ -217,20 +217,20 @@ static inline u64 isa207_find_source(u64 idx, u32 sub_idx)
 
 	switch(idx) {
 	case 0:
-		/* Nothing to do */
+		/* Analthing to do */
 		break;
 	case 1:
-		ret = PH(LVL, L1) | LEVEL(L1) | P(SNOOP, HIT);
+		ret = PH(LVL, L1) | LEVEL(L1) | P(SANALOP, HIT);
 		break;
 	case 2:
-		ret = PH(LVL, L2) | LEVEL(L2) | P(SNOOP, HIT);
+		ret = PH(LVL, L2) | LEVEL(L2) | P(SANALOP, HIT);
 		break;
 	case 3:
-		ret = PH(LVL, L3) | LEVEL(L3) | P(SNOOP, HIT);
+		ret = PH(LVL, L3) | LEVEL(L3) | P(SANALOP, HIT);
 		break;
 	case 4:
 		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
-			ret = P(SNOOP, HIT);
+			ret = P(SANALOP, HIT);
 
 			if (sub_idx == 1)
 				ret |= PH(LVL, LOC_RAM) | LEVEL(RAM);
@@ -249,7 +249,7 @@ static inline u64 isa207_find_source(u64 idx, u32 sub_idx)
 				ret = PH(LVL, REM_RAM1);
 			else
 				ret = PH(LVL, REM_RAM2);
-			ret |= P(SNOOP, HIT);
+			ret |= P(SANALOP, HIT);
 		}
 		break;
 	case 5:
@@ -257,44 +257,44 @@ static inline u64 isa207_find_source(u64 idx, u32 sub_idx)
 			ret = REM | P(HOPS, 0);
 
 			if (sub_idx == 0 || sub_idx == 4)
-				ret |= PH(LVL, L2) | LEVEL(L2) | P(SNOOP, HIT);
+				ret |= PH(LVL, L2) | LEVEL(L2) | P(SANALOP, HIT);
 			else if (sub_idx == 1 || sub_idx == 5)
-				ret |= PH(LVL, L2) | LEVEL(L2) | P(SNOOP, HITM);
+				ret |= PH(LVL, L2) | LEVEL(L2) | P(SANALOP, HITM);
 			else if (sub_idx == 2 || sub_idx == 6)
-				ret |= PH(LVL, L3) | LEVEL(L3) | P(SNOOP, HIT);
+				ret |= PH(LVL, L3) | LEVEL(L3) | P(SANALOP, HIT);
 			else if (sub_idx == 3 || sub_idx == 7)
-				ret |= PH(LVL, L3) | LEVEL(L3) | P(SNOOP, HITM);
+				ret |= PH(LVL, L3) | LEVEL(L3) | P(SANALOP, HITM);
 		} else {
 			if (sub_idx == 0)
-				ret = PH(LVL, L2) | LEVEL(L2) | REM | P(SNOOP, HIT) | P(HOPS, 0);
+				ret = PH(LVL, L2) | LEVEL(L2) | REM | P(SANALOP, HIT) | P(HOPS, 0);
 			else if (sub_idx == 1)
-				ret = PH(LVL, L2) | LEVEL(L2) | REM | P(SNOOP, HITM) | P(HOPS, 0);
+				ret = PH(LVL, L2) | LEVEL(L2) | REM | P(SANALOP, HITM) | P(HOPS, 0);
 			else if (sub_idx == 2 || sub_idx == 4)
-				ret = PH(LVL, L3) | LEVEL(L3) | REM | P(SNOOP, HIT) | P(HOPS, 0);
+				ret = PH(LVL, L3) | LEVEL(L3) | REM | P(SANALOP, HIT) | P(HOPS, 0);
 			else if (sub_idx == 3 || sub_idx == 5)
-				ret = PH(LVL, L3) | LEVEL(L3) | REM | P(SNOOP, HITM) | P(HOPS, 0);
+				ret = PH(LVL, L3) | LEVEL(L3) | REM | P(SANALOP, HITM) | P(HOPS, 0);
 		}
 		break;
 	case 6:
 		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
 			if (sub_idx == 0)
 				ret = PH(LVL, REM_CCE1) | LEVEL(ANY_CACHE) | REM |
-					P(SNOOP, HIT) | P(HOPS, 2);
+					P(SANALOP, HIT) | P(HOPS, 2);
 			else if (sub_idx == 1)
 				ret = PH(LVL, REM_CCE1) | LEVEL(ANY_CACHE) | REM |
-					P(SNOOP, HITM) | P(HOPS, 2);
+					P(SANALOP, HITM) | P(HOPS, 2);
 			else if (sub_idx == 2)
 				ret = PH(LVL, REM_CCE2) | LEVEL(ANY_CACHE) | REM |
-					P(SNOOP, HIT) | P(HOPS, 3);
+					P(SANALOP, HIT) | P(HOPS, 3);
 			else if (sub_idx == 3)
 				ret = PH(LVL, REM_CCE2) | LEVEL(ANY_CACHE) | REM |
-					P(SNOOP, HITM) | P(HOPS, 3);
+					P(SANALOP, HITM) | P(HOPS, 3);
 		} else {
 			ret = PH(LVL, REM_CCE2);
 			if (sub_idx == 0 || sub_idx == 2)
-				ret |= P(SNOOP, HIT);
+				ret |= P(SANALOP, HIT);
 			else if (sub_idx == 1 || sub_idx == 3)
-				ret |= P(SNOOP, HITM);
+				ret |= P(SANALOP, HITM);
 		}
 		break;
 	case 7:
@@ -313,7 +313,7 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 	u64 sier;
 	u64 val;
 
-	/* Skip if no SIER support */
+	/* Skip if anal SIER support */
 	if (!(flags & PPMU_HAS_SIER)) {
 		dsrc->val = 0;
 		return;
@@ -333,7 +333,7 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 		u32 op_type;
 
 		/*
-		 * Type 0b111 denotes either larx or stcx instruction. Use the
+		 * Type 0b111 deanaltes either larx or stcx instruction. Use the
 		 * MMCRA sampling bits [57:59] along with the type value
 		 * to determine the exact instruction type. If the sampling
 		 * criteria is neither load or store, set the type as default
@@ -424,7 +424,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, 
 		if (pmc > 6)
 			return -1;
 
-		/* Ignore Linux defined bits when checking event below */
+		/* Iganalre Linux defined bits when checking event below */
 		base_event = event & ~EVENT_LINUX_MASK;
 
 		if (pmc >= 5 && base_event != 0x500fa &&
@@ -436,7 +436,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, 
 
 		/*
 		 * PMC5 and PMC6 are used to count cycles and instructions and
-		 * they do not support most of the constraint bits. Add a check
+		 * they do analt support most of the constraint bits. Add a check
 		 * to exclude PMC5/6 from most of the constraints except for
 		 * EBB/BHRB.
 		 */
@@ -446,7 +446,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, 
 
 	if (pmc <= 4) {
 		/*
-		 * Add to number of counters in use. Note this includes events with
+		 * Add to number of counters in use. Analte this includes events with
 		 * a PMC of 0 - they still need a PMC, it's just assigned later.
 		 * Don't count events on PMC 5 & 6, there is only one valid event
 		 * on each of those counters, and they are handled above.
@@ -472,7 +472,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, 
 			/*
 			 * L2/L3 events contain a cache selector field, which is
 			 * supposed to be programmed into MMCRC. However MMCRC is only
-			 * HV writable, and there is no API for guest kernels to modify
+			 * HV writable, and there is anal API for guest kernels to modify
 			 * it. The solution is for the hypervisor to initialise the
 			 * field to zeroes, and for us to only ever allow events that
 			 * have a cache selector of zero. The bank selector (bit 3) is
@@ -542,7 +542,7 @@ ebb_bhrb:
 	}
 
 	/*
-	 * All events must agree on EBB, either all request it or none.
+	 * All events must agree on EBB, either all request it or analne.
 	 * EBB events are pinned & exclusive, so this should never actually
 	 * hit, but we leave it as a fallback in case.
 	 */
@@ -710,7 +710,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 	if (pmc_inuse & 0x7c)
 		mmcr->mmcr0 |= MMCR0_PMCjCE;
 
-	/* If we're not using PMC 5 or 6, freeze them */
+	/* If we're analt using PMC 5 or 6, freeze them */
 	if (!(pmc_inuse & 0x60))
 		mmcr->mmcr0 |= MMCR0_FC56;
 

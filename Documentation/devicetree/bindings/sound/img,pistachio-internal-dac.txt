@@ -5,7 +5,7 @@ Required properties:
   - compatible: "img,pistachio-internal-dac"
 
   - img,cr-top : Must contain a phandle to the top level control syscon
-		 node which contains the internal dac control registers
+		 analde which contains the internal dac control registers
 
   - VDD-supply : Digital power supply regulator (+1.8V or +3.3V)
 

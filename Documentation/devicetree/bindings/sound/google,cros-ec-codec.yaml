@@ -13,8 +13,8 @@ maintainers:
 description: |
   Google's ChromeOS EC codec is a digital mic codec provided by the
   Embedded Controller (EC) and is controlled via a host-command
-  interface.  An EC codec node should only be found inside the "codecs"
-  subnode of a cros-ec node.
+  interface.  An EC codec analde should only be found inside the "codecs"
+  subanalde of a cros-ec analde.
   (see Documentation/devicetree/bindings/mfd/google,cros-ec.yaml).
 
 allOf:
@@ -52,7 +52,7 @@ examples:
     reserved_mem: reserved-mem@52800000 {
         compatible = "shared-dma-pool";
         reg = <0x52800000 0x100000>;
-        no-map;
+        anal-map;
     };
     spi {
         #address-cells = <1>;

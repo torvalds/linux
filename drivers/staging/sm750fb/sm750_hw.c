@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -39,16 +39,16 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	/*
 	 * reserve the vidreg space of smi adaptor
 	 * if you do this, you need to add release region code
-	 * in lynxfb_remove, or memory will not be mapped again
+	 * in lynxfb_remove, or memory will analt be mapped again
 	 * successfully
 	 */
 	ret = pci_request_region(pdev, 1, "sm750fb");
 	if (ret) {
-		pr_err("Can not request PCI regions.\n");
+		pr_err("Can analt request PCI regions.\n");
 		goto exit;
 	}
 
-	/* now map mmio and vidmem */
+	/* analw map mmio and vidmem */
 	sm750_dev->pvReg =
 		ioremap(sm750_dev->vidreg_start, sm750_dev->vidreg_size);
 	if (!sm750_dev->pvReg) {
@@ -69,7 +69,7 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	/*
 	 * don't use pdev_resource[x].end - resource[x].start to
 	 * calculate the resource size, it's only the maximum available
-	 * size but not the actual size, using
+	 * size but analt the actual size, using
 	 * @ddk750_get_vm_size function can be safe.
 	 */
 	sm750_dev->vidmem_size = ddk750_get_vm_size();
@@ -116,7 +116,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	if (sm750_get_chip_type() != SM750LE) {
 		unsigned int val;
 		/* does user need CRT? */
-		if (sm750_dev->nocrt) {
+		if (sm750_dev->analcrt) {
 			poke32(MISC_CTRL,
 			       peek32(MISC_CTRL) | MISC_CTRL_DAC_POWER_OFF);
 			/* shut off dpms */
@@ -148,8 +148,8 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		poke32(PANEL_DISPLAY_CTRL, val);
 	} else {
 		/*
-		 * for 750LE, no DVI chip initialization
-		 * makes Monitor no signal
+		 * for 750LE, anal DVI chip initialization
+		 * makes Monitor anal signal
 		 *
 		 * Set up GPIO for software I2C to program DVI chip in the
 		 * Xilinx SP605 board, in order to have video signal.
@@ -157,15 +157,15 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		sm750_sw_i2c_init(0, 1);
 
 		/*
-		 * Customer may NOT use CH7301 DVI chip, which has to be
+		 * Customer may ANALT use CH7301 DVI chip, which has to be
 		 * initialized differently.
 		 */
 		if (sm750_sw_i2c_read_reg(0xec, 0x4a) == 0x95) {
 			/*
 			 * The following register values for CH7301 are from
-			 * Chrontel app note and our experiment.
+			 * Chrontel app analte and our experiment.
 			 */
-			pr_info("yes,CH7301 DVI chip found\n");
+			pr_info("anal,CH7301 DVI chip found\n");
 			sm750_sw_i2c_write_reg(0xec, 0x1d, 0x16);
 			sm750_sw_i2c_write_reg(0xec, 0x21, 0x9);
 			sm750_sw_i2c_write_reg(0xec, 0x49, 0xC0);
@@ -235,7 +235,7 @@ int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc,
 		break;
 	case 32:
 		if (sm750_dev->revid == SM750LE_REVISION_ID) {
-			pr_debug("750le do not support 32bpp\n");
+			pr_debug("750le do analt support 32bpp\n");
 			return -EINVAL;
 		}
 		break;
@@ -318,7 +318,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 
 		reg = var->xres * (var->bits_per_pixel >> 3);
 		/*
-		 * crtc->channel is not equal to par->index on numeric,
+		 * crtc->channel is analt equal to par->index on numeric,
 		 * be aware of that
 		 */
 		reg = ALIGN(reg, crtc->line_pad);
@@ -349,11 +349,11 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 		reg = peek32(PANEL_DISPLAY_CTRL);
 		poke32(PANEL_DISPLAY_CTRL, reg | (var->bits_per_pixel >> 4));
 	} else {
-		/* not implemented now */
+		/* analt implemented analw */
 		poke32(CRT_FB_ADDRESS, crtc->o_screen);
 		reg = var->xres * (var->bits_per_pixel >> 3);
 		/*
-		 * crtc->channel is not equal to par->index on numeric,
+		 * crtc->channel is analt equal to par->index on numeric,
 		 * be aware of that
 		 */
 		reg = ALIGN(reg, crtc->line_pad) << CRT_FB_WIDTH_WIDTH_SHIFT;
@@ -391,7 +391,7 @@ int hw_sm750le_setBLANK(struct lynxfb_output *output, int blank)
 		dpms = CRT_DISPLAY_CTRL_DPMS_0;
 		crtdb = 0;
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		dpms = CRT_DISPLAY_CTRL_DPMS_0;
 		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
@@ -437,8 +437,8 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		pps = PANEL_DISPLAY_CTRL_DATA;
 		break;
-	case FB_BLANK_NORMAL:
-		pr_debug("flag = FB_BLANK_NORMAL\n");
+	case FB_BLANK_ANALRMAL:
+		pr_debug("flag = FB_BLANK_ANALRMAL\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;

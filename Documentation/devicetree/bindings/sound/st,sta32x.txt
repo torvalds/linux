@@ -27,7 +27,7 @@ Optional properties:
 	0: 2-channel (full-bridge) power, 2-channel data-out
 	1: 2 (half-bridge). 1 (full-bridge) on-board power
 	2: 2 Channel (Full-Bridge) Power, 1 Channel FFX
-	3: 1 Channel Mono-Parallel
+	3: 1 Channel Moanal-Parallel
 	If parameter is missing, mode 0 will be enabled.
 	This property has to be specified as '/bits/ 8' value.
 
@@ -55,7 +55,7 @@ Optional properties:
   -  st,drop-compensation-ns: number
 	Only required for "st,ffx-power-output-mode" ==
 	"variable-drop-compensation".
-	Specifies the drop compensation in nanoseconds.
+	Specifies the drop compensation in naanalseconds.
 	The value must be in the range of 0..300, and only
 	multiples of 20 are allowed. Default is 140ns.
 
@@ -68,12 +68,12 @@ Optional properties:
 	power output is enabled.
 
   -  st,am-reduction-mode:
-	If present, FFX mode runs in AM reduction mode, otherwise normal
+	If present, FFX mode runs in AM reduction mode, otherwise analrmal
 	FFX mode is used.
 
   -  st,odd-pwm-speed-mode:
 	If present, PWM speed mode run on odd speed mode (341.3 kHz) on all
-	channels. If not present, normal PWM spped mode (384 kHz) will be used.
+	channels. If analt present, analrmal PWM spped mode (384 kHz) will be used.
 
   -  st,invalid-input-detect-mute:
 	If present, automatic invalid input detect mute is enabled.
@@ -96,6 +96,6 @@ codec: sta32x@38 {
 	st,max-power-correction;		// enables power bridge
 						// correction for THD reduction
 						// near maximum power output
-	st,invalid-input-detect-mute;		// mute if no valid digital
+	st,invalid-input-detect-mute;		// mute if anal valid digital
 						// audio signal is provided.
 };

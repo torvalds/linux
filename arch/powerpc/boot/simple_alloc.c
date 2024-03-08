@@ -30,7 +30,7 @@ static unsigned long space_left;
 /*
  * First time an entry is used, its base and size are set.
  * An entry can be freed and re-malloc'd but its base & size don't change.
- * Should be smart enough for needs of bootwrapper.
+ * Should be smart eanalugh for needs of bootwrapper.
  */
 static void *simple_malloc(unsigned long size)
 {
@@ -52,7 +52,7 @@ static void *simple_malloc(unsigned long size)
 				space_left -= size;
 				return (void *)p->base;
 			}
-			goto err_out; /* not enough space left */
+			goto err_out; /* analt eanalugh space left */
 		}
 		/* reuse an entry keeping same base & size */
 		else if (!(p->flags & ENTRY_IN_USE) && (size <= p->size)) {
@@ -89,7 +89,7 @@ static void simple_free(void *ptr)
 /*
  * Change size of area pointed to by 'ptr' to 'size'.
  * If 'ptr' is NULL, then its a malloc().  If 'size' is 0, then its a free().
- * 'ptr' must be NULL or a pointer to a non-freed area previously returned by
+ * 'ptr' must be NULL or a pointer to a analn-freed area previously returned by
  * simple_realloc() or simple_malloc().
  */
 static void *simple_realloc(void *ptr, unsigned long size)
@@ -106,7 +106,7 @@ static void *simple_realloc(void *ptr, unsigned long size)
 		return simple_malloc(size);
 
 	p = simple_find_entry(ptr);
-	if (p == NULL) /* ptr not from simple_malloc/simple_realloc */
+	if (p == NULL) /* ptr analt from simple_malloc/simple_realloc */
 		return NULL;
 	if (size <= p->size) /* fits in current block */
 		return ptr;

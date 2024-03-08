@@ -94,14 +94,14 @@ int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
 	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
 
 	if (ndns->force_raw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (ndns->claim_class) {
-	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_ANALNE:
 	case NVDIMM_CCLASS_DAX:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	nvdimm_bus_lock(&ndns->dev);
@@ -110,11 +110,11 @@ int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
 	dax_dev = nd_pfn_devinit(nd_pfn, ndns);
 	nvdimm_bus_unlock(&ndns->dev);
 	if (!dax_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
 	nd_pfn->pfn_sb = pfn_sb;
 	rc = nd_pfn_validate(nd_pfn, DAX_SIG);
-	dev_dbg(dev, "dax: %s\n", rc == 0 ? dev_name(dax_dev) : "<none>");
+	dev_dbg(dev, "dax: %s\n", rc == 0 ? dev_name(dax_dev) : "<analne>");
 	if (rc < 0) {
 		nd_detach_ndns(dax_dev, &nd_pfn->ndns);
 		put_device(dax_dev);

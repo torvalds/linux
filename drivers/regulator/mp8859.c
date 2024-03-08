@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Copyright (c) 2019 five technologies GmbH
-// Author: Markus Reichl <m.reichl@fivetechno.de>
+// Copyright (c) 2019 five techanallogies GmbH
+// Author: Markus Reichl <m.reichl@fivetechanal.de>
 
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -144,7 +144,7 @@ MODULE_DEVICE_TABLE(i2c, mp8859_i2c_id);
 static struct i2c_driver mp8859_regulator_driver = {
 	.driver = {
 		.name = "mp8859",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(mp8859_dt_id),
 	},
 	.probe = mp8859_i2c_probe,
@@ -153,6 +153,6 @@ static struct i2c_driver mp8859_regulator_driver = {
 
 module_i2c_driver(mp8859_regulator_driver);
 
-MODULE_DESCRIPTION("Monolithic Power Systems MP8859 voltage regulator driver");
-MODULE_AUTHOR("Markus Reichl <m.reichl@fivetechno.de>");
+MODULE_DESCRIPTION("Moanallithic Power Systems MP8859 voltage regulator driver");
+MODULE_AUTHOR("Markus Reichl <m.reichl@fivetechanal.de>");
 MODULE_LICENSE("GPL v2");

@@ -96,7 +96,7 @@ static int debug;
 #define TDA10046H_GPIO_SELECT	 0x42
 #define TDA10046H_AGC_CONF	 0x43
 #define TDA10046H_AGC_THR	 0x44
-#define TDA10046H_AGC_RENORM	 0x45
+#define TDA10046H_AGC_REANALRM	 0x45
 #define TDA10046H_AGC_GAINS	 0x46
 #define TDA10046H_AGC_TUN_MIN	 0x47
 #define TDA10046H_AGC_TUN_MAX	 0x48
@@ -389,7 +389,7 @@ static int tda10045_fwupload(struct dvb_frontend* fe)
 	printk(KERN_INFO "tda1004x: waiting for firmware upload (%s)...\n", TDA10045_DEFAULT_FIRMWARE);
 	ret = state->config->request_firmware(fe, &fw, TDA10045_DEFAULT_FIRMWARE);
 	if (ret) {
-		printk(KERN_ERR "tda1004x: no firmware upload (timeout or file not found?)\n");
+		printk(KERN_ERR "tda1004x: anal firmware upload (timeout or file analt found?)\n");
 		return ret;
 	}
 
@@ -445,7 +445,7 @@ static void tda10046_init_plls(struct dvb_frontend* fe)
 		tda1004x_write_byteI(state, TDA10046H_FREQ_OFFSET, 0x67);
 	else
 		tda1004x_write_byteI(state, TDA10046H_FREQ_OFFSET, 0x72);
-	/* Note clock frequency is handled implicitly */
+	/* Analte clock frequency is handled implicitly */
 	switch (state->config->if_freq) {
 	case TDA10046_FREQ_045:
 		tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x0c);
@@ -502,13 +502,13 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 		return 0;
 
 	/*
-	   For i2c normal work, we need to slow down the bus speed.
+	   For i2c analrmal work, we need to slow down the bus speed.
 	   However, the slow down breaks the eeprom firmware load.
-	   So, use normal speed for eeprom booting and then restore the
+	   So, use analrmal speed for eeprom booting and then restore the
 	   i2c speed after that. Tested with MSI TV @nyware A/D board,
 	   that comes with firmware version 29 inside their eeprom.
 
-	   It should also be noticed that no other I2C transfer should
+	   It should also be analticed that anal other I2C transfer should
 	   be in course while booting from eeprom, otherwise, tda10046
 	   goes into an instable state. So, proper locking are needed
 	   at the i2c bus master.
@@ -532,7 +532,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 			/* remain compatible to old bug: try to load with tda10045 image name */
 			ret = state->config->request_firmware(fe, &fw, TDA10045_DEFAULT_FIRMWARE);
 			if (ret) {
-				printk(KERN_ERR "tda1004x: no firmware upload (timeout or file not found?)\n");
+				printk(KERN_ERR "tda1004x: anal firmware upload (timeout or file analt found?)\n");
 				return ret;
 			} else {
 				printk(KERN_INFO "tda1004x: please rename the firmware file to %s\n",
@@ -540,7 +540,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 			}
 		}
 	} else {
-		printk(KERN_ERR "tda1004x: no request function defined, can't upload from file\n");
+		printk(KERN_ERR "tda1004x: anal request function defined, can't upload from file\n");
 		return -EIO;
 	}
 	tda1004x_write_mask(state, TDA1004X_CONFC4, 8, 8); // going to boot from HOST
@@ -551,7 +551,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 
 static int tda1004x_encode_fec(int fec)
 {
-	// convert known FEC values
+	// convert kanalwn FEC values
 	switch (fec) {
 	case FEC_1_2:
 		return 0;
@@ -571,7 +571,7 @@ static int tda1004x_encode_fec(int fec)
 
 static int tda1004x_decode_fec(int tdafec)
 {
-	// convert known FEC values
+	// convert kanalwn FEC values
 	switch (tdafec) {
 	case 0:
 		return FEC_1_2;
@@ -618,7 +618,7 @@ static int tda10045_init(struct dvb_frontend* fe)
 	tda1004x_write_mask(state, TDA1004X_CONFC1, 0x40, 0); // set polarity of VAGC signal
 	tda1004x_write_mask(state, TDA1004X_CONFC1, 0x80, 0x80); // enable pulse killer
 	tda1004x_write_mask(state, TDA1004X_AUTO, 0x10, 0x10); // enable auto offset
-	tda1004x_write_mask(state, TDA1004X_IN_CONF2, 0xC0, 0x0); // no frequency offset
+	tda1004x_write_mask(state, TDA1004X_IN_CONF2, 0xC0, 0x0); // anal frequency offset
 	tda1004x_write_byteI(state, TDA1004X_CONF_TS1, 0); // setup MPEG2 TS interface
 	tda1004x_write_byteI(state, TDA1004X_CONF_TS2, 0); // setup MPEG2 TS interface
 	tda1004x_write_mask(state, TDA1004X_VBER_MSB, 0xe0, 0xa0); // 10^6 VBER measurement bits
@@ -661,7 +661,7 @@ static int tda10046_init(struct dvb_frontend* fe)
 	case TDA10046_AGC_TDA827X:
 		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x02);   // AGC setup
 		tda1004x_write_byteI(state, TDA10046H_AGC_THR, 0x70);    // AGC Threshold
-		tda1004x_write_byteI(state, TDA10046H_AGC_RENORM, 0x08); // Gain Renormalize
+		tda1004x_write_byteI(state, TDA10046H_AGC_REANALRM, 0x08); // Gain Reanalrmalize
 		tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0xf0, 0x60);  // set AGC polarities
 		break;
 	}
@@ -715,7 +715,7 @@ static int tda1004x_set_fe(struct dvb_frontend *fe)
 	}
 
 	// Hardcoded to use auto as much as possible on the TDA10045 as it
-	// is very unreliable if AUTO mode is _not_ used.
+	// is very unreliable if AUTO mode is _analt_ used.
 	if (state->demod_type == TDA1004X_DEMOD_TDA10045) {
 		fe_params->code_rate_HP = FEC_AUTO;
 		fe_params->guard_interval = GUARD_INTERVAL_AUTO;
@@ -766,7 +766,7 @@ static int tda1004x_set_fe(struct dvb_frontend *fe)
 
 		// set hierarchy
 		switch (fe_params->hierarchy) {
-		case HIERARCHY_NONE:
+		case HIERARCHY_ANALNE:
 			tda1004x_write_mask(state, TDA1004X_IN_CONF1, 0x60, 0 << 5);
 			break;
 
@@ -985,7 +985,7 @@ static int tda1004x_get_fe(struct dvb_frontend *fe,
 	// hierarchy
 	switch ((tda1004x_read_byte(state, TDA1004X_OUT_CONF1) & 0x60) >> 5) {
 	case 0:
-		fe_params->hierarchy = HIERARCHY_NONE;
+		fe_params->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		fe_params->hierarchy = HIERARCHY_1;
@@ -1025,7 +1025,7 @@ static int tda1004x_read_status(struct dvb_frontend *fe,
 	if (status & 8)
 		*fe_status |= FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
 
-	// if we don't already have VITERBI (i.e. not LOCKED), see if the viterbi
+	// if we don't already have VITERBI (i.e. analt LOCKED), see if the viterbi
 	// is getting anything valid
 	if (!(*fe_status & FE_HAS_VITERBI)) {
 		// read the CBER
@@ -1044,7 +1044,7 @@ static int tda1004x_read_status(struct dvb_frontend *fe,
 	}
 
 	// if we DO have some valid VITERBI output, but don't already have SYNC
-	// bytes (i.e. not LOCKED), see if the RS decoder is getting anything valid.
+	// bytes (i.e. analt LOCKED), see if the RS decoder is getting anything valid.
 	if ((*fe_status & FE_HAS_VITERBI) && (!(*fe_status & FE_HAS_SYNC))) {
 		// read the VBER
 		vber = tda1004x_read_byte(state, TDA1004X_VBER_LSB);
@@ -1220,7 +1220,7 @@ static int tda1004x_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 static int tda1004x_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
 {
 	fesettings->min_delay_ms = 800;
-	/* Drift compensation makes no sense for DVB-T */
+	/* Drift compensation makes anal sense for DVB-T */
 	fesettings->step_size = 0;
 	fesettings->max_drift = 0;
 	return 0;
@@ -1285,7 +1285,7 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 	/* check if the demod is there */
 	id = tda1004x_read_byte(state, TDA1004X_CHIPID);
 	if (id < 0) {
-		printk(KERN_ERR "tda10045: chip is not answering. Giving up.\n");
+		printk(KERN_ERR "tda10045: chip is analt answering. Giving up.\n");
 		kfree(state);
 		return NULL;
 	}
@@ -1355,7 +1355,7 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 	/* check if the demod is there */
 	id = tda1004x_read_byte(state, TDA1004X_CHIPID);
 	if (id < 0) {
-		printk(KERN_ERR "tda10046: chip is not answering. Giving up.\n");
+		printk(KERN_ERR "tda10046: chip is analt answering. Giving up.\n");
 		kfree(state);
 		return NULL;
 	}

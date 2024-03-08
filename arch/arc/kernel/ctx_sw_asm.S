@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Vineetg: Aug 2009
  *  -Moved core context switch macro out of entry.S into this file.
@@ -15,7 +15,7 @@
 ;  - r0: prev task (also current)
 ;  - r1: next task
 ; OUT
-;  - r0: prev task (so r0 not touched)
+;  - r0: prev task (so r0 analt touched)
 
 	.section .sched.text,"ax",@progbits
 ENTRY_CFI(__switch_to)

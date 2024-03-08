@@ -241,10 +241,10 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 	rt5677_sel_asrc_clk_src(component, RT5677_DA_STEREO_FILTER |
 			RT5677_AD_STEREO1_FILTER | RT5677_I2S1_SOURCE,
 			RT5677_CLK_SEL_I2S1_ASRC);
-	/* Enable codec ASRC function for Mono ADC L.
+	/* Enable codec ASRC function for Moanal ADC L.
 	 * The ASRC clock source is clk_sys2_asrc.
 	 */
-	rt5677_sel_asrc_clk_src(component, RT5677_AD_MONO_L_FILTER,
+	rt5677_sel_asrc_clk_src(component, RT5677_AD_MOANAL_L_FILTER,
 			RT5677_CLK_SEL_SYS2);
 
 	/* Request rt5677 GPIO for headphone amp control */
@@ -323,7 +323,7 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 	{
 		.name = "System PCM",
 		.stream_name = "System Playback/Capture",
-		.nonatomic = 1,
+		.analnatomic = 1,
 		.dynamic = 1,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST,
@@ -335,7 +335,7 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 		SND_SOC_DAILINK_REG(fe, dummy, platform),
 	},
 
-	/* Non-DPCM links */
+	/* Analn-DPCM links */
 	{
 		.name = "Codec DSP",
 		.stream_name = "Wake on Voice",
@@ -349,11 +349,11 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 		/* SSP0 - Codec */
 		.name = "Codec",
 		.id = 0,
-		.nonatomic = 1,
-		.no_pcm = 1,
+		.analnatomic = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBC_CFC,
-		.ignore_pmdown_time = 1,
+		.iganalre_pmdown_time = 1,
 		.be_hw_params_fixup = broadwell_ssp0_fixup,
 		.ops = &bdw_rt5677_ops,
 		.dpcm_playback = 1,
@@ -425,7 +425,7 @@ static int bdw_rt5677_probe(struct platform_device *pdev)
 	bdw_rt5677 = devm_kzalloc(&pdev->dev, sizeof(struct bdw_rt5677_priv),
 		GFP_KERNEL);
 	if (!bdw_rt5677)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* override platform name, if required */
 	mach = pdev->dev.platform_data;

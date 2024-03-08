@@ -24,11 +24,11 @@ static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
 static inline unsigned long arch_calc_vm_flag_bits(unsigned long flags)
 {
 	/*
-	 * Only allow MTE on anonymous mappings as these are guaranteed to be
+	 * Only allow MTE on aanalnymous mappings as these are guaranteed to be
 	 * backed by tags-capable memory. The vm_flags may be overridden by a
 	 * filesystem supporting MTE (RAM-based).
 	 */
-	if (system_supports_mte() && (flags & MAP_ANONYMOUS))
+	if (system_supports_mte() && (flags & MAP_AANALNYMOUS))
 		return VM_MTE_ALLOWED;
 
 	return 0;

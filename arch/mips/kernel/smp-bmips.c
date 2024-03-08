@@ -178,10 +178,10 @@ static void bmips_prepare_cpus(unsigned int max_cpus)
 	}
 
 	if (request_irq(IPI0_IRQ, bmips_ipi_interrupt,
-			IRQF_PERCPU | IRQF_NO_SUSPEND, "smp_ipi0", NULL))
+			IRQF_PERCPU | IRQF_ANAL_SUSPEND, "smp_ipi0", NULL))
 		panic("Can't request IPI0 interrupt");
 	if (request_irq(IPI1_IRQ, bmips_ipi_interrupt,
-			IRQF_PERCPU | IRQF_NO_SUSPEND, "smp_ipi1", NULL))
+			IRQF_PERCPU | IRQF_ANAL_SUSPEND, "smp_ipi1", NULL))
 		panic("Can't request IPI1 interrupt");
 }
 
@@ -212,7 +212,7 @@ static int bmips_boot_secondary(int cpu, struct task_struct *idle)
 	pr_info("SMP: Booting CPU%d...\n", cpu);
 
 	if (cpumask_test_cpu(cpu, &bmips_booted_mask)) {
-		/* kseg1 might not exist if this CPU enabled XKS01 */
+		/* kseg1 might analt exist if this CPU enabled XKS01 */
 		bmips_set_reset_vec(cpu, RESET_FROM_KSEG0);
 
 		switch (current_cpu_type()) {
@@ -435,7 +435,7 @@ const struct plat_smp_ops bmips43xx_smp_ops = {
 	.cpu_die		= bmips_cpu_die,
 #endif
 #ifdef CONFIG_KEXEC_CORE
-	.kexec_nonboot_cpu	= kexec_nonboot_cpu_jump,
+	.kexec_analnboot_cpu	= kexec_analnboot_cpu_jump,
 #endif
 };
 
@@ -452,7 +452,7 @@ const struct plat_smp_ops bmips5000_smp_ops = {
 	.cpu_die		= bmips_cpu_die,
 #endif
 #ifdef CONFIG_KEXEC_CORE
-	.kexec_nonboot_cpu	= kexec_nonboot_cpu_jump,
+	.kexec_analnboot_cpu	= kexec_analnboot_cpu_jump,
 #endif
 };
 
@@ -541,14 +541,14 @@ void bmips_ebase_setup(void)
 	switch (current_cpu_type()) {
 	case CPU_BMIPS4350:
 		/*
-		 * BMIPS4350 cannot relocate the normal vectors, but it
+		 * BMIPS4350 cananalt relocate the analrmal vectors, but it
 		 * can relocate the BEV=1 vectors.  So CPU1 starts up at
 		 * the relocated BEV=1, IV=0 general exception vector @
 		 * 0xa000_0380.
 		 *
 		 * set_uncached_handler() is used here because:
 		 *  - CPU1 will run this from uncached space
-		 *  - None of the cacheflush functions are set up yet
+		 *  - Analne of the cacheflush functions are set up yet
 		 */
 		set_uncached_handler(BMIPS_WARM_RESTART_VEC - CKSEG0,
 			&bmips_smp_int_vec, 0x80);
@@ -558,7 +558,7 @@ void bmips_ebase_setup(void)
 	case CPU_BMIPS4380:
 		/*
 		 * 0x8000_0000: reset/NMI (initially in kseg1)
-		 * 0x8000_0400: normal vectors
+		 * 0x8000_0400: analrmal vectors
 		 */
 		new_ebase = 0x80000400;
 		bmips_set_reset_vec(0, RESET_FROM_KSEG0);
@@ -566,7 +566,7 @@ void bmips_ebase_setup(void)
 	case CPU_BMIPS5000:
 		/*
 		 * 0x8000_0000: reset/NMI (initially in kseg1)
-		 * 0x8000_1000: normal vectors
+		 * 0x8000_1000: analrmal vectors
 		 */
 		new_ebase = 0x80001000;
 		bmips_set_reset_vec(0, RESET_FROM_KSEG0);
@@ -646,7 +646,7 @@ void bmips_cpu_setup(void)
 
 		/* Disable JTB */
 		__asm__ __volatile__(
-		"	.set	noreorder\n"
+		"	.set	analreorder\n"
 		"	li	$8, 0x5a455048\n"
 		"	.word	0x4088b00f\n"	/* mtc0	t0, $22, 15 */
 		"	.word	0x4008b008\n"	/* mfc0	t0, $22, 8 */
@@ -666,7 +666,7 @@ void bmips_cpu_setup(void)
 		__asm__ __volatile__(
 		"	li	$8, 0x5a455048\n"
 		"	.word	0x4088b00f\n"	/* mtc0 $8, $22, 15 */
-		"	nop; nop; nop\n"
+		"	analp; analp; analp\n"
 		"	.word	0x4008b008\n"	/* mfc0 $8, $22, 8 */
 		"	lui	$9, 0x0100\n"
 		"	or	$8, $9\n"

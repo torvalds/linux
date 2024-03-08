@@ -374,7 +374,7 @@ function mw_check()
 
 	cmp -n $MW_ALIGNED_SIZE "$A" "$B"
 	if [[ $? != 0 ]]; then
-		echo "Memory window $MW did not match!" >&2
+		echo "Memory window $MW did analt match!" >&2
 	fi
 
 	if [[ "$A" == "/tmp/*" ]]; then
@@ -435,7 +435,7 @@ function pingpong_test()
 	REM_END=$(read_file "$REM/count")
 
 	if [[ $LOC_START == $LOC_END ]] || [[ $REM_START == $REM_END ]]; then
-		echo "Ping pong counter not incrementing!" >&2
+		echo "Ping pong counter analt incrementing!" >&2
 		exit 1
 	fi
 
@@ -458,7 +458,7 @@ function msi_test()
 		END=$(read_file $REM/../irq${i}_occurrences)
 
 		if [[ $(($END - $START)) != 1 ]]; then
-			echo "MSI did not trigger the interrupt on the remote side!" >&2
+			echo "MSI did analt trigger the interrupt on the remote side!" >&2
 			exit 1
 		fi
 	done
@@ -552,7 +552,7 @@ function ntb_msi_tests()
 	echo "Starting ntb_msi_test tests..."
 
 	if ! _modprobe ntb_msi_test 2> /dev/null; then
-		echo "  Not doing MSI tests seeing the module is not available."
+		echo "  Analt doing MSI tests seeing the module is analt available."
 		return
 	fi
 

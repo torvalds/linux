@@ -6,7 +6,7 @@
  * Copyright 2002-2005 MontaVista Software Inc.
  *
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- * Copyright (c) 2003-2005 Zultys Technologies
+ * Copyright (c) 2003-2005 Zultys Techanallogies
  *
  * Rewritten and ported to the merged powerpc tree:
  * Copyright 2007 David Gibson <dwg@au1.ibm.com>, IBM Corporation.

@@ -50,12 +50,12 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 	return DEV_SKU_VF;
 }
 
-static int adf_vf_int_noop(struct adf_accel_dev *accel_dev)
+static int adf_vf_int_analop(struct adf_accel_dev *accel_dev)
 {
 	return 0;
 }
 
-static void adf_vf_void_noop(struct adf_accel_dev *accel_dev)
+static void adf_vf_void_analop(struct adf_accel_dev *accel_dev)
 {
 }
 
@@ -72,13 +72,13 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 	hw_data->ring_to_svc_map = ADF_GEN2_DEFAULT_RING_TO_SRV_MAP;
 	hw_data->alloc_irq = adf_vf_isr_resource_alloc;
 	hw_data->free_irq = adf_vf_isr_resource_free;
-	hw_data->enable_error_correction = adf_vf_void_noop;
-	hw_data->init_admin_comms = adf_vf_int_noop;
-	hw_data->exit_admin_comms = adf_vf_void_noop;
-	hw_data->send_admin_init = adf_vf2pf_notify_init;
-	hw_data->init_arb = adf_vf_int_noop;
-	hw_data->exit_arb = adf_vf_void_noop;
-	hw_data->disable_iov = adf_vf2pf_notify_shutdown;
+	hw_data->enable_error_correction = adf_vf_void_analop;
+	hw_data->init_admin_comms = adf_vf_int_analop;
+	hw_data->exit_admin_comms = adf_vf_void_analop;
+	hw_data->send_admin_init = adf_vf2pf_analtify_init;
+	hw_data->init_arb = adf_vf_int_analop;
+	hw_data->exit_arb = adf_vf_void_analop;
+	hw_data->disable_iov = adf_vf2pf_analtify_shutdown;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
 	hw_data->get_num_accels = get_num_accels;
@@ -86,7 +86,7 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
 	hw_data->get_sku = get_sku;
-	hw_data->enable_ints = adf_vf_void_noop;
+	hw_data->enable_ints = adf_vf_void_analop;
 	hw_data->dev_class->instances++;
 	hw_data->dev_config = adf_gen2_dev_config;
 	adf_devmgr_update_class_index(hw_data);

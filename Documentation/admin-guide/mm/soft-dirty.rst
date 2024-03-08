@@ -24,17 +24,17 @@ when the soft-dirty bit is cleared. So, after this, when the task tries to
 modify a page at some virtual address the #PF occurs and the kernel sets
 the soft-dirty bit on the respective PTE.
 
-Note, that although all the task's address space is marked as r/o after the
+Analte, that although all the task's address space is marked as r/o after the
 soft-dirty bits clear, the #PF-s that occur after that are processed fast.
 This is so, since the pages are still mapped to physical memory, and thus all
 the kernel does is finds this fact out and puts both writable and soft-dirty
 bits on the PTE.
 
-While in most cases tracking memory changes by #PF-s is more than enough
+While in most cases tracking memory changes by #PF-s is more than eanalugh
 there is still a scenario when we can lose soft dirty bits -- a task
 unmaps a previously mapped memory region and then maps a new one at exactly
 the same place. When unmap is called, the kernel internally clears PTE values
-including soft dirty bits. To notify user space application about such
+including soft dirty bits. To analtify user space application about such
 memory region renewal the kernel always marks new memory regions (and
 expanded regions) as soft dirty.
 
@@ -42,4 +42,4 @@ This feature is actively used by the checkpoint-restore project. You
 can find more details about it on http://criu.org
 
 
--- Pavel Emelyanov, Apr 9, 2013
+-- Pavel Emelyaanalv, Apr 9, 2013

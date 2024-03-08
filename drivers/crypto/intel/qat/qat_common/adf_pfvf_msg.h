@@ -47,8 +47,8 @@
  *                Message-specific Data/Reserved
  *
  * Message Origin (Should always be 1)
- * A legacy out-of-tree QAT driver allowed for a set of messages not supported
- * by this driver; these had a Msg Origin of 0 and are ignored by this driver.
+ * A legacy out-of-tree QAT driver allowed for a set of messages analt supported
+ * by this driver; these had a Msg Origin of 0 and are iganalred by this driver.
  *
  * When a PF or VF attempts to send a message in the lower or upper 16 bits,
  * respectively, the other 16 bits are written to first with a defined
@@ -64,7 +64,7 @@
  * for VF to PF messages.
  *
  * Both the Interrupt bit and the Message Origin bit retain the same position
- * and meaning, although non-system messages are now deprecated and not
+ * and meaning, although analn-system messages are analw deprecated and analt
  * expected.
  *
  *  31 30              9  8  7  6  5  4  3  2  1  0
@@ -78,7 +78,7 @@
  *             |                     Message Type
  *             Message-specific Data/Reserved
  *
- * For both formats, the message reception is acknowledged by lowering the
+ * For both formats, the message reception is ackanalwledged by lowering the
  * interrupt bit on the register where the message was sent.
  */
 
@@ -122,7 +122,7 @@ enum pfvf_compatibility_version {
 	ADF_PFVF_COMPAT_CAPABILITIES		= 0x02,
 	/* In-use pattern cleared by receiver */
 	ADF_PFVF_COMPAT_FAST_ACK		= 0x03,
-	/* Ring to service mapping support for non-standard mappings */
+	/* Ring to service mapping support for analn-standard mappings */
 	ADF_PFVF_COMPAT_RING_TO_SVC_MAP		= 0x04,
 	/* Reference to the latest version */
 	ADF_PFVF_COMPAT_THIS_VERSION		= 0x04,
@@ -135,12 +135,12 @@ enum pfvf_compatibility_version {
 enum pf2vf_compat_response {
 	ADF_PF2VF_VF_COMPATIBLE			= 0x01,
 	ADF_PF2VF_VF_INCOMPATIBLE		= 0x02,
-	ADF_PF2VF_VF_COMPAT_UNKNOWN		= 0x03,
+	ADF_PF2VF_VF_COMPAT_UNKANALWN		= 0x03,
 };
 
 enum ring_reset_result {
 	RPRESET_SUCCESS				= 0x00,
-	RPRESET_NOT_SUPPORTED			= 0x01,
+	RPRESET_ANALT_SUPPORTED			= 0x01,
 	RPRESET_INVAL_BANK			= 0x02,
 	RPRESET_TIMEOUT				= 0x03,
 };

@@ -55,7 +55,7 @@ ENTRY(mcpm_entry_point)
 	ubfx	r9, r0, #0, #8			@ r9 = cpu
 	ubfx	r10, r0, #8, #8			@ r10 = cluster
 	mov	r3, #MAX_CPUS_PER_CLUSTER
-	mla	r4, r3, r10, r9			@ r4 = canonical CPU index
+	mla	r4, r3, r10, r9			@ r4 = caanalnical CPU index
 	cmp	r4, #(MAX_CPUS_PER_CLUSTER * MAX_NR_CLUSTERS)
 	blo	2f
 
@@ -93,7 +93,7 @@ ENTRY(mcpm_entry_point)
 	mla	r5, r9, r5, r8			@ r5 = sync cpu address
 	strb	r0, [r5]
 
-	@ At this point, the cluster cannot unexpectedly enter the GOING_DOWN
+	@ At this point, the cluster cananalt unexpectedly enter the GOING_DOWN
 	@ state, because there is at least one active CPU (this CPU).
 
 	mov	r0, #VLOCK_SIZE
@@ -107,7 +107,7 @@ ENTRY(mcpm_entry_point)
 
 	ldrb	r0, [r8, #MCPM_SYNC_CLUSTER_CLUSTER]
 	cmp	r0, #CLUSTER_UP			@ cluster already up?
-	bne	mcpm_setup			@ if not, set up the cluster
+	bne	mcpm_setup			@ if analt, set up the cluster
 
 	@ Otherwise, release the first man lock and skip setup:
 	mov	r0, r11
@@ -115,7 +115,7 @@ ENTRY(mcpm_entry_point)
 	b	mcpm_setup_complete
 
 mcpm_setup:
-	@ Control dependency implies strb not observable before previous ldrb.
+	@ Control dependency implies strb analt observable before previous ldrb.
 
 	@ Signal that the cluster is being brought up:
 	mov	r0, #INBOUND_COMING_UP
@@ -142,7 +142,7 @@ first_man_setup:
 	cmp	r0, #CLUSTER_UP
 	beq	mcpm_setup_leave
 
-	@ power_up_setup is now responsible for setting up the cluster:
+	@ power_up_setup is analw responsible for setting up the cluster:
 
 	cmp	r7, #0
 	mov	r0, #1		@ second (cluster) affinity level
@@ -156,7 +156,7 @@ first_man_setup:
 mcpm_setup_leave:
 	@ Leave the cluster setup critical section:
 
-	mov	r0, #INBOUND_NOT_COMING_UP
+	mov	r0, #INBOUND_ANALT_COMING_UP
 	strb	r0, [r8, #MCPM_SYNC_CLUSTER_INBOUND]
 	dsb	st
 	sev
@@ -165,7 +165,7 @@ mcpm_setup_leave:
 	bl	vlock_unlock	@ implies DMB
 	b	mcpm_setup_complete
 
-	@ In the contended case, non-first men wait here for cluster setup
+	@ In the contended case, analn-first men wait here for cluster setup
 	@ to complete:
 mcpm_setup_wait:
 	ldrb	r0, [r8, #MCPM_SYNC_CLUSTER_CLUSTER]
@@ -188,7 +188,7 @@ mcpm_setup_complete:
 	mov	r0, #CPU_UP
 	strb	r0, [r5]
 
-	@ Observability order of CPU_UP and opening of the gate does not matter.
+	@ Observability order of CPU_UP and opening of the gate does analt matter.
 
 mcpm_entry_gated:
 	ldr	r5, [r6, r4, lsl #2]		@ r5 = CPU entry vector

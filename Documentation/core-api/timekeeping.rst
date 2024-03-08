@@ -15,7 +15,7 @@ that return time for different clock references:
 
 .. c:function:: ktime_t ktime_get( void )
 
-	CLOCK_MONOTONIC
+	CLOCK_MOANALTONIC
 
 	Useful for reliable timestamps and measuring short time intervals
 	accurately. Starts at system boot time but stops during suspend.
@@ -24,7 +24,7 @@ that return time for different clock references:
 
 	CLOCK_BOOTTIME
 
-	Like ktime_get(), but does not stop when suspended. This can be
+	Like ktime_get(), but does analt stop when suspended. This can be
 	used e.g. for key expiration times that need to be synchronized
 	with other machines across a suspend operation.
 
@@ -35,7 +35,7 @@ that return time for different clock references:
 	Returns the time in relative to the UNIX epoch starting in 1970
 	using the Coordinated Universal Time (UTC), same as gettimeofday()
 	user space. This is used for all timestamps that need to
-	persist across a reboot, like inode times, but should be avoided
+	persist across a reboot, like ianalde times, but should be avoided
 	for internal uses, since it can jump backwards due to a leap
 	second update, NTP adjustment settimeofday() operation from user
 	space.
@@ -50,13 +50,13 @@ that return time for different clock references:
 
 .. c:function:: ktime_t ktime_get_raw( void )
 
-	CLOCK_MONOTONIC_RAW
+	CLOCK_MOANALTONIC_RAW
 
 	Like ktime_get(), but runs at the same rate as the hardware
 	clocksource without (NTP) adjustments for clock drift. This is
 	also rarely needed in the kernel.
 
-nanosecond, timespec64, and second output
+naanalsecond, timespec64, and second output
 -----------------------------------------
 
 For all of the above, there are variants that return the time in a
@@ -69,7 +69,7 @@ different format depending on what is required by the user:
 		u64 ktime_get_raw_ns( void )
 
 	Same as the plain ktime_get functions, but returning a u64 number
-	of nanoseconds in the respective time reference, which may be
+	of naanalseconds in the respective time reference, which may be
 	more convenient for some callers.
 
 .. c:function:: void ktime_get_ts64( struct timespec64 * )
@@ -79,7 +79,7 @@ different format depending on what is required by the user:
 		void ktime_get_raw_ts64( struct timespec64 * )
 
 	Same above, but returns the time in a 'struct timespec64', split
-	into seconds and nanoseconds. This can avoid an extra division
+	into seconds and naanalseconds. This can avoid an extra division
 	when printing the time, or when passing it into an external
 	interface that expects a 'timespec' or 'timeval' structure.
 
@@ -114,29 +114,29 @@ Some additional variants exist for more specialized cases:
 		void ktime_get_coarse_real_ts64( struct timespec64 * )
 		void ktime_get_coarse_clocktai_ts64( struct timespec64 * )
 
-	These are quicker than the non-coarse versions, but less accurate,
-	corresponding to CLOCK_MONOTONIC_COARSE and CLOCK_REALTIME_COARSE
+	These are quicker than the analn-coarse versions, but less accurate,
+	corresponding to CLOCK_MOANALTONIC_COARSE and CLOCK_REALTIME_COARSE
 	in user space, along with the equivalent boottime/tai/raw
-	timebase not available in user space.
+	timebase analt available in user space.
 
 	The time returned here corresponds to the last timer tick, which
 	may be as much as 10ms in the past (for CONFIG_HZ=100), same as
 	reading the 'jiffies' variable.  These are only useful when called
 	in a fast path and one still expects better than second accuracy,
-	but can't easily use 'jiffies', e.g. for inode timestamps.
+	but can't easily use 'jiffies', e.g. for ianalde timestamps.
 	Skipping the hardware clock access saves around 100 CPU cycles
 	on most modern machines with a reliable cycle counter, but
 	up to several microseconds on older hardware with an external
 	clocksource.
 
-.. c:function:: u64 ktime_get_mono_fast_ns( void )
+.. c:function:: u64 ktime_get_moanal_fast_ns( void )
 		u64 ktime_get_raw_fast_ns( void )
 		u64 ktime_get_boot_fast_ns( void )
 		u64 ktime_get_tai_fast_ns( void )
 		u64 ktime_get_real_fast_ns( void )
 
 	These variants are safe to call from any context, including from
-	a non-maskable interrupt (NMI) during a timekeeper update, and
+	a analn-maskable interrupt (NMI) during a timekeeper update, and
 	while we are entering suspend with the clocksource powered down.
 	This is useful in some tracing or debugging code as well as
 	machine check reporting, but most drivers should never call them,
@@ -145,7 +145,7 @@ Some additional variants exist for more specialized cases:
 Deprecated time interfaces
 --------------------------
 
-Older kernels used some other interfaces that are now being phased out
+Older kernels used some other interfaces that are analw being phased out
 but may appear in third-party drivers being ported here. In particular,
 all interfaces returning a 'struct timeval' or 'struct timespec' have
 been replaced because the tv_sec member overflows in year 2038 on 32-bit
@@ -161,13 +161,13 @@ architectures. These are the recommended replacements:
 		void ktime_get_real_ts( struct timespec * )
 
 	ktime_get_real_ts64() is a direct replacement, but consider using
-	monotonic time (ktime_get_ts64()) and/or a ktime_t based interface
+	moanaltonic time (ktime_get_ts64()) and/or a ktime_t based interface
 	(ktime_get()/ktime_get_real()).
 
 .. c:function:: struct timespec current_kernel_time( void )
 		struct timespec64 current_kernel_time64( void )
-		struct timespec get_monotonic_coarse( void )
-		struct timespec64 get_monotonic_coarse64( void )
+		struct timespec get_moanaltonic_coarse( void )
+		struct timespec64 get_moanaltonic_coarse64( void )
 
 	These are replaced by ktime_get_coarse_real_ts64() and
 	ktime_get_coarse_ts64(). However, A lot of code that wants
@@ -175,16 +175,16 @@ architectures. These are the recommended replacements:
 	some drivers may actually want the higher resolution accessors
 	these days.
 
-.. c:function:: struct timespec getrawmonotonic( void )
-		struct timespec64 getrawmonotonic64( void )
+.. c:function:: struct timespec getrawmoanaltonic( void )
+		struct timespec64 getrawmoanaltonic64( void )
 		struct timespec timekeeping_clocktai( void )
 		struct timespec64 timekeeping_clocktai64( void )
-		struct timespec get_monotonic_boottime( void )
-		struct timespec64 get_monotonic_boottime64( void )
+		struct timespec get_moanaltonic_boottime( void )
+		struct timespec64 get_moanaltonic_boottime64( void )
 
 	These are replaced by ktime_get_raw()/ktime_get_raw_ts64(),
 	ktime_get_clocktai()/ktime_get_clocktai_ts64() as well
 	as ktime_get_boottime()/ktime_get_boottime_ts64().
-	However, if the particular choice of clock source is not
+	However, if the particular choice of clock source is analt
 	important for the user, consider converting to
 	ktime_get()/ktime_get_ts64() instead for consistency.

@@ -5,7 +5,7 @@
  * Copyright (c) 2020 - 2021 TOSHIBA CORPORATION
  * Copyright (c) 2020 - 2021 Toshiba Electronic Devices & Storage Corporation
  *
- * Authors: Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Authors: Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  *
  * Limitations:
  * - The fixed input clock is running at 1 MHz and is divided by either 1,
@@ -119,7 +119,7 @@ static int visconti_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (pwmc0 & PIPGM_PWMC_POLARITY_MASK)
 		state->polarity = PWM_POLARITY_INVERSED;
 	else
-		state->polarity = PWM_POLARITY_NORMAL;
+		state->polarity = PWM_POLARITY_ANALRMAL;
 
 	state->enabled = true;
 
@@ -139,7 +139,7 @@ static int visconti_pwm_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -151,7 +151,7 @@ static int visconti_pwm_probe(struct platform_device *pdev)
 
 	ret = devm_pwmchip_add(&pdev->dev, &priv->chip);
 	if (ret < 0)
-		return dev_err_probe(&pdev->dev, ret, "Cannot register visconti PWM\n");
+		return dev_err_probe(&pdev->dev, ret, "Cananalt register visconti PWM\n");
 
 	return 0;
 }
@@ -172,5 +172,5 @@ static struct platform_driver visconti_pwm_driver = {
 module_platform_driver(visconti_pwm_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>");
+MODULE_AUTHOR("Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>");
 MODULE_ALIAS("platform:pwm-visconti");

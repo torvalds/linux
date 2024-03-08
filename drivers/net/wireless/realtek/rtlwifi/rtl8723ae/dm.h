@@ -35,7 +35,7 @@
 
 #define WAIOTTHVAL				25
 
-#define TXHIGHPWRLEVEL_NORMAL			0
+#define TXHIGHPWRLEVEL_ANALRMAL			0
 #define TXHIGHPWRLEVEL_LEVEL1			1
 #define TXHIGHPWRLEVEL_LEVEL2			2
 #define TXHIGHPWRLEVEL_BT1			3
@@ -77,7 +77,7 @@ enum dm_1r_cca_e {
 
 enum dm_rf_e {
 	RF_SAVE = 0,
-	RF_NORMAL = 1,
+	RF_ANALRMAL = 1,
 	RF_MAX = 2,
 };
 
@@ -87,7 +87,7 @@ enum dm_sw_ant_switch_e {
 	ANS_ANTENNA_MAX = 3,
 };
 
-#define BT_RSSI_STATE_NORMAL_POWER      BIT_OFFSET_LEN_MASK_32(0, 1)
+#define BT_RSSI_STATE_ANALRMAL_POWER      BIT_OFFSET_LEN_MASK_32(0, 1)
 #define BT_RSSI_STATE_AMDPU_OFF         BIT_OFFSET_LEN_MASK_32(1, 1)
 #define BT_RSSI_STATE_SPECIAL_LOW       BIT_OFFSET_LEN_MASK_32(2, 1)
 #define BT_RSSI_STATE_BG_EDCA_LOW       BIT_OFFSET_LEN_MASK_32(3, 1)
@@ -105,6 +105,6 @@ void rtl8723e_dm_watchdog(struct ieee80211_hw *hw);
 void rtl8723e_dm_write_dig(struct ieee80211_hw *hw);
 void rtl8723e_dm_check_txpower_tracking(struct ieee80211_hw *hw);
 void rtl8723e_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
-void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal);
+void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_analrmal);
 void rtl8723e_dm_bt_coexist(struct ieee80211_hw *hw);
 #endif

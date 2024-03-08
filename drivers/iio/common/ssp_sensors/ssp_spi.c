@@ -12,7 +12,7 @@
  * SSP -> AP Instruction
  * They tell what packet type can be expected. In the future there will
  * be less of them. BYPASS means common sensor packets with accel, gyro,
- * hrm etc. data. LIBRARY and META are mock-up's for now.
+ * hrm etc. data. LIBRARY and META are mock-up's for analw.
  */
 #define SSP_MSG2AP_INST_BYPASS_DATA		0x37
 #define SSP_MSG2AP_INST_LIBRARY_DATA		0x01
@@ -149,7 +149,7 @@ static int ssp_print_mcu_debug(char *data_frame, int *data_index,
 
 /*
  * It was designed that way - additional lines to some kind of handshake,
- * please do not ask why - only the firmware guy can know it.
+ * please do analt ask why - only the firmware guy can kanalw it.
  */
 static int ssp_check_lines(struct ssp_data *data, bool state)
 {
@@ -182,7 +182,7 @@ static int ssp_do_transfer(struct ssp_data *data, struct ssp_msg *msg,
 	 * check if this is a short one way message or the whole transfer has
 	 * second part after an interrupt
 	 */
-	const bool use_no_irq = msg->length == 0;
+	const bool use_anal_irq = msg->length == 0;
 
 	if (data->shut_down)
 		return -EPERM;
@@ -202,7 +202,7 @@ static int ssp_do_transfer(struct ssp_data *data, struct ssp_msg *msg,
 		goto _error_locked;
 	}
 
-	if (!use_no_irq) {
+	if (!use_anal_irq) {
 		mutex_lock(&data->pending_lock);
 		list_add_tail(&msg->list, &data->pending_list);
 		mutex_unlock(&data->pending_lock);
@@ -210,7 +210,7 @@ static int ssp_do_transfer(struct ssp_data *data, struct ssp_msg *msg,
 
 	status = ssp_check_lines(data, true);
 	if (status < 0) {
-		if (!use_no_irq) {
+		if (!use_anal_irq) {
 			mutex_lock(&data->pending_lock);
 			list_del(&msg->list);
 			mutex_unlock(&data->pending_lock);
@@ -220,7 +220,7 @@ static int ssp_do_transfer(struct ssp_data *data, struct ssp_msg *msg,
 
 	mutex_unlock(&data->comm_lock);
 
-	if (!use_no_irq && done)
+	if (!use_anal_irq && done)
 		if (wait_for_completion_timeout(done,
 						msecs_to_jiffies(timeout)) ==
 		    0) {
@@ -259,7 +259,7 @@ static int ssp_spi_sync(struct ssp_data *data, struct ssp_msg *msg,
 
 static int ssp_handle_big_data(struct ssp_data *data, char *dataframe, int *idx)
 {
-	/* mock-up, it will be changed with adding another sensor types */
+	/* mock-up, it will be changed with adding aanalther sensor types */
 	*idx += 8;
 	return 0;
 }
@@ -292,7 +292,7 @@ static int ssp_parse_dataframe(struct ssp_data *data, char *dataframe, int len)
 							  data->timestamp);
 				}
 			} else {
-				dev_err(SSP_DEV, "no client for frame\n");
+				dev_err(SSP_DEV, "anal client for frame\n");
 			}
 
 			idx += ssp_offset_map[sd];
@@ -358,7 +358,7 @@ int ssp_irq_msg(struct ssp_data *data)
 	case SSP_AP2HUB_WRITE:
 		/*
 		 * this is a small list, a few elements - the packets can be
-		 * received with no order
+		 * received with anal order
 		 */
 		mutex_lock(&data->pending_lock);
 		list_for_each_entry_safe(iter, n, &data->pending_list, list) {
@@ -372,12 +372,12 @@ int ssp_irq_msg(struct ssp_data *data)
 		if (!msg) {
 			/*
 			 * here can be implemented dead messages handling
-			 * but the slave should not send such ones - it is to
+			 * but the slave should analt send such ones - it is to
 			 * check but let's handle this
 			 */
 			buffer = kmalloc(length, GFP_KERNEL | GFP_DMA);
 			if (!buffer) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto _unlock;
 			}
 
@@ -388,7 +388,7 @@ int ssp_irq_msg(struct ssp_data *data)
 
 			kfree(buffer);
 
-			dev_err(SSP_DEV, "No match error %x\n",
+			dev_err(SSP_DEV, "Anal match error %x\n",
 				msg_options);
 
 			goto _unlock;
@@ -422,7 +422,7 @@ _unlock:
 	case SSP_HUB2AP_WRITE:
 		buffer = kzalloc(length, GFP_KERNEL | GFP_DMA);
 		if (!buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = spi_read(data->spi, buffer, length);
 		if (ret < 0) {
@@ -437,7 +437,7 @@ _unlock:
 		break;
 
 	default:
-		dev_err(SSP_DEV, "unknown msg type\n");
+		dev_err(SSP_DEV, "unkanalwn msg type\n");
 		return -EPROTO;
 	}
 
@@ -466,7 +466,7 @@ int ssp_command(struct ssp_data *data, char command, int arg)
 
 	msg = ssp_create_msg(command, 0, SSP_AP2HUB_WRITE, arg);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ssp_dbg("%s - command 0x%x %d\n", __func__, command, arg);
 
@@ -495,7 +495,7 @@ int ssp_send_instruction(struct ssp_data *data, u8 inst, u8 sensor_type,
 
 	msg = ssp_create_msg(inst, length + 2, SSP_AP2HUB_WRITE, 0);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ssp_fill_buffer(msg, 0, &sensor_type, 1);
 	ssp_fill_buffer(msg, 1, send_buf, length);
@@ -517,7 +517,7 @@ int ssp_get_chipid(struct ssp_data *data)
 
 	msg = ssp_create_msg(SSP_MSG2SSP_AP_WHOAMI, 1, SSP_AP2HUB_READ, 0);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ssp_spi_sync(data, msg, 1000);
 
@@ -537,7 +537,7 @@ int ssp_set_magnetic_matrix(struct ssp_data *data)
 			     data->sensorhub_info->mag_length, SSP_AP2HUB_WRITE,
 			     0);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ssp_fill_buffer(msg, 0, data->sensorhub_info->mag_table,
 			data->sensorhub_info->mag_length);

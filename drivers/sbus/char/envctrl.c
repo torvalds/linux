@@ -86,7 +86,7 @@
 /* Monitor type of i2c child device.
  * Driver definitions.
  */
-#define ENVCTRL_NOMON				0
+#define ENVCTRL_ANALMON				0
 #define ENVCTRL_CPUTEMP_MON			1    /* cpu temperature monitor */
 #define ENVCTRL_CPUVOLTAGE_MON	  	2    /* voltage monitor         */
 #define ENVCTRL_FANSTAT_MON  		3    /* fan status monitor      */
@@ -107,7 +107,7 @@
  * through a data table and a scale.
  * Translation type as defined by firmware.
  */
-#define ENVCTRL_TRANSLATE_NO		0
+#define ENVCTRL_TRANSLATE_ANAL		0
 #define ENVCTRL_TRANSLATE_PARTIAL	1
 #define ENVCTRL_TRANSLATE_COMBINED	2
 #define ENVCTRL_TRANSLATE_FULL		3     /* table[data] */
@@ -117,14 +117,14 @@
 #define ENVCTRL_MAX_CPU			4
 #define CHANNEL_DESC_SZ			256
 
-/* Mask values for combined GlobalAddress/PowerStatus node */
+/* Mask values for combined GlobalAddress/PowerStatus analde */
 #define ENVCTRL_GLOBALADDR_ADDR_MASK 	0x1F
 #define ENVCTRL_GLOBALADDR_PSTAT_MASK	0x60
 
-/* Node 0x70 ignored on CompactPCI CP1400/1500 platforms 
+/* Analde 0x70 iganalred on CompactPCI CP1400/1500 platforms 
  * (see envctrl_init_i2c_child)
  */
-#define ENVCTRL_CPCI_IGNORED_NODE		0x70
+#define ENVCTRL_CPCI_IGANALRED_ANALDE		0x70
 
 #define PCF8584_DATA	0x00
 #define PCF8584_CSR	0x01
@@ -133,7 +133,7 @@
  * Property of a port or channel as defined by the firmware.
  */
 struct pcf8584_channel {
-        unsigned char chnl_no;
+        unsigned char chnl_anal;
         unsigned char io_direction;
         unsigned char type;
         unsigned char last;
@@ -179,9 +179,9 @@ static char read_cpu;
 /* Forward declarations. */
 static struct i2c_child_t *envctrl_get_i2c_child(unsigned char);
 
-/* Function Description: Test the PIN bit (Pending Interrupt Not) 
+/* Function Description: Test the PIN bit (Pending Interrupt Analt) 
  * 			 to test when serial transmission is completed .
- * Return : None.
+ * Return : Analne.
  */
 static void envtrl_i2c_test_pin(void)
 {
@@ -194,11 +194,11 @@ static void envtrl_i2c_test_pin(void)
 	} 
 
 	if (limit <= 0)
-		printk(KERN_INFO PFX "Pin status will not clear.\n");
+		printk(KERN_INFO PFX "Pin status will analt clear.\n");
 }
 
 /* Function Description: Test busy bit.
- * Return : None.
+ * Return : Analne.
  */
 static void envctrl_i2c_test_bb(void)
 {
@@ -212,11 +212,11 @@ static void envctrl_i2c_test_bb(void)
 	} 
 
 	if (limit <= 0)
-		printk(KERN_INFO PFX "Busy bit will not clear.\n");
+		printk(KERN_INFO PFX "Busy bit will analt clear.\n");
 }
 
 /* Function Description: Send the address for a read access.
- * Return : 0 if not acknowledged, otherwise acknowledged.
+ * Return : 0 if analt ackanalwledged, otherwise ackanalwledged.
  */
 static int envctrl_i2c_read_addr(unsigned char addr)
 {
@@ -232,7 +232,7 @@ static int envctrl_i2c_read_addr(unsigned char addr)
 	/* Wait for PIN. */
 	envtrl_i2c_test_pin();
 
-	/* CSR 0 means acknowledged. */
+	/* CSR 0 means ackanalwledged. */
 	if (!(readb(i2c + PCF8584_CSR) & STATUS_LRB)) {
 		return readb(i2c + PCF8584_DATA);
 	} else {
@@ -242,7 +242,7 @@ static int envctrl_i2c_read_addr(unsigned char addr)
 }
 
 /* Function Description: Send the address for write mode.  
- * Return : None.
+ * Return : Analne.
  */
 static void envctrl_i2c_write_addr(unsigned char addr)
 {
@@ -265,7 +265,7 @@ static unsigned char envctrl_i2c_read_data(void)
 }
 
 /* Function Description: Instruct the device which port to read data from.  
- * Return : None.
+ * Return : Analne.
  */
 static void envctrl_i2c_write_data(unsigned char port)
 {
@@ -274,7 +274,7 @@ static void envctrl_i2c_write_data(unsigned char port)
 }
 
 /* Function Description: Generate Stop condition after last byte is sent.
- * Return : None.
+ * Return : Analne.
  */
 static void envctrl_i2c_stop(void)
 {
@@ -329,8 +329,8 @@ static int envctrl_i2c_data_translate(unsigned char data, int translate_type,
 	int len = 0;
 
 	switch (translate_type) {
-	case ENVCTRL_TRANSLATE_NO:
-		/* No decode necessary. */
+	case ENVCTRL_TRANSLATE_ANAL:
+		/* Anal decode necessary. */
 		len = 1;
 		bufdata[0] = data;
 		break;
@@ -380,7 +380,7 @@ static int envctrl_read_cpu_info(int cpu, struct i2c_child_t *pchild,
 
         /* Read data from address and port. */
 	data = envctrl_i2c_read_8591((unsigned char)pchild->addr,
-				     (unsigned char)pchild->chnl_array[i].chnl_no);
+				     (unsigned char)pchild->chnl_array[i].chnl_anal);
 
 	/* Find decoding table. */
 	tbl = pchild->tables + pchild->tblprop_array[i].offset;
@@ -390,11 +390,11 @@ static int envctrl_read_cpu_info(int cpu, struct i2c_child_t *pchild,
 					  tbl, bufdata);
 }
 
-/* Function Description: Read noncpu-related data such as motherboard 
+/* Function Description: Read analncpu-related data such as motherboard 
  *                       temperature.
  * Return: Number of read bytes. Data is stored in bufdata in ascii format.
  */
-static int envctrl_read_noncpu_info(struct i2c_child_t *pchild,
+static int envctrl_read_analncpu_info(struct i2c_child_t *pchild,
 				    char mon_type, unsigned char *bufdata)
 {
 	unsigned char data;
@@ -411,7 +411,7 @@ static int envctrl_read_noncpu_info(struct i2c_child_t *pchild,
 
         /* Read data from address and port. */
 	data = envctrl_i2c_read_8591((unsigned char)pchild->addr,
-				     (unsigned char)pchild->chnl_array[i].chnl_no);
+				     (unsigned char)pchild->chnl_array[i].chnl_anal);
 
 	/* Find decoding table. */
 	tbl = pchild->tables + pchild->tblprop_array[i].offset;
@@ -437,11 +437,11 @@ static int envctrl_i2c_fan_status(struct i2c_child_t *pchild,
 		/* All bits are on. All fans are functioning. */
 		ret = ENVCTRL_ALL_FANS_GOOD;
 	} else if (tmp == 0) {
-		/* No bits are on. No fans are functioning. */
+		/* Anal bits are on. Anal fans are functioning. */
 		ret = ENVCTRL_ALL_FANS_BAD;
 	} else {
 		/* Go through all channels, mark 'on' the matched bits.
-		 * Notice that fan_mask may have discontiguous bits but
+		 * Analtice that fan_mask may have discontiguous bits but
 		 * return mask are always contiguous. For example if we
 		 * monitor 4 fans at channels 0,1,2,4, the return mask
 		 * should be 00010000 if only fan at channel 4 is working.
@@ -467,10 +467,10 @@ static int envctrl_i2c_globaladdr(struct i2c_child_t *pchild,
 				  unsigned char data,
 				  char *bufdata)
 {
-	/* Translatation table is not necessary, as global
+	/* Translatation table is analt necessary, as global
 	 * addr is the integer value of the GA# bits.
 	 *
-	 * NOTE: MSB is documented as zero, but I see it as '1' always....
+	 * ANALTE: MSB is documented as zero, but I see it as '1' always....
 	 *
 	 * -----------------------------------------------
 	 * | 0 | FAL | DEG | GA4 | GA3 | GA2 | GA1 | GA0 |
@@ -569,7 +569,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	case ENVCTRL_RD_MTHRBD_TEMPERATURE:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_MTHRBDTEMP_MON)))
 			return 0;
-		ret = envctrl_read_noncpu_info(pchild, ENVCTRL_MTHRBDTEMP_MON, data);
+		ret = envctrl_read_analncpu_info(pchild, ENVCTRL_MTHRBDTEMP_MON, data);
 		if (copy_to_user(buf, data, ret))
 			ret = -EFAULT;
 		break;
@@ -597,7 +597,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	case ENVCTRL_RD_SCSI_TEMPERATURE:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_SCSITEMP_MON)))
 			return 0;
-		ret = envctrl_read_noncpu_info(pchild, ENVCTRL_SCSITEMP_MON, data);
+		ret = envctrl_read_analncpu_info(pchild, ENVCTRL_SCSITEMP_MON, data);
 		if (copy_to_user(buf, data, ret))
 			ret = -EFAULT;
 		break;
@@ -605,7 +605,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	case ENVCTRL_RD_ETHERNET_TEMPERATURE:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_ETHERTEMP_MON)))
 			return 0;
-		ret = envctrl_read_noncpu_info(pchild, ENVCTRL_ETHERTEMP_MON, data);
+		ret = envctrl_read_analncpu_info(pchild, ENVCTRL_ETHERTEMP_MON, data);
 		if (copy_to_user(buf, data, ret))
 			ret = -EFAULT;
 		break;
@@ -630,7 +630,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	case ENVCTRL_RD_VOLTAGE_STATUS:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_VOLTAGESTAT_MON)))
-			/* If voltage monitor not present, check for CPCI equivalent */
+			/* If voltage monitor analt present, check for CPCI equivalent */
 			if (!(pchild = envctrl_get_i2c_child(ENVCTRL_GLOBALADDR_MON)))
 				return 0;
 		data[0] = envctrl_i2c_read_8574(pchild->addr);
@@ -694,7 +694,7 @@ envctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  * Return: Always 0.
  */
 static int
-envctrl_open(struct inode *inode, struct file *file)
+envctrl_open(struct ianalde *ianalde, struct file *file)
 {
 	file->private_data = NULL;
 	return 0;
@@ -704,7 +704,7 @@ envctrl_open(struct inode *inode, struct file *file)
  * Return: Always 0.
  */
 static int
-envctrl_release(struct inode *inode, struct file *file)
+envctrl_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -716,23 +716,23 @@ static const struct file_operations envctrl_fops = {
 	.compat_ioctl =		compat_ptr_ioctl,
 	.open =			envctrl_open,
 	.release =		envctrl_release,
-	.llseek =		noop_llseek,
+	.llseek =		analop_llseek,
 };	
 
 static struct miscdevice envctrl_dev = {
-	ENVCTRL_MINOR,
+	ENVCTRL_MIANALR,
 	"envctrl",
 	&envctrl_fops
 };
 
 /* Function Description: Set monitor type based on firmware description.
- * Return: None.
+ * Return: Analne.
  */
 static void envctrl_set_mon(struct i2c_child_t *pchild,
 			    const char *chnl_desc,
-			    int chnl_no)
+			    int chnl_anal)
 {
-	/* Firmware only has temperature type.  It does not distinguish
+	/* Firmware only has temperature type.  It does analt distinguish
 	 * different kinds of temperatures.  We use channel description
 	 * to disinguish them.
 	 */
@@ -741,29 +741,29 @@ static void envctrl_set_mon(struct i2c_child_t *pchild,
 	    !(strcmp(chnl_desc,"temp,cpu1")) ||
 	    !(strcmp(chnl_desc,"temp,cpu2")) ||
 	    !(strcmp(chnl_desc,"temp,cpu3")))
-		pchild->mon_type[chnl_no] = ENVCTRL_CPUTEMP_MON;
+		pchild->mon_type[chnl_anal] = ENVCTRL_CPUTEMP_MON;
 
 	if (!(strcmp(chnl_desc,"vddcore,cpu0")) ||
 	    !(strcmp(chnl_desc,"vddcore,cpu1")) ||
 	    !(strcmp(chnl_desc,"vddcore,cpu2")) ||
 	    !(strcmp(chnl_desc,"vddcore,cpu3")))
-		pchild->mon_type[chnl_no] = ENVCTRL_CPUVOLTAGE_MON;
+		pchild->mon_type[chnl_anal] = ENVCTRL_CPUVOLTAGE_MON;
 
 	if (!(strcmp(chnl_desc,"temp,motherboard")))
-		pchild->mon_type[chnl_no] = ENVCTRL_MTHRBDTEMP_MON;
+		pchild->mon_type[chnl_anal] = ENVCTRL_MTHRBDTEMP_MON;
 
 	if (!(strcmp(chnl_desc,"temp,scsi")))
-		pchild->mon_type[chnl_no] = ENVCTRL_SCSITEMP_MON;
+		pchild->mon_type[chnl_anal] = ENVCTRL_SCSITEMP_MON;
 
 	if (!(strcmp(chnl_desc,"temp,ethernet")))
-		pchild->mon_type[chnl_no] = ENVCTRL_ETHERTEMP_MON;
+		pchild->mon_type[chnl_anal] = ENVCTRL_ETHERTEMP_MON;
 }
 
 /* Function Description: Initialize monitor channel with channel desc,
  *                       decoding tables, monitor type, optional properties.
- * Return: None.
+ * Return: Analne.
  */
-static void envctrl_init_adc(struct i2c_child_t *pchild, struct device_node *dp)
+static void envctrl_init_adc(struct i2c_child_t *pchild, struct device_analde *dp)
 {
 	int i = 0, len;
 	const char *pos;
@@ -790,7 +790,7 @@ static void envctrl_init_adc(struct i2c_child_t *pchild, struct device_node *dp)
 }
 
 /* Function Description: Initialize child device monitoring fan status.
- * Return: None.
+ * Return: Analne.
  */
 static void envctrl_init_fanstat(struct i2c_child_t *pchild)
 {
@@ -798,16 +798,16 @@ static void envctrl_init_fanstat(struct i2c_child_t *pchild)
 
 	/* Go through all channels and set up the mask. */
 	for (i = 0; i < pchild->total_chnls; i++)
-		pchild->fan_mask |= chnls_mask[(pchild->chnl_array[i]).chnl_no];
+		pchild->fan_mask |= chnls_mask[(pchild->chnl_array[i]).chnl_anal];
 
-	/* We only need to know if this child has fan status monitored.
+	/* We only need to kanalw if this child has fan status monitored.
 	 * We don't care which channels since we have the mask already.
 	 */
 	pchild->mon_type[0] = ENVCTRL_FANSTAT_MON;
 }
 
 /* Function Description: Initialize child device for global addressing line.
- * Return: None.
+ * Return: Analne.
  */
 static void envctrl_init_globaladdr(struct i2c_child_t *pchild)
 {
@@ -819,11 +819,11 @@ static void envctrl_init_globaladdr(struct i2c_child_t *pchild)
 	 *
 	 * The mask is created here by assigning mask bits to each
 	 * bit position that represents PCF8584_VOLTAGE_TYPE data.
-	 * Channel numbers are not consecutive within the globaladdr
-	 * node (why?), so we use the actual counter value as chnls_mask
-	 * index instead of the chnl_array[x].chnl_no value.
+	 * Channel numbers are analt consecutive within the globaladdr
+	 * analde (why?), so we use the actual counter value as chnls_mask
+	 * index instead of the chnl_array[x].chnl_anal value.
 	 *
-	 * NOTE: This loop could be replaced with a constant representing
+	 * ANALTE: This loop could be replaced with a constant representing
 	 * a mask of bits 5&6 (ENVCTRL_GLOBALADDR_PSTAT_MASK).
 	 */
 	for (i = 0; i < pchild->total_chnls; i++) {
@@ -832,8 +832,8 @@ static void envctrl_init_globaladdr(struct i2c_child_t *pchild)
 		}
 	}
 
-	/* We only need to know if this child has global addressing 
-	 * line monitored.  We don't care which channels since we know 
+	/* We only need to kanalw if this child has global addressing 
+	 * line monitored.  We don't care which channels since we kanalw 
 	 * the mask already (ENVCTRL_GLOBALADDR_ADDR_MASK).
 	 */
 	pchild->mon_type[0] = ENVCTRL_GLOBALADDR_MON;
@@ -846,18 +846,18 @@ static void envctrl_init_voltage_status(struct i2c_child_t *pchild)
 
 	/* Go through all channels and set up the mask. */
 	for (i = 0; i < pchild->total_chnls; i++)
-		pchild->voltage_mask |= chnls_mask[(pchild->chnl_array[i]).chnl_no];
+		pchild->voltage_mask |= chnls_mask[(pchild->chnl_array[i]).chnl_anal];
 
-	/* We only need to know if this child has voltage status monitored.
+	/* We only need to kanalw if this child has voltage status monitored.
 	 * We don't care which channels since we have the mask already.
 	 */
 	pchild->mon_type[0] = ENVCTRL_VOLTAGESTAT_MON;
 }
 
 /* Function Description: Initialize i2c child device.
- * Return: None.
+ * Return: Analne.
  */
-static void envctrl_init_i2c_child(struct device_node *dp,
+static void envctrl_init_i2c_child(struct device_analde *dp,
 				   struct i2c_child_t *pchild)
 {
 	int len, i, tbls_size = 0;
@@ -892,25 +892,25 @@ static void envctrl_init_i2c_child(struct device_node *dp,
 	}
 
 	/* SPARCengine ASM Reference Manual (ref. SMI doc 805-7581-04)
-	 * sections 2.5, 3.5, 4.5 state node 0x70 for CP1400/1500 is
+	 * sections 2.5, 3.5, 4.5 state analde 0x70 for CP1400/1500 is
 	 * "For Factory Use Only."
 	 *
-	 * We ignore the node on these platforms by assigning the
+	 * We iganalre the analde on these platforms by assigning the
 	 * 'NULL' monitor type.
 	 */
-	if (ENVCTRL_CPCI_IGNORED_NODE == pchild->addr) {
-		struct device_node *root_node;
+	if (ENVCTRL_CPCI_IGANALRED_ANALDE == pchild->addr) {
+		struct device_analde *root_analde;
 		int len;
 
-		root_node = of_find_node_by_path("/");
-		if (of_node_name_eq(root_node, "SUNW,UltraSPARC-IIi-cEngine")) {
+		root_analde = of_find_analde_by_path("/");
+		if (of_analde_name_eq(root_analde, "SUNW,UltraSPARC-IIi-cEngine")) {
 			for (len = 0; len < PCF8584_MAX_CHANNELS; ++len) {
-				pchild->mon_type[len] = ENVCTRL_NOMON;
+				pchild->mon_type[len] = ENVCTRL_ANALMON;
 			}
-			of_node_put(root_node);
+			of_analde_put(root_analde);
 			return;
 		}
-		of_node_put(root_node);
+		of_analde_put(root_analde);
 	}
 
 	/* Get the monitor channels. */
@@ -974,7 +974,7 @@ static void envctrl_do_shutdown(void)
 		return;
 
 	inprog = 1;
-	printk(KERN_CRIT "kenvctrld: WARNING: Shutting down the system now.\n");
+	printk(KERN_CRIT "kenvctrld: WARNING: Shutting down the system analw.\n");
 	orderly_poweroff(true);
 }
 
@@ -990,7 +990,7 @@ static int kenvctrld(void *__unused)
 	if (NULL == (cputemp = envctrl_get_i2c_child(ENVCTRL_CPUTEMP_MON))) {
 		printk(KERN_ERR  PFX
 		       "kenvctrld unable to monitor CPU temp-- exiting\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	poll_interval = 5000; /* TODO env_mon_interval */
@@ -1023,7 +1023,7 @@ static int kenvctrld(void *__unused)
 
 static int envctrl_probe(struct platform_device *op)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 	int index, err;
 
 	if (i2c)
@@ -1031,15 +1031,15 @@ static int envctrl_probe(struct platform_device *op)
 
 	i2c = of_ioremap(&op->resource[0], 0, 0x2, DRIVER_NAME);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	index = 0;
-	dp = op->dev.of_node->child;
+	dp = op->dev.of_analde->child;
 	while (dp) {
-		if (of_node_name_eq(dp, "gpio")) {
+		if (of_analde_name_eq(dp, "gpio")) {
 			i2c_childlist[index].i2ctype = I2C_GPIO;
 			envctrl_init_i2c_child(dp, &(i2c_childlist[index++]));
-		} else if (of_node_name_eq(dp, "adc")) {
+		} else if (of_analde_name_eq(dp, "adc")) {
 			i2c_childlist[index].i2ctype = I2C_ADC;
 			envctrl_init_i2c_child(dp, &(i2c_childlist[index++]));
 		}
@@ -1059,15 +1059,15 @@ static int envctrl_probe(struct platform_device *op)
 	writeb(CONTROL_PIN | CONTROL_ES0 | CONTROL_ACK, i2c + PCF8584_CSR);
 	udelay(200);
 
-	/* Register the device as a minor miscellaneous device. */
+	/* Register the device as a mianalr miscellaneous device. */
 	err = misc_register(&envctrl_dev);
 	if (err) {
-		printk(KERN_ERR PFX "Unable to get misc minor %d\n",
-		       envctrl_dev.minor);
+		printk(KERN_ERR PFX "Unable to get misc mianalr %d\n",
+		       envctrl_dev.mianalr);
 		goto out_iounmap;
 	}
 
-	/* Note above traversal routine post-incremented 'i' to accommodate 
+	/* Analte above traversal routine post-incremented 'i' to accommodate 
 	 * a next child device, so we decrement before reverse-traversal of
 	 * child devices.
 	 */
@@ -1075,7 +1075,7 @@ static int envctrl_probe(struct platform_device *op)
 	for (--index; index >= 0; --index) {
 		printk("[%s 0x%lx]%s", 
 			(I2C_ADC == i2c_childlist[index].i2ctype) ? "adc" : 
-			((I2C_GPIO == i2c_childlist[index].i2ctype) ? "gpio" : "unknown"), 
+			((I2C_GPIO == i2c_childlist[index].i2ctype) ? "gpio" : "unkanalwn"), 
 			i2c_childlist[index].addr, (0 == index) ? "\n" : " ");
 	}
 

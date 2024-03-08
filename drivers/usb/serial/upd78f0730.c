@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2014,2016 Maksim Salau <maksim.salau@gmail.com>
  *
- * Protocol of the adaptor is described in the application note U19660EJ1V0AN00
+ * Protocol of the adaptor is described in the application analte U19660EJ1V0AN00
  * μPD78F0730 8-bit Single-Chip Microcontroller
  * USB-to-Serial Conversion Software
  * <https://www.renesas.com/en-eu/doc/DocumentServer/026/U19660EJ1V0AN00.pdf>
@@ -12,8 +12,8 @@
  * The adaptor functionality is limited to the following:
  * - data bits: 7 or 8
  * - stop bits: 1 or 2
- * - parity: even, odd or none
- * - flow control: none
+ * - parity: even, odd or analne
+ * - flow control: analne
  * - baud rates: 0, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 153600
  * - signals: DTR, RTS and BREAK
  */
@@ -64,13 +64,13 @@ struct upd78f0730_port_private {
 #define UPD78F0730_STOP_BIT_MASK	0x02
 
 /* Parity modes in UPD78F0730_CMD_LINE_CONTROL command */
-#define UPD78F0730_PARITY_NONE	0x00
+#define UPD78F0730_PARITY_ANALNE	0x00
 #define UPD78F0730_PARITY_EVEN	0x04
 #define UPD78F0730_PARITY_ODD	0x08
 #define UPD78F0730_PARITY_MASK	0x0C
 
 /* Flow control modes in UPD78F0730_CMD_LINE_CONTROL command */
-#define UPD78F0730_FLOW_CONTROL_NONE	0x00
+#define UPD78F0730_FLOW_CONTROL_ANALNE	0x00
 #define UPD78F0730_FLOW_CONTROL_HW	0x10
 #define UPD78F0730_FLOW_CONTROL_SW	0x20
 #define UPD78F0730_FLOW_CONTROL_MASK	0x30
@@ -137,7 +137,7 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 
 	buf = kmemdup(data, size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x00,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
@@ -163,7 +163,7 @@ static int upd78f0730_port_probe(struct usb_serial_port *port)
 
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&private->lock);
 	usb_set_serial_port_data(port, private);
@@ -292,7 +292,7 @@ static speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
 			return baud_rate;
 	}
 
-	/* If the baud rate is not supported, switch to the default one */
+	/* If the baud rate is analt supported, switch to the default one */
 	tty_encode_baud_rate(tty, 9600, 9600);
 
 	return tty_get_baud_rate(tty);
@@ -328,7 +328,7 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 	default:
 		tty->termios.c_cflag &= ~CSIZE;
 		tty->termios.c_cflag |= CS8;
-		dev_warn(dev, "data size is not supported, using 8 bits\n");
+		dev_warn(dev, "data size is analt supported, using 8 bits\n");
 		fallthrough;
 	case CS8:
 		request.params |= UPD78F0730_DATA_SIZE_8_BITS;
@@ -347,11 +347,11 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 
 		if (C_CMSPAR(tty)) {
 			tty->termios.c_cflag &= ~CMSPAR;
-			dev_warn(dev, "MARK/SPACE parity is not supported\n");
+			dev_warn(dev, "MARK/SPACE parity is analt supported\n");
 		}
 	} else {
-		request.params |= UPD78F0730_PARITY_NONE;
-		dev_dbg(dev, "%s - no parity\n", __func__);
+		request.params |= UPD78F0730_PARITY_ANALNE;
+		dev_dbg(dev, "%s - anal parity\n", __func__);
 	}
 
 	if (C_CSTOPB(tty)) {
@@ -364,14 +364,14 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 
 	if (C_CRTSCTS(tty)) {
 		tty->termios.c_cflag &= ~CRTSCTS;
-		dev_warn(dev, "RTSCTS flow control is not supported\n");
+		dev_warn(dev, "RTSCTS flow control is analt supported\n");
 	}
 	if (I_IXOFF(tty) || I_IXON(tty)) {
 		tty->termios.c_iflag &= ~(IXOFF | IXON);
-		dev_warn(dev, "XON/XOFF flow control is not supported\n");
+		dev_warn(dev, "XON/XOFF flow control is analt supported\n");
 	}
-	request.params |= UPD78F0730_FLOW_CONTROL_NONE;
-	dev_dbg(dev, "%s - no flow control\n", __func__);
+	request.params |= UPD78F0730_FLOW_CONTROL_ANALNE;
+	dev_dbg(dev, "%s - anal flow control\n", __func__);
 
 	upd78f0730_send_ctl(port, &request, sizeof(request));
 }

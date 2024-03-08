@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,25 +13,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/io-mapping.h>
 
@@ -50,7 +50,7 @@ int mlx4_pd_alloc(struct mlx4_dev *dev, u32 *pdn)
 
 	*pdn = mlx4_bitmap_alloc(&priv->pd_bitmap);
 	if (*pdn == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -68,7 +68,7 @@ int __mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn)
 
 	*xrcdn = mlx4_bitmap_alloc(&priv->xrcd_bitmap);
 	if (*xrcdn == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -120,7 +120,7 @@ int mlx4_init_pd_table(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	return mlx4_bitmap_init(&priv->pd_bitmap, dev->caps.num_pds,
-				(1 << NOT_MASKED_PD_BITS) - 1,
+				(1 << ANALT_MASKED_PD_BITS) - 1,
 				 dev->caps.reserved_pds, 0);
 }
 
@@ -148,7 +148,7 @@ int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar)
 
 	uar->index = mlx4_bitmap_alloc(&mlx4_priv(dev)->uar_table.bitmap);
 	if (uar->index == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mlx4_is_slave(dev))
 		offset = uar->index % ((int)pci_resource_len(dev->persist->pdev,
@@ -169,7 +169,7 @@ void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar)
 }
 EXPORT_SYMBOL_GPL(mlx4_uar_free);
 
-int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
+int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int analde)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_uar *uar;
@@ -177,21 +177,21 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 	int idx;
 
 	if (!priv->bf_mapping)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&priv->bf_mutex);
 	if (!list_empty(&priv->bf_list))
 		uar = list_entry(priv->bf_list.next, struct mlx4_uar, bf_list);
 	else {
 		if (mlx4_bitmap_avail(&priv->uar_table.bitmap) < MLX4_NUM_RESERVED_UARS) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
-		uar = kmalloc_node(sizeof(*uar), GFP_KERNEL, node);
+		uar = kmalloc_analde(sizeof(*uar), GFP_KERNEL, analde);
 		if (!uar) {
 			uar = kmalloc(sizeof(*uar), GFP_KERNEL);
 			if (!uar) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto out;
 			}
 		}
@@ -201,7 +201,7 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 
 		uar->map = ioremap(uar->pfn << PAGE_SHIFT, PAGE_SIZE);
 		if (!uar->map) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_uar;
 		}
 
@@ -209,7 +209,7 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 						uar->index << PAGE_SHIFT,
 						PAGE_SIZE);
 		if (!uar->bf_map) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto unamp_uar;
 		}
 		uar->free_bf_bmap = 0;
@@ -281,7 +281,7 @@ int mlx4_init_uar_table(struct mlx4_dev *dev)
 			dev, "Only %d UAR pages (need more than %d)\n",
 			dev->caps.num_uars, num_reserved_uar);
 		mlx4_err(dev, "Increase firmware log2_uar_bar_megabytes?\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return mlx4_bitmap_init(&mlx4_priv(dev)->uar_table.bitmap,

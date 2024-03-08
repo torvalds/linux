@@ -75,7 +75,7 @@ static int gpio_mouse_probe(struct platform_device *pdev)
 
 	gmouse = devm_kzalloc(dev, sizeof(*gmouse), GFP_KERNEL);
 	if (!gmouse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Assign some default scanning time */
 	error = device_property_read_u32(dev, "scan-interval-ms",
@@ -112,7 +112,7 @@ static int gpio_mouse_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = pdev->name;
 	input->id.bustype = BUS_HOST;
@@ -136,7 +136,7 @@ static int gpio_mouse_probe(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error) {
-		dev_err(dev, "could not register input device\n");
+		dev_err(dev, "could analt register input device\n");
 		return error;
 	}
 
@@ -164,7 +164,7 @@ static struct platform_driver gpio_mouse_device_driver = {
 };
 module_platform_driver(gpio_mouse_device_driver);
 
-MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.anal>");
 MODULE_DESCRIPTION("GPIO mouse driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:gpio_mouse"); /* work with hotplug and coldplug */

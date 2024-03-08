@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -57,14 +57,14 @@
 #include "i915_scheduler.h"
 #include "intel_mchbar_regs.h"
 
-static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
+static inline struct drm_i915_private *analde_to_i915(struct drm_info_analde *analde)
 {
-	return to_i915(node->minor->dev);
+	return to_i915(analde->mianalr->dev);
 }
 
 static int i915_capabilities(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct drm_i915_private *i915 = analde_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(i915));
@@ -86,7 +86,7 @@ static char get_tiling_flag(struct drm_i915_gem_object *obj)
 {
 	switch (i915_gem_object_get_tiling(obj)) {
 	default:
-	case I915_TILING_NONE: return ' ';
+	case I915_TILING_ANALNE: return ' ';
 	case I915_TILING_X: return 'X';
 	case I915_TILING_Y: return 'Y';
 	}
@@ -154,7 +154,7 @@ static const char *i915_cache_level_str(struct drm_i915_gem_object *obj)
 		case 2: return " UC";
 		case 3: return " WB (1-Way Coh)";
 		case 4: return " WB (2-Way Coh)";
-		default: return " not defined";
+		default: return " analt defined";
 		}
 	} else if (IS_PONTEVECCHIO(i915)) {
 		switch (obj->pat_index) {
@@ -166,7 +166,7 @@ static const char *i915_cache_level_str(struct drm_i915_gem_object *obj)
 		case 5: return " WB (CLOS1)";
 		case 6: return " WT (CLOS2)";
 		case 7: return " WT (CLOS2)";
-		default: return " not defined";
+		default: return " analt defined";
 		}
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		switch (obj->pat_index) {
@@ -174,16 +174,16 @@ static const char *i915_cache_level_str(struct drm_i915_gem_object *obj)
 		case 1: return " WC";
 		case 2: return " WT";
 		case 3: return " UC";
-		default: return " not defined";
+		default: return " analt defined";
 		}
 	} else {
 		switch (obj->pat_index) {
 		case 0: return " UC";
 		case 1: return HAS_LLC(i915) ?
-			       " LLC" : " snooped";
+			       " LLC" : " sanaloped";
 		case 2: return " L3+LLC";
 		case 3: return " WT";
-		default: return " not defined";
+		default: return " analt defined";
 		}
 	}
 }
@@ -210,7 +210,7 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 
 	spin_lock(&obj->vma.lock);
 	list_for_each_entry(vma, &obj->vma.list, obj_link) {
-		if (!drm_mm_node_allocated(&vma->node))
+		if (!drm_mm_analde_allocated(&vma->analde))
 			continue;
 
 		spin_unlock(&obj->vma.lock);
@@ -225,8 +225,8 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 						NULL, 0));
 		if (i915_vma_is_ggtt(vma) || i915_vma_is_dpt(vma)) {
 			switch (vma->gtt_view.type) {
-			case I915_GTT_VIEW_NORMAL:
-				seq_puts(m, ", normal");
+			case I915_GTT_VIEW_ANALRMAL:
+				seq_puts(m, ", analrmal");
 				break;
 
 			case I915_GTT_VIEW_PARTIAL:
@@ -285,7 +285,7 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 
 static int i915_gem_object_info(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct drm_i915_private *i915 = analde_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 	struct intel_memory_region *mr;
 	enum intel_region_id id;
@@ -302,7 +302,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 
 static int i915_frequency_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct drm_i915_private *i915 = analde_to_i915(m->private);
 	struct intel_gt *gt = to_gt(i915);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -314,8 +314,8 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 static const char *swizzle_string(unsigned swizzle)
 {
 	switch (swizzle) {
-	case I915_BIT_6_SWIZZLE_NONE:
-		return "none";
+	case I915_BIT_6_SWIZZLE_ANALNE:
+		return "analne";
 	case I915_BIT_6_SWIZZLE_9:
 		return "bit9";
 	case I915_BIT_6_SWIZZLE_9_10:
@@ -328,8 +328,8 @@ static const char *swizzle_string(unsigned swizzle)
 		return "bit9/bit17";
 	case I915_BIT_6_SWIZZLE_9_10_17:
 		return "bit9/bit10/bit17";
-	case I915_BIT_6_SWIZZLE_UNKNOWN:
-		return "unknown";
+	case I915_BIT_6_SWIZZLE_UNKANALWN:
+		return "unkanalwn";
 	}
 
 	return "bug";
@@ -337,7 +337,7 @@ static const char *swizzle_string(unsigned swizzle)
 
 static int i915_swizzle_info(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *dev_priv = analde_to_i915(m->private);
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	intel_wakeref_t wakeref;
 
@@ -349,7 +349,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	if (dev_priv->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES)
 		seq_puts(m, "L-shaped memory detected\n");
 
-	/* On BDW+, swizzling is not used. See detect_bit_6_swizzle() */
+	/* On BDW+, swizzling is analt used. See detect_bit_6_swizzle() */
 	if (GRAPHICS_VER(dev_priv) >= 8 || IS_VALLEYVIEW(dev_priv))
 		return 0;
 
@@ -390,14 +390,14 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *dev_priv = analde_to_i915(m->private);
 	struct intel_rps *rps = &to_gt(dev_priv)->rps;
 
 	seq_printf(m, "RPS enabled? %s\n",
-		   str_yes_no(intel_rps_is_enabled(rps)));
+		   str_anal_anal(intel_rps_is_enabled(rps)));
 	seq_printf(m, "RPS active? %s\n",
-		   str_yes_no(intel_rps_is_active(rps)));
-	seq_printf(m, "GPU busy? %s\n", str_yes_no(to_gt(dev_priv)->awake));
+		   str_anal_anal(intel_rps_is_active(rps)));
+	seq_printf(m, "GPU busy? %s\n", str_anal_anal(to_gt(dev_priv)->awake));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));
@@ -421,18 +421,18 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 
 static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *dev_priv = analde_to_i915(m->private);
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
 	if (!HAS_RUNTIME_PM(dev_priv))
-		seq_puts(m, "Runtime power management not supported\n");
+		seq_puts(m, "Runtime power management analt supported\n");
 
 	seq_printf(m, "Runtime power status: %s\n",
 		   str_enabled_disabled(!dev_priv->display.power.domains.init_wakeref));
 
-	seq_printf(m, "GPU idle: %s\n", str_yes_no(!to_gt(dev_priv)->awake));
+	seq_printf(m, "GPU idle: %s\n", str_anal_anal(!to_gt(dev_priv)->awake));
 	seq_printf(m, "IRQs disabled: %s\n",
-		   str_yes_no(!intel_irqs_enabled(dev_priv)));
+		   str_anal_anal(!intel_irqs_enabled(dev_priv)));
 #ifdef CONFIG_PM
 	seq_printf(m, "Usage count: %d\n",
 		   atomic_read(&dev_priv->drm.dev->power.usage_count));
@@ -454,7 +454,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 
 static int i915_engine_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct drm_i915_private *i915 = analde_to_i915(m->private);
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
 	struct drm_printer p;
@@ -462,7 +462,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	seq_printf(m, "GT awake? %s [%d], %llums\n",
-		   str_yes_no(to_gt(i915)->awake),
+		   str_anal_anal(to_gt(i915)->awake),
 		   atomic_read(&to_gt(i915)->wakeref.count),
 		   ktime_to_ms(intel_gt_get_awake_time(to_gt(i915))));
 	seq_printf(m, "CS timestamp frequency: %u Hz, %d ns\n",
@@ -482,7 +482,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 static int i915_wa_registers(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct drm_i915_private *i915 = analde_to_i915(m->private);
 	struct intel_engine_cs *engine;
 
 	for_each_uabi_engine(engine, i915) {
@@ -548,7 +548,7 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			"%llu\n");
 
 static int
-i915_perf_noa_delay_set(void *data, u64 val)
+i915_perf_anala_delay_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
 
@@ -559,22 +559,22 @@ i915_perf_noa_delay_set(void *data, u64 val)
 	if (intel_gt_ns_to_clock_interval(to_gt(i915), val) > U32_MAX)
 		return -EINVAL;
 
-	atomic64_set(&i915->perf.noa_programming_delay, val);
+	atomic64_set(&i915->perf.anala_programming_delay, val);
 	return 0;
 }
 
 static int
-i915_perf_noa_delay_get(void *data, u64 *val)
+i915_perf_anala_delay_get(void *data, u64 *val)
 {
 	struct drm_i915_private *i915 = data;
 
-	*val = atomic64_read(&i915->perf.noa_programming_delay);
+	*val = atomic64_read(&i915->perf.anala_programming_delay);
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(i915_perf_noa_delay_fops,
-			i915_perf_noa_delay_get,
-			i915_perf_noa_delay_set,
+DEFINE_SIMPLE_ATTRIBUTE(i915_perf_anala_delay_fops,
+			i915_perf_anala_delay_get,
+			i915_perf_anala_delay_set,
 			"%llu\n");
 
 #define DROP_UNBOUND	BIT(0)
@@ -585,7 +585,7 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_perf_noa_delay_fops,
 #define DROP_SHRINK_ALL	BIT(5)
 #define DROP_IDLE	BIT(6)
 #define DROP_RESET_ACTIVE	BIT(7)
-#define DROP_RESET_SEQNO	BIT(8)
+#define DROP_RESET_SEQANAL	BIT(8)
 #define DROP_RCU	BIT(9)
 #define DROP_ALL (DROP_UNBOUND	| \
 		  DROP_BOUND	| \
@@ -595,7 +595,7 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_perf_noa_delay_fops,
 		  DROP_SHRINK_ALL |\
 		  DROP_IDLE	| \
 		  DROP_RESET_ACTIVE | \
-		  DROP_RESET_SEQNO | \
+		  DROP_RESET_SEQANAL | \
 		  DROP_RCU)
 static int
 i915_drop_caches_get(void *data, u64 *val)
@@ -657,7 +657,7 @@ i915_drop_caches_set(void *data, u64 val)
 	}
 
 	fs_reclaim_acquire(GFP_KERNEL);
-	flags = memalloc_noreclaim_save();
+	flags = memalloc_analreclaim_save();
 	if (val & DROP_BOUND)
 		i915_gem_shrink(NULL, i915, LONG_MAX, NULL, I915_SHRINK_BOUND);
 
@@ -666,7 +666,7 @@ i915_drop_caches_set(void *data, u64 val)
 
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(i915);
-	memalloc_noreclaim_restore(flags);
+	memalloc_analreclaim_restore(flags);
 	fs_reclaim_release(GFP_KERNEL);
 
 	if (val & DROP_RCU)
@@ -684,15 +684,15 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_drop_caches_fops,
 
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct drm_i915_private *i915 = analde_to_i915(m->private);
 	struct intel_gt *gt = to_gt(i915);
 
 	return intel_sseu_status(m, gt);
 }
 
-static int i915_forcewake_open(struct inode *inode, struct file *file)
+static int i915_forcewake_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_i915_private *i915 = inode->i_private;
+	struct drm_i915_private *i915 = ianalde->i_private;
 	struct intel_gt *gt;
 	unsigned int i;
 
@@ -702,9 +702,9 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int i915_forcewake_release(struct inode *inode, struct file *file)
+static int i915_forcewake_release(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_i915_private *i915 = inode->i_private;
+	struct drm_i915_private *i915 = ianalde->i_private;
 	struct intel_gt *gt;
 	unsigned int i;
 
@@ -736,31 +736,31 @@ static const struct i915_debugfs_files {
 	const char *name;
 	const struct file_operations *fops;
 } i915_debugfs_files[] = {
-	{"i915_perf_noa_delay", &i915_perf_noa_delay_fops},
+	{"i915_perf_anala_delay", &i915_perf_anala_delay_fops},
 	{"i915_wedged", &i915_wedged_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 };
 
 void i915_debugfs_register(struct drm_i915_private *dev_priv)
 {
-	struct drm_minor *minor = dev_priv->drm.primary;
+	struct drm_mianalr *mianalr = dev_priv->drm.primary;
 	int i;
 
 	i915_debugfs_params(dev_priv);
 
-	debugfs_create_file("i915_forcewake_user", S_IRUSR, minor->debugfs_root,
-			    to_i915(minor->dev), &i915_forcewake_fops);
+	debugfs_create_file("i915_forcewake_user", S_IRUSR, mianalr->debugfs_root,
+			    to_i915(mianalr->dev), &i915_forcewake_fops);
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
 		debugfs_create_file(i915_debugfs_files[i].name,
 				    S_IRUGO | S_IWUSR,
-				    minor->debugfs_root,
-				    to_i915(minor->dev),
+				    mianalr->debugfs_root,
+				    to_i915(mianalr->dev),
 				    i915_debugfs_files[i].fops);
 	}
 
 	drm_debugfs_create_files(i915_debugfs_list,
 				 ARRAY_SIZE(i915_debugfs_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 
 	i915_gpu_error_debugfs_register(dev_priv);
 }

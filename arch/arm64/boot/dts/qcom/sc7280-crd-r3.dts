@@ -2,7 +2,7 @@
 /*
  * sc7280 CRD board device tree source
  *
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -11,7 +11,7 @@
 #include "sc7280-idp-ec-h1.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. sc7280 CRD platform (rev3 - 4)";
+	model = "Qualcomm Techanallogies, Inc. sc7280 CRD platform (rev3 - 4)";
 	compatible = "qcom,sc7280-crd",
 		     "google,hoglin-rev3", "google,hoglin-rev4",
 		     "google,piglin-rev3", "google,piglin-rev4",

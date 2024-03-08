@@ -6,7 +6,7 @@
  * Daniel Pirkl <daniel.pirkl@email.cz>
  * Charles University, Faculty of Mathematics and Physics
  *
- *  ext2 - inode (block) bitmap caching inspired
+ *  ext2 - ianalde (block) bitmap caching inspired
  */
 
 #include <linux/fs.h>
@@ -27,7 +27,7 @@
  * structure is already allocated during ufs_read_super.
  */
 static void ufs_read_cylinder (struct super_block * sb,
-	unsigned cgno, unsigned bitmap_nr)
+	unsigned cganal, unsigned bitmap_nr)
 {
 	struct ufs_sb_info * sbi = UFS_SB(sb);
 	struct ufs_sb_private_info * uspi;
@@ -35,21 +35,21 @@ static void ufs_read_cylinder (struct super_block * sb,
 	struct ufs_cylinder_group * ucg;
 	unsigned i, j;
 
-	UFSD("ENTER, cgno %u, bitmap_nr %u\n", cgno, bitmap_nr);
+	UFSD("ENTER, cganal %u, bitmap_nr %u\n", cganal, bitmap_nr);
 	uspi = sbi->s_uspi;
 	ucpi = sbi->s_ucpi[bitmap_nr];
-	ucg = (struct ufs_cylinder_group *)sbi->s_ucg[cgno]->b_data;
+	ucg = (struct ufs_cylinder_group *)sbi->s_ucg[cganal]->b_data;
 
-	UCPI_UBH(ucpi)->fragment = ufs_cgcmin(cgno);
+	UCPI_UBH(ucpi)->fragment = ufs_cgcmin(cganal);
 	UCPI_UBH(ucpi)->count = uspi->s_cgsize >> sb->s_blocksize_bits;
 	/*
 	 * We have already the first fragment of cylinder group block in buffer
 	 */
-	UCPI_UBH(ucpi)->bh[0] = sbi->s_ucg[cgno];
+	UCPI_UBH(ucpi)->bh[0] = sbi->s_ucg[cganal];
 	for (i = 1; i < UCPI_UBH(ucpi)->count; i++)
 		if (!(UCPI_UBH(ucpi)->bh[i] = sb_bread(sb, UCPI_UBH(ucpi)->fragment + i)))
 			goto failed;
-	sbi->s_cgno[bitmap_nr] = cgno;
+	sbi->s_cganal[bitmap_nr] = cganal;
 			
 	ucpi->c_cgx	= fs32_to_cpu(sb, ucg->cg_cgx);
 	ucpi->c_ncyl	= fs16_to_cpu(sb, ucg->cg_ncyl);
@@ -72,8 +72,8 @@ static void ufs_read_cylinder (struct super_block * sb,
 failed:
 	for (j = 1; j < i; j++)
 		brelse (sbi->s_ucg[j]);
-	sbi->s_cgno[bitmap_nr] = UFS_CGNO_EMPTY;
-	ufs_error (sb, "ufs_read_cylinder", "can't read cylinder group block %u", cgno);
+	sbi->s_cganal[bitmap_nr] = UFS_CGANAL_EMPTY;
+	ufs_error (sb, "ufs_read_cylinder", "can't read cylinder group block %u", cganal);
 }
 
 /*
@@ -91,7 +91,7 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 	UFSD("ENTER, bitmap_nr %u\n", bitmap_nr);
 
 	uspi = sbi->s_uspi;
-	if (sbi->s_cgno[bitmap_nr] == UFS_CGNO_EMPTY) {
+	if (sbi->s_cganal[bitmap_nr] == UFS_CGANAL_EMPTY) {
 		UFSD("EXIT\n");
 		return;
 	}
@@ -103,7 +103,7 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 		return;
 	}
 	/*
-	 * rotor is not so important data, so we put it to disk 
+	 * rotor is analt so important data, so we put it to disk 
 	 * at the end of working with cylinder
 	 */
 	ucg->cg_rotor = cpu_to_fs32(sb, ucpi->c_rotor);
@@ -114,74 +114,74 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 		brelse (UCPI_UBH(ucpi)->bh[i]);
 	}
 
-	sbi->s_cgno[bitmap_nr] = UFS_CGNO_EMPTY;
+	sbi->s_cganal[bitmap_nr] = UFS_CGANAL_EMPTY;
 	UFSD("EXIT\n");
 }
 
 /*
  * Find cylinder group in cache and return it as pointer.
- * If cylinder group is not in cache, we will load it from disk.
+ * If cylinder group is analt in cache, we will load it from disk.
  *
  * The cache is managed by LRU algorithm. 
  */
 struct ufs_cg_private_info * ufs_load_cylinder (
-	struct super_block * sb, unsigned cgno)
+	struct super_block * sb, unsigned cganal)
 {
 	struct ufs_sb_info * sbi = UFS_SB(sb);
 	struct ufs_sb_private_info * uspi;
 	struct ufs_cg_private_info * ucpi;
 	unsigned cg, i, j;
 
-	UFSD("ENTER, cgno %u\n", cgno);
+	UFSD("ENTER, cganal %u\n", cganal);
 
 	uspi = sbi->s_uspi;
-	if (cgno >= uspi->s_ncg) {
+	if (cganal >= uspi->s_ncg) {
 		ufs_panic (sb, "ufs_load_cylinder", "internal error, high number of cg");
 		return NULL;
 	}
 	/*
 	 * Cylinder group number cg it in cache and it was last used
 	 */
-	if (sbi->s_cgno[0] == cgno) {
+	if (sbi->s_cganal[0] == cganal) {
 		UFSD("EXIT\n");
 		return sbi->s_ucpi[0];
 	}
 	/*
-	 * Number of cylinder groups is not higher than UFS_MAX_GROUP_LOADED
+	 * Number of cylinder groups is analt higher than UFS_MAX_GROUP_LOADED
 	 */
 	if (uspi->s_ncg <= UFS_MAX_GROUP_LOADED) {
-		if (sbi->s_cgno[cgno] != UFS_CGNO_EMPTY) {
-			if (sbi->s_cgno[cgno] != cgno) {
+		if (sbi->s_cganal[cganal] != UFS_CGANAL_EMPTY) {
+			if (sbi->s_cganal[cganal] != cganal) {
 				ufs_panic (sb, "ufs_load_cylinder", "internal error, wrong number of cg in cache");
 				UFSD("EXIT (FAILED)\n");
 				return NULL;
 			}
 			else {
 				UFSD("EXIT\n");
-				return sbi->s_ucpi[cgno];
+				return sbi->s_ucpi[cganal];
 			}
 		} else {
-			ufs_read_cylinder (sb, cgno, cgno);
+			ufs_read_cylinder (sb, cganal, cganal);
 			UFSD("EXIT\n");
-			return sbi->s_ucpi[cgno];
+			return sbi->s_ucpi[cganal];
 		}
 	}
 	/*
-	 * Cylinder group number cg is in cache but it was not last used, 
+	 * Cylinder group number cg is in cache but it was analt last used, 
 	 * we will move to the first position
 	 */
-	for (i = 0; i < sbi->s_cg_loaded && sbi->s_cgno[i] != cgno; i++);
-	if (i < sbi->s_cg_loaded && sbi->s_cgno[i] == cgno) {
-		cg = sbi->s_cgno[i];
+	for (i = 0; i < sbi->s_cg_loaded && sbi->s_cganal[i] != cganal; i++);
+	if (i < sbi->s_cg_loaded && sbi->s_cganal[i] == cganal) {
+		cg = sbi->s_cganal[i];
 		ucpi = sbi->s_ucpi[i];
 		for (j = i; j > 0; j--) {
-			sbi->s_cgno[j] = sbi->s_cgno[j-1];
+			sbi->s_cganal[j] = sbi->s_cganal[j-1];
 			sbi->s_ucpi[j] = sbi->s_ucpi[j-1];
 		}
-		sbi->s_cgno[0] = cg;
+		sbi->s_cganal[0] = cg;
 		sbi->s_ucpi[0] = ucpi;
 	/*
-	 * Cylinder group number cg is not in cache, we will read it from disk
+	 * Cylinder group number cg is analt in cache, we will read it from disk
 	 * and put it to the first position
 	 */
 	} else {
@@ -191,11 +191,11 @@ struct ufs_cg_private_info * ufs_load_cylinder (
 			ufs_put_cylinder (sb, UFS_MAX_GROUP_LOADED-1);
 		ucpi = sbi->s_ucpi[sbi->s_cg_loaded - 1];
 		for (j = sbi->s_cg_loaded - 1; j > 0; j--) {
-			sbi->s_cgno[j] = sbi->s_cgno[j-1];
+			sbi->s_cganal[j] = sbi->s_cganal[j-1];
 			sbi->s_ucpi[j] = sbi->s_ucpi[j-1];
 		}
 		sbi->s_ucpi[0] = ucpi;
-		ufs_read_cylinder (sb, cgno, 0);
+		ufs_read_cylinder (sb, cganal, 0);
 	}
 	UFSD("EXIT\n");
 	return sbi->s_ucpi[0];

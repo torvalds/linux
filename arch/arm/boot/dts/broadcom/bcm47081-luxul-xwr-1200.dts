@@ -42,25 +42,25 @@
 		led-lan3 {
 			label = "bcm53xx:green:lan3";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-lan4 {
 			label = "bcm53xx:green:lan4";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-wan {
 			label = "bcm53xx:green:wan";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-lan2 {
 			label = "bcm53xx:green:lan2";
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-usb {
@@ -79,19 +79,19 @@
 		led-2ghz {
 			label = "bcm53xx:green:2ghz";
 			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-5ghz {
 			label = "bcm53xx:green:5ghz";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-lan1 {
 			label = "bcm53xx:green:lan1";
 			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 	};
 
@@ -115,7 +115,7 @@
 	nvmem-cell-names = "mac-address";
 };
 
-&spi_nor {
+&spi_analr {
 	status = "okay";
 };
 

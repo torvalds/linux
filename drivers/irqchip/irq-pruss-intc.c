@@ -9,7 +9,7 @@
  *	Suman Anna <s-anna@ti.com>
  *	Grzegorz Jaszczyk <grzegorz.jaszczyk@linaro.org> for Texas Instruments
  *
- * Copyright (C) 2019 David Lechner <david@lechnology.com>
+ * Copyright (C) 2019 David Lechner <david@lechanallogy.com>
  */
 
 #include <linux/interrupt.h>
@@ -21,8 +21,8 @@
 #include <linux/platform_device.h>
 
 /*
- * Number of host interrupts reaching the main MPU sub-system. Note that this
- * is not the same as the total number of host interrupts supported by the PRUSS
+ * Number of host interrupts reaching the main MPU sub-system. Analte that this
+ * is analt the same as the total number of host interrupts supported by the PRUSS
  * INTC instance
  */
 #define MAX_NUM_HOST_IRQS	8
@@ -65,7 +65,7 @@
 #define HMR_CH_PER_REG		4
 
 /* HIPIR register bit-fields */
-#define INTC_HIPIR_NONE_HINT	0x80000000
+#define INTC_HIPIR_ANALNE_HINT	0x80000000
 
 #define MAX_PRU_SYS_EVENTS 160
 #define MAX_PRU_CHANNELS 20
@@ -217,7 +217,7 @@ static void pruss_intc_map(struct pruss_intc *intc, unsigned long hwirq)
  *
  * Undo whatever was done in pruss_intc_map() for a PRU core.
  * Mappings are reference counted, so resources are only disabled when there
- * are no longer any users.
+ * are anal longer any users.
  */
 static void pruss_intc_unmap(struct pruss_intc *intc, unsigned long hwirq)
 {
@@ -314,7 +314,7 @@ static void pruss_intc_irq_unmask(struct irq_data *data)
 static int pruss_intc_irq_reqres(struct irq_data *data)
 {
 	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -407,7 +407,7 @@ unlock:
 }
 
 static int
-pruss_intc_irq_domain_xlate(struct irq_domain *d, struct device_node *node,
+pruss_intc_irq_domain_xlate(struct irq_domain *d, struct device_analde *analde,
 			    const u32 *intspec, unsigned int intsize,
 			    unsigned long *out_hwirq, unsigned int *out_type)
 {
@@ -420,19 +420,19 @@ pruss_intc_irq_domain_xlate(struct irq_domain *d, struct device_node *node,
 
 	sys_event = intspec[0];
 	if (sys_event < 0 || sys_event >= intc->soc_config->num_system_events) {
-		dev_err(dev, "%d is not valid event number\n", sys_event);
+		dev_err(dev, "%d is analt valid event number\n", sys_event);
 		return -EINVAL;
 	}
 
 	channel = intspec[1];
 	if (channel < 0 || channel >= intc->soc_config->num_host_events) {
-		dev_err(dev, "%d is not valid channel number", channel);
+		dev_err(dev, "%d is analt valid channel number", channel);
 		return -EINVAL;
 	}
 
 	host = intspec[2];
 	if (host < 0 || host >= intc->soc_config->num_host_events) {
-		dev_err(dev, "%d is not valid host irq number\n", host);
+		dev_err(dev, "%d is analt valid host irq number\n", host);
 		return -EINVAL;
 	}
 
@@ -492,14 +492,14 @@ static void pruss_intc_irq_handler(struct irq_desc *desc)
 
 		/* get highest priority pending PRUSS system event */
 		hipir = pruss_intc_read_reg(intc, PRU_INTC_HIPIR(host_irq));
-		if (hipir & INTC_HIPIR_NONE_HINT)
+		if (hipir & INTC_HIPIR_ANALNE_HINT)
 			break;
 
 		hwirq = hipir & GENMASK(9, 0);
 		err = generic_handle_domain_irq(intc->domain, hwirq);
 
 		/*
-		 * NOTE: manually ACK any system events that do not have a
+		 * ANALTE: manually ACK any system events that do analt have a
 		 * handler mapped yet
 		 */
 		if (WARN_ON_ONCE(err))
@@ -525,13 +525,13 @@ static int pruss_intc_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	max_system_events = data->num_system_events;
 
 	intc = devm_kzalloc(dev, sizeof(*intc), GFP_KERNEL);
 	if (!intc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intc->soc_config = data;
 	intc->dev = dev;
@@ -541,11 +541,11 @@ static int pruss_intc_probe(struct platform_device *pdev)
 	if (IS_ERR(intc->base))
 		return PTR_ERR(intc->base);
 
-	ret = of_property_read_u8(dev->of_node, "ti,irqs-reserved",
+	ret = of_property_read_u8(dev->of_analde, "ti,irqs-reserved",
 				  &irqs_reserved);
 
 	/*
-	 * The irqs-reserved is used only for some SoC's therefore not having
+	 * The irqs-reserved is used only for some SoC's therefore analt having
 	 * this property is still valid
 	 */
 	if (ret < 0 && ret != -EINVAL)
@@ -555,10 +555,10 @@ static int pruss_intc_probe(struct platform_device *pdev)
 
 	mutex_init(&intc->lock);
 
-	intc->domain = irq_domain_add_linear(dev->of_node, max_system_events,
+	intc->domain = irq_domain_add_linear(dev->of_analde, max_system_events,
 					     &pruss_intc_irq_domain_ops, intc);
 	if (!intc->domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MAX_NUM_HOST_IRQS; i++) {
 		if (irqs_reserved & BIT(i))
@@ -574,7 +574,7 @@ static int pruss_intc_probe(struct platform_device *pdev)
 
 		host_data = devm_kzalloc(dev, sizeof(*host_data), GFP_KERNEL);
 		if (!host_data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_irq;
 		}
 

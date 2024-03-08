@@ -3,7 +3,7 @@
 // test-component.c  --  Test Audio Component driver
 //
 // Copyright (C) 2020 Renesas Electronics Corporation
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -71,7 +71,7 @@ static int test_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	dev_info(dai->dev, "name   : %s", dai->name);
 
-	str = "unknown";
+	str = "unkanalwn";
 	switch (format) {
 	case SND_SOC_DAIFMT_I2S:
 		str = "i2s";
@@ -103,7 +103,7 @@ static int test_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		str = "gated";
 	dev_info(dai->dev, "clock  : %s", str);
 
-	str = "unknown";
+	str = "unkanalwn";
 	switch (master) {
 	case SND_SOC_DAIFMT_BP_FP:
 		str = "clk provider, frame provider";
@@ -120,16 +120,16 @@ static int test_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 	dev_info(dai->dev, "clock  : codec is %s", str);
 
-	str = "unknown";
+	str = "unkanalwn";
 	switch (inv) {
 	case SND_SOC_DAIFMT_NB_NF:
-		str = "normal bit, normal frame";
+		str = "analrmal bit, analrmal frame";
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		str = "normal bit, invert frame";
+		str = "analrmal bit, invert frame";
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		str = "invert bit, normal frame";
+		str = "invert bit, analrmal frame";
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
 		str = "invert bit, invert frame";
@@ -191,7 +191,7 @@ static int test_dai_bespoke_trigger(struct snd_pcm_substream *substream,
 
 static u64 test_dai_formats =
 	/*
-	 * Select below from Sound Card, not auto
+	 * Select below from Sound Card, analt auto
 	 *	SND_SOC_POSSIBLE_DAIFMT_BP_FP
 	 *	SND_SOC_POSSIBLE_DAIFMT_BC_FP
 	 *	SND_SOC_POSSIBLE_DAIFMT_BP_FC
@@ -315,7 +315,7 @@ static int test_component_set_jack(struct snd_soc_component *component,
 	return 0;
 }
 
-static void test_component_seq_notifier(struct snd_soc_component *component,
+static void test_component_seq_analtifier(struct snd_soc_component *component,
 					enum snd_soc_dapm_type type, int subseq)
 {
 	mile_stone(component);
@@ -357,7 +357,7 @@ static int test_component_open(struct snd_soc_component *component,
 	mile_stone(component);
 
 	/* BE's dont need dummy params */
-	if (!rtd->dai_link->no_pcm)
+	if (!rtd->dai_link->anal_pcm)
 		snd_soc_set_runtime_hwparams(substream, &test_component_hardware);
 
 	return 0;
@@ -519,7 +519,7 @@ static const struct snd_soc_dapm_widget widgets[] = {
 	/*
 	 * FIXME
 	 *
-	 * Just IN/OUT is OK for now,
+	 * Just IN/OUT is OK for analw,
 	 * but need to be updated ?
 	 */
 	SND_SOC_DAPM_INPUT("IN"),
@@ -529,8 +529,8 @@ static const struct snd_soc_dapm_widget widgets[] = {
 static int test_driver_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *ep;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *ep;
 	const struct test_adata *adata = of_device_get_match_data(&pdev->dev);
 	struct snd_soc_component_driver *cdriv;
 	struct snd_soc_dai_driver *ddriv;
@@ -538,9 +538,9 @@ static int test_driver_probe(struct platform_device *pdev)
 	struct test_priv *priv;
 	int num, ret, i;
 
-	num = of_graph_get_endpoint_count(node);
+	num = of_graph_get_endpoint_count(analde);
 	if (!num) {
-		dev_err(dev, "no port exits\n");
+		dev_err(dev, "anal port exits\n");
 		return -EINVAL;
 	}
 
@@ -583,7 +583,7 @@ static int test_driver_probe(struct platform_device *pdev)
 		cdriv->set_sysclk		= test_component_set_sysclk;
 		cdriv->set_pll			= test_component_set_pll;
 		cdriv->set_jack			= test_component_set_jack;
-		cdriv->seq_notifier		= test_component_seq_notifier;
+		cdriv->seq_analtifier		= test_component_seq_analtifier;
 		cdriv->stream_event		= test_component_stream_event;
 		cdriv->set_bias_level		= test_component_set_bias_level;
 		cdriv->close			= test_component_close;
@@ -600,8 +600,8 @@ static int test_driver_probe(struct platform_device *pdev)
 	}
 
 	i = 0;
-	for_each_endpoint_of_node(node, ep) {
-		snprintf(dname[i].name, TEST_NAME_LEN, "%s.%d", node->name, i);
+	for_each_endpoint_of_analde(analde, ep) {
+		snprintf(dname[i].name, TEST_NAME_LEN, "%s.%d", analde->name, i);
 		ddriv[i].name = dname[i].name;
 
 		snprintf(dname[i].name_playback, TEST_NAME_LEN, "DAI%d Playback", i);
@@ -651,6 +651,6 @@ static struct platform_driver test_driver = {
 module_platform_driver(test_driver);
 
 MODULE_ALIAS("platform:asoc-test-component");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");
 MODULE_DESCRIPTION("ASoC Test Component");
 MODULE_LICENSE("GPL v2");

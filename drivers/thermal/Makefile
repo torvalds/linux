@@ -16,7 +16,7 @@ thermal_sys-$(CONFIG_THERMAL_DEBUGFS)	+= thermal_debugfs.o
 thermal_sys-$(CONFIG_THERMAL_HWMON)		+= thermal_hwmon.o
 thermal_sys-$(CONFIG_THERMAL_OF)		+= thermal_of.o
 
-# governors
+# goveranalrs
 CFLAGS_gov_power_allocator.o			:= -I$(src)
 thermal_sys-$(CONFIG_THERMAL_GOV_FAIR_SHARE)	+= gov_fair_share.o
 thermal_sys-$(CONFIG_THERMAL_GOV_BANG_BANG)	+= gov_bang_bang.o

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. */
 
 #ifndef MLX5_CORE_EQ_H
 #define MLX5_CORE_EQ_H
@@ -23,9 +23,9 @@ mlx5_eq_create_generic(struct mlx5_core_dev *dev, struct mlx5_eq_param *param);
 int
 mlx5_eq_destroy_generic(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-		   struct notifier_block *nb);
+		   struct analtifier_block *nb);
 void mlx5_eq_disable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-		     struct notifier_block *nb);
+		     struct analtifier_block *nb);
 
 struct mlx5_eqe *mlx5_eq_get_eqe(struct mlx5_eq *eq, u32 cc);
 void mlx5_eq_update_ci(struct mlx5_eq *eq, u32 cc, bool arm);
@@ -48,7 +48,7 @@ static inline u32 mlx5_eq_update_cc(struct mlx5_eq *eq, u32 cc)
 }
 
 struct mlx5_nb {
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	u8 event_type;
 };
 
@@ -56,7 +56,7 @@ struct mlx5_nb {
 	(container_of(container_of(ptr, struct mlx5_nb, nb), type, member))
 
 #define MLX5_NB_INIT(name, handler, event) do {              \
-	(name)->nb.notifier_call = handler;                  \
+	(name)->nb.analtifier_call = handler;                  \
 	(name)->event_type = MLX5_EVENT_TYPE_##event;        \
 } while (0)
 

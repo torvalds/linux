@@ -97,14 +97,14 @@ struct regmap {
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
-	bool (*writeable_noinc_reg)(struct device *dev, unsigned int reg);
-	bool (*readable_noinc_reg)(struct device *dev, unsigned int reg);
+	bool (*writeable_analinc_reg)(struct device *dev, unsigned int reg);
+	bool (*readable_analinc_reg)(struct device *dev, unsigned int reg);
 	const struct regmap_access_table *wr_table;
 	const struct regmap_access_table *rd_table;
 	const struct regmap_access_table *volatile_table;
 	const struct regmap_access_table *precious_table;
-	const struct regmap_access_table *wr_noinc_table;
-	const struct regmap_access_table *rd_noinc_table;
+	const struct regmap_access_table *wr_analinc_table;
+	const struct regmap_access_table *rd_analinc_table;
 
 	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
 	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
@@ -141,9 +141,9 @@ struct regmap {
 	/* number of entries in reg_defaults_raw */
 	unsigned int num_reg_defaults_raw;
 
-	/* if set, only the cache is modified not the HW */
+	/* if set, only the cache is modified analt the HW */
 	bool cache_only;
-	/* if set, only the HW is modified not the cache */
+	/* if set, only the HW is modified analt the cache */
 	bool cache_bypass;
 	/* if set, remember to free reg_defaults_raw */
 	bool cache_free;
@@ -153,8 +153,8 @@ struct regmap {
 	void *cache;
 	/* if set, the cache contains newer data than the HW */
 	bool cache_dirty;
-	/* if set, the HW registers are known to match map->reg_defaults */
-	bool no_sync_defaults;
+	/* if set, the HW registers are kanalwn to match map->reg_defaults */
+	bool anal_sync_defaults;
 
 	struct reg_sequence *patch;
 	int patch_regs;
@@ -198,14 +198,14 @@ bool regmap_writeable(struct regmap *map, unsigned int reg);
 bool regmap_readable(struct regmap *map, unsigned int reg);
 bool regmap_volatile(struct regmap *map, unsigned int reg);
 bool regmap_precious(struct regmap *map, unsigned int reg);
-bool regmap_writeable_noinc(struct regmap *map, unsigned int reg);
-bool regmap_readable_noinc(struct regmap *map, unsigned int reg);
+bool regmap_writeable_analinc(struct regmap *map, unsigned int reg);
+bool regmap_readable_analinc(struct regmap *map, unsigned int reg);
 
 int _regmap_write(struct regmap *map, unsigned int reg,
 		  unsigned int val);
 
-struct regmap_range_node {
-	struct rb_node node;
+struct regmap_range_analde {
+	struct rb_analde analde;
 	const char *name;
 	struct regmap *map;
 
@@ -278,7 +278,7 @@ int regcache_lookup_reg(struct regmap *map, unsigned int reg);
 int regcache_sync_val(struct regmap *map, unsigned int reg, unsigned int val);
 
 int _regmap_raw_write(struct regmap *map, unsigned int reg,
-		      const void *val, size_t val_len, bool noinc);
+		      const void *val, size_t val_len, bool analinc);
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret);
 
@@ -318,11 +318,11 @@ struct regmap_ram_data {
 	bool *read;
 	bool *written;
 	enum regmap_endian reg_endian;
-	bool (*noinc_reg)(struct regmap_ram_data *data, unsigned int reg);
+	bool (*analinc_reg)(struct regmap_ram_data *data, unsigned int reg);
 };
 
 /*
- * Create a test register map with data stored in RAM, not intended
+ * Create a test register map with data stored in RAM, analt intended
  * for practical use.
  */
 struct regmap *__regmap_init_ram(const struct regmap_config *config,

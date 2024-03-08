@@ -22,7 +22,7 @@ void enable_copy_mc_fragile(void)
  * Similar to copy_user_handle_tail, probe for the write fault point, or
  * source exception point.
  */
-__visible notrace unsigned long
+__visible analtrace unsigned long
 copy_mc_fragile_handle_tail(char *to, char *from, unsigned len)
 {
 	for (; len; --len, to++, from++)
@@ -32,8 +32,8 @@ copy_mc_fragile_handle_tail(char *to, char *from, unsigned len)
 }
 #else
 /*
- * No point in doing careful copying, or consulting a static key when
- * there is no #MC handler in the CONFIG_X86_MCE=n case.
+ * Anal point in doing careful copying, or consulting a static key when
+ * there is anal #MC handler in the CONFIG_X86_MCE=n case.
  */
 void enable_copy_mc_fragile(void)
 {
@@ -56,7 +56,7 @@ unsigned long copy_mc_enhanced_fast_string(void *dst, const void *src, unsigned 
  * other uses case can use copy_mc_enhanced_fast_string() for a fast
  * recoverable copy, or fallback to plain memcpy.
  *
- * Return 0 for success, or number of bytes not copied if there was an
+ * Return 0 for success, or number of bytes analt copied if there was an
  * exception.
  */
 unsigned long __must_check copy_mc_to_kernel(void *dst, const void *src, unsigned len)

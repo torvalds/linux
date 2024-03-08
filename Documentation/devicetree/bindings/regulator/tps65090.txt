@@ -4,9 +4,9 @@ Required properties:
 - compatible: "ti,tps65090"
 - reg: I2C slave address
 - interrupts: the interrupt outputs of the controller
-- regulators: A node that houses a sub-node for each regulator within the
-  device. Each sub-node is identified using the node's name, with valid
-  values listed below. The content of each sub-node is defined by the
+- regulators: A analde that houses a sub-analde for each regulator within the
+  device. Each sub-analde is identified using the analde's name, with valid
+  values listed below. The content of each sub-analde is defined by the
   standard binding for regulators; see regulator.txt.
   dcdc[1-3], fet[1-7] and ldo[1-2] respectively.
 - vsys[1-3]-supply: The input supply for DCDC[1-3] respectively.
@@ -18,9 +18,9 @@ Optional properties:
   If DCDCs are externally controlled then this property should be there.
 - dcdc-ext-control-gpios: This is applicable for DCDC1, DCDC2 and DCDC3.
   If DCDCs are externally controlled and if it is from GPIO then GPIO
-  number should be provided. If it is externally controlled and no GPIO
+  number should be provided. If it is externally controlled and anal GPIO
   entry then driver will just configure this rails as external control
-  and will not provide any enable/disable APIs.
+  and will analt provide any enable/disable APIs.
 - ti,overcurrent-wait: This is applicable to FET registers, which have a
   poorly defined "overcurrent wait" field.  If this property is present it
   should be between 0 - 3.  If this property isn't present we won't touch the

@@ -185,13 +185,13 @@ static int sgm3140_probe(struct platform_device *pdev)
 	struct led_classdev *led_cdev;
 	struct led_classdev_flash *fled_cdev;
 	struct led_init_data init_data = {};
-	struct fwnode_handle *child_node;
+	struct fwanalde_handle *child_analde;
 	struct v4l2_flash_config v4l2_sd_cfg = {};
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->flash_gpio = devm_gpiod_get(&pdev->dev, "flash", GPIOD_OUT_LOW);
 	ret = PTR_ERR_OR_ZERO(priv->flash_gpio);
@@ -211,15 +211,15 @@ static int sgm3140_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to request regulator\n");
 
-	child_node = fwnode_get_next_available_child_node(pdev->dev.fwnode,
+	child_analde = fwanalde_get_next_available_child_analde(pdev->dev.fwanalde,
 							  NULL);
-	if (!child_node) {
+	if (!child_analde) {
 		dev_err(&pdev->dev,
-			"No fwnode child node found for connected LED.\n");
+			"Anal fwanalde child analde found for connected LED.\n");
 		return -EINVAL;
 	}
 
-	ret = fwnode_property_read_u32(child_node, "flash-max-timeout-us",
+	ret = fwanalde_property_read_u32(child_analde, "flash-max-timeout-us",
 				       &priv->max_timeout);
 	if (ret) {
 		priv->max_timeout = FLASH_MAX_TIMEOUT_DEFAULT;
@@ -246,7 +246,7 @@ static int sgm3140_probe(struct platform_device *pdev)
 
 	sgm3140_init_flash_timeout(priv);
 
-	init_data.fwnode = child_node;
+	init_data.fwanalde = child_analde;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -263,7 +263,7 @@ static int sgm3140_probe(struct platform_device *pdev)
 
 	/* Create V4L2 Flash subdev */
 	priv->v4l2_flash = v4l2_flash_init(&pdev->dev,
-					   child_node,
+					   child_analde,
 					   fled_cdev, NULL,
 					   &v4l2_sd_cfg);
 	if (IS_ERR(priv->v4l2_flash)) {
@@ -274,7 +274,7 @@ static int sgm3140_probe(struct platform_device *pdev)
 	return ret;
 
 err:
-	fwnode_handle_put(child_node);
+	fwanalde_handle_put(child_analde);
 	return ret;
 }
 

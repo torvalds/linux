@@ -86,10 +86,10 @@
 	phy-mode = "rgmii";
 	phy-handle = <&bcm54210e>;
 
-	/delete-node/ fixed-link;
+	/delete-analde/ fixed-link;
 
 	mdio {
-		/delete-node/ switch@1e;
+		/delete-analde/ switch@1e;
 
 		bcm54210e: ethernet-phy@0 {
 			reg = <0>;

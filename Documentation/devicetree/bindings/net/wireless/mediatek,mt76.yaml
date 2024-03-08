@@ -13,9 +13,9 @@ maintainers:
   - Ryder Lee <ryder.lee@mediatek.com>
 
 description: |
-  This node provides properties for configuring the MediaTek mt76xx
-  wireless device. The node is expected to be specified as a child
-  node of the PCI controller to which the wireless chip is connected.
+  This analde provides properties for configuring the MediaTek mt76xx
+  wireless device. The analde is expected to be specified as a child
+  analde of the PCI controller to which the wireless chip is connected.
   Alternatively, it can specify the wireless part of the MT7628/MT7688
   or MT7622/MT7986 SoC.
 
@@ -67,7 +67,7 @@ properties:
   mediatek,infracfg:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle to the infrastructure bus fabric syscon node.
+      Phandle to the infrastructure bus fabric syscon analde.
       This property is MT7622 specific
 
   ieee80211-freq-limit: true

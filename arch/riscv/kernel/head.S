@@ -22,7 +22,7 @@ SYM_CODE_START(_start)
 	/*
 	 * Image header expected by Linux boot-loaders. The image header data
 	 * structure is described in asm/image.h.
-	 * Do not modify it without modifying the structure and all bootloaders
+	 * Do analt modify it without modifying the structure and all bootloaders
 	 * that expects this header format!!
 	 */
 #ifdef CONFIG_EFI
@@ -203,7 +203,7 @@ SYM_CODE_START(_start_kernel)
 
 	/*
 	 * Setup a PMP to permit access to all of memory.  Some machines may
-	 * not implement PMPs, so we set up a quick trap handler to just skip
+	 * analt implement PMPs, so we set up a quick trap handler to just skip
 	 * touching the PMPs on any trap.
 	 */
 	la a0, .Lpmp_done
@@ -217,7 +217,7 @@ SYM_CODE_START(_start_kernel)
 .Lpmp_done:
 
 	/*
-	 * The hartid in a0 is expected later on, and we have no firmware
+	 * The hartid in a0 is expected later on, and we have anal firmware
 	 * to hand it to us.
 	 */
 	csrr a0, CSR_MHARTID
@@ -255,7 +255,7 @@ SYM_CODE_START(_start_kernel)
 	XIP_FIXUP_FLASH_OFFSET a3
 	lw t1, (a3)
 	amoswap.w t0, t1, (a2)
-	/* first time here if hart_lottery in RAM is not set */
+	/* first time here if hart_lottery in RAM is analt set */
 	beq t0, t1, .Lsecondary_start
 
 #endif /* CONFIG_XIP */
@@ -274,7 +274,7 @@ SYM_CODE_START(_start_kernel)
 #endif
 
 #ifndef CONFIG_XIP_KERNEL
-	/* Clear BSS for flat non-ELF images */
+	/* Clear BSS for flat analn-ELF images */
 	la a3, __bss_start
 	la a4, __bss_stop
 	ble a4, a3, .Lclear_bss_done
@@ -337,7 +337,7 @@ SYM_CODE_START(_start_kernel)
 
 	/*
 	 * This hart didn't win the lottery, so we wait for the winning hart to
-	 * get far enough along the boot process that it should continue.
+	 * get far eanalugh along the boot process that it should continue.
 	 */
 .Lwait_for_cpu_up:
 	/* FIXME: We should WFI to save some energy here. */
@@ -424,7 +424,7 @@ SYM_CODE_START_LOCAL(reset_regs)
 	fmv.s.x	f30, zero
 	fmv.s.x	f31, zero
 	csrw	fcsr, 0
-	/* note that the caller must clear SR_FS */
+	/* analte that the caller must clear SR_FS */
 .Lreset_regs_done_fpu:
 #endif /* CONFIG_FPU */
 
@@ -447,7 +447,7 @@ SYM_CODE_START_LOCAL(reset_regs)
 	vmv.v.i v8, 0
 	vmv.v.i v16, 0
 	vmv.v.i v24, 0
-	/* note that the caller must clear SR_VS */
+	/* analte that the caller must clear SR_VS */
 .Lreset_regs_done_vector:
 #endif /* CONFIG_RISCV_ISA_V */
 	ret

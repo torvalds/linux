@@ -21,13 +21,13 @@ static void virtsnd_remove(struct virtio_device *vdev);
  * virtsnd_event_send() - Add an event to the event queue.
  * @vqueue: Underlying event virtqueue.
  * @event: Event.
- * @notify: Indicates whether or not to send a notification to the device.
+ * @analtify: Indicates whether or analt to send a analtification to the device.
  * @gfp: Kernel flags for memory allocation.
  *
  * Context: Any context.
  */
 static void virtsnd_event_send(struct virtqueue *vqueue,
-			       struct virtio_snd_event *event, bool notify,
+			       struct virtio_snd_event *event, bool analtify,
 			       gfp_t gfp)
 {
 	struct scatterlist sg;
@@ -38,11 +38,11 @@ static void virtsnd_event_send(struct virtqueue *vqueue,
 
 	sg_init_one(&sg, event, sizeof(*event));
 
-	if (virtqueue_add_sgs(vqueue, psgs, 0, 1, event, gfp) || !notify)
+	if (virtqueue_add_sgs(vqueue, psgs, 0, 1, event, gfp) || !analtify)
 		return;
 
 	if (virtqueue_kick_prepare(vqueue))
-		virtqueue_notify(vqueue);
+		virtqueue_analtify(vqueue);
 }
 
 /**
@@ -68,7 +68,7 @@ static void virtsnd_event_dispatch(struct virtio_snd *snd,
 }
 
 /**
- * virtsnd_event_notify_cb() - Dispatch all reported events from the event queue.
+ * virtsnd_event_analtify_cb() - Dispatch all reported events from the event queue.
  * @vqueue: Underlying event virtqueue.
  *
  * This callback function is called upon a vring interrupt request from the
@@ -76,7 +76,7 @@ static void virtsnd_event_dispatch(struct virtio_snd *snd,
  *
  * Context: Interrupt context.
  */
-static void virtsnd_event_notify_cb(struct virtqueue *vqueue)
+static void virtsnd_event_analtify_cb(struct virtqueue *vqueue)
 {
 	struct virtio_snd *snd = vqueue->vdev->priv;
 	struct virtio_snd_queue *queue = virtsnd_event_queue(snd);
@@ -102,16 +102,16 @@ static void virtsnd_event_notify_cb(struct virtqueue *vqueue)
  * After calling this function, the event queue is disabled.
  *
  * Context: Any context.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_find_vqs(struct virtio_snd *snd)
 {
 	struct virtio_device *vdev = snd->vdev;
 	static vq_callback_t *callbacks[VIRTIO_SND_VQ_MAX] = {
-		[VIRTIO_SND_VQ_CONTROL] = virtsnd_ctl_notify_cb,
-		[VIRTIO_SND_VQ_EVENT] = virtsnd_event_notify_cb,
-		[VIRTIO_SND_VQ_TX] = virtsnd_pcm_tx_notify_cb,
-		[VIRTIO_SND_VQ_RX] = virtsnd_pcm_rx_notify_cb
+		[VIRTIO_SND_VQ_CONTROL] = virtsnd_ctl_analtify_cb,
+		[VIRTIO_SND_VQ_EVENT] = virtsnd_event_analtify_cb,
+		[VIRTIO_SND_VQ_TX] = virtsnd_pcm_tx_analtify_cb,
+		[VIRTIO_SND_VQ_RX] = virtsnd_pcm_rx_analtify_cb
 	};
 	static const char *names[VIRTIO_SND_VQ_MAX] = {
 		[VIRTIO_SND_VQ_CONTROL] = "virtsnd-ctl",
@@ -142,7 +142,7 @@ static int virtsnd_find_vqs(struct virtio_snd *snd)
 	snd->event_msgs = kmalloc_array(n, sizeof(*snd->event_msgs),
 					GFP_KERNEL);
 	if (!snd->event_msgs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; ++i)
 		virtsnd_event_send(vqs[VIRTIO_SND_VQ_EVENT],
@@ -162,7 +162,7 @@ static void virtsnd_enable_event_vq(struct virtio_snd *snd)
 	struct virtio_snd_queue *queue = virtsnd_event_queue(snd);
 
 	if (!virtqueue_enable_cb(queue->vqueue))
-		virtsnd_event_notify_cb(queue->vqueue);
+		virtsnd_event_analtify_cb(queue->vqueue);
 }
 
 /**
@@ -192,7 +192,7 @@ static void virtsnd_disable_event_vq(struct virtio_snd *snd)
  * @snd: VirtIO sound device.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_build_devs(struct virtio_snd *snd)
 {
@@ -270,12 +270,12 @@ static int virtsnd_validate(struct virtio_device *vdev)
 
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
 		dev_err(&vdev->dev,
-			"device does not comply with spec version 1.x\n");
+			"device does analt comply with spec version 1.x\n");
 		return -EINVAL;
 	}
 
 	if (!virtsnd_msg_timeout_ms) {
-		dev_err(&vdev->dev, "msg_timeout_ms value cannot be zero\n");
+		dev_err(&vdev->dev, "msg_timeout_ms value cananalt be zero\n");
 		return -EINVAL;
 	}
 
@@ -290,7 +290,7 @@ static int virtsnd_validate(struct virtio_device *vdev)
  * @vdev: VirtIO parent device.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_probe(struct virtio_device *vdev)
 {
@@ -300,7 +300,7 @@ static int virtsnd_probe(struct virtio_device *vdev)
 
 	snd = devm_kzalloc(&vdev->dev, sizeof(*snd), GFP_KERNEL);
 	if (!snd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd->vdev = vdev;
 	INIT_LIST_HEAD(&snd->ctl_msgs);
@@ -366,7 +366,7 @@ static void virtsnd_remove(struct virtio_device *vdev)
  * @vdev: VirtIO parent device.
  *
  * Context: Any context.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_freeze(struct virtio_device *vdev)
 {
@@ -393,7 +393,7 @@ static int virtsnd_freeze(struct virtio_device *vdev)
  * @vdev: VirtIO parent device.
  *
  * Context: Any context.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_restore(struct virtio_device *vdev)
 {

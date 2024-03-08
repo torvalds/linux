@@ -66,7 +66,7 @@ static int hix5hd2_sata_phy_init(struct phy *phy)
 	int ret;
 
 	if (priv->peri_ctrl) {
-		ret = of_property_read_u32_array(phy->dev.of_node,
+		ret = of_property_read_u32_array(phy->dev.of_analde,
 						 "hisilicon,power-reg",
 						 &data[0], 2);
 		if (ret) {
@@ -141,7 +141,7 @@ static int hix5hd2_sata_phy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -149,9 +149,9 @@ static int hix5hd2_sata_phy_probe(struct platform_device *pdev)
 
 	priv->base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!priv->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->peri_ctrl = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->peri_ctrl = syscon_regmap_lookup_by_phandle(dev->of_analde,
 					"hisilicon,peripheral-syscon");
 	if (IS_ERR(priv->peri_ctrl))
 		priv->peri_ctrl = NULL;

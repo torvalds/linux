@@ -13,28 +13,28 @@
 /*
  * Reserved memory changes
  *
- * Delete all unused memory nodes and define the peripheral memory regions
+ * Delete all unused memory analdes and define the peripheral memory regions
  * required by the setup for Chrome boards.
  */
 
-/delete-node/ &cdsp_mem;
-/delete-node/ &gpu_zap_mem;
-/delete-node/ &gpu_zap_shader;
-/delete-node/ &hyp_mem;
-/delete-node/ &xbl_mem;
-/delete-node/ &reserved_xbl_uefi_log;
-/delete-node/ &sec_apps_mem;
+/delete-analde/ &cdsp_mem;
+/delete-analde/ &gpu_zap_mem;
+/delete-analde/ &gpu_zap_shader;
+/delete-analde/ &hyp_mem;
+/delete-analde/ &xbl_mem;
+/delete-analde/ &reserved_xbl_uefi_log;
+/delete-analde/ &sec_apps_mem;
 
 / {
 	reserved-memory {
 		camera_mem: memory@8ad00000 {
 			reg = <0x0 0x8ad00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@8b200000 {
 			reg = <0x0 0x8b200000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -78,7 +78,7 @@
 	pinctrl-1 = <&qspi_sleep>;
 
 	spi_flash: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 
 		spi-max-frequency = <37500000>;
@@ -87,7 +87,7 @@
 	};
 };
 
-/* Currently not used */
+/* Currently analt used */
 &remoteproc_cdsp {
 	/delete-property/ memory-region;
 };
@@ -138,12 +138,12 @@
 		pins = "gpio12", "gpio13", "gpio14", "gpio15";
 
 		/*
-		 * When we're not actively transferring we want pins as GPIOs
+		 * When we're analt actively transferring we want pins as GPIOs
 		 * with output disabled so that the quad SPI IP block stops
-		 * driving them. We rely on the normal pulls configured in
-		 * the active state and don't redefine them here. Also note
+		 * driving them. We rely on the analrmal pulls configured in
+		 * the active state and don't redefine them here. Also analte
 		 * that we don't need the reverse (output-enable) in the
-		 * normal mode since the "output-enable" only matters for
+		 * analrmal mode since the "output-enable" only matters for
 		 * GPIO function.
 		 */
 		function = "gpio";

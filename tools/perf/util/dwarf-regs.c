@@ -10,7 +10,7 @@
 #include <debug.h>
 #include <dwarf-regs.h>
 #include <elf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/kernel.h>
 
 #ifndef EM_AARCH64
@@ -40,7 +40,7 @@
 const char *get_dwarf_regstr(unsigned int n, unsigned int machine)
 {
 	switch (machine) {
-	case EM_NONE:	/* Generic arch - use host arch */
+	case EM_ANALNE:	/* Generic arch - use host arch */
 		return get_arch_regstr(n);
 	case EM_386:
 		return __get_dwarf_regstr(x86_32_regstr_tbl, n);
@@ -67,14 +67,14 @@ const char *get_dwarf_regstr(unsigned int n, unsigned int machine)
 	case EM_LOONGARCH:
 		return __get_dwarf_regstr(loongarch_regstr_tbl, n);
 	default:
-		pr_err("ELF MACHINE %x is not supported.\n", machine);
+		pr_err("ELF MACHINE %x is analt supported.\n", machine);
 	}
 	return NULL;
 }
 
 __weak int get_arch_regnum(const char *name __maybe_unused)
 {
-	return -ENOTSUP;
+	return -EANALTSUP;
 }
 
 /* Return DWARF register number from architecture register name */
@@ -93,11 +93,11 @@ int get_dwarf_regnum(const char *name, unsigned int machine)
 		*p = '\0';
 
 	switch (machine) {
-	case EM_NONE:	/* Generic arch - use host arch */
+	case EM_ANALNE:	/* Generic arch - use host arch */
 		reg = get_arch_regnum(regname);
 		break;
 	default:
-		pr_err("ELF MACHINE %x is not supported.\n", machine);
+		pr_err("ELF MACHINE %x is analt supported.\n", machine);
 	}
 	free(regname);
 	return reg;

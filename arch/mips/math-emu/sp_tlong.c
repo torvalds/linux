@@ -36,8 +36,8 @@ s64 ieee754sp_tlong(union ieee754sp x)
 	case IEEE754_CLASS_ZERO:
 		return 0;
 
-	case IEEE754_CLASS_DNORM:
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_DANALRM:
+	case IEEE754_CLASS_ANALRM:
 		break;
 	}
 	if (xe >= 63) {

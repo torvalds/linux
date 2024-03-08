@@ -364,7 +364,7 @@ SOC_SINGLE("Right Input PGA ZC Switch", WM8900_REG_RINVOL, 7, 1, 0),
 
 SOC_SINGLE("DAC Soft Mute Switch", WM8900_REG_DACCTRL, 6, 1, 1),
 SOC_ENUM("DAC Mute Rate", dac_mute_rate),
-SOC_SINGLE("DAC Mono Switch", WM8900_REG_DACCTRL, 9, 1, 0),
+SOC_SINGLE("DAC Moanal Switch", WM8900_REG_DACCTRL, 9, 1, 0),
 SOC_ENUM("DAC Deemphasis", dac_deemphasis),
 SOC_SINGLE("DAC Sigma-Delta Modulator Clock Switch", WM8900_REG_DACCTRL,
 	   12, 1, 0),
@@ -545,7 +545,7 @@ SND_SOC_DAPM_PGA_E("Headphone Amplifier", WM8900_REG_POWER3, 7, 0, NULL, 0,
 SND_SOC_DAPM_PGA("LINEOUT1L PGA", WM8900_REG_POWER2, 8, 0, NULL, 0),
 SND_SOC_DAPM_PGA("LINEOUT1R PGA", WM8900_REG_POWER2, 7, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("LINEOUT2 LP", SND_SOC_NOPM, 0, 0, &wm8900_lineout2_lp),
+SND_SOC_DAPM_MUX("LINEOUT2 LP", SND_SOC_ANALPM, 0, 0, &wm8900_lineout2_lp),
 SND_SOC_DAPM_PGA("LINEOUT2L PGA", WM8900_REG_POWER3, 6, 0, NULL, 0),
 SND_SOC_DAPM_PGA("LINEOUT2R PGA", WM8900_REG_POWER3, 5, 0, NULL, 0),
 
@@ -609,12 +609,12 @@ static const struct snd_soc_dapm_route wm8900_dapm_routes[] = {
 {"Right Output Mixer", "Right Input Mixer Switch", "Right Input Mixer"},
 {"Right Output Mixer", "DACR Switch", "DACR"},
 
-/* Note that the headphone output stage needs to be connected
+/* Analte that the headphone output stage needs to be connected
  * externally to LINEOUT2 via DC blocking capacitors.  Other
- * configurations are not supported.
+ * configurations are analt supported.
  *
- * Note also that left and right headphone paths are treated as a
- * mono path.
+ * Analte also that left and right headphone paths are treated as a
+ * moanal path.
  */
 {"Headphone Amplifier", NULL, "LINEOUT2 LP"},
 {"Headphone Amplifier", NULL, "LINEOUT2 LP"},
@@ -732,7 +732,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	fll_div->k = K / 10;
 
 	if (WARN_ON(target != Fout * (fll_div->fllclk_div << 2)) ||
@@ -919,7 +919,7 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			aif1 &= ~WM8900_REG_AUDIO1_BCLK_INV;
@@ -998,7 +998,7 @@ static const struct snd_soc_dai_ops wm8900_dai_ops = {
 	.set_pll	= wm8900_set_dai_pll,
 	.set_fmt	= wm8900_set_dai_fmt,
 	.mute_stream	= wm8900_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8900_dai = {
@@ -1173,8 +1173,8 @@ static int wm8900_probe(struct snd_soc_component *component)
 
 	reg = snd_soc_component_read(component, WM8900_REG_ID);
 	if (reg != 0x8900) {
-		dev_err(component->dev, "Device is not a WM8900 - ID %x\n", reg);
-		return -ENODEV;
+		dev_err(component->dev, "Device is analt a WM8900 - ID %x\n", reg);
+		return -EANALDEV;
 	}
 
 	wm8900_reset(component);
@@ -1237,7 +1237,7 @@ static int wm8900_spi_probe(struct spi_device *spi)
 	wm8900 = devm_kzalloc(&spi->dev, sizeof(struct wm8900_priv),
 			      GFP_KERNEL);
 	if (wm8900 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8900->regmap = devm_regmap_init_spi(spi, &wm8900_regmap);
 	if (IS_ERR(wm8900->regmap))
@@ -1268,7 +1268,7 @@ static int wm8900_i2c_probe(struct i2c_client *i2c)
 	wm8900 = devm_kzalloc(&i2c->dev, sizeof(struct wm8900_priv),
 			      GFP_KERNEL);
 	if (wm8900 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8900->regmap = devm_regmap_init_i2c(i2c, &wm8900_regmap);
 	if (IS_ERR(wm8900->regmap))

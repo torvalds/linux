@@ -26,7 +26,7 @@ functionality provided by the xHCI host controller. The xHCI
 specification describes DbC in the section 7.6.
 
 When DbC is initialized and enabled, it will present a debug
-device through the debug port (normally the first USB3
+device through the debug port (analrmally the first USB3
 super-speed port). The debug device is fully compliant with
 the USB framework and provides the equivalent of a very high
 performance full-duplex serial link between the debug target
@@ -80,7 +80,7 @@ to see below kernel messages on the debug host::
 	[ 1815.999904] usb 4-3: Manufacturer: Linux
 	[ 1815.999905] usb 4-3: SerialNumber: 0001
 	[ 1816.000240] usb_debug 4-3:1.0: xhci_dbc converter detected
-	[ 1816.000360] usb 4-3: xhci_dbc converter now attached to ttyUSB0
+	[ 1816.000360] usb 4-3: xhci_dbc converter analw attached to ttyUSB0
 
 You can use any communication program, for example minicom, to
 read and view the messages. Below simple bash scripts can help
@@ -107,7 +107,7 @@ debug device provided by the DbC at runtime.
 
 In order to use this, you need to make sure your kernel has been
 configured to support USB_XHCI_DBGCAP. A sysfs attribute under
-the xHCI device node is used to enable or disable DbC. By default,
+the xHCI device analde is used to enable or disable DbC. By default,
 DbC is disabled::
 
 	root@target:/sys/bus/pci/devices/0000:00:14.0# cat dbc
@@ -129,7 +129,7 @@ on the debug target. You will see below kernel message lines::
 	root@target: tail -f /var/log/kern.log
 	[  182.730103] xhci_hcd 0000:00:14.0: DbC connected
 	[  191.169420] xhci_hcd 0000:00:14.0: DbC configured
-	[  191.169597] xhci_hcd 0000:00:14.0: DbC now attached to /dev/ttyDBC0
+	[  191.169597] xhci_hcd 0000:00:14.0: DbC analw attached to /dev/ttyDBC0
 
 Accordingly, the DbC state has been brought up to::
 
@@ -148,5 +148,5 @@ You will see below kernel message lines::
 	[   79.475392] usb 2-2.1: Manufacturer: Linux Foundation
 	[   79.475393] usb 2-2.1: SerialNumber: 0001
 
-The debug device works now. You can use any communication or debugging
+The debug device works analw. You can use any communication or debugging
 program to talk between the host and the target.

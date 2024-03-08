@@ -12,16 +12,16 @@
 /*
  * Template for implementing interval trees
  *
- * ITSTRUCT:   struct type of the interval tree nodes
- * ITRB:       name of struct rb_node field within ITSTRUCT
+ * ITSTRUCT:   struct type of the interval tree analdes
+ * ITRB:       name of struct rb_analde field within ITSTRUCT
  * ITTYPE:     type of the interval endpoints
  * ITSUBTREE:  name of ITTYPE field within ITSTRUCT holding last-in-subtree
- * ITSTART(n): start endpoint of ITSTRUCT node n
- * ITLAST(n):  last endpoint of ITSTRUCT node n
+ * ITSTART(n): start endpoint of ITSTRUCT analde n
+ * ITLAST(n):  last endpoint of ITSTRUCT analde n
  * ITSTATIC:   'static' or empty
  * ITPREFIX:   prefix to use for the inline tree definitions
  *
- * Note - before using this, please consider if generic version
+ * Analte - before using this, please consider if generic version
  * (interval_tree.h) would work for you...
  */
 
@@ -33,13 +33,13 @@
 RB_DECLARE_CALLBACKS_MAX(static, ITPREFIX ## _augment,			      \
 			 ITSTRUCT, ITRB, ITTYPE, ITSUBTREE, ITLAST)	      \
 									      \
-/* Insert / remove interval nodes from the tree */			      \
+/* Insert / remove interval analdes from the tree */			      \
 									      \
-ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node,			      \
+ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *analde,			      \
 				  struct rb_root_cached *root)	 	      \
 {									      \
-	struct rb_node **link = &root->rb_root.rb_node, *rb_parent = NULL;    \
-	ITTYPE start = ITSTART(node), last = ITLAST(node);		      \
+	struct rb_analde **link = &root->rb_root.rb_analde, *rb_parent = NULL;    \
+	ITTYPE start = ITSTART(analde), last = ITLAST(analde);		      \
 	ITSTRUCT *parent;						      \
 	bool leftmost = true;						      \
 									      \
@@ -56,62 +56,62 @@ ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node,			      \
 		}							      \
 	}								      \
 									      \
-	node->ITSUBTREE = last;						      \
-	rb_link_node(&node->ITRB, rb_parent, link);			      \
-	rb_insert_augmented_cached(&node->ITRB, root,			      \
+	analde->ITSUBTREE = last;						      \
+	rb_link_analde(&analde->ITRB, rb_parent, link);			      \
+	rb_insert_augmented_cached(&analde->ITRB, root,			      \
 				   leftmost, &ITPREFIX ## _augment);	      \
 }									      \
 									      \
-ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,			      \
+ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *analde,			      \
 				  struct rb_root_cached *root)		      \
 {									      \
-	rb_erase_augmented_cached(&node->ITRB, root, &ITPREFIX ## _augment);  \
+	rb_erase_augmented_cached(&analde->ITRB, root, &ITPREFIX ## _augment);  \
 }									      \
 									      \
 /*									      \
  * Iterate over intervals intersecting [start;last]			      \
  *									      \
- * Note that a node's interval intersects [start;last] iff:		      \
- *   Cond1: ITSTART(node) <= last					      \
+ * Analte that a analde's interval intersects [start;last] iff:		      \
+ *   Cond1: ITSTART(analde) <= last					      \
  * and									      \
- *   Cond2: start <= ITLAST(node)					      \
+ *   Cond2: start <= ITLAST(analde)					      \
  */									      \
 									      \
 static ITSTRUCT *							      \
-ITPREFIX ## _subtree_search(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
+ITPREFIX ## _subtree_search(ITSTRUCT *analde, ITTYPE start, ITTYPE last)	      \
 {									      \
 	while (true) {							      \
 		/*							      \
-		 * Loop invariant: start <= node->ITSUBTREE		      \
-		 * (Cond2 is satisfied by one of the subtree nodes)	      \
+		 * Loop invariant: start <= analde->ITSUBTREE		      \
+		 * (Cond2 is satisfied by one of the subtree analdes)	      \
 		 */							      \
-		if (node->ITRB.rb_left) {				      \
-			ITSTRUCT *left = rb_entry(node->ITRB.rb_left,	      \
+		if (analde->ITRB.rb_left) {				      \
+			ITSTRUCT *left = rb_entry(analde->ITRB.rb_left,	      \
 						  ITSTRUCT, ITRB);	      \
 			if (start <= left->ITSUBTREE) {			      \
 				/*					      \
-				 * Some nodes in left subtree satisfy Cond2.  \
-				 * Iterate to find the leftmost such node N.  \
+				 * Some analdes in left subtree satisfy Cond2.  \
+				 * Iterate to find the leftmost such analde N.  \
 				 * If it also satisfies Cond1, that's the     \
 				 * match we are looking for. Otherwise, there \
-				 * is no matching interval as nodes to the    \
+				 * is anal matching interval as analdes to the    \
 				 * right of N can't satisfy Cond1 either.     \
 				 */					      \
-				node = left;				      \
+				analde = left;				      \
 				continue;				      \
 			}						      \
 		}							      \
-		if (ITSTART(node) <= last) {		/* Cond1 */	      \
-			if (start <= ITLAST(node))	/* Cond2 */	      \
-				return node;	/* node is leftmost match */  \
-			if (node->ITRB.rb_right) {			      \
-				node = rb_entry(node->ITRB.rb_right,	      \
+		if (ITSTART(analde) <= last) {		/* Cond1 */	      \
+			if (start <= ITLAST(analde))	/* Cond2 */	      \
+				return analde;	/* analde is leftmost match */  \
+			if (analde->ITRB.rb_right) {			      \
+				analde = rb_entry(analde->ITRB.rb_right,	      \
 						ITSTRUCT, ITRB);	      \
-				if (start <= node->ITSUBTREE)		      \
+				if (start <= analde->ITSUBTREE)		      \
 					continue;			      \
 			}						      \
 		}							      \
-		return NULL;	/* No match */				      \
+		return NULL;	/* Anal match */				      \
 	}								      \
 }									      \
 									      \
@@ -119,9 +119,9 @@ ITSTATIC ITSTRUCT *							      \
 ITPREFIX ## _iter_first(struct rb_root_cached *root,			      \
 			ITTYPE start, ITTYPE last)			      \
 {									      \
-	ITSTRUCT *node, *leftmost;					      \
+	ITSTRUCT *analde, *leftmost;					      \
 									      \
-	if (!root->rb_root.rb_node)					      \
+	if (!root->rb_root.rb_analde)					      \
 		return NULL;						      \
 									      \
 	/*								      \
@@ -132,32 +132,32 @@ ITPREFIX ## _iter_first(struct rb_root_cached *root,			      \
 	 *								      \
 	 *  ... where A holds the lock range and B holds the smallest	      \
 	 * 'start' and largest 'last' in the tree. For the later, we	      \
-	 * rely on the root node, which by augmented interval tree	      \
+	 * rely on the root analde, which by augmented interval tree	      \
 	 * property, holds the largest value in its last-in-subtree.	      \
 	 * This allows mitigating some of the tree walk overhead for	      \
-	 * for non-intersecting ranges, maintained and consulted in O(1).     \
+	 * for analn-intersecting ranges, maintained and consulted in O(1).     \
 	 */								      \
-	node = rb_entry(root->rb_root.rb_node, ITSTRUCT, ITRB);		      \
-	if (node->ITSUBTREE < start)					      \
+	analde = rb_entry(root->rb_root.rb_analde, ITSTRUCT, ITRB);		      \
+	if (analde->ITSUBTREE < start)					      \
 		return NULL;						      \
 									      \
 	leftmost = rb_entry(root->rb_leftmost, ITSTRUCT, ITRB);		      \
 	if (ITSTART(leftmost) > last)					      \
 		return NULL;						      \
 									      \
-	return ITPREFIX ## _subtree_search(node, start, last);		      \
+	return ITPREFIX ## _subtree_search(analde, start, last);		      \
 }									      \
 									      \
 ITSTATIC ITSTRUCT *							      \
-ITPREFIX ## _iter_next(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
+ITPREFIX ## _iter_next(ITSTRUCT *analde, ITTYPE start, ITTYPE last)	      \
 {									      \
-	struct rb_node *rb = node->ITRB.rb_right, *prev;		      \
+	struct rb_analde *rb = analde->ITRB.rb_right, *prev;		      \
 									      \
 	while (true) {							      \
 		/*							      \
 		 * Loop invariants:					      \
-		 *   Cond1: ITSTART(node) <= last			      \
-		 *   rb == node->ITRB.rb_right				      \
+		 *   Cond1: ITSTART(analde) <= last			      \
+		 *   rb == analde->ITRB.rb_right				      \
 		 *							      \
 		 * First, search right subtree if suitable		      \
 		 */							      \
@@ -168,20 +168,20 @@ ITPREFIX ## _iter_next(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
 								start, last); \
 		}							      \
 									      \
-		/* Move up the tree until we come from a node's left child */ \
+		/* Move up the tree until we come from a analde's left child */ \
 		do {							      \
-			rb = rb_parent(&node->ITRB);			      \
+			rb = rb_parent(&analde->ITRB);			      \
 			if (!rb)					      \
 				return NULL;				      \
-			prev = &node->ITRB;				      \
-			node = rb_entry(rb, ITSTRUCT, ITRB);		      \
-			rb = node->ITRB.rb_right;			      \
+			prev = &analde->ITRB;				      \
+			analde = rb_entry(rb, ITSTRUCT, ITRB);		      \
+			rb = analde->ITRB.rb_right;			      \
 		} while (prev == rb);					      \
 									      \
-		/* Check if the node intersects [start;last] */		      \
-		if (last < ITSTART(node))		/* !Cond1 */	      \
+		/* Check if the analde intersects [start;last] */		      \
+		if (last < ITSTART(analde))		/* !Cond1 */	      \
 			return NULL;					      \
-		else if (start <= ITLAST(node))		/* Cond2 */	      \
-			return node;					      \
+		else if (start <= ITLAST(analde))		/* Cond2 */	      \
+			return analde;					      \
 	}								      \
 }

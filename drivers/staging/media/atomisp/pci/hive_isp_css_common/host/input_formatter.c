@@ -95,7 +95,7 @@ void input_formatter_set_fifo_blocking_mode(
 	/* cnd_input_formatter_reg_store() */
 	if (!HIVE_IF_BIN_COPY[ID]) {
 		input_formatter_reg_store(ID,
-					  HIVE_IF_BLOCK_FIFO_NO_REQ_ADDRESS, enable);
+					  HIVE_IF_BLOCK_FIFO_ANAL_REQ_ADDRESS, enable);
 	}
 	return;
 }
@@ -176,8 +176,8 @@ void input_formatter_get_state(
 				  HIVE_IF_HSYNCK_ACTIVE_LOW_ADDRESS);
 	state->allow_fifo_overflow = input_formatter_reg_load(ID,
 				     HIVE_IF_ALLOW_FIFO_OVERFLOW_ADDRESS);
-	state->block_fifo_when_no_req = input_formatter_reg_load(ID,
-					HIVE_IF_BLOCK_FIFO_NO_REQ_ADDRESS);
+	state->block_fifo_when_anal_req = input_formatter_reg_load(ID,
+					HIVE_IF_BLOCK_FIFO_ANAL_REQ_ADDRESS);
 	state->ver_deinterleaving = input_formatter_reg_load(ID,
 				    HIVE_IF_V_DEINTERLEAVING_ADDRESS);
 	/* FSM */

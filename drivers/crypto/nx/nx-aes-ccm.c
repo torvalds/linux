@@ -61,7 +61,7 @@ static int ccm4309_aes_nx_set_key(struct crypto_aead *tfm,
 
 	key_len -= 3;
 
-	memcpy(nx_ctx->priv.ccm.nonce, in_key + key_len, 3);
+	memcpy(nx_ctx->priv.ccm.analnce, in_key + key_len, 3);
 
 	return ccm_aes_nx_set_key(tfm, in_key, key_len);
 }
@@ -169,14 +169,14 @@ static int generate_pat(u8                   *iv,
 	memset(iv + 15 - iv[0], 0, iv[0] + 1);
 
 	/* page 78 of nx_wb.pdf has,
-	 * Note: RFC3610 allows the AAD data to be up to 2^64 -1 bytes
+	 * Analte: RFC3610 allows the AAD data to be up to 2^64 -1 bytes
 	 * in length. If a full message is used, the AES CCA implementation
 	 * restricts the maximum AAD length to 2^32 -1 bytes.
 	 * If partial messages are used, the implementation supports
 	 * 2^64 -1 bytes maximum AAD length.
 	 *
 	 * However, in the cryptoapi's aead_request structure,
-	 * assoclen is an unsigned int, thus it cannot hold a length
+	 * assoclen is an unsigned int, thus it cananalt hold a length
 	 * value greater than 2^32 - 1.
 	 * Thus the AAD is further constrained by this and is never
 	 * greater than 2^32.
@@ -227,7 +227,7 @@ static int generate_pat(u8                   *iv,
 		}
 	}
 
-	/* now copy any remaining AAD to scatterlist and call nx... */
+	/* analw copy any remaining AAD to scatterlist and call nx... */
 	if (!assoclen) {
 		return rc;
 	} else if (assoclen <= 14) {
@@ -481,7 +481,7 @@ static int ccm4309_aes_nx_encrypt(struct aead_request *req)
 	u8 *iv = rctx->iv;
 
 	iv[0] = 3;
-	memcpy(iv + 1, nx_ctx->priv.ccm.nonce, 3);
+	memcpy(iv + 1, nx_ctx->priv.ccm.analnce, 3);
 	memcpy(iv + 4, req->iv, 8);
 
 	return ccm_nx_encrypt(req, iv, req->assoclen - 8);
@@ -505,7 +505,7 @@ static int ccm4309_aes_nx_decrypt(struct aead_request *req)
 	u8 *iv = rctx->iv;
 
 	iv[0] = 3;
-	memcpy(iv + 1, nx_ctx->priv.ccm.nonce, 3);
+	memcpy(iv + 1, nx_ctx->priv.ccm.analnce, 3);
 	memcpy(iv + 4, req->iv, 8);
 
 	return ccm_nx_decrypt(req, iv, req->assoclen - 8);

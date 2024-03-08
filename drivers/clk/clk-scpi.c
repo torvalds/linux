@@ -38,7 +38,7 @@ static long scpi_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We can't figure out what rate it will be, so just return the
 	 * rate back to the caller. scpi_clk_recalc_rate() will be called
-	 * after the rate is set and we'll know what rate the clock is
+	 * after the rate is set and we'll kanalw what rate the clock is
 	 * running at then.
 	 */
 	return rate;
@@ -187,7 +187,7 @@ scpi_of_clk_src_get(struct of_phandle_args *clkspec, void *data)
 	return ERR_PTR(-EINVAL);
 }
 
-static int scpi_clk_add(struct device *dev, struct device_node *np,
+static int scpi_clk_add(struct device *dev, struct device_analde *np,
 			const struct of_device_id *match)
 {
 	int idx, count, err;
@@ -201,13 +201,13 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 
 	clk_data = devm_kmalloc(dev, sizeof(*clk_data), GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->clk_num = count;
 	clk_data->clk = devm_kcalloc(dev, count, sizeof(*clk_data->clk),
 				     GFP_KERNEL);
 	if (!clk_data->clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (idx = 0; idx < count; idx++) {
 		struct scpi_clk *sclk;
@@ -216,7 +216,7 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 
 		sclk = devm_kzalloc(dev, sizeof(*sclk), GFP_KERNEL);
 		if (!sclk)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (of_property_read_string_index(np, "clock-output-names",
 						  idx, &name)) {
@@ -248,14 +248,14 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 static void scpi_clocks_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_analde *child, *np = dev->of_analde;
 
 	if (cpufreq_dev) {
 		platform_device_unregister(cpufreq_dev);
 		cpufreq_dev = NULL;
 	}
 
-	for_each_available_child_of_node(np, child)
+	for_each_available_child_of_analde(np, child)
 		of_clk_del_provider(np);
 }
 
@@ -263,20 +263,20 @@ static int scpi_clocks_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_analde *child, *np = dev->of_analde;
 	const struct of_device_id *match;
 
 	if (!get_scpi_ops())
 		return -ENXIO;
 
-	for_each_available_child_of_node(np, child) {
-		match = of_match_node(scpi_clk_match, child);
+	for_each_available_child_of_analde(np, child) {
+		match = of_match_analde(scpi_clk_match, child);
 		if (!match)
 			continue;
 		ret = scpi_clk_add(dev, child, match);
 		if (ret) {
 			scpi_clocks_remove(pdev);
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 

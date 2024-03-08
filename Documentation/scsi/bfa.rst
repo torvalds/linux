@@ -70,7 +70,7 @@ Documentation
 -------------
 
 The latest Administration's Guide, Installation and Reference Manual,
-Troubleshooting Guide, and Release Notes for the corresponding out-of-box
+Troubleshooting Guide, and Release Analtes for the corresponding out-of-box
 driver can be found at:
 
 http://www.brocade.com/services-support/drivers-downloads/adapters/Linux.page

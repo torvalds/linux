@@ -134,7 +134,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 };
 
 
-#define TLB_CONTROL_DO_NOTHING 0
+#define TLB_CONTROL_DO_ANALTHING 0
 #define TLB_CONTROL_FLUSH_ALL_ASID 1
 #define TLB_CONTROL_FLUSH_ASID 3
 #define TLB_CONTROL_FLUSH_ASID_LOCAL 7

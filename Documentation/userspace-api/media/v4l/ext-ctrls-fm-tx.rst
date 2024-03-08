@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _fm-tx-controls:
 
@@ -60,8 +60,8 @@ FM_TX Control IDs
     The result is it must always contain a string with size multiple of
     32 or 64.
 
-``V4L2_CID_RDS_TX_MONO_STEREO (boolean)``
-    Sets the Mono/Stereo bit of the Decoder Identification code. If set,
+``V4L2_CID_RDS_TX_MOANAL_STEREO (boolean)``
+    Sets the Moanal/Stereo bit of the Decoder Identification code. If set,
     then the audio was recorded as stereo.
 
 ``V4L2_CID_RDS_TX_ARTIFICIAL_HEAD (boolean)``
@@ -78,11 +78,11 @@ FM_TX Control IDs
     Sets the Dynamic PTY bit of the Decoder Identification code. If set,
     then the PTY code is dynamically switched.
 
-``V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT (boolean)``
-    If set, then a traffic announcement is in progress.
+``V4L2_CID_RDS_TX_TRAFFIC_ANANALUNCEMENT (boolean)``
+    If set, then a traffic ananaluncement is in progress.
 
 ``V4L2_CID_RDS_TX_TRAFFIC_PROGRAM (boolean)``
-    If set, then the tuned programme carries traffic announcements.
+    If set, then the tuned programme carries traffic ananaluncements.
 
 ``V4L2_CID_RDS_TX_MUSIC_SPEECH (boolean)``
     If set, then this channel broadcasts music. If cleared, then it
@@ -160,7 +160,7 @@ enum v4l2_preemphasis -
     :stub-columns: 0
 
     * - ``V4L2_PREEMPHASIS_DISABLED``
-      - No pre-emphasis is applied.
+      - Anal pre-emphasis is applied.
     * - ``V4L2_PREEMPHASIS_50_uS``
       - A pre-emphasis of 50 uS is used.
     * - ``V4L2_PREEMPHASIS_75_uS``

@@ -47,7 +47,7 @@ int nf_log_set(struct net *net, u_int8_t pf, const struct nf_logger *logger)
 	const struct nf_logger *log;
 
 	if (pf == NFPROTO_UNSPEC || pf >= ARRAY_SIZE(net->nf.nf_loggers))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&nf_log_mutex);
 	log = nft_log_dereference(net->nf.nf_loggers[pf]);
@@ -133,7 +133,7 @@ int nf_log_bind_pf(struct net *net, u_int8_t pf,
 	mutex_lock(&nf_log_mutex);
 	if (__find_logger(pf, logger->name) == NULL) {
 		mutex_unlock(&nf_log_mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	rcu_assign_pointer(net->nf.nf_loggers[pf], logger);
 	mutex_unlock(&nf_log_mutex);
@@ -154,7 +154,7 @@ EXPORT_SYMBOL(nf_log_unbind_pf);
 int nf_logger_find_get(int pf, enum nf_log_type type)
 {
 	struct nf_logger *logger;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (pf == NFPROTO_INET) {
 		ret = nf_logger_find_get(NFPROTO_IPV4, type);
@@ -353,12 +353,12 @@ static int seq_show(struct seq_file *s, void *v)
 	logger = nft_log_dereference(net->nf.nf_loggers[*pos]);
 
 	if (!logger)
-		seq_printf(s, "%2lld NONE (", *pos);
+		seq_printf(s, "%2lld ANALNE (", *pos);
 	else
 		seq_printf(s, "%2lld %s (", *pos, logger->name);
 
 	if (seq_has_overflowed(s))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (i = 0; i < NF_LOG_TYPE_MAX; i++) {
 		if (loggers[*pos][i] == NULL)
@@ -370,13 +370,13 @@ static int seq_show(struct seq_file *s, void *v)
 			seq_puts(s, ",");
 
 		if (seq_has_overflowed(s))
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	seq_puts(s, ")\n");
 
 	if (seq_has_overflowed(s))
-		return -ENOSPC;
+		return -EANALSPC;
 	return 0;
 }
 
@@ -425,7 +425,7 @@ static int nf_log_proc_dostring(struct ctl_table *table, int write,
 		if (r)
 			return r;
 
-		if (!strcmp(buf, "NONE")) {
+		if (!strcmp(buf, "ANALNE")) {
 			nf_log_unbind_pf(net, tindex);
 			return 0;
 		}
@@ -433,7 +433,7 @@ static int nf_log_proc_dostring(struct ctl_table *table, int write,
 		logger = __find_logger(tindex, buf);
 		if (logger == NULL) {
 			mutex_unlock(&nf_log_mutex);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		rcu_assign_pointer(net->nf.nf_loggers[tindex], logger);
 		mutex_unlock(&nf_log_mutex);
@@ -444,7 +444,7 @@ static int nf_log_proc_dostring(struct ctl_table *table, int write,
 		mutex_lock(&nf_log_mutex);
 		logger = nft_log_dereference(net->nf.nf_loggers[tindex]);
 		if (!logger)
-			strscpy(buf, "NONE", sizeof(buf));
+			strscpy(buf, "ANALNE", sizeof(buf));
 		else
 			strscpy(buf, logger->name, sizeof(buf));
 		mutex_unlock(&nf_log_mutex);
@@ -504,7 +504,7 @@ err_reg:
 		unregister_net_sysctl_table(nf_log_sysctl_fhdr);
 err_freg:
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void netfilter_log_sysctl_exit(struct net *net)
@@ -531,7 +531,7 @@ static void netfilter_log_sysctl_exit(struct net *net)
 
 static int __net_init nf_log_net_init(struct net *net)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 #ifdef CONFIG_PROC_FS
 	if (!proc_create_net("nf_log", 0444, net->nf.proc_netfilter,

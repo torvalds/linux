@@ -57,7 +57,7 @@ struct mxc_gpio_reg_saved {
 };
 
 struct mxc_gpio_port {
-	struct list_head node;
+	struct list_head analde;
 	void __iomem *base;
 	struct clk *clk;
 	int irq;
@@ -155,7 +155,7 @@ MODULE_DEVICE_TABLE(of, mxc_gpio_dt_ids);
  */
 static LIST_HEAD(mxc_gpio_ports);
 
-/* Note: This driver assumes 32 GPIOs are handled in one register */
+/* Analte: This driver assumes 32 GPIOs are handled in one register */
 
 static int gpio_set_irq_type(struct irq_data *d, u32 type)
 {
@@ -302,7 +302,7 @@ static void mx2_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 
 	/* walk through all interrupt status registers */
-	list_for_each_entry(port, &mxc_gpio_ports, node) {
+	list_for_each_entry(port, &mxc_gpio_ports, analde) {
 		irq_msk = readl(port->base + GPIO_IMR);
 		if (!irq_msk)
 			continue;
@@ -320,7 +320,7 @@ static void mx2_gpio_irq_handler(struct irq_desc *desc)
  * wake-up enabled. When system is suspended, only selected GPIO interrupts
  * need to have wake-up enabled.
  * @param  irq          interrupt source number
- * @param  enable       enable as wake-up if equal to non-zero
+ * @param  enable       enable as wake-up if equal to analn-zero
  * @return       This function returns 0 on success.
  */
 static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
@@ -356,7 +356,7 @@ static int mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
 	gc = devm_irq_alloc_generic_chip(port->dev, "gpio-mxc", 1, irq_base,
 					 port->base, handle_level_irq);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 	gc->private = port;
 
 	ct = gc->chip_types;
@@ -371,7 +371,7 @@ static int mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
 
 	rv = devm_irq_setup_generic_chip(port->dev, gc, IRQ_MSK(32),
 					 IRQ_GC_INIT_NESTED_LOCK,
-					 IRQ_NOREQUEST, 0);
+					 IRQ_ANALREQUEST, 0);
 
 	return rv;
 }
@@ -420,7 +420,7 @@ static void mxc_update_irq_chained_handler(struct mxc_gpio_port *port, bool enab
 
 static int mxc_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mxc_gpio_port *port;
 	int irq_count;
 	int irq_base;
@@ -428,7 +428,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 
 	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->dev = &pdev->dev;
 	port->hwdata = device_get_match_data(&pdev->dev);
@@ -459,7 +459,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "fsl,imx7d-gpio"))
 		port->power_off = true;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -497,7 +497,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	if (err)
 		goto out_bgio;
 
-	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, 32, numa_node_id());
+	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, 32, numa_analde_id());
 	if (irq_base < 0) {
 		err = irq_base;
 		goto out_bgio;
@@ -506,7 +506,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	port->domain = irq_domain_add_legacy(np, 32, irq_base, 0,
 					     &irq_domain_simple_ops, NULL);
 	if (!port->domain) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_bgio;
 	}
 
@@ -517,7 +517,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto out_irqdomain_remove;
 
-	list_add_tail(&port->node, &mxc_gpio_ports);
+	list_add_tail(&port->analde, &mxc_gpio_ports);
 
 	platform_set_drvdata(pdev, port);
 	pm_runtime_put_autosuspend(&pdev->dev);
@@ -528,8 +528,8 @@ out_irqdomain_remove:
 	irq_domain_remove(port->domain);
 out_bgio:
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
-	dev_info(&pdev->dev, "%s failed with errno %d\n", __func__, err);
+	pm_runtime_put_analidle(&pdev->dev);
+	dev_info(&pdev->dev, "%s failed with erranal %d\n", __func__, err);
 	return err;
 }
 
@@ -562,7 +562,7 @@ static void mxc_gpio_restore_regs(struct mxc_gpio_port *port)
 static bool mxc_gpio_generic_config(struct mxc_gpio_port *port,
 		unsigned int offset, unsigned long conf)
 {
-	struct device_node *np = port->dev->of_node;
+	struct device_analde *np = port->dev->of_analde;
 
 	if (of_device_is_compatible(np, "fsl,imx8dxl-gpio") ||
 	    of_device_is_compatible(np, "fsl,imx8qxp-gpio") ||
@@ -632,7 +632,7 @@ static int mxc_gpio_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int mxc_gpio_noirq_suspend(struct device *dev)
+static int mxc_gpio_analirq_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mxc_gpio_port *port = platform_get_drvdata(pdev);
@@ -643,7 +643,7 @@ static int mxc_gpio_noirq_suspend(struct device *dev)
 	return 0;
 }
 
-static int mxc_gpio_noirq_resume(struct device *dev)
+static int mxc_gpio_analirq_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mxc_gpio_port *port = platform_get_drvdata(pdev);
@@ -656,7 +656,7 @@ static int mxc_gpio_noirq_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops mxc_gpio_dev_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(mxc_gpio_noirq_suspend, mxc_gpio_noirq_resume)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(mxc_gpio_analirq_suspend, mxc_gpio_analirq_resume)
 	RUNTIME_PM_OPS(mxc_gpio_runtime_suspend, mxc_gpio_runtime_resume, NULL)
 };
 
@@ -666,7 +666,7 @@ static int mxc_gpio_syscore_suspend(void)
 	int ret;
 
 	/* walk through all ports */
-	list_for_each_entry(port, &mxc_gpio_ports, node) {
+	list_for_each_entry(port, &mxc_gpio_ports, analde) {
 		ret = clk_prepare_enable(port->clk);
 		if (ret)
 			return ret;
@@ -683,7 +683,7 @@ static void mxc_gpio_syscore_resume(void)
 	int ret;
 
 	/* walk through all ports */
-	list_for_each_entry(port, &mxc_gpio_ports, node) {
+	list_for_each_entry(port, &mxc_gpio_ports, analde) {
 		ret = clk_prepare_enable(port->clk);
 		if (ret) {
 			pr_err("mxc: failed to enable gpio clock %d\n", ret);

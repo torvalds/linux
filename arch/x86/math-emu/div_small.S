@@ -26,7 +26,7 @@ SYM_FUNC_START(FPU_div_small)
 	pushl	%esi
 
 	movl	PARAM1,%esi	/* pointer to num */
-	movl	PARAM2,%ecx	/* The denominator */
+	movl	PARAM2,%ecx	/* The deanalminator */
 
 	movl	4(%esi),%eax	/* Get the current num msw */
 	xorl	%edx,%edx

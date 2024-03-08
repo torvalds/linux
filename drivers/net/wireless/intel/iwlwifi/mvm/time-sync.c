@@ -36,8 +36,8 @@ static struct sk_buff *iwl_mvm_time_sync_find_skb(struct iwl_mvm *mvm, u8 *addr,
 	struct sk_buff *skb;
 
 	/* The queue is expected to have only one SKB. If there are other SKBs
-	 * in the queue, they did not get a time sync notification and are
-	 * probably obsolete by now, so drop them.
+	 * in the queue, they did analt get a time sync analtification and are
+	 * probably obsolete by analw, so drop them.
 	 */
 	while ((skb = skb_dequeue(&mvm->time_sync.frame_list))) {
 		if (iwl_mvm_is_skb_match(skb, addr, dialog_token))
@@ -59,26 +59,26 @@ void iwl_mvm_time_sync_msmt_event(struct iwl_mvm *mvm,
 				  struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_time_msmt_notify *notif = (void *)pkt->data;
+	struct iwl_time_msmt_analtify *analtif = (void *)pkt->data;
 	struct ieee80211_rx_status *rx_status;
 	struct skb_shared_hwtstamps *shwt;
 	u64 ts_10ns;
 	struct sk_buff *skb =
-		iwl_mvm_time_sync_find_skb(mvm, notif->peer_addr,
-					   le32_to_cpu(notif->dialog_token));
+		iwl_mvm_time_sync_find_skb(mvm, analtif->peer_addr,
+					   le32_to_cpu(analtif->dialog_token));
 	u64 adj_time;
 
 	if (!skb) {
-		IWL_DEBUG_INFO(mvm, "Time sync event but no pending skb\n");
+		IWL_DEBUG_INFO(mvm, "Time sync event but anal pending skb\n");
 		return;
 	}
 
-	ts_10ns = iwl_mvm_get_64_bit(notif->t2_hi, notif->t2_lo);
+	ts_10ns = iwl_mvm_get_64_bit(analtif->t2_hi, analtif->t2_lo);
 	adj_time = iwl_mvm_ptp_get_adj_time(mvm, ts_10ns * 10);
 	shwt = skb_hwtstamps(skb);
 	shwt->hwtstamp = ktime_set(0, adj_time);
 
-	ts_10ns = iwl_mvm_get_64_bit(notif->t3_hi, notif->t3_lo);
+	ts_10ns = iwl_mvm_get_64_bit(analtif->t3_hi, analtif->t3_lo);
 	adj_time = iwl_mvm_ptp_get_adj_time(mvm, ts_10ns * 10);
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	rx_status->ack_tx_hwtstamp = ktime_set(0, adj_time);
@@ -94,26 +94,26 @@ void iwl_mvm_time_sync_msmt_confirm_event(struct iwl_mvm *mvm,
 					  struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_time_msmt_cfm_notify *notif = (void *)pkt->data;
+	struct iwl_time_msmt_cfm_analtify *analtif = (void *)pkt->data;
 	struct ieee80211_tx_status status = {};
 	struct skb_shared_hwtstamps *shwt;
 	u64 ts_10ns, adj_time;
 
 	status.skb =
-		iwl_mvm_time_sync_find_skb(mvm, notif->peer_addr,
-					   le32_to_cpu(notif->dialog_token));
+		iwl_mvm_time_sync_find_skb(mvm, analtif->peer_addr,
+					   le32_to_cpu(analtif->dialog_token));
 
 	if (!status.skb) {
-		IWL_DEBUG_INFO(mvm, "Time sync confirm but no pending skb\n");
+		IWL_DEBUG_INFO(mvm, "Time sync confirm but anal pending skb\n");
 		return;
 	}
 
-	ts_10ns = iwl_mvm_get_64_bit(notif->t1_hi, notif->t1_lo);
+	ts_10ns = iwl_mvm_get_64_bit(analtif->t1_hi, analtif->t1_lo);
 	adj_time = iwl_mvm_ptp_get_adj_time(mvm, ts_10ns * 10);
 	shwt = skb_hwtstamps(status.skb);
 	shwt->hwtstamp = ktime_set(0, adj_time);
 
-	ts_10ns = iwl_mvm_get_64_bit(notif->t4_hi, notif->t4_lo);
+	ts_10ns = iwl_mvm_get_64_bit(analtif->t4_hi, analtif->t4_lo);
 	adj_time = iwl_mvm_ptp_get_adj_time(mvm, ts_10ns * 10);
 	status.info = IEEE80211_SKB_CB(status.skb);
 	status.ack_hwtstamp = ktime_set(0, adj_time);
@@ -143,7 +143,7 @@ int iwl_mvm_time_sync_config(struct iwl_mvm *mvm, const u8 *addr, u32 protocols)
 	    !ether_addr_equal(addr, mvm->time_sync.peer_addr)) {
 		IWL_DEBUG_INFO(mvm, "Time sync: reject config for peer: %pM\n",
 			       addr);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	if (protocols & ~(IWL_TIME_SYNC_PROTOCOL_TM |

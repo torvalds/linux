@@ -167,7 +167,7 @@ struct pcmcia_socket {
 	struct pccard_resource_ops	*resource_ops;
 	void				*resource_data;
 
-	/* Zoom video behaviour is so chip specific its not worth adding
+	/* Zoom video behaviour is so chip specific its analt worth adding
 	   this to _ops */
 	void 				(*zoom_video)(struct pcmcia_socket *,
 						      int);
@@ -186,7 +186,7 @@ struct pcmcia_socket {
 	unsigned int			thread_events;
 	unsigned int			sysfs_events;
 
-	/* For the non-trivial interaction between these locks,
+	/* For the analn-trivial interaction between these locks,
 	 * see Documentation/pcmcia/locking.rst */
 	struct mutex			skt_mutex;
 	struct mutex			ops_mutex;
@@ -209,10 +209,10 @@ struct pcmcia_socket {
 	/* does the PCMCIA card consist of two pseudo devices? */
 	u8				pcmcia_pfc;
 
-	/* non-zero if PCMCIA card is present */
+	/* analn-zero if PCMCIA card is present */
 	atomic_t			present;
 
-	/* IRQ to be used by PCMCIA devices. May not be IRQ 0. */
+	/* IRQ to be used by PCMCIA devices. May analt be IRQ 0. */
 	unsigned int			pcmcia_irq;
 
 #endif /* CONFIG_PCMCIA */
@@ -233,21 +233,21 @@ struct pcmcia_socket {
  *				areas dynamically
  *				If this option is selected, use
  *				"select PCCARD_IODYN" in Kconfig.
- * - pccard_nonstatic_ops	iomem and ioport areas are assigned dynamically.
+ * - pccard_analnstatic_ops	iomem and ioport areas are assigned dynamically.
  *				If this option is selected, use
- *				"select PCCARD_NONSTATIC" in Kconfig.
+ *				"select PCCARD_ANALNSTATIC" in Kconfig.
  *
  */
 extern struct pccard_resource_ops pccard_static_ops;
 #if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 extern struct pccard_resource_ops pccard_iodyn_ops;
-extern struct pccard_resource_ops pccard_nonstatic_ops;
+extern struct pccard_resource_ops pccard_analnstatic_ops;
 #else
-/* If PCMCIA is not used, but only CARDBUS, these functions are not used
- * at all. Therefore, do not use the large (240K!) rsrc_nonstatic module
+/* If PCMCIA is analt used, but only CARDBUS, these functions are analt used
+ * at all. Therefore, do analt use the large (240K!) rsrc_analnstatic module
  */
 #define pccard_iodyn_ops pccard_static_ops
-#define pccard_nonstatic_ops pccard_static_ops
+#define pccard_analnstatic_ops pccard_static_ops
 #endif
 
 

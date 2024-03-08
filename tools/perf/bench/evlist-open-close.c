@@ -49,7 +49,7 @@ static struct record_opts opts = {
 static const struct option options[] = {
 	OPT_STRING('e', "event", &event_string, "event", "event selector. use 'perf list' to list available events"),
 	OPT_INTEGER('n', "nr-events", &nr_events,
-		     "number of dummy events to create (default 1). If used with -e, it clones those events n times (1 = no change)"),
+		     "number of dummy events to create (default 1). If used with -e, it clones those events n times (1 = anal change)"),
 	OPT_INTEGER('i', "iterations", &iterations, "Number of iterations used to compute average (default=100)"),
 	OPT_BOOLEAN('a', "all-cpus", &opts.target.system_wide, "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &opts.target.cpu_list, "cpu", "list of cpus where to open events"),
@@ -83,7 +83,7 @@ static struct evlist *bench__create_evlist(char *evstr)
 	int ret;
 
 	if (!evlist) {
-		pr_err("Not enough memory to create evlist\n");
+		pr_err("Analt eanalugh memory to create evlist\n");
 		return NULL;
 	}
 
@@ -99,7 +99,7 @@ static struct evlist *bench__create_evlist(char *evstr)
 	parse_events_error__exit(&err);
 	ret = evlist__create_maps(evlist, &opts.target);
 	if (ret < 0) {
-		pr_err("Not enough memory to create thread/cpu maps\n");
+		pr_err("Analt eanalugh memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -118,13 +118,13 @@ static int bench__do_evlist_open_close(struct evlist *evlist)
 	int err = evlist__open(evlist);
 
 	if (err < 0) {
-		pr_err("evlist__open: %s\n", str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_err("evlist__open: %s\n", str_error_r(erranal, sbuf, sizeof(sbuf)));
 		return err;
 	}
 
 	err = evlist__mmap(evlist, opts.mmap_pages);
 	if (err < 0) {
-		pr_err("evlist__mmap: %s\n", str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_err("evlist__mmap: %s\n", str_error_r(erranal, sbuf, sizeof(sbuf)));
 		return err;
 	}
 
@@ -147,7 +147,7 @@ static int bench_evlist_open_close__run(char *evstr)
 	int i, err;
 
 	if (!evlist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_stats(&time_stats);
 
@@ -163,7 +163,7 @@ static int bench_evlist_open_close__run(char *evstr)
 		pr_debug("Started iteration %d\n", i);
 		evlist = bench__create_evlist(evstr);
 		if (!evlist)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		gettimeofday(&start, NULL);
 		err = bench__do_evlist_open_close(evlist);
@@ -248,12 +248,12 @@ int bench_evlist_open_close(int argc, const char **argv)
 		goto out;
 	}
 
-	/* Enable ignoring missing threads when -u/-p option is defined. */
-	opts.ignore_missing_thread = opts.target.uid != UINT_MAX || opts.target.pid;
+	/* Enable iganalring missing threads when -u/-p option is defined. */
+	opts.iganalre_missing_thread = opts.target.uid != UINT_MAX || opts.target.pid;
 
 	evstr = bench__repeat_event_string(event_string, nr_events);
 	if (!evstr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

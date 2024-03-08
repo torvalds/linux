@@ -144,9 +144,9 @@ static int vcnl3020_init(struct vcnl3020_data *data)
 
 	if (reg != VCNL3020_PROD_ID) {
 		dev_err(data->dev,
-			"Product id (%x) did not match vcnl3020 (%x)\n", reg,
+			"Product id (%x) did analt match vcnl3020 (%x)\n", reg,
 			VCNL3020_PROD_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->rev = reg;
@@ -585,7 +585,7 @@ static irqreturn_t vcnl3020_handle_irq_thread(int irq, void *p)
 	}
 
 	if (!(isr & VCNL_ICR_THRES_EN))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iio_push_event(indio_dev,
 		       IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 1,
@@ -616,7 +616,7 @@ static int vcnl3020_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

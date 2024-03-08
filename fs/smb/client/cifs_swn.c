@@ -25,9 +25,9 @@ struct cifs_swn_reg {
 
 	const char *net_name;
 	const char *share_name;
-	bool net_name_notify;
-	bool share_name_notify;
-	bool ip_notify;
+	bool net_name_analtify;
+	bool share_name_analtify;
+	bool ip_analtify;
 
 	struct cifs_tcon *tcon;
 };
@@ -83,13 +83,13 @@ static int cifs_swn_send_register_message(struct cifs_swn_reg *swnreg)
 
 	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (skb == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	hdr = genlmsg_put(skb, 0, 0, &cifs_genl_family, 0, CIFS_GENL_CMD_SWN_REGISTER);
 	if (hdr == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto nlmsg_fail;
 	}
 
@@ -109,7 +109,7 @@ static int cifs_swn_send_register_message(struct cifs_swn_reg *swnreg)
 	 * If there is an address stored use it instead of the server address, because we are
 	 * in the process of reconnecting to it after a share has been moved or we have been
 	 * told to switch to it (client move message). In these cases we unregister from the
-	 * server address and register to the new address when we receive the notification.
+	 * server address and register to the new address when we receive the analtification.
 	 */
 	if (swnreg->tcon->ses->server->use_swn_dstaddr)
 		addr = &swnreg->tcon->ses->server->swn_dstaddr;
@@ -120,20 +120,20 @@ static int cifs_swn_send_register_message(struct cifs_swn_reg *swnreg)
 	if (ret < 0)
 		goto nlmsg_fail;
 
-	if (swnreg->net_name_notify) {
-		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_NET_NAME_NOTIFY);
+	if (swnreg->net_name_analtify) {
+		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_NET_NAME_ANALTIFY);
 		if (ret < 0)
 			goto nlmsg_fail;
 	}
 
-	if (swnreg->share_name_notify) {
-		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_SHARE_NAME_NOTIFY);
+	if (swnreg->share_name_analtify) {
+		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_SHARE_NAME_ANALTIFY);
 		if (ret < 0)
 			goto nlmsg_fail;
 	}
 
-	if (swnreg->ip_notify) {
-		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_IP_NOTIFY);
+	if (swnreg->ip_analtify) {
+		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_IP_ANALTIFY);
 		if (ret < 0)
 			goto nlmsg_fail;
 	}
@@ -156,7 +156,7 @@ static int cifs_swn_send_register_message(struct cifs_swn_reg *swnreg)
 		}
 		break;
 	default:
-		cifs_dbg(VFS, "%s: secType %d not supported!\n", __func__, authtype);
+		cifs_dbg(VFS, "%s: secType %d analt supported!\n", __func__, authtype);
 		ret = -EINVAL;
 		goto nlmsg_fail;
 	}
@@ -187,11 +187,11 @@ static int cifs_swn_send_unregister_message(struct cifs_swn_reg *swnreg)
 
 	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(skb, 0, 0, &cifs_genl_family, 0, CIFS_GENL_CMD_SWN_UNREGISTER);
 	if (hdr == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto nlmsg_fail;
 	}
 
@@ -212,20 +212,20 @@ static int cifs_swn_send_unregister_message(struct cifs_swn_reg *swnreg)
 	if (ret < 0)
 		goto nlmsg_fail;
 
-	if (swnreg->net_name_notify) {
-		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_NET_NAME_NOTIFY);
+	if (swnreg->net_name_analtify) {
+		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_NET_NAME_ANALTIFY);
 		if (ret < 0)
 			goto nlmsg_fail;
 	}
 
-	if (swnreg->share_name_notify) {
-		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_SHARE_NAME_NOTIFY);
+	if (swnreg->share_name_analtify) {
+		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_SHARE_NAME_ANALTIFY);
 		if (ret < 0)
 			goto nlmsg_fail;
 	}
 
-	if (swnreg->ip_notify) {
-		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_IP_NOTIFY);
+	if (swnreg->ip_analtify) {
+		ret = nla_put_flag(skb, CIFS_GENL_ATTR_SWN_IP_ANALTIFY);
 		if (ret < 0)
 			goto nlmsg_fail;
 	}
@@ -299,7 +299,7 @@ static struct cifs_swn_reg *cifs_find_swn_reg(struct cifs_tcon *tcon)
 }
 
 /*
- * Get a registration for the tcon's server and share name, allocating a new one if it does not
+ * Get a registration for the tcon's server and share name, allocating a new one if it does analt
  * exists
  */
 static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
@@ -323,7 +323,7 @@ static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
 	reg = kmalloc(sizeof(struct cifs_swn_reg), GFP_ATOMIC);
 	if (reg == NULL) {
 		mutex_unlock(&cifs_swnreg_idr_mutex);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	kref_init(&reg->ref_count);
@@ -349,9 +349,9 @@ static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
 		goto fail_net_name;
 	}
 
-	reg->net_name_notify = true;
-	reg->share_name_notify = true;
-	reg->ip_notify = (tcon->capabilities & SMB2_SHARE_CAP_SCALEOUT);
+	reg->net_name_analtify = true;
+	reg->share_name_analtify = true;
+	reg->ip_analtify = (tcon->capabilities & SMB2_SHARE_CAP_SCALEOUT);
 
 	reg->tcon = tcon;
 
@@ -402,8 +402,8 @@ static int cifs_swn_resource_state_changed(struct cifs_swn_reg *swnreg, const ch
 		cifs_dbg(FYI, "%s: resource name '%s' become available\n", __func__, name);
 		cifs_signal_cifsd_for_reconnect(swnreg->tcon->ses->server, true);
 		break;
-	case CIFS_SWN_RESOURCE_STATE_UNKNOWN:
-		cifs_dbg(FYI, "%s: resource name '%s' changed to unknown state\n", __func__, name);
+	case CIFS_SWN_RESOURCE_STATE_UNKANALWN:
+		cifs_dbg(FYI, "%s: resource name '%s' changed to unkanalwn state\n", __func__, name);
 		break;
 	}
 	return 0;
@@ -478,22 +478,22 @@ static int cifs_swn_reconnect(struct cifs_tcon *tcon, struct sockaddr_storage *a
 	tcon->ses->server->use_swn_dstaddr = true;
 
 	/*
-	 * Unregister to stop receiving notifications for the old IP address.
+	 * Unregister to stop receiving analtifications for the old IP address.
 	 */
 	ret = cifs_swn_unregister(tcon);
 	if (ret < 0) {
-		cifs_dbg(VFS, "%s: Failed to unregister for witness notifications: %d\n",
+		cifs_dbg(VFS, "%s: Failed to unregister for witness analtifications: %d\n",
 			 __func__, ret);
 		goto unlock;
 	}
 
 	/*
-	 * And register to receive notifications for the new IP address now that we have
+	 * And register to receive analtifications for the new IP address analw that we have
 	 * stored the new address.
 	 */
 	ret = cifs_swn_register(tcon);
 	if (ret < 0) {
-		cifs_dbg(VFS, "%s: Failed to register for witness notifications: %d\n",
+		cifs_dbg(VFS, "%s: Failed to register for witness analtifications: %d\n",
 			 __func__, ret);
 		goto unlock;
 	}
@@ -519,7 +519,7 @@ static int cifs_swn_client_move(struct cifs_swn_reg *swnreg, struct sockaddr_sto
 	return cifs_swn_reconnect(swnreg->tcon, addr);
 }
 
-int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info)
+int cifs_swn_analtify(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cifs_swn_reg *swnreg;
 	char name[256];
@@ -533,7 +533,7 @@ int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info)
 		swnreg = idr_find(&cifs_swnreg_idr, swnreg_id);
 		mutex_unlock(&cifs_swnreg_idr_mutex);
 		if (swnreg == NULL) {
-			cifs_dbg(FYI, "%s: registration id %d not found\n", __func__, swnreg_id);
+			cifs_dbg(FYI, "%s: registration id %d analt found\n", __func__, swnreg_id);
 			return -EINVAL;
 		}
 	} else {
@@ -541,15 +541,15 @@ int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
-	if (info->attrs[CIFS_GENL_ATTR_SWN_NOTIFICATION_TYPE]) {
-		type = nla_get_u32(info->attrs[CIFS_GENL_ATTR_SWN_NOTIFICATION_TYPE]);
+	if (info->attrs[CIFS_GENL_ATTR_SWN_ANALTIFICATION_TYPE]) {
+		type = nla_get_u32(info->attrs[CIFS_GENL_ATTR_SWN_ANALTIFICATION_TYPE]);
 	} else {
-		cifs_dbg(FYI, "%s: missing notification type attribute\n", __func__);
+		cifs_dbg(FYI, "%s: missing analtification type attribute\n", __func__);
 		return -EINVAL;
 	}
 
 	switch (type) {
-	case CIFS_SWN_NOTIFICATION_RESOURCE_CHANGE: {
+	case CIFS_SWN_ANALTIFICATION_RESOURCE_CHANGE: {
 		int state;
 
 		if (info->attrs[CIFS_GENL_ATTR_SWN_RESOURCE_NAME]) {
@@ -567,7 +567,7 @@ int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info)
 		}
 		return cifs_swn_resource_state_changed(swnreg, name, state);
 	}
-	case CIFS_SWN_NOTIFICATION_CLIENT_MOVE: {
+	case CIFS_SWN_ANALTIFICATION_CLIENT_MOVE: {
 		struct sockaddr_storage addr;
 
 		if (info->attrs[CIFS_GENL_ATTR_SWN_IP]) {
@@ -579,7 +579,7 @@ int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info)
 		return cifs_swn_client_move(swnreg, &addr);
 	}
 	default:
-		cifs_dbg(FYI, "%s: unknown notification type %d\n", __func__, type);
+		cifs_dbg(FYI, "%s: unkanalwn analtification type %d\n", __func__, type);
 		break;
 	}
 
@@ -598,7 +598,7 @@ int cifs_swn_register(struct cifs_tcon *tcon)
 	ret = cifs_swn_send_register_message(swnreg);
 	if (ret < 0) {
 		cifs_dbg(VFS, "%s: Failed to send swn register message: %d\n", __func__, ret);
-		/* Do not put the swnreg or return error, the echo task will retry */
+		/* Do analt put the swnreg or return error, the echo task will retry */
 	}
 
 	return 0;
@@ -636,8 +636,8 @@ void cifs_swn_dump(struct seq_file *m)
 	idr_for_each_entry(&cifs_swnreg_idr, swnreg, id) {
 		seq_printf(m, "\nId: %u Refs: %u Network name: '%s'%s Share name: '%s'%s Ip address: ",
 				id, kref_read(&swnreg->ref_count),
-				swnreg->net_name, swnreg->net_name_notify ? "(y)" : "(n)",
-				swnreg->share_name, swnreg->share_name_notify ? "(y)" : "(n)");
+				swnreg->net_name, swnreg->net_name_analtify ? "(y)" : "(n)",
+				swnreg->share_name, swnreg->share_name_analtify ? "(y)" : "(n)");
 		switch (swnreg->tcon->ses->server->dstaddr.ss_family) {
 		case AF_INET:
 			sa = (struct sockaddr_in *) &swnreg->tcon->ses->server->dstaddr;
@@ -650,9 +650,9 @@ void cifs_swn_dump(struct seq_file *m)
 				seq_printf(m, "%%%u", sa6->sin6_scope_id);
 			break;
 		default:
-			seq_puts(m, "(unknown)");
+			seq_puts(m, "(unkanalwn)");
 		}
-		seq_printf(m, "%s", swnreg->ip_notify ? "(y)" : "(n)");
+		seq_printf(m, "%s", swnreg->ip_analtify ? "(y)" : "(n)");
 	}
 	mutex_unlock(&cifs_swnreg_idr_mutex);
 	seq_puts(m, "\n");

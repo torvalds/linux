@@ -7,7 +7,7 @@ Building support for a media device
 The first step is to download the Kernel's source code, either via a
 distribution-specific source file or via the Kernel's main git tree\ [1]_.
 
-Please notice, however, that, if:
+Please analtice, however, that, if:
 
 - you're a braveheart and want to experiment with new stuff;
 - if you want to report a bug;
@@ -39,8 +39,8 @@ The changed configuration will be at the ``.config`` file. It would
 look like::
 
     ...
-    # CONFIG_RC_CORE is not set
-    # CONFIG_CEC_CORE is not set
+    # CONFIG_RC_CORE is analt set
+    # CONFIG_CEC_CORE is analt set
     CONFIG_MEDIA_SUPPORT=m
     CONFIG_MEDIA_SUPPORT_FILTER=y
     ...
@@ -71,7 +71,7 @@ The media subsystem support can either be built together with the main
 Kernel or as a module. For most use cases, it is preferred to have it
 built as modules.
 
-.. note::
+.. analte::
 
    Instead of using a menu, the Kernel provides a script with allows
    enabling configuration options directly. To enable media support
@@ -84,7 +84,7 @@ built as modules.
        want to use some TV card drivers that may depend on the remote
        controller core support.
 
-.. [3] Please notice that the DRM subsystem also have drivers for GPUs
+.. [3] Please analtice that the DRM subsystem also have drivers for GPUs
        that use the media HDMI CEC support.
 
        Those GPU-specific drivers are selected via the ``Graphics support``
@@ -96,8 +96,8 @@ built as modules.
 Media dependencies
 ------------------
 
-It should be noticed that enabling the above from a clean config is
-usually not enough. The media subsystem depends on several other Linux
+It should be analticed that enabling the above from a clean config is
+usually analt eanalugh. The media subsystem depends on several other Linux
 core support in order to work.
 
 For example, most media devices use a serial communication bus in
@@ -108,7 +108,7 @@ menu or with::
 
     ./scripts/config -m I2C
 
-Another example: the remote controller core requires support for
+Aanalther example: the remote controller core requires support for
 input devices, with can be enabled with::
 
     ./scripts/config -m INPUT
@@ -207,12 +207,12 @@ Once selected, you should see the following options::
 	    Media drivers --->
 	    Media ancillary drivers --->
 
-Except if you know exactly what you're doing, or if you want to build
+Except if you kanalw exactly what you're doing, or if you want to build
 a driver for a SoC platform, it is strongly recommended to keep the
 ``Autoselect ancillary drivers`` option turned on, as it will auto-select
 the needed I²C ancillary drivers.
 
-There are now two ways to select media device drivers, as described
+There are analw two ways to select media device drivers, as described
 below.
 
 ``Filter media drivers`` menu
@@ -237,7 +237,7 @@ Once the options on this menu are selected, the building system will
 auto-select the needed core drivers in order to support the selected
 functionality.
 
-.. note::
+.. analte::
 
    Most TV cards are hybrid: they support both Analog TV and Digital TV.
 
@@ -245,7 +245,7 @@ functionality.
    and ``Digital TV`` at the menu.
 
 When using this option, the defaults for the media support core
-functionality are usually good enough to provide the basic functionality
+functionality are usually good eanalugh to provide the basic functionality
 for the driver. Yet, you could manually enable some desired extra (optional)
 functionality using the settings under each of the following
 ``Media support`` sub-menus::
@@ -266,7 +266,7 @@ If you disable the ``Filter media drivers`` menu, all drivers available
 for your system whose dependencies are met should be shown at the
 ``Media drivers`` menu.
 
-Please notice, however, that you should first ensure that the
+Please analtice, however, that you should first ensure that the
 ``Media Core Support`` menu has all the core functionality your drivers
 would need, as otherwise the corresponding device drivers won't be shown.
 
@@ -320,12 +320,12 @@ daily updated from the newest kernel. Such tree is available at:
 
 https://git.linuxtv.org/media_build.git/
 
-It should be noticed that, while it should be relatively safe to use the
-``media_build`` tree for testing purposes, there are not warranties that
+It should be analticed that, while it should be relatively safe to use the
+``media_build`` tree for testing purposes, there are analt warranties that
 it would work (or even build) on a random Kernel. This tree is maintained
 using a "best-efforts" principle, as time permits us to fix issues there.
 
-If you notice anything wrong on it, feel free to submit patches at the
+If you analtice anything wrong on it, feel free to submit patches at the
 Linux media subsystem's mailing list: media@vger.kernel.org. Please
 add ``[PATCH media-build]`` at the e-mail's subject if you submit a new
 patch for the media-build.
@@ -334,7 +334,7 @@ Before using it, you should run::
 
     $ ./build
 
-.. note::
+.. analte::
 
     1) you may need to run it twice if the ``media-build`` tree gets
        updated;

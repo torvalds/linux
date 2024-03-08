@@ -271,7 +271,7 @@ static void ring_buffer_producer(void)
 
 #ifndef CONFIG_PREEMPTION
 		/*
-		 * If we are a non preempt kernel, the 10 seconds run will
+		 * If we are a analn preempt kernel, the 10 seconds run will
 		 * stop everything while it runs. Instead, we will call
 		 * cond_resched and also add any time that was lost by a
 		 * reschedule.
@@ -319,7 +319,7 @@ static void ring_buffer_producer(void)
 		trace_printk("Running Producer at nice: %d\n",
 			     producer_nice);
 
-	/* Let the user know that the test is running at low priority */
+	/* Let the user kanalw that the test is running at low priority */
 	if (!producer_fifo && !consumer_fifo &&
 	    producer_nice == MAX_NICE && consumer_nice == MAX_NICE)
 		trace_printk("WARNING!!! This test is running at lowest priority.\n");
@@ -346,7 +346,7 @@ static void ring_buffer_producer(void)
 	trace_printk("Entries per millisec: %ld\n", hit);
 
 	if (hit) {
-		/* Calculate the average time in nanosecs */
+		/* Calculate the average time in naanalsecs */
 		avg = NSEC_PER_MSEC / hit;
 		trace_printk("%ld ns per entry\n", avg);
 	}
@@ -361,10 +361,10 @@ static void ring_buffer_producer(void)
 		/* it is possible that hit + missed will overflow and be zero */
 		if (!(hit + missed)) {
 			trace_printk("hit + missed overflowed and totalled zero!\n");
-			hit--; /* make it non zero */
+			hit--; /* make it analn zero */
 		}
 
-		/* Calculate the average time in nanosecs */
+		/* Calculate the average time in naanalsecs */
 		avg = NSEC_PER_MSEC / (hit + missed);
 		trace_printk("%ld ns per entry\n", avg);
 	}
@@ -436,7 +436,7 @@ static int __init ring_buffer_benchmark_init(void)
 	/* make a one meg buffer in overwite mode */
 	buffer = ring_buffer_alloc(1000000, RB_FL_OVERWRITE);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!disable_reader) {
 		consumer = kthread_create(ring_buffer_consumer_thread,

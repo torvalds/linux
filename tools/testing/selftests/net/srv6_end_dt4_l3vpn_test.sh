@@ -16,7 +16,7 @@
 # In other words, hosts hs-t100-1 and hs-t100-2 are connected through the IPv4
 # L3 VPN of tenant 100 while hs-t200-3 and hs-t200-4 are connected using the
 # IPv4 L3 VPN of tenant 200. Cross connection between tenant 100 and tenant 200
-# is forbidden and thus, for example, hs-t100-1 cannot reach hs-t200-3 and vice
+# is forbidden and thus, for example, hs-t100-1 cananalt reach hs-t200-3 and vice
 # versa.
 #
 # Routers rt-1 and rt-2 implement IPv4 L3 VPN services leveraging the SRv6
@@ -173,7 +173,7 @@ PING_TIMEOUT_SEC=4
 
 ret=0
 
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
 
 log_test()
 {
@@ -188,7 +188,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -199,7 +199,7 @@ log_test()
 
 print_log_test_results()
 {
-	if [ "$TESTS" != "none" ]; then
+	if [ "$TESTS" != "analne" ]; then
 		printf "\nTests passed: %3d\n" ${nsuccess}
 		printf "Tests failed: %3d\n"   ${nfail}
 	fi
@@ -233,7 +233,7 @@ setup_rt_networking()
 	ip link set veth-rt-${id} netns ${nsname}
 	ip -netns ${nsname} link set veth-rt-${id} name veth0
 
-	ip -netns ${nsname} addr add ${IPv6_RT_NETWORK}::${id}/64 dev veth0 nodad
+	ip -netns ${nsname} addr add ${IPv6_RT_NETWORK}::${id}/64 dev veth0 analdad
 	ip -netns ${nsname} link set veth0 up
 	ip -netns ${nsname} link set lo up
 
@@ -304,7 +304,7 @@ setup_vpn_config()
 	# Routes for handling the SRv6 End.DT4 behavior instances are grouped
 	# together in the 'localsid' table.
 	#
-	# NOTE: added only once
+	# ANALTE: added only once
 	if [ -z "$(ip -netns ${rtdst_name} -6 rule show | \
 	    grep "to ${VPN_LOCATOR_SERVICE}::/16 lookup ${LOCALSID_TABLE_ID}")" ]; then
 		ip -netns ${rtdst_name} -6 rule add \
@@ -394,7 +394,7 @@ check_and_log_hs_isolation()
 	local tiddst=$4
 
 	check_hs_connectivity ${hssrc} ${hsdst} ${tidsrc}
-	# NOTE: ping should fail
+	# ANALTE: ping should fail
 	log_test $? 1 "Hosts isolation: hs-t${tidsrc}-${hssrc} -X-> hs-t${tiddst}-${hsdst}"
 }
 
@@ -470,13 +470,13 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 modprobe vrf &>/dev/null
 if [ ! -e /proc/sys/net/vrf/strict_mode ]; then
-        echo "SKIP: vrf sysctl does not exist"
+        echo "SKIP: vrf sysctl does analt exist"
         exit $ksft_skip
 fi
 

@@ -3,7 +3,7 @@
  * Copyright 2007-2008 Paul Mackerras, IBM Corp.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/types.h>
@@ -62,13 +62,13 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
 
 	pgd = pgd_offset(mm, addr);
 	p4d = p4d_offset(pgd, addr);
-	if (p4d_none(*p4d))
+	if (p4d_analne(*p4d))
 		return;
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud))
+	if (pud_analne(*pud))
 		return;
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
+	if (pmd_analne(*pmd))
 		return;
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	if (!pte)
@@ -126,7 +126,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 
 		memset(spp, 0, nw * sizeof(u32));
 
-		/* now flush any existing HPTEs for the range */
+		/* analw flush any existing HPTEs for the range */
 		hpte_flush_range(mm, addr, nw);
 	}
 
@@ -148,7 +148,7 @@ static const struct mm_walk_ops subpage_walk_ops = {
 	.walk_lock	= PGWALK_WRLOCK_VERIFY,
 };
 
-static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
+static void subpage_mark_vma_analhuge(struct mm_struct *mm, unsigned long addr,
 				    unsigned long len)
 {
 	struct vm_area_struct *vma;
@@ -156,15 +156,15 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
 
 	/*
 	 * We don't try too hard, we just mark all the vma in that range
-	 * VM_NOHUGEPAGE and split them.
+	 * VM_ANALHUGEPAGE and split them.
 	 */
 	for_each_vma_range(vmi, vma, addr + len) {
-		vm_flags_set(vma, VM_NOHUGEPAGE);
+		vm_flags_set(vma, VM_ANALHUGEPAGE);
 		walk_page_vma(vma, &subpage_walk_ops, NULL);
 	}
 }
 #else
-static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
+static void subpage_mark_vma_analhuge(struct mm_struct *mm, unsigned long addr,
 				    unsigned long len)
 {
 	return;
@@ -176,7 +176,7 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
  * The map has 2 bits per 4k subpage, so 32 bits per 64k page.
  * Each 2-bit field is 0 to allow any access, 1 to prevent writes,
  * 2 or 3 to prevent all accesses.
- * Note that the normal page protections also apply; the subpage
+ * Analte that the analrmal page protections also apply; the subpage
  * protection mechanism is an additional constraint, so putting 0
  * in a 2-bit field won't allow writes to a page that is otherwise
  * write-protected.
@@ -193,7 +193,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 	int err;
 
 	if (radix_enabled())
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Check parameters */
 	if ((addr & ~PAGE_MASK) || (len & ~PAGE_MASK) ||
@@ -218,21 +218,21 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 	spt = mm_ctx_subpage_prot(&mm->context);
 	if (!spt) {
 		/*
-		 * Allocate subpage prot table if not already done.
+		 * Allocate subpage prot table if analt already done.
 		 * Do this with mmap_lock held
 		 */
 		spt = kzalloc(sizeof(struct subpage_prot_table), GFP_KERNEL);
 		if (!spt) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		mm->context.hash_context->spt = spt;
 	}
 
-	subpage_mark_vma_nohuge(mm, addr, len);
+	subpage_mark_vma_analhuge(mm, addr, len);
 	for (limit = addr + len; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		if (addr < 0x100000000UL) {
 			spm = spt->low_prot;
 		} else {
@@ -269,7 +269,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		map += nw;
 		mmap_write_lock(mm);
 
-		/* now flush any existing HPTEs for the range */
+		/* analw flush any existing HPTEs for the range */
 		hpte_flush_range(mm, addr, nw);
 	}
 	if (limit > spt->maxaddr)

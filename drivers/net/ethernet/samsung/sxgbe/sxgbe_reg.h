@@ -384,7 +384,7 @@
  * Register(0x0064) register
  */
 enum vlan_tag_ctl_tx {
-	VLAN_TAG_TX_NOP,
+	VLAN_TAG_TX_ANALP,
 	VLAN_TAG_TX_DEL,
 	VLAN_TAG_TX_INSERT,
 	VLAN_TAG_TX_REPLACE
@@ -442,30 +442,30 @@ enum vlan_tag_ctl_tx {
 #define SXGBE_HW_FEAT_AUX_SNAPSHOTS(cap)	((cap & 0x70000000) >> 28)
 
 /* DMAchannel interrupt enable specific */
-/* DMA Normal interrupt */
-#define SXGBE_DMA_INT_ENA_NIE	BIT(16)	/* Normal Summary */
+/* DMA Analrmal interrupt */
+#define SXGBE_DMA_INT_ENA_NIE	BIT(16)	/* Analrmal Summary */
 #define SXGBE_DMA_INT_ENA_TIE	BIT(0)	/* Transmit Interrupt */
 #define SXGBE_DMA_INT_ENA_TUE	BIT(2)	/* Transmit Buffer Unavailable */
 #define SXGBE_DMA_INT_ENA_RIE	BIT(6)	/* Receive Interrupt */
 
-#define SXGBE_DMA_INT_NORMAL					\
+#define SXGBE_DMA_INT_ANALRMAL					\
 	(SXGBE_DMA_INT_ENA_NIE | SXGBE_DMA_INT_ENA_RIE |	\
 	 SXGBE_DMA_INT_ENA_TIE | SXGBE_DMA_INT_ENA_TUE)
 
-/* DMA Abnormal interrupt */
-#define SXGBE_DMA_INT_ENA_AIE	BIT(15)	/* Abnormal Summary */
+/* DMA Abanalrmal interrupt */
+#define SXGBE_DMA_INT_ENA_AIE	BIT(15)	/* Abanalrmal Summary */
 #define SXGBE_DMA_INT_ENA_TSE	BIT(1)	/* Transmit Stopped */
 #define SXGBE_DMA_INT_ENA_RUE	BIT(7)	/* Receive Buffer Unavailable */
 #define SXGBE_DMA_INT_ENA_RSE	BIT(8)	/* Receive Stopped */
 #define SXGBE_DMA_INT_ENA_FBE	BIT(12)	/* Fatal Bus Error */
 #define SXGBE_DMA_INT_ENA_CDEE	BIT(13)	/* Context Descriptor Error */
 
-#define SXGBE_DMA_INT_ABNORMAL					\
+#define SXGBE_DMA_INT_ABANALRMAL					\
 	(SXGBE_DMA_INT_ENA_AIE | SXGBE_DMA_INT_ENA_TSE |	\
 	 SXGBE_DMA_INT_ENA_RUE | SXGBE_DMA_INT_ENA_RSE |	\
 	 SXGBE_DMA_INT_ENA_FBE | SXGBE_DMA_INT_ENA_CDEE)
 
-#define SXGBE_DMA_ENA_INT	(SXGBE_DMA_INT_NORMAL | SXGBE_DMA_INT_ABNORMAL)
+#define SXGBE_DMA_ENA_INT	(SXGBE_DMA_INT_ANALRMAL | SXGBE_DMA_INT_ABANALRMAL)
 
 /* DMA channel interrupt status specific */
 #define	SXGBE_DMA_INT_STATUS_REB2	BIT(21)

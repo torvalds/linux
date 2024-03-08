@@ -16,7 +16,7 @@
     },
     {
         "MetricExpr": "INST_RETIRED.ANY / BR_MISP_RETIRED.ALL_BRANCHES",
-        "BriefDescription": "Number of Instructions per non-speculative Branch Misprediction (JEClear)",
+        "BriefDescription": "Number of Instructions per analn-speculative Branch Misprediction (JEClear)",
         "MetricName": "IpMispredict"
     },
     {
@@ -46,7 +46,7 @@
     },
     {
         "MetricExpr": "cycles / CPU_CLK_UNHALTED.REF_TSC",
-        "BriefDescription": "Average Frequency Utilization relative nominal frequency",
+        "BriefDescription": "Average Frequency Utilization relative analminal frequency",
         "MetricName": "Turbo_Utilization"
     },
     {

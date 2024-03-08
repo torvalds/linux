@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruanal Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -30,7 +30,7 @@ static int picolcd_set_contrast(struct lcd_device *ldev, int contrast)
 	unsigned long flags;
 
 	if (!report || report->maxfield != 1 || report->field[0]->report_count != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data->lcd_contrast = contrast & 0x0ff;
 	spin_lock_irqsave(&data->lock, flags);
@@ -58,7 +58,7 @@ int picolcd_init_lcd(struct picolcd_data *data, struct hid_report *report)
 	struct lcd_device *ldev;
 
 	if (!report)
-		return -ENODEV;
+		return -EANALDEV;
 	if (report->maxfield != 1 || report->field[0]->report_count != 1 ||
 			report->field[0]->report_size != 8) {
 		dev_err(dev, "unsupported CONTRAST report");

@@ -4,7 +4,7 @@
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001 Intel Corp.
- * Copyright (c) 2001 Nokia, Inc.
+ * Copyright (c) 2001 Analkia, Inc.
  * Copyright (c) 2001 La Monte H.P. Yarroll
  *
  * This file is part of the SCTP kernel implementation
@@ -143,7 +143,7 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 		if (!sctp_in_scope(net, &addr->a, scope))
 			continue;
 
-		/* Now that the address is in scope, check to see if
+		/* Analw that the address is in scope, check to see if
 		 * the address type is really supported by the local
 		 * sock as well as the remote peer.
 		 */
@@ -326,18 +326,18 @@ static int sctp_v4_is_any(const union sctp_addr *addr)
  * SCTP binding.
  *
  * Output:
- * Return 0 - If the address is a non-unicast or an illegal address.
+ * Return 0 - If the address is a analn-unicast or an illegal address.
  * Return 1 - If the address is a unicast.
  */
 static int sctp_v4_addr_valid(union sctp_addr *addr,
 			      struct sctp_sock *sp,
 			      const struct sk_buff *skb)
 {
-	/* IPv4 addresses not allowed */
+	/* IPv4 addresses analt allowed */
 	if (sp && ipv6_only_sock(sctp_opt2sk(sp)))
 		return 0;
 
-	/* Is this a non-unicast address or a unusable SCTP address? */
+	/* Is this a analn-unicast address or a unusable SCTP address? */
 	if (IS_IPV4_UNUSABLE_ADDRESS(addr->v4.sin_addr.s_addr))
 		return 0;
 
@@ -361,7 +361,7 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 	if (addr->v4.sin_addr.s_addr != htonl(INADDR_ANY) &&
 	   ret != RTN_LOCAL &&
 	   !inet_test_bit(FREEBIND, sk) &&
-	    !READ_ONCE(net->ipv4.sysctl_ip_nonlocal_bind))
+	    !READ_ONCE(net->ipv4.sysctl_ip_analnlocal_bind))
 		return 0;
 
 	if (ipv6_only_sock(sctp_opt2sk(sp)))
@@ -456,7 +456,7 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		memcpy(fl, &_fl, sizeof(_fl));
 	}
 
-	/* If there is no association or if a source address is passed, no
+	/* If there is anal association or if a source address is passed, anal
 	 * more validation is required.
 	 */
 	if (!asoc || saddr)
@@ -480,7 +480,7 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		}
 		rcu_read_unlock();
 
-		/* None of the bound addresses match the source address of the
+		/* Analne of the bound addresses match the source address of the
 		 * dst. So release it.
 		 */
 		dst_release(dst);
@@ -540,11 +540,11 @@ out:
 			 &fl->u.ip4.daddr, &fl->u.ip4.saddr);
 	} else {
 		t->dst = NULL;
-		pr_debug("no route\n");
+		pr_debug("anal route\n");
 	}
 }
 
-/* For v4, the source address is cached in the route entry(dst). So no need
+/* For v4, the source address is cached in the route entry(dst). So anal need
  * to cache it separately and hence this is an empty routine.
  */
 static void sctp_v4_get_saddr(struct sctp_sock *sk,
@@ -571,7 +571,7 @@ static int sctp_v4_skb_sdif(const struct sk_buff *skb)
 	return inet_sdif(skb);
 }
 
-/* Was this packet marked by Explicit Congestion Notification? */
+/* Was this packet marked by Explicit Congestion Analtification? */
 static int sctp_v4_is_ce(const struct sk_buff *skb)
 {
 	return INET_ECN_is_ce(ip_hdr(skb)->tos);
@@ -611,7 +611,7 @@ out:
 
 static int sctp_v4_addr_to_user(struct sctp_sock *sp, union sctp_addr *addr)
 {
-	/* No address mapping for V4 sockets */
+	/* Anal address mapping for V4 sockets */
 	memset(addr->v4.sin_zero, 0, sizeof(addr->v4.sin_zero));
 	return sizeof(struct sockaddr_in);
 }
@@ -641,8 +641,8 @@ static void sctp_addr_wq_timeout_handler(struct timer_list *t)
 			 addrw->state, addrw);
 
 #if IS_ENABLED(CONFIG_IPV6)
-		/* Now we send an ASCONF for each association */
-		/* Note. we currently don't handle link local IPv6 addressees */
+		/* Analw we send an ASCONF for each association */
+		/* Analte. we currently don't handle link local IPv6 addressees */
 		if (addrw->a.sa.sa_family == AF_INET6) {
 			struct in6_addr *in6;
 
@@ -670,7 +670,7 @@ static void sctp_addr_wq_timeout_handler(struct timer_list *t)
 			struct sock *sk;
 
 			sk = sctp_opt2sk(sp);
-			/* ignore bound-specific endpoints */
+			/* iganalre bound-specific endpoints */
 			if (!sctp_is_ep_boundall(sk))
 				continue;
 			bh_lock_sock(sk);
@@ -774,11 +774,11 @@ void sctp_addr_wq_mgmt(struct net *net, struct sctp_sockaddr_entry *addr, int cm
 
 /* Event handler for inet address addition/deletion events.
  * The sctp_local_addr_list needs to be protocted by a spin lock since
- * multiple notifiers (say IPv4 and IPv6) may be running at the same
+ * multiple analtifiers (say IPv4 and IPv6) may be running at the same
  * time and thus corrupt the list.
  * The reader side is protected with RCU.
  */
-static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
+static int sctp_inetaddr_event(struct analtifier_block *this, unsigned long ev,
 			       void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
@@ -820,11 +820,11 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
- * Initialize the control inode/socket with a control endpoint data
+ * Initialize the control ianalde/socket with a control endpoint data
  * structure.  This endpoint is reserved exclusively for the OOTB processing.
  */
 static int sctp_ctl_sock_init(struct net *net)
@@ -838,7 +838,7 @@ static int sctp_ctl_sock_init(struct net *net)
 	err = inet_ctl_sock_create(&net->sctp.ctl_sock, family,
 				   SOCK_SEQPACKET, IPPROTO_SCTP, net);
 
-	/* If IPv6 socket could not be created, try the IPv4 socket */
+	/* If IPv6 socket could analt be created, try the IPv4 socket */
 	if (err < 0 && family == PF_INET6)
 		err = inet_ctl_sock_create(&net->sctp.ctl_sock, AF_INET,
 					   SOCK_SEQPACKET, IPPROTO_SCTP,
@@ -1078,7 +1078,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb, struct sctp_transport *t)
 	if (skb_is_gso(skb))
 		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL_CSUM;
 
-	if (ip_dont_fragment(sk, dst) && !skb->ignore_df)
+	if (ip_dont_fragment(sk, dst) && !skb->iganalre_df)
 		df = htons(IP_DF);
 
 	skb->encapsulation = 1;
@@ -1109,9 +1109,9 @@ static struct sctp_pf sctp_pf_inet = {
 	.af            = &sctp_af_inet
 };
 
-/* Notifier for inetaddr addition/deletion events.  */
-static struct notifier_block sctp_inetaddr_notifier = {
-	.notifier_call = sctp_inetaddr_event,
+/* Analtifier for inetaddr addition/deletion events.  */
+static struct analtifier_block sctp_inetaddr_analtifier = {
+	.analtifier_call = sctp_inetaddr_event,
 };
 
 /* Socket operations.  */
@@ -1121,7 +1121,7 @@ static const struct proto_ops inet_seqpacket_ops = {
 	.release	   = inet_release,	/* Needs to be wrapped... */
 	.bind		   = inet_bind,
 	.connect	   = sctp_inet_connect,
-	.socketpair	   = sock_no_socketpair,
+	.socketpair	   = sock_anal_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = inet_getname,	/* Semantics are different.  */
 	.poll		   = sctp_poll,
@@ -1133,7 +1133,7 @@ static const struct proto_ops inet_seqpacket_ops = {
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = inet_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 };
 
 /* Registration with AF_INET family.  */
@@ -1162,7 +1162,7 @@ static int sctp4_rcv(struct sk_buff *skb)
 static const struct net_protocol sctp_protocol = {
 	.handler     = sctp4_rcv,
 	.err_handler = sctp_v4_err,
-	.no_policy   = 1,
+	.anal_policy   = 1,
 	.icmp_strict_tag_validation = 1,
 };
 
@@ -1231,7 +1231,7 @@ static inline int init_sctp_mibs(struct net *net)
 {
 	net->sctp.sctp_statistics = alloc_percpu(struct sctp_mib);
 	if (!net->sctp.sctp_statistics)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1276,8 +1276,8 @@ static void sctp_v4_protosw_exit(void)
 
 static int sctp_v4_add_protocol(void)
 {
-	/* Register notifier for inet address additions/deletions. */
-	register_inetaddr_notifier(&sctp_inetaddr_notifier);
+	/* Register analtifier for inet address additions/deletions. */
+	register_inetaddr_analtifier(&sctp_inetaddr_analtifier);
 
 	/* Register SCTP with inet layer.  */
 	if (inet_add_protocol(&sctp_protocol, IPPROTO_SCTP) < 0)
@@ -1289,7 +1289,7 @@ static int sctp_v4_add_protocol(void)
 static void sctp_v4_del_protocol(void)
 {
 	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
-	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
+	unregister_inetaddr_analtifier(&sctp_inetaddr_analtifier);
 }
 
 static int __net_init sctp_defaults_init(struct net *net)
@@ -1314,7 +1314,7 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Valid.Cookie.Life        - 60  seconds */
 	net->sctp.valid_cookie_life		= SCTP_DEFAULT_COOKIE_LIFE;
 
-	/* Whether Cookie Preservative is enabled(1) or not(0) */
+	/* Whether Cookie Preservative is enabled(1) or analt(0) */
 	net->sctp.cookie_preserve_enable 	= 1;
 
 	/* Default sctp sockets to use md5 as their hmac alg */
@@ -1335,7 +1335,7 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Enable pf state by default */
 	net->sctp.pf_enable = 1;
 
-	/* Ignore pf exposure feature by default */
+	/* Iganalre pf exposure feature by default */
 	net->sctp.pf_expose = SCTP_PF_EXPOSE_UNSET;
 
 	/* Association.Max.Retrans  - 10 attempts
@@ -1360,7 +1360,7 @@ static int __net_init sctp_defaults_init(struct net *net)
 
 	/* Disable ADDIP by default. */
 	net->sctp.addip_enable = 0;
-	net->sctp.addip_noauth = 0;
+	net->sctp.addip_analauth = 0;
 	net->sctp.default_auto_asconf = 0;
 
 	/* Enable PR-SCTP by default. */
@@ -1459,7 +1459,7 @@ static int __net_init sctp_ctrlsock_init(struct net *net)
 {
 	int status;
 
-	/* Initialize the control inode/socket for handling OOTB packets.  */
+	/* Initialize the control ianalde/socket for handling OOTB packets.  */
 	status = sctp_ctl_sock_init(net);
 	if (status)
 		pr_err("Failed to initialize the SCTP control sock\n");
@@ -1494,7 +1494,7 @@ static __init int sctp_init(void)
 	sock_skb_cb_check_size(sizeof(struct sctp_ulpevent));
 
 	/* Allocate bind_bucket and chunk caches. */
-	status = -ENOBUFS;
+	status = -EANALBUFS;
 	sctp_bucket_cachep = kmem_cache_create("sctp_bind_bucket",
 					       sizeof(struct sctp_bind_bucket),
 					       0, SLAB_HWCACHE_ALIGN,
@@ -1528,7 +1528,7 @@ static __init int sctp_init(void)
 	sysctl_sctp_mem[1] = limit;
 	sysctl_sctp_mem[2] = sysctl_sctp_mem[0] * 2;
 
-	/* Set per-socket limits to no more than 1/128 the pressure threshold*/
+	/* Set per-socket limits to anal more than 1/128 the pressure threshold*/
 	limit = (sysctl_sctp_mem[1]) << (PAGE_SHIFT - 7);
 	max_share = min(4UL*1024*1024, limit);
 
@@ -1542,7 +1542,7 @@ static __init int sctp_init(void)
 
 	/* Size and allocate the association hash table.
 	 * The methodology is similar to that of the tcp hash tables.
-	 * Though not identical.  Start by getting a goal size
+	 * Though analt identical.  Start by getting a goal size
 	 */
 	if (nr_pages >= (128 * 1024))
 		goal = nr_pages >> (22 - PAGE_SHIFT);
@@ -1552,7 +1552,7 @@ static __init int sctp_init(void)
 	/* Then compute the page order for said goal */
 	order = get_order(goal);
 
-	/* Now compute the required page order for the maximum sized table we
+	/* Analw compute the required page order for the maximum sized table we
 	 * want to create
 	 */
 	max_entry_order = get_order(MAX_SCTP_PORT_HASH_ENTRIES *
@@ -1567,7 +1567,7 @@ static __init int sctp_init(void)
 		kmalloc_array(64, sizeof(struct sctp_hashbucket), GFP_KERNEL);
 	if (!sctp_ep_hashtable) {
 		pr_err("Failed endpoint_hash alloc\n");
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto err_ehash_alloc;
 	}
 	for (i = 0; i < sctp_ep_hashsize; i++) {
@@ -1576,22 +1576,22 @@ static __init int sctp_init(void)
 	}
 
 	/* Allocate and initialize the SCTP port hash table.
-	 * Note that order is initalized to start at the max sized
+	 * Analte that order is initalized to start at the max sized
 	 * table we want to support.  If we can't get that many pages
 	 * reduce the order and try again
 	 */
 	do {
 		sctp_port_hashtable = (struct sctp_bind_hashbucket *)
-			__get_free_pages(GFP_KERNEL | __GFP_NOWARN, order);
+			__get_free_pages(GFP_KERNEL | __GFP_ANALWARN, order);
 	} while (!sctp_port_hashtable && --order > 0);
 
 	if (!sctp_port_hashtable) {
 		pr_err("Failed bind hash alloc\n");
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto err_bhash_alloc;
 	}
 
-	/* Now compute the number of entries that will fit in the
+	/* Analw compute the number of entries that will fit in the
 	 * port hash space we allocated
 	 */
 	num_entries = (1UL << order) * PAGE_SIZE /
@@ -1649,7 +1649,7 @@ static __init int sctp_init(void)
 		goto err_v6_add_protocol;
 
 	if (sctp_offload_init() < 0)
-		pr_crit("%s: Cannot add SCTP protocol offload\n", __func__);
+		pr_crit("%s: Cananalt add SCTP protocol offload\n", __func__);
 
 out:
 	return status;
@@ -1732,6 +1732,6 @@ MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-132");
 MODULE_ALIAS("net-pf-" __stringify(PF_INET6) "-proto-132");
 MODULE_AUTHOR("Linux Kernel SCTP developers <linux-sctp@vger.kernel.org>");
 MODULE_DESCRIPTION("Support for the SCTP protocol (RFC2960)");
-module_param_named(no_checksums, sctp_checksum_disable, bool, 0644);
-MODULE_PARM_DESC(no_checksums, "Disable checksums computing and verification");
+module_param_named(anal_checksums, sctp_checksum_disable, bool, 0644);
+MODULE_PARM_DESC(anal_checksums, "Disable checksums computing and verification");
 MODULE_LICENSE("GPL");

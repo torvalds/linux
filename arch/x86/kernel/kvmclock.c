@@ -28,19 +28,19 @@ static int msr_kvm_system_time __ro_after_init;
 static int msr_kvm_wall_clock __ro_after_init;
 static u64 kvm_sched_clock_offset __ro_after_init;
 
-static int __init parse_no_kvmclock(char *arg)
+static int __init parse_anal_kvmclock(char *arg)
 {
 	kvmclock = 0;
 	return 0;
 }
-early_param("no-kvmclock", parse_no_kvmclock);
+early_param("anal-kvmclock", parse_anal_kvmclock);
 
-static int __init parse_no_kvmclock_vsyscall(char *arg)
+static int __init parse_anal_kvmclock_vsyscall(char *arg)
 {
 	kvmclock_vsyscall = 0;
 	return 0;
 }
-early_param("no-kvmclock-vsyscall", parse_no_kvmclock_vsyscall);
+early_param("anal-kvmclock-vsyscall", parse_anal_kvmclock_vsyscall);
 
 /* Aligned to page sizes to match what's mapped via vsyscalls to userspace */
 #define HVC_BOOT_ARRAY_SIZE \
@@ -58,26 +58,26 @@ EXPORT_PER_CPU_SYMBOL_GPL(hv_clock_per_cpu);
  * have elapsed since the hypervisor wrote the data. So we try to account for
  * that with system time
  */
-static void kvm_get_wallclock(struct timespec64 *now)
+static void kvm_get_wallclock(struct timespec64 *analw)
 {
 	wrmsrl(msr_kvm_wall_clock, slow_virt_to_phys(&wall_clock));
 	preempt_disable();
-	pvclock_read_wallclock(&wall_clock, this_cpu_pvti(), now);
+	pvclock_read_wallclock(&wall_clock, this_cpu_pvti(), analw);
 	preempt_enable();
 }
 
-static int kvm_set_wallclock(const struct timespec64 *now)
+static int kvm_set_wallclock(const struct timespec64 *analw)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static u64 kvm_clock_read(void)
 {
 	u64 ret;
 
-	preempt_disable_notrace();
-	ret = pvclock_clocksource_read_nowd(this_cpu_pvti());
-	preempt_enable_notrace();
+	preempt_disable_analtrace();
+	ret = pvclock_clocksource_read_analwd(this_cpu_pvti());
+	preempt_enable_analtrace();
 	return ret;
 }
 
@@ -86,9 +86,9 @@ static u64 kvm_clock_get_cycles(struct clocksource *cs)
 	return kvm_clock_read();
 }
 
-static noinstr u64 kvm_sched_clock_read(void)
+static analinstr u64 kvm_sched_clock_read(void)
 {
-	return pvclock_clocksource_read_nowd(this_cpu_pvti()) - kvm_sched_clock_offset;
+	return pvclock_clocksource_read_analwd(this_cpu_pvti()) - kvm_sched_clock_offset;
 }
 
 static inline void kvm_sched_clock_init(bool stable)
@@ -109,14 +109,14 @@ static inline void kvm_sched_clock_init(bool stable)
  * If we don't do that, there is the possibility that the guest
  * will calibrate under heavy load - thus, getting a lower lpj -
  * and execute the delays themselves without load. This is wrong,
- * because no delay loop can finish beforehand.
+ * because anal delay loop can finish beforehand.
  * Any heuristics is subject to fail, because ultimately, a large
  * poll of guests can be running and trouble each other. So we preset
  * lpj here
  */
 static unsigned long kvm_get_tsc_khz(void)
 {
-	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+	setup_force_cpu_cap(X86_FEATURE_TSC_KANALWN_FREQ);
 	return pvclock_tsc_khz(this_cpu_pvti());
 }
 
@@ -240,7 +240,7 @@ static void __init kvmclock_init_mem(void)
 
 static int __init kvm_setup_vsyscall_timeinfo(void)
 {
-	if (!kvm_para_available() || !kvmclock || nopv)
+	if (!kvm_para_available() || !kvmclock || analpv)
 		return 0;
 
 	kvmclock_init_mem();
@@ -279,10 +279,10 @@ static int kvmclock_setup_percpu(unsigned int cpu)
 	else if (hvclock_mem)
 		p = hvclock_mem + cpu - HVC_BOOT_ARRAY_SIZE;
 	else
-		return -ENOMEM;
+		return -EANALMEM;
 
 	per_cpu(hv_clock_per_cpu, cpu) = p;
-	return p ? 0 : -ENOMEM;
+	return p ? 0 : -EANALMEM;
 }
 
 void __init kvmclock_init(void)
@@ -332,15 +332,15 @@ void __init kvmclock_init(void)
 	kvm_get_preset_lpj();
 
 	/*
-	 * X86_FEATURE_NONSTOP_TSC is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states.
+	 * X86_FEATURE_ANALNSTOP_TSC is TSC runs at constant rate
+	 * with P/T states and does analt stop in deep C-states.
 	 *
-	 * Invariant TSC exposed by host means kvmclock is not necessary:
+	 * Invariant TSC exposed by host means kvmclock is analt necessary:
 	 * can use TSC as clocksource.
 	 *
 	 */
 	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC) &&
-	    boot_cpu_has(X86_FEATURE_NONSTOP_TSC) &&
+	    boot_cpu_has(X86_FEATURE_ANALNSTOP_TSC) &&
 	    !check_tsc_unstable())
 		kvm_clock.rating = 299;
 

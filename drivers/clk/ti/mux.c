@@ -118,7 +118,7 @@ const struct clk_ops ti_clk_mux_ops = {
 	.restore_context = clk_mux_restore_context,
 };
 
-static struct clk *_register_mux(struct device_node *node, const char *name,
+static struct clk *_register_mux(struct device_analde *analde, const char *name,
 				 const char * const *parent_names,
 				 u8 num_parents, unsigned long flags,
 				 struct clk_omap_reg *reg, u8 shift, u32 mask,
@@ -131,7 +131,7 @@ static struct clk *_register_mux(struct device_node *node, const char *name,
 	/* allocate the mux */
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &ti_clk_mux_ops;
@@ -148,7 +148,7 @@ static struct clk *_register_mux(struct device_node *node, const char *name,
 	mux->table = table;
 	mux->hw.init = &init;
 
-	clk = of_ti_clk_register(node, &mux->hw, name);
+	clk = of_ti_clk_register(analde, &mux->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(mux);
@@ -158,11 +158,11 @@ static struct clk *_register_mux(struct device_node *node, const char *name,
 
 /**
  * of_mux_clk_setup - Setup function for simple mux rate clock
- * @node: DT node for the clock
+ * @analde: DT analde for the clock
  *
  * Sets up a basic clock multiplexer.
  */
-static void of_mux_clk_setup(struct device_node *node)
+static void of_mux_clk_setup(struct device_analde *analde)
 {
 	struct clk *clk;
 	struct clk_omap_reg reg;
@@ -173,30 +173,30 @@ static void of_mux_clk_setup(struct device_node *node)
 	u32 mask = 0;
 	u32 shift = 0;
 	s32 latch = -EINVAL;
-	u32 flags = CLK_SET_RATE_NO_REPARENT;
+	u32 flags = CLK_SET_RATE_ANAL_REPARENT;
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(analde);
 	if (num_parents < 2) {
-		pr_err("mux-clock %pOFn must have parents\n", node);
+		pr_err("mux-clock %pOFn must have parents\n", analde);
 		return;
 	}
 	parent_names = kzalloc((sizeof(char *) * num_parents), GFP_KERNEL);
 	if (!parent_names)
 		goto cleanup;
 
-	of_clk_parent_fill(node, parent_names, num_parents);
+	of_clk_parent_fill(analde, parent_names, num_parents);
 
-	if (ti_clk_get_reg_addr(node, 0, &reg))
+	if (ti_clk_get_reg_addr(analde, 0, &reg))
 		goto cleanup;
 
-	of_property_read_u32(node, "ti,bit-shift", &shift);
+	of_property_read_u32(analde, "ti,bit-shift", &shift);
 
-	of_property_read_u32(node, "ti,latch-bit", &latch);
+	of_property_read_u32(analde, "ti,latch-bit", &latch);
 
-	if (of_property_read_bool(node, "ti,index-starts-at-one"))
+	if (of_property_read_bool(analde, "ti,index-starts-at-one"))
 		clk_mux_flags |= CLK_MUX_INDEX_ONE;
 
-	if (of_property_read_bool(node, "ti,set-rate-parent"))
+	if (of_property_read_bool(analde, "ti,set-rate-parent"))
 		flags |= CLK_SET_RATE_PARENT;
 
 	/* Generate bit-mask based on parent info */
@@ -206,13 +206,13 @@ static void of_mux_clk_setup(struct device_node *node)
 
 	mask = (1 << fls(mask)) - 1;
 
-	name = ti_dt_clk_name(node);
-	clk = _register_mux(node, name, parent_names, num_parents,
+	name = ti_dt_clk_name(analde);
+	clk = _register_mux(analde, name, parent_names, num_parents,
 			    flags, &reg, shift, mask, latch, clk_mux_flags,
 			    NULL);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 
 cleanup:
 	kfree(parent_names);
@@ -229,7 +229,7 @@ struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup)
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mux->shift = setup->bit_shift;
 	mux->latch = -EINVAL;
@@ -248,7 +248,7 @@ struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup)
 	return &mux->hw;
 }
 
-static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
+static void __init of_ti_composite_mux_clk_setup(struct device_analde *analde)
 {
 	struct clk_omap_mux *mux;
 	unsigned int num_parents;
@@ -258,26 +258,26 @@ static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 	if (!mux)
 		return;
 
-	if (ti_clk_get_reg_addr(node, 0, &mux->reg))
+	if (ti_clk_get_reg_addr(analde, 0, &mux->reg))
 		goto cleanup;
 
-	if (!of_property_read_u32(node, "ti,bit-shift", &val))
+	if (!of_property_read_u32(analde, "ti,bit-shift", &val))
 		mux->shift = val;
 
-	if (of_property_read_bool(node, "ti,index-starts-at-one"))
+	if (of_property_read_bool(analde, "ti,index-starts-at-one"))
 		mux->flags |= CLK_MUX_INDEX_ONE;
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(analde);
 
 	if (num_parents < 2) {
-		pr_err("%pOFn must have parents\n", node);
+		pr_err("%pOFn must have parents\n", analde);
 		goto cleanup;
 	}
 
 	mux->mask = num_parents - 1;
 	mux->mask = (1 << fls(mux->mask)) - 1;
 
-	if (!ti_clk_add_component(node, &mux->hw, CLK_COMPONENT_TYPE_MUX))
+	if (!ti_clk_add_component(analde, &mux->hw, CLK_COMPONENT_TYPE_MUX))
 		return;
 
 cleanup:

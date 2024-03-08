@@ -38,7 +38,7 @@ static int timer_mim(struct timer_mim *timer_skel)
 	err = bpf_map__delete_elem(timer_skel->maps.outer_arr, &key1, sizeof(key1), 0);
 	ASSERT_EQ(err, 0, "delete inner map");
 
-	/* check that timer_cb[12] are no longer running */
+	/* check that timer_cb[12] are anal longer running */
 	cnt1 = READ_ONCE(timer_skel->bss->cnt);
 	for (int i = 0; i < 100; i++) {
 		usleep(200); /* 100 times more than interval */

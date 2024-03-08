@@ -75,7 +75,7 @@
 		>;
 	};
 
-	bno050_pins: pinmux-bno050-pins {
+	banal050_pins: pinmux-banal050-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2136, PIN_INPUT | MUX_MODE4) /* gpin113 */
 		>;
@@ -95,7 +95,7 @@
 	vmmc-supply = <&wlan_en>;
 	bus-width = <4>;
 	cap-power-off-card;
-	non-removable;
+	analn-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&wlan_irq_pin>;
@@ -115,10 +115,10 @@
 };
 
 &i2c2 {
-	/delete-node/ bmp085@77;
-	/delete-node/ bma180@41;
-	/delete-node/ itg3200@68;
-	/delete-node/ hmc5843@1e;
+	/delete-analde/ bmp085@77;
+	/delete-analde/ bma180@41;
+	/delete-analde/ itg3200@68;
+	/delete-analde/ hmc5843@1e;
 
 	gyrometer@69 {
 		compatible = "bosch,bmg160";
@@ -143,10 +143,10 @@
 	};
 
 	imu@29 {
-		compatible = "bosch,bno055";
+		compatible = "bosch,banal055";
 		reg = <0x29>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&bno050_pins>;
+		pinctrl-0 = <&banal050_pins>;
 		/* interrupt at &gpio4 17 */
 	};
 };

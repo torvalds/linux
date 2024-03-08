@@ -45,7 +45,7 @@ static const unsigned short keycode_kore[] = {
 	BTN_7,
 	BTN_6,
 	BTN_5,
-	KEY_BRL_DOT4,   /* touch sensitive knobs */
+	KEY_BRL_DOT4,   /* touch sensitive kanalbs */
 	KEY_BRL_DOT3,
 	KEY_BRL_DOT2,
 	KEY_BRL_DOT1,
@@ -106,7 +106,7 @@ static const unsigned short keycode_maschine[] = {
 	MASCHINE_BUTTON(9),
 	MASCHINE_BUTTON(8),
 
-	MASCHINE_BUTTON(16), /* note repeat */
+	MASCHINE_BUTTON(16), /* analte repeat */
 	MASCHINE_BUTTON(29)  /* play        */
 };
 
@@ -167,7 +167,7 @@ static unsigned int decode_erp(unsigned char a, unsigned char b)
 	/* 0..99 x DEG360 */
 	ret = pos_a * weight_a + pos_b * weight_b;
 
-	/* normalize to 0..999 */
+	/* analrmalize to 0..999 */
 	ret *= 10;
 	ret /= DEG360;
 
@@ -592,7 +592,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 
 	input = input_allocate_device();
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_make_path(usb_dev, cdev->phys, sizeof(cdev->phys));
 	strlcat(cdev->phys, "/input0", sizeof(cdev->phys));
@@ -697,7 +697,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 
 		cdev->ep4_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!cdev->ep4_in_urb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit_free_idev;
 		}
 
@@ -739,7 +739,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 
 		cdev->ep4_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!cdev->ep4_in_urb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit_free_idev;
 		}
 
@@ -787,7 +787,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 
 		cdev->ep4_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!cdev->ep4_in_urb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit_free_idev;
 		}
 
@@ -803,7 +803,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 		break;
 
 	default:
-		/* no input methods supported on this device */
+		/* anal input methods supported on this device */
 		ret = -EINVAL;
 		goto exit_free_idev;
 	}

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef __ASM_TOPOLOGY_H
 #define __ASM_TOPOLOGY_H
@@ -9,23 +9,23 @@
 
 #ifdef CONFIG_NUMA
 
-extern cpumask_t cpus_on_node[];
+extern cpumask_t cpus_on_analde[];
 
-#define cpumask_of_node(node)  (&cpus_on_node[node])
+#define cpumask_of_analde(analde)  (&cpus_on_analde[analde])
 
 struct pci_bus;
-extern int pcibus_to_node(struct pci_bus *);
+extern int pcibus_to_analde(struct pci_bus *);
 
 #define cpumask_of_pcibus(bus)	(cpu_online_mask)
 
-extern unsigned char node_distances[MAX_NUMNODES][MAX_NUMNODES];
+extern unsigned char analde_distances[MAX_NUMANALDES][MAX_NUMANALDES];
 
 void numa_set_distance(int from, int to, int distance);
 
-#define node_distance(from, to)	(node_distances[(from)][(to)])
+#define analde_distance(from, to)	(analde_distances[(from)][(to)])
 
 #else
-#define pcibus_to_node(bus)	0
+#define pcibus_to_analde(bus)	0
 #endif
 
 #ifdef CONFIG_SMP

@@ -18,7 +18,7 @@ diag_reg_offset:
 	ldr	r1, [r0]
 	add	r1, r1, r0		@ r1 = physical &g_diag_reg
 	ldr	r0, [r1]
-	mcr	p15, 0, r0, c15, c0, 1	@ write diagnostic register
+	mcr	p15, 0, r0, c15, c0, 1	@ write diaganalstic register
 	.endm
 
 ENTRY(v7_secondary_startup)

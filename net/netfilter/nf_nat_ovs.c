@@ -46,7 +46,7 @@ static int nf_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 				goto out;
 			}
 		}
-		/* Non-ICMP, fall thru to initialize if needed. */
+		/* Analn-ICMP, fall thru to initialize if needed. */
 		fallthrough;
 	case IP_CT_NEW:
 		/* Seen it before?  This can happen for loopback, retrans,
@@ -91,7 +91,7 @@ int nf_ct_nat(struct sk_buff *skb, struct nf_conn *ct,
 
 	*action = 0;
 
-	/* Add NAT extension if not confirmed yet. */
+	/* Add NAT extension if analt confirmed yet. */
 	if (!nf_ct_is_confirmed(ct) && !nf_ct_nat_ext_add(ct))
 		return NF_DROP;   /* Can't NAT. */
 

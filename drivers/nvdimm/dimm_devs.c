@@ -31,7 +31,7 @@ int nvdimm_check_config_data(struct device *dev)
 		if (test_bit(NDD_LABELING, &nvdimm->flags))
 			return -ENXIO;
 		else
-			return -ENOTTY;
+			return -EANALTTY;
 	}
 
 	return 0;
@@ -55,7 +55,7 @@ static int validate_dimm(struct nvdimm_drvdata *ndd)
  * nvdimm_init_nsarea - determine the geometry of a dimm's namespace area
  * @ndd: dimm to initialize
  *
- * Returns: %0 if the area is already valid, -errno on error
+ * Returns: %0 if the area is already valid, -erranal on error
  */
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd)
 {
@@ -98,7 +98,7 @@ int nvdimm_get_config_data(struct nvdimm_drvdata *ndd, void *buf,
 	max_cmd_size = min_t(u32, len, ndd->nsarea.max_xfer);
 	cmd = kvzalloc(max_cmd_size + sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (buf_offset = 0; len;
 	     len -= cmd->in_length, buf_offset += cmd->in_length) {
@@ -144,7 +144,7 @@ int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 	max_cmd_size = min_t(u32, len, ndd->nsarea.max_xfer);
 	cmd = kvzalloc(max_cmd_size + sizeof(*cmd) + sizeof(u32), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (buf_offset = 0; len; len -= cmd->in_length,
 			buf_offset += cmd->in_length) {
@@ -371,7 +371,7 @@ static ssize_t security_show(struct device *dev,
 		return sprintf(buf, "unlocked\n");
 	if (test_bit(NVDIMM_SECURITY_LOCKED, &nvdimm->sec.flags))
 		return sprintf(buf, "locked\n");
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static ssize_t frozen_show(struct device *dev,
@@ -392,7 +392,7 @@ static ssize_t security_store(struct device *dev,
 
 	/*
 	 * Require all userspace triggered security management to be
-	 * done while probing is idle and the DIMM is not in active use
+	 * done while probing is idle and the DIMM is analt in active use
 	 * in any region.
 	 */
 	device_lock(dev);
@@ -452,21 +452,21 @@ static ssize_t result_show(struct device *dev, struct device_attribute *attr, ch
 	enum nvdimm_fwa_result result;
 
 	if (!nvdimm->fw_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	nvdimm_bus_lock(dev);
 	result = nvdimm->fw_ops->activate_result(nvdimm);
 	nvdimm_bus_unlock(dev);
 
 	switch (result) {
-	case NVDIMM_FWA_RESULT_NONE:
-		return sprintf(buf, "none\n");
+	case NVDIMM_FWA_RESULT_ANALNE:
+		return sprintf(buf, "analne\n");
 	case NVDIMM_FWA_RESULT_SUCCESS:
 		return sprintf(buf, "success\n");
 	case NVDIMM_FWA_RESULT_FAIL:
 		return sprintf(buf, "fail\n");
-	case NVDIMM_FWA_RESULT_NOTSTAGED:
-		return sprintf(buf, "not_staged\n");
+	case NVDIMM_FWA_RESULT_ANALTSTAGED:
+		return sprintf(buf, "analt_staged\n");
 	case NVDIMM_FWA_RESULT_NEEDRESET:
 		return sprintf(buf, "need_reset\n");
 	default:
@@ -481,7 +481,7 @@ static ssize_t activate_show(struct device *dev, struct device_attribute *attr, 
 	enum nvdimm_fwa_state state;
 
 	if (!nvdimm->fw_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	nvdimm_bus_lock(dev);
 	state = nvdimm->fw_ops->activate_state(nvdimm);
@@ -507,7 +507,7 @@ static ssize_t activate_store(struct device *dev, struct device_attribute *attr,
 	int rc;
 
 	if (!nvdimm->fw_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (sysfs_streq(buf, "arm"))
 		arg = NVDIMM_FWA_ARM;
@@ -653,7 +653,7 @@ void nvdimm_delete(struct nvdimm *nvdimm)
 }
 EXPORT_SYMBOL_GPL(nvdimm_delete);
 
-static void shutdown_security_notify(void *data)
+static void shutdown_security_analtify(void *data)
 {
 	struct nvdimm *nvdimm = data;
 
@@ -669,9 +669,9 @@ int nvdimm_security_setup_events(struct device *dev)
 		return 0;
 	nvdimm->sec.overwrite_state = sysfs_get_dirent(dev->kobj.sd, "security");
 	if (!nvdimm->sec.overwrite_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	return devm_add_action_or_reset(dev, shutdown_security_notify, nvdimm);
+	return devm_add_action_or_reset(dev, shutdown_security_analtify, nvdimm);
 }
 EXPORT_SYMBOL_GPL(nvdimm_security_setup_events);
 
@@ -688,7 +688,7 @@ int nvdimm_security_freeze(struct nvdimm *nvdimm)
 	WARN_ON_ONCE(!is_nvdimm_bus_locked(&nvdimm->dev));
 
 	if (!nvdimm->sec.ops || !nvdimm->sec.ops->freeze)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!nvdimm->sec.flags)
 		return -EIO;

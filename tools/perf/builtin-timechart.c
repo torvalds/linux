@@ -8,7 +8,7 @@
  *     Arjan van de Ven <arjan@linux.intel.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 
 #include "builtin.h"
@@ -81,7 +81,7 @@ struct io_sample;
 
 /*
  * Datastructure layout:
- * We keep an list of "pid"s, matching the kernels notion of a task struct.
+ * We keep an list of "pid"s, matching the kernels analtion of a task struct.
  * Each "pid" entry, has a list of "comm"s.
  *	this is because we want to track different programs different, while
  *	exec will reuse the original pid (by design).
@@ -134,7 +134,7 @@ struct sample_wrapper {
 	unsigned char	data[];
 };
 
-#define TYPE_NONE	0
+#define TYPE_ANALNE	0
 #define TYPE_RUNNING	1
 #define TYPE_WAITING	2
 #define TYPE_BLOCKED	3
@@ -443,7 +443,7 @@ static void sched_wakeup(struct timechart *tchart, int cpu, u64 timestamp,
 	tchart->wake_events = we;
 	p = find_create_pid(tchart, we->wakee);
 
-	if (p && p->current && p->current->state == TYPE_NONE) {
+	if (p && p->current && p->current->state == TYPE_ANALNE) {
 		p->current->state_since = timestamp;
 		p->current->state = TYPE_WAITING;
 	}
@@ -465,12 +465,12 @@ static void sched_switch(struct timechart *tchart, int cpu, u64 timestamp,
 
 	p = find_create_pid(tchart, next_pid);
 
-	if (prev_p->current && prev_p->current->state != TYPE_NONE)
+	if (prev_p->current && prev_p->current->state != TYPE_ANALNE)
 		pid_put_sample(tchart, prev_pid, TYPE_RUNNING, cpu,
 			       prev_p->current->state_since, timestamp,
 			       backtrace);
 	if (p && p->current) {
-		if (p->current->state != TYPE_NONE)
+		if (p->current->state != TYPE_ANALNE)
 			pid_put_sample(tchart, next_pid, p->current->state, cpu,
 				       p->current->state_since, timestamp,
 				       backtrace);
@@ -480,7 +480,7 @@ static void sched_switch(struct timechart *tchart, int cpu, u64 timestamp,
 	}
 
 	if (prev_p->current) {
-		prev_p->current->state = TYPE_NONE;
+		prev_p->current->state = TYPE_ANALNE;
 		prev_p->current->state_since = timestamp;
 		if (prev_state & 2)
 			prev_p->current->state = TYPE_BLOCKED;
@@ -738,7 +738,7 @@ static int pid_begin_io_sample(struct timechart *tchart, int pid, int type,
 	if (!c) {
 		c = create_pidcomm(p);
 		if (!c)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	prev = c->io_samples;
@@ -748,7 +748,7 @@ static int pid_begin_io_sample(struct timechart *tchart, int pid, int type,
 			   "previous event already started!\n");
 
 		/* remove previous event that has been started,
-		 * we are not sure we will ever get an end for it */
+		 * we are analt sure we will ever get an end for it */
 		c->io_samples = prev->next;
 		free(prev);
 		return 0;
@@ -756,7 +756,7 @@ static int pid_begin_io_sample(struct timechart *tchart, int pid, int type,
 
 	sample = zalloc(sizeof(*sample));
 	if (!sample)
-		return -ENOMEM;
+		return -EANALMEM;
 	sample->start_time = start;
 	sample->type = type;
 	sample->fd = fd;
@@ -1353,7 +1353,7 @@ static int determine_display_tasks_filtered(struct timechart *tchart)
 		if (p->start_time == 1)
 			p->start_time = tchart->first_time;
 
-		/* no exit marker, task kept running to the end */
+		/* anal exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = tchart->last_time;
 
@@ -1393,7 +1393,7 @@ static int determine_display_tasks(struct timechart *tchart, u64 threshold)
 		if (p->start_time == 1)
 			p->start_time = tchart->first_time;
 
-		/* no exit marker, task kept running to the end */
+		/* anal exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = tchart->last_time;
 		if (p->total_time >= threshold)
@@ -1430,7 +1430,7 @@ static int determine_display_io_tasks(struct timechart *timechart, u64 threshold
 
 	p = timechart->all_data;
 	while (p) {
-		/* no exit marker, task kept running to the end */
+		/* anal exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = timechart->last_time;
 
@@ -1729,11 +1729,11 @@ static int timechart__io_record(int argc, const char **argv)
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
 	if (rec_argv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (asprintf(&filter, "common_pid != %d", getpid()) < 0) {
 		free(rec_argv);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	p = rec_argv;
@@ -1796,7 +1796,7 @@ static int timechart__record(struct timechart *tchart, int argc, const char **ar
 	const char * const backtrace_args[] = {
 		"-g",
 	};
-	unsigned int backtrace_args_no = ARRAY_SIZE(backtrace_args);
+	unsigned int backtrace_args_anal = ARRAY_SIZE(backtrace_args);
 
 	const char * const power_args[] = {
 		"-e", "power:cpu_frequency",
@@ -1838,22 +1838,22 @@ static int timechart__record(struct timechart *tchart, int argc, const char **ar
 	}
 
 	if (!tchart->with_backtrace)
-		backtrace_args_no = 0;
+		backtrace_args_anal = 0;
 
 	record_elems = common_args_nr + tasks_args_nr +
-		power_args_nr + old_power_args_nr + backtrace_args_no;
+		power_args_nr + old_power_args_nr + backtrace_args_anal;
 
 	rec_argc = record_elems + argc;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
 	if (rec_argv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = rec_argv;
 	for (i = 0; i < common_args_nr; i++)
 		*p++ = strdup(common_args[i]);
 
-	for (i = 0; i < backtrace_args_no; i++)
+	for (i = 0; i < backtrace_args_anal; i++)
 		*p++ = strdup(backtrace_args[i]);
 
 	for (i = 0; i < tasks_args_nr; i++)
@@ -1988,28 +1988,28 @@ int cmd_timechart(int argc, const char **argv)
 
 	cpus_cstate_start_times = calloc(MAX_CPUS, sizeof(*cpus_cstate_start_times));
 	if (!cpus_cstate_start_times)
-		return -ENOMEM;
+		return -EANALMEM;
 	cpus_cstate_state = calloc(MAX_CPUS, sizeof(*cpus_cstate_state));
 	if (!cpus_cstate_state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	cpus_pstate_start_times = calloc(MAX_CPUS, sizeof(*cpus_pstate_start_times));
 	if (!cpus_pstate_start_times) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	cpus_pstate_state = calloc(MAX_CPUS, sizeof(*cpus_pstate_state));
 	if (!cpus_pstate_state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	argc = parse_options_subcommand(argc, argv, timechart_options, timechart_subcommands,
-			timechart_usage, PARSE_OPT_STOP_AT_NON_OPTION);
+			timechart_usage, PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (tchart.power_only && tchart.tasks_only) {
-		pr_err("-P and -T options cannot be used at the same time.\n");
+		pr_err("-P and -T options cananalt be used at the same time.\n");
 		ret = -1;
 		goto out;
 	}
@@ -2017,10 +2017,10 @@ int cmd_timechart(int argc, const char **argv)
 	if (argc && strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		argc = parse_options(argc, argv, timechart_record_options,
 				     timechart_record_usage,
-				     PARSE_OPT_STOP_AT_NON_OPTION);
+				     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 		if (tchart.power_only && tchart.tasks_only) {
-			pr_err("-P and -T options cannot be used at the same time.\n");
+			pr_err("-P and -T options cananalt be used at the same time.\n");
 			ret = -1;
 			goto out;
 		}

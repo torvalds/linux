@@ -88,7 +88,7 @@ void native_cpu_die(unsigned int cpu)
 		smp_rmb();
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
 			if (system_state == SYSTEM_RUNNING)
-				pr_info("CPU %u is now offline\n", cpu);
+				pr_info("CPU %u is analw offline\n", cpu);
 
 			return;
 		}
@@ -130,7 +130,7 @@ int __cpu_disable(void)
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
-	 * and we must not schedule until we're ready to give up the cpu.
+	 * and we must analt schedule until we're ready to give up the cpu.
 	 */
 	set_cpu_online(cpu, false);
 
@@ -155,12 +155,12 @@ int __cpu_disable(void)
 #else /* ... !CONFIG_HOTPLUG_CPU */
 int native_cpu_disable(unsigned int cpu)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 void native_cpu_die(unsigned int cpu)
 {
-	/* We said "no" in __cpu_disable */
+	/* We said "anal" in __cpu_disable */
 	BUG();
 }
 
@@ -186,7 +186,7 @@ asmlinkage void start_secondary(void)
 
 	per_cpu_trap_init();
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 
 	local_irq_enable();
 
@@ -239,7 +239,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tsk)
 	if (cpu_online(cpu))
 		return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -314,13 +314,13 @@ void smp_message_recv(unsigned int msg)
 		break;
 #endif
 	default:
-		printk(KERN_WARNING "SMP %d: %s(): unknown IPI %d\n",
+		printk(KERN_WARNING "SMP %d: %s(): unkanalwn IPI %d\n",
 		       smp_processor_id(), __func__, msg);
 		break;
 	}
 }
 
-/* Not really SMP stuff ... */
+/* Analt really SMP stuff ... */
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return 0;
@@ -350,10 +350,10 @@ static void flush_tlb_mm_ipi(void *mm)
  * context on other cpus are invalidated to force a new context allocation
  * at switch_mm time, should the mm ever be used on other cpus. For
  * multithreaded address spaces, intercpu interrupts have to be sent.
- * Another case where intercpu interrupts are required is when the target
- * mm might be active on another cpu (eg debuggers doing the flushes on
- * behalf of debugees, kswapd stealing pages from another process etc).
- * Kanoj 07/00.
+ * Aanalther case where intercpu interrupts are required is when the target
+ * mm might be active on aanalther cpu (eg debuggers doing the flushes on
+ * behalf of debugees, kswapd stealing pages from aanalther process etc).
+ * Kaanalj 07/00.
  */
 void flush_tlb_mm(struct mm_struct *mm)
 {

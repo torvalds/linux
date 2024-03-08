@@ -6,7 +6,7 @@
  * Copyright (C) 2003, 04, 05 Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2007  Maciej W. Rozycki
  * Copyright (C) 2008  Thiemo Seufer
- * Copyright (C) 2012  MIPS Technologies, Inc.
+ * Copyright (C) 2012  MIPS Techanallogies, Inc.
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -49,16 +49,16 @@
 
 /* Handle labels (which must be positive integers). */
 enum label_id {
-	label_clear_nopref = 1,
+	label_clear_analpref = 1,
 	label_clear_pref,
-	label_copy_nopref,
+	label_copy_analpref,
 	label_copy_pref_both,
 	label_copy_pref_store,
 };
 
-UASM_L_LA(_clear_nopref)
+UASM_L_LA(_clear_analpref)
 UASM_L_LA(_clear_pref)
-UASM_L_LA(_copy_nopref)
+UASM_L_LA(_copy_analpref)
 UASM_L_LA(_copy_pref_both)
 UASM_L_LA(_copy_pref_store)
 
@@ -137,7 +137,7 @@ static void set_prefetch_parameters(void)
 	 * The pref's used here are using "streaming" hints, which cause the
 	 * copied data to be kicked out of the cache sooner.  A page copy often
 	 * ends up copying a lot more data than is commonly used, so this seems
-	 * to make sense in terms of reducing cache pollution, but I've no real
+	 * to make sense in terms of reducing cache pollution, but I've anal real
 	 * performance data to back this up.
 	 */
 	if (cpu_has_prefetch) {
@@ -253,10 +253,10 @@ static inline void build_clear_pref(u32 **buf, int off)
 		} else if (cpu_has_cache_cdex_p) {
 			if (IS_ENABLED(CONFIG_WAR_R4600_V1_HIT_CACHEOP) &&
 			    cpu_is_r4600_v1_x()) {
-				uasm_i_nop(buf);
-				uasm_i_nop(buf);
-				uasm_i_nop(buf);
-				uasm_i_nop(buf);
+				uasm_i_analp(buf);
+				uasm_i_analp(buf);
+				uasm_i_analp(buf);
+				uasm_i_analp(buf);
 			}
 
 			if (IS_ENABLED(CONFIG_WAR_R4600_V2_HIT_CACHEOP) &&
@@ -332,7 +332,7 @@ void build_clear_page(void)
 
 	if (pref_bias_clear_store) {
 		pg_addiu(&buf, A2, A0, pref_bias_clear_store);
-		uasm_l_clear_nopref(&l, buf);
+		uasm_l_clear_analpref(&l, buf);
 		off = 0;
 		do {
 			build_clear_store(&buf, off);
@@ -343,14 +343,14 @@ void build_clear_page(void)
 		do {
 			if (off == -clear_word_size)
 				uasm_il_bne(&buf, &r, A0, A2,
-					    label_clear_nopref);
+					    label_clear_analpref);
 			build_clear_store(&buf, off);
 			off += clear_word_size;
 		} while (off < 0);
 	}
 
 	uasm_i_jr(&buf, RA);
-	uasm_i_nop(&buf);
+	uasm_i_analp(&buf);
 
 	BUG_ON(buf > &__clear_page_end);
 
@@ -360,7 +360,7 @@ void build_clear_page(void)
 		 (u32)(buf - &__clear_page_start));
 
 	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_debug("\t.set analreorder\n");
 	for (i = 0; i < (buf - &__clear_page_start); i++)
 		pr_debug("\t.word 0x%08x\n", (&__clear_page_start)[i]);
 	pr_debug("\t.set pop\n");
@@ -407,10 +407,10 @@ static inline void build_copy_store_pref(u32 **buf, int off)
 		} else if (cpu_has_cache_cdex_p) {
 			if (IS_ENABLED(CONFIG_WAR_R4600_V1_HIT_CACHEOP) &&
 			    cpu_is_r4600_v1_x()) {
-				uasm_i_nop(buf);
-				uasm_i_nop(buf);
-				uasm_i_nop(buf);
-				uasm_i_nop(buf);
+				uasm_i_analp(buf);
+				uasm_i_analp(buf);
+				uasm_i_analp(buf);
+				uasm_i_analp(buf);
 			}
 
 			if (IS_ENABLED(CONFIG_WAR_R4600_V2_HIT_CACHEOP) &&
@@ -563,7 +563,7 @@ void build_copy_page(void)
 
 	if (pref_bias_copy_store) {
 		pg_addiu(&buf, A2, A0, pref_bias_copy_store);
-		uasm_l_copy_nopref(&l, buf);
+		uasm_l_copy_analpref(&l, buf);
 		off = 0;
 		do {
 			build_copy_load(&buf, T0, off);
@@ -589,14 +589,14 @@ void build_copy_page(void)
 			build_copy_store(&buf, T2, off + 2 * copy_word_size);
 			if (off == -(4 * copy_word_size))
 				uasm_il_bne(&buf, &r, A2, A0,
-					    label_copy_nopref);
+					    label_copy_analpref);
 			build_copy_store(&buf, T3, off + 3 * copy_word_size);
 			off += 4 * copy_word_size;
 		} while (off < 0);
 	}
 
 	uasm_i_jr(&buf, RA);
-	uasm_i_nop(&buf);
+	uasm_i_analp(&buf);
 
 	BUG_ON(buf > &__copy_page_end);
 
@@ -606,7 +606,7 @@ void build_copy_page(void)
 		 (u32)(buf - &__copy_page_start));
 
 	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_debug("\t.set analreorder\n");
 	for (i = 0; i < (buf - &__copy_page_start); i++)
 		pr_debug("\t.word 0x%08x\n", (&__copy_page_start)[i]);
 	pr_debug("\t.set pop\n");
@@ -632,7 +632,7 @@ void clear_page(void *page)
 	u64 to_phys = CPHYSADDR((unsigned long)page);
 	unsigned int cpu = smp_processor_id();
 
-	/* if the page is not in KSEG0, use old way */
+	/* if the page is analt in KSEG0, use old way */
 	if ((long)KSEGX((unsigned long)page) != (long)CKSEG0)
 		return clear_page_cpu(page);
 
@@ -642,7 +642,7 @@ void clear_page(void *page)
 	__raw_writeq(1, IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
 
 	/*
-	 * Don't really want to do it this way, but there's no
+	 * Don't really want to do it this way, but there's anal
 	 * reliable way to delay completion detection.
 	 */
 	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)))
@@ -658,7 +658,7 @@ void copy_page(void *to, void *from)
 	u64 to_phys = CPHYSADDR((unsigned long)to);
 	unsigned int cpu = smp_processor_id();
 
-	/* if any page is not in KSEG0, use old way */
+	/* if any page is analt in KSEG0, use old way */
 	if ((long)KSEGX((unsigned long)to) != (long)CKSEG0
 	    || (long)KSEGX((unsigned long)from) != (long)CKSEG0)
 		return copy_page_cpu(to, from);
@@ -669,7 +669,7 @@ void copy_page(void *to, void *from)
 	__raw_writeq(1, IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
 
 	/*
-	 * Don't really want to do it this way, but there's no
+	 * Don't really want to do it this way, but there's anal
 	 * reliable way to delay completion detection.
 	 */
 	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)))

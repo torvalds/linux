@@ -2,16 +2,16 @@
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of 16-bit SoundBlaster cards and clones
- *  Note: This is very ugly hardware which uses one 8-bit DMA channel and
+ *  Analte: This is very ugly hardware which uses one 8-bit DMA channel and
  *        second 16-bit DMA channel. Unfortunately 8-bit DMA channel can't
  *        transfer 16-bit samples and 16-bit DMA channels can't transfer
  *        8-bit samples. This make full duplex more complicated than
  *        can be... People, don't buy these soundcards for full 16-bit
  *        duplex!!!
- *  Note: 16-bit wide is assigned to first direction which made request.
+ *  Analte: 16-bit wide is assigned to first direction which made request.
  *        With full duplex - playback is preferred with abstract layer.
  *
- *  Note: Some chip revisions have hardware bug. Changing capture
+ *  Analte: Some chip revisions have hardware bug. Changing capture
  *        channel from full-duplex 8bit DMA to 16bit DMA will block
  *        16bit DMA transfers from DSP chip (capture) until 8bit transfer
  *        to DSP chip (playback) starts. This bug can be avoided with
@@ -74,7 +74,7 @@ static void snd_sb16_csp_playback_prepare(struct snd_sb *chip, struct snd_pcm_ru
 				if (csp->ops.csp_start(csp, (chip->mode & SB_MODE_PLAYBACK_16) ?
 						       SNDRV_SB_CSP_SAMPLE_16BIT : SNDRV_SB_CSP_SAMPLE_8BIT,
 						       (runtime->channels > 1) ?
-						       SNDRV_SB_CSP_STEREO : SNDRV_SB_CSP_MONO)) {
+						       SNDRV_SB_CSP_STEREO : SNDRV_SB_CSP_MOANAL)) {
 					/* Failed, release CSP */
 					csp->ops.csp_unuse(csp);
 				} else {
@@ -112,7 +112,7 @@ static void snd_sb16_csp_capture_prepare(struct snd_sb *chip, struct snd_pcm_run
 				if (csp->ops.csp_start(csp, (chip->mode & SB_MODE_CAPTURE_16) ?
 						       SNDRV_SB_CSP_SAMPLE_16BIT : SNDRV_SB_CSP_SAMPLE_8BIT,
 						       (runtime->channels > 1) ?
-						       SNDRV_SB_CSP_STEREO : SNDRV_SB_CSP_MONO)) {
+						       SNDRV_SB_CSP_STEREO : SNDRV_SB_CSP_MOANAL)) {
 					/* Failed, release CSP */
 					csp->ops.csp_unuse(csp);
 				} else {
@@ -199,13 +199,13 @@ static void snd_sb16_csp_capture_close(struct snd_sb *chip)
 	}
 }
 #else
-#define snd_sb16_csp_playback_prepare(chip, runtime)	/*nop*/
-#define snd_sb16_csp_capture_prepare(chip, runtime)	/*nop*/
-#define snd_sb16_csp_update(chip)			/*nop*/
-#define snd_sb16_csp_playback_open(chip, runtime)	/*nop*/
-#define snd_sb16_csp_playback_close(chip)		/*nop*/
-#define snd_sb16_csp_capture_open(chip, runtime)	/*nop*/
-#define snd_sb16_csp_capture_close(chip)      	 	/*nop*/
+#define snd_sb16_csp_playback_prepare(chip, runtime)	/*analp*/
+#define snd_sb16_csp_capture_prepare(chip, runtime)	/*analp*/
+#define snd_sb16_csp_update(chip)			/*analp*/
+#define snd_sb16_csp_playback_open(chip, runtime)	/*analp*/
+#define snd_sb16_csp_playback_close(chip)		/*analp*/
+#define snd_sb16_csp_capture_open(chip, runtime)	/*analp*/
+#define snd_sb16_csp_capture_close(chip)      	 	/*analp*/
 #endif
 
 
@@ -242,9 +242,9 @@ static int snd_sb16_playback_prepare(struct snd_pcm_substream *substream)
 
 	snd_sb16_csp_playback_prepare(chip, runtime);
 	if (snd_pcm_format_unsigned(runtime->format) > 0) {
-		format = runtime->channels > 1 ? SB_DSP4_MODE_UNS_STEREO : SB_DSP4_MODE_UNS_MONO;
+		format = runtime->channels > 1 ? SB_DSP4_MODE_UNS_STEREO : SB_DSP4_MODE_UNS_MOANAL;
 	} else {
-		format = runtime->channels > 1 ? SB_DSP4_MODE_SIGN_STEREO : SB_DSP4_MODE_SIGN_MONO;
+		format = runtime->channels > 1 ? SB_DSP4_MODE_SIGN_STEREO : SB_DSP4_MODE_SIGN_MOANAL;
 	}
 
 	snd_sb16_setup_rate(chip, runtime->rate, SNDRV_PCM_STREAM_PLAYBACK);
@@ -312,9 +312,9 @@ static int snd_sb16_capture_prepare(struct snd_pcm_substream *substream)
 
 	snd_sb16_csp_capture_prepare(chip, runtime);
 	if (snd_pcm_format_unsigned(runtime->format) > 0) {
-		format = runtime->channels > 1 ? SB_DSP4_MODE_UNS_STEREO : SB_DSP4_MODE_UNS_MONO;
+		format = runtime->channels > 1 ? SB_DSP4_MODE_UNS_STEREO : SB_DSP4_MODE_UNS_MOANAL;
 	} else {
-		format = runtime->channels > 1 ? SB_DSP4_MODE_SIGN_STEREO : SB_DSP4_MODE_SIGN_MONO;
+		format = runtime->channels > 1 ? SB_DSP4_MODE_SIGN_STEREO : SB_DSP4_MODE_SIGN_MOANAL;
 	}
 	snd_sb16_setup_rate(chip, runtime->rate, SNDRV_PCM_STREAM_CAPTURE);
 	size = chip->c_dma_size = snd_pcm_lib_buffer_bytes(substream);
@@ -731,7 +731,7 @@ int snd_sb16dsp_configure(struct snd_sb * chip)
 	unsigned long flags;
 	unsigned char irqreg = 0, dmareg = 0, mpureg;
 	unsigned char realirq, realdma, realmpureg;
-	/* note: mpu register should be present only on SB16 Vibra soundcards */
+	/* analte: mpu register should be present only on SB16 Vibra soundcards */
 
 	// printk(KERN_DEBUG "codec->irq=%i, codec->dma8=%i, codec->dma16=%i\n", chip->irq, chip->dma8, chip->dma16);
 	spin_lock_irqsave(&chip->mixer_lock, flags);
@@ -810,7 +810,7 @@ int snd_sb16dsp_configure(struct snd_sb * chip)
 		snd_printk(KERN_ERR "SB16 [0x%lx]: unable to set DMA & IRQ (PnP device?)\n", chip->port);
 		snd_printk(KERN_ERR "SB16 [0x%lx]: wanted: irqreg=0x%x, dmareg=0x%x, mpureg = 0x%x\n", chip->port, realirq, realdma, realmpureg);
 		snd_printk(KERN_ERR "SB16 [0x%lx]:    got: irqreg=0x%x, dmareg=0x%x, mpureg = 0x%x\n", chip->port, irqreg, dmareg, mpureg);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

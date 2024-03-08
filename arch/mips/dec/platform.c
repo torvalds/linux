@@ -18,13 +18,13 @@ static struct resource dec_rtc_resources[] = {
 };
 
 static struct cmos_rtc_board_info dec_rtc_info = {
-	.flags = CMOS_RTC_FLAGS_NOFREQ,
+	.flags = CMOS_RTC_FLAGS_ANALFREQ,
 	.address_space = 64,
 };
 
 static struct platform_device dec_rtc_device = {
 	.name = "rtc_cmos",
-	.id = PLATFORM_DEVID_NONE,
+	.id = PLATFORM_DEVID_ANALNE,
 	.dev.platform_data = &dec_rtc_info,
 	.resource = dec_rtc_resources,
 	.num_resources = ARRAY_SIZE(dec_rtc_resources),

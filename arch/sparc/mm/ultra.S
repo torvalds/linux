@@ -19,13 +19,13 @@
 #include <asm/cpudata.h>
 
 	/* Basically, most of the Spitfire vs. Cheetah madness
-	 * has to do with the fact that Cheetah does not support
+	 * has to do with the fact that Cheetah does analt support
 	 * IMMU flushes out of the secondary context.  Someone needs
 	 * to throw a south lake birthday party for the folks
 	 * in Microelectronics who refused to fix this shit.
 	 */
 
-	/* This file is meant to be read efficiently by the CPU, not humans.
+	/* This file is meant to be read efficiently by the CPU, analt humans.
 	 * Staraj sie tego nikomu nie pierdolnac...
 	 */
 	.text
@@ -42,16 +42,16 @@ __flush_tlb_mm:		/* 19 insns */
 	sethi		%hi(KERNBASE), %g3
 	flush		%g3
 	retl
-	 nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	 analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	.align		32
 	.globl		__flush_tlb_page
@@ -75,10 +75,10 @@ __flush_tlb_page:	/* 22 insns */
 	flush		%o4
 	retl
 	 wrpr		%g7, 0x0, %pstate
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 
 	.align		32
 	.globl		__flush_tlb_pending
@@ -101,16 +101,16 @@ __flush_tlb_pending:	/* 27 insns */
 2:	stxa		%g0, [%o3] ASI_DMMU_DEMAP
 	membar		#Sync
 	brnz,pt		%o1, 1b
-	 nop
+	 analp
 	stxa		%g2, [%o4] ASI_DMMU
 	sethi		%hi(KERNBASE), %o4
 	flush		%o4
 	retl
 	 wrpr		%g7, 0x0, %pstate
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 
 	.align		32
 	.globl		__flush_tlb_kernel_range
@@ -132,21 +132,21 @@ __flush_tlb_kernel_range:	/* 31 insns */
 2:	sethi		%hi(KERNBASE), %o3
 	flush		%o3
 	retl
-	 nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	 analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 __spitfire_flush_tlb_kernel_range_slow:
 	mov		63 * 8, %o4
@@ -166,9 +166,9 @@ __spitfire_flush_tlb_kernel_range_slow:
 	membar		#Sync
 2:	sub		%o4, 8, %o4
 	brgez,pt	%o4, 1b
-	 nop
+	 analp
 	retl
-	 nop
+	 analp
 
 __spitfire_flush_tlb_mm_slow:
 	rdpr		%pstate, %g1
@@ -200,7 +200,7 @@ __flush_icache_page:	/* %o0 = phys_page */
 	bne,pt		%icc, 1b
 	 flush		%o0 + %g2
 	retl
-	 nop
+	 analp
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 
@@ -224,23 +224,23 @@ __flush_dcache_page:	/* %o0=kaddr, %o1=flush_icache */
 	sub		%o2, (1 << 5), %o2		! D-cache line size
 1:	ldxa		[%o2] ASI_DCACHE_TAG, %o3	! load D-cache TAG
 	andcc		%o3, DTAG_MASK, %g0		! Valid?
-	be,pn		%xcc, 2f			! Nope, branch
+	be,pn		%xcc, 2f			! Analpe, branch
 	 andn		%o3, DTAG_MASK, %o3		! Clear valid bits
 	cmp		%o3, %o0			! TAG match?
-	bne,pt		%xcc, 2f			! Nope, branch
-	 nop
+	bne,pt		%xcc, 2f			! Analpe, branch
+	 analp
 	stxa		%g0, [%o2] ASI_DCACHE_TAG	! Invalidate TAG
 	membar		#Sync
 2:	brnz,pt		%o2, 1b
 	 sub		%o2, (1 << 5), %o2		! D-cache line size
 
-	/* The I-cache does not snoop local stores so we
+	/* The I-cache does analt sanalop local stores so we
 	 * better flush that too when necessary.
 	 */
 	brnz,pt		%o1, __flush_icache_page
 	 sllx		%o0, 11, %o0
 	retl
-	 nop
+	 analp
 
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
@@ -315,7 +315,7 @@ __cheetah_flush_tlb_pending:	/* 27 insns */
 2:	stxa		%g0, [%o3] ASI_DMMU_DEMAP	
 	membar		#Sync
 	brnz,pt		%o1, 1b
-	 nop
+	 analp
 	stxa		%g2, [%o4] ASI_DMMU
 	sethi		%hi(KERNBASE), %o4
 	flush		%o4
@@ -341,21 +341,21 @@ __cheetah_flush_tlb_kernel_range:	/* 31 insns */
 2:	sethi		%hi(KERNBASE), %o3
 	flush		%o3
 	retl
-	 nop
+	 analp
 3:	mov		0x80, %o4
 	stxa		%g0, [%o4] ASI_DMMU_DEMAP
 	membar		#Sync
 	stxa		%g0, [%o4] ASI_IMMU_DEMAP
 	membar		#Sync
 	retl
-	 nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	 analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 __cheetah_flush_dcache_page: /* 11 insns */
@@ -367,9 +367,9 @@ __cheetah_flush_dcache_page: /* 11 insns */
 	stxa		%g0, [%o0 + %o4] ASI_DCACHE_INVALIDATE
 	membar		#Sync
 	bne,pt		%icc, 1b
-	 nop
+	 analp
 	retl		/* I-cache flush never needed on Cheetah, see callers. */
-	 nop
+	 analp
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
 	/* Hypervisor specific versions, patched at boot time.  */
@@ -391,16 +391,16 @@ __hypervisor_flush_tlb_mm: /* 19 insns */
 	brnz,pn		%o0, 1f
 	 mov		HV_FAST_MMU_DEMAP_CTX, %o1
 	retl
-	 nop
+	 analp
 1:	sethi		%hi(__hypervisor_tlb_tl0_error), %o5
 	jmpl		%o5 + %lo(__hypervisor_tlb_tl0_error), %g0
-	 nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	 analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 __hypervisor_flush_tlb_page: /* 22 insns */
 	/* %o0 = context, %o1 = vaddr */
@@ -414,18 +414,18 @@ __hypervisor_flush_tlb_page: /* 22 insns */
 	brnz,pn		%o0, 1f
 	 mov		HV_MMU_UNMAP_ADDR_TRAP, %o1
 	retl
-	 nop
+	 analp
 1:	sethi		%hi(__hypervisor_tlb_tl0_error), %o2
 	jmpl		%o2 + %lo(__hypervisor_tlb_tl0_error), %g0
-	 nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	 analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 __hypervisor_flush_tlb_pending: /* 27 insns */
 	/* %o0 = context, %o1 = nr, %o2 = vaddrs[] */
@@ -442,20 +442,20 @@ __hypervisor_flush_tlb_pending: /* 27 insns */
 	brnz,pn		%o0, 1f
 	 mov		HV_MMU_UNMAP_ADDR_TRAP, %o1
 	brnz,pt		%g1, 1b
-	 nop
+	 analp
 	retl
-	 nop
+	 analp
 1:	sethi		%hi(__hypervisor_tlb_tl0_error), %o2
 	jmpl		%o2 + %lo(__hypervisor_tlb_tl0_error), %g0
-	 nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	 analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 __hypervisor_flush_tlb_kernel_range: /* 31 insns */
 	/* %o0=start, %o1=end */
@@ -476,10 +476,10 @@ __hypervisor_flush_tlb_kernel_range: /* 31 insns */
 	brnz,pt		%g2, 1b
 	 sub		%g2, %g3, %g2
 2:	retl
-	 nop
+	 analp
 3:	sethi		%hi(__hypervisor_tlb_tl0_error), %o2
 	jmpl		%o2 + %lo(__hypervisor_tlb_tl0_error), %g0
-	 nop
+	 analp
 4:	mov		0, %o0		/* ARG0: CPU lists unimplemented */
 	mov		0, %o1		/* ARG1: CPU lists unimplemented */
 	mov		0, %o2		/* ARG2: mmu context == nucleus */
@@ -489,16 +489,16 @@ __hypervisor_flush_tlb_kernel_range: /* 31 insns */
 	brnz,pn		%o0, 3b
 	 mov		HV_FAST_MMU_DEMAP_CTX, %o1
 	retl
-	 nop
+	 analp
 
 #ifdef DCACHE_ALIASING_POSSIBLE
-	/* XXX Niagara and friends have an 8K cache, so no aliasing is
-	 * XXX possible, but nothing explicit in the Hypervisor API
+	/* XXX Niagara and friends have an 8K cache, so anal aliasing is
+	 * XXX possible, but analthing explicit in the Hypervisor API
 	 * XXX guarantees this.
 	 */
 __hypervisor_flush_dcache_page:	/* 2 insns */
 	retl
-	 nop
+	 analp
 #endif
 
 tlb_patch_one:
@@ -510,7 +510,7 @@ tlb_patch_one:
 	bne,pt		%icc, 1b
 	 add		%o0, 4, %o0
 	retl
-	 nop
+	 analp
 
 #ifdef CONFIG_SMP
 	/* These are all called by the slaves of a cross call, at
@@ -540,19 +540,19 @@ xcall_flush_tlb_mm:	/* 24 insns */
 	stxa		%g0, [%g4] ASI_IMMU_DEMAP
 	stxa		%g3, [%g2] ASI_DMMU
 	retry
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	.globl		xcall_flush_tlb_page
 xcall_flush_tlb_page:	/* 20 insns */
@@ -572,11 +572,11 @@ xcall_flush_tlb_page:	/* 20 insns */
 	membar		#Sync
 	stxa		%g2, [%g4] ASI_DMMU
 	retry
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	.globl		xcall_flush_tlb_kernel_range
 xcall_flush_tlb_kernel_range:	/* 44 insns */
@@ -613,20 +613,20 @@ xcall_flush_tlb_kernel_range:	/* 44 insns */
 	membar		#Sync
 2:	sub		%g1, 8, %g1
 	brgez,pt	%g1, 1b
-	 nop
+	 analp
 	retry
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	/* This runs in a very controlled environment, so we do
-	 * not need to worry about BH races etc.
+	 * analt need to worry about BH races etc.
 	 */
 	.globl		xcall_sync_tick
 xcall_sync_tick:
@@ -635,21 +635,21 @@ xcall_sync_tick:
 	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
-	nop
-	nop
+	analp
+	analp
 	.previous
 
 	rdpr		%pil, %g2
-	wrpr		%g0, PIL_NORMAL_MAX, %pil
+	wrpr		%g0, PIL_ANALRMAL_MAX, %pil
 	sethi		%hi(109f), %g7
 	b,pt		%xcc, etrap_irq
 109:	 or		%g7, %lo(109b), %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 analp
 #endif
 	call		smp_synchronize_tick_client
-	 nop
+	 analp
 	b		rtrap_xcall
 	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 
@@ -766,28 +766,28 @@ __cheetah_xcall_flush_tlb_kernel_range:	/* 44 insns */
 	stxa		%g0, [%g2] ASI_IMMU_DEMAP
 	membar		#Sync
 	retry
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	.align		32
@@ -798,9 +798,9 @@ xcall_flush_dcache_page_cheetah: /* %g1 == physical page address */
 	stxa		%g0, [%g1 + %g3] ASI_DCACHE_INVALIDATE
 	membar		#Sync
 	bne,pt		%icc, 1b
-	 nop
+	 analp
 	retry
-	nop
+	analp
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
 	.globl		xcall_flush_dcache_page_spitfire
@@ -818,7 +818,7 @@ xcall_flush_dcache_page_spitfire: /* %g1 == physical page address
 	cmp		%g2, %g1
 
 	bne,pt		%xcc, 2f
-	 nop
+	 analp
 	stxa		%g0, [%g3] ASI_DCACHE_TAG
 	membar		#Sync
 2:	cmp		%g3, 0
@@ -835,8 +835,8 @@ xcall_flush_dcache_page_spitfire: /* %g1 == physical page address
 	 add		%g7, (1 << 5), %g7
 
 2:	retry
-	nop
-	nop
+	analp
+	analp
 
 	/* %g5:	error
 	 * %g6:	tlb op
@@ -877,7 +877,7 @@ __hypervisor_xcall_flush_tlb_mm: /* 24 insns */
 	retry
 1:	sethi		%hi(__hypervisor_tlb_xcall_error), %g4
 	jmpl		%g4 + %lo(__hypervisor_tlb_xcall_error), %g0
-	 nop
+	 analp
 
 	.globl		__hypervisor_xcall_flush_tlb_page
 __hypervisor_xcall_flush_tlb_page: /* 20 insns */
@@ -901,7 +901,7 @@ __hypervisor_xcall_flush_tlb_page: /* 20 insns */
 	retry
 1:	sethi		%hi(__hypervisor_tlb_xcall_error), %g4
 	jmpl		%g4 + %lo(__hypervisor_tlb_xcall_error), %g0
-	 nop
+	 analp
 
 	.globl		__hypervisor_xcall_flush_tlb_kernel_range
 __hypervisor_xcall_flush_tlb_kernel_range: /* 44 insns */
@@ -935,7 +935,7 @@ __hypervisor_xcall_flush_tlb_kernel_range: /* 44 insns */
 	retry
 1:	sethi		%hi(__hypervisor_tlb_xcall_error), %g4
 	jmpl		%g4 + %lo(__hypervisor_tlb_xcall_error), %g0
-	 nop
+	 analp
 2:	mov		%o3, %g1
 	mov		%o5, %g3
 	mov		0, %o0		/* ARG0: CPU lists unimplemented */

@@ -4,6 +4,6 @@
 
 #include <dt-bindings/sound/qcom,lpass.h>
 
-/* NOTE: Use qcom,lpass.h to define any AIF ID's for LPASS */
+/* ANALTE: Use qcom,lpass.h to define any AIF ID's for LPASS */
 
 #endif /* __DT_APQ8016_LPASS_H */

@@ -7,9 +7,9 @@ disable on-chip peripheral controllers such as USB and SATA, using
 registers.
 
 The actual action taken when softreset is asserted is hardware dependent.
-However, when asserted it may not be possible to access the hardware's
+However, when asserted it may analt be possible to access the hardware's
 registers and after an assert/deassert sequence the hardware's previous state
-may no longer be valid.
+may anal longer be valid.
 
 Please refer to reset.txt in this directory for common reset
 controller binding usage.
@@ -29,8 +29,8 @@ example:
 Specifying softreset control of devices
 =======================================
 
-Device nodes should specify the reset channel required in their "resets"
-property, containing a phandle to the softreset device node and an
+Device analdes should specify the reset channel required in their "resets"
+property, containing a phandle to the softreset device analde and an
 index specifying which channel to use, as described in reset.txt
 
 example:

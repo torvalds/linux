@@ -79,7 +79,7 @@ static void __prci_wrpll_unpack(struct wrpll_cfg *c, u32 r)
 	c->flags &=
 	    (WRPLL_FLAGS_INT_FEEDBACK_MASK | WRPLL_FLAGS_EXT_FEEDBACK_MASK);
 
-	/* external feedback mode not supported */
+	/* external feedback mode analt supported */
 	c->flags |= WRPLL_FLAGS_INT_FEEDBACK_MASK;
 }
 
@@ -92,7 +92,7 @@ static void __prci_wrpll_unpack(struct wrpll_cfg *c, u32 r)
  * the caller.
  *
  * Context: Any context.  Caller must ensure that the contents of the
- *          record pointed to by @c do not change during the execution
+ *          record pointed to by @c do analt change during the execution
  *          of this function.
  *
  * Returns: a value suitable for writing into a PRCI PLL configuration
@@ -107,7 +107,7 @@ static u32 __prci_wrpll_pack(const struct wrpll_cfg *c)
 	r |= c->divq << PRCI_COREPLLCFG0_DIVQ_SHIFT;
 	r |= c->range << PRCI_COREPLLCFG0_RANGE_SHIFT;
 
-	/* external feedback mode not supported */
+	/* external feedback mode analt supported */
 	r |= PRCI_COREPLLCFG0_FSE_MASK;
 
 	return r;
@@ -508,7 +508,7 @@ static int __prci_register_clocks(struct device *dev, struct __prci_data *pd,
 	struct __prci_clock *pic;
 	int parent_count, i, r;
 
-	parent_count = of_clk_get_parent_count(dev->of_node);
+	parent_count = of_clk_get_parent_count(dev->of_analde);
 	if (parent_count != EXPECTED_CLK_PARENT_COUNT) {
 		dev_err(dev, "expected only two parent clocks, found %d\n",
 			parent_count);
@@ -552,7 +552,7 @@ static int __prci_register_clocks(struct device *dev, struct __prci_data *pd,
 	r = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					&pd->hw_clks);
 	if (r) {
-		dev_err(dev, "could not add hw_provider: %d\n", r);
+		dev_err(dev, "could analt add hw_provider: %d\n", r);
 		return r;
 	}
 
@@ -576,7 +576,7 @@ static int sifive_prci_probe(struct platform_device *pdev)
 
 	pd = devm_kzalloc(dev, struct_size(pd, hw_clks.hws, desc->num_clks), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd->va = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pd->va))
@@ -585,19 +585,19 @@ static int sifive_prci_probe(struct platform_device *pdev)
 	pd->reset.rcdev.owner = THIS_MODULE;
 	pd->reset.rcdev.nr_resets = PRCI_RST_NR;
 	pd->reset.rcdev.ops = &reset_simple_ops;
-	pd->reset.rcdev.of_node = pdev->dev.of_node;
+	pd->reset.rcdev.of_analde = pdev->dev.of_analde;
 	pd->reset.active_low = true;
 	pd->reset.membase = pd->va + PRCI_DEVICESRESETREG_OFFSET;
 	spin_lock_init(&pd->reset.lock);
 
 	r = devm_reset_controller_register(&pdev->dev, &pd->reset.rcdev);
 	if (r) {
-		dev_err(dev, "could not register reset controller: %d\n", r);
+		dev_err(dev, "could analt register reset controller: %d\n", r);
 		return r;
 	}
 	r = __prci_register_clocks(dev, pd, desc);
 	if (r) {
-		dev_err(dev, "could not register clocks: %d\n", r);
+		dev_err(dev, "could analt register clocks: %d\n", r);
 		return r;
 	}
 

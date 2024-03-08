@@ -47,7 +47,7 @@
 				 *
 				 * The documentation mentions the existence
 				 * of a 16MB version, which we conveniently
-				 * ignore. Shout if you own one!
+				 * iganalre. Shout if you own one!
 				 */
 				reg = <0 0x00000000 0x2000000>;
 
@@ -66,7 +66,7 @@
 				compatible = "shared-dma-pool";
 				device_type = "memory";
 				reg = <2 0x00000000 0x40000>;
-				no-map;
+				anal-map;
 				/* Expansion bus settings */
 				intel,ixp4xx-eb-t3 = <1>;
 				intel,ixp4xx-eb-t4 = <2>;

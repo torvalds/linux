@@ -21,7 +21,7 @@ typedef enum {
   LBT,
   LBTI,
   IDATA,
-  UNKNOWN_IFORMAT
+  UNKANALWN_IFORMAT
 } spu_iformat;
 
 /* These values describe assembly instruction arguments.  They indicate

@@ -106,7 +106,7 @@ static int iproc_nand_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	soc = &priv->soc;
 
 	spin_lock_init(&priv->idm_lock);
@@ -144,6 +144,6 @@ static struct platform_driver iproc_nand_driver = {
 module_platform_driver(iproc_nand_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Brian Norris");
+MODULE_AUTHOR("Brian Analrris");
 MODULE_AUTHOR("Ray Jui");
 MODULE_DESCRIPTION("NAND driver for Broadcom IPROC-based SoCs");

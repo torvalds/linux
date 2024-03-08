@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellaanalx Techanallogies inc.  All rights reserved.
  * Copyright (c) 2020, Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -58,7 +58,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_ADVISE_MR)(
 
 	/* FIXME: Extend the UAPI_DEF_OBJ_NEEDS_FN stuff.. */
 	if (!ib_dev->ops.advise_mr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = uverbs_get_const(&advice, attrs, UVERBS_ATTR_ADVISE_MR_ADVICE);
 	if (ret)
@@ -96,7 +96,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	int ret;
 
 	if (!ib_dev->ops.reg_dm_mr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = uverbs_copy_from(&attr.offset, attrs, UVERBS_ATTR_REG_DM_MR_OFFSET);
 	if (ret)
@@ -198,7 +198,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_DMABUF_MR)(
 	int ret;
 
 	if (!ib_dev->ops.reg_user_mr_dmabuf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = uverbs_copy_from(&offset, attrs,
 			       UVERBS_ATTR_REG_DMABUF_MR_OFFSET);

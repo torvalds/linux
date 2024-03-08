@@ -16,7 +16,7 @@ description: |
 
 maintainers:
   - Michael Hennerich <Michael.Hennerich@analog.com>
-  - Nuno Sá <nuno.sa@analog.com>
+  - Nuanal Sá <nuanal.sa@analog.com>
 
 allOf:
   - $ref: /schemas/spi/spi-controller.yaml#

@@ -76,7 +76,7 @@ static __always_inline void pai_kernel_exit(struct pt_regs *regs)
 }
 
 enum paievt_mode {
-	PAI_MODE_NONE,
+	PAI_MODE_ANALNE,
 	PAI_MODE_SAMPLING,
 	PAI_MODE_COUNTING,
 };

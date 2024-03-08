@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/list.h>
@@ -406,7 +406,7 @@ static int spi_sh_probe(struct platform_device *pdev)
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(struct spi_sh_data));
 	if (host == NULL) {
 		dev_err(&pdev->dev, "devm_spi_alloc_host error.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ss = spi_controller_get_devdata(host);
@@ -420,15 +420,15 @@ static int spi_sh_probe(struct platform_device *pdev)
 		ss->width = 32;
 		break;
 	default:
-		dev_err(&pdev->dev, "No support width\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal support width\n");
+		return -EANALDEV;
 	}
 	ss->irq = irq;
 	ss->host = host;
 	ss->addr = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (ss->addr == NULL) {
 		dev_err(&pdev->dev, "ioremap error.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	init_waitqueue_head(&ss->wait);
 

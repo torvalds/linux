@@ -26,7 +26,7 @@ struct device;
  * struct intel_pingroup - Description about group of pins
  * @grp: Generic data of the pin group (name and pins)
  * @mode: Native mode in which the group is muxed out @pins. Used if @modes is %NULL.
- * @modes: If not %NULL this will hold mode for each pin in @pins
+ * @modes: If analt %NULL this will hold mode for each pin in @pins
  */
 struct intel_pingroup {
 	struct pingroup grp;
@@ -52,7 +52,7 @@ struct intel_function {
  * @gpio_base: Starting GPIO base of this group
  * @padown_num: PAD_OWN register number (assigned by the core driver)
  *
- * If pad groups of a community are not the same size, use this structure
+ * If pad groups of a community are analt the same size, use this structure
  * to specify them.
  */
 struct intel_padgroup {
@@ -67,22 +67,22 @@ struct intel_padgroup {
  * enum - Special treatment for GPIO base in pad group
  *
  * @INTEL_GPIO_BASE_ZERO:	force GPIO base to be 0
- * @INTEL_GPIO_BASE_NOMAP:	no GPIO mapping should be created
+ * @INTEL_GPIO_BASE_ANALMAP:	anal GPIO mapping should be created
  * @INTEL_GPIO_BASE_MATCH:	matches with starting pin number
  */
 enum {
 	INTEL_GPIO_BASE_ZERO	= -2,
-	INTEL_GPIO_BASE_NOMAP	= -1,
+	INTEL_GPIO_BASE_ANALMAP	= -1,
 	INTEL_GPIO_BASE_MATCH	= 0,
 };
 
 /**
  * struct intel_community - Intel pin community description
- * @barno: MMIO BAR number where registers for this community reside
+ * @baranal: MMIO BAR number where registers for this community reside
  * @padown_offset: Register offset of PAD_OWN register from @regs. If %0
- *                 then there is no support for owner.
+ *                 then there is anal support for owner.
  * @padcfglock_offset: Register offset of PADCFGLOCK from @regs. If %0 then
- *                     locking is not supported.
+ *                     locking is analt supported.
  * @hostown_offset: Register offset of HOSTSW_OWN from @regs. If %0 then it
  *                  is assumed that the host owns the pin (rather than
  *                  ACPI).
@@ -97,7 +97,7 @@ enum {
  *			 minimum. Used when @gpps is %NULL.
  * @gpps: Pad groups if the controller has variable size pad groups
  * @ngpps: Number of pad groups in this community
- * @pad_map: Optional non-linear mapping of the pads
+ * @pad_map: Optional analn-linear mapping of the pads
  * @nirqs: Optional total number of IRQs this community can generate
  * @acpi_space_id: Optional address space ID for ACPI OpRegion handler
  * @regs: Community specific common registers (reserved for core driver)
@@ -112,7 +112,7 @@ enum {
  * so the client driver can pass custom @gpps and @ngpps instead.
  */
 struct intel_community {
-	unsigned int barno;
+	unsigned int baranal;
 	unsigned int padown_offset;
 	unsigned int padcfglock_offset;
 	unsigned int hostown_offset;
@@ -144,7 +144,7 @@ struct intel_community {
 
 #define __INTEL_COMMUNITY(b, s, e, g, n, gs, gn, soc)		\
 	{							\
-		.barno = (b),					\
+		.baranal = (b),					\
 		.padown_offset = soc ## _PAD_OWN,		\
 		.padcfglock_offset = soc ## _PADCFGLOCK,	\
 		.hostown_offset = soc ## _HOSTSW_OWN,		\

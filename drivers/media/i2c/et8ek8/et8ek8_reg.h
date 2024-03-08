@@ -2,7 +2,7 @@
 /*
  * et8ek8_reg.h
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  *
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *          Tuukka Toivonen <tuukkat76@gmail.com>

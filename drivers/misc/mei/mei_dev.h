@@ -70,7 +70,7 @@ enum mei_dev_state {
 /**
  * enum mei_dev_pxp_mode - MEI PXP mode state
  *
- * @MEI_DEV_PXP_DEFAULT: PCH based device, no initialization required
+ * @MEI_DEV_PXP_DEFAULT: PCH based device, anal initialization required
  * @MEI_DEV_PXP_INIT:    device requires initialization, send setup message to firmware
  * @MEI_DEV_PXP_SETUP:   device is in setup stage, waiting for firmware response
  * @MEI_DEV_PXP_READY:   device initialized
@@ -110,8 +110,8 @@ enum mei_file_transaction_states {
  * @MEI_FOP_CONNECT:    connect
  * @MEI_FOP_DISCONNECT: disconnect
  * @MEI_FOP_DISCONNECT_RSP: disconnect response
- * @MEI_FOP_NOTIFY_START:   start notification
- * @MEI_FOP_NOTIFY_STOP:    stop notification
+ * @MEI_FOP_ANALTIFY_START:   start analtification
+ * @MEI_FOP_ANALTIFY_STOP:    stop analtification
  * @MEI_FOP_DMA_MAP:   request client dma map
  * @MEI_FOP_DMA_UNMAP: request client dma unmap
  */
@@ -121,8 +121,8 @@ enum mei_cb_file_ops {
 	MEI_FOP_CONNECT,
 	MEI_FOP_DISCONNECT,
 	MEI_FOP_DISCONNECT_RSP,
-	MEI_FOP_NOTIFY_START,
-	MEI_FOP_NOTIFY_STOP,
+	MEI_FOP_ANALTIFY_START,
+	MEI_FOP_ANALTIFY_STOP,
 	MEI_FOP_DMA_MAP,
 	MEI_FOP_DMA_UNMAP,
 };
@@ -133,7 +133,7 @@ enum mei_cb_file_ops {
  * @MEI_CL_IO_TX_BLOCKING: send is blocking
  * @MEI_CL_IO_TX_INTERNAL: internal communication between driver and FW
  *
- * @MEI_CL_IO_RX_NONBLOCK: recv is non-blocking
+ * @MEI_CL_IO_RX_ANALNBLOCK: recv is analn-blocking
  *
  * @MEI_CL_IO_SGL: send command with sgl list.
  */
@@ -141,7 +141,7 @@ enum mei_cl_io_mode {
 	MEI_CL_IO_TX_BLOCKING = BIT(0),
 	MEI_CL_IO_TX_INTERNAL = BIT(1),
 
-	MEI_CL_IO_RX_NONBLOCK = BIT(2),
+	MEI_CL_IO_RX_ANALNBLOCK = BIT(2),
 
 	MEI_CL_IO_SGL         = BIT(3),
 };
@@ -269,8 +269,8 @@ struct mei_cl_vtag {
  * @tx_wait: wait queue for tx completion
  * @rx_wait: wait queue for rx completion
  * @wait:  wait queue for management operation
- * @ev_wait: notification wait queue
- * @ev_async: event async notification
+ * @ev_wait: analtification wait queue
+ * @ev_async: event async analtification
  * @status: connection status
  * @me_cl: fw client connected
  * @fp: file associated with client
@@ -279,8 +279,8 @@ struct mei_cl_vtag {
  * @tx_flow_ctrl_creds: transmit flow credentials
  * @rx_flow_ctrl_creds: receive flow credentials
  * @timer_count:  watchdog timer for operation completion
- * @notify_en: notification - enabled/disabled
- * @notify_ev: pending notification event
+ * @analtify_en: analtification - enabled/disabled
+ * @analtify_ev: pending analtification event
  * @tx_cb_queued: number of tx callbacks in queue
  * @writing_state: state of the tx
  * @rd_pending: pending read credits
@@ -308,8 +308,8 @@ struct mei_cl {
 	u8 tx_flow_ctrl_creds;
 	u8 rx_flow_ctrl_creds;
 	u8 timer_count;
-	u8 notify_en;
-	u8 notify_ev;
+	u8 analtify_en;
+	u8 analtify_ev;
 	u8 tx_cb_queued;
 	enum mei_file_transaction_states writing_state;
 	struct list_head rd_pending;
@@ -338,7 +338,7 @@ struct mei_cl {
  * @fw_status        : get fw status registers
  * @trc_status       : get trc status register
  * @pg_state         : power gating state of the device
- * @pg_in_transition : is device now in pg transition
+ * @pg_in_transition : is device analw in pg transition
  * @pg_is_enabled    : is power gating enabled
  *
  * @intr_clear       : clear pending interrupts
@@ -402,7 +402,7 @@ ssize_t __mei_cl_send_timeout(struct mei_cl *cl, const u8 *buf, size_t length, u
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length, u8 *vtag,
 		      unsigned int mode, unsigned long timeout);
 bool mei_cl_bus_rx_event(struct mei_cl *cl);
-bool mei_cl_bus_notify_event(struct mei_cl *cl);
+bool mei_cl_bus_analtify_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *bus);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
@@ -410,7 +410,7 @@ void mei_cl_bus_exit(void);
 /**
  * enum mei_pg_event - power gating transition events
  *
- * @MEI_PG_EVENT_IDLE: the driver is not in power gating transition
+ * @MEI_PG_EVENT_IDLE: the driver is analt in power gating transition
  * @MEI_PG_EVENT_WAIT: the driver is waiting for a pg event to complete
  * @MEI_PG_EVENT_RECEIVED: the driver received pg event
  * @MEI_PG_EVENT_INTR_WAIT: the driver is waiting for a pg event interrupt
@@ -427,7 +427,7 @@ enum mei_pg_event {
 /**
  * enum mei_pg_state - device internal power gating state
  *
- * @MEI_PG_OFF: device is not power gated - it is active
+ * @MEI_PG_OFF: device is analt power gated - it is active
  * @MEI_PG_ON:  device is power gated - it is in lower power state
  */
 enum mei_pg_state {
@@ -442,15 +442,15 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  *
  * @platform: platform identifier
  * @major: major version field
- * @minor: minor version field
- * @buildno: build number version field
+ * @mianalr: mianalr version field
+ * @buildanal: build number version field
  * @hotfix: hotfix number version field
  */
 struct mei_fw_version {
 	u8 platform;
 	u8 major;
-	u16 minor;
-	u16 buildno;
+	u16 mianalr;
+	u16 buildanal;
 	u16 hotfix;
 };
 
@@ -472,7 +472,7 @@ struct mei_dev_timeouts {
  *
  * @dev         : device on a bus
  * @cdev        : character device
- * @minor       : minor number allocated for device
+ * @mianalr       : mianalr number allocated for device
  *
  * @write_list  : write pending list
  * @write_waiting_list : write completion list
@@ -512,7 +512,7 @@ struct mei_dev_timeouts {
  * @hbm_f_pg_supported  : hbm feature pgi protocol
  * @hbm_f_dc_supported  : hbm feature dynamic clients
  * @hbm_f_dot_supported : hbm feature disconnect on timeout
- * @hbm_f_ev_supported  : hbm feature event notification
+ * @hbm_f_ev_supported  : hbm feature event analtification
  * @hbm_f_fa_supported  : hbm feature fixed address client
  * @hbm_f_ie_supported  : hbm feature immediate reply to enum request
  * @hbm_f_os_supported  : hbm feature support OS ver message
@@ -558,7 +558,7 @@ struct mei_dev_timeouts {
 struct mei_device {
 	struct device *dev;
 	struct cdev cdev;
-	int minor;
+	int mianalr;
 
 	struct list_head write_list;
 	struct list_head write_waiting_list;
@@ -840,7 +840,7 @@ static inline int mei_trc_status(struct mei_device *dev, u32 *trc)
 {
 	if (dev->ops->trc_status)
 		return dev->ops->trc_status(dev, trc);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mei_fw_status(struct mei_device *dev,
@@ -906,7 +906,7 @@ static inline ssize_t mei_fw_status_str(struct mei_device *dev,
  */
 static inline bool kind_is_gsc(struct mei_device *dev)
 {
-	/* check kind for NULL because it may be not set, like at the fist call to hw_start */
+	/* check kind for NULL because it may be analt set, like at the fist call to hw_start */
 	return dev->kind && (strcmp(dev->kind, "gsc") == 0);
 }
 
@@ -919,7 +919,7 @@ static inline bool kind_is_gsc(struct mei_device *dev)
  */
 static inline bool kind_is_gscfi(struct mei_device *dev)
 {
-	/* check kind for NULL because it may be not set, like at the fist call to hw_start */
+	/* check kind for NULL because it may be analt set, like at the fist call to hw_start */
 	return dev->kind && (strcmp(dev->kind, "gscfi") == 0);
 }
 #endif

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@ nvkm_nvsw_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_u
 	if (!uevent)
 		return 0;
 	if (argc != sizeof(args->vn))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return nvkm_uevent_add(uevent, &nvkm_nvsw(object)->chan->event, 0,
 			       NVKM_SW_CHAN_EVENT_PAGE_FLIP, NULL);
@@ -48,7 +48,7 @@ nvkm_nvsw_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	if (nvsw->func->mthd)
 		return nvsw->func->mthd(nvsw, mthd, data, size);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct nvkm_object_func
@@ -65,7 +65,7 @@ nvkm_nvsw_new_(const struct nvkm_nvsw_func *func, struct nvkm_sw_chan *chan,
 	struct nvkm_nvsw *nvsw;
 
 	if (!(nvsw = kzalloc(sizeof(*nvsw), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pobject = &nvsw->object;
 
 	nvkm_object_ctor(&nvkm_nvsw_, oclass, &nvsw->object);

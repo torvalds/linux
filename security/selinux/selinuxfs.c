@@ -8,7 +8,7 @@
  *	Added support for the policy capability bitmap
  *
  * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
- * Copyright (C) 2003 - 2004 Tresys Technology, LLC
+ * Copyright (C) 2003 - 2004 Tresys Techanallogy, LLC
  * Copyright (C) 2004 Red Hat, Inc., James Morris <jmorris@redhat.com>
  */
 
@@ -43,8 +43,8 @@
 #include "conditional.h"
 #include "ima.h"
 
-enum sel_inos {
-	SEL_ROOT_INO = 2,
+enum sel_ianals {
+	SEL_ROOT_IANAL = 2,
 	SEL_LOAD,	/* load policy */
 	SEL_ENFORCE,	/* get or set enforcing status */
 	SEL_CONTEXT,	/* validate context */
@@ -57,14 +57,14 @@ enum sel_inos {
 	SEL_MLS,	/* return if MLS policy is enabled */
 	SEL_DISABLE,	/* disable SELinux until next reboot */
 	SEL_MEMBER,	/* compute polyinstantiation membership decision */
-	SEL_CHECKREQPROT, /* check requested protection, not kernel-applied one */
+	SEL_CHECKREQPROT, /* check requested protection, analt kernel-applied one */
 	SEL_COMPAT_NET,	/* whether to use old compat network packet controls */
-	SEL_REJECT_UNKNOWN, /* export unknown reject handling to userspace */
-	SEL_DENY_UNKNOWN, /* export unknown deny handling to userspace */
+	SEL_REJECT_UNKANALWN, /* export unkanalwn reject handling to userspace */
+	SEL_DENY_UNKANALWN, /* export unkanalwn deny handling to userspace */
 	SEL_STATUS,	/* export current status using mmap() */
 	SEL_POLICY,	/* allow userspace to read the in kernel policy */
 	SEL_VALIDATE_TRANS, /* compute validatetrans decision */
-	SEL_INO_NEXT,	/* The next inode number to use */
+	SEL_IANAL_NEXT,	/* The next ianalde number to use */
 };
 
 struct selinux_fs_info {
@@ -73,10 +73,10 @@ struct selinux_fs_info {
 	char **bool_pending_names;
 	int *bool_pending_values;
 	struct dentry *class_dir;
-	unsigned long last_class_ino;
+	unsigned long last_class_ianal;
 	bool policy_opened;
 	struct dentry *policycap_dir;
-	unsigned long last_ino;
+	unsigned long last_ianal;
 	struct super_block *sb;
 };
 
@@ -86,9 +86,9 @@ static int selinux_fs_info_create(struct super_block *sb)
 
 	fsi = kzalloc(sizeof(*fsi), GFP_KERNEL);
 	if (!fsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	fsi->last_ino = SEL_INO_NEXT - 1;
+	fsi->last_ianal = SEL_IANAL_NEXT - 1;
 	fsi->sb = sb;
 	sb->s_fs_info = fsi;
 	return 0;
@@ -109,11 +109,11 @@ static void selinux_fs_info_free(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-#define SEL_INITCON_INO_OFFSET		0x01000000
-#define SEL_BOOL_INO_OFFSET		0x02000000
-#define SEL_CLASS_INO_OFFSET		0x04000000
-#define SEL_POLICYCAP_INO_OFFSET	0x08000000
-#define SEL_INO_MASK			0x00ffffff
+#define SEL_INITCON_IANAL_OFFSET		0x01000000
+#define SEL_BOOL_IANAL_OFFSET		0x02000000
+#define SEL_CLASS_IANAL_OFFSET		0x04000000
+#define SEL_POLICYCAP_IANAL_OFFSET	0x08000000
+#define SEL_IANAL_MASK			0x00ffffff
 
 #define BOOL_DIR_NAME "booleans"
 #define CLASS_DIR_NAME "class"
@@ -142,9 +142,9 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 	bool old_value, new_value;
 
 	if (count >= PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No partial writes. */
+	/* Anal partial writes. */
 	if (*ppos != 0)
 		return -EINVAL;
 
@@ -174,10 +174,10 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 		enforcing_set(new_value);
 		if (new_value)
 			avc_ss_reset(0);
-		selnl_notify_setenforce(new_value);
+		selnl_analtify_setenforce(new_value);
 		selinux_status_update_setenforce(new_value);
 		if (!new_value)
-			call_blocking_lsm_notifier(LSM_POLICY_CHANGE, NULL);
+			call_blocking_lsm_analtifier(LSM_POLICY_CHANGE, NULL);
 
 		selinux_ima_measure_state();
 	}
@@ -196,31 +196,31 @@ static const struct file_operations sel_enforce_ops = {
 	.llseek		= generic_file_llseek,
 };
 
-static ssize_t sel_read_handle_unknown(struct file *filp, char __user *buf,
+static ssize_t sel_read_handle_unkanalwn(struct file *filp, char __user *buf,
 					size_t count, loff_t *ppos)
 {
 	char tmpbuf[TMPBUFLEN];
 	ssize_t length;
-	ino_t ino = file_inode(filp)->i_ino;
-	int handle_unknown = (ino == SEL_REJECT_UNKNOWN) ?
-		security_get_reject_unknown() :
-		!security_get_allow_unknown();
+	ianal_t ianal = file_ianalde(filp)->i_ianal;
+	int handle_unkanalwn = (ianal == SEL_REJECT_UNKANALWN) ?
+		security_get_reject_unkanalwn() :
+		!security_get_allow_unkanalwn();
 
-	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", handle_unknown);
+	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", handle_unkanalwn);
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
 
-static const struct file_operations sel_handle_unknown_ops = {
-	.read		= sel_read_handle_unknown,
+static const struct file_operations sel_handle_unkanalwn_ops = {
+	.read		= sel_read_handle_unkanalwn,
 	.llseek		= generic_file_llseek,
 };
 
-static int sel_open_handle_status(struct inode *inode, struct file *filp)
+static int sel_open_handle_status(struct ianalde *ianalde, struct file *filp)
 {
 	struct page    *status = selinux_kernel_status_page();
 
 	if (!status)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	filp->private_data = status;
 
@@ -277,9 +277,9 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	int new_value;
 
 	if (count >= PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No partial writes. */
+	/* Anal partial writes. */
 	if (*ppos != 0)
 		return -EINVAL;
 
@@ -295,7 +295,7 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 
 	if (new_value) {
 		pr_err("SELinux: https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-runtime-disable\n");
-		pr_err("SELinux: Runtime disable is not supported, use selinux=0 on the kernel cmdline.\n");
+		pr_err("SELinux: Runtime disable is analt supported, use selinux=0 on the kernel cmdline.\n");
 	}
 
 out:
@@ -329,15 +329,15 @@ static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_
 			  int **bool_pending_values);
 static int sel_make_classes(struct selinux_policy *newpolicy,
 			    struct dentry *class_dir,
-			    unsigned long *last_class_ino);
+			    unsigned long *last_class_ianal);
 
 /* declaration for sel_make_class_dirs */
 static struct dentry *sel_make_dir(struct dentry *dir, const char *name,
-			unsigned long *ino);
+			unsigned long *ianal);
 
-/* declaration for sel_make_policy_nodes */
+/* declaration for sel_make_policy_analdes */
 static struct dentry *sel_make_swapover_dir(struct super_block *sb,
-						unsigned long *ino);
+						unsigned long *ianal);
 
 static ssize_t sel_read_mls(struct file *filp, char __user *buf,
 				size_t count, loff_t *ppos)
@@ -360,9 +360,9 @@ struct policy_load_memory {
 	void *data;
 };
 
-static int sel_open_policy(struct inode *inode, struct file *filp)
+static int sel_open_policy(struct ianalde *ianalde, struct file *filp)
 {
-	struct selinux_fs_info *fsi = inode->i_sb->s_fs_info;
+	struct selinux_fs_info *fsi = ianalde->i_sb->s_fs_info;
 	struct policy_load_memory *plm = NULL;
 	int rc;
 
@@ -379,7 +379,7 @@ static int sel_open_policy(struct inode *inode, struct file *filp)
 	if (fsi->policy_opened)
 		goto err;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	plm = kzalloc(sizeof(*plm), GFP_KERNEL);
 	if (!plm)
 		goto err;
@@ -388,10 +388,10 @@ static int sel_open_policy(struct inode *inode, struct file *filp)
 	if (rc)
 		goto err;
 
-	if ((size_t)i_size_read(inode) != plm->len) {
-		inode_lock(inode);
-		i_size_write(inode, plm->len);
-		inode_unlock(inode);
+	if ((size_t)i_size_read(ianalde) != plm->len) {
+		ianalde_lock(ianalde);
+		i_size_write(ianalde, plm->len);
+		ianalde_unlock(ianalde);
 	}
 
 	fsi->policy_opened = 1;
@@ -410,9 +410,9 @@ err:
 	return rc;
 }
 
-static int sel_release_policy(struct inode *inode, struct file *filp)
+static int sel_release_policy(struct ianalde *ianalde, struct file *filp)
 {
-	struct selinux_fs_info *fsi = inode->i_sb->s_fs_info;
+	struct selinux_fs_info *fsi = ianalde->i_sb->s_fs_info;
 	struct policy_load_memory *plm = filp->private_data;
 
 	BUG_ON(!plm);
@@ -468,7 +468,7 @@ static const struct vm_operations_struct sel_mmap_policy_ops = {
 static int sel_mmap_policy(struct file *filp, struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & VM_SHARED) {
-		/* do not allow mprotect to make mapping writable */
+		/* do analt allow mprotect to make mapping writable */
 		vm_flags_clear(vma, VM_MAYWRITE);
 
 		if (vma->vm_flags & VM_WRITE)
@@ -501,7 +501,7 @@ static void sel_remove_old_bool_data(unsigned int bool_num, char **bool_names,
 	kfree(bool_values);
 }
 
-static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
+static int sel_make_policy_analdes(struct selinux_fs_info *fsi,
 				struct selinux_policy *newpolicy)
 {
 	int ret = 0;
@@ -509,21 +509,21 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 	unsigned int bool_num = 0;
 	char **bool_names = NULL;
 	int *bool_values = NULL;
-	unsigned long tmp_ino = fsi->last_ino; /* Don't increment last_ino in this function */
+	unsigned long tmp_ianal = fsi->last_ianal; /* Don't increment last_ianal in this function */
 
-	tmp_parent = sel_make_swapover_dir(fsi->sb, &tmp_ino);
+	tmp_parent = sel_make_swapover_dir(fsi->sb, &tmp_ianal);
 	if (IS_ERR(tmp_parent))
 		return PTR_ERR(tmp_parent);
 
-	tmp_ino = fsi->bool_dir->d_inode->i_ino - 1; /* sel_make_dir will increment and set */
-	tmp_bool_dir = sel_make_dir(tmp_parent, BOOL_DIR_NAME, &tmp_ino);
+	tmp_ianal = fsi->bool_dir->d_ianalde->i_ianal - 1; /* sel_make_dir will increment and set */
+	tmp_bool_dir = sel_make_dir(tmp_parent, BOOL_DIR_NAME, &tmp_ianal);
 	if (IS_ERR(tmp_bool_dir)) {
 		ret = PTR_ERR(tmp_bool_dir);
 		goto out;
 	}
 
-	tmp_ino = fsi->class_dir->d_inode->i_ino - 1; /* sel_make_dir will increment and set */
-	tmp_class_dir = sel_make_dir(tmp_parent, CLASS_DIR_NAME, &tmp_ino);
+	tmp_ianal = fsi->class_dir->d_ianalde->i_ianal - 1; /* sel_make_dir will increment and set */
+	tmp_class_dir = sel_make_dir(tmp_parent, CLASS_DIR_NAME, &tmp_ianal);
 	if (IS_ERR(tmp_class_dir)) {
 		ret = PTR_ERR(tmp_class_dir);
 		goto out;
@@ -535,7 +535,7 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 		goto out;
 
 	ret = sel_make_classes(newpolicy, tmp_class_dir,
-			       &fsi->last_class_ino);
+			       &fsi->last_class_ianal);
 	if (ret)
 		goto out;
 
@@ -571,7 +571,7 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 			      size_t count, loff_t *ppos)
 
 {
-	struct selinux_fs_info *fsi = file_inode(file)->i_sb->s_fs_info;
+	struct selinux_fs_info *fsi = file_ianalde(file)->i_sb->s_fs_info;
 	struct selinux_load_state load_state;
 	ssize_t length;
 	void *data = NULL;
@@ -583,12 +583,12 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	if (length)
 		goto out;
 
-	/* No partial writes. */
+	/* Anal partial writes. */
 	length = -EINVAL;
 	if (*ppos != 0)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	data = vmalloc(count);
 	if (!data)
 		goto out;
@@ -603,7 +603,7 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	length = sel_make_policy_nodes(fsi, load_state.policy);
+	length = sel_make_policy_analdes(fsi, load_state.policy);
 	if (length) {
 		pr_warn_ratelimited("SELinux: failed to initialize selinuxfs\n");
 		selinux_policy_cancel(&load_state);
@@ -631,7 +631,7 @@ static const struct file_operations sel_load_ops = {
 
 static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
 {
-	char *canon = NULL;
+	char *caanaln = NULL;
 	u32 sid, len;
 	ssize_t length;
 
@@ -644,7 +644,7 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = security_sid_to_context(sid, &canon, &len);
+	length = security_sid_to_context(sid, &caanaln, &len);
 	if (length)
 		goto out;
 
@@ -655,10 +655,10 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
 		goto out;
 	}
 
-	memcpy(buf, canon, len);
+	memcpy(buf, caanaln, len);
 	length = len;
 out:
-	kfree(canon);
+	kfree(caanaln);
 	return length;
 }
 
@@ -687,9 +687,9 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 		return length;
 
 	if (count >= PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No partial writes. */
+	/* Anal partial writes. */
 	if (*ppos != 0)
 		return -EINVAL;
 
@@ -707,7 +707,7 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 		char comm[sizeof(current->comm)];
 
 		memcpy(comm, current->comm, sizeof(comm));
-		pr_err("SELinux: %s (%d) set checkreqprot to 1. This is no longer supported.\n",
+		pr_err("SELinux: %s (%d) set checkreqprot to 1. This is anal longer supported.\n",
 		       comm, current->pid);
 	}
 
@@ -738,11 +738,11 @@ static ssize_t sel_write_validatetrans(struct file *file,
 	if (rc)
 		goto out;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	if (count >= PAGE_SIZE)
 		goto out;
 
-	/* No partial writes. */
+	/* Anal partial writes. */
 	rc = -EINVAL;
 	if (*ppos != 0)
 		goto out;
@@ -754,7 +754,7 @@ static ssize_t sel_write_validatetrans(struct file *file,
 		goto out;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	oldcon = kzalloc(count + 1, GFP_KERNEL);
 	if (!oldcon)
 		goto out;
@@ -800,7 +800,7 @@ static const struct file_operations sel_transition_ops = {
 };
 
 /*
- * Remaining nodes use transaction based IO methods like nfsd/nfsctl.c
+ * Remaining analdes use transaction based IO methods like nfsd/nfsctl.c
  */
 static ssize_t sel_write_access(struct file *file, char *buf, size_t size);
 static ssize_t sel_write_create(struct file *file, char *buf, size_t size);
@@ -819,18 +819,18 @@ static ssize_t (*const write_op[])(struct file *, char *, size_t) = {
 
 static ssize_t selinux_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
 {
-	ino_t ino = file_inode(file)->i_ino;
+	ianal_t ianal = file_ianalde(file)->i_ianal;
 	char *data;
 	ssize_t rv;
 
-	if (ino >= ARRAY_SIZE(write_op) || !write_op[ino])
+	if (ianal >= ARRAY_SIZE(write_op) || !write_op[ianal])
 		return -EINVAL;
 
 	data = simple_transaction_get(file, buf, size);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	rv = write_op[ino](file, data, size);
+	rv = write_op[ianal](file, data, size);
 	if (rv > 0) {
 		simple_transaction_set(file, rv);
 		rv = size;
@@ -864,12 +864,12 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	tcon = kzalloc(size + 1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
@@ -892,7 +892,7 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 			  "%x %x %x %x %u %x",
 			  avd.allowed, 0xffffffff,
 			  avd.auditallow, avd.auditdeny,
-			  avd.seqno, avd.flags);
+			  avd.seqanal, avd.flags);
 out:
 	kfree(tcon);
 	kfree(scon);
@@ -916,17 +916,17 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	tcon = kzalloc(size + 1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	namebuf = kzalloc(size + 1, GFP_KERNEL);
 	if (!namebuf)
 		goto out;
@@ -940,7 +940,7 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 		 * If and when the name of new object to be queried contains
 		 * either whitespace or multibyte characters, they shall be
 		 * encoded based on the percentage-encoding rule.
-		 * If not encoded, the sscanf logic picks up only left-half
+		 * If analt encoded, the sscanf logic picks up only left-half
 		 * of the supplied name; split by a whitespace unexpectedly.
 		 */
 		char   *r, *w;
@@ -1015,12 +1015,12 @@ static ssize_t sel_write_relabel(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	tcon = kzalloc(size + 1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
@@ -1073,12 +1073,12 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	con = kzalloc(size + 1, GFP_KERNEL);
 	if (!con)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	user = kzalloc(size + 1, GFP_KERNEL);
 	if (!user)
 		goto out;
@@ -1135,12 +1135,12 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
 		goto out;
 
-	length = -ENOMEM;
+	length = -EANALMEM;
 	tcon = kzalloc(size + 1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
@@ -1181,13 +1181,13 @@ out:
 	return length;
 }
 
-static struct inode *sel_make_inode(struct super_block *sb, umode_t mode)
+static struct ianalde *sel_make_ianalde(struct super_block *sb, umode_t mode)
 {
-	struct inode *ret = new_inode(sb);
+	struct ianalde *ret = new_ianalde(sb);
 
 	if (ret) {
 		ret->i_mode = mode;
-		simple_inode_init_ts(ret);
+		simple_ianalde_init_ts(ret);
 	}
 	return ret;
 }
@@ -1195,12 +1195,12 @@ static struct inode *sel_make_inode(struct super_block *sb, umode_t mode)
 static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
-	struct selinux_fs_info *fsi = file_inode(filep)->i_sb->s_fs_info;
+	struct selinux_fs_info *fsi = file_ianalde(filep)->i_sb->s_fs_info;
 	char *page = NULL;
 	ssize_t length;
 	ssize_t ret;
 	int cur_enforcing;
-	unsigned index = file_inode(filep)->i_ino & SEL_INO_MASK;
+	unsigned index = file_ianalde(filep)->i_ianal & SEL_IANAL_MASK;
 	const char *name = filep->f_path.dentry->d_name.name;
 
 	mutex_lock(&selinux_state.policy_mutex);
@@ -1210,7 +1210,7 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 					     fsi->bool_pending_names[index]))
 		goto out_unlock;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	page = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!page)
 		goto out_unlock;
@@ -1236,17 +1236,17 @@ out_unlock:
 static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	struct selinux_fs_info *fsi = file_inode(filep)->i_sb->s_fs_info;
+	struct selinux_fs_info *fsi = file_ianalde(filep)->i_sb->s_fs_info;
 	char *page = NULL;
 	ssize_t length;
 	int new_value;
-	unsigned index = file_inode(filep)->i_ino & SEL_INO_MASK;
+	unsigned index = file_ianalde(filep)->i_ianal & SEL_IANAL_MASK;
 	const char *name = filep->f_path.dentry->d_name.name;
 
 	if (count >= PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No partial writes. */
+	/* Anal partial writes. */
 	if (*ppos != 0)
 		return -EINVAL;
 
@@ -1293,15 +1293,15 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 				      const char __user *buf,
 				      size_t count, loff_t *ppos)
 {
-	struct selinux_fs_info *fsi = file_inode(filep)->i_sb->s_fs_info;
+	struct selinux_fs_info *fsi = file_ianalde(filep)->i_sb->s_fs_info;
 	char *page = NULL;
 	ssize_t length;
 	int new_value;
 
 	if (count >= PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No partial writes. */
+	/* Anal partial writes. */
 	if (*ppos != 0)
 		return -EINVAL;
 
@@ -1350,7 +1350,7 @@ static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_
 
 	page = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = security_get_bools(newpolicy, &num, &names, bool_pending_values);
 	if (ret)
@@ -1361,8 +1361,8 @@ static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_
 
 	for (i = 0; i < num; i++) {
 		struct dentry *dentry;
-		struct inode *inode;
-		struct inode_security_struct *isec;
+		struct ianalde *ianalde;
+		struct ianalde_security_struct *isec;
 		ssize_t len;
 		u32 sid;
 
@@ -1373,31 +1373,31 @@ static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_
 		}
 		dentry = d_alloc_name(bool_dir, names[i]);
 		if (!dentry) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
-		inode = sel_make_inode(bool_dir->d_sb, S_IFREG | S_IRUGO | S_IWUSR);
-		if (!inode) {
+		ianalde = sel_make_ianalde(bool_dir->d_sb, S_IFREG | S_IRUGO | S_IWUSR);
+		if (!ianalde) {
 			dput(dentry);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
-		isec = selinux_inode(inode);
+		isec = selinux_ianalde(ianalde);
 		ret = selinux_policy_genfs_sid(newpolicy, "selinuxfs", page,
 					 SECCLASS_FILE, &sid);
 		if (ret) {
-			pr_warn_ratelimited("SELinux: no sid found, defaulting to security isid for %s\n",
+			pr_warn_ratelimited("SELinux: anal sid found, defaulting to security isid for %s\n",
 					   page);
 			sid = SECINITSID_SECURITY;
 		}
 
 		isec->sid = sid;
 		isec->initialized = LABEL_INITIALIZED;
-		inode->i_fop = &sel_bool_ops;
-		inode->i_ino = i|SEL_BOOL_INO_OFFSET;
-		d_add(dentry, inode);
+		ianalde->i_fop = &sel_bool_ops;
+		ianalde->i_ianal = i|SEL_BOOL_IANAL_OFFSET;
+		d_add(dentry, ianalde);
 	}
 out:
 	free_page((unsigned long)page);
@@ -1431,9 +1431,9 @@ static ssize_t sel_write_avc_cache_threshold(struct file *file,
 		return ret;
 
 	if (count >= PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No partial writes. */
+	/* Anal partial writes. */
 	if (*ppos != 0)
 		return -EINVAL;
 
@@ -1461,7 +1461,7 @@ static ssize_t sel_read_avc_hash_stats(struct file *filp, char __user *buf,
 
 	page = (char *)__get_free_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	length = avc_get_hash_stats(page);
 	if (length >= 0)
@@ -1479,7 +1479,7 @@ static ssize_t sel_read_sidtab_hash_stats(struct file *filp, char __user *buf,
 
 	page = (char *)__get_free_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	length = security_sidtab_hash_stats(page);
 	if (length >= 0)
@@ -1564,7 +1564,7 @@ static const struct seq_operations sel_avc_cache_stats_seq_ops = {
 	.stop		= sel_avc_stats_seq_stop,
 };
 
-static int sel_open_avc_cache_stats(struct inode *inode, struct file *file)
+static int sel_open_avc_cache_stats(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &sel_avc_cache_stats_seq_ops);
 }
@@ -1592,22 +1592,22 @@ static int sel_make_avc_files(struct dentry *dir)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(files); i++) {
-		struct inode *inode;
+		struct ianalde *ianalde;
 		struct dentry *dentry;
 
 		dentry = d_alloc_name(dir, files[i].name);
 		if (!dentry)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		inode = sel_make_inode(dir->d_sb, S_IFREG|files[i].mode);
-		if (!inode) {
+		ianalde = sel_make_ianalde(dir->d_sb, S_IFREG|files[i].mode);
+		if (!ianalde) {
 			dput(dentry);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		inode->i_fop = files[i].ops;
-		inode->i_ino = ++fsi->last_ino;
-		d_add(dentry, inode);
+		ianalde->i_fop = files[i].ops;
+		ianalde->i_ianal = ++fsi->last_ianal;
+		d_add(dentry, ianalde);
 	}
 
 	return 0;
@@ -1623,22 +1623,22 @@ static int sel_make_ss_files(struct dentry *dir)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(files); i++) {
-		struct inode *inode;
+		struct ianalde *ianalde;
 		struct dentry *dentry;
 
 		dentry = d_alloc_name(dir, files[i].name);
 		if (!dentry)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		inode = sel_make_inode(dir->d_sb, S_IFREG|files[i].mode);
-		if (!inode) {
+		ianalde = sel_make_ianalde(dir->d_sb, S_IFREG|files[i].mode);
+		if (!ianalde) {
 			dput(dentry);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		inode->i_fop = files[i].ops;
-		inode->i_ino = ++fsi->last_ino;
-		d_add(dentry, inode);
+		ianalde->i_fop = files[i].ops;
+		ianalde->i_ianal = ++fsi->last_ianal;
+		d_add(dentry, ianalde);
 	}
 
 	return 0;
@@ -1651,7 +1651,7 @@ static ssize_t sel_read_initcon(struct file *file, char __user *buf,
 	u32 sid, len;
 	ssize_t ret;
 
-	sid = file_inode(file)->i_ino&SEL_INO_MASK;
+	sid = file_ianalde(file)->i_ianal&SEL_IANAL_MASK;
 	ret = security_sid_to_context(sid, &con, &len);
 	if (ret)
 		return ret;
@@ -1671,7 +1671,7 @@ static int sel_make_initcon_files(struct dentry *dir)
 	unsigned int i;
 
 	for (i = 1; i <= SECINITSID_NUM; i++) {
-		struct inode *inode;
+		struct ianalde *ianalde;
 		struct dentry *dentry;
 		const char *s = security_get_initial_sid_context(i);
 
@@ -1679,48 +1679,48 @@ static int sel_make_initcon_files(struct dentry *dir)
 			continue;
 		dentry = d_alloc_name(dir, s);
 		if (!dentry)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		inode = sel_make_inode(dir->d_sb, S_IFREG|S_IRUGO);
-		if (!inode) {
+		ianalde = sel_make_ianalde(dir->d_sb, S_IFREG|S_IRUGO);
+		if (!ianalde) {
 			dput(dentry);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		inode->i_fop = &sel_initcon_ops;
-		inode->i_ino = i|SEL_INITCON_INO_OFFSET;
-		d_add(dentry, inode);
+		ianalde->i_fop = &sel_initcon_ops;
+		ianalde->i_ianal = i|SEL_INITCON_IANAL_OFFSET;
+		d_add(dentry, ianalde);
 	}
 
 	return 0;
 }
 
-static inline unsigned long sel_class_to_ino(u16 class)
+static inline unsigned long sel_class_to_ianal(u16 class)
 {
-	return (class * (SEL_VEC_MAX + 1)) | SEL_CLASS_INO_OFFSET;
+	return (class * (SEL_VEC_MAX + 1)) | SEL_CLASS_IANAL_OFFSET;
 }
 
-static inline u16 sel_ino_to_class(unsigned long ino)
+static inline u16 sel_ianal_to_class(unsigned long ianal)
 {
-	return (ino & SEL_INO_MASK) / (SEL_VEC_MAX + 1);
+	return (ianal & SEL_IANAL_MASK) / (SEL_VEC_MAX + 1);
 }
 
-static inline unsigned long sel_perm_to_ino(u16 class, u32 perm)
+static inline unsigned long sel_perm_to_ianal(u16 class, u32 perm)
 {
-	return (class * (SEL_VEC_MAX + 1) + perm) | SEL_CLASS_INO_OFFSET;
+	return (class * (SEL_VEC_MAX + 1) + perm) | SEL_CLASS_IANAL_OFFSET;
 }
 
-static inline u32 sel_ino_to_perm(unsigned long ino)
+static inline u32 sel_ianal_to_perm(unsigned long ianal)
 {
-	return (ino & SEL_INO_MASK) % (SEL_VEC_MAX + 1);
+	return (ianal & SEL_IANAL_MASK) % (SEL_VEC_MAX + 1);
 }
 
 static ssize_t sel_read_class(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	unsigned long ino = file_inode(file)->i_ino;
+	unsigned long ianal = file_ianalde(file)->i_ianal;
 	char res[TMPBUFLEN];
-	ssize_t len = scnprintf(res, sizeof(res), "%d", sel_ino_to_class(ino));
+	ssize_t len = scnprintf(res, sizeof(res), "%d", sel_ianal_to_class(ianal));
 	return simple_read_from_buffer(buf, count, ppos, res, len);
 }
 
@@ -1732,9 +1732,9 @@ static const struct file_operations sel_class_ops = {
 static ssize_t sel_read_perm(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	unsigned long ino = file_inode(file)->i_ino;
+	unsigned long ianal = file_ianalde(file)->i_ianal;
 	char res[TMPBUFLEN];
-	ssize_t len = scnprintf(res, sizeof(res), "%d", sel_ino_to_perm(ino));
+	ssize_t len = scnprintf(res, sizeof(res), "%d", sel_ianal_to_perm(ianal));
 	return simple_read_from_buffer(buf, count, ppos, res, len);
 }
 
@@ -1749,9 +1749,9 @@ static ssize_t sel_read_policycap(struct file *file, char __user *buf,
 	int value;
 	char tmpbuf[TMPBUFLEN];
 	ssize_t length;
-	unsigned long i_ino = file_inode(file)->i_ino;
+	unsigned long i_ianal = file_ianalde(file)->i_ianal;
 
-	value = security_policycap_supported(i_ino & SEL_INO_MASK);
+	value = security_policycap_supported(i_ianal & SEL_IANAL_MASK);
 	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", value);
 
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
@@ -1775,25 +1775,25 @@ static int sel_make_perm_files(struct selinux_policy *newpolicy,
 		return rc;
 
 	for (i = 0; i < nperms; i++) {
-		struct inode *inode;
+		struct ianalde *ianalde;
 		struct dentry *dentry;
 
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		dentry = d_alloc_name(dir, perms[i]);
 		if (!dentry)
 			goto out;
 
-		rc = -ENOMEM;
-		inode = sel_make_inode(dir->d_sb, S_IFREG|S_IRUGO);
-		if (!inode) {
+		rc = -EANALMEM;
+		ianalde = sel_make_ianalde(dir->d_sb, S_IFREG|S_IRUGO);
+		if (!ianalde) {
 			dput(dentry);
 			goto out;
 		}
 
-		inode->i_fop = &sel_perm_ops;
+		ianalde->i_fop = &sel_perm_ops;
 		/* i+1 since perm values are 1-indexed */
-		inode->i_ino = sel_perm_to_ino(classvalue, i + 1);
-		d_add(dentry, inode);
+		ianalde->i_ianal = sel_perm_to_ianal(classvalue, i + 1);
+		d_add(dentry, ianalde);
 	}
 	rc = 0;
 out:
@@ -1810,23 +1810,23 @@ static int sel_make_class_dir_entries(struct selinux_policy *newpolicy,
 	struct super_block *sb = dir->d_sb;
 	struct selinux_fs_info *fsi = sb->s_fs_info;
 	struct dentry *dentry = NULL;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
 	dentry = d_alloc_name(dir, "index");
 	if (!dentry)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	inode = sel_make_inode(dir->d_sb, S_IFREG|S_IRUGO);
-	if (!inode) {
+	ianalde = sel_make_ianalde(dir->d_sb, S_IFREG|S_IRUGO);
+	if (!ianalde) {
 		dput(dentry);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	inode->i_fop = &sel_class_ops;
-	inode->i_ino = sel_class_to_ino(index);
-	d_add(dentry, inode);
+	ianalde->i_fop = &sel_class_ops;
+	ianalde->i_ianal = sel_class_to_ianal(index);
+	d_add(dentry, ianalde);
 
-	dentry = sel_make_dir(dir, "perms", &fsi->last_class_ino);
+	dentry = sel_make_dir(dir, "perms", &fsi->last_class_ianal);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -1835,7 +1835,7 @@ static int sel_make_class_dir_entries(struct selinux_policy *newpolicy,
 
 static int sel_make_classes(struct selinux_policy *newpolicy,
 			    struct dentry *class_dir,
-			    unsigned long *last_class_ino)
+			    unsigned long *last_class_ianal)
 {
 	u32 i, nclasses;
 	int rc;
@@ -1846,13 +1846,13 @@ static int sel_make_classes(struct selinux_policy *newpolicy,
 		return rc;
 
 	/* +2 since classes are 1-indexed */
-	*last_class_ino = sel_class_to_ino(nclasses + 2);
+	*last_class_ianal = sel_class_to_ianal(nclasses + 2);
 
 	for (i = 0; i < nclasses; i++) {
 		struct dentry *class_name_dir;
 
 		class_name_dir = sel_make_dir(class_dir, classes[i],
-					      last_class_ino);
+					      last_class_ianal);
 		if (IS_ERR(class_name_dir)) {
 			rc = PTR_ERR(class_name_dir);
 			goto out;
@@ -1876,92 +1876,92 @@ static int sel_make_policycap(struct selinux_fs_info *fsi)
 {
 	unsigned int iter;
 	struct dentry *dentry = NULL;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
 	for (iter = 0; iter <= POLICYDB_CAP_MAX; iter++) {
 		if (iter < ARRAY_SIZE(selinux_policycap_names))
 			dentry = d_alloc_name(fsi->policycap_dir,
 					      selinux_policycap_names[iter]);
 		else
-			dentry = d_alloc_name(fsi->policycap_dir, "unknown");
+			dentry = d_alloc_name(fsi->policycap_dir, "unkanalwn");
 
 		if (dentry == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		inode = sel_make_inode(fsi->sb, S_IFREG | 0444);
-		if (inode == NULL) {
+		ianalde = sel_make_ianalde(fsi->sb, S_IFREG | 0444);
+		if (ianalde == NULL) {
 			dput(dentry);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		inode->i_fop = &sel_policycap_ops;
-		inode->i_ino = iter | SEL_POLICYCAP_INO_OFFSET;
-		d_add(dentry, inode);
+		ianalde->i_fop = &sel_policycap_ops;
+		ianalde->i_ianal = iter | SEL_POLICYCAP_IANAL_OFFSET;
+		d_add(dentry, ianalde);
 	}
 
 	return 0;
 }
 
 static struct dentry *sel_make_dir(struct dentry *dir, const char *name,
-			unsigned long *ino)
+			unsigned long *ianal)
 {
 	struct dentry *dentry = d_alloc_name(dir, name);
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (!dentry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	inode = sel_make_inode(dir->d_sb, S_IFDIR | S_IRUGO | S_IXUGO);
-	if (!inode) {
+	ianalde = sel_make_ianalde(dir->d_sb, S_IFDIR | S_IRUGO | S_IXUGO);
+	if (!ianalde) {
 		dput(dentry);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	inode->i_ino = ++(*ino);
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inc_nlink(inode);
-	d_add(dentry, inode);
+	ianalde->i_op = &simple_dir_ianalde_operations;
+	ianalde->i_fop = &simple_dir_operations;
+	ianalde->i_ianal = ++(*ianal);
+	/* directory ianaldes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(ianalde);
+	d_add(dentry, ianalde);
 	/* bump link count on parent directory, too */
-	inc_nlink(d_inode(dir));
+	inc_nlink(d_ianalde(dir));
 
 	return dentry;
 }
 
-static int reject_all(struct mnt_idmap *idmap, struct inode *inode, int mask)
+static int reject_all(struct mnt_idmap *idmap, struct ianalde *ianalde, int mask)
 {
-	return -EPERM;	// no access for anyone, root or no root.
+	return -EPERM;	// anal access for anyone, root or anal root.
 }
 
-static const struct inode_operations swapover_dir_inode_operations = {
+static const struct ianalde_operations swapover_dir_ianalde_operations = {
 	.lookup		= simple_lookup,
 	.permission	= reject_all,
 };
 
 static struct dentry *sel_make_swapover_dir(struct super_block *sb,
-						unsigned long *ino)
+						unsigned long *ianal)
 {
 	struct dentry *dentry = d_alloc_name(sb->s_root, ".swapover");
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (!dentry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	inode = sel_make_inode(sb, S_IFDIR);
-	if (!inode) {
+	ianalde = sel_make_ianalde(sb, S_IFDIR);
+	if (!ianalde) {
 		dput(dentry);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
-	inode->i_op = &swapover_dir_inode_operations;
-	inode->i_ino = ++(*ino);
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inc_nlink(inode);
-	inode_lock(sb->s_root->d_inode);
-	d_add(dentry, inode);
-	inc_nlink(sb->s_root->d_inode);
-	inode_unlock(sb->s_root->d_inode);
+	ianalde->i_op = &swapover_dir_ianalde_operations;
+	ianalde->i_ianal = ++(*ianal);
+	/* directory ianaldes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(ianalde);
+	ianalde_lock(sb->s_root->d_ianalde);
+	d_add(dentry, ianalde);
+	inc_nlink(sb->s_root->d_ianalde);
+	ianalde_unlock(sb->s_root->d_ianalde);
 	return dentry;
 }
 
@@ -1972,8 +1972,8 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct selinux_fs_info *fsi;
 	int ret;
 	struct dentry *dentry;
-	struct inode *inode;
-	struct inode_security_struct *isec;
+	struct ianalde *ianalde;
+	struct ianalde_security_struct *isec;
 
 	static const struct tree_descr selinux_files[] = {
 		[SEL_LOAD] = {"load", &sel_load_ops, S_IRUSR|S_IWUSR},
@@ -1989,8 +1989,8 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 		[SEL_DISABLE] = {"disable", &sel_disable_ops, S_IWUSR},
 		[SEL_MEMBER] = {"member", &transaction_ops, S_IRUGO|S_IWUGO},
 		[SEL_CHECKREQPROT] = {"checkreqprot", &sel_checkreqprot_ops, S_IRUGO|S_IWUSR},
-		[SEL_REJECT_UNKNOWN] = {"reject_unknown", &sel_handle_unknown_ops, S_IRUGO},
-		[SEL_DENY_UNKNOWN] = {"deny_unknown", &sel_handle_unknown_ops, S_IRUGO},
+		[SEL_REJECT_UNKANALWN] = {"reject_unkanalwn", &sel_handle_unkanalwn_ops, S_IRUGO},
+		[SEL_DENY_UNKANALWN] = {"deny_unkanalwn", &sel_handle_unkanalwn_ops, S_IRUGO},
 		[SEL_STATUS] = {"status", &sel_handle_status_ops, S_IRUGO},
 		[SEL_POLICY] = {"policy", &sel_policy_ops, S_IRUGO},
 		[SEL_VALIDATE_TRANS] = {"validatetrans", &sel_transition_ops,
@@ -2007,35 +2007,35 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto err;
 
 	fsi = sb->s_fs_info;
-	fsi->bool_dir = sel_make_dir(sb->s_root, BOOL_DIR_NAME, &fsi->last_ino);
+	fsi->bool_dir = sel_make_dir(sb->s_root, BOOL_DIR_NAME, &fsi->last_ianal);
 	if (IS_ERR(fsi->bool_dir)) {
 		ret = PTR_ERR(fsi->bool_dir);
 		fsi->bool_dir = NULL;
 		goto err;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	dentry = d_alloc_name(sb->s_root, NULL_FILE_NAME);
 	if (!dentry)
 		goto err;
 
-	ret = -ENOMEM;
-	inode = sel_make_inode(sb, S_IFCHR | S_IRUGO | S_IWUGO);
-	if (!inode) {
+	ret = -EANALMEM;
+	ianalde = sel_make_ianalde(sb, S_IFCHR | S_IRUGO | S_IWUGO);
+	if (!ianalde) {
 		dput(dentry);
 		goto err;
 	}
 
-	inode->i_ino = ++fsi->last_ino;
-	isec = selinux_inode(inode);
+	ianalde->i_ianal = ++fsi->last_ianal;
+	isec = selinux_ianalde(ianalde);
 	isec->sid = SECINITSID_DEVNULL;
 	isec->sclass = SECCLASS_CHR_FILE;
 	isec->initialized = LABEL_INITIALIZED;
 
-	init_special_inode(inode, S_IFCHR | S_IRUGO | S_IWUGO, MKDEV(MEM_MAJOR, 3));
-	d_add(dentry, inode);
+	init_special_ianalde(ianalde, S_IFCHR | S_IRUGO | S_IWUGO, MKDEV(MEM_MAJOR, 3));
+	d_add(dentry, ianalde);
 
-	dentry = sel_make_dir(sb->s_root, "avc", &fsi->last_ino);
+	dentry = sel_make_dir(sb->s_root, "avc", &fsi->last_ianal);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto err;
@@ -2045,7 +2045,7 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (ret)
 		goto err;
 
-	dentry = sel_make_dir(sb->s_root, "ss", &fsi->last_ino);
+	dentry = sel_make_dir(sb->s_root, "ss", &fsi->last_ianal);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto err;
@@ -2055,7 +2055,7 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (ret)
 		goto err;
 
-	dentry = sel_make_dir(sb->s_root, "initial_contexts", &fsi->last_ino);
+	dentry = sel_make_dir(sb->s_root, "initial_contexts", &fsi->last_ianal);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto err;
@@ -2065,7 +2065,7 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (ret)
 		goto err;
 
-	fsi->class_dir = sel_make_dir(sb->s_root, CLASS_DIR_NAME, &fsi->last_ino);
+	fsi->class_dir = sel_make_dir(sb->s_root, CLASS_DIR_NAME, &fsi->last_ianal);
 	if (IS_ERR(fsi->class_dir)) {
 		ret = PTR_ERR(fsi->class_dir);
 		fsi->class_dir = NULL;
@@ -2073,7 +2073,7 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	fsi->policycap_dir = sel_make_dir(sb->s_root, POLICYCAP_DIR_NAME,
-					  &fsi->last_ino);
+					  &fsi->last_ianal);
 	if (IS_ERR(fsi->policycap_dir)) {
 		ret = PTR_ERR(fsi->policycap_dir);
 		fsi->policycap_dir = NULL;
@@ -2088,7 +2088,7 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	return 0;
 err:
-	pr_err("SELinux: %s:  failed while creating inodes\n",
+	pr_err("SELinux: %s:  failed while creating ianaldes\n",
 		__func__);
 
 	selinux_fs_info_free(sb);
@@ -2147,14 +2147,14 @@ static int __init init_sel_fs(void)
 
 	selinux_null.mnt = selinuxfs_mount = kern_mount(&sel_fs_type);
 	if (IS_ERR(selinuxfs_mount)) {
-		pr_err("selinuxfs:  could not mount!\n");
+		pr_err("selinuxfs:  could analt mount!\n");
 		err = PTR_ERR(selinuxfs_mount);
 		selinuxfs_mount = NULL;
 	}
 	selinux_null.dentry = d_hash_and_lookup(selinux_null.mnt->mnt_root,
 						&null_name);
 	if (IS_ERR(selinux_null.dentry)) {
-		pr_err("selinuxfs:  could not lookup null!\n");
+		pr_err("selinuxfs:  could analt lookup null!\n");
 		err = PTR_ERR(selinux_null.dentry);
 		selinux_null.dentry = NULL;
 	}

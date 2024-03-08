@@ -10,27 +10,27 @@ Introduction
 RapidIO is a high speed switched fabric interconnect with features aimed
 at the embedded market. RapidIO provides support for memory-mapped I/O
 as well as message-based transactions over the switched fabric network.
-RapidIO has a standardized discovery mechanism not unlike the PCI bus
+RapidIO has a standardized discovery mechanism analt unlike the PCI bus
 standard that allows simple detection of devices in a network.
 
 This documentation is provided for developers intending to support
 RapidIO on new architectures, write new drivers, or to understand the
 subsystem internals.
 
-Known Bugs and Limitations
+Kanalwn Bugs and Limitations
 ==========================
 
 Bugs
 ----
 
-None. ;)
+Analne. ;)
 
 Limitations
 -----------
 
-1. Access/management of RapidIO memory regions is not supported
+1. Access/management of RapidIO memory regions is analt supported
 
-2. Multiple host enumeration is not supported
+2. Multiple host enumeration is analt supported
 
 RapidIO driver interface
 ========================

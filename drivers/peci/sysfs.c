@@ -65,7 +65,7 @@ static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR_IGNORE_LOCKDEP(remove, 0200, NULL, remove_store);
+static DEVICE_ATTR_IGANALRE_LOCKDEP(remove, 0200, NULL, remove_store);
 
 static struct attribute *peci_device_attrs[] = {
 	&dev_attr_remove.attr,

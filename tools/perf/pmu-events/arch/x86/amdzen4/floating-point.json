@@ -254,7 +254,7 @@
   {
     "EventName": "fp_ops_retired_by_type.vector_shuffle",
     "EventCode": "0x0a",
-    "BriefDescription": "Retired vector floating-point shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "BriefDescription": "Retired vector floating-point shuffle ops (may include instructions analt necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0xb0"
   },
   {
@@ -326,7 +326,7 @@
   {
     "EventName": "sse_avx_ops_retired.mmx_shuffle",
     "EventCode": "0x0b",
-    "BriefDescription": "Retired MMX integer shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "BriefDescription": "Retired MMX integer shuffle ops (may include instructions analt necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0x0b"
   },
   {
@@ -416,7 +416,7 @@
   {
     "EventName": "sse_avx_ops_retired.sse_avx_shuffle",
     "EventCode": "0x0b",
-    "BriefDescription": "Retired SSE and AVX integer shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "BriefDescription": "Retired SSE and AVX integer shuffle ops (may include instructions analt necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0xb0"
   },
   {
@@ -506,7 +506,7 @@
   {
     "EventName": "fp_pack_ops_retired.fp128_shuffle",
     "EventCode": "0x0c",
-    "BriefDescription": "Retired 128-bit packed floating-point shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "BriefDescription": "Retired 128-bit packed floating-point shuffle ops (may include instructions analt necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0x0b"
   },
   {
@@ -584,7 +584,7 @@
   {
     "EventName": "fp_pack_ops_retired.fp256_shuffle",
     "EventCode": "0x0c",
-    "BriefDescription": "Retired 256-bit packed floating-point shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "BriefDescription": "Retired 256-bit packed floating-point shuffle ops (may include instructions analt necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0xb0"
   },
   {
@@ -674,7 +674,7 @@
   {
     "EventName": "packed_int_op_type.int128_shuffle",
     "EventCode": "0x0d",
-    "BriefDescription": "Retired 128-bit packed integer shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "BriefDescription": "Retired 128-bit packed integer shuffle ops (may include instructions analt necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0x0b"
   },
   {
@@ -746,7 +746,7 @@
   {
     "EventName": "packed_int_op_type.int256_shuffle",
     "EventCode": "0x0d",
-    "BriefDescription": "Retired 256-bit packed integer shuffle ops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "BriefDescription": "Retired 256-bit packed integer shuffle ops (may include instructions analt necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
     "UMask": "0xb0"
   },
   {

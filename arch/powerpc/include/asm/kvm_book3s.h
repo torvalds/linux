@@ -44,12 +44,12 @@ struct kvmppc_sid_map {
 #endif
 
 struct hpte_cache {
-	struct hlist_node list_pte;
-	struct hlist_node list_pte_long;
-	struct hlist_node list_vpte;
-	struct hlist_node list_vpte_long;
+	struct hlist_analde list_pte;
+	struct hlist_analde list_pte_long;
+	struct hlist_analde list_vpte;
+	struct hlist_analde list_vpte_long;
 #ifdef CONFIG_PPC_BOOK3S_64
-	struct hlist_node list_vpte_64k;
+	struct hlist_analde list_vpte_64k;
 #endif
 	struct rcu_head rcu_head;
 	u64 host_vpn;
@@ -61,7 +61,7 @@ struct hpte_cache {
 
 /*
  * Struct for a virtual core.
- * Note: entry_exit_map combines a bitmap of threads that have entered
+ * Analte: entry_exit_map combines a bitmap of threads that have entered
  * in the bottom 8 bits and a bitmap of threads that have exited in the
  * next 8 bits.  This is so that we can atomically set the entry bit
  * iff the exit map is 0 without taking a lock.
@@ -122,7 +122,7 @@ struct kvmppc_vcpu_book3s {
 #endif
 	int context_id[SID_CONTEXTS];
 
-	bool hior_explicit;		/* HIOR is set by ioctl, not PVR */
+	bool hior_explicit;		/* HIOR is set by ioctl, analt PVR */
 
 	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
 	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
@@ -650,8 +650,8 @@ extern int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu);
 
 /*
  * This packs a VCPU ID from the [0..KVM_MAX_VCPU_IDS) space down to the
- * [0..KVM_MAX_VCPUS) space, using knowledge of the guest's core stride
- * (but not its actual threading mode, which is not available) to avoid
+ * [0..KVM_MAX_VCPUS) space, using kanalwledge of the guest's core stride
+ * (but analt its actual threading mode, which is analt available) to avoid
  * collisions.
  *
  * The implementation leaves VCPU IDs from the range [0..KVM_MAX_VCPUS) (block

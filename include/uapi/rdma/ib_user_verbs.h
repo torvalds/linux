@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
- * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
+ * Copyright (c) 2006 Mellaanalx Techanallogies.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -70,7 +70,7 @@ enum ib_uverbs_write_cmds {
 	IB_USER_VERBS_CMD_DESTROY_CQ,
 	IB_USER_VERBS_CMD_POLL_CQ,
 	IB_USER_VERBS_CMD_PEEK_CQ,
-	IB_USER_VERBS_CMD_REQ_NOTIFY_CQ,
+	IB_USER_VERBS_CMD_REQ_ANALTIFY_CQ,
 	IB_USER_VERBS_CMD_CREATE_QP,
 	IB_USER_VERBS_CMD_QUERY_QP,
 	IB_USER_VERBS_CMD_MODIFY_QP,
@@ -122,7 +122,7 @@ enum ib_selectivity_level {
  * that they pack the same way on 32-bit and 64-bit architectures (to
  * avoid incompatibility between 32-bit userspace and 64-bit kernels).
  * Specifically:
- *  - Do not use pointer types -- pass pointers in __u64 instead.
+ *  - Do analt use pointer types -- pass pointers in __u64 instead.
  *  - Make sure that any structure larger than 4 bytes is padded to a
  *    multiple of 8 bytes.  Otherwise the structure size will be
  *    different between 32-bit and 64-bit architectures.
@@ -186,7 +186,7 @@ struct ib_uverbs_query_device {
 
 struct ib_uverbs_query_device_resp {
 	__aligned_u64 fw_ver;
-	__be64 node_guid;
+	__be64 analde_guid;
 	__be64 sys_image_guid;
 	__aligned_u64 max_mr_size;
 	__aligned_u64 page_size_cap;
@@ -425,7 +425,7 @@ struct ib_uverbs_create_cq {
 
 enum ib_uverbs_ex_create_cq_flags {
 	IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION = 1 << 0,
-	IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN = 1 << 1,
+	IB_UVERBS_CQ_FLAGS_IGANALRE_OVERRUN = 1 << 1,
 };
 
 struct ib_uverbs_ex_create_cq {
@@ -509,7 +509,7 @@ struct ib_uverbs_poll_cq_resp {
 	struct ib_uverbs_wc wc[];
 };
 
-struct ib_uverbs_req_notify_cq {
+struct ib_uverbs_req_analtify_cq {
 	__u32 cq_handle;
 	__u32 solicited_only;
 };
@@ -569,7 +569,7 @@ struct ib_uverbs_qp_attr {
 
 	__u16	pkey_index;
 	__u16	alt_pkey_index;
-	__u8	en_sqd_async_notify;
+	__u8	en_sqd_async_analtify;
 	__u8	sq_draining;
 	__u8	max_rd_atomic;
 	__u8	max_dest_rd_atomic;
@@ -736,7 +736,7 @@ struct ib_uverbs_modify_qp {
 	__u8  cur_qp_state;
 	__u8  path_mtu;
 	__u8  path_mig_state;
-	__u8  en_sqd_async_notify;
+	__u8  en_sqd_async_analtify;
 	__u8  max_rd_atomic;
 	__u8  max_dest_rd_atomic;
 	__u8  min_rnr_timer;
@@ -1316,7 +1316,7 @@ struct ib_uverbs_ex_modify_cq {
 
 /*
  * bits 9, 15, 16, 19, 22, 27, 30, 31, 32, 33, 35 and 37 may be set by old
- * kernels and should not be used.
+ * kernels and should analt be used.
  */
 enum ib_uverbs_device_cap_flags {
 	IB_UVERBS_DEVICE_RESIZE_MAX_WR = 1 << 0,
@@ -1328,12 +1328,12 @@ enum ib_uverbs_device_cap_flags {
 	IB_UVERBS_DEVICE_UD_AV_PORT_ENFORCE = 1 << 6,
 	IB_UVERBS_DEVICE_CURR_QP_STATE_MOD = 1 << 7,
 	IB_UVERBS_DEVICE_SHUTDOWN_PORT = 1 << 8,
-	/* IB_UVERBS_DEVICE_INIT_TYPE = 1 << 9, (not in use) */
+	/* IB_UVERBS_DEVICE_INIT_TYPE = 1 << 9, (analt in use) */
 	IB_UVERBS_DEVICE_PORT_ACTIVE_EVENT = 1 << 10,
 	IB_UVERBS_DEVICE_SYS_IMAGE_GUID = 1 << 11,
 	IB_UVERBS_DEVICE_RC_RNR_NAK_GEN = 1 << 12,
 	IB_UVERBS_DEVICE_SRQ_RESIZE = 1 << 13,
-	IB_UVERBS_DEVICE_N_NOTIFY_CQ = 1 << 14,
+	IB_UVERBS_DEVICE_N_ANALTIFY_CQ = 1 << 14,
 	IB_UVERBS_DEVICE_MEM_WINDOW = 1 << 17,
 	IB_UVERBS_DEVICE_UD_IP_CSUM = 1 << 18,
 	IB_UVERBS_DEVICE_XRC = 1 << 20,

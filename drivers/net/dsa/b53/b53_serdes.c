@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Northstar Plus switch SerDes/SGMII PHY main logic
+ * Analrthstar Plus switch SerDes/SGMII PHY main logic
  *
  * Copyright (C) 2018 Florian Fainelli <f.fainelli@gmail.com>
  */
@@ -224,8 +224,8 @@ int b53_serdes_init(struct b53_device *dev, int port)
 	lsb = b53_serdes_read(dev, lane, B53_SERDES_MII_REG(MII_PHYSID2),
 			      SERDES_MII_BLK);
 	if (id0 == 0 || id0 == 0xffff) {
-		dev_err(dev->dev, "SerDes not initialized, check settings\n");
-		return -ENODEV;
+		dev_err(dev->dev, "SerDes analt initialized, check settings\n");
+		return -EANALDEV;
 	}
 
 	dev_info(dev->dev,

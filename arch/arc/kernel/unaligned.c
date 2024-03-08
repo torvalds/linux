@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011-2012 Synopsys (www.synopsys.com)
+ * Copyright (C) 2011-2012 Syanalpsys (www.syanalpsys.com)
  *
  * vineetg : May 2011
  *  -Adapted (from .26 to .35)
@@ -127,7 +127,7 @@
 
 /* sysctl hooks */
 int unaligned_enabled __read_mostly = 1;	/* Enabled by default */
-int no_unaligned_warning __read_mostly = 1;	/* Only 1 warning by default */
+int anal_unaligned_warning __read_mostly = 1;	/* Only 1 warning by default */
 
 static void fixup_load(struct disasm_state *state, struct pt_regs *regs,
 			struct callee_regs *cregs)
@@ -205,12 +205,12 @@ int misaligned_fixup(unsigned long address, struct pt_regs *regs,
 	if (!user_mode(regs) || !unaligned_enabled)
 		return 1;
 
-	if (no_unaligned_warning) {
+	if (anal_unaligned_warning) {
 		pr_warn_once("%s(%d) made unaligned access which was emulated"
 			     " by kernel assist\n. This can degrade application"
 			     " performance significantly\n. To enable further"
 			     " logging of such instances, please \n"
-			     " echo 0 > /proc/sys/kernel/ignore-unaligned-usertrap\n",
+			     " echo 0 > /proc/sys/kernel/iganalre-unaligned-usertrap\n",
 			     get_task_comm(buf, current), task_pid_nr(current));
 	} else {
 		/* Add rate limiting if it gets down to it */
@@ -225,7 +225,7 @@ int misaligned_fixup(unsigned long address, struct pt_regs *regs,
 	if (state.fault)
 		goto fault;
 
-	/* ldb/stb should not have unaligned exception */
+	/* ldb/stb should analt have unaligned exception */
 	if ((state.zz == 1) || (state.di))
 		goto fault;
 

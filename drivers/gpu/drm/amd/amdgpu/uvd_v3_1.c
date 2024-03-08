@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -164,14 +164,14 @@ static int uvd_v3_1_ring_test_ring(struct amdgpu_ring *ring)
 	return r;
 }
 
-static void uvd_v3_1_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+static void uvd_v3_1_ring_insert_analp(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
 	WARN_ON(ring->wptr % 2 || count % 2);
 
 	for (i = 0; i < count / 2; i++) {
-		amdgpu_ring_write(ring, PACKET0(mmUVD_NO_OP, 0));
+		amdgpu_ring_write(ring, PACKET0(mmUVD_ANAL_OP, 0));
 		amdgpu_ring_write(ring, 0);
 	}
 }
@@ -180,19 +180,19 @@ static const struct amdgpu_ring_funcs uvd_v3_1_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
 	.support_64bit_ptrs = false,
-	.no_user_fence = true,
+	.anal_user_fence = true,
 	.get_rptr = uvd_v3_1_ring_get_rptr,
 	.get_wptr = uvd_v3_1_ring_get_wptr,
 	.set_wptr = uvd_v3_1_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_frame_size =
-		14, /* uvd_v3_1_ring_emit_fence  x1 no user fence */
+		14, /* uvd_v3_1_ring_emit_fence  x1 anal user fence */
 	.emit_ib_size = 4, /* uvd_v3_1_ring_emit_ib */
 	.emit_ib = uvd_v3_1_ring_emit_ib,
 	.emit_fence = uvd_v3_1_ring_emit_fence,
 	.test_ring = uvd_v3_1_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
-	.insert_nop = uvd_v3_1_ring_insert_nop,
+	.insert_analp = uvd_v3_1_ring_insert_analp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
@@ -235,7 +235,7 @@ static void uvd_v3_1_set_dcm(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  *
- * Let the UVD memory controller know it's offsets
+ * Let the UVD memory controller kanalw it's offsets
  */
 static void uvd_v3_1_mc_resume(struct amdgpu_device *adev)
 {
@@ -391,7 +391,7 @@ static int uvd_v3_1_start(struct amdgpu_device *adev)
 		if (status & 2)
 			break;
 
-		DRM_ERROR("UVD not responding, trying to reset the VCPU!!!\n");
+		DRM_ERROR("UVD analt responding, trying to reset the VCPU!!!\n");
 		WREG32_P(mmUVD_SOFT_RESET, UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK,
 				 ~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
 		mdelay(10);
@@ -401,7 +401,7 @@ static int uvd_v3_1_start(struct amdgpu_device *adev)
 	}
 
 	if (r) {
-		DRM_ERROR("UVD not responding, giving up!!!\n");
+		DRM_ERROR("UVD analt responding, giving up!!!\n");
 		return r;
 	}
 
@@ -690,7 +690,7 @@ done:
  *
  * @handle: handle used to pass amdgpu_device pointer
  *
- * Stop the UVD block, mark ring as not ready any more
+ * Stop the UVD block, mark ring as analt ready any more
  */
 static int uvd_v3_1_hw_fini(void *handle)
 {
@@ -824,7 +824,7 @@ static const struct amd_ip_funcs uvd_v3_1_ip_funcs = {
 const struct amdgpu_ip_block_version uvd_v3_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_UVD,
 	.major = 3,
-	.minor = 1,
+	.mianalr = 1,
 	.rev = 0,
 	.funcs = &uvd_v3_1_ip_funcs,
 };

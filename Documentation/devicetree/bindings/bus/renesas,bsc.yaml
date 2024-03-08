@@ -12,7 +12,7 @@ description: |
   The Renesas Bus State Controller (BSC, sometimes called "LBSC within Bus
   Bridge", or "External Bus Interface") can be found in several Renesas ARM
   SoCs.  It provides an external bus for connecting multiple external
-  devices to the SoC, driving several chip select lines, for e.g. NOR
+  devices to the SoC, driving several chip select lines, for e.g. ANALR
   FLASH, Ethernet and USB.
 
   While the BSC is a fairly simple memory-mapped bus, it may be part of a
@@ -33,7 +33,7 @@ properties:
           - renesas,bsc-r8a73a4  # R-Mobile APE6 (r8a73a4)
           - renesas,bsc-sh73a0   # SH-Mobile AG5 (sh73a0)
       - const: renesas,bsc
-      - {} # simple-pm-bus, but not listed here to avoid false select
+      - {} # simple-pm-bus, but analt listed here to avoid false select
 
   reg:
     maxItems: 1

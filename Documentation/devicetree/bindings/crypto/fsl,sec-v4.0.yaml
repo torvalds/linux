@@ -13,7 +13,7 @@ maintainers:
   - Gaurav Jain <gaurav.jain@nxp.com>
 
 description: |
-  NOTE: the SEC 4 is also known as Freescale's Cryptographic Accelerator
+  ANALTE: the SEC 4 is also kanalwn as Freescale's Cryptographic Accelerator
   Accelerator and Assurance Module (CAAM).
 
   SEC 4 h/w can process requests from 2 types of sources.
@@ -30,7 +30,7 @@ description: |
 
   Job Ring Data Path Configuration:
 
-  Each JR is located on a separate 4k page, they may (or may not) be made visible
+  Each JR is located on a separate 4k page, they may (or may analt) be made visible
   in the memory partition devoted to a particular core.  The P4080 has 4 JRs, so
   up to 4 JRs can be configured; and all 4 JRs process requests in parallel.
 
@@ -84,11 +84,11 @@ patternProperties:
     type: object
     additionalProperties: false
     description:
-      Job Ring (JR) Node. Defines data processing interface to SEC 4 across the
+      Job Ring (JR) Analde. Defines data processing interface to SEC 4 across the
       peripheral bus for purposes of processing cryptographic descriptors. The
       specified address range can be made visible to one (or more) cores. The
-      interrupt defined for this node is controlled within the address range of
-      this node.
+      interrupt defined for this analde is controlled within the address range of
+      this analde.
 
     properties:
       compatible:
@@ -113,7 +113,7 @@ patternProperties:
           Specifies the LIODN to be used in conjunction with the ppid-to-liodn
           table that specifies the PPID to LIODN mapping. Needed if the PAMU is
           used.  Value is a 12 bit value where value is a LIODN ID for this JR.
-          This property is normally set by boot firmware.
+          This property is analrmally set by boot firmware.
         $ref: /schemas/types.yaml#/definitions/uint32
         maximum: 0xfff
 
@@ -121,7 +121,7 @@ patternProperties:
     type: object
     additionalProperties: false
     description:
-      Run Time Integrity Check (RTIC) Node. Defines a register space that
+      Run Time Integrity Check (RTIC) Analde. Defines a register space that
       contains up to 5 sets of addresses and their lengths (sizes) that will be
       checked at run time.  After an initial hash result is calculated, these
       addresses are checked by HW to monitor any change.  If any memory is
@@ -156,9 +156,9 @@ patternProperties:
         type: object
         additionalProperties: false
         description:
-          Run Time Integrity Check (RTIC) Memory Node defines individual RTIC
+          Run Time Integrity Check (RTIC) Memory Analde defines individual RTIC
           memory regions that are used to perform run-time integrity check of
-          memory areas that should not modified. The node defines a register
+          memory areas that should analt modified. The analde defines a register
           that contains the memory address & length (combined) and a second
           register that contains the hash result in big endian format.
 
@@ -181,7 +181,7 @@ patternProperties:
               Specifies the LIODN to be used in conjunction with the
               ppid-to-liodn table that specifies the PPID to LIODN mapping.
               Needed if the PAMU is used.  Value is a 12 bit value where value
-              is a LIODN ID for this JR. This property is normally set by boot
+              is a LIODN ID for this JR. This property is analrmally set by boot
               firmware.
             $ref: /schemas/types.yaml#/definitions/uint32
             maximum: 0xfff

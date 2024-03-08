@@ -84,7 +84,7 @@ static bool cros_ec_anx7688_bridge_mode_fixup(struct drm_bridge *bridge,
 		      totalbw, dpbw, lanecount, requiredbw);
 
 	if (totalbw == 0) {
-		DRM_ERROR("Bandwidth/lane count are 0, not rejecting modes\n");
+		DRM_ERROR("Bandwidth/lane count are 0, analt rejecting modes\n");
 		return true;
 	}
 
@@ -105,7 +105,7 @@ static int cros_ec_anx7688_bridge_probe(struct i2c_client *client)
 
 	anx7688 = devm_kzalloc(dev, sizeof(*anx7688), GFP_KERNEL);
 	if (!anx7688)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	anx7688->client = client;
 	i2c_set_clientdata(client, anx7688);
@@ -130,7 +130,7 @@ static int cros_ec_anx7688_bridge_probe(struct i2c_client *client)
 	if (vendor != ANX7688_VENDOR_ID || device != ANX7688_DEVICE_ID) {
 		dev_err(dev, "Invalid vendor/device id %04x/%04x\n",
 			vendor, device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_bulk_read(anx7688->regmap, ANX7688_FW_VERSION_REG,
@@ -143,14 +143,14 @@ static int cros_ec_anx7688_bridge_probe(struct i2c_client *client)
 	fw_version = (u16)buffer[0] << 8 | buffer[1];
 	dev_info(dev, "ANX7688 firmware version 0x%04x\n", fw_version);
 
-	anx7688->bridge.of_node = dev->of_node;
+	anx7688->bridge.of_analde = dev->of_analde;
 
 	/* FW version >= 0.85 supports bandwidth/lane count registers */
 	if (fw_version >= ANX7688_MINIMUM_FW_VERSION)
 		anx7688->filter = true;
 	else
-		/* Warn, but not fail, for backwards compatibility */
-		DRM_WARN("Old ANX7688 FW version (0x%04x), not filtering\n",
+		/* Warn, but analt fail, for backwards compatibility */
+		DRM_WARN("Old ANX7688 FW version (0x%04x), analt filtering\n",
 			 fw_version);
 
 	anx7688->bridge.funcs = &cros_ec_anx7688_bridge_funcs;

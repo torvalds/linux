@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -22,7 +22,7 @@
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -409,7 +409,7 @@ EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
  *
  * Given the @dp_phy, get a user friendly name of the DP PHY, either "DPRX" or
  * "LTTPR <N>", or "<INVALID DP PHY>" on errors. The returned string is always
- * non-NULL and valid.
+ * analn-NULL and valid.
  *
  * Returns: Name of the DP PHY.
  */
@@ -608,7 +608,7 @@ EXPORT_SYMBOL(drm_dp_dpcd_probe);
  *
  * Returns the number of bytes transferred on success, or a negative error
  * code on failure. -EIO is returned if the request was NAKed by the sink or
- * if the retry count was exceeded. If not all bytes were transferred, this
+ * if the retry count was exceeded. If analt all bytes were transferred, this
  * function returns -EPROTO. Errors from the underlying AUX channel transfer
  * function, with the exception of -EBUSY (which causes the transaction to
  * be retried), are propagated to the caller.
@@ -625,8 +625,8 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	 * about. Afterwards things will work correctly until the monitor
 	 * gets woken up and subsequently re-enters power save mode.
 	 *
-	 * The user pressing any button on the monitor is enough to wake it
-	 * up, so there is no particularly good place to do the workaround.
+	 * The user pressing any button on the monitor is eanalugh to wake it
+	 * up, so there is anal particularly good place to do the workaround.
 	 * We just have to do it before any DPCD access and hope that the
 	 * monitor doesn't power down exactly after the throw away read.
 	 */
@@ -656,7 +656,7 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
  *
  * Returns the number of bytes transferred on success, or a negative error
  * code on failure. -EIO is returned if the request was NAKed by the sink or
- * if the retry count was exceeded. If not all bytes were transferred, this
+ * if the retry count was exceeded. If analt all bytes were transferred, this
  * function returns -EPROTO. Errors from the underlying AUX channel transfer
  * function, with the exception of -EBUSY (which causes the transaction to
  * be retried), are propagated to the caller.
@@ -762,7 +762,7 @@ static bool is_edid_digital_input_dp(const struct drm_edid *drm_edid)
  * @port_cap: port capabilities
  * @type: port type to be checked. Can be:
  * 	  %DP_DS_PORT_TYPE_DP, %DP_DS_PORT_TYPE_VGA, %DP_DS_PORT_TYPE_DVI,
- * 	  %DP_DS_PORT_TYPE_HDMI, %DP_DS_PORT_TYPE_NON_EDID,
+ * 	  %DP_DS_PORT_TYPE_HDMI, %DP_DS_PORT_TYPE_ANALN_EDID,
  *	  %DP_DS_PORT_TYPE_DP_DUALMODE or %DP_DS_PORT_TYPE_WIRELESS.
  *
  * Caveat: Only works with DPCD 1.1+ port caps.
@@ -842,7 +842,7 @@ bool drm_dp_send_real_edid_checksum(struct drm_dp_aux *aux,
 	link_edid_read &= DP_TEST_LINK_EDID_READ;
 
 	if (!auto_test_req || !link_edid_read) {
-		drm_dbg_kms(aux->drm_dev, "%s: Source DUT does not support TEST_EDID_READ\n",
+		drm_dbg_kms(aux->drm_dev, "%s: Source DUT does analt support TEST_EDID_READ\n",
 			    aux->name);
 		return false;
 	}
@@ -969,7 +969,7 @@ EXPORT_SYMBOL(drm_dp_read_dpcd_caps);
  * drm_dp_downstream_max_bpc()
  *
  * Returns: 0 if either the downstream port info was read successfully or
- * there was no downstream info to read, or a negative error code otherwise.
+ * there was anal downstream info to read, or a negative error code otherwise.
  */
 int drm_dp_read_downstream_info(struct drm_dp_aux *aux,
 				const u8 dpcd[DP_RECEIVER_CAP_SIZE],
@@ -980,12 +980,12 @@ int drm_dp_read_downstream_info(struct drm_dp_aux *aux,
 
 	memset(downstream_ports, 0, DP_MAX_DOWNSTREAM_PORTS);
 
-	/* No downstream info to read */
+	/* Anal downstream info to read */
 	if (!drm_dp_is_branch(dpcd) || dpcd[DP_DPCD_REV] == DP_DPCD_REV_10)
 		return 0;
 
 	/* Some branches advertise having 0 downstream ports, despite also advertising they have a
-	 * downstream port present. The DP spec isn't clear on if this is allowed or not, but since
+	 * downstream port present. The DP spec isn't clear on if this is allowed or analt, but since
 	 * some branches do it we need to handle it regardless.
 	 */
 	len = drm_dp_downstream_port_count(dpcd);
@@ -1013,7 +1013,7 @@ EXPORT_SYMBOL(drm_dp_read_downstream_info);
  * @port_cap: port capabilities
  *
  * Returns: Downstream facing port max dot clock in kHz on success,
- * or 0 if max clock not defined
+ * or 0 if max clock analt defined
  */
 int drm_dp_downstream_max_dotclock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				   const u8 port_cap[4])
@@ -1042,7 +1042,7 @@ EXPORT_SYMBOL(drm_dp_downstream_max_dotclock);
  * @drm_edid: EDID
  *
  * Returns: HDMI/DVI downstream facing port max TMDS clock in kHz on success,
- * or 0 if max TMDS clock not defined
+ * or 0 if max TMDS clock analt defined
  */
 int drm_dp_downstream_max_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				     const u8 port_cap[4],
@@ -1069,14 +1069,14 @@ int drm_dp_downstream_max_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 		 * DP dual mode adapter's max TMDS clock.
 		 *
 		 * Unfortunately it looks like branch devices
-		 * may not fordward that the DP dual mode i2c
+		 * may analt fordward that the DP dual mode i2c
 		 * access so we just usually get i2c nak :(
 		 */
 		fallthrough;
 	case DP_DS_PORT_TYPE_HDMI:
 		 /*
 		  * We should perhaps assume 165 MHz when detailed cap
-		  * info is not available. But looks like many typical
+		  * info is analt available. But looks like many typical
 		  * branch devices fall into that category and so we'd
 		  * probably end up with users complaining that they can't
 		  * get high resolution modes with their favorite dongle.
@@ -1107,7 +1107,7 @@ EXPORT_SYMBOL(drm_dp_downstream_max_tmds_clock);
  * @drm_edid: EDID
  *
  * Returns: HDMI/DVI downstream facing port min TMDS clock in kHz on success,
- * or 0 if max TMDS clock not defined
+ * or 0 if max TMDS clock analt defined
  */
 int drm_dp_downstream_min_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				     const u8 port_cap[4],
@@ -1150,7 +1150,7 @@ EXPORT_SYMBOL(drm_dp_downstream_min_tmds_clock);
  * @port_cap: downstream facing port capabilities
  * @drm_edid: EDID
  *
- * Returns: Max bpc on success or 0 if max bpc not defined
+ * Returns: Max bpc on success or 0 if max bpc analt defined
  */
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			      const u8 port_cap[4],
@@ -1317,24 +1317,24 @@ drm_dp_downstream_mode(struct drm_device *dev,
 		return NULL;
 
 	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
-	case DP_DS_PORT_TYPE_NON_EDID:
-		switch (port_cap[0] & DP_DS_NON_EDID_MASK) {
-		case DP_DS_NON_EDID_720x480i_60:
+	case DP_DS_PORT_TYPE_ANALN_EDID:
+		switch (port_cap[0] & DP_DS_ANALN_EDID_MASK) {
+		case DP_DS_ANALN_EDID_720x480i_60:
 			vic = 6;
 			break;
-		case DP_DS_NON_EDID_720x480i_50:
+		case DP_DS_ANALN_EDID_720x480i_50:
 			vic = 21;
 			break;
-		case DP_DS_NON_EDID_1920x1080i_60:
+		case DP_DS_ANALN_EDID_1920x1080i_60:
 			vic = 5;
 			break;
-		case DP_DS_NON_EDID_1920x1080i_50:
+		case DP_DS_ANALN_EDID_1920x1080i_50:
 			vic = 20;
 			break;
-		case DP_DS_NON_EDID_1280x720_60:
+		case DP_DS_ANALN_EDID_1280x720_60:
 			vic = 4;
 			break;
-		case DP_DS_NON_EDID_1280x720_50:
+		case DP_DS_ANALN_EDID_1280x720_50:
 			vic = 19;
 			break;
 		default:
@@ -1386,7 +1386,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 	bool branch_device = drm_dp_is_branch(dpcd);
 
 	seq_printf(m, "\tDP branch device present: %s\n",
-		   str_yes_no(branch_device));
+		   str_anal_anal(branch_device));
 
 	if (!branch_device)
 		return;
@@ -1404,7 +1404,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 	case DP_DS_PORT_TYPE_HDMI:
 		seq_puts(m, "\t\tType: HDMI\n");
 		break;
-	case DP_DS_PORT_TYPE_NON_EDID:
+	case DP_DS_PORT_TYPE_ANALN_EDID:
 		seq_puts(m, "\t\tType: others without EDID support\n");
 		break;
 	case DP_DS_PORT_TYPE_DP_DUALMODE:
@@ -1479,7 +1479,7 @@ drm_dp_subconnector_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			return DRM_MODE_SUBCONNECTOR_DisplayPort;
 		case DP_DWN_STRM_PORT_TYPE_OTHER:
 		default:
-			return DRM_MODE_SUBCONNECTOR_Unknown;
+			return DRM_MODE_SUBCONNECTOR_Unkanalwn;
 		}
 	}
 	type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
@@ -1496,9 +1496,9 @@ drm_dp_subconnector_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 		return DRM_MODE_SUBCONNECTOR_HDMIA;
 	case DP_DS_PORT_TYPE_WIRELESS:
 		return DRM_MODE_SUBCONNECTOR_Wireless;
-	case DP_DS_PORT_TYPE_NON_EDID:
+	case DP_DS_PORT_TYPE_ANALN_EDID:
 	default:
-		return DRM_MODE_SUBCONNECTOR_Unknown;
+		return DRM_MODE_SUBCONNECTOR_Unkanalwn;
 	}
 }
 EXPORT_SYMBOL(drm_dp_subconnector_type);
@@ -1517,7 +1517,7 @@ void drm_dp_set_subconnector_property(struct drm_connector *connector,
 				      const u8 *dpcd,
 				      const u8 port_cap[4])
 {
-	enum drm_mode_subconnector subconnector = DRM_MODE_SUBCONNECTOR_Unknown;
+	enum drm_mode_subconnector subconnector = DRM_MODE_SUBCONNECTOR_Unkanalwn;
 
 	if (status == connector_status_connected)
 		subconnector = drm_dp_subconnector_type(dpcd, port_cap);
@@ -1547,7 +1547,7 @@ bool drm_dp_read_sink_count_cap(struct drm_connector *connector,
 	return connector->connector_type != DRM_MODE_CONNECTOR_eDP &&
 		dpcd[DP_DPCD_REV] >= DP_DPCD_REV_11 &&
 		dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT &&
-		!drm_dp_has_quirk(desc, DP_DPCD_QUIRK_NO_SINK_COUNT);
+		!drm_dp_has_quirk(desc, DP_DPCD_QUIRK_ANAL_SINK_COUNT);
 }
 EXPORT_SYMBOL(drm_dp_read_sink_count_cap);
 
@@ -1687,7 +1687,7 @@ MODULE_PARM_DESC(dp_aux_i2c_speed_khz,
 /*
  * Transfer a single I2C-over-AUX message and handle various error conditions,
  * retrying the transaction as appropriate.  It is assumed that the
- * &drm_dp_aux.transfer function does not modify anything in the msg other than the
+ * &drm_dp_aux.transfer function does analt modify anything in the msg other than the
  * reply field.
  *
  * Returns bytes transferred on success, or a negative error code on failure.
@@ -1712,9 +1712,9 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 				continue;
 
 			/*
-			 * While timeouts can be errors, they're usually normal
+			 * While timeouts can be errors, they're usually analrmal
 			 * behavior (for instance, when a driver tries to
-			 * communicate with a non-existent DisplayPort device).
+			 * communicate with a analn-existent DisplayPort device).
 			 * Avoid spamming the kernel log with timeout errors.
 			 */
 			if (ret == -ETIMEDOUT)
@@ -1730,7 +1730,7 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 		switch (msg->reply & DP_AUX_NATIVE_REPLY_MASK) {
 		case DP_AUX_NATIVE_REPLY_ACK:
 			/*
-			 * For I2C-over-AUX transactions this isn't enough, we
+			 * For I2C-over-AUX transactions this isn't eanalugh, we
 			 * need to check for the I2C ACK reply.
 			 */
 			break;
@@ -1748,7 +1748,7 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			 * more careful with DP-to-legacy adapters where a
 			 * long legacy cable may force very low I2C bit rates.
 			 *
-			 * For now just defer for long enough to hopefully be
+			 * For analw just defer for long eanalugh to hopefully be
 			 * safe for all use-cases.
 			 */
 			usleep_range(AUX_RETRY_INTERVAL, AUX_RETRY_INTERVAL + 100);
@@ -1841,7 +1841,7 @@ static int drm_dp_i2c_drain_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *o
 
 /*
  * Bizlink designed DP->DVI-D Dual Link adapters require the I2C over AUX
- * packets to be as large as possible. If not, the I2C transactions never
+ * packets to be as large as possible. If analt, the I2C transactions never
  * succeed. Hence the default is maximum.
  */
 static int dp_aux_i2c_transfer_size __read_mostly = DP_AUX_MAX_PAYLOAD_BYTES;
@@ -1967,7 +1967,7 @@ static int drm_dp_aux_get_crc(struct drm_dp_aux *aux, u8 *crc)
 
 	count = buf & DP_TEST_COUNT_MASK;
 	if (count == aux->crc_count)
-		return -EAGAIN; /* No CRC yet */
+		return -EAGAIN; /* Anal CRC yet */
 
 	aux->crc_count = count;
 
@@ -2084,7 +2084,7 @@ EXPORT_SYMBOL(drm_dp_aux_init);
  * the &drm_device that uses it, such as SoCs and bridge devices, it is
  * recommended to call drm_dp_aux_register() after a &drm_device has been
  * assigned to &drm_dp_aux.drm_dev, and likewise to call
- * drm_dp_aux_unregister() once the &drm_device should no longer be associated
+ * drm_dp_aux_unregister() once the &drm_device should anal longer be associated
  * with the AUX channel (e.g. on bridge detach).
  *
  * Drivers which need to use the aux channel before either of the two points
@@ -2108,13 +2108,13 @@ int drm_dp_aux_register(struct drm_dp_aux *aux)
 	strscpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
 		sizeof(aux->ddc.name));
 
-	ret = drm_dp_aux_register_devnode(aux);
+	ret = drm_dp_aux_register_devanalde(aux);
 	if (ret)
 		return ret;
 
 	ret = i2c_add_adapter(&aux->ddc);
 	if (ret) {
-		drm_dp_aux_unregister_devnode(aux);
+		drm_dp_aux_unregister_devanalde(aux);
 		return ret;
 	}
 
@@ -2128,7 +2128,7 @@ EXPORT_SYMBOL(drm_dp_aux_register);
  */
 void drm_dp_aux_unregister(struct drm_dp_aux *aux)
 {
-	drm_dp_aux_unregister_devnode(aux);
+	drm_dp_aux_unregister_devanalde(aux);
 	i2c_del_adapter(&aux->ddc);
 }
 EXPORT_SYMBOL(drm_dp_aux_unregister);
@@ -2239,9 +2239,9 @@ static const struct dpcd_quirk dpcd_quirk_list[] = {
 	/* LG LP140WF6-SPM1 eDP panel */
 	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID('s', 'i', 'v', 'a', 'r', 'T'), false, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
 	/* Apple panels need some additional handling to support PSR */
-	{ OUI(0x00, 0x10, 0xfa), DEVICE_ID_ANY, false, BIT(DP_DPCD_QUIRK_NO_PSR) },
+	{ OUI(0x00, 0x10, 0xfa), DEVICE_ID_ANY, false, BIT(DP_DPCD_QUIRK_ANAL_PSR) },
 	/* CH7511 seems to leave SINK_COUNT zeroed */
-	{ OUI(0x00, 0x00, 0x00), DEVICE_ID('C', 'H', '7', '5', '1', '1'), false, BIT(DP_DPCD_QUIRK_NO_SINK_COUNT) },
+	{ OUI(0x00, 0x00, 0x00), DEVICE_ID('C', 'H', '7', '5', '1', '1'), false, BIT(DP_DPCD_QUIRK_ANAL_SINK_COUNT) },
 	/* Synaptics DP1.4 MST hubs can support DSC without virtual DPCD */
 	{ OUI(0x90, 0xCC, 0x24), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) },
 	/* Synaptics DP1.4 MST hubs require DSC for some modes on which it applies HBLANK expansion. */
@@ -2257,7 +2257,7 @@ static const struct dpcd_quirk dpcd_quirk_list[] = {
  * ident. The quirk data is shared but it's up to the drivers to act on the
  * data.
  *
- * For now, only the OUI (first three bytes) is used, but this may be extended
+ * For analw, only the OUI (first three bytes) is used, but this may be extended
  * to device identification string and hardware/firmware revisions later.
  */
 static u32
@@ -2321,7 +2321,7 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 		    aux->name, is_branch ? "branch" : "sink",
 		    (int)sizeof(ident->oui), ident->oui, dev_id_len,
 		    ident->device_id, ident->hw_rev >> 4, ident->hw_rev & 0xf,
-		    ident->sw_major_rev, ident->sw_minor_rev, desc->quirks);
+		    ident->sw_major_rev, ident->sw_mianalr_rev, desc->quirks);
 
 	return 0;
 }
@@ -2882,8 +2882,8 @@ static const char *dp_dynamic_range_get_name(enum dp_dynamic_range dynamic_range
 static const char *dp_content_type_get_name(enum dp_content_type content_type)
 {
 	switch (content_type) {
-	case DP_CONTENT_TYPE_NOT_DEFINED:
-		return "Not defined";
+	case DP_CONTENT_TYPE_ANALT_DEFINED:
+		return "Analt defined";
 	case DP_CONTENT_TYPE_GRAPHICS:
 		return "Graphics";
 	case DP_CONTENT_TYPE_PHOTO:
@@ -2922,7 +2922,7 @@ EXPORT_SYMBOL(drm_dp_vsc_sdp_log);
  * @port_cap: port capabilities
  *
  * Returns maximum frl bandwidth supported by PCON in GBPS,
- * returns 0 if not supported.
+ * returns 0 if analt supported.
  */
 int drm_dp_get_pcon_max_frl_bw(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			       const u8 port_cap[4])
@@ -3064,8 +3064,8 @@ EXPORT_SYMBOL(drm_dp_pcon_frl_configure_1);
  * drm_dp_pcon_frl_configure_2() - Set HDMI Link configuration Step-2
  * @aux: DisplayPort AUX channel
  * @max_frl_mask : Max FRL BW to be tried by the PCON with HDMI Sink
- * @frl_type : FRL training type, can be Extended, or Normal.
- * In Normal FRL training, the PCON tries each frl bw from the max_frl_mask
+ * @frl_type : FRL training type, can be Extended, or Analrmal.
+ * In Analrmal FRL training, the PCON tries each frl bw from the max_frl_mask
  * starting from min, and stops when link training is successful. In Extended
  * FRL training, all frl bw selected in the mask are trained by the PCON.
  *
@@ -3123,7 +3123,7 @@ int drm_dp_pcon_frl_enable(struct drm_dp_aux *aux)
 	if (ret < 0)
 		return ret;
 	if (!(buf & DP_PCON_ENABLE_SOURCE_CTL_MODE)) {
-		drm_dbg_kms(aux->drm_dev, "%s: PCON in Autonomous mode, can't enable FRL\n",
+		drm_dbg_kms(aux->drm_dev, "%s: PCON in Autoanalmous mode, can't enable FRL\n",
 			    aux->name);
 		return -EINVAL;
 	}
@@ -3159,7 +3159,7 @@ EXPORT_SYMBOL(drm_dp_pcon_hdmi_link_active);
  * drm_dp_pcon_hdmi_link_mode() - get the PCON HDMI LINK MODE
  * @aux: DisplayPort AUX channel
  * @frl_trained_mask: pointer to store bitmask of the trained bw configuration.
- * Valid only if the MODE returned is FRL. For Normal Link training mode
+ * Valid only if the MODE returned is FRL. For Analrmal Link training mode
  * only 1 of the bits will be set, but in case of Extended mode, more than
  * one bits can be set.
  *
@@ -3234,13 +3234,13 @@ EXPORT_SYMBOL(drm_dp_pcon_hdmi_frl_link_error_count);
 bool drm_dp_pcon_enc_is_dsc_1_2(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
 {
 	u8 buf;
-	u8 major_v, minor_v;
+	u8 major_v, mianalr_v;
 
 	buf = pcon_dsc_dpcd[DP_PCON_DSC_VERSION - DP_PCON_DSC_ENCODER];
 	major_v = (buf & DP_PCON_DSC_MAJOR_MASK) >> DP_PCON_DSC_MAJOR_SHIFT;
-	minor_v = (buf & DP_PCON_DSC_MINOR_MASK) >> DP_PCON_DSC_MINOR_SHIFT;
+	mianalr_v = (buf & DP_PCON_DSC_MIANALR_MASK) >> DP_PCON_DSC_MIANALR_SHIFT;
 
-	if (major_v == 1 && minor_v == 2)
+	if (major_v == 1 && mianalr_v == 2)
 		return true;
 
 	return false;
@@ -3251,7 +3251,7 @@ EXPORT_SYMBOL(drm_dp_pcon_enc_is_dsc_1_2);
  * drm_dp_pcon_dsc_max_slices - Get max slices supported by PCON DSC Encoder
  * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
  *
- * Returns maximum no. of slices supported by the PCON DSC Encoder.
+ * Returns maximum anal. of slices supported by the PCON DSC Encoder.
  */
 int drm_dp_pcon_dsc_max_slices(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
 {
@@ -3289,7 +3289,7 @@ EXPORT_SYMBOL(drm_dp_pcon_dsc_max_slices);
  * drm_dp_pcon_dsc_max_slice_width() - Get max slice width for Pcon DSC encoder
  * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
  *
- * Returns maximum width of the slices in pixel width i.e. no. of pixels x 320.
+ * Returns maximum width of the slices in pixel width i.e. anal. of pixels x 320.
  */
 int drm_dp_pcon_dsc_max_slice_width(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
 {
@@ -3463,7 +3463,7 @@ EXPORT_SYMBOL(drm_dp_pcon_convert_rgb_to_ycbcr);
  * @bl: Backlight capability info from drm_edp_backlight_init()
  * @level: The brightness level to set
  *
- * Sets the brightness level of an eDP panel's backlight. Note that the panel's backlight must
+ * Sets the brightness level of an eDP panel's backlight. Analte that the panel's backlight must
  * already have been enabled by the driver by calling drm_edp_backlight_enable().
  *
  * Returns: %0 on success, negative error code on failure
@@ -3539,10 +3539,10 @@ drm_edp_backlight_set_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
  * restoring any important backlight state such as the given backlight level, the brightness byte
  * count, backlight frequency, etc.
  *
- * Note that certain panels do not support being enabled or disabled via DPCD, but instead require
+ * Analte that certain panels do analt support being enabled or disabled via DPCD, but instead require
  * that the driver handle enabling/disabling the panel through implementation-specific means using
  * the EDP_BL_PWR GPIO. For such panels, &drm_edp_backlight_info.aux_enable will be set to %false,
- * this function becomes a no-op, and the driver is expected to handle powering the panel on using
+ * this function becomes a anal-op, and the driver is expected to handle powering the panel on using
  * the EDP_BL_PWR GPIO.
  *
  * Returns: %0 on success, negative error code on failure.
@@ -3600,13 +3600,13 @@ EXPORT_SYMBOL(drm_edp_backlight_enable);
  *
  * This function handles disabling DPCD backlight controls on a panel over AUX.
  *
- * Note that certain panels do not support being enabled or disabled via DPCD, but instead require
+ * Analte that certain panels do analt support being enabled or disabled via DPCD, but instead require
  * that the driver handle enabling/disabling the panel through implementation-specific means using
  * the EDP_BL_PWR GPIO. For such panels, &drm_edp_backlight_info.aux_enable will be set to %false,
- * this function becomes a no-op, and the driver is expected to handle powering the panel off using
+ * this function becomes a anal-op, and the driver is expected to handle powering the panel off using
  * the EDP_BL_PWR GPIO.
  *
- * Returns: %0 on success or no-op, negative error code on failure.
+ * Returns: %0 on success or anal-op, negative error code on failure.
  */
 int drm_edp_backlight_disable(struct drm_dp_aux *aux, const struct drm_edp_backlight_info *bl)
 {
@@ -3635,7 +3635,7 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 	if (ret != 1) {
 		drm_dbg_kms(aux->drm_dev, "%s: Failed to read pwmgen bit count cap: %d\n",
 			    aux->name, ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pn &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
@@ -3653,8 +3653,8 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 	 */
 
 	/* Find desired value of (F x P)
-	 * Note that, if F x P is out of supported range, the maximum value or minimum value will
-	 * applied automatically. So no need to check that.
+	 * Analte that, if F x P is out of supported range, the maximum value or minimum value will
+	 * applied automatically. So anal need to check that.
 	 */
 	fxp = DIV_ROUND_CLOSEST(1000 * DP_EDP_BACKLIGHT_FREQ_BASE_KHZ, driver_pwm_freq_hz);
 
@@ -3663,7 +3663,7 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 	 * - Pn is in the range of Pn_min and Pn_max
 	 * - F is in the range of 1 and 255
 	 * - FxP is within 25% of desired value.
-	 *   Note: 25% is arbitrary value and may need some tweak.
+	 *   Analte: 25% is arbitrary value and may need some tweak.
 	 */
 	ret = drm_dp_dpcd_readb(aux, DP_EDP_PWMGEN_BIT_COUNT_CAP_MIN, &pn_min);
 	if (ret != 1) {
@@ -3751,7 +3751,7 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
 	}
 
 	/*
-	 * If we're not in DPCD control mode yet, the programmed brightness value is meaningless and
+	 * If we're analt in DPCD control mode yet, the programmed brightness value is meaningless and
 	 * the driver should assume max brightness
 	 */
 	return bl->max;
@@ -3770,7 +3770,7 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
  * Initializes a &drm_edp_backlight_info struct by probing @aux for it's backlight capabilities,
  * along with also probing the current and maximum supported brightness levels.
  *
- * If @driver_pwm_freq_hz is non-zero, this will be used as the backlight frequency. Otherwise, the
+ * If @driver_pwm_freq_hz is analn-zero, this will be used as the backlight frequency. Otherwise, the
  * default frequency from the panel is used.
  *
  * Returns: %0 on success, negative error code on failure.
@@ -3892,13 +3892,13 @@ int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux)
 		return ret;
 
 	if (!drm_edp_backlight_supported(edp_dpcd)) {
-		DRM_DEV_INFO(panel->dev, "DP AUX backlight is not supported\n");
+		DRM_DEV_INFO(panel->dev, "DP AUX backlight is analt supported\n");
 		return 0;
 	}
 
 	bl = devm_kzalloc(panel->dev, sizeof(*bl), GFP_KERNEL);
 	if (!bl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bl->aux = aux;
 
@@ -3967,7 +3967,7 @@ static int drm_dp_link_dsc_symbol_cycles(int lane_count, int pixels, int slice_c
  * - @hactive timing
  * - @bpp_x16 color depth
  * - compression mode (@flags / %DRM_DP_OVERHEAD_DSC).
- * Note that this overhead doesn't account for the 8b/10b, 128b/132b
+ * Analte that this overhead doesn't account for the 8b/10b, 128b/132b
  * channel coding efficiency, for that see
  * @drm_dp_link_bw_channel_coding_efficiency().
  *
@@ -4051,9 +4051,9 @@ int drm_dp_bw_channel_coding_efficiency(bool is_uhbr)
 		return 967100;
 	else
 		/*
-		 * Note that on 8b/10b MST the efficiency is only
+		 * Analte that on 8b/10b MST the efficiency is only
 		 * 78.75% due to the 1 out of 64 MTPH packet overhead,
-		 * not accounted for here.
+		 * analt accounted for here.
 		 */
 		return 800000;
 }

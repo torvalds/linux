@@ -84,7 +84,7 @@
  */
 #define MMU_FTR_USE_TLBILX		ASM_CONST(0x00080000)
 
-/* This indicates that the processor cannot handle multiple outstanding
+/* This indicates that the processor cananalt handle multiple outstanding
  * broadcast tlbivax or tlbsync. This makes the code use a spinlock
  * around such invalidate forms.
  */
@@ -98,7 +98,7 @@
 
 /* Doesn't support the B bit (1T segment) in SLBIE
  */
-#define MMU_FTR_NO_SLBIE_B		ASM_CONST(0x02000000)
+#define MMU_FTR_ANAL_SLBIE_B		ASM_CONST(0x02000000)
 
 /* Support 16M large pages
  */
@@ -136,7 +136,7 @@
 #define MMU_FTRS_CELL		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
-				MMU_FTR_CI_LARGE_PAGE | MMU_FTR_NO_SLBIE_B
+				MMU_FTR_CI_LARGE_PAGE | MMU_FTR_ANAL_SLBIE_B
 #ifndef __ASSEMBLY__
 #include <linux/bug.h>
 #include <asm/cputable.h>
@@ -172,7 +172,7 @@ enum {
 #ifdef CONFIG_PPC_BOOK3S_64
 		MMU_FTR_KERNEL_RO |
 #ifdef CONFIG_PPC_64S_HASH_MMU
-		MMU_FTR_NO_SLBIE_B | MMU_FTR_16M_PAGE | MMU_FTR_TLBIEL |
+		MMU_FTR_ANAL_SLBIE_B | MMU_FTR_16M_PAGE | MMU_FTR_TLBIEL |
 		MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_CI_LARGE_PAGE |
 		MMU_FTR_1T_SEGMENT | MMU_FTR_TLBIE_CROP_VA |
 		MMU_FTR_68_BIT_VA | MMU_FTR_HPTE_TABLE |
@@ -352,13 +352,13 @@ static inline bool strict_module_rwx_enabled(void)
  * The use of fixed constants for this purpose is better for performances
  * of the low level hash refill handlers.
  *
- * A non supported page size has a "shift" field set to 0
+ * A analn supported page size has a "shift" field set to 0
  *
  * Any new page size being implemented can get a new entry in here. Whether
- * the kernel will use it or not is a different matter though. The actual page
- * size used by hugetlbfs is not defined here and may be made variable
+ * the kernel will use it or analt is a different matter though. The actual page
+ * size used by hugetlbfs is analt defined here and may be made variable
  *
- * Note: This array ended up being a false good idea as it's growing to the
+ * Analte: This array ended up being a false good idea as it's growing to the
  * point where I wonder if we should replace it with something different,
  * to think about, feedback welcome. --BenH.
  */
@@ -408,8 +408,8 @@ extern void *abatron_pteptrs[2];
 #if defined(CONFIG_PPC_BOOK3S_32)
 /* 32-bit classic hash table MMU */
 #include <asm/book3s/32/mmu-hash.h>
-#elif defined(CONFIG_PPC_MMU_NOHASH)
-#include <asm/nohash/mmu.h>
+#elif defined(CONFIG_PPC_MMU_ANALHASH)
+#include <asm/analhash/mmu.h>
 #endif
 
 #if defined(CONFIG_FA_DUMP) || defined(CONFIG_PRESERVE_FA_DUMP)

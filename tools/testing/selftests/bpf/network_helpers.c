@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,13 +26,13 @@
 #define IPPROTO_MPTCP 262
 #endif
 
-#define clean_errno() (errno == 0 ? "None" : strerror(errno))
+#define clean_erranal() (erranal == 0 ? "Analne" : strerror(erranal))
 #define log_err(MSG, ...) ({						\
-			int __save = errno;				\
-			fprintf(stderr, "(%s:%d: errno: %s) " MSG "\n", \
-				__FILE__, __LINE__, clean_errno(),	\
+			int __save = erranal;				\
+			fprintf(stderr, "(%s:%d: erranal: %s) " MSG "\n", \
+				__FILE__, __LINE__, clean_erranal(),	\
 				##__VA_ARGS__);				\
-			errno = __save;					\
+			erranal = __save;					\
 })
 
 struct ipv4_packet pkt_v4 = {
@@ -76,7 +76,7 @@ int settimeo(int fd, int timeout_ms)
 	return 0;
 }
 
-#define save_errno_close(fd) ({ int __save = errno; close(fd); errno = __save; })
+#define save_erranal_close(fd) ({ int __save = erranal; close(fd); erranal = __save; })
 
 static int __start_server(int type, int protocol, const struct sockaddr *addr,
 			  socklen_t addrlen, int timeout_ms, bool reuseport)
@@ -114,7 +114,7 @@ static int __start_server(int type, int protocol, const struct sockaddr *addr,
 	return fd;
 
 error_close:
-	save_errno_close(fd);
+	save_erranal_close(fd);
 	return -1;
 }
 
@@ -227,7 +227,7 @@ int fastopen_connect(int server_fd, const char *data, unsigned int data_len,
 	return fd;
 
 error_close:
-	save_errno_close(fd);
+	save_erranal_close(fd);
 	return -1;
 }
 
@@ -237,14 +237,14 @@ static int connect_fd_to_addr(int fd,
 {
 	int ret;
 
-	errno = 0;
+	erranal = 0;
 	ret = connect(fd, (const struct sockaddr *)addr, addrlen);
 	if (must_fail) {
 		if (!ret) {
 			log_err("Unexpected success to connect to server");
 			return -1;
 		}
-		if (errno != EPERM) {
+		if (erranal != EPERM) {
 			log_err("Unexpected error from connect to server");
 			return -1;
 		}
@@ -274,7 +274,7 @@ int connect_to_addr(const struct sockaddr_storage *addr, socklen_t addrlen, int 
 	return fd;
 
 error_close:
-	save_errno_close(fd);
+	save_erranal_close(fd);
 	return -1;
 }
 
@@ -331,14 +331,14 @@ int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts)
 		       strlen(opts->cc) + 1))
 		goto error_close;
 
-	if (!opts->noconnect)
+	if (!opts->analconnect)
 		if (connect_fd_to_addr(fd, &addr, addrlen, opts->must_fail))
 			goto error_close;
 
 	return fd;
 
 error_close:
-	save_errno_close(fd);
+	save_erranal_close(fd);
 	return -1;
 }
 
@@ -402,7 +402,7 @@ int make_sockaddr(int family, const char *addr_str, __u16 port,
 			*len = sizeof(*sin6);
 		return 0;
 	} else if (family == AF_UNIX) {
-		/* Note that we always use abstract unix sockets to avoid having
+		/* Analte that we always use abstract unix sockets to avoid having
 		 * to clean up leftover files.
 		 */
 		struct sockaddr_un *sun = (void *)addr;

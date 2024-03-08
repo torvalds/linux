@@ -87,7 +87,7 @@ static bool rule_matches(const struct xe_device *xe,
 
 			match = hwe->class == r->engine_class;
 			break;
-		case XE_RTP_MATCH_NOT_ENGINE_CLASS:
+		case XE_RTP_MATCH_ANALT_ENGINE_CLASS:
 			if (drm_WARN_ON(&xe->drm, !hwe))
 				return false;
 
@@ -210,10 +210,10 @@ static void rtp_mark_active(struct xe_device *xe,
  * @entries: Table with RTP definitions
  * @sr: Save-restore struct where matching rules execute the action. This can be
  *      viewed as the "coalesced view" of multiple the tables. The bits for each
- *      register set are expected not to collide with previously added entries
+ *      register set are expected analt to collide with previously added entries
  *
  * Walk the table pointed by @entries (with an empty sentinel) and add all
- * entries with matching rules to @sr. If @hwe is not NULL, its mmio_base is
+ * entries with matching rules to @sr. If @hwe is analt NULL, its mmio_base is
  * used to calculate the right register offset
  */
 void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
@@ -256,10 +256,10 @@ EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_to_sr);
  * Walk the table pointed by @entries (with an empty sentinel), executing the
  * rules. A few differences from xe_rtp_process_to_sr():
  *
- * 1. There is no action associated with each entry since this uses
+ * 1. There is anal action associated with each entry since this uses
  *    struct xe_rtp_entry. Its main use is for marking active workarounds via
  *    xe_rtp_process_ctx_enable_active_tracking().
- * 2. There is support for OR operations by having entries with no name.
+ * 2. There is support for OR operations by having entries with anal name.
  */
 void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
 		    const struct xe_rtp_entry *entries)

@@ -41,7 +41,7 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	IGB_STAT("multicast", stats.mprc),
 	IGB_STAT("collisions", stats.colc),
 	IGB_STAT("rx_crc_errors", stats.crcerrs),
-	IGB_STAT("rx_no_buffer_count", stats.rnbc),
+	IGB_STAT("rx_anal_buffer_count", stats.rnbc),
 	IGB_STAT("rx_missed_errors", stats.mpc),
 	IGB_STAT("tx_aborted_errors", stats.ecol),
 	IGB_STAT("tx_carrier_errors", stats.tncrs),
@@ -108,7 +108,7 @@ static const struct igb_stats igb_gstrings_net_stats[] = {
 #define IGB_STATS_LEN \
 	(IGB_GLOBAL_STATS_LEN + IGB_NETDEV_STATS_LEN + IGB_QUEUE_STATS_LEN)
 
-enum igb_diagnostics_results {
+enum igb_diaganalstics_results {
 	TEST_REG = 0,
 	TEST_EEP,
 	TEST_IRQ,
@@ -227,8 +227,8 @@ static int igb_get_link_ksettings(struct net_device *netdev,
 		else
 			cmd->base.duplex = DUPLEX_HALF;
 	} else {
-		speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 	cmd->base.speed = speed;
 	if ((hw->phy.media_type == e1000_media_type_fiber) ||
@@ -265,11 +265,11 @@ static int igb_set_link_ksettings(struct net_device *netdev,
 	u32 advertising;
 
 	/* When SoL/IDER sessions are active, autoneg/speed/duplex
-	 * cannot be changed
+	 * cananalt be changed
 	 */
 	if (igb_check_reset_block(hw)) {
 		dev_err(&adapter->pdev->dev,
-			"Cannot change link characteristics when SoL/IDER is active.\n");
+			"Cananalt change link characteristics when SoL/IDER is active.\n");
 		return -EINVAL;
 	}
 
@@ -279,11 +279,11 @@ static int igb_set_link_ksettings(struct net_device *netdev,
 	 */
 	if (cmd->base.eth_tp_mdix_ctrl) {
 		if (hw->phy.media_type != e1000_media_type_copper)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if ((cmd->base.eth_tp_mdix_ctrl != ETH_TP_MDI_AUTO) &&
 		    (cmd->base.autoneg != AUTONEG_ENABLE)) {
-			dev_err(&adapter->pdev->dev, "forcing MDI/MDI-X state is not supported when link speed and/or duplex are forced\n");
+			dev_err(&adapter->pdev->dev, "forcing MDI/MDI-X state is analt supported when link speed and/or duplex are forced\n");
 			return -EINVAL;
 		}
 	}
@@ -360,7 +360,7 @@ static u32 igb_get_link(struct net_device *netdev)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 
-	/* If the link is not reported up to netdev, interrupts are disabled,
+	/* If the link is analt reported up to netdev, interrupts are disabled,
 	 * and so the physical link state may have changed since we last
 	 * looked. Set get_link_status to make sure that the true link
 	 * state is interrogated, rather than pulling a cached and possibly
@@ -399,7 +399,7 @@ static int igb_set_pauseparam(struct net_device *netdev,
 	int retval = 0;
 	int i;
 
-	/* 100basefx does not support setting link flow control */
+	/* 100basefx does analt support setting link flow control */
 	if (hw->dev_spec._82575.eth_flags.e100_base_fx)
 		return -EINVAL;
 
@@ -424,7 +424,7 @@ static int igb_set_pauseparam(struct net_device *netdev,
 		else if (!pause->rx_pause && pause->tx_pause)
 			hw->fc.requested_mode = e1000_fc_tx_pause;
 		else if (!pause->rx_pause && !pause->tx_pause)
-			hw->fc.requested_mode = e1000_fc_none;
+			hw->fc.requested_mode = e1000_fc_analne;
 
 		hw->fc.current_mode = hw->fc.requested_mode;
 
@@ -492,7 +492,7 @@ static void igb_get_regs(struct net_device *netdev,
 
 	/* Interrupt */
 	/* Reading EICS for EICR because they read the
-	 * same but EICS does not clear on read
+	 * same but EICS does analt clear on read
 	 */
 	regs_buff[13] = rd32(E1000_EICS);
 	regs_buff[14] = rd32(E1000_EICS);
@@ -501,7 +501,7 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[17] = rd32(E1000_EIAC);
 	regs_buff[18] = rd32(E1000_EIAM);
 	/* Reading ICS for ICR because they read the
-	 * same but ICS does not clear on read
+	 * same but ICS does analt clear on read
 	 */
 	regs_buff[19] = rd32(E1000_ICS);
 	regs_buff[20] = rd32(E1000_ICS);
@@ -751,7 +751,7 @@ static int igb_get_eeprom(struct net_device *netdev,
 	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
 				    GFP_KERNEL);
 	if (!eeprom_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hw->nvm.type == e1000_nvm_eeprom_spi)
 		ret_val = hw->nvm.ops.read(hw, first_word,
@@ -788,11 +788,11 @@ static int igb_set_eeprom(struct net_device *netdev,
 	u16 i;
 
 	if (eeprom->len == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((hw->mac.type >= e1000_i210) &&
 	    !igb_get_flash_presence_i210(hw)) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (eeprom->magic != (hw->vendor_id | (hw->device_id << 16)))
@@ -804,7 +804,7 @@ static int igb_set_eeprom(struct net_device *netdev,
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 	eeprom_buff = kmalloc(max_len, GFP_KERNEL);
 	if (!eeprom_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr = (void *)eeprom_buff;
 
@@ -902,7 +902,7 @@ static int igb_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_count == adapter->tx_ring_count) &&
 	    (new_rx_count == adapter->rx_ring_count)) {
-		/* nothing to do */
+		/* analthing to do */
 		return 0;
 	}
 
@@ -927,7 +927,7 @@ static int igb_set_ringparam(struct net_device *netdev,
 					       adapter->num_rx_queues));
 
 	if (!temp_ring) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto clear_reset;
 	}
 
@@ -1019,7 +1019,7 @@ struct igb_reg_test {
 
 #define PATTERN_TEST	1
 #define SET_READ_TEST	2
-#define WRITE_NO_TEST	3
+#define WRITE_ANAL_TEST	3
 #define TABLE32_TEST	4
 #define TABLE64_TEST_LO	5
 #define TABLE64_TEST_HI	6
@@ -1153,15 +1153,15 @@ static struct igb_reg_test reg_test_82576[] = {
 	{ E1000_RDBAH(4),  0x40, 12, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ E1000_RDLEN(4),  0x40, 12, PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
 	/* Enable all RX queues before testing. */
-	{ E1000_RXDCTL(0), 0x100, 4, WRITE_NO_TEST, 0,
+	{ E1000_RXDCTL(0), 0x100, 4, WRITE_ANAL_TEST, 0,
 	  E1000_RXDCTL_QUEUE_ENABLE },
-	{ E1000_RXDCTL(4), 0x40, 12, WRITE_NO_TEST, 0,
+	{ E1000_RXDCTL(4), 0x40, 12, WRITE_ANAL_TEST, 0,
 	  E1000_RXDCTL_QUEUE_ENABLE },
 	/* RDH is read-only for 82576, only test RDT. */
 	{ E1000_RDT(0),	   0x100, 4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
 	{ E1000_RDT(4),	   0x40, 12,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ E1000_RXDCTL(0), 0x100, 4,  WRITE_NO_TEST, 0, 0 },
-	{ E1000_RXDCTL(4), 0x40, 12,  WRITE_NO_TEST, 0, 0 },
+	{ E1000_RXDCTL(0), 0x100, 4,  WRITE_ANAL_TEST, 0, 0 },
+	{ E1000_RXDCTL(4), 0x40, 12,  WRITE_ANAL_TEST, 0, 0 },
 	{ E1000_FCRTH,	   0x100, 1,  PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
 	{ E1000_FCTTV,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
 	{ E1000_TIPG,	   0x100, 1,  PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
@@ -1193,11 +1193,11 @@ static struct igb_reg_test reg_test_82575[] = {
 	{ E1000_RDBAH(0),  0x100, 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ E1000_RDLEN(0),  0x100, 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
 	/* Enable all four RX queues before testing. */
-	{ E1000_RXDCTL(0), 0x100, 4, WRITE_NO_TEST, 0,
+	{ E1000_RXDCTL(0), 0x100, 4, WRITE_ANAL_TEST, 0,
 	  E1000_RXDCTL_QUEUE_ENABLE },
 	/* RDH is read-only for 82575, only test RDT. */
 	{ E1000_RDT(0),    0x100, 4, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ E1000_RXDCTL(0), 0x100, 4, WRITE_NO_TEST, 0, 0 },
+	{ E1000_RXDCTL(0), 0x100, 4, WRITE_ANAL_TEST, 0, 0 },
 	{ E1000_FCRTH,     0x100, 1, PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
 	{ E1000_FCTTV,     0x100, 1, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
 	{ E1000_TIPG,      0x100, 1, PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
@@ -1337,7 +1337,7 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 						test->mask,
 						test->write);
 				break;
-			case WRITE_NO_TEST:
+			case WRITE_ANAL_TEST:
 				writel(test->write,
 				    (adapter->hw.hw_addr + test->reg)
 					+ (i * test->reg_offset));
@@ -1497,7 +1497,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 		/* Enable the interrupt to be reported in
 		 * the cause register and then force the same
 		 * interrupt and see if one gets posted.  If
-		 * an interrupt was not posted to the bus, the
+		 * an interrupt was analt posted to the bus, the
 		 * test failed.
 		 */
 		adapter->test_icr = 0;
@@ -1574,7 +1574,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 
 	if (igb_setup_tx_resources(tx_ring)) {
 		ret_val = 1;
-		goto err_nomem;
+		goto err_analmem;
 	}
 
 	igb_setup_tctl(adapter);
@@ -1588,7 +1588,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 
 	if (igb_setup_rx_resources(rx_ring)) {
 		ret_val = 3;
-		goto err_nomem;
+		goto err_analmem;
 	}
 
 	/* set the default queue to queue 0 of PF */
@@ -1602,7 +1602,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 
 	return 0;
 
-err_nomem:
+err_analmem:
 	igb_free_desc_rings(adapter);
 	return ret_val;
 }
@@ -1649,7 +1649,7 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 	/* force 1000, set loopback */
 	igb_write_phy_reg(hw, PHY_CONTROL, 0x4140);
 
-	/* Now set up the MAC to the same speed/duplex as the PHY. */
+	/* Analw set up the MAC to the same speed/duplex as the PHY. */
 	ctrl_reg = rd32(E1000_CTRL);
 	ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
 	ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
@@ -1664,7 +1664,7 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 	wr32(E1000_CTRL, ctrl_reg);
 
 	/* Disable the receiver on the PHY so when a cable is plugged in, the
-	 * PHY does not begin to autoneg when a cable is reconnected to the NIC.
+	 * PHY does analt begin to autoneg when a cable is reconnected to the NIC.
 	 */
 	if (hw->phy.type == e1000_phy_m88)
 		igb_phy_disable_receiver(adapter);
@@ -1948,19 +1948,19 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 
 static int igb_loopback_test(struct igb_adapter *adapter, u64 *data)
 {
-	/* PHY loopback cannot be performed if SoL/IDER
+	/* PHY loopback cananalt be performed if SoL/IDER
 	 * sessions are active
 	 */
 	if (igb_check_reset_block(&adapter->hw)) {
 		dev_err(&adapter->pdev->dev,
-			"Cannot do PHY loopback test when SoL/IDER is active.\n");
+			"Cananalt do PHY loopback test when SoL/IDER is active.\n");
 		*data = 0;
 		goto out;
 	}
 
 	if (adapter->hw.mac.type == e1000_i354) {
 		dev_info(&adapter->pdev->dev,
-			"Loopback test not supported on i354.\n");
+			"Loopback test analt supported on i354.\n");
 		*data = 0;
 		goto out;
 	}
@@ -2134,10 +2134,10 @@ static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
 	if (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE | WAKE_FILTER))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
-		return wol->wolopts ? -EOPNOTSUPP : 0;
+		return wol->wolopts ? -EOPANALTSUPP : 0;
 
 	/* these settings will always override what we currently have */
 	adapter->wol = 0;
@@ -2284,7 +2284,7 @@ static int igb_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return IGB_PRIV_FLAGS_STR_LEN;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -2415,9 +2415,9 @@ static int igb_get_ts_info(struct net_device *dev,
 			BIT(HWTSTAMP_TX_OFF) |
 			BIT(HWTSTAMP_TX_ON);
 
-		info->rx_filters = BIT(HWTSTAMP_FILTER_NONE);
+		info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE);
 
-		/* 82576 does not support timestamping all packets. */
+		/* 82576 does analt support timestamping all packets. */
 		if (adapter->hw.mac.type >= e1000_82580)
 			info->rx_filters |= BIT(HWTSTAMP_FILTER_ALL);
 		else
@@ -2428,7 +2428,7 @@ static int igb_get_ts_info(struct net_device *dev,
 
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2442,7 +2442,7 @@ static int igb_get_ethtool_nfc_entry(struct igb_adapter *adapter,
 	/* report total rule count */
 	cmd->data = IGB_MAX_RXNFC_FILTERS;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_analde) {
 		if (fsp->location <= rule->sw_idx)
 			break;
 	}
@@ -2494,7 +2494,7 @@ static int igb_get_ethtool_nfc_all(struct igb_adapter *adapter,
 	/* report total rule count */
 	cmd->data = IGB_MAX_RXNFC_FILTERS;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_analde) {
 		if (cnt == cmd->rule_cnt)
 			return -EMSGSIZE;
 		rule_locs[cnt] = rule->sw_idx;
@@ -2552,7 +2552,7 @@ static int igb_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			 u32 *rule_locs)
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -2586,7 +2586,7 @@ static int igb_set_rss_hash_opt(struct igb_adapter *adapter,
 {
 	u32 flags = adapter->flags;
 
-	/* RSS does not support anything other than hashing
+	/* RSS does analt support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -2758,7 +2758,7 @@ int igb_add_filter(struct igb_adapter *adapter, struct igb_nfc_filter *input)
 	    !(input->filter.match_flags & ~IGB_FILTER_FLAG_SRC_MAC_ADDR)) {
 		dev_err(&adapter->pdev->dev,
 			"i210 doesn't support flow classification rules specifying only source addresses.\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (input->filter.match_flags & IGB_FILTER_FLAG_ETHER_TYPE) {
@@ -2856,8 +2856,8 @@ static int igb_update_ethtool_nfc_entry(struct igb_adapter *adapter,
 	parent = NULL;
 	rule = NULL;
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
-		/* hash found, or no matching entry */
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_analde) {
+		/* hash found, or anal matching entry */
 		if (rule->sw_idx >= sw_idx)
 			break;
 		parent = rule;
@@ -2868,25 +2868,25 @@ static int igb_update_ethtool_nfc_entry(struct igb_adapter *adapter,
 		if (!input)
 			err = igb_erase_filter(adapter, rule);
 
-		hlist_del(&rule->nfc_node);
+		hlist_del(&rule->nfc_analde);
 		kfree(rule);
 		adapter->nfc_filter_count--;
 	}
 
-	/* If no input this was a delete, err should be 0 if a rule was
+	/* If anal input this was a delete, err should be 0 if a rule was
 	 * successfully found and removed from the list else -EINVAL
 	 */
 	if (!input)
 		return err;
 
-	/* initialize node */
-	INIT_HLIST_NODE(&input->nfc_node);
+	/* initialize analde */
+	INIT_HLIST_ANALDE(&input->nfc_analde);
 
 	/* add filter to the list */
 	if (parent)
-		hlist_add_behind(&input->nfc_node, &parent->nfc_node);
+		hlist_add_behind(&input->nfc_analde, &parent->nfc_analde);
 	else
-		hlist_add_head(&input->nfc_node, &adapter->nfc_filter_list);
+		hlist_add_head(&input->nfc_analde, &adapter->nfc_filter_list);
 
 	/* update counts */
 	adapter->nfc_filter_count++;
@@ -2904,7 +2904,7 @@ static int igb_add_ethtool_nfc_entry(struct igb_adapter *adapter,
 	int err = 0;
 
 	if (!(netdev->hw_features & NETIF_F_NTUPLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Don't allow programming if the action is a queue greater than
 	 * the number of online Rx queues.
@@ -2926,7 +2926,7 @@ static int igb_add_ethtool_nfc_entry(struct igb_adapter *adapter,
 
 	input = kzalloc(sizeof(*input), GFP_KERNEL);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (fsp->m_u.ether_spec.h_proto == ETHER_TYPE_FULL_MASK) {
 		input->filter.etype = fsp->h_u.ether_spec.h_proto;
@@ -2961,7 +2961,7 @@ static int igb_add_ethtool_nfc_entry(struct igb_adapter *adapter,
 
 	spin_lock(&adapter->nfc_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_analde) {
 		if (!memcmp(&input->filter, &rule->filter,
 			    sizeof(input->filter))) {
 			err = -EEXIST;
@@ -3008,7 +3008,7 @@ static int igb_del_ethtool_nfc_entry(struct igb_adapter *adapter,
 static int igb_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXFH:
@@ -3036,7 +3036,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 
 	if ((hw->mac.type < e1000_i350) ||
 	    (hw->phy.media_type != e1000_media_type_copper))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	edata->supported = (SUPPORTED_1000baseT_Full |
 			    SUPPORTED_100baseT_Full);
@@ -3044,7 +3044,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 		edata->advertised =
 			mmd_eee_adv_to_ethtool_adv_t(adapter->eee_advert);
 
-	/* The IPCNFG and EEER registers are not supported on I354. */
+	/* The IPCNFG and EEER registers are analt supported on I354. */
 	if (hw->mac.type == e1000_i354) {
 		igb_get_eee_status_i354(hw, (bool *)&edata->eee_active);
 	} else {
@@ -3066,7 +3066,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 		ret_val = igb_read_emi_reg(hw, E1000_EEE_LP_ADV_ADDR_I350,
 					   &phy_data);
 		if (ret_val)
-			return -ENODATA;
+			return -EANALDATA;
 
 		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
 		break;
@@ -3077,7 +3077,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 					     E1000_EEE_LP_ADV_DEV_I210,
 					     &phy_data);
 		if (ret_val)
-			return -ENODATA;
+			return -EANALDATA;
 
 		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
 
@@ -3116,7 +3116,7 @@ static int igb_set_eee(struct net_device *netdev,
 
 	if ((hw->mac.type < e1000_i350) ||
 	    (hw->phy.media_type != e1000_media_type_copper))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&eee_curr, 0, sizeof(struct ethtool_eee));
 
@@ -3127,14 +3127,14 @@ static int igb_set_eee(struct net_device *netdev,
 	if (eee_curr.eee_enabled) {
 		if (eee_curr.tx_lpi_enabled != edata->tx_lpi_enabled) {
 			dev_err(&adapter->pdev->dev,
-				"Setting EEE tx-lpi is not supported\n");
+				"Setting EEE tx-lpi is analt supported\n");
 			return -EINVAL;
 		}
 
-		/* Tx LPI timer is not implemented currently */
+		/* Tx LPI timer is analt implemented currently */
 		if (edata->tx_lpi_timer) {
 			dev_err(&adapter->pdev->dev,
-				"Setting EEE Tx LPI timer is not supported\n");
+				"Setting EEE Tx LPI timer is analt supported\n");
 			return -EINVAL;
 		}
 
@@ -3149,7 +3149,7 @@ static int igb_set_eee(struct net_device *netdev,
 
 	} else if (!edata->eee_enabled) {
 		dev_err(&adapter->pdev->dev,
-			"Setting EEE options are not supported with EEE disabled\n");
+			"Setting EEE options are analt supported with EEE disabled\n");
 		return -EINVAL;
 	}
 
@@ -3189,27 +3189,27 @@ static int igb_get_module_info(struct net_device *netdev,
 	bool page_swap = false;
 
 	if ((hw->phy.media_type == e1000_media_type_copper) ||
-	    (hw->phy.media_type == e1000_media_type_unknown))
-		return -EOPNOTSUPP;
+	    (hw->phy.media_type == e1000_media_type_unkanalwn))
+		return -EOPANALTSUPP;
 
-	/* Check whether we support SFF-8472 or not */
+	/* Check whether we support SFF-8472 or analt */
 	status = igb_read_phy_reg_i2c(hw, IGB_SFF_8472_COMP, &sff8472_rev);
 	if (status)
 		return -EIO;
 
-	/* addressing mode is not supported */
+	/* addressing mode is analt supported */
 	status = igb_read_phy_reg_i2c(hw, IGB_SFF_8472_SWAP, &addr_mode);
 	if (status)
 		return -EIO;
 
-	/* addressing mode is not supported */
+	/* addressing mode is analt supported */
 	if ((addr_mode & 0xFF) & IGB_SFF_ADDRESSING_MODE) {
-		hw_dbg("Address change required to access page 0xA2, but not supported. Please report the module type to the driver maintainers.\n");
+		hw_dbg("Address change required to access page 0xA2, but analt supported. Please report the module type to the driver maintainers.\n");
 		page_swap = true;
 	}
 
 	if ((sff8472_rev & 0xFF) == IGB_SFF_8472_UNSUP || page_swap) {
-		/* We have an SFP, but it does not support SFF-8472 */
+		/* We have an SFP, but it does analt support SFF-8472 */
 		modinfo->type = ETH_MODULE_SFF_8079;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
 	} else {
@@ -3240,7 +3240,7 @@ static int igb_get_module_eeprom(struct net_device *netdev,
 	dataword = kmalloc_array(last_word - first_word + 1, sizeof(u16),
 				 GFP_KERNEL);
 	if (!dataword)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Read EEPROM block, SFF-8079/SFF-8472, word at a time */
 	for (i = 0; i < last_word - first_word + 1; i++) {
@@ -3338,11 +3338,11 @@ static int igb_set_rxfh(struct net_device *netdev,
 	int i;
 	u32 num_queues;
 
-	/* We do not allow change in unsupported parameters */
+	/* We do analt allow change in unsupported parameters */
 	if (rxfh->key ||
-	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	     rxfh->hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!rxfh->indir)
 		return 0;
 
@@ -3387,8 +3387,8 @@ static void igb_get_channels(struct net_device *netdev,
 
 	/* Report info for other vector */
 	if (adapter->flags & IGB_FLAG_HAS_MSIX) {
-		ch->max_other = NON_Q_VECTORS;
-		ch->other_count = NON_Q_VECTORS;
+		ch->max_other = ANALN_Q_VECTORS;
+		ch->other_count = ANALN_Q_VECTORS;
 	}
 
 	ch->combined_count = adapter->rss_queues;
@@ -3401,12 +3401,12 @@ static int igb_set_channels(struct net_device *netdev,
 	unsigned int count = ch->combined_count;
 	unsigned int max_combined = 0;
 
-	/* Verify they are not requesting separate vectors */
+	/* Verify they are analt requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
-	/* Verify other_count is valid and has not been changed */
-	if (ch->other_count != NON_Q_VECTORS)
+	/* Verify other_count is valid and has analt been changed */
+	if (ch->other_count != ANALN_Q_VECTORS)
 		return -EINVAL;
 
 	/* Verify the number of channels doesn't exceed hw limits */

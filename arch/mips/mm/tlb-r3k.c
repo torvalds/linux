@@ -7,7 +7,7 @@
  * with a lot of changes to make this thing work for R3000s
  * Tx39XX R4k style caches added. HK
  * Copyright (C) 1998, 1999, 2000 Harald Koerfgen
- * Copyright (C) 1998 Gleb Raiko & Vladimir Roganov
+ * Copyright (C) 1998 Gleb Raiko & Vladimir Rogaanalv
  * Copyright (C) 2002  Ralf Baechle
  * Copyright (C) 2002  Maciej W. Rozycki
  */
@@ -32,8 +32,8 @@
 #define BARRIER				\
 	__asm__ __volatile__(		\
 		".set	push\n\t"	\
-		".set	noreorder\n\t"	\
-		"nop\n\t"		\
+		".set	analreorder\n\t"	\
+		"analp\n\t"		\
 		".set	pop\n\t")
 
 /* TLB operations. */

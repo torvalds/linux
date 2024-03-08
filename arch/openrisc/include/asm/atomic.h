@@ -22,7 +22,7 @@ static inline void arch_atomic_##op(int i, atomic_t *v)			\
 		"	l." #op " %0,%0,%2	\n"			\
 		"	l.swa	0(%1),%0	\n"			\
 		"	l.bnf	1b		\n"			\
-		"	 l.nop			\n"			\
+		"	 l.analp			\n"			\
 		: "=&r"(tmp)						\
 		: "r"(&v->counter), "r"(i)				\
 		: "cc", "memory");					\
@@ -39,7 +39,7 @@ static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 		"	l." #op " %0,%0,%2	\n"			\
 		"	l.swa	0(%1),%0	\n"			\
 		"	l.bnf	1b		\n"			\
-		"	 l.nop			\n"			\
+		"	 l.analp			\n"			\
 		: "=&r"(tmp)						\
 		: "r"(&v->counter), "r"(i)				\
 		: "cc", "memory");					\
@@ -58,7 +58,7 @@ static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 		"	l." #op " %1,%0,%3	\n"			\
 		"	l.swa	0(%2),%1	\n"			\
 		"	l.bnf	1b		\n"			\
-		"	 l.nop			\n"			\
+		"	 l.analp			\n"			\
 		: "=&r"(old), "=&r"(tmp)				\
 		: "r"(&v->counter), "r"(i)				\
 		: "cc", "memory");					\
@@ -99,10 +99,10 @@ ATOMIC_OP(xor)
 #define arch_atomic_xor		arch_atomic_xor
 
 /*
- * Atomically add a to v->counter as long as v is not already u.
+ * Atomically add a to v->counter as long as v is analt already u.
  * Returns the original value at v->counter.
  *
- * This is often used through atomic_inc_not_zero()
+ * This is often used through atomic_inc_analt_zero()
  */
 static inline int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
@@ -115,7 +115,7 @@ static inline int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 		"	 l.add %1, %0, %3	\n"
 		"	l.swa 0(%2), %1		\n"
 		"	l.bnf 1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		"2:				\n"
 		: "=&r"(old), "=&r" (tmp)
 		: "r"(&v->counter), "r"(a), "r"(u)

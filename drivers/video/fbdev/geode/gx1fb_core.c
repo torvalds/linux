@@ -9,7 +9,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -29,56 +29,56 @@ static char panel_option[32] = "";
 static const struct fb_videomode gx1_modedb[] = {
 	/* 640x480-60 VESA */
 	{ NULL, 60, 640, 480, 39682,  48, 16, 33, 10, 96, 2,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 640x480-75 VESA */
 	{ NULL, 75, 640, 480, 31746, 120, 16, 16, 01, 64, 3,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 640x480-85 VESA */
 	{ NULL, 85, 640, 480, 27777, 80, 56, 25, 01, 56, 3,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 800x600-60 VESA */
 	{ NULL, 60, 800, 600, 25000, 88, 40, 23, 01, 128, 4,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 800x600-75 VESA */
 	{ NULL, 75, 800, 600, 20202, 160, 16, 21, 01, 80, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 800x600-85 VESA */
 	{ NULL, 85, 800, 600, 17761, 152, 32, 27, 01, 64, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 1024x768-60 VESA */
 	{ NULL, 60, 1024, 768, 15384, 160, 24, 29, 3, 136, 6,
-	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  0, FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 1024x768-75 VESA */
 	{ NULL, 75, 1024, 768, 12690, 176, 16, 28, 1, 96, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 1024x768-85 VESA */
 	{ NULL, 85, 1024, 768, 10582, 208, 48, 36, 1, 96, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 1280x960-60 VESA */
 	{ NULL, 60, 1280, 960, 9259, 312, 96, 36, 1, 112, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 1280x960-85 VESA */
 	{ NULL, 85, 1280, 960, 6734, 224, 64, 47, 1, 160, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 1280x1024-60 VESA */
 	{ NULL, 60, 1280, 1024, 9259, 248, 48, 38, 1, 112, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 1280x1024-75 VESA */
 	{ NULL, 75, 1280, 1024, 7407, 248, 16, 38, 1, 144, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 	/* 1280x1024-85 VESA */
 	{ NULL, 85, 1280, 1024, 6349, 224, 64, 44, 1, 160, 3,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
+	  FB_VMODE_ANALNINTERLACED, FB_MODE_IS_VESA },
 };
 
 static int gx1_line_delta(int xres, int bpp)
@@ -119,7 +119,7 @@ static int gx1fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	} else
 		return -EINVAL;
 
-	/* Enough video memory? */
+	/* Eanalugh video memory? */
 	if (gx1_line_delta(var->xres, var->bits_per_pixel) * var->yres > info->fix.smem_len)
 		return -EINVAL;
 
@@ -151,7 +151,7 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int gx1fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int gx1fb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
@@ -167,19 +167,19 @@ static int gx1fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		u32 *pal = info->pseudo_palette;
 		u32 v;
 
-		if (regno >= 16)
+		if (reganal >= 16)
 			return -EINVAL;
 
 		v  = chan_to_field(red, &info->var.red);
 		v |= chan_to_field(green, &info->var.green);
 		v |= chan_to_field(blue, &info->var.blue);
 
-		pal[regno] = v;
+		pal[reganal] = v;
 	} else {
-		if (regno >= 256)
+		if (reganal >= 256)
 			return -EINVAL;
 
-		par->dc_ops->set_palette_reg(info, regno, red, green, blue);
+		par->dc_ops->set_palette_reg(info, reganal, red, green, blue);
 	}
 
 	return 0;
@@ -201,7 +201,7 @@ static int gx1fb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 
 	gx_base = gx1_gx_base();
 	if (!gx_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pci_enable_device(dev);
 	if (ret < 0)
@@ -212,21 +212,21 @@ static int gx1fb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 		return ret;
 	par->vid_regs = pci_ioremap_bar(dev, 0);
 	if (!par->vid_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!request_mem_region(gx_base + 0x8300, 0x100, "gx1fb (display controller)"))
 		return -EBUSY;
 	par->dc_regs = ioremap(gx_base + 0x8300, 0x100);
 	if (!par->dc_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if ((fb_len = gx1_frame_buffer_size()) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->fix.smem_start = gx_base + 0x800000;
 	info->fix.smem_len = fb_len;
 	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
 	if (!info->screen_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_info(&dev->dev, "%d Kibyte of video memory at 0x%lx\n",
 		 info->fix.smem_len / 1024, info->fix.smem_start);
@@ -267,7 +267,7 @@ static struct fb_info *gx1fb_init_fbinfo(struct device *dev)
 	struct geodefb_par *par;
 	struct fb_info *info;
 
-	/* Alloc enough space for the pseudo palette. */
+	/* Alloc eanalugh space for the pseudo palette. */
 	info = framebuffer_alloc(sizeof(struct geodefb_par) + sizeof(u32) * 16, dev);
 	if (!info)
 		return NULL;
@@ -281,17 +281,17 @@ static struct fb_info *gx1fb_init_fbinfo(struct device *dev)
 	info->fix.xpanstep	= 0;
 	info->fix.ypanstep	= 0;
 	info->fix.ywrapstep	= 0;
-	info->fix.accel		= FB_ACCEL_NONE;
+	info->fix.accel		= FB_ACCEL_ANALNE;
 
-	info->var.nonstd	= 0;
-	info->var.activate	= FB_ACTIVATE_NOW;
+	info->var.analnstd	= 0;
+	info->var.activate	= FB_ACTIVATE_ANALW;
 	info->var.height	= -1;
 	info->var.width	= -1;
 	info->var.accel_flags = 0;
-	info->var.vmode	= FB_VMODE_NONINTERLACED;
+	info->var.vmode	= FB_VMODE_ANALNINTERLACED;
 
 	info->fbops		= &gx1fb_ops;
-	info->node		= -1;
+	info->analde		= -1;
 
 	info->pseudo_palette	= (void *)par + sizeof(struct geodefb_par);
 
@@ -302,7 +302,7 @@ static struct fb_info *gx1fb_init_fbinfo(struct device *dev)
 	if (parse_panel_option(info) < 0)
 		printk(KERN_WARNING "gx1fb: invalid 'panel' option -- disabling flat panel\n");
 	if (!par->panel_x)
-		par->enable_crt = 1; /* fall back to CRT if no panel is specified */
+		par->enable_crt = 1; /* fall back to CRT if anal panel is specified */
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
 		framebuffer_release(info);
@@ -323,7 +323,7 @@ static int gx1fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	info = gx1fb_init_fbinfo(&pdev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	par = info->par;
 
 	/* GX1 display controller and CS5530 video device */
@@ -338,7 +338,7 @@ static int gx1fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = fb_find_mode(&info->var, info, mode_option,
 			   gx1_modedb, ARRAY_SIZE(gx1_modedb), NULL, 16);
 	if (ret == 0 || ret == 4) {
-		dev_err(&pdev->dev, "could not find valid video mode\n");
+		dev_err(&pdev->dev, "could analt find valid video mode\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -445,11 +445,11 @@ static int __init gx1fb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("gx1fb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("gx1fb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	gx1fb_setup(option);
 #endif
 	return pci_register_driver(&gx1fb_driver);

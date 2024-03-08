@@ -19,8 +19,8 @@
 #define gt_warn_once(_gt, _fmt, ...) \
 	drm_warn_once(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 
-#define gt_notice(_gt, _fmt, ...) \
-	drm_notice(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
+#define gt_analtice(_gt, _fmt, ...) \
+	drm_analtice(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 
 #define gt_info(_gt, _fmt, ...) \
 	drm_info(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
@@ -31,8 +31,8 @@
 #define gt_err_ratelimited(_gt, _fmt, ...) \
 	drm_err_ratelimited(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 
-#define gt_notice_ratelimited(_gt, _fmt, ...) \
-	dev_notice_ratelimited((_gt)->i915->drm.dev, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
+#define gt_analtice_ratelimited(_gt, _fmt, ...) \
+	dev_analtice_ratelimited((_gt)->i915->drm.dev, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 
 #define gt_probe_error(_gt, _fmt, ...) \
 	do { \

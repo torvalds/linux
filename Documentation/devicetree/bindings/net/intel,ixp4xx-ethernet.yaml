@@ -31,7 +31,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to the RX queue node
+          - description: phandle to the RX queue analde
           - description: RX queue instance to use
     description: phandle to the RX queue on the NPE
 
@@ -39,7 +39,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to the TX READY queue node
+          - description: phandle to the TX READY queue analde
           - description: TX READY queue instance to use
     description: phandle to the TX READY queue on the NPE
 
@@ -59,7 +59,7 @@ properties:
   mdio:
     $ref: mdio.yaml#
     unevaluatedProperties: false
-    description: optional node for embedded MDIO controller
+    description: optional analde for embedded MDIO controller
 
 required:
   - compatible

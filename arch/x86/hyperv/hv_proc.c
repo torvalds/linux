@@ -21,7 +21,7 @@
 #define HV_DEPOSIT_MAX (HV_HYP_PAGE_SIZE / sizeof(u64) - 1)
 
 /* Deposits exact number of pages. Must be called with interrupts enabled.  */
-int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
+int hv_call_deposit_pages(int analde, u64 partition_id, u32 num_pages)
 {
 	struct page **pages, *page;
 	int *counts;
@@ -42,13 +42,13 @@ int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
 	/* One buffer for page pointers and counts */
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 	pages = page_address(page);
 
 	counts = kcalloc(HV_DEPOSIT_MAX, sizeof(int), GFP_KERNEL);
 	if (!counts) {
 		free_page((unsigned long)pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Allocate all the pages before disabling interrupts */
@@ -59,11 +59,11 @@ int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
 		order = 31 - __builtin_clz(num_pages);
 
 		while (1) {
-			pages[i] = alloc_pages_node(node, GFP_KERNEL, order);
+			pages[i] = alloc_pages_analde(analde, GFP_KERNEL, order);
 			if (pages[i])
 				break;
 			if (!order) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				num_allocations = i;
 				goto err_free_allocations;
 			}
@@ -114,14 +114,14 @@ free_buf:
 	return ret;
 }
 
-int hv_call_add_logical_proc(int node, u32 lp_index, u32 apic_id)
+int hv_call_add_logical_proc(int analde, u32 lp_index, u32 apic_id)
 {
 	struct hv_add_logical_processor_in *input;
 	struct hv_add_logical_processor_out *output;
 	u64 status;
 	unsigned long flags;
 	int ret = HV_STATUS_SUCCESS;
-	int pxm = node_to_pxm(node);
+	int pxm = analde_to_pxm(analde);
 
 	/*
 	 * When adding a logical processor, the hypervisor may return
@@ -132,7 +132,7 @@ int hv_call_add_logical_proc(int node, u32 lp_index, u32 apic_id)
 		local_irq_save(flags);
 
 		input = *this_cpu_ptr(hyperv_pcpu_input_arg);
-		/* We don't do anything with the output right now */
+		/* We don't do anything with the output right analw */
 		output = *this_cpu_ptr(hyperv_pcpu_output_arg);
 
 		input->lp_index = lp_index;
@@ -154,24 +154,24 @@ int hv_call_add_logical_proc(int node, u32 lp_index, u32 apic_id)
 			}
 			break;
 		}
-		ret = hv_call_deposit_pages(node, hv_current_partition_id, 1);
+		ret = hv_call_deposit_pages(analde, hv_current_partition_id, 1);
 	} while (!ret);
 
 	return ret;
 }
 
-int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
+int hv_call_create_vp(int analde, u64 partition_id, u32 vp_index, u32 flags)
 {
 	struct hv_create_vp *input;
 	u64 status;
 	unsigned long irq_flags;
 	int ret = HV_STATUS_SUCCESS;
-	int pxm = node_to_pxm(node);
+	int pxm = analde_to_pxm(analde);
 
 	/* Root VPs don't seem to need pages deposited */
 	if (partition_id != hv_current_partition_id) {
 		/* The value 90 is empirically determined. It may change. */
-		ret = hv_call_deposit_pages(node, partition_id, 90);
+		ret = hv_call_deposit_pages(analde, partition_id, 90);
 		if (ret)
 			return ret;
 	}
@@ -184,8 +184,8 @@ int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
 		input->partition_id = partition_id;
 		input->vp_index = vp_index;
 		input->flags = flags;
-		input->subnode_type = HvSubnodeAny;
-		if (node != NUMA_NO_NODE) {
+		input->subanalde_type = HvSubanaldeAny;
+		if (analde != NUMA_ANAL_ANALDE) {
 			input->proximity_domain_info.domain_id = pxm;
 			input->proximity_domain_info.flags.reserved = 0;
 			input->proximity_domain_info.flags.proximity_info_valid = 1;
@@ -204,7 +204,7 @@ int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
 			}
 			break;
 		}
-		ret = hv_call_deposit_pages(node, partition_id, 1);
+		ret = hv_call_deposit_pages(analde, partition_id, 1);
 
 	} while (!ret);
 

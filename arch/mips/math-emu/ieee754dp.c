@@ -79,7 +79,7 @@ static u64 ieee754dp_get_rounding(int sn, u64 xm)
 }
 
 
-/* generate a normal/denormal number with over,under handling
+/* generate a analrmal/deanalrmal number with over,under handling
  * sn is sign
  * xe is an unbiased exponent
  * xm is 3bit extended precision value.
@@ -88,14 +88,14 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 {
 	assert(xm);		/* we don't gen exact zeros (probably should) */
 
-	assert((xm >> (DP_FBITS + 1 + 3)) == 0);	/* no excess */
+	assert((xm >> (DP_FBITS + 1 + 3)) == 0);	/* anal excess */
 	assert(xm & (DP_HIDDEN_BIT << 3));
 
 	if (xe < DP_EMIN) {
 		/* strip lower bits */
 		int es = DP_EMIN - xe;
 
-		if (ieee754_csr.nod) {
+		if (ieee754_csr.anald) {
 			ieee754_setcx(IEEE754_UNDERFLOW);
 			ieee754_setcx(IEEE754_INEXACT);
 
@@ -119,7 +119,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 		if (xe == DP_EMIN - 1 &&
 		    ieee754dp_get_rounding(sn, xm) >> (DP_FBITS + 1 + 3))
 		{
-			/* Not tiny after rounding */
+			/* Analt tiny after rounding */
 			ieee754_setcx(IEEE754_INEXACT);
 			xm = ieee754dp_get_rounding(sn, xm);
 			xm >>= 1;
@@ -156,7 +156,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 	/* strip grs bits */
 	xm >>= 3;
 
-	assert((xm >> (DP_FBITS + 1)) == 0);	/* no excess */
+	assert((xm >> (DP_FBITS + 1)) == 0);	/* anal excess */
 	assert(xe >= DP_EMIN);
 
 	if (xe > DP_EMAX) {
@@ -180,7 +180,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 				return ieee754dp_inf(1);
 		}
 	}
-	/* gen norm/denorm/zero */
+	/* gen analrm/deanalrm/zero */
 
 	if ((xm & DP_HIDDEN_BIT) == 0) {
 		/* we underflow (tiny/zero) */
@@ -189,7 +189,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 			ieee754_setcx(IEEE754_UNDERFLOW);
 		return builddp(sn, DP_EMIN - 1 + DP_EBIAS, xm);
 	} else {
-		assert((xm >> (DP_FBITS + 1)) == 0);	/* no excess */
+		assert((xm >> (DP_FBITS + 1)) == 0);	/* anal excess */
 		assert(xm & DP_HIDDEN_BIT);
 
 		return builddp(sn, xe + DP_EBIAS, xm & ~DP_HIDDEN_BIT);

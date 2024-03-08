@@ -27,16 +27,16 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info);
  *              pathname            - Object pathname (optional)
  *              external_params     - List of parameters to pass to a method,
  *                                    terminated by NULL. May be NULL
- *                                    if no parameters are being passed.
+ *                                    if anal parameters are being passed.
  *              return_buffer       - Where to put the object's return value (if
- *                                    any). If NULL, no value is returned.
+ *                                    any). If NULL, anal value is returned.
  *              return_type         - Expected type of return object
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Find and evaluate the given object, passing the given
  *              parameters if necessary. One of "Handle" or "Pathname" must
- *              be valid (non-null)
+ *              be valid (analn-null)
  *
  ******************************************************************************/
 
@@ -76,7 +76,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 
 	full_pathname = acpi_ns_get_external_pathname(target_handle);
 	if (!full_pathname) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Evaluate the object */
@@ -97,7 +97,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 
 		/* Error because caller specifically asked for a return value */
 
-		ACPI_ERROR((AE_INFO, "%s did not return any object",
+		ACPI_ERROR((AE_INFO, "%s did analt return any object",
 			    full_pathname));
 		status = AE_NULL_OBJECT;
 		goto exit;
@@ -109,7 +109,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 		goto exit;
 	}
 
-	/* Return object type does not match requested type */
+	/* Return object type does analt match requested type */
 
 	ACPI_ERROR((AE_INFO,
 		    "Incorrect return type from %s - received [%s], requested [%s]",
@@ -121,7 +121,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	if (free_buffer_on_error) {
 		/*
 		 * Free a buffer created via ACPI_ALLOCATE_BUFFER.
-		 * Note: We use acpi_os_free here because acpi_os_allocate was used
+		 * Analte: We use acpi_os_free here because acpi_os_allocate was used
 		 * to allocate the buffer. This purposefully bypasses the
 		 * (optionally enabled) allocation tracking mechanism since we
 		 * only want to track internal allocations.
@@ -148,15 +148,15 @@ ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
  *              pathname            - Object pathname (optional)
  *              external_params     - List of parameters to pass to method,
  *                                    terminated by NULL. May be NULL
- *                                    if no parameters are being passed.
+ *                                    if anal parameters are being passed.
  *              return_buffer       - Where to put method's return value (if
- *                                    any). If NULL, no value is returned.
+ *                                    any). If NULL, anal value is returned.
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Find and evaluate the given object, passing the given
  *              parameters if necessary. One of "Handle" or "Pathname" must
- *              be valid (non-null)
+ *              be valid (analn-null)
  *
  ******************************************************************************/
 acpi_status
@@ -176,30 +176,30 @@ acpi_evaluate_object(acpi_handle handle,
 
 	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
 	if (!info) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Convert and validate the device handle */
 
-	info->prefix_node = acpi_ns_validate_handle(handle);
-	if (!info->prefix_node) {
+	info->prefix_analde = acpi_ns_validate_handle(handle);
+	if (!info->prefix_analde) {
 		status = AE_BAD_PARAMETER;
 		goto cleanup;
 	}
 
 	/*
-	 * Get the actual namespace node for the target object.
+	 * Get the actual namespace analde for the target object.
 	 * Handles these cases:
 	 *
-	 * 1) Null node, valid pathname from root (absolute path)
-	 * 2) Node and valid pathname (path relative to Node)
-	 * 3) Node, Null pathname
+	 * 1) Null analde, valid pathname from root (absolute path)
+	 * 2) Analde and valid pathname (path relative to Analde)
+	 * 3) Analde, Null pathname
 	 */
 	if ((pathname) && (ACPI_IS_ROOT_PREFIX(pathname[0]))) {
 
 		/* The path is fully qualified, just evaluate by name */
 
-		info->prefix_node = NULL;
+		info->prefix_analde = NULL;
 	} else if (!handle) {
 		/*
 		 * A handle is optional iff a fully qualified pathname is specified.
@@ -248,7 +248,7 @@ acpi_evaluate_object(acpi_handle handle,
 							 param_count +
 							 1) * sizeof(void *));
 		if (!info->parameters) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -274,7 +274,7 @@ acpi_evaluate_object(acpi_handle handle,
 	 * Begin incoming argument count analysis. Check for too few args
 	 * and too many args.
 	 */
-	switch (acpi_ns_get_type(info->node)) {
+	switch (acpi_ns_get_type(info->analde)) {
 	case ACPI_TYPE_METHOD:
 
 		/* Check incoming argument count against the method definition */
@@ -315,7 +315,7 @@ acpi_evaluate_object(acpi_handle handle,
 								 1) *
 								sizeof(void *));
 			if (!info->parameters) {
-				status = AE_NO_MEMORY;
+				status = AE_ANAL_MEMORY;
 				goto cleanup;
 			}
 
@@ -337,11 +337,11 @@ acpi_evaluate_object(acpi_handle handle,
 
 	default:
 
-		/* Warn if arguments passed to an object that is not a method */
+		/* Warn if arguments passed to an object that is analt a method */
 
 		if (info->param_count) {
 			ACPI_WARNING((AE_INFO,
-				      "%u arguments were passed to a non-method ACPI object",
+				      "%u arguments were passed to a analn-method ACPI object",
 				      info->param_count));
 		}
 		break;
@@ -349,7 +349,7 @@ acpi_evaluate_object(acpi_handle handle,
 
 #endif
 
-	/* Now we can evaluate the object */
+	/* Analw we can evaluate the object */
 
 	status = acpi_ns_evaluate(info);
 
@@ -369,15 +369,15 @@ acpi_evaluate_object(acpi_handle handle,
 	if (ACPI_GET_DESCRIPTOR_TYPE(info->return_object) ==
 	    ACPI_DESC_TYPE_NAMED) {
 		/*
-		 * If we received a NS Node as a return object, this means that
-		 * the object we are evaluating has nothing interesting to
+		 * If we received a NS Analde as a return object, this means that
+		 * the object we are evaluating has analthing interesting to
 		 * return (such as a mutex, etc.)  We return an error because
 		 * these types are essentially unsupported by this interface.
 		 * We don't check up front because this makes it easier to add
 		 * support for various types at a later date if necessary.
 		 */
 		status = AE_TYPE;
-		info->return_object = NULL;	/* No need to delete a NS Node */
+		info->return_object = NULL;	/* Anal need to delete a NS Analde */
 		return_buffer->length = 0;
 	}
 
@@ -409,7 +409,7 @@ acpi_evaluate_object(acpi_handle handle,
 					  (u32)buffer_space_needed,
 					  acpi_format_exception(status)));
 		} else {
-			/* We have enough space for the object, build it */
+			/* We have eanalugh space for the object, build it */
 
 			status =
 			    acpi_ut_copy_iobject_to_eobject(info->return_object,
@@ -421,7 +421,7 @@ cleanup_return_object:
 
 	if (info->return_object) {
 		/*
-		 * Delete the internal return object. NOTE: Interpreter must be
+		 * Delete the internal return object. ANALTE: Interpreter must be
 		 * locked to avoid race condition.
 		 */
 		acpi_ex_enter_interpreter();
@@ -461,18 +461,18 @@ ACPI_EXPORT_SYMBOL(acpi_evaluate_object)
  *              internal return object is converted to an external union acpi_object.
  *
  * Performs an automatic dereference of Index and ref_of reference objects.
- * These reference objects are not supported by the union acpi_object, so this is a
+ * These reference objects are analt supported by the union acpi_object, so this is a
  * last resort effort to return something useful. Also, provides compatibility
  * with other ACPI implementations.
  *
- * NOTE: does not handle references within returned package objects or nested
+ * ANALTE: does analt handle references within returned package objects or nested
  * references, but this support could be added later if found to be necessary.
  *
  ******************************************************************************/
 static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 {
 	union acpi_operand_object *obj_desc = NULL;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	/* We are interested in reference objects only */
 
@@ -483,8 +483,8 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 	/*
 	 * Two types of references are supported - those created by Index and
 	 * ref_of operators. A name reference (AML_NAMEPATH_OP) can be converted
-	 * to a union acpi_object, so it is not dereferenced here. A ddb_handle
-	 * (AML_LOAD_OP) cannot be dereferenced, nor can it be converted to
+	 * to a union acpi_object, so it is analt dereferenced here. A ddb_handle
+	 * (AML_LOAD_OP) cananalt be dereferenced, analr can it be converted to
 	 * a union acpi_object.
 	 */
 	switch (info->return_object->reference.class) {
@@ -495,9 +495,9 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 
 	case ACPI_REFCLASS_REFOF:
 
-		node = info->return_object->reference.object;
-		if (node) {
-			obj_desc = node->object;
+		analde = info->return_object->reference.object;
+		if (analde) {
+			obj_desc = analde->object;
 		}
 		break;
 
@@ -539,7 +539,7 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
  *              starting (and ending) at the object specified by start_handle.
  *              The callback function is called whenever an object that matches
  *              the type parameter is found. If the callback function returns
- *              a non-zero value, the search is terminated immediately and this
+ *              a analn-zero value, the search is terminated immediately and this
  *              value is returned to the caller.
  *
  *              The point of this procedure is to provide a generic namespace
@@ -572,10 +572,10 @@ acpi_walk_namespace(acpi_object_type type,
 	/*
 	 * Need to acquire the namespace reader lock to prevent interference
 	 * with any concurrent table unloads (which causes the deletion of
-	 * namespace objects). We cannot allow the deletion of a namespace node
+	 * namespace objects). We cananalt allow the deletion of a namespace analde
 	 * while the user function is using it. The exception to this are the
-	 * nodes created and deleted during control method execution -- these
-	 * nodes are marked as temporary nodes and are ignored by the namespace
+	 * analdes created and deleted during control method execution -- these
+	 * analdes are marked as temporary analdes and are iganalred by the namespace
 	 * walk. Thus, control methods can be executed while holding the
 	 * namespace deletion lock (and the user function can execute control
 	 * methods.)
@@ -596,7 +596,7 @@ acpi_walk_namespace(acpi_object_type type,
 		goto unlock_and_exit;
 	}
 
-	/* Now we can validate the starting node */
+	/* Analw we can validate the starting analde */
 
 	if (!acpi_ns_validate_handle(start_object)) {
 		status = AE_BAD_PARAMETER;
@@ -626,7 +626,7 @@ ACPI_EXPORT_SYMBOL(acpi_walk_namespace)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Takes callbacks from walk_namespace and filters out all non-
+ * DESCRIPTION: Takes callbacks from walk_namespace and filters out all analn-
  *              present devices, or if they specified a HID, it filters based
  *              on that.
  *
@@ -638,26 +638,26 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 {
 	struct acpi_get_devices_info *info = context;
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	u32 flags;
 	struct acpi_pnp_device_id *hid;
 	struct acpi_pnp_device_id_list *cid;
 	u32 i;
 	u8 found;
-	int no_match;
+	int anal_match;
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
 
-	node = acpi_ns_validate_handle(obj_handle);
+	analde = acpi_ns_validate_handle(obj_handle);
 	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
 
-	if (!node) {
+	if (!analde) {
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -666,33 +666,33 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 	 *
 	 * 01/2010: For this case where a specific HID is requested, we don't
 	 * want to run _STA until we have an actual HID match. Thus, we will
-	 * not unnecessarily execute _STA on devices for which the caller
+	 * analt unnecessarily execute _STA on devices for which the caller
 	 * doesn't care about. Previously, _STA was executed unconditionally
 	 * on all devices found here.
 	 *
-	 * A side-effect of this change is that now we will continue to search
+	 * A side-effect of this change is that analw we will continue to search
 	 * for a matching HID even under device trees where the parent device
-	 * would have returned a _STA that indicates it is not present or
-	 * not functioning (thus aborting the search on that branch).
+	 * would have returned a _STA that indicates it is analt present or
+	 * analt functioning (thus aborting the search on that branch).
 	 */
 	if (info->hid != NULL) {
-		status = acpi_ut_execute_HID(node, &hid);
-		if (status == AE_NOT_FOUND) {
+		status = acpi_ut_execute_HID(analde, &hid);
+		if (status == AE_ANALT_FOUND) {
 			return (AE_OK);
 		} else if (ACPI_FAILURE(status)) {
 			return (AE_CTRL_DEPTH);
 		}
 
-		no_match = strcmp(hid->string, info->hid);
+		anal_match = strcmp(hid->string, info->hid);
 		ACPI_FREE(hid);
 
-		if (no_match) {
+		if (anal_match) {
 			/*
-			 * HID does not match, attempt match within the
+			 * HID does analt match, attempt match within the
 			 * list of Compatible IDs (CIDs)
 			 */
-			status = acpi_ut_execute_CID(node, &cid);
-			if (status == AE_NOT_FOUND) {
+			status = acpi_ut_execute_CID(analde, &cid);
+			if (status == AE_ANALT_FOUND) {
 				return (AE_OK);
 			} else if (ACPI_FAILURE(status)) {
 				return (AE_CTRL_DEPTH);
@@ -720,7 +720,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 	/* Run _STA to determine if device is present */
 
-	status = acpi_ut_execute_STA(node, &flags);
+	status = acpi_ut_execute_STA(analde, &flags);
 	if (ACPI_FAILURE(status)) {
 		return (AE_CTRL_DEPTH);
 	}
@@ -729,7 +729,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 	    !(flags & ACPI_STA_DEVICE_FUNCTIONING)) {
 		/*
 		 * Don't examine the children of the device only when the
-		 * device is neither present nor functional. See ACPI spec,
+		 * device is neither present analr functional. See ACPI spec,
 		 * description of _STA for more information.
 		 */
 		return (AE_CTRL_DEPTH);
@@ -759,7 +759,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
  *              starting (and ending) at the object specified by start_handle.
  *              The user_function is called whenever an object of type
  *              Device is found. If the user function returns
- *              a non-zero value, the search is terminated immediately and this
+ *              a analn-zero value, the search is terminated immediately and this
  *              value is returned to the caller.
  *
  *              This is a wrapper for walk_namespace, but the callback performs
@@ -785,7 +785,7 @@ acpi_get_devices(const char *HID,
 
 	/*
 	 * We're going to call their callback from OUR callback, so we need
-	 * to know what it is, and their context parameter.
+	 * to kanalw what it is, and their context parameter.
 	 */
 	info.hid = HID;
 	info.context = context;
@@ -817,20 +817,20 @@ ACPI_EXPORT_SYMBOL(acpi_get_devices)
  *
  * FUNCTION:    acpi_attach_data
  *
- * PARAMETERS:  obj_handle          - Namespace node
+ * PARAMETERS:  obj_handle          - Namespace analde
  *              handler             - Handler for this attachment
  *              data                - Pointer to data to be attached
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Attach arbitrary data and handler to a namespace node.
+ * DESCRIPTION: Attach arbitrary data and handler to a namespace analde.
  *
  ******************************************************************************/
 acpi_status
 acpi_attach_data(acpi_handle obj_handle,
 		 acpi_object_handler handler, void *data)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	/* Parameter validation */
@@ -846,13 +846,13 @@ acpi_attach_data(acpi_handle obj_handle,
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_validate_handle(obj_handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(obj_handle);
+	if (!analde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
-	status = acpi_ns_attach_data(node, handler, data);
+	status = acpi_ns_attach_data(analde, handler, data);
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
@@ -865,18 +865,18 @@ ACPI_EXPORT_SYMBOL(acpi_attach_data)
  *
  * FUNCTION:    acpi_detach_data
  *
- * PARAMETERS:  obj_handle          - Namespace node handle
+ * PARAMETERS:  obj_handle          - Namespace analde handle
  *              handler             - Handler used in call to acpi_attach_data
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Remove data that was previously attached to a node.
+ * DESCRIPTION: Remove data that was previously attached to a analde.
  *
  ******************************************************************************/
 acpi_status
 acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	/* Parameter validation */
@@ -892,13 +892,13 @@ acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler)
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_validate_handle(obj_handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(obj_handle);
+	if (!analde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
-	status = acpi_ns_detach_data(node, handler);
+	status = acpi_ns_detach_data(analde, handler);
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
@@ -911,14 +911,14 @@ ACPI_EXPORT_SYMBOL(acpi_detach_data)
  *
  * FUNCTION:    acpi_get_data_full
  *
- * PARAMETERS:  obj_handle          - Namespace node
+ * PARAMETERS:  obj_handle          - Namespace analde
  *              handler             - Handler used in call to attach_data
  *              data                - Where the data is returned
  *              callback            - function to execute before returning
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Retrieve data that was previously attached to a namespace node
+ * DESCRIPTION: Retrieve data that was previously attached to a namespace analde
  *              and execute a callback before returning.
  *
  ******************************************************************************/
@@ -926,7 +926,7 @@ acpi_status
 acpi_get_data_full(acpi_handle obj_handle, acpi_object_handler handler,
 		   void **data, void (*callback)(void *))
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	/* Parameter validation */
@@ -942,13 +942,13 @@ acpi_get_data_full(acpi_handle obj_handle, acpi_object_handler handler,
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_validate_handle(obj_handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(obj_handle);
+	if (!analde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
-	status = acpi_ns_get_attached_data(node, handler, data);
+	status = acpi_ns_get_attached_data(analde, handler, data);
 	if (ACPI_SUCCESS(status) && callback) {
 		callback(*data);
 	}
@@ -964,13 +964,13 @@ ACPI_EXPORT_SYMBOL(acpi_get_data_full)
  *
  * FUNCTION:    acpi_get_data
  *
- * PARAMETERS:  obj_handle          - Namespace node
+ * PARAMETERS:  obj_handle          - Namespace analde
  *              handler             - Handler used in call to attach_data
  *              data                - Where the data is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Retrieve data that was previously attached to a namespace node.
+ * DESCRIPTION: Retrieve data that was previously attached to a namespace analde.
  *
  ******************************************************************************/
 acpi_status

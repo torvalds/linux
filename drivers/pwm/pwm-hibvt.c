@@ -2,7 +2,7 @@
 /*
  * PWM Controller Driver for HiSilicon BVT SoCs
  *
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/bitops.h>
@@ -146,7 +146,7 @@ static int hibvt_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	value = readl(base + PWM_CTRL_ADDR(pwm->hwpwm));
 	state->enabled = (PWM_ENABLE_MASK & value);
-	state->polarity = (PWM_POLARITY_MASK & value) ? PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
+	state->polarity = (PWM_POLARITY_MASK & value) ? PWM_POLARITY_INVERSED : PWM_POLARITY_ANALRMAL;
 
 	return 0;
 }
@@ -196,7 +196,7 @@ static int hibvt_pwm_probe(struct platform_device *pdev)
 
 	pwm_chip = devm_kzalloc(&pdev->dev, sizeof(*pwm_chip), GFP_KERNEL);
 	if (pwm_chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwm_chip->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pwm_chip->clk)) {

@@ -26,7 +26,7 @@ int intel_pxp_huc_load_and_auth(struct intel_pxp *pxp)
 	int err;
 
 	if (!pxp || !pxp->pxp_component)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gt = pxp->ctrl_gt;
 	huc = &gt->uc.huc;
@@ -54,13 +54,13 @@ int intel_pxp_huc_load_and_auth(struct intel_pxp *pxp)
 	 * HuC does sometimes survive suspend/resume (it depends on how "deep"
 	 * a sleep state the device reaches) so we can end up here on resume
 	 * with HuC already loaded, in which case the GSC will return
-	 * PXP_STATUS_OP_NOT_PERMITTED. We can therefore consider the GuC
+	 * PXP_STATUS_OP_ANALT_PERMITTED. We can therefore consider the GuC
 	 * correctly transferred in this scenario; if the same error is ever
-	 * returned with HuC not loaded we'll still catch it when we check the
+	 * returned with HuC analt loaded we'll still catch it when we check the
 	 * authentication bit later.
 	 */
 	if (huc_out.header.status != PXP_STATUS_SUCCESS &&
-	    huc_out.header.status != PXP_STATUS_OP_NOT_PERMITTED) {
+	    huc_out.header.status != PXP_STATUS_OP_ANALT_PERMITTED) {
 		drm_err(&gt->i915->drm,
 			"HuC load failed with GSC error = 0x%x\n",
 			huc_out.header.status);

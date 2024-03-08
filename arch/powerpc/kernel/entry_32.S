@@ -14,7 +14,7 @@
  *  code, and exception/interrupt return code for PowerPC.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/sys.h>
 #include <linux/threads.h>
@@ -45,7 +45,7 @@
 
 /*
  * Align to 4k in order to ensure that all functions modyfing srr0/srr1
- * fit into one page in order to not encounter a TLB miss between the
+ * fit into one page in order to analt encounter a TLB miss between the
  * modification of srr0/srr1 and the associated rfi.
  */
 	.align	12
@@ -71,7 +71,7 @@ prepare_transfer_to_handler:
 	lwz	r12,_LINK(r11)		/* and return to address in LR */
 	REST_GPR(2, r11)
 	b	fast_exception_return
-_ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
+_ASM_ANALKPROBE_SYMBOL(prepare_transfer_to_handler)
 #endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_PPC_E500 */
 
 #if defined(CONFIG_PPC_KUEP) && defined(CONFIG_PPC_BOOK3S_32)
@@ -205,7 +205,7 @@ start_kernel_thread:
 	PPC440EP_ERR42
 	bctrl
 	/*
-	 * This must not return. We actually want to BUG here, not WARN,
+	 * This must analt return. We actually want to BUG here, analt WARN,
 	 * because BUG will exit the process which is what the kernel thread
 	 * should have done, which may give some hope of continuing.
 	 */
@@ -216,7 +216,7 @@ start_kernel_thread:
 fast_exception_return:
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
 	andi.	r10,r9,MSR_RI		/* check for recoverable interrupt */
-	beq	3f			/* if not, we've got problems */
+	beq	3f			/* if analt, we've got problems */
 #endif
 
 2:	lwz	r10,_CCR(r11)
@@ -240,16 +240,16 @@ fast_exception_return:
 #ifdef CONFIG_40x
 	b .	/* Prevent prefetch past rfi */
 #endif
-_ASM_NOKPROBE_SYMBOL(fast_exception_return)
+_ASM_ANALKPROBE_SYMBOL(fast_exception_return)
 
-/* aargh, a nonrecoverable interrupt, panic */
-/* aargh, we don't know which trap this is */
+/* aargh, a analnrecoverable interrupt, panic */
+/* aargh, we don't kanalw which trap this is */
 3:
 	li	r10,-1
 	stw	r10,_TRAP(r11)
 	prepare_transfer_to_handler
 	bl	unrecoverable_exception
-	trap	/* should not get here */
+	trap	/* should analt get here */
 
 	.globl interrupt_return
 interrupt_return:
@@ -378,17 +378,17 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 #ifdef CONFIG_40x
 	b .	/* Prevent prefetch past rfi */
 #endif
-_ASM_NOKPROBE_SYMBOL(interrupt_return)
+_ASM_ANALKPROBE_SYMBOL(interrupt_return)
 
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 
 /*
  * Returning from a critical interrupt in user mode doesn't need
- * to be any different from a normal exception.  For a critical
+ * to be any different from a analrmal exception.  For a critical
  * interrupt in the kernel, we just return (without checking for
  * preemption) since the interrupt may have happened at some crucial
  * place (e.g. inside the TLB miss handler), and because we will be
- * running with r1 pointing into critical_stack, not the current
+ * running with r1 pointing into critical_stack, analt the current
  * process's kernel stack (and therefore current_thread_info() will
  * give the wrong answer).
  * We have to restore various SPRs that may have been in use at the
@@ -481,7 +481,7 @@ ret_from_crit_exc:
 	mtspr	SPRN_SRR0,r9;
 	mtspr	SPRN_SRR1,r10;
 	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, PPC_RFCI)
-_ASM_NOKPROBE_SYMBOL(ret_from_crit_exc)
+_ASM_ANALKPROBE_SYMBOL(ret_from_crit_exc)
 #endif /* CONFIG_40x */
 
 #ifdef CONFIG_BOOKE
@@ -490,7 +490,7 @@ ret_from_crit_exc:
 	RESTORE_xSRR(SRR0,SRR1);
 	RESTORE_MMU_REGS;
 	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, PPC_RFCI)
-_ASM_NOKPROBE_SYMBOL(ret_from_crit_exc)
+_ASM_ANALKPROBE_SYMBOL(ret_from_crit_exc)
 
 	.globl	ret_from_debug_exc
 ret_from_debug_exc:
@@ -498,7 +498,7 @@ ret_from_debug_exc:
 	RESTORE_xSRR(CSRR0,CSRR1);
 	RESTORE_MMU_REGS;
 	RET_FROM_EXC_LEVEL(SPRN_DSRR0, SPRN_DSRR1, PPC_RFDI)
-_ASM_NOKPROBE_SYMBOL(ret_from_debug_exc)
+_ASM_ANALKPROBE_SYMBOL(ret_from_debug_exc)
 
 	.globl	ret_from_mcheck_exc
 ret_from_mcheck_exc:
@@ -507,6 +507,6 @@ ret_from_mcheck_exc:
 	RESTORE_xSRR(DSRR0,DSRR1);
 	RESTORE_MMU_REGS;
 	RET_FROM_EXC_LEVEL(SPRN_MCSRR0, SPRN_MCSRR1, PPC_RFMCI)
-_ASM_NOKPROBE_SYMBOL(ret_from_mcheck_exc)
+_ASM_ANALKPROBE_SYMBOL(ret_from_mcheck_exc)
 #endif /* CONFIG_BOOKE */
 #endif /* !(CONFIG_4xx || CONFIG_BOOKE) */

@@ -12,16 +12,16 @@ maintainers:
 description: |
   Google GS101 clock controller is comprised of several CMU units, generating
   clocks for different domains. Those CMU units are modeled as separate device
-  tree nodes, and might depend on each other. The root clock in that clock tree
+  tree analdes, and might depend on each other. The root clock in that clock tree
   is OSCCLK (24.576 MHz). That external clock must be defined as a fixed-rate
   clock in dts.
 
   CMU_TOP is a top-level CMU, where all base clocks are prepared using PLLs and
   dividers; all other leaf clocks (other CMUs) are usually derived from CMU_TOP.
 
-  Each clock is assigned an identifier and client nodes can use this identifier
+  Each clock is assigned an identifier and client analdes can use this identifier
   to specify the clock which they consume. All clocks available for usage
-  in clock consumer nodes are defined as preprocessor macros in
+  in clock consumer analdes are defined as preprocessor macros in
   'dt-bindings/clock/gs101.h' header.
 
 properties:
@@ -91,7 +91,7 @@ allOf:
 additionalProperties: false
 
 examples:
-  # Clock controller node for CMU_TOP
+  # Clock controller analde for CMU_TOP
   - |
     #include <dt-bindings/clock/google,gs101.h>
 

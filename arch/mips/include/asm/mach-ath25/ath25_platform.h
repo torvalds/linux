@@ -6,7 +6,7 @@
 
 /*
  * This is board-specific data that is stored in a "fixed" location in flash.
- * It is shared across operating systems, so it should not be changed lightly.
+ * It is shared across operating systems, so it should analt be changed lightly.
  * The main reason we need it is in order to extract the ethernet MAC
  * address(es).
  */
@@ -18,7 +18,7 @@ struct ath25_boarddata {
 #define BD_REV 4
 	char board_name[64];         /* Name of board */
 	u16 major;                   /* Board major number */
-	u16 minor;                   /* Board minor number */
+	u16 mianalr;                   /* Board mianalr number */
 	u32 flags;                   /* Board configuration */
 #define BD_ENET0        0x00000001   /* ENET0 is stuffed */
 #define BD_ENET1        0x00000002   /* ENET1 is stuffed */

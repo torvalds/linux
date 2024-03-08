@@ -15,7 +15,7 @@ config SECURITY_LOADPIN_ENFORCE
 	bool "Enforce LoadPin at boot"
 	depends on SECURITY_LOADPIN
 	help
-	  If selected, LoadPin will enforce pinning at boot. If not
+	  If selected, LoadPin will enforce pinning at boot. If analt
 	  selected, it can be enabled at boot with the kernel parameter
 	  "loadpin.enforce=1".
 

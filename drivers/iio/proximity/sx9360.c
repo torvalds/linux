@@ -25,7 +25,7 @@
 
 #include "sx_common.h"
 
-/* Nominal Oscillator Frequency. */
+/* Analminal Oscillator Frequency. */
 #define SX9360_FOSC_MHZ			4
 #define SX9360_FOSC_HZ			(SX9360_FOSC_MHZ * 1000000)
 
@@ -177,7 +177,7 @@ static const struct iio_chan_spec sx9360_channels[] = {
  * The frequency control register holds the period, with a ~2ms increment.
  * Therefore the smallest frequency is 4MHz / (2047 * 8192),
  * The fastest is 4MHz / 8192.
- * The interval is not linear, but given there is 2047 possible value,
+ * The interval is analt linear, but given there is 2047 possible value,
  * Returns the fake increment of (Max-Min)/2047
  */
 static const struct {
@@ -204,15 +204,15 @@ static const struct regmap_range sx9360_writable_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9360_writeable_regs = {
-	.yes_ranges = sx9360_writable_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sx9360_writable_reg_ranges),
+	.anal_ranges = sx9360_writable_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9360_writable_reg_ranges),
 };
 
 /*
  * All allocated registers are readable, so we just list unallocated
  * ones.
  */
-static const struct regmap_range sx9360_non_readable_reg_ranges[] = {
+static const struct regmap_range sx9360_analn_readable_reg_ranges[] = {
 	regmap_reg_range(SX9360_REG_IRQ_CFG + 1, SX9360_REG_GNRL_CTRL0 - 1),
 	regmap_reg_range(SX9360_REG_GNRL_CTRL2 + 1, SX9360_REG_AFE_CTRL1 - 1),
 	regmap_reg_range(SX9360_REG_AFE_PARAM1_PHM + 1,
@@ -226,8 +226,8 @@ static const struct regmap_range sx9360_non_readable_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9360_readable_regs = {
-	.no_ranges = sx9360_non_readable_reg_ranges,
-	.n_no_ranges = ARRAY_SIZE(sx9360_non_readable_reg_ranges),
+	.anal_ranges = sx9360_analn_readable_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9360_analn_readable_reg_ranges),
 };
 
 static const struct regmap_range sx9360_volatile_reg_ranges[] = {
@@ -238,8 +238,8 @@ static const struct regmap_range sx9360_volatile_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9360_volatile_regs = {
-	.yes_ranges = sx9360_volatile_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sx9360_volatile_reg_ranges),
+	.anal_ranges = sx9360_volatile_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9360_volatile_reg_ranges),
 };
 
 static const struct regmap_config sx9360_regmap_config = {
@@ -262,7 +262,7 @@ static int sx9360_read_prox_data(struct sx_common_data *data,
 }
 
 /*
- * If we have no interrupt support, we have to wait for a scan period
+ * If we have anal interrupt support, we have to wait for a scan period
  * after enabling a channel to get a result.
  */
 static int sx9360_wait_for_sample(struct sx_common_data *data)
@@ -665,7 +665,7 @@ static const struct sx_common_reg_default sx9360_default_regs[] = {
 	{ SX9360_REG_IRQ_MSK, 0x00 },
 	{ SX9360_REG_IRQ_CFG, 0x00, "irq_cfg" },
 	/*
-	 * The lower 2 bits should not be set as it enable sensors measurements.
+	 * The lower 2 bits should analt be set as it enable sensors measurements.
 	 * Turning the detection on before the configuration values are set to
 	 * good values can cause the device to return erroneous readings.
 	 */
@@ -825,7 +825,7 @@ static int sx9360_suspend(struct device *dev)
 	unsigned int regval;
 	int ret;
 
-	disable_irq_nosync(data->client->irq);
+	disable_irq_analsync(data->client->irq);
 
 	mutex_lock(&data->mutex);
 	ret = regmap_read(data->regmap, SX9360_REG_GNRL_CTRL0, &regval);
@@ -894,14 +894,14 @@ static struct i2c_driver sx9360_driver = {
 		 * sx9360_init_compensation() mean a slow probe; prefer async
 		 * so we don't delay boot if we're builtin to the kernel.
 		 */
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= sx9360_probe,
 	.id_table	= sx9360_id,
 };
 module_i2c_driver(sx9360_driver);
 
-MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
+MODULE_AUTHOR("Gwendal Griganalu <gwendal@chromium.org>");
 MODULE_DESCRIPTION("Driver for Semtech SX9360 proximity sensor");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(SEMTECH_PROX);

@@ -41,7 +41,7 @@
  *
  * The OMAP3430ES2 SSI target CM_IDLEST bit is at a different shift
  * from the CM_{I,F}CLKEN bit.  Pass back the correct info via
- * @idlest_reg and @idlest_bit.  No return value.
+ * @idlest_reg and @idlest_bit.  Anal return value.
  */
 static void omap3430es2_clk_ssi_find_idlest(struct clk_hw_omap *clk,
 					    struct clk_omap_reg *idlest_reg,
@@ -74,7 +74,7 @@ const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait = {
  * target IDLEST bits, which exist at a different bit position than
  * the *CLKEN bit position for these modules (DSS and USBHOST) (The
  * default find_idlest code assumes that they are at the same
- * position.)  No return value.
+ * position.)  Anal return value.
  */
 static void
 omap3430es2_clk_dss_usbhost_find_idlest(struct clk_hw_omap *clk,
@@ -111,7 +111,7 @@ const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_dss_usbhost_wait = {
  *
  * The OMAP3430ES2 HSOTGUSB target CM_IDLEST bit is at a different
  * shift from the CM_{I,F}CLKEN bit.  Pass back the correct info via
- * @idlest_reg and @idlest_bit.  No return value.
+ * @idlest_reg and @idlest_bit.  Anal return value.
  */
 static void
 omap3430es2_clk_hsotgusb_find_idlest(struct clk_hw_omap *clk,
@@ -162,11 +162,11 @@ static void am35xx_clk_find_idlest(struct clk_hw_omap *clk,
  *
  * Some clocks don't have companion clocks.  For example, modules with
  * only an interface clock (such as HECC) don't have a companion
- * clock.  Right now, this code relies on the hardware exporting a bit
+ * clock.  Right analw, this code relies on the hardware exporting a bit
  * in the correct companion register that indicates that the
- * nonexistent 'companion clock' is active.  Future patches will
+ * analnexistent 'companion clock' is active.  Future patches will
  * associate this type of code with per-module data structures to
- * avoid this issue, and remove the casts.  No return value.
+ * avoid this issue, and remove the casts.  Anal return value.
  */
 static void am35xx_clk_find_companion(struct clk_hw_omap *clk,
 				      struct clk_omap_reg *other_reg,
@@ -193,7 +193,7 @@ const struct clk_hw_omap_ops clkhwops_am35xx_ipss_module_wait = {
  *
  * The IPSS target CM_IDLEST bit is at a different shift from the
  * CM_{I,F}CLKEN bit.  Pass back the correct info via @idlest_reg
- * and @idlest_bit.  No return value.
+ * and @idlest_bit.  Anal return value.
  */
 static void am35xx_clk_ipss_find_idlest(struct clk_hw_omap *clk,
 					struct clk_omap_reg *idlest_reg,
@@ -218,7 +218,7 @@ const struct clk_hw_omap_ops clkhwops_am35xx_ipss_wait = {
 static struct ti_dt_clk omap3xxx_clks[] = {
 	DT_CLK(NULL, "timer_32k_ck", "omap_32k_fck"),
 	DT_CLK(NULL, "timer_sys_ck", "sys_ck"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 static struct ti_dt_clk omap36xx_omap3430es2plus_clks[] = {
@@ -226,7 +226,7 @@ static struct ti_dt_clk omap36xx_omap3430es2plus_clks[] = {
 	DT_CLK(NULL, "ssi_sst_fck", "ssi_sst_fck_3430es2"),
 	DT_CLK(NULL, "hsotgusb_ick", "hsotgusb_ick_3430es2"),
 	DT_CLK(NULL, "ssi_ick", "ssi_ick_3430es2"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 static struct ti_dt_clk omap3430es1_clks[] = {
@@ -236,13 +236,13 @@ static struct ti_dt_clk omap3430es1_clks[] = {
 	DT_CLK(NULL, "ssi_ick", "ssi_ick_3430es1"),
 	DT_CLK(NULL, "dss1_alwon_fck", "dss1_alwon_fck_3430es1"),
 	DT_CLK(NULL, "dss_ick", "dss_ick_3430es1"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 static struct ti_dt_clk omap36xx_am35xx_omap3430es2plus_clks[] = {
 	DT_CLK(NULL, "dss1_alwon_fck", "dss1_alwon_fck_3430es2"),
 	DT_CLK(NULL, "dss_ick", "dss_ick_3430es2"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 static struct ti_dt_clk am35xx_clks[] = {
@@ -250,7 +250,7 @@ static struct ti_dt_clk am35xx_clks[] = {
 	DT_CLK(NULL, "hsotgusb_fck", "hsotgusb_fck_am35xx"),
 	DT_CLK(NULL, "uart4_ick", "uart4_ick_am35xx"),
 	DT_CLK(NULL, "uart4_fck", "uart4_fck_am35xx"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 static const char *enable_init_clks[] = {

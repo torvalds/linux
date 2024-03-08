@@ -38,12 +38,12 @@ int nvmet_auth_set_key(struct nvmet_host *host, const char *secret,
 
 		if (!crypto_has_shash(hmac, 0, 0)) {
 			pr_err("DH-HMAC-CHAP hash %s unsupported\n", hmac);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 	dhchap_secret = kstrdup(secret, GFP_KERNEL);
 	if (!dhchap_secret)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (set_ctrl) {
 		kfree(host->dhchap_ctrl_secret);
 		host->dhchap_ctrl_secret = strim(dhchap_secret);
@@ -109,7 +109,7 @@ int nvmet_setup_dhgroup(struct nvmet_ctrl *ctrl, u8 dhgroup_id)
 		if (!ctrl->dh_key) {
 			pr_warn("ctrl %d failed to allocate public key\n",
 				ctrl->cntlid);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		ret = nvme_auth_gen_pubkey(ctrl->dh_tfm, ctrl->dh_key,
 					   ctrl->dh_keysize);
@@ -146,7 +146,7 @@ int nvmet_setup_auth(struct nvmet_ctrl *ctrl)
 		break;
 	}
 	if (!host) {
-		pr_debug("host %s not found\n", ctrl->hostnqn);
+		pr_debug("host %s analt found\n", ctrl->hostnqn);
 		ret = -EPERM;
 		goto out_unlock;
 	}
@@ -156,7 +156,7 @@ int nvmet_setup_auth(struct nvmet_ctrl *ctrl)
 		pr_warn("Failed to setup DH group");
 
 	if (!host->dhchap_secret) {
-		pr_debug("No authentication provided\n");
+		pr_debug("Anal authentication provided\n");
 		goto out_unlock;
 	}
 
@@ -184,7 +184,7 @@ int nvmet_setup_auth(struct nvmet_ctrl *ctrl)
 	}
 	pr_debug("%s: using hash %s key %*ph\n", __func__,
 		 ctrl->host_key->hash > 0 ?
-		 nvme_auth_hmac_name(ctrl->host_key->hash) : "none",
+		 nvme_auth_hmac_name(ctrl->host_key->hash) : "analne",
 		 (int)ctrl->host_key->len, ctrl->host_key->key);
 
 	nvme_auth_free_key(ctrl->ctrl_key);
@@ -202,7 +202,7 @@ int nvmet_setup_auth(struct nvmet_ctrl *ctrl)
 	}
 	pr_debug("%s: using ctrl hash %s key %*ph\n", __func__,
 		 ctrl->ctrl_key->hash > 0 ?
-		 nvme_auth_hmac_name(ctrl->ctrl_key->hash) : "none",
+		 nvme_auth_hmac_name(ctrl->ctrl_key->hash) : "analne",
 		 (int)ctrl->ctrl_key->len, ctrl->ctrl_key->key);
 
 out_free_hash:
@@ -307,7 +307,7 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 	if (ctrl->dh_gid != NVME_AUTH_DHGROUP_NULL) {
 		challenge = kmalloc(shash_len, GFP_KERNEL);
 		if (!challenge) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free_response;
 		}
 		ret = nvme_auth_augmented_challenge(ctrl->shash_id,
@@ -326,7 +326,7 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 	shash = kzalloc(sizeof(*shash) + crypto_shash_descsize(shash_tfm),
 			GFP_KERNEL);
 	if (!shash) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_response;
 	}
 	shash->tfm = shash_tfm;
@@ -420,7 +420,7 @@ int nvmet_auth_ctrl_hash(struct nvmet_req *req, u8 *response,
 	if (ctrl->dh_gid != NVME_AUTH_DHGROUP_NULL) {
 		challenge = kmalloc(shash_len, GFP_KERNEL);
 		if (!challenge) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free_response;
 		}
 		ret = nvme_auth_augmented_challenge(ctrl->shash_id,
@@ -435,7 +435,7 @@ int nvmet_auth_ctrl_hash(struct nvmet_req *req, u8 *response,
 	shash = kzalloc(sizeof(*shash) + crypto_shash_descsize(shash_tfm),
 			GFP_KERNEL);
 	if (!shash) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_response;
 	}
 	shash->tfm = shash_tfm;
@@ -490,8 +490,8 @@ int nvmet_auth_ctrl_exponential(struct nvmet_req *req,
 	int ret = 0;
 
 	if (!ctrl->dh_key) {
-		pr_warn("ctrl %d no DH public key!\n", ctrl->cntlid);
-		return -ENOKEY;
+		pr_warn("ctrl %d anal DH public key!\n", ctrl->cntlid);
+		return -EANALKEY;
 	}
 	if (buf_size != ctrl->dh_keysize) {
 		pr_warn("ctrl %d DH public key size mismatch, need %zu is %d\n",
@@ -515,7 +515,7 @@ int nvmet_auth_ctrl_sesskey(struct nvmet_req *req,
 	req->sq->dhchap_skey_len = ctrl->dh_keysize;
 	req->sq->dhchap_skey = kzalloc(req->sq->dhchap_skey_len, GFP_KERNEL);
 	if (!req->sq->dhchap_skey)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = nvme_auth_gen_shared_secret(ctrl->dh_tfm,
 					  pkey, pkey_size,
 					  req->sq->dhchap_skey,

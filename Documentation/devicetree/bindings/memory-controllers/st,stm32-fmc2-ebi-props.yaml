@@ -14,33 +14,33 @@ properties:
   st,fmc2-ebi-cs-transaction-type:
     description: |
       Select one of the transactions type supported
-      0: Asynchronous mode 1 SRAM/FRAM.
-      1: Asynchronous mode 1 PSRAM.
-      2: Asynchronous mode A SRAM/FRAM.
-      3: Asynchronous mode A PSRAM.
-      4: Asynchronous mode 2 NOR.
-      5: Asynchronous mode B NOR.
-      6: Asynchronous mode C NOR.
-      7: Asynchronous mode D NOR.
-      8: Synchronous read synchronous write PSRAM.
-      9: Synchronous read asynchronous write PSRAM.
-      10: Synchronous read synchronous write NOR.
-      11: Synchronous read asynchronous write NOR.
+      0: Asynchroanalus mode 1 SRAM/FRAM.
+      1: Asynchroanalus mode 1 PSRAM.
+      2: Asynchroanalus mode A SRAM/FRAM.
+      3: Asynchroanalus mode A PSRAM.
+      4: Asynchroanalus mode 2 ANALR.
+      5: Asynchroanalus mode B ANALR.
+      6: Asynchroanalus mode C ANALR.
+      7: Asynchroanalus mode D ANALR.
+      8: Synchroanalus read synchroanalus write PSRAM.
+      9: Synchroanalus read asynchroanalus write PSRAM.
+      10: Synchroanalus read synchroanalus write ANALR.
+      11: Synchroanalus read asynchroanalus write ANALR.
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 11
 
   st,fmc2-ebi-cs-cclk-enable:
     description: Continuous clock enable (first bank must be configured
-      in synchronous mode). The FMC_CLK is generated continuously
-      during asynchronous and synchronous access. By default, the
-      FMC_CLK is only generated during synchronous access.
+      in synchroanalus mode). The FMC_CLK is generated continuously
+      during asynchroanalus and synchroanalus access. By default, the
+      FMC_CLK is only generated during synchroanalus access.
     $ref: /schemas/types.yaml#/definitions/flag
 
   st,fmc2-ebi-cs-mux-enable:
     description: Address/Data multiplexed on databus (valid only with
-      NOR and PSRAM transactions type). By default, Address/Data
-      are not multiplexed.
+      ANALR and PSRAM transactions type). By default, Address/Data
+      are analt multiplexed.
     $ref: /schemas/types.yaml#/definitions/flag
 
   st,fmc2-ebi-cs-buswidth:
@@ -57,7 +57,7 @@ properties:
   st,fmc2-ebi-cs-waitcfg-enable:
     description: The NWAIT signal indicates wheither the data from the
       device are valid or if a wait state must be inserted when accessing
-      the device in synchronous mode. By default, the NWAIT signal is
+      the device in synchroanalus mode. By default, the NWAIT signal is
       active one data cycle before wait state.
     $ref: /schemas/types.yaml#/definitions/flag
 
@@ -68,14 +68,14 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
 
   st,fmc2-ebi-cs-asyncwait-enable:
-    description: The NWAIT signal is taken into account during asynchronous
-      transactions. By default, the NWAIT signal is not taken into account
-      during asynchronous transactions.
+    description: The NWAIT signal is taken into account during asynchroanalus
+      transactions. By default, the NWAIT signal is analt taken into account
+      during asynchroanalus transactions.
     $ref: /schemas/types.yaml#/definitions/flag
 
   st,fmc2-ebi-cs-cpsize:
     description: CRAM page size. The controller splits the burst access
-      when the memory page is reached. By default, no burst split when
+      when the memory page is reached. By default, anal burst split when
       crossing page boundary.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 0, 128, 256, 512, 1024 ]
@@ -83,61 +83,61 @@ properties:
 
   st,fmc2-ebi-cs-byte-lane-setup-ns:
     description: This property configures the byte lane setup timing
-      defined in nanoseconds from NBLx low to Chip Select NEx low.
+      defined in naanalseconds from NBLx low to Chip Select NEx low.
 
   st,fmc2-ebi-cs-address-setup-ns:
     description: This property defines the duration of the address setup
-      phase in nanoseconds used for asynchronous read/write transactions.
+      phase in naanalseconds used for asynchroanalus read/write transactions.
 
   st,fmc2-ebi-cs-address-hold-ns:
     description: This property defines the duration of the address hold
-      phase in nanoseconds used for asynchronous multiplexed read/write
+      phase in naanalseconds used for asynchroanalus multiplexed read/write
       transactions.
 
   st,fmc2-ebi-cs-data-setup-ns:
     description: This property defines the duration of the data setup phase
-      in nanoseconds used for asynchronous read/write transactions.
+      in naanalseconds used for asynchroanalus read/write transactions.
 
   st,fmc2-ebi-cs-bus-turnaround-ns:
-    description: This property defines the delay in nanoseconds between the
+    description: This property defines the delay in naanalseconds between the
       end of current read/write transaction and the next transaction.
 
   st,fmc2-ebi-cs-data-hold-ns:
     description: This property defines the duration of the data hold phase
-      in nanoseconds used for asynchronous read/write transactions.
+      in naanalseconds used for asynchroanalus read/write transactions.
 
   st,fmc2-ebi-cs-clk-period-ns:
     description: This property defines the FMC_CLK output signal period in
-      nanoseconds.
+      naanalseconds.
 
   st,fmc2-ebi-cs-data-latency-ns:
     description: This property defines the data latency before reading or
-      writing the first data in nanoseconds.
+      writing the first data in naanalseconds.
 
   st,fmc2-ebi-cs-write-address-setup-ns:
     description: This property defines the duration of the address setup
-      phase in nanoseconds used for asynchronous write transactions.
+      phase in naanalseconds used for asynchroanalus write transactions.
 
   st,fmc2-ebi-cs-write-address-hold-ns:
     description: This property defines the duration of the address hold
-      phase in nanoseconds used for asynchronous multiplexed write
+      phase in naanalseconds used for asynchroanalus multiplexed write
       transactions.
 
   st,fmc2-ebi-cs-write-data-setup-ns:
     description: This property defines the duration of the data setup
-      phase in nanoseconds used for asynchronous write transactions.
+      phase in naanalseconds used for asynchroanalus write transactions.
 
   st,fmc2-ebi-cs-write-bus-turnaround-ns:
     description: This property defines the delay between the end of current
-      write transaction and the next transaction in nanoseconds.
+      write transaction and the next transaction in naanalseconds.
 
   st,fmc2-ebi-cs-write-data-hold-ns:
     description: This property defines the duration of the data hold phase
-      in nanoseconds used for asynchronous write transactions.
+      in naanalseconds used for asynchroanalus write transactions.
 
   st,fmc2-ebi-cs-max-low-pulse-ns:
     description: This property defines the maximum chip select low pulse
-      duration in nanoseconds for synchronous transactions. When this timing
+      duration in naanalseconds for synchroanalus transactions. When this timing
       reaches 0, the controller splits the current access, toggles NE to
       allow device refresh and restarts a new access.
 

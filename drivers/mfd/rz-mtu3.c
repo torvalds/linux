@@ -328,11 +328,11 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->priv_data = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!ddata->priv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = ddata->priv_data;
 

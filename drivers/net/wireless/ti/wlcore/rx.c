@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/gfp.h>
@@ -19,7 +19,7 @@
 #include "hw_ops.h"
 
 /*
- * TODO: this is here just for now, it must be removed when the data
+ * TODO: this is here just for analw, it must be removed when the data
  * operations are in place.
  */
 #include "../wl12xx/reg.h"
@@ -71,10 +71,10 @@ static void wl1271_rx_status(struct wl1271 *wl,
 
 	/*
 	 * FIXME: In wl1251, the SNR should be divided by two.  In wl1271 we
-	 * need to divide by two for now, but TI has been discussing about
+	 * need to divide by two for analw, but TI has been discussing about
 	 * changing it.  This needs to be rechecked.
 	 */
-	wl->noise = desc->rssi - (desc->snr >> 1);
+	wl->analise = desc->rssi - (desc->snr >> 1);
 
 	status->freq = ieee80211_channel_to_frequency(desc->channel,
 						      status->band);
@@ -114,7 +114,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 
 	/*
 	 * In PLT mode we seem to get frames and mac80211 warns about them,
-	 * workaround this by not retrieving them at all.
+	 * workaround this by analt retrieving them at all.
 	 */
 	if (unlikely(wl->plt))
 		return -EINVAL;
@@ -152,11 +152,11 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 		return -EINVAL;
 	}
 
-	/* skb length not including rx descriptor */
+	/* skb length analt including rx descriptor */
 	skb = __dev_alloc_skb(pkt_data_len + reserved, GFP_KERNEL);
 	if (!skb) {
 		wl1271_error("Couldn't allocate RX frame");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* reserve the unaligned payload(if any) */

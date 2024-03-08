@@ -5,7 +5,7 @@
 
 #include "hfi.h"
 
-/* additive distance between non-SOP and SOP space */
+/* additive distance between analn-SOP and SOP space */
 #define SOP_DISTANCE (TXE_PIO_SIZE / 2)
 #define PIO_BLOCK_MASK (PIO_BLOCK_SIZE - 1)
 /* number of QUADWORDs in a block */
@@ -23,7 +23,7 @@
  * Must always write full BLOCK_SIZE bytes blocks.  The first block must
  * be written to the corresponding SOP=1 address.
  *
- * Known:
+ * Kanalwn:
  * o pbuf->start always starts on a block boundary
  * o pbuf can wrap only at a block boundary
  */
@@ -43,7 +43,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 
 	if (dend < send) {
 		/*
-		 * all QWORD data is within the SOP block, does *not*
+		 * all QWORD data is within the SOP block, does *analt*
 		 * reach the end of the SOP block
 		 */
 
@@ -53,11 +53,11 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 			dest += sizeof(u64);
 		}
 		/*
-		 * No boundary checks are needed here:
-		 * 0. We're not on the SOP block boundary
+		 * Anal boundary checks are needed here:
+		 * 0. We're analt on the SOP block boundary
 		 * 1. The possible DWORD dangle will still be within
 		 *    the SOP block
-		 * 2. We cannot wrap except on a block boundary.
+		 * 2. We cananalt wrap except on a block boundary.
 		 */
 	} else {
 		/* QWORD data extends _to_ or beyond the SOP block */
@@ -78,7 +78,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 		 *
 		 * If the data ends at the end of the SOP above and
 		 * the buffer wraps, then pbuf->end == dend == dest
-		 * and nothing will get written, but we will wrap in
+		 * and analthing will get written, but we will wrap in
 		 * case there is a dangling DWORD.
 		 */
 		if (pbuf->end <= dend) {
@@ -92,7 +92,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 			dend -= pbuf->sc->size;
 		}
 
-		/* write 8-byte non-SOP, non-wrap chunk data */
+		/* write 8-byte analn-SOP, analn-wrap chunk data */
 		while (dest < dend) {
 			writeq(*(u64 *)from, dest);
 			from += sizeof(u64);
@@ -111,7 +111,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 		dest += sizeof(u64);
 	}
 	/*
-	 * fill in rest of block, no need to check pbuf->end
+	 * fill in rest of block, anal need to check pbuf->end
 	 * as we only wrap on a block boundary
 	 */
 	while (((unsigned long)dest & PIO_BLOCK_MASK) != 0) {
@@ -127,7 +127,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 /*
  * Handle carry bytes using shifts and masks.
  *
- * NOTE: the value the unused portion of carry is expected to always be zero.
+ * ANALTE: the value the unused portion of carry is expected to always be zero.
  */
 
 /*
@@ -143,7 +143,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 #define mshift(x) (8 * (x))
 
 /*
- * Jump copy - no-loop copy for < 8 bytes.
+ * Jump copy - anal-loop copy for < 8 bytes.
  */
 static inline void jcopy(u8 *dest, const u8 *src, u32 n)
 {
@@ -176,9 +176,9 @@ static inline void jcopy(u8 *dest, const u8 *src, u32 n)
  * of pbuf->carry.  Other bytes are left as-is.  Any previous
  * value in pbuf->carry is lost.
  *
- * NOTES:
- * o do not read from from if nbytes is zero
- * o from may _not_ be u64 aligned.
+ * ANALTES:
+ * o do analt read from from if nbytes is zero
+ * o from may _analt_ be u64 aligned.
  */
 static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
 				  unsigned int nbytes)
@@ -190,10 +190,10 @@ static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
 
 /*
  * Read nbytes bytes from "from" and put them at the end of pbuf->carry.
- * It is expected that the extra read does not overfill carry.
+ * It is expected that the extra read does analt overfill carry.
  *
- * NOTES:
- * o from may _not_ be u64 aligned
+ * ANALTES:
+ * o from may _analt_ be u64 aligned
  * o nbytes may span a QW boundary
  */
 static inline void read_extra_bytes(struct pio_buf *pbuf,
@@ -208,7 +208,7 @@ static inline void read_extra_bytes(struct pio_buf *pbuf,
  * Put the unused part of the next 8 bytes of src into the LSB bytes of
  * pbuf->carry with the upper bytes zeroed..
  *
- * NOTES:
+ * ANALTES:
  * o result must keep unused bytes zeroed
  * o src must be u64 aligned
  */
@@ -235,8 +235,8 @@ static inline void carry8_write8(union mix carry, void __iomem *dest)
 
 /*
  * Write a quad word using all the valid bytes of carry.  If carry
- * has zero valid bytes, nothing is written.
- * Returns 0 on nothing written, non-zero on quad word written.
+ * has zero valid bytes, analthing is written.
+ * Returns 0 on analthing written, analn-zero on quad word written.
  */
 static inline int carry_write8(struct pio_buf *pbuf, void __iomem *dest)
 {
@@ -274,7 +274,7 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 
 	if (dend < send) {
 		/*
-		 * all QWORD data is within the SOP block, does *not*
+		 * all QWORD data is within the SOP block, does *analt*
 		 * reach the end of the SOP block
 		 */
 
@@ -284,11 +284,11 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 			dest += sizeof(u64);
 		}
 		/*
-		 * No boundary checks are needed here:
-		 * 0. We're not on the SOP block boundary
+		 * Anal boundary checks are needed here:
+		 * 0. We're analt on the SOP block boundary
 		 * 1. The possible DWORD dangle will still be within
 		 *    the SOP block
-		 * 2. We cannot wrap except on a block boundary.
+		 * 2. We cananalt wrap except on a block boundary.
 		 */
 	} else {
 		/* QWORD data extends _to_ or beyond the SOP block */
@@ -309,7 +309,7 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 		 *
 		 * If the data ends at the end of the SOP above and
 		 * the buffer wraps, then pbuf->end == dend == dest
-		 * and nothing will get written, but we will wrap in
+		 * and analthing will get written, but we will wrap in
 		 * case there is a dangling DWORD.
 		 */
 		if (pbuf->end <= dend) {
@@ -323,7 +323,7 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 			dend -= pbuf->sc->size;
 		}
 
-		/* write 8-byte non-SOP, non-wrap chunk data */
+		/* write 8-byte analn-SOP, analn-wrap chunk data */
 		while (dest < dend) {
 			writeq(*(u64 *)from, dest);
 			from += sizeof(u64);
@@ -342,7 +342,7 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 
 /*
  * Mid copy helper, "mixed case" - source is 64-bit aligned but carry
- * bytes are non-zero.
+ * bytes are analn-zero.
  *
  * Whole u64s must be written to the chip, so bytes must be manually merged.
  *
@@ -403,11 +403,11 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 	 * copy until until the wrap, then wrap.
 	 *
 	 * If dest is at the wrap, we will fall into the if,
-	 * not do the loop, when wrap.
+	 * analt do the loop, when wrap.
 	 *
 	 * If the data ends at the end of the SOP above and
 	 * the buffer wraps, then pbuf->end == dend == dest
-	 * and nothing will get written.
+	 * and analthing will get written.
 	 */
 	if (pbuf->end <= dend) {
 		while (dest < pbuf->end) {
@@ -420,7 +420,7 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 		dend -= pbuf->sc->size;
 	}
 
-	/* write 8-byte non-SOP, non-wrap chunk data */
+	/* write 8-byte analn-SOP, analn-wrap chunk data */
 	while (dest < dend) {
 		merge_write8(pbuf, dest, from);
 		from += sizeof(u64);
@@ -433,7 +433,7 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 	if (pbuf->carry_bytes + bytes_left >= 8) {
 		unsigned long nread;
 
-		/* there is enough to fill another qw - fill carry */
+		/* there is eanalugh to fill aanalther qw - fill carry */
 		nread = 8 - pbuf->carry_bytes;
 		read_extra_bytes(pbuf, from, nread);
 
@@ -442,10 +442,10 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 		 * Check for wrap and the possibility the write
 		 * should be in SOP space.
 		 *
-		 * The two checks immediately below cannot both be true, hence
-		 * the else. If we have wrapped, we cannot still be within the
+		 * The two checks immediately below cananalt both be true, hence
+		 * the else. If we have wrapped, we cananalt still be within the
 		 * first block. Conversely, if we are still in the first block,
-		 * we cannot have wrapped. We do the wrap check first as that
+		 * we cananalt have wrapped. We do the wrap check first as that
 		 * is more likely.
 		 */
 		/* adjust if we have wrapped */
@@ -459,19 +459,19 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 		carry8_write8(pbuf->carry, dest);
 		pbuf->qw_written++;
 
-		/* now adjust and read the rest of the bytes into carry */
+		/* analw adjust and read the rest of the bytes into carry */
 		bytes_left -= nread;
-		from += nread; /* from is now not aligned */
+		from += nread; /* from is analw analt aligned */
 		read_low_bytes(pbuf, from, bytes_left);
 	} else {
-		/* not enough to fill another qw, append the rest to carry */
+		/* analt eanalugh to fill aanalther qw, append the rest to carry */
 		read_extra_bytes(pbuf, from, bytes_left);
 	}
 }
 
 /*
  * Mid copy helper, "straight case" - source pointer is 64-bit aligned
- * with no carry bytes.
+ * with anal carry bytes.
  *
  * @pbuf: destination buffer
  * @from: data source, is QWORD aligned
@@ -529,11 +529,11 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 	 * copy until until the wrap, then wrap.
 	 *
 	 * If dest is at the wrap, we will fall into the if,
-	 * not do the loop, when wrap.
+	 * analt do the loop, when wrap.
 	 *
 	 * If the data ends at the end of the SOP above and
 	 * the buffer wraps, then pbuf->end == dend == dest
-	 * and nothing will get written.
+	 * and analthing will get written.
 	 */
 	if (pbuf->end <= dend) {
 		while (dest < pbuf->end) {
@@ -546,14 +546,14 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 		dend -= pbuf->sc->size;
 	}
 
-	/* write 8-byte non-SOP, non-wrap chunk data */
+	/* write 8-byte analn-SOP, analn-wrap chunk data */
 	while (dest < dend) {
 		writeq(*(u64 *)from, dest);
 		from += sizeof(u64);
 		dest += sizeof(u64);
 	}
 
-	/* we know carry_bytes was zero on entry to this routine */
+	/* we kanalw carry_bytes was zero on entry to this routine */
 	read_low_bytes(pbuf, from, nbytes & 0x7);
 
 	pbuf->qw_written += nbytes >> 3;
@@ -573,7 +573,7 @@ void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes)
 	unsigned long from_align = (unsigned long)from & 0x7;
 
 	if (pbuf->carry_bytes + nbytes < 8) {
-		/* not enough bytes to fill a QW */
+		/* analt eanalugh bytes to fill a QW */
 		read_extra_bytes(pbuf, from, nbytes);
 		return;
 	}
@@ -586,13 +586,13 @@ void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes)
 		to_align = 8 - from_align;
 
 		/*
-		 * In the advance-to-alignment logic below, we do not need
+		 * In the advance-to-alignment logic below, we do analt need
 		 * to check if we are using more than nbytes.  This is because
-		 * if we are here, we already know that carry+nbytes will
+		 * if we are here, we already kanalw that carry+nbytes will
 		 * fill at least one QW.
 		 */
 		if (pbuf->carry_bytes + to_align < 8) {
-			/* not enough align bytes to fill a QW */
+			/* analt eanalugh align bytes to fill a QW */
 			read_extra_bytes(pbuf, from, to_align);
 			from += to_align;
 			nbytes -= to_align;
@@ -607,19 +607,19 @@ void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes)
 			read_extra_bytes(pbuf, from, to_fill);
 			from += to_fill;
 			nbytes -= to_fill;
-			/* may not be enough valid bytes left to align */
+			/* may analt be eanalugh valid bytes left to align */
 			if (extra > nbytes)
 				extra = nbytes;
 
-			/* ...now write carry */
+			/* ...analw write carry */
 			dest = pbuf->start + (pbuf->qw_written * sizeof(u64));
 
 			/*
-			 * The two checks immediately below cannot both be
+			 * The two checks immediately below cananalt both be
 			 * true, hence the else.  If we have wrapped, we
-			 * cannot still be within the first block.
+			 * cananalt still be within the first block.
 			 * Conversely, if we are still in the first block, we
-			 * cannot have wrapped.  We do the wrap check first
+			 * cananalt have wrapped.  We do the wrap check first
 			 * as that is more likely.
 			 */
 			/* adjust if we've wrapped */
@@ -638,10 +638,10 @@ void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes)
 			from += extra;
 			nbytes -= extra;
 			/*
-			 * If no bytes are left, return early - we are done.
-			 * NOTE: This short-circuit is *required* because
+			 * If anal bytes are left, return early - we are done.
+			 * ANALTE: This short-circuit is *required* because
 			 * "extra" may have been reduced in size and "from"
-			 * is not aligned, as required when leaving this
+			 * is analt aligned, as required when leaving this
 			 * if block.
 			 */
 			if (nbytes == 0)
@@ -669,10 +669,10 @@ void seg_pio_copy_end(struct pio_buf *pbuf)
 	void __iomem *dest = pbuf->start + (pbuf->qw_written * sizeof(u64));
 
 	/*
-	 * The two checks immediately below cannot both be true, hence the
-	 * else.  If we have wrapped, we cannot still be within the first
+	 * The two checks immediately below cananalt both be true, hence the
+	 * else.  If we have wrapped, we cananalt still be within the first
 	 * block.  Conversely, if we are still in the first block, we
-	 * cannot have wrapped.  We do the wrap check first as that is
+	 * cananalt have wrapped.  We do the wrap check first as that is
 	 * more likely.
 	 */
 	/* adjust if we have wrapped */
@@ -686,20 +686,20 @@ void seg_pio_copy_end(struct pio_buf *pbuf)
 	if (carry_write8(pbuf, dest)) {
 		dest += sizeof(u64);
 		/*
-		 * NOTE: We do not need to recalculate whether dest needs
-		 * SOP_DISTANCE or not.
+		 * ANALTE: We do analt need to recalculate whether dest needs
+		 * SOP_DISTANCE or analt.
 		 *
 		 * If we are in the first block and the dangle write
 		 * keeps us in the same block, dest will need
 		 * to retain SOP_DISTANCE in the loop below.
 		 *
 		 * If we are in the first block and the dangle write pushes
-		 * us to the next block, then loop below will not run
-		 * and dest is not used.  Hence we do not need to update
+		 * us to the next block, then loop below will analt run
+		 * and dest is analt used.  Hence we do analt need to update
 		 * it.
 		 *
 		 * If we are past the first block, then SOP_DISTANCE
-		 * was never added, so there is nothing to do.
+		 * was never added, so there is analthing to do.
 		 */
 	}
 

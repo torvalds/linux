@@ -139,7 +139,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 			ctx->ro_insns = (u16 *)jit_data->ro_image;
 			ctx->insns = (u16 *)jit_data->image;
 			/*
-			 * Now, when the image is allocated, the image can
+			 * Analw, when the image is allocated, the image can
 			 * potentially shrink more (auipc/jalr -> jal).
 			 */
 		}
@@ -147,7 +147,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 
 	if (i == NR_JIT_ITERATIONS) {
-		pr_err("bpf-jit: image did not converge in <%d passes!\n", i);
+		pr_err("bpf-jit: image did analt converge in <%d passes!\n", i);
 		prog = orig_prog;
 		goto out_free_hdr;
 	}
@@ -183,7 +183,7 @@ skip_init_ctx:
 			goto out_offset;
 		}
 		/*
-		 * The instructions have now been copied to the ROX region from
+		 * The instructions have analw been copied to the ROX region from
 		 * where they will execute.
 		 * Write any modified data cache blocks out to memory and
 		 * invalidate the corresponding blocks in the instruction cache.
@@ -220,9 +220,9 @@ u64 bpf_jit_alloc_exec_limit(void)
 
 void *bpf_jit_alloc_exec(unsigned long size)
 {
-	return __vmalloc_node_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
+	return __vmalloc_analde_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
 				    BPF_JIT_REGION_END, GFP_KERNEL,
-				    PAGE_KERNEL, 0, NUMA_NO_NODE,
+				    PAGE_KERNEL, 0, NUMA_ANAL_ANALDE,
 				    __builtin_return_address(0));
 }
 
@@ -236,7 +236,7 @@ void *bpf_arch_text_copy(void *dst, void *src, size_t len)
 	int ret;
 
 	mutex_lock(&text_mutex);
-	ret = patch_text_nosync(dst, src, len);
+	ret = patch_text_analsync(dst, src, len);
 	mutex_unlock(&text_mutex);
 
 	if (ret)
@@ -250,7 +250,7 @@ int bpf_arch_text_invalidate(void *dst, size_t len)
 	int ret;
 
 	mutex_lock(&text_mutex);
-	ret = patch_text_set_nosync(dst, 0, len);
+	ret = patch_text_set_analsync(dst, 0, len);
 	mutex_unlock(&text_mutex);
 
 	return ret;
@@ -264,7 +264,7 @@ void bpf_jit_free(struct bpf_prog *prog)
 
 		/*
 		 * If we fail the final pass of JIT (from jit_subprogs),
-		 * the program may not be finalized yet. Call finalize here
+		 * the program may analt be finalized yet. Call finalize here
 		 * before freeing it.
 		 */
 		if (jit_data) {

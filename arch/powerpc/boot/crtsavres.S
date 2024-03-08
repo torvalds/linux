@@ -18,7 +18,7 @@
  * those programs without any restriction coming from the use of this
  * file.  (The General Public License restrictions do apply in other
  * respects; for example, they cover modification of the file, and
- * distribution when not linked into another program.)
+ * distribution when analt linked into aanalther program.)
  *
  * This file is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -26,14 +26,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If analt, write to
  * the Free Software Foundation, 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  *
  *    As a special exception, if you link this library with files
- *    compiled with GCC to produce an executable, this does not cause
+ *    compiled with GCC to produce an executable, this does analt cause
  *    the resulting executable to be covered by the GNU General Public License.
- *    This exception does not however invalidate any other reasons why
+ *    This exception does analt however invalidate any other reasons why
  *    the executable file might be covered by the GNU General Public License.
  */
 

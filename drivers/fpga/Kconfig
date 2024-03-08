@@ -85,7 +85,7 @@ config FPGA_MGR_MACHXO2_SPI
 	  over slave SPI interface.
 
 config FPGA_MGR_TS73XX
-	tristate "Technologic Systems TS-73xx SBC FPGA Manager"
+	tristate "Techanallogic Systems TS-73xx SBC FPGA Manager"
 	depends on ARCH_EP93XX && MACH_TS72XX
 	help
 	  FPGA manager driver support for the Altera Cyclone II FPGA

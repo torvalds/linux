@@ -51,15 +51,15 @@ static const char * const cs4234_dac14_delay_text[] = {
 static SOC_ENUM_SINGLE_DECL(cs4234_dac14_group_delay, CS4234_TPS_CTRL,
 			    CS4234_GRP_DELAY_SHIFT, cs4234_dac14_delay_text);
 
-static const char * const cs4234_noise_gate_text[] = {
+static const char * const cs4234_analise_gate_text[] = {
 	"72dB",  "78dB",  "84dB", "90dB", "96dB", "102dB", "138dB", "Disabled",
 };
-static SOC_ENUM_SINGLE_DECL(cs4234_ll_noise_gate, CS4234_LOW_LAT_CTRL1,
-			    CS4234_LL_NG_SHIFT, cs4234_noise_gate_text);
-static SOC_ENUM_SINGLE_DECL(cs4234_dac14_noise_gate, CS4234_DAC_CTRL1,
-			    CS4234_DAC14_NG_SHIFT, cs4234_noise_gate_text);
-static SOC_ENUM_SINGLE_DECL(cs4234_dac5_noise_gate, CS4234_DAC_CTRL2,
-			    CS4234_DAC5_NG_SHIFT, cs4234_noise_gate_text);
+static SOC_ENUM_SINGLE_DECL(cs4234_ll_analise_gate, CS4234_LOW_LAT_CTRL1,
+			    CS4234_LL_NG_SHIFT, cs4234_analise_gate_text);
+static SOC_ENUM_SINGLE_DECL(cs4234_dac14_analise_gate, CS4234_DAC_CTRL1,
+			    CS4234_DAC14_NG_SHIFT, cs4234_analise_gate_text);
+static SOC_ENUM_SINGLE_DECL(cs4234_dac5_analise_gate, CS4234_DAC_CTRL2,
+			    CS4234_DAC5_NG_SHIFT, cs4234_analise_gate_text);
 
 static const char * const cs4234_dac5_config_fltr_sel_text[] = {
 	"Interpolation Filter", "Sample and Hold"
@@ -145,11 +145,11 @@ static int cs4234_set_bias_level(struct snd_soc_component *component,
 }
 
 static const struct snd_soc_dapm_widget cs4234_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("SDRX1", NULL,  0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("SDRX2", NULL,  1, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("SDRX3", NULL,  2, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("SDRX4", NULL,  3, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("SDRX5", NULL,  4, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDRX1", NULL,  0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDRX2", NULL,  1, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDRX3", NULL,  2, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDRX4", NULL,  3, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDRX5", NULL,  4, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_DAC("DAC1", NULL, CS4234_DAC_CTRL4, CS4234_PDN_DAC1_SHIFT, 1),
 	SND_SOC_DAPM_DAC("DAC2", NULL, CS4234_DAC_CTRL4, CS4234_PDN_DAC2_SHIFT, 1),
@@ -173,10 +173,10 @@ static const struct snd_soc_dapm_widget cs4234_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC3", NULL, CS4234_ADC_CTRL2, CS4234_PDN_ADC3_SHIFT, 1),
 	SND_SOC_DAPM_ADC("ADC4", NULL, CS4234_ADC_CTRL2, CS4234_PDN_ADC4_SHIFT, 1),
 
-	SND_SOC_DAPM_AIF_OUT("SDTX1", NULL, 0, SND_SOC_NOPM, 0, 1),
-	SND_SOC_DAPM_AIF_OUT("SDTX2", NULL, 1, SND_SOC_NOPM, 0, 1),
-	SND_SOC_DAPM_AIF_OUT("SDTX3", NULL, 2, SND_SOC_NOPM, 0, 1),
-	SND_SOC_DAPM_AIF_OUT("SDTX4", NULL, 3, SND_SOC_NOPM, 0, 1),
+	SND_SOC_DAPM_AIF_OUT("SDTX1", NULL, 0, SND_SOC_ANALPM, 0, 1),
+	SND_SOC_DAPM_AIF_OUT("SDTX2", NULL, 1, SND_SOC_ANALPM, 0, 1),
+	SND_SOC_DAPM_AIF_OUT("SDTX3", NULL, 2, SND_SOC_ANALPM, 0, 1),
+	SND_SOC_DAPM_AIF_OUT("SDTX4", NULL, 3, SND_SOC_ANALPM, 0, 1),
 };
 
 static const struct snd_soc_dapm_route cs4234_dapm_routes[] = {
@@ -264,9 +264,9 @@ static const struct snd_kcontrol_new cs4234_snd_controls[] = {
 	SOC_SINGLE("DAC4 Low-latency Invert Switch", CS4234_LOW_LAT_CTRL1,
 		   CS4234_INV_LL4_SHIFT, 1, 0),
 
-	SOC_ENUM("Low-latency Noise Gate", cs4234_ll_noise_gate),
-	SOC_ENUM("DAC1-4 Noise Gate", cs4234_dac14_noise_gate),
-	SOC_ENUM("DAC5 Noise Gate", cs4234_dac5_noise_gate),
+	SOC_ENUM("Low-latency Analise Gate", cs4234_ll_analise_gate),
+	SOC_ENUM("DAC1-4 Analise Gate", cs4234_dac14_analise_gate),
+	SOC_ENUM("DAC5 Analise Gate", cs4234_dac5_analise_gate),
 
 	SOC_SINGLE("DAC1-4 De-emphasis Switch", CS4234_DAC_CTRL1,
 		   CS4234_DAC14_DE_SHIFT, 1, 0),
@@ -474,7 +474,7 @@ static int cs4234_dai_startup(struct snd_pcm_substream *sub, struct snd_soc_dai 
 
 		/*
 		 * Playback only supports 24-bit samples in these modes.
-		 * Note: SNDRV_PCM_HW_PARAM_SAMPLE_BITS constrains the physical
+		 * Analte: SNDRV_PCM_HW_PARAM_SAMPLE_BITS constrains the physical
 		 * width, which we don't care about, so constrain the format.
 		 */
 		if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -633,8 +633,8 @@ static bool cs4234_readable_register(struct device *dev, unsigned int reg)
 static bool cs4234_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS4234_INT_NOTIFY1:
-	case CS4234_INT_NOTIFY2:
+	case CS4234_INT_ANALTIFY1:
+	case CS4234_INT_ANALTIFY2:
 		return true;
 	default:
 		return false;
@@ -645,7 +645,7 @@ static bool cs4234_writeable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS4234_DEVID_AB ... CS4234_REVID:
-	case CS4234_INT_NOTIFY1 ... CS4234_INT_NOTIFY2:
+	case CS4234_INT_ANALTIFY1 ... CS4234_INT_ANALTIFY2:
 		return false;
 	default:
 		return true;
@@ -742,7 +742,7 @@ static int cs4234_i2c_probe(struct i2c_client *i2c_client)
 
 	cs4234 = devm_kzalloc(dev, sizeof(*cs4234), GFP_KERNEL);
 	if (!cs4234)
-		return -ENOMEM;
+		return -EANALMEM;
 	i2c_set_clientdata(i2c_client, cs4234);
 	cs4234->dev = dev;
 	init_completion(&cs4234->vq_ramp_complete);
@@ -796,7 +796,7 @@ static int cs4234_i2c_probe(struct i2c_client *i2c_client)
 
 	devid = (ids[0] << 16) | (ids[1] << 8) | ids[2];
 	if (devid != CS4234_SUPPORTED_ID) {
-		dev_err(dev, "Unknown device ID: %x\n", devid);
+		dev_err(dev, "Unkanalwn device ID: %x\n", devid);
 		ret = -EINVAL;
 		goto fail_shutdown;
 	}

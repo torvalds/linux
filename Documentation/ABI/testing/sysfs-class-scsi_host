@@ -7,13 +7,13 @@ Description:
 		Storage Control Unit embeds up to two 4-port controllers in
 		a single PCI device.  The controllers are enumerated in order
 		which usually means the lowest number scsi_host corresponds
-		with the first controller, but this association is not
+		with the first controller, but this association is analt
 		guaranteed.  The 'isci_id' attribute unambiguously identifies
 		the controller index: '0' for the first controller,
 		'1' for the second.
 
 What:		/sys/class/scsi_host/hostX/acciopath_status
-Date:		November 2013
+Date:		Analvember 2013
 Contact:	Stephen M. Cameron <scameron@beardog.cce.hp.com>
 Description:	This file contains the current status of the "SSD Smart Path"
 		feature of HP Smart Array RAID controllers using the hpsa
@@ -23,7 +23,7 @@ Description:	This file contains the current status of the "SSD Smart Path"
 		stack for a performance advantage when possible.  A value of
 		'1' indicates the feature is enabled, and the controller may
 		use the direct i/o path to physical devices.  A value of zero
-		means the feature is disabled and the controller may not use
+		means the feature is disabled and the controller may analt use
 		the direct i/o path to physical devices.  This setting is
 		controller wide, affecting all configured logical drives on the
 		controller.  This file is readable and writable.
@@ -43,23 +43,23 @@ Description:
 		performance due to increased latency when coming out of lower
 		power states.
 
-		max_performance: Generally, this means no power management.
+		max_performance: Generally, this means anal power management.
 		Tell the controller to have performance be a priority over power
 		management.
 
 		medium_power: Tell the controller to enter a lower power state
-		when possible, but do not enter the lowest power state, thus
+		when possible, but do analt enter the lowest power state, thus
 		improving latency over min_power setting.
 
 		med_power_with_dipm: Identical to the existing medium_power
 		setting except that it enables dipm (device initiated power
 		management) on top, which makes it match the Windows IRST (Intel
-		Rapid Storage Technology) driver settings. This setting is also
+		Rapid Storage Techanallogy) driver settings. This setting is also
 		close to min_power, except that:
 
-		a) It does not use host-initiated slumber mode, but it does
+		a) It does analt use host-initiated slumber mode, but it does
 		   allow device-initiated slumber
-		b) It does not enable low power device sleep mode (DevSlp).
+		b) It does analt enable low power device sleep mode (DevSlp).
 
 What:		/sys/class/scsi_host/hostX/em_message
 What:		/sys/class/scsi_host/hostX/em_message_type
@@ -105,7 +105,7 @@ Description:
 		directly if the host supports EM.
 
 		For eg. the AHCI driver supports SGPIO EM messages but the
-		SATA/AHCI specs do not define the SGPIO message format of the EM
+		SATA/AHCI specs do analt define the SGPIO message format of the EM
 		buffer. Different hardware(HW) vendors may have different
 		definitions. With the em_buffer attribute, this issue can be
 		solved by allowing HW vendors to provide userland drivers and

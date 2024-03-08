@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * V4L2 subdev userspace API
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
@@ -161,7 +161,7 @@ struct v4l2_subdev_frame_interval_enum {
  * @flags: constraint flags, defined in v4l2-common.h; V4L2_SEL_FLAG_*.
  * @r: coordinates of the selection window
  * @stream: stream number, defined in subdev routing
- * @reserved: for future use, set to zero for now
+ * @reserved: for future use, set to zero for analw
  *
  * Hardware may use multiple helper windows to process a video stream.
  * The structure is used to exchange this selection areas between
@@ -181,7 +181,7 @@ struct v4l2_subdev_selection {
  * struct v4l2_subdev_capability - subdev capabilities
  * @version: the driver versioning number
  * @capabilities: the subdev capabilities, see V4L2_SUBDEV_CAP_*
- * @reserved: for future use, set to zero for now
+ * @reserved: for future use, set to zero for analw
  */
 struct v4l2_subdev_capability {
 	__u32 version;
@@ -189,7 +189,7 @@ struct v4l2_subdev_capability {
 	__u32 reserved[14];
 };
 
-/* The v4l2 sub-device video device node is registered in read-only mode. */
+/* The v4l2 sub-device video device analde is registered in read-only mode. */
 #define V4L2_SUBDEV_CAP_RO_SUBDEV		0x00000001
 
 /* The v4l2 sub-device supports routing and multiplexed streams. */
@@ -197,7 +197,7 @@ struct v4l2_subdev_capability {
 
 /*
  * Is the route active? An active route will start when streaming is enabled
- * on a video node.
+ * on a video analde.
  */
 #define V4L2_SUBDEV_ROUTE_FL_ACTIVE		(1U << 0)
 
@@ -237,7 +237,7 @@ struct v4l2_subdev_routing {
 
 /*
  * The client is aware of streams. Setting this flag enables the use of 'stream'
- * fields (referring to the stream number) with various ioctls. If this is not
+ * fields (referring to the stream number) with various ioctls. If this is analt
  * set (which is the default), the 'stream' fields will be forced to 0 by the
  * kernel.
  */
@@ -245,7 +245,7 @@ struct v4l2_subdev_routing {
 
 /*
  * The client is aware of the struct v4l2_subdev_frame_interval which field. If
- * this is not set (which is the default), the which field is forced to
+ * this is analt set (which is the default), the which field is forced to
  * V4L2_SUBDEV_FORMAT_ACTIVE by the kernel.
  */
 #define V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH	(1ULL << 1)

@@ -71,16 +71,16 @@
  *
  * @digest: 160 bit digest to update
  * @data:   512 bits of data to hash
- * @array:  16 words of workspace (see note)
+ * @array:  16 words of workspace (see analte)
  *
  * This function executes SHA-1's internal compression function.  It updates the
  * 160-bit internal state (@digest) with a single 512-bit data block (@data).
  *
- * Don't use this function.  SHA-1 is no longer considered secure.  And even if
+ * Don't use this function.  SHA-1 is anal longer considered secure.  And even if
  * you do have to use SHA-1, this isn't the correct way to hash something with
  * SHA-1 as this doesn't handle padding and finalization.
  *
- * Note: If the hash is security sensitive, the caller should be sure
+ * Analte: If the hash is security sensitive, the caller should be sure
  * to clear the workspace. This is left to the caller to avoid
  * unnecessary clears between chained hashing operations.
  */

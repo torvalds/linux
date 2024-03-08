@@ -80,7 +80,7 @@ static int hns_ppe_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index)
 				  struct_size(ppe_common, ppe_cb, ppe_num),
 				  GFP_KERNEL);
 	if (!ppe_common)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ppe_common->ppe_num = ppe_num;
 	ppe_common->dsaf_dev = dsaf_dev;
@@ -416,13 +416,13 @@ void hns_ppe_update_stats(struct hns_ppe_cb *ppe_cb)
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_SW_PKT_CNT_REG);
 	hw_stats->rx_pkts
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_WR_BD_OK_PKT_CNT_REG);
-	hw_stats->rx_drop_no_bd
-		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_NO_BUF_CNT_REG);
+	hw_stats->rx_drop_anal_bd
+		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_ANAL_BUF_CNT_REG);
 	hw_stats->rx_alloc_buf_fail
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_APP_BUF_FAIL_CNT_REG);
 	hw_stats->rx_alloc_buf_wait
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_APP_BUF_WAIT_CNT_REG);
-	hw_stats->rx_drop_no_buf
+	hw_stats->rx_drop_anal_buf
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_DROP_FUL_CNT_REG);
 	hw_stats->rx_err_fifo_full
 		+= dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_DROP_PRT_CNT_REG);
@@ -464,10 +464,10 @@ void hns_ppe_get_strings(struct hns_ppe_cb *ppe_cb, int stringset, u8 *data)
 
 	ethtool_sprintf(&buff, "ppe%d_rx_sw_pkt", index);
 	ethtool_sprintf(&buff, "ppe%d_rx_pkt_ok", index);
-	ethtool_sprintf(&buff, "ppe%d_rx_drop_pkt_no_bd", index);
+	ethtool_sprintf(&buff, "ppe%d_rx_drop_pkt_anal_bd", index);
 	ethtool_sprintf(&buff, "ppe%d_rx_alloc_buf_fail", index);
 	ethtool_sprintf(&buff, "ppe%d_rx_alloc_buf_wait", index);
-	ethtool_sprintf(&buff, "ppe%d_rx_pkt_drop_no_buf", index);
+	ethtool_sprintf(&buff, "ppe%d_rx_pkt_drop_anal_buf", index);
 	ethtool_sprintf(&buff, "ppe%d_rx_pkt_err_fifo_full", index);
 
 	ethtool_sprintf(&buff, "ppe%d_tx_bd", index);
@@ -484,10 +484,10 @@ void hns_ppe_get_stats(struct hns_ppe_cb *ppe_cb, u64 *data)
 
 	regs_buff[0] = hw_stats->rx_pkts_from_sw;
 	regs_buff[1] = hw_stats->rx_pkts;
-	regs_buff[2] = hw_stats->rx_drop_no_bd;
+	regs_buff[2] = hw_stats->rx_drop_anal_bd;
 	regs_buff[3] = hw_stats->rx_alloc_buf_fail;
 	regs_buff[4] = hw_stats->rx_alloc_buf_wait;
-	regs_buff[5] = hw_stats->rx_drop_no_buf;
+	regs_buff[5] = hw_stats->rx_drop_anal_buf;
 	regs_buff[6] = hw_stats->rx_err_fifo_full;
 
 	regs_buff[7] = hw_stats->tx_bd_form_rcb;
@@ -598,7 +598,7 @@ void hns_ppe_get_regs(struct hns_ppe_cb *ppe_cb, void *data)
 	/* ppe static */
 	regs[546] = dsaf_read_dev(ppe_cb, PPE_HIS_RX_SW_PKT_CNT_REG);
 	regs[547] = dsaf_read_dev(ppe_cb, PPE_HIS_RX_WR_BD_OK_PKT_CNT_REG);
-	regs[548] = dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_NO_BUF_CNT_REG);
+	regs[548] = dsaf_read_dev(ppe_cb, PPE_HIS_RX_PKT_ANAL_BUF_CNT_REG);
 	regs[549] = dsaf_read_dev(ppe_cb, PPE_HIS_TX_BD_CNT_REG);
 	regs[550] = dsaf_read_dev(ppe_cb, PPE_HIS_TX_PKT_CNT_REG);
 	regs[551] = dsaf_read_dev(ppe_cb, PPE_HIS_TX_PKT_OK_CNT_REG);

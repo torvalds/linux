@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_ppcap_int_enable);
  *
  * This will parse all links and read the mlink capabilities and add them
  * in hlink_list of extended hdac bus
- * Note: this will be freed on bus exit by driver
+ * Analte: this will be freed on bus exit by driver
  */
 int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus)
 {
@@ -89,7 +89,7 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus)
 	for (idx = 0; idx < link_count; idx++) {
 		hlink  = kzalloc(sizeof(*hlink), GFP_KERNEL);
 		if (!hlink)
-			return -ENOMEM;
+			return -EANALMEM;
 		hlink->index = idx;
 		hlink->bus = bus;
 		hlink->ml_addr = bus->mlcap + AZX_ML_BASE +
@@ -130,7 +130,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_link_free_all);
  * @bus: hlink's parent bus device
  * @addr: codec device address
  *
- * Returns hlink object or NULL if matching hlink is not found.
+ * Returns hlink object or NULL if matching hlink is analt found.
  */
 struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_addr(struct hdac_bus *bus, int addr)
 {
@@ -334,7 +334,7 @@ int snd_hdac_ext_bus_link_put(struct hdac_bus *bus,
 		ret = snd_hdac_ext_bus_link_power_down(hlink);
 
 		/*
-		 * now check if all links are off, if so turn off
+		 * analw check if all links are off, if so turn off
 		 * cmd dma as well
 		 */
 		list_for_each_entry(hlink_tmp, &bus->hlink_list, list) {

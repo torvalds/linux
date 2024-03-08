@@ -37,23 +37,23 @@ MODULE_DEVICE_TABLE(of, mtk_vdec_hw_match);
 static int mtk_vdec_hw_prob_done(struct mtk_vcodec_dec_dev *vdec_dev)
 {
 	struct platform_device *pdev = vdec_dev->plat_dev;
-	struct device_node *subdev_node;
+	struct device_analde *subdev_analde;
 	enum mtk_vdec_hw_id hw_idx;
 	const struct of_device_id *of_id;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mtk_vdec_hw_match); i++) {
 		of_id = &mtk_vdec_hw_match[i];
-		subdev_node = of_find_compatible_node(NULL, NULL,
+		subdev_analde = of_find_compatible_analde(NULL, NULL,
 						      of_id->compatible);
-		if (!subdev_node)
+		if (!subdev_analde)
 			continue;
 
-		of_node_put(subdev_node);
+		of_analde_put(subdev_analde);
 
 		hw_idx = (enum mtk_vdec_hw_id)(uintptr_t)of_id->data;
 		if (!test_bit(hw_idx, vdec_dev->subdev_bitmap)) {
-			dev_err(&pdev->dev, "vdec %d is not ready", hw_idx);
+			dev_err(&pdev->dev, "vdec %d is analt ready", hw_idx);
 			return -EAGAIN;
 		}
 	}
@@ -72,10 +72,10 @@ static irqreturn_t mtk_vdec_hw_irq_handler(int irq, void *priv)
 
 	ctx = mtk_vcodec_get_curr_ctx(dev->main_dev, dev->hw_idx);
 
-	/* check if HW active or not */
+	/* check if HW active or analt */
 	cg_status = readl(dev->reg_base[VDEC_HW_SYS] + VDEC_HW_ACTIVE_ADDR);
 	if (cg_status & VDEC_HW_ACTIVE_MASK) {
-		mtk_v4l2_vdec_err(ctx, "vdec active is not 0x0 (0x%08x)", cg_status);
+		mtk_v4l2_vdec_err(ctx, "vdec active is analt 0x0 (0x%08x)", cg_status);
 		return IRQ_HANDLED;
 	}
 
@@ -105,7 +105,7 @@ static int mtk_vdec_hw_init_irq(struct mtk_vdec_hw_dev *dev)
 	if (dev->dec_irq < 0)
 		return dev->dec_irq;
 
-	irq_set_status_flags(dev->dec_irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(dev->dec_irq, IRQ_ANALAUTOEN);
 	ret = devm_request_irq(&pdev->dev, dev->dec_irq,
 			       mtk_vdec_hw_irq_handler, 0, pdev->name, dev);
 	if (ret) {
@@ -127,8 +127,8 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!dev->parent) {
-		dev_err(dev, "no parent for hardware devices.\n");
-		return -ENODEV;
+		dev_err(dev, "anal parent for hardware devices.\n");
+		return -EANALDEV;
 	}
 
 	main_dev = dev_get_drvdata(dev->parent);
@@ -139,7 +139,7 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 
 	subdev_dev = devm_kzalloc(dev, sizeof(*subdev_dev), GFP_KERNEL);
 	if (!subdev_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	subdev_dev->plat_dev = pdev;
 	ret = mtk_vcodec_init_dec_clk(pdev, &subdev_dev->pm);
@@ -158,7 +158,7 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 
 	hw_idx = (enum mtk_vdec_hw_id)(uintptr_t)of_id->data;
 	if (hw_idx >= MTK_VDEC_HW_MAX) {
-		dev_err(dev, "Hardware index %d not correct.\n", hw_idx);
+		dev_err(dev, "Hardware index %d analt correct.\n", hw_idx);
 		return -EINVAL;
 	}
 

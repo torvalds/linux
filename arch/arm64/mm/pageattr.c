@@ -83,7 +83,7 @@ static int change_memory_common(unsigned long addr, int numpages,
 	 * Kernel VA mappings are always live, and splitting live section
 	 * mappings into page mappings may cause TLB conflicts. This means
 	 * we have to ensure that changing the permission bits of the range
-	 * we are operating on does not result in such splitting.
+	 * we are operating on does analt result in such splitting.
 	 *
 	 * Let's restrict ourselves to mappings created by vmalloc (or vmap).
 	 * Those are guaranteed to consist entirely of page mappings, and
@@ -162,7 +162,7 @@ int set_memory_valid(unsigned long addr, int numpages, int enable)
 					__pgprot(PTE_VALID));
 }
 
-int set_direct_map_invalid_noflush(struct page *page)
+int set_direct_map_invalid_analflush(struct page *page)
 {
 	struct page_change_data data = {
 		.set_mask = __pgprot(0),
@@ -177,7 +177,7 @@ int set_direct_map_invalid_noflush(struct page *page)
 				   PAGE_SIZE, change_page_range, &data);
 }
 
-int set_direct_map_default_noflush(struct page *page)
+int set_direct_map_default_analflush(struct page *page)
 {
 	struct page_change_data data = {
 		.set_mask = __pgprot(PTE_VALID | PTE_WRITE),
@@ -204,7 +204,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 
 /*
  * This function is used to determine if a linear map page has been marked as
- * not-valid. Walk the page table and check the PTE_VALID bit.
+ * analt-valid. Walk the page table and check the PTE_VALID bit.
  *
  * Because this is only called on the kernel linear map,  p?d_sect() implies
  * p?d_present(). When debug_pagealloc is enabled, sections mappings are
@@ -223,23 +223,23 @@ bool kernel_page_present(struct page *page)
 		return true;
 
 	pgdp = pgd_offset_k(addr);
-	if (pgd_none(READ_ONCE(*pgdp)))
+	if (pgd_analne(READ_ONCE(*pgdp)))
 		return false;
 
 	p4dp = p4d_offset(pgdp, addr);
-	if (p4d_none(READ_ONCE(*p4dp)))
+	if (p4d_analne(READ_ONCE(*p4dp)))
 		return false;
 
 	pudp = pud_offset(p4dp, addr);
 	pud = READ_ONCE(*pudp);
-	if (pud_none(pud))
+	if (pud_analne(pud))
 		return false;
 	if (pud_sect(pud))
 		return true;
 
 	pmdp = pmd_offset(pudp, addr);
 	pmd = READ_ONCE(*pmdp);
-	if (pmd_none(pmd))
+	if (pmd_analne(pmd))
 		return false;
 	if (pmd_sect(pmd))
 		return true;

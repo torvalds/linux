@@ -7,13 +7,13 @@
  *   Ported to an OF platform driver by Sean MacLennan
  *
  *   The NDFC supports multiple chips, but this driver only supports a
- *   single chip since I do not have access to any boards with
+ *   single chip since I do analt have access to any boards with
  *   multiple chips.
  *
  *  Author: Thomas Gleixner
  *
  *  Copyright 2006 IBM
- *  Copyright 2008 PIKA Technologies
+ *  Copyright 2008 PIKA Techanallogies
  *    Sean MacLennan <smaclennan@pikatech.com>
  */
 #include <linux/module.h>
@@ -57,7 +57,7 @@ static void ndfc_hwcontrol(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (ctrl & NAND_CLE)
@@ -105,7 +105,7 @@ static int ndfc_calculate_ecc(struct nand_chip *chip,
  * Speedups for buffer read/write/verify
  *
  * NDFC allows 32bit read/write of data. So we can speed up the buffer
- * functions. No further checking, as nand_base will always read/write
+ * functions. Anal further checking, as nand_base will always read/write
  * page aligned.
  */
 static void ndfc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
@@ -130,9 +130,9 @@ static void ndfc_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
  * Initialize chip structure
  */
 static int ndfc_chip_init(struct ndfc_controller *ndfc,
-			  struct device_node *node)
+			  struct device_analde *analde)
 {
-	struct device_node *flash_np;
+	struct device_analde *flash_np;
 	struct nand_chip *chip = &ndfc->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
@@ -157,15 +157,15 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 
 	mtd->dev.parent = &ndfc->ofdev->dev;
 
-	flash_np = of_get_next_child(node, NULL);
+	flash_np = of_get_next_child(analde, NULL);
 	if (!flash_np)
-		return -ENODEV;
-	nand_set_flash_node(chip, flash_np);
+		return -EANALDEV;
+	nand_set_flash_analde(chip, flash_np);
 
 	mtd->name = kasprintf(GFP_KERNEL, "%s.%pOFn", dev_name(&ndfc->ofdev->dev),
 			      flash_np);
 	if (!mtd->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -176,7 +176,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	ret = mtd_device_register(mtd, NULL, 0);
 
 err:
-	of_node_put(flash_np);
+	of_analde_put(flash_np);
 	if (ret)
 		kfree(mtd->name);
 	return ret;
@@ -191,10 +191,10 @@ static int ndfc_probe(struct platform_device *ofdev)
 	int err, len;
 
 	/* Read the reg property to get the chip select */
-	reg = of_get_property(ofdev->dev.of_node, "reg", &len);
+	reg = of_get_property(ofdev->dev.of_analde, "reg", &len);
 	if (reg == NULL || len != 12) {
 		dev_err(&ofdev->dev, "unable read reg property (%d)\n", len);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	cs = be32_to_cpu(reg[0]);
@@ -210,7 +210,7 @@ static int ndfc_probe(struct platform_device *ofdev)
 	ndfc->ofdev = ofdev;
 	dev_set_drvdata(&ofdev->dev, ndfc);
 
-	ndfc->ndfcbase = of_iomap(ofdev->dev.of_node, 0);
+	ndfc->ndfcbase = of_iomap(ofdev->dev.of_analde, 0);
 	if (!ndfc->ndfcbase) {
 		dev_err(&ofdev->dev, "failed to get memory\n");
 		return -EIO;
@@ -218,21 +218,21 @@ static int ndfc_probe(struct platform_device *ofdev)
 
 	ccr = NDFC_CCR_BS(ndfc->chip_select);
 
-	/* It is ok if ccr does not exist - just default to 0 */
-	reg = of_get_property(ofdev->dev.of_node, "ccr", NULL);
+	/* It is ok if ccr does analt exist - just default to 0 */
+	reg = of_get_property(ofdev->dev.of_analde, "ccr", NULL);
 	if (reg)
 		ccr |= be32_to_cpup(reg);
 
 	out_be32(ndfc->ndfcbase + NDFC_CCR, ccr);
 
 	/* Set the bank settings if given */
-	reg = of_get_property(ofdev->dev.of_node, "bank-settings", NULL);
+	reg = of_get_property(ofdev->dev.of_analde, "bank-settings", NULL);
 	if (reg) {
 		int offset = NDFC_BCFG0 + (ndfc->chip_select << 2);
 		out_be32(ndfc->ndfcbase + offset, be32_to_cpup(reg));
 	}
 
-	err = ndfc_chip_init(ndfc, ofdev->dev.of_node);
+	err = ndfc_chip_init(ndfc, ofdev->dev.of_analde);
 	if (err) {
 		iounmap(ndfc->ndfcbase);
 		return err;

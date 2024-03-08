@@ -51,7 +51,7 @@ enum sknetlink_groups sock_diag_destroy_group(const struct sock *sk)
 	switch (sk->sk_family) {
 	case AF_INET:
 		if (sk->sk_type == SOCK_RAW)
-			return SKNLGRP_NONE;
+			return SKNLGRP_ANALNE;
 
 		switch (sk->sk_protocol) {
 		case IPPROTO_TCP:
@@ -59,11 +59,11 @@ enum sknetlink_groups sock_diag_destroy_group(const struct sock *sk)
 		case IPPROTO_UDP:
 			return SKNLGRP_INET_UDP_DESTROY;
 		default:
-			return SKNLGRP_NONE;
+			return SKNLGRP_ANALNE;
 		}
 	case AF_INET6:
 		if (sk->sk_type == SOCK_RAW)
-			return SKNLGRP_NONE;
+			return SKNLGRP_ANALNE;
 
 		switch (sk->sk_protocol) {
 		case IPPROTO_TCP:
@@ -71,10 +71,10 @@ enum sknetlink_groups sock_diag_destroy_group(const struct sock *sk)
 		case IPPROTO_UDP:
 			return SKNLGRP_INET6_UDP_DESTROY;
 		default:
-			return SKNLGRP_NONE;
+			return SKNLGRP_ANALNE;
 		}
 	default:
-		return SKNLGRP_NONE;
+		return SKNLGRP_ANALNE;
 	}
 }
 
@@ -84,7 +84,7 @@ bool sock_diag_has_destroy_listeners(const struct sock *sk)
 	const struct net *n = sock_net(sk);
 	const enum sknetlink_groups group = sock_diag_destroy_group(sk);
 
-	return group != SKNLGRP_NONE && n->diag_nlsk &&
+	return group != SKNLGRP_ANALNE && n->diag_nlsk &&
 		netlink_has_listeners(n->diag_nlsk, group);
 }
 void sock_diag_broadcast_destroy(struct sock *sk);

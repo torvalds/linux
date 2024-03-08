@@ -12,7 +12,7 @@ menuconfig VIRTUALIZATION
 	help
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -24,7 +24,7 @@ config KVM
 	depends on HIGH_RES_TIMERS
 	depends on X86_LOCAL_APIC
 	select KVM_COMMON
-	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_GENERIC_MMU_ANALTIFIER
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_PFNCACHE
 	select HAVE_KVM_DIRTY_RING_TSO
@@ -33,18 +33,18 @@ config KVM
 	select HAVE_KVM_IRQ_BYPASS
 	select HAVE_KVM_IRQ_ROUTING
 	select KVM_ASYNC_PF
-	select USER_RETURN_NOTIFIER
+	select USER_RETURN_ANALTIFIER
 	select KVM_MMIO
 	select SCHED_INFO
 	select PERF_EVENTS
 	select GUEST_PERF_EVENTS
 	select HAVE_KVM_MSI
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
-	select HAVE_KVM_NO_POLL
+	select HAVE_KVM_ANAL_POLL
 	select KVM_XFER_TO_GUEST_WORK
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select KVM_VFIO
-	select HAVE_KVM_PM_NOTIFIER if PM
+	select HAVE_KVM_PM_ANALTIFIER if PM
 	select KVM_GENERIC_HARDWARE_ENABLING
 	help
 	  Support hosting fully virtualized guest machines using hardware
@@ -53,7 +53,7 @@ config KVM
 	  need to select one or more of the processor modules below.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device analde named /dev/kvm.
 
 	  To compile this as a module, choose M here: the module
 	  will be called kvm.
@@ -104,7 +104,7 @@ config X86_SGX_KVM
 	  Enables KVM guests to create SGX enclaves.
 
 	  This includes support to expose "raw" unreclaimable enclave memory to
-	  guests via a device node, e.g. /dev/sgx_vepc.
+	  guests via a device analde, e.g. /dev/sgx_vepc.
 
 	  If unsure, say N.
 

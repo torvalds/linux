@@ -69,7 +69,7 @@ struct clk_hw *imx_clk_hw_gate_exclusive(const char *name, const char *parent,
 
 	exgate = kzalloc(sizeof(*exgate), GFP_KERNEL);
 	if (!exgate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	gate = &exgate->gate;
 
 	init.name = name;

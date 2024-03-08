@@ -5,7 +5,7 @@
  * Copyright (C) 2018-2020 Texas Instruments Incorporated - http://www.ti.com
  *
  * Authors:	Keerthy
- *		Vitaly Andrianov
+ *		Vitaly Andriaanalv
  *		Tero Kristo
  */
 
@@ -96,7 +96,7 @@ struct sa_tfm_ctx;
 /* SWINFO word-0 flags */
 #define SA_SW_INFO_FLAG_EVICT   0x0001
 #define SA_SW_INFO_FLAG_TEAR    0x0002
-#define SA_SW_INFO_FLAG_NOPD    0x0004
+#define SA_SW_INFO_FLAG_ANALPD    0x0004
 
 /*
  * This type represents the various packet types to be processed
@@ -108,8 +108,8 @@ struct sa_tfm_ctx;
 #define SA_CTX_PE_PKT_TYPE_IPSEC_AH    2    /* IPSec Authentication Header */
 /* IPSec Encapsulating Security Payload */
 #define SA_CTX_PE_PKT_TYPE_IPSEC_ESP   3
-/* Indicates that it is in data mode, It may not be used by PHP */
-#define SA_CTX_PE_PKT_TYPE_NONE        4
+/* Indicates that it is in data mode, It may analt be used by PHP */
+#define SA_CTX_PE_PKT_TYPE_ANALNE        4
 #define SA_CTX_ENC_TYPE1_SZ     64      /* Encryption SC with Key only */
 #define SA_CTX_ENC_TYPE2_SZ     96      /* Encryption SC with Key and Aux1 */
 
@@ -342,7 +342,7 @@ enum sa_submode {
 
 /* Encryption algorithms */
 enum sa_ealg_id {
-	SA_EALG_ID_NONE = 0,        /* No encryption */
+	SA_EALG_ID_ANALNE = 0,        /* Anal encryption */
 	SA_EALG_ID_NULL,            /* NULL encryption */
 	SA_EALG_ID_AES_CTR,         /* AES Counter mode */
 	SA_EALG_ID_AES_F8,          /* AES F8 mode */
@@ -357,7 +357,7 @@ enum sa_ealg_id {
 
 /* Authentication algorithms */
 enum sa_aalg_id {
-	SA_AALG_ID_NONE = 0,      /* No Authentication  */
+	SA_AALG_ID_ANALNE = 0,      /* Anal Authentication  */
 	SA_AALG_ID_NULL = SA_EALG_ID_LAST, /* NULL Authentication  */
 	SA_AALG_ID_MD5,           /* MD5 mode */
 	SA_AALG_ID_SHA1,          /* SHA1 mode */

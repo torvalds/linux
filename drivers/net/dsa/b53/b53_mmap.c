@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -247,8 +247,8 @@ static const struct b53_io_ops b53_mmap_ops = {
 static int b53_mmap_probe_of(struct platform_device *pdev,
 			     struct b53_platform_data **ppdata)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *of_ports, *of_port;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *of_ports, *of_port;
 	struct device *dev = &pdev->dev;
 	struct b53_platform_data *pdata;
 	void __iomem *mem;
@@ -260,7 +260,7 @@ static int b53_mmap_probe_of(struct platform_device *pdev,
 	pdata = devm_kzalloc(dev, sizeof(struct b53_platform_data),
 			     GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->regs = mem;
 	pdata->chip_id = (u32)(unsigned long)device_get_match_data(dev);
@@ -268,11 +268,11 @@ static int b53_mmap_probe_of(struct platform_device *pdev,
 
 	of_ports = of_get_child_by_name(np, "ports");
 	if (!of_ports) {
-		dev_err(dev, "no ports child node found\n");
+		dev_err(dev, "anal ports child analde found\n");
 		return -EINVAL;
 	}
 
-	for_each_available_child_of_node(of_ports, of_port) {
+	for_each_available_child_of_analde(of_ports, of_port) {
 		u32 reg;
 
 		if (of_property_read_u32(of_port, "reg", &reg))
@@ -282,7 +282,7 @@ static int b53_mmap_probe_of(struct platform_device *pdev,
 			pdata->enabled_ports |= BIT(reg);
 	}
 
-	of_node_put(of_ports);
+	of_analde_put(of_ports);
 	*ppdata = pdata;
 
 	return 0;
@@ -290,7 +290,7 @@ static int b53_mmap_probe_of(struct platform_device *pdev,
 
 static int b53_mmap_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct b53_platform_data *pdata = pdev->dev.platform_data;
 	struct b53_mmap_priv *priv;
 	struct b53_device *dev;
@@ -309,13 +309,13 @@ static int b53_mmap_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regs = pdata->regs;
 
 	dev = b53_switch_alloc(&pdev->dev, &b53_mmap_ops, priv);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->pdata = pdata;
 

@@ -13,11 +13,11 @@ description: |
   This module is part of the ROHM BD71828 MFD device. For more details
   see Documentation/devicetree/bindings/mfd/rohm,bd71828-pmic.yaml.
 
-  The regulator controller is represented as a sub-node of the PMIC node
+  The regulator controller is represented as a sub-analde of the PMIC analde
   on the device tree.
 
-  Regulator nodes should be named to BUCK_<number> and LDO_<number>.
-  The valid names for BD71828 regulator nodes are
+  Regulator analdes should be named to BUCK_<number> and LDO_<number>.
+  The valid names for BD71828 regulator analdes are
   BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, BUCK7
   LDO1, LDO2, LDO3, LDO4, LDO5, LDO6, LDO7
 

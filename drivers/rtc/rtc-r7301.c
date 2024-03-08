@@ -2,7 +2,7 @@
 /*
  * EPSON TOYOCOM RTC-7301SF/DG Driver
  *
- * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2016 Akianalbu Mita <akianalbu.mita@gmail.com>
  *
  * Based on rtc-rp5c01.c
  *
@@ -332,7 +332,7 @@ static irqreturn_t rtc7301_irq_handler(int irq, void *dev_id)
 {
 	struct rtc_device *rtc = dev_id;
 	struct rtc7301_priv *priv = dev_get_drvdata(rtc->dev.parent);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u8 alrm_ctrl;
 
 	spin_lock(&priv->lock);
@@ -374,7 +374,7 @@ static int __init rtc7301_rtc_probe(struct platform_device *dev)
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(dev, 0);
 	if (IS_ERR(regs))
@@ -474,7 +474,7 @@ static struct platform_driver rtc7301_rtc_driver = {
 
 module_platform_driver_probe(rtc7301_rtc_driver, rtc7301_rtc_probe);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akianalbu Mita <akianalbu.mita@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("EPSON TOYOCOM RTC-7301SF/DG Driver");
 MODULE_ALIAS("platform:rtc-r7301");

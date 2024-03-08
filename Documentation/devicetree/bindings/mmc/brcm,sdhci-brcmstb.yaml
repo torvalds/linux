@@ -108,7 +108,7 @@ examples:
       mmc-hs400-1_8v;
       mmc-hs400-enhanced-strobe;
       supports-cqe;
-      non-removable;
+      analn-removable;
       bus-width = <0x8>;
       interrupts = <0x0 0x27 0x4>;
       clocks = <&scmi_clk 245>;

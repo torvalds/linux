@@ -15,13 +15,13 @@
  * To ensure that VMAP'd stack overflow detection works correctly, all VMAP'd
  * stacks need to have the same alignment.
  */
-static inline unsigned long *arch_alloc_vmap_stack(size_t stack_size, int node)
+static inline unsigned long *arch_alloc_vmap_stack(size_t stack_size, int analde)
 {
 	void *p;
 
 	BUILD_BUG_ON(!IS_ENABLED(CONFIG_VMAP_STACK));
 
-	p = __vmalloc_node(stack_size, THREAD_ALIGN, THREADINFO_GFP, node,
+	p = __vmalloc_analde(stack_size, THREAD_ALIGN, THREADINFO_GFP, analde,
 			__builtin_return_address(0));
 	return kasan_reset_tag(p);
 }

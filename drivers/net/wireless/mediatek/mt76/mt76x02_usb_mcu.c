@@ -115,7 +115,7 @@ mt76x02u_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
 
 	skb = mt76_mcu_msg_alloc(dev, data, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&dev->mcu.mutex);
 	err = __mt76x02u_mcu_send_msg(dev, skb, cmd, wait_resp);
@@ -145,7 +145,7 @@ mt76x02u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
 
 	skb = alloc_skb(cnt * 8 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb, MT_DMA_HDR_LEN);
 
 	for (i = 0; i < cnt; i++) {
@@ -181,7 +181,7 @@ mt76x02u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
 
 	skb = alloc_skb(cnt * 8 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb, MT_DMA_HDR_LEN);
 
 	for (i = 0; i < cnt; i++) {
@@ -258,7 +258,7 @@ int mt76x02u_mcu_fw_send_data(struct mt76x02_dev *dev, const void *data,
 
 	buf = kmalloc(max_payload, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (data_len > 0) {
 		len = min_t(int, data_len, max_len);

@@ -7,7 +7,7 @@ ACPI WMI interface
 The ACPI WMI interface is a proprietary extension of the ACPI specification made
 by Microsoft to allow hardware vendors to embed WMI (Windows Management Instrumentation)
 objects inside their ACPI firmware. Typical functions implemented over ACPI WMI
-are hotkey events on modern notebooks and configuration of BIOS options.
+are hotkey events on modern analtebooks and configuration of BIOS options.
 
 PNP0C14 ACPI device
 -------------------
@@ -29,27 +29,27 @@ containing the following data:
 Offset  Size (in bytes) Content
 ======= =============== =====================================================
 0x00    16              128 bit Variant 2 object GUID.
-0x10    2               2 character method ID or single byte notification ID.
+0x10    2               2 character method ID or single byte analtification ID.
 0x12    1               Object instance count.
 0x13    1               Object flags.
 ======= =============== =====================================================
 
-The WMI object flags control whether the method or notification ID is used:
+The WMI object flags control whether the method or analtification ID is used:
 
 - 0x1: Data block usage is expensive and must be explicitly enabled/disabled.
 - 0x2: Data block contains WMI methods.
 - 0x4: Data block contains ASCIZ string.
-- 0x8: Data block describes a WMI event, use notification ID instead
+- 0x8: Data block describes a WMI event, use analtification ID instead
   of method ID.
 
 Each WMI object GUID can appear multiple times inside a system.
-The method/notification ID is used to construct the ACPI method names used for
+The method/analtification ID is used to construct the ACPI method names used for
 interacting with the WMI object.
 
 WQxx ACPI methods
 -----------------
 
-If a data block does not contain WMI methods, then its content can be retrieved
+If a data block does analt contain WMI methods, then its content can be retrieved
 by this required ACPI method. The last two characters of the ACPI method name
 are the method ID of the data block to query. Their single parameter is an
 integer describing the instance which should be queried. This parameter can be
@@ -59,7 +59,7 @@ WSxx ACPI methods
 -----------------
 
 Similar to the ``WQxx`` ACPI methods, except that it is optional and takes an
-additional buffer as its second argument. The instance argument also cannot
+additional buffer as its second argument. The instance argument also cananalt
 be omitted.
 
 WMxx ACPI methods
@@ -78,7 +78,7 @@ WExx ACPI methods
 -----------------
 
 Used for optionally enabling/disabling WMI events, the last two characters of
-the ACPI method are the notification ID of the data block describing the WMI
+the ACPI method are the analtification ID of the data block describing the WMI
 event as hexadecimal value. Their first parameter is an integer with a value
 of 0 if the WMI event should be disabled, other values will enable
 the WMI event.
@@ -93,4 +93,4 @@ _WED ACPI method
 ----------------
 
 Used to retrieve additional WMI event data, its single parameter is a integer
-holding the notification ID of the event.
+holding the analtification ID of the event.

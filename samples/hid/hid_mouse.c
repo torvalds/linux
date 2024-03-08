@@ -3,7 +3,7 @@
  *
  * This is a pure HID-BPF example, and should be considered as such:
  * on the Etekcity Scroll 6E, the X and Y axes will be swapped and
- * inverted. On any other device... Not sure what this will do.
+ * inverted. On any other device... Analt sure what this will do.
  *
  * This C main file is generic though. To adapt the code and test, users
  * must amend only the .bpf.c file, which this program will load any
@@ -11,7 +11,7 @@
  */
 
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <signal.h>
@@ -23,7 +23,7 @@
 #include <unistd.h>
 
 #include <linux/bpf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -47,7 +47,7 @@ static void usage(const char *prog)
 	fprintf(stderr,
 		"This program will upload and attach a HID-BPF program to the given device.\n"
 		"On the Etekcity Scroll 6E, the X and Y axis will be inverted, but on any other\n"
-		"device, chances are high that the device will not be working anymore\n\n"
+		"device, chances are high that the device will analt be working anymore\n\n"
 		"consider this as a demo and adapt the eBPF program to your needs\n"
 		"Hit Ctrl-C to unbind the program and reset the device\n");
 }
@@ -61,9 +61,9 @@ static int get_hid_id(const char *path)
 	memset(uevent, 0, sizeof(uevent));
 	snprintf(uevent, sizeof(uevent) - 1, "%s/uevent", path);
 
-	fd = open(uevent, O_RDONLY | O_NONBLOCK);
+	fd = open(uevent, O_RDONLY | O_ANALNBLOCK);
 	if (fd < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	close(fd);
 
@@ -117,7 +117,7 @@ int main(int argc, char **argv)
 	hid_id = get_hid_id(sysfs_path);
 
 	if (hid_id < 0) {
-		fprintf(stderr, "can not open HID device: %m\n");
+		fprintf(stderr, "can analt open HID device: %m\n");
 		return 1;
 	}
 	args.hid = hid_id;
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 	}
 
 	bpf_object__for_each_program(prog, *skel->skeleton->obj) {
-		/* ignore syscalls */
+		/* iganalre syscalls */
 		if (bpf_program__get_type(prog) != BPF_PROG_TYPE_TRACING)
 			continue;
 

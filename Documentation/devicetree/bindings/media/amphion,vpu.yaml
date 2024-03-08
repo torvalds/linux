@@ -16,7 +16,7 @@ description: |-
   on NXP i.MX8Q SoCs.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^vpu@[0-9a-f]+$"
 
   compatible:
@@ -80,8 +80,8 @@ patternProperties:
 
       memory-region:
         description:
-          Phandle to the reserved memory nodes to be associated with the
-          remoteproc device. The reserved memory nodes should be carveout nodes,
+          Phandle to the reserved memory analdes to be associated with the
+          remoteproc device. The reserved memory analdes should be carveout analdes,
           and should be defined as per the bindings in
           Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
         items:
@@ -107,7 +107,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Device node example for i.MX8QM platform:
+  # Device analde example for i.MX8QM platform:
   - |
     #include <dt-bindings/firmware/imx/rsrc.h>
 

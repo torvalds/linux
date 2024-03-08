@@ -28,7 +28,7 @@ ev6_parse_ibox(u64 i_stat, int print)
 #define EV6__I_STAT__ERRMASK	(EV6__I_STAT__PAR)
 
 	if (!(i_stat & EV6__I_STAT__ERRMASK))
-		return MCHK_DISPOSITION_UNKNOWN_ERROR;
+		return MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 	if (!print)
 		return status;
@@ -59,7 +59,7 @@ ev6_parse_mbox(u64 mm_stat, u64 d_stat, u64 c_stat, int print)
 
 	if (!(d_stat & EV6__D_STAT__ERRMASK) && 
 	    !(mm_stat & EV6__MM_STAT__ERRMASK))
-		return MCHK_DISPOSITION_UNKNOWN_ERROR;
+		return MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 	if (!print)
 		return status;
@@ -91,7 +91,7 @@ ev6_parse_cbox(u64 c_addr, u64 c1_syn, u64 c2_syn,
 	       u64 c_stat, u64 c_sts, int print)
 {
 	static const char * const sourcename[] = {
-		"UNKNOWN", "UNKNOWN", "UNKNOWN",
+		"UNKANALWN", "UNKANALWN", "UNKANALWN",
 		"MEMORY", "BCACHE", "DCACHE",
 		"BCACHE PROBE", "BCACHE PROBE"
 	};
@@ -128,7 +128,7 @@ ev6_parse_cbox(u64 c_addr, u64 c1_syn, u64 c2_syn,
 #define EV6__C_STS__PARITY		(1 << 3)
 
 	if (!(c_stat & EV6__C_STAT__ERRMASK))
-		return MCHK_DISPOSITION_UNKNOWN_ERROR;
+		return MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 	if (!print)
 		return status;
@@ -180,7 +180,7 @@ ev6_parse_cbox(u64 c_addr, u64 c1_syn, u64 c2_syn,
 void
 ev6_register_error_handlers(void)
 {
-	/* None right now. */
+	/* Analne right analw. */
 }
 
 int
@@ -188,7 +188,7 @@ ev6_process_logout_frame(struct el_common *mchk_header, int print)
 {
 	struct el_common_EV6_mcheck *ev6mchk = 
 		(struct el_common_EV6_mcheck *)mchk_header;
-	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int status = MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 	status |= ev6_parse_ibox(ev6mchk->I_STAT, print);
 	status |= ev6_parse_mbox(ev6mchk->MM_STAT, ev6mchk->DC_STAT, 
@@ -214,12 +214,12 @@ ev6_process_logout_frame(struct el_common *mchk_header, int print)
 		       ev6mchk->EXC_ADDR, ev6mchk->IER_CM, ev6mchk->ISUM,
 		       ev6mchk->PAL_BASE, ev6mchk->I_CTL, ev6mchk->PCTX);
 
-		if (status == MCHK_DISPOSITION_UNKNOWN_ERROR) {
-			printk("%s    UNKNOWN error, frame follows:\n",
+		if (status == MCHK_DISPOSITION_UNKANALWN_ERROR) {
+			printk("%s    UNKANALWN error, frame follows:\n",
 			       err_print_prefix);
 		} else {
 			/* had decode -- downgrade print level for frame */
-			err_print_prefix = KERN_NOTICE;
+			err_print_prefix = KERN_ANALTICE;
 		}
 
 		mchk_dump_logout_frame(mchk_header);
@@ -252,7 +252,7 @@ ev6_machine_check(unsigned long vector, unsigned long la_ptr)
 		err_print_prefix = KERN_CRIT;
 
 		/*
-		 * Either a nondismissable error was detected or no
+		 * Either a analndismissable error was detected or anal
 		 * recognized error was detected  in the logout frame 
 		 * -- report the error in either case
 		 */

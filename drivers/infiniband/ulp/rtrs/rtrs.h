@@ -3,8 +3,8 @@
  * RDMA Transport Layer
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 #ifndef RTRS_H
 #define RTRS_H
@@ -43,7 +43,7 @@ struct rtrs_addr {
 /**
  * rtrs_clt_ops - it holds the link event callback and private pointer.
  * @priv: User supplied private data.
- * @link_ev: Event notification callback function for connection state changes
+ * @link_ev: Event analtification callback function for connection state changes
  *	@priv: User supplied data that was passed to rtrs_clt_open()
  *	@ev: Occurred event
  */
@@ -62,7 +62,7 @@ struct rtrs_clt_sess *rtrs_clt_open(struct rtrs_clt_ops *ops,
 void rtrs_clt_close(struct rtrs_clt_sess *clt);
 
 enum wait_type {
-	RTRS_PERMIT_NOWAIT = 0,
+	RTRS_PERMIT_ANALWAIT = 0,
 	RTRS_PERMIT_WAIT   = 1
 };
 
@@ -91,11 +91,11 @@ void rtrs_clt_put_permit(struct rtrs_clt_sess *sess,
  * @conf_fn:	callback function to be called as confirmation
  *	@priv:	User provided data, passed back with corresponding
  *		@(conf) confirmation.
- *	@errno: error number.
+ *	@erranal: error number.
  */
 struct rtrs_clt_req_ops {
 	void	*priv;
-	void	(*conf_fn)(void *priv, int errno);
+	void	(*conf_fn)(void *priv, int erranal);
 };
 
 int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
@@ -132,7 +132,7 @@ enum rtrs_srv_link_ev {
 
 struct rtrs_srv_ops {
 	/**
-	 * rdma_ev():		Event notification for RDMA operations
+	 * rdma_ev():		Event analtification for RDMA operations
 	 *			If the callback returns a value != 0, an error
 	 *			message for the data transfer will be sent to
 	 *			the client.
@@ -171,7 +171,7 @@ struct rtrs_srv_ctx *rtrs_srv_open(struct rtrs_srv_ops *ops, u16 port);
 
 void rtrs_srv_close(struct rtrs_srv_ctx *ctx);
 
-bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int errno);
+bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int erranal);
 
 void rtrs_srv_set_sess_priv(struct rtrs_srv_sess *sess, void *priv);
 

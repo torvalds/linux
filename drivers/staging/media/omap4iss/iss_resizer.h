@@ -13,7 +13,7 @@
 #include "iss_video.h"
 
 enum resizer_input_entity {
-	RESIZER_INPUT_NONE,
+	RESIZER_INPUT_ANALNE,
 	RESIZER_INPUT_IPIPE,
 	RESIZER_INPUT_IPIPEIF
 };
@@ -33,7 +33,7 @@ enum resizer_input_entity {
  * @formats: Active video formats
  * @input: Active input
  * @output: Active outputs
- * @video_out: Output video node
+ * @video_out: Output video analde
  * @error: A hardware error occurred during capture
  * @state: Streaming state
  * @wait: Wait queue used to stop the module

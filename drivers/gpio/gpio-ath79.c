@@ -226,7 +226,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 {
 	struct ath79_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct ath79_gpio_ctrl *ctrl;
 	struct gpio_irq_chip *girq;
 	u32 ath79_gpio_count;
@@ -235,12 +235,12 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (np) {
 		err = of_property_read_u32(np, "ngpios", &ath79_gpio_count);
 		if (err) {
-			dev_err(dev, "ngpios property is not valid\n");
+			dev_err(dev, "ngpios property is analt valid\n");
 			return err;
 		}
 		oe_inverted = of_device_is_compatible(np, "qca,ar9340-gpio");
@@ -248,7 +248,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		ath79_gpio_count = pdata->ngpios;
 		oe_inverted = pdata->oe_inverted;
 	} else {
-		dev_err(dev, "No DT node or platform data found\n");
+		dev_err(dev, "Anal DT analde or platform data found\n");
 		return -EINVAL;
 	}
 
@@ -285,9 +285,9 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = platform_get_irq(pdev, 0);
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 	}
 

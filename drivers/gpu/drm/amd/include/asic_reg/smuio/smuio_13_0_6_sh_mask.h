@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -339,7 +339,7 @@
 #define CKSVII2C_IC_STATUS__MST_HOLD_RX_FIFO_FULL__SHIFT                                                      0x8
 #define CKSVII2C_IC_STATUS__SLV_HOLD_TX_FIFO_EMPTY__SHIFT                                                     0x9
 #define CKSVII2C_IC_STATUS__SLV_HOLD_RX_FIFO_FULL__SHIFT                                                      0xa
-#define CKSVII2C_IC_STATUS__SDA_STUCK_NOT_RECOVERED__SHIFT                                                    0xb
+#define CKSVII2C_IC_STATUS__SDA_STUCK_ANALT_RECOVERED__SHIFT                                                    0xb
 #define CKSVII2C_IC_STATUS__ACTIVITY_MASK                                                                     0x00000001L
 #define CKSVII2C_IC_STATUS__TFNF_MASK                                                                         0x00000002L
 #define CKSVII2C_IC_STATUS__TFE_MASK                                                                          0x00000004L
@@ -351,7 +351,7 @@
 #define CKSVII2C_IC_STATUS__MST_HOLD_RX_FIFO_FULL_MASK                                                        0x00000100L
 #define CKSVII2C_IC_STATUS__SLV_HOLD_TX_FIFO_EMPTY_MASK                                                       0x00000200L
 #define CKSVII2C_IC_STATUS__SLV_HOLD_RX_FIFO_FULL_MASK                                                        0x00000400L
-#define CKSVII2C_IC_STATUS__SDA_STUCK_NOT_RECOVERED_MASK                                                      0x00000800L
+#define CKSVII2C_IC_STATUS__SDA_STUCK_ANALT_RECOVERED_MASK                                                      0x00000800L
 //CKSVII2C_IC_TXFLR
 #define CKSVII2C_IC_TXFLR__TXFLR__SHIFT                                                                       0x0
 #define CKSVII2C_IC_TXFLR__TXFLR_MASK                                                                         0x0000003FL
@@ -577,7 +577,7 @@
 #define CKSVII2C1_IC_STATUS__MST1_HOLD_RX_FIFO_FULL__SHIFT                                                    0x8
 #define CKSVII2C1_IC_STATUS__SLV1_HOLD_TX_FIFO_EMPTY__SHIFT                                                   0x9
 #define CKSVII2C1_IC_STATUS__SLV1_HOLD_RX_FIFO_FULL__SHIFT                                                    0xa
-#define CKSVII2C1_IC_STATUS__SDA1_STUCK_NOT_RECOVERED__SHIFT                                                  0xb
+#define CKSVII2C1_IC_STATUS__SDA1_STUCK_ANALT_RECOVERED__SHIFT                                                  0xb
 #define CKSVII2C1_IC_STATUS__ACTIVITY1_MASK                                                                   0x00000001L
 #define CKSVII2C1_IC_STATUS__TFNF1_MASK                                                                       0x00000002L
 #define CKSVII2C1_IC_STATUS__TFE1_MASK                                                                        0x00000004L
@@ -589,7 +589,7 @@
 #define CKSVII2C1_IC_STATUS__MST1_HOLD_RX_FIFO_FULL_MASK                                                      0x00000100L
 #define CKSVII2C1_IC_STATUS__SLV1_HOLD_TX_FIFO_EMPTY_MASK                                                     0x00000200L
 #define CKSVII2C1_IC_STATUS__SLV1_HOLD_RX_FIFO_FULL_MASK                                                      0x00000400L
-#define CKSVII2C1_IC_STATUS__SDA1_STUCK_NOT_RECOVERED_MASK                                                    0x00000800L
+#define CKSVII2C1_IC_STATUS__SDA1_STUCK_ANALT_RECOVERED_MASK                                                    0x00000800L
 //CKSVII2C1_IC_TXFLR
 #define CKSVII2C1_IC_TXFLR__TXFLR1__SHIFT                                                                     0x0
 #define CKSVII2C1_IC_TXFLR__TXFLR1_MASK                                                                       0x0000003FL

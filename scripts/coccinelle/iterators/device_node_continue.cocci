@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/// Device node iterators put the previous value of the index variable, so an
+/// Device analde iterators put the previous value of the index variable, so an
 /// explicit put causes a double put.
 ///
 // Confidence: High
 // Copyright: (C) 2015 Julia Lawall, Inria.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 // Requires: 1.0.4
-// Keywords: for_each_child_of_node, etc.
+// Keywords: for_each_child_of_analde, etc.
 
 // This uses a conjunction, which requires at least coccinelle >= 1.0.4
 
@@ -19,10 +19,10 @@ virtual report
 @r exists@
 expression e1,e2;
 local idexpression n;
-iterator name for_each_node_by_name, for_each_node_by_type,
-for_each_compatible_node, for_each_matching_node,
-for_each_matching_node_and_match, for_each_child_of_node,
-for_each_available_child_of_node, for_each_node_with_property;
+iterator name for_each_analde_by_name, for_each_analde_by_type,
+for_each_compatible_analde, for_each_matching_analde,
+for_each_matching_analde_and_match, for_each_child_of_analde,
+for_each_available_child_of_analde, for_each_analde_with_property;
 iterator i;
 position p1,p2;
 statement S;
@@ -30,27 +30,27 @@ statement S;
 
 (
 (
-for_each_node_by_name(n,e1) S
+for_each_analde_by_name(n,e1) S
 |
-for_each_node_by_type(n,e1) S
+for_each_analde_by_type(n,e1) S
 |
-for_each_compatible_node(n,e1,e2) S
+for_each_compatible_analde(n,e1,e2) S
 |
-for_each_matching_node(n,e1) S
+for_each_matching_analde(n,e1) S
 |
-for_each_matching_node_and_match(n,e1,e2) S
+for_each_matching_analde_and_match(n,e1,e2) S
 |
-for_each_child_of_node(e1,n) S
+for_each_child_of_analde(e1,n) S
 |
-for_each_available_child_of_node(e1,n) S
+for_each_available_child_of_analde(e1,n) S
 |
-for_each_node_with_property(n,e1) S
+for_each_analde_with_property(n,e1) S
 )
 &
 i@p1(...) {
-   ... when != of_node_get(n)
+   ... when != of_analde_get(n)
        when any
-   of_node_put@p2(n);
+   of_analde_put@p2(n);
    ... when any
 }
 )
@@ -62,7 +62,7 @@ position r.p1,r.p2;
 iterator i;
 @@
 
- of_node_put@p2(n);
+ of_analde_put@p2(n);
  ... when any
  i@p1(..., n, ...)
  S
@@ -72,7 +72,7 @@ local idexpression n;
 position r.p2;
 @@
 
-- of_node_put@p2(n);
+- of_analde_put@p2(n);
 
 // ----------------------------------------------------------------------------
 
@@ -82,7 +82,7 @@ position r.p2;
 position j0;
 @@
 
-*  of_node_put@j0@p2(n);
+*  of_analde_put@j0@p2(n);
 
 // ----------------------------------------------------------------------------
 

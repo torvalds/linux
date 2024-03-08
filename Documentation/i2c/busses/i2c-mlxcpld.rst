@@ -2,9 +2,9 @@
 Driver i2c-mlxcpld
 ==================
 
-Author: Michael Shych <michaelsh@mellanox.com>
+Author: Michael Shych <michaelsh@mellaanalx.com>
 
-This is the Mellanox I2C controller logic, implemented in Lattice CPLD
+This is the Mellaanalx I2C controller logic, implemented in Lattice CPLD
 device.
 
 Device supports:
@@ -12,7 +12,7 @@ Device supports:
  - One physical bus.
  - Polling mode.
 
-This controller is equipped within the next Mellanox systems:
+This controller is equipped within the next Mellaanalx systems:
 "msx6710", "msx6720", "msb7700", "msn2700", "msx1410", "msn2410", "msb7800",
 "msn2740", "msn2100".
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techanallogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  */
@@ -54,7 +54,7 @@ static struct sk_buff *mt7601u_mcu_msg_alloc(const void *data, int len)
 {
 	struct sk_buff *skb;
 
-	WARN_ON(len % 4); /* if length is not divisible by 4 we need to pad */
+	WARN_ON(len % 4); /* if length is analt divisible by 4 we need to pad */
 
 	skb = alloc_skb(len + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
 	if (skb) {
@@ -166,7 +166,7 @@ static int mt7601u_mcu_function_select(struct mt7601u_dev *dev,
 
 	skb = mt7601u_mcu_msg_alloc(&msg, sizeof(msg));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	return mt7601u_mcu_msg_send(dev, skb, CMD_FUN_SET_OP, func == 5);
 }
 
@@ -203,7 +203,7 @@ mt7601u_mcu_calibrate(struct mt7601u_dev *dev, enum mcu_calibrate cal, u32 val)
 
 	skb = mt7601u_mcu_msg_alloc(&msg, sizeof(msg));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	return mt7601u_mcu_msg_send(dev, skb, CMD_CALIBRATION_OP, true);
 }
 
@@ -221,7 +221,7 @@ int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 
 	skb = alloc_skb(cnt * 8 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb, MT_DMA_HDR_LEN);
 
 	for (i = 0; i < cnt; i++) {
@@ -250,7 +250,7 @@ int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
 
 	skb = alloc_skb(cnt * 4 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb, MT_DMA_HDR_LEN);
 
 	skb_put_le32(skb, MT_MCU_MEMMAP_WLAN + offset);
@@ -362,9 +362,9 @@ mt7601u_upload_firmware(struct mt7601u_dev *dev, const struct mt76_fw *fw)
 
 	ivb = kmemdup(fw->ivb, sizeof(fw->ivb), GFP_KERNEL);
 	if (!ivb)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (mt7601u_usb_alloc_buf(dev, MCU_FW_URB_SIZE, &dma_buf)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -485,7 +485,7 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 err_inv_fw:
 	dev_err(dev->dev, "Invalid firmware image\n");
 	release_firmware(fw);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int mt7601u_mcu_init(struct mt7601u_dev *dev)
@@ -514,7 +514,7 @@ int mt7601u_mcu_cmd_init(struct mt7601u_dev *dev)
 	init_completion(&dev->mcu.resp_cmpl);
 	if (mt7601u_usb_alloc_buf(dev, MCU_RESP_URB_SIZE, &dev->mcu.resp)) {
 		mt7601u_usb_free_buf(dev, &dev->mcu.resp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,

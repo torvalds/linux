@@ -8,7 +8,7 @@
  *	       Cornelia Huck (cornelia.huck@de.ibm.com)
  */
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/device.h>
@@ -26,7 +26,7 @@
 
 /* In Linux 2.4, we had a channel device layer called "chandev"
  * that did all sorts of obscure stuff for networking devices.
- * This is another driver that serves as a replacement for just
+ * This is aanalther driver that serves as a replacement for just
  * one of its functions, namely the translation of single subchannels
  * to devices that use multiple subchannels.
  */
@@ -58,7 +58,7 @@ int ccwgroup_set_online(struct ccwgroup_device *gdev)
 	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(gdev->dev.driver);
 	int ret = -EINVAL;
 
-	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
+	if (atomic_cmpxchg(&gdev->oanalff, 0, 1) != 0)
 		return -EAGAIN;
 	if (gdev->state == CCWGROUP_ONLINE)
 		goto out;
@@ -69,7 +69,7 @@ int ccwgroup_set_online(struct ccwgroup_device *gdev)
 
 	gdev->state = CCWGROUP_ONLINE;
 out:
-	atomic_set(&gdev->onoff, 0);
+	atomic_set(&gdev->oanalff, 0);
 	return ret;
 }
 EXPORT_SYMBOL(ccwgroup_set_online);
@@ -88,7 +88,7 @@ int ccwgroup_set_offline(struct ccwgroup_device *gdev, bool call_gdrv)
 	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(gdev->dev.driver);
 	int ret = -EINVAL;
 
-	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
+	if (atomic_cmpxchg(&gdev->oanalff, 0, 1) != 0)
 		return -EAGAIN;
 	if (gdev->state == CCWGROUP_OFFLINE)
 		goto out;
@@ -104,7 +104,7 @@ int ccwgroup_set_offline(struct ccwgroup_device *gdev, bool call_gdrv)
 offline:
 	gdev->state = CCWGROUP_OFFLINE;
 out:
-	atomic_set(&gdev->onoff, 0);
+	atomic_set(&gdev->oanalff, 0);
 	return ret;
 }
 EXPORT_SYMBOL(ccwgroup_set_offline);
@@ -151,7 +151,7 @@ static ssize_t ccwgroup_online_show(struct device *dev,
 }
 
 /*
- * Provide an 'ungroup' attribute so the user can remove group devices no
+ * Provide an 'ungroup' attribute so the user can remove group devices anal
  * longer needed or accidentally created. Saves memory :)
  */
 static void ccwgroup_ungroup(struct ccwgroup_device *gdev)
@@ -172,7 +172,7 @@ static ssize_t ccwgroup_ungroup_store(struct device *dev,
 	int rc = 0;
 
 	/* Prevent concurrent online/offline processing and ungrouping. */
-	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
+	if (atomic_cmpxchg(&gdev->oanalff, 0, 1) != 0)
 		return -EAGAIN;
 	if (gdev->state != CCWGROUP_OFFLINE) {
 		rc = -EINVAL;
@@ -182,11 +182,11 @@ static ssize_t ccwgroup_ungroup_store(struct device *dev,
 	if (device_remove_file_self(dev, attr))
 		ccwgroup_ungroup(gdev);
 	else
-		rc = -ENODEV;
+		rc = -EANALDEV;
 out:
 	if (rc) {
-		/* Release onoff "lock" when ungrouping failed. */
-		atomic_set(&gdev->onoff, 0);
+		/* Release oanalff "lock" when ungrouping failed. */
+		atomic_set(&gdev->oanalff, 0);
 		return rc;
 	}
 	return count;
@@ -266,7 +266,7 @@ static int __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
 
 static int __get_next_id(const char **buf, struct ccw_dev_id *id)
 {
-	unsigned int cssid, ssid, devno;
+	unsigned int cssid, ssid, devanal;
 	int ret = 0, len;
 	char *start, *end;
 
@@ -283,14 +283,14 @@ static int __get_next_id(const char **buf, struct ccw_dev_id *id)
 		end++;
 	}
 	if (len <= CCW_BUS_ID_SIZE) {
-		if (sscanf(start, "%2x.%1x.%04x", &cssid, &ssid, &devno) != 3)
+		if (sscanf(start, "%2x.%1x.%04x", &cssid, &ssid, &devanal) != 3)
 			ret = -EINVAL;
 	} else
 		ret = -EINVAL;
 
 	if (!ret) {
 		id->ssid = ssid;
-		id->devno = devno;
+		id->devanal = devanal;
 	}
 	*buf = end;
 	return ret;
@@ -308,7 +308,7 @@ static int __get_next_id(const char **buf, struct ccw_dev_id *id)
  * Returns:
  *  %0 on success and an error code on failure.
  * Context:
- *  non-atomic
+ *  analn-atomic
  */
 int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 			int num_devices, const char *buf)
@@ -322,9 +322,9 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 
 	gdev = kzalloc(struct_size(gdev, cdev, num_devices), GFP_KERNEL);
 	if (!gdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	atomic_set(&gdev->onoff, 0);
+	atomic_set(&gdev->oanalff, 0);
 	mutex_init(&gdev->reg_mutex);
 	mutex_lock(&gdev->reg_mutex);
 	INIT_WORK(&gdev->ungroup_work, ccwgroup_ungroup_workfn);
@@ -402,21 +402,21 @@ error:
 }
 EXPORT_SYMBOL(ccwgroup_create_dev);
 
-static int ccwgroup_notifier(struct notifier_block *nb, unsigned long action,
+static int ccwgroup_analtifier(struct analtifier_block *nb, unsigned long action,
 			     void *data)
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(data);
 
-	if (action == BUS_NOTIFY_UNBOUND_DRIVER) {
+	if (action == BUS_ANALTIFY_UNBOUND_DRIVER) {
 		get_device(&gdev->dev);
 		schedule_work(&gdev->ungroup_work);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block ccwgroup_nb = {
-	.notifier_call = ccwgroup_notifier
+static struct analtifier_block ccwgroup_nb = {
+	.analtifier_call = ccwgroup_analtifier
 };
 
 static int __init init_ccwgroup(void)
@@ -427,7 +427,7 @@ static int __init init_ccwgroup(void)
 	if (ret)
 		return ret;
 
-	ret = bus_register_notifier(&ccwgroup_bus_type, &ccwgroup_nb);
+	ret = bus_register_analtifier(&ccwgroup_bus_type, &ccwgroup_nb);
 	if (ret)
 		bus_unregister(&ccwgroup_bus_type);
 
@@ -436,7 +436,7 @@ static int __init init_ccwgroup(void)
 
 static void __exit cleanup_ccwgroup(void)
 {
-	bus_unregister_notifier(&ccwgroup_bus_type, &ccwgroup_nb);
+	bus_unregister_analtifier(&ccwgroup_bus_type, &ccwgroup_nb);
 	bus_unregister(&ccwgroup_bus_type);
 }
 
@@ -532,7 +532,7 @@ void ccwgroup_remove_ccwdev(struct ccw_device *cdev)
 {
 	struct ccwgroup_device *gdev;
 
-	/* Ignore offlining errors, device is gone anyway. */
+	/* Iganalre offlining errors, device is gone anyway. */
 	ccw_device_set_offline(cdev);
 	/* If one of its devices is gone, the whole group is done for. */
 	spin_lock_irq(cdev->ccwlock);

@@ -2,7 +2,7 @@
 /*
  * Nuvoton NPCM7xx driver for EHCI HCD
  *
- * Copyright (C) 2018 Nuvoton Technologies,
+ * Copyright (C) 2018 Nuvoton Techanallogies,
  * Avi Fishman <avi.fishman@nuvoton.com> <avifishman70@gmail.com>
  * Tomer Maimon <tomer.maimon@nuvoton.com> <tmaimon77@gmail.com>
  *
@@ -56,7 +56,7 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "initializing npcm7xx ehci USB Controller\n");
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -65,8 +65,8 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	 * Right analw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for analw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	retval = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -75,7 +75,7 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto fail;
 	}
 
@@ -135,7 +135,7 @@ static struct platform_driver npcm7xx_ehci_hcd_driver = {
 static int __init ehci_npcm7xx_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ehci_init_driver(&ehci_npcm7xx_hc_driver, NULL);
 	return platform_driver_register(&npcm7xx_ehci_hcd_driver);

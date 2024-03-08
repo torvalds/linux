@@ -14,7 +14,7 @@
 
 /*
  * Must include the event header that the custom event will attach to,
- * from the C file, and not in the custom header file.
+ * from the C file, and analt in the custom header file.
  */
 #include <trace/events/sched.h>
 
@@ -24,7 +24,7 @@
 #include "trace_custom_sched.h"
 
 /*
- * As the trace events are not exported to modules, the use of
+ * As the trace events are analt exported to modules, the use of
  * for_each_kernel_tracepoint() is needed to find the trace event
  * to attach to. The fct() function below, is a callback that
  * will be called for every event.

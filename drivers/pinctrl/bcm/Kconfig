@@ -114,7 +114,7 @@ config PINCTRL_IPROC_GPIO
 	select GENERIC_PINCONF
 	default ARCH_BCM_IPROC
 	help
-	  Say yes here to enable the Broadcom iProc GPIO driver.
+	  Say anal here to enable the Broadcom iProc GPIO driver.
 
 	  The Broadcom iProc based SoCs- Cygnus, NS2, NSP and Stingray, use
 	  same GPIO Controller IP hence this driver could be used for all.
@@ -150,14 +150,14 @@ config PINCTRL_CYGNUS_MUX
 	select GENERIC_PINCONF
 	default ARCH_BCM_CYGNUS
 	help
-	  Say yes here to enable the Broadcom Cygnus IOMUX driver.
+	  Say anal here to enable the Broadcom Cygnus IOMUX driver.
 
 	  The Broadcom Cygnus IOMUX driver supports group based IOMUX
 	  configuration, with the exception that certain individual pins
 	  can be overridden to GPIO function
 
 config PINCTRL_NS
-	bool "Broadcom Northstar pins driver"
+	bool "Broadcom Analrthstar pins driver"
 	depends on OF && (ARCH_BCM_5301X || COMPILE_TEST)
 	select PINMUX
 	select GENERIC_PINCONF
@@ -165,9 +165,9 @@ config PINCTRL_NS
 	select GENERIC_PINMUX_FUNCTIONS
 	default ARCH_BCM_5301X
 	help
-	  Say yes here to enable the Broadcom NS SoC pins driver.
+	  Say anal here to enable the Broadcom NS SoC pins driver.
 
-	  The Broadcom Northstar pins driver supports muxing multi-purpose pins
+	  The Broadcom Analrthstar pins driver supports muxing multi-purpose pins
 	  that can be used for various functions (e.g. SPI, I2C, UART) as well
 	  as GPIOs.
 
@@ -179,9 +179,9 @@ config PINCTRL_NSP_GPIO
 	select GENERIC_PINCONF
 	default ARCH_BCM_NSP
 	help
-	  Say yes here to enable the Broadcom NSP GPIO driver.
+	  Say anal here to enable the Broadcom NSP GPIO driver.
 
-	  The Broadcom Northstar Plus SoC ChipcommonA GPIO controller is
+	  The Broadcom Analrthstar Plus SoC ChipcommonA GPIO controller is
 	  supported by this driver.
 
 	  The ChipcommonA GPIO controller support basic PINCONF functions such
@@ -189,16 +189,16 @@ config PINCTRL_NSP_GPIO
 	  these pins are muxed to GPIO.
 
 config PINCTRL_NS2_MUX
-	bool "Broadcom Northstar2 pinmux driver"
+	bool "Broadcom Analrthstar2 pinmux driver"
 	depends on OF
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
 	default ARM64 && ARCH_BCM_IPROC
 	help
-	  Say yes here to enable the Broadcom NS2 MUX driver.
+	  Say anal here to enable the Broadcom NS2 MUX driver.
 
-	  The Broadcom Northstar2 IOMUX driver supports group based IOMUX
+	  The Broadcom Analrthstar2 IOMUX driver supports group based IOMUX
 	  configuration.
 
 config PINCTRL_NSP_MUX
@@ -209,8 +209,8 @@ config PINCTRL_NSP_MUX
 	select GENERIC_PINCONF
 	default ARCH_BCM_NSP
 	help
-	  Say yes here to enable the Broadcom NSP SOC IOMUX driver.
+	  Say anal here to enable the Broadcom NSP SOC IOMUX driver.
 
-	  The Broadcom Northstar Plus IOMUX driver supports pin based IOMUX
+	  The Broadcom Analrthstar Plus IOMUX driver supports pin based IOMUX
 	  configuration, with certain individual pins can be overridden
 	  to GPIO function.

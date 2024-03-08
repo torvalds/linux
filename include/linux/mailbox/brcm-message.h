@@ -12,7 +12,7 @@
 #include <linux/scatterlist.h>
 
 enum brcm_message_type {
-	BRCM_MESSAGE_UNKNOWN = 0,
+	BRCM_MESSAGE_UNKANALWN = 0,
 	BRCM_MESSAGE_BATCH,
 	BRCM_MESSAGE_SPU,
 	BRCM_MESSAGE_SBA,

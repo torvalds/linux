@@ -86,8 +86,8 @@ static int vortex_gameport_register(vortex_t *vortex)
 	vortex->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(vortex->card->dev,
-			"cannot allocate memory for gameport\n");
-		return -ENOMEM;
+			"cananalt allocate memory for gameport\n");
+		return -EANALMEM;
 	}
 
 	gameport_set_name(gp, "AU88x0 Gameport");
@@ -116,6 +116,6 @@ static void vortex_gameport_unregister(vortex_t * vortex)
 }
 
 #else
-static inline int vortex_gameport_register(vortex_t * vortex) { return -ENOSYS; }
+static inline int vortex_gameport_register(vortex_t * vortex) { return -EANALSYS; }
 static inline void vortex_gameport_unregister(vortex_t * vortex) { }
 #endif

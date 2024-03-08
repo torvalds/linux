@@ -15,17 +15,17 @@ a PECI responder.
 PECI can be used in both single processor and multiple-processor based
 systems.
 
-NOTE:
-Intel PECI specification is not released as a dedicated document,
+ANALTE:
+Intel PECI specification is analt released as a dedicated document,
 instead it is a part of External Design Specification (EDS) for given
-Intel CPU. External Design Specifications are usually not publicly
+Intel CPU. External Design Specifications are usually analt publicly
 available.
 
 PECI Wire
 ---------
 
 PECI Wire interface uses a single wire for self-clocking and data
-transfer. It does not require any additional control lines - the
+transfer. It does analt require any additional control lines - the
 physical layer is a self-clocked one-wire bus signal that begins each
 bit with a driven, rising edge from an idle near zero volts. The
 duration of the signal driven high allows to determine whether the bit
@@ -35,7 +35,7 @@ rate established with every message.
 For PECI Wire, each processor package will utilize unique, fixed
 addresses within a defined range and that address should
 have a fixed relationship with the processor socket ID - if one of the
-processors is removed, it does not affect addresses of remaining
+processors is removed, it does analt affect addresses of remaining
 processors.
 
 PECI subsystem internals

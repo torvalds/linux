@@ -76,12 +76,12 @@ enum sensors {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -89,12 +89,12 @@ static const struct v4l2_pix_format vga_mode[] = {
 };
 
 static const struct v4l2_pix_format broken_vga_mode[] = {
-	{320, 232, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 232, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 232 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 472, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 472, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 472 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -102,12 +102,12 @@ static const struct v4l2_pix_format broken_vga_mode[] = {
 };
 
 static const struct v4l2_pix_format sif_mode[] = {
-	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -115,8 +115,8 @@ static const struct v4l2_pix_format sif_mode[] = {
 };
 
 /*
- * Bridge reg08 bits 1-2 -> JPEG quality conversion table. Note the highest
- * quality setting is not usable as USB 1 does not have enough bandwidth.
+ * Bridge reg08 bits 1-2 -> JPEG quality conversion table. Analte the highest
+ * quality setting is analt usable as USB 1 does analt have eanalugh bandwidth.
  */
 static u8 jpeg_qual[] = {50, 75, 87, /* 94 */};
 
@@ -323,7 +323,7 @@ static const struct usb_action adcm2700_60HZ[] = {
 	{0xaa, 0x28, 0x0002},				/* 00,28,02,aa */
 	{}
 };
-static const struct usb_action adcm2700_NoFlicker[] = {
+static const struct usb_action adcm2700_AnalFlicker[] = {
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
 	{0xaa, 0xfe, 0x0002},				/* 00,fe,02,aa */
 	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,0a,cc */
@@ -525,7 +525,7 @@ static const struct usb_action cs2102_60HZ[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action cs2102_NoFlickerScale[] = {
+static const struct usb_action cs2102_AnalFlickerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0001},
 	{0xaa, 0x24, 0x005f},
@@ -547,7 +547,7 @@ static const struct usb_action cs2102_NoFlickerScale[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action cs2102_NoFlicker[] = {
+static const struct usb_action cs2102_AnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0000},
 	{0xaa, 0x24, 0x00af},
@@ -1385,7 +1385,7 @@ static const struct usb_action gc0305_60HZ[] = {
 	{}
 };
 
-static const struct usb_action gc0305_NoFlicker[] = {
+static const struct usb_action gc0305_AnalFlicker[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},	/* 01,00,0c,cc */
 	{0xaa, 0x82, 0x0000},	/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},	/* 00,83,00,aa */
@@ -1710,7 +1710,7 @@ static const struct usb_action hdcs2020_60HZ[] = {
 	{0xa0, 0x2c, ZC3XX_R01F_HSYNC_2}, /* 00,1f,2c,cc */
 	{}
 };
-static const struct usb_action hdcs2020_NoFlicker[] = {
+static const struct usb_action hdcs2020_AnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x13, 0x0010},			/* 00,13,10,aa */
 	{0xaa, 0x14, 0x0001},			/* 00,14,01,aa */
@@ -1925,7 +1925,7 @@ static const struct usb_action hv7131b_60HZScale[] = {	/* 320x240 */
 	{0xa0, 0x40, ZC3XX_R020_HSYNC_3},	/* 00,20,40,cc */
 	{}
 };
-static const struct usb_action hv7131b_NoFlicker[] = {	/* 640x480*/
+static const struct usb_action hv7131b_AnalFlicker[] = {	/* 640x480*/
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},	/* 00,19,00,cc */
 	{0xaa, 0x25, 0x0003},			/* 00,25,03,aa */
 	{0xaa, 0x26, 0x0000},			/* 00,26,00,aa */
@@ -1950,7 +1950,7 @@ static const struct usb_action hv7131b_NoFlicker[] = {	/* 640x480*/
 	{0xa0, 0x03, ZC3XX_R020_HSYNC_3},	/* 00,20,03,cc */
 	{}
 };
-static const struct usb_action hv7131b_NoFlickerScale[] = { /* 320x240 */
+static const struct usb_action hv7131b_AnalFlickerScale[] = { /* 320x240 */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},	/* 00,19,00,cc */
 	{0xaa, 0x25, 0x0003},			/* 00,25,03,aa */
 	{0xaa, 0x26, 0x0000},			/* 00,26,00,aa */
@@ -2141,7 +2141,7 @@ static const struct usb_action hv7131r_60HZScale[] = {
 	{0xa0, 0x08, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action hv7131r_NoFlicker[] = {
+static const struct usb_action hv7131r_AnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},
 	{0xa0, 0xf8, ZC3XX_R191_EXPOSURELIMITMID},
@@ -2159,7 +2159,7 @@ static const struct usb_action hv7131r_NoFlicker[] = {
 	{0xa0, 0x08, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action hv7131r_NoFlickerScale[] = {
+static const struct usb_action hv7131r_AnalFlickerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},
 	{0xa0, 0xf8, ZC3XX_R191_EXPOSURELIMITMID},
@@ -2662,7 +2662,7 @@ static const struct usb_action icm105a_60HZ[] = {
 	{0xa0, 0xc0, ZC3XX_R1A8_DIGITALGAIN}, /* 01,a8,c0,cc */
 	{}
 };
-static const struct usb_action icm105a_NoFlickerScale[] = {
+static const struct usb_action icm105a_AnalFlickerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x0d, 0x0003}, /* 00,0d,03,aa */
 	{0xaa, 0x0c, 0x0004}, /* 00,0c,04,aa */
@@ -2693,7 +2693,7 @@ static const struct usb_action icm105a_NoFlickerScale[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3}, /* 00,20,ff,cc */
 	{}
 };
-static const struct usb_action icm105a_NoFlicker[] = {
+static const struct usb_action icm105a_AnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x0d, 0x0003}, /* 00,0d,03,aa */
 	{0xaa, 0x0c, 0x0004}, /* 00,0c,04,aa */
@@ -3009,7 +3009,7 @@ static const struct usb_action mc501cb_60HZScale[] = {
 	{}
 };
 
-static const struct usb_action mc501cb_NoFlicker[] = {
+static const struct usb_action mc501cb_AnalFlicker[] = {
 	{0xaa, 0x03, 0x0003}, /* 00,03,03,aa */
 	{0xaa, 0x10, 0x00fc}, /* 00,10,fc,aa */
 	{0xaa, 0x36, 0x0018}, /* 00,36,18,aa */
@@ -3021,7 +3021,7 @@ static const struct usb_action mc501cb_NoFlicker[] = {
 	{}
 };
 
-static const struct usb_action mc501cb_NoFlickerScale[] = {
+static const struct usb_action mc501cb_AnalFlickerScale[] = {
 	{0xaa, 0x03, 0x0003}, /* 00,03,03,aa */
 	{0xaa, 0x10, 0x00fc}, /* 00,10,fc,aa */
 	{0xaa, 0x36, 0x0030}, /* 00,36,30,aa */
@@ -3211,7 +3211,7 @@ static const struct usb_action ov7620_60HZ[] = {
 	{0xa1, 0x01, 0x0037},		*/
 	{}
 };
-static const struct usb_action ov7620_NoFlicker[] = {
+static const struct usb_action ov7620_AnalFlicker[] = {
 	{0xdd, 0x00, 0x0100},			/* 00,01,00,dd */
 	{0xaa, 0x2b, 0x0000},			/* 00,2b,00,aa */
 	/* disable 1/120s & 1/100s exposures for banding filter */
@@ -3597,7 +3597,7 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
-/* Unknown */
+/* Unkanalwn */
 	{0xa0, 0x00, 0x01ad},
 /* Sharpness */
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
@@ -3713,7 +3713,7 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
-/* Unknown */
+/* Unkanalwn */
 	{0xa0, 0x00, 0x01ad},
 /* Sharpness */
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
@@ -3827,7 +3827,7 @@ static const struct usb_action pas106b_60HZ[] = {
 	{0xa0, 0x04, ZC3XX_R1A9_DIGITALLIMITDIFF}, /* 01,a9,04,cc */
 	{}
 };
-static const struct usb_action pas106b_NoFlicker[] = {
+static const struct usb_action pas106b_AnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
 	{0xa0, 0x06, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,06,cc */
 	{0xa0, 0x50, ZC3XX_R192_EXPOSURELIMITLOW}, /* 01,92,50,cc */
@@ -4051,7 +4051,7 @@ static const struct usb_action pas202b_60HZScale[] = {
 	{0xa0, 0x0e, ZC3XX_R088_EXPTIMELOW},		/* 00,88,0e,cc */
 	{}
 };
-static const struct usb_action pas202b_NoFlicker[] = {
+static const struct usb_action pas202b_AnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},		/* 00,19,00,cc */
 	{0xa0, 0x20, ZC3XX_R087_EXPTIMEMID},		/* 00,87,20,cc */
 	{0xa0, 0x21, ZC3XX_R088_EXPTIMELOW},		/* 00,88,21,cc */
@@ -4080,7 +4080,7 @@ static const struct usb_action pas202b_NoFlicker[] = {
 	{0xa0, 0x0e, ZC3XX_R088_EXPTIMELOW},		/* 00,88,0e,cc */
 	{}
 };
-static const struct usb_action pas202b_NoFlickerScale[] = {
+static const struct usb_action pas202b_AnalFlickerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},		/* 00,19,00,cc */
 	{0xa0, 0x20, ZC3XX_R087_EXPTIMEMID},		/* 00,87,20,cc */
 	{0xa0, 0x21, ZC3XX_R088_EXPTIMELOW},		/* 00,88,21,cc */
@@ -4309,7 +4309,7 @@ static const struct usb_action mt9v111_1_AE60HZScale[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mt9v111_1_AENoFlicker[] = {
+static const struct usb_action mt9v111_1_AEAnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0509},
@@ -4332,7 +4332,7 @@ static const struct usb_action mt9v111_1_AENoFlicker[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mt9v111_1_AENoFlickerScale[] = {
+static const struct usb_action mt9v111_1_AEAnalFlickerScale[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0534},
@@ -4554,7 +4554,7 @@ static const struct usb_action mt9v111_3_AE60HZScale[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mt9v111_3_AENoFlicker[] = {
+static const struct usb_action mt9v111_3_AEAnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x05, 0x0034},
@@ -4577,7 +4577,7 @@ static const struct usb_action mt9v111_3_AENoFlicker[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mt9v111_3_AENoFlickerScale[] = {
+static const struct usb_action mt9v111_3_AEAnalFlickerScale[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x05, 0x0034},
@@ -4787,7 +4787,7 @@ static const struct usb_action pb0330_60HZScale[] = {
 	{0xa0, 0xd0, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action pb0330_NoFlicker[] = {
+static const struct usb_action pb0330_AnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0509},
 	{0xbb, 0x02, 0x0940},
@@ -4809,7 +4809,7 @@ static const struct usb_action pb0330_NoFlicker[] = {
 	{0xa0, 0xe0, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action pb0330_NoFlickerScale[] = {
+static const struct usb_action pb0330_AnalFlickerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0535},
 	{0xbb, 0x01, 0x0980},
@@ -5031,7 +5031,7 @@ static const struct usb_action po2030_60HZ[] = {
 	{}
 };
 
-static const struct usb_action po2030_NoFlicker[] = {
+static const struct usb_action po2030_AnalFlicker[] = {
 	{0xa0, 0x02, ZC3XX_R180_AUTOCORRECTENABLE}, /* 01,80,02,cc */
 	{0xaa, 0x8d, 0x000d}, /* 00,8d,0d,aa */
 	{0xaa, 0x1a, 0x0000}, /* 00,1a,00,aa */
@@ -5215,7 +5215,7 @@ static const struct usb_action tas5130c_60HZScale[] = {
 	{0xa0, 0x50, ZC3XX_R11D_GLOBALGAIN},
 	{}
 };
-static const struct usb_action tas5130c_NoFlicker[] = {
+static const struct usb_action tas5130c_AnalFlicker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0xa3, 0x0001}, /* 00,a3,01,aa */
 	{0xaa, 0xa4, 0x0040}, /* 00,a4,40,aa */
@@ -5241,7 +5241,7 @@ static const struct usb_action tas5130c_NoFlicker[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_NoFlickerScale[] = {
+static const struct usb_action tas5130c_AnalFlickerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0xa3, 0x0001}, /* 00,a3,01,aa */
 	{0xaa, 0xa4, 0x0090}, /* 00,a4,90,aa */
@@ -5482,7 +5482,7 @@ static const struct usb_action gc0303_60HZScale[] = {
 	{}
 };
 
-static const struct usb_action gc0303_NoFlicker[] = {
+static const struct usb_action gc0303_AnalFlicker[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0c,cc, */
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},		/* 00,83,00,aa */
@@ -5504,7 +5504,7 @@ static const struct usb_action gc0303_NoFlicker[] = {
 	{}
 };
 
-static const struct usb_action gc0303_NoFlickerScale[] = {
+static const struct usb_action gc0303_AnalFlickerScale[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0c,cc, */
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},		/* 00,83,00,aa */
@@ -5806,7 +5806,7 @@ static void setquality(struct gspca_dev *gspca_dev)
  * Valid frequencies are:
  *	50Hz, for European and Asian lighting (default)
  *	60Hz, for American lighting
- *	0 = No Flicker (for outdoor usage)
+ *	0 = Anal Flicker (for outdoor usage)
  */
 static void setlightfreq(struct gspca_dev *gspca_dev, s32 val)
 {
@@ -5815,55 +5815,55 @@ static void setlightfreq(struct gspca_dev *gspca_dev, s32 val)
 	const struct usb_action *zc3_freq;
 	static const struct usb_action *freq_tb[SENSOR_MAX][6] = {
 	[SENSOR_ADCM2700] = {
-		 adcm2700_NoFlicker, adcm2700_NoFlicker,
+		 adcm2700_AnalFlicker, adcm2700_AnalFlicker,
 		 adcm2700_50HZ, adcm2700_50HZ,
 		 adcm2700_60HZ, adcm2700_60HZ},
 	[SENSOR_CS2102] = {
-		 cs2102_NoFlicker, cs2102_NoFlickerScale,
+		 cs2102_AnalFlicker, cs2102_AnalFlickerScale,
 		 cs2102_50HZ, cs2102_50HZScale,
 		 cs2102_60HZ, cs2102_60HZScale},
 	[SENSOR_CS2102K] = {
-		 cs2102_NoFlicker, cs2102_NoFlickerScale,
+		 cs2102_AnalFlicker, cs2102_AnalFlickerScale,
 		 NULL, NULL, /* currently disabled */
 		 NULL, NULL},
 	[SENSOR_GC0303] = {
-		 gc0303_NoFlicker, gc0303_NoFlickerScale,
+		 gc0303_AnalFlicker, gc0303_AnalFlickerScale,
 		 gc0303_50HZ, gc0303_50HZScale,
 		 gc0303_60HZ, gc0303_60HZScale},
 	[SENSOR_GC0305] = {
-		 gc0305_NoFlicker, gc0305_NoFlicker,
+		 gc0305_AnalFlicker, gc0305_AnalFlicker,
 		 gc0305_50HZ, gc0305_50HZ,
 		 gc0305_60HZ, gc0305_60HZ},
 	[SENSOR_HDCS2020] = {
-		 hdcs2020_NoFlicker, hdcs2020_NoFlicker,
+		 hdcs2020_AnalFlicker, hdcs2020_AnalFlicker,
 		 hdcs2020_50HZ, hdcs2020_50HZ,
 		 hdcs2020_60HZ, hdcs2020_60HZ},
 	[SENSOR_HV7131B] = {
-		 hv7131b_NoFlicker, hv7131b_NoFlickerScale,
+		 hv7131b_AnalFlicker, hv7131b_AnalFlickerScale,
 		 hv7131b_50HZ, hv7131b_50HZScale,
 		 hv7131b_60HZ, hv7131b_60HZScale},
 	[SENSOR_HV7131R] = {
-		 hv7131r_NoFlicker, hv7131r_NoFlickerScale,
+		 hv7131r_AnalFlicker, hv7131r_AnalFlickerScale,
 		 hv7131r_50HZ, hv7131r_50HZScale,
 		 hv7131r_60HZ, hv7131r_60HZScale},
 	[SENSOR_ICM105A] = {
-		 icm105a_NoFlicker, icm105a_NoFlickerScale,
+		 icm105a_AnalFlicker, icm105a_AnalFlickerScale,
 		 icm105a_50HZ, icm105a_50HZScale,
 		 icm105a_60HZ, icm105a_60HZScale},
 	[SENSOR_MC501CB] = {
-		 mc501cb_NoFlicker, mc501cb_NoFlickerScale,
+		 mc501cb_AnalFlicker, mc501cb_AnalFlickerScale,
 		 mc501cb_50HZ, mc501cb_50HZScale,
 		 mc501cb_60HZ, mc501cb_60HZScale},
 	[SENSOR_MT9V111_1] = {
-		 mt9v111_1_AENoFlicker, mt9v111_1_AENoFlickerScale,
+		 mt9v111_1_AEAnalFlicker, mt9v111_1_AEAnalFlickerScale,
 		 mt9v111_1_AE50HZ, mt9v111_1_AE50HZScale,
 		 mt9v111_1_AE60HZ, mt9v111_1_AE60HZScale},
 	[SENSOR_MT9V111_3] = {
-		 mt9v111_3_AENoFlicker, mt9v111_3_AENoFlickerScale,
+		 mt9v111_3_AEAnalFlicker, mt9v111_3_AEAnalFlickerScale,
 		 mt9v111_3_AE50HZ, mt9v111_3_AE50HZScale,
 		 mt9v111_3_AE60HZ, mt9v111_3_AE60HZScale},
 	[SENSOR_OV7620] = {
-		 ov7620_NoFlicker, ov7620_NoFlicker,
+		 ov7620_AnalFlicker, ov7620_AnalFlicker,
 		 ov7620_50HZ, ov7620_50HZ,
 		 ov7620_60HZ, ov7620_60HZ},
 	[SENSOR_OV7630C] = {
@@ -5871,23 +5871,23 @@ static void setlightfreq(struct gspca_dev *gspca_dev, s32 val)
 		 NULL, NULL,
 		 NULL, NULL},
 	[SENSOR_PAS106] = {
-		 pas106b_NoFlicker, pas106b_NoFlicker,
+		 pas106b_AnalFlicker, pas106b_AnalFlicker,
 		 pas106b_50HZ, pas106b_50HZ,
 		 pas106b_60HZ, pas106b_60HZ},
 	[SENSOR_PAS202B] = {
-		 pas202b_NoFlicker, pas202b_NoFlickerScale,
+		 pas202b_AnalFlicker, pas202b_AnalFlickerScale,
 		 pas202b_50HZ, pas202b_50HZScale,
 		 pas202b_60HZ, pas202b_60HZScale},
 	[SENSOR_PB0330] = {
-		 pb0330_NoFlicker, pb0330_NoFlickerScale,
+		 pb0330_AnalFlicker, pb0330_AnalFlickerScale,
 		 pb0330_50HZ, pb0330_50HZScale,
 		 pb0330_60HZ, pb0330_60HZScale},
 	[SENSOR_PO2030] = {
-		 po2030_NoFlicker, po2030_NoFlicker,
+		 po2030_AnalFlicker, po2030_AnalFlicker,
 		 po2030_50HZ, po2030_50HZ,
 		 po2030_60HZ, po2030_60HZ},
 	[SENSOR_TAS5130C] = {
-		 tas5130c_NoFlicker, tas5130c_NoFlickerScale,
+		 tas5130c_AnalFlicker, tas5130c_AnalFlickerScale,
 		 tas5130c_50HZ, tas5130c_50HZScale,
 		 tas5130c_60HZ, tas5130c_60HZScale},
 	};
@@ -5968,13 +5968,13 @@ static void transfer_update(struct work_struct *work)
 		if (change) {				/* overflow */
 			good = 0;
 
-			if (reg07 == 0) /* Bit Rate Control not enabled? */
+			if (reg07 == 0) /* Bit Rate Control analt enabled? */
 				reg07 = 0x32; /* Allow 98 bytes / unit */
 			else if (reg07 > 2)
 				reg07 -= 2; /* Decrease allowed bytes / unit */
 			else
 				change = 0;
-		} else {				/* no overflow */
+		} else {				/* anal overflow */
 			good++;
 			if (good >= 10) {
 				good = 0;
@@ -6000,7 +6000,7 @@ static void transfer_update(struct work_struct *work)
 	mutex_unlock(&gspca_dev->usb_lock);
 }
 
-static void send_unknown(struct gspca_dev *gspca_dev, int sensor)
+static void send_unkanalwn(struct gspca_dev *gspca_dev, int sensor)
 {
 	reg_w(gspca_dev, 0x01, 0x0000);		/* bridge reset */
 	switch (sensor) {
@@ -6053,7 +6053,7 @@ static int sif_probe(struct gspca_dev *gspca_dev)
 			| ((i2c_read(gspca_dev, 0x01) & 0xf0) >> 4);
 	gspca_dbg(gspca_dev, D_PROBE, "probe sif 0x%04x\n", checkword);
 	if (checkword == 0x0007) {
-		send_unknown(gspca_dev, SENSOR_PAS106);
+		send_unkanalwn(gspca_dev, SENSOR_PAS106);
 		return 0x0f;			/* PAS106 */
 	}
 	return -1;
@@ -6116,7 +6116,7 @@ static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 	msleep(50);
 	retword = i2c_read(gspca_dev, 0x03);
 	if (retword != 0) {
-		send_unknown(gspca_dev, SENSOR_PAS202B);
+		send_unkanalwn(gspca_dev, SENSOR_PAS202B);
 		return 0x0e;			/* PAS202BCB */
 	}
 
@@ -6148,7 +6148,7 @@ ov_check:
 	case 0x7648:				/* OV7648 */
 		break;
 	default:
-		return -1;			/* not OmniVision */
+		return -1;			/* analt OmniVision */
 	}
 	return retword;
 }
@@ -6203,7 +6203,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	for (i = 0; i < ARRAY_SIZE(chipset_revision_sensor); i++) {
 		if (chipset_revision_sensor[i].revision == retword) {
 			sd->chip_revision = retword;
-			send_unknown(gspca_dev, SENSOR_PB0330);
+			send_unkanalwn(gspca_dev, SENSOR_PB0330);
 			return chipset_revision_sensor[i].internal_sensor_id;
 		}
 	}
@@ -6235,7 +6235,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 		if (retword == 0x0011)			/* gc0303 */
 			return 0x0303;
 		if (retword == 0x0029)			/* gc0305 */
-			send_unknown(gspca_dev, SENSOR_GC0305);
+			send_unkanalwn(gspca_dev, SENSOR_GC0305);
 		return retword;
 	}
 
@@ -6248,7 +6248,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x05, 0x0012);
 	if (i2c_read(gspca_dev, 0x1c) == 0x007f	/* OV7610 - manufacturer ID */
 	    && i2c_read(gspca_dev, 0x1d) == 0x00a2) {
-		send_unknown(gspca_dev, SENSOR_OV7620);
+		send_unkanalwn(gspca_dev, SENSOR_OV7620);
 		return 0x06;		/* OmniVision confirm ? */
 	}
 
@@ -6270,7 +6270,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 		gspca_dbg(gspca_dev, D_PROBE, "sensor PO2030 rev 0x%02x\n",
 			  retbyte);
 
-		send_unknown(gspca_dev, SENSOR_PO2030);
+		send_unkanalwn(gspca_dev, SENSOR_PO2030);
 		return retword;
 	}
 
@@ -6300,7 +6300,7 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 	case SENSOR_MC501CB:
 		return -1;		/* don't probe */
 	case SENSOR_GC0303:
-			/* may probe but with no write in reg 0x0010 */
+			/* may probe but with anal write in reg 0x0010 */
 		return -1;		/* don't probe */
 	case SENSOR_PAS106:
 		sensor =  sif_probe(gspca_dev);
@@ -6467,7 +6467,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			jpeg_qual[0], jpeg_qual[ARRAY_SIZE(jpeg_qual) - 1], 1,
 			jpeg_qual[REG08_DEF >> 1]);
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(3, &sd->gamma);
@@ -6522,7 +6522,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				gspca_dbg(gspca_dev, D_PROBE, "Sensor GC0303\n");
 				break;
 			default:
-				pr_warn("Unknown sensor - set to TAS5130C\n");
+				pr_warn("Unkanalwn sensor - set to TAS5130C\n");
 				sd->sensor = SENSOR_TAS5130C;
 			}
 			break;
@@ -6627,7 +6627,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
 			break;
 		default:
-			pr_err("Unknown sensor %04x\n", sensor);
+			pr_err("Unkanalwn sensor %04x\n", sensor);
 			return -EINVAL;
 		}
 	}
@@ -6773,7 +6773,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	setsharpness(gspca_dev, v4l2_ctrl_g_ctrl(sd->sharpness));
 
-	/* set the gamma tables when not set */
+	/* set the gamma tables when analt set */
 	switch (sd->sensor) {
 	case SENSOR_CS2102K:		/* gamma set in xxx_Initial */
 	case SENSOR_HDCS2020:
@@ -6854,7 +6854,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	mutex_lock(&gspca_dev->usb_lock);
 	if (!gspca_dev->present)
 		return;
-	send_unknown(gspca_dev, sd->sensor);
+	send_unkanalwn(gspca_dev, sd->sensor);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

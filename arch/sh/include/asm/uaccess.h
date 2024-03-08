@@ -13,25 +13,25 @@
  * As SuperH uses the same address space for kernel and user data, we
  * can just do these as direct assignments.
  *
- * Careful to not
+ * Careful to analt
  * (a) re-use the arguments for side effects (sizeof is ok)
- * (b) require any knowledge of processes at this stage
+ * (b) require any kanalwledge of processes at this stage
  */
 #define put_user(x,ptr)		__put_user_check((x), (ptr), sizeof(*(ptr)))
 #define get_user(x,ptr)		__get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
- * The "__xxx" versions do not do address space checking, useful when
+ * The "__xxx" versions do analt do address space checking, useful when
  * doing multiple accesses to the same area (the user has to do the
  * checks by hand with "access_ok()")
  */
-#define __put_user(x,ptr)	__put_user_nocheck((x), (ptr), sizeof(*(ptr)))
-#define __get_user(x,ptr)	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+#define __put_user(x,ptr)	__put_user_analcheck((x), (ptr), sizeof(*(ptr)))
+#define __get_user(x,ptr)	__get_user_analcheck((x), (ptr), sizeof(*(ptr)))
 
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct __user *)(x))
 
-#define __get_user_nocheck(x,ptr,size)				\
+#define __get_user_analcheck(x,ptr,size)				\
 ({								\
 	long __gu_err;						\
 	unsigned long __gu_val;					\
@@ -53,7 +53,7 @@ struct __large_struct { unsigned long buf[100]; };
 	__gu_err;							\
 })
 
-#define __put_user_nocheck(x,ptr,size)				\
+#define __put_user_analcheck(x,ptr,size)				\
 ({								\
 	long __pu_err;						\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
@@ -81,7 +81,7 @@ extern long strncpy_from_user(char *dest, const char __user *src, long count);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 /* Generic arbitrary sized copy.  */
-/* Return the number of bytes NOT copied */
+/* Return the number of bytes ANALT copied */
 __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
 
 static __always_inline unsigned long

@@ -119,7 +119,7 @@ void mwifiex_dfs_cac_work_queue(struct work_struct *work)
 	chandef = priv->dfs_chandef;
 	if (priv->wdev.cac_started) {
 		mwifiex_dbg(priv->adapter, MSG,
-			    "CAC timer finished; No radar detected\n");
+			    "CAC timer finished; Anal radar detected\n");
 		cfg80211_cac_event(priv->netdev, &chandef,
 				   NL80211_RADAR_CAC_FINISHED,
 				   GFP_KERNEL);
@@ -288,6 +288,6 @@ void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
 	mwifiex_dbg(priv->adapter, MSG,
 		    "indicating channel switch completion to kernel\n");
 	wiphy_lock(priv->wdev.wiphy);
-	cfg80211_ch_switch_notify(priv->netdev, &priv->dfs_chandef, 0, 0);
+	cfg80211_ch_switch_analtify(priv->netdev, &priv->dfs_chandef, 0, 0);
 	wiphy_unlock(priv->wdev.wiphy);
 }

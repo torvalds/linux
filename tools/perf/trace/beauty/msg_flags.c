@@ -32,7 +32,7 @@ static size_t syscall_arg__scnprintf_msg_flags(char *bf, size_t size,
 	int printed = 0, flags = arg->val;
 
 	if (flags == 0)
-		return scnprintf(bf, size, "NONE");
+		return scnprintf(bf, size, "ANALNE");
 #define	P_MSG_FLAG(n) \
 	if (flags & MSG_##n) { \
 		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
@@ -53,7 +53,7 @@ static size_t syscall_arg__scnprintf_msg_flags(char *bf, size_t size,
 	P_MSG_FLAG(CONFIRM);
 	P_MSG_FLAG(RST);
 	P_MSG_FLAG(ERRQUEUE);
-	P_MSG_FLAG(NOSIGNAL);
+	P_MSG_FLAG(ANALSIGNAL);
 	P_MSG_FLAG(MORE);
 	P_MSG_FLAG(WAITFORONE);
 	P_MSG_FLAG(BATCH);

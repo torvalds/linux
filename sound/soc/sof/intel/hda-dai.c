@@ -84,7 +84,7 @@ hda_dai_get_ops(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai
 	sdev = widget_to_sdev(w);
 
 	/*
-	 * The swidget parameter of hda_select_dai_widget_ops() is ignored in
+	 * The swidget parameter of hda_select_dai_widget_ops() is iganalred in
 	 * case of DSPless mode
 	 */
 	if (sdev->dspless_mode_selected)
@@ -92,7 +92,7 @@ hda_dai_get_ops(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai
 
 	sdai = swidget->private;
 
-	/* select and set the DAI widget ops if not set already */
+	/* select and set the DAI widget ops if analt set already */
 	if (!sdai->platform_private) {
 		const struct hda_dai_widget_dma_ops *ops =
 			hda_select_dai_widget_ops(sdev, swidget);
@@ -119,7 +119,7 @@ int hda_link_dma_cleanup(struct snd_pcm_substream *substream, struct hdac_ext_st
 	int stream_tag;
 
 	if (!ops) {
-		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
+		dev_err(cpu_dai->dev, "DAI widget ops analt set\n");
 		return -EINVAL;
 	}
 
@@ -157,7 +157,7 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	int stream_tag;
 
 	if (!ops) {
-		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
+		dev_err(cpu_dai->dev, "DAI widget ops analt set\n");
 		return -EINVAL;
 	}
 
@@ -209,7 +209,7 @@ static int __maybe_unused hda_dai_hw_free(struct snd_pcm_substream *substream,
 	struct snd_sof_dev *sdev = dai_to_sdev(substream, cpu_dai);
 
 	if (!ops) {
-		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
+		dev_err(cpu_dai->dev, "DAI widget ops analt set\n");
 		return -EINVAL;
 	}
 
@@ -233,7 +233,7 @@ static int __maybe_unused hda_dai_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	if (!ops) {
-		dev_err(sdev->dev, "DAI widget ops not set\n");
+		dev_err(sdev->dev, "DAI widget ops analt set\n");
 		return -EINVAL;
 	}
 
@@ -266,7 +266,7 @@ static int __maybe_unused hda_dai_trigger(struct snd_pcm_substream *substream, i
 	int ret;
 
 	if (!ops) {
-		dev_err(dai->dev, "DAI widget ops not set\n");
+		dev_err(dai->dev, "DAI widget ops analt set\n");
 		return -EINVAL;
 	}
 
@@ -340,7 +340,7 @@ static struct sof_ipc4_copier *widget_to_copier(struct snd_soc_dapm_widget *w)
 	return ipc4_copier;
 }
 
-static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
+static int analn_hda_dai_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *cpu_dai)
 {
@@ -357,7 +357,7 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 
 	ops = hda_dai_get_ops(substream, cpu_dai);
 	if (!ops) {
-		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
+		dev_err(cpu_dai->dev, "DAI widget ops analt set\n");
 		return -EINVAL;
 	}
 
@@ -373,16 +373,16 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	hext_stream = ops->get_hext_stream(sdev, cpu_dai, substream);
 
 	if (!hext_stream) {
-		dev_err(cpu_dai->dev, "%s: no hext_stream found\n", __func__);
-		return -ENODEV;
+		dev_err(cpu_dai->dev, "%s: anal hext_stream found\n", __func__);
+		return -EANALDEV;
 	}
 
 	hstream = &hext_stream->hstream;
 	stream_id = hstream->stream_tag;
 
 	if (!stream_id) {
-		dev_err(cpu_dai->dev, "%s: no stream_id allocated\n", __func__);
-		return -ENODEV;
+		dev_err(cpu_dai->dev, "%s: anal stream_id allocated\n", __func__);
+		return -EANALDEV;
 	}
 
 	/* configure TLV */
@@ -399,33 +399,33 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	dma_config->pre_allocated_by_host = 1;
 	dma_config->dma_channel_id = stream_id - 1;
 	dma_config->stream_id = stream_id;
-	dma_config->dma_stream_channel_map.device_count = 0; /* mapping not used */
+	dma_config->dma_stream_channel_map.device_count = 0; /* mapping analt used */
 	dma_config->dma_priv_config_size = 0;
 
 	return 0;
 }
 
-static int non_hda_dai_prepare(struct snd_pcm_substream *substream,
+static int analn_hda_dai_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	int stream = substream->stream;
 
-	return non_hda_dai_hw_params(substream, &rtd->dpcm[stream].hw_params, cpu_dai);
+	return analn_hda_dai_hw_params(substream, &rtd->dpcm[stream].hw_params, cpu_dai);
 }
 
 static const struct snd_soc_dai_ops ssp_dai_ops = {
-	.hw_params = non_hda_dai_hw_params,
+	.hw_params = analn_hda_dai_hw_params,
 	.hw_free = hda_dai_hw_free,
 	.trigger = hda_dai_trigger,
-	.prepare = non_hda_dai_prepare,
+	.prepare = analn_hda_dai_prepare,
 };
 
 static const struct snd_soc_dai_ops dmic_dai_ops = {
-	.hw_params = non_hda_dai_hw_params,
+	.hw_params = analn_hda_dai_hw_params,
 	.hw_free = hda_dai_hw_free,
 	.trigger = hda_dai_trigger,
-	.prepare = non_hda_dai_prepare,
+	.prepare = analn_hda_dai_prepare,
 };
 
 int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
@@ -439,9 +439,9 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_sof_dev *sdev;
 	int ret;
 
-	ret = non_hda_dai_hw_params(substream, params, cpu_dai);
+	ret = analn_hda_dai_hw_params(substream, params, cpu_dai);
 	if (ret < 0) {
-		dev_err(cpu_dai->dev, "%s: non_hda_dai_hw_params failed %d\n", __func__, ret);
+		dev_err(cpu_dai->dev, "%s: analn_hda_dai_hw_params failed %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -450,7 +450,7 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	hext_stream = ops->get_hext_stream(sdev, cpu_dai, substream);
 
 	if (!hext_stream)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* in the case of SoundWire we need to program the PCMSyCM registers */
 	ret = hdac_bus_eml_sdw_map_stream_ch(sof_to_bus(sdev), link_id, cpu_dai->id,
@@ -476,7 +476,7 @@ int sdw_hda_dai_hw_free(struct snd_pcm_substream *substream,
 
 	ret = hda_dai_hw_free(substream, cpu_dai);
 	if (ret < 0) {
-		dev_err(cpu_dai->dev, "%s: non_hda_dai_hw_free failed %d\n", __func__, ret);
+		dev_err(cpu_dai->dev, "%s: analn_hda_dai_hw_free failed %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -515,7 +515,7 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 		/*
 		 * clear stream. This should already be taken care for running
 		 * streams when the SUSPEND trigger is called. But paused
-		 * streams do not get suspended, so this needs to be done
+		 * streams do analt get suspended, so this needs to be done
 		 * explicitly during suspend.
 		 */
 		if (hext_stream->link_substream) {
@@ -631,7 +631,7 @@ EXPORT_SYMBOL_NS(hda_ops_free, SND_SOC_SOF_INTEL_HDA_COMMON);
 /*
  * common dai driver for skl+ platforms.
  * some products who use this DAI array only physically have a subset of
- * the DAIs, but no harm is done here by adding the whole set.
+ * the DAIs, but anal harm is done here by adding the whole set.
  */
 struct snd_soc_dai_driver skl_dai[] = {
 {
@@ -783,7 +783,7 @@ int hda_dsp_dais_suspend(struct snd_sof_dev *sdev)
 {
 	/*
 	 * In the corner case where a SUSPEND happens during a PAUSE, the ALSA core
-	 * does not throw the TRIGGER_SUSPEND. This leaves the DAIs in an unbalanced state.
+	 * does analt throw the TRIGGER_SUSPEND. This leaves the DAIs in an unbalanced state.
 	 * Since the component suspend is called last, we can trap this corner case
 	 * and force the DAIs to release their resources.
 	 */

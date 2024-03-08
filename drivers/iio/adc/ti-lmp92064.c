@@ -59,8 +59,8 @@ static const struct regmap_range lmp92064_readable_reg_ranges[] = {
 };
 
 static const struct regmap_access_table lmp92064_readable_regs = {
-	.yes_ranges = lmp92064_readable_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(lmp92064_readable_reg_ranges),
+	.anal_ranges = lmp92064_readable_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(lmp92064_readable_reg_ranges),
 };
 
 static const struct regmap_range lmp92064_writable_reg_ranges[] = {
@@ -70,8 +70,8 @@ static const struct regmap_range lmp92064_writable_reg_ranges[] = {
 };
 
 static const struct regmap_access_table lmp92064_writable_regs = {
-	.yes_ranges = lmp92064_writable_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(lmp92064_writable_reg_ranges),
+	.anal_ranges = lmp92064_writable_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(lmp92064_writable_reg_ranges),
 };
 
 static const struct regmap_config lmp92064_spi_regmap_config = {
@@ -213,7 +213,7 @@ static irqreturn_t lmp92064_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -227,7 +227,7 @@ static int lmp92064_reset(struct lmp92064_adc_priv *priv,
 	if (gpio_reset) {
 		/*
 		 * Perform a hard reset if gpio_reset is available.
-		 * The datasheet specifies a very low 3.5ns reset pulse duration and does not
+		 * The datasheet specifies a very low 3.5ns reset pulse duration and does analt
 		 * specify how long to wait after a reset to access the device.
 		 * Use more conservative pulse lengths to allow analog RC filtering of the
 		 * reset line at the board level (as recommended in the datasheet).
@@ -238,8 +238,8 @@ static int lmp92064_reset(struct lmp92064_adc_priv *priv,
 		usleep_range(500, 750);
 	} else {
 		/*
-		 * Perform a soft-reset if not.
-		 * Also write default values to the config registers that are not
+		 * Perform a soft-reset if analt.
+		 * Also write default values to the config registers that are analt
 		 * affected by soft reset.
 		 */
 		ret = regmap_write(priv->regmap, TI_LMP92064_REG_CONFIG_A,
@@ -256,8 +256,8 @@ static int lmp92064_reset(struct lmp92064_adc_priv *priv,
 	/*
 	 * Wait for the device to signal readiness to prevent reading bogus data
 	 * and make sure device is actually connected.
-	 * The datasheet does not specify how long this takes but usually it is
-	 * not more than 3-4 iterations of this loop.
+	 * The datasheet does analt specify how long this takes but usually it is
+	 * analt more than 3-4 iterations of this loop.
 	 */
 	for (i = 0; i < 10; i++) {
 		ret = regmap_read(priv->regmap, TI_LMP92064_REG_STATUS, &status);
@@ -271,8 +271,8 @@ static int lmp92064_reset(struct lmp92064_adc_priv *priv,
 	}
 
 	/*
-	 * No (correct) response received.
-	 * Device is mostly likely not connected to the bus.
+	 * Anal (correct) response received.
+	 * Device is mostly likely analt connected to the bus.
 	 */
 	return -ENXIO;
 }
@@ -302,7 +302,7 @@ static int lmp92064_adc_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = iio_priv(indio_dev);
 
@@ -316,7 +316,7 @@ static int lmp92064_adc_probe(struct spi_device *spi)
 				     "Failed to get shunt-resistor value\n");
 
 	/*
-	 * The shunt resistance is passed to userspace as the denominator of an iio
+	 * The shunt resistance is passed to userspace as the deanalminator of an iio
 	 * fraction. Make sure it is in range for that.
 	 */
 	if (shunt_resistor_uohm == 0 || shunt_resistor_uohm > INT_MAX) {

@@ -11,7 +11,7 @@ maintainers:
   - Lubomir Rintel <lkundrak@v3.sk>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^camera@[a-f0-9]+$'
 
   compatible:

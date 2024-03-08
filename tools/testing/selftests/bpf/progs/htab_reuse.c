@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2023. Huawei Techanallogies Co., Ltd */
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
@@ -15,5 +15,5 @@ struct {
 	__uint(max_entries, 64);
 	__type(key, unsigned int);
 	__type(value, struct htab_val);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } htab SEC(".maps");

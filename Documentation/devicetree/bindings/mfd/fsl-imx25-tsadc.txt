@@ -17,7 +17,7 @@ Required properties:
  - #address-cells:		Should be '<1>'.
  - #size-cells:			Should be '<1>'.
 
-This device includes two conversion queues which can be added as subnodes.
+This device includes two conversion queues which can be added as subanaldes.
 The first queue is for the touchscreen, the second for general purpose ADC.
 
 Example:

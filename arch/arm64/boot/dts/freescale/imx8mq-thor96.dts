@@ -35,7 +35,7 @@
 		user-led2 {
 			label = "green:user2";
 			gpios = <&gpio4 22 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		user-led3 {
@@ -49,7 +49,7 @@
 			label = "green:user4";
 			gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
 			panic-indicator;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		wlan-active-led {
@@ -273,7 +273,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <100000000>;
 		reg = <0>;
 	};
@@ -337,9 +337,9 @@
 	vqmmc-supply = <&reg_usdhc1_vqmmc>;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	bus-width = <4>;
-	non-removable;
-	no-sd;
-	no-mmc;
+	analn-removable;
+	anal-sd;
+	anal-mmc;
 	status = "okay";
 
 	brcmf: wifi@1 {
@@ -358,8 +358,8 @@
 	vqmmc-supply = <&reg_usdhc2_vqmmc>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	disable-wp;
 	status = "okay";
 };

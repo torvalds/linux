@@ -21,7 +21,7 @@
 
 #include "8250.h"
 
-#define UNKNOWN_DEV 0x3000
+#define UNKANALWN_DEV 0x3000
 #define CIR_PORT	0x0800
 
 static const struct pnp_device_id pnp_dev_table[] = {
@@ -38,7 +38,7 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	/* Actiontec ISA PNP 56K X2 Fax Modem */
 	{	"AEI1240",		0	},
 	/* Rockwell 56K ACF II Fax+Data+Voice Modem */
-	{	"AKY1021",		0 /*SPCI_FL_NO_SHIRQ*/	},
+	{	"AKY1021",		0 /*SPCI_FL_ANAL_SHIRQ*/	},
 	/*
 	 * ALi Fast Infrared Controller
 	 * Native driver (ali-ircc) is broken so at least
@@ -88,22 +88,22 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"GVC000F",		0	},
 	/* Archtek SmartLink Modem 3334BRV 33.6K Data Fax Voice */
 	{	"GVC0303",		0	},
-	/* Hayes */
-	/* Hayes Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
+	/* Haanal */
+	/* Haanal Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
 	{	"HAY0001",		0	},
-	/* Hayes Optima 336 V.34 + FAX + Voice PnP */
+	/* Haanal Optima 336 V.34 + FAX + Voice PnP */
 	{	"HAY000C",		0	},
-	/* Hayes Optima 336B V.34 + FAX + Voice PnP */
+	/* Haanal Optima 336B V.34 + FAX + Voice PnP */
 	{	"HAY000D",		0	},
-	/* Hayes Accura 56K Ext Fax Modem PnP */
+	/* Haanal Accura 56K Ext Fax Modem PnP */
 	{	"HAY5670",		0	},
-	/* Hayes Accura 56K Ext Fax Modem PnP */
+	/* Haanal Accura 56K Ext Fax Modem PnP */
 	{	"HAY5674",		0	},
-	/* Hayes Accura 56K Fax Modem PnP */
+	/* Haanal Accura 56K Fax Modem PnP */
 	{	"HAY5675",		0	},
-	/* Hayes 288, V.34 + FAX */
+	/* Haanal 288, V.34 + FAX */
 	{	"HAYF000",		0	},
-	/* Hayes Optima 288 V.34 + FAX + Voice, Plug & Play */
+	/* Haanal Optima 288 V.34 + FAX + Voice, Plug & Play */
 	{	"HAYF001",		0	},
 	/* IBM */
 	/* IBM Thinkpad 701 Internal Modem Voice */
@@ -193,7 +193,7 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"MVX00A1",		0	},
 	/* PC Rider K56 Phone System PnP */
 	{	"MVX00F2",		0	},
-	/* NEC 98NOTE SPEAKER PHONE FAX MODEM(33600bps) */
+	/* NEC 98ANALTE SPEAKER PHONE FAX MODEM(33600bps) */
 	{	"nEC8241",		0	},
 	/* Pace 56 Voice Internal Plug & Play Modem */
 	{	"PMC2430",		0	},
@@ -245,9 +245,9 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	/* Standard PCMCIA Card Modem */
 	{	"PNP2000",		0	},
 	/* Rockwell */
-	/* Modular Technology */
+	/* Modular Techanallogy */
 	/* Rockwell 33.6 DPF Internal PnP */
-	/* Modular Technology 33.6 Internal PnP */
+	/* Modular Techanallogy 33.6 Internal PnP */
 	{	"ROK0030",		0	},
 	/* Kortex International */
 	/* KORTEX 14400 Externe PnP */
@@ -259,10 +259,10 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"ROK4920",		0	},
 	/* Rockwell */
 	/* British Telecom */
-	/* Modular Technology */
+	/* Modular Techanallogy */
 	/* Rockwell 33.6 DPF External PnP */
 	/* BT Prologue 33.6 External PnP */
-	/* Modular Technology 33.6 External PnP */
+	/* Modular Techanallogy 33.6 External PnP */
 	{	"RSS00A0",		0	},
 	/* Viking 56K FAX INT */
 	{	"RSS0262",		0	},
@@ -357,17 +357,17 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"LTS0001",		0       },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
 	{	"WCI0003",		0	},
-	/* Unknown PnP modems */
-	{	"PNPCXXX",		UNKNOWN_DEV	},
-	/* More unknown PnP modems */
-	{	"PNPDXXX",		UNKNOWN_DEV	},
+	/* Unkanalwn PnP modems */
+	{	"PNPCXXX",		UNKANALWN_DEV	},
+	/* More unkanalwn PnP modems */
+	{	"PNPDXXX",		UNKANALWN_DEV	},
 	/*
-	 * Winbond CIR port, should not be probed. We should keep track of
+	 * Winbond CIR port, should analt be probed. We should keep track of
 	 * it to prevent the legacy serial driver from probing it.
 	 */
 	{	"WEC1022",		CIR_PORT	},
 	/*
-	 * SMSC IrCC SIR/FIR port, should not be probed by serial driver as
+	 * SMSC IrCC SIR/FIR port, should analt be probed by serial driver as
 	 * well so its own driver can bind to it.
 	 */
 	{	"SMCF010",		CIR_PORT	},
@@ -408,7 +408,7 @@ static bool check_resources(struct pnp_dev *dev)
 }
 
 /*
- * Given a complete unknown PnP device, try to use some heuristics to
+ * Given a complete unkanalwn PnP device, try to use some heuristics to
  * detect modems. Currently use such heuristic set:
  *     - dev->name or dev->bus->name must contain "modem" substring;
  *     - device must have only one IO region (8 byte long) with base address
@@ -422,12 +422,12 @@ static int serial_pnp_guess_board(struct pnp_dev *dev)
 {
 	if (!(check_name(pnp_dev_name(dev)) ||
 	    (dev->card && check_name(dev->card->name))))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (check_resources(dev))
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
@@ -436,7 +436,7 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	struct uart_8250_port uart, *port;
 	int ret, line, flags = dev_id->driver_data;
 
-	if (flags & UNKNOWN_DEV) {
+	if (flags & UNKANALWN_DEV) {
 		ret = serial_pnp_guess_board(dev);
 		if (ret < 0)
 			return ret;
@@ -456,7 +456,7 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 		uart.port.iotype = UPIO_MEM;
 		uart.port.flags = UPF_IOREMAP;
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&dev->dev,
 		 "Setup PNP port: port %#lx, mem %#llx, irq %u, type %u\n",
@@ -477,7 +477,7 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 
 	line = serial8250_register_8250_port(&uart);
 	if (line < 0 || (flags & CIR_PORT))
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = serial8250_get_port(line);
 	if (uart_console(&port->port))
@@ -501,7 +501,7 @@ static int __maybe_unused serial_pnp_suspend(struct device *dev)
 	long line = (long)dev_get_drvdata(dev);
 
 	if (!line)
-		return -ENODEV;
+		return -EANALDEV;
 	serial8250_suspend_port(line - 1);
 	return 0;
 }
@@ -511,7 +511,7 @@ static int __maybe_unused serial_pnp_resume(struct device *dev)
 	long line = (long)dev_get_drvdata(dev);
 
 	if (!line)
-		return -ENODEV;
+		return -EANALDEV;
 	serial8250_resume_port(line - 1);
 	return 0;
 }

@@ -5,7 +5,7 @@ NAME
 ----
 perf-script-perl - Process trace data with a Perl script
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf script' [-s [Perl]:script[.pl] ]
@@ -30,7 +30,7 @@ field for each event in the trace file.
 You can also look at the existing scripts in
 ~/libexec/perf-core/scripts/perl for typical examples showing how to
 do basic things like aggregate event data, print results, etc.  Also,
-the check-perf-script.pl script, while not interesting for its results,
+the check-perf-script.pl script, while analt interesting for its results,
 attempts to exercise all of the main scripting features.
 
 EVENT HANDLERS
@@ -38,8 +38,8 @@ EVENT HANDLERS
 
 When perf script is invoked using a trace script, a user-defined
 'handler function' is called for each event in the trace.  If there's
-no handler function defined for a given event type, the event is
-ignored (or passed to a 'trace_unhandled' function, see below) and the
+anal handler function defined for a given event type, the event is
+iganalred (or passed to a 'trace_unhandled' function, see below) and the
 next event is processed.
 
 Most of the event's field values are passed as arguments to the
@@ -87,7 +87,7 @@ The handler function takes the form subsystem::event_name.
 The $common_* arguments in the handler's argument list are the set of
 arguments passed to all event handlers; some of the fields correspond
 to the common_* fields in the format file, but some are synthesized,
-and some of the common_* fields aren't common enough to to be passed
+and some of the common_* fields aren't common eanalugh to to be passed
 to every event as arguments but are available as library functions.
 
 Here's a brief description of each of the invariant event args:
@@ -105,7 +105,7 @@ counterparts as handler function arguments of the same name, as can be
 seen in the example above.
 
 The above provides the basics needed to directly access every field of
-every event in a trace, which covers 90% of what you need to know to
+every event in a trace, which covers 90% of what you need to kanalw to
 write a useful trace script.  The sections below cover the rest.
 
 SCRIPT LAYOUT
@@ -188,7 +188,7 @@ Perf::Trace::Context Module
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some of the 'common' fields in the event format file aren't all that
-common, but need to be made accessible to user scripts nonetheless.
+common, but need to be made accessible to user scripts analnetheless.
 
 Perf::Trace::Context defines a set of functions that can be used to
 access this data in the context of the current event.  Each of these

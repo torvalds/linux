@@ -47,7 +47,7 @@ void __i915_drm_client_free(struct kref *kref)
 #ifdef CONFIG_PROC_FS
 static void
 obj_meminfo(struct drm_i915_gem_object *obj,
-	    struct drm_memory_stats stats[INTEL_REGION_UNKNOWN])
+	    struct drm_memory_stats stats[INTEL_REGION_UNKANALWN])
 {
 	const enum intel_region_id id = obj->mm.region ?
 					obj->mm.region->id : INTEL_REGION_SMEM;
@@ -72,7 +72,7 @@ obj_meminfo(struct drm_i915_gem_object *obj,
 
 static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 {
-	struct drm_memory_stats stats[INTEL_REGION_UNKNOWN] = {};
+	struct drm_memory_stats stats[INTEL_REGION_UNKANALWN] = {};
 	struct drm_i915_file_private *fpriv = file->driver_priv;
 	struct i915_drm_client *client = fpriv->client;
 	struct drm_i915_private *i915 = fpriv->i915;
@@ -196,7 +196,7 @@ void i915_drm_client_remove_object(struct drm_i915_gem_object *obj)
 	struct i915_drm_client *client = fetch_and_zero(&obj->client);
 	unsigned long flags;
 
-	/* Object may not be associated with a client. */
+	/* Object may analt be associated with a client. */
 	if (!client)
 		return;
 

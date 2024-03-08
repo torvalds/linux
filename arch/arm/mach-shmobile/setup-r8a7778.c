@@ -3,7 +3,7 @@
  * r8a7778 processor support
  *
  * Copyright (C) 2013  Renesas Solutions Corp.
- * Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2013  Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  * Copyright (C) 2013  Cogent Embedded, Inc.
  */
 
@@ -34,7 +34,7 @@ static void __init r8a7778_init_irq_dt(void)
 	writel(0x73ffffff, base + INT2NTSR0);
 	writel(0xffffffff, base + INT2NTSR1);
 
-	/* unmask all known interrupts in INTCS2 */
+	/* unmask all kanalwn interrupts in INTCS2 */
 	writel(0x08330773, base + INT2SMSKCR0);
 	writel(0x00311110, base + INT2SMSKCR1);
 

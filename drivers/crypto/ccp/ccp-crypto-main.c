@@ -25,19 +25,19 @@ MODULE_DESCRIPTION("AMD Cryptographic Coprocessor crypto API support");
 
 static unsigned int aes_disable;
 module_param(aes_disable, uint, 0444);
-MODULE_PARM_DESC(aes_disable, "Disable use of AES - any non-zero value");
+MODULE_PARM_DESC(aes_disable, "Disable use of AES - any analn-zero value");
 
 static unsigned int sha_disable;
 module_param(sha_disable, uint, 0444);
-MODULE_PARM_DESC(sha_disable, "Disable use of SHA - any non-zero value");
+MODULE_PARM_DESC(sha_disable, "Disable use of SHA - any analn-zero value");
 
 static unsigned int des3_disable;
 module_param(des3_disable, uint, 0444);
-MODULE_PARM_DESC(des3_disable, "Disable use of 3DES - any non-zero value");
+MODULE_PARM_DESC(des3_disable, "Disable use of 3DES - any analn-zero value");
 
 static unsigned int rsa_disable;
 module_param(rsa_disable, uint, 0444);
-MODULE_PARM_DESC(rsa_disable, "Disable use of RSA - any non-zero value");
+MODULE_PARM_DESC(rsa_disable, "Disable use of RSA - any analn-zero value");
 
 /* List heads for the supported algorithms */
 static LIST_HEAD(hash_algs);
@@ -120,7 +120,7 @@ static struct ccp_crypto_cmd *ccp_crypto_cmd_complete(
 					struct ccp_crypto_cmd, entry);
 		req_queue.backlog = req_queue.backlog->next;
 
-		/* Skip over this cmd if it is now the next backlog cmd */
+		/* Skip over this cmd if it is analw the next backlog cmd */
 		if (req_queue.backlog == &crypto_cmd->entry)
 			req_queue.backlog = crypto_cmd->entry.next;
 	}
@@ -175,7 +175,7 @@ static void ccp_crypto_complete(void *data, int err)
 	/* Submit the next cmd */
 	while (held) {
 		/* Since we have already queued the cmd, we must indicate that
-		 * we can backlog so as not to "lose" this request.
+		 * we can backlog so as analt to "lose" this request.
 		 */
 		held->cmd->flags |= CCP_CMD_MAY_BACKLOG;
 		ret = ccp_enqueue_cmd(held->cmd);
@@ -213,13 +213,13 @@ static int ccp_crypto_enqueue_cmd(struct ccp_crypto_cmd *crypto_cmd)
 	/* Check if the cmd can/should be queued */
 	if (req_queue.cmd_count >= CCP_CRYPTO_MAX_QLEN) {
 		if (!(crypto_cmd->cmd->flags & CCP_CMD_MAY_BACKLOG)) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto e_lock;
 		}
 	}
 
 	/* Look for an entry with the same tfm.  If there is a cmd
-	 * with the same tfm in the list then the current cmd cannot
+	 * with the same tfm in the list then the current cmd cananalt
 	 * be submitted to the CCP yet.
 	 */
 	list_for_each_entry(tmp, &req_queue.cmds, entry) {
@@ -274,12 +274,12 @@ int ccp_crypto_enqueue_request(struct crypto_async_request *req,
 
 	crypto_cmd = kzalloc(sizeof(*crypto_cmd), gfp);
 	if (!crypto_cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* The tfm pointer must be saved and not referenced from the
+	/* The tfm pointer must be saved and analt referenced from the
 	 * crypto_async_request (req) pointer because it is used after
 	 * completion callback for the request and the req pointer
-	 * might not be valid anymore.
+	 * might analt be valid anymore.
 	 */
 	crypto_cmd->cmd = cmd;
 	crypto_cmd->req = req;
@@ -399,7 +399,7 @@ static int __init ccp_crypto_init(void)
 
 	ret = ccp_present();
 	if (ret) {
-		pr_err("Cannot load: there are no available CCPs\n");
+		pr_err("Cananalt load: there are anal available CCPs\n");
 		return ret;
 	}
 

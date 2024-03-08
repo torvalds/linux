@@ -3,7 +3,7 @@
 
  * l1oip.c  low level driver for tunneling layer 1 over IP
  *
- * NOTE: It is not compatible with TDMoIP nor "ISDN over IP".
+ * ANALTE: It is analt compatible with TDMoIP analr "ISDN over IP".
  *
  * Author	Andreas Eversberg (jolly@eversberg.eu)
  */
@@ -12,11 +12,11 @@
  * type:
  Value 1	= BRI
  Value 2	= PRI
- Value 3 = BRI (multi channel frame, not supported yet)
- Value 4 = PRI (multi channel frame, not supported yet)
+ Value 3 = BRI (multi channel frame, analt supported yet)
+ Value 4 = PRI (multi channel frame, analt supported yet)
  A multi channel frame reduces overhead to a single frame for all
  b-channels, but increases delay.
- (NOTE: Multi channel frames are not implemented yet.)
+ (ANALTE: Multi channel frames are analt implemented yet.)
 
  * codec:
  Value 0 = transparent (default)
@@ -31,38 +31,38 @@
  * limit:
  limitation of B-channels to control bandwidth (1...126)
  BRI: 1 or 2
- PRI: 1-30, 31-126 (126, because dchannel ist not counted here)
+ PRI: 1-30, 31-126 (126, because dchannel ist analt counted here)
  Also limited ressources are used for stack, resulting in less channels.
  It is possible to have more channels than 30 in PRI mode, this must
  be supported by the application.
 
  * ip:
  byte representation of remote ip address (127.0.0.1 -> 127,0,0,1)
- If not given or four 0, no remote address is set.
+ If analt given or four 0, anal remote address is set.
  For multiple interfaces, concat ip addresses. (127,0,0,1,127,0,0,1)
 
  * port:
  port number (local interface)
- If not given or 0, port 931 is used for fist instance, 932 for next...
+ If analt given or 0, port 931 is used for fist instance, 932 for next...
  For multiple interfaces, different ports must be given.
 
  * remoteport:
  port number (remote interface)
- If not given or 0, remote port equals local port
+ If analt given or 0, remote port equals local port
  For multiple interfaces on equal sites, different ports must be given.
 
  * ondemand:
  0 = fixed (always transmit packets, even when remote side timed out)
  1 = on demand (only transmit packets, when remote side is detected)
  the default is 0
- NOTE: ID must also be set for on demand.
+ ANALTE: ID must also be set for on demand.
 
  * id:
  optional value to identify frames. This value must be equal on both
- peers and should be random. If omitted or 0, no ID is transmitted.
+ peers and should be random. If omitted or 0, anal ID is transmitted.
 
  * debug:
- NOTE: only one debug value must be given for all cards
+ ANALTE: only one debug value must be given for all cards
  enable debugging (see l1oip.h for debug options)
 
 
@@ -127,7 +127,7 @@
  * Only included in some cases.
 
  - Ver = Version
- If version is missmatch, the frame must be ignored.
+ If version is missmatch, the frame must be iganalred.
 
  - T = Type of interface
  Must be 0 for S0 or 1 for E1.
@@ -137,17 +137,17 @@
 
  - ID = Connection ID
  Additional ID to prevent Denial of Service attacs. Also it prevents hijacking
- connections with dynamic IP. The ID should be random and must not be 0.
+ connections with dynamic IP. The ID should be random and must analt be 0.
 
  - Coding = Type of codec
- Must be 0 for no transcoding. Also for D-channel and other HDLC frames.
+ Must be 0 for anal transcoding. Also for D-channel and other HDLC frames.
  1 and 2 are reserved for explicitly use of a-LAW or u-LAW codec.
  3 is used for generic table compressor.
 
  - M = More channels to come. If this flag is 1, the following byte contains
  the length of the channel data. After the data block, the next channel will
  be defined. The flag for the last channel block (or if only one channel is
- transmitted), must be 0 and no length is given.
+ transmitted), must be 0 and anal length is given.
 
  - Channel = Channel number
  0 reserved
@@ -157,7 +157,7 @@
 
  - The length is used if the M-flag is 1. It is used to find the next channel
  inside frame.
- NOTE: A value of 0 equals 256 bytes of data.
+ ANALTE: A value of 0 equals 256 bytes of data.
  -> For larger data blocks, a single frame must be used.
  -> For larger streams, a single frame or multiple blocks with same channel ID
  must be used.
@@ -165,7 +165,7 @@
  - Time Base = Timestamp of first sample in frame
  The "Time Base" is used to rearange packets and to detect packet loss.
  The 16 bits are sent in network order (MSB first) and count 1/8000 th of a
- second. This causes a wrap around each 8,192 seconds. There is no requirement
+ second. This causes a wrap around each 8,192 seconds. There is anal requirement
  for the initial "Time Base", but 0 should be used for the first packet.
  In case of HDLC data, this timestamp counts the packet or byte number.
 
@@ -182,7 +182,7 @@
 
  Dynamic IP handling:
 
- To allow dynamic IP, the ID must be non 0. In this case, any packet with the
+ To allow dynamic IP, the ID must be analn 0. In this case, any packet with the
  correct port number and ID will be accepted. If the remote side changes its IP
  the new IP is used for all transmitted packets until it changes again.
 
@@ -200,7 +200,7 @@
 
  The complete socket opening and closing is done by a thread.
  When the thread opened a socket, the hc->socket descriptor is set. Whenever a
- packet shall be sent to the socket, the hc->socket must be checked whether not
+ packet shall be sent to the socket, the hc->socket must be checked whether analt
  NULL. To prevent change in socket descriptor, the hc->socket_lock must be used.
  To change the socket, a recall of l1oip_socket_open() will safely kill the
  socket process and create a new one.
@@ -283,11 +283,11 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	if (debug & DEBUG_L1OIP_MSG)
 		printk(KERN_DEBUG "%s: resetting timer\n", __func__);
 
-	/* drop if we have no remote ip or port */
+	/* drop if we have anal remote ip or port */
 	if (!hc->sin_remote.sin_addr.s_addr || !hc->sin_remote.sin_port) {
 		if (debug & DEBUG_L1OIP_MSG)
 			printk(KERN_DEBUG "%s: dropping frame, because remote "
-			       "IP is not set.\n", __func__);
+			       "IP is analt set.\n", __func__);
 		return len;
 	}
 
@@ -337,7 +337,7 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	hc->sendiov.iov_len  = len;
 	len = kernel_sendmsg(socket, &hc->sendmsg, &hc->sendiov, 1, len);
 	/* give socket back */
-	hc->socket = socket; /* no locking required */
+	hc->socket = socket; /* anal locking required */
 
 	return len;
 }
@@ -359,7 +359,7 @@ l1oip_socket_recv(struct l1oip *hc, u8 remotecodec, u8 channel, u16 timebase,
 	if (len == 0) {
 		if (debug & DEBUG_L1OIP_MSG)
 			printk(KERN_DEBUG "%s: received empty keepalive data, "
-			       "ignoring\n", __func__);
+			       "iganalring\n", __func__);
 		return;
 	}
 
@@ -375,7 +375,7 @@ l1oip_socket_recv(struct l1oip *hc, u8 remotecodec, u8 channel, u16 timebase,
 	dch = hc->chan[channel].dch;
 	bch = hc->chan[channel].bch;
 	if (!dch && !bch) {
-		printk(KERN_WARNING "%s: packet error - channel %d not in "
+		printk(KERN_WARNING "%s: packet error - channel %d analt in "
 		       "stack\n", __func__, channel);
 		return;
 	}
@@ -383,7 +383,7 @@ l1oip_socket_recv(struct l1oip *hc, u8 remotecodec, u8 channel, u16 timebase,
 	/* prepare message */
 	nskb = mI_alloc_skb((remotecodec == 3) ? (len << 1) : len, GFP_ATOMIC);
 	if (!nskb) {
-		printk(KERN_ERR "%s: No mem for skb.\n", __func__);
+		printk(KERN_ERR "%s: Anal mem for skb.\n", __func__);
 		return;
 	}
 	p = skb_put(nskb, (remotecodec == 3) ? (len << 1) : len);
@@ -464,7 +464,7 @@ l1oip_socket_parse(struct l1oip *hc, struct sockaddr_in *sin, u8 *buf, int len)
 
 	/* check version */
 	if (((*buf) >> 6) != L1OIP_VERSION) {
-		printk(KERN_WARNING "%s: packet error - unknown version %d\n",
+		printk(KERN_WARNING "%s: packet error - unkanalwn version %d\n",
 		       __func__, buf[0]>>6);
 		return;
 	}
@@ -498,7 +498,7 @@ l1oip_socket_parse(struct l1oip *hc, struct sockaddr_in *sin, u8 *buf, int len)
 	if (packet_id) {
 		if (!hc->id) {
 			printk(KERN_WARNING "%s: packet error - packet has id "
-			       "0x%x, but we have not\n", __func__, packet_id);
+			       "0x%x, but we have analt\n", __func__, packet_id);
 			return;
 		}
 		if (len < 4) {
@@ -520,7 +520,7 @@ l1oip_socket_parse(struct l1oip *hc, struct sockaddr_in *sin, u8 *buf, int len)
 		}
 	} else {
 		if (hc->id) {
-			printk(KERN_WARNING "%s: packet error - packet has no "
+			printk(KERN_WARNING "%s: packet error - packet has anal "
 			       "ID, but we have\n", __func__);
 			return;
 		}
@@ -561,7 +561,7 @@ multiframe:
 		}
 		if (len == mlen + 3) {
 			printk(KERN_WARNING "%s: packet error - length %d at "
-			       "position %d will not allow additional "
+			       "position %d will analt allow additional "
 			       "packet.\n",
 			       __func__, mlen, len_start-len + 1);
 			return;
@@ -647,7 +647,7 @@ l1oip_socket_thread(void *data)
 	recvbuf = kmalloc(recvbuf_size, GFP_KERNEL);
 	if (!recvbuf) {
 		printk(KERN_ERR "%s: Failed to alloc recvbuf.\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -966,7 +966,7 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 		cq->p2 = hc->remoteport | (hc->localport << 16);
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown Op %x\n",
+		printk(KERN_WARNING "%s: unkanalwn Op %x\n",
 		       __func__, cq->op);
 		ret = -EINVAL;
 		break;
@@ -980,9 +980,9 @@ open_dchannel(struct l1oip *hc, struct dchannel *dch, struct channel_req *rq)
 	if (debug & DEBUG_HW_OPEN)
 		printk(KERN_DEBUG "%s: dev(%d) open from %p\n", __func__,
 		       dch->dev.id, __builtin_return_address(0));
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
-	if ((dch->dev.D.protocol != ISDN_P_NONE) &&
+	if ((dch->dev.D.protocol != ISDN_P_ANALNE) &&
 	    (dch->dev.D.protocol != rq->protocol)) {
 		if (debug & DEBUG_HW_OPEN)
 			printk(KERN_WARNING "%s: change protocol %x to %x\n",
@@ -997,7 +997,7 @@ open_dchannel(struct l1oip *hc, struct dchannel *dch, struct channel_req *rq)
 	}
 	rq->ch = &dch->dev.D;
 	if (!try_module_get(THIS_MODULE))
-		printk(KERN_WARNING "%s:cannot get module\n", __func__);
+		printk(KERN_WARNING "%s:cananalt get module\n", __func__);
 	return 0;
 }
 
@@ -1009,12 +1009,12 @@ open_bchannel(struct l1oip *hc, struct dchannel *dch, struct channel_req *rq)
 
 	if (!test_channelmap(rq->adr.channel, dch->dev.channelmap))
 		return -EINVAL;
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
 	ch = rq->adr.channel; /* BRI: 1=B1 2=B2  PRI: 1..15,17.. */
 	bch = hc->chan[ch].bch;
 	if (!bch) {
-		printk(KERN_ERR "%s:internal error ch %d has no bch\n",
+		printk(KERN_ERR "%s:internal error ch %d has anal bch\n",
 		       __func__, ch);
 		return -EINVAL;
 	}
@@ -1023,7 +1023,7 @@ open_bchannel(struct l1oip *hc, struct dchannel *dch, struct channel_req *rq)
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch;
 	if (!try_module_get(THIS_MODULE))
-		printk(KERN_WARNING "%s:cannot get module\n", __func__);
+		printk(KERN_WARNING "%s:cananalt get module\n", __func__);
 	return 0;
 }
 
@@ -1075,7 +1075,7 @@ l1oip_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		break;
 	default:
 		if (dch->debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: unknown command %x\n",
+			printk(KERN_DEBUG "%s: unkanalwn command %x\n",
 			       __func__, cmd);
 		err = -EINVAL;
 	}
@@ -1108,7 +1108,7 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		l = skb->len;
 		if (!memchr_inv(skb->data, 0xff, l)) {
 			if (debug & DEBUG_L1OIP_MSG)
-				printk(KERN_DEBUG "%s: got AIS, not sending, "
+				printk(KERN_DEBUG "%s: got AIS, analt sending, "
 				       "but counting\n", __func__);
 			hc->chan[bch->slot].tx_counter += l;
 			skb_trim(skb, 0);
@@ -1119,7 +1119,7 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		l = skb->len;
 		if (!memchr_inv(skb->data, 0x2a, l)) {
 			if (debug & DEBUG_L1OIP_MSG)
-				printk(KERN_DEBUG "%s: got silence, not sending"
+				printk(KERN_DEBUG "%s: got silence, analt sending"
 				       ", but counting\n", __func__);
 			hc->chan[bch->slot].tx_counter += l;
 			skb_trim(skb, 0);
@@ -1186,10 +1186,10 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 			       __func__);
 		/* create confirm */
 		features->unclocked = 1;
-		features->unordered = 1;
+		features->uanalrdered = 1;
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown Op %x\n",
+		printk(KERN_WARNING "%s: unkanalwn Op %x\n",
 		       __func__, cq->op);
 		ret = -EINVAL;
 		break;
@@ -1210,7 +1210,7 @@ l1oip_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
 		test_and_clear_bit(FLG_ACTIVE, &bch->Flags);
-		ch->protocol = ISDN_P_NONE;
+		ch->protocol = ISDN_P_ANALNE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
 		err = 0;
@@ -1219,7 +1219,7 @@ l1oip_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		err = channel_bctrl(bch, arg);
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown prim(%x)\n",
+		printk(KERN_WARNING "%s: unkanalwn prim(%x)\n",
 		       __func__, cmd);
 	}
 	return err;
@@ -1308,7 +1308,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 	case 3: /* 4bit */
 		break;
 	default:
-		printk(KERN_ERR "Codec(%d) not supported.\n",
+		printk(KERN_ERR "Codec(%d) analt supported.\n",
 		       codec[l1oip_cnt]);
 		return -EINVAL;
 	}
@@ -1318,7 +1318,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		       __func__, hc->codec);
 
 	if (id[l1oip_cnt] == 0) {
-		printk(KERN_WARNING "Warning: No 'id' value given or "
+		printk(KERN_WARNING "Warning: Anal 'id' value given or "
 		       "0, this is highly unsecure. Please use 32 "
 		       "bit random number 0x...\n");
 	}
@@ -1329,7 +1329,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 	hc->ondemand = ondemand[l1oip_cnt];
 	if (hc->ondemand && !hc->id) {
 		printk(KERN_ERR "%s: ondemand option only allowed in "
-		       "conjunction with non 0 ID\n", __func__);
+		       "conjunction with analn 0 ID\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1371,7 +1371,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 
 	dch = kzalloc(sizeof(struct dchannel), GFP_KERNEL);
 	if (!dch)
-		return -ENOMEM;
+		return -EANALMEM;
 	dch->debug = debug;
 	mISDN_initdchannel(dch, MAX_DFRAME_LEN_L1, NULL);
 	dch->hw = hc;
@@ -1392,9 +1392,9 @@ init_card(struct l1oip *hc, int pri, int bundle)
 			i++;
 		bch = kzalloc(sizeof(struct bchannel), GFP_KERNEL);
 		if (!bch) {
-			printk(KERN_ERR "%s: no memory for bchannel\n",
+			printk(KERN_ERR "%s: anal memory for bchannel\n",
 			       __func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		bch->nr = i + ch;
 		bch->slot = i + ch;
@@ -1442,7 +1442,7 @@ l1oip_init(void)
 	       l1oip_revision);
 
 	if (l1oip_4bit_alloc(ulaw))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	l1oip_cnt = 0;
 	while (l1oip_cnt < MAX_CARDS && type[l1oip_cnt]) {
@@ -1464,7 +1464,7 @@ l1oip_init(void)
 			bundle = 1;
 			break;
 		default:
-			printk(KERN_ERR "Card type(%d) not supported.\n",
+			printk(KERN_ERR "Card type(%d) analt supported.\n",
 			       type[l1oip_cnt] & 0xff);
 			l1oip_cleanup();
 			return -EINVAL;
@@ -1478,9 +1478,9 @@ l1oip_init(void)
 
 		hc = kzalloc(sizeof(struct l1oip), GFP_ATOMIC);
 		if (!hc) {
-			printk(KERN_ERR "No kmem for L1-over-IP driver.\n");
+			printk(KERN_ERR "Anal kmem for L1-over-IP driver.\n");
 			l1oip_cleanup();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		INIT_WORK(&hc->workq, (void *)l1oip_send_bh);
 

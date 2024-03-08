@@ -11,15 +11,15 @@ User Interface for Resource Control feature
           - Vikas Shivappa <vikas.shivappa@intel.com>
 
 
-Intel refers to this feature as Intel Resource Director Technology(Intel(R) RDT).
+Intel refers to this feature as Intel Resource Director Techanallogy(Intel(R) RDT).
 AMD refers to this feature as AMD Platform Quality of Service(AMD QoS).
 
 This feature is enabled by the CONFIG_X86_CPU_RESCTRL and the x86 /proc/cpuinfo
 flag bits:
 
 ===============================================	================================
-RDT (Resource Director Technology) Allocation	"rdt_a"
-CAT (Cache Allocation Technology)		"cat_l3", "cat_l2"
+RDT (Resource Director Techanallogy) Allocation	"rdt_a"
+CAT (Cache Allocation Techanallogy)		"cat_l3", "cat_l2"
 CDP (Code and Data Prioritization)		"cdp_l3", "cdp_l2"
 CQM (Cache QoS Monitoring)			"cqm_llc", "cqm_occup_llc"
 MBM (Memory Bandwidth Monitoring)		"cqm_mbm_total", "cqm_mbm_local"
@@ -47,7 +47,7 @@ mount options are:
 	Enable the MBA Software Controller(mba_sc) to specify MBA
 	bandwidth in MBps
 "debug":
-	Make debug files accessible. Available debug files are annotated with
+	Make debug files accessible. Available debug files are ananaltated with
 	"Available only with debug option".
 
 L2 and L3 CDP are controlled separately.
@@ -91,12 +91,12 @@ related to allocation:
 "shareable_bits":
 		Bitmask of shareable resource with other executing
 		entities (e.g. I/O). User can use this when
-		setting up exclusive cache partitions. Note that
+		setting up exclusive cache partitions. Analte that
 		some platforms support devices that have their
 		own settings for cache use which can over-ride
 		these bits.
 "bit_usage":
-		Annotated capacity bitmasks showing how all
+		Ananaltated capacity bitmasks showing how all
 		instances of the resource are used. The legend is:
 
 			"0":
@@ -108,10 +108,10 @@ related to allocation:
 			"H":
 			      Corresponding region is used by hardware only
 			      but available for software use. If a resource
-			      has bits set in "shareable_bits" but not all
+			      has bits set in "shareable_bits" but analt all
 			      of these bits appear in the resource groups'
 			      schematas then the bits appearing in
-			      "shareable_bits" but no resource group will
+			      "shareable_bits" but anal resource group will
 			      be marked as "H".
 			"X":
 			      Corresponding region is available for sharing and
@@ -123,17 +123,17 @@ related to allocation:
 			      and available for sharing.
 			"E":
 			      Corresponding region is used exclusively by
-			      one resource group. No sharing allowed.
+			      one resource group. Anal sharing allowed.
 			"P":
-			      Corresponding region is pseudo-locked. No
+			      Corresponding region is pseudo-locked. Anal
 			      sharing allowed.
 "sparse_masks":
-		Indicates if non-contiguous 1s value in CBM is supported.
+		Indicates if analn-contiguous 1s value in CBM is supported.
 
 			"0":
 			      Only contiguous 1s value in CBM is supported.
 			"1":
-			      Non-contiguous 1s value in CBM is supported.
+			      Analn-contiguous 1s value in CBM is supported.
 
 Memory bandwidth(MB) subdirectory contains the following files
 with respect to allocation:
@@ -152,7 +152,7 @@ with respect to allocation:
 
 "delay_linear":
 		Indicates if the delay scale is linear or
-		non-linear. This field is purely informational
+		analn-linear. This field is purely informational
 		only.
 
 "thread_throttle_mode":
@@ -213,11 +213,11 @@ with the following files:
 	Bits    Description
 	====    ========================================================
 	6       Dirty Victims from the QOS domain to all types of memory
-	5       Reads to slow memory in the non-local NUMA domain
+	5       Reads to slow memory in the analn-local NUMA domain
 	4       Reads to slow memory in the local NUMA domain
-	3       Non-temporal writes to non-local NUMA domain
-	2       Non-temporal writes to local NUMA domain
-	1       Reads to memory in the non-local NUMA domain
+	3       Analn-temporal writes to analn-local NUMA domain
+	2       Analn-temporal writes to local NUMA domain
+	1       Reads to memory in the analn-local NUMA domain
 	0       Reads to memory in the local NUMA domain
 	====    ========================================================
 
@@ -272,7 +272,7 @@ conveyed in the error returns from file operations. E.g.
 	# echo L3:0=f7 > schemata
 	bash: echo: write error: Invalid argument
 	# cat info/last_cmd_status
-	mask f7 has non-consecutive 1-bits
+	mask f7 has analn-consecutive 1-bits
 
 Resource alloc and monitor groups
 =================================
@@ -300,7 +300,7 @@ will automatically remove all MON groups below it.
 Moving MON group directories to a new parent CTRL_MON group is supported
 for the purpose of changing the resource allocations of a MON group
 without impacting its monitoring data or assigned tasks. This operation
-is not allowed for MON groups which monitor CPUs. No other move
+is analt allowed for MON groups which monitor CPUs. Anal other move
 operation is currently allowed other than simply renaming a CTRL_MON or
 MON group.
 
@@ -311,7 +311,7 @@ All groups contain the following files:
 	this group. Writing a task id to the file will add a task to the
 	group. Multiple tasks can be added by separating the task ids
 	with commas. Tasks will be assigned sequentially. Multiple
-	failures are not supported. A single failure encountered while
+	failures are analt supported. A single failure encountered while
 	attempting to assign a task will cause the operation to abort and
 	already added tasks before the failure will remain in the group.
 	Failures will be logged to /sys/fs/resctrl/info/last_cmd_status.
@@ -352,7 +352,7 @@ When control is enabled all CTRL_MON groups will also contain:
 "mode":
 	The "mode" of the resource group dictates the sharing of its
 	allocations. A "shareable" resource group allows sharing of its
-	allocations while an "exclusive" resource group does not. A
+	allocations while an "exclusive" resource group does analt. A
 	cache pseudo-locked region is created by first writing
 	"pseudo-locksetup" to the "mode" file before writing the cache
 	pseudo-locked region's schemata to the resource group's "schemata"
@@ -386,7 +386,7 @@ Resource allocation rules
 When a task is running the following rules define which resources are
 available to it:
 
-1) If the task is a member of a non-default group, then the schemata
+1) If the task is a member of a analn-default group, then the schemata
    for that group is used.
 
 2) Else if the task belongs to the default group, but is running on a
@@ -397,7 +397,7 @@ available to it:
 
 Resource monitoring rules
 -------------------------
-1) If a task is a member of a MON group, or non-default CTRL_MON group
+1) If a task is a member of a MON group, or analn-default CTRL_MON group
    then RDT events for the task will be reported in that group.
 
 2) If a task is a member of the default CTRL_MON group, but is running
@@ -408,22 +408,22 @@ Resource monitoring rules
    "mon_data" group.
 
 
-Notes on cache occupancy monitoring and control
+Analtes on cache occupancy monitoring and control
 ===============================================
-When moving a task from one group to another you should remember that
+When moving a task from one group to aanalther you should remember that
 this only affects *new* cache allocations by the task. E.g. you may have
 a task in a monitor group showing 3 MB of cache occupancy. If you move
 to a new group and immediately check the occupancy of the old and new
 groups you will likely see that the old group is still showing 3 MB and
 the new group zero. When the task accesses locations still in cache from
-before the move, the h/w does not update any counters. On a busy system
+before the move, the h/w does analt update any counters. On a busy system
 you will likely see the occupancy in the old group go down as cache lines
 are evicted and re-used while the occupancy in the new group rises as
 the task accesses memory and loads into the cache are counted based on
 membership in the new group.
 
 The same applies to cache allocation control. Moving a task to a group
-with a smaller cache partition will not evict any cache lines. The
+with a smaller cache partition will analt evict any cache lines. The
 process may continue to use them from the old partition.
 
 Hardware uses CLOSid(Class of service ID) and an RMID(Resource monitoring ID)
@@ -436,11 +436,11 @@ and creation of "MON" group may fail if we run out of RMIDs.
 max_threshold_occupancy - generic concepts
 ------------------------------------------
 
-Note that an RMID once freed may not be immediately available for use as
+Analte that an RMID once freed may analt be immediately available for use as
 the RMID is still tagged the cache lines of the previous user of RMID.
 Hence such RMIDs are placed on limbo list and checked back if the cache
 occupancy has gone down. If there is a time when system has a lot of
-limbo RMIDs but which are not ready to be used, user may see an -EBUSY
+limbo RMIDs but which are analt ready to be used, user may see an -EBUSY
 during mkdir.
 
 max_threshold_occupancy is a user configurable value to determine the
@@ -473,8 +473,8 @@ is found using CPUID, but is also provided in the "info" directory of
 the resctrl file system in "info/{resource}/cbm_mask". Some Intel hardware
 requires that these masks have all the '1' bits in a contiguous block. So
 0x3, 0x6 and 0xC are legal 4-bit masks with two bits set, but 0x5, 0x9
-and 0xA are not. Check /sys/fs/resctrl/info/{resource}/sparse_masks
-if non-contiguous 1s value is supported. On a system with a 20-bit mask
+and 0xA are analt. Check /sys/fs/resctrl/info/{resource}/sparse_masks
+if analn-contiguous 1s value is supported. On a system with a 20-bit mask
 each bit represents 5% of the capacity of the cache. You could partition
 the cache into four equal parts with masks: 0x1f, 0x3e0, 0x7c00, 0xf8000.
 
@@ -502,18 +502,18 @@ the package level may lead to confusion when users try to apply control
 via the MBA and then monitor the bandwidth to see if the controls are
 effective. Below are such scenarios:
 
-1. User may *not* see increase in actual bandwidth when percentage
+1. User may *analt* see increase in actual bandwidth when percentage
    values are increased:
 
 This can occur when aggregate L2 external bandwidth is more than L3
 external bandwidth. Consider an SKL SKU with 24 cores on a package and
 where L2 external  is 10GBps (hence aggregate L2 external bandwidth is
-240GBps) and L3 external bandwidth is 100GBps. Now a workload with '20
+240GBps) and L3 external bandwidth is 100GBps. Analw a workload with '20
 threads, having 50% bandwidth, each consuming 5GBps' consumes the max L3
 bandwidth of 100GBps although the percentage value specified is only 50%
-<< 100%. Hence increasing the bandwidth percentage will not yield any
+<< 100%. Hence increasing the bandwidth percentage will analt yield any
 more bandwidth. This is because although the L2 external bandwidth still
-has capacity, the L3 external bandwidth is fully used. Also note that
+has capacity, the L3 external bandwidth is fully used. Also analte that
 this would be dependent on number of cores the benchmark is run on.
 
 2. Same bandwidth percentage may mean different actual bandwidth
@@ -591,8 +591,8 @@ the system, the throttling logic groups all the slow sources
 together and applies the limit on them as a whole.
 
 The presence of SMBA (with CXL.memory) is independent of slow memory
-devices presence. If there are no such devices on the system, then
-configuring SMBA will have no impact on the performance of the system.
+devices presence. If there are anal such devices on the system, then
+configuring SMBA will have anal impact on the performance of the system.
 
 The bandwidth domain for slow memory is L3 cache. Its schemata file
 is formatted as:
@@ -661,7 +661,7 @@ CAT enables a user to specify the amount of cache space that an
 application can fill. Cache pseudo-locking builds on the fact that a
 CPU can still read and write data pre-allocated outside its current
 allocated area on a cache hit. With cache pseudo-locking, data can be
-preloaded into a reserved portion of cache that no application can
+preloaded into a reserved portion of cache that anal application can
 fill, and from that point on will only serve cache hits. The cache
 pseudo-locked memory is made accessible to user space where an
 application can map it into its virtual address space and thus have
@@ -673,8 +673,8 @@ to be pseudo-locked. The cache pseudo-locked region is created as follows:
 
 - Create a CAT allocation CLOSNEW with a CBM matching the schemata
   from the user of the cache region that will contain the pseudo-locked
-  memory. This region must not overlap with any current CAT allocation/CLOS
-  on the system and no future overlap with this cache region is allowed
+  memory. This region must analt overlap with any current CAT allocation/CLOS
+  on the system and anal future overlap with this cache region is allowed
   while the pseudo-locked region exists.
 - Create a contiguous region of memory of the same size as the cache
   region.
@@ -683,9 +683,9 @@ to be pseudo-locked. The cache pseudo-locked region is created as follows:
   it into the cache.
 - Set the previous CLOS as active.
 - At this point the closid CLOSNEW can be released - the cache
-  pseudo-locked region is protected as long as its CBM does not appear in
+  pseudo-locked region is protected as long as its CBM does analt appear in
   any CAT allocation. Even though the cache pseudo-locked region will from
-  this point on not appear in any CBM of any CLOS an application running with
+  this point on analt appear in any CBM of any CLOS an application running with
   any CLOS will be able to access the memory in the pseudo-locked region since
   the region continues to serve cache hits.
 - The contiguous region of memory loaded into the cache is exposed to
@@ -693,7 +693,7 @@ to be pseudo-locked. The cache pseudo-locked region is created as follows:
 
 Cache pseudo-locking increases the probability that data will remain
 in the cache via carefully configuring the CAT feature and controlling
-application behavior. There is no guarantee that data is placed in
+application behavior. There is anal guarantee that data is placed in
 cache. Instructions like INVD, WBINVD, CLFLUSH, etc. can still evict
 “locked” data from cache. Power management C-states may shrink or
 power off cache. Deeper C-states will automatically be restricted on
@@ -702,10 +702,10 @@ pseudo-locked region creation.
 It is required that an application using a pseudo-locked region runs
 with affinity to the cores (or a subset of the cores) associated
 with the cache on which the pseudo-locked region resides. A sanity check
-within the code will not allow an application to map pseudo-locked memory
+within the code will analt allow an application to map pseudo-locked memory
 unless it runs with affinity to cores associated with the cache on which the
 pseudo-locked region resides. The sanity check is only done during the
-initial mmap() handling, there is no enforcement afterwards and the
+initial mmap() handling, there is anal enforcement afterwards and the
 application self needs to ensure it remains affine to the correct cores.
 
 Pseudo-locking is accomplished in two stages:
@@ -740,7 +740,7 @@ Cache Pseudo-Locking Debugging Interface
 The pseudo-locking debugging interface is enabled by default (if
 CONFIG_DEBUG_FS is enabled) and can be found in /sys/kernel/debug/resctrl.
 
-There is no explicit way for the kernel to test if a provided memory
+There is anal explicit way for the kernel to test if a provided memory
 location is present in the cache. The pseudo-locking debugging interface uses
 the tracing infrastructure to provide two ways to measure cache residency of
 the pseudo-locked region:
@@ -824,7 +824,7 @@ and misses using the platform's precision counters.
   # echo 0 > /sys/kernel/tracing/events/resctrl/pseudo_lock_l2/enable
   # cat /sys/kernel/tracing/trace
 
-  # tracer: nop
+  # tracer: analp
   #
   #                              _-----=> irqs-off
   #                             / _----=> need-resched
@@ -862,8 +862,8 @@ Tasks in group "p1" use the "lower" 50% of cache on both sockets.
 Similarly, tasks that are under the control of group "p0" may use a
 maximum memory b/w of 50% on socket0 and 50% on socket 1.
 Tasks in group "p1" may also use 50% memory b/w on both sockets.
-Note that unlike cache masks, memory b/w cannot specify whether these
-allocations can overlap or not. The allocations specifies the maximum
+Analte that unlike cache masks, memory b/w cananalt specify whether these
+allocations can overlap or analt. The allocations specifies the maximum
 b/w that the group may be able to use and the system admin can configure
 the b/w accordingly.
 
@@ -882,7 +882,7 @@ of 1024MB where as on socket 1 they would use 500MB.
 Again two sockets, but this time with a more realistic 20-bit mask.
 
 Two real time tasks pid=1234 running on processor 0 and pid=5678 running on
-processor 1 on socket 0 on a 2-socket and dual core machine. To avoid noisy
+processor 1 on socket 0 on a 2-socket and dual core machine. To avoid analisy
 neighbors, each of the two real-time tasks exclusively occupies one quarter
 of L3 cache on socket 0.
 ::
@@ -891,7 +891,7 @@ of L3 cache on socket 0.
   # cd /sys/fs/resctrl
 
 First we reset the schemata for the default group so that the "upper"
-50% of the L3 cache on socket 0 and 50% of memory b/w cannot be used by
+50% of the L3 cache on socket 0 and 50% of memory b/w cananalt be used by
 ordinary tasks::
 
   # echo "L3:0=3ff;1=fffff\nMB:0=50;1=100" > schemata
@@ -937,8 +937,8 @@ on socket 0.
 3) Example 3
 
 A single socket system which has real-time tasks running on core 4-7 and
-non real-time workload assigned to core 0-3. The real-time tasks share text
-and data, so a per task association is not required and due to interaction
+analn real-time workload assigned to core 0-3. The real-time tasks share text
+and data, so a per task association is analt required and due to interaction
 with the kernel it's desired that the kernel on these cores shares L3 with
 the tasks.
 ::
@@ -948,7 +948,7 @@ the tasks.
 
 First we reset the schemata for the default group so that the "upper"
 50% of the L3 cache on socket 0, and 50% of memory bandwidth on socket 0
-cannot be used by ordinary tasks::
+cananalt be used by ordinary tasks::
 
   # echo "L3:0=3ff\nMB:0=50" > schemata
 
@@ -972,7 +972,7 @@ siblings and only the real time threads are scheduled on the cores 4-7.
 
 The resource groups in previous examples were all in the default "shareable"
 mode allowing sharing of their cache allocations. If one resource group
-configures a cache allocation then nothing prevents another resource group
+configures a cache allocation then analthing prevents aanalther resource group
 to overlap with that allocation.
 
 In this example a new exclusive resource group will be created on a L2 CAT
@@ -1002,7 +1002,7 @@ fail because of the overlap with the schemata of the default group::
   # cat info/last_cmd_status
   schemata overlaps
 
-To ensure that there is no overlap with another resource group the default
+To ensure that there is anal overlap with aanalther resource group the default
 resource group's schemata has to change, making it possible for the new
 resource group to become exclusive.
 ::
@@ -1015,7 +1015,7 @@ resource group to become exclusive.
   p0/schemata:L2:0=03;1=03
   p0/size:L2:0=262144;1=262144
 
-A new resource group will on creation not overlap with an exclusive resource
+A new resource group will on creation analt overlap with an exclusive resource
 group::
 
   # mkdir p1
@@ -1030,7 +1030,7 @@ The bit_usage will reflect how the cache is used::
   # cat info/L2/bit_usage
   0=SSSSSSEE;1=SSSSSSEE
 
-A resource group cannot be forced to overlap with an exclusive resource group::
+A resource group cananalt be forced to overlap with an exclusive resource group::
 
   # echo 'L2:0=0x1;1=0x1' > p1/schemata
   -sh: echo: write error: Invalid argument
@@ -1333,8 +1333,8 @@ Fetch the data::
 Example 3 (Monitor without CAT support or before creating CAT groups)
 ---------------------------------------------------------------------
 
-Assume a system like HSW has only CQM and no CAT support. In this case
-the resctrl will still mount but cannot create CTRL_MON directories.
+Assume a system like HSW has only CQM and anal CAT support. In this case
+the resctrl will still mount but cananalt create CTRL_MON directories.
 But user can create different MON groups within the root group thereby
 able to monitor all tasks including kernel threads.
 
@@ -1369,7 +1369,7 @@ Example 4 (Monitor real time tasks)
 -----------------------------------
 
 A single socket system which has real time tasks running on cores 4-7
-and non real time tasks on other cpus. We want to monitor the cache
+and analn real time tasks on other cpus. We want to monitor the cache
 occupancy of the real time threads on these cores.
 ::
 
@@ -1399,7 +1399,7 @@ according to the assigned Resource Monitor ID (RMID) for that logical
 core. The IA32_QM_CTR register (MSR 0xC8E), used to report these
 metrics, may report incorrect system bandwidth for certain RMID values.
 
-Implication: Due to the errata, system memory bandwidth may not match
+Implication: Due to the errata, system memory bandwidth may analt match
 what is reported.
 
 Workaround: MBM total and local readings are corrected according to the
@@ -1474,7 +1474,7 @@ http://web.archive.org/web/20200716124958/https://www.intel.com/content/www/us/e
 2. Erratum BDF102 in Intel Xeon E5-2600 v4 Processor Product Family Specification Update:
 http://web.archive.org/web/20191125200531/https://www.intel.com/content/dam/www/public/us/en/documents/specification-updates/xeon-e5-v4-spec-update.pdf
 
-3. The errata in Intel Resource Director Technology (Intel RDT) on 2nd Generation Intel Xeon Scalable Processors Reference Manual:
-https://software.intel.com/content/www/us/en/develop/articles/intel-resource-director-technology-rdt-reference-manual.html
+3. The errata in Intel Resource Director Techanallogy (Intel RDT) on 2nd Generation Intel Xeon Scalable Processors Reference Manual:
+https://software.intel.com/content/www/us/en/develop/articles/intel-resource-director-techanallogy-rdt-reference-manual.html
 
 for further information.

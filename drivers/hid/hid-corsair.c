@@ -154,7 +154,7 @@ static enum led_brightness k90_backlight_get(struct led_classdev *led_cdev)
 
 	data = kmalloc(8, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_STATUS,
@@ -269,7 +269,7 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 
 	data = kmalloc(2, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_GET_MODE,
@@ -292,7 +292,7 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 		macro_mode = "SW";
 		break;
 	default:
-		dev_warn(dev, "K90 in unknown mode: %02hhx.\n",
+		dev_warn(dev, "K90 in unkanalwn mode: %02hhx.\n",
 			 data[0]);
 		ret = -EIO;
 		goto out;
@@ -346,7 +346,7 @@ static ssize_t k90_show_current_profile(struct device *dev,
 
 	data = kmalloc(8, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_STATUS,
@@ -429,7 +429,7 @@ static int k90_init_backlight(struct hid_device *dev)
 
 	drvdata->backlight = kzalloc(sizeof(struct k90_led), GFP_KERNEL);
 	if (!drvdata->backlight) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_backlight_alloc;
 	}
 
@@ -437,7 +437,7 @@ static int k90_init_backlight(struct hid_device *dev)
 	    strlen(dev_name(&dev->dev)) + sizeof(K90_BACKLIGHT_LED_SUFFIX);
 	name = kzalloc(name_sz, GFP_KERNEL);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_name_alloc;
 	}
 	snprintf(name, name_sz, "%s" K90_BACKLIGHT_LED_SUFFIX,
@@ -473,7 +473,7 @@ static int k90_init_macro_functions(struct hid_device *dev)
 
 	k90 = kzalloc(sizeof(struct k90_drvdata), GFP_KERNEL);
 	if (!k90) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_drvdata;
 	}
 	drvdata->k90 = k90;
@@ -482,7 +482,7 @@ static int k90_init_macro_functions(struct hid_device *dev)
 	name_sz = strlen(dev_name(&dev->dev)) + sizeof(K90_RECORD_LED_SUFFIX);
 	name = kzalloc(name_sz, GFP_KERNEL);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_record_led_alloc;
 	}
 	snprintf(name, name_sz, "%s" K90_RECORD_LED_SUFFIX,
@@ -563,7 +563,7 @@ static int corsair_probe(struct hid_device *dev, const struct hid_device_id *id)
 	drvdata = devm_kzalloc(&dev->dev, sizeof(struct corsair_drvdata),
 			       GFP_KERNEL);
 	if (drvdata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	drvdata->quirks = quirks;
 	hid_set_drvdata(dev, drvdata);
 
@@ -679,7 +679,7 @@ static int corsair_input_mapping(struct hid_device *dev,
 
 /*
  * The report descriptor of some of the Corsair gaming mice is
- * non parseable as they define two consecutive Logical Minimum for
+ * analn parseable as they define two consecutive Logical Minimum for
  * the Usage Page (Consumer) in rdescs bytes 75 and 77 being 77 0x16
  * that should be obviousy 0x26 for Logical Magimum of 16 bits. This
  * prevents poper parsing of the report descriptor due Logical

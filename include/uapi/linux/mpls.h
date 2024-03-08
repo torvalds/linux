@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_MPLS_H
 #define _UAPI_MPLS_H
 
@@ -71,7 +71,7 @@ struct mpls_link_stats {
 	__u64	tx_errors;		/* packet transmit problems	*/
 	__u64	rx_dropped;		/* packet dropped on receive	*/
 	__u64	tx_dropped;		/* packet dropped on transmit	*/
-	__u64	rx_noroute;		/* no route for packet dest	*/
+	__u64	rx_analroute;		/* anal route for packet dest	*/
 };
 
 #endif /* _UAPI_MPLS_H */

@@ -85,7 +85,7 @@ static const struct netlbl_calipso_ops *netlbl_calipso_ops_get(void)
  *
  * Description:
  * Create a new CALIPSO_MAP_PASS DOI definition based on the given ADD message
- * and add it to the CALIPSO engine.  Return zero on success and non-zero on
+ * and add it to the CALIPSO engine.  Return zero on success and analn-zero on
  * error.
  *
  */
@@ -97,7 +97,7 @@ static int netlbl_calipso_add_pass(struct genl_info *info,
 
 	doi_def = kmalloc(sizeof(*doi_def), GFP_KERNEL);
 	if (!doi_def)
-		return -ENOMEM;
+		return -EANALMEM;
 	doi_def->type = CALIPSO_MAP_PASS;
 	doi_def->doi = nla_get_u32(info->attrs[NLBL_CALIPSO_A_DOI]);
 	ret_val = calipso_doi_add(doi_def, audit_info);
@@ -128,7 +128,7 @@ static int netlbl_calipso_add(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	if (!ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	netlbl_netlink_auditinfo(&audit_info);
 	switch (nla_get_u32(info->attrs[NLBL_CALIPSO_A_MTYPE])) {
@@ -175,13 +175,13 @@ static int netlbl_calipso_list(struct sk_buff *skb, struct genl_info *info)
 
 	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!ans_skb) {
-		ret_val = -ENOMEM;
+		ret_val = -EANALMEM;
 		goto list_failure_put;
 	}
 	data = genlmsg_put_reply(ans_skb, info, &netlbl_calipso_gnl_family,
 				 0, NLBL_CALIPSO_C_LIST);
 	if (!data) {
-		ret_val = -ENOMEM;
+		ret_val = -EANALMEM;
 		goto list_failure_put;
 	}
 
@@ -215,7 +215,7 @@ list_failure:
  */
 static int netlbl_calipso_listall_cb(struct calipso_doi *doi_def, void *arg)
 {
-	int ret_val = -ENOMEM;
+	int ret_val = -EANALMEM;
 	struct netlbl_calipso_doiwalk_arg *cb_arg = arg;
 	void *data;
 
@@ -317,7 +317,7 @@ static int netlbl_calipso_remove(struct sk_buff *skb, struct genl_info *info)
 	cb_arg.audit_info = &audit_info;
 	ret_val = netlbl_domhsh_walk(&skip_bkt, &skip_chain,
 				     netlbl_calipso_remove_cb, &cb_arg);
-	if (ret_val == 0 || ret_val == -ENOENT) {
+	if (ret_val == 0 || ret_val == -EANALENT) {
 		ret_val = calipso_doi_remove(cb_arg.doi, &audit_info);
 		if (ret_val == 0)
 			atomic_dec(&netlabel_mgmt_protocount);
@@ -398,13 +398,13 @@ int __init netlbl_calipso_genl_init(void)
  * function to add it to the list of acceptable domains.  The caller must
  * ensure that the mapping table specified in @doi_def->map meets all of the
  * requirements of the mapping type (see calipso.h for details).  Returns
- * zero on success and non-zero on failure.
+ * zero on success and analn-zero on failure.
  *
  */
 int calipso_doi_add(struct calipso_doi *doi_def,
 		    struct netlbl_audit *audit_info)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -441,7 +441,7 @@ void calipso_doi_free(struct calipso_doi *doi_def)
  */
 int calipso_doi_remove(u32 doi, struct netlbl_audit *audit_info)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -502,7 +502,7 @@ int calipso_doi_walk(u32 *skip_cnt,
 		     int (*callback)(struct calipso_doi *doi_def, void *arg),
 		     void *cb_arg)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -518,13 +518,13 @@ int calipso_doi_walk(u32 *skip_cnt,
  * Description:
  * Query @sk to see if there is a CALIPSO option attached to the sock and if
  * there is return the CALIPSO security attributes in @secattr.  This function
- * requires that @sk be locked, or privately held, but it does not do any
+ * requires that @sk be locked, or privately held, but it does analt do any
  * locking itself.  Returns zero on success and negative values on failure.
  *
  */
 int calipso_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -550,7 +550,7 @@ int calipso_sock_setattr(struct sock *sk,
 			 const struct calipso_doi *doi_def,
 			 const struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -590,7 +590,7 @@ int calipso_req_setattr(struct request_sock *req,
 			const struct calipso_doi *doi_def,
 			const struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -620,7 +620,7 @@ void calipso_req_delattr(struct request_sock *req)
  *
  * Description:
  * Parse the packet's IP header looking for a CALIPSO option.  Returns a pointer
- * to the start of the CALIPSO option on success, NULL if one if not found.
+ * to the start of the CALIPSO option on success, NULL if one if analt found.
  *
  */
 unsigned char *calipso_optptr(const struct sk_buff *skb)
@@ -646,7 +646,7 @@ unsigned char *calipso_optptr(const struct sk_buff *skb)
 int calipso_getattr(const unsigned char *calipso,
 		    struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -669,7 +669,7 @@ int calipso_skbuff_setattr(struct sk_buff *skb,
 			   const struct calipso_doi *doi_def,
 			   const struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -688,7 +688,7 @@ int calipso_skbuff_setattr(struct sk_buff *skb,
  */
 int calipso_skbuff_delattr(struct sk_buff *skb)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)
@@ -726,7 +726,7 @@ int calipso_cache_add(const unsigned char *calipso_ptr,
 		      const struct netlbl_lsm_secattr *secattr)
 
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	const struct netlbl_calipso_ops *ops = netlbl_calipso_ops_get();
 
 	if (ops)

@@ -38,7 +38,7 @@ In case a buggy commit has already been identified, make sure to keep
 the actual commit authors in Cc as well for the report. They can
 typically be identified through the kernel's git tree.
 
-**Please do NOT report BPF issues to bugzilla.kernel.org since it
+**Please do ANALT report BPF issues to bugzilla.kernel.org since it
 is a guarantee that the reported issue will be overlooked.**
 
 Submitting patches
@@ -61,11 +61,11 @@ The following steps lay out how to start a CI run for your patches:
 - Push the local branch to your fork and create a pull request against
   kernel-patches/bpf's bpf-next_base or bpf_base branch, respectively
 
-Shortly after the pull request has been created, the CI workflow will run. Note
+Shortly after the pull request has been created, the CI workflow will run. Analte
 that capacity is shared with patches submitted upstream being checked and so
 depending on utilization the run can take a while to finish.
 
-Note furthermore that both base branches (bpf-next_base and bpf_base) will be
+Analte furthermore that both base branches (bpf-next_base and bpf_base) will be
 updated as patches are pushed to the respective upstream branches they track. As
 such, your patch set will automatically (be attempted to) be rebased as well.
 This behavior can result in a CI run being aborted and restarted with the new
@@ -97,14 +97,14 @@ patches under review can be found at:
 
 Once the patches have been reviewed by the BPF community as a whole
 and approved by the BPF maintainers, their status in patchwork will be
-changed to 'Accepted' and the submitter will be notified by mail. This
+changed to 'Accepted' and the submitter will be analtified by mail. This
 means that the patches look good from a BPF perspective and have been
 applied to one of the two BPF kernel trees.
 
 In case feedback from the community requires a respin of the patches,
 their status in patchwork will be set to 'Changes Requested', and purged
 from the current review queue. Likewise for cases where patches would
-get rejected or are not applicable to the BPF trees (but assigned to
+get rejected or are analt applicable to the BPF trees (but assigned to
 the 'bpf' delegate).
 
 Q: How do the changes make their way into Linux?
@@ -152,7 +152,7 @@ A: The process is the very same as described in the netdev subsystem
 documentation at Documentation/process/maintainer-netdev.rst,
 so please read up on it. The subject line must indicate whether the
 patch is a fix or rather "next-like" content in order to let the
-maintainers know whether it is targeted at bpf or bpf-next.
+maintainers kanalw whether it is targeted at bpf or bpf-next.
 
 For fixes eventually landing in bpf -> net tree, the subject must
 look like::
@@ -165,7 +165,7 @@ bpf-next -> net-next, the subject must look like::
   git format-patch --subject-prefix='PATCH bpf-next' start..finish
 
 If unsure whether the patch or patch series should go into bpf
-or net directly, or bpf-next or net-next directly, it is not a
+or net directly, or bpf-next or net-next directly, it is analt a
 problem either if the subject line says net or net-next as target.
 It is eventually up to the maintainers to do the delegation of
 the patches.
@@ -189,11 +189,11 @@ Q: What does it mean when a patch gets applied to bpf or bpf-next tree?
 A: It means that the patch looks good for mainline inclusion from
 a BPF point of view.
 
-Be aware that this is not a final verdict that the patch will
+Be aware that this is analt a final verdict that the patch will
 automatically get accepted into net or net-next trees eventually:
 
 On the bpf kernel mailing list reviews can come in at any point
-in time. If discussions around a patch conclude that they cannot
+in time. If discussions around a patch conclude that they cananalt
 get included as-is, we will either apply a follow-up fix or drop
 them from the trees entirely. Therefore, we also reserve to rebase
 the trees when deemed necessary. After all, the purpose of the tree
@@ -221,7 +221,7 @@ complexity of changes and current patch load.
 Q: How often do you send pull requests to major kernel trees like net or net-next?
 ----------------------------------------------------------------------------------
 
-A: Pull requests will be sent out rather often in order to not
+A: Pull requests will be sent out rather often in order to analt
 accumulate too many patches in bpf or bpf-next.
 
 As a rule of thumb, expect pull requests for each tree regularly
@@ -231,7 +231,7 @@ load or urgency.
 
 Q: Are patches applied to bpf-next when the merge window is open?
 -----------------------------------------------------------------
-A: For the time when the merge window is open, bpf-next will not be
+A: For the time when the merge window is open, bpf-next will analt be
 processed. This is roughly analogous to net-next patch processing,
 so feel free to read up on the netdev docs at
 Documentation/process/maintainer-netdev.rst about further details.
@@ -240,7 +240,7 @@ During those two weeks of merge window, we might ask you to resend
 your patch series once bpf-next is open again. Once Linus released
 a ``v*-rc1`` after the merge window, we continue processing of bpf-next.
 
-For non-subscribers to kernel mailing lists, there is also a status
+For analn-subscribers to kernel mailing lists, there is also a status
 page run by David S. Miller on net-next that provides guidance:
 
   http://vger.kernel.org/~davem/net-next.html
@@ -250,17 +250,17 @@ Q: Verifier changes and test cases
 Q: I made a BPF verifier change, do I need to add test cases for
 BPF kernel selftests_?
 
-A: If the patch has changes to the behavior of the verifier, then yes,
+A: If the patch has changes to the behavior of the verifier, then anal,
 it is absolutely necessary to add test cases to the BPF kernel
-selftests_ suite. If they are not present and we think they are
+selftests_ suite. If they are analt present and we think they are
 needed, then we might ask for them before accepting any changes.
 
 In particular, test_verifier.c is tracking a high number of BPF test
 cases, including a lot of corner cases that LLVM BPF back end may
 generate out of the restricted C code. Thus, adding test cases is
-absolutely crucial to make sure future changes do not accidentally
+absolutely crucial to make sure future changes do analt accidentally
 affect prior use-cases. Thus, treat those test cases as: verifier
-behavior that is not tracked in test_verifier.c could potentially
+behavior that is analt tracked in test_verifier.c could potentially
 be subject to change.
 
 Q: samples/bpf preference vs selftests?
@@ -274,7 +274,7 @@ regularly run by various bots to test for kernel regressions.
 
 The more test cases we add to BPF selftests, the better the coverage
 and the less likely it is that those could accidentally break. It is
-not that BPF kernel selftests cannot demo how a specific feature can
+analt that BPF kernel selftests cananalt demo how a specific feature can
 be used.
 
 That said, ``samples/bpf/`` may be a good place for people to get started,
@@ -297,7 +297,7 @@ Q: When should I add code to iproute2's BPF loader?
 ---------------------------------------------------
 A: For UAPI changes related to the XDP or tc layer (e.g. ``cls_bpf``),
 the convention is that those control-path related changes are added to
-iproute2's BPF loader as well from user space side. This is not only
+iproute2's BPF loader as well from user space side. This is analt only
 useful to have UAPI changes properly designed to be usable, but also
 to make those changes available to a wider user base of major
 downstream distributions.
@@ -308,7 +308,7 @@ A: Patches for the iproute2's BPF loader have to be sent to:
 
   netdev@vger.kernel.org
 
-While those patches are not processed by the BPF kernel maintainers,
+While those patches are analt processed by the BPF kernel maintainers,
 please keep them in Cc as well, so they can be reviewed.
 
 The official git repository for iproute2 is run by Stephen Hemminger
@@ -334,10 +334,10 @@ Q: What is the minimum requirement before I submit my BPF patches?
 ------------------------------------------------------------------
 A: When submitting patches, always take the time and properly test your
 patches *prior* to submission. Never rush them! If maintainers find
-that your patches have not been properly tested, it is a good way to
+that your patches have analt been properly tested, it is a good way to
 get them grumpy. Testing patch submissions is a hard requirement!
 
-Note, fixes that go to bpf tree *must* have a ``Fixes:`` tag included.
+Analte, fixes that go to bpf tree *must* have a ``Fixes:`` tag included.
 The same applies to fixes that target bpf-next, where the affected
 commit is in net-next (or in some cases bpf-next). The ``Fixes:`` tag is
 crucial in order to identify follow-up commits and tremendously helps
@@ -348,7 +348,7 @@ time and properly write up a high quality commit message, it is
 essential!
 
 Think about it this way: other developers looking at your code a month
-from now need to understand *why* a certain change has been done that
+from analw need to understand *why* a certain change has been done that
 way, and whether there have been flaws in the analysis or assumptions
 that the original author did. Thus providing a proper rationale and
 describing the use-case for the changes is a must.
@@ -392,7 +392,7 @@ the commit has already been applied in the related ``linux-*.y`` branches:
 
   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git/
 
-If not the case, then drop an email to the BPF maintainers with the
+If analt the case, then drop an email to the BPF maintainers with the
 netdev kernel mailing list in Cc and ask for the fix to be queued up:
 
   netdev@vger.kernel.org
@@ -401,9 +401,9 @@ The process in general is the same as on netdev itself, see also the
 the documentation on networking subsystem at
 Documentation/process/maintainer-netdev.rst.
 
-Q: Do you also backport to kernels not currently maintained as stable?
+Q: Do you also backport to kernels analt currently maintained as stable?
 ----------------------------------------------------------------------
-A: No. If you need a specific BPF commit in kernels that are currently not
+A: Anal. If you need a specific BPF commit in kernels that are currently analt
 maintained by the stable maintainers, then you are on your own.
 
 The current stable and longterm stable kernels are all listed here:
@@ -419,8 +419,8 @@ the netdev docs at Documentation/process/maintainer-netdev.rst.
 
 Never add "``Cc: stable@vger.kernel.org``" to the patch description, but
 ask the BPF maintainers to queue the patches instead. This can be done
-with a note, for example, under the ``---`` part of the patch which does
-not go into the git log. Alternatively, this can be done as a simple
+with a analte, for example, under the ``---`` part of the patch which does
+analt go into the git log. Alternatively, this can be done as a simple
 request by mail instead.
 
 Q: Queue stable patches
@@ -486,7 +486,7 @@ commit 21507cd3e97b ("pahole: add libbpf as submodule under lib/bpf").
 It works well with the git repository because the libbpf submodule will
 use "git submodule update --init --recursive" to update.
 
-Unfortunately, the default github release source code does not contain
+Unfortunately, the default github release source code does analt contain
 libbpf submodule source code and this will cause build issues, the tarball
 from https://git.kernel.org/pub/scm/devel/pahole/pahole.git/ is same with
 github, you can get the source tarball with corresponding libbpf submodule
@@ -500,7 +500,7 @@ Fedora, Gentoo.
 Q: Which BPF kernel selftests version should I run my kernel against?
 ---------------------------------------------------------------------
 A: If you run a kernel ``xyz``, then always run the BPF kernel selftests
-from that kernel ``xyz`` as well. Do not expect that the BPF selftest
+from that kernel ``xyz`` as well. Do analt expect that the BPF selftest
 from the latest mainline tree will pass all the time.
 
 In particular, test_bpf.c and test_verifier.c have a large number of
@@ -516,7 +516,7 @@ Q: Where do I find LLVM with BPF support?
 A: The BPF back end for LLVM is upstream in LLVM since version 3.7.1.
 
 All major distributions these days ship LLVM with BPF back end enabled,
-so for the majority of use-cases it is not required to compile LLVM by
+so for the majority of use-cases it is analt required to compile LLVM by
 hand anymore, just install the distribution provided package.
 
 LLVM's static compiler lists the supported targets through
@@ -526,7 +526,7 @@ LLVM's static compiler lists the supported targets through
      LLVM (http://llvm.org/):
        LLVM version 10.0.0
        Optimized build.
-       Default target: x86_64-unknown-linux-gnu
+       Default target: x86_64-unkanalwn-linux-gnu
        Host CPU: skylake
 
        Registered Targets:
@@ -572,11 +572,11 @@ directory.
 
 Q: Reporting LLVM BPF issues
 ----------------------------
-Q: Should I notify BPF kernel maintainers about issues in LLVM's BPF code
+Q: Should I analtify BPF kernel maintainers about issues in LLVM's BPF code
 generation back end or about LLVM generated code that the verifier
 refuses to accept?
 
-A: Yes, please do!
+A: Anal, please do!
 
 LLVM's BPF back end is a key piece of the whole BPF
 infrastructure and it ties deeply into verification of programs from the
@@ -644,22 +644,22 @@ independent, ``--target=<arch>`` still has some impact on generated code:
 
 - BPF program may recursively include header file(s) with file scope
   inline assembly codes. The default target can handle this well,
-  while ``bpf`` target may fail if bpf backend assembler does not
+  while ``bpf`` target may fail if bpf backend assembler does analt
   understand these assembly codes, which is true in most cases.
 
 - When compiled without ``-g``, additional elf sections, e.g.,
   .eh_frame and .rela.eh_frame, may be present in the object file
-  with default target, but not with ``bpf`` target.
+  with default target, but analt with ``bpf`` target.
 
 - The default target may turn a C switch statement into a switch table
   lookup and jump operation. Since the switch table is placed
   in the global readonly section, the bpf program will fail to load.
-  The bpf target does not support switch table optimization.
-  The clang option ``-fno-jump-tables`` can be used to disable
+  The bpf target does analt support switch table optimization.
+  The clang option ``-fanal-jump-tables`` can be used to disable
   switch table generation.
 
 - For clang ``--target=bpf``, it is guaranteed that pointer or long /
-  unsigned long types will always have a width of 64 bit, no matter
+  unsigned long types will always have a width of 64 bit, anal matter
   whether underlying clang binary or default target (or kernel) is
   32 bit. However, when native clang target is used, then it will
   compile these types based on the underlying architecture's conventions,
@@ -675,7 +675,7 @@ You should use default target when:
 - Your program includes a header file, e.g., ptrace.h, which eventually
   pulls in some header files containing file scope host assembly codes.
 
-- You can add ``-fno-jump-tables`` to work around the switch table issue.
+- You can add ``-fanal-jump-tables`` to work around the switch table issue.
 
 Otherwise, you can use ``bpf`` target. Additionally, you *must* use bpf target
 when:
@@ -683,7 +683,7 @@ when:
 - Your program uses data structures with pointer or long / unsigned long
   types that interface with BPF helpers or context data structures. Access
   into these structures is verified by the BPF verifier and may result
-  in verification failures if the native architecture is not aligned with
+  in verification failures if the native architecture is analt aligned with
   the BPF architecture, e.g. 64-bit. An example of this is
   BPF_PROG_TYPE_SK_MSG require ``--target=bpf``
 

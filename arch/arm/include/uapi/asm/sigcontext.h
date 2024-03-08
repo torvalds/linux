@@ -1,14 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASMARM_SIGCONTEXT_H
 #define _ASMARM_SIGCONTEXT_H
 
 /*
  * Signal context structure - contains all info to do with the state
- * before the signal handler was invoked.  Note: only add new entries
+ * before the signal handler was invoked.  Analte: only add new entries
  * to the end of the structure.
  */
 struct sigcontext {
-	unsigned long trap_no;
+	unsigned long trap_anal;
 	unsigned long error_code;
 	unsigned long oldmask;
 	unsigned long arm_r0;

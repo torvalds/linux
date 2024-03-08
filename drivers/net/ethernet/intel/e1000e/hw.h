@@ -156,7 +156,7 @@ enum e1000_mac_type {
 };
 
 enum e1000_media_type {
-	e1000_media_type_unknown = 0,
+	e1000_media_type_unkanalwn = 0,
 	e1000_media_type_copper = 1,
 	e1000_media_type_fiber = 2,
 	e1000_media_type_internal_serdes = 3,
@@ -164,22 +164,22 @@ enum e1000_media_type {
 };
 
 enum e1000_nvm_type {
-	e1000_nvm_unknown = 0,
-	e1000_nvm_none,
+	e1000_nvm_unkanalwn = 0,
+	e1000_nvm_analne,
 	e1000_nvm_eeprom_spi,
 	e1000_nvm_flash_hw,
 	e1000_nvm_flash_sw
 };
 
 enum e1000_nvm_override {
-	e1000_nvm_override_none = 0,
+	e1000_nvm_override_analne = 0,
 	e1000_nvm_override_spi_small,
 	e1000_nvm_override_spi_large
 };
 
 enum e1000_phy_type {
-	e1000_phy_unknown = 0,
-	e1000_phy_none,
+	e1000_phy_unkanalwn = 0,
+	e1000_phy_analne,
 	e1000_phy_m88,
 	e1000_phy_igp,
 	e1000_phy_igp_2,
@@ -194,7 +194,7 @@ enum e1000_phy_type {
 };
 
 enum e1000_bus_width {
-	e1000_bus_width_unknown = 0,
+	e1000_bus_width_unkanalwn = 0,
 	e1000_bus_width_pcie_x1,
 	e1000_bus_width_pcie_x2,
 	e1000_bus_width_pcie_x4 = 4,
@@ -205,19 +205,19 @@ enum e1000_bus_width {
 };
 
 enum e1000_1000t_rx_status {
-	e1000_1000t_rx_status_not_ok = 0,
+	e1000_1000t_rx_status_analt_ok = 0,
 	e1000_1000t_rx_status_ok,
 	e1000_1000t_rx_status_undefined = 0xFF
 };
 
 enum e1000_rev_polarity {
-	e1000_rev_polarity_normal = 0,
+	e1000_rev_polarity_analrmal = 0,
 	e1000_rev_polarity_reversed,
 	e1000_rev_polarity_undefined = 0xFF
 };
 
 enum e1000_fc_mode {
-	e1000_fc_none = 0,
+	e1000_fc_analne = 0,
 	e1000_fc_rx_pause,
 	e1000_fc_tx_pause,
 	e1000_fc_full,
@@ -271,7 +271,7 @@ union e1000_rx_desc_extended {
 
 #define MAX_PS_BUFFERS 4
 
-/* Number of packet split data buffers (not including the header buffer) */
+/* Number of packet split data buffers (analt including the header buffer) */
 #define PS_PAGE_BUFFERS	(MAX_PS_BUFFERS - 1)
 
 /* Receive Descriptor - Packet Split */
@@ -697,7 +697,7 @@ struct e1000_shadow_ram {
 
 /* I218 PHY Ultra Low Power (ULP) states */
 enum e1000_ulp_state {
-	e1000_ulp_state_unknown,
+	e1000_ulp_state_unkanalwn,
 	e1000_ulp_state_off,
 	e1000_ulp_state_on,
 };

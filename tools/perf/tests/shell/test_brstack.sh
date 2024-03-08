@@ -10,7 +10,7 @@ shelldir=$(dirname "$0")
 
 # skip the test if the hardware doesn't support branch stack sampling
 # and if the architecture doesn't support filter types: any,save_type,u
-if ! perf record -o- --no-buildid --branch-filter any,save_type,u -- true > /dev/null 2>&1 ; then
+if ! perf record -o- --anal-buildid --branch-filter any,save_type,u -- true > /dev/null 2>&1 ; then
 	echo "skip: system doesn't support filter types: any,save_type,u"
 	exit 2
 fi
@@ -46,8 +46,8 @@ test_user_branches() {
 	grep -E -m1 "^brstack\+[^ ]*/brstack\+[^ ]*/UNCOND/.*$"		$TMPDIR/perf.script
 	set +x
 
-	# some branch types are still not being tested:
-	# IND COND_CALL COND_RET SYSCALL SYSRET IRQ SERROR NO_TX
+	# some branch types are still analt being tested:
+	# IND COND_CALL COND_RET SYSCALL SYSRET IRQ SERROR ANAL_TX
 }
 
 # first argument <arg0> is the argument passed to "--branch-stack <arg0>,save_type,u"
@@ -62,7 +62,7 @@ test_filter() {
 	perf script -i $TMPDIR/perf.data --fields brstack | xargs -n1 > $TMPDIR/perf.script
 
 	# fail if we find any branch type that doesn't match any of the expected ones
-	# also consider UNKNOWN branch types (-)
+	# also consider UNKANALWN branch types (-)
 	if grep -E -vm1 "^[^ ]*/($test_filter_expect|-|( *))/.*$" $TMPDIR/perf.script; then
 		return 1
 	fi

@@ -5,7 +5,7 @@
  *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
  */
 
-#define AU0828_BOARD_UNKNOWN		0
+#define AU0828_BOARD_UNKANALWN		0
 #define AU0828_BOARD_HAUPPAUGE_HVR950Q	1
 #define AU0828_BOARD_HAUPPAUGE_HVR850	2
 #define AU0828_BOARD_DVICO_FUSIONHDTV7	3

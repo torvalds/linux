@@ -8,7 +8,7 @@
  * hypercalls are properly masked or unmasked to the guest when disabled or
  * enabled from the KVM userspace, respectively.
  */
-#include <errno.h>
+#include <erranal.h>
 #include <linux/arm-smccc.h>
 #include <asm/kvm.h>
 #include <kvm_util.h>
@@ -104,12 +104,12 @@ static void guest_test_hvc(const struct test_hvc_info *hc_info)
 		switch (stage) {
 		case TEST_STAGE_HVC_IFACE_FEAT_DISABLED:
 		case TEST_STAGE_HVC_IFACE_FALSE_INFO:
-			__GUEST_ASSERT(res.a0 == SMCCC_RET_NOT_SUPPORTED,
+			__GUEST_ASSERT(res.a0 == SMCCC_RET_ANALT_SUPPORTED,
 				       "a0 = 0x%lx, func_id = 0x%x, arg1 = 0x%llx, stage = %u",
 					res.a0, hc_info->func_id, hc_info->arg1, stage);
 			break;
 		case TEST_STAGE_HVC_IFACE_FEAT_ENABLED:
-			__GUEST_ASSERT(res.a0 != SMCCC_RET_NOT_SUPPORTED,
+			__GUEST_ASSERT(res.a0 != SMCCC_RET_ANALT_SUPPORTED,
 				       "a0 = 0x%lx, func_id = 0x%x, arg1 = 0x%llx, stage = %u",
 					res.a0, hc_info->func_id, hc_info->arg1, stage);
 			break;
@@ -157,7 +157,7 @@ static void steal_time_init(struct kvm_vcpu *vcpu)
 	unsigned int gpages;
 
 	gpages = vm_calc_num_guest_pages(VM_MODE_DEFAULT, STEAL_TIME_SIZE);
-	vm_userspace_mem_region_add(vcpu->vm, VM_MEM_SRC_ANONYMOUS, ST_GPA_BASE, 1, gpages, 0);
+	vm_userspace_mem_region_add(vcpu->vm, VM_MEM_SRC_AANALNYMOUS, ST_GPA_BASE, 1, gpages, 0);
 
 	vcpu_device_attr_set(vcpu, KVM_ARM_VCPU_PVTIME_CTRL,
 			     KVM_ARM_VCPU_PVTIME_IPA, &st_ipa);
@@ -182,21 +182,21 @@ static void test_fw_regs_before_vm_start(struct kvm_vcpu *vcpu)
 		ret = __vcpu_set_reg(vcpu, reg_info->reg, 0);
 		TEST_ASSERT(ret == 0,
 			"Failed to clear all the features of reg: 0x%lx; ret: %d",
-			reg_info->reg, errno);
+			reg_info->reg, erranal);
 
 		vcpu_get_reg(vcpu, reg_info->reg, &val);
 		TEST_ASSERT(val == 0,
 			"Expected all the features to be cleared for reg: 0x%lx", reg_info->reg);
 
 		/*
-		 * Test enabling a feature that's not supported.
+		 * Test enabling a feature that's analt supported.
 		 * Avoid this check if all the bits are occupied.
 		 */
 		if (reg_info->max_feat_bit < 63) {
 			ret = __vcpu_set_reg(vcpu, reg_info->reg, BIT(reg_info->max_feat_bit + 1));
-			TEST_ASSERT(ret != 0 && errno == EINVAL,
+			TEST_ASSERT(ret != 0 && erranal == EINVAL,
 			"Unexpected behavior or return value (%d) while setting an unsupported feature for reg: 0x%lx",
-			errno, reg_info->reg);
+			erranal, reg_info->reg);
 		}
 	}
 }
@@ -222,12 +222,12 @@ static void test_fw_regs_after_vm_start(struct kvm_vcpu *vcpu)
 		/*
 		 * Since the VM has run at least once, KVM shouldn't allow modification of
 		 * the registers and should return EBUSY. Set the registers and check for
-		 * the expected errno.
+		 * the expected erranal.
 		 */
 		ret = __vcpu_set_reg(vcpu, reg_info->reg, FW_REG_ULIMIT_VAL(reg_info->max_feat_bit));
-		TEST_ASSERT(ret != 0 && errno == EBUSY,
+		TEST_ASSERT(ret != 0 && erranal == EBUSY,
 		"Unexpected behavior or return value (%d) while setting a feature while VM is running for reg: 0x%lx",
-		errno, reg_info->reg);
+		erranal, reg_info->reg);
 	}
 }
 
@@ -257,7 +257,7 @@ static void test_guest_stage(struct kvm_vm **vm, struct kvm_vcpu **vcpu)
 		test_fw_regs_after_vm_start(*vcpu);
 		break;
 	case TEST_STAGE_HVC_IFACE_FEAT_DISABLED:
-		/* Start a new VM so that all the features are now enabled by default */
+		/* Start a new VM so that all the features are analw enabled by default */
 		kvm_vm_free(*vm);
 		*vm = test_vm_create(vcpu);
 		break;
@@ -265,7 +265,7 @@ static void test_guest_stage(struct kvm_vm **vm, struct kvm_vcpu **vcpu)
 	case TEST_STAGE_HVC_IFACE_FALSE_INFO:
 		break;
 	default:
-		TEST_FAIL("Unknown test stage: %d", prev_stage);
+		TEST_FAIL("Unkanalwn test stage: %d", prev_stage);
 	}
 }
 

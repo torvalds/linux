@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -78,7 +78,7 @@ enum wcn36xx_debug_mask {
 } while (0)
 
 enum wcn36xx_ampdu_state {
-	WCN36XX_AMPDU_NONE,
+	WCN36XX_AMPDU_ANALNE,
 	WCN36XX_AMPDU_INIT,
 	WCN36XX_AMPDU_START,
 	WCN36XX_AMPDU_OPERATIONAL,
@@ -95,7 +95,7 @@ enum wcn36xx_ampdu_state {
 #define WCN36XX_FLAGS(__wcn) (__wcn->hw->flags)
 #define WCN36XX_MAX_POWER(__wcn) (__wcn->hw->conf.chandef.chan->max_power)
 
-#define RF_UNKNOWN	0x0000
+#define RF_UNKANALWN	0x0000
 #define RF_IRIS_WCN3620	0x3620
 #define RF_IRIS_WCN3660	0x3660
 #define RF_IRIS_WCN3680	0x3680
@@ -193,7 +193,7 @@ struct wcn36xx_sta {
 
 	spinlock_t ampdu_lock;		/* protects next two fields */
 	enum wcn36xx_ampdu_state ampdu_state[16];
-	int non_agg_frame_ct;
+	int analn_agg_frame_ct;
 };
 
 struct wcn36xx_dxe_ch;
@@ -213,7 +213,7 @@ struct wcn36xx {
 
 	u8			fw_revision;
 	u8			fw_version;
-	u8			fw_minor;
+	u8			fw_mianalr;
 	u8			fw_major;
 	u32			fw_feat_caps[WCN36XX_HAL_CAPS_SIZE];
 	bool			is_pronto;
@@ -243,7 +243,7 @@ struct wcn36xx {
 
 	/*
 	 * smd_buf must be protected with smd_mutex to garantee
-	 * that all messages are sent one after another
+	 * that all messages are sent one after aanalther
 	 */
 	u8			*hal_buf;
 	size_t			hal_rsp_len;
@@ -300,12 +300,12 @@ struct wcn36xx {
 
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,
 					 u8 major,
-					 u8 minor,
+					 u8 mianalr,
 					 u8 version,
 					 u8 revision)
 {
 	return (wcn->fw_major == major &&
-		wcn->fw_minor == minor &&
+		wcn->fw_mianalr == mianalr &&
 		wcn->fw_version == version &&
 		wcn->fw_revision == revision);
 }

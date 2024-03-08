@@ -3,8 +3,8 @@
 #define EFD_SEMAPHORE		1
 #endif
 
-#ifndef EFD_NONBLOCK
-#define EFD_NONBLOCK		00004000
+#ifndef EFD_ANALNBLOCK
+#define EFD_ANALNBLOCK		00004000
 #endif
 
 #ifndef EFD_CLOEXEC
@@ -18,7 +18,7 @@ static size_t syscall_arg__scnprintf_eventfd_flags(char *bf, size_t size, struct
 	int printed = 0, flags = arg->val;
 
 	if (flags == 0)
-		return scnprintf(bf, size, "NONE");
+		return scnprintf(bf, size, "ANALNE");
 #define	P_FLAG(n) \
 	if (flags & EFD_##n) { \
 		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
@@ -27,7 +27,7 @@ static size_t syscall_arg__scnprintf_eventfd_flags(char *bf, size_t size, struct
 
 	P_FLAG(SEMAPHORE);
 	P_FLAG(CLOEXEC);
-	P_FLAG(NONBLOCK);
+	P_FLAG(ANALNBLOCK);
 #undef P_FLAG
 
 	if (flags)

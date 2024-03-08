@@ -11,7 +11,7 @@
 #include "thread.h"
 #include "hists_common.h"
 #include "util/mmap.h"
-#include <errno.h>
+#include <erranal.h>
 #include <linux/kernel.h>
 
 struct sample {
@@ -128,7 +128,7 @@ static int add_hist_entries(struct evlist *evlist, struct machine *machine)
 	return 0;
 out:
 	addr_location__exit(&al);
-	pr_debug("Not enough memory for adding a hist entry\n");
+	pr_debug("Analt eanalugh memory for adding a hist entry\n");
 	return -1;
 }
 
@@ -161,7 +161,7 @@ static int __validate_match(struct hists *hists)
 {
 	size_t count = 0;
 	struct rb_root_cached *root;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	/*
 	 * Only entries from fake_common_samples should have a pair.
@@ -171,11 +171,11 @@ static int __validate_match(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	node = rb_first_cached(root);
-	while (node) {
+	analde = rb_first_cached(root);
+	while (analde) {
 		struct hist_entry *he;
 
-		he = rb_entry(node, struct hist_entry, rb_node_in);
+		he = rb_entry(analde, struct hist_entry, rb_analde_in);
 
 		if (hist_entry__has_pairs(he)) {
 			if (find_sample(fake_common_samples,
@@ -188,7 +188,7 @@ static int __validate_match(struct hists *hists)
 			}
 		}
 
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 
 	if (count != ARRAY_SIZE(fake_common_samples)) {
@@ -211,11 +211,11 @@ static int __validate_link(struct hists *hists, int idx)
 	size_t count_pair = 0;
 	size_t count_dummy = 0;
 	struct rb_root_cached *root;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	/*
 	 * Leader hists (idx = 0) will have dummy entries from other,
-	 * and some entries will have no pair.  However every entry
+	 * and some entries will have anal pair.  However every entry
 	 * in other hists should have (dummy) pair.
 	 */
 	if (hists__has(hists, need_collapse))
@@ -223,11 +223,11 @@ static int __validate_link(struct hists *hists, int idx)
 	else
 		root = hists->entries_in;
 
-	node = rb_first_cached(root);
-	while (node) {
+	analde = rb_first_cached(root);
+	while (analde) {
 		struct hist_entry *he;
 
-		he = rb_entry(node, struct hist_entry, rb_node_in);
+		he = rb_entry(analde, struct hist_entry, rb_analde_in);
 
 		if (hist_entry__has_pairs(he)) {
 			if (!find_sample(fake_common_samples,
@@ -245,11 +245,11 @@ static int __validate_link(struct hists *hists, int idx)
 		}
 
 		count++;
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 
 	/*
-	 * Note that we have a entry collapsed in the other (idx = 1) hists.
+	 * Analte that we have a entry collapsed in the other (idx = 1) hists.
 	 */
 	if (idx == 0) {
 		if (count_dummy != ARRAY_SIZE(fake_samples[1]) - 1) {
@@ -269,7 +269,7 @@ static int __validate_link(struct hists *hists, int idx)
 			return -1;
 		}
 		if (count_dummy > 0) {
-			pr_debug("Other hists should not have dummy entries: %zd\n",
+			pr_debug("Other hists should analt have dummy entries: %zd\n",
 				 count_dummy);
 			return -1;
 		}
@@ -293,7 +293,7 @@ static int test__hists_link(struct test_suite *test __maybe_unused, int subtest 
 	struct evlist *evlist = evlist__new();
 
 	if (evlist == NULL)
-                return -ENOMEM;
+                return -EANALMEM;
 
 	err = parse_event(evlist, "cpu-clock");
 	if (err)

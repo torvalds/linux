@@ -161,14 +161,14 @@ static void handle_rx(struct uart_port *port)
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 	}
 
-	/* and now the main RX loop */
+	/* and analw the main RX loop */
 	while (vt8500_read(port, VT8500_URFIDX) & 0x1f00) {
 		unsigned int c;
-		char flag = TTY_NORMAL;
+		char flag = TTY_ANALRMAL;
 
 		c = readw(port->membase + VT8500_RXFIFO) & 0x3ff;
 
-		/* Mask conditions we're ignoring. */
+		/* Mask conditions we're iganalring. */
 		c &= ~port->read_status_mask;
 
 		if (c & FER) {
@@ -230,7 +230,7 @@ static irqreturn_t vt8500_irq(int irq, void *dev_id)
 	uart_port_lock(port);
 	isr = vt8500_read(port, VT8500_URISR);
 
-	/* Acknowledge active status bits */
+	/* Ackanalwledge active status bits */
 	vt8500_write(port, isr, VT8500_URISR);
 
 	if (isr & RX_FIFO_INTS)
@@ -385,7 +385,7 @@ static void vt8500_set_termios(struct uart_port *port,
 	/* set parity, bits per char, and stop bit */
 	vt8500_write(&vt8500_port->uart, lcr, VT8500_URLCR);
 
-	/* Configure status bits to ignore based on termio flags. */
+	/* Configure status bits to iganalre based on termio flags. */
 	port->read_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
 		port->read_status_mask = FER | PER;
@@ -437,7 +437,7 @@ static void vt8500_config_port(struct uart_port *port, int flags)
 static int vt8500_verify_port(struct uart_port *port,
 			      struct serial_struct *ser)
 {
-	if (unlikely(ser->type != PORT_UNKNOWN && ser->type != PORT_VT8500))
+	if (unlikely(ser->type != PORT_UNKANALWN && ser->type != PORT_VT8500))
 		return -EINVAL;
 	if (unlikely(port->irq != ser->irq))
 		return -EINVAL;
@@ -505,7 +505,7 @@ static int __init vt8500_console_setup(struct console *co, char *options)
 	vt8500_port = vt8500_uart_ports[co->index];
 
 	if (!vt8500_port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -536,7 +536,7 @@ static int vt8500_get_poll_char(struct uart_port *port)
 	unsigned int status = vt8500_read(port, VT8500_URFIDX);
 
 	if (!(status & 0x1f00))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return vt8500_read(port, VT8500_RXFIFO) & 0xff;
 }
@@ -588,7 +588,7 @@ static struct uart_driver vt8500_uart_driver = {
 	.cons		= VT8500_CONSOLE,
 };
 
-static unsigned int vt8500_flags; /* none required so far */
+static unsigned int vt8500_flags; /* analne required so far */
 static unsigned int wm8880_flags = VT8500_HAS_SWRTSCTS_SWITCH;
 
 static const struct of_device_id wmt_dt_ids[] = {
@@ -601,7 +601,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 {
 	struct vt8500_port *vt8500_port;
 	struct resource *mmres;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const unsigned int *flags;
 	int ret;
 	int port;
@@ -630,7 +630,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	}
 
 	if (port >= VT8500_MAX_PORTS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* reserve the port id */
 	if (test_and_set_bit(port, vt8500_ports_in_use)) {
@@ -641,13 +641,13 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	vt8500_port = devm_kzalloc(&pdev->dev, sizeof(struct vt8500_port),
 				   GFP_KERNEL);
 	if (!vt8500_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vt8500_port->uart.membase = devm_platform_get_and_ioremap_resource(pdev, 0, &mmres);
 	if (IS_ERR(vt8500_port->uart.membase))
 		return PTR_ERR(vt8500_port->uart.membase);
 
-	vt8500_port->clk = of_clk_get(pdev->dev.of_node, 0);
+	vt8500_port->clk = of_clk_get(pdev->dev.of_analde, 0);
 	if (IS_ERR(vt8500_port->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return  -EINVAL;

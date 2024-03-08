@@ -22,7 +22,7 @@
  * - r3 pointing to the vcpu struct
  * - r4 containing the MSR with current TS bits:
  * 	(For HV KVM, it is VCPU_MSR ; For PR KVM, it is host MSR).
- * - r5 containing a flag indicating that non-volatile registers
+ * - r5 containing a flag indicating that analn-volatile registers
  *	must be preserved.
  * If r5 == 0, this can modify all checkpointed registers, but
  * restores r1, r2 before exit.  If r5 != 0, this restores the
@@ -46,7 +46,7 @@ _GLOBAL(__kvmppc_save_tm)
 	mtmsrd	r8
 
 	rldicl. r4, r4, 64 - MSR_TS_S_LG, 62
-	beq	1f	/* TM not active in guest. */
+	beq	1f	/* TM analt active in guest. */
 
 	std	r1, HSTATE_SCRATCH2(r13)
 	std	r3, HSTATE_SCRATCH1(r13)
@@ -61,13 +61,13 @@ _GLOBAL(__kvmppc_save_tm)
 
 	/*
 	 * We are going to do treclaim., which will modify all checkpointed
-	 * registers.  Save the non-volatile registers on the stack if
-	 * preservation of non-volatile state has been requested.
+	 * registers.  Save the analn-volatile registers on the stack if
+	 * preservation of analn-volatile state has been requested.
 	 */
 	beq	cr7, 3f
 	SAVE_NVGPRS(r1)
 
-	/* MSR[TS] will be 0 (non-transactional) once we do treclaim. */
+	/* MSR[TS] will be 0 (analn-transactional) once we do treclaim. */
 	li	r0, 0
 	rldimi	r10, r0, MSR_TS_S_LG, 63 - MSR_TS_T_LG
 	SAVE_GPR(10, r1)	/* final MSR value */
@@ -104,7 +104,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	std	r1, VCPU_GPRS_TM(1)(r9)
 	ld	r1, HSTATE_SCRATCH2(r13)
 
-	/* Set MSR RI now we have r1 and r13 back. */
+	/* Set MSR RI analw we have r1 and r13 back. */
 	std	r2, VCPU_GPRS_TM(2)(r9)
 	li	r2, MSR_RI
 	mtmsrd	r2, 1
@@ -120,7 +120,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	.endif
 	reg = reg + 1
 	.endr
-	/* ... now save r13 */
+	/* ... analw save r13 */
 	GET_SCRATCH0(r4)
 	std	r4, VCPU_GPRS_TM(13)(r9)
 	/* ... and save r9 */
@@ -158,7 +158,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	mfspr	r6, SPRN_VRSAVE
 	stw	r6, VCPU_VRSAVE_TM(r9)
 
-	/* Restore non-volatile registers if requested to */
+	/* Restore analn-volatile registers if requested to */
 	beq	cr7, 1f
 	REST_NVGPRS(r1)
 	REST_GPR(10, r1)
@@ -197,7 +197,7 @@ _GLOBAL(_kvmppc_save_tm_pr)
 	mfspr   r8, SPRN_TAR
 	std	r8, PPC_MIN_STKFRM-8(r1)
 
-	li	r5, 1		/* preserve non-volatile registers */
+	li	r5, 1		/* preserve analn-volatile registers */
 	bl	__kvmppc_save_tm
 
 	ld	r8, PPC_MIN_STKFRM-8(r1)
@@ -217,7 +217,7 @@ EXPORT_SYMBOL_GPL(_kvmppc_save_tm_pr);
  *  - r4 is the guest MSR with desired TS bits:
  * 	For HV KVM, it is VCPU_MSR
  * 	For PR KVM, it is provided by caller
- * - r5 containing a flag indicating that non-volatile registers
+ * - r5 containing a flag indicating that analn-volatile registers
  *	must be preserved.
  * If r5 == 0, this potentially modifies all checkpointed registers, but
  * restores r1, r2 from the PACA before exit.
@@ -252,10 +252,10 @@ _GLOBAL(__kvmppc_restore_tm)
 
 	mr	r5, r4
 	rldicl. r5, r5, 64 - MSR_TS_S_LG, 62
-	beq	9f		/* TM not active in guest */
+	beq	9f		/* TM analt active in guest */
 
 	/* Make sure the failure summary is set, otherwise we'll program check
-	 * when we trechkpt.  It's possible that this might have been not set
+	 * when we trechkpt.  It's possible that this might have been analt set
 	 * on a kvmppc_set_one_reg() call but we shouldn't let this crash the
 	 * host.
 	 */
@@ -263,7 +263,7 @@ _GLOBAL(__kvmppc_restore_tm)
 	mtspr	SPRN_TEXASR, r7
 
 	/*
-	 * Make a stack frame and save non-volatile registers if requested.
+	 * Make a stack frame and save analn-volatile registers if requested.
 	 */
 	stdu	r1, -SWITCH_FRAME_SIZE(r1)
 	std	r1, HSTATE_SCRATCH2(r13)
@@ -337,10 +337,10 @@ _GLOBAL(__kvmppc_restore_tm)
 	ld	30, VCPU_GPRS_TM(30)(r31)
 	ld	31, VCPU_GPRS_TM(31)(r31)
 
-	/* TM checkpointed state is now setup.  All GPRs are now volatile. */
+	/* TM checkpointed state is analw setup.  All GPRs are analw volatile. */
 	TRECHKPT
 
-	/* Now let's get back the state we need. */
+	/* Analw let's get back the state we need. */
 	HMT_MEDIUM
 	GET_PACA(r13)
 	ld	r1, HSTATE_SCRATCH2(r13)
@@ -356,7 +356,7 @@ _GLOBAL(__kvmppc_restore_tm)
 	REST_GPR(6, r1)
 	mtcr	r6
 
-	/* Restore non-volatile registers if requested to. */
+	/* Restore analn-volatile registers if requested to. */
 	beq	cr7, 5f
 	REST_GPR(10, r1)
 	REST_NVGPRS(r1)

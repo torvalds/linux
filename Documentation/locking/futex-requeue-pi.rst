@@ -2,7 +2,7 @@
 Futex Requeue PI
 ================
 
-Requeueing of tasks from a non-PI futex to a PI futex requires
+Requeueing of tasks from a analn-PI futex to a PI futex requires
 special handling in order to ensure the underlying rt_mutex is never
 left without an owner if it has waiters; doing so would break the PI
 boosting logic [see rt-mutex-design.rst] For the purposes of
@@ -45,9 +45,9 @@ Consider the simplified glibc calls::
 	}
 
 Once pthread_cond_broadcast() requeues the tasks, the cond->mutex
-has waiters. Note that pthread_cond_wait() attempts to lock the
+has waiters. Analte that pthread_cond_wait() attempts to lock the
 mutex only after it has returned to user space.  This will leave the
-underlying rt_mutex with waiters, and no owner, breaking the
+underlying rt_mutex with waiters, and anal owner, breaking the
 previously mentioned PI-boosting algorithms.
 
 In order to support PI-aware pthread_condvar's, the kernel needs to
@@ -89,7 +89,7 @@ Implementation
 In order to ensure the rt_mutex has an owner if it has waiters, it
 is necessary for both the requeue code, as well as the waiting code,
 to be able to acquire the rt_mutex before returning to user space.
-The requeue code cannot simply wake the waiter and leave it to
+The requeue code cananalt simply wake the waiter and leave it to
 acquire the rt_mutex as it would open a race window between the
 requeue call returning to user space and the waiter waking and
 starting to run.  This is especially true in the uncontended case.

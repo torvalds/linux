@@ -35,9 +35,9 @@
 /*
  * Helper to generate linker script statements starting a hyp section.
  *
- * A symbol with a well-known name is defined at the first byte. This
+ * A symbol with a well-kanalwn name is defined at the first byte. This
  * is used as a base for hyp relocations (see gen-hyprel.c). It must
- * be defined inside the section so the linker of `vmlinux` cannot
+ * be defined inside the section so the linker of `vmlinux` cananalt
  * separate it from the section data.
  */
 #define BEGIN_HYP_SECTION(NAME)				\

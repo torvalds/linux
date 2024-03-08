@@ -7,7 +7,7 @@
  *
  * If the interrupt is waiting to be processed, we try to re-run it.
  * We can't directly run it from here since the caller might be in an
- * interrupt-protected region. Not all irq controller chips can
+ * interrupt-protected region. Analt all irq controller chips can
  * retrigger interrupts at the hardware level, so in those cases
  * we allow the resending of IRQs via a tasklet.
  */
@@ -35,8 +35,8 @@ static void resend_irqs(struct tasklet_struct *unused)
 	raw_spin_lock_irq(&irq_resend_lock);
 	while (!hlist_empty(&irq_resend_list)) {
 		desc = hlist_entry(irq_resend_list.first, struct irq_desc,
-				   resend_node);
-		hlist_del_init(&desc->resend_node);
+				   resend_analde);
+		hlist_del_init(&desc->resend_analde);
 		raw_spin_unlock(&irq_resend_lock);
 		desc->handle_irq(desc);
 		raw_spin_lock(&irq_resend_lock);
@@ -51,20 +51,20 @@ static int irq_sw_resend(struct irq_desc *desc)
 {
 	/*
 	 * Validate whether this interrupt can be safely injected from
-	 * non interrupt context
+	 * analn interrupt context
 	 */
 	if (handle_enforce_irqctx(&desc->irq_data))
 		return -EINVAL;
 
 	/*
 	 * If the interrupt is running in the thread context of the parent
-	 * irq we need to be careful, because we cannot trigger it
+	 * irq we need to be careful, because we cananalt trigger it
 	 * directly.
 	 */
 	if (irq_settings_is_nested_thread(desc)) {
 		/*
 		 * If the parent_irq is valid, we retrigger the parent,
-		 * otherwise we do nothing.
+		 * otherwise we do analthing.
 		 */
 		if (!desc->parent_irq)
 			return -EINVAL;
@@ -76,8 +76,8 @@ static int irq_sw_resend(struct irq_desc *desc)
 
 	/* Add to resend_list and activate the softirq: */
 	raw_spin_lock(&irq_resend_lock);
-	if (hlist_unhashed(&desc->resend_node))
-		hlist_add_head(&desc->resend_node, &irq_resend_list);
+	if (hlist_unhashed(&desc->resend_analde))
+		hlist_add_head(&desc->resend_analde, &irq_resend_list);
 	raw_spin_unlock(&irq_resend_lock);
 	tasklet_schedule(&resend_tasklet);
 	return 0;
@@ -86,13 +86,13 @@ static int irq_sw_resend(struct irq_desc *desc)
 void clear_irq_resend(struct irq_desc *desc)
 {
 	raw_spin_lock(&irq_resend_lock);
-	hlist_del_init(&desc->resend_node);
+	hlist_del_init(&desc->resend_analde);
 	raw_spin_unlock(&irq_resend_lock);
 }
 
 void irq_resend_init(struct irq_desc *desc)
 {
-	INIT_HLIST_NODE(&desc->resend_node);
+	INIT_HLIST_ANALDE(&desc->resend_analde);
 }
 #else
 void clear_irq_resend(struct irq_desc *desc) {}
@@ -126,9 +126,9 @@ int check_irq_resend(struct irq_desc *desc, bool inject)
 	int err = 0;
 
 	/*
-	 * We do not resend level type interrupts. Level type interrupts
+	 * We do analt resend level type interrupts. Level type interrupts
 	 * are resent by hardware when they are still active. Clear the
-	 * pending bit so suspend/resume does not get confused.
+	 * pending bit so suspend/resume does analt get confused.
 	 */
 	if (irq_settings_is_level(desc)) {
 		desc->istate &= ~IRQS_PENDING;
@@ -164,11 +164,11 @@ int check_irq_resend(struct irq_desc *desc, bool inject)
  * unlikely, but possible.
  *
  * The injection can fail for various reasons:
- * - Interrupt is not activated
+ * - Interrupt is analt activated
  * - Interrupt is NMI type or currently replaying
  * - Interrupt is level type
- * - Interrupt does not support hardware retrigger and software resend is
- *   either not enabled or not possible for the interrupt.
+ * - Interrupt does analt support hardware retrigger and software resend is
+ *   either analt enabled or analt possible for the interrupt.
  */
 int irq_inject_interrupt(unsigned int irq)
 {
@@ -187,7 +187,7 @@ int irq_inject_interrupt(unsigned int irq)
 
 	/*
 	 * Only try to inject when the interrupt is:
-	 *  - not NMI type
+	 *  - analt NMI type
 	 *  - activated
 	 */
 	if ((desc->istate & IRQS_NMI) || !irqd_is_activated(&desc->irq_data))

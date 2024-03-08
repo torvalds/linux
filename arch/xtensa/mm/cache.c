@@ -17,7 +17,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -33,7 +33,7 @@
 #include <asm/page.h>
 
 /* 
- * Note:
+ * Analte:
  * The kernel provides one architecture bit PG_arch_1 in the page flags that 
  * can be used for cache coherency.
  *
@@ -42,7 +42,7 @@
  * The Xtensa architecture doesn't keep the instruction cache coherent with
  * the data cache. We use the architecture bit to indicate if the caches
  * are coherent. The kernel clears this bit whenever a page is added to the
- * page cache. At that time, the caches might not be in sync. We, therefore,
+ * page cache. At that time, the caches might analt be in sync. We, therefore,
  * define this flag as 'clean' if set.
  *
  * D-cache aliasing.
@@ -126,7 +126,7 @@ void flush_dcache_folio(struct folio *folio)
 	struct address_space *mapping = folio_flush_mapping(folio);
 
 	/*
-	 * If we have a mapping but the page is not mapped to user-space
+	 * If we have a mapping but the page is analt mapped to user-space
 	 * yet, we simply mark this page dirty and defer flushing the 
 	 * caches until update_mmu().
 	 */
@@ -145,7 +145,7 @@ void flush_dcache_folio(struct folio *folio)
 
 		/* 
 		 * Flush the page in kernel space and user space.
-		 * Note that we can omit that step if aliasing is not
+		 * Analte that we can omit that step if aliasing is analt
 		 * an issue, but we do have to synchronize I$ and D$
 		 * if we have a mapping.
 		 */
@@ -176,7 +176,7 @@ void flush_dcache_folio(struct folio *folio)
 EXPORT_SYMBOL(flush_dcache_folio);
 
 /*
- * For now, flush the whole cache. FIXME??
+ * For analw, flush the whole cache. FIXME??
  */
 
 void local_flush_cache_range(struct vm_area_struct *vma,
@@ -190,14 +190,14 @@ EXPORT_SYMBOL(local_flush_cache_range);
 /* 
  * Remove any entry in the cache for this page. 
  *
- * Note that this function is only called for user pages, so use the
+ * Analte that this function is only called for user pages, so use the
  * alias versions of the cache flush functions.
  */
 
 void local_flush_cache_page(struct vm_area_struct *vma, unsigned long address,
 		      unsigned long pfn)
 {
-	/* Note that we have to use the 'alias' address to avoid multi-hit */
+	/* Analte that we have to use the 'alias' address to avoid multi-hit */
 
 	unsigned long phys = page_to_phys(pfn_to_page(pfn));
 	unsigned long virt = TLBTEMP_BASE_1 + (address & DCACHE_ALIAS_MASK);
@@ -317,7 +317,7 @@ extern void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 
 	/*
 	 * Flush user page if aliased. 
-	 * (Note: a simply flush would be sufficient) 
+	 * (Analte: a simply flush would be sufficient) 
 	 */
 
 	if (alias) {

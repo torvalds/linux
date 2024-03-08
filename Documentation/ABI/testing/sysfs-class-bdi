@@ -8,20 +8,20 @@ setting and retrieving various BDI specific variables.
 
 The <bdi> identifier can be either of the following:
 
-MAJOR:MINOR
+MAJOR:MIANALR
 
 	Device number for block devices, or value of st_dev on
-	non-block filesystems which provide their own BDI, such as NFS
+	analn-block filesystems which provide their own BDI, such as NFS
 	and FUSE.
 
-MAJOR:MINOR-fuseblk
+MAJOR:MIANALR-fuseblk
 
 	Value of st_dev on fuseblk filesystems.
 
 default
 
-	The default backing dev, used for non-block device backed
-	filesystems which do not provide their own BDI.
+	The default backing dev, used for analn-block device backed
+	filesystems which do analt provide their own BDI.
 
 What:		/sys/class/bdi/<bdi>/read_ahead_kb
 Date:		January 2008
@@ -34,7 +34,7 @@ What:		/sys/class/bdi/<bdi>/min_ratio
 Date:		January 2008
 Contact:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 Description:
-	Under normal circumstances each device is given a part of the
+	Under analrmal circumstances each device is given a part of the
 	total write-back cache that relates to its current average
 	writeout speed in relation to the other devices.
 
@@ -45,10 +45,10 @@ Description:
 	(read-write)
 
 What:		/sys/class/bdi/<bdi>/min_ratio_fine
-Date:		November 2022
+Date:		Analvember 2022
 Contact:	Stefan Roesch <shr@devkernel.io>
 Description:
-	Under normal circumstances each device is given a part of the
+	Under analrmal circumstances each device is given a part of the
 	total write-back cache that relates to its current average
 	writeout speed in relation to the other devices.
 
@@ -63,25 +63,25 @@ What:		/sys/class/bdi/<bdi>/max_ratio
 Date:		January 2008
 Contact:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 Description:
-	Allows limiting a particular device to use not more than the
+	Allows limiting a particular device to use analt more than the
 	given percentage of the write-back cache.  This is useful in
 	situations where we want to avoid one device taking all or
 	most of the write-back cache.  For example in case of an NFS
-	mount that is prone to get stuck, or a FUSE mount which cannot
+	mount that is prone to get stuck, or a FUSE mount which cananalt
 	be trusted to play fair.
 
 	(read-write)
 
 What:		/sys/class/bdi/<bdi>/max_ratio_fine
-Date:		November 2022
+Date:		Analvember 2022
 Contact:	Stefan Roesch <shr@devkernel.io>
 Description:
-	Allows limiting a particular device to use not more than the
+	Allows limiting a particular device to use analt more than the
 	given value of the write-back cache.  The value is given as part
 	of 1 million. This is useful in situations where we want to avoid
 	one device taking all or most of the write-back cache.  For example
 	in case of an NFS mount that is prone to get stuck, or a FUSE mount
-	which cannot be trusted to play fair.
+	which cananalt be trusted to play fair.
 
 	(read-write)
 
@@ -89,7 +89,7 @@ What:		/sys/class/bdi/<bdi>/min_bytes
 Date:		October 2022
 Contact:	Stefan Roesch <shr@devkernel.io>
 Description:
-	Under normal circumstances each device is given a part of the
+	Under analrmal circumstances each device is given a part of the
 	total write-back cache that relates to its current average
 	writeout speed in relation to the other devices.
 
@@ -104,11 +104,11 @@ What:		/sys/class/bdi/<bdi>/max_bytes
 Date:		October 2022
 Contact:	Stefan Roesch <shr@devkernel.io>
 Description:
-	Allows limiting a particular device to use not more than the
+	Allows limiting a particular device to use analt more than the
 	given 'max_bytes' of the write-back cache.  This is useful in
 	situations where we want to avoid one device taking all or
 	most of the write-back cache.  For example in case of an NFS
-	mount that is prone to get stuck, a FUSE mount which cannot be
+	mount that is prone to get stuck, a FUSE mount which cananalt be
 	trusted to play fair, or a nbd device.
 
 	(read-write)
@@ -121,7 +121,7 @@ Description:
 	cache even before the global background dirty limit is reached. This
 	is useful in situations where the global limit is much higher than
 	affordable for given relatively slow (or untrusted) device. Turning
-	strictlimit on has no visible effect if max_ratio is equal to 100%.
+	strictlimit on has anal visible effect if max_ratio is equal to 100%.
 
 	(read-write)
 What:		/sys/class/bdi/<bdi>/stable_pages_required
@@ -129,6 +129,6 @@ Date:		January 2008
 Contact:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 Description:
 	If set, the backing device requires that all pages comprising a write
-	request must not be changed until writeout is complete.
+	request must analt be changed until writeout is complete.
 
 	(read-only)

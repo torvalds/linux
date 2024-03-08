@@ -63,7 +63,7 @@ struct tng_gpio_pinrange {
 	}
 
 /**
- * struct tng_gpio_pin_info - Platform specific pinout information
+ * struct tng_gpio_pin_info - Platform specific pianalut information
  * @pin_ranges: Pin to GPIO mapping
  * @nranges: Number of pin ranges
  * @name: Respective pinctrl device name
@@ -95,7 +95,7 @@ struct tng_gpio_info {
  * @dev: The GPIO device
  * @ctx: Context to be saved during suspend-resume
  * @wake_regs: Platform specific wake registers
- * @pin_info: Platform specific pinout information
+ * @pin_info: Platform specific pianalut information
  * @info: Platform specific GPIO and IRQ information
  */
 struct tng_gpio {

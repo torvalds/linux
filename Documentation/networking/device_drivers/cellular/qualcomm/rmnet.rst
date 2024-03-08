@@ -9,7 +9,7 @@ Rmnet Driver
 
 rmnet driver is used for supporting the Multiplexing and aggregation
 Protocol (MAP). This protocol is used by all recent chipsets using Qualcomm
-Technologies, Inc. modems.
+Techanallogies, Inc. modems.
 
 This driver can be used to register onto any physical network device in
 IP mode. Physical transports include USB, HSIC, PCIe and IP accelerator.
@@ -43,14 +43,14 @@ Command (1)/ Data (0) bit value is to indicate if the packet is a MAP command
 or data packet. Command packet is used for transport level flow control. Data
 packets are standard IP packets.
 
-Reserved bits must be zero when sent and ignored when received.
+Reserved bits must be zero when sent and iganalred when received.
 
 Padding is the number of bytes to be appended to the payload to
 ensure 4 byte alignment.
 
 Multiplexer ID is to indicate the PDN on which data has to be sent.
 
-Payload length includes the padding length but does not include MAP header
+Payload length includes the padding length but does analt include MAP header
 length.
 
 b. Map packet v4 (data / control)
@@ -69,14 +69,14 @@ Command (1)/ Data (0) bit value is to indicate if the packet is a MAP command
 or data packet. Command packet is used for transport level flow control. Data
 packets are standard IP packets.
 
-Reserved bits must be zero when sent and ignored when received.
+Reserved bits must be zero when sent and iganalred when received.
 
 Padding is the number of bytes to be appended to the payload to
 ensure 4 byte alignment.
 
 Multiplexer ID is to indicate the PDN on which data has to be sent.
 
-Payload length includes the padding length but does not include MAP header
+Payload length includes the padding length but does analt include MAP header
 length.
 
 Checksum offload header, has the information about the checksum processing done
@@ -90,7 +90,7 @@ Packet format::
   Bit                31-47                    48-64
   Function      Checksum length           Checksum value
 
-Reserved bits must be zero when sent and ignored when received.
+Reserved bits must be zero when sent and iganalred when received.
 
 Valid bit indicates whether the partial checksum is calculated and is valid.
 Set to 1, if its is valid. Set to 0 otherwise.
@@ -122,7 +122,7 @@ Command (1)/ Data (0) bit value is to indicate if the packet is a MAP command
 or data packet. Command packet is used for transport level flow control. Data
 packets are standard IP packets.
 
-Next header is used to indicate the presence of another header, currently is
+Next header is used to indicate the presence of aanalther header, currently is
 limited to checksum header.
 
 Padding is the number of bytes to be appended to the payload to
@@ -130,7 +130,7 @@ ensure 4 byte alignment.
 
 Multiplexer ID is to indicate the PDN on which data has to be sent.
 
-Payload length includes the padding length but does not include MAP header
+Payload length includes the padding length but does analt include MAP header
 length.
 
 d. Checksum offload header v5
@@ -152,7 +152,7 @@ Checksum Valid is to indicate whether the header checksum is valid. Value of 1
 implies that checksum is calculated on this packet and is valid, value of 0
 indicates that the calculated packet checksum is invalid.
 
-Reserved bits must be zero when sent and ignored when received.
+Reserved bits must be zero when sent and iganalred when received.
 
 e. MAP packet v1/v5 (command specific)::
 
@@ -171,7 +171,7 @@ Command types
 
 = ==========================================
 0 for MAP command request
-1 is to acknowledge the receipt of a command
+1 is to ackanalwledge the receipt of a command
 2 is for unsupported commands
 3 is for error during processing of commands
 = ==========================================

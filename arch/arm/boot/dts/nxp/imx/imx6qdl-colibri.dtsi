@@ -585,7 +585,7 @@
 		stmpe_adc: stmpe_adc {
 			compatible = "st,stmpe-adc";
 			/* forbid to use ADC channels 3-0 (touch) */
-			st,norequest-mask = <0x0F>;
+			st,analrequest-mask = <0x0F>;
 		};
 	};
 };
@@ -699,7 +699,7 @@
 &usdhc1 {
 	cd-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>; /* MMCD */
 	bus-width = <4>;
-	no-1-8-v;
+	anal-1-8-v;
 	disable-wp;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_mmc_cd>;
@@ -714,8 +714,8 @@
 /* eMMC */
 &usdhc3 {
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	vqmmc-supply = <&reg_module_3v3>;
@@ -737,7 +737,7 @@
 	pinctrl-0 = <&pinctrl_usbh_oc_1>;
 
 	/* Atmel MXT touchsceen + Capacitive Touch Adapter */
-	/* NOTE: This pin group conflicts with pin groups
+	/* ANALTE: This pin group conflicts with pin groups
 	 * pinctrl_pwm1/pinctrl_pwm4. Don't use them simultaneously.
 	 */
 	pinctrl_atmel_adap: atmeladaptergrp {
@@ -748,7 +748,7 @@
 	};
 
 	/* Atmel MXT touchsceen + boards with built-in Capacitive Touch Connector */
-	/* NOTE: This pin group conflicts with pin groups pinctrl_weim_cs1 and
+	/* ANALTE: This pin group conflicts with pin groups pinctrl_weim_cs1 and
 	 * pinctrl_weim_cs2. Don't use them simultaneously.
 	 */
 	pinctrl_atmel_conn: atmelconnectorgrp {

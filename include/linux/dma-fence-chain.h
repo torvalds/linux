@@ -15,17 +15,17 @@
 #include <linux/slab.h>
 
 /**
- * struct dma_fence_chain - fence to represent an node of a fence chain
+ * struct dma_fence_chain - fence to represent an analde of a fence chain
  * @base: fence base class
  * @prev: previous fence of the chain
- * @prev_seqno: original previous seqno before garbage collection
+ * @prev_seqanal: original previous seqanal before garbage collection
  * @fence: encapsulated fence
  * @lock: spinlock for fence handling
  */
 struct dma_fence_chain {
 	struct dma_fence base;
 	struct dma_fence __rcu *prev;
-	u64 prev_seqno;
+	u64 prev_seqanal;
 	struct dma_fence *fence;
 	union {
 		/**
@@ -54,7 +54,7 @@ struct dma_fence_chain {
  * to_dma_fence_chain - cast a fence to a dma_fence_chain
  * @fence: fence to cast to a dma_fence_array
  *
- * Returns NULL if the fence is not a dma_fence_chain,
+ * Returns NULL if the fence is analt a dma_fence_chain,
  * or the dma_fence_chain otherwise.
  */
 static inline struct dma_fence_chain *
@@ -93,12 +93,12 @@ static inline struct dma_fence_chain *dma_fence_chain_alloc(void)
 
 /**
  * dma_fence_chain_free
- * @chain: chain node to free
+ * @chain: chain analde to free
  *
- * Frees up an allocated but not used struct dma_fence_chain object. This
- * doesn't need an RCU grace period since the fence was never initialized nor
+ * Frees up an allocated but analt used struct dma_fence_chain object. This
+ * doesn't need an RCU grace period since the fence was never initialized analr
  * published. After dma_fence_chain_init() has been called the fence must be
- * released by calling dma_fence_put(), and not through this function.
+ * released by calling dma_fence_put(), and analt through this function.
  */
 static inline void dma_fence_chain_free(struct dma_fence_chain *chain)
 {
@@ -120,10 +120,10 @@ static inline void dma_fence_chain_free(struct dma_fence_chain *chain)
 	     iter = dma_fence_chain_walk(iter))
 
 struct dma_fence *dma_fence_chain_walk(struct dma_fence *fence);
-int dma_fence_chain_find_seqno(struct dma_fence **pfence, uint64_t seqno);
+int dma_fence_chain_find_seqanal(struct dma_fence **pfence, uint64_t seqanal);
 void dma_fence_chain_init(struct dma_fence_chain *chain,
 			  struct dma_fence *prev,
 			  struct dma_fence *fence,
-			  uint64_t seqno);
+			  uint64_t seqanal);
 
 #endif /* __LINUX_DMA_FENCE_CHAIN_H */

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@
 #define CHIP_SIENNA_CICHLID 30
 #define CHIP_PLUM_BONITO 36
 
-#define NO_SQC_STORE (ASIC_FAMILY >= CHIP_SIENNA_CICHLID)
+#define ANAL_SQC_STORE (ASIC_FAMILY >= CHIP_SIENNA_CICHLID)
 #define HAVE_XNACK (ASIC_FAMILY < CHIP_SIENNA_CICHLID)
 #define HAVE_SENDMSG_RTN (ASIC_FAMILY >= CHIP_PLUM_BONITO)
 #define HAVE_BUFFER_LDS_LOAD (ASIC_FAMILY < CHIP_PLUM_BONITO)
@@ -171,7 +171,7 @@ shader main
 	type(CS)
 	wave_size(32)
 
-	s_branch	L_SKIP_RESTORE						//NOT restore. might be a regular trap or save
+	s_branch	L_SKIP_RESTORE						//ANALT restore. might be a regular trap or save
 
 L_JUMP_TO_RESTORE:
 	s_branch	L_RESTORE
@@ -179,7 +179,7 @@ L_JUMP_TO_RESTORE:
 L_SKIP_RESTORE:
 	s_getreg_b32	s_save_status, hwreg(HW_REG_STATUS)			//save STATUS since we will change SCC
 
-	// Clear SPI_PRIO: do not save with elevated priority.
+	// Clear SPI_PRIO: do analt save with elevated priority.
 	// Clear ECC_ERR: prevents SQC store and triggers FATAL_HALT if setreg'd.
 	s_andn2_b32	s_save_status, s_save_status, SQ_WAVE_STATUS_SPI_PRIO_MASK|SQ_WAVE_STATUS_ECC_ERR_MASK
 
@@ -188,10 +188,10 @@ L_SKIP_RESTORE:
 #if SW_SA_TRAP
 	// If ttmp1[30] is set then issue s_barrier to unblock dependent waves.
 	s_bitcmp1_b32	s_save_pc_hi, 30
-	s_cbranch_scc0	L_TRAP_NO_BARRIER
+	s_cbranch_scc0	L_TRAP_ANAL_BARRIER
 	s_barrier
 
-L_TRAP_NO_BARRIER:
+L_TRAP_ANAL_BARRIER:
 	// If ttmp1[31] is set then trap may occur early.
 	// Spin wait until SAVECTX exception is raised.
 	s_bitcmp1_b32	s_save_pc_hi, 31
@@ -199,7 +199,7 @@ L_TRAP_NO_BARRIER:
 #endif
 
 	s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
-	s_cbranch_scc0	L_NOT_HALTED
+	s_cbranch_scc0	L_ANALT_HALTED
 
 L_HALTED:
 	// Host trap may occur while wave is halted.
@@ -210,18 +210,18 @@ L_CHECK_SAVE:
 	s_and_b32	ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_SAVECTX_MASK
 	s_cbranch_scc1	L_SAVE
 
-	// Wave is halted but neither host trap nor SAVECTX is raised.
+	// Wave is halted but neither host trap analr SAVECTX is raised.
 	// Caused by instruction fetch memory violation.
 	// Spin wait until context saved to prevent interrupt storm.
 	s_sleep		0x10
 	s_getreg_b32	s_save_trapsts, hwreg(HW_REG_TRAPSTS)
 	s_branch	L_CHECK_SAVE
 
-L_NOT_HALTED:
-	// Let second-level handle non-SAVECTX exception or trap.
+L_ANALT_HALTED:
+	// Let second-level handle analn-SAVECTX exception or trap.
 	// Any concurrent SAVECTX will be handled upon re-entry once halted.
 
-	// Check non-maskable exceptions. memory_violation, illegal_instruction
+	// Check analn-maskable exceptions. memory_violation, illegal_instruction
 	// and xnack_error exceptions always cause the wave to enter the trap
 	// handler.
 	s_and_b32	ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_MEM_VIOL_MASK|SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK
@@ -234,10 +234,10 @@ L_NOT_HALTED:
 	s_cbranch_scc0	L_CHECK_TRAP_ID
 
 	s_and_b32	ttmp3, s_save_trapsts, SQ_WAVE_TRAPSTS_ADDR_WATCH_MASK|SQ_WAVE_TRAPSTS_EXCP_HI_MASK
-	s_cbranch_scc0	L_NOT_ADDR_WATCH
+	s_cbranch_scc0	L_ANALT_ADDR_WATCH
 	s_bitset1_b32	ttmp2, SQ_WAVE_TRAPSTS_ADDR_WATCH_SHIFT // Check all addr_watch[123] exceptions against excp_en.addr_watch
 
-L_NOT_ADDR_WATCH:
+L_ANALT_ADDR_WATCH:
 	s_getreg_b32	ttmp3, hwreg(HW_REG_MODE)
 	s_lshl_b32	ttmp2, ttmp2, SQ_WAVE_MODE_EXCP_EN_SHIFT
 	s_and_b32	ttmp2, ttmp2, ttmp3
@@ -277,9 +277,9 @@ L_FETCH_2ND_TRAP:
 	s_lshl_b64	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
 
 	s_bitcmp1_b32	ttmp15, 0xF
-	s_cbranch_scc0	L_NO_SIGN_EXTEND_TMA
+	s_cbranch_scc0	L_ANAL_SIGN_EXTEND_TMA
 	s_or_b32	ttmp15, ttmp15, 0xFFFF0000
-L_NO_SIGN_EXTEND_TMA:
+L_ANAL_SIGN_EXTEND_TMA:
 
 	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 glc:1			// debug trap enabled flag
 	s_waitcnt       lgkmcnt(0)
@@ -293,11 +293,11 @@ L_NO_SIGN_EXTEND_TMA:
 	s_waitcnt	lgkmcnt(0)
 
 	s_and_b64	[ttmp2, ttmp3], [ttmp2, ttmp3], [ttmp2, ttmp3]
-	s_cbranch_scc0	L_NO_NEXT_TRAP						// second-level trap handler not been set
+	s_cbranch_scc0	L_ANAL_NEXT_TRAP						// second-level trap handler analt been set
 	s_setpc_b64	[ttmp2, ttmp3]						// jump to second-level trap handler
 
-L_NO_NEXT_TRAP:
-	// If not caused by trap then halt wave to prevent re-entry.
+L_ANAL_NEXT_TRAP:
+	// If analt caused by trap then halt wave to prevent re-entry.
 	s_and_b32	ttmp2, s_save_pc_hi, (S_SAVE_PC_HI_TRAP_ID_MASK|S_SAVE_PC_HI_HT_MASK)
 	s_cbranch_scc1	L_TRAP_CASE
 	s_or_b32	s_save_status, s_save_status, SQ_WAVE_STATUS_HALT_MASK
@@ -310,7 +310,7 @@ L_NO_NEXT_TRAP:
 	s_branch	L_EXIT_TRAP
 
 L_TRAP_CASE:
-	// Host trap will not cause trap re-entry.
+	// Host trap will analt cause trap re-entry.
 	s_and_b32	ttmp2, s_save_pc_hi, S_SAVE_PC_HI_HT_MASK
 	s_cbranch_scc1	L_EXIT_TRAP
 
@@ -326,8 +326,8 @@ L_EXIT_TRAP:
 #endif
 
 	// Restore SQ_WAVE_STATUS.
-	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, not writable by s_setreg_b32
-	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, not writable by s_setreg_b32
+	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, analt writable by s_setreg_b32
+	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, analt writable by s_setreg_b32
 	s_setreg_b32	hwreg(HW_REG_STATUS), s_save_status
 
 	s_rfe_b64	[ttmp0, ttmp1]
@@ -354,8 +354,8 @@ L_SAVE:
 
 #if ASIC_FAMILY < CHIP_SIENNA_CICHLID
 L_SLEEP:
-	// sleep 1 (64clk) is not enough for 8 waves per SIMD, which will cause
-	// SQ hang, since the 7,8th wave could not get arbit to exec inst, while
+	// sleep 1 (64clk) is analt eanalugh for 8 waves per SIMD, which will cause
+	// SQ hang, since the 7,8th wave could analt get arbit to exec inst, while
 	// other waves are stuck into the sleep-loop and waiting for wrexec!=0
 	s_sleep		0x2
 	s_cbranch_execz	L_SLEEP
@@ -368,7 +368,7 @@ L_SLEEP:
 	s_lshl_b32	s_save_tmp, s_save_tmp, (S_SAVE_PC_HI_FIRST_WAVE_SHIFT - S_SAVE_SPI_INIT_FIRST_WAVE_SHIFT)
 	s_or_b32	s_save_pc_hi, s_save_pc_hi, s_save_tmp
 
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 #if ASIC_FAMILY <= CHIP_SIENNA_CICHLID
 	// gfx10: If there was a VALU exception, the exception state must be
 	// cleared before executing the VALU instructions below.
@@ -376,7 +376,7 @@ L_SLEEP:
 #endif
 
 	// Trap temporaries must be saved via VGPR but all VGPRs are in use.
-	// There is no ttmp space to hold the resource constant for VGPR save.
+	// There is anal ttmp space to hold the resource constant for VGPR save.
 	// Save v0 by itself since it requires only two SGPRs.
 	s_mov_b32	s_save_ttmps_lo, exec_lo
 	s_and_b32	s_save_ttmps_hi, exec_hi, 0xFFFF
@@ -399,7 +399,7 @@ L_SLEEP:
 	s_add_u32	s_save_ttmps_lo, s_save_ttmps_lo, s_save_spi_init_lo
 	s_addc_u32	s_save_ttmps_hi, s_save_ttmps_hi, 0x0
 
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	v_writelane_b32	v0, ttmp4, 0x4
 	v_writelane_b32	v0, ttmp5, 0x5
 	v_writelane_b32	v0, ttmp6, 0x6
@@ -429,7 +429,7 @@ L_SLEEP:
 	s_mov_b32	s_save_buf_rsrc0, s_save_spi_init_lo			//base_addr_lo
 	s_and_b32	s_save_buf_rsrc1, s_save_spi_init_hi, 0x0000FFFF	//base_addr_hi
 	s_or_b32	s_save_buf_rsrc1, s_save_buf_rsrc1, S_SAVE_BUF_RSRC_WORD1_STRIDE
-	s_mov_b32	s_save_buf_rsrc2, 0					//NUM_RECORDS initial value = 0 (in bytes) although not neccessarily inited
+	s_mov_b32	s_save_buf_rsrc2, 0					//NUM_RECORDS initial value = 0 (in bytes) although analt neccessarily inited
 	s_mov_b32	s_save_buf_rsrc3, S_SAVE_BUF_RSRC_WORD3_MISC
 
 	s_mov_b32	s_save_m0, m0
@@ -445,7 +445,7 @@ L_SLEEP:
 #endif
 
 	/* save first 4 VGPRs, needed for SGPR save */
-	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from analw on
 	s_lshr_b32	m0, s_wave_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
@@ -460,7 +460,7 @@ L_SAVE_4VGPR_WAVE32:
 
 	// VGPR Allocated in 4-GPR granularity
 
-#if !NO_SQC_STORE
+#if !ANAL_SQC_STORE
 	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
 #endif
 	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:128
@@ -473,7 +473,7 @@ L_SAVE_4VGPR_WAVE64:
 
 	// VGPR Allocated in 4-GPR granularity
 
-#if !NO_SQC_STORE
+#if !ANAL_SQC_STORE
 	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
 #endif
 	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1 offset:256
@@ -491,7 +491,7 @@ L_SAVE_HWREG:
 
 	s_mov_b32	s_save_buf_rsrc2, 0x1000000				//NUM_RECORDS in bytes
 
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	v_mov_b32	v0, 0x0							//Offset[31:0] from buffer resource
 	v_mov_b32	v1, 0x0							//Offset[63:32] from buffer resource
 	v_mov_b32	v2, 0x0							//Set of SGPRs for TCP store
@@ -509,7 +509,7 @@ L_SAVE_HWREG:
 	s_getreg_b32	s_save_tmp, hwreg(HW_REG_TRAPSTS)
 	write_hwreg_to_mem(s_save_tmp, s_save_buf_rsrc0, s_save_mem_offset)
 
-	// Not used on Sienna_Cichlid but keep layout same for debugger.
+	// Analt used on Sienna_Cichlid but keep layout same for debugger.
 	write_hwreg_to_mem(s_save_xnack_mask, s_save_buf_rsrc0, s_save_mem_offset)
 
 	s_getreg_b32	s_save_m0, hwreg(HW_REG_MODE)
@@ -521,7 +521,7 @@ L_SAVE_HWREG:
 	s_getreg_b32	s_save_m0, hwreg(HW_REG_SHADER_FLAT_SCRATCH_HI)
 	write_hwreg_to_mem(s_save_m0, s_save_buf_rsrc0, s_save_mem_offset)
 
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	// Write HWREGs with 16 VGPR lanes. TTMPs occupy space after this.
 	s_mov_b32       exec_lo, 0xFFFF
 	s_mov_b32	exec_hi, 0x0
@@ -540,7 +540,7 @@ L_SAVE_HWREG:
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, s_save_tmp
 	s_mov_b32	s_save_buf_rsrc2, 0x1000000				//NUM_RECORDS in bytes
 
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	s_mov_b32	ttmp13, 0x0						//next VGPR lane to copy SGPR into
 #else
 	// backup s_save_buf_rsrc0,1 to s_save_pc_lo/hi, since write_16sgpr_to_mem function will change the rsrc0
@@ -550,7 +550,7 @@ L_SAVE_HWREG:
 #endif
 
 	s_mov_b32	m0, 0x0							//SGPR initial index value =0
-	s_nop		0x0							//Manually inserted wait states
+	s_analp		0x0							//Manually inserted wait states
 L_SAVE_SGPR_LOOP:
 	// SGPR is allocated in 16 SGPR granularity
 	s_movrels_b64	s0, s0							//s0 = s[0+m0], s1 = s[1+m0]
@@ -564,7 +564,7 @@ L_SAVE_SGPR_LOOP:
 
 	write_16sgpr_to_mem(s0, s_save_buf_rsrc0, s_save_mem_offset)
 
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	s_cmp_eq_u32	ttmp13, 0x20						//have 32 VGPR lanes filled?
 	s_cbranch_scc0	L_SAVE_SGPR_SKIP_TCP_STORE
 
@@ -588,7 +588,7 @@ L_SAVE_SGPR_SKIP_TCP_STORE:
 	s_movrels_b64	s10, s10						//s10 = s[10+m0], s11 = s[11+m0]
 	write_12sgpr_to_mem(s0, s_save_buf_rsrc0, s_save_mem_offset)
 
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
 #else
 	// restore s_save_buf_rsrc0,1
@@ -599,19 +599,19 @@ L_SAVE_SGPR_SKIP_TCP_STORE:
 
 L_SAVE_LDS:
 	// Change EXEC to all threads...
-	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from analw on
 	s_lshr_b32	m0, s_wave_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
 	s_cbranch_scc1	L_ENABLE_SAVE_LDS_EXEC_HI
 	s_mov_b32	exec_hi, 0x00000000
-	s_branch	L_SAVE_LDS_NORMAL
+	s_branch	L_SAVE_LDS_ANALRMAL
 L_ENABLE_SAVE_LDS_EXEC_HI:
 	s_mov_b32	exec_hi, 0xFFFFFFFF
-L_SAVE_LDS_NORMAL:
+L_SAVE_LDS_ANALRMAL:
 	s_getreg_b32	s_save_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)
 	s_and_b32	s_save_alloc_size, s_save_alloc_size, 0xFFFFFFFF	//lds_size is zero?
-	s_cbranch_scc0	L_SAVE_LDS_DONE						//no lds used? jump to L_SAVE_DONE
+	s_cbranch_scc0	L_SAVE_LDS_DONE						//anal lds used? jump to L_SAVE_DONE
 
 	s_barrier								//LDS is used? wait for other waves in the same TG
 	s_and_b32	s_save_tmp, s_save_pc_hi, S_SAVE_PC_HI_FIRST_WAVE_MASK
@@ -646,9 +646,9 @@ L_SAVE_LDS_NORMAL:
 
 L_SAVE_LDS_W32:
 	s_mov_b32	s3, 128
-	s_nop		0
-	s_nop		0
-	s_nop		0
+	s_analp		0
+	s_analp		0
+	s_analp		0
 L_SAVE_LDS_LOOP_W32:
 	ds_read_b32	v1, v0
 	s_waitcnt	0
@@ -664,9 +664,9 @@ L_SAVE_LDS_LOOP_W32:
 
 L_SAVE_LDS_W64:
 	s_mov_b32	s3, 256
-	s_nop		0
-	s_nop		0
-	s_nop		0
+	s_analp		0
+	s_analp		0
+	s_analp		0
 L_SAVE_LDS_LOOP_W64:
 	ds_read_b32	v1, v0
 	s_waitcnt	0
@@ -682,21 +682,21 @@ L_SAVE_LDS_DONE:
 	/* save VGPRs  - set the Rest VGPRs */
 L_SAVE_VGPR:
 	// VGPR SR memory offset: 0
-	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from analw on
 	s_lshr_b32	m0, s_wave_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
 	s_cbranch_scc1	L_ENABLE_SAVE_VGPR_EXEC_HI
 	s_mov_b32	s_save_mem_offset, (0+128*4)				// for the rest VGPRs
 	s_mov_b32	exec_hi, 0x00000000
-	s_branch	L_SAVE_VGPR_NORMAL
+	s_branch	L_SAVE_VGPR_ANALRMAL
 L_ENABLE_SAVE_VGPR_EXEC_HI:
 	s_mov_b32	s_save_mem_offset, (0+256*4)				// for the rest VGPRs
 	s_mov_b32	exec_hi, 0xFFFFFFFF
-L_SAVE_VGPR_NORMAL:
+L_SAVE_VGPR_ANALRMAL:
 	s_getreg_b32	s_save_alloc_size, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)
 	s_add_u32	s_save_alloc_size, s_save_alloc_size, 1
-	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 2			//Number of VGPRs = (vgpr_size + 1) * 4    (non-zero value)
+	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 2			//Number of VGPRs = (vgpr_size + 1) * 4    (analn-zero value)
 	//determine it is wave32 or wave64
 	s_lshr_b32	m0, s_wave_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
@@ -758,9 +758,9 @@ L_SAVE_SHARED_VGPR:
 	//Below part will be the save shared vgpr part (new for gfx10)
 	s_getreg_b32	s_save_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SIZE)
 	s_and_b32	s_save_alloc_size, s_save_alloc_size, 0xFFFFFFFF	//shared_vgpr_size is zero?
-	s_cbranch_scc0	L_SAVE_VGPR_END						//no shared_vgpr used? jump to L_SAVE_LDS
-	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 3			//Number of SHARED_VGPRs = shared_vgpr_size * 8    (non-zero value)
-	//m0 now has the value of normal vgpr count, just add the m0 with shared_vgpr count to get the total count.
+	s_cbranch_scc0	L_SAVE_VGPR_END						//anal shared_vgpr used? jump to L_SAVE_LDS
+	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 3			//Number of SHARED_VGPRs = shared_vgpr_size * 8    (analn-zero value)
+	//m0 analw has the value of analrmal vgpr count, just add the m0 with shared_vgpr count to get the total count.
 	//save shared_vgpr will start from the index of m0
 	s_add_u32	s_save_alloc_size, s_save_alloc_size, m0
 	s_mov_b32	exec_lo, 0xFFFFFFFF
@@ -792,19 +792,19 @@ L_RESTORE:
 
 	/* restore LDS */
 L_RESTORE_LDS:
-	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from analw on
 	s_lshr_b32	m0, s_restore_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
 	s_cbranch_scc1	L_ENABLE_RESTORE_LDS_EXEC_HI
 	s_mov_b32	exec_hi, 0x00000000
-	s_branch	L_RESTORE_LDS_NORMAL
+	s_branch	L_RESTORE_LDS_ANALRMAL
 L_ENABLE_RESTORE_LDS_EXEC_HI:
 	s_mov_b32	exec_hi, 0xFFFFFFFF
-L_RESTORE_LDS_NORMAL:
+L_RESTORE_LDS_ANALRMAL:
 	s_getreg_b32	s_restore_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)
 	s_and_b32	s_restore_alloc_size, s_restore_alloc_size, 0xFFFFFFFF	//lds_size is zero?
-	s_cbranch_scc0	L_RESTORE_VGPR						//no lds used? jump to L_RESTORE_VGPR
+	s_cbranch_scc0	L_RESTORE_VGPR						//anal lds used? jump to L_RESTORE_VGPR
 	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 6		//LDS size in dwords = lds_size * 64dw
 	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 2		//LDS size in bytes
 	s_mov_b32	s_restore_buf_rsrc2, s_restore_alloc_size		//NUM_RECORDS in bytes
@@ -856,19 +856,19 @@ L_RESTORE_LDS_LOOP_W64:
 L_RESTORE_VGPR:
 	// VGPR SR memory offset : 0
 	s_mov_b32	s_restore_mem_offset, 0x0
- 	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from now on
+ 	s_mov_b32	exec_lo, 0xFFFFFFFF					//need every thread from analw on
 	s_lshr_b32	m0, s_restore_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
 	s_cmp_eq_u32	m0, 1
 	s_cbranch_scc1	L_ENABLE_RESTORE_VGPR_EXEC_HI
 	s_mov_b32	exec_hi, 0x00000000
-	s_branch	L_RESTORE_VGPR_NORMAL
+	s_branch	L_RESTORE_VGPR_ANALRMAL
 L_ENABLE_RESTORE_VGPR_EXEC_HI:
 	s_mov_b32	exec_hi, 0xFFFFFFFF
-L_RESTORE_VGPR_NORMAL:
+L_RESTORE_VGPR_ANALRMAL:
 	s_getreg_b32	s_restore_alloc_size, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)
 	s_add_u32	s_restore_alloc_size, s_restore_alloc_size, 1
-	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 2		//Number of VGPRs = (vgpr_size + 1) * 4    (non-zero value)
+	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 2		//Number of VGPRs = (vgpr_size + 1) * 4    (analn-zero value)
 	//determine it is wave32 or wave64
 	s_lshr_b32	m0, s_restore_size, S_WAVE_SIZE
 	s_and_b32	m0, m0, 1
@@ -937,9 +937,9 @@ L_RESTORE_SHARED_VGPR:
 	//Below part will be the restore shared vgpr part (new for gfx10)
 	s_getreg_b32	s_restore_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SIZE)	//shared_vgpr_size
 	s_and_b32	s_restore_alloc_size, s_restore_alloc_size, 0xFFFFFFFF	//shared_vgpr_size is zero?
-	s_cbranch_scc0	L_RESTORE_V0						//no shared_vgpr used?
-	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 3		//Number of SHARED_VGPRs = shared_vgpr_size * 8    (non-zero value)
-	//m0 now has the value of normal vgpr count, just add the m0 with shared_vgpr count to get the total count.
+	s_cbranch_scc0	L_RESTORE_V0						//anal shared_vgpr used?
+	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 3		//Number of SHARED_VGPRs = shared_vgpr_size * 8    (analn-zero value)
+	//m0 analw has the value of analrmal vgpr count, just add the m0 with shared_vgpr count to get the total count.
 	//restore shared_vgpr will start from the index of m0
 	s_add_u32	s_restore_alloc_size, s_restore_alloc_size, m0
 	s_mov_b32	exec_lo, 0xFFFFFFFF
@@ -971,7 +971,7 @@ L_RESTORE_SGPR:
 	get_svgpr_size_bytes(s_restore_tmp)
 	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, s_restore_tmp
 	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, get_sgpr_size_bytes()
-	s_sub_u32	s_restore_mem_offset, s_restore_mem_offset, 20*4	//s108~s127 is not saved
+	s_sub_u32	s_restore_mem_offset, s_restore_mem_offset, 20*4	//s108~s127 is analt saved
 
 	s_mov_b32	s_restore_buf_rsrc2, 0x1000000				//NUM_RECORDS in bytes
 
@@ -981,7 +981,7 @@ L_RESTORE_SGPR:
 	s_waitcnt	lgkmcnt(0)
 
 	s_sub_u32	m0, m0, 4						// Restore from S[0] to S[104]
-	s_nop		0							// hazard SALU M0=> S_MOVREL
+	s_analp		0							// hazard SALU M0=> S_MOVREL
 
 	s_movreld_b64	s0, s0							//s[0+m0] = s0
 	s_movreld_b64	s2, s2
@@ -990,7 +990,7 @@ L_RESTORE_SGPR:
 	s_waitcnt	lgkmcnt(0)
 
 	s_sub_u32	m0, m0, 8						// Restore from S[0] to S[96]
-	s_nop		0							// hazard SALU M0=> S_MOVREL
+	s_analp		0							// hazard SALU M0=> S_MOVREL
 
 	s_movreld_b64	s0, s0							//s[0+m0] = s0
 	s_movreld_b64	s2, s2
@@ -1002,7 +1002,7 @@ L_RESTORE_SGPR:
 	s_waitcnt	lgkmcnt(0)
 
 	s_sub_u32	m0, m0, 16						// Restore from S[n] to S[0]
-	s_nop		0							// hazard SALU M0=> S_MOVREL
+	s_analp		0							// hazard SALU M0=> S_MOVREL
 
 	s_movreld_b64	s0, s0							//s[0+m0] = s0
 	s_movreld_b64	s2, s2
@@ -1046,7 +1046,7 @@ L_RESTORE_HWREG:
 	s_setreg_b32	hwreg(HW_REG_SHADER_FLAT_SCRATCH_LO), s_restore_flat_scratch
 
 	read_hwreg_from_mem(s_restore_flat_scratch, s_restore_buf_rsrc0, s_restore_mem_offset)
-	s_waitcnt	lgkmcnt(0)						//from now on, it is safe to restore STATUS and IB_STS
+	s_waitcnt	lgkmcnt(0)						//from analw on, it is safe to restore STATUS and IB_STS
 
 	s_setreg_b32	hwreg(HW_REG_SHADER_FLAT_SCRATCH_HI), s_restore_flat_scratch
 
@@ -1084,9 +1084,9 @@ L_RESTORE_HWREG:
 	restore_ib_sts(s_restore_tmp, s_restore_m0)
 #endif
 
-	s_and_b32	s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff		//pc[47:32] //Do it here in order not to affect STATUS
-	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, not writable by s_setreg_b32
-	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, not writable by s_setreg_b32
+	s_and_b32	s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff		//pc[47:32] //Do it here in order analt to affect STATUS
+	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, analt writable by s_setreg_b32
+	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, analt writable by s_setreg_b32
 
 #if SW_SA_TRAP
 	// If traps are enabled then return to the shader with PRIV=0.
@@ -1108,7 +1108,7 @@ L_END_PGM:
 end
 
 function write_hwreg_to_mem(s, s_rsrc, s_mem_offset)
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	// Copy into VGPR for later TCP store.
 	v_writelane_b32	v2, s, m0
 	s_add_u32	m0, m0, 0x1
@@ -1123,7 +1123,7 @@ end
 
 
 function write_16sgpr_to_mem(s, s_rsrc, s_mem_offset)
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	// Copy into VGPR for later TCP store.
 	for var sgpr_idx = 0; sgpr_idx < 16; sgpr_idx ++
 		v_writelane_b32	v2, s[sgpr_idx], ttmp13
@@ -1140,7 +1140,7 @@ function write_16sgpr_to_mem(s, s_rsrc, s_mem_offset)
 end
 
 function write_12sgpr_to_mem(s, s_rsrc, s_mem_offset)
-#if NO_SQC_STORE
+#if ANAL_SQC_STORE
 	// Copy into VGPR for later TCP store.
 	for var sgpr_idx = 0; sgpr_idx < 12; sgpr_idx ++
 		v_writelane_b32	v2, s[sgpr_idx], ttmp13
@@ -1186,10 +1186,10 @@ function get_vgpr_size_bytes(s_vgpr_size_byte, s_size)
 	s_add_u32	s_vgpr_size_byte, s_vgpr_size_byte, 1
 	s_bitcmp1_b32	s_size, S_WAVE_SIZE
 	s_cbranch_scc1	L_ENABLE_SHIFT_W64
-	s_lshl_b32	s_vgpr_size_byte, s_vgpr_size_byte, (2+7)		//Number of VGPRs = (vgpr_size + 1) * 4 * 32 * 4   (non-zero value)
+	s_lshl_b32	s_vgpr_size_byte, s_vgpr_size_byte, (2+7)		//Number of VGPRs = (vgpr_size + 1) * 4 * 32 * 4   (analn-zero value)
 	s_branch	L_SHIFT_DONE
 L_ENABLE_SHIFT_W64:
-	s_lshl_b32	s_vgpr_size_byte, s_vgpr_size_byte, (2+8)		//Number of VGPRs = (vgpr_size + 1) * 4 * 64 * 4   (non-zero value)
+	s_lshl_b32	s_vgpr_size_byte, s_vgpr_size_byte, (2+8)		//Number of VGPRs = (vgpr_size + 1) * 4 * 64 * 4   (analn-zero value)
 L_SHIFT_DONE:
 end
 

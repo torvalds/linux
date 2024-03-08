@@ -16,25 +16,25 @@ H2_IPV4="192.0.2.2"
 H1_IPV6="2001:db8:1::1"
 H2_IPV6="2001:db8:1::2"
 
-IPV4_ALLNODES="224.0.0.1"
-IPV6_ALLNODES="ff02::1"
-MACV4_ALLNODES="01:00:5e:00:00:01"
-MACV6_ALLNODES="33:33:00:00:00:01"
-NON_IP_MC="01:02:03:04:05:06"
-NON_IP_PKT="00:04 48:45:4c:4f"
+IPV4_ALLANALDES="224.0.0.1"
+IPV6_ALLANALDES="ff02::1"
+MACV4_ALLANALDES="01:00:5e:00:00:01"
+MACV6_ALLANALDES="33:33:00:00:00:01"
+ANALN_IP_MC="01:02:03:04:05:06"
+ANALN_IP_PKT="00:04 48:45:4c:4f"
 BC="ff:ff:ff:ff:ff:ff"
 
 # The full 4K VLAN space is too much to check, so strategically pick some
 # values which should provide reasonable coverage
 vids=(0 1 2 5 10 20 50 100 200 500 1000 1000 2000 4000 4094)
 
-send_non_ip()
+send_analn_ip()
 {
 	local if_name=$1
 	local smac=$2
 	local dmac=$3
 
-	$MZ -q $if_name "$dmac $smac $NON_IP_PKT"
+	$MZ -q $if_name "$dmac $smac $ANALN_IP_PKT"
 }
 
 send_uc_ipv4()
@@ -51,7 +51,7 @@ send_mc_ipv4()
 {
 	local if_name=$1
 
-	ping_do $if_name $IPV4_ALLNODES "-I $if_name"
+	ping_do $if_name $IPV4_ALLANALDES "-I $if_name"
 }
 
 send_uc_ipv6()
@@ -68,7 +68,7 @@ send_mc_ipv6()
 {
 	local if_name=$1
 
-	ping6_do $if_name $IPV6_ALLNODES%$if_name
+	ping6_do $if_name $IPV6_ALLANALDES%$if_name
 }
 
 check_rcv()
@@ -99,9 +99,9 @@ run_test()
 
 	tcpdump_start $h2
 
-	send_non_ip $h1 $smac $dmac
-	send_non_ip $h1 $smac $NON_IP_MC
-	send_non_ip $h1 $smac $BC
+	send_analn_ip $h1 $smac $dmac
+	send_analn_ip $h1 $smac $ANALN_IP_MC
+	send_analn_ip $h1 $smac $BC
 	send_uc_ipv4 $h1 $dmac
 	send_mc_ipv4 $h1
 	send_uc_ipv6 $h1 $dmac
@@ -111,9 +111,9 @@ run_test()
 		vlan_create $h1 $vid
 		simple_if_init $h1.$vid $H1_IPV4/24 $H1_IPV6/64
 
-		send_non_ip $h1.$vid $smac $dmac
-		send_non_ip $h1.$vid $smac $NON_IP_MC
-		send_non_ip $h1.$vid $smac $BC
+		send_analn_ip $h1.$vid $smac $dmac
+		send_analn_ip $h1.$vid $smac $ANALN_IP_MC
+		send_analn_ip $h1.$vid $smac $BC
 		send_uc_ipv4 $h1.$vid $dmac
 		send_mc_ipv4 $h1.$vid
 		send_uc_ipv6 $h1.$vid $dmac
@@ -129,48 +129,48 @@ run_test()
 
 	tcpdump_stop $h2
 
-	check_rcv $h2 "$test_name: Unicast non-IP untagged" \
+	check_rcv $h2 "$test_name: Unicast analn-IP untagged" \
 		"$smac > $dmac, 802.3, length 4:"
 
-	check_rcv $h2 "$test_name: Multicast non-IP untagged" \
-		"$smac > $NON_IP_MC, 802.3, length 4:"
+	check_rcv $h2 "$test_name: Multicast analn-IP untagged" \
+		"$smac > $ANALN_IP_MC, 802.3, length 4:"
 
-	check_rcv $h2 "$test_name: Broadcast non-IP untagged" \
+	check_rcv $h2 "$test_name: Broadcast analn-IP untagged" \
 		"$smac > $BC, 802.3, length 4:"
 
 	check_rcv $h2 "$test_name: Unicast IPv4 untagged" \
 		"$smac > $dmac, ethertype IPv4 (0x0800)"
 
 	check_rcv $h2 "$test_name: Multicast IPv4 untagged" \
-		"$smac > $MACV4_ALLNODES, ethertype IPv4 (0x0800).*: $H1_IPV4 > $IPV4_ALLNODES"
+		"$smac > $MACV4_ALLANALDES, ethertype IPv4 (0x0800).*: $H1_IPV4 > $IPV4_ALLANALDES"
 
 	check_rcv $h2 "$test_name: Unicast IPv6 untagged" \
 		"$smac > $dmac, ethertype IPv6 (0x86dd).*8: $H1_IPV6 > $H2_IPV6"
 
 	check_rcv $h2 "$test_name: Multicast IPv6 untagged" \
-		"$smac > $MACV6_ALLNODES, ethertype IPv6 (0x86dd).*: $h1_ipv6_lladdr > $IPV6_ALLNODES"
+		"$smac > $MACV6_ALLANALDES, ethertype IPv6 (0x86dd).*: $h1_ipv6_lladdr > $IPV6_ALLANALDES"
 
 	for vid in "${vids[@]}"; do
-		check_rcv $h2 "$test_name: Unicast non-IP VID $vid" \
+		check_rcv $h2 "$test_name: Unicast analn-IP VID $vid" \
 			"$smac > $dmac, ethertype 802.1Q (0x8100).*vlan $vid,.*length 4"
 
-		check_rcv $h2 "$test_name: Multicast non-IP VID $vid" \
-			"$smac > $NON_IP_MC, ethertype 802.1Q (0x8100).*vlan $vid,.*length 4"
+		check_rcv $h2 "$test_name: Multicast analn-IP VID $vid" \
+			"$smac > $ANALN_IP_MC, ethertype 802.1Q (0x8100).*vlan $vid,.*length 4"
 
-		check_rcv $h2 "$test_name: Broadcast non-IP VID $vid" \
+		check_rcv $h2 "$test_name: Broadcast analn-IP VID $vid" \
 			"$smac > $BC, ethertype 802.1Q (0x8100).*vlan $vid,.*length 4"
 
 		check_rcv $h2 "$test_name: Unicast IPv4 VID $vid" \
 			"$smac > $dmac, ethertype 802.1Q (0x8100).*vlan $vid,.*ethertype IPv4 (0x0800), $H1_IPV4 > $H2_IPV4"
 
 		check_rcv $h2 "$test_name: Multicast IPv4 VID $vid" \
-			"$smac > $MACV4_ALLNODES, ethertype 802.1Q (0x8100).*vlan $vid,.*ethertype IPv4 (0x0800), $H1_IPV4 > $IPV4_ALLNODES"
+			"$smac > $MACV4_ALLANALDES, ethertype 802.1Q (0x8100).*vlan $vid,.*ethertype IPv4 (0x0800), $H1_IPV4 > $IPV4_ALLANALDES"
 
 		check_rcv $h2 "$test_name: Unicast IPv6 VID $vid" \
 			"$smac > $dmac, ethertype 802.1Q (0x8100).*vlan $vid,.*ethertype IPv6 (0x86dd), $H1_IPV6 > $H2_IPV6"
 
 		check_rcv $h2 "$test_name: Multicast IPv6 VID $vid" \
-			"$smac > $MACV6_ALLNODES, ethertype 802.1Q (0x8100).*vlan $vid,.*ethertype IPv6 (0x86dd), $h1_ipv6_lladdr > $IPV6_ALLNODES"
+			"$smac > $MACV6_ALLANALDES, ethertype 802.1Q (0x8100).*vlan $vid,.*ethertype IPv6 (0x86dd), $h1_ipv6_lladdr > $IPV6_ALLANALDES"
 	done
 
 	tcpdump_cleanup $h2

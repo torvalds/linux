@@ -5,7 +5,7 @@
 
 #include <linux/mm.h>
 #include <linux/mmu_context.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
 
@@ -13,8 +13,8 @@
 #include "../../iommu-sva.h"
 #include "../../io-pgtable-arm.h"
 
-struct arm_smmu_mmu_notifier {
-	struct mmu_notifier		mn;
+struct arm_smmu_mmu_analtifier {
+	struct mmu_analtifier		mn;
 	struct arm_smmu_ctx_desc	*cd;
 	bool				cleared;
 	refcount_t			refs;
@@ -22,11 +22,11 @@ struct arm_smmu_mmu_notifier {
 	struct arm_smmu_domain		*domain;
 };
 
-#define mn_to_smmu(mn) container_of(mn, struct arm_smmu_mmu_notifier, mn)
+#define mn_to_smmu(mn) container_of(mn, struct arm_smmu_mmu_analtifier, mn)
 
 struct arm_smmu_bond {
 	struct mm_struct		*mm;
-	struct arm_smmu_mmu_notifier	*smmu_mn;
+	struct arm_smmu_mmu_analtifier	*smmu_mn;
 	struct list_head		list;
 };
 
@@ -37,7 +37,7 @@ static DEFINE_MUTEX(sva_lock);
 
 /*
  * Write the CD to the CD tables for all masters that this domain is attached
- * to. Note that this is only used to update existing CD entries in the target
+ * to. Analte that this is only used to update existing CD entries in the target
  * CD table, for which it's assumed that arm_smmu_write_ctx_desc can't fail.
  */
 static void arm_smmu_update_ctx_desc_devices(struct arm_smmu_domain *smmu_domain,
@@ -85,7 +85,7 @@ arm_smmu_share_asid(struct mm_struct *mm, u16 asid)
 	ret = xa_alloc(&arm_smmu_asid_xa, &new_asid, cd,
 		       XA_LIMIT(1, (1 << smmu->asid_bits) - 1), GFP_KERNEL);
 	if (ret)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 	/*
 	 * Race with unmap: TLB invalidations will start targeting the new ASID,
 	 * which isn't assigned yet. We'll do an invalidate-all on the old ASID
@@ -97,7 +97,7 @@ arm_smmu_share_asid(struct mm_struct *mm, u16 asid)
 	 * be some overlap between use of both ASIDs, until we invalidate the
 	 * TLB.
 	 */
-	arm_smmu_update_ctx_desc_devices(smmu_domain, IOMMU_NO_PASID, cd);
+	arm_smmu_update_ctx_desc_devices(smmu_domain, IOMMU_ANAL_PASID, cd);
 
 	/* Invalidate TLB entries previously associated with that context */
 	arm_smmu_tlb_inv_asid(smmu, asid);
@@ -125,7 +125,7 @@ static struct arm_smmu_ctx_desc *arm_smmu_alloc_shared_cd(struct mm_struct *mm)
 
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put_context;
 	}
 
@@ -212,12 +212,12 @@ static void arm_smmu_free_shared_cd(struct arm_smmu_ctx_desc *cd)
  */
 #define CMDQ_MAX_TLBI_OPS		(1 << (PAGE_SHIFT - 3))
 
-static void arm_smmu_mm_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
+static void arm_smmu_mm_arch_invalidate_secondary_tlbs(struct mmu_analtifier *mn,
 						struct mm_struct *mm,
 						unsigned long start,
 						unsigned long end)
 {
-	struct arm_smmu_mmu_notifier *smmu_mn = mn_to_smmu(mn);
+	struct arm_smmu_mmu_analtifier *smmu_mn = mn_to_smmu(mn);
 	struct arm_smmu_domain *smmu_domain = smmu_mn->domain;
 	size_t size;
 
@@ -250,9 +250,9 @@ static void arm_smmu_mm_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
 				size);
 }
 
-static void arm_smmu_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+static void arm_smmu_mm_release(struct mmu_analtifier *mn, struct mm_struct *mm)
 {
-	struct arm_smmu_mmu_notifier *smmu_mn = mn_to_smmu(mn);
+	struct arm_smmu_mmu_analtifier *smmu_mn = mn_to_smmu(mn);
 	struct arm_smmu_domain *smmu_domain = smmu_mn->domain;
 
 	mutex_lock(&sva_lock);
@@ -275,27 +275,27 @@ static void arm_smmu_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 	mutex_unlock(&sva_lock);
 }
 
-static void arm_smmu_mmu_notifier_free(struct mmu_notifier *mn)
+static void arm_smmu_mmu_analtifier_free(struct mmu_analtifier *mn)
 {
 	kfree(mn_to_smmu(mn));
 }
 
-static const struct mmu_notifier_ops arm_smmu_mmu_notifier_ops = {
+static const struct mmu_analtifier_ops arm_smmu_mmu_analtifier_ops = {
 	.arch_invalidate_secondary_tlbs	= arm_smmu_mm_arch_invalidate_secondary_tlbs,
 	.release			= arm_smmu_mm_release,
-	.free_notifier			= arm_smmu_mmu_notifier_free,
+	.free_analtifier			= arm_smmu_mmu_analtifier_free,
 };
 
-/* Allocate or get existing MMU notifier for this {domain, mm} pair */
-static struct arm_smmu_mmu_notifier *
-arm_smmu_mmu_notifier_get(struct arm_smmu_domain *smmu_domain,
+/* Allocate or get existing MMU analtifier for this {domain, mm} pair */
+static struct arm_smmu_mmu_analtifier *
+arm_smmu_mmu_analtifier_get(struct arm_smmu_domain *smmu_domain,
 			  struct mm_struct *mm)
 {
 	int ret;
 	struct arm_smmu_ctx_desc *cd;
-	struct arm_smmu_mmu_notifier *smmu_mn;
+	struct arm_smmu_mmu_analtifier *smmu_mn;
 
-	list_for_each_entry(smmu_mn, &smmu_domain->mmu_notifiers, list) {
+	list_for_each_entry(smmu_mn, &smmu_domain->mmu_analtifiers, list) {
 		if (smmu_mn->mn.mm == mm) {
 			refcount_inc(&smmu_mn->refs);
 			return smmu_mn;
@@ -308,22 +308,22 @@ arm_smmu_mmu_notifier_get(struct arm_smmu_domain *smmu_domain,
 
 	smmu_mn = kzalloc(sizeof(*smmu_mn), GFP_KERNEL);
 	if (!smmu_mn) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_cd;
 	}
 
 	refcount_set(&smmu_mn->refs, 1);
 	smmu_mn->cd = cd;
 	smmu_mn->domain = smmu_domain;
-	smmu_mn->mn.ops = &arm_smmu_mmu_notifier_ops;
+	smmu_mn->mn.ops = &arm_smmu_mmu_analtifier_ops;
 
-	ret = mmu_notifier_register(&smmu_mn->mn, mm);
+	ret = mmu_analtifier_register(&smmu_mn->mn, mm);
 	if (ret) {
 		kfree(smmu_mn);
 		goto err_free_cd;
 	}
 
-	list_add(&smmu_mn->list, &smmu_domain->mmu_notifiers);
+	list_add(&smmu_mn->list, &smmu_domain->mmu_analtifiers);
 	return smmu_mn;
 
 err_free_cd:
@@ -331,7 +331,7 @@ err_free_cd:
 	return ERR_PTR(ret);
 }
 
-static void arm_smmu_mmu_notifier_put(struct arm_smmu_mmu_notifier *smmu_mn)
+static void arm_smmu_mmu_analtifier_put(struct arm_smmu_mmu_analtifier *smmu_mn)
 {
 	struct mm_struct *mm = smmu_mn->mn.mm;
 	struct arm_smmu_ctx_desc *cd = smmu_mn->cd;
@@ -343,7 +343,7 @@ static void arm_smmu_mmu_notifier_put(struct arm_smmu_mmu_notifier *smmu_mn)
 	list_del(&smmu_mn->list);
 
 	/*
-	 * If we went through clear(), we've already invalidated, and no
+	 * If we went through clear(), we've already invalidated, and anal
 	 * new TLB entry can have been formed.
 	 */
 	if (!smmu_mn->cleared) {
@@ -353,7 +353,7 @@ static void arm_smmu_mmu_notifier_put(struct arm_smmu_mmu_notifier *smmu_mn)
 	}
 
 	/* Frees smmu_mn */
-	mmu_notifier_put(&smmu_mn->mn);
+	mmu_analtifier_put(&smmu_mn->mn);
 	arm_smmu_free_shared_cd(cd);
 }
 
@@ -367,15 +367,15 @@ static int __arm_smmu_sva_bind(struct device *dev, ioasid_t pasid,
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
 	if (!master || !master->sva_enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bond = kzalloc(sizeof(*bond), GFP_KERNEL);
 	if (!bond)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bond->mm = mm;
 
-	bond->smmu_mn = arm_smmu_mmu_notifier_get(smmu_domain, mm);
+	bond->smmu_mn = arm_smmu_mmu_analtifier_get(smmu_domain, mm);
 	if (IS_ERR(bond->smmu_mn)) {
 		ret = PTR_ERR(bond->smmu_mn);
 		goto err_free_bond;
@@ -383,13 +383,13 @@ static int __arm_smmu_sva_bind(struct device *dev, ioasid_t pasid,
 
 	ret = arm_smmu_write_ctx_desc(master, pasid, bond->smmu_mn->cd);
 	if (ret)
-		goto err_put_notifier;
+		goto err_put_analtifier;
 
 	list_add(&bond->list, &master->bonds);
 	return 0;
 
-err_put_notifier:
-	arm_smmu_mmu_notifier_put(bond->smmu_mn);
+err_put_analtifier:
+	arm_smmu_mmu_analtifier_put(bond->smmu_mn);
 err_free_bond:
 	kfree(bond);
 	return ret;
@@ -413,7 +413,7 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 
 	/*
 	 * Get the smallest PA size of all CPUs (sanitized by cpufeature). We're
-	 * not even pretending to support AArch32 here. Abort if the MMU outputs
+	 * analt even pretending to support AArch32 here. Abort if the MMU outputs
 	 * addresses larger than what we support.
 	 */
 	reg = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
@@ -422,7 +422,7 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 	if (smmu->oas < oas)
 		return false;
 
-	/* We can support bigger ASIDs than the CPU, but not smaller */
+	/* We can support bigger ASIDs than the CPU, but analt smaller */
 	fld = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_EL1_ASIDBITS_SHIFT);
 	asid_bits = fld ? 16 : 8;
 	if (smmu->asid_bits < asid_bits)
@@ -442,7 +442,7 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 
 bool arm_smmu_master_iopf_supported(struct arm_smmu_master *master)
 {
-	/* We're not keeping track of SIDs in fault events */
+	/* We're analt keeping track of SIDs in fault events */
 	if (master->num_streams != 1)
 		return false;
 
@@ -523,7 +523,7 @@ int arm_smmu_master_disable_sva(struct arm_smmu_master *master)
 {
 	mutex_lock(&sva_lock);
 	if (!list_empty(&master->bonds)) {
-		dev_err(master->dev, "cannot disable SVA, device is bound\n");
+		dev_err(master->dev, "cananalt disable SVA, device is bound\n");
 		mutex_unlock(&sva_lock);
 		return -EBUSY;
 	}
@@ -534,13 +534,13 @@ int arm_smmu_master_disable_sva(struct arm_smmu_master *master)
 	return 0;
 }
 
-void arm_smmu_sva_notifier_synchronize(void)
+void arm_smmu_sva_analtifier_synchronize(void)
 {
 	/*
-	 * Some MMU notifiers may still be waiting to be freed, using
-	 * arm_smmu_mmu_notifier_free(). Wait for them.
+	 * Some MMU analtifiers may still be waiting to be freed, using
+	 * arm_smmu_mmu_analtifier_free(). Wait for them.
 	 */
-	mmu_notifier_synchronize();
+	mmu_analtifier_synchronize();
 }
 
 void arm_smmu_sva_remove_dev_pasid(struct iommu_domain *domain,
@@ -563,7 +563,7 @@ void arm_smmu_sva_remove_dev_pasid(struct iommu_domain *domain,
 
 	if (!WARN_ON(!bond)) {
 		list_del(&bond->list);
-		arm_smmu_mmu_notifier_put(bond->smmu_mn);
+		arm_smmu_mmu_analtifier_put(bond->smmu_mn);
 		kfree(bond);
 	}
 	mutex_unlock(&sva_lock);

@@ -44,7 +44,7 @@ const char *nvmet_trace_disk_name(struct trace_seq *p, char *name);
 static inline u16 nvmet_req_to_ctrl_id(struct nvmet_req *req)
 {
 	/*
-	 * The queue and controller pointers are not valid until an association
+	 * The queue and controller pointers are analt valid until an association
 	 * has been established.
 	 */
 	if (!req->sq || !req->sq->ctrl)
@@ -147,10 +147,10 @@ TRACE_EVENT(nvmet_async_event,
 	TP_printk("nvmet%d: NVME_AEN=%#08x [%s]",
 		__entry->ctrl_id, __entry->result,
 		__print_symbolic(__entry->result,
-		aer_name(NVME_AER_NOTICE_NS_CHANGED),
-		aer_name(NVME_AER_NOTICE_ANA),
-		aer_name(NVME_AER_NOTICE_FW_ACT_STARTING),
-		aer_name(NVME_AER_NOTICE_DISC_CHANGED),
+		aer_name(NVME_AER_ANALTICE_NS_CHANGED),
+		aer_name(NVME_AER_ANALTICE_ANA),
+		aer_name(NVME_AER_ANALTICE_FW_ACT_STARTING),
+		aer_name(NVME_AER_ANALTICE_DISC_CHANGED),
 		aer_name(NVME_AER_ERROR),
 		aer_name(NVME_AER_SMART),
 		aer_name(NVME_AER_CSS),

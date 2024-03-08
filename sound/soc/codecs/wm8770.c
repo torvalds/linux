@@ -80,7 +80,7 @@ static bool wm8770_volatile_reg(struct device *dev, unsigned int reg)
 struct wm8770_priv {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8770_NUM_SUPPLIES];
-	struct notifier_block disable_nb[WM8770_NUM_SUPPLIES];
+	struct analtifier_block disable_nb[WM8770_NUM_SUPPLIES];
 	struct snd_soc_component *component;
 	int sysclk;
 };
@@ -91,12 +91,12 @@ static int vout34supply_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event);
 
 /*
- * We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+ * We can't use the same analtifier block for more than one supply and
+ * there's anal way I can see to get from a callback to the caller
  * except container_of().
  */
 #define WM8770_REGULATOR_EVENT(n) \
-static int wm8770_regulator_event_##n(struct notifier_block *nb, \
+static int wm8770_regulator_event_##n(struct analtifier_block *nb, \
 				      unsigned long event, void *data)    \
 { \
 	struct wm8770_priv *wm8770 = container_of(nb, struct wm8770_priv, \
@@ -116,10 +116,10 @@ static const DECLARE_TLV_DB_SCALE(dac_dig_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(dac_alg_tlv, -12700, 100, 1);
 
 static const char *dac_phase_text[][2] = {
-	{ "DAC1 Normal", "DAC1 Inverted" },
-	{ "DAC2 Normal", "DAC2 Inverted" },
-	{ "DAC3 Normal", "DAC3 Inverted" },
-	{ "DAC4 Normal", "DAC4 Inverted" },
+	{ "DAC1 Analrmal", "DAC1 Inverted" },
+	{ "DAC2 Analrmal", "DAC2 Inverted" },
+	{ "DAC3 Analrmal", "DAC3 Inverted" },
+	{ "DAC4 Analrmal", "DAC4 Inverted" },
 };
 
 static const struct soc_enum dac_phase[] = {
@@ -245,18 +245,18 @@ static const struct snd_soc_dapm_widget wm8770_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC3", "Playback", WM8770_PWDNCTRL, 4, 1),
 	SND_SOC_DAPM_DAC("DAC4", "Playback", WM8770_PWDNCTRL, 5, 1),
 
-	SND_SOC_DAPM_SUPPLY("VOUT12 Supply", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("VOUT12 Supply", SND_SOC_ANALPM, 0, 0,
 		vout12supply_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("VOUT34 Supply", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("VOUT34 Supply", SND_SOC_ANALPM, 0, 0,
 		vout34supply_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER("VOUT1 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("VOUT1 Mixer", SND_SOC_ANALPM, 0, 0,
 		vout1_mix_controls, ARRAY_SIZE(vout1_mix_controls)),
-	SND_SOC_DAPM_MIXER("VOUT2 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("VOUT2 Mixer", SND_SOC_ANALPM, 0, 0,
 		vout2_mix_controls, ARRAY_SIZE(vout2_mix_controls)),
-	SND_SOC_DAPM_MIXER("VOUT3 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("VOUT3 Mixer", SND_SOC_ANALPM, 0, 0,
 		vout3_mix_controls, ARRAY_SIZE(vout3_mix_controls)),
-	SND_SOC_DAPM_MIXER("VOUT4 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("VOUT4 Mixer", SND_SOC_ANALPM, 0, 0,
 		vout4_mix_controls, ARRAY_SIZE(vout4_mix_controls)),
 
 	SND_SOC_DAPM_OUTPUT("VOUT1"),
@@ -542,7 +542,7 @@ static const struct snd_soc_dai_ops wm8770_dai_ops = {
 	.hw_params = wm8770_hw_params,
 	.set_fmt = wm8770_set_fmt,
 	.set_sysclk = wm8770_set_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8770_dai = {
@@ -645,7 +645,7 @@ static int wm8770_spi_probe(struct spi_device *spi)
 	wm8770 = devm_kzalloc(&spi->dev, sizeof(struct wm8770_priv),
 			      GFP_KERNEL);
 	if (!wm8770)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(wm8770->supplies); i++)
 		wm8770->supplies[i].supply = wm8770_supply_names[i];
@@ -657,18 +657,18 @@ static int wm8770_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	wm8770->disable_nb[0].notifier_call = wm8770_regulator_event_0;
-	wm8770->disable_nb[1].notifier_call = wm8770_regulator_event_1;
-	wm8770->disable_nb[2].notifier_call = wm8770_regulator_event_2;
+	wm8770->disable_nb[0].analtifier_call = wm8770_regulator_event_0;
+	wm8770->disable_nb[1].analtifier_call = wm8770_regulator_event_1;
+	wm8770->disable_nb[2].analtifier_call = wm8770_regulator_event_2;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8770->supplies); i++) {
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_analtifier(
 						wm8770->supplies[i].consumer,
 						&wm8770->disable_nb[i]);
 		if (ret) {
 			dev_err(&spi->dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator analtifier: %d\n",
 				ret);
 		}
 	}

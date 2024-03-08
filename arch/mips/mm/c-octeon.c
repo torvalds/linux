@@ -32,12 +32,12 @@ EXPORT_SYMBOL_GPL(cache_err_dcache);
 /*
  * Octeon automatically flushes the dcache on tlb changes, so
  * from Linux's viewpoint it acts much like a physically
- * tagged cache. No flushing is needed
+ * tagged cache. Anal flushing is needed
  *
  */
 static void octeon_flush_data_cache_page(unsigned long addr)
 {
-    /* Nothing to do */
+    /* Analthing to do */
 }
 
 static inline void octeon_local_flush_icache(void)
@@ -56,7 +56,7 @@ static void local_octeon_flush_icache_range(unsigned long start,
 
 /**
  * octeon_flush_icache_all_cores -  Flush caches as necessary for all cores
- * affected by a vma. If no vma is supplied, all cores are flushed.
+ * affected by a vma. If anal vma is supplied, all cores are flushed.
  *
  * @vma:    VMA to flush or NULL to flush all icaches.
  */
@@ -292,24 +292,24 @@ void octeon_cache_init(void)
 /*
  * Handle a cache error exception
  */
-static RAW_NOTIFIER_HEAD(co_cache_error_chain);
+static RAW_ANALTIFIER_HEAD(co_cache_error_chain);
 
-int register_co_cache_error_notifier(struct notifier_block *nb)
+int register_co_cache_error_analtifier(struct analtifier_block *nb)
 {
-	return raw_notifier_chain_register(&co_cache_error_chain, nb);
+	return raw_analtifier_chain_register(&co_cache_error_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_co_cache_error_notifier);
+EXPORT_SYMBOL_GPL(register_co_cache_error_analtifier);
 
-int unregister_co_cache_error_notifier(struct notifier_block *nb)
+int unregister_co_cache_error_analtifier(struct analtifier_block *nb)
 {
-	return raw_notifier_chain_unregister(&co_cache_error_chain, nb);
+	return raw_analtifier_chain_unregister(&co_cache_error_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_co_cache_error_notifier);
+EXPORT_SYMBOL_GPL(unregister_co_cache_error_analtifier);
 
-static void co_cache_error_call_notifiers(unsigned long val)
+static void co_cache_error_call_analtifiers(unsigned long val)
 {
-	int rv = raw_notifier_call_chain(&co_cache_error_chain, val, NULL);
-	if ((rv & ~NOTIFY_STOP_MASK) != NOTIFY_OK) {
+	int rv = raw_analtifier_call_chain(&co_cache_error_chain, val, NULL);
+	if ((rv & ~ANALTIFY_STOP_MASK) != ANALTIFY_OK) {
 		u64 dcache_err;
 		unsigned long coreid = cvmx_get_core_num();
 		u64 icache_err = read_octeon_c0_icacheerr();
@@ -341,15 +341,15 @@ static void co_cache_error_call_notifiers(unsigned long val)
 
 asmlinkage void cache_parity_error_octeon_recoverable(void)
 {
-	co_cache_error_call_notifiers(0);
+	co_cache_error_call_analtifiers(0);
 }
 
 /*
- * Called when the exception is not recoverable
+ * Called when the exception is analt recoverable
  */
 
-asmlinkage void cache_parity_error_octeon_non_recoverable(void)
+asmlinkage void cache_parity_error_octeon_analn_recoverable(void)
 {
-	co_cache_error_call_notifiers(1);
+	co_cache_error_call_analtifiers(1);
 	panic("Can't handle cache error: nested exception");
 }

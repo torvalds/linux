@@ -382,7 +382,7 @@
 	vqmmc-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	/*
-	 * SDCD signal is not being used here - using the fact that GPIO mode
+	 * SDCD signal is analt being used here - using the fact that GPIO mode
 	 * is always hardwired.
 	 */
 	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>;
@@ -403,7 +403,7 @@
 	vmmc-supply = <&evm_1v8_sw>;
 	vqmmc-supply = <&evm_1v8_sw>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "hs", "ddr_1_8v-rev11", "ddr_1_8v", "hs200_1_8v-rev11", "hs200_1_8v";
 	pinctrl-0 = <&mmc2_pins_default>;
 	pinctrl-1 = <&mmc2_pins_hs>;
@@ -448,8 +448,8 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>;		/* device IO registers */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>; /* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>; /* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 pin */
 		ti,nand-xfer-type = "prefetch-dma";
 		ti,nand-ecc-opt = "bch8";
@@ -533,8 +533,8 @@
 };
 
 &gpio7_target {
-	ti,no-reset-on-init;
-	ti,no-idle-on-init;
+	ti,anal-reset-on-init;
+	ti,anal-idle-on-init;
 };
 
 &mac_sw {

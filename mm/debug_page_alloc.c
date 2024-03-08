@@ -2,7 +2,7 @@
 #include <linux/mm.h>
 #include <linux/page-isolation.h>
 
-unsigned int _debug_guardpage_minorder;
+unsigned int _debug_guardpage_mianalrder;
 
 bool _debug_pagealloc_enabled_early __read_mostly
 			= IS_ENABLED(CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT);
@@ -18,30 +18,30 @@ static int __init early_debug_pagealloc(char *buf)
 }
 early_param("debug_pagealloc", early_debug_pagealloc);
 
-static int __init debug_guardpage_minorder_setup(char *buf)
+static int __init debug_guardpage_mianalrder_setup(char *buf)
 {
 	unsigned long res;
 
 	if (kstrtoul(buf, 10, &res) < 0 ||  res > MAX_PAGE_ORDER / 2) {
-		pr_err("Bad debug_guardpage_minorder value\n");
+		pr_err("Bad debug_guardpage_mianalrder value\n");
 		return 0;
 	}
-	_debug_guardpage_minorder = res;
-	pr_info("Setting debug_guardpage_minorder to %lu\n", res);
+	_debug_guardpage_mianalrder = res;
+	pr_info("Setting debug_guardpage_mianalrder to %lu\n", res);
 	return 0;
 }
-early_param("debug_guardpage_minorder", debug_guardpage_minorder_setup);
+early_param("debug_guardpage_mianalrder", debug_guardpage_mianalrder_setup);
 
 bool __set_page_guard(struct zone *zone, struct page *page, unsigned int order,
 		      int migratetype)
 {
-	if (order >= debug_guardpage_minorder())
+	if (order >= debug_guardpage_mianalrder())
 		return false;
 
 	__SetPageGuard(page);
 	INIT_LIST_HEAD(&page->buddy_list);
 	set_page_private(page, order);
-	/* Guard pages are not available for any usage */
+	/* Guard pages are analt available for any usage */
 	if (!is_migrate_isolate(migratetype))
 		__mod_zone_freepage_state(zone, -(1 << order), migratetype);
 

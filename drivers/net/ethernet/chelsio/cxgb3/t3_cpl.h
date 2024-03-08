@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -75,7 +75,7 @@ enum CPL_opcode {
 	CPL_RX_DDP_COMPLETE = 0x29,
 	CPL_RX_PHYS_ADDR = 0x2A,
 	CPL_RX_PKT = 0x2B,
-	CPL_RX_URG_NOTIFY = 0x2C,
+	CPL_RX_URG_ANALTIFY = 0x2C,
 	CPL_SET_TCB_RPL = 0x2D,
 	CPL_SMT_WRITE_RPL = 0x2E,
 	CPL_TX_DATA_ACK = 0x2F,
@@ -101,7 +101,7 @@ enum CPL_opcode {
 
 	CPL_PASS_ACCEPT_REQ = 0x70,
 
-	CPL_ASYNC_NOTIF = 0x80,	/* fake opcode for async notifications */
+	CPL_ASYNC_ANALTIF = 0x80,	/* fake opcode for async analtifications */
 
 	CPL_TX_DMA_ACK = 0xA0,
 	CPL_RDMA_READ_REQ = 0xA1,
@@ -113,7 +113,7 @@ enum CPL_opcode {
 };
 
 enum CPL_error {
-	CPL_ERR_NONE = 0,
+	CPL_ERR_ANALNE = 0,
 	CPL_ERR_TCAM_PARITY = 1,
 	CPL_ERR_TCAM_FULL = 3,
 	CPL_ERR_CONN_RESET = 20,
@@ -138,7 +138,7 @@ enum {
 };
 
 enum {
-	ULP_MODE_NONE = 0,
+	ULP_MODE_ANALNE = 0,
 	ULP_MODE_ISCSI = 2,
 	ULP_MODE_RDMA = 4,
 	ULP_MODE_TCPDDP = 5
@@ -156,7 +156,7 @@ enum {
 
 enum {
 	CPL_ABORT_SEND_RST = 0,
-	CPL_ABORT_NO_RST,
+	CPL_ABORT_ANAL_RST,
 	CPL_ABORT_POST_CLOSE_REQ = 2
 };
 
@@ -168,14 +168,14 @@ enum {				/* TX_PKT_LSO ethernet types */
 };
 
 enum {				/* TCP congestion control algorithms */
-	CONG_ALG_RENO,
+	CONG_ALG_REANAL,
 	CONG_ALG_TAHOE,
-	CONG_ALG_NEWRENO,
+	CONG_ALG_NEWREANAL,
 	CONG_ALG_HIGHSPEED
 };
 
 enum {			/* RSS hash type */
-	RSS_HASH_NONE = 0,
+	RSS_HASH_ANALNE = 0,
 	RSS_HASH_2_TUPLE = 1,
 	RSS_HASH_4_TUPLE = 2,
 	RSS_HASH_TCPV6 = 3
@@ -314,9 +314,9 @@ struct work_request_hdr {
 #define V_INJECT_TIMER(x) ((x) << S_INJECT_TIMER)
 #define F_INJECT_TIMER    V_INJECT_TIMER(1U)
 
-#define S_NO_OFFLOAD    7
-#define V_NO_OFFLOAD(x) ((x) << S_NO_OFFLOAD)
-#define F_NO_OFFLOAD    V_NO_OFFLOAD(1U)
+#define S_ANAL_OFFLOAD    7
+#define V_ANAL_OFFLOAD(x) ((x) << S_ANAL_OFFLOAD)
+#define F_ANAL_OFFLOAD    V_ANAL_OFFLOAD(1U)
 
 #define S_ULP_MODE    8
 #define M_ULP_MODE    0xF
@@ -338,9 +338,9 @@ struct work_request_hdr {
 #define V_DELACK(x) ((x) << S_DELACK)
 #define F_DELACK    V_DELACK(1U)
 
-#define S_NO_CONG    1
-#define V_NO_CONG(x) ((x) << S_NO_CONG)
-#define F_NO_CONG    V_NO_CONG(1U)
+#define S_ANAL_CONG    1
+#define V_ANAL_CONG(x) ((x) << S_ANAL_CONG)
+#define F_ANAL_CONG    V_ANAL_CONG(1U)
 
 #define S_SRC_MAC_SEL    2
 #define M_SRC_MAC_SEL    0x3
@@ -641,7 +641,7 @@ struct cpl_act_establish {
 struct cpl_get_tcb {
 	WR_HDR;
 	union opcode_tid ot;
-	__be16 cpuno;
+	__be16 cpuanal;
 	__be16 rsvd;
 };
 
@@ -661,9 +661,9 @@ struct cpl_set_tcb {
 };
 
 /* cpl_set_tcb.reply fields */
-#define S_NO_REPLY    7
-#define V_NO_REPLY(x) ((x) << S_NO_REPLY)
-#define F_NO_REPLY    V_NO_REPLY(1U)
+#define S_ANAL_REPLY    7
+#define V_ANAL_REPLY(x) ((x) << S_ANAL_REPLY)
+#define F_ANAL_REPLY    V_ANAL_REPLY(1U)
 
 struct cpl_set_tcb_field {
 	WR_HDR;
@@ -963,7 +963,7 @@ struct cpl_rx_data_ack {
 #define V_RX_DACK_CHANGE(x) ((x) << S_RX_DACK_CHANGE)
 #define F_RX_DACK_CHANGE    V_RX_DACK_CHANGE(1U)
 
-struct cpl_rx_urg_notify {
+struct cpl_rx_urg_analtify {
 	RSS_HDR union opcode_tid ot;
 	__be32 seq;
 };

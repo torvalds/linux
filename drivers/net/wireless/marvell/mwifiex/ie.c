@@ -9,8 +9,8 @@
 #include "main.h"
 
 /* This function checks if current IE index is used by any on other interface.
- * Return: -1: yes, current IE index is used by someone else.
- *          0: no, current IE index is NOT used by other interface.
+ * Return: -1: anal, current IE index is used by someone else.
+ *          0: anal, current IE index is ANALT used by other interface.
  */
 static int
 mwifiex_ie_index_used_by_other_intf(struct mwifiex_private *priv, u16 idx)
@@ -151,7 +151,7 @@ mwifiex_update_uap_custom_ie(struct mwifiex_private *priv,
 
 	ap_custom_ie = kzalloc(sizeof(*ap_custom_ie), GFP_KERNEL);
 	if (!ap_custom_ie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap_custom_ie->type = cpu_to_le16(TLV_TYPE_MGMT_IE);
 	pos = (u8 *)ap_custom_ie->ie_list;
@@ -224,7 +224,7 @@ static int mwifiex_update_vs_ie(const u8 *ies, int ies_len,
 			*ie_ptr = kzalloc(sizeof(struct mwifiex_ie),
 					  GFP_KERNEL);
 			if (!*ie_ptr)
-				return -ENOMEM;
+				return -EANALMEM;
 			ie = *ie_ptr;
 		}
 
@@ -328,12 +328,12 @@ static int mwifiex_uap_parse_tail_ies(struct mwifiex_private *priv,
 
 	gen_ie = kzalloc(sizeof(*gen_ie), GFP_KERNEL);
 	if (!gen_ie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	left_len = info->tail_len;
 
 	/* Many IEs are generated in FW by parsing bss configuration.
-	 * Let's not add them here; else we may end up duplicating these IEs
+	 * Let's analt add them here; else we may end up duplicating these IEs
 	 */
 	while (left_len > sizeof(struct ieee_types_header)) {
 		hdr = (void *)(info->tail + parsed_len);
@@ -441,7 +441,7 @@ int mwifiex_del_mgmt_ies(struct mwifiex_private *priv)
 	if (priv->gen_idx != MWIFIEX_AUTO_IDX_MASK) {
 		gen_ie = kmalloc(sizeof(*gen_ie), GFP_KERNEL);
 		if (!gen_ie)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		gen_ie->ie_index = cpu_to_le16(priv->gen_idx);
 		gen_ie->mgmt_subtype_mask = cpu_to_le16(MWIFIEX_DELETE_MASK);
@@ -459,7 +459,7 @@ int mwifiex_del_mgmt_ies(struct mwifiex_private *priv)
 	if (priv->beacon_idx != MWIFIEX_AUTO_IDX_MASK) {
 		beacon_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
 		if (!beacon_ie) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 		beacon_ie->ie_index = cpu_to_le16(priv->beacon_idx);
@@ -469,7 +469,7 @@ int mwifiex_del_mgmt_ies(struct mwifiex_private *priv)
 	if (priv->proberesp_idx != MWIFIEX_AUTO_IDX_MASK) {
 		pr_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
 		if (!pr_ie) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 		pr_ie->ie_index = cpu_to_le16(priv->proberesp_idx);
@@ -479,7 +479,7 @@ int mwifiex_del_mgmt_ies(struct mwifiex_private *priv)
 	if (priv->assocresp_idx != MWIFIEX_AUTO_IDX_MASK) {
 		ar_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
 		if (!ar_ie) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 		ar_ie->ie_index = cpu_to_le16(priv->assocresp_idx);

@@ -2,7 +2,7 @@
 /*
  * SP7021 reset driver
  *
- * Copyright (C) Sunplus Technology Co., Ltd.
+ * Copyright (C) Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 
@@ -100,7 +100,7 @@ static const u32 sp_resets[] = {
 
 struct sp_reset {
 	struct reset_controller_dev rcdev;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	void __iomem *base;
 };
 
@@ -154,15 +154,15 @@ static const struct reset_control_ops sp_reset_ops = {
 	.status   = sp_reset_status,
 };
 
-static int sp_restart(struct notifier_block *nb, unsigned long mode,
+static int sp_restart(struct analtifier_block *nb, unsigned long mode,
 		      void *cmd)
 {
-	struct sp_reset *reset = container_of(nb, struct sp_reset, notifier);
+	struct sp_reset *reset = container_of(nb, struct sp_reset, analtifier);
 
 	sp_reset_assert(&reset->rcdev, 0);
 	sp_reset_deassert(&reset->rcdev, 0);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int sp_reset_probe(struct platform_device *pdev)
@@ -174,7 +174,7 @@ static int sp_reset_probe(struct platform_device *pdev)
 
 	reset = devm_kzalloc(dev, sizeof(*reset), GFP_KERNEL);
 	if (!reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(reset->base))
@@ -182,17 +182,17 @@ static int sp_reset_probe(struct platform_device *pdev)
 
 	reset->rcdev.ops = &sp_reset_ops;
 	reset->rcdev.owner = THIS_MODULE;
-	reset->rcdev.of_node = dev->of_node;
+	reset->rcdev.of_analde = dev->of_analde;
 	reset->rcdev.nr_resets = resource_size(res) / 4 * BITS_PER_HWM_REG;
 
 	ret = devm_reset_controller_register(dev, &reset->rcdev);
 	if (ret)
 		return ret;
 
-	reset->notifier.notifier_call = sp_restart;
-	reset->notifier.priority = 192;
+	reset->analtifier.analtifier_call = sp_restart;
+	reset->analtifier.priority = 192;
 
-	return register_restart_handler(&reset->notifier);
+	return register_restart_handler(&reset->analtifier);
 }
 
 static const struct of_device_id sp_reset_dt_ids[] = {

@@ -2,7 +2,7 @@
 //
 // Driver for Microchip Pulse Density Microphone Controller (PDMC) interfaces
 //
-// Copyright (C) 2019-2022 Microchip Technology Inc. and its subsidiaries
+// Copyright (C) 2019-2022 Microchip Techanallogy Inc. and its subsidiaries
 //
 // Author: Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
@@ -87,8 +87,8 @@
 #define MCHP_PDMC_VER_VERSION		GENMASK(11, 0)
 
 #define MCHP_PDMC_MAX_CHANNELS		4
-#define MCHP_PDMC_DS_NO			2
-#define MCHP_PDMC_EDGE_NO		2
+#define MCHP_PDMC_DS_ANAL			2
+#define MCHP_PDMC_EDGE_ANAL		2
 
 struct mic_map {
 	int ds_pos;
@@ -112,7 +112,7 @@ struct mchp_pdmc {
 	u32 pdmcen;
 	u32 suspend_irq;
 	u32 startup_delay_us;
-	int mic_no;
+	int mic_anal;
 	int sinc_order;
 	bool audio_filter_en;
 };
@@ -197,7 +197,7 @@ static int mchp_pdmc_chmap_ctl_info(struct snd_kcontrol *kcontrol, struct snd_ct
 	struct mchp_pdmc_chmap *info = snd_kcontrol_chip(kcontrol);
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = info->dd->mic_no;
+	uinfo->count = info->dd->mic_anal;
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = SNDRV_CHMAP_RR; /* maxmimum 4 channels */
 	return 0;
@@ -241,17 +241,17 @@ static int mchp_pdmc_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	substream = mchp_pdmc_chmap_substream(info, idx);
 	if (!substream)
-		return -ENODEV;
-	memset(ucontrol->value.integer.value, 0, sizeof(long) * info->dd->mic_no);
+		return -EANALDEV;
+	memset(ucontrol->value.integer.value, 0, sizeof(long) * info->dd->mic_anal);
 	if (!substream->runtime)
-		return 0; /* no channels set */
+		return 0; /* anal channels set */
 
 	map = mchp_pdmc_chmap_get(substream, info);
 	if (!map)
 		return -EINVAL;
 
 	for (i = 0; i < map->channels; i++) {
-		int map_idx = map->channels == 1 ? map->map[i] - SNDRV_CHMAP_MONO :
+		int map_idx = map->channels == 1 ? map->map[i] - SNDRV_CHMAP_MOANAL :
 						   map->map[i] - SNDRV_CHMAP_FL;
 
 		/* make sure the reported channel map is the real one, so write the map */
@@ -283,7 +283,7 @@ static int mchp_pdmc_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	substream = mchp_pdmc_chmap_substream(info, idx);
 	if (!substream)
-		return -ENODEV;
+		return -EANALDEV;
 
 	map = mchp_pdmc_chmap_get(substream, info);
 	if (!map)
@@ -293,7 +293,7 @@ static int mchp_pdmc_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 		int map_idx;
 
 		map->map[i] = ucontrol->value.integer.value[i];
-		map_idx = map->channels == 1 ? map->map[i] - SNDRV_CHMAP_MONO :
+		map_idx = map->channels == 1 ? map->map[i] - SNDRV_CHMAP_MOANAL :
 					       map->map[i] - SNDRV_CHMAP_FL;
 
 		/* configure IP for the desired channel map */
@@ -327,7 +327,7 @@ static int mchp_pdmc_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	if (!info->chmap)
 		return -EINVAL;
 	if (size < 8)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (put_user(SNDRV_CTL_TLVT_CONTAINER, tlv))
 		return -EFAULT;
 	size -= 8;
@@ -336,7 +336,7 @@ static int mchp_pdmc_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 		int chs_bytes = map->channels * 4;
 
 		if (size < 8)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (put_user(SNDRV_CTL_TLVT_CHMAP_VAR, dst) ||
 		    put_user(chs_bytes, dst + 1))
 			return -EFAULT;
@@ -344,7 +344,7 @@ static int mchp_pdmc_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 		size -= 8;
 		count += 8;
 		if (size < chs_bytes)
-			return -ENOMEM;
+			return -EANALMEM;
 		size -= chs_bytes;
 		count += chs_bytes;
 		for (c = 0; c < map->channels; c++) {
@@ -450,7 +450,7 @@ static int mchp_pdmc_startup(struct snd_pcm_substream *substream,
 	regmap_write(dd->regmap, MCHP_PDMC_CR, MCHP_PDMC_CR_SWRST);
 
 	snd_pcm_hw_constraint_list(substream->runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				   &mchp_pdmc_chan_constr[dd->mic_no - 1]);
+				   &mchp_pdmc_chan_constr[dd->mic_anal - 1]);
 
 	return 0;
 }
@@ -524,7 +524,7 @@ static inline int mchp_pdmc_period_to_maxburst(int period_size)
 
 static struct snd_pcm_chmap_elem mchp_pdmc_std_chmaps[] = {
 	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_MONO } },
+	  .map = { SNDRV_CHMAP_MOANAL } },
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
 	{ .channels = 3,
@@ -556,9 +556,9 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 		__func__, params_rate(params), params_format(params),
 		params_width(params), params_channels(params));
 
-	if (channels > dd->mic_no) {
+	if (channels > dd->mic_anal) {
 		dev_err(comp->dev, "more channels %u than microphones %d\n",
-			channels, dd->mic_no);
+			channels, dd->mic_anal);
 		return -EINVAL;
 	}
 
@@ -623,15 +623,15 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static void mchp_pdmc_noise_filter_workaround(struct mchp_pdmc *dd)
+static void mchp_pdmc_analise_filter_workaround(struct mchp_pdmc *dd)
 {
 	u32 tmp, steps = 16;
 
 	/*
 	 * PDMC doesn't wait for microphones' startup time thus the acquisition
-	 * may start before the microphones are ready leading to poc noises at
+	 * may start before the microphones are ready leading to poc analises at
 	 * the beginning of capture. To avoid this, we need to wait 50ms (in
-	 * normal startup procedure) or 150 ms (worst case after resume from sleep
+	 * analrmal startup procedure) or 150 ms (worst case after resume from sleep
 	 * states) after microphones are enabled and then clear the FIFOs (by
 	 * reading the RHR 16 times) and possible interrupts before continuing.
 	 * Also, for this to work the DMA needs to be started after interrupts
@@ -663,7 +663,7 @@ static int mchp_pdmc_trigger(struct snd_pcm_substream *substream,
 					      MCHP_PDMC_MR_PDMCEN_MASK,
 					      dd->pdmcen);
 
-		mchp_pdmc_noise_filter_workaround(dd);
+		mchp_pdmc_analise_filter_workaround(dd);
 
 		/* Enable interrupts. */
 		regmap_write(dd->regmap, MCHP_PDMC_IER, dd->suspend_irq |
@@ -717,7 +717,7 @@ static int mchp_pdmc_add_chmap_ctls(struct snd_pcm *pcm, struct mchp_pdmc *dd)
 		return -EBUSY;
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->pcm = pcm;
 	info->dd = dd;
 	info->chmap = mchp_pdmc_std_chmaps;
@@ -727,7 +727,7 @@ static int mchp_pdmc_add_chmap_ctls(struct snd_pcm *pcm, struct mchp_pdmc *dd)
 	info->kctl = snd_ctl_new1(&knew, info);
 	if (!info->kctl) {
 		kfree(info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	info->kctl->private_free = mchp_pdmc_chmap_ctl_private_free;
 	err = snd_ctl_add(pcm->card, info->kctl);
@@ -766,7 +766,7 @@ static struct snd_soc_dai_driver mchp_pdmc_dai = {
 		.channels_max	= 4,
 		.rate_min	= 8000,
 		.rate_max	= 192000,
-		.rates		= SNDRV_PCM_RATE_KNOT,
+		.rates		= SNDRV_PCM_RATE_KANALT,
 		.formats	= SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops = &mchp_pdmc_dai_ops,
@@ -777,7 +777,7 @@ static irqreturn_t mchp_pdmc_interrupt(int irq, void *dev_id)
 {
 	struct mchp_pdmc *dd = dev_id;
 	u32 isr, msr, pending;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	regmap_read(dd->regmap, MCHP_PDMC_ISR, &isr);
 	regmap_read(dd->regmap, MCHP_PDMC_IMR, &msr);
@@ -786,7 +786,7 @@ static irqreturn_t mchp_pdmc_interrupt(int irq, void *dev_id)
 	dev_dbg(dd->dev, "ISR (0x%02x): 0x%08x, IMR (0x%02x): 0x%08x, pending: 0x%08x\n",
 		MCHP_PDMC_ISR, isr, MCHP_PDMC_IMR, msr, pending);
 	if (!pending)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pending & MCHP_PDMC_IR_RXUDR) {
 		dev_warn(dd->dev, "underrun detected\n");
@@ -868,39 +868,39 @@ static const struct regmap_config mchp_pdmc_regmap_config = {
 
 static int mchp_pdmc_dt_init(struct mchp_pdmc *dd)
 {
-	struct device_node *np = dd->dev->of_node;
-	bool mic_ch[MCHP_PDMC_DS_NO][MCHP_PDMC_EDGE_NO] = {0};
+	struct device_analde *np = dd->dev->of_analde;
+	bool mic_ch[MCHP_PDMC_DS_ANAL][MCHP_PDMC_EDGE_ANAL] = {0};
 	int i;
 	int ret;
 
 	if (!np) {
-		dev_err(dd->dev, "device node not found\n");
+		dev_err(dd->dev, "device analde analt found\n");
 		return -EINVAL;
 	}
 
-	dd->mic_no = of_property_count_u32_elems(np, "microchip,mic-pos");
-	if (dd->mic_no < 0) {
+	dd->mic_anal = of_property_count_u32_elems(np, "microchip,mic-pos");
+	if (dd->mic_anal < 0) {
 		dev_err(dd->dev, "failed to get microchip,mic-pos: %d",
-			dd->mic_no);
-		return dd->mic_no;
+			dd->mic_anal);
+		return dd->mic_anal;
 	}
-	if (!dd->mic_no || dd->mic_no % 2 ||
-	    dd->mic_no / 2 > MCHP_PDMC_MAX_CHANNELS) {
+	if (!dd->mic_anal || dd->mic_anal % 2 ||
+	    dd->mic_anal / 2 > MCHP_PDMC_MAX_CHANNELS) {
 		dev_err(dd->dev, "invalid array length for microchip,mic-pos: %d",
-			dd->mic_no);
+			dd->mic_anal);
 		return -EINVAL;
 	}
 
-	dd->mic_no /= 2;
+	dd->mic_anal /= 2;
 
-	dev_info(dd->dev, "%d PDM microphones declared\n", dd->mic_no);
+	dev_info(dd->dev, "%d PDM microphones declared\n", dd->mic_anal);
 
 	/*
 	 * by default, we consider the order of microphones in
 	 * microchip,mic-pos to be the same with the channel mapping;
 	 * 1st microphone channel 0, 2nd microphone channel 1, etc.
 	 */
-	for (i = 0; i < dd->mic_no; i++) {
+	for (i = 0; i < dd->mic_anal; i++) {
 		int ds;
 		int edge;
 
@@ -908,11 +908,11 @@ static int mchp_pdmc_dt_init(struct mchp_pdmc *dd)
 						 &ds);
 		if (ret) {
 			dev_err(dd->dev,
-				"failed to get value no %d value from microchip,mic-pos: %d",
+				"failed to get value anal %d value from microchip,mic-pos: %d",
 				i * 2, ret);
 			return ret;
 		}
-		if (ds >= MCHP_PDMC_DS_NO) {
+		if (ds >= MCHP_PDMC_DS_ANAL) {
 			dev_err(dd->dev,
 				"invalid DS index in microchip,mic-pos array: %d",
 				ds);
@@ -923,7 +923,7 @@ static int mchp_pdmc_dt_init(struct mchp_pdmc *dd)
 						 &edge);
 		if (ret) {
 			dev_err(dd->dev,
-				"failed to get value no %d value from microchip,mic-pos: %d",
+				"failed to get value anal %d value from microchip,mic-pos: %d",
 				i * 2 + 1, ret);
 			return ret;
 		}
@@ -1028,7 +1028,7 @@ static int mchp_pdmc_probe(struct platform_device *pdev)
 
 	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
 	if (!dd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dd->dev = &pdev->dev;
 	ret = mchp_pdmc_dt_init(dd);
@@ -1095,14 +1095,14 @@ static int mchp_pdmc_probe(struct platform_device *pdev)
 	/* register platform */
 	ret = devm_snd_dmaengine_pcm_register(dev, &mchp_pdmc_config, 0);
 	if (ret) {
-		dev_err(dev, "could not register platform: %d\n", ret);
+		dev_err(dev, "could analt register platform: %d\n", ret);
 		goto pm_runtime_suspend;
 	}
 
 	ret = devm_snd_soc_register_component(dev, &mchp_pdmc_dai_component,
 					      &mchp_pdmc_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register CPU DAI: %d\n", ret);
+		dev_err(dev, "could analt register CPU DAI: %d\n", ret);
 		goto pm_runtime_suspend;
 	}
 

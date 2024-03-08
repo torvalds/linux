@@ -9,7 +9,7 @@
 #include <linux/socket.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/un.h>
 #include <sys/signal.h>
 #include <sys/types.h>
@@ -17,10 +17,10 @@
 
 #include "../../kselftest_harness.h"
 
-#define clean_errno() (errno == 0 ? "None" : strerror(errno))
+#define clean_erranal() (erranal == 0 ? "Analne" : strerror(erranal))
 #define log_err(MSG, ...)                                                   \
-	fprintf(stderr, "(%s:%d: errno: %s) " MSG "\n", __FILE__, __LINE__, \
-		clean_errno(), ##__VA_ARGS__)
+	fprintf(stderr, "(%s:%d: erranal: %s) " MSG "\n", __FILE__, __LINE__, \
+		clean_erranal(), ##__VA_ARGS__)
 
 #ifndef SCM_PIDFD
 #define SCM_PIDFD 0x04
@@ -36,12 +36,12 @@ static int safe_int(const char *numstr, int *converted)
 	char *err = NULL;
 	long sli;
 
-	errno = 0;
+	erranal = 0;
 	sli = strtol(numstr, &err, 0);
-	if (errno == ERANGE && (sli == LONG_MAX || sli == LONG_MIN))
+	if (erranal == ERANGE && (sli == LONG_MAX || sli == LONG_MIN))
 		return -ERANGE;
 
-	if (errno != 0 && sli == 0)
+	if (erranal != 0 && sli == 0)
 		return -EINVAL;
 
 	if (err == numstr || *err != '\0')
@@ -188,12 +188,12 @@ static int cmsg_check(int fd)
 	}
 
 	if (!pidfd) {
-		log_err("CMSG parse: SCM_PIDFD not found");
+		log_err("CMSG parse: SCM_PIDFD analt found");
 		return 1;
 	}
 
 	if (!ucred) {
-		log_err("CMSG parse: SCM_CREDENTIALS not found");
+		log_err("CMSG parse: SCM_CREDENTIALS analt found");
 		return 1;
 	}
 
@@ -256,7 +256,7 @@ FIXTURE_VARIANT_ADD(scm_pidfd, dgram_abstract)
 FIXTURE_SETUP(scm_pidfd)
 {
 	self->client_addr = mmap(NULL, sizeof(*self->client_addr), PROT_READ | PROT_WRITE,
-				 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+				 MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 	ASSERT_NE(MAP_FAILED, self->client_addr);
 }
 
@@ -340,7 +340,7 @@ static void client(FIXTURE_DATA(scm_pidfd) *self,
 		child_die();
 	}
 
-	/* skip further for SOCK_DGRAM as it's not applicable */
+	/* skip further for SOCK_DGRAM as it's analt applicable */
 	if (variant->type == SOCK_DGRAM)
 		return;
 

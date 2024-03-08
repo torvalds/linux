@@ -18,7 +18,7 @@ struct macvlan_port;
 struct macvlan_dev {
 	struct net_device	*dev;
 	struct list_head	list;
-	struct hlist_node	hlist;
+	struct hlist_analde	hlist;
 	struct macvlan_port	*port;
 	struct net_device	*lowerdev;
 	netdevice_tracker	dev_tracker;

@@ -9,7 +9,7 @@
  *
  *  Written by Ohad Ben-Cohen <ohad@bencohen.org>
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on hci_h4.c, which was written
  *  by Maxim Krasnyansky and Marcel Holtmann.
  */
@@ -27,7 +27,7 @@
 #include <linux/poll.h>
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>
@@ -93,8 +93,8 @@ static int send_hcill_cmd(u8 cmd, struct hci_uart *hu)
 	/* allocate packet */
 	skb = bt_skb_alloc(1, GFP_ATOMIC);
 	if (!skb) {
-		BT_ERR("cannot allocate memory for HCILL packet");
-		err = -ENOMEM;
+		BT_ERR("cananalt allocate memory for HCILL packet");
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -116,7 +116,7 @@ static int ll_open(struct hci_uart *hu)
 
 	ll = kzalloc(sizeof(*ll), GFP_KERNEL);
 	if (!ll)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&ll->txq);
 	skb_queue_head_init(&ll->tx_wait_q);
@@ -180,7 +180,7 @@ static int ll_close(struct hci_uart *hu)
  * internal function, which does common work of the device wake up process:
  * 1. places all pending packets (waiting in tx_wait_q list) in txq list.
  * 2. changes internal state to HCILL_AWAKE.
- * Note: assumes that hcill_lock spinlock is taken,
+ * Analte: assumes that hcill_lock spinlock is taken,
  * shouldn't be called otherwise!
  */
 static void __ll_do_awake(struct ll_struct *ll)
@@ -212,18 +212,18 @@ static void ll_device_want_to_wakeup(struct hci_uart *hu)
 		 * This state means that both the host and the BRF chip
 		 * have simultaneously sent a wake-up-indication packet.
 		 * Traditionally, in this case, receiving a wake-up-indication
-		 * was enough and an additional wake-up-ack wasn't needed.
+		 * was eanalugh and an additional wake-up-ack wasn't needed.
 		 * This has changed with the BRF6350, which does require an
-		 * explicit wake-up-ack. Other BRF versions, which do not
+		 * explicit wake-up-ack. Other BRF versions, which do analt
 		 * require an explicit ack here, do accept it, thus it is
 		 * perfectly safe to always send one.
 		 */
 		BT_DBG("dual wake-up-indication");
 		fallthrough;
 	case HCILL_ASLEEP:
-		/* acknowledge device wake up */
+		/* ackanalwledge device wake up */
 		if (send_hcill_cmd(HCILL_WAKE_UP_ACK, hu) < 0) {
-			BT_ERR("cannot acknowledge device wake up");
+			BT_ERR("cananalt ackanalwledge device wake up");
 			goto out;
 		}
 		break;
@@ -262,9 +262,9 @@ static void ll_device_want_to_sleep(struct hci_uart *hu)
 		BT_ERR("ERR: HCILL_GO_TO_SLEEP_IND in state %ld",
 		       ll->hcill_state);
 
-	/* acknowledge device sleep */
+	/* ackanalwledge device sleep */
 	if (send_hcill_cmd(HCILL_GO_TO_SLEEP_ACK, hu) < 0) {
-		BT_ERR("cannot acknowledge device sleep");
+		BT_ERR("cananalt ackanalwledge device sleep");
 		goto out;
 	}
 
@@ -279,7 +279,7 @@ out:
 }
 
 /*
- * Called upon wake-up-acknowledgement from the device
+ * Called upon wake-up-ackanalwledgement from the device
  */
 static void ll_device_woke_up(struct hci_uart *hu)
 {
@@ -323,7 +323,7 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	/* act according to current state */
 	switch (ll->hcill_state) {
 	case HCILL_AWAKE:
-		BT_DBG("device awake, sending normally");
+		BT_DBG("device awake, sending analrmally");
 		skb_queue_tail(&ll->txq, skb);
 		break;
 	case HCILL_ASLEEP:
@@ -332,7 +332,7 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		skb_queue_tail(&ll->tx_wait_q, skb);
 		/* awake device */
 		if (send_hcill_cmd(HCILL_WAKE_UP_IND, hu) < 0) {
-			BT_ERR("cannot wake up device");
+			BT_ERR("cananalt wake up device");
 			break;
 		}
 		ll->hcill_state = HCILL_ASLEEP_TO_AWAKE;
@@ -470,7 +470,7 @@ static int read_local_version(struct hci_dev *hdev)
 
 	ver = (struct hci_rp_read_local_version *)skb->data;
 	if (le16_to_cpu(ver->manufacturer) != 13) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -489,7 +489,7 @@ static int send_command_from_firmware(struct ll_device *lldev,
 	struct sk_buff *skb;
 
 	if (cmd->opcode == HCI_VS_UPDATE_UART_HCI_BAUDRATE) {
-		/* ignore remote change
+		/* iganalre remote change
 		 * baud rate HCI VS command
 		 */
 		bt_dev_warn(lldev->hu.hdev,
@@ -512,7 +512,7 @@ static int send_command_from_firmware(struct ll_device *lldev,
 /*
  * download_firmware -
  *	internal function which parses through the .bts firmware
- *	script file intreprets SEND, DELAY actions only as of now
+ *	script file intreprets SEND, DELAY actions only as of analw
  */
 static int download_firmware(struct ll_device *lldev)
 {
@@ -539,7 +539,7 @@ static int download_firmware(struct ll_device *lldev)
 
 	err = request_firmware(&fw, bts_scr_name, &lldev->serdev->dev);
 	if (err || !fw->data || !fw->size) {
-		bt_dev_err(lldev->hu.hdev, "request_firmware failed(errno %d) for %s",
+		bt_dev_err(lldev->hu.hdev, "request_firmware failed(erranal %d) for %s",
 			   err, bts_scr_name);
 		return -EINVAL;
 	}
@@ -567,7 +567,7 @@ static int download_firmware(struct ll_device *lldev)
 				goto out_rel_fw;
 			break;
 		case ACTION_WAIT_EVENT:  /* wait */
-			/* no need to wait as command was synchronous */
+			/* anal need to wait as command was synchroanalus */
 			bt_dev_dbg(lldev->hu.hdev, "W");
 			break;
 		case ACTION_DELAY:	/* sleep */
@@ -645,7 +645,7 @@ static int ll_setup(struct hci_uart *hu)
 		return err;
 
 	/* Set BD address if one was specified at probe */
-	if (!bacmp(&lldev->bdaddr, BDADDR_NONE)) {
+	if (!bacmp(&lldev->bdaddr, BDADDR_ANALNE)) {
 		/* This means that there was an error getting the BD address
 		 * during probe, so mark the device as having a bad address.
 		 */
@@ -691,7 +691,7 @@ static int hci_ti_probe(struct serdev_device *serdev)
 
 	lldev = devm_kzalloc(&serdev->dev, sizeof(struct ll_device), GFP_KERNEL);
 	if (!lldev)
-		return -ENOMEM;
+		return -EANALMEM;
 	hu = &lldev->hu;
 
 	serdev_device_set_drvdata(serdev, lldev);
@@ -704,10 +704,10 @@ static int hci_ti_probe(struct serdev_device *serdev)
 		return PTR_ERR(lldev->enable_gpio);
 
 	lldev->ext_clk = devm_clk_get(&serdev->dev, "ext_clock");
-	if (IS_ERR(lldev->ext_clk) && PTR_ERR(lldev->ext_clk) != -ENOENT)
+	if (IS_ERR(lldev->ext_clk) && PTR_ERR(lldev->ext_clk) != -EANALENT)
 		return PTR_ERR(lldev->ext_clk);
 
-	of_property_read_u32(serdev->dev.of_node, "max-speed", &max_speed);
+	of_property_read_u32(serdev->dev.of_analde, "max-speed", &max_speed);
 	hci_uart_set_speeds(hu, 115200, max_speed);
 
 	/* optional BD address from nvram */
@@ -718,19 +718,19 @@ static int hci_ti_probe(struct serdev_device *serdev)
 		if (err == -EPROBE_DEFER)
 			return err;
 
-		/* ENOENT means there is no matching nvmem cell and ENOSYS
-		 * means that nvmem is not enabled in the kernel configuration.
+		/* EANALENT means there is anal matching nvmem cell and EANALSYS
+		 * means that nvmem is analt enabled in the kernel configuration.
 		 */
-		if (err != -ENOENT && err != -ENOSYS) {
+		if (err != -EANALENT && err != -EANALSYS) {
 			/* If there was some other error, give userspace a
 			 * chance to fix the problem instead of failing to load
-			 * the driver. Using BDADDR_NONE as a flag that is
+			 * the driver. Using BDADDR_ANALNE as a flag that is
 			 * tested later in the setup function.
 			 */
 			dev_warn(&serdev->dev,
 				 "Failed to get \"bd-address\" nvmem cell (%d)\n",
 				 err);
-			bacpy(&lldev->bdaddr, BDADDR_NONE);
+			bacpy(&lldev->bdaddr, BDADDR_ANALNE);
 		}
 	} else {
 		bdaddr_t *bdaddr;

@@ -50,7 +50,7 @@ static int m68kspkr_probe(struct platform_device *dev)
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = "m68k beeper";
 	input_dev->phys = "m68k/generic";
@@ -104,8 +104,8 @@ static int __init m68kspkr_init(void)
 	int err;
 
 	if (!mach_beep) {
-		printk(KERN_INFO "m68kspkr: no lowlevel beep support\n");
-		return -ENODEV;
+		printk(KERN_INFO "m68kspkr: anal lowlevel beep support\n");
+		return -EANALDEV;
         }
 
 	err = platform_driver_register(&m68kspkr_platform_driver);
@@ -114,7 +114,7 @@ static int __init m68kspkr_init(void)
 
 	m68kspkr_platform_device = platform_device_alloc("m68kspkr", -1);
 	if (!m68kspkr_platform_device) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unregister_driver;
 	}
 

@@ -2,14 +2,14 @@
 /*
  * Copyright 2020 Linaro Limited
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  *
  * The powercap based Dynamic Thermal Power Management framework
  * provides to the userspace a consistent API to set the power limit
  * on some devices.
  *
  * DTPM defines the functions to create a tree of constraints. Each
- * parent node is a virtual description of the aggregation of the
+ * parent analde is a virtual description of the aggregation of the
  * children. It propagates the constraints set at its level to its
  * children and collect the children power information. The leaves of
  * the tree are the real devices which have the ability to get their
@@ -39,12 +39,12 @@ static struct dtpm *root;
 
 static int get_time_window_us(struct powercap_zone *pcz, int cid, u64 *window)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int set_time_window_us(struct powercap_zone *pcz, int cid, u64 window)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int get_max_power_range_uw(struct powercap_zone *pcz, u64 *max_power_uw)
@@ -128,7 +128,7 @@ static void __dtpm_add_power(struct dtpm *dtpm)
  * dtpm_update_power - Update the power on the dtpm
  * @dtpm: a pointer to a dtpm structure to update
  *
- * Function to update the power values of the dtpm node specified in
+ * Function to update the power values of the dtpm analde specified in
  * parameter. These new values will be propagated to the tree.
  *
  * Return: zero on success, -EINVAL if the values are inconsistent
@@ -156,11 +156,11 @@ int dtpm_update_power(struct dtpm *dtpm)
 }
 
 /**
- * dtpm_release_zone - Cleanup when the node is released
+ * dtpm_release_zone - Cleanup when the analde is released
  * @pcz: a pointer to a powercap_zone structure
  *
  * Do some housecleaning and update the weight on the tree. The
- * release will be denied if the node has children. This function must
+ * release will be denied if the analde has children. This function must
  * be called by the specific release callback of the different
  * backends.
  *
@@ -196,10 +196,10 @@ static int get_power_limit_uw(struct powercap_zone *pcz,
 }
 
 /*
- * Set the power limit on the nodes, the power limit is distributed
+ * Set the power limit on the analdes, the power limit is distributed
  * given the weight of the children.
  *
- * The dtpm node lock must be held when calling this function.
+ * The dtpm analde lock must be held when calling this function.
  */
 static int __set_power_limit_uw(struct dtpm *dtpm, int cid, u64 power_limit)
 {
@@ -209,7 +209,7 @@ static int __set_power_limit_uw(struct dtpm *dtpm, int cid, u64 power_limit)
 
 	/*
 	 * A max power limitation means we remove the power limit,
-	 * otherwise we set a constraint and flag the dtpm node.
+	 * otherwise we set a constraint and flag the dtpm analde.
 	 */
 	if (power_limit == dtpm->power_max) {
 		clear_bit(DTPM_POWER_LIMIT_FLAG, &dtpm->flags);
@@ -314,7 +314,7 @@ static struct powercap_zone_ops zone_ops = {
 /**
  * dtpm_init - Allocate and initialize a dtpm struct
  * @dtpm: The dtpm struct pointer to be initialized
- * @ops: The dtpm device specific ops, NULL for a virtual node
+ * @ops: The dtpm device specific ops, NULL for a virtual analde
  */
 void dtpm_init(struct dtpm *dtpm, struct dtpm_ops *ops)
 {
@@ -327,8 +327,8 @@ void dtpm_init(struct dtpm *dtpm, struct dtpm_ops *ops)
 }
 
 /**
- * dtpm_unregister - Unregister a dtpm node from the hierarchy tree
- * @dtpm: a pointer to a dtpm structure corresponding to the node to be removed
+ * dtpm_unregister - Unregister a dtpm analde from the hierarchy tree
+ * @dtpm: a pointer to a dtpm structure corresponding to the analde to be removed
  *
  * Call the underlying powercap unregister function. That will call
  * the release callback of the powercap zone.
@@ -337,17 +337,17 @@ void dtpm_unregister(struct dtpm *dtpm)
 {
 	powercap_unregister_zone(pct, &dtpm->zone);
 
-	pr_debug("Unregistered dtpm node '%s'\n", dtpm->zone.name);
+	pr_debug("Unregistered dtpm analde '%s'\n", dtpm->zone.name);
 }
 
 /**
- * dtpm_register - Register a dtpm node in the hierarchy tree
- * @name: a string specifying the name of the node
- * @dtpm: a pointer to a dtpm structure corresponding to the new node
- * @parent: a pointer to a dtpm structure corresponding to the parent node
+ * dtpm_register - Register a dtpm analde in the hierarchy tree
+ * @name: a string specifying the name of the analde
+ * @dtpm: a pointer to a dtpm structure corresponding to the new analde
+ * @parent: a pointer to a dtpm structure corresponding to the parent analde
  *
- * Create a dtpm node in the tree. If no parent is specified, the node
- * is the root node of the hierarchy. If the root node already exists,
+ * Create a dtpm analde in the tree. If anal parent is specified, the analde
+ * is the root analde of the hierarchy. If the root analde already exists,
  * then the registration will fail. The powercap controller must be
  * initialized before calling this function.
  *
@@ -356,9 +356,9 @@ void dtpm_unregister(struct dtpm *dtpm)
  *
  * Return: zero on success, a negative value in case of error:
  *  -EAGAIN: the function is called before the framework is initialized.
- *  -EBUSY: the root node is already inserted
- *  -EINVAL: * there is no root node yet and @parent is specified
- *           * no all ops are defined
+ *  -EBUSY: the root analde is already inserted
+ *  -EINVAL: * there is anal root analde yet and @parent is specified
+ *           * anal all ops are defined
  *           * parent have ops which are reserved for leaves
  *   Other negative values are reported back from the powercap framework
  */
@@ -406,13 +406,13 @@ int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent)
 		dtpm->power_limit = dtpm->power_max;
 	}
 
-	pr_debug("Registered dtpm node '%s' / %llu-%llu uW, \n",
+	pr_debug("Registered dtpm analde '%s' / %llu-%llu uW, \n",
 		 dtpm->zone.name, dtpm->power_min, dtpm->power_max);
 
 	return 0;
 }
 
-static struct dtpm *dtpm_setup_virtual(const struct dtpm_node *hierarchy,
+static struct dtpm *dtpm_setup_virtual(const struct dtpm_analde *hierarchy,
 				       struct dtpm *parent)
 {
 	struct dtpm *dtpm;
@@ -420,12 +420,12 @@ static struct dtpm *dtpm_setup_virtual(const struct dtpm_node *hierarchy,
 
 	dtpm = kzalloc(sizeof(*dtpm), GFP_KERNEL);
 	if (!dtpm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	dtpm_init(dtpm, NULL);
 
 	ret = dtpm_register(hierarchy->name, dtpm, parent);
 	if (ret) {
-		pr_err("Failed to register dtpm node '%s': %d\n",
+		pr_err("Failed to register dtpm analde '%s': %d\n",
 		       hierarchy->name, ret);
 		kfree(dtpm);
 		return ERR_PTR(ret);
@@ -434,13 +434,13 @@ static struct dtpm *dtpm_setup_virtual(const struct dtpm_node *hierarchy,
 	return dtpm;
 }
 
-static struct dtpm *dtpm_setup_dt(const struct dtpm_node *hierarchy,
+static struct dtpm *dtpm_setup_dt(const struct dtpm_analde *hierarchy,
 				  struct dtpm *parent)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int i, ret;
 
-	np = of_find_node_by_path(hierarchy->name);
+	np = of_find_analde_by_path(hierarchy->name);
 	if (!np) {
 		pr_err("Failed to find '%s'\n", hierarchy->name);
 		return ERR_PTR(-ENXIO);
@@ -454,29 +454,29 @@ static struct dtpm *dtpm_setup_dt(const struct dtpm_node *hierarchy,
 		ret = dtpm_subsys[i]->setup(parent, np);
 		if (ret) {
 			pr_err("Failed to setup '%s': %d\n", dtpm_subsys[i]->name, ret);
-			of_node_put(np);
+			of_analde_put(np);
 			return ERR_PTR(ret);
 		}
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	/*
-	 * By returning a NULL pointer, we let know the caller there
-	 * is no child for us as we are a leaf of the tree
+	 * By returning a NULL pointer, we let kanalw the caller there
+	 * is anal child for us as we are a leaf of the tree
 	 */
 	return NULL;
 }
 
-typedef struct dtpm * (*dtpm_node_callback_t)(const struct dtpm_node *, struct dtpm *);
+typedef struct dtpm * (*dtpm_analde_callback_t)(const struct dtpm_analde *, struct dtpm *);
 
-static dtpm_node_callback_t dtpm_node_callback[] = {
-	[DTPM_NODE_VIRTUAL] = dtpm_setup_virtual,
-	[DTPM_NODE_DT] = dtpm_setup_dt,
+static dtpm_analde_callback_t dtpm_analde_callback[] = {
+	[DTPM_ANALDE_VIRTUAL] = dtpm_setup_virtual,
+	[DTPM_ANALDE_DT] = dtpm_setup_dt,
 };
 
-static int dtpm_for_each_child(const struct dtpm_node *hierarchy,
-			       const struct dtpm_node *it, struct dtpm *parent)
+static int dtpm_for_each_child(const struct dtpm_analde *hierarchy,
+			       const struct dtpm_analde *it, struct dtpm *parent)
 {
 	struct dtpm *dtpm;
 	int i, ret;
@@ -486,10 +486,10 @@ static int dtpm_for_each_child(const struct dtpm_node *hierarchy,
 		if (hierarchy[i].parent != it)
 			continue;
 
-		dtpm = dtpm_node_callback[hierarchy[i].type](&hierarchy[i], parent);
+		dtpm = dtpm_analde_callback[hierarchy[i].type](&hierarchy[i], parent);
 
 		/*
-		 * A NULL pointer means there is no children, hence we
+		 * A NULL pointer means there is anal children, hence we
 		 * continue without going deeper in the recursivity.
 		 */
 		if (!dtpm)
@@ -498,13 +498,13 @@ static int dtpm_for_each_child(const struct dtpm_node *hierarchy,
 		/*
 		 * There are multiple reasons why the callback could
 		 * fail. The generic glue is abstracting the backend
-		 * and therefore it is not possible to report back or
+		 * and therefore it is analt possible to report back or
 		 * take a decision based on the error.  In any case,
-		 * if this call fails, it is not critical in the
+		 * if this call fails, it is analt critical in the
 		 * hierarchy creation, we can assume the underlying
-		 * service is not found, so we continue without this
+		 * service is analt found, so we continue without this
 		 * branch in the tree but with a warning to log the
-		 * information the node was not created.
+		 * information the analde was analt created.
 		 */
 		if (IS_ERR(dtpm)) {
 			pr_warn("Failed to create '%s' in the hierarchy\n",
@@ -522,21 +522,21 @@ static int dtpm_for_each_child(const struct dtpm_node *hierarchy,
 
 /**
  * dtpm_create_hierarchy - Create the dtpm hierarchy
- * @hierarchy: An array of struct dtpm_node describing the hierarchy
+ * @hierarchy: An array of struct dtpm_analde describing the hierarchy
  *
  * The function is called by the platform specific code with the
- * description of the different node in the hierarchy. It creates the
+ * description of the different analde in the hierarchy. It creates the
  * tree in the sysfs filesystem under the powercap dtpm entry.
  *
  * The expected tree has the format:
  *
- * struct dtpm_node hierarchy[] = {
- *	[0] { .name = "topmost", type =  DTPM_NODE_VIRTUAL },
- *	[1] { .name = "package", .type = DTPM_NODE_VIRTUAL, .parent = &hierarchy[0] },
- *	[2] { .name = "/cpus/cpu0", .type = DTPM_NODE_DT, .parent = &hierarchy[1] },
- *	[3] { .name = "/cpus/cpu1", .type = DTPM_NODE_DT, .parent = &hierarchy[1] },
- *	[4] { .name = "/cpus/cpu2", .type = DTPM_NODE_DT, .parent = &hierarchy[1] },
- *	[5] { .name = "/cpus/cpu3", .type = DTPM_NODE_DT, .parent = &hierarchy[1] },
+ * struct dtpm_analde hierarchy[] = {
+ *	[0] { .name = "topmost", type =  DTPM_ANALDE_VIRTUAL },
+ *	[1] { .name = "package", .type = DTPM_ANALDE_VIRTUAL, .parent = &hierarchy[0] },
+ *	[2] { .name = "/cpus/cpu0", .type = DTPM_ANALDE_DT, .parent = &hierarchy[1] },
+ *	[3] { .name = "/cpus/cpu1", .type = DTPM_ANALDE_DT, .parent = &hierarchy[1] },
+ *	[4] { .name = "/cpus/cpu2", .type = DTPM_ANALDE_DT, .parent = &hierarchy[1] },
+ *	[5] { .name = "/cpus/cpu3", .type = DTPM_ANALDE_DT, .parent = &hierarchy[1] },
  *	[6] { }
  * };
  *
@@ -549,8 +549,8 @@ static int dtpm_for_each_child(const struct dtpm_node *hierarchy,
 int dtpm_create_hierarchy(struct of_device_id *dtpm_match_table)
 {
 	const struct of_device_id *match;
-	const struct dtpm_node *hierarchy;
-	struct device_node *np;
+	const struct dtpm_analde *hierarchy;
+	struct device_analde *np;
 	int i, ret;
 
 	mutex_lock(&dtpm_lock);
@@ -567,14 +567,14 @@ int dtpm_create_hierarchy(struct of_device_id *dtpm_match_table)
 		goto out_pct;
 	}
 
-	ret = -ENODEV;
-	np = of_find_node_by_path("/");
+	ret = -EANALDEV;
+	np = of_find_analde_by_path("/");
 	if (!np)
 		goto out_err;
 
-	match = of_match_node(dtpm_match_table, np);
+	match = of_match_analde(dtpm_match_table, np);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!match)
 		goto out_err;
@@ -623,7 +623,7 @@ static void __dtpm_destroy_hierarchy(struct dtpm *dtpm)
 		__dtpm_destroy_hierarchy(child);
 
 	/*
-	 * At this point, we know all children were removed from the
+	 * At this point, we kanalw all children were removed from the
 	 * recursive call before
 	 */
 	dtpm_unregister(dtpm);

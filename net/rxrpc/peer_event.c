@@ -174,12 +174,12 @@ static void rxrpc_store_error(struct rxrpc_peer *peer, struct sk_buff *skb)
 	enum rxrpc_call_completion compl = RXRPC_CALL_NETWORK_ERROR;
 	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
 	struct sock_extended_err *ee = &serr->ee;
-	int err = ee->ee_errno;
+	int err = ee->ee_erranal;
 
 	_enter("");
 
 	switch (ee->ee_origin) {
-	case SO_EE_ORIGIN_NONE:
+	case SO_EE_ORIGIN_ANALNE:
 	case SO_EE_ORIGIN_LOCAL:
 		compl = RXRPC_CALL_LOCAL_ERROR;
 		break;
@@ -290,14 +290,14 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 	struct rxrpc_net *rxnet =
 		container_of(work, struct rxrpc_net, peer_keepalive_work);
 	const u8 mask = ARRAY_SIZE(rxnet->peer_keepalive) - 1;
-	time64_t base, now, delay;
+	time64_t base, analw, delay;
 	u8 cursor, stop;
 	LIST_HEAD(collector);
 
-	now = ktime_get_seconds();
+	analw = ktime_get_seconds();
 	base = rxnet->peer_keepalive_base;
 	cursor = rxnet->peer_keepalive_cursor;
-	_enter("%lld,%u", base - now, cursor);
+	_enter("%lld,%u", base - analw, cursor);
 
 	if (!rxnet->live)
 		return;
@@ -306,21 +306,21 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 	 * in expired buckets plus all new peers.
 	 *
 	 * Everything in the bucket at the cursor is processed this
-	 * second; the bucket at cursor + 1 goes at now + 1s and so
+	 * second; the bucket at cursor + 1 goes at analw + 1s and so
 	 * on...
 	 */
 	spin_lock(&rxnet->peer_hash_lock);
 	list_splice_init(&rxnet->peer_keepalive_new, &collector);
 
 	stop = cursor + ARRAY_SIZE(rxnet->peer_keepalive);
-	while (base <= now && (s8)(cursor - stop) < 0) {
+	while (base <= analw && (s8)(cursor - stop) < 0) {
 		list_splice_tail_init(&rxnet->peer_keepalive[cursor & mask],
 				      &collector);
 		base++;
 		cursor++;
 	}
 
-	base = now;
+	base = analw;
 	spin_unlock(&rxnet->peer_hash_lock);
 
 	rxnet->peer_keepalive_base = base;
@@ -337,8 +337,8 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 		base++;
 	}
 
-	now = ktime_get_seconds();
-	delay = base - now;
+	analw = ktime_get_seconds();
+	delay = base - analw;
 	if (delay < 1)
 		delay = 1;
 	delay *= HZ;

@@ -46,14 +46,14 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 		 * module parameters.
 		 */
 		if (!test_taint(TAINT_USER))
-			dev_notice(kdev, "%s", FDO_BUG_MSG);
+			dev_analtice(kdev, "%s", FDO_BUG_MSG);
 		shown_bug_once = true;
 	}
 }
 
 void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint)
 {
-	__i915_printk(i915, KERN_NOTICE, "CI tainted:%#x by %pS\n",
+	__i915_printk(i915, KERN_ANALTICE, "CI tainted:%#x by %pS\n",
 		      taint, (void *)_RET_IP_);
 
 	/* Failures that occur during fault injection testing are expected */
@@ -106,7 +106,7 @@ void set_timer_ms(struct timer_list *t, unsigned long timeout)
 	timeout = msecs_to_jiffies(timeout);
 
 	/*
-	 * Paranoia to make sure the compiler computes the timeout before
+	 * Paraanalia to make sure the compiler computes the timeout before
 	 * loading 'jiffies' as jiffies is volatile and may be updated in
 	 * the background by a timer tick. All to reduce the complexity
 	 * of the addition and reduce the risk of losing a jiffie.

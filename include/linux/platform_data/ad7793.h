@@ -9,7 +9,7 @@
 
 /**
  * enum ad7793_clock_source - AD7793 clock source selection
- * @AD7793_CLK_SRC_INT: Internal 64 kHz clock, not available at the CLK pin.
+ * @AD7793_CLK_SRC_INT: Internal 64 kHz clock, analt available at the CLK pin.
  * @AD7793_CLK_SRC_INT_CO: Internal 64 kHz clock, available at the CLK pin.
  * @AD7793_CLK_SRC_EXT: Use external clock.
  * @AD7793_CLK_SRC_EXT_DIV2: Use external clock divided by 2.
@@ -85,7 +85,7 @@ enum ad7793_excitation_current {
 /**
  * struct ad7793_platform_data - AD7793 platform data
  * @clock_src: Clock source selection
- * @burnout_current: If set to true the 100nA burnout current is enabled.
+ * @buranalut_current: If set to true the 100nA buranalut current is enabled.
  * @boost_enable: Enable boost for the bias voltage generator.
  * @buffered: If set to true configure the device for buffered input mode.
  * @unipolar: If set to true sample in unipolar mode, if set to false sample in
@@ -97,7 +97,7 @@ enum ad7793_excitation_current {
  */
 struct ad7793_platform_data {
 	enum ad7793_clock_source clock_src;
-	bool burnout_current;
+	bool buranalut_current;
 	bool boost_enable;
 	bool buffered;
 	bool unipolar;

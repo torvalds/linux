@@ -349,10 +349,10 @@ static const struct snd_kcontrol_new fsl_micfil_snd_controls[] = {
 		     micfil_get_dc_remover_state, micfil_put_dc_remover_state),
 	SOC_SINGLE("HWVAD Input Gain", REG_MICFIL_VAD0_CTRL2, 8, 15, 0),
 	SOC_SINGLE("HWVAD Sound Gain", REG_MICFIL_VAD0_SCONFIG, 0, 15, 0),
-	SOC_SINGLE("HWVAD Noise Gain", REG_MICFIL_VAD0_NCONFIG, 0, 15, 0),
+	SOC_SINGLE("HWVAD Analise Gain", REG_MICFIL_VAD0_NCONFIG, 0, 15, 0),
 	SOC_SINGLE_RANGE("HWVAD Detector Frame Time", REG_MICFIL_VAD0_CTRL2, 16, 0, 63, 0),
 	SOC_SINGLE("HWVAD Detector Initialization Time", REG_MICFIL_VAD0_CTRL1, 8, 31, 0),
-	SOC_SINGLE("HWVAD Noise Filter Adjustment", REG_MICFIL_VAD0_NCONFIG, 8, 31, 0),
+	SOC_SINGLE("HWVAD Analise Filter Adjustment", REG_MICFIL_VAD0_NCONFIG, 8, 31, 0),
 	SOC_SINGLE("HWVAD ZCD Threshold", REG_MICFIL_VAD0_ZCD, 16, 1023, 0),
 	SOC_SINGLE("HWVAD ZCD Adjustment", REG_MICFIL_VAD0_ZCD, 8, 15, 0),
 	SOC_SINGLE("HWVAD ZCD And Behavior Switch",
@@ -376,8 +376,8 @@ static int fsl_micfil_use_verid(struct device *dev)
 	dev_dbg(dev, "VERID: 0x%016X\n", val);
 
 	micfil->verid.version = val &
-		(MICFIL_VERID_MAJOR_MASK | MICFIL_VERID_MINOR_MASK);
-	micfil->verid.version >>= MICFIL_VERID_MINOR_SHIFT;
+		(MICFIL_VERID_MAJOR_MASK | MICFIL_VERID_MIANALR_MASK);
+	micfil->verid.version >>= MICFIL_VERID_MIANALR_SHIFT;
 	micfil->verid.feature = val & MICFIL_VERID_FEATURE_MASK;
 
 	ret = regmap_read(micfil->regmap, REG_MICFIL_PARAM, &val);
@@ -425,7 +425,7 @@ static int fsl_micfil_reset(struct device *dev)
 
 	/*
 	 * SRES is self-cleared bit, but REG_MICFIL_CTRL1 is defined
-	 * as non-volatile register, so SRES still remain in regmap
+	 * as analn-volatile register, so SRES still remain in regmap
 	 * cache after set, that every update of REG_MICFIL_CTRL1,
 	 * software reset happens. so clear it explicitly.
 	 */
@@ -436,7 +436,7 @@ static int fsl_micfil_reset(struct device *dev)
 
 	/*
 	 * Set SRES should clear CHnF flags, But even add delay here
-	 * the CHnF may not be cleared sometimes, so clear CHnF explicitly.
+	 * the CHnF may analt be cleared sometimes, so clear CHnF explicitly.
 	 */
 	ret = regmap_write_bits(micfil->regmap, REG_MICFIL_STAT, 0xFF, 0xFF);
 	if (ret)
@@ -451,7 +451,7 @@ static int fsl_micfil_startup(struct snd_pcm_substream *substream,
 	struct fsl_micfil *micfil = snd_soc_dai_get_drvdata(dai);
 
 	if (!micfil) {
-		dev_err(dai->dev, "micfil dai priv_data not set\n");
+		dev_err(dai->dev, "micfil dai priv_data analt set\n");
 		return -EINVAL;
 	}
 
@@ -506,9 +506,9 @@ static int fsl_micfil_init_hwvad_energy_mode(struct fsl_micfil *micfil)
 	regmap_clear_bits(micfil->regmap, REG_MICFIL_VAD0_NCONFIG,
 			  MICFIL_VAD0_NCONFIG_NDECEN);
 
-	/* Keep the VADNOREN bitfield cleared. */
+	/* Keep the VADANALREN bitfield cleared. */
 	regmap_clear_bits(micfil->regmap, REG_MICFIL_VAD0_NCONFIG,
-			  MICFIL_VAD0_NCONFIG_NOREN);
+			  MICFIL_VAD0_NCONFIG_ANALREN);
 
 	return 0;
 }
@@ -544,9 +544,9 @@ static int fsl_micfil_init_hwvad_envelope_mode(struct fsl_micfil *micfil)
 	regmap_set_bits(micfil->regmap, REG_MICFIL_VAD0_NCONFIG,
 			MICFIL_VAD0_NCONFIG_NDECEN);
 
-	/* Assert VADNOREN bitfield. */
+	/* Assert VADANALREN bitfield. */
 	regmap_set_bits(micfil->regmap, REG_MICFIL_VAD0_NCONFIG,
-			MICFIL_VAD0_NCONFIG_NOREN);
+			MICFIL_VAD0_NCONFIG_ANALREN);
 
 	return 0;
 }
@@ -971,7 +971,7 @@ static irqreturn_t micfil_isr(int irq, void *devid)
 		if (stat_reg & MICFIL_STAT_CHXF(i))
 			dev_dbg(&pdev->dev,
 				"Data available in Data Channel %d\n", i);
-		/* if DMA is not enabled, field must be written with 1
+		/* if DMA is analt enabled, field must be written with 1
 		 * to clear
 		 */
 		if (!dma_enabled)
@@ -1032,7 +1032,7 @@ static irqreturn_t voice_detected_fn(int irq, void *devid)
 		return IRQ_HANDLED;
 
 	if (micfil->vad_detected)
-		snd_ctl_notify(micfil->card->snd_card,
+		snd_ctl_analtify(micfil->card->snd_card,
 			       SNDRV_CTL_EVENT_MASK_VALUE,
 			       &kctl->id);
 
@@ -1051,7 +1051,7 @@ static irqreturn_t hwvad_isr(int irq, void *devid)
 	/*
 	 * The only difference between MICFIL_VAD0_STAT_EF and
 	 * MICFIL_VAD0_STAT_IF is that the former requires Write
-	 * 1 to Clear. Since both flags are set, it is enough
+	 * 1 to Clear. Since both flags are set, it is eanalugh
 	 * to only read one of them
 	 */
 	if (vad0_reg & MICFIL_VAD0_STAT_IF) {
@@ -1089,7 +1089,7 @@ static int fsl_micfil_runtime_resume(struct device *dev);
 
 static int fsl_micfil_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct fsl_micfil *micfil;
 	struct resource *res;
 	void __iomem *regs;
@@ -1097,7 +1097,7 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 
 	micfil = devm_kzalloc(&pdev->dev, sizeof(*micfil), GFP_KERNEL);
 	if (!micfil)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	micfil->pdev = pdev;
 	strscpy(micfil->name, np->name, sizeof(micfil->name));
@@ -1222,14 +1222,14 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Error reading MICFIL version: %d\n", ret);
 
 	ret = pm_runtime_put_sync(&pdev->dev);
-	if (ret < 0 && ret != -ENOSYS)
+	if (ret < 0 && ret != -EANALSYS)
 		goto err_pm_get_sync;
 
 	regcache_cache_only(micfil->regmap, true);
 
 	/*
 	 * Register platform component before registering cpu dai for there
-	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
+	 * is analt defer probe for platform component in snd_soc_add_pcm_runtime().
 	 */
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {

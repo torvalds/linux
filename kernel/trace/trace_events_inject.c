@@ -56,11 +56,11 @@ parse_field(char *str, struct trace_event_call *call,
 
 	field_name = kmemdup_nul(str + s, len, GFP_KERNEL);
 	if (!field_name)
-		return -ENOMEM;
+		return -EANALMEM;
 	field = trace_find_event_field(call, field_name);
 	kfree(field_name);
 	if (!field)
-		return -ENOENT;
+		return -EANALENT;
 
 	*pf = field;
 	while (isspace(str[i]))
@@ -75,7 +75,7 @@ parse_field(char *str, struct trace_event_call *call,
 		char *num, c;
 		int ret;
 
-		/* Make sure the field is not a string */
+		/* Make sure the field is analt a string */
 		if (is_string_field(field))
 			return -EINVAL;
 
@@ -190,7 +190,7 @@ static void *trace_alloc_entry(struct trace_event_call *call, int *size)
 	return entry;
 }
 
-#define INJECT_STRING "STATIC STRING CAN NOT BE INJECTED"
+#define INJECT_STRING "STATIC STRING CAN ANALT BE INJECTED"
 
 /* Caller is responsible to free the *pentry. */
 static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
@@ -204,7 +204,7 @@ static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 	entry = trace_alloc_entry(call, &entry_size);
 	*pentry = entry;
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tracing_generic_entry_update(entry, call->event.type,
 				     tracing_gen_ctx());
@@ -228,7 +228,7 @@ static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 				*pentry = krealloc(entry, entry_size, GFP_KERNEL);
 				if (!*pentry) {
 					kfree(entry);
-					return -ENOMEM;
+					return -EANALMEM;
 				}
 				entry = *pentry;
 
@@ -286,7 +286,7 @@ event_inject_write(struct file *filp, const char __user *ubuf, size_t cnt,
 {
 	struct trace_event_call *call;
 	struct trace_event_file *file;
-	int err = -ENODEV, size;
+	int err = -EANALDEV, size;
 	void *entry = NULL;
 	char *buf;
 

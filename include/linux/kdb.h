@@ -16,11 +16,11 @@
 #include <linux/list.h>
 
 /* Shifted versions of the command enable bits are be used if the command
- * has no arguments (see kdb_check_flags). This allows commands, such as
+ * has anal arguments (see kdb_check_flags). This allows commands, such as
  * go, to have different permissions depending upon whether it is called
  * with an argument.
  */
-#define KDB_ENABLE_NO_ARGS_SHIFT 10
+#define KDB_ENABLE_ANAL_ARGS_SHIFT 10
 
 typedef enum {
 	KDB_ENABLE_ALL = (1 << 0), /* Enable everything */
@@ -37,30 +37,30 @@ typedef enum {
 	 */
 
 	KDB_ENABLE_ALWAYS_SAFE = (1 << 9),
-	KDB_ENABLE_MASK = (1 << KDB_ENABLE_NO_ARGS_SHIFT) - 1,
+	KDB_ENABLE_MASK = (1 << KDB_ENABLE_ANAL_ARGS_SHIFT) - 1,
 
-	KDB_ENABLE_ALL_NO_ARGS = KDB_ENABLE_ALL << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_MEM_READ_NO_ARGS = KDB_ENABLE_MEM_READ
-				      << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_MEM_WRITE_NO_ARGS = KDB_ENABLE_MEM_WRITE
-				       << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_REG_READ_NO_ARGS = KDB_ENABLE_REG_READ
-				      << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_REG_WRITE_NO_ARGS = KDB_ENABLE_REG_WRITE
-				       << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_INSPECT_NO_ARGS = KDB_ENABLE_INSPECT
-				     << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_FLOW_CTRL_NO_ARGS = KDB_ENABLE_FLOW_CTRL
-				       << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_SIGNAL_NO_ARGS = KDB_ENABLE_SIGNAL
-				    << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_REBOOT_NO_ARGS = KDB_ENABLE_REBOOT
-				    << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_ALWAYS_SAFE_NO_ARGS = KDB_ENABLE_ALWAYS_SAFE
-					 << KDB_ENABLE_NO_ARGS_SHIFT,
-	KDB_ENABLE_MASK_NO_ARGS = KDB_ENABLE_MASK << KDB_ENABLE_NO_ARGS_SHIFT,
+	KDB_ENABLE_ALL_ANAL_ARGS = KDB_ENABLE_ALL << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_MEM_READ_ANAL_ARGS = KDB_ENABLE_MEM_READ
+				      << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_MEM_WRITE_ANAL_ARGS = KDB_ENABLE_MEM_WRITE
+				       << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_REG_READ_ANAL_ARGS = KDB_ENABLE_REG_READ
+				      << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_REG_WRITE_ANAL_ARGS = KDB_ENABLE_REG_WRITE
+				       << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_INSPECT_ANAL_ARGS = KDB_ENABLE_INSPECT
+				     << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_FLOW_CTRL_ANAL_ARGS = KDB_ENABLE_FLOW_CTRL
+				       << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_SIGNAL_ANAL_ARGS = KDB_ENABLE_SIGNAL
+				    << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_REBOOT_ANAL_ARGS = KDB_ENABLE_REBOOT
+				    << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_ALWAYS_SAFE_ANAL_ARGS = KDB_ENABLE_ALWAYS_SAFE
+					 << KDB_ENABLE_ANAL_ARGS_SHIFT,
+	KDB_ENABLE_MASK_ANAL_ARGS = KDB_ENABLE_MASK << KDB_ENABLE_ANAL_ARGS_SHIFT,
 
-	KDB_REPEAT_NO_ARGS = 0x40000000, /* Repeat the command w/o arguments */
+	KDB_REPEAT_ANAL_ARGS = 0x40000000, /* Repeat the command w/o arguments */
 	KDB_REPEAT_WITH_ARGS = 0x80000000, /* Repeat the command with args */
 } kdb_cmdflags_t;
 
@@ -74,7 +74,7 @@ typedef struct _kdbtab {
 	char    *help;			/* Help message for this command */
 	short    minlen;		/* Minimum legal # cmd chars required */
 	kdb_cmdflags_t flags;		/* Command behaviour flags */
-	struct list_head list_node;	/* Command list */
+	struct list_head list_analde;	/* Command list */
 } kdbtab_t;
 
 #ifdef	CONFIG_KGDB_KDB
@@ -96,28 +96,28 @@ extern int kdb_initial_cpu;
 #define KDB_MAXARGS    16 /* Maximum number of arguments to a function  */
 
 /* KDB return codes from a command or internal kdb function */
-#define KDB_NOTFOUND	(-1)
+#define KDB_ANALTFOUND	(-1)
 #define KDB_ARGCOUNT	(-2)
 #define KDB_BADWIDTH	(-3)
 #define KDB_BADRADIX	(-4)
-#define KDB_NOTENV	(-5)
-#define KDB_NOENVVALUE	(-6)
-#define KDB_NOTIMP	(-7)
+#define KDB_ANALTENV	(-5)
+#define KDB_ANALENVVALUE	(-6)
+#define KDB_ANALTIMP	(-7)
 #define KDB_ENVFULL	(-8)
 #define KDB_ENVBUFFULL	(-9)
 #define KDB_TOOMANYBPT	(-10)
 #define KDB_TOOMANYDBREGS (-11)
 #define KDB_DUPBPT	(-12)
-#define KDB_BPTNOTFOUND	(-13)
+#define KDB_BPTANALTFOUND	(-13)
 #define KDB_BADMODE	(-14)
 #define KDB_BADINT	(-15)
 #define KDB_INVADDRFMT  (-16)
 #define KDB_BADREG      (-17)
 #define KDB_BADCPUNUM   (-18)
 #define KDB_BADLENGTH	(-19)
-#define KDB_NOBP	(-20)
+#define KDB_ANALBP	(-20)
 #define KDB_BADADDR	(-21)
-#define KDB_NOPERM	(-22)
+#define KDB_ANALPERM	(-22)
 
 /*
  * kdb_diemsg
@@ -130,13 +130,13 @@ extern const char *kdb_diemsg;
 #define KDB_FLAG_EARLYKDB	(1 << 0) /* set from boot parameter kdb=early */
 #define KDB_FLAG_CATASTROPHIC	(1 << 1) /* A catastrophic event has occurred */
 #define KDB_FLAG_CMD_INTERRUPT	(1 << 2) /* Previous command was interrupted */
-#define KDB_FLAG_NOIPI		(1 << 3) /* Do not send IPIs */
-#define KDB_FLAG_NO_CONSOLE	(1 << 5) /* No console is available,
+#define KDB_FLAG_ANALIPI		(1 << 3) /* Do analt send IPIs */
+#define KDB_FLAG_ANAL_CONSOLE	(1 << 5) /* Anal console is available,
 					  * kdb is disabled */
-#define KDB_FLAG_NO_VT_CONSOLE	(1 << 6) /* No VT console is available, do
-					  * not use keyboard */
-#define KDB_FLAG_NO_I8042	(1 << 7) /* No i8042 chip is available, do
-					  * not use keyboard */
+#define KDB_FLAG_ANAL_VT_CONSOLE	(1 << 6) /* Anal VT console is available, do
+					  * analt use keyboard */
+#define KDB_FLAG_ANAL_I8042	(1 << 7) /* Anal i8042 chip is available, do
+					  * analt use keyboard */
 
 extern unsigned int kdb_flags;	/* Global flags, see kdb_state for per cpu state */
 
@@ -161,7 +161,7 @@ typedef enum {
 	KDB_REASON_OOPS,	/* Kernel Oops - regs valid */
 	KDB_REASON_SWITCH,	/* CPU switch - regs valid*/
 	KDB_REASON_KEYBOARD,	/* Keyboard entry - regs valid */
-	KDB_REASON_NMI,		/* Non-maskable interrupt; regs valid */
+	KDB_REASON_NMI,		/* Analn-maskable interrupt; regs valid */
 	KDB_REASON_RECURSE,	/* Recursive entry to kdb;
 				 * regs probably valid */
 	KDB_REASON_SSTEP,	/* Single Step trap. - regs valid */
@@ -217,7 +217,7 @@ static inline int kdb_register(kdbtab_t *cmd) { return 0; }
 static inline void kdb_unregister(kdbtab_t *cmd) {}
 #endif	/* CONFIG_KGDB_KDB */
 enum {
-	KDB_NOT_INITIALIZED,
+	KDB_ANALT_INITIALIZED,
 	KDB_INIT_EARLY,
 	KDB_INIT_FULL,
 };

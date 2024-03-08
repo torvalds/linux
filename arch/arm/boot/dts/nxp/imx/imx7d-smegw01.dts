@@ -207,7 +207,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	wakeup-source;
 	keep-power-in-suspend;
 	status = "okay";
@@ -217,8 +217,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	vmmc-supply = <&reg_wifi>;
 	wakeup-source;
 	status = "okay";
@@ -234,7 +234,7 @@
 	max-frequency = <200000000>;
 	bus-width = <8>;
 	fsl,tuning-step = <1>;
-	non-removable;
+	analn-removable;
 	cap-mmc-highspeed;
 	cap-mmc-hw-reset;
 	mmc-hs200-1_8v;

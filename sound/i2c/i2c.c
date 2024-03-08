@@ -2,7 +2,7 @@
 /*
  *   Generic i2c interface for ALSA
  *
- *   (c) 1998 Gerd Knorr <kraxel@cs.tu-berlin.de>
+ *   (c) 1998 Gerd Kanalrr <kraxel@cs.tu-berlin.de>
  *   Modified for the ALSA driver by Jaroslav Kysela <perex@perex.cz>
  */
 
@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <sound/core.h>
 #include <sound/i2c.h>
 
@@ -74,7 +74,7 @@ int snd_i2c_bus_create(struct snd_card *card, const char *name,
 	*ri2c = NULL;
 	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&bus->lock_mutex);
 	INIT_LIST_HEAD(&bus->devices);
 	INIT_LIST_HEAD(&bus->buses);
@@ -106,7 +106,7 @@ int snd_i2c_device_create(struct snd_i2c_bus *bus, const char *name,
 		return -EINVAL;
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (device == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	device->addr = addr;
 	strscpy(device->name, name, sizeof(device->name));
 	list_add_tail(&device->list, &bus->devices);
@@ -265,7 +265,7 @@ static int snd_i2c_bit_sendbytes(struct snd_i2c_device *device,
 	int err, res = 0;
 
 	if (device->flags & SND_I2C_DEVICE_ADDRTEN)
-		return -EIO;		/* not yet implemented */
+		return -EIO;		/* analt yet implemented */
 	snd_i2c_bit_start(bus);
 	err = snd_i2c_bit_sendbyte(bus, device->addr << 1);
 	if (err < 0) {
@@ -291,7 +291,7 @@ static int snd_i2c_bit_readbytes(struct snd_i2c_device *device,
 	int err, res = 0;
 
 	if (device->flags & SND_I2C_DEVICE_ADDRTEN)
-		return -EIO;		/* not yet implemented */
+		return -EIO;		/* analt yet implemented */
 	snd_i2c_bit_start(bus);
 	err = snd_i2c_bit_sendbyte(bus, (device->addr << 1) | 1);
 	if (err < 0) {
@@ -316,7 +316,7 @@ static int snd_i2c_bit_probeaddr(struct snd_i2c_bus *bus, unsigned short addr)
 	int err;
 
 	if (addr & 0x8000)	/* 10-bit address */
-		return -EIO;	/* not yet implemented */
+		return -EIO;	/* analt yet implemented */
 	if (addr & 0x7f80)	/* invalid address */
 		return -EINVAL;
 	snd_i2c_bit_start(bus);

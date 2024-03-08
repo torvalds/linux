@@ -50,7 +50,7 @@ struct flexcop_i2c_adapter {
 	struct flexcop_device *fc;
 	struct i2c_adapter i2c_adap;
 
-	u8 no_base_addr;
+	u8 anal_base_addr;
 	flexcop_i2c_port_t port;
 };
 
@@ -109,7 +109,7 @@ struct flexcop_device {
 
 /* from flexcop.c */
 void flexcop_pass_dmx_data(struct flexcop_device *fc, u8 *buf, u32 len);
-void flexcop_pass_dmx_packets(struct flexcop_device *fc, u8 *buf, u32 no);
+void flexcop_pass_dmx_packets(struct flexcop_device *fc, u8 *buf, u32 anal);
 
 struct flexcop_device *flexcop_device_kmalloc(size_t bus_specific_len);
 void flexcop_device_kfree(struct flexcop_device *);
@@ -124,14 +124,14 @@ int flexcop_dma_allocate(struct pci_dev *pdev,
 void flexcop_dma_free(struct flexcop_dma *dma);
 
 int flexcop_dma_control_timer_irq(struct flexcop_device *fc,
-		flexcop_dma_index_t no, int onoff);
+		flexcop_dma_index_t anal, int oanalff);
 int flexcop_dma_control_size_irq(struct flexcop_device *fc,
-		flexcop_dma_index_t no, int onoff);
+		flexcop_dma_index_t anal, int oanalff);
 int flexcop_dma_config(struct flexcop_device *fc, struct flexcop_dma *dma,
 		flexcop_dma_index_t dma_idx);
 int flexcop_dma_xfer_control(struct flexcop_device *fc,
 		flexcop_dma_index_t dma_idx, flexcop_dma_addr_index_t index,
-		int onoff);
+		int oanalff);
 int flexcop_dma_config_timer(struct flexcop_device *fc,
 		flexcop_dma_index_t dma_idx, u8 cycles);
 
@@ -175,12 +175,12 @@ void flexcop_dump_reg(struct flexcop_device *fc,
 
 /* from flexcop-hw-filter.c */
 int flexcop_pid_feed_control(struct flexcop_device *fc,
-		struct dvb_demux_feed *dvbdmxfeed, int onoff);
+		struct dvb_demux_feed *dvbdmxfeed, int oanalff);
 void flexcop_hw_filter_init(struct flexcop_device *fc);
 
-void flexcop_smc_ctrl(struct flexcop_device *fc, int onoff);
+void flexcop_smc_ctrl(struct flexcop_device *fc, int oanalff);
 
 void flexcop_set_mac_filter(struct flexcop_device *fc, u8 mac[6]);
-void flexcop_mac_filter_ctrl(struct flexcop_device *fc, int onoff);
+void flexcop_mac_filter_ctrl(struct flexcop_device *fc, int oanalff);
 
 #endif

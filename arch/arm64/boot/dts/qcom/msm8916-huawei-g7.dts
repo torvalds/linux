@@ -13,7 +13,7 @@
 #include <dt-bindings/sound/apq8016-lpass.h>
 
 /*
- * Note: The original firmware from Huawei can only boot 32-bit kernels.
+ * Analte: The original firmware from Huawei can only boot 32-bit kernels.
  * To boot this device tree using arm64 it is necessary to flash 64-bit TZ/HYP
  * firmware (e.g. taken from the DragonBoard 410c).
  * See https://wiki.postmarketos.org/wiki/Huawei_Ascend_G7_(huawei-g7)
@@ -184,7 +184,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>; /* Allow sleeping */
+			syna,analsleep-mode = <1>; /* Allow sleeping */
 		};
 
 		rmi4-f11@11 {
@@ -229,7 +229,7 @@
 	qcom,micbias-lvl = <2800>;
 	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
 	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
-	qcom,hphl-jack-type-normally-open;
+	qcom,hphl-jack-type-analrmally-open;
 };
 
 &pm8916_l8 {
@@ -271,13 +271,13 @@
 
 	/*
 	 * The Huawei device tree sets cd-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>.
-	 * However, gpio38 does not change its state when inserting/removing the
+	 * However, gpio38 does analt change its state when inserting/removing the
 	 * SD card, it's just low all the time. The Huawei kernel seems to use
 	 * polling for SD card detection instead.
 	 *
 	 * However, looking closer at the GPIO debug output it turns out that
 	 * gpio56 switches its state when inserting/removing the SD card.
-	 * It behaves just like gpio38 normally does. Usually GPIO56 is used as
+	 * It behaves just like gpio38 analrmally does. Usually GPIO56 is used as
 	 * "UIM2_PRESENT", i.e. to check if a second SIM card is inserted.
 	 * Maybe Huawei decided to replace the second SIM card slot with the
 	 * SD card slot and forgot to re-route to gpio38.

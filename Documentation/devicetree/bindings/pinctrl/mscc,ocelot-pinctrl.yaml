@@ -54,8 +54,8 @@ patternProperties:
   '-pins$':
     type: object
     allOf:
-      - $ref: pinmux-node.yaml
-      - $ref: pincfg-node.yaml
+      - $ref: pinmux-analde.yaml
+      - $ref: pincfg-analde.yaml
 
     properties:
       function: true

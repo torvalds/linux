@@ -260,7 +260,7 @@ static u32 ljca_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_adapter_quirks ljca_i2c_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 	.max_read_len = LJCA_I2C_MAX_XFER_SIZE,
 	.max_write_len = LJCA_I2C_MAX_XFER_SIZE,
 };
@@ -279,7 +279,7 @@ static int ljca_i2c_probe(struct auxiliary_device *auxdev,
 
 	ljca_i2c = devm_kzalloc(&auxdev->dev, sizeof(*ljca_i2c), GFP_KERNEL);
 	if (!ljca_i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ljca_i2c->ljca = ljca;
 	ljca_i2c->i2c_info = dev_get_platdata(&auxdev->dev);
@@ -294,7 +294,7 @@ static int ljca_i2c_probe(struct auxiliary_device *auxdev,
 		 dev_name(&auxdev->dev), dev_name(auxdev->dev.parent),
 		 ljca_i2c->i2c_info->id);
 
-	device_set_node(&ljca_i2c->adap.dev, dev_fwnode(&auxdev->dev));
+	device_set_analde(&ljca_i2c->adap.dev, dev_fwanalde(&auxdev->dev));
 
 	i2c_set_adapdata(&ljca_i2c->adap, ljca_i2c);
 	auxiliary_set_drvdata(auxdev, ljca_i2c);

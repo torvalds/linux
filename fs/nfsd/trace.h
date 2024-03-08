@@ -17,7 +17,7 @@
 #include "xdr4.h"
 
 #define NFSD_TRACE_PROC_RES_FIELDS \
-		__field(unsigned int, netns_ino) \
+		__field(unsigned int, netns_ianal) \
 		__field(u32, xid) \
 		__field(unsigned long, status) \
 		__array(unsigned char, server, sizeof(struct sockaddr_in6)) \
@@ -25,7 +25,7 @@
 
 #define NFSD_TRACE_PROC_RES_ASSIGNMENTS(error) \
 		do { \
-			__entry->netns_ino = SVC_NET(rqstp)->ns.inum; \
+			__entry->netns_ianal = SVC_NET(rqstp)->ns.inum; \
 			__entry->xid = be32_to_cpu(rqstp->rq_xid); \
 			__entry->status = be32_to_cpu(error); \
 			memcpy(__entry->server, &rqstp->rq_xprt->xpt_local, \
@@ -40,7 +40,7 @@ DECLARE_EVENT_CLASS(nfsd_xdr_err_class,
 	),
 	TP_ARGS(rqstp),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(u32, xid)
 		__field(u32, vers)
 		__field(u32, proc)
@@ -50,7 +50,7 @@ DECLARE_EVENT_CLASS(nfsd_xdr_err_class,
 	TP_fast_assign(
 		const struct svc_xprt *xprt = rqstp->rq_xprt;
 
-		__entry->netns_ino = xprt->xpt_net->ns.inum;
+		__entry->netns_ianal = xprt->xpt_net->ns.inum;
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
 		__entry->vers = rqstp->rq_vers;
 		__entry->proc = rqstp->rq_proc;
@@ -81,7 +81,7 @@ DEFINE_NFSD_XDR_ERR_EVENT(cant_encode);
 		{ NFSD_MAY_OWNER_OVERRIDE,	"OWNER_OVERRIDE" },	\
 		{ NFSD_MAY_LOCAL_ACCESS,	"LOCAL_ACCESS" },	\
 		{ NFSD_MAY_BYPASS_GSS_ON_ROOT,	"BYPASS_GSS_ON_ROOT" },	\
-		{ NFSD_MAY_NOT_BREAK_LEASE,	"NOT_BREAK_LEASE" },	\
+		{ NFSD_MAY_ANALT_BREAK_LEASE,	"ANALT_BREAK_LEASE" },	\
 		{ NFSD_MAY_BYPASS_GSS,		"BYPASS_GSS" },		\
 		{ NFSD_MAY_READ_IF_EXEC,	"READ_IF_EXEC" },	\
 		{ NFSD_MAY_64BIT_COOKIE,	"64BIT_COOKIE" })
@@ -200,24 +200,24 @@ TRACE_EVENT(nfsd_fh_verify,
 	),
 	TP_ARGS(rqstp, fhp, type, access),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__sockaddr(server, rqstp->rq_xprt->xpt_remotelen)
 		__sockaddr(client, rqstp->rq_xprt->xpt_remotelen)
 		__field(u32, xid)
 		__field(u32, fh_hash)
-		__field(const void *, inode)
+		__field(const void *, ianalde)
 		__field(unsigned long, type)
 		__field(unsigned long, access)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = SVC_NET(rqstp)->ns.inum;
+		__entry->netns_ianal = SVC_NET(rqstp)->ns.inum;
 		__assign_sockaddr(server, &rqstp->rq_xprt->xpt_local,
 		       rqstp->rq_xprt->xpt_locallen);
 		__assign_sockaddr(client, &rqstp->rq_xprt->xpt_remote,
 				  rqstp->rq_xprt->xpt_remotelen);
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
 		__entry->fh_hash = knfsd_fh_hash(&fhp->fh_handle);
-		__entry->inode = d_inode(fhp->fh_dentry);
+		__entry->ianalde = d_ianalde(fhp->fh_dentry);
 		__entry->type = type;
 		__entry->access = access;
 	),
@@ -239,18 +239,18 @@ TRACE_EVENT_CONDITION(nfsd_fh_verify_err,
 	TP_ARGS(rqstp, fhp, type, access, error),
 	TP_CONDITION(error),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__sockaddr(server, rqstp->rq_xprt->xpt_remotelen)
 		__sockaddr(client, rqstp->rq_xprt->xpt_remotelen)
 		__field(u32, xid)
 		__field(u32, fh_hash)
-		__field(const void *, inode)
+		__field(const void *, ianalde)
 		__field(unsigned long, type)
 		__field(unsigned long, access)
 		__field(int, error)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = SVC_NET(rqstp)->ns.inum;
+		__entry->netns_ianal = SVC_NET(rqstp)->ns.inum;
 		__assign_sockaddr(server, &rqstp->rq_xprt->xpt_local,
 		       rqstp->rq_xprt->xpt_locallen);
 		__assign_sockaddr(client, &rqstp->rq_xprt->xpt_remote,
@@ -258,9 +258,9 @@ TRACE_EVENT_CONDITION(nfsd_fh_verify_err,
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
 		__entry->fh_hash = knfsd_fh_hash(&fhp->fh_handle);
 		if (fhp->fh_dentry)
-			__entry->inode = d_inode(fhp->fh_dentry);
+			__entry->ianalde = d_ianalde(fhp->fh_dentry);
 		else
-			__entry->inode = NULL;
+			__entry->ianalde = NULL;
 		__entry->type = type;
 		__entry->access = access;
 		__entry->error = be32_to_cpu(error);
@@ -471,22 +471,22 @@ DEFINE_NFSD_ERR_EVENT(write_err);
 
 TRACE_EVENT(nfsd_dirent,
 	TP_PROTO(struct svc_fh *fhp,
-		 u64 ino,
+		 u64 ianal,
 		 const char *name,
 		 int namlen),
-	TP_ARGS(fhp, ino, name, namlen),
+	TP_ARGS(fhp, ianal, name, namlen),
 	TP_STRUCT__entry(
 		__field(u32, fh_hash)
-		__field(u64, ino)
+		__field(u64, ianal)
 		__string_len(name, name, namlen)
 	),
 	TP_fast_assign(
 		__entry->fh_hash = fhp ? knfsd_fh_hash(&fhp->fh_handle) : 0;
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__assign_str_len(name, name, namlen)
 	),
-	TP_printk("fh_hash=0x%08x ino=%llu name=%s",
-		__entry->fh_hash, __entry->ino, __get_str(name)
+	TP_printk("fh_hash=0x%08x ianal=%llu name=%s",
+		__entry->fh_hash, __entry->ianal, __get_str(name)
 	)
 )
 
@@ -547,22 +547,22 @@ DEFINE_NFSD_COPY_ERR_EVENT(clone_file_range_err);
 TRACE_EVENT(nfsd_delegret_wakeup,
 	TP_PROTO(
 		const struct svc_rqst *rqstp,
-		const struct inode *inode,
+		const struct ianalde *ianalde,
 		long timeo
 	),
-	TP_ARGS(rqstp, inode, timeo),
+	TP_ARGS(rqstp, ianalde, timeo),
 	TP_STRUCT__entry(
 		__field(u32, xid)
-		__field(const void *, inode)
+		__field(const void *, ianalde)
 		__field(long, timeo)
 	),
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->timeo = timeo;
 	),
-	TP_printk("xid=0x%08x inode=%p%s",
-		  __entry->xid, __entry->inode,
+	TP_printk("xid=0x%08x ianalde=%p%s",
+		  __entry->xid, __entry->ianalde,
 		  __entry->timeo == 0 ? " (timed out)" : ""
 	)
 );
@@ -884,21 +884,21 @@ DECLARE_EVENT_CLASS(nfsd_file_class,
 	TP_PROTO(struct nfsd_file *nf),
 	TP_ARGS(nf),
 	TP_STRUCT__entry(
-		__field(void *, nf_inode)
+		__field(void *, nf_ianalde)
 		__field(int, nf_ref)
 		__field(unsigned long, nf_flags)
 		__field(unsigned char, nf_may)
 		__field(struct file *, nf_file)
 	),
 	TP_fast_assign(
-		__entry->nf_inode = nf->nf_inode;
+		__entry->nf_ianalde = nf->nf_ianalde;
 		__entry->nf_ref = refcount_read(&nf->nf_ref);
 		__entry->nf_flags = nf->nf_flags;
 		__entry->nf_may = nf->nf_may;
 		__entry->nf_file = nf->nf_file;
 	),
-	TP_printk("inode=%p ref=%d flags=%s may=%s nf_file=%p",
-		__entry->nf_inode,
+	TP_printk("ianalde=%p ref=%d flags=%s may=%s nf_file=%p",
+		__entry->nf_ianalde,
 		__entry->nf_ref,
 		show_nf_flags(__entry->nf_flags),
 		show_nfsd_may_flags(__entry->nf_may),
@@ -922,19 +922,19 @@ TRACE_EVENT(nfsd_file_alloc,
 	),
 	TP_ARGS(nf),
 	TP_STRUCT__entry(
-		__field(const void *, nf_inode)
+		__field(const void *, nf_ianalde)
 		__field(unsigned long, nf_flags)
 		__field(unsigned long, nf_may)
 		__field(unsigned int, nf_ref)
 	),
 	TP_fast_assign(
-		__entry->nf_inode = nf->nf_inode;
+		__entry->nf_ianalde = nf->nf_ianalde;
 		__entry->nf_flags = nf->nf_flags;
 		__entry->nf_ref = refcount_read(&nf->nf_ref);
 		__entry->nf_may = nf->nf_may;
 	),
-	TP_printk("inode=%p ref=%u flags=%s may=%s",
-		__entry->nf_inode, __entry->nf_ref,
+	TP_printk("ianalde=%p ref=%u flags=%s may=%s",
+		__entry->nf_ianalde, __entry->nf_ref,
 		show_nf_flags(__entry->nf_flags),
 		show_nfsd_may_flags(__entry->nf_may)
 	)
@@ -943,17 +943,17 @@ TRACE_EVENT(nfsd_file_alloc,
 TRACE_EVENT(nfsd_file_acquire,
 	TP_PROTO(
 		const struct svc_rqst *rqstp,
-		const struct inode *inode,
+		const struct ianalde *ianalde,
 		unsigned int may_flags,
 		const struct nfsd_file *nf,
 		__be32 status
 	),
 
-	TP_ARGS(rqstp, inode, may_flags, nf, status),
+	TP_ARGS(rqstp, ianalde, may_flags, nf, status),
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
-		__field(const void *, inode)
+		__field(const void *, ianalde)
 		__field(unsigned long, may_flags)
 		__field(unsigned int, nf_ref)
 		__field(unsigned long, nf_flags)
@@ -964,7 +964,7 @@ TRACE_EVENT(nfsd_file_acquire,
 
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->may_flags = may_flags;
 		__entry->nf_ref = nf ? refcount_read(&nf->nf_ref) : 0;
 		__entry->nf_flags = nf ? nf->nf_flags : 0;
@@ -973,8 +973,8 @@ TRACE_EVENT(nfsd_file_acquire,
 		__entry->status = be32_to_cpu(status);
 	),
 
-	TP_printk("xid=0x%x inode=%p may_flags=%s ref=%u nf_flags=%s nf_may=%s nf_file=%p status=%u",
-			__entry->xid, __entry->inode,
+	TP_printk("xid=0x%x ianalde=%p may_flags=%s ref=%u nf_flags=%s nf_may=%s nf_file=%p status=%u",
+			__entry->xid, __entry->ianalde,
 			show_nfsd_may_flags(__entry->may_flags),
 			__entry->nf_ref, show_nf_flags(__entry->nf_flags),
 			show_nfsd_may_flags(__entry->nf_may),
@@ -985,25 +985,25 @@ TRACE_EVENT(nfsd_file_acquire,
 TRACE_EVENT(nfsd_file_insert_err,
 	TP_PROTO(
 		const struct svc_rqst *rqstp,
-		const struct inode *inode,
+		const struct ianalde *ianalde,
 		unsigned int may_flags,
 		long error
 	),
-	TP_ARGS(rqstp, inode, may_flags, error),
+	TP_ARGS(rqstp, ianalde, may_flags, error),
 	TP_STRUCT__entry(
 		__field(u32, xid)
-		__field(const void *, inode)
+		__field(const void *, ianalde)
 		__field(unsigned long, may_flags)
 		__field(long, error)
 	),
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->may_flags = may_flags;
 		__entry->error = error;
 	),
-	TP_printk("xid=0x%x inode=%p may_flags=%s error=%ld",
-		__entry->xid, __entry->inode,
+	TP_printk("xid=0x%x ianalde=%p may_flags=%s error=%ld",
+		__entry->xid, __entry->ianalde,
 		show_nfsd_may_flags(__entry->may_flags),
 		__entry->error
 	)
@@ -1012,14 +1012,14 @@ TRACE_EVENT(nfsd_file_insert_err,
 TRACE_EVENT(nfsd_file_cons_err,
 	TP_PROTO(
 		const struct svc_rqst *rqstp,
-		const struct inode *inode,
+		const struct ianalde *ianalde,
 		unsigned int may_flags,
 		const struct nfsd_file *nf
 	),
-	TP_ARGS(rqstp, inode, may_flags, nf),
+	TP_ARGS(rqstp, ianalde, may_flags, nf),
 	TP_STRUCT__entry(
 		__field(u32, xid)
-		__field(const void *, inode)
+		__field(const void *, ianalde)
 		__field(unsigned long, may_flags)
 		__field(unsigned int, nf_ref)
 		__field(unsigned long, nf_flags)
@@ -1028,15 +1028,15 @@ TRACE_EVENT(nfsd_file_cons_err,
 	),
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->may_flags = may_flags;
 		__entry->nf_ref = refcount_read(&nf->nf_ref);
 		__entry->nf_flags = nf->nf_flags;
 		__entry->nf_may = nf->nf_may;
 		__entry->nf_file = nf->nf_file;
 	),
-	TP_printk("xid=0x%x inode=%p may_flags=%s ref=%u nf_flags=%s nf_may=%s nf_file=%p",
-		__entry->xid, __entry->inode,
+	TP_printk("xid=0x%x ianalde=%p may_flags=%s ref=%u nf_flags=%s nf_may=%s nf_file=%p",
+		__entry->xid, __entry->ianalde,
 		show_nfsd_may_flags(__entry->may_flags), __entry->nf_ref,
 		show_nf_flags(__entry->nf_flags),
 		show_nfsd_may_flags(__entry->nf_may), __entry->nf_file
@@ -1047,21 +1047,21 @@ DECLARE_EVENT_CLASS(nfsd_file_open_class,
 	TP_PROTO(const struct nfsd_file *nf, __be32 status),
 	TP_ARGS(nf, status),
 	TP_STRUCT__entry(
-		__field(void *, nf_inode)	/* cannot be dereferenced */
+		__field(void *, nf_ianalde)	/* cananalt be dereferenced */
 		__field(int, nf_ref)
 		__field(unsigned long, nf_flags)
 		__field(unsigned long, nf_may)
-		__field(void *, nf_file)	/* cannot be dereferenced */
+		__field(void *, nf_file)	/* cananalt be dereferenced */
 	),
 	TP_fast_assign(
-		__entry->nf_inode = nf->nf_inode;
+		__entry->nf_ianalde = nf->nf_ianalde;
 		__entry->nf_ref = refcount_read(&nf->nf_ref);
 		__entry->nf_flags = nf->nf_flags;
 		__entry->nf_may = nf->nf_may;
 		__entry->nf_file = nf->nf_file;
 	),
-	TP_printk("inode=%p ref=%d flags=%s may=%s file=%p",
-		__entry->nf_inode,
+	TP_printk("ianalde=%p ref=%d flags=%s may=%s file=%p",
+		__entry->nf_ianalde,
 		__entry->nf_ref,
 		show_nf_flags(__entry->nf_flags),
 		show_nfsd_may_flags(__entry->nf_may),
@@ -1081,40 +1081,40 @@ DEFINE_NFSD_FILE_OPEN_EVENT(nfsd_file_opened);
 
 TRACE_EVENT(nfsd_file_is_cached,
 	TP_PROTO(
-		const struct inode *inode,
+		const struct ianalde *ianalde,
 		int found
 	),
-	TP_ARGS(inode, found),
+	TP_ARGS(ianalde, found),
 	TP_STRUCT__entry(
-		__field(const struct inode *, inode)
+		__field(const struct ianalde *, ianalde)
 		__field(int, found)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 		__entry->found = found;
 	),
-	TP_printk("inode=%p is %scached",
-		__entry->inode,
-		__entry->found ? "" : "not "
+	TP_printk("ianalde=%p is %scached",
+		__entry->ianalde,
+		__entry->found ? "" : "analt "
 	)
 );
 
-TRACE_EVENT(nfsd_file_fsnotify_handle_event,
-	TP_PROTO(struct inode *inode, u32 mask),
-	TP_ARGS(inode, mask),
+TRACE_EVENT(nfsd_file_fsanaltify_handle_event,
+	TP_PROTO(struct ianalde *ianalde, u32 mask),
+	TP_ARGS(ianalde, mask),
 	TP_STRUCT__entry(
-		__field(struct inode *, inode)
+		__field(struct ianalde *, ianalde)
 		__field(unsigned int, nlink)
 		__field(umode_t, mode)
 		__field(u32, mask)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
-		__entry->nlink = inode->i_nlink;
-		__entry->mode = inode->i_mode;
+		__entry->ianalde = ianalde;
+		__entry->nlink = ianalde->i_nlink;
+		__entry->mode = ianalde->i_mode;
 		__entry->mask = mask;
 	),
-	TP_printk("inode=%p nlink=%u mode=0%ho mask=0x%x", __entry->inode,
+	TP_printk("ianalde=%p nlink=%u mode=0%ho mask=0x%x", __entry->ianalde,
 			__entry->nlink, __entry->mode, __entry->mask)
 );
 
@@ -1124,19 +1124,19 @@ DECLARE_EVENT_CLASS(nfsd_file_gc_class,
 	),
 	TP_ARGS(nf),
 	TP_STRUCT__entry(
-		__field(void *, nf_inode)
+		__field(void *, nf_ianalde)
 		__field(void *, nf_file)
 		__field(int, nf_ref)
 		__field(unsigned long, nf_flags)
 	),
 	TP_fast_assign(
-		__entry->nf_inode = nf->nf_inode;
+		__entry->nf_ianalde = nf->nf_ianalde;
 		__entry->nf_file = nf->nf_file;
 		__entry->nf_ref = refcount_read(&nf->nf_ref);
 		__entry->nf_flags = nf->nf_flags;
 	),
-	TP_printk("inode=%p ref=%d nf_flags=%s nf_file=%p",
-		__entry->nf_inode, __entry->nf_ref,
+	TP_printk("ianalde=%p ref=%d nf_flags=%s nf_file=%p",
+		__entry->nf_ianalde, __entry->nf_ref,
 		show_nf_flags(__entry->nf_flags),
 		__entry->nf_file
 	)
@@ -1189,17 +1189,17 @@ DEFINE_NFSD_FILE_LRUWALK_EVENT(nfsd_file_shrinker_removed);
 
 TRACE_EVENT(nfsd_file_close,
 	TP_PROTO(
-		const struct inode *inode
+		const struct ianalde *ianalde
 	),
-	TP_ARGS(inode),
+	TP_ARGS(ianalde),
 	TP_STRUCT__entry(
-		__field(const void *, inode)
+		__field(const void *, ianalde)
 	),
 	TP_fast_assign(
-		__entry->inode = inode;
+		__entry->ianalde = ianalde;
 	),
-	TP_printk("inode=%p",
-		__entry->inode
+	TP_printk("ianalde=%p",
+		__entry->ianalde
 	)
 );
 
@@ -1287,7 +1287,7 @@ TRACE_EVENT(nfsd_cb_args,
 		__entry->prog, __entry->ident)
 );
 
-TRACE_EVENT(nfsd_cb_nodelegs,
+TRACE_EVENT(nfsd_cb_analdelegs,
 	TP_PROTO(const struct nfs4_client *clp),
 	TP_ARGS(clp),
 	TP_STRUCT__entry(
@@ -1304,7 +1304,7 @@ TRACE_EVENT(nfsd_cb_nodelegs,
 #define show_cb_state(val)						\
 	__print_symbolic(val,						\
 		{ NFSD4_CB_UP,		"UP" },				\
-		{ NFSD4_CB_UNKNOWN,	"UNKNOWN" },			\
+		{ NFSD4_CB_UNKANALWN,	"UNKANALWN" },			\
 		{ NFSD4_CB_DOWN,	"DOWN" },			\
 		{ NFSD4_CB_FAULT,	"FAULT"})
 
@@ -1348,7 +1348,7 @@ TRACE_DEFINE_ENUM(RPC_AUTH_GSS_KRB5P);
 
 #define show_nfsd_authflavor(val)					\
 	__print_symbolic(val,						\
-		{ RPC_AUTH_NULL,		"none" },		\
+		{ RPC_AUTH_NULL,		"analne" },		\
 		{ RPC_AUTH_UNIX,		"sys" },		\
 		{ RPC_AUTH_GSS,			"gss" },		\
 		{ RPC_AUTH_GSS_KRB5,		"krb5" },		\
@@ -1434,7 +1434,7 @@ TRACE_EVENT_CONDITION(nfsd_cb_recall,
 		__entry->si_id, __entry->si_generation)
 );
 
-TRACE_EVENT(nfsd_cb_notify_lock,
+TRACE_EVENT(nfsd_cb_analtify_lock,
 	TP_PROTO(
 		const struct nfs4_lockowner *lo,
 		const struct nfsd4_blocked_lock *nbl
@@ -1557,7 +1557,7 @@ DEFINE_EVENT(nfsd_cb_done_class, name,			\
 	TP_ARGS(stp, task))
 
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_recall_done);
-DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_notify_lock_done);
+DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_analtify_lock_done);
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_layout_done);
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_offload_done);
 
@@ -1589,11 +1589,11 @@ TRACE_EVENT(nfsd_ctl_unlock_ip,
 	),
 	TP_ARGS(net, address),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__string(address, address)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__assign_str(address, address);
 	),
 	TP_printk("address=%s",
@@ -1608,11 +1608,11 @@ TRACE_EVENT(nfsd_ctl_unlock_fs,
 	),
 	TP_ARGS(net, path),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__string(path, path)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__assign_str(path, path);
 	),
 	TP_printk("path=%s",
@@ -1629,13 +1629,13 @@ TRACE_EVENT(nfsd_ctl_filehandle,
 	),
 	TP_ARGS(net, domain, path, maxsize),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(int, maxsize)
 		__string(domain, domain)
 		__string(path, path)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__entry->maxsize = maxsize;
 		__assign_str(domain, domain);
 		__assign_str(path, path);
@@ -1652,11 +1652,11 @@ TRACE_EVENT(nfsd_ctl_threads,
 	),
 	TP_ARGS(net, newthreads),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(int, newthreads)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__entry->newthreads = newthreads;
 	),
 	TP_printk("newthreads=%d",
@@ -1672,12 +1672,12 @@ TRACE_EVENT(nfsd_ctl_pool_threads,
 	),
 	TP_ARGS(net, pool, nrthreads),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(int, pool)
 		__field(int, nrthreads)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__entry->pool = pool;
 		__entry->nrthreads = nrthreads;
 	),
@@ -1693,11 +1693,11 @@ TRACE_EVENT(nfsd_ctl_version,
 	),
 	TP_ARGS(net, mesg),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__string(mesg, mesg)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__assign_str(mesg, mesg);
 	),
 	TP_printk("%s",
@@ -1712,11 +1712,11 @@ TRACE_EVENT(nfsd_ctl_ports_addfd,
 	),
 	TP_ARGS(net, fd),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(int, fd)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__entry->fd = fd;
 	),
 	TP_printk("fd=%d",
@@ -1732,12 +1732,12 @@ TRACE_EVENT(nfsd_ctl_ports_addxprt,
 	),
 	TP_ARGS(net, transport, port),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(int, port)
 		__string(transport, transport)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__entry->port = port;
 		__assign_str(transport, transport);
 	),
@@ -1753,11 +1753,11 @@ TRACE_EVENT(nfsd_ctl_maxblksize,
 	),
 	TP_ARGS(net, bsize),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(int, bsize)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__entry->bsize = bsize;
 	),
 	TP_printk("bsize=%d",
@@ -1772,11 +1772,11 @@ TRACE_EVENT(nfsd_ctl_maxconn,
 	),
 	TP_ARGS(net, maxconn),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(int, maxconn)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__entry->maxconn = maxconn;
 	),
 	TP_printk("maxconn=%d",
@@ -1793,12 +1793,12 @@ TRACE_EVENT(nfsd_ctl_time,
 	),
 	TP_ARGS(net, name, namelen, time),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(int, time)
 		__string_len(name, name, namelen)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__entry->time = time;
 		__assign_str_len(name, name, namelen);
 	),
@@ -1814,11 +1814,11 @@ TRACE_EVENT(nfsd_ctl_recoverydir,
 	),
 	TP_ARGS(net, recdir),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__string(recdir, recdir)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 		__assign_str(recdir, recdir);
 	),
 	TP_printk("recdir=%s",
@@ -1832,12 +1832,12 @@ TRACE_EVENT(nfsd_end_grace,
 	),
 	TP_ARGS(net),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 	),
 	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 	),
-	TP_printk("nn=%d", __entry->netns_ino
+	TP_printk("nn=%d", __entry->netns_ianal
 	)
 );
 
@@ -1867,7 +1867,7 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 		const stateid_t *dst_stp = &copy->cp_dst_stateid;
 
 		__entry->intra = test_bit(NFSD4_COPY_F_INTRA, &copy->cp_flags);
-		__entry->async = !test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+		__entry->async = !test_bit(NFSD4_COPY_F_SYNCHROANALUS, &copy->cp_flags);
 		__entry->src_cl_boot = src_stp->si_opaque.so_clid.cl_boot;
 		__entry->src_cl_id = src_stp->si_opaque.so_clid.cl_id;
 		__entry->src_so_id = src_stp->si_opaque.so_id;
@@ -1919,7 +1919,7 @@ TRACE_EVENT(nfsd_copy_done,
 	TP_fast_assign(
 		__entry->status = be32_to_cpu(status);
 		__entry->intra = test_bit(NFSD4_COPY_F_INTRA, &copy->cp_flags);
-		__entry->async = !test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+		__entry->async = !test_bit(NFSD4_COPY_F_SYNCHROANALUS, &copy->cp_flags);
 		__assign_sockaddr(addr, &copy->cp_clp->cl_addr,
 				sizeof(struct sockaddr_in6));
 	),

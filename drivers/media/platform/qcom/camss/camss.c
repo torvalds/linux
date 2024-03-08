@@ -25,12 +25,12 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mc.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "camss.h"
 
 #define CAMSS_CLOCK_MARGIN_NUMERATOR 105
-#define CAMSS_CLOCK_MARGIN_DENOMINATOR 100
+#define CAMSS_CLOCK_MARGIN_DEANALMINATOR 100
 
 static const struct camss_subdev_resources csiphy_res_8x16[] = {
 	/* CSIPHY0 */
@@ -503,7 +503,7 @@ static const struct camss_subdev_resources csiphy_res_845[] = {
 	/* CSIPHY0 */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi", "soc_ahb", "slow_ahb_src",
+		.clock = { "camanalc_axi", "soc_ahb", "slow_ahb_src",
 				"cpas_ahb", "cphy_rx_src", "csiphy0",
 				"csiphy0_timer_src", "csiphy0_timer" },
 		.clock_rate = { { 0 },
@@ -522,7 +522,7 @@ static const struct camss_subdev_resources csiphy_res_845[] = {
 	/* CSIPHY1 */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi", "soc_ahb", "slow_ahb_src",
+		.clock = { "camanalc_axi", "soc_ahb", "slow_ahb_src",
 				"cpas_ahb", "cphy_rx_src", "csiphy1",
 				"csiphy1_timer_src", "csiphy1_timer" },
 		.clock_rate = { { 0 },
@@ -541,7 +541,7 @@ static const struct camss_subdev_resources csiphy_res_845[] = {
 	/* CSIPHY2 */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi", "soc_ahb", "slow_ahb_src",
+		.clock = { "camanalc_axi", "soc_ahb", "slow_ahb_src",
 				"cpas_ahb", "cphy_rx_src", "csiphy2",
 				"csiphy2_timer_src", "csiphy2_timer" },
 		.clock_rate = { { 0 },
@@ -560,7 +560,7 @@ static const struct camss_subdev_resources csiphy_res_845[] = {
 	/* CSIPHY3 */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi", "soc_ahb", "slow_ahb_src",
+		.clock = { "camanalc_axi", "soc_ahb", "slow_ahb_src",
 				"cpas_ahb", "cphy_rx_src", "csiphy3",
 				"csiphy3_timer_src", "csiphy3_timer" },
 		.clock_rate = { { 0 },
@@ -647,7 +647,7 @@ static const struct camss_subdev_resources vfe_res_845[] = {
 	/* VFE0 */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi", "cpas_ahb", "slow_ahb_src",
+		.clock = { "camanalc_axi", "cpas_ahb", "slow_ahb_src",
 				"soc_ahb", "vfe0", "vfe0_axi",
 				"vfe0_src", "csi0",
 				"csi0_src"},
@@ -670,7 +670,7 @@ static const struct camss_subdev_resources vfe_res_845[] = {
 	/* VFE1 */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi", "cpas_ahb", "slow_ahb_src",
+		.clock = { "camanalc_axi", "cpas_ahb", "slow_ahb_src",
 				"soc_ahb", "vfe1", "vfe1_axi",
 				"vfe1_src", "csi1",
 				"csi1_src"},
@@ -693,7 +693,7 @@ static const struct camss_subdev_resources vfe_res_845[] = {
 	/* VFE-lite */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi", "cpas_ahb", "slow_ahb_src",
+		.clock = { "camanalc_axi", "cpas_ahb", "slow_ahb_src",
 				"soc_ahb", "vfe_lite",
 				"vfe_lite_src", "csi2",
 				"csi2_src"},
@@ -835,8 +835,8 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 	/* VFE0 */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi_src", "slow_ahb_src", "cpas_ahb",
-			   "camnoc_axi", "vfe0_ahb", "vfe0_areg", "vfe0",
+		.clock = { "camanalc_axi_src", "slow_ahb_src", "cpas_ahb",
+			   "camanalc_axi", "vfe0_ahb", "vfe0_areg", "vfe0",
 			   "vfe0_axi", "cam_hf_axi" },
 		.clock_rate = { { 19200000, 300000000, 400000000, 480000000 },
 				{ 19200000, 80000000 },
@@ -857,8 +857,8 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 	/* VFE1 */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi_src", "slow_ahb_src", "cpas_ahb",
-			   "camnoc_axi", "vfe1_ahb", "vfe1_areg", "vfe1",
+		.clock = { "camanalc_axi_src", "slow_ahb_src", "cpas_ahb",
+			   "camanalc_axi", "vfe1_ahb", "vfe1_areg", "vfe1",
 			   "vfe1_axi", "cam_hf_axi" },
 		.clock_rate = { { 19200000, 300000000, 400000000, 480000000 },
 				{ 19200000, 80000000 },
@@ -879,8 +879,8 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 	/* VFE2 (lite) */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi_src", "slow_ahb_src", "cpas_ahb",
-			   "camnoc_axi", "vfe_lite_ahb", "vfe_lite_axi",
+		.clock = { "camanalc_axi_src", "slow_ahb_src", "cpas_ahb",
+			   "camanalc_axi", "vfe_lite_ahb", "vfe_lite_axi",
 			   "vfe_lite", "cam_hf_axi" },
 		.clock_rate = { { 19200000, 300000000, 400000000, 480000000 },
 				{ 19200000, 80000000 },
@@ -899,8 +899,8 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 	/* VFE3 (lite) */
 	{
 		.regulators = {},
-		.clock = { "camnoc_axi_src", "slow_ahb_src", "cpas_ahb",
-			   "camnoc_axi", "vfe_lite_ahb", "vfe_lite_axi",
+		.clock = { "camanalc_axi_src", "slow_ahb_src", "cpas_ahb",
+			   "camanalc_axi", "vfe_lite_ahb", "vfe_lite_axi",
 			   "vfe_lite", "cam_hf_axi" },
 		.clock_rate = { { 19200000, 300000000, 400000000, 480000000 },
 				{ 19200000, 80000000 },
@@ -925,17 +925,17 @@ static const struct resources_icc icc_res_sm8250[] = {
 		.icc_bw_tbl.peak = 76800,
 	},
 	{
-		.name = "cam_hf_0_mnoc",
+		.name = "cam_hf_0_manalc",
 		.icc_bw_tbl.avg = 2097152,
 		.icc_bw_tbl.peak = 2097152,
 	},
 	{
-		.name = "cam_sf_0_mnoc",
+		.name = "cam_sf_0_manalc",
 		.icc_bw_tbl.avg = 0,
 		.icc_bw_tbl.peak = 2097152,
 	},
 	{
-		.name = "cam_sf_icp_mnoc",
+		.name = "cam_sf_icp_manalc",
 		.icc_bw_tbl.avg = 2097152,
 		.icc_bw_tbl.peak = 2097152,
 	},
@@ -951,7 +951,7 @@ static const struct resources_icc icc_res_sm8250[] = {
 inline void camss_add_clock_margin(u64 *rate)
 {
 	*rate *= CAMSS_CLOCK_MARGIN_NUMERATOR;
-	*rate = div_u64(*rate, CAMSS_CLOCK_MARGIN_DENOMINATOR);
+	*rate = div_u64(*rate, CAMSS_CLOCK_MARGIN_DEANALMINATOR);
 }
 
 /*
@@ -1002,7 +1002,7 @@ void camss_disable_clocks(int nclocks, struct camss_clock *clock)
  * camss_find_sensor - Find a linked media entity which represents a sensor
  * @entity: Media entity to start searching from
  *
- * Return a pointer to sensor media entity or NULL if not found
+ * Return a pointer to sensor media entity or NULL if analt found
  */
 struct media_entity *camss_find_sensor(struct media_entity *entity)
 {
@@ -1040,7 +1040,7 @@ s64 camss_get_link_freq(struct media_entity *entity, unsigned int bpp,
 
 	sensor = camss_find_sensor(entity);
 	if (!sensor)
-		return -ENODEV;
+		return -EANALDEV;
 
 	subdev = media_entity_to_v4l2_subdev(sensor);
 
@@ -1062,7 +1062,7 @@ int camss_get_pixel_clock(struct media_entity *entity, u64 *pixel_clock)
 
 	sensor = camss_find_sensor(entity);
 	if (!sensor)
-		return -ENODEV;
+		return -EANALDEV;
 
 	subdev = media_entity_to_v4l2_subdev(sensor);
 
@@ -1099,23 +1099,23 @@ void camss_pm_domain_off(struct camss *camss, int id)
 }
 
 /*
- * camss_of_parse_endpoint_node - Parse port endpoint node
+ * camss_of_parse_endpoint_analde - Parse port endpoint analde
  * @dev: Device
- * @node: Device node to be parsed
- * @csd: Parsed data from port endpoint node
+ * @analde: Device analde to be parsed
+ * @csd: Parsed data from port endpoint analde
  *
  * Return 0 on success or a negative error code on failure
  */
-static int camss_of_parse_endpoint_node(struct device *dev,
-					struct device_node *node,
+static int camss_of_parse_endpoint_analde(struct device *dev,
+					struct device_analde *analde,
 					struct camss_async_subdev *csd)
 {
 	struct csiphy_lanes_cfg *lncfg = &csd->interface.csi2.lane_cfg;
 	struct v4l2_mbus_config_mipi_csi2 *mipi_csi2;
-	struct v4l2_fwnode_endpoint vep = { { 0 } };
+	struct v4l2_fwanalde_endpoint vep = { { 0 } };
 	unsigned int i;
 
-	v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &vep);
+	v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(analde), &vep);
 
 	csd->interface.csiphy_id = vep.base.port;
 
@@ -1128,7 +1128,7 @@ static int camss_of_parse_endpoint_node(struct device *dev,
 				   lncfg->num_data, sizeof(*lncfg->data),
 				   GFP_KERNEL);
 	if (!lncfg->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < lncfg->num_data; i++) {
 		lncfg->data[i].pos = mipi_csi2->data_lanes[i];
@@ -1139,42 +1139,42 @@ static int camss_of_parse_endpoint_node(struct device *dev,
 }
 
 /*
- * camss_of_parse_ports - Parse ports node
+ * camss_of_parse_ports - Parse ports analde
  * @dev: Device
- * @notifier: v4l2_device notifier data
+ * @analtifier: v4l2_device analtifier data
  *
- * Return number of "port" nodes found in "ports" node
+ * Return number of "port" analdes found in "ports" analde
  */
 static int camss_of_parse_ports(struct camss *camss)
 {
 	struct device *dev = camss->dev;
-	struct device_node *node = NULL;
-	struct device_node *remote = NULL;
+	struct device_analde *analde = NULL;
+	struct device_analde *remote = NULL;
 	int ret, num_subdevs = 0;
 
-	for_each_endpoint_of_node(dev->of_node, node) {
+	for_each_endpoint_of_analde(dev->of_analde, analde) {
 		struct camss_async_subdev *csd;
 
-		if (!of_device_is_available(node))
+		if (!of_device_is_available(analde))
 			continue;
 
-		remote = of_graph_get_remote_port_parent(node);
+		remote = of_graph_get_remote_port_parent(analde);
 		if (!remote) {
-			dev_err(dev, "Cannot get remote parent\n");
+			dev_err(dev, "Cananalt get remote parent\n");
 			ret = -EINVAL;
 			goto err_cleanup;
 		}
 
-		csd = v4l2_async_nf_add_fwnode(&camss->notifier,
-					       of_fwnode_handle(remote),
+		csd = v4l2_async_nf_add_fwanalde(&camss->analtifier,
+					       of_fwanalde_handle(remote),
 					       struct camss_async_subdev);
-		of_node_put(remote);
+		of_analde_put(remote);
 		if (IS_ERR(csd)) {
 			ret = PTR_ERR(csd);
 			goto err_cleanup;
 		}
 
-		ret = camss_of_parse_endpoint_node(dev, node, csd);
+		ret = camss_of_parse_endpoint_analde(dev, analde, csd);
 		if (ret < 0)
 			goto err_cleanup;
 
@@ -1184,7 +1184,7 @@ static int camss_of_parse_ports(struct camss *camss)
 	return num_subdevs;
 
 err_cleanup:
-	of_node_put(node);
+	of_analde_put(analde);
 	return ret;
 }
 
@@ -1211,7 +1211,7 @@ static int camss_init_subdevices(struct camss *camss)
 		}
 	}
 
-	/* note: SM8250 requires VFE to be initialized before CSID */
+	/* analte: SM8250 requires VFE to be initialized before CSID */
 	for (i = 0; i < camss->res->vfe_num; i++) {
 		ret = msm_vfe_subdev_init(camss, &camss->vfe[i],
 					  &res->vfe_res[i], i);
@@ -1244,7 +1244,7 @@ static int camss_init_subdevices(struct camss *camss)
 }
 
 /*
- * camss_register_entities - Register subdev nodes and create links
+ * camss_register_entities - Register subdev analdes and create links
  * @camss: CAMSS device
  *
  * Return 0 on success or a negative error code on failure
@@ -1402,7 +1402,7 @@ err_reg_csiphy:
 }
 
 /*
- * camss_unregister_entities - Unregister subdev nodes
+ * camss_unregister_entities - Unregister subdev analdes
  * @camss: CAMSS device
  *
  * Return 0 on success or a negative error code on failure
@@ -1423,11 +1423,11 @@ static void camss_unregister_entities(struct camss *camss)
 		msm_vfe_unregister_entities(&camss->vfe[i]);
 }
 
-static int camss_subdev_notifier_bound(struct v4l2_async_notifier *async,
+static int camss_subdev_analtifier_bound(struct v4l2_async_analtifier *async,
 				       struct v4l2_subdev *subdev,
 				       struct v4l2_async_connection *asd)
 {
-	struct camss *camss = container_of(async, struct camss, notifier);
+	struct camss *camss = container_of(async, struct camss, analtifier);
 	struct camss_async_subdev *csd =
 		container_of(asd, struct camss_async_subdev, asd);
 	u8 id = csd->interface.csiphy_id;
@@ -1439,9 +1439,9 @@ static int camss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	return 0;
 }
 
-static int camss_subdev_notifier_complete(struct v4l2_async_notifier *async)
+static int camss_subdev_analtifier_complete(struct v4l2_async_analtifier *async)
 {
-	struct camss *camss = container_of(async, struct camss, notifier);
+	struct camss *camss = container_of(async, struct camss, analtifier);
 	struct v4l2_device *v4l2_dev = &camss->v4l2_dev;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -1460,7 +1460,7 @@ static int camss_subdev_notifier_complete(struct v4l2_async_notifier *async)
 			}
 			if (i == sensor->num_pads) {
 				dev_err(camss->dev,
-					"No source pad in external entity\n");
+					"Anal source pad in external entity\n");
 				return -EINVAL;
 			}
 
@@ -1476,20 +1476,20 @@ static int camss_subdev_notifier_complete(struct v4l2_async_notifier *async)
 		}
 	}
 
-	ret = v4l2_device_register_subdev_nodes(&camss->v4l2_dev);
+	ret = v4l2_device_register_subdev_analdes(&camss->v4l2_dev);
 	if (ret < 0)
 		return ret;
 
 	return media_device_register(&camss->media_dev);
 }
 
-static const struct v4l2_async_notifier_operations camss_subdev_notifier_ops = {
-	.bound = camss_subdev_notifier_bound,
-	.complete = camss_subdev_notifier_complete,
+static const struct v4l2_async_analtifier_operations camss_subdev_analtifier_ops = {
+	.bound = camss_subdev_analtifier_bound,
+	.complete = camss_subdev_analtifier_complete,
 };
 
 static const struct media_device_ops camss_media_ops = {
-	.link_notify = v4l2_pipeline_link_notify,
+	.link_analtify = v4l2_pipeline_link_analtify,
 };
 
 static int camss_configure_pd(struct camss *camss)
@@ -1500,17 +1500,17 @@ static int camss_configure_pd(struct camss *camss)
 	int i;
 	int ret;
 
-	camss->genpd_num = of_count_phandle_with_args(dev->of_node,
+	camss->genpd_num = of_count_phandle_with_args(dev->of_analde,
 						      "power-domains",
 						      "#power-domain-cells");
 	if (camss->genpd_num < 0) {
-		dev_err(dev, "Power domains are not defined for camss\n");
+		dev_err(dev, "Power domains are analt defined for camss\n");
 		return camss->genpd_num;
 	}
 
 	/*
 	 * If a platform device has just one power domain, then it is attached
-	 * at platform_probe() level, thus there shall be no need and even no
+	 * at platform_probe() level, thus there shall be anal need and even anal
 	 * option to attach it again, this is the case for CAMSS on MSM8916.
 	 */
 	if (camss->genpd_num == 1)
@@ -1532,7 +1532,7 @@ static int camss_configure_pd(struct camss *camss)
 	/*
 	 * If a power-domain name is defined try to use it.
 	 * It is possible we are running a new kernel with an old dtb so
-	 * fallback to indexes even if a pd_name is defined but not found.
+	 * fallback to indexes even if a pd_name is defined but analt found.
 	 */
 	if (camss->res->pd_name) {
 		camss->genpd = dev_pm_domain_attach_by_name(camss->dev,
@@ -1553,7 +1553,7 @@ static int camss_configure_pd(struct camss *camss)
 	}
 	if (IS_ERR_OR_NULL(camss->genpd)) {
 		if (!camss->genpd)
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		else
 			ret = PTR_ERR(camss->genpd);
 		goto fail_pm;
@@ -1627,7 +1627,7 @@ static int camss_probe(struct platform_device *pdev)
 
 	camss = devm_kzalloc(dev, sizeof(*camss), GFP_KERNEL);
 	if (!camss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	camss->res = of_device_get_match_data(dev);
 
@@ -1638,24 +1638,24 @@ static int camss_probe(struct platform_device *pdev)
 	camss->csiphy = devm_kcalloc(dev, camss->res->csiphy_num,
 				     sizeof(*camss->csiphy), GFP_KERNEL);
 	if (!camss->csiphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	camss->csid = devm_kcalloc(dev, camss->res->csid_num, sizeof(*camss->csid),
 				   GFP_KERNEL);
 	if (!camss->csid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (camss->res->version == CAMSS_8x16 ||
 	    camss->res->version == CAMSS_8x96) {
 		camss->ispif = devm_kcalloc(dev, 1, sizeof(*camss->ispif), GFP_KERNEL);
 		if (!camss->ispif)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	camss->vfe = devm_kcalloc(dev, camss->res->vfe_num,
 				  sizeof(*camss->vfe), GFP_KERNEL);
 	if (!camss->vfe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = camss_icc_get(camss);
 	if (ret < 0)
@@ -1688,7 +1688,7 @@ static int camss_probe(struct platform_device *pdev)
 		goto err_genpd_cleanup;
 	}
 
-	v4l2_async_nf_init(&camss->notifier, &camss->v4l2_dev);
+	v4l2_async_nf_init(&camss->analtifier, &camss->v4l2_dev);
 
 	num_subdevs = camss_of_parse_ports(camss);
 	if (num_subdevs < 0) {
@@ -1701,19 +1701,19 @@ static int camss_probe(struct platform_device *pdev)
 		goto err_v4l2_device_unregister;
 
 	if (num_subdevs) {
-		camss->notifier.ops = &camss_subdev_notifier_ops;
+		camss->analtifier.ops = &camss_subdev_analtifier_ops;
 
-		ret = v4l2_async_nf_register(&camss->notifier);
+		ret = v4l2_async_nf_register(&camss->analtifier);
 		if (ret) {
 			dev_err(dev,
-				"Failed to register async subdev nodes: %d\n",
+				"Failed to register async subdev analdes: %d\n",
 				ret);
 			goto err_register_subdevs;
 		}
 	} else {
-		ret = v4l2_device_register_subdev_nodes(&camss->v4l2_dev);
+		ret = v4l2_device_register_subdev_analdes(&camss->v4l2_dev);
 		if (ret < 0) {
-			dev_err(dev, "Failed to register subdev nodes: %d\n",
+			dev_err(dev, "Failed to register subdev analdes: %d\n",
 				ret);
 			goto err_register_subdevs;
 		}
@@ -1734,7 +1734,7 @@ err_register_subdevs:
 	camss_unregister_entities(camss);
 err_v4l2_device_unregister:
 	v4l2_device_unregister(&camss->v4l2_dev);
-	v4l2_async_nf_cleanup(&camss->notifier);
+	v4l2_async_nf_cleanup(&camss->analtifier);
 err_genpd_cleanup:
 	camss_genpd_cleanup(camss);
 
@@ -1760,8 +1760,8 @@ static void camss_remove(struct platform_device *pdev)
 {
 	struct camss *camss = platform_get_drvdata(pdev);
 
-	v4l2_async_nf_unregister(&camss->notifier);
-	v4l2_async_nf_cleanup(&camss->notifier);
+	v4l2_async_nf_unregister(&camss->analtifier);
+	v4l2_async_nf_cleanup(&camss->analtifier);
 	camss_unregister_entities(camss);
 
 	if (atomic_read(&camss->ref_count) == 0)

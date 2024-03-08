@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -337,8 +337,8 @@
 #define mmXPB_SUB_CTRL_BASE_IDX	0
 #define mmXPB_MAP_INVERT_FLUSH_NUM_LSB	0x00a5
 #define mmXPB_MAP_INVERT_FLUSH_NUM_LSB_BASE_IDX	0
-#define mmXPB_PERF_KNOBS	0x00a6
-#define mmXPB_PERF_KNOBS_BASE_IDX	0
+#define mmXPB_PERF_KANALBS	0x00a6
+#define mmXPB_PERF_KANALBS_BASE_IDX	0
 #define mmXPB_STICKY	0x00a7
 #define mmXPB_STICKY_BASE_IDX	0
 #define mmXPB_STICKY_W1C	0x00a8

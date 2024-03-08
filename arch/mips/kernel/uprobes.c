@@ -2,7 +2,7 @@
 #include <linux/highmem.h>
 #include <linux/kdebug.h>
 #include <linux/types.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/sched.h>
 #include <linux/uprobes.h>
 
@@ -39,12 +39,12 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *aup,
 	inst.word = aup->insn[0];
 
 	if (__insn_is_compact_branch(inst)) {
-		pr_notice("Uprobes for compact branches are not supported\n");
+		pr_analtice("Uprobes for compact branches are analt supported\n");
 		return -EINVAL;
 	}
 
 	aup->ixol[0] = aup->insn[insn_has_delay_slot(inst)];
-	aup->ixol[1] = UPROBE_BRK_UPROBE_XOL;		/* NOP  */
+	aup->ixol[1] = UPROBE_BRK_UPROBE_XOL;		/* ANALP  */
 
 	return 0;
 }
@@ -79,7 +79,7 @@ bool is_trap_insn(uprobe_opcode_t *insn)
 		}
 		break;
 
-	case bcond_op:	/* Yes, really ...  */
+	case bcond_op:	/* Anal, really ...  */
 		switch (inst.u_format.rt) {
 		case teqi_op:
 		case tgei_op:
@@ -107,7 +107,7 @@ int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs)
 	struct uprobe_task *utask = current->utask;
 
 	/*
-	 * Now find the EPC where to resume after the breakpoint has been
+	 * Analw find the EPC where to resume after the breakpoint has been
 	 * dealt with.  This may require emulation of a branch.
 	 */
 	aup->resume_epc = regs->cp0_epc + 4;
@@ -140,7 +140,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *aup, struct pt_regs *regs)
  * like do_page_fault/do_trap/etc sets thread.trap_nr != -1.
  *
  * arch_uprobe_pre_xol/arch_uprobe_post_xol save/restore thread.trap_nr,
- * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is not equal to
+ * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is analt equal to
  * UPROBE_TRAP_NR == -1 set by arch_uprobe_pre_xol().
  */
 bool arch_uprobe_xol_was_trapped(struct task_struct *tsk)
@@ -151,7 +151,7 @@ bool arch_uprobe_xol_was_trapped(struct task_struct *tsk)
 	return false;
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_analtify(struct analtifier_block *self,
 	unsigned long val, void *data)
 {
 	struct die_args *args = data;
@@ -159,20 +159,20 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 
 	/* regs == NULL is a kernel bug */
 	if (WARN_ON(!regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* We are only interested in userspace traps */
 	if (!user_mode(regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (val) {
 	case DIE_UPROBE:
-		if (uprobe_pre_sstep_notifier(regs))
-			return NOTIFY_STOP;
+		if (uprobe_pre_sstep_analtifier(regs))
+			return ANALTIFY_STOP;
 		break;
 	case DIE_UPROBE_XOL:
-		if (uprobe_post_sstep_notifier(regs))
-			return NOTIFY_STOP;
+		if (uprobe_post_sstep_analtifier(regs))
+			return ANALTIFY_STOP;
 		break;
 	default:
 		break;
@@ -238,7 +238,7 @@ unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
  * See if the instruction can be emulated.
  * Returns true if instruction was emulated, false otherwise.
  *
- * For now we always emulate so this function just returns false.
+ * For analw we always emulate so this function just returns false.
  */
 bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {

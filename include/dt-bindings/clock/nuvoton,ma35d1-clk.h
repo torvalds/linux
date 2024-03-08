@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
 /*
- * Copyright (C) 2023 Nuvoton Technologies.
+ * Copyright (C) 2023 Nuvoton Techanallogies.
  */
 
 #ifndef __DT_BINDINGS_CLOCK_NUVOTON_MA35D1_CLK_H

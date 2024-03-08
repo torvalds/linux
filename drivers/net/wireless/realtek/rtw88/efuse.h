@@ -5,7 +5,7 @@
 #ifndef __RTW_EFUSE_H__
 #define __RTW_EFUSE_H__
 
-#define EFUSE_HW_CAP_IGNORE		0
+#define EFUSE_HW_CAP_IGANALRE		0
 #define EFUSE_HW_CAP_PTCL_VHT		3
 #define EFUSE_HW_CAP_SUPP_BW80		7
 #define EFUSE_HW_CAP_SUPP_BW40		6

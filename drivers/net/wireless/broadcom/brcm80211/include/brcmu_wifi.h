@@ -33,8 +33,8 @@
 #define BAND_5G_INDEX		1	/* wlc->bandstate[x] index */
 
 /*
- * max # supported channels. The max channel no is 216, this is that + 1
- * rounded up to a multiple of NBBY (8). DO NOT MAKE it > 255: channels are
+ * max # supported channels. The max channel anal is 216, this is that + 1
+ * rounded up to a multiple of NBBY (8). DO ANALT MAKE it > 255: channels are
  * u8's all over
 */
 #define	MAXCHANNEL		224
@@ -46,7 +46,7 @@
 #define WL_CHANSPEC_CTL_SB_SHIFT	     8
 #define WL_CHANSPEC_CTL_SB_LOWER	0x0100
 #define WL_CHANSPEC_CTL_SB_UPPER	0x0200
-#define WL_CHANSPEC_CTL_SB_NONE		0x0300
+#define WL_CHANSPEC_CTL_SB_ANALNE		0x0300
 
 #define WL_CHANSPEC_BW_MASK		0x0C00
 #define WL_CHANSPEC_BW_SHIFT		    10
@@ -118,8 +118,8 @@
 #define CHSPEC_IS2G(chspec) \
 	(((chspec) & WL_CHANSPEC_BAND_MASK) == WL_CHANSPEC_BAND_2G)
 
-#define CHSPEC_SB_NONE(chspec) \
-	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_NONE)
+#define CHSPEC_SB_ANALNE(chspec) \
+	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_ANALNE)
 
 #define CHSPEC_SB_UPPER(chspec) \
 	(((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_UPPER)
@@ -158,7 +158,7 @@ static inline u16 ch20mhz_chspec(int channel)
 		 WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G;
 
 	return	(u16)((u16)channel | WL_CHANSPEC_BW_20 |
-		      WL_CHANSPEC_CTL_SB_NONE | rc);
+		      WL_CHANSPEC_CTL_SB_ANALNE | rc);
 }
 
 static inline int next_20mhz_chan(int channel)
@@ -214,8 +214,8 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 #define MFP_REQUIRED		0x0400
 
 /* WPA authentication mode bitvec */
-#define WPA_AUTH_DISABLED	0x0000	/* Legacy (i.e., non-WPA) */
-#define WPA_AUTH_NONE		0x0001	/* none (IBSS) */
+#define WPA_AUTH_DISABLED	0x0000	/* Legacy (i.e., analn-WPA) */
+#define WPA_AUTH_ANALNE		0x0001	/* analne (IBSS) */
 #define WPA_AUTH_UNSPECIFIED	0x0002	/* over 802.1x */
 #define WPA_AUTH_PSK		0x0004	/* Pre-shared key */
 #define WPA_AUTH_RESERVED1	0x0008
@@ -241,7 +241,7 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 #define DOT11_IV_MAX_LEN		8
 #define DOT11_A4_HDR_LEN		30
 
-#define HT_CAP_RX_STBC_NO		0x0
+#define HT_CAP_RX_STBC_ANAL		0x0
 #define HT_CAP_RX_STBC_ONE_STREAM	0x1
 
 #endif				/* _BRCMU_WIFI_H_ */

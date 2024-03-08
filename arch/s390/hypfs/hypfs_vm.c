@@ -7,7 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <asm/extable.h>
@@ -42,7 +42,7 @@ static int diag2fc(int size, char* query, void *addr)
 	diag_stat_inc(DIAG_STAT_X2FC);
 	asm volatile(
 		"	diag    %0,%1,0x2fc\n"
-		"0:	nopr	%%r7\n"
+		"0:	analpr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: "=d" (residual_cnt), "+d" (rc) : "0" (&parm_list) : "memory");
 
@@ -66,7 +66,7 @@ void *diag2fc_store(char *query, unsigned int *count, int offset)
 			return ERR_PTR(-EACCES);
 		data = vmalloc(size + offset);
 		if (!data)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		if (diag2fc(size, query, data + offset) == 0)
 			break;
 		vfree(data);

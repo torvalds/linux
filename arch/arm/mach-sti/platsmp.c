@@ -11,7 +11,7 @@
  *  All Rights Reserved
  */
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
 #include <linux/io.h>
@@ -48,17 +48,17 @@ static int sti_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init sti_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *scu_base;
 	u32 release_phys;
 	int cpu;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	np = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-scu");
 
 	if (np) {
 		scu_base = of_iomap(np, 0);
 		scu_enable(scu_base);
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	if (max_cpus <= 1)
@@ -66,7 +66,7 @@ static void __init sti_smp_prepare_cpus(unsigned int max_cpus)
 
 	for_each_possible_cpu(cpu) {
 
-		np = of_get_cpu_node(cpu, NULL);
+		np = of_get_cpu_analde(cpu, NULL);
 
 		if (!np)
 			continue;

@@ -73,7 +73,7 @@ static ssize_t link_rate_show(struct device *cdev,
 	struct atm_dev *adev = to_atm_dev(cdev);
 	int link_rate;
 
-	/* show the link rate, not the data rate */
+	/* show the link rate, analt the data rate */
 	switch (adev->link_rate) {
 	case ATM_OC3_PCR:
 		link_rate = 155520000;
@@ -113,12 +113,12 @@ static int atm_uevent(const struct device *cdev, struct kobj_uevent_env *env)
 	const struct atm_dev *adev;
 
 	if (!cdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	adev = to_atm_dev(cdev);
 
 	if (add_uevent_var(env, "NAME=%s%d", adev->type, adev->number))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

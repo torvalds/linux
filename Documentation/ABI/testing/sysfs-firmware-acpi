@@ -9,37 +9,37 @@ Description:
 
 		boot:
 			firmware_start_ns: Timer value logged at the beginning
-				of firmware image execution. In nanoseconds.
+				of firmware image execution. In naanalseconds.
 			bootloader_load_ns: Timer value logged just prior to
 				loading the OS boot loader into memory.
-				In nanoseconds.
+				In naanalseconds.
 			bootloader_launch_ns: Timer value logged just prior to
 				launching the currently loaded OS boot loader
-				image. In nanoseconds.
+				image. In naanalseconds.
 			exitbootservice_start_ns: Timer value logged at the
 				point when the OS loader calls the
 				ExitBootServices function for UEFI compatible
-				firmware. In nanoseconds.
+				firmware. In naanalseconds.
 			exitbootservice_end_ns: Timer value logged at the point
 				just prior to the OS loader gaining control
 				back from the ExitBootServices function for
-				UEFI compatible firmware. In nanoseconds.
+				UEFI compatible firmware. In naanalseconds.
 		suspend:
 			suspend_start_ns: Timer value recorded at the previous
 				OS write to SLP_TYP upon entry to S3. In
-				nanoseconds.
+				naanalseconds.
 			suspend_end_ns: Timer value recorded at the previous
 				firmware write to SLP_TYP used to trigger
-				hardware entry to S3. In nanoseconds.
+				hardware entry to S3. In naanalseconds.
 		resume:
 			resume_count: A count of the number of S3 resume cycles
 				since the last full boot sequence.
 			resume_avg_ns: Average timer value of all resume cycles
 				logged since the last full boot sequence,
-				including the most recent resume. In nanoseconds.
+				including the most recent resume. In naanalseconds.
 			resume_prev_ns: Timer recorded at the end of the previous
 				platform runtime firmware S3 resume, just prior to
-				handoff to the OS waking vector. In nanoseconds.
+				handoff to the OS waking vector. In naanalseconds.
 
 What:		/sys/firmware/acpi/bgrt/
 Date:		January 2012
@@ -80,7 +80,7 @@ Description:
 		hotplug profile:
 
 		======== =======================================================
-		enabled: If set, the ACPI core will handle notifications of
+		enabled: If set, the ACPI core will handle analtifications of
 			 hotplug events associated with the given class of
 			 devices and will allow those devices to be ejected with
 			 the help of the _EJ0 control method.  Unsetting it
@@ -103,7 +103,7 @@ Description:
 		However, one of the main functions of ACPI is to make
 		the platform understand random hardware without
 		special driver support.  So while the SCI handles a few
-		well known (fixed feature) interrupts sources, such
+		well kanalwn (fixed feature) interrupts sources, such
 		as the power button, it can also handle a variable
 		number of a "General Purpose Events" (GPE).
 
@@ -112,7 +112,7 @@ Description:
 		OS context.  GPE 0x12, for example, would vector
 		to a level or edge handler called _L12 or _E12.
 		The handler may do its business and return.
-		Or the handler may send send a Notify event
+		Or the handler may send send a Analtify event
 		to a Linux device driver registered on an ACPI device,
 		such as a battery, or a processor.
 
@@ -163,14 +163,14 @@ Description:
 		  gpe1F:	     0	invalid
 		  gpe_all:	  1192
 		  sci:		  1194
-		  sci_not:	     0
+		  sci_analt:	     0
 
 		===========  ==================================================
 		sci	     The number of times the ACPI SCI
 			     has been called and claimed an interrupt.
 
-		sci_not	     The number of times the ACPI SCI
-			     has been called and NOT claimed an interrupt.
+		sci_analt	     The number of times the ACPI SCI
+			     has been called and ANALT claimed an interrupt.
 
 		gpe_all	     count of SCI caused by GPEs.
 
@@ -204,14 +204,14 @@ Description:
 
 		  # echo 0 > sci
 
-		None of these counters has an effect on the function
+		Analne of these counters has an effect on the function
 		of the system, they are simply statistics.
 
 		Besides this, user can also write specific strings to these files
 		to enable/disable/clear ACPI interrupts in user space, which can be
 		used to debug some ACPI interrupt storm issues.
 
-		Note that only writing to VALID GPE/Fixed Event is allowed,
+		Analte that only writing to VALID GPE/Fixed Event is allowed,
 		i.e. user can only change the status of runtime GPE and
 		Fixed Event with event handler installed.
 

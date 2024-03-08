@@ -106,7 +106,7 @@ static unsigned int da9062_map_buck_mode(unsigned int mode)
 	case DA9063_BUCK_MODE_SYNC:
 		return REGULATOR_MODE_FAST;
 	case DA9063_BUCK_MODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	default:
 		return REGULATOR_MODE_INVALID;
 	}
@@ -121,7 +121,7 @@ static int da9062_buck_set_mode(struct regulator_dev *rdev, unsigned mode)
 	case REGULATOR_MODE_FAST:
 		val = DA9063_BUCK_MODE_SYNC;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = DA9063_BUCK_MODE_AUTO;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -135,9 +135,9 @@ static int da9062_buck_set_mode(struct regulator_dev *rdev, unsigned mode)
 }
 
 /*
- * Bucks use single mode register field for normal operation
+ * Bucks use single mode register field for analrmal operation
  * and suspend state.
- * There are 3 modes to map to: FAST, NORMAL, and STANDBY.
+ * There are 3 modes to map to: FAST, ANALRMAL, and STANDBY.
  */
 
 static unsigned da9062_buck_get_mode(struct regulator_dev *rdev)
@@ -159,7 +159,7 @@ static unsigned da9062_buck_get_mode(struct regulator_dev *rdev)
 	case DA9063_BUCK_MODE_SYNC:
 		return REGULATOR_MODE_FAST;
 	case DA9063_BUCK_MODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	}
 
 	ret = regmap_field_read(regl->sleep, &val);
@@ -173,8 +173,8 @@ static unsigned da9062_buck_get_mode(struct regulator_dev *rdev)
 }
 
 /*
- * LDOs use sleep flags - one for normal and one for suspend state.
- * There are 2 modes to map to: NORMAL and STANDBY (sleep) for each state.
+ * LDOs use sleep flags - one for analrmal and one for suspend state.
+ * There are 2 modes to map to: ANALRMAL and STANDBY (sleep) for each state.
  */
 
 static int da9062_ldo_set_mode(struct regulator_dev *rdev, unsigned mode)
@@ -183,7 +183,7 @@ static int da9062_ldo_set_mode(struct regulator_dev *rdev, unsigned mode)
 	unsigned val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -208,7 +208,7 @@ static unsigned da9062_ldo_get_mode(struct regulator_dev *rdev)
 	if (val)
 		return REGULATOR_MODE_STANDBY;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int da9062_buck_get_status(struct regulator_dev *rdev)
@@ -287,7 +287,7 @@ static int da9062_buck_set_suspend_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = DA9063_BUCK_MODE_SYNC;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = DA9063_BUCK_MODE_AUTO;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -307,7 +307,7 @@ static int da9062_ldo_set_suspend_mode(struct regulator_dev *rdev,
 	unsigned val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -360,7 +360,7 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.id = DA9061_ID_BUCK1,
 		.desc.name = "DA9061 BUCK1",
 		.desc.of_match = of_match_ptr("buck1"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_buck_ops,
 		.desc.min_uV = (300) * 1000,
 		.desc.uV_step = (10) * 1000,
@@ -397,7 +397,7 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.id = DA9061_ID_BUCK2,
 		.desc.name = "DA9061 BUCK2",
 		.desc.of_match = of_match_ptr("buck2"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_buck_ops,
 		.desc.min_uV = (800) * 1000,
 		.desc.uV_step = (20) * 1000,
@@ -434,7 +434,7 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.id = DA9061_ID_BUCK3,
 		.desc.name = "DA9061 BUCK3",
 		.desc.of_match = of_match_ptr("buck3"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_buck_ops,
 		.desc.min_uV = (530) * 1000,
 		.desc.uV_step = (10) * 1000,
@@ -471,7 +471,7 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.id = DA9061_ID_LDO1,
 		.desc.name = "DA9061 LDO1",
 		.desc.of_match = of_match_ptr("ldo1"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_ldo_ops,
 		.desc.min_uV = (900) * 1000,
 		.desc.uV_step = (50) * 1000,
@@ -504,7 +504,7 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.id = DA9061_ID_LDO2,
 		.desc.name = "DA9061 LDO2",
 		.desc.of_match = of_match_ptr("ldo2"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_ldo_ops,
 		.desc.min_uV = (900) * 1000,
 		.desc.uV_step = (50) * 1000,
@@ -537,7 +537,7 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.id = DA9061_ID_LDO3,
 		.desc.name = "DA9061 LDO3",
 		.desc.of_match = of_match_ptr("ldo3"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_ldo_ops,
 		.desc.min_uV = (900) * 1000,
 		.desc.uV_step = (50) * 1000,
@@ -570,7 +570,7 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.id = DA9061_ID_LDO4,
 		.desc.name = "DA9061 LDO4",
 		.desc.of_match = of_match_ptr("ldo4"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_ldo_ops,
 		.desc.min_uV = (900) * 1000,
 		.desc.uV_step = (50) * 1000,
@@ -607,7 +607,7 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.id = DA9062_ID_BUCK1,
 		.desc.name = "DA9062 BUCK1",
 		.desc.of_match = of_match_ptr("buck1"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_buck_ops,
 		.desc.min_uV = (300) * 1000,
 		.desc.uV_step = (10) * 1000,
@@ -644,7 +644,7 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.id = DA9062_ID_BUCK2,
 		.desc.name = "DA9062 BUCK2",
 		.desc.of_match = of_match_ptr("buck2"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_buck_ops,
 		.desc.min_uV = (300) * 1000,
 		.desc.uV_step = (10) * 1000,
@@ -681,7 +681,7 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.id = DA9062_ID_BUCK3,
 		.desc.name = "DA9062 BUCK3",
 		.desc.of_match = of_match_ptr("buck3"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_buck_ops,
 		.desc.min_uV = (800) * 1000,
 		.desc.uV_step = (20) * 1000,
@@ -718,7 +718,7 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.id = DA9062_ID_BUCK4,
 		.desc.name = "DA9062 BUCK4",
 		.desc.of_match = of_match_ptr("buck4"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_buck_ops,
 		.desc.min_uV = (530) * 1000,
 		.desc.uV_step = (10) * 1000,
@@ -755,7 +755,7 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.id = DA9062_ID_LDO1,
 		.desc.name = "DA9062 LDO1",
 		.desc.of_match = of_match_ptr("ldo1"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_ldo_ops,
 		.desc.min_uV = (900) * 1000,
 		.desc.uV_step = (50) * 1000,
@@ -788,7 +788,7 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.id = DA9062_ID_LDO2,
 		.desc.name = "DA9062 LDO2",
 		.desc.of_match = of_match_ptr("ldo2"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_ldo_ops,
 		.desc.min_uV = (900) * 1000,
 		.desc.uV_step = (50) * 1000,
@@ -821,7 +821,7 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.id = DA9062_ID_LDO3,
 		.desc.name = "DA9062 LDO3",
 		.desc.of_match = of_match_ptr("ldo3"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_ldo_ops,
 		.desc.min_uV = (900) * 1000,
 		.desc.uV_step = (50) * 1000,
@@ -854,7 +854,7 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.id = DA9062_ID_LDO4,
 		.desc.name = "DA9062 LDO4",
 		.desc.of_match = of_match_ptr("ldo4"),
-		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.regulators_analde = of_match_ptr("regulators"),
 		.desc.ops = &da9062_ldo_ops,
 		.desc.min_uV = (900) * 1000,
 		.desc.uV_step = (50) * 1000,
@@ -891,7 +891,7 @@ static irqreturn_t da9062_ldo_lim_event(int irq, void *data)
 	struct da9062_regulators *regulators = data;
 	struct da9062 *hw = regulators->regulator[0].hw;
 	struct da9062_regulator *regl;
-	int handled = IRQ_NONE;
+	int handled = IRQ_ANALNE;
 	int bits, i, ret;
 
 	ret = regmap_read(hw->regmap, DA9062AA_STATUS_D, &bits);
@@ -907,7 +907,7 @@ static irqreturn_t da9062_ldo_lim_event(int irq, void *data)
 			continue;
 
 		if (BIT(regl->info->oc_event.lsb) & bits) {
-			regulator_notifier_call_chain(regl->rdev,
+			regulator_analtifier_call_chain(regl->rdev,
 					REGULATOR_EVENT_OVER_CURRENT, NULL);
 			handled = IRQ_HANDLED;
 		}
@@ -938,14 +938,14 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(chip->dev, "Unrecognised chip type\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Allocate memory required by usable regulators */
 	regulators = devm_kzalloc(&pdev->dev, struct_size(regulators, regulator,
 				  max_regulators), GFP_KERNEL);
 	if (!regulators)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regulators->n_regulators = max_regulators;
 	platform_set_drvdata(pdev, regulators);
@@ -1032,7 +1032,7 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 static struct platform_driver da9062_regulator_driver = {
 	.driver = {
 		.name = "da9062-regulators",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = da9062_regulator_probe,
 };

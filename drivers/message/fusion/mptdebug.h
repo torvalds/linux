@@ -2,7 +2,7 @@
 /*
  *  linux/drivers/message/fusion/mptdebug.h
  *      For use with LSI PCI chip/adapter(s)
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techanallogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -34,7 +34,7 @@
  *
  *
  * --------------------------------------------------------
- * Please note most debug prints are set to logging priority = debug
+ * Please analte most debug prints are set to logging priority = debug
  * This is the lowest level, and most verbose.  Please refer to manual
  * pages for syslogd or syslogd-ng on how to configure this.
  */

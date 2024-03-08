@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -42,8 +42,8 @@
 #include "../../../include/linux/filter.h"
 #include "testing_helpers.h"
 
-#ifndef ENOTSUPP
-#define ENOTSUPP 524
+#ifndef EANALTSUPP
+#define EANALTSUPP 524
 #endif
 
 #define MAX_INSNS	BPF_MAXINSNS
@@ -91,12 +91,12 @@ struct bpf_test {
 	 * instructions in the BPF program after loading. Allows to
 	 * test rewrites applied by verifier.  Use values
 	 * INSN_OFF_MASK and INSN_IMM_MASK to mask `off` and `imm`
-	 * fields if content does not matter.  The test case fails if
-	 * specified instructions are not found.
+	 * fields if content does analt matter.  The test case fails if
+	 * specified instructions are analt found.
 	 *
 	 * The sequence could be split into sub-sequences by adding
 	 * SKIP_INSNS instruction at the end of each sub-sequence. In
-	 * such case sub-sequences are searched for one after another.
+	 * such case sub-sequences are searched for one after aanalther.
 	 */
 	struct bpf_insn expected_insns[MAX_EXPECTED_INSNS];
 	/* If specified, test engine applies same pattern matching
@@ -130,7 +130,7 @@ struct bpf_test {
 	struct kfunc_btf_id_pair fixup_kfunc_btf_id[MAX_FIXUPS];
 	/* Expected verifier log output for result REJECT or VERBOSE_ACCEPT.
 	 * Can be a tab-separated sequence of expected strings. An empty string
-	 * means no log verification.
+	 * means anal log verification.
 	 */
 	const char *errstr;
 	const char *errstr_unpriv;
@@ -170,7 +170,7 @@ struct bpf_test {
 	__u32 btf_types[MAX_BTF_TYPES];
 };
 
-/* Note we want this to be 64 bit aligned so that the end of our array is
+/* Analte we want this to be 64 bit aligned so that the end of our array is
  * actually the end of the structure.
  */
 #define MAX_ENTRIES 11
@@ -427,7 +427,7 @@ static void bpf_fill_big_prog_with_loop_1(struct bpf_test *self)
 	/* This test was added to catch a specific use after free
 	 * error, which happened upon BPF program reallocation.
 	 * Reallocation is handled by core.c:bpf_prog_realloc, which
-	 * reuses old memory if page boundary is not crossed. The
+	 * reuses old memory if page boundary is analt crossed. The
 	 * value of `len` is chosen to cross this boundary on bpf_loop
 	 * patching.
 	 */
@@ -547,12 +547,12 @@ static int __create_map(uint32_t type, uint32_t size_key,
 	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int fd;
 
-	opts.map_flags = (type == BPF_MAP_TYPE_HASH ? BPF_F_NO_PREALLOC : 0) | extra_flags;
+	opts.map_flags = (type == BPF_MAP_TYPE_HASH ? BPF_F_ANAL_PREALLOC : 0) | extra_flags;
 	fd = bpf_map_create(type, NULL, size_key, size_value, max_elem, &opts);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
-		printf("Failed to create hash map '%s'!\n", strerror(errno));
+		printf("Failed to create hash map '%s'!\n", strerror(erranal));
 	}
 
 	return fd;
@@ -609,7 +609,7 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 	if (mfd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_PROG_ARRAY))
 			return -1;
-		printf("Failed to create prog array '%s'!\n", strerror(errno));
+		printf("Failed to create prog array '%s'!\n", strerror(erranal));
 		return -1;
 	}
 
@@ -643,7 +643,7 @@ static int create_map_in_map(void)
 	if (inner_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY))
 			return -1;
-		printf("Failed to create array '%s'!\n", strerror(errno));
+		printf("Failed to create array '%s'!\n", strerror(erranal));
 		return inner_map_fd;
 	}
 
@@ -654,7 +654,7 @@ static int create_map_in_map(void)
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY_OF_MAPS))
 			return -1;
 		printf("Failed to create array of maps '%s'!\n",
-		       strerror(errno));
+		       strerror(erranal));
 	}
 
 	close(inner_map_fd);
@@ -674,7 +674,7 @@ static int create_cgroup_storage(bool percpu)
 		if (skip_unsupported_map(type))
 			return -1;
 		printf("Failed to create cgroup storage '%s'!\n",
-		       strerror(errno));
+		       strerror(erranal));
 	}
 
 	return fd;
@@ -771,7 +771,7 @@ static int load_btf_spec(__u32 *types, int types_len,
 
 	btf_fd = bpf_btf_load(raw_btf, ptr - raw_btf, &opts);
 	if (btf_fd < 0)
-		printf("Failed to load BTF spec: '%s'\n", strerror(errno));
+		printf("Failed to load BTF spec: '%s'\n", strerror(erranal));
 
 	free(raw_btf);
 
@@ -819,7 +819,7 @@ static int create_map_spin_lock(void)
 static int create_sk_storage_map(void)
 {
 	LIBBPF_OPTS(bpf_map_create_opts, opts,
-		.map_flags = BPF_F_NO_PREALLOC,
+		.map_flags = BPF_F_ANAL_PREALLOC,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
 	);
@@ -909,7 +909,7 @@ static struct btf *btf__load_testmod_btf(struct btf *vmlinux)
 	while (true) {
 		err = bpf_btf_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				break;
 			perror("bpf_btf_get_next_id failed");
 			break;
@@ -917,7 +917,7 @@ static struct btf *btf__load_testmod_btf(struct btf *vmlinux)
 
 		fd = bpf_btf_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				continue;
 			perror("bpf_btf_get_fd_by_id failed");
 			break;
@@ -983,7 +983,7 @@ static void fixup_prog_kfuncs(struct bpf_insn *prog, int *fd_array,
 			btf_id = btf_id < 0 ? 0 : btf_id;
 		}
 
-		/* kfunc not found in kernel BTF, try bpf_testmod BTF */
+		/* kfunc analt found in kernel BTF, try bpf_testmod BTF */
 		if (!btf_id) {
 			testmod_btf = testmod_btf ?: btf__load_testmod_btf(vmlinux_btf);
 			if (testmod_btf) {
@@ -1039,7 +1039,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	}
 
 	/* Allocating HTs with 1 elem is fine here, since we only test
-	 * for verifier and not do a runtime lookup, so the only thing
+	 * for verifier and analt do a runtime lookup, so the only thing
 	 * that really matters is value size in this case.
 	 */
 	if (*fixup_map_hash_8b) {
@@ -1262,7 +1262,7 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 {
 	__u8 tmp[TEST_DATA_LEN << 2];
 	__u32 size_tmp = sizeof(tmp);
-	int err, saved_errno;
+	int err, saved_erranal;
 	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = data,
 		.data_size_in = size_data,
@@ -1274,25 +1274,25 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 	if (unpriv)
 		set_admin(true);
 	err = bpf_prog_test_run_opts(fd_prog, &topts);
-	saved_errno = errno;
+	saved_erranal = erranal;
 
 	if (unpriv)
 		set_admin(false);
 
 	if (err) {
-		switch (saved_errno) {
-		case ENOTSUPP:
-			printf("Did not run the program (not supported) ");
+		switch (saved_erranal) {
+		case EANALTSUPP:
+			printf("Did analt run the program (analt supported) ");
 			return 0;
 		case EPERM:
 			if (unpriv) {
-				printf("Did not run the program (no permission) ");
+				printf("Did analt run the program (anal permission) ");
 				return 0;
 			}
 			/* fallthrough; */
 		default:
 			printf("FAIL: Unexpected bpf_prog_test_run error (%s) ",
-				strerror(saved_errno));
+				strerror(saved_erranal));
 			return err;
 		}
 	}
@@ -1356,7 +1356,7 @@ static struct bpf_insn *get_xlated_program(int fd_prog, int *cnt)
 
 	xlated_prog_len = info.xlated_prog_len;
 	if (xlated_prog_len % buf_element_size) {
-		printf("Program length %d is not multiple of %d\n",
+		printf("Program length %d is analt multiple of %d\n",
 		       xlated_prog_len, buf_element_size);
 		return NULL;
 	}
@@ -1457,7 +1457,7 @@ static int find_skip_insn_marker(struct bpf_insn *seq, int len)
 }
 
 /* Return true if all sub-sequences in `subseqs` could be found in
- * `seq` one after another. Sub-sequences are separated by a single
+ * `seq` one after aanalther. Sub-sequences are separated by a single
  * nil instruction.
  */
 static bool find_all_insn_subseqs(struct bpf_insn *seq, struct bpf_insn *subseqs,
@@ -1562,7 +1562,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
 	int fd_array[2] = { -1, -1 };
-	int saved_errno;
+	int saved_erranal;
 	int fixup_skips;
 	__u32 pflags;
 	int i, err;
@@ -1644,7 +1644,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	opts.log_buf = bpf_vlog;
 	opts.log_size = sizeof(bpf_vlog);
 	fd_prog = bpf_prog_load(prog_type, NULL, "GPL", prog, prog_len, &opts);
-	saved_errno = errno;
+	saved_erranal = erranal;
 
 	/* BPF_PROG_TYPE_TRACING requires more setup and
 	 * bpf_probe_prog_type won't give correct answer
@@ -1656,7 +1656,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		goto close_fds;
 	}
 
-	if (fd_prog < 0 && saved_errno == ENOTSUPP) {
+	if (fd_prog < 0 && saved_erranal == EANALTSUPP) {
 		printf("SKIP (program uses an unsupported feature)\n");
 		skips++;
 		goto close_fds;
@@ -1667,7 +1667,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	if (expected_ret == ACCEPT || expected_ret == VERBOSE_ACCEPT) {
 		if (fd_prog < 0) {
 			printf("FAIL\nFailed to load prog '%s'!\n",
-			       strerror(saved_errno));
+			       strerror(saved_erranal));
 			goto fail_log;
 		}
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -1742,7 +1742,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			printf("%d cases ", run_successes);
 		printf("OK");
 		if (alignment_prevented_execution)
-			printf(" (NOTE: not executed due to unknown alignment)");
+			printf(" (ANALTE: analt executed due to unkanalwn alignment)");
 		printf("\n");
 	} else {
 		printf("\n");
@@ -1812,7 +1812,7 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 	for (i = from; i < to; i++) {
 		struct bpf_test *test = &tests[i];
 
-		/* Program types that are not supported by non-root we
+		/* Program types that are analt supported by analn-root we
 		 * skip right away.
 		 */
 		if (test_as_unpriv(test) && unpriv_disabled) {
@@ -1882,7 +1882,7 @@ int main(int argc, char **argv)
 
 	unpriv_disabled = get_unpriv_disabled();
 	if (unpriv && unpriv_disabled) {
-		printf("Cannot run as unprivileged user with sysctl %s.\n",
+		printf("Cananalt run as unprivileged user with sysctl %s.\n",
 		       UNPRIV_SYSCTL);
 		return EXIT_FAILURE;
 	}

@@ -79,7 +79,7 @@ struct sdhci_acpi_host {
 
 enum {
 	DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP			= BIT(0),
-	DMI_QUIRK_SD_NO_WRITE_PROTECT				= BIT(1),
+	DMI_QUIRK_SD_ANAL_WRITE_PROTECT				= BIT(1),
 };
 
 static inline void *sdhci_acpi_priv(struct sdhci_acpi_host *c)
@@ -121,7 +121,7 @@ static int __intel_dsm(struct intel_host *intel_host, struct device *dev,
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &intel_dsm_guid, 0, fn, NULL);
 	if (!obj)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (obj->type == ACPI_TYPE_INTEGER) {
 		*result = obj->integer.value;
@@ -145,7 +145,7 @@ static int intel_dsm(struct intel_host *intel_host, struct device *dev,
 		     unsigned int fn, u32 *result)
 {
 	if (fn > 31 || !(intel_host->dsm_fns & (1 << fn)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return __intel_dsm(intel_host, dev, fn, result);
 }
@@ -159,7 +159,7 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
 
 	err = __intel_dsm(intel_host, dev, INTEL_DSM_FNS, &intel_host->dsm_fns);
 	if (err) {
-		pr_debug("%s: DSM not supported, error %d\n",
+		pr_debug("%s: DSM analt supported, error %d\n",
 			 mmc_hostname(mmc), err);
 		return;
 	}
@@ -302,7 +302,7 @@ static int bxt_get_cd(struct mmc_host *mmc)
 	if (!gpio_cd)
 		return 0;
 
-	return sdhci_get_cd_nogpio(mmc);
+	return sdhci_get_cd_analgpio(mmc);
 }
 
 static int intel_probe_slot(struct platform_device *pdev, struct acpi_device *adev)
@@ -351,12 +351,12 @@ static int intel_setup_host(struct platform_device *pdev)
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
 	.chip    = &sdhci_acpi_chip_int,
-	.caps    = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE |
+	.caps    = MMC_CAP_8_BIT_DATA | MMC_CAP_ANALNREMOVABLE |
 		   MMC_CAP_HW_RESET | MMC_CAP_1_8V_DDR |
 		   MMC_CAP_CMD_DURING_TFR | MMC_CAP_WAIT_WHILE_BUSY,
 	.flags   = SDHCI_ACPI_RUNTIME_PM,
-	.quirks  = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
-		   SDHCI_QUIRK_NO_LED,
+	.quirks  = SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC |
+		   SDHCI_QUIRK_ANAL_LED,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 		   SDHCI_QUIRK2_STOP_WITH_TC |
 		   SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400,
@@ -367,10 +367,10 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 	.quirks  = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
-		   SDHCI_QUIRK_NO_LED |
-		   SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+		   SDHCI_QUIRK_ANAL_LED |
+		   SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC,
 	.quirks2 = SDHCI_QUIRK2_HOST_OFF_CARD_ON,
-	.caps    = MMC_CAP_NONREMOVABLE | MMC_CAP_POWER_OFF_CARD |
+	.caps    = MMC_CAP_ANALNREMOVABLE | MMC_CAP_POWER_OFF_CARD |
 		   MMC_CAP_WAIT_WHILE_BUSY,
 	.flags   = SDHCI_ACPI_RUNTIME_PM,
 	.pm_caps = MMC_PM_KEEP_POWER,
@@ -382,8 +382,8 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
 	.flags   = SDHCI_ACPI_SD_CD | SDHCI_ACPI_SD_CD_OVERRIDE_LEVEL |
 		   SDHCI_ACPI_RUNTIME_PM,
-	.quirks  = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
-		   SDHCI_QUIRK_NO_LED,
+	.quirks  = SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC |
+		   SDHCI_QUIRK_ANAL_LED,
 	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON |
 		   SDHCI_QUIRK2_STOP_WITH_TC,
 	.caps    = MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_AGGRESSIVE_PM,
@@ -434,7 +434,7 @@ static int qcom_free_slot(struct platform_device *pdev)
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!acpi_dev_hid_uid_match(adev, "QCOM8051", NULL))
 		return 0;
@@ -448,8 +448,8 @@ static int qcom_free_slot(struct platform_device *pdev)
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd_3v = {
 	.quirks  = SDHCI_QUIRK_BROKEN_CARD_DETECTION,
-	.quirks2 = SDHCI_QUIRK2_NO_1_8_V,
-	.caps    = MMC_CAP_NONREMOVABLE,
+	.quirks2 = SDHCI_QUIRK2_ANAL_1_8_V,
+	.caps    = MMC_CAP_ANALNREMOVABLE,
 	.priv_size	= sizeof(int),
 	.probe_slot	= qcom_probe_slot,
 	.free_slot	= qcom_free_slot,
@@ -457,7 +457,7 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd_3v = {
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd = {
 	.quirks  = SDHCI_QUIRK_BROKEN_CARD_DETECTION,
-	.caps    = MMC_CAP_NONREMOVABLE,
+	.caps    = MMC_CAP_ANALNREMOVABLE,
 };
 
 struct amd_sdhci_host {
@@ -494,7 +494,7 @@ static int amd_select_drive_strength(struct mmc_card *card,
 	 * while HS400 tuning is in progress we end up with mismatched driver
 	 * strengths between the controller and the card. HS400 tuning requires
 	 * switching from HS400->DDR52->HS->HS200->HS400. So the driver mismatch
-	 * happens while in DDR52 and HS modes. This has not been observed to
+	 * happens while in DDR52 and HS modes. This has analt been observed to
 	 * cause problems. Enabling presets would fix this issue.
 	 */
 	*host_driver_strength = preset_driver_strength;
@@ -641,9 +641,9 @@ static int sdhci_acpi_emmc_amd_probe_slot(struct platform_device *pdev,
 	 *    Enabling presets for HS400 doesn't work for the following reasons:
 	 *    1) sdhci_set_ios has a hard coded list of timings that are used
 	 *       to determine if presets should be enabled.
-	 *    2) sdhci_get_preset_value is using a non-standard register to
+	 *    2) sdhci_get_preset_value is using a analn-standard register to
 	 *       read out HS400 presets. The AMD controller doesn't support this
-	 *       non-standard register. In fact, it doesn't expose the HS400
+	 *       analn-standard register. In fact, it doesn't expose the HS400
 	 *       preset register anywhere in the SDHCI memory map. This results
 	 *       in reading a garbage value and using the wrong presets.
 	 *
@@ -663,7 +663,7 @@ static int sdhci_acpi_emmc_amd_probe_slot(struct platform_device *pdev,
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_amd_emmc = {
 	.chip		= &sdhci_acpi_chip_amd,
-	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_ANALNREMOVABLE,
 	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
 			  SDHCI_QUIRK_32BIT_DMA_SIZE |
 			  SDHCI_QUIRK_32BIT_ADMA_SIZE,
@@ -722,15 +722,15 @@ MODULE_DEVICE_TABLE(acpi, sdhci_acpi_ids);
 static const struct dmi_system_id sdhci_acpi_quirks[] = {
 	{
 		/*
-		 * The Lenovo Miix 320-10ICR has a bug in the _PS0 method of
+		 * The Leanalvo Miix 320-10ICR has a bug in the _PS0 method of
 		 * the SHC1 ACPI device, this bug causes it to reprogram the
 		 * wrong LDO (DLDO3) to 1.8V if 1.8V modes are used and the
 		 * card is (runtime) suspended + resumed. DLDO3 is used for
 		 * the LCD and setting it to 1.8V causes the LCD to go black.
 		 */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Leanalvo MIIX 320-10ICR"),
 		},
 		.driver_data = (void *)DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP,
 	},
@@ -738,13 +738,13 @@ static const struct dmi_system_id sdhci_acpi_quirks[] = {
 		/*
 		 * The Acer Aspire Switch 10 (SW5-012) microSD slot always
 		 * reports the card being write-protected even though microSD
-		 * cards do not have a write-protect switch at all.
+		 * cards do analt have a write-protect switch at all.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire SW5-012"),
 		},
-		.driver_data = (void *)DMI_QUIRK_SD_NO_WRITE_PROTECT,
+		.driver_data = (void *)DMI_QUIRK_SD_ANAL_WRITE_PROTECT,
 	},
 	{
 		/*
@@ -755,7 +755,7 @@ static const struct dmi_system_id sdhci_acpi_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TOSHIBA ENCORE 2 WT8-B"),
 		},
-		.driver_data = (void *)DMI_QUIRK_SD_NO_WRITE_PROTECT,
+		.driver_data = (void *)DMI_QUIRK_SD_ANAL_WRITE_PROTECT,
 	},
 	{} /* Terminating entry */
 };
@@ -787,7 +787,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	device = ACPI_COMPANION(dev);
 	if (!device)
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = dmi_first_match(sdhci_acpi_quirks);
 	if (id)
@@ -803,14 +803,14 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iomem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = resource_size(iomem);
 	if (len < 0x100)
 		dev_err(dev, "Invalid iomem size!\n");
 
 	if (!devm_request_mem_region(dev, iomem->start, len, dev_name(dev)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv_size = slot ? slot->priv_size : 0;
 	host = sdhci_alloc_host(dev, sizeof(struct sdhci_acpi_host) + priv_size);
@@ -836,7 +836,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	host->ioaddr = devm_ioremap(dev, iomem->start,
 					    resource_size(iomem));
 	if (host->ioaddr == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -861,7 +861,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		host->mmc->pm_caps  |= c->slot->pm_caps;
 	}
 
-	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
+	host->mmc->caps2 |= MMC_CAP2_ANAL_PRESCAN_POWERUP;
 
 	if (sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD)) {
 		bool v = sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD_OVERRIDE_LEVEL);
@@ -877,8 +877,8 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		if (quirks & DMI_QUIRK_RESET_SD_SIGNAL_VOLT_ON_SUSP)
 			c->reset_signal_volt_on_suspend = true;
 
-		if (quirks & DMI_QUIRK_SD_NO_WRITE_PROTECT)
-			host->mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+		if (quirks & DMI_QUIRK_SD_ANAL_WRITE_PROTECT)
+			host->mmc->caps2 |= MMC_CAP2_ANAL_WRITE_PROTECT;
 	}
 
 	err = sdhci_setup_host(host);
@@ -897,7 +897,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	if (c->use_runtime_pm) {
 		pm_runtime_set_active(dev);
-		pm_suspend_ignore_children(dev, 1);
+		pm_suspend_iganalre_children(dev, 1);
 		pm_runtime_set_autosuspend_delay(dev, 50);
 		pm_runtime_use_autosuspend(dev);
 		pm_runtime_enable(dev);
@@ -926,7 +926,7 @@ static void sdhci_acpi_remove(struct platform_device *pdev)
 	if (c->use_runtime_pm) {
 		pm_runtime_get_sync(dev);
 		pm_runtime_disable(dev);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 	}
 
 	if (c->slot && c->slot->remove_slot)
@@ -1026,7 +1026,7 @@ static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 static struct platform_driver sdhci_acpi_driver = {
 	.driver = {
 		.name			= "sdhci-acpi",
-		.probe_type		= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type		= PROBE_PREFER_ASYNCHROANALUS,
 		.acpi_match_table	= sdhci_acpi_ids,
 		.pm			= &sdhci_acpi_pm_ops,
 	},

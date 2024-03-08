@@ -36,7 +36,7 @@ int fbtft_gamma_parse_str(struct fbtft_par *par, u32 *curves,
 
 	tmp = kmemdup(str, size + 1, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* replace optional separators */
 	str_p = tmp;

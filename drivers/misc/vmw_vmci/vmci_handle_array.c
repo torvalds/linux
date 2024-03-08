@@ -49,11 +49,11 @@ int vmci_handle_arr_append_entry(struct vmci_handle_arr **array_ptr,
 					      size_add(array->capacity, capacity_bump));
 
 		if (array->size >= array->max_capacity)
-			return VMCI_ERROR_NO_MEM;
+			return VMCI_ERROR_ANAL_MEM;
 
 		new_array = krealloc(array, new_size, GFP_ATOMIC);
 		if (!new_array)
-			return VMCI_ERROR_NO_MEM;
+			return VMCI_ERROR_ANAL_MEM;
 
 		new_array->capacity += capacity_bump;
 		*array_ptr = array = new_array;
@@ -66,7 +66,7 @@ int vmci_handle_arr_append_entry(struct vmci_handle_arr **array_ptr,
 }
 
 /*
- * Handle that was removed, VMCI_INVALID_HANDLE if entry not found.
+ * Handle that was removed, VMCI_INVALID_HANDLE if entry analt found.
  */
 struct vmci_handle vmci_handle_arr_remove_entry(struct vmci_handle_arr *array,
 						struct vmci_handle entry_handle)

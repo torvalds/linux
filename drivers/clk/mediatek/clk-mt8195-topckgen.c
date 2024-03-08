@@ -825,7 +825,7 @@ static const char * const audio_local_bus_parents[] = {
 	"ulposc1_d2"
 };
 
-static const char * const spinor_parents[] = {
+static const char * const spianalr_parents[] = {
 	"clk26m",
 	"clk26m_d2",
 	"mainpll_d7_d8",
@@ -869,7 +869,7 @@ static const char * const mfg_fast_parents[] = {
 static const struct mtk_mux top_mtk_muxes[] = {
 	/*
 	 * CLK_CFG_0
-	 * top_axi and top_bus_aximem are bus clocks, should not be closed by Linux.
+	 * top_axi and top_bus_aximem are bus clocks, should analt be closed by Linux.
 	 * top_spm and top_scp are main clocks in always-on co-processor.
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI, "top_axi",
@@ -958,7 +958,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		audio_h_parents, 0x080, 0x084, 0x088, 24, 2, 31, 0x08, 3),
 	/*
 	 * CLK_CFG_9
-	 * top_pwrmcu is main clock in other co-processor, should not be
+	 * top_pwrmcu is main clock in other co-processor, should analt be
 	 * handled by Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_PWRAP_ULPOSC, "top_pwrap_ulposc",
@@ -1026,7 +1026,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		ufs_mp_sap_parents, 0x0D4, 0x0D8, 0x0DC, 24, 1, 31, 0x08, 31),
 	/*
 	 * CLK_CFG_16
-	 * top_mcupm is main clock in other co-processor, should not be
+	 * top_mcupm is main clock in other co-processor, should analt be
 	 * handled by Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_VENC, "top_venc",
@@ -1040,7 +1040,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/*
 	 * CLK_CFG_17
-	 * top_dvfsrc is for internal DVFS usage, should not be handled by Linux.
+	 * top_dvfsrc is for internal DVFS usage, should analt be handled by Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPMI_P_MST, "top_spmi_p_mst",
 		spmi_parents, 0x0EC, 0x0F0, 0x0F4, 0, 4, 7, 0x0C, 4),
@@ -1107,7 +1107,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		apll4_parents, 0x0134, 0x0138, 0x013C, 24, 1, 31, 0x0C, 31),
 	/*
 	 * CLK_CFG_24
-	 * i2so4_mck is not used in MT8195.
+	 * i2so4_mck is analt used in MT8195.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_APLL5, "top_apll5",
 		apll5_parents, 0x0140, 0x0144, 0x0148, 0, 1, 7, 0x010, 0),
@@ -1117,7 +1117,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		i2s_parents, 0x0140, 0x0144, 0x0148, 16, 3, 23, 0x010, 2),
 	/*
 	 * CLK_CFG_25
-	 * i2so5_mck and i2si4_mck are not used in MT8195.
+	 * i2so5_mck and i2si4_mck are analt used in MT8195.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_I2SI1_MCK, "top_i2si1_mck",
 		i2s_parents, 0x014C, 0x0150, 0x0154, 8, 3, 15, 0x010, 5),
@@ -1125,7 +1125,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		i2s_parents, 0x014C, 0x0150, 0x0154, 16, 3, 23, 0x010, 6),
 	/*
 	 * CLK_CFG_26
-	 * i2si5_mck is not used in MT8195.
+	 * i2si5_mck is analt used in MT8195.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DPTX_MCK, "top_dptx_mck",
 		i2s_parents, 0x0158, 0x015C, 0x0160, 8, 3, 15, 0x010, 9),
@@ -1149,12 +1149,12 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		ecc_parents, 0x0170, 0x0174, 0x0178, 8, 3, 15, 0x010, 17),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUDIO_LOCAL_BUS, "top_audio_local_bus",
 		audio_local_bus_parents, 0x0170, 0x0174, 0x0178, 16, 4, 23, 0x010, 18),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPINOR, "top_spinor",
-		spinor_parents, 0x0170, 0x0174, 0x0178, 24, 2, 31, 0x010, 19),
+	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPIANALR, "top_spianalr",
+		spianalr_parents, 0x0170, 0x0174, 0x0178, 24, 2, 31, 0x010, 19),
 	/*
 	 * CLK_CFG_29
 	 * top_ulposc/top_ulposc_core/top_srck are clock source of always on co-processor,
-	 * should not be closed by Linux.
+	 * should analt be closed by Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DVIO_DGI_REF, "top_dvio_dgi_ref",
 		dvio_dgi_ref_parents, 0x017C, 0x0180, 0x0184, 0, 3, 7, 0x010, 20),
@@ -1168,7 +1168,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		srck_parents, 0x017C, 0x0180, 0x0184, 24, 1, 31, 0x010, 23,
 		CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/*
-	 * the clocks in CLK_CFG_30 ~ 37 are backup clock source, no need to handled
+	 * the clocks in CLK_CFG_30 ~ 37 are backup clock source, anal need to handled
 	 * by Linux.
 	 */
 };
@@ -1179,7 +1179,7 @@ static const struct mtk_composite top_adj_divs[] = {
 	DIV_GATE(CLK_TOP_APLL12_DIV2, "apll12_div2", "top_i2so1_mck", 0x0320, 2, 0x0328, 8, 16),
 	DIV_GATE(CLK_TOP_APLL12_DIV3, "apll12_div3", "top_i2so2_mck", 0x0320, 3, 0x0328, 8, 24),
 	DIV_GATE(CLK_TOP_APLL12_DIV4, "apll12_div4", "top_aud_iec_clk", 0x0320, 4, 0x0334, 8, 0),
-	/* apll12_div5 ~ 8 are not used in MT8195. */
+	/* apll12_div5 ~ 8 are analt used in MT8195. */
 	DIV_GATE(CLK_TOP_APLL12_DIV9, "apll12_div9", "top_dptx_mck", 0x0320, 9, 0x0338, 8, 8),
 };
 
@@ -1197,13 +1197,13 @@ static const struct mtk_gate_regs top1_cg_regs = {
 
 #define GATE_TOP0_FLAGS(_id, _name, _parent, _shift, _flag)		\
 	GATE_MTK_FLAGS(_id, _name, _parent, &top0_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv, _flag)
+		&mtk_clk_gate_ops_anal_setclr_inv, _flag)
 
 #define GATE_TOP0(_id, _name, _parent, _shift)			\
 	GATE_TOP0_FLAGS(_id, _name, _parent, _shift, 0)
 
 #define GATE_TOP1(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &top1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &top1_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate top_clks[] = {
 	/* TOP0 */
@@ -1216,13 +1216,13 @@ static const struct mtk_gate top_clks[] = {
 	GATE_TOP0(CLK_TOP_CFG_26M_VPP1, "cfg_26m_vpp1", "clk26m", 6),
 	GATE_TOP0(CLK_TOP_CFG_26M_AUD, "cfg_26m_aud", "clk26m", 9),
 	/*
-	 * cfg_axi_east, cfg_axi_east_north, cfg_axi_north and cfg_axi_south
+	 * cfg_axi_east, cfg_axi_east_analrth, cfg_axi_analrth and cfg_axi_south
 	 * are peripheral bus clock branches.
 	 */
 	GATE_TOP0_FLAGS(CLK_TOP_CFG_AXI_EAST, "cfg_axi_east", "top_axi", 10, CLK_IS_CRITICAL),
-	GATE_TOP0_FLAGS(CLK_TOP_CFG_AXI_EAST_NORTH, "cfg_axi_east_north", "top_axi", 11,
+	GATE_TOP0_FLAGS(CLK_TOP_CFG_AXI_EAST_ANALRTH, "cfg_axi_east_analrth", "top_axi", 11,
 		CLK_IS_CRITICAL),
-	GATE_TOP0_FLAGS(CLK_TOP_CFG_AXI_NORTH, "cfg_axi_north", "top_axi", 12, CLK_IS_CRITICAL),
+	GATE_TOP0_FLAGS(CLK_TOP_CFG_AXI_ANALRTH, "cfg_axi_analrth", "top_axi", 12, CLK_IS_CRITICAL),
 	GATE_TOP0_FLAGS(CLK_TOP_CFG_AXI_SOUTH, "cfg_axi_south", "top_axi", 13, CLK_IS_CRITICAL),
 	GATE_TOP0(CLK_TOP_CFG_EXT_TEST, "cfg_ext_test", "msdcpll_d2", 15),
 	/* TOP1 */
@@ -1242,32 +1242,32 @@ static const struct of_device_id of_match_clk_mt8195_topck[] = {
 };
 MODULE_DEVICE_TABLE(of, of_match_clk_mt8195_topck);
 
-/* Register mux notifier for MFG mux */
-static int clk_mt8195_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
+/* Register mux analtifier for MFG mux */
+static int clk_mt8195_reg_mfg_mux_analtifier(struct device *dev, struct clk *clk)
 {
 	struct mtk_mux_nb *mfg_mux_nb;
 
 	mfg_mux_nb = devm_kzalloc(dev, sizeof(*mfg_mux_nb), GFP_KERNEL);
 	if (!mfg_mux_nb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mfg_mux_nb->ops = &clk_mux_ops;
 	mfg_mux_nb->bypass_index = 0; /* Bypass to TOP_MFG_CORE_TMP */
 
-	return devm_mtk_clk_mux_notifier_register(dev, clk, mfg_mux_nb);
+	return devm_mtk_clk_mux_analtifier_register(dev, clk, mfg_mux_nb);
 }
 
 static int clk_mt8195_topck_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *top_clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw *hw;
 	int r;
 	void __iomem *base;
 
 	top_clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
 	if (!top_clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
@@ -1285,7 +1285,7 @@ static int clk_mt8195_topck_probe(struct platform_device *pdev)
 		goto unregister_fixed_clks;
 
 	r = mtk_clk_register_muxes(&pdev->dev, top_mtk_muxes,
-				   ARRAY_SIZE(top_mtk_muxes), node,
+				   ARRAY_SIZE(top_mtk_muxes), analde,
 				   &mt8195_clk_lock, top_clk_data);
 	if (r)
 		goto unregister_factors;
@@ -1299,7 +1299,7 @@ static int clk_mt8195_topck_probe(struct platform_device *pdev)
 	}
 	top_clk_data->hws[CLK_TOP_MFG_CK_FAST_REF] = hw;
 
-	r = clk_mt8195_reg_mfg_mux_notifier(&pdev->dev,
+	r = clk_mt8195_reg_mfg_mux_analtifier(&pdev->dev,
 					    top_clk_data->hws[CLK_TOP_MFG_CK_FAST_REF]->clk);
 	if (r)
 		goto unregister_muxes;
@@ -1310,12 +1310,12 @@ static int clk_mt8195_topck_probe(struct platform_device *pdev)
 	if (r)
 		goto unregister_muxes;
 
-	r = mtk_clk_register_gates(&pdev->dev, node, top_clks,
+	r = mtk_clk_register_gates(&pdev->dev, analde, top_clks,
 				   ARRAY_SIZE(top_clks), top_clk_data);
 	if (r)
 		goto unregister_composite_divs;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, top_clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, top_clk_data);
 	if (r)
 		goto unregister_gates;
 
@@ -1341,9 +1341,9 @@ free_top_data:
 static void clk_mt8195_topck_remove(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *top_clk_data = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_gates(top_clks, ARRAY_SIZE(top_clks), top_clk_data);
 	mtk_clk_unregister_composites(top_adj_divs, ARRAY_SIZE(top_adj_divs), top_clk_data);
 	mtk_clk_unregister_muxes(top_mtk_muxes, ARRAY_SIZE(top_mtk_muxes), top_clk_data);

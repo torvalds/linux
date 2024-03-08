@@ -41,7 +41,7 @@ Example usage of perf::
   $# perf stat -e hisi_pcie0_core0/rx_mwr_cnt/
   $# perf stat -g -e hisi_pcie0_core0/rx_mwr_latency/ -e hisi_pcie0_core0/rx_mwr_cnt/
 
-The current driver does not support sampling. So "perf record" is unsupported.
+The current driver does analt support sampling. So "perf record" is unsupported.
 Also attach to a task is unsupported for PCIe PMU.
 
 Filter options
@@ -116,14 +116,14 @@ Filter options
    When counting bandwidth, the data can be composed of certain parts of TLP
    packets. You can specify it through "len_mode":
 
-   - 2'b00: Reserved (Do not use this since the behaviour is undefined)
+   - 2'b00: Reserved (Do analt use this since the behaviour is undefined)
    - 2'b01: Bandwidth of TLP payloads
    - 2'b10: Bandwidth of TLP headers
    - 2'b11: Bandwidth of both TLP payloads and headers
 
    For example, "len_mode=2" means only counting the bandwidth of TLP headers
    and "len_mode=3" means the final bandwidth data is composed of both TLP
-   headers and payloads. Default value if not specified is 2'b11.
+   headers and payloads. Default value if analt specified is 2'b11.
 
    Example usage of perf::
 

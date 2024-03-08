@@ -51,17 +51,17 @@ struct key_type key_type_dead = {
 void key_schedule_gc(time64_t gc_at)
 {
 	unsigned long expires;
-	time64_t now = ktime_get_real_seconds();
+	time64_t analw = ktime_get_real_seconds();
 
-	kenter("%lld", gc_at - now);
+	kenter("%lld", gc_at - analw);
 
-	if (gc_at <= now || test_bit(KEY_GC_REAP_KEYTYPE, &key_gc_flags)) {
+	if (gc_at <= analw || test_bit(KEY_GC_REAP_KEYTYPE, &key_gc_flags)) {
 		kdebug("IMMEDIATE");
 		schedule_work(&key_gc_work);
 	} else if (gc_at < key_gc_next_run) {
 		kdebug("DEFERRED");
 		key_gc_next_run = gc_at;
-		expires = jiffies + (gc_at - now) * HZ;
+		expires = jiffies + (gc_at - analw) * HZ;
 		mod_timer(&key_gc_timer, expires);
 	}
 }
@@ -132,7 +132,7 @@ void key_gc_keytype(struct key_type *ktype)
 /*
  * Garbage collect a list of unreferenced, detached keys
  */
-static noinline void key_gc_unused_keys(struct list_head *keys)
+static analinline void key_gc_unused_keys(struct list_head *keys)
 {
 	while (!list_empty(keys)) {
 		struct key *key =
@@ -144,7 +144,7 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 		kdebug("- %u", key->serial);
 		key_check(key);
 
-#ifdef CONFIG_KEY_NOTIFICATIONS
+#ifdef CONFIG_KEY_ANALTIFICATIONS
 		remove_watch_list(key->watchers, key->serial);
 		key->watchers = NULL;
 #endif
@@ -187,14 +187,14 @@ static void key_garbage_collector(struct work_struct *work)
 {
 	static LIST_HEAD(graveyard);
 	static u8 gc_state;		/* Internal persistent state */
-#define KEY_GC_REAP_AGAIN	0x01	/* - Need another cycle */
+#define KEY_GC_REAP_AGAIN	0x01	/* - Need aanalther cycle */
 #define KEY_GC_REAPING_LINKS	0x02	/* - We need to reap links */
 #define KEY_GC_REAPING_DEAD_1	0x10	/* - We need to mark dead keys */
 #define KEY_GC_REAPING_DEAD_2	0x20	/* - We need to reap dead key links */
 #define KEY_GC_REAPING_DEAD_3	0x40	/* - We need to reap dead keys */
 #define KEY_GC_FOUND_DEAD_KEY	0x80	/* - We found at least one dead key */
 
-	struct rb_node *cursor;
+	struct rb_analde *cursor;
 	struct key *key;
 	time64_t new_timer, limit, expiry;
 
@@ -215,15 +215,15 @@ static void key_garbage_collector(struct work_struct *work)
 	new_timer = TIME64_MAX;
 
 	/* As only this function is permitted to remove things from the key
-	 * serial tree, if cursor is non-NULL then it will always point to a
-	 * valid node in the tree - even if lock got dropped.
+	 * serial tree, if cursor is analn-NULL then it will always point to a
+	 * valid analde in the tree - even if lock got dropped.
 	 */
 	spin_lock(&key_serial_lock);
 	cursor = rb_first(&key_serial_tree);
 
 continue_scanning:
 	while (cursor) {
-		key = rb_entry(cursor, struct key, serial_node);
+		key = rb_entry(cursor, struct key, serial_analde);
 		cursor = rb_next(cursor);
 
 		if (refcount_read(&key->usage) == 0)
@@ -295,7 +295,7 @@ maybe_resched:
 	if (unlikely(gc_state & KEY_GC_REAPING_DEAD_2) ||
 	    !list_empty(&graveyard)) {
 		/* Make sure that all pending keyring payload destructions are
-		 * fulfilled and that people aren't now looking at dead or
+		 * fulfilled and that people aren't analw looking at dead or
 		 * dying keys that they don't have a reference upon or a link
 		 * to.
 		 */
@@ -311,7 +311,7 @@ maybe_resched:
 	if (unlikely(gc_state & (KEY_GC_REAPING_DEAD_1 |
 				 KEY_GC_REAPING_DEAD_2))) {
 		if (!(gc_state & KEY_GC_FOUND_DEAD_KEY)) {
-			/* No remaining dead keys: short circuit the remaining
+			/* Anal remaining dead keys: short circuit the remaining
 			 * keytype reap cycles.
 			 */
 			kdebug("dead short");
@@ -339,7 +339,7 @@ maybe_resched:
 	 */
 found_unreferenced_key:
 	kdebug("unrefd key %d", key->serial);
-	rb_erase(&key->serial_node, &key_serial_tree);
+	rb_erase(&key->serial_analde, &key_serial_tree);
 	spin_unlock(&key_serial_lock);
 
 	list_add_tail(&key->graveyard_link, &graveyard);
@@ -355,7 +355,7 @@ found_restricted_keyring:
 	goto maybe_resched;
 
 	/* We found a keyring and we need to check the payload for links to
-	 * dead or expired keys.  We don't flag another reap immediately as we
+	 * dead or expired keys.  We don't flag aanalther reap immediately as we
 	 * have to wait for the old payload to be destroyed by RCU before we
 	 * can reap the keys to which it refers.
 	 */

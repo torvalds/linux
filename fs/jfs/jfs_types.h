@@ -10,7 +10,7 @@
  *
  * basic type/utility definitions
  *
- * note: this header file must be the 1st include file
+ * analte: this header file must be the 1st include file
  * of JFS include list in all JFS .c file.
  */
 
@@ -27,7 +27,7 @@ typedef u16 tid_t;
 typedef u16 lid_t;
 
 /*
- * Almost identical to Linux's timespec, but not quite
+ * Almost identical to Linux's timespec, but analt quite
  */
 struct timestruc_t {
 	__le32 tv_sec;
@@ -104,7 +104,7 @@ typedef struct {
 #define	DXD_INDEX	0x80	/* B+-tree index */
 #define	DXD_INLINE	0x40	/* in-line data extent */
 #define	DXD_EXTENT	0x20	/* out-of-line single extent */
-#define	DXD_FILE	0x10	/* out-of-line file (inode) */
+#define	DXD_FILE	0x10	/* out-of-line file (ianalde) */
 #define DXD_CORRUPT	0x08	/* Inconsistency detected */
 
 /* dxd_t field construction
@@ -126,7 +126,7 @@ struct component_name {
 
 
 /*
- *	DASD limit information - stored in directory inode
+ *	DASD limit information - stored in directory ianalde
  */
 struct dasd {
 	u8 thresh;		/* Alert Threshold (in percent)		*/

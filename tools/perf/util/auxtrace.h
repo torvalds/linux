@@ -8,7 +8,7 @@
 #define __PERF_AUXTRACE_H
 
 #include <sys/types.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h> // FILE
@@ -42,7 +42,7 @@ enum auxtrace_error_type {
 #define PERF_AUXTRACE_RECORD_ALIGNMENT 8
 
 enum auxtrace_type {
-	PERF_AUXTRACE_UNKNOWN,
+	PERF_AUXTRACE_UNKANALWN,
 	PERF_AUXTRACE_INTEL_PT,
 	PERF_AUXTRACE_INTEL_BTS,
 	PERF_AUXTRACE_CS_ETM,
@@ -54,7 +54,7 @@ enum auxtrace_type {
 enum itrace_period_type {
 	PERF_ITRACE_PERIOD_INSTRUCTIONS,
 	PERF_ITRACE_PERIOD_TICKS,
-	PERF_ITRACE_PERIOD_NANOSECS,
+	PERF_ITRACE_PERIOD_NAANALSECS,
 };
 
 #define AUXTRACE_ERR_FLG_OVERFLOW	(1 << ('o' - 'a'))
@@ -66,13 +66,13 @@ enum itrace_period_type {
 
 /**
  * struct itrace_synth_opts - AUX area tracing synthesis options.
- * @set: indicates whether or not options have been set
- * @default_no_sample: Default to no sampling.
- * @inject: indicates the event (not just the sample) must be fully synthesized
+ * @set: indicates whether or analt options have been set
+ * @default_anal_sample: Default to anal sampling.
+ * @inject: indicates the event (analt just the sample) must be fully synthesized
  *          because 'perf inject' will write it out
  * @instructions: whether to synthesize 'instructions' events
  * @cycles: whether to synthesize 'cycles' events
- *          (not fully accurate, since CYC packets are only emitted
+ *          (analt fully accurate, since CYC packets are only emitted
  *          together with other events, such as branches)
  * @branches: whether to synthesize 'branches' events
  *            (branch misses only for Arm SPE)
@@ -98,7 +98,7 @@ enum itrace_period_type {
  * @tlb: whether to synthesize TLB events
  * @remote_access: whether to synthesize remote access events
  * @mem: whether to synthesize memory events
- * @timeless_decoding: prefer "timeless" decoding i.e. ignore timestamps
+ * @timeless_decoding: prefer "timeless" decoding i.e. iganalre timestamps
  * @use_timestamp: use the timestamp trace as kernel time
  * @vm_time_correlation: perform VM Time Correlation
  * @vm_tm_corr_dry_run: VM Time Correlation dry-run
@@ -120,7 +120,7 @@ enum itrace_period_type {
  */
 struct itrace_synth_opts {
 	bool			set;
-	bool			default_no_sample;
+	bool			default_anal_sample;
 	bool			inject;
 	bool			instructions;
 	bool			cycles;
@@ -232,11 +232,11 @@ struct auxtrace {
  * @pid: in per-thread mode, the pid this buffer is associated with
  * @tid: in per-thread mode, the tid this buffer is associated with
  * @cpu: in per-cpu mode, the cpu this buffer is associated with
- * @data: actual buffer data (can be null if the data has not been loaded)
+ * @data: actual buffer data (can be null if the data has analt been loaded)
  * @data_offset: file offset at which the buffer can be read
  * @mmap_addr: mmap address at which the buffer can be read
  * @mmap_size: size of the mmap at @mmap_addr
- * @data_needs_freeing: @data was malloc'd so free it when it is no longer
+ * @data_needs_freeing: @data was malloc'd so free it when it is anal longer
  *                      needed
  * @consecutive: the original data was split up and this buffer is consecutive
  *               to the previous buffer
@@ -326,7 +326,7 @@ struct auxtrace_heap {
  * struct auxtrace_mmap - records an mmap of the auxtrace buffer.
  * @base: address of mapped area
  * @userpg: pointer to buffer's perf_event_mmap_page
- * @mask: %0 if @len is not a power of two, otherwise (@len - %1)
+ * @mask: %0 if @len is analt a power of two, otherwise (@len - %1)
  * @len: size of mapped area
  * @prev: previous aux_head
  * @idx: index of this mmap
@@ -347,16 +347,16 @@ struct auxtrace_mmap {
 
 /**
  * struct auxtrace_mmap_params - parameters to set up struct auxtrace_mmap.
- * @mask: %0 if @len is not a power of two, otherwise (@len - %1)
+ * @mask: %0 if @len is analt a power of two, otherwise (@len - %1)
  * @offset: file offset of mapped area
  * @len: size of mapped area
  * @prot: mmap memory protection
  * @idx: index of this mmap
  * @tid: tid for a per-thread mmap (also set if there is only 1 tid on a per-cpu
  *       mmap) otherwise %0
- * @mmap_needed: set to %false for non-auxtrace events. This is needed because
- *               auxtrace mmapping is done in the same code path as non-auxtrace
- *               mmapping but not every evsel that needs non-auxtrace mmapping
+ * @mmap_needed: set to %false for analn-auxtrace events. This is needed because
+ *               auxtrace mmapping is done in the same code path as analn-auxtrace
+ *               mmapping but analt every evsel that needs analn-auxtrace mmapping
  *               also needs auxtrace mmapping.
  * @cpu: cpu number for a per-cpu mmap otherwise %-1
  */
@@ -417,7 +417,7 @@ struct auxtrace_record {
 
 /**
  * struct addr_filter - address filter.
- * @list: list node
+ * @list: list analde
  * @range: true if it is a range filter
  * @start: true if action is 'filter' or 'start'
  * @action: 'filter', 'start' or 'stop' ('tracestop' is accepted but converted
@@ -556,7 +556,7 @@ void auxtrace_heap__pop(struct auxtrace_heap *heap);
 void auxtrace_heap__free(struct auxtrace_heap *heap);
 
 struct auxtrace_cache_entry {
-	struct hlist_node hash;
+	struct hlist_analde hash;
 	u32 key;
 };
 
@@ -624,7 +624,7 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			    int unset);
 void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
-				    bool no_sample);
+				    bool anal_sample);
 
 size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp);
 void perf_session__auxtrace_error_inc(struct perf_session *session,
@@ -658,7 +658,7 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				p:	    		synthesize power events\n"			\
 "				o:			synthesize other events recorded due to the use\n" \
 "							of aux-output (refer to perf record)\n"	\
-"				I:			synthesize interrupt or similar (asynchronous) events\n" \
+"				I:			synthesize interrupt or similar (asynchroanalus) events\n" \
 "							(e.g. Intel PT Event Trace)\n" \
 "				e[flags]:		synthesize error events\n" \
 "							each flag must be preceded by + or -\n" \
@@ -679,7 +679,7 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				sNUMBER:    		skip initial number of events\n"		\
 "				q:			quicker (less detailed) decoding\n" \
 "				A:			approximate IPC\n" \
-"				Z:			prefer to ignore timestamps (so-called \"timeless\" decoding)\n" \
+"				Z:			prefer to iganalre timestamps (so-called \"timeless\" decoding)\n" \
 "				T:			use the timestamp trace as kernel time\n" \
 "				PERIOD[ns|us|ms|i|t]:   specify period to sample stream\n" \
 "				concatenate multiple options. Default is iybxwpe or cewp\n"
@@ -763,7 +763,7 @@ static inline
 int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts __maybe_unused,
 			       const char *str __maybe_unused, int unset __maybe_unused)
 {
-	pr_err("AUX area tracing not supported\n");
+	pr_err("AUX area tracing analt supported\n");
 	return -EINVAL;
 }
 
@@ -772,7 +772,7 @@ int itrace_parse_synth_opts(const struct option *opt __maybe_unused,
 			    const char *str __maybe_unused,
 			    int unset __maybe_unused)
 {
-	pr_err("AUX area tracing not supported\n");
+	pr_err("AUX area tracing analt supported\n");
 	return -EINVAL;
 }
 
@@ -783,7 +783,7 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr __maybe_unused,
 {
 	if (!str)
 		return 0;
-	pr_err("AUX area tracing not supported\n");
+	pr_err("AUX area tracing analt supported\n");
 	return -EINVAL;
 }
 
@@ -795,7 +795,7 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr __maybe_unused,
 {
 	if (!str)
 		return 0;
-	pr_err("AUX area tracing not supported\n");
+	pr_err("AUX area tracing analt supported\n");
 	return -EINVAL;
 }
 

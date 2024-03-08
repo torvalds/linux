@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,7 +45,7 @@ int mlx5e_port_query_buffer(struct mlx5e_priv *priv,
 
 	out = kzalloc(sz, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5e_port_query_pbmc(mdev, out);
 	if (err)
@@ -133,8 +133,8 @@ enum {
 	MLX5_LOSSLESS_POOL = 1,
 };
 
-/* No limit on usage of shared buffer pool (max_buff=0) */
-#define MLX5_SB_POOL_NO_THRESHOLD  0
+/* Anal limit on usage of shared buffer pool (max_buff=0) */
+#define MLX5_SB_POOL_ANAL_THRESHOLD  0
 /* Shared buffer pool usage threshold when calculated
  * dynamically in alpha units. alpha=13 is equivalent to
  * HW_alpha of  [(1/128) * 2 ^ (alpha-1)] = 32, where HW_alpha
@@ -153,13 +153,13 @@ struct mlx5_sbcm_params {
 
 static const struct mlx5_sbcm_params sbcm_default = {
 	.pool_idx = MLX5_LOSSY_POOL,
-	.max_buff = MLX5_SB_POOL_NO_THRESHOLD,
+	.max_buff = MLX5_SB_POOL_ANAL_THRESHOLD,
 	.infi_size = 0,
 };
 
 static const struct mlx5_sbcm_params sbcm_lossy = {
 	.pool_idx = MLX5_LOSSY_POOL,
-	.max_buff = MLX5_SB_POOL_NO_THRESHOLD,
+	.max_buff = MLX5_SB_POOL_ANAL_THRESHOLD,
 	.infi_size = 1,
 };
 
@@ -169,9 +169,9 @@ static const struct mlx5_sbcm_params sbcm_lossless = {
 	.infi_size = 0,
 };
 
-static const struct mlx5_sbcm_params sbcm_lossless_no_threshold = {
+static const struct mlx5_sbcm_params sbcm_lossless_anal_threshold = {
 	.pool_idx = MLX5_LOSSLESS_POOL,
-	.max_buff = MLX5_SB_POOL_NO_THRESHOLD,
+	.max_buff = MLX5_SB_POOL_ANAL_THRESHOLD,
 	.infi_size = 1,
 };
 
@@ -182,7 +182,7 @@ static const struct mlx5_sbcm_params sbcm_lossless_no_threshold = {
  * @lossless_buff_count: <input> number of lossless buffers in total
  *
  * The selection is based on the following rules:
- * 1. If buffer size is 0, no shared buffer pool is used.
+ * 1. If buffer size is 0, anal shared buffer pool is used.
  * 2. If buffer is lossy, use lossy shared buffer pool.
  * 3. If there are more than 1 lossless buffers, use lossless shared buffer pool
  *    with threshold.
@@ -203,7 +203,7 @@ select_sbcm_params(struct mlx5e_bufferx_reg *buffer, u8 lossless_buff_count)
 	if (lossless_buff_count > 1)
 		return &sbcm_lossless;
 
-	return &sbcm_lossless_no_threshold;
+	return &sbcm_lossless_anal_threshold;
 }
 
 static int port_update_pool_cfg(struct mlx5_core_dev *mdev,
@@ -265,7 +265,7 @@ static int port_update_shared_buffer(struct mlx5_core_dev *mdev,
 	shared_buffer_size = total_buffer_size - new_headroom_size;
 
 	if (shared_buffer_size < 4) {
-		pr_err("Requested port buffer is too large, not enough space left for shared buffer\n");
+		pr_err("Requested port buffer is too large, analt eanalugh space left for shared buffer\n");
 		return -EINVAL;
 	}
 
@@ -298,7 +298,7 @@ static int port_set_buffer(struct mlx5e_priv *priv,
 
 	in = kzalloc(sz, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5e_port_query_pbmc(mdev, in);
 	if (err)
@@ -371,9 +371,9 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
 
 		if (port_buffer->buffer[i].size <
 		    (xoff + max_mtu + port_buff_cell_sz)) {
-			pr_err("buffer_size[%d]=%d is not enough for lossless buffer\n",
+			pr_err("buffer_size[%d]=%d is analt eanalugh for lossless buffer\n",
 			       i, port_buffer->buffer[i].size);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		port_buffer->buffer[i].xoff = port_buffer->buffer[i].size - xoff;
@@ -402,7 +402,7 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
  *		mapped to this buffer lossy if all priorities mapped to
  *		this buffer are PFC disabled
  *
- *	@return: 0 if no error,
+ *	@return: 0 if anal error,
  *	sets change to true if buffer configuration was modified.
  */
 static int update_buffer_lossy(struct mlx5_core_dev *mdev,
@@ -545,7 +545,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 		for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++) {
 			netdev_dbg(priv->netdev, "%s: buffer[%d]=%d\n", __func__, i, buffer_size[i]);
 			if (!port_buffer.buffer[i].lossy && !buffer_size[i]) {
-				netdev_dbg(priv->netdev, "%s: lossless buffer[%d] size cannot be zero\n",
+				netdev_dbg(priv->netdev, "%s: lossless buffer[%d] size cananalt be zero\n",
 					   __func__, i);
 				return -EINVAL;
 			}

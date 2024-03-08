@@ -97,16 +97,16 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 
 	base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Duplicated SYS_MCI pseudo-GPIO controller for compatibility with
-	 * older trees using sysreg node for MMC control lines.
+	 * older trees using sysreg analde for MMC control lines.
 	 */
 	mmc_gpio_chip = devm_kzalloc(&pdev->dev, sizeof(*mmc_gpio_chip),
 			GFP_KERNEL);
 	if (!mmc_gpio_chip)
-		return -ENOMEM;
+		return -EANALMEM;
 	bgpio_init(mmc_gpio_chip, &pdev->dev, 0x4, base + SYS_MCI,
 			NULL, NULL, NULL, NULL, 0);
 	mmc_gpio_chip->ngpio = 2;

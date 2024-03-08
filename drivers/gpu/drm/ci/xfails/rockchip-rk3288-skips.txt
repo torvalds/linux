@@ -41,7 +41,7 @@ kms_cursor_legacy.*
 #  do_group_exit from __wake_up_parent+0x0/0x18
 # Code: e595c008 12843d19 03e00000 03093168 (15940508)
 # ---[ end trace 0000000000000000 ]---
-# note: kms_plane_lowre[482] exited with preempt_count 1
+# analte: kms_plane_lowre[482] exited with preempt_count 1
 # Fixing recursive fault but reboot is needed!
 kms_plane_lowres@pipe-F-tiling-y
 

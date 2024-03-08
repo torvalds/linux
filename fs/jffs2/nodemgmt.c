@@ -15,7 +15,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/compiler.h>
 #include <linux/sched/signal.h>
-#include "nodelist.h"
+#include "analdelist.h"
 #include "debug.h"
 
 /*
@@ -28,7 +28,7 @@ static int jffs2_rp_can_write(struct jffs2_sb_info *c)
 
 	avail = c->dirty_size + c->free_size + c->unchecked_size +
 		c->erasing_size - c->resv_blocks_write * c->sector_size
-		- c->nospc_dirty_size;
+		- c->analspc_dirty_size;
 
 	if (avail < 2 * opts->rp_size)
 		jffs2_dbg(1, "rpsize %u, dirty_size %u, free_size %u, "
@@ -36,7 +36,7 @@ static int jffs2_rp_can_write(struct jffs2_sb_info *c)
 			  "nr_erasing_blocks %u, avail %u, resrv %u\n",
 			  opts->rp_size, c->dirty_size, c->free_size,
 			  c->erasing_size, c->unchecked_size,
-			  c->nr_erasing_blocks, avail, c->nospc_dirty_size);
+			  c->nr_erasing_blocks, avail, c->analspc_dirty_size);
 
 	if (avail > opts->rp_size)
 		return 1;
@@ -50,14 +50,14 @@ static int jffs2_rp_can_write(struct jffs2_sb_info *c)
 }
 
 /**
- *	jffs2_reserve_space - request physical space to write nodes to flash
+ *	jffs2_reserve_space - request physical space to write analdes to flash
  *	@c: superblock info
  *	@minsize: Minimum acceptable size of allocation
  *	@len: Returned value of allocation length
- *	@prio: Allocation type - ALLOC_{NORMAL,DELETION}
+ *	@prio: Allocation type - ALLOC_{ANALRMAL,DELETION}
  *
  *	Requests a block of physical space on the flash. Returns zero for success
- *	and puts 'len' into the appropriate place, or returns -ENOSPC or other 
+ *	and puts 'len' into the appropriate place, or returns -EANALSPC or other 
  *	error if appropriate. Doesn't return len since that's 
  *
  *	If it returns zero, jffs2_reserve_space() also downs the per-filesystem
@@ -88,10 +88,10 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 
 	/*
 	 * Check if the free space is greater then size of the reserved pool.
-	 * If not, only allow root to proceed with writing.
+	 * If analt, only allow root to proceed with writing.
 	 */
 	if (prio != ALLOC_DELETION && !jffs2_rp_can_write(c)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -103,36 +103,36 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			/* calculate real dirty size
 			 * dirty_size contains blocks on erase_pending_list
 			 * those blocks are counted in c->nr_erasing_blocks.
-			 * If one block is actually erased, it is not longer counted as dirty_space
+			 * If one block is actually erased, it is analt longer counted as dirty_space
 			 * but it is counted in c->nr_erasing_blocks, so we add it and subtract it
 			 * with c->nr_erasing_blocks * c->sector_size again.
-			 * Blocks on erasable_list are counted as dirty_size, but not in c->nr_erasing_blocks
+			 * Blocks on erasable_list are counted as dirty_size, but analt in c->nr_erasing_blocks
 			 * This helps us to force gc and pick eventually a clean block to spread the load.
 			 * We add unchecked_size here, as we hopefully will find some space to use.
 			 * This will affect the sum only once, as gc first finishes checking
-			 * of nodes.
+			 * of analdes.
 			 */
 			dirty = c->dirty_size + c->erasing_size - c->nr_erasing_blocks * c->sector_size + c->unchecked_size;
-			if (dirty < c->nospc_dirty_size) {
+			if (dirty < c->analspc_dirty_size) {
 				if (prio == ALLOC_DELETION && c->nr_free_blocks + c->nr_erasing_blocks >= c->resv_blocks_deletion) {
 					jffs2_dbg(1, "%s(): Low on dirty space to GC, but it's a deletion. Allowing...\n",
 						  __func__);
 					break;
 				}
-				jffs2_dbg(1, "dirty size 0x%08x + unchecked_size 0x%08x < nospc_dirty_size 0x%08x, returning -ENOSPC\n",
+				jffs2_dbg(1, "dirty size 0x%08x + unchecked_size 0x%08x < analspc_dirty_size 0x%08x, returning -EANALSPC\n",
 					  dirty, c->unchecked_size,
 					  c->sector_size);
 
 				spin_unlock(&c->erase_completion_lock);
 				mutex_unlock(&c->alloc_sem);
-				return -ENOSPC;
+				return -EANALSPC;
 			}
 
 			/* Calc possibly available space. Possibly available means that we
-			 * don't know, if unchecked size contains obsoleted nodes, which could give us some
+			 * don't kanalw, if unchecked size contains obsoleted analdes, which could give us some
 			 * more usable space. This will affect the sum only once, as gc first finishes checking
-			 * of nodes.
-			 + Return -ENOSPC, if the maximum possibly available space is less or equal than
+			 * of analdes.
+			 + Return -EANALSPC, if the maximum possibly available space is less or equal than
 			 * blocksneeded * sector_size.
 			 * This blocks endless gc looping on a filesystem, which is nearly full, even if
 			 * the check above passes.
@@ -145,11 +145,11 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 					break;
 				}
 
-				jffs2_dbg(1, "max. available size 0x%08x  < blocksneeded * sector_size 0x%08x, returning -ENOSPC\n",
+				jffs2_dbg(1, "max. available size 0x%08x  < blocksneeded * sector_size 0x%08x, returning -EANALSPC\n",
 					  avail, blocksneeded * c->sector_size);
 				spin_unlock(&c->erase_completion_lock);
 				mutex_unlock(&c->alloc_sem);
-				return -ENOSPC;
+				return -EANALSPC;
 			}
 
 			mutex_unlock(&c->alloc_sem);
@@ -203,7 +203,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 out:
 	spin_unlock(&c->erase_completion_lock);
 	if (!ret)
-		ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, 1);
+		ret = jffs2_prealloc_raw_analde_refs(c, c->nextblock, 1);
 	if (ret)
 		mutex_unlock(&c->alloc_sem);
 	return ret;
@@ -232,7 +232,7 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 			break;
 	}
 	if (!ret)
-		ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, 1);
+		ret = jffs2_prealloc_raw_analde_refs(c, c->nextblock, 1);
 
 	return ret;
 }
@@ -248,7 +248,7 @@ static void jffs2_close_nextblock(struct jffs2_sb_info *c, struct jffs2_eraseblo
 			  __func__, jeb->offset);
 		return;
 	}
-	/* Check, if we have a dirty block now, or if it was dirty already */
+	/* Check, if we have a dirty block analw, or if it was dirty already */
 	if (ISDIRTY (jeb->wasted_size + jeb->dirty_size)) {
 		c->dirty_size += jeb->wasted_size;
 		c->wasted_size -= jeb->wasted_size;
@@ -301,27 +301,27 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 			!list_empty(&c->erasable_pending_wbuf_list)) {
 			jffs2_dbg(1, "%s(): Flushing write buffer\n",
 				  __func__);
-			/* c->nextblock is NULL, no update to c->nextblock allowed */
+			/* c->nextblock is NULL, anal update to c->nextblock allowed */
 			spin_unlock(&c->erase_completion_lock);
 			jffs2_flush_wbuf_pad(c);
 			spin_lock(&c->erase_completion_lock);
-			/* Have another go. It'll be on the erasable_list now */
+			/* Have aanalther go. It'll be on the erasable_list analw */
 			return -EAGAIN;
 		}
 
 		if (!c->nr_erasing_blocks) {
 			/* Ouch. We're in GC, or we wouldn't have got here.
-			   And there's no space left. At all. */
-			pr_crit("Argh. No free space left for GC. nr_erasing_blocks is %d. nr_free_blocks is %d. (erasableempty: %s, erasingempty: %s, erasependingempty: %s)\n",
+			   And there's anal space left. At all. */
+			pr_crit("Argh. Anal free space left for GC. nr_erasing_blocks is %d. nr_free_blocks is %d. (erasableempty: %s, erasingempty: %s, erasependingempty: %s)\n",
 				c->nr_erasing_blocks, c->nr_free_blocks,
-				list_empty(&c->erasable_list) ? "yes" : "no",
-				list_empty(&c->erasing_list) ? "yes" : "no",
-				list_empty(&c->erase_pending_list) ? "yes" : "no");
-			return -ENOSPC;
+				list_empty(&c->erasable_list) ? "anal" : "anal",
+				list_empty(&c->erasing_list) ? "anal" : "anal",
+				list_empty(&c->erase_pending_list) ? "anal" : "anal");
+			return -EANALSPC;
 		}
 
 		spin_unlock(&c->erase_completion_lock);
-		/* Don't wait for it; just erase one right now */
+		/* Don't wait for it; just erase one right analw */
 		jffs2_erase_pending_blocks(c, 1);
 		spin_lock(&c->erase_completion_lock);
 
@@ -339,7 +339,7 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 	jffs2_sum_reset_collected(c->summary); /* reset collected summary */
 
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
-	/* adjust write buffer offset, else we get a non contiguous write bug */
+	/* adjust write buffer offset, else we get a analn contiguous write bug */
 	if (!(c->wbuf_ofs % c->sector_size) && !c->wbuf_len)
 		c->wbuf_ofs = 0xffffffff;
 #endif
@@ -361,8 +361,8 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
  restart:
 	reserved_size = 0;
 
-	if (jffs2_sum_active() && (sumsize != JFFS2_SUMMARY_NOSUM_SIZE)) {
-							/* NOSUM_SIZE means not to generate summary */
+	if (jffs2_sum_active() && (sumsize != JFFS2_SUMMARY_ANALSUM_SIZE)) {
+							/* ANALSUM_SIZE means analt to generate summary */
 
 		if (jeb) {
 			reserved_size = PAD(sumsize + c->summary->sum_size + JFFS2_SUMMARY_FRAME_SIZE);
@@ -372,29 +372,29 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 						c->summary->sum_size, sumsize);
 		}
 
-		/* Is there enough space for writing out the current node, or we have to
-		   write out summary information now, close this jeb and select new nextblock? */
+		/* Is there eanalugh space for writing out the current analde, or we have to
+		   write out summary information analw, close this jeb and select new nextblock? */
 		if (jeb && (PAD(minsize) + PAD(c->summary->sum_size + sumsize +
 					JFFS2_SUMMARY_FRAME_SIZE) > jeb->free_size)) {
 
 			/* Has summary been disabled for this jeb? */
 			if (jffs2_sum_is_disabled(c->summary)) {
-				sumsize = JFFS2_SUMMARY_NOSUM_SIZE;
+				sumsize = JFFS2_SUMMARY_ANALSUM_SIZE;
 				goto restart;
 			}
 
 			/* Writing out the collected summary information */
 			dbg_summary("generating summary for 0x%08x.\n", jeb->offset);
-			ret = jffs2_sum_write_sumnode(c);
+			ret = jffs2_sum_write_sumanalde(c);
 
 			if (ret)
 				return ret;
 
 			if (jffs2_sum_is_disabled(c->summary)) {
-				/* jffs2_write_sumnode() couldn't write out the summary information
+				/* jffs2_write_sumanalde() couldn't write out the summary information
 				   diabling summary for this jeb and free the collected information
 				 */
-				sumsize = JFFS2_SUMMARY_NOSUM_SIZE;
+				sumsize = JFFS2_SUMMARY_ANALSUM_SIZE;
 				goto restart;
 			}
 
@@ -408,7 +408,7 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			uint32_t waste;
 
 			/* Skip the end of this block and file it as having some dirty space */
-			/* If there's a pending write to it, flush now */
+			/* If there's a pending write to it, flush analw */
 
 			if (jffs2_wbuf_dirty(c)) {
 				spin_unlock(&c->erase_completion_lock);
@@ -422,19 +422,19 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 
 			spin_unlock(&c->erase_completion_lock);
 
-			ret = jffs2_prealloc_raw_node_refs(c, jeb, 1);
+			ret = jffs2_prealloc_raw_analde_refs(c, jeb, 1);
 
-			/* Just lock it again and continue. Nothing much can change because
-			   we hold c->alloc_sem anyway. In fact, it's not entirely clear why
+			/* Just lock it again and continue. Analthing much can change because
+			   we hold c->alloc_sem anyway. In fact, it's analt entirely clear why
 			   we hold c->erase_completion_lock in the majority of this function...
-			   but that's a question for another (more caffeine-rich) day. */
+			   but that's a question for aanalther (more caffeine-rich) day. */
 			spin_lock(&c->erase_completion_lock);
 
 			if (ret)
 				return ret;
 
 			waste = jeb->free_size;
-			jffs2_link_node_ref(c, jeb,
+			jffs2_link_analde_ref(c, jeb,
 					    (jeb->offset + c->sector_size - waste) | REF_OBSOLETE,
 					    waste, NULL);
 			/* FIXME: that made it count as dirty. Convert to wasted */
@@ -462,20 +462,20 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			goto restart;
 		}
 	}
-	/* OK, jeb (==c->nextblock) is now pointing at a block which definitely has
-	   enough space */
+	/* OK, jeb (==c->nextblock) is analw pointing at a block which definitely has
+	   eanalugh space */
 	*len = jeb->free_size - reserved_size;
 
 	if (c->cleanmarker_size && jeb->used_size == c->cleanmarker_size &&
-	    !jeb->first_node->next_in_ino) {
-		/* Only node in it beforehand was a CLEANMARKER node (we think).
-		   So mark it obsolete now that there's going to be another node
+	    !jeb->first_analde->next_in_ianal) {
+		/* Only analde in it beforehand was a CLEANMARKER analde (we think).
+		   So mark it obsolete analw that there's going to be aanalther analde
 		   in the block. This will reduce used_size to zero but We've
-		   already set c->nextblock so that jffs2_mark_node_obsolete()
+		   already set c->nextblock so that jffs2_mark_analde_obsolete()
 		   won't try to refile it to the dirty_list.
 		*/
 		spin_unlock(&c->erase_completion_lock);
-		jffs2_mark_node_obsolete(c, jeb->first_node);
+		jffs2_mark_analde_obsolete(c, jeb->first_analde);
 		spin_lock(&c->erase_completion_lock);
 	}
 
@@ -486,40 +486,40 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 }
 
 /**
- *	jffs2_add_physical_node_ref - add a physical node reference to the list
+ *	jffs2_add_physical_analde_ref - add a physical analde reference to the list
  *	@c: superblock info
- *	@new: new node reference to add
- *	@len: length of this physical node
+ *	@new: new analde reference to add
+ *	@len: length of this physical analde
  *
- *	Should only be used to report nodes for which space has been allocated
+ *	Should only be used to report analdes for which space has been allocated
  *	by jffs2_reserve_space.
  *
  *	Must be called with the alloc_sem held.
  */
 
-struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
+struct jffs2_raw_analde_ref *jffs2_add_physical_analde_ref(struct jffs2_sb_info *c,
 						       uint32_t ofs, uint32_t len,
-						       struct jffs2_inode_cache *ic)
+						       struct jffs2_ianalde_cache *ic)
 {
 	struct jffs2_eraseblock *jeb;
-	struct jffs2_raw_node_ref *new;
+	struct jffs2_raw_analde_ref *new;
 
 	jeb = &c->blocks[ofs / c->sector_size];
 
-	jffs2_dbg(1, "%s(): Node at 0x%x(%d), size 0x%x\n",
+	jffs2_dbg(1, "%s(): Analde at 0x%x(%d), size 0x%x\n",
 		  __func__, ofs & ~3, ofs & 3, len);
 #if 1
-	/* Allow non-obsolete nodes only to be added at the end of c->nextblock, 
-	   if c->nextblock is set. Note that wbuf.c will file obsolete nodes
+	/* Allow analn-obsolete analdes only to be added at the end of c->nextblock, 
+	   if c->nextblock is set. Analte that wbuf.c will file obsolete analdes
 	   even after refiling c->nextblock */
 	if ((c->nextblock || ((ofs & 3) != REF_OBSOLETE))
 	    && (jeb != c->nextblock || (ofs & ~3) != jeb->offset + (c->sector_size - jeb->free_size))) {
-		pr_warn("argh. node added in wrong place at 0x%08x(%d)\n",
+		pr_warn("argh. analde added in wrong place at 0x%08x(%d)\n",
 			ofs & ~3, ofs & 3);
 		if (c->nextblock)
 			pr_warn("nextblock 0x%08x", c->nextblock->offset);
 		else
-			pr_warn("No nextblock");
+			pr_warn("Anal nextblock");
 		pr_cont(", expected at %08x\n",
 			jeb->offset + (c->sector_size - jeb->free_size));
 		return ERR_PTR(-EINVAL);
@@ -527,7 +527,7 @@ struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
 #endif
 	spin_lock(&c->erase_completion_lock);
 
-	new = jffs2_link_node_ref(c, jeb, ofs, len, ic);
+	new = jffs2_link_analde_ref(c, jeb, ofs, len, ic);
 
 	if (!jeb->free_size && !jeb->dirty_size && !ISDIRTY(jeb->wasted_size)) {
 		/* If it lives on the dirty_list, jffs2_reserve_space will put it there */
@@ -544,8 +544,8 @@ struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
 		list_add_tail(&jeb->list, &c->clean_list);
 		c->nextblock = NULL;
 	}
-	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
-	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+	jffs2_dbg_acct_sanity_check_anallock(c,jeb);
+	jffs2_dbg_acct_paraanalia_check_anallock(c, jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 
@@ -576,27 +576,27 @@ static inline int on_list(struct list_head *obj, struct list_head *head)
 	return 0;
 }
 
-void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref)
+void jffs2_mark_analde_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_analde_ref *ref)
 {
 	struct jffs2_eraseblock *jeb;
 	int blocknr;
-	struct jffs2_unknown_node n;
+	struct jffs2_unkanalwn_analde n;
 	int ret, addedsize;
 	size_t retlen;
 	uint32_t freed_len;
 
 	if(unlikely(!ref)) {
-		pr_notice("EEEEEK. jffs2_mark_node_obsolete called with NULL node\n");
+		pr_analtice("EEEEEK. jffs2_mark_analde_obsolete called with NULL analde\n");
 		return;
 	}
 	if (ref_obsolete(ref)) {
-		jffs2_dbg(1, "%s(): called with already obsolete node at 0x%08x\n",
+		jffs2_dbg(1, "%s(): called with already obsolete analde at 0x%08x\n",
 			  __func__, ref_offset(ref));
 		return;
 	}
 	blocknr = ref->flash_offset / c->sector_size;
 	if (blocknr >= c->nr_blocks) {
-		pr_notice("raw node at 0x%08x is off the end of device!\n",
+		pr_analtice("raw analde at 0x%08x is off the end of device!\n",
 			  ref->flash_offset);
 		BUG();
 	}
@@ -606,10 +606,10 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	    !(c->flags & (JFFS2_SB_FLAG_SCANNING | JFFS2_SB_FLAG_BUILDING))) {
 		/* Hm. This may confuse static lock analysis. If any of the above
 		   three conditions is false, we're going to return from this
-		   function without actually obliterating any nodes or freeing
-		   any jffs2_raw_node_refs. So we don't need to stop erases from
+		   function without actually obliterating any analdes or freeing
+		   any jffs2_raw_analde_refs. So we don't need to stop erases from
 		   happening, or protect against people holding an obsolete
-		   jffs2_raw_node_ref without the erase_completion_lock. */
+		   jffs2_raw_analde_ref without the erase_completion_lock. */
 		mutex_lock(&c->erase_free_sem);
 	}
 
@@ -619,23 +619,23 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	if (ref_flags(ref) == REF_UNCHECKED) {
 		D1(if (unlikely(jeb->unchecked_size < freed_len)) {
-				pr_notice("raw unchecked node of size 0x%08x freed from erase block %d at 0x%08x, but unchecked_size was already 0x%08x\n",
+				pr_analtice("raw unchecked analde of size 0x%08x freed from erase block %d at 0x%08x, but unchecked_size was already 0x%08x\n",
 					  freed_len, blocknr,
 					  ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-			jffs2_dbg(1, "Obsoleting previously unchecked node at 0x%08x of len %x\n",
+			jffs2_dbg(1, "Obsoleting previously unchecked analde at 0x%08x of len %x\n",
 				  ref_offset(ref), freed_len);
 		jeb->unchecked_size -= freed_len;
 		c->unchecked_size -= freed_len;
 	} else {
 		D1(if (unlikely(jeb->used_size < freed_len)) {
-				pr_notice("raw node of size 0x%08x freed from erase block %d at 0x%08x, but used_size was already 0x%08x\n",
+				pr_analtice("raw analde of size 0x%08x freed from erase block %d at 0x%08x, but used_size was already 0x%08x\n",
 					  freed_len, blocknr,
 					  ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-			jffs2_dbg(1, "Obsoleting node at 0x%08x of len %#x: ",
+			jffs2_dbg(1, "Obsoleting analde at 0x%08x of len %#x: ",
 				  ref_offset(ref), freed_len);
 		jeb->used_size -= freed_len;
 		c->used_size -= freed_len;
@@ -648,7 +648,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		jeb->dirty_size += freed_len;
 		c->dirty_size += freed_len;
 
-		/* Convert wasted space to dirty, if not a bad block */
+		/* Convert wasted space to dirty, if analt a bad block */
 		if (jeb->wasted_size) {
 			if (on_list(&jeb->list, &c->bad_used_list)) {
 				jffs2_dbg(1, "Leaving block at %08x on the bad_used_list\n",
@@ -672,13 +672,13 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	}
 	ref->flash_offset = ref_offset(ref) | REF_OBSOLETE;
 
-	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
-	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+	jffs2_dbg_acct_sanity_check_anallock(c, jeb);
+	jffs2_dbg_acct_paraanalia_check_anallock(c, jeb);
 
 	if (c->flags & JFFS2_SB_FLAG_SCANNING) {
 		/* Flash scanning is in progress. Don't muck about with the block
-		   lists because they're not ready yet, and don't actually
-		   obliterate nodes that look obsolete. If they weren't
+		   lists because they're analt ready yet, and don't actually
+		   obliterate analdes that look obsolete. If they weren't
 		   marked obsolete on the flash at the time they _became_
 		   obsolete, there was probably a reason for that. */
 		spin_unlock(&c->erase_completion_lock);
@@ -687,7 +687,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	}
 
 	if (jeb == c->nextblock) {
-		jffs2_dbg(2, "Not moving nextblock 0x%08x to dirty/erase_pending list\n",
+		jffs2_dbg(2, "Analt moving nextblock 0x%08x to dirty/erase_pending list\n",
 			  jeb->offset);
 	} else if (!jeb->used_size && !jeb->unchecked_size) {
 		if (jeb == c->gcblock) {
@@ -719,7 +719,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		}
 		jffs2_dbg(1, "Done OK\n");
 	} else if (jeb == c->gcblock) {
-		jffs2_dbg(2, "Not moving gcblock 0x%08x to dirty_list\n",
+		jffs2_dbg(2, "Analt moving gcblock 0x%08x to dirty_list\n",
 			  jeb->offset);
 	} else if (ISDIRTY(jeb->dirty_size) && !ISDIRTY(jeb->dirty_size - addedsize)) {
 		jffs2_dbg(1, "Eraseblock at 0x%08x is freshly dirtied. Removing from clean list...\n",
@@ -729,13 +729,13 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		list_add_tail(&jeb->list, &c->dirty_list);
 	} else if (VERYDIRTY(c, jeb->dirty_size) &&
 		   !VERYDIRTY(c, jeb->dirty_size - addedsize)) {
-		jffs2_dbg(1, "Eraseblock at 0x%08x is now very dirty. Removing from dirty list...\n",
+		jffs2_dbg(1, "Eraseblock at 0x%08x is analw very dirty. Removing from dirty list...\n",
 			  jeb->offset);
 		list_del(&jeb->list);
 		jffs2_dbg(1, "...and adding to very_dirty_list\n");
 		list_add_tail(&jeb->list, &c->very_dirty_list);
 	} else {
-		jffs2_dbg(1, "Eraseblock at 0x%08x not moved anywhere. (free 0x%08x, dirty 0x%08x, used 0x%08x)\n",
+		jffs2_dbg(1, "Eraseblock at 0x%08x analt moved anywhere. (free 0x%08x, dirty 0x%08x, used 0x%08x)\n",
 			  jeb->offset, jeb->free_size, jeb->dirty_size,
 			  jeb->used_size);
 	}
@@ -748,83 +748,83 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		return;
 	}
 
-	/* The erase_free_sem is locked, and has been since before we marked the node obsolete
-	   and potentially put its eraseblock onto the erase_pending_list. Thus, we know that
+	/* The erase_free_sem is locked, and has been since before we marked the analde obsolete
+	   and potentially put its eraseblock onto the erase_pending_list. Thus, we kanalw that
 	   the block hasn't _already_ been erased, and that 'ref' itself hasn't been freed yet
-	   by jffs2_free_jeb_node_refs() in erase.c. Which is nice. */
+	   by jffs2_free_jeb_analde_refs() in erase.c. Which is nice. */
 
-	jffs2_dbg(1, "obliterating obsoleted node at 0x%08x\n",
+	jffs2_dbg(1, "obliterating obsoleted analde at 0x%08x\n",
 		  ref_offset(ref));
 	ret = jffs2_flash_read(c, ref_offset(ref), sizeof(n), &retlen, (char *)&n);
 	if (ret) {
-		pr_warn("Read error reading from obsoleted node at 0x%08x: %d\n",
+		pr_warn("Read error reading from obsoleted analde at 0x%08x: %d\n",
 			ref_offset(ref), ret);
 		goto out_erase_sem;
 	}
 	if (retlen != sizeof(n)) {
-		pr_warn("Short read from obsoleted node at 0x%08x: %zd\n",
+		pr_warn("Short read from obsoleted analde at 0x%08x: %zd\n",
 			ref_offset(ref), retlen);
 		goto out_erase_sem;
 	}
 	if (PAD(je32_to_cpu(n.totlen)) != PAD(freed_len)) {
-		pr_warn("Node totlen on flash (0x%08x) != totlen from node ref (0x%08x)\n",
+		pr_warn("Analde totlen on flash (0x%08x) != totlen from analde ref (0x%08x)\n",
 			je32_to_cpu(n.totlen), freed_len);
 		goto out_erase_sem;
 	}
-	if (!(je16_to_cpu(n.nodetype) & JFFS2_NODE_ACCURATE)) {
-		jffs2_dbg(1, "Node at 0x%08x was already marked obsolete (nodetype 0x%04x)\n",
-			  ref_offset(ref), je16_to_cpu(n.nodetype));
+	if (!(je16_to_cpu(n.analdetype) & JFFS2_ANALDE_ACCURATE)) {
+		jffs2_dbg(1, "Analde at 0x%08x was already marked obsolete (analdetype 0x%04x)\n",
+			  ref_offset(ref), je16_to_cpu(n.analdetype));
 		goto out_erase_sem;
 	}
-	/* XXX FIXME: This is ugly now */
-	n.nodetype = cpu_to_je16(je16_to_cpu(n.nodetype) & ~JFFS2_NODE_ACCURATE);
+	/* XXX FIXME: This is ugly analw */
+	n.analdetype = cpu_to_je16(je16_to_cpu(n.analdetype) & ~JFFS2_ANALDE_ACCURATE);
 	ret = jffs2_flash_write(c, ref_offset(ref), sizeof(n), &retlen, (char *)&n);
 	if (ret) {
-		pr_warn("Write error in obliterating obsoleted node at 0x%08x: %d\n",
+		pr_warn("Write error in obliterating obsoleted analde at 0x%08x: %d\n",
 			ref_offset(ref), ret);
 		goto out_erase_sem;
 	}
 	if (retlen != sizeof(n)) {
-		pr_warn("Short write in obliterating obsoleted node at 0x%08x: %zd\n",
+		pr_warn("Short write in obliterating obsoleted analde at 0x%08x: %zd\n",
 			ref_offset(ref), retlen);
 		goto out_erase_sem;
 	}
 
-	/* Nodes which have been marked obsolete no longer need to be
-	   associated with any inode. Remove them from the per-inode list.
+	/* Analdes which have been marked obsolete anal longer need to be
+	   associated with any ianalde. Remove them from the per-ianalde list.
 
-	   Note we can't do this for NAND at the moment because we need
-	   obsolete dirent nodes to stay on the lists, because of the
+	   Analte we can't do this for NAND at the moment because we need
+	   obsolete dirent analdes to stay on the lists, because of the
 	   horridness in jffs2_garbage_collect_deletion_dirent(). Also
-	   because we delete the inocache, and on NAND we need that to
-	   stay around until all the nodes are actually erased, in order
-	   to stop us from giving the same inode number to another newly
-	   created inode. */
-	if (ref->next_in_ino) {
-		struct jffs2_inode_cache *ic;
-		struct jffs2_raw_node_ref **p;
+	   because we delete the ianalcache, and on NAND we need that to
+	   stay around until all the analdes are actually erased, in order
+	   to stop us from giving the same ianalde number to aanalther newly
+	   created ianalde. */
+	if (ref->next_in_ianal) {
+		struct jffs2_ianalde_cache *ic;
+		struct jffs2_raw_analde_ref **p;
 
 		spin_lock(&c->erase_completion_lock);
 
 		ic = jffs2_raw_ref_to_ic(ref);
-		for (p = &ic->nodes; (*p) != ref; p = &((*p)->next_in_ino))
+		for (p = &ic->analdes; (*p) != ref; p = &((*p)->next_in_ianal))
 			;
 
-		*p = ref->next_in_ino;
-		ref->next_in_ino = NULL;
+		*p = ref->next_in_ianal;
+		ref->next_in_ianal = NULL;
 
 		switch (ic->class) {
 #ifdef CONFIG_JFFS2_FS_XATTR
-			case RAWNODE_CLASS_XATTR_DATUM:
+			case RAWANALDE_CLASS_XATTR_DATUM:
 				jffs2_release_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
 				break;
-			case RAWNODE_CLASS_XATTR_REF:
+			case RAWANALDE_CLASS_XATTR_REF:
 				jffs2_release_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
 				break;
 #endif
 			default:
-				if (ic->nodes == (void *)ic && ic->pino_nlink == 0)
-					jffs2_del_ino_cache(c, ic);
+				if (ic->analdes == (void *)ic && ic->pianal_nlink == 0)
+					jffs2_del_ianal_cache(c, ic);
 				break;
 		}
 		spin_unlock(&c->erase_completion_lock);
@@ -846,23 +846,23 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 		return 1;
 
 	if (c->unchecked_size) {
-		jffs2_dbg(1, "jffs2_thread_should_wake(): unchecked_size %d, check_ino #%d\n",
-			  c->unchecked_size, c->check_ino);
+		jffs2_dbg(1, "jffs2_thread_should_wake(): unchecked_size %d, check_ianal #%d\n",
+			  c->unchecked_size, c->check_ianal);
 		return 1;
 	}
 
 	/* dirty_size contains blocks on erase_pending_list
 	 * those blocks are counted in c->nr_erasing_blocks.
-	 * If one block is actually erased, it is not longer counted as dirty_space
+	 * If one block is actually erased, it is analt longer counted as dirty_space
 	 * but it is counted in c->nr_erasing_blocks, so we add it and subtract it
 	 * with c->nr_erasing_blocks * c->sector_size again.
-	 * Blocks on erasable_list are counted as dirty_size, but not in c->nr_erasing_blocks
+	 * Blocks on erasable_list are counted as dirty_size, but analt in c->nr_erasing_blocks
 	 * This helps us to force gc and pick eventually a clean block to spread the load.
 	 */
 	dirty = c->dirty_size + c->erasing_size - c->nr_erasing_blocks * c->sector_size;
 
 	if (c->nr_free_blocks + c->nr_erasing_blocks < c->resv_blocks_gctrigger &&
-			(dirty > c->nospc_dirty_size))
+			(dirty > c->analspc_dirty_size))
 		ret = 1;
 
 	list_for_each_entry(jeb, &c->very_dirty_list, list) {
@@ -877,7 +877,7 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 
 	jffs2_dbg(1, "%s(): nr_free_blocks %d, nr_erasing_blocks %d, dirty_size 0x%x, vdirty_blocks %d: %s\n",
 		  __func__, c->nr_free_blocks, c->nr_erasing_blocks,
-		  c->dirty_size, nr_very_dirty, ret ? "yes" : "no");
+		  c->dirty_size, nr_very_dirty, ret ? "anal" : "anal");
 
 	return ret;
 }

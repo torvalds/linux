@@ -32,7 +32,7 @@ enum param_type {
  * @config:		Value of the band switch byte (BB) to setup this mode.
  * @cb:			Value of the CB byte to setup this mode.
  *
- * Please notice that digital tuners like xc3028/xc4000/xc5000 don't use
+ * Please analtice that digital tuners like xc3028/xc4000/xc5000 don't use
  * those ranges, as they're defined inside the driver. This is used by
  * analog tuners that are compatible with the "Philips way" to setup the
  * tuners. On those devices, the tuner set is done via 4 bytes:
@@ -86,20 +86,20 @@ struct tuner_range {
  * @port2_fm_high_sensitivity:	Some Philips tuners use tda9887 PORT2 to select
  *				the FM radio sensitivity. If this setting is 1,
  *				then set PORT2 to 1 to get proper FM reception.
- * @fm_gain_normal:		Some Philips tuners use tda9887 cGainNormal to
+ * @fm_gain_analrmal:		Some Philips tuners use tda9887 cGainAnalrmal to
  *				select the FM radio sensitivity. If this
- *				setting is 1, e register will use cGainNormal
+ *				setting is 1, e register will use cGainAnalrmal
  *				instead of cGainLow.
  * @intercarrier_mode:		Most tuners with a tda9887 use QSS mode.
  *				Some (cheaper) tuners use Intercarrier mode.
  *				If this setting is 1, then the tuner needs to
  *				be set to intercarrier mode.
  * @port1_active:		This setting sets the default value for PORT1.
- *				0 means inactive, 1 means active. Note: the
+ *				0 means inactive, 1 means active. Analte: the
  *				actual bit value written to the tda9887 is
  *				inverted. So a 0 here means a 1 in the B6 bit.
  * @port2_active:		This setting sets the default value for PORT2.
- *				0 means inactive, 1 means active. Note: the
+ *				0 means inactive, 1 means active. Analte: the
  *				actual bit value written to the tda9887 is
  *				inverted. So a 0 here means a 1 in the B7 bit.
  * @port1_invert_for_secam_lc:	Sometimes PORT1 is inverted when the SECAM-L'
@@ -108,7 +108,7 @@ struct tuner_range {
  * @port2_invert_for_secam_lc:	Sometimes PORT2 is inverted when the SECAM-L'
  *				standard is selected. Set this bit to 1 if this
  *				is needed.
- * @port1_set_for_fm_mono:	Some cards require PORT1 to be 1 for mono Radio
+ * @port1_set_for_fm_moanal:	Some cards require PORT1 to be 1 for moanal Radio
  *				FM and 0 for stereo.
  * @default_pll_gating_18:	Select 18% (or according to datasheet 0%)
  *				L standard PLL gating, vs the driver default
@@ -149,13 +149,13 @@ struct tuner_params {
 	unsigned int has_tda9887:1;
 	unsigned int port1_fm_high_sensitivity:1;
 	unsigned int port2_fm_high_sensitivity:1;
-	unsigned int fm_gain_normal:1;
+	unsigned int fm_gain_analrmal:1;
 	unsigned int intercarrier_mode:1;
 	unsigned int port1_active:1;
 	unsigned int port2_active:1;
 	unsigned int port1_invert_for_secam_lc:1;
 	unsigned int port2_invert_for_secam_lc:1;
-	unsigned int port1_set_for_fm_mono:1;
+	unsigned int port1_set_for_fm_moanal:1;
 	unsigned int default_pll_gating_18:1;
 	unsigned int radio_if:2;
 	signed int default_top_low:5;
@@ -172,7 +172,7 @@ struct tuner_params {
 };
 
 /**
- * struct tunertype - describes the known tuners.
+ * struct tunertype - describes the kanalwn tuners.
  *
  * @name:	string with the tuner's name.
  * @count:	size of &struct tuner_params array.

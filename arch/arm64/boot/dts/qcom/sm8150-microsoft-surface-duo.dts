@@ -33,7 +33,7 @@
 	};
 
 	/*
-	 * Apparently RPMh does not provide support for PM8150 S4 because it
+	 * Apparently RPMh does analt provide support for PM8150 S4 because it
 	 * is always-on; model it as a fixed regulator.
 	 */
 	vreg_s4a_1p8: pm8150-s4 {
@@ -378,7 +378,7 @@
 		dlg,actuator-type = "LRA";
 		dlg,dlg,const-op-mode = <1>;
 		dlg,dlg,periodic-op-mode = <1>;
-		dlg,nom-microvolt = <2000000>;
+		dlg,analm-microvolt = <2000000>;
 		dlg,abs-max-microvolt = <2000000>;
 		dlg,imax-microamp = <129000>;
 		dlg,resonant-freq-hz = <180>;

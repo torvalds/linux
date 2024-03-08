@@ -33,7 +33,7 @@
  * sp (r1) --->	[    stack pointer	] --------------
  */
 
-/* for gpr non volatile registers BPG_REG_6 to 10 */
+/* for gpr analn volatile registers BPG_REG_6 to 10 */
 #define BPF_PPC_STACK_SAVE	(5*8)
 /* for bpf JIT code internal usage */
 #define BPF_PPC_STACK_LOCALS	24
@@ -56,7 +56,7 @@ void bpf_jit_init_reg_mapping(struct codegen_context *ctx)
 	ctx->b2p[BPF_REG_3] = _R5;
 	ctx->b2p[BPF_REG_4] = _R6;
 	ctx->b2p[BPF_REG_5] = _R7;
-	/* non volatile registers */
+	/* analn volatile registers */
 	ctx->b2p[BPF_REG_6] = _R27;
 	ctx->b2p[BPF_REG_7] = _R28;
 	ctx->b2p[BPF_REG_8] = _R29;
@@ -84,7 +84,7 @@ static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
 }
 
 /*
- * When not setting up our own stackframe, the redzone usage is:
+ * When analt setting up our own stackframe, the redzone usage is:
  *
  *		[	prev sp		] <-------------
  *		[	  ...       	] 		|
@@ -114,7 +114,7 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 			(BPF_PPC_STACKFRAME + ctx->stack_size) : 0)
 				- (8 * (32 - reg));
 
-	pr_err("BPF JIT is asking about unknown registers");
+	pr_err("BPF JIT is asking about unkanalwn registers");
 	BUG();
 }
 
@@ -133,7 +133,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 
 	/*
 	 * Initialize tail_call_cnt if we do tail calls.
-	 * Otherwise, put in NOPs so that it can be skipped when we are
+	 * Otherwise, put in ANALPs so that it can be skipped when we are
 	 * invoked through a tail call.
 	 */
 	if (ctx->seen & SEEN_TAILCALL) {
@@ -141,8 +141,8 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 		/* this goes in the redzone */
 		EMIT(PPC_RAW_STD(bpf_to_ppc(TMP_REG_1), _R1, -(BPF_PPC_STACK_SAVE + 8)));
 	} else {
-		EMIT(PPC_RAW_NOP());
-		EMIT(PPC_RAW_NOP());
+		EMIT(PPC_RAW_ANALP());
+		EMIT(PPC_RAW_ANALP());
 	}
 
 	if (bpf_has_stack_frame(ctx)) {
@@ -159,7 +159,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	}
 
 	/*
-	 * Back up non-volatile regs -- BPF registers 6-10
+	 * Back up analn-volatile regs -- BPF registers 6-10
 	 * If we haven't created our own stack frame, we save these
 	 * in the protected zone below the previous stack frame
 	 */
@@ -253,19 +253,19 @@ int bpf_jit_emit_func_call_rel(u32 *image, u32 *fimage, struct codegen_context *
 	/* Load function address into r12 */
 	PPC_LI64(_R12, func);
 
-	/* For bpf-to-bpf function calls, the callee's address is unknown
+	/* For bpf-to-bpf function calls, the callee's address is unkanalwn
 	 * until the last extra pass. As seen above, we use PPC_LI64() to
 	 * load the callee's address, but this may optimize the number of
 	 * instructions required based on the nature of the address.
 	 *
 	 * Since we don't want the number of instructions emitted to increase,
-	 * we pad the optimized PPC_LI64() call with NOPs to guarantee that
+	 * we pad the optimized PPC_LI64() call with ANALPs to guarantee that
 	 * we always have a five-instruction sequence, which is the maximum
 	 * that PPC_LI64() can emit.
 	 */
 	if (!image)
 		for (i = ctx->idx - ctx_idx; i < 5; i++)
-			EMIT(PPC_RAW_NOP());
+			EMIT(PPC_RAW_ANALP());
 
 	EMIT(PPC_RAW_MTCTR(_R12));
 	EMIT(PPC_RAW_BCTRL());
@@ -276,7 +276,7 @@ int bpf_jit_emit_func_call_rel(u32 *image, u32 *fimage, struct codegen_context *
 static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
 {
 	/*
-	 * By now, the eBPF program has already setup parameters in r3, r4 and r5
+	 * By analw, the eBPF program has already setup parameters in r3, r4 and r5
 	 * r3/BPF_REG_1 - pointer to ctx -- passed as is to the next bpf program
 	 * r4/BPF_REG_2 - pointer to bpf_array
 	 * r5/BPF_REG_3 - index in bpf_array
@@ -396,11 +396,11 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 		addrs[i] = ctx->idx * 4;
 
 		/*
-		 * As an optimization, we note down which non-volatile registers
+		 * As an optimization, we analte down which analn-volatile registers
 		 * are used so that we can only save/restore those in our
 		 * prologue and epilogue. We do this here regardless of whether
-		 * the actual BPF instruction uses src/dst registers or not
-		 * (for instance, BPF_CALL does not use them). The expectation
+		 * the actual BPF instruction uses src/dst registers or analt
+		 * (for instance, BPF_CALL does analt use them). The expectation
 		 * is that those instructions will have src_reg/dst_reg set to
 		 * 0. Even otherwise, we just lose some prologue/epilogue
 		 * optimization but everything else should work without
@@ -719,15 +719,15 @@ emit_clear:
 					EMIT(PPC_RAW_RLDICL(dst_reg, dst_reg, 0, 32));
 				break;
 			case 64:
-				/* nop */
+				/* analp */
 				break;
 			}
 			break;
 
 		/*
-		 * BPF_ST NOSPEC (speculation barrier)
+		 * BPF_ST ANALSPEC (speculation barrier)
 		 */
-		case BPF_ST | BPF_NOSPEC:
+		case BPF_ST | BPF_ANALSPEC:
 			if (!security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) ||
 					!security_ftr_enabled(SEC_FTR_STF_BARRIER))
 				break;
@@ -747,7 +747,7 @@ emit_clear:
 				EMIT(PPC_RAW_MTCTR(_R12));
 				EMIT(PPC_RAW_BCTRL());
 				break;
-			case STF_BARRIER_NONE:
+			case STF_BARRIER_ANALNE:
 				break;
 			}
 			break;
@@ -853,7 +853,7 @@ emit_clear:
 				pr_err_ratelimited(
 					"eBPF filter atomic op code %02x (@%d) unsupported\n",
 					code, i);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			/* store new value */
@@ -893,7 +893,7 @@ emit_clear:
 		case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
 			/*
 			 * As PTR_TO_BTF_ID that uses BPF_PROBE_MEM mode could either be a valid
-			 * kernel pointer or NULL but not a userspace address, execute BPF_PROBE_MEM
+			 * kernel pointer or NULL but analt a userspace address, execute BPF_PROBE_MEM
 			 * load only if addr is kernel address (see is_kernel_addr()), otherwise
 			 * set dst_reg=0 and move on.
 			 */
@@ -959,7 +959,7 @@ emit_clear:
 			/* padding to allow full 5 instructions for later patching */
 			if (!image)
 				for (j = ctx->idx - tmp_idx; j < 5; j++)
-					EMIT(PPC_RAW_NOP());
+					EMIT(PPC_RAW_ANALP());
 			/* Adjust for two bpf instructions */
 			addrs[++i] = ctx->idx * 4;
 			break;
@@ -1179,7 +1179,7 @@ cond_branch:
 			}
 			case BPF_JMP | BPF_JSET | BPF_K:
 			case BPF_JMP32 | BPF_JSET | BPF_K:
-				/* andi does not sign-extend the immediate */
+				/* andi does analt sign-extend the immediate */
 				if (imm >= 0 && imm < 32768)
 					/* PPC_ANDI is _only/always_ dot-form */
 					EMIT(PPC_RAW_ANDI(tmp1_reg, dst_reg, imm));
@@ -1217,7 +1217,7 @@ cond_branch:
 			 */
 			pr_err_ratelimited("eBPF filter opcode %04x (@%d) unsupported\n",
 					code, i);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 

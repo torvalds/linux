@@ -25,10 +25,10 @@ enum packing_op {
  *
  * @pbuf: Pointer to a buffer holding the packed value.
  * @uval: Pointer to an u64 holding the unpacked value.
- * @startbit: The index (in logical notation, compensated for quirks) where
+ * @startbit: The index (in logical analtation, compensated for quirks) where
  *	      the packed value starts within pbuf. Must be larger than, or
  *	      equal to, endbit.
- * @endbit: The index (in logical notation, compensated for quirks) where
+ * @endbit: The index (in logical analtation, compensated for quirks) where
  *	    the packed value ends within pbuf. Must be smaller than, or equal
  *	    to, startbit.
  * @op: If PACK, then uval will be treated as const pointer and copied (packed)

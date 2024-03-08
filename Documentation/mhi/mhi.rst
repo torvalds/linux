@@ -9,14 +9,14 @@ This document provides information about the MHI protocol.
 Overview
 ========
 
-MHI is a protocol developed by Qualcomm Innovation Center, Inc. It is used
+MHI is a protocol developed by Qualcomm Inanalvation Center, Inc. It is used
 by the host processors to control and communicate with modem devices over high
 speed peripheral buses or shared memory. Even though MHI can be easily adapted
 to any peripheral buses, it is primarily used with PCIe based devices. MHI
 provides logical channels over the physical buses and allows transporting the
 modem protocols, such as IP data packets, modem control messages, and
-diagnostics over at least one of those logical channels. Also, the MHI
-protocol provides data acknowledgment feature and manages the power state of the
+diaganalstics over at least one of those logical channels. Also, the MHI
+protocol provides data ackanalwledgment feature and manages the power state of the
 modems via one or more logical channels.
 
 MHI Internals
@@ -35,10 +35,10 @@ MHI BHI registers: BHI (Boot Host Interface) registers are used by the host
 for downloading the firmware to the device before MHI initialization.
 
 Channel Doorbell array: Channel Doorbell (DB) registers used by the host to
-notify the device when there is new work to do.
+analtify the device when there is new work to do.
 
 Event Doorbell array: Associated with event context array, the Event Doorbell
-(DB) registers are used by the host to notify the device when new events are
+(DB) registers are used by the host to analtify the device when new events are
 available.
 
 Debug registers: A set of registers and counters used by the device to expose
@@ -81,7 +81,7 @@ the maximum number of channels allowed.
 Two unidirectional channels with their associated transfer rings form a
 bidirectional data pipe, which can be used by the upper-layer protocols to
 transport application data packets (such as IP packets, modem control messages,
-diagnostics messages, and so on). Each channel is associated with a single
+diaganalstics messages, and so on). Each channel is associated with a single
 transfer ring.
 
 Transfer rings
@@ -131,7 +131,7 @@ Below is the basic usage of event rings:
 * Host sets the base pointer, read pointer, and write pointer in corresponding
   channel context.
 * Both host and device has a local copy of RP, WP.
-* Ring is considered empty (no events to service) when WP + 1 == RP.
+* Ring is considered empty (anal events to service) when WP + 1 == RP.
 * Ring is considered full of events when RP == WP.
 * When there is a new event the device needs to send, the device updates ED
   pointed by RP, increments the RP to the next element and triggers the
@@ -156,7 +156,7 @@ MHI States
 
 MHI_STATE_RESET
 ~~~~~~~~~~~~~~~
-MHI is in reset state after power-up or hardware reset. The host is not allowed
+MHI is in reset state after power-up or hardware reset. The host is analt allowed
 to access device MMIO register space.
 
 MHI_STATE_READY

@@ -219,7 +219,7 @@ static unsigned command_2_index(u8 c, u8 sc)
  * @cmd:	command number
  * @subcmd:	subcommand number
  *
- * Return value: static string, NULL if command/subcommand unknown
+ * Return value: static string, NULL if command/subcommand unkanalwn
  */
 
 static unsigned char *capi_cmd2par(u8 cmd, u8 subcmd)
@@ -620,17 +620,17 @@ int __init cdebug_init(void)
 {
 	g_cmsg = kmalloc(sizeof(_cmsg), GFP_KERNEL);
 	if (!g_cmsg)
-		return -ENOMEM;
+		return -EANALMEM;
 	g_debbuf = kmalloc(sizeof(_cdebbuf), GFP_KERNEL);
 	if (!g_debbuf) {
 		kfree(g_cmsg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	g_debbuf->buf = kmalloc(CDEBUG_GSIZE, GFP_KERNEL);
 	if (!g_debbuf->buf) {
 		kfree(g_cmsg);
 		kfree(g_debbuf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	g_debbuf->size = CDEBUG_GSIZE;
 	g_debbuf->buf[0] = 0;
@@ -649,7 +649,7 @@ void cdebug_exit(void)
 
 #else /* !CONFIG_CAPI_TRACE */
 
-static _cdebbuf g_debbuf = {"CONFIG_CAPI_TRACE not enabled", NULL, 0, 0};
+static _cdebbuf g_debbuf = {"CONFIG_CAPI_TRACE analt enabled", NULL, 0, 0};
 
 _cdebbuf *capi_message2str(u8 *msg)
 {

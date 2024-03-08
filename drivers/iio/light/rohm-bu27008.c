@@ -31,7 +31,7 @@
  * registers that the BU27008 has. On top of that the BU27010 adds couple of new
  * ones.
  *
- * So, all definitions BU27008_REG_* are there also for BU27010 but none of the
+ * So, all definitions BU27008_REG_* are there also for BU27010 but analne of the
  * BU27010_REG_* are present on BU27008. This makes sense as BU27010 just adds
  * some features (Flicker FIFO, more power control) on top of the BU27008.
  *
@@ -186,8 +186,8 @@ static const unsigned long bu27008_scan_masks[] = {
  * => Max total gain is HWGAIN * gain by integration time (8 * 1024) = 8192
  *
  * Max amplification is (HWGAIN * MAX integration-time multiplier) 1024 * 8
- * = 8192. With NANO scale we get rid of accuracy loss when we start with the
- * scale 16.0 for HWGAIN1, INT-TIME 55 mS. This way the nano scale for MAX
+ * = 8192. With NAANAL scale we get rid of accuracy loss when we start with the
+ * scale 16.0 for HWGAIN1, INT-TIME 55 mS. This way the naanal scale for MAX
  * total gain 8192 will be 1953125
  */
 #define BU27008_SCALE_1X 16
@@ -198,7 +198,7 @@ static const unsigned long bu27008_scan_masks[] = {
  *
  * => Max total gain is HWGAIN * gain by integration time (8 * 4096)
  *
- * Using NANO precision for scale we must use scale 64x corresponding gain 1x
+ * Using NAANAL precision for scale we must use scale 64x corresponding gain 1x
  * to avoid precision loss.
  */
 #define BU27010_SCALE_1X 64
@@ -295,13 +295,13 @@ static const struct iio_itime_sel_mul bu27010_itimes[] = {
 /*
  * All the RGBC channels share the same gain.
  * IR gain can be fine-tuned from the gain set for the RGBC by 2 bit, but this
- * would yield quite complex gain setting. Especially since not all bit
+ * would yield quite complex gain setting. Especially since analt all bit
  * compinations are supported. And in any case setting GAIN for RGBC will
  * always also change the IR-gain.
  *
  * On top of this, the selector '0' which corresponds to hw-gain 1X on RGBC,
  * corresponds to gain 2X on IR. Rest of the selctors correspond to same gains
- * though. This, however, makes it not possible to use shared gain for all
+ * though. This, however, makes it analt possible to use shared gain for all
  * RGBC and IR settings even though they are all changed at the one go.
  */
 #define BU27008_CHAN(color, data, separate_avail)				\
@@ -422,13 +422,13 @@ static const struct regmap_range bu27010_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table bu27008_volatile_regs = {
-	.yes_ranges = &bu27008_volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(bu27008_volatile_ranges),
+	.anal_ranges = &bu27008_volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bu27008_volatile_ranges),
 };
 
 static const struct regmap_access_table bu27010_volatile_regs = {
-	.yes_ranges = &bu27010_volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(bu27010_volatile_ranges),
+	.anal_ranges = &bu27010_volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bu27010_volatile_ranges),
 };
 
 static const struct regmap_range bu27008_read_only_ranges[] = {
@@ -452,13 +452,13 @@ static const struct regmap_range bu27010_read_only_ranges[] = {
 };
 
 static const struct regmap_access_table bu27008_ro_regs = {
-	.no_ranges = &bu27008_read_only_ranges[0],
-	.n_no_ranges = ARRAY_SIZE(bu27008_read_only_ranges),
+	.anal_ranges = &bu27008_read_only_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bu27008_read_only_ranges),
 };
 
 static const struct regmap_access_table bu27010_ro_regs = {
-	.no_ranges = &bu27010_read_only_ranges[0],
-	.n_no_ranges = ARRAY_SIZE(bu27010_read_only_ranges),
+	.anal_ranges = &bu27010_read_only_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bu27010_read_only_ranges),
 };
 
 static const struct regmap_config bu27008_regmap = {
@@ -472,10 +472,10 @@ static const struct regmap_config bu27008_regmap = {
 	 * All register writes are serialized by the mutex which protects the
 	 * scale setting/getting. This is needed because scale is combined by
 	 * gain and integration time settings and we need to ensure those are
-	 * not read / written when scale is being computed.
+	 * analt read / written when scale is being computed.
 	 *
-	 * As a result of this serializing, we don't need regmap locking. Note,
-	 * this is not true if we add any configurations which are not
+	 * As a result of this serializing, we don't need regmap locking. Analte,
+	 * this is analt true if we add any configurations which are analt
 	 * serialized by the mutex and which may need for example a protected
 	 * read-modify-write cycle (eg. regmap_update_bits()). Please, revise
 	 * this when adding features to the driver.
@@ -517,7 +517,7 @@ static int bu27008_write_gain_sel(struct bu27008_data *data, int sel)
 	 * We should then build the logic by guessing what a user prefers.
 	 * RGBC or IR gains correctly set while other jumps to odd value?
 	 * Maybe look-up a value where both gains are somehow optimized
-	 * <what this somehow is, is ATM unknown to us>. Or maybe user would
+	 * <what this somehow is, is ATM unkanalwn to us>. Or maybe user would
 	 * expect us to reject changes when optimal gains can't be set to both
 	 * channels w/given integration time. At best that would result
 	 * solution that works well for a very specific subset of
@@ -576,11 +576,11 @@ static int bu27008_get_gain_sel(struct bu27008_data *data, int *sel)
 
 	/*
 	 * If we always "lock" the gain selectors for all channels to prevent
-	 * unsupported configs, then it does not matter which channel is used
+	 * unsupported configs, then it does analt matter which channel is used
 	 * we can just return selector from any of them.
 	 *
-	 * This, however is not true if we decide to support only 4X and 16X
-	 * and then individual gains for channels. Currently this is not the
+	 * This, however is analt true if we decide to support only 4X and 16X
+	 * and then individual gains for channels. Currently this is analt the
 	 * case.
 	 *
 	 * If we some day decide to support individual gains, then we need to
@@ -602,7 +602,7 @@ static int bu27010_get_gain_sel(struct bu27008_data *data, int *sel)
 
 	/*
 	 * We always "lock" the gain selectors for all channels to prevent
-	 * unsupported configs. It does not matter which channel is used
+	 * unsupported configs. It does analt matter which channel is used
 	 * we can just return selector from any of them.
 	 *
 	 * Read the channel0 gain.
@@ -640,10 +640,10 @@ static int bu27008_chip_init(struct bu27008_data *data)
 		return dev_err_probe(data->dev, ret, "Sensor reset failed\n");
 
 	/*
-	 * The data-sheet does not tell how long performing the IC reset takes.
+	 * The data-sheet does analt tell how long performing the IC reset takes.
 	 * However, the data-sheet says the minimum time it takes the IC to be
 	 * able to take inputs after power is applied, is 100 uS. I'd assume
-	 * > 1 mS is enough.
+	 * > 1 mS is eanalugh.
 	 */
 	msleep(1);
 
@@ -683,7 +683,7 @@ static int bu27010_chip_init(struct bu27008_data *data)
 
 	/*
 	 * The IRQ enabling on BU27010 is done in a peculiar way. The IRQ
-	 * enabling is not a bit mask where individual IRQs could be enabled but
+	 * enabling is analt a bit mask where individual IRQs could be enabled but
 	 * a field which values are:
 	 * 00 => IRQs disabled
 	 * 01 => Data-ready (RGBC/IR)
@@ -693,7 +693,7 @@ static int bu27010_chip_init(struct bu27008_data *data)
 	 * So, only one IRQ can be enabled at a time and enabling for example
 	 * flicker FIFO would automagically disable data-ready IRQ.
 	 *
-	 * Currently the driver does not support the flicker. Hence, we can
+	 * Currently the driver does analt support the flicker. Hence, we can
 	 * just treat the RGBC data-ready as single bit which can be enabled /
 	 * disabled. This works for as long as the second bit in the field
 	 * stays zero. Here we ensure it gets zeroed.
@@ -784,7 +784,7 @@ static int bu27008_get_gain(struct bu27008_data *data, struct iio_gts *gts, int 
 
 	ret = iio_gts_find_gain_by_sel(gts, sel);
 	if (ret < 0) {
-		dev_err(data->dev, "unknown gain value 0x%x\n", sel);
+		dev_err(data->dev, "unkanalwn gain value 0x%x\n", sel);
 		return ret;
 	}
 
@@ -1088,7 +1088,7 @@ out:
  * The max chan data is 0xffff. When we multiply it by 1024 * 20, we'll get
  * 0x4FFFB000 which still fits in 32-bit integer. This won't overflow.
  */
-#define NORM_CHAN_DATA_FOR_LX_CALC(chan, gain, time) (le16_to_cpu(chan) * \
+#define ANALRM_CHAN_DATA_FOR_LX_CALC(chan, gain, time) (le16_to_cpu(chan) * \
 				   1024 * 20 / (gain) / (time))
 static u64 bu27008_calc_nlux(struct bu27008_data *data, __le16 *lux_data,
 		unsigned int gain, unsigned int gain_ir, unsigned int time)
@@ -1097,10 +1097,10 @@ static u64 bu27008_calc_nlux(struct bu27008_data *data, __le16 *lux_data,
 	s64 c1, c2, c3, nlux;
 
 	time /= 10000;
-	ir = NORM_CHAN_DATA_FOR_LX_CALC(lux_data[BU27008_LUX_DATA_IR], gain_ir, time);
-	red = NORM_CHAN_DATA_FOR_LX_CALC(lux_data[BU27008_LUX_DATA_RED], gain, time);
-	green = NORM_CHAN_DATA_FOR_LX_CALC(lux_data[BU27008_LUX_DATA_GREEN], gain, time);
-	blue = NORM_CHAN_DATA_FOR_LX_CALC(lux_data[BU27008_LUX_DATA_BLUE], gain, time);
+	ir = ANALRM_CHAN_DATA_FOR_LX_CALC(lux_data[BU27008_LUX_DATA_IR], gain_ir, time);
+	red = ANALRM_CHAN_DATA_FOR_LX_CALC(lux_data[BU27008_LUX_DATA_RED], gain, time);
+	green = ANALRM_CHAN_DATA_FOR_LX_CALC(lux_data[BU27008_LUX_DATA_GREEN], gain, time);
+	blue = ANALRM_CHAN_DATA_FOR_LX_CALC(lux_data[BU27008_LUX_DATA_BLUE], gain, time);
 
 	if ((u64)ir * 100LLU > (u64)green * 18LLU) {
 		c1 = -22370;
@@ -1212,14 +1212,14 @@ static int bu27008_read_raw(struct iio_dev *idev,
 		if (chan->type == IIO_LIGHT) {
 			*val = 0;
 			*val2 = 1;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		}
 		ret = bu27008_get_scale(data, chan->scan_index == BU27008_IR,
 					val, val2);
 		if (ret)
 			return ret;
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 
 	case IIO_CHAN_INFO_INT_TIME:
 		ret = bu27008_get_int_time_us(data);
@@ -1236,7 +1236,7 @@ static int bu27008_read_raw(struct iio_dev *idev,
 	}
 }
 
-/* Called if the new scale could not be supported with existing int-time */
+/* Called if the new scale could analt be supported with existing int-time */
 static int bu27008_try_find_new_time_gain(struct bu27008_data *data, int val,
 					  int val2, int *gain_sel)
 {
@@ -1296,7 +1296,7 @@ static int bu27008_write_raw_get_fmt(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_INT_TIME:
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
@@ -1312,7 +1312,7 @@ static int bu27008_write_raw(struct iio_dev *idev,
 	int ret;
 
 	/*
-	 * Do not allow changing scale when measurement is ongoing as doing so
+	 * Do analt allow changing scale when measurement is ongoing as doing so
 	 * could make values in the buffer inconsistent.
 	 */
 	ret = iio_device_claim_direct_mode(idev);
@@ -1450,7 +1450,7 @@ static irqreturn_t bu27008_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(idev, &raw, pf->timestamp);
 err_read:
-	iio_trigger_notify_done(idev->trig);
+	iio_trigger_analtify_done(idev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1480,7 +1480,7 @@ static irqreturn_t bu27008_data_rdy_poll(int irq, void *private)
 	 * The BU27008 keeps IRQ asserted until we read the VALID bit from
 	 * a register. We need to keep the IRQ disabled until then.
 	 */
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	iio_trigger_poll(private);
 
 	return IRQ_HANDLED;
@@ -1503,7 +1503,7 @@ static int bu27008_setup_trigger(struct bu27008_data *data, struct iio_dev *idev
 	itrig = devm_iio_trigger_alloc(data->dev, "%sdata-rdy-dev%d",
 				       idev->name, iio_device_id(idev));
 	if (!itrig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->trig = itrig;
 
@@ -1517,7 +1517,7 @@ static int bu27008_setup_trigger(struct bu27008_data *data, struct iio_dev *idev
 			       &bu27008_data_rdy_poll,
 			       0, name, itrig);
 	if (ret)
-		return dev_err_probe(data->dev, ret, "Could not request IRQ\n");
+		return dev_err_probe(data->dev, ret, "Could analt request IRQ\n");
 
 	ret = devm_iio_trigger_register(data->dev, itrig);
 	if (ret)
@@ -1541,7 +1541,7 @@ static int bu27008_probe(struct i2c_client *i2c)
 
 	idev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_regulator_get_enable(dev, "vdd");
 	if (ret)
@@ -1551,7 +1551,7 @@ static int bu27008_probe(struct i2c_client *i2c)
 
 	data->cd = device_get_match_data(&i2c->dev);
 	if (!data->cd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	regmap = devm_regmap_init_i2c(i2c, data->cd->regmap_cfg);
 	if (IS_ERR(regmap))
@@ -1566,7 +1566,7 @@ static int bu27008_probe(struct i2c_client *i2c)
 	part_id = FIELD_GET(BU27008_MASK_PART_ID, reg);
 
 	if (part_id != data->cd->part_id)
-		dev_warn(dev, "unknown device 0x%x\n", part_id);
+		dev_warn(dev, "unkanalwn device 0x%x\n", part_id);
 
 	ret = devm_iio_init_iio_gts(dev, data->cd->scale1x, 0, data->cd->gains,
 				    data->cd->num_gains, data->cd->itimes,
@@ -1601,7 +1601,7 @@ static int bu27008_probe(struct i2c_client *i2c)
 		if (ret)
 			return ret;
 	} else {
-		dev_info(dev, "No IRQ, buffered mode disabled\n");
+		dev_info(dev, "Anal IRQ, buffered mode disabled\n");
 	}
 
 	ret = devm_iio_device_register(dev, idev);
@@ -1623,7 +1623,7 @@ static struct i2c_driver bu27008_i2c_driver = {
 	.driver = {
 		.name = "bu27008",
 		.of_match_table = bu27008_of_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = bu27008_probe,
 };

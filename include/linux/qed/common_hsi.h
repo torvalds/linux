@@ -92,7 +92,7 @@
 #define MAX_NUM_LL2_TX_STATS_COUNTERS  48
 
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION	59
+#define FW_MIANALR_VERSION	59
 #define FW_REVISION_VERSION	1
 #define FW_ENGINEERING_VERSION	0
 
@@ -620,7 +620,7 @@
 /* SDMs CONSTANTS  */
 /*****************/
 
-#define SDM_OP_GEN_TRIG_NONE		0
+#define SDM_OP_GEN_TRIG_ANALNE		0
 #define SDM_OP_GEN_TRIG_WAKE_THREAD	1
 #define SDM_OP_GEN_TRIG_AGG_INT		2
 #define SDM_OP_GEN_TRIG_LOADER		4
@@ -631,7 +631,7 @@
 /* Completion types */
 /********************/
 
-#define SDM_COMP_TYPE_NONE		0
+#define SDM_COMP_TYPE_ANALNE		0
 #define SDM_COMP_TYPE_WAKE_THREAD	1
 #define SDM_COMP_TYPE_AGG_INT		2
 #define SDM_COMP_TYPE_CM		3
@@ -656,7 +656,7 @@
 /* PRS CONSTANTS */
 /*****************/
 
-#define PRS_GFT_CAM_LINES_NO_MATCH	31
+#define PRS_GFT_CAM_LINES_ANAL_MATCH	31
 
 /* Interrupt coalescing TimeSet */
 struct coalescing_timeset {
@@ -837,7 +837,7 @@ struct cau_sb_entry {
  * update.
  */
 enum command_type_bit {
-	IGU_COMMAND_TYPE_NOP = 0,
+	IGU_COMMAND_TYPE_ANALP = 0,
 	IGU_COMMAND_TYPE_SET = 1,
 	MAX_COMMAND_TYPE_BIT
 };
@@ -861,7 +861,7 @@ struct core_db_data {
 
 /* Enum of doorbell aggregative command selection */
 enum db_agg_cmd_sel {
-	DB_AGG_CMD_NOP,
+	DB_AGG_CMD_ANALP,
 	DB_AGG_CMD_SET,
 	DB_AGG_CMD_ADD,
 	DB_AGG_CMD_MAX,
@@ -1019,8 +1019,8 @@ struct db_rdma_dpm_data {
 enum igu_int_cmd {
 	IGU_INT_ENABLE	= 0,
 	IGU_INT_DISABLE = 1,
-	IGU_INT_NOP	= 2,
-	IGU_INT_NOP2	= 3,
+	IGU_INT_ANALP	= 2,
+	IGU_INT_ANALP2	= 3,
 	MAX_IGU_INT_CMD
 };
 
@@ -1052,23 +1052,23 @@ enum igu_seg_access {
 };
 
 /* Enumeration for L3 type field of parsing_and_err_flags.
- * L3Type: 0 - unknown (not ip), 1 - Ipv4, 2 - Ipv6
+ * L3Type: 0 - unkanalwn (analt ip), 1 - Ipv4, 2 - Ipv6
  * (This field can be filled according to the last-ethertype)
  */
 enum l3_type {
-	e_l3_type_unknown,
+	e_l3_type_unkanalwn,
 	e_l3_type_ipv4,
 	e_l3_type_ipv6,
 	MAX_L3_TYPE
 };
 
 /* Enumeration for l4Protocol field of parsing_and_err_flags.
- * L4-protocol: 0 - none, 1 - TCP, 2 - UDP.
- * If the packet is IPv4 fragment, and its not the first fragment, the
- * protocol-type should be set to none.
+ * L4-protocol: 0 - analne, 1 - TCP, 2 - UDP.
+ * If the packet is IPv4 fragment, and its analt the first fragment, the
+ * protocol-type should be set to analne.
  */
 enum l4_protocol {
-	e_l4_protocol_none,
+	e_l4_protocol_analne,
 	e_l4_protocol_tcp,
 	e_l4_protocol_udp,
 	MAX_L4_PROTOCOL
@@ -1134,8 +1134,8 @@ struct parsing_err_flags {
 #define PARSING_ERR_FLAGS_INNER_L4_CHKSM_ERROR_SHIFT			10
 #define PARSING_ERR_FLAGS_ANY_HDR_ZERO_TTL_OR_HOP_LIM_MASK		0x1
 #define PARSING_ERR_FLAGS_ANY_HDR_ZERO_TTL_OR_HOP_LIM_SHIFT		11
-#define PARSING_ERR_FLAGS_NON_8021Q_TAG_EXISTS_IN_BOTH_HDRS_MASK	0x1
-#define PARSING_ERR_FLAGS_NON_8021Q_TAG_EXISTS_IN_BOTH_HDRS_SHIFT	12
+#define PARSING_ERR_FLAGS_ANALN_8021Q_TAG_EXISTS_IN_BOTH_HDRS_MASK	0x1
+#define PARSING_ERR_FLAGS_ANALN_8021Q_TAG_EXISTS_IN_BOTH_HDRS_SHIFT	12
 #define PARSING_ERR_FLAGS_GENEVE_OPTION_OVERSIZED_MASK			0x1
 #define PARSING_ERR_FLAGS_GENEVE_OPTION_OVERSIZED_SHIFT			13
 #define PARSING_ERR_FLAGS_TUNNEL_IP_V4_CHKSM_ERROR_MASK			0x1
@@ -1236,8 +1236,8 @@ struct rdif_task_context {
 	__le16 app_tag_value;
 	__le16 app_tag_mask;
 	u8 flags0;
-#define RDIF_TASK_CONTEXT_IGNORE_APP_TAG_MASK		0x1
-#define RDIF_TASK_CONTEXT_IGNORE_APP_TAG_SHIFT		0
+#define RDIF_TASK_CONTEXT_IGANALRE_APP_TAG_MASK		0x1
+#define RDIF_TASK_CONTEXT_IGANALRE_APP_TAG_SHIFT		0
 #define RDIF_TASK_CONTEXT_INITIAL_REF_TAG_VALID_MASK	0x1
 #define RDIF_TASK_CONTEXT_INITIAL_REF_TAG_VALID_SHIFT	1
 #define RDIF_TASK_CONTEXT_HOST_GUARD_TYPE_MASK		0x1
@@ -1354,8 +1354,8 @@ struct tdif_task_context {
 #define TDIF_TASK_CONTEXT_RESERVED0_SHIFT			10
 	u8 reserved1;
 	u8 flags0;
-#define TDIF_TASK_CONTEXT_IGNORE_APP_TAG_MASK			0x1
-#define TDIF_TASK_CONTEXT_IGNORE_APP_TAG_SHIFT			0
+#define TDIF_TASK_CONTEXT_IGANALRE_APP_TAG_MASK			0x1
+#define TDIF_TASK_CONTEXT_IGANALRE_APP_TAG_SHIFT			0
 #define TDIF_TASK_CONTEXT_INITIAL_REF_TAG_VALID_MASK		0x1
 #define TDIF_TASK_CONTEXT_INITIAL_REF_TAG_VALID_SHIFT		1
 #define TDIF_TASK_CONTEXT_HOST_GUARD_TYPE_MASK			0x1
@@ -1465,7 +1465,7 @@ struct timers_context {
 
 /* Enum for next_protocol field of tunnel_parsing_flags / tunnelTypeDesc */
 enum tunnel_next_protocol {
-	e_unknown = 0,
+	e_unkanalwn = 0,
 	e_l2 = 1,
 	e_ipv4 = 2,
 	e_ipv6 = 3,

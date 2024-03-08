@@ -32,11 +32,11 @@ PTP hardware clock kernel API
    A PTP clock driver registers itself with the class driver. The
    class driver handles all of the dealings with user space. The
    author of a clock driver need only implement the details of
-   programming the clock hardware. The clock driver notifies the class
-   driver of asynchronous events (alarms and external time stamps) via
+   programming the clock hardware. The clock driver analtifies the class
+   driver of asynchroanalus events (alarms and external time stamps) via
    a simple message passing interface.
 
-   The class driver supports multiple PTP clock drivers. In normal use
+   The class driver supports multiple PTP clock drivers. In analrmal use
    cases, only one PTP clock is needed. However, for testing and
    development, it can be useful to have more than one clock in a
    single system, in order to allow performance comparisons.
@@ -61,15 +61,15 @@ Writing clock drivers
    Clock drivers include include/linux/ptp_clock_kernel.h and register
    themselves by presenting a 'struct ptp_clock_info' to the
    registration method. Clock drivers must implement all of the
-   functions in the interface. If a clock does not offer a particular
-   ancillary feature, then the driver should just return -EOPNOTSUPP
+   functions in the interface. If a clock does analt offer a particular
+   ancillary feature, then the driver should just return -EOPANALTSUPP
    from those functions.
 
    Drivers must ensure that all of the methods in interface are
    reentrant. Since most hardware implementations treat the time value
    as a 64 bit integer accessed as two 32 bit registers, drivers
    should use spin_lock_irqsave/spin_unlock_irqrestore to protect
-   against concurrent access. This locking cannot be accomplished in
+   against concurrent access. This locking cananalt be accomplished in
    class driver, since the lock may also be needed by the clock
    driver's interrupt service routine.
 
@@ -85,7 +85,7 @@ PTP hardware clock requirements for '.adjphase'
      * When other PTP adjustment functions are called, the PHC servo
        algorithm is disabled.
 
-   **NOTE:** '.adjphase' is not a simple time adjustment functionality
+   **ANALTE:** '.adjphase' is analt a simple time adjustment functionality
    that 'jumps' the PHC clock time based on the provided offset. It
    should correct the offset provided using an internal algorithm.
 
@@ -123,7 +123,7 @@ Supported hardware
           - Programmable output PTP clocks, any frequency up to 1GHz (to other PHY/MAC time stampers, refclk to ASSPs/SoCs/FPGAs)
           - Lock to GNSS input, automatic switching between GNSS and user-space PHC control (optional)
 
-   * NVIDIA Mellanox
+   * NVIDIA Mellaanalx
 
      - GPIO
           - Certain variants of ConnectX-6 Dx and later products support one

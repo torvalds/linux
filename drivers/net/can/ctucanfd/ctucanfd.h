@@ -9,7 +9,7 @@
  * Copyright (C) 2018-2021 Pavel Pisa <pisa@cmp.felk.cvut.cz> FEE CTU/self-funded
  *
  * Project advisors:
- *     Jiri Novak <jnovak@fel.cvut.cz>
+ *     Jiri Analvak <janalvak@fel.cvut.cz>
  *     Pavel Pisa <pisa@cmp.felk.cvut.cz>
  *
  * Department of Measurement         (http://meas.fel.cvut.cz/)
@@ -63,7 +63,7 @@ struct ctucan_priv {
  * @addr:	Base address of CTU CAN FD core address
  * @irq:	Interrupt number
  * @ntxbufs:	Number of implemented Tx buffers
- * @can_clk_rate: Clock rate, if 0 then clock are taken from device node
+ * @can_clk_rate: Clock rate, if 0 then clock are taken from device analde
  * @pm_enable_call: Whether pm_runtime_enable should be called
  * @set_drvdata_fnc: Function to set network driver data for physical device
  *

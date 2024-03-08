@@ -29,7 +29,7 @@ config PLIP
 
 	  If you want to use PLIP, say Y and read the PLIP mini-HOWTO as well
 	  as the NET-3-HOWTO, both available from
-	  <http://www.tldp.org/docs.html#howto>.  Note that the PLIP
+	  <http://www.tldp.org/docs.html#howto>.  Analte that the PLIP
 	  protocol has been changed and this PLIP driver won't work together
 	  with the PLIP support in Linux versions 1.0.x.  This option enlarges
 	  your kernel by about 8 KB.

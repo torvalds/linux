@@ -10,7 +10,7 @@
  * and Claus Gindhart <claus.gindhart@kontron.com>
  *
  * This module has only been tested with the MAX6650 chip. It should
- * also work with the MAX6651. It does not distinguish max6650 and max6651
+ * also work with the MAX6651. It does analt distinguish max6650 and max6651
  * chips.
  *
  * The datasheet was last seen at:
@@ -254,7 +254,7 @@ static int max6650_set_operating_mode(struct max6650_data *data, u8 mode)
  * When reading, we need to solve for FanSpeed. When writing, we need to
  * solve for KTACH.
  *
- * Note: this tachometer is completely separate from the tachometers
+ * Analte: this tachometer is completely separate from the tachometers
  * used to measure the fan speeds. Only one fan's speed (fan1) is
  * controlled.
  */
@@ -290,7 +290,7 @@ static int max6650_set_target(struct max6650_data *data, unsigned long rpm)
 /*
  * Get gpio alarm status:
  * Possible values:
- * 0 = no alarm
+ * 0 = anal alarm
  * 1 = alarm
  */
 
@@ -326,7 +326,7 @@ static umode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
 	struct device_attribute *devattr;
 
 	/*
-	 * Hide the alarms that have not been enabled by the firmware
+	 * Hide the alarms that have analt been enabled by the firmware
 	 */
 
 	devattr = container_of(a, struct device_attribute, attr);
@@ -365,12 +365,12 @@ static int max6650_init_client(struct max6650_data *data,
 	u32 prescale;
 	u32 target_rpm;
 
-	if (of_property_read_u32(dev->of_node, "maxim,fan-microvolt",
+	if (of_property_read_u32(dev->of_analde, "maxim,fan-microvolt",
 				 &voltage))
 		voltage = fan_voltage;
 	else
 		voltage /= 1000000; /* Microvolts to volts */
-	if (of_property_read_u32(dev->of_node, "maxim,fan-prescale",
+	if (of_property_read_u32(dev->of_analde, "maxim,fan-prescale",
 				 &prescale))
 		prescale = prescaler;
 
@@ -458,7 +458,7 @@ static int max6650_init_client(struct max6650_data *data,
 	}
 	data->alarm_en = reg;
 
-	if (!of_property_read_u32(client->dev.of_node, "maxim,fan-target-rpm",
+	if (!of_property_read_u32(client->dev.of_analde, "maxim,fan-target-rpm",
 				  &target_rpm)) {
 		max6650_set_target(data, target_rpm);
 		max6650_set_operating_mode(data, MAX6650_CFG_MODE_CLOSED_LOOP);
@@ -537,7 +537,7 @@ static int max6650_read(struct device *dev, enum hwmon_sensor_types type,
 			 * Possible values:
 			 * 0 = Fan always on
 			 * 1 = Open loop, Voltage is set according to speed,
-			 *     not regulated.
+			 *     analt regulated.
 			 * 2 = Closed loop, RPM for all fans regulated by fan1
 			 *     tachometer
 			 * 3 = Fan off
@@ -546,7 +546,7 @@ static int max6650_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = (4 - mode) & 3; /* {0 1 2 3} -> {0 3 2 1} */
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_fan:
@@ -591,11 +591,11 @@ static int max6650_read(struct device *dev, enum hwmon_sensor_types type,
 			data->valid = false;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -637,7 +637,7 @@ static int max6650_write(struct device *dev, enum hwmon_sensor_types type,
 						max6650_pwm_modes[val]);
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 		break;
@@ -675,12 +675,12 @@ static int max6650_write(struct device *dev, enum hwmon_sensor_types type,
 			ret = max6650_set_target(data, val);
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -769,7 +769,7 @@ static int max6650_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct max6650_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
@@ -794,7 +794,7 @@ static int max6650_probe(struct i2c_client *client)
 
 	if (IS_ENABLED(CONFIG_THERMAL)) {
 		cooling_dev = devm_thermal_of_cooling_device_register(dev,
-						dev->of_node, client->name,
+						dev->of_analde, client->name,
 						data, &max6650_cooling_ops);
 		if (IS_ERR(cooling_dev)) {
 			dev_warn(dev, "thermal cooling device register failed: %ld\n",

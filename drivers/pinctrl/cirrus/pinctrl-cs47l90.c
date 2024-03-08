@@ -18,7 +18,7 @@
  * To stay consistent with the datasheet the function names are the same as
  * the group names for that function's pins
  *
- * Note - all 1 less than in datasheet because these are zero-indexed
+ * Analte - all 1 less than in datasheet because these are zero-indexed
  */
 static const unsigned int cs47l90_mif1_pins[] = { 8, 9 };
 static const unsigned int cs47l90_mif2_pins[] = { 10, 11 };

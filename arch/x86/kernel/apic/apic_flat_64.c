@@ -115,7 +115,7 @@ static struct apic apic_flat __ro_after_init = {
 
 /*
  * Physflat mode is used when there are more than 8 CPUs on a system.
- * We cannot use logical delivery in this case because the mask
+ * We cananalt use logical delivery in this case because the mask
  * overflows, so use physical mode.
  */
 static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)

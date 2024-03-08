@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <net/pkt_cls.h>
 
@@ -67,7 +67,7 @@ nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	int err;
 
 	if (!pf->eth_tbl) {
-		nfp_err(pf->cpp, "No ETH table\n");
+		nfp_err(pf->cpp, "Anal ETH table\n");
 		return -EINVAL;
 	}
 	if (pf->max_data_vnics != pf->eth_tbl->count) {
@@ -78,7 +78,7 @@ nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 
 	bv = kzalloc(sizeof(*bv), GFP_KERNEL);
 	if (!bv)
-		return -ENOMEM;
+		return -EANALMEM;
 	nn->app_priv = bv;
 
 	err = nfp_app_nic_vnic_alloc(app, nn, id);
@@ -114,31 +114,31 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	if (type != TC_SETUP_CLSBPF) {
 		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
 				   "only offload of BPF classifiers supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (!tc_cls_can_offload_and_chain0(nn->dp.netdev, &cls_bpf->common))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!nfp_net_ebpf_capable(nn)) {
 		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
-				   "NFP firmware does not support eBPF offload");
-		return -EOPNOTSUPP;
+				   "NFP firmware does analt support eBPF offload");
+		return -EOPANALTSUPP;
 	}
 	if (cls_bpf->common.protocol != htons(ETH_P_ALL)) {
 		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
 				   "only ETH_P_ALL supported as filter protocol");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Only support TC direct action */
 	if (!cls_bpf->exts_integrated ||
 	    tcf_exts_has_actions(cls_bpf->exts)) {
 		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
-				   "only direct action with no legacy actions supported");
-		return -EOPNOTSUPP;
+				   "only direct action with anal legacy actions supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (cls_bpf->command != TC_CLSBPF_OFFLOAD)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	bv = nn->app_priv;
 	oldprog = cls_bpf->oldprog;
@@ -174,7 +174,7 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 						  nfp_bpf_setup_tc_block_cb,
 						  nn, nn, true);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -342,7 +342,7 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 	mem = nfp_rtsym_map(app->pf->rtbl, "_abi_bpf_capabilities", "bpf.cap",
 			    8, &area);
 	if (IS_ERR(mem))
-		return PTR_ERR(mem) == -ENOENT ? 0 : PTR_ERR(mem);
+		return PTR_ERR(mem) == -EANALENT ? 0 : PTR_ERR(mem);
 
 	start = mem;
 	while (mem - start + 8 <= nfp_cpp_area_size(area)) {
@@ -395,7 +395,7 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 				goto err_release_free;
 			break;
 		default:
-			nfp_dbg(cpp, "unknown BPF capability: %d\n", type);
+			nfp_dbg(cpp, "unkanalwn BPF capability: %d\n", type);
 			break;
 		}
 	}
@@ -460,7 +460,7 @@ static int nfp_bpf_init(struct nfp_app *app)
 
 	bpf = kzalloc(sizeof(*bpf), GFP_KERNEL);
 	if (!bpf)
-		return -ENOMEM;
+		return -EANALMEM;
 	bpf->app = app;
 	app->priv = bpf;
 

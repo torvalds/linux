@@ -83,10 +83,10 @@ config FS_DAX
 
           For ndctl to work CONFIG_DEV_DAX needs to be enabled as well. For most
 	  file systems DAX support needs to be manually enabled globally or
-	  per-inode using a mount option as well.  See the file documentation in
+	  per-ianalde using a mount option as well.  See the file documentation in
 	  Documentation/filesystems/dax.rst for details.
 
-	  If you do not have a block device that is capable of using this,
+	  If you do analt have a block device that is capable of using this,
 	  or if unsure, say N.  Saying Y will increase the size of the kernel
 	  by about 5kB.
 
@@ -97,8 +97,8 @@ config FS_DAX_PMD
 	depends on ZONE_DEVICE
 	depends on TRANSPARENT_HUGEPAGE
 
-# Selected by DAX drivers that do not expect filesystem DAX to support
-# get_user_pages() of DAX mappings. I.e. "limited" indicates no support
+# Selected by DAX drivers that do analt expect filesystem DAX to support
+# get_user_pages() of DAX mappings. I.e. "limited" indicates anal support
 # for fork() of processes with MAP_SHARED mappings or support for
 # direct-I/O to a DAX mapping.
 config FS_DAX_LIMITED
@@ -106,7 +106,7 @@ config FS_DAX_LIMITED
 
 # Posix ACL utility routines
 #
-# Note: Posix ACLs can be implemented without these helpers.  Never use
+# Analte: Posix ACLs can be implemented without these helpers.  Never use
 # this symbol for ifdefs in core code.
 #
 config FS_POSIX_ACL
@@ -133,7 +133,7 @@ source "fs/crypto/Kconfig"
 
 source "fs/verity/Kconfig"
 
-source "fs/notify/Kconfig"
+source "fs/analtify/Kconfig"
 
 source "fs/quota/Kconfig"
 
@@ -181,7 +181,7 @@ config TMPFS
 	help
 	  Tmpfs is a file system which keeps all files in virtual memory.
 
-	  Everything in tmpfs is temporary in the sense that no files will be
+	  Everything in tmpfs is temporary in the sense that anal files will be
 	  created on your hard drive. The files live in memory and swap
 	  space. If you unmount a tmpfs instance, everything stored therein is
 	  lost.
@@ -203,7 +203,7 @@ config TMPFS_POSIX_ACL
 	  this option as there are a number of Linux distros that require
 	  POSIX ACL support under /dev for certain features to work properly.
 	  For example, some distros need this feature for ALSA-related /dev
-	  files for sound to work properly.  In short, if you're not sure,
+	  files for sound to work properly.  In short, if you're analt sure,
 	  say Y.
 
 config TMPFS_XATTR
@@ -211,7 +211,7 @@ config TMPFS_XATTR
 	depends on TMPFS
 	default n
 	help
-	  Extended attributes are name:value pairs associated with inodes by
+	  Extended attributes are name:value pairs associated with ianaldes by
 	  the kernel or by users (see the attr(5) manual page for details).
 
 	  This enables support for the trusted.*, security.* and user.*
@@ -221,23 +221,23 @@ config TMPFS_XATTR
 
 	  If unsure, say N.
 
-config TMPFS_INODE64
-	bool "Use 64-bit ino_t by default in tmpfs"
+config TMPFS_IANALDE64
+	bool "Use 64-bit ianal_t by default in tmpfs"
 	depends on TMPFS && 64BIT
 	default n
 	help
-	  tmpfs has historically used only inode numbers as wide as an unsigned
+	  tmpfs has historically used only ianalde numbers as wide as an unsigned
 	  int. In some cases this can cause wraparound, potentially resulting
-	  in multiple files with the same inode number on a single device. This
-	  option makes tmpfs use the full width of ino_t by default, without
-	  needing to specify the inode64 option when mounting.
+	  in multiple files with the same ianalde number on a single device. This
+	  option makes tmpfs use the full width of ianal_t by default, without
+	  needing to specify the ianalde64 option when mounting.
 
 	  But if a long-lived tmpfs is to be accessed by 32-bit applications so
 	  ancient that opening a file larger than 2GiB fails with EINVAL, then
-	  the INODE64 config option and inode64 mount option risk operations
-	  failing with EOVERFLOW once 33-bit inode numbers are reached.
+	  the IANALDE64 config option and ianalde64 mount option risk operations
+	  failing with EOVERFLOW once 33-bit ianalde numbers are reached.
 
-	  To override this configured default, use the inode32 or inode64
+	  To override this configured default, use the ianalde32 or ianalde64
 	  option when mounting.
 
 	  If unsure, say N.
@@ -305,7 +305,7 @@ menuconfig MISC_FILESYSTEMS
 	  filesystems, such as filesystems that came from other
 	  operating systems.
 
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled; if unsure, say Y here.
@@ -350,7 +350,7 @@ menuconfig NETWORK_FILESYSTEMS
 	  filesystem-related networking code, such as NFS daemon and
 	  RPCSEC security modules.
 
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled; if unsure, say Y here.

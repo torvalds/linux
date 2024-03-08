@@ -18,7 +18,7 @@
 #define UTILITY_NAME_LENGTH 16
 #define CFPKT_CTRL_PKT_LEN 20
 
-#ifdef CAIF_NO_LOOP
+#ifdef CAIF_ANAL_LOOP
 static int handle_loop(struct cfctrl *ctrl,
 		       int cmd, struct cfpkt *pkt){
 	return -1;
@@ -43,12 +43,12 @@ struct cflayer *cfctrl_create(void)
 	memset(&dev_info, 0, sizeof(dev_info));
 	dev_info.id = 0xff;
 	cfsrvl_init(&this->serv, 0, &dev_info, false);
-	atomic_set(&this->req_seq_no, 1);
-	atomic_set(&this->rsp_seq_no, 1);
+	atomic_set(&this->req_seq_anal, 1);
+	atomic_set(&this->rsp_seq_anal, 1);
 	this->serv.layer.receive = cfctrl_recv;
 	sprintf(this->serv.layer.name, "ctrl");
 	this->serv.layer.ctrlcmd = cfctrl_ctrlcmd;
-#ifndef CAIF_NO_LOOP
+#ifndef CAIF_ANAL_LOOP
 	spin_lock_init(&this->loop_linkid_lock);
 	this->loop_linkid = 1;
 #endif
@@ -130,8 +130,8 @@ static void cfctrl_insert_req(struct cfctrl *ctrl,
 			      struct cfctrl_request_info *req)
 {
 	spin_lock_bh(&ctrl->info_list_lock);
-	atomic_inc(&ctrl->req_seq_no);
-	req->sequence_no = atomic_read(&ctrl->req_seq_no);
+	atomic_inc(&ctrl->req_seq_anal);
+	req->sequence_anal = atomic_read(&ctrl->req_seq_anal);
 	list_add_tail(&req->list, &ctrl->list);
 	spin_unlock_bh(&ctrl->info_list_lock);
 }
@@ -147,10 +147,10 @@ static struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
 	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
 		if (cfctrl_req_eq(req, p)) {
 			if (p != first)
-				pr_warn("Requests are not received in order\n");
+				pr_warn("Requests are analt received in order\n");
 
-			atomic_set(&ctrl->rsp_seq_no,
-					 p->sequence_no);
+			atomic_set(&ctrl->rsp_seq_anal,
+					 p->sequence_anal);
 			list_del(&p->list);
 			goto out;
 		}
@@ -180,7 +180,7 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send enum request\n");
+		pr_debug("analt able to send enum request\n");
 		return;
 	}
 	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
@@ -211,12 +211,12 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send linkup request\n");
-		return -ENODEV;
+		pr_debug("analt able to send linkup request\n");
+		return -EANALDEV;
 	}
 
 	if (cfctrl_cancel_req(layer, user_layer) > 0) {
-		/* Slight Paranoia, check if already connecting */
+		/* Slight Paraanalia, check if already connecting */
 		pr_err("Duplicate connect request for same client\n");
 		WARN_ON(1);
 		return -EALREADY;
@@ -224,7 +224,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 
 	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	if (!pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_SETUP);
 	cfpkt_addbdy(pkt, (param->chtype << 4) | param->linktype);
 	cfpkt_addbdy(pkt, (param->priority << 3) | param->phyid);
@@ -275,7 +275,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req) {
 		cfpkt_destroy(pkt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->client_layer = user_layer;
@@ -284,7 +284,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	cfctrl_insert_req(cfctrl, req);
 	init_info(cfpkt_info(pkt), cfctrl);
 	/*
-	 * NOTE:Always send linkup and linkdown request on the same
+	 * ANALTE:Always send linkup and linkdown request on the same
 	 *	device as the payload. Otherwise old queued up payload
 	 *	might arrive with the newly allocated channel ID.
 	 */
@@ -298,8 +298,8 @@ int cfctrl_linkup_request(struct cflayer *layer,
 		count = cfctrl_cancel_req(&cfctrl->serv.layer,
 						user_layer);
 		if (count != 1) {
-			pr_err("Could not remove request (%d)", count);
-			return -ENODEV;
+			pr_err("Could analt remove request (%d)", count);
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -314,19 +314,19 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send link-down request\n");
-		return -ENODEV;
+		pr_debug("analt able to send link-down request\n");
+		return -EANALDEV;
 	}
 	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	if (!pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_DESTROY);
 	cfpkt_addbdy(pkt, channelid);
 	init_info(cfpkt_info(pkt), cfctrl);
 	cfpkt_set_prio(pkt, TC_PRIO_CONTROL);
 	ret =
 	    dn->transmit(dn, pkt);
-#ifndef CAIF_NO_LOOP
+#ifndef CAIF_ANAL_LOOP
 	cfctrl->loop_linkused[channelid] = 0;
 #endif
 	return ret;
@@ -586,7 +586,7 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 	}
 }
 
-#ifndef CAIF_NO_LOOP
+#ifndef CAIF_ANAL_LOOP
 static int handle_loop(struct cfctrl *ctrl, int cmd, struct cfpkt *pkt)
 {
 	static int last_linkid;

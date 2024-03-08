@@ -7,7 +7,7 @@
 #include "bpf/libbpf_internal.h"
 
 /* Test recursive attachment of tracing progs with more than one nesting level
- * is not possible. Create a chain of attachment, verify that the last prog
+ * is analt possible. Create a chain of attachment, verify that the last prog
  * will fail. Depending on the arguments, following cases are tested:
  *
  * - Recursive loading of tracing progs, without attaching (attach = false,
@@ -108,7 +108,7 @@ void test_recursive_fentry(void)
 
 /* Test that a tracing prog reattachment (when we land in
  * "prog->aux->dst_trampoline and tgt_prog is NULL" branch in
- * bpf_tracing_prog_attach) does not lead to a crash due to missing attach_btf
+ * bpf_tracing_prog_attach) does analt lead to a crash due to missing attach_btf
  */
 void test_fentry_attach_btf_presence(void)
 {

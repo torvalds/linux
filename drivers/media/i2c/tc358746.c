@@ -4,7 +4,7 @@
  *
  * Copyright 2022 Marco Felsch <kernel@pengutronix.de>
  *
- * Notes:
+ * Analtes:
  *  - Currently only 'Parallel-in -> CSI-out' mode is supported!
  */
 
@@ -23,7 +23,7 @@
 #include <linux/units.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 
 /* 16-bit registers */
@@ -105,7 +105,7 @@
 #define CSI_CONTROL_REG			0x040C
 #define		CSI_MODE		BIT(15)
 #define		TXHSMD			BIT(7)
-#define		NOL(val)		FIELD_PREP(GENMASK(2, 1), (val))
+#define		ANALL(val)		FIELD_PREP(GENMASK(2, 1), (val))
 
 #define CSI_CONFW_REG			0x0500
 #define		MODE(val)		FIELD_PREP(GENMASK(31, 29), (val))
@@ -121,7 +121,7 @@ static const struct v4l2_mbus_framefmt tc358746_def_fmt = {
 	.width		= 640,
 	.height		= 480,
 	.code		= MEDIA_BUS_FMT_UYVY8_2X8,
-	.field		= V4L2_FIELD_NONE,
+	.field		= V4L2_FIELD_ANALNE,
 	.colorspace	= V4L2_COLORSPACE_DEFAULT,
 	.ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT,
 	.quantization	= V4L2_QUANTIZATION_DEFAULT,
@@ -141,8 +141,8 @@ enum {
 struct tc358746 {
 	struct v4l2_subdev		sd;
 	struct media_pad		pads[TC358746_NR_PADS];
-	struct v4l2_async_notifier	notifier;
-	struct v4l2_fwnode_endpoint	csi_vep;
+	struct v4l2_async_analtifier	analtifier;
+	struct v4l2_fwanalde_endpoint	csi_vep;
 
 	struct v4l2_ctrl_handler	ctrl_hdl;
 
@@ -430,7 +430,7 @@ static int tc358746_apply_misc_config(struct tc358746 *tc358746)
 	mbusfmt = v4l2_subdev_state_get_format(sink_state, TC358746_SINK);
 	fmt = tc358746_get_format_by_code(TC358746_SINK, mbusfmt->code);
 
-	/* Self defined CSI user data type id's are not supported yet */
+	/* Self defined CSI user data type id's are analt supported yet */
 	val = PDFMT(fmt->pdformat);
 	dev_dbg(dev, "DATAFMT: 0x%x\n", val);
 	err = tc358746_write(tc358746, DATAFMT_REG, val);
@@ -460,7 +460,7 @@ out:
 	return err;
 }
 
-/* Use MHz as base so the div needs no u64 */
+/* Use MHz as base so the div needs anal u64 */
 static u32 tc358746_cfg_to_cnt(unsigned int cfg_val,
 			       unsigned int clk_mhz,
 			       unsigned int time_base)
@@ -483,8 +483,8 @@ static u32 tc358746_us_to_cnt(unsigned int cfg_val,
 static int tc358746_apply_dphy_config(struct tc358746 *tc358746)
 {
 	struct phy_configure_opts_mipi_dphy *cfg = &tc358746->dphy_cfg;
-	bool non_cont_clk = !!(tc358746->csi_vep.bus.mipi_csi2.flags &
-			       V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK);
+	bool analn_cont_clk = !!(tc358746->csi_vep.bus.mipi_csi2.flags &
+			       V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK);
 	struct device *dev = tc358746->sd.dev;
 	unsigned long hs_byte_clk, hf_clk;
 	u32 val, val2, lptxcnt;
@@ -556,9 +556,9 @@ static int tc358746_apply_dphy_config(struct tc358746 *tc358746)
 	if (err)
 		return err;
 
-	dev_dbg(dev, "CONTCLKMODE: %u", non_cont_clk ? 0 : 1);
+	dev_dbg(dev, "CONTCLKMODE: %u", analn_cont_clk ? 0 : 1);
 
-	return  tc358746_write(tc358746, TXOPTIONCNTRL_REG, non_cont_clk ? 0 : 1);
+	return  tc358746_write(tc358746, TXOPTIONCNTRL_REG, analn_cont_clk ? 0 : 1);
 }
 
 #define MAX_DATA_LANES 4
@@ -633,7 +633,7 @@ static int tc358746_enable_csi_module(struct tc358746 *tc358746, int enable)
 	return tc358746_write(tc358746, CSI_CONFW_REG,
 			      MODE(MODE_SET) |
 			      ADDRESS(CSI_CONTROL_ADDRESS) |
-			      DATA(CSI_MODE | TXHSMD | NOL(lanes - 1)));
+			      DATA(CSI_MODE | TXHSMD | ANALL(lanes - 1)));
 }
 
 static int tc358746_enable_parallel_port(struct tc358746 *tc358746, int enable)
@@ -792,7 +792,7 @@ static int tc358746_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	format->format.code = fmt->code;
-	format->format.field = V4L2_FIELD_NONE;
+	format->format.field = V4L2_FIELD_ANALNE;
 
 	dev_dbg(sd->dev, "Update format: %ux%u code:0x%x -> %ux%u code:0x%x",
 		sink_fmt->width, sink_fmt->height, sink_fmt->code,
@@ -822,7 +822,7 @@ static unsigned long tc358746_find_pll_settings(struct tc358746 *tc358746,
 	u8 postdiv;
 
 	if (fout > 1000 * HZ_PER_MHZ) {
-		dev_err(dev, "HS-Clock above 1 Ghz are not supported\n");
+		dev_err(dev, "HS-Clock above 1 Ghz are analt supported\n");
 		return 0;
 	}
 
@@ -1056,7 +1056,7 @@ static const struct v4l2_subdev_internal_ops tc358746_internal_ops = {
 };
 
 static const struct media_entity_operations tc358746_entity_ops = {
-	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.get_fwanalde_pad = v4l2_subdev_get_fwanalde_pad_1_to_1,
 	.link_validate = v4l2_subdev_link_validate,
 };
 
@@ -1118,7 +1118,7 @@ tc358746_find_mclk_settings(struct tc358746 *tc358746, unsigned long mclk_rate)
 	 *   mclk_low/high = 255 --> 256 MCLK-Ref Counts == max.
 	 * If mclk_low and mclk_high are 0 then MCLK is disabled.
 	 *
-	 * Keep it simple and support 50/50 duty cycles only for now,
+	 * Keep it simple and support 50/50 duty cycles only for analw,
 	 * so the calc will be:
 	 *
 	 *   MCLK = PLL / (MCLK-PreDiv * 2 * MCLK-PostDiv)
@@ -1151,7 +1151,7 @@ tc358746_find_mclk_settings(struct tc358746 *tc358746, unsigned long mclk_rate)
 		}
 	}
 
-	/* No suitable prediv found, so try to adjust the postdiv */
+	/* Anal suitable prediv found, so try to adjust the postdiv */
 	for (postdiv = 4; postdiv <= 512; postdiv += 2) {
 		unsigned int pre;
 
@@ -1286,7 +1286,7 @@ tc358746_init_subdev(struct tc358746 *tc358746, struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(sd, client, &tc358746_ops);
 	sd->internal_ops = &tc358746_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &tc358746_entity_ops;
 
@@ -1308,24 +1308,24 @@ static int
 tc358746_init_output_port(struct tc358746 *tc358746, unsigned long refclk)
 {
 	struct device *dev = tc358746->sd.dev;
-	struct v4l2_fwnode_endpoint *vep;
+	struct v4l2_fwanalde_endpoint *vep;
 	unsigned long csi_link_rate;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned char csi_lanes;
 	int err;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), TC358746_SOURCE,
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), TC358746_SOURCE,
 					     0, 0);
 	if (!ep) {
-		dev_err(dev, "Missing endpoint node\n");
+		dev_err(dev, "Missing endpoint analde\n");
 		return -EINVAL;
 	}
 
 	/* Currently we only support 'parallel in' -> 'csi out' */
 	vep = &tc358746->csi_vep;
 	vep->bus_type = V4L2_MBUS_CSI2_DPHY;
-	err = v4l2_fwnode_endpoint_alloc_parse(ep, vep);
-	fwnode_handle_put(ep);
+	err = v4l2_fwanalde_endpoint_alloc_parse(ep, vep);
+	fwanalde_handle_put(ep);
 	if (err) {
 		dev_err(dev, "Failed to parse source endpoint\n");
 		return err;
@@ -1358,7 +1358,7 @@ tc358746_init_output_port(struct tc358746 *tc358746, unsigned long refclk)
 	return 0;
 
 err:
-	v4l2_fwnode_endpoint_free(vep);
+	v4l2_fwanalde_endpoint_free(vep);
 
 	return err;
 }
@@ -1388,12 +1388,12 @@ static int tc358746_init_hw(struct tc358746 *tc358746)
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_sync_autosuspend(dev);
 	if (err)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chipid = FIELD_GET(CHIPID, val);
 	if (chipid != 0x44) {
 		dev_err(dev, "Invalid chipid 0x%02x\n", chipid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1432,55 +1432,55 @@ static int tc358746_init_controls(struct tc358746 *tc358746)
 	return 0;
 }
 
-static int tc358746_notify_bound(struct v4l2_async_notifier *notifier,
+static int tc358746_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				 struct v4l2_subdev *sd,
 				 struct v4l2_async_connection *asd)
 {
 	struct tc358746 *tc358746 =
-		container_of(notifier, struct tc358746, notifier);
+		container_of(analtifier, struct tc358746, analtifier);
 	u32 flags = MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE;
 	struct media_pad *sink = &tc358746->pads[TC358746_SINK];
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink, flags);
+	return v4l2_create_fwanalde_links_to_pad(sd, sink, flags);
 }
 
-static const struct v4l2_async_notifier_operations tc358746_notify_ops = {
-	.bound = tc358746_notify_bound,
+static const struct v4l2_async_analtifier_operations tc358746_analtify_ops = {
+	.bound = tc358746_analtify_bound,
 };
 
 static int tc358746_async_register(struct tc358746 *tc358746)
 {
-	struct v4l2_fwnode_endpoint vep = {
+	struct v4l2_fwanalde_endpoint vep = {
 		.bus_type = V4L2_MBUS_PARALLEL,
 	};
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	int err;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(tc358746->sd.dev),
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(tc358746->sd.dev),
 					     TC358746_SINK, 0, 0);
 	if (!ep)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
-	err = v4l2_fwnode_endpoint_parse(ep, &vep);
+	err = v4l2_fwanalde_endpoint_parse(ep, &vep);
 	if (err) {
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 		return err;
 	}
 
-	v4l2_async_subdev_nf_init(&tc358746->notifier, &tc358746->sd);
-	asd = v4l2_async_nf_add_fwnode_remote(&tc358746->notifier, ep,
+	v4l2_async_subdev_nf_init(&tc358746->analtifier, &tc358746->sd);
+	asd = v4l2_async_nf_add_fwanalde_remote(&tc358746->analtifier, ep,
 					      struct v4l2_async_connection);
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	if (IS_ERR(asd)) {
 		err = PTR_ERR(asd);
 		goto err_cleanup;
 	}
 
-	tc358746->notifier.ops = &tc358746_notify_ops;
+	tc358746->analtifier.ops = &tc358746_analtify_ops;
 
-	err = v4l2_async_nf_register(&tc358746->notifier);
+	err = v4l2_async_nf_register(&tc358746->analtifier);
 	if (err)
 		goto err_cleanup;
 
@@ -1491,9 +1491,9 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 	return 0;
 
 err_unregister:
-	v4l2_async_nf_unregister(&tc358746->notifier);
+	v4l2_async_nf_unregister(&tc358746->analtifier);
 err_cleanup:
-	v4l2_async_nf_cleanup(&tc358746->notifier);
+	v4l2_async_nf_cleanup(&tc358746->analtifier);
 
 	return err;
 }
@@ -1508,7 +1508,7 @@ static int tc358746_probe(struct i2c_client *client)
 
 	tc358746 = devm_kzalloc(&client->dev, sizeof(*tc358746), GFP_KERNEL);
 	if (!tc358746)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc358746->regmap = devm_regmap_init_i2c(client, &tc358746_regmap_config);
 	if (IS_ERR(tc358746->regmap))
@@ -1559,11 +1559,11 @@ static int tc358746_probe(struct i2c_client *client)
 	 */
 	err = tc358746_init_controls(tc358746);
 	if (err)
-		goto err_fwnode;
+		goto err_fwanalde;
 
 	dev_set_drvdata(dev, tc358746);
 
-	/* Set to 1sec to give the stream reconfiguration enough time */
+	/* Set to 1sec to give the stream reconfiguration eanalugh time */
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
@@ -1590,8 +1590,8 @@ err_pm:
 	pm_runtime_set_suspended(dev);
 	pm_runtime_dont_use_autosuspend(dev);
 	v4l2_ctrl_handler_free(&tc358746->ctrl_hdl);
-err_fwnode:
-	v4l2_fwnode_endpoint_free(&tc358746->csi_vep);
+err_fwanalde:
+	v4l2_fwanalde_endpoint_free(&tc358746->csi_vep);
 err_subdev:
 	v4l2_subdev_cleanup(&tc358746->sd);
 	media_entity_cleanup(&tc358746->sd.entity);
@@ -1606,9 +1606,9 @@ static void tc358746_remove(struct i2c_client *client)
 
 	v4l2_subdev_cleanup(sd);
 	v4l2_ctrl_handler_free(&tc358746->ctrl_hdl);
-	v4l2_fwnode_endpoint_free(&tc358746->csi_vep);
-	v4l2_async_nf_unregister(&tc358746->notifier);
-	v4l2_async_nf_cleanup(&tc358746->notifier);
+	v4l2_fwanalde_endpoint_free(&tc358746->csi_vep);
+	v4l2_async_nf_unregister(&tc358746->analtifier);
+	v4l2_async_nf_cleanup(&tc358746->analtifier);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 

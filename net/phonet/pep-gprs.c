@@ -4,7 +4,7 @@
  *
  * GPRS over Phonet pipe end point socket
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  *
  * Author: Rémi Denis-Courmont
  */
@@ -92,10 +92,10 @@ static int gprs_recv(struct gprs_dev *gp, struct sk_buff *skb)
 		/* Phonet Pipe data header may be misaligned (3 bytes),
 		 * so wrap the IP packet as a single fragment of an head-less
 		 * socket buffer. The network stack will pull what it needs,
-		 * but at least, the whole IP payload is not memcpy'd. */
+		 * but at least, the whole IP payload is analt memcpy'd. */
 		rskb = netdev_alloc_skb(dev, 0);
 		if (!rskb) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			goto drop;
 		}
 		skb_shinfo(rskb)->frag_list = skb;
@@ -125,7 +125,7 @@ static int gprs_recv(struct gprs_dev *gp, struct sk_buff *skb)
 		netif_rx(skb);
 		skb = NULL;
 	} else
-		err = -ENODEV;
+		err = -EANALDEV;
 
 drop:
 	if (skb) {
@@ -218,7 +218,7 @@ static void gprs_setup(struct net_device *dev)
 {
 	dev->features		= NETIF_F_FRAGLIST;
 	dev->type		= ARPHRD_PHONET_PIPE;
-	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags		= IFF_POINTOPOINT | IFF_ANALARP;
 	dev->mtu		= GPRS_DEFAULT_MTU;
 	dev->min_mtu		= 576;
 	dev->max_mtu		= (PHONET_MAX_MTU - 11);
@@ -249,9 +249,9 @@ int gprs_attach(struct sock *sk)
 		return -EINVAL; /* need packet boundaries */
 
 	/* Create net device */
-	dev = alloc_netdev(sizeof(*gp), ifname, NET_NAME_UNKNOWN, gprs_setup);
+	dev = alloc_netdev(sizeof(*gp), ifname, NET_NAME_UNKANALWN, gprs_setup);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	gp = netdev_priv(dev);
 	gp->sk = sk;
 	gp->dev = dev;

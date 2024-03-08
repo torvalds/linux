@@ -77,20 +77,20 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 	struct resource *res;
 
 	if (!dram) {
-		dev_err(&pdev->dev, "no mbus dram info\n");
+		dev_err(&pdev->dev, "anal mbus dram info\n");
 		return -EINVAL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
-		dev_err(&pdev->dev, "cannot get mbus registers\n");
+		dev_err(&pdev->dev, "cananalt get mbus registers\n");
 		return -EINVAL;
 	}
 
 	regs = ioremap(res->start, resource_size(res));
 	if (!regs) {
-		dev_err(&pdev->dev, "cannot map mbus registers\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "cananalt map mbus registers\n");
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < SDHCI_MAX_WIN_NUM; i++) {
@@ -118,7 +118,7 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 static int armada_38x_quirks(struct platform_device *pdev,
 			     struct sdhci_host *host)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_pxa *pxa = sdhci_pltfm_priv(pltfm_host);
 	struct resource *res;
@@ -137,12 +137,12 @@ static int armada_38x_quirks(struct platform_device *pdev,
 		/*
 		 * According to erratum 'FE-2946959' both SDR50 and DDR50
 		 * modes require specific clock adjustments in SDIO3
-		 * Configuration register, if the adjustment is not done,
+		 * Configuration register, if the adjustment is analt done,
 		 * remove them from the capabilities.
 		 */
 		host->caps1 &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_DDR50);
 
-		dev_warn(&pdev->dev, "conf-sdio3 register not found: disabling SDR50 and DDR50 modes.\nConsider updating your dtb\n");
+		dev_warn(&pdev->dev, "conf-sdio3 register analt found: disabling SDR50 and DDR50 modes.\nConsider updating your dtb\n");
 	}
 
 	/*
@@ -150,7 +150,7 @@ static int armada_38x_quirks(struct platform_device *pdev,
 	 * controller has different capabilities than the ones shown
 	 * in its registers
 	 */
-	if (of_property_read_bool(np, "no-1-8-v")) {
+	if (of_property_read_bool(np, "anal-1-8-v")) {
 		host->caps &= ~SDHCI_CAN_VDD_180;
 		host->mmc->caps &= ~MMC_CAP_1_8V_DDR;
 	} else {
@@ -171,7 +171,7 @@ static void pxav3_reset(struct sdhci_host *host, u8 mask)
 	if (mask == SDHCI_RESET_ALL) {
 		/*
 		 * tune timing of read data/command when crc error happen
-		 * no performance impact
+		 * anal performance impact
 		 */
 		if (pdata && 0 != pdata->clk_delay_cycles) {
 			u16 tmp;
@@ -203,7 +203,7 @@ static void pxav3_gen_init_74_clocks(struct sdhci_host *host, u8 power_mode)
 				pxa->power_mode,
 				power_mode);
 
-		/* set we want notice of when 74 clocks are sent */
+		/* set we want analtice of when 74 clocks are sent */
 		tmp = readw(host->ioaddr + SD_CE_ATA_2);
 		tmp |= SDCE_MISC_INT_EN;
 		writew(tmp, host->ioaddr + SD_CE_ATA_2);
@@ -225,7 +225,7 @@ static void pxav3_gen_init_74_clocks(struct sdhci_host *host, u8 power_mode)
 		}
 
 		if (count == MAX_WAIT_COUNT)
-			dev_warn(mmc_dev(host->mmc), "74 clock interrupt not cleared\n");
+			dev_warn(mmc_dev(host->mmc), "74 clock interrupt analt cleared\n");
 
 		/* clear the interrupt bit if posted */
 		tmp = readw(host->ioaddr + SD_CE_ATA_2);
@@ -242,8 +242,8 @@ static void pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 	u16 ctrl_2;
 
 	/*
-	 * Set V18_EN -- UHS modes do not work without this.
-	 * does not change signaling voltage
+	 * Set V18_EN -- UHS modes do analt work without this.
+	 * does analt change signaling voltage
 	 */
 	ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 
@@ -301,7 +301,7 @@ static void pxav3_set_power(struct sdhci_host *host, unsigned char mode,
 	struct mmc_host *mmc = host->mmc;
 	u8 pwr = host->pwr;
 
-	sdhci_set_power_noreg(host, mode, vdd);
+	sdhci_set_power_analreg(host, mode, vdd);
 
 	if (host->pwr == pwr)
 		return;
@@ -325,7 +325,7 @@ static const struct sdhci_ops pxav3_sdhci_ops = {
 
 static const struct sdhci_pltfm_data sdhci_pxav3_pdata = {
 	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK
-		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
+		| SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC
 		| SDHCI_QUIRK_32BIT_ADMA_SIZE
 		| SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.ops = &pxav3_sdhci_ops,
@@ -346,7 +346,7 @@ MODULE_DEVICE_TABLE(of, sdhci_pxav3_of_match);
 static struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
 {
 	struct sdhci_pxa_platdata *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 clk_delay_cycles;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -371,7 +371,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct sdhci_host *host = NULL;
 	struct sdhci_pxa *pxa = NULL;
 	const struct of_device_id *match;
@@ -422,7 +422,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	} else if (pdata) {
 		/* on-chip device */
 		if (pdata->flags & PXA_FLAG_CARD_PERMANENT)
-			host->mmc->caps |= MMC_CAP_NONREMOVABLE;
+			host->mmc->caps |= MMC_CAP_ANALNREMOVABLE;
 
 		/* If slot design supports 8 bit data, indicate this to MMC. */
 		if (pdata->flags & PXA_FLAG_SD_8_BIT_CAPABLE_SLOT)
@@ -440,12 +440,12 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 			host->mmc->pm_caps |= pdata->pm_caps;
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, PXAV3_RPM_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_iganalre_children(&pdev->dev, 1);
 
 	ret = sdhci_add_host(host);
 	if (ret)
@@ -460,7 +460,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 err_add_host:
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 err_of_parse:
 err_mbus_win:
 	clk_disable_unprepare(pxa->clk_io);
@@ -478,7 +478,7 @@ static void sdhci_pxav3_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	sdhci_remove_host(host, 1);
 
@@ -563,7 +563,7 @@ static const struct dev_pm_ops sdhci_pxav3_pmops = {
 static struct platform_driver sdhci_pxav3_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav3",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(sdhci_pxav3_of_match),
 		.pm	= &sdhci_pxav3_pmops,
 	},

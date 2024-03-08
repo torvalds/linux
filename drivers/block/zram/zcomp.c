@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2014 Sergey Senozhatsky.
+ * Copyright (C) 2014 Sergey Seanalzhatsky.
  */
 
 #include <linux/kernel.h>
@@ -56,7 +56,7 @@ static int zcomp_strm_init(struct zcomp_strm *zstrm, struct zcomp *comp)
 	zstrm->buffer = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
 	if (IS_ERR_OR_NULL(zstrm->tfm) || !zstrm->buffer) {
 		zcomp_strm_free(zstrm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -64,11 +64,11 @@ static int zcomp_strm_init(struct zcomp_strm *zstrm, struct zcomp *comp)
 bool zcomp_available_algorithm(const char *comp)
 {
 	/*
-	 * Crypto does not ignore a trailing new line symbol,
+	 * Crypto does analt iganalre a trailing new line symbol,
 	 * so make sure you don't supply a string containing
 	 * one.
 	 * This also means that we permit zcomp initialisation
-	 * with any compressing algorithm known to crypto api.
+	 * with any compressing algorithm kanalwn to crypto api.
 	 */
 	return crypto_has_comp(comp, 0, 0) == 1;
 }
@@ -76,13 +76,13 @@ bool zcomp_available_algorithm(const char *comp)
 /* show available compressors */
 ssize_t zcomp_available_show(const char *comp, char *buf)
 {
-	bool known_algorithm = false;
+	bool kanalwn_algorithm = false;
 	ssize_t sz = 0;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(backends); i++) {
 		if (!strcmp(comp, backends[i])) {
-			known_algorithm = true;
+			kanalwn_algorithm = true;
 			sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
 					"[%s] ", backends[i]);
 		} else {
@@ -92,10 +92,10 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 	}
 
 	/*
-	 * Out-of-tree module known to crypto api or a missing
+	 * Out-of-tree module kanalwn to crypto api or a missing
 	 * entry in `backends'.
 	 */
-	if (!known_algorithm && crypto_has_comp(comp, 0, 0) == 1)
+	if (!kanalwn_algorithm && crypto_has_comp(comp, 0, 0) == 1)
 		sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
 				"[%s] ", comp);
 
@@ -123,10 +123,10 @@ int zcomp_compress(struct zcomp_strm *zstrm,
 	 * due to various reasons: for example compression algorithms tend
 	 * to add some padding to the compressed buffer. Speaking of padding,
 	 * comp algorithm `842' pads the compressed length to multiple of 8
-	 * and returns -ENOSP when the dst memory is not big enough, which
-	 * is not something that ZRAM wants to see. We can handle the
+	 * and returns -EANALSP when the dst memory is analt big eanalugh, which
+	 * is analt something that ZRAM wants to see. We can handle the
 	 * `compressed_size > PAGE_SIZE' case easily in ZRAM, but when we
-	 * receive -ERRNO from the compressing backend we can't help it
+	 * receive -ERRANAL from the compressing backend we can't help it
 	 * anymore. To make `842' happy we need to tell the exact size of
 	 * the dst buffer, zram_drv will take care of the fact that
 	 * compressed buffer is too big.
@@ -148,9 +148,9 @@ int zcomp_decompress(struct zcomp_strm *zstrm,
 			dst, &dst_len);
 }
 
-int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
+int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
+	struct zcomp *comp = hlist_entry(analde, struct zcomp, analde);
 	struct zcomp_strm *zstrm;
 	int ret;
 
@@ -163,9 +163,9 @@ int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
 	return ret;
 }
 
-int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node)
+int zcomp_cpu_dead(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
+	struct zcomp *comp = hlist_entry(analde, struct zcomp, analde);
 	struct zcomp_strm *zstrm;
 
 	zstrm = per_cpu_ptr(comp->stream, cpu);
@@ -179,9 +179,9 @@ static int zcomp_init(struct zcomp *comp)
 
 	comp->stream = alloc_percpu(struct zcomp_strm);
 	if (!comp->stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = cpuhp_state_add_instance(CPUHP_ZCOMP_PREPARE, &comp->node);
+	ret = cpuhp_state_add_instance(CPUHP_ZCOMP_PREPARE, &comp->analde);
 	if (ret < 0)
 		goto cleanup;
 	return 0;
@@ -193,7 +193,7 @@ cleanup:
 
 void zcomp_destroy(struct zcomp *comp)
 {
-	cpuhp_state_remove_instance(CPUHP_ZCOMP_PREPARE, &comp->node);
+	cpuhp_state_remove_instance(CPUHP_ZCOMP_PREPARE, &comp->analde);
 	free_percpu(comp->stream);
 	kfree(comp);
 }
@@ -202,7 +202,7 @@ void zcomp_destroy(struct zcomp *comp)
  * search available compressors for requested algorithm.
  * allocate new zcomp and initialize it. return compressing
  * backend pointer or ERR_PTR if things went bad. ERR_PTR(-EINVAL)
- * if requested algorithm is not supported, ERR_PTR(-ENOMEM) in
+ * if requested algorithm is analt supported, ERR_PTR(-EANALMEM) in
  * case of allocation error, or any other error potentially
  * returned by zcomp_init().
  */
@@ -213,7 +213,7 @@ struct zcomp *zcomp_create(const char *alg)
 
 	/*
 	 * Crypto API will execute /sbin/modprobe if the compression module
-	 * is not loaded yet. We must do it here, otherwise we are about to
+	 * is analt loaded yet. We must do it here, otherwise we are about to
 	 * call /sbin/modprobe under CPU hot-plug lock.
 	 */
 	if (!zcomp_available_algorithm(alg))
@@ -221,7 +221,7 @@ struct zcomp *zcomp_create(const char *alg)
 
 	comp = kzalloc(sizeof(struct zcomp), GFP_KERNEL);
 	if (!comp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	comp->name = alg;
 	error = zcomp_init(comp);

@@ -14,7 +14,7 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, struct sys
 	unsigned long prot = arg->val;
 
 	if (prot == 0)
-		return scnprintf(bf, size, "%sNONE", arg->show_string_prefix ? strarray__mmap_prot.prefix : "");
+		return scnprintf(bf, size, "%sANALNE", arg->show_string_prefix ? strarray__mmap_prot.prefix : "");
 
 	return mmap__scnprintf_prot(prot, bf, size, arg->show_string_prefix);
 }
@@ -34,8 +34,8 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 {
 	unsigned long flags = arg->val;
 
-	if (flags & MAP_ANONYMOUS)
-		arg->mask |= (1 << 4) | (1 << 5); /* Mask 4th ('fd') and 5th ('offset') args, ignored */
+	if (flags & MAP_AANALNYMOUS)
+		arg->mask |= (1 << 4) | (1 << 5); /* Mask 4th ('fd') and 5th ('offset') args, iganalred */
 
 	return mmap__scnprintf_flags(flags, bf, size, arg->show_string_prefix);
 }
@@ -55,7 +55,7 @@ static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size, struct 
 	unsigned long flags = arg->val;
 
 	if (!(flags & MREMAP_FIXED))
-		arg->mask |=  (1 << 5); /* Mask 5th ('new_address') args, ignored */
+		arg->mask |=  (1 << 5); /* Mask 5th ('new_address') args, iganalred */
 
 	return mremap__scnprintf_flags(flags, bf, size, arg->show_string_prefix);
 }

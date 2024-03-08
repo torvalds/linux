@@ -14,7 +14,7 @@
 
 #include "try-catch-impl.h"
 
-void __noreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)
+void __analreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)
 {
 	try_catch->try_result = -EFAULT;
 	kthread_complete_and_exit(try_catch->try_completion, -EFAULT);
@@ -91,7 +91,7 @@ void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
 	else if (exit_code == -EINTR)
 		kunit_err(test, "wake_up_process() was never called\n");
 	else if (exit_code)
-		kunit_err(test, "Unknown error: %d\n", exit_code);
+		kunit_err(test, "Unkanalwn error: %d\n", exit_code);
 
 	try_catch->catch(try_catch->context);
 }

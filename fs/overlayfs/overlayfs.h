@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
- * Copyright (C) 2011 Novell Inc.
+ * Copyright (C) 2011 Analvell Inc.
  */
 
 #include <linux/kernel.h>
@@ -52,15 +52,15 @@ enum ovl_xattr {
 	OVL_XATTR_XWHITEOUT,
 };
 
-enum ovl_inode_flag {
-	/* Pure upper dir that may contain non pure upper entries */
+enum ovl_ianalde_flag {
+	/* Pure upper dir that may contain analn pure upper entries */
 	OVL_IMPURE,
-	/* Non-merge dir that may contain whiteout entries */
+	/* Analn-merge dir that may contain whiteout entries */
 	OVL_WHITEOUTS,
 	OVL_INDEX,
 	OVL_UPPERDATA,
-	/* Inode number will remain constant over copy up. */
-	OVL_CONST_INO,
+	/* Ianalde number will remain constant over copy up. */
+	OVL_CONST_IANAL,
 	OVL_HAS_DIGEST,
 	OVL_VERIFIED_DIGEST,
 };
@@ -76,7 +76,7 @@ enum ovl_entry_flag {
 enum {
 	OVL_REDIRECT_OFF,	/* "off" mode is never used. In effect	*/
 	OVL_REDIRECT_FOLLOW,	/* ...it translates to either "follow"	*/
-	OVL_REDIRECT_NOFOLLOW,	/* ...or "nofollow".			*/
+	OVL_REDIRECT_ANALFOLLOW,	/* ...or "analfollow".			*/
 	OVL_REDIRECT_ON,
 };
 
@@ -88,9 +88,9 @@ enum {
 };
 
 enum {
-	OVL_XINO_OFF,
-	OVL_XINO_AUTO,
-	OVL_XINO_ON,
+	OVL_XIANAL_OFF,
+	OVL_XIANAL_AUTO,
+	OVL_XIANAL_ON,
 };
 
 enum {
@@ -111,7 +111,7 @@ enum {
 /* CPU byte order required for fid decoding:  */
 #define OVL_FH_FLAG_BIG_ENDIAN	(1 << 0)
 #define OVL_FH_FLAG_ANY_ENDIAN	(1 << 1)
-/* Is the real inode encoded in fid an upper inode? */
+/* Is the real ianalde encoded in fid an upper ianalde? */
 #define OVL_FH_FLAG_PATH_UPPER	(1 << 2)
 
 #define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN | \
@@ -122,7 +122,7 @@ enum {
 #elif defined(__BIG_ENDIAN)
 #define OVL_FH_FLAG_CPU_ENDIAN OVL_FH_FLAG_BIG_ENDIAN
 #else
-#error Endianness not defined
+#error Endianness analt defined
 #endif
 
 /* The type used to be returned by overlay exportfs for misaligned fid */
@@ -155,12 +155,12 @@ struct ovl_fh {
 #define OVL_FH_FID_OFFSET	(OVL_FH_WIRE_OFFSET + \
 				 offsetof(struct ovl_fb, fid))
 
-/* On-disk format for "metacopy" xattr (if non-zero size) */
+/* On-disk format for "metacopy" xattr (if analn-zero size) */
 struct ovl_metacopy {
 	u8 version;	/* 0 */
 	u8 len;         /* size of this header + used digest bytes */
 	u8 flags;
-	u8 digest_algo;	/* FS_VERITY_HASH_ALG_* constant, 0 for no digest */
+	u8 digest_algo;	/* FS_VERITY_HASH_ALG_* constant, 0 for anal digest */
 	u8 digest[FS_VERITY_MAX_DIGEST_SIZE];  /* Only the used part on disk */
 } __packed;
 
@@ -191,17 +191,17 @@ static inline const char *ovl_xattr(struct ovl_fs *ofs, enum ovl_xattr ox)
  * called on an idmapped upper mount the value written to disk - i.e., the
  * value stored in ia_*id - must 1001. The mount mapping helper will thus take
  * care to map 1000 to 1001.
- * The mnt idmapping helpers are nops if the upper layer isn't idmapped.
+ * The mnt idmapping helpers are analps if the upper layer isn't idmapped.
  */
-static inline int ovl_do_notify_change(struct ovl_fs *ofs,
+static inline int ovl_do_analtify_change(struct ovl_fs *ofs,
 				       struct dentry *upperdentry,
 				       struct iattr *attr)
 {
-	return notify_change(ovl_upper_mnt_idmap(ofs), upperdentry, attr, NULL);
+	return analtify_change(ovl_upper_mnt_idmap(ofs), upperdentry, attr, NULL);
 }
 
 static inline int ovl_do_rmdir(struct ovl_fs *ofs,
-			       struct inode *dir, struct dentry *dentry)
+			       struct ianalde *dir, struct dentry *dentry)
 {
 	int err = vfs_rmdir(ovl_upper_mnt_idmap(ofs), dir, dentry);
 
@@ -209,7 +209,7 @@ static inline int ovl_do_rmdir(struct ovl_fs *ofs,
 	return err;
 }
 
-static inline int ovl_do_unlink(struct ovl_fs *ofs, struct inode *dir,
+static inline int ovl_do_unlink(struct ovl_fs *ofs, struct ianalde *dir,
 				struct dentry *dentry)
 {
 	int err = vfs_unlink(ovl_upper_mnt_idmap(ofs), dir, dentry, NULL);
@@ -219,7 +219,7 @@ static inline int ovl_do_unlink(struct ovl_fs *ofs, struct inode *dir,
 }
 
 static inline int ovl_do_link(struct ovl_fs *ofs, struct dentry *old_dentry,
-			      struct inode *dir, struct dentry *new_dentry)
+			      struct ianalde *dir, struct dentry *new_dentry)
 {
 	int err = vfs_link(old_dentry, ovl_upper_mnt_idmap(ofs), dir,
 			   new_dentry, NULL);
@@ -229,7 +229,7 @@ static inline int ovl_do_link(struct ovl_fs *ofs, struct dentry *old_dentry,
 }
 
 static inline int ovl_do_create(struct ovl_fs *ofs,
-				struct inode *dir, struct dentry *dentry,
+				struct ianalde *dir, struct dentry *dentry,
 				umode_t mode)
 {
 	int err = vfs_create(ovl_upper_mnt_idmap(ofs), dir, dentry, mode, true);
@@ -239,7 +239,7 @@ static inline int ovl_do_create(struct ovl_fs *ofs,
 }
 
 static inline int ovl_do_mkdir(struct ovl_fs *ofs,
-			       struct inode *dir, struct dentry *dentry,
+			       struct ianalde *dir, struct dentry *dentry,
 			       umode_t mode)
 {
 	int err = vfs_mkdir(ovl_upper_mnt_idmap(ofs), dir, dentry, mode);
@@ -247,18 +247,18 @@ static inline int ovl_do_mkdir(struct ovl_fs *ofs,
 	return err;
 }
 
-static inline int ovl_do_mknod(struct ovl_fs *ofs,
-			       struct inode *dir, struct dentry *dentry,
+static inline int ovl_do_mkanald(struct ovl_fs *ofs,
+			       struct ianalde *dir, struct dentry *dentry,
 			       umode_t mode, dev_t dev)
 {
-	int err = vfs_mknod(ovl_upper_mnt_idmap(ofs), dir, dentry, mode, dev);
+	int err = vfs_mkanald(ovl_upper_mnt_idmap(ofs), dir, dentry, mode, dev);
 
-	pr_debug("mknod(%pd2, 0%o, 0%o) = %i\n", dentry, mode, dev, err);
+	pr_debug("mkanald(%pd2, 0%o, 0%o) = %i\n", dentry, mode, dev, err);
 	return err;
 }
 
 static inline int ovl_do_symlink(struct ovl_fs *ofs,
-				 struct inode *dir, struct dentry *dentry,
+				 struct ianalde *dir, struct dentry *dentry,
 				 const char *oldname)
 {
 	int err = vfs_symlink(ovl_upper_mnt_idmap(ofs), dir, dentry, oldname);
@@ -349,8 +349,8 @@ static inline int ovl_do_remove_acl(struct ovl_fs *ofs, struct dentry *dentry,
 	return vfs_remove_acl(ovl_upper_mnt_idmap(ofs), dentry, acl_name);
 }
 
-static inline int ovl_do_rename(struct ovl_fs *ofs, struct inode *olddir,
-				struct dentry *olddentry, struct inode *newdir,
+static inline int ovl_do_rename(struct ovl_fs *ofs, struct ianalde *olddir,
+				struct dentry *olddentry, struct ianalde *newdir,
 				struct dentry *newdentry, unsigned int flags)
 {
 	int err;
@@ -374,7 +374,7 @@ static inline int ovl_do_rename(struct ovl_fs *ofs, struct inode *olddir,
 }
 
 static inline int ovl_do_whiteout(struct ovl_fs *ofs,
-				  struct inode *dir, struct dentry *dentry)
+				  struct ianalde *dir, struct dentry *dentry)
 {
 	int err = vfs_whiteout(ovl_upper_mnt_idmap(ofs), dir, dentry);
 	pr_debug("whiteout(%pd2) = %i\n", dentry, err);
@@ -412,8 +412,8 @@ static inline bool ovl_open_flags_need_copy_up(int flags)
 static inline int ovl_do_getattr(const struct path *path, struct kstat *stat,
 				 u32 request_mask, unsigned int flags)
 {
-	if (flags & AT_GETATTR_NOSEC)
-		return vfs_getattr_nosec(path, stat, request_mask, flags);
+	if (flags & AT_GETATTR_ANALSEC)
+		return vfs_getattr_analsec(path, stat, request_mask, flags);
 	return vfs_getattr(path, stat, request_mask, flags);
 }
 
@@ -453,25 +453,25 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry);
 void ovl_path_upper(struct dentry *dentry, struct path *path);
 void ovl_path_lower(struct dentry *dentry, struct path *path);
 void ovl_path_lowerdata(struct dentry *dentry, struct path *path);
-struct inode *ovl_i_path_real(struct inode *inode, struct path *path);
+struct ianalde *ovl_i_path_real(struct ianalde *ianalde, struct path *path);
 enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
 enum ovl_path_type ovl_path_realdata(struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_lowerdata(struct dentry *dentry);
 int ovl_dentry_set_lowerdata(struct dentry *dentry, struct ovl_path *datapath);
-const struct ovl_layer *ovl_i_layer_lower(struct inode *inode);
+const struct ovl_layer *ovl_i_layer_lower(struct ianalde *ianalde);
 const struct ovl_layer *ovl_layer_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
-struct dentry *ovl_i_dentry_upper(struct inode *inode);
-struct inode *ovl_inode_upper(struct inode *inode);
-struct inode *ovl_inode_lower(struct inode *inode);
-struct inode *ovl_inode_lowerdata(struct inode *inode);
-struct inode *ovl_inode_real(struct inode *inode);
-struct inode *ovl_inode_realdata(struct inode *inode);
-const char *ovl_lowerdata_redirect(struct inode *inode);
-struct ovl_dir_cache *ovl_dir_cache(struct inode *inode);
-void ovl_set_dir_cache(struct inode *inode, struct ovl_dir_cache *cache);
+struct dentry *ovl_i_dentry_upper(struct ianalde *ianalde);
+struct ianalde *ovl_ianalde_upper(struct ianalde *ianalde);
+struct ianalde *ovl_ianalde_lower(struct ianalde *ianalde);
+struct ianalde *ovl_ianalde_lowerdata(struct ianalde *ianalde);
+struct ianalde *ovl_ianalde_real(struct ianalde *ianalde);
+struct ianalde *ovl_ianalde_realdata(struct ianalde *ianalde);
+const char *ovl_lowerdata_redirect(struct ianalde *ianalde);
+struct ovl_dir_cache *ovl_dir_cache(struct ianalde *ianalde);
+void ovl_set_dir_cache(struct ianalde *ianalde, struct ovl_dir_cache *cache);
 void ovl_dentry_set_flag(unsigned long flag, struct dentry *dentry);
 void ovl_dentry_clear_flag(unsigned long flag, struct dentry *dentry);
 bool ovl_dentry_test_flag(unsigned long flag, struct dentry *dentry);
@@ -486,13 +486,13 @@ bool ovl_dentry_has_upper_alias(struct dentry *dentry);
 void ovl_dentry_set_upper_alias(struct dentry *dentry);
 bool ovl_dentry_needs_data_copy_up(struct dentry *dentry, int flags);
 bool ovl_dentry_needs_data_copy_up_locked(struct dentry *dentry, int flags);
-bool ovl_has_upperdata(struct inode *inode);
-void ovl_set_upperdata(struct inode *inode);
+bool ovl_has_upperdata(struct ianalde *ianalde);
+void ovl_set_upperdata(struct ianalde *ianalde);
 const char *ovl_dentry_get_redirect(struct dentry *dentry);
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
-void ovl_inode_update(struct inode *inode, struct dentry *upperdentry);
+void ovl_ianalde_update(struct ianalde *ianalde, struct dentry *upperdentry);
 void ovl_dir_modified(struct dentry *dentry, bool impurity);
-u64 ovl_inode_version_get(struct inode *inode);
+u64 ovl_ianalde_version_get(struct ianalde *ianalde);
 bool ovl_is_whiteout(struct dentry *dentry);
 bool ovl_path_is_whiteout(struct ovl_fs *ofs, const struct path *path);
 struct file *ovl_path_open(const struct path *path, int flags);
@@ -553,19 +553,19 @@ int ovl_get_verity_digest(struct ovl_fs *ofs, struct path *src,
 			  struct ovl_metacopy *metacopy);
 int ovl_sync_status(struct ovl_fs *ofs);
 
-static inline void ovl_set_flag(unsigned long flag, struct inode *inode)
+static inline void ovl_set_flag(unsigned long flag, struct ianalde *ianalde)
 {
-	set_bit(flag, &OVL_I(inode)->flags);
+	set_bit(flag, &OVL_I(ianalde)->flags);
 }
 
-static inline void ovl_clear_flag(unsigned long flag, struct inode *inode)
+static inline void ovl_clear_flag(unsigned long flag, struct ianalde *ianalde)
 {
-	clear_bit(flag, &OVL_I(inode)->flags);
+	clear_bit(flag, &OVL_I(ianalde)->flags);
 }
 
-static inline bool ovl_test_flag(unsigned long flag, struct inode *inode)
+static inline bool ovl_test_flag(unsigned long flag, struct ianalde *ianalde)
 {
-	return test_bit(flag, &OVL_I(inode)->flags);
+	return test_bit(flag, &OVL_I(ianalde)->flags);
 }
 
 static inline bool ovl_is_impuredir(struct super_block *sb,
@@ -588,7 +588,7 @@ static inline char ovl_get_opaquedir_val(struct ovl_fs *ofs,
 
 static inline bool ovl_redirect_follow(struct ovl_fs *ofs)
 {
-	return ofs->config.redirect_mode != OVL_REDIRECT_NOFOLLOW;
+	return ofs->config.redirect_mode != OVL_REDIRECT_ANALFOLLOW;
 }
 
 static inline bool ovl_redirect_dir(struct ovl_fs *ofs)
@@ -608,55 +608,55 @@ static inline bool ovl_has_fsid(struct ovl_fs *ofs)
 }
 
 /*
- * With xino=auto, we do best effort to keep all inodes on same st_dev and
- * d_ino consistent with st_ino.
- * With xino=on, we do the same effort but we warn if we failed.
+ * With xianal=auto, we do best effort to keep all ianaldes on same st_dev and
+ * d_ianal consistent with st_ianal.
+ * With xianal=on, we do the same effort but we warn if we failed.
  */
-static inline bool ovl_xino_warn(struct ovl_fs *ofs)
+static inline bool ovl_xianal_warn(struct ovl_fs *ofs)
 {
-	return ofs->config.xino == OVL_XINO_ON;
+	return ofs->config.xianal == OVL_XIANAL_ON;
 }
 
 /*
  * To avoid regressions in existing setups with overlay lower offline changes,
- * we allow lower changes only if none of the new features are used.
+ * we allow lower changes only if analne of the new features are used.
  */
 static inline bool ovl_allow_offline_changes(struct ovl_fs *ofs)
 {
 	return (!ofs->config.index && !ofs->config.metacopy &&
-		!ovl_redirect_dir(ofs) && !ovl_xino_warn(ofs));
+		!ovl_redirect_dir(ofs) && !ovl_xianal_warn(ofs));
 }
 
 /* All layers on same fs? */
 static inline bool ovl_same_fs(struct ovl_fs *ofs)
 {
-	return ofs->xino_mode == 0;
+	return ofs->xianal_mode == 0;
 }
 
-/* All overlay inodes have same st_dev? */
+/* All overlay ianaldes have same st_dev? */
 static inline bool ovl_same_dev(struct ovl_fs *ofs)
 {
-	return ofs->xino_mode >= 0;
+	return ofs->xianal_mode >= 0;
 }
 
-static inline unsigned int ovl_xino_bits(struct ovl_fs *ofs)
+static inline unsigned int ovl_xianal_bits(struct ovl_fs *ofs)
 {
-	return ovl_same_dev(ofs) ? ofs->xino_mode : 0;
+	return ovl_same_dev(ofs) ? ofs->xianal_mode : 0;
 }
 
-static inline void ovl_inode_lock(struct inode *inode)
+static inline void ovl_ianalde_lock(struct ianalde *ianalde)
 {
-	mutex_lock(&OVL_I(inode)->lock);
+	mutex_lock(&OVL_I(ianalde)->lock);
 }
 
-static inline int ovl_inode_lock_interruptible(struct inode *inode)
+static inline int ovl_ianalde_lock_interruptible(struct ianalde *ianalde)
 {
-	return mutex_lock_interruptible(&OVL_I(inode)->lock);
+	return mutex_lock_interruptible(&OVL_I(ianalde)->lock);
 }
 
-static inline void ovl_inode_unlock(struct inode *inode)
+static inline void ovl_ianalde_unlock(struct ianalde *ianalde)
 {
-	mutex_unlock(&OVL_I(inode)->lock);
+	mutex_unlock(&OVL_I(ianalde)->lock);
 }
 
 
@@ -693,7 +693,7 @@ struct dentry *ovl_lookup_index(struct ovl_fs *ofs, struct dentry *upper,
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path,
 		  const struct ovl_layer **layer);
 int ovl_verify_lowerdata(struct dentry *dentry);
-struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
+struct dentry *ovl_lookup(struct ianalde *dir, struct dentry *dentry,
 			  unsigned int flags);
 bool ovl_lower_positive(struct dentry *dentry);
 
@@ -724,114 +724,114 @@ int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list);
 void ovl_cleanup_whiteouts(struct ovl_fs *ofs, struct dentry *upper,
 			   struct list_head *list);
 void ovl_cache_free(struct list_head *list);
-void ovl_dir_cache_free(struct inode *inode);
+void ovl_dir_cache_free(struct ianalde *ianalde);
 int ovl_check_d_type_supported(const struct path *realpath);
-int ovl_workdir_cleanup(struct ovl_fs *ofs, struct inode *dir,
+int ovl_workdir_cleanup(struct ovl_fs *ofs, struct ianalde *dir,
 			struct vfsmount *mnt, struct dentry *dentry, int level);
 int ovl_indexdir_cleanup(struct ovl_fs *ofs);
 
 /*
  * Can we iterate real dir directly?
  *
- * Non-merge dir may contain whiteouts from a time it was a merge upper, before
+ * Analn-merge dir may contain whiteouts from a time it was a merge upper, before
  * lower dir was removed under it and possibly before it was rotated from upper
  * to lower layer.
  */
-static inline bool ovl_dir_is_real(struct inode *dir)
+static inline bool ovl_dir_is_real(struct ianalde *dir)
 {
 	return !ovl_test_flag(OVL_WHITEOUTS, dir);
 }
 
-/* inode.c */
+/* ianalde.c */
 int ovl_set_nlink_upper(struct dentry *dentry);
 int ovl_set_nlink_lower(struct dentry *dentry);
 unsigned int ovl_get_nlink(struct ovl_fs *ofs, struct dentry *lowerdentry,
 			   struct dentry *upperdentry,
 			   unsigned int fallback);
-int ovl_permission(struct mnt_idmap *idmap, struct inode *inode,
+int ovl_permission(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		   int mask);
 
 #ifdef CONFIG_FS_POSIX_ACL
 struct posix_acl *do_ovl_get_acl(struct mnt_idmap *idmap,
-				 struct inode *inode, int type,
-				 bool rcu, bool noperm);
-static inline struct posix_acl *ovl_get_inode_acl(struct inode *inode, int type,
+				 struct ianalde *ianalde, int type,
+				 bool rcu, bool analperm);
+static inline struct posix_acl *ovl_get_ianalde_acl(struct ianalde *ianalde, int type,
 						  bool rcu)
 {
-	return do_ovl_get_acl(&nop_mnt_idmap, inode, type, rcu, true);
+	return do_ovl_get_acl(&analp_mnt_idmap, ianalde, type, rcu, true);
 }
 static inline struct posix_acl *ovl_get_acl(struct mnt_idmap *idmap,
 					    struct dentry *dentry, int type)
 {
-	return do_ovl_get_acl(idmap, d_inode(dentry), type, false, false);
+	return do_ovl_get_acl(idmap, d_ianalde(dentry), type, false, false);
 }
 int ovl_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct posix_acl *acl, int type);
 struct posix_acl *ovl_get_acl_path(const struct path *path,
-				   const char *acl_name, bool noperm);
+				   const char *acl_name, bool analperm);
 #else
-#define ovl_get_inode_acl	NULL
+#define ovl_get_ianalde_acl	NULL
 #define ovl_get_acl		NULL
 #define ovl_set_acl		NULL
 static inline struct posix_acl *ovl_get_acl_path(const struct path *path,
 						 const char *acl_name,
-						 bool noperm)
+						 bool analperm)
 {
 	return NULL;
 }
 #endif
 
-int ovl_update_time(struct inode *inode, int flags);
+int ovl_update_time(struct ianalde *ianalde, int flags);
 bool ovl_is_private_xattr(struct super_block *sb, const char *name);
 
-struct ovl_inode_params {
-	struct inode *newinode;
+struct ovl_ianalde_params {
+	struct ianalde *newianalde;
 	struct dentry *upperdentry;
 	struct ovl_entry *oe;
 	bool index;
 	char *redirect;
 	char *lowerdata_redirect;
 };
-void ovl_inode_init(struct inode *inode, struct ovl_inode_params *oip,
-		    unsigned long ino, int fsid);
-struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
-struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *real,
+void ovl_ianalde_init(struct ianalde *ianalde, struct ovl_ianalde_params *oip,
+		    unsigned long ianal, int fsid);
+struct ianalde *ovl_new_ianalde(struct super_block *sb, umode_t mode, dev_t rdev);
+struct ianalde *ovl_lookup_ianalde(struct super_block *sb, struct dentry *real,
 			       bool is_upper);
-bool ovl_lookup_trap_inode(struct super_block *sb, struct dentry *dir);
-struct inode *ovl_get_trap_inode(struct super_block *sb, struct dentry *dir);
-struct inode *ovl_get_inode(struct super_block *sb,
-			    struct ovl_inode_params *oip);
-void ovl_copyattr(struct inode *to);
+bool ovl_lookup_trap_ianalde(struct super_block *sb, struct dentry *dir);
+struct ianalde *ovl_get_trap_ianalde(struct super_block *sb, struct dentry *dir);
+struct ianalde *ovl_get_ianalde(struct super_block *sb,
+			    struct ovl_ianalde_params *oip);
+void ovl_copyattr(struct ianalde *to);
 
-/* vfs inode flags copied from real to ovl inode */
-#define OVL_COPY_I_FLAGS_MASK	(S_SYNC | S_NOATIME | S_APPEND | S_IMMUTABLE)
-/* vfs inode flags read from overlay.protattr xattr to ovl inode */
+/* vfs ianalde flags copied from real to ovl ianalde */
+#define OVL_COPY_I_FLAGS_MASK	(S_SYNC | S_ANALATIME | S_APPEND | S_IMMUTABLE)
+/* vfs ianalde flags read from overlay.protattr xattr to ovl ianalde */
 #define OVL_PROT_I_FLAGS_MASK	(S_APPEND | S_IMMUTABLE)
 
 /*
- * fileattr flags copied from lower to upper inode on copy up.
- * We cannot copy up immutable/append-only flags, because that would prevent
- * linking temp inode to upper dir, so we store them in xattr instead.
+ * fileattr flags copied from lower to upper ianalde on copy up.
+ * We cananalt copy up immutable/append-only flags, because that would prevent
+ * linking temp ianalde to upper dir, so we store them in xattr instead.
  */
-#define OVL_COPY_FS_FLAGS_MASK	(FS_SYNC_FL | FS_NOATIME_FL)
-#define OVL_COPY_FSX_FLAGS_MASK	(FS_XFLAG_SYNC | FS_XFLAG_NOATIME)
+#define OVL_COPY_FS_FLAGS_MASK	(FS_SYNC_FL | FS_ANALATIME_FL)
+#define OVL_COPY_FSX_FLAGS_MASK	(FS_XFLAG_SYNC | FS_XFLAG_ANALATIME)
 #define OVL_PROT_FS_FLAGS_MASK  (FS_APPEND_FL | FS_IMMUTABLE_FL)
 #define OVL_PROT_FSX_FLAGS_MASK (FS_XFLAG_APPEND | FS_XFLAG_IMMUTABLE)
 
-void ovl_check_protattr(struct inode *inode, struct dentry *upper);
-int ovl_set_protattr(struct inode *inode, struct dentry *upper,
+void ovl_check_protattr(struct ianalde *ianalde, struct dentry *upper);
+int ovl_set_protattr(struct ianalde *ianalde, struct dentry *upper,
 		      struct fileattr *fa);
 
-static inline void ovl_copyflags(struct inode *from, struct inode *to)
+static inline void ovl_copyflags(struct ianalde *from, struct ianalde *to)
 {
 	unsigned int mask = OVL_COPY_I_FLAGS_MASK;
 
-	inode_set_flags(to, from->i_flags & mask, mask);
+	ianalde_set_flags(to, from->i_flags & mask, mask);
 }
 
 /* dir.c */
-extern const struct inode_operations ovl_dir_inode_operations;
-int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct inode *dir,
+extern const struct ianalde_operations ovl_dir_ianalde_operations;
+int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct ianalde *dir,
 			     struct dentry *dentry);
 struct ovl_cattr {
 	dev_t rdev;
@@ -842,12 +842,12 @@ struct ovl_cattr {
 
 #define OVL_CATTR(m) (&(struct ovl_cattr) { .mode = (m) })
 
-int ovl_mkdir_real(struct ovl_fs *ofs, struct inode *dir,
+int ovl_mkdir_real(struct ovl_fs *ofs, struct ianalde *dir,
 		   struct dentry **newdentry, umode_t mode);
 struct dentry *ovl_create_real(struct ovl_fs *ofs,
-			       struct inode *dir, struct dentry *newdentry,
+			       struct ianalde *dir, struct dentry *newdentry,
 			       struct ovl_cattr *attr);
-int ovl_cleanup(struct ovl_fs *ofs, struct inode *dir, struct dentry *dentry);
+int ovl_cleanup(struct ovl_fs *ofs, struct ianalde *dir, struct dentry *dentry);
 struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir);
 struct dentry *ovl_create_temp(struct ovl_fs *ofs, struct dentry *workdir,
 			       struct ovl_cattr *attr);

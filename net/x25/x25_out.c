@@ -49,7 +49,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff *skbn;
 	unsigned char header[X25_EXT_MIN_LEN];
 	int err, frontlen, len;
-	int sent=0, noblock = X25_SKB_CB(skb)->flags & MSG_DONTWAIT;
+	int sent=0, analblock = X25_SKB_CB(skb)->flags & MSG_DONTWAIT;
 	struct x25_sock *x25 = x25_sk(sk);
 	int header_len = x25->neighbour->extended ? X25_EXT_MIN_LEN :
 						    X25_STD_MIN_LEN;
@@ -65,10 +65,10 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 		while (skb->len > 0) {
 			release_sock(sk);
 			skbn = sock_alloc_send_skb(sk, frontlen + max_len,
-						   noblock, &err);
+						   analblock, &err);
 			lock_sock(sk);
 			if (!skbn) {
-				if (err == -EWOULDBLOCK && noblock){
+				if (err == -EWOULDBLOCK && analblock){
 					kfree_skb(skb);
 					return sent;
 				}

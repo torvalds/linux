@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(rds_wq);
 void rds_connect_path_complete(struct rds_conn_path *cp, int curr)
 {
 	if (!rds_conn_path_transition(cp, curr, RDS_CONN_UP)) {
-		printk(KERN_WARNING "%s: Cannot transition to state UP, "
+		printk(KERN_WARNING "%s: Cananalt transition to state UP, "
 				"current state is %d\n",
 				__func__,
 				atomic_read(&cp->cp_state));
@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(rds_connect_complete);
  * Connection attempts that arrive while a connection is already established
  * are also considered to be racing connects.  This lets a connection from
  * a rebooted machine replace an existing stale connection before the transport
- * notices that the connection has failed.
+ * analtices that the connection has failed.
  *
  * We should *always* start with a random backoff; otherwise a broken connection
  * will always take several iterations to be re-established.
@@ -205,7 +205,7 @@ void rds_send_worker(struct work_struct *work)
 			rds_stats_inc(s_send_immediate_retry);
 			queue_delayed_work(rds_wq, &cp->cp_send_w, 0);
 			break;
-		case -ENOMEM:
+		case -EANALMEM:
 			rds_stats_inc(s_send_delayed_retry);
 			queue_delayed_work(rds_wq, &cp->cp_send_w, 2);
 			break;
@@ -230,7 +230,7 @@ void rds_recv_worker(struct work_struct *work)
 			rds_stats_inc(s_recv_immediate_retry);
 			queue_delayed_work(rds_wq, &cp->cp_recv_w, 0);
 			break;
-		case -ENOMEM:
+		case -EANALMEM:
 			rds_stats_inc(s_recv_delayed_retry);
 			queue_delayed_work(rds_wq, &cp->cp_recv_w, 2);
 			break;
@@ -258,7 +258,7 @@ int rds_threads_init(void)
 {
 	rds_wq = create_singlethread_workqueue("krdsd");
 	if (!rds_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

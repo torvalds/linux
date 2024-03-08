@@ -80,7 +80,7 @@ static int rtq2134_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		(struct rtq2134_regulator_desc *)rdev->desc;
 	unsigned int val;
 
-	if (mode == REGULATOR_MODE_NORMAL)
+	if (mode == REGULATOR_MODE_ANALRMAL)
 		val = RTQ2134_AUTO_MODE;
 	else if (mode == REGULATOR_MODE_FAST)
 		val = RTQ2134_FCCM_MODE;
@@ -105,7 +105,7 @@ static unsigned int rtq2134_buck_get_mode(struct regulator_dev *rdev)
 
 	if (mode & desc->mode_mask)
 		return REGULATOR_MODE_FAST;
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int rtq2134_buck_set_suspend_voltage(struct regulator_dev *rdev, int uV)
@@ -150,7 +150,7 @@ static int rtq2134_buck_set_suspend_mode(struct regulator_dev *rdev,
 		(struct rtq2134_regulator_desc *)rdev->desc;
 	unsigned int val;
 
-	if (mode == REGULATOR_MODE_NORMAL)
+	if (mode == REGULATOR_MODE_ANALRMAL)
 		val = RTQ2134_AUTO_MODE;
 	else if (mode == REGULATOR_MODE_FAST)
 		val = RTQ2134_FCCM_MODE;
@@ -223,7 +223,7 @@ static unsigned int rtq2134_buck_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case RTQ2134_AUTO_MODE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RTQ2134_FCCM_MODE:
 		return REGULATOR_MODE_FAST;
 	}
@@ -231,7 +231,7 @@ static unsigned int rtq2134_buck_of_map_mode(unsigned int mode)
 	return REGULATOR_MODE_INVALID;
 }
 
-static int rtq2134_buck_of_parse_cb(struct device_node *np,
+static int rtq2134_buck_of_parse_cb(struct device_analde *np,
 				    const struct regulator_desc *desc,
 				    struct regulator_config *cfg)
 {
@@ -271,7 +271,7 @@ static const unsigned int rtq2134_buck_ramp_delay_table[] = {
 	.desc = { \
 		.name = "rtq2134_buck" #_id, \
 		.of_match = of_match_ptr("buck" #_id), \
-		.regulators_node = of_match_ptr("regulators"), \
+		.regulators_analde = of_match_ptr("regulators"), \
 		.id = RTQ2134_IDX_BUCK##_id, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
@@ -363,7 +363,7 @@ MODULE_DEVICE_TABLE(of, rtq2134_device_tables);
 static struct i2c_driver rtq2134_driver = {
 	.driver = {
 		.name = "rtq2134",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = rtq2134_device_tables,
 	},
 	.probe = rtq2134_probe,

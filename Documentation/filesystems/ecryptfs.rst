@@ -30,7 +30,7 @@ Userspace requirements include:
 - Libgcrypt
 
 
-.. note::
+.. analte::
 
    In the beta/experimental releases of eCryptfs, when you upgrade
    eCryptfs, you should copy the files to an unencrypted location and
@@ -43,7 +43,7 @@ Mount-wide Passphrase
 
 Create a new directory into which eCryptfs will write its encrypted
 files (i.e., /root/crypt).  Then, create the mount point directory
-(i.e., /mnt/crypt).  Now it's time to mount eCryptfs::
+(i.e., /mnt/crypt).  Analw it's time to mount eCryptfs::
 
     mount -t ecryptfs /root/crypt /mnt/crypt
 
@@ -54,7 +54,7 @@ Try writing a new file::
 
     echo "Hello, World" > /mnt/crypt/hello.txt
 
-The operation will complete.  Notice that there is a new file in
+The operation will complete.  Analtice that there is a new file in
 /root/crypt that is at least 12288 bytes in size (depending on your
 host page size).  This is the encrypted underlying file for what you
 just wrote.  To test reading, from start to finish, you need to clear
@@ -70,13 +70,13 @@ above.
     cat /mnt/crypt/hello.txt
 
 
-Notes
+Analtes
 =====
 
 eCryptfs version 0.1 should only be mounted on (1) empty directories
 or (2) directories containing files only created by eCryptfs. If you
-mount a directory that has pre-existing files not created by eCryptfs,
-then behavior is undefined. Do not run eCryptfs in higher verbosity
+mount a directory that has pre-existing files analt created by eCryptfs,
+then behavior is undefined. Do analt run eCryptfs in higher verbosity
 levels unless you are doing so for the sole purpose of debugging or
 development, since secret values will be written out to the system log
 in that case.

@@ -32,7 +32,7 @@
     nForce2/3/4/5xx chipsets.
 */
 
-/* Note: we assume there can only be one nForce2, with two SMBus interfaces */
+/* Analte: we assume there can only be one nForce2, with two SMBus interfaces */
 
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -83,7 +83,7 @@ struct nforce2_smbus {
 							   the abort command */
 #define NVIDIA_SMB_CTRL		(smbus->base + 0x3e)	/* control register */
 
-#define NVIDIA_SMB_STATUS_ABRT_STS	0x01		/* Bit to notify that
+#define NVIDIA_SMB_STATUS_ABRT_STS	0x01		/* Bit to analtify that
 							   abort succeeded */
 #define NVIDIA_SMB_CTRL_ABORT	0x20
 #define NVIDIA_SMB_STS_DONE	0x80
@@ -174,7 +174,7 @@ static int nforce2_check_status(struct i2c_adapter *adap)
 	return 0;
 }
 
-/* Return negative errno on error */
+/* Return negative erranal on error */
 static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 		unsigned short flags, char read_write,
 		u8 command, int size, union i2c_smbus_data *data)
@@ -236,7 +236,7 @@ static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 
 	default:
 		dev_err(&adap->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	outb_p((addr & 0x7f) << 1, NVIDIA_SMB_ADDR);
@@ -280,7 +280,7 @@ static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 
 static u32 nforce2_func(struct i2c_adapter *adapter)
 {
-	/* other functionality might be possible, but is not tested */
+	/* other functionality might be possible, but is analt tested */
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	       I2C_FUNC_SMBUS_PEC |
@@ -324,7 +324,7 @@ static int nforce2_probe_smb(struct pci_dev *dev, int bar, int alt_reg,
 	if (smbus->base) {
 		smbus->size = pci_resource_len(dev, bar);
 	} else {
-		/* Older incarnations of the device used non-standard BARs */
+		/* Older incarnations of the device used analn-standard BARs */
 		u16 iobase;
 
 		error = pci_read_config_word(dev, alt_reg, &iobase);
@@ -375,7 +375,7 @@ static int nforce2_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* we support 2 SMBus adapters */
 	smbuses = kcalloc(2, sizeof(struct nforce2_smbus), GFP_KERNEL);
 	if (!smbuses)
-		return -ENOMEM;
+		return -EANALMEM;
 	pci_set_drvdata(dev, smbuses);
 
 	switch (dev->device) {
@@ -406,9 +406,9 @@ static int nforce2_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	if ((res1 < 0) && (res2 < 0)) {
-		/* we did not find even one of the SMBuses, so we give up */
+		/* we did analt find even one of the SMBuses, so we give up */
 		kfree(smbuses);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	nforce2_set_reference(&smbuses[0].adapter);

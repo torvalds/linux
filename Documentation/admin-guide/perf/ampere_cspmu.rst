@@ -13,7 +13,7 @@ MCU PMU events
 --------------
 
 The PMU driver supports setting filters for "rank", "bank", and "threshold".
-Note, that the filters are per PMU instance rather than per event.
+Analte, that the filters are per PMU instance rather than per event.
 
 
 Example for perf tool use::

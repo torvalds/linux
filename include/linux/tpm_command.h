@@ -24,6 +24,6 @@
 
 /* Other constants */
 #define SRKHANDLE                       0x40000000
-#define TPM_NONCE_SIZE                  20
+#define TPM_ANALNCE_SIZE                  20
 
 #endif

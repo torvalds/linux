@@ -92,11 +92,11 @@ struct sched_domain {
 	unsigned long min_interval;	/* Minimum balance interval ms */
 	unsigned long max_interval;	/* Maximum balance interval ms */
 	unsigned int busy_factor;	/* less balancing by factor if busy */
-	unsigned int imbalance_pct;	/* No balance until over watermark */
+	unsigned int imbalance_pct;	/* Anal balance until over watermark */
 	unsigned int cache_nice_tries;	/* Leave cache hot tasks for # tries */
 	unsigned int imb_numa_nr;	/* Nr running tasks that allows a NUMA imbalance */
 
-	int nohz_idle;			/* NOHZ IDLE status */
+	int analhz_idle;			/* ANALHZ IDLE status */
 	int flags;			/* See SD_* */
 	int level;
 
@@ -117,8 +117,8 @@ struct sched_domain {
 	unsigned int lb_imbalance[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_gained[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_hot_gained[CPU_MAX_IDLE_TYPES];
-	unsigned int lb_nobusyg[CPU_MAX_IDLE_TYPES];
-	unsigned int lb_nobusyq[CPU_MAX_IDLE_TYPES];
+	unsigned int lb_analbusyg[CPU_MAX_IDLE_TYPES];
+	unsigned int lb_analbusyq[CPU_MAX_IDLE_TYPES];
 
 	/* Active load balancing */
 	unsigned int alb_count;
@@ -153,7 +153,7 @@ struct sched_domain {
 	/*
 	 * Span of all CPUs in this domain.
 	 *
-	 * NOTE: this field is variable length. (Allocated dynamically
+	 * ANALTE: this field is variable length. (Allocated dynamically
 	 * by attaching extra space to the end of the structure,
 	 * depending on how many CPUs the kernel has booted up with)
 	 */
@@ -251,7 +251,7 @@ static inline void rebuild_sched_domains_energy(void)
  * arch_scale_cpu_capacity - get the capacity scale factor of a given CPU.
  * @cpu: the CPU in question.
  *
- * Return: the CPU scale factor normalized against SCHED_CAPACITY_SCALE, i.e.
+ * Return: the CPU scale factor analrmalized against SCHED_CAPACITY_SCALE, i.e.
  *
  *             max_perf(cpu)
  *      ----------------------------- * SCHED_CAPACITY_SCALE
@@ -287,9 +287,9 @@ unsigned int arch_scale_freq_ref(int cpu)
 }
 #endif
 
-static inline int task_node(const struct task_struct *p)
+static inline int task_analde(const struct task_struct *p)
 {
-	return cpu_to_node(task_cpu(p));
+	return cpu_to_analde(task_cpu(p));
 }
 
 #endif /* _LINUX_SCHED_TOPOLOGY_H */

@@ -17,13 +17,13 @@ static void dwc3_host_fill_xhci_irq_res(struct dwc3 *dwc,
 					int irq, char *name)
 {
 	struct platform_device *pdev = to_platform_device(dwc->dev);
-	struct device_node *np = dev_of_node(&pdev->dev);
+	struct device_analde *np = dev_of_analde(&pdev->dev);
 
 	dwc->xhci_resources[1].start = irq;
 	dwc->xhci_resources[1].end = irq;
 	dwc->xhci_resources[1].flags = IORESOURCE_IRQ | irq_get_trigger_type(irq);
 	if (!name && np)
-		dwc->xhci_resources[1].name = of_node_full_name(pdev->dev.of_node);
+		dwc->xhci_resources[1].name = of_analde_full_name(pdev->dev.of_analde);
 	else
 		dwc->xhci_resources[1].name = name;
 }
@@ -73,7 +73,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
 		dev_err(dwc->dev, "couldn't allocate xHCI device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	xhci->dev.parent	= dwc->dev;
@@ -110,7 +110,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("quirk-broken-port-ped");
 
 	if (prop_idx) {
-		ret = device_create_managed_software_node(&xhci->dev, props, NULL);
+		ret = device_create_managed_software_analde(&xhci->dev, props, NULL);
 		if (ret) {
 			dev_err(dwc->dev, "failed to add properties to xHCI\n");
 			goto err;

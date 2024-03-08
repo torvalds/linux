@@ -351,7 +351,7 @@ static int gs_msg_ops_vcpu_fill_info(struct kvmppc_gs_buff *gsb,
 			/*
 			 * Though 'arch_compat == 0' would mean the default
 			 * compatibility, arch_compat, being a Guest Wide
-			 * Element, cannot be filled with a value of 0 in GSB
+			 * Element, cananalt be filled with a value of 0 in GSB
 			 * as this would result into a kernel trap.
 			 * Hence, when `arch_compat == 0`, arch_compat should
 			 * default to L1's PVR.
@@ -621,14 +621,14 @@ static int kvmhv_nestedv2_host_create(struct kvm_vcpu *vcpu,
 	gsm = kvmppc_gsm_new(&config_msg_ops, cfg, KVMPPC_GS_FLAGS_WIDE,
 			     GFP_KERNEL);
 	if (!gsm) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
 	gsb = kvmppc_gsb_new(kvmppc_gsm_size(gsm), guest_id, vcpu_id,
 			     GFP_KERNEL);
 	if (!gsb) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_gsm;
 	}
 
@@ -642,7 +642,7 @@ static int kvmhv_nestedv2_host_create(struct kvm_vcpu *vcpu,
 	vcpu_run_output = kvmppc_gsb_new(cfg->vcpu_run_output_size, guest_id,
 					 vcpu_id, GFP_KERNEL);
 	if (!vcpu_run_output) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_gsb;
 	}
 
@@ -659,7 +659,7 @@ static int kvmhv_nestedv2_host_create(struct kvm_vcpu *vcpu,
 
 	vcpu_message = kvmppc_gsm_new(&vcpu_message_ops, vcpu, 0, GFP_KERNEL);
 	if (!vcpu_message) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_gs_out;
 	}
 	kvmppc_gsm_include_all(vcpu_message);
@@ -669,7 +669,7 @@ static int kvmhv_nestedv2_host_create(struct kvm_vcpu *vcpu,
 	vcpu_run_input = kvmppc_gsb_new(kvmppc_gsm_size(vcpu_message), guest_id,
 					vcpu_id, GFP_KERNEL);
 	if (!vcpu_run_input) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_vcpu_message;
 	}
 
@@ -685,7 +685,7 @@ static int kvmhv_nestedv2_host_create(struct kvm_vcpu *vcpu,
 	vcore_message = kvmppc_gsm_new(&vcpu_message_ops, vcpu,
 				       KVMPPC_GS_FLAGS_WIDE, GFP_KERNEL);
 	if (!vcore_message) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_vcpu_run_input;
 	}
 
@@ -839,7 +839,7 @@ int kvmhv_nestedv2_set_ptbl_entry(unsigned long lpid, u64 dw0, u64 dw1)
 	       sizeof(struct kvmppc_gs_header);
 	gsb = kvmppc_gsb_new(size, lpid, 0, GFP_KERNEL);
 	if (!gsb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	patbl.address = dw0 & RPDB_MASK;
 	patbl.ea_bits = ((((dw0 & RTS1_MASK) >> (RTS1_SHIFT - 3)) |
@@ -1010,9 +1010,9 @@ int kvmhv_nestedv2_vcpu_create(struct kvm_vcpu *vcpu,
 	if (rc != H_SUCCESS) {
 		pr_err("KVM: Create Guest vcpu hcall failed, rc=%ld\n", rc);
 		switch (rc) {
-		case H_NOT_ENOUGH_RESOURCES:
+		case H_ANALT_EANALUGH_RESOURCES:
 		case H_ABORTED:
-			return -ENOMEM;
+			return -EANALMEM;
 		case H_AUTHORITY:
 			return -EPERM;
 		default:

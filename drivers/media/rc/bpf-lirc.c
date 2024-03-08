@@ -150,7 +150,7 @@ static int lirc_bpf_attach(struct rc_dev *rcdev, struct bpf_prog *prog)
 
 	raw = rcdev->raw;
 	if (!raw) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -188,14 +188,14 @@ static int lirc_bpf_detach(struct rc_dev *rcdev, struct bpf_prog *prog)
 
 	raw = rcdev->raw;
 	if (!raw) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
 	old_array = lirc_rcu_dereference(raw->progs);
 	ret = bpf_prog_array_copy(old_array, prog, NULL, 0, &new_array);
 	/*
-	 * Do not use bpf_prog_array_delete_safe() as we would end up
+	 * Do analt use bpf_prog_array_delete_safe() as we would end up
 	 * with a dummy entry in the array, and the we would free the
 	 * dummy in lirc_bpf_free()
 	 */
@@ -226,7 +226,7 @@ void lirc_bpf_run(struct rc_dev *rcdev, u32 sample)
 
 /*
  * This should be called once the rc thread has been stopped, so there can be
- * no concurrent bpf execution.
+ * anal concurrent bpf execution.
  *
  * Should be called with the ir_raw_handler_lock held.
  */

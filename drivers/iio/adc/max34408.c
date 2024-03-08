@@ -69,7 +69,7 @@
  * @lock:	lock for protecting access to device hardware registers, mostly
  *		for read modify write cycles for control registers.
  * @input_rsense:	Rsense values in uOhm, will be overwritten by
- *			values from channel nodes.
+ *			values from channel analdes.
  */
 struct max34408_data {
 	struct regmap *regmap;
@@ -195,7 +195,7 @@ static int max34408_probe(struct i2c_client *client)
 	const struct max34408_adc_model_data *model_data;
 	struct device *dev = &client->dev;
 	struct max34408_data *max34408;
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	struct iio_dev *indio_dev;
 	struct regmap *regmap;
 	int rc, i = 0;
@@ -213,15 +213,15 @@ static int max34408_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*max34408));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max34408 = iio_priv(indio_dev);
 	max34408->regmap = regmap;
 	max34408->dev = dev;
 	mutex_init(&max34408->lock);
 
-	device_for_each_child_node(dev, node) {
-		fwnode_property_read_u32(node, "maxim,rsense-val-micro-ohms",
+	device_for_each_child_analde(dev, analde) {
+		fwanalde_property_read_u32(analde, "maxim,rsense-val-micro-ohms",
 					 &max34408->input_rsense[i]);
 		i++;
 	}

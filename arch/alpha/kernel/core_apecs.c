@@ -28,9 +28,9 @@
 #include "pci_impl.h"
 
 /*
- * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the i/o controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * ANALTE: Herein lie back-to-back mb instructions.  They are magic. 
+ * One plausible explanation is that the i/o controller does analt properly
+ * handle the system transaction.  Aanalther involves timing.  Ho hum.
  */
 
 /*
@@ -50,7 +50,7 @@
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address and setup the APECS_HAXR2 register
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore analt safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
@@ -80,7 +80,7 @@
  *	10:8	function number
  *	 7:2	register number
  *  
- * Notes:
+ * Analtes:
  *	The function number selects which function of a multi-function device 
  *	(e.g., SCSI and Ethernet).
  * 
@@ -170,19 +170,19 @@ conf_read(unsigned long addr, unsigned char type1)
 #if 1
 	/*
 	 * david.rusling@reo.mts.dec.com.  This code is needed for the
-	 * EB64+ as it does not generate a machine check (why I don't
-	 * know).  When we build kernels for one particular platform
+	 * EB64+ as it does analt generate a machine check (why I don't
+	 * kanalw).  When we build kernels for one particular platform
 	 * then we can make this conditional on the type.
 	 */
 	draina();
 
-	/* Now look for any errors.  */
+	/* Analw look for any errors.  */
 	stat0 = *(vuip)APECS_IOC_DCSR;
 	DBGC(("conf_read: APECS DCSR after read 0x%x\n", stat0));
 
 	/* Is any error bit set? */
 	if (stat0 & 0xffe0U) {
-		/* If not NDEV, print status.  */
+		/* If analt NDEV, print status.  */
 		if (!(stat0 & 0x0800)) {
 			printk("apecs.c:conf_read: got stat0=%x\n", stat0);
 		}
@@ -195,7 +195,7 @@ conf_read(unsigned long addr, unsigned char type1)
 	}
 #endif
 
-	/* If Type1 access, must reset HAE #2 so normal IO space ops work.  */
+	/* If Type1 access, must reset HAE #2 so analrmal IO space ops work.  */
 	if (type1) {
 		*(vuip)APECS_IOC_HAXR2 = haxr2 & ~1;
 		mb();
@@ -240,18 +240,18 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 #if 1
 	/*
 	 * david.rusling@reo.mts.dec.com.  This code is needed for the
-	 * EB64+ as it does not generate a machine check (why I don't
-	 * know).  When we build kernels for one particular platform
+	 * EB64+ as it does analt generate a machine check (why I don't
+	 * kanalw).  When we build kernels for one particular platform
 	 * then we can make this conditional on the type.
 	 */
 	draina();
 
-	/* Now look for any errors.  */
+	/* Analw look for any errors.  */
 	stat0 = *(vuip)APECS_IOC_DCSR;
 
 	/* Is any error bit set? */
 	if (stat0 & 0xffe0U) {
-		/* If not NDEV, print status.  */
+		/* If analt NDEV, print status.  */
 		if (!(stat0 & 0x0800)) {
 			printk("apecs.c:conf_write: got stat0=%x\n", stat0);
 		}
@@ -263,7 +263,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 	}
 #endif
 
-	/* If Type1 access, must reset HAE #2 so normal IO space ops work.  */
+	/* If Type1 access, must reset HAE #2 so analrmal IO space ops work.  */
 	if (type1) {
 		*(vuip)APECS_IOC_HAXR2 = haxr2 & ~1;
 		mb();
@@ -281,7 +281,7 @@ apecs_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	int shift;
 
 	if (mk_conf_addr(bus, devfn, where, &pci_addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	mask = (size - 1) * 8;
 	shift = (where & 3) * 8;
@@ -299,7 +299,7 @@ apecs_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	long mask;
 
 	if (mk_conf_addr(bus, devfn, where, &pci_addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	mask = (size - 1) * 8;
 	addr = (pci_addr << 5) + mask + APECS_CONF;
@@ -365,7 +365,7 @@ apecs_init_arch(void)
 	/*
 	 * Finally, clear the HAXR2 register, which gets used
 	 * for PCI Config Space accesses. That is the way
-	 * we want to use it, and we do not want to depend on
+	 * we want to use it, and we do analt want to depend on
 	 * what ARC or SRM might have left behind...
 	 */
 	*(vuip)APECS_IOC_HAXR2 = 0;

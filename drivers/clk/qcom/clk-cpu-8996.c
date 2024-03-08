@@ -256,11 +256,11 @@ static struct clk_alpha_pll perfcl_alt_pll = {
 
 struct clk_cpu_8996_pmux {
 	u32	reg;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct clk_regmap clkr;
 };
 
-static int cpu_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
+static int cpu_clk_analtifier_cb(struct analtifier_block *nb, unsigned long event,
 			       void *data);
 
 #define to_clk_cpu_8996_pmux_nb(_nb) \
@@ -382,7 +382,7 @@ static const struct clk_hw *perfcl_pmux_parents[] = {
 
 static struct clk_cpu_8996_pmux pwrcl_pmux = {
 	.reg = PWRCL_REG_OFFSET + MUX_OFFSET,
-	.nb.notifier_call = cpu_clk_notifier_cb,
+	.nb.analtifier_call = cpu_clk_analtifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "pwrcl_pmux",
 		.parent_hws = pwrcl_pmux_parents,
@@ -395,7 +395,7 @@ static struct clk_cpu_8996_pmux pwrcl_pmux = {
 
 static struct clk_cpu_8996_pmux perfcl_pmux = {
 	.reg = PERFCL_REG_OFFSET + MUX_OFFSET,
-	.nb.notifier_call = cpu_clk_notifier_cb,
+	.nb.analtifier_call = cpu_clk_analtifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "perfcl_pmux",
 		.parent_hws = perfcl_pmux_parents,
@@ -498,8 +498,8 @@ static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
 	clk_prepare_enable(pwrcl_alt_pll.clkr.hw.clk);
 	clk_prepare_enable(perfcl_alt_pll.clkr.hw.clk);
 
-	devm_clk_notifier_register(dev, pwrcl_pmux.clkr.hw.clk, &pwrcl_pmux.nb);
-	devm_clk_notifier_register(dev, perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
+	devm_clk_analtifier_register(dev, pwrcl_pmux.clkr.hw.clk, &pwrcl_pmux.nb);
+	devm_clk_analtifier_register(dev, perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
 
 	return ret;
 }
@@ -543,18 +543,18 @@ out:
 	spin_unlock_irqrestore(&qcom_clk_acd_lock, flags);
 }
 
-static int cpu_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
+static int cpu_clk_analtifier_cb(struct analtifier_block *nb, unsigned long event,
 			       void *data)
 {
 	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_nb(nb);
-	struct clk_notifier_data *cnd = data;
+	struct clk_analtifier_data *cnd = data;
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
 		qcom_cpu_clk_msm8996_acd_init(cpuclk->clkr.regmap);
 
 		/*
-		 * Avoid overvolting. clk_core_set_rate_nolock() walks from top
+		 * Avoid overvolting. clk_core_set_rate_anallock() walks from top
 		 * to bottom, so it will change the rate of the PLL before
 		 * chaging the parent of PMUX. This can result in pmux getting
 		 * clocked twice the expected rate.
@@ -576,7 +576,7 @@ static int cpu_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 };
 
 static int qcom_cpu_clk_msm8996_driver_probe(struct platform_device *pdev)
@@ -589,7 +589,7 @@ static int qcom_cpu_clk_msm8996_driver_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, struct_size(data, hws, 2), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->num = 2;
 
 	base = devm_platform_ioremap_resource(pdev, 0);

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2001, 2002, 2003 Broadcom Corporation
  * Copyright (C) 2007 Ralf Baechle <ralf@linux-mips.org>
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2007 MIPS Techanallogies, Inc.
  *    written by Ralf Baechle <ralf@linux-mips.org>
  */
 
@@ -18,7 +18,7 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <asm/io.h>
 #include <asm/sibyte/sb1250.h>
@@ -91,8 +91,8 @@ static struct sbprof_tb sbp;
 
 /*
  * Configures SCD counter 0 to count ZCLKs starting from val;
- * Configures SCD counters1,2,3 to count nothing.
- * Must not be called while gathering ZBbus profiles.
+ * Configures SCD counters1,2,3 to count analthing.
+ * Must analt be called while gathering ZBbus profiles.
  */
 
 #define zclk_timer_init(val) \
@@ -102,7 +102,7 @@ static struct sbprof_tb sbp;
 			"sd   %0, 0x10($8);"   /* write val to counter0 */ \
 			"sd   %1, 0($8);"      /* config counter0 for zclks*/ \
 			".set pop" \
-			: /* no outputs */ \
+			: /* anal outputs */ \
 						     /* enable, counter0 */ \
 			: /* inputs */ "r"(val), "r" ((1ULL << 33) | 1ULL) \
 			: /* modifies */ "$8" )
@@ -153,7 +153,7 @@ static void arm_tb(void)
 	scdperfcnt = __raw_readq(IOADDR(A_SCD_PERF_CNT_CFG));
 
 	/*
-	 * Unfortunately, in Pass 2 we must clear all counters to knock down
+	 * Unfortunately, in Pass 2 we must clear all counters to kanalck down
 	 * a previous interrupt request.  This means that bus profiling
 	 * requires ALL of the SCD perf counters.
 	 */
@@ -223,11 +223,11 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id)
 			sbp.tb_armed = 0;
 			wake_up_interruptible(&sbp.tb_sync);
 		} else {
-			/* knock down current interrupt and get another one later */
+			/* kanalck down current interrupt and get aanalther one later */
 			arm_tb();
 		}
 	} else {
-		/* No more trace buffer samples */
+		/* Anal more trace buffer samples */
 		pr_debug(DEVNAME ": tb_intr full\n");
 		__raw_writeq(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
 		sbp.tb_armed = 0;
@@ -241,12 +241,12 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id)
 static irqreturn_t sbprof_pc_intr(int irq, void *dev_id)
 {
 	printk(DEVNAME ": unexpected pc_intr");
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /*
  * Requires: Already called zclk_timer_init with a value that won't
- *	     saturate 40 bits.	No subsequent use of SCD performance counters
+ *	     saturate 40 bits.	Anal subsequent use of SCD performance counters
  *	     or trace buffer.
  */
 
@@ -287,7 +287,7 @@ static int sbprof_zbprof_start(struct file *filp)
 
 	/*
 	 * I need the core to mask these, but the interrupt mapper to
-	 *  pass them through.	I am exploiting my knowledge that
+	 *  pass them through.	I am exploiting my kanalwledge that
 	 *  cp0_status masks out IP[5]. krw
 	 */
 #ifdef CONFIG_SIBYTE_BCM1x80
@@ -342,7 +342,7 @@ static int sbprof_zbprof_start(struct file *filp)
 	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_6));
 	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_7));
 
-	/* Now indicate the PERF_CNT interrupt as a trace-relevant interrupt */
+	/* Analw indicate the PERF_CNT interrupt as a trace-relevant interrupt */
 #ifdef CONFIG_SIBYTE_BCM1x80
 	__raw_writeq(1ULL << (K_BCM1480_INT_PERF_CNT & 0x3f),
 		     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_TRACE_L)));
@@ -386,13 +386,13 @@ static int sbprof_zbprof_stop(void)
 	return err;
 }
 
-static int sbprof_tb_open(struct inode *inode, struct file *filp)
+static int sbprof_tb_open(struct ianalde *ianalde, struct file *filp)
 {
-	int minor;
+	int mianalr;
 
-	minor = iminor(inode);
-	if (minor != 0)
-		return -ENODEV;
+	mianalr = imianalr(ianalde);
+	if (mianalr != 0)
+		return -EANALDEV;
 
 	if (xchg(&sbp.open, SB_OPENING) != SB_CLOSED)
 		return -EBUSY;
@@ -402,7 +402,7 @@ static int sbprof_tb_open(struct inode *inode, struct file *filp)
 	if (!sbp.sbprof_tbbuf) {
 		sbp.open = SB_CLOSED;
 		wmb();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	init_waitqueue_head(&sbp.tb_sync);
@@ -415,13 +415,13 @@ static int sbprof_tb_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int sbprof_tb_release(struct inode *inode, struct file *filp)
+static int sbprof_tb_release(struct ianalde *ianalde, struct file *filp)
 {
-	int minor;
+	int mianalr;
 
-	minor = iminor(inode);
-	if (minor != 0 || sbp.open != SB_CLOSED)
-		return -ENODEV;
+	mianalr = imianalr(ianalde);
+	if (mianalr != 0 || sbp.open != SB_CLOSED)
+		return -EANALDEV;
 
 	mutex_lock(&sbp.lock);
 

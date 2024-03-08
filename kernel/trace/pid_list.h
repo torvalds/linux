@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Do not include this file directly. */
+/* Do analt include this file directly. */
 
 #ifndef _TRACE_INTERNAL_PID_LIST_H
 #define _TRACE_INTERNAL_PID_LIST_H
@@ -26,12 +26,12 @@
  * When a bit is set in the pid_list bitmask, the pid to use has
  * the 8 MSB masked, and this is used to index the array in the
  * pid_list to find the next upper union. If the element is NULL,
- * then one is retrieved from the upper_list cache. If none is
- * available, then -ENOMEM is returned.
+ * then one is retrieved from the upper_list cache. If analne is
+ * available, then -EANALMEM is returned.
  *
  * The next 8 MSB is used to index into the "upper2" section. If this
  * element is NULL, then it is retrieved from the lower_list cache.
- * Again, if one is not available -ENOMEM is returned.
+ * Again, if one is analt available -EANALMEM is returned.
  *
  * Finally the 14 LSB of the PID is used to set the bit in the 16384
  * bitmask (made up of 2K bytes).
@@ -56,7 +56,7 @@
 
 #define UPPER_MASK	(UPPER_MAX - 1)
 
-/* According to linux/thread.h pids can not be bigger than or equal to 1 << 30 */
+/* According to linux/thread.h pids can analt be bigger than or equal to 1 << 30 */
 #define MAX_PID		(1 << 30)
 
 /* Just keep 6 chunks of both upper and lower in the cache on alloc */

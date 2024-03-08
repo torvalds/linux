@@ -10,7 +10,7 @@ struct virtio_config_ops {
 
 /*
  * __virtio_test_bit - helper to test feature bits. For use by transports.
- *                     Devices should normally use virtio_has_feature,
+ *                     Devices should analrmally use virtio_has_feature,
  *                     which includes more checks.
  * @vdev: the device
  * @fbit: the feature bit
@@ -53,7 +53,7 @@ static inline void __virtio_clear_bit(struct virtio_device *vdev,
 static inline bool virtio_has_dma_quirk(const struct virtio_device *vdev)
 {
 	/*
-	 * Note the reverse polarity of the quirk feature (compared to most
+	 * Analte the reverse polarity of the quirk feature (compared to most
 	 * other features), this is for compatibility with legacy systems.
 	 */
 	return !virtio_has_feature(vdev, VIRTIO_F_ACCESS_PLATFORM);

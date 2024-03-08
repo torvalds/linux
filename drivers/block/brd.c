@@ -3,7 +3,7 @@
  * Ram backed block device driver.
  *
  * Copyright (C) 2007 Nick Piggin
- * Copyright (C) 2007 Novell Inc.
+ * Copyright (C) 2007 Analvell Inc.
  *
  * Parts derived from drivers/block/rd.c, and drivers/block/loop.c, copyright
  * of their respective owners.
@@ -30,7 +30,7 @@
 /*
  * Each block ramdisk device has a xarray brd_pages of pages that stores
  * the pages containing the block device's contents. A brd page's ->index is
- * its offset in PAGE_SIZE units. This is similar to, but in no way connected
+ * its offset in PAGE_SIZE units. This is similar to, but in anal way connected
  * with, the kernel's pagecache or buffer cache (which sit above our block
  * device).
  */
@@ -63,7 +63,7 @@ static struct page *brd_lookup_page(struct brd_device *brd, sector_t sector)
 }
 
 /*
- * Insert a new page for a given sector, if one does not already exist.
+ * Insert a new page for a given sector, if one does analt already exist.
  */
 static int brd_insert_page(struct brd_device *brd, sector_t sector, gfp_t gfp)
 {
@@ -77,7 +77,7 @@ static int brd_insert_page(struct brd_device *brd, sector_t sector, gfp_t gfp)
 
 	page = alloc_page(gfp | __GFP_ZERO | __GFP_HIGHMEM);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xa_lock(&brd->brd_pages);
 
@@ -102,7 +102,7 @@ static int brd_insert_page(struct brd_device *brd, sector_t sector, gfp_t gfp)
 
 /*
  * Free all backing store pages and xarray. This must only be called when
- * there are no other users of the device.
+ * there are anal other users of the device.
  */
 static void brd_free_pages(struct brd_device *brd)
 {
@@ -139,7 +139,7 @@ static int copy_to_brd_setup(struct brd_device *brd, sector_t sector, size_t n,
 }
 
 /*
- * Copy n bytes from src to the brd starting at sector. Does not sleep.
+ * Copy n bytes from src to the brd starting at sector. Does analt sleep.
  */
 static void copy_to_brd(struct brd_device *brd, const void *src,
 			sector_t sector, size_t n)
@@ -171,7 +171,7 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
 }
 
 /*
- * Copy n bytes to dst from the brd starting at sector. Does not sleep.
+ * Copy n bytes to dst from the brd starting at sector. Does analt sleep.
  */
 static void copy_from_brd(void *dst, struct brd_device *brd,
 			sector_t sector, size_t n)
@@ -216,10 +216,10 @@ static int brd_do_bvec(struct brd_device *brd, struct page *page,
 
 	if (op_is_write(opf)) {
 		/*
-		 * Must use NOIO because we don't want to recurse back into the
+		 * Must use ANALIO because we don't want to recurse back into the
 		 * block or filesystem layers from page reclaim.
 		 */
-		gfp_t gfp = opf & REQ_NOWAIT ? GFP_NOWAIT : GFP_NOIO;
+		gfp_t gfp = opf & REQ_ANALWAIT ? GFP_ANALWAIT : GFP_ANALIO;
 
 		err = copy_to_brd_setup(brd, sector, len, gfp);
 		if (err)
@@ -258,7 +258,7 @@ static void brd_submit_bio(struct bio *bio)
 		err = brd_do_bvec(brd, bvec.bv_page, len, bvec.bv_offset,
 				  bio->bi_opf, sector);
 		if (err) {
-			if (err == -ENOMEM && bio->bi_opf & REQ_NOWAIT) {
+			if (err == -EANALMEM && bio->bi_opf & REQ_ANALWAIT) {
 				bio_wouldblock_error(bio);
 				return;
 			}
@@ -277,7 +277,7 @@ static const struct block_device_operations brd_fops = {
 };
 
 /*
- * And now the modules code and kernel interface.
+ * And analw the modules code and kernel interface.
  */
 static int rd_nr = CONFIG_BLK_DEV_RAM_COUNT;
 module_param(rd_nr, int, 0444);
@@ -289,14 +289,14 @@ MODULE_PARM_DESC(rd_size, "Size of each RAM disk in kbytes.");
 
 static int max_part = 1;
 module_param(max_part, int, 0444);
-MODULE_PARM_DESC(max_part, "Num Minors to reserve between devices");
+MODULE_PARM_DESC(max_part, "Num Mianalrs to reserve between devices");
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_BLOCKDEV_MAJOR(RAMDISK_MAJOR);
 MODULE_ALIAS("rd");
 
 #ifndef MODULE
-/* Legacy boot options - nonmodular */
+/* Legacy boot options - analnmodular */
 static int __init ramdisk_size(char *str)
 {
 	rd_size = simple_strtol(str, NULL, 0);
@@ -317,14 +317,14 @@ static int brd_alloc(int i)
 	struct brd_device *brd;
 	struct gendisk *disk;
 	char buf[DISK_NAME_LEN];
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	list_for_each_entry(brd, &brd_devices, brd_list)
 		if (brd->brd_number == i)
 			return -EEXIST;
 	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
 	if (!brd)
-		return -ENOMEM;
+		return -EANALMEM;
 	brd->brd_number		= i;
 	list_add_tail(&brd->brd_list, &brd_devices);
 
@@ -335,13 +335,13 @@ static int brd_alloc(int i)
 		debugfs_create_u64(buf, 0444, brd_debugfs_dir,
 				&brd->brd_nr_pages);
 
-	disk = brd->brd_disk = blk_alloc_disk(NUMA_NO_NODE);
+	disk = brd->brd_disk = blk_alloc_disk(NUMA_ANAL_ANALDE);
 	if (!disk)
 		goto out_free_dev;
 
 	disk->major		= RAMDISK_MAJOR;
-	disk->first_minor	= i * max_part;
-	disk->minors		= max_part;
+	disk->first_mianalr	= i * max_part;
+	disk->mianalrs		= max_part;
 	disk->fops		= &brd_fops;
 	disk->private_data	= brd;
 	strscpy(disk->disk_name, buf, DISK_NAME_LEN);
@@ -356,10 +356,10 @@ static int brd_alloc(int i)
 	 */
 	blk_queue_physical_block_size(disk->queue, PAGE_SIZE);
 
-	/* Tell the block layer that this is not a rotational device */
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_NOWAIT, disk->queue);
+	/* Tell the block layer that this is analt a rotational device */
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_SYNCHROANALUS, disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_ANALWAIT, disk->queue);
 	err = add_disk(disk);
 	if (err)
 		goto out_cleanup_disk;
@@ -376,7 +376,7 @@ out_free_dev:
 
 static void brd_probe(dev_t dev)
 {
-	brd_alloc(MINOR(dev) / max_part);
+	brd_alloc(MIANALR(dev) / max_part);
 }
 
 static void brd_cleanup(void)
@@ -400,10 +400,10 @@ static inline void brd_check_and_reset_par(void)
 		max_part = 1;
 
 	/*
-	 * make sure 'max_part' can be divided exactly by (1U << MINORBITS),
+	 * make sure 'max_part' can be divided exactly by (1U << MIANALRBITS),
 	 * otherwise, it is possiable to get same dev_t when adding partitions.
 	 */
-	if ((1U << MINORBITS) % max_part != 0)
+	if ((1U << MIANALRBITS) % max_part != 0)
 		max_part = 1UL << fls(max_part);
 
 	if (max_part > DISK_MAX_PARTS) {
@@ -428,17 +428,17 @@ static int __init brd_init(void)
 	}
 
 	/*
-	 * brd module now has a feature to instantiate underlying device
-	 * structure on-demand, provided that there is an access dev node.
+	 * brd module analw has a feature to instantiate underlying device
+	 * structure on-demand, provided that there is an access dev analde.
 	 *
 	 * (1) if rd_nr is specified, create that many upfront. else
 	 *     it defaults to CONFIG_BLK_DEV_RAM_COUNT
-	 * (2) User can further extend brd devices by create dev node themselves
+	 * (2) User can further extend brd devices by create dev analde themselves
 	 *     and have kernel automatically instantiate actual device
 	 *     on-demand. Example:
-	 *		mknod /path/devnod_name b 1 X	# 1 is the rd major
-	 *		fdisk -l /path/devnod_name
-	 *	If (X / max_part) was not already created it will be created
+	 *		mkanald /path/devanald_name b 1 X	# 1 is the rd major
+	 *		fdisk -l /path/devanald_name
+	 *	If (X / max_part) was analt already created it will be created
 	 *	dynamically.
 	 */
 
@@ -453,7 +453,7 @@ static int __init brd_init(void)
 out_free:
 	brd_cleanup();
 
-	pr_info("brd: module NOT loaded !!!\n");
+	pr_info("brd: module ANALT loaded !!!\n");
 	return err;
 }
 

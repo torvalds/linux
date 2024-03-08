@@ -10,9 +10,9 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
@@ -22,14 +22,14 @@
  *  03/96: Angelo Haritsis <ah@doc.ic.ac.uk> :
  *	Modularised.
  *	Added soft_margin; use upon insmod to change the timer delay.
- *	NB: uses same minor as wdt (WATCHDOG_MINOR); we could use separate
- *	    minors.
+ *	NB: uses same mianalr as wdt (WATCHDOG_MIANALR); we could use separate
+ *	    mianalrs.
  *
  *  19980911 Alan Cox
  *	Made SMP safe for 2.3.x
  *
  *  20011127 Joel Becker (jlbec@evilplan.org>
- *	Added soft_noboot; Allows testing the softdog trigger without
+ *	Added soft_analboot; Allows testing the softdog trigger without
  *	requiring a recompile.
  *	Added WDIOC_GETTIMEOUT and WDIOC_SETTIMOUT.
  */
@@ -61,7 +61,7 @@ static int harddog_out_fd = -1;
  *	Allow only one person to hold it open
  */
 
-static int harddog_open(struct inode *inode, struct file *file)
+static int harddog_open(struct ianalde *ianalde, struct file *file)
 {
 	int err = -EBUSY;
 	char *sock = NULL;
@@ -70,12 +70,12 @@ static int harddog_open(struct inode *inode, struct file *file)
 	spin_lock(&lock);
 	if(timer_alive)
 		goto err;
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
+#ifdef CONFIG_WATCHDOG_ANALWAYOUT
 	__module_get(THIS_MODULE);
 #endif
 
 #ifdef CONFIG_MCONSOLE
-	sock = mconsole_notify_socket();
+	sock = mconsole_analtify_socket();
 #endif
 	err = start_watchdog(&harddog_in_fd, &harddog_out_fd, sock);
 	if(err)
@@ -84,14 +84,14 @@ static int harddog_open(struct inode *inode, struct file *file)
 	timer_alive = 1;
 	spin_unlock(&lock);
 	mutex_unlock(&harddog_mutex);
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 err:
 	spin_unlock(&lock);
 	mutex_unlock(&harddog_mutex);
 	return err;
 }
 
-static int harddog_release(struct inode *inode, struct file *file)
+static int harddog_release(struct ianalde *ianalde, struct file *file)
 {
 	/*
 	 *	Shut off the timer.
@@ -131,7 +131,7 @@ static int harddog_ioctl_unlocked(struct file *file,
 	};
 	switch (cmd) {
 		default:
-			return -ENOTTY;
+			return -EANALTTY;
 		case WDIOC_GETSUPPORT:
 			if(copy_to_user(argp, &ident, sizeof(ident)))
 				return -EFAULT;
@@ -163,11 +163,11 @@ static const struct file_operations harddog_fops = {
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= harddog_open,
 	.release	= harddog_release,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice harddog_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &harddog_fops,
 };

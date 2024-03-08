@@ -9,7 +9,7 @@
  *  linux/bvme/config.c
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -188,7 +188,7 @@ int __init q40_parse_bootinfo(const struct bi_record *rec)
 }
 
 /*
- * Looks like op is non-zero for setting the clock, and zero for
+ * Looks like op is analn-zero for setting the clock, and zero for
  * reading the clock.
  *
  *  struct hwclk_time {
@@ -198,7 +198,7 @@ int __init q40_parse_bootinfo(const struct bi_record *rec)
  *         unsigned        day;       1..31
  *         unsigned        mon;       0..11
  *         unsigned        year;      00...
- *         int             wday;      0..6, 0 is Sunday, -1 means unknown/don't set
+ *         int             wday;      0..6, 0 is Sunday, -1 means unkanalwn/don't set
  * };
  */
 
@@ -298,7 +298,7 @@ static const struct resource q40_pata_rsrc_1[] __initconst = {
 static __init int q40_platform_init(void)
 {
 	if (!MACH_IS_Q40)
-		return -ENODEV;
+		return -EANALDEV;
 
 	platform_device_register_simple("q40kbd", -1, NULL, 0);
 

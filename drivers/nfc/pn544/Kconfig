@@ -5,7 +5,7 @@ config NFC_PN544
 	help
 	  NXP PN544 core driver.
 	  This is a driver based on the HCI NFC kernel layers and
-	  will thus not work with NXP libnfc library.
+	  will thus analt work with NXP libnfc library.
 
 config NFC_PN544_I2C
 	tristate "NXP PN544 device support (I2C)"

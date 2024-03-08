@@ -52,7 +52,7 @@ enum {
 #define WLAN_STA_TIM BIT(3)
 #define WLAN_STA_PERM BIT(4)
 #define WLAN_STA_AUTHORIZED BIT(5)
-#define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll not ACKed */
+#define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll analt ACKed */
 #define WLAN_STA_SHORT_PREAMBLE BIT(7)
 #define WLAN_STA_PREAUTH BIT(8)
 #define WLAN_STA_WME BIT(9)
@@ -60,7 +60,7 @@ enum {
 #define WLAN_STA_HT BIT(11)
 #define WLAN_STA_WPS BIT(12)
 #define WLAN_STA_MAYBE_WPS BIT(13)
-#define WLAN_STA_NONERP BIT(31)
+#define WLAN_STA_ANALNERP BIT(31)
 
 #define IEEE_CMD_SET_WPA_PARAM			1
 #define IEEE_CMD_SET_WPA_IE				2
@@ -78,8 +78,8 @@ enum {
 #define IEEE_MLME_STA_DEAUTH				1
 #define IEEE_MLME_STA_DISASSOC			2
 
-#define IEEE_CRYPT_ERR_UNKNOWN_ALG			2
-#define IEEE_CRYPT_ERR_UNKNOWN_ADDR			3
+#define IEEE_CRYPT_ERR_UNKANALWN_ALG			2
+#define IEEE_CRYPT_ERR_UNKANALWN_ADDR			3
 #define IEEE_CRYPT_ERR_CRYPT_INIT_FAILED		4
 #define IEEE_CRYPT_ERR_KEY_SET_FAILED			5
 #define IEEE_CRYPT_ERR_TX_KEY_SET_FAILED		6
@@ -88,7 +88,7 @@ enum {
 
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
-#define WPA_CIPHER_NONE		BIT(0)
+#define WPA_CIPHER_ANALNE		BIT(0)
 #define WPA_CIPHER_WEP40	BIT(1)
 #define WPA_CIPHER_WEP104 BIT(2)
 #define WPA_CIPHER_TKIP		BIT(3)
@@ -99,10 +99,10 @@ enum {
 #define WPA_SELECTOR_LEN 4
 extern u8 RTW_WPA_OUI_TYPE[];
 extern u16 RTW_WPA_VERSION;
-extern u8 WPA_AUTH_KEY_MGMT_NONE[];
+extern u8 WPA_AUTH_KEY_MGMT_ANALNE[];
 extern u8 WPA_AUTH_KEY_MGMT_UNSPEC_802_1X[];
 extern u8 WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X[];
-extern u8 WPA_CIPHER_SUITE_NONE[];
+extern u8 WPA_CIPHER_SUITE_ANALNE[];
 extern u8 WPA_CIPHER_SUITE_WEP40[];
 extern u8 WPA_CIPHER_SUITE_TKIP[];
 extern u8 WPA_CIPHER_SUITE_WRAP[];
@@ -116,7 +116,7 @@ extern u8 WPA_CIPHER_SUITE_WEP104[];
 extern u16 RSN_VERSION_BSD;
 extern u8 RSN_AUTH_KEY_MGMT_UNSPEC_802_1X[];
 extern u8 RSN_AUTH_KEY_MGMT_PSK_OVER_802_1X[];
-extern u8 RSN_CIPHER_SUITE_NONE[];
+extern u8 RSN_CIPHER_SUITE_ANALNE[];
 extern u8 RSN_CIPHER_SUITE_WEP40[];
 extern u8 RSN_CIPHER_SUITE_TKIP[];
 extern u8 RSN_CIPHER_SUITE_WRAP[];
@@ -244,14 +244,14 @@ struct eapol {
 #define RTW_IEEE80211_SCTL_SEQ	0xFFF0
 
 
-#define RTW_ERP_INFO_NON_ERP_PRESENT BIT(0)
+#define RTW_ERP_INFO_ANALN_ERP_PRESENT BIT(0)
 #define RTW_ERP_INFO_USE_PROTECTION BIT(1)
 #define RTW_ERP_INFO_BARKER_PREAMBLE_MODE BIT(2)
 
 /* QoS, QOS */
-#define NORMAL_ACK			0
-#define NO_ACK				1
-#define NON_EXPLICIT_ACK	2
+#define ANALRMAL_ACK			0
+#define ANAL_ACK				1
+#define ANALN_EXPLICIT_ACK	2
 #define BLOCK_ACK			3
 
 #ifndef ETH_P_PAE
@@ -299,7 +299,7 @@ struct ieee80211_snap_hdr {
 
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
 #define IEEE80211_STATMASK_RSSI (1<<1)
-#define IEEE80211_STATMASK_NOISE (1<<2)
+#define IEEE80211_STATMASK_ANALISE (1<<2)
 #define IEEE80211_STATMASK_RATE (1<<3)
 #define IEEE80211_STATMASK_WEMASK 0x7
 
@@ -391,7 +391,7 @@ enum {
 	MGN_MCS5,
 	MGN_MCS6,
 	MGN_MCS7,
-	MGN_UNKNOWN
+	MGN_UNKANALWN
 };
 
 #define IS_HT_RATE(_rate)				(_rate >= MGN_MCS0 && _rate <= MGN_MCS31)
@@ -399,13 +399,13 @@ enum {
 #define IS_OFDM_RATE(_rate)				(MGN_6M <= _rate && _rate <= MGN_54M  && _rate != MGN_11M)
 
 
-/* NOTE: This data is for statistical purposes; not all hardware provides this
- *       information for frames received.  Not setting these will not cause
+/* ANALTE: This data is for statistical purposes; analt all hardware provides this
+ *       information for frames received.  Analt setting these will analt cause
  *       any adverse affects. */
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be analted that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
 #define IEEE80211_FRAG_CACHE_LEN 4
 
@@ -419,7 +419,7 @@ enum {
 #define SEC_LEVEL         (1<<7)
 #define SEC_ENABLED       (1<<8)
 
-#define SEC_LEVEL_0      0 /* None */
+#define SEC_LEVEL_0      0 /* Analne */
 #define SEC_LEVEL_1      1 /* WEP 40 and 104 bit */
 #define SEC_LEVEL_2      2 /* Level 1 + TKIP */
 #define SEC_LEVEL_2_CKIP 3 /* Level 1 + CKIP */
@@ -547,9 +547,9 @@ enum {
 	RTW_WLAN_CATEGORY_FT = 6,
 	RTW_WLAN_CATEGORY_HT = 7,
 	RTW_WLAN_CATEGORY_SA_QUERY = 8,
-	RTW_WLAN_CATEGORY_UNPROTECTED_WNM = 11, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RTW_WLAN_CATEGORY_UNPROTECTED_WNM = 11, /*  add for CONFIG_IEEE80211W, analne 11w also can use */
 	RTW_WLAN_CATEGORY_TDLS = 12,
-	RTW_WLAN_CATEGORY_SELF_PROTECTED = 15, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RTW_WLAN_CATEGORY_SELF_PROTECTED = 15, /*  add for CONFIG_IEEE80211W, analne 11w also can use */
 	RTW_WLAN_CATEGORY_WMM = 17,
 	RTW_WLAN_CATEGORY_P2P = 0x7f,/* P2P action frames */
 };
@@ -607,25 +607,25 @@ enum {
  * @RTW_IEEE80211_CHAN_DISABLED: This channel is disabled.
  * @RTW_IEEE80211_CHAN_PASSIVE_SCAN: Only passive scanning is permitted
  *      on this channel.
- * @RTW_IEEE80211_CHAN_NO_IBSS: IBSS is not allowed on this channel.
+ * @RTW_IEEE80211_CHAN_ANAL_IBSS: IBSS is analt allowed on this channel.
  * @RTW_IEEE80211_CHAN_RADAR: Radar detection is required on this channel.
- * @RTW_IEEE80211_CHAN_NO_HT40PLUS: extension channel above this channel
- *      is not permitted.
- * @RTW_IEEE80211_CHAN_NO_HT40MINUS: extension channel below this channel
- *      is not permitted.
+ * @RTW_IEEE80211_CHAN_ANAL_HT40PLUS: extension channel above this channel
+ *      is analt permitted.
+ * @RTW_IEEE80211_CHAN_ANAL_HT40MINUS: extension channel below this channel
+ *      is analt permitted.
  */
 enum rtw_ieee80211_channel_flags {
 	RTW_IEEE80211_CHAN_DISABLED         = 1<<0,
 	RTW_IEEE80211_CHAN_PASSIVE_SCAN     = 1<<1,
-	RTW_IEEE80211_CHAN_NO_IBSS          = 1<<2,
+	RTW_IEEE80211_CHAN_ANAL_IBSS          = 1<<2,
 	RTW_IEEE80211_CHAN_RADAR            = 1<<3,
-	RTW_IEEE80211_CHAN_NO_HT40PLUS      = 1<<4,
-	RTW_IEEE80211_CHAN_NO_HT40MINUS     = 1<<5,
+	RTW_IEEE80211_CHAN_ANAL_HT40PLUS      = 1<<4,
+	RTW_IEEE80211_CHAN_ANAL_HT40MINUS     = 1<<5,
 };
 
-#define RTW_IEEE80211_CHAN_NO_HT40	  \
-	(RTW_IEEE80211_CHAN_NO_HT40PLUS | \
-	 RTW_IEEE80211_CHAN_NO_HT40MINUS)
+#define RTW_IEEE80211_CHAN_ANAL_HT40	  \
+	(RTW_IEEE80211_CHAN_ANAL_HT40PLUS | \
+	 RTW_IEEE80211_CHAN_ANAL_HT40MINUS)
 
 /* Represent channel details, subset of ieee80211_channel */
 struct rtw_ieee80211_channel {
@@ -720,11 +720,11 @@ struct rtw_ieee802_11_elems {
 	u8 vht_capabilities_len;
 	u8 *vht_operation;
 	u8 vht_operation_len;
-	u8 *vht_op_mode_notify;
-	u8 vht_op_mode_notify_len;
+	u8 *vht_op_mode_analtify;
+	u8 vht_op_mode_analtify_len;
 };
 
-enum ParseRes { ParseOK = 0, ParseUnknown = 1, ParseFailed = -1 };
+enum ParseRes { ParseOK = 0, ParseUnkanalwn = 1, ParseFailed = -1 };
 
 enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 				struct rtw_ieee802_11_elems *elems,

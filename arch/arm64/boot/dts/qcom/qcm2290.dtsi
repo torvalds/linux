@@ -153,7 +153,7 @@
 			clocks = <&rpmcc RPM_SMD_CE1_CLK>;
 			clock-names = "core";
 			#reset-cells = <1>;
-			interconnects = <&system_noc MASTER_CRYPTO_CORE0 RPM_ALWAYS_TAG
+			interconnects = <&system_analc MASTER_CRYPTO_CORE0 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
 		};
 	};
@@ -248,12 +248,12 @@
 							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 						};
 
-						rpmpd_opp_nom: opp5 {
-							opp-level = <RPM_SMD_LEVEL_NOM>;
+						rpmpd_opp_analm: opp5 {
+							opp-level = <RPM_SMD_LEVEL_ANALM>;
 						};
 
-						rpmpd_opp_nom_plus: opp6 {
-							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+						rpmpd_opp_analm_plus: opp6 {
+							opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 						};
 
 						rpmpd_opp_turbo: opp7 {
@@ -261,7 +261,7 @@
 						};
 
 						rpmpd_opp_turbo_plus: opp8 {
-							opp-level = <RPM_SMD_LEVEL_TURBO_NO_CPR>;
+							opp-level = <RPM_SMD_LEVEL_TURBO_ANAL_CPR>;
 						};
 					};
 				};
@@ -294,23 +294,23 @@
 
 		hyp_mem: hyp@45700000 {
 			reg = <0x0 0x45700000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_aop_mem: xbl-aop@45e00000 {
 			reg = <0x0 0x45e00000 0x0 0x140000>;
-			no-map;
+			anal-map;
 		};
 
 		sec_apps_mem: sec-apps@45fff000 {
 			reg = <0x0 0x45fff000 0x0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: smem@46000000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x46000000 0x0 0x200000>;
-			no-map;
+			anal-map;
 
 			hwlocks = <&tcsr_mutex 3>;
 			qcom,rpm-msg-ram = <&rpm_msg_ram>;
@@ -318,59 +318,59 @@
 
 		pil_modem_mem: modem@4ab00000 {
 			reg = <0x0 0x4ab00000 0x0 0x6900000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_video_mem: video@51400000 {
 			reg = <0x0 0x51400000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: wlan-msa@51900000 {
 			reg = <0x0 0x51900000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_adsp_mem: adsp@51a00000 {
 			reg = <0x0 0x51a00000 0x0 0x1c00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_ipa_fw_mem: ipa-fw@53600000 {
 			reg = <0x0 0x53600000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_ipa_gsi_mem: ipa-gsi@53610000 {
 			reg = <0x0 0x53610000 0x0 0x5000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_gpu_mem: zap@53615000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x53615000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_memory: framebuffer@5c000000 {
 			reg = <0x0 0x5c000000 0x0 0x00f00000>;
-			no-map;
+			anal-map;
 		};
 
 		dfps_data_memory: dpfs-data@5cf00000 {
 			reg = <0x0 0x5cf00000 0x0 0x0100000>;
-			no-map;
+			anal-map;
 		};
 
 		removed_mem: reserved@60000000 {
 			reg = <0x0 0x60000000 0x0 0x3900000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: memory@89b01000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x89b01000 0x0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA QCOM_SCM_VMID_NAV>;
@@ -693,8 +693,8 @@
 			status = "disabled";
 		};
 
-		system_noc: interconnect@1880000 {
-			compatible = "qcom,qcm2290-snoc";
+		system_analc: interconnect@1880000 {
+			compatible = "qcom,qcm2290-sanalc";
 			reg = <0x0 0x01880000 0x0 0x60200>;
 			#interconnect-cells = <2>;
 
@@ -714,8 +714,8 @@
 			};
 		};
 
-		config_noc: interconnect@1900000 {
-			compatible = "qcom,qcm2290-cnoc";
+		config_analc: interconnect@1900000 {
+			compatible = "qcom,qcm2290-canalc";
 			reg = <0x0 0x01900000 0x0 0x8200>;
 			#interconnect-cells = <2>;
 		};
@@ -876,10 +876,10 @@
 			power-domains = <&rpmpd QCM2290_VDDCX>;
 			operating-points-v2 = <&sdhc1_opp_table>;
 			iommus = <&apps_smmu 0xc0 0x0>;
-			interconnects = <&system_noc MASTER_SDCC_1 RPM_ALWAYS_TAG
+			interconnects = <&system_analc MASTER_SDCC_1 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>,
 					<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-					 &config_noc SLAVE_SDCC_1 RPM_ALWAYS_TAG>;
+					 &config_analc SLAVE_SDCC_1 RPM_ALWAYS_TAG>;
 			interconnect-names = "sdhc-ddr",
 					     "cpu-sdhc";
 
@@ -936,10 +936,10 @@
 			power-domains = <&rpmpd QCM2290_VDDCX>;
 			operating-points-v2 = <&sdhc2_opp_table>;
 			iommus = <&apps_smmu 0xa0 0x0>;
-			interconnects = <&system_noc MASTER_SDCC_2 RPM_ALWAYS_TAG
+			interconnects = <&system_analc MASTER_SDCC_2 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>,
 					<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-					 &config_noc SLAVE_SDCC_2 RPM_ALWAYS_TAG>;
+					 &config_analc SLAVE_SDCC_2 RPM_ALWAYS_TAG>;
 			interconnect-names = "sdhc-ddr",
 					     "cpu-sdhc";
 
@@ -1014,8 +1014,8 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
-						<&system_noc MASTER_QUP_0 RPM_ALWAYS_TAG
+						 &config_analc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
+						<&system_analc MASTER_QUP_0 RPM_ALWAYS_TAG
 						 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1039,7 +1039,7 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
+						 &config_analc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				#address-cells = <1>;
@@ -1058,7 +1058,7 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
+						 &config_analc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				status = "disabled";
@@ -1078,8 +1078,8 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
-						<&system_noc MASTER_QUP_0 RPM_ALWAYS_TAG
+						 &config_analc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
+						<&system_analc MASTER_QUP_0 RPM_ALWAYS_TAG
 						 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1103,7 +1103,7 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
+						 &config_analc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				#address-cells = <1>;
@@ -1125,8 +1125,8 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
-						<&system_noc MASTER_QUP_0 RPM_ALWAYS_TAG
+						 &config_analc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
+						<&system_analc MASTER_QUP_0 RPM_ALWAYS_TAG
 						 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1150,7 +1150,7 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
+						 &config_analc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				#address-cells = <1>;
@@ -1172,8 +1172,8 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
-						<&system_noc MASTER_QUP_0 RPM_ALWAYS_TAG
+						 &config_analc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
+						<&system_analc MASTER_QUP_0 RPM_ALWAYS_TAG
 						 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1197,7 +1197,7 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
+						 &config_analc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				#address-cells = <1>;
@@ -1219,8 +1219,8 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
-						<&system_noc MASTER_QUP_0 RPM_ALWAYS_TAG
+						 &config_analc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
+						<&system_analc MASTER_QUP_0 RPM_ALWAYS_TAG
 						 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1244,7 +1244,7 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
+						 &config_analc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				#address-cells = <1>;
@@ -1263,7 +1263,7 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
+						 &config_analc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				status = "disabled";
@@ -1283,8 +1283,8 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
-						<&system_noc MASTER_QUP_0 RPM_ALWAYS_TAG
+						 &config_analc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
+						<&system_analc MASTER_QUP_0 RPM_ALWAYS_TAG
 						 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1308,7 +1308,7 @@
 				interconnects = <&qup_virt MASTER_QUP_CORE_0 RPM_ALWAYS_TAG
 						 &qup_virt SLAVE_QUP_CORE_0 RPM_ALWAYS_TAG>,
 						<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-						 &config_noc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
+						 &config_analc MASTER_APPSS_PROC RPM_ALWAYS_TAG>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				#address-cells = <1>;
@@ -1325,13 +1325,13 @@
 			interrupt-names = "hs_phy_irq",
 					  "ss_phy_irq";
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
-				 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_SYS_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
 				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 				 <&gcc GCC_USB3_PRIM_CLKREF_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -1345,10 +1345,10 @@
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
 			power-domains = <&gcc GCC_USB30_PRIM_GDSC>;
 			/* TODO: USB<->IPA path */
-			interconnects = <&system_noc MASTER_USB3_0 RPM_ALWAYS_TAG
+			interconnects = <&system_analc MASTER_USB3_0 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>,
 					<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-					 &config_noc SLAVE_USB3 RPM_ALWAYS_TAG>;
+					 &config_analc SLAVE_USB3 RPM_ALWAYS_TAG>;
 			interconnect-names = "usb-ddr",
 					     "apps-usb";
 			wakeup-source;
@@ -1400,7 +1400,7 @@
 			interconnects = <&mmrt_virt MASTER_MDP0 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>,
 					<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
-					 &config_noc SLAVE_DISPLAY_CFG RPM_ALWAYS_TAG>;
+					 &config_analc SLAVE_DISPLAY_CFG RPM_ALWAYS_TAG>;
 			interconnect-names = "mdp0-mem",
 					     "cpu-cfg";
 
@@ -1471,7 +1471,7 @@
 
 					opp-384000000 {
 						opp-hz = /bits/ 64 <384000000>;
-						required-opps = <&rpmpd_opp_nom>;
+						required-opps = <&rpmpd_opp_analm>;
 					};
 				};
 			};
@@ -1566,7 +1566,7 @@
 					      "ref";
 
 				power-domains = <&rpmpd QCM2290_VDDMX>;
-				required-opps = <&rpmpd_opp_nom>;
+				required-opps = <&rpmpd_opp_analm>;
 
 				#clock-cells = <1>;
 				#phy-cells = <0>;

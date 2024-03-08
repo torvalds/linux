@@ -15,12 +15,12 @@ DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack)
 DEFINE_PER_CPU(struct kvm_nvhe_stacktrace_info, kvm_stacktrace_info);
 
 /*
- * hyp_prepare_backtrace - Prepare non-protected nVHE backtrace.
+ * hyp_prepare_backtrace - Prepare analn-protected nVHE backtrace.
  *
  * @fp : frame pointer at which to start the unwinding.
  * @pc : program counter at which to start the unwinding.
  *
- * Save the information needed by the host to unwind the non-protected
+ * Save the information needed by the host to unwind the analn-protected
  * nVHE hypervisor stack in EL1.
  */
 static void hyp_prepare_backtrace(unsigned long fp, unsigned long pc)
@@ -67,7 +67,7 @@ static int unwind_next(struct unwind_state *state)
 	return unwind_next_frame_record(state);
 }
 
-static void notrace unwind(struct unwind_state *state,
+static void analtrace unwind(struct unwind_state *state,
 			   stack_trace_consume_fn consume_entry,
 			   void *cookie)
 {

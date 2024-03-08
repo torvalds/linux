@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2023 Inochi Amaoto <inochiama@outlook.com>
+ * Copyright (C) 2023 Ianalchi Amaoto <ianalchiama@outlook.com>
  */
 
 /dts-v1/;
@@ -34,7 +34,7 @@
 
 		coprocessor_rtos: region@8fe00000 {
 			reg = <0x8fe00000 0x200000>;
-			no-map;
+			anal-map;
 		};
 	};
 };

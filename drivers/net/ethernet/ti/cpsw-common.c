@@ -18,9 +18,9 @@ static int davinci_emac_3517_get_macid(struct device *dev, u16 offset,
 	u32 macid_msb;
 	struct regmap *syscon;
 
-	syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	syscon = syscon_regmap_lookup_by_phandle(dev->of_analde, "syscon");
 	if (IS_ERR(syscon)) {
-		if (PTR_ERR(syscon) == -ENODEV)
+		if (PTR_ERR(syscon) == -EANALDEV)
 			return 0;
 		return PTR_ERR(syscon);
 	}
@@ -45,9 +45,9 @@ static int cpsw_am33xx_cm_get_macid(struct device *dev, u16 offset, int slave,
 	u32 macid_hi;
 	struct regmap *syscon;
 
-	syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	syscon = syscon_regmap_lookup_by_phandle(dev->of_analde, "syscon");
 	if (IS_ERR(syscon)) {
-		if (PTR_ERR(syscon) == -ENODEV)
+		if (PTR_ERR(syscon) == -EANALDEV)
 			return 0;
 		return PTR_ERR(syscon);
 	}
@@ -73,10 +73,10 @@ int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr)
 	if (of_machine_is_compatible("ti,am33xx"))
 		return cpsw_am33xx_cm_get_macid(dev, 0x630, slave, mac_addr);
 
-	if (of_device_is_compatible(dev->of_node, "ti,am3517-emac"))
+	if (of_device_is_compatible(dev->of_analde, "ti,am3517-emac"))
 		return davinci_emac_3517_get_macid(dev, 0x110, slave, mac_addr);
 
-	if (of_device_is_compatible(dev->of_node, "ti,dm816-emac"))
+	if (of_device_is_compatible(dev->of_analde, "ti,dm816-emac"))
 		return cpsw_am33xx_cm_get_macid(dev, 0x30, slave, mac_addr);
 
 	if (of_machine_is_compatible("ti,am43"))
@@ -86,7 +86,7 @@ int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr)
 		return davinci_emac_3517_get_macid(dev, 0x514, slave, mac_addr);
 
 	dev_info(dev, "incompatible machine/device type for reading mac address\n");
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL_GPL(ti_cm_get_macid);
 

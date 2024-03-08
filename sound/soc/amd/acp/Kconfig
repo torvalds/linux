@@ -36,8 +36,8 @@ config SND_SOC_AMD_ACP_PCI
 	help
 	  This options enables generic PCI driver for ACP device.
 
-config SND_AMD_ASOC_RENOIR
-	tristate "AMD ACP ASOC Renoir Support"
+config SND_AMD_ASOC_REANALIR
+	tristate "AMD ACP ASOC Reanalir Support"
 	depends on ACPI
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
@@ -45,7 +45,7 @@ config SND_AMD_ASOC_RENOIR
 	select SND_SOC_AMD_ACP_LEGACY_COMMON
 	depends on X86 && PCI
 	help
-	  This option enables Renoir I2S support on AMD platform.
+	  This option enables Reanalir I2S support on AMD platform.
 
 config SND_AMD_ASOC_REMBRANDT
 	tristate "AMD ACP ASOC Rembrandt Support"

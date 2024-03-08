@@ -64,7 +64,7 @@ static int hv_debug_delay_files(struct hv_device *dev, struct dentry *root)
 					  buffer_val,
 					  &hv_debugfs_delay_fops);
 	if (IS_ERR(buffer_file)) {
-		pr_debug("debugfs_hyperv: file %s not created\n", buffer);
+		pr_debug("debugfs_hyperv: file %s analt created\n", buffer);
 		return PTR_ERR(buffer_file);
 	}
 
@@ -72,7 +72,7 @@ static int hv_debug_delay_files(struct hv_device *dev, struct dentry *root)
 					   message_val,
 					   &hv_debugfs_delay_fops);
 	if (IS_ERR(message_file)) {
-		pr_debug("debugfs_hyperv: file %s not created\n", message);
+		pr_debug("debugfs_hyperv: file %s analt created\n", message);
 		return PTR_ERR(message_file);
 	}
 
@@ -91,7 +91,7 @@ static int hv_debug_set_test_state(struct hv_device *dev, struct dentry *root)
 					 state,
 					 &hv_debugfs_state_fops);
 	if (IS_ERR(test_state)) {
-		pr_debug("debugfs_hyperv: file %s not created\n", status);
+		pr_debug("debugfs_hyperv: file %s analt created\n", status);
 		return PTR_ERR(test_state);
 	}
 
@@ -116,7 +116,7 @@ int hv_debug_add_dev_dir(struct hv_device *dev)
 	if (!IS_ERR(hv_debug_root)) {
 		dev_root = debugfs_create_dir(device, hv_debug_root);
 		if (IS_ERR(dev_root)) {
-			pr_debug("debugfs_hyperv: hyperv/%s/ not created\n",
+			pr_debug("debugfs_hyperv: hyperv/%s/ analt created\n",
 				 device);
 			return PTR_ERR(dev_root);
 		}
@@ -125,7 +125,7 @@ int hv_debug_add_dev_dir(struct hv_device *dev)
 		delay = debugfs_create_dir(delay_name, dev_root);
 
 		if (IS_ERR(delay)) {
-			pr_debug("debugfs_hyperv: hyperv/%s/%s/ not created\n",
+			pr_debug("debugfs_hyperv: hyperv/%s/%s/ analt created\n",
 				 device, delay_name);
 			return PTR_ERR(delay);
 		}
@@ -133,7 +133,7 @@ int hv_debug_add_dev_dir(struct hv_device *dev)
 
 		return ret;
 	}
-	pr_debug("debugfs_hyperv: hyperv/ not in root debugfs path\n");
+	pr_debug("debugfs_hyperv: hyperv/ analt in root debugfs path\n");
 	return PTR_ERR(hv_debug_root);
 }
 
@@ -171,7 +171,7 @@ int hv_debug_init(void)
 {
 	hv_debug_root = debugfs_create_dir("hyperv", NULL);
 	if (IS_ERR(hv_debug_root)) {
-		pr_debug("debugfs_hyperv: hyperv/ not created\n");
+		pr_debug("debugfs_hyperv: hyperv/ analt created\n");
 		return PTR_ERR(hv_debug_root);
 	}
 	return 0;

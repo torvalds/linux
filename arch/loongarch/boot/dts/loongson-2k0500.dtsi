@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 /dts-v1/;
@@ -145,7 +145,7 @@
 			clock-frequency = <100000000>;
 			interrupt-parent = <&eiointc>;
 			interrupts = <2>;
-			no-loopback-test;
+			anal-loopback-test;
 			status = "disabled";
 		};
 

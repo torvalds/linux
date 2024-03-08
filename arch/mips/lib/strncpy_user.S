@@ -4,9 +4,9 @@
  * for more details.
  *
  * Copyright (C) 1996, 1999 by Ralf Baechle
- * Copyright (C) 2011 MIPS Technologies, Inc.
+ * Copyright (C) 2011 MIPS Techanallogies, Inc.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>

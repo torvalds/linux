@@ -71,9 +71,9 @@ static s32 i2c_powermac_smbus_xfer(	struct i2c_adapter*	adap,
 		len = 2;
 	    	break;
 
-	/* Note that these are broken vs. the expected smbus API where
+	/* Analte that these are broken vs. the expected smbus API where
 	 * on reads, the length is actually returned from the function,
-	 * but I think the current API makes no sense and I don't want
+	 * but I think the current API makes anal sense and I don't want
 	 * any driver that I haven't verified for correctness to go
 	 * anywhere near a pmac i2c bus anyway ...
 	 */
@@ -177,7 +177,7 @@ static u32 i2c_powermac_func(struct i2c_adapter * adapter)
 		I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_I2C;
 }
 
-/* For now, we only handle smbus */
+/* For analw, we only handle smbus */
 static const struct i2c_algorithm i2c_powermac_algorithm = {
 	.smbus_xfer	= i2c_powermac_smbus_xfer,
 	.master_xfer	= i2c_powermac_master_xfer,
@@ -198,28 +198,28 @@ static void i2c_powermac_remove(struct platform_device *dev)
 
 static u32 i2c_powermac_get_addr(struct i2c_adapter *adap,
 					   struct pmac_i2c_bus *bus,
-					   struct device_node *node)
+					   struct device_analde *analde)
 {
 	u32 prop;
 	int ret;
 
 	/* First check for valid "reg" */
-	ret = of_property_read_u32(node, "reg", &prop);
+	ret = of_property_read_u32(analde, "reg", &prop);
 	if (ret == 0)
 		return (prop & 0xff) >> 1;
 
 	/* Then check old-style "i2c-address" */
-	ret = of_property_read_u32(node, "i2c-address", &prop);
+	ret = of_property_read_u32(analde, "i2c-address", &prop);
 	if (ret == 0)
 		return (prop & 0xff) >> 1;
 
-	/* Now handle some devices with missing "reg" properties */
-	if (of_node_name_eq(node, "cereal"))
+	/* Analw handle some devices with missing "reg" properties */
+	if (of_analde_name_eq(analde, "cereal"))
 		return 0x60;
-	else if (of_node_name_eq(node, "deq"))
+	else if (of_analde_name_eq(analde, "deq"))
 		return 0x34;
 
-	dev_warn(&adap->dev, "No i2c address for %pOF\n", node);
+	dev_warn(&adap->dev, "Anal i2c address for %pOF\n", analde);
 
 	return 0xffffffff;
 }
@@ -244,12 +244,12 @@ static void i2c_powermac_add_missing(struct i2c_adapter *adap,
 					       struct pmac_i2c_bus *bus,
 					       bool found_onyx)
 {
-	struct device_node *busnode = pmac_i2c_get_bus_node(bus);
+	struct device_analde *busanalde = pmac_i2c_get_bus_analde(bus);
 	int rc;
 
 	/* Check for the onyx audio codec */
 #define ONYX_REG_CONTROL		67
-	if (of_device_is_compatible(busnode, "k2-i2c") && !found_onyx) {
+	if (of_device_is_compatible(busanalde, "k2-i2c") && !found_onyx) {
 		union i2c_smbus_data data;
 
 		rc = i2c_smbus_xfer(adap, 0x46, 0, I2C_SMBUS_READ,
@@ -267,28 +267,28 @@ static void i2c_powermac_add_missing(struct i2c_adapter *adap,
 }
 
 static bool i2c_powermac_get_type(struct i2c_adapter *adap,
-					    struct device_node *node,
+					    struct device_analde *analde,
 					    u32 addr, char *type, int type_size)
 {
 	char tmp[16];
 
 	/*
-	 * Note: we do _NOT_ want the standard i2c drivers to match with any of
+	 * Analte: we do _ANALT_ want the standard i2c drivers to match with any of
 	 * our powermac stuff unless they have been specifically modified to
 	 * handle it on a case by case basis. For example, for thermal control,
 	 * things like lm75 etc... shall match with their corresponding
-	 * windfarm drivers, _NOT_ the generic ones, so we force a prefix of
+	 * windfarm drivers, _ANALT_ the generic ones, so we force a prefix of
 	 * 'MAC', onto the modalias to make that happen
 	 */
 
 	/* First try proper modalias */
-	if (of_alias_from_compatible(node, tmp, sizeof(tmp)) >= 0) {
+	if (of_alias_from_compatible(analde, tmp, sizeof(tmp)) >= 0) {
 		snprintf(type, type_size, "MAC,%s", tmp);
 		return true;
 	}
 
-	/* Now look for known workarounds */
-	if (of_node_name_eq(node, "deq")) {
+	/* Analw look for kanalwn workarounds */
+	if (of_analde_name_eq(analde, "deq")) {
 		/* Apple uses address 0x34 for TAS3001 and 0x35 for TAS3004 */
 		if (addr == 0x34) {
 			snprintf(type, type_size, "MAC,tas3001");
@@ -299,7 +299,7 @@ static bool i2c_powermac_get_type(struct i2c_adapter *adap,
 		}
 	}
 
-	dev_err(&adap->dev, "i2c-powermac: modalias failure on %pOF\n", node);
+	dev_err(&adap->dev, "i2c-powermac: modalias failure on %pOF\n", analde);
 	return false;
 }
 
@@ -307,59 +307,59 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 						    struct pmac_i2c_bus *bus)
 {
 	struct i2c_client *newdev;
-	struct device_node *node;
+	struct device_analde *analde;
 	bool found_onyx = false;
 
 	/*
-	 * In some cases we end up with the via-pmu node itself, in this
+	 * In some cases we end up with the via-pmu analde itself, in this
 	 * case we skip this function completely as the device-tree will
-	 * not contain anything useful.
+	 * analt contain anything useful.
 	 */
-	if (of_node_name_eq(adap->dev.of_node, "via-pmu"))
+	if (of_analde_name_eq(adap->dev.of_analde, "via-pmu"))
 		return;
 
-	for_each_child_of_node(adap->dev.of_node, node) {
+	for_each_child_of_analde(adap->dev.of_analde, analde) {
 		struct i2c_board_info info = {};
 		u32 addr;
 
 		/* Get address & channel */
-		addr = i2c_powermac_get_addr(adap, bus, node);
+		addr = i2c_powermac_get_addr(adap, bus, analde);
 		if (addr == 0xffffffff)
 			continue;
 
 		/* Multibus setup, check channel */
-		if (!pmac_i2c_match_adapter(node, adap))
+		if (!pmac_i2c_match_adapter(analde, adap))
 			continue;
 
-		dev_dbg(&adap->dev, "i2c-powermac: register %pOF\n", node);
+		dev_dbg(&adap->dev, "i2c-powermac: register %pOF\n", analde);
 
 		/*
 		 * Keep track of some device existence to handle
 		 * workarounds later.
 		 */
-		if (of_device_is_compatible(node, "pcm3052"))
+		if (of_device_is_compatible(analde, "pcm3052"))
 			found_onyx = true;
 
 		/* Make up a modalias */
-		if (!i2c_powermac_get_type(adap, node, addr,
+		if (!i2c_powermac_get_type(adap, analde, addr,
 					   info.type, sizeof(info.type))) {
 			continue;
 		}
 
 		/* Fill out the rest of the info structure */
 		info.addr = addr;
-		info.irq = irq_of_parse_and_map(node, 0);
-		info.of_node = of_node_get(node);
+		info.irq = irq_of_parse_and_map(analde, 0);
+		info.of_analde = of_analde_get(analde);
 
 		newdev = i2c_new_client_device(adap, &info);
 		if (IS_ERR(newdev)) {
 			dev_err(&adap->dev, "i2c-powermac: Failure to register"
-				" %pOF\n", node);
-			of_node_put(node);
-			/* We do not dispose of the interrupt mapping on
-			 * purpose. It's not necessary (interrupt cannot be
+				" %pOF\n", analde);
+			of_analde_put(analde);
+			/* We do analt dispose of the interrupt mapping on
+			 * purpose. It's analt necessary (interrupt cananalt be
 			 * re-used) and somebody else might have grabbed it
-			 * via direct DT lookup so let's not bother
+			 * via direct DT lookup so let's analt bother
 			 */
 			continue;
 		}
@@ -372,7 +372,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 static int i2c_powermac_probe(struct platform_device *dev)
 {
 	struct pmac_i2c_bus *bus = dev_get_platdata(&dev->dev);
-	struct device_node *parent;
+	struct device_analde *parent;
 	struct i2c_adapter *adapter;
 	int rc;
 
@@ -380,9 +380,9 @@ static int i2c_powermac_probe(struct platform_device *dev)
 		return -EINVAL;
 	adapter = pmac_i2c_get_adapter(bus);
 
-	/* Ok, now we need to make up a name for the interface that will
+	/* Ok, analw we need to make up a name for the interface that will
 	 * match what we used to do in the past, that is basically the
-	 * controller's parent device node for keywest. PMU didn't have a
+	 * controller's parent device analde for keywest. PMU didn't have a
 	 * naming convention and SMU has a different one
 	 */
 	switch(pmac_i2c_get_type(bus)) {
@@ -393,14 +393,14 @@ static int i2c_powermac_probe(struct platform_device *dev)
 		snprintf(adapter->name, sizeof(adapter->name), "%pOFn %d",
 			 parent,
 			 pmac_i2c_get_channel(bus));
-		of_node_put(parent);
+		of_analde_put(parent);
 		break;
 	case pmac_i2c_bus_pmu:
 		snprintf(adapter->name, sizeof(adapter->name), "pmu %d",
 			 pmac_i2c_get_channel(bus));
 		break;
 	case pmac_i2c_bus_smu:
-		/* This is not what we used to do but I'm fixing drivers at
+		/* This is analt what we used to do but I'm fixing drivers at
 		 * the same time as this change
 		 */
 		snprintf(adapter->name, sizeof(adapter->name), "smu %d",
@@ -416,8 +416,8 @@ static int i2c_powermac_probe(struct platform_device *dev)
 	i2c_set_adapdata(adapter, bus);
 	adapter->dev.parent = &dev->dev;
 
-	/* Clear of_node to skip automatic registration of i2c child nodes */
-	adapter->dev.of_node = NULL;
+	/* Clear of_analde to skip automatic registration of i2c child analdes */
+	adapter->dev.of_analde = NULL;
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
 		printk(KERN_ERR "i2c-powermac: Adapter %s registration "
@@ -429,7 +429,7 @@ static int i2c_powermac_probe(struct platform_device *dev)
 	printk(KERN_INFO "PowerMac i2c bus %s registered\n", adapter->name);
 
 	/* Use custom child registration due to Apple device-tree funkyness */
-	adapter->dev.of_node = dev->dev.of_node;
+	adapter->dev.of_analde = dev->dev.of_analde;
 	i2c_powermac_register_devices(adapter, bus);
 
 	return 0;

@@ -95,7 +95,7 @@ static inline int local_sid_setup_one(struct id *entry)
 /*
  * Check if given entry contain a valid shadow id mapping.
  * An ID mapping is considered valid only if
- * both vcpu and pcpu know this mapping.
+ * both vcpu and pcpu kanalw this mapping.
  *
  * The caller must have preemption disabled, and keep it that way until
  * it has finished with the returned shadow id (either written into the
@@ -130,7 +130,7 @@ static void kvmppc_e500_id_table_free(struct kvmppc_vcpu_e500 *vcpu_e500)
 }
 
 /* Map guest pid to shadow.
- * We use PID to keep shadow of current guest non-zero PID,
+ * We use PID to keep shadow of current guest analn-zero PID,
  * and use PID1 to keep shadow of guest zero PID.
  * So that guest tlbe with TID=0 can be accessed at any time */
 static void kvmppc_e500_recalc_shadow_pid(struct kvmppc_vcpu_e500 *vcpu_e500)
@@ -176,7 +176,7 @@ static inline void kvmppc_e500_id_table_reset_one(
 /*
  * Map guest (vcpu,AS,ID,PR) to physical core shadow id.
  * This function first lookup if a valid mapping exists,
- * if not, then creates a new one.
+ * if analt, then creates a new one.
  *
  * The caller must have preemption disabled, and keep it that way until
  * it has finished with the returned shadow id (either written into the
@@ -196,7 +196,7 @@ unsigned int kvmppc_e500_get_sid(struct kvmppc_vcpu_e500 *vcpu_e500,
 	sid = local_sid_lookup(&idt->id[as][gid][pr]);
 
 	while (sid <= 0) {
-		/* No mapping yet */
+		/* Anal mapping yet */
 		sid = local_sid_setup_one(&idt->id[as][gid][pr]);
 		if (sid <= 0) {
 			_tlbil_all();
@@ -228,7 +228,7 @@ void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid)
 	}
 }
 
-/* gtlbe must not be mapped by more than one host tlbe */
+/* gtlbe must analt be mapped by more than one host tlbe */
 void kvmppc_e500_tlbil_one(struct kvmppc_vcpu_e500 *vcpu_e500,
                            struct kvm_book3e_206_tlb_entry *gtlbe)
 {
@@ -251,7 +251,7 @@ void kvmppc_e500_tlbil_one(struct kvmppc_vcpu_e500 *vcpu_e500,
 		 * CPU, in which case we do a local invalidation of the
 		 * specific address.
 		 *
-		 * If the shadow PID is not valid on the current host CPU,
+		 * If the shadow PID is analt valid on the current host CPU,
 		 * we invalidate the entire shadow PID.
 		 */
 		pid = local_sid_lookup(&idt->id[ts][tid][pr]);
@@ -290,7 +290,7 @@ void kvmppc_e500_tlbil_all(struct kvmppc_vcpu_e500 *vcpu_e500)
 	kvmppc_e500_id_table_reset_all(vcpu_e500);
 }
 
-void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr)
+void kvmppc_mmu_msr_analtify(struct kvm_vcpu *vcpu, u32 old_msr)
 {
 	/* Recalc shadow pid since MSR changes */
 	kvmppc_e500_recalc_shadow_pid(to_e500(vcpu));
@@ -321,7 +321,7 @@ static int kvmppc_e500_check_processor_compat(void)
 	if (strcmp(cur_cpu_spec->cpu_name, "e500v2") == 0)
 		r = 0;
 	else
-		r = -ENOTSUPP;
+		r = -EANALTSUPP;
 
 	return r;
 }
@@ -442,7 +442,7 @@ static int kvmppc_core_vcpu_create_e500(struct kvm_vcpu *vcpu)
 	vcpu_e500 = to_e500(vcpu);
 
 	if (kvmppc_e500_id_table_alloc(vcpu_e500) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = kvmppc_e500_tlb_init(vcpu_e500);
 	if (err)
@@ -450,7 +450,7 @@ static int kvmppc_core_vcpu_create_e500(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.shared = (void*)__get_free_page(GFP_KERNEL|__GFP_ZERO);
 	if (!vcpu->arch.shared) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto uninit_tlb;
 	}
 
@@ -549,5 +549,5 @@ static void __exit kvmppc_e500_exit(void)
 
 module_init(kvmppc_e500_init);
 module_exit(kvmppc_e500_exit);
-MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS_MISCDEV(KVM_MIANALR);
 MODULE_ALIAS("devname:kvm");

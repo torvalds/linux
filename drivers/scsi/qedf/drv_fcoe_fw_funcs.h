@@ -21,7 +21,7 @@ struct fcoe_task_params {
 	u16 itid;
 	u8 cq_rss_number;
 
-	 /* Whether it's Tape device or not (0=Disk, 1=Tape) */
+	 /* Whether it's Tape device or analt (0=Disk, 1=Tape) */
 	u8 is_tape_device;
 };
 

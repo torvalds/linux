@@ -11,7 +11,7 @@
  *
  * Initially based on the 'trace' prototype by Thomas Gleixner:
  *
- * http://lwn.net/Articles/415728/ ("Announcing a new utility: 'trace'")
+ * http://lwn.net/Articles/415728/ ("Ananaluncing a new utility: 'trace'")
  */
 
 #include "util/record.h"
@@ -65,7 +65,7 @@
 #include "rb_resort.h"
 #include "../perf.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <poll.h>
 #include <signal.h>
@@ -172,14 +172,14 @@ struct trace {
 	bool			raw_augmented_syscalls;
 	bool			fd_path_disabled;
 	bool			sort_events;
-	bool			not_ev_qualifier;
+	bool			analt_ev_qualifier;
 	bool			live;
 	bool			full_time;
 	bool			sched;
 	bool			multiple_threads;
 	bool			summary;
 	bool			summary_only;
-	bool			errno_summary;
+	bool			erranal_summary;
 	bool			failure_only;
 	bool			show_comm;
 	bool			print_sample;
@@ -411,12 +411,12 @@ static int evsel__init_syscall_tp(struct evsel *evsel)
 	if (sc != NULL) {
 		if (evsel__init_tp_uint_field(evsel, &sc->id, "__syscall_nr") &&
 		    evsel__init_tp_uint_field(evsel, &sc->id, "nr"))
-			return -ENOENT;
+			return -EANALENT;
 
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int evsel__init_augmented_syscall_tp(struct evsel *evsel, struct evsel *tp)
@@ -434,7 +434,7 @@ static int evsel__init_augmented_syscall_tp(struct evsel *evsel, struct evsel *t
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int evsel__init_augmented_syscall_tp_args(struct evsel *evsel)
@@ -455,13 +455,13 @@ static int evsel__init_raw_syscall_tp(struct evsel *evsel, void *handler)
 {
 	if (evsel__syscall_tp(evsel) != NULL) {
 		if (perf_evsel__init_sc_tp_uint_field(evsel, id))
-			return -ENOENT;
+			return -EANALENT;
 
 		evsel->handler = handler;
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct evsel *perf_evsel__raw_syscall_newtp(const char *direction, void *handler)
@@ -764,7 +764,7 @@ static const char *fcntl_cmds[] = {
 static DEFINE_STRARRAY(fcntl_cmds, "F_");
 
 static const char *fcntl_linux_specific_cmds[] = {
-	"SETLEASE", "GETLEASE", "NOTIFY", [5] =	"CANCELLK", "DUPFD_CLOEXEC",
+	"SETLEASE", "GETLEASE", "ANALTIFY", [5] =	"CANCELLK", "DUPFD_CLOEXEC",
 	"SETPIPE_SZ", "GETPIPE_SZ", "ADD_SEALS", "GET_SEALS",
 	"GET_RW_HINT", "SET_RW_HINT", "GET_FILE_RW_HINT", "SET_FILE_RW_HINT",
 };
@@ -779,7 +779,7 @@ static struct strarray *fcntl_cmds_arrays[] = {
 static DEFINE_STRARRAYS(fcntl_cmds_arrays);
 
 static const char *rlimit_resources[] = {
-	"CPU", "FSIZE", "DATA", "STACK", "CORE", "RSS", "NPROC", "NOFILE",
+	"CPU", "FSIZE", "DATA", "STACK", "CORE", "RSS", "NPROC", "ANALFILE",
 	"MEMLOCK", "AS", "LOCKS", "SIGPENDING", "MSGQUEUE", "NICE", "RTPRIO",
 	"RTTIME",
 };
@@ -789,8 +789,8 @@ static const char *sighow[] = { "BLOCK", "UNBLOCK", "SETMASK", };
 static DEFINE_STRARRAY(sighow, "SIG_");
 
 static const char *clockid[] = {
-	"REALTIME", "MONOTONIC", "PROCESS_CPUTIME_ID", "THREAD_CPUTIME_ID",
-	"MONOTONIC_RAW", "REALTIME_COARSE", "MONOTONIC_COARSE", "BOOTTIME",
+	"REALTIME", "MOANALTONIC", "PROCESS_CPUTIME_ID", "THREAD_CPUTIME_ID",
+	"MOANALTONIC_RAW", "REALTIME_COARSE", "MOANALTONIC_COARSE", "BOOTTIME",
 	"REALTIME_ALARM", "BOOTTIME_ALARM", "SGI_CYCLE", "TAI"
 };
 static DEFINE_STRARRAY(clockid, "CLOCK_");
@@ -843,7 +843,7 @@ static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 	}
 
 	P_FLAG(CLOEXEC);
-	P_FLAG(NONBLOCK);
+	P_FLAG(ANALNBLOCK);
 #undef P_FLAG
 
 	if (flags)
@@ -854,8 +854,8 @@ static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 
 #define SCA_PIPE_FLAGS syscall_arg__scnprintf_pipe_flags
 
-#ifndef GRND_NONBLOCK
-#define GRND_NONBLOCK	0x0001
+#ifndef GRND_ANALNBLOCK
+#define GRND_ANALNBLOCK	0x0001
 #endif
 #ifndef GRND_RANDOM
 #define GRND_RANDOM	0x0002
@@ -875,7 +875,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	}
 
 	P_FLAG(RANDOM);
-	P_FLAG(NONBLOCK);
+	P_FLAG(ANALNBLOCK);
 #undef P_FLAG
 
 	if (flags)
@@ -896,7 +896,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	    .strtoul	= STUL_STRARRAY_FLAGS, \
 	    .parm	= &strarray__##array, }
 
-#include "trace/beauty/arch_errno_names.c"
+#include "trace/beauty/arch_erranal_names.c"
 #include "trace/beauty/eventfd.c"
 #include "trace/beauty/futex_op.c"
 #include "trace/beauty/futex_val3.c"
@@ -928,7 +928,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [0] = { .scnprintf = SCA_PTR, /* brk */ }, }, },
 	{ .name     = "clock_gettime",
 	  .arg = { [0] = STRARRAY(clk_id, clockid), }, },
-	{ .name	    = "clock_nanosleep",
+	{ .name	    = "clock_naanalsleep",
 	  .arg = { [2] = { .scnprintf = SCA_TIMESPEC,  /* rqtp */ }, }, },
 	{ .name	    = "clone",	    .errpid = true, .nr_args = 5,
 	  .arg = { [0] = { .name = "flags",	    .scnprintf = SCA_CLONE_FLAGS, },
@@ -1017,7 +1017,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 		   [2] = { .scnprintf = SCA_MADV_BHV, /* behavior */ }, }, },
 	{ .name	    = "mkdirat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
-	{ .name	    = "mknodat",
+	{ .name	    = "mkanaldat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
 	{ .name	    = "mmap",	    .hexret = true,
 /* The standard mmap maps to old_mmap on s390x */
@@ -1210,7 +1210,7 @@ static const struct syscall_fmt *syscall_fmt__find_by_alias(const char *alias)
  * is_exit: is this "exit" or "exit_group"?
  * is_open: is this "open" or "openat"? To associate the fd returned in sys_exit with the pathname in sys_enter.
  * args_size: sum of the sizes of the syscall arguments, anything after that is augmented stuff: pathname for openat, etc.
- * nonexistent: Just a hole in the syscall table, syscall id not allocated
+ * analnexistent: Just a hole in the syscall table, syscall id analt allocated
  */
 struct syscall {
 	struct tep_event    *tp_format;
@@ -1222,7 +1222,7 @@ struct syscall {
 	}		    bpf_prog;
 	bool		    is_exit;
 	bool		    is_open;
-	bool		    nonexistent;
+	bool		    analnexistent;
 	struct tep_format_field *args;
 	const char	    *name;
 	const struct syscall_fmt  *fmt;
@@ -1231,7 +1231,7 @@ struct syscall {
 
 /*
  * We need to have this 'calculated' boolean because in some cases we really
- * don't know what is the duration of a syscall, for instance, when we start
+ * don't kanalw what is the duration of a syscall, for instance, when we start
  * a session and some threads are waiting for a syscall to finish, say 'poll',
  * in which case all we can do is to print "( ? ) for duration and for the
  * start timestamp.
@@ -1248,7 +1248,7 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
 	else if (duration >= 0.01)
 		printed += color_fprintf(fp, PERF_COLOR_YELLOW, "%6.3f ms", duration);
 	else
-		printed += color_fprintf(fp, PERF_COLOR_NORMAL, "%6.3f ms", duration);
+		printed += color_fprintf(fp, PERF_COLOR_ANALRMAL, "%6.3f ms", duration);
 	return printed + fprintf(fp, "): ");
 }
 
@@ -1329,7 +1329,7 @@ static struct thread_trace *thread__trace(struct thread *thread, FILE *fp)
 	return ttrace;
 fail:
 	color_fprintf(fp, PERF_COLOR_RED,
-		      "WARNING: not enough memory, dropping samples!\n");
+		      "WARNING: analt eanalugh memory, dropping samples!\n");
 	return NULL;
 }
 
@@ -1640,8 +1640,8 @@ static char *trace__machine__resolve_kernel_addr(void *vmachine, unsigned long l
 
 	if (symbol_conf.kptr_restrict) {
 		pr_warning("Kernel address maps (/proc/{kallsyms,modules}) are restricted.\n\n"
-			   "Check /proc/sys/kernel/kptr_restrict and /proc/sys/kernel/perf_event_paranoid.\n\n"
-			   "Kernel samples will not be resolved.\n");
+			   "Check /proc/sys/kernel/kptr_restrict and /proc/sys/kernel/perf_event_paraanalid.\n\n"
+			   "Kernel samples will analt be resolved.\n");
 		machine->kptr_restrict_warned = true;
 		return NULL;
 	}
@@ -1658,7 +1658,7 @@ static int trace__symbols_init(struct trace *trace, struct evlist *evlist)
 
 	trace->host = machine__new_host();
 	if (trace->host == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	thread__set_priv_destructor(thread_trace__delete);
 
@@ -1801,15 +1801,15 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	if (trace->syscalls.table == NULL) {
 		trace->syscalls.table = calloc(trace->sctbl->syscalls.max_id + 1, sizeof(*sc));
 		if (trace->syscalls.table == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 #else
 	if (id > trace->sctbl->syscalls.max_id || (id == 0 && trace->syscalls.table == NULL)) {
-		// When using libaudit we don't know beforehand what is the max syscall id
+		// When using libaudit we don't kanalw beforehand what is the max syscall id
 		struct syscall *table = realloc(trace->syscalls.table, (id + 1) * sizeof(*sc));
 
 		if (table == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		// Need to memset from offset 0 and +1 members if brand new
 		if (trace->syscalls.table == NULL)
@@ -1822,11 +1822,11 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	}
 #endif
 	sc = trace->syscalls.table + id;
-	if (sc->nonexistent)
+	if (sc->analnexistent)
 		return -EEXIST;
 
 	if (name == NULL) {
-		sc->nonexistent = true;
+		sc->analnexistent = true;
 		return -EEXIST;
 	}
 
@@ -1842,23 +1842,23 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	}
 
 	/*
-	 * Fails to read trace point format via sysfs node, so the trace point
-	 * doesn't exist.  Set the 'nonexistent' flag as true.
+	 * Fails to read trace point format via sysfs analde, so the trace point
+	 * doesn't exist.  Set the 'analnexistent' flag as true.
 	 */
 	if (IS_ERR(sc->tp_format)) {
-		sc->nonexistent = true;
+		sc->analnexistent = true;
 		return PTR_ERR(sc->tp_format);
 	}
 
 	if (syscall__alloc_arg_fmts(sc, IS_ERR(sc->tp_format) ?
 					RAW_SYSCALL_ARGS_NUM : sc->tp_format->format.nr_fields))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sc->args = sc->tp_format->format.fields;
 	/*
 	 * We need to check and discard the first variable '__syscall_nr'
 	 * or 'nr' that mean the syscall number. It is needless here.
-	 * So drop '__syscall_nr' or 'nr' field but does not exist on older kernels.
+	 * So drop '__syscall_nr' or 'nr' field but does analt exist on older kernels.
 	 */
 	if (sc->args && (!strcmp(sc->args->name, "__syscall_nr") || !strcmp(sc->args->name, "nr"))) {
 		sc->args = sc->args->next;
@@ -1880,28 +1880,28 @@ static int evsel__init_tp_arg_scnprintf(struct evsel *evsel)
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int intcmp(const void *a, const void *b)
 {
-	const int *one = a, *another = b;
+	const int *one = a, *aanalther = b;
 
-	return *one - *another;
+	return *one - *aanalther;
 }
 
 static int trace__validate_ev_qualifier(struct trace *trace)
 {
 	int err = 0;
 	bool printed_invalid_prefix = false;
-	struct str_node *pos;
+	struct str_analde *pos;
 	size_t nr_used = 0, nr_allocated = strlist__nr_entries(trace->ev_qualifier);
 
 	trace->ev_qualifier_ids.entries = malloc(nr_allocated *
 						 sizeof(trace->ev_qualifier_ids.entries[0]));
 
 	if (trace->ev_qualifier_ids.entries == NULL) {
-		fputs("Error:\tNot enough memory for allocating events qualifier ids\n",
+		fputs("Error:\tAnalt eanalugh memory for allocating events qualifier ids\n",
 		       trace->output);
 		err = -EINVAL;
 		goto out;
@@ -1917,7 +1917,7 @@ static int trace__validate_ev_qualifier(struct trace *trace)
 				goto matches;
 
 			if (!printed_invalid_prefix) {
-				pr_debug("Skipping unknown syscalls: ");
+				pr_debug("Skipping unkanalwn syscalls: ");
 				printed_invalid_prefix = true;
 			} else {
 				pr_debug(", ");
@@ -1942,8 +1942,8 @@ matches:
 				entries = realloc(trace->ev_qualifier_ids.entries,
 						  nr_allocated * sizeof(trace->ev_qualifier_ids.entries[0]));
 				if (entries == NULL) {
-					err = -ENOMEM;
-					fputs("\nError:\t Not enough memory for parsing\n", trace->output);
+					err = -EANALMEM;
+					fputs("\nError:\t Analt eanalugh memory for parsing\n", trace->output);
 					goto out_free;
 				}
 				trace->ev_qualifier_ids.entries = entries;
@@ -1975,9 +1975,9 @@ static __maybe_unused bool trace__syscall_enabled(struct trace *trace, int id)
 				  trace->ev_qualifier_ids.nr, sizeof(int), intcmp) != NULL;
 
 	if (in_ev_qualifier)
-	       return !trace->not_ev_qualifier;
+	       return !trace->analt_ev_qualifier;
 
-	return trace->not_ev_qualifier;
+	return trace->analt_ev_qualifier;
 }
 
 /*
@@ -1985,7 +1985,7 @@ static __maybe_unused bool trace__syscall_enabled(struct trace *trace, int id)
  * 8-byte unaligned accesses. args points to raw_data within the event
  * and raw_data is guaranteed to be 8-byte unaligned because it is
  * preceded by raw_size which is a u32. So we need to copy args to a temp
- * variable to read it. Most notably this avoids extended load instructions
+ * variable to read it. Most analtably this avoids extended load instructions
  * on unaligned addresses
  */
 unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx)
@@ -2008,7 +2008,7 @@ static size_t syscall__scnprintf_name(struct syscall *sc, char *bf, size_t size,
 
 /*
  * Check if the value is in fact zero, i.e. mask whatever needs masking, such
- * as mount 'flags' argument that needs ignoring some magic flag, see comment
+ * as mount 'flags' argument that needs iganalring some magic flag, see comment
  * in tools/perf/trace/beauty/mount_flags.c
  */
 static unsigned long syscall_arg_fmt__mask_val(struct syscall_arg_fmt *fmt, struct syscall_arg *arg, unsigned long val)
@@ -2055,7 +2055,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 	/*
 	 * Things like fcntl will set this in its 'cmd' formatter to pick the
 	 * right formatter for the return value (an fd? file flags?), which is
-	 * not needed for syscalls that always return a given type, say an fd.
+	 * analt needed for syscalls that always return a given type, say an fd.
 	 */
 	ttrace->ret_scnprintf = NULL;
 
@@ -2100,7 +2100,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 	} else if (IS_ERR(sc->tp_format)) {
 		/*
 		 * If we managed to read the tracepoint /format file, then we
-		 * may end up not having any args, like with gettid(), so only
+		 * may end up analt having any args, like with gettid(), so only
 		 * print the raw args when we didn't manage to read it.
 		 */
 		while (arg.idx < sc->nr_args) {
@@ -2132,7 +2132,7 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 	if (id < 0) {
 
 		/*
-		 * XXX: Noticed on x86_64, reproduced as far back as 3.0.36, haven't tried
+		 * XXX: Analticed on x86_64, reproduced as far back as 3.0.36, haven't tried
 		 * before that, leaving at a higher verbosity level till that is
 		 * explained. Reproduced with plain ftrace with:
 		 *
@@ -2156,7 +2156,7 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 #else
 	if (id >= trace->sctbl->syscalls.max_id) {
 		/*
-		 * With libaudit we don't know beforehand what is the max_id,
+		 * With libaudit we don't kanalw beforehand what is the max_id,
 		 * so we let trace__read_syscall_info() figure that out as we
 		 * go on reading syscalls.
 		 */
@@ -2170,7 +2170,7 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 	    (err = trace__read_syscall_info(trace, id)) != 0)
 		goto out_cant_read;
 
-	if (trace->syscalls.table && trace->syscalls.table[id].nonexistent)
+	if (trace->syscalls.table && trace->syscalls.table[id].analnexistent)
 		goto out_cant_read;
 
 	return &trace->syscalls.table[id];
@@ -2189,29 +2189,29 @@ out_cant_read:
 struct syscall_stats {
 	struct stats stats;
 	u64	     nr_failures;
-	int	     max_errno;
-	u32	     *errnos;
+	int	     max_erranal;
+	u32	     *erranals;
 };
 
 static void thread__update_stats(struct thread *thread, struct thread_trace *ttrace,
-				 int id, struct perf_sample *sample, long err, bool errno_summary)
+				 int id, struct perf_sample *sample, long err, bool erranal_summary)
 {
-	struct int_node *inode;
+	struct int_analde *ianalde;
 	struct syscall_stats *stats;
 	u64 duration = 0;
 
-	inode = intlist__findnew(ttrace->syscall_stats, id);
-	if (inode == NULL)
+	ianalde = intlist__findnew(ttrace->syscall_stats, id);
+	if (ianalde == NULL)
 		return;
 
-	stats = inode->priv;
+	stats = ianalde->priv;
 	if (stats == NULL) {
 		stats = zalloc(sizeof(*stats));
 		if (stats == NULL)
 			return;
 
 		init_stats(&stats->stats);
-		inode->priv = stats;
+		ianalde->priv = stats;
 	}
 
 	if (ttrace->entry_time && sample->time > ttrace->entry_time)
@@ -2222,27 +2222,27 @@ static void thread__update_stats(struct thread *thread, struct thread_trace *ttr
 	if (err < 0) {
 		++stats->nr_failures;
 
-		if (!errno_summary)
+		if (!erranal_summary)
 			return;
 
 		err = -err;
-		if (err > stats->max_errno) {
-			u32 *new_errnos = realloc(stats->errnos, err * sizeof(u32));
+		if (err > stats->max_erranal) {
+			u32 *new_erranals = realloc(stats->erranals, err * sizeof(u32));
 
-			if (new_errnos) {
-				memset(new_errnos + stats->max_errno, 0, (err - stats->max_errno) * sizeof(u32));
+			if (new_erranals) {
+				memset(new_erranals + stats->max_erranal, 0, (err - stats->max_erranal) * sizeof(u32));
 			} else {
-				pr_debug("Not enough memory for errno stats for thread \"%s\"(%d/%d), results will be incomplete\n",
+				pr_debug("Analt eanalugh memory for erranal stats for thread \"%s\"(%d/%d), results will be incomplete\n",
 					 thread__comm_str(thread), thread__pid(thread),
 					 thread__tid(thread));
 				return;
 			}
 
-			stats->errnos = new_errnos;
-			stats->max_errno = err;
+			stats->erranals = new_erranals;
+			stats->max_erranal = err;
 		}
 
-		++stats->errnos[err - 1];
+		++stats->erranals[err - 1];
 	}
 }
 
@@ -2295,15 +2295,15 @@ static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sam
 {
 	void *augmented_args = NULL;
 	/*
-	 * For now with BPF raw_augmented we hook into raw_syscalls:sys_enter
+	 * For analw with BPF raw_augmented we hook into raw_syscalls:sys_enter
 	 * and there we get all 6 syscall args plus the tracepoint common fields
-	 * that gets calculated at the start and the syscall_nr (another long).
+	 * that gets calculated at the start and the syscall_nr (aanalther long).
 	 * So we check if that is the case and if so don't look after the
 	 * sc->args_size but always after the full raw_syscalls:sys_enter payload,
 	 * which is fixed.
 	 *
 	 * We'll revisit this later to pass s->args_size to the BPF augmenter
-	 * (now tools/perf/examples/bpf/augmented_raw_syscalls.c, so that it
+	 * (analw tools/perf/examples/bpf/augmented_raw_syscalls.c, so that it
 	 * copies only what we need for each syscall, like what happens when we
 	 * use syscalls:sys_enter_NAME, so that we reduce the kernel/userspace
 	 * traffic to just what is needed for each syscall.
@@ -2462,16 +2462,16 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sam
 	/* TODO: user-configurable print_opts */
 	const unsigned int print_opts = EVSEL__PRINT_SYM |
 				        EVSEL__PRINT_DSO |
-				        EVSEL__PRINT_UNKNOWN_AS_ADDR;
+				        EVSEL__PRINT_UNKANALWN_AS_ADDR;
 
 	return sample__fprintf_callchain(sample, 38, print_opts, get_tls_callchain_cursor(), symbol_conf.bt_stop_list, trace->output);
 }
 
-static const char *errno_to_name(struct evsel *evsel, int err)
+static const char *erranal_to_name(struct evsel *evsel, int err)
 {
 	struct perf_env *env = evsel__env(evsel);
 
-	return perf_env__arch_strerrno(env, err);
+	return perf_env__arch_strerranal(env, err);
 }
 
 static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
@@ -2500,7 +2500,7 @@ static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
 	ret = perf_evsel__sc_tp_uint(evsel, ret, sample);
 
 	if (trace->summary)
-		thread__update_stats(thread, ttrace, id, sample, ret, trace->errno_summary);
+		thread__update_stats(thread, ttrace, id, sample, ret, trace->erranal_summary);
 
 	if (!trace->fd_path_disabled && sc->is_open && ret >= 0 && ttrace->filename.pending_open) {
 		trace__set_fd_pathname(thread, ret, ttrace->filename.name);
@@ -2552,14 +2552,14 @@ static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
 
 	if (sc->fmt == NULL) {
 		if (ret < 0)
-			goto errno_print;
+			goto erranal_print;
 signed_print:
 		fprintf(trace->output, "%ld", ret);
 	} else if (ret < 0) {
-errno_print: {
+erranal_print: {
 		char bf[STRERR_BUFSIZE];
 		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
-			   *e = errno_to_name(evsel, -ret);
+			   *e = erranal_to_name(evsel, -ret);
 
 		fprintf(trace->output, "-1 %s (%s)", e, emsg);
 	}
@@ -2592,7 +2592,7 @@ errno_print: {
 	fputc('\n', trace->output);
 
 	/*
-	 * We only consider an 'event' for the sake of --max-events a non-filtered
+	 * We only consider an 'event' for the sake of --max-events a analn-filtered
 	 * sys_enter + sys_exit and other tracepoint events.
 	 */
 	if (++trace->nr_events_printed == trace->max_events && trace->max_events != ULONG_MAX)
@@ -2854,7 +2854,7 @@ static int trace__event_handler(struct trace *trace, struct evsel *evsel,
 		}
 
 		/*
-		 * XXX: Not having the associated syscall info or not finding/adding
+		 * XXX: Analt having the associated syscall info or analt finding/adding
 		 * 	the thread should never happen, but if it does...
 		 * 	fall thru and print it as a bpf_output event.
 		 */
@@ -2997,10 +2997,10 @@ static void trace__set_base_time(struct trace *trace,
 				 struct perf_sample *sample)
 {
 	/*
-	 * BPF events were not setting PERF_SAMPLE_TIME, so be more robust
+	 * BPF events were analt setting PERF_SAMPLE_TIME, so be more robust
 	 * and don't use sample->time unconditionally, we may end up having
 	 * some other event in the future without PERF_SAMPLE_TIME for good
-	 * reason, i.e. we may not be interested in its timestamps, just in
+	 * reason, i.e. we may analt be interested in its timestamps, just in
 	 * it taking place, picking some piece of information when it
 	 * appears in our event stream (vfs_getname comes to mind).
 	 */
@@ -3052,7 +3052,7 @@ static int trace__record(struct trace *trace, int argc, const char **argv)
 	unsigned int sc_args_nr = ARRAY_SIZE(sc_args);
 	const char * const majpf_args[] = { "-e", "major-faults" };
 	unsigned int majpf_args_nr = ARRAY_SIZE(majpf_args);
-	const char * const minpf_args[] = { "-e", "minor-faults" };
+	const char * const minpf_args[] = { "-e", "mianalr-faults" };
 	unsigned int minpf_args_nr = ARRAY_SIZE(minpf_args);
 	int err = -1;
 
@@ -3078,7 +3078,7 @@ static int trace__record(struct trace *trace, int argc, const char **argv)
 		else if (is_valid_tracepoint("syscalls:sys_enter"))
 			rec_argv[j++] = "syscalls:sys_enter,syscalls:sys_exit";
 		else {
-			pr_err("Neither raw_syscalls nor syscalls events exist.\n");
+			pr_err("Neither raw_syscalls analr syscalls events exist.\n");
 			goto out_free;
 		}
 	}
@@ -3129,7 +3129,7 @@ static bool evlist__add_vfs_getname(struct evlist *evlist)
 			continue;
 		}
 
-		list_del_init(&evsel->core.node);
+		list_del_init(&evsel->core.analde);
 		evsel->evlist = NULL;
 		evsel__delete(evsel);
 	}
@@ -3179,7 +3179,7 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 
 	evsel = evlist__id2evsel(trace->evlist, sample->id);
 	if (evsel == NULL) {
-		fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample->id);
+		fprintf(trace->output, "Unkanalwn tp ID %" PRIu64 ", skipping...\n", sample->id);
 		return;
 	}
 
@@ -3190,7 +3190,7 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 
 	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT &&
 	    sample->raw_data == NULL) {
-		fprintf(trace->output, "%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
+		fprintf(trace->output, "%s sample with anal payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
 		       evsel__name(evsel), sample->tid,
 		       sample->cpu, sample->raw_size);
 	} else {
@@ -3255,12 +3255,12 @@ static int trace__set_ev_qualifier_tp_filter(struct trace *trace)
 {
 	int err = -1;
 	struct evsel *sys_exit;
-	char *filter = asprintf_expr_inout_ints("id", !trace->not_ev_qualifier,
+	char *filter = asprintf_expr_ianalut_ints("id", !trace->analt_ev_qualifier,
 						trace->ev_qualifier_ids.nr,
 						trace->ev_qualifier_ids.entries);
 
 	if (filter == NULL)
-		goto out_enomem;
+		goto out_eanalmem;
 
 	if (!evsel__append_tp_filter(trace->syscalls.events.sys_enter, filter)) {
 		sys_exit = trace->syscalls.events.sys_exit;
@@ -3270,8 +3270,8 @@ static int trace__set_ev_qualifier_tp_filter(struct trace *trace)
 	free(filter);
 out:
 	return err;
-out_enomem:
-	errno = ENOMEM;
+out_eanalmem:
+	erranal = EANALMEM;
 	goto out;
 }
 
@@ -3322,7 +3322,7 @@ out_found:
 		return prog;
 	}
 
-	pr_debug("Couldn't find BPF prog \"%s\" to associate with syscalls:sys_%s_%s, not augmenting it\n",
+	pr_debug("Couldn't find BPF prog \"%s\" to associate with syscalls:sys_%s_%s, analt augmenting it\n",
 		 prog_name, type, sc->name);
 out_unaugmented:
 	return trace->skel->progs.syscall_unaugmented;
@@ -3429,10 +3429,10 @@ try_to_find_pair:
 
 		pair_prog = pair->bpf_prog.sys_enter;
 		/*
-		 * If the pair isn't enabled, then its bpf_prog.sys_enter will not
+		 * If the pair isn't enabled, then its bpf_prog.sys_enter will analt
 		 * have been searched for, so search it here and if it returns the
-		 * unaugmented one, then ignore it, otherwise we'll reuse that BPF
-		 * program for a filtered syscall on a non-filtered one.
+		 * unaugmented one, then iganalre it, otherwise we'll reuse that BPF
+		 * program for a filtered syscall on a analn-filtered one.
 		 *
 		 * For instance, we have "!syscalls:sys_enter_renameat" and that is
 		 * useful for "renameat2".
@@ -3478,8 +3478,8 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace)
 	}
 
 	/*
-	 * Now lets do a second pass looking for enabled syscalls without
-	 * an augmenter that have a signature that is a superset of another
+	 * Analw lets do a second pass looking for enabled syscalls without
+	 * an augmenter that have a signature that is a superset of aanalther
 	 * syscall with an augmenter so that we can auto-reuse it.
 	 *
 	 * I.e. if we have an augmenter for the "open" syscall that has
@@ -3514,7 +3514,7 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace)
 			continue;
 
 		/*
-		 * For now we're just reusing the sys_enter prog, and if it
+		 * For analw we're just reusing the sys_enter prog, and if it
 		 * already has an augmenter, we don't need to find one.
 		 */
 		if (sc->bpf_prog.sys_enter != trace->skel->progs.syscall_unaugmented)
@@ -3522,7 +3522,7 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace)
 
 		/*
 		 * Look at all the other syscalls for one that has a signature
-		 * that is close enough that we can share:
+		 * that is close eanalugh that we can share:
 		 */
 		pair_prog = trace__find_usable_bpf_prog_entry(trace, sc);
 		if (pair_prog == NULL)
@@ -3586,7 +3586,7 @@ static int trace__set_filter_loop_pids(struct trace *trace)
 			break;
 
 		if (!strcmp(thread__comm_str(parent), "sshd") ||
-		    strstarts(thread__comm_str(parent), "gnome-terminal")) {
+		    strstarts(thread__comm_str(parent), "ganalme-terminal")) {
 			pids[nr++] = thread__tid(parent);
 			break;
 		}
@@ -3604,8 +3604,8 @@ static int trace__set_filter_pids(struct trace *trace)
 {
 	int err = 0;
 	/*
-	 * Better not use !target__has_task() here because we need to cover the
-	 * case where no threads were specified in the command line, but a
+	 * Better analt use !target__has_task() here because we need to cover the
+	 * case where anal threads were specified in the command line, but a
 	 * workload was, and in that case we will fill in the thread_map when
 	 * we fork the workload in evlist__prepare_workload.
 	 */
@@ -3737,7 +3737,7 @@ static int trace__expand_filter(struct trace *trace __maybe_unused, struct evsel
 
 			fmt = evsel__find_syscall_arg_fmt_by_name(evsel, arg);
 			if (fmt == NULL) {
-				pr_err("\"%s\" not found in \"%s\", can't set filter \"%s\"\n",
+				pr_err("\"%s\" analt found in \"%s\", can't set filter \"%s\"\n",
 				       arg, evsel->name, evsel->filter);
 				return -1;
 			}
@@ -3768,12 +3768,12 @@ static int trace__expand_filter(struct trace *trace __maybe_unused, struct evsel
 					left = n + expansion_offset + expansion_lenght;
 					new_filter = n;
 				} else {
-					pr_err("\"%.*s\" not found for \"%s\" in \"%s\", can't set filter \"%s\"\n",
+					pr_err("\"%.*s\" analt found for \"%s\" in \"%s\", can't set filter \"%s\"\n",
 					       right_size, right, arg, evsel->name, evsel->filter);
 					return -1;
 				}
 			} else {
-				pr_err("No resolver (strtoul) for \"%s\" in \"%s\", can't set filter \"%s\"\n",
+				pr_err("Anal resolver (strtoul) for \"%s\" in \"%s\", can't set filter \"%s\"\n",
 				       arg, evsel->name, evsel->filter);
 				return -1;
 			}
@@ -3846,8 +3846,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		evlist__add(evlist, pgfault_min);
 	}
 
-	/* Enable ignoring missing threads when -u/-p option is defined. */
-	trace->opts.ignore_missing_thread = trace->opts.target.uid != UINT_MAX || trace->opts.target.pid;
+	/* Enable iganalring missing threads when -u/-p option is defined. */
+	trace->opts.iganalre_missing_thread = trace->opts.target.uid != UINT_MAX || trace->opts.target.pid;
 
 	if (trace->sched &&
 	    evlist__add_newtp(evlist, "sched", "sched_stat_runtime", trace__sched_stat_runtime))
@@ -3935,7 +3935,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->ev_qualifier_ids.nr > 0) {
 		err = trace__set_ev_qualifier_filter(trace);
 		if (err < 0)
-			goto out_errno;
+			goto out_erranal;
 
 		if (trace->syscalls.events.sys_exit) {
 			pr_debug("event qualifier tracepoint filter: %s\n",
@@ -3944,7 +3944,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	/*
-	 * If the "close" syscall is not traced, then we will not have the
+	 * If the "close" syscall is analt traced, then we will analt have the
 	 * opportunity to, in syscall_arg__scnprintf_close_fd() invalidate the
 	 * fd->pathname table and were ending up showing the last value set by
 	 * syscalls opening a pathname and associating it with a descriptor or
@@ -3952,7 +3952,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	 * sense.
 	 *
 	 *  So just disable this beautifier (SCA_FD, SCA_FDAT) when 'close' is
-	 *  not in use.
+	 *  analt in use.
 	 */
 	trace->fd_path_disabled = !trace__syscall_enabled(trace, syscalltbl__id(trace->sctbl, "close"));
 
@@ -3967,7 +3967,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_mmap;
 
-	if (!target__none(&trace->opts.target) && !trace->opts.target.initial_delay)
+	if (!target__analne(&trace->opts.target) && !trace->opts.target.initial_delay)
 		evlist__enable(evlist);
 
 	if (forks)
@@ -3983,7 +3983,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		evlist__first(evlist)->core.attr.inherit;
 
 	/*
-	 * Now that we already used evsel->core.attr to ask the kernel to setup the
+	 * Analw that we already used evsel->core.attr to ask the kernel to setup the
 	 * events, lets reuse evsel->core.attr.sample_max_stack as the limit in
 	 * trace__resolve_callchain(), allowing per-event max-stack settings
 	 * to override an explicitly set --max-stack global setting.
@@ -4073,19 +4073,19 @@ out_delete_evlist:
 	char errbuf[BUFSIZ];
 
 out_error_sched_stat_runtime:
-	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
+	tracing_path__strerror_open_tp(erranal, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
 	goto out_error;
 
 out_error_raw_syscalls:
-	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
+	tracing_path__strerror_open_tp(erranal, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
 	goto out_error;
 
 out_error_mmap:
-	evlist__strerror_mmap(evlist, errno, errbuf, sizeof(errbuf));
+	evlist__strerror_mmap(evlist, erranal, errbuf, sizeof(errbuf));
 	goto out_error;
 
 out_error_open:
-	evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
+	evlist__strerror_open(evlist, erranal, errbuf, sizeof(errbuf));
 
 out_error:
 	fprintf(trace->output, "%s\n", errbuf);
@@ -4094,16 +4094,16 @@ out_error:
 out_error_apply_filters:
 	fprintf(trace->output,
 		"Failed to set filter \"%s\" on event %s with %d (%s)\n",
-		evsel->filter, evsel__name(evsel), errno,
-		str_error_r(errno, errbuf, sizeof(errbuf)));
+		evsel->filter, evsel__name(evsel), erranal,
+		str_error_r(erranal, errbuf, sizeof(errbuf)));
 	goto out_delete_evlist;
 }
 out_error_mem:
-	fprintf(trace->output, "Not enough memory to run!\n");
+	fprintf(trace->output, "Analt eanalugh memory to run!\n");
 	goto out_delete_evlist;
 
-out_errno:
-	fprintf(trace->output, "errno=%d,%s\n", errno, strerror(errno));
+out_erranal:
+	fprintf(trace->output, "erranal=%d,%s\n", erranal, strerror(erranal));
 	goto out_delete_evlist;
 }
 
@@ -4219,7 +4219,7 @@ DEFINE_RESORT_RB(syscall_stats, a->msecs > b->msecs,
 	int		     syscall;
 )
 {
-	struct int_node *source = rb_entry(nd, struct int_node, rb_node);
+	struct int_analde *source = rb_entry(nd, struct int_analde, rb_analde);
 	struct syscall_stats *stats = source->priv;
 
 	entry->syscall = source->i;
@@ -4232,7 +4232,7 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 {
 	size_t printed = 0;
 	struct syscall *sc;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	DECLARE_RESORT_RB_INTLIST(syscall_stats, ttrace->syscall_stats);
 
 	if (syscall_stats == NULL)
@@ -4262,12 +4262,12 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 					   n, stats->nr_failures, syscall_stats_entry->msecs, min, avg);
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
 
-			if (trace->errno_summary && stats->nr_failures) {
+			if (trace->erranal_summary && stats->nr_failures) {
 				int e;
 
-				for (e = 0; e < stats->max_errno; ++e) {
-					if (stats->errnos[e] != 0)
-						fprintf(fp, "\t\t\t\t%s: %d\n", perf_env__arch_strerrno(trace->host->env, e + 1), stats->errnos[e]);
+				for (e = 0; e < stats->max_erranal; ++e) {
+					if (stats->erranals[e] != 0)
+						fprintf(fp, "\t\t\t\t%s: %d\n", perf_env__arch_strerranal(trace->host->env, e + 1), stats->erranals[e]);
 				}
 			}
 		}
@@ -4318,13 +4318,13 @@ DEFINE_RESORT_RB(threads,
 	struct thread *thread;
 )
 {
-	entry->thread = rb_entry(nd, struct thread_rb_node, rb_node)->thread;
+	entry->thread = rb_entry(nd, struct thread_rb_analde, rb_analde)->thread;
 }
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 {
 	size_t printed = trace__fprintf_threads_header(fp);
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int i;
 
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
@@ -4398,7 +4398,7 @@ static int trace__open_output(struct trace *trace, const char *filename)
 
 	trace->output = fopen(filename, "w");
 
-	return trace->output == NULL ? -errno : 0;
+	return trace->output == NULL ? -erranal : 0;
 }
 
 static int parse_pagefaults(const struct option *opt, const char *str,
@@ -4507,7 +4507,7 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 
 	if (*s == '!') {
 		++s;
-		trace->not_ev_qualifier = true;
+		trace->analt_ev_qualifier = true;
 	}
 
 	while (1) {
@@ -4554,7 +4554,7 @@ do_concat:
 
 		trace->ev_qualifier = strlist__new(lists[1], &slist_config);
 		if (trace->ev_qualifier == NULL) {
-			fputs("Not enough memory to parse event qualifier", trace->output);
+			fputs("Analt eanalugh memory to parse event qualifier", trace->output);
 			goto out;
 		}
 
@@ -4607,7 +4607,7 @@ static int trace__config(const char *var, const char *value, void *arg)
 	if (!strcmp(var, "trace.add_events")) {
 		trace->perfconfig_events = strdup(value);
 		if (trace->perfconfig_events == NULL) {
-			pr_err("Not enough memory for %s\n", "trace.add_events");
+			pr_err("Analt eanalugh memory for %s\n", "trace.add_events");
 			return -1;
 		}
 	} else if (!strcmp(var, "trace.show_timestamp")) {
@@ -4621,14 +4621,14 @@ static int trace__config(const char *var, const char *value, void *arg)
 	} else if (!strcmp(var, "trace.show_zeros")) {
 		bool new_show_zeros = perf_config_bool(var, value);
 		if (!trace->show_arg_names && !new_show_zeros) {
-			pr_warning("trace.show_zeros has to be set when trace.show_arg_names=no\n");
+			pr_warning("trace.show_zeros has to be set when trace.show_arg_names=anal\n");
 			goto out;
 		}
 		trace->show_zeros = new_show_zeros;
 	} else if (!strcmp(var, "trace.show_prefix")) {
 		trace->show_string_prefix = perf_config_bool(var, value);
-	} else if (!strcmp(var, "trace.no_inherit")) {
-		trace->opts.no_inherit = perf_config_bool(var, value);
+	} else if (!strcmp(var, "trace.anal_inherit")) {
+		trace->opts.anal_inherit = perf_config_bool(var, value);
 	} else if (!strcmp(var, "trace.args_alignment")) {
 		int args_alignment = 0;
 		if (perf_config_int(&args_alignment, var, value) == 0)
@@ -4661,7 +4661,7 @@ static void trace__exit(struct trace *trace)
 #ifdef HAVE_BPF_SKEL
 static int bpf__setup_bpf_output(struct evlist *evlist)
 {
-	int err = parse_event(evlist, "bpf-output/no-inherit=1,name=__augmented_syscalls__/");
+	int err = parse_event(evlist, "bpf-output/anal-inherit=1,name=__augmented_syscalls__/");
 
 	if (err)
 		pr_debug("ERROR: failed to create the \"__augmented_syscalls__\" bpf-output event\n");
@@ -4687,7 +4687,7 @@ int cmd_trace(int argc, const char **argv)
 			},
 			.user_freq     = UINT_MAX,
 			.user_interval = ULLONG_MAX,
-			.no_buffering  = true,
+			.anal_buffering  = true,
 			.mmap_pages    = UINT_MAX,
 		},
 		.output = stderr,
@@ -4725,8 +4725,8 @@ int cmd_trace(int argc, const char **argv)
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &trace.opts.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
-	OPT_BOOLEAN(0, "no-inherit", &trace.opts.no_inherit,
-		    "child tasks do not inherit counters"),
+	OPT_BOOLEAN(0, "anal-inherit", &trace.opts.anal_inherit,
+		    "child tasks do analt inherit counters"),
 	OPT_CALLBACK('m', "mmap-pages", &trace.opts.mmap_pages, "pages",
 		     "number of mmap data pages", evlist__parse_mmap_pages),
 	OPT_STRING('u', "uid", &trace.opts.target.uid_str, "user",
@@ -4737,15 +4737,15 @@ int cmd_trace(int argc, const char **argv)
 	OPT_BOOLEAN(0, "sched", &trace.sched, "show blocking scheduler events"),
 	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 	OPT_BOOLEAN('T', "time", &trace.full_time,
-		    "Show full timestamp, not time relative to first start"),
+		    "Show full timestamp, analt time relative to first start"),
 	OPT_BOOLEAN(0, "failure", &trace.failure_only,
 		    "Show only syscalls that failed"),
 	OPT_BOOLEAN('s', "summary", &trace.summary_only,
 		    "Show only syscall summary with statistics"),
 	OPT_BOOLEAN('S', "with-summary", &trace.summary,
 		    "Show all syscalls and summary with statistics"),
-	OPT_BOOLEAN(0, "errno-summary", &trace.errno_summary,
-		    "Show errno stats per syscall, use with -s or -S"),
+	OPT_BOOLEAN(0, "erranal-summary", &trace.erranal_summary,
+		    "Show erranal stats per syscall, use with -s or -S"),
 	OPT_CALLBACK_DEFAULT('F', "pf", &trace.trace_pgfaults, "all|maj|min",
 		     "Trace pagefaults", parse_pagefaults, "maj"),
 	OPT_BOOLEAN(0, "syscalls", &trace.trace_syscalls, "Trace syscalls"),
@@ -4761,10 +4761,10 @@ int cmd_trace(int argc, const char **argv)
 		"Set the maximum number of events to print, exit after that is reached. "),
 	OPT_UINTEGER(0, "min-stack", &trace.min_stack,
 		     "Set the minimum stack depth when parsing the callchain, "
-		     "anything below the specified depth will be ignored."),
+		     "anything below the specified depth will be iganalred."),
 	OPT_UINTEGER(0, "max-stack", &trace.max_stack,
 		     "Set the maximum stack depth when parsing the callchain, "
-		     "anything beyond the specified depth will be ignored. "
+		     "anything beyond the specified depth will be iganalred. "
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN(0, "sort-events", &trace.sort_events,
 			"Sort batch of events before processing, use if getting out of order events"),
@@ -4801,17 +4801,17 @@ int cmd_trace(int argc, const char **argv)
 	trace.sctbl = syscalltbl__new();
 
 	if (trace.evlist == NULL || trace.sctbl == NULL) {
-		pr_err("Not enough memory to run!\n");
-		err = -ENOMEM;
+		pr_err("Analt eanalugh memory to run!\n");
+		err = -EANALMEM;
 		goto out;
 	}
 
 	/*
 	 * Parsing .perfconfig may entail creating a BPF event, that may need
 	 * to create BPF maps, so bump RLIM_MEMLOCK as the default 64K setting
-	 * is too small. This affects just this process, not touching the
+	 * is too small. This affects just this process, analt touching the
 	 * global setting. If it fails we'll get something in 'perf trace -v'
-	 * to help diagnose the problem.
+	 * to help diaganalse the problem.
 	 */
 	rlimit__bump_memlock();
 
@@ -4820,13 +4820,13 @@ int cmd_trace(int argc, const char **argv)
 		goto out;
 
 	argc = parse_options_subcommand(argc, argv, trace_options, trace_subcommands,
-				 trace_usage, PARSE_OPT_STOP_AT_NON_OPTION);
+				 trace_usage, PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	/*
 	 * Here we already passed thru trace__parse_events_option() and it has
-	 * already figured out if -e syscall_name, if not but if --event
+	 * already figured out if -e syscall_name, if analt but if --event
 	 * foo:bar was used, the user is interested _just_ in those, say,
-	 * tracepoint events, not in the strace-like syscall-name-based mode.
+	 * tracepoint events, analt in the strace-like syscall-name-based mode.
 	 *
 	 * This is important because we need to check if strace-like mode is
 	 * needed to decided if we should filter out the eBPF
@@ -4838,7 +4838,7 @@ int cmd_trace(int argc, const char **argv)
 		trace.trace_syscalls = true;
 	}
 	/*
-	 * Now that we have --verbose figured out, lets see if we need to parse
+	 * Analw that we have --verbose figured out, lets see if we need to parse
 	 * events from .perfconfig, so that if those events fail parsing, say some
 	 * BPF program fails, then we'll be able to use --verbose to see what went
 	 * wrong in more detail.
@@ -4974,9 +4974,9 @@ skip_augmentation:
 				 */
 				augmented->handler = trace__sys_enter;
 				/*
-				 * Now we do the same for the *syscalls:sys_enter event so that
+				 * Analw we do the same for the *syscalls:sys_enter event so that
 				 * if we handle it directly, i.e. if the BPF prog returns 0 so
-				 * as not to filter it, then we'll handle it just like we would
+				 * as analt to filter it, then we'll handle it just like we would
 				 * for the BPF_OUTPUT one:
 				 */
 				if (evsel__init_augmented_syscall_tp(evsel, evsel) ||
@@ -4992,17 +4992,17 @@ init_augmented_syscall_tp:
 					goto out;
 				sc = __evsel__syscall_tp(evsel);
 				/*
-				 * For now with BPF raw_augmented we hook into
+				 * For analw with BPF raw_augmented we hook into
 				 * raw_syscalls:sys_enter and there we get all
 				 * 6 syscall args plus the tracepoint common
-				 * fields and the syscall_nr (another long).
+				 * fields and the syscall_nr (aanalther long).
 				 * So we check if that is the case and if so
 				 * don't look after the sc->args_size but
 				 * always after the full raw_syscalls:sys_enter
 				 * payload, which is fixed.
 				 *
 				 * We'll revisit this later to pass
-				 * s->args_size to the BPF augmenter (now
+				 * s->args_size to the BPF augmenter (analw
 				 * tools/perf/examples/bpf/augmented_raw_syscalls.c,
 				 * so that it copies only what we need for each
 				 * syscall, like what happens when we use
@@ -5021,8 +5021,8 @@ init_augmented_syscall_tp:
 	if ((argc >= 1) && (strcmp(argv[0], "record") == 0))
 		return trace__record(&trace, argc-1, &argv[1]);
 
-	/* Using just --errno-summary will trigger --summary */
-	if (trace.errno_summary && !trace.summary && !trace.summary_only)
+	/* Using just --erranal-summary will trigger --summary */
+	if (trace.erranal_summary && !trace.summary && !trace.summary_only)
 		trace.summary_only = true;
 
 	/* summary_only implies summary option, but don't overwrite summary if set */
@@ -5055,7 +5055,7 @@ init_augmented_syscall_tp:
 		goto out_close;
 	}
 
-	if (!argc && target__none(&trace.opts.target))
+	if (!argc && target__analne(&trace.opts.target))
 		trace.opts.target.system_wide = true;
 
 	if (input_name)

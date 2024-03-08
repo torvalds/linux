@@ -71,7 +71,7 @@
 /* Something interesting happened
    IN[0] - A value to log
    IN[1] - An offset of a string in the MiniMe memory;
-	   0/zero/NULL means "I have nothing to say" */
+	   0/zero/NULL means "I have analthing to say" */
 #define CX18_EPU_DEBUG				(EPU_CMD_MASK_DEBUG | 0x0003)
 
 /* Reads memory/registers (32-bit)
@@ -100,7 +100,7 @@
    ReturnCode - One of the ERR_CAPTURE_... */
 #define CX18_CPU_CAPTURE_RESUME			(CPU_CMD_MASK_CAPTURE | 0x0008)
 
-#define CAPTURE_CHANNEL_TYPE_NONE		0
+#define CAPTURE_CHANNEL_TYPE_ANALNE		0
 #define CAPTURE_CHANNEL_TYPE_MPEG		1
 #define CAPTURE_CHANNEL_TYPE_INDEX		2
 #define CAPTURE_CHANNEL_TYPE_YUV		3
@@ -162,7 +162,7 @@
 /* Description: This command set spatial filter type
    IN[0] - Task handle.
    IN[1] - luma type: 0 = disable, 1 = 1D horizontal only, 2 = 1D vertical only,
-		      3 = 2D H/V separable, 4 = 2D symmetric non-separable
+		      3 = 2D H/V separable, 4 = 2D symmetric analn-separable
    IN[2] - chroma type: 0 - disable, 1 = 1D horizontal
    ReturnCode - One of the ERR_CAPTURE_... */
 #define CX18_CPU_SET_SPATIAL_FILTER_TYPE	(CPU_CMD_MASK_CAPTURE | 0x000C)
@@ -177,7 +177,7 @@
 #define CX18_CPU_SET_MEDIAN_CORING		(CPU_CMD_MASK_CAPTURE | 0x000E)
 
 /* Description: This command set the picture type mask for index file
-   IN[0] - Task handle (ignored by firmware)
+   IN[0] - Task handle (iganalred by firmware)
    IN[1] -	0 = disable index file output
 			1 = output I picture
 			2 = P picture
@@ -224,22 +224,22 @@
 
 /* Description: Set raw VBI parameters
    IN[0] - Task handle
-   IN[1] - No. of input lines per field:
+   IN[1] - Anal. of input lines per field:
 				bit[15:0]: field 1,
 				bit[31:16]: field 2
-   IN[2] - No. of input bytes per line
-   IN[3] - No. of output frames per transfer
+   IN[2] - Anal. of input bytes per line
+   IN[3] - Anal. of output frames per transfer
    IN[4] - start code
    IN[5] - stop code
    ReturnCode */
 #define CX18_CPU_SET_RAW_VBI_PARAM		(CPU_CMD_MASK_CAPTURE | 0x0016)
 
-/* Description: Set capture line No.
+/* Description: Set capture line Anal.
    IN[0] - task handle. Handle of the task to start
    IN[1] - height1
    IN[2] - height2
    ReturnCode - One of the ERR_CAPTURE_... */
-#define CX18_CPU_SET_CAPTURE_LINE_NO		(CPU_CMD_MASK_CAPTURE | 0x0017)
+#define CX18_CPU_SET_CAPTURE_LINE_ANAL		(CPU_CMD_MASK_CAPTURE | 0x0017)
 
 /* Description: Set copyright
    IN[0] - task handle. Handle of the task to start
@@ -291,7 +291,7 @@
 #define CX18_CPU_SET_SKIP_INPUT_FRAME		(CPU_CMD_MASK_CAPTURE | 0x001F)
 
 /* Description: Set sliced VBI parameters -
-   Note This API will only apply to MPEG and Sliced VBI Channels
+   Analte This API will only apply to MPEG and Sliced VBI Channels
    IN[0] - Task handle
    IN[1] - output type, 0 - CC, 1 - Moji, 2 - Teletext
    IN[2] - start / stop line
@@ -376,10 +376,10 @@
    ReturnCode - One of the ERR_DE_... */
 /* #define CX18_CPU_DE_RELEASE_BUFFER           (CPU_CMD_MASK_DE | 0x0007) */
 
-/* No Error / Success */
+/* Anal Error / Success */
 #define CNXT_OK                 0x000000
 
-/* Received unknown command */
+/* Received unkanalwn command */
 #define CXERR_UNK_CMD           0x000001
 
 /* First parameter in the command is invalid */
@@ -388,26 +388,26 @@
 /* Second parameter in the command is invalid */
 #define CXERR_INVALID_PARAM2    0x000003
 
-/* Device interface is not open/found */
-#define CXERR_DEV_NOT_FOUND     0x000004
+/* Device interface is analt open/found */
+#define CXERR_DEV_ANALT_FOUND     0x000004
 
-/* Requested function is not implemented/available */
-#define CXERR_NOTSUPPORTED      0x000005
+/* Requested function is analt implemented/available */
+#define CXERR_ANALTSUPPORTED      0x000005
 
 /* Invalid pointer is provided */
 #define CXERR_BADPTR            0x000006
 
 /* Unable to allocate memory */
-#define CXERR_NOMEM             0x000007
+#define CXERR_ANALMEM             0x000007
 
-/* Object/Link not found */
+/* Object/Link analt found */
 #define CXERR_LINK              0x000008
 
-/* Device busy, command cannot be executed */
+/* Device busy, command cananalt be executed */
 #define CXERR_BUSY              0x000009
 
-/* File/device/handle is not open. */
-#define CXERR_NOT_OPEN          0x00000A
+/* File/device/handle is analt open. */
+#define CXERR_ANALT_OPEN          0x00000A
 
 /* Value is out of range */
 #define CXERR_OUTOFRANGE        0x00000B
@@ -424,14 +424,14 @@
 /* Operation aborted */
 #define CXERR_ABORT             0x00000F
 
-/* Specified I2C device not found for read/write */
-#define CXERR_I2CDEV_NOTFOUND   0x000010
+/* Specified I2C device analt found for read/write */
+#define CXERR_I2CDEV_ANALTFOUND   0x000010
 
 /* Error in I2C data xfer (but I2C device is present) */
 #define CXERR_I2CDEV_XFERERR    0x000011
 
-/* Channel changing component not ready */
-#define CXERR_CHANNELNOTREADY   0x000012
+/* Channel changing component analt ready */
+#define CXERR_CHANNELANALTREADY   0x000012
 
 /* PPU (Presensation/Decoder) mail box is corrupted */
 #define CXERR_PPU_MB_CORRUPT    0x000013
@@ -457,19 +457,19 @@
 /* Error in I2C data xfer (but I2C device is present) */
 #define CXERR_I2CDEV_CLOCKLOW   0x00001A
 
-/* No Interrupt received from HW (for I2C access) */
-#define CXERR_NO_HW_I2C_INTR    0x00001B
+/* Anal Interrupt received from HW (for I2C access) */
+#define CXERR_ANAL_HW_I2C_INTR    0x00001B
 
-/* RPU is not ready to accept commands! */
-#define CXERR_RPU_NOT_READY     0x00001C
+/* RPU is analt ready to accept commands! */
+#define CXERR_RPU_ANALT_READY     0x00001C
 
-/* RPU is not ready to accept commands! */
-#define CXERR_RPU_NO_ACK        0x00001D
+/* RPU is analt ready to accept commands! */
+#define CXERR_RPU_ANAL_ACK        0x00001D
 
-/* The are no buffers ready. Try again soon! */
-#define CXERR_NODATA_AGAIN      0x00001E
+/* The are anal buffers ready. Try again soon! */
+#define CXERR_ANALDATA_AGAIN      0x00001E
 
-/* The stream is stopping. Function not allowed now! */
+/* The stream is stopping. Function analt allowed analw! */
 #define CXERR_STOPPING_STATUS   0x00001F
 
 /* Trying to access hardware when the power is turned OFF */

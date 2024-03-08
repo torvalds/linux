@@ -116,7 +116,7 @@ static int lg_g15_led_set(struct led_classdev *led_cdev,
 	u8 val, mask = 0;
 	int i, ret;
 
-	/* Ignore LED off on unregister / keyboard unplug */
+	/* Iganalre LED off on unregister / keyboard unplug */
 	if (led_cdev->flags & LED_UNREGISTERING)
 		return 0;
 
@@ -184,7 +184,7 @@ static void lg_g15_leds_changed_work(struct work_struct *work)
 		if (brightness[i] == old_brightness[i])
 			continue;
 
-		led_classdev_notify_brightness_hw_changed(&g15->leds[i].cdev,
+		led_classdev_analtify_brightness_hw_changed(&g15->leds[i].cdev,
 							  brightness[i]);
 	}
 }
@@ -263,7 +263,7 @@ static int lg_g510_kbd_led_set(struct led_classdev *led_cdev,
 	struct lg_g15_data *g15 = dev_get_drvdata(led_cdev->dev->parent);
 	int ret;
 
-	/* Ignore LED off on unregister / keyboard unplug */
+	/* Iganalre LED off on unregister / keyboard unplug */
 	if (led_cdev->flags & LED_UNREGISTERING)
 		return 0;
 
@@ -403,7 +403,7 @@ static int lg_g510_mkey_led_set(struct led_classdev *led_cdev,
 	u8 val, mask = 0;
 	int i, ret;
 
-	/* Ignore LED off on unregister / keyboard unplug */
+	/* Iganalre LED off on unregister / keyboard unplug */
 	if (led_cdev->flags & LED_UNREGISTERING)
 		return 0;
 
@@ -461,7 +461,7 @@ static int lg_g15_get_initial_led_brightness(struct lg_g15_data *g15)
 		return lg_g510_update_mkey_led_brightness(g15);
 	case LG_Z10:
 		/*
-		 * Getting the LCD backlight brightness is not supported.
+		 * Getting the LCD backlight brightness is analt supported.
 		 * Reading Feature(2) fails with -EPIPE and this crashes
 		 * the LCD and touch keys part of the speakers.
 		 */
@@ -607,7 +607,7 @@ static int lg_g510_leds_event(struct lg_g15_data *g15, u8 *data)
 	bool backlight_disabled;
 
 	/*
-	 * The G510 ignores backlight updates when the backlight is turned off
+	 * The G510 iganalres backlight updates when the backlight is turned off
 	 * through the light toggle button on the keyboard, to work around this
 	 * we queue a workitem to sync values when the backlight is turned on.
 	 */
@@ -691,7 +691,7 @@ static int lg_g15_register_led(struct lg_g15_data *g15, int i, const char *name)
 		switch (i) {
 		case LG_G15_LCD_BRIGHTNESS:
 			/*
-			 * The G510 does not have a separate LCD brightness,
+			 * The G510 does analt have a separate LCD brightness,
 			 * but it does have a separate power-on (reset) value.
 			 */
 			g15->leds[i].cdev.name = "g15::power_on_backlight_val";
@@ -779,13 +779,13 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	g15 = devm_kzalloc(&hdev->dev, sizeof(*g15), GFP_KERNEL);
 	if (!g15)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&g15->mutex);
 
 	input = devm_input_allocate_device(&hdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	g15->hdev = hdev;
 	g15->model = id->driver_data;
@@ -800,7 +800,7 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 * The G15 and G15 v2 use a separate usb-device (on a builtin
 		 * hub) which emulates a keyboard for the F1 - F12 emulation
 		 * on the G-keys, which we disable, rendering the emulated kbd
-		 * non-functional, so we do not let hid-input connect.
+		 * analn-functional, so we do analt let hid-input connect.
 		 */
 		connect_mask = HID_CONNECT_HIDRAW;
 		gkeys_settings_output_report = 0x02;
@@ -833,7 +833,7 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		g15->transfer_buf[0] = gkeys_settings_output_report;
 		memset(g15->transfer_buf + 1, 0, gkeys);
 		/*
-		 * The kbd ignores our output report if we do not queue
+		 * The kbd iganalres our output report if we do analt queue
 		 * an URB on the USB input endpoint first...
 		 */
 		ret = hid_hw_open(hdev);
@@ -890,7 +890,7 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	input_set_capability(input, EV_KEY, KEY_MACRO_RECORD_START);
 
 	/*
-	 * On the G510 only report headphone and mic mute keys when *not* using
+	 * On the G510 only report headphone and mic mute keys when *analt* using
 	 * the builtin USB audio device. When the builtin audio is used these
 	 * keys directly toggle mute (and the LEDs) on/off.
 	 */

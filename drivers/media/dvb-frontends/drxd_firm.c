@@ -455,7 +455,7 @@ u8 DRXD_InitCEA2[] = {
 
 	WRBLOCK(CE_REG_FI_SHT_INCR__A, 2),
 	0x12, 0x00,		/* CE_REG_FI_SHT_INCR__A          */
-	0x0C, 0x00,		/* CE_REG_FI_EXP_NORM__A          */
+	0x0C, 0x00,		/* CE_REG_FI_EXP_ANALRM__A          */
 
 	WRBLOCK(CE_REG_IR_INPUTSEL__A, 3),
 	0x00, 0x00,		/* CE_REG_IR_INPUTSEL__A          */
@@ -617,7 +617,7 @@ u8 DRXD_InitECB1[] = {
 	WR16(B_EC_OC_REG_RCN_GAI_LVL__A, 0x000D),
 	WR16(B_EC_OC_REG_OC_MPG_SIO__A, 0x0000),
 
-	/* Needed because shadow registers do not have correct default value */
+	/* Needed because shadow registers do analt have correct default value */
 	WR16(B_EC_OC_REG_RCN_CST_LOP__A, 0x1000),
 	WR16(B_EC_OC_REG_RCN_CST_HIP__A, 0x0000),
 	WR16(B_EC_OC_REG_RCN_CRA_LOP__A, 0x0000),
@@ -734,7 +734,7 @@ u8 DRXD_InitSC[] = {
 	WR16(SC_RA_RAM_BE_OPT_DELAY__A, 0x100),
 #endif
 
-	/* SC is not started, this is done in SetChannels() */
+	/* SC is analt started, this is done in SetChannels() */
 	END_OF_TABLE
 };
 
@@ -861,7 +861,7 @@ u8 DRXD_DisableDiversity[] = {
 };
 
 u8 DRXD_StartDiversityFront[] = {
-	/* Start demod, RF in and diversity out, no combining */
+	/* Start demod, RF in and diversity out, anal combining */
 	WR16(B_FE_CF_REG_IMP_VAL__A, 0x0),
 	WR16(B_FE_AD_REG_FDB_IN__A, 0x0),
 	WR16(B_FE_AD_REG_INVEXT__A, 0x0),
@@ -876,9 +876,9 @@ u8 DRXD_StartDiversityFront[] = {
 
 u8 DRXD_StartDiversityEnd[] = {
 	/* End demod, combining RF in and diversity in, MPEG TS out */
-	WR16(B_FE_CF_REG_IMP_VAL__A, 0x0),	/* disable impulse noise cruncher */
+	WR16(B_FE_CF_REG_IMP_VAL__A, 0x0),	/* disable impulse analise cruncher */
 	WR16(B_FE_AD_REG_INVEXT__A, 0x0),	/* clock inversion (for sohard board) */
-	WR16(B_CP_REG_BR_STR_DEL__A, 10),	/* apparently no mb delay matching is best */
+	WR16(B_CP_REG_BR_STR_DEL__A, 10),	/* apparently anal mb delay matching is best */
 
 	WR16(B_EQ_REG_RC_SEL_CAR__A, B_EQ_REG_RC_SEL_CAR_DIV_ON |	/* org = 0x81 combining enabled */
 	     B_EQ_REG_RC_SEL_CAR_MEAS_A_CC |

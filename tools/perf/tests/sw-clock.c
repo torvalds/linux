@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -22,7 +22,7 @@
 
 /*
  * This test will open software clock events (cpu-clock, task-clock)
- * then check their frequency -> period conversion has no artifact of
+ * then check their frequency -> period conversion has anal artifact of
  * setting period to 1 forcefully.
  */
 static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
@@ -65,27 +65,27 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	cpus = perf_cpu_map__new_any_cpu();
 	threads = thread_map__new_by_tid(getpid());
 	if (!cpus || !threads) {
-		err = -ENOMEM;
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		err = -EANALMEM;
+		pr_debug("Analt eanalugh memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	if (evlist__open(evlist)) {
-		const char *knob = "/proc/sys/kernel/perf_event_max_sample_rate";
+		const char *kanalb = "/proc/sys/kernel/perf_event_max_sample_rate";
 
-		err = -errno;
+		err = -erranal;
 		pr_debug("Couldn't open evlist: %s\nHint: check %s, using %" PRIu64 " in this test.\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)),
-			 knob, (u64)attr.sample_freq);
+			 str_error_r(erranal, sbuf, sizeof(sbuf)),
+			 kanalb, (u64)attr.sample_freq);
 		goto out_delete_evlist;
 	}
 
 	err = evlist__mmap(evlist, 128);
 	if (err < 0) {
-		pr_debug("failed to mmap event: %d (%s)\n", errno,
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_debug("failed to mmap event: %d (%s)\n", erranal,
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 

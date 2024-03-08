@@ -384,14 +384,14 @@ static const struct phy_ops phy_g12a_usb3_pcie_ops = {
 static int phy_g12a_usb3_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct phy_g12a_usb3_pcie_priv *priv;
 	struct phy_provider *phy_provider;
 	void __iomem *base;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

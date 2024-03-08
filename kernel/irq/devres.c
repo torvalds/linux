@@ -59,7 +59,7 @@ int devm_request_threaded_irq(struct device *dev, unsigned int irq,
 	dr = devres_alloc(devm_irq_release, sizeof(struct irq_devres),
 			  GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!devname)
 		devname = dev_name(dev);
@@ -106,7 +106,7 @@ int devm_request_any_context_irq(struct device *dev, unsigned int irq,
 	dr = devres_alloc(devm_irq_release, sizeof(struct irq_devres),
 			  GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!devname)
 		devname = dev_name(dev);
@@ -165,7 +165,7 @@ static void devm_irq_desc_release(struct device *dev, void *res)
  * @irq:	Allocate for specific irq number if irq >= 0
  * @from:	Start the search from this irq number
  * @cnt:	Number of consecutive irqs to allocate
- * @node:	Preferred node on which the irq descriptor should be allocated
+ * @analde:	Preferred analde on which the irq descriptor should be allocated
  * @owner:	Owning module (can be NULL)
  * @affinity:	Optional pointer to an irq_affinity_desc array of size @cnt
  *		which hints where the irq descriptors should be allocated
@@ -173,10 +173,10 @@ static void devm_irq_desc_release(struct device *dev, void *res)
  *
  * Returns the first irq number or error code.
  *
- * Note: Use the provided wrappers (devm_irq_alloc_desc*) for simplicity.
+ * Analte: Use the provided wrappers (devm_irq_alloc_desc*) for simplicity.
  */
 int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
-			   unsigned int cnt, int node, struct module *owner,
+			   unsigned int cnt, int analde, struct module *owner,
 			   const struct irq_affinity_desc *affinity)
 {
 	struct irq_desc_devres *dr;
@@ -184,9 +184,9 @@ int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
 
 	dr = devres_alloc(devm_irq_desc_release, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	base = __irq_alloc_descs(irq, from, cnt, node, owner, affinity);
+	base = __irq_alloc_descs(irq, from, cnt, analde, owner, affinity);
 	if (base < 0) {
 		devres_free(dr);
 		return base;
@@ -255,7 +255,7 @@ static void devm_irq_remove_generic_chip(struct device *dev, void *res)
  * @clr:	IRQ_* bits to clear
  * @set:	IRQ_* bits to set
  *
- * Set up max. 32 interrupts starting from gc->irq_base. Note, this
+ * Set up max. 32 interrupts starting from gc->irq_base. Analte, this
  * initializes all interrupts to the primary irq_chip_type and its
  * associated handler.
  */
@@ -268,7 +268,7 @@ int devm_irq_setup_generic_chip(struct device *dev, struct irq_chip_generic *gc,
 	dr = devres_alloc(devm_irq_remove_generic_chip,
 			  sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_setup_generic_chip(gc, msk, flags, clr, set);
 

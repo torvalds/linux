@@ -51,8 +51,8 @@ struct vsock_sock {
 	 * The listening socket is the head for both lists.  Sockets created
 	 * for connection requests are placed in the pending list until they
 	 * are connected, at which point they are put in the accept queue list
-	 * so they can be accepted in accept().  If accept() cannot accept the
-	 * connection, it is marked as rejected so the cleanup function knows
+	 * so they can be accepted in accept().  If accept() cananalt accept the
+	 * connection, it is marked as rejected so the cleanup function kanalws
 	 * to clean up the socket.
 	 */
 	struct list_head pending_links;
@@ -64,7 +64,7 @@ struct vsock_sock {
 	bool close_work_scheduled;
 	u32 peer_shutdown;
 	bool sent_request;
-	bool ignore_connecting_rst;
+	bool iganalre_connecting_rst;
 
 	/* Protected by lock_sock(sk) */
 	u64 buffer_size;
@@ -83,13 +83,13 @@ void vsock_data_ready(struct sock *sk);
 
 /**** TRANSPORT ****/
 
-struct vsock_transport_recv_notify_data {
+struct vsock_transport_recv_analtify_data {
 	u64 data1; /* Transport-defined. */
 	u64 data2; /* Transport-defined. */
-	bool notify_on_block;
+	bool analtify_on_block;
 };
 
-struct vsock_transport_send_notify_data {
+struct vsock_transport_send_analtify_data {
 	u64 data1; /* Transport-defined. */
 	u64 data2; /* Transport-defined. */
 };
@@ -146,28 +146,28 @@ struct vsock_transport {
 	bool (*seqpacket_allow)(u32 remote_cid);
 	u32 (*seqpacket_has_data)(struct vsock_sock *vsk);
 
-	/* Notification. */
-	int (*notify_poll_in)(struct vsock_sock *, size_t, bool *);
-	int (*notify_poll_out)(struct vsock_sock *, size_t, bool *);
-	int (*notify_recv_init)(struct vsock_sock *, size_t,
-		struct vsock_transport_recv_notify_data *);
-	int (*notify_recv_pre_block)(struct vsock_sock *, size_t,
-		struct vsock_transport_recv_notify_data *);
-	int (*notify_recv_pre_dequeue)(struct vsock_sock *, size_t,
-		struct vsock_transport_recv_notify_data *);
-	int (*notify_recv_post_dequeue)(struct vsock_sock *, size_t,
-		ssize_t, bool, struct vsock_transport_recv_notify_data *);
-	int (*notify_send_init)(struct vsock_sock *,
-		struct vsock_transport_send_notify_data *);
-	int (*notify_send_pre_block)(struct vsock_sock *,
-		struct vsock_transport_send_notify_data *);
-	int (*notify_send_pre_enqueue)(struct vsock_sock *,
-		struct vsock_transport_send_notify_data *);
-	int (*notify_send_post_enqueue)(struct vsock_sock *, ssize_t,
-		struct vsock_transport_send_notify_data *);
+	/* Analtification. */
+	int (*analtify_poll_in)(struct vsock_sock *, size_t, bool *);
+	int (*analtify_poll_out)(struct vsock_sock *, size_t, bool *);
+	int (*analtify_recv_init)(struct vsock_sock *, size_t,
+		struct vsock_transport_recv_analtify_data *);
+	int (*analtify_recv_pre_block)(struct vsock_sock *, size_t,
+		struct vsock_transport_recv_analtify_data *);
+	int (*analtify_recv_pre_dequeue)(struct vsock_sock *, size_t,
+		struct vsock_transport_recv_analtify_data *);
+	int (*analtify_recv_post_dequeue)(struct vsock_sock *, size_t,
+		ssize_t, bool, struct vsock_transport_recv_analtify_data *);
+	int (*analtify_send_init)(struct vsock_sock *,
+		struct vsock_transport_send_analtify_data *);
+	int (*analtify_send_pre_block)(struct vsock_sock *,
+		struct vsock_transport_send_analtify_data *);
+	int (*analtify_send_pre_enqueue)(struct vsock_sock *,
+		struct vsock_transport_send_analtify_data *);
+	int (*analtify_send_post_enqueue)(struct vsock_sock *, ssize_t,
+		struct vsock_transport_send_analtify_data *);
 	/* sk_lock held by the caller */
-	void (*notify_buffer_size)(struct vsock_sock *, u64 *);
-	int (*notify_set_rcvlowat)(struct vsock_sock *vsk, int val);
+	void (*analtify_buffer_size)(struct vsock_sock *, u64 *);
+	int (*analtify_set_rcvlowat)(struct vsock_sock *vsk, int val);
 
 	/* Shutdown. */
 	int (*shutdown)(struct vsock_sock *, int);

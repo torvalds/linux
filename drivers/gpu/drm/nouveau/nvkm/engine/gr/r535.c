@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -96,7 +96,7 @@ r535_gr_obj_ctor(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	struct r535_gr_obj *obj;
 
 	if (!(obj = kzalloc(sizeof(*obj), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_object_ctor(&r535_gr_obj, oclass, &obj->object);
 	*pobject = &obj->object;
@@ -162,7 +162,7 @@ r535_gr_promote_ctx(struct r535_gr *gr, bool golden, struct nvkm_vmm *vmm,
 
 			if (gr->ctxbuf[i].bufferId ==
 					NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_PRIV_ACCESS_MAP)
-				entry->bNonmapped = 1;
+				entry->bAnalnmapped = 1;
 		} else {
 			if (gr->ctxbuf[i].bufferId ==
 				NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_UNRESTRICTED_PRIV_ACCESS_MAP)
@@ -171,7 +171,7 @@ r535_gr_promote_ctx(struct r535_gr *gr, bool golden, struct nvkm_vmm *vmm,
 			pmem[i] = nvkm_memory_ref(gr->ctxbuf_mem[i]);
 		}
 
-		if (!entry->bNonmapped) {
+		if (!entry->bAnalnmapped) {
 			struct gf100_vmm_map_v0 args = {
 				.priv = 1,
 				.ro   = gr->ctxbuf[i].ro,
@@ -200,7 +200,7 @@ r535_gr_promote_ctx(struct r535_gr *gr, bool golden, struct nvkm_vmm *vmm,
 		nvkm_debug(subdev,
 			   "promote %02d: pa %016llx/%08x sz %016llx va %016llx init:%d nm:%d\n",
 			   entry->bufferId, entry->gpuPhysAddr, entry->physAttr, entry->size,
-			   entry->gpuVirtAddr, entry->bInitialize, entry->bNonmapped);
+			   entry->gpuVirtAddr, entry->bInitialize, entry->bAnalnmapped);
 
 		ctrl->entryCount++;
 	}
@@ -217,7 +217,7 @@ r535_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *chan, const struct nvkm
 	int ret;
 
 	if (!(grc = kzalloc(sizeof(*grc), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_object_ctor(&r535_gr_chan, oclass, &grc->object);
 	grc->gr = gr;
@@ -324,8 +324,8 @@ r535_gr_oneinit(struct nvkm_gr *base)
 		args->mthdbufMem.cacheAttrib = 1;
 		args->internalFlags =
 			NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, PRIVILEGE, ADMIN) |
-			NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ERROR_NOTIFIER_TYPE, NONE) |
-			NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ECC_ERROR_NOTIFIER_TYPE, NONE);
+			NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ERROR_ANALTIFIER_TYPE, ANALNE) |
+			NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ECC_ERROR_ANALTIFIER_TYPE, ANALNE);
 
 		ret = nvkm_gsp_rm_alloc_wr(&golden.chan, args);
 		if (ret)
@@ -483,7 +483,7 @@ r535_gr_new(const struct gf100_gr_func *hw,
 	for (nclass = 0; hw->sclass[nclass].oclass; nclass++);
 
 	if (!(rm = kzalloc(sizeof(*rm) + (nclass + 1) * sizeof(rm->sclass[0]), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rm->dtor = r535_gr_dtor;
 	rm->oneinit = r535_gr_oneinit;
@@ -499,7 +499,7 @@ r535_gr_new(const struct gf100_gr_func *hw,
 
 	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL))) {
 		kfree(rm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*pgr = &gr->base;

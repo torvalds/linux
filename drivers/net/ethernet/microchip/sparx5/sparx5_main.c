@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  *
  * The Sparx5 Chip Register Model can be browsed at this location:
  * https://github.com/microchip-ung/sparx-5_reginfo
@@ -34,8 +34,8 @@
 #define IO_RANGES 3
 
 struct initial_port_config {
-	u32 portno;
-	struct device_node *node;
+	u32 portanal;
+	struct device_analde *analde;
 	struct sparx5_port_config conf;
 	struct phy *serdes;
 };
@@ -243,7 +243,7 @@ static int sparx5_create_targets(struct sparx5 *sparx5)
 		if (!iomem[idx]) {
 			dev_err(sparx5->dev, "Unable to get switch registers: %s\n",
 				iores[idx]->name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		begin[idx] = iomem[idx] - sparx5_main_iomap[range_id[idx]].offset;
 	}
@@ -263,20 +263,20 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	struct phylink *phylink;
 	int err;
 
-	ndev = sparx5_create_netdev(sparx5, config->portno);
+	ndev = sparx5_create_netdev(sparx5, config->portanal);
 	if (IS_ERR(ndev)) {
-		dev_err(sparx5->dev, "Could not create net device: %02u\n",
-			config->portno);
+		dev_err(sparx5->dev, "Could analt create net device: %02u\n",
+			config->portanal);
 		return PTR_ERR(ndev);
 	}
 	spx5_port = netdev_priv(ndev);
-	spx5_port->of_node = config->node;
+	spx5_port->of_analde = config->analde;
 	spx5_port->serdes = config->serdes;
 	spx5_port->pvid = NULL_VID;
 	spx5_port->signd_internal = true;
 	spx5_port->signd_active_high = true;
 	spx5_port->signd_enable = true;
-	spx5_port->max_vlan_tags = SPX5_PORT_MAX_TAGS_NONE;
+	spx5_port->max_vlan_tags = SPX5_PORT_MAX_TAGS_ANALNE;
 	spx5_port->vlan_type = SPX5_VLAN_PORT_TYPE_UNAWARE;
 	spx5_port->custom_etype = 0x8880; /* Vitesse */
 	spx5_port->phylink_pcs.poll = true;
@@ -284,7 +284,7 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	spx5_port->phylink_pcs.neg_mode = true;
 	spx5_port->is_mrouter = false;
 	INIT_LIST_HEAD(&spx5_port->tc_templates);
-	sparx5->ports[config->portno] = spx5_port;
+	sparx5->ports[config->portanal] = spx5_port;
 
 	err = sparx5_port_init(sparx5, spx5_port, &config->conf);
 	if (err) {
@@ -294,7 +294,7 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	spx5_port->conf = config->conf;
 
 	/* Setup VLAN */
-	sparx5_vlan_port_setup(sparx5, spx5_port->portno);
+	sparx5_vlan_port_setup(sparx5, spx5_port->portanal);
 
 	/* Create a phylink for PHY management.  Also handles SFPs */
 	spx5_port->phylink_config.dev = &spx5_port->ndev->dev;
@@ -328,7 +328,7 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 			  spx5_port->phylink_config.supported_interfaces);
 
 	phylink = phylink_create(&spx5_port->phylink_config,
-				 of_fwnode_handle(config->node),
+				 of_fwanalde_handle(config->analde),
 				 config->conf.phy_mode,
 				 &sparx5_phylink_mac_ops);
 	if (IS_ERR(phylink))
@@ -398,7 +398,7 @@ static int sparx5_init_switchcore(struct sparx5 *sparx5)
 		 sparx5,
 		 EACL_POL_EACL_CFG);
 
-	/* Initialize memories, if not done already */
+	/* Initialize memories, if analt done already */
 	value = spx5_rd(sparx5, HSCH_RESET_CFG);
 	if (!(value & HSCH_RESET_CFG_CORE_ENA)) {
 		err = sparx5_init_ram(sparx5);
@@ -430,7 +430,7 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		if (sparx5->coreclock == SPX5_CORE_CLOCK_DEFAULT)
 			freq = SPX5_CORE_CLOCK_250MHZ;
 		else if (sparx5->coreclock != SPX5_CORE_CLOCK_250MHZ)
-			freq = 0; /* Not supported */
+			freq = 0; /* Analt supported */
 		break;
 	case SPX5_TARGET_CT_7549:
 	case SPX5_TARGET_CT_7552:
@@ -438,14 +438,14 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		if (sparx5->coreclock == SPX5_CORE_CLOCK_DEFAULT)
 			freq = SPX5_CORE_CLOCK_500MHZ;
 		else if (sparx5->coreclock != SPX5_CORE_CLOCK_500MHZ)
-			freq = 0; /* Not supported */
+			freq = 0; /* Analt supported */
 		break;
 	case SPX5_TARGET_CT_7558:
 	case SPX5_TARGET_CT_7558TSN:
 		if (sparx5->coreclock == SPX5_CORE_CLOCK_DEFAULT)
 			freq = SPX5_CORE_CLOCK_625MHZ;
 		else if (sparx5->coreclock != SPX5_CORE_CLOCK_625MHZ)
-			freq = 0; /* Not supported */
+			freq = 0; /* Analt supported */
 		break;
 	case SPX5_TARGET_CT_7546TSN:
 		if (sparx5->coreclock == SPX5_CORE_CLOCK_DEFAULT)
@@ -457,12 +457,12 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		if (sparx5->coreclock == SPX5_CORE_CLOCK_DEFAULT)
 			freq = SPX5_CORE_CLOCK_625MHZ;
 		else if (sparx5->coreclock == SPX5_CORE_CLOCK_250MHZ)
-			freq = 0; /* Not supported */
+			freq = 0; /* Analt supported */
 		break;
 	default:
-		dev_err(sparx5->dev, "Target (%#04x) not supported\n",
+		dev_err(sparx5->dev, "Target (%#04x) analt supported\n",
 			sparx5->target_ct);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (freq) {
@@ -479,7 +479,7 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		pol_upd_int = 780;
 		break;
 	default:
-		dev_err(sparx5->dev, "%d coreclock not supported on (%#04x)\n",
+		dev_err(sparx5->dev, "%d coreclock analt supported on (%#04x)\n",
 			sparx5->coreclock, sparx5->target_ct);
 		return -EINVAL;
 	}
@@ -665,7 +665,7 @@ static int sparx5_start(struct sparx5 *sparx5)
 		 dev_name(sparx5->dev));
 	sparx5->mact_queue = create_singlethread_workqueue(queue_name);
 	if (!sparx5->mact_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&sparx5->mact_work, sparx5_mact_pull_work);
 	queue_delayed_work(sparx5->mact_queue, &sparx5->mact_work,
@@ -679,13 +679,13 @@ static int sparx5_start(struct sparx5 *sparx5)
 		return err;
 
 	sparx5_board_init(sparx5);
-	err = sparx5_register_notifier_blocks(sparx5);
+	err = sparx5_register_analtifier_blocks(sparx5);
 	if (err)
 		return err;
 
 	err = sparx5_vcap_init(sparx5);
 	if (err) {
-		sparx5_unregister_notifier_blocks(sparx5);
+		sparx5_unregister_analtifier_blocks(sparx5);
 		return err;
 	}
 
@@ -741,18 +741,18 @@ static void sparx5_cleanup_ports(struct sparx5 *sparx5)
 static int mchp_sparx5_probe(struct platform_device *pdev)
 {
 	struct initial_port_config *configs, *config;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ports, *portnp;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *ports, *portnp;
 	struct reset_control *reset;
 	struct sparx5 *sparx5;
 	int idx = 0, err = 0;
 
 	if (!np && !pdev->dev.platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sparx5 = devm_kzalloc(&pdev->dev, sizeof(*sparx5), GFP_KERNEL);
 	if (!sparx5)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, sparx5);
 	sparx5->pdev = pdev;
@@ -773,43 +773,43 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 
 	ports = of_get_child_by_name(np, "ethernet-ports");
 	if (!ports) {
-		dev_err(sparx5->dev, "no ethernet-ports child node found\n");
-		return -ENODEV;
+		dev_err(sparx5->dev, "anal ethernet-ports child analde found\n");
+		return -EANALDEV;
 	}
 	sparx5->port_count = of_get_child_count(ports);
 
 	configs = kcalloc(sparx5->port_count,
 			  sizeof(struct initial_port_config), GFP_KERNEL);
 	if (!configs) {
-		err = -ENOMEM;
-		goto cleanup_pnode;
+		err = -EANALMEM;
+		goto cleanup_panalde;
 	}
 
-	for_each_available_child_of_node(ports, portnp) {
+	for_each_available_child_of_analde(ports, portnp) {
 		struct sparx5_port_config *conf;
 		struct phy *serdes;
-		u32 portno;
+		u32 portanal;
 
-		err = of_property_read_u32(portnp, "reg", &portno);
+		err = of_property_read_u32(portnp, "reg", &portanal);
 		if (err) {
 			dev_err(sparx5->dev, "port reg property error\n");
 			continue;
 		}
 		config = &configs[idx];
 		conf = &config->conf;
-		conf->speed = SPEED_UNKNOWN;
-		conf->bandwidth = SPEED_UNKNOWN;
+		conf->speed = SPEED_UNKANALWN;
+		conf->bandwidth = SPEED_UNKANALWN;
 		err = of_get_phy_mode(portnp, &conf->phy_mode);
 		if (err) {
 			dev_err(sparx5->dev, "port %u: missing phy-mode\n",
-				portno);
+				portanal);
 			continue;
 		}
 		err = of_property_read_u32(portnp, "microchip,bandwidth",
 					   &conf->bandwidth);
 		if (err) {
 			dev_err(sparx5->dev, "port %u: missing bandwidth\n",
-				portno);
+				portanal);
 			continue;
 		}
 		err = of_property_read_u32(portnp, "microchip,sd-sgpio", &conf->sd_sgpio);
@@ -821,12 +821,12 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 		if (IS_ERR(serdes)) {
 			err = dev_err_probe(sparx5->dev, PTR_ERR(serdes),
 					    "port %u: missing serdes\n",
-					    portno);
-			of_node_put(portnp);
+					    portanal);
+			of_analde_put(portnp);
 			goto cleanup_config;
 		}
-		config->portno = portno;
-		config->node = portnp;
+		config->portanal = portanal;
+		config->analde = portnp;
 		config->serdes = serdes;
 
 		conf->media = PHY_MEDIA_DAC;
@@ -841,7 +841,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 		goto cleanup_config;
 
 	if (of_get_mac_address(np, sparx5->base_mac)) {
-		dev_info(sparx5->dev, "MAC addr was not set, use random MAC\n");
+		dev_info(sparx5->dev, "MAC addr was analt set, use random MAC\n");
 		eth_random_addr(sparx5->base_mac);
 		sparx5->base_mac[5] = 0;
 	}
@@ -872,7 +872,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 
 	for (idx = 0; idx < sparx5->port_count; ++idx) {
 		config = &configs[idx];
-		if (!config->node)
+		if (!config->analde)
 			continue;
 
 		err = sparx5_create_port(sparx5, config);
@@ -907,8 +907,8 @@ cleanup_ports:
 		destroy_workqueue(sparx5->mact_queue);
 cleanup_config:
 	kfree(configs);
-cleanup_pnode:
-	of_node_put(ports);
+cleanup_panalde:
+	of_analde_put(ports);
 	return err;
 }
 
@@ -930,7 +930,7 @@ static void mchp_sparx5_remove(struct platform_device *pdev)
 	sparx5_cleanup_ports(sparx5);
 	sparx5_vcap_destroy(sparx5);
 	/* Unregister netdevs */
-	sparx5_unregister_notifier_blocks(sparx5);
+	sparx5_unregister_analtifier_blocks(sparx5);
 	destroy_workqueue(sparx5->mact_queue);
 }
 

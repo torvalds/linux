@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -95,7 +95,7 @@ gf100_bar_oneinit_bar(struct gf100_bar *bar, struct gf100_barN *bar_vm,
 
 	bar_len = device->func->resource_size(device, bar_nr);
 	if (!bar_len)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (bar_nr == 3 && bar->bar2_halve)
 		bar_len >>= 1;
 
@@ -166,7 +166,7 @@ gf100_bar_new_(const struct nvkm_bar_func *func, struct nvkm_device *device,
 {
 	struct gf100_bar *bar;
 	if (!(bar = kzalloc(sizeof(*bar), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_bar_ctor(func, device, type, inst, &bar->base);
 	bar->bar2_halve = nvkm_boolopt(device->cfgopt, "NvBar2Halve", false);
 	*pbar = &bar->base;

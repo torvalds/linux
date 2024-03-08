@@ -63,7 +63,7 @@ static int request_mac_address(struct lte_udev *udev)
 
 	hci = kmalloc(struct_size(hci, data, 1), GFP_KERNEL);
 	if (!hci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hci->cmd_evt = gdm_cpu_to_dev16(udev->gdm_ed, LTE_GET_INFORMATION);
 	hci->len = gdm_cpu_to_dev16(udev->gdm_ed, 1);
@@ -85,7 +85,7 @@ static struct usb_tx *alloc_tx_struct(int len)
 
 	t = kzalloc(sizeof(*t), GFP_ATOMIC);
 	if (!t) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -95,7 +95,7 @@ static struct usb_tx *alloc_tx_struct(int len)
 
 	t->buf = kmalloc(len, GFP_ATOMIC);
 	if (!t->urb || !t->buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -146,7 +146,7 @@ static void free_tx_sdu_struct(struct usb_tx_sdu *t_sdu)
 	}
 }
 
-static struct usb_tx_sdu *get_tx_sdu_struct(struct tx_cxt *tx, int *no_spc)
+static struct usb_tx_sdu *get_tx_sdu_struct(struct tx_cxt *tx, int *anal_spc)
 {
 	struct usb_tx_sdu *t_sdu;
 
@@ -158,7 +158,7 @@ static struct usb_tx_sdu *get_tx_sdu_struct(struct tx_cxt *tx, int *no_spc)
 
 	tx->avail_count--;
 
-	*no_spc = list_empty(&tx->free_list) ? 1 : 0;
+	*anal_spc = list_empty(&tx->free_list) ? 1 : 0;
 
 	return t_sdu;
 }
@@ -176,14 +176,14 @@ static struct usb_rx *alloc_rx_struct(void)
 
 	r = kmalloc(sizeof(*r), GFP_KERNEL);
 	if (!r) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	r->urb = usb_alloc_urb(0, GFP_KERNEL);
 	r->buf = kmalloc(RX_BUF_SIZE, GFP_KERNEL);
 	if (!r->urb || !r->buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 out:
@@ -209,7 +209,7 @@ static void free_rx_struct(struct usb_rx *r)
 	}
 }
 
-static struct usb_rx *get_rx_struct(struct rx_cxt *rx, int *no_spc)
+static struct usb_rx *get_rx_struct(struct rx_cxt *rx, int *anal_spc)
 {
 	struct usb_rx *r;
 	unsigned long flags;
@@ -226,7 +226,7 @@ static struct usb_rx *get_rx_struct(struct rx_cxt *rx, int *no_spc)
 
 	rx->avail_count--;
 
-	*no_spc = list_empty(&rx->free_list) ? 1 : 0;
+	*anal_spc = list_empty(&rx->free_list) ? 1 : 0;
 
 	spin_unlock_irqrestore(&rx->rx_lock, flags);
 
@@ -309,7 +309,7 @@ static int init_usb(struct lte_udev *udev)
 	udev->send_complete = 1;
 	udev->tx_stop = 0;
 	udev->request_mac_addr = 0;
-	udev->usb_state = PM_NORMAL;
+	udev->usb_state = PM_ANALRMAL;
 
 	INIT_LIST_HEAD(&tx->sdu_list);
 	INIT_LIST_HEAD(&tx->hci_list);
@@ -330,7 +330,7 @@ static int init_usb(struct lte_udev *udev)
 	for (i = 0; i < MAX_NUM_SDU_BUF; i++) {
 		t_sdu = alloc_tx_sdu_struct();
 		if (!t_sdu) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -341,7 +341,7 @@ static int init_usb(struct lte_udev *udev)
 	for (i = 0; i < MAX_RX_SUBMIT_COUNT * 2; i++) {
 		r = alloc_rx_struct();
 		if (!r) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -470,7 +470,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 		schedule_work(&udev->work_rx.work);
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 	} else {
-		if (urb->status && udev->usb_state == PM_NORMAL)
+		if (urb->status && udev->usb_state == PM_ANALRMAL)
 			dev_err(&urb->dev->dev, "%s: urb status error %d\n",
 				__func__, urb->status);
 
@@ -490,19 +490,19 @@ static int gdm_usb_recv(void *priv_dev,
 	struct usb_device *usbdev = udev->usbdev;
 	struct rx_cxt *rx = &udev->rx;
 	struct usb_rx *r;
-	int no_spc;
+	int anal_spc;
 	int ret;
 	unsigned long flags;
 
 	if (!udev->usbdev) {
 		pr_err("invalid device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	r = get_rx_struct(rx, &no_spc);
+	r = get_rx_struct(rx, &anal_spc);
 	if (!r) {
 		pr_err("Out of Memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	udev->rx_cb = cb;
@@ -711,21 +711,21 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	struct usb_tx_sdu *t_sdu;
 	struct sdu *sdu = NULL;
 	unsigned long flags;
-	int no_spc = 0;
+	int anal_spc = 0;
 	u16 send_len;
 
 	if (!udev->usbdev) {
 		pr_err("sdu send - invalid device\n");
-		return TX_NO_DEV;
+		return TX_ANAL_DEV;
 	}
 
 	spin_lock_irqsave(&tx->lock, flags);
-	t_sdu = get_tx_sdu_struct(tx, &no_spc);
+	t_sdu = get_tx_sdu_struct(tx, &anal_spc);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	if (!t_sdu) {
 		pr_err("sdu send - free list empty\n");
-		return TX_NO_SPC;
+		return TX_ANAL_SPC;
 	}
 
 	sdu = (struct sdu *)t_sdu->buf;
@@ -753,8 +753,8 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-	if (no_spc)
-		return TX_NO_BUFFER;
+	if (anal_spc)
+		return TX_ANAL_BUFFER;
 
 	return 0;
 }
@@ -769,13 +769,13 @@ static int gdm_usb_hci_send(void *priv_dev, void *data, int len,
 
 	if (!udev->usbdev) {
 		pr_err("hci send - invalid device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	t = alloc_tx_struct(len);
 	if (!t) {
 		pr_err("hci_send - out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(t->buf, data, len);
@@ -817,17 +817,17 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	pr_info("net vid = 0x%04x pid = 0x%04x\n", idVendor, idProduct);
 
 	if (bInterfaceNumber > NETWORK_INTERFACE) {
-		pr_info("not a network device\n");
-		return -ENODEV;
+		pr_info("analt a network device\n");
+		return -EANALDEV;
 	}
 
 	phy_dev = kzalloc(sizeof(*phy_dev), GFP_KERNEL);
 	if (!phy_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udev = kzalloc(sizeof(*udev), GFP_KERNEL);
 	if (!udev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_udev;
 	}
 
@@ -914,7 +914,7 @@ static int gdm_usb_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	phy_dev = usb_get_intfdata(intf);
 	udev = phy_dev->priv_dev;
 	rx = &udev->rx;
-	if (udev->usb_state != PM_NORMAL) {
+	if (udev->usb_state != PM_ANALRMAL) {
 		dev_err(intf->usb_dev, "usb suspend - invalid state\n");
 		return -1;
 	}
@@ -954,7 +954,7 @@ static int gdm_usb_resume(struct usb_interface *intf)
 		dev_err(intf->usb_dev, "usb resume - invalid state\n");
 		return -1;
 	}
-	udev->usb_state = PM_NORMAL;
+	udev->usb_state = PM_ANALRMAL;
 
 	spin_lock_irqsave(&rx->rx_lock, flags);
 	issue_count = rx->avail_count - MAX_RX_SUBMIT_COUNT;

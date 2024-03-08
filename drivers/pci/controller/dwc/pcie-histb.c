@@ -128,7 +128,7 @@ static int histb_pcie_rd_own_conf(struct pci_bus *bus, unsigned int devfn,
 	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
 
 	if (PCI_SLOT(devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	*val = dw_pcie_read_dbi(pci, where, size);
 	return PCIBIOS_SUCCESSFUL;
@@ -140,7 +140,7 @@ static int histb_pcie_wr_own_conf(struct pci_bus *bus, unsigned int devfn,
 	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
 
 	if (PCI_SLOT(devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	dw_pcie_write_dbi(pci, where, size, val);
 	return PCIBIOS_SUCCESSFUL;
@@ -240,25 +240,25 @@ static int histb_pcie_host_enable(struct dw_pcie_rp *pp)
 
 	ret = clk_prepare_enable(hipcie->bus_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable bus clk\n");
+		dev_err(dev, "cananalt prepare/enable bus clk\n");
 		goto err_bus_clk;
 	}
 
 	ret = clk_prepare_enable(hipcie->sys_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable sys clk\n");
+		dev_err(dev, "cananalt prepare/enable sys clk\n");
 		goto err_sys_clk;
 	}
 
 	ret = clk_prepare_enable(hipcie->pipe_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable pipe clk\n");
+		dev_err(dev, "cananalt prepare/enable pipe clk\n");
 		goto err_pipe_clk;
 	}
 
 	ret = clk_prepare_enable(hipcie->aux_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable aux clk\n");
+		dev_err(dev, "cananalt prepare/enable aux clk\n");
 		goto err_aux_clk;
 	}
 
@@ -303,11 +303,11 @@ static int histb_pcie_probe(struct platform_device *pdev)
 
 	hipcie = devm_kzalloc(dev, sizeof(*hipcie), GFP_KERNEL);
 	if (!hipcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hipcie->pci = pci;
 	pp = &pci->pp;
@@ -316,19 +316,19 @@ static int histb_pcie_probe(struct platform_device *pdev)
 
 	hipcie->ctrl = devm_platform_ioremap_resource_byname(pdev, "control");
 	if (IS_ERR(hipcie->ctrl)) {
-		dev_err(dev, "cannot get control reg base\n");
+		dev_err(dev, "cananalt get control reg base\n");
 		return PTR_ERR(hipcie->ctrl);
 	}
 
 	pci->dbi_base = devm_platform_ioremap_resource_byname(pdev, "rc-dbi");
 	if (IS_ERR(pci->dbi_base)) {
-		dev_err(dev, "cannot get rc-dbi base\n");
+		dev_err(dev, "cananalt get rc-dbi base\n");
 		return PTR_ERR(pci->dbi_base);
 	}
 
 	hipcie->vpcie = devm_regulator_get_optional(dev, "vpcie");
 	if (IS_ERR(hipcie->vpcie)) {
-		if (PTR_ERR(hipcie->vpcie) != -ENODEV)
+		if (PTR_ERR(hipcie->vpcie) != -EANALDEV)
 			return PTR_ERR(hipcie->vpcie);
 		hipcie->vpcie = NULL;
 	}
@@ -392,10 +392,10 @@ static int histb_pcie_probe(struct platform_device *pdev)
 
 	hipcie->phy = devm_phy_get(dev, "phy");
 	if (IS_ERR(hipcie->phy)) {
-		dev_info(dev, "no pcie-phy found\n");
+		dev_info(dev, "anal pcie-phy found\n");
 		hipcie->phy = NULL;
 		/* fall through here!
-		 * if no pcie-phy found, phy init
+		 * if anal pcie-phy found, phy init
 		 * should be done under boot!
 		 */
 	} else {

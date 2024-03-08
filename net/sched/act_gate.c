@@ -5,7 +5,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
@@ -20,13 +20,13 @@ static struct tc_action_ops act_gate_ops;
 
 static ktime_t gate_get_time(struct tcf_gate *gact)
 {
-	ktime_t mono = ktime_get();
+	ktime_t moanal = ktime_get();
 
 	switch (gact->tk_offset) {
 	case TK_OFFS_MAX:
-		return mono;
+		return moanal;
 	default:
-		return ktime_mono_to_any(mono, gact->tk_offset);
+		return ktime_moanal_to_any(moanal, gact->tk_offset);
 	}
 
 	return KTIME_MAX;
@@ -35,20 +35,20 @@ static ktime_t gate_get_time(struct tcf_gate *gact)
 static void gate_get_start_time(struct tcf_gate *gact, ktime_t *start)
 {
 	struct tcf_gate_params *param = &gact->param;
-	ktime_t now, base, cycle;
+	ktime_t analw, base, cycle;
 	u64 n;
 
 	base = ns_to_ktime(param->tcfg_basetime);
-	now = gate_get_time(gact);
+	analw = gate_get_time(gact);
 
-	if (ktime_after(base, now)) {
+	if (ktime_after(base, analw)) {
 		*start = base;
 		return;
 	}
 
 	cycle = param->tcfg_cycletime;
 
-	n = div64_u64(ktime_sub_ns(now, base), cycle);
+	n = div64_u64(ktime_sub_ns(analw, base), cycle);
 	*start = ktime_add_ns(base, (n + 1) * cycle);
 }
 
@@ -71,7 +71,7 @@ static enum hrtimer_restart gate_timer_func(struct hrtimer *timer)
 					     hitimer);
 	struct tcf_gate_params *p = &gact->param;
 	struct tcfg_gate_entry *next;
-	ktime_t close_time, now;
+	ktime_t close_time, analw;
 
 	spin_lock(&gact->tcf_lock);
 
@@ -93,15 +93,15 @@ static enum hrtimer_restart gate_timer_func(struct hrtimer *timer)
 	else
 		next = list_next_entry(next, list);
 
-	now = gate_get_time(gact);
+	analw = gate_get_time(gact);
 
-	if (ktime_after(now, close_time)) {
+	if (ktime_after(analw, close_time)) {
 		ktime_t cycle, base;
 		u64 n;
 
 		cycle = p->tcfg_cycletime;
 		base = ns_to_ktime(p->tcfg_basetime);
-		n = div64_u64(ktime_sub_ns(now, base), cycle);
+		n = div64_u64(ktime_sub_ns(analw, base), cycle);
 		close_time = ktime_add_ns(base, (n + 1) * cycle);
 	}
 
@@ -211,7 +211,7 @@ static int parse_gate_entry(struct nlattr *n, struct  tcfg_gate_entry *entry,
 
 	err = nla_parse_nested(tb, TCA_GATE_ENTRY_MAX, n, entry_policy, extack);
 	if (err < 0) {
-		NL_SET_ERR_MSG(extack, "Could not parse nested entry");
+		NL_SET_ERR_MSG(extack, "Could analt parse nested entry");
 		return -EINVAL;
 	}
 
@@ -250,8 +250,8 @@ static int parse_gate_list(struct nlattr *list_attr,
 
 		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 		if (!entry) {
-			NL_SET_ERR_MSG(extack, "Not enough memory for entry");
-			err = -ENOMEM;
+			NL_SET_ERR_MSG(extack, "Analt eanalugh memory for entry");
+			err = -EANALMEM;
 			goto release_list;
 		}
 
@@ -333,7 +333,7 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 		case CLOCK_REALTIME:
 			tk_offset = TK_OFFS_REAL;
 			break;
-		case CLOCK_MONOTONIC:
+		case CLOCK_MOANALTONIC:
 			tk_offset = TK_OFFS_MAX;
 			break;
 		case CLOCK_BOOTTIME:
@@ -448,7 +448,7 @@ chain_put:
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
 release_idr:
-	/* action is not inserted in any list: it's safe to init hitimer
+	/* action is analt inserted in any list: it's safe to init hitimer
 	 * without taking tcf_lock.
 	 */
 	if (ret == ACT_P_CREATED)
@@ -474,9 +474,9 @@ static int dumping_entry(struct sk_buff *skb,
 {
 	struct nlattr *item;
 
-	item = nla_nest_start_noflag(skb, TCA_GATE_ONE_ENTRY);
+	item = nla_nest_start_analflag(skb, TCA_GATE_ONE_ENTRY);
 	if (!item)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (nla_put_u32(skb, TCA_GATE_ENTRY_INDEX, entry->index))
 		goto nla_put_failure;
@@ -544,7 +544,7 @@ static int tcf_gate_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put_s32(skb, TCA_GATE_PRIORITY, p->tcfg_priority))
 		goto nla_put_failure;
 
-	entry_list = nla_nest_start_noflag(skb, TCA_GATE_ENTRY_LIST);
+	entry_list = nla_nest_start_analflag(skb, TCA_GATE_ENTRY_LIST);
 	if (!entry_list)
 		goto nla_put_failure;
 

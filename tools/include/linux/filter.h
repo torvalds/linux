@@ -7,7 +7,7 @@
 
 #include <linux/bpf.h>
 
-/* ArgX, context and stack frame pointer register positions. Note,
+/* ArgX, context and stack frame pointer register positions. Analte,
  * Arg1, Arg2, Arg3, etc are used as argument mappings of function
  * calls in BPF_CALL instruction.
  */

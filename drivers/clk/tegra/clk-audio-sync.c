@@ -52,8 +52,8 @@ struct clk *tegra_clk_register_sync_source(const char *name,
 
 	sync = kzalloc(sizeof(*sync), GFP_KERNEL);
 	if (!sync) {
-		pr_err("%s: could not allocate sync source clk\n", __func__);
-		return ERR_PTR(-ENOMEM);
+		pr_err("%s: could analt allocate sync source clk\n", __func__);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	sync->max_rate = max_rate;

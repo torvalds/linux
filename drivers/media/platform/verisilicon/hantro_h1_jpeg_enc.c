@@ -90,7 +90,7 @@ hantro_h1_jpeg_enc_set_qtable(struct hantro_dev *vpu,
 
 	/*
 	 * Quantization table registers must be written in contiguous blocks.
-	 * DO NOT collapse the below two "for" loops into one.
+	 * DO ANALT collapse the below two "for" loops into one.
 	 */
 	for (i = 0; i < H1_JPEG_QUANT_TABLE_COUNT; i++) {
 		reg = get_unaligned_be32(&luma_qtable_p[i]);

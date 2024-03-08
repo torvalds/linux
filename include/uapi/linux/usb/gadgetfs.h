@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Filesystem based user-mode API to USB Gadget controller hardware
  *
  * Other than ep0 operations, most things are done by read() and write()
  * on endpoint files found in one directory.  They are configured by
- * writing descriptors, and then may be used for normal stream style
+ * writing descriptors, and then may be used for analrmal stream style
  * i/o requests.  When ep0 is configured, the device can enumerate;
  * when it's closed, the device disconnects from usb.  Operations on
  * ep0 require ioctl() operations.
@@ -31,7 +31,7 @@
  */
 
 enum usb_gadgetfs_event_type {
-	GADGETFS_NOP = 0,
+	GADGETFS_ANALP = 0,
 
 	GADGETFS_CONNECT,
 	GADGETFS_DISCONNECT,
@@ -40,12 +40,12 @@ enum usb_gadgetfs_event_type {
 	/* and likely more ! */
 };
 
-/* NOTE:  this structure must stay the same size and layout on
+/* ANALTE:  this structure must stay the same size and layout on
  * both 32-bit and 64-bit kernels.
  */
 struct usb_gadgetfs_event {
 	union {
-		/* NOP, DISCONNECT, SUSPEND: nothing
+		/* ANALP, DISCONNECT, SUSPEND: analthing
 		 * ... some hardware can't report disconnection
 		 */
 
@@ -64,7 +64,7 @@ struct usb_gadgetfs_event {
 
 /* The 'g' code is also used by printer gadget ioctl requests.
  * Don't add any colliding codes to either driver, and keep
- * them in unique ranges (size 0x20 for now).
+ * them in unique ranges (size 0x20 for analw).
  */
 
 /* endpoint ioctls */

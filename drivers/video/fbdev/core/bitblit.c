@@ -3,7 +3,7 @@
  *
  *  Originally from the 'accel_*' routines in drivers/video/console/fbcon.c
  *
- *      Copyright (C) 2004 Antonino Daplas <adaplas @pol.net>
+ *      Copyright (C) 2004 Antonianal Daplas <adaplas @pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive for
@@ -194,7 +194,7 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 		s += cnt;
 	}
 
-	/* buf is always NULL except when in monochrome mode, so in this case
+	/* buf is always NULL except when in moanalchrome mode, so in this case
 	   it's a gain to check buf against NULL even though kfree() handles
 	   NULL pointers just fine */
 	if (unlikely(buf))
@@ -320,7 +320,7 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 		cursor.set |= FB_CUR_SETSHAPE;
 
 		switch (CUR_SIZE(ops->p->cursor_shape)) {
-		case CUR_NONE:
+		case CUR_ANALNE:
 			cur_height = 0;
 			break;
 		case CUR_UNDERLINE:

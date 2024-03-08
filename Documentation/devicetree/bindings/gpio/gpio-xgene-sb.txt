@@ -24,12 +24,12 @@ Required properties:
 	- second cell is used to specify the gpio polarity:
 		0 = active high
 		1 = active low
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device analde as a GPIO controller.
 - interrupts: The EXT_INT_0 parent interrupt resource must be listed first.
 - interrupt-cells: Should be two.
        - first cell is 0-N corresponding for EXT_INT_0 to EXT_INT_N.
        - second cell is used to specify flags.
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device analde as an interrupt controller.
 - apm,nr-gpios: Optional, specify number of gpios pin.
 - apm,nr-irqs: Optional, specify number of interrupt pins.
 - apm,irq-start: Optional, specify lowest gpio pin support interrupt.

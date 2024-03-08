@@ -77,7 +77,7 @@
 		>;
 	};
 
-	/* NOTE: Clocked externally, needs INPUT also for sdmmc2_clk.sdmmc2_clk */
+	/* ANALTE: Clocked externally, needs INPUT also for sdmmc2_clk.sdmmc2_clk */
 	mmc2_pins: mmc2-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_clk.sdmmc2_clk */
@@ -132,7 +132,7 @@
 	};
 
 	/*
-	 * Note that gpio_150 pulled high with internal pull to prevent wlcore
+	 * Analte that gpio_150 pulled high with internal pull to prevent wlcore
 	 * reset on return from off mode in idle.
 	 */
 	wl12xx_gpio: wl12xx-gpio-pins {

@@ -11,7 +11,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -64,7 +64,7 @@ pgd_alloc(struct mm_struct *mm)
  * BAD_PAGE is the page that is used for page faults when linux
  * is out-of-memory. Older versions of linux just did a
  * do_exit(), but using this instead means there is less risk
- * for a process dying in kernel mode, possibly leaving an inode
+ * for a process dying in kernel mode, possibly leaving an ianalde
  * unused etc..
  *
  * BAD_PAGETABLE is the accompanying page-table: it is initialized
@@ -127,7 +127,7 @@ switch_to_system_map(void)
 	/* Save off the contents of the original PCB so that we can
 	   restore the original console's page tables for a clean reboot.
 
-	   Note that the PCB is supposed to be a physical address, but
+	   Analte that the PCB is supposed to be a physical address, but
 	   since KSEG values also happen to work, folks get confused.
 	   Check this here.  */
 
@@ -175,7 +175,7 @@ callback_init(void * kernel_end)
 	   On systems with larger consoles, additional pages will be
 	   allocated as needed during the mapping process.
 
-	   In the case of not SRM, but not CONFIG_ALPHA_LARGE_VMALLOC,
+	   In the case of analt SRM, but analt CONFIG_ALPHA_LARGE_VMALLOC,
 	   we need to allocate the PGD we use for vmalloc before we start
 	   forking other tasks.  */
 
@@ -247,7 +247,7 @@ void __init paging_init(void)
 	max_pfn = max_low_pfn;
 
 	max_zone_pfn[ZONE_DMA] = dma_pfn;
-	max_zone_pfn[ZONE_NORMAL] = max_pfn;
+	max_zone_pfn[ZONE_ANALRMAL] = max_pfn;
 
 	/* Initialize mem_map[].  */
 	free_area_init(max_zone_pfn);
@@ -282,7 +282,7 @@ mem_init(void)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= _PAGE_P(_PAGE_FOE | _PAGE_FOW |
+	[VM_ANALNE]					= _PAGE_P(_PAGE_FOE | _PAGE_FOW |
 								  _PAGE_FOR),
 	[VM_READ]					= _PAGE_P(_PAGE_FOE | _PAGE_FOW),
 	[VM_WRITE]					= _PAGE_P(_PAGE_FOE),

@@ -14,7 +14,7 @@ description: |
   Mediatek display UFOe stands for Unified Frame Optimization engine.
   UFOe can cut the data rate for DSI port which may lead to reduce power
   consumption.
-  UFOe device node must be siblings to the central MMSYS_CONFIG node.
+  UFOe device analde must be siblings to the central MMSYS_CONFIG analde.
   For a description of the MMSYS_CONFIG binding, see
   Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.yaml
   for details.

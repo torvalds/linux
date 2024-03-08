@@ -11,7 +11,7 @@
 #ifdef CONFIG_CFI_CLANG
 /*
  * Use the __kcfi_typeid_<function> type identifier symbol to
- * annotate indirectly called assembly functions. The compiler emits
+ * ananaltate indirectly called assembly functions. The compiler emits
  * these symbols for all address-taken function declarations in C
  * code.
  */

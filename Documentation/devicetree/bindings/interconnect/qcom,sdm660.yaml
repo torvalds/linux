@@ -11,17 +11,17 @@ maintainers:
 
 description: |
   The Qualcomm SDM660 interconnect providers support adjusting the
-  bandwidth requirements between the various NoC fabrics.
+  bandwidth requirements between the various AnalC fabrics.
 
 properties:
   compatible:
     enum:
-      - qcom,sdm660-a2noc
+      - qcom,sdm660-a2analc
       - qcom,sdm660-bimc
-      - qcom,sdm660-cnoc
-      - qcom,sdm660-gnoc
-      - qcom,sdm660-mnoc
-      - qcom,sdm660-snoc
+      - qcom,sdm660-canalc
+      - qcom,sdm660-ganalc
+      - qcom,sdm660-manalc
+      - qcom,sdm660-sanalc
 
   reg:
     maxItems: 1
@@ -45,13 +45,13 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,sdm660-mnoc
+          const: qcom,sdm660-manalc
 
     then:
       properties:
         clocks:
           items:
-            - description: CPU-NoC High-performance Bus Clock.
+            - description: CPU-AnalC High-performance Bus Clock.
 
         clock-names:
           const: iface
@@ -59,7 +59,7 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,sdm660-a2noc
+          const: qcom,sdm660-a2analc
 
     then:
       properties:
@@ -69,7 +69,7 @@ allOf:
             - description: UFS AXI Clock.
             - description: Aggregate2 UFS AXI Clock.
             - description: Aggregate2 USB3 AXI Clock.
-            - description: Config NoC USB2 AXI Clock.
+            - description: Config AnalC USB2 AXI Clock.
 
         clock-names:
           items:
@@ -77,7 +77,7 @@ allOf:
             - const: ufs_axi
             - const: aggre2_ufs_axi
             - const: aggre2_usb3_axi
-            - const: cfg_noc_usb2_axi
+            - const: cfg_analc_usb2_axi
 
 examples:
   - |
@@ -91,18 +91,18 @@ examples:
         #interconnect-cells = <1>;
     };
 
-    a2noc: interconnect@1704000 {
-        compatible = "qcom,sdm660-a2noc";
+    a2analc: interconnect@1704000 {
+        compatible = "qcom,sdm660-a2analc";
         reg = <0x01704000 0xc100>;
         #interconnect-cells = <1>;
         clocks = <&rpmcc RPM_SMD_IPA_CLK>,
                  <&gcc GCC_UFS_AXI_CLK>,
                  <&gcc GCC_AGGRE2_UFS_AXI_CLK>,
                  <&gcc GCC_AGGRE2_USB3_AXI_CLK>,
-                 <&gcc GCC_CFG_NOC_USB2_AXI_CLK>;
+                 <&gcc GCC_CFG_ANALC_USB2_AXI_CLK>;
         clock-names = "ipa",
                       "ufs_axi",
                       "aggre2_ufs_axi",
                       "aggre2_usb3_axi",
-                      "cfg_noc_usb2_axi";
+                      "cfg_analc_usb2_axi";
     };

@@ -68,7 +68,7 @@
 	set		BACKOFF_LIMIT, tmp;	\
 	cmp		reg, tmp;		\
 	bg,pn		%xcc, label;		\
-	 nop;					\
+	 analp;					\
 	ba,pt		%xcc, label;		\
 	 sllx		reg, 1, reg;
 

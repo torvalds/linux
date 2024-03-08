@@ -74,8 +74,8 @@ do { \
 /* Memory type and cache policy attributes */
 #define MT_SO			0
 #define MT_DEV			1
-#define MT_NORMAL		2
-#define CP_NONCACHED		0
+#define MT_ANALRMAL		2
+#define CP_ANALNCACHED		0
 #define CP_WB_WA		1
 #define CP_WT			2
 #define CP_WB_NWA		3
@@ -375,7 +375,7 @@ do { \
 
 /* REV */
 #define GET_MAJOR(b)		 GET_GLOBAL_FIELD(b, REV, MAJOR)
-#define GET_MINOR(b)		 GET_GLOBAL_FIELD(b, REV, MINOR)
+#define GET_MIANALR(b)		 GET_GLOBAL_FIELD(b, REV, MIANALR)
 
 
 /* TESTBUSCR */
@@ -528,11 +528,11 @@ do { \
 #define SET_FAULT_SL(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, FAULT_SL, v)
 #define SET_FAULT_SS(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, FAULT_SS, v)
 
-#define SET_NOFAULT_SS(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, NOFAULT_SS, v)
-#define SET_NOFAULT_MT(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, NOFAULT_MT, v)
-#define SET_NOFAULT_SH(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, NOFAULT_SH, v)
-#define SET_NOFAULT_NS(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, NOFAULT_NS, v)
-#define SET_NOFAULT_NOS(b, c, v) SET_CONTEXT_FIELD(b, c, PAR, NOFAULT_NOS, v)
+#define SET_ANALFAULT_SS(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, ANALFAULT_SS, v)
+#define SET_ANALFAULT_MT(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, ANALFAULT_MT, v)
+#define SET_ANALFAULT_SH(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, ANALFAULT_SH, v)
+#define SET_ANALFAULT_NS(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, ANALFAULT_NS, v)
+#define SET_ANALFAULT_ANALS(b, c, v) SET_CONTEXT_FIELD(b, c, PAR, ANALFAULT_ANALS, v)
 #define SET_NPFAULT_PA(b, c, v)	 SET_CONTEXT_FIELD(b, c, PAR, NPFAULT_PA, v)
 
 
@@ -549,14 +549,14 @@ do { \
 #define SET_SHDSH1(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, SHDSH1, v)
 #define SET_SHNMSH0(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, SHNMSH0, v)
 #define SET_SHNMSH1(b, c, v)     SET_CONTEXT_FIELD(b, c, PRRR, SHNMSH1, v)
-#define SET_NOS0(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, NOS0, v)
-#define SET_NOS1(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, NOS1, v)
-#define SET_NOS2(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, NOS2, v)
-#define SET_NOS3(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, NOS3, v)
-#define SET_NOS4(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, NOS4, v)
-#define SET_NOS5(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, NOS5, v)
-#define SET_NOS6(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, NOS6, v)
-#define SET_NOS7(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, NOS7, v)
+#define SET_ANALS0(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, ANALS0, v)
+#define SET_ANALS1(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, ANALS1, v)
+#define SET_ANALS2(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, ANALS2, v)
+#define SET_ANALS3(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, ANALS3, v)
+#define SET_ANALS4(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, ANALS4, v)
+#define SET_ANALS5(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, ANALS5, v)
+#define SET_ANALS6(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, ANALS6, v)
+#define SET_ANALS7(b, c, v)	 SET_CONTEXT_FIELD(b, c, PRRR, ANALS7, v)
 
 
 /* RESUME */
@@ -593,7 +593,7 @@ do { \
 #define SET_TTBR0_IRGNH(b, c, v) SET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_IRGNH, v)
 #define SET_TTBR0_SH(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_SH, v)
 #define SET_TTBR0_ORGN(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_ORGN, v)
-#define SET_TTBR0_NOS(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_NOS, v)
+#define SET_TTBR0_ANALS(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_ANALS, v)
 #define SET_TTBR0_IRGNL(b, c, v) SET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_IRGNL, v)
 #define SET_TTBR0_PA(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_PA, v)
 
@@ -602,7 +602,7 @@ do { \
 #define SET_TTBR1_IRGNH(b, c, v) SET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_IRGNH, v)
 #define SET_TTBR1_SH(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_SH, v)
 #define SET_TTBR1_ORGN(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_ORGN, v)
-#define SET_TTBR1_NOS(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_NOS, v)
+#define SET_TTBR1_ANALS(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_ANALS, v)
 #define SET_TTBR1_IRGNL(b, c, v) SET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_IRGNL, v)
 #define SET_TTBR1_PA(b, c, v)	 SET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_PA, v)
 
@@ -714,11 +714,11 @@ do { \
 #define GET_FAULT_SL(b, c)	GET_CONTEXT_FIELD(b, c, PAR, FAULT_SL)
 #define GET_FAULT_SS(b, c)	GET_CONTEXT_FIELD(b, c, PAR, FAULT_SS)
 
-#define GET_NOFAULT_SS(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_NOFAULT_SS)
-#define GET_NOFAULT_MT(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_NOFAULT_MT)
-#define GET_NOFAULT_SH(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_NOFAULT_SH)
-#define GET_NOFAULT_NS(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_NOFAULT_NS)
-#define GET_NOFAULT_NOS(b, c)   GET_CONTEXT_FIELD(b, c, PAR, PAR_NOFAULT_NOS)
+#define GET_ANALFAULT_SS(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_ANALFAULT_SS)
+#define GET_ANALFAULT_MT(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_ANALFAULT_MT)
+#define GET_ANALFAULT_SH(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_ANALFAULT_SH)
+#define GET_ANALFAULT_NS(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_ANALFAULT_NS)
+#define GET_ANALFAULT_ANALS(b, c)   GET_CONTEXT_FIELD(b, c, PAR, PAR_ANALFAULT_ANALS)
 #define GET_NPFAULT_PA(b, c)	GET_CONTEXT_FIELD(b, c, PAR, PAR_NPFAULT_PA)
 
 
@@ -735,15 +735,15 @@ do { \
 #define GET_SHDSH1(b, c)	GET_CONTEXT_FIELD(b, c, PRRR, SHDSH1)
 #define GET_SHNMSH0(b, c)	GET_CONTEXT_FIELD(b, c, PRRR, SHNMSH0)
 #define GET_SHNMSH1(b, c)	GET_CONTEXT_FIELD(b, c, PRRR, SHNMSH1)
-#define GET_NOS0(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS0)
-#define GET_NOS1(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS1)
-#define GET_NOS2(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS2)
-#define GET_NOS3(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS3)
-#define GET_NOS4(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS4)
-#define GET_NOS5(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS5)
-#define GET_NOS6(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS6)
-#define GET_NOS7(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS7)
-#define PRRR_NOS(prrr, n)	 ((prrr) & (1 << ((n) + 24)) ? 1 : 0)
+#define GET_ANALS0(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, ANALS0)
+#define GET_ANALS1(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, ANALS1)
+#define GET_ANALS2(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, ANALS2)
+#define GET_ANALS3(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, ANALS3)
+#define GET_ANALS4(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, ANALS4)
+#define GET_ANALS5(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, ANALS5)
+#define GET_ANALS6(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, ANALS6)
+#define GET_ANALS7(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, ANALS7)
+#define PRRR_ANALS(prrr, n)	 ((prrr) & (1 << ((n) + 24)) ? 1 : 0)
 #define PRRR_MT(prrr, n)	 ((((prrr) & (3 << ((n) * 2))) >> ((n) * 2)))
 
 
@@ -780,7 +780,7 @@ do { \
 #define GET_TTBR0_IRGNH(b, c)	GET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_IRGNH)
 #define GET_TTBR0_SH(b, c)	GET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_SH)
 #define GET_TTBR0_ORGN(b, c)	GET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_ORGN)
-#define GET_TTBR0_NOS(b, c)	GET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_NOS)
+#define GET_TTBR0_ANALS(b, c)	GET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_ANALS)
 #define GET_TTBR0_IRGNL(b, c)	GET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_IRGNL)
 #define GET_TTBR0_PA(b, c)	GET_CONTEXT_FIELD(b, c, TTBR0, TTBR0_PA)
 
@@ -789,7 +789,7 @@ do { \
 #define GET_TTBR1_IRGNH(b, c)	GET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_IRGNH)
 #define GET_TTBR1_SH(b, c)	GET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_SH)
 #define GET_TTBR1_ORGN(b, c)	GET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_ORGN)
-#define GET_TTBR1_NOS(b, c)	GET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_NOS)
+#define GET_TTBR1_ANALS(b, c)	GET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_ANALS)
 #define GET_TTBR1_IRGNL(b, c)	GET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_IRGNL)
 #define GET_TTBR1_PA(b, c)	GET_CONTEXT_FIELD(b, c, TTBR1, TTBR1_PA)
 
@@ -929,7 +929,7 @@ do { \
 
 
 /* REV */
-#define IDR_MINOR     (MINOR_MASK        << MINOR_SHIFT)
+#define IDR_MIANALR     (MIANALR_MASK        << MIANALR_SHIFT)
 #define IDR_MAJOR     (MAJOR_MASK        << MAJOR_SHIFT)
 
 
@@ -1082,13 +1082,13 @@ same as the fault fields in the FAR */
 #define FAULT_SL           (FAULT_SL_MASK           << FAULT_SL_SHIFT)
 #define FAULT_SS           (FAULT_SS_MASK           << FAULT_SS_SHIFT)
 
-/* If NO fault is present, the following fields are in effect */
+/* If ANAL fault is present, the following fields are in effect */
 /* (FAULT remains as before) */
-#define PAR_NOFAULT_SS     (PAR_NOFAULT_SS_MASK     << PAR_NOFAULT_SS_SHIFT)
-#define PAR_NOFAULT_MT     (PAR_NOFAULT_MT_MASK     << PAR_NOFAULT_MT_SHIFT)
-#define PAR_NOFAULT_SH     (PAR_NOFAULT_SH_MASK     << PAR_NOFAULT_SH_SHIFT)
-#define PAR_NOFAULT_NS     (PAR_NOFAULT_NS_MASK     << PAR_NOFAULT_NS_SHIFT)
-#define PAR_NOFAULT_NOS    (PAR_NOFAULT_NOS_MASK    << PAR_NOFAULT_NOS_SHIFT)
+#define PAR_ANALFAULT_SS     (PAR_ANALFAULT_SS_MASK     << PAR_ANALFAULT_SS_SHIFT)
+#define PAR_ANALFAULT_MT     (PAR_ANALFAULT_MT_MASK     << PAR_ANALFAULT_MT_SHIFT)
+#define PAR_ANALFAULT_SH     (PAR_ANALFAULT_SH_MASK     << PAR_ANALFAULT_SH_SHIFT)
+#define PAR_ANALFAULT_NS     (PAR_ANALFAULT_NS_MASK     << PAR_ANALFAULT_NS_SHIFT)
+#define PAR_ANALFAULT_ANALS    (PAR_ANALFAULT_ANALS_MASK    << PAR_ANALFAULT_ANALS_SHIFT)
 #define PAR_NPFAULT_PA     (PAR_NPFAULT_PA_MASK     << PAR_NPFAULT_PA_SHIFT)
 
 
@@ -1105,14 +1105,14 @@ same as the fault fields in the FAR */
 #define SHDSH1             (SHDSH1_MASK             << SHDSH1_SHIFT)
 #define SHNMSH0            (SHNMSH0_MASK            << SHNMSH0_SHIFT)
 #define SHNMSH1            (SHNMSH1_MASK            << SHNMSH1_SHIFT)
-#define NOS0               (NOS0_MASK               << NOS0_SHIFT)
-#define NOS1               (NOS1_MASK               << NOS1_SHIFT)
-#define NOS2               (NOS2_MASK               << NOS2_SHIFT)
-#define NOS3               (NOS3_MASK               << NOS3_SHIFT)
-#define NOS4               (NOS4_MASK               << NOS4_SHIFT)
-#define NOS5               (NOS5_MASK               << NOS5_SHIFT)
-#define NOS6               (NOS6_MASK               << NOS6_SHIFT)
-#define NOS7               (NOS7_MASK               << NOS7_SHIFT)
+#define ANALS0               (ANALS0_MASK               << ANALS0_SHIFT)
+#define ANALS1               (ANALS1_MASK               << ANALS1_SHIFT)
+#define ANALS2               (ANALS2_MASK               << ANALS2_SHIFT)
+#define ANALS3               (ANALS3_MASK               << ANALS3_SHIFT)
+#define ANALS4               (ANALS4_MASK               << ANALS4_SHIFT)
+#define ANALS5               (ANALS5_MASK               << ANALS5_SHIFT)
+#define ANALS6               (ANALS6_MASK               << ANALS6_SHIFT)
+#define ANALS7               (ANALS7_MASK               << ANALS7_SHIFT)
 
 
 /* RESUME */
@@ -1160,7 +1160,7 @@ same as the fault fields in the FAR */
 #define TTBR0_IRGNH        (TTBR0_IRGNH_MASK        << TTBR0_IRGNH_SHIFT)
 #define TTBR0_SH           (TTBR0_SH_MASK           << TTBR0_SH_SHIFT)
 #define TTBR0_ORGN         (TTBR0_ORGN_MASK         << TTBR0_ORGN_SHIFT)
-#define TTBR0_NOS          (TTBR0_NOS_MASK          << TTBR0_NOS_SHIFT)
+#define TTBR0_ANALS          (TTBR0_ANALS_MASK          << TTBR0_ANALS_SHIFT)
 #define TTBR0_IRGNL        (TTBR0_IRGNL_MASK        << TTBR0_IRGNL_SHIFT)
 #define TTBR0_PA           (TTBR0_PA_MASK           << TTBR0_PA_SHIFT)
 
@@ -1169,7 +1169,7 @@ same as the fault fields in the FAR */
 #define TTBR1_IRGNH        (TTBR1_IRGNH_MASK        << TTBR1_IRGNH_SHIFT)
 #define TTBR1_SH           (TTBR1_SH_MASK           << TTBR1_SH_SHIFT)
 #define TTBR1_ORGN         (TTBR1_ORGN_MASK         << TTBR1_ORGN_SHIFT)
-#define TTBR1_NOS          (TTBR1_NOS_MASK          << TTBR1_NOS_SHIFT)
+#define TTBR1_ANALS          (TTBR1_ANALS_MASK          << TTBR1_ANALS_SHIFT)
 #define TTBR1_IRGNL        (TTBR1_IRGNL_MASK        << TTBR1_IRGNL_SHIFT)
 #define TTBR1_PA           (TTBR1_PA_MASK           << TTBR1_PA_SHIFT)
 
@@ -1261,7 +1261,7 @@ same as the fault fields in the FAR */
 
 
 /* REV */
-#define MINOR_MASK                0x0F
+#define MIANALR_MASK                0x0F
 #define MAJOR_MASK                0x0F
 
 
@@ -1390,7 +1390,7 @@ same as the fault fields in the FAR */
 
 
 /* REV */
-#define MINOR_SHIFT              0
+#define MIANALR_SHIFT              0
 #define MAJOR_SHIFT              4
 
 
@@ -1543,14 +1543,14 @@ same as the fault fields in the FAR */
 #define FAULT_SL_MASK                    0x01
 #define FAULT_SS_MASK                    0x01
 
-/* If NO fault is present, the following
+/* If ANAL fault is present, the following
  * fields are in effect
  * (FAULT remains as before) */
-#define PAR_NOFAULT_SS_MASK              0x01
-#define PAR_NOFAULT_MT_MASK              0x07
-#define PAR_NOFAULT_SH_MASK              0x01
-#define PAR_NOFAULT_NS_MASK              0x01
-#define PAR_NOFAULT_NOS_MASK             0x01
+#define PAR_ANALFAULT_SS_MASK              0x01
+#define PAR_ANALFAULT_MT_MASK              0x07
+#define PAR_ANALFAULT_SH_MASK              0x01
+#define PAR_ANALFAULT_NS_MASK              0x01
+#define PAR_ANALFAULT_ANALS_MASK             0x01
 #define PAR_NPFAULT_PA_MASK              0x000FFFFF
 
 
@@ -1567,14 +1567,14 @@ same as the fault fields in the FAR */
 #define SHDSH1_MASK                      0x01
 #define SHNMSH0_MASK                     0x01
 #define SHNMSH1_MASK                     0x01
-#define NOS0_MASK                        0x01
-#define NOS1_MASK                        0x01
-#define NOS2_MASK                        0x01
-#define NOS3_MASK                        0x01
-#define NOS4_MASK                        0x01
-#define NOS5_MASK                        0x01
-#define NOS6_MASK                        0x01
-#define NOS7_MASK                        0x01
+#define ANALS0_MASK                        0x01
+#define ANALS1_MASK                        0x01
+#define ANALS2_MASK                        0x01
+#define ANALS3_MASK                        0x01
+#define ANALS4_MASK                        0x01
+#define ANALS5_MASK                        0x01
+#define ANALS6_MASK                        0x01
+#define ANALS7_MASK                        0x01
 
 
 /* RESUME */
@@ -1622,7 +1622,7 @@ same as the fault fields in the FAR */
 #define TTBR0_IRGNH_MASK                 0x01
 #define TTBR0_SH_MASK                    0x01
 #define TTBR0_ORGN_MASK                  0x03
-#define TTBR0_NOS_MASK                   0x01
+#define TTBR0_ANALS_MASK                   0x01
 #define TTBR0_IRGNL_MASK                 0x01
 #define TTBR0_PA_MASK                    0x0003FFFF
 
@@ -1631,7 +1631,7 @@ same as the fault fields in the FAR */
 #define TTBR1_IRGNH_MASK                 0x01
 #define TTBR1_SH_MASK                    0x01
 #define TTBR1_ORGN_MASK                  0x03
-#define TTBR1_NOS_MASK                   0x01
+#define TTBR1_ANALS_MASK                   0x01
 #define TTBR1_IRGNL_MASK                 0x01
 #define TTBR1_PA_MASK                    0x0003FFFF
 
@@ -1747,14 +1747,14 @@ same as the fault fields in the FAR */
 #define FAULT_SL_SHIFT                 16
 #define FAULT_SS_SHIFT                 30
 
-/* If NO fault is present, the following
+/* If ANAL fault is present, the following
  * fields are in effect
  * (FAULT remains as before) */
-#define PAR_NOFAULT_SS_SHIFT           1
-#define PAR_NOFAULT_MT_SHIFT           4
-#define PAR_NOFAULT_SH_SHIFT           7
-#define PAR_NOFAULT_NS_SHIFT           9
-#define PAR_NOFAULT_NOS_SHIFT          10
+#define PAR_ANALFAULT_SS_SHIFT           1
+#define PAR_ANALFAULT_MT_SHIFT           4
+#define PAR_ANALFAULT_SH_SHIFT           7
+#define PAR_ANALFAULT_NS_SHIFT           9
+#define PAR_ANALFAULT_ANALS_SHIFT          10
 #define PAR_NPFAULT_PA_SHIFT           12
 
 
@@ -1771,14 +1771,14 @@ same as the fault fields in the FAR */
 #define SHDSH1_SHIFT                   17
 #define SHNMSH0_SHIFT                  18
 #define SHNMSH1_SHIFT                  19
-#define NOS0_SHIFT                     24
-#define NOS1_SHIFT                     25
-#define NOS2_SHIFT                     26
-#define NOS3_SHIFT                     27
-#define NOS4_SHIFT                     28
-#define NOS5_SHIFT                     29
-#define NOS6_SHIFT                     30
-#define NOS7_SHIFT                     31
+#define ANALS0_SHIFT                     24
+#define ANALS1_SHIFT                     25
+#define ANALS2_SHIFT                     26
+#define ANALS3_SHIFT                     27
+#define ANALS4_SHIFT                     28
+#define ANALS5_SHIFT                     29
+#define ANALS6_SHIFT                     30
+#define ANALS7_SHIFT                     31
 
 
 /* RESUME */
@@ -1826,7 +1826,7 @@ same as the fault fields in the FAR */
 #define TTBR0_IRGNH_SHIFT              0
 #define TTBR0_SH_SHIFT                 1
 #define TTBR0_ORGN_SHIFT               3
-#define TTBR0_NOS_SHIFT                5
+#define TTBR0_ANALS_SHIFT                5
 #define TTBR0_IRGNL_SHIFT              6
 #define TTBR0_PA_SHIFT                 14
 
@@ -1835,7 +1835,7 @@ same as the fault fields in the FAR */
 #define TTBR1_IRGNH_SHIFT              0
 #define TTBR1_SH_SHIFT                 1
 #define TTBR1_ORGN_SHIFT               3
-#define TTBR1_NOS_SHIFT                5
+#define TTBR1_ANALS_SHIFT                5
 #define TTBR1_IRGNL_SHIFT              6
 #define TTBR1_PA_SHIFT                 14
 

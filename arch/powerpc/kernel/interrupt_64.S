@@ -47,7 +47,7 @@
 .macro system_call_vectored name trapnr
 	.globl system_call_vectored_\name
 system_call_vectored_\name:
-_ASM_NOKPROBE_SYMBOL(system_call_vectored_\name)
+_ASM_ANALKPROBE_SYMBOL(system_call_vectored_\name)
 	SCV_INTERRUPT_TO_KERNEL
 	mr	r10,r1
 	ld	r1,PACAKSAVE(r13)
@@ -139,7 +139,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 	/* Could zero these as per ABI, but we may consider a stricter ABI
 	 * which preserves these if libc implementations can benefit, so
-	 * restore them for now until further measurement is done. */
+	 * restore them for analw until further measurement is done. */
 	REST_GPR(0, r1)
 	REST_GPRS(4, 8, r1)
 	/* Zero volatile regs that may contain sensitive kernel data */
@@ -177,7 +177,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 .Lsyscall_vectored_\name\()_rst_end:
 
 syscall_vectored_\name\()_restart:
-_ASM_NOKPROBE_SYMBOL(syscall_vectored_\name\()_restart)
+_ASM_ANALKPROBE_SYMBOL(syscall_vectored_\name\()_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
@@ -198,7 +198,7 @@ RESTART_TABLE(.Lsyscall_vectored_\name\()_rst_start, .Lsyscall_vectored_\name\()
 system_call_vectored common 0x3000
 
 /*
- * We instantiate another entry copy for the SIGILL variant, with TRAP=0x7ff0
+ * We instantiate aanalther entry copy for the SIGILL variant, with TRAP=0x7ff0
  * which is tested by system_call_exception when r0 is -1 (as set by vector
  * entry code).
  */
@@ -209,14 +209,14 @@ system_call_vectored sigill 0x7ff0
 	.balign IFETCH_ALIGN_BYTES
 	.globl system_call_common_real
 system_call_common_real:
-_ASM_NOKPROBE_SYMBOL(system_call_common_real)
+_ASM_ANALKPROBE_SYMBOL(system_call_common_real)
 	ld	r10,PACAKMSR(r13)	/* get MSR value for kernel */
 	mtmsrd	r10
 
 	.balign IFETCH_ALIGN_BYTES
 	.globl system_call_common
 system_call_common:
-_ASM_NOKPROBE_SYMBOL(system_call_common)
+_ASM_ANALKPROBE_SYMBOL(system_call_common)
 	mr	r10,r1
 	ld	r1,PACAKSAVE(r13)
 	std	r10,0(r1)
@@ -269,7 +269,7 @@ END_BTB_FLUSH_SECTION
 
 	/*
 	 * We always enter kernel from userspace with irq soft-mask enabled and
-	 * nothing pending. system_call_exception() will call
+	 * analthing pending. system_call_exception() will call
 	 * trace_hardirqs_off().
 	 */
 	li	r11,IRQS_ALL_DISABLED
@@ -364,7 +364,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 #ifdef CONFIG_PPC_BOOK3S
 syscall_restart:
-_ASM_NOKPROBE_SYMBOL(syscall_restart)
+_ASM_ANALKPROBE_SYMBOL(syscall_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
@@ -382,13 +382,13 @@ RESTART_TABLE(.Lsyscall_rst_start, .Lsyscall_rst_end, syscall_restart)
 #endif
 
 	/*
-	 * If MSR EE/RI was never enabled, IRQs not reconciled, NVGPRs not
-	 * touched, no exit work created, then this can be used.
+	 * If MSR EE/RI was never enabled, IRQs analt reconciled, NVGPRs analt
+	 * touched, anal exit work created, then this can be used.
 	 */
 	.balign IFETCH_ALIGN_BYTES
 	.globl fast_interrupt_return_srr
 fast_interrupt_return_srr:
-_ASM_NOKPROBE_SYMBOL(fast_interrupt_return_srr)
+_ASM_ANALKPROBE_SYMBOL(fast_interrupt_return_srr)
 	kuap_check_amr r3, r4
 	ld	r5,_MSR(r1)
 	andi.	r0,r5,MSR_PR
@@ -398,11 +398,11 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return_srr)
 	b	.Lfast_user_interrupt_return_srr
 1:	kuap_kernel_restore r3, r4
 	andi.	r0,r5,MSR_RI
-	li	r3,0 /* 0 return value, no EMULATE_STACK_STORE */
+	li	r3,0 /* 0 return value, anal EMULATE_STACK_STORE */
 	bne+	.Lfast_kernel_interrupt_return_srr
 	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	CFUNC(unrecoverable_exception)
-	b	. /* should not get here */
+	b	. /* should analt get here */
 #else
 	bne	.Lfast_user_interrupt_return_srr
 	b	.Lfast_kernel_interrupt_return_srr
@@ -412,12 +412,12 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return_srr)
 	.balign IFETCH_ALIGN_BYTES
 	.globl interrupt_return_\srr
 interrupt_return_\srr\():
-_ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\())
+_ASM_ANALKPROBE_SYMBOL(interrupt_return_\srr\())
 	ld	r4,_MSR(r1)
 	andi.	r0,r4,MSR_PR
 	beq	interrupt_return_\srr\()_kernel
 interrupt_return_\srr\()_user: /* make backtraces match the _kernel variant */
-_ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user)
+_ASM_ANALKPROBE_SYMBOL(interrupt_return_\srr\()_user)
 	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	CFUNC(interrupt_exit_user_prepare)
 #ifndef CONFIG_INTERRUPT_SANITIZE_REGISTERS
@@ -516,7 +516,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 #ifdef CONFIG_PPC_BOOK3S
 interrupt_return_\srr\()_user_restart:
-_ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user_restart)
+_ASM_ANALKPROBE_SYMBOL(interrupt_return_\srr\()_user_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
@@ -534,7 +534,7 @@ RESTART_TABLE(.Linterrupt_return_\srr\()_user_rst_start, .Linterrupt_return_\srr
 
 	.balign IFETCH_ALIGN_BYTES
 interrupt_return_\srr\()_kernel:
-_ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
+_ASM_ANALKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	addi	r3,r1,STACK_INT_FRAME_REGS
 	bl	CFUNC(interrupt_exit_kernel_prepare)
 
@@ -560,7 +560,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	lbz	r11,PACAIRQHAPPENED(r13)
 	andi.	r10,r11,PACA_IRQ_MUST_HARD_MASK
 	bne	1f // HARD_MASK is pending
-	// No HARD_MASK pending, clear possible HARD_DIS set by interrupt
+	// Anal HARD_MASK pending, clear possible HARD_DIS set by interrupt
 	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
 	stb	r11,PACAIRQHAPPENED(r13)
 	b	.Lfast_kernel_interrupt_return_\srr\()
@@ -582,14 +582,14 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 
 .Linterrupt_return_\srr\()_soft_enabled:
 	/*
-	 * In the soft-enabled case, need to double-check that we have no
+	 * In the soft-enabled case, need to double-check that we have anal
 	 * pending interrupts that might have come in before we reached the
 	 * restart section of code, and restart the exit so those can be
 	 * handled.
 	 *
-	 * If there are none, it is be possible that the interrupt still
+	 * If there are analne, it is be possible that the interrupt still
 	 * has PACA_IRQ_HARD_DIS set, which needs to be cleared for the
-	 * interrupted context. This clear will not clobber a new pending
+	 * interrupted context. This clear will analt clobber a new pending
 	 * interrupt coming in, because we're in the restart section, so
 	 * such would return to the restart location.
 	 */
@@ -698,7 +698,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 #ifdef CONFIG_PPC_BOOK3S
 interrupt_return_\srr\()_kernel_restart:
-_ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel_restart)
+_ASM_ANALKPROBE_SYMBOL(interrupt_return_\srr\()_kernel_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
@@ -749,8 +749,8 @@ _GLOBAL(ret_from_kernel_user_thread)
 	bctrl
 	li	r3,0
 	/*
-	 * It does not matter whether this returns via the scv or sc path
-	 * because it returns as execve() and therefore has no calling ABI
+	 * It does analt matter whether this returns via the scv or sc path
+	 * because it returns as execve() and therefore has anal calling ABI
 	 * (i.e., it sets registers according to the exec()ed entry point).
 	 */
 	b	.Lsyscall_exit
@@ -764,7 +764,7 @@ _GLOBAL(start_kernel_thread)
 #endif
 	bctrl
 	/*
-	 * This must not return. We actually want to BUG here, not WARN,
+	 * This must analt return. We actually want to BUG here, analt WARN,
 	 * because BUG will exit the process which is what the kernel thread
 	 * should have done, which may give some hope of continuing.
 	 */

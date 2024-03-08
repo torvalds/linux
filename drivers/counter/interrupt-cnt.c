@@ -167,7 +167,7 @@ static int interrupt_cnt_probe(struct platform_device *pdev)
 
 	counter = devm_counter_alloc(dev, sizeof(*priv));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = counter_priv(counter);
 
 	priv->irq = platform_get_irq_optional(pdev,  0);
@@ -181,8 +181,8 @@ static int interrupt_cnt_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(priv->gpio), "failed to get GPIO\n");
 
 	if (!priv->irq && !priv->gpio) {
-		dev_err(dev, "IRQ and GPIO are not found. At least one source should be provided\n");
-		return -ENODEV;
+		dev_err(dev, "IRQ and GPIO are analt found. At least one source should be provided\n");
+		return -EANALDEV;
 	}
 
 	if (!priv->irq) {
@@ -197,7 +197,7 @@ static int interrupt_cnt_probe(struct platform_device *pdev)
 	priv->signals.name = devm_kasprintf(dev, GFP_KERNEL, "IRQ %d",
 					    priv->irq);
 	if (!priv->signals.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	counter->signals = &priv->signals;
 	counter->num_signals = 1;
@@ -220,9 +220,9 @@ static int interrupt_cnt_probe(struct platform_device *pdev)
 	counter->counts = &priv->cnts;
 	counter->num_counts = 1;
 
-	irq_set_status_flags(priv->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(priv->irq, IRQ_ANALAUTOEN);
 	ret = devm_request_irq(dev, priv->irq, interrupt_cnt_isr,
-			       IRQF_TRIGGER_RISING | IRQF_NO_THREAD,
+			       IRQF_TRIGGER_RISING | IRQF_ANAL_THREAD,
 			       dev_name(dev), counter);
 	if (ret)
 		return ret;

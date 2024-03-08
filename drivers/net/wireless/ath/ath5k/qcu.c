@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -30,7 +30,7 @@ Queue Control Unit, DCF Control Unit Functions
 /**
  * DOC: Queue Control Unit (QCU)/DCF Control Unit (DCU) functions
  *
- * Here we setup parameters for the 12 available TX queues. Note that
+ * Here we setup parameters for the 12 available TX queues. Analte that
  * on the various registers we can usually only map the first 10 of them so
  * basically we have 10 queues to play with. Each queue has a matching
  * QCU that controls when the queue will get triggered and multiple QCUs
@@ -76,8 +76,8 @@ ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 	pending = ath5k_hw_reg_read(ah, AR5K_QUEUE_STATUS(queue));
 	pending &= AR5K_QCU_STS_FRMPENDCNT;
 
-	/* It's possible to have no frames pending even if TXE
-	 * is set. To indicate that q has not stopped return
+	/* It's possible to have anal frames pending even if TXE
+	 * is set. To indicate that q has analt stopped return
 	 * true */
 	if (!pending && AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue))
 		return true;
@@ -121,7 +121,7 @@ ath5k_cw_validate(u16 cw_req)
 	if (is_power_of_2(cw_req))
 		return cw_req - 1;
 
-	/* If none of the above is correct
+	/* If analne of the above is correct
 	 * find the closest power of 2 */
 	cw_req = (u16) roundup_pow_of_two(cw_req) - 1;
 
@@ -213,11 +213,11 @@ ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 	if (ah->ah_capabilities.cap_queues.q_tx_num == 2) {
 		switch (queue_type) {
 		case AR5K_TX_QUEUE_DATA:
-			queue = AR5K_TX_QUEUE_ID_NOQCU_DATA;
+			queue = AR5K_TX_QUEUE_ID_ANALQCU_DATA;
 			break;
 		case AR5K_TX_QUEUE_BEACON:
 		case AR5K_TX_QUEUE_CAB:
-			queue = AR5K_TX_QUEUE_ID_NOQCU_BEACON;
+			queue = AR5K_TX_QUEUE_ID_ANALQCU_BEACON;
 			break;
 		default:
 			return -EINVAL;
@@ -289,16 +289,16 @@ ath5k_hw_set_tx_retry_limits(struct ath5k_hw *ah,
 			return;
 
 		ath5k_hw_reg_write(ah,
-			(tq->tqi_cw_min << AR5K_NODCU_RETRY_LMT_CW_MIN_S)
+			(tq->tqi_cw_min << AR5K_ANALDCU_RETRY_LMT_CW_MIN_S)
 			| AR5K_REG_SM(ah->ah_retry_long,
-				      AR5K_NODCU_RETRY_LMT_SLG_RETRY)
+				      AR5K_ANALDCU_RETRY_LMT_SLG_RETRY)
 			| AR5K_REG_SM(ah->ah_retry_short,
-				      AR5K_NODCU_RETRY_LMT_SSH_RETRY)
+				      AR5K_ANALDCU_RETRY_LMT_SSH_RETRY)
 			| AR5K_REG_SM(ah->ah_retry_long,
-				      AR5K_NODCU_RETRY_LMT_LG_RETRY)
+				      AR5K_ANALDCU_RETRY_LMT_LG_RETRY)
 			| AR5K_REG_SM(ah->ah_retry_short,
-				      AR5K_NODCU_RETRY_LMT_SH_RETRY),
-			AR5K_NODCU_RETRY_LMT);
+				      AR5K_ANALDCU_RETRY_LMT_SH_RETRY),
+			AR5K_ANALDCU_RETRY_LMT);
 	/* DCU on AR5211+ */
 	} else {
 		ath5k_hw_reg_write(ah,
@@ -419,7 +419,7 @@ ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_DFS_MISC(queue),
 				(AR5K_DCU_MISC_ARBLOCK_CTL_GLOBAL <<
 				AR5K_DCU_MISC_ARBLOCK_CTL_S) |
-				AR5K_DCU_MISC_ARBLOCK_IGNORE |
+				AR5K_DCU_MISC_ARBLOCK_IGANALRE |
 				AR5K_DCU_MISC_POST_FR_BKOFF_DIS |
 				AR5K_DCU_MISC_BCN_ENABLE);
 		break;
@@ -483,8 +483,8 @@ ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	if (tq->tqi_flags & AR5K_TXQ_FLAG_QTRIGINT_ENABLE)
 		AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_qtrig, queue);
 
-	if (tq->tqi_flags & AR5K_TXQ_FLAG_TXNOFRMINT_ENABLE)
-		AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_nofrm, queue);
+	if (tq->tqi_flags & AR5K_TXQ_FLAG_TXANALFRMINT_ENABLE)
+		AR5K_Q_ENABLE_BITS(ah->ah_txq_imr_analfrm, queue);
 
 	/* Update secondary interrupt mask registers */
 
@@ -497,7 +497,7 @@ ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	ah->ah_txq_imr_cbrorn &= ah->ah_txq_status;
 	ah->ah_txq_imr_cbrurn &= ah->ah_txq_status;
 	ah->ah_txq_imr_qtrig &= ah->ah_txq_status;
-	ah->ah_txq_imr_nofrm &= ah->ah_txq_status;
+	ah->ah_txq_imr_analfrm &= ah->ah_txq_status;
 
 	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_txok,
 					AR5K_SIMR0_QCU_TXOK) |
@@ -526,14 +526,14 @@ ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_qtrig,
 				AR5K_SIMR4_QTRIG), AR5K_SIMR4);
 
-	/* Set TXNOFRM_QCU for the queues with TXNOFRM enabled */
-	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_nofrm,
-				AR5K_TXNOFRM_QCU), AR5K_TXNOFRM);
+	/* Set TXANALFRM_QCU for the queues with TXANALFRM enabled */
+	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txq_imr_analfrm,
+				AR5K_TXANALFRM_QCU), AR5K_TXANALFRM);
 
-	/* No queue has TXNOFRM enabled, disable the interrupt
-	 * by setting AR5K_TXNOFRM to zero */
-	if (ah->ah_txq_imr_nofrm == 0)
-		ath5k_hw_reg_write(ah, 0, AR5K_TXNOFRM);
+	/* Anal queue has TXANALFRM enabled, disable the interrupt
+	 * by setting AR5K_TXANALFRM to zero */
+	if (ah->ah_txq_imr_analfrm == 0)
+		ath5k_hw_reg_write(ah, 0, AR5K_TXANALFRM);
 
 	/* Set QCU mask for this DCU to save power */
 	AR5K_REG_WRITE_Q(ah, AR5K_QUEUE_QCUMASK(queue), queue);
@@ -574,7 +574,7 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 	 * Txtime of ack at lowest rate + SIFS + DIFS
 	 * (DIFS = SIFS + 2 * Slot time)
 	 *
-	 * Note: HAL has some predefined values for EIFS
+	 * Analte: HAL has some predefined values for EIFS
 	 * Turbo:   (37 + 2 * 6)
 	 * Default: (74 + 2 * 9)
 	 * Half:    (149 + 2 * 13)
@@ -695,7 +695,7 @@ ath5k_hw_init_queues(struct ath5k_hw *ah)
 	/*
 	 * Reset queues and start beacon timers at the end of the reset routine
 	 * This also sets QCU mask on each DCU for 1:1 qcu to dcu mapping
-	 * Note: If we want we can assign multiple qcus on one dcu.
+	 * Analte: If we want we can assign multiple qcus on one dcu.
 	 */
 	if (ah->ah_version != AR5K_AR5210)
 		for (i = 0; i < ah->ah_capabilities.cap_queues.q_tx_num; i++) {
@@ -707,7 +707,7 @@ ath5k_hw_init_queues(struct ath5k_hw *ah)
 			}
 		}
 	else
-		/* No QCU/DCU on AR5210, just set tx
+		/* Anal QCU/DCU on AR5210, just set tx
 		 * retry limits. We set IFS parameters
 		 * on ath5k_hw_set_ifs_intervals */
 		ath5k_hw_set_tx_retry_limits(ah, 0);

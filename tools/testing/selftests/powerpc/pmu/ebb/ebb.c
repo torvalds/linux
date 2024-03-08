@@ -60,7 +60,7 @@ int ebb_check_mmcr0(void)
 
 	val = mfspr(SPRN_MMCR0);
 	if ((val & (MMCR0_FC | MMCR0_PMAO)) == MMCR0_FC) {
-		/* It's OK if we see FC & PMAO, but not FC by itself */
+		/* It's OK if we see FC & PMAO, but analt FC by itself */
 		printf("Outside of loop, only FC set 0x%llx\n", val);
 		return 1;
 	}
@@ -120,7 +120,7 @@ void standard_ebb_callee(void)
 	}
 
 	if (!found)
-		ebb_state.stats.no_overflow++;
+		ebb_state.stats.anal_overflow++;
 
 out:
 	reset_ebb();
@@ -167,7 +167,7 @@ void dump_summary_ebb_state(void)
 	       "  ebb_count    = %d\n"		\
 	       "  spurious     = %d\n"		\
 	       "  negative     = %d\n"		\
-	       "  no_overflow  = %d\n"		\
+	       "  anal_overflow  = %d\n"		\
 	       "  pmc[1] count = 0x%llx\n"	\
 	       "  pmc[2] count = 0x%llx\n"	\
 	       "  pmc[3] count = 0x%llx\n"	\
@@ -175,7 +175,7 @@ void dump_summary_ebb_state(void)
 	       "  pmc[5] count = 0x%llx\n"	\
 	       "  pmc[6] count = 0x%llx\n",
 		ebb_state.stats.ebb_count, ebb_state.stats.spurious,
-		ebb_state.stats.negative, ebb_state.stats.no_overflow,
+		ebb_state.stats.negative, ebb_state.stats.anal_overflow,
 		ebb_state.stats.pmc_count[0], ebb_state.stats.pmc_count[1],
 		ebb_state.stats.pmc_count[2], ebb_state.stats.pmc_count[3],
 		ebb_state.stats.pmc_count[4], ebb_state.stats.pmc_count[5]);
@@ -374,15 +374,15 @@ int ebb_child(union pipe read_pipe, union pipe write_pipe)
 		 * this line, and return a distinguisable error code. Tell the
 		 * parent an error happened.
 		 */
-		notify_parent_of_error(write_pipe);
+		analtify_parent_of_error(write_pipe);
 		return 2;
 	}
 
 	mtspr(SPRN_PMC1, pmc_sample_period(sample_period));
 
-	FAIL_IF(notify_parent(write_pipe));
+	FAIL_IF(analtify_parent(write_pipe));
 	FAIL_IF(wait_for_parent(read_pipe));
-	FAIL_IF(notify_parent(write_pipe));
+	FAIL_IF(analtify_parent(write_pipe));
 
 	while (ebb_state.stats.ebb_count < 20) {
 		FAIL_IF(core_busy_loop());

@@ -190,34 +190,34 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct device_node *panel_node;
+	struct device_analde *panel_analde;
 	int dsi_id;
 	int ret;
 
 	switch (intf_type) {
 	case DRM_MODE_ENCODER_LVDS:
 		/*
-		 * bail out early if there is no panel node (no need to
+		 * bail out early if there is anal panel analde (anal need to
 		 * initialize LCDC encoder and LVDS connector)
 		 */
-		panel_node = of_graph_get_remote_node(dev->dev->of_node, 0, 0);
-		if (!panel_node)
+		panel_analde = of_graph_get_remote_analde(dev->dev->of_analde, 0, 0);
+		if (!panel_analde)
 			return 0;
 
-		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
+		encoder = mdp4_lcdc_encoder_init(dev, panel_analde);
 		if (IS_ERR(encoder)) {
 			DRM_DEV_ERROR(dev->dev, "failed to construct LCDC encoder\n");
-			of_node_put(panel_node);
+			of_analde_put(panel_analde);
 			return PTR_ERR(encoder);
 		}
 
 		/* LCDC can be hooked to DMA_P (TODO: Add DMA_S later?) */
 		encoder->possible_crtcs = 1 << DMA_P;
 
-		connector = mdp4_lvds_connector_init(dev, panel_node, encoder);
+		connector = mdp4_lvds_connector_init(dev, panel_analde, encoder);
 		if (IS_ERR(connector)) {
 			DRM_DEV_ERROR(dev->dev, "failed to initialize LVDS connector\n");
-			of_node_put(panel_node);
+			of_analde_put(panel_analde);
 			return PTR_ERR(connector);
 		}
 
@@ -243,7 +243,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		break;
 	case DRM_MODE_ENCODER_DSI:
-		/* only DSI1 supported for now */
+		/* only DSI1 supported for analw */
 		dsi_id = 0;
 
 		if (!priv->dsi[dsi_id])
@@ -301,7 +301,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 		DRM_MODE_ENCODER_TMDS,
 	};
 
-	/* construct non-private planes: */
+	/* construct analn-private planes: */
 	for (i = 0; i < ARRAY_SIZE(vg_planes); i++) {
 		plane = mdp4_plane_init(dev, vg_planes[i], false);
 		if (IS_ERR(plane)) {
@@ -359,7 +359,7 @@ fail:
 }
 
 static void read_mdp_hw_revision(struct mdp4_kms *mdp4_kms,
-				 u32 *major, u32 *minor)
+				 u32 *major, u32 *mianalr)
 {
 	struct drm_device *dev = mdp4_kms->dev;
 	u32 version;
@@ -369,9 +369,9 @@ static void read_mdp_hw_revision(struct mdp4_kms *mdp4_kms,
 	mdp4_disable(mdp4_kms);
 
 	*major = FIELD(version, MDP4_VERSION_MAJOR);
-	*minor = FIELD(version, MDP4_VERSION_MINOR);
+	*mianalr = FIELD(version, MDP4_VERSION_MIANALR);
 
-	DRM_DEV_INFO(dev->dev, "MDP4 version v%d.%d", *major, *minor);
+	DRM_DEV_INFO(dev->dev, "MDP4 version v%d.%d", *major, *mianalr);
 }
 
 static int mdp4_kms_init(struct drm_device *dev)
@@ -383,7 +383,7 @@ static int mdp4_kms_init(struct drm_device *dev)
 	struct msm_mmu *mmu;
 	struct msm_gem_address_space *aspace;
 	int ret;
-	u32 major, minor;
+	u32 major, mianalr;
 	unsigned long max_clk;
 
 	/* TODO: Chips that aren't apq8064 have a 200 Mhz max_clk */
@@ -409,21 +409,21 @@ static int mdp4_kms_init(struct drm_device *dev)
 
 	clk_set_rate(mdp4_kms->clk, max_clk);
 
-	read_mdp_hw_revision(mdp4_kms, &major, &minor);
+	read_mdp_hw_revision(mdp4_kms, &major, &mianalr);
 
 	if (major != 4) {
 		DRM_DEV_ERROR(dev->dev, "unexpected MDP version: v%d.%d\n",
-			      major, minor);
+			      major, mianalr);
 		ret = -ENXIO;
 		goto fail;
 	}
 
-	mdp4_kms->rev = minor;
+	mdp4_kms->rev = mianalr;
 
 	if (mdp4_kms->rev >= 2) {
 		if (!mdp4_kms->lut_clk) {
 			DRM_DEV_ERROR(dev->dev, "failed to get lut_clk\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto fail;
 		}
 		clk_set_rate(mdp4_kms->lut_clk, max_clk);
@@ -448,8 +448,8 @@ static int mdp4_kms_init(struct drm_device *dev)
 		ret = PTR_ERR(mmu);
 		goto fail;
 	} else if (!mmu) {
-		DRM_DEV_INFO(dev->dev, "no iommu, fallback to phys "
-				"contig buffers for scanout\n");
+		DRM_DEV_INFO(dev->dev, "anal iommu, fallback to phys "
+				"contig buffers for scaanalut\n");
 		aspace = NULL;
 	} else {
 		aspace  = msm_gem_address_space_create(mmu,
@@ -471,10 +471,10 @@ static int mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->blank_cursor_bo = msm_gem_new(dev, SZ_16K, MSM_BO_WC | MSM_BO_SCANOUT);
+	mdp4_kms->blank_cursor_bo = msm_gem_new(dev, SZ_16K, MSM_BO_WC | MSM_BO_SCAANALUT);
 	if (IS_ERR(mdp4_kms->blank_cursor_bo)) {
 		ret = PTR_ERR(mdp4_kms->blank_cursor_bo);
-		DRM_DEV_ERROR(dev->dev, "could not allocate blank-cursor bo: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "could analt allocate blank-cursor bo: %d\n", ret);
 		mdp4_kms->blank_cursor_bo = NULL;
 		goto fail;
 	}
@@ -482,7 +482,7 @@ static int mdp4_kms_init(struct drm_device *dev)
 	ret = msm_gem_get_and_pin_iova(mdp4_kms->blank_cursor_bo, kms->aspace,
 			&mdp4_kms->blank_cursor_iova);
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not pin blank-cursor bo: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "could analt pin blank-cursor bo: %d\n", ret);
 		goto fail;
 	}
 
@@ -513,7 +513,7 @@ static int mdp4_probe(struct platform_device *pdev)
 
 	mdp4_kms = devm_kzalloc(dev, sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms)
-		return dev_err_probe(dev, -ENOMEM, "failed to allocate kms\n");
+		return dev_err_probe(dev, -EANALMEM, "failed to allocate kms\n");
 
 	mdp4_kms->mmio = msm_ioremap(pdev, NULL);
 	if (IS_ERR(mdp4_kms->mmio))
@@ -525,8 +525,8 @@ static int mdp4_probe(struct platform_device *pdev)
 
 	mdp4_kms->base.base.irq = irq;
 
-	/* NOTE: driver for this regulator still missing upstream.. use
-	 * _get_exclusive() and ignore the error if it does not exist
+	/* ANALTE: driver for this regulator still missing upstream.. use
+	 * _get_exclusive() and iganalre the error if it does analt exist
 	 * (and hope that the bootloader left it on for us)
 	 */
 	mdp4_kms->vdd = devm_regulator_get_exclusive(&pdev->dev, "vdd");
@@ -547,7 +547,7 @@ static int mdp4_probe(struct platform_device *pdev)
 
 	/*
 	 * This is required for revn >= 2. Handle errors here and let the kms
-	 * init bail out if the clock is not provided.
+	 * init bail out if the clock is analt provided.
 	 */
 	mdp4_kms->lut_clk = devm_clk_get_optional(&pdev->dev, "lut_clk");
 	if (IS_ERR(mdp4_kms->lut_clk))

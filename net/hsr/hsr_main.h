@@ -20,23 +20,23 @@
  * All values in milliseconds.
  */
 #define HSR_LIFE_CHECK_INTERVAL		 2000 /* ms */
-#define HSR_NODE_FORGET_TIME		60000 /* ms */
-#define HSR_ANNOUNCE_INTERVAL		  100 /* ms */
+#define HSR_ANALDE_FORGET_TIME		60000 /* ms */
+#define HSR_ANANALUNCE_INTERVAL		  100 /* ms */
 #define HSR_ENTRY_FORGET_TIME		  400 /* ms */
 
 /* By how much may slave1 and slave2 timestamps of latest received frame from
- * each node differ before we notify of communication problem?
+ * each analde differ before we analtify of communication problem?
  */
 #define MAX_SLAVE_DIFF			 3000 /* ms */
 #define HSR_SEQNR_START			(USHRT_MAX - 1024)
 #define HSR_SUP_SEQNR_START		(HSR_SEQNR_START / 2)
 
-/* How often shall we check for broken ring and remove node entries older than
- * HSR_NODE_FORGET_TIME?
+/* How often shall we check for broken ring and remove analde entries older than
+ * HSR_ANALDE_FORGET_TIME?
  */
 #define PRUNE_PERIOD			 3000 /* ms */
 #define HSR_TLV_EOT				   0  /* End of TLVs */
-#define HSR_TLV_ANNOUNCE		   22
+#define HSR_TLV_ANANALUNCE		   22
 #define HSR_TLV_LIFE_CHECK		   23
 /* PRP V1 life check for Duplicate discard */
 #define PRP_TLV_LIFE_CHECK_DD		   20
@@ -120,7 +120,7 @@ struct hsrv1_ethhdr_sp {
 } __packed;
 
 enum hsr_port_type {
-	HSR_PT_NONE = 0,	/* Must be 0, used by framereg */
+	HSR_PT_ANALNE = 0,	/* Must be 0, used by framereg */
 	HSR_PT_SLAVE_A,
 	HSR_PT_SLAVE_B,
 	HSR_PT_INTERLINK,
@@ -164,13 +164,13 @@ struct hsr_port {
 };
 
 struct hsr_frame_info;
-struct hsr_node;
+struct hsr_analde;
 
 struct hsr_proto_ops {
 	/* format and send supervision frame */
 	void (*send_sv_frame)(struct hsr_port *port, unsigned long *interval);
 	void (*handle_san_frame)(bool san, enum hsr_port_type port,
-				 struct hsr_node *node);
+				 struct hsr_analde *analde);
 	bool (*drop_frame)(struct hsr_frame_info *frame, struct hsr_port *port);
 	struct sk_buff * (*get_untagged_frame)(struct hsr_frame_info *frame,
 					       struct hsr_port *port);
@@ -179,10 +179,10 @@ struct hsr_proto_ops {
 	int (*fill_frame_info)(__be16 proto, struct sk_buff *skb,
 			       struct hsr_frame_info *frame);
 	bool (*invalid_dan_ingress_frame)(__be16 protocol);
-	void (*update_san_info)(struct hsr_node *node, bool is_sup);
+	void (*update_san_info)(struct hsr_analde *analde, bool is_sup);
 };
 
-struct hsr_self_node {
+struct hsr_self_analde {
 	unsigned char	macaddress_A[ETH_ALEN];
 	unsigned char	macaddress_B[ETH_ALEN];
 	struct rcu_head	rcu_head;
@@ -191,16 +191,16 @@ struct hsr_self_node {
 struct hsr_priv {
 	struct rcu_head		rcu_head;
 	struct list_head	ports;
-	struct list_head	node_db;	/* Known HSR nodes */
-	struct hsr_self_node	__rcu *self_node;	/* MACs of slaves */
-	struct timer_list	announce_timer;	/* Supervision frame dispatch */
+	struct list_head	analde_db;	/* Kanalwn HSR analdes */
+	struct hsr_self_analde	__rcu *self_analde;	/* MACs of slaves */
+	struct timer_list	ananalunce_timer;	/* Supervision frame dispatch */
 	struct timer_list	prune_timer;
-	int announce_count;
+	int ananalunce_count;
 	u16 sequence_nr;
 	u16 sup_sequence_nr;	/* For HSRv1 separate seq_nr for supervision */
 	enum hsr_version prot_version;	/* Indicate if HSRv0, HSRv1 or PRPv1 */
 	spinlock_t seqnr_lock;	/* locking for sequence_nr */
-	spinlock_t list_lock;	/* locking for node list */
+	spinlock_t list_lock;	/* locking for analde list */
 	struct hsr_proto_ops	*proto_ops;
 #define PRP_LAN_ID	0x5     /* 0x1010 for A and 0x1011 for B. Bit 0 is set
 				 * based on SLAVE_A or SLAVE_B
@@ -214,7 +214,7 @@ struct hsr_priv {
 				 * in ether_addr_equal
 				 */
 #ifdef	CONFIG_DEBUG_FS
-	struct dentry *node_tbl_root;
+	struct dentry *analde_tbl_root;
 #endif
 };
 

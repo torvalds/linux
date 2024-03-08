@@ -64,7 +64,7 @@ int tcp_fastopen_reset_cipher(struct net *net, struct sock *sk,
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -197,8 +197,8 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	tp->syn_data_acked = 1;
 
-	/* u64_stats_update_begin(&tp->syncp) not needed here,
-	 * as we certainly are not changing upper 32bit value (0)
+	/* u64_stats_update_begin(&tp->syncp) analt needed here,
+	 * as we certainly are analt changing upper 32bit value (0)
 	 */
 	tp->bytes_received = skb->len;
 
@@ -206,7 +206,7 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 		tcp_fin(sk);
 }
 
-/* returns 0 - no key match, 1 for primary, 2 for backup */
+/* returns 0 - anal key match, 1 for primary, 2 for backup */
 static int tcp_fastopen_cookie_gen_check(struct sock *sk,
 					 struct request_sock *req,
 					 struct sk_buff *syn,
@@ -269,7 +269,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	tp->max_window = tp->snd_wnd;
 
 	/* Activate the retrans timer so that SYNACK can be retransmitted.
-	 * The request socket is not added to the ehash
+	 * The request socket is analt added to the ehash
 	 * because it's been added to the accept queue directly.
 	 */
 	req->timeout = tcp_timeout_init(child);
@@ -278,7 +278,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 
 	refcount_set(&req->rsk_refcnt, 2);
 
-	/* Now finish processing the fastopen child socket. */
+	/* Analw finish processing the fastopen child socket. */
 	tcp_init_transfer(child, BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB, skb);
 
 	tp->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
@@ -306,7 +306,7 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	 * XXX (TFO) - The implication of checking the max_qlen before
 	 * processing a cookie request is that clients can't differentiate
 	 * between qlen overflow causing Fast Open to be disabled
-	 * temporarily vs a server not supporting Fast Open at all.
+	 * temporarily vs a server analt supporting Fast Open at all.
 	 */
 	fastopenq = &inet_csk(sk)->icsk_accept_queue.fastopenq;
 	max_qlen = READ_ONCE(fastopenq->max_qlen);
@@ -319,7 +319,7 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 		req1 = fastopenq->rskq_rst_head;
 		if (!req1 || time_after(req1->rsk_timer.expires, jiffies)) {
 			__NET_INC_STATS(sock_net(sk),
-					LINUX_MIB_TCPFASTOPENLISTENOVERFLOW);
+					LINUX_MIB_TCPFASTOPENLISTEANALVERFLOW);
 			spin_unlock(&fastopenq->lock);
 			return false;
 		}
@@ -331,13 +331,13 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	return true;
 }
 
-static bool tcp_fastopen_no_cookie(const struct sock *sk,
+static bool tcp_fastopen_anal_cookie(const struct sock *sk,
 				   const struct dst_entry *dst,
 				   int flag)
 {
 	return (READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_fastopen) & flag) ||
-	       tcp_sk(sk)->fastopen_no_cookie ||
-	       (dst && dst_metric(dst, RTAX_FASTOPEN_NO_COOKIE));
+	       tcp_sk(sk)->fastopen_anal_cookie ||
+	       (dst && dst_metric(dst, RTAX_FASTOPEN_ANAL_COOKIE));
 }
 
 /* Returns true if we should perform Fast Open on the SYN. The cookie (foc)
@@ -365,7 +365,7 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 		return NULL;
 	}
 
-	if (tcp_fastopen_no_cookie(sk, dst, TFO_SERVER_COOKIE_NOT_REQD))
+	if (tcp_fastopen_anal_cookie(sk, dst, TFO_SERVER_COOKIE_ANALT_REQD))
 		goto fastopen;
 
 	if (foc->len == 0) {
@@ -384,7 +384,7 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			 * back and ack the ISN only but includes the same
 			 * cookie.
 			 *
-			 * Note: Data-less SYN with valid cookie is allowed to
+			 * Analte: Data-less SYN with valid cookie is allowed to
 			 * send data in SYN_RECV state.
 			 */
 fastopen:
@@ -426,7 +426,7 @@ bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 
 	dst = __sk_dst_get(sk);
 
-	if (tcp_fastopen_no_cookie(sk, dst, TFO_CLIENT_NO_COOKIE)) {
+	if (tcp_fastopen_anal_cookie(sk, dst, TFO_CLIENT_ANAL_COOKIE)) {
 		cookie->len = -1;
 		return true;
 	}
@@ -463,7 +463,7 @@ bool tcp_fastopen_defer_connect(struct sock *sk, int *err)
 		if (tp->fastopen_req)
 			tp->fastopen_req->cookie = cookie;
 		else
-			*err = -ENOBUFS;
+			*err = -EANALBUFS;
 	}
 	return false;
 }
@@ -546,10 +546,10 @@ bool tcp_fastopen_active_should_disable(struct sock *sk)
 }
 
 /* Disable active TFO if FIN is the only packet in the ofo queue
- * and no data is received.
+ * and anal data is received.
  * Also check if we can reset tfo_active_disable_times if data is
  * received successfully on a marked active TFO sockets opened on
- * a non-loopback interface
+ * a analn-loopback interface
  */
 void tcp_fastopen_active_disable_ofo_check(struct sock *sk)
 {

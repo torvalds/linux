@@ -47,7 +47,7 @@ Name                    Perm    Description
 ``fault`` attributes
   Reading ``1`` instead of ``0`` as the ``fault`` attribute for a sensor
   indicates that it has encountered some issue during operation such that
-  measurements from it should not be trusted. If a sensor with the fault
+  measurements from it should analt be trusted. If a sensor with the fault
   condition recovers later, reading this attribute will return ``0`` again.
 
 ``alarm`` attributes
@@ -66,13 +66,13 @@ Name                    Perm    Description
 debugfs interface
 =================
 
-.. warning:: The debugfs interface is subject to change without notice
+.. warning:: The debugfs interface is subject to change without analtice
              and is only available when the kernel is compiled with
              ``CONFIG_DEBUG_FS`` defined.
 
 The standard hwmon interface in sysfs exposes sensors of several common types
 that are connected as of driver initialization. However, there are usually
-other sensors in WMI that do not meet these criteria. In addition, a number of
+other sensors in WMI that do analt meet these criteria. In addition, a number of
 system-dependent "platform events objects" used for ``alarm`` attributes may
 be present. A debugfs interface is therefore provided for read-only access to
 all available HP WMI sensors and platform events objects.
@@ -88,8 +88,8 @@ Name                            Example
 ``sensor_type``                 ``12``
 ``other_sensor_type``           (an empty string)
 ``operational_status``          ``2``
-``possible_states``             ``Normal,Caution,Critical,Not Present``
-``current_state``               ``Normal``
+``possible_states``             ``Analrmal,Caution,Critical,Analt Present``
+``current_state``               ``Analrmal``
 ``base_units``                  ``19``
 ``unit_modifier``               ``0``
 ``current_reading``             ``1008``
@@ -116,10 +116,10 @@ These represent the properties of the underlying ``HPBIOS_BIOSNumericSensor``
 and ``HPBIOS_PlatformEvents`` WMI objects, which vary between systems.
 See [#]_ for more details and Managed Object Format (MOF) definitions.
 
-Known issues and limitations
+Kanalwn issues and limitations
 ============================
 
-- If the existing hp-wmi driver for non-business-class HP systems is already
+- If the existing hp-wmi driver for analn-business-class HP systems is already
   loaded, ``alarm`` attributes will be unavailable even on systems that
   support them. This is because the same WMI event GUID used by this driver
   for ``alarm`` attributes is used on those systems for e.g. laptop hotkeys.
@@ -130,7 +130,7 @@ Known issues and limitations
   the wild so far. Support for voltage and current sensors is therefore
   provisional.
 - Although HP WMI sensors may claim to be of any type, any oddball sensor
-  types unknown to hwmon will not be supported.
+  types unkanalwn to hwmon will analt be supported.
 
 References
 ==========

@@ -154,7 +154,7 @@ static void dsi_pll_calc_ssc(struct dsi_pll_10nm *pll, struct dsi_pll_config *co
 	u64 frac;
 
 	if (!config->enable_ssc) {
-		DBG("SSC not enabled\n");
+		DBG("SSC analt enabled\n");
 		return;
 	}
 
@@ -581,7 +581,7 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 		},
 		.num_parents = 1,
 		.name = clk_name,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 		.ops = &clk_ops_dsi_pll_10nm_vco,
 	};
 	struct device *dev = &pll_10nm->phy->pdev->dev;
@@ -695,7 +695,7 @@ static int dsi_pll_10nm_init(struct msm_dsi_phy *phy)
 
 	pll_10nm = devm_kzalloc(&pdev->dev, sizeof(*pll_10nm), GFP_KERNEL);
 	if (!pll_10nm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	DBG("DSI PLL%d", phy->id);
 
@@ -827,7 +827,7 @@ static int dsi_10nm_phy_enable(struct msm_dsi_phy *phy,
 					status, (status & BIT(0)),
 					delay_us, timeout_us);
 	if (ret) {
-		pr_err("Ref gen not ready. Aborting\n");
+		pr_err("Ref gen analt ready. Aborting\n");
 		return -EINVAL;
 	}
 
@@ -937,18 +937,18 @@ static int dsi_10nm_phy_parse_dt(struct msm_dsi_phy *phy)
 {
 	struct device *dev = &phy->pdev->dev;
 	struct dsi_phy_10nm_tuning_cfg *tuning_cfg;
-	s8 offset_top[DSI_LANE_MAX] = { 0 }; /* No offset */
-	s8 offset_bot[DSI_LANE_MAX] = { 0 }; /* No offset */
+	s8 offset_top[DSI_LANE_MAX] = { 0 }; /* Anal offset */
+	s8 offset_bot[DSI_LANE_MAX] = { 0 }; /* Anal offset */
 	u32 ldo_level = 400; /* 400mV */
 	u8 level;
 	int ret, i;
 
 	tuning_cfg = devm_kzalloc(dev, sizeof(*tuning_cfg), GFP_KERNEL);
 	if (!tuning_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Drive strength adjustment parameters */
-	ret = of_property_read_u8_array(dev->of_node, "qcom,phy-rescode-offset-top",
+	ret = of_property_read_u8_array(dev->of_analde, "qcom,phy-rescode-offset-top",
 					offset_top, DSI_LANE_MAX);
 	if (ret && ret != -EINVAL) {
 		DRM_DEV_ERROR(dev, "failed to parse qcom,phy-rescode-offset-top, %d\n", ret);
@@ -958,14 +958,14 @@ static int dsi_10nm_phy_parse_dt(struct msm_dsi_phy *phy)
 	for (i = 0; i < DSI_LANE_MAX; i++) {
 		if (offset_top[i] < -32 || offset_top[i] > 31) {
 			DRM_DEV_ERROR(dev,
-				"qcom,phy-rescode-offset-top value %d is not in range [-32..31]\n",
+				"qcom,phy-rescode-offset-top value %d is analt in range [-32..31]\n",
 				offset_top[i]);
 			return -EINVAL;
 		}
 		tuning_cfg->rescode_offset_top[i] = 0x3f & offset_top[i];
 	}
 
-	ret = of_property_read_u8_array(dev->of_node, "qcom,phy-rescode-offset-bot",
+	ret = of_property_read_u8_array(dev->of_analde, "qcom,phy-rescode-offset-bot",
 					offset_bot, DSI_LANE_MAX);
 	if (ret && ret != -EINVAL) {
 		DRM_DEV_ERROR(dev, "failed to parse qcom,phy-rescode-offset-bot, %d\n", ret);
@@ -975,7 +975,7 @@ static int dsi_10nm_phy_parse_dt(struct msm_dsi_phy *phy)
 	for (i = 0; i < DSI_LANE_MAX; i++) {
 		if (offset_bot[i] < -32 || offset_bot[i] > 31) {
 			DRM_DEV_ERROR(dev,
-				"qcom,phy-rescode-offset-bot value %d is not in range [-32..31]\n",
+				"qcom,phy-rescode-offset-bot value %d is analt in range [-32..31]\n",
 				offset_bot[i]);
 			return -EINVAL;
 		}
@@ -983,7 +983,7 @@ static int dsi_10nm_phy_parse_dt(struct msm_dsi_phy *phy)
 	}
 
 	/* Drive level/amplitude adjustment parameters */
-	ret = of_property_read_u32(dev->of_node, "qcom,phy-drive-ldo-level", &ldo_level);
+	ret = of_property_read_u32(dev->of_analde, "qcom,phy-drive-ldo-level", &ldo_level);
 	if (ret && ret != -EINVAL) {
 		DRM_DEV_ERROR(dev, "failed to parse qcom,phy-drive-ldo-level, %d\n", ret);
 		return ret;
@@ -1009,7 +1009,7 @@ static int dsi_10nm_phy_parse_dt(struct msm_dsi_phy *phy)
 		level = 5;
 		break;
 	default:
-		DRM_DEV_ERROR(dev, "qcom,phy-drive-ldo-level %d is not supported\n", ldo_level);
+		DRM_DEV_ERROR(dev, "qcom,phy-drive-ldo-level %d is analt supported\n", ldo_level);
 		return -EINVAL;
 	}
 	tuning_cfg->vreg_ctrl = 0x58 | (0x7 & level);

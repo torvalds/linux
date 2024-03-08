@@ -117,7 +117,7 @@ static void shmob_drm_crtc_setup_geometry(struct shmob_drm_crtc *scrtc)
 	u32 value;
 
 	if (!info->num_bus_formats || !info->bus_formats) {
-		dev_warn(sdev->dev, "No bus format reported, using RGB888\n");
+		dev_warn(sdev->dev, "Anal bus format reported, using RGB888\n");
 		value = LDMT1R_MIFTYP_RGB24;
 	} else {
 		for (i = 0; i < ARRAY_SIZE(shmob_drm_bus_fmts); i++) {
@@ -226,7 +226,7 @@ static void shmob_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	value = sdev->lddckr;
 	if (clk_div) {
 		/* FIXME: sh7724 can only use 42, 48, 54 and 60 for the divider
-		 * denominator.
+		 * deanalminator.
 		 */
 		lcdc_write(sdev, LDDCKPAT1R, 0);
 		lcdc_write(sdev, LDDCKPAT2R, (1 << (clk_div / 2)) - 1);
@@ -336,7 +336,7 @@ static void shmob_drm_crtc_enable_vblank(struct shmob_drm_device *sdev,
 	unsigned long flags;
 	u32 ldintr;
 
-	/* Be careful not to acknowledge any pending interrupt. */
+	/* Be careful analt to ackanalwledge any pending interrupt. */
 	spin_lock_irqsave(&sdev->irq_lock, flags);
 	ldintr = lcdc_read(sdev, LDINTR) | LDINTR_STATUS_MASK;
 	if (enable)
@@ -459,13 +459,13 @@ int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 	}
 
 	/* Create a panel bridge */
-	bridge = devm_drm_of_get_bridge(sdev->dev, sdev->dev->of_node, 0, 0);
+	bridge = devm_drm_of_get_bridge(sdev->dev, sdev->dev->of_analde, 0, 0);
 	if (IS_ERR(bridge))
 		return PTR_ERR(bridge);
 
 	/* Attach the bridge to the encoder */
 	ret = drm_bridge_attach(encoder, bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret) {
 		dev_err(sdev->dev, "failed to attach bridge: %pe\n",
 			ERR_PTR(ret));
@@ -553,7 +553,7 @@ shmob_drm_connector_init(struct shmob_drm_device *sdev,
 
 	scon = kzalloc(sizeof(*scon), GFP_KERNEL);
 	if (!scon)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	connector = &scon->base;
 	scon->encoder = encoder;

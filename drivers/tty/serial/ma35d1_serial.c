@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  *  MA35D1 serial driver
- *  Copyright (C) 2023 Nuvoton Technology Corp.
+ *  Copyright (C) 2023 Nuvoton Techanallogy Corp.
  */
 
 #include <linux/bitfield.h>
@@ -237,7 +237,7 @@ static void receive_chars(struct uart_ma35d1_port *up)
 
 	fsr = serial_in(up, MA35_FSR_REG);
 	do {
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		up->port.icount.rx++;
 
 		if (unlikely(fsr & (MA35_FSR_BIF | MA35_FSR_FEF |
@@ -291,7 +291,7 @@ static irqreturn_t ma35d1serial_interrupt(int irq, void *dev_id)
 	fsr = serial_in(up, MA35_FSR_REG);
 
 	if (!(isr & MA35_ISR_IF_CHECK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (isr & (MA35_ISR_RDA_IF | MA35_ISR_RXTO_IF))
 		receive_chars(up);
@@ -438,7 +438,7 @@ static void ma35d1serial_set_termios(struct uart_port *port,
 	quot = (port->uartclk / baud) - 2;
 
 	/*
-	 * Ok, we're now changing the port state.  Do it with
+	 * Ok, we're analw changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
 	uart_port_lock_irqsave(&up->port, &flags);
@@ -449,18 +449,18 @@ static void ma35d1serial_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (BRKINT | PARMRK))
 		up->port.read_status_mask |= MA35_FSR_BIF;
 
-	/* Characteres to ignore */
-	up->port.ignore_status_mask = 0;
+	/* Characteres to iganalre */
+	up->port.iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		up->port.ignore_status_mask |= MA35_FSR_FEF | MA35_FSR_PEF;
+		up->port.iganalre_status_mask |= MA35_FSR_FEF | MA35_FSR_PEF;
 	if (termios->c_iflag & IGNBRK) {
-		up->port.ignore_status_mask |= MA35_FSR_BIF;
+		up->port.iganalre_status_mask |= MA35_FSR_BIF;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			up->port.ignore_status_mask |= MA35_FSR_RX_OVER_IF;
+			up->port.iganalre_status_mask |= MA35_FSR_RX_OVER_IF;
 	}
 	if (termios->c_cflag & CRTSCTS)
 		up->mcr |= UART_MCR_AFE;
@@ -486,7 +486,7 @@ static const char *ma35d1serial_type(struct uart_port *port)
 static void ma35d1serial_config_port(struct uart_port *port, int flags)
 {
 	/*
-	 * Driver core for serial ports forces a non-zero value for port type.
+	 * Driver core for serial ports forces a analn-zero value for port type.
 	 * Write an arbitrary value here to accommodate the serial core driver,
 	 * as ID part of UAPI is redundant.
 	 */
@@ -495,7 +495,7 @@ static void ma35d1serial_config_port(struct uart_port *port, int flags)
 
 static int ma35d1serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	if (port->type != PORT_UNKNOWN && ser->type != 1)
+	if (port->type != PORT_UNKANALWN && ser->type != 1)
 		return -EINVAL;
 
 	return 0;
@@ -525,7 +525,7 @@ MODULE_DEVICE_TABLE(of, ma35d1_serial_of_match);
 
 #ifdef CONFIG_SERIAL_NUVOTON_MA35D1_CONSOLE
 
-static struct device_node *ma35d1serial_uart_nodes[MA35_UART_NR];
+static struct device_analde *ma35d1serial_uart_analdes[MA35_UART_NR];
 
 static void wait_for_xmitr(struct uart_ma35d1_port *up)
 {
@@ -545,7 +545,7 @@ static void ma35d1serial_console_putchar(struct uart_port *port, unsigned char c
 }
 
 /*
- *  Print a string to the serial port trying not to disturb
+ *  Print a string to the serial port trying analt to disturb
  *  any possible real use of the port...
  *
  *  The console_lock must be held when we get here.
@@ -589,7 +589,7 @@ static void ma35d1serial_console_write(struct console *co, const char *s, u32 co
 
 static int __init ma35d1serial_console_setup(struct console *co, char *options)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct uart_ma35d1_port *p;
 	u32 val32[4];
 	struct uart_port *port;
@@ -603,10 +603,10 @@ static int __init ma35d1serial_console_setup(struct console *co, char *options)
 		return -EINVAL;
 	}
 
-	np = ma35d1serial_uart_nodes[co->index];
+	np = ma35d1serial_uart_analdes[co->index];
 	p = &ma35d1serial_ports[co->index];
 	if (!np || !p)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (of_property_read_u32_array(np, "reg", val32, ARRAY_SIZE(val32)) != 0)
 		return -EINVAL;
@@ -614,7 +614,7 @@ static int __init ma35d1serial_console_setup(struct console *co, char *options)
 	p->port.iobase = val32[1];
 	p->port.membase = ioremap(p->port.iobase, MA35_UART_REG_SIZE);
 	if (!p->port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->port.ops = &ma35d1serial_ops;
 	p->port.line = 0;
@@ -641,12 +641,12 @@ static struct console ma35d1serial_console = {
 static void ma35d1serial_console_init_port(void)
 {
 	u32 i = 0;
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_matching_node(np, ma35d1_serial_of_match) {
-		if (ma35d1serial_uart_nodes[i] == NULL) {
-			of_node_get(np);
-			ma35d1serial_uart_nodes[i] = np;
+	for_each_matching_analde(np, ma35d1_serial_of_match) {
+		if (ma35d1serial_uart_analdes[i] == NULL) {
+			of_analde_get(np);
+			ma35d1serial_uart_analdes[i] = np;
 			i++;
 			if (i == MA35_UART_NR)
 				break;
@@ -672,7 +672,7 @@ static struct uart_driver ma35d1serial_reg = {
 	.driver_name  = "serial",
 	.dev_name     = "ttyNVT",
 	.major        = TTY_MAJOR,
-	.minor        = 64,
+	.mianalr        = 64,
 	.cons         = MA35D1SERIAL_CONSOLE,
 	.nr           = MA35_UART_NR,
 };
@@ -688,10 +688,10 @@ static int ma35d1serial_probe(struct platform_device *pdev)
 	struct uart_ma35d1_port *up;
 	int ret = 0;
 
-	if (pdev->dev.of_node) {
-		ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_analde) {
+		ret = of_alias_get_id(pdev->dev.of_analde, "serial");
 		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to get alias/pdev id, errno %d\n", ret);
+			dev_err(&pdev->dev, "failed to get alias/pdev id, erranal %d\n", ret);
 			return ret;
 		}
 	}
@@ -699,18 +699,18 @@ static int ma35d1serial_probe(struct platform_device *pdev)
 	up->port.line = ret;
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	up->port.iobase = res_mem->start;
 	up->port.membase = ioremap(up->port.iobase, MA35_UART_REG_SIZE);
 	if (!up->port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	up->port.ops = &ma35d1serial_ops;
 
 	spin_lock_init(&up->port.lock);
 
-	up->clk = of_clk_get(pdev->dev.of_node, 0);
+	up->clk = of_clk_get(pdev->dev.of_analde, 0);
 	if (IS_ERR(up->clk)) {
 		ret = PTR_ERR(up->clk);
 		dev_err(&pdev->dev, "failed to get core clk: %d\n", ret);

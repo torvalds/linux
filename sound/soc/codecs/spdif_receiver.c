@@ -5,7 +5,7 @@
  * Based on ALSA SoC SPDIF DIT driver
  *
  *  This driver is used by controllers which can operate in DIR (SPDI/F) where
- *  no codec is needed.  This file provides stub codec that can be used
+ *  anal codec is needed.  This file provides stub codec that can be used
  *  in these configurations. SPEAr SPDIF IN Audio controller uses this driver.
  *
  * Author:      Vipin Kumar,  <vipin.kumar@st.com>

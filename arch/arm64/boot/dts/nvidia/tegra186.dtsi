@@ -712,7 +712,7 @@
 		status = "disabled";
 	};
 
-	/* controlled by BPMP, should not be enabled */
+	/* controlled by BPMP, should analt be enabled */
 	pwr_i2c: i2c@31a0000 {
 		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x031a0000 0x0 0x10000>;
@@ -1360,7 +1360,7 @@
 			 <0x02000000 0 0x10001000 0x0 0x10001000 0 0x00001000>,/* port 1 configuration space */
 			 <0x02000000 0 0x10004000 0x0 0x10004000 0 0x00001000>, /* port 2 configuration space */
 			 <0x01000000 0 0x0        0x0 0x50000000 0 0x00010000>, /* downstream I/O (64 KiB) */
-			 <0x02000000 0 0x50100000 0x0 0x50100000 0 0x07f00000>, /* non-prefetchable memory (127 MiB) */
+			 <0x02000000 0 0x50100000 0x0 0x50100000 0 0x07f00000>, /* analn-prefetchable memory (127 MiB) */
 			 <0x42000000 0 0x58000000 0x0 0x58000000 0 0x28000000>; /* prefetchable memory (640 MiB) */
 
 		clocks = <&bpmp TEGRA186_CLK_PCIE>,
@@ -1867,7 +1867,7 @@
 		      <0x0 0x18000000 0x0 0x1000000>;
 		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "stall", "nonstall";
+		interrupt-names = "stall", "analnstall";
 
 		clocks = <&bpmp TEGRA186_CLK_GPCCLK>,
 			 <&bpmp TEGRA186_CLK_GPU>;
@@ -1890,7 +1890,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x30000000 0x50000>;
-		no-memory-wc;
+		anal-memory-wc;
 
 		cpu_bpmp_tx: sram@4e000 {
 			reg = <0x4e000 0x1000>;

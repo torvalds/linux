@@ -268,7 +268,7 @@ static inline unsigned int __attribute_const__ read_cpuid_mpidr(void)
 
 /*
  * Intel's XScale3 core supports some v6 features (supersections, L2)
- * but advertises itself as v5 as it does not support the v6 ISA.  For
+ * but advertises itself as v5 as it does analt support the v6 ISA.  For
  * this reason, we need a way to explicitly test for this type of CPU.
  */
 #ifndef CONFIG_CPU_XSC3

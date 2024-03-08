@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -49,7 +49,7 @@ static struct {
 	struct nsinfo *nsi;
 } *params;
 
-/* Parse an event definition. Note that any error must die. */
+/* Parse an event definition. Analte that any error must die. */
 static int parse_probe_event(const char *str)
 {
 	struct perf_probe_event *pev = &params->events[params->nevents];
@@ -65,7 +65,7 @@ static int parse_probe_event(const char *str)
 	if (params->target) {
 		pev->target = strdup(params->target);
 		if (!pev->target)
-			return -ENOMEM;
+			return -EANALMEM;
 		params->target_used = true;
 	}
 
@@ -87,7 +87,7 @@ static int params_add_filter(const char *str)
 	if (!params->filter) {
 		params->filter = strfilter__new(str, &err);
 		if (!params->filter)
-			ret = err ? -EINVAL : -ENOMEM;
+			ret = err ? -EINVAL : -EANALMEM;
 	} else
 		ret = strfilter__or(params->filter, str, &err);
 
@@ -115,7 +115,7 @@ static int set_target(const char *ptr)
 	if (!params->target && ptr && *ptr == '/') {
 		params->target = strdup(ptr);
 		if (!params->target)
-			return -ENOMEM;
+			return -EANALMEM;
 		params->target_used = false;
 
 		found = 1;
@@ -151,7 +151,7 @@ static int parse_probe_event_argv(int argc, const char **argv)
 	}
 	buf = zalloc(len + 1);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	len = 0;
 	for (i = 0; i < argc; i++) {
 		if (i == 0 && found_target)
@@ -167,7 +167,7 @@ static int parse_probe_event_argv(int argc, const char **argv)
 static int opt_set_target(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	char *tmp;
 
 	if  (str) {
@@ -188,7 +188,7 @@ static int opt_set_target(const struct option *opt, const char *str,
 		} else {
 			tmp = strdup(str);
 			if (!tmp)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		free(params->target);
 		params->target = tmp;
@@ -202,17 +202,17 @@ static int opt_set_target(const struct option *opt, const char *str,
 static int opt_set_target_ns(const struct option *opt __maybe_unused,
 			     const char *str, int unset __maybe_unused)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	pid_t ns_pid;
 	struct nsinfo *nsip;
 
 	if (str) {
-		errno = 0;
+		erranal = 0;
 		ns_pid = (pid_t)strtol(str, NULL, 10);
-		if (errno != 0) {
-			ret = -errno;
+		if (erranal != 0) {
+			ret = -erranal;
 			pr_warning("Failed to parse %s as a pid: %s\n", str,
-				   strerror(errno));
+				   strerror(erranal));
 			return ret;
 		}
 		nsip = nsinfo__new(ns_pid);
@@ -310,7 +310,7 @@ static int init_params(void)
 
 	params = calloc(1, sizeof(*params));
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = line_range__init(&params->line_range);
 	if (ret)
@@ -376,7 +376,7 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 
 		for (k = 0; k < pev->ntevs; k++) {
 			struct probe_trace_event *tev = &pev->tevs[k];
-			/* Skipped events have no event name */
+			/* Skipped events have anal event name */
 			if (!tev->event)
 				continue;
 
@@ -390,10 +390,10 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 		}
 	}
 
-	/* Note that it is possible to skip all events because of blacklist */
+	/* Analte that it is possible to skip all events because of blacklist */
 	if (event) {
 #ifndef HAVE_LIBTRACEEVENT
-		pr_info("\nperf is not linked with libtraceevent, to use the new probe you can use tracefs:\n\n");
+		pr_info("\nperf is analt linked with libtraceevent, to use the new probe you can use tracefs:\n\n");
 		pr_info("\tcd /sys/kernel/tracing/\n");
 		pr_info("\techo 1 > events/%s/%s/enable\n", group, event);
 		pr_info("\techo 1 > tracing_on\n");
@@ -401,7 +401,7 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 		pr_info("\tBefore removing the probe, echo 0 > events/%s/%s/enable\n", group, event);
 #else
 		/* Show how to use the event. */
-		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
+		pr_info("\nYou can analw use it in all perf tools, such as:\n\n");
 		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", group, event);
 #endif
 	}
@@ -416,14 +416,14 @@ static int del_perf_probe_caches(struct strfilter *filter)
 {
 	struct probe_cache *cache;
 	struct strlist *bidlist;
-	struct str_node *nd;
+	struct str_analde *nd;
 	int ret;
 
 	bidlist = build_id_cache__list_all(false);
 	if (!bidlist) {
-		ret = -errno;
+		ret = -erranal;
 		pr_debug("Failed to get buildids: %d\n", ret);
-		return ret ?: -ENOMEM;
+		return ret ?: -EANALMEM;
 	}
 
 	strlist__for_each_entry(nd, bidlist) {
@@ -443,7 +443,7 @@ static int perf_del_probe_events(struct strfilter *filter)
 	int ret, ret2, ufd = -1, kfd = -1;
 	char *str = strfilter__string(filter);
 	struct strlist *klist = NULL, *ulist = NULL;
-	struct str_node *ent;
+	struct str_analde *ent;
 
 	if (!str)
 		return -EINVAL;
@@ -461,7 +461,7 @@ static int perf_del_probe_events(struct strfilter *filter)
 	klist = strlist__new(NULL, NULL);
 	ulist = strlist__new(NULL, NULL);
 	if (!klist || !ulist) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -473,7 +473,7 @@ static int perf_del_probe_events(struct strfilter *filter)
 		ret = probe_file__del_strlist(kfd, klist);
 		if (ret < 0)
 			goto error;
-	} else if (ret == -ENOMEM)
+	} else if (ret == -EANALMEM)
 		goto error;
 
 	ret2 = probe_file__get_events(ufd, filter, ulist);
@@ -484,11 +484,11 @@ static int perf_del_probe_events(struct strfilter *filter)
 		ret2 = probe_file__del_strlist(ufd, ulist);
 		if (ret2 < 0)
 			goto error;
-	} else if (ret2 == -ENOMEM)
+	} else if (ret2 == -EANALMEM)
 		goto error;
 
-	if (ret == -ENOENT && ret2 == -ENOENT)
-		pr_warning("\"%s\" does not hit any event.\n", str);
+	if (ret == -EANALENT && ret2 == -EANALENT)
+		pr_warning("\"%s\" does analt hit any event.\n", str);
 	else
 		ret = 0;
 
@@ -532,7 +532,7 @@ __cmd_probe(int argc, const char **argv)
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet,
-		    "be quiet (do not show any warnings or messages)"),
+		    "be quiet (do analt show any warnings or messages)"),
 	OPT_CALLBACK_DEFAULT('l', "list", NULL, "[GROUP:]EVENT",
 			     "list up probe events",
 			     opt_set_filter_with_command, DEFAULT_LIST_FILTER),
@@ -575,7 +575,7 @@ __cmd_probe(int argc, const char **argv)
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
 		   "directory", "path to kernel source"),
-	OPT_BOOLEAN('\0', "no-inlines", &probe_conf.no_inlines,
+	OPT_BOOLEAN('\0', "anal-inlines", &probe_conf.anal_inlines,
 		"Don't search inlined functions"),
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_INTEGER('\0', "max-probes", &probe_conf.max_probes,
@@ -616,20 +616,20 @@ __cmd_probe(int argc, const char **argv)
 	set_option_flag(options, 'L', "line", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 'V', "vars", PARSE_OPT_EXCLUSIVE);
 #else
-# define set_nobuild(s, l, c) set_option_nobuild(options, s, l, "NO_DWARF=1", c)
-	set_nobuild('L', "line", false);
-	set_nobuild('V', "vars", false);
-	set_nobuild('\0', "externs", false);
-	set_nobuild('\0', "range", false);
-	set_nobuild('k', "vmlinux", true);
-	set_nobuild('s', "source", true);
-	set_nobuild('\0', "no-inlines", true);
-# undef set_nobuild
+# define set_analbuild(s, l, c) set_option_analbuild(options, s, l, "ANAL_DWARF=1", c)
+	set_analbuild('L', "line", false);
+	set_analbuild('V', "vars", false);
+	set_analbuild('\0', "externs", false);
+	set_analbuild('\0', "range", false);
+	set_analbuild('k', "vmlinux", true);
+	set_analbuild('s', "source", true);
+	set_analbuild('\0', "anal-inlines", true);
+# undef set_analbuild
 #endif
 	set_option_flag(options, 'F', "funcs", PARSE_OPT_EXCLUSIVE);
 
 	argc = parse_options(argc, argv, options, probe_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (quiet) {
 		if (verbose != 0) {
@@ -642,11 +642,11 @@ __cmd_probe(int argc, const char **argv)
 	if (argc > 0) {
 		if (strcmp(argv[0], "-") == 0) {
 			usage_with_options_msg(probe_usage, options,
-				"'-' is not supported.\n");
+				"'-' is analt supported.\n");
 		}
 		if (params->command && params->command != 'a') {
 			usage_with_options_msg(probe_usage, options,
-				"another command except --add is set.\n");
+				"aanalther command except --add is set.\n");
 		}
 		ret = parse_probe_event_argv(argc, argv);
 		if (ret < 0) {
@@ -670,11 +670,11 @@ __cmd_probe(int argc, const char **argv)
 
 	/*
 	 * Except for --list, --del and --add, other command doesn't depend
-	 * nor change running kernel. So if user gives offline vmlinux,
-	 * ignore its buildid.
+	 * analr change running kernel. So if user gives offline vmlinux,
+	 * iganalre its buildid.
 	 */
 	if (!strchr("lda", params->command) && symbol_conf.vmlinux_name)
-		symbol_conf.ignore_vmlinux_buildid = true;
+		symbol_conf.iganalre_vmlinux_buildid = true;
 
 	switch (params->command) {
 	case 'l':

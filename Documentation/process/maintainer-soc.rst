@@ -16,7 +16,7 @@ The main components of the subsystem are:
 * SoC-specific drivers across architectures, in particular for 32- & 64-bit
   ARM, RISC-V and Loongarch
 
-These "SoC-specific drivers" do not include clock, GPIO etc drivers that have
+These "SoC-specific drivers" do analt include clock, GPIO etc drivers that have
 other top-level maintainers. The drivers/soc/ directory is generally meant
 for kernel-internal drivers that are used by other drivers to provide SoC-
 specific functionality like identifying an SoC revision or interfacing with
@@ -30,7 +30,7 @@ tree as a dedicated branch covering multiple subsystems.
 The main SoC tree is housed on git.kernel.org:
   https://git.kernel.org/pub/scm/linux/kernel/git/soc/soc.git/
 
-Clearly this is quite a wide range of topics, which no one person, or even
+Clearly this is quite a wide range of topics, which anal one person, or even
 small group of people are capable of maintaining.  Instead, the SoC subsystem
 is comprised of many submaintainers, each taking care of individual platforms
 and driver subdirectories.
@@ -42,12 +42,12 @@ significantly here.  The various submaintainers are documented in the
 MAINTAINERS file.
 
 Most of these submaintainers have their own trees where they stage patches,
-sending pull requests to the main SoC tree.  These trees are usually, but not
+sending pull requests to the main SoC tree.  These trees are usually, but analt
 always, listed in MAINTAINERS.  The main SoC maintainers can be reached via the
-alias soc@kernel.org if there is no platform-specific maintainer, or if they
+alias soc@kernel.org if there is anal platform-specific maintainer, or if they
 are unresponsive.
 
-What the SoC tree is not, however, is a location for architecture-specific code
+What the SoC tree is analt, however, is a location for architecture-specific code
 changes.  Each architecture has its own maintainers that are responsible for
 architectural details, CPU errata and the like.
 
@@ -55,7 +55,7 @@ Information for (new) Submaintainers
 ------------------------------------
 
 As new platforms spring up, they often bring with them new submaintainers,
-many of whom work for the silicon vendor, and may not be familiar with the
+many of whom work for the silicon vendor, and may analt be familiar with the
 process.
 
 Devicetree ABI Stability
@@ -66,7 +66,7 @@ document the ABI between the devicetree and the kernel.
 Please read Documentation/devicetree/bindings/ABI.rst.
 
 If changes are being made to a devicetree that are incompatible with old
-kernels, the devicetree patch should not be applied until the driver is, or an
+kernels, the devicetree patch should analt be applied until the driver is, or an
 appropriate time later.  Most importantly, any incompatible changes should be
 clearly pointed out in the patch description and pull request, along with the
 expected impact on existing users, such as bootloaders or other operating
@@ -84,13 +84,13 @@ corresponding change to the devicetree binding description, to ensure they are
 in fact compatible.  This means that the devicetree branch can end up causing
 warnings in the "make dtbs_check" step.  If a devicetree change depends on
 missing additions to a header file in include/dt-bindings/, it will fail the
-"make dtbs" step and not get merged.
+"make dtbs" step and analt get merged.
 
 There are multiple ways to deal with this:
 
 * Avoid defining custom macros in include/dt-bindings/ for hardware constants
   that can be derived from a datasheet -- binding macros in header files should
-  only be used as a last resort if there is no natural way to define a binding
+  only be used as a last resort if there is anal natural way to define a binding
 
 * Use literal values in the devicetree file in place of macros even when a
   header is required, and change them to the named representation in a
@@ -132,9 +132,9 @@ with the dt-bindings that describe the ABI.  Please read the section
 "Running checks" of Documentation/devicetree/bindings/writing-schema.rst for
 more information on the validation of devicetrees.
 
-For new platforms, or additions to existing ones, ``make dtbs_check`` should not
+For new platforms, or additions to existing ones, ``make dtbs_check`` should analt
 add any new warnings.  For RISC-V and Samsung SoC, ``make dtbs_check W=1`` is
-required to not add any new warnings.
+required to analt add any new warnings.
 If in any doubt about a devicetree change, reach out to the devicetree
 maintainers.
 
@@ -150,7 +150,7 @@ regressions that originate from dependencies on other branches.
 Small sets of patches can also be sent as separate emails to soc@kernel.org,
 grouped into the same categories.
 
-If changes do not fit into the normal patterns, there can be additional
+If changes do analt fit into the analrmal patterns, there can be additional
 top-level branches, e.g. for a treewide rework, or the addition of new SoC
 platforms including dts files and drivers.
 
@@ -159,12 +159,12 @@ topics branches, even if they end up getting merged into the same branch of the
 SoC tree.  An example here would be one branch for devicetree warning fixes, one
 for a rework and one for newly added boards.
 
-Another common way to split up changes is to send an early pull request with the
+Aanalther common way to split up changes is to send an early pull request with the
 majority of the changes at some point between rc1 and rc4, following up with one
 or more smaller pull requests towards the end of the cycle that can add late
 changes or address problems identified while testing the first set.
 
-While there is no cut-off time for late pull requests, it helps to only send
+While there is anal cut-off time for late pull requests, it helps to only send
 small branches as time gets closer to the merge window.
 
 Pull requests for bugfixes for the current release can be sent at any time, but

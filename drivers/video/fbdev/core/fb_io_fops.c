@@ -13,10 +13,10 @@ ssize_t fb_io_read(struct fb_info *info, char __user *buf, size_t count, loff_t 
 	unsigned long total_size, trailing;
 
 	if (info->flags & FBINFO_VIRTFB)
-		fb_warn_once(info, "Framebuffer is not in I/O address space.");
+		fb_warn_once(info, "Framebuffer is analt in I/O address space.");
 
 	if (!info->screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	total_size = info->screen_size;
 
@@ -35,7 +35,7 @@ ssize_t fb_io_read(struct fb_info *info, char __user *buf, size_t count, loff_t 
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	src = (u8 __iomem *) (info->screen_base + p);
 
@@ -77,10 +77,10 @@ ssize_t fb_io_write(struct fb_info *info, const char __user *buf, size_t count, 
 	unsigned long total_size, trailing;
 
 	if (info->flags & FBINFO_VIRTFB)
-		fb_warn_once(info, "Framebuffer is not in I/O address space.");
+		fb_warn_once(info, "Framebuffer is analt in I/O address space.");
 
 	if (!info->screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	total_size = info->screen_size;
 
@@ -97,7 +97,7 @@ ssize_t fb_io_write(struct fb_info *info, const char __user *buf, size_t count, 
 
 	if (count + p > total_size) {
 		if (!err)
-			err = -ENOSPC;
+			err = -EANALSPC;
 
 		count = total_size - p;
 	}
@@ -105,7 +105,7 @@ ssize_t fb_io_write(struct fb_info *info, const char __user *buf, size_t count, 
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dst = (u8 __iomem *) (info->screen_base + p);
 
@@ -145,7 +145,7 @@ int fb_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
 
 	if (info->flags & FBINFO_VIRTFB)
-		fb_warn_once(info, "Framebuffer is not in I/O address space.");
+		fb_warn_once(info, "Framebuffer is analt in I/O address space.");
 
 	/*
 	 * This can be either the framebuffer mapping, or if pgoff points

@@ -3,8 +3,8 @@
  * RDMA Transport Layer
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 
 #undef pr_fmt
@@ -74,10 +74,10 @@ __rtrs_get_permit(struct rtrs_clt_sess *clt, enum rtrs_clt_con_type con_type)
 
 	/*
 	 * Adapted from null_blk get_tag(). Callers from different cpus may
-	 * grab the same bit, since find_first_zero_bit is not atomic.
+	 * grab the same bit, since find_first_zero_bit is analt atomic.
 	 * But then the test_and_set_bit_lock will fail for all the
 	 * callers but one, so that they will loop again.
-	 * This way an explicit spinlock is not required.
+	 * This way an explicit spinlock is analt required.
 	 */
 	do {
 		bit = find_first_zero_bit(clt->permits_map, max_depth);
@@ -146,7 +146,7 @@ EXPORT_SYMBOL(rtrs_clt_get_permit);
  * @permit:	Permit to be freed
  *
  * Context:
- *    Does not matter
+ *    Does analt matter
  */
 void rtrs_clt_put_permit(struct rtrs_clt_sess *clt,
 			 struct rtrs_permit *permit)
@@ -172,7 +172,7 @@ EXPORT_SYMBOL(rtrs_clt_put_permit);
  * rtrs_permit_to_clt_con() - returns RDMA connection pointer by the permit
  * @clt_path: client path pointer
  * @permit: permit for the allocation of the RDMA buffer
- * Note:
+ * Analte:
  *     IO connection starts from 1.
  *     0 connection is for user messages.
  */
@@ -317,7 +317,7 @@ static void rtrs_rdma_error_recovery(struct rtrs_clt_con *con)
 	} else {
 		/*
 		 * Error can happen just on establishing new connection,
-		 * so notify waiter with error state, waiter is responsible
+		 * so analtify waiter with error state, waiter is responsible
 		 * for cleaning the rest and reconnect if needed.
 		 */
 		rtrs_clt_change_state_from_to(clt_path,
@@ -341,8 +341,8 @@ static struct ib_cqe fast_reg_cqe = {
 	.done = rtrs_clt_fast_reg_done
 };
 
-static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
-			      bool notify, bool can_wait);
+static void complete_rdma_req(struct rtrs_clt_io_req *req, int erranal,
+			      bool analtify, bool can_wait);
 
 static void rtrs_clt_inv_rkey_done(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -360,7 +360,7 @@ static void rtrs_clt_inv_rkey_done(struct ib_cq *cq, struct ib_wc *wc)
 		complete(&req->inv_comp);
 	else
 		/* Complete request from INV callback */
-		complete_rdma_req(req, req->inv_errno, true, false);
+		complete_rdma_req(req, req->inv_erranal, true, false);
 }
 
 static int rtrs_inv_rkey(struct rtrs_clt_io_req *req)
@@ -377,8 +377,8 @@ static int rtrs_inv_rkey(struct rtrs_clt_io_req *req)
 	return ib_post_send(con->c.qp, &wr, NULL);
 }
 
-static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
-			      bool notify, bool can_wait)
+static void complete_rdma_req(struct rtrs_clt_io_req *req, int erranal,
+			      bool analtify, bool can_wait)
 {
 	struct rtrs_clt_con *con = req->con;
 	struct rtrs_clt_path *clt_path;
@@ -394,11 +394,11 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 		if (req->dir == DMA_FROM_DEVICE && req->need_inv) {
 			/*
 			 * We are here to invalidate read requests
-			 * ourselves.  In normal scenario server should
+			 * ourselves.  In analrmal scenario server should
 			 * send INV for all read requests, but
 			 * we are here, thus two things could happen:
 			 *
-			 *    1.  this is failover, when errno != 0
+			 *    1.  this is failover, when erranal != 0
 			 *        and can_wait == 1,
 			 *
 			 *    2.  something totally bad happened and
@@ -409,10 +409,10 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 			if (can_wait) {
 				req->need_inv_comp = true;
 			} else {
-				/* This should be IO path, so always notify */
-				WARN_ON(!notify);
-				/* Save errno for INV callback */
-				req->inv_errno = errno;
+				/* This should be IO path, so always analtify */
+				WARN_ON(!analtify);
+				/* Save erranal for INV callback */
+				req->inv_erranal = erranal;
 			}
 
 			refcount_inc(&req->ref);
@@ -445,14 +445,14 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 	req->in_use = false;
 	req->con = NULL;
 
-	if (errno) {
-		rtrs_err_rl(con->c.path, "IO request failed: error=%d path=%s [%s:%u] notify=%d\n",
-			    errno, kobject_name(&clt_path->kobj), clt_path->hca_name,
-			    clt_path->hca_port, notify);
+	if (erranal) {
+		rtrs_err_rl(con->c.path, "IO request failed: error=%d path=%s [%s:%u] analtify=%d\n",
+			    erranal, kobject_name(&clt_path->kobj), clt_path->hca_name,
+			    clt_path->hca_port, analtify);
 	}
 
-	if (notify)
-		req->conf(req->priv, errno);
+	if (analtify)
+		req->conf(req->priv, erranal);
 }
 
 static int rtrs_post_send_rdma(struct rtrs_clt_con *con,
@@ -466,7 +466,7 @@ static int rtrs_post_send_rdma(struct rtrs_clt_con *con,
 
 	if (!req->sg_size) {
 		rtrs_wrn(con->c.path,
-			 "Doing RDMA Write failed, no data supplied\n");
+			 "Doing RDMA Write failed, anal data supplied\n");
 		return -EINVAL;
 	}
 
@@ -492,7 +492,7 @@ static int rtrs_post_send_rdma(struct rtrs_clt_con *con,
 }
 
 static void process_io_rsp(struct rtrs_clt_path *clt_path, u32 msg_id,
-			   s16 errno, bool w_inval)
+			   s16 erranal, bool w_inval)
 {
 	struct rtrs_clt_io_req *req;
 
@@ -502,7 +502,7 @@ static void process_io_rsp(struct rtrs_clt_path *clt_path, u32 msg_id,
 	req = &clt_path->reqs[msg_id];
 	/* Drop need_inv if server responded with send with invalidation */
 	req->need_inv &= !w_inval;
-	complete_rdma_req(req, errno, true, false);
+	complete_rdma_req(req, erranal, true, false);
 }
 
 static void rtrs_clt_recv_done(struct rtrs_clt_con *con, struct ib_wc *wc)
@@ -649,7 +649,7 @@ static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 			if (clt_path->flags & RTRS_MSG_NEW_RKEY_F)
 				return  rtrs_clt_recv_done(con, wc);
 		} else {
-			rtrs_wrn(con->c.path, "Unknown IMM type %u\n",
+			rtrs_wrn(con->c.path, "Unkanalwn IMM type %u\n",
 				  imm_type);
 		}
 		if (w_inval)
@@ -726,7 +726,7 @@ static int post_recv_path(struct rtrs_clt_path *clt_path)
 
 		/*
 		 * x2 for RDMA read responses + FR key invalidations,
-		 * RDMA writes do not require any FR registrations.
+		 * RDMA writes do analt require any FR registrations.
 		 */
 		q_size *= 2;
 
@@ -786,7 +786,7 @@ static struct rtrs_clt_path *get_next_path_rr(struct path_it *it)
 	/*
 	 * Assert that rcu lock must be held
 	 */
-	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "no rcu read lock held");
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "anal rcu read lock held");
 
 	clt = it->clt;
 
@@ -931,12 +931,12 @@ static inline void path_it_deinit(struct path_it *it)
 /**
  * rtrs_clt_init_req() - Initialize an rtrs_clt_io_req holding information
  * about an inflight IO.
- * The user buffer holding user control message (not data) is copied into
+ * The user buffer holding user control message (analt data) is copied into
  * the corresponding buffer of rtrs_iu (req->iu->buf), which later on will
  * also hold the control message of rtrs.
  * @req: an io request holding information about IO.
  * @clt_path: client path
- * @conf: conformation callback function to notify upper layer.
+ * @conf: conformation callback function to analtify upper layer.
  * @permit: permit for allocation of RDMA remote buffer
  * @priv: private pointer
  * @vec: kernel vector containing control message
@@ -948,7 +948,7 @@ static inline void path_it_deinit(struct path_it *it)
  */
 static void rtrs_clt_init_req(struct rtrs_clt_io_req *req,
 			      struct rtrs_clt_path *clt_path,
-			      void (*conf)(void *priv, int errno),
+			      void (*conf)(void *priv, int erranal),
 			      struct rtrs_permit *permit, void *priv,
 			      const struct kvec *vec, size_t usr_len,
 			      struct scatterlist *sg, size_t sg_cnt,
@@ -969,7 +969,7 @@ static void rtrs_clt_init_req(struct rtrs_clt_io_req *req,
 	req->conf = conf;
 	req->need_inv = false;
 	req->need_inv_comp = false;
-	req->inv_errno = 0;
+	req->inv_erranal = 0;
 	refcount_set(&req->ref, 1);
 	req->mp_policy = clt_path->clt->mp_policy;
 
@@ -982,7 +982,7 @@ static void rtrs_clt_init_req(struct rtrs_clt_io_req *req,
 
 static struct rtrs_clt_io_req *
 rtrs_clt_get_req(struct rtrs_clt_path *clt_path,
-		 void (*conf)(void *priv, int errno),
+		 void (*conf)(void *priv, int erranal),
 		 struct rtrs_permit *permit, void *priv,
 		 const struct kvec *vec, size_t usr_len,
 		 struct scatterlist *sg, size_t sg_cnt,
@@ -1149,7 +1149,7 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 		refcount_inc(&req->ref);
 	}
 	/*
-	 * Update stats now, after request is successfully sent it is not
+	 * Update stats analw, after request is successfully sent it is analt
 	 * safe anymore to touch it.
 	 */
 	rtrs_clt_update_all_stats(req, WRITE);
@@ -1256,7 +1256,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 	req->sg_size += req->usr_len;
 
 	/*
-	 * Update stats now, after request is successfully sent it is not
+	 * Update stats analw, after request is successfully sent it is analt
 	 * safe anymore to touch it.
 	 */
 	rtrs_clt_update_all_stats(req, READ);
@@ -1331,15 +1331,15 @@ static void fail_all_outstanding_reqs(struct rtrs_clt_path *clt_path)
 			continue;
 
 		/*
-		 * Safely (without notification) complete failed request.
+		 * Safely (without analtification) complete failed request.
 		 * After completion this request is still useble and can
-		 * be failovered to another path.
+		 * be failovered to aanalther path.
 		 */
 		complete_rdma_req(req, -ECONNABORTED, false, true);
 
 		err = rtrs_clt_failover_req(clt, req);
 		if (err)
-			/* Failover failed, notify anyway */
+			/* Failover failed, analtify anyway */
 			req->conf(req->priv, err);
 	}
 }
@@ -1365,13 +1365,13 @@ static void free_path_reqs(struct rtrs_clt_path *clt_path)
 static int alloc_path_reqs(struct rtrs_clt_path *clt_path)
 {
 	struct rtrs_clt_io_req *req;
-	int i, err = -ENOMEM;
+	int i, err = -EANALMEM;
 
 	clt_path->reqs = kcalloc(clt_path->queue_depth,
 				 sizeof(*clt_path->reqs),
 				 GFP_KERNEL);
 	if (!clt_path->reqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < clt_path->queue_depth; ++i) {
 		req = &clt_path->reqs[i];
@@ -1415,12 +1415,12 @@ static int alloc_permits(struct rtrs_clt_sess *clt)
 
 	clt->permits_map = bitmap_zalloc(clt->queue_depth, GFP_KERNEL);
 	if (!clt->permits_map) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_err;
 	}
 	clt->permits = kcalloc(clt->queue_depth, permit_size(clt), GFP_KERNEL);
 	if (!clt->permits) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_map;
 	}
 	chunk_bits = ilog2(clt->queue_depth - 1) + 1;
@@ -1530,7 +1530,7 @@ static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,
 					size_t con_num, u32 nr_poll_queues)
 {
 	struct rtrs_clt_path *clt_path;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int cpu;
 	size_t total_con;
 
@@ -1562,7 +1562,7 @@ static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,
 
 	/*
 	 * rdma_resolve_addr() passes src_addr to cma_bind_addr, which
-	 * checks the sa_family to be non-zero. If user passed src_addr=NULL
+	 * checks the sa_family to be analn-zero. If user passed src_addr=NULL
 	 * the sess->src_addr will contain only zeros, which is then fine.
 	 */
 	if (path->src)
@@ -1620,7 +1620,7 @@ static int create_con(struct rtrs_clt_path *clt_path, unsigned int cid)
 
 	con = kzalloc(sizeof(*con), GFP_KERNEL);
 	if (!con)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map first two connections to the first CPU */
 	con->cpu  = (cid ? cid - 1 : 0) % nr_cpu_ids;
@@ -1660,15 +1660,15 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 
 		/*
 		 * The whole session uses device from user connection.
-		 * Be careful not to close user connection before ib dev
+		 * Be careful analt to close user connection before ib dev
 		 * is gracefully put.
 		 */
 		clt_path->s.dev = rtrs_ib_dev_find_or_add(con->c.cm_id->device,
 						       &dev_pd);
 		if (!clt_path->s.dev) {
 			rtrs_wrn(clt_path->clt,
-				  "rtrs_ib_dev_find_get_or_add(): no memory\n");
-			return -ENOMEM;
+				  "rtrs_ib_dev_find_get_or_add(): anal memory\n");
+			return -EANALMEM;
 		}
 		clt_path->s.dev_ref = 1;
 		query_fast_reg_mode(clt_path);
@@ -1714,7 +1714,7 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 					      DMA_FROM_DEVICE,
 					      rtrs_clt_rdma_done);
 		if (!con->rsp_ius)
-			return -ENOMEM;
+			return -EANALMEM;
 		con->queue_num = cq_num;
 	}
 	cq_vector = con->cpu % clt_path->s.dev->ib_dev->num_comp_vectors;
@@ -1727,7 +1727,7 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 					cq_vector, cq_num, max_send_wr,
 					max_recv_wr, IB_POLL_SOFTIRQ);
 	/*
-	 * In case of error we do not bother to clean previous allocations,
+	 * In case of error we do analt bother to clean previous allocations,
 	 * since destroy_con_cq_qp() must be called.
 	 */
 	return err;
@@ -1828,7 +1828,7 @@ static int rtrs_rdma_conn_established(struct rtrs_clt_con *con,
 	struct rtrs_clt_sess *clt = clt_path->clt;
 	const struct rtrs_msg_conn_rsp *msg;
 	u16 version, queue_depth;
-	int errno;
+	int erranal;
 	u8 len;
 
 	msg = ev->param.conn.private_data;
@@ -1847,10 +1847,10 @@ static int rtrs_rdma_conn_established(struct rtrs_clt_con *con,
 			  version >> 8, RTRS_PROTO_VER_MAJOR);
 		return -ECONNRESET;
 	}
-	errno = le16_to_cpu(msg->errno);
-	if (errno) {
-		rtrs_err(clt, "Invalid RTRS message: errno %d\n",
-			  errno);
+	erranal = le16_to_cpu(msg->erranal);
+	if (erranal) {
+		rtrs_err(clt, "Invalid RTRS message: erranal %d\n",
+			  erranal);
 		return -ECONNRESET;
 	}
 	if (con->c.cid == 0) {
@@ -1873,10 +1873,10 @@ static int rtrs_rdma_conn_established(struct rtrs_clt_con *con,
 						  sizeof(*clt_path->rbufs),
 						  GFP_KERNEL);
 			if (!clt_path->rbufs)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		clt_path->queue_depth = queue_depth;
-		clt_path->s.signal_interval = min_not_zero(queue_depth,
+		clt_path->s.signal_interval = min_analt_zero(queue_depth,
 						(unsigned short) SERVICE_CON_QUEUE_DEPTH);
 		clt_path->max_hdr_size = le32_to_cpu(msg->max_hdr_size);
 		clt_path->max_io_size = le32_to_cpu(msg->max_io_size);
@@ -1886,14 +1886,14 @@ static int rtrs_rdma_conn_established(struct rtrs_clt_con *con,
 		/*
 		 * Global IO size is always a minimum.
 		 * If while a reconnection server sends us a value a bit
-		 * higher - client does not care and uses cached minimum.
+		 * higher - client does analt care and uses cached minimum.
 		 *
 		 * Since we can have several sessions (paths) restablishing
 		 * connections in parallel, use lock.
 		 */
 		mutex_lock(&clt->paths_mutex);
 		clt->queue_depth = clt_path->queue_depth;
-		clt->max_io_size = min_not_zero(clt_path->max_io_size,
+		clt->max_io_size = min_analt_zero(clt_path->max_io_size,
 						clt->max_io_size);
 		mutex_unlock(&clt->paths_mutex);
 
@@ -1925,7 +1925,7 @@ static int rtrs_rdma_conn_rejected(struct rtrs_clt_con *con,
 	struct rtrs_path *s = con->c.path;
 	const struct rtrs_msg_conn_rsp *msg;
 	const char *rej_msg;
-	int status, errno;
+	int status, erranal;
 	u8 data_len;
 
 	status = ev->status;
@@ -1933,14 +1933,14 @@ static int rtrs_rdma_conn_rejected(struct rtrs_clt_con *con,
 	msg = rdma_consumer_reject_data(con->c.cm_id, ev, &data_len);
 
 	if (msg && data_len >= sizeof(*msg)) {
-		errno = (int16_t)le16_to_cpu(msg->errno);
-		if (errno == -EBUSY)
+		erranal = (int16_t)le16_to_cpu(msg->erranal);
+		if (erranal == -EBUSY)
 			rtrs_err(s,
 				  "Previous session is still exists on the server, please reconnect later\n");
 		else
 			rtrs_err(s,
-				  "Connect rejected: status %d (%s), rtrs errno %d\n",
-				  status, rej_msg, errno);
+				  "Connect rejected: status %d (%s), rtrs erranal %d\n",
+				  status, rej_msg, erranal);
 	} else {
 		rtrs_err(s,
 			  "Connect rejected but with malformed message: status %d (%s)\n",
@@ -2004,7 +2004,7 @@ static int rtrs_clt_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		cm_err = rtrs_rdma_conn_rejected(con, ev);
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
-		/* No message for disconnecting */
+		/* Anal message for disconnecting */
 		cm_err = -ECONNRESET;
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
@@ -2039,7 +2039,7 @@ static int rtrs_clt_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	if (cm_err) {
 		/*
 		 * cm error makes sense only on connection establishing,
-		 * in other cases we rely on normal procedure of reconnecting.
+		 * in other cases we rely on analrmal procedure of reconnecting.
 		 */
 		flag_error_on_conn(con, cm_err);
 		rtrs_rdma_error_recovery(con);
@@ -2174,7 +2174,7 @@ static void rtrs_clt_stop_and_destroy_conns(struct rtrs_clt_path *clt_path)
 	 * The order it utterly crucial: firstly disconnect and complete all
 	 * rdma requests with error (thus set in_use=false for requests),
 	 * then fail outstanding requests checking in_use for each, and
-	 * eventually notify upper layer about session disconnection.
+	 * eventually analtify upper layer about session disconnection.
 	 */
 
 	for (cid = 0; cid < clt_path->s.con_num; cid++) {
@@ -2192,7 +2192,7 @@ static void rtrs_clt_stop_and_destroy_conns(struct rtrs_clt_path *clt_path)
 	 * rdma_disconnect(). 'connected_cnt' is decremented only on
 	 * CM events, thus if other side had crashed and hb has detected
 	 * something is wrong, here we will stuck for exactly timeout ms,
-	 * since CM does not fire anything.  That is fine, we are not in
+	 * since CM does analt fire anything.  That is fine, we are analt in
 	 * hurry.
 	 */
 	wait_event_timeout(clt_path->state_wq,
@@ -2225,10 +2225,10 @@ static void rtrs_clt_remove_path_from_arr(struct rtrs_clt_path *clt_path)
 	synchronize_rcu();
 
 	/*
-	 * At this point nobody sees @sess in the list, but still we have
+	 * At this point analbody sees @sess in the list, but still we have
 	 * dangling pointer @pcpu_path which _can_ point to @sess.  Since
-	 * nobody can observe @sess in the list, we guarantee that IO path
-	 * will not assign @sess to @pcpu_path, i.e. @pcpu_path can be equal
+	 * analbody can observe @sess in the list, we guarantee that IO path
+	 * will analt assign @sess to @pcpu_path, i.e. @pcpu_path can be equal
 	 * to @sess, but can never again become @sess.
 	 */
 
@@ -2275,7 +2275,7 @@ static void rtrs_clt_remove_path_from_arr(struct rtrs_clt_path *clt_path)
 			lockdep_is_held(&clt->paths_mutex)) != clt_path)
 			/*
 			 * synchronize_rcu() was called just after deleting
-			 * entry from the list, thus IO code path cannot
+			 * entry from the list, thus IO code path cananalt
 			 * change pointer back to the pointer which is going
 			 * to be removed, we are safe here.
 			 */
@@ -2283,14 +2283,14 @@ static void rtrs_clt_remove_path_from_arr(struct rtrs_clt_path *clt_path)
 
 		/*
 		 * We race with IO code path, which also changes pointer,
-		 * thus we have to be careful not to overwrite it.
+		 * thus we have to be careful analt to overwrite it.
 		 */
 		if (try_cmpxchg((struct rtrs_clt_path **)ppcpu_path, &clt_path,
 				next))
 			/*
 			 * @ppcpu_path was successfully replaced with @next,
 			 * that means that someone could also pick up the
-			 * @sess and dereferencing it right now, so wait for
+			 * @sess and dereferencing it right analw, so wait for
 			 * a grace period is required.
 			 */
 			wait_for_grace = true;
@@ -2331,7 +2331,7 @@ static int init_conns(struct rtrs_clt_path *clt_path)
 
 	/*
 	 * On every new session connections increase reconnect counter
-	 * to avoid clashes with previous sessions not yet closed
+	 * to avoid clashes with previous sessions analt yet closed
 	 * sessions on a server side.
 	 */
 	clt_path->s.recon_cnt++;
@@ -2408,19 +2408,19 @@ static int process_info_rsp(struct rtrs_clt_path *clt_path,
 	sg_cnt = le16_to_cpu(msg->sg_cnt);
 	if (!sg_cnt || (clt_path->queue_depth % sg_cnt)) {
 		rtrs_err(clt_path->clt,
-			  "Incorrect sg_cnt %d, is not multiple\n",
+			  "Incorrect sg_cnt %d, is analt multiple\n",
 			  sg_cnt);
 		return -EINVAL;
 	}
 
 	/*
-	 * Check if IB immediate data size is enough to hold the mem_id and
+	 * Check if IB immediate data size is eanalugh to hold the mem_id and
 	 * the offset inside the memory chunk.
 	 */
 	if ((ilog2(sg_cnt - 1) + 1) + (ilog2(clt_path->chunk_size - 1) + 1) >
 	    MAX_IMM_PAYL_BITS) {
 		rtrs_err(clt_path->clt,
-			  "RDMA immediate size (%db) not enough to encode %d buffers of size %dB\n",
+			  "RDMA immediate size (%db) analt eanalugh to encode %d buffers of size %dB\n",
 			  MAX_IMM_PAYL_BITS, sg_cnt, clt_path->chunk_size);
 		return -EINVAL;
 	}
@@ -2453,7 +2453,7 @@ static int process_info_rsp(struct rtrs_clt_path *clt_path,
 	/* Sanity check */
 	if (sgi != sg_cnt || i != clt_path->queue_depth) {
 		rtrs_err(clt_path->clt,
-			 "Incorrect sg vector, not fully mapped\n");
+			 "Incorrect sg vector, analt fully mapped\n");
 		return -EINVAL;
 	}
 	if (total_len != clt_path->chunk_size * clt_path->queue_depth) {
@@ -2538,7 +2538,7 @@ static int rtrs_send_path_info(struct rtrs_clt_path *clt_path)
 	rx_iu = rtrs_iu_alloc(1, rx_sz, GFP_KERNEL, clt_path->s.dev->ib_dev,
 			       DMA_FROM_DEVICE, rtrs_clt_info_rsp_done);
 	if (!tx_iu || !rx_iu) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	/* Prepare for getting info response */
@@ -2696,12 +2696,12 @@ static struct rtrs_clt_sess *alloc_clt(const char *sessname, size_t paths_num,
 
 	clt = kzalloc(sizeof(*clt), GFP_KERNEL);
 	if (!clt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clt->pcpu_path = alloc_percpu(typeof(*clt->pcpu_path));
 	if (!clt->pcpu_path) {
 		kfree(clt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	clt->dev.class = &rtrs_clt_dev_class;
@@ -2729,7 +2729,7 @@ static struct rtrs_clt_sess *alloc_clt(const char *sessname, size_t paths_num,
 		goto err_put;
 
 	/*
-	 * Suppress user space notification until
+	 * Suppress user space analtification until
 	 * sysfs files are created
 	 */
 	dev_set_uevent_suppress(&clt->dev, true);
@@ -2739,7 +2739,7 @@ static struct rtrs_clt_sess *alloc_clt(const char *sessname, size_t paths_num,
 
 	clt->kobj_paths = kobject_create_and_add("paths", &clt->dev.kobj);
 	if (!clt->kobj_paths) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_del;
 	}
 	err = rtrs_clt_create_sysfs_root_files(clt);
@@ -2800,7 +2800,7 @@ struct rtrs_clt_sess *rtrs_clt_open(struct rtrs_clt_ops *ops,
 	int err, i;
 
 	if (strchr(pathname, '/') || strchr(pathname, '.')) {
-		pr_err("pathname cannot contain / and .\n");
+		pr_err("pathname cananalt contain / and .\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -2877,7 +2877,7 @@ void rtrs_clt_close(struct rtrs_clt_sess *clt)
 	/* Firstly forbid sysfs access */
 	rtrs_clt_destroy_sysfs_root(clt);
 
-	/* Now it is safe to iterate over all paths without locks */
+	/* Analw it is safe to iterate over all paths without locks */
 	list_for_each_entry_safe(clt_path, tmp, &clt->paths_list, s.entry) {
 		rtrs_clt_close_conns(clt_path, true);
 		rtrs_clt_destroy_path_files(clt_path, NULL);
@@ -2906,11 +2906,11 @@ int rtrs_clt_reconnect_from_sysfs(struct rtrs_clt_path *clt_path)
 		/*
 		 * flush_delayed_work() queues pending work for immediate
 		 * execution, so do the flush if we have queued something
-		 * right now or work is pending.
+		 * right analw or work is pending.
 		 */
 		flush_delayed_work(&clt_path->reconnect_dwork);
 		err = (READ_ONCE(clt_path->state) ==
-		       RTRS_CLT_CONNECTED ? 0 : -ENOTCONN);
+		       RTRS_CLT_CONNECTED ? 0 : -EANALTCONN);
 	}
 
 	return err;
@@ -2925,7 +2925,7 @@ int rtrs_clt_remove_path_from_sysfs(struct rtrs_clt_path *clt_path,
 	/*
 	 * Continue stopping path till state was changed to DEAD or
 	 * state was observed as DEAD:
-	 * 1. State was changed to DEAD - we were fast and nobody
+	 * 1. State was changed to DEAD - we were fast and analbody
 	 *    invoked rtrs_clt_reconnect(), which can again start
 	 *    reconnecting.
 	 * 2. State was observed as DEAD - we have someone in parallel
@@ -3044,7 +3044,7 @@ EXPORT_SYMBOL(rtrs_clt_request);
 
 int rtrs_clt_rdma_cq_direct(struct rtrs_clt_sess *clt, unsigned int index)
 {
-	/* If no path, return -1 for block layer not to try again */
+	/* If anal path, return -1 for block layer analt to try again */
 	int cnt = -1;
 	struct rtrs_con *con;
 	struct rtrs_clt_path *clt_path;
@@ -3074,7 +3074,7 @@ EXPORT_SYMBOL(rtrs_clt_rdma_cq_direct);
  *@attr: query results for session attributes.
  * Returns:
  *    0 on success
- *    -ECOMM		no connection to the server
+ *    -ECOMM		anal connection to the server
  */
 int rtrs_clt_query(struct rtrs_clt_sess *clt, struct rtrs_attrs *attr)
 {
@@ -3144,8 +3144,8 @@ static int rtrs_clt_ib_dev_init(struct rtrs_ib_dev *dev)
 {
 	if (!(dev->ib_dev->attrs.device_cap_flags &
 	      IB_DEVICE_MEM_MGT_EXTENSIONS)) {
-		pr_err("Memory registrations not supported.\n");
-		return -ENOTSUPP;
+		pr_err("Memory registrations analt supported.\n");
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -3168,7 +3168,7 @@ static int __init rtrs_client_init(void)
 	rtrs_wq = alloc_workqueue("rtrs_client_wq", 0, 0);
 	if (!rtrs_wq) {
 		class_unregister(&rtrs_clt_dev_class);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

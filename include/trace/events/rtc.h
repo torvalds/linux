@@ -170,7 +170,7 @@ DECLARE_EVENT_CLASS(rtc_timer_class,
 
 	TP_fast_assign(
 		__entry->timer = timer;
-		__entry->expires = timer->node.expires;
+		__entry->expires = timer->analde.expires;
 		__entry->period = timer->period;
 	),
 

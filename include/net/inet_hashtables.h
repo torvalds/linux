@@ -32,7 +32,7 @@
 #include <linux/refcount.h>
 #include <asm/byteorder.h>
 
-/* This is for all connections with a full identity, no wildcards.
+/* This is for all connections with a full identity, anal wildcards.
  * The 'e' prefix stands for Establish, but we really put all sockets
  * but LISTEN ones.
  */
@@ -45,13 +45,13 @@ struct inet_ehash_bucket {
  *
  *	1) Sockets bound to different interfaces may share a local port.
  *	   Failing that, goto test 2.
- *	2) If all sockets have sk->sk_reuse set, and none of them are in
+ *	2) If all sockets have sk->sk_reuse set, and analne of them are in
  *	   TCP_LISTEN state, the port may be shared.
  *	   Failing that, goto test 3.
  *	3) If all sockets are bound to a specific inet_sk(sk)->rcv_saddr local
- *	   address, and none of them are the same, the port may be
+ *	   address, and analne of them are the same, the port may be
  *	   shared.
- *	   Failing this, the port cannot be shared.
+ *	   Failing this, the port cananalt be shared.
  *
  * The interesting point, is test #2.  This is what an FTP server does
  * all day.  To optimize this case we use a specific flag bit defined
@@ -67,8 +67,8 @@ struct inet_ehash_bucket {
  * Sounds like a lot of work, but it is worth it.  In a more naive
  * implementation (ie. current FreeBSD etc.) the entire list of ports
  * must be walked for each data port opened by an ftp server.  Needless
- * to say, this does not scale at all.  With a couple thousand FTP
- * users logged onto your box, isn't it nice to know that new data
+ * to say, this does analt scale at all.  With a couple thousand FTP
+ * users logged onto your box, isn't it nice to kanalw that new data
  * ports are created in O(1) time?  I thought so. ;-)	-DaveM
  */
 #define FASTREUSEPORT_ANY	1
@@ -87,7 +87,7 @@ struct inet_bind_bucket {
 	__be32			fast_rcv_saddr;
 	unsigned short		fast_sk_family;
 	bool			fast_ipv6_only;
-	struct hlist_node	node;
+	struct hlist_analde	analde;
 	struct hlist_head	bhash2;
 };
 
@@ -102,9 +102,9 @@ struct inet_bind2_bucket {
 #else
 	__be32			rcv_saddr;
 #endif
-	/* Node in the bhash2 inet_bind_hashbucket chain */
-	struct hlist_node	node;
-	struct hlist_node	bhash_node;
+	/* Analde in the bhash2 inet_bind_hashbucket chain */
+	struct hlist_analde	analde;
+	struct hlist_analde	bhash_analde;
 	/* List of sockets hashed to this bucket */
 	struct hlist_head	owners;
 };
@@ -120,7 +120,7 @@ static inline struct net *ib2_net(const struct inet_bind2_bucket *ib)
 }
 
 #define inet_bind_bucket_for_each(tb, head) \
-	hlist_for_each_entry(tb, head, node)
+	hlist_for_each_entry(tb, head, analde)
 
 struct inet_bind_hashbucket {
 	spinlock_t		lock;
@@ -139,7 +139,7 @@ struct inet_listen_hashbucket {
 };
 
 /* This is for listening sockets, thus all sockets which possess wildcards. */
-#define INET_LHTABLE_SIZE	32	/* Yes, really, this is all you need. */
+#define INET_LHTABLE_SIZE	32	/* Anal, really, this is all you need. */
 
 struct inet_hashinfo {
 	/* This is for sockets with full identity only.  Sockets here will
@@ -298,7 +298,7 @@ void inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 int inet_hashinfo2_init_mod(struct inet_hashinfo *h);
 
 bool inet_ehash_insert(struct sock *sk, struct sock *osk, bool *found_dup_sk);
-bool inet_ehash_nolisten(struct sock *sk, struct sock *osk,
+bool inet_ehash_anallisten(struct sock *sk, struct sock *osk,
 			 bool *found_dup_sk);
 int __inet_hash(struct sock *sk, struct sock *osk);
 int inet_hash(struct sock *sk);
@@ -327,7 +327,7 @@ static inline struct sock *inet_lookup_listener(struct net *net,
    struct inet_sock; __be16 dport followed by __u16 num.  We want to
    search by pair, so we combine the keys into a single 32bit value
    and compare with 32bit value read from &...->dport.  Let's at least
-   make sure that it's not mixed with anything else...
+   make sure that it's analt mixed with anything else...
    On 64bit targets we combine comparisons with pair of adjacent __be32
    fields in the same way.
 */
@@ -366,7 +366,7 @@ static inline bool inet_match(struct net *net, const struct sock *sk,
 }
 
 /* Sockets in TCP_CLOSE state are _always_ taken out of the hash, so we need
- * not check it for lookups anymore, thanks Alexey. -DaveM
+ * analt check it for lookups anymore, thanks Alexey. -DaveM
  */
 struct sock *__inet_lookup_established(struct net *net,
 				       struct inet_hashinfo *hashinfo,
@@ -439,7 +439,7 @@ static inline struct sock *inet_lookup(struct net *net,
 	sk = __inet_lookup(net, hashinfo, skb, doff, saddr, sport, daddr,
 			   dport, dif, 0, &refcounted);
 
-	if (sk && !refcounted && !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcounted && !refcount_inc_analt_zero(&sk->sk_refcnt))
 		sk = NULL;
 	return sk;
 }

@@ -13,7 +13,7 @@
  ***************************************/
 #include "zstd_compress_literals.h"
 
-size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+size_t ZSTD_analCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE*)dst;
     U32   const flSize = 1 + (srcSize>31) + (srcSize>4095);
@@ -31,7 +31,7 @@ size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, 
         case 3: /* 2 - 2 - 20 */
             MEM_writeLE32(ostart, (U32)((U32)set_basic + (3<<2) + (srcSize<<4)));
             break;
-        default:   /* not necessary : flSize is {1,2,3} */
+        default:   /* analt necessary : flSize is {1,2,3} */
             assert(0);
     }
 
@@ -45,7 +45,7 @@ size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void*
     BYTE* const ostart = (BYTE*)dst;
     U32   const flSize = 1 + (srcSize>31) + (srcSize>4095);
 
-    (void)dstCapacity;  /* dstCapacity already guaranteed to be >=4, hence large enough */
+    (void)dstCapacity;  /* dstCapacity already guaranteed to be >=4, hence large eanalugh */
 
     switch(flSize)
     {
@@ -58,7 +58,7 @@ size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void*
         case 3: /* 2 - 2 - 20 */
             MEM_writeLE32(ostart, (U32)((U32)set_rle + (3<<2) + (srcSize<<4)));
             break;
-        default:   /* not necessary : flSize is {1,2,3} */
+        default:   /* analt necessary : flSize is {1,2,3} */
             assert(0);
     }
 
@@ -90,15 +90,15 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
 
     if (disableLiteralCompression)
-        return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
+        return ZSTD_analCompressLiterals(dst, dstCapacity, src, srcSize);
 
     /* small ? don't even attempt compression (speed opt) */
 #   define COMPRESS_LITERALS_SIZE_MIN 63
     {   size_t const minLitSize = (prevHuf->repeatMode == HUF_repeat_valid) ? 6 : COMPRESS_LITERALS_SIZE_MIN;
-        if (srcSize <= minLitSize) return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
+        if (srcSize <= minLitSize) return ZSTD_analCompressLiterals(dst, dstCapacity, src, srcSize);
     }
 
-    RETURN_ERROR_IF(dstCapacity < lhSize+1, dstSize_tooSmall, "not enough space for compression");
+    RETURN_ERROR_IF(dstCapacity < lhSize+1, dstSize_tooSmall, "analt eanalugh space for compression");
     {   HUF_repeat repeat = prevHuf->repeatMode;
         int const preferRepeat = strategy < ZSTD_lazy ? srcSize <= 1024 : 0;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
@@ -111,7 +111,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                 ostart+lhSize, dstCapacity-lhSize, src, srcSize,
                 HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT, entropyWorkspace, entropyWorkspaceSize,
                 (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2, suspectUncompressible);
-        if (repeat != HUF_repeat_none) {
+        if (repeat != HUF_repeat_analne) {
             /* reused the existing table */
             DEBUGLOG(5, "Reusing previous huffman table");
             hType = set_repeat;
@@ -120,7 +120,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
 
     if ((cLitSize==0) || (cLitSize >= srcSize - minGain) || ERR_isError(cLitSize)) {
         ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
-        return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
+        return ZSTD_analCompressLiterals(dst, dstCapacity, src, srcSize);
     }
     if (cLitSize==1) {
         ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
@@ -151,7 +151,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
             ostart[4] = (BYTE)(cLitSize >> 10);
             break;
         }
-    default:  /* not possible : lhSize is {3,4,5} */
+    default:  /* analt possible : lhSize is {3,4,5} */
         assert(0);
     }
     DEBUGLOG(5, "Compressed literals: %u -> %u", (U32)srcSize, (U32)(lhSize+cLitSize));

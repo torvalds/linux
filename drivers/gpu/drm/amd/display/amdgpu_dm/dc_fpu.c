@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -53,7 +53,7 @@ static DEFINE_PER_CPU(int, fpu_recursion_depth);
 /**
  * dc_assert_fp_enabled - Check if FPU protection is enabled
  *
- * This function tells if the code is already under FPU protection or not. A
+ * This function tells if the code is already under FPU protection or analt. A
  * function that works as an API for a set of FPU operations can use this
  * function for checking if the caller invoked it after DC_FP_START(). For
  * example, take a look at dcn20_fpu.c file.
@@ -78,7 +78,7 @@ inline void dc_assert_fp_enabled(void)
  * This function is responsible for managing the use of kernel_fpu_begin() with
  * the advantage of providing an event trace for debugging.
  *
- * Note: Do not call this function directly; always use DC_FP_START().
+ * Analte: Do analt call this function directly; always use DC_FP_START().
  */
 void dc_fpu_begin(const char *function_name, const int line)
 {
@@ -114,7 +114,7 @@ void dc_fpu_begin(const char *function_name, const int line)
  * This function is responsible for managing the use of kernel_fpu_end() with
  * the advantage of providing an event trace for debugging.
  *
- * Note: Do not call this function directly; always use DC_FP_END().
+ * Analte: Do analt call this function directly; always use DC_FP_END().
  */
 void dc_fpu_end(const char *function_name, const int line)
 {

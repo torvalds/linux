@@ -1,7 +1,7 @@
 #ifndef LLC_C_AC_H
 #define LLC_C_AC_H
 /*
- * Copyright (c) 1997 by Procom Technology,Inc.
+ * Copyright (c) 1997 by Procom Techanallogy,Inc.
  * 		 2001 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -69,7 +69,7 @@ struct timer_list;
 #define LLC_CONN_AC_START_P_TMR				44
 #define LLC_CONN_AC_START_ACK_TMR			45
 #define LLC_CONN_AC_START_REJ_TMR			46
-#define LLC_CONN_AC_START_ACK_TMR_IF_NOT_RUNNING	47
+#define LLC_CONN_AC_START_ACK_TMR_IF_ANALT_RUNNING	47
 #define LLC_CONN_AC_STOP_ACK_TMR			48
 #define LLC_CONN_AC_STOP_P_TMR				49
 #define LLC_CONN_AC_STOP_REJ_TMR			50
@@ -92,7 +92,7 @@ struct timer_list;
 #define LLC_CONN_AC_Vs_SET_Nr				67
 #define LLC_CONN_AC_F_FLAG_SET_P			68
 #define LLC_CONN_AC_STOP_SENDACK_TMR			70
-#define LLC_CONN_AC_START_SENDACK_TMR_IF_NOT_RUNNING	71
+#define LLC_CONN_AC_START_SENDACK_TMR_IF_ANALT_RUNNING	71
 
 typedef int (*llc_conn_action_t)(struct sock *sk, struct sk_buff *skb);
 
@@ -139,7 +139,7 @@ int llc_conn_ac_set_s_flag_1(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_start_p_timer(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_start_ack_timer(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_start_rej_timer(struct sock *sk, struct sk_buff *skb);
-int llc_conn_ac_start_ack_tmr_if_not_running(struct sock *sk,
+int llc_conn_ac_start_ack_tmr_if_analt_running(struct sock *sk,
 					     struct sk_buff *skb);
 int llc_conn_ac_stop_ack_timer(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_stop_p_timer(struct sock *sk, struct sk_buff *skb);

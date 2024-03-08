@@ -85,7 +85,7 @@ struct drm_panfrost_wait_bo {
 };
 
 /* Valid flags to pass to drm_panfrost_create_bo */
-#define PANFROST_BO_NOEXEC	1
+#define PANFROST_BO_ANALEXEC	1
 #define PANFROST_BO_HEAP	2
 
 /**
@@ -105,7 +105,7 @@ struct drm_panfrost_create_bo {
 	 * is private to the DRM fd and is valid for the lifetime of the GEM
 	 * handle.
 	 *
-	 * This offset value will always be nonzero, since various HW
+	 * This offset value will always be analnzero, since various HW
 	 * units treat 0 specially.
 	 */
 	__u64 offset;
@@ -115,18 +115,18 @@ struct drm_panfrost_create_bo {
  * struct drm_panfrost_mmap_bo - ioctl argument for mapping Panfrost BOs.
  *
  * This doesn't actually perform an mmap.  Instead, it returns the
- * offset you need to use in an mmap on the DRM device node.  This
- * means that tools like valgrind end up knowing about the mapped
+ * offset you need to use in an mmap on the DRM device analde.  This
+ * means that tools like valgrind end up kanalwing about the mapped
  * memory.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently anal values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_panfrost_mmap_bo {
 	/** Handle for the object being mapped. */
 	__u32 handle;
 	__u32 flags;
-	/** offset into the drm node to use for subsequent mmap call. */
+	/** offset into the drm analde to use for subsequent mmap call. */
 	__u64 offset;
 };
 
@@ -216,7 +216,7 @@ struct drm_panfrost_perfcnt_dump {
  * backing pages still exist.
  */
 #define PANFROST_MADV_WILLNEED 0	/* backing pages are needed, status returned in 'retained' */
-#define PANFROST_MADV_DONTNEED 1	/* backing pages not needed */
+#define PANFROST_MADV_DONTNEED 1	/* backing pages analt needed */
 
 struct drm_panfrost_madvise {
 	__u32 handle;         /* in, GEM handle */
@@ -226,7 +226,7 @@ struct drm_panfrost_madvise {
 
 /* Definitions for coredump decoding in user space */
 #define PANFROSTDUMP_MAJOR 1
-#define PANFROSTDUMP_MINOR 0
+#define PANFROSTDUMP_MIANALR 0
 
 #define PANFROSTDUMP_MAGIC 0x464E4150 /* PANF */
 
@@ -250,7 +250,7 @@ struct panfrost_dump_object_header {
 			__u64 jc;
 			__u32 gpu_id;
 			__u32 major;
-			__u32 minor;
+			__u32 mianalr;
 			__u64 nbos;
 		} reghdr;
 

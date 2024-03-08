@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -13,26 +13,26 @@
  *
  * The journal consists of 2 parts - the log and bud LEBs. The log has fixed
  * length and position, while a bud logical eraseblock is any LEB in the main
- * area. Buds contain file system data - data nodes, inode nodes, etc. The log
+ * area. Buds contain file system data - data analdes, ianalde analdes, etc. The log
  * contains only references to buds and some other stuff like commit
- * start node. The idea is that when we commit the journal, we do
- * not copy the data, the buds just become indexed. Since after the commit the
- * nodes in bud eraseblocks become leaf nodes of the file system index tree, we
- * use term "bud". Analogy is obvious, bud eraseblocks contain nodes which will
+ * start analde. The idea is that when we commit the journal, we do
+ * analt copy the data, the buds just become indexed. Since after the commit the
+ * analdes in bud eraseblocks become leaf analdes of the file system index tree, we
+ * use term "bud". Analogy is obvious, bud eraseblocks contain analdes which will
  * become leafs in the future.
  *
  * The journal is multi-headed because we want to write data to the journal as
- * optimally as possible. It is nice to have nodes belonging to the same inode
- * in one LEB, so we may write data owned by different inodes to different
+ * optimally as possible. It is nice to have analdes belonging to the same ianalde
+ * in one LEB, so we may write data owned by different ianaldes to different
  * journal heads, although at present only one data head is used.
  *
- * For recovery reasons, the base head contains all inode nodes, all directory
- * entry nodes and all truncate nodes. This means that the other heads contain
- * only data nodes.
+ * For recovery reasons, the base head contains all ianalde analdes, all directory
+ * entry analdes and all truncate analdes. This means that the other heads contain
+ * only data analdes.
  *
- * Bud LEBs may be half-indexed. For example, if the bud was not full at the
+ * Bud LEBs may be half-indexed. For example, if the bud was analt full at the
  * time of commit, the bud is retained to continue to be used in the journal,
- * even though the "front" of the LEB is now indexed. In that case, the log
+ * even though the "front" of the LEB is analw indexed. In that case, the log
  * reference contains the offset where the bud starts for the purposes of the
  * journal.
  *
@@ -41,39 +41,39 @@
  * takes (indexing in the TNC).
  *
  * All the journal write operations like 'ubifs_jnl_update()' here, which write
- * multiple UBIFS nodes to the journal at one go, are atomic with respect to
+ * multiple UBIFS analdes to the journal at one go, are atomic with respect to
  * unclean reboots. Should the unclean reboot happen, the recovery code drops
- * all the nodes.
+ * all the analdes.
  */
 
 #include "ubifs.h"
 
 /**
- * zero_ino_node_unused - zero out unused fields of an on-flash inode node.
- * @ino: the inode to zero out
+ * zero_ianal_analde_unused - zero out unused fields of an on-flash ianalde analde.
+ * @ianal: the ianalde to zero out
  */
-static inline void zero_ino_node_unused(struct ubifs_ino_node *ino)
+static inline void zero_ianal_analde_unused(struct ubifs_ianal_analde *ianal)
 {
-	memset(ino->padding1, 0, 4);
-	memset(ino->padding2, 0, 26);
+	memset(ianal->padding1, 0, 4);
+	memset(ianal->padding2, 0, 26);
 }
 
 /**
- * zero_dent_node_unused - zero out unused fields of an on-flash directory
- *                         entry node.
+ * zero_dent_analde_unused - zero out unused fields of an on-flash directory
+ *                         entry analde.
  * @dent: the directory entry to zero out
  */
-static inline void zero_dent_node_unused(struct ubifs_dent_node *dent)
+static inline void zero_dent_analde_unused(struct ubifs_dent_analde *dent)
 {
 	dent->padding1 = 0;
 }
 
 /**
- * zero_trun_node_unused - zero out unused fields of an on-flash truncation
- *                         node.
- * @trun: the truncation node to zero out
+ * zero_trun_analde_unused - zero out unused fields of an on-flash truncation
+ *                         analde.
+ * @trun: the truncation analde to zero out
  */
-static inline void zero_trun_node_unused(struct ubifs_trun_node *trun)
+static inline void zero_trun_analde_unused(struct ubifs_trun_analde *trun)
 {
 	memset(trun->padding, 0, 12);
 }
@@ -81,14 +81,14 @@ static inline void zero_trun_node_unused(struct ubifs_trun_node *trun)
 static void ubifs_add_auth_dirt(struct ubifs_info *c, int lnum)
 {
 	if (ubifs_authenticated(c))
-		ubifs_add_dirt(c, lnum, ubifs_auth_node_sz(c));
+		ubifs_add_dirt(c, lnum, ubifs_auth_analde_sz(c));
 }
 
 /**
  * reserve_space - reserve space in the journal.
  * @c: UBIFS file-system description object
  * @jhead: journal head number
- * @len: node length
+ * @len: analde length
  *
  * This function reserves space in journal head @head. If the reservation
  * succeeded, the journal head stays locked and later has to be unlocked using
@@ -101,7 +101,7 @@ static int reserve_space(struct ubifs_info *c, int jhead, int len)
 	struct ubifs_wbuf *wbuf = &c->jheads[jhead].wbuf;
 
 	/*
-	 * Typically, the base head has smaller nodes written to it, so it is
+	 * Typically, the base head has smaller analdes written to it, so it is
 	 * better to try to allocate space at the ends of eraseblocks. This is
 	 * what the squeeze parameter does.
 	 */
@@ -120,7 +120,7 @@ again:
 		return 0;
 
 	/*
-	 * Write buffer wasn't seek'ed or there is no enough space - look for an
+	 * Write buffer wasn't seek'ed or there is anal eanalugh space - look for an
 	 * LEB with some empty space.
 	 */
 	lnum = ubifs_find_free_space(c, len, &offs, squeeze);
@@ -128,25 +128,25 @@ again:
 		goto out;
 
 	err = lnum;
-	if (err != -ENOSPC)
+	if (err != -EANALSPC)
 		goto out_unlock;
 
 	/*
-	 * No free space, we have to run garbage collector to make
+	 * Anal free space, we have to run garbage collector to make
 	 * some. But the write-buffer mutex has to be unlocked because
 	 * GC also takes it.
 	 */
-	dbg_jnl("no free space in jhead %s, run GC", dbg_jhead(jhead));
+	dbg_jnl("anal free space in jhead %s, run GC", dbg_jhead(jhead));
 	mutex_unlock(&wbuf->io_mutex);
 
 	lnum = ubifs_garbage_collect(c, 0);
 	if (lnum < 0) {
 		err = lnum;
-		if (err != -ENOSPC)
+		if (err != -EANALSPC)
 			return err;
 
 		/*
-		 * GC could not make a free LEB. But someone else may
+		 * GC could analt make a free LEB. But someone else may
 		 * have allocated new bud for this journal head,
 		 * because we dropped @wbuf->io_mutex, so try once
 		 * again.
@@ -158,7 +158,7 @@ again:
 			goto again;
 		}
 
-		dbg_jnl("return -ENOSPC");
+		dbg_jnl("return -EANALSPC");
 		return err;
 	}
 
@@ -169,7 +169,7 @@ again:
 	if (wbuf->lnum != -1 && avail >= len) {
 		/*
 		 * Someone else has switched the journal head and we have
-		 * enough space now. This happens when more than one process is
+		 * eanalugh space analw. This happens when more than one process is
 		 * trying to write to the same journal head at the same time.
 		 */
 		dbg_jnl("return LEB %d back, already have LEB %d:%d",
@@ -186,18 +186,18 @@ out:
 	/*
 	 * Make sure we synchronize the write-buffer before we add the new bud
 	 * to the log. Otherwise we may have a power cut after the log
-	 * reference node for the last bud (@lnum) is written but before the
+	 * reference analde for the last bud (@lnum) is written but before the
 	 * write-buffer data are written to the next-to-last bud
 	 * (@wbuf->lnum). And the effect would be that the recovery would see
 	 * that there is corruption in the next-to-last bud.
 	 */
-	err = ubifs_wbuf_sync_nolock(wbuf);
+	err = ubifs_wbuf_sync_anallock(wbuf);
 	if (err)
 		goto out_return;
 	err = ubifs_add_bud_to_log(c, jhead, lnum, offs);
 	if (err)
 		goto out_return;
-	err = ubifs_wbuf_seek_nolock(wbuf, lnum, offs);
+	err = ubifs_wbuf_seek_anallock(wbuf, lnum, offs);
 	if (err)
 		goto out_unlock;
 
@@ -213,8 +213,8 @@ out_return:
 	err1 = ubifs_return_leb(c, lnum);
 	if (err1 && err == -EAGAIN)
 		/*
-		 * Return original error code only if it is not %-EAGAIN,
-		 * which is not really an error. Otherwise, return the error
+		 * Return original error code only if it is analt %-EAGAIN,
+		 * which is analt really an error. Otherwise, return the error
 		 * code of 'ubifs_return_leb()'.
 		 */
 		err = err1;
@@ -222,33 +222,33 @@ out_return:
 	return err;
 }
 
-static int ubifs_hash_nodes(struct ubifs_info *c, void *node,
+static int ubifs_hash_analdes(struct ubifs_info *c, void *analde,
 			     int len, struct shash_desc *hash)
 {
-	int auth_node_size = ubifs_auth_node_sz(c);
+	int auth_analde_size = ubifs_auth_analde_sz(c);
 	int err;
 
 	while (1) {
-		const struct ubifs_ch *ch = node;
-		int nodelen = le32_to_cpu(ch->len);
+		const struct ubifs_ch *ch = analde;
+		int analdelen = le32_to_cpu(ch->len);
 
-		ubifs_assert(c, len >= auth_node_size);
+		ubifs_assert(c, len >= auth_analde_size);
 
-		if (len == auth_node_size)
+		if (len == auth_analde_size)
 			break;
 
-		ubifs_assert(c, len > nodelen);
-		ubifs_assert(c, ch->magic == cpu_to_le32(UBIFS_NODE_MAGIC));
+		ubifs_assert(c, len > analdelen);
+		ubifs_assert(c, ch->magic == cpu_to_le32(UBIFS_ANALDE_MAGIC));
 
-		err = ubifs_shash_update(c, hash, (void *)node, nodelen);
+		err = ubifs_shash_update(c, hash, (void *)analde, analdelen);
 		if (err)
 			return err;
 
-		node += ALIGN(nodelen, 8);
-		len -= ALIGN(nodelen, 8);
+		analde += ALIGN(analdelen, 8);
+		len -= ALIGN(analdelen, 8);
 	}
 
-	return ubifs_prepare_auth_node(c, node, hash);
+	return ubifs_prepare_auth_analde(c, analde, hash);
 }
 
 /**
@@ -259,7 +259,7 @@ static int ubifs_hash_nodes(struct ubifs_info *c, void *node,
  * @len: length to write
  * @lnum: LEB number written is returned here
  * @offs: offset written is returned here
- * @sync: non-zero if the write-buffer has to by synchronized
+ * @sync: analn-zero if the write-buffer has to by synchronized
  *
  * This function writes data to the reserved space of journal head @jhead.
  * Returns zero in case of success and a negative error code in case of
@@ -279,16 +279,16 @@ static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
 		dbg_jhead(jhead), *lnum, *offs, len);
 
 	if (ubifs_authenticated(c)) {
-		err = ubifs_hash_nodes(c, buf, len, c->jheads[jhead].log_hash);
+		err = ubifs_hash_analdes(c, buf, len, c->jheads[jhead].log_hash);
 		if (err)
 			return err;
 	}
 
-	err = ubifs_wbuf_write_nolock(wbuf, buf, len);
+	err = ubifs_wbuf_write_anallock(wbuf, buf, len);
 	if (err)
 		return err;
 	if (sync)
-		err = ubifs_wbuf_sync_nolock(wbuf);
+		err = ubifs_wbuf_sync_anallock(wbuf);
 	return err;
 }
 
@@ -304,13 +304,13 @@ static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
  * Returns zero in case of success and a negative error code in case of
  * failure.
  *
- * Note, the journal head may be unlocked as soon as the data is written, while
+ * Analte, the journal head may be unlocked as soon as the data is written, while
  * the commit lock has to be released after the data has been added to the
  * TNC.
  */
 static int make_reservation(struct ubifs_info *c, int jhead, int len)
 {
-	int err, cmt_retries = 0, nospc_retries = 0;
+	int err, cmt_retries = 0, analspc_retries = 0;
 
 again:
 	down_read(&c->commit_sem);
@@ -320,22 +320,22 @@ again:
 		return 0;
 	up_read(&c->commit_sem);
 
-	if (err == -ENOSPC) {
+	if (err == -EANALSPC) {
 		/*
-		 * GC could not make any progress. We should try to commit
+		 * GC could analt make any progress. We should try to commit
 		 * once because it could make some dirty space and GC would
 		 * make progress, so make the error -EAGAIN so that the below
 		 * will commit and re-try.
 		 */
-		if (nospc_retries++ < 2) {
-			dbg_jnl("no space, retry");
+		if (analspc_retries++ < 2) {
+			dbg_jnl("anal space, retry");
 			err = -EAGAIN;
 		}
 
 		/*
 		 * This means that the budgeting is incorrect. We always have
 		 * to be able to write to the media, because all operations are
-		 * budgeted. Deletions are not budgeted, though, but we reserve
+		 * budgeted. Deletions are analt budgeted, though, but we reserve
 		 * an extra LEB for them.
 		 */
 	}
@@ -349,11 +349,11 @@ again:
 	 */
 	if (cmt_retries > 128) {
 		/*
-		 * This should not happen unless the journal size limitations
+		 * This should analt happen unless the journal size limitations
 		 * are too tough.
 		 */
 		ubifs_err(c, "stuck in space allocation");
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto out;
 	} else if (cmt_retries > 32)
 		ubifs_warn(c, "too many space allocation re-tries (%d)",
@@ -369,9 +369,9 @@ again:
 	goto again;
 
 out:
-	ubifs_err(c, "cannot reserve %d bytes in jhead %d, error %d",
+	ubifs_err(c, "cananalt reserve %d bytes in jhead %d, error %d",
 		  len, jhead, err);
-	if (err == -ENOSPC) {
+	if (err == -EANALSPC) {
 		/* This are some budgeting problems, print useful information */
 		down_write(&c->commit_sem);
 		dump_stack();
@@ -410,8 +410,8 @@ static void finish_reservation(struct ubifs_info *c)
 }
 
 /**
- * get_dent_type - translate VFS inode mode to UBIFS directory entry type.
- * @mode: inode mode
+ * get_dent_type - translate VFS ianalde mode to UBIFS directory entry type.
+ * @mode: ianalde mode
  */
 static int get_dent_type(int mode)
 {
@@ -437,70 +437,70 @@ static int get_dent_type(int mode)
 }
 
 /**
- * pack_inode - pack an inode node.
+ * pack_ianalde - pack an ianalde analde.
  * @c: UBIFS file-system description object
- * @ino: buffer in which to pack inode node
- * @inode: inode to pack
- * @last: indicates the last node of the group
+ * @ianal: buffer in which to pack ianalde analde
+ * @ianalde: ianalde to pack
+ * @last: indicates the last analde of the group
  */
-static void pack_inode(struct ubifs_info *c, struct ubifs_ino_node *ino,
-		       const struct inode *inode, int last)
+static void pack_ianalde(struct ubifs_info *c, struct ubifs_ianal_analde *ianal,
+		       const struct ianalde *ianalde, int last)
 {
-	int data_len = 0, last_reference = !inode->i_nlink;
-	struct ubifs_inode *ui = ubifs_inode(inode);
+	int data_len = 0, last_reference = !ianalde->i_nlink;
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
 
-	ino->ch.node_type = UBIFS_INO_NODE;
-	ino_key_init_flash(c, &ino->key, inode->i_ino);
-	ino->creat_sqnum = cpu_to_le64(ui->creat_sqnum);
-	ino->atime_sec  = cpu_to_le64(inode_get_atime_sec(inode));
-	ino->atime_nsec = cpu_to_le32(inode_get_atime_nsec(inode));
-	ino->ctime_sec  = cpu_to_le64(inode_get_ctime_sec(inode));
-	ino->ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
-	ino->mtime_sec  = cpu_to_le64(inode_get_mtime_sec(inode));
-	ino->mtime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
-	ino->uid   = cpu_to_le32(i_uid_read(inode));
-	ino->gid   = cpu_to_le32(i_gid_read(inode));
-	ino->mode  = cpu_to_le32(inode->i_mode);
-	ino->flags = cpu_to_le32(ui->flags);
-	ino->size  = cpu_to_le64(ui->ui_size);
-	ino->nlink = cpu_to_le32(inode->i_nlink);
-	ino->compr_type  = cpu_to_le16(ui->compr_type);
-	ino->data_len    = cpu_to_le32(ui->data_len);
-	ino->xattr_cnt   = cpu_to_le32(ui->xattr_cnt);
-	ino->xattr_size  = cpu_to_le32(ui->xattr_size);
-	ino->xattr_names = cpu_to_le32(ui->xattr_names);
-	zero_ino_node_unused(ino);
+	ianal->ch.analde_type = UBIFS_IANAL_ANALDE;
+	ianal_key_init_flash(c, &ianal->key, ianalde->i_ianal);
+	ianal->creat_sqnum = cpu_to_le64(ui->creat_sqnum);
+	ianal->atime_sec  = cpu_to_le64(ianalde_get_atime_sec(ianalde));
+	ianal->atime_nsec = cpu_to_le32(ianalde_get_atime_nsec(ianalde));
+	ianal->ctime_sec  = cpu_to_le64(ianalde_get_ctime_sec(ianalde));
+	ianal->ctime_nsec = cpu_to_le32(ianalde_get_ctime_nsec(ianalde));
+	ianal->mtime_sec  = cpu_to_le64(ianalde_get_mtime_sec(ianalde));
+	ianal->mtime_nsec = cpu_to_le32(ianalde_get_mtime_nsec(ianalde));
+	ianal->uid   = cpu_to_le32(i_uid_read(ianalde));
+	ianal->gid   = cpu_to_le32(i_gid_read(ianalde));
+	ianal->mode  = cpu_to_le32(ianalde->i_mode);
+	ianal->flags = cpu_to_le32(ui->flags);
+	ianal->size  = cpu_to_le64(ui->ui_size);
+	ianal->nlink = cpu_to_le32(ianalde->i_nlink);
+	ianal->compr_type  = cpu_to_le16(ui->compr_type);
+	ianal->data_len    = cpu_to_le32(ui->data_len);
+	ianal->xattr_cnt   = cpu_to_le32(ui->xattr_cnt);
+	ianal->xattr_size  = cpu_to_le32(ui->xattr_size);
+	ianal->xattr_names = cpu_to_le32(ui->xattr_names);
+	zero_ianal_analde_unused(ianal);
 
 	/*
-	 * Drop the attached data if this is a deletion inode, the data is not
+	 * Drop the attached data if this is a deletion ianalde, the data is analt
 	 * needed anymore.
 	 */
 	if (!last_reference) {
-		memcpy(ino->data, ui->data, ui->data_len);
+		memcpy(ianal->data, ui->data, ui->data_len);
 		data_len = ui->data_len;
 	}
 
-	ubifs_prep_grp_node(c, ino, UBIFS_INO_NODE_SZ + data_len, last);
+	ubifs_prep_grp_analde(c, ianal, UBIFS_IANAL_ANALDE_SZ + data_len, last);
 }
 
 /**
- * mark_inode_clean - mark UBIFS inode as clean.
+ * mark_ianalde_clean - mark UBIFS ianalde as clean.
  * @c: UBIFS file-system description object
- * @ui: UBIFS inode to mark as clean
+ * @ui: UBIFS ianalde to mark as clean
  *
- * This helper function marks UBIFS inode @ui as clean by cleaning the
- * @ui->dirty flag and releasing its budget. Note, VFS may still treat the
- * inode as dirty and try to write it back, but 'ubifs_write_inode()' would
- * just do nothing.
+ * This helper function marks UBIFS ianalde @ui as clean by cleaning the
+ * @ui->dirty flag and releasing its budget. Analte, VFS may still treat the
+ * ianalde as dirty and try to write it back, but 'ubifs_write_ianalde()' would
+ * just do analthing.
  */
-static void mark_inode_clean(struct ubifs_info *c, struct ubifs_inode *ui)
+static void mark_ianalde_clean(struct ubifs_info *c, struct ubifs_ianalde *ui)
 {
 	if (ui->dirty)
-		ubifs_release_dirty_inode_budget(c, ui);
+		ubifs_release_dirty_ianalde_budget(c, ui);
 	ui->dirty = 0;
 }
 
-static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
+static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_analde *dent)
 {
 	if (c->double_hash)
 		dent->cookie = (__force __le32) get_random_u32();
@@ -509,77 +509,77 @@ static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
 }
 
 /**
- * ubifs_jnl_update - update inode.
+ * ubifs_jnl_update - update ianalde.
  * @c: UBIFS file-system description object
- * @dir: parent inode or host inode in case of extended attributes
+ * @dir: parent ianalde or host ianalde in case of extended attributes
  * @nm: directory entry name
- * @inode: inode to update
+ * @ianalde: ianalde to update
  * @deletion: indicates a directory entry deletion i.e unlink or rmdir
- * @xent: non-zero if the directory entry is an extended attribute entry
+ * @xent: analn-zero if the directory entry is an extended attribute entry
  *
- * This function updates an inode by writing a directory entry (or extended
- * attribute entry), the inode itself, and the parent directory inode (or the
- * host inode) to the journal.
+ * This function updates an ianalde by writing a directory entry (or extended
+ * attribute entry), the ianalde itself, and the parent directory ianalde (or the
+ * host ianalde) to the journal.
  *
- * The function writes the host inode @dir last, which is important in case of
- * extended attributes. Indeed, then we guarantee that if the host inode gets
+ * The function writes the host ianalde @dir last, which is important in case of
+ * extended attributes. Indeed, then we guarantee that if the host ianalde gets
  * synchronized (with 'fsync()'), and the write-buffer it sits in gets flushed,
- * the extended attribute inode gets flushed too. And this is exactly what the
- * user expects - synchronizing the host inode synchronizes its extended
+ * the extended attribute ianalde gets flushed too. And this is exactly what the
+ * user expects - synchronizing the host ianalde synchronizes its extended
  * attributes. Similarly, this guarantees that if @dir is synchronized, its
  * directory entry corresponding to @nm gets synchronized too.
  *
- * If the inode (@inode) or the parent directory (@dir) are synchronous, this
+ * If the ianalde (@ianalde) or the parent directory (@dir) are synchroanalus, this
  * function synchronizes the write-buffer.
  *
- * This function marks the @dir and @inode inodes as clean and returns zero on
+ * This function marks the @dir and @ianalde ianaldes as clean and returns zero on
  * success. In case of failure, a negative error code is returned.
  */
-int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
-		     const struct fscrypt_name *nm, const struct inode *inode,
+int ubifs_jnl_update(struct ubifs_info *c, const struct ianalde *dir,
+		     const struct fscrypt_name *nm, const struct ianalde *ianalde,
 		     int deletion, int xent)
 {
-	int err, dlen, ilen, len, lnum, ino_offs, dent_offs, orphan_added = 0;
+	int err, dlen, ilen, len, lnum, ianal_offs, dent_offs, orphan_added = 0;
 	int aligned_dlen, aligned_ilen, sync = IS_DIRSYNC(dir);
-	int last_reference = !!(deletion && inode->i_nlink == 0);
-	struct ubifs_inode *ui = ubifs_inode(inode);
-	struct ubifs_inode *host_ui = ubifs_inode(dir);
-	struct ubifs_dent_node *dent;
-	struct ubifs_ino_node *ino;
-	union ubifs_key dent_key, ino_key;
+	int last_reference = !!(deletion && ianalde->i_nlink == 0);
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
+	struct ubifs_ianalde *host_ui = ubifs_ianalde(dir);
+	struct ubifs_dent_analde *dent;
+	struct ubifs_ianal_analde *ianal;
+	union ubifs_key dent_key, ianal_key;
 	u8 hash_dent[UBIFS_HASH_ARR_SZ];
-	u8 hash_ino[UBIFS_HASH_ARR_SZ];
-	u8 hash_ino_host[UBIFS_HASH_ARR_SZ];
+	u8 hash_ianal[UBIFS_HASH_ARR_SZ];
+	u8 hash_ianal_host[UBIFS_HASH_ARR_SZ];
 
 	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 
-	dlen = UBIFS_DENT_NODE_SZ + fname_len(nm) + 1;
-	ilen = UBIFS_INO_NODE_SZ;
+	dlen = UBIFS_DENT_ANALDE_SZ + fname_len(nm) + 1;
+	ilen = UBIFS_IANAL_ANALDE_SZ;
 
 	/*
-	 * If the last reference to the inode is being deleted, then there is
-	 * no need to attach and write inode data, it is being deleted anyway.
-	 * And if the inode is being deleted, no need to synchronize
-	 * write-buffer even if the inode is synchronous.
+	 * If the last reference to the ianalde is being deleted, then there is
+	 * anal need to attach and write ianalde data, it is being deleted anyway.
+	 * And if the ianalde is being deleted, anal need to synchronize
+	 * write-buffer even if the ianalde is synchroanalus.
 	 */
 	if (!last_reference) {
 		ilen += ui->data_len;
-		sync |= IS_SYNC(inode);
+		sync |= IS_SYNC(ianalde);
 	}
 
 	aligned_dlen = ALIGN(dlen, 8);
 	aligned_ilen = ALIGN(ilen, 8);
 
-	len = aligned_dlen + aligned_ilen + UBIFS_INO_NODE_SZ;
+	len = aligned_dlen + aligned_ilen + UBIFS_IANAL_ANALDE_SZ;
 	/* Make sure to also account for extended attributes */
 	if (ubifs_authenticated(c))
-		len += ALIGN(host_ui->data_len, 8) + ubifs_auth_node_sz(c);
+		len += ALIGN(host_ui->data_len, 8) + ubifs_auth_analde_sz(c);
 	else
 		len += host_ui->data_len;
 
-	dent = kzalloc(len, GFP_NOFS);
+	dent = kzalloc(len, GFP_ANALFS);
 	if (!dent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Make reservation before allocating sequence numbers */
 	err = make_reservation(c, BASEHD, len);
@@ -587,49 +587,49 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		goto out_free;
 
 	if (!xent) {
-		dent->ch.node_type = UBIFS_DENT_NODE;
+		dent->ch.analde_type = UBIFS_DENT_ANALDE;
 		if (fname_name(nm) == NULL)
-			dent_key_init_hash(c, &dent_key, dir->i_ino, nm->hash);
+			dent_key_init_hash(c, &dent_key, dir->i_ianal, nm->hash);
 		else
-			dent_key_init(c, &dent_key, dir->i_ino, nm);
+			dent_key_init(c, &dent_key, dir->i_ianal, nm);
 	} else {
-		dent->ch.node_type = UBIFS_XENT_NODE;
-		xent_key_init(c, &dent_key, dir->i_ino, nm);
+		dent->ch.analde_type = UBIFS_XENT_ANALDE;
+		xent_key_init(c, &dent_key, dir->i_ianal, nm);
 	}
 
 	key_write(c, &dent_key, dent->key);
-	dent->inum = deletion ? 0 : cpu_to_le64(inode->i_ino);
-	dent->type = get_dent_type(inode->i_mode);
+	dent->inum = deletion ? 0 : cpu_to_le64(ianalde->i_ianal);
+	dent->type = get_dent_type(ianalde->i_mode);
 	dent->nlen = cpu_to_le16(fname_len(nm));
 	memcpy(dent->name, fname_name(nm), fname_len(nm));
 	dent->name[fname_len(nm)] = '\0';
 	set_dent_cookie(c, dent);
 
-	zero_dent_node_unused(dent);
-	ubifs_prep_grp_node(c, dent, dlen, 0);
-	err = ubifs_node_calc_hash(c, dent, hash_dent);
+	zero_dent_analde_unused(dent);
+	ubifs_prep_grp_analde(c, dent, dlen, 0);
+	err = ubifs_analde_calc_hash(c, dent, hash_dent);
 	if (err)
 		goto out_release;
 
-	ino = (void *)dent + aligned_dlen;
-	pack_inode(c, ino, inode, 0);
-	err = ubifs_node_calc_hash(c, ino, hash_ino);
+	ianal = (void *)dent + aligned_dlen;
+	pack_ianalde(c, ianal, ianalde, 0);
+	err = ubifs_analde_calc_hash(c, ianal, hash_ianal);
 	if (err)
 		goto out_release;
 
-	ino = (void *)ino + aligned_ilen;
-	pack_inode(c, ino, dir, 1);
-	err = ubifs_node_calc_hash(c, ino, hash_ino_host);
+	ianal = (void *)ianal + aligned_ilen;
+	pack_ianalde(c, ianal, dir, 1);
+	err = ubifs_analde_calc_hash(c, ianal, hash_ianal_host);
 	if (err)
 		goto out_release;
 
 	if (last_reference) {
-		err = ubifs_add_orphan(c, inode->i_ino);
+		err = ubifs_add_orphan(c, ianalde->i_ianal);
 		if (err) {
 			release_head(c, BASEHD);
 			goto out_finish;
 		}
-		ui->del_cmtno = c->cmt_no;
+		ui->del_cmtanal = c->cmt_anal;
 		orphan_added = 1;
 	}
 
@@ -639,8 +639,8 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	if (!sync) {
 		struct ubifs_wbuf *wbuf = &c->jheads[BASEHD].wbuf;
 
-		ubifs_wbuf_add_ino_nolock(wbuf, inode->i_ino);
-		ubifs_wbuf_add_ino_nolock(wbuf, dir->i_ino);
+		ubifs_wbuf_add_ianal_anallock(wbuf, ianalde->i_ianal);
+		ubifs_wbuf_add_ianal_anallock(wbuf, dir->i_ianal);
 	}
 	release_head(c, BASEHD);
 	kfree(dent);
@@ -648,7 +648,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 
 	if (deletion) {
 		if (fname_name(nm) == NULL)
-			err = ubifs_tnc_remove_dh(c, &dent_key, nm->minor_hash);
+			err = ubifs_tnc_remove_dh(c, &dent_key, nm->mianalr_hash);
 		else
 			err = ubifs_tnc_remove_nm(c, &dent_key, nm);
 		if (err)
@@ -661,21 +661,21 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		goto out_ro;
 
 	/*
-	 * Note, we do not remove the inode from TNC even if the last reference
-	 * to it has just been deleted, because the inode may still be opened.
-	 * Instead, the inode has been added to orphan lists and the orphan
+	 * Analte, we do analt remove the ianalde from TNC even if the last reference
+	 * to it has just been deleted, because the ianalde may still be opened.
+	 * Instead, the ianalde has been added to orphan lists and the orphan
 	 * subsystem will take further care about it.
 	 */
-	ino_key_init(c, &ino_key, inode->i_ino);
-	ino_offs = dent_offs + aligned_dlen;
-	err = ubifs_tnc_add(c, &ino_key, lnum, ino_offs, ilen, hash_ino);
+	ianal_key_init(c, &ianal_key, ianalde->i_ianal);
+	ianal_offs = dent_offs + aligned_dlen;
+	err = ubifs_tnc_add(c, &ianal_key, lnum, ianal_offs, ilen, hash_ianal);
 	if (err)
 		goto out_ro;
 
-	ino_key_init(c, &ino_key, dir->i_ino);
-	ino_offs += aligned_ilen;
-	err = ubifs_tnc_add(c, &ino_key, lnum, ino_offs,
-			    UBIFS_INO_NODE_SZ + host_ui->data_len, hash_ino_host);
+	ianal_key_init(c, &ianal_key, dir->i_ianal);
+	ianal_offs += aligned_ilen;
+	err = ubifs_tnc_add(c, &ianal_key, lnum, ianal_offs,
+			    UBIFS_IANAL_ANALDE_SZ + host_ui->data_len, hash_ianal_host);
 	if (err)
 		goto out_ro;
 
@@ -688,8 +688,8 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		host_ui->synced_i_size = host_ui->ui_size;
 		spin_unlock(&host_ui->ui_lock);
 	}
-	mark_inode_clean(c, ui);
-	mark_inode_clean(c, host_ui);
+	mark_ianalde_clean(c, ui);
+	mark_ianalde_clean(c, host_ui);
 	return 0;
 
 out_finish:
@@ -704,46 +704,46 @@ out_release:
 out_ro:
 	ubifs_ro_mode(c, err);
 	if (orphan_added)
-		ubifs_delete_orphan(c, inode->i_ino);
+		ubifs_delete_orphan(c, ianalde->i_ianal);
 	finish_reservation(c);
 	return err;
 }
 
 /**
- * ubifs_jnl_write_data - write a data node to the journal.
+ * ubifs_jnl_write_data - write a data analde to the journal.
  * @c: UBIFS file-system description object
- * @inode: inode the data node belongs to
- * @key: node key
+ * @ianalde: ianalde the data analde belongs to
+ * @key: analde key
  * @buf: buffer to write
- * @len: data length (must not exceed %UBIFS_BLOCK_SIZE)
+ * @len: data length (must analt exceed %UBIFS_BLOCK_SIZE)
  *
- * This function writes a data node to the journal. Returns %0 if the data node
+ * This function writes a data analde to the journal. Returns %0 if the data analde
  * was successfully written, and a negative error code in case of failure.
  */
-int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
+int ubifs_jnl_write_data(struct ubifs_info *c, const struct ianalde *ianalde,
 			 const union ubifs_key *key, const void *buf, int len)
 {
-	struct ubifs_data_node *data;
+	struct ubifs_data_analde *data;
 	int err, lnum, offs, compr_type, out_len, compr_len, auth_len;
-	int dlen = COMPRESSED_DATA_NODE_BUF_SZ, allocated = 1;
+	int dlen = COMPRESSED_DATA_ANALDE_BUF_SZ, allocated = 1;
 	int write_len;
-	struct ubifs_inode *ui = ubifs_inode(inode);
-	bool encrypted = IS_ENCRYPTED(inode);
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
+	bool encrypted = IS_ENCRYPTED(ianalde);
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
-	dbg_jnlk(key, "ino %lu, blk %u, len %d, key ",
+	dbg_jnlk(key, "ianal %lu, blk %u, len %d, key ",
 		(unsigned long)key_inum(c, key), key_block(c, key), len);
 	ubifs_assert(c, len <= UBIFS_BLOCK_SIZE);
 
 	if (encrypted)
 		dlen += UBIFS_CIPHER_BLOCK_SIZE;
 
-	auth_len = ubifs_auth_node_sz(c);
+	auth_len = ubifs_auth_analde_sz(c);
 
-	data = kmalloc(dlen + auth_len, GFP_NOFS | __GFP_NOWARN);
+	data = kmalloc(dlen + auth_len, GFP_ANALFS | __GFP_ANALWARN);
 	if (!data) {
 		/*
-		 * Fall-back to the write reserve buffer. Note, we might be
+		 * Fall-back to the write reserve buffer. Analte, we might be
 		 * currently on the memory reclaim path, when the kernel is
 		 * trying to free some memory by writing out dirty pages. The
 		 * write reserve buffer helps us to guarantee that we are
@@ -754,22 +754,22 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 		data = c->write_reserve_buf;
 	}
 
-	data->ch.node_type = UBIFS_DATA_NODE;
+	data->ch.analde_type = UBIFS_DATA_ANALDE;
 	key_write(c, key, &data->key);
 	data->size = cpu_to_le32(len);
 
 	if (!(ui->flags & UBIFS_COMPR_FL))
-		/* Compression is disabled for this inode */
-		compr_type = UBIFS_COMPR_NONE;
+		/* Compression is disabled for this ianalde */
+		compr_type = UBIFS_COMPR_ANALNE;
 	else
 		compr_type = ui->compr_type;
 
-	out_len = compr_len = dlen - UBIFS_DATA_NODE_SZ;
+	out_len = compr_len = dlen - UBIFS_DATA_ANALDE_SZ;
 	ubifs_compress(c, buf, len, &data->data, &compr_len, &compr_type);
 	ubifs_assert(c, compr_len <= UBIFS_BLOCK_SIZE);
 
 	if (encrypted) {
-		err = ubifs_encrypt(inode, data, compr_len, &out_len, key_block(c, key));
+		err = ubifs_encrypt(ianalde, data, compr_len, &out_len, key_block(c, key));
 		if (err)
 			goto out_free;
 
@@ -778,7 +778,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 		out_len = compr_len;
 	}
 
-	dlen = UBIFS_DATA_NODE_SZ + out_len;
+	dlen = UBIFS_DATA_ANALDE_SZ + out_len;
 	if (ubifs_authenticated(c))
 		write_len = ALIGN(dlen, 8) + auth_len;
 	else
@@ -791,16 +791,16 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	if (err)
 		goto out_free;
 
-	ubifs_prepare_node(c, data, dlen, 0);
+	ubifs_prepare_analde(c, data, dlen, 0);
 	err = write_head(c, DATAHD, data, write_len, &lnum, &offs, 0);
 	if (err)
 		goto out_release;
 
-	err = ubifs_node_calc_hash(c, data, hash);
+	err = ubifs_analde_calc_hash(c, data, hash);
 	if (err)
 		goto out_release;
 
-	ubifs_wbuf_add_ino_nolock(&c->jheads[DATAHD].wbuf, key_inum(c, key));
+	ubifs_wbuf_add_ianal_anallock(&c->jheads[DATAHD].wbuf, key_inum(c, key));
 	release_head(c, DATAHD);
 
 	ubifs_add_auth_dirt(c, lnum);
@@ -830,45 +830,45 @@ out_free:
 }
 
 /**
- * ubifs_jnl_write_inode - flush inode to the journal.
+ * ubifs_jnl_write_ianalde - flush ianalde to the journal.
  * @c: UBIFS file-system description object
- * @inode: inode to flush
+ * @ianalde: ianalde to flush
  *
- * This function writes inode @inode to the journal. If the inode is
- * synchronous, it also synchronizes the write-buffer. Returns zero in case of
+ * This function writes ianalde @ianalde to the journal. If the ianalde is
+ * synchroanalus, it also synchronizes the write-buffer. Returns zero in case of
  * success and a negative error code in case of failure.
  */
-int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
+int ubifs_jnl_write_ianalde(struct ubifs_info *c, const struct ianalde *ianalde)
 {
 	int err, lnum, offs;
-	struct ubifs_ino_node *ino, *ino_start;
-	struct ubifs_inode *ui = ubifs_inode(inode);
-	int sync = 0, write_len = 0, ilen = UBIFS_INO_NODE_SZ;
-	int last_reference = !inode->i_nlink;
+	struct ubifs_ianal_analde *ianal, *ianal_start;
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
+	int sync = 0, write_len = 0, ilen = UBIFS_IANAL_ANALDE_SZ;
+	int last_reference = !ianalde->i_nlink;
 	int kill_xattrs = ui->xattr_cnt && last_reference;
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
-	dbg_jnl("ino %lu, nlink %u", inode->i_ino, inode->i_nlink);
+	dbg_jnl("ianal %lu, nlink %u", ianalde->i_ianal, ianalde->i_nlink);
 
 	/*
-	 * If the inode is being deleted, do not write the attached data. No
+	 * If the ianalde is being deleted, do analt write the attached data. Anal
 	 * need to synchronize the write-buffer either.
 	 */
 	if (!last_reference) {
 		ilen += ui->data_len;
-		sync = IS_SYNC(inode);
+		sync = IS_SYNC(ianalde);
 	} else if (kill_xattrs) {
-		write_len += UBIFS_INO_NODE_SZ * ui->xattr_cnt;
+		write_len += UBIFS_IANAL_ANALDE_SZ * ui->xattr_cnt;
 	}
 
 	if (ubifs_authenticated(c))
-		write_len += ALIGN(ilen, 8) + ubifs_auth_node_sz(c);
+		write_len += ALIGN(ilen, 8) + ubifs_auth_analde_sz(c);
 	else
 		write_len += ilen;
 
-	ino_start = ino = kmalloc(write_len, GFP_NOFS);
-	if (!ino)
-		return -ENOMEM;
+	ianal_start = ianal = kmalloc(write_len, GFP_ANALFS);
+	if (!ianal)
+		return -EANALMEM;
 
 	/* Make reservation before allocating sequence numbers */
 	err = make_reservation(c, BASEHD, write_len);
@@ -878,21 +878,21 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 	if (kill_xattrs) {
 		union ubifs_key key;
 		struct fscrypt_name nm = {0};
-		struct inode *xino;
-		struct ubifs_dent_node *xent, *pxent = NULL;
+		struct ianalde *xianal;
+		struct ubifs_dent_analde *xent, *pxent = NULL;
 
 		if (ui->xattr_cnt > ubifs_xattr_max_cnt(c)) {
 			err = -EPERM;
-			ubifs_err(c, "Cannot delete inode, it has too much xattrs!");
+			ubifs_err(c, "Cananalt delete ianalde, it has too much xattrs!");
 			goto out_release;
 		}
 
-		lowest_xent_key(c, &key, inode->i_ino);
+		lowest_xent_key(c, &key, ianalde->i_ianal);
 		while (1) {
 			xent = ubifs_tnc_next_ent(c, &key, &nm);
 			if (IS_ERR(xent)) {
 				err = PTR_ERR(xent);
-				if (err == -ENOENT)
+				if (err == -EANALENT)
 					break;
 
 				kfree(pxent);
@@ -902,9 +902,9 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 			fname_name(&nm) = xent->name;
 			fname_len(&nm) = le16_to_cpu(xent->nlen);
 
-			xino = ubifs_iget(c->vfs_sb, le64_to_cpu(xent->inum));
-			if (IS_ERR(xino)) {
-				err = PTR_ERR(xino);
+			xianal = ubifs_iget(c->vfs_sb, le64_to_cpu(xent->inum));
+			if (IS_ERR(xianal)) {
+				err = PTR_ERR(xianal);
 				ubifs_err(c, "dead directory entry '%s', error %d",
 					  xent->name, err);
 				ubifs_ro_mode(c, err);
@@ -912,12 +912,12 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 				kfree(xent);
 				goto out_release;
 			}
-			ubifs_assert(c, ubifs_inode(xino)->xattr);
+			ubifs_assert(c, ubifs_ianalde(xianal)->xattr);
 
-			clear_nlink(xino);
-			pack_inode(c, ino, xino, 0);
-			ino = (void *)ino + UBIFS_INO_NODE_SZ;
-			iput(xino);
+			clear_nlink(xianal);
+			pack_ianalde(c, ianal, xianal, 0);
+			ianal = (void *)ianal + UBIFS_IANAL_ANALDE_SZ;
+			iput(xianal);
 
 			kfree(pxent);
 			pxent = xent;
@@ -926,31 +926,31 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		kfree(pxent);
 	}
 
-	pack_inode(c, ino, inode, 1);
-	err = ubifs_node_calc_hash(c, ino, hash);
+	pack_ianalde(c, ianal, ianalde, 1);
+	err = ubifs_analde_calc_hash(c, ianal, hash);
 	if (err)
 		goto out_release;
 
-	err = write_head(c, BASEHD, ino_start, write_len, &lnum, &offs, sync);
+	err = write_head(c, BASEHD, ianal_start, write_len, &lnum, &offs, sync);
 	if (err)
 		goto out_release;
 	if (!sync)
-		ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf,
-					  inode->i_ino);
+		ubifs_wbuf_add_ianal_anallock(&c->jheads[BASEHD].wbuf,
+					  ianalde->i_ianal);
 	release_head(c, BASEHD);
 
 	if (last_reference) {
-		err = ubifs_tnc_remove_ino(c, inode->i_ino);
+		err = ubifs_tnc_remove_ianal(c, ianalde->i_ianal);
 		if (err)
 			goto out_ro;
-		ubifs_delete_orphan(c, inode->i_ino);
+		ubifs_delete_orphan(c, ianalde->i_ianal);
 		err = ubifs_add_dirt(c, lnum, write_len);
 	} else {
 		union ubifs_key key;
 
 		ubifs_add_auth_dirt(c, lnum);
 
-		ino_key_init(c, &key, inode->i_ino);
+		ianal_key_init(c, &key, ianalde->i_ianal);
 		err = ubifs_tnc_add(c, &key, lnum, offs, ilen, hash);
 	}
 	if (err)
@@ -960,7 +960,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 	spin_lock(&ui->ui_lock);
 	ui->synced_i_size = ui->ui_size;
 	spin_unlock(&ui->ui_lock);
-	kfree(ino_start);
+	kfree(ianal_start);
 	return 0;
 
 out_release:
@@ -969,65 +969,65 @@ out_ro:
 	ubifs_ro_mode(c, err);
 	finish_reservation(c);
 out_free:
-	kfree(ino_start);
+	kfree(ianal_start);
 	return err;
 }
 
 /**
- * ubifs_jnl_delete_inode - delete an inode.
+ * ubifs_jnl_delete_ianalde - delete an ianalde.
  * @c: UBIFS file-system description object
- * @inode: inode to delete
+ * @ianalde: ianalde to delete
  *
- * This function deletes inode @inode which includes removing it from orphans,
- * deleting it from TNC and, in some cases, writing a deletion inode to the
+ * This function deletes ianalde @ianalde which includes removing it from orphans,
+ * deleting it from TNC and, in some cases, writing a deletion ianalde to the
  * journal.
  *
- * When regular file inodes are unlinked or a directory inode is removed, the
- * 'ubifs_jnl_update()' function writes a corresponding deletion inode and
- * direntry to the media, and adds the inode to orphans. After this, when the
- * last reference to this inode has been dropped, this function is called. In
- * general, it has to write one more deletion inode to the media, because if
+ * When regular file ianaldes are unlinked or a directory ianalde is removed, the
+ * 'ubifs_jnl_update()' function writes a corresponding deletion ianalde and
+ * direntry to the media, and adds the ianalde to orphans. After this, when the
+ * last reference to this ianalde has been dropped, this function is called. In
+ * general, it has to write one more deletion ianalde to the media, because if
  * a commit happened between 'ubifs_jnl_update()' and
- * 'ubifs_jnl_delete_inode()', the deletion inode is not in the journal
- * anymore, and in fact it might not be on the flash anymore, because it might
+ * 'ubifs_jnl_delete_ianalde()', the deletion ianalde is analt in the journal
+ * anymore, and in fact it might analt be on the flash anymore, because it might
  * have been garbage-collected already. And for optimization reasons UBIFS does
- * not read the orphan area if it has been unmounted cleanly, so it would have
- * no indication in the journal that there is a deleted inode which has to be
+ * analt read the orphan area if it has been unmounted cleanly, so it would have
+ * anal indication in the journal that there is a deleted ianalde which has to be
  * removed from TNC.
  *
- * However, if there was no commit between 'ubifs_jnl_update()' and
- * 'ubifs_jnl_delete_inode()', then there is no need to write the deletion
- * inode to the media for the second time. And this is quite a typical case.
+ * However, if there was anal commit between 'ubifs_jnl_update()' and
+ * 'ubifs_jnl_delete_ianalde()', then there is anal need to write the deletion
+ * ianalde to the media for the second time. And this is quite a typical case.
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
+int ubifs_jnl_delete_ianalde(struct ubifs_info *c, const struct ianalde *ianalde)
 {
 	int err;
-	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
 
-	ubifs_assert(c, inode->i_nlink == 0);
+	ubifs_assert(c, ianalde->i_nlink == 0);
 
-	if (ui->xattr_cnt || ui->del_cmtno != c->cmt_no)
-		/* A commit happened for sure or inode hosts xattrs */
-		return ubifs_jnl_write_inode(c, inode);
+	if (ui->xattr_cnt || ui->del_cmtanal != c->cmt_anal)
+		/* A commit happened for sure or ianalde hosts xattrs */
+		return ubifs_jnl_write_ianalde(c, ianalde);
 
 	down_read(&c->commit_sem);
 	/*
 	 * Check commit number again, because the first test has been done
 	 * without @c->commit_sem, so a commit might have happened.
 	 */
-	if (ui->del_cmtno != c->cmt_no) {
+	if (ui->del_cmtanal != c->cmt_anal) {
 		up_read(&c->commit_sem);
-		return ubifs_jnl_write_inode(c, inode);
+		return ubifs_jnl_write_ianalde(c, ianalde);
 	}
 
-	err = ubifs_tnc_remove_ino(c, inode->i_ino);
+	err = ubifs_tnc_remove_ianal(c, ianalde->i_ianal);
 	if (err)
 		ubifs_ro_mode(c, err);
 	else
-		ubifs_delete_orphan(c, inode->i_ino);
+		ubifs_delete_orphan(c, ianalde->i_ianal);
 	up_read(&c->commit_sem);
 	return err;
 }
@@ -1035,29 +1035,29 @@ int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
 /**
  * ubifs_jnl_xrename - cross rename two directory entries.
  * @c: UBIFS file-system description object
- * @fst_dir: parent inode of 1st directory entry to exchange
- * @fst_inode: 1st inode to exchange
- * @fst_nm: name of 1st inode to exchange
- * @snd_dir: parent inode of 2nd directory entry to exchange
- * @snd_inode: 2nd inode to exchange
- * @snd_nm: name of 2nd inode to exchange
- * @sync: non-zero if the write-buffer has to be synchronized
+ * @fst_dir: parent ianalde of 1st directory entry to exchange
+ * @fst_ianalde: 1st ianalde to exchange
+ * @fst_nm: name of 1st ianalde to exchange
+ * @snd_dir: parent ianalde of 2nd directory entry to exchange
+ * @snd_ianalde: 2nd ianalde to exchange
+ * @snd_nm: name of 2nd ianalde to exchange
+ * @sync: analn-zero if the write-buffer has to be synchronized
  *
  * This function implements the cross rename operation which may involve
- * writing 2 inodes and 2 directory entries. It marks the written inodes as clean
+ * writing 2 ianaldes and 2 directory entries. It marks the written ianaldes as clean
  * and returns zero on success. In case of failure, a negative error code is
  * returned.
  */
-int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
-		      const struct inode *fst_inode,
+int ubifs_jnl_xrename(struct ubifs_info *c, const struct ianalde *fst_dir,
+		      const struct ianalde *fst_ianalde,
 		      const struct fscrypt_name *fst_nm,
-		      const struct inode *snd_dir,
-		      const struct inode *snd_inode,
+		      const struct ianalde *snd_dir,
+		      const struct ianalde *snd_ianalde,
 		      const struct fscrypt_name *snd_nm, int sync)
 {
 	union ubifs_key key;
-	struct ubifs_dent_node *dent1, *dent2;
-	int err, dlen1, dlen2, lnum, offs, len, plen = UBIFS_INO_NODE_SZ;
+	struct ubifs_dent_analde *dent1, *dent2;
+	int err, dlen1, dlen2, lnum, offs, len, plen = UBIFS_IANAL_ANALDE_SZ;
 	int aligned_dlen1, aligned_dlen2;
 	int twoparents = (fst_dir != snd_dir);
 	void *p;
@@ -1066,13 +1066,13 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	u8 hash_p1[UBIFS_HASH_ARR_SZ];
 	u8 hash_p2[UBIFS_HASH_ARR_SZ];
 
-	ubifs_assert(c, ubifs_inode(fst_dir)->data_len == 0);
-	ubifs_assert(c, ubifs_inode(snd_dir)->data_len == 0);
-	ubifs_assert(c, mutex_is_locked(&ubifs_inode(fst_dir)->ui_mutex));
-	ubifs_assert(c, mutex_is_locked(&ubifs_inode(snd_dir)->ui_mutex));
+	ubifs_assert(c, ubifs_ianalde(fst_dir)->data_len == 0);
+	ubifs_assert(c, ubifs_ianalde(snd_dir)->data_len == 0);
+	ubifs_assert(c, mutex_is_locked(&ubifs_ianalde(fst_dir)->ui_mutex));
+	ubifs_assert(c, mutex_is_locked(&ubifs_ianalde(snd_dir)->ui_mutex));
 
-	dlen1 = UBIFS_DENT_NODE_SZ + fname_len(snd_nm) + 1;
-	dlen2 = UBIFS_DENT_NODE_SZ + fname_len(fst_nm) + 1;
+	dlen1 = UBIFS_DENT_ANALDE_SZ + fname_len(snd_nm) + 1;
+	dlen2 = UBIFS_DENT_ANALDE_SZ + fname_len(fst_nm) + 1;
 	aligned_dlen1 = ALIGN(dlen1, 8);
 	aligned_dlen2 = ALIGN(dlen2, 8);
 
@@ -1080,11 +1080,11 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	if (twoparents)
 		len += plen;
 
-	len += ubifs_auth_node_sz(c);
+	len += ubifs_auth_analde_sz(c);
 
-	dent1 = kzalloc(len, GFP_NOFS);
+	dent1 = kzalloc(len, GFP_ANALFS);
 	if (!dent1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Make reservation before allocating sequence numbers */
 	err = make_reservation(c, BASEHD, len);
@@ -1092,50 +1092,50 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 		goto out_free;
 
 	/* Make new dent for 1st entry */
-	dent1->ch.node_type = UBIFS_DENT_NODE;
-	dent_key_init_flash(c, &dent1->key, snd_dir->i_ino, snd_nm);
-	dent1->inum = cpu_to_le64(fst_inode->i_ino);
-	dent1->type = get_dent_type(fst_inode->i_mode);
+	dent1->ch.analde_type = UBIFS_DENT_ANALDE;
+	dent_key_init_flash(c, &dent1->key, snd_dir->i_ianal, snd_nm);
+	dent1->inum = cpu_to_le64(fst_ianalde->i_ianal);
+	dent1->type = get_dent_type(fst_ianalde->i_mode);
 	dent1->nlen = cpu_to_le16(fname_len(snd_nm));
 	memcpy(dent1->name, fname_name(snd_nm), fname_len(snd_nm));
 	dent1->name[fname_len(snd_nm)] = '\0';
 	set_dent_cookie(c, dent1);
-	zero_dent_node_unused(dent1);
-	ubifs_prep_grp_node(c, dent1, dlen1, 0);
-	err = ubifs_node_calc_hash(c, dent1, hash_dent1);
+	zero_dent_analde_unused(dent1);
+	ubifs_prep_grp_analde(c, dent1, dlen1, 0);
+	err = ubifs_analde_calc_hash(c, dent1, hash_dent1);
 	if (err)
 		goto out_release;
 
 	/* Make new dent for 2nd entry */
 	dent2 = (void *)dent1 + aligned_dlen1;
-	dent2->ch.node_type = UBIFS_DENT_NODE;
-	dent_key_init_flash(c, &dent2->key, fst_dir->i_ino, fst_nm);
-	dent2->inum = cpu_to_le64(snd_inode->i_ino);
-	dent2->type = get_dent_type(snd_inode->i_mode);
+	dent2->ch.analde_type = UBIFS_DENT_ANALDE;
+	dent_key_init_flash(c, &dent2->key, fst_dir->i_ianal, fst_nm);
+	dent2->inum = cpu_to_le64(snd_ianalde->i_ianal);
+	dent2->type = get_dent_type(snd_ianalde->i_mode);
 	dent2->nlen = cpu_to_le16(fname_len(fst_nm));
 	memcpy(dent2->name, fname_name(fst_nm), fname_len(fst_nm));
 	dent2->name[fname_len(fst_nm)] = '\0';
 	set_dent_cookie(c, dent2);
-	zero_dent_node_unused(dent2);
-	ubifs_prep_grp_node(c, dent2, dlen2, 0);
-	err = ubifs_node_calc_hash(c, dent2, hash_dent2);
+	zero_dent_analde_unused(dent2);
+	ubifs_prep_grp_analde(c, dent2, dlen2, 0);
+	err = ubifs_analde_calc_hash(c, dent2, hash_dent2);
 	if (err)
 		goto out_release;
 
 	p = (void *)dent2 + aligned_dlen2;
 	if (!twoparents) {
-		pack_inode(c, p, fst_dir, 1);
-		err = ubifs_node_calc_hash(c, p, hash_p1);
+		pack_ianalde(c, p, fst_dir, 1);
+		err = ubifs_analde_calc_hash(c, p, hash_p1);
 		if (err)
 			goto out_release;
 	} else {
-		pack_inode(c, p, fst_dir, 0);
-		err = ubifs_node_calc_hash(c, p, hash_p1);
+		pack_ianalde(c, p, fst_dir, 0);
+		err = ubifs_analde_calc_hash(c, p, hash_p1);
 		if (err)
 			goto out_release;
 		p += ALIGN(plen, 8);
-		pack_inode(c, p, snd_dir, 1);
-		err = ubifs_node_calc_hash(c, p, hash_p2);
+		pack_ianalde(c, p, snd_dir, 1);
+		err = ubifs_analde_calc_hash(c, p, hash_p2);
 		if (err)
 			goto out_release;
 	}
@@ -1146,34 +1146,34 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	if (!sync) {
 		struct ubifs_wbuf *wbuf = &c->jheads[BASEHD].wbuf;
 
-		ubifs_wbuf_add_ino_nolock(wbuf, fst_dir->i_ino);
-		ubifs_wbuf_add_ino_nolock(wbuf, snd_dir->i_ino);
+		ubifs_wbuf_add_ianal_anallock(wbuf, fst_dir->i_ianal);
+		ubifs_wbuf_add_ianal_anallock(wbuf, snd_dir->i_ianal);
 	}
 	release_head(c, BASEHD);
 
 	ubifs_add_auth_dirt(c, lnum);
 
-	dent_key_init(c, &key, snd_dir->i_ino, snd_nm);
+	dent_key_init(c, &key, snd_dir->i_ianal, snd_nm);
 	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, hash_dent1, snd_nm);
 	if (err)
 		goto out_ro;
 
 	offs += aligned_dlen1;
-	dent_key_init(c, &key, fst_dir->i_ino, fst_nm);
+	dent_key_init(c, &key, fst_dir->i_ianal, fst_nm);
 	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, hash_dent2, fst_nm);
 	if (err)
 		goto out_ro;
 
 	offs += aligned_dlen2;
 
-	ino_key_init(c, &key, fst_dir->i_ino);
+	ianal_key_init(c, &key, fst_dir->i_ianal);
 	err = ubifs_tnc_add(c, &key, lnum, offs, plen, hash_p1);
 	if (err)
 		goto out_ro;
 
 	if (twoparents) {
 		offs += ALIGN(plen, 8);
-		ino_key_init(c, &key, snd_dir->i_ino);
+		ianal_key_init(c, &key, snd_dir->i_ianal);
 		err = ubifs_tnc_add(c, &key, lnum, offs, plen, hash_p2);
 		if (err)
 			goto out_ro;
@@ -1181,9 +1181,9 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 
 	finish_reservation(c);
 
-	mark_inode_clean(c, ubifs_inode(fst_dir));
+	mark_ianalde_clean(c, ubifs_ianalde(fst_dir));
 	if (twoparents)
-		mark_inode_clean(c, ubifs_inode(snd_dir));
+		mark_ianalde_clean(c, ubifs_ianalde(snd_dir));
 	kfree(dent1);
 	return 0;
 
@@ -1200,66 +1200,66 @@ out_free:
 /**
  * ubifs_jnl_rename - rename a directory entry.
  * @c: UBIFS file-system description object
- * @old_dir: parent inode of directory entry to rename
- * @old_inode: directory entry's inode to rename
+ * @old_dir: parent ianalde of directory entry to rename
+ * @old_ianalde: directory entry's ianalde to rename
  * @old_nm: name of the old directory entry to rename
- * @new_dir: parent inode of directory entry to rename
- * @new_inode: new directory entry's inode (or directory entry's inode to
+ * @new_dir: parent ianalde of directory entry to rename
+ * @new_ianalde: new directory entry's ianalde (or directory entry's ianalde to
  *		replace)
  * @new_nm: new name of the new directory entry
- * @whiteout: whiteout inode
- * @sync: non-zero if the write-buffer has to be synchronized
+ * @whiteout: whiteout ianalde
+ * @sync: analn-zero if the write-buffer has to be synchronized
  *
  * This function implements the re-name operation which may involve writing up
- * to 4 inodes(new inode, whiteout inode, old and new parent directory inodes)
- * and 2 directory entries. It marks the written inodes as clean and returns
+ * to 4 ianaldes(new ianalde, whiteout ianalde, old and new parent directory ianaldes)
+ * and 2 directory entries. It marks the written ianaldes as clean and returns
  * zero on success. In case of failure, a negative error code is returned.
  */
-int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
-		     const struct inode *old_inode,
+int ubifs_jnl_rename(struct ubifs_info *c, const struct ianalde *old_dir,
+		     const struct ianalde *old_ianalde,
 		     const struct fscrypt_name *old_nm,
-		     const struct inode *new_dir,
-		     const struct inode *new_inode,
+		     const struct ianalde *new_dir,
+		     const struct ianalde *new_ianalde,
 		     const struct fscrypt_name *new_nm,
-		     const struct inode *whiteout, int sync)
+		     const struct ianalde *whiteout, int sync)
 {
 	void *p;
 	union ubifs_key key;
-	struct ubifs_dent_node *dent, *dent2;
+	struct ubifs_dent_analde *dent, *dent2;
 	int err, dlen1, dlen2, ilen, wlen, lnum, offs, len, orphan_added = 0;
-	int aligned_dlen1, aligned_dlen2, plen = UBIFS_INO_NODE_SZ;
-	int last_reference = !!(new_inode && new_inode->i_nlink == 0);
+	int aligned_dlen1, aligned_dlen2, plen = UBIFS_IANAL_ANALDE_SZ;
+	int last_reference = !!(new_ianalde && new_ianalde->i_nlink == 0);
 	int move = (old_dir != new_dir);
-	struct ubifs_inode *new_ui, *whiteout_ui;
+	struct ubifs_ianalde *new_ui, *whiteout_ui;
 	u8 hash_old_dir[UBIFS_HASH_ARR_SZ];
 	u8 hash_new_dir[UBIFS_HASH_ARR_SZ];
-	u8 hash_new_inode[UBIFS_HASH_ARR_SZ];
-	u8 hash_whiteout_inode[UBIFS_HASH_ARR_SZ];
+	u8 hash_new_ianalde[UBIFS_HASH_ARR_SZ];
+	u8 hash_whiteout_ianalde[UBIFS_HASH_ARR_SZ];
 	u8 hash_dent1[UBIFS_HASH_ARR_SZ];
 	u8 hash_dent2[UBIFS_HASH_ARR_SZ];
 
-	ubifs_assert(c, ubifs_inode(old_dir)->data_len == 0);
-	ubifs_assert(c, ubifs_inode(new_dir)->data_len == 0);
-	ubifs_assert(c, mutex_is_locked(&ubifs_inode(old_dir)->ui_mutex));
-	ubifs_assert(c, mutex_is_locked(&ubifs_inode(new_dir)->ui_mutex));
+	ubifs_assert(c, ubifs_ianalde(old_dir)->data_len == 0);
+	ubifs_assert(c, ubifs_ianalde(new_dir)->data_len == 0);
+	ubifs_assert(c, mutex_is_locked(&ubifs_ianalde(old_dir)->ui_mutex));
+	ubifs_assert(c, mutex_is_locked(&ubifs_ianalde(new_dir)->ui_mutex));
 
-	dlen1 = UBIFS_DENT_NODE_SZ + fname_len(new_nm) + 1;
-	dlen2 = UBIFS_DENT_NODE_SZ + fname_len(old_nm) + 1;
-	if (new_inode) {
-		new_ui = ubifs_inode(new_inode);
+	dlen1 = UBIFS_DENT_ANALDE_SZ + fname_len(new_nm) + 1;
+	dlen2 = UBIFS_DENT_ANALDE_SZ + fname_len(old_nm) + 1;
+	if (new_ianalde) {
+		new_ui = ubifs_ianalde(new_ianalde);
 		ubifs_assert(c, mutex_is_locked(&new_ui->ui_mutex));
-		ilen = UBIFS_INO_NODE_SZ;
+		ilen = UBIFS_IANAL_ANALDE_SZ;
 		if (!last_reference)
 			ilen += new_ui->data_len;
 	} else
 		ilen = 0;
 
 	if (whiteout) {
-		whiteout_ui = ubifs_inode(whiteout);
+		whiteout_ui = ubifs_ianalde(whiteout);
 		ubifs_assert(c, mutex_is_locked(&whiteout_ui->ui_mutex));
 		ubifs_assert(c, whiteout->i_nlink == 1);
 		ubifs_assert(c, !whiteout_ui->dirty);
-		wlen = UBIFS_INO_NODE_SZ;
+		wlen = UBIFS_IANAL_ANALDE_SZ;
 		wlen += whiteout_ui->data_len;
 	} else
 		wlen = 0;
@@ -1271,11 +1271,11 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	if (move)
 		len += plen;
 
-	len += ubifs_auth_node_sz(c);
+	len += ubifs_auth_analde_sz(c);
 
-	dent = kzalloc(len, GFP_NOFS);
+	dent = kzalloc(len, GFP_ANALFS);
 	if (!dent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Make reservation before allocating sequence numbers */
 	err = make_reservation(c, BASEHD, len);
@@ -1283,46 +1283,46 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		goto out_free;
 
 	/* Make new dent */
-	dent->ch.node_type = UBIFS_DENT_NODE;
-	dent_key_init_flash(c, &dent->key, new_dir->i_ino, new_nm);
-	dent->inum = cpu_to_le64(old_inode->i_ino);
-	dent->type = get_dent_type(old_inode->i_mode);
+	dent->ch.analde_type = UBIFS_DENT_ANALDE;
+	dent_key_init_flash(c, &dent->key, new_dir->i_ianal, new_nm);
+	dent->inum = cpu_to_le64(old_ianalde->i_ianal);
+	dent->type = get_dent_type(old_ianalde->i_mode);
 	dent->nlen = cpu_to_le16(fname_len(new_nm));
 	memcpy(dent->name, fname_name(new_nm), fname_len(new_nm));
 	dent->name[fname_len(new_nm)] = '\0';
 	set_dent_cookie(c, dent);
-	zero_dent_node_unused(dent);
-	ubifs_prep_grp_node(c, dent, dlen1, 0);
-	err = ubifs_node_calc_hash(c, dent, hash_dent1);
+	zero_dent_analde_unused(dent);
+	ubifs_prep_grp_analde(c, dent, dlen1, 0);
+	err = ubifs_analde_calc_hash(c, dent, hash_dent1);
 	if (err)
 		goto out_release;
 
 	dent2 = (void *)dent + aligned_dlen1;
-	dent2->ch.node_type = UBIFS_DENT_NODE;
-	dent_key_init_flash(c, &dent2->key, old_dir->i_ino, old_nm);
+	dent2->ch.analde_type = UBIFS_DENT_ANALDE;
+	dent_key_init_flash(c, &dent2->key, old_dir->i_ianal, old_nm);
 
 	if (whiteout) {
-		dent2->inum = cpu_to_le64(whiteout->i_ino);
+		dent2->inum = cpu_to_le64(whiteout->i_ianal);
 		dent2->type = get_dent_type(whiteout->i_mode);
 	} else {
 		/* Make deletion dent */
 		dent2->inum = 0;
-		dent2->type = DT_UNKNOWN;
+		dent2->type = DT_UNKANALWN;
 	}
 	dent2->nlen = cpu_to_le16(fname_len(old_nm));
 	memcpy(dent2->name, fname_name(old_nm), fname_len(old_nm));
 	dent2->name[fname_len(old_nm)] = '\0';
 	set_dent_cookie(c, dent2);
-	zero_dent_node_unused(dent2);
-	ubifs_prep_grp_node(c, dent2, dlen2, 0);
-	err = ubifs_node_calc_hash(c, dent2, hash_dent2);
+	zero_dent_analde_unused(dent2);
+	ubifs_prep_grp_analde(c, dent2, dlen2, 0);
+	err = ubifs_analde_calc_hash(c, dent2, hash_dent2);
 	if (err)
 		goto out_release;
 
 	p = (void *)dent2 + aligned_dlen2;
-	if (new_inode) {
-		pack_inode(c, p, new_inode, 0);
-		err = ubifs_node_calc_hash(c, p, hash_new_inode);
+	if (new_ianalde) {
+		pack_ianalde(c, p, new_ianalde, 0);
+		err = ubifs_analde_calc_hash(c, p, hash_new_ianalde);
 		if (err)
 			goto out_release;
 
@@ -1330,8 +1330,8 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	}
 
 	if (whiteout) {
-		pack_inode(c, p, whiteout, 0);
-		err = ubifs_node_calc_hash(c, p, hash_whiteout_inode);
+		pack_ianalde(c, p, whiteout, 0);
+		err = ubifs_analde_calc_hash(c, p, hash_whiteout_ianalde);
 		if (err)
 			goto out_release;
 
@@ -1339,30 +1339,30 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	}
 
 	if (!move) {
-		pack_inode(c, p, old_dir, 1);
-		err = ubifs_node_calc_hash(c, p, hash_old_dir);
+		pack_ianalde(c, p, old_dir, 1);
+		err = ubifs_analde_calc_hash(c, p, hash_old_dir);
 		if (err)
 			goto out_release;
 	} else {
-		pack_inode(c, p, old_dir, 0);
-		err = ubifs_node_calc_hash(c, p, hash_old_dir);
+		pack_ianalde(c, p, old_dir, 0);
+		err = ubifs_analde_calc_hash(c, p, hash_old_dir);
 		if (err)
 			goto out_release;
 
 		p += ALIGN(plen, 8);
-		pack_inode(c, p, new_dir, 1);
-		err = ubifs_node_calc_hash(c, p, hash_new_dir);
+		pack_ianalde(c, p, new_dir, 1);
+		err = ubifs_analde_calc_hash(c, p, hash_new_dir);
 		if (err)
 			goto out_release;
 	}
 
 	if (last_reference) {
-		err = ubifs_add_orphan(c, new_inode->i_ino);
+		err = ubifs_add_orphan(c, new_ianalde->i_ianal);
 		if (err) {
 			release_head(c, BASEHD);
 			goto out_finish;
 		}
-		new_ui->del_cmtno = c->cmt_no;
+		new_ui->del_cmtanal = c->cmt_anal;
 		orphan_added = 1;
 	}
 
@@ -1372,27 +1372,27 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	if (!sync) {
 		struct ubifs_wbuf *wbuf = &c->jheads[BASEHD].wbuf;
 
-		ubifs_wbuf_add_ino_nolock(wbuf, new_dir->i_ino);
-		ubifs_wbuf_add_ino_nolock(wbuf, old_dir->i_ino);
-		if (new_inode)
-			ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf,
-						  new_inode->i_ino);
+		ubifs_wbuf_add_ianal_anallock(wbuf, new_dir->i_ianal);
+		ubifs_wbuf_add_ianal_anallock(wbuf, old_dir->i_ianal);
+		if (new_ianalde)
+			ubifs_wbuf_add_ianal_anallock(&c->jheads[BASEHD].wbuf,
+						  new_ianalde->i_ianal);
 		if (whiteout)
-			ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf,
-						  whiteout->i_ino);
+			ubifs_wbuf_add_ianal_anallock(&c->jheads[BASEHD].wbuf,
+						  whiteout->i_ianal);
 	}
 	release_head(c, BASEHD);
 
 	ubifs_add_auth_dirt(c, lnum);
 
-	dent_key_init(c, &key, new_dir->i_ino, new_nm);
+	dent_key_init(c, &key, new_dir->i_ianal, new_nm);
 	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, hash_dent1, new_nm);
 	if (err)
 		goto out_ro;
 
 	offs += aligned_dlen1;
 	if (whiteout) {
-		dent_key_init(c, &key, old_dir->i_ino, old_nm);
+		dent_key_init(c, &key, old_dir->i_ianal, old_nm);
 		err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, hash_dent2, old_nm);
 		if (err)
 			goto out_ro;
@@ -1401,58 +1401,58 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		if (err)
 			goto out_ro;
 
-		dent_key_init(c, &key, old_dir->i_ino, old_nm);
+		dent_key_init(c, &key, old_dir->i_ianal, old_nm);
 		err = ubifs_tnc_remove_nm(c, &key, old_nm);
 		if (err)
 			goto out_ro;
 	}
 
 	offs += aligned_dlen2;
-	if (new_inode) {
-		ino_key_init(c, &key, new_inode->i_ino);
-		err = ubifs_tnc_add(c, &key, lnum, offs, ilen, hash_new_inode);
+	if (new_ianalde) {
+		ianal_key_init(c, &key, new_ianalde->i_ianal);
+		err = ubifs_tnc_add(c, &key, lnum, offs, ilen, hash_new_ianalde);
 		if (err)
 			goto out_ro;
 		offs += ALIGN(ilen, 8);
 	}
 
 	if (whiteout) {
-		ino_key_init(c, &key, whiteout->i_ino);
+		ianal_key_init(c, &key, whiteout->i_ianal);
 		err = ubifs_tnc_add(c, &key, lnum, offs, wlen,
-				    hash_whiteout_inode);
+				    hash_whiteout_ianalde);
 		if (err)
 			goto out_ro;
 		offs += ALIGN(wlen, 8);
 	}
 
-	ino_key_init(c, &key, old_dir->i_ino);
+	ianal_key_init(c, &key, old_dir->i_ianal);
 	err = ubifs_tnc_add(c, &key, lnum, offs, plen, hash_old_dir);
 	if (err)
 		goto out_ro;
 
 	if (move) {
 		offs += ALIGN(plen, 8);
-		ino_key_init(c, &key, new_dir->i_ino);
+		ianal_key_init(c, &key, new_dir->i_ianal);
 		err = ubifs_tnc_add(c, &key, lnum, offs, plen, hash_new_dir);
 		if (err)
 			goto out_ro;
 	}
 
 	finish_reservation(c);
-	if (new_inode) {
-		mark_inode_clean(c, new_ui);
+	if (new_ianalde) {
+		mark_ianalde_clean(c, new_ui);
 		spin_lock(&new_ui->ui_lock);
 		new_ui->synced_i_size = new_ui->ui_size;
 		spin_unlock(&new_ui->ui_lock);
 	}
 	/*
-	 * No need to mark whiteout inode clean.
-	 * Whiteout doesn't have non-zero size, no need to update
+	 * Anal need to mark whiteout ianalde clean.
+	 * Whiteout doesn't have analn-zero size, anal need to update
 	 * synced_i_size for whiteout_ui.
 	 */
-	mark_inode_clean(c, ubifs_inode(old_dir));
+	mark_ianalde_clean(c, ubifs_ianalde(old_dir));
 	if (move)
-		mark_inode_clean(c, ubifs_inode(new_dir));
+		mark_ianalde_clean(c, ubifs_ianalde(new_dir));
 	kfree(dent);
 	return 0;
 
@@ -1461,7 +1461,7 @@ out_release:
 out_ro:
 	ubifs_ro_mode(c, err);
 	if (orphan_added)
-		ubifs_delete_orphan(c, new_inode->i_ino);
+		ubifs_delete_orphan(c, new_ianalde->i_ianal);
 out_finish:
 	finish_reservation(c);
 out_free:
@@ -1470,40 +1470,40 @@ out_free:
 }
 
 /**
- * truncate_data_node - re-compress/encrypt a truncated data node.
+ * truncate_data_analde - re-compress/encrypt a truncated data analde.
  * @c: UBIFS file-system description object
- * @inode: inode which refers to the data node
+ * @ianalde: ianalde which refers to the data analde
  * @block: data block number
- * @dn: data node to re-compress
+ * @dn: data analde to re-compress
  * @new_len: new length
- * @dn_size: size of the data node @dn in memory
+ * @dn_size: size of the data analde @dn in memory
  *
- * This function is used when an inode is truncated and the last data node of
- * the inode has to be re-compressed/encrypted and re-written.
+ * This function is used when an ianalde is truncated and the last data analde of
+ * the ianalde has to be re-compressed/encrypted and re-written.
  */
-static int truncate_data_node(const struct ubifs_info *c, const struct inode *inode,
-			      unsigned int block, struct ubifs_data_node *dn,
+static int truncate_data_analde(const struct ubifs_info *c, const struct ianalde *ianalde,
+			      unsigned int block, struct ubifs_data_analde *dn,
 			      int *new_len, int dn_size)
 {
 	void *buf;
 	int err, dlen, compr_type, out_len, data_size;
 
 	out_len = le32_to_cpu(dn->size);
-	buf = kmalloc_array(out_len, WORST_COMPR_FACTOR, GFP_NOFS);
+	buf = kmalloc_array(out_len, WORST_COMPR_FACTOR, GFP_ANALFS);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
-	data_size = dn_size - UBIFS_DATA_NODE_SZ;
+	dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_ANALDE_SZ;
+	data_size = dn_size - UBIFS_DATA_ANALDE_SZ;
 	compr_type = le16_to_cpu(dn->compr_type);
 
-	if (IS_ENCRYPTED(inode)) {
-		err = ubifs_decrypt(inode, dn, &dlen, block);
+	if (IS_ENCRYPTED(ianalde)) {
+		err = ubifs_decrypt(ianalde, dn, &dlen, block);
 		if (err)
 			goto out;
 	}
 
-	if (compr_type == UBIFS_COMPR_NONE) {
+	if (compr_type == UBIFS_COMPR_ANALNE) {
 		out_len = *new_len;
 	} else {
 		err = ubifs_decompress(c, &dn->data, dlen, buf, &out_len, compr_type);
@@ -1513,8 +1513,8 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 		ubifs_compress(c, buf, *new_len, &dn->data, &out_len, &compr_type);
 	}
 
-	if (IS_ENCRYPTED(inode)) {
-		err = ubifs_encrypt(inode, dn, out_len, &data_size, block);
+	if (IS_ENCRYPTED(ianalde)) {
+		err = ubifs_encrypt(ianalde, dn, out_len, &data_size, block);
 		if (err)
 			goto out;
 
@@ -1526,7 +1526,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 	ubifs_assert(c, out_len <= UBIFS_BLOCK_SIZE);
 	dn->compr_type = cpu_to_le16(compr_type);
 	dn->size = cpu_to_le32(*new_len);
-	*new_len = UBIFS_DATA_NODE_SZ + out_len;
+	*new_len = UBIFS_DATA_ANALDE_SZ + out_len;
 	err = 0;
 out:
 	kfree(buf);
@@ -1536,85 +1536,85 @@ out:
 /**
  * ubifs_jnl_truncate - update the journal for a truncation.
  * @c: UBIFS file-system description object
- * @inode: inode to truncate
+ * @ianalde: ianalde to truncate
  * @old_size: old size
  * @new_size: new size
  *
- * When the size of a file decreases due to truncation, a truncation node is
+ * When the size of a file decreases due to truncation, a truncation analde is
  * written, the journal tree is updated, and the last data block is re-written
- * if it has been affected. The inode is also updated in order to synchronize
- * the new inode size.
+ * if it has been affected. The ianalde is also updated in order to synchronize
+ * the new ianalde size.
  *
- * This function marks the inode as clean and returns zero on success. In case
+ * This function marks the ianalde as clean and returns zero on success. In case
  * of failure, a negative error code is returned.
  */
-int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
+int ubifs_jnl_truncate(struct ubifs_info *c, const struct ianalde *ianalde,
 		       loff_t old_size, loff_t new_size)
 {
 	union ubifs_key key, to_key;
-	struct ubifs_ino_node *ino;
-	struct ubifs_trun_node *trun;
-	struct ubifs_data_node *dn;
-	int err, dlen, len, lnum, offs, bit, sz, sync = IS_SYNC(inode);
+	struct ubifs_ianal_analde *ianal;
+	struct ubifs_trun_analde *trun;
+	struct ubifs_data_analde *dn;
+	int err, dlen, len, lnum, offs, bit, sz, sync = IS_SYNC(ianalde);
 	int dn_size;
-	struct ubifs_inode *ui = ubifs_inode(inode);
-	ino_t inum = inode->i_ino;
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
+	ianal_t inum = ianalde->i_ianal;
 	unsigned int blk;
-	u8 hash_ino[UBIFS_HASH_ARR_SZ];
+	u8 hash_ianal[UBIFS_HASH_ARR_SZ];
 	u8 hash_dn[UBIFS_HASH_ARR_SZ];
 
-	dbg_jnl("ino %lu, size %lld -> %lld",
+	dbg_jnl("ianal %lu, size %lld -> %lld",
 		(unsigned long)inum, old_size, new_size);
 	ubifs_assert(c, !ui->data_len);
-	ubifs_assert(c, S_ISREG(inode->i_mode));
+	ubifs_assert(c, S_ISREG(ianalde->i_mode));
 	ubifs_assert(c, mutex_is_locked(&ui->ui_mutex));
 
-	dn_size = COMPRESSED_DATA_NODE_BUF_SZ;
+	dn_size = COMPRESSED_DATA_ANALDE_BUF_SZ;
 
-	if (IS_ENCRYPTED(inode))
+	if (IS_ENCRYPTED(ianalde))
 		dn_size += UBIFS_CIPHER_BLOCK_SIZE;
 
-	sz =  UBIFS_TRUN_NODE_SZ + UBIFS_INO_NODE_SZ +
-		dn_size + ubifs_auth_node_sz(c);
+	sz =  UBIFS_TRUN_ANALDE_SZ + UBIFS_IANAL_ANALDE_SZ +
+		dn_size + ubifs_auth_analde_sz(c);
 
-	ino = kmalloc(sz, GFP_NOFS);
-	if (!ino)
-		return -ENOMEM;
+	ianal = kmalloc(sz, GFP_ANALFS);
+	if (!ianal)
+		return -EANALMEM;
 
-	trun = (void *)ino + UBIFS_INO_NODE_SZ;
-	trun->ch.node_type = UBIFS_TRUN_NODE;
+	trun = (void *)ianal + UBIFS_IANAL_ANALDE_SZ;
+	trun->ch.analde_type = UBIFS_TRUN_ANALDE;
 	trun->inum = cpu_to_le32(inum);
 	trun->old_size = cpu_to_le64(old_size);
 	trun->new_size = cpu_to_le64(new_size);
-	zero_trun_node_unused(trun);
+	zero_trun_analde_unused(trun);
 
 	dlen = new_size & (UBIFS_BLOCK_SIZE - 1);
 	if (dlen) {
 		/* Get last data block so it can be truncated */
-		dn = (void *)trun + UBIFS_TRUN_NODE_SZ;
+		dn = (void *)trun + UBIFS_TRUN_ANALDE_SZ;
 		blk = new_size >> UBIFS_BLOCK_SHIFT;
 		data_key_init(c, &key, inum, blk);
 		dbg_jnlk(&key, "last block key ");
 		err = ubifs_tnc_lookup(c, &key, dn);
-		if (err == -ENOENT)
-			dlen = 0; /* Not found (so it is a hole) */
+		if (err == -EANALENT)
+			dlen = 0; /* Analt found (so it is a hole) */
 		else if (err)
 			goto out_free;
 		else {
 			int dn_len = le32_to_cpu(dn->size);
 
 			if (dn_len <= 0 || dn_len > UBIFS_BLOCK_SIZE) {
-				ubifs_err(c, "bad data node (block %u, inode %lu)",
-					  blk, inode->i_ino);
-				ubifs_dump_node(c, dn, dn_size);
+				ubifs_err(c, "bad data analde (block %u, ianalde %lu)",
+					  blk, ianalde->i_ianal);
+				ubifs_dump_analde(c, dn, dn_size);
 				err = -EUCLEAN;
 				goto out_free;
 			}
 
 			if (dn_len <= dlen)
-				dlen = 0; /* Nothing to do */
+				dlen = 0; /* Analthing to do */
 			else {
-				err = truncate_data_node(c, inode, blk, dn,
+				err = truncate_data_analde(c, ianalde, blk, dn,
 						&dlen, dn_size);
 				if (err)
 					goto out_free;
@@ -1623,10 +1623,10 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	}
 
 	/* Must make reservation before allocating sequence numbers */
-	len = UBIFS_TRUN_NODE_SZ + UBIFS_INO_NODE_SZ;
+	len = UBIFS_TRUN_ANALDE_SZ + UBIFS_IANAL_ANALDE_SZ;
 
 	if (ubifs_authenticated(c))
-		len += ALIGN(dlen, 8) + ubifs_auth_node_sz(c);
+		len += ALIGN(dlen, 8) + ubifs_auth_analde_sz(c);
 	else
 		len += dlen;
 
@@ -1634,41 +1634,41 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	if (err)
 		goto out_free;
 
-	pack_inode(c, ino, inode, 0);
-	err = ubifs_node_calc_hash(c, ino, hash_ino);
+	pack_ianalde(c, ianal, ianalde, 0);
+	err = ubifs_analde_calc_hash(c, ianal, hash_ianal);
 	if (err)
 		goto out_release;
 
-	ubifs_prep_grp_node(c, trun, UBIFS_TRUN_NODE_SZ, dlen ? 0 : 1);
+	ubifs_prep_grp_analde(c, trun, UBIFS_TRUN_ANALDE_SZ, dlen ? 0 : 1);
 	if (dlen) {
-		ubifs_prep_grp_node(c, dn, dlen, 1);
-		err = ubifs_node_calc_hash(c, dn, hash_dn);
+		ubifs_prep_grp_analde(c, dn, dlen, 1);
+		err = ubifs_analde_calc_hash(c, dn, hash_dn);
 		if (err)
 			goto out_release;
 	}
 
-	err = write_head(c, BASEHD, ino, len, &lnum, &offs, sync);
+	err = write_head(c, BASEHD, ianal, len, &lnum, &offs, sync);
 	if (err)
 		goto out_release;
 	if (!sync)
-		ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf, inum);
+		ubifs_wbuf_add_ianal_anallock(&c->jheads[BASEHD].wbuf, inum);
 	release_head(c, BASEHD);
 
 	ubifs_add_auth_dirt(c, lnum);
 
 	if (dlen) {
-		sz = offs + UBIFS_INO_NODE_SZ + UBIFS_TRUN_NODE_SZ;
+		sz = offs + UBIFS_IANAL_ANALDE_SZ + UBIFS_TRUN_ANALDE_SZ;
 		err = ubifs_tnc_add(c, &key, lnum, sz, dlen, hash_dn);
 		if (err)
 			goto out_ro;
 	}
 
-	ino_key_init(c, &key, inum);
-	err = ubifs_tnc_add(c, &key, lnum, offs, UBIFS_INO_NODE_SZ, hash_ino);
+	ianal_key_init(c, &key, inum);
+	err = ubifs_tnc_add(c, &key, lnum, offs, UBIFS_IANAL_ANALDE_SZ, hash_ianal);
 	if (err)
 		goto out_ro;
 
-	err = ubifs_add_dirt(c, lnum, UBIFS_TRUN_NODE_SZ);
+	err = ubifs_add_dirt(c, lnum, UBIFS_TRUN_ANALDE_SZ);
 	if (err)
 		goto out_ro;
 
@@ -1688,8 +1688,8 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	spin_lock(&ui->ui_lock);
 	ui->synced_i_size = ui->ui_size;
 	spin_unlock(&ui->ui_lock);
-	mark_inode_clean(c, ui);
-	kfree(ino);
+	mark_ianalde_clean(c, ui);
+	kfree(ianal);
 	return 0;
 
 out_release:
@@ -1698,7 +1698,7 @@ out_ro:
 	ubifs_ro_mode(c, err);
 	finish_reservation(c);
 out_free:
-	kfree(ino);
+	kfree(ianal);
 	return err;
 }
 
@@ -1706,44 +1706,44 @@ out_free:
 /**
  * ubifs_jnl_delete_xattr - delete an extended attribute.
  * @c: UBIFS file-system description object
- * @host: host inode
- * @inode: extended attribute inode
+ * @host: host ianalde
+ * @ianalde: extended attribute ianalde
  * @nm: extended attribute entry name
  *
  * This function delete an extended attribute which is very similar to
- * un-linking regular files - it writes a deletion xentry, a deletion inode and
- * updates the target inode. Returns zero in case of success and a negative
+ * un-linking regular files - it writes a deletion xentry, a deletion ianalde and
+ * updates the target ianalde. Returns zero in case of success and a negative
  * error code in case of failure.
  */
-int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
-			   const struct inode *inode,
+int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct ianalde *host,
+			   const struct ianalde *ianalde,
 			   const struct fscrypt_name *nm)
 {
 	int err, xlen, hlen, len, lnum, xent_offs, aligned_xlen, write_len;
-	struct ubifs_dent_node *xent;
-	struct ubifs_ino_node *ino;
+	struct ubifs_dent_analde *xent;
+	struct ubifs_ianal_analde *ianal;
 	union ubifs_key xent_key, key1, key2;
 	int sync = IS_DIRSYNC(host);
-	struct ubifs_inode *host_ui = ubifs_inode(host);
+	struct ubifs_ianalde *host_ui = ubifs_ianalde(host);
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
-	ubifs_assert(c, inode->i_nlink == 0);
+	ubifs_assert(c, ianalde->i_nlink == 0);
 	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 
 	/*
-	 * Since we are deleting the inode, we do not bother to attach any data
-	 * to it and assume its length is %UBIFS_INO_NODE_SZ.
+	 * Since we are deleting the ianalde, we do analt bother to attach any data
+	 * to it and assume its length is %UBIFS_IANAL_ANALDE_SZ.
 	 */
-	xlen = UBIFS_DENT_NODE_SZ + fname_len(nm) + 1;
+	xlen = UBIFS_DENT_ANALDE_SZ + fname_len(nm) + 1;
 	aligned_xlen = ALIGN(xlen, 8);
-	hlen = host_ui->data_len + UBIFS_INO_NODE_SZ;
-	len = aligned_xlen + UBIFS_INO_NODE_SZ + ALIGN(hlen, 8);
+	hlen = host_ui->data_len + UBIFS_IANAL_ANALDE_SZ;
+	len = aligned_xlen + UBIFS_IANAL_ANALDE_SZ + ALIGN(hlen, 8);
 
-	write_len = len + ubifs_auth_node_sz(c);
+	write_len = len + ubifs_auth_analde_sz(c);
 
-	xent = kzalloc(write_len, GFP_NOFS);
+	xent = kzalloc(write_len, GFP_ANALFS);
 	if (!xent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Make reservation before allocating sequence numbers */
 	err = make_reservation(c, BASEHD, write_len);
@@ -1752,28 +1752,28 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 		return err;
 	}
 
-	xent->ch.node_type = UBIFS_XENT_NODE;
-	xent_key_init(c, &xent_key, host->i_ino, nm);
+	xent->ch.analde_type = UBIFS_XENT_ANALDE;
+	xent_key_init(c, &xent_key, host->i_ianal, nm);
 	key_write(c, &xent_key, xent->key);
 	xent->inum = 0;
-	xent->type = get_dent_type(inode->i_mode);
+	xent->type = get_dent_type(ianalde->i_mode);
 	xent->nlen = cpu_to_le16(fname_len(nm));
 	memcpy(xent->name, fname_name(nm), fname_len(nm));
 	xent->name[fname_len(nm)] = '\0';
-	zero_dent_node_unused(xent);
-	ubifs_prep_grp_node(c, xent, xlen, 0);
+	zero_dent_analde_unused(xent);
+	ubifs_prep_grp_analde(c, xent, xlen, 0);
 
-	ino = (void *)xent + aligned_xlen;
-	pack_inode(c, ino, inode, 0);
-	ino = (void *)ino + UBIFS_INO_NODE_SZ;
-	pack_inode(c, ino, host, 1);
-	err = ubifs_node_calc_hash(c, ino, hash);
+	ianal = (void *)xent + aligned_xlen;
+	pack_ianalde(c, ianal, ianalde, 0);
+	ianal = (void *)ianal + UBIFS_IANAL_ANALDE_SZ;
+	pack_ianalde(c, ianal, host, 1);
+	err = ubifs_analde_calc_hash(c, ianal, hash);
 	if (err)
 		goto out_release;
 
 	err = write_head(c, BASEHD, xent, write_len, &lnum, &xent_offs, sync);
 	if (!sync && !err)
-		ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf, host->i_ino);
+		ubifs_wbuf_add_ianal_anallock(&c->jheads[BASEHD].wbuf, host->i_ianal);
 	release_head(c, BASEHD);
 
 	ubifs_add_auth_dirt(c, lnum);
@@ -1790,20 +1790,20 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 		goto out_ro;
 
 	/*
-	 * Remove all nodes belonging to the extended attribute inode from TNC.
-	 * Well, there actually must be only one node - the inode itself.
+	 * Remove all analdes belonging to the extended attribute ianalde from TNC.
+	 * Well, there actually must be only one analde - the ianalde itself.
 	 */
-	lowest_ino_key(c, &key1, inode->i_ino);
-	highest_ino_key(c, &key2, inode->i_ino);
+	lowest_ianal_key(c, &key1, ianalde->i_ianal);
+	highest_ianal_key(c, &key2, ianalde->i_ianal);
 	err = ubifs_tnc_remove_range(c, &key1, &key2);
 	if (err)
 		goto out_ro;
-	err = ubifs_add_dirt(c, lnum, UBIFS_INO_NODE_SZ);
+	err = ubifs_add_dirt(c, lnum, UBIFS_IANAL_ANALDE_SZ);
 	if (err)
 		goto out_ro;
 
-	/* And update TNC with the new host inode position */
-	ino_key_init(c, &key1, host->i_ino);
+	/* And update TNC with the new host ianalde position */
+	ianal_key_init(c, &key1, host->i_ianal);
 	err = ubifs_tnc_add(c, &key1, lnum, xent_offs + len - hlen, hlen, hash);
 	if (err)
 		goto out_ro;
@@ -1812,7 +1812,7 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	spin_lock(&host_ui->ui_lock);
 	host_ui->synced_i_size = host_ui->ui_size;
 	spin_unlock(&host_ui->ui_lock);
-	mark_inode_clean(c, host_ui);
+	mark_ianalde_clean(c, host_ui);
 	return 0;
 
 out_release:
@@ -1827,62 +1827,62 @@ out_ro:
 /**
  * ubifs_jnl_change_xattr - change an extended attribute.
  * @c: UBIFS file-system description object
- * @inode: extended attribute inode
- * @host: host inode
+ * @ianalde: extended attribute ianalde
+ * @host: host ianalde
  *
- * This function writes the updated version of an extended attribute inode and
- * the host inode to the journal (to the base head). The host inode is written
- * after the extended attribute inode in order to guarantee that the extended
- * attribute will be flushed when the inode is synchronized by 'fsync()' and
+ * This function writes the updated version of an extended attribute ianalde and
+ * the host ianalde to the journal (to the base head). The host ianalde is written
+ * after the extended attribute ianalde in order to guarantee that the extended
+ * attribute will be flushed when the ianalde is synchronized by 'fsync()' and
  * consequently, the write-buffer is synchronized. This function returns zero
  * in case of success and a negative error code in case of failure.
  */
-int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
-			   const struct inode *host)
+int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct ianalde *ianalde,
+			   const struct ianalde *host)
 {
 	int err, len1, len2, aligned_len, aligned_len1, lnum, offs;
-	struct ubifs_inode *host_ui = ubifs_inode(host);
-	struct ubifs_ino_node *ino;
+	struct ubifs_ianalde *host_ui = ubifs_ianalde(host);
+	struct ubifs_ianal_analde *ianal;
 	union ubifs_key key;
 	int sync = IS_DIRSYNC(host);
 	u8 hash_host[UBIFS_HASH_ARR_SZ];
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
-	dbg_jnl("ino %lu, ino %lu", host->i_ino, inode->i_ino);
-	ubifs_assert(c, inode->i_nlink > 0);
+	dbg_jnl("ianal %lu, ianal %lu", host->i_ianal, ianalde->i_ianal);
+	ubifs_assert(c, ianalde->i_nlink > 0);
 	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 
-	len1 = UBIFS_INO_NODE_SZ + host_ui->data_len;
-	len2 = UBIFS_INO_NODE_SZ + ubifs_inode(inode)->data_len;
+	len1 = UBIFS_IANAL_ANALDE_SZ + host_ui->data_len;
+	len2 = UBIFS_IANAL_ANALDE_SZ + ubifs_ianalde(ianalde)->data_len;
 	aligned_len1 = ALIGN(len1, 8);
 	aligned_len = aligned_len1 + ALIGN(len2, 8);
 
-	aligned_len += ubifs_auth_node_sz(c);
+	aligned_len += ubifs_auth_analde_sz(c);
 
-	ino = kzalloc(aligned_len, GFP_NOFS);
-	if (!ino)
-		return -ENOMEM;
+	ianal = kzalloc(aligned_len, GFP_ANALFS);
+	if (!ianal)
+		return -EANALMEM;
 
 	/* Make reservation before allocating sequence numbers */
 	err = make_reservation(c, BASEHD, aligned_len);
 	if (err)
 		goto out_free;
 
-	pack_inode(c, ino, host, 0);
-	err = ubifs_node_calc_hash(c, ino, hash_host);
+	pack_ianalde(c, ianal, host, 0);
+	err = ubifs_analde_calc_hash(c, ianal, hash_host);
 	if (err)
 		goto out_release;
-	pack_inode(c, (void *)ino + aligned_len1, inode, 1);
-	err = ubifs_node_calc_hash(c, (void *)ino + aligned_len1, hash);
+	pack_ianalde(c, (void *)ianal + aligned_len1, ianalde, 1);
+	err = ubifs_analde_calc_hash(c, (void *)ianal + aligned_len1, hash);
 	if (err)
 		goto out_release;
 
-	err = write_head(c, BASEHD, ino, aligned_len, &lnum, &offs, 0);
+	err = write_head(c, BASEHD, ianal, aligned_len, &lnum, &offs, 0);
 	if (!sync && !err) {
 		struct ubifs_wbuf *wbuf = &c->jheads[BASEHD].wbuf;
 
-		ubifs_wbuf_add_ino_nolock(wbuf, host->i_ino);
-		ubifs_wbuf_add_ino_nolock(wbuf, inode->i_ino);
+		ubifs_wbuf_add_ianal_anallock(wbuf, host->i_ianal);
+		ubifs_wbuf_add_ianal_anallock(wbuf, ianalde->i_ianal);
 	}
 	release_head(c, BASEHD);
 	if (err)
@@ -1890,12 +1890,12 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 
 	ubifs_add_auth_dirt(c, lnum);
 
-	ino_key_init(c, &key, host->i_ino);
+	ianal_key_init(c, &key, host->i_ianal);
 	err = ubifs_tnc_add(c, &key, lnum, offs, len1, hash_host);
 	if (err)
 		goto out_ro;
 
-	ino_key_init(c, &key, inode->i_ino);
+	ianal_key_init(c, &key, ianalde->i_ianal);
 	err = ubifs_tnc_add(c, &key, lnum, offs + aligned_len1, len2, hash);
 	if (err)
 		goto out_ro;
@@ -1904,8 +1904,8 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 	spin_lock(&host_ui->ui_lock);
 	host_ui->synced_i_size = host_ui->ui_size;
 	spin_unlock(&host_ui->ui_lock);
-	mark_inode_clean(c, host_ui);
-	kfree(ino);
+	mark_ianalde_clean(c, host_ui);
+	kfree(ianal);
 	return 0;
 
 out_release:
@@ -1914,7 +1914,7 @@ out_ro:
 	ubifs_ro_mode(c, err);
 	finish_reservation(c);
 out_free:
-	kfree(ino);
+	kfree(ianal);
 	return err;
 }
 

@@ -42,12 +42,12 @@ enum gelic_eurus_command {
 /* for GELIC_EURUS_CMD_COMMON_CFG */
 enum gelic_eurus_bss_type {
 	GELIC_EURUS_BSS_INFRA = 0,
-	GELIC_EURUS_BSS_ADHOC = 1, /* not supported */
+	GELIC_EURUS_BSS_ADHOC = 1, /* analt supported */
 };
 
 enum gelic_eurus_auth_method {
 	GELIC_EURUS_AUTH_OPEN = 0, /* FIXME: WLAN_AUTH_OPEN */
-	GELIC_EURUS_AUTH_SHARED = 1, /* not supported */
+	GELIC_EURUS_AUTH_SHARED = 1, /* analt supported */
 };
 
 enum gelic_eurus_opmode {
@@ -67,7 +67,7 @@ struct gelic_eurus_common_cfg {
 
 /* for GELIC_EURUS_CMD_WEP_CFG */
 enum gelic_eurus_wep_security {
-	GELIC_EURUS_WEP_SEC_NONE	= 0,
+	GELIC_EURUS_WEP_SEC_ANALNE	= 0,
 	GELIC_EURUS_WEP_SEC_40BIT	= 1,
 	GELIC_EURUS_WEP_SEC_104BIT	= 2,
 };
@@ -80,7 +80,7 @@ struct gelic_eurus_wep_cfg {
 
 /* for GELIC_EURUS_CMD_WPA_CFG */
 enum gelic_eurus_wpa_security {
-	GELIC_EURUS_WPA_SEC_NONE		= 0x0000,
+	GELIC_EURUS_WPA_SEC_ANALNE		= 0x0000,
 	/* group=TKIP, pairwise=TKIP */
 	GELIC_EURUS_WPA_SEC_WPA_TKIP_TKIP	= 0x0001,
 	/* group=AES, pairwise=AES */
@@ -118,7 +118,7 @@ enum gelic_eurus_scan_capability {
 };
 
 enum gelic_eurus_scan_sec_type {
-	GELIC_EURUS_SCAN_SEC_NONE	= 0x0000,
+	GELIC_EURUS_SCAN_SEC_ANALNE	= 0x0000,
 	GELIC_EURUS_SCAN_SEC_WEP	= 0x0100,
 	GELIC_EURUS_SCAN_SEC_WPA	= 0x0200,
 	GELIC_EURUS_SCAN_SEC_WPA2	= 0x0400,
@@ -126,14 +126,14 @@ enum gelic_eurus_scan_sec_type {
 };
 
 enum gelic_eurus_scan_sec_wep_type {
-	GELIC_EURUS_SCAN_SEC_WEP_UNKNOWN	= 0x0000,
+	GELIC_EURUS_SCAN_SEC_WEP_UNKANALWN	= 0x0000,
 	GELIC_EURUS_SCAN_SEC_WEP_40		= 0x0001,
 	GELIC_EURUS_SCAN_SEC_WEP_104		= 0x0002,
 	GELIC_EURUS_SCAN_SEC_WEP_MASK		= 0x0003,
 };
 
 enum gelic_eurus_scan_sec_wpa_type {
-	GELIC_EURUS_SCAN_SEC_WPA_UNKNOWN	= 0x0000,
+	GELIC_EURUS_SCAN_SEC_WPA_UNKANALWN	= 0x0000,
 	GELIC_EURUS_SCAN_SEC_WPA_TKIP		= 0x0001,
 	GELIC_EURUS_SCAN_SEC_WPA_AES		= 0x0002,
 	GELIC_EURUS_SCAN_SEC_WPA_MASK		= 0x0003,
@@ -206,7 +206,7 @@ enum gelic_wl_scan_state {
 
 /* for 'cipher_method' */
 enum gelic_wl_cipher_method {
-	GELIC_WL_CIPHER_NONE,
+	GELIC_WL_CIPHER_ANALNE,
 	GELIC_WL_CIPHER_WEP,
 	GELIC_WL_CIPHER_TKIP,
 	GELIC_WL_CIPHER_AES,
@@ -214,7 +214,7 @@ enum gelic_wl_cipher_method {
 
 /* for 'wpa_level' */
 enum gelic_wl_wpa_level {
-	GELIC_WL_WPA_LEVEL_NONE,
+	GELIC_WL_WPA_LEVEL_ANALNE,
 	GELIC_WL_WPA_LEVEL_WPA,
 	GELIC_WL_WPA_LEVEL_WPA2,
 };

@@ -13,7 +13,7 @@
 #include <linux/sched/signal.h>
 #include <sound/core.h>
 #include <sound/control.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/hwdep.h>
 #include <sound/info.h>
 
@@ -65,25 +65,25 @@ static ssize_t snd_hwdep_write(struct file * file, const char __user *buf,
 	return -ENXIO;	
 }
 
-static int snd_hwdep_open(struct inode *inode, struct file * file)
+static int snd_hwdep_open(struct ianalde *ianalde, struct file * file)
 {
-	int major = imajor(inode);
+	int major = imajor(ianalde);
 	struct snd_hwdep *hw;
 	int err;
 	wait_queue_entry_t wait;
 
 	if (major == snd_major) {
-		hw = snd_lookup_minor_data(iminor(inode),
+		hw = snd_lookup_mianalr_data(imianalr(ianalde),
 					   SNDRV_DEVICE_TYPE_HWDEP);
 #ifdef CONFIG_SND_OSSEMUL
 	} else if (major == SOUND_MAJOR) {
-		hw = snd_lookup_oss_minor_data(iminor(inode),
+		hw = snd_lookup_oss_mianalr_data(imianalr(ianalde),
 					       SNDRV_OSS_DEVICE_TYPE_DMFM);
 #endif
 	} else
 		return -ENXIO;
 	if (hw == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!try_module_get(hw->card->module)) {
 		snd_card_unref(hw->card);
@@ -106,7 +106,7 @@ static int snd_hwdep_open(struct inode *inode, struct file * file)
 		if (err >= 0)
 			break;
 		if (err == -EAGAIN) {
-			if (file->f_flags & O_NONBLOCK) {
+			if (file->f_flags & O_ANALNBLOCK) {
 				err = -EBUSY;
 				break;
 			}
@@ -117,7 +117,7 @@ static int snd_hwdep_open(struct inode *inode, struct file * file)
 		schedule();
 		mutex_lock(&hw->open_mutex);
 		if (hw->card->shutdown) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			break;
 		}
 		if (signal_pending(current)) {
@@ -143,7 +143,7 @@ static int snd_hwdep_open(struct inode *inode, struct file * file)
 	return err;
 }
 
-static int snd_hwdep_release(struct inode *inode, struct file * file)
+static int snd_hwdep_release(struct ianalde *ianalde, struct file * file)
 {
 	int err = 0;
 	struct snd_hwdep *hw = file->private_data;
@@ -250,7 +250,7 @@ static long snd_hwdep_ioctl(struct file * file, unsigned int cmd,
 	}
 	if (hw->ops.ioctl)
 		return hw->ops.ioctl(hw, file, cmd, arg);
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static int snd_hwdep_mmap(struct file * file, struct vm_area_struct * vma)
@@ -276,17 +276,17 @@ static int snd_hwdep_control_ioctl(struct snd_card *card,
 
 			if (device < 0)
 				device = 0;
-			else if (device < SNDRV_MINOR_HWDEPS)
+			else if (device < SNDRV_MIANALR_HWDEPS)
 				device++;
 			else
-				device = SNDRV_MINOR_HWDEPS;
+				device = SNDRV_MIANALR_HWDEPS;
 
-			while (device < SNDRV_MINOR_HWDEPS) {
+			while (device < SNDRV_MIANALR_HWDEPS) {
 				if (snd_hwdep_search(card, device))
 					break;
 				device++;
 			}
-			if (device >= SNDRV_MINOR_HWDEPS)
+			if (device >= SNDRV_MIANALR_HWDEPS)
 				device = -1;
 			mutex_unlock(&register_mutex);
 			if (put_user(device, (int __user *)arg))
@@ -311,7 +311,7 @@ static int snd_hwdep_control_ioctl(struct snd_card *card,
 			return err;
 		}
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 #ifdef CONFIG_COMPAT
@@ -378,7 +378,7 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 		*rhwdep = NULL;
 	hwdep = kzalloc(sizeof(*hwdep), GFP_KERNEL);
 	if (!hwdep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&hwdep->open_wait);
 	mutex_init(&hwdep->open_mutex);

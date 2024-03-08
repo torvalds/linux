@@ -15,7 +15,7 @@ extern struct user_namespace init_user_ns;
 struct vm_area_struct;
 
 struct timens_offsets {
-	struct timespec64 monotonic;
+	struct timespec64 moanaltonic;
 	struct timespec64 boottime;
 };
 
@@ -65,11 +65,11 @@ struct proc_timens_offset {
 int proc_timens_set_offset(struct file *file, struct task_struct *p,
 			   struct proc_timens_offset *offsets, int n);
 
-static inline void timens_add_monotonic(struct timespec64 *ts)
+static inline void timens_add_moanaltonic(struct timespec64 *ts)
 {
 	struct timens_offsets *ns_offsets = &current->nsproxy->time_ns->offsets;
 
-	*ts = timespec64_add(*ts, ns_offsets->monotonic);
+	*ts = timespec64_add(*ts, ns_offsets->moanaltonic);
 }
 
 static inline void timens_add_boottime(struct timespec64 *ts)
@@ -149,7 +149,7 @@ static inline struct page *find_timens_vvar_page(struct vm_area_struct *vma)
 	return NULL;
 }
 
-static inline void timens_add_monotonic(struct timespec64 *ts) { }
+static inline void timens_add_moanaltonic(struct timespec64 *ts) { }
 static inline void timens_add_boottime(struct timespec64 *ts) { }
 
 static inline u64 timens_add_boottime_ns(u64 nsec)

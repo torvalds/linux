@@ -6,7 +6,7 @@
  *	Copyright (C) 1997 Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  *	Copyright (C) 2008 Jiri Hladky <hladky _dot_ jiri _at_ gmail _dot_ com>
  *
- *	The __delay function must _NOT_ be inlined as its execution time
+ *	The __delay function must _ANALT_ be inlined as its execution time
  *	depends wildly on alignment on many x86 processors. The additional
  *	jump magic is needed to get the timing stable on all the CPU's
  *	we have to worry about.
@@ -62,33 +62,33 @@ static void delay_loop(u64 __loops)
 /* TSC based delay: */
 static void delay_tsc(u64 cycles)
 {
-	u64 bclock, now;
+	u64 bclock, analw;
 	int cpu;
 
 	preempt_disable();
 	cpu = smp_processor_id();
 	bclock = rdtsc_ordered();
 	for (;;) {
-		now = rdtsc_ordered();
-		if ((now - bclock) >= cycles)
+		analw = rdtsc_ordered();
+		if ((analw - bclock) >= cycles)
 			break;
 
 		/* Allow RT tasks to run */
 		preempt_enable();
-		rep_nop();
+		rep_analp();
 		preempt_disable();
 
 		/*
-		 * It is possible that we moved to another CPU, and
+		 * It is possible that we moved to aanalther CPU, and
 		 * since TSC's are per-cpu we need to calculate
 		 * that. The delay must guarantee that we wait "at
-		 * least" the amount of time. Being moved to another
+		 * least" the amount of time. Being moved to aanalther
 		 * CPU could make the wait longer but we just need to
-		 * make sure we waited long enough. Rebalance the
+		 * make sure we waited long eanalugh. Rebalance the
 		 * counter for this CPU.
 		 */
 		if (unlikely(cpu != smp_processor_id())) {
-			cycles -= (now - bclock);
+			cycles -= (analw - bclock);
 			cpu = smp_processor_id();
 			bclock = rdtsc_ordered();
 		}
@@ -134,7 +134,7 @@ static void delay_halt_mwaitx(u64 unused, u64 cycles)
 	 __monitorx(raw_cpu_ptr(&cpu_tss_rw), 0, 0);
 
 	/*
-	 * AMD, like Intel, supports the EAX hint and EAX=0xf means, do not
+	 * AMD, like Intel, supports the EAX hint and EAX=0xf means, do analt
 	 * enter any deep C-state and we use it here in delay() to minimize
 	 * wakeup latency.
 	 */
@@ -204,7 +204,7 @@ void __delay(unsigned long loops)
 }
 EXPORT_SYMBOL(__delay);
 
-noinline void __const_udelay(unsigned long xloops)
+analinline void __const_udelay(unsigned long xloops)
 {
 	unsigned long lpj = this_cpu_read(cpu_info.loops_per_jiffy) ? : loops_per_jiffy;
 	int d0;

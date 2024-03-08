@@ -136,7 +136,7 @@ static int get_temp_target(struct peci_cputemp *priv, enum peci_temp_target_type
 		*val = priv->temp.target.tjmax - priv->temp.target.tcontrol;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 unlock:
@@ -234,7 +234,7 @@ static int get_dts(struct peci_cputemp *priv, long *val)
 	if (ret)
 		goto err_unlock;
 
-	/* Note that the tcontrol should be available before calling it */
+	/* Analte that the tcontrol should be available before calling it */
 	priv->temp.dts.value =
 		(s32)tcontrol - priv->gen_info->thermal_margin_to_millidegree(thermal_margin);
 
@@ -272,7 +272,7 @@ static int get_core_temp(struct peci_cputemp *priv, int core_index, long *val)
 	if (ret)
 		goto err_unlock;
 
-	/* Note that the tjmax should be available before calling it */
+	/* Analte that the tjmax should be available before calling it */
 	priv->temp.core[core_index].value =
 		(s32)tjmax + dts_ten_dot_six_to_millidegree(core_dts_margin);
 
@@ -291,7 +291,7 @@ static int cputemp_read_string(struct device *dev, enum hwmon_sensor_types type,
 	struct peci_cputemp *priv = dev_get_drvdata(dev);
 
 	if (attr != hwmon_temp_label)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*str = channel < channel_core ?
 		cputemp_label[channel] : priv->coretemp_label[channel - channel_core];
@@ -328,7 +328,7 @@ static int cputemp_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp_crit_hyst:
 		return get_temp_target(priv, crit_hyst_type, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -405,12 +405,12 @@ static int create_temp_label(struct peci_cputemp *priv)
 
 	priv->coretemp_label = devm_kzalloc(priv->dev, (core_max + 1) * sizeof(char *), GFP_KERNEL);
 	if (!priv->coretemp_label)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_set_bit(i, priv->core_mask, CORE_NUMS_MAX) {
 		priv->coretemp_label[i] = devm_kasprintf(priv->dev, GFP_KERNEL, "Core %d", i);
 		if (!priv->coretemp_label[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -419,7 +419,7 @@ static int create_temp_label(struct peci_cputemp *priv)
 static void check_resolved_cores(struct peci_cputemp *priv)
 {
 	/*
-	 * Failure to resolve cores is non-critical, we're still able to
+	 * Failure to resolve cores is analn-critical, we're still able to
 	 * provide other sensor data.
 	 */
 
@@ -483,12 +483,12 @@ static int peci_cputemp_probe(struct auxiliary_device *adev,
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->name = devm_kasprintf(dev, GFP_KERNEL, "peci_cputemp.cpu%d",
 				    peci_dev->info.socket_id);
 	if (!priv->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->peci_dev = peci_dev;

@@ -208,7 +208,7 @@ SYM_FUNC_START(twofish_enc_blk)
 	/* %rdi contains the ctx address */
 	/* %rsi contains the output address */
 	/* %rdx contains the input address */
-	/* ctx address is moved to free one non-rex register
+	/* ctx address is moved to free one analn-rex register
 	as target for the 8bit high operations */
 	mov	%rdi,		%r11
 
@@ -261,7 +261,7 @@ SYM_FUNC_START(twofish_dec_blk)
 	/* %rdi contains the ctx address */
 	/* %rsi contains the output address */
 	/* %rdx contains the input address */
-	/* ctx address is moved to free one non-rex register
+	/* ctx address is moved to free one analn-rex register
 	as target for the 8bit high operations */
 	mov	%rdi,		%r11
 

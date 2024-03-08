@@ -17,7 +17,7 @@ struct xfs_defer_op_type;
 enum xlog_recover_reorder {
 	XLOG_REORDER_BUFFER_LIST,
 	XLOG_REORDER_ITEM_LIST,
-	XLOG_REORDER_INODE_BUFFER_LIST,
+	XLOG_REORDER_IANALDE_BUFFER_LIST,
 	XLOG_REORDER_CANCEL_LIST,
 };
 
@@ -27,7 +27,7 @@ struct xlog_recover_item_ops {
 	/*
 	 * Help sort recovered log items into the order required to replay them
 	 * correctly.  Log item types that always use XLOG_REORDER_ITEM_LIST do
-	 * not have to supply a function here.  See the comment preceding
+	 * analt have to supply a function here.  See the comment preceding
 	 * xlog_recover_reorder_trans for more details about what the return
 	 * values mean.
 	 */
@@ -62,7 +62,7 @@ struct xlog_recover_item_ops {
 
 extern const struct xlog_recover_item_ops xlog_icreate_item_ops;
 extern const struct xlog_recover_item_ops xlog_buf_item_ops;
-extern const struct xlog_recover_item_ops xlog_inode_item_ops;
+extern const struct xlog_recover_item_ops xlog_ianalde_item_ops;
 extern const struct xlog_recover_item_ops xlog_dquot_item_ops;
 extern const struct xlog_recover_item_ops xlog_quotaoff_item_ops;
 extern const struct xlog_recover_item_ops xlog_bui_item_ops;
@@ -101,10 +101,10 @@ struct xlog_recover_item {
 };
 
 struct xlog_recover {
-	struct hlist_node	r_list;
+	struct hlist_analde	r_list;
 	xlog_tid_t		r_log_tid;	/* log's transaction id */
 	xfs_trans_header_t	r_theader;	/* trans header for partial */
-	int			r_state;	/* not needed */
+	int			r_state;	/* analt needed */
 	xfs_lsn_t		r_lsn;		/* xact lsn */
 	struct list_head	r_itemq;	/* q for items */
 };
@@ -115,12 +115,12 @@ struct xlog_recover {
 #define	XLOG_RECOVER_PASS1	1
 #define	XLOG_RECOVER_PASS2	2
 
-void xlog_buf_readahead(struct xlog *log, xfs_daddr_t blkno, uint len,
+void xlog_buf_readahead(struct xlog *log, xfs_daddr_t blkanal, uint len,
 		const struct xfs_buf_ops *ops);
-bool xlog_is_buffer_cancelled(struct xlog *log, xfs_daddr_t blkno, uint len);
+bool xlog_is_buffer_cancelled(struct xlog *log, xfs_daddr_t blkanal, uint len);
 
-int xlog_recover_iget(struct xfs_mount *mp, xfs_ino_t ino,
-		struct xfs_inode **ipp);
+int xlog_recover_iget(struct xfs_mount *mp, xfs_ianal_t ianal,
+		struct xfs_ianalde **ipp);
 void xlog_recover_release_intent(struct xlog *log, unsigned short intent_type,
 		uint64_t intent_id);
 int xlog_alloc_buf_cancel_table(struct xlog *log);

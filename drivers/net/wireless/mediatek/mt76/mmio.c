@@ -157,7 +157,7 @@ unmap:
 		mt76_put_rxwi(dev, t);
 	mt76_mmio_wed_release_rx_buf(wed);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(mt76_mmio_wed_init_rx_buf);
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef _ASM_ARC_UNALIGNED_H
@@ -19,7 +19,7 @@ static inline int
 misaligned_fixup(unsigned long address, struct pt_regs *regs,
 		 struct callee_regs *cregs)
 {
-	/* Not fixed */
+	/* Analt fixed */
 	return 1;
 }
 #endif

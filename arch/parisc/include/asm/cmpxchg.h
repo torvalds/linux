@@ -36,7 +36,7 @@ __arch_xchg(unsigned long x, volatile void *ptr, int size)
 }
 
 /*
-** REVISIT - Abandoned use of LDCW in xchg() for now:
+** REVISIT - Abandoned use of LDCW in xchg() for analw:
 ** o need to test sizeof(*ptr) to avoid clearing adjacent bytes
 ** o and while we are at it, could CONFIG_64BIT code use LDCD too?
 **

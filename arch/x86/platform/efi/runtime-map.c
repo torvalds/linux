@@ -111,14 +111,14 @@ add_sysfs_runtime_map_entry(struct kobject *kobj, int nr,
 	if (!map_kset) {
 		map_kset = kset_create_and_add("runtime-map", NULL, kobj);
 		if (!map_kset)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		kset_unregister(map_kset);
 		map_kset = NULL;
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	memcpy(&entry->md, md, sizeof(efi_memory_desc_t));
@@ -168,7 +168,7 @@ static int __init efi_runtime_map_init(void)
 
 	map_entries = kcalloc(efi.memmap.nr_map, sizeof(entry), GFP_KERNEL);
 	if (!map_entries) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

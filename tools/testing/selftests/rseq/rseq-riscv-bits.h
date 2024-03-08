@@ -28,7 +28,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_storev)(intptr_t *v, intptr_t expect, i
 				  RSEQ_ASM_OP_FINAL_STORE(newv, v, 3)
 				  RSEQ_INJECT_ASM(5)
 				  RSEQ_ASM_DEFINE_ABORT(4, abort)
-				  : /* gcc asm goto does not allow outputs */
+				  : /* gcc asm goto does analt allow outputs */
 				  : [cpu_id]		"r" (cpu),
 				    [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 				    [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -59,7 +59,7 @@ error2:
 }
 
 static inline __always_inline
-int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t expectnot,
+int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t expectanalt,
 			       off_t voffp, intptr_t *load, int cpu)
 {
 	RSEQ_INJECT_C(9)
@@ -73,11 +73,11 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t e
 				  RSEQ_ASM_STORE_RSEQ_CS(2, 1b, rseq_cs)
 				  RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 				  RSEQ_INJECT_ASM(3)
-				  RSEQ_ASM_OP_CMPNE(v, expectnot, "%l[cmpfail]")
+				  RSEQ_ASM_OP_CMPNE(v, expectanalt, "%l[cmpfail]")
 				  RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 				  RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, "%l[error1]")
-				  RSEQ_ASM_OP_CMPNE(v, expectnot, "%l[error2]")
+				  RSEQ_ASM_OP_CMPNE(v, expectanalt, "%l[error2]")
 #endif
 				  RSEQ_ASM_OP_R_LOAD(v)
 				  RSEQ_ASM_OP_R_STORE(load)
@@ -85,12 +85,12 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t e
 				  RSEQ_ASM_OP_R_FINAL_STORE(v, 3)
 				  RSEQ_INJECT_ASM(5)
 				  RSEQ_ASM_DEFINE_ABORT(4, abort)
-				  : /* gcc asm goto does not allow outputs */
+				  : /* gcc asm goto does analt allow outputs */
 				  : [cpu_id]		"r" (cpu),
 				    [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 				    [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
 				    [v]			"m" (*v),
-				    [expectnot]		"r" (expectnot),
+				    [expectanalt]		"r" (expectanalt),
 				    [load]		"m" (*load),
 				    [voffp]		"r" (voffp)
 				    RSEQ_INJECT_INPUT
@@ -135,7 +135,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_addv)(intptr_t *v, intptr_t count, int cpu)
 				  RSEQ_ASM_OP_R_FINAL_STORE(v, 3)
 				  RSEQ_INJECT_ASM(4)
 				  RSEQ_ASM_DEFINE_ABORT(4, abort)
-				  : /* gcc asm goto does not allow outputs */
+				  : /* gcc asm goto does analt allow outputs */
 				  : [cpu_id]		"r" (cpu),
 				    [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 				    [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -188,7 +188,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_cmpeqv_storev)(intptr_t *v, intptr_t ex
 				  RSEQ_ASM_OP_FINAL_STORE(newv, v, 3)
 				  RSEQ_INJECT_ASM(6)
 				  RSEQ_ASM_DEFINE_ABORT(4, abort)
-				  : /* gcc asm goto does not allow outputs */
+				  : /* gcc asm goto does analt allow outputs */
 				  : [cpu_id]		"r" (cpu),
 				    [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 				    [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -246,7 +246,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_offset_deref_addv)(intptr_t *ptr, off_t off, i
 				  RSEQ_ASM_OP_R_DEREF_ADDV(ptr, off, 3)
 				  RSEQ_INJECT_ASM(4)
 				  RSEQ_ASM_DEFINE_ABORT(4, abort)
-				  : /* gcc asm goto does not allow outputs */
+				  : /* gcc asm goto does analt allow outputs */
 				  : [cpu_id]			"r" (cpu),
 				    [current_cpu_id]		"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 				    [rseq_cs]			"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -308,7 +308,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_trystorev_storev)(intptr_t *v, intptr_t
 #endif
 				  RSEQ_INJECT_ASM(6)
 				  RSEQ_ASM_DEFINE_ABORT(4, abort)
-				  : /* gcc asm goto does not allow outputs */
+				  : /* gcc asm goto does analt allow outputs */
 				  : [cpu_id]			"r" (cpu),
 				    [current_cpu_id]		"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 				    [rseq_cs]			"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -370,7 +370,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_trymemcpy_storev)(intptr_t *v, intptr_t
 #endif
 				  RSEQ_INJECT_ASM(6)
 				  RSEQ_ASM_DEFINE_ABORT(4, abort)
-				  : /* gcc asm goto does not allow outputs */
+				  : /* gcc asm goto does analt allow outputs */
 				  : [cpu_id]			"r" (cpu),
 				    [current_cpu_id]		"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 				    [rseq_cs]			"m" (rseq_get_abi()->rseq_cs.arch.ptr),

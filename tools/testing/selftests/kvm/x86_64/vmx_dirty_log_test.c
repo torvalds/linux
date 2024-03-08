@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	vcpu_args_set(vcpu, 1, vmx_pages_gva);
 
 	/* Add an extra memory slot for testing dirty logging */
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 				    GUEST_TEST_MEM,
 				    TEST_MEM_SLOT_INDEX,
 				    TEST_MEM_PAGES,
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	 * ... pages in the L2 GPA range [0xc0001000, 0xc0003000) will map to
 	 * 0xc0000000.
 	 *
-	 * Note that prepare_eptp should be called only L1's GPA map is done,
+	 * Analte that prepare_eptp should be called only L1's GPA map is done,
 	 * meaning after the last call to virt_map.
 	 */
 	prepare_eptp(vmx, vm, 0);
@@ -120,16 +120,16 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			/*
 			 * The nested guest wrote at offset 0x1000 in the memslot, but the
-			 * dirty bitmap must be filled in according to L1 GPA, not L2.
+			 * dirty bitmap must be filled in according to L1 GPA, analt L2.
 			 */
 			kvm_vm_get_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap);
 			if (uc.args[1]) {
 				TEST_ASSERT(test_bit(0, bmap), "Page 0 incorrectly reported clean");
-				TEST_ASSERT(host_test_mem[0] == 1, "Page 0 not written by guest");
+				TEST_ASSERT(host_test_mem[0] == 1, "Page 0 analt written by guest");
 			} else {
 				TEST_ASSERT(!test_bit(0, bmap), "Page 0 incorrectly reported dirty");
 				TEST_ASSERT(host_test_mem[0] == 0xaaaaaaaaaaaaaaaaULL, "Page 0 written by guest");
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 			done = true;
 			break;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 }

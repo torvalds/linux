@@ -18,13 +18,13 @@
  */
 enum {
 	BH_NILFS_Allocated = BH_PrivateStart,
-	BH_NILFS_Node,
+	BH_NILFS_Analde,
 	BH_NILFS_Volatile,
 	BH_NILFS_Checked,
 	BH_NILFS_Redirected,
 };
 
-BUFFER_FNS(NILFS_Node, nilfs_node)		/* nilfs node buffers */
+BUFFER_FNS(NILFS_Analde, nilfs_analde)		/* nilfs analde buffers */
 BUFFER_FNS(NILFS_Volatile, nilfs_volatile)
 BUFFER_FNS(NILFS_Checked, nilfs_checked)	/* buffer is verified */
 BUFFER_FNS(NILFS_Redirected, nilfs_redirected)	/* redirected to a copy */
@@ -32,7 +32,7 @@ BUFFER_FNS(NILFS_Redirected, nilfs_redirected)	/* redirected to a copy */
 
 void __nilfs_clear_folio_dirty(struct folio *);
 
-struct buffer_head *nilfs_grab_buffer(struct inode *, struct address_space *,
+struct buffer_head *nilfs_grab_buffer(struct ianalde *, struct address_space *,
 				      unsigned long, unsigned long);
 void nilfs_forget_buffer(struct buffer_head *);
 void nilfs_copy_buffer(struct buffer_head *, struct buffer_head *);
@@ -45,7 +45,7 @@ void nilfs_clear_folio_dirty(struct folio *, bool);
 void nilfs_clear_dirty_pages(struct address_space *, bool);
 unsigned int nilfs_page_count_clean_buffers(struct page *, unsigned int,
 					    unsigned int);
-unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
+unsigned long nilfs_find_uncommitted_extent(struct ianalde *ianalde,
 					    sector_t start_blk,
 					    sector_t *blkoff);
 

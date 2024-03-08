@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Implementation of s390 diagnose codes
+ * Implementation of s390 diaganalse codes
  *
  * Copyright IBM Corp. 2007
  * Author(s): Michael Holzheu <holzheu@de.ibm.com>
@@ -135,19 +135,19 @@ device_initcall(show_diag_stat_init);
 void diag_stat_inc(enum diag_stat_enum nr)
 {
 	this_cpu_inc(diag_stat.counter[nr]);
-	trace_s390_diagnose(diag_map[nr].code);
+	trace_s390_diaganalse(diag_map[nr].code);
 }
 EXPORT_SYMBOL(diag_stat_inc);
 
-void notrace diag_stat_inc_norecursion(enum diag_stat_enum nr)
+void analtrace diag_stat_inc_analrecursion(enum diag_stat_enum nr)
 {
 	this_cpu_inc(diag_stat.counter[nr]);
-	trace_s390_diagnose_norecursion(diag_map[nr].code);
+	trace_s390_diaganalse_analrecursion(diag_map[nr].code);
 }
-EXPORT_SYMBOL(diag_stat_inc_norecursion);
+EXPORT_SYMBOL(diag_stat_inc_analrecursion);
 
 /*
- * Diagnose 14: Input spool file manipulation
+ * Diaganalse 14: Input spool file manipulation
  */
 int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode)
 {
@@ -162,7 +162,7 @@ static inline int __diag204(unsigned long *subcode, unsigned long size, void *ad
 
 	asm volatile(
 		"	diag	%[addr],%[rp],0x204\n"
-		"0:	nopr	%%r7\n"
+		"0:	analpr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: [rp] "+&d" (rp.pair) : [addr] "d" (addr) : "memory");
 	*subcode = rp.even;
@@ -170,13 +170,13 @@ static inline int __diag204(unsigned long *subcode, unsigned long size, void *ad
 }
 
 /**
- * diag204() - Issue diagnose 204 call.
- * @subcode: Subcode of diagnose 204 to be executed.
+ * diag204() - Issue diaganalse 204 call.
+ * @subcode: Subcode of diaganalse 204 to be executed.
  * @size: Size of area in pages which @area points to, if given.
  * @addr: Vmalloc'ed memory area where the result is written to.
  *
- * Execute diagnose 204 with the given subcode and write the result to the
- * memory area specified with @addr. For subcodes which do not write a
+ * Execute diaganalse 204 with the given subcode and write the result to the
+ * memory area specified with @addr. For subcodes which do analt write a
  * result to memory both @size and @addr must be zero. If @addr is
  * specified it must be page aligned and must have been allocated with
  * vmalloc(). Conversion to real / physical addresses will be handled by
@@ -201,7 +201,7 @@ int diag204(unsigned long subcode, unsigned long size, void *addr)
 EXPORT_SYMBOL(diag204);
 
 /*
- * Diagnose 210: Get information about a virtual device
+ * Diaganalse 210: Get information about a virtual device
  */
 int diag210(struct diag210 *addr)
 {
@@ -223,9 +223,9 @@ int diag210(struct diag210 *addr)
 EXPORT_SYMBOL(diag210);
 
 /*
- * Diagnose 8C: Access 3270 Display Device Information
+ * Diaganalse 8C: Access 3270 Display Device Information
  */
-int diag8c(struct diag8c *addr, struct ccw_dev_id *devno)
+int diag8c(struct diag8c *addr, struct ccw_dev_id *devanal)
 {
 	static DEFINE_SPINLOCK(diag8c_lock);
 	unsigned long flags;
@@ -234,7 +234,7 @@ int diag8c(struct diag8c *addr, struct ccw_dev_id *devno)
 	spin_lock_irqsave(&diag8c_lock, flags);
 
 	diag_stat_inc(DIAG_STAT_X08C);
-	ccode = diag_amode31_ops.diag8c(__diag8c_tmp_amode31, devno, sizeof(*addr));
+	ccode = diag_amode31_ops.diag8c(__diag8c_tmp_amode31, devanal, sizeof(*addr));
 
 	*addr = *__diag8c_tmp_amode31;
 	spin_unlock_irqrestore(&diag8c_lock, flags);
@@ -246,7 +246,7 @@ EXPORT_SYMBOL(diag8c);
 int diag224(void *ptr)
 {
 	unsigned long addr = __pa(ptr);
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	diag_stat_inc(DIAG_STAT_X224);
 	asm volatile(
@@ -260,7 +260,7 @@ int diag224(void *ptr)
 EXPORT_SYMBOL(diag224);
 
 /*
- * Diagnose 26C: Access Certain System Information
+ * Diaganalse 26C: Access Certain System Information
  */
 int diag26c(void *req, void *resp, enum diag26c_sc subcode)
 {

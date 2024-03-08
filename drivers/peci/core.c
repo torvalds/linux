@@ -54,7 +54,7 @@ static struct peci_controller *peci_controller_alloc(struct device *dev,
 
 	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
 	if (!controller)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = ida_alloc_max(&peci_controller_ida, U8_MAX, GFP_KERNEL);
 	if (ret < 0)
@@ -90,14 +90,14 @@ static void unregister_controller(void *_controller)
 	struct peci_controller *controller = _controller;
 
 	/*
-	 * Detach any active PECI devices. This can't fail, thus we do not
+	 * Detach any active PECI devices. This can't fail, thus we do analt
 	 * check the returned value.
 	 */
 	device_for_each_child_reverse(&controller->dev, NULL, unregister_child);
 
 	device_unregister(&controller->dev);
 
-	fwnode_handle_put(controller->dev.fwnode);
+	fwanalde_handle_put(controller->dev.fwanalde);
 
 	pm_runtime_disable(&controller->dev);
 }
@@ -126,30 +126,30 @@ struct peci_controller *devm_peci_controller_add(struct device *dev,
 	if (ret)
 		goto err_put;
 
-	pm_runtime_no_callbacks(&controller->dev);
-	pm_suspend_ignore_children(&controller->dev, true);
+	pm_runtime_anal_callbacks(&controller->dev);
+	pm_suspend_iganalre_children(&controller->dev, true);
 	pm_runtime_enable(&controller->dev);
 
-	device_set_node(&controller->dev, fwnode_handle_get(dev_fwnode(dev)));
+	device_set_analde(&controller->dev, fwanalde_handle_get(dev_fwanalde(dev)));
 
 	ret = device_add(&controller->dev);
 	if (ret)
-		goto err_fwnode;
+		goto err_fwanalde;
 
 	ret = devm_add_action_or_reset(dev, unregister_controller, controller);
 	if (ret)
 		return ERR_PTR(ret);
 
 	/*
-	 * Ignoring retval since failures during scan are non-critical for
+	 * Iganalring retval since failures during scan are analn-critical for
 	 * controller itself.
 	 */
 	peci_controller_scan_devices(controller);
 
 	return controller;
 
-err_fwnode:
-	fwnode_handle_put(controller->dev.fwnode);
+err_fwanalde:
+	fwanalde_handle_put(controller->dev.fwanalde);
 
 	pm_runtime_disable(&controller->dev);
 

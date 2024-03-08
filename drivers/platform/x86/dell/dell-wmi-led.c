@@ -95,8 +95,8 @@ static int led_on(void)
 		INTERFACE_ERROR,	/* Init to  INTERFACE_ERROR */
 		DEVICE_ID_PANEL_BACK,	/* Device ID */
 		CMD_LED_ON,		/* Command */
-		0,			/* not used */
-		0);			/* not used */
+		0,			/* analt used */
+		0);			/* analt used */
 }
 
 static int led_off(void)
@@ -105,8 +105,8 @@ static int led_off(void)
 		INTERFACE_ERROR,	/* Init to  INTERFACE_ERROR */
 		DEVICE_ID_PANEL_BACK,	/* Device ID */
 		CMD_LED_OFF,		/* Command */
-		0,			/* not used */
-		0);			/* not used */
+		0,			/* analt used */
+		0);			/* analt used */
 }
 
 static int led_blink(unsigned char on_eighths, unsigned char off_eighths)
@@ -166,11 +166,11 @@ static int __init dell_led_init(void)
 	int error = 0;
 
 	if (!wmi_has_guid(DELL_LED_BIOS_GUID))
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = led_off();
 	if (error != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return led_classdev_register(NULL, &dell_led);
 }

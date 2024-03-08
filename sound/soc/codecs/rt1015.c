@@ -225,8 +225,8 @@ static bool rt1015_volatile_register(struct device *dev, unsigned int reg)
 	case RT1015_DC_CALIB_CLSD8:
 	case RT1015_S_BST_TIMING_INTER1:
 	case RT1015_OSCK_STA:
-	case RT1015_MONO_DYNA_CTRL1:
-	case RT1015_MONO_DYNA_CTRL5:
+	case RT1015_MOANAL_DYNA_CTRL1:
+	case RT1015_MOANAL_DYNA_CTRL5:
 		return true;
 
 	default:
@@ -298,12 +298,12 @@ static bool rt1015_readable_register(struct device *dev, unsigned int reg)
 	case RT1015_ANA_CTRL1:
 	case RT1015_ANA_CTRL2:
 	case RT1015_PWR_STATE_CTRL:
-	case RT1015_MONO_DYNA_CTRL:
-	case RT1015_MONO_DYNA_CTRL1:
-	case RT1015_MONO_DYNA_CTRL2:
-	case RT1015_MONO_DYNA_CTRL3:
-	case RT1015_MONO_DYNA_CTRL4:
-	case RT1015_MONO_DYNA_CTRL5:
+	case RT1015_MOANAL_DYNA_CTRL:
+	case RT1015_MOANAL_DYNA_CTRL1:
+	case RT1015_MOANAL_DYNA_CTRL2:
+	case RT1015_MOANAL_DYNA_CTRL3:
+	case RT1015_MOANAL_DYNA_CTRL4:
+	case RT1015_MOANAL_DYNA_CTRL5:
 	case RT1015_SPK_VOL:
 	case RT1015_SHORT_DETTOP1:
 	case RT1015_SHORT_DETTOP2:
@@ -414,7 +414,7 @@ static const char * const rt1015_din_source_select[] = {
 	"Left + Right average",
 };
 
-static SOC_ENUM_SINGLE_DECL(rt1015_mono_lr_sel, RT1015_PAD_DRV2, 4,
+static SOC_ENUM_SINGLE_DECL(rt1015_moanal_lr_sel, RT1015_PAD_DRV2, 4,
 	rt1015_din_source_select);
 
 static const char * const rt1015_boost_mode[] = {
@@ -469,7 +469,7 @@ static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 			RT1015_BYPASS_SWRREG_PASS);
 		break;
 	default:
-		dev_err(component->dev, "Unknown boost control.\n");
+		dev_err(component->dev, "Unkanalwn boost control.\n");
 		return -EINVAL;
 	}
 
@@ -540,7 +540,7 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 		rt1015_calibrate(rt1015);
 		rt1015->cali_done = 1;
 
-		regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
+		regmap_write(rt1015->regmap, RT1015_MOANAL_DYNA_CTRL, 0x0010);
 	}
 
 	return 0;
@@ -563,8 +563,8 @@ static const struct snd_kcontrol_new rt1015_snd_controls[] = {
 		RT1015_DA_MUTE_SFT, RT1015_DVOL_MUTE_FLAG_SFT, 1, 1),
 	SOC_ENUM_EXT("Boost Mode", rt1015_boost_mode_enum,
 		rt1015_boost_mode_get, rt1015_boost_mode_put),
-	SOC_ENUM("Mono LR Select", rt1015_mono_lr_sel),
-	SOC_SINGLE_EXT("Bypass Boost", SND_SOC_NOPM, 0, 1, 0,
+	SOC_ENUM("Moanal LR Select", rt1015_moanal_lr_sel),
+	SOC_SINGLE_EXT("Bypass Boost", SND_SOC_ANALPM, 0, 1, 0,
 		rt1015_bypass_boost_get, rt1015_bypass_boost_put),
 
 	/* DAC Output Volume Control */
@@ -679,11 +679,11 @@ static int rt1015_amp_drv_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget rt1015_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("PLL", RT1015_PWR1, RT1015_PWR_PLL_BIT, 0,
 		NULL, 0),
-	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0,
 		r1015_dac_event, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_OUT_DRV_E("Amp Drv", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_OUT_DRV_E("Amp Drv", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			rt1015_amp_drv_event, SND_SOC_DAPM_PRE_PMU |
 			SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPO"),
@@ -870,7 +870,7 @@ static int rt1015_set_component_pll(struct snd_soc_component *component,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown PLL Source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -951,7 +951,7 @@ static int rt1015_set_tdm_slot(struct snd_soc_dai *dai,
 
 	/* This is an assumption that the system sends stereo audio to the amplifier typically.
 	 * And the stereo audio is placed in slot 0/2/4/6 as the starting slot.
-	 * The users could select the channel from L/R/L+R by "Mono LR Select" control.
+	 * The users could select the channel from L/R/L+R by "Moanal LR Select" control.
 	 */
 	first_bit = __ffs(rx_mask);
 	switch (first_bit) {
@@ -1133,7 +1133,7 @@ static int rt1015_i2c_probe(struct i2c_client *i2c)
 
 	rt1015 = devm_kzalloc(&i2c->dev, sizeof(*rt1015), GFP_KERNEL);
 	if (!rt1015)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt1015);
 
@@ -1160,8 +1160,8 @@ static int rt1015_i2c_probe(struct i2c_client *i2c)
 	} else if ((val != RT1015_DEVICE_ID_VAL) &&
 			(val != RT1015_DEVICE_ID_VAL2)) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt1015\n", val);
-		return -ENODEV;
+			"Device with ID register %x is analt rt1015\n", val);
+		return -EANALDEV;
 	}
 
 	return devm_snd_soc_register_component(&i2c->dev,

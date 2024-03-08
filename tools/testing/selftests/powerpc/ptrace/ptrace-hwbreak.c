@@ -338,7 +338,7 @@ static void get_ppc_hw_breakpoint(struct ppc_hw_breakpoint *info, int type,
 {
 	info->version = 1;
 	info->trigger_type = type;
-	info->condition_mode = PPC_BREAKPOINT_CONDITION_NONE;
+	info->condition_mode = PPC_BREAKPOINT_CONDITION_ANALNE;
 	info->addr = (__u64)addr;
 	info->addr2 = (__u64)addr + len;
 	info->condition_value = 0;
@@ -603,7 +603,7 @@ static int ptrace_hwbreak(void)
 	wait(NULL);
 
 	get_dbginfo(child_pid, &dbginfo);
-	SKIP_IF_MSG(dbginfo.num_data_bps == 0, "No data breakpoints present");
+	SKIP_IF_MSG(dbginfo.num_data_bps == 0, "Anal data breakpoints present");
 
 	dawr = dawr_present(&dbginfo);
 	run_tests(child_pid, &dbginfo, dawr);

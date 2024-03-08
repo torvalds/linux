@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <regex.h>
 #include <stdlib.h>
@@ -23,8 +23,8 @@
 #include "strlist.h"
 #include "strbuf.h"
 #include "mem-events.h"
-#include "annotate.h"
-#include "annotate-data.h"
+#include "ananaltate.h"
+#include "ananaltate-data.h"
 #include "event.h"
 #include "time-utils.h"
 #include "cgroup.h"
@@ -42,15 +42,15 @@ const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	*default_sort_order = "comm,dso,symbol";
 const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
-const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked,blocked,local_ins_lat,local_p_stage_cyc";
+const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,sanalop,tlb,locked,blocked,local_ins_lat,local_p_stage_cyc";
 const char	default_top_sort_order[] = "dso,symbol";
 const char	default_diff_sort_order[] = "dso,symbol";
 const char	default_tracepoint_sort_order[] = "trace";
 const char	*sort_order;
 const char	*field_order;
-regex_t		ignore_callees_regex;
-int		have_ignore_callees = 0;
-enum sort_mode	sort__mode = SORT_MODE__NORMAL;
+regex_t		iganalre_callees_regex;
+int		have_iganalre_callees = 0;
+enum sort_mode	sort__mode = SORT_MODE__ANALRMAL;
 static const char *const dynamic_headers[] = {"local_ins_lat", "ins_lat", "local_p_stage_cyc", "p_stage_cyc"};
 static const char *const arch_specific_sort_keys[] = {"local_p_stage_cyc", "p_stage_cyc"};
 
@@ -68,7 +68,7 @@ bool chk_double_cl;
  *
  * option, that uses a special separator character and don't pad with spaces,
  * replacing all occurrences of this separator in symbol names (and other
- * output) with a '.' character, that thus it's the only non valid separator.
+ * output) with a '.' character, that thus it's the only analn valid separator.
 */
 static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
 {
@@ -259,7 +259,7 @@ static int _hist_entry__dso_snprintf(struct map *map, char *bf,
 				     size_t size, unsigned int width)
 {
 	const struct dso *dso = map ? map__dso(map) : NULL;
-	const char *dso_name = "[unknown]";
+	const char *dso_name = "[unkanalwn]";
 
 	if (dso)
 		dso_name = verbose > 0 ? dso->long_name : dso->short_name;
@@ -330,7 +330,7 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 		return _sort__addr_cmp(left->ip, right->ip);
 
 	/*
-	 * comparing symbol address alone is not enough since it's a
+	 * comparing symbol address alone is analt eanalugh since it's a
 	 * relative address within a dso.
 	 */
 	if (!hists__has(left->hists, dso) || hists__has(right->hists, dso)) {
@@ -630,14 +630,14 @@ static int hist_entry__sym_ipc_snprintf(struct hist_entry *he, char *bf,
 {
 
 	struct symbol *sym = he->ms.sym;
-	struct annotated_branch *branch;
+	struct ananaltated_branch *branch;
 	double ipc = 0.0, coverage = 0.0;
 	char tmp[64];
 
 	if (!sym)
 		return repsep_snprintf(bf, size, "%-*s", width, "-");
 
-	branch = symbol__annotation(sym)->branch;
+	branch = symbol__ananaltation(sym)->branch;
 
 	if (branch && branch->hit_cycles)
 		ipc = branch->hit_insn / ((double)branch->hit_cycles);
@@ -678,7 +678,7 @@ struct sort_entry sort_sym_ipc_null = {
 
 /* --sort srcfile */
 
-static char no_srcfile[1];
+static char anal_srcfile[1];
 
 static char *hist_entry__get_srcfile(struct hist_entry *e)
 {
@@ -686,19 +686,19 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 	struct map *map = e->ms.map;
 
 	if (!map)
-		return no_srcfile;
+		return anal_srcfile;
 
 	sf = __get_srcline(map__dso(map), map__rip_2objdump(map, e->ip),
 			 e->ms.sym, false, true, true, e->ip);
-	if (sf == SRCLINE_UNKNOWN)
-		return no_srcfile;
+	if (sf == SRCLINE_UNKANALWN)
+		return anal_srcfile;
 	p = strchr(sf, ':');
 	if (p && *sf) {
 		*p = 0;
 		return sf;
 	}
 	free(sf);
-	return no_srcfile;
+	return anal_srcfile;
 }
 
 static int64_t
@@ -802,9 +802,9 @@ static int64_t _sort__cgroup_dev_cmp(u64 left_dev, u64 right_dev)
 	return (int64_t)(right_dev - left_dev);
 }
 
-static int64_t _sort__cgroup_inode_cmp(u64 left_ino, u64 right_ino)
+static int64_t _sort__cgroup_ianalde_cmp(u64 left_ianal, u64 right_ianal)
 {
-	return (int64_t)(right_ino - left_ino);
+	return (int64_t)(right_ianal - left_ianal);
 }
 
 static int64_t
@@ -816,8 +816,8 @@ sort__cgroup_id_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (ret != 0)
 		return ret;
 
-	return _sort__cgroup_inode_cmp(right->cgroup_id.ino,
-				       left->cgroup_id.ino);
+	return _sort__cgroup_ianalde_cmp(right->cgroup_id.ianal,
+				       left->cgroup_id.ianal);
 }
 
 static int hist_entry__cgroup_id_snprintf(struct hist_entry *he,
@@ -825,11 +825,11 @@ static int hist_entry__cgroup_id_snprintf(struct hist_entry *he,
 					  unsigned int width __maybe_unused)
 {
 	return repsep_snprintf(bf, size, "%lu/0x%lx", he->cgroup_id.dev,
-			       he->cgroup_id.ino);
+			       he->cgroup_id.ianal);
 }
 
 struct sort_entry sort_cgroup_id = {
-	.se_header      = "cgroup id (dev/inode)",
+	.se_header      = "cgroup id (dev/ianalde)",
 	.se_cmp	        = sort__cgroup_id_cmp,
 	.se_snprintf    = hist_entry__cgroup_id_snprintf,
 	.se_width_idx	= HISTC_CGROUP_ID,
@@ -855,7 +855,7 @@ static int hist_entry__cgroup_snprintf(struct hist_entry *he,
 		if (cgrp != NULL)
 			cgrp_name = cgrp->name;
 		else
-			cgrp_name = "unknown";
+			cgrp_name = "unkanalwn";
 	}
 
 	return repsep_snprintf(bf, size, "%s", cgrp_name);
@@ -913,7 +913,7 @@ static int hist_entry__time_snprintf(struct hist_entry *he, char *bf,
 {
 	char he_time[32];
 
-	if (symbol_conf.nanosecs)
+	if (symbol_conf.naanalsecs)
 		timestamp__scnprintf_nsec(he->time, he_time,
 					  sizeof(he_time));
 	else
@@ -953,7 +953,7 @@ static char *get_trace_output(struct hist_entry *he)
 				&seq, &rec, "%s", TEP_PRINT_INFO);
 	}
 	/*
-	 * Trim the buffer, it starts at 4KB and we're not going to
+	 * Trim the buffer, it starts at 4KB and we're analt going to
 	 * add anything more to this buffer.
 	 */
 	return realloc(seq.buffer, seq.len + 1);
@@ -1251,7 +1251,7 @@ sort__addr_from_cmp(struct hist_entry *left, struct hist_entry *right)
 	from_r = &right->branch_info->from;
 
 	/*
-	 * comparing symbol address alone is not enough since it's a
+	 * comparing symbol address alone is analt eanalugh since it's a
 	 * relative address within a dso.
 	 */
 	ret = _sort__dso_cmp(from_l->ms.map, from_r->ms.map);
@@ -1275,7 +1275,7 @@ sort__addr_to_cmp(struct hist_entry *left, struct hist_entry *right)
 	to_r = &right->branch_info->to;
 
 	/*
-	 * comparing symbol address alone is not enough since it's a
+	 * comparing symbol address alone is analt eanalugh since it's a
 	 * relative address within a dso.
 	 */
 	ret = _sort__dso_cmp(to_l->ms.map, to_r->ms.map);
@@ -1520,7 +1520,7 @@ static int hist_entry__lvl_snprintf(struct hist_entry *he, char *bf,
 }
 
 static int64_t
-sort__snoop_cmp(struct hist_entry *left, struct hist_entry *right)
+sort__sanalop_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	union perf_mem_data_src data_src_l;
 	union perf_mem_data_src data_src_r;
@@ -1528,17 +1528,17 @@ sort__snoop_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (left->mem_info)
 		data_src_l = left->mem_info->data_src;
 	else
-		data_src_l.mem_snoop = PERF_MEM_SNOOP_NA;
+		data_src_l.mem_sanalop = PERF_MEM_SANALOP_NA;
 
 	if (right->mem_info)
 		data_src_r = right->mem_info->data_src;
 	else
-		data_src_r.mem_snoop = PERF_MEM_SNOOP_NA;
+		data_src_r.mem_sanalop = PERF_MEM_SANALOP_NA;
 
-	return (int64_t)(data_src_r.mem_snoop - data_src_l.mem_snoop);
+	return (int64_t)(data_src_r.mem_sanalop - data_src_l.mem_sanalop);
 }
 
-static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
+static int hist_entry__sanalop_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
 	char out[64];
@@ -1578,17 +1578,17 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (rc)
 		return rc;
 	/*
-	 * Addresses with no major/minor numbers are assumed to be
-	 * anonymous in userspace.  Sort those on pid then address.
+	 * Addresses with anal major/mianalr numbers are assumed to be
+	 * aanalnymous in userspace.  Sort those on pid then address.
 	 *
-	 * The kernel and non-zero major/minor mapped areas are
+	 * The kernel and analn-zero major/mianalr mapped areas are
 	 * assumed to be unity mapped.  Sort those on address.
 	 */
 
 	if ((left->cpumode != PERF_RECORD_MISC_KERNEL) &&
 	    (!(map__flags(l_map) & MAP_SHARED)) && !l_dso->id.maj && !l_dso->id.min &&
-	    !l_dso->id.ino && !l_dso->id.ino_generation) {
-		/* userspace anonymous */
+	    !l_dso->id.ianal && !l_dso->id.ianal_generation) {
+		/* userspace aanalnymous */
 
 		if (thread__pid(left->thread) > thread__pid(right->thread))
 			return -1;
@@ -1626,7 +1626,7 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 		if ((he->cpumode != PERF_RECORD_MISC_KERNEL) &&
 		     map && !(map__prot(map) & PROT_EXEC) &&
 		     (map__flags(map) & MAP_SHARED) &&
-		    (dso->id.maj || dso->id.min || dso->id.ino || dso->id.ino_generation))
+		    (dso->id.maj || dso->id.min || dso->id.ianal || dso->id.ianal_generation))
 			level = 's';
 		else if (!map)
 			level = 'X';
@@ -1783,11 +1783,11 @@ struct sort_entry sort_mem_lvl = {
 	.se_width_idx	= HISTC_MEM_LVL,
 };
 
-struct sort_entry sort_mem_snoop = {
-	.se_header	= "Snoop",
-	.se_cmp		= sort__snoop_cmp,
-	.se_snprintf	= hist_entry__snoop_snprintf,
-	.se_width_idx	= HISTC_MEM_SNOOP,
+struct sort_entry sort_mem_sanalop = {
+	.se_header	= "Sanalop",
+	.se_cmp		= sort__sanalop_cmp,
+	.se_snprintf	= hist_entry__sanalop_snprintf,
+	.se_width_idx	= HISTC_MEM_SANALOP,
 };
 
 struct sort_entry sort_mem_dcacheline = {
@@ -2086,7 +2086,7 @@ static int _hist_entry__sym_size_snprintf(struct symbol *sym, char *bf,
 	if (sym)
 		return repsep_snprintf(bf, bf_size, "%*d", width, symbol__size(sym));
 
-	return repsep_snprintf(bf, bf_size, "%*s", width, "unknown");
+	return repsep_snprintf(bf, bf_size, "%*s", width, "unkanalwn");
 }
 
 static int hist_entry__sym_size_snprintf(struct hist_entry *he, char *bf,
@@ -2125,7 +2125,7 @@ static int _hist_entry__dso_size_snprintf(struct map *map, char *bf,
 	if (map && map__dso(map))
 		return repsep_snprintf(bf, bf_size, "%*d", width, map__size(map));
 
-	return repsep_snprintf(bf, bf_size, "%*s", width, "unknown");
+	return repsep_snprintf(bf, bf_size, "%*s", width, "unkanalwn");
 }
 
 static int hist_entry__dso_size_snprintf(struct hist_entry *he, char *bf,
@@ -2180,10 +2180,10 @@ struct sort_entry sort_addr = {
 
 /* --sort type */
 
-struct annotated_data_type unknown_type = {
+struct ananaltated_data_type unkanalwn_type = {
 	.self = {
-		.type_name = (char *)"(unknown)",
-		.children = LIST_HEAD_INIT(unknown_type.self.children),
+		.type_name = (char *)"(unkanalwn)",
+		.children = LIST_HEAD_INIT(unkanalwn_type.self.children),
 	},
 };
 
@@ -2200,7 +2200,7 @@ static void sort__type_init(struct hist_entry *he)
 
 	he->mem_type = hist_entry__get_data_type(he);
 	if (he->mem_type == NULL) {
-		he->mem_type = &unknown_type;
+		he->mem_type = &unkanalwn_type;
 		he->mem_type_off = 0;
 	}
 }
@@ -2208,8 +2208,8 @@ static void sort__type_init(struct hist_entry *he)
 static int64_t
 sort__type_collapse(struct hist_entry *left, struct hist_entry *right)
 {
-	struct annotated_data_type *left_type = left->mem_type;
-	struct annotated_data_type *right_type = right->mem_type;
+	struct ananaltated_data_type *left_type = left->mem_type;
+	struct ananaltated_data_type *right_type = right->mem_type;
 
 	if (!left_type) {
 		sort__type_init(left);
@@ -2251,8 +2251,8 @@ struct sort_entry sort_type = {
 static int64_t
 sort__typeoff_sort(struct hist_entry *left, struct hist_entry *right)
 {
-	struct annotated_data_type *left_type = left->mem_type;
-	struct annotated_data_type *right_type = right->mem_type;
+	struct ananaltated_data_type *left_type = left->mem_type;
+	struct ananaltated_data_type *right_type = right->mem_type;
 	int64_t ret;
 
 	if (!left_type) {
@@ -2271,19 +2271,19 @@ sort__typeoff_sort(struct hist_entry *left, struct hist_entry *right)
 	return left->mem_type_off - right->mem_type_off;
 }
 
-static void fill_member_name(char *buf, size_t sz, struct annotated_member *m,
+static void fill_member_name(char *buf, size_t sz, struct ananaltated_member *m,
 			     int offset, bool first)
 {
-	struct annotated_member *child;
+	struct ananaltated_member *child;
 
 	if (list_empty(&m->children))
 		return;
 
-	list_for_each_entry(child, &m->children, node) {
+	list_for_each_entry(child, &m->children, analde) {
 		if (child->offset <= offset && offset < child->offset + child->size) {
 			int len = 0;
 
-			/* It can have anonymous struct/union members */
+			/* It can have aanalnymous struct/union members */
 			if (child->var_name) {
 				len = scnprintf(buf, sz, "%s%s",
 						first ? "" : ".", child->var_name);
@@ -2299,12 +2299,12 @@ static void fill_member_name(char *buf, size_t sz, struct annotated_member *m,
 static int hist_entry__typeoff_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width __maybe_unused)
 {
-	struct annotated_data_type *he_type = he->mem_type;
+	struct ananaltated_data_type *he_type = he->mem_type;
 	char buf[4096];
 
 	buf[0] = '\0';
 	if (list_empty(&he_type->self.children))
-		snprintf(buf, sizeof(buf), "no field");
+		snprintf(buf, sizeof(buf), "anal field");
 	else
 		fill_member_name(buf, sizeof(buf), &he_type->self,
 				 he->mem_type_off, true);
@@ -2379,8 +2379,8 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_LOCAL_RETIRE_LAT, "local_retire_lat", sort_local_p_stage_cyc),
 	DIM(SORT_GLOBAL_RETIRE_LAT, "retire_lat", sort_global_p_stage_cyc),
 	DIM(SORT_SIMD, "simd", sort_simd),
-	DIM(SORT_ANNOTATE_DATA_TYPE, "type", sort_type),
-	DIM(SORT_ANNOTATE_DATA_TYPE_OFFSET, "typeoff", sort_type_offset),
+	DIM(SORT_ANANALTATE_DATA_TYPE, "type", sort_type),
+	DIM(SORT_ANANALTATE_DATA_TYPE_OFFSET, "typeoff", sort_type_offset),
 	DIM(SORT_SYM_OFFSET, "symoff", sort_sym_offset),
 };
 
@@ -2415,7 +2415,7 @@ static struct sort_dimension memory_sort_dimensions[] = {
 	DIM(SORT_MEM_LOCKED, "locked", sort_mem_locked),
 	DIM(SORT_MEM_TLB, "tlb", sort_mem_tlb),
 	DIM(SORT_MEM_LVL, "mem", sort_mem_lvl),
-	DIM(SORT_MEM_SNOOP, "snoop", sort_mem_snoop),
+	DIM(SORT_MEM_SANALOP, "sanalop", sort_mem_sanalop),
 	DIM(SORT_MEM_DCACHELINE, "dcacheline", sort_mem_dcacheline),
 	DIM(SORT_MEM_PHYS_DADDR, "phys_daddr", sort_mem_phys_daddr),
 	DIM(SORT_MEM_DATA_PAGE_SIZE, "data_page_size", sort_mem_data_page_size),
@@ -2677,7 +2677,7 @@ int hist_entry__filter(struct hist_entry *he, int type, const void *arg)
 
 		/*
 		 * hist entry is filtered if any of sort key in the hpp list
-		 * is applied.  But it should skip non-matched filter types.
+		 * is applied.  But it should skip analn-matched filter types.
 		 */
 		r = hse->se->se_filter(he, type, arg);
 		if (r >= 0) {
@@ -3066,7 +3066,7 @@ static int parse_field_name(char *str, char **event, char **field, char **opt)
 /* find match evsel using a given event name.  The event name can be:
  *   1. '%' + event index (e.g. '%1' for first event)
  *   2. full event name (e.g. sched:sched_switch)
- *   3. partial event name (should not contain ':')
+ *   3. partial event name (should analt contain ':')
  */
 static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 {
@@ -3116,7 +3116,7 @@ static int __dynamic_dimension__add(struct evsel *evsel,
 
 	hde = __alloc_dynamic_entry(evsel, field, level);
 	if (hde == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hde->raw_trace = raw_trace;
 
@@ -3189,11 +3189,11 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 	int ret = 0;
 
 	if (evlist == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	str = strdup(tok);
 	if (str == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (parse_field_name(str, &event_name, &field_name, &opt_name) < 0) {
 		ret = -EINVAL;
@@ -3223,7 +3223,7 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 			pr_err("%s %s", ret ? "," : "This perf binary isn't linked with libtraceevent, can't process", evsel__name(evsel));
-			ret = -ENOTSUP;
+			ret = -EANALTSUP;
 		}
 	}
 
@@ -3235,13 +3235,13 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 
 	evsel = find_evsel(evlist, event_name);
 	if (evsel == NULL) {
-		pr_debug("Cannot find event: %s\n", event_name);
-		ret = -ENOENT;
+		pr_debug("Cananalt find event: %s\n", event_name);
+		ret = -EANALENT;
 		goto out;
 	}
 
 	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
-		pr_debug("%s is not a tracepoint event\n", event_name);
+		pr_debug("%s is analt a tracepoint event\n", event_name);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -3253,9 +3253,9 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		struct tep_format_field *field = tep_find_any_field(evsel->tp_format, field_name);
 
 		if (field == NULL) {
-			pr_debug("Cannot find event field for %s.%s\n",
+			pr_debug("Cananalt find event field for %s.%s\n",
 				 event_name, field_name);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		ret = __dynamic_dimension__add(evsel, field, raw_trace, level);
@@ -3350,7 +3350,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 
 	/*
 	 * Check to see if there are any arch specific
-	 * sort dimensions not applicable for the current
+	 * sort dimensions analt applicable for the current
 	 * architecture. If so, Skip that sort key since
 	 * we don't want to display it in the output fields.
 	 */
@@ -3387,7 +3387,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			/*
 			 * perf diff displays the performance difference amongst
 			 * two or more perf.data files. Those files could come
-			 * from different binaries. So we should not compare
+			 * from different binaries. So we should analt compare
 			 * their ips, but the name of symbol.
 			 */
 			if (sort__mode == SORT_MODE__DIFF)
@@ -3402,7 +3402,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		} else if (sd->entry == &sort_comm) {
 			list->comm = 1;
 		} else if (sd->entry == &sort_type_offset) {
-			symbol_conf.annotate_data_member = true;
+			symbol_conf.ananaltate_data_member = true;
 		}
 
 		return __sort_dimension__add(sd, list, level);
@@ -3489,12 +3489,12 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 			ret = sort_dimension__add(list, tok, evlist, level);
 			if (ret == -EINVAL) {
 				if (!cacheline_size() && !strncasecmp(tok, "dcacheline", strlen(tok)))
-					ui__error("The \"dcacheline\" --sort key needs to know the cacheline size and it couldn't be determined on this system");
+					ui__error("The \"dcacheline\" --sort key needs to kanalw the cacheline size and it couldn't be determined on this system");
 				else
 					ui__error("Invalid --sort key: `%s'", tok);
 				break;
 			} else if (ret == -ESRCH) {
-				ui__error("Unknown --sort key: `%s'", tok);
+				ui__error("Unkanalwn --sort key: `%s'", tok);
 				break;
 			}
 		}
@@ -3521,7 +3521,7 @@ static const char *get_default_sort_order(struct evlist *evlist)
 	BUG_ON(sort__mode >= ARRAY_SIZE(default_sort_orders));
 
 	if (evlist == NULL || evlist__empty(evlist))
-		goto out_no_evlist;
+		goto out_anal_evlist;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
@@ -3535,7 +3535,7 @@ static const char *get_default_sort_order(struct evlist *evlist)
 		if (symbol_conf.raw_trace)
 			return "trace_fields";
 	}
-out_no_evlist:
+out_anal_evlist:
 	return default_sort_orders[sort__mode];
 }
 
@@ -3561,8 +3561,8 @@ static int setup_sort_order(struct evlist *evlist)
 	 */
 	if (asprintf(&new_sort_order, "%s,%s",
 		     get_default_sort_order(evlist), sort_order + 1) < 0) {
-		pr_err("Not enough memory to set up --sort");
-		return -ENOMEM;
+		pr_err("Analt eanalugh memory to set up --sort");
+		return -EANALMEM;
 	}
 
 	sort_order = new_sort_order;
@@ -3571,9 +3571,9 @@ static int setup_sort_order(struct evlist *evlist)
 
 /*
  * Adds 'pre,' prefix into 'str' is 'pre' is
- * not already part of 'str'.
+ * analt already part of 'str'.
  */
-static char *prefix_if_not_in(const char *pre, char *str)
+static char *prefix_if_analt_in(const char *pre, char *str)
 {
 	char *n;
 
@@ -3592,10 +3592,10 @@ static char *setup_overhead(char *keys)
 	if (sort__mode == SORT_MODE__DIFF)
 		return keys;
 
-	keys = prefix_if_not_in("overhead", keys);
+	keys = prefix_if_analt_in("overhead", keys);
 
 	if (symbol_conf.cumulate_callchain)
-		keys = prefix_if_not_in("overhead_children", keys);
+		keys = prefix_if_analt_in("overhead_children", keys);
 
 	return keys;
 }
@@ -3614,8 +3614,8 @@ static int __setup_sorting(struct evlist *evlist)
 	if (sort_keys == NULL) {
 		if (is_strict_order(field_order)) {
 			/*
-			 * If user specified field order but no sort order,
-			 * we'll honor it and not add default sort orders.
+			 * If user specified field order but anal sort order,
+			 * we'll hoanalr it and analt add default sort orders.
 			 */
 			return 0;
 		}
@@ -3625,8 +3625,8 @@ static int __setup_sorting(struct evlist *evlist)
 
 	str = strdup(sort_keys);
 	if (str == NULL) {
-		pr_err("Not enough memory to setup sort keys");
-		return -ENOMEM;
+		pr_err("Analt eanalugh memory to setup sort keys");
+		return -EANALMEM;
 	}
 
 	/*
@@ -3635,8 +3635,8 @@ static int __setup_sorting(struct evlist *evlist)
 	if (!is_strict_order(field_order)) {
 		str = setup_overhead(str);
 		if (str == NULL) {
-			pr_err("Not enough memory to setup overhead keys");
-			return -ENOMEM;
+			pr_err("Analt eanalugh memory to setup overhead keys");
+			return -EANALMEM;
 		}
 	}
 
@@ -3724,7 +3724,7 @@ void sort__setup_elide(FILE *output)
 	}
 
 	/*
-	 * It makes no sense to elide all of sort entries.
+	 * It makes anal sense to elide all of sort entries.
 	 * Just revert them to show up again.
 	 */
 	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
@@ -3804,7 +3804,7 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 			ui__error("Invalid --fields key: `%s'", tok);
 			break;
 		} else if (ret == -ESRCH) {
-			ui__error("Unknown --fields key: `%s'", tok);
+			ui__error("Unkanalwn --fields key: `%s'", tok);
 			break;
 		}
 	}
@@ -3844,8 +3844,8 @@ static int __setup_output_field(void)
 
 	strp = str = strdup(field_order);
 	if (str == NULL) {
-		pr_err("Not enough memory to setup output fields");
-		return -ENOMEM;
+		pr_err("Analt eanalugh memory to setup output fields");
+		return -EANALMEM;
 	}
 
 	if (!is_strict_order(field_order))

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * This device tree covers the common case where the RK1 is used as a
- * "compute node" system, where the carrier board is functioning more like a
- * generic backplane (with no non-autoenumerable peripherals of its own) than
+ * "compute analde" system, where the carrier board is functioning more like a
+ * generic backplane (with anal analn-autoenumerable peripherals of its own) than
  * like a device that the SoM is meant to enable.
  *
  * Copyright (c) 2023 Sam Edwards <CFSworks@gmail.com>

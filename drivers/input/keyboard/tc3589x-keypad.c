@@ -27,7 +27,7 @@
 #define DEDICATED_KEY_VAL		0xFF
 
 /* Pull up/down masks */
-#define TC3589x_NO_PULL_MASK		0x0
+#define TC3589x_ANAL_PULL_MASK		0x0
 #define TC3589x_PULL_DOWN_MASK		0x1
 #define TC3589x_PULL_UP_MASK		0x2
 #define TC3589x_PULLUP_ALL_MASK		0xAA
@@ -43,7 +43,7 @@
 
 #define KP_ROW_SHIFT		4
 
-#define KP_NO_VALID_KEY_MASK	0x7F
+#define KP_ANAL_VALID_KEY_MASK	0x7F
 
 /* bit masks for RESTCTRL register */
 #define TC3589x_KBDRST		0x2
@@ -78,7 +78,7 @@
  * @settle_time:        platform specific settle down time
  * @irqtype:            type of interrupt, falling or rising edge
  * @enable_wakeup:      specifies if keypad event can wake up system from sleep
- * @no_autorepeat:      flag for auto repetition
+ * @anal_autorepeat:      flag for auto repetition
  */
 struct tc3589x_keypad_platform_data {
 	const struct matrix_keymap_data *keymap_data;
@@ -88,7 +88,7 @@ struct tc3589x_keypad_platform_data {
 	u8                      settle_time;
 	unsigned long           irqtype;
 	bool                    enable_wakeup;
-	bool                    no_autorepeat;
+	bool                    anal_autorepeat;
 };
 
 /**
@@ -127,7 +127,7 @@ static int tc3589x_keypad_init_key_hardware(struct tc_keypad *keypad)
 	if (ret < 0)
 		return ret;
 
-	/* configure dedicated key config, no dedicated key selected */
+	/* configure dedicated key config, anal dedicated key selected */
 	ret = tc3589x_reg_write(tc3589x, TC3589x_KBCFG_LSB, DEDICATED_KEY_VAL);
 	if (ret < 0)
 		return ret;
@@ -196,7 +196,7 @@ static irqreturn_t tc3589x_keypad_irq(int irq, void *dev)
 	for (i = 0; i < TC35893_DATA_REGS * 2; i++) {
 		kbd_code = tc3589x_reg_read(tc3589x, TC3589x_EVTCODE_FIFO);
 
-		/* loop till fifo is empty and no more keys are pressed */
+		/* loop till fifo is empty and anal more keys are pressed */
 		if (kbd_code == TC35893_KEYCODE_FIFO_EMPTY ||
 				kbd_code == TC35893_KEYCODE_FIFO_CLEAR)
 			continue;
@@ -321,18 +321,18 @@ static void tc3589x_keypad_close(struct input_dev *input)
 static const struct tc3589x_keypad_platform_data *
 tc3589x_keypad_of_probe(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct tc3589x_keypad_platform_data *plat;
 	u32 cols, rows;
 	u32 debounce_ms;
 	int proplen;
 
 	if (!np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	of_property_read_u32(np, "keypad,num-columns", &cols);
 	of_property_read_u32(np, "keypad,num-rows", &rows);
@@ -341,17 +341,17 @@ tc3589x_keypad_of_probe(struct device *dev)
 	if (!plat->krow || !plat->kcol ||
 	     plat->krow > TC_KPD_ROWS || plat->kcol > TC_KPD_COLUMNS) {
 		dev_err(dev,
-			"keypad columns/rows not properly specified (%ux%u)\n",
+			"keypad columns/rows analt properly specified (%ux%u)\n",
 			plat->kcol, plat->krow);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!of_get_property(np, "linux,keymap", &proplen)) {
-		dev_err(dev, "property linux,keymap not found\n");
-		return ERR_PTR(-ENOENT);
+		dev_err(dev, "property linux,keymap analt found\n");
+		return ERR_PTR(-EANALENT);
 	}
 
-	plat->no_autorepeat = of_property_read_bool(np, "linux,no-autorepeat");
+	plat->anal_autorepeat = of_property_read_bool(np, "linux,anal-autorepeat");
 
 	plat->enable_wakeup = of_property_read_bool(np, "wakeup-source") ||
 			      /* legacy name */
@@ -392,12 +392,12 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 	keypad = devm_kzalloc(&pdev->dev, sizeof(struct tc_keypad),
 			      GFP_KERNEL);
 	if (!keypad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	keypad->board = plat;
@@ -422,7 +422,7 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 	keypad->keymap = input->keycode;
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-	if (!plat->no_autorepeat)
+	if (!plat->anal_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
 	input_set_drvdata(input, keypad);
@@ -435,18 +435,18 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 					  "tc3589x-keypad", keypad);
 	if (error) {
 		dev_err(&pdev->dev,
-				"Could not allocate irq %d,error %d\n",
+				"Could analt allocate irq %d,error %d\n",
 				irq, error);
 		return error;
 	}
 
 	error = input_register_device(input);
 	if (error) {
-		dev_err(&pdev->dev, "Could not register input device\n");
+		dev_err(&pdev->dev, "Could analt register input device\n");
 		return error;
 	}
 
-	/* let platform decide if keypad is a wakeup source or not */
+	/* let platform decide if keypad is a wakeup source or analt */
 	device_init_wakeup(&pdev->dev, plat->enable_wakeup);
 	device_set_wakeup_capable(&pdev->dev, plat->enable_wakeup);
 
@@ -461,11 +461,11 @@ static int tc3589x_keypad_suspend(struct device *dev)
 	struct tc_keypad *keypad = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
 
-	/* keypad is already off; we do nothing */
+	/* keypad is already off; we do analthing */
 	if (keypad->keypad_stopped)
 		return 0;
 
-	/* if device is not a wakeup source, disable it for powersave */
+	/* if device is analt a wakeup source, disable it for powersave */
 	if (!device_may_wakeup(&pdev->dev))
 		tc3589x_keypad_disable(keypad);
 	else
@@ -483,7 +483,7 @@ static int tc3589x_keypad_resume(struct device *dev)
 	if (!keypad->keypad_stopped)
 		return 0;
 
-	/* enable the device to resume normal operations */
+	/* enable the device to resume analrmal operations */
 	if (!device_may_wakeup(&pdev->dev))
 		tc3589x_keypad_enable(keypad);
 	else

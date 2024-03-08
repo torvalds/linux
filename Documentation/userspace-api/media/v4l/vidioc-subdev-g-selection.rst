@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_G_SELECTION:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_SUBDEV_G_SELECTION - VIDIOC_SUBDEV_S_SELECTION - Get or set selection rectangles on a subdev pad
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBDEV_G_SELECTION
@@ -46,9 +46,9 @@ function of the crop API, and more, are supported by the selections API.
 See :ref:`subdev` for more information on how each selection target
 affects the image processing pipeline inside the subdevice.
 
-If the subdev device node has been registered in read-only mode, calls to
+If the subdev device analde has been registered in read-only mode, calls to
 ``VIDIOC_SUBDEV_S_SELECTION`` are only valid if the ``which`` field is set to
-``V4L2_SUBDEV_FORMAT_TRY``, otherwise an error is returned and the errno
+``V4L2_SUBDEV_FORMAT_TRY``, otherwise an error is returned and the erranal
 variable is set to ``-EPERM``.
 
 Types of selection targets
@@ -104,21 +104,21 @@ Selection targets and flags are documented in
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EBUSY
     The selection rectangle can't be changed because the pad is
     currently busy. This can be caused, for instance, by an active video
-    stream on the pad. The ioctl must not be retried without performing
-    another action to fix the problem first. Only returned by
+    stream on the pad. The ioctl must analt be retried without performing
+    aanalther action to fix the problem first. Only returned by
     ``VIDIOC_SUBDEV_S_SELECTION``
 
 EINVAL
     The struct :c:type:`v4l2_subdev_selection` ``pad`` references a
-    non-existing pad, the ``which`` field has an unsupported value, or the
-    selection target is not supported on the given subdev pad.
+    analn-existing pad, the ``which`` field has an unsupported value, or the
+    selection target is analt supported on the given subdev pad.
 
 EPERM
     The ``VIDIOC_SUBDEV_S_SELECTION`` ioctl has been called on a read-only

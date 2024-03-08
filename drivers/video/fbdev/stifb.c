@@ -17,14 +17,14 @@
  *
  *  The following graphics display devices (NGLE family) are supported by this driver:
  *
- *  HPA4070A	known as "HCRX", a 1280x1024 color device with 8 planes
- *  HPA4071A	known as "HCRX24", a 1280x1024 color device with 24 planes,
+ *  HPA4070A	kanalwn as "HCRX", a 1280x1024 color device with 8 planes
+ *  HPA4071A	kanalwn as "HCRX24", a 1280x1024 color device with 24 planes,
  *		optionally available with a hardware accelerator as HPA4071A_Z
- *  HPA1659A	known as "CRX", a 1280x1024 color device with 8 planes
- *  HPA1439A	known as "CRX24", a 1280x1024 color device with 24 planes,
+ *  HPA1659A	kanalwn as "CRX", a 1280x1024 color device with 8 planes
+ *  HPA1439A	kanalwn as "CRX24", a 1280x1024 color device with 24 planes,
  *		optionally available with a hardware accelerator.
- *  HPA1924A	known as "GRX", a 1280x1024 grayscale device with 8 planes
- *  HPA2269A	known as "Dual CRX", a 1280x1024 color device with 8 planes,
+ *  HPA1924A	kanalwn as "GRX", a 1280x1024 grayscale device with 8 planes
+ *  HPA2269A	kanalwn as "Dual CRX", a 1280x1024 color device with 8 planes,
  *		implements support for two displays on a single graphics card.
  *  HP710C	internal graphics support optionally available on the HP9000s710 SPU,
  *		supports 1280x1024 color displays with 8 planes.
@@ -56,7 +56,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -363,7 +363,7 @@ ARTIST_ENABLE_DISABLE_DISPLAY(struct stifb_info *fb, int enable)
 #define	    Ots08	3	/* Each pixel is size (8)d transfer (1) */
 #define	    OtsIndirect	6	/* Each bit goes through FG/BG color(8) */
 #define	    AddrLong	5	/* FB address is Long aligned (pixel) */
-#define	    BINovly	0x2	/* 8 bit overlay */
+#define	    BIAnalvly	0x2	/* 8 bit overlay */
 #define	    BINapp0I	0x0	/* Application Buffer 0, Indexed */
 #define	    BINapp1I	0x1	/* Application Buffer 1, Indexed */
 #define	    BINapp0F8	0xa	/* Application Buffer 0, Fractional 8-8-8 */
@@ -516,7 +516,7 @@ rattlerSetupPlanes(struct stifb_info *fb)
 
  	/* Write RAMDAC pixel read mask register so all overlay
 	 * planes are display-enabled.  (CRX24 uses Bt462 pixel
-	 * read mask register for overlay planes, not image planes).
+	 * read mask register for overlay planes, analt image planes).
 	 */
 	CRX24_SETUP_RAMDAC(fb);
 
@@ -540,7 +540,7 @@ rattlerSetupPlanes(struct stifb_info *fb)
 #define NGLE_CMAP_OVERLAY_TYPE			3
 
 /* typedef of LUT (Colormap) BLT Control Register */
-typedef union	/* Note assumption that fields are packed left-to-right */
+typedef union	/* Analte assumption that fields are packed left-to-right */
 {	u32 all;
 	struct
 	{
@@ -635,13 +635,13 @@ static void hyperUndoITE(struct stifb_info *fb)
 	GET_FIFO_SLOTS(fb, nFreeFifoSlots, 7);
 	NGLE_QUICK_SET_DST_BM_ACCESS(fb,
 		BA(IndexedDcd, Otc04, Ots08, AddrLong,
-		BAJustPoint(0), BINovly, BAIndexBase(0)));
+		BAJustPoint(0), BIAnalvly, BAIndexBase(0)));
 	NGLE_QUICK_SET_IMAGE_BITMAP_OP(fb,
 		IBOvals(RopSrc, MaskAddrOffset(0),
 		BitmapExtent08, StaticReg(0),
 		DataDynamic, MaskOtc, BGx(0), FGx(0)));
 
-	/* Now prepare to write to the "magic" location */
+	/* Analw prepare to write to the "magic" location */
 	fbAddr = NGLE_LONG_FB_ADDRESS(0, 1532, 0);
 	NGLE_BINC_SET_DSTADDR(fb, fbAddr);
 	NGLE_REALLY_SET_IMAGE_PLANEMASK(fb, 0xffffff);
@@ -730,7 +730,7 @@ ngleClearOverlayPlanes(struct stifb_info *fb, int mask, int data)
 	GET_FIFO_SLOTS(fb, nFreeFifoSlots, 8);
 	NGLE_QUICK_SET_DST_BM_ACCESS(fb,
 				     BA(IndexedDcd, Otc04, Ots08, AddrLong,
-					BAJustPoint(0), BINovly, BAIndexBase(0)));
+					BAJustPoint(0), BIAnalvly, BAIndexBase(0)));
 
         NGLE_SET_TRANSFERDATA(fb, 0xffffffff);  /* Write foreground color */
 
@@ -763,9 +763,9 @@ hyperResetPlanes(struct stifb_info *fb, int enable)
 		if (fb->info->var.bits_per_pixel == 32)
 			controlPlaneReg = 0x04000F00;
 		else
-			controlPlaneReg = 0x00000F00;   /* 0x00000800 should be enough, but lets clear all 4 bits */
+			controlPlaneReg = 0x00000F00;   /* 0x00000800 should be eanalugh, but lets clear all 4 bits */
 	else
-		controlPlaneReg = 0x00000F00; /* 0x00000100 should be enough, but lets clear all 4 bits */
+		controlPlaneReg = 0x00000F00; /* 0x00000100 should be eanalugh, but lets clear all 4 bits */
 
 	switch (enable) {
 	case ENABLE:
@@ -871,7 +871,7 @@ XXX: FIXME: !!!
 }
 
 
-#define HYPERBOWL_MODE_FOR_8_OVER_88_LUT0_NO_TRANSPARENCIES	4
+#define HYPERBOWL_MODE_FOR_8_OVER_88_LUT0_ANAL_TRANSPARENCIES	4
 #define HYPERBOWL_MODE01_8_24_LUT0_TRANSPARENT_LUT1_OPAQUE	8
 #define HYPERBOWL_MODE01_8_24_LUT0_OPAQUE_LUT1_OPAQUE		10
 #define HYPERBOWL_MODE2_8_24					15
@@ -905,7 +905,7 @@ SETUP_HCRX(struct stifb_info *fb)
 		WRITE_WORD(0x034c0348, fb, REG_44);
 		WRITE_WORD(0x444c4448, fb, REG_45);
 	} else {
-		hyperbowl = HYPERBOWL_MODE_FOR_8_OVER_88_LUT0_NO_TRANSPARENCIES;
+		hyperbowl = HYPERBOWL_MODE_FOR_8_OVER_88_LUT0_ANAL_TRANSPARENCIES;
 
 		/* First write to Hyperbowl must happen twice (bug) */
 		WRITE_WORD(hyperbowl, fb, REG_40);
@@ -944,13 +944,13 @@ stifb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 }
 
 static int
-stifb_setcolreg(u_int regno, u_int red, u_int green,
+stifb_setcolreg(u_int reganal, u_int red, u_int green,
 	      u_int blue, u_int transp, struct fb_info *info)
 {
 	struct stifb_info *fb = info->par;
 	u32 color;
 
-	if (regno >= NR_PALETTE)
+	if (reganal >= NR_PALETTE)
 		return 1;
 
 	red   >>= 8;
@@ -974,14 +974,14 @@ stifb_setcolreg(u_int regno, u_int red, u_int green,
 
 	if (fb->info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
 		struct fb_var_screeninfo *var = &fb->info->var;
-		if (regno < 16)
-			((u32 *)fb->info->pseudo_palette)[regno] =
-				regno << var->red.offset |
-				regno << var->green.offset |
-				regno << var->blue.offset;
+		if (reganal < 16)
+			((u32 *)fb->info->pseudo_palette)[reganal] =
+				reganal << var->red.offset |
+				reganal << var->green.offset |
+				reganal << var->blue.offset;
 	}
 
-	WRITE_IMAGE_COLOR(fb, regno, color);
+	WRITE_IMAGE_COLOR(fb, reganal, color);
 
 	if (fb->id == S9000_ID_HCRX) {
 		NgleLutBltCtl lutBltCtl;
@@ -1137,7 +1137,7 @@ stifb_init_display(struct stifb_info *fb)
 	    break;
 	}
 
-	/* Clear attribute planes on non HCRX devices. */
+	/* Clear attribute planes on analn HCRX devices. */
         switch (id) {
 	 case S9000_ID_A1659A:
 	 case S9000_ID_A1439A:
@@ -1195,11 +1195,11 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 
 	info = framebuffer_alloc(sizeof(*fb), sti->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	fb = info->par;
 	fb->info = info;
 
-	/* set struct to a known state */
+	/* set struct to a kanalwn state */
 	fix = &info->fix;
 	var = &info->var;
 
@@ -1220,7 +1220,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		  user how to reconfigure the card. */
 		if (strstr(dev_name, "DX")) {
 		   printk(KERN_WARNING
-"WARNING: stifb framebuffer driver does not support '%s' in double-buffer mode.\n"
+"WARNING: stifb framebuffer driver does analt support '%s' in double-buffer mode.\n"
 "WARNING: Please disable the double-buffer mode in IPL menu (the PARISC-BIOS).\n",
 			dev_name);
 		   goto out_err0;
@@ -1233,7 +1233,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	case S9000_ID_A1439A:
 		break;
 	default:
-		printk(KERN_WARNING "stifb: '%s' (id: 0x%08x) not supported.\n",
+		printk(KERN_WARNING "stifb: '%s' (id: 0x%08x) analt supported.\n",
 			dev_name, fb->id);
 		goto out_err0;
 	}
@@ -1249,7 +1249,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	fix->mmio_start = REGION_BASE(fb,2);
 	fix->mmio_len   = 0x400000;
 
-       	/* Reject any device not in the NGLE family */
+       	/* Reject any device analt in the NGLE family */
 	switch (fb->id) {
 	case S9000_ID_A1659A:	/* CRX/A1659A */
 		break;
@@ -1267,7 +1267,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		/* FIXME: TomCat supports two heads:
 		 * fb.iobase = REGION_BASE(fb_info,3);
 		 * fb.screen_base = ioremap(REGION_BASE(fb_info,2),xxx);
-		 * for now we only support the left one ! */
+		 * for analw we only support the left one ! */
 		xres = fb->ngle_rom.x_size_visible;
 		yres = fb->ngle_rom.y_size_visible;
 		fb->id = S9000_ID_A1659A;
@@ -1301,7 +1301,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 #ifdef FALLBACK_TO_1BPP
 		printk(KERN_WARNING
 			"stifb: Unsupported graphics card (id=0x%08x) "
-				"- now trying 1bpp mode instead\n",
+				"- analw trying 1bpp mode instead\n",
 			fb->id);
 		bpp = 1;	/* default to 1 bpp */
 		break;
@@ -1327,12 +1327,12 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	if (fix->smem_len > yres*fix->line_length)
 		fix->smem_len = ALIGN(yres*fix->line_length, 4*1024*1024);
 
-	fix->accel = FB_ACCEL_NONE;
+	fix->accel = FB_ACCEL_ANALNE;
 
 	switch (bpp) {
 	    case 1:
 		fix->type = FB_TYPE_PLANES;	/* well, sort of */
-		fix->visual = FB_VISUAL_MONO10;
+		fix->visual = FB_VISUAL_MOANAL10;
 		var->red.length = var->green.length = var->blue.length = 1;
 		break;
 	    case 8:
@@ -1377,13 +1377,13 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	stifb_init_display(fb);
 
 	if (!request_mem_region(fix->smem_start, fix->smem_len, "stifb fb")) {
-		printk(KERN_ERR "stifb: cannot reserve fb region 0x%04lx-0x%04lx\n",
+		printk(KERN_ERR "stifb: cananalt reserve fb region 0x%04lx-0x%04lx\n",
 				fix->smem_start, fix->smem_start+fix->smem_len);
 		goto out_err2;
 	}
 
 	if (!request_mem_region(fix->mmio_start, fix->mmio_len, "stifb mmio")) {
-		printk(KERN_ERR "stifb: cannot reserve sti mmio region 0x%04lx-0x%04lx\n",
+		printk(KERN_ERR "stifb: cananalt reserve sti mmio region 0x%04lx-0x%04lx\n",
 				fix->mmio_start, fix->mmio_start+fix->mmio_len);
 		goto out_err3;
 	}
@@ -1434,7 +1434,7 @@ static int __init stifb_init(void)
 	char *option = NULL;
 
 	if (fb_get_options("stifb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	stifb_setup(option);
 #endif
 	if (stifb_disabled) {

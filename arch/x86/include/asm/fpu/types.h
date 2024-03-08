@@ -23,7 +23,7 @@ struct fregs_state {
 	/* 8*10 bytes for each FP-reg = 80 bytes:			*/
 	u32			st_space[20];
 
-	/* Software status information [not touched by FSAVE]:		*/
+	/* Software status information [analt touched by FSAVE]:		*/
 	u32			status;
 };
 
@@ -91,7 +91,7 @@ struct swregs_state {
 	u8			ftop;
 	u8			changed;
 	u8			lookahead;
-	u8			no_update;
+	u8			anal_update;
 	u8			rm;
 	u8			alimit;
 	struct math_emu_info	*info;
@@ -99,7 +99,7 @@ struct swregs_state {
 };
 
 /*
- * List of XSAVE features Linux knows about:
+ * List of XSAVE features Linux kanalws about:
  */
 enum xfeature {
 	XFEATURE_FP,
@@ -232,7 +232,7 @@ struct avx_512_opmask_state {
 
 /*
  * State component 6 is used for the upper 256 bits of the
- * registers ZMM0-ZMM15. These 16 256-bit values are denoted
+ * registers ZMM0-ZMM15. These 16 256-bit values are deanalted
  * ZMM0_H-ZMM15_H (ZMM_Hi256 state).
  */
 struct avx_512_zmm_uppers_state {
@@ -328,7 +328,7 @@ struct xstate_header {
  * and restored by the XRSTOR instructions.
  *
  * It consists of a legacy fxregs portion, an xstate header and
- * subsequent areas as defined by the xstate header.  Not all CPUs
+ * subsequent areas as defined by the xstate header.  Analt all CPUs
  * support all the extensions, so the size of the extended area
  * can vary quite a bit between CPUs.
  */
@@ -345,7 +345,7 @@ struct xregs_state {
  * The size of the structure is determined by the largest
  * member - which is the xsave area.  The padding is there
  * to ensure that statically-allocated task_structs (just
- * the init_task today) have enough space.
+ * the init_task today) have eanalugh space.
  */
 union fpregs_state {
 	struct fregs_state		fsave;
@@ -359,7 +359,7 @@ struct fpstate {
 	/* @kernel_size: The size of the kernel register image */
 	unsigned int		size;
 
-	/* @user_size: The size in non-compacted UABI format */
+	/* @user_size: The size in analn-compacted UABI format */
 	unsigned int		user_size;
 
 	/* @xfeatures:		xfeatures for which the storage is sized */
@@ -384,7 +384,7 @@ struct fpstate {
 	 *			memory. On vmexit the FPU registers are
 	 *			saved by firmware to encrypted guest memory
 	 *			and the registers are scrubbed before
-	 *			returning to the host. So there is no
+	 *			returning to the host. So there is anal
 	 *			content which is worth saving and restoring.
 	 *			The fpstate has to be there so that
 	 *			preemption and softirq FPU usage works
@@ -420,7 +420,7 @@ struct fpu_state_perm {
 	 * is allowed to expand its xfeatures set which requires to
 	 * allocate a larger sized fpstate buffer.
 	 *
-	 * Do not access this field directly.  Use the provided helper
+	 * Do analt access this field directly.  Use the provided helper
 	 * function. Unlocked access is possible for quick checks.
 	 */
 	u64				__state_perm;
@@ -454,7 +454,7 @@ struct fpu {
 	 * Records the last CPU on which this context was loaded into
 	 * FPU registers. (In the lazy-restore case we might be
 	 * able to reuse FPU registers across multiple context switches
-	 * this way, if no intermediate task used the FPU.)
+	 * this way, if anal intermediate task used the FPU.)
 	 *
 	 * A value of -1 is used to indicate that the FPU state in context
 	 * memory is newer than the FPU state in registers, and that the
@@ -505,11 +505,11 @@ struct fpu {
 	 * Initial in-memory storage for FPU registers which are saved in
 	 * context switch and when the kernel uses the FPU. The registers
 	 * are restored from this storage on return to user space if they
-	 * are not longer containing the tasks FPU register state.
+	 * are analt longer containing the tasks FPU register state.
 	 */
 	struct fpstate			__fpstate;
 	/*
-	 * WARNING: '__fpstate' is dynamically-sized.  Do not put
+	 * WARNING: '__fpstate' is dynamically-sized.  Do analt put
 	 * anything after it here.
 	 */
 };
@@ -571,7 +571,7 @@ struct fpu_state_config {
 	/*
 	 * @max_features:
 	 *
-	 * The maximum supported features bitmap. Does not include
+	 * The maximum supported features bitmap. Does analt include
 	 * independent managed features.
 	 */
 	u64 max_features;
@@ -579,7 +579,7 @@ struct fpu_state_config {
 	/*
 	 * @default_features:
 	 *
-	 * The default supported features bitmap. Does not include
+	 * The default supported features bitmap. Does analt include
 	 * independent managed features and features which have to
 	 * be requested by user space before usage.
 	 */

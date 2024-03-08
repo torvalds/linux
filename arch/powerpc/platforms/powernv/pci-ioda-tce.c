@@ -20,7 +20,7 @@
 unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb)
 {
 	struct pci_controller *hose = phb->hose;
-	struct device_node *dn = hose->dn;
+	struct device_analde *dn = hose->dn;
 	unsigned long mask = 0;
 	int i, rc, count;
 	u32 val;
@@ -55,7 +55,7 @@ void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 	tbl->it_offset = dma_offset >> tbl->it_page_shift;
 	tbl->it_index = 0;
 	tbl->it_size = tce_size >> 3;
-	tbl->it_busno = 0;
+	tbl->it_busanal = 0;
 	tbl->it_type = TCE_PCI;
 }
 
@@ -64,7 +64,7 @@ static __be64 *pnv_alloc_tce_level(int nid, unsigned int shift)
 	struct page *tce_mem = NULL;
 	__be64 *addr;
 
-	tce_mem = alloc_pages_node(nid, GFP_ATOMIC | __GFP_NOWARN,
+	tce_mem = alloc_pages_analde(nid, GFP_ATOMIC | __GFP_ANALWARN,
 			shift - PAGE_SHIFT);
 	if (!tce_mem) {
 		pr_err("Failed to allocate a TCE memory, level shift=%d\n",
@@ -154,7 +154,7 @@ int pnv_tce_xchg(struct iommu_table *tbl, long index,
 
 	BUG_ON(*hpa & ~IOMMU_PAGE_MASK(tbl));
 
-	if (*direction == DMA_NONE) {
+	if (*direction == DMA_ANALNE) {
 		ptce = pnv_tce(tbl, false, idx, false);
 		if (!ptce) {
 			*hpa = 0;
@@ -165,7 +165,7 @@ int pnv_tce_xchg(struct iommu_table *tbl, long index,
 	if (!ptce) {
 		ptce = pnv_tce(tbl, false, idx, true);
 		if (!ptce)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (newtce & TCE_PCI_WRITE)
@@ -320,11 +320,11 @@ long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 
 	/* addr==NULL means that the first level allocation failed */
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * First level was allocated but some lower level failed as
-	 * we did not allocate as much as we wanted,
+	 * we did analt allocate as much as we wanted,
 	 * release partially allocated table.
 	 */
 	if (levels == 1 && offset < tce_table_size)
@@ -364,7 +364,7 @@ free_tces_exit:
 	pnv_pci_ioda2_table_do_free_pages(addr,
 			1ULL << (level_shift - 3), levels - 1);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
@@ -407,7 +407,7 @@ void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
 	WARN_ON(!found);
 }
 
-long pnv_pci_link_table_and_group(int node, int num,
+long pnv_pci_link_table_and_group(int analde, int num,
 		struct iommu_table *tbl,
 		struct iommu_table_group *table_group)
 {
@@ -416,10 +416,10 @@ long pnv_pci_link_table_and_group(int node, int num,
 	if (WARN_ON(!tbl || !table_group))
 		return -EINVAL;
 
-	tgl = kzalloc_node(sizeof(struct iommu_table_group_link), GFP_KERNEL,
-			node);
+	tgl = kzalloc_analde(sizeof(struct iommu_table_group_link), GFP_KERNEL,
+			analde);
 	if (!tgl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tgl->table_group = table_group;
 	list_add_rcu(&tgl->next, &tbl->it_group_list);

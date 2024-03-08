@@ -55,7 +55,7 @@ static int max8688_read_word_data(struct i2c_client *client, int page,
 		ret = 0;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -81,7 +81,7 @@ static int max8688_write_word_data(struct i2c_client *client, int page, int reg,
 					    0xffff);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -133,7 +133,7 @@ static int max8688_read_byte_data(struct i2c_client *client, int page, int reg)
 			ret |= PB_TEMP_OT_FAULT;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;

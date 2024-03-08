@@ -4,23 +4,23 @@
  *			  (C) 2005-2006 Red Hat Inc
  *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
- * The MPIIX is different enough to the PIIX4 and friends that we give it
- * a separate driver. The old ide/pci code handles this by just not tuning
+ * The MPIIX is different eanalugh to the PIIX4 and friends that we give it
+ * a separate driver. The old ide/pci code handles this by just analt tuning
  * MPIIX at all.
  *
- * The MPIIX also differs in another important way from the majority of PIIX
+ * The MPIIX also differs in aanalther important way from the majority of PIIX
  * devices. The chip is a bridge (pardon the pun) between the old world of
  * ISA IDE and PCI IDE. Although the ATA timings are PCI configured the actual
- * IDE controller is not decoded in PCI space and the chip does not claim to
- * be IDE class PCI. This requires slightly non-standard probe logic compared
- * with PCI IDE and also that we do not disable the device when our driver is
+ * IDE controller is analt decoded in PCI space and the chip does analt claim to
+ * be IDE class PCI. This requires slightly analn-standard probe logic compared
+ * with PCI IDE and also that we do analt disable the device when our driver is
  * unloaded (as it has many other functions).
  *
  * The driver consciously keeps this logic internally to avoid pushing quirky
  * PATA history into the clean libata layer.
  *
- * Thinkpad specific note: If you boot an MPIIX using a thinkpad with a PCMCIA
- * hard disk present this driver will not detect it. This is not a bug. In this
+ * Thinkpad specific analte: If you boot an MPIIX using a thinkpad with a PCMCIA
+ * hard disk present this driver will analt detect it. This is analt a bug. In this
  * configuration the secondary port of the MPIIX is disabled and the addresses
  * are decoded by the PCMCIA bridge and therefore are for a generic IDE driver
  * to operate.
@@ -53,7 +53,7 @@ static int mpiix_pre_reset(struct ata_link *link, unsigned long deadline)
 	static const struct pci_bits mpiix_enable_bits = { 0x6D, 1, 0x80, 0x80 };
 
 	if (!pci_test_config_bits(pdev, &mpiix_enable_bits))
-		return -ENOENT;
+		return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -98,8 +98,8 @@ static void mpiix_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	/* Mask out timing and clear both TIME bank selects */
 	idetim &= 0xCCEE;
-	idetim &= ~(0x07  << (4 * adev->devno));
-	idetim |= control << (4 * adev->devno);
+	idetim &= ~(0x07  << (4 * adev->devanal));
+	idetim |= control << (4 * adev->devanal);
 
 	idetim |= (timings[pio][0] << 12) | (timings[pio][1] << 8);
 	pci_write_config_word(pdev, IDETIM, idetim);
@@ -125,9 +125,9 @@ static unsigned int mpiix_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
 
-	/* If modes have been configured and the channel data is not loaded
+	/* If modes have been configured and the channel data is analt loaded
 	   then load it. We have to check if pio_mode is set as the core code
-	   does not set adev->pio_mode to XFER_PIO_0 while probing as would be
+	   does analt set adev->pio_mode to XFER_PIO_0 while probing as would be
 	   logical */
 
 	if (adev->pio_mode && adev != ap->private_data)
@@ -162,7 +162,7 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	host = ata_host_alloc(&dev->dev, 1);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap = host->ports[0];
 
 	/* MPIIX has many functions which can be turned on or off according
@@ -171,7 +171,7 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_read_config_word(dev, IDETIM, &idetim);
 	if (!(idetim & ENABLED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* See if it's primary or secondary channel... */
 	if (!(idetim & SECONDARY)) {
@@ -187,7 +187,7 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	cmd_addr = devm_ioport_map(&dev->dev, cmd, 8);
 	ctl_addr = devm_ioport_map(&dev->dev, ctl, 1);
 	if (!cmd_addr || !ctl_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ata_port_desc(ap, "cmd 0x%x ctl 0x%x", cmd, ctl);
 

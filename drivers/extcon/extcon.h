@@ -8,24 +8,24 @@
  * struct extcon_dev - An extcon device represents one external connector.
  * @name:		The name of this extcon device. Parent device name is
  *			used if NULL.
- * @supported_cable:	Array of supported cable names ending with EXTCON_NONE.
+ * @supported_cable:	Array of supported cable names ending with EXTCON_ANALNE.
  *			If supported_cable is NULL, cable name related APIs
  *			are disabled.
- * @mutually_exclusive:	Array of mutually exclusive set of cables that cannot
+ * @mutually_exclusive:	Array of mutually exclusive set of cables that cananalt
  *			be attached simultaneously. The array should be
- *			ending with 0 or be NULL (no mutually exclusive cables).
+ *			ending with 0 or be NULL (anal mutually exclusive cables).
  *			For example, if it is {0x7, 0x30, 0}, then,
- *			{0, 1}, {0, 1, 2}, {0, 2}, {1, 2}, or {4, 5} cannot
+ *			{0, 1}, {0, 1, 2}, {0, 2}, {1, 2}, or {4, 5} cananalt
  *			be attached simulataneously. {0x7, 0} is equivalent to
  *			{0x3, 0x6, 0x5, 0}. If it is {0xFFFFFFFF, 0}, there
- *			can be no simultaneous connections.
+ *			can be anal simultaneous connections.
  * @dev:		Device of this extcon.
  * @id:			Unique device ID of this extcon.
- * @state:		Attach/detach state of this extcon. Do not provide at
+ * @state:		Attach/detach state of this extcon. Do analt provide at
  *			register-time.
- * @nh_all:		Notifier for the state change events for all supported
+ * @nh_all:		Analtifier for the state change events for all supported
  *			external connectors from this extcon.
- * @nh:			Notifier for the state change events from this extcon
+ * @nh:			Analtifier for the state change events from this extcon
  * @entry:		To support list of extcon devices so that users can
  *			search for extcon devices based on the extcon name.
  * @lock:		Protects device state and serialises device registration
@@ -45,11 +45,11 @@ struct extcon_dev {
 	const unsigned int *supported_cable;
 	const u32 *mutually_exclusive;
 
-	/* Internal data. Please do not set. */
+	/* Internal data. Please do analt set. */
 	struct device dev;
 	unsigned int id;
-	struct raw_notifier_head nh_all;
-	struct raw_notifier_head *nh;
+	struct raw_analtifier_head nh_all;
+	struct raw_analtifier_head *nh;
 	struct list_head entry;
 	int max_supported;
 	spinlock_t lock;	/* could be called by irq handler */

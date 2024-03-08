@@ -26,7 +26,7 @@ DEFINE_EVENT(vmbus_hdr_msg, vmbus_on_message,
 	TP_ARGS(hdr)
 );
 
-TRACE_EVENT(vmbus_onoffer,
+TRACE_EVENT(vmbus_oanalffer,
 	    TP_PROTO(const struct vmbus_channel_offer_channel *offer),
 	    TP_ARGS(offer),
 	    TP_STRUCT__entry(
@@ -61,7 +61,7 @@ TRACE_EVENT(vmbus_onoffer,
 		    )
 	);
 
-TRACE_EVENT(vmbus_onoffer_rescind,
+TRACE_EVENT(vmbus_oanalffer_rescind,
 	    TP_PROTO(const struct vmbus_channel_rescind_offer *offer),
 	    TP_ARGS(offer),
 	    TP_STRUCT__entry(__field(u32, child_relid)),
@@ -69,7 +69,7 @@ TRACE_EVENT(vmbus_onoffer_rescind,
 	    TP_printk("child_relid 0x%x", __entry->child_relid)
 	);
 
-TRACE_EVENT(vmbus_onopen_result,
+TRACE_EVENT(vmbus_oanalpen_result,
 	    TP_PROTO(const struct vmbus_channel_open_result *result),
 	    TP_ARGS(result),
 	    TP_STRUCT__entry(

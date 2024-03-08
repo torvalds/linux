@@ -16,7 +16,7 @@ description: |
   2 Quad-SGMII/Quad-USGMII interfaces.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^switch@[0-9a-f]+$"
 
   compatible:

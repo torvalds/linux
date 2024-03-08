@@ -63,35 +63,35 @@
 			interrupts = <19>;
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-rx-bus-width = <2>;
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-rx-bus-width = <2>;
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@2 {
 				reg = < 2 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-rx-bus-width = <2>;
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@3 {
 				reg = < 3 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-rx-bus-width = <2>;
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@4 {
 				reg = < 4 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-rx-bus-width = <2>;
 				spi-max-frequency = <50000000>;
 				status = "disabled";
@@ -107,7 +107,7 @@
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
@@ -162,7 +162,7 @@
 			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
 			status = "disabled";
 			/*
-			 * No default pinmux, it will follow EHCI, use an explicit pinmux
+			 * Anal default pinmux, it will follow EHCI, use an explicit pinmux
 			 * override if you don't enable EHCI
 			 */
 		};
@@ -304,7 +304,7 @@
 				interrupts = <9>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART1CLK>;
 				resets = <&lpc_reset 4>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -314,7 +314,7 @@
 				reg-shift = <2>;
 				interrupts = <10>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART5CLK>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -346,7 +346,7 @@
 				reg-shift = <2>;
 				interrupts = <8>;
 				clocks = <&syscon ASPEED_CLK_APB>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -366,8 +366,8 @@
 					status = "disabled";
 				};
 
-				lpc_snoop: lpc-snoop@90 {
-					compatible = "aspeed,ast2400-lpc-snoop";
+				lpc_sanalop: lpc-sanalop@90 {
+					compatible = "aspeed,ast2400-lpc-sanalop";
 					reg = <0x90 0x8>;
 					interrupts = <8>;
 					clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
@@ -418,7 +418,7 @@
 				interrupts = <32>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART2CLK>;
 				resets = <&lpc_reset 5>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -429,7 +429,7 @@
 				interrupts = <33>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART3CLK>;
 				resets = <&lpc_reset 6>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -440,7 +440,7 @@
 				interrupts = <34>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART4CLK>;
 				resets = <&lpc_reset 7>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -475,7 +475,7 @@
 		interrupts = <0>;
 		interrupt-parent = <&i2c_ic>;
 		status = "disabled";
-		/* Does not need pinctrl properties */
+		/* Does analt need pinctrl properties */
 	};
 
 	i2c1: i2c-bus@80 {
@@ -490,7 +490,7 @@
 		interrupts = <1>;
 		interrupt-parent = <&i2c_ic>;
 		status = "disabled";
-		/* Does not need pinctrl properties */
+		/* Does analt need pinctrl properties */
 	};
 
 	i2c2: i2c-bus@c0 {

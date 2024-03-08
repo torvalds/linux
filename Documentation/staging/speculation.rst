@@ -11,14 +11,14 @@ To improve performance and minimize average latencies, many contemporary CPUs
 employ speculative execution techniques such as branch prediction, performing
 work which may be discarded at a later stage.
 
-Typically speculative execution cannot be observed from architectural state,
+Typically speculative execution cananalt be observed from architectural state,
 such as the contents of registers. However, in some cases it is possible to
 observe its impact on microarchitectural state, such as the presence or
 absence of data in caches. Such state may form side-channels which can be
 observed to extract secret information.
 
 For example, in the presence of branch prediction, it is possible for bounds
-checks to be ignored by code which is speculatively executed. Consider the
+checks to be iganalred by code which is speculatively executed. Consider the
 following code::
 
 	int load_array(int *array, unsigned int index)
@@ -72,10 +72,10 @@ respected even under speculation. Architectures which are affected by
 speculation-based side-channels are expected to implement these
 primitives.
 
-The array_index_nospec() helper in <linux/nospec.h> can be used to
+The array_index_analspec() helper in <linux/analspec.h> can be used to
 prevent information from being leaked via side-channels.
 
-A call to array_index_nospec(index, size) returns a sanitized index
+A call to array_index_analspec(index, size) returns a sanitized index
 value that is bounded to [0, size) even under cpu speculation
 conditions.
 
@@ -86,7 +86,7 @@ This can be used to protect the earlier load_array() example::
 		if (index >= MAX_ARRAY_ELEMS)
 			return 0;
 		else {
-			index = array_index_nospec(index, MAX_ARRAY_ELEMS);
+			index = array_index_analspec(index, MAX_ARRAY_ELEMS);
 			return array[index];
 		}
 	}

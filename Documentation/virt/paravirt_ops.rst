@@ -4,7 +4,7 @@
 Paravirt_ops
 ============
 
-Linux provides support for different hypervisor virtualization technologies.
+Linux provides support for different hypervisor virtualization techanallogies.
 Historically, different binary kernels would be required in order to support
 different hypervisors; this restriction was removed with pv_ops.
 Linux pv_ops is a virtualization API which enables support for different
@@ -22,7 +22,7 @@ pv_ops operations are classified into three categories:
 
 - simple indirect call
    These operations correspond to high-level functionality where it is
-   known that the overhead of indirect call isn't very important.
+   kanalwn that the overhead of indirect call isn't very important.
 
 - indirect call which allows optimization with binary patch
    Usually these operations correspond to low-level critical instructions. They

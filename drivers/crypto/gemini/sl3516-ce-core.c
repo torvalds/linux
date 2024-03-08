@@ -34,7 +34,7 @@ static int sl3516_ce_desc_init(struct sl3516_ce_dev *ce)
 
 	ce->tx = dma_alloc_coherent(ce->dev, sz, &ce->dtx, GFP_KERNEL);
 	if (!ce->tx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ce->rx = dma_alloc_coherent(ce->dev, sz, &ce->drx, GFP_KERNEL);
 	if (!ce->rx)
 		goto err_rx;
@@ -61,7 +61,7 @@ err_pctrl:
 	dma_free_coherent(ce->dev, sz, ce->rx, ce->drx);
 err_rx:
 	dma_free_coherent(ce->dev, sz, ce->tx, ce->dtx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void sl3516_ce_free_descs(struct sl3516_ce_dev *ce)
@@ -260,7 +260,7 @@ static int sl3516_ce_debugfs_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "fallback SG count RX %lu\n", ce->fallback_sg_count_rx);
 	seq_printf(seq, "fallback modulo16 %lu\n", ce->fallback_mod16);
 	seq_printf(seq, "fallback align16 %lu\n", ce->fallback_align16);
-	seq_printf(seq, "fallback not same len %lu\n", ce->fallback_not_same_len);
+	seq_printf(seq, "fallback analt same len %lu\n", ce->fallback_analt_same_len);
 
 	for (i = 0; i < ARRAY_SIZE(ce_algs); i++) {
 		if (!ce_algs[i].ce)
@@ -300,7 +300,7 @@ static int sl3516_ce_register_algs(struct sl3516_ce_dev *ce)
 			break;
 		default:
 			ce_algs[i].ce = NULL;
-			dev_err(ce->dev, "ERROR: tried to register an unknown algo\n");
+			dev_err(ce->dev, "ERROR: tried to register an unkanalwn algo\n");
 		}
 	}
 	return 0;
@@ -352,12 +352,12 @@ static int sl3516_ce_pm_resume(struct device *dev)
 
 	err = clk_prepare_enable(ce->clks);
 	if (err) {
-		dev_err(ce->dev, "Cannot prepare_enable\n");
+		dev_err(ce->dev, "Cananalt prepare_enable\n");
 		goto error;
 	}
 	err = reset_control_deassert(ce->reset);
 	if (err) {
-		dev_err(ce->dev, "Cannot deassert reset control\n");
+		dev_err(ce->dev, "Cananalt deassert reset control\n");
 		goto error;
 	}
 
@@ -400,7 +400,7 @@ static int sl3516_ce_probe(struct platform_device *pdev)
 
 	ce = devm_kzalloc(&pdev->dev, sizeof(*ce), GFP_KERNEL);
 	if (!ce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ce->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ce);
@@ -415,18 +415,18 @@ static int sl3516_ce_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, irq, ce_irq_handler, 0, "crypto", ce);
 	if (err) {
-		dev_err(ce->dev, "Cannot request Crypto Engine IRQ (err=%d)\n", err);
+		dev_err(ce->dev, "Cananalt request Crypto Engine IRQ (err=%d)\n", err);
 		return err;
 	}
 
 	ce->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ce->reset))
 		return dev_err_probe(&pdev->dev, PTR_ERR(ce->reset),
-				     "No reset control found\n");
+				     "Anal reset control found\n");
 	ce->clks = devm_clk_get(ce->dev, NULL);
 	if (IS_ERR(ce->clks)) {
 		err = PTR_ERR(ce->clks);
-		dev_err(ce->dev, "Cannot get clock err=%d\n", err);
+		dev_err(ce->dev, "Cananalt get clock err=%d\n", err);
 		return err;
 	}
 
@@ -442,14 +442,14 @@ static int sl3516_ce_probe(struct platform_device *pdev)
 
 	ce->engine = crypto_engine_alloc_init(ce->dev, true);
 	if (!ce->engine) {
-		dev_err(ce->dev, "Cannot allocate engine\n");
-		err = -ENOMEM;
+		dev_err(ce->dev, "Cananalt allocate engine\n");
+		err = -EANALMEM;
 		goto error_engine;
 	}
 
 	err = crypto_engine_start(ce->engine);
 	if (err) {
-		dev_err(ce->dev, "Cannot start engine\n");
+		dev_err(ce->dev, "Cananalt start engine\n");
 		goto error_engine;
 	}
 
@@ -480,7 +480,7 @@ static int sl3516_ce_probe(struct platform_device *pdev)
 		struct dentry *dbgfs_dir __maybe_unused;
 		struct dentry *dbgfs_stats __maybe_unused;
 
-		/* Ignore error of debugfs */
+		/* Iganalre error of debugfs */
 		dbgfs_dir = debugfs_create_dir("sl3516", NULL);
 		dbgfs_stats = debugfs_create_file("stats", 0444,
 						  dbgfs_dir, ce,

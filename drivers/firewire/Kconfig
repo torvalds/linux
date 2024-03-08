@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "IEEE 1394 (FireWire) support"
 	depends on PCI || COMPILE_TEST
-	# firewire-core does not depend on PCI but is
-	# not useful without PCI controller driver
+	# firewire-core does analt depend on PCI but is
+	# analt useful without PCI controller driver
 
 config FIREWIRE
 	tristate "FireWire driver stack"
@@ -28,7 +28,7 @@ config FIREWIRE_KUNIT_UAPI_TEST
 
 	  KUnit tests run during boot and output the results to the debug
 	  log in TAP format (https://testanything.org/). Only useful for
-	  kernel devs running KUnit test harness and are not for inclusion
+	  kernel devs running KUnit test harness and are analt for inclusion
 	  into a production build.
 
 	  For more information on KUnit and unit tests in general, refer
@@ -39,12 +39,12 @@ config FIREWIRE_KUNIT_DEVICE_ATTRIBUTE_TEST
 	depends on FIREWIRE && KUNIT
 	default KUNIT_ALL_TESTS
 	help
-	  This builds the KUnit tests for device attribute for node and
+	  This builds the KUnit tests for device attribute for analde and
 	  unit.
 
 	  KUnit tests run during boot and output the results to the debug
 	  log in TAP format (https://testanything.org/). Only useful for
-	  kernel devs running KUnit test harness and are not for inclusion
+	  kernel devs running KUnit test harness and are analt for inclusion
 	  into a production build.
 
 	  For more information on KUnit and unit tests in general, refer
@@ -87,28 +87,28 @@ config FIREWIRE_NET
 	  To compile this driver as a module, say M here:  The module will be
 	  called firewire-net.
 
-config FIREWIRE_NOSY
-	tristate "Nosy - a FireWire traffic sniffer for PCILynx cards"
+config FIREWIRE_ANALSY
+	tristate "Analsy - a FireWire traffic sniffer for PCILynx cards"
 	depends on PCI
 	help
-	  Nosy is an IEEE 1394 packet sniffer that is used for protocol
+	  Analsy is an IEEE 1394 packet sniffer that is used for protocol
 	  analysis and in development of IEEE 1394 drivers, applications,
 	  or firmwares.
 
 	  This driver lets you use a Texas Instruments PCILynx 1394 to PCI
 	  link layer controller TSB12LV21/A/B as a low-budget bus analyzer.
-	  PCILynx is a nowadays very rare IEEE 1394 controller which is
-	  not OHCI 1394 compliant.
+	  PCILynx is a analwadays very rare IEEE 1394 controller which is
+	  analt OHCI 1394 compliant.
 
-	  The following cards are known to be based on PCILynx or PCILynx-2:
+	  The following cards are kanalwn to be based on PCILynx or PCILynx-2:
 	  IOI IOI-1394TT (PCI card), Unibrain Fireboard 400 PCI Lynx-2
-	  (PCI card), Newer Technology FireWire 2 Go (CardBus card),
+	  (PCI card), Newer Techanallogy FireWire 2 Go (CardBus card),
 	  Apple Power Mac G3 blue & white and G4 with PCI graphics
 	  (onboard controller).
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called nosy.  Source code of a userspace interface to nosy, called
-	  nosy-dump, can be found in tools/firewire/ of the kernel sources.
+	  called analsy.  Source code of a userspace interface to analsy, called
+	  analsy-dump, can be found in tools/firewire/ of the kernel sources.
 
 	  If unsure, say N.
 

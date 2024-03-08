@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include "string2.h"
 #include <sys/param.h>
@@ -124,7 +124,7 @@ static int __do_write_buf(struct feat_fd *ff,  const void *buf, size_t size)
 	if (ff->size < new_size) {
 		addr = realloc(ff->buf, new_size);
 		if (!addr)
-			return -ENOMEM;
+			return -EANALMEM;
 		ff->buf = addr;
 		ff->size = new_size;
 	}
@@ -287,7 +287,7 @@ static int do_read_bitmap(struct feat_fd *ff, unsigned long **pset, u64 *psize)
 
 	set = bitmap_zalloc(size);
 	if (!set)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = (u64 *) set;
 
@@ -349,7 +349,7 @@ static int write_hostname(struct feat_fd *ff,
 	if (ret < 0)
 		return -1;
 
-	return do_write_string(ff, uts.nodename);
+	return do_write_string(ff, uts.analdename);
 }
 
 static int write_osrelease(struct feat_fd *ff,
@@ -692,16 +692,16 @@ static int write_numa_topology(struct feat_fd *ff,
 
 	tp = numa_topology__new();
 	if (!tp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = do_write(ff, &tp->nr, sizeof(u32));
 	if (ret < 0)
 		goto err;
 
 	for (i = 0; i < tp->nr; i++) {
-		struct numa_topology_node *n = &tp->nodes[i];
+		struct numa_topology_analde *n = &tp->analdes[i];
 
-		ret = do_write(ff, &n->node, sizeof(u32));
+		ret = do_write(ff, &n->analde, sizeof(u32));
 		if (ret < 0)
 			goto err;
 
@@ -793,7 +793,7 @@ static int write_group_desc(struct feat_fd *ff,
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel__is_group_leader(evsel) && evsel->core.nr_members > 1) {
-			const char *name = evsel->group_name ?: "{anon_group}";
+			const char *name = evsel->group_name ?: "{aanaln_group}";
 			u32 leader_idx = evsel->core.idx;
 			u32 nr_members = evsel->core.nr_members;
 
@@ -826,7 +826,7 @@ char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
 
 /* Return zero when the cpuid from the mapfile.csv matches the
  * cpuid string generated on this platform.
- * Otherwise return non-zero.
+ * Otherwise return analn-zero.
  */
 int __weak strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
 {
@@ -853,12 +853,12 @@ int __weak strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
 }
 
 /*
- * default get_cpuid(): nothing gets recorded
+ * default get_cpuid(): analthing gets recorded
  * actual implementation must be in arch/$(SRCARCH)/util/header.c
  */
 int __weak get_cpuid(char *buffer __maybe_unused, size_t sz __maybe_unused)
 {
-	return ENOSYS; /* Not implemented */
+	return EANALSYS; /* Analt implemented */
 }
 
 static int write_cpuid(struct feat_fd *ff,
@@ -947,14 +947,14 @@ static int write_hybrid_topology(struct feat_fd *ff,
 
 	tp = hybrid_topology__new();
 	if (!tp)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = do_write(ff, &tp->nr, sizeof(u32));
 	if (ret < 0)
 		goto err;
 
 	for (i = 0; i < tp->nr; i++) {
-		struct hybrid_topology_node *n = &tp->nodes[i];
+		struct hybrid_topology_analde *n = &tp->analdes[i];
 
 		ret = do_write_string(ff, n->pmu_name);
 		if (ret < 0)
@@ -1011,7 +1011,7 @@ int is_cpu_online(unsigned int cpu)
 	/*
 	 * Check if /sys/devices/system/cpu/cpux/online file
 	 * exists. Some cases cpu0 won't have online file since
-	 * it is not expected to be turned off generally.
+	 * it is analt expected to be turned off generally.
 	 * In kernels without CONFIG_HOTPLUG_CPU, this
 	 * file won't exist
 	 */
@@ -1044,7 +1044,7 @@ static int write_bpf_prog_info(struct feat_fd *ff,
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_analde *next;
 	int ret;
 
 	down_read(&env->bpf_progs.lock);
@@ -1057,22 +1057,22 @@ static int write_bpf_prog_info(struct feat_fd *ff,
 	root = &env->bpf_progs.infos;
 	next = rb_first(root);
 	while (next) {
-		struct bpf_prog_info_node *node;
+		struct bpf_prog_info_analde *analde;
 		size_t len;
 
-		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
-		next = rb_next(&node->rb_node);
+		analde = rb_entry(next, struct bpf_prog_info_analde, rb_analde);
+		next = rb_next(&analde->rb_analde);
 		len = sizeof(struct perf_bpil) +
-			node->info_linear->data_len;
+			analde->info_linear->data_len;
 
 		/* before writing to file, translate address to offset */
-		bpil_addr_to_offs(node->info_linear);
-		ret = do_write(ff, node->info_linear, len);
+		bpil_addr_to_offs(analde->info_linear);
+		ret = do_write(ff, analde->info_linear, len);
 		/*
 		 * translate back to address even when do_write() fails,
 		 * so that this function never changes the data.
 		 */
-		bpil_offs_to_addr(node->info_linear);
+		bpil_offs_to_addr(analde->info_linear);
 		if (ret < 0)
 			goto out;
 	}
@@ -1086,7 +1086,7 @@ static int write_bpf_btf(struct feat_fd *ff,
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_analde *next;
 	int ret;
 
 	down_read(&env->bpf_progs.lock);
@@ -1100,12 +1100,12 @@ static int write_bpf_btf(struct feat_fd *ff,
 	root = &env->bpf_progs.btfs;
 	next = rb_first(root);
 	while (next) {
-		struct btf_node *node;
+		struct btf_analde *analde;
 
-		node = rb_entry(next, struct btf_node, rb_node);
-		next = rb_next(&node->rb_node);
-		ret = do_write(ff, &node->id,
-			       sizeof(u32) * 2 + node->data_size);
+		analde = rb_entry(next, struct btf_analde, rb_analde);
+		next = rb_next(&analde->rb_analde);
+		ret = do_write(ff, &analde->id,
+			       sizeof(u32) * 2 + analde->data_size);
 		if (ret < 0)
 			goto out;
 	}
@@ -1337,7 +1337,7 @@ static int write_sample_time(struct feat_fd *ff,
 }
 
 
-static int memory_node__read(struct memory_node *n, unsigned long idx)
+static int memory_analde__read(struct memory_analde *n, unsigned long idx)
 {
 	unsigned int phys, size = 0;
 	char path[PATH_MAX];
@@ -1351,7 +1351,7 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 		    sscanf(ent->d_name, "memory%u", &mem) == 1)
 
 	scnprintf(path, PATH_MAX,
-		  "%s/devices/system/node/node%lu",
+		  "%s/devices/system/analde/analde%lu",
 		  sysfs__mountpoint(), idx);
 
 	dir = opendir(path);
@@ -1369,10 +1369,10 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 	n->set = bitmap_zalloc(size);
 	if (!n->set) {
 		closedir(dir);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	n->node = idx;
+	n->analde = idx;
 	n->size = size;
 
 	rewinddir(dir);
@@ -1385,32 +1385,32 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 	return 0;
 }
 
-static void memory_node__delete_nodes(struct memory_node *nodesp, u64 cnt)
+static void memory_analde__delete_analdes(struct memory_analde *analdesp, u64 cnt)
 {
 	for (u64 i = 0; i < cnt; i++)
-		bitmap_free(nodesp[i].set);
+		bitmap_free(analdesp[i].set);
 
-	free(nodesp);
+	free(analdesp);
 }
 
-static int memory_node__sort(const void *a, const void *b)
+static int memory_analde__sort(const void *a, const void *b)
 {
-	const struct memory_node *na = a;
-	const struct memory_node *nb = b;
+	const struct memory_analde *na = a;
+	const struct memory_analde *nb = b;
 
-	return na->node - nb->node;
+	return na->analde - nb->analde;
 }
 
-static int build_mem_topology(struct memory_node **nodesp, u64 *cntp)
+static int build_mem_topology(struct memory_analde **analdesp, u64 *cntp)
 {
 	char path[PATH_MAX];
 	struct dirent *ent;
 	DIR *dir;
 	int ret = 0;
 	size_t cnt = 0, size = 0;
-	struct memory_node *nodes = NULL;
+	struct memory_analde *analdes = NULL;
 
-	scnprintf(path, PATH_MAX, "%s/devices/system/node/",
+	scnprintf(path, PATH_MAX, "%s/devices/system/analde/",
 		  sysfs__mountpoint());
 
 	dir = opendir(path);
@@ -1428,23 +1428,23 @@ static int build_mem_topology(struct memory_node **nodesp, u64 *cntp)
 		    !strcmp(ent->d_name, ".."))
 			continue;
 
-		r = sscanf(ent->d_name, "node%u", &idx);
+		r = sscanf(ent->d_name, "analde%u", &idx);
 		if (r != 1)
 			continue;
 
 		if (cnt >= size) {
-			struct memory_node *new_nodes =
-				reallocarray(nodes, cnt + 4, sizeof(*nodes));
+			struct memory_analde *new_analdes =
+				reallocarray(analdes, cnt + 4, sizeof(*analdes));
 
-			if (!new_nodes) {
-				pr_err("Failed to write MEM_TOPOLOGY, size %zd nodes\n", size);
-				ret = -ENOMEM;
+			if (!new_analdes) {
+				pr_err("Failed to write MEM_TOPOLOGY, size %zd analdes\n", size);
+				ret = -EANALMEM;
 				goto out;
 			}
-			nodes = new_nodes;
+			analdes = new_analdes;
 			size += 4;
 		}
-		ret = memory_node__read(&nodes[cnt], idx);
+		ret = memory_analde__read(&analdes[cnt], idx);
 		if (!ret)
 			cnt += 1;
 	}
@@ -1452,33 +1452,33 @@ out:
 	closedir(dir);
 	if (!ret) {
 		*cntp = cnt;
-		*nodesp = nodes;
-		qsort(nodes, cnt, sizeof(nodes[0]), memory_node__sort);
+		*analdesp = analdes;
+		qsort(analdes, cnt, sizeof(analdes[0]), memory_analde__sort);
 	} else
-		memory_node__delete_nodes(nodes, cnt);
+		memory_analde__delete_analdes(analdes, cnt);
 
 	return ret;
 }
 
 /*
  * The MEM_TOPOLOGY holds physical memory map for every
- * node in system. The format of data is as follows:
+ * analde in system. The format of data is as follows:
  *
  *  0 - version          | for future changes
  *  8 - block_size_bytes | /sys/devices/system/memory/block_size_bytes
- * 16 - count            | number of nodes
+ * 16 - count            | number of analdes
  *
- * For each node we store map of physical indexes for
- * each node:
+ * For each analde we store map of physical indexes for
+ * each analde:
  *
- * 32 - node id          | node index
+ * 32 - analde id          | analde index
  * 40 - size             | size of bitmap
- * 48 - bitmap           | bitmap of memory indexes that belongs to node
+ * 48 - bitmap           | bitmap of memory indexes that belongs to analde
  */
 static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 			      struct evlist *evlist __maybe_unused)
 {
-	struct memory_node *nodes = NULL;
+	struct memory_analde *analdes = NULL;
 	u64 bsize, version = 1, i, nr = 0;
 	int ret;
 
@@ -1487,7 +1487,7 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 	if (ret)
 		return ret;
 
-	ret = build_mem_topology(&nodes, &nr);
+	ret = build_mem_topology(&analdes, &nr);
 	if (ret)
 		return ret;
 
@@ -1504,14 +1504,14 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 		goto out;
 
 	for (i = 0; i < nr; i++) {
-		struct memory_node *n = &nodes[i];
+		struct memory_analde *n = &analdes[i];
 
 		#define _W(v)						\
 			ret = do_write(ff, &n->v, sizeof(n->v));	\
 			if (ret < 0)					\
 				goto out;
 
-		_W(node)
+		_W(analde)
 		_W(size)
 
 		#undef _W
@@ -1522,7 +1522,7 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 	}
 
 out:
-	memory_node__delete_nodes(nodes, nr);
+	memory_analde__delete_analdes(analdes, nr);
 	return ret;
 }
 
@@ -1586,7 +1586,7 @@ static int write_cpu_pmu_caps(struct feat_fd *ff,
 	int ret;
 
 	if (!cpu_pmu)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = perf_pmu__caps_parse(cpu_pmu);
 	if (ret < 0)
@@ -1606,7 +1606,7 @@ static int write_pmu_caps(struct feat_fd *ff,
 		if (!strcmp(pmu->name, "cpu")) {
 			/*
 			 * The "cpu" PMU is special and covered by
-			 * HEADER_CPU_PMU_CAPS. Note, core PMUs are
+			 * HEADER_CPU_PMU_CAPS. Analte, core PMUs are
 			 * counted/written here for ARM, s390 and Intel hybrid.
 			 */
 			continue;
@@ -1624,7 +1624,7 @@ static int write_pmu_caps(struct feat_fd *ff,
 		return 0;
 
 	/*
-	 * Note older perf tools assume core PMUs come first, this is a property
+	 * Analte older perf tools assume core PMUs come first, this is a property
 	 * of perf_pmus__scan.
 	 */
 	pmu = NULL;
@@ -1745,7 +1745,7 @@ static void print_cpu_topology(struct feat_fd *ff, FILE *fp)
 					    ph->env.cpu[i].socket_id);
 		} else
 			fprintf(fp, "# Core ID, Die ID and Socket ID "
-				    "information is not available\n");
+				    "information is analt available\n");
 	} else {
 		if (ph->env.cpu != NULL) {
 			for (i = 0; i < cpu_nr; i++)
@@ -1755,7 +1755,7 @@ static void print_cpu_topology(struct feat_fd *ff, FILE *fp)
 					    ph->env.cpu[i].socket_id);
 		} else
 			fprintf(fp, "# Core ID and Socket ID "
-				    "information is not available\n");
+				    "information is analt available\n");
 	}
 }
 
@@ -1811,11 +1811,11 @@ static void print_clock_data(struct feat_fd *ff, FILE *fp)
 static void print_hybrid_topology(struct feat_fd *ff, FILE *fp)
 {
 	int i;
-	struct hybrid_node *n;
+	struct hybrid_analde *n;
 
 	fprintf(fp, "# hybrid cpu system:\n");
-	for (i = 0; i < ff->ph->env.nr_hybrid_nodes; i++) {
-		n = &ff->ph->env.hybrid_nodes[i];
+	for (i = 0; i < ff->ph->env.nr_hybrid_analdes; i++) {
+		n = &ff->ph->env.hybrid_analdes[i];
 		fprintf(fp, "# %s cpu list : %s\n", n->pmu_name, n->cpus);
 	}
 }
@@ -1836,7 +1836,7 @@ static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_analde *next;
 
 	down_read(&env->bpf_progs.lock);
 
@@ -1844,12 +1844,12 @@ static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
 	next = rb_first(root);
 
 	while (next) {
-		struct bpf_prog_info_node *node;
+		struct bpf_prog_info_analde *analde;
 
-		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
-		next = rb_next(&node->rb_node);
+		analde = rb_entry(next, struct bpf_prog_info_analde, rb_analde);
+		next = rb_next(&analde->rb_analde);
 
-		__bpf_event__print_bpf_prog_info(&node->info_linear->info,
+		__bpf_event__print_bpf_prog_info(&analde->info_linear->info,
 						 env, fp);
 	}
 
@@ -1860,7 +1860,7 @@ static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_analde *next;
 
 	down_read(&env->bpf_progs.lock);
 
@@ -1868,11 +1868,11 @@ static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
 	next = rb_first(root);
 
 	while (next) {
-		struct btf_node *node;
+		struct btf_analde *analde;
 
-		node = rb_entry(next, struct btf_node, rb_node);
-		next = rb_next(&node->rb_node);
-		fprintf(fp, "# btf info of id %u\n", node->id);
+		analde = rb_entry(next, struct btf_analde, rb_analde);
+		next = rb_next(&analde->rb_analde);
+		fprintf(fp, "# btf info of id %u\n", analde->id);
 	}
 
 	up_read(&env->bpf_progs.lock);
@@ -1903,14 +1903,14 @@ static bool perf_attr_check(struct perf_event_attr *attr)
 	}
 
 	if (attr->sample_type & ~(PERF_SAMPLE_MAX-1)) {
-		pr_warning("Unknown sample type (0x%llx) is detected. "
+		pr_warning("Unkanalwn sample type (0x%llx) is detected. "
 			   "Please update perf tool.\n",
 			   attr->sample_type);
 		return false;
 	}
 
 	if (attr->read_format & ~(PERF_FORMAT_MAX-1)) {
-		pr_warning("Unknown read format (0x%llx) is detected. "
+		pr_warning("Unkanalwn read format (0x%llx) is detected. "
 			   "Please update perf tool.\n",
 			   attr->read_format);
 		return false;
@@ -1918,7 +1918,7 @@ static bool perf_attr_check(struct perf_event_attr *attr)
 
 	if ((attr->sample_type & PERF_SAMPLE_BRANCH_STACK) &&
 	    (attr->branch_sample_type & ~(PERF_SAMPLE_BRANCH_MAX-1))) {
-		pr_warning("Unknown branch sample type (0x%llx) is detected. "
+		pr_warning("Unkanalwn branch sample type (0x%llx) is detected. "
 			   "Please update perf tool.\n",
 			   attr->branch_sample_type);
 
@@ -2027,7 +2027,7 @@ static void print_event_desc(struct feat_fd *ff, FILE *fp)
 		events = read_event_desc(ff);
 
 	if (!events) {
-		fprintf(fp, "# event desc: not available or unable to read\n");
+		fprintf(fp, "# event desc: analt available or unable to read\n");
 		return;
 	}
 
@@ -2061,16 +2061,16 @@ static void print_total_mem(struct feat_fd *ff, FILE *fp)
 static void print_numa_topology(struct feat_fd *ff, FILE *fp)
 {
 	int i;
-	struct numa_node *n;
+	struct numa_analde *n;
 
-	for (i = 0; i < ff->ph->env.nr_numa_nodes; i++) {
-		n = &ff->ph->env.numa_nodes[i];
+	for (i = 0; i < ff->ph->env.nr_numa_analdes; i++) {
+		n = &ff->ph->env.numa_analdes[i];
 
-		fprintf(fp, "# node%u meminfo  : total = %"PRIu64" kB,"
+		fprintf(fp, "# analde%u meminfo  : total = %"PRIu64" kB,"
 			    " free = %"PRIu64" kB\n",
-			n->node, n->mem_total, n->mem_free);
+			n->analde, n->mem_total, n->mem_free);
 
-		fprintf(fp, "# node%u cpu list : ", n->node);
+		fprintf(fp, "# analde%u cpu list : ", n->analde);
 		cpu_map__fprintf(n->map, fp);
 	}
 }
@@ -2109,7 +2109,7 @@ static void print_cache(struct feat_fd *ff, FILE *fp __maybe_unused)
 static void print_compressed(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# compressed : %s, level = %d, ratio = %d\n",
-		ff->ph->env.comp_type == PERF_COMP_ZSTD ? "Zstd" : "Unknown",
+		ff->ph->env.comp_type == PERF_COMP_ZSTD ? "Zstd" : "Unkanalwn",
 		ff->ph->env.comp_level, ff->ph->env.comp_ratio);
 }
 
@@ -2119,7 +2119,7 @@ static void __print_pmu_caps(FILE *fp, int nr_caps, char **caps, char *pmu_name)
 	int i;
 
 	if (!nr_caps) {
-		fprintf(fp, "# %s pmu capabilities: not available\n", pmu_name);
+		fprintf(fp, "# %s pmu capabilities: analt available\n", pmu_name);
 		return;
 	}
 
@@ -2166,7 +2166,7 @@ static void print_pmu_mappings(struct feat_fd *ff, FILE *fp)
 
 	pmu_num = ff->ph->env.nr_pmu_mappings;
 	if (!pmu_num) {
-		fprintf(fp, "# pmu mappings: not available\n");
+		fprintf(fp, "# pmu mappings: analt available\n");
 		return;
 	}
 
@@ -2237,7 +2237,7 @@ static void print_sample_time(struct feat_fd *ff, FILE *fp)
 	fprintf(fp, "# sample duration : %10.3f ms\n", d);
 }
 
-static void memory_node__fprintf(struct memory_node *n,
+static void memory_analde__fprintf(struct memory_analde *n,
 				 unsigned long long bsize, FILE *fp)
 {
 	char buf_map[100], buf_size[50];
@@ -2247,22 +2247,22 @@ static void memory_node__fprintf(struct memory_node *n,
 	unit_number__scnprintf(buf_size, 50, size);
 
 	bitmap_scnprintf(n->set, n->size, buf_map, 100);
-	fprintf(fp, "#  %3" PRIu64 " [%s]: %s\n", n->node, buf_size, buf_map);
+	fprintf(fp, "#  %3" PRIu64 " [%s]: %s\n", n->analde, buf_size, buf_map);
 }
 
 static void print_mem_topology(struct feat_fd *ff, FILE *fp)
 {
-	struct memory_node *nodes;
+	struct memory_analde *analdes;
 	int i, nr;
 
-	nodes = ff->ph->env.memory_nodes;
-	nr    = ff->ph->env.nr_memory_nodes;
+	analdes = ff->ph->env.memory_analdes;
+	nr    = ff->ph->env.nr_memory_analdes;
 
-	fprintf(fp, "# memory nodes (nr %d, block size 0x%llx):\n",
+	fprintf(fp, "# memory analdes (nr %d, block size 0x%llx):\n",
 		nr, ff->ph->env.memory_bsize);
 
 	for (i = 0; i < nr; i++) {
-		memory_node__fprintf(&nodes[i], ff->ph->env.memory_bsize, fp);
+		memory_analde__fprintf(&analdes[i], ff->ph->env.memory_bsize, fp);
 	}
 }
 
@@ -2407,7 +2407,7 @@ static int perf_header__read_build_ids(struct perf_header *header,
 		 * format.
 		 *
 		 * Since the kernel build-id is the first entry, process the
-		 * table using the old format if the well known
+		 * table using the old format if the well kanalwn
 		 * '[kernel.kallsyms]' string for the kernel build-id has the
 		 * first 4 characters chopped off (where the pid_t sits).
 		 */
@@ -2432,7 +2432,7 @@ static int process_##__feat(struct feat_fd *ff, void *data __maybe_unused) \
 {\
 	free(ff->ph->env.__feat_env);		     \
 	ff->ph->env.__feat_env = do_read_string(ff); \
-	return ff->ph->env.__feat_env ? 0 : -ENOMEM; \
+	return ff->ph->env.__feat_env ? 0 : -EANALMEM; \
 }
 
 FEAT_PROCESS_STR_FUN(hostname, hostname);
@@ -2643,7 +2643,7 @@ static int process_cpu_topology(struct feat_fd *ff, void *data __maybe_unused)
 		return 0;
 	}
 
-	/* On s390 the socket_id number is not related to the numbers of cpus.
+	/* On s390 the socket_id number is analt related to the numbers of cpus.
 	 * The socket_id number might be higher than the numbers of cpus.
 	 * This depends on the configuration.
 	 * AArch64 is the same.
@@ -2717,23 +2717,23 @@ free_cpu:
 
 static int process_numa_topology(struct feat_fd *ff, void *data __maybe_unused)
 {
-	struct numa_node *nodes, *n;
+	struct numa_analde *analdes, *n;
 	u32 nr, i;
 	char *str;
 
-	/* nr nodes */
+	/* nr analdes */
 	if (do_read_u32(ff, &nr))
 		return -1;
 
-	nodes = zalloc(sizeof(*nodes) * nr);
-	if (!nodes)
-		return -ENOMEM;
+	analdes = zalloc(sizeof(*analdes) * nr);
+	if (!analdes)
+		return -EANALMEM;
 
 	for (i = 0; i < nr; i++) {
-		n = &nodes[i];
+		n = &analdes[i];
 
-		/* node number */
-		if (do_read_u32(ff, &n->node))
+		/* analde number */
+		if (do_read_u32(ff, &n->analde))
 			goto error;
 
 		if (do_read_u64(ff, &n->mem_total))
@@ -2751,12 +2751,12 @@ static int process_numa_topology(struct feat_fd *ff, void *data __maybe_unused)
 		if (!n->map)
 			goto error;
 	}
-	ff->ph->env.nr_numa_nodes = nr;
-	ff->ph->env.numa_nodes = nodes;
+	ff->ph->env.nr_numa_analdes = nr;
+	ff->ph->env.numa_analdes = analdes;
 	return 0;
 
 error:
-	free(nodes);
+	free(analdes);
 	return -1;
 }
 
@@ -2771,7 +2771,7 @@ static int process_pmu_mappings(struct feat_fd *ff, void *data __maybe_unused)
 		return -1;
 
 	if (!pmu_num) {
-		pr_debug("pmu mappings not available\n");
+		pr_debug("pmu mappings analt available\n");
 		return 0;
 	}
 
@@ -2824,7 +2824,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 
 	ff->ph->env.nr_groups = nr_groups;
 	if (!nr_groups) {
-		pr_debug("group desc not available\n");
+		pr_debug("group desc analt available\n");
 		return 0;
 	}
 
@@ -2853,8 +2853,8 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 	evlist__for_each_entry(session->evlist, evsel) {
 		if (i < nr_groups && evsel->core.idx == (int) desc[i].leader_idx) {
 			evsel__set_leader(evsel, evsel);
-			/* {anon_group} is a dummy name */
-			if (strcmp(desc[i].name, "{anon_group}")) {
+			/* {aanaln_group} is a dummy name */
+			if (strcmp(desc[i].name, "{aanaln_group}")) {
 				evsel->group_name = desc[i].name;
 				desc[i].name = NULL;
 			}
@@ -2983,7 +2983,7 @@ static int process_sample_time(struct feat_fd *ff, void *data __maybe_unused)
 static int process_mem_topology(struct feat_fd *ff,
 				void *data __maybe_unused)
 {
-	struct memory_node *nodes;
+	struct memory_analde *analdes;
 	u64 version, i, nr, bsize;
 	int ret = -1;
 
@@ -2999,18 +2999,18 @@ static int process_mem_topology(struct feat_fd *ff,
 	if (do_read_u64(ff, &nr))
 		return -1;
 
-	nodes = zalloc(sizeof(*nodes) * nr);
-	if (!nodes)
+	analdes = zalloc(sizeof(*analdes) * nr);
+	if (!analdes)
 		return -1;
 
 	for (i = 0; i < nr; i++) {
-		struct memory_node n;
+		struct memory_analde n;
 
 		#define _R(v)				\
 			if (do_read_u64(ff, &n.v))	\
 				goto out;		\
 
-		_R(node)
+		_R(analde)
 		_R(size)
 
 		#undef _R
@@ -3018,17 +3018,17 @@ static int process_mem_topology(struct feat_fd *ff,
 		if (do_read_bitmap(ff, &n.set, &n.size))
 			goto out;
 
-		nodes[i] = n;
+		analdes[i] = n;
 	}
 
 	ff->ph->env.memory_bsize    = bsize;
-	ff->ph->env.memory_nodes    = nodes;
-	ff->ph->env.nr_memory_nodes = nr;
+	ff->ph->env.memory_analdes    = analdes;
+	ff->ph->env.nr_memory_analdes = nr;
 	ret = 0;
 
 out:
 	if (ret)
-		free(nodes);
+		free(analdes);
 	return ret;
 }
 
@@ -3078,19 +3078,19 @@ static int process_clock_data(struct feat_fd *ff,
 static int process_hybrid_topology(struct feat_fd *ff,
 				   void *data __maybe_unused)
 {
-	struct hybrid_node *nodes, *n;
+	struct hybrid_analde *analdes, *n;
 	u32 nr, i;
 
-	/* nr nodes */
+	/* nr analdes */
 	if (do_read_u32(ff, &nr))
 		return -1;
 
-	nodes = zalloc(sizeof(*nodes) * nr);
-	if (!nodes)
-		return -ENOMEM;
+	analdes = zalloc(sizeof(*analdes) * nr);
+	if (!analdes)
+		return -EANALMEM;
 
 	for (i = 0; i < nr; i++) {
-		n = &nodes[i];
+		n = &analdes[i];
 
 		n->pmu_name = do_read_string(ff);
 		if (!n->pmu_name)
@@ -3101,17 +3101,17 @@ static int process_hybrid_topology(struct feat_fd *ff,
 			goto error;
 	}
 
-	ff->ph->env.nr_hybrid_nodes = nr;
-	ff->ph->env.hybrid_nodes = nodes;
+	ff->ph->env.nr_hybrid_analdes = nr;
+	ff->ph->env.hybrid_analdes = analdes;
 	return 0;
 
 error:
 	for (i = 0; i < nr; i++) {
-		free(nodes[i].pmu_name);
-		free(nodes[i].cpus);
+		free(analdes[i].pmu_name);
+		free(analdes[i].cpus);
 	}
 
-	free(nodes);
+	free(analdes);
 	return -1;
 }
 
@@ -3133,14 +3133,14 @@ static int process_dir_format(struct feat_fd *ff,
 #ifdef HAVE_LIBBPF_SUPPORT
 static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 {
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_analde *info_analde;
 	struct perf_env *env = &ff->ph->env;
 	struct perf_bpil *info_linear;
 	u32 count, i;
 	int err = -1;
 
 	if (ff->ph->needs_swap) {
-		pr_warning("interpreting bpf_prog_info from systems with endianness is not yet supported\n");
+		pr_warning("interpreting bpf_prog_info from systems with endianness is analt yet supported\n");
 		return 0;
 	}
 
@@ -3153,7 +3153,7 @@ static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 		u32 info_len, data_len;
 
 		info_linear = NULL;
-		info_node = NULL;
+		info_analde = NULL;
 		if (do_read_u32(ff, &info_len))
 			goto out;
 		if (do_read_u32(ff, &data_len))
@@ -3181,21 +3181,21 @@ static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 		if (__do_read(ff, info_linear->data, data_len))
 			goto out;
 
-		info_node = malloc(sizeof(struct bpf_prog_info_node));
-		if (!info_node)
+		info_analde = malloc(sizeof(struct bpf_prog_info_analde));
+		if (!info_analde)
 			goto out;
 
 		/* after reading from file, translate offset to address */
 		bpil_offs_to_addr(info_linear);
-		info_node->info_linear = info_linear;
-		__perf_env__insert_bpf_prog_info(env, info_node);
+		info_analde->info_linear = info_linear;
+		__perf_env__insert_bpf_prog_info(env, info_analde);
 	}
 
 	up_write(&env->bpf_progs.lock);
 	return 0;
 out:
 	free(info_linear);
-	free(info_node);
+	free(info_analde);
 	up_write(&env->bpf_progs.lock);
 	return err;
 }
@@ -3203,12 +3203,12 @@ out:
 static int process_bpf_btf(struct feat_fd *ff, void *data __maybe_unused)
 {
 	struct perf_env *env = &ff->ph->env;
-	struct btf_node *node = NULL;
+	struct btf_analde *analde = NULL;
 	u32 count, i;
 	int err = -1;
 
 	if (ff->ph->needs_swap) {
-		pr_warning("interpreting btf from systems with endianness is not yet supported\n");
+		pr_warning("interpreting btf from systems with endianness is analt yet supported\n");
 		return 0;
 	}
 
@@ -3225,24 +3225,24 @@ static int process_bpf_btf(struct feat_fd *ff, void *data __maybe_unused)
 		if (do_read_u32(ff, &data_size))
 			goto out;
 
-		node = malloc(sizeof(struct btf_node) + data_size);
-		if (!node)
+		analde = malloc(sizeof(struct btf_analde) + data_size);
+		if (!analde)
 			goto out;
 
-		node->id = id;
-		node->data_size = data_size;
+		analde->id = id;
+		analde->data_size = data_size;
 
-		if (__do_read(ff, node->data, data_size))
+		if (__do_read(ff, analde->data, data_size))
 			goto out;
 
-		__perf_env__insert_btf(env, node);
-		node = NULL;
+		__perf_env__insert_btf(env, analde);
+		analde = NULL;
 	}
 
 	err = 0;
 out:
 	up_write(&env->bpf_progs.lock);
-	free(node);
+	free(analde);
 	return err;
 }
 #endif // HAVE_LIBBPF_SUPPORT
@@ -3341,7 +3341,7 @@ static int process_cpu_pmu_caps(struct feat_fd *ff,
 				     &ff->ph->env.br_cntr_width);
 
 	if (!ret && !ff->ph->env.cpu_pmu_caps)
-		pr_debug("cpu pmu capabilities not available\n");
+		pr_debug("cpu pmu capabilities analt available\n");
 	return ret;
 }
 
@@ -3356,13 +3356,13 @@ static int process_pmu_caps(struct feat_fd *ff, void *data __maybe_unused)
 		return -1;
 
 	if (!nr_pmu) {
-		pr_debug("pmu capabilities not available\n");
+		pr_debug("pmu capabilities analt available\n");
 		return 0;
 	}
 
 	pmu_caps = zalloc(sizeof(*pmu_caps) * nr_pmu);
 	if (!pmu_caps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_pmu; i++) {
 		ret = __process_pmu_caps(ff, &pmu_caps[i].nr_caps,
@@ -3379,7 +3379,7 @@ static int process_pmu_caps(struct feat_fd *ff, void *data __maybe_unused)
 			goto err;
 		}
 		if (!pmu_caps[i].nr_caps) {
-			pr_debug("%s pmu capabilities not available\n",
+			pr_debug("%s pmu capabilities analt available\n",
 				 pmu_caps[i].pmu_name);
 		}
 	}
@@ -3419,7 +3419,7 @@ err:
 		.process    = process_##func			\
 	}
 
-/* feature_ops not implemented: */
+/* feature_ops analt implemented: */
 #define print_tracing_data	NULL
 #define print_build_id		NULL
 
@@ -3485,7 +3485,7 @@ static int perf_file_section__fprintf_info(struct perf_file_section *section,
 		return 0;
 	}
 	if (feat >= HEADER_LAST_FEATURE) {
-		pr_warning("unknown feature %d\n", feat);
+		pr_warning("unkanalwn feature %d\n", feat);
 		return 0;
 	}
 	if (!feat_ops[feat].print)
@@ -3584,7 +3584,7 @@ static int do_write_feat(struct feat_fd *ff, int type,
 				.ff = ff,
 			};
 
-			/* ->copy() returns 0 if the feature was not copied */
+			/* ->copy() returns 0 if the feature was analt copied */
 			err = fc->copy(fc, type, &h.fw);
 		} else {
 			err = 0;
@@ -3626,7 +3626,7 @@ static int perf_header__adds_write(struct perf_header *header,
 
 	feat_sec = p = calloc(nr_sections, sizeof(*feat_sec));
 	if (feat_sec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sec_size = sizeof(*feat_sec) * nr_sections;
 
@@ -3750,7 +3750,7 @@ static int perf_session__do_write_header(struct perf_session *session,
 			.offset = header->data_offset,
 			.size	= header->data_size,
 		},
-		/* event_types is ignored, store zeros */
+		/* event_types is iganalred, store zeros */
 	};
 
 	memcpy(&f_header.adds_features, &header->adds_features, sizeof(header->adds_features));
@@ -3857,7 +3857,7 @@ static const int attr_file_abi_sizes[] = {
 };
 
 /*
- * In the legacy file format, the magic number is not used to encode endianness.
+ * In the legacy file format, the magic number is analt used to encode endianness.
  * hdr_sz was used to encode endianness. But given that hdr_sz can vary based
  * on ABI revisions, we need to try all combinations for all endianness to
  * detect the endianness.
@@ -3882,7 +3882,7 @@ static int try_all_file_abis(uint64_t hdr_sz, struct perf_header *ph)
 			 ph->needs_swap);
 		return 0;
 	}
-	/* could not determine endianness */
+	/* could analt determine endianness */
 	return -1;
 }
 
@@ -3896,7 +3896,7 @@ static const size_t attr_pipe_abi_sizes[] = {
 /*
  * In the legacy pipe format, there is an implicit assumption that endianness
  * between host recording the samples, and host parsing the samples is the
- * same. This is not always the case given that the pipe output may always be
+ * same. This is analt always the case given that the pipe output may always be
  * redirected into a file and analyzed on a different machine with possibly a
  * different endianness and perf_event ABI revisions in the perf tool itself.
  */
@@ -3995,16 +3995,16 @@ int perf_file_header__read(struct perf_file_header *header,
 	} else if (ph->needs_swap) {
 		/*
 		 * feature bitmap is declared as an array of unsigned longs --
-		 * not good since its size can differ between the host that
+		 * analt good since its size can differ between the host that
 		 * generated the data file and the host analyzing the file.
 		 *
-		 * We need to handle endianness, but we don't know the size of
+		 * We need to handle endianness, but we don't kanalw the size of
 		 * the unsigned long where the file was generated. Take a best
 		 * guess at determining it: try 64-bit swap first (ie., file
 		 * created on a 64-bit host), and check if the hostname feature
 		 * bit is set (this feature bit is forced on as of fbe96f2).
-		 * If the bit is not, undo the 64-bit swap and try a 32-bit
-		 * swap. If the hostname bit is still not set (e.g., older data
+		 * If the bit is analt, undo the 64-bit swap and try a 32-bit
+		 * swap. If the hostname bit is still analt set (e.g., older data
 		 * file), punt and fallback to the original behavior --
 		 * clearing all feature bits and setting buildid.
 		 */
@@ -4054,7 +4054,7 @@ static int perf_file_section__process(struct perf_file_section *section,
 	}
 
 	if (feat >= HEADER_LAST_FEATURE) {
-		pr_debug("unknown feature %d, continuing...\n", feat);
+		pr_debug("unkanalwn feature %d, continuing...\n", feat);
 		return 0;
 	}
 
@@ -4120,7 +4120,7 @@ static int read_attr(int fd, struct perf_header *ph,
 	/* read minimal guaranteed structure */
 	ret = readn(fd, attr, PERF_ATTR_SIZE_VER0);
 	if (ret <= 0) {
-		pr_debug("cannot read %d bytes of header attr\n",
+		pr_debug("cananalt read %d bytes of header attr\n",
 			 PERF_ATTR_SIZE_VER0);
 		return -1;
 	}
@@ -4139,7 +4139,7 @@ static int read_attr(int fd, struct perf_header *ph,
 			 " (%zu bytes extra)\n", sz - our_sz);
 		return -1;
 	}
-	/* what we have not yet read and that we know about */
+	/* what we have analt yet read and that we kanalw about */
 	left = sz - PERF_ATTR_SIZE_VER0;
 	if (left) {
 		void *ptr = attr;
@@ -4170,7 +4170,7 @@ static int evsel__prepare_tracepoint_event(struct evsel *evsel, struct tep_handl
 
 	event = tep_find_event(pevent, evsel->core.attr.config);
 	if (event == NULL) {
-		pr_debug("cannot find event format for %d\n", (int)evsel->core.attr.config);
+		pr_debug("cananalt find event format for %d\n", (int)evsel->core.attr.config);
 		return -1;
 	}
 
@@ -4211,7 +4211,7 @@ int perf_session__read_header(struct perf_session *session, int repipe_fd)
 
 	session->evlist = evlist__new();
 	if (session->evlist == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	session->evlist->env = &header->env;
 	session->machines.host.env = &header->env;
@@ -4230,7 +4230,7 @@ int perf_session__read_header(struct perf_session *session, int repipe_fd)
 		return -EINVAL;
 
 	if (header->needs_swap && data->in_place_update) {
-		pr_err("In-place update not supported when byte-swapping is required\n");
+		pr_err("In-place update analt supported when byte-swapping is required\n");
 		return -EINVAL;
 	}
 
@@ -4261,7 +4261,7 @@ int perf_session__read_header(struct perf_session *session, int repipe_fd)
 		off_t tmp;
 
 		if (read_attr(fd, header, &f_attr) < 0)
-			goto out_errno;
+			goto out_erranal;
 
 		if (header->needs_swap) {
 			f_attr.ids.size   = bswap_64(f_attr.ids.size);
@@ -4295,7 +4295,7 @@ int perf_session__read_header(struct perf_session *session, int repipe_fd)
 
 		for (j = 0; j < nr_ids; j++) {
 			if (perf_header__getbuffer64(header, fd, &f_id, sizeof(f_id)))
-				goto out_errno;
+				goto out_erranal;
 
 			perf_evlist__id_add(&session->evlist->core, &evsel->core, 0, j, f_id);
 		}
@@ -4314,13 +4314,13 @@ int perf_session__read_header(struct perf_session *session, int repipe_fd)
 #endif
 
 	return 0;
-out_errno:
-	return -errno;
+out_erranal:
+	return -erranal;
 
 out_delete_evlist:
 	evlist__delete(session->evlist);
 	session->evlist = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int perf_event__process_feature(struct perf_session *session,
@@ -4398,7 +4398,7 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 			ret += fprintf(fp, "failed to get cpus\n");
 		break;
 	default:
-		ret += fprintf(fp, "... unknown type\n");
+		ret += fprintf(fp, "... unkanalwn type\n");
 		break;
 	}
 
@@ -4417,12 +4417,12 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	if (evlist == NULL) {
 		*pevlist = evlist = evlist__new();
 		if (evlist == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	evsel = evsel__new(&event->attr.attr);
 	if (evsel == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	evlist__add(evlist, evsel);
 
@@ -4434,7 +4434,7 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	 * hattr->ids threads.
 	 */
 	if (perf_evsel__alloc_id(&evsel->core, 1, n_ids))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ids = perf_record_header_attr_id(event);
 	for (i = 0; i < n_ids; i++) {
@@ -4523,7 +4523,7 @@ int perf_event__process_tracing_data(struct perf_session *session,
 		return -1;
 	}
 	if (session->repipe) {
-		int retw = write(STDOUT_FILENO, buf, padding);
+		int retw = write(STDOUT_FILEANAL, buf, padding);
 		if (retw <= 0 || retw != padding) {
 			pr_err("%s: repiping tracing data padding", __func__);
 			return -1;

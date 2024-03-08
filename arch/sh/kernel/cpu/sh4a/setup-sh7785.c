@@ -288,7 +288,7 @@ static struct resource sh7785_dmae1_resources[] = {
 		.end	= 0xfcc0808f,
 		.flags	= IORESOURCE_MEM,
 	},
-	/* DMAC1 has no DMARS */
+	/* DMAC1 has anal DMARS */
 	{
 		/*
 		 * Real DMA error vector is 0x940, and channel
@@ -603,6 +603,6 @@ void __init plat_irq_setup_pins(int mode)
 
 void __init plat_mem_setup(void)
 {
-	/* Register the URAM space as Node 1 */
-	setup_bootmem_node(1, 0xe55f0000, 0xe5610000);
+	/* Register the URAM space as Analde 1 */
+	setup_bootmem_analde(1, 0xe55f0000, 0xe5610000);
 }

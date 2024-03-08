@@ -131,7 +131,7 @@ struct mvneta_bm_pool {
 
 /* Declarations and definitions */
 #if IS_ENABLED(CONFIG_MVNETA_BM)
-struct mvneta_bm *mvneta_bm_get(struct device_node *node);
+struct mvneta_bm *mvneta_bm_get(struct device_analde *analde);
 void mvneta_bm_put(struct mvneta_bm *priv);
 
 void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
@@ -185,7 +185,7 @@ static inline void mvneta_bm_pool_put_bp(struct mvneta_bm *priv,
 static inline u32 mvneta_bm_pool_get_bp(struct mvneta_bm *priv,
 					struct mvneta_bm_pool *bm_pool)
 { return 0; }
-static inline struct mvneta_bm *mvneta_bm_get(struct device_node *node)
+static inline struct mvneta_bm *mvneta_bm_get(struct device_analde *analde)
 { return NULL; }
 static inline void mvneta_bm_put(struct mvneta_bm *priv) {}
 #endif /* CONFIG_MVNETA_BM */

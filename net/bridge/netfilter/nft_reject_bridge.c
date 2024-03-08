@@ -39,7 +39,7 @@ static void nft_reject_br_push_etherhdr(struct sk_buff *oldskb,
 	}
 }
 
-/* We cannot use oldskb->dev, it can be either bridge device (NF_BRIDGE INPUT)
+/* We cananalt use oldskb->dev, it can be either bridge device (NF_BRIDGE INPUT)
  * or the bridge port (NF_BRIDGE PREROUTING).
  */
 static void nft_reject_br_send_v4_tcp_reset(struct net *net,
@@ -162,7 +162,7 @@ static void nft_reject_bridge_eval(const struct nft_expr *expr,
 		}
 		break;
 	default:
-		/* No explicit way to reject this protocol, drop it. */
+		/* Anal explicit way to reject this protocol, drop it. */
 		break;
 	}
 out:

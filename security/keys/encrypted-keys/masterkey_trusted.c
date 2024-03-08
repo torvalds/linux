@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 IBM Corporation
- * Copyright (C) 2010 Politecnico di Torino, Italy
+ * Copyright (C) 2010 Politecnico di Torianal, Italy
  *                    TORSEC group -- https://security.polito.it
  *
  * Authors:
@@ -22,7 +22,7 @@
  *
  * Trusted keys are sealed to PCRs and other metadata. Although userspace
  * manages both trusted/encrypted key-types, like the encrypted key type
- * data, trusted key type data is not visible decrypted from userspace.
+ * data, trusted key type data is analt visible decrypted from userspace.
  */
 struct key *request_trusted_key(const char *trusted_desc,
 				const u8 **master_key, size_t *master_keylen)

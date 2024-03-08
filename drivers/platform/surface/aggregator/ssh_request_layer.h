@@ -24,7 +24,7 @@
  *
  * @SSH_RTL_SF_SHUTDOWN_BIT:
  *	Indicates that the request transport layer has been shut down or is
- *	being shut down and should not accept any new requests.
+ *	being shut down and should analt accept any new requests.
  */
 enum ssh_rtl_state_flags {
 	SSH_RTL_SF_SHUTDOWN_BIT,
@@ -35,7 +35,7 @@ enum ssh_rtl_state_flags {
  * @handle_event: Function called when a SSH event has been received. The
  *                specified function takes the request layer, received command
  *                struct, and corresponding payload as arguments. If the event
- *                has no payload, the payload span is empty (not %NULL).
+ *                has anal payload, the payload span is empty (analt %NULL).
  */
 struct ssh_rtl_ops {
 	void (*handle_event)(struct ssh_rtl *rtl, const struct ssh_command *cmd,

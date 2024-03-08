@@ -6,7 +6,7 @@
 bool x86__is_amd_cpu(void)
 {
 	struct perf_env env = { .total_mem = 0, };
-	static int is_amd; /* 0: Uninitialized, 1: Yes, -1: No */
+	static int is_amd; /* 0: Uninitialized, 1: Anal, -1: Anal */
 
 	if (is_amd)
 		goto ret;

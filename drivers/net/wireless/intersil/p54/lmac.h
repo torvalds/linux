@@ -7,7 +7,7 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  *
  * - LMAC API interface header file for STLC4560 (lmac_longbow.h)
  *   Copyright (C) 2007 Conexant Systems, Inc.
@@ -55,7 +55,7 @@ enum p54_control_frame_types {
 #define P54_HDR_FLAG_DATA_OUT_SEQNR		BIT(2)
 #define P54_HDR_FLAG_DATA_OUT_BIT3		BIT(3)
 #define P54_HDR_FLAG_DATA_OUT_BURST		BIT(4)
-#define P54_HDR_FLAG_DATA_OUT_NOCANCEL		BIT(5)
+#define P54_HDR_FLAG_DATA_OUT_ANALCANCEL		BIT(5)
 #define P54_HDR_FLAG_DATA_OUT_CLEARTIM		BIT(6)
 #define P54_HDR_FLAG_DATA_OUT_HITCHHIKE		BIT(7)
 #define P54_HDR_FLAG_DATA_OUT_COMPRESS		BIT(8)
@@ -151,11 +151,11 @@ struct p54_eeprom_lm86 {
 } __packed;
 
 enum p54_rx_decrypt_status {
-	P54_DECRYPT_NONE = 0,
+	P54_DECRYPT_ANALNE = 0,
 	P54_DECRYPT_OK,
-	P54_DECRYPT_NOKEY,
-	P54_DECRYPT_NOMICHAEL,
-	P54_DECRYPT_NOCKIPMIC,
+	P54_DECRYPT_ANALKEY,
+	P54_DECRYPT_ANALMICHAEL,
+	P54_DECRYPT_ANALCKIPMIC,
 	P54_DECRYPT_FAIL_WEP,
 	P54_DECRYPT_FAIL_TKIP,
 	P54_DECRYPT_FAIL_MICHAEL,
@@ -186,7 +186,7 @@ enum p54_trap_type {
 	P54_TRAP_FAA_RADIO_ON,
 	P54_TRAP_FAA_RADIO_OFF,
 	P54_TRAP_RADAR,
-	P54_TRAP_NO_BEACON,
+	P54_TRAP_ANAL_BEACON,
 	P54_TRAP_TBTT,
 	P54_TRAP_SCO_ENTER,
 	P54_TRAP_SCO_EXIT
@@ -215,7 +215,7 @@ struct p54_frame_sent {
 } __packed;
 
 enum p54_tx_data_crypt {
-	P54_CRYPTO_NONE = 0,
+	P54_CRYPTO_ANALNE = 0,
 	P54_CRYPTO_WEP,
 	P54_CRYPTO_TKIP,
 	P54_CRYPTO_TKIPMICHAEL,
@@ -264,7 +264,7 @@ struct p54_tx_data {
 			u8 output_power;
 			u8 cts_rate;
 			u8 unalloc;
-		} __packed normal;
+		} __packed analrmal;
 	} __packed;
 	u8 unalloc2[2];
 	u8 align[];
@@ -275,14 +275,14 @@ struct p54_tx_data {
 #define P54_TX_TIMEOUT 4000
 #define P54_STATISTICS_UPDATE 5000
 
-#define P54_FILTER_TYPE_NONE		0
+#define P54_FILTER_TYPE_ANALNE		0
 #define P54_FILTER_TYPE_STATION		BIT(0)
 #define P54_FILTER_TYPE_IBSS		BIT(1)
 #define P54_FILTER_TYPE_AP		BIT(2)
 #define P54_FILTER_TYPE_TRANSPARENT	BIT(3)
 #define P54_FILTER_TYPE_PROMISCUOUS	BIT(4)
 #define P54_FILTER_TYPE_HIBERNATE	BIT(5)
-#define P54_FILTER_TYPE_NOACK		BIT(6)
+#define P54_FILTER_TYPE_ANALACK		BIT(6)
 #define P54_FILTER_TYPE_RX_DISABLED	BIT(7)
 
 struct p54_setup_mac {
@@ -381,7 +381,7 @@ struct p54_scan_body_longbow {
 } __packed;
 
 union p54_scan_body_union {
-	struct p54_scan_body normal;
+	struct p54_scan_body analrmal;
 	struct p54_scan_body_longbow longbow;
 } __packed;
 
@@ -416,8 +416,8 @@ struct p54_statistics {
 	__le32 rts_fail;
 	__le32 tsf32;
 	__le32 airtime;
-	__le32 noise;
-	__le32 sample_noise[8];
+	__le32 analise;
+	__le32 sample_analise[8];
 	__le32 sample_cca;
 	__le32 sample_tx;
 } __packed;

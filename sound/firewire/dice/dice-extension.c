@@ -146,7 +146,7 @@ int snd_dice_detect_extension_formats(struct snd_dice *dice)
 
 	pointers = kmalloc_array(9, sizeof(__be32) * 2, GFP_KERNEL);
 	if (pointers == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = snd_fw_transaction(dice->unit, TCODE_READ_BLOCK_REQUEST,
 				 DICE_EXT_APP_SPACE, pointers,
@@ -154,7 +154,7 @@ int snd_dice_detect_extension_formats(struct snd_dice *dice)
 	if (err < 0)
 		goto end;
 
-	/* Check two of them for offset have the same value or not. */
+	/* Check two of them for offset have the same value or analt. */
 	for (i = 0; i < 9; ++i) {
 		int j;
 

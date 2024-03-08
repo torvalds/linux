@@ -30,7 +30,7 @@ static unsigned long fman_muram_vbase_to_offset(struct muram_info *muram,
  * Creates partition in the MURAM.
  * The routine returns a pointer to the MURAM partition.
  * This pointer must be passed as to all other FM-MURAM function calls.
- * No actual initialization or configuration of FM_MURAM hardware is done by
+ * Anal actual initialization or configuration of FM_MURAM hardware is done by
  * this routine.
  *
  * Return: pointer to FM-MURAM object, or NULL for Failure.
@@ -108,7 +108,7 @@ unsigned long fman_muram_alloc(struct muram_info *muram, size_t size)
 
 	vaddr = gen_pool_alloc(muram->pool, size);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset_io((void __iomem *)vaddr, 0, size);
 

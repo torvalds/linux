@@ -40,7 +40,7 @@ static inline void wrusp(unsigned long usp)
 
 /*
  * User space process size: 3.75GB. This is hardcoded into a few places,
- * so don't change it unless you know what you are doing.
+ * so don't change it unless you kanalw what you are doing.
  */
 #ifdef CONFIG_MMU
 #if defined(CONFIG_COLDFIRE)
@@ -84,7 +84,7 @@ static inline void wrusp(unsigned long usp)
 
 #ifdef CONFIG_CPU_HAS_ADDRESS_SPACES
 /*
- * Set the SFC/DFC registers for special MM operations.  For most normal
+ * Set the SFC/DFC registers for special MM operations.  For most analrmal
  * operation these remain set to USER_DATA for the uaccess routines.
  */
 static inline void set_fc(unsigned long val)
@@ -93,7 +93,7 @@ static inline void set_fc(unsigned long val)
 
 	__asm__ __volatile__ ("movec %0,%/sfc\n\t"
 			      "movec %0,%/dfc\n\t"
-			      : /* no outputs */ : "r" (val) : "memory");
+			      : /* anal outputs */ : "r" (val) : "memory");
 }
 #else
 static inline void set_fc(unsigned long val)
@@ -109,7 +109,7 @@ struct thread_struct {
 	unsigned long  crp[2];		/* cpu root pointer */
 	unsigned long  esp0;		/* points to SR of stack frame */
 	unsigned long  faddr;		/* info about last fault */
-	int            signo, code;
+	int            siganal, code;
 	unsigned long  fp[8*3];
 	unsigned long  fpcntl[3];	/* fp control regs */
 	unsigned char  fpstate[FPSTATESIZE];  /* floating point state */

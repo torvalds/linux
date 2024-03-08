@@ -28,7 +28,7 @@ static ssize_t fw_version_show(struct device *dev,
 		return CATPT_IPC_ERROR(ret);
 
 	return sysfs_emit(buf, "%d.%d.%d.%d\n", version.type, version.major,
-			  version.minor, version.build);
+			  version.mianalr, version.build);
 }
 static DEVICE_ATTR_RO(fw_version);
 

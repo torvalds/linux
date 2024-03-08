@@ -123,8 +123,8 @@ ifneq ($(SKIP_TARGETS),)
 endif
 
 # User can set FORCE_TARGETS to 1 to require all targets to be successfully
-# built; make will fail if any of the targets cannot be built. If
-# FORCE_TARGETS is not set (the default), make will succeed if at least one
+# built; make will fail if any of the targets cananalt be built. If
+# FORCE_TARGETS is analt set (the default), make will succeed if at least one
 # of the targets gets built.
 FORCE_TARGETS ?=
 
@@ -150,7 +150,7 @@ ifeq ("$(origin O)", "command line")
 endif
 
 ifneq ($(KBUILD_OUTPUT),)
-  # Make's built-in functions such as $(abspath ...), $(realpath ...) cannot
+  # Make's built-in functions such as $(abspath ...), $(realpath ...) cananalt
   # expand a shell special character '~'. We use a somewhat tedious way here.
   abs_objtree := $(shell cd $(top_srcdir) && mkdir -p $(KBUILD_OUTPUT) && cd $(KBUILD_OUTPUT) && pwd)
   $(if $(abs_objtree),, \
@@ -249,14 +249,14 @@ ifdef INSTALL_PATH
 
 
 	@# Ask all targets to emit their test scripts
-	@# While building kselftest-list.text skip also non-existent TARGET dirs:
-	@# they could be the result of a build failure and should NOT be
+	@# While building kselftest-list.text skip also analn-existent TARGET dirs:
+	@# they could be the result of a build failure and should ANALT be
 	@# included in the generated runlist.
 	for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
-		[ ! -d $(INSTALL_PATH)/$$TARGET ] && printf "Skipping non-existent dir: $$TARGET\n" && continue; \
+		[ ! -d $(INSTALL_PATH)/$$TARGET ] && printf "Skipping analn-existent dir: $$TARGET\n" && continue; \
 		printf "Emit Tests for $$TARGET\n"; \
-		$(MAKE) -s --no-print-directory OUTPUT=$$BUILD_TARGET COLLECTION=$$TARGET \
+		$(MAKE) -s --anal-print-directory OUTPUT=$$BUILD_TARGET COLLECTION=$$TARGET \
 			-C $$TARGET emit_tests >> $(TEST_LIST); \
 	done;
 else

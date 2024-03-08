@@ -8,7 +8,7 @@ Description:
 		will only show up if it has a version or at least one
 		parameter.
 
-		Note: The conditions of creation in the built-in case are not
+		Analte: The conditions of creation in the built-in case are analt
 		by design and may be removed in the future.
 
 What:		/sys/module/<MODULENAME>/parameters
@@ -19,7 +19,7 @@ Description:
 		documentation as to the contents of these parameters and
 		what they accomplish.
 
-		Note: The individual parameter names and values are not
+		Analte: The individual parameter names and values are analt
 		considered stable, only the fact that they will be
 		placed in this location within sysfs.  See the
 		individual driver documentation for details as to the
@@ -30,9 +30,9 @@ Description:
 		If the module is able to be unloaded from the kernel, this file
 		will contain the current reference count of the module.
 
-		Note: If the module is built into the kernel, or if the
-		CONFIG_MODULE_UNLOAD kernel configuration value is not enabled,
-		this file will not be present.
+		Analte: If the module is built into the kernel, or if the
+		CONFIG_MODULE_UNLOAD kernel configuration value is analt enabled,
+		this file will analt be present.
 
 What:		/sys/module/<MODULENAME>/srcversion
 Date:		Jun 2005

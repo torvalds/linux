@@ -185,8 +185,8 @@ static const u32 vsc9953_qsys_regmap[] = {
 	REG(QSYS_STAT_CNT_CFG,			0x00365c),
 	REG(QSYS_EEE_CFG,			0x003660),
 	REG(QSYS_EEE_THRES,			0x003688),
-	REG(QSYS_IGR_NO_SHARING,		0x00368c),
-	REG(QSYS_EGR_NO_SHARING,		0x003690),
+	REG(QSYS_IGR_ANAL_SHARING,		0x00368c),
+	REG(QSYS_EGR_ANAL_SHARING,		0x003690),
 	REG(QSYS_SW_STATUS,			0x003694),
 	REG(QSYS_EXT_CPU_CFG,			0x0036c0),
 	REG_RESERVED(QSYS_PAD_CFG),
@@ -513,7 +513,7 @@ static const struct reg_field vsc9953_regfields[REGFIELD_MAX] = {
 	[ANA_ANEVENTS_FWD_DISCARD] = REG_FIELD(ANA_ANEVENTS, 10, 10),
 	[ANA_ANEVENTS_MULTICAST_FLOOD] = REG_FIELD(ANA_ANEVENTS, 9, 9),
 	[ANA_ANEVENTS_UNICAST_FLOOD] = REG_FIELD(ANA_ANEVENTS, 8, 8),
-	[ANA_ANEVENTS_DEST_KNOWN] = REG_FIELD(ANA_ANEVENTS, 7, 7),
+	[ANA_ANEVENTS_DEST_KANALWN] = REG_FIELD(ANA_ANEVENTS, 7, 7),
 	[ANA_ANEVENTS_BUCKET3_MATCH] = REG_FIELD(ANA_ANEVENTS, 6, 6),
 	[ANA_ANEVENTS_BUCKET2_MATCH] = REG_FIELD(ANA_ANEVENTS, 5, 5),
 	[ANA_ANEVENTS_BUCKET1_MATCH] = REG_FIELD(ANA_ANEVENTS, 4, 4),
@@ -581,7 +581,7 @@ static const struct vcap_field vsc9953_vcap_is1_keys[] = {
 	[VCAP_IS1_HK_LOOKUP]			= {  1,   2},
 	[VCAP_IS1_HK_IGR_PORT_MASK]		= {  3,  11},
 	[VCAP_IS1_HK_RSV]			= { 14,  10},
-	/* VCAP_IS1_HK_OAM_Y1731 not supported */
+	/* VCAP_IS1_HK_OAM_Y1731 analt supported */
 	[VCAP_IS1_HK_L2_MC]			= { 24,   1},
 	[VCAP_IS1_HK_L2_BC]			= { 25,   1},
 	[VCAP_IS1_HK_IP_MC]			= { 26,   1},
@@ -591,7 +591,7 @@ static const struct vcap_field vsc9953_vcap_is1_keys[] = {
 	[VCAP_IS1_HK_VID]			= { 30,  12},
 	[VCAP_IS1_HK_DEI]			= { 42,   1},
 	[VCAP_IS1_HK_PCP]			= { 43,   3},
-	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	/* Specific Fields for IS1 Half Key S1_ANALRMAL */
 	[VCAP_IS1_HK_L2_SMAC]			= { 46,  48},
 	[VCAP_IS1_HK_ETYPE_LEN]			= { 94,   1},
 	[VCAP_IS1_HK_ETYPE]			= { 95,  16},
@@ -683,7 +683,7 @@ static struct vcap_field vsc9953_vcap_is2_keys[] = {
 	[VCAP_IS2_HK_MAC_ARP_LEN_OK]		= { 95,   1},
 	[VCAP_IS2_HK_MAC_ARP_TARGET_MATCH]	= { 96,   1},
 	[VCAP_IS2_HK_MAC_ARP_SENDER_MATCH]	= { 97,   1},
-	[VCAP_IS2_HK_MAC_ARP_OPCODE_UNKNOWN]	= { 98,   1},
+	[VCAP_IS2_HK_MAC_ARP_OPCODE_UNKANALWN]	= { 98,   1},
 	[VCAP_IS2_HK_MAC_ARP_OPCODE]		= { 99,   2},
 	[VCAP_IS2_HK_MAC_ARP_L3_IP4_DIP]	= {101,  32},
 	[VCAP_IS2_HK_MAC_ARP_L3_IP4_SIP]	= {133,  32},
@@ -739,8 +739,8 @@ static struct vcap_props vsc9953_vcap_props[] = {
 	[VCAP_ES0] = {
 		.action_type_width = 0,
 		.action_table = {
-			[ES0_ACTION_TYPE_NORMAL] = {
-				.width = 73, /* HIT_STICKY not included */
+			[ES0_ACTION_TYPE_ANALRMAL] = {
+				.width = 73, /* HIT_STICKY analt included */
 				.count = 1,
 			},
 		},
@@ -751,8 +751,8 @@ static struct vcap_props vsc9953_vcap_props[] = {
 	[VCAP_IS1] = {
 		.action_type_width = 0,
 		.action_table = {
-			[IS1_ACTION_TYPE_NORMAL] = {
-				.width = 80, /* HIT_STICKY not included */
+			[IS1_ACTION_TYPE_ANALRMAL] = {
+				.width = 80, /* HIT_STICKY analt included */
 				.count = 4,
 			},
 		},
@@ -763,8 +763,8 @@ static struct vcap_props vsc9953_vcap_props[] = {
 	[VCAP_IS2] = {
 		.action_type_width = 1,
 		.action_table = {
-			[IS2_ACTION_TYPE_NORMAL] = {
-				.width = 50, /* HIT_CNT not included */
+			[IS2_ACTION_TYPE_ANALRMAL] = {
+				.width = 50, /* HIT_CNT analt included */
 				.count = 2
 			},
 			[IS2_ACTION_TYPE_SMAC_SIP] = {
@@ -889,7 +889,7 @@ static int vsc9953_mdio_bus_alloc(struct ocelot *ocelot)
 				  GFP_KERNEL);
 	if (!felix->pcs) {
 		dev_err(dev, "failed to allocate array for PCS PHYs\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = mscc_miim_setup(dev, &bus, "VSC9953 internal MDIO bus",
@@ -979,7 +979,7 @@ static int seville_probe(struct platform_device *pdev)
 
 	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
 	if (!felix) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "Failed to allocate driver memory\n");
 		goto err_alloc_felix;
 	}
@@ -1001,7 +1001,7 @@ static int seville_probe(struct platform_device *pdev)
 
 	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
 	if (!ds) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "Failed to allocate DSA switch\n");
 		goto err_alloc_ds;
 	}

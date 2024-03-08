@@ -123,7 +123,7 @@
 	vcc-gpio = <&chipcommon 13 GPIO_ACTIVE_HIGH>;
 };
 
-&spi_nor {
+&spi_analr {
 	status = "okay";
 };
 

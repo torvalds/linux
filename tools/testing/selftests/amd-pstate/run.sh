@@ -67,54 +67,54 @@ count_cpus()
 }
 
 # $1: policy
-find_current_governor()
+find_current_goveranalr()
 {
-	cat $CPUFREQROOT/$1/scaling_governor
+	cat $CPUFREQROOT/$1/scaling_goveranalr
 }
 
-backup_governor()
+backup_goveranalr()
 {
 	policies=$(ls $CPUFREQROOT| grep "policy[0-9].*")
 	for policy in $policies; do
-		cur_gov=$(find_current_governor $policy)
-		echo "$policy $cur_gov" >> $OUTFILE.backup_governor.log
+		cur_gov=$(find_current_goveranalr $policy)
+		echo "$policy $cur_gov" >> $OUTFILE.backup_goveranalr.log
 	done
 
-	printf "Governor $cur_gov backup done.\n"
+	printf "Goveranalr $cur_gov backup done.\n"
 }
 
-restore_governor()
+restore_goveranalr()
 {
 	i=0;
 
-	policies=$(awk '{print $1}' $OUTFILE.backup_governor.log)
+	policies=$(awk '{print $1}' $OUTFILE.backup_goveranalr.log)
 	for policy in $policies; do
 		let i++;
-		governor=$(sed -n ''$i'p' $OUTFILE.backup_governor.log | awk '{print $2}')
+		goveranalr=$(sed -n ''$i'p' $OUTFILE.backup_goveranalr.log | awk '{print $2}')
 
-		# switch governor
-		echo $governor > $CPUFREQROOT/$policy/scaling_governor
+		# switch goveranalr
+		echo $goveranalr > $CPUFREQROOT/$policy/scaling_goveranalr
 	done
 
-	printf "Governor restored to $governor.\n"
+	printf "Goveranalr restored to $goveranalr.\n"
 }
 
-# $1: governor
-switch_governor()
+# $1: goveranalr
+switch_goveranalr()
 {
 	policies=$(ls $CPUFREQROOT| grep "policy[0-9].*")
 	for policy in $policies; do
-		filepath=$CPUFREQROOT/$policy/scaling_available_governors
+		filepath=$CPUFREQROOT/$policy/scaling_available_goveranalrs
 
 		# Exit if cpu isn't managed by cpufreq core
 		if [ ! -f $filepath ]; then
 			return;
 		fi
 
-		echo $1 > $CPUFREQROOT/$policy/scaling_governor
+		echo $1 > $CPUFREQROOT/$policy/scaling_goveranalr
 	done
 
-	printf "Switched governor to $1.\n"
+	printf "Switched goveranalr to $1.\n"
 }
 
 # All amd-pstate tests
@@ -126,7 +126,7 @@ amd_pstate_all()
 
 	count=$(count_cpus)
 	if [ $count = 0 ]; then
-		printf "No cpu is managed by cpufreq core, exiting\n"
+		printf "Anal cpu is managed by cpufreq core, exiting\n"
 		exit;
 	else
 		printf "AMD P-state manages: $count CPUs\n"
@@ -298,7 +298,7 @@ prerequisite()
 	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
 
 	if [ ! -d "$SYSFS" ]; then
-		echo $msg sysfs is not mounted >&2
+		echo $msg sysfs is analt mounted >&2
 		exit 2
 	fi
 
@@ -306,24 +306,24 @@ prerequisite()
 	CPUFREQROOT="$CPUROOT/cpufreq"
 
 	if ! ls $CPUROOT/cpu* > /dev/null 2>&1; then
-		echo $msg cpus not available in sysfs >&2
+		echo $msg cpus analt available in sysfs >&2
 		exit 2
 	fi
 
 	if ! ls $CPUROOT/cpufreq > /dev/null 2>&1; then
-		echo $msg cpufreq directory not available in sysfs >&2
+		echo $msg cpufreq directory analt available in sysfs >&2
 		exit 2
 	fi
 }
 
 do_test()
 {
-	# Check if CPUs are managed by cpufreq or not
+	# Check if CPUs are managed by cpufreq or analt
 	count=$(count_cpus)
 	MAKE_CPUS=$((count*2))
 
 	if [ $count = 0 ]; then
-		echo "No cpu is managed by cpufreq core, exiting"
+		echo "Anal cpu is managed by cpufreq core, exiting"
 		exit 2;
 	fi
 
@@ -357,19 +357,19 @@ pre_clear_dumps()
 	case "$FUNC" in
 		"all")
 			rm -rf $OUTFILE.log
-			rm -rf $OUTFILE.backup_governor.log
+			rm -rf $OUTFILE.backup_goveranalr.log
 			rm -rf *.png
 			;;
 
 		"tbench")
 			rm -rf $OUTFILE.log
-			rm -rf $OUTFILE.backup_governor.log
+			rm -rf $OUTFILE.backup_goveranalr.log
 			rm -rf tbench_*.png
 			;;
 
 		"gitsource")
 			rm -rf $OUTFILE.log
-			rm -rf $OUTFILE.backup_governor.log
+			rm -rf $OUTFILE.backup_goveranalr.log
 			rm -rf gitsource_*.png
 			;;
 
@@ -381,7 +381,7 @@ pre_clear_dumps()
 post_clear_dumps()
 {
 	rm -rf $OUTFILE.log
-	rm -rf $OUTFILE.backup_governor.log
+	rm -rf $OUTFILE.backup_goveranalr.log
 }
 
 # Parse arguments

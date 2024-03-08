@@ -52,7 +52,7 @@ struct sof_ipc_probe_point_remove_params {
  * @stream_tag:		Extractor stream tag
  * @buffer_size:	DMA buffer size to set for extractor
  *
- * Host chooses whether extraction is supported or not by providing
+ * Host chooses whether extraction is supported or analt by providing
  * valid stream tag to DSP. Once specified, stream described by that
  * tag will be tied to DSP for extraction for the entire lifetime of
  * probe.
@@ -69,14 +69,14 @@ static int ipc3_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
 
 	msg = kmalloc(size, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	msg->hdr.size = size;
 	msg->hdr.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_INIT;
 	msg->num_elems = 1;
 	msg->dma[0].stream_tag = stream_tag;
 	msg->dma[0].dma_buffer_size = buffer_size;
 
-	ret = sof_client_ipc_tx_message_no_reply(cdev, msg);
+	ret = sof_client_ipc_tx_message_anal_reply(cdev, msg);
 	kfree(msg);
 	return ret;
 }
@@ -86,8 +86,8 @@ static int ipc3_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
  * @cdev:		SOF client device
  *
  * Host sends DEINIT request to free previously initialized probe
- * on DSP side once it is no longer needed. DEINIT only when there
- * are no probes connected and with all injectors detached.
+ * on DSP side once it is anal longer needed. DEINIT only when there
+ * are anal probes connected and with all injectors detached.
  */
 static int ipc3_probes_deinit(struct sof_client_dev *cdev)
 {
@@ -96,7 +96,7 @@ static int ipc3_probes_deinit(struct sof_client_dev *cdev)
 	msg.size = sizeof(msg);
 	msg.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_DEINIT;
 
-	return sof_client_ipc_tx_message_no_reply(cdev, &msg);
+	return sof_client_ipc_tx_message_anal_reply(cdev, &msg);
 }
 
 static int ipc3_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
@@ -113,7 +113,7 @@ static int ipc3_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 
 	reply = kzalloc(max_msg_size, GFP_KERNEL);
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 	msg.rhdr.hdr.size = sizeof(msg);
 	msg.rhdr.hdr.cmd = SOF_IPC_GLB_PROBE | cmd;
 
@@ -131,7 +131,7 @@ static int ipc3_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 	bytes *= reply->num_elems;
 	*params = kmemdup(&reply->dma[0], bytes, GFP_KERNEL);
 	if (!*params) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 	*num_params = reply->num_elems;
@@ -148,7 +148,7 @@ exit:
  * @num_desc:	Returned count of active probes
  *
  * Host sends PROBE_POINT_INFO request to obtain list of active probe
- * points, valid for disconnection when given probe is no longer
+ * points, valid for disconnection when given probe is anal longer
  * required.
  */
 static int ipc3_probes_points_info(struct sof_client_dev *cdev,
@@ -170,7 +170,7 @@ static int ipc3_probes_points_info(struct sof_client_dev *cdev,
  * transfer data from or to target stream given the probing purpose.
  *
  * Each probe point should be removed using PROBE_POINT_REMOVE
- * request when no longer needed.
+ * request when anal longer needed.
  */
 static int ipc3_probes_points_add(struct sof_client_dev *cdev,
 				  struct sof_probe_point_desc *desc,
@@ -182,13 +182,13 @@ static int ipc3_probes_points_add(struct sof_client_dev *cdev,
 
 	msg = kmalloc(size, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	msg->hdr.size = size;
 	msg->num_elems = num_desc;
 	msg->hdr.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_POINT_ADD;
 	memcpy(&msg->desc[0], desc, size - sizeof(*msg));
 
-	ret = sof_client_ipc_tx_message_no_reply(cdev, msg);
+	ret = sof_client_ipc_tx_message_anal_reply(cdev, msg);
 	kfree(msg);
 	return ret;
 }
@@ -212,13 +212,13 @@ static int ipc3_probes_points_remove(struct sof_client_dev *cdev,
 
 	msg = kmalloc(size, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	msg->hdr.size = size;
 	msg->num_elems = num_buffer_id;
 	msg->hdr.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_POINT_REMOVE;
 	memcpy(&msg->buffer_id[0], buffer_id, size - sizeof(*msg));
 
-	ret = sof_client_ipc_tx_message_no_reply(cdev, msg);
+	ret = sof_client_ipc_tx_message_anal_reply(cdev, msg);
 	kfree(msg);
 	return ret;
 }

@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /* As of libbpf 1.0 libbpf_set_strict_mode() and enum libbpf_struct_mode have
- * no effect. But they are left in libbpf_legacy.h so that applications that
+ * anal effect. But they are left in libbpf_legacy.h so that applications that
  * prepared for libbpf 1.0 before final release by using
  * libbpf_set_strict_mode() still work with libbpf 1.0+ without any changes.
  */
@@ -37,16 +37,16 @@ enum libbpf_strict_mode {
 	 * v1.0. It won't be supported anymore in v1.0, please update your
 	 * code so that it handles LIBBPF_STRICT_ALL mode before libbpf v1.0.
 	 */
-	LIBBPF_STRICT_NONE = 0x00,
+	LIBBPF_STRICT_ANALNE = 0x00,
 	/*
-	 * Return NULL pointers on error, not ERR_PTR(err).
-	 * Additionally, libbpf also always sets errno to corresponding Exx
+	 * Return NULL pointers on error, analt ERR_PTR(err).
+	 * Additionally, libbpf also always sets erranal to corresponding Exx
 	 * (positive) error code.
 	 */
 	LIBBPF_STRICT_CLEAN_PTRS = 0x01,
 	/*
-	 * Return actual error codes from low-level APIs directly, not just -1.
-	 * Additionally, libbpf also always sets errno to corresponding Exx
+	 * Return actual error codes from low-level APIs directly, analt just -1.
+	 * Additionally, libbpf also always sets erranal to corresponding Exx
 	 * (positive) error code.
 	 */
 	LIBBPF_STRICT_DIRECT_ERRS = 0x02,
@@ -57,7 +57,7 @@ enum libbpf_strict_mode {
 	 * unrecognized by libbpf and would have to be just SEC("xdp") and
 	 * SEC("xdp") and SEC("perf_event").
 	 *
-	 * Note, in this mode the program pin path will be based on the
+	 * Analte, in this mode the program pin path will be based on the
 	 * function name instead of section name.
 	 *
 	 * Additionally, routines in the .text section are always considered
@@ -70,14 +70,14 @@ enum libbpf_strict_mode {
 	 * a race condition to bpf_object__open() and bpf_object__close().
 	 * Clients can maintain it on their own if it is valuable for them.
 	 */
-	LIBBPF_STRICT_NO_OBJECT_LIST = 0x08,
+	LIBBPF_STRICT_ANAL_OBJECT_LIST = 0x08,
 	/*
 	 * Automatically bump RLIMIT_MEMLOCK using setrlimit() before the
 	 * first BPF program or map creation operation. This is done only if
 	 * kernel is too old to support memcg-based memory accounting for BPF
 	 * subsystem. By default, RLIMIT_MEMLOCK limit is set to RLIM_INFINITY,
 	 * but it can be overriden with libbpf_set_memlock_rlim() API.
-	 * Note that libbpf_set_memlock_rlim() needs to be called before
+	 * Analte that libbpf_set_memlock_rlim() needs to be called before
 	 * the very first bpf_prog_load(), bpf_map_create() or bpf_object__load()
 	 * operation.
 	 */
@@ -97,15 +97,15 @@ LIBBPF_API int libbpf_set_strict_mode(enum libbpf_strict_mode mode);
  * @brief **libbpf_get_error()** extracts the error code from the passed
  * pointer
  * @param ptr pointer returned from libbpf API function
- * @return error code; or 0 if no error occured
+ * @return error code; or 0 if anal error occured
  *
- * Note, as of libbpf 1.0 this function is not necessary and not recommended
+ * Analte, as of libbpf 1.0 this function is analt necessary and analt recommended
  * to be used. Libbpf doesn't return error code embedded into the pointer
  * itself. Instead, NULL is returned on error and error code is passed through
- * thread-local errno variable. **libbpf_get_error()** is just returning -errno
- * value if it receives NULL, which is correct only if errno hasn't been
+ * thread-local erranal variable. **libbpf_get_error()** is just returning -erranal
+ * value if it receives NULL, which is correct only if erranal hasn't been
  * modified between libbpf API call and corresponding **libbpf_get_error()**
- * call. Prefer to check return for NULL and use errno directly.
+ * call. Prefer to check return for NULL and use erranal directly.
  *
  * This API is left in libbpf 1.0 to allow applications that were 1.0-ready
  * before final libbpf 1.0 without needing to change them.
@@ -115,7 +115,7 @@ LIBBPF_API long libbpf_get_error(const void *ptr);
 #define DECLARE_LIBBPF_OPTS LIBBPF_OPTS
 
 /* "Discouraged" APIs which don't follow consistent libbpf naming patterns.
- * They are normally a trivial aliases or wrappers for proper APIs and are
+ * They are analrmally a trivial aliases or wrappers for proper APIs and are
  * left to minimize unnecessary disruption for users of libbpf. But they
  * shouldn't be used going forward.
  */

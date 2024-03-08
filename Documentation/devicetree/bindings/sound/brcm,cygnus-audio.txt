@@ -19,7 +19,7 @@ Required properties:
 		Valid names are "ch0_audio", "ch1_audio", "ch2_audio"
 	- interrupts: audio DMA interrupt number
 
-SSP Subnode properties:
+SSP Subanalde properties:
 - reg: The index of ssp port interface to use
 	Valid value are 0, 1, 2, or 3 (for spdif)
 

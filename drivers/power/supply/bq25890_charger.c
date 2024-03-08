@@ -114,7 +114,7 @@ struct bq25890_device {
 	int id;
 
 	struct usb_phy *usb_phy;
-	struct notifier_block usb_nb;
+	struct analtifier_block usb_nb;
 	struct work_struct usb_work;
 	struct delayed_work pump_express_work;
 	unsigned long usb_event;
@@ -143,8 +143,8 @@ static const struct regmap_range bq25890_readonly_reg_ranges[] = {
 };
 
 static const struct regmap_access_table bq25890_writeable_regs = {
-	.no_ranges = bq25890_readonly_reg_ranges,
-	.n_no_ranges = ARRAY_SIZE(bq25890_readonly_reg_ranges),
+	.anal_ranges = bq25890_readonly_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(bq25890_readonly_reg_ranges),
 };
 
 static const struct regmap_range bq25890_volatile_reg_ranges[] = {
@@ -155,8 +155,8 @@ static const struct regmap_range bq25890_volatile_reg_ranges[] = {
 };
 
 static const struct regmap_access_table bq25890_volatile_regs = {
-	.yes_ranges = bq25890_volatile_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(bq25890_volatile_reg_ranges),
+	.anal_ranges = bq25890_volatile_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(bq25890_volatile_reg_ranges),
 };
 
 static const struct regmap_config bq25890_regmap_config = {
@@ -417,21 +417,21 @@ static u32 bq25890_find_val(u8 idx, enum bq25890_table_ids id)
 }
 
 enum bq25890_status {
-	STATUS_NOT_CHARGING,
+	STATUS_ANALT_CHARGING,
 	STATUS_PRE_CHARGING,
 	STATUS_FAST_CHARGING,
 	STATUS_TERMINATION_DONE,
 };
 
 enum bq25890_chrg_fault {
-	CHRG_FAULT_NORMAL,
+	CHRG_FAULT_ANALRMAL,
 	CHRG_FAULT_INPUT,
 	CHRG_FAULT_THERMAL_SHUTDOWN,
 	CHRG_FAULT_TIMER_EXPIRED,
 };
 
 enum bq25890_ntc_fault {
-	NTC_FAULT_NORMAL = 0,
+	NTC_FAULT_ANALRMAL = 0,
 	NTC_FAULT_WARM = 2,
 	NTC_FAULT_COOL = 3,
 	NTC_FAULT_COLD = 5,
@@ -441,8 +441,8 @@ enum bq25890_ntc_fault {
 static bool bq25890_is_adc_property(enum power_supply_property psp)
 {
 	switch (psp) {
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 	case POWER_SUPPLY_PROP_TEMP:
 		return true;
 
@@ -499,29 +499,29 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		if (!state.online || state.hiz)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-		else if (state.chrg_status == STATUS_NOT_CHARGING)
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		else if (state.chrg_status == STATUS_ANALT_CHARGING)
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		else if (state.chrg_status == STATUS_PRE_CHARGING ||
 			 state.chrg_status == STATUS_FAST_CHARGING)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (state.chrg_status == STATUS_TERMINATION_DONE)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		if (!state.online || state.hiz ||
-		    state.chrg_status == STATUS_NOT_CHARGING ||
+		    state.chrg_status == STATUS_ANALT_CHARGING ||
 		    state.chrg_status == STATUS_TERMINATION_DONE)
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		else if (state.chrg_status == STATUS_PRE_CHARGING)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
 		else if (state.chrg_status == STATUS_FAST_CHARGING)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_FAST;
 		else /* unreachable */
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 		break;
 
 	case POWER_SUPPLY_PROP_MANUFACTURER:
@@ -565,13 +565,13 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		val->intval = bq25890_find_val(ret, TBL_IINLIM);
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:	/* I_BAT now */
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:	/* I_BAT analw */
 		/*
 		 * This is ADC-sampled immediate charge current supplied
 		 * from charger to battery. The property name is confusing,
 		 * for clarification refer to:
 		 * Documentation/ABI/testing/sysfs-class-power
-		 * /sys/class/power_supply/<supply_name>/current_now
+		 * /sys/class/power_supply/<supply_name>/current_analw
 		 */
 		ret = bq25890_field_read(bq, F_ICHGR); /* read measured value */
 		if (ret < 0)
@@ -621,13 +621,13 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		val->intval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:	/* V_BAT now */
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:	/* V_BAT analw */
 		/*
 		 * This is ADC-sampled immediate charge voltage supplied
 		 * from charger to battery. The property name is confusing,
 		 * for clarification refer to:
 		 * Documentation/ABI/testing/sysfs-class-power
-		 * /sys/class/power_supply/<supply_name>/voltage_now
+		 * /sys/class/power_supply/<supply_name>/voltage_analw
 		 */
 		ret = bq25890_field_read(bq, F_BATV); /* read measured value */
 		if (ret < 0)
@@ -822,13 +822,13 @@ static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq)
 
 	ret = bq25890_get_chip_state(bq, &new_state);
 	if (ret < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!memcmp(&bq->state, &new_state, sizeof(new_state)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
-	 * Restore HiZ bit in case it was set by user. The chip does not retain
+	 * Restore HiZ bit in case it was set by user. The chip does analt retain
 	 * this bit on cable replug, hence the bit must be reset manually here.
 	 */
 	if (new_state.online && !bq->state.online && bq->force_hiz) {
@@ -1000,8 +1000,8 @@ static const enum power_supply_property bq25890_power_supply_props[] = {
 	POWER_SUPPLY_PROP_PRECHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 };
 
@@ -1087,7 +1087,7 @@ static void bq25890_pump_express_work(struct work_struct *data)
 		if (ret < 0)
 			goto error_print;
 
-		/* Note a single PUMPX up pulse-sequence takes 2.1s */
+		/* Analte a single PUMPX up pulse-sequence takes 2.1s */
 		ret = regmap_field_read_poll_timeout(bq->rmap_fields[F_PUMPX_UP],
 						     ret, !ret, 100000, 3000000);
 		if (ret < 0)
@@ -1127,7 +1127,7 @@ static void bq25890_usb_work(struct work_struct *data)
 		bq25890_set_otg_cfg(bq, 1);
 		break;
 
-	case USB_EVENT_NONE:
+	case USB_EVENT_ANALNE:
 		/* Disable boost mode */
 		ret = bq25890_set_otg_cfg(bq, 0);
 		if (ret == 0)
@@ -1136,7 +1136,7 @@ static void bq25890_usb_work(struct work_struct *data)
 	}
 }
 
-static int bq25890_usb_notifier(struct notifier_block *nb, unsigned long val,
+static int bq25890_usb_analtifier(struct analtifier_block *nb, unsigned long val,
 				void *priv)
 {
 	struct bq25890_device *bq =
@@ -1145,7 +1145,7 @@ static int bq25890_usb_notifier(struct notifier_block *nb, unsigned long val,
 	bq->usb_event = val;
 	queue_work(system_power_efficient_wq, &bq->usb_work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 #ifdef CONFIG_REGULATOR
@@ -1282,13 +1282,13 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 
 	id = bq25890_field_read(bq, F_PN);
 	if (id < 0) {
-		dev_err(bq->dev, "Cannot read chip ID: %d\n", id);
+		dev_err(bq->dev, "Cananalt read chip ID: %d\n", id);
 		return id;
 	}
 
 	rev = bq25890_field_read(bq, F_DEV_REV);
 	if (rev < 0) {
-		dev_err(bq->dev, "Cannot read chip revision: %d\n", rev);
+		dev_err(bq->dev, "Cananalt read chip revision: %d\n", rev);
 		return rev;
 	}
 
@@ -1308,7 +1308,7 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 			break;
 		default:
 			dev_err(bq->dev,
-				"Unknown device revision %d, assume BQ25892\n",
+				"Unkanalwn device revision %d, assume BQ25892\n",
 				rev);
 			bq->chip_version = BQ25892;
 		}
@@ -1319,8 +1319,8 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 		break;
 
 	default:
-		dev_err(bq->dev, "Unknown chip ID %d\n", id);
-		return -ENODEV;
+		dev_err(bq->dev, "Unkanalwn chip ID %d\n", id);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1333,7 +1333,7 @@ static int bq25890_irq_probe(struct bq25890_device *bq)
 	irq = devm_gpiod_get(bq->dev, BQ25890_IRQ_PIN, GPIOD_IN);
 	if (IS_ERR(irq))
 		return dev_err_probe(bq->dev, PTR_ERR(irq),
-				     "Could not probe irq pin.\n");
+				     "Could analt probe irq pin.\n");
 
 	return gpiod_to_irq(irq);
 }
@@ -1403,7 +1403,7 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 			return -EPROBE_DEFER;
 	}
 
-	/* Optional, left at 0 if property is not present */
+	/* Optional, left at 0 if property is analt present */
 	device_property_read_u32(bq->dev, "linux,pump-express-vbus-max",
 				 &bq->pump_express_vbus_max);
 
@@ -1434,7 +1434,7 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 	return 0;
 }
 
-static void bq25890_non_devm_cleanup(void *data)
+static void bq25890_analn_devm_cleanup(void *data)
 {
 	struct bq25890_device *bq = data;
 
@@ -1455,7 +1455,7 @@ static int bq25890_probe(struct i2c_client *client)
 
 	bq = devm_kzalloc(dev, sizeof(*bq), GFP_KERNEL);
 	if (!bq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bq->client = client;
 	bq->dev = dev;
@@ -1478,7 +1478,7 @@ static int bq25890_probe(struct i2c_client *client)
 
 	ret = bq25890_get_chip_version(bq);
 	if (ret) {
-		dev_err(dev, "Cannot read chip ID or unknown chip: %d\n", ret);
+		dev_err(dev, "Cananalt read chip ID or unkanalwn chip: %d\n", ret);
 		return ret;
 	}
 
@@ -1488,7 +1488,7 @@ static int bq25890_probe(struct i2c_client *client)
 
 	ret = bq25890_hw_init(bq);
 	if (ret < 0) {
-		dev_err(dev, "Cannot initialize the chip: %d\n", ret);
+		dev_err(dev, "Cananalt initialize the chip: %d\n", ret);
 		return ret;
 	}
 
@@ -1496,7 +1496,7 @@ static int bq25890_probe(struct i2c_client *client)
 		client->irq = bq25890_irq_probe(bq);
 
 	if (client->irq < 0) {
-		dev_err(dev, "No irq resource found.\n");
+		dev_err(dev, "Anal irq resource found.\n");
 		return client->irq;
 	}
 
@@ -1507,7 +1507,7 @@ static int bq25890_probe(struct i2c_client *client)
 	 * This must be before bq25890_power_supply_init(), so that it runs
 	 * after devm unregisters the power_supply.
 	 */
-	ret = devm_add_action_or_reset(dev, bq25890_non_devm_cleanup, bq);
+	ret = devm_add_action_or_reset(dev, bq25890_analn_devm_cleanup, bq);
 	if (ret)
 		return ret;
 
@@ -1528,8 +1528,8 @@ static int bq25890_probe(struct i2c_client *client)
 
 	if (!IS_ERR_OR_NULL(bq->usb_phy)) {
 		INIT_WORK(&bq->usb_work, bq25890_usb_work);
-		bq->usb_nb.notifier_call = bq25890_usb_notifier;
-		usb_register_notifier(bq->usb_phy, &bq->usb_nb);
+		bq->usb_nb.analtifier_call = bq25890_usb_analtifier;
+		usb_register_analtifier(bq->usb_phy, &bq->usb_nb);
 	}
 
 	return 0;
@@ -1540,7 +1540,7 @@ static void bq25890_remove(struct i2c_client *client)
 	struct bq25890_device *bq = i2c_get_clientdata(client);
 
 	if (!IS_ERR_OR_NULL(bq->usb_phy)) {
-		usb_unregister_notifier(bq->usb_phy, &bq->usb_nb);
+		usb_unregister_analtifier(bq->usb_phy, &bq->usb_nb);
 		cancel_work_sync(&bq->usb_work);
 	}
 

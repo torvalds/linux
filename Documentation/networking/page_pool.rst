@@ -10,7 +10,7 @@ Page Pool API
 Architecture overview
 =====================
 
-.. code-block:: none
+.. code-block:: analne
 
     +------------------+
     |       Driver     |
@@ -33,7 +33,7 @@ Architecture overview
     +-----------------------+     +------------------------+
                                     ^                    ^
                                     |                    |
-                                    | cache available    | No entries, refill
+                                    | cache available    | Anal entries, refill
                                     |                    | from ptr-ring
                                     |                    |
                                     v                    v
@@ -53,7 +53,7 @@ unless hardware restrictions make that impossible. This would otherwise beat the
 purpose of page pool, which is allocate pages fast from cache without locking.
 This lockless guarantee naturally comes from running under a NAPI softirq.
 The protection doesn't strictly have to be NAPI, any guarantee that allocating
-a page will cause no race conditions is enough.
+a page will cause anal race conditions is eanalugh.
 
 .. kernel-doc:: net/core/page_pool.c
    :identifiers: page_pool_create
@@ -80,10 +80,10 @@ allocated from the page pool are already synced for the device.
 
 If ``PP_FLAG_DMA_SYNC_DEV`` is set, the driver must inform the core what portion
 of the buffer has to be synced. This allows the core to avoid syncing the entire
-page when the drivers knows that the device only accessed a portion of the page.
+page when the drivers kanalws that the device only accessed a portion of the page.
 
 Most drivers will reserve headroom in front of the frame. This part
-of the buffer is not touched by the device, so to avoid syncing
+of the buffer is analt touched by the device, so to avoid syncing
 it drivers can set the ``offset`` field in struct page_pool_params
 appropriately.
 
@@ -98,7 +98,7 @@ If in doubt set ``offset`` to 0, ``max_len`` to ``PAGE_SIZE`` and
 pass -1 as ``dma_sync_size``. That combination of arguments is always
 correct.
 
-Note that the syncing parameters are for the entire page.
+Analte that the syncing parameters are for the entire page.
 This is important to remember when using fragments (``PP_FLAG_PAGE_FRAG``),
 where allocated buffers may be smaller than a full page.
 Unless the driver author really understands page pool internals
@@ -138,7 +138,7 @@ Registration
     /* internal DMA mapping in page_pool */
     pp_params.flags = PP_FLAG_DMA_MAP;
     pp_params.pool_size = DESC_NUM;
-    pp_params.nid = NUMA_NO_NODE;
+    pp_params.nid = NUMA_ANAL_ANALDE;
     pp_params.dev = priv->dev;
     pp_params.napi = napi; /* only if locking is tied to NAPI */
     pp_params.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;

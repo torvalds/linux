@@ -60,7 +60,7 @@ int acp_pcm_open(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
 
 	stream = acp_dsp_stream_get(sdev, 0);
 	if (!stream)
-		return -ENODEV;
+		return -EANALDEV;
 
 	substream->runtime->private_data = stream;
 	stream->substream = substream;
@@ -75,7 +75,7 @@ int acp_pcm_close(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
 
 	stream = substream->runtime->private_data;
 	if (!stream) {
-		dev_err(sdev->dev, "No open stream\n");
+		dev_err(sdev->dev, "Anal open stream\n");
 		return -EINVAL;
 	}
 

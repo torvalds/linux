@@ -5,7 +5,7 @@ NAME
 ----
 perf-script - Read perf.data (created by perf record) and display trace output
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf script' [<options>]
@@ -31,7 +31,7 @@ There are several variants of perf script:
   'perf script record <script> <command>' to record the events required
   for 'perf script report'.  <script> is the name displayed in the
   output of 'perf script --list' i.e. the actual script name minus any
-  language extension.  If <command> is not specified, the events are
+  language extension.  If <command> is analt specified, the events are
   recorded using the -a (system-wide) 'perf record' option.
 
   'perf script report <script> [args]' to run and display the results
@@ -47,7 +47,7 @@ There are several variants of perf script:
   using 'live-mode' i.e. without writing anything to disk.  <script>
   is the name displayed in the output of 'perf script --list' i.e. the
   actual script name minus any language extension.  If <command> is
-  not specified, the events are recorded using the -a (system-wide)
+  analt specified, the events are recorded using the -a (system-wide)
   'perf record' option.  If <script> has any required args, they
   should be specified before <command>.  This mode doesn't allow for
   optional script args to be specified; if optional script args are
@@ -80,7 +80,7 @@ OPTIONS
         Display verbose dump of the trace data.
 
 --dump-unsorted-raw-trace=::
-        Same as --dump-raw-trace but not sorted in time order.
+        Same as --dump-raw-trace but analt sorted in time order.
 
 -L::
 --Latency=::
@@ -115,8 +115,8 @@ OPTIONS
 
 -a::
         Force system-wide collection.  Scripts run without a <command>
-        normally use -a by default, while scripts run with a <command>
-        normally don't - this option allows the latter to be run in
+        analrmally use -a by default, while scripts run with a <command>
+        analrmally don't - this option allows the latter to be run in
         system-wide mode.
 
 -i::
@@ -146,7 +146,7 @@ OPTIONS
 		perf script -F trace:<fields> -F sw:<fields> -F hw:<fields>
 
 	i.e., the specified fields apply to all event types if the type string
-	is not given.
+	is analt given.
 
 	In addition to overriding fields, it is also possible to add or remove
 	fields from the defaults. For example
@@ -154,7 +154,7 @@ OPTIONS
 		-F -cpu,+insn
 
 	removes the cpu field and adds the insn field. Adding/removing fields
-	cannot be mixed with normal overriding.
+	cananalt be mixed with analrmal overriding.
 
 	The arguments are processed in the order received. A later usage can
 	reset a prior request. e.g.:
@@ -184,33 +184,33 @@ OPTIONS
 
 	For the 'wildcard' option if a user selected field is invalid for an
 	event type, a message is displayed to the user that the option is
-	ignored for that type. For example:
+	iganalred for that type. For example:
 
 		$ perf script -F comm,tid,trace
-		'trace' not valid for hardware events. Ignoring.
-		'trace' not valid for software events. Ignoring.
+		'trace' analt valid for hardware events. Iganalring.
+		'trace' analt valid for software events. Iganalring.
 
 	Alternatively, if the type is given an invalid field is specified it
 	is an error. For example:
 
         perf script -v -F sw:comm,tid,trace
-        'trace' not valid for software events.
+        'trace' analt valid for software events.
 
 	At this point usage is displayed, and perf-script exits.
 
 	The flags field is synthesized and may have a value when Instruction
 	Trace decoding. The flags are "bcrosyiABExghDt" which stand for branch,
-	call, return, conditional, system, asynchronous, interrupt,
+	call, return, conditional, system, asynchroanalus, interrupt,
 	transaction abort, trace begin, trace end, in transaction, VM-Entry,
 	VM-Exit, interrupt disabled and interrupt disable toggle respectively.
-	Known combinations of flags are printed more nicely e.g.
+	Kanalwn combinations of flags are printed more nicely e.g.
 	"call" for "bc", "return" for "br", "jcc" for "bo", "jmp" for "b",
 	"int" for "bci", "iret" for "bri", "syscall" for "bcs", "sysret" for "brs",
 	"async" for "by", "hw int" for "bcyi", "tx abrt" for "bA", "tr strt" for "bB",
 	"tr end" for "bE", "vmentry" for "bcg", "vmexit" for "bch".
 	However the "x", "D" and "t" flags will be displayed separately in those
 	cases e.g. "jcc     (xD)" for a condition branch within a transaction
-	with interrupts disabled. Note, interrupts becoming disabled is "t",
+	with interrupts disabled. Analte, interrupts becoming disabled is "t",
 	whereas interrupts becoming enabled is "Dt".
 
 	The callindent field is synthesized and may have a value when
@@ -234,16 +234,16 @@ OPTIONS
 	The cgroup fields requires sample having the cgroup id which is saved
 	when "--all-cgroups" option is passed to 'perf record'.
 
-	Finally, a user may not set fields to none for all event types.
-	i.e., -F "" is not allowed.
+	Finally, a user may analt set fields to analne for all event types.
+	i.e., -F "" is analt allowed.
 
 	The brstack output includes branch related information with raw addresses using the
 	/v/v/v/v/cycles syntax in the following order:
 	FROM: branch source instruction
 	TO  : branch target instruction
-        M/P/-: M=branch target mispredicted or branch direction was mispredicted, P=target predicted or direction predicted, -=not supported
-	X/- : X=branch inside a transactional region, -=not in transaction region or not supported
-	A/- : A=TSX abort entry, -=not aborted region or not supported
+        M/P/-: M=branch target mispredicted or branch direction was mispredicted, P=target predicted or direction predicted, -=analt supported
+	X/- : X=branch inside a transactional region, -=analt in transaction region or analt supported
+	A/- : A=TSX abort entry, -=analt aborted region or analt supported
 	cycles
 
 	The brstacksym is identical to brstack, except that the FROM and TO addresses are printed in a symbolic form if possible.
@@ -253,7 +253,7 @@ OPTIONS
 	sample was recorded with perf record -b or -j any.
 
 	Use brstackinsnlen to print the brstackinsn lenght. For example, you
-	can’t know the next sequential instruction after an unconditional branch unless
+	can’t kanalw the next sequential instruction after an unconditional branch unless
 	you calculate that based on its length.
 
 	The brstackoff field will print an offset into a specific dso/binary.
@@ -262,9 +262,9 @@ OPTIONS
 	sampling periods, similar to perf stat. This requires
 	specifying a group with multiple events defining metrics with the :S option
 	for perf record. perf will sample on the first event, and
-	print computed metrics for all the events in the group. Please note
+	print computed metrics for all the events in the group. Please analte
 	that the metric computed is averaged over the whole sampling
-	period (since the last sample), not just for the sample point.
+	period (since the last sample), analt just for the sample point.
 
 	For sample events it's possible to display misc field with -F +misc option,
 	following letters are displayed for each bit:
@@ -297,14 +297,14 @@ OPTIONS
 
 -G::
 --hide-call-graph::
-        When printing symbols do not display call chain.
+        When printing symbols do analt display call chain.
 
 --stop-bt::
         Stop display of callgraph at these symbols
 
 -C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
-	be provided as a comma-separated list with no space: 0,1. Ranges of
+	be provided as a comma-separated list with anal space: 0,1. Ranges of
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
 
@@ -360,7 +360,7 @@ OPTIONS
 
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
-	disable with --no-demangle.
+	disable with --anal-demangle.
 
 --demangle-kernel::
 	Demangle kernel symbol names to human readable form (for C++ kernels).
@@ -376,23 +376,23 @@ OPTIONS
 
 include::itrace.txt[]
 
-	To disable decoding entirely, use --no-itrace.
+	To disable decoding entirely, use --anal-itrace.
 
 --full-source-path::
 	Show the full path for source files for srcline output.
 
 --max-stack::
         Set the stack depth limit when parsing the callchain, anything
-        beyond the specified depth will be ignored. This is a trade-off
+        beyond the specified depth will be iganalred. This is a trade-off
         between information loss and faster processing especially for
         workloads that can have a very long callchain stack.
-        Note that when using the --itrace option the synthesized callchain size
+        Analte that when using the --itrace option the synthesized callchain size
         will override this value if the synthesized callchain size is bigger.
 
         Default: 127
 
 --ns::
-	Use 9 decimal places when displaying time (i.e. show the nanoseconds)
+	Use 9 decimal places when displaying time (i.e. show the naanalseconds)
 
 -f::
 --force::
@@ -400,9 +400,9 @@ include::itrace.txt[]
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
-	have the format seconds.nanoseconds. If start is not given (i.e. time
+	have the format seconds.naanalseconds. If start is analt given (i.e. time
 	string is ',x.y') then analysis starts at the beginning of the file. If
-	stop time is not given (i.e. time string is 'x.y,') then analysis goes
+	stop time is analt given (i.e. time string is 'x.y,') then analysis goes
 	to end of file. Multiple ranges can be separated by spaces, which
 	requires the argument to be quoted e.g. --time "1234.567,1234.789 1235,"
 
@@ -439,7 +439,7 @@ include::itrace.txt[]
 --inline::
 	If a callgraph address belongs to an inlined function, the inline stack
 	will be printed. Each entry has function name and file/line. Enabled by
-	default, disable with --no-inline.
+	default, disable with --anal-inline.
 
 --insn-trace::
 	Show instruction stream for intel_pt traces. Combine with --xed to
@@ -456,8 +456,8 @@ include::itrace.txt[]
 	The hexadecimal address may be the start address of a symbol or
 	any other address to filter the trace records
 
-	For example, to select the symbol noploop or the address 0x4007a0:
-	perf script --symbols=noploop,0x4007a0
+	For example, to select the symbol analploop or the address 0x4007a0:
+	perf script --symbols=analploop,0x4007a0
 
 	Support filtering trace records by symbol name, start address of
 	symbol, any hexadecimal address and address range.
@@ -505,10 +505,10 @@ include::itrace.txt[]
 	perf record --call-graph lbr.
 	Disabled by default. In common cases with call stack overflows,
 	it can recreate better call stacks than the default lbr call stack
-	output. But this approach is not foolproof. There can be cases
+	output. But this approach is analt foolproof. There can be cases
 	where it creates incorrect call stacks from incorrect matches.
-	The known limitations include exception handing such as
-	setjmp/longjmp will have calls/returns not match.
+	The kanalwn limitations include exception handing such as
+	setjmp/longjmp will have calls/returns analt match.
 
 :GMEXAMPLECMD: script
 :GMEXAMPLESUBCMD:

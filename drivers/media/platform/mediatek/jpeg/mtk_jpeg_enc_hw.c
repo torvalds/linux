@@ -276,7 +276,7 @@ static irqreturn_t mtk_jpegenc_hw_irq_handler(int irq, void *priv)
 	if (irq_status)
 		writel(0, jpeg->reg_base + JPEG_ENC_INT_STS);
 	if (!(irq_status & JPEG_ENC_INT_STATUS_DONE))
-		dev_warn(jpeg->dev, "Jpg Enc occurs unknown Err.");
+		dev_warn(jpeg->dev, "Jpg Enc occurs unkanalwn Err.");
 
 	result_size = mtk_jpeg_enc_get_file_size(jpeg->reg_base);
 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0, result_size);
@@ -334,7 +334,7 @@ static int mtk_jpegenc_hw_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->plat_dev = pdev;
 	dev->dev = &pdev->dev;

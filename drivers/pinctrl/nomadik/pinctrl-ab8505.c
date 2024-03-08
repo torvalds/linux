@@ -44,7 +44,7 @@
 #define AB8505_GPIO_MAX_NUMBER	53
 
 /*
- * The names of the pins are denoted by GPIO number and ball name, even
+ * The names of the pins are deanalted by GPIO number and ball name, even
  * though they can be used for other things than GPIO, this is the first
  * column in the table of the data sheet and often used on schematics and
  * such.
@@ -272,24 +272,24 @@ static const struct abx500_function ab8505_functions[] = {
 
 static struct
 alternate_functions ab8505_alternate_functions[AB8505_GPIO_MAX_NUMBER + 1] = {
-	ALTERNATE_FUNCTIONS(0, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO0 */
+	ALTERNATE_FUNCTIONS(0, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO0 */
 	ALTERNATE_FUNCTIONS(1,      0, UNUSED, UNUSED, 0, 0, 0), /* GPIO1, altA controlled by bit 0 */
 	ALTERNATE_FUNCTIONS(2,      1, UNUSED, UNUSED, 0, 0, 0), /* GPIO2, altA controlled by bit 1 */
 	ALTERNATE_FUNCTIONS(3,      2, UNUSED, UNUSED, 0, 0, 0), /* GPIO3, altA controlled by bit 2*/
-	ALTERNATE_FUNCTIONS(4, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO4, bit 3 reserved */
-	ALTERNATE_FUNCTIONS(5, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO5, bit 4 reserved */
-	ALTERNATE_FUNCTIONS(6, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO6, bit 5 reserved */
-	ALTERNATE_FUNCTIONS(7, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO7, bit 6 reserved */
-	ALTERNATE_FUNCTIONS(8, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO8, bit 7 reserved */
+	ALTERNATE_FUNCTIONS(4, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO4, bit 3 reserved */
+	ALTERNATE_FUNCTIONS(5, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO5, bit 4 reserved */
+	ALTERNATE_FUNCTIONS(6, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO6, bit 5 reserved */
+	ALTERNATE_FUNCTIONS(7, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO7, bit 6 reserved */
+	ALTERNATE_FUNCTIONS(8, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO8, bit 7 reserved */
 
-	ALTERNATE_FUNCTIONS(9, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO9, bit 0 reserved */
+	ALTERNATE_FUNCTIONS(9, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO9, bit 0 reserved */
 	ALTERNATE_FUNCTIONS(10,      1,      0, UNUSED, 1, 0, 0), /* GPIO10, altA and altB controlled by bit 0 */
 	ALTERNATE_FUNCTIONS(11,      2,      1, UNUSED, 0, 0, 0), /* GPIO11, altA controlled by bit 2 */
-	ALTERNATE_FUNCTIONS(12, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO12, bit3 reserved */
+	ALTERNATE_FUNCTIONS(12, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO12, bit3 reserved */
 	ALTERNATE_FUNCTIONS(13,      4,      3,      4, 1, 0, 2), /* GPIO13, altA altB and altC controlled by bit 3 and 4 */
 	ALTERNATE_FUNCTIONS(14,      5, UNUSED, UNUSED, 0, 0, 0), /* GPIO14, altA controlled by bit 5 */
-	ALTERNATE_FUNCTIONS(15, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO15, bit 6 reserved */
-	ALTERNATE_FUNCTIONS(16, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO15, bit 7 reserved  */
+	ALTERNATE_FUNCTIONS(15, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO15, bit 6 reserved */
+	ALTERNATE_FUNCTIONS(16, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO15, bit 7 reserved  */
 	/*
 	 * pins 17 to 20 are special case, only bit 0 is used to select
 	 * alternate function for these 4 pins.
@@ -299,41 +299,41 @@ alternate_functions ab8505_alternate_functions[AB8505_GPIO_MAX_NUMBER + 1] = {
 	ALTERNATE_FUNCTIONS(18,      0, UNUSED, UNUSED, 0, 0, 0), /* GPIO18, altA controlled by bit 0 */
 	ALTERNATE_FUNCTIONS(19,      0, UNUSED, UNUSED, 0, 0, 0), /* GPIO19, altA controlled by bit 0 */
 	ALTERNATE_FUNCTIONS(20,      0, UNUSED, UNUSED, 0, 0, 0), /* GPIO20, altA controlled by bit 0 */
-	ALTERNATE_FUNCTIONS(21, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO21, bit 4 reserved */
-	ALTERNATE_FUNCTIONS(22, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO22, bit 5 reserved */
-	ALTERNATE_FUNCTIONS(23, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO23, bit 6 reserved */
-	ALTERNATE_FUNCTIONS(24, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO24, bit 7 reserved */
+	ALTERNATE_FUNCTIONS(21, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO21, bit 4 reserved */
+	ALTERNATE_FUNCTIONS(22, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO22, bit 5 reserved */
+	ALTERNATE_FUNCTIONS(23, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO23, bit 6 reserved */
+	ALTERNATE_FUNCTIONS(24, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO24, bit 7 reserved */
 
-	ALTERNATE_FUNCTIONS(25, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO25, bit 0 reserved */
-	ALTERNATE_FUNCTIONS(26, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO26, bit 1 reserved */
-	ALTERNATE_FUNCTIONS(27, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO27, bit 2 reserved */
-	ALTERNATE_FUNCTIONS(28, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO28, bit 3 reserved */
-	ALTERNATE_FUNCTIONS(29, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO29, bit 4 reserved */
-	ALTERNATE_FUNCTIONS(30, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO30, bit 5 reserved */
-	ALTERNATE_FUNCTIONS(31, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO31, bit 6 reserved */
-	ALTERNATE_FUNCTIONS(32, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO32, bit 7 reserved */
+	ALTERNATE_FUNCTIONS(25, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO25, bit 0 reserved */
+	ALTERNATE_FUNCTIONS(26, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO26, bit 1 reserved */
+	ALTERNATE_FUNCTIONS(27, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO27, bit 2 reserved */
+	ALTERNATE_FUNCTIONS(28, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO28, bit 3 reserved */
+	ALTERNATE_FUNCTIONS(29, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO29, bit 4 reserved */
+	ALTERNATE_FUNCTIONS(30, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO30, bit 5 reserved */
+	ALTERNATE_FUNCTIONS(31, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO31, bit 6 reserved */
+	ALTERNATE_FUNCTIONS(32, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO32, bit 7 reserved */
 
-	ALTERNATE_FUNCTIONS(33, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO33, bit 0 reserved */
+	ALTERNATE_FUNCTIONS(33, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO33, bit 0 reserved */
 	ALTERNATE_FUNCTIONS(34,      1, UNUSED, UNUSED, 0, 0, 0), /* GPIO34, altA controlled by bit 1 */
-	ALTERNATE_FUNCTIONS(35, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO35, bit 2 reserved */
-	ALTERNATE_FUNCTIONS(36, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO36, bit 2 reserved */
-	ALTERNATE_FUNCTIONS(37, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO37, bit 2 reserved */
-	ALTERNATE_FUNCTIONS(38, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO38, bit 2 reserved */
-	ALTERNATE_FUNCTIONS(39, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO39, bit 2 reserved */
+	ALTERNATE_FUNCTIONS(35, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO35, bit 2 reserved */
+	ALTERNATE_FUNCTIONS(36, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO36, bit 2 reserved */
+	ALTERNATE_FUNCTIONS(37, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO37, bit 2 reserved */
+	ALTERNATE_FUNCTIONS(38, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO38, bit 2 reserved */
+	ALTERNATE_FUNCTIONS(39, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO39, bit 2 reserved */
 	ALTERNATE_FUNCTIONS(40,      7, UNUSED, UNUSED, 0, 0, 0), /* GPIO40, altA controlled by bit 7*/
 
 	ALTERNATE_FUNCTIONS(41,      0, UNUSED, UNUSED, 0, 0, 0), /* GPIO41, altA controlled by bit 0 */
-	ALTERNATE_FUNCTIONS(42, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO42, bit 1 reserved */
-	ALTERNATE_FUNCTIONS(43, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO43, bit 2 reserved */
-	ALTERNATE_FUNCTIONS(44, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO44, bit 3 reserved */
-	ALTERNATE_FUNCTIONS(45, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO45, bit 4 reserved */
-	ALTERNATE_FUNCTIONS(46, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO46, bit 5 reserved */
-	ALTERNATE_FUNCTIONS(47, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO47, bit 6 reserved */
-	ALTERNATE_FUNCTIONS(48, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO48, bit 7 reserved */
+	ALTERNATE_FUNCTIONS(42, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO42, bit 1 reserved */
+	ALTERNATE_FUNCTIONS(43, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO43, bit 2 reserved */
+	ALTERNATE_FUNCTIONS(44, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO44, bit 3 reserved */
+	ALTERNATE_FUNCTIONS(45, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO45, bit 4 reserved */
+	ALTERNATE_FUNCTIONS(46, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO46, bit 5 reserved */
+	ALTERNATE_FUNCTIONS(47, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO47, bit 6 reserved */
+	ALTERNATE_FUNCTIONS(48, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO48, bit 7 reserved */
 
-	ALTERNATE_FUNCTIONS(49, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO49, bit 0 reserved */
+	ALTERNATE_FUNCTIONS(49, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO49, bit 0 reserved */
 	ALTERNATE_FUNCTIONS(50,	     1,      2, UNUSED, 1, 0, 0), /* GPIO50, altA controlled by bit 1 */
-	ALTERNATE_FUNCTIONS(51, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO49, bit 0 reserved */
+	ALTERNATE_FUNCTIONS(51, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* anal GPIO49, bit 0 reserved */
 	ALTERNATE_FUNCTIONS(52,	     3, UNUSED, UNUSED, 0, 0, 0), /* GPIO52, altA controlled by bit 3 */
 	ALTERNATE_FUNCTIONS(53,	     4, UNUSED, UNUSED, 0, 0, 0), /* GPIO53, altA controlled by bit 4 */
 };

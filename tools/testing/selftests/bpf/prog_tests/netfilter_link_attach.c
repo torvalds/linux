@@ -24,7 +24,7 @@ static const struct nf_link_test nf_hook_link_tests[] = {
 	{ .pf = NFPROTO_IPV4, .priority = INT_MAX, .name = "invalid-priority-max", },
 	{ .pf = NFPROTO_IPV4, .flags = UINT_MAX, .name = "invalid-flags", },
 
-	{ .pf = NFPROTO_INET, .priority = 1, .name = "invalid-inet-not-supported", },
+	{ .pf = NFPROTO_INET, .priority = 1, .name = "invalid-inet-analt-supported", },
 
 	{ .pf = NFPROTO_IPV4, .priority = -10000, .expect_success = true, .name = "attach ipv4", },
 	{ .pf = NFPROTO_IPV6, .priority =  10001, .expect_success = true, .name = "attach ipv6", },

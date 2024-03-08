@@ -258,7 +258,7 @@ u8 r8712_usb_hal_bus_init(struct _adapter *adapter)
 		/* Revised for 8051 ROM code wrong operation. */
 		r8712_write8(adapter, 0x1025fe1c, 0x80);
 		/* To make sure that TxDMA can ready to download FW.
-		 * We should reset TxDMA if IMEM RPT was not ready.
+		 * We should reset TxDMA if IMEM RPT was analt ready.
 		 */
 		do {
 			val8 = r8712_read8(adapter, TCR);

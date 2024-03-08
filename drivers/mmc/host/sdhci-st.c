@@ -96,7 +96,7 @@ struct st_mmc_platform_data {
 #define ST_TOP_MMC_DLY_CTRL_DLL_BYPASS_PH_SEL	BIT(1)
 #define ST_TOP_MMC_DLY_CTRL_TX_DLL_ENABLE	BIT(8)
 #define ST_TOP_MMC_DLY_CTRL_RX_DLL_ENABLE	BIT(9)
-#define ST_TOP_MMC_DLY_CTRL_ATUNE_NOT_CFG_DLY	BIT(10)
+#define ST_TOP_MMC_DLY_CTRL_ATUNE_ANALT_CFG_DLY	BIT(10)
 #define ST_TOP_MMC_START_DLL_LOCK		BIT(11)
 
 /* register to provide the phase-shift value for DLL */
@@ -111,7 +111,7 @@ struct st_mmc_platform_data {
 
 #define ST_TOP_MMC_DYN_DLY_CONF	\
 		(ST_TOP_MMC_DLY_CTRL_TX_DLL_ENABLE | \
-		 ST_TOP_MMC_DLY_CTRL_ATUNE_NOT_CFG_DLY | \
+		 ST_TOP_MMC_DLY_CTRL_ATUNE_ANALT_CFG_DLY | \
 		 ST_TOP_MMC_START_DLL_LOCK)
 
 /*
@@ -132,14 +132,14 @@ static inline void st_mmcss_set_static_delay(void __iomem *ioaddr)
 
 /**
  * st_mmcss_cconfig: configure the Arasan HC inside the flashSS.
- * @np: dt device node.
+ * @np: dt device analde.
  * @host: sdhci host
  * Description: this function is to configure the Arasan host controller.
  * On some ST SoCs, i.e. STiH407 family, the MMC devices inside a dedicated
  * flashSS sub-system which needs to be configured to be compliant to eMMC 4.5
  * or eMMC4.3.  This has to be done before registering the sdhci host.
  */
-static void st_mmcss_cconfig(struct device_node *np, struct sdhci_host *host)
+static void st_mmcss_cconfig(struct device_analde *np, struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct mmc_host *mhost = host->mmc;
@@ -156,7 +156,7 @@ static void st_mmcss_cconfig(struct device_node *np, struct sdhci_host *host)
 	writel_relaxed(ST_MMC_CCONFIG_1_DEFAULT,
 			host->ioaddr + ST_MMC_CCONFIG_REG_1);
 
-	/* Set clock frequency, default to 50MHz if max-frequency is not
+	/* Set clock frequency, default to 50MHz if max-frequency is analt
 	 * provided */
 
 	switch (mhost->f_max) {
@@ -265,8 +265,8 @@ static void sdhci_st_set_uhs_signaling(struct sdhci_host *host,
 	ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
 	switch (uhs) {
 	/*
-	 * Set V18_EN -- UHS modes do not work without this.
-	 * does not change signaling voltage
+	 * Set V18_EN -- UHS modes do analt work without this.
+	 * does analt change signaling voltage
 	 */
 
 	case MMC_TIMING_UHS_SDR12:
@@ -331,9 +331,9 @@ static const struct sdhci_ops sdhci_st_ops = {
 
 static const struct sdhci_pltfm_data sdhci_st_pdata = {
 	.ops = &sdhci_st_ops,
-	.quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
+	.quirks = SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC |
 		SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
-		SDHCI_QUIRK_NO_HISPD_BIT,
+		SDHCI_QUIRK_ANAL_HISPD_BIT,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 		SDHCI_QUIRK2_STOP_WITH_TC,
 };
@@ -341,7 +341,7 @@ static const struct sdhci_pltfm_data sdhci_st_pdata = {
 
 static int sdhci_st_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct sdhci_host *host;
 	struct st_mmc_platform_data *pdata;
 	struct sdhci_pltfm_host *pltfm_host;
@@ -352,7 +352,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 
 	clk =  devm_clk_get(&pdev->dev, "mmc");
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "Peripheral clk not found\n");
+		dev_err(&pdev->dev, "Peripheral clk analt found\n");
 		return PTR_ERR(clk);
 	}
 
@@ -475,7 +475,7 @@ static int sdhci_st_resume(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct st_mmc_platform_data *pdata = sdhci_pltfm_priv(pltfm_host);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	ret = clk_prepare_enable(pltfm_host->clk);
@@ -510,7 +510,7 @@ static struct platform_driver sdhci_st_driver = {
 	.remove_new = sdhci_st_remove,
 	.driver = {
 		   .name = "sdhci-st",
-		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		   .probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		   .pm = &sdhci_st_pmops,
 		   .of_match_table = st_sdhci_match,
 		  },

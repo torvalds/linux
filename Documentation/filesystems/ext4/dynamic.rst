@@ -6,7 +6,7 @@ Dynamic Structures
 Dynamic metadata are created on the fly when files and blocks are
 allocated to files.
 
-.. include:: inodes.rst
+.. include:: ianaldes.rst
 .. include:: ifork.rst
 .. include:: directory.rst
 .. include:: attributes.rst

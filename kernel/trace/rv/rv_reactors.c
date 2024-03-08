@@ -34,7 +34,7 @@
  *
  *    For example:
  *      # cat available_reactors
- *      nop
+ *      analp
  *      panic
  *      printk
  *
@@ -44,19 +44,19 @@
  *
  *  "monitors/MONITOR/reactors"
  *    - List available reactors, with the select reaction for the given
- *    MONITOR inside []. The default one is the nop (no operation)
+ *    MONITOR inside []. The default one is the analp (anal operation)
  *    reactor.
  *    - Writing the name of an reactor enables it to the given
  *    MONITOR.
  *
  *    For example:
  *      # cat monitors/wip/reactors
- *      [nop]
+ *      [analp]
  *      panic
  *      printk
  *      # echo panic > monitors/wip/reactors
  *      # cat monitors/wip/reactors
- *      nop
+ *      analp
  *      [panic]
  *      printk
  */
@@ -121,7 +121,7 @@ static const struct seq_operations available_reactors_seq_ops = {
 /*
  * available_reactors interface.
  */
-static int available_reactors_open(struct inode *inode, struct file *file)
+static int available_reactors_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &available_reactors_seq_ops);
 };
@@ -163,7 +163,7 @@ static void monitor_swap_reactors(struct rv_monitor_def *mdef, struct rv_reactor
 {
 	bool monitor_enabled;
 
-	/* nothing to do */
+	/* analthing to do */
 	if (mdef->rdef == rdef)
 		return;
 
@@ -225,7 +225,7 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 		if (strcmp(ptr, rdef->reactor->name) != 0)
 			continue;
 
-		if (rdef == get_reactor_rdef_by_name("nop"))
+		if (rdef == get_reactor_rdef_by_name("analp"))
 			enable = false;
 		else
 			enable = true;
@@ -244,9 +244,9 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 /*
  * available_reactors interface.
  */
-static int monitor_reactors_open(struct inode *inode, struct file *file)
+static int monitor_reactors_open(struct ianalde *ianalde, struct file *file)
 {
-	struct rv_monitor_def *mdef = inode->i_private;
+	struct rv_monitor_def *mdef = ianalde->i_private;
 	struct seq_file *seq_f;
 	int ret;
 
@@ -288,7 +288,7 @@ static int __rv_register_reactor(struct rv_reactor *reactor)
 
 	r = kzalloc(sizeof(struct rv_reactor_def), GFP_KERNEL);
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r->reactor = reactor;
 	r->counter = 0;
@@ -342,7 +342,7 @@ int rv_unregister_reactor(struct rv_reactor *reactor)
 				printk(KERN_WARNING
 				       "rv: the rv_reactor %s is in use by %d monitor(s)\n",
 				       ptr->reactor->name, ptr->counter);
-				printk(KERN_WARNING "rv: the rv_reactor %s cannot be removed\n",
+				printk(KERN_WARNING "rv: the rv_reactor %s cananalt be removed\n",
 				       ptr->reactor->name);
 				ret = -EBUSY;
 				break;
@@ -426,7 +426,7 @@ static ssize_t reacting_on_write_data(struct file *filp, const char __user *user
 
 static const struct file_operations reacting_on_fops = {
 	.open   = simple_open,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.write  = reacting_on_write_data,
 	.read   = reacting_on_read_data,
 };
@@ -443,12 +443,12 @@ int reactor_populate_monitor(struct rv_monitor_def *mdef)
 
 	tmp = rv_create_file("reactors", RV_MODE_WRITE, mdef->root_d, mdef, &monitor_reactors_ops);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Configure as the rv_nop reactor.
+	 * Configure as the rv_analp reactor.
 	 */
-	mdef->rdef = get_reactor_rdef_by_name("nop");
+	mdef->rdef = get_reactor_rdef_by_name("analp");
 	mdef->rdef->counter++;
 	mdef->reacting = false;
 
@@ -467,16 +467,16 @@ void reactor_cleanup_monitor(struct rv_monitor_def *mdef)
 }
 
 /*
- * Nop reactor register
+ * Analp reactor register
  */
-static void rv_nop_reaction(char *msg)
+static void rv_analp_reaction(char *msg)
 {
 }
 
-static struct rv_reactor rv_nop = {
-	.name = "nop",
-	.description = "no-operation reactor: do nothing.",
-	.react = rv_nop_reaction
+static struct rv_reactor rv_analp = {
+	.name = "analp",
+	.description = "anal-operation reactor: do analthing.",
+	.react = rv_analp_reaction
 };
 
 int init_rv_reactors(struct dentry *root_dir)
@@ -493,7 +493,7 @@ int init_rv_reactors(struct dentry *root_dir)
 	if (!reacting)
 		goto rm_available;
 
-	retval = __rv_register_reactor(&rv_nop);
+	retval = __rv_register_reactor(&rv_analp);
 	if (retval)
 		goto rm_reacting;
 
@@ -506,5 +506,5 @@ rm_reacting:
 rm_available:
 	rv_remove(available);
 out_err:
-	return -ENOMEM;
+	return -EANALMEM;
 }

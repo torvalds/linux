@@ -29,9 +29,9 @@ void hantro_mpeg2_dec_copy_qtable(u8 *qtable,
 	for (i = 0; i < ARRAY_SIZE(zigzag); i++) {
 		n = zigzag[i];
 		qtable[n + 0] = ctrl->intra_quantiser_matrix[i];
-		qtable[n + 64] = ctrl->non_intra_quantiser_matrix[i];
+		qtable[n + 64] = ctrl->analn_intra_quantiser_matrix[i];
 		qtable[n + 128] = ctrl->chroma_intra_quantiser_matrix[i];
-		qtable[n + 192] = ctrl->chroma_non_intra_quantiser_matrix[i];
+		qtable[n + 192] = ctrl->chroma_analn_intra_quantiser_matrix[i];
 	}
 }
 
@@ -46,7 +46,7 @@ int hantro_mpeg2_dec_init(struct hantro_ctx *ctx)
 				   &ctx->mpeg2_dec.qtable.dma,
 				   GFP_KERNEL);
 	if (!ctx->mpeg2_dec.qtable.cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

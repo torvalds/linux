@@ -14,7 +14,7 @@
  * ACA (Accessory Charger Adapters)
  */
 enum usb_charger_type {
-	UNKNOWN_TYPE = 0,
+	UNKANALWN_TYPE = 0,
 	SDP_TYPE = 1,
 	DCP_TYPE = 2,
 	CDP_TYPE = 3,

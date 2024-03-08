@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * MCT (Magic Control Technology Corp.) USB RS232 Converter Driver
+ * MCT (Magic Control Techanallogy Corp.) USB RS232 Converter Driver
  *
  *   Copyright (C) 2000 Wolfgang Grandegger (wolfgang@ces.ch)
  *
@@ -18,7 +18,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -33,7 +33,7 @@
 #include "mct_u232.h"
 
 #define DRIVER_AUTHOR "Wolfgang Grandegger <wolfgang@ces.ch>"
-#define DRIVER_DESC "Magic Control Technology USB-RS232 converter driver"
+#define DRIVER_DESC "Magic Control Techanallogy USB-RS232 converter driver"
 
 /*
  * Function prototypes
@@ -115,7 +115,7 @@ struct mct_u232_private {
 
 /*
  * Later day 2.6.0-test kernels have new baud rates like B230400 which
- * we do not know how to support. We ignore them for the moment.
+ * we do analt kanalw how to support. We iganalre them for the moment.
  */
 static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
 					speed_t value, speed_t *result)
@@ -128,7 +128,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
 		case 300:
 			return 0x01;
 		case 600:
-			return 0x02; /* this one not tested */
+			return 0x02; /* this one analt tested */
 		case 1200:
 			return 0x03;
 		case 2400:
@@ -183,7 +183,7 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 
 	buf = kmalloc(MCT_U232_MAX_SIZE, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	divisor = mct_u232_calculate_baud_rate(serial, value, &speed);
 	put_unaligned_le32(divisor, buf);
@@ -202,29 +202,29 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 	/* Mimic the MCT-supplied Windows driver (version 1.21P.0104), which
 	   always sends two extra USB 'device request' messages after the
 	   'baud rate change' message.  The actual functionality of the
-	   request codes in these messages is not fully understood but these
+	   request codes in these messages is analt fully understood but these
 	   particular codes are never seen in any operation besides a baud
 	   rate change.  Both of these messages send a single byte of data.
 	   In the first message, the value of this byte is always zero.
 
 	   The second message has been determined experimentally to control
-	   whether data will be transmitted to a device which is not asserting
+	   whether data will be transmitted to a device which is analt asserting
 	   the 'CTS' signal.  If the second message's data byte is zero, data
-	   will be transmitted even if 'CTS' is not asserted (i.e. no hardware
-	   flow control).  if the second message's data byte is nonzero (a
-	   value of 1 is used by this driver), data will not be transmitted to
-	   a device which is not asserting 'CTS'.
+	   will be transmitted even if 'CTS' is analt asserted (i.e. anal hardware
+	   flow control).  if the second message's data byte is analnzero (a
+	   value of 1 is used by this driver), data will analt be transmitted to
+	   a device which is analt asserting 'CTS'.
 	*/
 
 	buf[0] = 0;
 	rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				MCT_U232_SET_UNKNOWN1_REQUEST,
+				MCT_U232_SET_UNKANALWN1_REQUEST,
 				MCT_U232_SET_REQUEST_TYPE,
-				0, 0, buf, MCT_U232_SET_UNKNOWN1_SIZE,
+				0, 0, buf, MCT_U232_SET_UNKANALWN1_SIZE,
 				WDR_TIMEOUT);
 	if (rc < 0)
 		dev_err(&port->dev, "Sending USB device request code %d "
-			"failed (error = %d)\n", MCT_U232_SET_UNKNOWN1_REQUEST,
+			"failed (error = %d)\n", MCT_U232_SET_UNKANALWN1_REQUEST,
 			rc);
 
 	if (port && C_CRTSCTS(tty))
@@ -254,7 +254,7 @@ static int mct_u232_set_line_ctrl(struct usb_serial_port *port,
 
 	buf = kmalloc(MCT_U232_MAX_SIZE, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = lcr;
 	rc = usb_control_msg(port->serial->dev, usb_sndctrlpipe(port->serial->dev, 0),
@@ -278,9 +278,9 @@ static int mct_u232_set_modem_ctrl(struct usb_serial_port *port,
 
 	buf = kmalloc(MCT_U232_MAX_SIZE, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mcr = MCT_U232_MCR_NONE;
+	mcr = MCT_U232_MCR_ANALNE;
 	if (control_state & TIOCM_DTR)
 		mcr |= MCT_U232_MCR_DTR;
 	if (control_state & TIOCM_RTS)
@@ -312,7 +312,7 @@ static int mct_u232_get_modem_stat(struct usb_serial_port *port,
 	buf = kmalloc(MCT_U232_MAX_SIZE, GFP_KERNEL);
 	if (buf == NULL) {
 		*msr = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rc = usb_control_msg(port->serial->dev, usb_rcvctrlpipe(port->serial->dev, 0),
 			MCT_U232_GET_MODEM_STAT_REQUEST,
@@ -383,12 +383,12 @@ static int mct_u232_port_probe(struct usb_serial_port *port)
 	/* check first to simplify error handling */
 	if (!serial->port[1] || !serial->port[1]->interrupt_in_urb) {
 		dev_err(&port->dev, "expected endpoint missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Use second interrupt-in endpoint for reading. */
 	priv->read_urb = serial->port[1]->interrupt_in_urb;
@@ -428,9 +428,9 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 						== MCT_U232_SITECOM_PID)
 		port->bulk_out_size = 16;
 
-	/* Do a defined restart: the normal serial device seems to
-	 * always turn on DTR and RTS here, so do the same. I'm not
-	 * sure if this is really necessary. But it should not harm
+	/* Do a defined restart: the analrmal serial device seems to
+	 * always turn on DTR and RTS here, so do the same. I'm analt
+	 * sure if this is really necessary. But it should analt harm
 	 * either.
 	 */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -440,7 +440,7 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 		priv->control_state = 0;
 
 	priv->last_lcr = (MCT_U232_DATA_BITS_8 |
-			  MCT_U232_PARITY_NONE |
+			  MCT_U232_PARITY_ANALNE |
 			  MCT_U232_STOP_BITS_1);
 	control_state = priv->control_state;
 	last_lcr = priv->last_lcr;
@@ -518,14 +518,14 @@ static void mct_u232_read_int_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -557,11 +557,11 @@ static void mct_u232_read_int_callback(struct urb *urb)
 	mct_u232_msr_to_icount(&port->icount, priv->last_msr);
 
 #if 0
-	/* Not yet handled. See belkin_sa.c for further information */
-	/* Now to report any errors */
+	/* Analt yet handled. See belkin_sa.c for further information */
+	/* Analw to report any errors */
 	priv->last_lsr = data[MCT_U232_LSR_INDEX];
 	/*
-	 * fill in the flip buffer here, but I do not know the relation
+	 * fill in the flip buffer here, but I do analt kanalw the relation
 	 * to the current/next receive buffer or characters.  I need
 	 * to look in to this before committing any code.
 	 */
@@ -613,7 +613,7 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 
 	/*
 	 * Update baud rate.
-	 * Do not attempt to cache old rates and skip settings,
+	 * Do analt attempt to cache old rates and skip settings,
 	 * disconnects screw such tricks up completely.
 	 * Premature optimization is the root of all evil.
 	 */
@@ -643,7 +643,7 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 		last_lcr |= (cflag & PARODD) ?
 			MCT_U232_PARITY_ODD : MCT_U232_PARITY_EVEN;
 	else
-		last_lcr |= MCT_U232_PARITY_NONE;
+		last_lcr |= MCT_U232_PARITY_ANALNE;
 
 	/* set the number of data bits */
 	switch (cflag & CSIZE) {
@@ -657,7 +657,7 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 		last_lcr |= MCT_U232_DATA_BITS_8; break;
 	default:
 		dev_err(&port->dev,
-			"CSIZE was not CS5-CS8, using default of 8\n");
+			"CSIZE was analt CS5-CS8, using default of 8\n");
 		last_lcr |= MCT_U232_DATA_BITS_8;
 		break;
 	}

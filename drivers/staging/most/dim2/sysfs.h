@@ -2,7 +2,7 @@
 /*
  * sysfs.h - MediaLB sysfs information
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015, Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 /* Author: Andrey Shvetsov <andrey.shvetsov@k2l.de> */

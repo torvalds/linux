@@ -23,7 +23,7 @@ struct device_type sdw_slave_type = {
 };
 
 int sdw_slave_add(struct sdw_bus *bus,
-		  struct sdw_slave_id *id, struct fwnode_handle *fwnode)
+		  struct sdw_slave_id *id, struct fwanalde_handle *fwanalde)
 {
 	struct sdw_slave *slave;
 	int ret;
@@ -31,14 +31,14 @@ int sdw_slave_add(struct sdw_bus *bus,
 
 	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
 	if (!slave)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize data structure */
 	memcpy(&slave->id, id, sizeof(*id));
 	slave->dev.parent = bus->dev;
-	slave->dev.fwnode = fwnode;
+	slave->dev.fwanalde = fwanalde;
 
-	if (id->unique_id == SDW_IGNORED_UNIQUE_ID) {
+	if (id->unique_id == SDW_IGANALRED_UNIQUE_ID) {
 		/* name shall be sdw:ctrl:link:mfg:part:class */
 		dev_set_name(&slave->dev, "sdw:%01x:%01x:%04x:%04x:%02x",
 			     bus->controller_id, bus->link_id, id->mfg_id, id->part_id,
@@ -51,7 +51,7 @@ int sdw_slave_add(struct sdw_bus *bus,
 	}
 
 	slave->dev.bus = &sdw_bus_type;
-	slave->dev.of_node = of_node_get(to_of_node(fwnode));
+	slave->dev.of_analde = of_analde_get(to_of_analde(fwanalde));
 	slave->dev.type = &sdw_slave_type;
 	slave->dev.groups = sdw_slave_status_attr_groups;
 	slave->bus = bus;
@@ -67,7 +67,7 @@ int sdw_slave_add(struct sdw_bus *bus,
 		init_completion(&slave->port_ready[i]);
 
 	mutex_lock(&bus->bus_lock);
-	list_add_tail(&slave->node, &bus->slaves);
+	list_add_tail(&slave->analde, &bus->slaves);
 	mutex_unlock(&bus->bus_lock);
 
 	ret = device_register(&slave->dev);
@@ -79,7 +79,7 @@ int sdw_slave_add(struct sdw_bus *bus,
 		 * when release method is invoked.
 		 */
 		mutex_lock(&bus->bus_lock);
-		list_del(&slave->node);
+		list_del(&slave->analde);
 		mutex_unlock(&bus->bus_lock);
 		put_device(&slave->dev);
 
@@ -132,7 +132,7 @@ struct sdw_acpi_child_walk_data {
 	struct sdw_bus *bus;
 	struct acpi_device *adev;
 	struct sdw_slave_id id;
-	bool ignore_unique_id;
+	bool iganalre_unique_id;
 };
 
 static int sdw_acpi_check_duplicate(struct acpi_device *adev, void *data)
@@ -156,14 +156,14 @@ static int sdw_acpi_check_duplicate(struct acpi_device *adev, void *data)
 			"Valid unique IDs 0x%x 0x%x for Slave mfg_id 0x%04x, part_id 0x%04x\n",
 			cwd->id.unique_id, id.unique_id, cwd->id.mfg_id,
 			cwd->id.part_id);
-		cwd->ignore_unique_id = false;
+		cwd->iganalre_unique_id = false;
 		return 0;
 	}
 
 	dev_err(bus->dev,
 		"Invalid unique IDs 0x%x 0x%x for Slave mfg_id 0x%04x, part_id 0x%04x\n",
 		cwd->id.unique_id, id.unique_id, cwd->id.mfg_id, cwd->id.part_id);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int sdw_acpi_find_one(struct acpi_device *adev, void *data)
@@ -172,7 +172,7 @@ static int sdw_acpi_find_one(struct acpi_device *adev, void *data)
 	struct sdw_acpi_child_walk_data cwd = {
 		.bus = bus,
 		.adev = adev,
-		.ignore_unique_id = true,
+		.iganalre_unique_id = true,
 	};
 	int ret;
 
@@ -185,19 +185,19 @@ static int sdw_acpi_find_one(struct acpi_device *adev, void *data)
 	if (ret)
 		return ret;
 
-	if (cwd.ignore_unique_id)
-		cwd.id.unique_id = SDW_IGNORED_UNIQUE_ID;
+	if (cwd.iganalre_unique_id)
+		cwd.id.unique_id = SDW_IGANALRED_UNIQUE_ID;
 
-	/* Ignore errors and continue. */
-	sdw_slave_add(bus, &cwd.id, acpi_fwnode_handle(adev));
+	/* Iganalre errors and continue. */
+	sdw_slave_add(bus, &cwd.id, acpi_fwanalde_handle(adev));
 	return 0;
 }
 
 /*
- * sdw_acpi_find_slaves() - Find Slave devices in Master ACPI node
+ * sdw_acpi_find_slaves() - Find Slave devices in Master ACPI analde
  * @bus: SDW bus instance
  *
- * Scans Master ACPI node for SDW child Slave devices and registers it.
+ * Scans Master ACPI analde for SDW child Slave devices and registers it.
  */
 int sdw_acpi_find_slaves(struct sdw_bus *bus)
 {
@@ -206,7 +206,7 @@ int sdw_acpi_find_slaves(struct sdw_bus *bus)
 	parent = ACPI_COMPANION(bus->dev);
 	if (!parent) {
 		dev_err(bus->dev, "Can't find parent for acpi bind\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return acpi_dev_for_each_child(parent, sdw_acpi_find_one, bus);
@@ -215,24 +215,24 @@ int sdw_acpi_find_slaves(struct sdw_bus *bus)
 #endif
 
 /*
- * sdw_of_find_slaves() - Find Slave devices in master device tree node
+ * sdw_of_find_slaves() - Find Slave devices in master device tree analde
  * @bus: SDW bus instance
  *
- * Scans Master DT node for SDW child Slave devices and registers it.
+ * Scans Master DT analde for SDW child Slave devices and registers it.
  */
 int sdw_of_find_slaves(struct sdw_bus *bus)
 {
 	struct device *dev = bus->dev;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	for_each_child_of_node(bus->dev->of_node, node) {
+	for_each_child_of_analde(bus->dev->of_analde, analde) {
 		int link_id, ret, len;
 		unsigned int sdw_version;
 		const char *compat = NULL;
 		struct sdw_slave_id id;
 		const __be32 *addr;
 
-		compat = of_get_property(node, "compatible", NULL);
+		compat = of_get_property(analde, "compatible", NULL);
 		if (!compat)
 			continue;
 
@@ -245,7 +245,7 @@ int sdw_of_find_slaves(struct sdw_bus *bus)
 			continue;
 		}
 
-		addr = of_get_property(node, "reg", &len);
+		addr = of_get_property(analde, "reg", &len);
 		if (!addr || (len < 2 * sizeof(u32))) {
 			dev_err(dev, "Invalid Link and Instance ID\n");
 			continue;
@@ -259,7 +259,7 @@ int sdw_of_find_slaves(struct sdw_bus *bus)
 		if (link_id != bus->link_id)
 			continue;
 
-		sdw_slave_add(bus, &id, of_fwnode_handle(node));
+		sdw_slave_add(bus, &id, of_fwanalde_handle(analde));
 	}
 
 	return 0;

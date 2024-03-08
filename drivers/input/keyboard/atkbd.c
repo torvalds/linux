@@ -159,7 +159,7 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_RET_HANGEUL	0xf2
 #define ATKBD_RET_ERR		0xff
 
-#define ATKBD_KEY_UNKNOWN	0
+#define ATKBD_KEY_UNKANALWN	0
 #define ATKBD_KEY_NULL		255
 
 #define ATKBD_SCR_1		0xfffe
@@ -247,7 +247,7 @@ static void *atkbd_platform_fixup_data;
 static unsigned int (*atkbd_platform_scancode_fixup)(struct atkbd *, unsigned int);
 
 /*
- * Certain keyboards to not like ATKBD_CMD_RESET_DIS and stop responding
+ * Certain keyboards to analt like ATKBD_CMD_RESET_DIS and stop responding
  * to many commands until full reset (ATKBD_CMD_RESET_BAT) is performed.
  */
 static bool atkbd_skip_deactivate;
@@ -400,8 +400,8 @@ static unsigned int atkbd_compat_scancode(struct atkbd *atkbd, unsigned int code
 
 /*
  * Tries to handle frame or parity error by requesting the keyboard controller
- * to resend the last byte. This historically not done on x86 as controllers
- * there typically do not implement this command.
+ * to resend the last byte. This historically analt done on x86 as controllers
+ * there typically do analt implement this command.
  */
 static bool __maybe_unused atkbd_handle_frame_error(struct ps2dev *ps2dev,
 						    u8 data, unsigned int flags)
@@ -433,7 +433,7 @@ static enum ps2_disposition atkbd_pre_receive_byte(struct ps2dev *ps2dev,
 
 #if !defined(__i386__) && !defined (__x86_64__)
 	if (atkbd_handle_frame_error(ps2dev, data, flags))
-		return PS2_IGNORE;
+		return PS2_IGANALRE;
 #endif
 
 	return PS2_PROCESS;
@@ -513,14 +513,14 @@ static void atkbd_receive_byte(struct ps2dev *ps2dev, u8 data)
 	switch (keycode) {
 	case ATKBD_KEY_NULL:
 		break;
-	case ATKBD_KEY_UNKNOWN:
+	case ATKBD_KEY_UNKANALWN:
 		dev_warn(&serio->dev,
-			 "Unknown key %s (%s set %d, code %#x on %s).\n",
+			 "Unkanalwn key %s (%s set %d, code %#x on %s).\n",
 			 atkbd->release ? "released" : "pressed",
 			 atkbd->translated ? "translated" : "raw",
 			 atkbd->set, code, serio->phys);
 		dev_warn(&serio->dev,
-			 "Use 'setkeycodes %s%02x <keycode>' to make it known.\n",
+			 "Use 'setkeycodes %s%02x <keycode>' to make it kanalwn.\n",
 			 code & 0x80 ? "e0" : "", code & 0x7f);
 		input_sync(dev);
 		break;
@@ -631,7 +631,7 @@ static int atkbd_set_leds(struct atkbd *atkbd)
 
 /*
  * atkbd_event_work() is used to complete processing of events that
- * can not be processed by input_event() which is often called from
+ * can analt be processed by input_event() which is often called from
  * interrupt context.
  */
 
@@ -643,9 +643,9 @@ static void atkbd_event_work(struct work_struct *work)
 
 	if (!atkbd->enabled) {
 		/*
-		 * Serio ports are resumed asynchronously so while driver core
+		 * Serio ports are resumed asynchroanalusly so while driver core
 		 * thinks that device is already fully operational in reality
-		 * it may not be ready yet. In this case we need to keep
+		 * it may analt be ready yet. In this case we need to keep
 		 * rescheduling till reconnect completes.
 		 */
 		schedule_delayed_work(&atkbd->event_work,
@@ -680,7 +680,7 @@ static void atkbd_schedule_event_work(struct atkbd *atkbd, int event_bit)
 
 /*
  * Event callback from the input module. Events that change the state of
- * the hardware are processed here. If action can not be performed in
+ * the hardware are processed here. If action can analt be performed in
  * interrupt context it is offloaded to atkbd_event_work.
  */
 
@@ -771,8 +771,8 @@ static bool atkbd_is_portable_device(void)
 	static const char * const chassis_types[] = {
 		"8",	/* Portable */
 		"9",	/* Laptop */
-		"10",	/* Notebook */
-		"14",	/* Sub-Notebook */
+		"10",	/* Analtebook */
+		"14",	/* Sub-Analtebook */
 		"31",	/* Convertible */
 		"32",	/* Detachable */
 	};
@@ -788,12 +788,12 @@ static bool atkbd_is_portable_device(void)
 /*
  * On many modern laptops ATKBD_CMD_GETID may cause problems, on these laptops
  * the controller is always in translated mode. In this mode mice/touchpads will
- * not work. So in this case simply assume a keyboard is connected to avoid
+ * analt work. So in this case simply assume a keyboard is connected to avoid
  * confusing some laptop keyboards.
  *
  * Skipping ATKBD_CMD_GETID ends up using a fake keyboard id. Using the standard
  * 0xab83 id is ok in translated mode, only atkbd_select_set() checks atkbd->id
- * and in translated mode that is a no-op.
+ * and in translated mode that is a anal-op.
  */
 static bool atkbd_skip_getid(struct atkbd *atkbd)
 {
@@ -830,7 +830,7 @@ static int atkbd_probe(struct atkbd *atkbd)
 	}
 
 /*
- * Then we check the keyboard ID. We should get 0xab83 under normal conditions.
+ * Then we check the keyboard ID. We should get 0xab83 under analrmal conditions.
  * Some keyboards report different values, but the first byte is always 0xab or
  * 0xac. Some old AT keyboards don't report anything. If a mouse is connected, this
  * should make sure we don't try to set the LEDs on it.
@@ -858,14 +858,14 @@ static int atkbd_probe(struct atkbd *atkbd)
 
 	if (atkbd->id == 0xaca1 && atkbd->translated) {
 		dev_err(&ps2dev->serio->dev,
-			"NCD terminal keyboards are only supported on non-translating controllers. "
+			"NCD terminal keyboards are only supported on analn-translating controllers. "
 			"Use i8042.direct=1 to disable translation.\n");
 		return -1;
 	}
 
 deactivate_kbd:
 /*
- * Make sure nothing is coming from the keyboard and disturbs our
+ * Make sure analthing is coming from the keyboard and disturbs our
  * internal state.
  */
 	if (!atkbd_skip_deactivate)
@@ -887,8 +887,8 @@ static int atkbd_select_set(struct atkbd *atkbd, int target_set, int allow_extra
 
 	atkbd->extra = false;
 /*
- * For known special keyboards we can go ahead and set the correct set.
- * We check for NCD PS/2 Sun, NorthGate OmniKey 101 and
+ * For kanalwn special keyboards we can go ahead and set the correct set.
+ * We check for NCD PS/2 Sun, AnalrthGate OmniKey 101 and
  * IBM RapidAccess / IBM EzButton / Chicony KBP-8993 keyboards.
  */
 
@@ -993,8 +993,8 @@ static void atkbd_disconnect(struct serio *serio)
 
 	/*
 	 * Make sure we don't have a command in flight.
-	 * Note that since atkbd->enabled is false event work will keep
-	 * rescheduling itself until it gets canceled and will not try
+	 * Analte that since atkbd->enabled is false event work will keep
+	 * rescheduling itself until it gets canceled and will analt try
 	 * accessing freed input device or serio port.
 	 */
 	cancel_delayed_work_sync(&atkbd->event_work);
@@ -1019,7 +1019,7 @@ static void atkbd_apply_forced_release_keylist(struct atkbd* atkbd,
 }
 
 /*
- * Most special keys (Fn+F?) on Dell laptops do not generate release
+ * Most special keys (Fn+F?) on Dell laptops do analt generate release
  * events so we have to do it ourselves.
  */
 static unsigned int atkbd_dell_laptop_forced_release_keys[] = {
@@ -1035,21 +1035,21 @@ static unsigned int atkbd_hp_forced_release_keys[] = {
 };
 
 /*
- * Samsung NC10,NC20 with Fn+F? key release not working
+ * Samsung NC10,NC20 with Fn+F? key release analt working
  */
 static unsigned int atkbd_samsung_forced_release_keys[] = {
 	0x82, 0x83, 0x84, 0x86, 0x88, 0x89, 0xb3, 0xf7, 0xf9, -1U
 };
 
 /*
- * Amilo Pi 3525 key release for Fn+Volume keys not working
+ * Amilo Pi 3525 key release for Fn+Volume keys analt working
  */
 static unsigned int atkbd_amilo_pi3525_forced_release_keys[] = {
 	0x20, 0xa0, 0x2e, 0xae, 0x30, 0xb0, -1U
 };
 
 /*
- * Amilo Xi 3650 key release for light touch bar not working
+ * Amilo Xi 3650 key release for light touch bar analt working
  */
 static unsigned int atkbd_amilo_xi3650_forced_release_keys[] = {
 	0x67, 0xed, 0x90, 0xa2, 0x99, 0xa4, 0xae, 0xb0, -1U
@@ -1063,7 +1063,7 @@ static unsigned int atkdb_soltech_ta12_forced_release_keys[] = {
 };
 
 /*
- * Many notebooks don't send key release event for volume up/down
+ * Many analtebooks don't send key release event for volume up/down
  * keys, with key list below common among them
  */
 static unsigned int atkbd_volume_forced_release_keys[] = {
@@ -1086,7 +1086,7 @@ static unsigned int atkbd_oqo_01plus_scancode_fixup(struct atkbd *atkbd,
 	return code;
 }
 
-static int atkbd_get_keymap_from_fwnode(struct atkbd *atkbd)
+static int atkbd_get_keymap_from_fwanalde(struct atkbd *atkbd)
 {
 	struct device *dev = &atkbd->ps2dev.serio->dev;
 	int i, n;
@@ -1100,7 +1100,7 @@ static int atkbd_get_keymap_from_fwnode(struct atkbd *atkbd)
 
 	ptr = kcalloc(n, sizeof(u32), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (device_property_read_u32_array(dev, "linux,keymap", ptr, n)) {
 		dev_err(dev, "problem parsing FW keymap property\n");
@@ -1133,7 +1133,7 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
 	memset(atkbd->keycode, 0, sizeof(atkbd->keycode));
 	bitmap_zero(atkbd->force_release_mask, ATKBD_KEYMAP_SIZE);
 
-	if (!atkbd_get_keymap_from_fwnode(atkbd)) {
+	if (!atkbd_get_keymap_from_fwanalde(atkbd)) {
 		dev_dbg(dev, "Using FW keymap\n");
 	} else if (atkbd->translated) {
 		for (i = 0; i < 128; i++) {
@@ -1158,7 +1158,7 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
 	}
 
 /*
- * HANGEUL and HANJA keys do not send release events so we need to
+ * HANGEUL and HANJA keys do analt send release events so we need to
  * generate such events ourselves
  */
 	scancode = atkbd_compat_scancode(atkbd, ATKBD_RET_HANGEUL);
@@ -1249,7 +1249,7 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 	}
 }
 
-static void atkbd_parse_fwnode_data(struct serio *serio)
+static void atkbd_parse_fwanalde_data(struct serio *serio)
 {
 	struct atkbd *atkbd = atkbd_from_serio(serio);
 	struct device *dev = &serio->dev;
@@ -1269,7 +1269,7 @@ static void atkbd_parse_fwnode_data(struct serio *serio)
 /*
  * atkbd_connect() is called when the serio module finds an interface
  * that isn't handled yet by an appropriate device driver. We check if
- * there is an AT keyboard out there and if yes, we register ourselves
+ * there is an AT keyboard out there and if anal, we register ourselves
  * to the input module.
  */
 
@@ -1277,7 +1277,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct atkbd *atkbd;
 	struct input_dev *dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	atkbd = kzalloc(sizeof(struct atkbd), GFP_KERNEL);
 	dev = input_allocate_device();
@@ -1318,7 +1318,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	if (atkbd->write) {
 
 		if (atkbd_probe(atkbd)) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto fail3;
 		}
 
@@ -1330,7 +1330,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 		atkbd->id = 0xab00;
 	}
 
-	atkbd_parse_fwnode_data(serio);
+	atkbd_parse_fwanalde_data(serio);
 
 	atkbd_set_keycode_table(atkbd);
 	atkbd_set_device_attrs(atkbd);
@@ -1365,7 +1365,7 @@ static int atkbd_reconnect(struct serio *serio)
 
 	if (!atkbd || !drv) {
 		dev_dbg(&serio->dev,
-			"reconnect request, but serio is disconnected, ignoring...\n");
+			"reconnect request, but serio is disconnected, iganalring...\n");
 		return -1;
 	}
 
@@ -1513,7 +1513,7 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 
 		new_dev = input_allocate_device();
 		if (!new_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, atkbd->set, value);
@@ -1591,7 +1591,7 @@ static ssize_t atkbd_set_scroll(struct atkbd *atkbd, const char *buf, size_t cou
 
 		new_dev = input_allocate_device();
 		if (!new_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		atkbd->dev = new_dev;
 		atkbd->scroll = value;
@@ -1644,7 +1644,7 @@ static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 
 		new_dev = input_allocate_device();
 		if (!new_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, value, atkbd->extra);
@@ -1698,7 +1698,7 @@ static ssize_t atkbd_set_softrepeat(struct atkbd *atkbd, const char *buf, size_t
 
 		new_dev = input_allocate_device();
 		if (!new_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		atkbd->dev = new_dev;
 		atkbd->softrepeat = value;
@@ -1748,7 +1748,7 @@ static ssize_t atkbd_set_softraw(struct atkbd *atkbd, const char *buf, size_t co
 
 		new_dev = input_allocate_device();
 		if (!new_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		atkbd->dev = new_dev;
 		atkbd->softraw = value;
@@ -1796,9 +1796,9 @@ static int __init atkbd_deactivate_fixup(const struct dmi_system_id *id)
 }
 
 /*
- * NOTE: do not add any more "force release" quirks to this table.  The
+ * ANALTE: do analt add any more "force release" quirks to this table.  The
  * task of adjusting list of keys that should be "released" automatically
- * by the driver is now delegated to userspace tools, such as udev, so
+ * by the driver is analw delegated to userspace tools, such as udev, so
  * submit such quirks there.
  */
 static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {

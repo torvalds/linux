@@ -135,7 +135,7 @@ l1_%=:	exit;						\
 }
 
 
-__naked __noinline __used
+__naked __analinline __used
 static unsigned long never_ending_subprog()
 {
 	asm volatile ("					\

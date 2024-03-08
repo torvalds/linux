@@ -1,12 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_NFNETLINK_H
 #define _UAPI_NFNETLINK_H
 #include <linux/types.h>
 #include <linux/netfilter/nfnetlink_compat.h>
 
 enum nfnetlink_groups {
-	NFNLGRP_NONE,
-#define NFNLGRP_NONE			NFNLGRP_NONE
+	NFNLGRP_ANALNE,
+#define NFNLGRP_ANALNE			NFNLGRP_ANALNE
 	NFNLGRP_CONNTRACK_NEW,
 #define NFNLGRP_CONNTRACK_NEW		NFNLGRP_CONNTRACK_NEW
 	NFNLGRP_CONNTRACK_UPDATE,
@@ -46,9 +46,9 @@ struct nfgenmsg {
 #define NFNL_SUBSYS_ID(x)	((x & 0xff00) >> 8)
 #define NFNL_MSG_TYPE(x)	(x & 0x00ff)
 
-/* No enum here, otherwise __stringify() trick of MODULE_ALIAS_NFNL_SUBSYS()
+/* Anal enum here, otherwise __stringify() trick of MODULE_ALIAS_NFNL_SUBSYS()
  * won't work anymore */
-#define NFNL_SUBSYS_NONE 		0
+#define NFNL_SUBSYS_ANALNE 		0
 #define NFNL_SUBSYS_CTNETLINK		1
 #define NFNL_SUBSYS_CTNETLINK_EXP	2
 #define NFNL_SUBSYS_QUEUE		3

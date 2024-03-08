@@ -41,7 +41,7 @@
 #define SMSC_FDC37M81X_SERIAL2	     0x05
 #define SMSC_FDC37M81X_KBD	     0x07
 #define SMSC_FDC37M81X_AUXIO	     0x08
-#define SMSC_FDC37M81X_NONE	     0xff
+#define SMSC_FDC37M81X_ANALNE	     0xff
 
 /* Logical device Config Registers */
 #define SMSC_FDC37M81X_ACTIVE	     0x30

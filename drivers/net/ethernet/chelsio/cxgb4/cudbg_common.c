@@ -15,11 +15,11 @@ int cudbg_get_buff(struct cudbg_init *pdbg_init,
 
 	offset = pdbg_buff->offset;
 	if (offset + size > pdbg_buff->size)
-		return CUDBG_STATUS_NO_MEM;
+		return CUDBG_STATUS_ANAL_MEM;
 
-	if (pdbg_init->compress_type != CUDBG_COMPRESSION_NONE) {
+	if (pdbg_init->compress_type != CUDBG_COMPRESSION_ANALNE) {
 		if (size > pdbg_init->compress_buff_size)
-			return CUDBG_STATUS_NO_MEM;
+			return CUDBG_STATUS_ANAL_MEM;
 
 		pin_buff->data = (char *)pdbg_init->compress_buff;
 		pin_buff->offset = 0;
@@ -37,7 +37,7 @@ void cudbg_put_buff(struct cudbg_init *pdbg_init,
 		    struct cudbg_buffer *pin_buff)
 {
 	/* Clear compression buffer for re-use */
-	if (pdbg_init->compress_type != CUDBG_COMPRESSION_NONE)
+	if (pdbg_init->compress_type != CUDBG_COMPRESSION_ANALNE)
 		memset(pdbg_init->compress_buff, 0,
 		       pdbg_init->compress_buff_size);
 

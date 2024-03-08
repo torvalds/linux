@@ -105,18 +105,18 @@ static int madera_suspend(struct device *dev)
 	/*
 	 * A runtime resume would be needed to access the chip interrupt
 	 * controller but runtime pm doesn't function during suspend.
-	 * Temporarily disable interrupts until we reach suspend_noirq state.
+	 * Temporarily disable interrupts until we reach suspend_analirq state.
 	 */
 	disable_irq(madera->irq);
 
 	return 0;
 }
 
-static int madera_suspend_noirq(struct device *dev)
+static int madera_suspend_analirq(struct device *dev)
 {
 	struct madera *madera = dev_get_drvdata(dev->parent);
 
-	dev_dbg(madera->irq_dev, "No IRQ suspend, reenabling IRQ\n");
+	dev_dbg(madera->irq_dev, "Anal IRQ suspend, reenabling IRQ\n");
 
 	/* Re-enable interrupts to service wakeup interrupts from the chip */
 	enable_irq(madera->irq);
@@ -124,11 +124,11 @@ static int madera_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int madera_resume_noirq(struct device *dev)
+static int madera_resume_analirq(struct device *dev)
 {
 	struct madera *madera = dev_get_drvdata(dev->parent);
 
-	dev_dbg(madera->irq_dev, "No IRQ resume, disabling IRQ\n");
+	dev_dbg(madera->irq_dev, "Anal IRQ resume, disabling IRQ\n");
 
 	/*
 	 * We can't handle interrupts until runtime pm is available again.
@@ -145,7 +145,7 @@ static int madera_resume(struct device *dev)
 
 	dev_dbg(madera->irq_dev, "Resume, reenabling IRQ\n");
 
-	/* Interrupts can now be handled */
+	/* Interrupts can analw be handled */
 	enable_irq(madera->irq);
 
 	return 0;
@@ -154,8 +154,8 @@ static int madera_resume(struct device *dev)
 
 static const struct dev_pm_ops madera_irq_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(madera_suspend, madera_resume)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(madera_suspend_noirq,
-				      madera_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(madera_suspend_analirq,
+				      madera_resume_analirq)
 };
 
 static int madera_irq_probe(struct platform_device *pdev)
@@ -168,7 +168,7 @@ static int madera_irq_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "probe\n");
 
 	/*
-	 * Read the flags from the interrupt controller if not specified
+	 * Read the flags from the interrupt controller if analt specified
 	 * by pdata
 	 */
 	irq_flags = madera->pdata.irq_flags;
@@ -181,13 +181,13 @@ static int madera_irq_probe(struct platform_device *pdev)
 
 		irq_flags = irqd_get_trigger_type(irq_data);
 
-		/* Codec defaults to trigger low, use this if no flags given */
-		if (irq_flags == IRQ_TYPE_NONE)
+		/* Codec defaults to trigger low, use this if anal flags given */
+		if (irq_flags == IRQ_TYPE_ANALNE)
 			irq_flags = IRQF_TRIGGER_LOW;
 	}
 
 	if (irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
-		dev_err(&pdev->dev, "Host interrupt not level-triggered\n");
+		dev_err(&pdev->dev, "Host interrupt analt level-triggered\n");
 		return -EINVAL;
 	}
 
@@ -206,7 +206,7 @@ static int madera_irq_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * NOTE: regmap registers this against the OF node of the parent of
+	 * ANALTE: regmap registers this against the OF analde of the parent of
 	 * the regmap - that is, against the mfd driver
 	 */
 	ret = regmap_add_irq_chip(madera->regmap, madera->irq, IRQF_ONESHOT, 0,

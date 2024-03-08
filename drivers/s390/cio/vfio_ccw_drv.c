@@ -55,8 +55,8 @@ int vfio_ccw_sch_quiesce(struct subchannel *sch)
 		ret = cio_cancel_halt_clear(sch, &iretry);
 
 		if (ret == -EIO) {
-			pr_err("vfio_ccw: could not quiesce subchannel 0.%x.%04x!\n",
-			       sch->schid.ssid, sch->schid.sch_no);
+			pr_err("vfio_ccw: could analt quiesce subchannel 0.%x.%04x!\n",
+			       sch->schid.ssid, sch->schid.sch_anal);
 			break;
 		}
 
@@ -104,7 +104,7 @@ void vfio_ccw_sch_io_todo(struct work_struct *work)
 
 	/*
 	 * Reset to IDLE only if processing of a channel program
-	 * has finished. Do not overwrite a possible processing
+	 * has finished. Do analt overwrite a possible processing
 	 * state if the interrupt was unsolicited, or if the final
 	 * interrupt was for HSCH or CSCH.
 	 */
@@ -142,7 +142,7 @@ static void vfio_ccw_sch_irq(struct subchannel *sch)
 	if (!private) {
 		VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: unexpected interrupt\n",
 				   sch->schid.cssid, sch->schid.ssid,
-				   sch->schid.sch_no);
+				   sch->schid.sch_anal);
 
 		cio_disable_subchannel(sch);
 		return;
@@ -163,17 +163,17 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 {
 	struct pmcw *pmcw = &sch->schib.pmcw;
 	struct vfio_ccw_parent *parent;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (pmcw->qf) {
-		dev_warn(&sch->dev, "vfio: ccw: does not support QDIO: %s\n",
+		dev_warn(&sch->dev, "vfio: ccw: does analt support QDIO: %s\n",
 			 dev_name(&sch->dev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	parent = kzalloc(struct_size(parent, mdev_types, 1), GFP_KERNEL);
 	if (!parent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_name(&parent->dev, "parent");
 	parent->dev.parent = &sch->dev;
@@ -185,7 +185,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	dev_set_drvdata(&sch->dev, parent);
 
 	parent->mdev_type.sysfs_name = "io";
-	parent->mdev_type.pretty_name = "I/O subchannel (Non-QDIO)";
+	parent->mdev_type.pretty_name = "I/O subchannel (Analn-QDIO)";
 	parent->mdev_types[0] = &parent->mdev_type;
 	ret = mdev_register_parent(&parent->parent, &sch->dev,
 				   &vfio_ccw_mdev_driver,
@@ -195,7 +195,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	VFIO_CCW_MSG_EVENT(4, "bound to subchannel %x.%x.%04x\n",
 			   sch->schid.cssid, sch->schid.ssid,
-			   sch->schid.sch_no);
+			   sch->schid.sch_anal);
 	return 0;
 
 out_unreg:
@@ -217,7 +217,7 @@ static void vfio_ccw_sch_remove(struct subchannel *sch)
 
 	VFIO_CCW_MSG_EVENT(4, "unbound from subchannel %x.%x.%04x\n",
 			   sch->schid.cssid, sch->schid.ssid,
-			   sch->schid.sch_no);
+			   sch->schid.sch_anal);
 }
 
 static void vfio_ccw_sch_shutdown(struct subchannel *sch)
@@ -229,13 +229,13 @@ static void vfio_ccw_sch_shutdown(struct subchannel *sch)
 		return;
 
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_CLOSE);
-	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
+	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_ANALT_OPER);
 }
 
 /**
  * vfio_ccw_sch_event - process subchannel event
  * @sch: subchannel
- * @process: non-zero if function is called in process context
+ * @process: analn-zero if function is called in process context
  *
  * An unspecified event occurred for this subchannel. Adjust data according
  * to the current operational state of the subchannel. Return zero when the
@@ -260,7 +260,7 @@ static int vfio_ccw_sch_event(struct subchannel *sch, int process)
 
 	if (cio_update_schib(sch)) {
 		if (private)
-			vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
+			vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_ANALT_OPER);
 	}
 
 out_unlock:
@@ -310,11 +310,11 @@ static int vfio_ccw_chp_event(struct subchannel *sch,
 	trace_vfio_ccw_chp_event(sch->schid, mask, event);
 	VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: mask=0x%x event=%d\n",
 			   sch->schid.cssid,
-			   sch->schid.ssid, sch->schid.sch_no,
+			   sch->schid.ssid, sch->schid.sch_anal,
 			   mask, event);
 
 	if (cio_update_schib(sch))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (event) {
 	case CHP_VARY_OFF:
@@ -412,7 +412,7 @@ static int __init vfio_ccw_sch_init(void)
 
 	vfio_ccw_work_q = create_singlethread_workqueue("vfio-ccw");
 	if (!vfio_ccw_work_q) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_regions;
 	}
 
@@ -421,7 +421,7 @@ static int __init vfio_ccw_sch_init(void)
 					SLAB_ACCOUNT, 0,
 					sizeof(struct ccw_io_region), NULL);
 	if (!vfio_ccw_io_region) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_regions;
 	}
 
@@ -430,7 +430,7 @@ static int __init vfio_ccw_sch_init(void)
 					SLAB_ACCOUNT, 0,
 					sizeof(struct ccw_cmd_region), NULL);
 	if (!vfio_ccw_cmd_region) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_regions;
 	}
 
@@ -440,7 +440,7 @@ static int __init vfio_ccw_sch_init(void)
 					sizeof(struct ccw_schib_region), NULL);
 
 	if (!vfio_ccw_schib_region) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_regions;
 	}
 
@@ -450,7 +450,7 @@ static int __init vfio_ccw_sch_init(void)
 					sizeof(struct ccw_crw_region), NULL);
 
 	if (!vfio_ccw_crw_region) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_regions;
 	}
 

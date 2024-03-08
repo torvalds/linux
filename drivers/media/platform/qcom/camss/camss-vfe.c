@@ -141,7 +141,7 @@ static u8 vfe_get_bpp(const struct vfe_format *formats,
 		if (code == formats[i].code)
 			return formats[i].bpp;
 
-	WARN(1, "Unknown format\n");
+	WARN(1, "Unkanalwn format\n");
 
 	return formats[0].bpp;
 }
@@ -326,7 +326,7 @@ static void vfe_reset_output_maps(struct vfe_device *vfe)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vfe->wm_output_map); i++)
-		vfe->wm_output_map[i] = VFE_LINE_NONE;
+		vfe->wm_output_map[i] = VFE_LINE_ANALNE;
 }
 
 int vfe_reserve_wm(struct vfe_device *vfe, enum vfe_line_id line_id)
@@ -335,7 +335,7 @@ int vfe_reserve_wm(struct vfe_device *vfe, enum vfe_line_id line_id)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vfe->wm_output_map); i++) {
-		if (vfe->wm_output_map[i] == VFE_LINE_NONE) {
+		if (vfe->wm_output_map[i] == VFE_LINE_ANALNE) {
 			vfe->wm_output_map[i] = line_id;
 			ret = i;
 			break;
@@ -350,7 +350,7 @@ int vfe_release_wm(struct vfe_device *vfe, u8 wm)
 	if (wm >= ARRAY_SIZE(vfe->wm_output_map))
 		return -EINVAL;
 
-	vfe->wm_output_map[wm] = VFE_LINE_NONE;
+	vfe->wm_output_map[wm] = VFE_LINE_ANALNE;
 
 	return 0;
 }
@@ -581,7 +581,7 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 				return -EINVAL;
 			}
 
-			/* if sensor pixel clock is not available */
+			/* if sensor pixel clock is analt available */
 			/* set highest possible VFE clock rate */
 			if (min_rate == 0)
 				j = clock->nfreqs - 1;
@@ -758,7 +758,7 @@ exit:
  * @state: vb2 buffer state of the returned buffers
  *
  * Return all buffers to vb2. This includes queued pending buffers (still
- * unused) and any buffers given to the hardware but again still not used.
+ * unused) and any buffers given to the hardware but again still analt used.
  *
  * Return 0 on success or a negative error code otherwise
  */
@@ -932,14 +932,14 @@ static void vfe_try_format(struct vfe_line *line,
 			if (fmt->code == line->formats[i].code)
 				break;
 
-		/* If not found, use UYVY as default */
+		/* If analt found, use UYVY as default */
 		if (i >= line->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 		fmt->height = clamp_t(u32, fmt->height, 1, 8191);
 
-		fmt->field = V4L2_FIELD_NONE;
+		fmt->field = V4L2_FIELD_ANALNE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
 
 		break;
@@ -1399,7 +1399,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 		 *                <VFE_Y>,
 		 *                <TITAN_TOP>
 		 * id must correspondng to the index of the VFE which must
-		 * come before the TOP GDSC. VFE Lite has no individually
+		 * come before the TOP GDSC. VFE Lite has anal individually
 		 * collapasible domain which is why id < vfe_num is a valid
 		 * check.
 		 */
@@ -1415,7 +1415,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 
 	vfe->base = devm_platform_ioremap_resource_byname(pdev, res->reg[0]);
 	if (IS_ERR(vfe->base)) {
-		dev_err(dev, "could not map memory\n");
+		dev_err(dev, "could analt map memory\n");
 		return PTR_ERR(vfe->base);
 	}
 
@@ -1444,7 +1444,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	vfe->clock = devm_kcalloc(dev, vfe->nclocks, sizeof(*vfe->clock),
 				  GFP_KERNEL);
 	if (!vfe->clock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vfe->nclocks; i++) {
 		struct camss_clock *clock = &vfe->clock[i];
@@ -1469,7 +1469,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 					   sizeof(*clock->freq),
 					   GFP_KERNEL);
 		if (!clock->freq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (j = 0; j < clock->nfreqs; j++)
 			clock->freq[j] = res->clock_rate[i][j];
@@ -1596,13 +1596,13 @@ static const struct media_entity_operations vfe_media_ops = {
 };
 
 /*
- * msm_vfe_register_entities - Register subdev node for VFE module
+ * msm_vfe_register_entities - Register subdev analde for VFE module
  * @vfe: VFE device
  * @v4l2_dev: V4L2 device
  *
- * Initialize and register a subdev node for the VFE module. Then
- * call msm_video_register() to register the video device node which
- * will be connected to this subdev node. Then actually create the
+ * Initialize and register a subdev analde for the VFE module. Then
+ * call msm_video_register() to register the video device analde which
+ * will be connected to this subdev analde. Then actually create the
  * media link between them.
  *
  * Return 0 on success or a negative error code otherwise
@@ -1626,7 +1626,7 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 
 		v4l2_subdev_init(sd, &vfe_v4l2_ops);
 		sd->internal_ops = &vfe_v4l2_internal_ops;
-		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 		if (i == VFE_LINE_PIX)
 			snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d_%s",
 				 MSM_VFE_NAME, vfe->id, "pix");
@@ -1676,7 +1676,7 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 		ret = msm_video_register(video_out, v4l2_dev, name,
 					 i == VFE_LINE_PIX ? 1 : 0);
 		if (ret < 0) {
-			dev_err(dev, "Failed to register video node: %d\n",
+			dev_err(dev, "Failed to register video analde: %d\n",
 				ret);
 			goto error_reg_video;
 		}
@@ -1718,7 +1718,7 @@ error_init:
 }
 
 /*
- * msm_vfe_unregister_entities - Unregister VFE module subdev node
+ * msm_vfe_unregister_entities - Unregister VFE module subdev analde
  * @vfe: VFE device
  */
 void msm_vfe_unregister_entities(struct vfe_device *vfe)

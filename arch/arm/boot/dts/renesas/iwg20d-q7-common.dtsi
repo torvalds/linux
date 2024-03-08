@@ -36,7 +36,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=dhcp";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -154,7 +154,7 @@
 
 	phy-handle = <&phy3>;
 	phy-mode = "gmii";
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	status = "okay";
 
 	phy3: ethernet-phy@3 {

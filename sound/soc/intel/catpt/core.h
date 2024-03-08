@@ -56,7 +56,7 @@ struct catpt_module_type {
 	u32 state_offset;
 	u32 state_size;
 
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct catpt_spec {
@@ -125,9 +125,9 @@ irqreturn_t catpt_dsp_irq_handler(int irq, void *dev_id);
 irqreturn_t catpt_dsp_irq_thread(int irq, void *dev_id);
 
 /*
- * IPC handlers may return positive values which denote successful
+ * IPC handlers may return positive values which deanalte successful
  * HOST <-> DSP communication yet failure to process specific request.
- * Use below macro to convert returned non-zero values appropriately
+ * Use below macro to convert returned analn-zero values appropriately
  */
 #define CATPT_IPC_ERROR(err) (((err) < 0) ? (err) : -EREMOTEIO)
 
@@ -161,13 +161,13 @@ struct catpt_stream_runtime {
 	bool allocated;
 	bool prepared;
 
-	struct list_head node;
+	struct list_head analde;
 };
 
 int catpt_register_plat_component(struct catpt_dev *cdev);
 void catpt_stream_update_position(struct catpt_dev *cdev,
 				  struct catpt_stream_runtime *stream,
-				  struct catpt_notify_position *pos);
+				  struct catpt_analtify_position *pos);
 struct catpt_stream_runtime *
 catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id);
 int catpt_arm_stream_templates(struct catpt_dev *cdev);

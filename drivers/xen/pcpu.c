@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -55,7 +55,7 @@
  * @cpu_id: Xen physical cpu logic number
  * @flags: Xen physical cpu status flag
  * - XEN_PCPU_FLAGS_ONLINE: cpu is online
- * - XEN_PCPU_FLAGS_INVALID: cpu is not present
+ * - XEN_PCPU_FLAGS_INVALID: cpu is analt present
  */
 struct pcpu {
 	struct list_head list;
@@ -148,7 +148,7 @@ static umode_t pcpu_dev_is_visible(struct kobject *kobj,
 	/*
 	 * Xen never offline cpu0 due to several restrictions
 	 * and assumptions. This basically doesn't add a sys control
-	 * to user, one cannot attempt to offline BSP.
+	 * to user, one cananalt attempt to offline BSP.
 	 */
 	return dev->id ? attr->mode : 0;
 }
@@ -245,11 +245,11 @@ static struct pcpu *create_and_register_pcpu(struct xenpf_pcpuinfo *info)
 	int err;
 
 	if (info->flags & XEN_PCPU_FLAGS_INVALID)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	pcpu = kzalloc(sizeof(struct pcpu), GFP_KERNEL);
 	if (!pcpu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&pcpu->list);
 	pcpu->cpu_id = info->xen_cpuid;
@@ -262,7 +262,7 @@ static struct pcpu *create_and_register_pcpu(struct xenpf_pcpuinfo *info)
 	err = register_pcpu(pcpu);
 	if (err) {
 		pr_warn("Failed to register pcpu%u\n", info->xen_cpuid);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	return pcpu;
@@ -303,7 +303,7 @@ static int sync_pcpu(uint32_t cpu, uint32_t *max_cpu)
 	if (!pcpu) {
 		pcpu = create_and_register_pcpu(info);
 		if (IS_ERR_OR_NULL(pcpu))
-			return -ENODEV;
+			return -EANALDEV;
 	} else
 		pcpu_online_status(info, pcpu);
 
@@ -355,7 +355,7 @@ static int __init xen_pcpu_init(void)
 	int irq, ret;
 
 	if (!xen_initial_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = bind_virq_to_irqhandler(VIRQ_PCPU_STATE, 0,
 				      xen_pcpu_interrupt, 0,

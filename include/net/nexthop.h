@@ -10,7 +10,7 @@
 #define __LINUX_NEXTHOP_H
 
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/route.h>
 #include <linux/types.h>
 #include <net/ip_fib.h>
@@ -55,7 +55,7 @@ struct nh_config {
 };
 
 struct nh_info {
-	struct hlist_node	dev_hash;    /* entry on netns devhash */
+	struct hlist_analde	dev_hash;    /* entry on netns devhash */
 	struct nexthop		*nh_parent;
 
 	u8			family;
@@ -130,7 +130,7 @@ struct nh_group {
 };
 
 struct nexthop {
-	struct rb_node		rb_node;    /* entry on netns rbtree */
+	struct rb_analde		rb_analde;    /* entry on netns rbtree */
 	struct list_head	fi_list;    /* v4 entries using nh */
 	struct list_head	f6i_list;   /* v6 entries using nh */
 	struct list_head        fdb_list;   /* fdb entries using this nh */
@@ -159,14 +159,14 @@ enum nexthop_event_type {
 	NEXTHOP_EVENT_BUCKET_REPLACE,
 };
 
-enum nh_notifier_info_type {
-	NH_NOTIFIER_INFO_TYPE_SINGLE,
-	NH_NOTIFIER_INFO_TYPE_GRP,
-	NH_NOTIFIER_INFO_TYPE_RES_TABLE,
-	NH_NOTIFIER_INFO_TYPE_RES_BUCKET,
+enum nh_analtifier_info_type {
+	NH_ANALTIFIER_INFO_TYPE_SINGLE,
+	NH_ANALTIFIER_INFO_TYPE_GRP,
+	NH_ANALTIFIER_INFO_TYPE_RES_TABLE,
+	NH_ANALTIFIER_INFO_TYPE_RES_BUCKET,
 };
 
-struct nh_notifier_single_info {
+struct nh_analtifier_single_info {
 	struct net_device *dev;
 	u8 gw_family;
 	union {
@@ -178,60 +178,60 @@ struct nh_notifier_single_info {
 	   has_encap:1;
 };
 
-struct nh_notifier_grp_entry_info {
+struct nh_analtifier_grp_entry_info {
 	u8 weight;
 	u32 id;
-	struct nh_notifier_single_info nh;
+	struct nh_analtifier_single_info nh;
 };
 
-struct nh_notifier_grp_info {
+struct nh_analtifier_grp_info {
 	u16 num_nh;
 	bool is_fdb;
-	struct nh_notifier_grp_entry_info nh_entries[] __counted_by(num_nh);
+	struct nh_analtifier_grp_entry_info nh_entries[] __counted_by(num_nh);
 };
 
-struct nh_notifier_res_bucket_info {
+struct nh_analtifier_res_bucket_info {
 	u16 bucket_index;
 	unsigned int idle_timer_ms;
 	bool force;
-	struct nh_notifier_single_info old_nh;
-	struct nh_notifier_single_info new_nh;
+	struct nh_analtifier_single_info old_nh;
+	struct nh_analtifier_single_info new_nh;
 };
 
-struct nh_notifier_res_table_info {
+struct nh_analtifier_res_table_info {
 	u16 num_nh_buckets;
-	struct nh_notifier_single_info nhs[] __counted_by(num_nh_buckets);
+	struct nh_analtifier_single_info nhs[] __counted_by(num_nh_buckets);
 };
 
-struct nh_notifier_info {
+struct nh_analtifier_info {
 	struct net *net;
 	struct netlink_ext_ack *extack;
 	u32 id;
-	enum nh_notifier_info_type type;
+	enum nh_analtifier_info_type type;
 	union {
-		struct nh_notifier_single_info *nh;
-		struct nh_notifier_grp_info *nh_grp;
-		struct nh_notifier_res_table_info *nh_res_table;
-		struct nh_notifier_res_bucket_info *nh_res_bucket;
+		struct nh_analtifier_single_info *nh;
+		struct nh_analtifier_grp_info *nh_grp;
+		struct nh_analtifier_res_table_info *nh_res_table;
+		struct nh_analtifier_res_bucket_info *nh_res_bucket;
 	};
 };
 
-int register_nexthop_notifier(struct net *net, struct notifier_block *nb,
+int register_nexthop_analtifier(struct net *net, struct analtifier_block *nb,
 			      struct netlink_ext_ack *extack);
-int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb);
+int unregister_nexthop_analtifier(struct net *net, struct analtifier_block *nb);
 void nexthop_set_hw_flags(struct net *net, u32 id, bool offload, bool trap);
 void nexthop_bucket_set_hw_flags(struct net *net, u32 id, u16 bucket_index,
 				 bool offload, bool trap);
 void nexthop_res_grp_activity_update(struct net *net, u32 id, u16 num_buckets,
 				     unsigned long *activity);
 
-/* caller is holding rcu or rtnl; no reference taken to nexthop */
+/* caller is holding rcu or rtnl; anal reference taken to nexthop */
 struct nexthop *nexthop_find_by_id(struct net *net, u32 id);
 void nexthop_free_rcu(struct rcu_head *head);
 
 static inline bool nexthop_get(struct nexthop *nh)
 {
-	return refcount_inc_not_zero(&nh->refcnt);
+	return refcount_inc_analt_zero(&nh->refcnt);
 }
 
 static inline void nexthop_put(struct nexthop *nh)
@@ -313,7 +313,7 @@ struct nexthop *nexthop_mpath_select(const struct nh_group *nhg, int nhsel)
 }
 
 static inline
-int nexthop_mpath_fill_node(struct sk_buff *skb, struct nexthop *nh,
+int nexthop_mpath_fill_analde(struct sk_buff *skb, struct nexthop *nh,
 			    u8 rt_family)
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);

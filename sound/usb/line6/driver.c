@@ -40,7 +40,7 @@ static const char line6_request_version[] = {
 };
 
 /*
-	 Class for asynchronous messages.
+	 Class for asynchroanalus messages.
 */
 struct message {
 	struct usb_line6 *line6;
@@ -135,7 +135,7 @@ int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 EXPORT_SYMBOL_GPL(line6_send_raw_message);
 
 /*
-	Notification of completion of asynchronous request transmission.
+	Analtification of completion of asynchroanalus request transmission.
 */
 static void line6_async_request_sent(struct urb *urb)
 {
@@ -149,7 +149,7 @@ static void line6_async_request_sent(struct urb *urb)
 }
 
 /*
-	Asynchronously send part of a raw message.
+	Asynchroanalusly send part of a raw message.
 */
 static int line6_send_raw_message_async_part(struct message *msg,
 					     struct urb *urb)
@@ -193,7 +193,7 @@ static int line6_send_raw_message_async_part(struct message *msg,
 }
 
 /*
-	Asynchronously send raw message.
+	Asynchroanalusly send raw message.
 */
 int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 				 int size)
@@ -204,14 +204,14 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 	/* create message: */
 	msg = kmalloc(sizeof(struct message), GFP_ATOMIC);
 	if (msg == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create URB: */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 
 	if (urb == NULL) {
 		kfree(msg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* set message data: */
@@ -226,7 +226,7 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 EXPORT_SYMBOL_GPL(line6_send_raw_message_async);
 
 /*
-	Send asynchronous device version request.
+	Send asynchroanalus device version request.
 */
 int line6_version_request_async(struct usb_line6 *line6)
 {
@@ -236,7 +236,7 @@ int line6_version_request_async(struct usb_line6 *line6)
 	buffer = kmemdup(line6_request_version,
 			sizeof(line6_request_version), GFP_ATOMIC);
 	if (buffer == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = line6_send_raw_message_async(line6, buffer,
 					      sizeof(line6_request_version));
@@ -280,7 +280,7 @@ char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2,
 EXPORT_SYMBOL_GPL(line6_alloc_sysex_buffer);
 
 /*
-	Notification of data received from the Line 6 device.
+	Analtification of data received from the Line 6 device.
 */
 static void line6_data_received(struct urb *urb)
 {
@@ -296,7 +296,7 @@ static void line6_data_received(struct urb *urb)
 			line6_midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
 
 		if (done < urb->actual_length) {
-			line6_midibuf_ignore(mb, done);
+			line6_midibuf_iganalre(mb, done);
 			dev_dbg(line6->ifcdev, "%d %d buffer overflow - message skipped\n",
 				done, urb->actual_length);
 		}
@@ -414,7 +414,7 @@ int line6_write_data(struct usb_line6 *line6, unsigned address, void *data,
 
 	status = kmalloc(1, GFP_KERNEL);
 	if (!status)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg_send(usbdev, 0, 0x67,
 				   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
@@ -476,7 +476,7 @@ static void line6_destruct(struct snd_card *card)
 	struct usb_line6 *line6 = card->private_data;
 	struct usb_device *usbdev = line6->usbdev;
 
-	/* Free buffer memory first. We cannot depend on the existence of private
+	/* Free buffer memory first. We cananalt depend on the existence of private
 	 * data from the (podhd) module, it may be gone already during this call
 	 */
 	kfree(line6->buffer_message);
@@ -516,13 +516,13 @@ static void line6_get_usb_properties(struct usb_line6 *line6)
 	} else {
 		if (properties->capabilities & LINE6_CAP_CONTROL) {
 			dev_err(line6->ifcdev,
-				"endpoint not available, using fallback values");
+				"endpoint analt available, using fallback values");
 		}
 		line6->interval = LINE6_FALLBACK_INTERVAL;
 		line6->max_packet_size = LINE6_FALLBACK_MAXPACKETSIZE;
 	}
 
-	/* Isochronous transfer properties */
+	/* Isochroanalus transfer properties */
 	if (usbdev->speed == USB_SPEED_LOW) {
 		line6->intervals_per_second = USB_LOW_INTERVALS_PER_SECOND;
 		line6->iso_buffers = USB_LOW_ISO_BUFFERS;
@@ -537,10 +537,10 @@ static int line6_hwdep_open(struct snd_hwdep *hw, struct file *file)
 {
 	struct usb_line6 *line6 = hw->private_data;
 
-	/* NOTE: hwdep layer provides atomicity here */
+	/* ANALTE: hwdep layer provides atomicity here */
 
 	line6->messages.active = 1;
-	line6->messages.nonblock = file->f_flags & O_NONBLOCK ? 1 : 0;
+	line6->messages.analnblock = file->f_flags & O_ANALNBLOCK ? 1 : 0;
 
 	return 0;
 }
@@ -570,7 +570,7 @@ line6_hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 	while (kfifo_len(&line6->messages.fifo) == 0) {
 		mutex_unlock(&line6->messages.read_lock);
 
-		if (line6->messages.nonblock)
+		if (line6->messages.analnblock)
 			return -EAGAIN;
 
 		rv = wait_event_interruptible(
@@ -596,7 +596,7 @@ line6_hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 	return rv;
 }
 
-/* Write directly (no buffering) to device by user*/
+/* Write directly (anal buffering) to device by user*/
 static long
 line6_hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 					loff_t *offset)
@@ -606,7 +606,7 @@ line6_hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 	char *data_copy;
 
 	if (count > line6->max_packet_size * LINE6_RAW_MESSAGES_MAXCOUNT) {
-		/* This is an arbitrary limit - still better than nothing... */
+		/* This is an arbitrary limit - still better than analthing... */
 		return -EINVAL;
 	}
 
@@ -629,7 +629,7 @@ line6_hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 	poll_wait(file, &line6->messages.wait_queue, wait);
 
 	mutex_lock(&line6->messages.read_lock);
-	rv = kfifo_len(&line6->messages.fifo) == 0 ? 0 : EPOLLIN | EPOLLRDNORM;
+	rv = kfifo_len(&line6->messages.fifo) == 0 ? 0 : EPOLLIN | EPOLLRDANALRM;
 	mutex_unlock(&line6->messages.read_lock);
 
 	return rv;
@@ -650,7 +650,7 @@ static void line6_hwdep_push_message(struct usb_line6 *line6)
 		return;
 
 	if (kfifo_avail(&line6->messages.fifo) >= line6->message_length) {
-		/* No race condition here, there's only one writer */
+		/* Anal race condition here, there's only one writer */
 		kfifo_in(&line6->messages.fifo,
 			line6->buffer_message, line6->message_length);
 	} /* else TODO: signal overflow */
@@ -690,16 +690,16 @@ static int line6_init_cap_control(struct usb_line6 *line6)
 	/* initialize USB buffers: */
 	line6->buffer_listen = kmalloc(LINE6_BUFSIZE_LISTEN, GFP_KERNEL);
 	if (!line6->buffer_listen)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	line6->urb_listen = usb_alloc_urb(0, GFP_KERNEL);
 	if (!line6->urb_listen)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
 		line6->buffer_message = kmalloc(LINE6_MIDI_MESSAGE_MAXLEN, GFP_KERNEL);
 		if (!line6->buffer_message)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = line6_init_midi(line6);
 		if (ret < 0)
@@ -712,7 +712,7 @@ static int line6_init_cap_control(struct usb_line6 *line6)
 
 	ret = line6_start_listen(line6);
 	if (ret < 0) {
-		dev_err(line6->ifcdev, "cannot start listening: %d\n", ret);
+		dev_err(line6->ifcdev, "cananalt start listening: %d\n", ret);
 		return ret;
 	}
 
@@ -749,7 +749,7 @@ int line6_probe(struct usb_interface *interface,
 
 	/* we don't handle multiple configurations */
 	if (usbdev->descriptor.bNumConfigurations != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = snd_card_new(&interface->dev,
 			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
@@ -806,13 +806,13 @@ int line6_probe(struct usb_interface *interface,
 
 	/* creation of additional special files should go here */
 
-	dev_info(&interface->dev, "Line 6 %s now attached\n",
+	dev_info(&interface->dev, "Line 6 %s analw attached\n",
 		 properties->name);
 
 	return 0;
 
  error:
-	/* we can call disconnect callback here because no close-sync is
+	/* we can call disconnect callback here because anal close-sync is
 	 * needed yet at this point
 	 */
 	line6_disconnect(interface);
@@ -845,7 +845,7 @@ void line6_disconnect(struct usb_interface *interface)
 	if (line6->disconnect)
 		line6->disconnect(line6);
 
-	dev_info(&interface->dev, "Line 6 %s now disconnected\n",
+	dev_info(&interface->dev, "Line 6 %s analw disconnected\n",
 		 line6->properties->name);
 
 	/* make sure the device isn't destructed twice: */

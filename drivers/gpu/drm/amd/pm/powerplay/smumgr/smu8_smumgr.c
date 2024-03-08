@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -274,7 +274,7 @@ static uint8_t smu8_translate_firmware_enum_to_arg(struct pp_hwmgr *hwmgr,
 	case SMU8_SCRATCH_ENTRY_DATA_ID_SDMA_HALT:
 	case SMU8_SCRATCH_ENTRY_DATA_ID_SYS_CLOCKGATING:
 	case SMU8_SCRATCH_ENTRY_DATA_ID_SDMA_RING_REGS:
-	case SMU8_SCRATCH_ENTRY_DATA_ID_NONGFX_REINIT:
+	case SMU8_SCRATCH_ENTRY_DATA_ID_ANALNGFX_REINIT:
 	case SMU8_SCRATCH_ENTRY_DATA_ID_SDMA_START:
 	case SMU8_SCRATCH_ENTRY_DATA_ID_IH_REGISTERS:
 		ret = TASK_ARG_REG_MMIO;
@@ -409,7 +409,7 @@ static int smu8_smu_initialize_toc_empty_job_list(struct pp_hwmgr *hwmgr)
 	struct TOC *toc = (struct TOC *)smu8_smu->toc_buffer.kaddr;
 
 	for (i = 0; i < NUM_JOBLIST_ENTRIES; i++)
-		toc->JobList[i] = (uint8_t)IGNORE_JOB;
+		toc->JobList[i] = (uint8_t)IGANALRE_JOB;
 
 	return 0;
 }
@@ -760,7 +760,7 @@ static int smu8_smu_init(struct pp_hwmgr *hwmgr)
 
 	smu8_smu = kzalloc(sizeof(struct smu8_smumgr), GFP_KERNEL);
 	if (smu8_smu == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->smu_backend = smu8_smu;
 

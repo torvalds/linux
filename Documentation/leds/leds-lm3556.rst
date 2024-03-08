@@ -3,7 +3,7 @@ Kernel driver for lm3556
 ========================
 
 * Texas Instrument:
-  1.5 A Synchronous Boost LED Flash Driver w/ High-Side Current Source
+  1.5 A Synchroanalus Boost LED Flash Driver w/ High-Side Current Source
 * Datasheet: http://www.national.com/ds/LM/LM3556.pdf
 
 Authors:
@@ -114,7 +114,7 @@ OFF::
 
 	#echo 8 > /sys/class/leds/indicator/brightness
 
-Notes
+Analtes
 -----
 Driver expects it is registered using the i2c_board_info mechanism.
 To register the chip at address 0x63 on specific adapter, set the platform data

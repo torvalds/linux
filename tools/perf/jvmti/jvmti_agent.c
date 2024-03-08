@@ -13,7 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
+ * License along with this library; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Copyright 2007 OProfile authors
@@ -24,7 +24,7 @@
 #include <sys/types.h>
 #include <sys/stat.h> /* for mkdir() */
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -102,7 +102,7 @@ get_arch_timestamp(void)
 }
 
 #define NSEC_PER_SEC	1000000000
-static int perf_clk_id = CLOCK_MONOTONIC;
+static int perf_clk_id = CLOCK_MOANALTONIC;
 
 static inline uint64_t
 timespec_to_ns(const struct timespec *ts)
@@ -148,37 +148,37 @@ create_jit_cache_dir(void)
 
 	ret = snprintf(jit_path, PATH_MAX, "%s/.debug/", base);
 	if (ret >= PATH_MAX) {
-		warnx("jvmti: cannot generate jit cache dir because %s/.debug/"
+		warnx("jvmti: cananalt generate jit cache dir because %s/.debug/"
 			" is too long, please check the cwd, JITDUMPDIR, and"
 			" HOME variables", base);
 		return -1;
 	}
 	ret = mkdir(jit_path, 0755);
 	if (ret == -1) {
-		if (errno != EEXIST) {
-			warn("jvmti: cannot create jit cache dir %s", jit_path);
+		if (erranal != EEXIST) {
+			warn("jvmti: cananalt create jit cache dir %s", jit_path);
 			return -1;
 		}
 	}
 
 	ret = snprintf(jit_path, PATH_MAX, "%s/.debug/jit", base);
 	if (ret >= PATH_MAX) {
-		warnx("jvmti: cannot generate jit cache dir because"
+		warnx("jvmti: cananalt generate jit cache dir because"
 			" %s/.debug/jit is too long, please check the cwd,"
 			" JITDUMPDIR, and HOME variables", base);
 		return -1;
 	}
 	ret = mkdir(jit_path, 0755);
 	if (ret == -1) {
-		if (errno != EEXIST) {
-			warn("jvmti: cannot create jit cache dir %s", jit_path);
+		if (erranal != EEXIST) {
+			warn("jvmti: cananalt create jit cache dir %s", jit_path);
 			return -1;
 		}
 	}
 
 	ret = snprintf(jit_path, PATH_MAX, "%s/.debug/jit/%s.XXXXXXXX", base, str);
 	if (ret >= PATH_MAX) {
-		warnx("jvmti: cannot generate jit cache dir because"
+		warnx("jvmti: cananalt generate jit cache dir because"
 			" %s/.debug/jit/%s.XXXXXXXX is too long, please check"
 			" the cwd, JITDUMPDIR, and HOME variables",
 			base, str);
@@ -186,7 +186,7 @@ create_jit_cache_dir(void)
 	}
 	p = mkdtemp(jit_path);
 	if (p != jit_path) {
-		warn("jvmti: cannot create jit cache dir %s", jit_path);
+		warn("jvmti: cananalt create jit cache dir %s", jit_path);
 		return -1;
 	}
 
@@ -207,11 +207,11 @@ perf_open_marker_file(int fd)
 	 * The mmap is captured either live (perf record running when we mmap)
 	 * or  in deferred mode, via /proc/PID/maps
 	 * the MMAP record is used as a marker of a jitdump file for more meta
-	 * data info about the jitted code. Perf report/annotate detect this
+	 * data info about the jitted code. Perf report/ananaltate detect this
 	 * special filename and process the jitdump file.
 	 *
 	 * mapping must be PROT_EXEC to ensure it is captured by perf record
-	 * even when not using -d option
+	 * even when analt using -d option
 	 */
 	marker_addr = mmap(NULL, pgsz, PROT_READ|PROT_EXEC, MAP_PRIVATE, fd, 0);
 	return (marker_addr == MAP_FAILED) ? -1 : 0;
@@ -257,9 +257,9 @@ void *jvmti_open(void)
 	 */
 	if (!perf_get_timestamp()) {
 		if (use_arch_timestamp)
-			warnx("jvmti: arch timestamp not supported");
+			warnx("jvmti: arch timestamp analt supported");
 		else
-			warnx("jvmti: kernel does not support %d clock id", perf_clk_id);
+			warnx("jvmti: kernel does analt support %d clock id", perf_clk_id);
 	}
 
 	memset(&header, 0, sizeof(header));
@@ -275,7 +275,7 @@ void *jvmti_open(void)
 	 */
 	ret = snprintf(dump_path, PATH_MAX, "%s/jit-%i.dump", jit_path, getpid());
 	if (ret >= PATH_MAX) {
-		warnx("jvmti: cannot generate jitdump file full path because"
+		warnx("jvmti: cananalt generate jitdump file full path because"
 			" %s/jit-%i.dump is too long, please check the cwd,"
 			" JITDUMPDIR, and HOME variables", jit_path, getpid());
 		return NULL;
@@ -295,7 +295,7 @@ void *jvmti_open(void)
 
 	fp = fdopen(fd, "w+");
 	if (!fp) {
-		warn("jvmti: cannot create %s", dump_path);
+		warn("jvmti: cananalt create %s", dump_path);
 		close(fd);
 		goto error;
 	}
@@ -318,7 +318,7 @@ void *jvmti_open(void)
 		header.flags |= JITDUMP_FLAGS_ARCH_TIMESTAMP;
 
 	if (!fwrite(&header, sizeof(header), 1, fp)) {
-		warn("jvmti: cannot write dumpfile header");
+		warn("jvmti: cananalt write dumpfile header");
 		goto error;
 	}
 	return fp;
@@ -365,7 +365,7 @@ jvmti_write_code(void *agent, char const *sym,
 	FILE *fp = agent;
 	int ret = -1;
 
-	/* don't care about 0 length function, no samples */
+	/* don't care about 0 length function, anal samples */
 	if (size == 0)
 		return 0;
 
@@ -425,7 +425,7 @@ jvmti_write_debug_info(void *agent, uint64_t code,
 	int i;
 
 	/*
-	 * no entry to write
+	 * anal entry to write
 	 */
 	if (!nr_lines)
 		return 0;

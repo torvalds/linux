@@ -519,7 +519,7 @@ static const struct cs35l41_otp_packed_element_t otp_map_1[] = {
 	{ 0x00007434,	17,	1 }, /*FORCE_CAL*/
 	{ 0x00007434,	18,	7 }, /*CAL_OVERRIDE*/
 	{ 0x00007068,	0,	9 }, /*MODIX*/
-	{ 0x0000410C,	7,	1 }, /*VIMON_DLY_NOT_COMB*/
+	{ 0x0000410C,	7,	1 }, /*VIMON_DLY_ANALT_COMB*/
 	{ 0x0000400C,	0,	7 }, /*VIMON_DLY*/
 	{ 0x00000000,	0,	1 }, /*extra bit*/
 	{ 0x00017040,	0,	8 }, /*X_COORDINATE*/
@@ -622,7 +622,7 @@ static const struct cs35l41_otp_packed_element_t otp_map_2[] = {
 	{ 0x00007434,	17,	1 }, /*FORCE_CAL*/
 	{ 0x00007434,	18,	7 }, /*CAL_OVERRIDE*/
 	{ 0x00007068,	0,	9 }, /*MODIX*/
-	{ 0x0000410C,	7,	1 }, /*VIMON_DLY_NOT_COMB*/
+	{ 0x0000410C,	7,	1 }, /*VIMON_DLY_ANALT_COMB*/
 	{ 0x0000400C,	0,	7 }, /*VIMON_DLY*/
 	{ 0x00004000,	11,	1 }, /*VMON_POL*/
 	{ 0x00017040,	0,	8 }, /*X_COORDINATE*/
@@ -823,7 +823,7 @@ int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 
 	otp_mem = kmalloc_array(CS35L41_OTP_SIZE_WORDS, sizeof(*otp_mem), GFP_KERNEL);
 	if (!otp_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = regmap_read(regmap, CS35L41_OTPID, &otp_id_reg);
 	if (ret) {
@@ -834,7 +834,7 @@ int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 	otp_map_match = cs35l41_find_otp_map(otp_id_reg);
 
 	if (!otp_map_match) {
-		dev_err(dev, "OTP Map matching ID %d not found\n", otp_id_reg);
+		dev_err(dev, "OTP Map matching ID %d analt found\n", otp_id_reg);
 		ret = -EINVAL;
 		goto err_otp_unpack;
 	}
@@ -1153,10 +1153,10 @@ int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
 			dev_err(dev, "Error in Boost DT config: %d\n", ret);
 		break;
 	case CS35L41_EXT_BOOST:
-	case CS35L41_EXT_BOOST_NO_VSPK_SWITCH:
+	case CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH:
 		/* Only CLSA0100 doesn't use GPIO as VSPK switch, but even on that laptop we can
-		 * toggle GPIO1 as is not connected to anything.
-		 * There will be no other device without VSPK switch.
+		 * toggle GPIO1 as is analt connected to anything.
+		 * There will be anal other device without VSPK switch.
 		 */
 		regmap_write(regmap, CS35L41_GPIO1_CTRL1, 0x00000001);
 		regmap_multi_reg_write(regmap, cs35l41_reset_to_safe,
@@ -1169,7 +1169,7 @@ int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
 					     ARRAY_SIZE(cs35l41_pass_seq));
 		break;
 	default:
-		dev_err(dev, "Boost type %d not supported\n", hw_cfg->bst_type);
+		dev_err(dev, "Boost type %d analt supported\n", hw_cfg->bst_type);
 		ret = -EINVAL;
 		break;
 	}
@@ -1182,7 +1182,7 @@ bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type)
 {
 	switch (b_type) {
 	/* There is only one laptop that doesn't have VSPK switch. */
-	case CS35L41_EXT_BOOST_NO_VSPK_SWITCH:
+	case CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH:
 		return false;
 	case CS35L41_EXT_BOOST:
 		regmap_write(regmap, CS35L41_GPIO1_CTRL1, 0x00000001);
@@ -1197,19 +1197,19 @@ EXPORT_SYMBOL_GPL(cs35l41_safe_reset);
 
 /*
  * Enabling the CS35L41_SHD_BOOST_ACTV and CS35L41_SHD_BOOST_PASS shared boosts
- * does also require a call to cs35l41_mdsync_up(), but not before getting the
+ * does also require a call to cs35l41_mdsync_up(), but analt before getting the
  * PLL Lock signal.
  *
  * PLL Lock seems to be triggered soon after snd_pcm_start() is executed and
  * SNDRV_PCM_TRIGGER_START command is processed, which happens (long) after the
  * SND_SOC_DAPM_PRE_PMU event handler is invoked as part of snd_pcm_prepare().
  *
- * This event handler is where cs35l41_global_enable() is normally called from,
+ * This event handler is where cs35l41_global_enable() is analrmally called from,
  * but waiting for PLL Lock here will time out. Increasing the wait duration
- * will not help, as the only consequence of it would be to add an unnecessary
+ * will analt help, as the only consequence of it would be to add an unnecessary
  * delay in the invocation of snd_pcm_start().
  *
- * Trying to move the wait in the SNDRV_PCM_TRIGGER_START callback is not a
+ * Trying to move the wait in the SNDRV_PCM_TRIGGER_START callback is analt a
  * solution either, as the trigger is executed in an IRQ-off atomic context.
  *
  * The current approach is to invoke cs35l41_mdsync_up() right after receiving
@@ -1234,10 +1234,10 @@ int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l4
 		return ret;
 
 	if ((pwr_ctl1_val & CS35L41_GLOBAL_EN_MASK) && enable) {
-		dev_dbg(dev, "Cannot set Global Enable - already set.\n");
+		dev_dbg(dev, "Cananalt set Global Enable - already set.\n");
 		return 0;
 	} else if (!(pwr_ctl1_val & CS35L41_GLOBAL_EN_MASK) && !enable) {
-		dev_dbg(dev, "Cannot unset Global Enable - not set.\n");
+		dev_dbg(dev, "Cananalt unset Global Enable - analt set.\n");
 		return 0;
 	}
 
@@ -1293,7 +1293,7 @@ int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l4
 		regmap_write(regmap, CS35L41_IRQ1_STATUS1, pup_pdn_mask);
 		break;
 	case CS35L41_EXT_BOOST:
-	case CS35L41_EXT_BOOST_NO_VSPK_SWITCH:
+	case CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH:
 		if (enable) {
 			/* Test Key is unlocked here */
 			ret = regmap_multi_reg_write(regmap, cs35l41_safe_to_active_start,
@@ -1369,7 +1369,7 @@ int cs35l41_gpio_config(struct regmap *regmap, struct cs35l41_hw_cfg *hw_cfg)
 {
 	struct cs35l41_gpio_cfg *gpio1 = &hw_cfg->gpio1;
 	struct cs35l41_gpio_cfg *gpio2 = &hw_cfg->gpio2;
-	int irq_pol = IRQF_TRIGGER_NONE;
+	int irq_pol = IRQF_TRIGGER_ANALNE;
 
 	regmap_update_bits(regmap, CS35L41_GPIO1_CTRL1,
 			   CS35L41_GPIO_POL_MASK | CS35L41_GPIO_DIR_MASK,
@@ -1433,8 +1433,8 @@ static bool cs35l41_check_cspl_mbox_sts(enum cs35l41_cspl_mbox_cmd cmd,
 					enum cs35l41_cspl_mbox_status sts)
 {
 	switch (cmd) {
-	case CSPL_MBOX_CMD_NONE:
-	case CSPL_MBOX_CMD_UNKNOWN_CMD:
+	case CSPL_MBOX_CMD_ANALNE:
+	case CSPL_MBOX_CMD_UNKANALWN_CMD:
 		return true;
 	case CSPL_MBOX_CMD_PAUSE:
 	case CSPL_MBOX_CMD_OUT_OF_HIBERNATE:
@@ -1490,7 +1490,7 @@ int cs35l41_set_cspl_mbox_cmd(struct device *dev, struct regmap *regmap,
 	if (cmd != CSPL_MBOX_CMD_OUT_OF_HIBERNATE)
 		dev_err(dev, "Failed to set mailbox cmd %u (status %u)\n", cmd, sts);
 
-	return -ENOMSG;
+	return -EANALMSG;
 }
 EXPORT_SYMBOL_GPL(cs35l41_set_cspl_mbox_cmd);
 
@@ -1511,7 +1511,7 @@ int cs35l41_enter_hibernate(struct device *dev, struct regmap *regmap,
 			    enum cs35l41_boost_type b_type)
 {
 	if (!cs35l41_safe_reset(regmap, b_type)) {
-		dev_dbg(dev, "System does not support Suspend\n");
+		dev_dbg(dev, "System does analt support Suspend\n");
 		return -EINVAL;
 	}
 

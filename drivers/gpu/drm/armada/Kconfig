@@ -9,6 +9,6 @@ config DRM_ARMADA
 	  devices.  There are two controllers on the device, each controller
 	  supports graphics and video overlays.
 
-	  This driver provides no built-in acceleration; acceleration is
+	  This driver provides anal built-in acceleration; acceleration is
 	  performed by other IP found on the SoC.  This driver provides
 	  kernel mode setting and buffer management to userspace.

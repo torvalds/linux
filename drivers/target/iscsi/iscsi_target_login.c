@@ -14,7 +14,7 @@
 #include <linux/kthread.h>
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
-#include <linux/tcp.h>        /* TCP_NODELAY */
+#include <linux/tcp.h>        /* TCP_ANALDELAY */
 #include <net/ip.h>
 #include <net/ipv6.h>         /* ipv6_addr_v4mapped() */
 #include <scsi/iscsi_proto.h>
@@ -87,14 +87,14 @@ int iscsi_login_setup_crypto(struct iscsit_conn *conn)
 	tfm = crypto_alloc_ahash("crc32c", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
 		pr_err("crypto_alloc_ahash() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	conn->conn_rx_hash = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!conn->conn_rx_hash) {
 		pr_err("ahash_request_alloc() failed for conn_rx_hash\n");
 		crypto_free_ahash(tfm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ahash_request_set_callback(conn->conn_rx_hash, 0, NULL, NULL);
 
@@ -104,7 +104,7 @@ int iscsi_login_setup_crypto(struct iscsit_conn *conn)
 		ahash_request_free(conn->conn_rx_hash);
 		conn->conn_rx_hash = NULL;
 		crypto_free_ahash(tfm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ahash_request_set_callback(conn->conn_tx_hash, 0, NULL, NULL);
 
@@ -121,7 +121,7 @@ static int iscsi_login_check_initiator_version(
 			" version Min/Max 0x%02x/0x%02x, rejecting login.\n",
 			version_min, version_max);
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
-				ISCSI_LOGIN_STATUS_NO_VERSION);
+				ISCSI_LOGIN_STATUS_ANAL_VERSION);
 		return -1;
 	}
 
@@ -147,7 +147,7 @@ int iscsi_check_for_session_reinstatement(struct iscsit_conn *conn)
 		return -1;
 	}
 
-	sessiontype = (strncmp(sessiontype_param->value, NORMAL, 6)) ? 1 : 0;
+	sessiontype = (strncmp(sessiontype_param->value, ANALRMAL, 6)) ? 1 : 0;
 
 	spin_lock_bh(&se_tpg->session_lock);
 	list_for_each_entry_safe(se_sess, se_sess_tmp, &se_tpg->tpg_sess_list,
@@ -186,7 +186,7 @@ int iscsi_check_for_session_reinstatement(struct iscsit_conn *conn)
 
 	pr_debug("%s iSCSI Session SID %u is still active for %s,"
 		" performing session reinstatement.\n", (sessiontype) ?
-		"Discovery" : "Normal", sess->sid,
+		"Discovery" : "Analrmal", sess->sid,
 		sess->sess_ops->InitiatorName);
 
 	spin_lock_bh(&sess->conn_lock);
@@ -240,7 +240,7 @@ __printf(2, 3) int iscsi_change_param_sprintf(
 
 	if (iscsi_change_param_value(buf, conn->param_list, 0) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
 		return -1;
 	}
 
@@ -263,9 +263,9 @@ static int iscsi_login_zero_tsih_s1(
 	sess = kzalloc(sizeof(struct iscsit_session), GFP_KERNEL);
 	if (!sess) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		pr_err("Could not allocate memory for session\n");
-		return -ENOMEM;
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
+		pr_err("Could analt allocate memory for session\n");
+		return -EANALMEM;
 	}
 
 	if (iscsi_login_set_conn_values(sess, conn, pdu->cid))
@@ -296,7 +296,7 @@ static int iscsi_login_zero_tsih_s1(
 	if (ret < 0) {
 		pr_err("Session ID allocation failed %d\n", ret);
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
 		goto free_sess;
 	}
 
@@ -304,23 +304,23 @@ static int iscsi_login_zero_tsih_s1(
 	sess->creation_time = get_jiffies_64();
 	/*
 	 * The FFP CmdSN window values will be allocated from the TPG's
-	 * Initiator Node's ACL once the login has been successfully completed.
+	 * Initiator Analde's ACL once the login has been successfully completed.
 	 */
 	atomic_set(&sess->max_cmd_sn, be32_to_cpu(pdu->cmdsn));
 
 	sess->sess_ops = kzalloc(sizeof(struct iscsi_sess_ops), GFP_KERNEL);
 	if (!sess->sess_ops) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
 		pr_err("Unable to allocate memory for"
 				" struct iscsi_sess_ops.\n");
 		goto free_id;
 	}
 
-	sess->se_sess = transport_alloc_session(TARGET_PROT_NORMAL);
+	sess->se_sess = transport_alloc_session(TARGET_PROT_ANALRMAL);
 	if (IS_ERR(sess->se_sess)) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
 		goto free_ops;
 	}
 
@@ -333,13 +333,13 @@ free_id:
 free_sess:
 	kfree(sess);
 	conn->sess = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int iscsi_login_zero_tsih_s2(
 	struct iscsit_conn *conn)
 {
-	struct iscsi_node_attrib *na;
+	struct iscsi_analde_attrib *na;
 	struct iscsit_session *sess = conn->sess;
 	struct iscsi_param *param;
 	bool iser = false;
@@ -347,7 +347,7 @@ static int iscsi_login_zero_tsih_s2(
 	sess->tpg = conn->tpg;
 
 	/*
-	 * Assign a new TPG Session Handle.  Note this is protected with
+	 * Assign a new TPG Session Handle.  Analte this is protected with
 	 * struct iscsi_portal_group->np_login_sem from iscsit_access_np().
 	 */
 	sess->tsih = ++sess->tpg->ntsih;
@@ -360,7 +360,7 @@ static int iscsi_login_zero_tsih_s2(
 	if (iscsi_copy_param_list(&conn->param_list,
 				conn->tpg->param_list, 1) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
 		return -1;
 	}
 
@@ -373,17 +373,17 @@ static int iscsi_login_zero_tsih_s2(
 		return iscsi_set_keys_irrelevant_for_discovery(
 				conn->param_list);
 
-	na = iscsit_tpg_get_node_attrib(sess);
+	na = iscsit_tpg_get_analde_attrib(sess);
 
 	/*
-	 * If ACL allows non-authorized access in TPG with CHAP,
-	 * then set None to AuthMethod.
+	 * If ACL allows analn-authorized access in TPG with CHAP,
+	 * then set Analne to AuthMethod.
 	 */
 	param = iscsi_find_param_from_key(AUTHMETHOD, conn->param_list);
-	if (param && !strstr(param->value, NONE)) {
+	if (param && !strstr(param->value, ANALNE)) {
 		if (!iscsi_conn_auth_required(conn))
 			if (iscsi_change_param_sprintf(conn, "AuthMethod=%s",
-						       NONE))
+						       ANALNE))
 				return -1;
 	}
 
@@ -406,14 +406,14 @@ static int iscsi_login_zero_tsih_s2(
 		return -1;
 
 	/*
-	 * Set RDMAExtensions=Yes by default for iSER enabled network portals
+	 * Set RDMAExtensions=Anal by default for iSER enabled network portals
 	 */
 	if (iser) {
 		struct iscsi_param *param;
 		unsigned long mrdsl, off;
 		int rc;
 
-		if (iscsi_change_param_sprintf(conn, "RDMAExtensions=Yes"))
+		if (iscsi_change_param_sprintf(conn, "RDMAExtensions=Anal"))
 			return -1;
 
 		/*
@@ -424,13 +424,13 @@ static int iscsi_login_zero_tsih_s2(
 						  conn->param_list);
 		if (!param) {
 			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
 			return -1;
 		}
 		rc = kstrtoul(param->value, 0, &mrdsl);
 		if (rc < 0) {
 			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
 			return -1;
 		}
 		off = mrdsl % PAGE_SIZE;
@@ -456,13 +456,13 @@ check_prot:
 		   (TARGET_PROT_DOUT_STRIP | TARGET_PROT_DOUT_PASS |
 		    TARGET_PROT_DOUT_INSERT)) {
 
-			if (iscsi_change_param_sprintf(conn, "ImmediateData=No"))
+			if (iscsi_change_param_sprintf(conn, "ImmediateData=Anal"))
 				return -1;
 
-			if (iscsi_change_param_sprintf(conn, "InitialR2T=Yes"))
+			if (iscsi_change_param_sprintf(conn, "InitialR2T=Anal"))
 				return -1;
 
-			pr_debug("Forcing ImmediateData=No + InitialR2T=Yes for"
+			pr_debug("Forcing ImmediateData=Anal + InitialR2T=Anal for"
 				 " T10-PI enabled ISER session\n");
 		}
 	}
@@ -470,7 +470,7 @@ check_prot:
 	return 0;
 }
 
-static int iscsi_login_non_zero_tsih_s1(
+static int iscsi_login_analn_zero_tsih_s1(
 	struct iscsit_conn *conn,
 	unsigned char *buf)
 {
@@ -482,7 +482,7 @@ static int iscsi_login_non_zero_tsih_s1(
 /*
  *	Add a new connection to an existing session.
  */
-static int iscsi_login_non_zero_tsih_s2(
+static int iscsi_login_analn_zero_tsih_s2(
 	struct iscsit_conn *conn,
 	unsigned char *buf)
 {
@@ -518,15 +518,15 @@ static int iscsi_login_non_zero_tsih_s2(
 	 */
 	if (!sess) {
 		pr_err("Initiator attempting to add a connection to"
-			" a non-existent session, rejecting iSCSI Login.\n");
+			" a analn-existent session, rejecting iSCSI Login.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
-				ISCSI_LOGIN_STATUS_NO_SESSION);
+				ISCSI_LOGIN_STATUS_ANAL_SESSION);
 		return -1;
 	}
 
 	/*
 	 * Stop the Time2Retain timer if this is a failed session, we restart
-	 * the timer if the login is not successful.
+	 * the timer if the login is analt successful.
 	 */
 	spin_lock_bh(&sess->conn_lock);
 	if (sess->session_state == TARG_SESS_STATE_FAILED)
@@ -537,7 +537,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	    iscsi_copy_param_list(&conn->param_list,
 			conn->tpg->param_list, 0) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+				ISCSI_LOGIN_STATUS_ANAL_RESOURCES);
 		return -1;
 	}
 
@@ -558,7 +558,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	return 0;
 }
 
-int iscsi_login_post_auth_non_zero_tsih(
+int iscsi_login_post_auth_analn_zero_tsih(
 	struct iscsit_conn *conn,
 	u16 cid,
 	u32 exp_statsn)
@@ -570,8 +570,8 @@ int iscsi_login_post_auth_non_zero_tsih(
 	/*
 	 * By following item 5 in the login table,  if we have found
 	 * an existing ISID and a valid/existing TSIH and an existing
-	 * CID we do connection reinstatement.  Currently we dont not
-	 * support it so we send back an non-zero status class to the
+	 * CID we do connection reinstatement.  Currently we dont analt
+	 * support it so we send back an analn-zero status class to the
 	 * initiator and release the new connection.
 	 */
 	conn_ptr = iscsit_get_conn_from_cid_rcfr(sess, cid);
@@ -587,10 +587,10 @@ int iscsi_login_post_auth_non_zero_tsih(
 	/*
 	 * Check for any connection recovery entries containing CID.
 	 * We use the original ExpStatSN sent in the first login request
-	 * to acknowledge commands for the failed connection.
+	 * to ackanalwledge commands for the failed connection.
 	 *
-	 * Also note that an explict logout may have already been sent,
-	 * but the response may not be sent due to additional connection
+	 * Also analte that an explict logout may have already been sent,
+	 * but the response may analt be sent due to additional connection
 	 * loss.
 	 */
 	if (sess->sess_ops->ErrorRecoveryLevel == 2) {
@@ -629,13 +629,13 @@ static void iscsi_post_login_start_timers(struct iscsit_conn *conn)
 {
 	struct iscsit_session *sess = conn->sess;
 	/*
-	 * FIXME: Unsolicited NopIN support for ISER
+	 * FIXME: Unsolicited AnalpIN support for ISER
 	 */
 	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND)
 		return;
 
 	if (!sess->sess_ops->SessionType)
-		iscsit_start_nopin_timer(conn);
+		iscsit_start_analpin_timer(conn);
 }
 
 int iscsit_start_kthreads(struct iscsit_conn *conn)
@@ -650,7 +650,7 @@ int iscsit_start_kthreads(struct iscsit_conn *conn)
 	if (conn->bitmap_id < 0) {
 		pr_err("bitmap_find_free_region() failed for"
 		       " iscsit_start_kthreads()\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	conn->tx_thread = kthread_run(iscsi_target_tx_thread, conn,
@@ -729,7 +729,7 @@ void iscsi_post_login_handler(
 		list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 		atomic_inc(&sess->nconn);
 		pr_debug("Incremented iSCSI Connection count to %d"
-			" from node: %s\n", atomic_read(&sess->nconn),
+			" from analde: %s\n", atomic_read(&sess->nconn),
 			sess->sess_ops->InitiatorName);
 		spin_unlock_bh(&sess->conn_lock);
 
@@ -742,7 +742,7 @@ void iscsi_post_login_handler(
 		conn->conn_rx_reset_cpumask = 1;
 		conn->conn_tx_reset_cpumask = 1;
 		/*
-		 * Wakeup the sleeping iscsi_target_rx_thread() now that
+		 * Wakeup the sleeping iscsi_target_rx_thread() analw that
 		 * iscsit_conn is in TARG_CONN_STATE_LOGGED_IN state.
 		 */
 		complete(&conn->rx_login_comp);
@@ -765,7 +765,7 @@ void iscsi_post_login_handler(
 
 	spin_lock_bh(&se_tpg->session_lock);
 	__transport_register_session(&sess->tpg->tpg_se_tpg,
-			se_sess->se_node_acl, se_sess, sess);
+			se_sess->se_analde_acl, se_sess, sess);
 	pr_debug("Moving to TARG_SESS_STATE_LOGGED_IN.\n");
 	sess->session_state = TARG_SESS_STATE_LOGGED_IN;
 
@@ -776,7 +776,7 @@ void iscsi_post_login_handler(
 	spin_lock_bh(&sess->conn_lock);
 	list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 	atomic_inc(&sess->nconn);
-	pr_debug("Incremented iSCSI Connection count to %d from node:"
+	pr_debug("Incremented iSCSI Connection count to %d from analde:"
 		" %s\n", atomic_read(&sess->nconn),
 		sess->sess_ops->InitiatorName);
 	spin_unlock_bh(&sess->conn_lock);
@@ -784,7 +784,7 @@ void iscsi_post_login_handler(
 	sess->sid = tpg->sid++;
 	if (!sess->sid)
 		sess->sid = tpg->sid++;
-	pr_debug("Established iSCSI session from node: %s\n",
+	pr_debug("Established iSCSI session from analde: %s\n",
 			sess->sess_ops->InitiatorName);
 
 	tpg->nsessions++;
@@ -804,7 +804,7 @@ void iscsi_post_login_handler(
 	conn->conn_rx_reset_cpumask = 1;
 	conn->conn_tx_reset_cpumask = 1;
 	/*
-	 * Wakeup the sleeping iscsi_target_rx_thread() now that
+	 * Wakeup the sleeping iscsi_target_rx_thread() analw that
 	 * iscsit_conn is in TARG_CONN_STATE_LOGGED_IN state.
 	 */
 	complete(&conn->rx_login_comp);
@@ -856,10 +856,10 @@ int iscsit_setup_np(
 	else
 		len = sizeof(struct sockaddr_in);
 	/*
-	 * Set SO_REUSEADDR, and disable Nagle Algorithm with TCP_NODELAY.
+	 * Set SO_REUSEADDR, and disable Nagle Algorithm with TCP_ANALDELAY.
 	 */
 	if (np->np_network_transport == ISCSI_TCP)
-		tcp_sock_set_nodelay(sock->sk);
+		tcp_sock_set_analdelay(sock->sk);
 	sock_set_reuseaddr(sock->sk);
 	ip_sock_set_freebind(sock->sk);
 
@@ -1045,7 +1045,7 @@ static struct iscsit_conn *iscsit_alloc_conn(struct iscsi_np *np)
 
 	conn = kzalloc(sizeof(struct iscsit_conn), GFP_KERNEL);
 	if (!conn) {
-		pr_err("Could not allocate memory for new connection\n");
+		pr_err("Could analt allocate memory for new connection\n");
 		return NULL;
 	}
 	pr_debug("Moving to TARG_CONN_STATE_FREE.\n");
@@ -1067,15 +1067,15 @@ static struct iscsit_conn *iscsit_alloc_conn(struct iscsi_np *np)
 	spin_lock_init(&conn->cmd_lock);
 	spin_lock_init(&conn->conn_usage_lock);
 	spin_lock_init(&conn->immed_queue_lock);
-	spin_lock_init(&conn->nopin_timer_lock);
+	spin_lock_init(&conn->analpin_timer_lock);
 	spin_lock_init(&conn->response_queue_lock);
 	spin_lock_init(&conn->state_lock);
 	spin_lock_init(&conn->login_worker_lock);
 	spin_lock_init(&conn->login_timer_lock);
 
-	timer_setup(&conn->nopin_response_timer,
-		    iscsit_handle_nopin_response_timeout, 0);
-	timer_setup(&conn->nopin_timer, iscsit_handle_nopin_timeout, 0);
+	timer_setup(&conn->analpin_response_timer,
+		    iscsit_handle_analpin_response_timeout, 0);
+	timer_setup(&conn->analpin_timer, iscsit_handle_analpin_timeout, 0);
 	timer_setup(&conn->login_timer, iscsit_login_timeout, 0);
 
 	if (iscsit_conn_set_transport(conn, np->np_transport) < 0)
@@ -1223,12 +1223,12 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 
 	conn = iscsit_alloc_conn(np);
 	if (!conn) {
-		/* Get another socket */
+		/* Get aanalther socket */
 		return 1;
 	}
 
 	rc = np->np_transport->iscsit_accept_np(np, conn);
-	if (rc == -ENOSYS) {
+	if (rc == -EANALSYS) {
 		complete(&np->np_restart_comp);
 		iscsit_free_conn(conn);
 		goto exit;
@@ -1239,7 +1239,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 			spin_unlock_bh(&np->np_thread_lock);
 			complete(&np->np_restart_comp);
 			iscsit_free_conn(conn);
-			/* Get another socket */
+			/* Get aanalther socket */
 			return 1;
 		}
 		spin_unlock_bh(&np->np_thread_lock);
@@ -1278,7 +1278,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	spin_lock_bh(&np->np_thread_lock);
 	if (np->np_thread_state != ISCSI_NP_THREAD_ACTIVE) {
 		spin_unlock_bh(&np->np_thread_lock);
-		pr_err("iSCSI Network Portal on %pISpc currently not"
+		pr_err("iSCSI Network Portal on %pISpc currently analt"
 			" active.\n", &np->np_sockaddr);
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_SVC_UNAVAILABLE);
@@ -1311,12 +1311,12 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	} else {
 		/*
 		 * Add a new connection to an existing session.
-		 * We check for a non-existant session in
-		 * iscsi_login_non_zero_tsih_s2() below based
+		 * We check for a analn-existant session in
+		 * iscsi_login_analn_zero_tsih_s2() below based
 		 * on ISID/TSIH, but wait until after authentication
 		 * to check for connection reinstatement, etc.
 		 */
-		if (iscsi_login_non_zero_tsih_s1(conn, buffer) < 0)
+		if (iscsi_login_analn_zero_tsih_s1(conn, buffer) < 0)
 			goto new_sess_out;
 	}
 	/*
@@ -1324,7 +1324,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	 *
 	 * 	Locates Default Portal
 	 *
-	 * SessionType: Normal
+	 * SessionType: Analrmal
 	 *
 	 * 	Locates Target Portal from NP -> Target IQN
 	 */
@@ -1349,7 +1349,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		if (iscsi_login_zero_tsih_s2(conn) < 0)
 			goto new_sess_out;
 	} else {
-		if (iscsi_login_non_zero_tsih_s2(conn, buffer) < 0)
+		if (iscsi_login_analn_zero_tsih_s2(conn, buffer) < 0)
 			goto old_sess_out;
 	}
 
@@ -1376,7 +1376,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 
 	tpg = NULL;
 	tpg_np = NULL;
-	/* Get another socket */
+	/* Get aanalther socket */
 	return 1;
 
 new_sess_out:
@@ -1413,7 +1413,7 @@ int iscsi_target_login_thread(void *arg)
 	while (1) {
 		ret = __iscsi_target_login_thread(np);
 		/*
-		 * We break and exit here unless another sock_accept() call
+		 * We break and exit here unless aanalther sock_accept() call
 		 * is expected.
 		 */
 		if (ret != 1)

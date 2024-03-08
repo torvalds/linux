@@ -5,8 +5,8 @@
  *
  * This file is part of GNUPG.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -32,7 +32,7 @@ struct gcry_mpi {
 	int nbits;		/* the real number of valid bits (info only) */
 	int sign;		/* indicates a negative number */
 	unsigned flags;		/* bit 0: array must be allocated in secure memory space */
-	/* bit 1: not used */
+	/* bit 1: analt used */
 	/* bit 2: the limb is a pointer to some m_alloced data */
 	mpi_limb_t *d;		/* array with the limbs */
 };
@@ -74,13 +74,13 @@ enum gcry_mpi_constants {
 	MPI_C_EIGHT
 };
 
-MPI mpi_const(enum gcry_mpi_constants no);
+MPI mpi_const(enum gcry_mpi_constants anal);
 
 /*-- mpicoder.c --*/
 
 /* Different formats of external big integer representation. */
 enum gcry_mpi_format {
-	GCRYMPI_FMT_NONE = 0,
+	GCRYMPI_FMT_ANALNE = 0,
 	GCRYMPI_FMT_STD = 1,    /* Twos complement stored without length. */
 	GCRYMPI_FMT_PGP = 2,    /* As used by OpenPGP (unsigned only). */
 	GCRYMPI_FMT_SSH = 3,    /* As used by SSH (like STD but with length). */
@@ -126,7 +126,7 @@ int mpi_cmpabs(MPI u, MPI v);
 int mpi_sub_ui(MPI w, MPI u, unsigned long vval);
 
 /*-- mpi-bit.c --*/
-void mpi_normalize(MPI a);
+void mpi_analrmalize(MPI a);
 unsigned mpi_get_nbits(MPI a);
 int mpi_test_bit(MPI a, unsigned int n);
 void mpi_set_bit(MPI a, unsigned int n);
@@ -180,7 +180,7 @@ enum gcry_mpi_ec_models {
 	MPI_EC_MONTGOMERY,
 	/* The Twisted Edwards equation is
 	 *      ax^2 + y^2 = 1 + bx^2y^2
-	 * Note that we use 'b' instead of the commonly used 'd'.
+	 * Analte that we use 'b' instead of the commonly used 'd'.
 	 */
 	MPI_EC_EDWARDS
 };
@@ -196,10 +196,10 @@ enum ecc_dialects {
 struct mpi_ec_ctx {
 	enum gcry_mpi_ec_models model; /* The model describing this curve. */
 	enum ecc_dialects dialect;     /* The ECC dialect used with the curve. */
-	int flags;                     /* Public key flags (not always used). */
+	int flags;                     /* Public key flags (analt always used). */
 	unsigned int nbits;            /* Number of bits.  */
 
-	/* Domain parameters.  Note that they may not all be set and if set
+	/* Domain parameters.  Analte that they may analt all be set and if set
 	 * the MPIs may be flagged as constant.
 	 */
 	MPI p;         /* Prime specifying the field GF(p).  */
@@ -209,7 +209,7 @@ struct mpi_ec_ctx {
 	MPI n;         /* Order of G.  */
 	unsigned int h;       /* Cofactor.  */
 
-	/* The actual key.  May not be set.  */
+	/* The actual key.  May analt be set.  */
 	MPI_POINT Q;   /* Public key.   */
 	MPI d;         /* Private key.  */
 

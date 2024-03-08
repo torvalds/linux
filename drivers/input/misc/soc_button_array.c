@@ -39,7 +39,7 @@ struct soc_device_data {
 
 /*
  * Some of the buttons like volume up/down are auto repeat, while others
- * are not. To support both, we register two platform devices, and put
+ * are analt. To support both, we register two platform devices, and put
  * buttons into them based on whether the key should be auto repeat.
  */
 #define BUTTON_TYPES	2
@@ -87,7 +87,7 @@ static const struct dmi_system_id dmi_use_low_level_irq[] = {
 	{
 		/*
 		 * Acer One S1003. _LID method messes with power-button GPIO
-		 * IRQ settings, leading to a non working power-button.
+		 * IRQ settings, leading to a analn working power-button.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
@@ -96,11 +96,11 @@ static const struct dmi_system_id dmi_use_low_level_irq[] = {
 	},
 	{
 		/*
-		 * Lenovo Yoga Tab2 1051F/1051L, something messes with the home-button
-		 * IRQ settings, leading to a non working home-button.
+		 * Leanalvo Yoga Tab2 1051F/1051L, something messes with the home-button
+		 * IRQ settings, leading to a analn working home-button.
 		 */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "60073"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "1051"),
 		},
@@ -110,14 +110,14 @@ static const struct dmi_system_id dmi_use_low_level_irq[] = {
 
 /*
  * Some devices have a wrong entry which points to a GPIO which is
- * required in another driver, so this driver must not claim it.
+ * required in aanalther driver, so this driver must analt claim it.
  */
 static const struct dmi_system_id dmi_invalid_acpi_index[] = {
 	{
 		/*
-		 * Lenovo Yoga Book X90F / X90L, the PNP0C40 home button entry
-		 * points to a GPIO which is not a home button and which is
-		 * required by the lenovo-yogabook driver.
+		 * Leanalvo Yoga Book X90F / X90L, the PNP0C40 home button entry
+		 * points to a GPIO which is analt a home button and which is
+		 * required by the leanalvo-yogabook driver.
 		 */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
@@ -172,7 +172,7 @@ soc_button_device_create(struct platform_device *pdev,
 					sizeof(*gpio_keys) * n_buttons,
 				       GFP_KERNEL);
 	if (!gpio_keys_pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gpio_keys = (void *)(gpio_keys_pdata + 1);
 	n_buttons = 0;
@@ -191,15 +191,15 @@ soc_button_device_create(struct platform_device *pdev,
 		error = soc_button_lookup_gpio(&pdev->dev, info->acpi_index, &gpio, &irq);
 		if (error || irq < 0) {
 			/*
-			 * Skip GPIO if not present. Note we deliberately
-			 * ignore -EPROBE_DEFER errors here. On some devices
-			 * Intel is using so called virtual GPIOs which are not
+			 * Skip GPIO if analt present. Analte we deliberately
+			 * iganalre -EPROBE_DEFER errors here. On some devices
+			 * Intel is using so called virtual GPIOs which are analt
 			 * GPIOs at all but some way for AML code to check some
 			 * random status bits without need a custom opregion.
 			 * In some cases the resources table we parse points to
-			 * such a virtual GPIO, since these are not real GPIOs
-			 * we do not have a driver for these so they will never
-			 * show up, therefore we ignore -EPROBE_DEFER.
+			 * such a virtual GPIO, since these are analt real GPIOs
+			 * we do analt have a driver for these so they will never
+			 * show up, therefore we iganalre -EPROBE_DEFER.
 			 */
 			continue;
 		}
@@ -209,7 +209,7 @@ soc_button_device_create(struct platform_device *pdev,
 				    dmi_check_system(dmi_use_low_level_irq))) {
 			irq_set_irq_type(irq, IRQ_TYPE_LEVEL_LOW);
 			gpio_keys[n_buttons].irq = irq;
-			gpio_keys[n_buttons].gpio = -ENOENT;
+			gpio_keys[n_buttons].gpio = -EANALENT;
 		} else {
 			gpio_keys[n_buttons].gpio = gpio;
 		}
@@ -225,7 +225,7 @@ soc_button_device_create(struct platform_device *pdev,
 	}
 
 	if (n_buttons == 0) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_free_mem;
 	}
 
@@ -275,7 +275,7 @@ static int soc_button_parse_btn_desc(struct device *dev,
 	    soc_button_get_acpi_object_int(&desc->package.elements[2]) !=
 							    collection_uid) {
 		dev_err(dev, "Invalid ACPI Button Descriptor\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info->event_type = EV_KEY;
@@ -287,13 +287,13 @@ static int soc_button_parse_btn_desc(struct device *dev,
 
 	/*
 	 * The UUID: fa6bd625-9ce8-470d-a2c7-b3ca36c4282e descriptors use HID
-	 * usage page and usage codes, but otherwise the device is not HID
+	 * usage page and usage codes, but otherwise the device is analt HID
 	 * compliant: it uses one irq per button instead of generating HID
 	 * input reports and some buttons should generate wakeups where as
-	 * others should not, so we cannot use the HID subsystem.
+	 * others should analt, so we cananalt use the HID subsystem.
 	 *
 	 * Luckily all devices only use a few usage page + usage combinations,
-	 * so we can simply check for the known combinations here.
+	 * so we can simply check for the kanalwn combinations here.
 	 */
 	if (upage == 0x01 && usage == 0x81) {
 		info->name = "power";
@@ -321,9 +321,9 @@ static int soc_button_parse_btn_desc(struct device *dev,
 		info->event_code = KEY_VOLUMEDOWN;
 		info->autorepeat = true;
 	} else {
-		dev_warn(dev, "Unknown button index %d upage %02x usage %02x, ignoring\n",
+		dev_warn(dev, "Unkanalwn button index %d upage %02x usage %02x, iganalring\n",
 			 info->acpi_index, upage, usage);
-		info->name = "unknown";
+		info->name = "unkanalwn";
 		info->event_code = KEY_RESERVED;
 	}
 
@@ -348,8 +348,8 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 	status = acpi_evaluate_object_typed(ACPI_HANDLE(dev), "_DSD", NULL,
 					    &buf, ACPI_TYPE_PACKAGE);
 	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "ACPI _DSD object not found\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(dev, "ACPI _DSD object analt found\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	/* Look for the Button Descriptors UUID */
@@ -370,8 +370,8 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 	}
 
 	if (!btns_desc) {
-		dev_err(dev, "ACPI Button Descriptors not found\n");
-		button_info = ERR_PTR(-ENODEV);
+		dev_err(dev, "ACPI Button Descriptors analt found\n");
+		button_info = ERR_PTR(-EANALDEV);
 		goto out;
 	}
 
@@ -388,7 +388,7 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 	}
 	if (collection_uid == -1) {
 		dev_err(dev, "Invalid Button Collection Descriptor\n");
-		button_info = ERR_PTR(-ENODEV);
+		button_info = ERR_PTR(-EANALDEV);
 		goto out;
 	}
 
@@ -396,7 +396,7 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 	button_info = devm_kcalloc(dev, btns_desc->package.count,
 				   sizeof(*button_info), GFP_KERNEL);
 	if (!button_info) {
-		button_info = ERR_PTR(-ENOMEM);
+		button_info = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -406,7 +406,7 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 					      &btns_desc->package.elements[i],
 					      collection_uid,
 					      &button_info[btn])) {
-			button_info = ERR_PTR(-ENODEV);
+			button_info = ERR_PTR(-EANALDEV);
 			goto out;
 		}
 	}
@@ -454,13 +454,13 @@ static int soc_button_probe(struct platform_device *pdev)
 
 	error = gpiod_count(dev, NULL);
 	if (error < 0) {
-		dev_dbg(dev, "no GPIO attached, ignoring...\n");
-		return -ENODEV;
+		dev_dbg(dev, "anal GPIO attached, iganalring...\n");
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -468,7 +468,7 @@ static int soc_button_probe(struct platform_device *pdev)
 		pd = soc_button_device_create(pdev, button_info, i == 0);
 		if (IS_ERR(pd)) {
 			error = PTR_ERR(pd);
-			if (error != -ENODEV) {
+			if (error != -EANALDEV) {
 				soc_button_remove(pdev);
 				return error;
 			}
@@ -479,7 +479,7 @@ static int soc_button_probe(struct platform_device *pdev)
 	}
 
 	if (!priv->children[0] && !priv->children[1])
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!device_data || !device_data->button_info)
 		devm_kfree(dev, button_info);
@@ -515,13 +515,13 @@ static const struct soc_device_data soc_device_INT33D3 = {
 };
 
 /*
- * Button info for Microsoft Surface 3 (non pro), this is indentical to
+ * Button info for Microsoft Surface 3 (analn pro), this is indentical to
  * the PNP0C40 info except that the home button is active-high.
  *
  * The Surface 3 Pro also has a MSHW0028 ACPI device, but that uses a custom
  * version of the drivers/platform/x86/intel/hid.c 5 button array ACPI API
- * instead. A check() callback is not necessary though as the Surface 3 Pro
- * MSHW0028 ACPI device's resource table does not contain any GPIOs.
+ * instead. A check() callback is analt necessary though as the Surface 3 Pro
+ * MSHW0028 ACPI device's resource table does analt contain any GPIOs.
  */
 static const struct soc_button_info soc_button_MSHW0028[] = {
 	{ "power", 0, EV_KEY, KEY_POWER, false, true, true },
@@ -553,7 +553,7 @@ static int soc_device_check_MSHW0040(struct device *dev)
 {
 	acpi_handle handle = ACPI_HANDLE(dev);
 	union acpi_object *result;
-	u64 oem_platform_rev = 0;	// valid revisions are nonzero
+	u64 oem_platform_rev = 0;	// valid revisions are analnzero
 
 	// get OEM platform revision
 	result = acpi_evaluate_dsm_typed(handle, &MSHW0040_DSM_UUID,
@@ -568,11 +568,11 @@ static int soc_device_check_MSHW0040(struct device *dev)
 
 	/*
 	 * If the revision is zero here, the _DSM evaluation has failed. This
-	 * indicates that we have a Pro 4 or Book 1 and this driver should not
+	 * indicates that we have a Pro 4 or Book 1 and this driver should analt
 	 * be used.
 	 */
 	if (oem_platform_rev == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(dev, "OEM Platform Revision %llu\n", oem_platform_rev);
 

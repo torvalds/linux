@@ -48,7 +48,7 @@ static inline void bch2_replicas_entry_cached(struct bch_replicas_entry_v1 *e,
 	e->devs[0]	= dev;
 }
 
-bool bch2_have_enough_devs(struct bch_fs *, struct bch_devs_mask,
+bool bch2_have_eanalugh_devs(struct bch_fs *, struct bch_devs_mask,
 			   unsigned, bool);
 
 unsigned bch2_sb_dev_has_data(struct bch_sb *, unsigned);

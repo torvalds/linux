@@ -45,7 +45,7 @@ int (*__pmax_close)(int);
 void __init which_prom(s32 magic, s32 *prom_vec)
 {
 	/*
-	 * No sign of the REX PROM's magic number means we assume a non-REX
+	 * Anal sign of the REX PROM's magic number means we assume a analn-REX
 	 * machine (i.e. we're on a DS2100/3100, DS5100 or DS5000/2xx)
 	 */
 	if (prom_is_rex(magic)) {
@@ -74,7 +74,7 @@ void __init which_prom(s32 magic, s32 *prom_vec)
 			(void *)(long)*(prom_vec + REX_PROM_CLEARCACHE);
 	} else {
 		/*
-		 * Set up prom abstraction structure with non-REX entry points.
+		 * Set up prom abstraction structure with analn-REX entry points.
 		 */
 		__prom_getchar = (void *)PMAX_PROM_GETCHAR;
 		__prom_getenv = (void *)PMAX_PROM_GETENV;

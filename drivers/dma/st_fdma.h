@@ -20,69 +20,69 @@
 #define DRIVER_NAME "st-fdma"
 
 /**
- * struct st_fdma_generic_node - Free running/paced generic node
+ * struct st_fdma_generic_analde - Free running/paced generic analde
  *
  * @length: Length in bytes of a line in a 2D mem to mem
  * @sstride: Stride, in bytes, between source lines in a 2D data move
  * @dstride: Stride, in bytes, between destination lines in a 2D data move
  */
-struct st_fdma_generic_node {
+struct st_fdma_generic_analde {
 	u32 length;
 	u32 sstride;
 	u32 dstride;
 };
 
 /**
- * struct st_fdma_hw_node - Node structure used by fdma hw
+ * struct st_fdma_hw_analde - Analde structure used by fdma hw
  *
- * @next: Pointer to next node
+ * @next: Pointer to next analde
  * @control: Transfer Control Parameters
  * @nbytes: Number of Bytes to read
  * @saddr: Source address
  * @daddr: Destination address
  *
- * @generic: generic node for free running/paced transfert type
- * 2 others transfert type are possible, but not yet implemented
+ * @generic: generic analde for free running/paced transfert type
+ * 2 others transfert type are possible, but analt yet implemented
  *
- * The NODE structures must be aligned to a 32 byte boundary
+ * The ANALDE structures must be aligned to a 32 byte boundary
  */
-struct st_fdma_hw_node {
+struct st_fdma_hw_analde {
 	u32 next;
 	u32 control;
 	u32 nbytes;
 	u32 saddr;
 	u32 daddr;
 	union {
-		struct st_fdma_generic_node generic;
+		struct st_fdma_generic_analde generic;
 	};
 } __aligned(32);
 
 /*
- * node control parameters
+ * analde control parameters
  */
-#define FDMA_NODE_CTRL_REQ_MAP_MASK	GENMASK(4, 0)
-#define FDMA_NODE_CTRL_REQ_MAP_FREE_RUN	0x0
-#define FDMA_NODE_CTRL_REQ_MAP_DREQ(n)	((n)&FDMA_NODE_CTRL_REQ_MAP_MASK)
-#define FDMA_NODE_CTRL_REQ_MAP_EXT		FDMA_NODE_CTRL_REQ_MAP_MASK
-#define FDMA_NODE_CTRL_SRC_MASK		GENMASK(6, 5)
-#define FDMA_NODE_CTRL_SRC_STATIC	BIT(5)
-#define FDMA_NODE_CTRL_SRC_INCR		BIT(6)
-#define FDMA_NODE_CTRL_DST_MASK		GENMASK(8, 7)
-#define FDMA_NODE_CTRL_DST_STATIC	BIT(7)
-#define FDMA_NODE_CTRL_DST_INCR		BIT(8)
-#define FDMA_NODE_CTRL_SECURE		BIT(15)
-#define FDMA_NODE_CTRL_PAUSE_EON	BIT(30)
-#define FDMA_NODE_CTRL_INT_EON		BIT(31)
+#define FDMA_ANALDE_CTRL_REQ_MAP_MASK	GENMASK(4, 0)
+#define FDMA_ANALDE_CTRL_REQ_MAP_FREE_RUN	0x0
+#define FDMA_ANALDE_CTRL_REQ_MAP_DREQ(n)	((n)&FDMA_ANALDE_CTRL_REQ_MAP_MASK)
+#define FDMA_ANALDE_CTRL_REQ_MAP_EXT		FDMA_ANALDE_CTRL_REQ_MAP_MASK
+#define FDMA_ANALDE_CTRL_SRC_MASK		GENMASK(6, 5)
+#define FDMA_ANALDE_CTRL_SRC_STATIC	BIT(5)
+#define FDMA_ANALDE_CTRL_SRC_INCR		BIT(6)
+#define FDMA_ANALDE_CTRL_DST_MASK		GENMASK(8, 7)
+#define FDMA_ANALDE_CTRL_DST_STATIC	BIT(7)
+#define FDMA_ANALDE_CTRL_DST_INCR		BIT(8)
+#define FDMA_ANALDE_CTRL_SECURE		BIT(15)
+#define FDMA_ANALDE_CTRL_PAUSE_EON	BIT(30)
+#define FDMA_ANALDE_CTRL_INT_EON		BIT(31)
 
 /**
- * struct st_fdma_sw_node - descriptor structure for link list
+ * struct st_fdma_sw_analde - descriptor structure for link list
  *
  * @pdesc: Physical address of desc
- * @node: link used for putting this into a channel queue
+ * @analde: link used for putting this into a channel queue
  */
-struct st_fdma_sw_node {
+struct st_fdma_sw_analde {
 	dma_addr_t pdesc;
-	struct st_fdma_hw_node *desc;
+	struct st_fdma_hw_analde *desc;
 };
 
 #define NAME_SZ 10
@@ -96,8 +96,8 @@ struct st_fdma_desc {
 	struct virt_dma_desc vdesc;
 	struct st_fdma_chan *fchan;
 	bool iscyclic;
-	unsigned int n_nodes;
-	struct st_fdma_sw_node node[] __counted_by(n_nodes);
+	unsigned int n_analdes;
+	struct st_fdma_sw_analde analde[] __counted_by(n_analdes);
 };
 
 enum st_fdma_type {
@@ -106,7 +106,7 @@ enum st_fdma_type {
 };
 
 struct st_fdma_cfg {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	enum st_fdma_type type;
 	dma_addr_t dev_addr;
 	enum dma_transfer_direction dir;
@@ -116,7 +116,7 @@ struct st_fdma_cfg {
 
 struct st_fdma_chan {
 	struct st_fdma_dev *fdev;
-	struct dma_pool *node_pool;
+	struct dma_pool *analde_pool;
 	struct dma_slave_config scfg;
 	struct st_fdma_cfg cfg;
 
@@ -197,20 +197,20 @@ struct st_fdma_dev {
 	writel((val), (fchan)->fdev->slim_rproc->mem[ST_SLIM_DMEM].cpu_addr \
 			+ fchan->dreq_line * 0x04 \
 			+ name)
-/* node interface */
-#define FDMA_NODE_SZ 128
+/* analde interface */
+#define FDMA_ANALDE_SZ 128
 #define FDMA_PTRN_OFST		0x800
 #define FDMA_CNTN_OFST		0x808
 #define FDMA_SADDRN_OFST	0x80c
 #define FDMA_DADDRN_OFST	0x810
-#define fnode_read(fchan, name) \
+#define fanalde_read(fchan, name) \
 	readl((fchan)->fdev->slim_rproc->mem[ST_SLIM_DMEM].cpu_addr \
-			+ (fchan)->vchan.chan.chan_id * FDMA_NODE_SZ \
+			+ (fchan)->vchan.chan.chan_id * FDMA_ANALDE_SZ \
 			+ name)
 
-#define fnode_write(fchan, val, name) \
+#define fanalde_write(fchan, val, name) \
 	writel((val), (fchan)->fdev->slim_rproc->mem[ST_SLIM_DMEM].cpu_addr \
-			+ (fchan)->vchan.chan.chan_id * FDMA_NODE_SZ \
+			+ (fchan)->vchan.chan.chan_id * FDMA_ANALDE_SZ \
 			+ name)
 
 /*

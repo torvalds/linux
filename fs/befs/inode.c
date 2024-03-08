@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * inode.c
+ * ianalde.c
  *
  * Copyright (C) 2001 Will Dyson <will_dyson@pobox.com>
  */
@@ -8,47 +8,47 @@
 #include <linux/fs.h>
 
 #include "befs.h"
-#include "inode.h"
+#include "ianalde.h"
 
 /*
- * Validates the correctness of the befs inode
- * Returns BEFS_OK if the inode should be used, otherwise
- * returns BEFS_BAD_INODE
+ * Validates the correctness of the befs ianalde
+ * Returns BEFS_OK if the ianalde should be used, otherwise
+ * returns BEFS_BAD_IANALDE
  */
 int
-befs_check_inode(struct super_block *sb, befs_inode *raw_inode,
-		 befs_blocknr_t inode)
+befs_check_ianalde(struct super_block *sb, befs_ianalde *raw_ianalde,
+		 befs_blocknr_t ianalde)
 {
-	u32 magic1 = fs32_to_cpu(sb, raw_inode->magic1);
-	befs_inode_addr ino_num = fsrun_to_cpu(sb, raw_inode->inode_num);
-	u32 flags = fs32_to_cpu(sb, raw_inode->flags);
+	u32 magic1 = fs32_to_cpu(sb, raw_ianalde->magic1);
+	befs_ianalde_addr ianal_num = fsrun_to_cpu(sb, raw_ianalde->ianalde_num);
+	u32 flags = fs32_to_cpu(sb, raw_ianalde->flags);
 
 	/* check magic header. */
-	if (magic1 != BEFS_INODE_MAGIC1) {
+	if (magic1 != BEFS_IANALDE_MAGIC1) {
 		befs_error(sb,
-			   "Inode has a bad magic header - inode = %lu",
-			   (unsigned long)inode);
-		return BEFS_BAD_INODE;
+			   "Ianalde has a bad magic header - ianalde = %lu",
+			   (unsigned long)ianalde);
+		return BEFS_BAD_IANALDE;
 	}
 
 	/*
-	 * Sanity check2: inodes store their own block address. Check it.
+	 * Sanity check2: ianaldes store their own block address. Check it.
 	 */
-	if (inode != iaddr2blockno(sb, &ino_num)) {
-		befs_error(sb, "inode blocknr field disagrees with vfs "
-			   "VFS: %lu, Inode %lu", (unsigned long)
-			   inode, (unsigned long)iaddr2blockno(sb, &ino_num));
-		return BEFS_BAD_INODE;
+	if (ianalde != iaddr2blockanal(sb, &ianal_num)) {
+		befs_error(sb, "ianalde blocknr field disagrees with vfs "
+			   "VFS: %lu, Ianalde %lu", (unsigned long)
+			   ianalde, (unsigned long)iaddr2blockanal(sb, &ianal_num));
+		return BEFS_BAD_IANALDE;
 	}
 
 	/*
 	 * check flag
 	 */
 
-	if (!(flags & BEFS_INODE_IN_USE)) {
-		befs_error(sb, "inode is not used - inode = %lu",
-			   (unsigned long)inode);
-		return BEFS_BAD_INODE;
+	if (!(flags & BEFS_IANALDE_IN_USE)) {
+		befs_error(sb, "ianalde is analt used - ianalde = %lu",
+			   (unsigned long)ianalde);
+		return BEFS_BAD_IANALDE;
 	}
 
 	return BEFS_OK;

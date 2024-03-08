@@ -5,7 +5,7 @@
  * Copyright (C) 2022 Collabora, Ltd.
  * Author: Shreeya Patel <shreeya.patel@collabora.com>
  *
- * Copyright (C) 2021 Lite-On Technology Corp (Singapore)
+ * Copyright (C) 2021 Lite-On Techanallogy Corp (Singapore)
  * Author: Shi Zhigang <Zhigang.Shi@liteon.com>
  *
  * IIO driver for LTRF216A (7-bit I2C slave address 0x53).
@@ -105,7 +105,7 @@ static void ltrf216a_reset(struct iio_dev *indio_dev)
 {
 	struct ltrf216a_data *data = iio_priv(indio_dev);
 
-	/* reset sensor, chip fails to respond to this, so ignore any errors */
+	/* reset sensor, chip fails to respond to this, so iganalre any errors */
 	regmap_write(data->regmap, LTRF216A_MAIN_CTRL, LTRF216A_ALS_RESET_MASK);
 
 	/* reset time */
@@ -422,7 +422,7 @@ static int ltrf216a_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 
@@ -446,7 +446,7 @@ static int ltrf216a_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	/* reset sensor, chip fails to respond to this, so ignore any errors */
+	/* reset sensor, chip fails to respond to this, so iganalre any errors */
 	ltrf216a_reset(indio_dev);
 
 	ret = regmap_reinit_cache(data->regmap, &ltrf216a_regmap_config);

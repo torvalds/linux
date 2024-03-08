@@ -50,7 +50,7 @@ static int aggr_add_gpio(struct gpio_aggregator *aggr, const char *key,
 	lookups = krealloc(aggr->lookups, struct_size(lookups, table, *n + 2),
 			   GFP_KERNEL);
 	if (!lookups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lookups->table[*n] = GPIO_LOOKUP_IDX(key, hwnum, NULL, *n, 0);
 
@@ -71,7 +71,7 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 
 	bitmap = bitmap_alloc(AGGREGATOR_MAX_GPIOS, GFP_KERNEL);
 	if (!bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	args = next_arg(args, &name, &p);
 	while (*args) {
@@ -91,7 +91,7 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 		/* GPIO chip + offset(s) */
 		error = bitmap_parselist(offsets, bitmap, AGGREGATOR_MAX_GPIOS);
 		if (error) {
-			pr_err("Cannot parse %s: %d\n", offsets, error);
+			pr_err("Cananalt parse %s: %d\n", offsets, error);
 			goto free_bitmap;
 		}
 
@@ -105,7 +105,7 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 	}
 
 	if (!n) {
-		pr_err("No GPIOs specified\n");
+		pr_err("Anal GPIOs specified\n");
 		error = -EINVAL;
 	}
 
@@ -124,14 +124,14 @@ static ssize_t new_device_store(struct device_driver *driver, const char *buf,
 	/* kernfs guarantees string termination, so count + 1 is safe */
 	aggr = kzalloc(sizeof(*aggr) + count + 1, GFP_KERNEL);
 	if (!aggr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(aggr->args, buf, count + 1);
 
 	aggr->lookups = kzalloc(struct_size(aggr->lookups, table, 1),
 				GFP_KERNEL);
 	if (!aggr->lookups) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto free_ga;
 	}
 
@@ -146,7 +146,7 @@ static ssize_t new_device_store(struct device_driver *driver, const char *buf,
 
 	aggr->lookups->dev_id = kasprintf(GFP_KERNEL, "%s.%d", DRV_NAME, id);
 	if (!aggr->lookups->dev_id) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto remove_idr;
 	}
 
@@ -209,7 +209,7 @@ static ssize_t delete_device_store(struct device_driver *driver,
 	aggr = idr_remove(&gpio_aggregator_idr, id);
 	mutex_unlock(&gpio_aggregator_lock);
 	if (!aggr)
-		return -ENOENT;
+		return -EANALENT;
 
 	gpio_aggregator_free(aggr);
 	return count;
@@ -461,7 +461,7 @@ static int gpiochip_fwd_setup_delay_line(struct device *dev, struct gpio_chip *c
 					  sizeof(*fwd->delay_timings),
 					  GFP_KERNEL);
 	if (!fwd->delay_timings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->of_xlate = gpiochip_fwd_delay_of_xlate;
 	chip->of_gpio_n_cells = 3;
@@ -481,7 +481,7 @@ static int gpiochip_fwd_setup_delay_line(struct device *dev, struct gpio_chip *c
  * @dev: Parent device pointer
  * @ngpios: Number of GPIOs in the forwarder.
  * @descs: Array containing the GPIO descriptors to forward to.
- *         This array must contain @ngpios entries, and must not be deallocated
+ *         This array must contain @ngpios entries, and must analt be deallocated
  *         before the forwarder has been destroyed again.
  * @features: Bitwise ORed features as defined with FWD_FEATURE_*.
  *
@@ -505,7 +505,7 @@ static struct gpiochip_fwd *gpiochip_fwd_create(struct device *dev,
 	fwd = devm_kzalloc(dev, struct_size(fwd, tmp, fwd_tmp_size(ngpios)),
 			   GFP_KERNEL);
 	if (!fwd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	chip = &fwd->chip;
 
@@ -579,7 +579,7 @@ static int gpio_aggregator_probe(struct platform_device *pdev)
 
 	descs = devm_kmalloc_array(dev, n, sizeof(*descs), GFP_KERNEL);
 	if (!descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; i++) {
 		descs[i] = devm_gpiod_get_index(dev, NULL, i, GPIOD_ASIS);

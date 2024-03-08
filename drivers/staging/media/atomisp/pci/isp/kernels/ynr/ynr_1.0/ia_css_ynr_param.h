@@ -18,7 +18,7 @@
 
 #include "type_support.h"
 
-/* YNR (Y Noise Reduction) */
+/* YNR (Y Analise Reduction) */
 struct sh_css_isp_ynr_params {
 	s32 threshold;
 	s32 gain_all;

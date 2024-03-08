@@ -13,7 +13,7 @@ maintainers:
 description: |-
   The Omnivision OV02A10 is a low-cost, high performance, 1/5-inch, 2 megapixel
   image sensor, which is the latest production derived from Omnivision's CMOS
-  image sensor technology. Ihis chip supports high frame rate speeds up to 30fps
+  image sensor techanallogy. Ihis chip supports high frame rate speeds up to 30fps
   @ 1600x1200 (UXGA) resolution transferred over a 1-lane MIPI interface. The
   sensor output is available via CSI-2 serial data output.
 
@@ -72,7 +72,7 @@ properties:
     $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false
     description:
-      Output port node, single endpoint describing the CSI-2 transmitter.
+      Output port analde, single endpoint describing the CSI-2 transmitter.
 
     properties:
       endpoint:

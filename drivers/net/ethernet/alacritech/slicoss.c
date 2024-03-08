@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Gigabit Ethernet adapters based on the Session Layer
- * Interface (SLIC) technology by Alacritech. The driver does not
+ * Interface (SLIC) techanallogy by Alacritech. The driver does analt
  * support the hardware acceleration features provided by these cards.
  *
- * Copyright (C) 2016 Lino Sanfilippo <LinoSanfilippo@gmx.de>
+ * Copyright (C) 2016 Lianal Sanfilippo <LianalSanfilippo@gmx.de>
  */
 
 #include <linux/kernel.h>
@@ -194,7 +194,7 @@ static int slic_new_upr(struct slic_device *sdev, unsigned int type,
 
 	upr = kmalloc(sizeof(*upr), GFP_ATOMIC);
 	if (!upr)
-		return -ENOMEM;
+		return -EANALMEM;
 	upr->type = type;
 	upr->paddr = paddr;
 
@@ -207,7 +207,7 @@ static void slic_set_mcast_bit(u64 *mcmask, unsigned char const *addr)
 {
 	u64 mask = *mcmask;
 	u8 crc;
-	/* Get the CRC polynomial for the mac address: we use bits 1-8 (lsb),
+	/* Get the CRC polyanalmial for the mac address: we use bits 1-8 (lsb),
 	 * bitwise reversed, msb (= lsb bit 0 before bitrev) is automatically
 	 * discarded.
 	 */
@@ -281,7 +281,7 @@ static void slic_configure_link_locked(struct slic_device *sdev, int speed,
 	sdev->speed = speed;
 	sdev->duplex = duplex;
 
-	if (sdev->speed == SPEED_UNKNOWN) {
+	if (sdev->speed == SPEED_UNKANALWN) {
 		if (netif_carrier_ok(dev))
 			netif_carrier_off(dev);
 	} else {
@@ -361,7 +361,7 @@ static void slic_xmit_complete(struct slic_device *sdev)
 
 		if (unlikely(!buff->skb)) {
 			netdev_warn(dev,
-				    "no skb found for desc idx %i\n", idx);
+				    "anal skb found for desc idx %i\n", idx);
 			continue;
 		}
 		dma_unmap_single(&sdev->pdev->dev,
@@ -643,8 +643,8 @@ static void slic_handle_link_irq(struct slic_device *sdev)
 		duplex = (link & SLIC_GIG_FULLDUPLEX) ? DUPLEX_FULL :
 							DUPLEX_HALF;
 	} else {
-		duplex = DUPLEX_UNKNOWN;
-		speed = SPEED_UNKNOWN;
+		duplex = DUPLEX_UNKANALWN;
+		speed = SPEED_UNKANALWN;
 	}
 	slic_configure_link(sdev, speed, duplex);
 }
@@ -656,7 +656,7 @@ static void slic_handle_upr_irq(struct slic_device *sdev, u32 irqs)
 	/* remove upr that caused this irq (always the first entry in list) */
 	upr = slic_dequeue_upr(sdev);
 	if (!upr) {
-		netdev_warn(sdev->netdev, "no upr found on list\n");
+		netdev_warn(sdev->netdev, "anal upr found on list\n");
 		return;
 	}
 
@@ -746,7 +746,7 @@ static irqreturn_t slic_irq(int irq, void *dev_id)
 		/* spurious interrupt */
 		slic_write(sdev, SLIC_REG_ISR, 0);
 		slic_flush_write(sdev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	napi_schedule_irqoff(&sdev->napi);
@@ -788,7 +788,7 @@ static int slic_init_stat_queue(struct slic_device *sdev)
 		if (!descs) {
 			netdev_err(sdev->netdev,
 				   "failed to allocate status descriptors\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_descs;
 		}
 		/* ensure correct alignment */
@@ -847,13 +847,13 @@ static int slic_init_tx_queue(struct slic_device *sdev)
 
 	txq->txbuffs = kcalloc(txq->len, sizeof(*buff), GFP_KERNEL);
 	if (!txq->txbuffs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txq->dma_pool = dma_pool_create("slic_pool", &sdev->pdev->dev,
 					sizeof(*desc), SLIC_TX_DESC_ALIGN,
 					4096);
 	if (!txq->dma_pool) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		netdev_err(sdev->netdev, "failed to create dma pool\n");
 		goto free_buffs;
 	}
@@ -865,7 +865,7 @@ static int slic_init_tx_queue(struct slic_device *sdev)
 		if (!desc) {
 			netdev_err(sdev->netdev,
 				   "failed to alloc pool chunk (%i)\n", i);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_descs;
 		}
 
@@ -924,7 +924,7 @@ static int slic_init_rx_queue(struct slic_device *sdev)
 
 	buff = kcalloc(rxq->len, sizeof(*buff), GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rxq->rxbuffs = buff;
 	slic_refill_rx_queue(sdev, GFP_KERNEL);
@@ -1056,7 +1056,7 @@ static int slic_load_rcvseq_firmware(struct slic_device *sdev)
 			"failed to load receive sequencer firmware %s\n", file);
 		return err;
 	}
-	/* Do an initial sanity check concerning firmware size now. A further
+	/* Do an initial sanity check concerning firmware size analw. A further
 	 * check follows below.
 	 */
 	if (fw->size < SLIC_FIRMWARE_MIN_SIZE) {
@@ -1069,7 +1069,7 @@ static int slic_load_rcvseq_firmware(struct slic_device *sdev)
 
 	codelen = slic_read_dword_from_firmware(fw, &idx);
 
-	/* do another sanity check against firmware size */
+	/* do aanalther sanity check against firmware size */
 	if ((codelen + 4) > fw->size) {
 		dev_err(&sdev->pdev->dev,
 			"invalid rcv-sequencer firmware size %zu\n", fw->size);
@@ -1130,7 +1130,7 @@ static int slic_load_firmware(struct slic_device *sdev)
 		dev_err(&sdev->pdev->dev, "failed to load firmware %s\n", file);
 		return err;
 	}
-	/* Do an initial sanity check concerning firmware size now. A further
+	/* Do an initial sanity check concerning firmware size analw. A further
 	 * check follows below.
 	 */
 	if (fw->size < SLIC_FIRMWARE_MIN_SIZE) {
@@ -1155,7 +1155,7 @@ static int slic_load_firmware(struct slic_device *sdev)
 		datalen += sectsize[i];
 	}
 
-	/* do another sanity check against firmware size */
+	/* do aanalther sanity check against firmware size */
 	if (datalen > fw->size) {
 		dev_err(&sdev->pdev->dev,
 			"invalid firmware size %zu (expected >= %u)\n",
@@ -1214,7 +1214,7 @@ static int slic_load_firmware(struct slic_device *sdev)
 	/* everything OK, kick off the card */
 	slic_write(sdev, SLIC_REG_WCS, SLIC_WCS_START);
 	slic_flush_write(sdev);
-	/* wait long enough for ucode to init card and reach the mainloop */
+	/* wait long eanalugh for ucode to init card and reach the mainloop */
 	mdelay(20);
 release:
 	release_firmware(fw);
@@ -1232,7 +1232,7 @@ static int slic_init_shmem(struct slic_device *sdev)
 				     &paddr, GFP_KERNEL);
 	if (!sm_data) {
 		dev_err(&sdev->pdev->dev, "failed to allocate shared memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sm->shmem_data = sm_data;
@@ -1310,8 +1310,8 @@ static int slic_init_iface(struct slic_device *sdev)
 	slic_set_mac_address(sdev);
 
 	spin_lock_bh(&sdev->link_lock);
-	sdev->duplex = DUPLEX_UNKNOWN;
-	sdev->speed = SPEED_UNKNOWN;
+	sdev->duplex = DUPLEX_UNKANALWN;
+	sdev->speed = SPEED_UNKANALWN;
 	spin_unlock_bh(&sdev->link_lock);
 
 	slic_set_link_autoneg(sdev);
@@ -1415,7 +1415,7 @@ static netdev_tx_t slic_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 maplen;
 
 	if (unlikely(slic_get_free_tx_descs(txq) < SLIC_MAX_REQ_TX_DESCS)) {
-		netdev_err(dev, "BUG! not enough tx LEs left: %u\n",
+		netdev_err(dev, "BUG! analt eanalugh tx LEs left: %u\n",
 			   slic_get_free_tx_descs(txq));
 		return NETDEV_TX_BUSY;
 	}
@@ -1483,7 +1483,7 @@ static int slic_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(slic_stats_strings);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1607,7 +1607,7 @@ static int slic_read_eeprom(struct slic_device *sdev)
 	eeprom = dma_alloc_coherent(&sdev->pdev->dev, SLIC_EEPROM_SIZE,
 				    &paddr, GFP_KERNEL);
 	if (!eeprom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slic_write(sdev, SLIC_REG_ICR, SLIC_ICR_INT_OFF);
 	/* setup ISP temporarily */
@@ -1768,7 +1768,7 @@ static int slic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev = alloc_etherdev(sizeof(*sdev));
 	if (!dev) {
 		dev_err(&pdev->dev, "failed to alloc ethernet device\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_regions;
 	}
 
@@ -1791,7 +1791,7 @@ static int slic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				     pci_resource_len(pdev, 0));
 	if (!sdev->regs) {
 		dev_err(&pdev->dev, "failed to map registers\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_netdev;
 	}
 
@@ -1845,6 +1845,6 @@ static struct pci_driver slic_driver = {
 
 module_pci_driver(slic_driver);
 
-MODULE_DESCRIPTION("Alacritech non-accelerated SLIC driver");
-MODULE_AUTHOR("Lino Sanfilippo <LinoSanfilippo@gmx.de>");
+MODULE_DESCRIPTION("Alacritech analn-accelerated SLIC driver");
+MODULE_AUTHOR("Lianal Sanfilippo <LianalSanfilippo@gmx.de>");
 MODULE_LICENSE("GPL");

@@ -7,7 +7,7 @@
 #include "util/parse-events.h"
 #include "util/perf_api_probe.h"
 #include <perf/cpumap.h>
-#include <errno.h>
+#include <erranal.h>
 
 typedef void (*setup_probe_fn_t)(struct evsel *evsel);
 
@@ -21,7 +21,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, struct perf_cpu cpu, const cha
 
 	evlist = evlist__new();
 	if (!evlist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (parse_event(evlist, str))
 		goto out_delete;
@@ -31,7 +31,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, struct perf_cpu cpu, const cha
 	while (1) {
 		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu.cpu, -1, flags);
 		if (fd < 0) {
-			if (pid == -1 && errno == EACCES) {
+			if (pid == -1 && erranal == EACCES) {
 				pid = 0;
 				continue;
 			}
@@ -45,7 +45,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, struct perf_cpu cpu, const cha
 
 	fd = sys_perf_event_open(&evsel->core.attr, pid, cpu.cpu, -1, flags);
 	if (fd < 0) {
-		if (errno == EINVAL)
+		if (erranal == EINVAL)
 			err = -EINVAL;
 		goto out_delete;
 	}
@@ -156,7 +156,7 @@ bool perf_can_record_cpu_wide(void)
 }
 
 /*
- * Architectures are expected to know if AUX area sampling is supported by the
+ * Architectures are expected to kanalw if AUX area sampling is supported by the
  * hardware. Here we check for kernel support.
  */
 bool perf_can_aux_sample(void)
@@ -165,7 +165,7 @@ bool perf_can_aux_sample(void)
 		.size = sizeof(struct perf_event_attr),
 		.exclude_kernel = 1,
 		/*
-		 * Non-zero value causes the kernel to calculate the effective
+		 * Analn-zero value causes the kernel to calculate the effective
 		 * attribute size up to that byte.
 		 */
 		.aux_sample_size = 1,
@@ -174,11 +174,11 @@ bool perf_can_aux_sample(void)
 
 	fd = sys_perf_event_open(&attr, -1, 0, -1, 0);
 	/*
-	 * If the kernel attribute is big enough to contain aux_sample_size
+	 * If the kernel attribute is big eanalugh to contain aux_sample_size
 	 * then we assume that it is supported. We are relying on the kernel to
 	 * validate the attribute size before anything else that could be wrong.
 	 */
-	if (fd < 0 && errno == E2BIG)
+	if (fd < 0 && erranal == E2BIG)
 		return false;
 	if (fd >= 0)
 		close(fd);

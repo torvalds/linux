@@ -38,7 +38,7 @@
  */
 static void __init mvme7100_setup_arch(void)
 {
-	struct device_node *bcsr_node;
+	struct device_analde *bcsr_analde;
 	void __iomem *mvme7100_regs = NULL;
 	u8 reg;
 
@@ -52,11 +52,11 @@ static void __init mvme7100_setup_arch(void)
 	fsl_pci_assign_primary();
 
 	/* Remap BCSR registers */
-	bcsr_node = of_find_compatible_node(NULL, NULL,
+	bcsr_analde = of_find_compatible_analde(NULL, NULL,
 			"artesyn,mvme7100-bcsr");
-	if (bcsr_node) {
-		mvme7100_regs = of_iomap(bcsr_node, 0);
-		of_node_put(bcsr_node);
+	if (bcsr_analde) {
+		mvme7100_regs = of_iomap(bcsr_analde, 0);
+		of_analde_put(bcsr_analde);
 	}
 
 	if (mvme7100_regs) {

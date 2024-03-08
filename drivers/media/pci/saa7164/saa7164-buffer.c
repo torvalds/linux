@@ -98,7 +98,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	buf->pos = 0;
 	buf->actual_size = params->pitch * params->numberoflines;
 	buf->crc = 0;
-	/* TODO: arg len is being ignored */
+	/* TODO: arg len is being iganalred */
 	buf->pci_size = SAA7164_PT_ENTRIES * 0x1000;
 	buf->pt_size = (SAA7164_PT_ENTRIES * sizeof(u64)) + 0x1000;
 
@@ -113,7 +113,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	if (!buf->pt_cpu)
 		goto fail2;
 
-	/* init the buffers to a known pattern, easier during debugging */
+	/* init the buffers to a kanalwn pattern, easier during debugging */
 	memset(buf->cpu, 0xff, buf->pci_size);
 	buf->crc = crc32(0, buf->cpu, buf->actual_size);
 	memset(buf->pt_cpu, 0xff, buf->pt_size);
@@ -159,7 +159,7 @@ int saa7164_buffer_dealloc(struct saa7164_buffer *buf)
 		__func__, buf);
 
 	if (buf->flags != SAA7164_BUFFER_FREE)
-		log_warn(" freeing a non-free buffer\n");
+		log_warn(" freeing a analn-free buffer\n");
 
 	dma_free_coherent(&dev->pci->dev, buf->pci_size, buf->cpu, buf->dma);
 	dma_free_coherent(&dev->pci->dev, buf->pt_size, buf->pt_cpu,
@@ -195,7 +195,7 @@ int saa7164_buffer_activate(struct saa7164_buffer *buf, int i)
 
 	dprintk(DBGLVL_BUF, "%s(idx = %d)\n", __func__, i);
 
-	buf->idx = i; /* Note of which buffer list index position we occupy */
+	buf->idx = i; /* Analte of which buffer list index position we occupy */
 	buf->flags = SAA7164_BUFFER_BUSY;
 	buf->pos = 0;
 

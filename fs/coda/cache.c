@@ -13,7 +13,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/uaccess.h>
 #include <linux/string.h>
 #include <linux/list.h>
@@ -28,9 +28,9 @@
 static atomic_t permission_epoch = ATOMIC_INIT(0);
 
 /* replace or extend an acl cache hit */
-void coda_cache_enter(struct inode *inode, int mask)
+void coda_cache_enter(struct ianalde *ianalde, int mask)
 {
-	struct coda_inode_info *cii = ITOC(inode);
+	struct coda_ianalde_info *cii = ITOC(ianalde);
 
 	spin_lock(&cii->c_lock);
 	cii->c_cached_epoch = atomic_read(&permission_epoch);
@@ -42,10 +42,10 @@ void coda_cache_enter(struct inode *inode, int mask)
 	spin_unlock(&cii->c_lock);
 }
 
-/* remove cached acl from an inode */
-void coda_cache_clear_inode(struct inode *inode)
+/* remove cached acl from an ianalde */
+void coda_cache_clear_ianalde(struct ianalde *ianalde)
 {
-	struct coda_inode_info *cii = ITOC(inode);
+	struct coda_ianalde_info *cii = ITOC(ianalde);
 	spin_lock(&cii->c_lock);
 	cii->c_cached_epoch = atomic_read(&permission_epoch) - 1;
 	spin_unlock(&cii->c_lock);
@@ -59,9 +59,9 @@ void coda_cache_clear_all(struct super_block *sb)
 
 
 /* check if the mask has been matched against the acl already */
-int coda_cache_check(struct inode *inode, int mask)
+int coda_cache_check(struct ianalde *ianalde, int mask)
 {
-	struct coda_inode_info *cii = ITOC(inode);
+	struct coda_ianalde_info *cii = ITOC(ianalde);
 	int hit;
 	
 	spin_lock(&cii->c_lock);
@@ -75,7 +75,7 @@ int coda_cache_check(struct inode *inode, int mask)
 
 
 /* Purging dentries and children */
-/* The following routines drop dentries which are not
+/* The following routines drop dentries which are analt
    in use and flag dentries which are in use to be 
    zapped later.
 
@@ -83,7 +83,7 @@ int coda_cache_check(struct inode *inode, int mask)
    - coda_dentry_revalidate (for lookups) if the flag is C_PURGE
    - coda_dentry_delete: to remove dentry from the cache when d_count
      falls to zero
-   - an inode method coda_revalidate (for attributes) if the 
+   - an ianalde method coda_revalidate (for attributes) if the 
      flag is C_VATTR
 */
 
@@ -94,22 +94,22 @@ static void coda_flag_children(struct dentry *parent, int flag)
 
 	spin_lock(&parent->d_lock);
 	hlist_for_each_entry(de, &parent->d_children, d_sib) {
-		struct inode *inode = d_inode_rcu(de);
-		/* don't know what to do with negative dentries */
-		if (inode)
-			coda_flag_inode(inode, flag);
+		struct ianalde *ianalde = d_ianalde_rcu(de);
+		/* don't kanalw what to do with negative dentries */
+		if (ianalde)
+			coda_flag_ianalde(ianalde, flag);
 	}
 	spin_unlock(&parent->d_lock);
 }
 
-void coda_flag_inode_children(struct inode *inode, int flag)
+void coda_flag_ianalde_children(struct ianalde *ianalde, int flag)
 {
 	struct dentry *alias_de;
 
-	if ( !inode || !S_ISDIR(inode->i_mode)) 
+	if ( !ianalde || !S_ISDIR(ianalde->i_mode)) 
 		return; 
 
-	alias_de = d_find_alias(inode);
+	alias_de = d_find_alias(ianalde);
 	if (!alias_de)
 		return;
 	coda_flag_children(alias_de, flag);

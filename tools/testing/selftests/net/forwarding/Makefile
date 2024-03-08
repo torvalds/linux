@@ -59,7 +59,7 @@ TEST_PROGS = bridge_fdb_learning_limit.sh \
 	mirror_gre_vlan_bridge_1q.sh \
 	mirror_gre_vlan.sh \
 	mirror_vlan.sh \
-	no_forwarding.sh \
+	anal_forwarding.sh \
 	pedit_dsfield.sh \
 	pedit_ip.sh \
 	pedit_l4port.sh \

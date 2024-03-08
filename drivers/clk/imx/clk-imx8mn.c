@@ -83,7 +83,7 @@ static const char * const imx8mn_gpu_ahb_sels[] = {"osc_24m", "sys_pll1_800m", "
 						   "sys_pll3_out", "sys_pll2_1000m", "audio_pll1_out",
 						   "video_pll_out", "audio_pll2_out", };
 
-static const char * const imx8mn_noc_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out",
+static const char * const imx8mn_analc_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out",
 					       "sys_pll2_1000m", "sys_pll2_500m", "audio_pll1_out",
 					       "video_pll_out", "audio_pll2_out", };
 
@@ -319,14 +319,14 @@ static struct clk_hw **hws;
 static int imx8mn_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	void __iomem *base;
 	int ret;
 
 	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws,
 					  IMX8MN_CLK_END), GFP_KERNEL);
 	if (WARN_ON(!clk_hw_data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_hw_data->num = IMX8MN_CLK_END;
 	hws = clk_hw_data->hws;
@@ -339,9 +339,9 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MN_CLK_EXT3] = imx_get_clk_hw_by_name(np, "clk_ext3");
 	hws[IMX8MN_CLK_EXT4] = imx_get_clk_hw_by_name(np, "clk_ext4");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mn-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx8mn-anatop");
 	base = devm_of_iomap(dev, np, 0, NULL);
-	of_node_put(np);
+	of_analde_put(np);
 	if (WARN_ON(IS_ERR(base))) {
 		ret = PTR_ERR(base);
 		goto unregister_hws;
@@ -418,7 +418,7 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MN_CLK_CLKOUT2_DIV] = imx_clk_hw_divider("clkout2_div", "clkout2_sel", base + 0x128, 16, 4);
 	hws[IMX8MN_CLK_CLKOUT2] = imx_clk_hw_gate("clkout2", "clkout2_div", base + 0x128, 24);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (WARN_ON(IS_ERR(base))) {
 		ret = PTR_ERR(base);
@@ -454,7 +454,7 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MN_CLK_USB_BUS] = imx8m_clk_hw_composite_bus("usb_bus", imx8mn_usb_bus_sels, base + 0x8b80);
 	hws[IMX8MN_CLK_GPU_AXI] = imx8m_clk_hw_composite_bus("gpu_axi", imx8mn_gpu_axi_sels, base + 0x8c00);
 	hws[IMX8MN_CLK_GPU_AHB] = imx8m_clk_hw_composite_bus("gpu_ahb", imx8mn_gpu_ahb_sels, base + 0x8c80);
-	hws[IMX8MN_CLK_NOC] = imx8m_clk_hw_composite_bus_critical("noc", imx8mn_noc_sels, base + 0x8d00);
+	hws[IMX8MN_CLK_ANALC] = imx8m_clk_hw_composite_bus_critical("analc", imx8mn_analc_sels, base + 0x8d00);
 
 	hws[IMX8MN_CLK_AHB] = imx8m_clk_hw_composite_bus_critical("ahb", imx8mn_ahb_sels, base + 0x9000);
 	hws[IMX8MN_CLK_AUDIO_AHB] = imx8m_clk_hw_composite_bus("audio_ahb", imx8mn_audio_ahb_sels, base + 0x9100);
@@ -464,7 +464,7 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 
 	/*
 	 * DRAM clocks are manipulated from TF-A outside clock framework.
-	 * The fw_managed helper sets GET_RATE_NOCACHE and clears SET_PARENT_GATE
+	 * The fw_managed helper sets GET_RATE_ANALCACHE and clears SET_PARENT_GATE
 	 * as div value should always be read from hardware
 	 */
 	hws[IMX8MN_CLK_DRAM_ALT] = imx8m_clk_hw_fw_managed_composite("dram_alt", imx8mn_dram_alt_sels, base + 0xa000);
@@ -623,7 +623,7 @@ static struct platform_driver imx8mn_clk_driver = {
 	.driver = {
 		.name = "imx8mn-ccm",
 		/*
-		 * Disable bind attributes: clocks are not removed and
+		 * Disable bind attributes: clocks are analt removed and
 		 * reloading the driver will crash or break devices.
 		 */
 		.suppress_bind_attrs = true,
@@ -632,7 +632,7 @@ static struct platform_driver imx8mn_clk_driver = {
 };
 module_platform_driver(imx8mn_clk_driver);
 module_param(mcore_booted, bool, S_IRUGO);
-MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or not");
+MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or analt");
 
 MODULE_AUTHOR("Anson Huang <Anson.Huang@nxp.com>");
 MODULE_DESCRIPTION("NXP i.MX8MN clock driver");

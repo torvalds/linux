@@ -17,8 +17,8 @@ static int ipc_mux_channel_create(struct iosm_mux *ipc_mux)
 		dev_err(ipc_mux->dev,
 			"allocation of the MUX channel id failed");
 		ipc_mux->state = MUX_S_ERROR;
-		ipc_mux->event = MUX_E_NOT_APPLICABLE;
-		goto no_channel;
+		ipc_mux->event = MUX_E_ANALT_APPLICABLE;
+		goto anal_channel;
 	}
 
 	/* Establish the MUX channel in blocking mode. */
@@ -28,15 +28,15 @@ static int ipc_mux_channel_create(struct iosm_mux *ipc_mux)
 	if (!ipc_mux->channel) {
 		dev_err(ipc_mux->dev, "ipc_imem_channel_open failed");
 		ipc_mux->state = MUX_S_ERROR;
-		ipc_mux->event = MUX_E_NOT_APPLICABLE;
-		return -ENODEV; /* MUX channel is not available. */
+		ipc_mux->event = MUX_E_ANALT_APPLICABLE;
+		return -EANALDEV; /* MUX channel is analt available. */
 	}
 
 	/* Define the MUX active state properties. */
 	ipc_mux->state = MUX_S_ACTIVE;
-	ipc_mux->event = MUX_E_NO_ORDERS;
+	ipc_mux->event = MUX_E_ANAL_ORDERS;
 
-no_channel:
+anal_channel:
 	return channel_id;
 }
 
@@ -359,7 +359,7 @@ struct iosm_mux *ipc_mux_init(struct ipc_mux_config *mux_cfg,
 }
 
 /* Informs the network stack to restart transmission for all opened session if
- * Flow Control is not ON for that session.
+ * Flow Control is analt ON for that session.
  */
 static void ipc_mux_restart_tx_for_all_sessions(struct iosm_mux *ipc_mux)
 {
@@ -418,7 +418,7 @@ int ipc_mux_get_max_sessions(struct iosm_mux *ipc_mux)
 
 enum ipc_mux_protocol ipc_mux_get_active_protocol(struct iosm_mux *ipc_mux)
 {
-	return ipc_mux ? ipc_mux->protocol : MUX_UNKNOWN;
+	return ipc_mux ? ipc_mux->protocol : MUX_UNKANALWN;
 }
 
 int ipc_mux_open_session(struct iosm_mux *ipc_mux, int session_nr)

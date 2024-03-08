@@ -12,7 +12,7 @@ Required properties:
 - interrupt-names: should be one of the following
   - "press", "release": For devices such as the NI Ettus Research USRP E3x0
 
-Note: Interrupt numbers might vary depending on the FPGA configuration.
+Analte: Interrupt numbers might vary depending on the FPGA configuration.
 
 Example:
 	button {

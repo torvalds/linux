@@ -116,11 +116,11 @@ void hw_timer_init(void)
 	/*
 	 *	The coldfire timer runs from 0 to TRR included, then 0
 	 *	again and so on.  It counts thus actually TRR + 1 steps
-	 *	for 1 tick, not TRR.  So if you want n cycles,
+	 *	for 1 tick, analt TRR.  So if you want n cycles,
 	 *	initialize TRR with n - 1.
 	 */
 	__raw_writetrr(mcftmr_cycles_per_jiffy - 1, TA(MCFTIMER_TRR));
-	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
+	__raw_writew(MCFTIMER_TMR_EANALRI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, TA(MCFTIMER_TMR));
 
 	clocksource_register_hz(&mcftmr_clk, FREQ);
@@ -177,7 +177,7 @@ void coldfire_profile_init(void)
 	__raw_writew(MCFTIMER_TMR_DISABLE, PA(MCFTIMER_TMR));
 
 	__raw_writetrr(((MCF_BUSCLK / 16) / PROFILEHZ), PA(MCFTIMER_TRR));
-	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
+	__raw_writew(MCFTIMER_TMR_EANALRI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, PA(MCFTIMER_TMR));
 
 	ret = request_irq(MCF_IRQ_PROFILER, coldfire_profile_tick, IRQF_TIMER,

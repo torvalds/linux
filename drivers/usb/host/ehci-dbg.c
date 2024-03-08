@@ -288,13 +288,13 @@ dbg_port(struct ehci_hcd *ehci, const char *label, int port, u32 status)
 
 /* troubleshooting help: expose state in debugfs */
 
-static int debug_async_open(struct inode *, struct file *);
-static int debug_bandwidth_open(struct inode *, struct file *);
-static int debug_periodic_open(struct inode *, struct file *);
-static int debug_registers_open(struct inode *, struct file *);
+static int debug_async_open(struct ianalde *, struct file *);
+static int debug_bandwidth_open(struct ianalde *, struct file *);
+static int debug_periodic_open(struct ianalde *, struct file *);
+static int debug_registers_open(struct ianalde *, struct file *);
 
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
-static int debug_close(struct inode *, struct file *);
+static int debug_close(struct ianalde *, struct file *);
 
 static const struct file_operations debug_async_fops = {
 	.owner		= THIS_MODULE,
@@ -486,7 +486,7 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	/*
 	 * dumps a snapshot of the async schedule.
 	 * usually empty except for long-term bulk reads, or head.
-	 * one QH per line, and TDs we know about
+	 * one QH per line, and TDs we kanalw about
 	 */
 	spin_lock_irqsave(&ehci->lock, flags);
 	for (qh = ehci->async->qh_next.qh; size > 0 && qh; qh = qh->qh_next.qh)
@@ -496,7 +496,7 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 		size -= temp;
 		next += temp;
 
-		list_for_each_entry(qh, &ehci->async_unlink, unlink_node) {
+		list_for_each_entry(qh, &ehci->async_unlink, unlink_analde) {
 			if (size <= 0)
 				break;
 			qh_lines(ehci, qh, &next, &size);
@@ -773,7 +773,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		size = scnprintf(next, size,
 			"bus %s, device %s\n"
 			"%s\n"
-			"SUSPENDED (no register access)\n",
+			"SUSPENDED (anal register access)\n",
 			hcd->self.controller->bus->name,
 			dev_name(hcd->self.controller),
 			hcd->product_desc);
@@ -824,7 +824,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 			case 0:		/* illegal reserved capability */
 				cap = 0;
 				fallthrough;
-			default:		/* unknown */
+			default:		/* unkanalwn */
 				break;
 			}
 			offset = (cap >> 8) & 0xff;
@@ -887,15 +887,15 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	if (!list_empty(&ehci->async_unlink)) {
 		temp = scnprintf(next, size, "async unlink qh %p\n",
 				list_first_entry(&ehci->async_unlink,
-						struct ehci_qh, unlink_node));
+						struct ehci_qh, unlink_analde));
 		size -= temp;
 		next += temp;
 	}
 
 #ifdef EHCI_STATS
 	temp = scnprintf(next, size,
-		"irq normal %ld err %ld iaa %ld (lost %ld)\n",
-		ehci->stats.normal, ehci->stats.error, ehci->stats.iaa,
+		"irq analrmal %ld err %ld iaa %ld (lost %ld)\n",
+		ehci->stats.analrmal, ehci->stats.error, ehci->stats.iaa,
 		ehci->stats.lost_iaa);
 	size -= temp;
 	next += temp;
@@ -937,7 +937,7 @@ static int fill_buffer(struct debug_buffer *buf)
 		buf->output_buf = vmalloc(buf->alloc_size);
 
 	if (!buf->output_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -975,7 +975,7 @@ out:
 	return ret;
 }
 
-static int debug_close(struct inode *inode, struct file *file)
+static int debug_close(struct ianalde *ianalde, struct file *file)
 {
 	struct debug_buffer *buf = file->private_data;
 
@@ -987,40 +987,40 @@ static int debug_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int debug_async_open(struct inode *inode, struct file *file)
+static int debug_async_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
+	file->private_data = alloc_buffer(ianalde->i_private, fill_async_buffer);
 
-	return file->private_data ? 0 : -ENOMEM;
+	return file->private_data ? 0 : -EANALMEM;
 }
 
-static int debug_bandwidth_open(struct inode *inode, struct file *file)
+static int debug_bandwidth_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private,
+	file->private_data = alloc_buffer(ianalde->i_private,
 			fill_bandwidth_buffer);
 
-	return file->private_data ? 0 : -ENOMEM;
+	return file->private_data ? 0 : -EANALMEM;
 }
 
-static int debug_periodic_open(struct inode *inode, struct file *file)
+static int debug_periodic_open(struct ianalde *ianalde, struct file *file)
 {
 	struct debug_buffer *buf;
 
-	buf = alloc_buffer(inode->i_private, fill_periodic_buffer);
+	buf = alloc_buffer(ianalde->i_private, fill_periodic_buffer);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->alloc_size = (sizeof(void *) == 4 ? 6 : 8) * PAGE_SIZE;
 	file->private_data = buf;
 	return 0;
 }
 
-static int debug_registers_open(struct inode *inode, struct file *file)
+static int debug_registers_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private,
+	file->private_data = alloc_buffer(ianalde->i_private,
 					  fill_registers_buffer);
 
-	return file->private_data ? 0 : -ENOMEM;
+	return file->private_data ? 0 : -EANALMEM;
 }
 
 static inline void create_debug_files(struct ehci_hcd *ehci)

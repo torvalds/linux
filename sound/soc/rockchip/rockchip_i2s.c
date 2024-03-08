@@ -267,19 +267,19 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	mask = I2S_CKR_CKP_MASK | I2S_CKR_TLP_MASK | I2S_CKR_RLP_MASK;
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		val = I2S_CKR_CKP_NORMAL |
-		      I2S_CKR_TLP_NORMAL |
-		      I2S_CKR_RLP_NORMAL;
+		val = I2S_CKR_CKP_ANALRMAL |
+		      I2S_CKR_TLP_ANALRMAL |
+		      I2S_CKR_RLP_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		val = I2S_CKR_CKP_NORMAL |
+		val = I2S_CKR_CKP_ANALRMAL |
 		      I2S_CKR_TLP_INVERTED |
 		      I2S_CKR_RLP_INVERTED;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		val = I2S_CKR_CKP_INVERTED |
-		      I2S_CKR_TLP_NORMAL |
-		      I2S_CKR_RLP_NORMAL;
+		      I2S_CKR_TLP_ANALRMAL |
+		      I2S_CKR_RLP_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
 		val = I2S_CKR_CKP_INVERTED |
@@ -302,12 +302,12 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		val = I2S_TXCR_IBM_LSJM;
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		val = I2S_TXCR_IBM_NORMAL;
+		val = I2S_TXCR_IBM_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_DSP_A: /* PCM delay 1 bit mode */
 		val = I2S_TXCR_TFS_PCM | I2S_TXCR_PBM_MODE(1);
 		break;
-	case SND_SOC_DAIFMT_DSP_B: /* PCM no delay mode */
+	case SND_SOC_DAIFMT_DSP_B: /* PCM anal delay mode */
 		val = I2S_TXCR_TFS_PCM;
 		break;
 	default:
@@ -326,12 +326,12 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		val = I2S_RXCR_IBM_LSJM;
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		val = I2S_RXCR_IBM_NORMAL;
+		val = I2S_RXCR_IBM_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_DSP_A: /* PCM delay 1 bit mode */
 		val = I2S_RXCR_TFS_PCM | I2S_RXCR_PBM_MODE(1);
 		break;
-	case SND_SOC_DAIFMT_DSP_B: /* PCM no delay mode */
+	case SND_SOC_DAIFMT_DSP_B: /* PCM anal delay mode */
 		val = I2S_RXCR_TFS_PCM;
 		break;
 	default:
@@ -667,13 +667,13 @@ static const struct of_device_id rockchip_i2s_match[] __maybe_unused = {
 static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 				 struct snd_soc_dai_driver **dp)
 {
-	struct device_node *node = i2s->dev->of_node;
+	struct device_analde *analde = i2s->dev->of_analde;
 	struct snd_soc_dai_driver *dai;
 	struct property *dma_names;
 	const char *dma_name;
 	unsigned int val;
 
-	of_property_for_each_string(node, "dma-names", dma_names, dma_name) {
+	of_property_for_each_string(analde, "dma-names", dma_names, dma_name) {
 		if (!strcmp(dma_name, "tx"))
 			i2s->has_playback = true;
 		if (!strcmp(dma_name, "rx"))
@@ -683,7 +683,7 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 	dai = devm_kmemdup(i2s->dev, &rockchip_i2s_dai,
 			   sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (i2s->has_playback) {
 		dai->playback.stream_name = "Playback";
@@ -700,7 +700,7 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 		i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		i2s->playback_dma_data.maxburst = 8;
 
-		if (!of_property_read_u32(node, "rockchip,playback-channels", &val)) {
+		if (!of_property_read_u32(analde, "rockchip,playback-channels", &val)) {
 			if (val >= 2 && val <= 8)
 				dai->playback.channels_max = val;
 		}
@@ -721,7 +721,7 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 		i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		i2s->capture_dma_data.maxburst = 8;
 
-		if (!of_property_read_u32(node, "rockchip,capture-channels", &val)) {
+		if (!of_property_read_u32(analde, "rockchip,capture-channels", &val)) {
 			if (val >= 2 && val <= 8)
 				dai->capture.channels_max = val;
 		}
@@ -735,7 +735,7 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 
 static int rockchip_i2s_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct rk_i2s_dev *i2s;
 	struct snd_soc_dai_driver *dai;
 	struct resource *res;
@@ -744,12 +744,12 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&i2s->lock);
 	i2s->dev = &pdev->dev;
 
-	i2s->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+	i2s->grf = syscon_regmap_lookup_by_phandle(analde, "rockchip,grf");
 	if (!IS_ERR(i2s->grf)) {
 		i2s->pins = device_get_match_data(&pdev->dev);
 		if (!i2s->pins)
@@ -827,13 +827,13 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 					      dai, 1);
 
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI\n");
+		dev_err(&pdev->dev, "Could analt register DAI\n");
 		goto err_suspend;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
+		dev_err(&pdev->dev, "Could analt register PCM\n");
 		goto err_suspend;
 	}
 

@@ -95,7 +95,7 @@ host1x_intr_init_host_sync(struct host1x *host, u32 cpm)
 
 	irq_data = devm_kcalloc(host->dev, host->num_syncpt_irqs, sizeof(irq_data[0]), GFP_KERNEL);
 	if (!irq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host1x_hw_intr_disable_all_syncpt_intrs(host);
 

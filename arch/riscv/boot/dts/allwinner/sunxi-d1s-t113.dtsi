@@ -30,7 +30,7 @@
 	soc {
 		compatible = "simple-bus";
 		ranges;
-		dma-noncoherent;
+		dma-analncoherent;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -52,25 +52,25 @@
 			#gpio-cells = <3>;
 			#interrupt-cells = <3>;
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			can0_pins: can0-pins {
 				pins = "PB2", "PB3";
 				function = "can0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			can1_pins: can1-pins {
 				pins = "PB4", "PB5";
 				function = "can1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			clk_pg11_pin: clk-pg11-pin {
 				pins = "PG11";
 				function = "clk";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			dsi_4lane_pins: dsi-4lane-pins {
 				pins = "PD0", "PD1", "PD2", "PD3", "PD4", "PD5",
 				       "PD6", "PD7", "PD8", "PD9";
@@ -78,7 +78,7 @@
 				function = "dsi";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			lcd_rgb666_pins: lcd-rgb666-pins {
 				pins = "PD0", "PD1", "PD2", "PD3", "PD4", "PD5",
 				       "PD6", "PD7", "PD8", "PD9", "PD10", "PD11",
@@ -87,25 +87,25 @@
 				function = "lcd0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2", "PF3", "PF4", "PF5";
 				function = "mmc0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			mmc1_pins: mmc1-pins {
 				pins = "PG0", "PG1", "PG2", "PG3", "PG4", "PG5";
 				function = "mmc1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			mmc2_pins: mmc2-pins {
 				pins = "PC2", "PC3", "PC4", "PC5", "PC6", "PC7";
 				function = "mmc2";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			rgmii_pe_pins: rgmii-pe-pins {
 				pins = "PE0", "PE1", "PE2", "PE3", "PE4",
 				       "PE5", "PE6", "PE7", "PE8", "PE9",
@@ -113,32 +113,32 @@
 				function = "emac";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			rmii_pe_pins: rmii-pe-pins {
 				pins = "PE0", "PE1", "PE2", "PE3", "PE4",
 				       "PE5", "PE6", "PE7", "PE8", "PE9";
 				function = "emac";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi0_pins: spi0-pins {
 				pins = "PC2", "PC3", "PC4", "PC5";
 				function = "spi0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart1_pg6_pins: uart1-pg6-pins {
 				pins = "PG6", "PG7";
 				function = "uart1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart1_pg8_rts_cts_pins: uart1-pg8-rts-cts-pins {
 				pins = "PG8", "PG9";
 				function = "uart1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart3_pb_pins: uart3-pb-pins {
 				pins = "PB6", "PB7";
 				function = "uart3";
@@ -455,7 +455,7 @@
 			reset-names = "ahb";
 			cap-sd-highspeed;
 			max-frequency = <150000000>;
-			no-mmc;
+			anal-mmc;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -471,7 +471,7 @@
 			reset-names = "ahb";
 			cap-sd-highspeed;
 			max-frequency = <150000000>;
-			no-mmc;
+			anal-mmc;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -490,8 +490,8 @@
 			max-frequency = <150000000>;
 			mmc-ddr-1_8v;
 			mmc-ddr-3_3v;
-			no-sd;
-			no-sdio;
+			anal-sd;
+			anal-sdio;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;

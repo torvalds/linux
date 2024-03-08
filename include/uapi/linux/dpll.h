@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
-/* Do not edit directly, auto-generated from: */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/dpll.yaml */
 /* YNL-GEN uapi header */
 
@@ -28,15 +28,15 @@ enum dpll_mode {
 /**
  * enum dpll_lock_status - provides information of dpll device lock status,
  *   valid values for DPLL_A_LOCK_STATUS attribute
- * @DPLL_LOCK_STATUS_UNLOCKED: dpll was not yet locked to any valid input (or
+ * @DPLL_LOCK_STATUS_UNLOCKED: dpll was analt yet locked to any valid input (or
  *   forced by setting DPLL_A_MODE to DPLL_MODE_DETACHED)
- * @DPLL_LOCK_STATUS_LOCKED: dpll is locked to a valid signal, but no holdover
+ * @DPLL_LOCK_STATUS_LOCKED: dpll is locked to a valid signal, but anal holdover
  *   available
  * @DPLL_LOCK_STATUS_LOCKED_HO_ACQ: dpll is locked and holdover acquired
  * @DPLL_LOCK_STATUS_HOLDOVER: dpll is in holdover state - lost a valid lock or
  *   was forced by disconnecting all the pins (latter possible only when dpll
  *   lock-state was already DPLL_LOCK_STATUS_LOCKED_HO_ACQ, if dpll lock-state
- *   was not DPLL_LOCK_STATUS_LOCKED_HO_ACQ, the dpll's lock-state shall remain
+ *   was analt DPLL_LOCK_STATUS_LOCKED_HO_ACQ, the dpll's lock-state shall remain
  *   DPLL_LOCK_STATUS_UNLOCKED)
  */
 enum dpll_lock_status {
@@ -69,7 +69,7 @@ enum dpll_type {
 /**
  * enum dpll_pin_type - defines possible types of a pin, valid values for
  *   DPLL_A_PIN_TYPE attribute
- * @DPLL_PIN_TYPE_MUX: aggregates another layer of selectable pins
+ * @DPLL_PIN_TYPE_MUX: aggregates aanalther layer of selectable pins
  * @DPLL_PIN_TYPE_EXT: external input
  * @DPLL_PIN_TYPE_SYNCE_ETH_PORT: ethernet port PHY's recovered clock
  * @DPLL_PIN_TYPE_INT_OSCILLATOR: device internal oscillator
@@ -111,7 +111,7 @@ enum dpll_pin_direction {
  * enum dpll_pin_state - defines possible states of a pin, valid values for
  *   DPLL_A_PIN_STATE attribute
  * @DPLL_PIN_STATE_CONNECTED: pin connected, active input of phase locked loop
- * @DPLL_PIN_STATE_DISCONNECTED: pin disconnected, not considered as a valid
+ * @DPLL_PIN_STATE_DISCONNECTED: pin disconnected, analt considered as a valid
  *   input
  * @DPLL_PIN_STATE_SELECTABLE: pin enabled for automatic input selection
  */

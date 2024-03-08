@@ -7,14 +7,14 @@
 #ifndef __CACHE_UNIPHIER_H
 #define __CACHE_UNIPHIER_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #ifdef CONFIG_CACHE_UNIPHIER
 int uniphier_cache_init(void);
 #else
 static inline int uniphier_cache_init(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

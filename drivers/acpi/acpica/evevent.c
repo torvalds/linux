@@ -23,7 +23,7 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event);
  *
  * FUNCTION:    acpi_ev_initialize_events
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -37,7 +37,7 @@ acpi_status acpi_ev_initialize_events(void)
 
 	ACPI_FUNCTION_TRACE(ev_initialize_events);
 
-	/* If Hardware Reduced flag is set, there are no fixed events */
+	/* If Hardware Reduced flag is set, there are anal fixed events */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -69,7 +69,7 @@ acpi_status acpi_ev_initialize_events(void)
  *
  * FUNCTION:    acpi_ev_install_xrupt_handlers
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -83,7 +83,7 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 
 	ACPI_FUNCTION_TRACE(ev_install_xrupt_handlers);
 
-	/* If Hardware Reduced flag is set, there is no ACPI h/w */
+	/* If Hardware Reduced flag is set, there is anal ACPI h/w */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -115,7 +115,7 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
  *
  * FUNCTION:    acpi_ev_fixed_event_initialize
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -156,9 +156,9 @@ static acpi_status acpi_ev_fixed_event_initialize(void)
  *
  * FUNCTION:    acpi_ev_fixed_event_detect
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
+ * RETURN:      INTERRUPT_HANDLED or INTERRUPT_ANALT_HANDLED
  *
  * DESCRIPTION: Checks the PM status register for active fixed events
  *
@@ -166,7 +166,7 @@ static acpi_status acpi_ev_fixed_event_initialize(void)
 
 u32 acpi_ev_fixed_event_detect(void)
 {
-	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
+	u32 int_status = ACPI_INTERRUPT_ANALT_HANDLED;
 	u32 fixed_status;
 	u32 fixed_enable;
 	u32 i;
@@ -176,7 +176,7 @@ u32 acpi_ev_fixed_event_detect(void)
 
 	/*
 	 * Read the fixed feature status and enable registers, as all the cases
-	 * depend on their values. Ignore errors here.
+	 * depend on their values. Iganalre errors here.
 	 */
 	status = acpi_hw_register_read(ACPI_REGISTER_PM1_STATUS, &fixed_status);
 	status |=
@@ -224,11 +224,11 @@ u32 acpi_ev_fixed_event_detect(void)
  *
  * PARAMETERS:  event               - Event type
  *
- * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
+ * RETURN:      INTERRUPT_HANDLED or INTERRUPT_ANALT_HANDLED
  *
  * DESCRIPTION: Clears the status bit for the requested event, calls the
  *              handler that previously registered for the event.
- *              NOTE: If there is no handler for the event, the event is
+ *              ANALTE: If there is anal handler for the event, the event is
  *              disabled to prevent further interrupts.
  *
  ******************************************************************************/
@@ -244,7 +244,7 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 				      status_register_id, ACPI_CLEAR_STATUS);
 
 	/*
-	 * Make sure that a handler exists. If not, report an error
+	 * Make sure that a handler exists. If analt, report an error
 	 * and disable the event to prevent further interrupts.
 	 */
 	if (!acpi_gbl_fixed_event_handlers[event].handler) {
@@ -253,10 +253,10 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 					      ACPI_DISABLE_EVENT);
 
 		ACPI_ERROR((AE_INFO,
-			    "No installed handler for fixed event - %s (%u), disabling",
+			    "Anal installed handler for fixed event - %s (%u), disabling",
 			    acpi_ut_get_event_name(event), event));
 
-		return (ACPI_INTERRUPT_NOT_HANDLED);
+		return (ACPI_INTERRUPT_ANALT_HANDLED);
 	}
 
 	/* Invoke the Fixed Event handler */
@@ -269,7 +269,7 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
  *
  * FUNCTION:    acpi_any_fixed_event_status_set
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      TRUE or FALSE
  *

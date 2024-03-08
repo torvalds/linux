@@ -2,11 +2,11 @@
 /*
  * linux/arch/arm/mach-omap1/board-sx1-mmc.c
  *
- * Copyright (C) 2007 Instituto Nokia de Tecnologia - INdT
+ * Copyright (C) 2007 Instituto Analkia de Tecanallogia - INdT
  * Author: Carlos Eduardo Aguiar <carlos.aguiar@indt.org.br>
  *
  * This code is based on linux/arch/arm/mach-omap1/board-h2-mmc.c, which is:
- * Copyright (C) 2007 Instituto Nokia de Tecnologia - INdT
+ * Copyright (C) 2007 Instituto Analkia de Tecanallogia - INdT
  */
 
 #include <linux/platform_device.h>

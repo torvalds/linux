@@ -70,7 +70,7 @@ kvm_start_entry:
 	/* Save r3 (vcpu) */
 	SAVE_GPR(3, r1)
 
-	/* Save non-volatile registers (r14 - r31) */
+	/* Save analn-volatile registers (r14 - r31) */
 	SAVE_NVGPRS(r1)
 
 	/* Save CR */
@@ -80,13 +80,13 @@ kvm_start_entry:
 	/* Save LR */
 	PPC_STL	r0, _LINK(r1)
 
-	/* Load non-volatile guest state from the vcpu */
+	/* Load analn-volatile guest state from the vcpu */
 	VCPU_LOAD_NVGPRS(r3)
 
 kvm_start_lightweight:
 	/* Copy registers into shadow vcpu so we can access them in real mode */
 	bl	FUNC(kvmppc_copy_to_svcpu)
-	nop
+	analp
 	REST_GPR(3, r1)
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -124,7 +124,7 @@ after_sprg3_load:
 
 	/* Jump to segment patching handler and into our guest */
 	bl	FUNC(kvmppc_entry_trampoline)
-	nop
+	analp
 
 /*
  * This is the handler in module memory. It gets jumped at from the
@@ -155,12 +155,12 @@ after_sprg3_load:
 	/* Transfer reg values from shadow vcpu back to vcpu struct */
 
 	bl	FUNC(kvmppc_copy_from_svcpu)
-	nop
+	analp
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
 	 * Reload kernel SPRG3 value.
-	 * No need to save guest value as usermode can't modify SPRG3.
+	 * Anal need to save guest value as usermode can't modify SPRG3.
 	 */
 	ld	r3, PACA_SPRG_VDSO(r13)
 	mtspr	SPRN_SPRG_VDSO_WRITE, r3
@@ -210,7 +210,7 @@ kvm_exit_loop:
 	lwz	r14, _CCR(r1)
 	mtcr	r14
 
-	/* Restore non-volatile host registers (r14 - r31) */
+	/* Restore analn-volatile host registers (r14 - r31) */
 	REST_NVGPRS(r1)
 
 	addi    r1, r1, SWITCH_FRAME_SIZE
@@ -224,7 +224,7 @@ kvm_loop_heavyweight:
 	/* Load vcpu */
 	REST_GPR(3, r1)
 
-	/* Load non-volatile guest state from the vcpu */
+	/* Load analn-volatile guest state from the vcpu */
 	VCPU_LOAD_NVGPRS(r3)
 
 	/* Jump back into the beginning of this function */

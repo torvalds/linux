@@ -5,7 +5,7 @@
 // Copyright (c) 2016-2018 Socionext Inc.
 
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <sound/core.h>
@@ -68,7 +68,7 @@ static irqreturn_t aiodma_irq(int irq, void *p)
 {
 	struct platform_device *pdev = p;
 	struct uniphier_aio_chip *chip = platform_get_drvdata(pdev);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int i, j;
 
 	for (i = 0; i < chip->num_aios; i++) {
@@ -77,7 +77,7 @@ static irqreturn_t aiodma_irq(int irq, void *p)
 		for (j = 0; j < ARRAY_SIZE(aio->sub); j++) {
 			struct uniphier_aio_sub *sub = &aio->sub[j];
 
-			/* Skip channel that does not trigger */
+			/* Skip channel that does analt trigger */
 			if (!sub->running || !aiodma_rb_is_irq(sub))
 				continue;
 
@@ -158,7 +158,7 @@ static int uniphier_aiodma_trigger(struct snd_soc_component *component,
 
 		break;
 	default:
-		dev_warn(dev, "Unknown trigger(%d) ignored\n", cmd);
+		dev_warn(dev, "Unkanalwn trigger(%d) iganalred\n", cmd);
 		break;
 	}
 	spin_unlock_irqrestore(&sub->lock, flags);
@@ -235,7 +235,7 @@ static const struct regmap_config aiodma_regmap_config = {
 	.reg_stride    = 4,
 	.val_bits      = 32,
 	.max_register  = 0x7fffc,
-	.cache_type    = REGCACHE_NONE,
+	.cache_type    = REGCACHE_ANALNE,
 };
 
 /**
@@ -243,7 +243,7 @@ static const struct regmap_config aiodma_regmap_config = {
  * @pdev: the platform device
  *
  * Register and setup the DMA of AIO to transfer the sound data to device.
- * This function need to call once at driver startup and need NOT to call
+ * This function need to call once at driver startup and need ANALT to call
  * unregister function.
  *
  * Return: Zero if successful, otherwise a negative value on error.

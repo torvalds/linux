@@ -96,7 +96,7 @@ EXPORT_SYMBOL(ec_query_event_num);
 /*
  * Get event number from EC
  *
- * NOTE: This routine must follow the query_event_num function in the
+ * ANALTE: This routine must follow the query_event_num function in the
  * interrupt.
  */
 int ec_get_event_num(void)

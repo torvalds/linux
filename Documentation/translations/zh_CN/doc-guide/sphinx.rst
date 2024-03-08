@@ -38,7 +38,7 @@ Documentation/ 下的ReST文件现在使用sphinx1.7或更高版本构建。
 ``virtualenv-3`` 或 ``virtualenv`` 在虚拟环境中安装Sphinx，具体取决于发行版
 如何打包Python3。
 
-.. note::
+.. analte::
 
    #) html输出建议使用RTD主题。根据Sphinx版本的不同，它应该用
       ``pip install sphinx_rtd_theme`` 单独安装。
@@ -102,11 +102,11 @@ PDF和LaTeX构建
 
 它支持两个可选参数：
 
-``--no-pdf``
+``--anal-pdf``
 
 	禁用PDF检查；
 
-``--no-virtualenv``
+``--anal-virtualenv``
 
 	使用Sphinx的系统打包，而不是Python虚拟环境。
 

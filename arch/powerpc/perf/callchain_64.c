@@ -24,7 +24,7 @@ static int read_user_stack_64(const unsigned long __user *ptr, unsigned long *re
 }
 
 /*
- * 64-bit user processes use the same stack frame for RT and non-RT signals.
+ * 64-bit user processes use the same stack frame for RT and analn-RT signals.
  */
 struct signal_frame_64 {
 	char		dummy[__SIGNAL_FRAMESIZE];
@@ -87,10 +87,10 @@ void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
 			return;
 
 		/*
-		 * Note: the next_sp - sp >= signal frame size check
+		 * Analte: the next_sp - sp >= signal frame size check
 		 * is true when next_sp < sp, which can happen when
 		 * transitioning from an alternate signal stack to the
-		 * normal stack.
+		 * analrmal stack.
 		 */
 		if (next_sp - sp >= sizeof(struct signal_frame_64) &&
 		    (is_sigreturn_64_address(next_ip, sp) ||

@@ -25,9 +25,9 @@ description: >
 
   - has one 32-bit enable word and one 32-bit status word
 
-  - no atomic set/clear operations
+  - anal atomic set/clear operations
 
-  - not all bits within the interrupt controller actually map to an interrupt
+  - analt all bits within the interrupt controller actually map to an interrupt
 
   The typical hardware layout for this controller is represented below:
 
@@ -55,7 +55,7 @@ description: >
   8 ------------------------/
 
   12 ........................ X
-  13 ........................ X           (not connected)
+  13 ........................ X           (analt connected)
   ..
   31 ........................ X
 
@@ -67,7 +67,7 @@ description: >
   - contains one or more enable/status word pairs, which often appear at
     different offsets in different blocks
 
-  - no atomic set/clear operations
+  - anal atomic set/clear operations
 
 allOf:
   - $ref: /schemas/interrupt-controller.yaml#

@@ -5,7 +5,7 @@
  * GNU General Public License.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Authors: David Woodhouse <dwmw2@infradead.org>
@@ -25,29 +25,29 @@
 #include "internal.h"
 #include "afs_fs.h"
 
-static const struct inode_operations afs_symlink_inode_operations = {
+static const struct ianalde_operations afs_symlink_ianalde_operations = {
 	.get_link	= page_get_link,
 };
 
-static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *parent_vnode)
+static analinline void dump_vanalde(struct afs_vanalde *vanalde, struct afs_vanalde *parent_vanalde)
 {
 	static unsigned long once_only;
 
-	pr_warn("kAFS: AFS vnode with undefined type %u\n", vnode->status.type);
+	pr_warn("kAFS: AFS vanalde with undefined type %u\n", vanalde->status.type);
 	pr_warn("kAFS: A=%d m=%o s=%llx v=%llx\n",
-		vnode->status.abort_code,
-		vnode->status.mode,
-		vnode->status.size,
-		vnode->status.data_version);
-	pr_warn("kAFS: vnode %llx:%llx:%x\n",
-		vnode->fid.vid,
-		vnode->fid.vnode,
-		vnode->fid.unique);
-	if (parent_vnode)
+		vanalde->status.abort_code,
+		vanalde->status.mode,
+		vanalde->status.size,
+		vanalde->status.data_version);
+	pr_warn("kAFS: vanalde %llx:%llx:%x\n",
+		vanalde->fid.vid,
+		vanalde->fid.vanalde,
+		vanalde->fid.unique);
+	if (parent_vanalde)
 		pr_warn("kAFS: dir %llx:%llx:%x\n",
-			parent_vnode->fid.vid,
-			parent_vnode->fid.vnode,
-			parent_vnode->fid.unique);
+			parent_vanalde->fid.vid,
+			parent_vanalde->fid.vanalde,
+			parent_vanalde->fid.unique);
 
 	if (!test_and_set_bit(0, &once_only))
 		dump_stack();
@@ -56,24 +56,24 @@ static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *paren
 /*
  * Set parameters for the netfs library
  */
-static void afs_set_netfs_context(struct afs_vnode *vnode)
+static void afs_set_netfs_context(struct afs_vanalde *vanalde)
 {
-	netfs_inode_init(&vnode->netfs, &afs_req_ops, true);
+	netfs_ianalde_init(&vanalde->netfs, &afs_req_ops, true);
 }
 
 /*
- * Initialise an inode from the vnode status.
+ * Initialise an ianalde from the vanalde status.
  */
-static int afs_inode_init_from_status(struct afs_operation *op,
-				      struct afs_vnode_param *vp,
-				      struct afs_vnode *vnode)
+static int afs_ianalde_init_from_status(struct afs_operation *op,
+				      struct afs_vanalde_param *vp,
+				      struct afs_vanalde *vanalde)
 {
 	struct afs_file_status *status = &vp->scb.status;
-	struct inode *inode = AFS_VNODE_TO_I(vnode);
+	struct ianalde *ianalde = AFS_VANALDE_TO_I(vanalde);
 	struct timespec64 t;
 
 	_enter("{%llx:%llu.%u} %s",
-	       vp->fid.vid, vp->fid.vnode, vp->fid.unique,
+	       vp->fid.vid, vp->fid.vanalde, vp->fid.unique,
 	       op->type ? op->type->name : "???");
 
 	_debug("FS: ft=%d lk=%d sz=%llu ver=%Lu mod=%hu",
@@ -83,87 +83,87 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 	       status->data_version,
 	       status->mode);
 
-	write_seqlock(&vnode->cb_lock);
+	write_seqlock(&vanalde->cb_lock);
 
-	vnode->cb_v_check = op->cb_v_break;
-	vnode->status = *status;
+	vanalde->cb_v_check = op->cb_v_break;
+	vanalde->status = *status;
 
 	t = status->mtime_client;
-	inode_set_ctime_to_ts(inode, t);
-	inode_set_mtime_to_ts(inode, t);
-	inode_set_atime_to_ts(inode, t);
-	inode->i_flags |= S_NOATIME;
-	inode->i_uid = make_kuid(&init_user_ns, status->owner);
-	inode->i_gid = make_kgid(&init_user_ns, status->group);
-	set_nlink(&vnode->netfs.inode, status->nlink);
+	ianalde_set_ctime_to_ts(ianalde, t);
+	ianalde_set_mtime_to_ts(ianalde, t);
+	ianalde_set_atime_to_ts(ianalde, t);
+	ianalde->i_flags |= S_ANALATIME;
+	ianalde->i_uid = make_kuid(&init_user_ns, status->owner);
+	ianalde->i_gid = make_kgid(&init_user_ns, status->group);
+	set_nlink(&vanalde->netfs.ianalde, status->nlink);
 
 	switch (status->type) {
 	case AFS_FTYPE_FILE:
-		inode->i_mode	= S_IFREG | (status->mode & S_IALLUGO);
-		inode->i_op	= &afs_file_inode_operations;
-		inode->i_fop	= &afs_file_operations;
-		inode->i_mapping->a_ops	= &afs_file_aops;
-		mapping_set_large_folios(inode->i_mapping);
+		ianalde->i_mode	= S_IFREG | (status->mode & S_IALLUGO);
+		ianalde->i_op	= &afs_file_ianalde_operations;
+		ianalde->i_fop	= &afs_file_operations;
+		ianalde->i_mapping->a_ops	= &afs_file_aops;
+		mapping_set_large_folios(ianalde->i_mapping);
 		break;
 	case AFS_FTYPE_DIR:
-		inode->i_mode	= S_IFDIR |  (status->mode & S_IALLUGO);
-		inode->i_op	= &afs_dir_inode_operations;
-		inode->i_fop	= &afs_dir_file_operations;
-		inode->i_mapping->a_ops	= &afs_dir_aops;
-		mapping_set_large_folios(inode->i_mapping);
+		ianalde->i_mode	= S_IFDIR |  (status->mode & S_IALLUGO);
+		ianalde->i_op	= &afs_dir_ianalde_operations;
+		ianalde->i_fop	= &afs_dir_file_operations;
+		ianalde->i_mapping->a_ops	= &afs_dir_aops;
+		mapping_set_large_folios(ianalde->i_mapping);
 		break;
 	case AFS_FTYPE_SYMLINK:
 		/* Symlinks with a mode of 0644 are actually mountpoints. */
 		if ((status->mode & 0777) == 0644) {
-			inode->i_flags |= S_AUTOMOUNT;
+			ianalde->i_flags |= S_AUTOMOUNT;
 
-			set_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags);
+			set_bit(AFS_VANALDE_MOUNTPOINT, &vanalde->flags);
 
-			inode->i_mode	= S_IFDIR | 0555;
-			inode->i_op	= &afs_mntpt_inode_operations;
-			inode->i_fop	= &afs_mntpt_file_operations;
-			inode->i_mapping->a_ops	= &afs_symlink_aops;
+			ianalde->i_mode	= S_IFDIR | 0555;
+			ianalde->i_op	= &afs_mntpt_ianalde_operations;
+			ianalde->i_fop	= &afs_mntpt_file_operations;
+			ianalde->i_mapping->a_ops	= &afs_symlink_aops;
 		} else {
-			inode->i_mode	= S_IFLNK | status->mode;
-			inode->i_op	= &afs_symlink_inode_operations;
-			inode->i_mapping->a_ops	= &afs_symlink_aops;
+			ianalde->i_mode	= S_IFLNK | status->mode;
+			ianalde->i_op	= &afs_symlink_ianalde_operations;
+			ianalde->i_mapping->a_ops	= &afs_symlink_aops;
 		}
-		inode_nohighmem(inode);
+		ianalde_analhighmem(ianalde);
 		break;
 	default:
-		dump_vnode(vnode, op->file[0].vnode != vnode ? op->file[0].vnode : NULL);
-		write_sequnlock(&vnode->cb_lock);
+		dump_vanalde(vanalde, op->file[0].vanalde != vanalde ? op->file[0].vanalde : NULL);
+		write_sequnlock(&vanalde->cb_lock);
 		return afs_protocol_error(NULL, afs_eproto_file_type);
 	}
 
-	afs_set_i_size(vnode, status->size);
-	afs_set_netfs_context(vnode);
+	afs_set_i_size(vanalde, status->size);
+	afs_set_netfs_context(vanalde);
 
-	vnode->invalid_before	= status->data_version;
-	inode_set_iversion_raw(&vnode->netfs.inode, status->data_version);
+	vanalde->invalid_before	= status->data_version;
+	ianalde_set_iversion_raw(&vanalde->netfs.ianalde, status->data_version);
 
 	if (!vp->scb.have_cb) {
 		/* it's a symlink we just created (the fileserver
 		 * didn't give us a callback) */
-		atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
+		atomic64_set(&vanalde->cb_expires_at, AFS_ANAL_CB_PROMISE);
 	} else {
-		vnode->cb_server = op->server;
-		atomic64_set(&vnode->cb_expires_at, vp->scb.callback.expires_at);
+		vanalde->cb_server = op->server;
+		atomic64_set(&vanalde->cb_expires_at, vp->scb.callback.expires_at);
 	}
 
-	write_sequnlock(&vnode->cb_lock);
+	write_sequnlock(&vanalde->cb_lock);
 	return 0;
 }
 
 /*
- * Update the core inode struct from a returned status record.
+ * Update the core ianalde struct from a returned status record.
  */
 static void afs_apply_status(struct afs_operation *op,
-			     struct afs_vnode_param *vp)
+			     struct afs_vanalde_param *vp)
 {
 	struct afs_file_status *status = &vp->scb.status;
-	struct afs_vnode *vnode = vp->vnode;
-	struct inode *inode = &vnode->netfs.inode;
+	struct afs_vanalde *vanalde = vp->vanalde;
+	struct ianalde *ianalde = &vanalde->netfs.ianalde;
 	struct timespec64 t;
 	umode_t mode;
 	bool unexpected_jump = false;
@@ -171,139 +171,139 @@ static void afs_apply_status(struct afs_operation *op,
 	bool change_size = vp->set_size;
 
 	_enter("{%llx:%llu.%u} %s",
-	       vp->fid.vid, vp->fid.vnode, vp->fid.unique,
+	       vp->fid.vid, vp->fid.vanalde, vp->fid.unique,
 	       op->type ? op->type->name : "???");
 
-	BUG_ON(test_bit(AFS_VNODE_UNSET, &vnode->flags));
+	BUG_ON(test_bit(AFS_VANALDE_UNSET, &vanalde->flags));
 
-	if (status->type != vnode->status.type) {
-		pr_warn("Vnode %llx:%llx:%x changed type %u to %u\n",
-			vnode->fid.vid,
-			vnode->fid.vnode,
-			vnode->fid.unique,
-			status->type, vnode->status.type);
+	if (status->type != vanalde->status.type) {
+		pr_warn("Vanalde %llx:%llx:%x changed type %u to %u\n",
+			vanalde->fid.vid,
+			vanalde->fid.vanalde,
+			vanalde->fid.unique,
+			status->type, vanalde->status.type);
 		afs_protocol_error(NULL, afs_eproto_bad_status);
 		return;
 	}
 
-	if (status->nlink != vnode->status.nlink)
-		set_nlink(inode, status->nlink);
+	if (status->nlink != vanalde->status.nlink)
+		set_nlink(ianalde, status->nlink);
 
-	if (status->owner != vnode->status.owner)
-		inode->i_uid = make_kuid(&init_user_ns, status->owner);
+	if (status->owner != vanalde->status.owner)
+		ianalde->i_uid = make_kuid(&init_user_ns, status->owner);
 
-	if (status->group != vnode->status.group)
-		inode->i_gid = make_kgid(&init_user_ns, status->group);
+	if (status->group != vanalde->status.group)
+		ianalde->i_gid = make_kgid(&init_user_ns, status->group);
 
-	if (status->mode != vnode->status.mode) {
-		mode = inode->i_mode;
+	if (status->mode != vanalde->status.mode) {
+		mode = ianalde->i_mode;
 		mode &= ~S_IALLUGO;
 		mode |= status->mode & S_IALLUGO;
-		WRITE_ONCE(inode->i_mode, mode);
+		WRITE_ONCE(ianalde->i_mode, mode);
 	}
 
 	t = status->mtime_client;
-	inode_set_mtime_to_ts(inode, t);
+	ianalde_set_mtime_to_ts(ianalde, t);
 	if (vp->update_ctime)
-		inode_set_ctime_to_ts(inode, op->ctime);
+		ianalde_set_ctime_to_ts(ianalde, op->ctime);
 
-	if (vnode->status.data_version != status->data_version)
+	if (vanalde->status.data_version != status->data_version)
 		data_changed = true;
 
-	vnode->status = *status;
+	vanalde->status = *status;
 
 	if (vp->dv_before + vp->dv_delta != status->data_version) {
-		if (vnode->cb_ro_snapshot == atomic_read(&vnode->volume->cb_ro_snapshot) &&
-		    atomic64_read(&vnode->cb_expires_at) != AFS_NO_CB_PROMISE)
-			pr_warn("kAFS: vnode modified {%llx:%llu} %llx->%llx %s (op=%x)\n",
-				vnode->fid.vid, vnode->fid.vnode,
+		if (vanalde->cb_ro_snapshot == atomic_read(&vanalde->volume->cb_ro_snapshot) &&
+		    atomic64_read(&vanalde->cb_expires_at) != AFS_ANAL_CB_PROMISE)
+			pr_warn("kAFS: vanalde modified {%llx:%llu} %llx->%llx %s (op=%x)\n",
+				vanalde->fid.vid, vanalde->fid.vanalde,
 				(unsigned long long)vp->dv_before + vp->dv_delta,
 				(unsigned long long)status->data_version,
 				op->type ? op->type->name : "???",
 				op->debug_id);
 
-		vnode->invalid_before = status->data_version;
-		if (vnode->status.type == AFS_FTYPE_DIR) {
-			if (test_and_clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
-				afs_stat_v(vnode, n_inval);
+		vanalde->invalid_before = status->data_version;
+		if (vanalde->status.type == AFS_FTYPE_DIR) {
+			if (test_and_clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags))
+				afs_stat_v(vanalde, n_inval);
 		} else {
-			set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
+			set_bit(AFS_VANALDE_ZAP_DATA, &vanalde->flags);
 		}
 		change_size = true;
 		data_changed = true;
 		unexpected_jump = true;
-	} else if (vnode->status.type == AFS_FTYPE_DIR) {
+	} else if (vanalde->status.type == AFS_FTYPE_DIR) {
 		/* Expected directory change is handled elsewhere so
 		 * that we can locally edit the directory and save on a
 		 * download.
 		 */
-		if (test_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
+		if (test_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags))
 			data_changed = false;
 		change_size = true;
 	}
 
 	if (data_changed) {
-		inode_set_iversion_raw(inode, status->data_version);
+		ianalde_set_iversion_raw(ianalde, status->data_version);
 
 		/* Only update the size if the data version jumped.  If the
 		 * file is being modified locally, then we might have our own
-		 * idea of what the size should be that's not the same as
+		 * idea of what the size should be that's analt the same as
 		 * what's on the server.
 		 */
-		vnode->netfs.remote_i_size = status->size;
-		if (change_size || status->size > i_size_read(inode)) {
-			afs_set_i_size(vnode, status->size);
+		vanalde->netfs.remote_i_size = status->size;
+		if (change_size || status->size > i_size_read(ianalde)) {
+			afs_set_i_size(vanalde, status->size);
 			if (unexpected_jump)
-				vnode->netfs.zero_point = status->size;
-			inode_set_ctime_to_ts(inode, t);
-			inode_set_atime_to_ts(inode, t);
+				vanalde->netfs.zero_point = status->size;
+			ianalde_set_ctime_to_ts(ianalde, t);
+			ianalde_set_atime_to_ts(ianalde, t);
 		}
 	}
 }
 
 /*
- * Apply a callback to a vnode.
+ * Apply a callback to a vanalde.
  */
 static void afs_apply_callback(struct afs_operation *op,
-			       struct afs_vnode_param *vp)
+			       struct afs_vanalde_param *vp)
 {
 	struct afs_callback *cb = &vp->scb.callback;
-	struct afs_vnode *vnode = vp->vnode;
+	struct afs_vanalde *vanalde = vp->vanalde;
 
-	if (!afs_cb_is_broken(vp->cb_break_before, vnode)) {
+	if (!afs_cb_is_broken(vp->cb_break_before, vanalde)) {
 		if (op->volume->type == AFSVL_RWVOL)
-			vnode->cb_server = op->server;
-		atomic64_set(&vnode->cb_expires_at, cb->expires_at);
+			vanalde->cb_server = op->server;
+		atomic64_set(&vanalde->cb_expires_at, cb->expires_at);
 	}
 }
 
 /*
- * Apply the received status and callback to an inode all in the same critical
+ * Apply the received status and callback to an ianalde all in the same critical
  * section to avoid races with afs_validate().
  */
-void afs_vnode_commit_status(struct afs_operation *op, struct afs_vnode_param *vp)
+void afs_vanalde_commit_status(struct afs_operation *op, struct afs_vanalde_param *vp)
 {
-	struct afs_vnode *vnode = vp->vnode;
+	struct afs_vanalde *vanalde = vp->vanalde;
 
 	_enter("");
 
-	write_seqlock(&vnode->cb_lock);
+	write_seqlock(&vanalde->cb_lock);
 
 	if (vp->scb.have_error) {
 		/* A YFS server will return this from RemoveFile2 and AFS and
 		 * YFS will return this from InlineBulkStatus.
 		 */
-		if (vp->scb.status.abort_code == VNOVNODE) {
-			set_bit(AFS_VNODE_DELETED, &vnode->flags);
-			clear_nlink(&vnode->netfs.inode);
-			__afs_break_callback(vnode, afs_cb_break_for_deleted);
+		if (vp->scb.status.abort_code == VANALVANALDE) {
+			set_bit(AFS_VANALDE_DELETED, &vanalde->flags);
+			clear_nlink(&vanalde->netfs.ianalde);
+			__afs_break_callback(vanalde, afs_cb_break_for_deleted);
 			op->flags &= ~AFS_OPERATION_DIR_CONFLICT;
 		}
 	} else if (vp->scb.have_status) {
 		if (vp->speculative &&
-		    (test_bit(AFS_VNODE_MODIFYING, &vnode->flags) ||
-		     vp->dv_before != vnode->status.data_version))
-			/* Ignore the result of a speculative bulk status fetch
+		    (test_bit(AFS_VANALDE_MODIFYING, &vanalde->flags) ||
+		     vp->dv_before != vanalde->status.data_version))
+			/* Iganalre the result of a speculative bulk status fetch
 			 * if it splits around a modification op, thereby
 			 * appearing to regress the data version.
 			 */
@@ -312,33 +312,33 @@ void afs_vnode_commit_status(struct afs_operation *op, struct afs_vnode_param *v
 		if (vp->scb.have_cb)
 			afs_apply_callback(op, vp);
 	} else if (vp->op_unlinked && !(op->flags & AFS_OPERATION_DIR_CONFLICT)) {
-		drop_nlink(&vnode->netfs.inode);
-		if (vnode->netfs.inode.i_nlink == 0) {
-			set_bit(AFS_VNODE_DELETED, &vnode->flags);
-			__afs_break_callback(vnode, afs_cb_break_for_deleted);
+		drop_nlink(&vanalde->netfs.ianalde);
+		if (vanalde->netfs.ianalde.i_nlink == 0) {
+			set_bit(AFS_VANALDE_DELETED, &vanalde->flags);
+			__afs_break_callback(vanalde, afs_cb_break_for_deleted);
 		}
 	}
 
 out:
-	write_sequnlock(&vnode->cb_lock);
+	write_sequnlock(&vanalde->cb_lock);
 
 	if (vp->scb.have_status)
-		afs_cache_permit(vnode, op->key, vp->cb_break_before, &vp->scb);
+		afs_cache_permit(vanalde, op->key, vp->cb_break_before, &vp->scb);
 }
 
 static void afs_fetch_status_success(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[op->fetch_status.which];
-	struct afs_vnode *vnode = vp->vnode;
+	struct afs_vanalde_param *vp = &op->file[op->fetch_status.which];
+	struct afs_vanalde *vanalde = vp->vanalde;
 	int ret;
 
-	if (vnode->netfs.inode.i_state & I_NEW) {
-		ret = afs_inode_init_from_status(op, vp, vnode);
+	if (vanalde->netfs.ianalde.i_state & I_NEW) {
+		ret = afs_ianalde_init_from_status(op, vp, vanalde);
 		afs_op_set_error(op, ret);
 		if (ret == 0)
-			afs_cache_permit(vnode, op->key, vp->cb_break_before, &vp->scb);
+			afs_cache_permit(vanalde, op->key, vp->cb_break_before, &vp->scb);
 	} else {
-		afs_vnode_commit_status(op, vp);
+		afs_vanalde_commit_status(op, vp);
 	}
 }
 
@@ -352,25 +352,25 @@ const struct afs_operation_ops afs_fetch_status_operation = {
 /*
  * Fetch file status from the volume.
  */
-int afs_fetch_status(struct afs_vnode *vnode, struct key *key, bool is_new,
+int afs_fetch_status(struct afs_vanalde *vanalde, struct key *key, bool is_new,
 		     afs_access_t *_caller_access)
 {
 	struct afs_operation *op;
 
 	_enter("%s,{%llx:%llu.%u,S=%lx}",
-	       vnode->volume->name,
-	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique,
-	       vnode->flags);
+	       vanalde->volume->name,
+	       vanalde->fid.vid, vanalde->fid.vanalde, vanalde->fid.unique,
+	       vanalde->flags);
 
-	op = afs_alloc_operation(key, vnode->volume);
+	op = afs_alloc_operation(key, vanalde->volume);
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 
 	op->nr_files	= 1;
 	op->ops		= &afs_fetch_status_operation;
-	afs_begin_vnode_operation(op);
+	afs_begin_vanalde_operation(op);
 	afs_wait_for_operation(op);
 
 	if (_caller_access)
@@ -381,172 +381,172 @@ int afs_fetch_status(struct afs_vnode *vnode, struct key *key, bool is_new,
 /*
  * ilookup() comparator
  */
-int afs_ilookup5_test_by_fid(struct inode *inode, void *opaque)
+int afs_ilookup5_test_by_fid(struct ianalde *ianalde, void *opaque)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct afs_fid *fid = opaque;
 
-	return (fid->vnode == vnode->fid.vnode &&
-		fid->vnode_hi == vnode->fid.vnode_hi &&
-		fid->unique == vnode->fid.unique);
+	return (fid->vanalde == vanalde->fid.vanalde &&
+		fid->vanalde_hi == vanalde->fid.vanalde_hi &&
+		fid->unique == vanalde->fid.unique);
 }
 
 /*
  * iget5() comparator
  */
-static int afs_iget5_test(struct inode *inode, void *opaque)
+static int afs_iget5_test(struct ianalde *ianalde, void *opaque)
 {
-	struct afs_vnode_param *vp = opaque;
-	//struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde_param *vp = opaque;
+	//struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 
-	return afs_ilookup5_test_by_fid(inode, &vp->fid);
+	return afs_ilookup5_test_by_fid(ianalde, &vp->fid);
 }
 
 /*
- * iget5() inode initialiser
+ * iget5() ianalde initialiser
  */
-static int afs_iget5_set(struct inode *inode, void *opaque)
+static int afs_iget5_set(struct ianalde *ianalde, void *opaque)
 {
-	struct afs_vnode_param *vp = opaque;
-	struct afs_super_info *as = AFS_FS_S(inode->i_sb);
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde_param *vp = opaque;
+	struct afs_super_info *as = AFS_FS_S(ianalde->i_sb);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 
-	vnode->volume		= as->volume;
-	vnode->fid		= vp->fid;
+	vanalde->volume		= as->volume;
+	vanalde->fid		= vp->fid;
 
-	/* YFS supports 96-bit vnode IDs, but Linux only supports
-	 * 64-bit inode numbers.
+	/* YFS supports 96-bit vanalde IDs, but Linux only supports
+	 * 64-bit ianalde numbers.
 	 */
-	inode->i_ino		= vnode->fid.vnode;
-	inode->i_generation	= vnode->fid.unique;
+	ianalde->i_ianal		= vanalde->fid.vanalde;
+	ianalde->i_generation	= vanalde->fid.unique;
 	return 0;
 }
 
 /*
- * Get a cache cookie for an inode.
+ * Get a cache cookie for an ianalde.
  */
-static void afs_get_inode_cache(struct afs_vnode *vnode)
+static void afs_get_ianalde_cache(struct afs_vanalde *vanalde)
 {
 #ifdef CONFIG_AFS_FSCACHE
 	struct {
-		__be32 vnode_id;
+		__be32 vanalde_id;
 		__be32 unique;
-		__be32 vnode_id_ext[2];	/* Allow for a 96-bit key */
+		__be32 vanalde_id_ext[2];	/* Allow for a 96-bit key */
 	} __packed key;
-	struct afs_vnode_cache_aux aux;
+	struct afs_vanalde_cache_aux aux;
 
-	if (vnode->status.type != AFS_FTYPE_FILE) {
-		vnode->netfs.cache = NULL;
+	if (vanalde->status.type != AFS_FTYPE_FILE) {
+		vanalde->netfs.cache = NULL;
 		return;
 	}
 
-	key.vnode_id		= htonl(vnode->fid.vnode);
-	key.unique		= htonl(vnode->fid.unique);
-	key.vnode_id_ext[0]	= htonl(vnode->fid.vnode >> 32);
-	key.vnode_id_ext[1]	= htonl(vnode->fid.vnode_hi);
-	afs_set_cache_aux(vnode, &aux);
+	key.vanalde_id		= htonl(vanalde->fid.vanalde);
+	key.unique		= htonl(vanalde->fid.unique);
+	key.vanalde_id_ext[0]	= htonl(vanalde->fid.vanalde >> 32);
+	key.vanalde_id_ext[1]	= htonl(vanalde->fid.vanalde_hi);
+	afs_set_cache_aux(vanalde, &aux);
 
-	afs_vnode_set_cache(vnode,
+	afs_vanalde_set_cache(vanalde,
 			    fscache_acquire_cookie(
-				    vnode->volume->cache,
-				    vnode->status.type == AFS_FTYPE_FILE ?
+				    vanalde->volume->cache,
+				    vanalde->status.type == AFS_FTYPE_FILE ?
 				    0 : FSCACHE_ADV_SINGLE_CHUNK,
 				    &key, sizeof(key),
 				    &aux, sizeof(aux),
-				    i_size_read(&vnode->netfs.inode)));
+				    i_size_read(&vanalde->netfs.ianalde)));
 #endif
 }
 
 /*
- * inode retrieval
+ * ianalde retrieval
  */
-struct inode *afs_iget(struct afs_operation *op, struct afs_vnode_param *vp)
+struct ianalde *afs_iget(struct afs_operation *op, struct afs_vanalde_param *vp)
 {
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct super_block *sb = dvp->vnode->netfs.inode.i_sb;
-	struct afs_vnode *vnode;
-	struct inode *inode;
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct super_block *sb = dvp->vanalde->netfs.ianalde.i_sb;
+	struct afs_vanalde *vanalde;
+	struct ianalde *ianalde;
 	int ret;
 
-	_enter(",{%llx:%llu.%u},,", vp->fid.vid, vp->fid.vnode, vp->fid.unique);
+	_enter(",{%llx:%llu.%u},,", vp->fid.vid, vp->fid.vanalde, vp->fid.unique);
 
-	inode = iget5_locked(sb, vp->fid.vnode, afs_iget5_test, afs_iget5_set, vp);
-	if (!inode) {
-		_leave(" = -ENOMEM");
-		return ERR_PTR(-ENOMEM);
+	ianalde = iget5_locked(sb, vp->fid.vanalde, afs_iget5_test, afs_iget5_set, vp);
+	if (!ianalde) {
+		_leave(" = -EANALMEM");
+		return ERR_PTR(-EANALMEM);
 	}
 
-	vnode = AFS_FS_I(inode);
+	vanalde = AFS_FS_I(ianalde);
 
-	_debug("GOT INODE %p { vl=%llx vn=%llx, u=%x }",
-	       inode, vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
+	_debug("GOT IANALDE %p { vl=%llx vn=%llx, u=%x }",
+	       ianalde, vanalde->fid.vid, vanalde->fid.vanalde, vanalde->fid.unique);
 
-	/* deal with an existing inode */
-	if (!(inode->i_state & I_NEW)) {
-		_leave(" = %p", inode);
-		return inode;
+	/* deal with an existing ianalde */
+	if (!(ianalde->i_state & I_NEW)) {
+		_leave(" = %p", ianalde);
+		return ianalde;
 	}
 
-	ret = afs_inode_init_from_status(op, vp, vnode);
+	ret = afs_ianalde_init_from_status(op, vp, vanalde);
 	if (ret < 0)
-		goto bad_inode;
+		goto bad_ianalde;
 
-	afs_get_inode_cache(vnode);
+	afs_get_ianalde_cache(vanalde);
 
 	/* success */
-	clear_bit(AFS_VNODE_UNSET, &vnode->flags);
-	unlock_new_inode(inode);
-	_leave(" = %p", inode);
-	return inode;
+	clear_bit(AFS_VANALDE_UNSET, &vanalde->flags);
+	unlock_new_ianalde(ianalde);
+	_leave(" = %p", ianalde);
+	return ianalde;
 
 	/* failure */
-bad_inode:
-	iget_failed(inode);
+bad_ianalde:
+	iget_failed(ianalde);
 	_leave(" = %d [bad]", ret);
 	return ERR_PTR(ret);
 }
 
-static int afs_iget5_set_root(struct inode *inode, void *opaque)
+static int afs_iget5_set_root(struct ianalde *ianalde, void *opaque)
 {
-	struct afs_super_info *as = AFS_FS_S(inode->i_sb);
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_super_info *as = AFS_FS_S(ianalde->i_sb);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 
-	vnode->volume		= as->volume;
-	vnode->fid.vid		= as->volume->vid,
-	vnode->fid.vnode	= 1;
-	vnode->fid.unique	= 1;
-	inode->i_ino		= 1;
-	inode->i_generation	= 1;
+	vanalde->volume		= as->volume;
+	vanalde->fid.vid		= as->volume->vid,
+	vanalde->fid.vanalde	= 1;
+	vanalde->fid.unique	= 1;
+	ianalde->i_ianal		= 1;
+	ianalde->i_generation	= 1;
 	return 0;
 }
 
 /*
- * Set up the root inode for a volume.  This is always vnode 1, unique 1 within
+ * Set up the root ianalde for a volume.  This is always vanalde 1, unique 1 within
  * the volume.
  */
-struct inode *afs_root_iget(struct super_block *sb, struct key *key)
+struct ianalde *afs_root_iget(struct super_block *sb, struct key *key)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
 	struct afs_operation *op;
-	struct afs_vnode *vnode;
-	struct inode *inode;
+	struct afs_vanalde *vanalde;
+	struct ianalde *ianalde;
 	int ret;
 
 	_enter(",{%llx},,", as->volume->vid);
 
-	inode = iget5_locked(sb, 1, NULL, afs_iget5_set_root, NULL);
-	if (!inode) {
-		_leave(" = -ENOMEM");
-		return ERR_PTR(-ENOMEM);
+	ianalde = iget5_locked(sb, 1, NULL, afs_iget5_set_root, NULL);
+	if (!ianalde) {
+		_leave(" = -EANALMEM");
+		return ERR_PTR(-EANALMEM);
 	}
 
-	_debug("GOT ROOT INODE %p { vl=%llx }", inode, as->volume->vid);
+	_debug("GOT ROOT IANALDE %p { vl=%llx }", ianalde, as->volume->vid);
 
-	BUG_ON(!(inode->i_state & I_NEW));
+	BUG_ON(!(ianalde->i_state & I_NEW));
 
-	vnode = AFS_FS_I(inode);
-	vnode->cb_v_check = atomic_read(&as->volume->cb_v_break),
-	afs_set_netfs_context(vnode);
+	vanalde = AFS_FS_I(ianalde);
+	vanalde->cb_v_check = atomic_read(&as->volume->cb_v_break),
+	afs_set_netfs_context(vanalde);
 
 	op = afs_alloc_operation(key, as->volume);
 	if (IS_ERR(op)) {
@@ -554,7 +554,7 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 		goto error;
 	}
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 
 	op->nr_files	= 1;
 	op->ops		= &afs_fetch_status_operation;
@@ -562,48 +562,48 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 	if (ret < 0)
 		goto error;
 
-	afs_get_inode_cache(vnode);
+	afs_get_ianalde_cache(vanalde);
 
-	clear_bit(AFS_VNODE_UNSET, &vnode->flags);
-	unlock_new_inode(inode);
-	_leave(" = %p", inode);
-	return inode;
+	clear_bit(AFS_VANALDE_UNSET, &vanalde->flags);
+	unlock_new_ianalde(ianalde);
+	_leave(" = %p", ianalde);
+	return ianalde;
 
 error:
-	iget_failed(inode);
+	iget_failed(ianalde);
 	_leave(" = %d [bad]", ret);
 	return ERR_PTR(ret);
 }
 
 /*
- * read the attributes of an inode
+ * read the attributes of an ianalde
  */
 int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct ianalde *ianalde = d_ianalde(path->dentry);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct key *key;
 	int ret, seq;
 
-	_enter("{ ino=%lu v=%u }", inode->i_ino, inode->i_generation);
+	_enter("{ ianal=%lu v=%u }", ianalde->i_ianal, ianalde->i_generation);
 
-	if (vnode->volume &&
+	if (vanalde->volume &&
 	    !(query_flags & AT_STATX_DONT_SYNC) &&
-	    atomic64_read(&vnode->cb_expires_at) == AFS_NO_CB_PROMISE) {
-		key = afs_request_key(vnode->volume->cell);
+	    atomic64_read(&vanalde->cb_expires_at) == AFS_ANAL_CB_PROMISE) {
+		key = afs_request_key(vanalde->volume->cell);
 		if (IS_ERR(key))
 			return PTR_ERR(key);
-		ret = afs_validate(vnode, key);
+		ret = afs_validate(vanalde, key);
 		key_put(key);
 		if (ret < 0)
 			return ret;
 	}
 
 	do {
-		seq = read_seqbegin(&vnode->cb_lock);
-		generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
-		if (test_bit(AFS_VNODE_SILLY_DELETED, &vnode->flags) &&
+		seq = read_seqbegin(&vanalde->cb_lock);
+		generic_fillattr(&analp_mnt_idmap, request_mask, ianalde, stat);
+		if (test_bit(AFS_VANALDE_SILLY_DELETED, &vanalde->flags) &&
 		    stat->nlink > 0)
 			stat->nlink -= 1;
 
@@ -611,98 +611,98 @@ int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 * edited copy and may make different allocation decisions on
 		 * it, but we need to give userspace the server's size.
 		 */
-		if (S_ISDIR(inode->i_mode))
-			stat->size = vnode->netfs.remote_i_size;
-	} while (read_seqretry(&vnode->cb_lock, seq));
+		if (S_ISDIR(ianalde->i_mode))
+			stat->size = vanalde->netfs.remote_i_size;
+	} while (read_seqretry(&vanalde->cb_lock, seq));
 
 	return 0;
 }
 
 /*
- * discard an AFS inode
+ * discard an AFS ianalde
  */
-int afs_drop_inode(struct inode *inode)
+int afs_drop_ianalde(struct ianalde *ianalde)
 {
 	_enter("");
 
-	if (test_bit(AFS_VNODE_PSEUDODIR, &AFS_FS_I(inode)->flags))
-		return generic_delete_inode(inode);
+	if (test_bit(AFS_VANALDE_PSEUDODIR, &AFS_FS_I(ianalde)->flags))
+		return generic_delete_ianalde(ianalde);
 	else
-		return generic_drop_inode(inode);
+		return generic_drop_ianalde(ianalde);
 }
 
 /*
- * clear an AFS inode
+ * clear an AFS ianalde
  */
-void afs_evict_inode(struct inode *inode)
+void afs_evict_ianalde(struct ianalde *ianalde)
 {
-	struct afs_vnode_cache_aux aux;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde_cache_aux aux;
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 
 	_enter("{%llx:%llu.%d}",
-	       vnode->fid.vid,
-	       vnode->fid.vnode,
-	       vnode->fid.unique);
+	       vanalde->fid.vid,
+	       vanalde->fid.vanalde,
+	       vanalde->fid.unique);
 
-	_debug("CLEAR INODE %p", inode);
+	_debug("CLEAR IANALDE %p", ianalde);
 
-	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
+	ASSERTCMP(ianalde->i_ianal, ==, vanalde->fid.vanalde);
 
-	truncate_inode_pages_final(&inode->i_data);
+	truncate_ianalde_pages_final(&ianalde->i_data);
 
-	afs_set_cache_aux(vnode, &aux);
-	netfs_clear_inode_writeback(inode, &aux);
-	clear_inode(inode);
+	afs_set_cache_aux(vanalde, &aux);
+	netfs_clear_ianalde_writeback(ianalde, &aux);
+	clear_ianalde(ianalde);
 
-	while (!list_empty(&vnode->wb_keys)) {
-		struct afs_wb_key *wbk = list_entry(vnode->wb_keys.next,
-						    struct afs_wb_key, vnode_link);
-		list_del(&wbk->vnode_link);
+	while (!list_empty(&vanalde->wb_keys)) {
+		struct afs_wb_key *wbk = list_entry(vanalde->wb_keys.next,
+						    struct afs_wb_key, vanalde_link);
+		list_del(&wbk->vanalde_link);
 		afs_put_wb_key(wbk);
 	}
 
-	fscache_relinquish_cookie(afs_vnode_cache(vnode),
-				  test_bit(AFS_VNODE_DELETED, &vnode->flags));
+	fscache_relinquish_cookie(afs_vanalde_cache(vanalde),
+				  test_bit(AFS_VANALDE_DELETED, &vanalde->flags));
 
-	afs_prune_wb_keys(vnode);
-	afs_put_permits(rcu_access_pointer(vnode->permit_cache));
-	key_put(vnode->silly_key);
-	vnode->silly_key = NULL;
-	key_put(vnode->lock_key);
-	vnode->lock_key = NULL;
+	afs_prune_wb_keys(vanalde);
+	afs_put_permits(rcu_access_pointer(vanalde->permit_cache));
+	key_put(vanalde->silly_key);
+	vanalde->silly_key = NULL;
+	key_put(vanalde->lock_key);
+	vanalde->lock_key = NULL;
 	_leave("");
 }
 
 static void afs_setattr_success(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
-	struct inode *inode = &vp->vnode->netfs.inode;
-	loff_t old_i_size = i_size_read(inode);
+	struct afs_vanalde_param *vp = &op->file[0];
+	struct ianalde *ianalde = &vp->vanalde->netfs.ianalde;
+	loff_t old_i_size = i_size_read(ianalde);
 
 	op->setattr.old_i_size = old_i_size;
-	afs_vnode_commit_status(op, vp);
-	/* inode->i_size has now been changed. */
+	afs_vanalde_commit_status(op, vp);
+	/* ianalde->i_size has analw been changed. */
 
 	if (op->setattr.attr->ia_valid & ATTR_SIZE) {
 		loff_t size = op->setattr.attr->ia_size;
 		if (size > old_i_size)
-			pagecache_isize_extended(inode, old_i_size, size);
+			pagecache_isize_extended(ianalde, old_i_size, size);
 	}
 }
 
 static void afs_setattr_edit_file(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
-	struct afs_vnode *vnode = vp->vnode;
+	struct afs_vanalde_param *vp = &op->file[0];
+	struct afs_vanalde *vanalde = vp->vanalde;
 
 	if (op->setattr.attr->ia_valid & ATTR_SIZE) {
 		loff_t size = op->setattr.attr->ia_size;
 		loff_t i_size = op->setattr.old_i_size;
 
 		if (size != i_size) {
-			truncate_setsize(&vnode->netfs.inode, size);
-			netfs_resize_file(&vnode->netfs, size, true);
-			fscache_resize_cookie(afs_vnode_cache(vnode), size);
+			truncate_setsize(&vanalde->netfs.ianalde, size);
+			netfs_resize_file(&vanalde->netfs, size, true);
+			fscache_resize_cookie(afs_vanalde_cache(vanalde), size);
 		}
 	}
 }
@@ -715,7 +715,7 @@ static const struct afs_operation_ops afs_setattr_operation = {
 };
 
 /*
- * set the attributes of an inode
+ * set the attributes of an ianalde
  */
 int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr)
@@ -724,13 +724,13 @@ int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		ATTR_SIZE | ATTR_MODE | ATTR_UID | ATTR_GID |
 		ATTR_MTIME | ATTR_MTIME_SET | ATTR_TIMES_SET | ATTR_TOUCH;
 	struct afs_operation *op;
-	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
-	struct inode *inode = &vnode->netfs.inode;
+	struct afs_vanalde *vanalde = AFS_FS_I(d_ianalde(dentry));
+	struct ianalde *ianalde = &vanalde->netfs.ianalde;
 	loff_t i_size;
 	int ret;
 
 	_enter("{%llx:%llu},{n=%pd},%x",
-	       vnode->fid.vid, vnode->fid.vnode, dentry,
+	       vanalde->fid.vid, vanalde->fid.vanalde, dentry,
 	       attr->ia_valid);
 
 	if (!(attr->ia_valid & supported)) {
@@ -738,12 +738,12 @@ int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		return 0;
 	}
 
-	i_size = i_size_read(inode);
+	i_size = i_size_read(ianalde);
 	if (attr->ia_valid & ATTR_SIZE) {
-		if (!S_ISREG(inode->i_mode))
+		if (!S_ISREG(ianalde->i_mode))
 			return -EISDIR;
 
-		ret = inode_newsize_ok(inode, attr->ia_size);
+		ret = ianalde_newsize_ok(ianalde, attr->ia_size);
 		if (ret)
 			return ret;
 
@@ -751,18 +751,18 @@ int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			attr->ia_valid &= ~ATTR_SIZE;
 	}
 
-	fscache_use_cookie(afs_vnode_cache(vnode), true);
+	fscache_use_cookie(afs_vanalde_cache(vanalde), true);
 
 	/* Prevent any new writebacks from starting whilst we do this. */
-	down_write(&vnode->validate_lock);
+	down_write(&vanalde->validate_lock);
 
-	if ((attr->ia_valid & ATTR_SIZE) && S_ISREG(inode->i_mode)) {
+	if ((attr->ia_valid & ATTR_SIZE) && S_ISREG(ianalde->i_mode)) {
 		loff_t size = attr->ia_size;
 
 		/* Wait for any outstanding writes to the server to complete */
 		loff_t from = min(size, i_size);
 		loff_t to = max(size, i_size);
-		ret = filemap_fdatawait_range(inode->i_mapping, from, to);
+		ret = filemap_fdatawait_range(ianalde->i_mapping, from, to);
 		if (ret < 0)
 			goto out_unlock;
 
@@ -771,10 +771,10 @@ int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 */
 		if (!(attr->ia_valid & (supported & ~ATTR_SIZE & ~ATTR_MTIME)) &&
 		    attr->ia_size < i_size &&
-		    attr->ia_size > vnode->netfs.remote_i_size) {
-			truncate_setsize(inode, attr->ia_size);
-			netfs_resize_file(&vnode->netfs, size, false);
-			fscache_resize_cookie(afs_vnode_cache(vnode),
+		    attr->ia_size > vanalde->netfs.remote_i_size) {
+			truncate_setsize(ianalde, attr->ia_size);
+			netfs_resize_file(&vanalde->netfs, size, false);
+			fscache_resize_cookie(afs_vanalde_cache(vanalde),
 					      attr->ia_size);
 			ret = 0;
 			goto out_unlock;
@@ -783,13 +783,13 @@ int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	op = afs_alloc_operation(((attr->ia_valid & ATTR_FILE) ?
 				  afs_file_key(attr->ia_file) : NULL),
-				 vnode->volume);
+				 vanalde->volume);
 	if (IS_ERR(op)) {
 		ret = PTR_ERR(op);
 		goto out_unlock;
 	}
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 	op->setattr.attr = attr;
 
 	if (attr->ia_valid & ATTR_SIZE) {
@@ -804,8 +804,8 @@ int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	ret = afs_do_sync_operation(op);
 
 out_unlock:
-	up_write(&vnode->validate_lock);
-	fscache_unuse_cookie(afs_vnode_cache(vnode), NULL, NULL);
+	up_write(&vanalde->validate_lock);
+	fscache_unuse_cookie(afs_vanalde_cache(vanalde), NULL, NULL);
 	_leave(" = %d", ret);
 	return ret;
 }

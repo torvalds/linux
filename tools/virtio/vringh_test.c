@@ -18,13 +18,13 @@
 
 #define USER_MEM (1024*1024)
 void *__user_addr_min, *__user_addr_max;
-void *__kmalloc_fake, *__kfree_ignore_start, *__kfree_ignore_end;
+void *__kmalloc_fake, *__kfree_iganalre_start, *__kfree_iganalre_end;
 static u64 user_addr_offset;
 
 #define RINGSIZE 256
 #define ALIGN 4096
 
-static bool never_notify_host(struct virtqueue *vq)
+static bool never_analtify_host(struct virtqueue *vq)
 {
 	abort();
 }
@@ -64,10 +64,10 @@ static bool getrange_slow(struct vringh *vrh, u64 addr, struct vringh_range *r)
 struct guest_virtio_device {
 	struct virtio_device vdev;
 	int to_host_fd;
-	unsigned long notifies;
+	unsigned long analtifies;
 };
 
-static bool parallel_notify_host(struct virtqueue *vq)
+static bool parallel_analtify_host(struct virtqueue *vq)
 {
 	int rc;
 	struct guest_virtio_device *gvdev;
@@ -76,11 +76,11 @@ static bool parallel_notify_host(struct virtqueue *vq)
 	rc = write(gvdev->to_host_fd, "", 1);
 	if (rc < 0)
 		return false;
-	gvdev->notifies++;
+	gvdev->analtifies++;
 	return true;
 }
 
-static bool no_notify_host(struct virtqueue *vq)
+static bool anal_analtify_host(struct virtqueue *vq)
 {
 	return true;
 }
@@ -140,7 +140,7 @@ static int parallel_test(u64 features,
 {
 	void *host_map, *guest_map;
 	int fd, mapsize, to_guest[2], to_host[2];
-	unsigned long xfers = 0, notifies = 0, receives = 0;
+	unsigned long xfers = 0, analtifies = 0, receives = 0;
 	unsigned int first_cpu, last_cpu;
 	cpu_set_t cpu_set;
 	char buf[128];
@@ -190,7 +190,7 @@ static int parallel_test(u64 features,
 				 vrh.vring.desc, vrh.vring.avail, vrh.vring.used);
 		CPU_SET(first_cpu, &cpu_set);
 		if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set))
-			errx(1, "Could not set affinity to cpu %u", first_cpu);
+			errx(1, "Could analt set affinity to cpu %u", first_cpu);
 
 		while (xfers < NUM_XFERS) {
 			struct iovec host_riov[2], host_wiov[2];
@@ -202,13 +202,13 @@ static int parallel_test(u64 features,
 					err = vringh_get_head(&vrh, &head);
 					if (err != 0)
 						break;
-					err = vringh_need_notify_user(&vrh);
+					err = vringh_need_analtify_user(&vrh);
 					if (err < 0)
-						errx(1, "vringh_need_notify_user: %i",
+						errx(1, "vringh_need_analtify_user: %i",
 						     err);
 					if (err) {
 						write(to_guest[1], "", 1);
-						notifies++;
+						analtifies++;
 					}
 				}
 				if (err != 1)
@@ -227,23 +227,23 @@ static int parallel_test(u64 features,
 							  getrange, &head);
 			}
 			if (err == 0) {
-				err = vringh_need_notify_user(&vrh);
+				err = vringh_need_analtify_user(&vrh);
 				if (err < 0)
-					errx(1, "vringh_need_notify_user: %i",
+					errx(1, "vringh_need_analtify_user: %i",
 					     err);
 				if (err) {
 					write(to_guest[1], "", 1);
-					notifies++;
+					analtifies++;
 				}
 
-				if (!vringh_notify_enable_user(&vrh))
+				if (!vringh_analtify_enable_user(&vrh))
 					continue;
 
-				/* Swallow all notifies at once. */
+				/* Swallow all analtifies at once. */
 				if (read(to_host[0], buf, sizeof(buf)) < 1)
 					break;
 
-				vringh_notify_disable_user(&vrh);
+				vringh_analtify_disable_user(&vrh);
 				receives++;
 				continue;
 			}
@@ -275,19 +275,19 @@ static int parallel_test(u64 features,
 				errx(1, "vringh_complete_user: %i", err);
 		}
 
-		err = vringh_need_notify_user(&vrh);
+		err = vringh_need_analtify_user(&vrh);
 		if (err < 0)
-			errx(1, "vringh_need_notify_user: %i", err);
+			errx(1, "vringh_need_analtify_user: %i", err);
 		if (err) {
 			write(to_guest[1], "", 1);
-			notifies++;
+			analtifies++;
 		}
 		wait(&status);
 		if (!WIFEXITED(status))
 			errx(1, "Child died with signal %i?", WTERMSIG(status));
 		if (WEXITSTATUS(status) != 0)
 			errx(1, "Child exited %i?", WEXITSTATUS(status));
-		printf("Host: notified %lu, pinged %lu\n", notifies, receives);
+		printf("Host: analtified %lu, pinged %lu\n", analtifies, receives);
 		return 0;
 	} else {
 		struct guest_virtio_device gvdev;
@@ -310,21 +310,21 @@ static int parallel_test(u64 features,
 		INIT_LIST_HEAD(&gvdev.vdev.vqs);
 		spin_lock_init(&gvdev.vdev.vqs_list_lock);
 		gvdev.to_host_fd = to_host[1];
-		gvdev.notifies = 0;
+		gvdev.analtifies = 0;
 
 		CPU_SET(first_cpu, &cpu_set);
 		if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set))
-			err(1, "Could not set affinity to cpu %u", first_cpu);
+			err(1, "Could analt set affinity to cpu %u", first_cpu);
 
 		vq = vring_new_virtqueue(0, RINGSIZE, ALIGN, &gvdev.vdev, true,
 					 false, guest_map,
-					 fast_vringh ? no_notify_host
-					 : parallel_notify_host,
+					 fast_vringh ? anal_analtify_host
+					 : parallel_analtify_host,
 					 never_callback_guest, "guest vq");
 
 		/* Don't kfree indirects. */
-		__kfree_ignore_start = indirects;
-		__kfree_ignore_end = indirects + RINGSIZE * 6;
+		__kfree_iganalre_start = indirects;
+		__kfree_iganalre_end = indirects + RINGSIZE * 6;
 
 		while (xfers < NUM_XFERS) {
 			struct scatterlist sg[4];
@@ -385,10 +385,10 @@ static int parallel_test(u64 features,
 				err = virtqueue_add_inbuf(vq, sg, num_sg,
 							  dbuf, GFP_KERNEL);
 
-			if (err == -ENOSPC) {
+			if (err == -EANALSPC) {
 				if (!virtqueue_enable_cb_delayed(vq))
 					continue;
-				/* Swallow all notifies at once. */
+				/* Swallow all analtifies at once. */
 				if (read(to_guest[0], buf, sizeof(buf)) < 1)
 					break;
 				
@@ -429,8 +429,8 @@ static int parallel_test(u64 features,
 			virtqueue_disable_cb(vq);
 		}
 
-		printf("Guest: notified %lu, pinged %lu\n",
-		       gvdev.notifies, receives);
+		printf("Guest: analtified %lu, pinged %lu\n",
+		       gvdev.analtifies, receives);
 		vring_del_virtqueue(vq);
 		return 0;
 	}
@@ -472,7 +472,7 @@ int main(int argc, char *argv[])
 		else if (strcmp(argv[1], "--parallel") == 0)
 			parallel = true;
 		else
-			errx(1, "Unknown arg %s", argv[1]);
+			errx(1, "Unkanalwn arg %s", argv[1]);
 		argv++;
 	}
 
@@ -487,7 +487,7 @@ int main(int argc, char *argv[])
 	/* Set up guest side. */
 	vq = vring_new_virtqueue(0, RINGSIZE, ALIGN, &vdev, true, false,
 				 __user_addr_min,
-				 never_notify_host, never_callback_guest,
+				 never_analtify_host, never_callback_guest,
 				 "guest vq");
 
 	/* Set up host side. */
@@ -495,7 +495,7 @@ int main(int argc, char *argv[])
 	vringh_init_user(&vrh, vdev.features, RINGSIZE, true,
 			 vrh.vring.desc, vrh.vring.avail, vrh.vring.used);
 
-	/* No descriptor to get yet... */
+	/* Anal descriptor to get yet... */
 	err = vringh_getdesc_user(&vrh, &riov, &wiov, getrange, &head);
 	if (err != 0)
 		errx(1, "vringh_getdesc_user: %i", err);
@@ -559,9 +559,9 @@ int main(int argc, char *argv[])
 	if (err != 0)
 		errx(1, "vringh_complete_user: %i", err);
 
-	/* Guest should see used token now. */
-	__kfree_ignore_start = __user_addr_min + vring_size(RINGSIZE, ALIGN);
-	__kfree_ignore_end = __kfree_ignore_start + 1;
+	/* Guest should see used token analw. */
+	__kfree_iganalre_start = __user_addr_min + vring_size(RINGSIZE, ALIGN);
+	__kfree_iganalre_end = __kfree_iganalre_start + 1;
 	ret = virtqueue_get_buf(vq, &i);
 	if (ret != &err)
 		errx(1, "virtqueue_get_buf: %p", ret);
@@ -637,7 +637,7 @@ int main(int argc, char *argv[])
 			errx(1, "virtqueue_add_outbuf (multiple): %i", err);
 	}
 
-	/* Now get many, and consume them all at once. */
+	/* Analw get many, and consume them all at once. */
 	vringh_iov_init(&riov, host_riov, ARRAY_SIZE(host_riov));
 	vringh_iov_init(&wiov, host_wiov, ARRAY_SIZE(host_wiov));
 
@@ -670,7 +670,7 @@ int main(int argc, char *argv[])
 		__virtio_clear_bit(&vdev, VIRTIO_RING_F_INDIRECT_DESC);
 		vq = vring_new_virtqueue(0, RINGSIZE, ALIGN, &vdev, true,
 					 false, __user_addr_min,
-					 never_notify_host,
+					 never_analtify_host,
 					 never_callback_guest,
 					 "guest vq");
 
@@ -731,7 +731,7 @@ int main(int argc, char *argv[])
 			errx(1, "vringh_getdesc_user: %i", err);
 
 		if (head != 0)
-			errx(1, "vringh_getdesc_user: head %i not 0", head);
+			errx(1, "vringh_getdesc_user: head %i analt 0", head);
 
 		assert(riov.max_num & VRINGH_IOV_ALLOCATED);
 		if (getrange != getrange_slow)

@@ -152,7 +152,7 @@ What:		/sys/bus/coresight/devices/etm<N>/ns_exlevel_vinst
 Date:		April 2015
 KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RW) In non-secure state, each bit controls whether instruction
+Description: 	(RW) In analn-secure state, each bit controls whether instruction
 		tracing is enabled for the corresponding exception level.
 
 What:		/sys/bus/coresight/devices/etm<N>/addr_idx
@@ -287,7 +287,7 @@ Date:		December 2019
 KernelVersion:	5.5
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Set the Exception Level matching bits for secure and
-		non-secure exception levels.
+		analn-secure exception levels.
 
 What:		/sys/bus/coresight/devices/etm<N>/vinst_pe_cmp_start_stop
 Date:		December 2019
@@ -522,5 +522,5 @@ Date:		October 2022
 KernelVersion:	6.1
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org> or Suzuki K Poulose <suzuki.poulose@arm.com>
 Description:	(Read) When FEAT_TRF is implemented, value of TRFCR_ELx.TS used for
-		trace session. Otherwise -1 indicates an unknown time source. Check
+		trace session. Otherwise -1 indicates an unkanalwn time source. Check
 		trcidr0.tssize to see if a global timestamp is available.

@@ -29,7 +29,7 @@
 /* The master encryption keys for a filesystem (->s_master_keys) */
 struct fscrypt_keyring {
 	/*
-	 * Lock that protects ->key_hashtable.  It does *not* protect the
+	 * Lock that protects ->key_hashtable.  It does *analt* protect the
 	 * fscrypt_master_key structs themselves.
 	 */
 	spinlock_t lock;
@@ -69,9 +69,9 @@ void fscrypt_put_master_key(struct fscrypt_master_key *mk)
 	if (!refcount_dec_and_test(&mk->mk_struct_refs))
 		return;
 	/*
-	 * No structural references left, so free ->mk_users, and also free the
+	 * Anal structural references left, so free ->mk_users, and also free the
 	 * fscrypt_master_key struct itself after an RCU grace period ensures
-	 * that concurrent keyring lookups can no longer find it.
+	 * that concurrent keyring lookups can anal longer find it.
 	 */
 	WARN_ON_ONCE(refcount_read(&mk->mk_active_refs) != 0);
 	key_put(mk->mk_users);
@@ -87,7 +87,7 @@ void fscrypt_put_master_key_activeref(struct super_block *sb,
 	if (!refcount_dec_and_test(&mk->mk_active_refs))
 		return;
 	/*
-	 * No active references left, so complete the full removal of this
+	 * Anal active references left, so complete the full removal of this
 	 * fscrypt_master_key struct by removing it from the keyring and
 	 * destroying any subkeys embedded in it.
 	 */
@@ -95,27 +95,27 @@ void fscrypt_put_master_key_activeref(struct super_block *sb,
 	if (WARN_ON_ONCE(!sb->s_master_keys))
 		return;
 	spin_lock(&sb->s_master_keys->lock);
-	hlist_del_rcu(&mk->mk_node);
+	hlist_del_rcu(&mk->mk_analde);
 	spin_unlock(&sb->s_master_keys->lock);
 
 	/*
 	 * ->mk_active_refs == 0 implies that ->mk_present is false and
-	 * ->mk_decrypted_inodes is empty.
+	 * ->mk_decrypted_ianaldes is empty.
 	 */
 	WARN_ON_ONCE(mk->mk_present);
-	WARN_ON_ONCE(!list_empty(&mk->mk_decrypted_inodes));
+	WARN_ON_ONCE(!list_empty(&mk->mk_decrypted_ianaldes));
 
 	for (i = 0; i <= FSCRYPT_MODE_MAX; i++) {
 		fscrypt_destroy_prepared_key(
 				sb, &mk->mk_direct_keys[i]);
 		fscrypt_destroy_prepared_key(
-				sb, &mk->mk_iv_ino_lblk_64_keys[i]);
+				sb, &mk->mk_iv_ianal_lblk_64_keys[i]);
 		fscrypt_destroy_prepared_key(
-				sb, &mk->mk_iv_ino_lblk_32_keys[i]);
+				sb, &mk->mk_iv_ianal_lblk_32_keys[i]);
 	}
-	memzero_explicit(&mk->mk_ino_hash_key,
-			 sizeof(mk->mk_ino_hash_key));
-	mk->mk_ino_hash_key_initialized = false;
+	memzero_explicit(&mk->mk_ianal_hash_key,
+			 sizeof(mk->mk_ianal_hash_key));
+	mk->mk_ianal_hash_key_initialized = false;
 
 	/* Drop the structural ref associated with the active refs. */
 	fscrypt_put_master_key(mk);
@@ -123,7 +123,7 @@ void fscrypt_put_master_key_activeref(struct super_block *sb,
 
 /*
  * This transitions the key state from present to incompletely removed, and then
- * potentially to absent (depending on whether inodes remain).
+ * potentially to absent (depending on whether ianaldes remain).
  */
 static void fscrypt_initiate_key_removal(struct super_block *sb,
 					 struct fscrypt_master_key *mk)
@@ -160,9 +160,9 @@ static void fscrypt_user_key_describe(const struct key *key, struct seq_file *m)
  * Type of key in ->mk_users.  Each key of this type represents a particular
  * user who has added a particular master key.
  *
- * Note that the name of this key type really should be something like
+ * Analte that the name of this key type really should be something like
  * ".fscrypt-user" instead of simply ".fscrypt".  But the shorter name is chosen
- * mainly for simplicity of presentation in /proc/keys when read by a non-root
+ * mainly for simplicity of presentation in /proc/keys when read by a analn-root
  * user.  And it is expected to be rare that a key is actually added by multiple
  * users, since users should keep their encryption keys confidential.
  */
@@ -206,7 +206,7 @@ static int allocate_filesystem_keyring(struct super_block *sb)
 
 	keyring = kzalloc(sizeof(*keyring), GFP_KERNEL);
 	if (!keyring)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&keyring->lock);
 	/*
 	 * Pairs with the smp_load_acquire() in fscrypt_find_master_key().
@@ -221,7 +221,7 @@ static int allocate_filesystem_keyring(struct super_block *sb)
  * Release all encryption keys that have been added to the filesystem, along
  * with the keyring that contains them.
  *
- * This is called at unmount time, after all potentially-encrypted inodes have
+ * This is called at unmount time, after all potentially-encrypted ianaldes have
  * been evicted.  The filesystem's underlying block device(s) are still
  * available at this time; this is important because after user file accesses
  * have been allowed, this function may need to evict keys from the keyslots of
@@ -238,15 +238,15 @@ void fscrypt_destroy_keyring(struct super_block *sb)
 	for (i = 0; i < ARRAY_SIZE(keyring->key_hashtable); i++) {
 		struct hlist_head *bucket = &keyring->key_hashtable[i];
 		struct fscrypt_master_key *mk;
-		struct hlist_node *tmp;
+		struct hlist_analde *tmp;
 
-		hlist_for_each_entry_safe(mk, tmp, bucket, mk_node) {
+		hlist_for_each_entry_safe(mk, tmp, bucket, mk_analde) {
 			/*
-			 * Since all potentially-encrypted inodes were already
+			 * Since all potentially-encrypted ianaldes were already
 			 * evicted, every key remaining in the keyring should
-			 * have an empty inode list, and should only still be in
+			 * have an empty ianalde list, and should only still be in
 			 * the keyring due to the single active ref associated
-			 * with ->mk_present.  There should be no structural
+			 * with ->mk_present.  There should be anal structural
 			 * refs beyond the one associated with the active ref.
 			 */
 			WARN_ON_ONCE(refcount_read(&mk->mk_active_refs) != 1);
@@ -276,9 +276,9 @@ fscrypt_mk_hash_bucket(struct fscrypt_keyring *keyring,
 /*
  * Find the specified master key struct in ->s_master_keys and take a structural
  * ref to it.  The structural ref guarantees that the key struct continues to
- * exist, but it does *not* guarantee that ->s_master_keys continues to contain
+ * exist, but it does *analt* guarantee that ->s_master_keys continues to contain
  * the key struct.  The structural ref needs to be dropped by
- * fscrypt_put_master_key().  Returns NULL if the key struct is not found.
+ * fscrypt_put_master_key().  Returns NULL if the key struct is analt found.
  */
 struct fscrypt_master_key *
 fscrypt_find_master_key(struct super_block *sb,
@@ -290,36 +290,36 @@ fscrypt_find_master_key(struct super_block *sb,
 
 	/*
 	 * Pairs with the smp_store_release() in allocate_filesystem_keyring().
-	 * I.e., another task can publish ->s_master_keys concurrently,
+	 * I.e., aanalther task can publish ->s_master_keys concurrently,
 	 * executing a RELEASE barrier.  We need to use smp_load_acquire() here
 	 * to safely ACQUIRE the memory the other task published.
 	 */
 	keyring = smp_load_acquire(&sb->s_master_keys);
 	if (keyring == NULL)
-		return NULL; /* No keyring yet, so no keys yet. */
+		return NULL; /* Anal keyring yet, so anal keys yet. */
 
 	bucket = fscrypt_mk_hash_bucket(keyring, mk_spec);
 	rcu_read_lock();
 	switch (mk_spec->type) {
 	case FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR:
-		hlist_for_each_entry_rcu(mk, bucket, mk_node) {
+		hlist_for_each_entry_rcu(mk, bucket, mk_analde) {
 			if (mk->mk_spec.type ==
 				FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR &&
 			    memcmp(mk->mk_spec.u.descriptor,
 				   mk_spec->u.descriptor,
 				   FSCRYPT_KEY_DESCRIPTOR_SIZE) == 0 &&
-			    refcount_inc_not_zero(&mk->mk_struct_refs))
+			    refcount_inc_analt_zero(&mk->mk_struct_refs))
 				goto out;
 		}
 		break;
 	case FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER:
-		hlist_for_each_entry_rcu(mk, bucket, mk_node) {
+		hlist_for_each_entry_rcu(mk, bucket, mk_analde) {
 			if (mk->mk_spec.type ==
 				FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER &&
 			    memcmp(mk->mk_spec.u.identifier,
 				   mk_spec->u.identifier,
 				   FSCRYPT_KEY_IDENTIFIER_SIZE) == 0 &&
-			    refcount_inc_not_zero(&mk->mk_struct_refs))
+			    refcount_inc_analt_zero(&mk->mk_struct_refs))
 				goto out;
 		}
 		break;
@@ -340,7 +340,7 @@ static int allocate_master_key_users_keyring(struct fscrypt_master_key *mk)
 	keyring = keyring_alloc(description, GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
 				current_cred(), KEY_POS_SEARCH |
 				  KEY_USR_SEARCH | KEY_USR_READ | KEY_USR_VIEW,
-				KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+				KEY_ALLOC_ANALT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(keyring))
 		return PTR_ERR(keyring);
 
@@ -350,7 +350,7 @@ static int allocate_master_key_users_keyring(struct fscrypt_master_key *mk)
 
 /*
  * Find the current user's "key" in the master key's ->mk_users.
- * Returns ERR_PTR(-ENOKEY) if not found.
+ * Returns ERR_PTR(-EANALKEY) if analt found.
  */
 static struct key *find_master_key_user(struct fscrypt_master_key *mk)
 {
@@ -366,9 +366,9 @@ static struct key *find_master_key_user(struct fscrypt_master_key *mk)
 	keyref = keyring_search(make_key_ref(mk->mk_users, true /*possessed*/),
 				&key_type_fscrypt_user, description, false);
 	if (IS_ERR(keyref)) {
-		if (PTR_ERR(keyref) == -EAGAIN || /* not found */
+		if (PTR_ERR(keyref) == -EAGAIN || /* analt found */
 		    PTR_ERR(keyref) == -EKEYREVOKED) /* recently invalidated */
-			keyref = ERR_PTR(-ENOKEY);
+			keyref = ERR_PTR(-EANALKEY);
 		return ERR_CAST(keyref);
 	}
 	return key_ref_to_ptr(keyref);
@@ -376,8 +376,8 @@ static struct key *find_master_key_user(struct fscrypt_master_key *mk)
 
 /*
  * Give the current user a "key" in ->mk_users.  This charges the user's quota
- * and marks the master key as added by the current user, so that it cannot be
- * removed by another user with the key.  Either ->mk_sem must be held for
+ * and marks the master key as added by the current user, so that it cananalt be
+ * removed by aanalther user with the key.  Either ->mk_sem must be held for
  * write, or the master key must be still undergoing initialization.
  */
 static int add_master_key_user(struct fscrypt_master_key *mk)
@@ -402,7 +402,7 @@ static int add_master_key_user(struct fscrypt_master_key *mk)
  * Remove the current user's "key" from ->mk_users.
  * ->mk_sem must be held for write.
  *
- * Returns 0 if removed, -ENOKEY if not found, or another -errno code.
+ * Returns 0 if removed, -EANALKEY if analt found, or aanalther -erranal code.
  */
 static int remove_master_key_user(struct fscrypt_master_key *mk)
 {
@@ -431,14 +431,14 @@ static int add_new_master_key(struct super_block *sb,
 
 	mk = kzalloc(sizeof(*mk), GFP_KERNEL);
 	if (!mk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_rwsem(&mk->mk_sem);
 	refcount_set(&mk->mk_struct_refs, 1);
 	mk->mk_spec = *mk_spec;
 
-	INIT_LIST_HEAD(&mk->mk_decrypted_inodes);
-	spin_lock_init(&mk->mk_decrypted_inodes_lock);
+	INIT_LIST_HEAD(&mk->mk_decrypted_ianaldes);
+	spin_lock_init(&mk->mk_decrypted_ianaldes_lock);
 
 	if (mk_spec->type == FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER) {
 		err = allocate_master_key_users_keyring(mk);
@@ -454,7 +454,7 @@ static int add_new_master_key(struct super_block *sb,
 	refcount_set(&mk->mk_active_refs, 1); /* ->mk_present is true */
 
 	spin_lock(&keyring->lock);
-	hlist_add_head_rcu(&mk->mk_node,
+	hlist_add_head_rcu(&mk->mk_analde,
 			   fscrypt_mk_hash_bucket(keyring, mk_spec));
 	spin_unlock(&keyring->lock);
 	return 0;
@@ -472,14 +472,14 @@ static int add_existing_master_key(struct fscrypt_master_key *mk,
 	int err;
 
 	/*
-	 * If the current user is already in ->mk_users, then there's nothing to
+	 * If the current user is already in ->mk_users, then there's analthing to
 	 * do.  Otherwise, we need to add the user to ->mk_users.  (Neither is
 	 * applicable for v1 policy keys, which have NULL ->mk_users.)
 	 */
 	if (mk->mk_users) {
 		struct key *mk_user = find_master_key_user(mk);
 
-		if (mk_user != ERR_PTR(-ENOKEY)) {
+		if (mk_user != ERR_PTR(-EANALKEY)) {
 			if (IS_ERR(mk_user))
 				return PTR_ERR(mk_user);
 			key_put(mk_user);
@@ -492,7 +492,7 @@ static int add_existing_master_key(struct fscrypt_master_key *mk,
 
 	/* If the key is incompletely removed, make it present again. */
 	if (!mk->mk_present) {
-		if (!refcount_inc_not_zero(&mk->mk_active_refs)) {
+		if (!refcount_inc_analt_zero(&mk->mk_active_refs)) {
 			/*
 			 * Raced with the last active ref being dropped, so the
 			 * key has become, or is about to become, "absent".
@@ -534,7 +534,7 @@ static int do_add_master_key(struct super_block *sb,
 		if (err == KEY_DEAD) {
 			/*
 			 * We found a key struct, but it's already been fully
-			 * removed.  Ignore the old struct and add a new one.
+			 * removed.  Iganalre the old struct and add a new one.
 			 * fscrypt_add_key_mutex means we don't need to worry
 			 * about concurrent adds.
 			 */
@@ -559,7 +559,7 @@ static int add_master_key(struct super_block *sb,
 			return err;
 
 		/*
-		 * Now that the HKDF context is initialized, the raw key is no
+		 * Analw that the HKDF context is initialized, the raw key is anal
 		 * longer needed.
 		 */
 		memzero_explicit(secret->raw, secret->size);
@@ -592,7 +592,7 @@ static int fscrypt_provisioning_key_preparse(struct key_preparsed_payload *prep)
 
 	prep->payload.data[0] = kmemdup(payload, prep->datalen, GFP_KERNEL);
 	if (!prep->payload.data[0])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prep->quotalen = prep->datalen;
 	return 0;
@@ -637,7 +637,7 @@ static struct key_type key_type_fscrypt_provisioning = {
  * The key must be of type "fscrypt-provisioning" and must have the field
  * fscrypt_provisioning_key_payload::type set to 'type', indicating that it's
  * only usable with fscrypt with the particular KDF version identified by
- * 'type'.  We don't use the "logon" key type because there's no way to
+ * 'type'.  We don't use the "logon" key type because there's anal way to
  * completely restrict the use of such keys; they can be used by any kernel API
  * that accepts "logon" keys and doesn't require a specific service prefix.
  *
@@ -686,17 +686,17 @@ out_put:
  * privileged, and userspace must provide the 'key_descriptor'.
  *
  * When adding a key for use by v2+ encryption policies, this ioctl is
- * unprivileged.  This is needed, in general, to allow non-root users to use
+ * unprivileged.  This is needed, in general, to allow analn-root users to use
  * encryption without encountering the visibility problems of process-subscribed
  * keyrings and the inability to properly remove keys.  This works by having
  * each key identified by its cryptographically secure hash --- the
  * 'key_identifier'.  The cryptographic hash ensures that a malicious user
- * cannot add the wrong key for a given identifier.  Furthermore, each added key
+ * cananalt add the wrong key for a given identifier.  Furthermore, each added key
  * is charged to the appropriate user's quota for the keyrings service, which
  * prevents a malicious user from adding too many keys.  Finally, we forbid a
  * user from removing a key while other users have added it too, which prevents
- * a user who knows another user's key from causing a denial-of-service by
- * removing it at an inopportune time.  (We tolerate that a user who knows a key
+ * a user who kanalws aanalther user's key from causing a denial-of-service by
+ * removing it at an ianalpportune time.  (We tolerate that a user who kanalws a key
  * can prevent other users from removing it.)
  *
  * For more details, see the "FS_IOC_ADD_ENCRYPTION_KEY" section of
@@ -704,7 +704,7 @@ out_put:
  */
 int fscrypt_ioctl_add_key(struct file *filp, void __user *_uarg)
 {
-	struct super_block *sb = file_inode(filp)->i_sb;
+	struct super_block *sb = file_ianalde(filp)->i_sb;
 	struct fscrypt_add_key_arg __user *uarg = _uarg;
 	struct fscrypt_add_key_arg arg;
 	struct fscrypt_master_key_secret secret;
@@ -803,7 +803,7 @@ out:
  * a hardcoded one.  This makes it so that any encrypted files created using
  * this option won't be accessible after a reboot.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int fscrypt_add_test_dummy_key(struct super_block *sb,
 			       struct fscrypt_key_specifier *key_spec)
@@ -819,19 +819,19 @@ int fscrypt_add_test_dummy_key(struct super_block *sb,
 
 /*
  * Verify that the current user has added a master key with the given identifier
- * (returns -ENOKEY if not).  This is needed to prevent a user from encrypting
- * their files using some other user's key which they don't actually know.
+ * (returns -EANALKEY if analt).  This is needed to prevent a user from encrypting
+ * their files using some other user's key which they don't actually kanalw.
  * Cryptographically this isn't much of a problem, but the semantics of this
  * would be a bit weird, so it's best to just forbid it.
  *
  * The system administrator (CAP_FOWNER) can override this, which should be
- * enough for any use cases where encryption policies are being set using keys
+ * eanalugh for any use cases where encryption policies are being set using keys
  * that were chosen ahead of time but aren't available at the moment.
  *
- * Note that the key may have already removed by the time this returns, but
+ * Analte that the key may have already removed by the time this returns, but
  * that's okay; we just care whether the key was there at some point.
  *
- * Return: 0 if the key is added, -ENOKEY if it isn't, or another -errno code
+ * Return: 0 if the key is added, -EANALKEY if it isn't, or aanalther -erranal code
  */
 int fscrypt_verify_key_added(struct super_block *sb,
 			     const u8 identifier[FSCRYPT_KEY_IDENTIFIER_SIZE])
@@ -846,7 +846,7 @@ int fscrypt_verify_key_added(struct super_block *sb,
 
 	mk = fscrypt_find_master_key(sb, &mk_spec);
 	if (!mk) {
-		err = -ENOKEY;
+		err = -EANALKEY;
 		goto out;
 	}
 	down_read(&mk->mk_sem);
@@ -860,97 +860,97 @@ int fscrypt_verify_key_added(struct super_block *sb,
 	up_read(&mk->mk_sem);
 	fscrypt_put_master_key(mk);
 out:
-	if (err == -ENOKEY && capable(CAP_FOWNER))
+	if (err == -EANALKEY && capable(CAP_FOWNER))
 		err = 0;
 	return err;
 }
 
 /*
- * Try to evict the inode's dentries from the dentry cache.  If the inode is a
+ * Try to evict the ianalde's dentries from the dentry cache.  If the ianalde is a
  * directory, then it can have at most one dentry; however, that dentry may be
  * pinned by child dentries, so first try to evict the children too.
  */
-static void shrink_dcache_inode(struct inode *inode)
+static void shrink_dcache_ianalde(struct ianalde *ianalde)
 {
 	struct dentry *dentry;
 
-	if (S_ISDIR(inode->i_mode)) {
-		dentry = d_find_any_alias(inode);
+	if (S_ISDIR(ianalde->i_mode)) {
+		dentry = d_find_any_alias(ianalde);
 		if (dentry) {
 			shrink_dcache_parent(dentry);
 			dput(dentry);
 		}
 	}
-	d_prune_aliases(inode);
+	d_prune_aliases(ianalde);
 }
 
-static void evict_dentries_for_decrypted_inodes(struct fscrypt_master_key *mk)
+static void evict_dentries_for_decrypted_ianaldes(struct fscrypt_master_key *mk)
 {
-	struct fscrypt_inode_info *ci;
-	struct inode *inode;
-	struct inode *toput_inode = NULL;
+	struct fscrypt_ianalde_info *ci;
+	struct ianalde *ianalde;
+	struct ianalde *toput_ianalde = NULL;
 
-	spin_lock(&mk->mk_decrypted_inodes_lock);
+	spin_lock(&mk->mk_decrypted_ianaldes_lock);
 
-	list_for_each_entry(ci, &mk->mk_decrypted_inodes, ci_master_key_link) {
-		inode = ci->ci_inode;
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING | I_WILL_FREE | I_NEW)) {
-			spin_unlock(&inode->i_lock);
+	list_for_each_entry(ci, &mk->mk_decrypted_ianaldes, ci_master_key_link) {
+		ianalde = ci->ci_ianalde;
+		spin_lock(&ianalde->i_lock);
+		if (ianalde->i_state & (I_FREEING | I_WILL_FREE | I_NEW)) {
+			spin_unlock(&ianalde->i_lock);
 			continue;
 		}
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
-		spin_unlock(&mk->mk_decrypted_inodes_lock);
+		__iget(ianalde);
+		spin_unlock(&ianalde->i_lock);
+		spin_unlock(&mk->mk_decrypted_ianaldes_lock);
 
-		shrink_dcache_inode(inode);
-		iput(toput_inode);
-		toput_inode = inode;
+		shrink_dcache_ianalde(ianalde);
+		iput(toput_ianalde);
+		toput_ianalde = ianalde;
 
-		spin_lock(&mk->mk_decrypted_inodes_lock);
+		spin_lock(&mk->mk_decrypted_ianaldes_lock);
 	}
 
-	spin_unlock(&mk->mk_decrypted_inodes_lock);
-	iput(toput_inode);
+	spin_unlock(&mk->mk_decrypted_ianaldes_lock);
+	iput(toput_ianalde);
 }
 
-static int check_for_busy_inodes(struct super_block *sb,
+static int check_for_busy_ianaldes(struct super_block *sb,
 				 struct fscrypt_master_key *mk)
 {
 	struct list_head *pos;
 	size_t busy_count = 0;
-	unsigned long ino;
-	char ino_str[50] = "";
+	unsigned long ianal;
+	char ianal_str[50] = "";
 
-	spin_lock(&mk->mk_decrypted_inodes_lock);
+	spin_lock(&mk->mk_decrypted_ianaldes_lock);
 
-	list_for_each(pos, &mk->mk_decrypted_inodes)
+	list_for_each(pos, &mk->mk_decrypted_ianaldes)
 		busy_count++;
 
 	if (busy_count == 0) {
-		spin_unlock(&mk->mk_decrypted_inodes_lock);
+		spin_unlock(&mk->mk_decrypted_ianaldes_lock);
 		return 0;
 	}
 
 	{
 		/* select an example file to show for debugging purposes */
-		struct inode *inode =
-			list_first_entry(&mk->mk_decrypted_inodes,
-					 struct fscrypt_inode_info,
-					 ci_master_key_link)->ci_inode;
-		ino = inode->i_ino;
+		struct ianalde *ianalde =
+			list_first_entry(&mk->mk_decrypted_ianaldes,
+					 struct fscrypt_ianalde_info,
+					 ci_master_key_link)->ci_ianalde;
+		ianal = ianalde->i_ianal;
 	}
-	spin_unlock(&mk->mk_decrypted_inodes_lock);
+	spin_unlock(&mk->mk_decrypted_ianaldes_lock);
 
-	/* If the inode is currently being created, ino may still be 0. */
-	if (ino)
-		snprintf(ino_str, sizeof(ino_str), ", including ino %lu", ino);
+	/* If the ianalde is currently being created, ianal may still be 0. */
+	if (ianal)
+		snprintf(ianal_str, sizeof(ianal_str), ", including ianal %lu", ianal);
 
 	fscrypt_warn(NULL,
-		     "%s: %zu inode(s) still busy after removing key with %s %*phN%s",
+		     "%s: %zu ianalde(s) still busy after removing key with %s %*phN%s",
 		     sb->s_id, busy_count, master_key_spec_type(&mk->mk_spec),
 		     master_key_spec_len(&mk->mk_spec), (u8 *)&mk->mk_spec.u,
-		     ino_str);
+		     ianal_str);
 	return -EBUSY;
 }
 
@@ -961,8 +961,8 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
 	int err2;
 
 	/*
-	 * An inode can't be evicted while it is dirty or has dirty pages.
-	 * Thus, we first have to clean the inodes in ->mk_decrypted_inodes.
+	 * An ianalde can't be evicted while it is dirty or has dirty pages.
+	 * Thus, we first have to clean the ianaldes in ->mk_decrypted_ianaldes.
 	 *
 	 * Just do it the easy way: call sync_filesystem().  It's overkill, but
 	 * it works, and it's more important to minimize the amount of caches we
@@ -975,21 +975,21 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
 	/* If a sync error occurs, still try to evict as much as possible. */
 
 	/*
-	 * Inodes are pinned by their dentries, so we have to evict their
+	 * Ianaldes are pinned by their dentries, so we have to evict their
 	 * dentries.  shrink_dcache_sb() would suffice, but would be overkill
 	 * and inappropriate for use by unprivileged users.  So instead go
-	 * through the inodes' alias lists and try to evict each dentry.
+	 * through the ianaldes' alias lists and try to evict each dentry.
 	 */
-	evict_dentries_for_decrypted_inodes(mk);
+	evict_dentries_for_decrypted_ianaldes(mk);
 
 	/*
-	 * evict_dentries_for_decrypted_inodes() already iput() each inode in
-	 * the list; any inodes for which that dropped the last reference will
-	 * have been evicted due to fscrypt_drop_inode() detecting the key
-	 * removal and telling the VFS to evict the inode.  So to finish, we
-	 * just need to check whether any inodes couldn't be evicted.
+	 * evict_dentries_for_decrypted_ianaldes() already iput() each ianalde in
+	 * the list; any ianaldes for which that dropped the last reference will
+	 * have been evicted due to fscrypt_drop_ianalde() detecting the key
+	 * removal and telling the VFS to evict the ianalde.  So to finish, we
+	 * just need to check whether any ianaldes couldn't be evicted.
 	 */
-	err2 = check_for_busy_inodes(sb, mk);
+	err2 = check_for_busy_ianaldes(sb, mk);
 
 	return err1 ?: err2;
 }
@@ -998,17 +998,17 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
  * Try to remove an fscrypt master encryption key.
  *
  * FS_IOC_REMOVE_ENCRYPTION_KEY (all_users=false) removes the current user's
- * claim to the key, then removes the key itself if no other users have claims.
+ * claim to the key, then removes the key itself if anal other users have claims.
  * FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS (all_users=true) always removes the
  * key itself.
  *
  * To "remove the key itself", first we transition the key to the "incompletely
- * removed" state, so that no more inodes can be unlocked with it.  Then we try
- * to evict all cached inodes that had been unlocked with the key.
+ * removed" state, so that anal more ianaldes can be unlocked with it.  Then we try
+ * to evict all cached ianaldes that had been unlocked with the key.
  *
- * If all inodes were evicted, then we unlink the fscrypt_master_key from the
+ * If all ianaldes were evicted, then we unlink the fscrypt_master_key from the
  * keyring.  Otherwise it remains in the keyring in the "incompletely removed"
- * state where it tracks the list of remaining inodes.  Userspace can execute
+ * state where it tracks the list of remaining ianaldes.  Userspace can execute
  * the ioctl again later to retry eviction, or alternatively can re-add the key.
  *
  * For more details, see the "Removing keys" section of
@@ -1016,13 +1016,13 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
  */
 static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 {
-	struct super_block *sb = file_inode(filp)->i_sb;
+	struct super_block *sb = file_ianalde(filp)->i_sb;
 	struct fscrypt_remove_key_arg __user *uarg = _uarg;
 	struct fscrypt_remove_key_arg arg;
 	struct fscrypt_master_key *mk;
 	u32 status_flags = 0;
 	int err;
-	bool inodes_remain;
+	bool ianaldes_remain;
 
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
@@ -1044,7 +1044,7 @@ static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 	/* Find the key being removed. */
 	mk = fscrypt_find_master_key(sb, &arg.key_spec);
 	if (!mk)
-		return -ENOKEY;
+		return -EANALKEY;
 	down_write(&mk->mk_sem);
 
 	/* If relevant, remove current user's (or all users) claim to the key */
@@ -1071,17 +1071,17 @@ static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 		}
 	}
 
-	/* No user claims remaining.  Initiate removal of the key. */
-	err = -ENOKEY;
+	/* Anal user claims remaining.  Initiate removal of the key. */
+	err = -EANALKEY;
 	if (mk->mk_present) {
 		fscrypt_initiate_key_removal(sb, mk);
 		err = 0;
 	}
-	inodes_remain = refcount_read(&mk->mk_active_refs) > 0;
+	ianaldes_remain = refcount_read(&mk->mk_active_refs) > 0;
 	up_write(&mk->mk_sem);
 
-	if (inodes_remain) {
-		/* Some inodes still reference this key; try to evict them. */
+	if (ianaldes_remain) {
+		/* Some ianaldes still reference this key; try to evict them. */
 		err = try_to_lock_encrypted_files(sb, mk);
 		if (err == -EBUSY) {
 			status_flags |=
@@ -1128,8 +1128,8 @@ EXPORT_SYMBOL_GPL(fscrypt_ioctl_remove_key_all_users);
  *
  * In addition, for v2 policy keys we allow applications to determine, via
  * ->status_flags and ->user_count, whether the key has been added by the
- * current user, by other users, or by both.  Most applications should not need
- * this, since ordinarily only one user should know a given key.  However, if a
+ * current user, by other users, or by both.  Most applications should analt need
+ * this, since ordinarily only one user should kanalw a given key.  However, if a
  * secret key is shared by multiple users, applications may wish to add an
  * already-present key to prevent other users from removing it.  This ioctl can
  * be used to check whether that really is the case before the work is done to
@@ -1140,7 +1140,7 @@ EXPORT_SYMBOL_GPL(fscrypt_ioctl_remove_key_all_users);
  */
 int fscrypt_ioctl_get_key_status(struct file *filp, void __user *uarg)
 {
-	struct super_block *sb = file_inode(filp)->i_sb;
+	struct super_block *sb = file_ianalde(filp)->i_sb;
 	struct fscrypt_get_key_status_arg arg;
 	struct fscrypt_master_key *mk;
 	int err;
@@ -1184,7 +1184,7 @@ int fscrypt_ioctl_get_key_status(struct file *filp, void __user *uarg)
 			arg.status_flags |=
 				FSCRYPT_KEY_STATUS_FLAG_ADDED_BY_SELF;
 			key_put(mk_user);
-		} else if (mk_user != ERR_PTR(-ENOKEY)) {
+		} else if (mk_user != ERR_PTR(-EANALKEY)) {
 			err = PTR_ERR(mk_user);
 			goto out_release_key;
 		}

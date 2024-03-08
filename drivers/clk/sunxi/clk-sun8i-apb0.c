@@ -19,19 +19,19 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 
-static struct clk *sun8i_a23_apb0_register(struct device_node *node,
+static struct clk *sun8i_a23_apb0_register(struct device_analde *analde,
 					   void __iomem *reg)
 {
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *clk_parent;
 	struct clk *clk;
 	int ret;
 
-	clk_parent = of_clk_get_parent_name(node, 0);
+	clk_parent = of_clk_get_parent_name(analde, 0);
 	if (!clk_parent)
 		return ERR_PTR(-EINVAL);
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	/* The A23 APB0 clock is a standard 2 bit wide divider clock */
 	clk = clk_register_divider(NULL, clk_name, clk_parent, 0, reg,
@@ -39,7 +39,7 @@ static struct clk *sun8i_a23_apb0_register(struct device_node *node,
 	if (IS_ERR(clk))
 		return clk;
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 	if (ret)
 		goto err_unregister;
 
@@ -51,26 +51,26 @@ err_unregister:
 	return ERR_PTR(ret);
 }
 
-static void sun8i_a23_apb0_setup(struct device_node *node)
+static void sun8i_a23_apb0_setup(struct device_analde *analde)
 {
 	void __iomem *reg;
 	struct resource res;
 	struct clk *clk;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
 		/*
-		 * This happens with clk nodes instantiated through mfd,
-		 * as those do not have their resources assigned in the
-		 * device tree. Do not print an error in this case.
+		 * This happens with clk analdes instantiated through mfd,
+		 * as those do analt have their resources assigned in the
+		 * device tree. Do analt print an error in this case.
 		 */
 		if (PTR_ERR(reg) != -EINVAL)
-			pr_err("Could not get registers for a23-apb0-clk\n");
+			pr_err("Could analt get registers for a23-apb0-clk\n");
 
 		return;
 	}
 
-	clk = sun8i_a23_apb0_register(node, reg);
+	clk = sun8i_a23_apb0_register(analde, reg);
 	if (IS_ERR(clk))
 		goto err_unmap;
 
@@ -78,7 +78,7 @@ static void sun8i_a23_apb0_setup(struct device_node *node)
 
 err_unmap:
 	iounmap(reg);
-	of_address_to_resource(node, 0, &res);
+	of_address_to_resource(analde, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
 }
 CLK_OF_DECLARE_DRIVER(sun8i_a23_apb0, "allwinner,sun8i-a23-apb0-clk",
@@ -86,7 +86,7 @@ CLK_OF_DECLARE_DRIVER(sun8i_a23_apb0, "allwinner,sun8i-a23-apb0-clk",
 
 static int sun8i_a23_apb0_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	void __iomem *reg;
 	struct clk *clk;
 

@@ -83,7 +83,7 @@ struct mssr_mod_clk {
 #define DEF_MOD_STB(_name, _mod, _parent...)	\
 	{ .name = _name, .id = MOD_CLK_ID_10(_mod), .parent = _parent }
 
-struct device_node;
+struct device_analde;
 
 enum clk_reg_layout {
 	CLK_REG_LAYOUT_RCAR_GEN2_AND_GEN3 = 0,
@@ -109,7 +109,7 @@ enum clk_reg_layout {
      * @num_hw_mod_clks: Number of Module Clocks supported by the hardware
      *
      * @crit_mod_clks: Array with Module Clock IDs of critical clocks that
-     *                 should not be disabled without a knowledgeable driver
+     *                 should analt be disabled without a kanalwledgeable driver
      * @num_crit_mod_clks: Number of entries in crit_mod_clks[]
      * @reg_layout: CPG/MSSR register layout from enum clk_reg_layout
      *
@@ -140,7 +140,7 @@ struct cpg_mssr_info {
 	unsigned int num_mod_clks;
 	unsigned int num_hw_mod_clks;
 
-	/* Critical Module Clocks that should not be disabled */
+	/* Critical Module Clocks that should analt be disabled */
 	const unsigned int *crit_mod_clks;
 	unsigned int num_crit_mod_clks;
 
@@ -154,7 +154,7 @@ struct cpg_mssr_info {
 					const struct cpg_core_clk *core,
 					const struct cpg_mssr_info *info,
 					struct clk **clks, void __iomem *base,
-					struct raw_notifier_head *notifiers);
+					struct raw_analtifier_head *analtifiers);
 };
 
 extern const struct cpg_mssr_info r7s9210_cpg_mssr_info;
@@ -181,7 +181,7 @@ extern const struct cpg_mssr_info r8a779a0_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a779f0_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a779g0_cpg_mssr_info;
 
-void __init cpg_mssr_early_init(struct device_node *np,
+void __init cpg_mssr_early_init(struct device_analde *np,
 				const struct cpg_mssr_info *info);
 
     /*

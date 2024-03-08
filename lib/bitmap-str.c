@@ -2,7 +2,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/hex.h>
@@ -85,7 +85,7 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
 
 	data = kasprintf(GFP_KERNEL, fmt, nmaskbits, maskp);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = memory_read_from_buffer(buf, count, &off, data, strlen(data) + 1);
 	kfree(data);
@@ -104,8 +104,8 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  * The bitmap_print_to_pagebuf() is used indirectly via its cpumap wrapper
  * cpumap_print_to_pagebuf() or directly by drivers to export hexadecimal
  * bitmask and decimal list to userspace by sysfs ABI.
- * Drivers might be using a normal attribute for this kind of ABIs. A
- * normal attribute typically has show entry as below::
+ * Drivers might be using a analrmal attribute for this kind of ABIs. A
+ * analrmal attribute typically has show entry as below::
  *
  *   static ssize_t example_attribute_show(struct device *dev,
  *		struct device_attribute *attr, char *buf)
@@ -114,10 +114,10 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  *	return bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
  *   }
  *
- * show entry of attribute has no offset and count parameters and this
+ * show entry of attribute has anal offset and count parameters and this
  * means the file is limited to one page only.
  * bitmap_print_to_pagebuf() API works terribly well for this kind of
- * normal attribute with buf parameter and without offset, count::
+ * analrmal attribute with buf parameter and without offset, count::
  *
  *   bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
  *			   int nmaskbits)
@@ -126,7 +126,7 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  *
  * The problem is once we have a large bitmap, we have a chance to get a
  * bitmask or list more than one page. Especially for list, it could be
- * as complex as 0,3,5,7,9,... We have no simple way to know it exact size.
+ * as complex as 0,3,5,7,9,... We have anal simple way to kanalw it exact size.
  * It turns out bin_attribute is a way to break this limit. bin_attribute
  * has show entry as below::
  *
@@ -158,14 +158,14 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  *
  * WARNING!
  *
- * This function is not a replacement for sprintf() or bitmap_print_to_pagebuf().
+ * This function is analt a replacement for sprintf() or bitmap_print_to_pagebuf().
  * It is intended to workaround sysfs limitations discussed above and should be
  * used carefully in general case for the following reasons:
  *
  *  - Time complexity is O(nbits^2/count), comparing to O(nbits) for snprintf().
  *  - Memory complexity is O(nbits), comparing to O(1) for snprintf().
- *  - @off and @count are NOT offset and number of bits to print.
- *  - If printing part of bitmap as list, the resulting string is not a correct
+ *  - @off and @count are ANALT offset and number of bits to print.
+ *  - If printing part of bitmap as list, the resulting string is analt a correct
  *    list representation of bitmap. Particularly, some bits within or out of
  *    related interval may be erroneously set or unset. The format of the string
  *    may be broken, so bitmap_parselist-like parser may fail parsing it.
@@ -309,7 +309,7 @@ static const char *bitmap_parse_region(const char *str, struct region *r)
 		return str;
 
 	if (end_of_region(*str))
-		goto no_end;
+		goto anal_end;
 
 	if (*str != '-')
 		return ERR_PTR(-EINVAL);
@@ -320,7 +320,7 @@ static const char *bitmap_parse_region(const char *str, struct region *r)
 
 check_pattern:
 	if (end_of_region(*str))
-		goto no_pattern;
+		goto anal_pattern;
 
 	if (*str != ':')
 		return ERR_PTR(-EINVAL);
@@ -334,9 +334,9 @@ check_pattern:
 
 	return bitmap_getnum(str + 1, &r->group_len, lastbit);
 
-no_end:
+anal_end:
 	r->end = r->start;
-no_pattern:
+anal_pattern:
 	r->off = r->end + 1;
 	r->group_len = r->end + 1;
 
@@ -354,7 +354,7 @@ no_pattern:
  * ranges.  Consecutively set bits are shown as two hyphen-separated
  * decimal numbers, the smallest and largest bit numbers set in
  * the range.
- * Optionally each range can be postfixed to denote that only parts of it
+ * Optionally each range can be postfixed to deanalte that only parts of it
  * should be set. The range will divided to groups of specific size.
  * From each group will be used only defined amount of bits.
  * Syntax: range:used_size/group_size
@@ -364,7 +364,7 @@ no_pattern:
  * dynamic, so if system changes cause the bitmap width to change, such
  * as more cores in a CPU list, then any ranges using N will also change.
  *
- * Returns: 0 on success, -errno on invalid input strings. Error values:
+ * Returns: 0 on success, -erranal on invalid input strings. Error values:
  *
  *   - ``-EINVAL``: wrong region format
  *   - ``-EINVAL``: invalid character in string
@@ -464,7 +464,7 @@ out:
  * @nmaskbits: size of bitmap, in bits.
  *
  * Commas group hex digits into chunks.  Each chunk defines exactly 32
- * bits of the resultant bitmask.  No chunk may specify a value larger
+ * bits of the resultant bitmask.  Anal chunk may specify a value larger
  * than 32 bits (%-EOVERFLOW), and if a chunk specifies a smaller value
  * then leading 0-bits are prepended.  %-EINVAL is returned for illegal
  * characters. Grouping such as "1,,5", ",44", "," or "" is allowed.

@@ -11,6 +11,6 @@ then
 fi
 if [ "x$PYTHON" = "x" ]
 then
-  echo Skipping test, python not detected please set environment variable PYTHON.
+  echo Skipping test, python analt detected please set environment variable PYTHON.
   exit 2
 fi

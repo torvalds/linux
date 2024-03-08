@@ -53,7 +53,7 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	struct xe_device *xe = to_xe_device(dev);
 	struct xe_drm_client *client;
 	struct xe_file *xef;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	xef = kzalloc(sizeof(*xef), GFP_KERNEL);
 	if (!xef)
@@ -136,13 +136,13 @@ static const struct drm_ioctl_desc xe_ioctls[] = {
 static const struct file_operations xe_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
-	.release = drm_release_noglobal,
+	.release = drm_release_analglobal,
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo = drm_show_fdinfo,
 #endif
@@ -182,7 +182,7 @@ static struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -193,8 +193,8 @@ static void xe_device_destroy(struct drm_device *dev, void *dummy)
 	if (xe->ordered_wq)
 		destroy_workqueue(xe->ordered_wq);
 
-	if (xe->unordered_wq)
-		destroy_workqueue(xe->unordered_wq);
+	if (xe->uanalrdered_wq)
+		destroy_workqueue(xe->uanalrdered_wq);
 
 	ttm_device_fini(&xe->ttm);
 }
@@ -216,7 +216,7 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 		return xe;
 
 	err = ttm_device_init(&xe->ttm, &xe_ttm_funcs, xe->drm.dev,
-			      xe->drm.anon_inode->i_mapping,
+			      xe->drm.aanaln_ianalde->i_mapping,
 			      xe->drm.vma_offset_manager, false, false);
 	if (WARN_ON(err))
 		goto err;
@@ -256,10 +256,10 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&xe->pinned.evicted);
 
 	xe->ordered_wq = alloc_ordered_workqueue("xe-ordered-wq", 0);
-	xe->unordered_wq = alloc_workqueue("xe-unordered-wq", 0, 0);
-	if (!xe->ordered_wq || !xe->unordered_wq) {
+	xe->uanalrdered_wq = alloc_workqueue("xe-uanalrdered-wq", 0, 0);
+	if (!xe->ordered_wq || !xe->uanalrdered_wq) {
 		drm_err(&xe->drm, "Failed to allocate xe workqueues\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -302,9 +302,9 @@ static void xe_driver_flr(struct xe_device *xe)
 	/*
 	 * Make sure any pending FLR requests have cleared by waiting for the
 	 * FLR trigger bit to go to zero. Also clear GU_DEBUG's DRIVERFLR_STATUS
-	 * to make sure it's not still set from a prior attempt (it's a write to
+	 * to make sure it's analt still set from a prior attempt (it's a write to
 	 * clear bit).
-	 * Note that we should never be in a situation where a previous attempt
+	 * Analte that we should never be in a situation where a previous attempt
 	 * is still pending (unless the HW is totally dead), but better to be
 	 * safe in case something unexpected happens
 	 */
@@ -378,7 +378,7 @@ mask_err:
 }
 
 /*
- * Initialize MMIO resources that don't require any knowledge about tile count.
+ * Initialize MMIO resources that don't require any kanalwledge about tile count.
  */
 int xe_device_probe_early(struct xe_device *xe)
 {
@@ -429,7 +429,7 @@ int xe_device_probe(struct xe_device *xe)
 	xe_pat_init_early(xe);
 
 	xe->info.mem_region_mask = 1;
-	err = xe_display_init_nommio(xe);
+	err = xe_display_init_analmmio(xe);
 	if (err)
 		return err;
 
@@ -460,7 +460,7 @@ int xe_device_probe(struct xe_device *xe)
 			return err;
 	}
 
-	err = xe_display_init_noirq(xe);
+	err = xe_display_init_analirq(xe);
 	if (err)
 		return err;
 
@@ -483,7 +483,7 @@ int xe_device_probe(struct xe_device *xe)
 		goto err_irq_shutdown;
 
 	for_each_tile(tile, xe, id) {
-		err = xe_tile_init_noalloc(tile);
+		err = xe_tile_init_analalloc(tile);
 		if (err)
 			goto err_irq_shutdown;
 	}
@@ -492,12 +492,12 @@ int xe_device_probe(struct xe_device *xe)
 	xe_ttm_stolen_mgr_init(xe);
 
 	/*
-	 * Now that GT is initialized (TTM in particular),
+	 * Analw that GT is initialized (TTM in particular),
 	 * we can try to init display, and inherit the initial fb.
 	 * This is the reason the first allocation needs to be done
 	 * inside display.
 	 */
-	err = xe_display_init_noaccel(xe);
+	err = xe_display_init_analaccel(xe);
 	if (err)
 		goto err_irq_shutdown;
 
@@ -624,14 +624,14 @@ void xe_device_mem_access_get(struct xe_device *xe)
 		return;
 
 	/*
-	 * Since the resume here is synchronous it can be quite easy to deadlock
-	 * if we are not careful. Also in practice it might be quite timing
+	 * Since the resume here is synchroanalus it can be quite easy to deadlock
+	 * if we are analt careful. Also in practice it might be quite timing
 	 * sensitive to ever see the 0 -> 1 transition with the callers locks
 	 * held, so deadlocks might exist but are hard for lockdep to ever see.
 	 * With this in mind, help lockdep learn about the potentially scary
 	 * stuff that can happen inside the runtime_resume callback by acquiring
 	 * a dummy lock (it doesn't protect anything and gets compiled out on
-	 * non-debug builds).  Lockdep then only needs to see the
+	 * analn-debug builds).  Lockdep then only needs to see the
 	 * mem_access_lockdep_map -> runtime_resume callback once, and then can
 	 * hopefully validate all the (callers_locks) -> mem_access_lockdep_map.
 	 * For example if the (callers_locks) are ever grabbed in the

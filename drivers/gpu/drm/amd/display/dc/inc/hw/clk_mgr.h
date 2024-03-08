@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -228,7 +228,7 @@ struct clk_bypass {
 	uint32_t dprefclk_bypass;
 };
 /*
- * This table is not contiguous, can have holes, each
+ * This table is analt contiguous, can have holes, each
  * entry correspond to one set of WM. For example if
  * we have 2 DPM and LPDDR, we will WM set A, B and
  * D occupied, C will be emptry.
@@ -297,10 +297,10 @@ struct clk_mgr_funcs {
 
 	bool (*are_clock_states_equal) (struct dc_clocks *a,
 			struct dc_clocks *b);
-	void (*notify_wm_ranges)(struct clk_mgr *clk_mgr);
+	void (*analtify_wm_ranges)(struct clk_mgr *clk_mgr);
 
-	/* Notify clk_mgr of a change in link rate, update phyclk frequency if necessary */
-	void (*notify_link_rate_change)(struct clk_mgr *clk_mgr, struct dc_link *link);
+	/* Analtify clk_mgr of a change in link rate, update phyclk frequency if necessary */
+	void (*analtify_link_rate_change)(struct clk_mgr *clk_mgr, struct dc_link *link);
 	/*
 	 * Send message to PMFW to set hard min memclk frequency
 	 * When current_mode = false, set DPM0
@@ -330,7 +330,7 @@ struct clk_mgr {
 	struct clk_mgr_funcs *funcs;
 	struct dc_clocks clks;
 	bool psr_allow_active_cache;
-	bool force_smu_not_present;
+	bool force_smu_analt_present;
 	bool dc_mode_softmax_enabled;
 	int dprefclk_khz; // Used by program pixel clock in clock source funcs, need to figureout where this goes
 	int dp_dto_source_clock_in_khz; // Used to program DP DTO with ss adjustment on DCN314

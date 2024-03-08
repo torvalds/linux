@@ -34,11 +34,11 @@ RVU managed networking functional blocks
  - Schedule/Synchronize/Order unit (SSO)
  - Loopback interface (LBK)
 
-RVU managed non-networking functional blocks
+RVU managed analn-networking functional blocks
  - Crypto accelerator (CPT)
  - Scheduled timers unit (TIM)
  - Schedule/Synchronize/Order unit (SSO)
-   Used for both networking and non networking usecases
+   Used for both networking and analn networking usecases
 
 Resource provisioning examples
  - A PF/VF with NIX-LF & NPA-LF resources works as a pure network device
@@ -51,7 +51,7 @@ Firmware setups following stuff before kernel boots
  - Number of VFs per PF are either static or configurable at compile time.
    Based on config, firmware assigns VFs to each of the PFs.
  - Also assigns MSIX vectors to each of PF and VFs.
- - These are not changed after kernel boot.
+ - These are analt changed after kernel boot.
 
 Drivers
 =======
@@ -105,7 +105,7 @@ This RVU PF handles IO, is mapped to a physical ethernet link and this
 driver registers a netdev. This supports SR-IOV. As said above this driver
 communicates with AF with a mailbox. To retrieve information from physical
 links this driver talks to AF and AF gets that info from firmware and responds
-back ie cannot talk to firmware directly.
+back ie cananalt talk to firmware directly.
 
 Supports ethtool for configuring links, RSS, queue count, queue size,
 flow control, ntuple filters, dump PHY EEPROM, config FEC etc.
@@ -118,10 +118,10 @@ SR-IOV PF and the VFs which work in pairs using internal HW loopback channels (L
 
 Type1:
  - These VFs and their parent PF share a physical link and used for outside communication.
- - VFs cannot communicate with AF directly, they send mbox message to PF and PF
+ - VFs cananalt communicate with AF directly, they send mbox message to PF and PF
    forwards that to AF. AF after processing, responds back to PF and PF forwards
    the reply to VF.
- - From functionality point of view there is no difference between PF and VF as same type
+ - From functionality point of view there is anal difference between PF and VF as same type
    HW resources are attached to both. But user would be able to configure few stuff only
    from PF as PF is treated as owner/admin of the link.
 
@@ -130,12 +130,12 @@ Type2:
  - A set of two VFs (VF0 & VF1, VF2 & VF3 .. so on) works as a pair ie pkts sent out of
    VF0 will be received by VF1 and vice versa.
  - These VFs can be used by applications or virtual machines to communicate between them
-   without sending traffic outside. There is no switch present in HW, hence the support
+   without sending traffic outside. There is anal switch present in HW, hence the support
    for loopback VFs.
  - These communicate directly with AF (PF0) via mbox.
 
 Except for the IO channels or links used for packet reception and transmission there is
-no other difference between these VF types. AF driver takes care of IO channel mapping,
+anal other difference between these VF types. AF driver takes care of IO channel mapping,
 hence same VF driver works for both types of devices.
 
 Basic packet flow
@@ -149,7 +149,7 @@ Ingress
 3. Then submitted to NPC block for parsing and then MCAM lookup to get the destination RVU device.
 4. NIX LF attached to the destination RVU device allocates a buffer from RQ mapped buffer pool of NPA block LF.
 5. RQ may be selected by RSS or by configuring MCAM rule with a RQ number.
-6. Packet is DMA'ed and driver is notified.
+6. Packet is DMA'ed and driver is analtified.
 
 Egress
 ------

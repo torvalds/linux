@@ -52,7 +52,7 @@ static int get_##name(struct hotplug_slot *slot, type *value)		\
 	const struct hotplug_slot_ops *ops = slot->ops;			\
 	int retval = 0;							\
 	if (!try_module_get(slot->owner))				\
-		return -ENODEV;						\
+		return -EANALDEV;						\
 	if (ops->get_##name)						\
 		retval = ops->get_##name(slot, value);			\
 	module_put(slot->owner);					\
@@ -89,7 +89,7 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 	dbg("power = %d\n", power);
 
 	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 	switch (power) {
@@ -147,7 +147,7 @@ static ssize_t attention_write_file(struct pci_slot *pci_slot, const char *buf,
 	dbg(" - attention = %d\n", attention);
 
 	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 	if (ops->set_attention_status)
@@ -213,7 +213,7 @@ static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
 	dbg("test = %d\n", test);
 
 	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 	if (slot->ops->hardware_test)
@@ -442,7 +442,7 @@ int __pci_hp_initialize(struct hotplug_slot *slot, struct pci_bus *bus,
 	struct pci_slot *pci_slot;
 
 	if (slot == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (slot->ops == NULL)
 		return -EINVAL;
 
@@ -450,7 +450,7 @@ int __pci_hp_initialize(struct hotplug_slot *slot, struct pci_bus *bus,
 	slot->mod_name = mod_name;
 
 	/*
-	 * No problems if we call this interface from both ACPI_PCI_SLOT
+	 * Anal problems if we call this interface from both ACPI_PCI_SLOT
 	 * driver and call it here again. If we've already created the
 	 * pci_slot, the interface will simply bump the refcount.
 	 */
@@ -542,8 +542,8 @@ EXPORT_SYMBOL_GPL(pci_hp_del);
  * @slot: pointer to the &struct hotplug_slot to destroy
  *
  * Destroy a PCI slot used by a hotplug driver.  Once this has been called,
- * the driver may no longer invoke hotplug_slot_name() to get the slot's
- * unique name.  The driver no longer needs to handle a ->reset_slot callback
+ * the driver may anal longer invoke hotplug_slot_name() to get the slot's
+ * unique name.  The driver anal longer needs to handle a ->reset_slot callback
  * from this point on.
  *
  * Returns 0 on success or a negative int on error.
@@ -573,8 +573,8 @@ static int __init pci_hotplug_init(void)
 device_initcall(pci_hotplug_init);
 
 /*
- * not really modular, but the easiest way to keep compat with existing
+ * analt really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
 module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+MODULE_PARM_DESC(debug, "Debugging mode enabled or analt");

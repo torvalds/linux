@@ -10,8 +10,8 @@ maintainers:
   - Pavel Machek <pavel@ucw.cz>
 
 description:
-  Each LED is represented as a sub-node of the pwm-leds device.  Each
-  node's name represents the name of the corresponding LED.
+  Each LED is represented as a sub-analde of the pwm-leds device.  Each
+  analde's name represents the name of the corresponding LED.
 
 properties:
   compatible:

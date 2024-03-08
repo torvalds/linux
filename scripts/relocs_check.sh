@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Get a list of all the relocations, remove from it the relocations
-# that are known to be legitimate and return this list to arch specific
+# that are kanalwn to be legitimate and return this list to arch specific
 # script that will look for suspicious relocations.
 
 objdump="$1"

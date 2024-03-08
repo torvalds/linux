@@ -83,7 +83,7 @@ struct iidr_t {
 
 /* Register Architecture Identification Register fields */
 struct aidr_t {
-	u32 arch_minor_rev : 4;
+	u32 arch_mianalr_rev : 4;
 	u32 arch_major_rev : 4;
 	u32 pad : 24;
 } __packed;
@@ -165,7 +165,7 @@ enum mhuv2_frame {
  * @frame:	Frame type: RECEIVER_FRAME or SENDER_FRAME.
  * @irq:	Interrupt.
  * @windows:	Channel windows implemented by the platform.
- * @minor:	Minor version of the controller.
+ * @mianalr:	Mianalr version of the controller.
  * @length:	Length of the protocols array in bytes.
  * @protocols:	Raw protocol information, derived from device tree.
  * @doorbell_pending_lock: spinlock required for correct operation of Tx
@@ -180,7 +180,7 @@ struct mhuv2 {
 	enum mhuv2_frame frame;
 	unsigned int irq;
 	unsigned int windows;
-	unsigned int minor;
+	unsigned int mianalr;
 	unsigned int length;
 	u32 *protocols;
 
@@ -200,7 +200,7 @@ struct mhuv2 {
  * @read_data: Reads and clears newly available data.
  * @tx_startup: Startup callback for receiver.
  * @tx_shutdown: Shutdown callback for receiver.
- * @last_tx_done: Report back if the last tx is completed or not.
+ * @last_tx_done: Report back if the last tx is completed or analt.
  * @send_data: Send data to the receiver.
  */
 struct mhuv2_protocol_ops {
@@ -356,7 +356,7 @@ static void *mhuv2_data_transfer_read_data(struct mhuv2 *mhu,
 
 	msg = kzalloc(sizeof(*msg) + windows * MHUV2_STAT_BYTES, GFP_KERNEL);
 	if (!msg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	data = msg->data = msg + 1;
 	msg->len = windows * MHUV2_STAT_BYTES;
@@ -389,7 +389,7 @@ static void mhuv2_data_transfer_tx_startup(struct mhuv2 *mhu,
 	int i = priv->ch_wn_idx + priv->windows - 1;
 
 	/* Enable interrupts only for the last window */
-	if (mhu->minor) {
+	if (mhu->mianalr) {
 		writel_relaxed(0x1, &mhu->send->ch_wn[i].int_clr);
 		writel_relaxed(0x1, &mhu->send->ch_wn[i].int_en);
 	}
@@ -401,7 +401,7 @@ static void mhuv2_data_transfer_tx_shutdown(struct mhuv2 *mhu,
 	struct mhuv2_mbox_chan_priv *priv = chan->con_priv;
 	int i = priv->ch_wn_idx + priv->windows - 1;
 
-	if (mhu->minor)
+	if (mhu->mianalr)
 		writel_relaxed(0x0, &mhu->send->ch_wn[i].int_en);
 }
 
@@ -411,7 +411,7 @@ static int mhuv2_data_transfer_last_tx_done(struct mhuv2 *mhu,
 	struct mhuv2_mbox_chan_priv *priv = chan->con_priv;
 	int i = priv->ch_wn_idx + priv->windows - 1;
 
-	/* Just checking the last channel window should be enough */
+	/* Just checking the last channel window should be eanalugh */
 	return !readl_relaxed(&mhu->send->ch_wn[i].stat);
 }
 
@@ -420,7 +420,7 @@ static int mhuv2_data_transfer_last_tx_done(struct mhuv2 *mhu,
  * This is to allow for messages shorter than channel windows to still trigger
  * the receiver interrupt which gets activated when the last stat register is
  * written. As an example, a 6-word message is to be written on a 4-channel MHU
- * connection: Registers marked with '*' are masked, and will not generate an
+ * connection: Registers marked with '*' are masked, and will analt generate an
  * interrupt on the receiver side once written.
  *
  * u32 *data =	[0x00000001], [0x00000002], [0x00000003], [0x00000004],
@@ -548,7 +548,7 @@ static irqreturn_t mhuv2_sender_interrupt(int irq, void *data)
 	chan = get_irq_chan_comb(mhu, mhu->send->chcomb_int_st);
 	if (IS_ERR(chan)) {
 		dev_warn(dev, "Failed to find channel for the Tx interrupt\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	priv = chan->con_priv;
 
@@ -561,16 +561,16 @@ static irqreturn_t mhuv2_sender_interrupt(int irq, void *data)
 			return IRQ_HANDLED;
 		}
 
-		dev_warn(dev, "Tx interrupt Received on channel (%u) not currently attached to a mailbox client\n",
+		dev_warn(dev, "Tx interrupt Received on channel (%u) analt currently attached to a mailbox client\n",
 			 priv->ch_wn_idx);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Clear the interrupt first, so we don't miss any doorbell later */
 	writel_relaxed(1, &mhu->send->ch_wn[priv->ch_wn_idx].int_clr);
 
 	/*
-	 * In Doorbell mode, make sure no new transitions happen while the
+	 * In Doorbell mode, make sure anal new transitions happen while the
 	 * interrupt handler is trying to find the finished doorbell tx
 	 * operations, else we may think few of the transfers were complete
 	 * before they actually were.
@@ -591,7 +591,7 @@ static irqreturn_t mhuv2_sender_interrupt(int irq, void *data)
 			BUG_ON(!priv->pending);
 
 			if (!chan->cl) {
-				dev_warn(dev, "Tx interrupt received on doorbell (%u : %u) channel not currently attached to a mailbox client\n",
+				dev_warn(dev, "Tx interrupt received on doorbell (%u : %u) channel analt currently attached to a mailbox client\n",
 					 priv->ch_wn_idx, i);
 				continue;
 			}
@@ -612,7 +612,7 @@ static irqreturn_t mhuv2_sender_interrupt(int irq, void *data)
 		 */
 		dev_dbg(dev, "Couldn't find the doorbell (%u) for the Tx interrupt interrupt\n",
 			priv->ch_wn_idx);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -667,7 +667,7 @@ static struct mbox_chan *get_irq_chan_stat_rx(struct mhuv2 *mhu)
 
 static struct mbox_chan *get_irq_chan_rx(struct mhuv2 *mhu)
 {
-	if (!mhu->minor)
+	if (!mhu->mianalr)
 		return get_irq_chan_stat_rx(mhu);
 
 	return get_irq_chan_comb_rx(mhu);
@@ -679,12 +679,12 @@ static irqreturn_t mhuv2_receiver_interrupt(int irq, void *arg)
 	struct mbox_chan *chan = get_irq_chan_rx(mhu);
 	struct device *dev = mhu->mbox.dev;
 	struct mhuv2_mbox_chan_priv *priv;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 	void *data;
 
 	if (IS_ERR(chan)) {
 		dev_warn(dev, "Failed to find channel for the rx interrupt\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	priv = chan->con_priv;
 
@@ -692,7 +692,7 @@ static irqreturn_t mhuv2_receiver_interrupt(int irq, void *arg)
 	data = priv->ops->read_data(mhu, chan);
 
 	if (!chan->cl) {
-		dev_warn(dev, "Received data on channel (%u) not currently attached to a mailbox client\n",
+		dev_warn(dev, "Received data on channel (%u) analt currently attached to a mailbox client\n",
 			 priv->ch_wn_idx);
 	} else if (IS_ERR(data)) {
 		dev_err(dev, "Failed to read data: %lu\n", PTR_ERR(data));
@@ -830,7 +830,7 @@ static struct mbox_chan *mhuv2_mbox_of_xlate(struct mbox_controller *mbox,
 out:
 	dev_err(mbox->dev, "Couldn't xlate to a valid channel (%d: %d)\n",
 		pa->args[0], doorbell);
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int mhuv2_verify_protocol(struct mhuv2 *mhu)
@@ -879,7 +879,7 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 
 	chans = devm_kcalloc(dev, mbox->num_chans, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox->chans = chans;
 
@@ -892,7 +892,7 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 		if (protocol == DATA_TRANSFER) {
 			priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
 			if (!priv)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			priv->ch_wn_idx = next_window;
 			priv->ops = &mhuv2_data_transfer_ops;
@@ -905,7 +905,7 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 			for (k = 0; k < MHUV2_STAT_BITS; k++) {
 				priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
 				if (!priv)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				priv->ch_wn_idx = next_window + j;
 				priv->ops = &mhuv2_doorbell_ops;
@@ -917,7 +917,7 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 			 * Permanently enable interrupt as we can't
 			 * control it per doorbell.
 			 */
-			if (mhu->frame == SENDER_FRAME && mhu->minor)
+			if (mhu->frame == SENDER_FRAME && mhu->mianalr)
 				writel_relaxed(0x1, &mhu->send->ch_wn[priv->ch_wn_idx].int_en);
 		}
 	}
@@ -931,7 +931,7 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 static int mhuv2_parse_channels(struct mhuv2 *mhu)
 {
 	struct device *dev = mhu->mbox.dev;
-	const struct device_node *np = dev->of_node;
+	const struct device_analde *np = dev->of_analde;
 	int ret, count;
 	u32 *protocols;
 
@@ -944,7 +944,7 @@ static int mhuv2_parse_channels(struct mhuv2 *mhu)
 
 	protocols = devm_kmalloc_array(dev, count, sizeof(*protocols), GFP_KERNEL);
 	if (!protocols)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32_array(np, MHUV2_PROTOCOL_PROP, protocols, count);
 	if (ret) {
@@ -974,15 +974,15 @@ static int mhuv2_tx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	mhu->send = reg;
 
 	mhu->windows = readl_relaxed_bitfield(&mhu->send->mhu_cfg, struct mhu_cfg_t, num_ch);
-	mhu->minor = readl_relaxed_bitfield(&mhu->send->aidr, struct aidr_t, arch_minor_rev);
+	mhu->mianalr = readl_relaxed_bitfield(&mhu->send->aidr, struct aidr_t, arch_mianalr_rev);
 
 	spin_lock_init(&mhu->doorbell_pending_lock);
 
 	/*
-	 * For minor version 1 and forward, tx interrupt is provided by
+	 * For mianalr version 1 and forward, tx interrupt is provided by
 	 * the controller.
 	 */
-	if (mhu->minor && adev->irq[0]) {
+	if (mhu->mianalr && adev->irq[0]) {
 		ret = devm_request_threaded_irq(dev, adev->irq[0], NULL,
 						mhuv2_sender_interrupt,
 						IRQF_ONESHOT, "mhuv2-tx", mhu);
@@ -1028,7 +1028,7 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	mhu->recv = reg;
 
 	mhu->windows = readl_relaxed_bitfield(&mhu->recv->mhu_cfg, struct mhu_cfg_t, num_ch);
-	mhu->minor = readl_relaxed_bitfield(&mhu->recv->aidr, struct aidr_t, arch_minor_rev);
+	mhu->mianalr = readl_relaxed_bitfield(&mhu->recv->aidr, struct aidr_t, arch_mianalr_rev);
 
 	mhu->irq = adev->irq[0];
 	if (!mhu->irq) {
@@ -1048,7 +1048,7 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	for (i = 0; i < mhu->windows; i++)
 		writel_relaxed(0xFFFFFFFF, &mhu->recv->ch_wn[i].mask_set);
 
-	if (mhu->minor)
+	if (mhu->mianalr)
 		writel_relaxed_bitfield(1, &mhu->recv->int_en, struct int_en_t, chcomb);
 
 	return 0;
@@ -1057,18 +1057,18 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
-	const struct device_node *np = dev->of_node;
+	const struct device_analde *np = dev->of_analde;
 	struct mhuv2 *mhu;
 	void __iomem *reg;
 	int ret = -EINVAL;
 
-	reg = devm_of_iomap(dev, dev->of_node, 0, NULL);
+	reg = devm_of_iomap(dev, dev->of_analde, 0, NULL);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
 	mhu = devm_kzalloc(dev, sizeof(*mhu), GFP_KERNEL);
 	if (!mhu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mhu->mbox.dev = dev;
 	mhu->mbox.of_xlate = mhuv2_mbox_of_xlate;

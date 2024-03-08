@@ -76,7 +76,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Input port node, single endpoint describing the CSI-2 transmitter.
+          Input port analde, single endpoint describing the CSI-2 transmitter.
 
         properties:
           endpoint:
@@ -102,22 +102,22 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Stream 0 Output port node
+          Stream 0 Output port analde
 
       port@2:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Stream 1 Output port node
+          Stream 1 Output port analde
 
       port@3:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Stream 2 Output port node
+          Stream 2 Output port analde
 
       port@4:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Stream 3 Output port node
+          Stream 3 Output port analde
 
     required:
       - port@0

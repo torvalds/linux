@@ -41,17 +41,17 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Number of times a request needed a FB entry but there was no entry available for it. That is the FB unavailability was dominant reason for blocking the request. A request includes cacheable/uncacheable demands that is load, store or SW prefetch. HWP are e.",
+        "BriefDescription": "Number of times a request needed a FB entry but there was anal entry available for it. That is the FB unavailability was dominant reason for blocking the request. A request includes cacheable/uncacheable demands that is load, store or SW prefetch. HWP are e.",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.REQUEST_FB_FULL",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Not rejected writebacks that hit L2 cache",
+        "BriefDescription": "Analt rejected writebacks that hit L2 cache",
         "EventCode": "0x27",
         "EventName": "L2_DEMAND_RQSTS.WB_HIT",
-        "PublicDescription": "Not rejected writebacks that hit L2 cache.",
+        "PublicDescription": "Analt rejected writebacks that hit L2 cache.",
         "SampleAfterValue": "200003",
         "UMask": "0x50"
     },
@@ -180,11 +180,11 @@
         "UMask": "0xc1"
     },
     {
-        "BriefDescription": "Demand Data Read miss L2, no rejects",
+        "BriefDescription": "Demand Data Read miss L2, anal rejects",
         "Errata": "HSD78, HSM80",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
-        "PublicDescription": "Demand data read requests that missed L2, no rejects.",
+        "PublicDescription": "Demand data read requests that missed L2, anal rejects.",
         "SampleAfterValue": "200003",
         "UMask": "0x21"
     },
@@ -327,7 +327,7 @@
         "UMask": "0x4f"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were L3 and cross-core sanalop hits in on-pkg core cache.",
         "Data_LA": "1",
         "Errata": "HSD29, HSD25, HSM26, HSM30",
         "EventCode": "0xD2",
@@ -347,7 +347,7 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core sanalop missed in on-pkg core cache.",
         "Data_LA": "1",
         "Errata": "HSD29, HSD25, HSM26, HSM30",
         "EventCode": "0xD2",
@@ -357,28 +357,28 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required.",
+        "BriefDescription": "Retired load uops which data sources were hits in L3 without sanalops required.",
         "Data_LA": "1",
         "Errata": "HSD74, HSD29, HSD25, HSM26, HSM30",
         "EventCode": "0xD2",
-        "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_NONE",
+        "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_ANALNE",
         "PEBS": "1",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Data from local DRAM either Snoop not needed or Snoop Miss (RspI)",
+        "BriefDescription": "Data from local DRAM either Sanalop analt needed or Sanalop Miss (RspI)",
         "Data_LA": "1",
         "Errata": "HSD74, HSD29, HSD25, HSM30",
         "EventCode": "0xD3",
         "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.LOCAL_DRAM",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops where the data came from local DRAM. This does not include hardware prefetches.",
+        "PublicDescription": "This event counts retired load uops where the data came from local DRAM. This does analt include hardware prefetches.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired load uop whose Data Source was: remote DRAM either Snoop not needed or Snoop Miss (RspI)",
+        "BriefDescription": "Retired load uop whose Data Source was: remote DRAM either Sanalop analt needed or Sanalop Miss (RspI)",
         "Data_LA": "1",
         "Errata": "HSD29, HSM30",
         "EventCode": "0xD3",
@@ -408,7 +408,7 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready.",
+        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data analt ready.",
         "Data_LA": "1",
         "Errata": "HSM30",
         "EventCode": "0xD1",
@@ -449,18 +449,18 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Miss in mid-level (L2) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Miss in mid-level (L2) cache. Excludes Unkanalwn data-source.",
         "Data_LA": "1",
         "Errata": "HSD29, HSM30",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
         "PEBS": "1",
-        "PublicDescription": "Retired load uops missed L2. Unknown data source excluded.",
+        "PublicDescription": "Retired load uops missed L2. Unkanalwn data source excluded.",
         "SampleAfterValue": "50021",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were data hits in L3 without snoops required.",
+        "BriefDescription": "Retired load uops which data sources were data hits in L3 without sanalops required.",
         "Data_LA": "1",
         "Errata": "HSD74, HSD29, HSD25, HSM26, HSM30",
         "EventCode": "0xD1",
@@ -471,13 +471,13 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unkanalwn data-source.",
         "Data_LA": "1",
         "Errata": "HSD74, HSD29, HSD25, HSM26, HSM30",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_MISS",
         "PEBS": "1",
-        "PublicDescription": "Retired load uops missed L3. Excludes unknown data source .",
+        "PublicDescription": "Retired load uops missed L3. Excludes unkanalwn data source .",
         "SampleAfterValue": "100003",
         "UMask": "0x20"
     },
@@ -562,7 +562,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Cacheable and noncacheable code read requests",
+        "BriefDescription": "Cacheable and analncacheable code read requests",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
         "PublicDescription": "Demand code read requests sent to uncore.",
@@ -587,7 +587,7 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Offcore requests buffer cannot take more entries for this thread core.",
+        "BriefDescription": "Offcore requests buffer cananalt take more entries for this thread core.",
         "EventCode": "0xb2",
         "EventName": "OFFCORE_REQUESTS_BUFFER.SQ_FULL",
         "SampleAfterValue": "2000003",
@@ -673,16 +673,16 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand & prefetch code reads hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts all demand & prefetch code reads hit in the L3 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_HIT.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0244",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand & prefetch data reads hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts all demand & prefetch data reads hit in the L3 and the sanalop to one of the sibling cores hits the line in M state and the line is forwarded",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -691,16 +691,16 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand & prefetch data reads hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts all demand & prefetch data reads hit in the L3 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) hit in the L3 and the sanalop to one of the sibling cores hits the line in M state and the line is forwarded",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -709,9 +709,9 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) hit in the L3 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_HIT.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C07F7",
         "SampleAfterValue": "100003",
@@ -727,7 +727,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand & prefetch RFOs hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts all demand & prefetch RFOs hit in the L3 and the sanalop to one of the sibling cores hits the line in M state and the line is forwarded",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -736,16 +736,16 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand & prefetch RFOs hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts all demand & prefetch RFOs hit in the L3 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.LLC_HIT.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand code reads hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts all demand code reads hit in the L3 and the sanalop to one of the sibling cores hits the line in M state and the line is forwarded",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -754,16 +754,16 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand code reads hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts all demand code reads hit in the L3 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_HIT.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts demand data reads hit in the L3 and the sanalop to one of the sibling cores hits the line in M state and the line is forwarded",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -772,16 +772,16 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts demand data reads hit in the L3 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_HIT.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand data writes (RFOs) hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts all demand data writes (RFOs) hit in the L3 and the sanalop to one of the sibling cores hits the line in M state and the line is forwarded",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -790,9 +790,9 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand data writes (RFOs) hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts all demand data writes (RFOs) hit in the L3 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0002",
         "SampleAfterValue": "100003",

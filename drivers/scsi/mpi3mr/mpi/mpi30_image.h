@@ -7,9 +7,9 @@
 struct mpi3_comp_image_version {
 	__le16     build_num;
 	__le16     customer_id;
-	u8         phase_minor;
+	u8         phase_mianalr;
 	u8         phase_major;
-	u8         gen_minor;
+	u8         gen_mianalr;
 	u8         gen_major;
 };
 
@@ -143,7 +143,7 @@ struct mpi3_ci_manifest_mpi {
 #define MPI3_CI_MANIFEST_MPI_RELEASE_LEVEL_GCA                        (0x50)
 #define MPI3_CI_MANIFEST_MPI_RELEASE_LEVEL_POINT                      (0x60)
 #define MPI3_CI_MANIFEST_MPI_FLAGS_DIAG_AUTHORIZATION                 (0x01)
-#define MPI3_CI_MANIFEST_MPI_SUBSYSTEMID_IGNORED                   (0xffff)
+#define MPI3_CI_MANIFEST_MPI_SUBSYSTEMID_IGANALRED                   (0xffff)
 #define MPI3_CI_MANIFEST_MPI_PKG_VER_STR_OFF_UNSPECIFIED           (0x00000000)
 #define MPI3_CI_MANIFEST_MPI_PKG_BUILD_DATE_STR_OFF_UNSPECIFIED    (0x00000000)
 #define MPI3_CI_MANIFEST_MPI_PKG_BUILD_TIME_STR_OFF_UNSPECIFIED    (0x00000000)
@@ -212,7 +212,7 @@ struct mpi3_encrypted_hash_entry {
 
 #define MPI3_HASH_IMAGE_TYPE_KEY_WITH_SIGNATURE      (0x03)
 #define MPI3_HASH_ALGORITHM_VERSION_MASK             (0xe0)
-#define MPI3_HASH_ALGORITHM_VERSION_NONE             (0x00)
+#define MPI3_HASH_ALGORITHM_VERSION_ANALNE             (0x00)
 #define MPI3_HASH_ALGORITHM_VERSION_SHA1             (0x20)
 #define MPI3_HASH_ALGORITHM_VERSION_SHA2             (0x40)
 #define MPI3_HASH_ALGORITHM_VERSION_SHA3             (0x60)

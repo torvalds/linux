@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -120,7 +120,7 @@ static void scale_line(const u8 *src, u8 *dst, unsigned srcw, unsigned dstw, uns
 /*
  * Precalculate the rectangles needed to perform video looping:
  *
- * The nominal pipeline is that the video output buffer is cropped by
+ * The analminal pipeline is that the video output buffer is cropped by
  * crop_out, scaled to compose_out, overlaid with the output overlay,
  * cropped on the capture side by crop_cap and scaled again to the video
  * capture buffer using compose_cap.
@@ -132,7 +132,7 @@ static void scale_line(const u8 *src, u8 *dst, unsigned srcw, unsigned dstw, uns
  * so we can scale the video straight from the output buffer to the capture
  * buffer without any intermediate steps.
  *
- * If we need to deal with an output overlay, then there is no choice and
+ * If we need to deal with an output overlay, then there is anal choice and
  * that intermediate step still has to be taken. For the output overlay
  * support we calculate the intersection of the framebuffer and the overlay
  * window (which may be partially or wholly outside of the framebuffer
@@ -213,7 +213,7 @@ static void *plane_vaddr(struct tpg_data *tpg, struct vivid_buffer *buf,
 	return vbuf;
 }
 
-static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned p,
+static analinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned p,
 		u8 *vcapbuf, struct vivid_buffer *vid_cap_buf)
 {
 	bool blank = dev->must_blank[vid_cap_buf->vb.vb2_buf.index];
@@ -251,7 +251,7 @@ static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned 
 		vid_out_buf = list_entry(dev->vid_out_active.next,
 					 struct vivid_buffer, list);
 	if (vid_out_buf == NULL)
-		return -ENODATA;
+		return -EANALDATA;
 
 	vid_cap_buf->vb.field = vid_out_buf->vb.field;
 
@@ -266,7 +266,7 @@ static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned 
 
 	if (dev->loop_vid_copy.width == 0 || dev->loop_vid_copy.height == 0) {
 		/*
-		 * If there is nothing to copy, then just fill the capture window
+		 * If there is analthing to copy, then just fill the capture window
 		 * with black.
 		 */
 		for (y = 0; y < hmax / vdiv; y++, vcapbuf += stride_cap)
@@ -286,7 +286,7 @@ static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned 
 	}
 
 	vid_cap_right = tpg_hdiv(tpg, p, dev->loop_vid_cap.left + dev->loop_vid_cap.width);
-	/* quick is true if no video scaling is needed */
+	/* quick is true if anal video scaling is needed */
 	quick = dev->loop_vid_out.width == dev->loop_vid_cap.width;
 
 	dev->cur_scaled_line = dev->loop_vid_out.height;
@@ -417,7 +417,7 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 		buf->vb.field = ((dev->vid_cap_seq_count & 1) ^ is_60hz) ?
 			V4L2_FIELD_BOTTOM : V4L2_FIELD_TOP;
 		/*
-		 * The sequence counter counts frames, not fields. So divide
+		 * The sequence counter counts frames, analt fields. So divide
 		 * by two.
 		 */
 		buf->vb.sequence /= 2;
@@ -435,9 +435,9 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 					 tpg->bytesperline, tpg->buf_height);
 
 		/*
-		 * The first plane of a multiplanar format has a non-zero
+		 * The first plane of a multiplanar format has a analn-zero
 		 * data_offset. This helps testing whether the application
-		 * correctly supports non-zero data offsets.
+		 * correctly supports analn-zero data offsets.
 		 */
 		if (p < tpg_g_buffers(tpg) && dev->fmt_cap->data_offset[p]) {
 			memset(vbuf, dev->fmt_cap->data_offset[p] & 0xff,
@@ -538,9 +538,9 @@ static void vivid_cap_update_frame_period(struct vivid_dev *dev)
 	u64 f_period;
 
 	f_period = (u64)dev->timeperframe_vid_cap.numerator * 1000000000;
-	if (WARN_ON(dev->timeperframe_vid_cap.denominator == 0))
-		dev->timeperframe_vid_cap.denominator = 1;
-	do_div(f_period, dev->timeperframe_vid_cap.denominator);
+	if (WARN_ON(dev->timeperframe_vid_cap.deanalminator == 0))
+		dev->timeperframe_vid_cap.deanalminator = 1;
+	do_div(f_period, dev->timeperframe_vid_cap.deanalminator);
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE)
 		f_period >>= 1;
 	/*
@@ -552,7 +552,7 @@ static void vivid_cap_update_frame_period(struct vivid_dev *dev)
 	dev->cap_frame_period = f_period;
 }
 
-static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
+static analinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 							 int dropped_bufs)
 {
 	struct vivid_buffer *vid_cap_buf = NULL;
@@ -564,7 +564,7 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 
 	while (dropped_bufs-- > 1)
 		tpg_update_mv_count(&dev->tpg,
-				dev->field_cap == V4L2_FIELD_NONE ||
+				dev->field_cap == V4L2_FIELD_ANALNE ||
 				dev->field_cap == V4L2_FIELD_ALTERNATE);
 
 	/* Drop a certain percentage of buffers. */
@@ -657,7 +657,7 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 
 update_mv:
 	/* Update the test pattern movement counters */
-	tpg_update_mv_count(&dev->tpg, dev->field_cap == V4L2_FIELD_NONE ||
+	tpg_update_mv_count(&dev->tpg, dev->field_cap == V4L2_FIELD_ANALNE ||
 				       dev->field_cap == V4L2_FIELD_ALTERNATE);
 }
 
@@ -671,7 +671,7 @@ static int vivid_thread_vid_cap(void *data)
 	unsigned long cur_jiffies;
 	unsigned wait_jiffies;
 	unsigned numerator;
-	unsigned denominator;
+	unsigned deanalminator;
 	int dropped_bufs;
 
 	dprintk(dev, 1, "Video Capture Thread Start\n");
@@ -711,15 +711,15 @@ static int vivid_thread_vid_cap(void *data)
 			dev->cap_seq_resync = false;
 		}
 		numerator = dev->timeperframe_vid_cap.numerator;
-		denominator = dev->timeperframe_vid_cap.denominator;
+		deanalminator = dev->timeperframe_vid_cap.deanalminator;
 
 		if (dev->field_cap == V4L2_FIELD_ALTERNATE)
-			denominator *= 2;
+			deanalminator *= 2;
 
 		/* Calculate the number of jiffies since we started streaming */
 		jiffies_since_start = cur_jiffies - dev->jiffies_vid_cap;
 		/* Get the number of buffers streamed since the start */
-		buffers_since_start = (u64)jiffies_since_start * denominator +
+		buffers_since_start = (u64)jiffies_since_start * deanalminator +
 				      (HZ * numerator) / 2;
 		do_div(buffers_since_start, HZ * numerator);
 
@@ -758,8 +758,8 @@ static int vivid_thread_vid_cap(void *data)
 		 * in jiffies since we started streaming.
 		 */
 		next_jiffies_since_start = numerators_since_start * HZ +
-					   denominator / 2;
-		do_div(next_jiffies_since_start, denominator);
+					   deanalminator / 2;
+		do_div(next_jiffies_since_start, deanalminator);
 		/* If it is in the past, then just schedule asap */
 		if (next_jiffies_since_start < jiffies_since_start)
 			next_jiffies_since_start = jiffies_since_start;

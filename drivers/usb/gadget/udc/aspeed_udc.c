@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 2021 Aspeed Technology Inc.
+ * Copyright (c) 2021 Aspeed Techanallogy Inc.
  */
 
 #include <linux/clk.h>
@@ -41,7 +41,7 @@
 #define AST_UDC_DEV_RESET		0x20	/* Device Controller Soft Reset Enable Register */
 #define AST_UDC_STS			0x24	/* USB Status Register */
 #define AST_VHUB_EP_DATA		0x28	/* Programmable ep Pool Data Toggle Value Set */
-#define AST_VHUB_ISO_TX_FAIL		0x2C	/* Isochronous Transaction Fail Accumulator */
+#define AST_VHUB_ISO_TX_FAIL		0x2C	/* Isochroanalus Transaction Fail Accumulator */
 #define AST_UDC_EP0_CTRL		0x30	/* Endpoint 0 Control/Status Register */
 #define AST_UDC_EP0_DATA_BUFF		0x34	/* Base Address of ep0 IN/OUT Data Buffer Reg */
 #define AST_UDC_SETUP0			0x80    /* Root Device Setup Data Buffer0 */
@@ -708,7 +708,7 @@ static int ast_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		}
 	}
 
-	/* dequeue request not found */
+	/* dequeue request analt found */
 	if (&req->req != _req)
 		rc = -EINVAL;
 
@@ -929,7 +929,7 @@ static void ast_udc_epn_handle_desc(struct ast_udc_dev *udc, u16 ep_num)
 	wr_ptr = EP_DMA_GET_WPTR(ctrl);
 
 	if (rd_ptr != wr_ptr) {
-		dev_warn(dev, "desc list is not empty ! %s:%d, %s:%d\n",
+		dev_warn(dev, "desc list is analt empty ! %s:%d, %s:%d\n",
 		"rptr", rd_ptr, "wptr", wr_ptr);
 		return;
 	}
@@ -969,7 +969,7 @@ static void ast_udc_epn_handle_desc(struct ast_udc_dev *udc, u16 ep_num)
 		}
 	}
 
-	/* More requests & dma descs not setup yet */
+	/* More requests & dma descs analt setup yet */
 	if (req && (req->actual_dma_length == req->req.actual)) {
 		EP_DBG(ep, "More requests\n");
 		ast_udc_epn_kick_desc(ep, req);
@@ -1099,7 +1099,7 @@ req_driver:
 		spin_lock(&udc->lock);
 
 	} else {
-		SETUP_DBG(udc, "No gadget for request !\n");
+		SETUP_DBG(udc, "Anal gadget for request !\n");
 	}
 
 	if (rc >= 0)
@@ -1134,7 +1134,7 @@ static irqreturn_t ast_udc_isr(int irq, void *data)
 
 	if (isr & UDC_IRQ_BUS_RESET) {
 		ISR_DBG(udc, "UDC_IRQ_BUS_RESET\n");
-		udc->gadget.speed = USB_SPEED_UNKNOWN;
+		udc->gadget.speed = USB_SPEED_UNKANALWN;
 
 		ep = &udc->ep[1];
 		EP_DBG(ep, "dctrl:0x%x\n",
@@ -1300,7 +1300,7 @@ static int ast_udc_start(struct usb_gadget *gadget,
 
 	UDC_DBG(udc, "\n");
 	udc->driver = driver;
-	udc->gadget.dev.of_node = udc->pdev->dev.of_node;
+	udc->gadget.dev.of_analde = udc->pdev->dev.of_analde;
 
 	for (i = 0; i < AST_UDC_NUM_ENDPOINTS; i++) {
 		ep = &udc->ep[i];
@@ -1324,11 +1324,11 @@ static int ast_udc_stop(struct usb_gadget *gadget)
 	ctrl = ast_udc_read(udc, AST_UDC_FUNC_CTRL) & ~USB_UPSTREAM_EN;
 	ast_udc_write(udc, ctrl, AST_UDC_FUNC_CTRL);
 
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->driver = NULL;
 
 	ast_udc_stop_activity(udc);
-	usb_gadget_set_state(&udc->gadget, USB_STATE_NOTATTACHED);
+	usb_gadget_set_state(&udc->gadget, USB_STATE_ANALTATTACHED);
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
@@ -1346,7 +1346,7 @@ static const struct usb_gadget_ops ast_udc_ops = {
 /*
  * Support 1 Control Endpoint.
  * Support multiple programmable endpoints that can be configured to
- * Bulk IN/OUT, Interrupt IN/OUT, and Isochronous IN/OUT type endpoint.
+ * Bulk IN/OUT, Interrupt IN/OUT, and Isochroanalus IN/OUT type endpoint.
  */
 static void ast_udc_init_ep(struct ast_udc_dev *udc)
 {
@@ -1479,7 +1479,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(struct ast_udc_dev), GFP_KERNEL);
 	if (!udc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udc->gadget.dev.parent = dev;
 	udc->pdev = pdev;
@@ -1511,7 +1511,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 
 	/* Check if we need to limit the HW to USB1 */
 	max_speed = usb_get_maximum_speed(&pdev->dev);
-	if (max_speed != USB_SPEED_UNKNOWN && max_speed < USB_SPEED_HIGH)
+	if (max_speed != USB_SPEED_UNKANALWN && max_speed < USB_SPEED_HIGH)
 		udc->force_usb1 = true;
 
 	/*
@@ -1522,7 +1522,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 					  AST_UDC_NUM_ENDPOINTS,
 					  &udc->ep0_buf_dma, GFP_KERNEL);
 
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->gadget.max_speed = USB_SPEED_HIGH;
 	udc->creq = udc->reg + AST_UDC_SETUP0;
 

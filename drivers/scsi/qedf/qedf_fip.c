@@ -59,8 +59,8 @@ void qedf_fcoe_send_vlan_req(struct qedf_ctx *qedf)
 		   "request.");
 
 	if (atomic_read(&qedf->link_state) != QEDF_LINK_UP) {
-		QEDF_WARN(&(qedf->dbg_ctx), "Cannot send vlan request "
-		    "because link is not up.\n");
+		QEDF_WARN(&(qedf->dbg_ctx), "Cananalt send vlan request "
+		    "because link is analt up.\n");
 
 		kfree_skb(skb);
 		return;
@@ -128,7 +128,7 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	int rc = -1;
 
 	if (!test_bit(QEDF_LL2_STARTED, &qedf->flags)) {
-		QEDF_WARN(&(qedf->dbg_ctx), "LL2 not started\n");
+		QEDF_WARN(&(qedf->dbg_ctx), "LL2 analt started\n");
 		kfree_skb(skb);
 		return;
 	}
@@ -139,7 +139,7 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	sub = fiph->fip_subcode;
 
 	/*
-	 * Add VLAN tag to non-offload FIP frame based on current stored VLAN
+	 * Add VLAN tag to analn-offload FIP frame based on current stored VLAN
 	 * for FIP/FCoE traffic.
 	 */
 	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), qedf->vlan_id);
@@ -162,7 +162,7 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	}
 }
 
-static u8 fcoe_all_enode[ETH_ALEN] = FIP_ALL_ENODE_MACS;
+static u8 fcoe_all_eanalde[ETH_ALEN] = FIP_ALL_EANALDE_MACS;
 
 /* Process incoming FIP frames. */
 void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
@@ -197,7 +197,7 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 		    skb->data, skb->len, false);
 
 	if (!ether_addr_equal(eth_hdr->h_dest, qedf->mac) &&
-	    !ether_addr_equal(eth_hdr->h_dest, fcoe_all_enode) &&
+	    !ether_addr_equal(eth_hdr->h_dest, fcoe_all_eanalde) &&
 		!ether_addr_equal(eth_hdr->h_dest, qedf->data_src_addr)) {
 		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_LL2,
 			  "Dropping FIP type 0x%x pkt due to destination MAC mismatch dest_mac=%pM ctlr.dest_addr=%pM data_src_addr=%pM.\n",
@@ -208,7 +208,7 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 	}
 
 	/* Handle FIP VLAN resp in the driver */
-	if (op == FIP_OP_VLAN && sub == FIP_SC_VL_NOTE) {
+	if (op == FIP_OP_VLAN && sub == FIP_SC_VL_ANALTE) {
 		qedf_fcoe_process_vlan_resp(qedf, skb);
 		kfree_skb(skb);
 	} else if (op == FIP_OP_CTRL && sub == FIP_SC_CLR_VLINK) {
@@ -218,7 +218,7 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 		/* Check that an FCF has been selected by fcoe */
 		if (qedf->ctlr.sel_fcf == NULL) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Dropping CVL since FCF has not been selected "
+			    "Dropping CVL since FCF has analt been selected "
 			    "yet.");
 			kfree_skb(skb);
 			return;
@@ -273,7 +273,7 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 				}
 				break;
 			default:
-				/* Ignore anything else */
+				/* Iganalre anything else */
 				break;
 			}
 			desc = (struct fip_desc *)((char *)desc + dlen);

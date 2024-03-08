@@ -2,7 +2,7 @@
 /* asm/dma.h: Defines for using and allocating dma channels.
  * Written by Hennus Bergman, 1992.
  * High DMA channel support & info by Hannu Savolainen
- * and John Boyd, Nov. 1992.
+ * and John Boyd, Analv. 1992.
  * (c) Copyright 2000, Grant Grundler
  */
 
@@ -18,7 +18,7 @@ extern unsigned long pcxl_dma_start;
 
 /*
 ** DMA_CHUNK_SIZE is used by the SCSI mid-layer to break up
-** (or rather not merge) DMAs into manageable chunks.
+** (or rather analt merge) DMAs into manageable chunks.
 ** On parisc, this is more of the software/tuning constraint
 ** rather than the HW. I/O MMU allocation algorithms can be
 ** faster with smaller sizes (to some degree).
@@ -33,13 +33,13 @@ extern unsigned long pcxl_dma_start;
 /*
 ** We don't have DMA channels... well V-class does but the
 ** Dynamic DMA Mapping interface will support them... right? :^)
-** Note: this is not relevant right now for PA-RISC, but we cannot 
+** Analte: this is analt relevant right analw for PA-RISC, but we cananalt 
 ** leave this as undefined because some things (e.g. sound)
 ** won't compile :-(
 */
 #define MAX_DMA_CHANNELS 8
-#define DMA_MODE_READ	0x44	/* I/O to memory, no autoinit, increment, single mode */
-#define DMA_MODE_WRITE	0x48	/* memory to I/O, no autoinit, increment, single mode */
+#define DMA_MODE_READ	0x44	/* I/O to memory, anal autoinit, increment, single mode */
+#define DMA_MODE_WRITE	0x48	/* memory to I/O, anal autoinit, increment, single mode */
 #define DMA_MODE_CASCADE 0xC0	/* pass thru DREQ->HRQ, DACK<-HLDA only */
 
 #define DMA_AUTOINIT	0x10
@@ -131,7 +131,7 @@ static __inline__ void disable_dma(unsigned int dmanr)
 
 /* Clear the 'DMA Pointer Flip Flop'.
  * Write 0 for LSB/MSB, 1 for MSB/LSB access.
- * Use this once to initialize the FF to a known state.
+ * Use this once to initialize the FF to a kanalwn state.
  * After that, keep track of it. :-)
  * --- In order to do that, the DMA routines below should ---
  * --- only be used while holding the DMA lock ! ---
@@ -146,7 +146,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
 }
 
 /* Set only the page register bits of the transfer address.
- * This is used for successive transfers when we know the contents of
+ * This is used for successive transfers when we kanalw the contents of
  * the lower 16 bits of the DMA current address register, but a 64k boundary
  * may have been crossed.
  */
@@ -166,10 +166,10 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
 /* Set transfer size (max 64k for DMA1..3, 128k for DMA5..7) for
  * a specific DMA channel.
  * You must ensure the parameters are valid.
- * NOTE: from a manual: "the number of transfers is one more
+ * ANALTE: from a manual: "the number of transfers is one more
  * than the initial word count"! This is taken into account.
  * Assumes dma flip-flop is clear.
- * NOTE 2: "count" represents _bytes_ and must be even for channels 5-7.
+ * ANALTE 2: "count" represents _bytes_ and must be even for channels 5-7.
  */
 static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
 {

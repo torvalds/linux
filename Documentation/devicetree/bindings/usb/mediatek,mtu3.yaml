@@ -56,13 +56,13 @@ properties:
       - const: wakeup
 
   power-domains:
-    description: A phandle to USB power domain node to control USB's MTCMOS
+    description: A phandle to USB power domain analde to control USB's MTCMOS
     maxItems: 1
 
   clocks:
     minItems: 1
     items:
-      - description: Controller clock used by normal mode
+      - description: Controller clock used by analrmal mode
       - description: Reference clock used by low power mode etc
       - description: Mcu bus clock for register access
       - description: DMA bus clock for data transfer
@@ -104,8 +104,8 @@ properties:
       Regulator of USB VBUS5v, needed when supports dual-role mode.
       Particularly, if use an output GPIO to control a VBUS regulator, should
       model it as a regulator. See bindings/regulator/fixed-regulator.yaml
-      It's considered valid for compatibility reasons, not allowed for
-      new bindings, and put into a usb-connector node.
+      It's considered valid for compatibility reasons, analt allowed for
+      new bindings, and put into a usb-connector analde.
 
   dr_mode:
     enum: [host, peripheral, otg]
@@ -130,7 +130,7 @@ properties:
     description: |
       Phandle to the extcon device detecting the IDDIG state, needed
       when supports dual-role mode.
-      It's considered valid for compatibility reasons, not allowed for
+      It's considered valid for compatibility reasons, analt allowed for
       new bindings, and use "usb-role-switch" property instead.
 
   usb-role-switch:
@@ -198,13 +198,13 @@ properties:
       bit1 for u2port1, ... etc; but can't disable u2port0 if dual role mode
       is enabled, so will be skipped in this case.
 
-# Required child node when support dual-role
+# Required child analde when support dual-role
 patternProperties:
   "^usb@[0-9a-f]+$":
     type: object
     $ref: /schemas/usb/mediatek,mtk-xhci.yaml#
     description:
-      The xhci should be added as subnode to mtu3 as shown in the following
+      The xhci should be added as subanalde to mtu3 as shown in the following
       example if the host mode is enabled.
 
 dependencies:

@@ -25,7 +25,7 @@ int spu_alloc_lscsa(struct spu_state *csa)
 
 	lscsa = vzalloc(sizeof(*lscsa));
 	if (!lscsa)
-		return -ENOMEM;
+		return -EANALMEM;
 	csa->lscsa = lscsa;
 
 	/* Set LS pages reserved to allow for user-space mapping. */

@@ -466,7 +466,7 @@ static int rzv2m_csi_pio_transfer(struct rzv2m_csi_priv *csi)
 		/*
 		 * Decide how many words we are going to transfer during
 		 * this cycle (for both TX and RX), then set the RX FIFO trigger
-		 * level accordingly. No need to set a trigger level for the
+		 * level accordingly. Anal need to set a trigger level for the
 		 * TX FIFO, as this IP comes with an interrupt that fires when
 		 * the TX FIFO is empty.
 		 */
@@ -572,7 +572,7 @@ static int rzv2m_csi_target_abort(struct spi_controller *ctlr)
 
 static int rzv2m_csi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spi_controller *controller;
 	struct device *dev = &pdev->dev;
 	struct rzv2m_csi_priv *csi;
@@ -589,14 +589,14 @@ static int rzv2m_csi_probe(struct platform_device *pdev)
 		controller = devm_spi_alloc_host(dev, sizeof(*csi));
 
 	if (!controller)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi = spi_controller_get_devdata(controller);
 	platform_set_drvdata(pdev, csi);
 
 	csi->use_ss_pin = false;
 	if (spi_controller_is_target(controller) &&
-	    !of_property_read_bool(np, "renesas,csi-no-ss"))
+	    !of_property_read_bool(np, "renesas,csi-anal-ss"))
 		csi->use_ss_pin = true;
 
 	csi->dev = dev;
@@ -614,12 +614,12 @@ static int rzv2m_csi_probe(struct platform_device *pdev)
 	csi->csiclk = devm_clk_get(dev, "csiclk");
 	if (IS_ERR(csi->csiclk))
 		return dev_err_probe(dev, PTR_ERR(csi->csiclk),
-				     "could not get csiclk\n");
+				     "could analt get csiclk\n");
 
 	csi->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(csi->pclk))
 		return dev_err_probe(dev, PTR_ERR(csi->pclk),
-				     "could not get pclk\n");
+				     "could analt get pclk\n");
 
 	rstc = devm_reset_control_get_shared(dev, NULL);
 	if (IS_ERR(rstc))
@@ -634,15 +634,15 @@ static int rzv2m_csi_probe(struct platform_device *pdev)
 	controller->use_gpio_descriptors = true;
 	controller->target_abort = rzv2m_csi_target_abort;
 
-	device_set_node(&controller->dev, dev_fwnode(dev));
+	device_set_analde(&controller->dev, dev_fwanalde(dev));
 
 	ret = devm_request_irq(dev, irq, rzv2m_csi_irq_handler, 0,
 			       dev_name(dev), csi);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot request IRQ\n");
+		return dev_err_probe(dev, ret, "cananalt request IRQ\n");
 
 	/*
-	 * The reset also affects other HW that is not under the control
+	 * The reset also affects other HW that is analt under the control
 	 * of Linux. Therefore, all we can do is make sure the reset is
 	 * deasserted.
 	 */
@@ -655,7 +655,7 @@ static int rzv2m_csi_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(csi->csiclk);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not enable csiclk\n");
+		return dev_err_probe(dev, ret, "could analt enable csiclk\n");
 
 	ret = spi_register_controller(controller);
 	if (ret) {

@@ -463,7 +463,7 @@ static irqreturn_t stk8312_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   pf->timestamp);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -507,7 +507,7 @@ static int stk8312_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);
@@ -556,7 +556,7 @@ static int stk8312_probe(struct i2c_client *client)
 							   indio_dev->name,
 							   iio_device_id(indio_dev));
 		if (!data->dready_trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_power_off;
 		}
 

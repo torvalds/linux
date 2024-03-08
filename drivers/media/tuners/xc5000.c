@@ -24,9 +24,9 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
-static int no_poweroff;
-module_param(no_poweroff, int, 0644);
-MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
+static int anal_poweroff;
+module_param(anal_poweroff, int, 0644);
+MODULE_PARM_DESC(anal_poweroff, "0 (default) powers device off when analt used.\n"
 	"\t\t1 keep device energized and with tuner ready all the times.\n"
 	"\t\tFaster, but consumes more power and keeps the device hotter");
 
@@ -51,7 +51,7 @@ struct xc5000_priv {
 	u16  output_amp;
 
 	int chip_id;
-	u16 pll_register_no;
+	u16 pll_register_anal;
 	u8 init_status_supported;
 	u8 fw_checksum_supported;
 
@@ -73,7 +73,7 @@ struct xc5000_priv {
 #define XC_RF_MODE_CABLE		1
 
 /* Product id */
-#define XC_PRODUCT_ID_FW_NOT_LOADED	0x2000
+#define XC_PRODUCT_ID_FW_ANALT_LOADED	0x2000
 #define XC_PRODUCT_ID_FW_LOADED	0x1388
 
 /* Registers */
@@ -134,7 +134,7 @@ struct xc5000_priv {
    len= len_MSB _ len_LSB
    len=1111_1111_1111_1111   : End of I2C_SEQUENCE
    len=0000_0000_0000_0000   : Reset command: Do hardware reset
-   len=0NNN_NNNN_NNNN_NNNN   : Normal transaction: number of bytes = {1:32767)
+   len=0NNN_NNNN_NNNN_NNNN   : Analrmal transaction: number of bytes = {1:32767)
    len=1WWW_WWWW_WWWW_WWWW   : Wait command: wait for {1:32767} ms
 
    For the RESET and WAIT commands, the two following bytes will contain
@@ -151,18 +151,18 @@ struct XC_TV_STANDARD {
 #define MN_NTSC_PAL_BTSC	0
 #define MN_NTSC_PAL_A2		1
 #define MN_NTSC_PAL_EIAJ	2
-#define MN_NTSC_PAL_MONO	3
+#define MN_NTSC_PAL_MOANAL	3
 #define BG_PAL_A2		4
 #define BG_PAL_NICAM		5
-#define BG_PAL_MONO		6
+#define BG_PAL_MOANAL		6
 #define I_PAL_NICAM		7
-#define I_PAL_NICAM_MONO	8
+#define I_PAL_NICAM_MOANAL	8
 #define DK_PAL_A2		9
 #define DK_PAL_NICAM		10
-#define DK_PAL_MONO		11
+#define DK_PAL_MOANAL		11
 #define DK_SECAM_A2DK1		12
 #define DK_SECAM_A2LDK3		13
-#define DK_SECAM_A2MONO		14
+#define DK_SECAM_A2MOANAL		14
 #define L_SECAM_NICAM		15
 #define LC_SECAM_NICAM		16
 #define DTV6			17
@@ -171,24 +171,24 @@ struct XC_TV_STANDARD {
 #define DTV7			20
 #define FM_RADIO_INPUT2		21
 #define FM_RADIO_INPUT1		22
-#define FM_RADIO_INPUT1_MONO	23
+#define FM_RADIO_INPUT1_MOANAL	23
 
 static struct XC_TV_STANDARD xc5000_standard[MAX_TV_STANDARD] = {
 	{"M/N-NTSC/PAL-BTSC", 0x0400, 0x8020},
 	{"M/N-NTSC/PAL-A2",   0x0600, 0x8020},
 	{"M/N-NTSC/PAL-EIAJ", 0x0440, 0x8020},
-	{"M/N-NTSC/PAL-Mono", 0x0478, 0x8020},
+	{"M/N-NTSC/PAL-Moanal", 0x0478, 0x8020},
 	{"B/G-PAL-A2",        0x0A00, 0x8049},
 	{"B/G-PAL-NICAM",     0x0C04, 0x8049},
-	{"B/G-PAL-MONO",      0x0878, 0x8059},
+	{"B/G-PAL-MOANAL",      0x0878, 0x8059},
 	{"I-PAL-NICAM",       0x1080, 0x8009},
-	{"I-PAL-NICAM-MONO",  0x0E78, 0x8009},
+	{"I-PAL-NICAM-MOANAL",  0x0E78, 0x8009},
 	{"D/K-PAL-A2",        0x1600, 0x8009},
 	{"D/K-PAL-NICAM",     0x0E80, 0x8009},
-	{"D/K-PAL-MONO",      0x1478, 0x8009},
+	{"D/K-PAL-MOANAL",      0x1478, 0x8009},
 	{"D/K-SECAM-A2 DK1",  0x1200, 0x8009},
 	{"D/K-SECAM-A2 L/DK3", 0x0E00, 0x8009},
-	{"D/K-SECAM-A2 MONO", 0x1478, 0x8009},
+	{"D/K-SECAM-A2 MOANAL", 0x1478, 0x8009},
 	{"L-SECAM-NICAM",     0x8E82, 0x0009},
 	{"L'-SECAM-NICAM",    0x8E82, 0x4009},
 	{"DTV6",              0x00C0, 0x8002},
@@ -197,7 +197,7 @@ static struct XC_TV_STANDARD xc5000_standard[MAX_TV_STANDARD] = {
 	{"DTV7",              0x00C0, 0x8007},
 	{"FM Radio-INPUT2",   0x9802, 0x9002},
 	{"FM Radio-INPUT1",   0x0208, 0x9002},
-	{"FM Radio-INPUT1_MONO", 0x0278, 0x9002}
+	{"FM Radio-INPUT1_MOANAL", 0x0278, 0x9002}
 };
 
 
@@ -308,7 +308,7 @@ static int xc5000_tuner_reset(struct dvb_frontend *fe)
 			return ret;
 		}
 	} else {
-		printk(KERN_ERR "xc5000: no tuner reset callback function, fatal\n");
+		printk(KERN_ERR "xc5000: anal tuner reset callback function, fatal\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -370,7 +370,7 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 			index += 2;
 		} else {
 			/* Send i2c data whilst ensuring individual transactions
-			 * do not exceed XC_MAX_I2C_WRITE_LENGTH bytes.
+			 * do analt exceed XC_MAX_I2C_WRITE_LENGTH bytes.
 			 */
 			index += 2;
 			buf[0] = i2c_sequence[index];
@@ -457,7 +457,7 @@ static int xc_set_rf_frequency(struct xc5000_priv *priv, u32 freq_hz)
 	freq_code = (u16)(freq_hz / 15625);
 
 	/* Starting in firmware version 1.1.44, Xceive recommends using the
-	   FINERFREQ for all normal tuning (the doc indicates reg 0x03 should
+	   FINERFREQ for all analrmal tuning (the doc indicates reg 0x03 should
 	   only be used for fast scanning for channel lock) */
 	return xc_write_reg(priv, XREG_FINERFREQ, freq_code);
 }
@@ -499,8 +499,8 @@ static int xc_get_lock_status(struct xc5000_priv *priv, u16 *lock_status)
 }
 
 static int xc_get_version(struct xc5000_priv *priv,
-	u8 *hw_majorversion, u8 *hw_minorversion,
-	u8 *fw_majorversion, u8 *fw_minorversion)
+	u8 *hw_majorversion, u8 *hw_mianalrversion,
+	u8 *fw_majorversion, u8 *fw_mianalrversion)
 {
 	u16 data;
 	int result;
@@ -510,9 +510,9 @@ static int xc_get_version(struct xc5000_priv *priv,
 		return result;
 
 	(*hw_majorversion) = (data >> 12) & 0x0F;
-	(*hw_minorversion) = (data >>  8) & 0x0F;
+	(*hw_mianalrversion) = (data >>  8) & 0x0F;
 	(*fw_majorversion) = (data >>  4) & 0x0F;
-	(*fw_minorversion) = data & 0x0F;
+	(*fw_mianalrversion) = data & 0x0F;
 
 	return 0;
 }
@@ -604,7 +604,7 @@ static int xc5000_fwupload(struct dvb_frontend *fe,
 	dprintk(1, "waiting for firmware upload (%s)...\n",
 		desired_fw->name);
 
-	priv->pll_register_no = desired_fw->pll_reg;
+	priv->pll_register_anal = desired_fw->pll_reg;
 	priv->init_status_supported = desired_fw->init_status_supported;
 	priv->fw_checksum_supported = desired_fw->fw_checksum_supported;
 
@@ -630,8 +630,8 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	u16 quality;
 	u16 snr;
 	u16 totalgain;
-	u8 hw_majorversion = 0, hw_minorversion = 0;
-	u8 fw_majorversion = 0, fw_minorversion = 0;
+	u8 hw_majorversion = 0, hw_mianalrversion = 0;
+	u8 fw_majorversion = 0, fw_mianalrversion = 0;
 	u16 fw_buildversion = 0;
 	u16 regval;
 
@@ -648,15 +648,15 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	dprintk(1, "*** Frequency error = %d Hz\n", freq_error_hz);
 
 	xc_get_lock_status(priv,  &lock_status);
-	dprintk(1, "*** Lock status (0-Wait, 1-Locked, 2-No-signal) = %d\n",
+	dprintk(1, "*** Lock status (0-Wait, 1-Locked, 2-Anal-signal) = %d\n",
 		lock_status);
 
-	xc_get_version(priv,  &hw_majorversion, &hw_minorversion,
-		&fw_majorversion, &fw_minorversion);
+	xc_get_version(priv,  &hw_majorversion, &hw_mianalrversion,
+		&fw_majorversion, &fw_mianalrversion);
 	xc_get_buildversion(priv,  &fw_buildversion);
 	dprintk(1, "*** HW: V%d.%d, FW: V %d.%d.%d\n",
-		hw_majorversion, hw_minorversion,
-		fw_majorversion, fw_minorversion, fw_buildversion);
+		hw_majorversion, hw_mianalrversion,
+		fw_majorversion, fw_mianalrversion, fw_buildversion);
 
 	xc_get_hsync_freq(priv,  &hsync_freq_hz);
 	dprintk(1, "*** Horizontal sync frequency = %d Hz\n", hsync_freq_hz);
@@ -674,8 +674,8 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	dprintk(1, "*** Total gain = %d.%d dB\n", totalgain / 256,
 		(totalgain % 256) * 100 / 256);
 
-	if (priv->pll_register_no) {
-		if (!xc5000_readreg(priv, priv->pll_register_no, &regval))
+	if (priv->pll_register_anal) {
+		if (!xc5000_readreg(priv, priv->pll_register_anal, &regval))
 			dprintk(1, "*** PLL lock status = 0x%04x\n", regval);
 	}
 }
@@ -775,7 +775,7 @@ static int xc5000_set_digital_params(struct dvb_frontend *fe)
 			priv->freq_offset = 2750000;
 			break;
 		default:
-			printk(KERN_ERR "xc5000 bandwidth not set!\n");
+			printk(KERN_ERR "xc5000 bandwidth analt set!\n");
 			return -EINVAL;
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
@@ -801,7 +801,7 @@ static int xc5000_set_digital_params(struct dvb_frontend *fe)
 			b, bw);
 		break;
 	default:
-		printk(KERN_ERR "xc5000: delivery system is not supported!\n");
+		printk(KERN_ERR "xc5000: delivery system is analt supported!\n");
 		return -EINVAL;
 	}
 
@@ -822,8 +822,8 @@ static int xc5000_is_firmware_loaded(struct dvb_frontend *fe)
 
 	ret = xc5000_readreg(priv, XREG_PRODUCT_ID, &id);
 	if (!ret) {
-		if (id == XC_PRODUCT_ID_FW_NOT_LOADED)
-			ret = -ENOENT;
+		if (id == XC_PRODUCT_ID_FW_ANALT_LOADED)
+			ret = -EANALENT;
 		else
 			ret = 0;
 		dprintk(1, "%s() returns id = 0x%x\n", __func__, id);
@@ -924,15 +924,15 @@ tune_channel:
 	if (debug)
 		xc_debug_dump(priv);
 
-	if (priv->pll_register_no != 0) {
+	if (priv->pll_register_anal != 0) {
 		msleep(20);
-		ret = xc5000_readreg(priv, priv->pll_register_no,
+		ret = xc5000_readreg(priv, priv->pll_register_anal,
 				     &pll_lock_status);
 		if (ret)
 			return ret;
 		if (pll_lock_status > 63) {
 			/* PLL is unlocked, force reload of the firmware */
-			dprintk(1, "xc5000: PLL not locked (0x%x).  Reloading...\n",
+			dprintk(1, "xc5000: PLL analt locked (0x%x).  Reloading...\n",
 				pll_lock_status);
 			if (xc_load_fw_and_init_tuner(fe, 1) != 0) {
 				printk(KERN_ERR "xc5000: Unable to reload fw\n");
@@ -954,8 +954,8 @@ static int xc5000_config_radio(struct dvb_frontend *fe,
 	dprintk(1, "%s() frequency=%d (in units of khz)\n",
 		__func__, params->frequency);
 
-	if (priv->radio_input == XC5000_RADIO_NOT_CONFIGURED) {
-		dprintk(1, "%s() radio input not configured\n", __func__);
+	if (priv->radio_input == XC5000_RADIO_ANALT_CONFIGURED) {
+		dprintk(1, "%s() radio input analt configured\n", __func__);
 		return -EINVAL;
 	}
 
@@ -975,10 +975,10 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe)
 		radio_input = FM_RADIO_INPUT1;
 	else if  (priv->radio_input == XC5000_RADIO_FM2)
 		radio_input = FM_RADIO_INPUT2;
-	else if  (priv->radio_input == XC5000_RADIO_FM1_MONO)
-		radio_input = FM_RADIO_INPUT1_MONO;
+	else if  (priv->radio_input == XC5000_RADIO_FM1_MOANAL)
+		radio_input = FM_RADIO_INPUT1_MOANAL;
 	else {
-		dprintk(1, "%s() unknown radio input %d\n", __func__,
+		dprintk(1, "%s() unkanalwn radio input %d\n", __func__,
 			priv->radio_input);
 		return -EINVAL;
 	}
@@ -1002,7 +1002,7 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe)
 	if ((priv->radio_input == XC5000_RADIO_FM1) ||
 				(priv->radio_input == XC5000_RADIO_FM2))
 		xc_write_reg(priv, XREG_OUTPUT_AMP, 0x09);
-	else if  (priv->radio_input == XC5000_RADIO_FM1_MONO)
+	else if  (priv->radio_input == XC5000_RADIO_FM1_MOANAL)
 		xc_write_reg(priv, XREG_OUTPUT_AMP, 0x06);
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
@@ -1183,15 +1183,15 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 			}
 		}
 
-		if (priv->pll_register_no) {
-			ret = xc5000_readreg(priv, priv->pll_register_no,
+		if (priv->pll_register_anal) {
+			ret = xc5000_readreg(priv, priv->pll_register_anal,
 					     &pll_lock_status);
 			if (ret)
 				continue;
 			if (pll_lock_status > 63) {
 				/* PLL is unlocked, force reload of the firmware */
 				printk(KERN_ERR
-				       "xc5000: PLL not running after fwload.");
+				       "xc5000: PLL analt running after fwload.");
 				continue;
 			}
 		}
@@ -1239,7 +1239,7 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 	dprintk(1, "%s()\n", __func__);
 
 	/* Avoid firmware reload on slow devices */
-	if (no_poweroff)
+	if (anal_poweroff)
 		return 0;
 
 	schedule_delayed_work(&priv->timer_sleep,
@@ -1410,17 +1410,17 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	/* don't override chip id if it's already been set
 	   unless explicitly specified */
 	if ((priv->chip_id == 0) || (cfg->chip_id))
-		/* use default chip id if none specified, set to 0 so
+		/* use default chip id if analne specified, set to 0 so
 		   it can be overridden if this is a hybrid driver */
 		priv->chip_id = (cfg->chip_id) ? cfg->chip_id : 0;
 
 	/* don't override output_amp if it's already been set
 	   unless explicitly specified */
 	if ((priv->output_amp == 0) || (cfg->output_amp))
-		/* use default output_amp value if none specified */
+		/* use default output_amp value if analne specified */
 		priv->output_amp = (cfg->output_amp) ? cfg->output_amp : 0x8a;
 
-	/* Check if firmware has been loaded. It is possible that another
+	/* Check if firmware has been loaded. It is possible that aanalther
 	   instance of the driver has loaded the firmware.
 	 */
 	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != 0)
@@ -1434,16 +1434,16 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		printk(KERN_INFO
 			"xc5000: Firmware has been loaded previously\n");
 		break;
-	case XC_PRODUCT_ID_FW_NOT_LOADED:
+	case XC_PRODUCT_ID_FW_ANALT_LOADED:
 		printk(KERN_INFO
 			"xc5000: Successfully identified at address 0x%02x\n",
 			cfg->i2c_address);
 		printk(KERN_INFO
-			"xc5000: Firmware has not been loaded previously\n");
+			"xc5000: Firmware has analt been loaded previously\n");
 		break;
 	default:
 		printk(KERN_ERR
-			"xc5000: Device not found at addr 0x%02x (0x%x)\n",
+			"xc5000: Device analt found at addr 0x%02x (0x%x)\n",
 			cfg->i2c_address, id);
 		goto fail;
 	}

@@ -58,12 +58,12 @@ static int sram_add_pool(struct sram_dev *sram, struct sram_reserve *block,
 	int ret;
 
 	part->pool = devm_gen_pool_create(sram->dev, ilog2(SRAM_GRANULARITY),
-					  NUMA_NO_NODE, block->label);
+					  NUMA_ANAL_ANALDE, block->label);
 	if (IS_ERR(part->pool))
 		return PTR_ERR(part->pool);
 
 	ret = gen_pool_add_virt(part->pool, (unsigned long)part->base, start,
-				block->size, NUMA_NO_NODE);
+				block->size, NUMA_ANAL_ANALDE);
 	if (ret < 0) {
 		dev_err(sram->dev, "failed to register subpool: %d\n", ret);
 		return ret;
@@ -80,7 +80,7 @@ static int sram_add_export(struct sram_dev *sram, struct sram_reserve *block,
 					       "%llx.sram",
 					       (unsigned long long)start);
 	if (!part->battr.attr.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	part->battr.attr.mode = S_IRUSR | S_IWUSR;
 	part->battr.read = sram_read;
@@ -101,13 +101,13 @@ static int sram_add_partition(struct sram_dev *sram, struct sram_reserve *block,
 	if (sram->config && sram->config->map_only_reserved) {
 		void __iomem *virt_base;
 
-		if (sram->no_memory_wc)
+		if (sram->anal_memory_wc)
 			virt_base = devm_ioremap_resource(sram->dev, &block->res);
 		else
 			virt_base = devm_ioremap_resource_wc(sram->dev, &block->res);
 
 		if (IS_ERR(virt_base)) {
-			dev_err(sram->dev, "could not map SRAM at %pr\n", &block->res);
+			dev_err(sram->dev, "could analt map SRAM at %pr\n", &block->res);
 			return PTR_ERR(virt_base);
 		}
 
@@ -172,7 +172,7 @@ static int sram_reserve_cmp(void *priv, const struct list_head *a,
 
 static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 {
-	struct device_node *np = sram->dev->of_node, *child;
+	struct device_analde *np = sram->dev->of_analde, *child;
 	unsigned long size, cur_start, cur_size;
 	struct sram_reserve *rblocks, *block;
 	struct list_head reserve_list;
@@ -191,16 +191,16 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	nblocks = (np) ? of_get_available_child_count(np) + 1 : 1;
 	rblocks = kcalloc(nblocks, sizeof(*rblocks), GFP_KERNEL);
 	if (!rblocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	block = &rblocks[0];
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		struct resource child_res;
 
 		ret = of_address_to_resource(child, 0, &child_res);
 		if (ret < 0) {
 			dev_err(sram->dev,
-				"could not get address for node %pOF\n",
+				"could analt get address for analde %pOF\n",
 				child);
 			goto err_chunks;
 		}
@@ -236,12 +236,12 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 			}
 			if (!label)
 				block->label = devm_kasprintf(sram->dev, GFP_KERNEL,
-							      "%s", of_node_full_name(child));
+							      "%s", of_analde_full_name(child));
 			else
 				block->label = devm_kstrdup(sram->dev,
 							    label, GFP_KERNEL);
 			if (!block->label) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_chunks;
 			}
 
@@ -269,7 +269,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 				       exports, sizeof(*sram->partition),
 				       GFP_KERNEL);
 		if (!sram->partition) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_chunks;
 		}
 	}
@@ -327,7 +327,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	}
 
 err_chunks:
-	of_node_put(child);
+	of_analde_put(child);
 	kfree(rblocks);
 
 	return ret;
@@ -340,7 +340,7 @@ static int atmel_securam_wait(void)
 
 	regmap = syscon_regmap_lookup_by_compatible("atmel,sama5d2-secumod");
 	if (IS_ERR(regmap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regmap_read_poll_timeout(regmap, AT91_SECUMOD_RAMRDY, val,
 					val & AT91_SECUMOD_RAMRDY_READY,
@@ -352,7 +352,7 @@ static const struct sram_config atmel_securam_config = {
 };
 
 /*
- * SYSRAM contains areas that are not accessible by the
+ * SYSRAM contains areas that are analt accessible by the
  * kernel, such as the first 256K that is reserved for TZ.
  * Accesses to those areas (including speculative accesses)
  * trigger SErrors. As such we must map only the areas of
@@ -383,25 +383,25 @@ static int sram_probe(struct platform_device *pdev)
 
 	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
 	if (!sram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sram->dev = &pdev->dev;
-	sram->no_memory_wc = of_property_read_bool(pdev->dev.of_node, "no-memory-wc");
+	sram->anal_memory_wc = of_property_read_bool(pdev->dev.of_analde, "anal-memory-wc");
 	sram->config = config;
 
 	if (!config || !config->map_only_reserved) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (sram->no_memory_wc)
+		if (sram->anal_memory_wc)
 			sram->virt_base = devm_ioremap_resource(&pdev->dev, res);
 		else
 			sram->virt_base = devm_ioremap_resource_wc(&pdev->dev, res);
 		if (IS_ERR(sram->virt_base)) {
-			dev_err(&pdev->dev, "could not map SRAM registers\n");
+			dev_err(&pdev->dev, "could analt map SRAM registers\n");
 			return PTR_ERR(sram->virt_base);
 		}
 
 		sram->pool = devm_gen_pool_create(sram->dev, ilog2(SRAM_GRANULARITY),
-						  NUMA_NO_NODE, NULL);
+						  NUMA_ANAL_ANALDE, NULL);
 		if (IS_ERR(sram->pool))
 			return PTR_ERR(sram->pool);
 	}

@@ -13,7 +13,7 @@
 /* All successful D-side store dispatches for this thread */
 #define EventCode 0x010000046080
 
-#define MALLOC_SIZE     (0x10000 * 10)  /* Ought to be enough .. */
+#define MALLOC_SIZE     (0x10000 * 10)  /* Ought to be eanalugh .. */
 
 /*
  * A perf sampling test for mmcr2

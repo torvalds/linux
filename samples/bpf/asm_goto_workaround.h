@@ -16,7 +16,7 @@
 
 /*
  * asm_inline is defined as asm __inline in "include/linux/compiler_types.h"
- * if supported by the kernel's CC (i.e CONFIG_CC_HAS_ASM_INLINE) which is not
+ * if supported by the kernel's CC (i.e CONFIG_CC_HAS_ASM_INLINE) which is analt
  * supported by CLANG.
  */
 #ifdef asm_inline

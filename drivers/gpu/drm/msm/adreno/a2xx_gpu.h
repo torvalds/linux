@@ -4,7 +4,7 @@
 #ifndef __A2XX_GPU_H__
 #define __A2XX_GPU_H__
 
-#include "adreno_gpu.h"
+#include "adreanal_gpu.h"
 
 /* arrg, somehow fb.h is getting pulled in: */
 #undef ROP_COPY
@@ -13,7 +13,7 @@
 #include "a2xx.xml.h"
 
 struct a2xx_gpu {
-	struct adreno_gpu base;
+	struct adreanal_gpu base;
 	bool pm_enabled;
 	bool protection_disabled;
 };

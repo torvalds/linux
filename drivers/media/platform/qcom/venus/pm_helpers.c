@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2019 Linaro Ltd.
  *
- * Author: Stanimir Varbanov <stanimir.varbanov@linaro.org>
+ * Author: Stanimir Varbaanalv <stanimir.varbaanalv@linaro.org>
  */
 #include <linux/clk.h>
 #include <linux/interconnect.h>
@@ -870,7 +870,7 @@ static int vcodec_domains_get(struct venus_core *core)
 		pd = dev_pm_domain_attach_by_name(dev,
 						  res->vcodec_pmdomains[i]);
 		if (IS_ERR_OR_NULL(pd))
-			return pd ? PTR_ERR(pd) : -ENODATA;
+			return pd ? PTR_ERR(pd) : -EANALDATA;
 		core->pmdomains[i] = pd;
 	}
 
@@ -889,7 +889,7 @@ skip_pmdomains:
 					     DL_FLAG_PM_RUNTIME |
 					     DL_FLAG_STATELESS);
 	if (!core->opp_dl_venus) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto opp_attach_err;
 	}
 
@@ -986,7 +986,7 @@ static int core_get_v4(struct venus_core *core)
 	if (!res->vcodec_pmdomains_num)
 		legacy_binding = true;
 
-	dev_info(dev, "%s legacy binding\n", legacy_binding ? "" : "non");
+	dev_info(dev, "%s legacy binding\n", legacy_binding ? "" : "analn");
 
 	ret = vcodec_clks_get(core, dev, core->vcodec0_clks, res->vcodec0_clks);
 	if (ret)
@@ -1015,7 +1015,7 @@ static int core_get_v4(struct venus_core *core)
 		ret = devm_pm_opp_of_add_table(dev);
 		if (!ret) {
 			core->has_opp_table = true;
-		} else if (ret != -ENODEV) {
+		} else if (ret != -EANALDEV) {
 			dev_err(dev, "invalid OPP table in device tree\n");
 			return ret;
 		}

@@ -19,7 +19,7 @@
 
 #include "hid-ids.h"
 
-#define NOT_INIT_STR "NOT INITIALIZED"
+#define ANALT_INIT_STR "ANALT INITIALIZED"
 #define android_map_key(c) hid_map_usage(hi, usage, bit, max, EV_KEY, (c))
 
 enum {
@@ -69,7 +69,7 @@ struct power_supply_dev {
 
 struct thunderstrike_psy_prop_values {
 	int voltage_min;
-	int voltage_now;
+	int voltage_analw;
 	int voltage_avg;
 	int voltage_boot;
 	int capacity;
@@ -85,7 +85,7 @@ static const enum power_supply_property thunderstrike_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_VOLTAGE_BOOT,
 	POWER_SUPPLY_PROP_CAPACITY,
@@ -109,19 +109,19 @@ struct thunderstrike_hostcmd_battery {
 	__le16 thermistor;
 	__le16 voltage_min;
 	__le16 voltage_boot;
-	__le16 voltage_now;
+	__le16 voltage_analw;
 	u8 capacity;
 } __packed;
 
 enum thunderstrike_charger_type {
-	THUNDERSTRIKE_CHARGER_TYPE_NONE = 0,
+	THUNDERSTRIKE_CHARGER_TYPE_ANALNE = 0,
 	THUNDERSTRIKE_CHARGER_TYPE_TRICKLE,
-	THUNDERSTRIKE_CHARGER_TYPE_NORMAL,
+	THUNDERSTRIKE_CHARGER_TYPE_ANALRMAL,
 } __packed;
 static_assert(sizeof(enum thunderstrike_charger_type) == 1);
 
 enum thunderstrike_charger_state {
-	THUNDERSTRIKE_CHARGER_STATE_UNKNOWN = 0,
+	THUNDERSTRIKE_CHARGER_STATE_UNKANALWN = 0,
 	THUNDERSTRIKE_CHARGER_STATE_DISABLED,
 	THUNDERSTRIKE_CHARGER_STATE_CHARGING,
 	THUNDERSTRIKE_CHARGER_STATE_FULL,
@@ -198,7 +198,7 @@ struct shield_device {
 };
 
 /*
- * Non-trivial to uniquely identify Thunderstrike controllers at initialization
+ * Analn-trivial to uniquely identify Thunderstrike controllers at initialization
  * time. Use an ID allocator to help with this.
  */
 static DEFINE_IDA(thunderstrike_ida);
@@ -265,7 +265,7 @@ static struct input_dev *shield_allocate_input_dev(struct hid_device *hdev,
 err_name:
 	input_free_device(idev);
 err_device:
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static struct input_dev *shield_haptics_create(
@@ -484,8 +484,8 @@ static int thunderstrike_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		val->intval = 2200000; /* 2.2 V */
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = prop_values.voltage_now;
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		val->intval = prop_values.voltage_analw;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		val->intval = prop_values.voltage_avg;
@@ -610,9 +610,9 @@ static void thunderstrike_parse_battery_payload(
 	u16 hostcmd_voltage_boot = le16_to_cpu(battery->voltage_boot);
 	u16 hostcmd_voltage_avg = le16_to_cpu(battery->voltage_avg);
 	u16 hostcmd_voltage_min = le16_to_cpu(battery->voltage_min);
-	u16 hostcmd_voltage_now = le16_to_cpu(battery->voltage_now);
+	u16 hostcmd_voltage_analw = le16_to_cpu(battery->voltage_analw);
 	u16 hostcmd_thermistor = le16_to_cpu(battery->thermistor);
-	int voltage_boot, voltage_avg, voltage_min, voltage_now;
+	int voltage_boot, voltage_avg, voltage_min, voltage_analw;
 	struct hid_device *hdev = shield_dev->hdev;
 	u8 capacity = battery->capacity;
 	int temp;
@@ -621,7 +621,7 @@ static void thunderstrike_parse_battery_payload(
 	voltage_boot = hostcmd_voltage_boot * 1000;
 	voltage_avg = hostcmd_voltage_avg * 1000;
 	voltage_min = hostcmd_voltage_min * 1000;
-	voltage_now = hostcmd_voltage_now * 1000;
+	voltage_analw = hostcmd_voltage_analw * 1000;
 	temp = (1378 - (int)hostcmd_thermistor) * 10 / 19;
 
 	/* Copy converted values */
@@ -629,7 +629,7 @@ static void thunderstrike_parse_battery_payload(
 	ts->psy_stats.voltage_boot = voltage_boot;
 	ts->psy_stats.voltage_avg = voltage_avg;
 	ts->psy_stats.voltage_min = voltage_min;
-	ts->psy_stats.voltage_now = voltage_now;
+	ts->psy_stats.voltage_analw = voltage_analw;
 	ts->psy_stats.capacity = capacity;
 	ts->psy_stats.temp = temp;
 	spin_unlock(&ts->psy_stats_lock);
@@ -637,8 +637,8 @@ static void thunderstrike_parse_battery_payload(
 	set_bit(SHIELD_BATTERY_STATS_INITIALIZED, &shield_dev->initialized_flags);
 
 	hid_dbg(hdev,
-		"Thunderstrike battery HOSTCMD response, voltage_avg: %u voltage_now: %u\n",
-		hostcmd_voltage_avg, hostcmd_voltage_now);
+		"Thunderstrike battery HOSTCMD response, voltage_avg: %u voltage_analw: %u\n",
+		hostcmd_voltage_avg, hostcmd_voltage_analw);
 	hid_dbg(hdev,
 		"Thunderstrike battery HOSTCMD response, voltage_boot: %u voltage_min: %u\n",
 		hostcmd_voltage_boot, hostcmd_voltage_min);
@@ -655,18 +655,18 @@ static void thunderstrike_parse_charger_payload(
 	struct thunderstrike_hostcmd_charger *charger)
 {
 	struct thunderstrike *ts = container_of(shield_dev, struct thunderstrike, base);
-	int charge_type = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+	int charge_type = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 	struct hid_device *hdev = shield_dev->hdev;
-	int status = POWER_SUPPLY_STATUS_UNKNOWN;
+	int status = POWER_SUPPLY_STATUS_UNKANALWN;
 
 	switch (charger->type) {
-	case THUNDERSTRIKE_CHARGER_TYPE_NONE:
-		charge_type = POWER_SUPPLY_CHARGE_TYPE_NONE;
+	case THUNDERSTRIKE_CHARGER_TYPE_ANALNE:
+		charge_type = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	case THUNDERSTRIKE_CHARGER_TYPE_TRICKLE:
 		charge_type = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 		break;
-	case THUNDERSTRIKE_CHARGER_TYPE_NORMAL:
+	case THUNDERSTRIKE_CHARGER_TYPE_ANALRMAL:
 		charge_type = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
 		break;
 	default:
@@ -676,8 +676,8 @@ static void thunderstrike_parse_charger_payload(
 	}
 
 	switch (charger->state) {
-	case THUNDERSTRIKE_CHARGER_STATE_UNKNOWN:
-		status = POWER_SUPPLY_STATUS_UNKNOWN;
+	case THUNDERSTRIKE_CHARGER_STATE_UNKANALWN:
+		status = POWER_SUPPLY_STATUS_UNKANALWN;
 		break;
 	case THUNDERSTRIKE_CHARGER_STATE_DISABLED:
 		/* Indicates charger is disconnected */
@@ -689,7 +689,7 @@ static void thunderstrike_parse_charger_payload(
 		status = POWER_SUPPLY_STATUS_FULL;
 		break;
 	case THUNDERSTRIKE_CHARGER_STATE_FAILED:
-		status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		hid_err(hdev, "Thunderstrike device failed to charge\n");
 		break;
 	default:
@@ -783,7 +783,7 @@ static int thunderstrike_parse_report(struct shield_device *shield_dev,
 			hid_warn(hdev,
 				 "Unhandled Thunderstrike HOSTCMD id %d\n",
 				 hostcmd_resp_report->cmd_id);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		break;
@@ -801,7 +801,7 @@ static inline int thunderstrike_led_create(struct thunderstrike *ts)
 	led->name = devm_kasprintf(&ts->base.hdev->dev, GFP_KERNEL,
 				   "thunderstrike%d:blue:led", ts->id);
 	if (!led->name)
-		return -ENOMEM;
+		return -EANALMEM;
 	led->max_brightness = 1;
 	led->flags = LED_CORE_SUSPENDRESUME | LED_RETAIN_AT_SHUTDOWN;
 	led->brightness_get = &thunderstrike_led_get_brightness;
@@ -834,7 +834,7 @@ static inline int thunderstrike_psy_create(struct shield_device *shield_dev)
 		devm_kasprintf(&ts->base.hdev->dev, GFP_KERNEL,
 			       "thunderstrike_%d", ts->id);
 	if (!shield_dev->battery_dev.desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	shield_dev->battery_dev.psy = power_supply_register(
 		&hdev->dev, &shield_dev->battery_dev.desc, &psy_cfg);
@@ -864,12 +864,12 @@ static struct shield_device *thunderstrike_create(struct hid_device *hdev)
 
 	ts = devm_kzalloc(&hdev->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ts->req_report_dmabuf = devm_kzalloc(
 		&hdev->dev, THUNDERSTRIKE_HOSTCMD_REPORT_SIZE, GFP_KERNEL);
 	if (!ts->req_report_dmabuf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	shield_dev = &ts->base;
 	shield_dev->hdev = hdev;
@@ -974,7 +974,7 @@ static ssize_t firmware_version_show(struct device *dev,
 	if (test_bit(SHIELD_FW_VERSION_INITIALIZED, &shield_dev->initialized_flags))
 		ret = sysfs_emit(buf, "0x%04X\n", shield_dev->fw_version);
 	else
-		ret = sysfs_emit(buf, NOT_INIT_STR "\n");
+		ret = sysfs_emit(buf, ANALT_INIT_STR "\n");
 
 	return ret;
 }
@@ -997,7 +997,7 @@ static ssize_t hardware_version_show(struct device *dev,
 				 shield_dev->codename, board_revision_str,
 				 shield_dev->board_info.revision);
 	} else
-		ret = sysfs_emit(buf, NOT_INIT_STR "\n");
+		ret = sysfs_emit(buf, ANALT_INIT_STR "\n");
 
 	return ret;
 }
@@ -1016,7 +1016,7 @@ static ssize_t serial_number_show(struct device *dev,
 	if (test_bit(SHIELD_BOARD_INFO_INITIALIZED, &shield_dev->initialized_flags))
 		ret = sysfs_emit(buf, "%s\n", shield_dev->board_info.serial_number);
 	else
-		ret = sysfs_emit(buf, NOT_INIT_STR "\n");
+		ret = sysfs_emit(buf, ANALT_INIT_STR "\n");
 
 	return ret;
 }
@@ -1059,7 +1059,7 @@ static int shield_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (unlikely(!shield_dev)) {
 		hid_err(hdev, "Failed to identify SHIELD device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (IS_ERR(shield_dev)) {
 		hid_err(hdev, "Failed to create SHIELD device\n");

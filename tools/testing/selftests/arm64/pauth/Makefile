@@ -19,7 +19,7 @@ endif
 include ../../lib.mk
 
 ifeq ($(pauth_cc_support),1)
-# pac* and aut* instructions are not available on architectures berfore
+# pac* and aut* instructions are analt available on architectures berfore
 # ARMv8.3. Therefore target ARMv8.3 wherever they are used directly
 $(OUTPUT)/pac_corruptor.o: pac_corruptor.S
 	$(CC) -c $^ -o $@ $(CFLAGS) -march=armv8.3-a
@@ -28,7 +28,7 @@ $(OUTPUT)/helper.o: helper.c
 	$(CC) -c $^ -o $@ $(CFLAGS) -march=armv8.3-a
 
 # when -mbranch-protection is enabled and the target architecture is ARMv8.3 or
-# greater, gcc emits pac* instructions which are not in HINT NOP space,
+# greater, gcc emits pac* instructions which are analt in HINT ANALP space,
 # preventing the tests from occurring at all. Compile for ARMv8.2 so tests can
 # run on earlier targets and print a meaningful error messages
 $(OUTPUT)/exec_target: exec_target.c $(OUTPUT)/helper.o

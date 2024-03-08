@@ -35,7 +35,7 @@ static inline unsigned int timer_value(unsigned int value)
 
 extern volatile u32 __iomem *master_l10_counter;
 
-irqreturn_t notrace timer_interrupt(int dummy, void *dev_id);
+irqreturn_t analtrace timer_interrupt(int dummy, void *dev_id);
 
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU(struct clock_event_device, sparc32_clockevent);

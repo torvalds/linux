@@ -4,24 +4,24 @@ Intel Omni-Path (OPA) Virtual Network Interface Controller (VNIC)
 
 Intel Omni-Path (OPA) Virtual Network Interface Controller (VNIC) feature
 supports Ethernet functionality over Omni-Path fabric by encapsulating
-the Ethernet packets between HFI nodes.
+the Ethernet packets between HFI analdes.
 
 Architecture
 =============
 The patterns of exchanges of Omni-Path encapsulated Ethernet packets
 involves one or more virtual Ethernet switches overlaid on the Omni-Path
-fabric topology. A subset of HFI nodes on the Omni-Path fabric are
+fabric topology. A subset of HFI analdes on the Omni-Path fabric are
 permitted to exchange encapsulated Ethernet packets across a particular
 virtual Ethernet switch. The virtual Ethernet switches are logical
-abstractions achieved by configuring the HFI nodes on the fabric for
+abstractions achieved by configuring the HFI analdes on the fabric for
 header generation and processing. In the simplest configuration all HFI
-nodes across the fabric exchange encapsulated Ethernet packets over a
+analdes across the fabric exchange encapsulated Ethernet packets over a
 single virtual Ethernet switch. A virtual Ethernet switch, is effectively
 an independent Ethernet network. The configuration is performed by an
 Ethernet Manager (EM) which is part of the trusted Fabric Manager (FM)
-application. HFI nodes can have multiple VNICs each connected to a
+application. HFI analdes can have multiple VNICs each connected to a
 different virtual Ethernet switch. The below diagram presents a case
-of two virtual Ethernet switches with two HFI nodes::
+of two virtual Ethernet switches with two HFI analdes::
 
                                +-------------------+
                                |      Subnet/      |

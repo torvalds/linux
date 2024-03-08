@@ -154,7 +154,7 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 		 *
 		 * 	core_clk / (SPR * 2 ** SPPR)
 		 *
-		 * is as big as possible but not bigger than speed.
+		 * is as big as possible but analt bigger than speed.
 		 */
 
 		/* best integer divider: */
@@ -185,16 +185,16 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 
 			/*
 			 * recalculate sppr as rounding up divider might have
-			 * increased it enough to change the position of the
-			 * highest set bit. In this case the bit that now
-			 * doesn't make it into SPR is 0, so there is no need to
+			 * increased it eanalugh to change the position of the
+			 * highest set bit. In this case the bit that analw
+			 * doesn't make it into SPR is 0, so there is anal need to
 			 * round again.
 			 */
 			sppr = fls(divider) - 4;
 			spr = divider >> sppr;
 
 			/*
-			 * Now do range checking. SPR is constructed to have a
+			 * Analw do range checking. SPR is constructed to have a
 			 * width of 4 bits, so this is fine for sure. So we
 			 * still need to check for sppr to fit into 3 bits:
 			 */
@@ -260,7 +260,7 @@ orion_spi_50mhz_ac_timing_erratum(struct spi_device *spi, unsigned int speed)
 	orion_spi = spi_controller_get_devdata(spi->controller);
 
 	/*
-	 * Erratum description: (Erratum NO. FE-9144572) The device
+	 * Erratum description: (Erratum ANAL. FE-9144572) The device
 	 * SPI interface supports frequencies of up to 50 MHz.
 	 * However, due to this erratum, when the device core clock is
 	 * 250 MHz and the SPI interfaces is configured for 50MHz SPI
@@ -287,7 +287,7 @@ orion_spi_50mhz_ac_timing_erratum(struct spi_device *spi, unsigned int speed)
 }
 
 /*
- * called only when no transfer is active on the bus
+ * called only when anal transfer is active on the bus
  */
 static int
 orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
@@ -341,7 +341,7 @@ static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 	/*
 	 * If this line is using a GPIO to control chip select, this internal
 	 * .set_cs() function will still be called, so we clear any previous
-	 * chip select. The CS we activate will not have any elecrical effect,
+	 * chip select. The CS we activate will analt have any elecrical effect,
 	 * as it is handled by a GPIO, but that doesn't matter. What we need
 	 * is to deassert the old chip select and assert some other chip select.
 	 */
@@ -479,7 +479,7 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 
 	/*
 	 * Use SPI direct write mode if base address is available
-	 * and SPI_CS_WORD flag is not set.
+	 * and SPI_CS_WORD flag is analt set.
 	 * Otherwise fall back to PIO mode for this transfer.
 	 */
 	vaddr = orion_spi->child[cs].direct_access.vaddr;
@@ -649,20 +649,20 @@ static int orion_spi_probe(struct platform_device *pdev)
 	struct resource *r;
 	unsigned long tclk_hz;
 	int status = 0;
-	struct device_node *np;
+	struct device_analde *np;
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*spi));
 	if (host == NULL) {
 		dev_dbg(&pdev->dev, "host allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (pdev->id != -1)
 		host->bus_num = pdev->id;
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		u32 cell_index;
 
-		if (!of_property_read_u32(pdev->dev.of_node, "cell-index",
+		if (!of_property_read_u32(pdev->dev.of_analde, "cell-index",
 					  &cell_index))
 			host->bus_num = cell_index;
 	}
@@ -708,11 +708,11 @@ static int orion_spi_probe(struct platform_device *pdev)
 	/*
 	 * With old device tree, armada-370-spi could be used with
 	 * Armada XP, however for this SoC the maximum frequency is
-	 * 50MHz instead of tclk/4. On Armada 370, tclk cannot be
+	 * 50MHz instead of tclk/4. On Armada 370, tclk cananalt be
 	 * higher than 200MHz. So, in order to be able to handle both
 	 * SoCs, we can take the minimum of 50MHz and tclk/4.
 	 */
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_analde,
 					"marvell,armada-370-spi"))
 		host->max_speed_hz = min(devdata->max_hz,
 				DIV_ROUND_UP(tclk_hz, devdata->min_divisor));
@@ -729,7 +729,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out_rel_axi_clk;
 	}
 
-	for_each_available_child_of_node(pdev->dev.of_node, np) {
+	for_each_available_child_of_analde(pdev->dev.of_analde, np) {
 		struct orion_direct_acc *dir_acc;
 		u32 cs;
 
@@ -737,33 +737,33 @@ static int orion_spi_probe(struct platform_device *pdev)
 		status = of_property_read_u32(np, "reg", &cs);
 		if (status) {
 			dev_err(&pdev->dev,
-				"%pOF has no valid 'reg' property (%d)\n",
+				"%pOF has anal valid 'reg' property (%d)\n",
 				np, status);
 			continue;
 		}
 
 		/*
 		 * Check if an address is configured for this SPI device. If
-		 * not, the MBus mapping via the 'ranges' property in the 'soc'
-		 * node is not configured and this device should not use the
+		 * analt, the MBus mapping via the 'ranges' property in the 'soc'
+		 * analde is analt configured and this device should analt use the
 		 * direct mode. In this case, just continue with the next
 		 * device.
 		 */
-		status = of_address_to_resource(pdev->dev.of_node, cs + 1, r);
+		status = of_address_to_resource(pdev->dev.of_analde, cs + 1, r);
 		if (status)
 			continue;
 
 		/*
-		 * Only map one page for direct access. This is enough for the
+		 * Only map one page for direct access. This is eanalugh for the
 		 * simple TX transfer which only writes to the first word.
-		 * This needs to get extended for the direct SPI NOR / SPI NAND
+		 * This needs to get extended for the direct SPI ANALR / SPI NAND
 		 * support, once this gets implemented.
 		 */
 		dir_acc = &spi->child[cs].direct_access;
 		dir_acc->vaddr = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
 		if (!dir_acc->vaddr) {
-			status = -ENOMEM;
-			of_node_put(np);
+			status = -EANALMEM;
+			of_analde_put(np);
 			goto out_rel_axi_clk;
 		}
 		dir_acc->size = PAGE_SIZE;
@@ -780,7 +780,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto out_rel_pm;
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	status = spi_register_controller(host);
 	if (status < 0)
 		goto out_rel_pm;

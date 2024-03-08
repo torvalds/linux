@@ -29,7 +29,7 @@ static int rt5033_battery_get_status(struct i2c_client *client)
 						POWER_SUPPLY_PROP_STATUS,
 						&val);
 	if (ret)
-		val.intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val.intval = POWER_SUPPLY_STATUS_UNKANALWN;
 
 	return val.intval;
 }
@@ -63,7 +63,7 @@ static int rt5033_battery_get_watt_prop(struct i2c_client *client,
 	u32 msb, lsb;
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		regh = RT5033_FUEL_REG_VBAT_H;
 		regl = RT5033_FUEL_REG_VBAT_L;
 		break;
@@ -94,7 +94,7 @@ static int rt5033_battery_get_property(struct power_supply *psy,
 	struct rt5033_battery *battery = power_supply_get_drvdata(psy);
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 	case POWER_SUPPLY_PROP_VOLTAGE_OCV:
 		val->intval = rt5033_battery_get_watt_prop(battery->client,
@@ -116,7 +116,7 @@ static int rt5033_battery_get_property(struct power_supply *psy,
 }
 
 static enum power_supply_property rt5033_battery_props[] = {
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -149,7 +149,7 @@ static int rt5033_battery_probe(struct i2c_client *client)
 
 	battery = devm_kzalloc(&client->dev, sizeof(*battery), GFP_KERNEL);
 	if (!battery)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	battery->client = client;
 	battery->regmap = devm_regmap_init_i2c(client,
@@ -160,7 +160,7 @@ static int rt5033_battery_probe(struct i2c_client *client)
 	}
 
 	i2c_set_clientdata(client, battery);
-	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.of_analde = client->dev.of_analde;
 	psy_cfg.drv_data = battery;
 
 	battery->psy = power_supply_register(&client->dev,

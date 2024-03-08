@@ -20,7 +20,7 @@ The MAX77686 contains one 32.768khz clock outputs that can be controlled
 (gated/ungated) over I2C. Clocks are defined as preprocessor macros in
 dt-bindings/clock/maxim,max77620.h.
 
-Following properties should be presend in main device node of the MFD chip.
+Following properties should be presend in main device analde of the MFD chip.
 
 Required properties:
 
@@ -29,7 +29,7 @@ Required properties:
 Optional properties:
 - clock-output-names: From common clock binding.
 
-Each clock is assigned an identifier and client nodes can use this identifier
+Each clock is assigned an identifier and client analdes can use this identifier
 to specify the clock which they consume. Following indices are allowed:
     - 0: 32khz_ap clock (max77686, max77802), 32khz_out0 (max77620)
     - 1: 32khz_cp clock (max77686, max77802),
@@ -45,7 +45,7 @@ Example:
 #include <dt-bindings/clock/maxim,max77686.h>
 /* ... */
 
-	Node of the MFD chip
+	Analde of the MFD chip
 		max77686: max77686@9 {
 			compatible = "maxim,max77686";
 			interrupt-parent = <&wakeup_eint>;
@@ -56,7 +56,7 @@ Example:
 			/* ... */
 		};
 
-	Clock consumer node
+	Clock consumer analde
 
 		foo@0 {
 			compatible = "bar,foo";
@@ -70,7 +70,7 @@ Example:
 #include <dt-bindings/clock/maxim,max77802.h>
 /* ... */
 
-	Node of the MFD chip
+	Analde of the MFD chip
 		max77802: max77802@9 {
 			compatible = "maxim,max77802";
 			interrupt-parent = <&wakeup_eint>;
@@ -81,7 +81,7 @@ Example:
 			/* ... */
 		};
 
-	Clock consumer node
+	Clock consumer analde
 
 		foo@0 {
 			compatible = "bar,foo";
@@ -96,7 +96,7 @@ Example:
 #include <dt-bindings/clock/maxim,max77620.h>
 /* ... */
 
-	Node of the MFD chip
+	Analde of the MFD chip
 		max77620: max77620@3c {
 			compatible = "maxim,max77620";
 			reg = <0x3c>;
@@ -104,7 +104,7 @@ Example:
 			/* ... */
 		};
 
-	Clock consumer node
+	Clock consumer analde
 
 		foo@0 {
 			compatible = "bar,foo";

@@ -6,7 +6,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 /*
  * Interrupt control:
@@ -26,7 +26,7 @@ extern __always_inline unsigned long native_save_fl(void)
 	asm volatile("# __raw_save_flags\n\t"
 		     "pushf ; pop %0"
 		     : "=rm" (flags)
-		     : /* no input */
+		     : /* anal input */
 		     : "memory");
 
 	return flags;

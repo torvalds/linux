@@ -245,7 +245,7 @@ static int xpp055c272_get_modes(struct drm_panel *panel,
 		dev_err(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -272,12 +272,12 @@ static int xpp055c272_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio),
-				     "cannot get reset gpio\n");
+				     "cananalt get reset gpio\n");
 
 	ctx->vci = devm_regulator_get(dev, "vci");
 	if (IS_ERR(ctx->vci))
@@ -296,7 +296,7 @@ static int xpp055c272_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	drm_panel_init(&ctx->panel, &dsi->dev, &xpp055c272_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

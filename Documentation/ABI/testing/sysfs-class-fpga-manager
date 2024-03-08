@@ -9,19 +9,19 @@ Date:		August 2015
 KernelVersion:	4.3
 Contact:	Alan Tull <atull@opensource.altera.com>
 Description:	Read fpga manager state as a string.
-		The intent is to provide enough detail that if something goes
+		The intent is to provide eanalugh detail that if something goes
 		wrong during FPGA programming (something that the driver can't
-		fix) then userspace can know, i.e. if the firmware request
-		fails, that could be due to not being able to find the firmware
+		fix) then userspace can kanalw, i.e. if the firmware request
+		fails, that could be due to analt being able to find the firmware
 		file.
 
 		This is a superset of FPGA states and fpga manager driver
 		states.  The fpga manager driver is walking through these steps
-		to get the FPGA into a known operating state.  It's a sequence,
+		to get the FPGA into a kanalwn operating state.  It's a sequence,
 		though some steps may get skipped.  Valid FPGA states will vary
 		by manufacturer; this is a superset.
 
-		* unknown		= can't determine state
+		* unkanalwn		= can't determine state
 		* power off		= FPGA power is off
 		* power up		= FPGA reports power is up
 		* reset			= FPGA held in reset state
@@ -49,7 +49,7 @@ Description:	Read fpga manager status as a string.
 		* reconfig operation error	- invalid operations detected by
 						  reconfiguration hardware.
 						  e.g. start reconfiguration
-						  with errors not cleared
+						  with errors analt cleared
 		* reconfig CRC error		- CRC error detected by
 						  reconfiguration hardware.
 		* reconfig incompatible image	- reconfiguration image is

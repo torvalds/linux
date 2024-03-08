@@ -13,9 +13,9 @@
  * more details.
  */
 
-#ifndef __IA_CSS_NORM_HOST_H
-#define __IA_CSS_NORM_HOST_H
+#ifndef __IA_CSS_ANALRM_HOST_H
+#define __IA_CSS_ANALRM_HOST_H
 
-#include "ia_css_norm_param.h"
+#include "ia_css_analrm_param.h"
 
-#endif /* __IA_CSS_NORM_HOST_H */
+#endif /* __IA_CSS_ANALRM_HOST_H */

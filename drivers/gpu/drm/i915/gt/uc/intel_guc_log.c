@@ -224,13 +224,13 @@ static int subbuf_start_callback(struct rchan_buf *buf,
 				 size_t prev_padding)
 {
 	/*
-	 * Use no-overwrite mode by default, where relay will stop accepting
-	 * new data if there are no empty sub buffers left.
-	 * There is no strict synchronization enforced by relay between Consumer
+	 * Use anal-overwrite mode by default, where relay will stop accepting
+	 * new data if there are anal empty sub buffers left.
+	 * There is anal strict synchronization enforced by relay between Consumer
 	 * and Producer. In overwrite mode, there is a possibility of getting
 	 * inconsistent/garbled data, the producer could be writing on to the
 	 * same sub buffer from which Consumer is reading. This can't be avoided
-	 * unless Consumer is fast enough and can always run in tandem with
+	 * unless Consumer is fast eanalugh and can always run in tandem with
 	 * Producer.
 	 */
 	if (relay_buf_full(buf))
@@ -293,7 +293,7 @@ static void guc_move_to_next_buf(struct intel_guc_log *log)
 	 */
 	smp_wmb();
 
-	/* All data has been written, so now move the offset of sub buffer. */
+	/* All data has been written, so analw move the offset of sub buffer. */
 	relay_reserve(log->relay.channel, log->vma->obj->base.size -
 					  intel_guc_log_section_size_capture(log));
 
@@ -305,10 +305,10 @@ static void *guc_get_write_buffer(struct intel_guc_log *log)
 {
 	/*
 	 * Just get the base address of a new sub buffer and copy data into it
-	 * ourselves. NULL will be returned in no-overwrite mode, if all sub
+	 * ourselves. NULL will be returned in anal-overwrite mode, if all sub
 	 * buffers are full. Could have used the relay_write() to indirectly
 	 * copy the data, but that would have been bit convoluted, as we need to
-	 * write to only certain locations inside a sub buffer which cannot be
+	 * write to only certain locations inside a sub buffer which cananalt be
 	 * done without using relay_reserve() along with relay_write(). So its
 	 * better to use relay_reserve() alone.
 	 */
@@ -333,7 +333,7 @@ bool intel_guc_check_log_buf_overflow(struct intel_guc_log *log,
 			log->stats[type].sampled_overflow += 16;
 		}
 
-		guc_notice_ratelimited(log_to_guc(log), "log buffer overflow\n");
+		guc_analtice_ratelimited(log_to_guc(log), "log buffer overflow\n");
 	}
 
 	return overflow;
@@ -398,7 +398,7 @@ static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 		 * Used rate limited to avoid deluge of messages, logs might be
 		 * getting consumed by User at a slow rate.
 		 */
-		guc_err_ratelimited(guc, "no sub-buffer to copy general logs\n");
+		guc_err_ratelimited(guc, "anal sub-buffer to copy general logs\n");
 		log->relay.full_count++;
 
 		goto out_unlock;
@@ -444,7 +444,7 @@ static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 		log_buf_snapshot_state->write_ptr = write_offset;
 		log_buf_snapshot_state++;
 
-		/* Now copy the actual logs. */
+		/* Analw copy the actual logs. */
 		if (unlikely(new_overflow)) {
 			/* copy the whole buffer in case of overflow */
 			read_offset = 0;
@@ -490,7 +490,7 @@ static int guc_log_relay_map(struct intel_guc_log *log)
 	lockdep_assert_held(&log->relay.lock);
 
 	if (!log->vma || !log->buf_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * WC vmalloc mapping of log buffer pages was done at
@@ -535,24 +535,24 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	subbuf_size = log->vma->size - intel_guc_log_section_size_capture(log);
 
 	/*
-	 * Store up to 8 snapshots, which is large enough to buffer sufficient
-	 * boot time logs and provides enough leeway to User, in terms of
+	 * Store up to 8 snapshots, which is large eanalugh to buffer sufficient
+	 * boot time logs and provides eanalugh leeway to User, in terms of
 	 * latency, for consuming the logs from relay. Also doesn't take
 	 * up too much memory.
 	 */
 	n_subbufs = 8;
 
-	if (!guc->dbgfs_node)
-		return -ENOENT;
+	if (!guc->dbgfs_analde)
+		return -EANALENT;
 
 	guc_log_relay_chan = relay_open("guc_log",
-					guc->dbgfs_node,
+					guc->dbgfs_analde,
 					subbuf_size, n_subbufs,
 					&relay_callbacks, i915);
 	if (!guc_log_relay_chan) {
 		guc_err(guc, "Couldn't create relay channel for logging\n");
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 
@@ -595,7 +595,7 @@ static u32 __get_default_log_level(struct intel_guc_log *log)
 	if (i915->params.guc_log_level < 0) {
 		return (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
 			IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) ?
-			GUC_LOG_LEVEL_MAX : GUC_LOG_LEVEL_NON_VERBOSE;
+			GUC_LOG_LEVEL_MAX : GUC_LOG_LEVEL_ANALN_VERBOSE;
 	}
 
 	if (i915->params.guc_log_level > GUC_LOG_LEVEL_MAX) {
@@ -645,7 +645,7 @@ int intel_guc_log_create(struct intel_guc_log *log)
 	log->level = __get_default_log_level(log);
 	guc_dbg(guc, "guc_log_level=%d (%s, verbose:%s, verbosity:%d)\n",
 		log->level, str_enabled_disabled(log->level),
-		str_yes_no(GUC_LOG_LEVEL_IS_VERBOSE(log->level)),
+		str_anal_anal(GUC_LOG_LEVEL_IS_VERBOSE(log->level)),
 		GUC_LOG_LEVEL_TO_VERBOSITY(log->level));
 
 	return 0;
@@ -711,7 +711,7 @@ int intel_guc_log_relay_open(struct intel_guc_log *log)
 	int ret;
 
 	if (!log->vma)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&log->relay.lock);
 
@@ -756,9 +756,9 @@ int intel_guc_log_relay_start(struct intel_guc_log *log)
 		return -EEXIST;
 
 	/*
-	 * When GuC is logging without us relaying to userspace, we're ignoring
-	 * the flush notification. This means that we need to unconditionally
-	 * flush on relay enabling, since GuC only notifies us once.
+	 * When GuC is logging without us relaying to userspace, we're iganalring
+	 * the flush analtification. This means that we need to unconditionally
+	 * flush on relay enabling, since GuC only analtifies us once.
 	 */
 	queue_work(system_highpri_wq, &log->relay.flush_work);
 
@@ -777,20 +777,20 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 
 	/*
 	 * Before initiating the forceful flush, wait for any pending/ongoing
-	 * flush to complete otherwise forceful flush may not actually happen.
+	 * flush to complete otherwise forceful flush may analt actually happen.
 	 */
 	flush_work(&log->relay.flush_work);
 
 	with_intel_runtime_pm(guc_to_gt(guc)->uncore->rpm, wakeref)
 		guc_action_flush_log(guc);
 
-	/* GuC would have updated log buffer by now, so copy it */
+	/* GuC would have updated log buffer by analw, so copy it */
 	guc_log_copy_debuglogs_for_relay(log);
 }
 
 /*
- * Stops the relay log. Called from intel_guc_log_relay_close(), so no
- * possibility of race with start/flush since relay_write cannot race
+ * Stops the relay log. Called from intel_guc_log_relay_close(), so anal
+ * possibility of race with start/flush since relay_write cananalt race
  * relay_close.
  */
 static void guc_log_relay_stop(struct intel_guc_log *log)
@@ -854,7 +854,7 @@ void intel_guc_log_info(struct intel_guc_log *log, struct drm_printer *p)
 	enum guc_log_buffer_type type;
 
 	if (!intel_guc_log_relay_created(log)) {
-		drm_puts(p, "GuC log relay not created\n");
+		drm_puts(p, "GuC log relay analt created\n");
 		return;
 	}
 
@@ -889,7 +889,7 @@ int intel_guc_log_dump(struct intel_guc_log *log, struct drm_printer *p,
 	int i, j;
 
 	if (!intel_guc_is_supported(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dump_load_err)
 		obj = uc->load_err_log;
@@ -901,7 +901,7 @@ int intel_guc_log_dump(struct intel_guc_log *log, struct drm_printer *p,
 
 	page = (u32 *)__get_free_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_guc_dump_time_info(guc, p);
 

@@ -10,11 +10,11 @@ that kernel level composite functions provide when they are added to
 the configuration).
 
 This in particular means that the composite initialisation functions
-may not be in init section (ie. may not use the __init tag).
+may analt be in init section (ie. may analt use the __init tag).
 
 From user space point of view it is a file system which when
 mounted provides an "ep0" file.  User space driver need to
-write descriptors and strings to that file.  It does not need
+write descriptors and strings to that file.  It does analt need
 to worry about endpoints, interfaces or strings numbers but
 simply provide descriptors such as if the function was the
 only one (endpoints and strings numbers starting from one and
@@ -51,13 +51,13 @@ level it would look like this::
 On kernel level the gadget checks ffs_data->dev_name to identify
 whether its FunctionFS is designed for MTP ("mtp") or HID ("hid").
 
-If no "functions" module parameters is supplied, the driver accepts
+If anal "functions" module parameters is supplied, the driver accepts
 just one function with any name.
 
 When "functions" module parameter is supplied, only functions
 with listed names are accepted. In particular, if the "functions"
 parameter's value is just a one-element list, then the behaviour
-is similar to when there is no "functions" at all; however,
+is similar to when there is anal "functions" at all; however,
 only a function with the specified name is accepted.
 
 The gadget is registered only after all the declared function

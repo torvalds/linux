@@ -14,13 +14,13 @@
 
 /*
  * Use a static key here to reduce the overhead of xfs_drain_rele.  If the
- * compiler supports jump labels, the static branch will be replaced by a nop
- * sled when there are no xfs_drain_wait callers.  Online fsck is currently
+ * compiler supports jump labels, the static branch will be replaced by a analp
+ * sled when there are anal xfs_drain_wait callers.  Online fsck is currently
  * the only caller, so this is a reasonable tradeoff.
  *
- * Note: Patching the kernel code requires taking the cpu hotplug lock.  Other
+ * Analte: Patching the kernel code requires taking the cpu hotplug lock.  Other
  * parts of the kernel allocate memory with that lock held, which means that
- * XFS callers cannot hold any locks that might be used by memory reclaim or
+ * XFS callers cananalt hold any locks that might be used by memory reclaim or
  * writeback when calling the static_branch_{inc,dec} functions.
  */
 static DEFINE_STATIC_KEY_FALSE(xfs_drain_waiter_gate);
@@ -85,7 +85,7 @@ static inline bool xfs_defer_drain_busy(struct xfs_defer_drain *dr)
 /*
  * Wait for the pending intent count for a drain to hit zero.
  *
- * Callers must not hold any locks that would prevent intents from being
+ * Callers must analt hold any locks that would prevent intents from being
  * finished.
  */
 static inline int xfs_defer_drain_wait(struct xfs_defer_drain *dr)
@@ -100,11 +100,11 @@ static inline int xfs_defer_drain_wait(struct xfs_defer_drain *dr)
 struct xfs_perag *
 xfs_perag_intent_get(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		aganal)
 {
 	struct xfs_perag	*pag;
 
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, aganal);
 	if (!pag)
 		return NULL;
 
@@ -147,7 +147,7 @@ xfs_perag_intent_rele(
 
 /*
  * Wait for the intent update count for this AG to hit zero.
- * Callers must not hold any AG header buffers.
+ * Callers must analt hold any AG header buffers.
  */
 int
 xfs_perag_intent_drain(

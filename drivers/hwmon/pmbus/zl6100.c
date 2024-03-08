@@ -144,8 +144,8 @@ static int zl6100_read_word_data(struct i2c_client *client, int page,
 
 	if (data->id == zl2005) {
 		/*
-		 * Limit register detection is not reliable on ZL2005.
-		 * Make sure registers are not erroneously detected.
+		 * Limit register detection is analt reliable on ZL2005.
+		 * Make sure registers are analt erroneously detected.
 		 */
 		switch (reg) {
 		case PMBUS_VOUT_OV_WARN_LIMIT:
@@ -326,7 +326,7 @@ static int zl6100_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_WORD_DATA
 				     | I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_block_data(client, ZL6100_DEVICE_ID,
 					device_id);
@@ -344,23 +344,23 @@ static int zl6100_probe(struct i2c_client *client)
 	}
 	if (!mid->name[0]) {
 		dev_err(&client->dev, "Unsupported device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (strcmp(client->name, mid->name) != 0)
-		dev_notice(&client->dev,
+		dev_analtice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   client->name, mid->name);
 
 	data = devm_kzalloc(&client->dev, sizeof(struct zl6100_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->id = mid->driver_data;
 
 	/*
 	 * According to information from the chip vendor, all currently
-	 * supported chips are known to require a wait time between I2C
+	 * supported chips are kanalwn to require a wait time between I2C
 	 * accesses.
 	 */
 	data->delay = delay;

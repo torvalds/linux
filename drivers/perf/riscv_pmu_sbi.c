@@ -24,11 +24,11 @@
 #include <asm/sbi.h>
 #include <asm/cpufeature.h>
 
-#define SYSCTL_NO_USER_ACCESS	0
+#define SYSCTL_ANAL_USER_ACCESS	0
 #define SYSCTL_USER_ACCESS	1
 #define SYSCTL_LEGACY		2
 
-#define PERF_EVENT_FLAG_NO_USER_ACCESS	BIT(SYSCTL_NO_USER_ACCESS)
+#define PERF_EVENT_FLAG_ANAL_USER_ACCESS	BIT(SYSCTL_ANAL_USER_ACCESS)
 #define PERF_EVENT_FLAG_USER_ACCESS	BIT(SYSCTL_USER_ACCESS)
 #define PERF_EVENT_FLAG_LEGACY		BIT(SYSCTL_LEGACY)
 
@@ -243,24 +243,24 @@ static const struct sbi_pmu_event_data pmu_cache_event_map[PERF_COUNT_HW_CACHE_M
 					C(OP_PREFETCH), C(BPU), SBI_PMU_EVENT_TYPE_CACHE, 0}},
 		},
 	},
-	[C(NODE)] = {
+	[C(ANALDE)] = {
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)] = {.hw_cache_event = {C(RESULT_ACCESS),
-					C(OP_READ), C(NODE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
+					C(OP_READ), C(ANALDE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
 			[C(RESULT_MISS)] = {.hw_cache_event = {C(RESULT_MISS),
-					C(OP_READ), C(NODE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
+					C(OP_READ), C(ANALDE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
 		},
 		[C(OP_WRITE)] = {
 			[C(RESULT_ACCESS)] = {.hw_cache_event = {C(RESULT_ACCESS),
-					C(OP_WRITE), C(NODE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
+					C(OP_WRITE), C(ANALDE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
 			[C(RESULT_MISS)] = {.hw_cache_event = {C(RESULT_MISS),
-					C(OP_WRITE), C(NODE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
+					C(OP_WRITE), C(ANALDE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
 		},
 		[C(OP_PREFETCH)] = {
 			[C(RESULT_ACCESS)] = {.hw_cache_event = {C(RESULT_ACCESS),
-					C(OP_PREFETCH), C(NODE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
+					C(OP_PREFETCH), C(ANALDE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
 			[C(RESULT_MISS)] = {.hw_cache_event = {C(RESULT_MISS),
-					C(OP_PREFETCH), C(NODE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
+					C(OP_PREFETCH), C(ANALDE), SBI_PMU_EVENT_TYPE_CACHE, 0}},
 		},
 	},
 };
@@ -352,7 +352,7 @@ static int pmu_sbi_ctr_get_idx(struct perf_event *event)
 
 	/*
 	 * In legacy mode, we have to force the fixed counters for those events
-	 * but not in the user access mode as we want to use the other counters
+	 * but analt in the user access mode as we want to use the other counters
 	 * that support sampling/filtering.
 	 */
 	if (hwc->flags & PERF_EVENT_FLAG_LEGACY) {
@@ -375,14 +375,14 @@ static int pmu_sbi_ctr_get_idx(struct perf_event *event)
 			cmask, cflags, hwc->event_base, hwc->config, 0);
 #endif
 	if (ret.error) {
-		pr_debug("Not able to find a counter for event %lx config %llx\n",
+		pr_debug("Analt able to find a counter for event %lx config %llx\n",
 			hwc->event_base, hwc->config);
-		return sbi_err_map_linux_errno(ret.error);
+		return sbi_err_map_linux_erranal(ret.error);
 	}
 
 	idx = ret.value;
 	if (!test_bit(idx, &rvpmu->cmask) || !pmu_ctr_list[idx].value)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Additional sanity check for the counter id */
 	if (pmu_sbi_ctr_is_fw(idx)) {
@@ -393,7 +393,7 @@ static int pmu_sbi_ctr_get_idx(struct perf_event *event)
 			return idx;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void pmu_sbi_ctr_clear_idx(struct perf_event *event)
@@ -539,7 +539,7 @@ static void pmu_sbi_ctr_start(struct perf_event *event, u64 ival)
 #endif
 	if (ret.error && (ret.error != SBI_ERR_ALREADY_STARTED))
 		pr_err("Starting counter idx %d failed with error %d\n",
-			hwc->idx, sbi_err_map_linux_errno(ret.error));
+			hwc->idx, sbi_err_map_linux_erranal(ret.error));
 
 	if ((hwc->flags & PERF_EVENT_FLAG_USER_ACCESS) &&
 	    (hwc->flags & PERF_EVENT_FLAG_USER_READ_CNT))
@@ -559,7 +559,7 @@ static void pmu_sbi_ctr_stop(struct perf_event *event, unsigned long flag)
 	if (ret.error && (ret.error != SBI_ERR_ALREADY_STOPPED) &&
 		flag != SBI_PMU_STOP_FLAG_RESET)
 		pr_err("Stopping counter idx %d failed with error %d\n",
-			hwc->idx, sbi_err_map_linux_errno(ret.error));
+			hwc->idx, sbi_err_map_linux_erranal(ret.error));
 }
 
 static int pmu_sbi_find_num_ctrs(void)
@@ -570,7 +570,7 @@ static int pmu_sbi_find_num_ctrs(void)
 	if (!ret.error)
 		return ret.value;
 	else
-		return sbi_err_map_linux_errno(ret.error);
+		return sbi_err_map_linux_erranal(ret.error);
 }
 
 static int pmu_sbi_get_ctrinfo(int nctr, unsigned long *mask)
@@ -581,12 +581,12 @@ static int pmu_sbi_get_ctrinfo(int nctr, unsigned long *mask)
 
 	pmu_ctr_list = kcalloc(nctr, sizeof(*pmu_ctr_list), GFP_KERNEL);
 	if (!pmu_ctr_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nctr; i++) {
 		ret = sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_GET_INFO, i, 0, 0, 0, 0, 0);
 		if (ret.error)
-			/* The logical counter ids are not expected to be contiguous */
+			/* The logical counter ids are analt expected to be contiguous */
 			continue;
 
 		*mask |= BIT(i);
@@ -607,8 +607,8 @@ static int pmu_sbi_get_ctrinfo(int nctr, unsigned long *mask)
 static inline void pmu_sbi_stop_all(struct riscv_pmu *pmu)
 {
 	/*
-	 * No need to check the error because we are disabling all the counters
-	 * which may include counters that are not enabled yet.
+	 * Anal need to check the error because we are disabling all the counters
+	 * which may include counters that are analt enabled yet.
 	 */
 	sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_STOP,
 		  0, pmu->cmask, 0, 0, 0, 0);
@@ -618,14 +618,14 @@ static inline void pmu_sbi_stop_hw_ctrs(struct riscv_pmu *pmu)
 {
 	struct cpu_hw_events *cpu_hw_evt = this_cpu_ptr(pmu->hw_events);
 
-	/* No need to check the error here as we can't do anything about the error */
+	/* Anal need to check the error here as we can't do anything about the error */
 	sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_STOP, 0,
 		  cpu_hw_evt->used_hw_ctrs[0], 0, 0, 0, 0);
 }
 
 /*
  * This function starts all the used counters in two step approach.
- * Any counter that did not overflow can be start in a single step
+ * Any counter that did analt overflow can be start in a single step
  * while the overflowed counters need to be started with updated initialization
  * value.
  */
@@ -643,7 +643,7 @@ static inline void pmu_sbi_start_overflow_mask(struct riscv_pmu *pmu,
 
 	ctr_start_mask = cpu_hw_evt->used_hw_ctrs[0] & ~ctr_ovf_mask;
 
-	/* Start all the counters that did not overflow in a single shot */
+	/* Start all the counters that did analt overflow in a single shot */
 	sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_START, 0, ctr_start_mask,
 		  0, 0, 0, 0);
 
@@ -683,19 +683,19 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 	u64 start_clock = sched_clock();
 
 	if (WARN_ON_ONCE(!cpu_hw_evt))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Firmware counter don't support overflow yet */
 	fidx = find_first_bit(cpu_hw_evt->used_hw_ctrs, RISCV_MAX_COUNTERS);
 	if (fidx == RISCV_MAX_COUNTERS) {
 		csr_clear(CSR_SIP, BIT(riscv_pmu_irq_num));
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	event = cpu_hw_evt->events[fidx];
 	if (!event) {
 		csr_clear(CSR_SIP, BIT(riscv_pmu_irq_num));
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	pmu = to_riscv_pmu(event->pmu);
@@ -710,16 +710,16 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 	 */
 	csr_clear(CSR_SIP, BIT(riscv_pmu_irq_num));
 
-	/* No overflow bit is set */
+	/* Anal overflow bit is set */
 	if (!overflow)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regs = get_irq_regs();
 
 	for_each_set_bit(lidx, cpu_hw_evt->used_hw_ctrs, RISCV_MAX_COUNTERS) {
 		struct perf_event *event = cpu_hw_evt->events[lidx];
 
-		/* Skip if invalid event or user did not request a sampling */
+		/* Skip if invalid event or user did analt request a sampling */
 		if (!event || !is_sampling_event(event))
 			continue;
 
@@ -761,9 +761,9 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int pmu_sbi_starting_cpu(unsigned int cpu, struct hlist_node *node)
+static int pmu_sbi_starting_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct riscv_pmu *pmu = hlist_entry_safe(node, struct riscv_pmu, node);
+	struct riscv_pmu *pmu = hlist_entry_safe(analde, struct riscv_pmu, analde);
 	struct cpu_hw_events *cpu_hw_evt = this_cpu_ptr(pmu->hw_events);
 
 	/*
@@ -782,20 +782,20 @@ static int pmu_sbi_starting_cpu(unsigned int cpu, struct hlist_node *node)
 		cpu_hw_evt->irq = riscv_pmu_irq;
 		csr_clear(CSR_IP, BIT(riscv_pmu_irq_num));
 		csr_set(CSR_IE, BIT(riscv_pmu_irq_num));
-		enable_percpu_irq(riscv_pmu_irq, IRQ_TYPE_NONE);
+		enable_percpu_irq(riscv_pmu_irq, IRQ_TYPE_ANALNE);
 	}
 
 	return 0;
 }
 
-static int pmu_sbi_dying_cpu(unsigned int cpu, struct hlist_node *node)
+static int pmu_sbi_dying_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
 	if (riscv_pmu_use_irq) {
 		disable_percpu_irq(riscv_pmu_irq);
 		csr_clear(CSR_IE, BIT(riscv_pmu_irq_num));
 	}
 
-	/* Disable all counters access for user mode now */
+	/* Disable all counters access for user mode analw */
 	csr_write(CSR_SCOUNTEREN, 0x0);
 
 	return 0;
@@ -819,19 +819,19 @@ static int pmu_sbi_setup_irqs(struct riscv_pmu *pmu, struct platform_device *pde
 	}
 
 	if (!riscv_pmu_use_irq)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	domain = irq_find_matching_fwnode(riscv_get_intc_hwnode(),
+	domain = irq_find_matching_fwanalde(riscv_get_intc_hwanalde(),
 					  DOMAIN_BUS_ANY);
 	if (!domain) {
 		pr_err("Failed to find INTC IRQ root domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	riscv_pmu_irq = irq_create_mapping(domain, riscv_pmu_irq_num);
 	if (!riscv_pmu_irq) {
-		pr_err("Failed to map PMU interrupt for node\n");
-		return -ENODEV;
+		pr_err("Failed to map PMU interrupt for analde\n");
+		return -EANALDEV;
 	}
 
 	ret = request_percpu_irq(riscv_pmu_irq, pmu_sbi_ovf_handler, "riscv-pmu", hw_events);
@@ -844,7 +844,7 @@ static int pmu_sbi_setup_irqs(struct riscv_pmu *pmu, struct platform_device *pde
 }
 
 #ifdef CONFIG_CPU_PM
-static int riscv_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
+static int riscv_pm_pmu_analtify(struct analtifier_block *b, unsigned long cmd,
 				void *v)
 {
 	struct riscv_pmu *rvpmu = container_of(b, struct riscv_pmu, riscv_pm_nb);
@@ -854,7 +854,7 @@ static int riscv_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 	int idx;
 
 	if (!enabled)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	for (idx = 0; idx < RISCV_MAX_COUNTERS; idx++) {
 		event = cpuc->events[idx];
@@ -880,18 +880,18 @@ static int riscv_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 		}
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int riscv_pm_pmu_register(struct riscv_pmu *pmu)
 {
-	pmu->riscv_pm_nb.notifier_call = riscv_pm_pmu_notify;
-	return cpu_pm_register_notifier(&pmu->riscv_pm_nb);
+	pmu->riscv_pm_nb.analtifier_call = riscv_pm_pmu_analtify;
+	return cpu_pm_register_analtifier(&pmu->riscv_pm_nb);
 }
 
 static void riscv_pm_pmu_unregister(struct riscv_pmu *pmu)
 {
-	cpu_pm_unregister_notifier(&pmu->riscv_pm_nb);
+	cpu_pm_unregister_analtifier(&pmu->riscv_pm_nb);
 }
 #else
 static inline int riscv_pm_pmu_register(struct riscv_pmu *pmu) { return 0; }
@@ -901,17 +901,17 @@ static inline void riscv_pm_pmu_unregister(struct riscv_pmu *pmu) { }
 static void riscv_pmu_destroy(struct riscv_pmu *pmu)
 {
 	riscv_pm_pmu_unregister(pmu);
-	cpuhp_state_remove_instance(CPUHP_AP_PERF_RISCV_STARTING, &pmu->node);
+	cpuhp_state_remove_instance(CPUHP_AP_PERF_RISCV_STARTING, &pmu->analde);
 }
 
 static void pmu_sbi_event_init(struct perf_event *event)
 {
 	/*
-	 * The permissions are set at event_init so that we do not depend
+	 * The permissions are set at event_init so that we do analt depend
 	 * on the sysctl value that can change.
 	 */
-	if (sysctl_perf_user_access == SYSCTL_NO_USER_ACCESS)
-		event->hw.flags |= PERF_EVENT_FLAG_NO_USER_ACCESS;
+	if (sysctl_perf_user_access == SYSCTL_ANAL_USER_ACCESS)
+		event->hw.flags |= PERF_EVENT_FLAG_ANAL_USER_ACCESS;
 	else if (sysctl_perf_user_access == SYSCTL_USER_ACCESS)
 		event->hw.flags |= PERF_EVENT_FLAG_USER_ACCESS;
 	else
@@ -920,7 +920,7 @@ static void pmu_sbi_event_init(struct perf_event *event)
 
 static void pmu_sbi_event_mapped(struct perf_event *event, struct mm_struct *mm)
 {
-	if (event->hw.flags & PERF_EVENT_FLAG_NO_USER_ACCESS)
+	if (event->hw.flags & PERF_EVENT_FLAG_ANAL_USER_ACCESS)
 		return;
 
 	if (event->hw.flags & PERF_EVENT_FLAG_LEGACY) {
@@ -934,7 +934,7 @@ static void pmu_sbi_event_mapped(struct perf_event *event, struct mm_struct *mm)
 	 * The user mmapped the event to directly access it: this is where
 	 * we determine based on sysctl_perf_user_access if we grant userspace
 	 * the direct access to this event. That means that within the same
-	 * task, some events may be directly accessible and some other may not,
+	 * task, some events may be directly accessible and some other may analt,
 	 * if the user changes the value of sysctl_perf_user_accesss in the
 	 * meantime.
 	 */
@@ -944,7 +944,7 @@ static void pmu_sbi_event_mapped(struct perf_event *event, struct mm_struct *mm)
 	/*
 	 * We must enable userspace access *before* advertising in the user page
 	 * that it is possible to do so to avoid any race.
-	 * And we must notify all cpus here because threads that currently run
+	 * And we must analtify all cpus here because threads that currently run
 	 * on other cpus will try to directly access the counter too without
 	 * calling pmu_sbi_ctr_start.
 	 */
@@ -955,7 +955,7 @@ static void pmu_sbi_event_mapped(struct perf_event *event, struct mm_struct *mm)
 
 static void pmu_sbi_event_unmapped(struct perf_event *event, struct mm_struct *mm)
 {
-	if (event->hw.flags & PERF_EVENT_FLAG_NO_USER_ACCESS)
+	if (event->hw.flags & PERF_EVENT_FLAG_ANAL_USER_ACCESS)
 		return;
 
 	if (event->hw.flags & PERF_EVENT_FLAG_LEGACY) {
@@ -966,7 +966,7 @@ static void pmu_sbi_event_unmapped(struct perf_event *event, struct mm_struct *m
 	}
 
 	/*
-	 * Here we can directly remove user access since the user does not have
+	 * Here we can directly remove user access since the user does analt have
 	 * access to the user page anymore so we avoid the racy window where the
 	 * user could have read cap_user_rdpmc to true right before we disable
 	 * it.
@@ -996,7 +996,7 @@ static int riscv_pmu_proc_user_access_handler(struct ctl_table *table,
 	/*
 	 * Test against the previous value since we clear SCOUNTEREN when
 	 * sysctl_perf_user_access is set to SYSCTL_USER_ACCESS, but we should
-	 * not do that if that was already the case.
+	 * analt do that if that was already the case.
 	 */
 	if (ret || !write || prev == sysctl_perf_user_access)
 		return ret;
@@ -1022,13 +1022,13 @@ static struct ctl_table sbi_pmu_sysctl_table[] = {
 static int pmu_sbi_device_probe(struct platform_device *pdev)
 {
 	struct riscv_pmu *pmu = NULL;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	int num_counters;
 
 	pr_info("SBI PMU extension is available\n");
 	pmu = riscv_pmu_alloc();
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_counters = pmu_sbi_find_num_ctrs();
 	if (num_counters < 0) {
@@ -1042,15 +1042,15 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 		pr_info("SBI returned more than maximum number of counters. Limiting the number of counters to %d\n", num_counters);
 	}
 
-	/* cache all the information about counters now */
+	/* cache all the information about counters analw */
 	if (pmu_sbi_get_ctrinfo(num_counters, &cmask))
 		goto out_free;
 
 	ret = pmu_sbi_setup_irqs(pmu, pdev);
 	if (ret < 0) {
-		pr_info("Perf sampling/filtering is not supported as sscof extension is not available\n");
-		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
-		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
+		pr_info("Perf sampling/filtering is analt supported as sscof extension is analt available\n");
+		pmu->pmu.capabilities |= PERF_PMU_CAP_ANAL_INTERRUPT;
+		pmu->pmu.capabilities |= PERF_PMU_CAP_ANAL_EXCLUDE;
 	}
 
 	pmu->pmu.attr_groups = riscv_pmu_attr_groups;
@@ -1067,7 +1067,7 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 	pmu->event_unmapped = pmu_sbi_event_unmapped;
 	pmu->csr_index = pmu_sbi_csr_index;
 
-	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_RISCV_STARTING, &pmu->node);
+	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_RISCV_STARTING, &pmu->analde);
 	if (ret)
 		return ret;
 
@@ -1112,7 +1112,7 @@ static int __init pmu_sbi_devinit(void)
 				      "perf/riscv/pmu:starting",
 				      pmu_sbi_starting_cpu, pmu_sbi_dying_cpu);
 	if (ret) {
-		pr_err("CPU hotplug notifier could not be registered: %d\n",
+		pr_err("CPU hotplug analtifier could analt be registered: %d\n",
 		       ret);
 		return ret;
 	}
@@ -1127,7 +1127,7 @@ static int __init pmu_sbi_devinit(void)
 		return PTR_ERR(pdev);
 	}
 
-	/* Notify legacy implementation that SBI pmu is available*/
+	/* Analtify legacy implementation that SBI pmu is available*/
 	riscv_pmu_legacy_skip_init();
 
 	return ret;

@@ -130,8 +130,8 @@ static int hw_events_info(struct hl_device *hdev, bool aggregate,
 
 	arr = hdev->asic_funcs->get_events_stat(hdev, aggregate, &size);
 	if (!arr) {
-		dev_err(hdev->dev, "Events info not supported\n");
-		return -EOPNOTSUPP;
+		dev_err(hdev->dev, "Events info analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	return copy_to_user(out, arr, min(max_size, size)) ? -EFAULT : 0;
@@ -146,10 +146,10 @@ static int events_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((max_size < sizeof(u64)) || (!out))
 		return -EINVAL;
 
-	mutex_lock(&hpriv->notifier_event.lock);
-	events_mask = hpriv->notifier_event.events_mask;
-	hpriv->notifier_event.events_mask = 0;
-	mutex_unlock(&hpriv->notifier_event.lock);
+	mutex_lock(&hpriv->analtifier_event.lock);
+	events_mask = hpriv->analtifier_event.events_mask;
+	hpriv->analtifier_event.events_mask = 0;
+	mutex_unlock(&hpriv->analtifier_event.lock);
 
 	return copy_to_user(out, &events_mask, sizeof(u64)) ? -EFAULT : 0;
 }
@@ -205,7 +205,7 @@ static int debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, struct hl
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	params->reg_idx = args->reg_idx;
 	params->enable = args->enable;
@@ -214,7 +214,7 @@ static int debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, struct hl
 	if (args->input_ptr && args->input_size) {
 		input = kzalloc(hl_debug_struct_size[args->op], GFP_KERNEL);
 		if (!input) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -231,7 +231,7 @@ static int debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, struct hl
 	if (args->output_ptr && args->output_size) {
 		output = kzalloc(args->output_size, GFP_KERNEL);
 		if (!output) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -665,8 +665,8 @@ static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_
 	/*
 	 * Future ASICs that will support multiple DRAM page sizes will support only "powers of 2"
 	 * pages (unlike some of the ASICs before supporting multiple page sizes).
-	 * For this reason for all ASICs that not support multiple page size the function will
-	 * return an empty bitmask indicating that multiple page sizes is not supported.
+	 * For this reason for all ASICs that analt support multiple page size the function will
+	 * return an empty bitmask indicating that multiple page sizes is analt supported.
 	 */
 	info.page_order_bitmask = hdev->asic_prop.dmmu.supported_pages_mask;
 
@@ -686,19 +686,19 @@ static int sec_attest_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 
 	sec_attest_info = kmalloc(sizeof(*sec_attest_info), GFP_KERNEL);
 	if (!sec_attest_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_sec_attest_info;
 	}
 
-	rc = hl_fw_get_sec_attest_info(hpriv->hdev, sec_attest_info, args->sec_attest_nonce);
+	rc = hl_fw_get_sec_attest_info(hpriv->hdev, sec_attest_info, args->sec_attest_analnce);
 	if (rc)
 		goto free_info;
 
-	info->nonce = le32_to_cpu(sec_attest_info->nonce);
+	info->analnce = le32_to_cpu(sec_attest_info->analnce);
 	info->pcr_quote_len = le16_to_cpu(sec_attest_info->pcr_quote_len);
 	info->pub_data_len = le16_to_cpu(sec_attest_info->pub_data_len);
 	info->certificate_len = le16_to_cpu(sec_attest_info->certificate_len);
@@ -735,20 +735,20 @@ static int dev_info_signed(struct hl_fpriv *hpriv, struct hl_info_args *args)
 
 	dev_info_signed = kzalloc(sizeof(*dev_info_signed), GFP_KERNEL);
 	if (!dev_info_signed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_dev_info_signed;
 	}
 
 	rc = hl_fw_get_dev_info_signed(hpriv->hdev,
-					dev_info_signed, args->sec_attest_nonce);
+					dev_info_signed, args->sec_attest_analnce);
 	if (rc)
 		goto free_info;
 
-	info->nonce = le32_to_cpu(dev_info_signed->nonce);
+	info->analnce = le32_to_cpu(dev_info_signed->analnce);
 	info->info_sig_len = dev_info_signed->info_sig_len;
 	info->pub_data_len = le16_to_cpu(dev_info_signed->pub_data_len);
 	info->certificate_len = le16_to_cpu(dev_info_signed->certificate_len);
@@ -774,35 +774,35 @@ static int eventfd_register(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	int rc;
 
 	/* check if there is already a registered on that process */
-	mutex_lock(&hpriv->notifier_event.lock);
-	if (hpriv->notifier_event.eventfd) {
-		mutex_unlock(&hpriv->notifier_event.lock);
+	mutex_lock(&hpriv->analtifier_event.lock);
+	if (hpriv->analtifier_event.eventfd) {
+		mutex_unlock(&hpriv->analtifier_event.lock);
 		return -EINVAL;
 	}
 
-	hpriv->notifier_event.eventfd = eventfd_ctx_fdget(args->eventfd);
-	if (IS_ERR(hpriv->notifier_event.eventfd)) {
-		rc = PTR_ERR(hpriv->notifier_event.eventfd);
-		hpriv->notifier_event.eventfd = NULL;
-		mutex_unlock(&hpriv->notifier_event.lock);
+	hpriv->analtifier_event.eventfd = eventfd_ctx_fdget(args->eventfd);
+	if (IS_ERR(hpriv->analtifier_event.eventfd)) {
+		rc = PTR_ERR(hpriv->analtifier_event.eventfd);
+		hpriv->analtifier_event.eventfd = NULL;
+		mutex_unlock(&hpriv->analtifier_event.lock);
 		return rc;
 	}
 
-	mutex_unlock(&hpriv->notifier_event.lock);
+	mutex_unlock(&hpriv->analtifier_event.lock);
 	return 0;
 }
 
 static int eventfd_unregister(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
-	mutex_lock(&hpriv->notifier_event.lock);
-	if (!hpriv->notifier_event.eventfd) {
-		mutex_unlock(&hpriv->notifier_event.lock);
+	mutex_lock(&hpriv->analtifier_event.lock);
+	if (!hpriv->analtifier_event.eventfd) {
+		mutex_unlock(&hpriv->analtifier_event.lock);
 		return -EINVAL;
 	}
 
-	eventfd_ctx_put(hpriv->notifier_event.eventfd);
-	hpriv->notifier_event.eventfd = NULL;
-	mutex_unlock(&hpriv->notifier_event.lock);
+	eventfd_ctx_put(hpriv->analtifier_event.eventfd);
+	hpriv->analtifier_event.eventfd = NULL;
+	mutex_unlock(&hpriv->analtifier_event.lock);
 	return 0;
 }
 
@@ -821,7 +821,7 @@ static int engine_status_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	eng_data.allocated_buf_size = status_buf_size;
 	eng_data.buf = vmalloc(status_buf_size);
 	if (!eng_data.buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdev->asic_funcs->is_device_idle(hdev, NULL, 0, &eng_data);
 
@@ -830,7 +830,7 @@ static int engine_status_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 			"Engines data size (%d Bytes) is bigger than allocated size (%u Bytes)\n",
 			eng_data.actual_size, status_buf_size);
 		vfree(eng_data.buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	args->user_buffer_actual_size = eng_data.actual_size;
@@ -879,7 +879,7 @@ static int user_mappings_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 
 	actual_size = pgf_info->num_of_user_mappings * sizeof(struct hl_user_mapping);
 	if (user_buf_size < actual_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return copy_to_user(out, pgf_info->user_mappings, actual_size) ? -EFAULT : 0;
 }
@@ -900,7 +900,7 @@ static int hw_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		return 0;
 
 	if (user_buf_size < sizeof(struct hl_info_hw_err_event))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_hw_err_event));
 	return rc ? -EFAULT : 0;
@@ -922,7 +922,7 @@ static int fw_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		return 0;
 
 	if (user_buf_size < sizeof(struct hl_info_fw_err_event))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_fw_err_event));
 	return rc ? -EFAULT : 0;
@@ -944,7 +944,7 @@ static int engine_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		return 0;
 
 	if (user_buf_size < sizeof(struct hl_info_engine_err_event))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_engine_err_event));
 	return rc ? -EFAULT : 0;
@@ -968,13 +968,13 @@ static int send_fw_generic_request(struct hl_device *hdev, struct hl_info_args *
 	}
 
 	if (size > SZ_1M) {
-		dev_err(hdev->dev, "buffer size cannot exceed 1MB\n");
+		dev_err(hdev->dev, "buffer size cananalt exceed 1MB\n");
 		return -EINVAL;
 	}
 
 	fw_buff = hl_cpu_accessible_dma_pool_alloc(hdev, size, &dma_handle);
 	if (!fw_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	if (need_input_buff && copy_from_user(fw_buff, buff, size)) {
@@ -1166,7 +1166,7 @@ static int hl_info_ioctl_control(struct hl_fpriv *hpriv, void *data)
 	case HL_INFO_GET_EVENTS:
 	case HL_INFO_UNREGISTER_EVENTFD:
 	case HL_INFO_REGISTER_EVENTFD:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		break;
 	}
@@ -1200,7 +1200,7 @@ int hl_debug_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_pr
 	case HL_DEBUG_OP_TIMESTAMP:
 		if (!hdev->in_debug) {
 			dev_err_ratelimited(hdev->dev,
-				"Rejecting debug configuration request because device not in debug mode\n");
+				"Rejecting debug configuration request because device analt in debug mode\n");
 			return -EFAULT;
 		}
 		args->input_size = min(args->input_size, hl_debug_struct_size[args->op]);
@@ -1238,12 +1238,12 @@ static long _hl_ioctl(struct hl_fpriv *hpriv, unsigned int cmd, unsigned long ar
 	u32 hl_size;
 	int retcode;
 
-	/* Do not trust userspace, use our own definition */
+	/* Do analt trust userspace, use our own definition */
 	func = ioctl->func;
 
 	if (unlikely(!func)) {
-		dev_dbg(dev, "no function\n");
-		retcode = -ENOTTY;
+		dev_dbg(dev, "anal function\n");
+		retcode = -EANALTTY;
 		goto out_err;
 	}
 
@@ -1260,7 +1260,7 @@ static long _hl_ioctl(struct hl_fpriv *hpriv, unsigned int cmd, unsigned long ar
 		} else {
 			kdata = kzalloc(asize, GFP_KERNEL);
 			if (!kdata) {
-				retcode = -ENOMEM;
+				retcode = -EANALMEM;
 				goto out_err;
 			}
 		}
@@ -1302,7 +1302,7 @@ long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	if (!hdev) {
 		pr_err_ratelimited("Sending ioctl after device was removed! Please close FD\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (nr == _IOC_NR(DRM_IOCTL_HL_INFO)) {
@@ -1313,7 +1313,7 @@ long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 		dev_dbg_ratelimited(hdev->dev_ctrl,
 				"invalid ioctl: pid=%d, comm=\"%s\", cmd=%#010x, nr=%#04x\n",
 				task_pid_nr(current), get_task_comm(task_comm, current), cmd, nr);
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return _hl_ioctl(hpriv, cmd, arg, ioctl, hdev->dev_ctrl);

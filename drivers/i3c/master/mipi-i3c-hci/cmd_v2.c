@@ -6,7 +6,7 @@
  *
  * I3C HCI v2.0 Command Descriptor Handling
  *
- * Note: The I3C HCI v2.0 spec is still in flux. The code here will change.
+ * Analte: The I3C HCI v2.0 spec is still in flux. The code here will change.
  */
 
 #include <linux/bitfield.h>
@@ -248,7 +248,7 @@ static int hci_cmd_v2_daa(struct i3c_hci *hci)
 
 	xfer = hci_alloc_xfer(2);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xfer[0].data = &device_id;
 	xfer[0].data_len = 8;
@@ -281,7 +281,7 @@ static int hci_cmd_v2_daa(struct i3c_hci *hci)
 			break;
 		}
 		if (RESP_STATUS(xfer[0].response) != RESP_SUCCESS) {
-			ret = 0;  /* no more devices to be assigned */
+			ret = 0;  /* anal more devices to be assigned */
 			break;
 		}
 		if (RESP_STATUS(xfer[1].response) != RESP_SUCCESS) {

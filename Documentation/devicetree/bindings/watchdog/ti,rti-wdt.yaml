@@ -70,7 +70,7 @@ examples:
      * reserved-memory {
      *     wdt_reset_memory_region: wdt-memory@a2200000 {
      *         reg = <0x00 0xa2200000 0x00 0x1000>;
-     *         no-map;
+     *         anal-map;
      *     };
      * }
      */

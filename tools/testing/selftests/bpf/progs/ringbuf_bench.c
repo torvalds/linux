@@ -28,7 +28,7 @@ static __always_inline long get_flags()
 		return 0;
 
 	sz = bpf_ringbuf_query(&ringbuf, BPF_RB_AVAIL_DATA);
-	return sz >= wakeup_data_size ? BPF_RB_FORCE_WAKEUP : BPF_RB_NO_WAKEUP;
+	return sz >= wakeup_data_size ? BPF_RB_FORCE_WAKEUP : BPF_RB_ANAL_WAKEUP;
 }
 
 SEC("fentry/" SYS_PREFIX "sys_getpgid")

@@ -32,11 +32,11 @@ static int __init prom_meminit_v0(void)
 static int __init prom_meminit_v2(void)
 {
 	struct linux_prom_registers reg[64];
-	phandle node;
+	phandle analde;
 	int size, num_ents, i;
 
-	node = prom_searchsiblings(prom_getchild(prom_root_node), "memory");
-	size = prom_getproperty(node, "available", (char *) reg, sizeof(reg));
+	analde = prom_searchsiblings(prom_getchild(prom_root_analde), "memory");
+	size = prom_getproperty(analde, "available", (char *) reg, sizeof(reg));
 	num_ents = size / sizeof(struct linux_prom_registers);
 
 	for (i = 0; i < num_ents; i++) {

@@ -2,14 +2,14 @@
 /*
  * PIKA FPGA based Watchdog Timer
  *
- * Copyright (c) 2008 PIKA Technologies
+ * Copyright (c) 2008 PIKA Techanallogies
  *   Sean MacLennan <smaclennan@pikatech.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -41,10 +41,10 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds. "
 	"(default = " __MODULE_STRING(WDT_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+	"(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static struct {
 	void __iomem *fpga;
@@ -70,7 +70,7 @@ static inline void pikawdt_reset(void)
 {
 	/* -- FPGA: Reset Control Register (32bit R/W) (Offset: 0x14) --
 	 * Bit 7,    WTCHDG_EN: When set to 1, the watchdog timer is enabled.
-	 *           Once enabled, it cannot be disabled. The watchdog can be
+	 *           Once enabled, it cananalt be disabled. The watchdog can be
 	 *           kicked by performing any write access to the reset
 	 *           control register (this register).
 	 * Bit 8-11, WTCHDG_TIMEOUT_SEC: Sets the watchdog timeout value in
@@ -89,7 +89,7 @@ static inline void pikawdt_reset(void)
 static void pikawdt_ping(struct timer_list *unused)
 {
 	if (time_before(jiffies, pikawdt_private.next_heartbeat) ||
-			(!nowayout && !pikawdt_private.open)) {
+			(!analwayout && !pikawdt_private.open)) {
 		pikawdt_reset();
 		mod_timer(&pikawdt_private.timer, jiffies + WDT_TIMEOUT);
 	} else
@@ -111,7 +111,7 @@ static void pikawdt_start(void)
 /*
  * Watchdog device is opened, and watchdog starts running.
  */
-static int pikawdt_open(struct inode *inode, struct file *file)
+static int pikawdt_open(struct ianalde *ianalde, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 	if (test_and_set_bit(0, &pikawdt_private.open))
@@ -119,13 +119,13 @@ static int pikawdt_open(struct inode *inode, struct file *file)
 
 	pikawdt_start();
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /*
  * Close the watchdog device.
  */
-static int pikawdt_release(struct inode *inode, struct file *file)
+static int pikawdt_release(struct ianalde *ianalde, struct file *file)
 {
 	/* stop internal ping */
 	if (!pikawdt_private.expect_close)
@@ -146,7 +146,7 @@ static ssize_t pikawdt_write(struct file *file, const char __user *data,
 		return 0;
 
 	/* Scan for magic character */
-	if (!nowayout) {
+	if (!analwayout) {
 		size_t i;
 
 		pikawdt_private.expect_close = 0;
@@ -203,13 +203,13 @@ static long pikawdt_ioctl(struct file *file,
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
 	}
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 
 static const struct file_operations pikawdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.open		= pikawdt_open,
 	.release	= pikawdt_release,
 	.write		= pikawdt_write,
@@ -218,46 +218,46 @@ static const struct file_operations pikawdt_fops = {
 };
 
 static struct miscdevice pikawdt_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &pikawdt_fops,
 };
 
 static int __init pikawdt_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *fpga;
 	u32 post1;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, "pika,fpga");
+	np = of_find_compatible_analde(NULL, NULL, "pika,fpga");
 	if (np == NULL) {
 		pr_err("Unable to find fpga\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	pikawdt_private.fpga = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (pikawdt_private.fpga == NULL) {
 		pr_err("Unable to map fpga\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ident.firmware_version = in_be32(pikawdt_private.fpga + 0x1c) & 0xffff;
 
 	/* POST information is in the sd area. */
-	np = of_find_compatible_node(NULL, NULL, "pika,fpga-sd");
+	np = of_find_compatible_analde(NULL, NULL, "pika,fpga-sd");
 	if (np == NULL) {
 		pr_err("Unable to find fpga-sd\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
 	fpga = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (fpga == NULL) {
 		pr_err("Unable to map fpga-sd\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -279,8 +279,8 @@ static int __init pikawdt_init(void)
 		goto out;
 	}
 
-	pr_info("initialized. heartbeat=%d sec (nowayout=%d)\n",
-		heartbeat, nowayout);
+	pr_info("initialized. heartbeat=%d sec (analwayout=%d)\n",
+		heartbeat, analwayout);
 	return 0;
 
 out:

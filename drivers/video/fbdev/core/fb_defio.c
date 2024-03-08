@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -110,7 +110,7 @@ static vm_fault_t fb_deferred_io_fault(struct vm_fault *vmf)
 	if (vmf->vma->vm_file)
 		page->mapping = vmf->vma->vm_file->f_mapping;
 	else
-		printk(KERN_ERR "no mapping available\n");
+		printk(KERN_ERR "anal mapping available\n");
 
 	BUG_ON(!page->mapping);
 	page->index = vmf->pgoff; /* for page_mkclean() */
@@ -122,7 +122,7 @@ static vm_fault_t fb_deferred_io_fault(struct vm_fault *vmf)
 int fb_deferred_io_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct fb_info *info = file->private_data;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	int err = file_write_and_wait_range(file, start, end);
 	if (err)
 		return err;
@@ -131,9 +131,9 @@ int fb_deferred_io_fsync(struct file *file, loff_t start, loff_t end, int datasy
 	if (!info->fbdefio)
 		return 0;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	flush_delayed_work(&info->deferred_work);
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	return 0;
 }
@@ -162,7 +162,7 @@ static vm_fault_t fb_deferred_io_track_page(struct fb_info *info, unsigned long 
 	/*
 	 * We want the page to remain locked from ->page_mkwrite until
 	 * the PTE is marked dirty to avoid page_mkclean() being called
-	 * before the PTE is updated, which would leave the page ignored
+	 * before the PTE is updated, which would leave the page iganalred
 	 * by defio.
 	 * Do this by locking the page here and informing the caller
 	 * about it with VM_FAULT_LOCKED.
@@ -218,7 +218,7 @@ static const struct vm_operations_struct fb_deferred_io_vm_ops = {
 };
 
 static const struct address_space_operations fb_deferred_io_aops = {
-	.dirty_folio	= noop_dirty_folio,
+	.dirty_folio	= analop_dirty_folio,
 };
 
 int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
@@ -283,7 +283,7 @@ int fb_deferred_io_init(struct fb_info *info)
 	/* alloc a page ref for each page of the display memory */
 	pagerefs = kvcalloc(npagerefs, sizeof(*pagerefs), GFP_KERNEL);
 	if (!pagerefs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	for (i = 0; i < npagerefs; ++i)
@@ -300,7 +300,7 @@ err:
 EXPORT_SYMBOL_GPL(fb_deferred_io_init);
 
 void fb_deferred_io_open(struct fb_info *info,
-			 struct inode *inode,
+			 struct ianalde *ianalde,
 			 struct file *file)
 {
 	struct fb_deferred_io *fbdefio = info->fbdefio;

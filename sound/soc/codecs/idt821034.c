@@ -25,8 +25,8 @@ struct idt821034_amp {
 struct idt821034 {
 	struct spi_device *spi;
 	struct mutex mutex;
-	u8 spi_tx_buf; /* Cannot use stack area for SPI (dma-safe memory) */
-	u8 spi_rx_buf; /* Cannot use stack area for SPI (dma-safe memory) */
+	u8 spi_tx_buf; /* Cananalt use stack area for SPI (dma-safe memory) */
+	u8 spi_rx_buf; /* Cananalt use stack area for SPI (dma-safe memory) */
 	struct {
 		u8 codec_conf;
 		struct {
@@ -306,9 +306,9 @@ static int idt821034_read_slic_raw(struct idt821034 *idt821034, u8 ch, u8 *slic_
 	 *   b5: O_2
 	 *   b4: O_3
 	 *   b3: O_4
-	 *   b2: I/O1_0, I/O_0 from channel 1 (no matter ch value)
-	 *   b1: I/O2_0, I/O_0 from channel 2 (no matter ch value)
-	 *   b2: I/O3_0, I/O_0 from channel 3 (no matter ch value)
+	 *   b2: I/O1_0, I/O_0 from channel 1 (anal matter ch value)
+	 *   b1: I/O2_0, I/O_0 from channel 2 (anal matter ch value)
+	 *   b2: I/O3_0, I/O_0 from channel 3 (anal matter ch value)
 	 */
 
 	val = IDT821034_MODE_SLIC(ch) | idt821034->cache.ch[ch].slic_conf;
@@ -325,7 +325,7 @@ static int idt821034_read_slic_raw(struct idt821034 *idt821034, u8 ch, u8 *slic_
 	return 0;
 }
 
-/* Gain type values that can be used in 'gain_type' (cannot be ORed) */
+/* Gain type values that can be used in 'gain_type' (cananalt be ORed) */
 #define IDT821034_GAIN_RX		(0 << 1) /* from PCM to analog output */
 #define IDT821034_GAIN_TX		(1 << 1) /* from analog input to PCM */
 
@@ -644,16 +644,16 @@ static int idt821034_power_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget idt821034_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC_E("DAC0", "Playback", SND_SOC_NOPM, IDT821034_ID_OUT(0), 0,
+	SND_SOC_DAPM_DAC_E("DAC0", "Playback", SND_SOC_ANALPM, IDT821034_ID_OUT(0), 0,
 			   idt821034_power_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("DAC1", "Playback", SND_SOC_NOPM, IDT821034_ID_OUT(1), 0,
+	SND_SOC_DAPM_DAC_E("DAC1", "Playback", SND_SOC_ANALPM, IDT821034_ID_OUT(1), 0,
 			   idt821034_power_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("DAC2", "Playback", SND_SOC_NOPM, IDT821034_ID_OUT(2), 0,
+	SND_SOC_DAPM_DAC_E("DAC2", "Playback", SND_SOC_ANALPM, IDT821034_ID_OUT(2), 0,
 			   idt821034_power_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("DAC3", "Playback", SND_SOC_NOPM, IDT821034_ID_OUT(3), 0,
+	SND_SOC_DAPM_DAC_E("DAC3", "Playback", SND_SOC_ANALPM, IDT821034_ID_OUT(3), 0,
 			   idt821034_power_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
@@ -662,16 +662,16 @@ static const struct snd_soc_dapm_widget idt821034_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("OUT2"),
 	SND_SOC_DAPM_OUTPUT("OUT3"),
 
-	SND_SOC_DAPM_DAC_E("ADC0", "Capture", SND_SOC_NOPM, IDT821034_ID_IN(0), 0,
+	SND_SOC_DAPM_DAC_E("ADC0", "Capture", SND_SOC_ANALPM, IDT821034_ID_IN(0), 0,
 			   idt821034_power_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("ADC1", "Capture", SND_SOC_NOPM, IDT821034_ID_IN(1), 0,
+	SND_SOC_DAPM_DAC_E("ADC1", "Capture", SND_SOC_ANALPM, IDT821034_ID_IN(1), 0,
 			   idt821034_power_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("ADC2", "Capture", SND_SOC_NOPM, IDT821034_ID_IN(2), 0,
+	SND_SOC_DAPM_DAC_E("ADC2", "Capture", SND_SOC_ANALPM, IDT821034_ID_IN(2), 0,
 			   idt821034_power_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("ADC3", "Capture", SND_SOC_NOPM, IDT821034_ID_IN(3), 0,
+	SND_SOC_DAPM_DAC_E("ADC3", "Capture", SND_SOC_ANALPM, IDT821034_ID_IN(3), 0,
 			   idt821034_power_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
@@ -704,11 +704,11 @@ static int idt821034_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	u8 ch;
 
 	switch (width) {
-	case 0: /* Not set -> default 8 */
+	case 0: /* Analt set -> default 8 */
 	case 8:
 		break;
 	default:
-		dev_err(dai->dev, "tdm slot width %d not supported\n", width);
+		dev_err(dai->dev, "tdm slot width %d analt supported\n", width);
 		return -EINVAL;
 	}
 
@@ -843,7 +843,7 @@ static int idt821034_dai_startup(struct snd_pcm_substream *substream,
 		idt821034->max_ch_playback : idt821034->max_ch_capture;
 
 	/*
-	 * Disable stream support (min = 0, max = 0) if no timeslots were
+	 * Disable stream support (min = 0, max = 0) if anal timeslots were
 	 * configured otherwise, limit the number of channels to those
 	 * configured.
 	 */
@@ -1131,7 +1131,7 @@ static int idt821034_spi_probe(struct spi_device *spi)
 
 	idt821034 = devm_kzalloc(&spi->dev, sizeof(*idt821034), GFP_KERNEL);
 	if (!idt821034)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idt821034->spi = spi;
 

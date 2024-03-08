@@ -6,14 +6,14 @@
  * kernel stack during a system call or other kernel entry.
  *
  * this should only contain volatile regs
- * since we can keep non-volatile in the thread_struct
+ * since we can keep analn-volatile in the thread_struct
  * should set this up when only volatiles are saved
  * by intr code.
  *
  * Since this is going on the stack, *CARE MUST BE TAKEN* to insure
  * that the overall structure is a multiple of 16 bytes in length.
  *
- * Note that the offsets of the fields in this struct correspond with
+ * Analte that the offsets of the fields in this struct correspond with
  * the PT_* values below.  This simplifies arch/powerpc/kernel/ptrace.c.
  */
 #ifndef _ASM_POWERPC_PTRACE_H
@@ -130,7 +130,7 @@ struct pt_regs
 #else
 /*
  * The ELFv1 ABI specifies 48 bytes plus a minimum 64 byte parameter save
- * area. This parameter area is not used by calls to C from interrupt entry,
+ * area. This parameter area is analt used by calls to C from interrupt entry,
  * so the second from last one of those is used for the frame marker.
  */
 #define STACK_FRAME_MIN_SIZE	112
@@ -227,7 +227,7 @@ static inline unsigned long frame_pointer(struct pt_regs *regs)
 
 #define force_successful_syscall_return()   \
 	do { \
-		set_thread_flag(TIF_NOERROR); \
+		set_thread_flag(TIF_ANALERROR); \
 	} while(0)
 
 #define current_pt_regs() \
@@ -237,7 +237,7 @@ static inline unsigned long frame_pointer(struct pt_regs *regs)
  * The 4 low bits (0xf) are available as flags to overload the trap word,
  * because interrupt vectors have minimum alignment of 0x10. TRAP_FLAGS_MASK
  * must cover the bits used as flags, including bit 0 which is used as the
- * "norestart" bit.
+ * "analrestart" bit.
  */
 #ifdef __powerpc64__
 #define TRAP_FLAGS_MASK		0x1
@@ -273,12 +273,12 @@ static inline bool trap_is_syscall(struct pt_regs *regs)
 	return (trap_is_scv(regs) || TRAP(regs) == 0xc00);
 }
 
-static inline bool trap_norestart(struct pt_regs *regs)
+static inline bool trap_analrestart(struct pt_regs *regs)
 {
 	return regs->trap & 0x1;
 }
 
-static __always_inline void set_trap_norestart(struct pt_regs *regs)
+static __always_inline void set_trap_analrestart(struct pt_regs *regs)
 {
 	regs->trap |= 0x1;
 }
@@ -367,7 +367,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If analt, returns false.
  */
 
 static inline bool regs_within_kernel_stack(struct pt_regs *regs,
@@ -383,7 +383,7 @@ static inline bool regs_within_kernel_stack(struct pt_regs *regs,
  * @n:		stack entry number.
  *
  * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * is specified by @regs. If the @n th entry is ANALT in the kernel stack,
  * this returns 0.
  */
 static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,

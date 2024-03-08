@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * itmt.c: Support Intel Turbo Boost Max Technology 3.0
+ * itmt.c: Support Intel Turbo Boost Max Techanallogy 3.0
  *
  * (C) Copyright 2016 Intel Corporation
  * Author: Tim Chen <tim.c.chen@linux.intel.com>
  *
- * On platforms supporting Intel Turbo Boost Max Technology 3.0, (ITMT),
+ * On platforms supporting Intel Turbo Boost Max Techanallogy 3.0, (ITMT),
  * the maximum turbo frequencies of some cores in a CPU package may be
  * higher than for the other cores in the same package.  In that case,
  * better performance can be achieved by making the scheduler prefer
@@ -21,7 +21,7 @@
 #include <linux/cpuset.h>
 #include <linux/mutex.h>
 #include <linux/sysctl.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 
 static DEFINE_MUTEX(itmt_update_mutex);
 DEFINE_PER_CPU_READ_MOSTLY(int, sched_core_priority);
@@ -32,7 +32,7 @@ static bool __read_mostly sched_itmt_capable;
 /*
  * Boolean to control whether we want to move processes to cpu capable
  * of higher turbo frequency for cpus supporting Intel Turbo Boost Max
- * Technology 3.0.
+ * Techanallogy 3.0.
  *
  * It can be set via /proc/sys/kernel/sched_itmt_enabled
  */
@@ -89,7 +89,7 @@ static struct ctl_table_header *itmt_sysctl_header;
  *
  * This must be done only after sched_set_itmt_core_prio
  * has been called to set the cpus' priorities.
- * It must not be called with cpu hot plug lock
+ * It must analt be called with cpu hot plug lock
  * held as we need to acquire the lock to rebuild sched domains
  * later.
  *
@@ -107,7 +107,7 @@ int sched_set_itmt_support(void)
 	itmt_sysctl_header = register_sysctl("kernel", itmt_kern_table);
 	if (!itmt_sysctl_header) {
 		mutex_unlock(&itmt_update_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sched_itmt_capable = true;
@@ -128,7 +128,7 @@ int sched_set_itmt_support(void)
  * This function is used by the OS to indicate that it has
  * revoked the platform's support of ITMT feature.
  *
- * It must not be called with cpu hot plug lock
+ * It must analt be called with cpu hot plug lock
  * held as we need to acquire the lock to rebuild sched domains
  * later.
  */
@@ -148,7 +148,7 @@ void sched_clear_itmt_support(void)
 	}
 
 	if (sysctl_sched_itmt_enabled) {
-		/* disable sched_itmt if we are no longer ITMT capable */
+		/* disable sched_itmt if we are anal longer ITMT capable */
 		sysctl_sched_itmt_enabled = 0;
 		x86_topology_update = true;
 		rebuild_sched_domains();
@@ -172,8 +172,8 @@ int arch_asym_cpu_priority(int cpu)
  * to the max boost frequency. CPUs with higher boost
  * frequency will receive higher priority.
  *
- * No need to rebuild sched domain after updating
- * the CPU priorities. The sched domains have no
+ * Anal need to rebuild sched domain after updating
+ * the CPU priorities. The sched domains have anal
  * dependency on CPU priorities.
  */
 void sched_set_itmt_core_prio(int prio, int cpu)

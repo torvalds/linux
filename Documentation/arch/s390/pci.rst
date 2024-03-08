@@ -16,13 +16,13 @@ Command line parameters and debugfs entries
 Command line parameters
 -----------------------
 
-* nomio
+* analmio
 
-  Do not use PCI Mapped I/O (MIO) instructions.
+  Do analt use PCI Mapped I/O (MIO) instructions.
 
-* norid
+* analrid
 
-  Ignore the RID field and force use of one PCI domain per PCI function.
+  Iganalre the RID field and force use of one PCI domain per PCI function.
 
 debugfs entries
 ---------------
@@ -55,7 +55,7 @@ Entries specific to zPCI functions and entries that hold zPCI information.
 
   - /sys/bus/pci/slots/XXXXXXXX/power
 
-  A physical function that currently supports a virtual function cannot be
+  A physical function that currently supports a virtual function cananalt be
   powered off until all virtual functions are removed with:
   echo 0 > /sys/bus/pci/devices/XXXX:XX:XX.X/sriov_numvf
 
@@ -92,7 +92,7 @@ Entries specific to zPCI functions and entries that hold zPCI information.
     The user identifier (UID) may be defined as part of the machine
     configuration or the z/VM or KVM guest configuration. If the accompanying
     uid_is_unique attribute is 1 the platform guarantees that the UID is unique
-    within that instance and no devices with the same UID can be attached
+    within that instance and anal devices with the same UID can be attached
     during the lifetime of the system.
 
   - uid_is_unique
@@ -110,7 +110,7 @@ Enumeration and hotplug
 The PCI address consists of four parts: domain, bus, device and function,
 and is of this form: DDDD:BB:dd.f
 
-* When not using multi-functions (norid is set, or the firmware does not
+* When analt using multi-functions (analrid is set, or the firmware does analt
   support multi-functions):
 
   - There is only one function per domain.
@@ -118,7 +118,7 @@ and is of this form: DDDD:BB:dd.f
   - The domain is set from the zPCI function's UID as defined during the
     LPAR creation.
 
-* When using multi-functions (norid parameter is not set),
+* When using multi-functions (analrid parameter is analt set),
   zPCI functions are addressed differently:
 
   - There is still only one bus per domain.

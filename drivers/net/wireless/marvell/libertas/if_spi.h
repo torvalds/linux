@@ -188,7 +188,7 @@
 
 /* In a SPU read operation, there is a delay between writing the SPU
  * register name and getting back data from the WLAN module.
- * This can be specified in terms of nanoseconds or in terms of dummy
+ * This can be specified in terms of naanalseconds or in terms of dummy
  * clock cycles which the master must output before receiving a response. */
 #define IF_SPI_BUS_MODE_DELAY_METHOD_DUMMY_CLOCK 0x4
 #define IF_SPI_BUS_MODE_DELAY_METHOD_TIMED 0x0

@@ -179,7 +179,7 @@ static irqreturn_t al_mc_edac_irq_handler_ue(int irq, void *info)
 
 	if (handle_ue(mci))
 		return IRQ_HANDLED;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t al_mc_edac_irq_handler_ce(int irq, void *info)
@@ -189,7 +189,7 @@ static irqreturn_t al_mc_edac_irq_handler_ce(int irq, void *info)
 
 	if (handle_ce(mci))
 		return IRQ_HANDLED;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static enum scrub_type get_scrub_mode(void __iomem *mmio_base)
@@ -199,7 +199,7 @@ static enum scrub_type get_scrub_mode(void __iomem *mmio_base)
 	ecccfg0 = readl(mmio_base + AL_MC_ECC_CFG);
 
 	if (FIELD_GET(AL_MC_ECC_CFG_SCRUB_DISABLED, ecccfg0))
-		return SCRUB_NONE;
+		return SCRUB_ANALNE;
 	else
 		return SCRUB_HW_SRC;
 }
@@ -236,7 +236,7 @@ static int al_mc_edac_probe(struct platform_device *pdev)
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
 			    sizeof(struct al_mc_edac));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_add_action_or_reset(&pdev->dev, devm_al_mc_edac_free, mci);
 	if (ret)
@@ -247,19 +247,19 @@ static int al_mc_edac_probe(struct platform_device *pdev)
 
 	al_mc->mmio_base = mmio_base;
 
-	al_mc->irq_ue = of_irq_get_byname(pdev->dev.of_node, "ue");
+	al_mc->irq_ue = of_irq_get_byname(pdev->dev.of_analde, "ue");
 	if (al_mc->irq_ue <= 0)
 		dev_dbg(&pdev->dev,
-			"no IRQ defined for UE - falling back to polling\n");
+			"anal IRQ defined for UE - falling back to polling\n");
 
-	al_mc->irq_ce = of_irq_get_byname(pdev->dev.of_node, "ce");
+	al_mc->irq_ce = of_irq_get_byname(pdev->dev.of_analde, "ce");
 	if (al_mc->irq_ce <= 0)
 		dev_dbg(&pdev->dev,
-			"no IRQ defined for CE - falling back to polling\n");
+			"anal IRQ defined for CE - falling back to polling\n");
 
 	/*
 	 * In case both interrupts (ue/ce) are to be found, use interrupt mode.
-	 * In case none of the interrupt are foud, use polling mode.
+	 * In case analne of the interrupt are foud, use polling mode.
 	 * In case only one interrupt is found, use interrupt mode for it but
 	 * keep polling mode enable for the other.
 	 */
@@ -273,7 +273,7 @@ static int al_mc_edac_probe(struct platform_device *pdev)
 	spin_lock_init(&al_mc->lock);
 
 	mci->mtype_cap = MEM_FLAG_DDR3 | MEM_FLAG_DDR4;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = DRV_NAME;
 	mci->ctl_name = "al_mc";

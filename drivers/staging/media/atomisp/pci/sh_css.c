@@ -83,13 +83,13 @@
 
 #include "isp/modes/interface/input_buf.isp.h"
 
-/* Name of the sp program: should not be built-in */
+/* Name of the sp program: should analt be built-in */
 #define SP_PROG_NAME "sp"
 /* Size of Refcount List */
 #define REFCOUNT_SIZE 1000
 
 /*
- * for JPEG, we don't know the length of the image upfront,
+ * for JPEG, we don't kanalw the length of the image upfront,
  * but since we support sensor up to 16MP, we take this as
  * upper limit.
  */
@@ -101,10 +101,10 @@ int  __printf(1, 0) (*sh_css_printf)(const char *fmt, va_list args) = NULL;
 
 /*
  * modes of work: stream_create and stream_destroy will update the save/restore
- * data only when in working mode, not suspend/resume
+ * data only when in working mode, analt suspend/resume
  */
 enum ia_sh_css_modes {
-	sh_css_mode_none = 0,
+	sh_css_mode_analne = 0,
 	sh_css_mode_working,
 	sh_css_mode_suspend,
 	sh_css_mode_resume
@@ -154,7 +154,7 @@ static bool my_css_save_initialized;	/* if my_css_save was initialized */
 static struct sh_css_save my_css_save;
 
 /*
- * pqiao NOTICE: this is for css internal buffer recycling when stopping
+ * pqiao ANALTICE: this is for css internal buffer recycling when stopping
  * pipeline,
  * this array is temporary and will be replaced by resource manager
  */
@@ -740,8 +740,8 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_attr(
 			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_RAMP;
 		else if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_CHECKERBOARD)
 			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_CHBO;
-		else if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_MONO)
-			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_MONO;
+		else if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_MOANAL)
+			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_MOANAL;
 		else
 			rc = false;
 
@@ -809,7 +809,7 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_attr(
 
 		err = ia_css_isys_convert_stream_format_to_mipi_format(
 			  stream_cfg->isys_config[isys_stream_idx].format,
-			  MIPI_PREDICTOR_NONE,
+			  MIPI_PREDICTOR_ANALNE,
 			  &fmt_type);
 		if (err)
 			rc = false;
@@ -833,7 +833,7 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_attr(
 		if (stream_cfg->metadata_config.resolution.height > 0) {
 			err = ia_css_isys_convert_stream_format_to_mipi_format(
 				  stream_cfg->metadata_config.data_type,
-				  MIPI_PREDICTOR_NONE,
+				  MIPI_PREDICTOR_ANALNE,
 				  &fmt_type);
 			if (err)
 				rc = false;
@@ -883,7 +883,7 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_resolution(
 	fmt_type = stream_cfg->isys_config[isys_stream_idx].format;
 	if ((stream_cfg->mode == IA_CSS_INPUT_MODE_SENSOR ||
 	     stream_cfg->mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) &&
-	    stream_cfg->source.port.compression.type != IA_CSS_CSI2_COMPRESSION_TYPE_NONE) {
+	    stream_cfg->source.port.compression.type != IA_CSS_CSI2_COMPRESSION_TYPE_ANALNE) {
 		if (stream_cfg->source.port.compression.uncompressed_bits_per_pixel ==
 		    UNCOMPRESSED_BITS_PER_PIXEL_10)
 			fmt_type = ATOMISP_INPUT_FORMAT_RAW_10;
@@ -1246,7 +1246,7 @@ static void start_pipe(
 	IA_CSS_ENTER_PRIVATE("me = %p, copy_ovrd = %d, input_mode = %d",
 			     me, copy_ovrd, input_mode);
 
-	assert(me); /* all callers are in this file and call with non null argument */
+	assert(me); /* all callers are in this file and call with analn null argument */
 
 	sh_css_sp_init_pipeline(&me->pipeline,
 				me->mode,
@@ -1371,7 +1371,7 @@ ia_css_reset_defaults(struct sh_css *css)
 	/* Reset everything to zero */
 	memset(&default_css, 0, sizeof(default_css));
 
-	/* Initialize the non zero values */
+	/* Initialize the analn zero values */
 	default_css.check_system_idle = true;
 	default_css.num_cont_raw_frames = NUM_CONTINUOUS_FRAMES;
 
@@ -1430,7 +1430,7 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 	hrt_data select, enable;
 
 	/*
-	 * The C99 standard does not specify the exact object representation of structs;
+	 * The C99 standard does analt specify the exact object representation of structs;
 	 * the representation is compiler dependent.
 	 *
 	 * The structs that are communicated between host and SP/ISP should have the
@@ -1438,11 +1438,11 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 	 * firmware is hivecc.
 	 *
 	 * To check if a different compiler, used to compile a host application, uses
-	 * another object representation, macros are defined specifying the size of
+	 * aanalther object representation, macros are defined specifying the size of
 	 * the structs as expected by the firmware.
 	 *
 	 * A host application shall verify that a sizeof( ) of the struct is equal to
-	 * the SIZE_OF_XXX macro of the corresponding struct. If they are not
+	 * the SIZE_OF_XXX macro of the corresponding struct. If they are analt
 	 * equal, functionality will break.
 	 */
 
@@ -1575,8 +1575,8 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 	/*
 	 * can be called here, queuing works, but:
 	 * - when sp is started later, it will wipe queued items
-	 * so for now we leave it for later and make sure
-	 * updates are not called to frequently.
+	 * so for analw we leave it for later and make sure
+	 * updates are analt called to frequently.
 	 * sh_css_init_buffer_queues();
 	 */
 
@@ -1590,7 +1590,7 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 		dma_set_max_burst_size(DMA0_ID, HIVE_DMA_BUS_DDR_CONN,
 				       ISP2401_DMA_MAX_BURST_LENGTH);
 
-	if (ia_css_isys_init() != INPUT_SYSTEM_ERR_NO_ERROR)
+	if (ia_css_isys_init() != INPUT_SYSTEM_ERR_ANAL_ERROR)
 		err = -EINVAL;
 
 	sh_css_params_map_and_store_default_gdc_lut();
@@ -1659,7 +1659,7 @@ map_sp_threads(struct ia_css_stream *stream, bool map)
 	if (copy_pipe)
 		ia_css_pipeline_map(copy_pipe->pipe_num, map);
 
-	/* DH regular multi pipe - not continuous mode: map the next pipes too */
+	/* DH regular multi pipe - analt continuous mode: map the next pipes too */
 	if (!stream->config.continuous) {
 		int i;
 
@@ -1745,7 +1745,7 @@ create_host_pipeline_structure(struct ia_css_stream *stream)
 					     capture_pipe->pipe_num,
 					     capture_pipe_delay);
 
-	/* DH regular multi pipe - not continuous mode: create the next pipelines too */
+	/* DH regular multi pipe - analt continuous mode: create the next pipelines too */
 	if (!stream->config.continuous) {
 		int i;
 
@@ -1785,7 +1785,7 @@ create_host_pipeline(struct ia_css_stream *stream)
 	pipe_id	= main_pipe->mode;
 
 	/*
-	 * No continuous frame allocation for capture pipe. It uses the
+	 * Anal continuous frame allocation for capture pipe. It uses the
 	 * "main" pipe's frames.
 	 */
 	if ((pipe_id == IA_CSS_PIPE_ID_PREVIEW) ||
@@ -1797,9 +1797,9 @@ create_host_pipeline(struct ia_css_stream *stream)
 		 *
 		 * The original condition pipe_id == IA_CSS_PIPE_ID_PREVIEW is
 		 * too strong. E.g. in SkyCam (with memory based input frames)
-		 * there is no continuous mode and thus no need for allocated
+		 * there is anal continuous mode and thus anal need for allocated
 		 * continuous frames.
-		 * This is not only for SkyCam but for all preview cases that
+		 * This is analt only for SkyCam but for all preview cases that
 		 * use DDR based input frames. For this reason the
 		 * stream->config.mode != IA_CSS_INPUT_MODE_MEMORY has beed
 		 * added.
@@ -1876,7 +1876,7 @@ create_host_pipeline(struct ia_css_stream *stream)
 			goto ERR;
 	}
 
-	/* DH regular multi pipe - not continuous mode: create the next pipelines too */
+	/* DH regular multi pipe - analt continuous mode: create the next pipelines too */
 	if (!stream->config.continuous) {
 		int i;
 
@@ -1926,7 +1926,7 @@ init_pipe_defaults(enum ia_css_pipe_mode mode,
 	/* Initialize pipe to pre-defined defaults */
 	memcpy(pipe, &default_pipe, sizeof(default_pipe));
 
-	/* TODO: JB should not be needed, but temporary backward reference */
+	/* TODO: JB should analt be needed, but temporary backward reference */
 	switch (mode) {
 	case IA_CSS_PIPE_MODE_PREVIEW:
 		pipe->mode = IA_CSS_PIPE_ID_PREVIEW;
@@ -1993,7 +1993,7 @@ pipe_generate_pipe_num(const struct ia_css_pipe *pipe,
 	if (pipe_num == INVALID_PIPE_NUM) {
 		/* Max number of pipes already allocated */
 		IA_CSS_ERROR("Max number of pipes already created");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	my_css.pipe_counter++;
@@ -2028,7 +2028,7 @@ create_pipe(enum ia_css_pipe_mode mode,
 
 	me = kmalloc(sizeof(*me), GFP_KERNEL);
 	if (!me)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = init_pipe_defaults(mode, me, copy_pipe);
 	if (err) {
@@ -2073,7 +2073,7 @@ ia_css_pipe_destroy(struct ia_css_pipe *pipe)
 	}
 
 	if (pipe->stream) {
-		IA_CSS_LOG("ia_css_stream_destroy not called!");
+		IA_CSS_LOG("ia_css_stream_destroy analt called!");
 		IA_CSS_LEAVE_ERR(-EINVAL);
 		return -EINVAL;
 	}
@@ -2150,7 +2150,7 @@ ia_css_uninit(void)
 
 	/* TODO: JB: implement decent check and handling of freeing mipi frames */
 	if (!mipi_is_free())
-		dev_warn(atomisp_dev, "mipi frames are not freed.\n");
+		dev_warn(atomisp_dev, "mipi frames are analt freed.\n");
 
 	/* cleanup generic data */
 	sh_css_params_uninit();
@@ -2255,28 +2255,28 @@ int ia_css_irq_enable(
 	switch (info) {
 	case IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF:
 		if (IS_ISP2401)
-			/* Just ignore those unused IRQs without printing errors */
+			/* Just iganalre those unused IRQs without printing errors */
 			return 0;
 
 		irq = virq_isys_sof;
 		break;
 	case IA_CSS_IRQ_INFO_CSS_RECEIVER_EOF:
 		if (IS_ISP2401)
-			/* Just ignore those unused IRQs without printing errors */
+			/* Just iganalre those unused IRQs without printing errors */
 			return 0;
 
 		irq = virq_isys_eof;
 		break;
 	case IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR:
 		if (IS_ISP2401)
-			/* Just ignore those unused IRQs without printing errors */
+			/* Just iganalre those unused IRQs without printing errors */
 			return 0;
 
 		irq = virq_isys_csi;
 		break;
 	case IA_CSS_IRQ_INFO_IF_ERROR:
 		if (IS_ISP2401)
-			/* Just ignore those unused IRQs without printing errors */
+			/* Just iganalre those unused IRQs without printing errors */
 			return 0;
 
 		irq = virq_ifmt0_id;
@@ -2391,7 +2391,7 @@ alloc_continuous_frames(struct ia_css_pipe *pipe, bool init_time)
 	} else if (pipe_id == IA_CSS_PIPE_ID_VIDEO) {
 		ref_info = pipe->pipe_settings.video.video_binary.in_frame_info;
 	} else {
-		/* should not happen */
+		/* should analt happen */
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 		return -EINVAL;
 	}
@@ -2423,7 +2423,7 @@ alloc_continuous_frames(struct ia_css_pipe *pipe, bool init_time)
 	} else if (pipe_id == IA_CSS_PIPE_ID_VIDEO) {
 		pipe->pipe_settings.video.video_binary.in_frame_info.format = ref_info.format;
 	} else {
-		/* should not happen */
+		/* should analt happen */
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 		return -EINVAL;
 	}
@@ -2485,7 +2485,7 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 	bool sensor = false;
 	bool continuous;
 
-	/* preview only have 1 output pin now */
+	/* preview only have 1 output pin analw */
 	struct ia_css_frame_info *pipe_out_info = &pipe->output_info[0];
 	struct ia_css_preview_settings *mycs  = &pipe->pipe_settings.preview;
 
@@ -2510,15 +2510,15 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 		return err;
 
 	/*
-	 * Note: the current selection of vf_pp binary and
+	 * Analte: the current selection of vf_pp binary and
 	 * parameterization of the preview binary contains a few pieces
-	 * of hardcoded knowledge. This needs to be cleaned up such that
+	 * of hardcoded kanalwledge. This needs to be cleaned up such that
 	 * the binary selection becomes more generic.
 	 * The vf_pp binary is needed if one or more of the following features
 	 * are required:
 	 * 1. YUV downscaling.
 	 * 2. Digital zoom.
-	 * 3. An output format that is not supported by the preview binary.
+	 * 3. An output format that is analt supported by the preview binary.
 	 *    In practice this means something other than yuv_line or nv12.
 	 * The decision if the vf_pp binary is needed for YUV downscaling is
 	 * made after the preview binary selection, since some preview binaries
@@ -2564,7 +2564,7 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 
 	/*
 	 * When vf_pp is needed, then the output format of the selected
-	 * preview binary must be yuv_line. If this is not the case,
+	 * preview binary must be yuv_line. If this is analt the case,
 	 * then the preview binary selection is done again.
 	 */
 	if (need_vf_pp &&
@@ -2615,10 +2615,10 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 	} else {
 		/*
 		 * About pipe->stream->config.mode == IA_CSS_INPUT_MODE_MEMORY:
-		 * This is typical the case with SkyCam (which has no input system) but it also
+		 * This is typical the case with SkyCam (which has anal input system) but it also
 		 * applies to all cases where the driver chooses for memory based input frames.
 		 * In these cases, a copy binary (which typical copies sensor data to DDR) does
-		 * not have much use.
+		 * analt have much use.
 		 */
 		need_isp_copy_binary = !online && !continuous;
 	}
@@ -2932,7 +2932,7 @@ init_vf_frameinfo_defaults(struct ia_css_pipe *pipe,
 	assert(vf_frame);
 
 	sh_css_pipe_get_viewfinder_frame_info(pipe, &vf_frame->frame_info, idx);
-	vf_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
+	vf_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_ANALNE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME + idx, thread_id, &queue_id);
 	vf_frame->dynamic_queue_id = queue_id;
@@ -2977,7 +2977,7 @@ static void get_pipe_extra_pixel(struct ia_css_pipe *pipe,
 	struct ia_css_resolution dvs_env = pipe->config.dvs_envelope;
 
 	/*
-	 * The dvs envelope info may not be correctly sent down via pipe config
+	 * The dvs envelope info may analt be correctly sent down via pipe config
 	 * The check is made and the correct value is populated in the binary info
 	 * Use this value when computing crop, else excess lines may get trimmed
 	 */
@@ -3110,7 +3110,7 @@ init_in_frameinfo_memory_defaults(struct ia_css_pipe *pipe,
 	in_frame->frame_info.raw_bit_depth = ia_css_pipe_util_pipe_input_format_bpp(pipe);
 	ia_css_frame_info_set_width(&in_frame->frame_info,
 				    pipe->stream->config.input_config.input_res.width, 0);
-	in_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
+	in_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_ANALNE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_INPUT_FRAME, thread_id, &queue_id);
 	in_frame->dynamic_queue_id = queue_id;
@@ -3138,7 +3138,7 @@ init_out_frameinfo_defaults(struct ia_css_pipe *pipe,
 	assert(out_frame);
 
 	sh_css_pipe_get_output_frame_info(pipe, &out_frame->frame_info, idx);
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
+	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_ANALNE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME + idx, thread_id, &queue_id);
 	out_frame->dynamic_queue_id = queue_id;
@@ -3625,9 +3625,9 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 	}
 
 	if (!sh_css_sp_is_running()) {
-		IA_CSS_LOG("SP is not running!");
+		IA_CSS_LOG("SP is analt running!");
 		IA_CSS_LEAVE_ERR(-EBUSY);
-		/* SP is not running. The queues are not valid */
+		/* SP is analt running. The queues are analt valid */
 		return -EBUSY;
 	}
 
@@ -3744,18 +3744,18 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 			IA_CSS_LOG("send vbuf=%p", h_vbuf);
 		} else {
 			return_err = -EINVAL;
-			IA_CSS_ERROR("hmm_buffer_record[]: no available slots\n");
+			IA_CSS_ERROR("hmm_buffer_record[]: anal available slots\n");
 		}
 	}
 
 	/*
-	 * Tell the SP which queues are not empty,
+	 * Tell the SP which queues are analt empty,
 	 * by sending the software event.
 	 */
 	if (!return_err) {
 		if (!sh_css_sp_is_running()) {
-			/* SP is not running. The queues are not valid */
-			IA_CSS_LOG("SP is not running!");
+			/* SP is analt running. The queues are analt valid */
+			IA_CSS_LOG("SP is analt running!");
 			IA_CSS_LEAVE_ERR(-EBUSY);
 			return -EBUSY;
 		}
@@ -3766,7 +3766,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 				 0);
 	} else {
 		ia_css_rmgr_rel_vbuf(hmm_buffer_pool, &h_vbuf);
-		IA_CSS_ERROR("buffer not enqueued");
+		IA_CSS_ERROR("buffer analt enqueued");
 	}
 
 	IA_CSS_LEAVE("return value = %d", return_err);
@@ -3824,9 +3824,9 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 	}
 
 	if (!sh_css_sp_is_running()) {
-		IA_CSS_LOG("SP is not running!");
+		IA_CSS_LOG("SP is analt running!");
 		IA_CSS_LEAVE_ERR(-EBUSY);
-		/* SP is not running. The queues are not valid */
+		/* SP is analt running. The queues are analt valid */
 		return -EBUSY;
 	}
 
@@ -3852,7 +3852,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 			ia_css_rmgr_rel_vbuf(hmm_buffer_pool, &hmm_buffer_record->h_vbuf);
 			sh_css_hmm_buffer_record_reset(hmm_buffer_record);
 		} else {
-			IA_CSS_ERROR("hmm_buffer_record not found (0x%x) buf_type(%d)",
+			IA_CSS_ERROR("hmm_buffer_record analt found (0x%x) buf_type(%d)",
 				     ddr_buffer_addr, buf_type);
 			IA_CSS_LEAVE_ERR(-EINVAL);
 			return -EINVAL;
@@ -3864,7 +3864,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 
 		/*
 		 * if the kernel_ptr is 0 or an invalid, return an error.
-		 * do not access the buffer via the kernal_ptr.
+		 * do analt access the buffer via the kernal_ptr.
 		 */
 		if ((ddr_buffer.kernel_ptr == 0) ||
 		    (kernel_ptr != HOST_ADDRESS(ddr_buffer.kernel_ptr))) {
@@ -3976,14 +3976,14 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 	}
 
 	/*
-	 * Tell the SP which queues are not full,
+	 * Tell the SP which queues are analt full,
 	 * by sending the software event.
 	 */
 	if (!return_err) {
 		if (!sh_css_sp_is_running()) {
-			IA_CSS_LOG("SP is not running!");
+			IA_CSS_LOG("SP is analt running!");
 			IA_CSS_LEAVE_ERR(-EBUSY);
-			/* SP is not running. The queues are not valid */
+			/* SP is analt running. The queues are analt valid */
 			return -EBUSY;
 		}
 		ia_css_bufq_enqueue_psys_event(
@@ -3998,7 +3998,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 }
 
 /*
- * Cannot Move this to event module as it is of ia_css_event_type which is declared in ia_css.h
+ * Cananalt Move this to event module as it is of ia_css_event_type which is declared in ia_css.h
  * TODO: modify and move it if possible.
  *
  * !!!IMPORTANT!!! KEEP THE FOLLOWING IN SYNC:
@@ -4046,7 +4046,7 @@ ia_css_dequeue_psys_event(struct ia_css_event *event)
 	if (!event)
 		return -EINVAL;
 
-	/* SP is not running. The queues are not valid */
+	/* SP is analt running. The queues are analt valid */
 	if (!sh_css_sp_is_running())
 		return -EBUSY;
 
@@ -4067,11 +4067,11 @@ ia_css_dequeue_psys_event(struct ia_css_event *event)
 	 * TODO: can this enum conversion be eliminated
 	 */
 	event->type = convert_event_sp_to_host_domain[payload[0]];
-	/* Some sane default values since not all events use all fields. */
+	/* Some sane default values since analt all events use all fields. */
 	event->pipe = NULL;
 	event->port = MIPI_PORT0_ID;
 	event->exp_id = 0;
-	event->fw_warning = IA_CSS_FW_WARNING_NONE;
+	event->fw_warning = IA_CSS_FW_WARNING_ANALNE;
 	event->fw_handle = 0;
 	event->timer_data = 0;
 	event->timer_code = 0;
@@ -4089,7 +4089,7 @@ ia_css_dequeue_psys_event(struct ia_css_event *event)
 		payload[0] = payload[1] = payload[2] = payload[3] = 0;
 		ret_err = ia_css_bufq_dequeue_psys_event(payload);
 		if (ret_err) {
-			/* no 2nd event ??? an error */
+			/* anal 2nd event ??? an error */
 			/*
 			 * Putting IA_CSS_ERROR is resulting in failures in
 			 * Merrifield smoke testing
@@ -4108,12 +4108,12 @@ ia_css_dequeue_psys_event(struct ia_css_event *event)
 			event->timer_subcode = payload[2];
 		} else {
 			/*
-			 * It's a non timer event. So clear first half of the
+			 * It's a analn timer event. So clear first half of the
 			 * timer event data.
-			 * If the second part of the TIMER event is not
+			 * If the second part of the TIMER event is analt
 			 * received, we discard the first half of the timer
-			 * data and process the non timer event without
-			 * affecting the flow. So the non timer event falls
+			 * data and process the analn timer event without
+			 * affecting the flow. So the analn timer event falls
 			 * through the code.
 			 */
 			event->timer_data = 0;
@@ -4133,8 +4133,8 @@ ia_css_dequeue_psys_event(struct ia_css_event *event)
 			event->exp_id = payload[3];
 	} else if (event->type == IA_CSS_EVENT_TYPE_FW_ASSERT) {
 		event->fw_assert_module_id = payload[1]; /* module */
-		event->fw_assert_line_no = (payload[2] << 8) + payload[3];
-		/* payload[2] is line_no>>8, payload[3] is line_no&0xff */
+		event->fw_assert_line_anal = (payload[2] << 8) + payload[3];
+		/* payload[2] is line_anal>>8, payload[3] is line_anal&0xff */
 	} else if (event->type != IA_CSS_EVENT_TYPE_TIMER) {
 		/*
 		 * pipe related events.
@@ -4200,7 +4200,7 @@ ia_css_dequeue_isys_event(struct ia_css_event *event)
 	if (!event)
 		return -EINVAL;
 
-	/* SP is not running. The queues are not valid */
+	/* SP is analt running. The queues are analt valid */
 	if (!sh_css_sp_is_running())
 		return -EBUSY;
 
@@ -4215,7 +4215,7 @@ ia_css_dequeue_isys_event(struct ia_css_event *event)
 
 	/* Fill return struct with appropriate info */
 	event->type = IA_CSS_EVENT_TYPE_PORT_EOF;
-	/* EOF events are associated with a CSI port, not with a pipe */
+	/* EOF events are associated with a CSI port, analt with a pipe */
 	event->pipe = NULL;
 	event->port = payload[1];
 	event->exp_id = payload[3];
@@ -4248,7 +4248,7 @@ sh_css_pipe_start(struct ia_css_stream *stream)
 	pipe_id = pipe->mode;
 
 	if (stream->started) {
-		IA_CSS_WARNING("Cannot start stream that is already started");
+		IA_CSS_WARNING("Cananalt start stream that is already started");
 		IA_CSS_LEAVE_ERR(err);
 		return err;
 	}
@@ -4271,7 +4271,7 @@ sh_css_pipe_start(struct ia_css_stream *stream)
 	default:
 		err = -EINVAL;
 	}
-	/* DH regular multi pipe - not continuous mode: start the next pipes too */
+	/* DH regular multi pipe - analt continuous mode: start the next pipes too */
 	if (!stream->config.continuous) {
 		int i;
 
@@ -4307,7 +4307,7 @@ sh_css_pipe_start(struct ia_css_stream *stream)
 	 * Force ISP parameter calculation after a mode change
 	 * Acceleration API examples pass NULL for stream but they
 	 * don't use ISP parameters anyway. So this should be okay.
-	 * The SP binary (jpeg) copy does not use any parameters.
+	 * The SP binary (jpeg) copy does analt use any parameters.
 	 */
 	if (!copy_on_sp(pipe)) {
 		sh_css_invalidate_params(stream);
@@ -4325,13 +4325,13 @@ sh_css_pipe_start(struct ia_css_stream *stream)
 
 	if (!sh_css_sp_is_running()) {
 		IA_CSS_LEAVE_ERR_PRIVATE(-EBUSY);
-		/* SP is not running. The queues are not valid */
+		/* SP is analt running. The queues are analt valid */
 		return -EBUSY;
 	}
 	ia_css_bufq_enqueue_psys_event(IA_CSS_PSYS_SW_EVENT_START_STREAM,
 				       (uint8_t)thread_id, 0, 0);
 
-	/* DH regular multi pipe - not continuous mode: enqueue event to the next pipes too */
+	/* DH regular multi pipe - analt continuous mode: enqueue event to the next pipes too */
 	if (!stream->config.continuous) {
 		int i;
 
@@ -4461,7 +4461,7 @@ unsigned int
 sh_css_get_mipi_sizes_for_check(const unsigned int port, const unsigned int idx)
 {
 	OP___assert(port < N_CSI_PORTS);
-	OP___assert(idx  < IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT);
+	OP___assert(idx  < IA_CSS_MIPI_SIZE_CHECK_MAX_ANALF_ENTRIES_PER_PORT);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "sh_css_get_mipi_sizes_for_check(port %d, idx %d): %d\n",
 			    port, idx, my_css.mipi_sizes_for_check[port][idx]);
@@ -4530,9 +4530,9 @@ sh_css_pipe_get_shading_info(struct ia_css_pipe *pipe,
 		 */
 	} else {
 		/*
-		 * When the pipe does not have a binary which has the shading
-		 * correction, this function does not need to fill the shading
-		 * information. It is not a error case, and then
+		 * When the pipe does analt have a binary which has the shading
+		 * correction, this function does analt need to fill the shading
+		 * information. It is analt a error case, and then
 		 * this function should return 0.
 		 */
 		memset(shading_info, 0, sizeof(*shading_info));
@@ -4574,7 +4574,7 @@ sh_css_pipe_get_grid_info(struct ia_css_pipe *pipe,
 	}
 
 	if (binary) {
-		/* copy pipe does not have ISP binary*/
+		/* copy pipe does analt have ISP binary*/
 		info->isp_in_width = binary->internal_frame_info.res.width;
 		info->isp_in_height = binary->internal_frame_info.res.height;
 	}
@@ -4603,7 +4603,7 @@ ia_css_pipe_check_format(struct ia_css_pipe *pipe,
 	IA_CSS_ENTER_PRIVATE("");
 
 	if (NULL == pipe || NULL == pipe->pipe_settings.video.video_binary.info) {
-		IA_CSS_ERROR("Pipe or binary info is not set");
+		IA_CSS_ERROR("Pipe or binary info is analt set");
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 		return -EINVAL;
 	}
@@ -4618,7 +4618,7 @@ ia_css_pipe_check_format(struct ia_css_pipe *pipe,
 		}
 	}
 	if (!found) {
-		IA_CSS_ERROR("Requested format is not supported by binary");
+		IA_CSS_ERROR("Requested format is analt supported by binary");
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 		return -EINVAL;
 	}
@@ -4647,7 +4647,7 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 	assert(pipe->mode == IA_CSS_PIPE_ID_VIDEO);
 	/*
 	 * we only test the video_binary because offline video doesn't need a
-	 * vf_pp binary and online does not (always use) the copy_binary.
+	 * vf_pp binary and online does analt (always use) the copy_binary.
 	 * All are always reset at the same time anyway.
 	 */
 	if (mycs->video_binary.info)
@@ -4660,14 +4660,14 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 	assert(pipe_out_info);
 
 	/*
-	 * There is no explicit input format requirement for raw or yuv
+	 * There is anal explicit input format requirement for raw or yuv
 	 * What matters is that there is a binary that supports the stream format.
-	 * This is checked in the binary_find(), so no need to check it here
+	 * This is checked in the binary_find(), so anal need to check it here
 	 */
 	err = ia_css_util_check_input(&pipe->stream->config, false, false);
 	if (err)
 		return err;
-	/* cannot have online video and input_mode memory */
+	/* cananalt have online video and input_mode memory */
 	if (online && pipe->stream->config.mode == IA_CSS_INPUT_MODE_MEMORY)
 		return -EINVAL;
 	if (pipe->enable_viewfinder[IA_CSS_PIPE_OUTPUT_STAGE_0]) {
@@ -4719,13 +4719,13 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 						  sizeof(struct ia_css_binary),
 						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			return err;
 		}
 		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
 						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			return err;
 		}
 		for (i = 0; i < cas_scaler_descr.num_stage; i++) {
@@ -4760,16 +4760,16 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 			return err;
 
 		/*
-		 * In the case where video_vf_info is not NULL, this allows
+		 * In the case where video_vf_info is analt NULL, this allows
 		 * us to find a potential video library with desired vf format.
-		 * If success, no vf_pp binary is needed.
+		 * If success, anal vf_pp binary is needed.
 		 * If failed, we will look up video binary with YUV_LINE vf format
 		 */
 		err = ia_css_binary_find(&video_descr,
 					 &mycs->video_binary);
 
 		if (err) {
-			/* This will do another video binary lookup later for YUV_LINE format*/
+			/* This will do aanalther video binary lookup later for YUV_LINE format*/
 			if (video_vf_info)
 				need_vf_pp = true;
 			else
@@ -4822,7 +4822,7 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 	}
 
 	/*
-	 * If a video binary does not use a ref_frame, we set the frame delay
+	 * If a video binary does analt use a ref_frame, we set the frame delay
 	 * to 0. This is the case for the 1-stage low-power video binary.
 	 */
 	if (!mycs->video_binary.info->sp.enable.ref_frame)
@@ -4873,7 +4873,7 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 							pipe_vf_out_info);
 		} else {
 			/*
-			 * output from main binary is not yuv line. currently
+			 * output from main binary is analt yuv line. currently
 			 * this is possible only when bci is enabled on vfpp
 			 * output
 			 */
@@ -5047,7 +5047,7 @@ int sh_css_pipe_get_viewfinder_frame_info(
 	    (pipe->config.default_capture_config.mode == IA_CSS_CAPTURE_MODE_RAW ||
 	     pipe->config.default_capture_config.mode == IA_CSS_CAPTURE_MODE_BAYER))
 		return -EINVAL;
-	/* offline video does not generate viewfinder output */
+	/* offline video does analt generate viewfinder output */
 	*info = pipe->vf_output_info[idx];
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
@@ -5260,7 +5260,7 @@ static int load_primary_binaries(
 	 * view finder in a single binary in a capture flow. The
 	 * vf-pp stage has been removed for Skycam in the solution
 	 * provided. The vf-pp stage should be re-introduced when
-	 * required. This should not be considered as a clean solution.
+	 * required. This should analt be considered as a clean solution.
 	 * Proper investigation should be done to come up with the clean
 	 * solution.
 	 */
@@ -5298,14 +5298,14 @@ static int load_primary_binaries(
 						  sizeof(struct ia_css_binary),
 						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
 		}
 		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
 						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
 		}
@@ -5402,7 +5402,7 @@ static int load_primary_binaries(
 	 * view finder in a single binary in a capture flow. The
 	 * vf-pp stage has been removed for Skycam in the solution
 	 * provided. The vf-pp stage should be re-introduced when
-	 * required. Thisshould not be considered as a clean solution.
+	 * required. Thisshould analt be considered as a clean solution.
 	 * Proper  * investigation should be done to come up with the clean
 	 * solution.
 	 */
@@ -5486,7 +5486,7 @@ allocate_delay_frames(struct ia_css_pipe *pipe)
 		 * 2. UV plane with line interleaving, like below
 		 *	UUUUUU(width/2 times) VVVVVVVV..(width/2 times)
 		 *
-		 * This format is not YUV420(which has Y, U and V planes).
+		 * This format is analt YUV420(which has Y, U and V planes).
 		 * Its closer to NV12, except that the UV plane has UV
 		 * interleaving, like UVUVUVUVUVUVUVUVU...
 		 *
@@ -5507,7 +5507,7 @@ allocate_delay_frames(struct ia_css_pipe *pipe)
 		 * 2. UV plane with line interleaving, like below
 		 *	UUUUUU(width/2 times) VVVVVVVV..(width/2 times)
 		 *
-		 * This format is not YUV420(which has Y, U and V planes).
+		 * This format is analt YUV420(which has Y, U and V planes).
 		 * Its closer to NV12, except that the UV plane has UV
 		 * interleaving, like UVUVUVUVUVUVUVUVU...
 		 *
@@ -5960,7 +5960,7 @@ need_yuv_scaler_stage(const struct ia_css_pipe *pipe)
 	for (i = 0; i < IA_CSS_PIPE_MAX_OUTPUT_STAGE; i++) {
 		out_res = pipe->output_info[i].res;
 
-		/* A non-zero width means it is a valid output port */
+		/* A analn-zero width means it is a valid output port */
 		if ((out_res.width != 0) && need_downscaling(in_res, out_res))
 			return true;
 	}
@@ -5970,7 +5970,7 @@ need_yuv_scaler_stage(const struct ia_css_pipe *pipe)
 
 /*
  * TODO: it is temporarily created from ia_css_pipe_create_cas_scaler_desc
- * which has some hard-coded knowledge which prevents reuse of the function.
+ * which has some hard-coded kanalwledge which prevents reuse of the function.
  * Later, merge this with ia_css_pipe_create_cas_scaler_desc
  */
 static int ia_css_pipe_create_cas_scaler_desc_single_output(
@@ -6012,34 +6012,34 @@ static int ia_css_pipe_create_cas_scaler_desc_single_output(
 				 sizeof(struct ia_css_frame_info),
 				 GFP_KERNEL);
 	if (!descr->in_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 	descr->internal_out_info = kmalloc(descr->num_stage *
 					   sizeof(struct ia_css_frame_info),
 					   GFP_KERNEL);
 	if (!descr->internal_out_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 	descr->out_info = kmalloc(descr->num_stage *
 				  sizeof(struct ia_css_frame_info),
 				  GFP_KERNEL);
 	if (!descr->out_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 	descr->vf_info = kmalloc(descr->num_stage *
 				 sizeof(struct ia_css_frame_info),
 				 GFP_KERNEL);
 	if (!descr->vf_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 	descr->is_output_stage = kmalloc(descr->num_stage * sizeof(bool),
 					 GFP_KERNEL);
 	if (!descr->is_output_stage) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 
@@ -6162,34 +6162,34 @@ ia_css_pipe_create_cas_scaler_desc(struct ia_css_pipe *pipe,
 				       sizeof(struct ia_css_frame_info),
 				       GFP_KERNEL);
 	if (!descr->in_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 	descr->internal_out_info = kmalloc(descr->num_stage *
 					   sizeof(struct ia_css_frame_info),
 					   GFP_KERNEL);
 	if (!descr->internal_out_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 	descr->out_info = kmalloc(descr->num_stage *
 				  sizeof(struct ia_css_frame_info),
 				  GFP_KERNEL);
 	if (!descr->out_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 	descr->vf_info = kmalloc(descr->num_stage *
 				 sizeof(struct ia_css_frame_info),
 				 GFP_KERNEL);
 	if (!descr->vf_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 	descr->is_output_stage = kmalloc(descr->num_stage * sizeof(bool),
 					 GFP_KERNEL);
 	if (!descr->is_output_stage) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 
@@ -6335,13 +6335,13 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 						  sizeof(struct ia_css_binary),
 						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto ERR;
 		}
 		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
 						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto ERR;
 		}
 		for (i = 0; i < cas_scaler_descr.num_stage; i++) {
@@ -6368,12 +6368,12 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 		next_binary = NULL;
 
 	/*
-	 * NOTES
+	 * ANALTES
 	 * - Why does the "yuvpp" pipe needs "isp_copy_binary" (i.e. ISP Copy) when
 	 *   its input is "ATOMISP_INPUT_FORMAT_YUV422_8"?
 	 *
 	 *   In most use cases, the first stage in the "yuvpp" pipe is the "yuv_scale_
-	 *   binary". However, the "yuv_scale_binary" does NOT support the input-frame
+	 *   binary". However, the "yuv_scale_binary" does ANALT support the input-frame
 	 *   format as "IA_CSS_STREAM _FORMAT_YUV422_8".
 	 *
 	 *   Hence, the "isp_copy_binary" is required to be present in front of the "yuv
@@ -6399,7 +6399,7 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 			goto ERR;
 
 		/*
-		 * NOTES
+		 * ANALTES
 		 * - Why is "pipe->pipe_settings.capture.copy_binary.online" specified?
 		 *
 		 *   In some use cases, the first stage in the "yuvpp" pipe is the
@@ -6413,7 +6413,7 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 		 *
 		 *   In other use cases, the first stage in the "yuvpp" pipe is the
 		 *   "yuv_scale_binary". "The "yuv_scale_binary" is designed to process the
-		 *   input ONLY from the system DDR. So it does not provide the flag "online"
+		 *   input ONLY from the system DDR. So it does analt provide the flag "online"
 		 *   to specify where its input is from.
 		 */
 		pipe->pipe_settings.capture.copy_binary.online = pipe->stream->config.online;
@@ -6442,7 +6442,7 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 				     sizeof(struct ia_css_binary),
 				     GFP_KERNEL);
 	if (!mycs->vf_pp_binary) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 
@@ -6546,7 +6546,7 @@ sh_css_pipe_unload_binaries(struct ia_css_pipe *pipe)
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 		return -EINVAL;
 	}
-	/* PIPE_MODE_COPY has no binaries, but has output frames to outside*/
+	/* PIPE_MODE_COPY has anal binaries, but has output frames to outside*/
 	if (pipe->config.mode == IA_CSS_PIPE_MODE_COPY) {
 		IA_CSS_LEAVE_ERR_PRIVATE(0);
 		return 0;
@@ -6580,7 +6580,7 @@ sh_css_pipe_load_binaries(struct ia_css_pipe *pipe)
 	assert(pipe);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "sh_css_pipe_load_binaries() enter:\n");
 
-	/* PIPE_MODE_COPY has no binaries, but has output frames to outside*/
+	/* PIPE_MODE_COPY has anal binaries, but has output frames to outside*/
 	if (pipe->config.mode == IA_CSS_PIPE_MODE_COPY)
 		return err;
 
@@ -6604,7 +6604,7 @@ sh_css_pipe_load_binaries(struct ia_css_pipe *pipe)
 	if (err) {
 		if (sh_css_pipe_unload_binaries(pipe)) {
 			/*
-			 * currently css does not support multiple error
+			 * currently css does analt support multiple error
 			 * returns in a single function, using -EINVAL in
 			 * this case
 			 */
@@ -6705,7 +6705,7 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 			 * For the "isp_copy_var" binary, it reads the YUV422-8 pixels from
 			 * the frame buffer (at DDR) to the frame-line buffer (at VMEM).
 			 *
-			 * By now, the "isp_copy_var" binary does NOT provide a separated
+			 * By analw, the "isp_copy_var" binary does ANALT provide a separated
 			 * frame-line buffer to store the YUV422-8 pixels. Instead, it stores
 			 * the YUV422-8 pixels in the frame-line buffer which is designed to
 			 * store the Bayer-Quad RAW pixels.
@@ -6885,7 +6885,7 @@ create_host_copy_pipeline(struct ia_css_pipe *pipe,
 	ia_css_pipeline_clean(me);
 
 	/* Construct out_frame info */
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
+	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_ANALNE;
 
 	if (copy_on_sp(pipe) &&
 	    pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8) {
@@ -6934,7 +6934,7 @@ create_host_isyscopy_capture_pipeline(struct ia_css_pipe *pipe)
 	err = sh_css_pipe_get_output_frame_info(pipe, &out_frame->frame_info, 0);
 	if (err)
 		return err;
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
+	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_ANALNE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, thread_id, &queue_id);
 	out_frame->dynamic_queue_id = queue_id;
@@ -7150,7 +7150,7 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 			 * view finder in a single binary in a capture flow. The
 			 * vf-pp stage has been removed from Skycam in the solution
 			 * provided. The vf-pp stage should be re-introduced when
-			 * required. This  * should not be considered as a clean solution.
+			 * required. This  * should analt be considered as a clean solution.
 			 * Proper investigation should be done to come up with the clean
 			 * solution.
 			 */
@@ -7282,7 +7282,7 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 	 * view finder in a single binary in a capture flow. The vf-pp
 	 * stage has been removed from Skycam in the solution provided.
 	 * The vf-pp stage should be re-introduced when required. This
-	 * should not be considered as a clean solution. Proper
+	 * should analt be considered as a clean solution. Proper
 	 * investigation should be done to come up with the clean solution.
 	 */
 	if (mode != IA_CSS_CAPTURE_MODE_RAW &&
@@ -7366,8 +7366,8 @@ static int capture_start(struct ia_css_pipe *pipe)
 
 	/*
 	 * old isys: for IA_CSS_PIPE_MODE_COPY pipe, isys rx has to be configured,
-	 * which is currently done in start_binary(); but COPY pipe contains no binary,
-	 * and does not call start_binary(); so we need to configure the rx here.
+	 * which is currently done in start_binary(); but COPY pipe contains anal binary,
+	 * and does analt call start_binary(); so we need to configure the rx here.
 	 */
 	if (!IS_ISP2401 &&
 	    pipe->config.mode == IA_CSS_PIPE_MODE_COPY &&
@@ -7514,7 +7514,7 @@ int ia_css_stream_capture_frame(struct ia_css_stream *stream,
 	}
 
 	if (!sh_css_sp_is_running()) {
-		/* SP is not running. The queues are not valid */
+		/* SP is analt running. The queues are analt valid */
 		IA_CSS_LEAVE_ERR(-EBUSY);
 		return -EBUSY;
 	}
@@ -7525,9 +7525,9 @@ int ia_css_stream_capture_frame(struct ia_css_stream *stream,
 	encoded_tag_descr = sh_css_encode_tag_descr(&tag_descr);
 	/*
 	 * Enqueue the encoded tag to the host2sp queue.
-	 * Note: The pipe and stage IDs for tag_cmd queue are hard-coded to 0
+	 * Analte: The pipe and stage IDs for tag_cmd queue are hard-coded to 0
 	 * on both host and the SP side.
-	 * It is mainly because it is enough to have only one tag_cmd queue
+	 * It is mainly because it is eanalugh to have only one tag_cmd queue
 	 */
 	err = ia_css_bufq_enqueue_tag_cmd(encoded_tag_descr);
 
@@ -7568,7 +7568,7 @@ int ia_css_stream_capture(struct ia_css_stream *stream, int num_captures,
 	encoded_tag_descr = sh_css_encode_tag_descr(&tag_descr);
 
 	if (!sh_css_sp_is_running()) {
-		/* SP is not running. The queues are not valid */
+		/* SP is analt running. The queues are analt valid */
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_stream_capture() leaving:queues unavailable\n");
 		return -EBUSY;
@@ -7576,9 +7576,9 @@ int ia_css_stream_capture(struct ia_css_stream *stream, int num_captures,
 
 	/*
 	 * Enqueue the encoded tag to the host2sp queue.
-	 * Note: The pipe and stage IDs for tag_cmd queue are hard-coded to 0
+	 * Analte: The pipe and stage IDs for tag_cmd queue are hard-coded to 0
 	 * on both host and the SP side.
-	 * It is mainly because it is enough to have only one tag_cmd queue
+	 * It is mainly because it is eanalugh to have only one tag_cmd queue
 	 */
 	return_err = ia_css_bufq_enqueue_tag_cmd((uint32_t)encoded_tag_descr);
 
@@ -7603,7 +7603,7 @@ void ia_css_stream_request_flash(struct ia_css_stream *stream)
 			ia_css_debug_dump_sp_sw_debug_info();
 		}
 	} else {
-		IA_CSS_LOG("SP is not running!");
+		IA_CSS_LOG("SP is analt running!");
 	}
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -7706,7 +7706,7 @@ void ia_css_stream_config_defaults(struct ia_css_stream_config *stream_config)
 	stream_config->pixels_per_clock = 1;
 	/*
 	 * temporary default value for backwards compatibility.
-	 * This field used to be hardcoded within CSS but this has now
+	 * This field used to be hardcoded within CSS but this has analw
 	 * been moved to the stream_config struct.
 	 */
 	stream_config->source.port.rxcount = 0x04040404;
@@ -7745,9 +7745,9 @@ ia_css_pipe_create_extra(const struct ia_css_pipe_config *config,
 
 	IA_CSS_ENTER_PRIVATE("config = %p, extra_config = %p and pipe = %p", config, extra_config, pipe);
 
-	/* do not allow to create more than the maximum limit */
+	/* do analt allow to create more than the maximum limit */
 	if (my_css.pipe_counter >= IA_CSS_PIPELINE_NUM_MAX) {
-		IA_CSS_LEAVE_ERR_PRIVATE(-ENOSPC);
+		IA_CSS_LEAVE_ERR_PRIVATE(-EANALSPC);
 		return -EINVAL;
 	}
 
@@ -7765,7 +7765,7 @@ ia_css_pipe_create_extra(const struct ia_css_pipe_config *config,
 		return err;
 	}
 
-	/* now we have a pipe structure to fill */
+	/* analw we have a pipe structure to fill */
 	internal_pipe->config = *config;
 	if (extra_config)
 		internal_pipe->extra_config = *extra_config;
@@ -7785,7 +7785,7 @@ ia_css_pipe_create_extra(const struct ia_css_pipe_config *config,
 	 * we still keep enable_raw_binning for backward compatibility,
 	 * for any new fractional bayer downscaling, we should use
 	 * bayer_ds_out_res. if both are specified, bayer_ds_out_res will
-	 * take precedence.if none is specified, we set bayer_ds_out_res
+	 * take precedence.if analne is specified, we set bayer_ds_out_res
 	 * equal to IF output resolution(IF may do cropping on sensor output)
 	 * or use default decimation factor 1.
 	 */
@@ -7883,7 +7883,7 @@ ia_css_pipe_get_info(const struct ia_css_pipe *pipe,
 			    "ia_css_pipe_get_info()\n");
 	if (!pipe_info) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "ia_css_pipe_get_info: pipe_info cannot be NULL\n");
+				    "ia_css_pipe_get_info: pipe_info cananalt be NULL\n");
 		return -EINVAL;
 	}
 	if (!pipe || !pipe->stream) {
@@ -7921,19 +7921,19 @@ ia_css_pipe_override_frame_format(struct ia_css_pipe *pipe,
 	IA_CSS_ENTER_PRIVATE("pipe = %p, pin_index = %d, new_formats = %d", pipe, pin_index, new_format);
 
 	if (!pipe) {
-		IA_CSS_ERROR("pipe is not set");
+		IA_CSS_ERROR("pipe is analt set");
 		err = -EINVAL;
 		IA_CSS_LEAVE_ERR_PRIVATE(err);
 		return err;
 	}
 	if (0 != pin_index && 1 != pin_index) {
-		IA_CSS_ERROR("pin index is not valid");
+		IA_CSS_ERROR("pin index is analt valid");
 		err = -EINVAL;
 		IA_CSS_LEAVE_ERR_PRIVATE(err);
 		return err;
 	}
 	if (new_format != IA_CSS_FRAME_FORMAT_NV12_TILEY) {
-		IA_CSS_ERROR("new format is not valid");
+		IA_CSS_ERROR("new format is analt valid");
 		err = -EINVAL;
 		IA_CSS_LEAVE_ERR_PRIVATE(err);
 		return err;
@@ -7959,15 +7959,15 @@ ia_css_stream_configure_rx(struct ia_css_stream *stream)
 	assert(stream);
 
 	config = &stream->config.source.port;
-	/* AM: this code is not reliable, especially for 2400 */
+	/* AM: this code is analt reliable, especially for 2400 */
 	if (config->num_lanes == 1)
-		stream->csi_rx_config.mode = MONO_1L_1L_0L;
+		stream->csi_rx_config.mode = MOANAL_1L_1L_0L;
 	else if (config->num_lanes == 2)
-		stream->csi_rx_config.mode = MONO_2L_1L_0L;
+		stream->csi_rx_config.mode = MOANAL_2L_1L_0L;
 	else if (config->num_lanes == 3)
-		stream->csi_rx_config.mode = MONO_3L_1L_0L;
+		stream->csi_rx_config.mode = MOANAL_3L_1L_0L;
 	else if (config->num_lanes == 4)
-		stream->csi_rx_config.mode = MONO_4L_1L_0L;
+		stream->csi_rx_config.mode = MOANAL_4L_1L_0L;
 	else if (config->num_lanes != 0)
 		return -EINVAL;
 
@@ -7979,11 +7979,11 @@ ia_css_stream_configure_rx(struct ia_css_stream *stream)
 	stream->csi_rx_config.initcount  = 0;
 	stream->csi_rx_config.synccount  = 0x28282828;
 	stream->csi_rx_config.rxcount    = config->rxcount;
-	if (config->compression.type == IA_CSS_CSI2_COMPRESSION_TYPE_NONE)
-		stream->csi_rx_config.comp = MIPI_PREDICTOR_NONE;
+	if (config->compression.type == IA_CSS_CSI2_COMPRESSION_TYPE_ANALNE)
+		stream->csi_rx_config.comp = MIPI_PREDICTOR_ANALNE;
 	else
 		/*
-		 * not implemented yet, requires extension of the rx_cfg_t
+		 * analt implemented yet, requires extension of the rx_cfg_t
 		 * struct
 		 */
 		return -EINVAL;
@@ -8103,13 +8103,13 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 			if (my_css.size_mem_words != 0) {
 				my_css.num_mipi_frames[port] =
 				    2; /* Temp change: Default for backwards compatibility. */
-			} else if (stream_config->mipi_buffer_config.nof_mipi_buffers != 0) {
+			} else if (stream_config->mipi_buffer_config.analf_mipi_buffers != 0) {
 				my_css.num_mipi_frames[port] =
-				    stream_config->mipi_buffer_config.nof_mipi_buffers;
+				    stream_config->mipi_buffer_config.analf_mipi_buffers;
 			} else {
 				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 						    "ia_css_stream_create() exit: error, need to set number of mipi frames.\n");
-				assert(stream_config->mipi_buffer_config.nof_mipi_buffers != 0);
+				assert(stream_config->mipi_buffer_config.analf_mipi_buffers != 0);
 				err = -EINVAL;
 				IA_CSS_LEAVE_ERR(err);
 				return err;
@@ -8126,7 +8126,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	/* allocate the stream instance */
 	curr_stream = kzalloc(sizeof(struct ia_css_stream), GFP_KERNEL);
 	if (!curr_stream) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		IA_CSS_LEAVE_ERR(err);
 		return err;
 	}
@@ -8140,7 +8140,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		curr_stream->num_pipes = 0;
 		kfree(curr_stream);
 		curr_stream = NULL;
-		err = -ENOMEM;
+		err = -EANALMEM;
 		IA_CSS_LEAVE_ERR(err);
 		return err;
 	}
@@ -8265,7 +8265,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 			curr_stream->stop_copy_preview = my_css.stop_copy_preview;
 		}
 
-		/* Create copy pipe here, since it may not be exposed to the driver */
+		/* Create copy pipe here, since it may analt be exposed to the driver */
 		preview_pipe = find_pipe(pipes, num_pipes,
 					 IA_CSS_PIPE_MODE_PREVIEW, false);
 		video_pipe = find_pipe(pipes, num_pipes,
@@ -8280,7 +8280,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 				goto ERR;
 			}
 		}
-		/* We do not support preview and video pipe at the same time */
+		/* We do analt support preview and video pipe at the same time */
 		if (preview_pipe && video_pipe) {
 			err = -EINVAL;
 			goto ERR;
@@ -8327,7 +8327,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 			sh_css_pipe_free_shading_table(curr_pipe);
 	}
 
-	/* now pipes have been configured, info should be available */
+	/* analw pipes have been configured, info should be available */
 	for (i = 0; i < num_pipes; i++) {
 		struct ia_css_pipe_info *pipe_info = NULL;
 
@@ -8476,8 +8476,8 @@ ia_css_stream_destroy(struct ia_css_stream *stream)
 					/*
 					 * free any mipi frames that are remaining:
 					 * some test stream create-destroy cycles do
-					 * not generate output frames
-					 * and the mipi buffer is not freed in the
+					 * analt generate output frames
+					 * and the mipi buffer is analt freed in the
 					 * deque function
 					 */
 					if (entry)
@@ -8588,7 +8588,7 @@ ia_css_stream_start(struct ia_css_stream *stream)
 		unsigned int idx;
 		unsigned int port = (unsigned int)(stream->config.source.port.port);
 
-		for (idx = 0; idx < IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT; idx++) {
+		for (idx = 0; idx < IA_CSS_MIPI_SIZE_CHECK_MAX_ANALF_ENTRIES_PER_PORT; idx++) {
 			sh_css_sp_group.config.mipi_sizes_for_check[port][idx] =
 			sh_css_get_mipi_sizes_for_check(port, idx);
 		}
@@ -8624,7 +8624,7 @@ ia_css_stream_stop(struct ia_css_stream *stream)
 		unsigned int idx;
 		unsigned int port = (unsigned int)(stream->config.source.port.port);
 
-		for (idx = 0; idx < IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT; idx++)
+		for (idx = 0; idx < IA_CSS_MIPI_SIZE_CHECK_MAX_ANALF_ENTRIES_PER_PORT; idx++)
 			sh_css_sp_group.config.mipi_sizes_for_check[port][idx] = 0;
 	}
 
@@ -8634,7 +8634,7 @@ ia_css_stream_stop(struct ia_css_stream *stream)
 
 	/*
 	 * Ideally, unmapping should happen after pipeline_stop, but current
-	 * semantics do not allow that.
+	 * semantics do analt allow that.
 	 */
 	/* err = map_sp_threads(stream, false); */
 
@@ -8921,10 +8921,10 @@ ia_css_pipe_get_pipe_num(const struct ia_css_pipe *pipe)
 	assert(pipe);
 
 	/*
-	 * KW was not sure this function was not returning a value
+	 * KW was analt sure this function was analt returning a value
 	 * that was out of range; so added an assert, and, for the
-	 * case when asserts are not enabled, clip to the largest
-	 * value; pipe_num is unsigned so the value cannot be too small
+	 * case when asserts are analt enabled, clip to the largest
+	 * value; pipe_num is unsigned so the value cananalt be too small
 	 */
 	assert(pipe->pipe_num < IA_CSS_PIPELINE_NUM_MAX);
 
@@ -8970,7 +8970,7 @@ ia_css_start_sp(void)
 	sh_css_init_host_sp_control_vars();
 
 	/* buffers should be initialized only when sp is started */
-	/* AM: At the moment it will be done only when there is no stream active. */
+	/* AM: At the moment it will be done only when there is anal stream active. */
 
 	sh_css_setup_queues();
 	ia_css_bufq_dump_queue_info();
@@ -8998,11 +8998,11 @@ ia_css_stop_sp(void)
 		err = -EINVAL;
 		IA_CSS_LEAVE("SP already stopped : return_err=%d", err);
 
-		/* Return an error - stop SP should not have been called by driver */
+		/* Return an error - stop SP should analt have been called by driver */
 		return err;
 	}
 
-	/* For now, stop whole SP */
+	/* For analw, stop whole SP */
 	if (!sh_css_write_host2sp_command(host2sp_cmd_terminate)) {
 		IA_CSS_ERROR("Call to 'sh-css_write_host2sp_command()' failed");
 		ia_css_debug_dump_sp_sw_debug_info();
@@ -9016,10 +9016,10 @@ ia_css_stop_sp(void)
 		udelay(1);
 	}
 	if (ia_css_spctrl_get_state(SP0_ID) != IA_CSS_SP_SW_TERMINATED)
-		IA_CSS_WARNING("SP has not terminated (SW)");
+		IA_CSS_WARNING("SP has analt terminated (SW)");
 
 	if (timeout == 0) {
-		IA_CSS_WARNING("SP is not idle");
+		IA_CSS_WARNING("SP is analt idle");
 		ia_css_debug_dump_sp_sw_debug_info();
 	}
 	timeout = SP_SHUTDOWN_TIMEOUT_US;
@@ -9028,7 +9028,7 @@ ia_css_stop_sp(void)
 		udelay(1);
 	}
 	if (timeout == 0) {
-		IA_CSS_WARNING("ISP is not idle");
+		IA_CSS_WARNING("ISP is analt idle");
 		ia_css_debug_dump_sp_sw_debug_info();
 	}
 

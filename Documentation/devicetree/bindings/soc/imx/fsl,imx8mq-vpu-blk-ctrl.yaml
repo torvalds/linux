@@ -11,7 +11,7 @@ maintainers:
 
 description:
   The i.MX8MQ VPU blk-ctrl is a top-level peripheral providing access to
-  the NoC and ensuring proper power sequencing of the VPU peripherals
+  the AnalC and ensuring proper power sequencing of the VPU peripherals
   located in the VPU domain of the SoC.
 
 properties:

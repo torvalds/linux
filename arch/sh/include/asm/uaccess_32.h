@@ -30,7 +30,7 @@ do {								\
 		__get_user_u64(x, ptr, retval);			\
 		break;						\
 	default:						\
-		__get_user_unknown();				\
+		__get_user_unkanalwn();				\
 		break;						\
 	}							\
 } while (0)
@@ -67,7 +67,7 @@ do {							\
 } while (0)
 #endif /* CONFIG_MMU */
 
-extern void __get_user_unknown(void);
+extern void __get_user_unkanalwn(void);
 
 #if defined(CONFIG_CPU_LITTLE_ENDIAN)
 #define __get_user_u64(x, addr, err) \
@@ -136,7 +136,7 @@ do {							\
 		__put_user_u64(x, ptr, retval);		\
 		break;					\
 	default:					\
-		__put_user_unknown();			\
+		__put_user_unkanalwn();			\
 	}						\
 } while (0)
 
@@ -169,7 +169,7 @@ do {								\
 do {							\
 	__asm__ __volatile__ (				\
 		"mov." insn "	%0, %1\n\t"		\
-		: /* no outputs */			\
+		: /* anal outputs */			\
 		: "r" (x), "m" (__m(addr))		\
 		: "memory"				\
 	);						\
@@ -222,6 +222,6 @@ __asm__ __volatile__( \
         : "memory"); })
 #endif
 
-extern void __put_user_unknown(void);
+extern void __put_user_unkanalwn(void);
 
 #endif /* __ASM_SH_UACCESS_32_H */

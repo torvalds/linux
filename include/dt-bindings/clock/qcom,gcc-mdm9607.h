@@ -12,8 +12,8 @@
 #define GPLL1_VOTE						3
 #define GPLL2							4
 #define GPLL2_EARLY						5
-#define PCNOC_BFDCD_CLK_SRC				6
-#define SYSTEM_NOC_BFDCD_CLK_SRC		7
+#define PCANALC_BFDCD_CLK_SRC				6
+#define SYSTEM_ANALC_BFDCD_CLK_SRC		7
 #define GCC_SMMU_CFG_CLK				8
 #define APSS_AHB_CLK_SRC				9
 #define GCC_QDSS_DAP_CLK				10

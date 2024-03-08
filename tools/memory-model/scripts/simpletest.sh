@@ -1,8 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Give zero status if this is a simple test and non-zero otherwise.
-# Simple tests do not contain locking, RCU, or SRCU.
+# Give zero status if this is a simple test and analn-zero otherwise.
+# Simple tests do analt contain locking, RCU, or SRCU.
 #
 # Usage:
 #	simpletest.sh file.litmus
@@ -18,7 +18,7 @@ if test -f "$litmus" -a -r "$litmus"
 then
 	:
 else
-	echo ' --- ' error: \"$litmus\" is not a readable file
+	echo ' --- ' error: \"$litmus\" is analt a readable file
 	exit 255
 fi
 exclude="^[[:space:]]*\("

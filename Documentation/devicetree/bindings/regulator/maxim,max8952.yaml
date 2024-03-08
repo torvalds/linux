@@ -51,7 +51,7 @@ properties:
        - 5: 1mV/us
        - 6: 0.5mV/us
        - 7: 0.25mV/us
-      Defaults to 32mV/us if not specified.
+      Defaults to 32mV/us if analt specified.
 
   max8952,sync-freq:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -62,7 +62,7 @@ properties:
        - 0: 26 MHz
        - 1: 13 MHz
        - 2: 19.2 MHz
-      Defaults to 26 MHz if not specified.
+      Defaults to 26 MHz if analt specified.
 
   max8952,vid-gpios:
     minItems: 2

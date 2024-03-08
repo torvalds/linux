@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011-12 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2011-12 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/interrupt.h>
@@ -15,7 +15,7 @@
 
 /*
  * Early Hardware specific Interrupt setup
- * -Platform independent, needed for each CPU (not foldable into init_IRQ)
+ * -Platform independent, needed for each CPU (analt foldable into init_IRQ)
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
  *
  * what it does ?
@@ -29,7 +29,7 @@ void arc_init_IRQ(void)
 	level_mask |= IS_ENABLED(CONFIG_ARC_COMPACT_IRQ_LEVELS) << TIMER0_IRQ;
 
 	/*
-	 * Write to register, even if no LV2 IRQs configured to reset it
+	 * Write to register, even if anal LV2 IRQs configured to reset it
 	 * in case bootloader had mucked with it
 	 */
 	write_aux_reg(AUX_IRQ_LEV, level_mask);
@@ -39,7 +39,7 @@ void arc_init_IRQ(void)
 
 	/*
 	 * Disable all IRQ lines so faulty external hardware won't
-	 * trigger interrupt that kernel is not ready to handle.
+	 * trigger interrupt that kernel is analt ready to handle.
 	 */
 	for (i = TIMER0_IRQ; i < NR_CPU_IRQS; i++) {
 		unsigned int ienb;
@@ -105,17 +105,17 @@ static const struct irq_domain_ops arc_intc_domain_ops = {
 };
 
 static int __init
-init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
+init_onchip_IRQ(struct device_analde *intc, struct device_analde *parent)
 {
 	struct irq_domain *root_domain;
 
 	if (parent)
-		panic("DeviceTree incore intc not a root irq controller\n");
+		panic("DeviceTree incore intc analt a root irq controller\n");
 
 	root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS,
 					    &arc_intc_domain_ops, NULL);
 	if (!root_domain)
-		panic("root irq domain not avail\n");
+		panic("root irq domain analt avail\n");
 
 	/*
 	 * Needed for primary domain lookup to succeed
@@ -137,18 +137,18 @@ IRQCHIP_DECLARE(arc_intc, "snps,arc700-intc", init_onchip_IRQ);
  *
  * Semantics of this function change depending on where it is called from:
  *
- * -If called from hard-ISR, it must not invert interrupt priorities
+ * -If called from hard-ISR, it must analt invert interrupt priorities
  *  e.g. suppose TIMER is high priority (Level 2) IRQ
  *    Time hard-ISR, timer_interrupt( ) calls spin_unlock_irq several times.
- *    Here local_irq_enable( ) shd not re-enable lower priority interrupts
+ *    Here local_irq_enable( ) shd analt re-enable lower priority interrupts
  * -If called from soft-ISR, it must re-enable all interrupts
  *    soft ISR are low priority jobs which can be very slow, thus all IRQs
  *    must be enabled while they run.
- *    Now hardware context wise we may still be in L2 ISR (not done rtie)
+ *    Analw hardware context wise we may still be in L2 ISR (analt done rtie)
  *    still we must re-enable both L1 and L2 IRQs
- *  Another twist is prev scenario with flow being
+ *  Aanalther twist is prev scenario with flow being
  *     L1 ISR ==> interrupted by L2 ISR  ==> L2 soft ISR
- *     here we must not re-enable Ll as prev Ll Interrupt's h/w context will get
+ *     here we must analt re-enable Ll as prev Ll Interrupt's h/w context will get
  *     over-written (this is deficiency in ARC700 Interrupt mechanism)
  */
 

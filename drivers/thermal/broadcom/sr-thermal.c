@@ -57,11 +57,11 @@ static int sr_thermal_probe(struct platform_device *pdev)
 
 	sr_thermal = devm_kzalloc(dev, sizeof(*sr_thermal), GFP_KERNEL);
 	if (!sr_thermal)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOENT;
+		return -EANALENT;
 
 	sr_thermal->regs = (void __iomem *)devm_memremap(&pdev->dev, res->start,
 							 resource_size(res),

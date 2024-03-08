@@ -124,21 +124,21 @@
 	leds {
 		sd_card_led_pin: sd-card-led-pin {
 			rockchip,pins =
-				<0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_cd_pin: sdmmc-cd-pin {
 			rockchip,pins =
-				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb_otg {
 		otg_vbus_drv: otg-vbus-drv {
 			rockchip,pins =
-				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

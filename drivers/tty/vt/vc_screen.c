@@ -1,34 +1,34 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Provide access to virtual console memory.
- * /dev/vcs: the screen as it is being viewed right now (possibly scrolled)
+ * /dev/vcs: the screen as it is being viewed right analw (possibly scrolled)
  * /dev/vcsN: the screen of /dev/ttyN (1 <= N <= 63)
- *            [minor: N]
+ *            [mianalr: N]
  *
  * /dev/vcsaN: idem, but including attributes, and prefixed with
  *	the 4 bytes lines,columns,x,y (as screendump used to give).
  *	Attribute/character pair is in native endianity.
- *            [minor: N+128]
+ *            [mianalr: N+128]
  *
  * /dev/vcsuN: similar to /dev/vcsaN but using 4-byte unicode values
  *	instead of 1-byte screen glyph values.
- *            [minor: N+64]
+ *            [mianalr: N+64]
  *
- * /dev/vcsuaN: same idea as /dev/vcsaN for unicode (not yet implemented).
+ * /dev/vcsuaN: same idea as /dev/vcsaN for unicode (analt yet implemented).
  *
  * This replaces screendump and part of selection, so that the system
  * administrator can control access using file system permissions.
  *
  * aeb@cwi.nl - efter Friedas begravelse - 950211
  *
- * machek@k332.feld.cvut.cz - modified not to send characters to wrong console
- *	 - fixed some fatal off-by-one bugs (0-- no longer == -1 -> looping and looping and looping...)
+ * machek@k332.feld.cvut.cz - modified analt to send characters to wrong console
+ *	 - fixed some fatal off-by-one bugs (0-- anal longer == -1 -> looping and looping and looping...)
  *	 - making it shorter - scr_readw are macros which expand in PRETTY long code
  */
 
 #include <linux/kernel.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/tty.h>
 #include <linux/interrupt.h>
@@ -44,7 +44,7 @@
 #include <linux/poll.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
@@ -54,7 +54,7 @@
 #define CON_BUF_SIZE (CONFIG_BASE_SMALL ? 256 : PAGE_SIZE)
 
 /*
- * Our minor space:
+ * Our mianalr space:
  *
  *   0 ... 63	glyph mode without attributes
  *  64 ... 127	unicode mode without attributes
@@ -62,19 +62,19 @@
  * 192 ... 255	unused (reserved for unicode with attributes)
  *
  * This relies on MAX_NR_CONSOLES being  <= 63, meaning 63 actual consoles
- * with minors 0, 64, 128 and 192 being proxies for the foreground console.
+ * with mianalrs 0, 64, 128 and 192 being proxies for the foreground console.
  */
 #if MAX_NR_CONSOLES > 63
-#warning "/dev/vcs* devices may not accommodate more than 63 consoles"
+#warning "/dev/vcs* devices may analt accommodate more than 63 consoles"
 #endif
 
-#define console(inode)		(iminor(inode) & 63)
-#define use_unicode(inode)	(iminor(inode) & 64)
-#define use_attributes(inode)	(iminor(inode) & 128)
+#define console(ianalde)		(imianalr(ianalde) & 63)
+#define use_unicode(ianalde)	(imianalr(ianalde) & 64)
+#define use_attributes(ianalde)	(imianalr(ianalde) & 128)
 
 
 struct vcs_poll_data {
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	unsigned int cons_num;
 	int event;
 	wait_queue_head_t waitq;
@@ -82,12 +82,12 @@ struct vcs_poll_data {
 };
 
 static int
-vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
+vcs_analtifier(struct analtifier_block *nb, unsigned long code, void *_param)
 {
-	struct vt_notifier_param *param = _param;
+	struct vt_analtifier_param *param = _param;
 	struct vc_data *vc = param->vc;
 	struct vcs_poll_data *poll =
-		container_of(nb, struct vcs_poll_data, notifier);
+		container_of(nb, struct vcs_poll_data, analtifier);
 	int currcons = poll->cons_num;
 	int fa_band;
 
@@ -99,7 +99,7 @@ vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
 		fa_band = POLL_HUP;
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	if (currcons == 0)
@@ -107,18 +107,18 @@ vcs_notifier(struct notifier_block *nb, unsigned long code, void *_param)
 	else
 		currcons--;
 	if (currcons != vc->vc_num)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	poll->event = code;
 	wake_up_interruptible(&poll->waitq);
 	kill_fasync(&poll->fasync, SIGIO, fa_band);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void
 vcs_poll_data_free(struct vcs_poll_data *poll)
 {
-	unregister_vt_notifier(&poll->notifier);
+	unregister_vt_analtifier(&poll->analtifier);
 	kfree(poll);
 }
 
@@ -133,19 +133,19 @@ vcs_poll_data_get(struct file *file)
 	poll = kzalloc(sizeof(*poll), GFP_KERNEL);
 	if (!poll)
 		return NULL;
-	poll->cons_num = console(file_inode(file));
+	poll->cons_num = console(file_ianalde(file));
 	init_waitqueue_head(&poll->waitq);
-	poll->notifier.notifier_call = vcs_notifier;
+	poll->analtifier.analtifier_call = vcs_analtifier;
 	/*
-	 * In order not to lose any update event, we must pretend one might
-	 * have occurred before we have a chance to register our notifier.
+	 * In order analt to lose any update event, we must pretend one might
+	 * have occurred before we have a chance to register our analtifier.
 	 * This is also how user space has come to detect which kernels
 	 * support POLLPRI on /dev/vcs* devices i.e. using poll() with
 	 * POLLPRI and a zero timeout.
 	 */
 	poll->event = VT_UPDATE;
 
-	if (register_vt_notifier(&poll->notifier) != 0) {
+	if (register_vt_analtifier(&poll->analtifier) != 0) {
 		kfree(poll);
 		return NULL;
 	}
@@ -153,10 +153,10 @@ vcs_poll_data_get(struct file *file)
 	/*
 	 * This code may be called either through ->poll() or ->fasync().
 	 * If we have two threads using the same file descriptor, they could
-	 * both enter this function, both notice that the structure hasn't
+	 * both enter this function, both analtice that the structure hasn't
 	 * been allocated yet and go ahead allocating it in parallel, but
 	 * only one of them must survive and be shared otherwise we'd leak
-	 * memory with a dangling notifier callback.
+	 * memory with a dangling analtifier callback.
 	 */
 	spin_lock(&file->f_lock);
 	if (!file->private_data) {
@@ -174,15 +174,15 @@ vcs_poll_data_get(struct file *file)
 }
 
 /**
- * vcs_vc - return VC for @inode
- * @inode: inode for which to return a VC
+ * vcs_vc - return VC for @ianalde
+ * @ianalde: ianalde for which to return a VC
  * @viewed: returns whether this console is currently foreground (viewed)
  *
  * Must be called with console_lock.
  */
-static struct vc_data *vcs_vc(struct inode *inode, bool *viewed)
+static struct vc_data *vcs_vc(struct ianalde *ianalde, bool *viewed)
 {
-	unsigned int currcons = console(inode);
+	unsigned int currcons = console(ianalde);
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -216,7 +216,7 @@ static int vcs_size(const struct vc_data *vc, bool attr, bool unicode)
 
 	if (attr) {
 		if (unicode)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		size = 2 * size + HEADER_SIZE;
 	} else if (unicode)
@@ -227,18 +227,18 @@ static int vcs_size(const struct vc_data *vc, bool attr, bool unicode)
 
 static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct vc_data *vc;
 	int size;
 
 	console_lock();
-	vc = vcs_vc(inode, NULL);
+	vc = vcs_vc(ianalde, NULL);
 	if (!vc) {
 		console_unlock();
 		return -ENXIO;
 	}
 
-	size = vcs_size(vc, use_attributes(inode), use_unicode(inode));
+	size = vcs_size(vc, use_attributes(ianalde), use_unicode(ianalde));
 	console_unlock();
 	if (size < 0)
 		return size;
@@ -273,7 +273,7 @@ static int vcs_read_buf_uni(struct vc_data *vc, char *con_buf,
 	return 0;
 }
 
-static void vcs_read_buf_noattr(const struct vc_data *vc, char *con_buf,
+static void vcs_read_buf_analattr(const struct vc_data *vc, char *con_buf,
 		unsigned int pos, unsigned int count, bool viewed)
 {
 	u16 *org;
@@ -343,7 +343,7 @@ static unsigned int vcs_read_buf(const struct vc_data *vc, char *con_buf,
 
 	/*
 	 * Buffer has even length, so we can always copy character + attribute.
-	 * We do not copy last byte to userspace if count is odd.
+	 * We do analt copy last byte to userspace if count is odd.
 	 */
 	count = (count + 1) / 2;
 	con_buf16 = (u16 *)con_buf;
@@ -364,7 +364,7 @@ static unsigned int vcs_read_buf(const struct vc_data *vc, char *con_buf,
 static ssize_t
 vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct vc_data *vc;
 	struct vcs_poll_data *poll;
 	unsigned int read;
@@ -375,7 +375,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	con_buf = (char *) __get_free_page(GFP_KERNEL);
 	if (!con_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = *ppos;
 
@@ -384,8 +384,8 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	 */
 	console_lock();
 
-	uni_mode = use_unicode(inode);
-	attr = use_attributes(inode);
+	uni_mode = use_unicode(ianalde);
+	attr = use_attributes(ianalde);
 
 	ret = -EINVAL;
 	if (pos < 0)
@@ -403,7 +403,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		unsigned int this_round, skip = 0;
 		int size;
 
-		vc = vcs_vc(inode, &viewed);
+		vc = vcs_vc(ianalde, &viewed);
 		if (!vc) {
 			ret = -ENXIO;
 			break;
@@ -438,7 +438,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			if (ret)
 				break;
 		} else if (!attr) {
-			vcs_read_buf_noattr(vc, con_buf, pos, this_round,
+			vcs_read_buf_analattr(vc, con_buf, pos, this_round,
 					viewed);
 		} else {
 			this_round = vcs_read_buf(vc, con_buf, pos, this_round,
@@ -475,7 +475,7 @@ unlock_out:
 	return ret;
 }
 
-static u16 *vcs_write_buf_noattr(struct vc_data *vc, const char *con_buf,
+static u16 *vcs_write_buf_analattr(struct vc_data *vc, const char *con_buf,
 		unsigned int pos, unsigned int count, bool viewed, u16 **org0)
 {
 	u16 *org;
@@ -589,7 +589,7 @@ static u16 *vcs_write_buf(struct vc_data *vc, const char *con_buf,
 static ssize_t
 vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct vc_data *vc;
 	char *con_buf;
 	u16 *org0, *org;
@@ -599,12 +599,12 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	loff_t pos;
 	bool viewed, attr;
 
-	if (use_unicode(inode))
-		return -EOPNOTSUPP;
+	if (use_unicode(ianalde))
+		return -EOPANALTSUPP;
 
 	con_buf = (char *) __get_free_page(GFP_KERNEL);
 	if (!con_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = *ppos;
 
@@ -613,9 +613,9 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	 */
 	console_lock();
 
-	attr = use_attributes(inode);
+	attr = use_attributes(ianalde);
 	ret = -ENXIO;
-	vc = vcs_vc(inode, &viewed);
+	vc = vcs_vc(ianalde, &viewed);
 	if (!vc)
 		goto unlock_out;
 
@@ -646,7 +646,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		if (ret) {
 			this_round -= ret;
 			if (!this_round) {
-				/* Abort loop if no data were copied. Otherwise
+				/* Abort loop if anal data were copied. Otherwise
 				 * fail with -EFAULT.
 				 */
 				if (written)
@@ -658,9 +658,9 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 
 		/* The vc might have been freed or vcs_size might have changed
 		 * while we slept to grab the user buffer, so recheck.
-		 * Return data written up to now on failure.
+		 * Return data written up to analw on failure.
 		 */
-		vc = vcs_vc(inode, &viewed);
+		vc = vcs_vc(ianalde, &viewed);
 		if (!vc) {
 			if (written)
 				break;
@@ -679,7 +679,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		if (this_round > size - pos)
 			this_round = size - pos;
 
-		/* OK, now actually push the write to the console
+		/* OK, analw actually push the write to the console
 		 * under the lock using the local kernel buffer.
 		 */
 
@@ -687,7 +687,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 			org = vcs_write_buf(vc, con_buf, pos, this_round,
 					viewed, &org0);
 		else
-			org = vcs_write_buf_noattr(vc, con_buf, pos, this_round,
+			org = vcs_write_buf_analattr(vc, con_buf, pos, this_round,
 					viewed, &org0);
 
 		count -= this_round;
@@ -742,23 +742,23 @@ vcs_fasync(int fd, struct file *file, int on)
 			return 0;
 		poll = vcs_poll_data_get(file);
 		if (!poll)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return fasync_helper(fd, file, on, &poll->fasync);
 }
 
 static int
-vcs_open(struct inode *inode, struct file *filp)
+vcs_open(struct ianalde *ianalde, struct file *filp)
 {
-	unsigned int currcons = console(inode);
-	bool attr = use_attributes(inode);
-	bool uni_mode = use_unicode(inode);
+	unsigned int currcons = console(ianalde);
+	bool attr = use_attributes(ianalde);
+	bool uni_mode = use_unicode(ianalde);
 	int ret = 0;
 
 	/* we currently don't support attributes in unicode mode */
 	if (attr && uni_mode)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	console_lock();
 	if(currcons && !vc_cons_allocated(currcons-1))
@@ -767,7 +767,7 @@ vcs_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static int vcs_release(struct inode *inode, struct file *file)
+static int vcs_release(struct ianalde *ianalde, struct file *file)
 {
 	struct vcs_poll_data *poll = file->private_data;
 

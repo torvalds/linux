@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -73,7 +73,7 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 	case CGS_IND_REG_SE_CAC:
 		return RREG32_SE_CAC(index);
 	case CGS_IND_REG__AUDIO_ENDPT:
-		DRM_ERROR("audio endpt register access not implemented.\n");
+		DRM_ERROR("audio endpt register access analt implemented.\n");
 		return 0;
 	default:
 		BUG();
@@ -101,7 +101,7 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 	case CGS_IND_REG_SE_CAC:
 		return WREG32_SE_CAC(index, value);
 	case CGS_IND_REG__AUDIO_ENDPT:
-		DRM_ERROR("audio endpt register access not implemented.\n");
+		DRM_ERROR("audio endpt register access analt implemented.\n");
 		return;
 	default:
 		BUG();
@@ -137,7 +137,7 @@ static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 	case CGS_UCODE_ID_CP_MEC_JT2:
 		/* for VI. JT2 should be the same as JT1, because:
 			1, MEC2 and MEC1 use exactly same FW.
-			2, JT2 is not pached but JT1 is.
+			2, JT2 is analt pached but JT1 is.
 		*/
 		if (adev->asic_type >= CHIP_TOPAZ)
 			result = AMDGPU_UCODE_ID_CP_MEC1;
@@ -151,7 +151,7 @@ static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 		result = AMDGPU_UCODE_ID_STORAGE;
 		break;
 	default:
-		DRM_ERROR("Firmware type not supported\n");
+		DRM_ERROR("Firmware type analt supported\n");
 	}
 	return result;
 }
@@ -193,7 +193,7 @@ static uint16_t amdgpu_get_firmware_version(struct cgs_device *cgs_device,
 	case CGS_UCODE_ID_STORAGE:
 		break;
 	default:
-		DRM_ERROR("firmware type %d do not have version\n", type);
+		DRM_ERROR("firmware type %d do analt have version\n", type);
 		break;
 	}
 	return fw_version;
@@ -407,7 +407,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				strcpy(fw_name, "amdgpu/vega20_smc.bin");
 				break;
 			default:
-				DRM_ERROR("SMC firmware not supported\n");
+				DRM_ERROR("SMC firmware analt supported\n");
 				return -EINVAL;
 			}
 

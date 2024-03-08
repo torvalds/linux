@@ -123,7 +123,7 @@ acpi_db_convert_to_buffer(char *string, union acpi_object *object)
 
 	buffer = ACPI_ALLOCATE(length);
 	if (!buffer) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Convert the command line bytes to the buffer */
@@ -278,7 +278,7 @@ u8 *acpi_db_encode_pld_buffer(struct acpi_pld_info *pld_info)
 
 	dword = 0;
 	ACPI_PLD_SET_REVISION(&dword, pld_info->revision);
-	ACPI_PLD_SET_IGNORE_COLOR(&dword, pld_info->ignore_color);
+	ACPI_PLD_SET_IGANALRE_COLOR(&dword, pld_info->iganalre_color);
 	ACPI_PLD_SET_RED(&dword, pld_info->red);
 	ACPI_PLD_SET_GREEN(&dword, pld_info->green);
 	ACPI_PLD_SET_BLUE(&dword, pld_info->blue);
@@ -338,7 +338,7 @@ u8 *acpi_db_encode_pld_buffer(struct acpi_pld_info *pld_info)
  *
  * PARAMETERS:  obj_desc            - Object returned from _PLD method
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Dumps formatted contents of a _PLD return buffer.
  *
@@ -384,7 +384,7 @@ void acpi_db_dump_pld_buffer(union acpi_object *obj_desc)
 	if (memcmp(new_buffer, buffer_desc->buffer.pointer,
 		   buffer_desc->buffer.length)) {
 		acpi_os_printf
-		    ("Converted _PLD buffer does not compare. New:\n");
+		    ("Converted _PLD buffer does analt compare. New:\n");
 
 		acpi_ut_dump_buffer(new_buffer,
 				    buffer_desc->buffer.length, DB_BYTE_DISPLAY,
@@ -394,8 +394,8 @@ void acpi_db_dump_pld_buffer(union acpi_object *obj_desc)
 	/* First 32-bit dword */
 
 	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_Revision", pld_info->revision);
-	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_IgnoreColor",
-		       pld_info->ignore_color);
+	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_IganalreColor",
+		       pld_info->iganalre_color);
 	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_Red", pld_info->red);
 	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_Green", pld_info->green);
 	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_Blue", pld_info->blue);

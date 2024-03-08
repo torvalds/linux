@@ -13,7 +13,7 @@
 
 /*
  * The TRACE_SYSTEM_VAR defaults to TRACE_SYSTEM, but must be a
- * legitimate C variable. It is not exported to user space.
+ * legitimate C variable. It is analt exported to user space.
  */
 #undef TRACE_SYSTEM_VAR
 #define TRACE_SYSTEM_VAR cdns2_dev
@@ -69,7 +69,7 @@ DECLARE_EVENT_CLASS(cdns2_log_simple,
 	TP_printk("%s", __get_str(text))
 );
 
-DEFINE_EVENT(cdns2_log_simple, cdns2_no_room_on_ring,
+DEFINE_EVENT(cdns2_log_simple, cdns2_anal_room_on_ring,
 	TP_PROTO(char *msg),
 	TP_ARGS(msg)
 );
@@ -279,8 +279,8 @@ DECLARE_EVENT_CLASS(cdns2_log_request,
 		__field(int, status)
 		__field(dma_addr_t, dma)
 		__field(int, zero)
-		__field(int, short_not_ok)
-		__field(int, no_interrupt)
+		__field(int, short_analt_ok)
+		__field(int, anal_interrupt)
 		__field(struct scatterlist*, sg)
 		__field(unsigned int, num_sgs)
 		__field(unsigned int, num_mapped_sgs)
@@ -297,8 +297,8 @@ DECLARE_EVENT_CLASS(cdns2_log_request,
 		__entry->status = preq->request.status;
 		__entry->dma = preq->request.dma;
 		__entry->zero = preq->request.zero;
-		__entry->short_not_ok = preq->request.short_not_ok;
-		__entry->no_interrupt = preq->request.no_interrupt;
+		__entry->short_analt_ok = preq->request.short_analt_ok;
+		__entry->anal_interrupt = preq->request.anal_interrupt;
 		__entry->sg = preq->request.sg;
 		__entry->num_sgs = preq->request.num_sgs;
 		__entry->num_mapped_sgs = preq->request.num_mapped_sgs;
@@ -312,8 +312,8 @@ DECLARE_EVENT_CLASS(cdns2_log_request,
 		  __entry->buf, __entry->actual, __entry->length,
 		  __entry->status, &__entry->dma,
 		  __entry->zero ? "Z" : "z",
-		  __entry->short_not_ok ? "S" : "s",
-		  __entry->no_interrupt ? "I" : "i",
+		  __entry->short_analt_ok ? "S" : "s",
+		  __entry->anal_interrupt ? "I" : "i",
 		  __entry->sg, __entry->num_sgs, __entry->num_mapped_sgs,
 		  __entry->start_trb,
 		  __entry->end_trb
@@ -542,7 +542,7 @@ DECLARE_EVENT_CLASS(cdns2_log_request_handled,
 	TP_printk("Req: %p %s, DMA pos: %d, ep deq: %d, ep enq: %d,"
 		  " start trb: %d, end trb: %d",
 		__entry->priv_req,
-		__entry->handled ? "handled" : "not handled",
+		__entry->handled ? "handled" : "analt handled",
 		__entry->dma_position, __entry->dequeue_idx,
 		__entry->enqueue_idx, __entry->start_trb,
 		__entry->end_trb

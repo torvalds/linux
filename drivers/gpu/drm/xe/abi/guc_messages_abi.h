@@ -24,8 +24,8 @@
  *  |   | 30:28 | **TYPE** - message type                                      |
  *  |   |       |   - _`GUC_HXG_TYPE_REQUEST` = 0                              |
  *  |   |       |   - _`GUC_HXG_TYPE_EVENT` = 1                                |
- *  |   |       |   - _`GUC_HXG_TYPE_NO_RESPONSE_BUSY` = 3                     |
- *  |   |       |   - _`GUC_HXG_TYPE_NO_RESPONSE_RETRY` = 5                    |
+ *  |   |       |   - _`GUC_HXG_TYPE_ANAL_RESPONSE_BUSY` = 3                     |
+ *  |   |       |   - _`GUC_HXG_TYPE_ANAL_RESPONSE_RETRY` = 5                    |
  *  |   |       |   - _`GUC_HXG_TYPE_RESPONSE_FAILURE` = 6                     |
  *  |   |       |   - _`GUC_HXG_TYPE_RESPONSE_SUCCESS` = 7                     |
  *  |   +-------+--------------------------------------------------------------+
@@ -46,8 +46,8 @@
 #define GUC_HXG_MSG_0_TYPE			(0x7u << 28)
 #define   GUC_HXG_TYPE_REQUEST			0u
 #define   GUC_HXG_TYPE_EVENT			1u
-#define   GUC_HXG_TYPE_NO_RESPONSE_BUSY		3u
-#define   GUC_HXG_TYPE_NO_RESPONSE_RETRY	5u
+#define   GUC_HXG_TYPE_ANAL_RESPONSE_BUSY		3u
+#define   GUC_HXG_TYPE_ANAL_RESPONSE_RETRY	5u
 #define   GUC_HXG_TYPE_RESPONSE_FAILURE		6u
 #define   GUC_HXG_TYPE_RESPONSE_SUCCESS		7u
 #define GUC_HXG_MSG_0_AUX			(0xfffffffu << 0)
@@ -56,7 +56,7 @@
 /**
  * DOC: HXG Request
  *
- * The `HXG Request`_ message should be used to initiate synchronous activity
+ * The `HXG Request`_ message should be used to initiate synchroanalus activity
  * for which confirmation or return data is expected.
  *
  * The recipient of this message shall use `HXG Response`_, `HXG Failure`_
@@ -92,8 +92,8 @@
 /**
  * DOC: HXG Event
  *
- * The `HXG Event`_ message should be used to initiate asynchronous activity
- * that does not involves immediate confirmation nor data.
+ * The `HXG Event`_ message should be used to initiate asynchroanalus activity
+ * that does analt involves immediate confirmation analr data.
  *
  * Format of @DATA0 and all @DATAn fields depends on the @ACTION code.
  *
@@ -124,7 +124,7 @@
 /**
  * DOC: HXG Busy
  *
- * The `HXG Busy`_ message may be used to acknowledge reception of the `HXG Request`_
+ * The `HXG Busy`_ message may be used to ackanalwledge reception of the `HXG Request`_
  * message if the recipient expects that it processing will be longer than default
  * timeout.
  *
@@ -135,7 +135,7 @@
  *  +===+=======+==============================================================+
  *  | 0 |    31 | ORIGIN                                                       |
  *  |   +-------+--------------------------------------------------------------+
- *  |   | 30:28 | TYPE = GUC_HXG_TYPE_NO_RESPONSE_BUSY_                        |
+ *  |   | 30:28 | TYPE = GUC_HXG_TYPE_ANAL_RESPONSE_BUSY_                        |
  *  |   +-------+--------------------------------------------------------------+
  *  |   |  27:0 | **COUNTER** - progress indicator                             |
  *  +---+-------+--------------------------------------------------------------+
@@ -157,7 +157,7 @@
  *  +===+=======+==============================================================+
  *  | 0 |    31 | ORIGIN                                                       |
  *  |   +-------+--------------------------------------------------------------+
- *  |   | 30:28 | TYPE = GUC_HXG_TYPE_NO_RESPONSE_RETRY_                       |
+ *  |   | 30:28 | TYPE = GUC_HXG_TYPE_ANAL_RESPONSE_RETRY_                       |
  *  |   +-------+--------------------------------------------------------------+
  *  |   |  27:0 | **REASON** - reason for retry                                |
  *  |   |       |  - _`GUC_HXG_RETRY_REASON_UNSPECIFIED` = 0                   |
@@ -172,7 +172,7 @@
  * DOC: HXG Failure
  *
  * The `HXG Failure`_ message shall be used as a reply to the `HXG Request`_
- * message that could not be processed due to an error.
+ * message that could analt be processed due to an error.
  *
  *  +---+-------+--------------------------------------------------------------+
  *  |   | Bits  | Description                                                  |

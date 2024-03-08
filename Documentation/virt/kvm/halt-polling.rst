@@ -6,19 +6,19 @@ The KVM halt polling system
 
 The KVM halt polling system provides a feature within KVM whereby the latency
 of a guest can, under some circumstances, be reduced by polling in the host
-for some time period after the guest has elected to no longer run by cedeing.
+for some time period after the guest has elected to anal longer run by cedeing.
 That is, when a guest vcpu has ceded, or in the case of powerpc when all of the
 vcpus of a single vcore have ceded, the host kernel polls for wakeup conditions
 before giving up the cpu to the scheduler in order to let something else run.
 
 Polling provides a latency advantage in cases where the guest can be run again
-very quickly by at least saving us a trip through the scheduler, normally on
+very quickly by at least saving us a trip through the scheduler, analrmally on
 the order of a few micro-seconds, although performance benefits are workload
-dependent. In the event that no wakeup source arrives during the polling
+dependent. In the event that anal wakeup source arrives during the polling
 interval or some other task on the runqueue is runnable the scheduler is
 invoked. Thus halt polling is especially useful on workloads with very short
 wakeup periods where the time spent halt polling is minimised and the time
-savings of not invoking the scheduler are distinguishable.
+savings of analt invoking the scheduler are distinguishable.
 
 The generic halt polling code is implemented in:
 
@@ -60,13 +60,13 @@ is multiplied by the module parameters halt_poll_ns_grow and
 halt_poll_ns_grow_start.
 
 In the event that the total block time was greater than the global max polling
-interval then the host will never poll for long enough (limited by the global
+interval then the host will never poll for long eanalugh (limited by the global
 max) to wakeup during the polling interval so it may as well be shrunk in order
 to avoid pointless polling. The polling interval is shrunk in the function
 shrink_halt_poll_ns() and is divided by the module parameter
 halt_poll_ns_shrink, or set to 0 iff halt_poll_ns_shrink == 0.
 
-It is worth noting that this adjustment process attempts to hone in on some
+It is worth analting that this adjustment process attempts to hone in on some
 steady state polling interval but will only really do a good job for wakeups
 which come at an approximately constant rate, otherwise there will be constant
 adjustment of the polling interval.
@@ -116,23 +116,23 @@ These module parameters can be set from the sysfs files in:
 
 	/sys/module/kvm/parameters/
 
-Note: these module parameters are system-wide values and are not able to
+Analte: these module parameters are system-wide values and are analt able to
       be tuned on a per vm basis.
 
 Any changes to these parameters will be picked up by new and existing vCPUs the
-next time they halt, with the notable exception of VMs using KVM_CAP_HALT_POLL
+next time they halt, with the analtable exception of VMs using KVM_CAP_HALT_POLL
 (see next section).
 
 KVM_CAP_HALT_POLL
 =================
 
 KVM_CAP_HALT_POLL is a VM capability that allows userspace to override halt_poll_ns
-on a per-VM basis. VMs using KVM_CAP_HALT_POLL ignore halt_poll_ns completely (but
+on a per-VM basis. VMs using KVM_CAP_HALT_POLL iganalre halt_poll_ns completely (but
 still obey halt_poll_ns_grow, halt_poll_ns_grow_start, and halt_poll_ns_shrink).
 
 See Documentation/virt/kvm/api.rst for more information on this capability.
 
-Further Notes
+Further Analtes
 =============
 
 - Care should be taken when setting the halt_poll_ns module parameter as a large value
@@ -147,7 +147,7 @@ Further Notes
   essentially converted to host kernel time with the aim of decreasing latency when
   entering the guest.
 
-- Halt polling will only be conducted by the host when no other tasks are runnable on
+- Halt polling will only be conducted by the host when anal other tasks are runnable on
   that cpu, otherwise the polling will cease immediately and schedule will be invoked to
   allow that other task to run. Thus this doesn't allow a guest to cause denial of service
   of the cpu.

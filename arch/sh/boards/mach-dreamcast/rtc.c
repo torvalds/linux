@@ -25,7 +25,7 @@
 
 /**
  * aica_rtc_gettimeofday - Get the time from the AICA RTC
- * @dev: the RTC device (ignored)
+ * @dev: the RTC device (iganalred)
  * @tm: pointer to resulting RTC time structure
  *
  * Grabs the current RTC seconds counter and adjusts it to the Unix Epoch.
@@ -43,7 +43,7 @@ static int aica_rtc_gettimeofday(struct device *dev, struct rtc_time *tm)
 			(__raw_readl(AICA_RTC_SECS_L) & 0xffff);
 	} while (val1 != val2);
 
-	/* normalize to 1970..2106 time range */
+	/* analrmalize to 1970..2106 time range */
 	t = (u32)(val1 - TWENTY_YEARS);
 
 	rtc_time64_to_tm(t, tm);
@@ -53,7 +53,7 @@ static int aica_rtc_gettimeofday(struct device *dev, struct rtc_time *tm)
 
 /**
  * aica_rtc_settimeofday - Set the AICA RTC to the current time
- * @dev: the RTC device (ignored)
+ * @dev: the RTC device (iganalred)
  * @tm: pointer to new RTC time structure
  *
  * Adjusts the given @tv to the AICA Epoch and sets the RTC seconds counter.

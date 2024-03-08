@@ -72,7 +72,7 @@ static int m41t93_set_time(struct device *dev, struct rtc_time *tm)
 		if (tmp < 0) {
 			return tmp;
 		} else if (tmp & M41T93_FLAG_OF) {
-			/* OF cannot be immediately reset: oscillator has to be
+			/* OF cananalt be immediately reset: oscillator has to be
 			 * restarted. */
 			u8 reset_osc = buf[M41T93_REG_ST_SEC] | M41T93_FLAG_ST;
 
@@ -109,7 +109,7 @@ static int m41t93_get_time(struct device *dev, struct rtc_time *tm)
 
 	/* Check status of clock. Two states must be considered:
 	   1. halt bit (HT) is set: the clock is running but update of readout
-	      registers has been disabled due to power failure. This is normal
+	      registers has been disabled due to power failure. This is analrmal
 	      case after poweron. Time is valid after resetting HT bit.
 	   2. oscillator fail bit (OF) is set: time is invalid.
 	*/
@@ -177,8 +177,8 @@ static int m41t93_probe(struct spi_device *spi)
 
 	res = spi_w8r8(spi, M41T93_REG_WDAY);
 	if (res < 0 || (res & 0xf8) != 0) {
-		dev_err(&spi->dev, "not found 0x%x.\n", res);
-		return -ENODEV;
+		dev_err(&spi->dev, "analt found 0x%x.\n", res);
+		return -EANALDEV;
 	}
 
 	rtc = devm_rtc_device_register(&spi->dev, m41t93_driver.driver.name,

@@ -134,7 +134,7 @@ allOf:
               description: DPAD 0
             port@1:
               description: DPAD 1
-            # port@2 is TCON, not supported yet
+            # port@2 is TCON, analt supported yet
             port@2: false
             port@3: false
 
@@ -188,7 +188,7 @@ allOf:
               description: DPAD 0
             port@1:
               description: LVDS 0
-            # port@2 is TCON, not supported yet
+            # port@2 is TCON, analt supported yet
             port@2: false
             port@3: false
 
@@ -296,7 +296,7 @@ allOf:
               description: DPAD 0
             port@1:
               description: DPAD 1
-            # port@2 is TCON, not supported yet
+            # port@2 is TCON, analt supported yet
             port@2: false
             port@3: false
 
@@ -352,7 +352,7 @@ allOf:
               description: DPAD 1
             port@2:
               description: LVDS 0
-            # port@3 is DVENC, not supported yet
+            # port@3 is DVENC, analt supported yet
             port@3: false
 
           required:
@@ -413,7 +413,7 @@ allOf:
               description: LVDS 0
             port@2:
               description: LVDS 1
-            # port@3 is TCON, not supported yet
+            # port@3 is TCON, analt supported yet
             port@3: false
 
           required:
@@ -736,7 +736,7 @@ allOf:
               description: LVDS 0
             port@2:
               description: LVDS 1
-            # port@3 is TCON, not supported yet
+            # port@3 is TCON, analt supported yet
             port@3: false
 
           required:

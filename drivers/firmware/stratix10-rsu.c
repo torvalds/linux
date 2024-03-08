@@ -154,8 +154,8 @@ static void rsu_command_callback(struct stratix10_svc_client *client,
 {
 	struct stratix10_rsu_priv *priv = client->priv;
 
-	if (data->status == BIT(SVC_STATUS_NO_SUPPORT))
-		dev_warn(client->dev, "Secure FW doesn't support notify\n");
+	if (data->status == BIT(SVC_STATUS_ANAL_SUPPORT))
+		dev_warn(client->dev, "Secure FW doesn't support analtify\n");
 	else if (data->status == BIT(SVC_STATUS_ERROR))
 		dev_err(client->dev, "Failure, returned status is %lu\n",
 			BIT(data->status));
@@ -170,7 +170,7 @@ static void rsu_command_callback(struct stratix10_svc_client *client,
  * @data: pointer to callback data structure
  *
  * Callback from Intel service layer for retry counter, which is used by
- * user to know how many times the images is still allowed to reload
+ * user to kanalw how many times the images is still allowed to reload
  * itself before giving up and starting RSU fail-over flow.
  */
 static void rsu_retry_callback(struct stratix10_svc_client *client,
@@ -181,7 +181,7 @@ static void rsu_retry_callback(struct stratix10_svc_client *client,
 
 	if (data->status == BIT(SVC_STATUS_OK))
 		priv->retry_counter = *counter;
-	else if (data->status == BIT(SVC_STATUS_NO_SUPPORT))
+	else if (data->status == BIT(SVC_STATUS_ANAL_SUPPORT))
 		dev_warn(client->dev, "Secure FW doesn't support retry\n");
 	else
 		dev_err(client->dev, "Failed to get retry counter %lu\n",
@@ -206,7 +206,7 @@ static void rsu_max_retry_callback(struct stratix10_svc_client *client,
 
 	if (data->status == BIT(SVC_STATUS_OK))
 		priv->max_retry = *max_retry;
-	else if (data->status == BIT(SVC_STATUS_NO_SUPPORT))
+	else if (data->status == BIT(SVC_STATUS_ANAL_SUPPORT))
 		dev_warn(client->dev, "Secure FW doesn't support max retry\n");
 	else
 		dev_err(client->dev, "Failed to get max retry %lu\n",
@@ -304,7 +304,7 @@ complete:
  * rsu_send_msg() - send a message to Intel service layer
  * @priv: pointer to rsu private data
  * @command: RSU status or update command
- * @arg: the request argument, the bitstream address or notify status
+ * @arg: the request argument, the bitstream address or analtify status
  * @callback: function pointer for the callback (status or update)
  *
  * Start an Intel service layer transaction to perform the SMC call that
@@ -375,7 +375,7 @@ static ssize_t current_image_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08lx\n", priv->status.current_image);
 }
@@ -386,7 +386,7 @@ static ssize_t fail_image_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08lx\n", priv->status.fail_image);
 }
@@ -397,7 +397,7 @@ static ssize_t version_show(struct device *dev, struct device_attribute *attr,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->status.version);
 }
@@ -408,7 +408,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->status.state);
 }
@@ -419,7 +419,7 @@ static ssize_t error_location_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->status.error_location);
 }
@@ -430,7 +430,7 @@ static ssize_t error_details_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->status.error_details);
 }
@@ -441,7 +441,7 @@ static ssize_t retry_counter_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->retry_counter);
 }
@@ -452,7 +452,7 @@ static ssize_t max_retry_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return scnprintf(buf, sizeof(priv->max_retry),
 			 "0x%08x\n", priv->max_retry);
@@ -464,7 +464,7 @@ static ssize_t dcmf0_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->dcmf_version.dcmf0);
 }
@@ -475,7 +475,7 @@ static ssize_t dcmf1_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->dcmf_version.dcmf1);
 }
@@ -486,7 +486,7 @@ static ssize_t dcmf2_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->dcmf_version.dcmf2);
 }
@@ -497,7 +497,7 @@ static ssize_t dcmf3_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "0x%08x\n", priv->dcmf_version.dcmf3);
 }
@@ -508,7 +508,7 @@ static ssize_t dcmf0_status_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priv->dcmf_status.dcmf0 == INVALID_DCMF_STATUS)
 		return -EIO;
@@ -522,7 +522,7 @@ static ssize_t dcmf1_status_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priv->dcmf_status.dcmf1 == INVALID_DCMF_STATUS)
 		return -EIO;
@@ -536,7 +536,7 @@ static ssize_t dcmf2_status_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priv->dcmf_status.dcmf2 == INVALID_DCMF_STATUS)
 		return -EIO;
@@ -550,7 +550,7 @@ static ssize_t dcmf3_status_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priv->dcmf_status.dcmf3 == INVALID_DCMF_STATUS)
 		return -EIO;
@@ -566,7 +566,7 @@ static ssize_t reboot_image_store(struct device *dev,
 	int ret;
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = kstrtoul(buf, 0, &address);
 	if (ret)
@@ -582,7 +582,7 @@ static ssize_t reboot_image_store(struct device *dev,
 	return count;
 }
 
-static ssize_t notify_store(struct device *dev,
+static ssize_t analtify_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
@@ -591,16 +591,16 @@ static ssize_t notify_store(struct device *dev,
 	int ret;
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = kstrtoul(buf, 0, &status);
 	if (ret)
 		return ret;
 
-	ret = rsu_send_msg(priv, COMMAND_RSU_NOTIFY,
+	ret = rsu_send_msg(priv, COMMAND_RSU_ANALTIFY,
 			   status, rsu_command_callback);
 	if (ret) {
-		dev_err(dev, "Error, RSU notify returned %i\n", ret);
+		dev_err(dev, "Error, RSU analtify returned %i\n", ret);
 		return ret;
 	}
 
@@ -627,7 +627,7 @@ static ssize_t spt0_address_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priv->spt0_address == INVALID_SPT_ADDRESS)
 		return -EIO;
@@ -641,7 +641,7 @@ static ssize_t spt1_address_show(struct device *dev,
 	struct stratix10_rsu_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priv->spt1_address == INVALID_SPT_ADDRESS)
 		return -EIO;
@@ -666,7 +666,7 @@ static DEVICE_ATTR_RO(dcmf1_status);
 static DEVICE_ATTR_RO(dcmf2_status);
 static DEVICE_ATTR_RO(dcmf3_status);
 static DEVICE_ATTR_WO(reboot_image);
-static DEVICE_ATTR_WO(notify);
+static DEVICE_ATTR_WO(analtify);
 static DEVICE_ATTR_RO(spt0_address);
 static DEVICE_ATTR_RO(spt1_address);
 
@@ -688,7 +688,7 @@ static struct attribute *rsu_attrs[] = {
 	&dev_attr_dcmf2_status.attr,
 	&dev_attr_dcmf3_status.attr,
 	&dev_attr_reboot_image.attr,
-	&dev_attr_notify.attr,
+	&dev_attr_analtify.attr,
 	&dev_attr_spt0_address.attr,
 	&dev_attr_spt1_address.attr,
 	NULL
@@ -704,7 +704,7 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client.dev = dev;
 	priv->client.receive_cb = NULL;

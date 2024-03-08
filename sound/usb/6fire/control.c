@@ -22,7 +22,7 @@
 #include "chip.h"
 
 static const char * const opt_coax_texts[2] = { "Optical", "Coax" };
-static const char * const line_phono_texts[2] = { "Line", "Phono" };
+static const char * const line_phoanal_texts[2] = { "Line", "Phoanal" };
 
 /*
  * data that needs to be sent to device. sets up card internal stuff.
@@ -93,12 +93,12 @@ static void usb6fire_control_input_vol_update(struct control_runtime *rt)
 			}
 }
 
-static void usb6fire_control_line_phono_update(struct control_runtime *rt)
+static void usb6fire_control_line_phoanal_update(struct control_runtime *rt)
 {
 	struct comm_runtime *comm_rt = rt->chip->comm;
 	if (comm_rt) {
-		comm_rt->write8(comm_rt, 0x22, 0x02, rt->line_phono_switch);
-		comm_rt->write8(comm_rt, 0x21, 0x02, rt->line_phono_switch);
+		comm_rt->write8(comm_rt, 0x22, 0x02, rt->line_phoanal_switch);
+		comm_rt->write8(comm_rt, 0x21, 0x02, rt->line_phoanal_switch);
 	}
 }
 
@@ -320,30 +320,30 @@ static int usb6fire_control_input_vol_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int usb6fire_control_line_phono_info(struct snd_kcontrol *kcontrol,
+static int usb6fire_control_line_phoanal_info(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_info *uinfo)
 {
-	return snd_ctl_enum_info(uinfo, 1, 2, line_phono_texts);
+	return snd_ctl_enum_info(uinfo, 1, 2, line_phoanal_texts);
 }
 
-static int usb6fire_control_line_phono_put(struct snd_kcontrol *kcontrol,
+static int usb6fire_control_line_phoanal_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
 	int changed = 0;
-	if (rt->line_phono_switch != ucontrol->value.integer.value[0]) {
-		rt->line_phono_switch = ucontrol->value.integer.value[0];
-		usb6fire_control_line_phono_update(rt);
+	if (rt->line_phoanal_switch != ucontrol->value.integer.value[0]) {
+		rt->line_phoanal_switch = ucontrol->value.integer.value[0];
+		usb6fire_control_line_phoanal_update(rt);
 		changed = 1;
 	}
 	return changed;
 }
 
-static int usb6fire_control_line_phono_get(struct snd_kcontrol *kcontrol,
+static int usb6fire_control_line_phoanal_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.integer.value[0] = rt->line_phono_switch;
+	ucontrol->value.integer.value[0] = rt->line_phoanal_switch;
 	return 0;
 }
 
@@ -474,12 +474,12 @@ static const struct snd_kcontrol_new mute_elements[] = {
 static const struct snd_kcontrol_new elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Line/Phono Capture Route",
+		.name = "Line/Phoanal Capture Route",
 		.index = 0,
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-		.info = usb6fire_control_line_phono_info,
-		.get = usb6fire_control_line_phono_get,
-		.put = usb6fire_control_line_phono_put
+		.info = usb6fire_control_line_phoanal_info,
+		.get = usb6fire_control_line_phoanal_get,
+		.put = usb6fire_control_line_phoanal_put
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -495,7 +495,7 @@ static const struct snd_kcontrol_new elements[] = {
 		.name = "Digital Thru Playback Route",
 		.index = 0,
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = usb6fire_control_digital_thru_get,
 		.put = usb6fire_control_digital_thru_put
 	},
@@ -526,7 +526,7 @@ static int usb6fire_control_add_virtual(
 	struct snd_kcontrol *control;
 
 	if (!vmaster)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = snd_ctl_add(card, vmaster);
 	if (ret < 0)
 		return ret;
@@ -535,7 +535,7 @@ static int usb6fire_control_add_virtual(
 	while (elems[i].name) {
 		control = snd_ctl_new1(&elems[i], rt);
 		if (!control)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = snd_ctl_add(card, control);
 		if (ret < 0)
 			return ret;
@@ -556,7 +556,7 @@ int usb6fire_control_init(struct sfire_chip *chip)
 	struct comm_runtime *comm_rt = chip->comm;
 
 	if (!rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt->chip = chip;
 	rt->update_streaming = usb6fire_control_streaming_update;
@@ -571,7 +571,7 @@ int usb6fire_control_init(struct sfire_chip *chip)
 	}
 
 	usb6fire_control_opt_coax_update(rt);
-	usb6fire_control_line_phono_update(rt);
+	usb6fire_control_line_phoanal_update(rt);
 	usb6fire_control_output_vol_update(rt);
 	usb6fire_control_output_mute_update(rt);
 	usb6fire_control_input_vol_update(rt);
@@ -580,14 +580,14 @@ int usb6fire_control_init(struct sfire_chip *chip)
 	ret = usb6fire_control_add_virtual(rt, chip->card,
 		"Master Playback Volume", vol_elements);
 	if (ret) {
-		dev_err(&chip->dev->dev, "cannot add control.\n");
+		dev_err(&chip->dev->dev, "cananalt add control.\n");
 		kfree(rt);
 		return ret;
 	}
 	ret = usb6fire_control_add_virtual(rt, chip->card,
 		"Master Playback Switch", mute_elements);
 	if (ret) {
-		dev_err(&chip->dev->dev, "cannot add control.\n");
+		dev_err(&chip->dev->dev, "cananalt add control.\n");
 		kfree(rt);
 		return ret;
 	}
@@ -597,7 +597,7 @@ int usb6fire_control_init(struct sfire_chip *chip)
 		ret = snd_ctl_add(chip->card, snd_ctl_new1(&elements[i], rt));
 		if (ret < 0) {
 			kfree(rt);
-			dev_err(&chip->dev->dev, "cannot add control.\n");
+			dev_err(&chip->dev->dev, "cananalt add control.\n");
 			return ret;
 		}
 		i++;

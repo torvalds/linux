@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_ROUTER_H_
 #define _MLXSW_ROUTER_H_
@@ -47,14 +47,14 @@ struct mlxsw_sp_router {
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
 	struct list_head nexthop_neighs_list;
 	struct list_head ipip_list;
-	struct notifier_block nexthop_nb;
-	struct notifier_block fib_nb;
-	struct notifier_block netevent_nb;
-	struct notifier_block inetaddr_nb;
-	struct notifier_block inet6addr_nb;
-	struct notifier_block netdevice_nb;
-	struct notifier_block inetaddr_valid_nb;
-	struct notifier_block inet6addr_valid_nb;
+	struct analtifier_block nexthop_nb;
+	struct analtifier_block fib_nb;
+	struct analtifier_block netevent_nb;
+	struct analtifier_block inetaddr_nb;
+	struct analtifier_block inet6addr_nb;
+	struct analtifier_block netdevice_nb;
+	struct analtifier_block inetaddr_valid_nb;
+	struct analtifier_block inet6addr_valid_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
@@ -125,7 +125,7 @@ void
 mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_neigh_entry *neigh_entry,
 				    bool adding);
-bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry);
+bool mlxsw_sp_neigh_ipv6_iganalre(struct mlxsw_sp_neigh_entry *neigh_entry);
 int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_ipip_entry *ipip_entry,
 					bool recreate_loopback,

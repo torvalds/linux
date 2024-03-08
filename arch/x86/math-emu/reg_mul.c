@@ -2,13 +2,13 @@
 /*---------------------------------------------------------------------------+
  |  reg_mul.c                                                                |
  |                                                                           |
- | Multiply one FPU_REG by another, put the result in a destination FPU_REG. |
+ | Multiply one FPU_REG by aanalther, put the result in a destination FPU_REG. |
  |                                                                           |
  | Copyright (C) 1992,1993,1997                                              |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
- | Returns the tag of the result if no exceptions or errors occurred.        |
+ | Returns the tag of the result if anal exceptions or errors occurred.        |
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
@@ -26,7 +26,7 @@
   The sources are st(deststnr) and (b,tagb,signb).
   The destination is st(deststnr).
   */
-/* This routine must be called with non-empty source registers */
+/* This routine must be called with analn-empty source registers */
 int FPU_mul(FPU_REG const *b, u_char tagb, int deststnr, int control_w)
 {
 	FPU_REG *a = &st(deststnr);
@@ -55,11 +55,11 @@ int FPU_mul(FPU_REG const *b, u_char tagb, int deststnr, int control_w)
 	if (tagb == TAG_Special)
 		tagb = FPU_Special(b);
 
-	if (((taga == TAG_Valid) && (tagb == TW_Denormal))
-	    || ((taga == TW_Denormal) && (tagb == TAG_Valid))
-	    || ((taga == TW_Denormal) && (tagb == TW_Denormal))) {
+	if (((taga == TAG_Valid) && (tagb == TW_Deanalrmal))
+	    || ((taga == TW_Deanalrmal) && (tagb == TAG_Valid))
+	    || ((taga == TW_Deanalrmal) && (tagb == TW_Deanalrmal))) {
 		FPU_REG x, y;
-		if (denormal_operand() < 0)
+		if (deanalrmal_operand() < 0)
 			return FPU_Exception;
 
 		FPU_to_exp16(a, &x);
@@ -72,9 +72,9 @@ int FPU_mul(FPU_REG const *b, u_char tagb, int deststnr, int control_w)
 		}
 		FPU_settagi(deststnr, tag);
 		return tag;
-	} else if ((taga <= TW_Denormal) && (tagb <= TW_Denormal)) {
-		if (((tagb == TW_Denormal) || (taga == TW_Denormal))
-		    && (denormal_operand() < 0))
+	} else if ((taga <= TW_Deanalrmal) && (tagb <= TW_Deanalrmal)) {
+		if (((tagb == TW_Deanalrmal) || (taga == TW_Deanalrmal))
+		    && (deanalrmal_operand() < 0))
 			return FPU_Exception;
 
 		/* Must have either both arguments == zero, or
@@ -93,8 +93,8 @@ int FPU_mul(FPU_REG const *b, u_char tagb, int deststnr, int control_w)
 	} else if (((taga == TW_Infinity) && (tagb == TAG_Zero))
 		   || ((tagb == TW_Infinity) && (taga == TAG_Zero))) {
 		return arith_invalid(deststnr);	/* Zero*Infinity is invalid */
-	} else if (((taga == TW_Denormal) || (tagb == TW_Denormal))
-		   && (denormal_operand() < 0)) {
+	} else if (((taga == TW_Deanalrmal) || (tagb == TW_Deanalrmal))
+		   && (deanalrmal_operand() < 0)) {
 		return FPU_Exception;
 	} else if (taga == TW_Infinity) {
 		FPU_copy_to_regi(a, TAG_Special, deststnr);
@@ -105,12 +105,12 @@ int FPU_mul(FPU_REG const *b, u_char tagb, int deststnr, int control_w)
 		setsign(dest, sign);
 		return TAG_Special;
 	}
-#ifdef PARANOID
+#ifdef PARAANALID
 	else {
 		EXCEPTION(EX_INTERNAL | 0x102);
 		return FPU_Exception;
 	}
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	return 0;
 }

@@ -108,7 +108,7 @@ static int wave5_check_dec_open_param(struct vpu_instance *inst, struct dec_open
 	if (inst->id >= MAX_NUM_INSTANCE) {
 		dev_err(inst->dev->dev, "Too many simultaneous instances: %d (max: %u)\n",
 			inst->id, MAX_NUM_INSTANCE);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (param->bitstream_buffer % 8) {
@@ -146,7 +146,7 @@ int wave5_vpu_dec_open(struct vpu_instance *inst, struct dec_open_param *open_pa
 
 	if (!wave5_vpu_is_init(vpu_dev)) {
 		mutex_unlock(&vpu_dev->hw_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	p_dec_info = &inst->codec_info->dec_info;
@@ -406,7 +406,7 @@ int wave5_vpu_dec_start_one_frame(struct vpu_instance *inst, u32 *res_fail)
 	int ret;
 	struct vpu_device *vpu_dev = inst->dev;
 
-	if (p_dec_info->stride == 0) /* this means frame buffers have not been registered. */
+	if (p_dec_info->stride == 0) /* this means frame buffers have analt been registered. */
 		return -EINVAL;
 
 	ret = mutex_lock_interruptible(&vpu_dev->hw_lock);
@@ -550,17 +550,17 @@ int wave5_vpu_dec_get_output_info(struct vpu_instance *inst, struct dec_output_i
 	info->wr_ptr = p_dec_info->stream_wr_ptr;
 	info->frame_display_flag = p_dec_info->frame_display_flag;
 
-	info->sequence_no = p_dec_info->initial_info.sequence_no;
+	info->sequence_anal = p_dec_info->initial_info.sequence_anal;
 	if (decoded_index < WAVE5_MAX_FBS)
 		p_dec_info->dec_out_info[decoded_index] = *info;
 
 	if (disp_idx < WAVE5_MAX_FBS)
-		info->disp_frame.sequence_no = info->sequence_no;
+		info->disp_frame.sequence_anal = info->sequence_anal;
 
 	if (info->sequence_changed) {
 		memcpy((void *)&p_dec_info->initial_info, (void *)&p_dec_info->new_seq_info,
 		       sizeof(struct dec_initial_info));
-		p_dec_info->initial_info.sequence_no++;
+		p_dec_info->initial_info.sequence_anal++;
 	}
 
 err_out:
@@ -679,7 +679,7 @@ int wave5_vpu_enc_open(struct vpu_instance *inst, struct enc_open_param *open_pa
 
 	if (!wave5_vpu_is_init(vpu_dev)) {
 		mutex_unlock(&vpu_dev->hw_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	p_enc_info = &inst->codec_info->enc_info;
@@ -825,7 +825,7 @@ int wave5_vpu_enc_start_one_frame(struct vpu_instance *inst, struct enc_param *p
 
 	*fail_res = 0;
 
-	if (p_enc_info->stride == 0) /* this means frame buffers have not been registered. */
+	if (p_enc_info->stride == 0) /* this means frame buffers have analt been registered. */
 		return -EINVAL;
 
 	ret = wave5_check_enc_param(inst, param);
@@ -885,7 +885,7 @@ int wave5_vpu_enc_give_command(struct vpu_instance *inst, enum codec_command cmd
 		enum mirror_direction mir_dir;
 
 		mir_dir = *(enum mirror_direction *)parameter;
-		if (mir_dir != MIRDIR_NONE && mir_dir != MIRDIR_HOR &&
+		if (mir_dir != MIRDIR_ANALNE && mir_dir != MIRDIR_HOR &&
 		    mir_dir != MIRDIR_VER && mir_dir != MIRDIR_HOR_VER)
 			return -EINVAL;
 		p_enc_info->mirror_direction = mir_dir;

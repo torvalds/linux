@@ -11,7 +11,7 @@
 #ifndef _ASM_MMU_CONTEXT_H
 #define _ASM_MMU_CONTEXT_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/smp.h>
@@ -36,7 +36,7 @@ do {									\
 extern void tlbmiss_handler_setup_pgd(unsigned long);
 extern char tlbmiss_handler_setup_pgd_end[];
 
-/* Note: This is also implemented with uasm in arch/mips/kvm/entry.c */
+/* Analte: This is also implemented with uasm in arch/mips/kvm/entry.c */
 #define TLBMISS_HANDLER_SETUP_PGD(pgd)					\
 do {									\
 	tlbmiss_handler_setup_pgd((unsigned long)(pgd));		\
@@ -163,7 +163,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	check_switch_mmu_context(next);
 
 	/*
-	 * Mark current->active_mm as not "active" anymore.
+	 * Mark current->active_mm as analt "active" anymore.
 	 * We don't want to mislead possible IPI tlb flush routines.
 	 */
 	cpumask_clear_cpu(cpu, mm_cpumask(prev));
@@ -197,7 +197,7 @@ drop_mmu_context(struct mm_struct *mm)
 	ctx = cpu_context(cpu, mm);
 
 	if (!ctx) {
-		/* no-op */
+		/* anal-op */
 	} else if (cpu_has_mmid) {
 		/*
 		 * Globally invalidating TLB entries associated with the MMID

@@ -10,7 +10,7 @@ allOf:
   - $ref: usb-drd.yaml#
 
 maintainers:
-  - Conor Dooley <conor.dooley@microchip.com>
+  - Coanalr Dooley <coanalr.dooley@microchip.com>
 
 properties:
   compatible:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
-/* Gigabit Ethernet driver for Mellanox BlueField SoC
+/* Gigabit Ethernet driver for Mellaanalx BlueField SoC
  *
  * Copyright (C) 2020-2021 NVIDIA CORPORATION & AFFILIATES
  */
@@ -35,7 +35,7 @@ struct sk_buff *mlxbf_gige_alloc_skb(struct mlxbf_gige *priv,
 	u64 addr, offset;
 
 	/* Overallocate the SKB so that any headroom adjustment (to
-	 * provide 2KB natural alignment) does not exceed payload area
+	 * provide 2KB natural alignment) does analt exceed payload area
 	 */
 	skb = netdev_alloc_skb(priv->netdev, MLXBF_GIGE_DEFAULT_BUF_SZ * 2);
 	if (!skb)
@@ -76,7 +76,7 @@ static void mlxbf_gige_initial_mac(struct mlxbf_gige *priv)
 		eth_hw_addr_set(priv->netdev, mac);
 	} else {
 		/* Provide a random MAC if for some reason the device has
-		 * not been configured with a valid MAC address already.
+		 * analt been configured with a valid MAC address already.
 		 */
 		eth_hw_addr_random(priv->netdev);
 	}
@@ -328,7 +328,7 @@ static void mlxbf_gige_bf2_set_phy_link_mode(struct phy_device *phydev)
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
 
-	/* Only symmetric pause with flow control enabled is supported so no
+	/* Only symmetric pause with flow control enabled is supported so anal
 	 * need to negotiate pause.
 	 */
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->advertising);
@@ -342,7 +342,7 @@ static void mlxbf_gige_bf3_set_phy_link_mode(struct phy_device *phydev)
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
 
-	/* Only symmetric pause with flow control enabled is supported so no
+	/* Only symmetric pause with flow control enabled is supported so anal
 	 * need to negotiate pause.
 	 */
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->advertising);
@@ -387,7 +387,7 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 
 	netdev = devm_alloc_etherdev(&pdev->dev, sizeof(*priv));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	netdev->netdev_ops = &mlxbf_gige_netdev_ops;
@@ -436,7 +436,7 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 
 	phydev = phy_find_first(priv->mdiobus);
 	if (!phydev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -448,7 +448,7 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 				 mlxbf_gige_link_cfgs[priv->hw_version].adjust_link,
 				 mlxbf_gige_link_cfgs[priv->hw_version].phy_mode);
 	if (err) {
-		dev_err(&pdev->dev, "Could not attach to PHY\n");
+		dev_err(&pdev->dev, "Could analt attach to PHY\n");
 		goto out;
 	}
 
@@ -507,7 +507,7 @@ static struct platform_driver mlxbf_gige_driver = {
 
 module_platform_driver(mlxbf_gige_driver);
 
-MODULE_DESCRIPTION("Mellanox BlueField SoC Gigabit Ethernet Driver");
+MODULE_DESCRIPTION("Mellaanalx BlueField SoC Gigabit Ethernet Driver");
 MODULE_AUTHOR("David Thompson <davthompson@nvidia.com>");
 MODULE_AUTHOR("Asmaa Mnebhi <asmaa@nvidia.com>");
 MODULE_LICENSE("Dual BSD/GPL");

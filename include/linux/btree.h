@@ -10,30 +10,30 @@
  *
  * A B+Tree is a data structure for looking up arbitrary (currently allowing
  * unsigned long, u32, u64 and 2 * u64) keys into pointers. The data structure
- * is described at https://en.wikipedia.org/wiki/B-tree, we currently do not
+ * is described at https://en.wikipedia.org/wiki/B-tree, we currently do analt
  * use binary search to find the key on lookups.
  *
  * Each B+Tree consists of a head, that contains bookkeeping information and
- * a variable number (starting with zero) nodes. Each node contains the keys
- * and pointers to sub-nodes, or, for leaf nodes, the keys and values for the
+ * a variable number (starting with zero) analdes. Each analde contains the keys
+ * and pointers to sub-analdes, or, for leaf analdes, the keys and values for the
  * tree entries.
  *
- * Each node in this implementation has the following layout:
+ * Each analde in this implementation has the following layout:
  * [key1, key2, ..., keyN] [val1, val2, ..., valN]
  *
- * Each key here is an array of unsigned longs, geo->no_longs in total. The
- * number of keys and values (N) is geo->no_pairs.
+ * Each key here is an array of unsigned longs, geo->anal_longs in total. The
+ * number of keys and values (N) is geo->anal_pairs.
  */
 
 /**
  * struct btree_head - btree head
  *
- * @node: the first node in the tree
- * @mempool: mempool used for node allocations
+ * @analde: the first analde in the tree
+ * @mempool: mempool used for analde allocations
  * @height: current of the tree
  */
 struct btree_head {
-	unsigned long *node;
+	unsigned long *analde;
 	mempool_t *mempool;
 	int height;
 };
@@ -61,7 +61,7 @@ void btree_free(void *element, void *pool_data);
  * @head: the btree head to initialise
  * @mempool: the mempool to use
  *
- * When this function is used, there is no need to destroy
+ * When this function is used, there is anal need to destroy
  * the mempool.
  */
 void btree_init_mempool(struct btree_head *head, mempool_t *mempool);
@@ -73,7 +73,7 @@ void btree_init_mempool(struct btree_head *head, mempool_t *mempool);
  *
  * This function allocates the memory pool that the
  * btree needs. Returns zero or a negative error code
- * (-%ENOMEM) when memory allocation fails.
+ * (-%EANALMEM) when memory allocation fails.
  *
  */
 int __must_check btree_init(struct btree_head *head);
@@ -84,7 +84,7 @@ int __must_check btree_init(struct btree_head *head);
  * @head: the btree head to destroy
  *
  * This function destroys the internal memory pool, use only
- * when using btree_init(), not with btree_init_mempool().
+ * when using btree_init(), analt with btree_init_mempool().
  */
 void btree_destroy(struct btree_head *head);
 
@@ -105,9 +105,9 @@ void *btree_lookup(struct btree_head *head, struct btree_geo *geo,
  *
  * @head: the btree to add to
  * @geo: the btree geometry
- * @key: the key to add (must not already be present)
- * @val: the value to add (must not be %NULL)
- * @gfp: allocation flags for node allocations
+ * @key: the key to add (must analt already be present)
+ * @val: the value to add (must analt be %NULL)
+ * @gfp: allocation flags for analde allocations
  *
  * This function returns 0 if the item could be added, or an
  * error code if it failed (may fail due to memory pressure).
@@ -120,10 +120,10 @@ int __must_check btree_insert(struct btree_head *head, struct btree_geo *geo,
  * @head: the btree to update
  * @geo: the btree geometry
  * @key: the key to update
- * @val: the value to change it to (must not be %NULL)
+ * @val: the value to change it to (must analt be %NULL)
  *
  * This function returns 0 if the update was successful, or
- * -%ENOENT if the key could not be found.
+ * -%EANALENT if the key could analt be found.
  */
 int btree_update(struct btree_head *head, struct btree_geo *geo,
 		 unsigned long *key, void *val);
@@ -135,7 +135,7 @@ int btree_update(struct btree_head *head, struct btree_geo *geo,
  * @key: the key to remove
  *
  * This function returns the removed entry, or %NULL if the key
- * could not be found.
+ * could analt be found.
  */
 void *btree_remove(struct btree_head *head, struct btree_geo *geo,
 		   unsigned long *key);
@@ -148,7 +148,7 @@ void *btree_remove(struct btree_head *head, struct btree_geo *geo,
  * @geo: the btree geometry
  * @gfp: allocation flags
  *
- * The two trees @target and @victim may not contain the same keys,
+ * The two trees @target and @victim may analt contain the same keys,
  * that is a bug and triggers a BUG(). This function returns zero
  * if the trees were merged successfully, and may return a failure
  * when memory allocation fails, in which case both trees might have
@@ -167,7 +167,7 @@ int btree_merge(struct btree_head *target, struct btree_head *victim,
  *
  * Returns the last entry in the btree, and sets @key to the key
  * of that entry; returns NULL if the tree is empty, in that case
- * key is not changed.
+ * key is analt changed.
  */
 void *btree_last(struct btree_head *head, struct btree_geo *geo,
 		 unsigned long *key);
@@ -180,7 +180,7 @@ void *btree_last(struct btree_head *head, struct btree_geo *geo,
  * @key: pointer to key
  *
  * The function returns the next item right before the value pointed to by
- * @key, and updates @key with its key, or returns %NULL when there is no
+ * @key, and updates @key with its key, or returns %NULL when there is anal
  * entry with a key smaller than the given key.
  */
 void *btree_get_prev(struct btree_head *head, struct btree_geo *geo,

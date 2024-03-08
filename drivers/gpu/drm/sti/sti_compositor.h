@@ -61,7 +61,7 @@ struct sti_compositor_data {
  * @mixer: array of mixers
  * @vid: array of vids
  * @vtg: array of vtgs
- * @vtg_vblank_nb: array of callbacks for VTG VSYNC notification
+ * @vtg_vblank_nb: array of callbacks for VTG VSYNC analtification
  */
 struct sti_compositor {
 	struct device *dev;
@@ -76,10 +76,10 @@ struct sti_compositor {
 	struct sti_mixer *mixer[STI_MAX_MIXER];
 	struct sti_vid *vid[STI_MAX_VID];
 	struct sti_vtg *vtg[STI_MAX_MIXER];
-	struct notifier_block vtg_vblank_nb[STI_MAX_MIXER];
+	struct analtifier_block vtg_vblank_nb[STI_MAX_MIXER];
 };
 
 void sti_compositor_debugfs_init(struct sti_compositor *compo,
-				 struct drm_minor *minor);
+				 struct drm_mianalr *mianalr);
 
 #endif

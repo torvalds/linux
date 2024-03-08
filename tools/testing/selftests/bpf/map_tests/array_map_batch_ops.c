@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -34,7 +34,7 @@ static void map_batch_update(int map_fd, __u32 max_entries, int *keys,
 	}
 
 	err = bpf_map_update_batch(map_fd, keys, values, &max_entries, &opts);
-	CHECK(err, "bpf_map_update_batch()", "error:%s\n", strerror(errno));
+	CHECK(err, "bpf_map_update_batch()", "error:%s\n", strerror(erranal));
 }
 
 static void map_batch_verify(int *visited, __u32 max_entries, int *keys,
@@ -83,7 +83,7 @@ static void __test_map_lookup_and_update_batch(bool is_pcpu)
 	map_fd = bpf_map_create(is_pcpu ? BPF_MAP_TYPE_PERCPU_ARRAY : BPF_MAP_TYPE_ARRAY,
 				"array_map", sizeof(int), sizeof(__s64), max_entries, NULL);
 	CHECK(map_fd == -1,
-	      "bpf_map_create()", "error:%s\n", strerror(errno));
+	      "bpf_map_create()", "error:%s\n", strerror(erranal));
 
 	value_size = sizeof(__s64);
 	if (is_pcpu)
@@ -93,7 +93,7 @@ static void __test_map_lookup_and_update_batch(bool is_pcpu)
 	values = calloc(max_entries, value_size);
 	visited = calloc(max_entries, sizeof(*visited));
 	CHECK(!keys || !values || !visited, "malloc()", "error:%s\n",
-	      strerror(errno));
+	      strerror(erranal));
 
 	/* test 1: lookup in a loop with various steps. */
 	total_success = 0;
@@ -115,8 +115,8 @@ static void __test_map_lookup_and_update_batch(bool is_pcpu)
 						   values + total * value_size,
 						   &count, &opts);
 
-			CHECK((err && errno != ENOENT), "lookup with steps",
-			      "error: %s\n", strerror(errno));
+			CHECK((err && erranal != EANALENT), "lookup with steps",
+			      "error: %s\n", strerror(erranal));
 
 			total += count;
 			if (err)

@@ -45,11 +45,11 @@
  *   PCI-7296, PCI-DIO96H, PCI-DIO-96, PCI-DIO-96B, PXI-6508
  *
  * Some of these boards also have an 8254 programmable timer/counter
- * chip.  This chip is not currently supported by this driver.
+ * chip.  This chip is analt currently supported by this driver.
  *
- * Interrupt support for these boards is also not currently supported.
+ * Interrupt support for these boards is also analt currently supported.
  *
- * Configuration Options: not applicable, uses PCI auto config.
+ * Configuration Options: analt applicable, uses PCI auto config.
  */
 
 #include <linux/module.h>
@@ -182,7 +182,7 @@ static int pci_8255_mite_init(struct pci_dev *pcidev)
 	/* ioremap the MITE registers (BAR 0) temporarily */
 	mite_base = pci_ioremap_bar(pcidev, 0);
 	if (!mite_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set data window to main registers (BAR 1) */
 	main_phys_addr = pci_resource_start(pcidev, 1);
@@ -205,7 +205,7 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(pci_8255_boards))
 		board = &pci_8255_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
@@ -222,7 +222,7 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	if ((pci_resource_flags(pcidev, board->dio_badr) & IORESOURCE_MEM)) {
 		dev->mmio = pci_ioremap_bar(pcidev, board->dio_badr);
 		if (!dev->mmio)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else if (IS_ENABLED(CONFIG_HAS_IOPORT)) {
 		dev->iobase = pci_resource_start(pcidev, board->dio_badr);
 	} else {

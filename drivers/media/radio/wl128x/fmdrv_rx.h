@@ -11,7 +11,7 @@
 
 int fm_rx_set_freq(struct fmdev *, u32);
 int fm_rx_set_mute_mode(struct fmdev *, u8);
-int fm_rx_set_stereo_mono(struct fmdev *, u16);
+int fm_rx_set_stereo_moanal(struct fmdev *, u16);
 int fm_rx_set_rds_mode(struct fmdev *, u8);
 int fm_rx_set_rds_system(struct fmdev *, u8);
 int fm_rx_set_volume(struct fmdev *, u16);
@@ -31,7 +31,7 @@ int fm_rx_get_mute_mode(struct fmdev *, u8 *);
 int fm_rx_get_volume(struct fmdev *, u16 *);
 int fm_rx_get_band_freq_range(struct fmdev *,
 					u32 *, u32 *);
-int fm_rx_get_stereo_mono(struct fmdev *, u16 *);
+int fm_rx_get_stereo_moanal(struct fmdev *, u16 *);
 int fm_rx_get_rssi_level(struct fmdev *, u16 *);
 int fm_rx_get_rssi_threshold(struct fmdev *, short *);
 int fm_rx_get_rfdepend_softmute(struct fmdev *, u8 *);

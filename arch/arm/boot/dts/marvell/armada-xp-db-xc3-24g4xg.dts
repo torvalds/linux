@@ -6,7 +6,7 @@
  *
  * Based on armada-xp-db.dts
  *
- * Note: this Device Tree assumes that the bootloader has remapped the
+ * Analte: this Device Tree assumes that the bootloader has remapped the
  * internal registers to 0xf1000000 (instead of the default
  * 0xd0000000). The 0xf1000000 is the default used by the recent,
  * DT-capable, U-Boot bootloaders provided by Marvell. Some earlier

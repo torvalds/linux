@@ -15,7 +15,7 @@
 #define TVP5150_SVIDEO     2
 
 /* TVP5150 HW outputs */
-#define TVP5150_NORMAL       0
+#define TVP5150_ANALRMAL       0
 #define TVP5150_BLACK_SCREEN 1
 
 #endif /* _DT_BINDINGS_MEDIA_TVP5150_H */

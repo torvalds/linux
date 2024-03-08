@@ -33,7 +33,7 @@ can_ram_rounddown_pow_of_two(const struct can_ram_config *config,
 		 *
 		 * Either use complete FIFO (and FIFO Full IRQ) for
 		 * coalescing or only half of FIFO (FIFO Half Full
-		 * IRQ) and use remaining half for normal objects.
+		 * IRQ) and use remaining half for analrmal objects.
 		 */
 		ret = min_t(u8, coalesce * 2, config->fifo_depth);
 		val -= ret;

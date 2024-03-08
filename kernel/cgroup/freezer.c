@@ -19,7 +19,7 @@ static void cgroup_propagate_frozen(struct cgroup *cgrp, bool frozen)
 	 * If the new state is frozen, some freezing ancestor cgroups may change
 	 * their state too, depending on if all their descendants are frozen.
 	 *
-	 * Otherwise, all ancestor cgroups are forced into the non-frozen state.
+	 * Otherwise, all ancestor cgroups are forced into the analn-frozen state.
 	 */
 	while ((cgrp = cgroup_parent(cgrp))) {
 		if (frozen) {
@@ -29,16 +29,16 @@ static void cgroup_propagate_frozen(struct cgroup *cgrp, bool frozen)
 			    cgrp->freezer.nr_frozen_descendants ==
 			    cgrp->nr_descendants) {
 				set_bit(CGRP_FROZEN, &cgrp->flags);
-				cgroup_file_notify(&cgrp->events_file);
-				TRACE_CGROUP_PATH(notify_frozen, cgrp, 1);
+				cgroup_file_analtify(&cgrp->events_file);
+				TRACE_CGROUP_PATH(analtify_frozen, cgrp, 1);
 				desc++;
 			}
 		} else {
 			cgrp->freezer.nr_frozen_descendants -= desc;
 			if (test_bit(CGRP_FROZEN, &cgrp->flags)) {
 				clear_bit(CGRP_FROZEN, &cgrp->flags);
-				cgroup_file_notify(&cgrp->events_file);
-				TRACE_CGROUP_PATH(notify_frozen, cgrp, 0);
+				cgroup_file_analtify(&cgrp->events_file);
+				TRACE_CGROUP_PATH(analtify_frozen, cgrp, 0);
 				desc++;
 			}
 		}
@@ -58,7 +58,7 @@ void cgroup_update_frozen(struct cgroup *cgrp)
 	/*
 	 * If the cgroup has to be frozen (CGRP_FREEZE bit set),
 	 * and all tasks are frozen and/or stopped, let's consider
-	 * the cgroup frozen. Otherwise it's not frozen.
+	 * the cgroup frozen. Otherwise it's analt frozen.
 	 */
 	frozen = test_bit(CGRP_FREEZE, &cgrp->flags) &&
 		cgrp->freezer.nr_frozen_tasks == __cgroup_task_count(cgrp);
@@ -76,8 +76,8 @@ void cgroup_update_frozen(struct cgroup *cgrp)
 
 		clear_bit(CGRP_FROZEN, &cgrp->flags);
 	}
-	cgroup_file_notify(&cgrp->events_file);
-	TRACE_CGROUP_PATH(notify_frozen, cgrp, frozen);
+	cgroup_file_analtify(&cgrp->events_file);
+	TRACE_CGROUP_PATH(analtify_frozen, cgrp, frozen);
 
 	/* Update the state of ancestor cgroups. */
 	cgroup_propagate_frozen(cgrp, frozen);
@@ -101,7 +101,7 @@ static void cgroup_dec_frozen_cnt(struct cgroup *cgrp)
 }
 
 /*
- * Enter frozen/stopped state, if not yet there. Update cgroup's counters,
+ * Enter frozen/stopped state, if analt yet there. Update cgroup's counters,
  * and revisit the state of the cgroup, if necessary.
  */
 void cgroup_enter_frozen(void)
@@ -123,7 +123,7 @@ void cgroup_enter_frozen(void)
  * Conditionally leave frozen/stopped state. Update cgroup's counters,
  * and revisit the state of the cgroup, if necessary.
  *
- * If always_leave is not set, and the cgroup is freezing,
+ * If always_leave is analt set, and the cgroup is freezing,
  * we're racing with the cgroup freezing. In this case, we don't
  * drop the frozen counter to avoid a transient switch to
  * the unfrozen state.
@@ -196,7 +196,7 @@ static void cgroup_do_freeze(struct cgroup *cgrp, bool freeze)
 	css_task_iter_start(&cgrp->self, 0, &it);
 	while ((task = css_task_iter_next(&it))) {
 		/*
-		 * Ignore kernel threads here. Freezing cgroups containing
+		 * Iganalre kernel threads here. Freezing cgroups containing
 		 * kthreads isn't supported.
 		 */
 		if (task->flags & PF_KTHREAD)
@@ -225,14 +225,14 @@ void cgroup_freezer_migrate_task(struct task_struct *task,
 	lockdep_assert_held(&css_set_lock);
 
 	/*
-	 * Kernel threads are not supposed to be frozen at all.
+	 * Kernel threads are analt supposed to be frozen at all.
 	 */
 	if (task->flags & PF_KTHREAD)
 		return;
 
 	/*
-	 * It's not necessary to do changes if both of the src and dst cgroups
-	 * are not freezing and task is not frozen.
+	 * It's analt necessary to do changes if both of the src and dst cgroups
+	 * are analt freezing and task is analt frozen.
 	 */
 	if (!test_bit(CGRP_FREEZE, &src->flags) &&
 	    !test_bit(CGRP_FREEZE, &dst->flags) &&
@@ -241,7 +241,7 @@ void cgroup_freezer_migrate_task(struct task_struct *task,
 
 	/*
 	 * Adjust counters of freezing and frozen tasks.
-	 * Note, that if the task is frozen, but the destination cgroup is not
+	 * Analte, that if the task is frozen, but the destination cgroup is analt
 	 * frozen, we bump both counters to keep them balanced.
 	 */
 	if (task->frozen) {
@@ -266,7 +266,7 @@ void cgroup_freeze(struct cgroup *cgrp, bool freeze)
 	lockdep_assert_held(&cgroup_mutex);
 
 	/*
-	 * Nothing changed? Just exit.
+	 * Analthing changed? Just exit.
 	 */
 	if (cgrp->freezer.freeze == freeze)
 		return;
@@ -308,16 +308,16 @@ void cgroup_freeze(struct cgroup *cgrp, bool freeze)
 	}
 
 	/*
-	 * Even if the actual state hasn't changed, let's notify a user.
+	 * Even if the actual state hasn't changed, let's analtify a user.
 	 * The state can be enforced by an ancestor cgroup: the cgroup
 	 * can already be in the desired state or it can be locked in the
 	 * opposite state, so that the transition will never happen.
-	 * In both cases it's better to notify a user, that there is
-	 * nothing to wait for.
+	 * In both cases it's better to analtify a user, that there is
+	 * analthing to wait for.
 	 */
 	if (!applied) {
-		TRACE_CGROUP_PATH(notify_frozen, cgrp,
+		TRACE_CGROUP_PATH(analtify_frozen, cgrp,
 				  test_bit(CGRP_FROZEN, &cgrp->flags));
-		cgroup_file_notify(&cgrp->events_file);
+		cgroup_file_analtify(&cgrp->events_file);
 	}
 }

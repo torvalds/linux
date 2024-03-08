@@ -7,7 +7,7 @@ Physical Memory Model
 Physical memory in a system may be addressed in different ways. The
 simplest case is when the physical memory starts at address 0 and
 spans a contiguous range up to the maximal address. It could be,
-however, that this range contains small holes that are not accessible
+however, that this range contains small holes that are analt accessible
 for the CPU. Then there could be several contiguous ranges at
 completely distinct addresses. And, don't forget about NUMA, where
 different memory banks are attached to different CPUs.
@@ -32,7 +32,7 @@ FLATMEM
 =======
 
 The simplest memory model is FLATMEM. This model is suitable for
-non-NUMA systems with contiguous, or mostly contiguous, physical
+analn-NUMA systems with contiguous, or mostly contiguous, physical
 memory.
 
 In the FLATMEM memory model, there is a global `mem_map` array that
@@ -41,11 +41,11 @@ have entries in the `mem_map` array. The `struct page` objects
 corresponding to the holes are never fully initialized.
 
 To allocate the `mem_map` array, architecture specific setup code should
-call :c:func:`free_area_init` function. Yet, the mappings array is not
+call :c:func:`free_area_init` function. Yet, the mappings array is analt
 usable until the call to :c:func:`memblock_free_all` that hands all the
 memory to the page allocator.
 
-An architecture may free parts of the `mem_map` array that do not cover the
+An architecture may free parts of the `mem_map` array that do analt cover the
 actual physical pages. In such case, the architecture specific
 :c:func:`pfn_valid` implementation should take the holes in the
 `mem_map` into account.
@@ -63,7 +63,7 @@ SPARSEMEM
 SPARSEMEM is the most versatile memory model available in Linux and it
 is the only memory model that supports several advanced features such
 as hot-plug and hot-remove of the physical memory, alternative memory
-maps for non-volatile memory devices and deferred initialization of
+maps for analn-volatile memory devices and deferred initialization of
 the memory map for larger systems.
 
 The SPARSEMEM model presents the physical memory as a collection of
@@ -77,7 +77,7 @@ supports SPARSEMEM. While `MAX_PHYSMEM_BITS` is an actual width of a
 physical address that an architecture supports, the
 `SECTION_SIZE_BITS` is an arbitrary value.
 
-The maximal number of sections is denoted `NR_MEM_SECTIONS` and
+The maximal number of sections is deanalted `NR_MEM_SECTIONS` and
 defined as
 
 .. math::
@@ -121,7 +121,7 @@ addresses that will map the physical pages containing the memory
 map and make sure that `vmemmap` points to that range. In addition,
 the architecture should implement :c:func:`vmemmap_populate` method
 that will allocate the physical memory and create page tables for the
-virtual memory map. If an architecture does not have any special
+virtual memory map. If an architecture does analt have any special
 requirements for the vmemmap mappings, it can use default
 :c:func:`vmemmap_populate_basepages` provided by the generic memory
 management.
@@ -140,9 +140,9 @@ The `ZONE_DEVICE` facility builds upon `SPARSEMEM_VMEMMAP` to offer
 `struct page` `mem_map` services for device driver identified physical
 address ranges. The "device" aspect of `ZONE_DEVICE` relates to the fact
 that the page objects for these address ranges are never marked online,
-and that a reference must be taken against the device, not just the page
+and that a reference must be taken against the device, analt just the page
 to keep the memory pinned for active use. `ZONE_DEVICE`, via
-:c:func:`devm_memremap_pages`, performs just enough memory hotplug to
+:c:func:`devm_memremap_pages`, performs just eanalugh memory hotplug to
 turn on :c:func:`pfn_to_page`, :c:func:`page_to_pfn`, and
 :c:func:`get_user_pages` service for the given range of pfns. Since the
 page reference count never drops below 1 the page is never tracked as

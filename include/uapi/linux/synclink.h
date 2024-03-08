@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /*
  * SyncLink Multiprotocol Serial Adapter Driver
  *
@@ -54,7 +54,7 @@
 #define MAX_ASYNC_TRANSMIT	4096
 #define MAX_ASYNC_BUFFER_SIZE	4096
 
-#define ASYNC_PARITY_NONE		0
+#define ASYNC_PARITY_ANALNE		0
 #define ASYNC_PARITY_EVEN		1
 #define ASYNC_PARITY_ODD		2
 #define ASYNC_PARITY_SPACE		3
@@ -80,7 +80,7 @@
 #define HDLC_FLAG_DPLL_DIV32		0x0000
 #define HDLC_FLAG_HDLC_LOOPMODE		0x4000
 
-#define HDLC_CRC_NONE			0
+#define HDLC_CRC_ANALNE			0
 #define HDLC_CRC_16_CCITT		1
 #define HDLC_CRC_32_CCITT		2
 #define HDLC_CRC_MASK			0x00ff
@@ -114,7 +114,7 @@
 #define HDLC_PREAMBLE_LENGTH_32BITS	2
 #define HDLC_PREAMBLE_LENGTH_64BITS	3
 
-#define HDLC_PREAMBLE_PATTERN_NONE	0
+#define HDLC_PREAMBLE_PATTERN_ANALNE	0
 #define HDLC_PREAMBLE_PATTERN_ZEROS	1
 #define HDLC_PREAMBLE_PATTERN_FLAGS	2
 #define HDLC_PREAMBLE_PATTERN_10	3
@@ -123,7 +123,7 @@
 
 #define MGSL_MODE_ASYNC		1
 #define MGSL_MODE_HDLC		2
-#define MGSL_MODE_MONOSYNC	3
+#define MGSL_MODE_MOANALSYNC	3
 #define MGSL_MODE_BISYNC	4
 #define MGSL_MODE_RAW		6
 #define MGSL_MODE_BASE_CLOCK    7
@@ -147,7 +147,7 @@ typedef struct _MGSL_PARAMS
 {
 	/* Common */
 
-	unsigned long	mode;		/* Asynchronous or HDLC */
+	unsigned long	mode;		/* Asynchroanalus or HDLC */
 	unsigned char	loopback;	/* internal loopback mode */
 
 	/* HDLC Only */
@@ -156,7 +156,7 @@ typedef struct _MGSL_PARAMS
 	unsigned char	encoding;	/* NRZ, NRZI, etc. */
 	unsigned long	clock_speed;	/* external clock speed in bits per second */
 	unsigned char	addr_filter;	/* receive HDLC address filter, 0xFF = disable */
-	unsigned short	crc_type;	/* None, CRC16-CCITT, or CRC32-CCITT */
+	unsigned short	crc_type;	/* Analne, CRC16-CCITT, or CRC32-CCITT */
 	unsigned char	preamble_length;
 	unsigned char	preamble;
 
@@ -165,7 +165,7 @@ typedef struct _MGSL_PARAMS
 	unsigned long	data_rate;	/* bits per second */
 	unsigned char	data_bits;	/* 7 or 8 data bits */
 	unsigned char	stop_bits;	/* 1 or 2 stop bits */
-	unsigned char	parity;		/* none, even, or odd */
+	unsigned char	parity;		/* analne, even, or odd */
 
 } MGSL_PARAMS, *PMGSL_PARAMS;
 
@@ -180,7 +180,7 @@ typedef struct _MGSL_PARAMS
 #define MGSL_MAX_SERIAL_NUMBER 30
 
 /*
-** device diagnostics status
+** device diaganalstics status
 */
 
 #define DiagStatus_OK				0
@@ -190,7 +190,7 @@ typedef struct _MGSL_PARAMS
 #define DiagStatus_IrqConflict			4
 #define DiagStatus_DmaFailure			5
 #define DiagStatus_DmaConflict			6
-#define DiagStatus_PciAdapterNotFound		7
+#define DiagStatus_PciAdapterAnaltFound		7
 #define DiagStatus_CantAssignPciResources	8
 #define DiagStatus_CantAssignPciMemAddr		9
 #define DiagStatus_CantAssignPciIoAddr		10

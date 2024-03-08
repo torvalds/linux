@@ -5,8 +5,8 @@
 /*
  * Vortex PCM ALSA driver.
  *
- * Supports ADB and WT DMA. Unfortunately, WT channels do not run yet.
- * It remains stuck,and DMA transfers do not happen. 
+ * Supports ADB and WT DMA. Unfortunately, WT channels do analt run yet.
+ * It remains stuck,and DMA transfers do analt happen. 
  */
 #include <sound/asoundef.h>
 #include <linux/time.h>
@@ -111,14 +111,14 @@ static const struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = 
 };
 #endif
 
-static void vortex_notify_pcm_vol_change(struct snd_card *card,
+static void vortex_analtify_pcm_vol_change(struct snd_card *card,
 			struct snd_kcontrol *kctl, int activate)
 {
 	if (activate)
 		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	else
 		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE |
 				SNDRV_CTL_EVENT_MASK_INFO, &(kctl->id));
 }
 
@@ -242,7 +242,7 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 					 params_periods(hw_params));
 		if (VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB) {
 			chip->pcm_vol[substream->number].active = 1;
-			vortex_notify_pcm_vol_change(chip->card,
+			vortex_analtify_pcm_vol_change(chip->card,
 				chip->pcm_vol[substream->number].kctl, 1);
 		}
 	}
@@ -277,7 +277,7 @@ static int snd_vortex_pcm_hw_free(struct snd_pcm_substream *substream)
 		if (stream != NULL) {
 			if (VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB) {
 				chip->pcm_vol[substream->number].active = 0;
-				vortex_notify_pcm_vol_change(chip->card,
+				vortex_analtify_pcm_vol_change(chip->card,
 					chip->pcm_vol[substream->number].kctl,
 					0);
 			}
@@ -600,7 +600,7 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 	int err, nr_capt;
 
 	if (!chip || idx < 0 || idx >= VORTEX_PCM_LAST)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* idx indicates which kind of PCM device. ADB, SPDIF, I2S and A3D share the 
 	 * same dma engine. WT uses it own separate dma engine which can't capture. */
@@ -657,7 +657,7 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 		for (i = 0; i < ARRAY_SIZE(snd_vortex_mixer_spdif); i++) {
 			kctl = snd_ctl_new1(&snd_vortex_mixer_spdif[i], chip);
 			if (!kctl)
-				return -ENOMEM;
+				return -EANALMEM;
 			err = snd_ctl_add(chip->card, kctl);
 			if (err < 0)
 				return err;
@@ -669,7 +669,7 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 			chip->pcm_vol[i].dma = -1;
 			kctl = snd_ctl_new1(&snd_vortex_pcm_vol, chip);
 			if (!kctl)
-				return -ENOMEM;
+				return -EANALMEM;
 			chip->pcm_vol[i].kctl = kctl;
 			kctl->id.device = 0;
 			kctl->id.subdevice = i;

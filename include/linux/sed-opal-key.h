@@ -17,10 +17,10 @@ int sed_write_key(char *keyname, char *key, u_int keylen);
 #else
 static inline
 int sed_read_key(char *keyname, char *key, u_int *keylen) {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline
 int sed_write_key(char *keyname, char *key, u_int keylen) {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif

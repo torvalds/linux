@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Driver configuration header
@@ -19,7 +19,7 @@
 #define MCAST_TABLE_SIZE    64
 #define MCAM_SIZE           32
 #define VCAM_SIZE           32
-#define TX_QUEUE_NO         8
+#define TX_QUEUE_ANAL         8
 
 #define DEVICE_NAME         "vt6655"
 #define DEVICE_FULL_DRV_NAM "VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver"
@@ -28,8 +28,8 @@
 #define MAJOR_VERSION       1
 #endif
 
-#ifndef MINOR_VERSION
-#define MINOR_VERSION       17
+#ifndef MIANALR_VERSION
+#define MIANALR_VERSION       17
 #endif
 
 #ifndef DEVICE_VERSION

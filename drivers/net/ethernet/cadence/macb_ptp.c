@@ -87,7 +87,7 @@ static int gem_tsu_set_time(struct ptp_clock_info *ptp,
 
 	spin_lock_irqsave(&bp->tsu_clk_lock, flags);
 
-	/* TSH doesn't latch the time and no atomicity! */
+	/* TSH doesn't latch the time and anal atomicity! */
 	gem_writel(bp, TN, 0); /* clear to avoid overflow */
 	gem_writel(bp, TSH, sech);
 	/* write lower bits 2nd, for synchronized secs update */
@@ -157,7 +157,7 @@ static int gem_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 static int gem_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct macb *bp = container_of(ptp, struct macb, ptp_clock_info);
-	struct timespec64 now, then = ns_to_timespec64(delta);
+	struct timespec64 analw, then = ns_to_timespec64(delta);
 	u32 adj, sign = 0;
 
 	if (delta < 0) {
@@ -166,11 +166,11 @@ static int gem_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	}
 
 	if (delta > TSU_NSEC_MAX_VAL) {
-		gem_tsu_get_time(&bp->ptp_clock_info, &now, NULL);
-		now = timespec64_add(now, then);
+		gem_tsu_get_time(&bp->ptp_clock_info, &analw, NULL);
+		analw = timespec64_add(analw, then);
 
 		gem_tsu_set_time(&bp->ptp_clock_info,
-				 (const struct timespec64 *)&now);
+				 (const struct timespec64 *)&analw);
 	} else {
 		adj = (sign << GEM_ADDSUB_OFFSET) | delta;
 
@@ -183,7 +183,7 @@ static int gem_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 static int gem_ptp_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *rq, int on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct ptp_clock_info gem_ptp_caps_template = {
@@ -261,7 +261,7 @@ static int gem_hw_timestamp(struct macb *bp, u32 dma_desc_ts_1,
 	ts->tv_sec |= ((~GEM_DMA_SEC_MASK) & tsu.tv_sec);
 
 	/* If the top bit is set in the timestamp,
-	 * but not in 1588 timer, it has rolled over,
+	 * but analt in 1588 timer, it has rolled over,
 	 * so subtract max size
 	 */
 	if ((ts->tv_sec & (GEM_DMA_SEC_TOP >> 1)) &&
@@ -283,7 +283,7 @@ void gem_ptp_rxstamp(struct macb *bp, struct sk_buff *skb,
 		/* Unlikely but check */
 		if (!desc_ptp) {
 			dev_warn_ratelimited(&bp->pdev->dev,
-					     "Timestamp not supported in BD\n");
+					     "Timestamp analt supported in BD\n");
 			return;
 		}
 		gem_hw_timestamp(bp, desc_ptp->ts_1, desc_ptp->ts_2, &ts);
@@ -301,7 +301,7 @@ void gem_ptp_txstamp(struct macb *bp, struct sk_buff *skb,
 
 	if (!GEM_BFEXT(DMA_TXVALID, desc->ctrl)) {
 		dev_warn_ratelimited(&bp->pdev->dev,
-				     "Timestamp not set in TX BD as expected\n");
+				     "Timestamp analt set in TX BD as expected\n");
 		return;
 	}
 
@@ -309,7 +309,7 @@ void gem_ptp_txstamp(struct macb *bp, struct sk_buff *skb,
 	/* Unlikely but check */
 	if (!desc_ptp) {
 		dev_warn_ratelimited(&bp->pdev->dev,
-				     "Timestamp not supported in BD\n");
+				     "Timestamp analt supported in BD\n");
 		return;
 	}
 
@@ -328,7 +328,7 @@ void gem_ptp_init(struct net_device *dev)
 
 	bp->ptp_clock_info = gem_ptp_caps_template;
 
-	/* nominal frequency and maximum adjustment in ppb */
+	/* analminal frequency and maximum adjustment in ppb */
 	bp->tsu_rate = bp->ptp_info->get_tsu_rate(bp);
 	bp->ptp_clock_info.max_adj = bp->ptp_info->get_ptp_max_adj();
 	gem_ptp_init_timer(bp);
@@ -381,7 +381,7 @@ int gem_get_hwtst(struct net_device *dev,
 
 	*tstamp_config = bp->tstamp_config;
 	if ((bp->hw_dma_cap & HW_DMA_CAP_PTP) == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -408,7 +408,7 @@ int gem_set_hwtst(struct net_device *dev,
 	u32 regval;
 
 	if ((bp->hw_dma_cap & HW_DMA_CAP_PTP) == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (tstamp_config->tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -426,7 +426,7 @@ int gem_set_hwtst(struct net_device *dev,
 	}
 
 	switch (tstamp_config->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 		break;
@@ -452,7 +452,7 @@ int gem_set_hwtst(struct net_device *dev,
 		tstamp_config->rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
-		tstamp_config->rx_filter = HWTSTAMP_FILTER_NONE;
+		tstamp_config->rx_filter = HWTSTAMP_FILTER_ANALNE;
 		return -ERANGE;
 	}
 

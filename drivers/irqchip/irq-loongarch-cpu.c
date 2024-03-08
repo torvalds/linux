@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/init.h>
@@ -14,7 +14,7 @@
 #include <asm/setup.h>
 
 static struct irq_domain *irq_domain;
-struct fwnode_handle *cpuintc_handle;
+struct fwanalde_handle *cpuintc_handle;
 
 static u32 lpic_gsi_to_irq(u32 gsi)
 {
@@ -25,10 +25,10 @@ static u32 lpic_gsi_to_irq(u32 gsi)
 	return 0;
 }
 
-static struct fwnode_handle *lpic_get_gsi_domain_id(u32 gsi)
+static struct fwanalde_handle *lpic_get_gsi_domain_id(u32 gsi)
 {
 	int id;
-	struct fwnode_handle *domain_handle = NULL;
+	struct fwanalde_handle *domain_handle = NULL;
 
 	switch (gsi) {
 	case GSI_MIN_CPU_IRQ ... GSI_MAX_CPU_IRQ:
@@ -81,7 +81,7 @@ static void handle_cpu_irq(struct pt_regs *regs)
 static int loongarch_cpu_intc_map(struct irq_domain *d, unsigned int irq,
 			     irq_hw_number_t hwirq)
 {
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 	irq_set_chip_and_handler(irq, &cpu_irq_controller, handle_percpu_irq);
 
 	return 0;
@@ -93,10 +93,10 @@ static const struct irq_domain_ops loongarch_cpu_intc_irq_domain_ops = {
 };
 
 #ifdef CONFIG_OF
-static int __init cpuintc_of_init(struct device_node *of_node,
-				struct device_node *parent)
+static int __init cpuintc_of_init(struct device_analde *of_analde,
+				struct device_analde *parent)
 {
-	cpuintc_handle = of_node_to_fwnode(of_node);
+	cpuintc_handle = of_analde_to_fwanalde(of_analde);
 
 	irq_domain = irq_domain_create_linear(cpuintc_handle, EXCCODE_INT_NUM,
 				&loongarch_cpu_intc_irq_domain_ops, NULL);
@@ -153,7 +153,7 @@ static int __init cpuintc_acpi_init(union acpi_subtable_headers *header,
 	clear_csr_ecfg(ECFG0_IM);
 	clear_csr_estat(ESTATF_IP);
 
-	cpuintc_handle = irq_domain_alloc_named_fwnode("CPUINTC");
+	cpuintc_handle = irq_domain_alloc_named_fwanalde("CPUINTC");
 	irq_domain = irq_domain_create_linear(cpuintc_handle, EXCCODE_INT_NUM,
 					&loongarch_cpu_intc_irq_domain_ops, NULL);
 

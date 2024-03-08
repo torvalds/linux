@@ -26,7 +26,7 @@ enum rdma_nl_flags {
 
 /* Define this module as providing netlink services for NETLINK_RDMA, with
  * index _index.  Since the client indexes were setup in a uapi header as an
- * enum and we do no want to change that, the user must supply the expanded
+ * enum and we do anal want to change that, the user must supply the expanded
  * constant as well and the compiler checks they are the same.
  */
 #define MODULE_ALIAS_RDMA_NETLINK(_index, _val)                                \
@@ -106,7 +106,7 @@ int rdma_nl_multicast(struct net *net, struct sk_buff *skb,
 /**
  * Check if there are any listeners to the netlink group
  * @group: the netlink group ID
- * Returns true on success or false if no listeners.
+ * Returns true on success or false if anal listeners.
  */
 bool rdma_nl_chk_listeners(unsigned int group);
 

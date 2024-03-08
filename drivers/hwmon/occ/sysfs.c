@@ -105,7 +105,7 @@ static ssize_t occ_sysfs_show(struct device *dev,
 		if (sattr->index == 1)
 			val = 0;
 		else if (sattr->index <= 11)
-			val = -ENODATA;
+			val = -EANALDATA;
 		else
 			return -EINVAL;
 	}
@@ -167,7 +167,7 @@ void occ_sysfs_poll_done(struct occ *occ)
 
 	/*
 	 * On the first poll response, we haven't yet created the sysfs
-	 * attributes, so don't make any notify calls.
+	 * attributes, so don't make any analtify calls.
 	 */
 	if (!occ->active)
 		goto done;
@@ -175,67 +175,67 @@ void occ_sysfs_poll_done(struct occ *occ)
 	if ((header->status & OCC_STAT_MASTER) !=
 	    (occ->prev_stat & OCC_STAT_MASTER)) {
 		name = sensor_dev_attr_occ_master.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_DVFS_OT) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_DVFS_OT)) {
 		name = sensor_dev_attr_occ_dvfs_overtemp.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_DVFS_POWER) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_DVFS_POWER)) {
 		name = sensor_dev_attr_occ_dvfs_power.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_MEM_THROTTLE) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_MEM_THROTTLE)) {
 		name = sensor_dev_attr_occ_mem_throttle.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_QUICK_DROP) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_QUICK_DROP)) {
 		name = sensor_dev_attr_occ_quick_pwr_drop.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_DVFS_VDD) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_DVFS_VDD)) {
 		name = sensor_dev_attr_occ_dvfs_vdd.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->ext_status & OCC_EXT_STAT_GPU_THROTTLE) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_GPU_THROTTLE)) {
 		name = sensor_dev_attr_occ_gpu_throttle.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if ((header->status & OCC_STAT_MASTER) &&
 	    header->occs_present != occ->prev_occs_present) {
 		name = sensor_dev_attr_occs_present.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if (header->ips_status != occ->prev_ips_status) {
 		name = sensor_dev_attr_occ_ips_status.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if (header->mode != occ->prev_mode) {
 		name = sensor_dev_attr_occ_mode.dev_attr.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
 	if (occ->error && occ->error != occ->prev_error) {
 		name = dev_attr_occ_error.attr.name;
-		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+		sysfs_analtify(&occ->bus_dev->kobj, NULL, name);
 	}
 
-	/* no notifications for OCC state; doesn't indicate error condition */
+	/* anal analtifications for OCC state; doesn't indicate error condition */
 
 done:
 	occ->prev_error = occ->error;

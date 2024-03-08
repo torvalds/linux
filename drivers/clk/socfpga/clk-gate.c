@@ -134,14 +134,14 @@ static struct clk_ops gateclk_ops = {
 	.set_parent = socfpga_clk_set_parent,
 };
 
-void __init socfpga_gate_init(struct device_node *node)
+void __init socfpga_gate_init(struct device_analde *analde)
 {
 	u32 clk_gate[2];
 	u32 div_reg[3];
 	u32 fixed_div;
 	struct clk_hw *hw_clk;
 	struct socfpga_gate_clk *socfpga_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
 	struct clk_ops *ops;
@@ -155,7 +155,7 @@ void __init socfpga_gate_init(struct device_node *node)
 	if (WARN_ON(!ops))
 		goto err_kmemdup;
 
-	rc = of_property_read_u32_array(node, "clk-gate", clk_gate, 2);
+	rc = of_property_read_u32_array(analde, "clk-gate", clk_gate, 2);
 	if (rc)
 		clk_gate[0] = 0;
 
@@ -167,13 +167,13 @@ void __init socfpga_gate_init(struct device_node *node)
 		ops->disable = clk_gate_ops.disable;
 	}
 
-	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
+	rc = of_property_read_u32(analde, "fixed-divider", &fixed_div);
 	if (rc)
 		socfpga_clk->fixed_div = 0;
 	else
 		socfpga_clk->fixed_div = fixed_div;
 
-	rc = of_property_read_u32_array(node, "div-reg", div_reg, 3);
+	rc = of_property_read_u32_array(analde, "div-reg", div_reg, 3);
 	if (!rc) {
 		socfpga_clk->div_reg = clk_mgr_base_addr + div_reg[0];
 		socfpga_clk->shift = div_reg[1];
@@ -182,13 +182,13 @@ void __init socfpga_gate_init(struct device_node *node)
 		socfpga_clk->div_reg = NULL;
 	}
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
 
-	init.num_parents = of_clk_parent_fill(node, parent_name, SOCFPGA_MAX_PARENTS);
+	init.num_parents = of_clk_parent_fill(analde, parent_name, SOCFPGA_MAX_PARENTS);
 	if (init.num_parents < 2) {
 		ops->get_parent = NULL;
 		ops->set_parent = NULL;
@@ -201,13 +201,13 @@ void __init socfpga_gate_init(struct device_node *node)
 
 	rc = clk_hw_register(NULL, hw_clk);
 	if (rc) {
-		pr_err("Could not register clock:%s\n", clk_name);
+		pr_err("Could analt register clock:%s\n", clk_name);
 		goto err_clk_hw_register;
 	}
 
-	rc = of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw_clk);
+	rc = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, hw_clk);
 	if (rc) {
-		pr_err("Could not register clock provider for node:%s\n",
+		pr_err("Could analt register clock provider for analde:%s\n",
 		       clk_name);
 		goto err_of_clk_add_hw_provider;
 	}

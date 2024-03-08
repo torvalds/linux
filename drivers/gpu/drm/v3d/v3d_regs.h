@@ -78,8 +78,8 @@
 # define V3D_TOP_GR_BRIDGE_REVISION                    0x00000
 # define V3D_TOP_GR_BRIDGE_MAJOR_MASK                  V3D_MASK(15, 8)
 # define V3D_TOP_GR_BRIDGE_MAJOR_SHIFT                 8
-# define V3D_TOP_GR_BRIDGE_MINOR_MASK                  V3D_MASK(7, 0)
-# define V3D_TOP_GR_BRIDGE_MINOR_SHIFT                 0
+# define V3D_TOP_GR_BRIDGE_MIANALR_MASK                  V3D_MASK(7, 0)
+# define V3D_TOP_GR_BRIDGE_MIANALR_SHIFT                 0
 
 /* 7268 reset reg */
 # define V3D_TOP_GR_BRIDGE_SW_INIT_0                   0x00008
@@ -319,9 +319,9 @@
 #define V3D_CLE_CT0QMA                                 0x00170
 #define V3D_CLE_CT0QMS                                 0x00174
 #define V3D_CLE_CT1QCFG                                0x00178
-/* If set without ETPROC, entirely skip tiles with no primitives. */
+/* If set without ETPROC, entirely skip tiles with anal primitives. */
 # define V3D_CLE_QCFG_ETFILT                           BIT(7)
-/* If set with ETFILT, just write the clear color to tiles with no
+/* If set with ETFILT, just write the clear color to tiles with anal
  * primitives.
  */
 # define V3D_CLE_QCFG_ETPROC                           BIT(6)
@@ -486,7 +486,7 @@
 # define V3D_ERR_FDBGS_EZTEST_ANYQVALID                BIT(7)
 # define V3D_ERR_FDBGS_EZTEST_PASS                     BIT(6)
 # define V3D_ERR_FDBGS_EZTEST_QREADY                   BIT(5)
-# define V3D_ERR_FDBGS_EZTEST_VLF_OKNOVALID            BIT(4)
+# define V3D_ERR_FDBGS_EZTEST_VLF_OKANALVALID            BIT(4)
 # define V3D_ERR_FDBGS_EZTEST_QSTALL                   BIT(3)
 # define V3D_ERR_FDBGS_EZTEST_IP_VLFSTALL              BIT(2)
 # define V3D_ERR_FDBGS_EZTEST_IP_PRSTALL               BIT(1)

@@ -35,10 +35,10 @@
 
 static DEFINE_SPINLOCK(sun4i_a10_pll2_lock);
 
-static void __init sun4i_pll2_setup(struct device_node *node,
+static void __init sun4i_pll2_setup(struct device_analde *analde,
 				    int post_div_offset)
 {
-	const char *clk_name = node->name, *parent;
+	const char *clk_name = analde->name, *parent;
 	struct clk **clks, *base_clk, *prediv_clk;
 	struct clk_onecell_data *clk_data;
 	struct clk_multiplier *mult;
@@ -46,7 +46,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg))
 		return;
 
@@ -58,7 +58,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	if (!clks)
 		goto err_free_data;
 
-	parent = of_clk_get_parent_name(node, 0);
+	parent = of_clk_get_parent_name(analde, 0);
 	prediv_clk = clk_register_divider(NULL, "pll2-prediv",
 					  parent, 0, reg,
 					  SUN4I_PLL2_PRE_DIV_SHIFT,
@@ -117,7 +117,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	val |= (SUN4I_PLL2_POST_DIV_VALUE - post_div_offset) << SUN4I_PLL2_POST_DIV_SHIFT;
 	writel(val, reg);
 
-	of_property_read_string_index(node, "clock-output-names",
+	of_property_read_string_index(analde, "clock-output-names",
 				      SUN4I_A10_PLL2_1X, &clk_name);
 	clks[SUN4I_A10_PLL2_1X] = clk_register_fixed_factor(NULL, clk_name,
 							    parent,
@@ -132,7 +132,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	 * This clock doesn't use the post divider, and really is just
 	 * a fixed divider from the PLL2 base clock.
 	 */
-	of_property_read_string_index(node, "clock-output-names",
+	of_property_read_string_index(analde, "clock-output-names",
 				      SUN4I_A10_PLL2_2X, &clk_name);
 	clks[SUN4I_A10_PLL2_2X] = clk_register_fixed_factor(NULL, clk_name,
 							    parent,
@@ -141,7 +141,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	WARN_ON(IS_ERR(clks[SUN4I_A10_PLL2_2X]));
 
 	/* PLL2-4x */
-	of_property_read_string_index(node, "clock-output-names",
+	of_property_read_string_index(analde, "clock-output-names",
 				      SUN4I_A10_PLL2_4X, &clk_name);
 	clks[SUN4I_A10_PLL2_4X] = clk_register_fixed_factor(NULL, clk_name,
 							    parent,
@@ -150,7 +150,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 	WARN_ON(IS_ERR(clks[SUN4I_A10_PLL2_4X]));
 
 	/* PLL2-8x */
-	of_property_read_string_index(node, "clock-output-names",
+	of_property_read_string_index(analde, "clock-output-names",
 				      SUN4I_A10_PLL2_8X, &clk_name);
 	clks[SUN4I_A10_PLL2_8X] = clk_register_fixed_factor(NULL, clk_name,
 							    parent,
@@ -160,7 +160,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 
 	clk_data->clks = clks;
 	clk_data->clk_num = SUN4I_PLL2_OUTPUTS;
-	of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	of_clk_add_provider(analde, of_clk_src_onecell_get, clk_data);
 
 	return;
 
@@ -178,17 +178,17 @@ err_unmap:
 	iounmap(reg);
 }
 
-static void __init sun4i_a10_pll2_setup(struct device_node *node)
+static void __init sun4i_a10_pll2_setup(struct device_analde *analde)
 {
-	sun4i_pll2_setup(node, 0);
+	sun4i_pll2_setup(analde, 0);
 }
 
 CLK_OF_DECLARE(sun4i_a10_pll2, "allwinner,sun4i-a10-pll2-clk",
 	       sun4i_a10_pll2_setup);
 
-static void __init sun5i_a13_pll2_setup(struct device_node *node)
+static void __init sun5i_a13_pll2_setup(struct device_analde *analde)
 {
-	sun4i_pll2_setup(node, 1);
+	sun4i_pll2_setup(analde, 1);
 }
 
 CLK_OF_DECLARE(sun5i_a13_pll2, "allwinner,sun5i-a13-pll2-clk",

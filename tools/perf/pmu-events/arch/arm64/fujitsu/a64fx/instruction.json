@@ -93,16 +93,16 @@
     "BriefDescription": "This event counts architecturally executed inter-register manipulation operations."
   },
   {
-    "PublicDescription": "This event counts architecturally executed NOSIMD load operations that using SIMD&FP registers.",
+    "PublicDescription": "This event counts architecturally executed ANALSIMD load operations that using SIMD&FP registers.",
     "EventCode": "0x112",
     "EventName": "FP_LD_SPEC",
-    "BriefDescription": "This event counts architecturally executed NOSIMD load operations that using SIMD&FP registers."
+    "BriefDescription": "This event counts architecturally executed ANALSIMD load operations that using SIMD&FP registers."
   },
   {
-    "PublicDescription": "This event counts architecturally executed NOSIMD store operations that using SIMD&FP registers.",
+    "PublicDescription": "This event counts architecturally executed ANALSIMD store operations that using SIMD&FP registers.",
     "EventCode": "0x113",
     "EventName": "FP_ST_SPEC",
-    "BriefDescription": "This event counts architecturally executed NOSIMD store operations that using SIMD&FP registers."
+    "BriefDescription": "This event counts architecturally executed ANALSIMD store operations that using SIMD&FP registers."
   },
   {
     "PublicDescription": "This event counts architecturally executed SIMD broadcast floating-point load operations.",

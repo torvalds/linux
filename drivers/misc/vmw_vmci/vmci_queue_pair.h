@@ -50,11 +50,11 @@ struct vmci_qp_set_va_info {
 /*
  * For backwards compatibility, here is a version of the
  * VMCIqueue_pairPageFileInfo before host support end-points was added.
- * Note that the current version of that structure requires VMX to
+ * Analte that the current version of that structure requires VMX to
  * pass down the VA of the mapped file.  Before host support was added
- * there was nothing of the sort.  So, when the driver sees the ioctl
+ * there was analthing of the sort.  So, when the driver sees the ioctl
  * with a parameter that is the sizeof
- * VMCIqueue_pairPageFileInfo_NoHostQP then it can infer that the version
+ * VMCIqueue_pairPageFileInfo_AnalHostQP then it can infer that the version
  * of VMX running can't attach to host end points because it doesn't
  * provide the VA of the mapped files.
  *
@@ -70,7 +70,7 @@ struct vmci_qp_set_va_info {
  *
  * In addition, if when VMX is sending down the
  * VMCIqueue_pairPageFileInfo structure it gets an error then it will
- * try again with the _NoHostQP version of the file to see if an older
+ * try again with the _AnalHostQP version of the file to see if an older
  * VMCI kernel module is running.
  */
 

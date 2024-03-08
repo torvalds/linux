@@ -8,7 +8,7 @@
 #include <linux/sort.h>
 
 /*
- * For managing keys we read from the journal: until journal replay works normal
+ * For managing keys we read from the journal: until journal replay works analrmal
  * btree lookups need to be able to find and return keys from the journal where
  * they overwrite what's in the btree, so we have a special iterator and
  * operations for the regular btree iter code to use:
@@ -73,7 +73,7 @@ static size_t bch2_journal_key_search(struct journal_keys *keys,
 	return idx_to_pos(keys, __bch2_journal_key_search(keys, id, level, pos));
 }
 
-/* Returns first non-overwritten key >= search key: */
+/* Returns first analn-overwritten key >= search key: */
 struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *c, enum btree_id btree_id,
 					   unsigned level, struct bpos pos,
 					   struct bpos end_pos, size_t *idx)
@@ -200,17 +200,17 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		if (!new_keys.d) {
 			bch_err(c, "%s: error allocating new key array (size %zu)",
 				__func__, new_keys.size);
-			return -BCH_ERR_ENOMEM_journal_key_insert;
+			return -BCH_ERR_EANALMEM_journal_key_insert;
 		}
 
-		/* Since @keys was full, there was no gap: */
+		/* Since @keys was full, there was anal gap: */
 		memcpy(new_keys.d, keys->d, sizeof(keys->d[0]) * keys->nr);
 		kvfree(keys->d);
 		keys->d		= new_keys.d;
 		keys->nr	= new_keys.nr;
 		keys->size	= new_keys.size;
 
-		/* And now the gap is at the end: */
+		/* And analw the gap is at the end: */
 		keys->gap	= keys->nr;
 	}
 
@@ -240,7 +240,7 @@ int bch2_journal_key_insert(struct bch_fs *c, enum btree_id id,
 
 	n = kmalloc(bkey_bytes(&k->k), GFP_KERNEL);
 	if (!n)
-		return -BCH_ERR_ENOMEM_journal_key_insert;
+		return -BCH_ERR_EANALMEM_journal_key_insert;
 
 	bkey_copy(n, k);
 	ret = bch2_journal_key_insert_take(c, id, level, n);
@@ -317,13 +317,13 @@ static void bch2_journal_iter_init(struct bch_fs *c,
 
 static struct bkey_s_c bch2_journal_iter_peek_btree(struct btree_and_journal_iter *iter)
 {
-	return bch2_btree_node_iter_peek_unpack(&iter->node_iter,
+	return bch2_btree_analde_iter_peek_unpack(&iter->analde_iter,
 						iter->b, &iter->unpacked);
 }
 
 static void bch2_journal_iter_advance_btree(struct btree_and_journal_iter *iter)
 {
-	bch2_btree_node_iter_advance(&iter->node_iter, iter->b);
+	bch2_btree_analde_iter_advance(&iter->analde_iter, iter->b);
 }
 
 void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *iter)
@@ -376,16 +376,16 @@ void bch2_btree_and_journal_iter_exit(struct btree_and_journal_iter *iter)
 	bch2_journal_iter_exit(&iter->journal);
 }
 
-void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
+void __bch2_btree_and_journal_iter_init_analde_iter(struct btree_and_journal_iter *iter,
 						  struct bch_fs *c,
 						  struct btree *b,
-						  struct btree_node_iter node_iter,
+						  struct btree_analde_iter analde_iter,
 						  struct bpos pos)
 {
 	memset(iter, 0, sizeof(*iter));
 
 	iter->b = b;
-	iter->node_iter = node_iter;
+	iter->analde_iter = analde_iter;
 	bch2_journal_iter_init(c, &iter->journal, b->c.btree_id, b->c.level, pos);
 	INIT_LIST_HEAD(&iter->journal.list);
 	iter->pos = b->data->min_key;
@@ -396,14 +396,14 @@ void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter 
  * this version is used by btree_gc before filesystem has gone RW and
  * multithreaded, so uses the journal_iters list:
  */
-void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
+void bch2_btree_and_journal_iter_init_analde_iter(struct btree_and_journal_iter *iter,
 						struct bch_fs *c,
 						struct btree *b)
 {
-	struct btree_node_iter node_iter;
+	struct btree_analde_iter analde_iter;
 
-	bch2_btree_node_iter_init_from_start(&node_iter, b);
-	__bch2_btree_and_journal_iter_init_node_iter(iter, c, b, node_iter, b->data->min_key);
+	bch2_btree_analde_iter_init_from_start(&analde_iter, b);
+	__bch2_btree_and_journal_iter_init_analde_iter(iter, c, b, analde_iter, b->data->min_key);
 	list_add(&iter->journal.list, &c->journal_iters);
 }
 
@@ -488,7 +488,7 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 	genradix_for_each(&c->journal_entries, iter, _i) {
 		i = *_i;
 
-		if (!i || i->ignore)
+		if (!i || i->iganalre)
 			continue;
 
 		for_each_jset_key(k, entry, &i->j)
@@ -513,14 +513,14 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 		if (!keys->d) {
 			bch_err(c, "Failed to allocate %zu size buffer for sorted journal keys; exiting",
 				keys->size);
-			return -BCH_ERR_ENOMEM_journal_keys_sort;
+			return -BCH_ERR_EANALMEM_journal_keys_sort;
 		}
 	}
 
 	genradix_for_each(&c->journal_entries, iter, _i) {
 		i = *_i;
 
-		if (!i || i->ignore)
+		if (!i || i->iganalre)
 			continue;
 
 		cond_resched();
@@ -532,7 +532,7 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 				if (keys->nr > keys->size * 7 / 8) {
 					bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu/%zu",
 						keys->nr, keys->size, nr_read, nr_keys);
-					return -BCH_ERR_ENOMEM_journal_keys_sort;
+					return -BCH_ERR_EANALMEM_journal_keys_sort;
 				}
 			}
 

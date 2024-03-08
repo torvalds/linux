@@ -7,7 +7,7 @@
 
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -76,7 +76,7 @@ static const char **cx2341x_get_menu(u32 id)
 		"1D Horizontal",
 		"1D Vertical",
 		"2D H/V Separable",
-		"2D Symmetric non-separable",
+		"2D Symmetric analn-separable",
 		NULL
 	};
 
@@ -215,7 +215,7 @@ static const struct cx2341x_mpeg_params default_params = {
 
 	/* stream */
 	.stream_type = V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
-	.stream_vbi_fmt = V4L2_MPEG_STREAM_VBI_FMT_NONE,
+	.stream_vbi_fmt = V4L2_MPEG_STREAM_VBI_FMT_ANALNE,
 	.stream_insert_nav_packets = 0,
 
 	/* audio */
@@ -225,8 +225,8 @@ static const struct cx2341x_mpeg_params default_params = {
 	.audio_ac3_bitrate = V4L2_MPEG_AUDIO_AC3_BITRATE_224K,
 	.audio_mode = V4L2_MPEG_AUDIO_MODE_STEREO,
 	.audio_mode_extension = V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4,
-	.audio_emphasis = V4L2_MPEG_AUDIO_EMPHASIS_NONE,
-	.audio_crc = V4L2_MPEG_AUDIO_CRC_NONE,
+	.audio_emphasis = V4L2_MPEG_AUDIO_EMPHASIS_ANALNE,
+	.audio_crc = V4L2_MPEG_AUDIO_CRC_ANALNE,
 	.audio_mute = 0,
 
 	/* video */
@@ -261,7 +261,7 @@ static const struct cx2341x_mpeg_params default_params = {
 	.video_chroma_median_filter_bottom = 0,
 };
 /* Map the control ID to the correct field in the cx2341x_mpeg_params
-   struct. Return -EINVAL if the ID is unknown, else return 0. */
+   struct. Return -EINVAL if the ID is unkanalwn, else return 0. */
 static int cx2341x_get_ctrl(const struct cx2341x_mpeg_params *params,
 		struct v4l2_ext_control *ctrl)
 {
@@ -375,7 +375,7 @@ static int cx2341x_get_ctrl(const struct cx2341x_mpeg_params *params,
 }
 
 /* Map the control ID to the correct field in the cx2341x_mpeg_params
-   struct. Return -EINVAL if the ID is unknown, else return 0. */
+   struct. Return -EINVAL if the ID is unkanalwn, else return 0. */
 static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 		struct v4l2_ext_control *ctrl)
 {
@@ -585,12 +585,12 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 	case V4L2_CID_MPEG_STREAM_VBI_FMT:
 		if (params->capabilities & CX2341X_CAP_HAS_SLICED_VBI)
 			return v4l2_ctrl_query_fill(qctrl,
-					V4L2_MPEG_STREAM_VBI_FMT_NONE,
+					V4L2_MPEG_STREAM_VBI_FMT_ANALNE,
 					V4L2_MPEG_STREAM_VBI_FMT_IVTV, 1,
-					V4L2_MPEG_STREAM_VBI_FMT_NONE);
+					V4L2_MPEG_STREAM_VBI_FMT_ANALNE);
 		return cx2341x_ctrl_query_fill(qctrl,
-				V4L2_MPEG_STREAM_VBI_FMT_NONE,
-				V4L2_MPEG_STREAM_VBI_FMT_NONE, 1,
+				V4L2_MPEG_STREAM_VBI_FMT_ANALNE,
+				V4L2_MPEG_STREAM_VBI_FMT_ANALNE, 1,
 				default_params.stream_vbi_fmt);
 
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -633,7 +633,7 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 	case V4L2_CID_MPEG_AUDIO_MODE:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_MODE_STEREO,
-				V4L2_MPEG_AUDIO_MODE_MONO, 1,
+				V4L2_MPEG_AUDIO_MODE_MOANAL, 1,
 				V4L2_MPEG_AUDIO_MODE_STEREO);
 
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
@@ -648,15 +648,15 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 
 	case V4L2_CID_MPEG_AUDIO_EMPHASIS:
 		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_EMPHASIS_NONE,
+				V4L2_MPEG_AUDIO_EMPHASIS_ANALNE,
 				V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17, 1,
-				V4L2_MPEG_AUDIO_EMPHASIS_NONE);
+				V4L2_MPEG_AUDIO_EMPHASIS_ANALNE);
 
 	case V4L2_CID_MPEG_AUDIO_CRC:
 		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_CRC_NONE,
+				V4L2_MPEG_AUDIO_CRC_ANALNE,
 				V4L2_MPEG_AUDIO_CRC_CRC16, 1,
-				V4L2_MPEG_AUDIO_CRC_NONE);
+				V4L2_MPEG_AUDIO_CRC_ANALNE);
 
 	case V4L2_CID_MPEG_AUDIO_MUTE:
 		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
@@ -753,7 +753,7 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 	case V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE:
 		cx2341x_ctrl_query_fill(qctrl,
 			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF,
-			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE,
+			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_ANALN_SEPARABLE,
 			1,
 			default_params.video_luma_spatial_filter_type);
 		if (params->video_spatial_filter_mode ==
@@ -906,7 +906,7 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 	if ((params->capabilities & CX2341X_CAP_HAS_AC3) &&
 	    params->audio_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3) {
 		params->audio_properties |=
-			/* Not sure if this MPEG Layer II setting is required */
+			/* Analt sure if this MPEG Layer II setting is required */
 			((3 - V4L2_MPEG_AUDIO_ENCODING_LAYER_2) << 2) |
 			(params->audio_ac3_bitrate << 4) |
 			(CX2341X_AUDIO_ENCODING_METHOD_AC3 << 28);
@@ -919,8 +919,8 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 }
 
 /* Check for correctness of the ctrl's value based on the data from
-   struct v4l2_queryctrl and the available menu items. Note that
-   menu_items may be NULL, in that case it is ignored. */
+   struct v4l2_queryctrl and the available menu items. Analte that
+   menu_items may be NULL, in that case it is iganalred. */
 static int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
 		const char * const *menu_items)
 {
@@ -1237,7 +1237,7 @@ void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 		"%s: Video:  GOP Size %d, %d B-Frames, %sGOP Closure\n",
 		prefix,
 		p->video_gop_size, p->video_b_frames,
-		p->video_gop_closure ? "" : "No ");
+		p->video_gop_closure ? "" : "Anal ");
 	if (p->video_temporal_decimation)
 		printk(KERN_INFO "%s: Video: Temporal Decimation %d\n",
 			prefix, p->video_temporal_decimation);
@@ -1349,7 +1349,7 @@ static int cx2341x_try_ctrl(struct v4l2_ctrl *ctrl)
 			/* MPEG-1 implies CBR */
 			hdl->video_bitrate_mode->val =
 				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
-		/* peak bitrate shall be >= normal bitrate */
+		/* peak bitrate shall be >= analrmal bitrate */
 		if (hdl->video_bitrate_mode->val == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
 		    hdl->video_bitrate_peak->val < hdl->video_bitrate->val)
 			hdl->video_bitrate_peak->val = hdl->video_bitrate->val;
@@ -1410,7 +1410,7 @@ static int cx2341x_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (hdl->audio_encoding->val == V4L2_MPEG_AUDIO_ENCODING_AC3) {
 			props |=
 #if 1
-				/* Not sure if this MPEG Layer II setting is required */
+				/* Analt sure if this MPEG Layer II setting is required */
 				((3 - V4L2_MPEG_AUDIO_ENCODING_LAYER_2) << 2) |
 #endif
 				(hdl->audio_ac3_bitrate->val << 4) |
@@ -1594,7 +1594,7 @@ int cx2341x_handler_init(struct cx2341x_handler *cxhdl,
 	cxhdl->stream_vbi_fmt = cx2341x_ctrl_new_menu(hdl,
 			V4L2_CID_MPEG_STREAM_VBI_FMT,
 			V4L2_MPEG_STREAM_VBI_FMT_IVTV, has_sliced_vbi ? 0 : 2,
-			V4L2_MPEG_STREAM_VBI_FMT_NONE);
+			V4L2_MPEG_STREAM_VBI_FMT_ANALNE);
 	cxhdl->audio_sampling_freq = cx2341x_ctrl_new_menu(hdl,
 			V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
 			V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000, 0,
@@ -1609,7 +1609,7 @@ int cx2341x_handler_init(struct cx2341x_handler *cxhdl,
 			V4L2_MPEG_AUDIO_L2_BITRATE_224K);
 	cxhdl->audio_mode = cx2341x_ctrl_new_menu(hdl,
 			V4L2_CID_MPEG_AUDIO_MODE,
-			V4L2_MPEG_AUDIO_MODE_MONO, 0,
+			V4L2_MPEG_AUDIO_MODE_MOANAL, 0,
 			V4L2_MPEG_AUDIO_MODE_STEREO);
 	cxhdl->audio_mode_extension = cx2341x_ctrl_new_menu(hdl,
 			V4L2_CID_MPEG_AUDIO_MODE_EXTENSION,
@@ -1618,11 +1618,11 @@ int cx2341x_handler_init(struct cx2341x_handler *cxhdl,
 	cxhdl->audio_emphasis = cx2341x_ctrl_new_menu(hdl,
 			V4L2_CID_MPEG_AUDIO_EMPHASIS,
 			V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17, 0,
-			V4L2_MPEG_AUDIO_EMPHASIS_NONE);
+			V4L2_MPEG_AUDIO_EMPHASIS_ANALNE);
 	cxhdl->audio_crc = cx2341x_ctrl_new_menu(hdl,
 			V4L2_CID_MPEG_AUDIO_CRC,
 			V4L2_MPEG_AUDIO_CRC_CRC16, 0,
-			V4L2_MPEG_AUDIO_CRC_NONE);
+			V4L2_MPEG_AUDIO_CRC_ANALNE);
 
 	cx2341x_ctrl_new_std(hdl, V4L2_CID_MPEG_AUDIO_MUTE, 0, 1, 1, 0);
 	if (has_ac3)
@@ -1673,7 +1673,7 @@ int cx2341x_handler_init(struct cx2341x_handler *cxhdl,
 	cxhdl->video_luma_spatial_filter_type = cx2341x_ctrl_new_custom(hdl,
 			V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE,
 			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF,
-			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE,
+			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_ANALN_SEPARABLE,
 			0,
 			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_HOR);
 	cxhdl->video_chroma_spatial_filter_type = cx2341x_ctrl_new_custom(hdl,

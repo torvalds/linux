@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2007  Yoichi Yuasa <yuasa@linux-mips.org>
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/mc146818rtc.h>
@@ -30,7 +30,7 @@ static __init int cobalt_rtc_add(void)
 
 	pdev = platform_device_alloc("rtc_cmos", -1);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = platform_device_add_resources(pdev, cobalt_rtc_resource,
 					       ARRAY_SIZE(cobalt_rtc_resource));

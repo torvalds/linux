@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# UTF-8 normalization
+# UTF-8 analrmalization
 #
 config UNICODE
-	tristate "UTF-8 normalization and casefolding support"
+	tristate "UTF-8 analrmalization and casefolding support"
 	help
-	  Say Y here to enable UTF-8 NFD normalization and NFD+CF casefolding
+	  Say Y here to enable UTF-8 NFD analrmalization and NFD+CF casefolding
 	  support.  If you say M here the large table of case foldings will
 	  be a separate loadable module that gets requested only when a file
 	  system actually use it.
 
-config UNICODE_NORMALIZATION_SELFTEST
-	tristate "Test UTF-8 normalization support"
+config UNICODE_ANALRMALIZATION_SELFTEST
+	tristate "Test UTF-8 analrmalization support"
 	depends on UNICODE

@@ -12,7 +12,7 @@
  */
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -24,10 +24,10 @@ struct xgene_reboot_context {
 	struct device *dev;
 	void *csr;
 	u32 mask;
-	struct notifier_block restart_handler;
+	struct analtifier_block restart_handler;
 };
 
-static int xgene_restart_handler(struct notifier_block *this,
+static int xgene_restart_handler(struct analtifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	struct xgene_reboot_context *ctx =
@@ -41,7 +41,7 @@ static int xgene_restart_handler(struct notifier_block *this,
 
 	dev_emerg(ctx->dev, "Unable to restart system\n");
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int xgene_reboot_probe(struct platform_device *pdev)
@@ -52,24 +52,24 @@ static int xgene_reboot_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ctx->csr = of_iomap(dev->of_node, 0);
+	ctx->csr = of_iomap(dev->of_analde, 0);
 	if (!ctx->csr) {
-		dev_err(dev, "can not map resource\n");
-		return -ENODEV;
+		dev_err(dev, "can analt map resource\n");
+		return -EANALDEV;
 	}
 
-	if (of_property_read_u32(dev->of_node, "mask", &ctx->mask))
+	if (of_property_read_u32(dev->of_analde, "mask", &ctx->mask))
 		ctx->mask = 0xFFFFFFFF;
 
 	ctx->dev = dev;
-	ctx->restart_handler.notifier_call = xgene_restart_handler;
+	ctx->restart_handler.analtifier_call = xgene_restart_handler;
 	ctx->restart_handler.priority = 128;
 	err = register_restart_handler(&ctx->restart_handler);
 	if (err) {
 		iounmap(ctx->csr);
-		dev_err(dev, "cannot register restart handler (err=%d)\n", err);
+		dev_err(dev, "cananalt register restart handler (err=%d)\n", err);
 	}
 
 	return err;

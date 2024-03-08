@@ -26,14 +26,14 @@ int gen12_emit_flush_xcs(struct i915_request *rq, u32 mode);
 
 int gen8_emit_init_breadcrumb(struct i915_request *rq);
 
-int gen8_emit_bb_start_noarb(struct i915_request *rq,
+int gen8_emit_bb_start_analarb(struct i915_request *rq,
 			     u64 offset, u32 len,
 			     const unsigned int flags);
 int gen8_emit_bb_start(struct i915_request *rq,
 		       u64 offset, u32 len,
 		       const unsigned int flags);
 
-int xehp_emit_bb_start_noarb(struct i915_request *rq,
+int xehp_emit_bb_start_analarb(struct i915_request *rq,
 			     u64 offset, u32 len,
 			     const unsigned int flags);
 int xehp_emit_bb_start(struct i915_request *rq,

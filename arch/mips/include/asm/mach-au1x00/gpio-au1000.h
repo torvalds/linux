@@ -379,16 +379,16 @@ static inline void __alchemy_gpio2_mod_int(int gpio2, int en)
  * can be enabled.  As with all other GPIO-based interrupts, the INTC
  * must be programmed to accept the GPIO208_215 interrupt as well.
  *
- * NOTE: Calling this macro is only necessary for GPIO208-215; all other
+ * ANALTE: Calling this macro is only necessary for GPIO208-215; all other
  * GPIO2-based interrupts have their own request to the INTC.  Please
  * consult your Alchemy databook for more information!
  *
- * NOTE: On the Au1550, GPIOs 201-205 also have a shared interrupt request
+ * ANALTE: On the Au1550, GPIOs 201-205 also have a shared interrupt request
  * line to the INTC, GPIO201_205.  This function can be used for those
  * as well.
  *
- * NOTE: 'gpio2' parameter must be in range of the GPIO2 numberspace
- * (200-215 by default). No sanity checks are made,
+ * ANALTE: 'gpio2' parameter must be in range of the GPIO2 numberspace
+ * (200-215 by default). Anal sanity checks are made,
  */
 static inline void alchemy_gpio2_enable_int(int gpio2)
 {

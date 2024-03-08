@@ -7,7 +7,7 @@
  * Copyright (C) 2010 Texas Instruments, Inc.
  * Thara Gopinath <thara@ti.com>
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  * Kalle Jokiniemi
  *
  * Copyright (C) 2007 Texas Instruments, Inc.
@@ -149,7 +149,7 @@ enum sr_instance {
 
 struct omap_sr {
 	char				*name;
-	struct list_head		node;
+	struct list_head		analde;
 	struct platform_device		*pdev;
 	struct omap_sr_nvalue_table	*nvalue_table;
 	struct voltagedomain		*voltdm;
@@ -229,9 +229,9 @@ struct omap_smartreflex_dev_attr {
  * @enable:		API to enable a particular class smaartreflex.
  * @disable:		API to disable a particular class smartreflex.
  * @configure:		API to configure a particular class smartreflex.
- * @notify:		API to notify the class driver about an event in SR.
- *			Not needed for class3.
- * @notify_flags:	specify the events to be notified to the class driver
+ * @analtify:		API to analtify the class driver about an event in SR.
+ *			Analt needed for class3.
+ * @analtify_flags:	specify the events to be analtified to the class driver
  * @class_type:		specify which smartreflex class.
  *			Can be used by the SR driver to take any class
  *			based decisions.
@@ -240,8 +240,8 @@ struct omap_sr_class_data {
 	int (*enable)(struct omap_sr *sr);
 	int (*disable)(struct omap_sr *sr, int is_volt_reset);
 	int (*configure)(struct omap_sr *sr);
-	int (*notify)(struct omap_sr *sr, u32 status);
-	u8 notify_flags;
+	int (*analtify)(struct omap_sr *sr, u32 status);
+	u8 analtify_flags;
 	u8 class_type;
 };
 
@@ -251,13 +251,13 @@ struct omap_sr_class_data {
  * @efuse_offs:	  The offset of the efuse where n-target values are stored.
  * @nvalue:	  The n-target value.
  * @errminlimit:  The value of the ERRMINLIMIT bitfield for this n-target
- * @volt_nominal: microvolts DC that the VDD is initially programmed to
+ * @volt_analminal: microvolts DC that the VDD is initially programmed to
  */
 struct omap_sr_nvalue_table {
 	u32 efuse_offs;
 	u32 nvalue;
 	u32 errminlimit;
-	unsigned long volt_nominal;
+	unsigned long volt_analminal;
 };
 
 /**

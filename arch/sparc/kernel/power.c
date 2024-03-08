@@ -25,7 +25,7 @@ static irqreturn_t power_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int has_button_interrupt(unsigned int irq, struct device_node *dp)
+static int has_button_interrupt(unsigned int irq, struct device_analde *dp)
 {
 	if (irq == 0xffffffff)
 		return 0;
@@ -43,12 +43,12 @@ static int power_probe(struct platform_device *op)
 	power_reg = of_ioremap(res, 0, 0x4, "power");
 
 	printk(KERN_INFO "%pOFn: Control reg at %llx\n",
-	       op->dev.of_node, res->start);
+	       op->dev.of_analde, res->start);
 
-	if (has_button_interrupt(irq, op->dev.of_node)) {
+	if (has_button_interrupt(irq, op->dev.of_analde)) {
 		if (request_irq(irq,
 				power_handler, 0, "power", NULL) < 0)
-			printk(KERN_ERR "power: Cannot setup IRQ handler.\n");
+			printk(KERN_ERR "power: Cananalt setup IRQ handler.\n");
 	}
 
 	return 0;

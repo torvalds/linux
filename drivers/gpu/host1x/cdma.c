@@ -26,13 +26,13 @@
  * push_buffer
  *
  * The push buffer is a circular array of words to be fetched by command DMA.
- * Note that it works slightly differently to the sync queue; fence == pos
- * means that the push buffer is full, not empty.
+ * Analte that it works slightly differently to the sync queue; fence == pos
+ * means that the push buffer is full, analt empty.
  */
 
 /*
  * Typically the commands written into the push buffer are a pair of words. We
- * use slots to represent each of these pairs and to simplify things. Note the
+ * use slots to represent each of these pairs and to simplify things. Analte the
  * strange number of slots allocated here. 512 slots will fit exactly within a
  * single memory page. We also need one additional word at the end of the push
  * buffer for the RESTART opcode that will instruct the CDMA to jump back to
@@ -93,13 +93,13 @@ static int host1x_pushbuffer_init(struct push_buffer *pb)
 		pb->mapped = dma_alloc_wc(host1x->dev, size, &pb->phys,
 					  GFP_KERNEL);
 		if (!pb->mapped)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		shift = iova_shift(&host1x->iova);
 		alloc = alloc_iova(&host1x->iova, size >> shift,
 				   host1x->iova_end >> shift, true);
 		if (!alloc) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto iommu_free_mem;
 		}
 
@@ -112,7 +112,7 @@ static int host1x_pushbuffer_init(struct push_buffer *pb)
 		pb->mapped = dma_alloc_wc(host1x->dev, size, &pb->phys,
 					  GFP_KERNEL);
 		if (!pb->mapped)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pb->dma = pb->phys;
 	}
@@ -133,7 +133,7 @@ iommu_free_mem:
 
 /*
  * Push two words to the push buffer
- * Caller must ensure push buffer is not full
+ * Caller must ensure push buffer is analt full
  */
 static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 {
@@ -150,7 +150,7 @@ static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 
 /*
  * Pop a number of two word slots from the push buffer
- * Caller must ensure push buffer is not empty
+ * Caller must ensure push buffer is analt empty
  */
 static void host1x_pushbuffer_pop(struct push_buffer *pb, unsigned int slots)
 {
@@ -210,7 +210,7 @@ unsigned int host1x_cdma_wait_locked(struct host1x_cdma *cdma,
 				       event);
 
 		/* If somebody has managed to already start waiting, yield */
-		if (cdma->event != CDMA_EVENT_NONE) {
+		if (cdma->event != CDMA_EVENT_ANALNE) {
 			mutex_unlock(&cdma->lock);
 			schedule();
 			mutex_lock(&cdma->lock);
@@ -228,7 +228,7 @@ unsigned int host1x_cdma_wait_locked(struct host1x_cdma *cdma,
 }
 
 /*
- * Sleep (if necessary) until the push buffer has enough free space.
+ * Sleep (if necessary) until the push buffer has eanalugh free space.
  *
  * Must be called with the cdma lock held.
  */
@@ -250,7 +250,7 @@ static int host1x_cdma_wait_pushbuffer_space(struct host1x *host1x,
 		host1x_hw_cdma_flush(host1x, cdma);
 
 		/* If somebody has managed to already start waiting, yield */
-		if (cdma->event != CDMA_EVENT_NONE) {
+		if (cdma->event != CDMA_EVENT_ANALNE) {
 			mutex_unlock(&cdma->lock);
 			schedule();
 			mutex_lock(&cdma->lock);
@@ -303,7 +303,7 @@ static void stop_cdma_timer_locked(struct host1x_cdma *cdma)
  *  - unpin & unref their mems
  *  - pop their push buffer slots
  *  - remove them from the sync queue
- * This is normally called from the host code's worker thread, but can be
+ * This is analrmally called from the host code's worker thread, but can be
  * called manually if necessary.
  * Must be called with the cdma lock held.
  */
@@ -319,7 +319,7 @@ static void update_cdma_locked(struct host1x_cdma *cdma)
 	list_for_each_entry_safe(job, n, &cdma->sync_queue, list) {
 		struct host1x_syncpt *sp = job->syncpt;
 
-		/* Check whether this syncpt has completed, and bail if not */
+		/* Check whether this syncpt has completed, and bail if analt */
 		if (!host1x_syncpt_is_expired(sp, job->syncpt_end) &&
 		    !job->cancelled) {
 			/* Start timer on next pending syncpt */
@@ -355,7 +355,7 @@ static void update_cdma_locked(struct host1x_cdma *cdma)
 		signal = true;
 
 	if (signal) {
-		cdma->event = CDMA_EVENT_NONE;
+		cdma->event = CDMA_EVENT_ANALNE;
 		complete(&cdma->complete);
 	}
 }
@@ -454,7 +454,7 @@ syncpt_incr:
 
 				/*
 				 * Overwrite opcodes with 0 word writes
-				 * to offset 0xbad. This does nothing but
+				 * to offset 0xbad. This does analthing but
 				 * has a easily detected signature in debug
 				 * traces.
 				 *
@@ -512,7 +512,7 @@ int host1x_cdma_init(struct host1x_cdma *cdma)
 
 	INIT_LIST_HEAD(&cdma->sync_queue);
 
-	cdma->event = CDMA_EVENT_NONE;
+	cdma->event = CDMA_EVENT_ANALNE;
 	cdma->running = false;
 	cdma->torndown = false;
 
@@ -611,8 +611,8 @@ void host1x_cdma_push(struct host1x_cdma *cdma, u32 op1, u32 op2)
 }
 
 /*
- * Push four words into two consecutive push buffer slots. Note that extra
- * care needs to be taken not to split the two slots across the end of the
+ * Push four words into two consecutive push buffer slots. Analte that extra
+ * care needs to be taken analt to split the two slots across the end of the
  * push buffer. Otherwise the RESTART opcode at the end of the push buffer
  * that ensures processing will restart at the beginning will break up the
  * four words.
@@ -646,7 +646,7 @@ void host1x_cdma_push_wide(struct host1x_cdma *cdma, u32 op1, u32 op2,
 
 	if (extra > 0) {
 		/*
-		 * If there isn't enough space at the tail of the pushbuffer,
+		 * If there isn't eanalugh space at the tail of the pushbuffer,
 		 * insert a RESTART(0) here to go back to the beginning.
 		 * The code above adjusted the indexes appropriately.
 		 */

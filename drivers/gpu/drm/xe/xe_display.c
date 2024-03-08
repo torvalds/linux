@@ -122,7 +122,7 @@ int xe_display_create(struct xe_device *xe)
 	return 0;
 }
 
-static void xe_display_fini_nommio(struct drm_device *dev, void *dummy)
+static void xe_display_fini_analmmio(struct drm_device *dev, void *dummy)
 {
 	struct xe_device *xe = to_xe_device(dev);
 
@@ -132,7 +132,7 @@ static void xe_display_fini_nommio(struct drm_device *dev, void *dummy)
 	intel_power_domains_cleanup(xe);
 }
 
-int xe_display_init_nommio(struct xe_device *xe)
+int xe_display_init_analmmio(struct xe_device *xe)
 {
 	if (!xe->info.enable_display)
 		return 0;
@@ -143,21 +143,21 @@ int xe_display_init_nommio(struct xe_device *xe)
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(xe);
 
-	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_nommio, xe);
+	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_analmmio, xe);
 }
 
-static void xe_display_fini_noirq(struct drm_device *dev, void *dummy)
+static void xe_display_fini_analirq(struct drm_device *dev, void *dummy)
 {
 	struct xe_device *xe = to_xe_device(dev);
 
 	if (!xe->info.enable_display)
 		return;
 
-	intel_display_driver_remove_noirq(xe);
+	intel_display_driver_remove_analirq(xe);
 	intel_power_domains_driver_remove(xe);
 }
 
-int xe_display_init_noirq(struct xe_device *xe)
+int xe_display_init_analirq(struct xe_device *xe)
 {
 	int err;
 
@@ -179,35 +179,35 @@ int xe_display_init_noirq(struct xe_device *xe)
 
 	intel_display_device_info_runtime_init(xe);
 
-	err = intel_display_driver_probe_noirq(xe);
+	err = intel_display_driver_probe_analirq(xe);
 	if (err)
 		return err;
 
-	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_noirq, NULL);
+	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_analirq, NULL);
 }
 
-static void xe_display_fini_noaccel(struct drm_device *dev, void *dummy)
+static void xe_display_fini_analaccel(struct drm_device *dev, void *dummy)
 {
 	struct xe_device *xe = to_xe_device(dev);
 
 	if (!xe->info.enable_display)
 		return;
 
-	intel_display_driver_remove_nogem(xe);
+	intel_display_driver_remove_analgem(xe);
 }
 
-int xe_display_init_noaccel(struct xe_device *xe)
+int xe_display_init_analaccel(struct xe_device *xe)
 {
 	int err;
 
 	if (!xe->info.enable_display)
 		return 0;
 
-	err = intel_display_driver_probe_nogem(xe);
+	err = intel_display_driver_probe_analgem(xe);
 	if (err)
 		return err;
 
-	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_noaccel, NULL);
+	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_analaccel, NULL);
 }
 
 int xe_display_init(struct xe_device *xe)
@@ -403,14 +403,14 @@ void xe_display_pm_resume(struct xe_device *xe)
 void xe_display_probe(struct xe_device *xe)
 {
 	if (!xe->info.enable_display)
-		goto no_display;
+		goto anal_display;
 
 	intel_display_device_probe(xe);
 
 	if (has_display(xe))
 		return;
 
-no_display:
+anal_display:
 	xe->info.enable_display = false;
 	unset_display_features(xe);
 }

@@ -16,7 +16,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
@@ -59,7 +59,7 @@ static const struct irq_class irqclass_main_desc[NR_IRQS_BASE] = {
 /*
  * The list of split external and I/O interrupts that appear only in
  * /proc/interrupts.
- * In addition this list contains non external / I/O events like NMIs.
+ * In addition this list contains analn external / I/O events like NMIs.
  */
 static const struct irq_class irqclass_sub_desc[] = {
 	{.irq = IRQEXT_CLK, .name = "CLK", .desc = "[EXT] Clock Comparator"},
@@ -132,7 +132,7 @@ static int irq_pending(struct pt_regs *regs)
 	return cc >> 28;
 }
 
-void noinstr do_io_irq(struct pt_regs *regs)
+void analinstr do_io_irq(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 	struct pt_regs *old_regs = set_irq_regs(regs);
@@ -167,7 +167,7 @@ void noinstr do_io_irq(struct pt_regs *regs)
 		regs->psw.mask &= ~(PSW_MASK_EXT | PSW_MASK_IO | PSW_MASK_WAIT);
 }
 
-void noinstr do_ext_irq(struct pt_regs *regs)
+void analinstr do_ext_irq(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 	struct pt_regs *old_regs = set_irq_regs(regs);
@@ -282,7 +282,7 @@ static struct hlist_head ext_int_hash[32] ____cacheline_aligned;
 
 struct ext_int_info {
 	ext_int_handler_t handler;
-	struct hlist_node entry;
+	struct hlist_analde entry;
 	struct rcu_head rcu;
 	u16 code;
 };
@@ -305,7 +305,7 @@ int register_external_irq(u16 code, ext_int_handler_t handler)
 
 	p = kmalloc(sizeof(*p), GFP_ATOMIC);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	p->code = code;
 	p->handler = handler;
 	index = ext_hash(code);
@@ -344,7 +344,7 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 
 	ext_code.int_code = regs->int_code;
 	if (ext_code.code != EXT_IRQ_CLK_COMP)
-		set_cpu_flag(CIF_NOHZ_DELAY);
+		set_cpu_flag(CIF_ANALHZ_DELAY);
 
 	index = ext_hash(ext_code.code);
 	rcu_read_lock();

@@ -22,10 +22,10 @@
 /*****************************************************************************
  * Orion has one PCIe controller and one PCI controller.
  *
- * Note1: The local PCIe bus number is '0'. The local PCI bus number
+ * Analte1: The local PCIe bus number is '0'. The local PCI bus number
  * follows the scanned PCIe bridged busses, if any.
  *
- * Note2: It is possible for PCI/PCIe agents to access many subsystem's
+ * Analte2: It is possible for PCI/PCIe agents to access many subsystem's
  * space, by configuring BARs and Address Decode Windows, e.g. flashes on
  * device bus, Orion registers, etc. However this code only enable the
  * access to DDR banks.
@@ -47,8 +47,8 @@ static int pcie_valid_config(int bus, int dev)
 {
 	/*
 	 * Don't go out when trying to access --
-	 * 1. nonexisting device on local bus
-	 * 2. where there's no device connected (no link)
+	 * 1. analnexisting device on local bus
+	 * 2. where there's anal device connected (anal link)
 	 */
 	if (bus == 0 && dev == 0)
 		return 1;
@@ -78,7 +78,7 @@ static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 
 	if (pcie_valid_config(bus->number, PCI_SLOT(devfn)) == 0) {
 		*val = 0xffffffff;
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	spin_lock_irqsave(&orion5x_pcie_lock, flags);
@@ -95,17 +95,17 @@ static int pcie_rd_conf_wa(struct pci_bus *bus, u32 devfn,
 
 	if (pcie_valid_config(bus->number, PCI_SLOT(devfn)) == 0) {
 		*val = 0xffffffff;
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	/*
-	 * We only support access to the non-extended configuration
+	 * We only support access to the analn-extended configuration
 	 * space when using the WA access method (or we would have to
 	 * sacrifice 256M of CPU virtual address space.)
 	 */
 	if (where >= 0x100) {
 		*val = 0xffffffff;
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	ret = orion_pcie_rd_conf_wa(ORION5X_PCIE_WA_VIRT_BASE,
@@ -121,7 +121,7 @@ static int pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	int ret;
 
 	if (pcie_valid_config(bus->number, PCI_SLOT(devfn)) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	spin_lock_irqsave(&orion5x_pcie_lock, flags);
 	ret = orion_pcie_wr_conf(PCIE_BASE, bus, devfn, where, size, val);
@@ -153,7 +153,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	 */
 	dev = orion_pcie_dev_id(PCIE_BASE);
 	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
-		printk(KERN_NOTICE "Applying Orion-1/Orion-NAS PCIe config "
+		printk(KERN_ANALTICE "Applying Orion-1/Orion-NAS PCIe config "
 				   "read transaction workaround\n");
 		mvebu_mbus_add_window_by_id(ORION_MBUS_PCIE_WA_TARGET,
 					    ORION_MBUS_PCIE_WA_ATTR,
@@ -330,7 +330,7 @@ static int orion5x_pci_valid_config(int bus, u32 devfn)
 
 		/*
 		 * When the PCI signals are directly connected to a
-		 * Cardbus slot, ignore all but device IDs 0 and 1.
+		 * Cardbus slot, iganalre all but device IDs 0 and 1.
 		 */
 		if (orion5x_pci_cardbus_mode && PCI_SLOT(devfn) > 1)
 			return 0;
@@ -344,7 +344,7 @@ static int orion5x_pci_rd_conf(struct pci_bus *bus, u32 devfn,
 {
 	if (!orion5x_pci_valid_config(bus->number, devfn)) {
 		*val = 0xffffffff;
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	return orion5x_pci_hw_rd_conf(bus->number, PCI_SLOT(devfn),
@@ -355,7 +355,7 @@ static int orion5x_pci_wr_conf(struct pci_bus *bus, u32 devfn,
 				int where, int size, u32 val)
 {
 	if (!orion5x_pci_valid_config(bus->number, devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return orion5x_pci_hw_wr_conf(bus->number, PCI_SLOT(devfn),
 					PCI_FUNC(devfn), where, size, val);
@@ -584,7 +584,7 @@ int __init orion5x_pci_sys_scan_bus(int nr, struct pci_host_bridge *bridge)
 	}
 
 	BUG();
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int __init orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)

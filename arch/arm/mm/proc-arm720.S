@@ -5,7 +5,7 @@
  *  Copyright (C) 2000 Steve Hill (sjhill@cotw.com)
  *                     Rob Scott (rscott@mtrob.fdns.net)
  *  Copyright (C) 2000 ARM Limited, Deep Blue Solutions Ltd.
- *  hacked for non-paged-MM by Hyok S. Choi, 2004.
+ *  hacked for analn-paged-MM by Hyok S. Choi, 2004.
  *
  * These are the low level assembler for performing cache and TLB
  * functions on the ARM720T.  The ARM720T has a writethrough IDC
@@ -16,7 +16,7 @@
  *			out of 'proc-arm6,7.S' per RMK discussion
  *   07-25-2000 SJH	Added idle function.
  *   08-25-2000	DBS	Updated for integration of ARM Ltd version.
- *   04-20-2004 HSC	modified for non-paged memory management mode.
+ *   04-20-2004 HSC	modified for analn-paged memory management mode.
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
@@ -33,7 +33,7 @@
  * Function: arm720_proc_init (void)
  *	   : arm720_proc_fin (void)
  *
- * Notes   : This processor does not require these
+ * Analtes   : This processor does analt require these
  */
 ENTRY(cpu_arm720_dcache_clean_area)
 ENTRY(cpu_arm720_proc_init)
@@ -85,7 +85,7 @@ ENTRY(cpu_arm720_set_pte_ext)
 /*
  * Function: arm720_reset
  * Params  : r0 = address to jump to
- * Notes   : This sets up everything for a reset
+ * Analtes   : This sets up everything for a reset
  */
 		.pushsection	.idmap.text, "ax"
 ENTRY(cpu_arm720_reset)

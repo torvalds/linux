@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * n810.c  --  SoC audio for Nokia N810
+ * n810.c  --  SoC audio for Analkia N810
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  *
  * Contact: Jarkko Nikula <jarkko.nikula@bitmer.com>
  */
@@ -223,8 +223,8 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"DMic", NULL, "Mic Bias"},
 
 	/*
-	 * Note that the mic bias is coming from Retu/Vilma and we don't have
-	 * control over it atm. The analog HS mic is not working. <- TODO
+	 * Analte that the mic bias is coming from Retu/Vilma and we don't have
+	 * control over it atm. The analog HS mic is analt working. <- TODO
 	 */
 	{"LINE1L", NULL, "HS Mic"},
 };
@@ -287,13 +287,13 @@ static int __init n810_soc_init(void)
 	struct device *dev;
 
 	if (!of_have_populated_dt() ||
-	    (!of_machine_is_compatible("nokia,n810") &&
-	     !of_machine_is_compatible("nokia,n810-wimax")))
-		return -ENODEV;
+	    (!of_machine_is_compatible("analkia,n810") &&
+	     !of_machine_is_compatible("analkia,n810-wimax")))
+		return -EANALDEV;
 
 	n810_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!n810_snd_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(n810_snd_device, &snd_soc_n810);
 	err = platform_device_add(n810_snd_device);
@@ -304,13 +304,13 @@ static int __init n810_soc_init(void)
 
 	sys_clkout2_src = clk_get(dev, "sys_clkout2_src");
 	if (IS_ERR(sys_clkout2_src)) {
-		dev_err(dev, "Could not get sys_clkout2_src clock\n");
+		dev_err(dev, "Could analt get sys_clkout2_src clock\n");
 		err = PTR_ERR(sys_clkout2_src);
 		goto err2;
 	}
 	sys_clkout2 = clk_get(dev, "sys_clkout2");
 	if (IS_ERR(sys_clkout2)) {
-		dev_err(dev, "Could not get sys_clkout2\n");
+		dev_err(dev, "Could analt get sys_clkout2\n");
 		err = PTR_ERR(sys_clkout2);
 		goto err3;
 	}
@@ -320,7 +320,7 @@ static int __init n810_soc_init(void)
 	 */
 	func96m_clk = clk_get(dev, "func_96m_ck");
 	if (IS_ERR(func96m_clk)) {
-		dev_err(dev, "Could not get func 96M clock\n");
+		dev_err(dev, "Could analt get func 96M clock\n");
 		err = PTR_ERR(func96m_clk);
 		goto err4;
 	}
@@ -367,5 +367,5 @@ module_init(n810_soc_init);
 module_exit(n810_soc_exit);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
-MODULE_DESCRIPTION("ALSA SoC Nokia N810");
+MODULE_DESCRIPTION("ALSA SoC Analkia N810");
 MODULE_LICENSE("GPL");

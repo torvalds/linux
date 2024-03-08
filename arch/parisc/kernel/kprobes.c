@@ -24,7 +24,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	p->ainsn.insn = get_insn_slot();
 	if (!p->ainsn.insn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Set up new instructions. Second break instruction will
@@ -93,13 +93,13 @@ int __kprobes parisc_kprobe_break_handler(struct pt_regs *regs)
 	p = get_kprobe((unsigned long *)regs->iaoq[0]);
 
 	if (!p) {
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		return 0;
 	}
 
 	if (kprobe_running()) {
 		/*
-		 * We have reentered the kprobe_handler, since another kprobe
+		 * We have reentered the kprobe_handler, since aanalther kprobe
 		 * was hit while within the handler, we save the original
 		 * kprobes and single step on the instruction of the new probe
 		 * without calling any user handlers to avoid recursive
@@ -116,10 +116,10 @@ int __kprobes parisc_kprobe_break_handler(struct pt_regs *regs)
 	set_current_kprobe(p);
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
-	/* If we have no pre-handler or it returned 0, we continue with
-	 * normal processing. If we have a pre-handler and it returned
-	 * non-zero - which means user handler setup registers to exit
-	 * to another instruction, we must skip the single stepping.
+	/* If we have anal pre-handler or it returned 0, we continue with
+	 * analrmal processing. If we have a pre-handler and it returned
+	 * analn-zero - which means user handler setup registers to exit
+	 * to aanalther instruction, we must skip the single stepping.
 	 */
 
 	if (!p->pre_handler || !p->pre_handler(p, regs)) {
@@ -127,7 +127,7 @@ int __kprobes parisc_kprobe_break_handler(struct pt_regs *regs)
 		kcb->kprobe_status = KPROBE_HIT_SS;
 	} else {
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 	}
 	return 1;
 }
@@ -151,7 +151,7 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 
 	/* for absolute branch instructions we can copy iaoq_b. for relative
 	 * branch instructions we need to calculate the new address based on the
-	 * difference between iaoq_f and iaoq_b. We cannot use iaoq_b without
+	 * difference between iaoq_f and iaoq_b. We cananalt use iaoq_b without
 	 * modifications because it's based on our ainsn.insn address.
 	 */
 
@@ -180,8 +180,8 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 
 void __kretprobe_trampoline(void)
 {
-	asm volatile("nop");
-	asm volatile("nop");
+	asm volatile("analp");
+	asm volatile("analp");
 }
 
 static int __kprobes trampoline_probe_handler(struct kprobe *p,

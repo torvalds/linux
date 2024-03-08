@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm SC7280 Venus video encode and decode accelerators
 
 maintainers:
-  - Stanimir Varbanov <stanimir.varbanov@linaro.org>
+  - Stanimir Varbaanalv <stanimir.varbaanalv@linaro.org>
 
 description: |
   The Venus Iris2 IP is a video encode and decode accelerator present
@@ -115,8 +115,8 @@ examples:
                         <&rpmhpd SC7280_CX>;
         power-domain-names = "venus", "vcodec0", "cx";
 
-        interconnects = <&gem_noc MASTER_APPSS_PROC 0 &cnoc2 SLAVE_VENUS_CFG 0>,
-                        <&mmss_noc MASTER_VIDEO_P0 0 &mc_virt SLAVE_EBI1 0>;
+        interconnects = <&gem_analc MASTER_APPSS_PROC 0 &canalc2 SLAVE_VENUS_CFG 0>,
+                        <&mmss_analc MASTER_VIDEO_P0 0 &mc_virt SLAVE_EBI1 0>;
         interconnect-names = "cpu-cfg", "video-mem";
 
         iommus = <&apps_smmu 0x2180 0x20>,

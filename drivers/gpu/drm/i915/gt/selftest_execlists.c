@@ -43,7 +43,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 			   struct i915_request *rq,
 			   unsigned long timeout)
 {
-	/* Ignore our own attempts to suppress excess tasklets */
+	/* Iganalre our own attempts to suppress excess tasklets */
 	tasklet_hi_schedule(&engine->sched_engine->tasklet);
 
 	timeout += jiffies;
@@ -53,7 +53,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 		if (i915_request_completed(rq)) /* that was quick! */
 			return 0;
 
-		/* Wait until the HW has acknowleged the submission (or err) */
+		/* Wait until the HW has ackanalwleged the submission (or err) */
 		intel_engine_flush_submission(engine);
 		if (!READ_ONCE(engine->execlists.pending[0]) && is_active(rq))
 			return 0;
@@ -86,20 +86,20 @@ static int wait_for_reset(struct intel_engine_cs *engine,
 	} while (time_before(jiffies, timeout));
 
 	if (rq->fence.error != -EIO) {
-		pr_err("%s: hanging request %llx:%lld not reset\n",
+		pr_err("%s: hanging request %llx:%lld analt reset\n",
 		       engine->name,
 		       rq->fence.context,
-		       rq->fence.seqno);
+		       rq->fence.seqanal);
 		return -EINVAL;
 	}
 
 	/* Give the request a jiffie to complete after flushing the worker */
 	if (i915_request_wait(rq, 0,
 			      max(0l, (long)(timeout - jiffies)) + 1) < 0) {
-		pr_err("%s: hanging request %llx:%lld did not complete\n",
+		pr_err("%s: hanging request %llx:%lld did analt complete\n",
 		       engine->name,
 		       rq->fence.context,
-		       rq->fence.seqno);
+		       rq->fence.seqanal);
 		return -ETIME;
 	}
 
@@ -118,7 +118,7 @@ static int live_sanitycheck(void *arg)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
@@ -130,7 +130,7 @@ static int live_sanitycheck(void *arg)
 			break;
 		}
 
-		rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
+		rq = igt_spinner_create_request(&spin, ce, MI_ANALOP);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto out_ctx;
@@ -166,7 +166,7 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	struct igt_spinner spin;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/*
 	 * Check that we can correctly context switch between 2 instances
@@ -252,8 +252,8 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 			 * Ensure we do the switch to ce[1] on completion.
 			 *
 			 * rq[0] is already submitted, so this should reduce
-			 * to a no-op (a wait on a request on the same engine
-			 * uses the submit fence, not the completion fence),
+			 * to a anal-op (a wait on a request on the same engine
+			 * uses the submit fence, analt the completion fence),
 			 * but it will install a dependency on rq[1] for rq[0]
 			 * that will prevent the pair being reordered by
 			 * timeslicing.
@@ -337,7 +337,7 @@ static int live_unlite_ring(void *arg)
 	 */
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce[2] = {};
@@ -379,7 +379,7 @@ static int live_unlite_ring(void *arg)
 			ce[n] = tmp;
 		}
 
-		/* Create max prio spinner, followed by N low prio nops */
+		/* Create max prio spinner, followed by N low prio analps */
 		rq = igt_spinner_create_request(&spin, ce[0], MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
@@ -416,7 +416,7 @@ static int live_unlite_ring(void *arg)
 			n++;
 		}
 		intel_engine_flush_submission(engine);
-		pr_debug("%s: Filled ring with %d nop tails {size:%x, tail:%x, emit:%x, rq.tail:%x}\n",
+		pr_debug("%s: Filled ring with %d analp tails {size:%x, tail:%x, emit:%x, rq.tail:%x}\n",
 			 engine->name, n,
 			 ce[0]->ring->size,
 			 ce[0]->ring->tail,
@@ -441,7 +441,7 @@ static int live_unlite_ring(void *arg)
 		err = wait_for_submit(engine, rq, HZ / 2);
 		i915_request_put(rq);
 		if (err) {
-			pr_err("%s: preemption request was not submitted\n",
+			pr_err("%s: preemption request was analt submitted\n",
 			       engine->name);
 			err = -ETIME;
 		}
@@ -480,9 +480,9 @@ static int live_pin_rewind(void *arg)
 	int err = 0;
 
 	/*
-	 * We have to be careful not to trust intel_ring too much, for example
+	 * We have to be careful analt to trust intel_ring too much, for example
 	 * ring->head is updated upon retire which is out of sync with pinning
-	 * the context. Thus we cannot use ring->head to set CTX_RING_HEAD,
+	 * the context. Thus we cananalt use ring->head to set CTX_RING_HEAD,
 	 * or else we risk writing an older, stale value.
 	 *
 	 * To simulate this, let's apply a bit of deliberate sabotague.
@@ -528,7 +528,7 @@ static int live_pin_rewind(void *arg)
 
 		intel_context_unpin(ce);
 
-		/* Submit a simple nop request */
+		/* Submit a simple analp request */
 		GEM_BUG_ON(intel_context_is_pinned(ce));
 		rq = intel_context_create_request(ce);
 		i915_active_release(&ce->active); /* e.g. async retire */
@@ -540,7 +540,7 @@ static int live_pin_rewind(void *arg)
 		GEM_BUG_ON(!rq->head);
 		i915_request_add(rq);
 
-		/* Expect not to hang! */
+		/* Expect analt to hang! */
 		if (igt_live_test_end(&t)) {
 			err = -EIO;
 			break;
@@ -587,14 +587,14 @@ static int live_hold_reset(void *arg)
 	/*
 	 * In order to support offline error capture for fast preempt reset,
 	 * we need to decouple the guilty request and ensure that it and its
-	 * descendents are not executed while the capture is in progress.
+	 * descendents are analt executed while the capture is in progress.
 	 */
 
 	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
@@ -621,7 +621,7 @@ static int live_hold_reset(void *arg)
 			goto out;
 		}
 
-		/* We have our request executing, now remove it and reset */
+		/* We have our request executing, analw remove it and reset */
 
 		err = engine_lock_reset_tasklet(engine);
 		if (err)
@@ -639,7 +639,7 @@ static int live_hold_reset(void *arg)
 
 		engine_unlock_reset_tasklet(engine);
 
-		/* Check that we do not resubmit the held request */
+		/* Check that we do analt resubmit the held request */
 		if (!i915_request_wait(rq, 0, HZ / 5)) {
 			pr_err("%s: on hold request completed!\n",
 			       engine->name);
@@ -652,7 +652,7 @@ static int live_hold_reset(void *arg)
 		/* But is resubmitted on release */
 		execlists_unhold(engine, rq);
 		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
-			pr_err("%s: held request did not complete!\n",
+			pr_err("%s: held request did analt complete!\n",
 			       engine->name);
 			intel_gt_set_wedged(gt);
 			err = -ETIME;
@@ -693,7 +693,7 @@ static int live_error_interrupt(void *arg)
 	 * We hook up the CS_MASTER_ERROR_INTERRUPT to have forewarning
 	 * of invalid commands in user batches that will cause a GPU hang.
 	 * This is a faster mechanism than using hangcheck/heartbeats, but
-	 * only detects problems the HW knows about -- it will not warn when
+	 * only detects problems the HW kanalws about -- it will analt warn when
 	 * we kill the HW!
 	 *
 	 * To verify our detection and reset, we throw some invalid commands
@@ -751,8 +751,8 @@ static int live_error_interrupt(void *arg)
 					*cs++ = 0xdeadbeef;
 					*cs++ = 0xdeadbeef;
 				} else {
-					*cs++ = MI_NOOP;
-					*cs++ = MI_NOOP;
+					*cs++ = MI_ANALOP;
+					*cs++ = MI_ANALOP;
 				}
 
 				client[i] = i915_request_get(rq);
@@ -761,7 +761,7 @@ static int live_error_interrupt(void *arg)
 
 			err = wait_for_submit(engine, client[0], HZ / 2);
 			if (err) {
-				pr_err("%s: first request did not start within time!\n",
+				pr_err("%s: first request did analt start within time!\n",
 				       engine->name);
 				err = -ETIME;
 				goto out;
@@ -774,7 +774,7 @@ static int live_error_interrupt(void *arg)
 						 error_repr(p->error[i]));
 
 				if (!i915_request_started(client[i])) {
-					pr_err("%s: %s request not started!\n",
+					pr_err("%s: %s request analt started!\n",
 					       engine->name,
 					       error_repr(p->error[i]));
 					err = -ETIME;
@@ -841,10 +841,10 @@ emit_semaphore_chain(struct i915_request *rq, struct i915_vma *vma, int idx)
 		*cs++ = 0;
 		*cs++ = 1;
 	} else {
-		*cs++ = MI_NOOP;
-		*cs++ = MI_NOOP;
-		*cs++ = MI_NOOP;
-		*cs++ = MI_NOOP;
+		*cs++ = MI_ANALOP;
+		*cs++ = MI_ANALOP;
+		*cs++ = MI_ANALOP;
+		*cs++ = MI_ANALOP;
 	}
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
@@ -987,8 +987,8 @@ static int live_timeslice_preempt(void *arg)
 	 * If a request takes too long, we would like to give other users
 	 * a fair go on the GPU. In particular, users may create batches
 	 * that wait upon external input, where that input may even be
-	 * supplied by another GPU job. To avoid blocking forever, we
-	 * need to preempt the current task and replace it with another
+	 * supplied by aanalther GPU job. To avoid blocking forever, we
+	 * need to preempt the current task and replace it with aanalther
 	 * ready task.
 	 */
 	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
@@ -1074,7 +1074,7 @@ create_rewinder(struct intel_context *ce,
 	}
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	*cs++ = MI_SEMAPHORE_WAIT |
 		MI_SEMAPHORE_GLOBAL_GTT |
@@ -1116,7 +1116,7 @@ static int live_timeslice_rewind(void *arg)
 
 	/*
 	 * The usual presumption on timeslice expiration is that we replace
-	 * the active context with another. However, given a chain of
+	 * the active context with aanalther. However, given a chain of
 	 * dependencies we may end up with replacing the context with itself,
 	 * but only a few of those requests, forcing us to rewind the
 	 * RING_TAIL of the original request.
@@ -1209,7 +1209,7 @@ static int live_timeslice_rewind(void *arg)
 
 		/* Release the hounds! */
 		slot[0] = 1;
-		wmb(); /* "pairs" with GPU; paranoid kick of internal CPU$ */
+		wmb(); /* "pairs" with GPU; paraanalid kick of internal CPU$ */
 
 		for (i = 1; i <= 3; i++) {
 			unsigned long timeout = jiffies + HZ / 2;
@@ -1230,7 +1230,7 @@ static int live_timeslice_rewind(void *arg)
 
 		/* XZY: XZ < XY */
 		if (slot[Z] - slot[X] >= slot[Y] - slot[X]) {
-			pr_err("%s: timeslicing did not run context B [%u] before A [%u]!\n",
+			pr_err("%s: timeslicing did analt run context B [%u] before A [%u]!\n",
 			       engine->name,
 			       slot[Z] - slot[X],
 			       slot[Y] - slot[X]);
@@ -1254,7 +1254,7 @@ err:
 	return 0;
 }
 
-static struct i915_request *nop_request(struct intel_engine_cs *engine)
+static struct i915_request *analp_request(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
 
@@ -1272,10 +1272,10 @@ static long slice_timeout(struct intel_engine_cs *engine)
 {
 	long timeout;
 
-	/* Enough time for a timeslice to kick in, and kick out */
+	/* Eanalugh time for a timeslice to kick in, and kick out */
 	timeout = 2 * msecs_to_jiffies_timeout(timeslice(engine));
 
-	/* Enough time for the nop request to complete */
+	/* Eanalugh time for the analp request to complete */
 	timeout += HZ / 5;
 
 	return timeout + 1;
@@ -1294,7 +1294,7 @@ static int live_timeslice_queue(void *arg)
 	/*
 	 * Make sure that even if ELSP[0] and ELSP[1] are filled with
 	 * timeslicing between them disabled, we *do* enable timeslicing
-	 * if the queue demands it. (Normally, we do not submit if
+	 * if the queue demands it. (Analrmally, we do analt submit if
 	 * ELSP[1] is already occupied, so must rely on timeslicing to
 	 * eject ELSP[0] in favour of the queue.)
 	 */
@@ -1327,7 +1327,7 @@ static int live_timeslice_queue(void *arg)
 
 	for_each_engine(engine, gt, id) {
 		struct i915_sched_attr attr = { .priority = I915_PRIORITY_MAX };
-		struct i915_request *rq, *nop;
+		struct i915_request *rq, *analp;
 
 		if (!intel_engine_has_preemption(engine))
 			continue;
@@ -1349,16 +1349,16 @@ static int live_timeslice_queue(void *arg)
 			goto err_rq;
 		}
 
-		/* ELSP[1]: nop request */
-		nop = nop_request(engine);
-		if (IS_ERR(nop)) {
-			err = PTR_ERR(nop);
+		/* ELSP[1]: analp request */
+		analp = analp_request(engine);
+		if (IS_ERR(analp)) {
+			err = PTR_ERR(analp);
 			goto err_rq;
 		}
-		err = wait_for_submit(engine, nop, HZ / 2);
-		i915_request_put(nop);
+		err = wait_for_submit(engine, analp, HZ / 2);
+		i915_request_put(analp);
 		if (err) {
-			pr_err("%s: Timed out trying to submit nop\n",
+			pr_err("%s: Timed out trying to submit analp\n",
 			       engine->name);
 			goto err_rq;
 		}
@@ -1407,7 +1407,7 @@ err_obj:
 	return err;
 }
 
-static int live_timeslice_nopreempt(void *arg)
+static int live_timeslice_analpreempt(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
@@ -1416,14 +1416,14 @@ static int live_timeslice_nopreempt(void *arg)
 	int err = 0;
 
 	/*
-	 * We should not timeslice into a request that is marked with
-	 * I915_REQUEST_NOPREEMPT.
+	 * We should analt timeslice into a request that is marked with
+	 * I915_REQUEST_ANALPREEMPT.
 	 */
 	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
@@ -1460,7 +1460,7 @@ static int live_timeslice_nopreempt(void *arg)
 			goto out_spin;
 		}
 
-		set_bit(I915_FENCE_FLAG_NOPREEMPT, &rq->fence.flags);
+		set_bit(I915_FENCE_FLAG_ANALPREEMPT, &rq->fence.flags);
 		i915_request_put(rq);
 
 		/* Followed by a maximum priority barrier (heartbeat) */
@@ -1483,7 +1483,7 @@ static int live_timeslice_nopreempt(void *arg)
 		i915_request_add(rq);
 
 		/*
-		 * Wait until the barrier is in ELSP, and we know timeslicing
+		 * Wait until the barrier is in ELSP, and we kanalw timeslicing
 		 * will have been activated.
 		 */
 		if (wait_for_submit(engine, rq, HZ / 2)) {
@@ -1493,12 +1493,12 @@ static int live_timeslice_nopreempt(void *arg)
 		}
 
 		/*
-		 * Since the ELSP[0] request is unpreemptible, it should not
+		 * Since the ELSP[0] request is unpreemptible, it should analt
 		 * allow the maximum priority barrier through. Wait long
-		 * enough to see if it is timesliced in by mistake.
+		 * eanalugh to see if it is timesliced in by mistake.
 		 */
 		if (i915_request_wait(rq, 0, slice_timeout(engine)) >= 0) {
-			pr_err("%s: I915_PRIORITY_BARRIER request completed, bypassing no-preempt request\n",
+			pr_err("%s: I915_PRIORITY_BARRIER request completed, bypassing anal-preempt request\n",
 			       engine->name);
 			err = -EINVAL;
 		}
@@ -1642,10 +1642,10 @@ static int live_busywait_preempt(void *arg)
 			goto err_vma;
 		}
 
-		/* Low priority request should be busywaiting now */
+		/* Low priority request should be busywaiting analw */
 		if (i915_request_wait(lo, 0, 1) != -ETIME) {
 			i915_request_put(lo);
-			pr_err("%s: Busywaiting request did not!\n",
+			pr_err("%s: Busywaiting request did analt!\n",
 			       engine->name);
 			err = -EIO;
 			goto err_vma;
@@ -1736,11 +1736,11 @@ static int live_preempt(void *arg)
 	struct igt_spinner spin_hi, spin_lo;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
 
 	ctx_lo = kernel_context(gt->i915, NULL);
@@ -1828,11 +1828,11 @@ static int live_late_preempt(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_sched_attr attr = {};
 	enum intel_engine_id id;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx_lo = kernel_context(gt->i915, NULL);
 	if (!ctx_lo)
@@ -1873,7 +1873,7 @@ static int live_late_preempt(void *arg)
 		}
 
 		rq = spinner_create_request(&spin_hi, ctx_hi, engine,
-					    MI_NOOP);
+					    MI_ANALOP);
 		if (IS_ERR(rq)) {
 			igt_spinner_end(&spin_lo);
 			err = PTR_ERR(rq);
@@ -1932,7 +1932,7 @@ static int preempt_client_init(struct intel_gt *gt, struct preempt_client *c)
 {
 	c->ctx = kernel_context(gt->i915, NULL);
 	if (!c->ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (igt_spinner_init(&c->spin, gt))
 		goto err_ctx;
@@ -1941,7 +1941,7 @@ static int preempt_client_init(struct intel_gt *gt, struct preempt_client *c)
 
 err_ctx:
 	kernel_context_close(c->ctx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void preempt_client_fini(struct preempt_client *c)
@@ -1950,21 +1950,21 @@ static void preempt_client_fini(struct preempt_client *c)
 	kernel_context_close(c->ctx);
 }
 
-static int live_nopreempt(void *arg)
+static int live_analpreempt(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
 	struct preempt_client a, b;
 	enum intel_engine_id id;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/*
 	 * Verify that we can disable preemption for an individual request
-	 * that may be being observed and not want to be interrupted.
+	 * that may be being observed and analt want to be interrupted.
 	 */
 
 	if (preempt_client_init(gt, &a))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (preempt_client_init(gt, &b))
 		goto err_client_a;
 	b.ctx->sched.priority = I915_PRIORITY_MAX;
@@ -1986,7 +1986,7 @@ static int live_nopreempt(void *arg)
 		}
 
 		/* Low priority client, but unpreemptable! */
-		__set_bit(I915_FENCE_FLAG_NOPREEMPT, &rq_a->fence.flags);
+		__set_bit(I915_FENCE_FLAG_ANALPREEMPT, &rq_a->fence.flags);
 
 		i915_request_add(rq_a);
 		if (!igt_wait_for_spinner(&a.spin, rq_a)) {
@@ -2007,7 +2007,7 @@ static int live_nopreempt(void *arg)
 		/* B is much more important than A! (But A is unpreemptable.) */
 		GEM_BUG_ON(rq_prio(rq_b) <= rq_prio(rq_a));
 
-		/* Wait long enough for preemption and timeslicing */
+		/* Wait long eanalugh for preemption and timeslicing */
 		if (igt_wait_for_spinner(&b.spin, rq_b)) {
 			pr_err("Second client started too early!\n");
 			goto err_wedged;
@@ -2086,7 +2086,7 @@ static int __cancel_active0(struct live_preempt_cancel *arg)
 
 	err = wait_for_reset(arg->engine, rq, HZ / 2);
 	if (err) {
-		pr_err("Cancelled inflight0 request did not reset\n");
+		pr_err("Cancelled inflight0 request did analt reset\n");
 		goto out;
 	}
 
@@ -2111,7 +2111,7 @@ static int __cancel_active1(struct live_preempt_cancel *arg)
 
 	rq[0] = spinner_create_request(&arg->a.spin,
 				       arg->a.ctx, arg->engine,
-				       MI_NOOP); /* no preemption */
+				       MI_ANALOP); /* anal preemption */
 	if (IS_ERR(rq[0]))
 		return PTR_ERR(rq[0]);
 
@@ -2149,13 +2149,13 @@ static int __cancel_active1(struct live_preempt_cancel *arg)
 		goto out;
 
 	if (rq[0]->fence.error != 0) {
-		pr_err("Normal inflight0 request did not complete\n");
+		pr_err("Analrmal inflight0 request did analt complete\n");
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (rq[1]->fence.error != -EIO) {
-		pr_err("Cancelled inflight1 request did not report -EIO\n");
+		pr_err("Cancelled inflight1 request did analt report -EIO\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -2231,25 +2231,25 @@ static int __cancel_queued(struct live_preempt_cancel *arg)
 		goto out;
 
 	if (rq[0]->fence.error != -EIO) {
-		pr_err("Cancelled inflight0 request did not report -EIO\n");
+		pr_err("Cancelled inflight0 request did analt report -EIO\n");
 		err = -EINVAL;
 		goto out;
 	}
 
 	/*
-	 * The behavior between having semaphores and not is different. With
-	 * semaphores the subsequent request is on the hardware and not cancelled
+	 * The behavior between having semaphores and analt is different. With
+	 * semaphores the subsequent request is on the hardware and analt cancelled
 	 * while without the request is held in the driver and cancelled.
 	 */
 	if (intel_engine_has_semaphores(rq[1]->engine) &&
 	    rq[1]->fence.error != 0) {
-		pr_err("Normal inflight1 request did not complete\n");
+		pr_err("Analrmal inflight1 request did analt complete\n");
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (rq[2]->fence.error != -EIO) {
-		pr_err("Cancelled queued request did not report -EIO\n");
+		pr_err("Cancelled queued request did analt report -EIO\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -2268,7 +2268,7 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	struct i915_request *rq;
 	int err;
 
-	/* Preempt cancel non-preemptible spinner in ELSP0 */
+	/* Preempt cancel analn-preemptible spinner in ELSP0 */
 	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
 		return 0;
 
@@ -2278,7 +2278,7 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
 	rq = spinner_create_request(&arg->a.spin,
 				    arg->a.ctx, arg->engine,
-				    MI_NOOP); /* preemption disabled */
+				    MI_ANALOP); /* preemption disabled */
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
@@ -2297,7 +2297,7 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 
 	err = wait_for_reset(arg->engine, rq, HZ / 2);
 	if (err) {
-		pr_err("Cancelled inflight0 request did not reset\n");
+		pr_err("Cancelled inflight0 request did analt reset\n");
 		goto out;
 	}
 
@@ -2334,7 +2334,7 @@ static int __cancel_fail(struct live_preempt_cancel *arg)
 	GEM_TRACE("%s(%s)\n", __func__, engine->name);
 	rq = spinner_create_request(&arg->a.spin,
 				    arg->a.ctx, engine,
-				    MI_NOOP); /* preemption disabled */
+				    MI_ANALOP); /* preemption disabled */
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
@@ -2368,7 +2368,7 @@ static int __cancel_fail(struct live_preempt_cancel *arg)
 	intel_engine_set_heartbeat(engine,
 				   engine->defaults.heartbeat_interval_ms);
 	if (err) {
-		pr_err("Cancelled inflight0 request did not reset\n");
+		pr_err("Cancelled inflight0 request did analt reset\n");
 		goto out;
 	}
 
@@ -2384,7 +2384,7 @@ static int live_preempt_cancel(void *arg)
 	struct intel_gt *gt = arg;
 	struct live_preempt_cancel data;
 	enum intel_engine_id id;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/*
 	 * To cancel an inflight context, we need to first remove it from the
@@ -2392,7 +2392,7 @@ static int live_preempt_cancel(void *arg)
 	 */
 
 	if (preempt_client_init(gt, &data.a))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (preempt_client_init(gt, &data.b))
 		goto err_client_a;
 
@@ -2443,12 +2443,12 @@ static int live_suppress_self_preempt(void *arg)
 	struct intel_engine_cs *engine;
 	struct preempt_client a, b;
 	enum intel_engine_id id;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/*
-	 * Verify that if a preemption request does not cause a change in
+	 * Verify that if a preemption request does analt cause a change in
 	 * the current execution order, the preempt-to-idle injection is
-	 * skipped and that we do not accidentally apply it after the CS
+	 * skipped and that we do analt accidentally apply it after the CS
 	 * completion event.
 	 */
 
@@ -2459,7 +2459,7 @@ static int live_suppress_self_preempt(void *arg)
 		return 0; /* GVT forces single port & request submission */
 
 	if (preempt_client_init(gt, &a))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (preempt_client_init(gt, &b))
 		goto err_client_a;
 
@@ -2478,7 +2478,7 @@ static int live_suppress_self_preempt(void *arg)
 
 		rq_a = spinner_create_request(&a.spin,
 					      a.ctx, engine,
-					      MI_NOOP);
+					      MI_ANALOP);
 		if (IS_ERR(rq_a)) {
 			err = PTR_ERR(rq_a);
 			st_engine_heartbeat_enable(engine);
@@ -2497,7 +2497,7 @@ static int live_suppress_self_preempt(void *arg)
 		for (depth = 0; depth < 8; depth++) {
 			rq_b = spinner_create_request(&b.spin,
 						      b.ctx, engine,
-						      MI_NOOP);
+						      MI_ANALOP);
 			if (IS_ERR(rq_b)) {
 				err = PTR_ERR(rq_b);
 				st_engine_heartbeat_enable(engine);
@@ -2556,7 +2556,7 @@ static int live_chain_preempt(void *arg)
 	struct intel_engine_cs *engine;
 	struct preempt_client hi, lo;
 	enum intel_engine_id id;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/*
 	 * Build a chain AB...BA between two contexts (A, B) and request
@@ -2565,7 +2565,7 @@ static int live_chain_preempt(void *arg)
 	 */
 
 	if (preempt_client_init(gt, &hi))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (preempt_client_init(gt, &lo))
 		goto err_client_hi;
@@ -2864,7 +2864,7 @@ static int __live_preempt_ring(struct intel_engine_cs *engine,
 		n++;
 	}
 	intel_engine_flush_submission(engine);
-	pr_debug("%s: Filled %d with %d nop tails {size:%x, tail:%x, emit:%x, rq.tail:%x}\n",
+	pr_debug("%s: Filled %d with %d analp tails {size:%x, tail:%x, emit:%x, rq.tail:%x}\n",
 		 engine->name, queue_sz, n,
 		 ce[0]->ring->size,
 		 ce[0]->ring->tail,
@@ -2886,7 +2886,7 @@ static int __live_preempt_ring(struct intel_engine_cs *engine,
 	err = wait_for_submit(engine, rq, HZ / 2);
 	i915_request_put(rq);
 	if (err) {
-		pr_err("%s: preemption request was not submitted\n",
+		pr_err("%s: preemption request was analt submitted\n",
 		       engine->name);
 		err = -ETIME;
 	}
@@ -2926,7 +2926,7 @@ static int live_preempt_ring(void *arg)
 	 */
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_engine(engine, gt, id) {
 		int n;
@@ -3003,7 +3003,7 @@ static int live_preempt_gang(void *arg)
 		 * Such that the last spinner is the highest priority and
 		 * should execute first. When that spinner completes,
 		 * it will terminate the next lowest spinner until there
-		 * are no more spinners and the gang is complete.
+		 * are anal more spinners and the gang is complete.
 		 */
 		cs = i915_gem_object_pin_map_unlocked(rq->batch->obj, I915_MAP_WC);
 		if (!IS_ERR(cs)) {
@@ -3258,8 +3258,8 @@ static int live_preempt_user(void *arg)
 	 * controlled conditions in the ringbuffer. Since most of the
 	 * time is spent in user batches, most of our preemptions naturally
 	 * occur there. We want to verify that when we preempt inside a batch
-	 * we continue on from the current instruction and do not roll back
-	 * to the start, or another earlier arbitration point.
+	 * we continue on from the current instruction and do analt roll back
+	 * to the start, or aanalther earlier arbitration point.
 	 *
 	 * To verify this, we create a batch which is a mixture of
 	 * MI_MATH (gpr++) MI_SRM (gpr) and preemption points. Then with
@@ -3368,7 +3368,7 @@ static int live_preempt_timeout(void *arg)
 	struct igt_spinner spin_lo;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/*
 	 * Check that we force preemption to occur by cancelling the previous
@@ -3382,7 +3382,7 @@ static int live_preempt_timeout(void *arg)
 
 	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
 
 	ctx_lo = kernel_context(gt->i915, NULL);
@@ -3401,7 +3401,7 @@ static int live_preempt_timeout(void *arg)
 			continue;
 
 		rq = spinner_create_request(&spin_lo, ctx_lo, engine,
-					    MI_NOOP); /* preemption disabled */
+					    MI_ANALOP); /* preemption disabled */
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto err_spin_lo;
@@ -3563,7 +3563,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 
 	arg = kmalloc_array(I915_NUM_ENGINES, sizeof(*arg), GFP_KERNEL);
 	if (!arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(arg, 0, I915_NUM_ENGINES * sizeof(*arg));
 
@@ -3641,7 +3641,7 @@ static int live_preempt_smoke(void *arg)
 	};
 	const unsigned int phase[] = { 0, BATCH };
 	struct igt_live_test t;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u32 *cs;
 	int n;
 
@@ -3649,7 +3649,7 @@ static int live_preempt_smoke(void *arg)
 				       sizeof(*smoke.contexts),
 				       GFP_KERNEL);
 	if (!smoke.contexts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smoke.batch =
 		i915_gem_object_create_internal(smoke.gt->i915, PAGE_SIZE);
@@ -3708,7 +3708,7 @@ err_free:
 	return err;
 }
 
-static int nop_virtual_engine(struct intel_gt *gt,
+static int analp_virtual_engine(struct intel_gt *gt,
 			      struct intel_engine_cs **siblings,
 			      unsigned int nsibling,
 			      unsigned int nctx,
@@ -3789,12 +3789,12 @@ static int nop_virtual_engine(struct intel_gt *gt,
 				pr_err("%s(%s): wait for %llx:%lld timed out\n",
 				       __func__, ve[0]->engine->name,
 				       request[nc]->fence.context,
-				       request[nc]->fence.seqno);
+				       request[nc]->fence.seqanal);
 
 				GEM_TRACE("%s(%s) failed at request %llx:%lld\n",
 					  __func__, ve[0]->engine->name,
 					  request[nc]->fence.context,
-					  request[nc]->fence.seqno);
+					  request[nc]->fence.seqanal);
 				GEM_TRACE_DUMP();
 				intel_gt_set_wedged(gt);
 				break;
@@ -3877,7 +3877,7 @@ static int live_virtual_engine(void *arg)
 		return 0;
 
 	for_each_engine(engine, gt, id) {
-		err = nop_virtual_engine(gt, &engine, 1, 1, 0);
+		err = analp_virtual_engine(gt, &engine, 1, 1, 0);
 		if (err) {
 			pr_err("Failed to wrap engine %s: err=%d\n",
 			       engine->name, err);
@@ -3893,13 +3893,13 @@ static int live_virtual_engine(void *arg)
 			continue;
 
 		for (n = 1; n <= nsibling + 1; n++) {
-			err = nop_virtual_engine(gt, siblings, nsibling,
+			err = analp_virtual_engine(gt, siblings, nsibling,
 						 n, 0);
 			if (err)
 				return err;
 		}
 
-		err = nop_virtual_engine(gt, siblings, nsibling, n, CHAIN);
+		err = analp_virtual_engine(gt, siblings, nsibling, n, CHAIN);
 		if (err)
 			return err;
 	}
@@ -3956,12 +3956,12 @@ static int mask_virtual_engine(struct intel_gt *gt,
 			pr_err("%s(%s): wait for %llx:%lld timed out\n",
 			       __func__, ve->engine->name,
 			       request[n]->fence.context,
-			       request[n]->fence.seqno);
+			       request[n]->fence.seqanal);
 
 			GEM_TRACE("%s(%s) failed at request %llx:%lld\n",
 				  __func__, ve->engine->name,
 				  request[n]->fence.context,
-				  request[n]->fence.seqno);
+				  request[n]->fence.seqanal);
 			GEM_TRACE_DUMP();
 			intel_gt_set_wedged(gt);
 			err = -EIO;
@@ -4034,7 +4034,7 @@ static int slicein_virtual_engine(struct intel_gt *gt,
 	 */
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < nsibling; n++) {
 		ce = intel_context_create(siblings[n]);
@@ -4101,9 +4101,9 @@ static int sliceout_virtual_engine(struct intel_gt *gt,
 	 */
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* XXX We do not handle oversubscription and fairness with normal rq */
+	/* XXX We do analt handle oversubscription and fairness with analrmal rq */
 	for (n = 0; n < nsibling; n++) {
 		ce = intel_engine_create_virtual(siblings, nsibling, 0);
 		if (IS_ERR(ce)) {
@@ -4250,7 +4250,7 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 		*cs++ = CS_GPR(engine, (n + 1) % NUM_GPR_DW);
 		*cs++ = n + 1;
 
-		*cs++ = MI_NOOP;
+		*cs++ = MI_ANALOP;
 		intel_ring_advance(rq, cs);
 
 		/* Restrict this request to run on a particular engine */
@@ -4300,7 +4300,7 @@ static int live_virtual_preserved(void *arg)
 	unsigned int class;
 
 	/*
-	 * Check that the context image retains non-privileged (user) registers
+	 * Check that the context image retains analn-privileged (user) registers
 	 * from one engine to the next. For this we check that the CS_GPR
 	 * are preserved.
 	 */
@@ -4308,7 +4308,7 @@ static int live_virtual_preserved(void *arg)
 	if (intel_uc_uses_guc_submission(&gt->uc))
 		return 0;
 
-	/* As we use CS_GPR we cannot run before they existed on all engines. */
+	/* As we use CS_GPR we cananalt run before they existed on all engines. */
 	if (GRAPHICS_VER(gt->i915) < 9)
 		return 0;
 
@@ -4341,11 +4341,11 @@ static int reset_virtual_engine(struct intel_gt *gt,
 	/*
 	 * In order to support offline error capture for fast preempt reset,
 	 * we need to decouple the guilty request and ensure that it and its
-	 * descendents are not executed while the capture is in progress.
+	 * descendents are analt executed while the capture is in progress.
 	 */
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ve = intel_engine_create_virtual(siblings, nsibling, 0);
 	if (IS_ERR(ve)) {
@@ -4396,7 +4396,7 @@ static int reset_virtual_engine(struct intel_gt *gt,
 	/* Release our grasp on the engine, letting CS flow again */
 	engine_unlock_reset_tasklet(engine);
 
-	/* Check that we do not resubmit the held request */
+	/* Check that we do analt resubmit the held request */
 	i915_request_get(rq);
 	if (!i915_request_wait(rq, 0, HZ / 5)) {
 		pr_err("%s: on hold request completed!\n",
@@ -4410,7 +4410,7 @@ static int reset_virtual_engine(struct intel_gt *gt,
 	/* But is resubmitted on release */
 	execlists_unhold(engine, rq);
 	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
-		pr_err("%s: held request did not complete!\n",
+		pr_err("%s: held request did analt complete!\n",
 		       engine->name);
 		intel_gt_set_wedged(gt);
 		err = -ETIME;
@@ -4437,7 +4437,7 @@ static int live_virtual_reset(void *arg)
 	/*
 	 * Check that we handle a reset event within a virtual engine.
 	 * Only the physical engine is reset, but we have to check the flow
-	 * of the virtual requests around the reset, and make sure it is not
+	 * of the virtual requests around the reset, and make sure it is analt
 	 * forgotten.
 	 */
 
@@ -4475,11 +4475,11 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_timeslice_preempt),
 		SUBTEST(live_timeslice_rewind),
 		SUBTEST(live_timeslice_queue),
-		SUBTEST(live_timeslice_nopreempt),
+		SUBTEST(live_timeslice_analpreempt),
 		SUBTEST(live_busywait_preempt),
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
-		SUBTEST(live_nopreempt),
+		SUBTEST(live_analpreempt),
 		SUBTEST(live_preempt_cancel),
 		SUBTEST(live_suppress_self_preempt),
 		SUBTEST(live_chain_preempt),

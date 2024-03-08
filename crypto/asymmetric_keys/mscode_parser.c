@@ -33,7 +33,7 @@ int mscode_parse(void *_ctx, const void *content_data, size_t data_len,
 /*
  * Check the content type OID
  */
-int mscode_note_content_type(void *context, size_t hdrlen,
+int mscode_analte_content_type(void *context, size_t hdrlen,
 			     unsigned char tag,
 			     const void *value, size_t vlen)
 {
@@ -44,7 +44,7 @@ int mscode_note_content_type(void *context, size_t hdrlen,
 		char buffer[50];
 
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		pr_err("Unknown OID: %s\n", buffer);
+		pr_err("Unkanalwn OID: %s\n", buffer);
 		return -EBADMSG;
 	}
 
@@ -63,9 +63,9 @@ int mscode_note_content_type(void *context, size_t hdrlen,
 }
 
 /*
- * Note the digest algorithm OID
+ * Analte the digest algorithm OID
  */
-int mscode_note_digest_algo(void *context, size_t hdrlen,
+int mscode_analte_digest_algo(void *context, size_t hdrlen,
 			    unsigned char tag,
 			    const void *value, size_t vlen)
 {
@@ -96,21 +96,21 @@ int mscode_note_digest_algo(void *context, size_t hdrlen,
 
 	case OID__NR:
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		pr_err("Unknown OID: %s\n", buffer);
+		pr_err("Unkanalwn OID: %s\n", buffer);
 		return -EBADMSG;
 
 	default:
 		pr_err("Unsupported content type: %u\n", oid);
-		return -ENOPKG;
+		return -EANALPKG;
 	}
 
 	return 0;
 }
 
 /*
- * Note the digest we're guaranteeing with this certificate
+ * Analte the digest we're guaranteeing with this certificate
  */
-int mscode_note_digest(void *context, size_t hdrlen,
+int mscode_analte_digest(void *context, size_t hdrlen,
 		       unsigned char tag,
 		       const void *value, size_t vlen)
 {
@@ -118,7 +118,7 @@ int mscode_note_digest(void *context, size_t hdrlen,
 
 	ctx->digest = kmemdup(value, vlen, GFP_KERNEL);
 	if (!ctx->digest)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->digest_len = vlen;
 

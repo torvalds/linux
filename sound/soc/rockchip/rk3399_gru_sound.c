@@ -472,7 +472,7 @@ static const struct dailink_match_data dailink_match[] = {
 	},
 };
 
-static int rockchip_sound_codec_node_match(struct device_node *np_codec)
+static int rockchip_sound_codec_analde_match(struct device_analde *np_codec)
 {
 	struct device *dev;
 	int i;
@@ -483,7 +483,7 @@ static int rockchip_sound_codec_node_match(struct device_node *np_codec)
 			continue;
 
 		if (dailink_match[i].bus_type) {
-			dev = bus_find_device_by_of_node(dailink_match[i].bus_type,
+			dev = bus_find_device_by_of_analde(dailink_match[i].bus_type,
 							 np_codec);
 			if (!dev)
 				continue;
@@ -498,8 +498,8 @@ static int rockchip_sound_codec_node_match(struct device_node *np_codec)
 static int rockchip_sound_of_parse_dais(struct device *dev,
 					struct snd_soc_card *card)
 {
-	struct device_node *np_cpu, *np_cpu0, *np_cpu1;
-	struct device_node *np_codec;
+	struct device_analde *np_cpu, *np_cpu0, *np_cpu1;
+	struct device_analde *np_codec;
 	struct snd_soc_dai_link *dai;
 	struct snd_soc_dapm_route *routes;
 	int i, index;
@@ -508,7 +508,7 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 	card->dai_link = devm_kzalloc(dev, sizeof(rockchip_dais),
 				      GFP_KERNEL);
 	if (!card->dai_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_routes = 0;
 	for (i = 0; i < ARRAY_SIZE(rockchip_routes); i++)
@@ -516,16 +516,16 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 	routes = devm_kcalloc(dev, num_routes, sizeof(*routes),
 			      GFP_KERNEL);
 	if (!routes)
-		return -ENOMEM;
+		return -EANALMEM;
 	card->dapm_routes = routes;
 
-	np_cpu0 = of_parse_phandle(dev->of_node, "rockchip,cpu", 0);
-	np_cpu1 = of_parse_phandle(dev->of_node, "rockchip,cpu", 1);
+	np_cpu0 = of_parse_phandle(dev->of_analde, "rockchip,cpu", 0);
+	np_cpu1 = of_parse_phandle(dev->of_analde, "rockchip,cpu", 1);
 
 	card->num_dapm_routes = 0;
 	card->num_links = 0;
 	for (i = 0; i < ARRAY_SIZE(rockchip_dais); i++) {
-		np_codec = of_parse_phandle(dev->of_node,
+		np_codec = of_parse_phandle(dev->of_analde,
 					    "rockchip,codec", i);
 		if (!np_codec)
 			break;
@@ -533,7 +533,7 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 		if (!of_device_is_available(np_codec))
 			continue;
 
-		index = rockchip_sound_codec_node_match(np_codec);
+		index = rockchip_sound_codec_analde_match(np_codec);
 		if (index < 0)
 			continue;
 
@@ -559,9 +559,9 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 		*dai = rockchip_dais[index];
 
 		if (!dai->codecs->name)
-			dai->codecs->of_node = np_codec;
-		dai->platforms->of_node = np_cpu;
-		dai->cpus->of_node = np_cpu;
+			dai->codecs->of_analde = np_codec;
+		dai->platforms->of_analde = np_cpu;
+		dai->cpus->of_analde = np_cpu;
 
 		if (card->num_dapm_routes + rockchip_routes[index].num_routes >
 		    num_routes) {
@@ -595,7 +595,7 @@ static int rockchip_sound_probe(struct platform_device *pdev)
 	if (ret) {
 		dmic_wakeup_delay = 0;
 		dev_dbg(&pdev->dev,
-			"no optional property 'dmic-wakeup-delay-ms' found, default: no delay\n");
+			"anal optional property 'dmic-wakeup-delay-ms' found, default: anal delay\n");
 	}
 
 	card->dev = &pdev->dev;

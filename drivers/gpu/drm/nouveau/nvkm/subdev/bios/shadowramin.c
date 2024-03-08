@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,7 +74,7 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 		addr = nvkm_rd32(device, 0x022500);
 	if (addr & 0x00000001) {
 		nvkm_debug(subdev, "... display disabled\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	/* check that the window is enabled and in vram, particularly
@@ -86,12 +86,12 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	else
 		addr = nvkm_rd32(device, 0x619f04);
 	if (!(addr & 0x00000008)) {
-		nvkm_debug(subdev, "... not enabled\n");
-		return ERR_PTR(-ENODEV);
+		nvkm_debug(subdev, "... analt enabled\n");
+		return ERR_PTR(-EANALDEV);
 	}
 	if ( (addr & 0x00000003) != 1) {
-		nvkm_debug(subdev, "... not in vram\n");
-		return ERR_PTR(-ENODEV);
+		nvkm_debug(subdev, "... analt in vram\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	/* some alternate method inherited from xf86-video-nv... */
@@ -104,7 +104,7 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	/* modify bar0 PRAMIN window to cover the bios image */
 	if (!(priv = kmalloc(sizeof(*priv), GFP_KERNEL))) {
 		nvkm_error(subdev, "... out of memory\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	priv->bios = bios;

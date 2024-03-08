@@ -56,7 +56,7 @@
 		led4 {
 			label = "green:user4";
 			gpios = <&gpiof 12 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "off";
 			panic-indicator;
 		};

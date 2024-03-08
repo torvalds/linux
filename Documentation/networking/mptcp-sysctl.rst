@@ -17,7 +17,7 @@ enabled - BOOLEAN
 
 add_addr_timeout - INTEGER (seconds)
 	Set the timeout after which an ADD_ADDR control message will be
-	resent to an MPTCP peer that has not acknowledged a previous
+	resent to an MPTCP peer that has analt ackanalwledged a previous
 	ADD_ADDR message.
 
 	The default value matches TCP_RTO_MAX. This is a per-namespace
@@ -39,7 +39,7 @@ close_timeout - INTEGER (seconds)
 checksum_enabled - BOOLEAN
 	Control whether DSS checksum can be enabled.
 
-	DSS checksum can be enabled if the value is nonzero. This is a
+	DSS checksum can be enabled if the value is analnzero. This is a
 	per-namespace sysctl.
 
 	Default: 0
@@ -50,7 +50,7 @@ allow_join_initial_addr_port - BOOLEAN
 	sent to the peer at connection time, and whether such join requests are
 	accepted or denied.
 
-	Joins to addresses advertised with ADD_ADDR are not affected by this
+	Joins to addresses advertised with ADD_ADDR are analt affected by this
 	value.
 
 	This is a per-namespace sysctl.
@@ -75,9 +75,9 @@ pm_type - INTEGER
 	Default: 0
 
 stale_loss_cnt - INTEGER
-	The number of MPTCP-level retransmission intervals with no traffic and
+	The number of MPTCP-level retransmission intervals with anal traffic and
 	pending outstanding data on a given subflow required to declare it stale.
-	The packet scheduler ignores stale subflows.
+	The packet scheduler iganalres stale subflows.
 	A low stale_loss_cnt  value allows for fast active-backup switch-over,
 	an high value maximize links utilization on edge scenarios e.g. lossy
 	link with high BER or peer pausing the data processing.

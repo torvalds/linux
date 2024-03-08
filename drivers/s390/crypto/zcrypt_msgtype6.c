@@ -56,7 +56,7 @@ struct function_and_rules_block {
  * card in a type6 message. The 3 fields that must be filled in at execution
  * time are  req_parml, rpl_parml and usage_domain.
  * Everything about this interface is ascii/big-endian, since the
- * device does *not* have 'Intel inside'.
+ * device does *analt* have 'Intel inside'.
  *
  * The CPRBX is followed immediately by the parm block.
  * The parm block contains:
@@ -186,7 +186,7 @@ int speed_idx_ep11(int req_type)
  * @ap_msg: pointer to AP message
  * @mex: pointer to user input data
  *
- * Returns 0 on success or negative errno value.
+ * Returns 0 on success or negative erranal value.
  */
 static int icamex_msg_to_type6mex_msgx(struct zcrypt_queue *zq,
 				       struct ap_message *ap_msg,
@@ -255,7 +255,7 @@ static int icamex_msg_to_type6mex_msgx(struct zcrypt_queue *zq,
  * @ap_msg: pointer to AP message
  * @crt: pointer to user input data
  *
- * Returns 0 on success or negative errno value.
+ * Returns 0 on success or negative erranal value.
  */
 static int icacrt_msg_to_type6crt_msgx(struct zcrypt_queue *zq,
 				       struct ap_message *ap_msg,
@@ -425,7 +425,7 @@ static int xcrb_msg_to_type6cprb_msgx(bool userspace, struct ap_message *ap_msg,
 	    memcmp(function_code, "AU", 2) == 0)
 		ap_msg->flags |= AP_MSG_FLAG_SPECIAL;
 
-	/* check CPRB minor version, set info bits in ap_message flag field */
+	/* check CPRB mianalr version, set info bits in ap_message flag field */
 	switch (*(unsigned short *)(&msg->cprbx.func_id[0])) {
 	case 0x5432: /* "T2" */
 		ap_msg->flags |= AP_MSG_FLAG_USAGE;
@@ -437,7 +437,7 @@ static int xcrb_msg_to_type6cprb_msgx(bool userspace, struct ap_message *ap_msg,
 		ap_msg->flags |= AP_MSG_FLAG_ADMIN;
 		break;
 	default:
-		ZCRYPT_DBF_DBG("%s unknown CPRB minor version '%c%c'\n",
+		ZCRYPT_DBF_DBG("%s unkanalwn CPRB mianalr version '%c%c'\n",
 			       __func__, msg->cprbx.func_id[0],
 			       msg->cprbx.func_id[1]);
 	}
@@ -731,16 +731,16 @@ static int convert_response_ica(struct zcrypt_queue *zq,
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_ica(zq, reply,
 						  outputdata, outputdatalength);
-		fallthrough;	/* wrong cprb version is an unknown response */
+		fallthrough;	/* wrong cprb version is an unkanalwn response */
 	default:
-		/* Unknown response type, this should NEVER EVER happen */
+		/* Unkanalwn response type, this should NEVER EVER happen */
 		zq->online = 0;
-		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+		pr_err("Crypto dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int)msg->hdr.type);
 		ZCRYPT_DBF_ERR(
-			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			"%s dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 			__func__, AP_QID_CARD(zq->queue->qid),
 			AP_QID_QUEUE(zq->queue->qid), (int)msg->hdr.type);
 		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
@@ -766,16 +766,16 @@ static int convert_response_xcrb(bool userspace, struct zcrypt_queue *zq,
 		}
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_xcrb(userspace, zq, reply, xcrb);
-		fallthrough;	/* wrong cprb version is an unknown response */
-	default: /* Unknown response type, this should NEVER EVER happen */
+		fallthrough;	/* wrong cprb version is an unkanalwn response */
+	default: /* Unkanalwn response type, this should NEVER EVER happen */
 		xcrb->status = 0x0008044DL; /* HDD_InvalidParm */
 		zq->online = 0;
-		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+		pr_err("Crypto dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int)msg->hdr.type);
 		ZCRYPT_DBF_ERR(
-			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			"%s dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 			__func__, AP_QID_CARD(zq->queue->qid),
 			AP_QID_QUEUE(zq->queue->qid), (int)msg->hdr.type);
 		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
@@ -797,15 +797,15 @@ static int convert_response_ep11_xcrb(bool userspace, struct zcrypt_queue *zq,
 			return convert_error(zq, reply);
 		if (msg->cprbx.cprb_ver_id == 0x04)
 			return convert_type86_ep11_xcrb(userspace, zq, reply, xcrb);
-		fallthrough;	/* wrong cprb version is an unknown resp */
-	default: /* Unknown response type, this should NEVER EVER happen */
+		fallthrough;	/* wrong cprb version is an unkanalwn resp */
+	default: /* Unkanalwn response type, this should NEVER EVER happen */
 		zq->online = 0;
-		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+		pr_err("Crypto dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int)msg->hdr.type);
 		ZCRYPT_DBF_ERR(
-			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			"%s dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 			__func__, AP_QID_CARD(zq->queue->qid),
 			AP_QID_QUEUE(zq->queue->qid), (int)msg->hdr.type);
 		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
@@ -828,15 +828,15 @@ static int convert_response_rng(struct zcrypt_queue *zq,
 			return -EINVAL;
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_rng(zq, reply, data);
-		fallthrough;	/* wrong cprb version is an unknown response */
-	default: /* Unknown response type, this should NEVER EVER happen */
+		fallthrough;	/* wrong cprb version is an unkanalwn response */
+	default: /* Unkanalwn response type, this should NEVER EVER happen */
 		zq->online = 0;
-		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+		pr_err("Crypto dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int)msg->hdr.type);
 		ZCRYPT_DBF_ERR(
-			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			"%s dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 			__func__, AP_QID_CARD(zq->queue->qid),
 			AP_QID_QUEUE(zq->queue->qid), (int)msg->hdr.type);
 		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
@@ -978,7 +978,7 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
 
 	ap_msg->msg = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
@@ -1028,7 +1028,7 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
 
 	ap_msg->msg = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
@@ -1080,13 +1080,13 @@ int prep_cca_ap_msg(bool userspace, struct ica_xcRB *xcrb,
 	ap_msg->bufsize = atomic_read(&ap_max_msg_size);
 	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
-		return -ENOMEM;
+		return -EANALMEM;
 	return xcrb_msg_to_type6cprb_msgx(userspace, ap_msg, xcrb, func_code, dom);
 }
 
@@ -1147,7 +1147,7 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 	}
 
 	if (rc == -EAGAIN && ap_msg->flags & AP_MSG_FLAG_ADMIN)
-		rc = -EIO; /* do not retry administrative requests */
+		rc = -EIO; /* do analt retry administrative requests */
 
 out:
 	if (rc)
@@ -1177,13 +1177,13 @@ int prep_ep11_ap_msg(bool userspace, struct ep11_urb *xcrb,
 	ap_msg->bufsize = atomic_read(&ap_max_msg_size);
 	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive_ep11;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
-		return -ENOMEM;
+		return -EANALMEM;
 	return xcrb_msg_to_type6_ep11cprb_msgx(userspace, ap_msg, xcrb,
 					       func_code, domain);
 }
@@ -1219,10 +1219,10 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 
 	/*
 	 * The target domain field within the cprb body/payload block will be
-	 * replaced by the usage domain for non-management commands only.
+	 * replaced by the usage domain for analn-management commands only.
 	 * Therefore we check the first bit of the 'flags' parameter for
 	 * management command indication.
-	 *   0 - non management command
+	 *   0 - analn management command
 	 *   1 - management command
 	 */
 	if (!((msg->cprbx.flags & 0x80) == 0x80)) {
@@ -1270,7 +1270,7 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 	}
 
 	if (rc == -EAGAIN && ap_msg->flags & AP_MSG_FLAG_ADMIN)
-		rc = -EIO; /* do not retry administrative requests */
+		rc = -EIO; /* do analt retry administrative requests */
 
 out:
 	if (rc)
@@ -1290,13 +1290,13 @@ int prep_rng_ap_msg(struct ap_message *ap_msg, int *func_code,
 	ap_msg->bufsize = AP_DEFAULT_MAX_MSG_SIZE;
 	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rng_type6cprb_msgx(ap_msg, ZCRYPT_RNG_BUFFER_SIZE, domain);
 

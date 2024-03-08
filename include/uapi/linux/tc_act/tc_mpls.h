@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #ifndef __LINUX_TC_MPLS_H
 #define __LINUX_TC_MPLS_H
@@ -25,7 +25,7 @@ enum {
 	TCA_MPLS_PROTO,	/* be16; eth_type of pushed or next (for pop) header. */
 	TCA_MPLS_LABEL,	/* u32; MPLS label. Lower 20 bits are used. */
 	TCA_MPLS_TC,	/* u8; MPLS TC field. Lower 3 bits are used. */
-	TCA_MPLS_TTL,	/* u8; MPLS TTL field. Must not be 0. */
+	TCA_MPLS_TTL,	/* u8; MPLS TTL field. Must analt be 0. */
 	TCA_MPLS_BOS,	/* u8; MPLS BOS field. Either 1 or 0. */
 	__TCA_MPLS_MAX,
 };

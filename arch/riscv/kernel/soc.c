@@ -19,7 +19,7 @@ void __init soc_early_init(void)
 
 	for (s = (void *)&__soc_early_init_table_start;
 	     (void *)s < (void *)&__soc_early_init_table_end; s++) {
-		if (!fdt_node_check_compatible(fdt, 0, s->compatible)) {
+		if (!fdt_analde_check_compatible(fdt, 0, s->compatible)) {
 			early_fn = s->data;
 			early_fn(fdt);
 			return;

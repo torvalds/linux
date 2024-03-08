@@ -154,7 +154,7 @@ static void sifive_spi_set_cs(struct spi_device *device, bool is_high)
 {
 	struct sifive_spi *spi = spi_controller_get_devdata(device->controller);
 
-	/* Reverse polarity is handled by SCMR/CPOL. Not inverted CS. */
+	/* Reverse polarity is handled by SCMR/CPOL. Analt inverted CS. */
 	if (device->mode & SPI_CS_HIGH)
 		is_high = !is_high;
 
@@ -217,7 +217,7 @@ static irqreturn_t sifive_spi_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void sifive_spi_wait(struct sifive_spi *spi, u32 bit, int poll)
@@ -299,7 +299,7 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	host = spi_alloc_host(&pdev->dev, sizeof(struct sifive_spi));
 	if (!host) {
 		dev_err(&pdev->dev, "out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spi = spi_controller_get_devdata(host);
@@ -327,13 +327,13 @@ static int sifive_spi_probe(struct platform_device *pdev)
 
 	/* Optional parameters */
 	ret =
-	  of_property_read_u32(pdev->dev.of_node, "sifive,fifo-depth",
+	  of_property_read_u32(pdev->dev.of_analde, "sifive,fifo-depth",
 			       &spi->fifo_depth);
 	if (ret < 0)
 		spi->fifo_depth = SIFIVE_SPI_DEFAULT_DEPTH;
 
 	ret =
-	  of_property_read_u32(pdev->dev.of_node, "sifive,max-bits-per-word",
+	  of_property_read_u32(pdev->dev.of_analde, "sifive,max-bits-per-word",
 			       &max_bits_per_word);
 
 	if (!ret && max_bits_per_word < 8) {
@@ -355,7 +355,7 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	cs_bits = sifive_spi_read(spi, SIFIVE_SPI_REG_CSDEF);
 	sifive_spi_write(spi, SIFIVE_SPI_REG_CSDEF, spi->cs_inactive);
 	if (!cs_bits) {
-		dev_err(&pdev->dev, "Could not auto probe CS lines\n");
+		dev_err(&pdev->dev, "Could analt auto probe CS lines\n");
 		ret = -EINVAL;
 		goto disable_clk;
 	}
@@ -368,7 +368,7 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Define our host */
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bus_num = pdev->id;
 	host->num_chipselect = num_cs;
 	host->mode_bits = SPI_CPHA | SPI_CPOL

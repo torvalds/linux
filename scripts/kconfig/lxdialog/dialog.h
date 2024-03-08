@@ -143,7 +143,7 @@ struct dialog_item {
 
 /* list of lialog_items */
 struct dialog_list {
-	struct dialog_item node;
+	struct dialog_item analde;
 	struct dialog_list *next;
 };
 
@@ -174,8 +174,8 @@ int on_key_resize(void);
 #define MENUBOX_WIDTH_MIN 65
 #define TEXTBOX_HEIGTH_MIN 8	/* For dialog_textbox() */
 #define TEXTBOX_WIDTH_MIN 8
-#define YESNO_HEIGTH_MIN 4	/* For dialog_yesno() */
-#define YESNO_WIDTH_MIN 4
+#define ANALANAL_HEIGTH_MIN 4	/* For dialog_analanal() */
+#define ANALANAL_WIDTH_MIN 4
 #define WINDOW_HEIGTH_MIN 19	/* For init_dialog() */
 #define WINDOW_WIDTH_MIN 80
 
@@ -193,7 +193,7 @@ void draw_box(WINDOW * win, int y, int x, int height, int width, chtype box,
 void draw_shadow(WINDOW * win, int y, int x, int height, int width);
 
 int first_alpha(const char *string, const char *exempt);
-int dialog_yesno(const char *title, const char *prompt, int height, int width);
+int dialog_analanal(const char *title, const char *prompt, int height, int width);
 int dialog_msgbox(const char *title, const char *prompt, int height,
 		  int width, int pause);
 int dialog_textbox(const char *title, const char *tbuf, int initial_height,

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc_get_rec_mode:
@@ -13,7 +13,7 @@ Name
 
 LIRC_GET_REC_MODE/LIRC_SET_REC_MODE - Get/set current receive mode.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: LIRC_GET_REC_MODE
@@ -52,15 +52,15 @@ Return Value
 
     -  .. row 1
 
-       -  ``ENODEV``
+       -  ``EANALDEV``
 
-       -  Device not available.
+       -  Device analt available.
 
     -  .. row 2
 
-       -  ``ENOTTY``
+       -  ``EANALTTY``
 
-       -  Device does not support receiving.
+       -  Device does analt support receiving.
 
     -  .. row 3
 

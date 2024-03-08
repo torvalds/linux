@@ -10,7 +10,7 @@
 
 /* DPNI Version */
 #define DPNI_VER_MAJOR				7
-#define DPNI_VER_MINOR				0
+#define DPNI_VER_MIANALR				0
 #define DPNI_CMD_BASE_VERSION			1
 #define DPNI_CMD_2ND_VERSION			2
 #define DPNI_CMD_3RD_VERSION			3
@@ -88,8 +88,8 @@
 #define DPNI_CMDID_SET_BUFFER_LAYOUT			DPNI_CMD(0x265)
 
 #define DPNI_CMDID_SET_TX_CONFIRMATION_MODE		DPNI_CMD(0x266)
-#define DPNI_CMDID_SET_CONGESTION_NOTIFICATION		DPNI_CMD(0x267)
-#define DPNI_CMDID_GET_CONGESTION_NOTIFICATION		DPNI_CMD(0x268)
+#define DPNI_CMDID_SET_CONGESTION_ANALTIFICATION		DPNI_CMD(0x267)
+#define DPNI_CMDID_GET_CONGESTION_ANALTIFICATION		DPNI_CMD(0x268)
 #define DPNI_CMDID_SET_EARLY_DROP			DPNI_CMD(0x269)
 #define DPNI_CMDID_GET_EARLY_DROP			DPNI_CMD(0x26A)
 #define DPNI_CMDID_GET_OFFLOAD				DPNI_CMD(0x26B)
@@ -222,7 +222,7 @@ struct dpni_rsp_get_attr {
 
 struct dpni_cmd_set_errors_behavior {
 	__le32 errors;
-	/* from least significant bit: error_action:4, set_frame_annotation:1 */
+	/* from least significant bit: error_action:4, set_frame_ananaltation:1 */
 	u8 flags;
 };
 
@@ -537,7 +537,7 @@ struct dpni_rsp_get_taildrop {
 
 struct dpni_rsp_get_api_version {
 	__le16 major;
-	__le16 minor;
+	__le16 mianalr;
 };
 
 #define DPNI_RX_FS_DIST_ENABLE_SHIFT	0
@@ -623,14 +623,14 @@ struct dpni_cmd_remove_qos_entry {
 #define DPNI_CONG_UNITS_SHIFT		4
 #define DPNI_CONG_UNITS_SIZE		2
 
-struct dpni_cmd_set_congestion_notification {
+struct dpni_cmd_set_congestion_analtification {
 	/* cmd word 0 */
 	u8 qtype;
 	u8 tc;
 	u8 pad[6];
 	/* cmd word 1 */
 	__le32 dest_id;
-	__le16 notification_mode;
+	__le16 analtification_mode;
 	u8 dest_priority;
 	/* from LSB: dest_type: 4 units:2 */
 	u8 type_units;

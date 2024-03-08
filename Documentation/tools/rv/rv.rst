@@ -9,7 +9,7 @@ Runtime Verification
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 **rv** *COMMAND* [*OPTIONS*]

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Rockchip rk3399 DMC (Dynamic Memory Controller) device
 
 maintainers:
-  - Brian Norris <briannorris@chromium.org>
+  - Brian Analrris <briananalrris@chromium.org>
 
 properties:
   compatible:
@@ -17,7 +17,7 @@ properties:
   devfreq-events:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Node to get DDR loading. Refer to
+      Analde to get DDR loading. Refer to
       Documentation/devicetree/bindings/devfreq/event/rockchip,dfi.yaml.
 
   clocks:
@@ -50,7 +50,7 @@ properties:
     description:
       For values, reference include/dt-bindings/clock/rk3399-ddr.h. Selects the
       DDR3 cl-trp-trcd type. It must be set according to "Speed Bin" in DDR3
-      datasheet; DO NOT use a smaller "Speed Bin" than specified for the DDR3
+      datasheet; DO ANALT use a smaller "Speed Bin" than specified for the DDR3
       being used.
 
   rockchip,pd_idle:
@@ -107,7 +107,7 @@ properties:
     description: |
       Defines the DDR3 DLL bypass frequency in MHz. When DDR frequency is less
       than DRAM_DLL_DISB_FREQ, DDR3 DLL will be bypassed.
-      Note: if DLL was bypassed, the odt will also stop working.
+      Analte: if DLL was bypassed, the odt will also stop working.
 
   rockchip,phy_dll_dis_freq:
     deprecated: true
@@ -115,7 +115,7 @@ properties:
     description: |
       Defines the PHY dll bypass frequency in MHz (Mega Hz). When DDR frequency
       is less than DRAM_DLL_DISB_FREQ, PHY DLL will be bypassed.
-      Note: PHY DLL and PHY ODT are independent.
+      Analte: PHY DLL and PHY ODT are independent.
 
   rockchip,auto_pd_dis_freq:
     deprecated: true
@@ -284,34 +284,34 @@ properties:
 
   rockchip,pd-idle-ns:
     description:
-      Configure the PD_IDLE value in nanoseconds. Defines the power-down idle
+      Configure the PD_IDLE value in naanalseconds. Defines the power-down idle
       period in which memories are placed into power-down mode if bus is idle
-      for PD_IDLE nanoseconds.
+      for PD_IDLE naanalseconds.
 
   rockchip,sr-idle-ns:
     description:
-      Configure the SR_IDLE value in nanoseconds. Defines the self-refresh idle
+      Configure the SR_IDLE value in naanalseconds. Defines the self-refresh idle
       period in which memories are placed into self-refresh mode if bus is idle
-      for SR_IDLE nanoseconds.
+      for SR_IDLE naanalseconds.
     default: 0
 
   rockchip,sr-mc-gate-idle-ns:
     description:
-      Defines the memory self-refresh and controller clock gating idle period in nanoseconds.
+      Defines the memory self-refresh and controller clock gating idle period in naanalseconds.
       Memories are placed into self-refresh mode and memory controller clock
-      arg gating started if bus is idle for sr_mc_gate_idle nanoseconds.
+      arg gating started if bus is idle for sr_mc_gate_idle naanalseconds.
 
   rockchip,srpd-lite-idle-ns:
     description:
       Defines the self-refresh power down idle period in which memories are
       placed into self-refresh power down mode if bus is idle for
-      srpd_lite_idle nanoseconds. This parameter is for LPDDR4 only.
+      srpd_lite_idle naanalseconds. This parameter is for LPDDR4 only.
 
   rockchip,standby-idle-ns:
     description:
       Defines the standby idle period in which memories are placed into
       self-refresh mode. The controller, pi, PHY and DRAM clock will be gated
-      if bus is idle for standby_idle nanoseconds.
+      if bus is idle for standby_idle naanalseconds.
 
   rockchip,pd-idle-dis-freq-hz:
     description:
@@ -329,14 +329,14 @@ properties:
     description:
       Defines the self-refresh and memory-controller clock gating disable
       frequency in Hz. When the DDR frequency is greater than
-      sr-mc-gate-idle-dis-freq, the clock will not be gated when idle. See also
+      sr-mc-gate-idle-dis-freq, the clock will analt be gated when idle. See also
       rockchip,sr-mc-gate-idle-ns.
 
   rockchip,srpd-lite-idle-dis-freq-hz:
     description:
       Defines the self-refresh power down idle disable frequency in Hz. When
       the DDR frequency is greater than srpd-lite-idle-dis-freq, memory will
-      not be placed into self-refresh power down mode when idle. See also
+      analt be placed into self-refresh power down mode when idle. See also
       rockchip,srpd-lite-idle-ns.
 
   rockchip,standby-idle-dis-freq-hz:

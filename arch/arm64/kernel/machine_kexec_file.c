@@ -53,7 +53,7 @@ static int prepare_elf_headers(void **addr, unsigned long *sz)
 
 	cmem = kmalloc(struct_size(cmem, ranges, nr_ranges), GFP_KERNEL);
 	if (!cmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmem->max_nr_ranges = nr_ranges;
 	cmem->nr_ranges = 0;
@@ -82,8 +82,8 @@ out:
 }
 
 /*
- * Tries to add the initrd and DTB to the image. If it is not possible to find
- * valid locations, this function will undo changes to the image and return non
+ * Tries to add the initrd and DTB to the image. If it is analt possible to find
+ * valid locations, this function will undo changes to the image and return analn
  * zero.
  */
 int load_other_segments(struct kimage *image,
@@ -99,7 +99,7 @@ int load_other_segments(struct kimage *image,
 	int ret = 0;
 
 	kbuf.image = image;
-	/* not allocate anything below the kernel */
+	/* analt allocate anything below the kernel */
 	kbuf.buf_min = kernel_load_addr + kernel_size;
 
 	/* load elf core header */
@@ -112,7 +112,7 @@ int load_other_segments(struct kimage *image,
 
 		kbuf.buffer = headers;
 		kbuf.bufsz = headers_sz;
-		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 		kbuf.memsz = headers_sz;
 		kbuf.buf_align = SZ_64K; /* largest supported page size */
 		kbuf.buf_max = ULONG_MAX;
@@ -135,7 +135,7 @@ int load_other_segments(struct kimage *image,
 	if (initrd) {
 		kbuf.buffer = initrd;
 		kbuf.bufsz = initrd_len;
-		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 		kbuf.memsz = initrd_len;
 		kbuf.buf_align = 0;
 		/* within 1GB-aligned window of up to 32GB in size */
@@ -166,9 +166,9 @@ int load_other_segments(struct kimage *image,
 	dtb_len = fdt_totalsize(dtb);
 	kbuf.buffer = dtb;
 	kbuf.bufsz = dtb_len;
-	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 	kbuf.memsz = dtb_len;
-	/* not across 2MB boundary */
+	/* analt across 2MB boundary */
 	kbuf.buf_align = SZ_2M;
 	kbuf.buf_max = ULONG_MAX;
 	kbuf.top_down = true;

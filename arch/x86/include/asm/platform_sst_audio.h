@@ -5,7 +5,7 @@
  * Copyright (C) 2012-14 Intel Corporation
  * Author: Jeeja KP <jeeja.kp@intel.com>
  * 	Omair Mohammed Abdullah <omair.m.abdullah@intel.com>
- *	Vinod Koul ,vinod.koul@intel.com>
+ *	Vianald Koul ,vianald.koul@intel.com>
  */
 #ifndef _PLATFORM_SST_AUDIO_H_
 #define _PLATFORM_SST_AUDIO_H_
@@ -14,7 +14,7 @@
 #define MAX_NUM_STREAMS	MAX_NUM_STREAMS_MRFLD
 
 enum sst_audio_task_id_mrfld {
-	SST_TASK_ID_NONE = 0,
+	SST_TASK_ID_ANALNE = 0,
 	SST_TASK_ID_SBA = 1,
 	SST_TASK_ID_MEDIA = 3,
 	SST_TASK_ID_MAX = SST_TASK_ID_MEDIA,

@@ -409,7 +409,7 @@ static void cx25821_registers_init(struct cx25821_dev *dev)
 	tmp = cx_read(CLK_RST);
 	/* use external ALT_PLL_REF pin as its reference clock instead */
 	tmp |= FLD_USE_ALT_PLL_REF;
-	cx_write(CLK_RST, tmp & ~(FLD_VID_I_CLK_NOE | FLD_VID_J_CLK_NOE));
+	cx_write(CLK_RST, tmp & ~(FLD_VID_I_CLK_ANALE | FLD_VID_J_CLK_ANALE));
 
 	msleep(100);
 }
@@ -584,7 +584,7 @@ void cx25821_sram_channel_dump(struct cx25821_dev *dev, const struct sram_channe
 
 	for (i = 0; i < (64 >> 2); i += n) {
 		risc = cx_read(ch->ctrl_start + 4 * i);
-		/* No consideration for bits 63-32 */
+		/* Anal consideration for bits 63-32 */
 
 		pr_warn("ctrl + 0x%2x (0x%08x): iq %x: ",
 			i * 4, ch->ctrl_start + 4 * i, i);
@@ -650,7 +650,7 @@ void cx25821_sram_channel_dump_audio(struct cx25821_dev *dev,
 
 	for (i = 0; i < (64 >> 2); i += n) {
 		risc = cx_read(ch->ctrl_start + 4 * i);
-		/* No consideration for bits 63-32 */
+		/* Anal consideration for bits 63-32 */
 
 		pr_warn("ctrl + 0x%2x (0x%08x): iq %x: ",
 			i * 4, ch->ctrl_start + 4 * i, i);
@@ -852,12 +852,12 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	if (dev->nr >= ARRAY_SIZE(card)) {
 		CX25821_INFO("dev->nr >= %zd", ARRAY_SIZE(card));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (dev->pci->device != 0x8210) {
 		pr_info("%s(): Exiting. Incorrect Hardware device = 0x%02x\n",
 			__func__, dev->pci->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pr_info("Athena Hardware device = 0x%02x\n", dev->pci->device);
 
@@ -888,7 +888,7 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	dev->i2c_bus[0].i2c_period = (0x07 << 24);	/* 1.95MHz */
 
 	if (cx25821_get_resources(dev) < 0) {
-		pr_err("%s: No more PCIe resources for subsystem: %04x:%04x\n",
+		pr_err("%s: Anal more PCIe resources for subsystem: %04x:%04x\n",
 		       dev->name, dev->pci->subsystem_vendor,
 		       dev->pci->subsystem_device);
 
@@ -900,8 +900,8 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	dev->base_io_addr = pci_resource_start(dev->pci, 0);
 
 	if (!dev->base_io_addr) {
-		CX25821_ERR("No PCI Memory resources, exiting!\n");
-		return -ENODEV;
+		CX25821_ERR("Anal PCI Memory resources, exiting!\n");
+		return -EANALDEV;
 	}
 
 	dev->lmmio = ioremap(dev->base_io_addr, pci_resource_len(dev->pci, 0));
@@ -909,7 +909,7 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	if (!dev->lmmio) {
 		CX25821_ERR("ioremap failed, maybe increasing __VMALLOC_RESERVE in page.h\n");
 		cx25821_iounmap(dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->bmmio = (u8 __iomem *) dev->lmmio;
@@ -976,7 +976,7 @@ int cx25821_riscmem_alloc(struct pci_dev *pci,
 	if (NULL == risc->cpu) {
 		cpu = dma_alloc_coherent(&pci->dev, size, &dma, GFP_KERNEL);
 		if (NULL == cpu)
-			return -ENOMEM;
+			return -EANALMEM;
 		risc->cpu  = cpu;
 		risc->dma  = dma;
 		risc->size = size;
@@ -1000,7 +1000,7 @@ static __le32 *cx25821_risc_field(__le32 * rp, struct scatterlist *sglist,
 	}
 
 	/* sync instruction */
-	if (sync_line != NO_SYNC_LINE)
+	if (sync_line != ANAL_SYNC_LINE)
 		*(rp++) = cpu_to_le32(RISC_RESYNC | sync_line);
 
 	/* scan lines */
@@ -1105,7 +1105,7 @@ static __le32 *cx25821_risc_field_audio(__le32 * rp, struct scatterlist *sglist,
 	unsigned int line, todo, sol;
 
 	/* sync instruction */
-	if (sync_line != NO_SYNC_LINE)
+	if (sync_line != ANAL_SYNC_LINE)
 		*(rp++) = cpu_to_le32(RISC_RESYNC | sync_line);
 
 	/* scan lines */
@@ -1169,7 +1169,7 @@ int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 
 	/* estimate risc mem: worst case is one write per page border +
 	   one write per scan line + syncs + jump (all 2 dwords).  Here
-	   there is no padding and no sync.  First DMA region may be smaller
+	   there is anal padding and anal sync.  First DMA region may be smaller
 	   than PAGE_SIZE */
 	/* Jump and write need an extra dword */
 	instructions = 1 + (bpl * lines) / PAGE_SIZE + lines;
@@ -1181,7 +1181,7 @@ int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 
 	/* write risc instructions */
 	rp = risc->cpu;
-	rp = cx25821_risc_field_audio(rp, sglist, 0, NO_SYNC_LINE, bpl, 0,
+	rp = cx25821_risc_field_audio(rp, sglist, 0, ANAL_SYNC_LINE, bpl, 0,
 				      lines, lpi);
 
 	/* save pointer to jmp instruction address */
@@ -1267,7 +1267,7 @@ static int cx25821_initdev(struct pci_dev *pci_dev,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (NULL == dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
 	if (err < 0)
@@ -1297,7 +1297,7 @@ static int cx25821_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = dma_set_mask(&pci_dev->dev, 0xffffffff);
 	if (err) {
-		pr_err("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
+		pr_err("%s/0: Oops: anal 32bit PCI DMA ???\n", dev->name);
 		err = -EIO;
 		goto fail_irq;
 	}
@@ -1351,7 +1351,7 @@ static const struct pci_device_id cx25821_pci_tbl[] = {
 		.subvendor = 0x14f1,
 		.subdevice = 0x0920,
 	}, {
-		/* CX25821 No Brand */
+		/* CX25821 Anal Brand */
 		.vendor = 0x14f1,
 		.device = 0x8210,
 		.subvendor = 0x0000,

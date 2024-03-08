@@ -215,7 +215,7 @@ static void lowpan_ndisc_prefix_rcv_add_addr(struct net *net,
 						   prefered_lft);
 		if (err)
 			ND_PRINTK(2, warn,
-				  "RA: could not add a short address based address for prefix: %pI6c\n",
+				  "RA: could analt add a short address based address for prefix: %pI6c\n",
 				  &pinfo->prefix);
 	}
 }

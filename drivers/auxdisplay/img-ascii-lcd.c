@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -69,7 +69,7 @@ static void boston_update(struct linedisp *linedisp)
 	val = *((u32 *)&ctx->curr[4]);
 	__raw_writel(val, ctx->base + 4);
 #else
-# error Not 32 or 64 bit
+# error Analt 32 or 64 bit
 #endif
 }
 
@@ -221,7 +221,7 @@ MODULE_DEVICE_TABLE(of, img_ascii_lcd_matches);
  * Probe an LCD display device, ensuring that we have the required resources in
  * order to access the LCD & setting up private data as well as sysfs files.
  *
- * Return: 0 on success, else -ERRNO
+ * Return: 0 on success, else -ERRANAL
  */
 static int img_ascii_lcd_probe(struct platform_device *pdev)
 {
@@ -232,14 +232,14 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx) + cfg->num_chars, GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (cfg->external_regmap) {
-		ctx->regmap = syscon_node_to_regmap(dev->parent->of_node);
+		ctx->regmap = syscon_analde_to_regmap(dev->parent->of_analde);
 		if (IS_ERR(ctx->regmap))
 			return PTR_ERR(ctx->regmap);
 
-		if (of_property_read_u32(dev->of_node, "offset", &ctx->offset))
+		if (of_property_read_u32(dev->of_analde, "offset", &ctx->offset))
 			return -EINVAL;
 	} else {
 		ctx->base = devm_platform_ioremap_resource(pdev, 0);
@@ -295,6 +295,6 @@ static struct platform_driver img_ascii_lcd_driver = {
 };
 module_platform_driver(img_ascii_lcd_driver);
 
-MODULE_DESCRIPTION("Imagination Technologies ASCII LCD Display");
+MODULE_DESCRIPTION("Imagination Techanallogies ASCII LCD Display");
 MODULE_AUTHOR("Paul Burton <paul.burton@mips.com>");
 MODULE_LICENSE("GPL");

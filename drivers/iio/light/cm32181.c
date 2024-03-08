@@ -55,7 +55,7 @@
 
 #define SMBUS_ALERT_RESPONSE_ADDRESS	0x0c
 
-/* CPM0 Index 0: device-id (3218 or 32181), 1: Unknown, 2: init_regs_bitmap */
+/* CPM0 Index 0: device-id (3218 or 32181), 1: Unkanalwn, 2: init_regs_bitmap */
 #define CPM0_REGS_BITMAP		2
 #define CPM0_HEADER_SIZE		3
 
@@ -100,7 +100,7 @@ static int cm32181_read_als_it(struct cm32181_chip *cm32181, int *val2);
  *
  * Convert ACPI CPM table to array.
  *
- * Return: -ENODEV for fail.  Otherwise is number of elements.
+ * Return: -EANALDEV for fail.  Otherwise is number of elements.
  */
 static int cm32181_acpi_get_cpm(struct device *dev, char *obj_name,
 				u64 *values, int count)
@@ -113,12 +113,12 @@ static int cm32181_acpi_get_cpm(struct device *dev, char *obj_name,
 
 	handle = ACPI_HANDLE(dev);
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = acpi_evaluate_object(handle, obj_name, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "object %s not found\n", obj_name);
-		return -ENODEV;
+		dev_err(dev, "object %s analt found\n", obj_name);
+		return -EANALDEV;
 	}
 
 	cpm = buffer.pointer;
@@ -206,7 +206,7 @@ static int cm32181_reg_init(struct cm32181_chip *cm32181)
 		cm32181->als_it_values = cm32181_als_it_values;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Default Values */
@@ -446,7 +446,7 @@ static int cm32181_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*cm32181));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 
@@ -455,7 +455,7 @@ static int cm32181_probe(struct i2c_client *client)
 	 * SMBus Alert Response Address (ARA, 0x0c) and the actual I2C address.
 	 * Detect this and take the following step to deal with it:
 	 * 1. When a SMBus Alert capable sensor has an Alert asserted, it will
-	 *    not respond on its actual I2C address. Read a byte from the ARA
+	 *    analt respond on its actual I2C address. Read a byte from the ARA
 	 *    to clear any pending Alerts.
 	 * 2. Create a "dummy" client for the actual I2C address and
 	 *    use that client to communicate with the sensor.

@@ -34,13 +34,13 @@ properties:
 
   ranges: true
 
-# Required child node:
+# Required child analde:
 patternProperties:
   "^jpgdec@[0-9a-f]+$":
     type: object
     description:
-      The jpeg decoder hardware device node which should be added as subnodes to
-      the main jpeg node.
+      The jpeg decoder hardware device analde which should be added as subanaldes to
+      the main jpeg analde.
 
     properties:
       compatible:

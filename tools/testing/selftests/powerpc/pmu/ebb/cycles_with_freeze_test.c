@@ -15,7 +15,7 @@
  * parts of the code. This is complicated by the fact that FC is set by the
  * hardware when the event overflows. We may take the EBB after we have set FC,
  * so we have to be careful about whether we clear FC at the end of the EBB
- * handler or not.
+ * handler or analt.
  */
 
 static bool counters_frozen = false;
@@ -91,7 +91,7 @@ int cycles_with_freeze(void)
 
 		val = mfspr(SPRN_MMCR0);
 		if (! (val & MMCR0_FC)) {
-			printf("Outside of loop, FC NOT set MMCR0 0x%lx\n", val);
+			printf("Outside of loop, FC ANALT set MMCR0 0x%lx\n", val);
 			fc_cleared = true;
 		}
 	}

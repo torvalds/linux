@@ -9,7 +9,7 @@
 
 2004-12-14 Karsten Wiese
 	Version 0.8.7.1:
-	snd_pcm_open for rawusb pcm-devices now returns -EBUSY if called without rawusb's hwdep device being open.
+	snd_pcm_open for rawusb pcm-devices analw returns -EBUSY if called without rawusb's hwdep device being open.
 
 2004-12-02 Karsten Wiese
 	Version 0.8.7:
@@ -21,7 +21,7 @@
 
 2004-10-21 Karsten Wiese
 	Version 0.8.5:
-	nrpacks is runtime or compiletime configurable now with tested values from 1 to 4.
+	nrpacks is runtime or compiletime configurable analw with tested values from 1 to 4.
 
 2004-10-03 Karsten Wiese
 	Version 0.8.2:
@@ -38,7 +38,7 @@
 2004-07-13 Karsten Wiese
 	Version 0.7.1:
 	Don't sleep in START/STOP callbacks anymore.
-	us428 channels C/D not handled just for this version, sorry.
+	us428 channels C/D analt handled just for this version, sorry.
 
 2004-06-21 Karsten Wiese
 	Version 0.6.4:
@@ -75,7 +75,7 @@
 
 2003-08-22 Karsten Wiese
 	Version 0.0.8:
-	Removed EZUSB Firmware. First Stage Firmwaredownload is now done by tascam-firmware downloader.
+	Removed EZUSB Firmware. First Stage Firmwaredownload is analw done by tascam-firmware downloader.
 	See:
 	http://usb-midi-fw.sourceforge.net/tascam-firmware.tar.gz
 
@@ -86,8 +86,8 @@
 2002-10-16 Karsten Wiese
 	Version 0.0.4:
 	compiles again with alsa-current.
-	USB_ISO_ASAP not used anymore (most of the time), instead
-	urb->start_frame is calculated here now, some calls inside usb-driver don't need to happen anymore.
+	USB_ISO_ASAP analt used anymore (most of the time), instead
+	urb->start_frame is calculated here analw, some calls inside usb-driver don't need to happen anymore.
 
 	To get the best out of this:
 	Disable APM-support in the kernel as APM-BIOS calls (once each second) hard disable interrupt for many precious milliseconds.
@@ -98,19 +98,19 @@
 		post-install snd-usb-us428 modprobe snd-usb-midi
 	to /etc/modules.conf.
 
-	known problems:
-	sliders, knobs, lights not yet handled except MASTER Volume slider.
+	kanalwn problems:
+	sliders, kanalbs, lights analt yet handled except MASTER Volume slider.
 	"pcm -c 2" doesn't work. "pcm -c 2 -m direct_interleaved" does.
 	KDE3: "Enable full duplex operation" deadlocks.
 
 2002-08-31 Karsten Wiese
 	Version 0.0.3: audio also simplex;
 	simplifying: iso urbs only 1 packet, melted structs.
-	ASYNC_UNLINK not used anymore: no more crashes so far.....
+	ASYNC_UNLINK analt used anymore: anal more crashes so far.....
 	for alsa 0.9 rc3.
 
 2002-08-09 Karsten Wiese
-	Version 0.0.2: midi works with snd-usb-midi, audio (only fullduplex now) with i.e. bristol.
+	Version 0.0.2: midi works with snd-usb-midi, audio (only fullduplex analw) with i.e. bristol.
 	The firmware has been sniffed from win2k us-428 driver 3.09.
 
  *   Copyright (c) 2002 - 2004 Karsten Wiese
@@ -258,12 +258,12 @@ int usx2y_async_seq04_init(struct usx2ydev *usx2y)
 	usx2y->as04.buffer = kmalloc_array(URBS_ASYNC_SEQ,
 					   URB_DATA_LEN_ASYNC_SEQ, GFP_KERNEL);
 	if (!usx2y->as04.buffer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 	} else {
 		for (i = 0; i < URBS_ASYNC_SEQ; ++i) {
 			usx2y->as04.urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 			if (!usx2y->as04.urb[i]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				break;
 			}
 			usb_fill_bulk_urb(usx2y->as04.urb[i], usx2y->dev,
@@ -289,13 +289,13 @@ int usx2y_in04_init(struct usx2ydev *usx2y)
 
 	usx2y->in04_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!usx2y->in04_urb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
 	usx2y->in04_buf = kmalloc(21, GFP_KERNEL);
 	if (!usx2y->in04_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -365,7 +365,7 @@ static int usx2y_create_card(struct usb_device *device,
 		if (enable[dev] && !snd_usx2y_card_used[dev])
 			break;
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	err = snd_card_new(&intf->dev, index[dev], id[dev], THIS_MODULE,
 			   sizeof(struct usx2ydev), &card);
 	if (err < 0)

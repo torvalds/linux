@@ -50,12 +50,12 @@ static inline int ieee754sp_finite(union ieee754sp x)
 #define SPXSRSY1() \
 	(ye++, (ym = XSPSRS1(ym)))
 
-/* convert denormal to normalized with extended exponent */
-#define SPDNORMx(m,e) \
+/* convert deanalrmal to analrmalized with extended exponent */
+#define SPDANALRMx(m,e) \
 	while ((m >> SP_FBITS) == 0) { m <<= 1; e--; }
-#define SPDNORMX	SPDNORMx(xm, xe)
-#define SPDNORMY	SPDNORMx(ym, ye)
-#define SPDNORMZ	SPDNORMx(zm, ze)
+#define SPDANALRMX	SPDANALRMx(xm, xe)
+#define SPDANALRMY	SPDANALRMx(ym, ye)
+#define SPDANALRMZ	SPDANALRMx(zm, ze)
 
 static inline union ieee754sp buildsp(int s, int bx, unsigned int m)
 {

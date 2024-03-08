@@ -28,7 +28,7 @@
 struct media_ctl {
 	struct media_device *media_dev;
 	struct media_entity media_entity;
-	struct media_intf_devnode *intf_devnode;
+	struct media_intf_devanalde *intf_devanalde;
 	struct media_link *intf_link;
 	struct media_pad media_pad;
 	struct media_pipeline media_pipe;
@@ -44,7 +44,7 @@ struct media_ctl {
 struct media_mixer_ctl {
 	struct media_device *media_dev;
 	struct media_entity media_entity;
-	struct media_intf_devnode *intf_devnode;
+	struct media_intf_devanalde *intf_devanalde;
 	struct media_link *intf_link;
 	struct media_pad media_pad[MEDIA_MIXER_PAD_MAX];
 	struct media_pipeline media_pipe;

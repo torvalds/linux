@@ -691,7 +691,7 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 				 val, !(val & BHS_EN_REST_ACK), 1000,
 				 HALT_CHECK_MAX_LOOPS);
 	if (ret) {
-		dev_err(wcss->dev, "BHS_STATUS not OFF (rc:%d)\n", ret);
+		dev_err(wcss->dev, "BHS_STATUS analt OFF (rc:%d)\n", ret);
 		return ret;
 	}
 
@@ -755,7 +755,7 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 	struct q6v5_wcss *wcss = rproc->priv;
 	int ret;
 
-	ret = qcom_mdt_load_no_init(wcss->dev, fw, rproc->firmware,
+	ret = qcom_mdt_load_anal_init(wcss->dev, fw, rproc->firmware,
 				    0, wcss->mem_region, wcss->mem_phys,
 				    wcss->mem_size, &wcss->mem_reloc);
 	if (ret)
@@ -823,7 +823,7 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 			       struct platform_device *pdev)
 {
 	unsigned int halt_reg[MAX_HALT_REG] = {0};
-	struct device_node *syscon;
+	struct device_analde *syscon;
 	struct resource *res;
 	int ret;
 
@@ -834,7 +834,7 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 	wcss->reg_base = devm_ioremap(&pdev->dev, res->start,
 				      resource_size(res));
 	if (!wcss->reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (wcss->version == WCSS_IPQ8074) {
 		wcss->rmb_base = devm_platform_ioremap_resource_byname(pdev, "rmb");
@@ -842,19 +842,19 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 			return PTR_ERR(wcss->rmb_base);
 	}
 
-	syscon = of_parse_phandle(pdev->dev.of_node,
+	syscon = of_parse_phandle(pdev->dev.of_analde,
 				  "qcom,halt-regs", 0);
 	if (!syscon) {
 		dev_err(&pdev->dev, "failed to parse qcom,halt-regs\n");
 		return -EINVAL;
 	}
 
-	wcss->halt_map = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	wcss->halt_map = syscon_analde_to_regmap(syscon);
+	of_analde_put(syscon);
 	if (IS_ERR(wcss->halt_map))
 		return PTR_ERR(wcss->halt_map);
 
-	ret = of_property_read_variable_u32_array(pdev->dev.of_node,
+	ret = of_property_read_variable_u32_array(pdev->dev.of_analde,
 						  "qcom,halt-regs",
 						  halt_reg, 0,
 						  MAX_HALT_REG);
@@ -873,13 +873,13 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 static int q6v5_alloc_memory_region(struct q6v5_wcss *wcss)
 {
 	struct reserved_mem *rmem = NULL;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct device *dev = wcss->dev;
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node)
-		rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
+	analde = of_parse_phandle(dev->of_analde, "memory-region", 0);
+	if (analde)
+		rmem = of_reserved_mem_lookup(analde);
+	of_analde_put(analde);
 
 	if (!rmem) {
 		dev_err(dev, "unable to acquire memory-region\n");
@@ -1015,7 +1015,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 			    desc->firmware_name, sizeof(*wcss));
 	if (!rproc) {
 		dev_err(&pdev->dev, "failed to allocate rproc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wcss = rproc->priv;

@@ -65,7 +65,7 @@ static void hdmi_pll_disable(struct dss_pll *dsspll)
 	dss_ctrl_pll_enable(dsspll, false);
 
 	r = pm_runtime_put_sync(&pll->pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 
 static const struct dss_pll_ops hdmi_pll_ops = {

@@ -88,8 +88,8 @@ static int p1022_ds_machine_probe(struct snd_soc_card *card)
 
 	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
-		dev_err(card->dev, "could not map global utilities\n");
-		return -ENOMEM;
+		dev_err(card->dev, "could analt map global utilities\n");
+		return -EANALMEM;
 	}
 
 	/* Enable SSI Tx signal */
@@ -130,7 +130,7 @@ static int p1022_ds_startup(struct snd_pcm_substream *substream)
 	/* Tell the codec driver what the serial protocol is. */
 	ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_codec(rtd, 0), mdata->dai_format);
 	if (ret < 0) {
-		dev_err(dev, "could not set codec driver audio format\n");
+		dev_err(dev, "could analt set codec driver audio format\n");
 		return ret;
 	}
 
@@ -141,7 +141,7 @@ static int p1022_ds_startup(struct snd_pcm_substream *substream)
 	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_codec(rtd, 0), 0, mdata->clk_frequency,
 				     mdata->codec_clk_direction);
 	if (ret < 0) {
-		dev_err(dev, "could not set codec driver clock params\n");
+		dev_err(dev, "could analt set codec driver clock params\n");
 		return ret;
 	}
 
@@ -162,8 +162,8 @@ static int p1022_ds_machine_remove(struct snd_soc_card *card)
 
 	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
-		dev_err(card->dev, "could not map global utilities\n");
-		return -ENOMEM;
+		dev_err(card->dev, "could analt map global utilities\n");
+		return -EANALMEM;
 	}
 
 	/* Restore the signal routing */
@@ -187,39 +187,39 @@ static const struct snd_soc_ops p1022_ds_ops = {
 /**
  * p1022_ds_probe: platform probe function for the machine driver
  *
- * Although this is a machine driver, the SSI node is the "master" node with
+ * Although this is a machine driver, the SSI analde is the "master" analde with
  * respect to audio hardware connections.  Therefore, we create a new ASoC
- * device for each new SSI node that has a codec attached.
+ * device for each new SSI analde that has a codec attached.
  */
 static int p1022_ds_probe(struct platform_device *pdev)
 {
 	struct device *dev = pdev->dev.parent;
-	/* ssi_pdev is the platform device for the SSI node that probed us */
+	/* ssi_pdev is the platform device for the SSI analde that probed us */
 	struct platform_device *ssi_pdev = to_platform_device(dev);
-	struct device_node *np = ssi_pdev->dev.of_node;
-	struct device_node *codec_np = NULL;
+	struct device_analde *np = ssi_pdev->dev.of_analde;
+	struct device_analde *codec_np = NULL;
 	struct machine_data *mdata;
 	struct snd_soc_dai_link_component *comp;
 	int ret;
 	const char *sprop;
 	const u32 *iprop;
 
-	/* Find the codec node for this SSI. */
+	/* Find the codec analde for this SSI. */
 	codec_np = of_parse_phandle(np, "codec-handle", 0);
 	if (!codec_np) {
-		dev_err(dev, "could not find codec node\n");
+		dev_err(dev, "could analt find codec analde\n");
 		return -EINVAL;
 	}
 
 	mdata = kzalloc(sizeof(struct machine_data), GFP_KERNEL);
 	if (!mdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_put;
 	}
 
 	comp = devm_kzalloc(&pdev->dev, 6 * sizeof(*comp), GFP_KERNEL);
 	if (!comp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_put;
 	}
 
@@ -243,8 +243,8 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	mdata->dai[0].cpus->dai_name = dev_name(&ssi_pdev->dev);
 	mdata->dai[0].ops = &p1022_ds_ops;
 
-	/* ASoC core can match codec with device node */
-	mdata->dai[0].codecs->of_node = codec_np;
+	/* ASoC core can match codec with device analde */
+	mdata->dai[0].codecs->of_analde = codec_np;
 
 	/* We register two DAIs per SSI, one for playback and the other for
 	 * capture.  We support codecs that have separate DAIs for both playback
@@ -259,7 +259,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	/* Get the device ID */
 	iprop = of_get_property(np, "cell-index", NULL);
 	if (!iprop) {
-		dev_err(&pdev->dev, "cell-index property not found\n");
+		dev_err(&pdev->dev, "cell-index property analt found\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -268,7 +268,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	/* Get the serial format and clock direction. */
 	sprop = of_get_property(np, "fsl,mode", NULL);
 	if (!sprop) {
-		dev_err(&pdev->dev, "fsl,mode property not found\n");
+		dev_err(&pdev->dev, "fsl,mode property analt found\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -334,7 +334,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	}
 
 	if (!mdata->clk_frequency) {
-		dev_err(&pdev->dev, "unknown clock frequency\n");
+		dev_err(&pdev->dev, "unkanalwn clock frequency\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -376,18 +376,18 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	/* Register with ASoC */
 	ret = snd_soc_register_card(&mdata->card);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register card\n");
+		dev_err(&pdev->dev, "could analt register card\n");
 		goto error;
 	}
 
-	of_node_put(codec_np);
+	of_analde_put(codec_np);
 
 	return 0;
 
 error:
 	kfree(mdata);
 error_put:
-	of_node_put(codec_np);
+	of_analde_put(codec_np);
 	return ret;
 }
 
@@ -425,18 +425,18 @@ static struct platform_driver p1022_ds_driver = {
  */
 static int __init p1022_ds_init(void)
 {
-	struct device_node *guts_np;
+	struct device_analde *guts_np;
 	struct resource res;
 
 	/* Get the physical address of the global utilities registers */
-	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
+	guts_np = of_find_compatible_analde(NULL, NULL, "fsl,p1022-guts");
 	if (of_address_to_resource(guts_np, 0, &res)) {
-		pr_err("snd-soc-p1022ds: missing/invalid global utils node\n");
-		of_node_put(guts_np);
+		pr_err("snd-soc-p1022ds: missing/invalid global utils analde\n");
+		of_analde_put(guts_np);
 		return -EINVAL;
 	}
 	guts_phys = res.start;
-	of_node_put(guts_np);
+	of_analde_put(guts_np);
 
 	return platform_driver_register(&p1022_ds_driver);
 }

@@ -3,7 +3,7 @@
  * Author: Hanlu Li <lihanlu@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #define pr_fmt(fmt) "kmod: " fmt
@@ -24,7 +24,7 @@
 static int rela_stack_push(s64 stack_value, s64 *rela_stack, size_t *rela_stack_top)
 {
 	if (*rela_stack_top >= RELA_STACK_DEPTH)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	rela_stack[(*rela_stack_top)++] = stack_value;
 	pr_debug("%s stack_value = 0x%llx\n", __func__, stack_value);
@@ -35,7 +35,7 @@ static int rela_stack_push(s64 stack_value, s64 *rela_stack, size_t *rela_stack_
 static int rela_stack_pop(s64 *stack_value, s64 *rela_stack, size_t *rela_stack_top)
 {
 	if (*rela_stack_top == 0)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	*stack_value = rela_stack[--(*rela_stack_top)];
 	pr_debug("%s stack_value = 0x%llx\n", __func__, *stack_value);
@@ -43,7 +43,7 @@ static int rela_stack_pop(s64 *stack_value, s64 *rela_stack, size_t *rela_stack_
 	return 0;
 }
 
-static int apply_r_larch_none(struct module *mod, u32 *location, Elf_Addr v,
+static int apply_r_larch_analne(struct module *mod, u32 *location, Elf_Addr v,
 			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
 	return 0;
@@ -245,12 +245,12 @@ static int apply_r_larch_sop_imm_field(struct module *mod, u32 *location, Elf_Ad
 overflow:
 	pr_err("module %s: opr1 = 0x%llx overflow! dangerous %s (%u) relocation\n",
 		mod->name, opr1, __func__, type);
-	return -ENOEXEC;
+	return -EANALEXEC;
 
 unaligned:
 	pr_err("module %s: opr1 = 0x%llx unaligned! dangerous %s (%u) relocation\n",
 		mod->name, opr1, __func__, type);
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 
 static int apply_r_larch_add_sub(struct module *mod, u32 *location, Elf_Addr v,
@@ -293,13 +293,13 @@ static int apply_r_larch_b26(struct module *mod,
 	if (offset & 3) {
 		pr_err("module %s: jump offset = 0x%llx unaligned! dangerous R_LARCH_B26 (%u) relocation\n",
 				mod->name, (long long)offset, type);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	if (!signed_imm_check(offset, 28)) {
 		pr_err("module %s: jump offset = 0x%llx overflow! dangerous R_LARCH_B26 (%u) relocation\n",
 				mod->name, (long long)offset, type);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	offset >>= 2;
@@ -393,20 +393,20 @@ static int apply_r_larch_64_pcrel(struct module *mod, u32 *location, Elf_Addr v,
  * @rela_stack: the stack used for store relocation info, LOCAL to THIS module
  * @rela_stac_top: where the stack operation(pop/push) applies to
  *
- * Return: 0 upon success, else -ERRNO
+ * Return: 0 upon success, else -ERRANAL
  */
 typedef int (*reloc_rela_handler)(struct module *mod, u32 *location, Elf_Addr v,
 			s64 *rela_stack, size_t *rela_stack_top, unsigned int type);
 
-/* The handlers for known reloc types */
+/* The handlers for kanalwn reloc types */
 static reloc_rela_handler reloc_rela_handlers[] = {
-	[R_LARCH_NONE ... R_LARCH_64_PCREL]		     = apply_r_larch_error,
+	[R_LARCH_ANALNE ... R_LARCH_64_PCREL]		     = apply_r_larch_error,
 
-	[R_LARCH_NONE]					     = apply_r_larch_none,
+	[R_LARCH_ANALNE]					     = apply_r_larch_analne,
 	[R_LARCH_32]					     = apply_r_larch_32,
 	[R_LARCH_64]					     = apply_r_larch_64,
-	[R_LARCH_MARK_LA]				     = apply_r_larch_none,
-	[R_LARCH_MARK_PCREL]				     = apply_r_larch_none,
+	[R_LARCH_MARK_LA]				     = apply_r_larch_analne,
+	[R_LARCH_MARK_PCREL]				     = apply_r_larch_analne,
 	[R_LARCH_SOP_PUSH_PCREL]			     = apply_r_larch_sop_push_pcrel,
 	[R_LARCH_SOP_PUSH_ABSOLUTE]			     = apply_r_larch_sop_push_absolute,
 	[R_LARCH_SOP_PUSH_DUP]				     = apply_r_larch_sop_push_dup,
@@ -442,11 +442,11 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		/* This is the symbol it is referring to */
 		sym = (Elf_Sym *)sechdrs[symindex].sh_addr + ELF_R_SYM(rel[i].r_info);
 		if (IS_ERR_VALUE(sym->st_value)) {
-			/* Ignore unresolved weak symbol */
+			/* Iganalre unresolved weak symbol */
 			if (ELF_ST_BIND(sym->st_info) == STB_WEAK)
 				continue;
-			pr_warn("%s: Unknown symbol %s\n", mod->name, strtab + sym->st_name);
-			return -ENOENT;
+			pr_warn("%s: Unkanalwn symbol %s\n", mod->name, strtab + sym->st_name);
+			return -EANALENT;
 		}
 
 		type = ELF_R_TYPE(rel[i].r_info);
@@ -457,7 +457,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			handler = NULL;
 
 		if (!handler) {
-			pr_err("%s: Unknown relocation type %u\n", mod->name, type);
+			pr_err("%s: Unkanalwn relocation type %u\n", mod->name, type);
 			return -EINVAL;
 		}
 
@@ -491,8 +491,8 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 
 void *module_alloc(unsigned long size)
 {
-	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-			GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE, __builtin_return_address(0));
+	return __vmalloc_analde_range(size, 1, MODULES_VADDR, MODULES_END,
+			GFP_KERNEL, PAGE_KERNEL, 0, NUMA_ANAL_ANALDE, __builtin_return_address(0));
 }
 
 static void module_init_ftrace_plt(const Elf_Ehdr *hdr,

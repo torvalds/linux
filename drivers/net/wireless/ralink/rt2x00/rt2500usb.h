@@ -66,7 +66,7 @@
 
 /*
  * MAC_CSR1: System control.
- * SOFT_RESET: Software reset, 1: reset, 0: normal.
+ * SOFT_RESET: Software reset, 1: reset, 0: analrmal.
  * BBP_RESET: Hardware reset, 1: reset, 0, release.
  * HOST_READY: Host ready after initialization.
  */
@@ -250,7 +250,7 @@
  * DROP_CRC: Drop crc error.
  * DROP_PHYSICAL: Drop physical error.
  * DROP_CONTROL: Drop control frame.
- * DROP_NOT_TO_ME: Drop not to me unicast frame.
+ * DROP_ANALT_TO_ME: Drop analt to me unicast frame.
  * DROP_TODS: Drop frame tods bit is true.
  * DROP_VERSION_ERROR: Drop version error frame.
  * DROP_MCAST: Drop multicast frames.
@@ -261,7 +261,7 @@
 #define TXRX_CSR2_DROP_CRC		FIELD16(0x0002)
 #define TXRX_CSR2_DROP_PHYSICAL		FIELD16(0x0004)
 #define TXRX_CSR2_DROP_CONTROL		FIELD16(0x0008)
-#define TXRX_CSR2_DROP_NOT_TO_ME	FIELD16(0x0010)
+#define TXRX_CSR2_DROP_ANALT_TO_ME	FIELD16(0x0010)
 #define TXRX_CSR2_DROP_TODS		FIELD16(0x0020)
 #define TXRX_CSR2_DROP_VERSION_ERROR	FIELD16(0x0040)
 #define TXRX_CSR2_DROP_MULTICAST	FIELD16(0x0200)
@@ -475,7 +475,7 @@
 
 /*
  * PHY_CSR2: TX MAC configuration.
- * NOTE: Both register fields are complete dummy,
+ * ANALTE: Both register fields are complete dummy,
  * documentation and legacy drivers are unclear un
  * what this register means or what fields exists.
  */
@@ -647,7 +647,7 @@
  * ANTENNA_NUM: Number of antenna's.
  * TX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * RX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
- * LED_MODE: 0: default, 1: TX/RX activity, 2: Single (ignore link), 3: rsvd.
+ * LED_MODE: 0: default, 1: TX/RX activity, 2: Single (iganalre link), 3: rsvd.
  * DYN_TXAGC: Dynamic TX AGC control.
  * HARDWARE_RADIO: 1: Hardware controlled radio. Read GPIO0.
  * RF_TYPE: Rf_type of this adapter.

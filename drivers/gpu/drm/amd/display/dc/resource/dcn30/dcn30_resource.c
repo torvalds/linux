@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -709,7 +709,7 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
-	.disable_dmcu = true, //No DMCU on DCN30
+	.disable_dmcu = true, //Anal DMCU on DCN30
 	.force_abm_enable = false,
 	.timing_trace = false,
 	.clock_trace = true,
@@ -1409,7 +1409,7 @@ void dcn30_set_mcif_arb_params(
 			DC_FP_END();
 			wb_arb_params->time_per_pixel = (1000000 << 6) / context->res_ctx.pipe_ctx[i].stream->phy_pix_clk; /* time_per_pixel should be in u6.6 format */
 			wb_arb_params->slice_lines = 32;
-			wb_arb_params->arbitration_slice = 2; /* irrelevant since there is no YUV output */
+			wb_arb_params->arbitration_slice = 2; /* irrelevant since there is anal YUV output */
 			wb_arb_params->max_scaled_time = dcn30_calc_max_scaled_time(wb_arb_params->time_per_pixel,
 					wbif_mode,
 					wb_arb_params->cli_watermark[0]); /* assume 4 watermark sets have the same value */
@@ -1506,7 +1506,7 @@ static bool init_soc_bounding_box(struct dc *dc,
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!is_soc_bounding_box_valid(dc)) {
-		DC_LOG_ERROR("%s: not valid soc bounding box\n", __func__);
+		DC_LOG_ERROR("%s: analt valid soc bounding box\n", __func__);
 		return false;
 	}
 
@@ -1609,7 +1609,7 @@ static struct pipe_ctx *dcn30_find_split_pipe(
 		}
 
 	/*
-	 * May need to fix pipes getting tossed from 1 opp to another on flip
+	 * May need to fix pipes getting tossed from 1 opp to aanalther on flip
 	 * Add for debugging transient underflow during topology updates:
 	 * ASSERT(pipe);
 	 */
@@ -1625,7 +1625,7 @@ static struct pipe_ctx *dcn30_find_split_pipe(
 	return pipe;
 }
 
-noinline bool dcn30_internal_validate_bw(
+analinline bool dcn30_internal_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -1676,7 +1676,7 @@ noinline bool dcn30_internal_validate_bw(
 	    (fast_validate || vlevel == context->bw_ctx.dml.soc.num_states ||
 			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported)) {
 		/*
-		 * If mode is unsupported or there's still no p-state support
+		 * If mode is unsupported or there's still anal p-state support
 		 * then fall back to favoring voltage.
 		 *
 		 * We don't actually support prefetch mode 2, so require that we
@@ -1729,7 +1729,7 @@ noinline bool dcn30_internal_validate_bw(
 		if (!merge[i])
 			continue;
 
-		/* if ODM merge we ignore mpc tree, mpo pipes will have their own flags */
+		/* if ODM merge we iganalre mpc tree, mpo pipes will have their own flags */
 		if (pipe->prev_odm_pipe) {
 			/*split off odm pipe*/
 			pipe->prev_odm_pipe->next_odm_pipe = pipe->next_odm_pipe;
@@ -1910,7 +1910,7 @@ static int get_refresh_rate(struct dc_state *context)
 /*
  * Scaling factor for v_blank stretch calculations considering timing in
  * micro-seconds and pixel clock in 100hz.
- * Note: the parenthesis are necessary to ensure the correct order of
+ * Analte: the parenthesis are necessary to ensure the correct order of
  * operation where V_SCALE is used.
  */
 #define V_SCALE (10000 / MAX_STRETCHED_V_BLANK)
@@ -2232,7 +2232,7 @@ static const struct resource_funcs dcn30_res_pool_funcs = {
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn30_update_bw_bounding_box,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn20_patch_unkanalwn_plane_state,
 	.get_panel_config_defaults = dcn30_get_panel_config_defaults,
 };
 
@@ -2279,12 +2279,12 @@ static bool dcn30_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 	pool->base.mpcc_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;
 	dc->caps.i2c_speed_in_khz = 100;
-	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a analt applied by default*/
 	dc->caps.max_cursor_size = 256;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
@@ -2317,7 +2317,7 @@ static bool dcn30_resource_construct(
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
-	// no OGAM ROM on DCN3
+	// anal OGAM ROM on DCN3
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -2397,7 +2397,7 @@ static bool dcn30_resource_construct(
 
 	pool->base.clk_src_count = DCN30_CLK_SRC_TOTAL;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn30_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,

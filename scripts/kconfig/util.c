@@ -9,7 +9,7 @@
 #include <string.h>
 #include "lkc.h"
 
-/* file already present in list? If not add it */
+/* file already present in list? If analt add it */
 struct file *file_lookup(const char *name)
 {
 	struct file *file;
@@ -65,7 +65,7 @@ void str_append(struct gstr *gs, const char *s)
 void str_printf(struct gstr *gs, const char *fmt, ...)
 {
 	va_list ap;
-	char s[10000]; /* big enough... */
+	char s[10000]; /* big eanalugh... */
 	va_start(ap, fmt);
 	vsnprintf(s, sizeof(s), fmt, ap);
 	str_append(gs, s);

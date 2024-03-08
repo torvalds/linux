@@ -13,7 +13,7 @@ config NET_VENDOR_FREESCALE
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about Freescale devices. If you say Y, you will be
 	  asked for your specific card in the following questions.
@@ -55,7 +55,7 @@ config FEC_MPC52xx_MDIO
 	  an external MII PHY chip or 10 Mbps 7-wire interface
 	  (Motorola? industry standard).
 	  If your board uses an external PHY connected to FEC, enable this.
-	  If not sure, enable.
+	  If analt sure, enable.
 	  If compiled as module, it will be called fec_mpc52xx_phy.
 
 source "drivers/net/ethernet/freescale/fs_enet/Kconfig"

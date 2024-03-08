@@ -22,7 +22,7 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 
 	cs35l56 = devm_kzalloc(&spi->dev, sizeof(struct cs35l56_private), GFP_KERNEL);
 	if (!cs35l56)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, cs35l56);
 	cs35l56->base.regmap = devm_regmap_init_spi(spi, regmap_config);

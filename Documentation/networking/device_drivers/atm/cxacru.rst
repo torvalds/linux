@@ -10,8 +10,8 @@ While it is capable of managing/maintaining the ADSL connection without the
 module loaded, the device will sometimes stop responding after unloading the
 driver and it is necessary to unplug/remove power to the device to fix this.
 
-Note: support for cxacru-cf.bin has been removed. It was not loaded correctly
-so it had no effect on the device configuration. Fixing it could have stopped
+Analte: support for cxacru-cf.bin has been removed. It was analt loaded correctly
+so it had anal effect on the device configuration. Fixing it could have stopped
 existing devices working when an invalid configuration is supplied.
 
 There is a script cxacru-cf.py to convert an existing file to the sysfs form.
@@ -81,11 +81,11 @@ several sysfs attribute files for retrieving device statistics:
 	 - "up"
 
 	Changes between "down" and "attempting to activate"
-	if there is no signal.
+	if there is anal signal.
 
 * link_status
 
-	 - "not connected"
+	 - "analt connected"
 	 - "connected"
 	 - "lost"
 
@@ -93,7 +93,7 @@ several sysfs attribute files for retrieving device statistics:
 
 * modulation
 
-	 - "" (when not connected)
+	 - "" (when analt connected)
 	 - "ANSI T1.413"
 	 - "ITU-T G.992.1 (G.DMT)"
 	 - "ITU-T G.992.2 (G.LITE)"

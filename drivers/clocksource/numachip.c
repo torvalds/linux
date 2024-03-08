@@ -14,7 +14,7 @@ static DEFINE_PER_CPU(struct clock_event_device, numachip2_ced);
 
 static cycles_t numachip2_timer_read(struct clocksource *cs)
 {
-	return numachip2_read64_lcsr(NUMACHIP2_TIMER_NOW);
+	return numachip2_read64_lcsr(NUMACHIP2_TIMER_ANALW);
 }
 
 static struct clocksource numachip2_clocksource = {
@@ -72,7 +72,7 @@ static __init void numachip_timer_each(struct work_struct *work)
 static int __init numachip_timer_init(void)
 {
 	if (numachip_system != 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Reset timer */
 	numachip2_write64_lcsr(NUMACHIP2_TIMER_RESET, 0);

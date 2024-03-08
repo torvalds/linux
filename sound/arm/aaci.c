@@ -30,7 +30,7 @@
 #define FRAME_PERIOD_US	21
 
 /*
- * PM support is not complete.  Turn it off.
+ * PM support is analt complete.  Turn it off.
  */
 #undef CONFIG_PM
 
@@ -138,7 +138,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 		goto out;
 	}
 
-	/* Now wait for the response frame */
+	/* Analw wait for the response frame */
 	udelay(FRAME_PERIOD_US);
 
 	/* And then wait an additional eight frame periods for data */
@@ -337,7 +337,7 @@ static irqreturn_t aaci_irq(int irq, void *devid)
 		}
 	}
 
-	return mask ? IRQ_HANDLED : IRQ_NONE;
+	return mask ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 
@@ -370,7 +370,7 @@ static const struct snd_pcm_hardware aaci_hw_info = {
 
 /*
  * We can support two and four channel audio.  Unfortunately
- * six channel audio requires a non-standard channel ordering:
+ * six channel audio requires a analn-standard channel ordering:
  *   2 -> FL(3), FR(4)
  *   4 -> FL(3), FR(4), SL(7), SR(8)
  *   6 -> FL(3), FR(4), SL(7), SR(8), C(6), LFE(9) (required)
@@ -433,7 +433,7 @@ static int aaci_pcm_open(struct snd_pcm_substream *substream)
 	/*
 	 * ALSA wants the byte-size of the FIFOs.  As we only support
 	 * 16-bit samples, this is twice the FIFO depth irrespective
-	 * of whether it's in compact mode or not.
+	 * of whether it's in compact mode or analt.
 	 */
 	runtime->hw.fifo_size = aaci->fifo_depth * 2;
 
@@ -475,7 +475,7 @@ static int aaci_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
 
 	/*
-	 * This must not be called with the device enabled.
+	 * This must analt be called with the device enabled.
 	 */
 	WARN_ON(aacirun->cr & CR_EN);
 
@@ -831,7 +831,7 @@ static int aaci_probe_ac97(struct aaci *aaci)
 	writel(RESET_NRST, aaci->base + AACI_RESET);
 
 	/*
-	 * Give the AC'97 codec more than enough time
+	 * Give the AC'97 codec more than eanalugh time
 	 * to wake up. (42us = ~2 frames at 48kHz.)
 	 */
 	udelay(FRAME_PERIOD_US * 2);
@@ -981,13 +981,13 @@ static int aaci_probe(struct amba_device *dev,
 
 	aaci = aaci_init_card(dev);
 	if (!aaci) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	aaci->base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!aaci->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1030,9 +1030,9 @@ static int aaci_probe(struct amba_device *dev,
 	 */
 	aaci->fifo_depth = aaci_size_fifo(aaci);
 	if (aaci->fifo_depth & 15) {
-		printk(KERN_WARNING "AACI: FIFO depth %d not supported\n",
+		printk(KERN_WARNING "AACI: FIFO depth %d analt supported\n",
 		       aaci->fifo_depth);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 

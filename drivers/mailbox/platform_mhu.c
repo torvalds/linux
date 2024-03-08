@@ -52,7 +52,7 @@ static irqreturn_t platform_mhu_rx_interrupt(int irq, void *p)
 
 	val = readl_relaxed(mlink->rx_reg + INTR_STAT_OFS);
 	if (!val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	mbox_chan_received_data(chan, (void *)&val);
 
@@ -125,7 +125,7 @@ static int platform_mhu_probe(struct platform_device *pdev)
 	/* Allocate memory for device */
 	mhu = devm_kzalloc(dev, sizeof(*mhu), GFP_KERNEL);
 	if (!mhu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mhu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mhu->base)) {

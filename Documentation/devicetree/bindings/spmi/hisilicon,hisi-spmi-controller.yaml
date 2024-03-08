@@ -21,7 +21,7 @@ allOf:
 
 properties:
 
-  $nodename:
+  $analdename:
     pattern: "spmi@[0-9a-f]"
 
   compatible:

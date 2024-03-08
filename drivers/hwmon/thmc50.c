@@ -20,7 +20,7 @@
 MODULE_LICENSE("GPL");
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
 enum chips { thmc50, adm1022 };
@@ -39,8 +39,8 @@ MODULE_PARM_DESC(adm1022_temp3,
 #define THMC50_REG_DIE_CODE			0x3F
 #define THMC50_REG_ANALOG_OUT			0x19
 /*
- * The mirror status register cannot be used as
- * reading it does not clear alarms.
+ * The mirror status register cananalt be used as
+ * reading it does analt clear alarms.
  */
 #define THMC50_REG_INTR				0x41
 
@@ -50,7 +50,7 @@ static const u8 THMC50_REG_TEMP_MAX[] = { 0x39, 0x37, 0x2B };
 static const u8 THMC50_REG_TEMP_CRITICAL[] = { 0x13, 0x14, 0x14 };
 static const u8 THMC50_REG_TEMP_DEFAULT[] = { 0x17, 0x18, 0x18 };
 
-#define THMC50_REG_CONF_nFANOFF			0x20
+#define THMC50_REG_CONF_nFAANALFF			0x20
 #define THMC50_REG_CONF_PROGRAMMED		0x08
 
 /* Each client has this additional data */
@@ -143,9 +143,9 @@ static ssize_t analog_out_store(struct device *dev,
 
 	config = i2c_smbus_read_byte_data(client, THMC50_REG_CONF);
 	if (data->analog_out == 0)
-		config &= ~THMC50_REG_CONF_nFANOFF;
+		config &= ~THMC50_REG_CONF_nFAANALFF;
 	else
-		config |= THMC50_REG_CONF_nFANOFF;
+		config |= THMC50_REG_CONF_nFAANALFF;
 	i2c_smbus_write_byte_data(client, THMC50_REG_CONF, config);
 
 	mutex_unlock(&data->update_lock);
@@ -303,7 +303,7 @@ static const struct attribute_group temp3_group = {
 	.attrs = temp3_attributes,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int thmc50_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
@@ -314,8 +314,8 @@ static int thmc50_detect(struct i2c_client *client,
 	const char *type_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("thmc50: detect failed, smbus byte data not supported!\n");
-		return -ENODEV;
+		pr_debug("thmc50: detect failed, smbus byte data analt supported!\n");
+		return -EANALDEV;
 	}
 
 	pr_debug("thmc50: Probing for THMC50 at 0x%2X on bus %d\n",
@@ -325,7 +325,7 @@ static int thmc50_detect(struct i2c_client *client,
 	revision = i2c_smbus_read_byte_data(client, THMC50_REG_DIE_CODE);
 	config = i2c_smbus_read_byte_data(client, THMC50_REG_CONF);
 	if (revision < 0xc0 || (config & 0x10))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (company == 0x41) {
 		int id = i2c_adapter_id(client->adapter);
@@ -346,7 +346,7 @@ static int thmc50_detect(struct i2c_client *client,
 		type_name = "thmc50";
 	} else {
 		pr_debug("thmc50: Detection of THMC50/ADM1022 failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pr_debug("thmc50: Detected %s (version %x, revision %x)\n",
@@ -388,7 +388,7 @@ static int thmc50_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct thmc50_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	data->type = i2c_match_id(thmc50_id, client)->driver_data;
@@ -423,7 +423,7 @@ static struct i2c_driver thmc50_driver = {
 	.probe = thmc50_probe,
 	.id_table = thmc50_id,
 	.detect = thmc50_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 };
 
 module_i2c_driver(thmc50_driver);

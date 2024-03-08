@@ -24,11 +24,11 @@ properties:
   compatible:
     enum:
       - qcom,msm8916-bimc
-      - qcom,msm8916-pcnoc
-      - qcom,msm8916-snoc
+      - qcom,msm8916-pcanalc
+      - qcom,msm8916-sanalc
       - qcom,qcs404-bimc
-      - qcom,qcs404-pcnoc
-      - qcom,qcs404-snoc
+      - qcom,qcs404-pcanalc
+      - qcom,qcs404-sanalc
 
 required:
   - compatible

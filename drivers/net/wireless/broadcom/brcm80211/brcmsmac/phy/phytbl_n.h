@@ -26,13 +26,13 @@ extern const u32 mimophytbl_info_sz_rev3,
 		 mimophytbl_info_sz_rev3_volatile2,
 		 mimophytbl_info_sz_rev3_volatile3;
 
-extern const u32 noise_var_tbl_rev3[];
+extern const u32 analise_var_tbl_rev3[];
 
 extern const struct phytbl_info mimophytbl_info_rev7[];
 
 extern const u32 mimophytbl_info_sz_rev7;
 
-extern const u32 noise_var_tbl_rev7[];
+extern const u32 analise_var_tbl_rev7[];
 
 extern const struct phytbl_info mimophytbl_info_rev16[];
 

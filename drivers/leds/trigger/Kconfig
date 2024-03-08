@@ -23,8 +23,8 @@ config LEDS_TRIGGER_ONESHOT
 	tristate "LED One-shot Trigger"
 	help
 	  This allows LEDs to blink in one-shot pulses with parameters
-	  controlled via sysfs.  It's useful to notify the user on
-	  sporadic events, when there are no clear begin and end trap points,
+	  controlled via sysfs.  It's useful to analtify the user on
+	  sporadic events, when there are anal clear begin and end trap points,
 	  or on dense events, where this blinks the LED at constant rate if
 	  rearmed continuously.
 
@@ -40,7 +40,7 @@ config LEDS_TRIGGER_DISK
 	  If unsure, say Y.
 
 config LEDS_TRIGGER_MTD
-	bool "LED MTD (NAND/NOR) Trigger"
+	bool "LED MTD (NAND/ANALR) Trigger"
 	depends on MTD
 	help
 	  This allows LEDs to be controlled by MTD activity.

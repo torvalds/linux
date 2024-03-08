@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -95,7 +95,7 @@ void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
 
 	if (intel_de_wait_for_set(dev_priv, MIPI_GEN_FIFO_STAT(port),
 				  mask, 100))
-		drm_err(&dev_priv->drm, "DPI FIFOs are not empty\n");
+		drm_err(&dev_priv->drm, "DPI FIFOs are analt empty\n");
 }
 
 static void write_data(struct drm_i915_private *dev_priv,
@@ -159,7 +159,7 @@ static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
 		ctrl_mask = HS_CTRL_FIFO_FULL;
 	}
 
-	/* note: this is never true for reads */
+	/* analte: this is never true for reads */
 	if (packet.payload_length) {
 		if (intel_de_wait_for_clear(dev_priv, MIPI_GEN_FIFO_STAT(port),
 					    data_mask, 50))
@@ -335,7 +335,7 @@ static bool glk_dsi_enable_io(struct intel_encoder *encoder)
 	bool cold_boot = false;
 
 	/* Set the MIPI mode
-	 * If MIPI_Mode is off, then writing to LP_Wake bit is not reflecting.
+	 * If MIPI_Mode is off, then writing to LP_Wake bit is analt reflecting.
 	 * Power ON MIPI IO first and then write into IO reset and LP wake bits
 	 */
 	for_each_dsi_port(port, intel_dsi->ports)
@@ -377,7 +377,7 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_set(dev_priv, MIPI_CTRL(port),
 					  GLK_PHY_STATUS_PORT_READY, 20))
-			drm_err(&dev_priv->drm, "PHY is not ON\n");
+			drm_err(&dev_priv->drm, "PHY is analt ON\n");
 	}
 
 	/* Get IO out of reset */
@@ -396,17 +396,17 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 
 			/* Wait for ULPS active */
 			if (intel_de_wait_for_clear(dev_priv, MIPI_CTRL(port),
-						    GLK_ULPS_NOT_ACTIVE, 20))
-				drm_err(&dev_priv->drm, "ULPS not active\n");
+						    GLK_ULPS_ANALT_ACTIVE, 20))
+				drm_err(&dev_priv->drm, "ULPS analt active\n");
 
 			/* Exit ULPS */
 			intel_de_rmw(dev_priv, MIPI_DEVICE_READY(port),
 				     ULPS_STATE_MASK, ULPS_STATE_EXIT | DEVICE_READY);
 
-			/* Enter Normal Mode */
+			/* Enter Analrmal Mode */
 			intel_de_rmw(dev_priv, MIPI_DEVICE_READY(port),
 				     ULPS_STATE_MASK,
-				     ULPS_STATE_NORMAL_OPERATION | DEVICE_READY);
+				     ULPS_STATE_ANALRMAL_OPERATION | DEVICE_READY);
 
 			intel_de_rmw(dev_priv, MIPI_CTRL(port), GLK_LP_WAKE, 0);
 		}
@@ -417,7 +417,7 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 		if (intel_de_wait_for_set(dev_priv, MIPI_CTRL(port),
 					  GLK_DATA_LANE_STOP_STATE, 20))
 			drm_err(&dev_priv->drm,
-				"Date lane not in STOP state\n");
+				"Date lane analt in STOP state\n");
 	}
 
 	/* Wait for AFE LATCH */
@@ -425,7 +425,7 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 		if (intel_de_wait_for_set(dev_priv, BXT_MIPI_PORT_CTRL(port),
 					  AFE_LATCHOUT, 20))
 			drm_err(&dev_priv->drm,
-				"D-PHY not entering LP-11 state\n");
+				"D-PHY analt entering LP-11 state\n");
 	}
 }
 
@@ -480,7 +480,7 @@ static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 
 		/* Enable MIPI PHY transparent latch
 		 * Common bit for both MIPI Port A & MIPI Port C
-		 * No similar bit in MIPI Port C reg
+		 * Anal similar bit in MIPI Port C reg
 		 */
 		intel_de_rmw(dev_priv, MIPI_PORT_CTRL(PORT_A), 0, LP_OUTPUT_HOLD);
 		usleep_range(1000, 1500);
@@ -522,7 +522,7 @@ static void glk_dsi_enter_low_power_mode(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_clear(dev_priv, MIPI_CTRL(port),
 					    GLK_PHY_STATUS_PORT_READY, 20))
-			drm_err(&dev_priv->drm, "PHY is not turning OFF\n");
+			drm_err(&dev_priv->drm, "PHY is analt turning OFF\n");
 	}
 
 	/* Wait for Pwr ACK bit to unset */
@@ -530,7 +530,7 @@ static void glk_dsi_enter_low_power_mode(struct intel_encoder *encoder)
 		if (intel_de_wait_for_clear(dev_priv, MIPI_CTRL(port),
 					    GLK_MIPIIO_PORT_POWERED, 20))
 			drm_err(&dev_priv->drm,
-				"MIPI IO Port is not powergated\n");
+				"MIPI IO Port is analt powergated\n");
 	}
 }
 
@@ -547,7 +547,7 @@ static void glk_dsi_disable_mipi_io(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_clear(dev_priv, MIPI_CTRL(port),
 					    GLK_PHY_STATUS_PORT_READY, 20))
-			drm_err(&dev_priv->drm, "PHY is not turning OFF\n");
+			drm_err(&dev_priv->drm, "PHY is analt turning OFF\n");
 	}
 
 	/* Clear MIPI mode */
@@ -593,12 +593,12 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 
 		/*
 		 * On VLV/CHV, wait till Clock lanes are in LP-00 state for MIPI
-		 * Port A only. MIPI Port C has no similar bit for checking.
+		 * Port A only. MIPI Port C has anal similar bit for checking.
 		 */
 		if ((IS_BROXTON(dev_priv) || port == PORT_A) &&
 		    intel_de_wait_for_clear(dev_priv, port_ctrl,
 					    AFE_LATCHOUT, 30))
-			drm_err(&dev_priv->drm, "DSI LP not going Low\n");
+			drm_err(&dev_priv->drm, "DSI LP analt going Low\n");
 
 		/* Disable MIPI PHY transparent latch */
 		intel_de_rmw(dev_priv, port_ctrl, LP_OUTPUT_HOLD, 0);
@@ -683,11 +683,11 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
 /*
  * Panel enable/disable sequences from the VBT spec.
  *
- * Note the spec has AssertReset / DeassertReset swapped from their
- * usual naming. We use the normal names to avoid confusion (so below
+ * Analte the spec has AssertReset / DeassertReset swapped from their
+ * usual naming. We use the analrmal names to avoid confusion (so below
  * they are swapped compared to the spec).
  *
- * Steps starting with MIPI refer to VBT sequences, note that for v2
+ * Steps starting with MIPI refer to VBT sequences, analte that for v2
  * VBTs several steps which have a VBT in v2 are expected to be handled
  * directly by the driver, by directly driving gpios for example.
  *
@@ -785,7 +785,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 	/* Put device in ready state (LP-11) */
 	intel_dsi_device_ready(encoder);
 
-	/* Prepare port in normal boot scenario */
+	/* Prepare port in analrmal boot scenario */
 	if (IS_GEMINILAKE(dev_priv) && !glk_cold_boot)
 		intel_dsi_prepare(encoder, pipe_config);
 
@@ -951,7 +951,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	/*
 	 * On Broxton the PLL needs to be enabled with a valid divider
 	 * configuration, otherwise accessing DSI registers will hang the
-	 * machine. See BSpec North Display Engine registers/MIPI[BXT].
+	 * machine. See BSpec Analrth Display Engine registers/MIPI[BXT].
 	 */
 	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
 	    !bxt_dsi_pll_is_enabled(dev_priv))
@@ -964,14 +964,14 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 
 		/*
 		 * Due to some hardware limitations on VLV/CHV, the DPI enable
-		 * bit in port C control register does not get set. As a
+		 * bit in port C control register does analt get set. As a
 		 * workaround, check pipe B conf instead.
 		 */
 		if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 		    port == PORT_C)
 			enabled = intel_de_read(dev_priv, TRANSCONF(PIPE_B)) & TRANSCONF_ENABLE;
 
-		/* Try command mode if video mode not enabled */
+		/* Try command mode if video mode analt enabled */
 		if (!enabled) {
 			u32 tmp = intel_de_read(dev_priv,
 						MIPI_DSI_FUNC_PRG(port));
@@ -1025,7 +1025,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	u16 crtc_htotal_sw, crtc_hsync_start_sw, crtc_hsync_end_sw,
 				crtc_hblank_start_sw, crtc_hblank_end_sw;
 
-	/* FIXME: hw readout should not depend on SW state */
+	/* FIXME: hw readout should analt depend on SW state */
 	adjusted_mode_sw = &crtc->config->hw.adjusted_mode;
 
 	/*
@@ -1062,8 +1062,8 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	hfp = intel_de_read(dev_priv, MIPI_HFP_COUNT(port));
 
 	/*
-	 * Meaningful for video mode non-burst sync pulse mode only,
-	 * can be zero for non-burst sync events and burst modes
+	 * Meaningful for video mode analn-burst sync pulse mode only,
+	 * can be zero for analn-burst sync events and burst modes
 	 */
 	hsync = intel_de_read(dev_priv, MIPI_HSYNC_PADDING_COUNT(port));
 	hbp = intel_de_read(dev_priv, MIPI_HBP_COUNT(port));
@@ -1098,7 +1098,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal;
 
 	/*
-	 * In BXT DSI there is no regs programmed with few horizontal timings
+	 * In BXT DSI there is anal regs programmed with few horizontal timings
 	 * in Pixels but txbyteclkhs.. So retrieval process adds some
 	 * ROUND_UP ERRORS in the process of PIXELS<==>txbyteclkhs.
 	 * Actually here for the given adjusted_mode, we are calculating the
@@ -1190,7 +1190,7 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 
 	pipe_config->port_clock = pclk;
 
-	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+	/* FIXME definitely analt right for burst/cmd mode/pixel overlap */
 	pipe_config->hw.adjusted_mode.crtc_clock = pclk;
 	if (intel_dsi->dual_link)
 		pipe_config->hw.adjusted_mode.crtc_clock *= 2;
@@ -1268,8 +1268,8 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 			       hactive);
 		intel_de_write(dev_priv, MIPI_HFP_COUNT(port), hfp);
 
-		/* meaningful for video mode non-burst sync pulse mode only,
-		 * can be zero for non-burst sync events and burst modes */
+		/* meaningful for video mode analn-burst sync pulse mode only,
+		 * can be zero for analn-burst sync events and burst modes */
 		intel_de_write(dev_priv, MIPI_HSYNC_PADDING_COUNT(port),
 			       hsync);
 		intel_de_write(dev_priv, MIPI_HBP_COUNT(port), hbp);
@@ -1391,7 +1391,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		 * clock (txbyteclkhs) To timeout this timer 1+ of the above
 		 * said value is recommended.
 		 *
-		 * In non-burst mode, Value greater than one DPI frame time in
+		 * In analn-burst mode, Value greater than one DPI frame time in
 		 * byte clock(txbyteclkhs) To timeout this timer 1+ of the above
 		 * said value is recommended.
 		 *
@@ -1427,7 +1427,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			 * BXT spec says write MIPI_INIT_COUNT for
 			 * both the ports, even if only one is
 			 * getting used. So write the other port
-			 * if not in dual link mode.
+			 * if analt in dual link mode.
 			 */
 			intel_de_write(dev_priv,
 				       MIPI_INIT_COUNT(port == PORT_A ? PORT_C : PORT_A),
@@ -1481,7 +1481,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			u32 fmt = intel_dsi->video_frmt_cfg_bits | IP_TG_CONFIG;
 
 			/*
-			 * Some panels might have resolution which is not a
+			 * Some panels might have resolution which is analt a
 			 * multiple of 64 like 1366 x 768. Enable RANDOM
 			 * resolution support for such panels by default.
 			 */
@@ -1491,11 +1491,11 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			default:
 				MISSING_CASE(intel_dsi->video_mode);
 				fallthrough;
-			case NON_BURST_SYNC_EVENTS:
-				fmt |= VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS;
+			case ANALN_BURST_SYNC_EVENTS:
+				fmt |= VIDEO_MODE_ANALN_BURST_WITH_SYNC_EVENTS;
 				break;
-			case NON_BURST_SYNC_PULSE:
-				fmt |= VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE;
+			case ANALN_BURST_SYNC_PULSE:
+				fmt |= VIDEO_MODE_ANALN_BURST_WITH_SYNC_PULSE;
 				break;
 			case BURST_MODE:
 				fmt |= VIDEO_MODE_BURST;
@@ -1715,7 +1715,7 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 
 	/* B044 */
 	/* FIXME:
-	 * The comment above does not match with the code */
+	 * The comment above does analt match with the code */
 	lp_to_hs_switch = DIV_ROUND_UP(4 * tlpx_ui + prepare_cnt * mul +
 						exit_zero_cnt * mul + 10, 8);
 
@@ -1761,7 +1761,7 @@ typedef void (*vlv_dsi_dmi_quirk_func)(struct intel_dsi *intel_dsi);
 /*
  * Vtotal is wrong on the Asus TF103C leading to the last line of the display
  * being shown as the first line. The factory installed Android has a hardcoded
- * modeline, causing it to not suffer from this BIOS bug.
+ * modeline, causing it to analt suffer from this BIOS bug.
  *
  * Original mode: "1280x800": 60 67700 1280 1312 1328 1376 800 808 812 820 0x8 0xa
  * Fixed    mode: "1280x800": 60 67700 1280 1312 1328 1376 800 808 812 816 0x8 0xa
@@ -1779,12 +1779,12 @@ static void vlv_dsi_asus_tf103c_mode_fixup(struct intel_dsi *intel_dsi)
 }
 
 /*
- * On the Lenovo Yoga Tablet 2 830 / 1050 there are 2 problems:
+ * On the Leanalvo Yoga Tablet 2 830 / 1050 there are 2 problems:
  * 1. The I2C MIPI sequence elements reference bus 3. ACPI has I2C1 - I2C7
  *    which under Linux become bus 0 - 6. And the MIPI sequence reference
  *    to bus 3 is indented for I2C3 which is bus 2 under Linux.
  *
- *    Note mipi_exec_i2c() cannot just subtract 1 from the bus
+ *    Analte mipi_exec_i2c() cananalt just subtract 1 from the bus
  *    given in the I2C MIPI sequence element. Since on other
  *    devices the I2C bus-numbers used in the MIPI sequences do
  *    actually start at 0.
@@ -1795,7 +1795,7 @@ static void vlv_dsi_asus_tf103c_mode_fixup(struct intel_dsi *intel_dsi)
  *
  * https://gitlab.freedesktop.org/drm/intel/-/issues/9379
  */
-static void vlv_dsi_lenovo_yoga_tab2_size_fixup(struct intel_dsi *intel_dsi)
+static void vlv_dsi_leanalvo_yoga_tab2_size_fixup(struct intel_dsi *intel_dsi)
 {
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_preferred_fixed_mode(intel_dsi->attached_connector);
@@ -1817,15 +1817,15 @@ static void vlv_dsi_lenovo_yoga_tab2_size_fixup(struct intel_dsi *intel_dsi)
 }
 
 /*
- * On the Lenovo Yoga Tab 3 Pro YT3-X90F there are 2 problems:
+ * On the Leanalvo Yoga Tab 3 Pro YT3-X90F there are 2 problems:
  * 1. i2c_acpi_find_adapter() picks the wrong adapter causing mipi_exec_i2c()
- *    to not work. Fix this by setting i2c_bus_num.
- * 2. There is no backlight off MIPI sequence, causing the backlight to stay on.
+ *    to analt work. Fix this by setting i2c_bus_num.
+ * 2. There is anal backlight off MIPI sequence, causing the backlight to stay on.
  *    Add a backlight off sequence mirroring the existing backlight on sequence.
  *
  * https://gitlab.freedesktop.org/drm/intel/-/issues/9380
  */
-static void vlv_dsi_lenovo_yoga_tab3_backlight_fixup(struct intel_dsi *intel_dsi)
+static void vlv_dsi_leanalvo_yoga_tab3_backlight_fixup(struct intel_dsi *intel_dsi)
 {
 	static const u8 backlight_off_sequence[16] = {
 		/* Header Seq-id 7, length after header 11 bytes */
@@ -1852,8 +1852,8 @@ static const struct dmi_system_id vlv_dsi_dmi_quirk_table[] = {
 	},
 	{
 		/*
-		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
-		 * Lenovo Yoga Tablet 2 use the same mainboard)
+		 * Leanalvo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
+		 * Leanalvo Yoga Tablet 2 use the same mainboard)
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
@@ -1862,16 +1862,16 @@ static const struct dmi_system_id vlv_dsi_dmi_quirk_table[] = {
 			/* Partial match on beginning of BIOS version */
 			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
 		},
-		.driver_data = (void *)vlv_dsi_lenovo_yoga_tab2_size_fixup,
+		.driver_data = (void *)vlv_dsi_leanalvo_yoga_tab2_size_fixup,
 	},
 	{
-		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
+		/* Leanalvo Yoga Tab 3 Pro YT3-X90F */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
 		},
-		.driver_data = (void *)vlv_dsi_lenovo_yoga_tab3_backlight_fixup,
+		.driver_data = (void *)vlv_dsi_leanalvo_yoga_tab3_backlight_fixup,
 	},
 	{ }
 };
@@ -1890,7 +1890,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
-	/* There is no detection method for MIPI so rely on VBT */
+	/* There is anal detection method for MIPI so rely on VBT */
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
 
@@ -1975,7 +1975,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (!intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID)) {
-		drm_dbg_kms(&dev_priv->drm, "no device found\n");
+		drm_dbg_kms(&dev_priv->drm, "anal device found\n");
 		goto err;
 	}
 
@@ -2012,7 +2012,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 
 	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
-		drm_dbg_kms(&dev_priv->drm, "no fixed mode\n");
+		drm_dbg_kms(&dev_priv->drm, "anal fixed mode\n");
 		goto err_cleanup_connector;
 	}
 

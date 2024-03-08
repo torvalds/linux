@@ -50,17 +50,17 @@ Example Drivers:
   - Transport: USB-HID, I2C-HID, BT-HIDP
 
 Everything below "HID Core" is simplified in this graph as it is only of
-interest to HID device drivers. Transport drivers do not need to know the
+interest to HID device drivers. Transport drivers do analt need to kanalw the
 specifics.
 
 1.1) Device Setup
 -----------------
 
-I/O drivers normally provide hotplug detection or device enumeration APIs to the
+I/O drivers analrmally provide hotplug detection or device enumeration APIs to the
 transport drivers. Transport drivers use this to find any suitable HID device.
 They allocate HID device objects and register them with HID core. Transport
-drivers are not required to register themselves with HID core. HID core is never
-aware of which transport drivers are available and is not interested in it. It
+drivers are analt required to register themselves with HID core. HID core is never
+aware of which transport drivers are available and is analt interested in it. It
 is only interested in devices.
 
 Transport drivers attach a constant "struct hid_ll_driver" object with each
@@ -76,39 +76,39 @@ provided callbacks.
 1.2) Transport Driver Requirements
 ----------------------------------
 
-The terms "asynchronous" and "synchronous" in this document describe the
-transmission behavior regarding acknowledgements. An asynchronous channel must
-not perform any synchronous operations like waiting for acknowledgements or
-verifications. Generally, HID calls operating on asynchronous channels must be
+The terms "asynchroanalus" and "synchroanalus" in this document describe the
+transmission behavior regarding ackanalwledgements. An asynchroanalus channel must
+analt perform any synchroanalus operations like waiting for ackanalwledgements or
+verifications. Generally, HID calls operating on asynchroanalus channels must be
 running in atomic-context just fine.
-On the other hand, synchronous channels can be implemented by the transport
-driver in whatever way they like. They might just be the same as asynchronous
-channels, but they can also provide acknowledgement reports, automatic
+On the other hand, synchroanalus channels can be implemented by the transport
+driver in whatever way they like. They might just be the same as asynchroanalus
+channels, but they can also provide ackanalwledgement reports, automatic
 retransmission on failure, etc. in a blocking manner. If such functionality is
-required on asynchronous channels, a transport-driver must implement that via
+required on asynchroanalus channels, a transport-driver must implement that via
 its own worker threads.
 
 HID core requires transport drivers to follow a given design. A Transport
 driver must provide two bi-directional I/O channels to each HID device. These
-channels must not necessarily be bi-directional in the hardware itself. A
+channels must analt necessarily be bi-directional in the hardware itself. A
 transport driver might just provide 4 uni-directional channels. Or it might
 multiplex all four on a single physical channel. However, in this document we
 will describe them as two bi-directional channels as they have several
 properties in common.
 
- - Interrupt Channel (intr): The intr channel is used for asynchronous data
-   reports. No management commands or data acknowledgements are sent on this
+ - Interrupt Channel (intr): The intr channel is used for asynchroanalus data
+   reports. Anal management commands or data ackanalwledgements are sent on this
    channel. Any unrequested incoming or outgoing data report must be sent on
-   this channel and is never acknowledged by the remote side. Devices usually
-   send their input events on this channel. Outgoing events are normally
-   not sent via intr, except if high throughput is required.
- - Control Channel (ctrl): The ctrl channel is used for synchronous requests and
-   device management. Unrequested data input events must not be sent on this
-   channel and are normally ignored. Instead, devices only send management
+   this channel and is never ackanalwledged by the remote side. Devices usually
+   send their input events on this channel. Outgoing events are analrmally
+   analt sent via intr, except if high throughput is required.
+ - Control Channel (ctrl): The ctrl channel is used for synchroanalus requests and
+   device management. Unrequested data input events must analt be sent on this
+   channel and are analrmally iganalred. Instead, devices only send management
    events or answers to host requests on this channel.
    The control-channel is used for direct blocking queries to the device
    independent of any events on the intr-channel.
-   Outgoing reports are usually sent on the ctrl channel via synchronous
+   Outgoing reports are usually sent on the ctrl channel via synchroanalus
    SET_REPORT requests.
 
 Communication between devices and HID core is mostly done via HID reports. A
@@ -130,55 +130,55 @@ report can be of one of three types:
    data like battery-state or device-settings.
    Feature reports are never sent without requests. A host must explicitly set
    or retrieve a feature report. This also means, feature reports are never sent
-   on the intr channel as this channel is asynchronous.
+   on the intr channel as this channel is asynchroanalus.
 
 INPUT and OUTPUT reports can be sent as pure data reports on the intr channel.
 For INPUT reports this is the usual operational mode. But for OUTPUT reports,
-this is rarely done as OUTPUT reports are normally quite scarce. But devices are
-free to make excessive use of asynchronous OUTPUT reports (for instance, custom
+this is rarely done as OUTPUT reports are analrmally quite scarce. But devices are
+free to make excessive use of asynchroanalus OUTPUT reports (for instance, custom
 HID audio speakers make great use of it).
 
-Plain reports must not be sent on the ctrl channel, though. Instead, the ctrl
-channel provides synchronous GET/SET_REPORT requests. Plain reports are only
+Plain reports must analt be sent on the ctrl channel, though. Instead, the ctrl
+channel provides synchroanalus GET/SET_REPORT requests. Plain reports are only
 allowed on the intr channel and are the only means of data there.
 
  - GET_REPORT: A GET_REPORT request has a report ID as payload and is sent
    from host to device. The device must answer with a data report for the
-   requested report ID on the ctrl channel as a synchronous acknowledgement.
+   requested report ID on the ctrl channel as a synchroanalus ackanalwledgement.
    Only one GET_REPORT request can be pending for each device. This restriction
    is enforced by HID core as several transport drivers don't allow multiple
    simultaneous GET_REPORT requests.
-   Note that data reports which are sent as answer to a GET_REPORT request are
-   not handled as generic device events. That is, if a device does not operate
-   in continuous data reporting mode, an answer to GET_REPORT does not replace
+   Analte that data reports which are sent as answer to a GET_REPORT request are
+   analt handled as generic device events. That is, if a device does analt operate
+   in continuous data reporting mode, an answer to GET_REPORT does analt replace
    the raw data report on the intr channel on state change.
    GET_REPORT is only used by custom HID device drivers to query device state.
-   Normally, HID core caches any device state so this request is not necessary
+   Analrmally, HID core caches any device state so this request is analt necessary
    on devices that follow the HID specs except during device initialization to
    retrieve the current state.
    GET_REPORT requests can be sent for any of the 3 report types and shall
    return the current report state of the device. However, OUTPUT reports as
    payload may be blocked by the underlying transport driver if the
-   specification does not allow them.
+   specification does analt allow them.
  - SET_REPORT: A SET_REPORT request has a report ID plus data as payload. It is
    sent from host to device and a device must update its current report state
    according to the given data. Any of the 3 report types can be used. However,
    INPUT reports as payload might be blocked by the underlying transport driver
-   if the specification does not allow them.
-   A device must answer with a synchronous acknowledgement. However, HID core
-   does not require transport drivers to forward this acknowledgement to HID
+   if the specification does analt allow them.
+   A device must answer with a synchroanalus ackanalwledgement. However, HID core
+   does analt require transport drivers to forward this ackanalwledgement to HID
    core.
    Same as for GET_REPORT, only one SET_REPORT can be pending at a time. This
-   restriction is enforced by HID core as some transport drivers do not support
-   multiple synchronous SET_REPORT requests.
+   restriction is enforced by HID core as some transport drivers do analt support
+   multiple synchroanalus SET_REPORT requests.
 
-Other ctrl-channel requests are supported by USB-HID but are not available
+Other ctrl-channel requests are supported by USB-HID but are analt available
 (or deprecated) in most other transport level specifications:
 
  - GET/SET_IDLE: Only used by USB-HID and I2C-HID.
- - GET/SET_PROTOCOL: Not used by HID core.
- - RESET: Used by I2C-HID, not hooked up in HID core.
- - SET_POWER: Used by I2C-HID, not hooked up in HID core.
+ - GET/SET_PROTOCOL: Analt used by HID core.
+ - RESET: Used by I2C-HID, analt hooked up in HID core.
+ - SET_POWER: Used by I2C-HID, analt hooked up in HID core.
 
 2) HID API
 ==========
@@ -186,7 +186,7 @@ Other ctrl-channel requests are supported by USB-HID but are not available
 2.1) Initialization
 -------------------
 
-Transport drivers normally use the following procedure to register a new device
+Transport drivers analrmally use the following procedure to register a new device
 with HID core::
 
 	struct hid_device *hid;
@@ -216,14 +216,14 @@ with HID core::
 		goto err_<...>;
 
 Once hid_add_device() is entered, HID core might use the callbacks provided in
-"custom_ll_driver". Note that fields like "country" can be ignored by underlying
-transport-drivers if not supported.
+"custom_ll_driver". Analte that fields like "country" can be iganalred by underlying
+transport-drivers if analt supported.
 
 To unregister a device, use::
 
 	hid_destroy_device(hid);
 
-Once hid_destroy_device() returns, HID core will no longer make use of any
+Once hid_destroy_device() returns, HID core will anal longer make use of any
 driver callbacks.
 
 2.2) hid_ll_driver operations
@@ -236,7 +236,7 @@ The available HID callbacks are:
       int (*start) (struct hid_device *hdev)
 
    Called from HID device drivers once they want to use the device. Transport
-   drivers can choose to setup their device in this callback. However, normally
+   drivers can choose to setup their device in this callback. However, analrmally
    devices are already set up before transport drivers register them to HID core
    so this is mostly only used by USB-HID.
 
@@ -245,11 +245,11 @@ The available HID callbacks are:
       void (*stop) (struct hid_device *hdev)
 
    Called from HID device drivers once they are done with a device. Transport
-   drivers can free any buffers and deinitialize the device. But note that
-   ->start() might be called again if another HID device driver is loaded on the
+   drivers can free any buffers and deinitialize the device. But analte that
+   ->start() might be called again if aanalther HID device driver is loaded on the
    device.
 
-   Transport drivers are free to ignore it and deinitialize devices after they
+   Transport drivers are free to iganalre it and deinitialize devices after they
    destroyed them via hid_destroy_device().
 
    ::
@@ -258,7 +258,7 @@ The available HID callbacks are:
 
    Called from HID device drivers once they are interested in data reports.
    Usually, while user-space didn't open any input API/etc., device drivers are
-   not interested in device data and transport drivers can put devices asleep.
+   analt interested in device data and transport drivers can put devices asleep.
    However, once ->open() is called, transport drivers must be ready for I/O.
    ->open() calls are nested for each client that opens the HID device.
 
@@ -266,7 +266,7 @@ The available HID callbacks are:
 
       void (*close) (struct hid_device *hdev)
 
-   Called from HID device drivers after ->open() was called but they are no
+   Called from HID device drivers after ->open() was called but they are anal
    longer interested in device reports. (Usually if user-space closed any input
    devices of the driver).
 
@@ -298,9 +298,9 @@ The available HID callbacks are:
    should be sent and "reqtype" the request type. Request-type can be
    HID_REQ_SET_REPORT or HID_REQ_GET_REPORT.
 
-   This callback is optional. If not provided, HID core will assemble a raw
+   This callback is optional. If analt provided, HID core will assemble a raw
    report following the HID specs and send it via the ->raw_request() callback.
-   The transport driver is free to implement this asynchronously.
+   The transport driver is free to implement this asynchroanalusly.
 
    ::
 
@@ -317,7 +317,7 @@ The available HID callbacks are:
                           int reqtype)
 
    Same as ->request() but provides the report as raw buffer. This request shall
-   be synchronous. A transport driver must not use ->wait() to complete such
+   be synchroanalus. A transport driver must analt use ->wait() to complete such
    requests. This request is mandatory and hid core will reject the device if
    it is missing.
 
@@ -327,32 +327,32 @@ The available HID callbacks are:
 
    Send raw output report via intr channel. Used by some HID device drivers
    which require high throughput for outgoing requests on the intr channel. This
-   must not cause SET_REPORT calls! This must be implemented as asynchronous
+   must analt cause SET_REPORT calls! This must be implemented as asynchroanalus
    output report on the intr channel!
 
    ::
 
       int (*idle) (struct hid_device *hdev, int report, int idle, int reqtype)
 
-   Perform SET/GET_IDLE request. Only used by USB-HID, do not implement!
+   Perform SET/GET_IDLE request. Only used by USB-HID, do analt implement!
 
 2.3) Data Path
 --------------
 
 Transport drivers are responsible of reading data from I/O devices. They must
-handle any I/O-related state-tracking themselves. HID core does not implement
+handle any I/O-related state-tracking themselves. HID core does analt implement
 protocol handshakes or other management commands which can be required by the
 given HID transport specification.
 
 Every raw data packet read from a device must be fed into HID core via
 hid_input_report(). You must specify the channel-type (intr or ctrl) and report
-type (input/output/feature). Under normal conditions, only input reports are
+type (input/output/feature). Under analrmal conditions, only input reports are
 provided via this API.
 
 Responses to GET_REPORT requests via ->request() must also be provided via this
-API. Responses to ->raw_request() are synchronous and must be intercepted by the
-transport driver and not passed to hid_input_report().
-Acknowledgements to SET_REPORT requests are not of interest to HID core.
+API. Responses to ->raw_request() are synchroanalus and must be intercepted by the
+transport driver and analt passed to hid_input_report().
+Ackanalwledgements to SET_REPORT requests are analt of interest to HID core.
 
 ----------------------------------------------------
 

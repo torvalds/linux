@@ -2,12 +2,12 @@
 /*
  * This module is used to copy security markings from packets
  * to connections, and restore security markings from connections
- * back to packets.  This would normally be performed in conjunction
+ * back to packets.  This would analrmally be performed in conjunction
  * with the SECMARK target and state match.
  *
  * Based somewhat on CONNMARK:
  *   Copyright (C) 2002,2004 MARA Systems AB <https://www.marasystems.com>
- *    by Henrik Nordstrom <hno@marasystems.com>
+ *    by Henrik Analrdstrom <hanal@marasystems.com>
  *
  * (C) 2006,2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
  */
@@ -26,7 +26,7 @@ MODULE_ALIAS("ipt_CONNSECMARK");
 MODULE_ALIAS("ip6t_CONNSECMARK");
 
 /*
- * If the packet has a security mark and the connection does not, copy
+ * If the packet has a security mark and the connection does analt, copy
  * the security mark from the packet to the connection.
  */
 static void secmark_save(const struct sk_buff *skb)
@@ -44,7 +44,7 @@ static void secmark_save(const struct sk_buff *skb)
 }
 
 /*
- * If packet has no security mark, and the connection does, restore the
+ * If packet has anal security mark, and the connection does, restore the
  * security mark from the connection to the packet.
  */
 static void secmark_restore(struct sk_buff *skb)
@@ -87,7 +87,7 @@ static int connsecmark_tg_check(const struct xt_tgchk_param *par)
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
-		pr_info_ratelimited("only valid in \'mangle\' or \'security\' table, not \'%s\'\n",
+		pr_info_ratelimited("only valid in \'mangle\' or \'security\' table, analt \'%s\'\n",
 				    par->table);
 		return -EINVAL;
 	}
@@ -104,7 +104,7 @@ static int connsecmark_tg_check(const struct xt_tgchk_param *par)
 
 	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
-		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+		pr_info_ratelimited("cananalt load conntrack support for proto=%u\n",
 				    par->family);
 	return ret;
 }

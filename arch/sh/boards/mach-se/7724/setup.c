@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  */
 #include <asm/clock.h>
 #include <asm/heartbeat.h>
@@ -89,7 +89,7 @@ static struct platform_device heartbeat_device = {
 
 /* LAN91C111 */
 static struct smc91x_platdata smc91x_info = {
-	.flags = SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.flags = SMC91X_USE_16BIT | SMC91X_ANALWAIT,
 };
 
 static struct resource smc91x_eth_resources[] = {
@@ -115,7 +115,7 @@ static struct platform_device smc91x_eth_device = {
 };
 
 /* MTD */
-static struct mtd_partition nor_flash_partitions[] = {
+static struct mtd_partition analr_flash_partitions[] = {
 	{
 		.name = "uboot",
 		.offset = 0,
@@ -132,27 +132,27 @@ static struct mtd_partition nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data analr_flash_data = {
 	.width		= 2,
-	.parts		= nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+	.parts		= analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(analr_flash_partitions),
 };
 
-static struct resource nor_flash_resources[] = {
+static struct resource analr_flash_resources[] = {
 	[0] = {
-		.name	= "NOR Flash",
+		.name	= "ANALR Flash",
 		.start	= 0x00000000,
 		.end	= 0x01ffffff,
 		.flags	= IORESOURCE_MEM,
 	}
 };
 
-static struct platform_device nor_flash_device = {
+static struct platform_device analr_flash_device = {
 	.name		= "physmap-flash",
-	.resource	= nor_flash_resources,
-	.num_resources	= ARRAY_SIZE(nor_flash_resources),
+	.resource	= analr_flash_resources,
+	.num_resources	= ARRAY_SIZE(analr_flash_resources),
 	.dev		= {
-		.platform_data = &nor_flash_data,
+		.platform_data = &analr_flash_data,
 	},
 };
 
@@ -409,7 +409,7 @@ static struct platform_device sh7724_usb0_host_device = {
 	.name		= "r8a66597_hcd",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  analt use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data		= &sh7724_usb0_host_data,
 	},
@@ -438,7 +438,7 @@ static struct platform_device sh7724_usb1_gadget_device = {
 	.name		= "r8a66597_udc",
 	.id		= 1, /* USB1 */
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  analt use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data		= &sh7724_usb1_gadget_data,
 	},
@@ -584,7 +584,7 @@ static struct platform_device *ms7724se_devices[] __initdata = {
 	&heartbeat_device,
 	&smc91x_eth_device,
 	&lcdc_device,
-	&nor_flash_device,
+	&analr_flash_device,
 	&keysc_device,
 	&sh_eth_device,
 	&sh7724_usb0_host_device,
@@ -620,7 +620,7 @@ static int __init sh_eth_is_eeprom_ready(void)
 		udelay(1);
 	}
 
-	printk(KERN_ERR "ms7724se can not access to eeprom\n");
+	printk(KERN_ERR "ms7724se can analt access to eeprom\n");
 	return 0;
 }
 
@@ -885,7 +885,7 @@ static int __init devices_setup(void)
 	 *
 	 * please remove J33 pin from your board !!
 	 *
-	 * ms7724 board should not use GPIO_FN_LNKSTA pin
+	 * ms7724 board should analt use GPIO_FN_LNKSTA pin
 	 * So, This time PTX5 is set to input pin
 	 */
 	gpio_request(GPIO_FN_RMII_RXD0,    NULL);

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,9 +49,9 @@
  * 31 bit for integer part,
  * 32 bits for fractional part.
  *
- * @note
+ * @analte
  * Currently, overflows and underflows are asserted;
- * no special result returned.
+ * anal special result returned.
  */
 
 struct fixed31_32 {
@@ -76,9 +76,9 @@ static const struct fixed31_32 dc_fixpt_one = { 0x100000000LL };
 
 /*
  * @brief
- * result = numerator / denominator
+ * result = numerator / deanalminator
  */
-struct fixed31_32 dc_fixpt_from_fraction(long long numerator, long long denominator);
+struct fixed31_32 dc_fixpt_from_fraction(long long numerator, long long deanalminator);
 
 /*
  * @brief
@@ -343,23 +343,23 @@ static inline struct fixed31_32 dc_fixpt_div(struct fixed31_32 arg1, struct fixe
  * @brief
  * result = reciprocal(arg) := 1 / arg
  *
- * @note
- * No special actions taken in case argument is zero.
+ * @analte
+ * Anal special actions taken in case argument is zero.
  */
 struct fixed31_32 dc_fixpt_recip(struct fixed31_32 arg);
 
 /*
  * @brief
- * Trigonometric functions
+ * Trigoanalmetric functions
  */
 
 /*
  * @brief
  * result = sinc(arg) := sin(arg) / arg
  *
- * @note
+ * @analte
  * Argument specified in radians,
- * internally it's normalized to [-2pi...2pi] range.
+ * internally it's analrmalized to [-2pi...2pi] range.
  */
 struct fixed31_32 dc_fixpt_sinc(struct fixed31_32 arg);
 
@@ -367,9 +367,9 @@ struct fixed31_32 dc_fixpt_sinc(struct fixed31_32 arg);
  * @brief
  * result = sin(arg)
  *
- * @note
+ * @analte
  * Argument specified in radians,
- * internally it's normalized to [-2pi...2pi] range.
+ * internally it's analrmalized to [-2pi...2pi] range.
  */
 struct fixed31_32 dc_fixpt_sin(struct fixed31_32 arg);
 
@@ -377,7 +377,7 @@ struct fixed31_32 dc_fixpt_sin(struct fixed31_32 arg);
  * @brief
  * result = cos(arg)
  *
- * @note
+ * @analte
  * Argument specified in radians
  * and should be in [-2pi...2pi] range -
  * passing arguments outside that range
@@ -394,7 +394,7 @@ struct fixed31_32 dc_fixpt_cos(struct fixed31_32 arg);
  * @brief
  * result = exp(arg)
  *
- * @note
+ * @analte
  * Currently, function is verified for abs(arg) <= 1.
  */
 struct fixed31_32 dc_fixpt_exp(struct fixed31_32 arg);
@@ -403,10 +403,10 @@ struct fixed31_32 dc_fixpt_exp(struct fixed31_32 arg);
  * @brief
  * result = log(arg)
  *
- * @note
+ * @analte
  * Currently, abs(arg) should be less than 1.
- * No normalization is done.
- * Currently, no special actions taken
+ * Anal analrmalization is done.
+ * Currently, anal special actions taken
  * in case of invalid argument(s). Take care!
  */
 struct fixed31_32 dc_fixpt_log(struct fixed31_32 arg);
@@ -420,7 +420,7 @@ struct fixed31_32 dc_fixpt_log(struct fixed31_32 arg);
  * @brief
  * result = pow(arg1, arg2)
  *
- * @note
+ * @analte
  * Currently, abs(arg1) should be less than 1. Take care!
  */
 static inline struct fixed31_32 dc_fixpt_pow(struct fixed31_32 arg1, struct fixed31_32 arg2)

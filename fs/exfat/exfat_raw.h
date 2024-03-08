@@ -26,10 +26,10 @@
 #define EXFAT_DATA_CLUSTER_COUNT(sbi)	\
 	((sbi)->num_clusters - EXFAT_RESERVED_CLUSTERS)
 
-/* AllocationPossible and NoFatChain field in GeneralSecondaryFlags Field */
+/* AllocationPossible and AnalFatChain field in GeneralSecondaryFlags Field */
 #define ALLOC_POSSIBLE		0x01
 #define ALLOC_FAT_CHAIN		0x01
-#define ALLOC_NO_FAT_CHAIN	0x03
+#define ALLOC_ANAL_FAT_CHAIN	0x03
 
 #define DENTRY_SIZE		32 /* directory entry size */
 #define DENTRY_SIZE_BITS	5

@@ -18,7 +18,7 @@
  *    Karl Knutson <karl@athena.chicago.il.us>
  *    Xingang Guo <xingang.guo@intel.com>
  *    Jon Grimm <jgrimm@us.ibm.com>
- *    Dajiang Zhang <dajiang.zhang@nokia.com>
+ *    Dajiang Zhang <dajiang.zhang@analkia.com>
  *    Sridhar Samudrala <sri@us.ibm.com>
  *    Daisy Chang <daisyc@us.ibm.com>
  *    Ardelle Fan <ardelle.fan@intel.com>
@@ -39,13 +39,13 @@
  * Possible values for the disposition are:
  */
 enum sctp_disposition {
-	SCTP_DISPOSITION_DISCARD,	 /* No further processing.  */
-	SCTP_DISPOSITION_CONSUME,	 /* Process return values normally.  */
-	SCTP_DISPOSITION_NOMEM,		 /* We ran out of memory--recover.  */
+	SCTP_DISPOSITION_DISCARD,	 /* Anal further processing.  */
+	SCTP_DISPOSITION_CONSUME,	 /* Process return values analrmally.  */
+	SCTP_DISPOSITION_ANALMEM,		 /* We ran out of memory--recover.  */
 	SCTP_DISPOSITION_DELETE_TCB,	 /* Close the association.  */
-	SCTP_DISPOSITION_ABORT,		 /* Close the association NOW.  */
+	SCTP_DISPOSITION_ABORT,		 /* Close the association ANALW.  */
 	SCTP_DISPOSITION_VIOLATION,	 /* The peer is misbehaving.  */
-	SCTP_DISPOSITION_NOT_IMPL,	 /* This entry is not implemented.  */
+	SCTP_DISPOSITION_ANALT_IMPL,	 /* This entry is analt implemented.  */
 	SCTP_DISPOSITION_ERROR,		 /* This is plain old user error.  */
 	SCTP_DISPOSITION_BUG,		 /* This is a bug.  */
 };
@@ -68,11 +68,11 @@ struct sctp_sm_table_entry {
  */
 
 /* Prototypes for generic state functions. */
-sctp_state_fn_t sctp_sf_not_impl;
+sctp_state_fn_t sctp_sf_analt_impl;
 sctp_state_fn_t sctp_sf_bug;
 
 /* Prototypes for gener timer state functions. */
-sctp_state_fn_t sctp_sf_timer_ignore;
+sctp_state_fn_t sctp_sf_timer_iganalre;
 
 /* Prototypes for chunk state functions. */
 sctp_state_fn_t sctp_sf_do_9_1_abort;
@@ -89,7 +89,7 @@ sctp_state_fn_t sctp_sf_do_4_C;
 sctp_state_fn_t sctp_sf_eat_data_6_2;
 sctp_state_fn_t sctp_sf_eat_data_fast_4_4;
 sctp_state_fn_t sctp_sf_eat_sack_6_2;
-sctp_state_fn_t sctp_sf_operr_notify;
+sctp_state_fn_t sctp_sf_operr_analtify;
 sctp_state_fn_t sctp_sf_t1_init_timer_expire;
 sctp_state_fn_t sctp_sf_t1_cookie_timer_expire;
 sctp_state_fn_t sctp_sf_t2_timer_expire;
@@ -136,16 +136,16 @@ sctp_state_fn_t sctp_sf_shutdown_sent_prm_abort;
 sctp_state_fn_t sctp_sf_shutdown_ack_sent_prm_abort;
 sctp_state_fn_t sctp_sf_error_closed;
 sctp_state_fn_t sctp_sf_error_shutdown;
-sctp_state_fn_t sctp_sf_ignore_primitive;
+sctp_state_fn_t sctp_sf_iganalre_primitive;
 sctp_state_fn_t sctp_sf_do_prm_requestheartbeat;
 sctp_state_fn_t sctp_sf_do_prm_asconf;
 sctp_state_fn_t sctp_sf_do_prm_reconf;
 
 /* Prototypes for other event state functions.  */
-sctp_state_fn_t sctp_sf_do_no_pending_tsn;
+sctp_state_fn_t sctp_sf_do_anal_pending_tsn;
 sctp_state_fn_t sctp_sf_do_9_2_start_shutdown;
 sctp_state_fn_t sctp_sf_do_9_2_shutdown_ack;
-sctp_state_fn_t sctp_sf_ignore_other;
+sctp_state_fn_t sctp_sf_iganalre_other;
 sctp_state_fn_t sctp_sf_cookie_wait_icmp_abort;
 
 /* Prototypes for timeout event state functions.  */
@@ -202,7 +202,7 @@ int sctp_init_cause(struct sctp_chunk *chunk, __be16 cause, size_t paylen);
 struct sctp_chunk *sctp_make_abort(const struct sctp_association *asoc,
 				   const struct sctp_chunk *chunk,
 				   const size_t hint);
-struct sctp_chunk *sctp_make_abort_no_data(const struct sctp_association *asoc,
+struct sctp_chunk *sctp_make_abort_anal_data(const struct sctp_association *asoc,
 					   const struct sctp_chunk *chunk,
 					   __u32 tsn);
 struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *asoc,
@@ -378,7 +378,7 @@ sctp_vtag_verify(const struct sctp_chunk *chunk,
 	/* RFC 2960 Sec 8.5 When receiving an SCTP packet, the endpoint
 	 * MUST ensure that the value in the Verification Tag field of
 	 * the received SCTP packet matches its own Tag. If the received
-	 * Verification Tag value does not match the receiver's own
+	 * Verification Tag value does analt match the receiver's own
 	 * tag value, the receiver shall silently discard the packet...
 	 */
 	if (ntohl(chunk->sctp_hdr->vtag) != asoc->c.my_vtag)
@@ -389,7 +389,7 @@ sctp_vtag_verify(const struct sctp_chunk *chunk,
 }
 
 /* Check VTAG of the packet matches the sender's own tag and the T bit is
- * not set, OR its peer's tag and the T bit is set in the Chunk Flags.
+ * analt set, OR its peer's tag and the T bit is set in the Chunk Flags.
  */
 static inline int
 sctp_vtag_verify_either(const struct sctp_chunk *chunk,
@@ -399,22 +399,22 @@ sctp_vtag_verify_either(const struct sctp_chunk *chunk,
 	 *
 	 * B) The receiver of a ABORT MUST accept the packet
 	 *    if the Verification Tag field of the packet matches its own tag
-	 *    and the T bit is not set
+	 *    and the T bit is analt set
 	 *    OR
 	 *    it is set to its peer's tag and the T bit is set in the Chunk
 	 *    Flags.
 	 *    Otherwise, the receiver MUST silently discard the packet
-	 *    and take no further action.
+	 *    and take anal further action.
 	 *
 	 * C) The receiver of a SHUTDOWN COMPLETE shall accept the packet
 	 *    if the Verification Tag field of the packet matches its own tag
-	 *    and the T bit is not set
+	 *    and the T bit is analt set
 	 *    OR
 	 *    it is set to its peer's tag and the T bit is set in the Chunk
 	 *    Flags.
 	 *    Otherwise, the receiver MUST silently discard the packet
-	 *    and take no further action.  An endpoint MUST ignore the
-	 *    SHUTDOWN COMPLETE if it is not in the SHUTDOWN-ACK-SENT state.
+	 *    and take anal further action.  An endpoint MUST iganalre the
+	 *    SHUTDOWN COMPLETE if it is analt in the SHUTDOWN-ACK-SENT state.
 	 */
         if ((!sctp_test_T_bit(chunk) &&
              (ntohl(chunk->sctp_hdr->vtag) == asoc->c.my_vtag)) ||

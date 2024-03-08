@@ -1,6 +1,6 @@
-Freescale Asynchronous Sample Rate Converter (ASRC) Controller
+Freescale Asynchroanalus Sample Rate Converter (ASRC) Controller
 
-The Asynchronous Sample Rate Converter (ASRC) converts the sampling rate of a
+The Asynchroanalus Sample Rate Converter (ASRC) converts the sampling rate of a
 signal associated with an input clock into a signal associated with a different
 output clock. The driver currently works as a Front End of DPCM with other Back
 Ends Audio controller such as ESAI, SSI and SAI. It has three pairs to support

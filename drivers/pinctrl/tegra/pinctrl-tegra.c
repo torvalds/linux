@@ -98,8 +98,8 @@ static const struct cfg_param {
 	{"nvidia,drive-type",		TEGRA_PINCONF_PARAM_DRIVE_TYPE},
 };
 
-static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-					   struct device_node *np,
+static int tegra_pinctrl_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+					   struct device_analde *np,
 					   struct pinctrl_map **map,
 					   unsigned *reserved_maps,
 					   unsigned *num_maps)
@@ -120,7 +120,7 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		/* EINVAL=missing, which is fine since it's optional */
 		if (ret != -EINVAL)
 			dev_err(dev,
-				"%pOF: could not parse property nvidia,function\n", np);
+				"%pOF: could analt parse property nvidia,function\n", np);
 		function = NULL;
 	}
 
@@ -134,7 +134,7 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 				goto exit;
 		/* EINVAL=missing, which is fine since it's optional */
 		} else if (ret != -EINVAL) {
-			dev_err(dev, "%pOF: could not parse property %s\n",
+			dev_err(dev, "%pOF: could analt parse property %s\n",
 				np, cfg_params[i].property);
 		}
 	}
@@ -146,7 +146,7 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		reserve++;
 	ret = of_property_count_strings(np, "nvidia,pins");
 	if (ret < 0) {
-		dev_err(dev, "%pOF: could not parse property nvidia,pins\n", np);
+		dev_err(dev, "%pOF: could analt parse property nvidia,pins\n", np);
 		goto exit;
 	}
 	reserve *= ret;
@@ -182,26 +182,26 @@ exit:
 	return ret;
 }
 
-static int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np_config,
+static int tegra_pinctrl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+					struct device_analde *np_config,
 					struct pinctrl_map **map,
 					unsigned *num_maps)
 {
 	unsigned reserved_maps;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	reserved_maps = 0;
 	*map = NULL;
 	*num_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
-		ret = tegra_pinctrl_dt_subnode_to_map(pctldev, np, map,
+	for_each_child_of_analde(np_config, np) {
+		ret = tegra_pinctrl_dt_subanalde_to_map(pctldev, np, map,
 						      &reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map,
 				*num_maps);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}
@@ -216,7 +216,7 @@ static const struct pinctrl_ops tegra_pinctrl_ops = {
 #ifdef CONFIG_DEBUG_FS
 	.pin_dbg_show = tegra_pinctrl_pin_dbg_show,
 #endif
-	.dt_node_to_map = tegra_pinctrl_dt_node_to_map,
+	.dt_analde_to_map = tegra_pinctrl_dt_analde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -295,7 +295,7 @@ static const struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *
 		}
 	}
 
-	dev_err(pctldev->dev, "Pingroup not found for pin %u\n", offset);
+	dev_err(pctldev->dev, "Pingroup analt found for pin %u\n", offset);
 	return NULL;
 }
 
@@ -472,12 +472,12 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 		break;
 	default:
 		dev_err(pmx->dev, "Invalid config param %04x\n", param);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (*reg < 0 || *bit < 0)  {
 		if (report_err) {
-			const char *prop = "unknown";
+			const char *prop = "unkanalwn";
 			int i;
 
 			for (i = 0; i < ARRAY_SIZE(cfg_params); i++) {
@@ -488,10 +488,10 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 			}
 
 			dev_err(pmx->dev,
-				"Config param %04x (%s) not supported on group %s\n",
+				"Config param %04x (%s) analt supported on group %s\n",
 				param, prop, g->name);
 		}
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -500,16 +500,16 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 static int tegra_pinconf_get(struct pinctrl_dev *pctldev,
 			     unsigned pin, unsigned long *config)
 {
-	dev_err(pctldev->dev, "pin_config_get op not supported\n");
-	return -ENOTSUPP;
+	dev_err(pctldev->dev, "pin_config_get op analt supported\n");
+	return -EANALTSUPP;
 }
 
 static int tegra_pinconf_set(struct pinctrl_dev *pctldev,
 			     unsigned pin, unsigned long *configs,
 			     unsigned num_configs)
 {
-	dev_err(pctldev->dev, "pin_config_set op not supported\n");
-	return -ENOTSUPP;
+	dev_err(pctldev->dev, "pin_config_set op analt supported\n");
+	return -EANALTSUPP;
 }
 
 static int tegra_pinconf_group_get(struct pinctrl_dev *pctldev,
@@ -569,12 +569,12 @@ static int tegra_pinconf_group_set(struct pinctrl_dev *pctldev,
 		/* LOCK can't be cleared */
 		if (param == TEGRA_PINCONF_PARAM_LOCK) {
 			if ((val & BIT(bit)) && !arg) {
-				dev_err(pctldev->dev, "LOCK bit cannot be cleared\n");
+				dev_err(pctldev->dev, "LOCK bit cananalt be cleared\n");
 				return -EINVAL;
 			}
 		}
 
-		/* Special-case Boolean values; allow any non-zero as true */
+		/* Special-case Boolean values; allow any analn-zero as true */
 		if (width == 1)
 			arg = !!arg;
 
@@ -652,7 +652,7 @@ static void tegra_pinconf_config_dbg_show(struct pinctrl_dev *pctldev,
 {
 	enum tegra_pinconf_param param = TEGRA_PINCONF_UNPACK_PARAM(config);
 	u16 arg = TEGRA_PINCONF_UNPACK_ARG(config);
-	const char *pname = "unknown";
+	const char *pname = "unkanalwn";
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(cfg_params); i++) {
@@ -755,20 +755,20 @@ static int tegra_pinctrl_resume(struct device *dev)
 	return 0;
 }
 
-DEFINE_NOIRQ_DEV_PM_OPS(tegra_pinctrl_pm, tegra_pinctrl_suspend, tegra_pinctrl_resume);
+DEFINE_ANALIRQ_DEV_PM_OPS(tegra_pinctrl_pm, tegra_pinctrl_suspend, tegra_pinctrl_resume);
 
-static bool tegra_pinctrl_gpio_node_has_range(struct tegra_pmx *pmx)
+static bool tegra_pinctrl_gpio_analde_has_range(struct tegra_pmx *pmx)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	bool has_prop = false;
 
-	np = of_find_compatible_node(NULL, NULL, pmx->soc->gpio_compatible);
+	np = of_find_compatible_analde(NULL, NULL, pmx->soc->gpio_compatible);
 	if (!np)
 		return has_prop;
 
 	has_prop = of_find_property(np, "gpio-ranges", NULL);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return has_prop;
 }
@@ -785,24 +785,24 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmx->dev = &pdev->dev;
 	pmx->soc = soc_data;
 
 	/*
 	 * Each mux group will appear in 4 functions' list of groups.
-	 * This over-allocates slightly, since not all groups are mux groups.
+	 * This over-allocates slightly, since analt all groups are mux groups.
 	 */
 	pmx->group_pins = devm_kcalloc(&pdev->dev, pmx->soc->ngroups * 4,
 				       sizeof(*pmx->group_pins), GFP_KERNEL);
 	if (!pmx->group_pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmx->functions = devm_kcalloc(&pdev->dev, pmx->soc->nfunctions,
 				      sizeof(*pmx->functions), GFP_KERNEL);
 	if (!pmx->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	group_pins = pmx->group_pins;
 
@@ -855,12 +855,12 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	pmx->regs = devm_kcalloc(&pdev->dev, pmx->nbanks, sizeof(*pmx->regs),
 				 GFP_KERNEL);
 	if (!pmx->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmx->backup_regs = devm_kzalloc(&pdev->dev, backup_regs_size,
 					GFP_KERNEL);
 	if (!pmx->backup_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pmx->nbanks; i++) {
 		pmx->regs[i] = devm_platform_ioremap_resource(pdev, i);
@@ -876,7 +876,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	tegra_pinctrl_clear_parked_bits(pmx);
 
-	if (pmx->soc->ngpios > 0 && !tegra_pinctrl_gpio_node_has_range(pmx))
+	if (pmx->soc->ngpios > 0 && !tegra_pinctrl_gpio_analde_has_range(pmx))
 		pinctrl_add_gpio_range(pmx->pctl, &pmx->gpio_range);
 
 	platform_set_drvdata(pdev, pmx);

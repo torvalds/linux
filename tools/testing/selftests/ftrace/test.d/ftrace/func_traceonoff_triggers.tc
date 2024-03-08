@@ -45,7 +45,7 @@ enable_tracing
 
 cnt=`cnt_trace`
 if [ $cnt -eq 0 ]; then
-   fail "Nothing found in trace"
+   fail "Analthing found in trace"
 fi
 
 # powerpc uses .schedule
@@ -74,7 +74,7 @@ fi
 
 cnt=`grep schedule set_ftrace_filter | wc -l`
 if [ $cnt -ne 1 ]; then
-   fail "Did not find traceoff trigger"
+   fail "Did analt find traceoff trigger"
 fi
 
 cnt=`cnt_trace`
@@ -82,12 +82,12 @@ sleep $SLEEP_TIME
 cnt2=`cnt_trace`
 
 if [ $cnt -ne $cnt2 ]; then
-   fail "Tracing is not stopped"
+   fail "Tracing is analt stopped"
 fi
 
 on=`cat tracing_on`
 if [ $on != "0" ]; then
-    fail "Tracing is not off"
+    fail "Tracing is analt off"
 fi
 
 csum1=`md5sum trace`
@@ -121,17 +121,17 @@ echo "$func:traceon" > set_ftrace_filter
 
 cnt=`grep schedule set_ftrace_filter | wc -l`
 if [ $cnt -ne 1 ]; then
-    fail "traceon trigger not found"
+    fail "traceon trigger analt found"
 fi
 
 cnt=`cnt_trace`
 if [ $cnt -eq 0 ]; then
-   fail "Tracing did not start"
+   fail "Tracing did analt start"
 fi
 
 on=`cat tracing_on`
 if [ $on != "1" ]; then
-    fail "Tracing was not enabled"
+    fail "Tracing was analt enabled"
 fi
 
 

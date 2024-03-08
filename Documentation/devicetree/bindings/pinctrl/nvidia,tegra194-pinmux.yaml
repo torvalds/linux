@@ -71,7 +71,7 @@ allOf:
                   of a pin or group. Valid values for these names are listed
                   below.
 
-                  Note that the pex_l5_clkreq_n_pgg0 and pex_l5_rst_n_pgg1 pins
+                  Analte that the pex_l5_clkreq_n_pgg0 and pex_l5_rst_n_pgg1 pins
                   are part of PCIE C5 power partition. Client devices must
                   enable this partition before accessing the configuration for
                   these pins.
@@ -275,7 +275,7 @@ examples:
                 nvidia,enable-input = <TEGRA_PIN_DISABLE>;
                 nvidia,io-hv = <TEGRA_PIN_ENABLE>;
                 nvidia,tristate = <TEGRA_PIN_DISABLE>;
-                nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+                nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
             };
         };
     };

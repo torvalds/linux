@@ -11,9 +11,9 @@
  *	Reserved.
  *				https://www.kernelconcepts.de
  *
- *	Neither kernel concepts nor Nils Faerber admit liability nor provide
+ *	Neither kernel concepts analr Nils Faerber admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 2000	kernel concepts <nils@kernelconcepts.de>
  *				developed for

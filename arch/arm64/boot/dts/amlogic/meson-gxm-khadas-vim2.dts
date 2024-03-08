@@ -195,19 +195,19 @@
 
 &cpu_cooling_maps {
 	map0 {
-		cooling-device = <&gpio_fan THERMAL_NO_LIMIT 1>;
+		cooling-device = <&gpio_fan THERMAL_ANAL_LIMIT 1>;
 	};
 
 	map1 {
-		cooling-device = <&gpio_fan 2 THERMAL_NO_LIMIT>,
-				 <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-				 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-				 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-				 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-				 <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-				 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-				 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-				 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		cooling-device = <&gpio_fan 2 THERMAL_ANAL_LIMIT>,
+				 <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+				 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+				 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+				 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+				 <&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+				 <&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+				 <&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+				 <&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 	};
 };
 
@@ -309,7 +309,7 @@
 	cap-sd-highspeed;
 	max-frequency = <100000000>;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */
@@ -354,7 +354,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
@@ -365,18 +365,18 @@
 };
 
 /*
- * EMMC_DS pin is shared between SPI NOR CS and eMMC Data Strobe
+ * EMMC_DS pin is shared between SPI ANALR CS and eMMC Data Strobe
  * Remove emmc_ds_pins from sd_emmc_c pinctrl-0 then spifc can be enabled
  */
 &spifc {
 	status = "disabled";
-	pinctrl-0 = <&nor_pins>;
+	pinctrl-0 = <&analr_pins>;
 	pinctrl-names = "default";
 
 	w25q32: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "winbond,w25q16", "jedec,spi-nor";
+		compatible = "winbond,w25q16", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <104000000>;
 	};

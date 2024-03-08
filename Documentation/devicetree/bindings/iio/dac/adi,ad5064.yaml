@@ -101,7 +101,7 @@ required:
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
-  - # Shared external vref, no internal reference
+  - # Shared external vref, anal internal reference
     if:
       properties:
         compatible:
@@ -185,7 +185,7 @@ allOf:
         vrefB-supply: false
         vrefC-supply: false
         vrefD-supply: false
-  - # 4 input devices, separate vrefs, no internal reference
+  - # 4 input devices, separate vrefs, anal internal reference
     if:
       properties:
         compatible:
@@ -209,7 +209,7 @@ allOf:
         - vrefB-supply
         - vrefC-supply
         - vrefD-supply
-  - # 2 input devices, separate vrefs, no internal reference
+  - # 2 input devices, separate vrefs, anal internal reference
     if:
       properties:
         compatible:

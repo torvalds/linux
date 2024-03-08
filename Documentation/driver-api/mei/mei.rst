@@ -8,7 +8,7 @@ resource (Co-processor) residing inside certain Intel chipsets. The Intel ME
 provides support for computer/IT management and security features.
 The actual feature set depends on the Intel chipset SKU.
 
-The Intel Management Engine Interface (Intel MEI, previously known as HECI)
+The Intel Management Engine Interface (Intel MEI, previously kanalwn as HECI)
 is the interface between the Host and Intel ME. This interface is exposed
 to the host as a PCI device, actually multiple PCI devices might be exposed.
 The Intel MEI Driver is in charge of the communication channel between
@@ -22,7 +22,7 @@ upon connection.
 Intel MEI Driver
 ================
 
-The driver exposes a character device with device nodes /dev/meiX.
+The driver exposes a character device with device analdes /dev/meiX.
 
 An application maintains communication with an Intel ME feature while
 /dev/meiX is open. The binding to a specific feature is performed by calling
@@ -44,8 +44,8 @@ A code snippet for an application communicating with Intel AMTHI client:
 
 In order to support virtualization or sandboxing a trusted supervisor
 can use :c:macro:`MEI_CONNECT_CLIENT_IOCTL_VTAG` to create
-virtual channels with an Intel ME feature. Not all features support
-virtual channels such client with answer EOPNOTSUPP.
+virtual channels with an Intel ME feature. Analt all features support
+virtual channels such client with answer EOPANALTSUPP.
 
 .. code-block:: C
 
@@ -83,7 +83,7 @@ IOCTL_MEI_CONNECT_CLIENT
 -------------------------
 Connect to firmware Feature/Client.
 
-.. code-block:: none
+.. code-block:: analne
 
 	Usage:
 
@@ -103,14 +103,14 @@ Connect to firmware Feature/Client.
 
          Error returns:
 
-                ENOTTY  No such client (i.e. wrong GUID) or connection is not allowed.
+                EANALTTY  Anal such client (i.e. wrong GUID) or connection is analt allowed.
 		EINVAL	Wrong IOCTL Number
-		ENODEV	Device or Connection is not initialized or ready.
-		ENOMEM	Unable to allocate memory to client internal data.
+		EANALDEV	Device or Connection is analt initialized or ready.
+		EANALMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
 		EBUSY	Connection Already Open
 
-:Note:
+:Analte:
         max_msg_length (MTU) in client properties describes the maximum
         data that can be sent or received. (e.g. if MTU=2K, can send
         requests up to bytes 2k and received responses up to 2k bytes).
@@ -118,7 +118,7 @@ Connect to firmware Feature/Client.
 IOCTL_MEI_CONNECT_CLIENT_VTAG:
 ------------------------------
 
-.. code-block:: none
+.. code-block:: analne
 
         Usage:
 
@@ -140,26 +140,26 @@ IOCTL_MEI_CONNECT_CLIENT_VTAG:
 
          Error returns:
 
-                ENOTTY No such client (i.e. wrong GUID) or connection is not allowed.
+                EANALTTY Anal such client (i.e. wrong GUID) or connection is analt allowed.
                 EINVAL Wrong IOCTL Number or tag == 0
-                ENODEV Device or Connection is not initialized or ready.
-                ENOMEM Unable to allocate memory to client internal data.
+                EANALDEV Device or Connection is analt initialized or ready.
+                EANALMEM Unable to allocate memory to client internal data.
                 EFAULT Fatal Error (e.g. Unable to access user input data)
                 EBUSY  Connection Already Open
-                EOPNOTSUPP Vtag is not supported
+                EOPANALTSUPP Vtag is analt supported
 
-IOCTL_MEI_NOTIFY_SET
+IOCTL_MEI_ANALTIFY_SET
 ---------------------
-Enable or disable event notifications.
+Enable or disable event analtifications.
 
 
-.. code-block:: none
+.. code-block:: analne
 
 	Usage:
 
 		uint32_t enable;
 
-		ioctl(fd, IOCTL_MEI_NOTIFY_SET, &enable);
+		ioctl(fd, IOCTL_MEI_ANALTIFY_SET, &enable);
 
 
 		uint32_t enable = 1;
@@ -170,38 +170,38 @@ Enable or disable event notifications.
 
 
 		EINVAL	Wrong IOCTL Number
-		ENODEV	Device  is not initialized or the client not connected
-		ENOMEM	Unable to allocate memory to client internal data.
+		EANALDEV	Device  is analt initialized or the client analt connected
+		EANALMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
-		EOPNOTSUPP if the device doesn't support the feature
+		EOPANALTSUPP if the device doesn't support the feature
 
-:Note:
-	The client must be connected in order to enable notification events
+:Analte:
+	The client must be connected in order to enable analtification events
 
 
-IOCTL_MEI_NOTIFY_GET
+IOCTL_MEI_ANALTIFY_GET
 --------------------
 Retrieve event
 
-.. code-block:: none
+.. code-block:: analne
 
 	Usage:
 		uint32_t event;
-		ioctl(fd, IOCTL_MEI_NOTIFY_GET, &event);
+		ioctl(fd, IOCTL_MEI_ANALTIFY_GET, &event);
 
 	Outputs:
 		1 - if an event is pending
-		0 - if there is no even pending
+		0 - if there is anal even pending
 
 	Error returns:
 		EINVAL	Wrong IOCTL Number
-		ENODEV	Device is not initialized or the client not connected
-		ENOMEM	Unable to allocate memory to client internal data.
+		EANALDEV	Device is analt initialized or the client analt connected
+		EANALMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
-		EOPNOTSUPP if the device doesn't support the feature
+		EOPANALTSUPP if the device doesn't support the feature
 
-:Note:
-	The client must be connected and event notification has to be enabled
+:Analte:
+	The client must be connected and event analtification has to be enabled
 	in order to receive an event
 
 

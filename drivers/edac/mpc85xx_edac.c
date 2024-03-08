@@ -111,7 +111,7 @@ static void mpc85xx_pcie_check(struct edac_pci_ctl_info *pci)
 	out_be32(pdata->pci_vbase + MPC85XX_PCI_GAS_TIMR, err_cap_stat | 0x1);
 }
 
-static int mpc85xx_pcie_find_capability(struct device_node *np)
+static int mpc85xx_pcie_find_capability(struct device_analde *np)
 {
 	struct pci_controller *hose;
 
@@ -132,7 +132,7 @@ static irqreturn_t mpc85xx_pci_isr(int irq, void *dev_id)
 	err_detect = in_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_DR);
 
 	if (!err_detect)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pdata->is_pcie)
 		mpc85xx_pcie_check(pci);
@@ -147,16 +147,16 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 	struct edac_pci_ctl_info *pci;
 	struct mpc85xx_pci_pdata *pdata;
 	struct mpc85xx_edac_pci_plat_data *plat_data;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct resource r;
 	int res = 0;
 
 	if (!devres_open_group(&op->dev, mpc85xx_pci_err_probe, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = edac_pci_alloc_ctl_info(sizeof(*pdata), "mpc85xx_pci_err");
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* make sure error reporting method is sane */
 	switch (edac_op_state) {
@@ -173,13 +173,13 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 
 	plat_data = op->dev.platform_data;
 	if (!plat_data) {
-		dev_err(&op->dev, "no platform data");
+		dev_err(&op->dev, "anal platform data");
 		res = -ENXIO;
 		goto err;
 	}
-	of_node = plat_data->of_node;
+	of_analde = plat_data->of_analde;
 
-	if (mpc85xx_pcie_find_capability(of_node) > 0)
+	if (mpc85xx_pcie_find_capability(of_analde) > 0)
 		pdata->is_pcie = true;
 
 	dev_set_drvdata(&op->dev, pci);
@@ -197,7 +197,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 
 	pdata->edac_idx = edac_pci_idx++;
 
-	res = of_address_to_resource(of_node, 0, &r);
+	res = of_address_to_resource(of_analde, 0, &r);
 	if (res) {
 		pr_err("%s: Unable to get resource for PCI err regs\n", __func__);
 		goto err;
@@ -216,7 +216,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 	pdata->pci_vbase = devm_ioremap(&op->dev, r.start, resource_size(&r));
 	if (!pdata->pci_vbase) {
 		pr_err("%s: Unable to setup PCI err regs\n", __func__);
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err;
 	}
 
@@ -253,7 +253,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 	}
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		pdata->irq = irq_of_parse_and_map(of_node, 0);
+		pdata->irq = irq_of_parse_and_map(of_analde, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_pci_isr,
 				       IRQF_SHARED,
@@ -262,7 +262,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 			pr_err("%s: Unable to request irq %d for MPC85xx PCI err\n",
 				__func__, pdata->irq);
 			irq_dispose_mapping(pdata->irq);
-			res = -ENODEV;
+			res = -EANALDEV;
 			goto err2;
 		}
 
@@ -278,7 +278,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 		 * detection enable bit. Because PCIe bus code to initialize and
 		 * configure these PCIe devices on booting will use some invalid
 		 * PEX_CONFIG_ADDR/PEX_CONFIG_DATA, edac driver prints the much
-		 * notice information. So disable this detect to fix ugly print.
+		 * analtice information. So disable this detect to fix ugly print.
 		 */
 		out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_EN, ~0
 			 & ~PEX_ERR_ICCAIE_EN_BIT);
@@ -478,7 +478,7 @@ static irqreturn_t mpc85xx_l2_isr(int irq, void *dev_id)
 	err_detect = in_be32(pdata->l2_vbase + MPC85XX_L2_ERRDET);
 
 	if (!(err_detect & L2_EDE_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	mpc85xx_l2_check(edac_dev);
 
@@ -493,14 +493,14 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 	int res;
 
 	if (!devres_open_group(&op->dev, mpc85xx_l2_err_probe, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dev = edac_device_alloc_ctl_info(sizeof(*pdata),
 					      "cpu", 1, "L", 1, 2, NULL, 0,
 					      edac_dev_idx);
 	if (!edac_dev) {
 		devres_release_group(&op->dev, mpc85xx_l2_err_probe);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pdata = edac_dev->pvt_info;
@@ -510,7 +510,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 	edac_dev->ctl_name = pdata->name;
 	edac_dev->dev_name = pdata->name;
 
-	res = of_address_to_resource(op->dev.of_node, 0, &r);
+	res = of_address_to_resource(op->dev.of_analde, 0, &r);
 	if (res) {
 		pr_err("%s: Unable to get resource for L2 err regs\n", __func__);
 		goto err;
@@ -529,7 +529,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 	pdata->l2_vbase = devm_ioremap(&op->dev, r.start, resource_size(&r));
 	if (!pdata->l2_vbase) {
 		pr_err("%s: Unable to setup L2 err regs\n", __func__);
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err;
 	}
 
@@ -555,7 +555,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 	}
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
+		pdata->irq = irq_of_parse_and_map(op->dev.of_analde, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_l2_isr, IRQF_SHARED,
 				       "[EDAC] L2 err", edac_dev);
@@ -563,7 +563,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 			pr_err("%s: Unable to request irq %d for MPC85xx L2 err\n",
 				__func__, pdata->irq);
 			irq_dispose_mapping(pdata->irq);
-			res = -ENODEV;
+			res = -EANALDEV;
 			goto err2;
 		}
 

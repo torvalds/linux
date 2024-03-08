@@ -28,7 +28,7 @@ config KVM_GUEST
 	select EPAPR_PARAVIRT
 	help
 	  This option enables various optimizations for running under the KVM
-	  hypervisor. Overhead for the kernel when not running inside KVM should
+	  hypervisor. Overhead for the kernel when analt running inside KVM should
 	  be minimal.
 
 	  In case of doubt, say Y
@@ -45,7 +45,7 @@ config PPC_HASH_MMU_NATIVE
 	depends on PPC_BOOK3S
 	help
 	  Support for running natively on the hardware, i.e. without
-	  a hypervisor. This option is not user-selectable but should
+	  a hypervisor. This option is analt user-selectable but should
 	  be selected by all platforms that need it.
 
 config PPC_OF_BOOT_TRAMPOLINE
@@ -70,7 +70,7 @@ config PPC_DT_CPU_FTRS
 	  compatibility and features. Saying Y here will attempt to use the new
 	  binding if the firmware provides it. Currently only the skiboot
 	  firmware provides this binding.
-	  If you're not sure say Y.
+	  If you're analt sure say Y.
 
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
@@ -162,7 +162,7 @@ config MPIC_BROKEN_REGREAD
 	help
 	  This option enables a MPIC driver workaround for some chips
 	  that have a bug that causes some interrupt source information
-	  to not read back properly. It is safe to use on other chips as
+	  to analt read back properly. It is safe to use on other chips as
 	  well, but enabling it uses about 8KB of memory to keep copies
 	  of the register contents in software.
 
@@ -220,7 +220,7 @@ config TAU_INT
 	help
 	  The TAU supports an interrupt driven mode which causes an interrupt
 	  whenever the temperature goes out of range. This is the fastest way
-	  to get notified the temp has exceeded a range. With this option off,
+	  to get analtified the temp has exceeded a range. With this option off,
 	  a timer is used to re-check the temperature periodically.
 
 	  If in doubt, say N here.

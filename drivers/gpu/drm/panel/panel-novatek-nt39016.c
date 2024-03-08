@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Novatek NT39016 TFT LCD panel driver
+ * Analvatek NT39016 TFT LCD panel driver
  *
  * Copyright (C) 2017, Maarten ter Huurne <maarten@treewalker.org>
  * Copyright (C) 2019, Paul Cercueil <paul@crapouillou.net>
@@ -93,14 +93,14 @@ static const struct reg_sequence nt39016_panel_regs[] = {
 
 #undef RV
 
-static const struct regmap_range nt39016_regmap_no_ranges[] = {
+static const struct regmap_range nt39016_regmap_anal_ranges[] = {
 	regmap_reg_range(0x13, 0x1D),
 	regmap_reg_range(0x1F, 0x1F),
 };
 
 static const struct regmap_access_table nt39016_regmap_access_table = {
-	.no_ranges = nt39016_regmap_no_ranges,
-	.n_no_ranges = ARRAY_SIZE(nt39016_regmap_no_ranges),
+	.anal_ranges = nt39016_regmap_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(nt39016_regmap_anal_ranges),
 };
 
 static const struct regmap_config nt39016_regmap_config = {
@@ -210,7 +210,7 @@ static int nt39016_get_modes(struct drm_panel *drm_panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &panel_info->display_modes[i]);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 
@@ -248,7 +248,7 @@ static int nt39016_probe(struct spi_device *spi)
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, panel);
 

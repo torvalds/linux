@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <err.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <sys/mman.h>
 #include <sys/auxv.h>
@@ -115,7 +115,7 @@ int main(void)
 	at_minstack_size = getauxval(AT_MINSIGSTKSZ);
 
 	altstack = mmap(NULL, at_minstack_size + SIGSTKSZ, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+			MAP_PRIVATE | MAP_AANALNYMOUS | MAP_STACK, -1, 0);
 	if (altstack == MAP_FAILED)
 		err(1, "mmap()");
 

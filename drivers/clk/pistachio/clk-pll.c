@@ -242,7 +242,7 @@ static int pll_gf40lp_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 		pr_warn("%s: changing postdiv while PLL is enabled\n", name);
 
 	if (params->postdiv2 > params->postdiv1)
-		pr_warn("%s: postdiv2 should not exceed postdiv1\n", name);
+		pr_warn("%s: postdiv2 should analt exceed postdiv1\n", name);
 
 	val &= ~((PLL_FRAC_CTRL2_FRAC_MASK << PLL_FRAC_CTRL2_FRAC_SHIFT) |
 		 (PLL_FRAC_CTRL2_POSTDIV1_MASK <<
@@ -388,7 +388,7 @@ static int pll_gf40lp_laint_set_rate(struct clk_hw *hw, unsigned long rate,
 		pr_warn("%s: changing postdiv while PLL is enabled\n", name);
 
 	if (params->postdiv2 > params->postdiv1)
-		pr_warn("%s: postdiv2 should not exceed postdiv1\n", name);
+		pr_warn("%s: postdiv2 should analt exceed postdiv1\n", name);
 
 	val &= ~((PLL_CTRL1_REFDIV_MASK << PLL_CTRL1_REFDIV_SHIFT) |
 		 (PLL_CTRL1_FBDIV_MASK << PLL_CTRL1_FBDIV_SHIFT) |
@@ -455,10 +455,10 @@ static struct clk *pll_register(const char *name, const char *parent_name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
-	init.flags = flags | CLK_GET_RATE_NOCACHE;
+	init.flags = flags | CLK_GET_RATE_ANALCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 

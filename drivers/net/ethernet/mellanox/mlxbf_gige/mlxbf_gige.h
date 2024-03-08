@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause */
 
-/* Header file for Gigabit Ethernet driver for Mellanox BlueField SoC
+/* Header file for Gigabit Ethernet driver for Mellaanalx BlueField SoC
  * - this file contains software data structures and any chip-specific
  *   data structures (e.g. TX WQE format) that are memory resident.
  *
@@ -10,7 +10,7 @@
 #ifndef __MLXBF_GIGE_H__
 #define __MLXBF_GIGE_H__
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/irqreturn.h>
 #include <linux/netdevice.h>
 #include <linux/irq.h>
@@ -18,7 +18,7 @@
 
 /* The silicon design supports a maximum RX ring size of
  * 32K entries. Based on current testing this maximum size
- * is not required to be supported.  Instead the RX ring
+ * is analt required to be supported.  Instead the RX ring
  * will be capped at a realistic value of 1024 entries.
  */
 #define MLXBF_GIGE_MIN_RXQ_SZ     32

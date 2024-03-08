@@ -422,7 +422,7 @@ static void cfg_parts(struct hantro_ctx *ctx,
 
 /*
  * prediction filter taps
- * normal 6-tap filters
+ * analrmal 6-tap filters
  */
 static void cfg_tap(struct hantro_ctx *ctx,
 		    const struct v4l2_ctrl_vp8_frame *hdr)
@@ -431,7 +431,7 @@ static void cfg_tap(struct hantro_ctx *ctx,
 	int i, j;
 
 	if ((hdr->version & 0x03) != 0)
-		return; /* Tap filter not used. */
+		return; /* Tap filter analt used. */
 
 	for (i = 0; i < 8; i++) {
 		for (j = 0; j < 6; j++) {
@@ -530,7 +530,7 @@ int rockchip_vpu2_vp8_dec_run(struct hantro_ctx *ctx)
 	hantro_vp8_prob_update(ctx, hdr);
 
 	/*
-	 * Extensive testing shows that the hardware does not properly
+	 * Extensive testing shows that the hardware does analt properly
 	 * clear the internal state from previous a decoding run. This
 	 * causes corruption in decoded frames for multi-instance use cases.
 	 * A soft reset before programming the registers has been found
@@ -558,7 +558,7 @@ int rockchip_vpu2_vp8_dec_run(struct hantro_ctx *ctx)
 	reg = VDPU_REG_DEC_CTRL0_DEC_MODE(10);
 	vdpu_write_relaxed(vpu, reg, VDPU_REG_DEC_FORMAT);
 
-	if (!(hdr->flags & V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF))
+	if (!(hdr->flags & V4L2_VP8_FRAME_FLAG_MB_ANAL_SKIP_COEFF))
 		hantro_reg_write(vpu, &vp8_dec_skip_mode, 1);
 	if (hdr->lf.level == 0)
 		hantro_reg_write(vpu, &vp8_dec_filter_disable, 1);

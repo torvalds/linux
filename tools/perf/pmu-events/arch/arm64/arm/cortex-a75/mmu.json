@@ -6,16 +6,16 @@
         "BriefDescription": "Duration of a translation table walk handled by the MMU"
     },
     {
-        "PublicDescription": "Duration of a Stage 1 translation table walk handled by the MMU. This event is not counted when it is accessible from Non-secure EL0 or EL1",
+        "PublicDescription": "Duration of a Stage 1 translation table walk handled by the MMU. This event is analt counted when it is accessible from Analn-secure EL0 or EL1",
         "EventCode": "0xE1",
         "EventName": "MMU_PTW_ST1",
-        "BriefDescription": "Duration of a Stage 1 translation table walk handled by the MMU. This event is not counted when it is accessible from Non-secure EL0 or EL1"
+        "BriefDescription": "Duration of a Stage 1 translation table walk handled by the MMU. This event is analt counted when it is accessible from Analn-secure EL0 or EL1"
     },
     {
-        "PublicDescription": "Duration of a Stage 2 translation table walk handled by the MMU. This event is not counted when it is accessible from Non-secure EL0 or EL1",
+        "PublicDescription": "Duration of a Stage 2 translation table walk handled by the MMU. This event is analt counted when it is accessible from Analn-secure EL0 or EL1",
         "EventCode": "0xE2",
         "EventName": "MMU_PTW_ST2",
-        "BriefDescription": "Duration of a Stage 2 translation table walk handled by the MMU. This event is not counted when it is accessible from Non-secure EL0 or EL1"
+        "BriefDescription": "Duration of a Stage 2 translation table walk handled by the MMU. This event is analt counted when it is accessible from Analn-secure EL0 or EL1"
     },
     {
         "PublicDescription": "Duration of a translation table walk requested by the LSU",

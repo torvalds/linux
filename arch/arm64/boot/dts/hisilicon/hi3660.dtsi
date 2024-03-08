@@ -567,7 +567,7 @@
 			dma-channel-mask = <0xfffe>;
 			interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&crg_ctrl HI3660_CLK_GATE_DMAC>;
-			dma-no-cci;
+			dma-anal-cci;
 			dma-type = "hi3660_dma";
 		};
 
@@ -1143,18 +1143,18 @@
 					map0 {
 						trip = <&target>;
 						contribution = <1024>;
-						cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 					};
 					map1 {
 						trip = <&target>;
 						contribution = <512>;
-						cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						cooling-device = <&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 					};
 				};
 			};

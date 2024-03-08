@@ -9,7 +9,7 @@
 #include <linux/syscalls.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <asm/asm-extable.h>
 #include <asm/pci_io.h>
@@ -127,7 +127,7 @@ SYSCALL_DEFINE3(s390_pci_mmio_write, unsigned long, mmio_addr,
 	long ret;
 
 	if (!zpci_is_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (length <= 0 || PAGE_SIZE - (mmio_addr & ~PAGE_MASK) < length)
 		return -EINVAL;
@@ -137,8 +137,8 @@ SYSCALL_DEFINE3(s390_pci_mmio_write, unsigned long, mmio_addr,
 	 * a MIO enabled system. Otherwise we would have to check for every
 	 * address if it is a special ZPCI_ADDR and would have to do
 	 * a pfn lookup which we don't need for MIO capable devices.  Currently
-	 * ISM devices are the only devices without MIO support and there is no
-	 * known need for accessing these from userspace.
+	 * ISM devices are the only devices without MIO support and there is anal
+	 * kanalwn need for accessing these from userspace.
 	 */
 	if (static_branch_likely(&have_mio)) {
 		ret = __memcpy_toio_inuser((void  __iomem *) mmio_addr,
@@ -150,7 +150,7 @@ SYSCALL_DEFINE3(s390_pci_mmio_write, unsigned long, mmio_addr,
 	if (length > 64) {
 		buf = kmalloc(length, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else
 		buf = local_buf;
 
@@ -269,7 +269,7 @@ SYSCALL_DEFINE3(s390_pci_mmio_read, unsigned long, mmio_addr,
 	long ret;
 
 	if (!zpci_is_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (length <= 0 || PAGE_SIZE - (mmio_addr & ~PAGE_MASK) < length)
 		return -EINVAL;
@@ -279,8 +279,8 @@ SYSCALL_DEFINE3(s390_pci_mmio_read, unsigned long, mmio_addr,
 	 * a MIO enabled system. Otherwise we would have to check for every
 	 * address if it is a special ZPCI_ADDR and would have to do
 	 * a pfn lookup which we don't need for MIO capable devices.  Currently
-	 * ISM devices are the only devices without MIO support and there is no
-	 * known need for accessing these from userspace.
+	 * ISM devices are the only devices without MIO support and there is anal
+	 * kanalwn need for accessing these from userspace.
 	 */
 	if (static_branch_likely(&have_mio)) {
 		ret = __memcpy_fromio_inuser(
@@ -292,7 +292,7 @@ SYSCALL_DEFINE3(s390_pci_mmio_read, unsigned long, mmio_addr,
 	if (length > 64) {
 		buf = kmalloc(length, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		buf = local_buf;
 	}

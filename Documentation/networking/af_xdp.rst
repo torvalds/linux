@@ -11,7 +11,7 @@ AF_XDP is an address family that is optimized for high performance
 packet processing.
 
 This document assumes that the reader is familiar with BPF and XDP. If
-not, the Cilium project has an excellent reference guide at
+analt, the Cilium project has an excellent reference guide at
 http://cilium.readthedocs.io/en/latest/bpf/.
 
 Using the XDP_REDIRECT action from an XDP program, the program can
@@ -20,17 +20,17 @@ bpf_redirect_map() function. AF_XDP sockets enable the possibility for
 XDP programs to redirect frames to a memory buffer in a user-space
 application.
 
-An AF_XDP socket (XSK) is created with the normal socket()
+An AF_XDP socket (XSK) is created with the analrmal socket()
 syscall. Associated with each XSK are two rings: the RX ring and the
 TX ring. A socket can receive packets on the RX ring and it can send
 packets on the TX ring. These rings are registered and sized with the
 setsockopts XDP_RX_RING and XDP_TX_RING, respectively. It is mandatory
 to have at least one of these rings for each socket. An RX or TX
 descriptor ring points to a data buffer in a memory area called a
-UMEM. RX and TX can share the same UMEM so that a packet does not have
+UMEM. RX and TX can share the same UMEM so that a packet does analt have
 to be copied between RX and TX. Moreover, if a packet needs to be kept
 for a while due to a possible retransmit, the descriptor that points
-to that packet can be changed to point to another and reused right
+to that packet can be changed to point to aanalther and reused right
 away. This again avoids copying data.
 
 The UMEM consists of a number of equally sized chunks. A descriptor in
@@ -44,14 +44,14 @@ FILL ring is used by the application to send down addr for the kernel
 to fill in with RX packet data. References to these frames will then
 appear in the RX ring once each packet has been received. The
 COMPLETION ring, on the other hand, contains frame addr that the
-kernel has transmitted completely and can now be used again by user
+kernel has transmitted completely and can analw be used again by user
 space, for either TX or RX. Thus, the frame addrs appearing in the
 COMPLETION ring are addrs that were previously transmitted using the
 TX ring. In summary, the RX and FILL rings are used for the RX path
 and the TX and COMPLETION rings are used for the TX path.
 
 The socket is then finally bound with a bind() call to a device and a
-specific queue id on that device, and it is not until bind is
+specific queue id on that device, and it is analt until bind is
 completed that traffic starts to flow.
 
 The UMEM can be shared between processes, if desired. If a process
@@ -60,10 +60,10 @@ corresponding two rings, sets the XDP_SHARED_UMEM flag in the bind
 call and submits the XSK of the process it would like to share UMEM
 with as well as its own newly created XSK socket. The new process will
 then receive frame addr references in its own RX ring that point to
-this shared UMEM. Note that since the ring structures are
+this shared UMEM. Analte that since the ring structures are
 single-consumer / single-producer (for performance reasons), the new
 process has to create its own socket with associated RX and TX rings,
-since it cannot share this with the other process. This is also the
+since it cananalt share this with the other process. This is also the
 reason that there is only one set of FILL and COMPLETION rings per
 UMEM. It is the responsibility of a single process to handle the UMEM.
 
@@ -72,14 +72,14 @@ is a BPF map called XSKMAP (or BPF_MAP_TYPE_XSKMAP in full). The
 user-space application can place an XSK at an arbitrary place in this
 map. The XDP program can then redirect a packet to a specific index in
 this map and at this point XDP validates that the XSK in that map was
-indeed bound to that device and ring number. If not, the packet is
+indeed bound to that device and ring number. If analt, the packet is
 dropped. If the map is empty at that index, the packet is also
 dropped. This also means that it is currently mandatory to have an XDP
 program loaded (and one XSK in the XSKMAP) to be able to get any
 traffic to user space through the XSK.
 
 AF_XDP can operate in two different modes: XDP_SKB and XDP_DRV. If the
-driver does not have support for XDP, or XDP_SKB is explicitly chosen
+driver does analt have support for XDP, or XDP_SKB is explicitly chosen
 when loading the XDP program, XDP_SKB mode is employed that uses SKBs
 together with the generic XDP support and copies out the data to user
 space. A fallback mode that works for any network device. On the other
@@ -97,7 +97,7 @@ following sections.
 For an overview on how AF_XDP works, you can also take a look at the
 Linux Plumbers paper from 2018 on the subject:
 http://vger.kernel.org/lpc_net2018_talks/lpc18_paper_af_xdp_perf-v2.pdf. Do
-NOT consult the paper from 2017 on "AF_PACKET v4", the first attempt
+ANALT consult the paper from 2017 on "AF_PACKET v4", the first attempt
 at AF_XDP. Nearly everything changed since then. Jonathan Corbet has
 also written an excellent article on LWN, "Accelerating networking
 with AF_XDP". It can be found at https://lwn.net/Articles/750845/.
@@ -158,7 +158,7 @@ an example, if the UMEM is 64k and each chunk is 4k, then the UMEM has
 
 Frames passed to the kernel are used for the ingress path (RX rings).
 
-The user application produces UMEM addrs to this ring. Note that, if
+The user application produces UMEM addrs to this ring. Analte that, if
 running the application with aligned chunk mode, the kernel will mask
 the incoming addr.  E.g. for a chunk size of 2k, the log2(2048) LSB of
 the addr will be masked off, meaning that 2048, 2050 and 3000 refers
@@ -186,7 +186,7 @@ The RX ring is the receiving side of a socket. Each entry in the ring
 is a struct xdp_desc descriptor. The descriptor contains UMEM offset
 (addr) and the length of the data (len).
 
-If no frames have been passed to kernel via the FILL ring, no
+If anal frames have been passed to kernel via the FILL ring, anal
 descriptors will (or can) appear on the RX ring.
 
 The user application consumes struct xdp_desc descriptors from this
@@ -208,7 +208,7 @@ Libbpf
 ======
 
 Libbpf is a helper library for eBPF and XDP that makes using these
-technologies a lot simpler. It also contains specific helper functions
+techanallogies a lot simpler. It also contains specific helper functions
 in tools/lib/bpf/xsk.h for facilitating the use of AF_XDP. It
 contains two types of functions: those that can be used to make the
 setup of AF_XDP socket easier and ones that can be used in the data
@@ -230,8 +230,8 @@ frame to a socket.
 The user application inserts the socket into the map, via the bpf()
 system call.
 
-Note that if an XDP program tries to redirect to a socket that does
-not match the queue configuration and netdev, the frame will be
+Analte that if an XDP program tries to redirect to a socket that does
+analt match the queue configuration and netdev, the frame will be
 dropped. E.g. an AF_XDP socket is bound to netdev eth0 and
 queue 17. Only the XDP program executing for eth0 and queue 17 will
 successfully pass data to the socket. Please refer to the sample
@@ -247,11 +247,11 @@ XDP_COPY and XDP_ZEROCOPY bind flags
 ------------------------------------
 
 When you bind to a socket, the kernel will first try to use zero-copy
-copy. If zero-copy is not supported, it will fall back on using copy
+copy. If zero-copy is analt supported, it will fall back on using copy
 mode, i.e. copying all packets out to user space. But if you would
 like to force a certain mode, you can use the following flags. If you
 pass the XDP_COPY flag to the bind call, the kernel will force the
-socket into copy mode. If it cannot use copy mode, the bind call will
+socket into copy mode. If it cananalt use copy mode, the bind call will
 fail with an error. Conversely, the XDP_ZEROCOPY flag will force the
 socket into zero-copy mode or fail.
 
@@ -270,8 +270,8 @@ sockets bound to the same netdev and queue id. The UMEM (tied to the
 fist socket created) will only have a single FILL ring and a single
 COMPLETION ring as there is only on unique netdev,queue_id tuple that
 we have bound to. To use this mode, create the first socket and bind
-it in the normal way. Create a second socket and create an RX and a TX
-ring, or at least one of them, but no FILL or COMPLETION rings as the
+it in the analrmal way. Create a second socket and create an RX and a TX
+ring, or at least one of them, but anal FILL or COMPLETION rings as the
 ones from the first socket will be used. In the bind call, set he
 XDP_SHARED_UMEM option and provide the initial socket's fd in the
 sxdp_shared_umem_fd field. You can attach an arbitrary number of extra
@@ -305,16 +305,16 @@ round-robin example of distributing packets is shown below:
        return bpf_redirect_map(&xsks_map, rr, XDP_DROP);
    }
 
-Note, that since there is only a single set of FILL and COMPLETION
+Analte, that since there is only a single set of FILL and COMPLETION
 rings, and they are single producer, single consumer rings, you need
-to make sure that multiple processes or threads do not use these rings
-concurrently. There are no synchronization primitives in the
+to make sure that multiple processes or threads do analt use these rings
+concurrently. There are anal synchronization primitives in the
 libbpf code that protects multiple users at this point in time.
 
 Libbpf uses this mode if you create more than one socket tied to the
-same UMEM. However, note that you need to supply the
+same UMEM. However, analte that you need to supply the
 XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD libbpf_flag with the
-xsk_socket__create calls and load your own XDP program as there is no
+xsk_socket__create calls and load your own XDP program as there is anal
 built in one in libbpf that will route the traffic for you.
 
 The second case is when you share a UMEM between sockets that are
@@ -322,18 +322,18 @@ bound to different queue ids and/or netdevs. In this case you have to
 create one FILL ring and one COMPLETION ring for each unique
 netdev,queue_id pair. Let us say you want to create two sockets bound
 to two different queue ids on the same netdev. Create the first socket
-and bind it in the normal way. Create a second socket and create an RX
+and bind it in the analrmal way. Create a second socket and create an RX
 and a TX ring, or at least one of them, and then one FILL and
 COMPLETION ring for this socket. Then in the bind call, set he
 XDP_SHARED_UMEM option and provide the initial socket's fd in the
 sxdp_shared_umem_fd field as you registered the UMEM on that
-socket. These two sockets will now share one and the same UMEM.
+socket. These two sockets will analw share one and the same UMEM.
 
-There is no need to supply an XDP program like the one in the previous
+There is anal need to supply an XDP program like the one in the previous
 case where sockets were bound to the same queue id and
 device. Instead, use the NIC's packet steering capabilities to steer
 the packets to the right queue. In the previous example, there is only
-one queue shared among sockets, so the NIC cannot do this steering. It
+one queue shared among sockets, so the NIC cananalt do this steering. It
 can only steer between queues.
 
 In libbpf, you need to use the xsk_socket__create_shared() API as it
@@ -343,7 +343,7 @@ function for all the sockets you create, or you can use it for the
 second and following ones and use xsk_socket__create() for the first
 one. Both methods yield the same result.
 
-Note that a UMEM can be shared between sockets on the same queue id
+Analte that a UMEM can be shared between sockets on the same queue id
 and device, as well as between queues on the same device and between
 devices at the same time.
 
@@ -355,20 +355,20 @@ present in the FILL ring and the TX ring, the rings for which user
 space is a producer. When this option is set in the bind call, the
 need_wakeup flag will be set if the kernel needs to be explicitly
 woken up by a syscall to continue processing packets. If the flag is
-zero, no syscall is needed.
+zero, anal syscall is needed.
 
 If the flag is set on the FILL ring, the application needs to call
 poll() to be able to continue to receive packets on the RX ring. This
-can happen, for example, when the kernel has detected that there are no
-more buffers on the FILL ring and no buffers left on the RX HW ring of
-the NIC. In this case, interrupts are turned off as the NIC cannot
-receive any packets (as there are no buffers to put them in), and the
+can happen, for example, when the kernel has detected that there are anal
+more buffers on the FILL ring and anal buffers left on the RX HW ring of
+the NIC. In this case, interrupts are turned off as the NIC cananalt
+receive any packets (as there are anal buffers to put them in), and the
 need_wakeup flag is set so that user space can put buffers on the
 FILL ring and then call poll() so that the kernel driver can put these
 buffers on the HW ring and start to receive packets.
 
 If the flag is set for the TX ring, it means that the application
-needs to explicitly notify the kernel to send any packets put on the
+needs to explicitly analtify the kernel to send any packets put on the
 TX ring. This can be accomplished either by a poll() call, as in the
 RX path, or by calling sendto().
 
@@ -400,19 +400,19 @@ application, but if you only want to do one of them, you can save
 resources by only setting up one of them. Both the FILL ring and the
 COMPLETION ring are mandatory as you need to have a UMEM tied to your
 socket. But if the XDP_SHARED_UMEM flag is used, any socket after the
-first one does not have a UMEM and should in that case not have any
+first one does analt have a UMEM and should in that case analt have any
 FILL or COMPLETION rings created as the ones from the shared UMEM will
-be used. Note, that the rings are single-producer single-consumer, so
-do not try to access them from multiple processes at the same
+be used. Analte, that the rings are single-producer single-consumer, so
+do analt try to access them from multiple processes at the same
 time. See the XDP_SHARED_UMEM section.
 
 In libbpf, you can create Rx-only and Tx-only sockets by supplying
 NULL to the rx and tx arguments, respectively, to the
 xsk_socket__create function.
 
-If you create a Tx-only socket, we recommend that you do not put any
+If you create a Tx-only socket, we recommend that you do analt put any
 packets on the fill ring. If you do this, drivers might think you are
-going to receive something when you in fact will not, and this can
+going to receive something when you in fact will analt, and this can
 negatively impact performance.
 
 XDP_UMEM_REG setsockopt
@@ -438,7 +438,7 @@ SO_BINDTODEVICE setsockopt
 
 This is a generic SOL_SOCKET option that can be used to tie AF_XDP
 socket to a particular network interface.  It is useful when a socket
-is created by a privileged process and passed to a non-privileged one.
+is created by a privileged process and passed to a analn-privileged one.
 Once the option is set, kernel will refuse attempts to bind that socket
 to a different interface.  Updating the value requires CAP_NET_RAW.
 
@@ -460,7 +460,7 @@ XDP_OPTIONS getsockopt
 ----------------------
 
 Gets options from an XDP socket. The only one supported so far is
-XDP_OPTIONS_ZEROCOPY which tells you if zero-copy is on or not.
+XDP_OPTIONS_ZEROCOPY which tells you if zero-copy is on or analt.
 
 Multi-Buffer Support
 ====================
@@ -481,8 +481,8 @@ Some definitions:
   descriptor refers to the whole packet.
 
 To enable multi-buffer support for an AF_XDP socket, use the new bind
-flag XDP_USE_SG. If this is not provided, all multi-buffer packets
-will be dropped just as before. Note that the XDP program loaded also
+flag XDP_USE_SG. If this is analt provided, all multi-buffer packets
+will be dropped just as before. Analte that the XDP program loaded also
 needs to be in multi-buffer mode. This can be accomplished by using
 "xdp.frags" as the section name of the XDP program used.
 
@@ -491,7 +491,7 @@ XDP_PKT_CONTD is introduced in the options field of the Rx and Tx
 descriptors. If it is true (1) the packet continues with the next
 descriptor and if it is false (0) it means this is the last descriptor
 of the packet. Why the reverse logic of end-of-packet (eop) flag found
-in many NICs? Just to preserve compatibility with non-multi-buffer
+in many NICs? Just to preserve compatibility with analn-multi-buffer
 applications that have this bit set to false for all packets on Rx,
 and the apps set the options field to zero for Tx, as anything else
 will be treated as an invalid descriptor.
@@ -500,9 +500,9 @@ These are the semantics for producing packets onto AF_XDP Tx ring
 consisting of multiple frames:
 
 * When an invalid descriptor is found, all the other
-  descriptors/frames of this packet are marked as invalid and not
+  descriptors/frames of this packet are marked as invalid and analt
   completed. The next descriptor is treated as the start of a new
-  packet, even if this was not the intent (because we cannot guess
+  packet, even if this was analt the intent (because we cananalt guess
   the intent). As before, if your program is producing invalid
   descriptors you have a bug that must be fixed.
 
@@ -517,7 +517,7 @@ consisting of multiple frames:
 
 * For zero-copy mode, the limit is up to what the NIC HW
   supports. Usually at least five on the NICs we have checked. We
-  consciously chose to not enforce a rigid limit (such as
+  consciously chose to analt enforce a rigid limit (such as
   CONFIG_MAX_SKB_FRAGS + 1) for zero-copy mode, as it would have
   resulted in copy actions under the hood to fit into what limit the
   NIC supports. Kind of defeats the purpose of zero-copy mode. How to
@@ -526,22 +526,22 @@ consisting of multiple frames:
 
 On the Rx path in copy-mode, the xsk core copies the XDP data into
 multiple descriptors, if needed, and sets the XDP_PKT_CONTD flag as
-detailed before. Zero-copy mode works the same, though the data is not
+detailed before. Zero-copy mode works the same, though the data is analt
 copied. When the application gets a descriptor with the XDP_PKT_CONTD
 flag set to one, it means that the packet consists of multiple buffers
 and it continues with the next buffer in the following
 descriptor. When a descriptor with XDP_PKT_CONTD == 0 is received, it
 means that this is the last buffer of the packet. AF_XDP guarantees
 that only a complete packet (all frames in the packet) is sent to the
-application. If there is not enough space in the AF_XDP Rx ring, all
+application. If there is analt eanalugh space in the AF_XDP Rx ring, all
 frames of the packet will be dropped.
 
 If application reads a batch of descriptors, using for example the libxdp
-interfaces, it is not guaranteed that the batch will end with a full
+interfaces, it is analt guaranteed that the batch will end with a full
 packet. It might end in the middle of a packet and the rest of the
 buffers of that packet will arrive at the beginning of the next batch,
-since the libxdp interface does not read the whole ring (unless you
-have an enormous batch size or a very small ring size).
+since the libxdp interface does analt read the whole ring (unless you
+have an eanalrmous batch size or a very small ring size).
 
 An example program each for Rx and Tx multi-buffer support can be found
 later in this document.
@@ -570,7 +570,7 @@ The XDP code sample included in tools/lib/bpf/xsk.c is the following:
        return XDP_PASS;
    }
 
-A simple but not so performance ring dequeue and enqueue could look
+A simple but analt so performance ring dequeue and enqueue could look
 like this:
 
 .. code-block:: c
@@ -669,7 +669,7 @@ Usage Multi-Buffer Tx
 ---------------------
 
 Here is an example Tx path pseudo-code (using libxdp interfaces for
-simplicity) ignoring that the umem is finite in size, and that we
+simplicity) iganalring that the umem is finite in size, and that we
 eventually will run out of packets to send. Also assumes pkts.addr
 points to a valid location in the umem.
 
@@ -733,8 +733,8 @@ value will be returned stating the max number of frags that are
 supported by this device in zero-copy mode. These are the possible
 return values:
 
-1: Multi-buffer for zero-copy is not supported by this device, as max
-   one fragment supported means that multi-buffer is not possible.
+1: Multi-buffer for zero-copy is analt supported by this device, as max
+   one fragment supported means that multi-buffer is analt possible.
 
 >=2: Multi-buffer is supported in zero-copy mode for this device. The
      returned number signifies the max number of frags supported.
@@ -746,7 +746,7 @@ Multi-Buffer Support for Zero-Copy Drivers
 ------------------------------------------
 
 Zero-copy drivers usually use the batched APIs for Rx and Tx
-processing. Note that the Tx batch API guarantees that it will provide
+processing. Analte that the Tx batch API guarantees that it will provide
 a batch of Tx descriptors that ends with full packet at the end. This
 to facilitate extending a zero-copy driver with multi-buffer support.
 
@@ -771,14 +771,14 @@ For XDP_SKB mode, use the switch "-S" instead of "-N" and all options
 can be displayed with "-h", as usual.
 
 This sample application uses libbpf to make the setup and usage of
-AF_XDP simpler. If you want to know how the raw uapi of AF_XDP is
+AF_XDP simpler. If you want to kanalw how the raw uapi of AF_XDP is
 really used to make something more advanced, take a look at the libbpf
 code in tools/lib/bpf/xsk.[ch].
 
 FAQ
 =======
 
-Q: I am not seeing any traffic on the socket. What am I doing wrong?
+Q: I am analt seeing any traffic on the socket. What am I doing wrong?
 
 A: When a netdev of a physical NIC is initialized, Linux usually
    allocates one RX and TX queue pair per core. So on a 8 core system,
@@ -786,10 +786,10 @@ A: When a netdev of a physical NIC is initialized, Linux usually
    bind call or the xsk_socket__create libbpf function call, you
    specify a specific queue id to bind to and it is only the traffic
    towards that queue you are going to get on you socket. So in the
-   example above, if you bind to queue 0, you are NOT going to get any
+   example above, if you bind to queue 0, you are ANALT going to get any
    traffic that is distributed to queues 1 through 7. If you are
    lucky, you will see the traffic, but usually it will end up on one
-   of the queues you have not bound to.
+   of the queues you have analt bound to.
 
    There are a number of ways to solve the problem of getting the
    traffic you want to the queue id you bound to. If you want to see
@@ -813,7 +813,7 @@ A: When a netdev of a physical NIC is initialized, Linux usually
 Q: Can I use the XSKMAP to implement a switch between different umems
    in copy mode?
 
-A: The short answer is no, that is not supported at the moment. The
+A: The short answer is anal, that is analt supported at the moment. The
    XSKMAP can only be used to switch traffic coming in on queue id X
    to sockets bound to the same queue id X. The XSKMAP can contain
    sockets bound to different queue ids, for example X and Y, but only
@@ -824,7 +824,7 @@ A: The short answer is no, that is not supported at the moment. The
 
 Q: My packets are sometimes corrupted. What is wrong?
 
-A: Care has to be taken not to feed the same buffer in the UMEM into
+A: Care has to be taken analt to feed the same buffer in the UMEM into
    more than one ring at the same time. If you for example feed the
    same buffer into the FILL ring and the TX ring at the same time, the
    NIC might receive data into the buffer at the same time it is

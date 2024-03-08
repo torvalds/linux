@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 
 	/* The i2c access is blocked on VF
 	 * TODO: Need other way to get the info
-	 * Also, FRU not valid for APU devices.
+	 * Also, FRU analt valid for APU devices.
 	 */
 	if (amdgpu_sriov_vf(adev) || (adev->flags & AMD_IS_APU))
 		return false;
@@ -55,8 +55,8 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 	/* VBIOS is of the format ###-DXXXYYYY-##. For SKU identification,
 	 * we can use just the "DXXX" portion. If there were more models, we
 	 * could convert the 3 characters to a hex integer and use a switch
-	 * for ease/speed/readability. For now, 2 string comparisons are
-	 * reasonable and not too expensive
+	 * for ease/speed/readability. For analw, 2 string comparisons are
+	 * reasonable and analt too expensive
 	 */
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(11, 0, 2):
@@ -122,7 +122,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	if (!adev->fru_info) {
 		adev->fru_info = kzalloc(sizeof(*adev->fru_info), GFP_KERNEL);
 		if (!adev->fru_info)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	fru_info = adev->fru_info;
@@ -134,8 +134,8 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 
 	/* If algo exists, it means that the i2c_adapter's initialized */
 	if (!adev->pm.fru_eeprom_i2c_bus || !adev->pm.fru_eeprom_i2c_bus->algo) {
-		DRM_WARN("Cannot access FRU, EEPROM accessor not initialized");
-		return -ENODEV;
+		DRM_WARN("Cananalt access FRU, EEPROM accessor analt initialized");
+		return -EANALDEV;
 	}
 
 	/* Read the IPMI Common header */
@@ -181,7 +181,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	size = buf[1] * 8;
 	pia = kzalloc(size, GFP_KERNEL);
 	if (!pia)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Read the whole PIA. */
 	len = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addr, pia, size);
@@ -199,7 +199,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		return -EIO;
 	}
 
-	/* Now extract useful information from the PIA.
+	/* Analw extract useful information from the PIA.
 	 *
 	 * Read Manufacturer Name field whose length is [3].
 	 */
@@ -263,7 +263,7 @@ Out:
  * for the device
  * The file product_name is used for this and returns the product name
  * as returned from the FRU.
- * NOTE: This is only available for certain server cards
+ * ANALTE: This is only available for certain server cards
  */
 
 static ssize_t amdgpu_fru_product_name_show(struct device *dev,
@@ -285,7 +285,7 @@ static DEVICE_ATTR(product_name, 0444, amdgpu_fru_product_name_show, NULL);
  * for the device
  * The file product_number is used for this and returns the part number
  * as returned from the FRU.
- * NOTE: This is only available for certain server cards
+ * ANALTE: This is only available for certain server cards
  */
 
 static ssize_t amdgpu_fru_product_number_show(struct device *dev,
@@ -307,7 +307,7 @@ static DEVICE_ATTR(product_number, 0444, amdgpu_fru_product_number_show, NULL);
  * for the device
  * The file serial_number is used for this and returns the serial number
  * as returned from the FRU.
- * NOTE: This is only available for certain server cards
+ * ANALTE: This is only available for certain server cards
  */
 
 static ssize_t amdgpu_fru_serial_number_show(struct device *dev,
@@ -329,7 +329,7 @@ static DEVICE_ATTR(serial_number, 0444, amdgpu_fru_serial_number_show, NULL);
  * for the device.
  * The file fru_id is used for this and returns the File Id value
  * as returned from the FRU.
- * NOTE: This is only available for certain server cards
+ * ANALTE: This is only available for certain server cards
  */
 
 static ssize_t amdgpu_fru_id_show(struct device *dev,
@@ -349,7 +349,7 @@ static DEVICE_ATTR(fru_id, 0444, amdgpu_fru_id_show, NULL);
  * The amdgpu driver provides a sysfs API for reporting manufacturer name from
  * FRU information.
  * The file manufacturer returns the value as returned from the FRU.
- * NOTE: This is only available for certain server cards
+ * ANALTE: This is only available for certain server cards
  */
 
 static ssize_t amdgpu_fru_manufacturer_name_show(struct device *dev,

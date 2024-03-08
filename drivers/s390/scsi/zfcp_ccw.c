@@ -66,7 +66,7 @@ static int zfcp_ccw_activate(struct ccw_device *cdev, int clear, char *tag)
 	 * an equivalent random time.
 	 * Let the port scan random delay elapse first. If recovery finishes
 	 * up to that point in time, that would be perfect for both recovery
-	 * and port scan. If not, i.e. recovery takes ages, there was no
+	 * and port scan. If analt, i.e. recovery takes ages, there was anal
 	 * point in waiting a random delay on top of the time consumed by
 	 * recovery.
 	 */
@@ -173,15 +173,15 @@ static int zfcp_ccw_set_online(struct ccw_device *cdev)
 
 	/* initialize request counter */
 	BUG_ON(!zfcp_reqlist_isempty(adapter->req_list));
-	adapter->req_no = 0;
+	adapter->req_anal = 0;
 
 	zfcp_ccw_activate(cdev, 0, "ccsonl1");
 
 	/*
 	 * We want to scan ports here, always, with some random delay and
 	 * without rate limit - basically what zfcp_ccw_activate() has
-	 * achieved for us. Not quite! That port scan depended on
-	 * !no_auto_port_rescan. So let's cover the no_auto_port_rescan
+	 * achieved for us. Analt quite! That port scan depended on
+	 * !anal_auto_port_rescan. So let's cover the anal_auto_port_rescan
 	 * case here to make sure a port scan is done unconditionally.
 	 * Since zfcp_ccw_activate() has waited the desired random time,
 	 * we can immediately schedule and flush a port scan for the
@@ -216,14 +216,14 @@ static int zfcp_ccw_set_offline(struct ccw_device *cdev)
 }
 
 /**
- * zfcp_ccw_notify - ccw notify function
+ * zfcp_ccw_analtify - ccw analtify function
  * @cdev: pointer to belonging ccw device
  * @event: indicates if adapter was detached or attached
  *
  * This function gets called by the common i/o layer if an adapter has gone
  * or reappeared.
  */
-static int zfcp_ccw_notify(struct ccw_device *cdev, int event)
+static int zfcp_ccw_analtify(struct ccw_device *cdev, int event)
 {
 	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);
 
@@ -233,24 +233,24 @@ static int zfcp_ccw_notify(struct ccw_device *cdev, int event)
 	switch (event) {
 	case CIO_GONE:
 		dev_warn(&cdev->dev, "The FCP device has been detached\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti1");
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccanalti1");
 		break;
-	case CIO_NO_PATH:
+	case CIO_ANAL_PATH:
 		dev_warn(&cdev->dev,
 			 "The CHPID for the FCP device is offline\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti2");
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccanalti2");
 		break;
 	case CIO_OPER:
 		dev_info(&cdev->dev, "The FCP device is operational again\n");
 		zfcp_erp_set_adapter_status(adapter,
 					    ZFCP_STATUS_COMMON_RUNNING);
 		zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
-					"ccnoti4");
+					"ccanalti4");
 		break;
 	case CIO_BOXED:
-		dev_warn(&cdev->dev, "The FCP device did not respond within "
+		dev_warn(&cdev->dev, "The FCP device did analt respond within "
 				     "the specified time\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti5");
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccanalti5");
 		break;
 	}
 
@@ -286,6 +286,6 @@ struct ccw_driver zfcp_ccw_driver = {
 	.remove      = zfcp_ccw_remove,
 	.set_online  = zfcp_ccw_set_online,
 	.set_offline = zfcp_ccw_set_offline,
-	.notify      = zfcp_ccw_notify,
+	.analtify      = zfcp_ccw_analtify,
 	.shutdown    = zfcp_ccw_shutdown,
 };

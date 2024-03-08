@@ -24,38 +24,38 @@
 #define BATADV_DAT_ADDR_MAX ((batadv_dat_addr_t)~(batadv_dat_addr_t)0)
 
 void batadv_dat_status_update(struct net_device *net_dev);
-bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
+bool batadv_dat_sanalop_outgoing_arp_request(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb);
-bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
+bool batadv_dat_sanalop_incoming_arp_request(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb, int hdr_size);
-void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
+void batadv_dat_sanalop_outgoing_arp_reply(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb);
-bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
+bool batadv_dat_sanalop_incoming_arp_reply(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb, int hdr_size);
-void batadv_dat_snoop_outgoing_dhcp_ack(struct batadv_priv *bat_priv,
+void batadv_dat_sanalop_outgoing_dhcp_ack(struct batadv_priv *bat_priv,
 					struct sk_buff *skb,
 					__be16 proto,
 					unsigned short vid);
-void batadv_dat_snoop_incoming_dhcp_ack(struct batadv_priv *bat_priv,
+void batadv_dat_sanalop_incoming_dhcp_ack(struct batadv_priv *bat_priv,
 					struct sk_buff *skb, int hdr_size);
 bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
 				      struct batadv_forw_packet *forw_packet);
 
 /**
- * batadv_dat_init_orig_node_addr() - assign a DAT address to the orig_node
- * @orig_node: the node to assign the DAT address to
+ * batadv_dat_init_orig_analde_addr() - assign a DAT address to the orig_analde
+ * @orig_analde: the analde to assign the DAT address to
  */
 static inline void
-batadv_dat_init_orig_node_addr(struct batadv_orig_node *orig_node)
+batadv_dat_init_orig_analde_addr(struct batadv_orig_analde *orig_analde)
 {
 	u32 addr;
 
-	addr = batadv_choose_orig(orig_node->orig, BATADV_DAT_ADDR_MAX);
-	orig_node->dat_addr = (batadv_dat_addr_t)addr;
+	addr = batadv_choose_orig(orig_analde->orig, BATADV_DAT_ADDR_MAX);
+	orig_analde->dat_addr = (batadv_dat_addr_t)addr;
 }
 
 /**
- * batadv_dat_init_own_addr() - assign a DAT address to the node itself
+ * batadv_dat_init_own_addr() - assign a DAT address to the analde itself
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: a pointer to the primary interface
  */
@@ -104,42 +104,42 @@ static inline void batadv_dat_status_update(struct net_device *net_dev)
 }
 
 static inline bool
-batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
+batadv_dat_sanalop_outgoing_arp_request(struct batadv_priv *bat_priv,
 				      struct sk_buff *skb)
 {
 	return false;
 }
 
 static inline bool
-batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
+batadv_dat_sanalop_incoming_arp_request(struct batadv_priv *bat_priv,
 				      struct sk_buff *skb, int hdr_size)
 {
 	return false;
 }
 
 static inline bool
-batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
+batadv_dat_sanalop_outgoing_arp_reply(struct batadv_priv *bat_priv,
 				    struct sk_buff *skb)
 {
 	return false;
 }
 
 static inline bool
-batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
+batadv_dat_sanalop_incoming_arp_reply(struct batadv_priv *bat_priv,
 				    struct sk_buff *skb, int hdr_size)
 {
 	return false;
 }
 
 static inline void
-batadv_dat_snoop_outgoing_dhcp_ack(struct batadv_priv *bat_priv,
+batadv_dat_sanalop_outgoing_dhcp_ack(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, __be16 proto,
 				   unsigned short vid)
 {
 }
 
 static inline void
-batadv_dat_snoop_incoming_dhcp_ack(struct batadv_priv *bat_priv,
+batadv_dat_sanalop_incoming_dhcp_ack(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, int hdr_size)
 {
 }
@@ -152,7 +152,7 @@ batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
 }
 
 static inline void
-batadv_dat_init_orig_node_addr(struct batadv_orig_node *orig_node)
+batadv_dat_init_orig_analde_addr(struct batadv_orig_analde *orig_analde)
 {
 }
 
@@ -173,7 +173,7 @@ static inline void batadv_dat_free(struct batadv_priv *bat_priv)
 static inline int
 batadv_dat_cache_dump(struct sk_buff *msg, struct netlink_callback *cb)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void batadv_dat_inc_counter(struct batadv_priv *bat_priv,

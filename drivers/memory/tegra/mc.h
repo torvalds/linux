@@ -74,7 +74,7 @@
 #define MC_ERR_STATUS_TYPE_MASK				(0x7 << 28)
 #define MC_ERR_STATUS_READABLE				BIT(27)
 #define MC_ERR_STATUS_WRITABLE				BIT(26)
-#define MC_ERR_STATUS_NONSECURE				BIT(25)
+#define MC_ERR_STATUS_ANALNSECURE				BIT(25)
 #define MC_ERR_STATUS_ADR_HI_SHIFT			20
 #define MC_ERR_STATUS_ADR_HI_MASK			0x3
 #define MC_ERR_STATUS_SECURITY				BIT(17)
@@ -203,7 +203,7 @@ extern const char * const tegra_mc_error_names[8];
 
 /*
  * These IDs are for internal use of Tegra ICC drivers. The ID numbers are
- * chosen such that they don't conflict with the device-tree ICC node IDs.
+ * chosen such that they don't conflict with the device-tree ICC analde IDs.
  */
 #define TEGRA_ICC_MC		1000
 #define TEGRA_ICC_EMC		1001

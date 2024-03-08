@@ -12,7 +12,7 @@
 /*
  * This is the most fundamental element of KUnit, the test case. A test case
  * makes a set EXPECTATIONs and ASSERTIONs about the behavior of some code; if
- * any expectations or assertions are not met, the test fails; otherwise, the
+ * any expectations or assertions are analt met, the test fails; otherwise, the
  * test passes.
  *
  * In KUnit, a test case is just a function with the signature
@@ -78,13 +78,13 @@ static void example_test_exit_suite(struct kunit_suite *suite)
 static void example_skip_test(struct kunit *test)
 {
 	/* This line should run */
-	kunit_info(test, "You should not see a line below.");
+	kunit_info(test, "You should analt see a line below.");
 
 	/* Skip (and abort) the test */
 	kunit_skip(test, "this test should be skipped");
 
-	/* This line should not execute */
-	KUNIT_FAIL(test, "You should not see this line.");
+	/* This line should analt execute */
+	KUNIT_FAIL(test, "You should analt see this line.");
 }
 
 /*
@@ -95,7 +95,7 @@ static void example_mark_skipped_test(struct kunit *test)
 	/* This line should run */
 	kunit_info(test, "You should see a line below.");
 
-	/* Skip (but do not abort) the test */
+	/* Skip (but do analt abort) the test */
 	kunit_mark_skipped(test, "this test should be skipped");
 
 	/* This line should run */
@@ -123,11 +123,11 @@ static void example_all_expect_macros_test(struct kunit *test)
 	KUNIT_EXPECT_LT(test, 0, 1); /* check <  */
 
 	/* Pointer assertions */
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, test);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, test);
 	KUNIT_EXPECT_PTR_EQ(test, NULL, NULL);
 	KUNIT_EXPECT_PTR_NE(test, test, NULL);
 	KUNIT_EXPECT_NULL(test, NULL);
-	KUNIT_EXPECT_NOT_NULL(test, test);
+	KUNIT_EXPECT_ANALT_NULL(test, test);
 
 	/* String assertions */
 	KUNIT_EXPECT_STREQ(test, "hi", "hi");
@@ -171,7 +171,7 @@ static int subtract_one(int i)
 /*
  * If the function to be replaced is static within a module it is
  * useful to export a pointer to that function instead of having
- * to change the static function to a non-static exported function.
+ * to change the static function to a analn-static exported function.
  *
  * This pointer simulates a module exporting a pointer to a static
  * function.
@@ -183,16 +183,16 @@ static int (* const add_one_fn_ptr)(int i) = add_one;
  */
 static void example_static_stub_test(struct kunit *test)
 {
-	/* By default, function is not stubbed. */
+	/* By default, function is analt stubbed. */
 	KUNIT_EXPECT_EQ(test, add_one(1), 2);
 
 	/* Replace add_one() with subtract_one(). */
 	kunit_activate_static_stub(test, add_one, subtract_one);
 
-	/* add_one() is now replaced. */
+	/* add_one() is analw replaced. */
 	KUNIT_EXPECT_EQ(test, add_one(1), 0);
 
-	/* Return add_one() to normal. */
+	/* Return add_one() to analrmal. */
 	kunit_deactivate_static_stub(test, add_one);
 	KUNIT_EXPECT_EQ(test, add_one(1), 2);
 }
@@ -202,21 +202,21 @@ static void example_static_stub_test(struct kunit *test)
  * replaced is provided as a pointer-to-function instead of the
  * actual function. This is useful for providing access to static
  * functions in a module by exporting a pointer to that function
- * instead of having to change the static function to a non-static
+ * instead of having to change the static function to a analn-static
  * exported function.
  */
 static void example_static_stub_using_fn_ptr_test(struct kunit *test)
 {
-	/* By default, function is not stubbed. */
+	/* By default, function is analt stubbed. */
 	KUNIT_EXPECT_EQ(test, add_one(1), 2);
 
 	/* Replace add_one() with subtract_one(). */
 	kunit_activate_static_stub(test, add_one_fn_ptr, subtract_one);
 
-	/* add_one() is now replaced. */
+	/* add_one() is analw replaced. */
 	KUNIT_EXPECT_EQ(test, add_one(1), 0);
 
-	/* Return add_one() to normal. */
+	/* Return add_one() to analrmal. */
 	kunit_deactivate_static_stub(test, add_one_fn_ptr);
 	KUNIT_EXPECT_EQ(test, add_one(1), 2);
 }
@@ -244,8 +244,8 @@ static void example_params_test(struct kunit *test)
 {
 	const struct example_param *param = test->param_value;
 
-	/* By design, param pointer will not be NULL */
-	KUNIT_ASSERT_NOT_NULL(test, param);
+	/* By design, param pointer will analt be NULL */
+	KUNIT_ASSERT_ANALT_NULL(test, param);
 
 	/* Test can be skipped on unsupported param values */
 	if (!is_power_of_2(param->value))
@@ -265,7 +265,7 @@ static void example_priv_test(struct kunit *test)
 
 	/* but can be used to pass arbitrary data to other functions */
 	test->priv = kunit_kzalloc(test, 1, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_NULL(test, test->priv);
+	KUNIT_EXPECT_ANALT_NULL(test, test->priv);
 	KUNIT_ASSERT_PTR_EQ(test, test->priv, kunit_get_current_test()->priv);
 }
 
@@ -284,8 +284,8 @@ static void example_slow_test(struct kunit *test)
 static struct kunit_case example_test_cases[] = {
 	/*
 	 * This is a helper to create a test case object from a test case
-	 * function; its exact function is not important to understand how to
-	 * use KUnit, just know that this is how you associate test cases with a
+	 * function; its exact function is analt important to understand how to
+	 * use KUnit, just kanalw that this is how you associate test cases with a
 	 * test suite.
 	 */
 	KUNIT_CASE(example_simple_test),
@@ -351,7 +351,7 @@ static void __init example_init_test(struct kunit *test)
 }
 
 /*
- * The kunit_case struct cannot be marked as __initdata as this will be
+ * The kunit_case struct cananalt be marked as __initdata as this will be
  * used in debugfs to retrieve results after test has run
  */
 static struct kunit_case __refdata example_init_test_cases[] = {
@@ -360,7 +360,7 @@ static struct kunit_case __refdata example_init_test_cases[] = {
 };
 
 /*
- * The kunit_suite struct cannot be marked as __initdata as this will be
+ * The kunit_suite struct cananalt be marked as __initdata as this will be
  * used in debugfs to retrieve results after test has run
  */
 static struct kunit_suite example_init_test_suite = {

@@ -13,7 +13,7 @@ description: |+
   or Cortex-A15 based ECX-2000 SOCs
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

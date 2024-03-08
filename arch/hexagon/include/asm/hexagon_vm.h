@@ -52,7 +52,7 @@ enum VM_CACHE_OPS {
 };
 
 enum VM_INT_OPS {
-	hvmi_nop,
+	hvmi_analp,
 	hvmi_globen,
 	hvmi_globdis,
 	hvmi_locen,
@@ -121,9 +121,9 @@ static inline long __vmcache_fetch_cfg(unsigned long val)
 
 /* interrupt operations  */
 
-static inline long __vmintop_nop(void)
+static inline long __vmintop_analp(void)
 {
-	return __vmintop(hvmi_nop, 0, 0, 0, 0);
+	return __vmintop(hvmi_analp, 0, 0, 0, 0);
 }
 
 static inline long __vmintop_globen(long i)
@@ -225,7 +225,7 @@ static inline long __vmintop_clear(long i)
 /*
  * The initial program gets to find a system environment descriptor
  * on its stack when it begins execution. The first word is a version
- * code to indicate what is there.  Zero means nothing more.
+ * code to indicate what is there.  Zero means analthing more.
  */
 
 #define HEXAGON_VM_SED_NULL	0
@@ -239,7 +239,7 @@ static inline long __vmintop_clear(long i)
 #define HVM_EV_GENEX		2
 #define HVM_EV_TRAP		8
 #define HVM_EV_INTR		15
-/* These shoud be nuked as soon as we know the VM is up to spec v0.1.1 */
+/* These shoud be nuked as soon as we kanalw the VM is up to spec v0.1.1 */
 #define HVM_EV_INTR_0		16
 #define HVM_MAX_INTR		240
 

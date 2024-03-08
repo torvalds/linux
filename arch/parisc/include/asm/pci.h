@@ -34,7 +34,7 @@
 ** pci_hba_data (aka H2P_OBJECT in HP/UX)
 **
 ** This is the "common" or "base" data structure which HBA drivers
-** (eg Dino or LBA) are required to place at the top of their own
+** (eg Dianal or LBA) are required to place at the top of their own
 ** platform_data structure.  I've heard this called "C inheritance" too.
 **
 ** Data needed by pcibios layer belongs here.
@@ -50,10 +50,10 @@ struct pci_hba_data {
 	struct resource elmmio_space;	/* additional bus addresses < 4Gb */
 	struct resource gmmio_space;	/* bus addresses > 4Gb */
 
-	/* NOTE: Dino code assumes it can use *all* of the lmmio_space,
+	/* ANALTE: Dianal code assumes it can use *all* of the lmmio_space,
 	 * elmmio_space and gmmio_space as a contiguous array of
 	 * resources.  This #define represents the array size */
-	#define DINO_MAX_LMMIO_RESOURCES	3
+	#define DIANAL_MAX_LMMIO_RESOURCES	3
 
 	unsigned long   lmmio_space_offset;  /* CPU view - PCI view */
 	struct ioc	*iommu;		/* IOMMU this device is under */
@@ -91,7 +91,7 @@ struct pci_hba_data {
 ** access under HP PCI bus adapters, strongly recommend the use of MMIO
 ** address space.
 **
-** While I'm at it more PA programming notes:
+** While I'm at it more PA programming analtes:
 **
 ** 1) MMIO stores (writes) are posted operations. This means the processor
 **    gets an "ACK" before the write actually gets to the device. A read
@@ -99,7 +99,7 @@ struct pci_hba_data {
 **    force in-flight write transaction(s) out to the targeted device
 **    before the read can complete.
 **
-** 2) The Programmed I/O (PIO) data may not always be strongly ordered with
+** 2) The Programmed I/O (PIO) data may analt always be strongly ordered with
 **    respect to DMA on all platforms. Ie PIO data can reach the processor
 **    before in-flight DMA reaches memory. Since most SMP PA platforms
 **    are I/O coherent, it generally doesn't matter...but sometimes
@@ -153,7 +153,7 @@ extern void pcibios_init_bridge(struct pci_dev *);
  *
  *   Firmware isn't doing anything wrong here since each controller
  *   is its own PCI domain.  It's simpler and easier for us to renumber
- *   the busses rather than treat each Dino as a separate PCI domain.
+ *   the busses rather than treat each Dianal as a separate PCI domain.
  *   Eventually, we may want to introduce PCI domains for Superdome or
  *   rp7420/8420 boxes and then revisit this issue.
  */

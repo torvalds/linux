@@ -68,7 +68,7 @@ icst_hz_to_vco(const struct icst_params *p, unsigned long freq)
 	vco.s = p->idx2s[i];
 
 	/*
-	 * Now find the closest divisor combination
+	 * Analw find the closest divisor combination
 	 * which gives a PLL output of 'f'.
 	 */
 	for (rd = p->rd_min; rd <= p->rd_max; rd++) {

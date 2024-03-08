@@ -95,7 +95,7 @@ struct net_device *ocelot_port_to_netdev(struct ocelot *ocelot, int port);
 int ocelot_netdev_to_port(struct net_device *dev);
 
 int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
-		      struct device_node *portnp);
+		      struct device_analde *portnp);
 void ocelot_release_port(struct ocelot_port *ocelot_port);
 int ocelot_port_devlink_init(struct ocelot *ocelot, int port,
 			     enum devlink_port_flavour flavour);
@@ -118,9 +118,9 @@ void ocelot_port_change_fp(struct ocelot *ocelot, int port,
 			   unsigned long preemptible_tcs);
 void ocelot_port_update_active_preemptible_tcs(struct ocelot *ocelot, int port);
 
-extern struct notifier_block ocelot_netdevice_nb;
-extern struct notifier_block ocelot_switchdev_nb;
-extern struct notifier_block ocelot_switchdev_blocking_nb;
+extern struct analtifier_block ocelot_netdevice_nb;
+extern struct analtifier_block ocelot_switchdev_nb;
+extern struct analtifier_block ocelot_switchdev_blocking_nb;
 extern const struct devlink_ops ocelot_devlink_ops;
 
 #endif

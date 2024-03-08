@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,7 +82,7 @@
 #       define EVERGREEN_GRPH_FORMAT_ARGB565            1
 #       define EVERGREEN_GRPH_FORMAT_ARGB4444           2
 #       define EVERGREEN_GRPH_FORMAT_AI88               3
-#       define EVERGREEN_GRPH_FORMAT_MONO16             4
+#       define EVERGREEN_GRPH_FORMAT_MOANAL16             4
 #       define EVERGREEN_GRPH_FORMAT_BGRA5551           5
 /* 32 BPP */
 #       define EVERGREEN_GRPH_FORMAT_ARGB8888           0
@@ -120,7 +120,7 @@
 #       define EVERGREEN_LUT_10BIT_BYPASS_EN            (1 << 8)
 #define EVERGREEN_GRPH_SWAP_CONTROL                     0x680c
 #       define EVERGREEN_GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
-#       define EVERGREEN_GRPH_ENDIAN_NONE               0
+#       define EVERGREEN_GRPH_ENDIAN_ANALNE               0
 #       define EVERGREEN_GRPH_ENDIAN_8IN16              1
 #       define EVERGREEN_GRPH_ENDIAN_8IN32              2
 #       define EVERGREEN_GRPH_ENDIAN_8IN64              3
@@ -167,7 +167,7 @@
 #define EVERGREEN_CUR_CONTROL                           0x6998
 #       define EVERGREEN_CURSOR_EN                      (1 << 0)
 #       define EVERGREEN_CURSOR_MODE(x)                 (((x) & 0x3) << 8)
-#       define EVERGREEN_CURSOR_MONO                    0
+#       define EVERGREEN_CURSOR_MOANAL                    0
 #       define EVERGREEN_CURSOR_24_1                    1
 #       define EVERGREEN_CURSOR_24_8_PRE_MULT           2
 #       define EVERGREEN_CURSOR_24_8_UNPRE_MULT         3

@@ -16,14 +16,14 @@
 #include <uapi/linux/btf.h>
 #include <linux/btf_ids.h>
 
-/* Intermediate node */
-#define LPM_TREE_NODE_FLAG_IM BIT(0)
+/* Intermediate analde */
+#define LPM_TREE_ANALDE_FLAG_IM BIT(0)
 
-struct lpm_trie_node;
+struct lpm_trie_analde;
 
-struct lpm_trie_node {
+struct lpm_trie_analde {
 	struct rcu_head rcu;
-	struct lpm_trie_node __rcu	*child[2];
+	struct lpm_trie_analde __rcu	*child[2];
 	u32				prefixlen;
 	u32				flags;
 	u8				data[];
@@ -31,7 +31,7 @@ struct lpm_trie_node {
 
 struct lpm_trie {
 	struct bpf_map			map;
-	struct lpm_trie_node __rcu	*root;
+	struct lpm_trie_analde __rcu	*root;
 	size_t				n_entries;
 	size_t				max_prefixlen;
 	size_t				data_size;
@@ -41,23 +41,23 @@ struct lpm_trie {
 /* This trie implements a longest prefix match algorithm that can be used to
  * match IP addresses to a stored set of ranges.
  *
- * Data stored in @data of struct bpf_lpm_key and struct lpm_trie_node is
+ * Data stored in @data of struct bpf_lpm_key and struct lpm_trie_analde is
  * interpreted as big endian, so data[0] stores the most significant byte.
  *
- * Match ranges are internally stored in instances of struct lpm_trie_node
+ * Match ranges are internally stored in instances of struct lpm_trie_analde
  * which each contain their prefix length as well as two pointers that may
- * lead to more nodes containing more specific matches. Each node also stores
+ * lead to more analdes containing more specific matches. Each analde also stores
  * a value that is defined by and returned to userspace via the update_elem
  * and lookup functions.
  *
  * For instance, let's start with a trie that was created with a prefix length
  * of 32, so it can be used for IPv4 addresses, and one single element that
  * matches 192.168.0.0/16. The data array would hence contain
- * [0xc0, 0xa8, 0x00, 0x00] in big-endian notation. This documentation will
- * stick to IP-address notation for readability though.
+ * [0xc0, 0xa8, 0x00, 0x00] in big-endian analtation. This documentation will
+ * stick to IP-address analtation for readability though.
  *
- * As the trie is empty initially, the new node (1) will be places as root
- * node, denoted as (R) in the example below. As there are no other node, both
+ * As the trie is empty initially, the new analde (1) will be places as root
+ * analde, deanalted as (R) in the example below. As there are anal other analde, both
  * child pointers are %NULL.
  *
  *              +----------------+
@@ -67,9 +67,9 @@ struct lpm_trie {
  *              |   [0]    [1]   |
  *              +----------------+
  *
- * Next, let's add a new node (2) matching 192.168.0.0/24. As there is already
- * a node with the same data and a smaller prefix (ie, a less specific one),
- * node (2) will become a child of (1). In child index depends on the next bit
+ * Next, let's add a new analde (2) matching 192.168.0.0/24. As there is already
+ * a analde with the same data and a smaller prefix (ie, a less specific one),
+ * analde (2) will become a child of (1). In child index depends on the next bit
  * that is outside of what (1) matches, and that bit is 0, so (2) will be
  * child[0] of (1):
  *
@@ -87,7 +87,7 @@ struct lpm_trie {
  *    |   [0]    [1]   |
  *    +----------------+
  *
- * The child[1] slot of (1) could be filled with another node which has bit #17
+ * The child[1] slot of (1) could be filled with aanalther analde which has bit #17
  * (the next bit after the ones that (1) matches on) set to 1. For instance,
  * 192.168.128.0/24:
  *
@@ -105,11 +105,11 @@ struct lpm_trie {
  *    |   [0]    [1]   |  |    [0]    [1]    |
  *    +----------------+  +------------------+
  *
- * Let's add another node (4) to the game for 192.168.1.0/24. In order to place
- * it, node (1) is looked at first, and because (4) of the semantics laid out
- * above (bit #17 is 0), it would normally be attached to (1) as child[0].
- * However, that slot is already allocated, so a new node is needed in between.
- * That node does not have a value attached to it and it will never be
+ * Let's add aanalther analde (4) to the game for 192.168.1.0/24. In order to place
+ * it, analde (1) is looked at first, and because (4) of the semantics laid out
+ * above (bit #17 is 0), it would analrmally be attached to (1) as child[0].
+ * However, that slot is already allocated, so a new analde is needed in between.
+ * That analde does analt have a value attached to it and it will never be
  * returned to users as result of a lookup. It is only there to differentiate
  * the traversal further. It will get a prefix as wide as necessary to
  * distinguish its two children:
@@ -137,15 +137,15 @@ struct lpm_trie {
  *
  * 192.168.1.1/32 would be a child of (5) etc.
  *
- * An intermediate node will be turned into a 'real' node on demand. In the
+ * An intermediate analde will be turned into a 'real' analde on demand. In the
  * example above, (4) would be re-used if 192.168.0.0/23 is added to the trie.
  *
- * A fully populated trie would have a height of 32 nodes, as the trie was
+ * A fully populated trie would have a height of 32 analdes, as the trie was
  * created with a prefix length of 32.
  *
- * The lookup starts at the root node. If the current node matches and if there
+ * The lookup starts at the root analde. If the current analde matches and if there
  * is a child that can be used to become more specific, the trie is traversed
- * downwards. The last node in the traversal that is a non-intermediate one is
+ * downwards. The last analde in the traversal that is a analn-intermediate one is
  * returned.
  */
 
@@ -157,28 +157,28 @@ static inline int extract_bit(const u8 *data, size_t index)
 /**
  * longest_prefix_match() - determine the longest prefix
  * @trie:	The trie to get internal sizes from
- * @node:	The node to operate on
- * @key:	The key to compare to @node
+ * @analde:	The analde to operate on
+ * @key:	The key to compare to @analde
  *
- * Determine the longest prefix of @node that matches the bits in @key.
+ * Determine the longest prefix of @analde that matches the bits in @key.
  */
 static size_t longest_prefix_match(const struct lpm_trie *trie,
-				   const struct lpm_trie_node *node,
+				   const struct lpm_trie_analde *analde,
 				   const struct bpf_lpm_trie_key *key)
 {
-	u32 limit = min(node->prefixlen, key->prefixlen);
+	u32 limit = min(analde->prefixlen, key->prefixlen);
 	u32 prefixlen = 0, i = 0;
 
-	BUILD_BUG_ON(offsetof(struct lpm_trie_node, data) % sizeof(u32));
+	BUILD_BUG_ON(offsetof(struct lpm_trie_analde, data) % sizeof(u32));
 	BUILD_BUG_ON(offsetof(struct bpf_lpm_trie_key, data) % sizeof(u32));
 
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && defined(CONFIG_64BIT)
 
 	/* data_size >= 16 has very small probability.
-	 * We do not use a loop for optimal code generation.
+	 * We do analt use a loop for optimal code generation.
 	 */
 	if (trie->data_size >= 8) {
-		u64 diff = be64_to_cpu(*(__be64 *)node->data ^
+		u64 diff = be64_to_cpu(*(__be64 *)analde->data ^
 				       *(__be64 *)key->data);
 
 		prefixlen = 64 - fls64(diff);
@@ -191,7 +191,7 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 #endif
 
 	while (trie->data_size >= i + 4) {
-		u32 diff = be32_to_cpu(*(__be32 *)&node->data[i] ^
+		u32 diff = be32_to_cpu(*(__be32 *)&analde->data[i] ^
 				       *(__be32 *)&key->data[i]);
 
 		prefixlen += 32 - fls(diff);
@@ -203,7 +203,7 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 	}
 
 	if (trie->data_size >= i + 2) {
-		u16 diff = be16_to_cpu(*(__be16 *)&node->data[i] ^
+		u16 diff = be16_to_cpu(*(__be16 *)&analde->data[i] ^
 				       *(__be16 *)&key->data[i]);
 
 		prefixlen += 16 - fls(diff);
@@ -215,7 +215,7 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 	}
 
 	if (trie->data_size >= i + 1) {
-		prefixlen += 8 - fls(node->data[i] ^ key->data[i]);
+		prefixlen += 8 - fls(analde->data[i] ^ key->data[i]);
 
 		if (prefixlen >= limit)
 			return limit;
@@ -228,48 +228,48 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 static void *trie_lookup_elem(struct bpf_map *map, void *_key)
 {
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
-	struct lpm_trie_node *node, *found = NULL;
+	struct lpm_trie_analde *analde, *found = NULL;
 	struct bpf_lpm_trie_key *key = _key;
 
 	if (key->prefixlen > trie->max_prefixlen)
 		return NULL;
 
-	/* Start walking the trie from the root node ... */
+	/* Start walking the trie from the root analde ... */
 
-	for (node = rcu_dereference_check(trie->root, rcu_read_lock_bh_held());
-	     node;) {
+	for (analde = rcu_dereference_check(trie->root, rcu_read_lock_bh_held());
+	     analde;) {
 		unsigned int next_bit;
 		size_t matchlen;
 
-		/* Determine the longest prefix of @node that matches @key.
+		/* Determine the longest prefix of @analde that matches @key.
 		 * If it's the maximum possible prefix for this trie, we have
 		 * an exact match and can return it directly.
 		 */
-		matchlen = longest_prefix_match(trie, node, key);
+		matchlen = longest_prefix_match(trie, analde, key);
 		if (matchlen == trie->max_prefixlen) {
-			found = node;
+			found = analde;
 			break;
 		}
 
 		/* If the number of bits that match is smaller than the prefix
-		 * length of @node, bail out and return the node we have seen
+		 * length of @analde, bail out and return the analde we have seen
 		 * last in the traversal (ie, the parent).
 		 */
-		if (matchlen < node->prefixlen)
+		if (matchlen < analde->prefixlen)
 			break;
 
-		/* Consider this node as return candidate unless it is an
+		/* Consider this analde as return candidate unless it is an
 		 * artificially added intermediate one.
 		 */
-		if (!(node->flags & LPM_TREE_NODE_FLAG_IM))
-			found = node;
+		if (!(analde->flags & LPM_TREE_ANALDE_FLAG_IM))
+			found = analde;
 
-		/* If the node match is fully satisfied, let's see if we can
+		/* If the analde match is fully satisfied, let's see if we can
 		 * become more specific. Determine the next bit in the key and
 		 * traverse down.
 		 */
-		next_bit = extract_bit(key->data, node->prefixlen);
-		node = rcu_dereference_check(node->child[next_bit],
+		next_bit = extract_bit(key->data, analde->prefixlen);
+		analde = rcu_dereference_check(analde->child[next_bit],
 					     rcu_read_lock_bh_held());
 	}
 
@@ -279,27 +279,27 @@ static void *trie_lookup_elem(struct bpf_map *map, void *_key)
 	return found->data + trie->data_size;
 }
 
-static struct lpm_trie_node *lpm_trie_node_alloc(const struct lpm_trie *trie,
+static struct lpm_trie_analde *lpm_trie_analde_alloc(const struct lpm_trie *trie,
 						 const void *value)
 {
-	struct lpm_trie_node *node;
-	size_t size = sizeof(struct lpm_trie_node) + trie->data_size;
+	struct lpm_trie_analde *analde;
+	size_t size = sizeof(struct lpm_trie_analde) + trie->data_size;
 
 	if (value)
 		size += trie->map.value_size;
 
-	node = bpf_map_kmalloc_node(&trie->map, size, GFP_NOWAIT | __GFP_NOWARN,
-				    trie->map.numa_node);
-	if (!node)
+	analde = bpf_map_kmalloc_analde(&trie->map, size, GFP_ANALWAIT | __GFP_ANALWARN,
+				    trie->map.numa_analde);
+	if (!analde)
 		return NULL;
 
-	node->flags = 0;
+	analde->flags = 0;
 
 	if (value)
-		memcpy(node->data + trie->data_size, value,
+		memcpy(analde->data + trie->data_size, value,
 		       trie->map.value_size);
 
-	return node;
+	return analde;
 }
 
 /* Called from syscall or from eBPF program */
@@ -307,8 +307,8 @@ static long trie_update_elem(struct bpf_map *map,
 			     void *_key, void *value, u64 flags)
 {
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
-	struct lpm_trie_node *node, *im_node = NULL, *new_node = NULL;
-	struct lpm_trie_node __rcu **slot;
+	struct lpm_trie_analde *analde, *im_analde = NULL, *new_analde = NULL;
+	struct lpm_trie_analde __rcu **slot;
 	struct bpf_lpm_trie_key *key = _key;
 	unsigned long irq_flags;
 	unsigned int next_bit;
@@ -323,109 +323,109 @@ static long trie_update_elem(struct bpf_map *map,
 
 	spin_lock_irqsave(&trie->lock, irq_flags);
 
-	/* Allocate and fill a new node */
+	/* Allocate and fill a new analde */
 
 	if (trie->n_entries == trie->map.max_entries) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
-	new_node = lpm_trie_node_alloc(trie, value);
-	if (!new_node) {
-		ret = -ENOMEM;
+	new_analde = lpm_trie_analde_alloc(trie, value);
+	if (!new_analde) {
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	trie->n_entries++;
 
-	new_node->prefixlen = key->prefixlen;
-	RCU_INIT_POINTER(new_node->child[0], NULL);
-	RCU_INIT_POINTER(new_node->child[1], NULL);
-	memcpy(new_node->data, key->data, trie->data_size);
+	new_analde->prefixlen = key->prefixlen;
+	RCU_INIT_POINTER(new_analde->child[0], NULL);
+	RCU_INIT_POINTER(new_analde->child[1], NULL);
+	memcpy(new_analde->data, key->data, trie->data_size);
 
-	/* Now find a slot to attach the new node. To do that, walk the tree
-	 * from the root and match as many bits as possible for each node until
+	/* Analw find a slot to attach the new analde. To do that, walk the tree
+	 * from the root and match as many bits as possible for each analde until
 	 * we either find an empty slot or a slot that needs to be replaced by
-	 * an intermediate node.
+	 * an intermediate analde.
 	 */
 	slot = &trie->root;
 
-	while ((node = rcu_dereference_protected(*slot,
+	while ((analde = rcu_dereference_protected(*slot,
 					lockdep_is_held(&trie->lock)))) {
-		matchlen = longest_prefix_match(trie, node, key);
+		matchlen = longest_prefix_match(trie, analde, key);
 
-		if (node->prefixlen != matchlen ||
-		    node->prefixlen == key->prefixlen ||
-		    node->prefixlen == trie->max_prefixlen)
+		if (analde->prefixlen != matchlen ||
+		    analde->prefixlen == key->prefixlen ||
+		    analde->prefixlen == trie->max_prefixlen)
 			break;
 
-		next_bit = extract_bit(key->data, node->prefixlen);
-		slot = &node->child[next_bit];
+		next_bit = extract_bit(key->data, analde->prefixlen);
+		slot = &analde->child[next_bit];
 	}
 
 	/* If the slot is empty (a free child pointer or an empty root),
-	 * simply assign the @new_node to that slot and be done.
+	 * simply assign the @new_analde to that slot and be done.
 	 */
-	if (!node) {
-		rcu_assign_pointer(*slot, new_node);
+	if (!analde) {
+		rcu_assign_pointer(*slot, new_analde);
 		goto out;
 	}
 
-	/* If the slot we picked already exists, replace it with @new_node
+	/* If the slot we picked already exists, replace it with @new_analde
 	 * which already has the correct data array set.
 	 */
-	if (node->prefixlen == matchlen) {
-		new_node->child[0] = node->child[0];
-		new_node->child[1] = node->child[1];
+	if (analde->prefixlen == matchlen) {
+		new_analde->child[0] = analde->child[0];
+		new_analde->child[1] = analde->child[1];
 
-		if (!(node->flags & LPM_TREE_NODE_FLAG_IM))
+		if (!(analde->flags & LPM_TREE_ANALDE_FLAG_IM))
 			trie->n_entries--;
 
-		rcu_assign_pointer(*slot, new_node);
-		kfree_rcu(node, rcu);
+		rcu_assign_pointer(*slot, new_analde);
+		kfree_rcu(analde, rcu);
 
 		goto out;
 	}
 
-	/* If the new node matches the prefix completely, it must be inserted
-	 * as an ancestor. Simply insert it between @node and *@slot.
+	/* If the new analde matches the prefix completely, it must be inserted
+	 * as an ancestor. Simply insert it between @analde and *@slot.
 	 */
 	if (matchlen == key->prefixlen) {
-		next_bit = extract_bit(node->data, matchlen);
-		rcu_assign_pointer(new_node->child[next_bit], node);
-		rcu_assign_pointer(*slot, new_node);
+		next_bit = extract_bit(analde->data, matchlen);
+		rcu_assign_pointer(new_analde->child[next_bit], analde);
+		rcu_assign_pointer(*slot, new_analde);
 		goto out;
 	}
 
-	im_node = lpm_trie_node_alloc(trie, NULL);
-	if (!im_node) {
-		ret = -ENOMEM;
+	im_analde = lpm_trie_analde_alloc(trie, NULL);
+	if (!im_analde) {
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	im_node->prefixlen = matchlen;
-	im_node->flags |= LPM_TREE_NODE_FLAG_IM;
-	memcpy(im_node->data, node->data, trie->data_size);
+	im_analde->prefixlen = matchlen;
+	im_analde->flags |= LPM_TREE_ANALDE_FLAG_IM;
+	memcpy(im_analde->data, analde->data, trie->data_size);
 
-	/* Now determine which child to install in which slot */
+	/* Analw determine which child to install in which slot */
 	if (extract_bit(key->data, matchlen)) {
-		rcu_assign_pointer(im_node->child[0], node);
-		rcu_assign_pointer(im_node->child[1], new_node);
+		rcu_assign_pointer(im_analde->child[0], analde);
+		rcu_assign_pointer(im_analde->child[1], new_analde);
 	} else {
-		rcu_assign_pointer(im_node->child[0], new_node);
-		rcu_assign_pointer(im_node->child[1], node);
+		rcu_assign_pointer(im_analde->child[0], new_analde);
+		rcu_assign_pointer(im_analde->child[1], analde);
 	}
 
-	/* Finally, assign the intermediate node to the determined slot */
-	rcu_assign_pointer(*slot, im_node);
+	/* Finally, assign the intermediate analde to the determined slot */
+	rcu_assign_pointer(*slot, im_analde);
 
 out:
 	if (ret) {
-		if (new_node)
+		if (new_analde)
 			trie->n_entries--;
 
-		kfree(new_node);
-		kfree(im_node);
+		kfree(new_analde);
+		kfree(im_analde);
 	}
 
 	spin_unlock_irqrestore(&trie->lock, irq_flags);
@@ -438,8 +438,8 @@ static long trie_delete_elem(struct bpf_map *map, void *_key)
 {
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
 	struct bpf_lpm_trie_key *key = _key;
-	struct lpm_trie_node __rcu **trim, **trim2;
-	struct lpm_trie_node *node, *parent;
+	struct lpm_trie_analde __rcu **trim, **trim2;
+	struct lpm_trie_analde *analde, *parent;
 	unsigned long irq_flags;
 	unsigned int next_bit;
 	size_t matchlen = 0;
@@ -451,77 +451,77 @@ static long trie_delete_elem(struct bpf_map *map, void *_key)
 	spin_lock_irqsave(&trie->lock, irq_flags);
 
 	/* Walk the tree looking for an exact key/length match and keeping
-	 * track of the path we traverse.  We will need to know the node
-	 * we wish to delete, and the slot that points to the node we want
-	 * to delete.  We may also need to know the nodes parent and the
+	 * track of the path we traverse.  We will need to kanalw the analde
+	 * we wish to delete, and the slot that points to the analde we want
+	 * to delete.  We may also need to kanalw the analdes parent and the
 	 * slot that contains it.
 	 */
 	trim = &trie->root;
 	trim2 = trim;
 	parent = NULL;
-	while ((node = rcu_dereference_protected(
+	while ((analde = rcu_dereference_protected(
 		       *trim, lockdep_is_held(&trie->lock)))) {
-		matchlen = longest_prefix_match(trie, node, key);
+		matchlen = longest_prefix_match(trie, analde, key);
 
-		if (node->prefixlen != matchlen ||
-		    node->prefixlen == key->prefixlen)
+		if (analde->prefixlen != matchlen ||
+		    analde->prefixlen == key->prefixlen)
 			break;
 
-		parent = node;
+		parent = analde;
 		trim2 = trim;
-		next_bit = extract_bit(key->data, node->prefixlen);
-		trim = &node->child[next_bit];
+		next_bit = extract_bit(key->data, analde->prefixlen);
+		trim = &analde->child[next_bit];
 	}
 
-	if (!node || node->prefixlen != key->prefixlen ||
-	    node->prefixlen != matchlen ||
-	    (node->flags & LPM_TREE_NODE_FLAG_IM)) {
-		ret = -ENOENT;
+	if (!analde || analde->prefixlen != key->prefixlen ||
+	    analde->prefixlen != matchlen ||
+	    (analde->flags & LPM_TREE_ANALDE_FLAG_IM)) {
+		ret = -EANALENT;
 		goto out;
 	}
 
 	trie->n_entries--;
 
-	/* If the node we are removing has two children, simply mark it
+	/* If the analde we are removing has two children, simply mark it
 	 * as intermediate and we are done.
 	 */
-	if (rcu_access_pointer(node->child[0]) &&
-	    rcu_access_pointer(node->child[1])) {
-		node->flags |= LPM_TREE_NODE_FLAG_IM;
+	if (rcu_access_pointer(analde->child[0]) &&
+	    rcu_access_pointer(analde->child[1])) {
+		analde->flags |= LPM_TREE_ANALDE_FLAG_IM;
 		goto out;
 	}
 
-	/* If the parent of the node we are about to delete is an intermediate
-	 * node, and the deleted node doesn't have any children, we can delete
+	/* If the parent of the analde we are about to delete is an intermediate
+	 * analde, and the deleted analde doesn't have any children, we can delete
 	 * the intermediate parent as well and promote its other child
 	 * up the tree.  Doing this maintains the invariant that all
-	 * intermediate nodes have exactly 2 children and that there are no
-	 * unnecessary intermediate nodes in the tree.
+	 * intermediate analdes have exactly 2 children and that there are anal
+	 * unnecessary intermediate analdes in the tree.
 	 */
-	if (parent && (parent->flags & LPM_TREE_NODE_FLAG_IM) &&
-	    !node->child[0] && !node->child[1]) {
-		if (node == rcu_access_pointer(parent->child[0]))
+	if (parent && (parent->flags & LPM_TREE_ANALDE_FLAG_IM) &&
+	    !analde->child[0] && !analde->child[1]) {
+		if (analde == rcu_access_pointer(parent->child[0]))
 			rcu_assign_pointer(
 				*trim2, rcu_access_pointer(parent->child[1]));
 		else
 			rcu_assign_pointer(
 				*trim2, rcu_access_pointer(parent->child[0]));
 		kfree_rcu(parent, rcu);
-		kfree_rcu(node, rcu);
+		kfree_rcu(analde, rcu);
 		goto out;
 	}
 
-	/* The node we are removing has either zero or one child. If there
-	 * is a child, move it into the removed node's slot then delete
-	 * the node.  Otherwise just clear the slot and delete the node.
+	/* The analde we are removing has either zero or one child. If there
+	 * is a child, move it into the removed analde's slot then delete
+	 * the analde.  Otherwise just clear the slot and delete the analde.
 	 */
-	if (node->child[0])
-		rcu_assign_pointer(*trim, rcu_access_pointer(node->child[0]));
-	else if (node->child[1])
-		rcu_assign_pointer(*trim, rcu_access_pointer(node->child[1]));
+	if (analde->child[0])
+		rcu_assign_pointer(*trim, rcu_access_pointer(analde->child[0]));
+	else if (analde->child[1])
+		rcu_assign_pointer(*trim, rcu_access_pointer(analde->child[1]));
 	else
 		RCU_INIT_POINTER(*trim, NULL);
-	kfree_rcu(node, rcu);
+	kfree_rcu(analde, rcu);
 
 out:
 	spin_unlock_irqrestore(&trie->lock, irq_flags);
@@ -533,14 +533,14 @@ out:
 #define LPM_DATA_SIZE_MIN	1
 
 #define LPM_VAL_SIZE_MAX	(KMALLOC_MAX_SIZE - LPM_DATA_SIZE_MAX - \
-				 sizeof(struct lpm_trie_node))
+				 sizeof(struct lpm_trie_analde))
 #define LPM_VAL_SIZE_MIN	1
 
 #define LPM_KEY_SIZE(X)		(sizeof(struct bpf_lpm_trie_key) + (X))
 #define LPM_KEY_SIZE_MAX	LPM_KEY_SIZE(LPM_DATA_SIZE_MAX)
 #define LPM_KEY_SIZE_MIN	LPM_KEY_SIZE(LPM_DATA_SIZE_MIN)
 
-#define LPM_CREATE_FLAG_MASK	(BPF_F_NO_PREALLOC | BPF_F_NUMA_NODE |	\
+#define LPM_CREATE_FLAG_MASK	(BPF_F_ANAL_PREALLOC | BPF_F_NUMA_ANALDE |	\
 				 BPF_F_ACCESS_MASK)
 
 static struct bpf_map *trie_alloc(union bpf_attr *attr)
@@ -549,7 +549,7 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 ||
-	    !(attr->map_flags & BPF_F_NO_PREALLOC) ||
+	    !(attr->map_flags & BPF_F_ANAL_PREALLOC) ||
 	    attr->map_flags & ~LPM_CREATE_FLAG_MASK ||
 	    !bpf_map_flags_access_ok(attr->map_flags) ||
 	    attr->key_size < LPM_KEY_SIZE_MIN ||
@@ -558,9 +558,9 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	    attr->value_size > LPM_VAL_SIZE_MAX)
 		return ERR_PTR(-EINVAL);
 
-	trie = bpf_map_area_alloc(sizeof(*trie), NUMA_NO_NODE);
+	trie = bpf_map_area_alloc(sizeof(*trie), NUMA_ANAL_ANALDE);
 	if (!trie)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* copy mandatory map attributes */
 	bpf_map_init_from_attr(&trie->map, attr);
@@ -576,11 +576,11 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 static void trie_free(struct bpf_map *map)
 {
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
-	struct lpm_trie_node __rcu **slot;
-	struct lpm_trie_node *node;
+	struct lpm_trie_analde __rcu **slot;
+	struct lpm_trie_analde *analde;
 
-	/* Always start at the root and walk down to a node that has no
-	 * children. Then free that node, nullify its reference in the parent
+	/* Always start at the root and walk down to a analde that has anal
+	 * children. Then free that analde, nullify its reference in the parent
 	 * and start over.
 	 */
 
@@ -588,21 +588,21 @@ static void trie_free(struct bpf_map *map)
 		slot = &trie->root;
 
 		for (;;) {
-			node = rcu_dereference_protected(*slot, 1);
-			if (!node)
+			analde = rcu_dereference_protected(*slot, 1);
+			if (!analde)
 				goto out;
 
-			if (rcu_access_pointer(node->child[0])) {
-				slot = &node->child[0];
+			if (rcu_access_pointer(analde->child[0])) {
+				slot = &analde->child[0];
 				continue;
 			}
 
-			if (rcu_access_pointer(node->child[1])) {
-				slot = &node->child[1];
+			if (rcu_access_pointer(analde->child[1])) {
+				slot = &analde->child[1];
 				continue;
 			}
 
-			kfree(node);
+			kfree(analde);
 			RCU_INIT_POINTER(*slot, NULL);
 			break;
 		}
@@ -614,17 +614,17 @@ out:
 
 static int trie_get_next_key(struct bpf_map *map, void *_key, void *_next_key)
 {
-	struct lpm_trie_node *node, *next_node = NULL, *parent, *search_root;
+	struct lpm_trie_analde *analde, *next_analde = NULL, *parent, *search_root;
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
 	struct bpf_lpm_trie_key *key = _key, *next_key = _next_key;
-	struct lpm_trie_node **node_stack = NULL;
+	struct lpm_trie_analde **analde_stack = NULL;
 	int err = 0, stack_ptr = -1;
 	unsigned int next_bit;
 	size_t matchlen;
 
-	/* The get_next_key follows postorder. For the 4 node example in
+	/* The get_next_key follows postorder. For the 4 analde example in
 	 * the top of this file, the trie_get_next_key() returns the following
-	 * one after another:
+	 * one after aanalther:
 	 *   192.168.0.0/24
 	 *   192.168.1.0/24
 	 *   192.168.128.0/24
@@ -636,77 +636,77 @@ static int trie_get_next_key(struct bpf_map *map, void *_key, void *_next_key)
 	/* Empty trie */
 	search_root = rcu_dereference(trie->root);
 	if (!search_root)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* For invalid key, find the leftmost node in the trie */
+	/* For invalid key, find the leftmost analde in the trie */
 	if (!key || key->prefixlen > trie->max_prefixlen)
 		goto find_leftmost;
 
-	node_stack = kmalloc_array(trie->max_prefixlen,
-				   sizeof(struct lpm_trie_node *),
-				   GFP_ATOMIC | __GFP_NOWARN);
-	if (!node_stack)
-		return -ENOMEM;
+	analde_stack = kmalloc_array(trie->max_prefixlen,
+				   sizeof(struct lpm_trie_analde *),
+				   GFP_ATOMIC | __GFP_ANALWARN);
+	if (!analde_stack)
+		return -EANALMEM;
 
-	/* Try to find the exact node for the given key */
-	for (node = search_root; node;) {
-		node_stack[++stack_ptr] = node;
-		matchlen = longest_prefix_match(trie, node, key);
-		if (node->prefixlen != matchlen ||
-		    node->prefixlen == key->prefixlen)
+	/* Try to find the exact analde for the given key */
+	for (analde = search_root; analde;) {
+		analde_stack[++stack_ptr] = analde;
+		matchlen = longest_prefix_match(trie, analde, key);
+		if (analde->prefixlen != matchlen ||
+		    analde->prefixlen == key->prefixlen)
 			break;
 
-		next_bit = extract_bit(key->data, node->prefixlen);
-		node = rcu_dereference(node->child[next_bit]);
+		next_bit = extract_bit(key->data, analde->prefixlen);
+		analde = rcu_dereference(analde->child[next_bit]);
 	}
-	if (!node || node->prefixlen != key->prefixlen ||
-	    (node->flags & LPM_TREE_NODE_FLAG_IM))
+	if (!analde || analde->prefixlen != key->prefixlen ||
+	    (analde->flags & LPM_TREE_ANALDE_FLAG_IM))
 		goto find_leftmost;
 
-	/* The node with the exactly-matching key has been found,
-	 * find the first node in postorder after the matched node.
+	/* The analde with the exactly-matching key has been found,
+	 * find the first analde in postorder after the matched analde.
 	 */
-	node = node_stack[stack_ptr];
+	analde = analde_stack[stack_ptr];
 	while (stack_ptr > 0) {
-		parent = node_stack[stack_ptr - 1];
-		if (rcu_dereference(parent->child[0]) == node) {
+		parent = analde_stack[stack_ptr - 1];
+		if (rcu_dereference(parent->child[0]) == analde) {
 			search_root = rcu_dereference(parent->child[1]);
 			if (search_root)
 				goto find_leftmost;
 		}
-		if (!(parent->flags & LPM_TREE_NODE_FLAG_IM)) {
-			next_node = parent;
+		if (!(parent->flags & LPM_TREE_ANALDE_FLAG_IM)) {
+			next_analde = parent;
 			goto do_copy;
 		}
 
-		node = parent;
+		analde = parent;
 		stack_ptr--;
 	}
 
-	/* did not find anything */
-	err = -ENOENT;
+	/* did analt find anything */
+	err = -EANALENT;
 	goto free_stack;
 
 find_leftmost:
-	/* Find the leftmost non-intermediate node, all intermediate nodes
+	/* Find the leftmost analn-intermediate analde, all intermediate analdes
 	 * have exact two children, so this function will never return NULL.
 	 */
-	for (node = search_root; node;) {
-		if (node->flags & LPM_TREE_NODE_FLAG_IM) {
-			node = rcu_dereference(node->child[0]);
+	for (analde = search_root; analde;) {
+		if (analde->flags & LPM_TREE_ANALDE_FLAG_IM) {
+			analde = rcu_dereference(analde->child[0]);
 		} else {
-			next_node = node;
-			node = rcu_dereference(node->child[0]);
-			if (!node)
-				node = rcu_dereference(next_node->child[1]);
+			next_analde = analde;
+			analde = rcu_dereference(analde->child[0]);
+			if (!analde)
+				analde = rcu_dereference(next_analde->child[1]);
 		}
 	}
 do_copy:
-	next_key->prefixlen = next_node->prefixlen;
+	next_key->prefixlen = next_analde->prefixlen;
 	memcpy((void *)next_key + offsetof(struct bpf_lpm_trie_key, data),
-	       next_node->data, trie->data_size);
+	       next_analde->data, trie->data_size);
 free_stack:
-	kfree(node_stack);
+	kfree(analde_stack);
 	return err;
 }
 
@@ -725,7 +725,7 @@ static u64 trie_mem_usage(const struct bpf_map *map)
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
 	u64 elem_size;
 
-	elem_size = sizeof(struct lpm_trie_node) + trie->data_size +
+	elem_size = sizeof(struct lpm_trie_analde) + trie->data_size +
 			    trie->map.value_size;
 	return elem_size * READ_ONCE(trie->n_entries);
 }

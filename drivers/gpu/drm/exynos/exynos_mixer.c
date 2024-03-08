@@ -29,12 +29,12 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_vblank.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyanals_drm.h>
 
-#include "exynos_drm_crtc.h"
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_plane.h"
+#include "exyanals_drm_crtc.h"
+#include "exyanals_drm_drv.h"
+#include "exyanals_drm_fb.h"
+#include "exyanals_drm_plane.h"
 #include "regs-mixer.h"
 #include "regs-vp.h"
 
@@ -45,7 +45,7 @@
  * Mixer color space conversion coefficient triplet.
  * Used for CSC from RGB to YCbCr.
  * Each coefficient is a 10-bit fixed point number with
- * sign and no integer part, i.e.
+ * sign and anal integer part, i.e.
  * [0:8] = fractional part (representing a value y = x / 2^9)
  * [9] = sign
  * Negative values are encoded with two's complement.
@@ -97,8 +97,8 @@ struct mixer_context {
 	struct device		*dev;
 	struct drm_device	*drm_dev;
 	void			*dma_priv;
-	struct exynos_drm_crtc	*crtc;
-	struct exynos_drm_plane	planes[MIXER_WIN_NR];
+	struct exyanals_drm_crtc	*crtc;
+	struct exyanals_drm_plane	planes[MIXER_WIN_NR];
 	unsigned long		flags;
 
 	int			irq;
@@ -121,34 +121,34 @@ struct mixer_drv_data {
 	bool					has_sclk;
 };
 
-static const struct exynos_drm_plane_config plane_configs[MIXER_WIN_NR] = {
+static const struct exyanals_drm_plane_config plane_configs[MIXER_WIN_NR] = {
 	{
 		.zpos = 0,
 		.type = DRM_PLANE_TYPE_PRIMARY,
 		.pixel_formats = mixer_formats,
 		.num_pixel_formats = ARRAY_SIZE(mixer_formats),
-		.capabilities = EXYNOS_DRM_PLANE_CAP_DOUBLE |
-				EXYNOS_DRM_PLANE_CAP_ZPOS |
-				EXYNOS_DRM_PLANE_CAP_PIX_BLEND |
-				EXYNOS_DRM_PLANE_CAP_WIN_BLEND,
+		.capabilities = EXYANALS_DRM_PLANE_CAP_DOUBLE |
+				EXYANALS_DRM_PLANE_CAP_ZPOS |
+				EXYANALS_DRM_PLANE_CAP_PIX_BLEND |
+				EXYANALS_DRM_PLANE_CAP_WIN_BLEND,
 	}, {
 		.zpos = 1,
 		.type = DRM_PLANE_TYPE_CURSOR,
 		.pixel_formats = mixer_formats,
 		.num_pixel_formats = ARRAY_SIZE(mixer_formats),
-		.capabilities = EXYNOS_DRM_PLANE_CAP_DOUBLE |
-				EXYNOS_DRM_PLANE_CAP_ZPOS |
-				EXYNOS_DRM_PLANE_CAP_PIX_BLEND |
-				EXYNOS_DRM_PLANE_CAP_WIN_BLEND,
+		.capabilities = EXYANALS_DRM_PLANE_CAP_DOUBLE |
+				EXYANALS_DRM_PLANE_CAP_ZPOS |
+				EXYANALS_DRM_PLANE_CAP_PIX_BLEND |
+				EXYANALS_DRM_PLANE_CAP_WIN_BLEND,
 	}, {
 		.zpos = 2,
 		.type = DRM_PLANE_TYPE_OVERLAY,
 		.pixel_formats = vp_formats,
 		.num_pixel_formats = ARRAY_SIZE(vp_formats),
-		.capabilities = EXYNOS_DRM_PLANE_CAP_SCALE |
-				EXYNOS_DRM_PLANE_CAP_ZPOS |
-				EXYNOS_DRM_PLANE_CAP_TILE |
-				EXYNOS_DRM_PLANE_CAP_WIN_BLEND,
+		.capabilities = EXYANALS_DRM_PLANE_CAP_SCALE |
+				EXYANALS_DRM_PLANE_CAP_ZPOS |
+				EXYANALS_DRM_PLANE_CAP_TILE |
+				EXYANALS_DRM_PLANE_CAP_WIN_BLEND,
 	},
 };
 
@@ -316,9 +316,9 @@ static void mixer_cfg_gfx_blend(struct mixer_context *ctx, unsigned int win,
 	u32 win_alpha = alpha >> 8;
 	u32 val;
 
-	val  = MXR_GRP_CFG_COLOR_KEY_DISABLE; /* no blank key */
+	val  = MXR_GRP_CFG_COLOR_KEY_DISABLE; /* anal blank key */
 	switch (pixel_alpha) {
-	case DRM_MODE_BLEND_PIXEL_NONE:
+	case DRM_MODE_BLEND_PIXEL_ANALNE:
 		break;
 	case DRM_MODE_BLEND_COVERAGE:
 		val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
@@ -511,12 +511,12 @@ static void mixer_commit(struct mixer_context *ctx)
 }
 
 static void vp_video_buffer(struct mixer_context *ctx,
-			    struct exynos_drm_plane *plane)
+			    struct exyanals_drm_plane *plane)
 {
-	struct exynos_drm_plane_state *state =
-				to_exynos_plane_state(plane->base.state);
+	struct exyanals_drm_plane_state *state =
+				to_exyanals_plane_state(plane->base.state);
 	struct drm_framebuffer *fb = state->base.fb;
-	unsigned int priority = state->base.normalized_zpos + 1;
+	unsigned int priority = state->base.analrmalized_zpos + 1;
 	unsigned long flags;
 	dma_addr_t luma_addr[2], chroma_addr[2];
 	bool is_tiled, is_nv21;
@@ -525,8 +525,8 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	is_nv21 = (fb->format->format == DRM_FORMAT_NV21);
 	is_tiled = (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE);
 
-	luma_addr[0] = exynos_drm_fb_dma_addr(fb, 0);
-	chroma_addr[0] = exynos_drm_fb_dma_addr(fb, 1);
+	luma_addr[0] = exyanals_drm_fb_dma_addr(fb, 0);
+	chroma_addr[0] = exyanals_drm_fb_dma_addr(fb, 1);
 
 	if (test_bit(MXR_BIT_INTERLACE, &ctx->flags)) {
 		if (is_tiled) {
@@ -598,12 +598,12 @@ static void vp_video_buffer(struct mixer_context *ctx,
 }
 
 static void mixer_graph_buffer(struct mixer_context *ctx,
-			       struct exynos_drm_plane *plane)
+			       struct exyanals_drm_plane *plane)
 {
-	struct exynos_drm_plane_state *state =
-				to_exynos_plane_state(plane->base.state);
+	struct exyanals_drm_plane_state *state =
+				to_exyanals_plane_state(plane->base.state);
 	struct drm_framebuffer *fb = state->base.fb;
-	unsigned int priority = state->base.normalized_zpos + 1;
+	unsigned int priority = state->base.analrmalized_zpos + 1;
 	unsigned long flags;
 	unsigned int win = plane->index;
 	unsigned int x_ratio = 0, y_ratio = 0;
@@ -616,7 +616,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	if (fb->format->has_alpha)
 		pixel_alpha = state->base.pixel_blend_mode;
 	else
-		pixel_alpha = DRM_MODE_BLEND_PIXEL_NONE;
+		pixel_alpha = DRM_MODE_BLEND_PIXEL_ANALNE;
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_XRGB4444:
@@ -648,7 +648,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	dst_y_offset = state->crtc.y;
 
 	/* translate dma address base s.t. the source image offset is zero */
-	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
+	dma_addr = exyanals_drm_fb_dma_addr(fb, 0)
 		+ (state->src.x * fb->format->cpp[0])
 		+ (state->src.y * fb->pitches[0]);
 
@@ -784,7 +784,7 @@ static int mixer_resources_init(struct mixer_context *mixer_ctx)
 	mixer_ctx->mixer = devm_clk_get(dev, "mixer");
 	if (IS_ERR(mixer_ctx->mixer)) {
 		dev_err(dev, "failed to get clock 'mixer'\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mixer_ctx->hdmi = devm_clk_get(dev, "hdmi");
@@ -796,7 +796,7 @@ static int mixer_resources_init(struct mixer_context *mixer_ctx)
 	mixer_ctx->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
 	if (IS_ERR(mixer_ctx->sclk_hdmi)) {
 		dev_err(dev, "failed to get clock 'sclk_hdmi'\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	res = platform_get_resource(mixer_ctx->pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -834,19 +834,19 @@ static int vp_resources_init(struct mixer_context *mixer_ctx)
 	mixer_ctx->vp = devm_clk_get(dev, "vp");
 	if (IS_ERR(mixer_ctx->vp)) {
 		dev_err(dev, "failed to get clock 'vp'\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (test_bit(MXR_BIT_HAS_SCLK, &mixer_ctx->flags)) {
 		mixer_ctx->sclk_mixer = devm_clk_get(dev, "sclk_mixer");
 		if (IS_ERR(mixer_ctx->sclk_mixer)) {
 			dev_err(dev, "failed to get clock 'sclk_mixer'\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		mixer_ctx->mout_mixer = devm_clk_get(dev, "mout_mixer");
 		if (IS_ERR(mixer_ctx->mout_mixer)) {
 			dev_err(dev, "failed to get clock 'mout_mixer'\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (mixer_ctx->sclk_hdmi && mixer_ctx->mout_mixer)
@@ -895,17 +895,17 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		}
 	}
 
-	return exynos_drm_register_dma(drm_dev, mixer_ctx->dev,
+	return exyanals_drm_register_dma(drm_dev, mixer_ctx->dev,
 				       &mixer_ctx->dma_priv);
 }
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)
 {
-	exynos_drm_unregister_dma(mixer_ctx->drm_dev, mixer_ctx->dev,
+	exyanals_drm_unregister_dma(mixer_ctx->drm_dev, mixer_ctx->dev,
 				  &mixer_ctx->dma_priv);
 }
 
-static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)
+static int mixer_enable_vblank(struct exyanals_drm_crtc *crtc)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 
@@ -920,7 +920,7 @@ static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)
 	return 0;
 }
 
-static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
+static void mixer_disable_vblank(struct exyanals_drm_crtc *crtc)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 
@@ -934,7 +934,7 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 	mixer_reg_writemask(mixer_ctx, MXR_INT_EN, 0, MXR_INT_EN_VSYNC);
 }
 
-static void mixer_atomic_begin(struct exynos_drm_crtc *crtc)
+static void mixer_atomic_begin(struct exyanals_drm_crtc *crtc)
 {
 	struct mixer_context *ctx = crtc->ctx;
 
@@ -946,8 +946,8 @@ static void mixer_atomic_begin(struct exynos_drm_crtc *crtc)
 	mixer_disable_sync(ctx);
 }
 
-static void mixer_update_plane(struct exynos_drm_crtc *crtc,
-			       struct exynos_drm_plane *plane)
+static void mixer_update_plane(struct exyanals_drm_crtc *crtc,
+			       struct exyanals_drm_plane *plane)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 
@@ -962,8 +962,8 @@ static void mixer_update_plane(struct exynos_drm_crtc *crtc,
 		mixer_graph_buffer(mixer_ctx, plane);
 }
 
-static void mixer_disable_plane(struct exynos_drm_crtc *crtc,
-				struct exynos_drm_plane *plane)
+static void mixer_disable_plane(struct exyanals_drm_crtc *crtc,
+				struct exyanals_drm_plane *plane)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	unsigned long flags;
@@ -978,7 +978,7 @@ static void mixer_disable_plane(struct exynos_drm_crtc *crtc,
 	spin_unlock_irqrestore(&mixer_ctx->reg_slock, flags);
 }
 
-static void mixer_atomic_flush(struct exynos_drm_crtc *crtc)
+static void mixer_atomic_flush(struct exyanals_drm_crtc *crtc)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 
@@ -986,10 +986,10 @@ static void mixer_atomic_flush(struct exynos_drm_crtc *crtc)
 		return;
 
 	mixer_enable_sync(mixer_ctx);
-	exynos_crtc_handle_event(crtc);
+	exyanals_crtc_handle_event(crtc);
 }
 
-static void mixer_atomic_enable(struct exynos_drm_crtc *crtc)
+static void mixer_atomic_enable(struct exyanals_drm_crtc *crtc)
 {
 	struct mixer_context *ctx = crtc->ctx;
 	int ret;
@@ -1003,7 +1003,7 @@ static void mixer_atomic_enable(struct exynos_drm_crtc *crtc)
 		return;
 	}
 
-	exynos_drm_pipe_clk_enable(crtc, true);
+	exyanals_drm_pipe_clk_enable(crtc, true);
 
 	mixer_disable_sync(ctx);
 
@@ -1023,7 +1023,7 @@ static void mixer_atomic_enable(struct exynos_drm_crtc *crtc)
 	set_bit(MXR_BIT_POWERED, &ctx->flags);
 }
 
-static void mixer_atomic_disable(struct exynos_drm_crtc *crtc)
+static void mixer_atomic_disable(struct exyanals_drm_crtc *crtc)
 {
 	struct mixer_context *ctx = crtc->ctx;
 	int i;
@@ -1037,14 +1037,14 @@ static void mixer_atomic_disable(struct exynos_drm_crtc *crtc)
 	for (i = 0; i < MIXER_WIN_NR; i++)
 		mixer_disable_plane(crtc, &ctx->planes[i]);
 
-	exynos_drm_pipe_clk_enable(crtc, false);
+	exyanals_drm_pipe_clk_enable(crtc, false);
 
 	pm_runtime_put(ctx->dev);
 
 	clear_bit(MXR_BIT_POWERED, &ctx->flags);
 }
 
-static enum drm_mode_status mixer_mode_valid(struct exynos_drm_crtc *crtc,
+static enum drm_mode_status mixer_mode_valid(struct exyanals_drm_crtc *crtc,
 		const struct drm_display_mode *mode)
 {
 	struct mixer_context *ctx = crtc->ctx;
@@ -1070,7 +1070,7 @@ static enum drm_mode_status mixer_mode_valid(struct exynos_drm_crtc *crtc,
 	return MODE_BAD;
 }
 
-static bool mixer_mode_fixup(struct exynos_drm_crtc *crtc,
+static bool mixer_mode_fixup(struct exyanals_drm_crtc *crtc,
 		   const struct drm_display_mode *mode,
 		   struct drm_display_mode *adjusted_mode)
 {
@@ -1116,7 +1116,7 @@ static bool mixer_mode_fixup(struct exynos_drm_crtc *crtc,
 	return false;
 }
 
-static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
+static const struct exyanals_drm_crtc_ops mixer_crtc_ops = {
 	.atomic_enable		= mixer_atomic_enable,
 	.atomic_disable		= mixer_atomic_disable,
 	.enable_vblank		= mixer_enable_vblank,
@@ -1129,22 +1129,22 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.mode_fixup		= mixer_mode_fixup,
 };
 
-static const struct mixer_drv_data exynos5420_mxr_drv_data = {
+static const struct mixer_drv_data exyanals5420_mxr_drv_data = {
 	.version = MXR_VER_128_0_0_184,
 	.is_vp_enabled = 0,
 };
 
-static const struct mixer_drv_data exynos5250_mxr_drv_data = {
+static const struct mixer_drv_data exyanals5250_mxr_drv_data = {
 	.version = MXR_VER_16_0_33_0,
 	.is_vp_enabled = 0,
 };
 
-static const struct mixer_drv_data exynos4212_mxr_drv_data = {
+static const struct mixer_drv_data exyanals4212_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
 };
 
-static const struct mixer_drv_data exynos4210_mxr_drv_data = {
+static const struct mixer_drv_data exyanals4210_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
 	.has_sclk = 1,
@@ -1152,22 +1152,22 @@ static const struct mixer_drv_data exynos4210_mxr_drv_data = {
 
 static const struct of_device_id mixer_match_types[] = {
 	{
-		.compatible = "samsung,exynos4210-mixer",
-		.data	= &exynos4210_mxr_drv_data,
+		.compatible = "samsung,exyanals4210-mixer",
+		.data	= &exyanals4210_mxr_drv_data,
 	}, {
-		.compatible = "samsung,exynos4212-mixer",
-		.data	= &exynos4212_mxr_drv_data,
+		.compatible = "samsung,exyanals4212-mixer",
+		.data	= &exyanals4212_mxr_drv_data,
 	}, {
-		.compatible = "samsung,exynos5-mixer",
-		.data	= &exynos5250_mxr_drv_data,
+		.compatible = "samsung,exyanals5-mixer",
+		.data	= &exyanals5250_mxr_drv_data,
 	}, {
-		.compatible = "samsung,exynos5250-mixer",
-		.data	= &exynos5250_mxr_drv_data,
+		.compatible = "samsung,exyanals5250-mixer",
+		.data	= &exyanals5250_mxr_drv_data,
 	}, {
-		.compatible = "samsung,exynos5420-mixer",
-		.data	= &exynos5420_mxr_drv_data,
+		.compatible = "samsung,exyanals5420-mixer",
+		.data	= &exyanals5420_mxr_drv_data,
 	}, {
-		/* end node */
+		/* end analde */
 	}
 };
 MODULE_DEVICE_TABLE(of, mixer_match_types);
@@ -1176,7 +1176,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 {
 	struct mixer_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_plane *exynos_plane;
+	struct exyanals_drm_plane *exyanals_plane;
 	unsigned int i;
 	int ret;
 
@@ -1189,15 +1189,15 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 						     &ctx->flags))
 			continue;
 
-		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
+		ret = exyanals_plane_init(drm_dev, &ctx->planes[i], i,
 					&plane_configs[i]);
 		if (ret)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[DEFAULT_WIN];
-	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-			EXYNOS_DISPLAY_TYPE_HDMI, &mixer_crtc_ops, ctx);
+	exyanals_plane = &ctx->planes[DEFAULT_WIN];
+	ctx->crtc = exyanals_drm_crtc_create(drm_dev, &exyanals_plane->base,
+			EXYANALS_DISPLAY_TYPE_HDMI, &mixer_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		mixer_ctx_remove(ctx);
 		ret = PTR_ERR(ctx->crtc);
@@ -1233,7 +1233,7 @@ static int mixer_probe(struct platform_device *pdev)
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		DRM_DEV_ERROR(dev, "failed to alloc mixer context.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drv = of_device_get_match_data(dev);
@@ -1265,7 +1265,7 @@ static void mixer_remove(struct platform_device *pdev)
 	component_del(&pdev->dev, &mixer_component_ops);
 }
 
-static int __maybe_unused exynos_mixer_suspend(struct device *dev)
+static int __maybe_unused exyanals_mixer_suspend(struct device *dev)
 {
 	struct mixer_context *ctx = dev_get_drvdata(dev);
 
@@ -1280,7 +1280,7 @@ static int __maybe_unused exynos_mixer_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused exynos_mixer_resume(struct device *dev)
+static int __maybe_unused exyanals_mixer_resume(struct device *dev)
 {
 	struct mixer_context *ctx = dev_get_drvdata(dev);
 	int ret;
@@ -1322,17 +1322,17 @@ static int __maybe_unused exynos_mixer_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops exynos_mixer_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos_mixer_suspend, exynos_mixer_resume, NULL)
+static const struct dev_pm_ops exyanals_mixer_pm_ops = {
+	SET_RUNTIME_PM_OPS(exyanals_mixer_suspend, exyanals_mixer_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
 
 struct platform_driver mixer_driver = {
 	.driver = {
-		.name = "exynos-mixer",
+		.name = "exyanals-mixer",
 		.owner = THIS_MODULE,
-		.pm = &exynos_mixer_pm_ops,
+		.pm = &exyanals_mixer_pm_ops,
 		.of_match_table = mixer_match_types,
 	},
 	.probe = mixer_probe,

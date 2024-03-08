@@ -114,7 +114,7 @@
 /* EMMC */
 &usdhc3 {
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;

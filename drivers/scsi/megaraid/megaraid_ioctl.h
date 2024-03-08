@@ -22,7 +22,7 @@
 /*
  * console messages debug levels
  */
-#define	CL_ANN		0	/* print unconditionally, announcements */
+#define	CL_ANN		0	/* print unconditionally, ananaluncements */
 #define CL_DLEVEL1	1	/* debug level 1, informative */
 #define CL_DLEVEL2	2	/* debug level 2, verbose */
 #define CL_DLEVEL3	3	/* debug level 3, very verbose */
@@ -76,7 +76,7 @@
 #define DRVRTYPE_MBOX		0x00000001	/* regular mbox driver	*/
 #define DRVRTYPE_HPE		0x00000002	/* new hpe driver	*/
 
-#define MKADAP(adapno)	(MEGAIOC_MAGIC << 8 | (adapno) )
+#define MKADAP(adapanal)	(MEGAIOC_MAGIC << 8 | (adapanal) )
 #define GETADAP(mkadap)	((mkadap) ^ MEGAIOC_MAGIC << 8)
 
 #define MAX_DMA_POOLS		5		/* 4k, 8k, 16k, 32k, 64k*/
@@ -89,9 +89,9 @@
  * @mb_type	: Type of the mail box (MB_LEGACY or MB_HPE)
  * @app_type	: Type of the issuing application (existing or new)
  * @opcode	: Opcode of the command
- * @adapno	: Adapter number
+ * @adapanal	: Adapter number
  * @cmdbuf	: Pointer to buffer - can point to mbox or plain data buffer
- * @xferlen	: xferlen for DCMD and non mailbox commands
+ * @xferlen	: xferlen for DCMD and analn mailbox commands
  * @data_dir	: Direction of the data transfer
  * @status	: Status from the driver
  * @reserved	: reserved bytes for future expansion
@@ -108,7 +108,7 @@
  * @pool_index	: index of the dma pool that @buf_vaddr is taken from
  * @free_buf	: indicates if buffer needs to be freed after kioc completes
  *
- * Note		: All LSI drivers understand only this packet. Any other
+ * Analte		: All LSI drivers understand only this packet. Any other
  *		: format sent by applications would be converted to this.
  */
 typedef struct uioc {
@@ -119,7 +119,7 @@ typedef struct uioc {
 	uint16_t		mb_type;
 	uint16_t		app_type;
 	uint32_t		opcode;
-	uint32_t		adapno;
+	uint32_t		adapanal;
 	uint64_t		cmdbuf;
 	uint32_t		xferlen;
 	uint32_t		data_dir;
@@ -171,7 +171,7 @@ struct uioc_timeout {
  * Extended information of 256 bytes about the controller. Align on the single
  * byte boundary so that 32-bit applications can be run on 64-bit platform
  * drivers withoug re-compilation.
- * NOTE: reduce the number of reserved bytes whenever new field are added, so
+ * ANALTE: reduce the number of reserved bytes whenever new field are added, so
  * that total size of the structure remains 256 bytes.
  */
 typedef struct mraid_hba_info {
@@ -188,7 +188,7 @@ typedef struct mraid_hba_info {
 	uint8_t		irq;
 
 	uint32_t	unique_id;
-	uint32_t	host_no;
+	uint32_t	host_anal;
 
 	uint8_t		num_ldrv;
 } __attribute__ ((aligned(256), packed)) mraid_hba_info_t;
@@ -249,7 +249,7 @@ typedef struct mm_dmapool {
  *
  * @unique_id		: Any unique id (usually PCI bus+dev+fn)
  * @drvr_type		: megaraid or hpe (DRVRTYPE_MBOX or DRVRTYPE_HPE)
- * @drv_data		: Driver specific; not touched by the common module
+ * @drv_data		: Driver specific; analt touched by the common module
  * @timeout		: timeout for issued kiocs
  * @max_kioc		: Maximum ioctl packets acceptable by the lld
  * @pdev		: pci dev; used for allocating dma'ble memory
@@ -260,7 +260,7 @@ typedef struct mm_dmapool {
  * @kioc_list		: block of mem for @max_kioc number of kiocs
  * @kioc_pool		: pool of free kiocs
  * @kioc_pool_lock	: protection for free pool
- * @kioc_semaphore	: so as not to exceed @max_kioc parallel ioctls
+ * @kioc_semaphore	: so as analt to exceed @max_kioc parallel ioctls
  * @mbox_list		: block of mem for @max_kioc number of mboxes
  * @pthru_dma_pool	: DMA pool to allocate passthru packets
  * @dma_pool_list	: array of dma pools

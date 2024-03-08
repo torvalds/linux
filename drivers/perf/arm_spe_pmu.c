@@ -19,7 +19,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -71,7 +71,7 @@ struct arm_spe_pmu {
 	struct pmu				pmu;
 	struct platform_device			*pdev;
 	cpumask_t				supported_cpus;
-	struct hlist_node			hotplug_node;
+	struct hlist_analde			hotplug_analde;
 
 	int					irq; /* PPI */
 	u16					pmsver;
@@ -132,7 +132,7 @@ static u32 arm_spe_pmu_cap_get(struct arm_spe_pmu *spe_pmu, int cap)
 	case SPE_PMU_CAP_MIN_IVAL:
 		return spe_pmu->min_period;
 	default:
-		WARN(1, "unknown cap %d\n", cap);
+		WARN(1, "unkanalwn cap %d\n", cap);
 	}
 
 	return 0;
@@ -438,25 +438,25 @@ static u64 __arm_spe_pmu_next_off(struct perf_output_handle *handle)
 		head = PERF_IDX2OFF(handle->head, buf);
 	}
 
-	/* If we've run out of free space, then nothing more to do */
+	/* If we've run out of free space, then analthing more to do */
 	if (!handle->size)
-		goto no_space;
+		goto anal_space;
 
-	/* Compute the tail and wakeup indices now that we've aligned head */
+	/* Compute the tail and wakeup indices analw that we've aligned head */
 	tail = PERF_IDX2OFF(handle->head + handle->size, buf);
 	wakeup = PERF_IDX2OFF(handle->wakeup, buf);
 
 	/*
-	 * Avoid clobbering unconsumed data. We know we have space, so
-	 * if we see head == tail we know that the buffer is empty. If
-	 * head > tail, then there's nothing to clobber prior to
+	 * Avoid clobbering unconsumed data. We kanalw we have space, so
+	 * if we see head == tail we kanalw that the buffer is empty. If
+	 * head > tail, then there's analthing to clobber prior to
 	 * wrapping.
 	 */
 	if (head < tail)
 		limit = round_down(tail, PAGE_SIZE);
 
 	/*
-	 * Wakeup may be arbitrarily far into the future. If it's not in
+	 * Wakeup may be arbitrarily far into the future. If it's analt in
 	 * the current generation, either we'll wrap before hitting it,
 	 * or it's in the past and has been handled already.
 	 *
@@ -471,7 +471,7 @@ static u64 __arm_spe_pmu_next_off(struct perf_output_handle *handle)
 		return limit;
 
 	arm_spe_pmu_pad_buf(handle, handle->size);
-no_space:
+anal_space:
 	perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 	perf_aux_output_end(handle, 0);
 	return 0;
@@ -601,7 +601,7 @@ arm_spe_pmu_buf_get_fault_act(struct perf_output_handle *handle)
 		err_str = "Unexpected buffer fault";
 		goto out_err;
 	default:
-		err_str = "Unknown error code";
+		err_str = "Unkanalwn error code";
 		goto out_err;
 	}
 
@@ -611,7 +611,7 @@ arm_spe_pmu_buf_get_fault_act(struct perf_output_handle *handle)
 		ret = SPE_PMU_BUF_FAULT_ACT_OK;
 		goto out_stop;
 	default:
-		err_str = "Unknown buffer status code";
+		err_str = "Unkanalwn buffer status code";
 	}
 
 out_err:
@@ -633,11 +633,11 @@ static irqreturn_t arm_spe_pmu_irq_handler(int irq, void *dev)
 	enum arm_spe_pmu_buf_fault_action act;
 
 	if (!perf_get_aux(handle))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	act = arm_spe_pmu_buf_get_fault_act(handle);
 	if (act == SPE_PMU_BUF_FAULT_ACT_SPURIOUS)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Ensure perf callbacks have completed, which may disable the
@@ -673,7 +673,7 @@ static irqreturn_t arm_spe_pmu_irq_handler(int irq, void *dev)
 		break;
 	}
 
-	/* The buffer pointers are now sane, so resume profiling. */
+	/* The buffer pointers are analw sane, so resume profiling. */
 	write_sysreg_s(0, SYS_PMBSR_EL1);
 	return IRQ_HANDLED;
 }
@@ -701,20 +701,20 @@ static int arm_spe_pmu_event_init(struct perf_event *event)
 
 	/* This is, of course, deeply driver-specific */
 	if (attr->type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (event->cpu >= 0 &&
 	    !cpumask_test_cpu(event->cpu, &spe_pmu->supported_cpus))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (arm_spe_event_to_pmsevfr(event) & arm_spe_pmsevfr_res0(spe_pmu->pmsver))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (arm_spe_event_to_pmsnevfr(event) & arm_spe_pmsevfr_res0(spe_pmu->pmsver))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (attr->exclude_idle)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * Feedback-directed frequency throttling doesn't work when we
@@ -729,19 +729,19 @@ static int arm_spe_pmu_event_init(struct perf_event *event)
 	reg = arm_spe_event_to_pmsfcr(event);
 	if ((FIELD_GET(PMSFCR_EL1_FE, reg)) &&
 	    !(spe_pmu->features & SPE_PMU_FEAT_FILT_EVT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((FIELD_GET(PMSFCR_EL1_FnE, reg)) &&
 	    !(spe_pmu->features & SPE_PMU_FEAT_INV_FILT_EVT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((FIELD_GET(PMSFCR_EL1_FT, reg)) &&
 	    !(spe_pmu->features & SPE_PMU_FEAT_FILT_TYP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((FIELD_GET(PMSFCR_EL1_FL, reg)) &&
 	    !(spe_pmu->features & SPE_PMU_FEAT_FILT_LAT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	set_spe_event_has_cx(event);
 	reg = arm_spe_event_to_pmscr(event);
@@ -797,7 +797,7 @@ static void arm_spe_pmu_stop(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	struct perf_output_handle *handle = this_cpu_ptr(spe_pmu->handle);
 
-	/* If we're already stopped, then nothing to do */
+	/* If we're already stopped, then analthing to do */
 	if (hwc->state & PERF_HES_STOPPED)
 		return;
 
@@ -821,7 +821,7 @@ static void arm_spe_pmu_stop(struct perf_event *event, int flags)
 		}
 
 		/*
-		 * This may also contain ECOUNT, but nobody else should
+		 * This may also contain ECOUNT, but analbody else should
 		 * be looking at period_left, since we forbid frequency
 		 * based sampling.
 		 */
@@ -840,7 +840,7 @@ static int arm_spe_pmu_add(struct perf_event *event, int flags)
 	int cpu = event->cpu == -1 ? smp_processor_id() : event->cpu;
 
 	if (!cpumask_test_cpu(cpu, &spe_pmu->supported_cpus))
-		return -ENOENT;
+		return -EANALENT;
 
 	hwc->state = PERF_HES_UPTODATE | PERF_HES_STOPPED;
 
@@ -885,7 +885,7 @@ static void *arm_spe_pmu_setup_aux(struct perf_event *event, void **pages,
 	if (cpu == -1)
 		cpu = raw_smp_processor_id();
 
-	buf = kzalloc_node(sizeof(*buf), GFP_KERNEL, cpu_to_node(cpu));
+	buf = kzalloc_analde(sizeof(*buf), GFP_KERNEL, cpu_to_analde(cpu));
 	if (!buf)
 		return NULL;
 
@@ -936,10 +936,10 @@ static int arm_spe_pmu_perf_init(struct arm_spe_pmu *spe_pmu)
 		.attr_groups	= arm_spe_pmu_attr_groups,
 		/*
 		 * We hitch a ride on the software context here, so that
-		 * we can support per-task profiling (which is not possible
+		 * we can support per-task profiling (which is analt possible
 		 * with the invalid context as it doesn't get sched callbacks).
 		 * This requires that userspace either uses a dummy event for
-		 * perf_event_open, since the aux buffer is not setup until
+		 * perf_event_open, since the aux buffer is analt setup until
 		 * a subsequent mmap, or creates the profiling event in a
 		 * disabled state and explicitly PERF_EVENT_IOC_ENABLEs it
 		 * once the buffer has been created.
@@ -959,7 +959,7 @@ static int arm_spe_pmu_perf_init(struct arm_spe_pmu *spe_pmu)
 	name = devm_kasprintf(dev, GFP_KERNEL, "%s_%d", PMUNAME, idx);
 	if (!name) {
 		dev_err(dev, "failed to allocate name for pmu %d\n", idx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return perf_pmu_register(&spe_pmu->pmu, name, -1);
@@ -987,7 +987,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 	}
 	spe_pmu->pmsver = (u16)fld;
 
-	/* Read PMBIDR first to determine whether or not we have access */
+	/* Read PMBIDR first to determine whether or analt we have access */
 	reg = read_sysreg_s(SYS_PMBIDR_EL1);
 	if (FIELD_GET(PMBIDR_EL1_P, reg)) {
 		dev_err(dev,
@@ -1004,7 +1004,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 		return;
 	}
 
-	/* It's now safe to read PMSIDR and figure out what we've got */
+	/* It's analw safe to read PMSIDR and figure out what we've got */
 	reg = read_sysreg_s(SYS_PMSIDR_EL1);
 	if (FIELD_GET(PMSIDR_EL1_FE, reg))
 		spe_pmu->features |= SPE_PMU_FEAT_FILT_EVT;
@@ -1052,7 +1052,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 		spe_pmu->min_period = 3072;
 		break;
 	default:
-		dev_warn(dev, "unknown PMSIDR_EL1.Interval [%d]; assuming 8\n",
+		dev_warn(dev, "unkanalwn PMSIDR_EL1.Interval [%d]; assuming 8\n",
 			 fld);
 		fallthrough;
 	case PMSIDR_EL1_INTERVAL_4096:
@@ -1071,7 +1071,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 	fld = FIELD_GET(PMSIDR_EL1_COUNTSIZE, reg);
 	switch (fld) {
 	default:
-		dev_warn(dev, "unknown PMSIDR_EL1.CountSize [%d]; assuming 2\n",
+		dev_warn(dev, "unkanalwn PMSIDR_EL1.CountSize [%d]; assuming 2\n",
 			 fld);
 		fallthrough;
 	case PMSIDR_EL1_COUNTSIZE_12_BIT_SAT:
@@ -1092,7 +1092,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 static void __arm_spe_pmu_reset_local(void)
 {
 	/*
-	 * This is probably overkill, as we have no idea where we're
+	 * This is probably overkill, as we have anal idea where we're
 	 * draining any buffered data to...
 	 */
 	arm_spe_pmu_disable_and_drain_local();
@@ -1111,7 +1111,7 @@ static void __arm_spe_pmu_setup_one(void *info)
 	struct arm_spe_pmu *spe_pmu = info;
 
 	__arm_spe_pmu_reset_local();
-	enable_percpu_irq(spe_pmu->irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(spe_pmu->irq, IRQ_TYPE_ANALNE);
 }
 
 static void __arm_spe_pmu_stop_one(void *info)
@@ -1122,11 +1122,11 @@ static void __arm_spe_pmu_stop_one(void *info)
 	__arm_spe_pmu_reset_local();
 }
 
-static int arm_spe_pmu_cpu_startup(unsigned int cpu, struct hlist_node *node)
+static int arm_spe_pmu_cpu_startup(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct arm_spe_pmu *spe_pmu;
 
-	spe_pmu = hlist_entry_safe(node, struct arm_spe_pmu, hotplug_node);
+	spe_pmu = hlist_entry_safe(analde, struct arm_spe_pmu, hotplug_analde);
 	if (!cpumask_test_cpu(cpu, &spe_pmu->supported_cpus))
 		return 0;
 
@@ -1134,11 +1134,11 @@ static int arm_spe_pmu_cpu_startup(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int arm_spe_pmu_cpu_teardown(unsigned int cpu, struct hlist_node *node)
+static int arm_spe_pmu_cpu_teardown(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct arm_spe_pmu *spe_pmu;
 
-	spe_pmu = hlist_entry_safe(node, struct arm_spe_pmu, hotplug_node);
+	spe_pmu = hlist_entry_safe(analde, struct arm_spe_pmu, hotplug_analde);
 	if (!cpumask_test_cpu(cpu, &spe_pmu->supported_cpus))
 		return 0;
 
@@ -1156,19 +1156,19 @@ static int arm_spe_pmu_dev_init(struct arm_spe_pmu *spe_pmu)
 	if (ret || !(spe_pmu->features & SPE_PMU_FEAT_DEV_PROBED))
 		return -ENXIO;
 
-	/* Request our PPIs (note that the IRQ is still disabled) */
+	/* Request our PPIs (analte that the IRQ is still disabled) */
 	ret = request_percpu_irq(spe_pmu->irq, arm_spe_pmu_irq_handler, DRVNAME,
 				 spe_pmu->handle);
 	if (ret)
 		return ret;
 
 	/*
-	 * Register our hotplug notifier now so we don't miss any events.
+	 * Register our hotplug analtifier analw so we don't miss any events.
 	 * This will enable the IRQ for any supported CPUs that are already
 	 * up.
 	 */
 	ret = cpuhp_state_add_instance(arm_spe_pmu_online,
-				       &spe_pmu->hotplug_node);
+				       &spe_pmu->hotplug_analde);
 	if (ret)
 		free_percpu_irq(spe_pmu->irq, spe_pmu->handle);
 
@@ -1177,7 +1177,7 @@ static int arm_spe_pmu_dev_init(struct arm_spe_pmu *spe_pmu)
 
 static void arm_spe_pmu_dev_teardown(struct arm_spe_pmu *spe_pmu)
 {
-	cpuhp_state_remove_instance(arm_spe_pmu_online, &spe_pmu->hotplug_node);
+	cpuhp_state_remove_instance(arm_spe_pmu_online, &spe_pmu->hotplug_analde);
 	free_percpu_irq(spe_pmu->irq, spe_pmu->handle);
 }
 
@@ -1233,11 +1233,11 @@ static int arm_spe_pmu_device_probe(struct platform_device *pdev)
 
 	spe_pmu = devm_kzalloc(dev, sizeof(*spe_pmu), GFP_KERNEL);
 	if (!spe_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spe_pmu->handle = alloc_percpu(typeof(*spe_pmu->handle));
 	if (!spe_pmu->handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spe_pmu->pdev = pdev;
 	platform_set_drvdata(pdev, spe_pmu);

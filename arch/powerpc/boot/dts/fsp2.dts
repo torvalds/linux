@@ -69,7 +69,7 @@
 	};
 
 	/* "interrupts" field is <bit level bit level>
-	   first pair is non-critical, second is critical */
+	   first pair is analn-critical, second is critical */
 	UIC1_0: uic1_0 {
 		#address-cells = <0>;
 		#size-cells = <0>;
@@ -500,7 +500,7 @@
 			clock-names	= "mmc";
 			clocks		= <&mmc_clk>;
 			bus-width	= <4>;
-			non-removable;
+			analn-removable;
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;

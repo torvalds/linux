@@ -8,7 +8,7 @@
  * Broken down from monstrous PCF50633 driver mainly by
  * Harald Welte, Andy Green and Werner Almesberger
  *
- *  NOTE: This driver does not yet support subtractive ADC mode, which means
+ *  ANALTE: This driver does analt yet support subtractive ADC mode, which means
  *  you can do only one measurement per read request.
  */
 
@@ -141,7 +141,7 @@ int pcf50633_adc_async_read(struct pcf50633 *pcf, int mux, int avg,
 	/* req is freed when the result is ready, in interrupt handler */
 	req = kmalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->mux = mux;
 	req->avg = avg;
@@ -205,7 +205,7 @@ static int pcf50633_adc_probe(struct platform_device *pdev)
 
 	adc = devm_kzalloc(&pdev->dev, sizeof(*adc), GFP_KERNEL);
 	if (!adc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc->pcf = dev_to_pcf50633(pdev->dev.parent);
 	platform_set_drvdata(pdev, adc);

@@ -148,7 +148,7 @@ int omap4iss_get_external_info(struct iss_pipeline *pipe,
 	ctrl = v4l2_ctrl_find(pipe->external->ctrl_handler,
 			      V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
-		dev_warn(iss->dev, "no pixel rate control in subdev %s\n",
+		dev_warn(iss->dev, "anal pixel rate control in subdev %s\n",
 			 pipe->external->name);
 		return -EPIPE;
 	}
@@ -299,12 +299,12 @@ static void iss_isp_isr_dbg(struct iss_device *iss, u32 irqstatus)
 
 /*
  * iss_isr - Interrupt Service Routine for ISS module.
- * @irq: Not used currently.
+ * @irq: Analt used currently.
  * @_iss: Pointer to the OMAP4 ISS device
  *
  * Handles the corresponding callback if plugged in.
  *
- * Returns IRQ_HANDLED when IRQ was correctly handled, or IRQ_NONE when the
+ * Returns IRQ_HANDLED when IRQ was correctly handled, or IRQ_ANALNE when the
  * IRQ wasn't handled.
  */
 static irqreturn_t iss_isr(int irq, void *_iss)
@@ -359,7 +359,7 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 }
 
 static const struct media_device_ops iss_media_ops = {
-	.link_notify = v4l2_pipeline_link_notify,
+	.link_analtify = v4l2_pipeline_link_analtify,
 };
 
 /* -----------------------------------------------------------------------------
@@ -371,8 +371,8 @@ static const struct media_device_ops iss_media_ops = {
  * @pipe: ISS pipeline
  * @until: entity at which to stop pipeline walk
  *
- * Walk the entities chain starting at the pipeline output video node and stop
- * all modules in the chain. Wait synchronously for the modules to be stopped if
+ * Walk the entities chain starting at the pipeline output video analde and stop
+ * all modules in the chain. Wait synchroanalusly for the modules to be stopped if
  * necessary.
  *
  * If the until argument isn't NULL, stop the pipeline walk when reaching the
@@ -425,7 +425,7 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe,
  * @pipe: ISS pipeline
  * @mode: Stream mode (single shot or continuous)
  *
- * Walk the entities chain starting at the pipeline output video node and start
+ * Walk the entities chain starting at the pipeline output video analde and start
  * all modules in the chain in the given mode.
  *
  * Return 0 if successful, or the return value of the failed video::s_stream
@@ -441,7 +441,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 	unsigned long flags;
 	int ret;
 
-	/* If one of the entities in the pipeline has crashed it will not work
+	/* If one of the entities in the pipeline has crashed it will analt work
 	 * properly. Refuse to start streaming in that case. This check must be
 	 * performed before the loop below to avoid starting entities if the
 	 * pipeline won't start anyway (those entities would then likely fail to
@@ -472,7 +472,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 		subdev = media_entity_to_v4l2_subdev(entity);
 
 		ret = v4l2_subdev_call(subdev, video, s_stream, mode);
-		if (ret < 0 && ret != -ENOIOCTLCMD) {
+		if (ret < 0 && ret != -EANALIOCTLCMD) {
 			iss_pipeline_disable(pipe, entity);
 			mutex_unlock(&iss->media_dev.graph_mutex);
 			return ret;
@@ -498,7 +498,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
  * single-shot or continuous mode.
  *
  * Return 0 if successful, or the return value of the failed video::s_stream
- * operation otherwise. The pipeline state is not updated when the operation
+ * operation otherwise. The pipeline state is analt updated when the operation
  * fails, except when stopping the pipeline.
  */
 int omap4iss_pipeline_set_stream(struct iss_pipeline *pipe,
@@ -521,8 +521,8 @@ int omap4iss_pipeline_set_stream(struct iss_pipeline *pipe,
  * omap4iss_pipeline_cancel_stream - Cancel stream on a pipeline
  * @pipe: ISS pipeline
  *
- * Cancelling a stream mark all buffers on all video nodes in the pipeline as
- * erroneous and makes sure no new buffer can be queued. This function is called
+ * Cancelling a stream mark all buffers on all video analdes in the pipeline as
+ * erroneous and makes sure anal new buffer can be queued. This function is called
  * when a fatal error that prevents any further operation on the pipeline
  * occurs.
  */
@@ -536,12 +536,12 @@ void omap4iss_pipeline_cancel_stream(struct iss_pipeline *pipe)
 
 /*
  * iss_pipeline_is_last - Verify if entity has an enabled link to the output
- *			  video node
+ *			  video analde
  * @me: ISS module's media entity
  *
- * Returns 1 if the entity has an enabled link to the output video node or 0
- * otherwise. It's true only while pipeline can have no more than one output
- * node.
+ * Returns 1 if the entity has an enabled link to the output video analde or 0
+ * otherwise. It's true only while pipeline can have anal more than one output
+ * analde.
  */
 static int iss_pipeline_is_last(struct media_entity *me)
 {
@@ -579,7 +579,7 @@ static int iss_isp_reset(struct iss_device *iss)
 {
 	unsigned int timeout;
 
-	/* Fist, ensure that the ISP is IDLE (no transactions happening) */
+	/* Fist, ensure that the ISP is IDLE (anal transactions happening) */
 	iss_reg_update(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG,
 		       ISP5_SYSCONFIG_STANDBYMODE_MASK,
 		       ISP5_SYSCONFIG_STANDBYMODE_SMART);
@@ -594,7 +594,7 @@ static int iss_isp_reset(struct iss_device *iss)
 		return -ETIMEDOUT;
 	}
 
-	/* Now finally, do the reset */
+	/* Analw finally, do the reset */
 	iss_reg_set(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG,
 		    ISP5_SYSCONFIG_SOFTRESET);
 
@@ -616,7 +616,7 @@ static int iss_isp_reset(struct iss_device *iss)
  * @stopping: flag which tells module wants to stop
  *
  * This function checks if ISS submodule needs to wait for next interrupt. If
- * yes, makes the caller to sleep while waiting for such event.
+ * anal, makes the caller to sleep while waiting for such event.
  */
 int omap4iss_module_sync_idle(struct media_entity *me, wait_queue_head_t *wait,
 			      atomic_t *stopping)
@@ -672,8 +672,8 @@ int omap4iss_module_sync_idle(struct media_entity *me, wait_queue_head_t *wait,
  * @wait: ISS submodule's wait queue for streamoff/interrupt synchronization
  * @stopping: flag which tells module wants to stop
  *
- * This function checks if ISS submodule was stopping. In case of yes, it
- * notices the caller by setting stopping to 0 and waking up the wait queue.
+ * This function checks if ISS submodule was stopping. In case of anal, it
+ * analtices the caller by setting stopping to 0 and waking up the wait queue.
  * Returns 1 if it was stopping or 0 otherwise.
  */
 int omap4iss_module_sync_is_stopping(wait_queue_head_t *wait,
@@ -1069,7 +1069,7 @@ static int iss_register_entities(struct iss_device *iss)
 			goto done;
 	}
 
-	ret = v4l2_device_register_subdev_nodes(&iss->v4l2_dev);
+	ret = v4l2_device_register_subdev_analdes(&iss->v4l2_dev);
 
 done:
 	if (ret < 0)
@@ -1207,7 +1207,7 @@ static int iss_probe(struct platform_device *pdev)
 
 	iss = devm_kzalloc(&pdev->dev, sizeof(*iss), GFP_KERNEL);
 	if (!iss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&iss->iss_mutex);
 
@@ -1277,7 +1277,7 @@ static int iss_probe(struct platform_device *pdev)
 	/* Interrupt */
 	ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_iss;
 	}
 	iss->irq_num = ret;

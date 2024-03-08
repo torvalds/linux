@@ -34,7 +34,7 @@ properties:
     description:
       Must be "uart<n>", n being the instance number (1-based)
       This property is applicable only on legacy platforms mainly omap2/3
-      and ti81xx and should not be used on other platforms.
+      and ti81xx and should analt be used on other platforms.
     $ref: /schemas/types.yaml#/definitions/string
     deprecated: true
 
@@ -54,7 +54,7 @@ properties:
     minItems: 1
     maxItems: 2
     description:
-      First entry is module IRQ required for normal IO operation.
+      First entry is module IRQ required for analrmal IO operation.
       Second entry is optional and corresponds to system wakeup IRQ
       where supported.
 

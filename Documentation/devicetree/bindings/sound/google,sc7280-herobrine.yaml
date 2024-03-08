@@ -29,7 +29,7 @@ properties:
 patternProperties:
   "^dai-link@[0-9a-f]$":
     description:
-      Each subnode represents a dai link. Subnodes of each dai links would be
+      Each subanalde represents a dai link. Subanaldes of each dai links would be
       cpu/codec dais.
 
     type: object
@@ -45,7 +45,7 @@ patternProperties:
         description: dai link address.
 
       cpu:
-        description: Holds subnode which indicates cpu dai.
+        description: Holds subanalde which indicates cpu dai.
         type: object
         properties:
           sound-dai: true
@@ -56,7 +56,7 @@ patternProperties:
         additionalProperties: false
 
       codec:
-        description: Holds subnode which indicates codec dai.
+        description: Holds subanalde which indicates codec dai.
         type: object
         properties:
           sound-dai: true
@@ -67,7 +67,7 @@ patternProperties:
         additionalProperties: false
 
       platform:
-        description: Holds subnode which includes the phandle of q6apm platform device.
+        description: Holds subanalde which includes the phandle of q6apm platform device.
         type: object
         properties:
           sound-dai:

@@ -4,7 +4,7 @@ menu "GCOV-based kernel profiling"
 config GCOV_KERNEL
 	bool "Enable gcov-based kernel profiling"
 	depends on DEBUG_FS
-	depends on !ARCH_WANTS_NO_INSTR || CC_HAS_NO_PROFILE_FN_ATTR
+	depends on !ARCH_WANTS_ANAL_INSTR || CC_HAS_ANAL_PROFILE_FN_ATTR
 	select CONSTRUCTORS
 	default n
 	help
@@ -31,7 +31,7 @@ config GCOV_KERNEL
 	and:
 	        GCOV_PROFILE := n
 
-	Note that the debugfs filesystem has to be mounted to access
+	Analte that the debugfs filesystem has to be mounted to access
 	profiling data.
 
 config ARCH_HAS_GCOV_PROFILE_ALL
@@ -48,8 +48,8 @@ config GCOV_PROFILE_ALL
 
 	If unsure, say N.
 
-	Note that a kernel compiled with profiling flags will be significantly
+	Analte that a kernel compiled with profiling flags will be significantly
 	larger and run slower. Also be sure to exclude files from profiling
-	which are not linked to the kernel image to prevent linker errors.
+	which are analt linked to the kernel image to prevent linker errors.
 
 endmenu

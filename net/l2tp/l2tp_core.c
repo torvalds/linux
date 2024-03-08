@@ -27,7 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/jiffies.h>
 
 #include <linux/netdevice.h>
@@ -209,7 +209,7 @@ struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id)
 
 	rcu_read_lock_bh();
 	tunnel = idr_find(&pn->l2tp_tunnel_idr, tunnel_id);
-	if (tunnel && refcount_inc_not_zero(&tunnel->ref_count)) {
+	if (tunnel && refcount_inc_analt_zero(&tunnel->ref_count)) {
 		rcu_read_unlock_bh();
 		return tunnel;
 	}
@@ -229,7 +229,7 @@ struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth)
 	rcu_read_lock_bh();
 	idr_for_each_entry_ul(&pn->l2tp_tunnel_idr, tunnel, tmp, tunnel_id) {
 		if (tunnel && ++count > nth &&
-		    refcount_inc_not_zero(&tunnel->ref_count)) {
+		    refcount_inc_analt_zero(&tunnel->ref_count)) {
 			rcu_read_unlock_bh();
 			return tunnel;
 		}
@@ -347,7 +347,7 @@ int l2tp_session_register(struct l2tp_session *session,
 
 	spin_lock_bh(&tunnel->hlist_lock);
 	if (!tunnel->acpt_newsess) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_tlock;
 	}
 
@@ -521,7 +521,7 @@ static int l2tp_seq_check_rx_window(struct l2tp_session *session, u32 nr)
 }
 
 /* If packet has sequence numbers, queue it if acceptable. Returns 0 if
- * acceptable, else non-zero.
+ * acceptable, else analn-zero.
  */
 static int l2tp_recv_data_seq(struct l2tp_session *session, struct sk_buff *skb)
 {
@@ -629,11 +629,11 @@ discard:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * Cookie value and sublayer format are negotiated with the peer when
- * the session is set up. Unlike L2TPv2, we do not need to parse the
+ * the session is set up. Unlike L2TPv2, we do analt need to parse the
  * packet header to determine if optional fields are present.
  *
  * Caller must already have parsed the frame and determined that it is
- * a data (not control) frame before coming here. Fields up to the
+ * a data (analt control) frame before coming here. Fields up to the
  * session-id have already been parsed and ptr points to the data
  * after the session-id.
  */
@@ -660,7 +660,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	 * in different places for L2TPv2 and L2TPv3.
 	 *
 	 * If we are the LAC, enable/disable sequence numbers under
-	 * the control of the LNS.  If no sequence numbers present but
+	 * the control of the LNS.  If anal sequence numbers present but
 	 * we were expecting them, discard frame.
 	 */
 	L2TP_SKB_CB(skb)->has_seq = 0;
@@ -687,7 +687,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 
 	if (L2TP_SKB_CB(skb)->has_seq) {
 		/* Received a packet with sequence numbers. If we're the LAC,
-		 * check if we sre sending sequence numbers and if not,
+		 * check if we sre sending sequence numbers and if analt,
 		 * configure it so.
 		 */
 		if (!session->lns_mode && !session->send_seq) {
@@ -696,18 +696,18 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 			l2tp_session_set_header_len(session, tunnel->version);
 		}
 	} else {
-		/* No sequence numbers.
+		/* Anal sequence numbers.
 		 * If user has configured mandatory sequence numbers, discard.
 		 */
 		if (session->recv_seq) {
-			pr_debug_ratelimited("%s: recv data has no seq numbers when required. Discarding.\n",
+			pr_debug_ratelimited("%s: recv data has anal seq numbers when required. Discarding.\n",
 					     session->name);
 			atomic_long_inc(&session->stats.rx_seq_discards);
 			goto discard;
 		}
 
 		/* If we're the LAC and we're sending sequence numbers, the
-		 * LNS has requested that we no longer send sequence numbers.
+		 * LNS has requested that we anal longer send sequence numbers.
 		 * If we're the LNS and we're sending sequence numbers, the
 		 * LAC is broken. Discard the frame.
 		 */
@@ -716,7 +716,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 			session->send_seq = 0;
 			l2tp_session_set_header_len(session, tunnel->version);
 		} else if (session->send_seq) {
-			pr_debug_ratelimited("%s: recv data has no seq numbers when required. Discarding.\n",
+			pr_debug_ratelimited("%s: recv data has anal seq numbers when required. Discarding.\n",
 					     session->name);
 			atomic_long_inc(&session->stats.rx_seq_discards);
 			goto discard;
@@ -741,7 +741,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	__skb_pull(skb, offset);
 
 	/* Prepare skb for adding to the session's reorder_q.  Hold
-	 * packets for max reorder_timeout or 1 second if not
+	 * packets for max reorder_timeout or 1 second if analt
 	 * reordering.
 	 */
 	L2TP_SKB_CB(skb)->length = length;
@@ -755,7 +755,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		if (l2tp_recv_data_seq(session, skb))
 			goto discard;
 	} else {
-		/* No sequence numbers. Add the skb to the tail of the
+		/* Anal sequence numbers. Add the skb to the tail of the
 		 * reorder queue. This ensures that it will be
 		 * delivered after all previous sequenced skbs.
 		 */
@@ -786,9 +786,9 @@ static void l2tp_session_queue_purge(struct l2tp_session *session)
 }
 
 /* Internal UDP receive frame. Do the real work of receiving an L2TP data frame
- * here. The skb is not on a list when we get here.
+ * here. The skb is analt on a list when we get here.
  * Returns 0 if the packet was a data packet and was successfully passed on.
- * Returns 1 if the packet was not a good data packet and could not be
+ * Returns 1 if the packet was analt a good data packet and could analt be
  * forwarded.  All such packets are passed up to userspace to deal with.
  */
 static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
@@ -860,8 +860,8 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 		if (session)
 			l2tp_session_dec_refcount(session);
 
-		/* Not found? Pass to userspace to deal with */
-		pr_debug_ratelimited("%s: no session found (%u/%u). Passing up.\n",
+		/* Analt found? Pass to userspace to deal with */
+		pr_debug_ratelimited("%s: anal session found (%u/%u). Passing up.\n",
 				     tunnel->name, tunnel_id, session_id);
 		goto pass;
 	}
@@ -897,7 +897,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2tp_tunnel *tunnel;
 
-	/* Note that this is called from the encap_rcv hook inside an
+	/* Analte that this is called from the encap_rcv hook inside an
 	 * RCU-protected region, but without the socket being locked.
 	 * Hence we use rcu_dereference_sk_user_data to access the
 	 * tunnel data structure rather the usual l2tp_sk_to_tunnel
@@ -997,7 +997,7 @@ static int l2tp_xmit_queue(struct l2tp_tunnel *tunnel, struct sk_buff *skb, stru
 {
 	int err;
 
-	skb->ignore_df = 1;
+	skb->iganalre_df = 1;
 	skb_dst_drop(skb);
 #if IS_ENABLED(CONFIG_IPV6)
 	if (l2tp_sk_is_v6(tunnel->sock))
@@ -1019,8 +1019,8 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 	struct inet_sock *inet;
 	struct udphdr *uh;
 
-	/* Check that there's enough headroom in the skb to insert IP,
-	 * UDP and L2TP headers. If not enough, expand it to
+	/* Check that there's eanalugh headroom in the skb to insert IP,
+	 * UDP and L2TP headers. If analt eanalugh, expand it to
 	 * make room. Adjust truesize.
 	 */
 	uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(*uh) : 0;
@@ -1077,12 +1077,12 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 		/* Calculate UDP checksum if configured to do so */
 #if IS_ENABLED(CONFIG_IPV6)
 		if (l2tp_sk_is_v6(sk))
-			udp6_set_csum(udp_get_no_check6_tx(sk),
+			udp6_set_csum(udp_get_anal_check6_tx(sk),
 				      skb, &inet6_sk(sk)->saddr,
 				      &sk->sk_v6_daddr, udp_len);
 		else
 #endif
-			udp_set_csum(sk->sk_no_check_tx, skb, inet->inet_saddr,
+			udp_set_csum(sk->sk_anal_check_tx, skb, inet->inet_saddr,
 				     inet->inet_daddr, udp_len);
 		break;
 
@@ -1138,7 +1138,7 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 	/* Disable udp encapsulation */
 	switch (tunnel->encap) {
 	case L2TP_ENCAPTYPE_UDP:
-		/* No longer an encapsulation socket. See net/ipv4/udp.c */
+		/* Anal longer an encapsulation socket. See net/ipv4/udp.c */
 		WRITE_ONCE(udp_sk(sk)->encap_type, 0);
 		udp_sk(sk)->encap_rcv = NULL;
 		udp_sk(sk)->encap_destroy = NULL;
@@ -1205,7 +1205,7 @@ again:
 			l2tp_session_delete(session);
 			spin_lock_bh(&tunnel->hlist_lock);
 
-			/* Now restart from the beginning of this hash
+			/* Analw restart from the beginning of this hash
 			 * chain.  We always remove a session from the
 			 * list so we are guaranteed to make forward
 			 * progress.
@@ -1263,7 +1263,7 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 }
 
 /* Create a socket for the tunnel, if one isn't set up by
- * userspace. This is used for static tunnels where there is no
+ * userspace. This is used for static tunnels where there is anal
  * managing L2TP daemon.
  *
  * Since we don't want these sockets to keep a namespace alive by
@@ -1397,7 +1397,7 @@ int l2tp_tunnel_create(int fd, int version, u32 tunnel_id, u32 peer_tunnel_id,
 
 	tunnel = kzalloc(sizeof(*tunnel), GFP_KERNEL);
 	if (!tunnel) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -1436,14 +1436,14 @@ static int l2tp_validate_socket(const struct sock *sk, const struct net *net,
 		return -EINVAL;
 
 	if (sk->sk_type != SOCK_DGRAM)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (sk->sk_family != PF_INET && sk->sk_family != PF_INET6)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if ((encap == L2TP_ENCAPTYPE_UDP && sk->sk_protocol != IPPROTO_UDP) ||
 	    (encap == L2TP_ENCAPTYPE_IP && sk->sk_protocol != IPPROTO_L2TP))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (sk->sk_user_data)
 		return -EBUSY;
@@ -1465,7 +1465,7 @@ int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
 			    GFP_ATOMIC);
 	spin_unlock_bh(&pn->l2tp_tunnel_idr_lock);
 	if (ret)
-		return ret == -ENOSPC ? -EEXIST : ret;
+		return ret == -EANALSPC ? -EEXIST : ret;
 
 	if (tunnel->fd < 0) {
 		ret = l2tp_tunnel_sock_create(net, tunnel->tunnel_id,
@@ -1606,8 +1606,8 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 
 		skb_queue_head_init(&session->reorder_q);
 
-		INIT_HLIST_NODE(&session->hlist);
-		INIT_HLIST_NODE(&session->global_hlist);
+		INIT_HLIST_ANALDE(&session->hlist);
+		INIT_HLIST_ANALDE(&session->global_hlist);
 
 		if (cfg) {
 			session->pwtype = cfg->pw_type;
@@ -1629,7 +1629,7 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		return session;
 	}
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 EXPORT_SYMBOL_GPL(l2tp_session_create);
 
@@ -1695,7 +1695,7 @@ static int __init l2tp_init(void)
 	if (!l2tp_wq) {
 		pr_err("alloc_workqueue failed\n");
 		unregister_pernet_device(&l2tp_net_ops);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 

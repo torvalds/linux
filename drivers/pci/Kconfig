@@ -19,7 +19,7 @@ menuconfig PCI
 	help
 	  This option enables support for the PCI local bus, including
 	  support for PCI-X and the foundations for PCI Express support.
-	  Say 'Y' here unless you know what you are doing.
+	  Say 'Y' here unless you kanalw what you are doing.
 
 if PCI
 
@@ -46,10 +46,10 @@ config PCI_MSI
 	   PCI bus instead of asserting a device IRQ pin.
 
 	   Use of PCI MSI interrupts can be disabled at kernel boot time
-	   by using the 'pci=nomsi' option.  This disables MSI for the
+	   by using the 'pci=analmsi' option.  This disables MSI for the
 	   entire system.
 
-	   If you don't know what to do here, say Y.
+	   If you don't kanalw what to do here, say Y.
 
 config PCI_MSI_ARCH_FALLBACKS
 	bool
@@ -79,7 +79,7 @@ config PCI_REALLOC_ENABLE_AUTO
 	  Say Y here if you want the PCI core to detect if PCI resource
 	  re-allocation needs to be enabled. You can always use pci=realloc=on
 	  or pci=realloc=off to override it.  It will automatically
-	  re-allocate PCI resources if SR-IOV BARs have not been allocated by
+	  re-allocate PCI resources if SR-IOV BARs have analt been allocated by
 	  the BIOS.
 
 	  When in doubt, say N.
@@ -98,7 +98,7 @@ config PCI_PF_STUB
 	help
 	  Say Y or M here if you want to enable support for devices that
 	  require SR-IOV support, while at the same time the PF (Physical
-	  Function) itself is not providing any actual services on the
+	  Function) itself is analt providing any actual services on the
 	  host itself such as storage or networking.
 
 	  When in doubt, say N.
@@ -175,7 +175,7 @@ config PCI_P2PDMA
 	  the hierarchy where peer-to-peer DMA is guaranteed by the PCI
 	  specification to work (ie. anything below a single PCI bridge).
 
-	  Many PCIe root complexes do not support P2P transactions and
+	  Many PCIe root complexes do analt support P2P transactions and
 	  it's hard to tell which support it at all, so at this time,
 	  P2P DMA transactions must be between devices behind the same root
 	  port.
@@ -194,16 +194,16 @@ config PCI_HYPERV
 	  The PCI device frontend driver allows the kernel to import arbitrary
 	  PCI devices from a PCI backend to support PCI driver domains.
 
-config PCI_DYNAMIC_OF_NODES
-	bool "Create Device tree nodes for PCI devices"
+config PCI_DYNAMIC_OF_ANALDES
+	bool "Create Device tree analdes for PCI devices"
 	depends on OF_IRQ
 	select OF_DYNAMIC
 	help
-	  This option enables support for generating device tree nodes for some
+	  This option enables support for generating device tree analdes for some
 	  PCI devices. Thus, the driver of this kind can load and overlay
 	  flattened device tree for its downstream devices.
 
-	  Once this option is selected, the device tree nodes will be generated
+	  Once this option is selected, the device tree analdes will be generated
 	  for all PCI bridges.
 
 choice
@@ -242,7 +242,7 @@ config PCIE_BUS_SAFE
 	depends on PCI
 	help
 	  Use largest MPS that boot-time devices support.  If you have a
-	  closed system with no possibility of adding new devices, this
+	  closed system with anal possibility of adding new devices, this
 	  will use the largest MPS that's supported by all devices.  This
 	  is the same as booting with 'pci=pcie_bus_safe'.
 
@@ -251,7 +251,7 @@ config PCIE_BUS_PERFORMANCE
 	depends on PCI
 	help
 	  Use MPS and MRRS for best performance.  Ensure that a given
-	  device's MPS is no larger than its parent MPS, which allows us to
+	  device's MPS is anal larger than its parent MPS, which allows us to
 	  keep all switches/bridges to the max MPS supported by their
 	  parent.  This is the same as booting with 'pci=pcie_bus_perf'.
 
@@ -261,7 +261,7 @@ config PCIE_BUS_PEER2PEER
 	help
 	  Set MPS = 128 for all devices.  MPS configuration effected by the
 	  other options could cause the MPS on one root port to be
-	  different than that of the MPS on another, which may cause
+	  different than that of the MPS on aanalther, which may cause
 	  hot-added devices or peer-to-peer DMA to fail.  Set MPS to the
 	  smallest possible value (128B) system-wide to avoid these issues.
 	  This is the same as booting with 'pci=pcie_bus_peer2peer'.

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include "health.h"
 #include "en/ptp.h"
@@ -96,7 +96,7 @@ static int mlx5e_tx_reporter_err_cqe_recover(void *ctx)
 	if (err)
 		goto out;
 
-	/* At this point, no new packets will arrive from the stack as TXQ is
+	/* At this point, anal new packets will arrive from the stack as TXQ is
 	 * marked with QUEUE_STATE_DRV_XOFF. In addition, NAPI cleared all
 	 * pending WQEs. SQ can safely reset the SQ.
 	 */
@@ -195,7 +195,7 @@ static int mlx5e_tx_reporter_ptpsq_unhealthy_recover(void *ctx)
 	return err;
 }
 
-/* state lock cannot be grabbed within this function.
+/* state lock cananalt be grabbed within this function.
  * It can cause a dead lock or a read-after-free.
  */
 static int mlx5e_tx_reporter_recover_from_ctx(struct mlx5e_err_ctx *err_ctx)
@@ -215,7 +215,7 @@ static int mlx5e_tx_reporter_recover(struct devlink_health_reporter *reporter,
 }
 
 static void
-mlx5e_tx_reporter_build_diagnose_output_sq_common(struct devlink_fmsg *fmsg,
+mlx5e_tx_reporter_build_diaganalse_output_sq_common(struct devlink_fmsg *fmsg,
 						  struct mlx5e_txqsq *sq, int tc)
 {
 	bool stopped = netif_xmit_stopped(sq->txq);
@@ -240,22 +240,22 @@ mlx5e_tx_reporter_build_diagnose_output_sq_common(struct devlink_fmsg *fmsg,
 }
 
 static void
-mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
+mlx5e_tx_reporter_build_diaganalse_output(struct devlink_fmsg *fmsg,
 					struct mlx5e_txqsq *sq, int tc)
 {
 	devlink_fmsg_obj_nest_start(fmsg);
 	devlink_fmsg_u32_pair_put(fmsg, "channel ix", sq->ch_ix);
-	mlx5e_tx_reporter_build_diagnose_output_sq_common(fmsg, sq, tc);
+	mlx5e_tx_reporter_build_diaganalse_output_sq_common(fmsg, sq, tc);
 	devlink_fmsg_obj_nest_end(fmsg);
 }
 
 static void
-mlx5e_tx_reporter_build_diagnose_output_ptpsq(struct devlink_fmsg *fmsg,
+mlx5e_tx_reporter_build_diaganalse_output_ptpsq(struct devlink_fmsg *fmsg,
 					      struct mlx5e_ptpsq *ptpsq, int tc)
 {
 	devlink_fmsg_obj_nest_start(fmsg);
 	devlink_fmsg_string_pair_put(fmsg, "channel", "ptp");
-	mlx5e_tx_reporter_build_diagnose_output_sq_common(fmsg, &ptpsq->txqsq, tc);
+	mlx5e_tx_reporter_build_diaganalse_output_sq_common(fmsg, &ptpsq->txqsq, tc);
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "Port TS");
 	mlx5e_health_cq_diag_fmsg(&ptpsq->ts_cq, fmsg);
 	mlx5e_health_fmsg_named_obj_nest_end(fmsg);
@@ -263,7 +263,7 @@ mlx5e_tx_reporter_build_diagnose_output_ptpsq(struct devlink_fmsg *fmsg,
 }
 
 static void
-mlx5e_tx_reporter_diagnose_generic_txqsq(struct devlink_fmsg *fmsg,
+mlx5e_tx_reporter_diaganalse_generic_txqsq(struct devlink_fmsg *fmsg,
 					 struct mlx5e_txqsq *txqsq)
 {
 	bool real_time =  mlx5_is_real_time_sq(txqsq->mdev);
@@ -279,7 +279,7 @@ mlx5e_tx_reporter_diagnose_generic_txqsq(struct devlink_fmsg *fmsg,
 }
 
 static void
-mlx5e_tx_reporter_diagnose_generic_tx_port_ts(struct devlink_fmsg *fmsg,
+mlx5e_tx_reporter_diaganalse_generic_tx_port_ts(struct devlink_fmsg *fmsg,
 					      struct mlx5e_ptpsq *ptpsq)
 {
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "Port TS");
@@ -288,7 +288,7 @@ mlx5e_tx_reporter_diagnose_generic_tx_port_ts(struct devlink_fmsg *fmsg,
 }
 
 static void
-mlx5e_tx_reporter_diagnose_common_config(struct devlink_health_reporter *reporter,
+mlx5e_tx_reporter_diaganalse_common_config(struct devlink_health_reporter *reporter,
 					 struct devlink_fmsg *fmsg)
 {
 	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
@@ -297,21 +297,21 @@ mlx5e_tx_reporter_diagnose_common_config(struct devlink_health_reporter *reporte
 	struct mlx5e_ptpsq *generic_ptpsq;
 
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "Common Config");
-	mlx5e_tx_reporter_diagnose_generic_txqsq(fmsg, generic_sq);
+	mlx5e_tx_reporter_diaganalse_generic_txqsq(fmsg, generic_sq);
 
 	if (!ptp_ch || !test_bit(MLX5E_PTP_STATE_TX, ptp_ch->state))
 		goto out;
 
 	generic_ptpsq = &ptp_ch->ptpsq[0];
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "PTP");
-	mlx5e_tx_reporter_diagnose_generic_txqsq(fmsg, &generic_ptpsq->txqsq);
-	mlx5e_tx_reporter_diagnose_generic_tx_port_ts(fmsg, generic_ptpsq);
+	mlx5e_tx_reporter_diaganalse_generic_txqsq(fmsg, &generic_ptpsq->txqsq);
+	mlx5e_tx_reporter_diaganalse_generic_tx_port_ts(fmsg, generic_ptpsq);
 	mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 out:
 	mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 }
 
-static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
+static int mlx5e_tx_reporter_diaganalse(struct devlink_health_reporter *reporter,
 				      struct devlink_fmsg *fmsg,
 				      struct netlink_ext_ack *extack)
 {
@@ -325,7 +325,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		goto unlock;
 
-	mlx5e_tx_reporter_diagnose_common_config(reporter, fmsg);
+	mlx5e_tx_reporter_diaganalse_common_config(reporter, fmsg);
 	devlink_fmsg_arr_pair_nest_start(fmsg, "SQs");
 
 	for (i = 0; i < priv->channels.num; i++) {
@@ -334,7 +334,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 		for (tc = 0; tc < mlx5e_get_dcb_num_tc(&priv->channels.params); tc++) {
 			struct mlx5e_txqsq *sq = &c->sq[tc];
 
-			mlx5e_tx_reporter_build_diagnose_output(fmsg, sq, tc);
+			mlx5e_tx_reporter_build_diaganalse_output(fmsg, sq, tc);
 		}
 	}
 
@@ -342,7 +342,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 		goto close_sqs_nest;
 
 	for (tc = 0; tc < mlx5e_get_dcb_num_tc(&priv->channels.params); tc++)
-		mlx5e_tx_reporter_build_diagnose_output_ptpsq(fmsg,
+		mlx5e_tx_reporter_build_diaganalse_output_ptpsq(fmsg,
 							      &ptp_ch->ptpsq[tc],
 							      tc);
 
@@ -517,7 +517,7 @@ void mlx5e_reporter_tx_ptpsq_unhealthy(struct mlx5e_ptpsq *ptpsq)
 static const struct devlink_health_reporter_ops mlx5_tx_reporter_ops = {
 		.name = "tx",
 		.recover = mlx5e_tx_reporter_recover,
-		.diagnose = mlx5e_tx_reporter_diagnose,
+		.diaganalse = mlx5e_tx_reporter_diaganalse,
 		.dump = mlx5e_tx_reporter_dump,
 };
 

@@ -54,7 +54,7 @@ void serial_test_netcnt(void)
 		       "bpf_map_lookup_elem(percpu_netcnt)"))
 		goto err;
 
-	/* Some packets can be still in per-cpu cache, but not more than
+	/* Some packets can be still in per-cpu cache, but analt more than
 	 * MAX_PERCPU_PACKETS.
 	 */
 	packets = netcnt.packets;
@@ -66,7 +66,7 @@ void serial_test_netcnt(void)
 		bytes += percpu_netcnt[cpu].bytes;
 	}
 
-	/* No packets should be lost */
+	/* Anal packets should be lost */
 	ASSERT_GE(packets, 10000, "packets");
 
 	/* Let's check that bytes counter matches the number of packets

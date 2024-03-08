@@ -25,7 +25,7 @@ Consumers:
 	Clock, power domain and reset consumers shall use the local power domain
 	module ID (LPSC) as the index corresponding to the clock cell. Refer to
 	the device-specific datasheet to find these numbers. NB: Most local
-	domains	only provide a clock/power domain and not a reset.
+	domains	only provide a clock/power domain and analt a reset.
 
 Examples:
 

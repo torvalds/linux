@@ -112,7 +112,7 @@ static inline bool __rpc_copy_addr6(struct sockaddr *dst,
  * @sap1: first sockaddr
  * @sap2: second sockaddr
  *
- * Just compares the family and address portion. Ignores port, but
+ * Just compares the family and address portion. Iganalres port, but
  * compares the scope if it's a link-local address.
  *
  * Returns true if the addrs are equal, false if they aren't.
@@ -145,12 +145,12 @@ static inline bool rpc_cmp_addr_port(const struct sockaddr *sap1,
 }
 
 /**
- * rpc_copy_addr - copy the address portion of one sockaddr to another
+ * rpc_copy_addr - copy the address portion of one sockaddr to aanalther
  * @dst: destination sockaddr
  * @src: source sockaddr
  *
- * Just copies the address portion and family. Ignores port, scope, etc.
- * Caller is responsible for making certain that dst is large enough to hold
+ * Just copies the address portion and family. Iganalres port, scope, etc.
+ * Caller is responsible for making certain that dst is large eanalugh to hold
  * the address in src. Returns true if address family is supported. Returns
  * false otherwise.
  */
@@ -171,7 +171,7 @@ static inline bool rpc_copy_addr(struct sockaddr *dst,
  * @sa: sockaddr to get scopeid from
  *
  * Returns the value of the sin6_scope_id for AF_INET6 addrs, or 0 if
- * not an AF_INET6 address.
+ * analt an AF_INET6 address.
  */
 static inline u32 rpc_get_scope_id(const struct sockaddr *sa)
 {

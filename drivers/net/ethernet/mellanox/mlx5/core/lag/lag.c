@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -49,7 +49,7 @@ enum {
 };
 
 /* General purpose, use for short periods of time.
- * Beware of lock dependencies (preferably, no locks should be acquired
+ * Beware of lock dependencies (preferably, anal locks should be acquired
  * under it).
  */
 static DEFINE_SPINLOCK(lag_lock);
@@ -217,7 +217,7 @@ static void mlx5_lag_print_mapping(struct mlx5_core_dev *dev,
 	}
 }
 
-static int mlx5_lag_netdev_event(struct notifier_block *this,
+static int mlx5_lag_netdev_event(struct analtifier_block *this,
 				 unsigned long event, void *ptr);
 static void mlx5_do_bond_work(struct work_struct *work);
 
@@ -225,8 +225,8 @@ static void mlx5_ldev_free(struct kref *ref)
 {
 	struct mlx5_lag *ldev = container_of(ref, struct mlx5_lag, ref);
 
-	if (ldev->nb.notifier_call)
-		unregister_netdevice_notifier_net(&init_net, &ldev->nb);
+	if (ldev->nb.analtifier_call)
+		unregister_netdevice_analtifier_net(&init_net, &ldev->nb);
 	mlx5_lag_mp_cleanup(ldev);
 	cancel_delayed_work_sync(&ldev->bond_work);
 	destroy_workqueue(ldev->wq);
@@ -263,12 +263,12 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(struct mlx5_core_dev *dev)
 	mutex_init(&ldev->lock);
 	INIT_DELAYED_WORK(&ldev->bond_work, mlx5_do_bond_work);
 
-	ldev->nb.notifier_call = mlx5_lag_netdev_event;
-	if (register_netdevice_notifier_net(&init_net, &ldev->nb)) {
-		ldev->nb.notifier_call = NULL;
-		mlx5_core_err(dev, "Failed to register LAG netdev notifier\n");
+	ldev->nb.analtifier_call = mlx5_lag_netdev_event;
+	if (register_netdevice_analtifier_net(&init_net, &ldev->nb)) {
+		ldev->nb.analtifier_call = NULL;
+		mlx5_core_err(dev, "Failed to register LAG netdev analtifier\n");
 	}
-	ldev->mode = MLX5_LAG_MODE_NONE;
+	ldev->mode = MLX5_LAG_MODE_ANALNE;
 
 	err = mlx5_lag_mp_init(ldev);
 	if (err)
@@ -290,7 +290,7 @@ int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
 		if (ldev->pf[i].netdev == ndev)
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static bool __mlx5_lag_is_roce(struct mlx5_lag *ldev)
@@ -678,7 +678,7 @@ int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 	int err;
 	int i;
 
-	ldev->mode = MLX5_LAG_MODE_NONE;
+	ldev->mode = MLX5_LAG_MODE_ANALNE;
 	ldev->mode_flags = 0;
 	mlx5_lag_mp_reset(ldev);
 
@@ -882,7 +882,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	if (!mlx5_lag_is_ready(ldev)) {
 		do_bond = false;
 	} else {
-		/* VF LAG is in multipath mode, ignore bond change requests */
+		/* VF LAG is in multipath mode, iganalre bond change requests */
 		if (mlx5_lag_is_multipath(dev0))
 			return;
 
@@ -1001,7 +1001,7 @@ static void mlx5_do_bond_work(struct work_struct *work)
 
 static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 					 struct lag_tracker *tracker,
-					 struct netdev_notifier_changeupper_info *info)
+					 struct netdev_analtifier_changeupper_info *info)
 {
 	struct net_device *upper = info->upper_dev, *ndev_tmp;
 	struct netdev_lag_upper_info *lag_upper_info = NULL;
@@ -1019,7 +1019,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	if (info->linking)
 		lag_upper_info = info->upper_info;
 
-	/* The event may still be of interest if the slave does not belong to
+	/* The event may still be of interest if the slave does analt belong to
 	 * us, but is enslaved to a master which has one or more of our netdevs
 	 * as slaves (e.g., if a new slave is added to a master that bonds two
 	 * of our netdevs, we should unbond).
@@ -1038,7 +1038,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	}
 	rcu_read_unlock();
 
-	/* None of this lagdev's netdevs are slaves of this master. */
+	/* Analne of this lagdev's netdevs are slaves of this master. */
 	if (!(bond_status & GENMASK(ldev->ports - 1, 0)))
 		return 0;
 
@@ -1081,7 +1081,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 static int mlx5_handle_changelowerstate_event(struct mlx5_lag *ldev,
 					      struct lag_tracker *tracker,
 					      struct net_device *ndev,
-					      struct netdev_notifier_changelowerstate_info *info)
+					      struct netdev_analtifier_changelowerstate_info *info)
 {
 	struct netdev_lag_lower_state_info *lag_lower_info;
 	int idx;
@@ -1138,10 +1138,10 @@ static int mlx5_handle_changeinfodata_event(struct mlx5_lag *ldev,
 }
 
 /* this handler is always registered to netdev events */
-static int mlx5_lag_netdev_event(struct notifier_block *this,
+static int mlx5_lag_netdev_event(struct analtifier_block *this,
 				 unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_analtifier_info_to_dev(ptr);
 	struct lag_tracker tracker;
 	struct mlx5_lag *ldev;
 	int changed = 0;
@@ -1149,7 +1149,7 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 	if (event != NETDEV_CHANGEUPPER &&
 	    event != NETDEV_CHANGELOWERSTATE &&
 	    event != NETDEV_CHANGEINFODATA)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	ldev    = container_of(this, struct mlx5_lag, nb);
 
@@ -1173,7 +1173,7 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 	if (changed)
 		mlx5_queue_bond_work(ldev, 0);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void mlx5_ldev_add_netdev(struct mlx5_lag *ldev,
@@ -1604,11 +1604,11 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 
 	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev = kvzalloc(sizeof(mdev[0]) * MLX5_MAX_PORTS, GFP_KERNEL);
 	if (!mdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_out;
 	}
 
@@ -1631,7 +1631,7 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 
 		MLX5_SET(query_cong_statistics_in, in, opcode,
 			 MLX5_CMD_OP_QUERY_CONG_STATISTICS);
-		ret = mlx5_cmd_exec_inout(mdev[i], query_cong_statistics, in,
+		ret = mlx5_cmd_exec_ianalut(mdev[i], query_cong_statistics, in,
 					  out);
 		if (ret)
 			goto free_mdev;

@@ -98,7 +98,7 @@ int rproc_elf_sanity_check(struct rproc *rproc, const struct firmware *fw)
 	}
 
 	if (phnum == 0) {
-		dev_err(dev, "No loadable segments\n");
+		dev_err(dev, "Anal loadable segments\n");
 		return -EINVAL;
 	}
 
@@ -119,7 +119,7 @@ EXPORT_SYMBOL(rproc_elf_sanity_check);
  * @rproc: the remote processor handle
  * @fw: the ELF firmware image
  *
- * Note that the boot address is not a configurable property of all remote
+ * Analte that the boot address is analt a configurable property of all remote
  * processors. Some will always boot at a specific hard-coded address.
  *
  * Return: entry point address of the ELF image
@@ -151,8 +151,8 @@ EXPORT_SYMBOL(rproc_elf_get_boot_addr);
  *
  * Currently we only support remote processors that required carveout
  * allocations and got them mapped onto their iommus. Some processors
- * might be different: they might not have iommus, and would prefer to
- * directly allocate memory for every segment/resource. This is not yet
+ * might be different: they might analt have iommus, and would prefer to
+ * directly allocate memory for every segment/resource. This is analt yet
  * supported, though.
  *
  * Return: 0 on success and an appropriate error code otherwise
@@ -202,7 +202,7 @@ int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
 		}
 
 		if (!rproc_u64_fit_in_size_t(memsz)) {
-			dev_err(dev, "size (%llx) does not fit in size_t type\n",
+			dev_err(dev, "size (%llx) does analt fit in size_t type\n",
 				memsz);
 			ret = -EOVERFLOW;
 			break;
@@ -297,7 +297,7 @@ find_table(struct device *dev, const struct firmware *fw)
 
 		/* make sure reserved bytes are zeroes */
 		if (table->reserved[0] || table->reserved[1]) {
-			dev_err(dev, "non zero reserved bytes\n");
+			dev_err(dev, "analn zero reserved bytes\n");
 			return NULL;
 		}
 
@@ -321,7 +321,7 @@ find_table(struct device *dev, const struct firmware *fw)
  * This function finds the resource table inside the remote processor's
  * firmware, load it into the @cached_table and update @table_ptr.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int rproc_elf_load_rsc_table(struct rproc *rproc, const struct firmware *fw)
 {
@@ -349,7 +349,7 @@ int rproc_elf_load_rsc_table(struct rproc *rproc, const struct firmware *fw)
 	 */
 	rproc->cached_table = kmemdup(table, tablesz, GFP_KERNEL);
 	if (!rproc->cached_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rproc->table_ptr = rproc->cached_table;
 	rproc->table_sz = tablesz;
@@ -385,7 +385,7 @@ struct resource_table *rproc_elf_find_loaded_rsc_table(struct rproc *rproc,
 	sh_size = elf_shdr_get_sh_size(class, shdr);
 
 	if (!rproc_u64_fit_in_size_t(sh_size)) {
-		dev_err(dev, "size (%llx) does not fit in size_t type\n",
+		dev_err(dev, "size (%llx) does analt fit in size_t type\n",
 			sh_size);
 		return NULL;
 	}

@@ -184,7 +184,7 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 	case SVC_DCC:
 		/*
 		 * Sym capabilities are available for chaining operations,
-		 * but sym crypto instances cannot be supported
+		 * but sym crypto instances cananalt be supported
 		 */
 		capabilities_dcc = capabilities_dc | capabilities_sym;
 		capabilities_dcc &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
@@ -269,7 +269,7 @@ static int get_rp_group(struct adf_accel_dev *accel_dev, u32 ae_mask)
 	case ADF_AE_GROUP_1:
 		return RP_GROUP_1;
 	default:
-		dev_dbg(&GET_DEV(accel_dev), "ae_mask not recognized");
+		dev_dbg(&GET_DEV(accel_dev), "ae_mask analt recognized");
 		return -EINVAL;
 	}
 }

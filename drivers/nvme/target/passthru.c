@@ -102,14 +102,14 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 	 * which depends on the host's memory fragementation. To solve this,
 	 * ensure mdts is limited to the pages equal to the number of segments.
 	 */
-	max_hw_sectors = min_not_zero(pctrl->max_segments << PAGE_SECTORS_SHIFT,
+	max_hw_sectors = min_analt_zero(pctrl->max_segments << PAGE_SECTORS_SHIFT,
 				      pctrl->max_hw_sectors);
 
 	/*
 	 * nvmet_passthru_map_sg is limitted to using a single bio so limit
 	 * the mdts based on BIO_MAX_VECS as well
 	 */
-	max_hw_sectors = min_not_zero(BIO_MAX_VECS << PAGE_SECTORS_SHIFT,
+	max_hw_sectors = min_analt_zero(BIO_MAX_VECS << PAGE_SECTORS_SHIFT,
 				      max_hw_sectors);
 
 	page_shift = NVME_CAP_MPSMIN(ctrl->cap) + 12;
@@ -193,7 +193,7 @@ static u16 nvmet_passthru_override_id_ns(struct nvmet_req *req)
 	id->flbas = id->flbas & ~(1 << 4);
 
 	/*
-	 * Presently the NVMEof target code does not support sending
+	 * Presently the NVMEof target code does analt support sending
 	 * metadata, so we must disable it here. This should be updated
 	 * once target starts supporting metadata.
 	 */
@@ -254,7 +254,7 @@ static enum rq_end_io_ret nvmet_passthru_req_done(struct request *rq,
 	req->cqe->result = nvme_req(rq)->result;
 	nvmet_req_complete(req, nvme_req(rq)->status);
 	blk_mq_free_request(rq);
-	return RQ_END_IO_NONE;
+	return RQ_END_IO_ANALNE;
 }
 
 static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
@@ -336,7 +336,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 
 	/*
 	 * If a command needs post-execution fixups, or there are any
-	 * non-trivial effects, make sure to execute the command synchronously
+	 * analn-trivial effects, make sure to execute the command synchroanalusly
 	 * in a workqueue so that nvme_passthru_end gets called.
 	 */
 	effects = nvme_command_effects(ctrl, ns, req->cmd->common.opcode);
@@ -348,7 +348,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 	} else {
 		rq->end_io = nvmet_passthru_req_done;
 		rq->end_io_data = req;
-		blk_execute_rq_nowait(rq, false);
+		blk_execute_rq_analwait(rq, false);
 	}
 
 	if (ns)
@@ -410,7 +410,7 @@ static u16 nvmet_setup_passthru_command(struct nvmet_req *req)
 
 u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req)
 {
-	/* Reject any commands with non-sgl flags set (ie. fused commands) */
+	/* Reject any commands with analn-sgl flags set (ie. fused commands) */
 	if (req->cmd->common.flags & ~NVME_CMD_SGL_ALL)
 		return NVME_SC_INVALID_FIELD;
 
@@ -420,8 +420,8 @@ u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req)
 	case nvme_cmd_resv_acquire:
 	case nvme_cmd_resv_release:
 		/*
-		 * Reservations cannot be supported properly because the
-		 * underlying device has no way of differentiating different
+		 * Reservations cananalt be supported properly because the
+		 * underlying device has anal way of differentiating different
 		 * hosts that connect via fabrics. This could potentially be
 		 * emulated in the future if regular targets grow support for
 		 * this feature.
@@ -450,7 +450,7 @@ static u16 nvmet_passthru_get_set_features(struct nvmet_req *req)
 	case NVME_FEAT_AUTO_PST:
 	case NVME_FEAT_TIMESTAMP:
 	case NVME_FEAT_HCTM:
-	case NVME_FEAT_NOPSC:
+	case NVME_FEAT_ANALPSC:
 	case NVME_FEAT_RRL:
 	case NVME_FEAT_PLM_CONFIG:
 	case NVME_FEAT_PLM_WINDOW:
@@ -460,14 +460,14 @@ static u16 nvmet_passthru_get_set_features(struct nvmet_req *req)
 		return nvmet_setup_passthru_command(req);
 
 	case NVME_FEAT_ASYNC_EVENT:
-		/* There is no support for forwarding ASYNC events */
+		/* There is anal support for forwarding ASYNC events */
 	case NVME_FEAT_IRQ_COALESCE:
 	case NVME_FEAT_IRQ_CONFIG:
-		/* The IRQ settings will not apply to the target controller */
+		/* The IRQ settings will analt apply to the target controller */
 	case NVME_FEAT_HOST_MEM_BUF:
 		/*
-		 * Any HMB that's set will not be passed through and will
-		 * not work as expected
+		 * Any HMB that's set will analt be passed through and will
+		 * analt work as expected
 		 */
 	case NVME_FEAT_SW_PROGRESS:
 		/*
@@ -476,7 +476,7 @@ static u16 nvmet_passthru_get_set_features(struct nvmet_req *req)
 		 */
 	case NVME_FEAT_RESV_MASK:
 	case NVME_FEAT_RESV_PERSIST:
-		/* No reservations, see nvmet_parse_passthru_io_cmd() */
+		/* Anal reservations, see nvmet_parse_passthru_io_cmd() */
 	default:
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
@@ -484,7 +484,7 @@ static u16 nvmet_passthru_get_set_features(struct nvmet_req *req)
 
 u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 {
-	/* Reject any commands with non-sgl flags set (ie. fused commands) */
+	/* Reject any commands with analn-sgl flags set (ie. fused commands) */
 	if (req->cmd->common.flags & ~NVME_CMD_SGL_ALL)
 		return NVME_SC_INVALID_FIELD;
 
@@ -501,7 +501,7 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 	case nvme_admin_keep_alive:
 		/*
 		 * Most PCIe ctrls don't support keep alive cmd, we route keep
-		 * alive to the non-passthru mode. In future please change this
+		 * alive to the analn-passthru mode. In future please change this
 		 * code when PCIe ctrls with keep alive support available.
 		 */
 		req->execute = nvmet_execute_keep_alive;
@@ -565,7 +565,7 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 	case nvme_admin_get_log_page:
 		return nvmet_setup_passthru_command(req);
 	default:
-		/* Reject commands not in the allowlist above */
+		/* Reject commands analt in the allowlist above */
 		return nvmet_report_invalid_opcode(req);
 	}
 }
@@ -584,7 +584,7 @@ int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 		goto out_unlock;
 
 	if (subsys->nr_namespaces) {
-		pr_info("cannot enable both passthru and regular namespaces for a single subsystem");
+		pr_info("cananalt enable both passthru and regular namespaces for a single subsystem");
 		goto out_unlock;
 	}
 
@@ -617,7 +617,7 @@ int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 
 	if (subsys->ver < NVME_VS(1, 2, 1)) {
 		pr_warn("nvme controller version is too old: %llu.%llu.%llu, advertising 1.2.1\n",
-			NVME_MAJOR(subsys->ver), NVME_MINOR(subsys->ver),
+			NVME_MAJOR(subsys->ver), NVME_MIANALR(subsys->ver),
 			NVME_TERTIARY(subsys->ver));
 		subsys->ver = NVME_VS(1, 2, 1);
 	}

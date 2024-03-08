@@ -262,7 +262,7 @@ int rtw89_parse_efuse_map_ax(struct rtw89_dev *rtwdev)
 	}
 
 	if (!phy_map || !log_map || (dav_phy_size && !dav_phy_map)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -291,7 +291,7 @@ int rtw89_parse_efuse_map_ax(struct rtw89_dev *rtwdev)
 
 	rtw89_hex_dump(rtwdev, RTW89_DBG_FW, "log_map: ", log_map, full_log_size);
 
-	ret = rtwdev->chip->ops->read_efuse(rtwdev, log_map, RTW89_EFUSE_BLOCK_IGNORE);
+	ret = rtwdev->chip->ops->read_efuse(rtwdev, log_map, RTW89_EFUSE_BLOCK_IGANALRE);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to read efuse map\n");
 		goto out_free;
@@ -317,7 +317,7 @@ int rtw89_parse_phycap_map_ax(struct rtw89_dev *rtwdev)
 
 	phycap_map = kmalloc(phycap_size, GFP_KERNEL);
 	if (!phycap_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rtw89_dump_physical_efuse_map(rtwdev, phycap_map,
 					    phycap_addr, phycap_size, false);
@@ -349,7 +349,7 @@ int rtw89_read_efuse_ver(struct rtw89_dev *rtwdev, u8 *ecv)
 
 	*ecv = u8_get_bits(val, EF_CV_MASK);
 	if (*ecv == EF_CV_INV)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }

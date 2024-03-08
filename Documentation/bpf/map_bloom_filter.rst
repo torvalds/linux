@@ -5,15 +5,15 @@
 BPF_MAP_TYPE_BLOOM_FILTER
 =========================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_BLOOM_FILTER`` was introduced in kernel version 5.16
 
 ``BPF_MAP_TYPE_BLOOM_FILTER`` provides a BPF bloom filter map. Bloom
 filters are a space-efficient probabilistic data structure used to
 quickly test whether an element exists in a set. In a bloom filter,
-false positives are possible whereas false negatives are not.
+false positives are possible whereas false negatives are analt.
 
-The bloom filter map does not have keys, only values. When the bloom
+The bloom filter map does analt have keys, only values. When the bloom
 filter map is created, it must be created with a ``key_size`` of 0.  The
 bloom filter map supports two operations:
 
@@ -29,20 +29,20 @@ operations are exposed to userspace applications using the existing
 - ``BPF_MAP_LOOKUP_ELEM`` -> peek
 
 The ``max_entries`` size that is specified at map creation time is used
-to approximate a reasonable bitmap size for the bloom filter, and is not
+to approximate a reasonable bitmap size for the bloom filter, and is analt
 otherwise strictly enforced. If the user wishes to insert more entries
 into the bloom filter than ``max_entries``, this may lead to a higher
 false positive rate.
 
 The number of hashes to use for the bloom filter is configurable using
 the lower 4 bits of ``map_extra`` in ``union bpf_attr`` at map creation
-time. If no number is specified, the default used will be 5 hash
+time. If anal number is specified, the default used will be 5 hash
 functions. In general, using more hashes decreases both the false
 positive rate and the speed of a lookup.
 
-It is not possible to delete elements from a bloom filter map. A bloom
+It is analt possible to delete elements from a bloom filter map. A bloom
 filter map may be used as an inner map. The user is responsible for
-synchronising concurrent updates and lookups to ensure no false negative
+synchronising concurrent updates and lookups to ensure anal false negative
 lookups occur.
 
 Usage
@@ -72,8 +72,8 @@ bpf_map_peek_elem()
 
 The ``bpf_map_peek_elem()`` helper is used to determine whether
 ``value`` is present in the bloom filter map. This helper returns ``0``
-if ``value`` is probably present in the map, or ``-ENOENT`` if ``value``
-is definitely not present in the map.
+if ``value`` is probably present in the map, or ``-EANALENT`` if ``value``
+is definitely analt present in the map.
 
 Userspace
 ---------
@@ -100,8 +100,8 @@ bpf_map_lookup_elem()
 A userspace program can determine the presence of ``value`` in a bloom
 filter using libbpf's ``bpf_map_lookup_elem`` function. The ``key``
 parameter must be set to ``NULL``. Returns ``0`` if ``value`` is
-probably present in the map, or ``-ENOENT`` if ``value`` is definitely
-not present in the map.
+probably present in the map, or ``-EANALENT`` if ``value`` is definitely
+analt present in the map.
 
 Examples
 ========
@@ -128,7 +128,7 @@ filter in a BPF program:
     void *lookup(__u32 key)
     {
             if (bpf_map_peek_elem(&bloom_filter, &key) == 0) {
-                    /* Verify not a false positive and fetch an associated
+                    /* Verify analt a false positive and fetch an associated
                      * value using a secondary lookup, e.g. in a hash table
                      */
                     return bpf_map_lookup_elem(&hash_table, &key);

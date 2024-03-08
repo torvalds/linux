@@ -121,7 +121,7 @@
 		/* SONY was cool and didn't diverge from MTP this time, yay! */
 		cont_splash_mem: memory@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x2400000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ffc00000 {
@@ -132,7 +132,7 @@
 			ftrace-size = <0x10000>;
 			pmsg-size = <0x20000>;
 			ecc-size = <16>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -306,7 +306,7 @@
 
 			/*
 			 * The driver *really* doesn't want this regualtor to exist,
-			 * saying that it could not get the current voltage (-ENOTRECOVERABLE)
+			 * saying that it could analt get the current voltage (-EANALTRECOVERABLE)
 			 * even though it surely is used on these devices (as a voltage
 			 * source for camera autofocus)
 			 */
@@ -410,7 +410,7 @@
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			<GCC_QSPI_CORE_CLK_SRC>,
-			<GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+			<GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
 			<GCC_LPASS_Q6_AXI_CLK>,
 			<GCC_LPASS_SWAY_CLK>;
 };
@@ -465,7 +465,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -591,7 +591,7 @@
 
 	focus_n: focus-n-state {
 		pins = "gpio2";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -599,7 +599,7 @@
 
 	vol_down_n: vol-down-n-state {
 		pins = "gpio5";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -607,7 +607,7 @@
 
 	vol_up_n: vol-up-n-state {
 		pins = "gpio6";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -615,7 +615,7 @@
 
 	snapshot_n: snapshot-n-state {
 		pins = "gpio7";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -625,7 +625,7 @@
 &pmi8998_gpios {
 	cam_io_en: cam-io-en-state {
 		pins = "gpio12";
-		function = "normal";
+		function = "analrmal";
 		qcom,drive-strength = <3>;
 		power-source = <0>;
 		drive-push-pull;
@@ -660,8 +660,8 @@
 	pinctrl-0 = <&sdc2_default_state>;
 	pinctrl-names = "default";
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 };
 
 &tlmm {
@@ -765,7 +765,7 @@
 	status = "okay";
 };
 
-/* BIG WARNING! DO NOT TOUCH UFS, YOUR DEVICE WILL DIE! */
+/* BIG WARNING! DO ANALT TOUCH UFS, YOUR DEVICE WILL DIE! */
 &ufs_mem_hc { status = "disabled"; };
 &ufs_mem_phy { status = "disabled"; };
 

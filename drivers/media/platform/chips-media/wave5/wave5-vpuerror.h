@@ -19,11 +19,11 @@
 #define WAVE5_SYSERR_ACCESS_VIOLATION_HW                               0x00000040
 #define WAVE5_SYSERR_BUS_ERROR                                         0x00000200
 #define WAVE5_SYSERR_DOUBLE_FAULT                                      0x00000400
-#define WAVE5_SYSERR_RESULT_NOT_READY                                  0x00000800
+#define WAVE5_SYSERR_RESULT_ANALT_READY                                  0x00000800
 #define WAVE5_SYSERR_VPU_STILL_RUNNING                                 0x00001000
-#define WAVE5_SYSERR_UNKNOWN_CMD                                       0x00002000
-#define WAVE5_SYSERR_UNKNOWN_CODEC_STD                                 0x00004000
-#define WAVE5_SYSERR_UNKNOWN_QUERY_OPTION                              0x00008000
+#define WAVE5_SYSERR_UNKANALWN_CMD                                       0x00002000
+#define WAVE5_SYSERR_UNKANALWN_CODEC_STD                                 0x00004000
+#define WAVE5_SYSERR_UNKANALWN_QUERY_OPTION                              0x00008000
 #define WAVE5_SYSERR_VLC_BUF_FULL                                      0x00010000
 #define WAVE5_SYSERR_WATCHDOG_TIMEOUT                                  0x00020000
 #define WAVE5_SYSERR_VCPU_TIMEOUT                                      0x00080000
@@ -41,7 +41,7 @@
 /************************************************************************/
 /* WAVE5 COMMAND QUEUE ERROR (FAIL_REASON)                              */
 /************************************************************************/
-#define WAVE5_CMDQ_ERR_NOT_QUEABLE_CMD                                 0x00000001
+#define WAVE5_CMDQ_ERR_ANALT_QUEABLE_CMD                                 0x00000001
 #define WAVE5_CMDQ_ERR_SKIP_MODE_ENABLE                                0x00000002
 #define WAVE5_CMDQ_ERR_INST_FLUSHING                                   0x00000003
 #define WAVE5_CMDQ_ERR_INST_INACTIVE                                   0x00000004
@@ -139,16 +139,16 @@
 #define HEVC_SHERR_SLICE_SEGMENT_HEADER_EXTENSION_LENGTH               0x00003019
 #define HEVC_SHERR_WRONG_POC_IN_STILL_PICTURE_PROFILE                  0x0000301A
 #define HEVC_SHERR_SLICE_TYPE_ERROR_IN_STILL_PICTURE_PROFILE           0x0000301B
-#define HEVC_SHERR_PPS_ID_NOT_EQUAL_PREV_VALUE                         0x0000301C
+#define HEVC_SHERR_PPS_ID_ANALT_EQUAL_PREV_VALUE                         0x0000301C
 #define HEVC_SPECERR_OVER_PICTURE_WIDTH_SIZE                           0x00004000
 #define HEVC_SPECERR_OVER_PICTURE_HEIGHT_SIZE                          0x00004001
 #define HEVC_SPECERR_OVER_CHROMA_FORMAT                                0x00004002
 #define HEVC_SPECERR_OVER_BIT_DEPTH                                    0x00004003
 #define HEVC_SPECERR_OVER_BUFFER_OVER_FLOW                             0x00004004
 #define HEVC_SPECERR_OVER_WRONG_BUFFER_ACCESS                          0x00004005
-#define HEVC_ETCERR_INIT_SEQ_SPS_NOT_FOUND                             0x00005000
-#define HEVC_ETCERR_DEC_PIC_VCL_NOT_FOUND                              0x00005001
-#define HEVC_ETCERR_NO_VALID_SLICE_IN_AU                               0x00005002
+#define HEVC_ETCERR_INIT_SEQ_SPS_ANALT_FOUND                             0x00005000
+#define HEVC_ETCERR_DEC_PIC_VCL_ANALT_FOUND                              0x00005001
+#define HEVC_ETCERR_ANAL_VALID_SLICE_IN_AU                               0x00005002
 #define HEVC_ETCERR_INPLACE_V                                          0x0000500F
 
 // AVC
@@ -203,9 +203,9 @@
 #define AVC_SPECERR_OVER_BIT_DEPTH                                     0x00004003
 #define AVC_SPECERR_OVER_BUFFER_OVER_FLOW                              0x00004004
 #define AVC_SPECERR_OVER_WRONG_BUFFER_ACCESS                           0x00004005
-#define AVC_ETCERR_INIT_SEQ_SPS_NOT_FOUND                              0x00005000
-#define AVC_ETCERR_DEC_PIC_VCL_NOT_FOUND                               0x00005001
-#define AVC_ETCERR_NO_VALID_SLICE_IN_AU                                0x00005002
+#define AVC_ETCERR_INIT_SEQ_SPS_ANALT_FOUND                              0x00005000
+#define AVC_ETCERR_DEC_PIC_VCL_ANALT_FOUND                               0x00005001
+#define AVC_ETCERR_ANAL_VALID_SLICE_IN_AU                                0x00005002
 #define AVC_ETCERR_ASO                                                 0x00005004
 #define AVC_ETCERR_FMO                                                 0x00005005
 #define AVC_ETCERR_INPLACE_V                                           0x0000500F
@@ -227,10 +227,10 @@
 #define HEVC_PPSWARN_RBSP_TRAILING_BITS                                0x00000100
 #define HEVC_PPSWARN_REPLACED_WITH_PREV_PPS                            0x00000200
 #define HEVC_SHWARN_FIRST_SLICE_SEGMENT_IN_PIC_FLAG                    0x00001000
-#define HEVC_SHWARN_NO_OUTPUT_OF_PRIOR_PICS_FLAG                       0x00002000
+#define HEVC_SHWARN_ANAL_OUTPUT_OF_PRIOR_PICS_FLAG                       0x00002000
 #define HEVC_SHWARN_PIC_OUTPUT_FLAG                                    0x00004000
 #define HEVC_SHWARN_DUPLICATED_SLICE_SEGMENT                           0x00008000
-#define HEVC_ETCWARN_INIT_SEQ_VCL_NOT_FOUND                            0x00010000
+#define HEVC_ETCWARN_INIT_SEQ_VCL_ANALT_FOUND                            0x00010000
 #define HEVC_ETCWARN_MISSING_REFERENCE_PICTURE                         0x00020000
 #define HEVC_ETCWARN_WRONG_TEMPORAL_ID                                 0x00040000
 #define HEVC_ETCWARN_ERROR_PICTURE_IS_REFERENCED                       0x00080000
@@ -250,8 +250,8 @@
 #define AVC_SPSWARN_GENERAL_LEVEL_IDC                                  0x00000010
 #define AVC_SPSWARN_RBSP_TRAILING_BITS                                 0x00000040
 #define AVC_PPSWARN_RBSP_TRAILING_BITS                                 0x00000100
-#define AVC_SHWARN_NO_OUTPUT_OF_PRIOR_PICS_FLAG                        0x00002000
-#define AVC_ETCWARN_INIT_SEQ_VCL_NOT_FOUND                             0x00010000
+#define AVC_SHWARN_ANAL_OUTPUT_OF_PRIOR_PICS_FLAG                        0x00002000
+#define AVC_ETCWARN_INIT_SEQ_VCL_ANALT_FOUND                             0x00010000
 #define AVC_ETCWARN_MISSING_REFERENCE_PICTURE                          0x00020000
 #define AVC_ETCWARN_ERROR_PICTURE_IS_REFERENCED                        0x00080000
 #define AVC_SPECWARN_OVER_PROFILE                                      0x00100000

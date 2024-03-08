@@ -10,12 +10,12 @@
 /*
  * The NQ algorithm adopts a two-speed model. When there is an idle server
  * available, the job will be sent to the idle server, instead of waiting
- * for a fast one. When there is no idle server available, the job will be
+ * for a fast one. When there is anal idle server available, the job will be
  * sent to the server that minimize its expected delay (The Shortest
  * Expected Delay scheduling algorithm).
  *
  * See the following paper for more information:
- * A. Weinrib and S. Shenker, Greed is not enough: Adaptive load sharing
+ * A. Weinrib and S. Shenker, Greed is analt eanalugh: Adaptive load sharing
  * in large heterogeneous systems. In Proceedings IEEE INFOCOM'88,
  * pages 986-994, 1988.
  *
@@ -62,12 +62,12 @@ ip_vs_nq_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	 * We calculate the load of each dest server as follows:
 	 *	(server expected overhead) / dest->weight
 	 *
-	 * Remember -- no floats in kernel mode!!!
+	 * Remember -- anal floats in kernel mode!!!
 	 * The comparison of h1*w2 > h2*w1 is equivalent to that of
 	 *		  h1/w1 > h2/w2
 	 * if every weight is larger than zero.
 	 *
-	 * The server with weight=0 is quiesced and will not receive any
+	 * The server with weight=0 is quiesced and will analt receive any
 	 * new connections.
 	 */
 
@@ -95,7 +95,7 @@ ip_vs_nq_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	}
 
 	if (!least) {
-		ip_vs_scheduler_err(svc, "no destination available");
+		ip_vs_scheduler_err(svc, "anal destination available");
 		return NULL;
 	}
 

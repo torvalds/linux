@@ -23,7 +23,7 @@
 #include "sdhci-pltfm.h"
 
 /*
- * Note that the register offsets used here are from omap_regs
+ * Analte that the register offsets used here are from omap_regs
  * base which is 0x100 for omap4 and later, and 0 for omap3 and
  * earlier.
  */
@@ -201,7 +201,7 @@ static int sdhci_omap_enable_iov(struct sdhci_omap_host *omap_host,
 		return ret;
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
-		/* Pick the right voltage to allow 3.0V for 3.3V nominal PBIAS */
+		/* Pick the right voltage to allow 3.0V for 3.3V analminal PBIAS */
 		ret = mmc_regulator_set_vqmmc(mmc, &mmc->ios);
 		if (ret < 0) {
 			dev_err(mmc_dev(mmc), "vqmmc set voltage failed\n");
@@ -332,7 +332,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 reg;
 	int i;
 
-	/* clock tuning is not needed for upto 52MHz */
+	/* clock tuning is analt needed for upto 52MHz */
 	if (ios->clock <= 52000000)
 		return 0;
 
@@ -368,7 +368,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	omap_host->is_tuning = true;
 
 	/*
-	 * Stage 1: Search for a maximum pass window ignoring any
+	 * Stage 1: Search for a maximum pass window iganalring any
 	 * single point failures. If the tuning value ends up
 	 * near it, move away from it in stage 2 below
 	 */
@@ -380,7 +380,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			if (prev_match) {
 				length++;
 			} else if (single_point_failure) {
-				/* ignore single point failure */
+				/* iganalre single point failure */
 				length++;
 			} else {
 				start_window = phase_delay;
@@ -559,7 +559,7 @@ static int sdhci_omap_start_signal_voltage_switch(struct mmc_host *mmc,
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
 		reg = sdhci_omap_readl(omap_host, SDHCI_OMAP_CAPA);
 		if (!(reg & (CAPA_VS30 | CAPA_VS33)))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (reg & CAPA_VS30)
 			iov = IOV_3V0;
@@ -575,7 +575,7 @@ static int sdhci_omap_start_signal_voltage_switch(struct mmc_host *mmc,
 	} else if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
 		reg = sdhci_omap_readl(omap_host, SDHCI_OMAP_CAPA);
 		if (!(reg & CAPA_VS18))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		iov = IOV_1V8;
 
@@ -585,7 +585,7 @@ static int sdhci_omap_start_signal_voltage_switch(struct mmc_host *mmc,
 		reg |= AC12_V1V8_SIGEN;
 		sdhci_omap_writel(omap_host, SDHCI_OMAP_AC12, reg);
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = sdhci_omap_enable_iov(omap_host, iov);
@@ -723,10 +723,10 @@ static void sdhci_omap_set_power(struct sdhci_host *host, unsigned char mode,
 
 /*
  * MMCHS_HL_HWINFO has the MADMA_EN bit set if the controller instance
- * is connected to L3 interconnect and is bus master capable. Note that
+ * is connected to L3 interconnect and is bus master capable. Analte that
  * the MMCHS_HL_HWINFO register is in the module registers before the
  * omap registers and sdhci registers. The offset can vary for omap
- * registers depending on the SoC. Do not use sdhci_omap_readl() here.
+ * registers depending on the SoC. Do analt use sdhci_omap_readl() here.
  */
 static bool sdhci_omap_has_adma(struct sdhci_omap_host *omap_host, int offset)
 {
@@ -892,7 +892,7 @@ static u32 sdhci_omap_irq(struct sdhci_host *host, u32 intmask)
 	    (intmask & CMD_ERR_MASK)) {
 
 		/*
-		 * Since we are not resetting data lines during tuning
+		 * Since we are analt resetting data lines during tuning
 		 * operation, data error or data complete interrupts
 		 * might still arrive. Mark this request as a failure
 		 * but still wait for the data interrupt
@@ -1012,7 +1012,7 @@ static const struct sdhci_pltfm_data sdhci_omap_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
-		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_ANAL_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
 	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN |
 		   SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
@@ -1085,7 +1085,7 @@ static struct pinctrl_state
 {
 	struct device *dev = omap_host->dev;
 	char *version = omap_host->version;
-	struct pinctrl_state *pinctrl_state = ERR_PTR(-ENODEV);
+	struct pinctrl_state *pinctrl_state = ERR_PTR(-EANALDEV);
 	char str[20];
 
 	if (!(*caps & capmask))
@@ -1100,7 +1100,7 @@ static struct pinctrl_state
 		pinctrl_state = pinctrl_lookup_state(omap_host->pinctrl, mode);
 
 	if (IS_ERR(pinctrl_state)) {
-		dev_err(dev, "no pinctrl state for %s mode", mode);
+		dev_err(dev, "anal pinctrl state for %s mode", mode);
 		*caps &= ~capmask;
 	}
 
@@ -1127,17 +1127,17 @@ static int sdhci_omap_config_iodelay_pinctrl_state(struct sdhci_omap_host
 				     sizeof(*pinctrl_state),
 				     GFP_KERNEL);
 	if (!pinctrl_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	omap_host->pinctrl = devm_pinctrl_get(omap_host->dev);
 	if (IS_ERR(omap_host->pinctrl)) {
-		dev_err(dev, "Cannot get pinctrl\n");
+		dev_err(dev, "Cananalt get pinctrl\n");
 		return PTR_ERR(omap_host->pinctrl);
 	}
 
 	state = pinctrl_lookup_state(omap_host->pinctrl, "default");
 	if (IS_ERR(state)) {
-		dev_err(dev, "no pinctrl state for default mode\n");
+		dev_err(dev, "anal pinctrl state for default mode\n");
 		return PTR_ERR(state);
 	}
 	pinctrl_state[MMC_TIMING_LEGACY] = state;
@@ -1224,7 +1224,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(dev, "no sdhci omap data\n");
+		dev_err(dev, "anal sdhci omap data\n");
 		return -EINVAL;
 	}
 	offset = data->offset;
@@ -1271,7 +1271,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	}
 
 	if (!mmc_can_gpio_ro(mmc))
-		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+		mmc->caps2 |= MMC_CAP2_ANAL_WRITE_PROTECT;
 
 	pltfm_host->clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(pltfm_host->clk)) {
@@ -1288,7 +1288,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	omap_host->pbias = devm_regulator_get_optional(dev, "pbias");
 	if (IS_ERR(omap_host->pbias)) {
 		ret = PTR_ERR(omap_host->pbias);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			goto err_pltfm_free;
 		dev_dbg(dev, "unable to get pbias regulator %d\n", ret);
 	}
@@ -1325,15 +1325,15 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 
 	/*
 	 * Switch to external DMA only if there is the "dmas" property and
-	 * ADMA is not available on the controller instance.
+	 * ADMA is analt available on the controller instance.
 	 */
 	if (device_property_present(dev, "dmas") &&
 	    !sdhci_omap_has_adma(omap_host, offset))
 		sdhci_switch_external_dma(host, true);
 
-	if (device_property_read_bool(dev, "ti,non-removable")) {
-		dev_warn_once(dev, "using old ti,non-removable property\n");
-		mmc->caps |= MMC_CAP_NONREMOVABLE;
+	if (device_property_read_bool(dev, "ti,analn-removable")) {
+		dev_warn_once(dev, "using old ti,analn-removable property\n");
+		mmc->caps |= MMC_CAP_ANALNREMOVABLE;
 	}
 
 	/* R1B responses is required to properly manage HW busy detection. */
@@ -1358,7 +1358,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	 * SDIO devices can use the dat1 pin as a wake-up interrupt. Some
 	 * devices like wl1xxx, use an out-of-band GPIO interrupt instead.
 	 */
-	omap_host->wakeirq = of_irq_get_byname(dev->of_node, "wakeup");
+	omap_host->wakeirq = of_irq_get_byname(dev->of_analde, "wakeup");
 	if (omap_host->wakeirq == -EPROBE_DEFER) {
 		ret = -EPROBE_DEFER;
 		goto err_cleanup_host;
@@ -1478,7 +1478,7 @@ static struct platform_driver sdhci_omap_driver = {
 	.remove_new = sdhci_omap_remove,
 	.driver = {
 		   .name = "sdhci-omap",
-		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		   .probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		   .pm = &sdhci_omap_dev_pm_ops,
 		   .of_match_table = omap_sdhci_match,
 		  },

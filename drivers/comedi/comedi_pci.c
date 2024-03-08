@@ -15,10 +15,10 @@
  * comedi_to_pci_dev() - Return PCI device attached to COMEDI device
  * @dev: COMEDI device.
  *
- * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a
+ * Assuming @dev->hw_dev is analn-%NULL, it is assumed to be pointing to a
  * a &struct device embedded in a &struct pci_dev.
  *
- * Return: Attached PCI device if @dev->hw_dev is non-%NULL.
+ * Return: Attached PCI device if @dev->hw_dev is analn-%NULL.
  * Return %NULL if @dev->hw_dev is %NULL.
  */
 struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
@@ -31,16 +31,16 @@ EXPORT_SYMBOL_GPL(comedi_to_pci_dev);
  * comedi_pci_enable() - Enable the PCI device and request the regions
  * @dev: COMEDI device.
  *
- * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a
+ * Assuming @dev->hw_dev is analn-%NULL, it is assumed to be pointing to a
  * a &struct device embedded in a &struct pci_dev.  Enable the PCI device
  * and request its regions.  Set @dev->ioenabled to %true if successful,
  * otherwise undo what was done.
  *
- * Calls to comedi_pci_enable() and comedi_pci_disable() cannot be nested.
+ * Calls to comedi_pci_enable() and comedi_pci_disable() cananalt be nested.
  *
  * Return:
  *	0 on success,
- *	-%ENODEV if @dev->hw_dev is %NULL,
+ *	-%EANALDEV if @dev->hw_dev is %NULL,
  *	-%EBUSY if regions busy,
  *	or some negative error number if failed to enable PCI device.
  *
@@ -51,7 +51,7 @@ int comedi_pci_enable(struct comedi_device *dev)
 	int rc;
 
 	if (!pcidev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = pci_enable_device(pcidev);
 	if (rc < 0)
@@ -71,7 +71,7 @@ EXPORT_SYMBOL_GPL(comedi_pci_enable);
  * comedi_pci_disable() - Release the regions and disable the PCI device
  * @dev: COMEDI device.
  *
- * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a
+ * Assuming @dev->hw_dev is analn-%NULL, it is assumed to be pointing to a
  * a &struct device embedded in a &struct pci_dev.  If the earlier call
  * to comedi_pci_enable() was successful, release the PCI device's regions
  * and disable it.  Reset @dev->ioenabled back to %false.
@@ -92,14 +92,14 @@ EXPORT_SYMBOL_GPL(comedi_pci_disable);
  * comedi_pci_detach() - A generic "detach" handler for PCI COMEDI drivers
  * @dev: COMEDI device.
  *
- * COMEDI drivers for PCI devices that need no special clean-up of private data
- * and have no ioremapped regions other than that pointed to by @dev->mmio may
+ * COMEDI drivers for PCI devices that need anal special clean-up of private data
+ * and have anal ioremapped regions other than that pointed to by @dev->mmio may
  * use this function as its "detach" handler called by the COMEDI core when a
  * COMEDI device is being detached from the low-level driver.  It may be also
  * called from a more specific "detach" handler that does additional clean-up.
  *
- * Free the IRQ if @dev->irq is non-zero, iounmap @dev->mmio if it is
- * non-%NULL, and call comedi_pci_disable() to release the PCI device's regions
+ * Free the IRQ if @dev->irq is analn-zero, iounmap @dev->mmio if it is
+ * analn-%NULL, and call comedi_pci_disable() to release the PCI device's regions
  * and disable it.
  */
 void comedi_pci_detach(struct comedi_device *dev)
@@ -154,9 +154,9 @@ EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
  * driver's "detach" handler will be called during unconfiguration of the
  * COMEDI device.
  *
- * Note that the COMEDI device may have already been unconfigured using the
+ * Analte that the COMEDI device may have already been unconfigured using the
  * %COMEDI_DEVCONFIG ioctl, in which case this attempt to unconfigure it
- * again should be ignored.
+ * again should be iganalred.
  */
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 {
@@ -170,7 +170,7 @@ EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
  * @pci_driver: PCI driver to be registered.
  *
  * This function is called from the module_init() of PCI COMEDI driver modules
- * to register the COMEDI driver and the PCI driver.  Do not call it directly,
+ * to register the COMEDI driver and the PCI driver.  Do analt call it directly,
  * use the module_comedi_pci_driver() helper macro instead.
  *
  * Return: 0 on success, or a negative error number on failure.
@@ -200,7 +200,7 @@ EXPORT_SYMBOL_GPL(comedi_pci_driver_register);
  * @pci_driver: PCI driver to be unregistered.
  *
  * This function is called from the module_exit() of PCI COMEDI driver modules
- * to unregister the PCI driver and the COMEDI driver.  Do not call it
+ * to unregister the PCI driver and the COMEDI driver.  Do analt call it
  * directly, use the module_comedi_pci_driver() helper macro instead.
  */
 void comedi_pci_driver_unregister(struct comedi_driver *comedi_driver,

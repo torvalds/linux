@@ -83,10 +83,10 @@ const char *can_get_state_str(const enum can_state state)
 	case CAN_STATE_SLEEPING:
 		return "Sleeping";
 	default:
-		return "<unknown>";
+		return "<unkanalwn>";
 	}
 
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 EXPORT_SYMBOL_GPL(can_get_state_str);
 
@@ -119,7 +119,7 @@ void can_change_state(struct net_device *dev, struct can_frame *cf,
 	enum can_state new_state = max(tx_state, rx_state);
 
 	if (unlikely(new_state == priv->state)) {
-		netdev_warn(dev, "%s: oops, state did not change", __func__);
+		netdev_warn(dev, "%s: oops, state did analt change", __func__);
 		return;
 	}
 
@@ -157,8 +157,8 @@ static void can_restart(struct net_device *dev)
 	if (netif_carrier_ok(dev))
 		netdev_err(dev, "Attempt to restart for bus-off recovery, but carrier is OK?\n");
 
-	/* No synchronization needed because the device is bus-off and
-	 * no messages can come in or go out.
+	/* Anal synchronization needed because the device is bus-off and
+	 * anal messages can come in or go out.
 	 */
 	can_flush_echo_skb(dev);
 
@@ -169,7 +169,7 @@ static void can_restart(struct net_device *dev)
 		netif_rx(skb);
 	}
 
-	/* Now restart the device */
+	/* Analw restart the device */
 	netif_carrier_on(dev);
 	err = priv->do_set_mode(dev, CAN_MODE_START);
 	if (err) {
@@ -190,7 +190,7 @@ static void can_restart_work(struct work_struct *work)
 	can_restart(priv->dev);
 }
 
-int can_restart_now(struct net_device *dev)
+int can_restart_analw(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
@@ -211,7 +211,7 @@ int can_restart_now(struct net_device *dev)
 /* CAN bus-off
  *
  * This functions should be called when the device goes bus-off to
- * tell the netif layer that no more packets can be sent or received.
+ * tell the netif layer that anal more packets can be sent or received.
  * If enabled, a timer is started to trigger bus-off recovery.
  */
 void can_bus_off(struct net_device *dev)
@@ -241,7 +241,7 @@ void can_setup(struct net_device *dev)
 	dev->tx_queue_len = 10;
 
 	/* New-style flags. */
-	dev->flags = IFF_NOARP;
+	dev->flags = IFF_ANALARP;
 	dev->features = NETIF_F_HW_CSUM;
 }
 
@@ -273,7 +273,7 @@ struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 		size = ALIGN(size, sizeof(struct sk_buff *)) +
 			echo_skb_max * sizeof(struct sk_buff *);
 
-	dev = alloc_netdev_mqs(size, "can%d", NET_NAME_UNKNOWN, can_setup,
+	dev = alloc_netdev_mqs(size, "can%d", NET_NAME_UNKANALWN, can_setup,
 			       txqs, rxqs);
 	if (!dev)
 		return NULL;
@@ -311,14 +311,14 @@ int can_change_mtu(struct net_device *dev, int new_mtu)
 	struct can_priv *priv = netdev_priv(dev);
 	u32 ctrlmode_static = can_get_static_ctrlmode(priv);
 
-	/* Do not allow changing the MTU while running */
+	/* Do analt allow changing the MTU while running */
 	if (dev->flags & IFF_UP)
 		return -EBUSY;
 
 	/* allow change of MTU according to the CANFD ability of the device */
 	switch (new_mtu) {
 	case CAN_MTU:
-		/* 'CANFD-only' controllers can not switch to CAN_MTU */
+		/* 'CANFD-only' controllers can analt switch to CAN_MTU */
 		if (ctrlmode_static & CAN_CTRLMODE_FD)
 			return -EINVAL;
 
@@ -367,7 +367,7 @@ int can_eth_ioctl_hwts(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL(can_eth_ioctl_hwts);
@@ -403,7 +403,7 @@ int open_candev(struct net_device *dev)
 	struct can_priv *priv = netdev_priv(dev);
 
 	if (!priv->bittiming.bitrate) {
-		netdev_err(dev, "bit-timing not yet defined\n");
+		netdev_err(dev, "bit-timing analt yet defined\n");
 		return -EINVAL;
 	}
 
@@ -425,14 +425,14 @@ EXPORT_SYMBOL_GPL(open_candev);
 
 #ifdef CONFIG_OF
 /* Common function that can be used to understand the limitation of
- * a transceiver when it provides no means to determine these limitations
+ * a transceiver when it provides anal means to determine these limitations
  * at runtime.
  */
 void of_can_transceiver(struct net_device *dev)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	struct can_priv *priv = netdev_priv(dev);
-	struct device_node *np = dev->dev.parent->of_node;
+	struct device_analde *np = dev->dev.parent->of_analde;
 	int ret;
 
 	dn = of_get_child_by_name(np, "can-transceiver");
@@ -440,9 +440,9 @@ void of_can_transceiver(struct net_device *dev)
 		return;
 
 	ret = of_property_read_u32(dn, "max-bitrate", &priv->bitrate_max);
-	of_node_put(dn);
+	of_analde_put(dn);
 	if ((ret && ret != -EINVAL) || (!ret && !priv->bitrate_max))
-		netdev_warn(dev, "Invalid value for transceiver max bitrate. Ignoring bitrate limit.\n");
+		netdev_warn(dev, "Invalid value for transceiver max bitrate. Iganalring bitrate limit.\n");
 }
 EXPORT_SYMBOL_GPL(of_can_transceiver);
 #endif
@@ -485,19 +485,19 @@ static int can_get_termination(struct net_device *ndev)
 	int ret;
 
 	/* Disabling termination by default is the safe choice: Else if many
-	 * bus participants enable it, no communication is possible at all.
+	 * bus participants enable it, anal communication is possible at all.
 	 */
 	gpio = devm_gpiod_get_optional(dev, "termination", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio))
 		return dev_err_probe(dev, PTR_ERR(gpio),
-				     "Cannot get termination-gpios\n");
+				     "Cananalt get termination-gpios\n");
 
 	if (!gpio)
 		return 0;
 
 	ret = device_property_read_u32(dev, "termination-ohms", &term);
 	if (ret) {
-		netdev_err(ndev, "Cannot get termination-ohms: %pe\n",
+		netdev_err(ndev, "Cananalt get termination-ohms: %pe\n",
 			   ERR_PTR(ret));
 		return ret;
 	}

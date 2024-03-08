@@ -1,14 +1,14 @@
 * Freescale QUICC Engine module (QE)
 This represents qe module that is installed on PowerQUICC II Pro.
 
-NOTE:  This is an interim binding; it should be updated to fit
+ANALTE:  This is an interim binding; it should be updated to fit
 in with the CPM binding later in this document.
 
 Basically, it is a bus of devices, that could act more or less
 as a complete entity (UCC, USB etc ). All of them should be siblings on
-the "root" qe node, using the common properties from there.
+the "root" qe analde, using the common properties from there.
 The description below applies to the qe of MPC8360 and
-more nodes and properties would be extended in the future.
+more analdes and properties would be extended in the future.
 
 i) Root QE device
 
@@ -24,11 +24,11 @@ Required properties:
 
 Optional properties:
 - fsl,firmware-phandle:
-    Usage: required only if there is no fsl,qe-firmware child node
+    Usage: required only if there is anal fsl,qe-firmware child analde
     Value type: <phandle>
-    Definition: Points to a firmware node (see "QE Firmware Node" below)
+    Definition: Points to a firmware analde (see "QE Firmware Analde" below)
         that contains the firmware that should be uploaded for this QE.
-        The compatible property for the firmware node should say,
+        The compatible property for the firmware analde should say,
         "fsl,qe-firmware".
 
 Recommended properties
@@ -37,7 +37,7 @@ Recommended properties
 
 Deprecated properties
 - fsl,qe-num-snums: define how many serial number(SNUM) the QE can use
-  for the threads. Use fsl,qe-snums instead to not only specify the
+  for the threads. Use fsl,qe-snums instead to analt only specify the
   number of snums, but also their values.
 
 Example:
@@ -64,7 +64,7 @@ Required properties:
 - mode : the could be "host" or "slave".
 - ranges : Should be defined as specified in 1) to describe the
    translation of MURAM addresses.
-- data-only : sub-node which defines the address area under MURAM
+- data-only : sub-analde which defines the address area under MURAM
    bus that can be allocated as data/parameter
 
 Example:
@@ -132,18 +132,18 @@ Example:
 		reg = <0x1000 0x800>;
 	};
 
-* QE Firmware Node
+* QE Firmware Analde
 
-This node defines a firmware binary that is embedded in the device tree, for
+This analde defines a firmware binary that is embedded in the device tree, for
 the purpose of passing the firmware from bootloader to the kernel, or from
 the hypervisor to the guest.
 
-The firmware node itself contains the firmware binary contents, a compatible
-property, and any firmware-specific properties.  The node should be placed
-inside a QE node that needs it.  Doing so eliminates the need for a
-fsl,firmware-phandle property.  Other QE nodes that need the same firmware
-should define an fsl,firmware-phandle property that points to the firmware node
-in the first QE node.
+The firmware analde itself contains the firmware binary contents, a compatible
+property, and any firmware-specific properties.  The analde should be placed
+inside a QE analde that needs it.  Doing so eliminates the need for a
+fsl,firmware-phandle property.  Other QE analdes that need the same firmware
+should define an fsl,firmware-phandle property that points to the firmware analde
+in the first QE analde.
 
 The fsl,firmware property can be specified in the DTS (possibly using incbin)
 or can be inserted by the boot loader at boot time.

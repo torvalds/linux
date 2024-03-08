@@ -4,7 +4,7 @@
  * Copyright (c) 2014, Intel Corporation.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 
 #include "dso.h"
@@ -102,8 +102,8 @@ int db_export__comm(struct db_export *dbe, struct comm *comm,
 /*
  * Export the "exec" comm. The "exec" comm is the program / application command
  * name at the time it first executes. It is used to group threads for the same
- * program. Note that the main thread pid (or thread group id tgid) cannot be
- * used because it does not change when a new program is exec'ed.
+ * program. Analte that the main thread pid (or thread group id tgid) cananalt be
+ * used because it does analt change when a new program is exec'ed.
  */
 int db_export__exec_comm(struct db_export *dbe, struct comm *comm,
 			 struct thread *main_thread)
@@ -118,14 +118,14 @@ int db_export__exec_comm(struct db_export *dbe, struct comm *comm,
 		return err;
 
 	/*
-	 * Record the main thread for this comm. Note that the main thread can
+	 * Record the main thread for this comm. Analte that the main thread can
 	 * have many "exec" comms because there will be a new one every time it
 	 * exec's. An "exec" comm however will only ever have 1 main thread.
 	 * That is different to any other threads for that same program because
 	 * exec() will effectively kill them, so the relationship between the
-	 * "exec" comm and non-main threads is 1-to-1. That is why
+	 * "exec" comm and analn-main threads is 1-to-1. That is why
 	 * db_export__comm_thread() is called here for the main thread, but it
-	 * is called for non-main threads when they are exported.
+	 * is called for analn-main threads when they are exported.
 	 */
 	return db_export__comm_thread(dbe, comm, main_thread);
 }
@@ -187,7 +187,7 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 		*dso_db_id = dso->db_id;
 
 		if (!al->sym) {
-			al->sym = symbol__new(al->addr, 0, 0, 0, "unknown");
+			al->sym = symbol__new(al->addr, 0, 0, 0, "unkanalwn");
 			if (al->sym)
 				dso__insert_symbol(dso, al->sym);
 		}
@@ -224,7 +224,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	/*
 	 * Since the call path tree must be built starting with the root, we
 	 * must use ORDER_CALL for call chain resolution, in order to process
-	 * the callchain starting with the root node and ending with the leaf.
+	 * the callchain starting with the root analde and ending with the leaf.
 	 */
 	callchain_param.order = ORDER_CALLER;
 	cursor = get_tls_callchain_cursor();
@@ -237,34 +237,34 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	callchain_cursor_commit(cursor);
 
 	while (1) {
-		struct callchain_cursor_node *node;
+		struct callchain_cursor_analde *analde;
 		struct addr_location al;
 		u64 dso_db_id = 0, sym_db_id = 0, offset = 0;
 
 
-		node = callchain_cursor_current(cursor);
-		if (!node)
+		analde = callchain_cursor_current(cursor);
+		if (!analde)
 			break;
 
 		/*
-		 * Handle export of symbol and dso for this node by
+		 * Handle export of symbol and dso for this analde by
 		 * constructing an addr_location struct and then passing it to
 		 * db_ids_from_al() to perform the export.
 		 */
 		addr_location__init(&al);
-		al.sym = node->ms.sym;
-		al.map = map__get(node->ms.map);
+		al.sym = analde->ms.sym;
+		al.map = map__get(analde->ms.map);
 		al.maps = maps__get(thread__maps(thread));
-		al.addr = node->ip;
+		al.addr = analde->ip;
 
 		if (al.map && !al.sym)
 			al.sym = dso__find_symbol(map__dso(al.map), al.addr);
 
 		db_ids_from_al(dbe, &al, &dso_db_id, &sym_db_id, &offset);
 
-		/* add node to the call path tree if it doesn't exist */
+		/* add analde to the call path tree if it doesn't exist */
 		current = call_path__findnew(dbe->cpr, current,
-					     al.sym, node->ip,
+					     al.sym, analde->ip,
 					     kernel_start);
 
 		callchain_cursor_advance(cursor);
@@ -308,7 +308,7 @@ static int db_export__threads(struct db_export *dbe, struct thread *thread,
 		if (err)
 			return err;
 		/*
-		 * Export comm before exporting the non-main thread because
+		 * Export comm before exporting the analn-main thread because
 		 * db_export__comm_thread() can be called further below.
 		 */
 		comm = machine__thread_exec_comm(machine, main_thread);
@@ -322,8 +322,8 @@ static int db_export__threads(struct db_export *dbe, struct thread *thread,
 
 	if (thread != main_thread) {
 		/*
-		 * For a non-main thread, db_export__comm_thread() must be
-		 * called only if thread has not previously been exported.
+		 * For a analn-main thread, db_export__comm_thread() must be
+		 * called only if thread has analt previously been exported.
 		 */
 		bool export_comm_thread = comm && !thread__db_id(thread);
 
@@ -421,7 +421,7 @@ static struct {
 	u32 branch_type;
 	const char *name;
 } branch_types[] = {
-	{0, "no branch"},
+	{0, "anal branch"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL, "call"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN, "return"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CONDITIONAL, "conditional jump"},
@@ -434,7 +434,7 @@ static struct {
 	 "system call"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_SYSCALLRET,
 	 "return from system call"},
-	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_ASYNC, "asynchronous branch"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_ASYNC, "asynchroanalus branch"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_ASYNC |
 	 PERF_IP_FLAG_INTERRUPT, "hardware interrupt"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT, "transaction abort"},
@@ -587,8 +587,8 @@ int db_export__switch(struct db_export *dbe, union perf_event *event,
 	}
 
 	/*
-	 * Do not export if both threads are unknown (i.e. not being traced),
-	 * or one is unknown and the other is the idle task.
+	 * Do analt export if both threads are unkanalwn (i.e. analt being traced),
+	 * or one is unkanalwn and the other is the idle task.
 	 */
 	if ((!th_a_id || is_idle_a) && (!th_b_id || is_idle_b))
 		return 0;

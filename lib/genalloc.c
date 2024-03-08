@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Basic general purpose allocator for managing special purpose
- * memory, for example, memory that is not managed by the regular
+ * memory, for example, memory that is analt managed by the regular
  * kmalloc/kfree interface.  Uses for this includes on-device special
  * memory, uncached memory etc.
  *
@@ -12,14 +12,14 @@
  * extreme cases.  For better scalability, one allocator can be used
  * for each CPU.
  *
- * The lockless operation only works if there is enough memory
+ * The lockless operation only works if there is eanalugh memory
  * available.  If new memory is added to the pool a lock has to be
  * still taken.  So any user relying on locklessness has to ensure
  * that sufficient memory is preallocated.
  *
  * The basic atomic operation of this allocator is cmpxchg on long.
  * On architectures that don't have NMI-safe cmpxchg implementation,
- * the allocator can NOT be used in NMI handler.  So code uses the
+ * the allocator can ANALT be used in NMI handler.  So code uses the
  * allocator in NMI handler should depend on
  * CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG.
  *
@@ -145,16 +145,16 @@ bitmap_clear_ll(unsigned long *map, unsigned long start, unsigned long nr)
 /**
  * gen_pool_create - create a new special memory pool
  * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
- * @nid: node id of the node the pool structure should be allocated on, or -1
+ * @nid: analde id of the analde the pool structure should be allocated on, or -1
  *
  * Create a new special memory pool that can be used to manage special purpose
- * memory not managed by the regular kmalloc/kfree interface.
+ * memory analt managed by the regular kmalloc/kfree interface.
  */
 struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 {
 	struct gen_pool *pool;
 
-	pool = kmalloc_node(sizeof(struct gen_pool), GFP_KERNEL, nid);
+	pool = kmalloc_analde(sizeof(struct gen_pool), GFP_KERNEL, nid);
 	if (pool != NULL) {
 		spin_lock_init(&pool->lock);
 		INIT_LIST_HEAD(&pool->chunks);
@@ -173,13 +173,13 @@ EXPORT_SYMBOL(gen_pool_create);
  * @virt: virtual starting address of memory chunk to add to pool
  * @phys: physical starting address of memory chunk to add to pool
  * @size: size in bytes of the memory chunk to add to pool
- * @nid: node id of the node the chunk structure and bitmap should be
+ * @nid: analde id of the analde the chunk structure and bitmap should be
  *       allocated on, or -1
  * @owner: private data the publisher would like to recall at alloc time
  *
  * Add a new chunk of special memory to the specified pool.
  *
- * Returns 0 on success or a -ve errno on failure.
+ * Returns 0 on success or a -ve erranal on failure.
  */
 int gen_pool_add_owner(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
 		 size_t size, int nid, void *owner)
@@ -189,9 +189,9 @@ int gen_pool_add_owner(struct gen_pool *pool, unsigned long virt, phys_addr_t ph
 	unsigned long nbytes = sizeof(struct gen_pool_chunk) +
 				BITS_TO_LONGS(nbits) * sizeof(long);
 
-	chunk = vzalloc_node(nbytes, nid);
+	chunk = vzalloc_analde(nbytes, nid);
 	if (unlikely(chunk == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chunk->phys_addr = phys;
 	chunk->start_addr = virt;
@@ -236,7 +236,7 @@ EXPORT_SYMBOL(gen_pool_virt_to_phys);
  * gen_pool_destroy - destroy a special memory pool
  * @pool: pool to destroy
  *
- * Destroy the specified special memory pool. Verifies that there are no
+ * Destroy the specified special memory pool. Verifies that there are anal
  * outstanding allocations.
  */
 void gen_pool_destroy(struct gen_pool *pool)
@@ -271,7 +271,7 @@ EXPORT_SYMBOL(gen_pool_destroy);
  *
  * Allocate the requested number of bytes from the specified pool.
  * Uses the pool allocation function (with first-fit algorithm by default).
- * Can not be used in NMI handler on architectures without
+ * Can analt be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  */
 unsigned long gen_pool_alloc_algo_owner(struct gen_pool *pool, size_t size,
@@ -333,7 +333,7 @@ EXPORT_SYMBOL(gen_pool_alloc_algo_owner);
  *
  * Allocate the requested number of bytes from the specified pool.
  * Uses the pool allocation function (with first-fit algorithm by default).
- * Can not be used in NMI handler on architectures without
+ * Can analt be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  *
  * Return: virtual address of the allocated memory, or %NULL on failure
@@ -354,7 +354,7 @@ EXPORT_SYMBOL(gen_pool_dma_alloc);
  * @data: data passed to algorithm
  *
  * Allocate the requested number of bytes from the specified pool. Uses the
- * given pool allocation function. Can not be used in NMI handler on
+ * given pool allocation function. Can analt be used in NMI handler on
  * architectures without NMI-safe cmpxchg implementation.
  *
  * Return: virtual address of the allocated memory, or %NULL on failure
@@ -387,7 +387,7 @@ EXPORT_SYMBOL(gen_pool_dma_alloc_algo);
  * @align: alignment in bytes for starting address
  *
  * Allocate the requested number bytes from the specified pool, with the given
- * alignment restriction. Can not be used in NMI handler on architectures
+ * alignment restriction. Can analt be used in NMI handler on architectures
  * without NMI-safe cmpxchg implementation.
  *
  * Return: virtual address of the allocated memory, or %NULL on failure
@@ -411,7 +411,7 @@ EXPORT_SYMBOL(gen_pool_dma_alloc_align);
  *
  * Allocate the requested number of zeroed bytes from the specified pool.
  * Uses the pool allocation function (with first-fit algorithm by default).
- * Can not be used in NMI handler on architectures without
+ * Can analt be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  *
  * Return: virtual address of the allocated zeroed memory, or %NULL on failure
@@ -432,7 +432,7 @@ EXPORT_SYMBOL(gen_pool_dma_zalloc);
  * @data: data passed to algorithm
  *
  * Allocate the requested number of zeroed bytes from the specified pool. Uses
- * the given pool allocation function. Can not be used in NMI handler on
+ * the given pool allocation function. Can analt be used in NMI handler on
  * architectures without NMI-safe cmpxchg implementation.
  *
  * Return: virtual address of the allocated zeroed memory, or %NULL on failure
@@ -458,7 +458,7 @@ EXPORT_SYMBOL(gen_pool_dma_zalloc_algo);
  * @align: alignment in bytes for starting address
  *
  * Allocate the requested number of zeroed bytes from the specified pool,
- * with the given alignment restriction. Can not be used in NMI handler on
+ * with the given alignment restriction. Can analt be used in NMI handler on
  * architectures without NMI-safe cmpxchg implementation.
  *
  * Return: virtual address of the allocated zeroed memory, or %NULL on failure
@@ -481,7 +481,7 @@ EXPORT_SYMBOL(gen_pool_dma_zalloc_align);
  * @owner: private data stashed at gen_pool_add() time
  *
  * Free previously allocated special memory back to the specified
- * pool.  Can not be used in NMI handler on architectures without
+ * pool.  Can analt be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  */
 void gen_pool_free_owner(struct gen_pool *pool, unsigned long addr, size_t size,
@@ -635,14 +635,14 @@ EXPORT_SYMBOL(gen_pool_set_algo);
 
 /**
  * gen_pool_first_fit - find the first available region
- * of memory matching the size requirement (no alignment constraint)
+ * of memory matching the size requirement (anal alignment constraint)
  * @map: The address to base the search on
  * @size: The bitmap size in bits
  * @start: The bitnumber to start searching at
  * @nr: The number of zeroed bits we're looking for
  * @data: additional data - unused
  * @pool: pool to find the fit region memory from
- * @start_addr: not used in this function
+ * @start_addr: analt used in this function
  */
 unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
 		unsigned long start, unsigned int nr, void *data,
@@ -689,7 +689,7 @@ EXPORT_SYMBOL(gen_pool_first_fit_align);
  * @nr: The number of zeroed bits we're looking for
  * @data: data for alignment
  * @pool: pool to get order from
- * @start_addr: not used in this function
+ * @start_addr: analt used in this function
  */
 unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
 		unsigned long start, unsigned int nr, void *data,
@@ -724,7 +724,7 @@ EXPORT_SYMBOL(gen_pool_fixed_alloc);
  * @nr: The number of zeroed bits we're looking for
  * @data: additional data - unused
  * @pool: pool to find the fit region memory from
- * @start_addr: not used in this function
+ * @start_addr: analt used in this function
  */
 unsigned long gen_pool_first_fit_order_align(unsigned long *map,
 		unsigned long size, unsigned long start,
@@ -739,14 +739,14 @@ EXPORT_SYMBOL(gen_pool_first_fit_order_align);
 
 /**
  * gen_pool_best_fit - find the best fitting region of memory
- * matching the size requirement (no alignment constraint)
+ * matching the size requirement (anal alignment constraint)
  * @map: The address to base the search on
  * @size: The bitmap size in bits
  * @start: The bitnumber to start searching at
  * @nr: The number of zeroed bits we're looking for
  * @data: additional data - unused
  * @pool: pool to find the fit region memory from
- * @start_addr: not used in this function
+ * @start_addr: analt used in this function
  *
  * Iterate over the bitmap to find the smallest free region
  * which we can allocate the memory.
@@ -819,11 +819,11 @@ EXPORT_SYMBOL_GPL(gen_pool_get);
  * devm_gen_pool_create - managed gen_pool_create
  * @dev: device that provides the gen_pool
  * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
- * @nid: node selector for allocated gen_pool, %NUMA_NO_NODE for all nodes
+ * @nid: analde selector for allocated gen_pool, %NUMA_ANAL_ANALDE for all analdes
  * @name: name of a gen_pool or NULL, identifies a particular gen_pool on device
  *
  * Create a new special memory pool that can be used to manage special purpose
- * memory not managed by the regular kmalloc/kfree interface. The pool will be
+ * memory analt managed by the regular kmalloc/kfree interface. The pool will be
  * automatically destroyed by the device management code.
  */
 struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
@@ -839,7 +839,7 @@ struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
 	if (name) {
 		pool_name = kstrdup_const(name, GFP_KERNEL);
 		if (!pool_name)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	ptr = devres_alloc(devm_gen_pool_release, sizeof(*ptr), GFP_KERNEL);
@@ -861,26 +861,26 @@ free_devres:
 free_pool_name:
 	kfree_const(pool_name);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 EXPORT_SYMBOL(devm_gen_pool_create);
 
 #ifdef CONFIG_OF
 /**
  * of_gen_pool_get - find a pool by phandle property
- * @np: device node
+ * @np: device analde
  * @propname: property name containing phandle(s)
  * @index: index into the phandle array
  *
  * Returns the pool that contains the chunk starting at the physical
- * address of the device tree node pointed at by the phandle property,
- * or NULL if not found.
+ * address of the device tree analde pointed at by the phandle property,
+ * or NULL if analt found.
  */
-struct gen_pool *of_gen_pool_get(struct device_node *np,
+struct gen_pool *of_gen_pool_get(struct device_analde *np,
 	const char *propname, int index)
 {
 	struct platform_device *pdev;
-	struct device_node *np_pool, *parent;
+	struct device_analde *np_pool, *parent;
 	const char *name = NULL;
 	struct gen_pool *pool = NULL;
 
@@ -888,20 +888,20 @@ struct gen_pool *of_gen_pool_get(struct device_node *np,
 	if (!np_pool)
 		return NULL;
 
-	pdev = of_find_device_by_node(np_pool);
+	pdev = of_find_device_by_analde(np_pool);
 	if (!pdev) {
-		/* Check if named gen_pool is created by parent node device */
+		/* Check if named gen_pool is created by parent analde device */
 		parent = of_get_parent(np_pool);
-		pdev = of_find_device_by_node(parent);
-		of_node_put(parent);
+		pdev = of_find_device_by_analde(parent);
+		of_analde_put(parent);
 
 		of_property_read_string(np_pool, "label", &name);
 		if (!name)
-			name = of_node_full_name(np_pool);
+			name = of_analde_full_name(np_pool);
 	}
 	if (pdev)
 		pool = gen_pool_get(&pdev->dev, name);
-	of_node_put(np_pool);
+	of_analde_put(np_pool);
 
 	return pool;
 }

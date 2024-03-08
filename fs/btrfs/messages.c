@@ -14,7 +14,7 @@
 
 /*
  * Characters to print to indicate error conditions or uncommon filesystem state.
- * RO is not an error.
+ * RO is analt an error.
  */
 static const char fs_state_chars[] = {
 	[BTRFS_FS_STATE_REMOUNTING]		= 'M',
@@ -22,7 +22,7 @@ static const char fs_state_chars[] = {
 	[BTRFS_FS_STATE_TRANS_ABORTED]		= 'A',
 	[BTRFS_FS_STATE_DEV_REPLACING]		= 'R',
 	[BTRFS_FS_STATE_DUMMY_FS_INFO]		= 0,
-	[BTRFS_FS_STATE_NO_CSUMS]		= 'C',
+	[BTRFS_FS_STATE_ANAL_CSUMS]		= 'C',
 	[BTRFS_FS_STATE_LOG_CLEANUP_ERROR]	= 'L',
 };
 
@@ -49,7 +49,7 @@ static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
 		}
 	}
 
-	/* If no states were printed, reset the buffer */
+	/* If anal states were printed, reset the buffer */
 	if (!states_printed)
 		curr = buf;
 
@@ -67,36 +67,36 @@ static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
  *          sort of corruptions.
  *
  * EROFS: If we check BTRFS_FS_STATE_ERROR and fail out with a return error, we
- *        need to use EROFS for this case.  We will have no idea of the
+ *        need to use EROFS for this case.  We will have anal idea of the
  *        original failure, that will have been reported at the time we tripped
  *        over the error.  Each subsequent error that doesn't have any context
  *        of the original error should use EROFS when handling BTRFS_FS_STATE_ERROR.
  */
 const char * __attribute_const__ btrfs_decode_error(int error)
 {
-	char *errstr = "unknown";
+	char *errstr = "unkanalwn";
 
 	switch (error) {
-	case -ENOENT:		/* -2 */
-		errstr = "No such entry";
+	case -EANALENT:		/* -2 */
+		errstr = "Anal such entry";
 		break;
 	case -EIO:		/* -5 */
 		errstr = "IO failure";
 		break;
-	case -ENOMEM:		/* -12*/
+	case -EANALMEM:		/* -12*/
 		errstr = "Out of memory";
 		break;
 	case -EEXIST:		/* -17 */
 		errstr = "Object already exists";
 		break;
-	case -ENOSPC:		/* -28 */
-		errstr = "No space left";
+	case -EANALSPC:		/* -28 */
+		errstr = "Anal space left";
 		break;
 	case -EROFS:		/* -30 */
 		errstr = "Readonly filesystem";
 		break;
-	case -EOPNOTSUPP:	/* -95 */
-		errstr = "Operation not supported";
+	case -EOPANALTSUPP:	/* -95 */
+		errstr = "Operation analt supported";
 		break;
 	case -EUCLEAN:		/* -117 */
 		errstr = "Filesystem corrupted";
@@ -125,7 +125,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 
 #ifdef CONFIG_PRINTK_INDEX
 	printk_index_subsys_emit(
-		"BTRFS: error (device %s%s) in %s:%d: errno=%d %s", KERN_CRIT, fmt);
+		"BTRFS: error (device %s%s) in %s:%d: erranal=%d %s", KERN_CRIT, fmt);
 #endif
 
 	/*
@@ -146,11 +146,11 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		pr_crit("BTRFS: error (device %s%s) in %s:%d: errno=%d %s (%pV)\n",
+		pr_crit("BTRFS: error (device %s%s) in %s:%d: erranal=%d %s (%pV)\n",
 			sb->s_id, statestr, function, line, error, errstr, &vaf);
 		va_end(args);
 	} else {
-		pr_crit("BTRFS: error (device %s%s) in %s:%d: errno=%d %s\n",
+		pr_crit("BTRFS: error (device %s%s) in %s:%d: erranal=%d %s\n",
 			sb->s_id, statestr, function, line, error, errstr);
 	}
 #endif
@@ -174,8 +174,8 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 	btrfs_set_sb_rdonly(sb);
 	btrfs_info(fs_info, "forced readonly");
 	/*
-	 * Note that a running device replace operation is not canceled here
-	 * although there is no way to update the progress. It would add the
+	 * Analte that a running device replace operation is analt canceled here
+	 * although there is anal way to update the progress. It would add the
 	 * risk of a deadlock, therefore the canceling is omitted. The only
 	 * penalty is that some I/O remains active until the procedure
 	 * completes. The next time when the filesystem is mounted writable
@@ -190,7 +190,7 @@ static const char * const logtypes[] = {
 	"critical",
 	"error",
 	"warning",
-	"notice",
+	"analtice",
 	"info",
 	"debug",
 };
@@ -290,7 +290,7 @@ __cold
 void __btrfs_panic(const struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int error, const char *fmt, ...)
 {
-	char *s_id = "<unknown>";
+	char *s_id = "<unkanalwn>";
 	const char *errstr;
 	struct va_format vaf = { .fmt = fmt };
 	va_list args;
@@ -303,10 +303,10 @@ void __btrfs_panic(const struct btrfs_fs_info *fs_info, const char *function,
 
 	errstr = btrfs_decode_error(error);
 	if (fs_info && (btrfs_test_opt(fs_info, PANIC_ON_FATAL_ERROR)))
-		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (errno=%d %s)\n",
+		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (erranal=%d %s)\n",
 			s_id, function, line, &vaf, error, errstr);
 
-	btrfs_crit(fs_info, "panic in %s:%d: %pV (errno=%d %s)",
+	btrfs_crit(fs_info, "panic in %s:%d: %pV (erranal=%d %s)",
 		   function, line, &vaf, error, errstr);
 	va_end(args);
 	/* Caller calls BUG() */

@@ -48,21 +48,21 @@ u8 wmidev_instance_count(struct wmi_device *wdev);
  * struct wmi_driver - WMI driver structure
  * @driver: Driver model structure
  * @id_table: List of WMI GUIDs supported by this driver
- * @no_notify_data: WMI events provide no event data
+ * @anal_analtify_data: WMI events provide anal event data
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
- * @notify: Callback for receiving WMI events
+ * @analtify: Callback for receiving WMI events
  *
  * This represents WMI drivers which handle WMI devices.
  */
 struct wmi_driver {
 	struct device_driver driver;
 	const struct wmi_device_id *id_table;
-	bool no_notify_data;
+	bool anal_analtify_data;
 
 	int (*probe)(struct wmi_device *wdev, const void *context);
 	void (*remove)(struct wmi_device *wdev);
-	void (*notify)(struct wmi_device *device, union acpi_object *data);
+	void (*analtify)(struct wmi_device *device, union acpi_object *data);
 };
 
 extern int __must_check __wmi_driver_register(struct wmi_driver *driver,
@@ -82,7 +82,7 @@ extern void wmi_driver_unregister(struct wmi_driver *driver);
  * module_wmi_driver() - Helper macro to register/unregister a WMI driver
  * @__wmi_driver: wmi_driver struct
  *
- * Helper macro for WMI drivers which do not do anything special in module
+ * Helper macro for WMI drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit().
  */

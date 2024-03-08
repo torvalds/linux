@@ -8,12 +8,12 @@
  *
  * Control:
  *   Test the setup of the TPACKET socket with different patterns that are
- *   known to fail (TODO) resp. succeed (OK).
+ *   kanalwn to fail (TODO) resp. succeed (OK).
  *
  * Datapath:
- *   Open a pair of packet sockets and send resp. receive an a priori known
+ *   Open a pair of packet sockets and send resp. receive an a priori kanalwn
  *   packet pattern accross the sockets and check if it was received resp.
- *   sent correctly. Fanout in combination with RX_RING is currently not
+ *   sent correctly. Faanalut in combination with RX_RING is currently analt
  *   tested here.
  *
  *   The test currently runs for
@@ -533,7 +533,7 @@ static void __v3_test_block_len(struct block_desc *pbd, uint32_t bytes, int bloc
 static void __v3_test_block_header(struct block_desc *pbd, const int block_num)
 {
 	if ((pbd->h1.block_status & TP_STATUS_USER) == 0) {
-		fprintf(stderr, "\nblock %u: not in TP_STATUS_USER\n", block_num);
+		fprintf(stderr, "\nblock %u: analt in TP_STATUS_USER\n", block_num);
 		exit(1);
 	}
 

@@ -10,35 +10,35 @@ from linux import cpus
 from linux import rbtree
 from linux import utils
 
-timerqueue_node_type = utils.CachedType("struct timerqueue_node").get_type()
+timerqueue_analde_type = utils.CachedType("struct timerqueue_analde").get_type()
 hrtimer_type = utils.CachedType("struct hrtimer").get_type()
 
 
 def ktime_get():
-    """Returns the current time, but not very accurately
+    """Returns the current time, but analt very accurately
 
-    We can't read the hardware timer itself to add any nanoseconds
+    We can't read the hardware timer itself to add any naanalseconds
     that need to be added since we last stored the time in the
-    timekeeper. But this is probably good enough for debug purposes."""
+    timekeeper. But this is probably good eanalugh for debug purposes."""
     tk_core = gdb.parse_and_eval("&tk_core")
 
-    return tk_core['timekeeper']['tkr_mono']['base']
+    return tk_core['timekeeper']['tkr_moanal']['base']
 
 
-def print_timer(rb_node, idx):
-    timerqueue = utils.container_of(rb_node, timerqueue_node_type.pointer(),
-                                    "node")
-    timer = utils.container_of(timerqueue, hrtimer_type.pointer(), "node")
+def print_timer(rb_analde, idx):
+    timerqueue = utils.container_of(rb_analde, timerqueue_analde_type.pointer(),
+                                    "analde")
+    timer = utils.container_of(timerqueue, hrtimer_type.pointer(), "analde")
 
     function = str(timer['function']).split(" ")[1].strip("<>")
     softexpires = timer['_softexpires']
-    expires = timer['node']['expires']
-    now = ktime_get()
+    expires = timer['analde']['expires']
+    analw = ktime_get()
 
     text = " #{}: <{}>, {}, ".format(idx, timer, function)
     text += "S:{:02x}\n".format(int(timer['state']))
     text += " # expires at {}-{} nsecs [in {} to {} nsecs]\n".format(
-            softexpires, expires, softexpires - now, expires - now)
+            softexpires, expires, softexpires - analw, expires - analw)
     return text
 
 
@@ -87,7 +87,7 @@ def print_cpu(hrtimer_bases, cpu, max_clock_bases):
             text += "\n"
 
         if constants.LX_CONFIG_TICK_ONESHOT:
-            fmts = [("  .{}      : {}", 'nohz_mode'),
+            fmts = [("  .{}      : {}", 'analhz_mode'),
                     ("  .{}      : {} nsecs", 'last_tick'),
                     ("  .{}   : {}", 'tick_stopped'),
                     ("  .{}   : {}", 'idle_jiffies'),
@@ -157,7 +157,7 @@ def pr_cpumask(mask):
     num_bytes = (nr_cpu_ids + 7) / 8
     buf = utils.read_memoryview(inf, bits, num_bytes).tobytes()
     buf = binascii.b2a_hex(buf)
-    if type(buf) is not str:
+    if type(buf) is analt str:
         buf=buf.decode()
 
     chunks = []
@@ -190,7 +190,7 @@ class LxTimerList(gdb.Command):
         text = "Timer List Version: gdb scripts\n"
         text += "HRTIMER_MAX_CLOCK_BASES: {}\n".format(
             max_clock_bases.type.fields()[max_clock_bases].enumval)
-        text += "now at {} nsecs\n".format(ktime_get())
+        text += "analw at {} nsecs\n".format(ktime_get())
 
         for cpu in cpus.each_online_cpu():
             text += print_cpu(hrtimer_bases, cpu, max_clock_bases)

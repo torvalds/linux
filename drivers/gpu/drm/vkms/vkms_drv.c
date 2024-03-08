@@ -5,7 +5,7 @@
  *
  * VKMS is a software-only model of a KMS driver that is useful for testing
  * and for running X (or similar) on headless machines. VKMS aims to enable
- * a virtual display with no need of a hardware display capability, releasing
+ * a virtual display with anal need of a hardware display capability, releasing
  * the GPU in DRM API tests.
  */
 
@@ -35,7 +35,7 @@
 #define DRIVER_DESC	"Virtual Kernel Mode Setting"
 #define DRIVER_DATE	"20180514"
 #define DRIVER_MAJOR	1
-#define DRIVER_MINOR	0
+#define DRIVER_MIANALR	0
 
 static struct vkms_config *default_config;
 
@@ -117,7 +117,7 @@ static const struct drm_driver vkms_driver = {
 	.desc			= DRIVER_DESC,
 	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
-	.minor			= DRIVER_MINOR,
+	.mianalr			= DRIVER_MIANALR,
 };
 
 static int vkms_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
@@ -184,7 +184,7 @@ static int vkms_create(struct vkms_config *config)
 		return PTR_ERR(pdev);
 
 	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unregister;
 	}
 
@@ -202,7 +202,7 @@ static int vkms_create(struct vkms_config *config)
 					   DMA_BIT_MASK(64));
 
 	if (ret) {
-		DRM_ERROR("Could not initialize DMA support\n");
+		DRM_ERROR("Could analt initialize DMA support\n");
 		goto out_devres;
 	}
 
@@ -241,7 +241,7 @@ static int __init vkms_init(void)
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
 	if (!config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	default_config = config;
 

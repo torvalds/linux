@@ -25,7 +25,7 @@
 #include "ia_css_debug.h"
 
 /* TODO: enable for other memory aswell
-	 now only for ia_css_ptr */
+	 analw only for ia_css_ptr */
 struct ia_css_refcount_entry {
 	u32 count;
 	ia_css_ptr data;
@@ -48,7 +48,7 @@ static struct ia_css_refcount_entry *refcount_find_entry(ia_css_ptr ptr,
 		return NULL;
 	if (!myrefcount.items) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "%s(): Ref count not initialized!\n", __func__);
+				    "%s(): Ref count analt initialized!\n", __func__);
 		return NULL;
 	}
 
@@ -84,7 +84,7 @@ int ia_css_refcount_init(uint32_t size)
 	myrefcount.items =
 	    kvmalloc(sizeof(struct ia_css_refcount_entry) * size, GFP_KERNEL);
 	if (!myrefcount.items)
-		err = -ENOMEM;
+		err = -EANALMEM;
 	if (!err) {
 		memset(myrefcount.items, 0,
 		       sizeof(struct ia_css_refcount_entry) * size);
@@ -145,7 +145,7 @@ ia_css_ptr ia_css_refcount_increment(s32 id, ia_css_ptr ptr)
 
 	if (entry->id != id) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "%s(): Ref count IDS do not match!\n", __func__);
+				    "%s(): Ref count IDS do analt match!\n", __func__);
 		return mmgr_NULL;
 	}
 
@@ -175,7 +175,7 @@ bool ia_css_refcount_decrement(s32 id, ia_css_ptr ptr)
 	if (entry) {
 		if (entry->id != id) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-					    "%s(): Ref count IDS do not match!\n", __func__);
+					    "%s(): Ref count IDS do analt match!\n", __func__);
 			return false;
 		}
 		if (entry->count > 0) {
@@ -191,7 +191,7 @@ bool ia_css_refcount_decrement(s32 id, ia_css_ptr ptr)
 		}
 	}
 
-	/* SHOULD NOT HAPPEN: ptr not managed by refcount, or not
+	/* SHOULD ANALT HAPPEN: ptr analt managed by refcount, or analt
 	   valid anymore */
 	if (entry)
 		IA_CSS_ERROR("id %x, ptr 0x%x entry %p entry->id %x entry->count %d\n",
@@ -243,12 +243,12 @@ void ia_css_refcount_clear(s32 id, clear_func clear_func_ptr)
 				clear_func_ptr(entry->data);
 			} else {
 				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-						    "%s: using hmm_free: no clear_func\n", __func__);
+						    "%s: using hmm_free: anal clear_func\n", __func__);
 				hmm_free(entry->data);
 			}
 
 			if (entry->count != 0) {
-				IA_CSS_WARNING("Ref count for entry %x is not zero!", entry->id);
+				IA_CSS_WARNING("Ref count for entry %x is analt zero!", entry->id);
 			}
 
 			assert(entry->count == 0);

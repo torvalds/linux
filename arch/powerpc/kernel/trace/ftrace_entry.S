@@ -19,7 +19,7 @@
  * when ftrace is active.
  *
  * We arrive here after a function A calls function B, and we are the trace
- * function for B. When we enter r1 points to A's stack frame, B has not yet
+ * function for B. When we enter r1 points to A's stack frame, B has analt yet
  * had a chance to allocate one yet.
  *
  * Additionally r2 may point either to the TOC for A, or B, depending on
@@ -49,7 +49,7 @@
 	/* Ok to continue? */
 	lbz	r3, PACA_FTRACE_ENABLED(r13)
 	cmpdi	r3, 0
-	beq	ftrace_no_trace
+	beq	ftrace_anal_trace
 #endif
 
 	.if \allregs == 1
@@ -176,7 +176,7 @@ _GLOBAL(ftrace_stub)
 	blr
 
 #ifdef CONFIG_PPC64
-ftrace_no_trace:
+ftrace_anal_trace:
 	mflr	r3
 	mtctr	r3
 	REST_GPR(3, r1)
@@ -191,11 +191,11 @@ ftrace_no_trace:
 	 * such it can only clobber registers which are volatile and used in
 	 * function linkage.
 	 *
-	 * We get here when a function A, calls another function B, but B has
+	 * We get here when a function A, calls aanalther function B, but B has
 	 * been live patched with a new function C.
 	 *
 	 * On entry:
-	 *  - we have no stack frame and can not allocate one
+	 *  - we have anal stack frame and can analt allocate one
 	 *  - LR points back to the original caller (in A)
 	 *  - CTR holds the new NIP in C
 	 *  - r0, r11 & r12 are free
@@ -223,7 +223,7 @@ livepatch_handler:
 	bctrl
 
 	/*
-	 * Now we are returning from the patched function to the original
+	 * Analw we are returning from the patched function to the original
 	 * caller A. We are free to use r11, r12 and we can use r2 until we
 	 * restore it.
 	 */
@@ -287,7 +287,7 @@ _GLOBAL(return_to_handler)
 #endif
 
 	bl	ftrace_return_to_handler
-	nop
+	analp
 
 	/* return value has real return address */
 	mtlr	r3

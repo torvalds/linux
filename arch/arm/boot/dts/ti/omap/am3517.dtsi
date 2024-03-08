@@ -8,8 +8,8 @@
 #include "omap3.dtsi"
 
 /* AM3517 doesn't appear to have the crypto engines defined in omap3.dtsi */
-/delete-node/ &aes1_target;
-/delete-node/ &aes2_target;
+/delete-analde/ &aes1_target;
+/delete-analde/ &aes2_target;
 
 / {
 	aliases {
@@ -62,10 +62,10 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&hsotgusb_ick_am35xx>;
@@ -147,7 +147,7 @@
 		};
 
 		/*
-		 * On am3517 the OCP registers do not seem to be accessible
+		 * On am3517 the OCP registers do analt seem to be accessible
 		 * similar to the omap34xx. Maybe SGX is permanently set to
 		 * "OCP bypass mode", or maybe there is OCP_SYSCONFIG that is
 		 * write-only at 0x50000e10. We detect SGX based on the SGX
@@ -165,14 +165,14 @@
 			ranges = <0 0x50000000 0x4000>;
 
 			/*
-			 * Closed source PowerVR driver, no child device
+			 * Closed source PowerVR driver, anal child device
 			 * binding or driver in mainline
 			 */
 		};
 	};
 };
 
-/* Not currently working, probably needs at least different clocks */
+/* Analt currently working, probably needs at least different clocks */
 &rng_target {
 	status = "disabled";
 	/delete-property/ clocks;
@@ -200,8 +200,8 @@
 
 /* Preferred always-on timer for clocksource */
 &timer1_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&gpt1_fck>;
 		assigned-clock-parents = <&sys_ck>;
@@ -210,8 +210,8 @@
 
 /* Preferred timer for clockevent */
 &timer2_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&gpt2_fck>;
 		assigned-clock-parents = <&sys_ck>;

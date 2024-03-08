@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
@@ -21,7 +21,7 @@
  * @hdev: USB device belonging to the usb hub
  * @index: port index based zero
  *
- * Return true if the port has acpi power resource and false if no.
+ * Return true if the port has acpi power resource and false if anal.
  */
 bool usb_acpi_power_manageable(struct usb_device *hdev, int index)
 {
@@ -45,7 +45,7 @@ EXPORT_SYMBOL_GPL(usb_acpi_power_manageable);
  * @hdev: USB device belonging to the usb hub
  * @index: zero based port index
  *
- * Some USB3 ports may not support USB3 link power management U1/U2 states
+ * Some USB3 ports may analt support USB3 link power management U1/U2 states
  * due to different retimer setup. ACPI provides _DSM method which returns 0x01
  * if U1 and U2 states should be disabled. Evaluate _DSM with:
  * Arg0: UUID = ce2ee385-00e6-48cb-9f05-2edb927c4899
@@ -70,15 +70,15 @@ int usb_acpi_port_lpm_incapable(struct usb_device *hdev, int index)
 
 	port_handle = usb_get_hub_port_acpi_handle(hdev, port1);
 	if (!port_handle) {
-		dev_dbg(&hdev->dev, "port-%d no acpi handle\n", port1);
-		return -ENODEV;
+		dev_dbg(&hdev->dev, "port-%d anal acpi handle\n", port1);
+		return -EANALDEV;
 	}
 
 	if (!acpi_check_dsm(port_handle, &guid, 0,
 			    BIT(USB_DSM_DISABLE_U1_U2_FOR_PORT))) {
-		dev_dbg(&hdev->dev, "port-%d no _DSM function %d\n",
+		dev_dbg(&hdev->dev, "port-%d anal _DSM function %d\n",
 			port1, USB_DSM_DISABLE_U1_U2_FOR_PORT);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	obj = acpi_evaluate_dsm_typed(port_handle, &guid, 0,
@@ -105,10 +105,10 @@ EXPORT_SYMBOL_GPL(usb_acpi_port_lpm_incapable);
  * @index: port index based zero
  * @enable: power state expected to be set
  *
- * Notice to use usb_acpi_power_manageable() to check whether the usb port
+ * Analtice to use usb_acpi_power_manageable() to check whether the usb port
  * has acpi power resource before invoking this function.
  *
- * Returns 0 on success, else negative errno.
+ * Returns 0 on success, else negative erranal.
  */
 int usb_acpi_set_power_state(struct usb_device *hdev, int index, bool enable)
 {
@@ -120,7 +120,7 @@ int usb_acpi_set_power_state(struct usb_device *hdev, int index, bool enable)
 	int error = -EINVAL;
 
 	if (!hub)
-		return -ENODEV;
+		return -EANALDEV;
 	port_dev = hub->ports[port1 - 1];
 
 	port_handle = (acpi_handle) usb_get_hub_port_acpi_handle(hdev, port1);
@@ -145,7 +145,7 @@ EXPORT_SYMBOL_GPL(usb_acpi_set_power_state);
 static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
 		struct acpi_pld_info *pld)
 {
-	enum usb_port_connect_type connect_type = USB_PORT_CONNECT_TYPE_UNKNOWN;
+	enum usb_port_connect_type connect_type = USB_PORT_CONNECT_TYPE_UNKANALWN;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *upc = NULL;
 	acpi_status status;
@@ -154,9 +154,9 @@ static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
 	 * According to 9.14 in ACPI Spec 6.2. _PLD indicates whether usb port
 	 * is user visible and _UPC indicates whether it is connectable. If
 	 * the port was visible and connectable, it could be freely connected
-	 * and disconnected with USB devices. If no visible and connectable,
-	 * a usb device is directly hard-wired to the port. If no visible and
-	 * no connectable, the port would be not used.
+	 * and disconnected with USB devices. If anal visible and connectable,
+	 * a usb device is directly hard-wired to the port. If anal visible and
+	 * anal connectable, the port would be analt used.
 	 */
 	status = acpi_evaluate_object(handle, "_UPC", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -172,7 +172,7 @@ static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
 		else
 			connect_type = USB_PORT_CONNECT_TYPE_HARD_WIRED;
 	else if (!pld->user_visible)
-		connect_type = USB_PORT_NOT_USED;
+		connect_type = USB_PORT_ANALT_USED;
 out:
 	kfree(upc);
 	return connect_type;
@@ -180,8 +180,8 @@ out:
 
 
 /*
- * Private to usb-acpi, all the core needs to know is that
- * port_dev->location is non-zero when it has been set by the firmware.
+ * Private to usb-acpi, all the core needs to kanalw is that
+ * port_dev->location is analn-zero when it has been set by the firmware.
  */
 #define USB_ACPI_LOCATION_VALID (1 << 31)
 
@@ -197,7 +197,7 @@ usb_acpi_get_companion_for_port(struct usb_port *port_dev)
 	udev = to_usb_device(port_dev->dev.parent->parent);
 
 	/*
-	 * The root hub ports' parent is the root hub. The non-root-hub
+	 * The root hub ports' parent is the root hub. The analn-root-hub
 	 * ports' parent is the parent hub port which the hub is
 	 * connected to.
 	 */
@@ -296,7 +296,7 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 	 * is split into 2 parts: finding companions for devices and
 	 * finding companions for ports.
 	 *
-	 * Note that we do not handle individual functions of composite
+	 * Analte that we do analt handle individual functions of composite
 	 * devices yet, for that we would need to assign companions to
 	 * devices corresponding to USB interfaces.
 	 */

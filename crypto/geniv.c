@@ -55,7 +55,7 @@ struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spawn = aead_instance_ctx(inst);
 

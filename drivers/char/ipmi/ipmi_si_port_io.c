@@ -66,7 +66,7 @@ int ipmi_si_port_setup(struct si_sm_io *io)
 	int          idx;
 
 	if (!addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Figure out the actual inb/inw/inl/etc routine to use based

@@ -38,10 +38,10 @@ struct smb2_rdma_transform {
 struct smb2_rdma_crypto_transform {
 	__le16	TransformType;
 	__le16	SignatureLength;
-	__le16	NonceLength;
+	__le16	AnalnceLength;
 	__u16	Reserved;
 	__u8	Signature[]; /* variable length */
-	/* u8 Nonce[] */
+	/* u8 Analnce[] */
 	/* followed by padding */
 } __packed;
 
@@ -50,7 +50,7 @@ struct smb2_rdma_crypto_transform {
  *
  *  See MS-SMB2.PDF specification for protocol details.
  *  The Naming convention is the lower case version of the SMB2
- *  command code name for the struct. Note that structures must be packed.
+ *  command code name for the struct. Analte that structures must be packed.
  *
  */
 
@@ -98,7 +98,7 @@ struct move_dst_ipaddr {
 
 struct share_redirect_error_context_rsp {
 	__le32 StructureSize;
-	__le32 NotificationType;
+	__le32 AnaltificationType;
 	__le32 ResourceNameOffset;
 	__le32 ResourceNameLength;
 	__le16 Reserved;
@@ -197,7 +197,7 @@ struct crt_sd_ctxt {
 struct resume_key_req {
 	char ResumeKey[COPY_CHUNK_RES_KEY_SIZE];
 	__le32	ContextLength;	/* MBZ */
-	char	Context[];	/* ignored, Windows sets to 4 bytes of zero */
+	char	Context[];	/* iganalred, Windows sets to 4 bytes of zero */
 } __packed;
 
 /* this goes in the ioctl buffer when doing a copychunk request */
@@ -256,7 +256,7 @@ struct network_resiliency_req {
 	__le32 Timeout;
 	__le32 Reserved;
 } __packed;
-/* There is no buffer for the response ie no struct network_resiliency_rsp */
+/* There is anal buffer for the response ie anal struct network_resiliency_rsp */
 
 #define RSS_CAPABLE	cpu_to_le32(0x00000001)
 #define RDMA_CAPABLE	cpu_to_le32(0x00000002)
@@ -287,7 +287,7 @@ struct iface_info_ipv6 {
 	__be32 ScopeId;
 } __packed;
 
-#define NO_FILE_ID 0xFFFFFFFFFFFFFFFFULL /* general ioctls to srv not to file */
+#define ANAL_FILE_ID 0xFFFFFFFFFFFFFFFFULL /* general ioctls to srv analt to file */
 
 struct compress_ioctl {
 	__le16 CompressionState; /* See cifspdu.h for possible flag values */
@@ -352,7 +352,7 @@ struct smb2_file_id_extd_directory_info {
 	__le32 FileNameLength;
 	__le32 EaSize; /* EA size */
 	__le32 ReparsePointTag; /* valid if FILE_ATTR_REPARSE_POINT set in FileAttributes */
-	__le64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit */
+	__le64 UniqueId; /* ianalde num - le since Samba puts ianal in low 32 bit */
 	char FileName[];
 } __packed; /* level 60 */
 
@@ -377,7 +377,7 @@ struct create_posix_rsp {
  */
 struct smb2_posix_info {
 	__le32 NextEntryOffset;
-	__u32 Ignored;
+	__u32 Iganalred;
 	__le64 CreationTime;
 	__le64 LastAccessTime;
 	__le64 LastWriteTime;
@@ -385,7 +385,7 @@ struct smb2_posix_info {
 	__le64 EndOfFile;
 	__le64 AllocationSize;
 	__le32 DosAttributes;
-	__le64 Inode;
+	__le64 Ianalde;
 	__le32 DeviceId;
 	__le32 Zero;
 	/* beginning of POSIX Create Context Response */

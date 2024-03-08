@@ -5,7 +5,7 @@ Description:
 		Version of AudioDSP firmware ASoC catpt driver is
 		communicating with.
 
-		Format: %d.%d.%d.%d, type:major:minor:build.
+		Format: %d.%d.%d.%d, type:major:mianalr:build.
 
 What:		/sys/devices/pci0000:00/<dev>/fw_info
 Date:		September 2020

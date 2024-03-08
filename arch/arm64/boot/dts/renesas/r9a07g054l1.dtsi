@@ -12,7 +12,7 @@
 	compatible = "renesas,r9a07g054l1", "renesas,r9a07g054";
 
 	cpus {
-		/delete-node/ cpu-map;
-		/delete-node/ cpu@100;
+		/delete-analde/ cpu-map;
+		/delete-analde/ cpu@100;
 	};
 };

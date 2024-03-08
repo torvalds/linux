@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -58,8 +58,8 @@ gm20b_gr_acr_bld_write(struct nvkm_acr *acr, u32 bld,
 	const struct flcn_bl_dmem_desc hdr = {
 		.ctx_dma = FALCON_DMAIDX_UCODE,
 		.code_dma_base = lower_32_bits(code),
-		.non_sec_code_off = lsfw->app_resident_code_offset,
-		.non_sec_code_size = lsfw->app_resident_code_size,
+		.analn_sec_code_off = lsfw->app_resident_code_offset,
+		.analn_sec_code_size = lsfw->app_resident_code_size,
 		.code_entry_point = lsfw->app_imem_entry,
 		.data_dma_base = lower_32_bits(data),
 		.data_size = lsfw->app_resident_data_size,
@@ -83,13 +83,13 @@ gm20b_gr_init_gpc_mmu(struct gf100_gr *gr)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 val;
 
-	/* Bypass MMU check for non-secure boot */
+	/* Bypass MMU check for analn-secure boot */
 	if (!device->acr) {
 		nvkm_wr32(device, 0x100ce4, 0xffffffff);
 
 		if (nvkm_rd32(device, 0x100ce4) != 0xffffffff)
 			nvdev_warn(device,
-			  "cannot bypass secure boot - expect failure soon!\n");
+			  "cananalt bypass secure boot - expect failure soon!\n");
 	}
 
 	val = nvkm_rd32(device, 0x100c80);
@@ -154,7 +154,7 @@ gm20b_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 				    &gr->gpccs.inst) ||
 	    nvkm_firmware_load_blob(subdev, "gr/", "gpccs_data", ver,
 				    &gr->gpccs.data))
-		return -ENOENT;
+		return -EANALENT;
 
 	gr->firmware = true;
 
@@ -169,7 +169,7 @@ MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_sig.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gm20b/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_method_init.bin");
 #endif
@@ -177,7 +177,7 @@ MODULE_FIRMWARE("nvidia/gm20b/gr/sw_method_init.bin");
 static const struct gf100_gr_fwif
 gm20b_gr_fwif[] = {
 	{  0, gm20b_gr_load, &gm20b_gr, &gm20b_gr_fecs_acr },
-	{ -1, gm200_gr_nofw },
+	{ -1, gm200_gr_analfw },
 	{}
 };
 

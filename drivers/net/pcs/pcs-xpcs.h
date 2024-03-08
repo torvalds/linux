@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2020 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare XPCS helpers
+ * Copyright (c) 2020 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare XPCS helpers
  *
- * Author: Jose Abreu <Jose.Abreu@synopsys.com>
+ * Author: Jose Abreu <Jose.Abreu@syanalpsys.com>
  */
 
-#define SYNOPSYS_XPCS_ID		0x7996ced0
-#define SYNOPSYS_XPCS_MASK		0xffffffff
+#define SYANALPSYS_XPCS_ID		0x7996ced0
+#define SYANALPSYS_XPCS_MASK		0xffffffff
 
 /* Vendor regs access */
 #define DW_VENDOR			BIT(15)

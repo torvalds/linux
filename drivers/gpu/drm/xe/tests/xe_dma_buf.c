@@ -21,8 +21,8 @@ static bool p2p_enabled(struct dma_buf_test_params *params)
 
 static bool is_dynamic(struct dma_buf_test_params *params)
 {
-	return IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY) && params->attach_ops &&
-		params->attach_ops->move_notify;
+	return IS_ENABLED(CONFIG_DMABUF_MOVE_ANALTIFY) && params->attach_ops &&
+		params->attach_ops->move_analtify;
 }
 
 static void check_residency(struct kunit *test, struct xe_bo *exported,
@@ -37,10 +37,10 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 
 	mem_type = XE_PL_VRAM0;
 	if (!(params->mem_mask & XE_BO_CREATE_VRAM0_BIT))
-		/* No VRAM allowed */
+		/* Anal VRAM allowed */
 		mem_type = XE_PL_TT;
 	else if (params->force_different_devices && !p2p_enabled(params))
-		/* No P2P */
+		/* Anal P2P */
 		mem_type = XE_PL_TT;
 	else if (params->force_different_devices && !is_dynamic(params) &&
 		 (params->mem_mask & XE_BO_CREATE_SYSTEM_BIT))
@@ -48,7 +48,7 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 		mem_type = XE_PL_TT;
 
 	if (!xe_bo_is_mem_type(exported, mem_type)) {
-		KUNIT_FAIL(test, "Exported bo was not in expected memory type.\n");
+		KUNIT_FAIL(test, "Exported bo was analt in expected memory type.\n");
 		return;
 	}
 
@@ -56,10 +56,10 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 		return;
 
 	/*
-	 * Evict exporter. Note that the gem object dma_buf member isn't
-	 * set from xe_gem_prime_export(), and it's needed for the move_notify()
+	 * Evict exporter. Analte that the gem object dma_buf member isn't
+	 * set from xe_gem_prime_export(), and it's needed for the move_analtify()
 	 * functionality, so hack that up here. Evicting the exported bo will
-	 * evict also the imported bo through the move_notify() functionality if
+	 * evict also the imported bo through the move_analtify() functionality if
 	 * importer is on a different device. If they're on the same device,
 	 * the exporter and the importer should be the same bo.
 	 */
@@ -113,7 +113,7 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 	struct xe_bo *bo;
 	size_t size;
 
-	/* No VRAM on this device? */
+	/* Anal VRAM on this device? */
 	if (!ttm_manager_type(&xe->ttm, XE_PL_VRAM0) &&
 	    (params->mem_mask & XE_BO_CREATE_VRAM0_BIT))
 		return;
@@ -158,7 +158,7 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 			xe_bo_lock(import_bo, false);
 			err = xe_bo_validate(import_bo, NULL, false);
 
-			/* Pinning in VRAM is not allowed. */
+			/* Pinning in VRAM is analt allowed. */
 			if (!is_dynamic(params) &&
 			    params->force_different_devices &&
 			    !(params->mem_mask & XE_BO_CREATE_SYSTEM_BIT))
@@ -173,7 +173,7 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 			xe_bo_unlock(import_bo);
 		}
 		drm_gem_object_put(import);
-	} else if (PTR_ERR(import) != -EOPNOTSUPP) {
+	} else if (PTR_ERR(import) != -EOPANALTSUPP) {
 		/* Unexpected error code. */
 		KUNIT_FAIL(test,
 			   "xe_gem_prime_import failed with the wrong err=%ld\n",
@@ -190,9 +190,9 @@ out:
 	drm_gem_object_put(&bo->ttm.base);
 }
 
-static const struct dma_buf_attach_ops nop2p_attach_ops = {
+static const struct dma_buf_attach_ops analp2p_attach_ops = {
 	.allow_peer2peer = false,
-	.move_notify = xe_dma_buf_move_notify
+	.move_analtify = xe_dma_buf_move_analtify
 };
 
 /*
@@ -210,9 +210,9 @@ static const struct dma_buf_test_params test_params[] = {
 	 .force_different_devices = true},
 
 	{.mem_mask = XE_BO_CREATE_VRAM0_BIT,
-	 .attach_ops = &nop2p_attach_ops},
+	 .attach_ops = &analp2p_attach_ops},
 	{.mem_mask = XE_BO_CREATE_VRAM0_BIT,
-	 .attach_ops = &nop2p_attach_ops,
+	 .attach_ops = &analp2p_attach_ops,
 	 .force_different_devices = true},
 
 	{.mem_mask = XE_BO_CREATE_VRAM0_BIT},
@@ -226,9 +226,9 @@ static const struct dma_buf_test_params test_params[] = {
 	 .force_different_devices = true},
 
 	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT,
-	 .attach_ops = &nop2p_attach_ops},
+	 .attach_ops = &analp2p_attach_ops},
 	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT,
-	 .attach_ops = &nop2p_attach_ops,
+	 .attach_ops = &analp2p_attach_ops,
 	 .force_different_devices = true},
 
 	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT},
@@ -242,9 +242,9 @@ static const struct dma_buf_test_params test_params[] = {
 	 .force_different_devices = true},
 
 	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT,
-	 .attach_ops = &nop2p_attach_ops},
+	 .attach_ops = &analp2p_attach_ops},
 	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT,
-	 .attach_ops = &nop2p_attach_ops,
+	 .attach_ops = &analp2p_attach_ops,
 	 .force_different_devices = true},
 
 	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT},
@@ -267,7 +267,7 @@ static int dma_buf_run_device(struct xe_device *xe)
 		xe_test_dmabuf_import_same_driver(xe);
 	}
 
-	/* A non-zero return would halt iteration over driver devices */
+	/* A analn-zero return would halt iteration over driver devices */
 	return 0;
 }
 

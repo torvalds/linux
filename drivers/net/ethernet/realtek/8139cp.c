@@ -12,7 +12,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license analtice.  This file is analt
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -40,7 +40,7 @@
 	  for this to be supported, one must(?) turn on packet padding.
 	* Support external MII transceivers (patch available)
 
-	NOTES:
+	ANALTES:
 	* TX checksumming is considered experimental.  It is off by
 	  default, use ethtool to turn it on.
 
@@ -78,7 +78,7 @@
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may analt be removed. */
 static char version[] =
 DRV_NAME ": 10/100 PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")\n";
 
@@ -186,8 +186,8 @@ enum {
 	IPFail		= (1 << 15), /* IP checksum failed */
 	UDPFail		= (1 << 14), /* UDP/IP checksum failed */
 	TCPFail		= (1 << 13), /* TCP/IP checksum failed */
-	NormalTxPoll	= (1 << 6),  /* One or more normal Tx packets to send */
-	PID1		= (1 << 17), /* 2 protocol id bits:  0==non-IP, */
+	AnalrmalTxPoll	= (1 << 6),  /* One or more analrmal Tx packets to send */
+	PID1		= (1 << 17), /* 2 protocol id bits:  0==analn-IP, */
 	PID0		= (1 << 16), /* 1==UDP/IP, 2==TCP/IP, 3==IP */
 	RxProtoTCP	= 1,
 	RxProtoUDP	= 2,
@@ -223,10 +223,10 @@ enum {
 	TimerIntr	= (1 << 14), /* Asserted when TCTR reaches TimerInt value */
 	LenChg		= (1 << 13), /* Cable length change */
 	SWInt		= (1 << 8),  /* Software-requested interrupt */
-	TxEmpty		= (1 << 7),  /* No Tx descriptors available */
+	TxEmpty		= (1 << 7),  /* Anal Tx descriptors available */
 	RxFIFOOvr	= (1 << 6),  /* Rx FIFO Overflow */
 	LinkChg		= (1 << 5),  /* Packet underrun, or link change */
-	RxEmpty		= (1 << 4),  /* No Rx descriptors available */
+	RxEmpty		= (1 << 4),  /* Anal Rx descriptors available */
 	TxErr		= (1 << 3),  /* Tx error */
 	TxOK		= (1 << 2),  /* Tx packet sent */
 	RxErr		= (1 << 1),  /* Rx error */
@@ -284,9 +284,9 @@ enum {
 	LANWake         = (1 << 1),  /* Enable LANWake signal */
 	PMEStatus	= (1 << 0),  /* PME status can be reset by PCI RST# */
 
-	cp_norx_intr_mask = PciErr | LinkChg | TxOK | TxErr | TxEmpty,
+	cp_analrx_intr_mask = PciErr | LinkChg | TxOK | TxErr | TxEmpty,
 	cp_rx_intr_mask = RxOK | RxErr | RxEmpty | RxFIFOOvr,
-	cp_intr_mask = cp_rx_intr_mask | cp_norx_intr_mask,
+	cp_intr_mask = cp_rx_intr_mask | cp_analrx_intr_mask,
 };
 
 static const unsigned int cp_rx_config =
@@ -528,7 +528,7 @@ static int cp_rx_poll(struct napi_struct *napi, int budget)
 		if (cp_rx_csum_ok(status))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb_checksum_none_assert(skb);
+			skb_checksum_analne_assert(skb);
 
 		skb_put(skb, len);
 
@@ -551,7 +551,7 @@ rx_next:
 
 	cp->rx_tail = rx_tail;
 
-	/* if we did not reach work limit, then we're done with
+	/* if we did analt reach work limit, then we're done with
 	 * this round of polling
 	 */
 	if (rx < budget && napi_complete_done(napi, rx)) {
@@ -574,7 +574,7 @@ static irqreturn_t cp_interrupt (int irq, void *dev_instance)
 	u16 mask;
 
 	if (unlikely(dev == NULL))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	cp = netdev_priv(dev);
 
 	spin_lock(&cp->lock);
@@ -602,7 +602,7 @@ static irqreturn_t cp_interrupt (int irq, void *dev_instance)
 
 	if (status & (RxOK | RxErr | RxEmpty | RxFIFOOvr))
 		if (napi_schedule_prep(&cp->napi)) {
-			cpw16_f(IntrMask, cp_norx_intr_mask);
+			cpw16_f(IntrMask, cp_analrx_intr_mask);
 			__napi_schedule(&cp->napi);
 		}
 
@@ -631,7 +631,7 @@ out_unlock:
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
- * Polling receive - used by netconsole and other diagnostic tools
+ * Polling receive - used by netconsole and other diaganalstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void cp_poll_controller(struct net_device *dev)
@@ -873,7 +873,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 out_unlock:
 	spin_unlock_irqrestore(&cp->lock, intr_flags);
 
-	cpw8(TxPoll, NormalTxPoll);
+	cpw8(TxPoll, AnalrmalTxPoll);
 
 	return NETDEV_TX_OK;
 out_dma_error:
@@ -883,7 +883,7 @@ out_dma_error:
 }
 
 /* Set or clear the multicast filter for this adaptor.
-   This routine is not state sensitive and need not be SMP locked. */
+   This routine is analt state sensitive and need analt be SMP locked. */
 
 static void __cp_set_rx_mode (struct net_device *dev)
 {
@@ -891,7 +891,7 @@ static void __cp_set_rx_mode (struct net_device *dev)
 	u32 mc_filter[2];	/* Multicast hash filter */
 	int rx_mode;
 
-	/* Note: do not reorder, GCC is clever about common statements. */
+	/* Analte: do analt reorder, GCC is clever about common statements. */
 	if (dev->flags & IFF_PROMISC) {
 		/* Unconditionally log net taps. */
 		rx_mode =
@@ -1090,7 +1090,7 @@ static int cp_refill_rx(struct cp_private *cp)
 
 err_out:
 	cp_clean_rings(cp);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void cp_init_rings_index (struct cp_private *cp)
@@ -1118,7 +1118,7 @@ static int cp_alloc_rings (struct cp_private *cp)
 
 	mem = dma_alloc_coherent(d, CP_RING_BYTES, &cp->ring_dma, GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cp->rx_ring = mem;
 	cp->tx_ring = &cp->rx_ring[CP_RX_RING_SIZE];
@@ -1263,7 +1263,7 @@ static void cp_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	cp_init_rings(cp);
 	cp_start_hw(cp);
 	__cp_set_rx_mode(dev);
-	cpw16_f(IntrMask, cp_norx_intr_mask);
+	cpw16_f(IntrMask, cp_analrx_intr_mask);
 
 	netif_wake_queue(dev);
 	napi_schedule_irqoff(&cp->napi);
@@ -1275,7 +1275,7 @@ static int cp_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct cp_private *cp = netdev_priv(dev);
 
-	/* if network interface not up, no need for complexity */
+	/* if network interface analt up, anal need for complexity */
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
 		cp_set_rxbufsize(cp);	/* set new rx buf size */
@@ -1329,7 +1329,7 @@ static int netdev_set_wol (struct cp_private *cp,
 	u8 options;
 
 	options = cpr8 (Config3) & ~(LinkUp | MagicPacket);
-	/* If WOL is being disabled, no need for complexity */
+	/* If WOL is being disabled, anal need for complexity */
 	if (wol->wolopts) {
 		if (wol->wolopts & WAKE_PHY)	options |= LinkUp;
 		if (wol->wolopts & WAKE_MAGIC)	options |= MagicPacket;
@@ -1339,9 +1339,9 @@ static int netdev_set_wol (struct cp_private *cp,
 	cpw8 (Config3, options);
 	cpw8 (Cfg9346, Cfg9346_Lock);
 
-	options = 0; /* Paranoia setting */
+	options = 0; /* Paraanalia setting */
 	options = cpr8 (Config5) & ~(UWF | MWF | BWF);
-	/* If WOL is being disabled, no need for complexity */
+	/* If WOL is being disabled, anal need for complexity */
 	if (wol->wolopts) {
 		if (wol->wolopts & WAKE_UCAST)  options |= UWF;
 		if (wol->wolopts & WAKE_BCAST)	options |= BWF;
@@ -1371,7 +1371,7 @@ static void netdev_get_wol (struct cp_private *cp,
 	if (options & LinkUp)        wol->wolopts |= WAKE_PHY;
 	if (options & MagicPacket)   wol->wolopts |= WAKE_MAGIC;
 
-	options        = 0; /* Paranoia setting */
+	options        = 0; /* Paraanalia setting */
 	options        = cpr8 (Config5);
 	if (options & UWF)           wol->wolopts |= WAKE_UCAST;
 	if (options & BWF)           wol->wolopts |= WAKE_BCAST;
@@ -1409,7 +1409,7 @@ static int cp_get_sset_count (struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return CP_NUM_STATS;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1624,7 +1624,7 @@ static int cp_set_mac_address(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, addr->sa_data);
 
@@ -1652,7 +1652,7 @@ static int cp_set_mac_address(struct net_device *dev, void *p)
 #define EE_ENB			(0x80 | EE_CS)
 
 /* Delay between EEPROM clock transitions.
-   No extra delay is needed with 33Mhz PCI, but 66Mhz may change this.
+   Anal extra delay is needed with 33Mhz PCI, but 66Mhz may change this.
  */
 
 #define eeprom_delay()	readb(ee_addr)
@@ -1898,14 +1898,14 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pdev->vendor == PCI_VENDOR_ID_REALTEK &&
 	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pdev->revision < 0x20) {
 		dev_info(&pdev->dev,
-			 "This (id %04x:%04x rev %02x) is not an 8139C+ compatible chip, use 8139too\n",
+			 "This (id %04x:%04x rev %02x) is analt an 8139C+ compatible chip, use 8139too\n",
 			 pdev->vendor, pdev->device, pdev->revision);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev = alloc_etherdev(sizeof(struct cp_private));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	cp = netdev_priv(dev);
@@ -1936,7 +1936,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	pciaddr = pci_resource_start(pdev, 1);
 	if (!pciaddr) {
 		rc = -EIO;
-		dev_err(&pdev->dev, "no MMIO resource\n");
+		dev_err(&pdev->dev, "anal MMIO resource\n");
 		goto err_out_res;
 	}
 	if (pci_resource_len(pdev, 1) < CP_REGS_SIZE) {
@@ -1956,7 +1956,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_err(&pdev->dev,
-				"No usable DMA configuration, aborting\n");
+				"Anal usable DMA configuration, aborting\n");
 			goto err_out_res;
 		}
 	}
@@ -1970,7 +1970,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	regs = ioremap(pciaddr, CP_REGS_SIZE);
 	if (!regs) {
 		rc = -EIO;
-		dev_err(&pdev->dev, "Cannot map PCI MMIO (%Lx@%Lx)\n",
+		dev_err(&pdev->dev, "Cananalt map PCI MMIO (%Lx@%Lx)\n",
 			(unsigned long long)pci_resource_len(pdev, 1),
 		       (unsigned long long)pciaddr);
 		goto err_out_res;

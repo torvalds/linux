@@ -28,7 +28,7 @@ static const struct nf_queue_handler __rcu *nf_queue_handler;
  * We do this so that most of the NFQUEUE code can be modular.
  *
  * Once the queue is registered it must reinject all packets it
- * receives, no matter what.
+ * receives, anal matter what.
  */
 
 void nf_register_queue_handler(const struct nf_queue_handler *qh)
@@ -98,7 +98,7 @@ bool nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 {
 	struct nf_hook_state *state = &entry->state;
 
-	if (state->sk && !refcount_inc_not_zero(&state->sk->sk_refcnt))
+	if (state->sk && !refcount_inc_analt_zero(&state->sk->sk_refcnt))
 		return false;
 
 	dev_hold(state->in);
@@ -161,7 +161,7 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 	unsigned int route_key_size;
 	int status;
 
-	/* QUEUE == DROP if no one is waiting, to be safe. */
+	/* QUEUE == DROP if anal one is waiting, to be safe. */
 	qh = rcu_dereference(nf_queue_handler);
 	if (!qh)
 		return -ESRCH;
@@ -182,8 +182,8 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 		struct sock *sk = skb->sk;
 
 		if (!sk_is_refcounted(sk)) {
-			if (!refcount_inc_not_zero(&sk->sk_refcnt))
-				return -ENOTCONN;
+			if (!refcount_inc_analt_zero(&sk->sk_refcnt))
+				return -EANALTCONN;
 
 			/* drop refcount on skb_orphan */
 			skb->destructor = sock_edemux;
@@ -192,7 +192,7 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 
 	entry = kmalloc(sizeof(*entry) + route_key_size, GFP_ATOMIC);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (skb_dst(skb) && !skb_dst_force(skb)) {
 		kfree(entry);
@@ -210,7 +210,7 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 
 	if (!nf_queue_entry_get_refs(entry)) {
 		kfree(entry);
-		return -ENOTCONN;
+		return -EANALTCONN;
 	}
 
 	switch (entry->state.pf) {

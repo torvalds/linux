@@ -31,7 +31,7 @@ static int iio_sd_mod_probe(struct platform_device *pdev)
 
 	iio = devm_iio_device_alloc(dev, 0);
 	if (!iio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iio->name = dev_name(dev);
 	iio->info = &iio_sd_mod_iio_info;

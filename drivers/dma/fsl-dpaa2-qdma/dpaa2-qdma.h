@@ -44,10 +44,10 @@ struct dpaa2_qdma_sd_d {
 
 #define QDMA_FD_SHORT_FORMAT	BIT(11) /* short format */
 #define QDMA_FD_LONG_FORMAT	(0) /* long format */
-#define QDMA_SER_DISABLE	(8) /* no notification */
-#define QDMA_SER_CTX		BIT(8) /* notification by FQD_CTX[fqid] */
-#define QDMA_SER_DEST		(2 << 8) /* notification by destination desc */
-#define QDMA_SER_BOTH		(3 << 8) /* soruce and dest notification */
+#define QDMA_SER_DISABLE	(8) /* anal analtification */
+#define QDMA_SER_CTX		BIT(8) /* analtification by FQD_CTX[fqid] */
+#define QDMA_SER_DEST		(2 << 8) /* analtification by destination desc */
+#define QDMA_SER_BOTH		(3 << 8) /* soruce and dest analtification */
 #define QDMA_FD_SPF_ENALBE	BIT(30) /* source prefetch enable */
 
 #define QMAN_FD_VA_ENABLE	BIT(14) /* Address used is virtual address */
@@ -132,7 +132,7 @@ struct dpaa2_qdma_priv_per_prio {
 	int prio;
 
 	struct dpaa2_io_store *store;
-	struct dpaa2_io_notification_ctx nctx;
+	struct dpaa2_io_analtification_ctx nctx;
 
 	struct dpaa2_qdma_priv *priv;
 };

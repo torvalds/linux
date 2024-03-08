@@ -13,7 +13,7 @@ struct fiemap_extent_info {
 							fiemap_extent array */
 };
 
-int fiemap_prep(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int fiemap_prep(struct ianalde *ianalde, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 *len, u32 supported_flags);
 int fiemap_fill_next_extent(struct fiemap_extent_info *info, u64 logical,
 			    u64 phys, u64 len, u32 flags);

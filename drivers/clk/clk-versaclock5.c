@@ -76,7 +76,7 @@
 /* Output divider control for divider 1,2,3,4 */
 #define VC5_OUT_DIV_CONTROL(idx)	(0x21 + ((idx) * 0x10))
 #define VC5_OUT_DIV_CONTROL_RESET	BIT(7)
-#define VC5_OUT_DIV_CONTROL_SELB_NORM	BIT(3)
+#define VC5_OUT_DIV_CONTROL_SELB_ANALRM	BIT(3)
 #define VC5_OUT_DIV_CONTROL_SEL_EXT	BIT(2)
 #define VC5_OUT_DIV_CONTROL_INT_MODE	BIT(1)
 #define VC5_OUT_DIV_CONTROL_EN_FOD	BIT(0)
@@ -281,7 +281,7 @@ static int vc5_mux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops vc5_mux_ops = {
-	.determine_rate	= clk_hw_determine_rate_no_reparent,
+	.determine_rate	= clk_hw_determine_rate_anal_reparent,
 	.set_parent	= vc5_mux_set_parent,
 	.get_parent	= vc5_mux_get_parent,
 };
@@ -368,7 +368,7 @@ static long vc5_pfd_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	unsigned long idiv;
 
-	/* PLL cannot operate with input clock above 50 MHz. */
+	/* PLL cananalt operate with input clock above 50 MHz. */
 	if (rate > 50000000)
 		return -EINVAL;
 
@@ -512,7 +512,7 @@ static unsigned long vc5_fod_recalc_rate(struct clk_hw *hw,
 	div_frc = (od_frc[0] << 22) | (od_frc[1] << 14) |
 		  (od_frc[2] << 6) | (od_frc[3] >> 2);
 
-	/* Avoid division by zero if the output is not configured. */
+	/* Avoid division by zero if the output is analt configured. */
 	if (div_int == 0 && div_frc == 0)
 		return 0;
 
@@ -532,8 +532,8 @@ static long vc5_fod_round_rate(struct clk_hw *hw, unsigned long rate,
 	/* Determine integer part, which is 12 bit wide */
 	div_int = f_in / rate;
 	/*
-	 * WARNING: The clock chip does not output signal if the integer part
-	 *          of the divider is 0xfff and fractional part is non-zero.
+	 * WARNING: The clock chip does analt output signal if the integer part
+	 *          of the divider is 0xfff and fractional part is analn-zero.
 	 *          Clamp the divider at 0xffe to keep the code simple.
 	 */
 	if (div_int > 0xffe) {
@@ -573,10 +573,10 @@ static int vc5_fod_set_rate(struct clk_hw *hw, unsigned long rate,
 		return ret;
 
 	/*
-	 * Toggle magic bit in undocumented register for unknown reason.
+	 * Toggle magic bit in undocumented register for unkanalwn reason.
 	 * This is what the IDT timing commander tool does and the chip
 	 * datasheet somewhat implies this is needed, but the register
-	 * and the bit is not documented.
+	 * and the bit is analt documented.
 	 */
 	ret = regmap_clear_bits(vc5->regmap, VC5_GLOBAL_REGISTER,
 				VC5_GLOBAL_REGISTER_GLOBAL_RESET);
@@ -597,7 +597,7 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 {
 	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
-	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_NORM |
+	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_ANALRM |
 			VC5_OUT_DIV_CONTROL_SEL_EXT |
 			VC5_OUT_DIV_CONTROL_EN_FOD;
 	unsigned int src;
@@ -672,12 +672,12 @@ static unsigned char vc5_clk_out_get_parent(struct clk_hw *hw)
 {
 	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
-	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_NORM |
+	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_ANALRM |
 			VC5_OUT_DIV_CONTROL_SEL_EXT |
 			VC5_OUT_DIV_CONTROL_EN_FOD;
-	const u8 fodclkmask = VC5_OUT_DIV_CONTROL_SELB_NORM |
+	const u8 fodclkmask = VC5_OUT_DIV_CONTROL_SELB_ANALRM |
 			      VC5_OUT_DIV_CONTROL_EN_FOD;
-	const u8 extclk = VC5_OUT_DIV_CONTROL_SELB_NORM |
+	const u8 extclk = VC5_OUT_DIV_CONTROL_SELB_ANALRM |
 			  VC5_OUT_DIV_CONTROL_SEL_EXT;
 	unsigned int src;
 	int ret;
@@ -707,10 +707,10 @@ static int vc5_clk_out_set_parent(struct clk_hw *hw, u8 index)
 	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 	const u8 mask = VC5_OUT_DIV_CONTROL_RESET |
-			VC5_OUT_DIV_CONTROL_SELB_NORM |
+			VC5_OUT_DIV_CONTROL_SELB_ANALRM |
 			VC5_OUT_DIV_CONTROL_SEL_EXT |
 			VC5_OUT_DIV_CONTROL_EN_FOD;
-	const u8 extclk = VC5_OUT_DIV_CONTROL_SELB_NORM |
+	const u8 extclk = VC5_OUT_DIV_CONTROL_SELB_ANALRM |
 			  VC5_OUT_DIV_CONTROL_SEL_EXT;
 	u8 src = VC5_OUT_DIV_CONTROL_RESET;
 
@@ -726,7 +726,7 @@ static int vc5_clk_out_set_parent(struct clk_hw *hw, u8 index)
 static const struct clk_ops vc5_clk_out_ops = {
 	.prepare	= vc5_clk_out_prepare,
 	.unprepare	= vc5_clk_out_unprepare,
-	.determine_rate	= clk_hw_determine_rate_no_reparent,
+	.determine_rate	= clk_hw_determine_rate_anal_reparent,
 	.set_parent	= vc5_clk_out_set_parent,
 	.get_parent	= vc5_clk_out_get_parent,
 };
@@ -760,7 +760,7 @@ static int vc5_map_index_to_output(const enum vc5_model model,
 	}
 }
 
-static int vc5_update_mode(struct device_node *np_output,
+static int vc5_update_mode(struct device_analde *np_output,
 			   struct vc5_out_data *clk_out)
 {
 	u32 value;
@@ -785,7 +785,7 @@ static int vc5_update_mode(struct device_node *np_output,
 	return 0;
 }
 
-static int vc5_update_power(struct device_node *np_output,
+static int vc5_update_power(struct device_analde *np_output,
 			    struct vc5_out_data *clk_out)
 {
 	u32 value;
@@ -828,12 +828,12 @@ static int vc5_map_cap_value(u32 femtofarads)
 	 * The Programmer's guide shows XTAL[5:0] but in reality,
 	 * XTAL[0] and XTAL[1] are both LSB which makes the math
 	 * strange.  With clarfication from Renesas, setting the
-	 * values should be simpler by ignoring XTAL[0]
+	 * values should be simpler by iganalring XTAL[0]
 	 */
 	mapped_value = DIV_ROUND_CLOSEST(femtofarads - 9000, 430);
 
 	/*
-	 * Since the calculation ignores XTAL[0], there is one
+	 * Since the calculation iganalres XTAL[0], there is one
 	 * special case where mapped_value = 32.  In reality, this means
 	 * the real mapped value should be 111111b.  In other cases,
 	 * the mapped_value needs to be shifted 1 to the left.
@@ -845,13 +845,13 @@ static int vc5_map_cap_value(u32 femtofarads)
 
 	return mapped_value;
 }
-static int vc5_update_cap_load(struct device_node *node, struct vc5_driver_data *vc5)
+static int vc5_update_cap_load(struct device_analde *analde, struct vc5_driver_data *vc5)
 {
 	u32 value;
 	int mapped_value;
 	int ret;
 
-	if (of_property_read_u32(node, "idt,xtal-load-femtofarads", &value))
+	if (of_property_read_u32(analde, "idt,xtal-load-femtofarads", &value))
 		return 0;
 
 	mapped_value = vc5_map_cap_value(value);
@@ -872,7 +872,7 @@ static int vc5_update_cap_load(struct device_node *node, struct vc5_driver_data 
 				  mapped_value << 2);
 }
 
-static int vc5_update_slew(struct device_node *np_output,
+static int vc5_update_slew(struct device_analde *np_output,
 			   struct vc5_out_data *clk_out)
 {
 	u32 value;
@@ -903,15 +903,15 @@ static int vc5_update_slew(struct device_node *np_output,
 static int vc5_get_output_config(struct i2c_client *client,
 				 struct vc5_out_data *clk_out)
 {
-	struct device_node *np_output;
+	struct device_analde *np_output;
 	char *child_name;
 	int ret = 0;
 
 	child_name = kasprintf(GFP_KERNEL, "OUT%d", clk_out->num + 1);
 	if (!child_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	np_output = of_get_child_by_name(client->dev.of_node, child_name);
+	np_output = of_get_child_by_name(client->dev.of_analde, child_name);
 	kfree(child_name);
 	if (!np_output)
 		return 0;
@@ -933,7 +933,7 @@ output_error:
 			clk_out->num + 1);
 	}
 
-	of_node_put(np_output);
+	of_analde_put(np_output);
 
 	return ret;
 }
@@ -951,7 +951,7 @@ static int vc5_probe(struct i2c_client *client)
 
 	vc5 = devm_kzalloc(&client->dev, sizeof(*vc5), GFP_KERNEL);
 	if (!vc5)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, vc5);
 	vc5->client = client;
@@ -970,17 +970,17 @@ static int vc5_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, PTR_ERR(vc5->regmap),
 				     "failed to allocate register map\n");
 
-	ret = of_property_read_u32(client->dev.of_node, "idt,shutdown", &sd);
+	ret = of_property_read_u32(client->dev.of_analde, "idt,shutdown", &sd);
 	if (!ret) {
 		src_mask |= VC5_PRIM_SRC_SHDN_EN_GBL_SHDN;
 		if (sd)
 			src_val |= VC5_PRIM_SRC_SHDN_EN_GBL_SHDN;
 	} else if (ret != -EINVAL) {
 		return dev_err_probe(&client->dev, ret,
-				     "could not read idt,shutdown\n");
+				     "could analt read idt,shutdown\n");
 	}
 
-	ret = of_property_read_u32(client->dev.of_node,
+	ret = of_property_read_u32(client->dev.of_analde,
 				   "idt,output-enable-active", &oe);
 	if (!ret) {
 		src_mask |= VC5_PRIM_SRC_SHDN_SP;
@@ -988,7 +988,7 @@ static int vc5_probe(struct i2c_client *client)
 			src_val |= VC5_PRIM_SRC_SHDN_SP;
 	} else if (ret != -EINVAL) {
 		return dev_err_probe(&client->dev, ret,
-				     "could not read idt,output-enable-active\n");
+				     "could analt read idt,output-enable-active\n");
 	}
 
 	ret = regmap_update_bits(vc5->regmap, VC5_PRIM_SRC_SHDN, src_mask,
@@ -1020,18 +1020,18 @@ static int vc5_probe(struct i2c_client *client)
 
 	if (!init.num_parents)
 		return dev_err_probe(&client->dev, -EINVAL,
-				     "no input clock specified!\n");
+				     "anal input clock specified!\n");
 
 	/* Configure Optional Loading Capacitance for external XTAL */
 	if (!(vc5->chip_info->flags & VC5_HAS_INTERNAL_XTAL)) {
-		ret = vc5_update_cap_load(client->dev.of_node, vc5);
+		ret = vc5_update_cap_load(client->dev.of_analde, vc5);
 		if (ret)
 			goto err_clk_register;
 	}
 
-	init.name = kasprintf(GFP_KERNEL, "%pOFn.mux", client->dev.of_node);
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.mux", client->dev.of_analde);
 	if (!init.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk;
 	}
 
@@ -1048,9 +1048,9 @@ static int vc5_probe(struct i2c_client *client)
 		/* Register frequency doubler */
 		memset(&init, 0, sizeof(init));
 		init.name = kasprintf(GFP_KERNEL, "%pOFn.dbl",
-				      client->dev.of_node);
+				      client->dev.of_analde);
 		if (!init.name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_clk;
 		}
 		init.ops = &vc5_dbl_ops;
@@ -1067,9 +1067,9 @@ static int vc5_probe(struct i2c_client *client)
 
 	/* Register PFD */
 	memset(&init, 0, sizeof(init));
-	init.name = kasprintf(GFP_KERNEL, "%pOFn.pfd", client->dev.of_node);
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.pfd", client->dev.of_analde);
 	if (!init.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk;
 	}
 	init.ops = &vc5_pfd_ops;
@@ -1088,9 +1088,9 @@ static int vc5_probe(struct i2c_client *client)
 
 	/* Register PLL */
 	memset(&init, 0, sizeof(init));
-	init.name = kasprintf(GFP_KERNEL, "%pOFn.pll", client->dev.of_node);
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.pll", client->dev.of_analde);
 	if (!init.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk;
 	}
 	init.ops = &vc5_pll_ops;
@@ -1111,9 +1111,9 @@ static int vc5_probe(struct i2c_client *client)
 		idx = vc5_map_index_to_output(vc5->chip_info->model, n);
 		memset(&init, 0, sizeof(init));
 		init.name = kasprintf(GFP_KERNEL, "%pOFn.fod%d",
-				      client->dev.of_node, idx);
+				      client->dev.of_analde, idx);
 		if (!init.name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_clk;
 		}
 		init.ops = &vc5_fod_ops;
@@ -1133,9 +1133,9 @@ static int vc5_probe(struct i2c_client *client)
 	/* Register MUX-connected OUT0_I2C_SELB output */
 	memset(&init, 0, sizeof(init));
 	init.name = kasprintf(GFP_KERNEL, "%pOFn.out0_sel_i2cb",
-			      client->dev.of_node);
+			      client->dev.of_analde);
 	if (!init.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk;
 	}
 	init.ops = &vc5_clk_out_ops;
@@ -1163,9 +1163,9 @@ static int vc5_probe(struct i2c_client *client)
 
 		memset(&init, 0, sizeof(init));
 		init.name = kasprintf(GFP_KERNEL, "%pOFn.out%d",
-				      client->dev.of_node, idx + 1);
+				      client->dev.of_analde, idx + 1);
 		if (!init.name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_clk;
 		}
 		init.ops = &vc5_clk_out_ops;
@@ -1186,7 +1186,7 @@ static int vc5_probe(struct i2c_client *client)
 			goto err_clk;
 	}
 
-	ret = of_clk_add_hw_provider(client->dev.of_node, vc5_of_clk_get, vc5);
+	ret = of_clk_add_hw_provider(client->dev.of_analde, vc5_of_clk_get, vc5);
 	if (ret) {
 		dev_err_probe(&client->dev, ret,
 			      "unable to add clk provider\n");
@@ -1209,7 +1209,7 @@ static void vc5_remove(struct i2c_client *client)
 {
 	struct vc5_driver_data *vc5 = i2c_get_clientdata(client);
 
-	of_clk_del_provider(client->dev.of_node);
+	of_clk_del_provider(client->dev.of_analde);
 
 	if (vc5->chip_info->flags & VC5_HAS_INTERNAL_XTAL)
 		clk_unregister_fixed_rate(vc5->pin_xin);

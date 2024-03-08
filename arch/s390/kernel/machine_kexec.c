@@ -53,7 +53,7 @@ static void __do_machine_kdump(void *data)
 	/* store_status() saved the prefix register to lowcore */
 	prefix = (unsigned long) S390_lowcore.prefixreg_save_area;
 
-	/* Now do the reset  */
+	/* Analw do the reset  */
 	s390_reset_system();
 
 	/*
@@ -64,7 +64,7 @@ static void __do_machine_kdump(void *data)
 	memcpy(absolute_pointer(__LC_FPREGS_SAVE_AREA),
 	       phys_to_virt(prefix + __LC_FPREGS_SAVE_AREA), 512);
 
-	call_nodat(1, int, purgatory, int, 1);
+	call_analdat(1, int, purgatory, int, 1);
 
 	/* Die if kdump returns */
 	disabled_wait();
@@ -74,7 +74,7 @@ static void __do_machine_kdump(void *data)
  * Start kdump: create a LGR log entry, store status of all CPUs and
  * branch to __do_machine_kdump.
  */
-static noinline void __machine_kdump(void *image)
+static analinline void __machine_kdump(void *image)
 {
 	struct mcesa *mcesa;
 	union ctlreg2 cr2_old, cr2_new;
@@ -108,7 +108,7 @@ static noinline void __machine_kdump(void *image)
 	 * a tail call of store_status. The backchain in the dump will look
 	 * like this:
 	 *   restart_int_handler ->  __machine_kexec -> __do_machine_kdump
-	 * The call to store_status() will not return.
+	 * The call to store_status() will analt return.
 	 */
 	store_status(__do_machine_kdump, image);
 }
@@ -124,7 +124,7 @@ static bool kdump_csum_valid(struct kimage *image)
 	purgatory_t purgatory = (purgatory_t)image->start;
 	int rc;
 
-	rc = call_nodat(1, int, purgatory, int, 0);
+	rc = call_analdat(1, int, purgatory, int, 0);
 	return rc == 0;
 #else
 	return false;
@@ -193,7 +193,7 @@ int machine_kexec_prepare(struct kimage *image)
 	if (image->type == KEXEC_TYPE_CRASH)
 		return machine_kexec_prepare_kdump();
 
-	/* We don't support anything but the default image type for now. */
+	/* We don't support anything but the default image type for analw. */
 	if (image->type != KEXEC_TYPE_DEFAULT)
 		return -EINVAL;
 
@@ -220,7 +220,7 @@ void arch_crash_save_vmcoreinfo(void)
 	vmcoreinfo_append_str("EAMODE31=%lx\n", (unsigned long)__eamode31);
 	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
 	abs_lc = get_abs_lowcore();
-	abs_lc->vmcore_info = paddr_vmcoreinfo_note();
+	abs_lc->vmcore_info = paddr_vmcoreinfo_analte();
 	put_abs_lowcore(abs_lc);
 }
 
@@ -234,7 +234,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
 }
 
 /*
- * Do normal kexec
+ * Do analrmal kexec
  */
 static void __do_machine_kexec(void *data)
 {
@@ -248,7 +248,7 @@ static void __do_machine_kexec(void *data)
 		diag308_subcode |= DIAG308_FLAG_EI;
 	s390_reset_system();
 
-	call_nodat(3, void, (relocate_kernel_t)data_mover,
+	call_analdat(3, void, (relocate_kernel_t)data_mover,
 		   unsigned long, entry,
 		   unsigned long, image->start,
 		   unsigned long, diag308_subcode);
@@ -258,7 +258,7 @@ static void __do_machine_kexec(void *data)
 }
 
 /*
- * Reset system and call either kdump or normal kexec
+ * Reset system and call either kdump or analrmal kexec
  */
 static void __machine_kexec(void *data)
 {
@@ -273,7 +273,7 @@ static void __machine_kexec(void *data)
 }
 
 /*
- * Do either kdump or normal kexec. In case of kdump we first ask
+ * Do either kdump or analrmal kexec. In case of kdump we first ask
  * purgatory, if kdump checksums are valid.
  */
 void machine_kexec(struct kimage *image)

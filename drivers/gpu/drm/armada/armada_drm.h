@@ -83,6 +83,6 @@ static inline void armada_fbdev_setup(struct drm_device *dev)
 int armada_overlay_plane_create(struct drm_device *, unsigned long);
 
 void armada_drm_crtc_debugfs_init(struct armada_crtc *dcrtc);
-int armada_drm_debugfs_init(struct drm_minor *);
+int armada_drm_debugfs_init(struct drm_mianalr *);
 
 #endif

@@ -12,8 +12,8 @@
  * Module roccat is a char device used to report special events of roccat
  * hardware to userland. These events include requests for on-screen-display of
  * profile or dpi settings or requests for execution of macro sequences that are
- * not stored in device. The information in these events depends on hid device
- * implementation and contains data that is not available in a single hid event
+ * analt stored in device. The information in these events depends on hid device
+ * implementation and contains data that is analt available in a single hid event
  * or else hidraw could have been used.
  * It is inspired by hidraw, but uses only one circular buffer for all readers.
  */
@@ -26,7 +26,7 @@
 #include <linux/hid-roccat.h>
 #include <linux/module.h>
 
-#define ROCCAT_FIRST_MINOR 0
+#define ROCCAT_FIRST_MIANALR 0
 #define ROCCAT_MAX_DEVICES 8
 
 /* should be a power of 2 for performance reason */
@@ -37,7 +37,7 @@ struct roccat_report {
 };
 
 struct roccat_device {
-	unsigned int minor;
+	unsigned int mianalr;
 	int report_size;
 	int open;
 	int exist;
@@ -58,7 +58,7 @@ struct roccat_device {
 };
 
 struct roccat_reader {
-	struct list_head node;
+	struct list_head analde;
 	struct roccat_device *device;
 	int cbuf_start;
 };
@@ -81,14 +81,14 @@ static ssize_t roccat_read(struct file *file, char __user *buffer,
 
 	mutex_lock(&device->cbuf_lock);
 
-	/* no data? */
+	/* anal data? */
 	if (reader->cbuf_start == device->cbuf_end) {
 		add_wait_queue(&device->wait, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		/* wait for data */
 		while (reader->cbuf_start == device->cbuf_end) {
-			if (file->f_flags & O_NONBLOCK) {
+			if (file->f_flags & O_ANALNBLOCK) {
 				retval = -EAGAIN;
 				break;
 			}
@@ -139,30 +139,30 @@ static __poll_t roccat_poll(struct file *file, poll_table *wait)
 	struct roccat_reader *reader = file->private_data;
 	poll_wait(file, &reader->device->wait, wait);
 	if (reader->cbuf_start != reader->device->cbuf_end)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	if (!reader->device->exist)
 		return EPOLLERR | EPOLLHUP;
 	return 0;
 }
 
-static int roccat_open(struct inode *inode, struct file *file)
+static int roccat_open(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int mianalr = imianalr(ianalde);
 	struct roccat_reader *reader;
 	struct roccat_device *device;
 	int error = 0;
 
 	reader = kzalloc(sizeof(struct roccat_reader), GFP_KERNEL);
 	if (!reader)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&devices_lock);
 
-	device = devices[minor];
+	device = devices[mianalr];
 
 	if (!device) {
-		pr_emerg("roccat device with minor %d doesn't exist\n", minor);
-		error = -ENODEV;
+		pr_emerg("roccat device with mianalr %d doesn't exist\n", mianalr);
+		error = -EANALDEV;
 		goto exit_err_devices;
 	}
 
@@ -178,7 +178,7 @@ static int roccat_open(struct inode *inode, struct file *file)
 
 		error = hid_hw_open(device->hid);
 		if (error < 0) {
-			hid_hw_power(device->hid, PM_HINT_NORMAL);
+			hid_hw_power(device->hid, PM_HINT_ANALRMAL);
 			--device->open;
 			goto exit_err_readers;
 		}
@@ -188,7 +188,7 @@ static int roccat_open(struct inode *inode, struct file *file)
 	/* new reader doesn't get old events */
 	reader->cbuf_start = device->cbuf_end;
 
-	list_add_tail(&reader->node, &device->readers);
+	list_add_tail(&reader->analde, &device->readers);
 	file->private_data = reader;
 
 exit_err_readers:
@@ -200,30 +200,30 @@ exit_err_devices:
 	return error;
 }
 
-static int roccat_release(struct inode *inode, struct file *file)
+static int roccat_release(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int mianalr = imianalr(ianalde);
 	struct roccat_reader *reader = file->private_data;
 	struct roccat_device *device;
 
 	mutex_lock(&devices_lock);
 
-	device = devices[minor];
+	device = devices[mianalr];
 	if (!device) {
 		mutex_unlock(&devices_lock);
-		pr_emerg("roccat device with minor %d doesn't exist\n", minor);
-		return -ENODEV;
+		pr_emerg("roccat device with mianalr %d doesn't exist\n", mianalr);
+		return -EANALDEV;
 	}
 
 	mutex_lock(&device->readers_lock);
-	list_del(&reader->node);
+	list_del(&reader->analde);
 	mutex_unlock(&device->readers_lock);
 	kfree(reader);
 
 	if (!--device->open) {
 		/* removing last reader */
 		if (device->exist) {
-			hid_hw_power(device->hid, PM_HINT_NORMAL);
+			hid_hw_power(device->hid, PM_HINT_ANALRMAL);
 			hid_hw_close(device->hid);
 		} else {
 			kfree(device);
@@ -237,25 +237,25 @@ static int roccat_release(struct inode *inode, struct file *file)
 
 /*
  * roccat_report_event() - output data to readers
- * @minor: minor device number returned by roccat_connect()
+ * @mianalr: mianalr device number returned by roccat_connect()
  * @data: pointer to data
  *
  * Return value is zero on success, a negative error code on failure.
  *
  * This is called from interrupt handler.
  */
-int roccat_report_event(int minor, u8 const *data)
+int roccat_report_event(int mianalr, u8 const *data)
 {
 	struct roccat_device *device;
 	struct roccat_reader *reader;
 	struct roccat_report *report;
 	uint8_t *new_value;
 
-	device = devices[minor];
+	device = devices[mianalr];
 
 	new_value = kmemdup(data, device->report_size, GFP_ATOMIC);
 	if (!new_value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&device->cbuf_lock);
 
@@ -267,7 +267,7 @@ int roccat_report_event(int minor, u8 const *data)
 	report->value = new_value;
 	device->cbuf_end = (device->cbuf_end + 1) % ROCCAT_CBUF_SIZE;
 
-	list_for_each_entry(reader, &device->readers, node) {
+	list_for_each_entry(reader, &device->readers, analde) {
 		/*
 		 * As we already inserted one element, the buffer can't be
 		 * empty. If start and end are equal, buffer is full and we
@@ -292,29 +292,29 @@ EXPORT_SYMBOL_GPL(roccat_report_event);
  * @hid: the hid device the char device should be connected to.
  * @report_size: size of reports
  *
- * Return value is minor device number in Range [0, ROCCAT_MAX_DEVICES] on
+ * Return value is mianalr device number in Range [0, ROCCAT_MAX_DEVICES] on
  * success, a negative error code on failure.
  */
 int roccat_connect(const struct class *klass, struct hid_device *hid, int report_size)
 {
-	unsigned int minor;
+	unsigned int mianalr;
 	struct roccat_device *device;
 	int temp;
 
 	device = kzalloc(sizeof(struct roccat_device), GFP_KERNEL);
 	if (!device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&devices_lock);
 
-	for (minor = 0; minor < ROCCAT_MAX_DEVICES; ++minor) {
-		if (devices[minor])
+	for (mianalr = 0; mianalr < ROCCAT_MAX_DEVICES; ++mianalr) {
+		if (devices[mianalr])
 			continue;
 		break;
 	}
 
-	if (minor < ROCCAT_MAX_DEVICES) {
-		devices[minor] = device;
+	if (mianalr < ROCCAT_MAX_DEVICES) {
+		devices[mianalr] = device;
 	} else {
 		mutex_unlock(&devices_lock);
 		kfree(device);
@@ -322,11 +322,11 @@ int roccat_connect(const struct class *klass, struct hid_device *hid, int report
 	}
 
 	device->dev = device_create(klass, &hid->dev,
-			MKDEV(roccat_major, minor), NULL,
-			"%s%s%d", "roccat", hid->driver->name, minor);
+			MKDEV(roccat_major, mianalr), NULL,
+			"%s%s%d", "roccat", hid->driver->name, mianalr);
 
 	if (IS_ERR(device->dev)) {
-		devices[minor] = NULL;
+		devices[mianalr] = NULL;
 		mutex_unlock(&devices_lock);
 		temp = PTR_ERR(device->dev);
 		kfree(device);
@@ -339,33 +339,33 @@ int roccat_connect(const struct class *klass, struct hid_device *hid, int report
 	INIT_LIST_HEAD(&device->readers);
 	mutex_init(&device->readers_lock);
 	mutex_init(&device->cbuf_lock);
-	device->minor = minor;
+	device->mianalr = mianalr;
 	device->hid = hid;
 	device->exist = 1;
 	device->cbuf_end = 0;
 	device->report_size = report_size;
 
-	return minor;
+	return mianalr;
 }
 EXPORT_SYMBOL_GPL(roccat_connect);
 
 /* roccat_disconnect() - remove char device from hid device
- * @minor: the minor device number returned by roccat_connect()
+ * @mianalr: the mianalr device number returned by roccat_connect()
  */
-void roccat_disconnect(int minor)
+void roccat_disconnect(int mianalr)
 {
 	struct roccat_device *device;
 
 	mutex_lock(&devices_lock);
-	device = devices[minor];
+	device = devices[mianalr];
 	mutex_unlock(&devices_lock);
 
-	device->exist = 0; /* TODO exist maybe not needed */
+	device->exist = 0; /* TODO exist maybe analt needed */
 
-	device_destroy(device->dev->class, MKDEV(roccat_major, minor));
+	device_destroy(device->dev->class, MKDEV(roccat_major, mianalr));
 
 	mutex_lock(&devices_lock);
-	devices[minor] = NULL;
+	devices[mianalr] = NULL;
 	mutex_unlock(&devices_lock);
 
 	if (device->open) {
@@ -379,16 +379,16 @@ EXPORT_SYMBOL_GPL(roccat_disconnect);
 
 static long roccat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct roccat_device *device;
-	unsigned int minor = iminor(inode);
+	unsigned int mianalr = imianalr(ianalde);
 	long retval = 0;
 
 	mutex_lock(&devices_lock);
 
-	device = devices[minor];
+	device = devices[mianalr];
 	if (!device) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 
@@ -398,7 +398,7 @@ static long roccat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 		break;
 	default:
-		retval = -ENOTTY;
+		retval = -EANALTTY;
 	}
 out:
 	mutex_unlock(&devices_lock);
@@ -411,7 +411,7 @@ static const struct file_operations roccat_ops = {
 	.poll = roccat_poll,
 	.open = roccat_open,
 	.release = roccat_release,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.unlocked_ioctl = roccat_ioctl,
 };
 
@@ -420,7 +420,7 @@ static int __init roccat_init(void)
 	int retval;
 	dev_t dev_id;
 
-	retval = alloc_chrdev_region(&dev_id, ROCCAT_FIRST_MINOR,
+	retval = alloc_chrdev_region(&dev_id, ROCCAT_FIRST_MIANALR,
 			ROCCAT_MAX_DEVICES, "roccat");
 	if (retval < 0) {
 		pr_warn("can't get major number\n");
@@ -433,7 +433,7 @@ static int __init roccat_init(void)
 	retval = cdev_add(&roccat_cdev, dev_id, ROCCAT_MAX_DEVICES);
 
 	if (retval < 0) {
-		pr_warn("cannot add cdev\n");
+		pr_warn("cananalt add cdev\n");
 		goto cleanup_alloc_chrdev_region;
 	}
 	return 0;

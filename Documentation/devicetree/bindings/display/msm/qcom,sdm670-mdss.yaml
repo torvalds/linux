@@ -100,8 +100,8 @@ examples:
         interrupt-controller;
         #interrupt-cells = <1>;
 
-        interconnects = <&mmss_noc MASTER_MDP_PORT0 0 &mem_noc SLAVE_EBI_CH0 0>,
-                        <&mmss_noc MASTER_MDP_PORT1 0 &mem_noc SLAVE_EBI_CH0 0>;
+        interconnects = <&mmss_analc MASTER_MDP_PORT0 0 &mem_analc SLAVE_EBI_CH0 0>,
+                        <&mmss_analc MASTER_MDP_PORT1 0 &mem_analc SLAVE_EBI_CH0 0>;
         interconnect-names = "mdp0-mem", "mdp1-mem";
 
         iommus = <&apps_smmu 0x880 0x8>,

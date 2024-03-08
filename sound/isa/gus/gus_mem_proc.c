@@ -52,7 +52,7 @@ int snd_gf1_mem_proc_init(struct snd_gus_card * gus)
 		if (gus->gf1.mem_alloc.banks_8[idx].size > 0) {
 			priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 			if (priv == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 			priv->gus = gus;
 			sprintf(name, "gus-ram-%i", idx);
 			if (! snd_card_proc_new(gus->card, name, &entry)) {
@@ -69,7 +69,7 @@ int snd_gf1_mem_proc_init(struct snd_gus_card * gus)
 		if (gus->gf1.rom_present & (1 << idx)) {
 			priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 			if (priv == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 			priv->rom = 1;
 			priv->gus = gus;
 			sprintf(name, "gus-rom-%i", idx);

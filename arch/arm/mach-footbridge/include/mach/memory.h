@@ -8,7 +8,7 @@
  *   20-Oct-1996 RMK	Created
  *   31-Dec-1997 RMK	Fixed definitions to reduce warnings.
  *   17-May-1998 DAG	Added __virt_to_bus and __bus_to_virt functions.
- *   21-Nov-1998 RMK	Changed __virt_to_bus and __bus_to_virt to macros.
+ *   21-Analv-1998 RMK	Changed __virt_to_bus and __bus_to_virt to macros.
  *   21-Mar-1999 RMK	Added PAGE_OFFSET for co285 architecture.
  *			Renamed to memory.h
  *			Moved PAGE_OFFSET and TASK_SIZE here

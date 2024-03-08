@@ -17,7 +17,7 @@
 
 #define AEGIS128_BLOCK_ALIGN 16
 #define AEGIS128_BLOCK_SIZE 16
-#define AEGIS128_NONCE_SIZE 16
+#define AEGIS128_ANALNCE_SIZE 16
 #define AEGIS128_STATE_BLOCKS 5
 #define AEGIS128_KEY_SIZE 16
 #define AEGIS128_MIN_AUTH_SIZE 8
@@ -135,7 +135,7 @@ static void crypto_aegis128_aesni_process_crypt(
 static struct aegis_ctx *crypto_aegis128_aesni_ctx(struct crypto_aead *aead)
 {
 	u8 *ctx = crypto_aead_ctx(aead);
-	ctx = PTR_ALIGN(ctx, __alignof__(struct aegis_ctx));
+	ctx = PTR_ALIGN(ctx, __aliganalf__(struct aegis_ctx));
 	return (void *)ctx;
 }
 
@@ -244,7 +244,7 @@ static struct aead_alg crypto_aegis128_aesni_alg = {
 	.init = crypto_aegis128_aesni_init_tfm,
 	.exit = crypto_aegis128_aesni_exit_tfm,
 
-	.ivsize = AEGIS128_NONCE_SIZE,
+	.ivsize = AEGIS128_ANALNCE_SIZE,
 	.maxauthsize = AEGIS128_MAX_AUTH_SIZE,
 	.chunksize = AEGIS128_BLOCK_SIZE,
 
@@ -252,7 +252,7 @@ static struct aead_alg crypto_aegis128_aesni_alg = {
 		.cra_flags = CRYPTO_ALG_INTERNAL,
 		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct aegis_ctx) +
-			       __alignof__(struct aegis_ctx),
+			       __aliganalf__(struct aegis_ctx),
 		.cra_alignmask = 0,
 		.cra_priority = 400,
 
@@ -270,7 +270,7 @@ static int __init crypto_aegis128_aesni_module_init(void)
 	if (!boot_cpu_has(X86_FEATURE_XMM2) ||
 	    !boot_cpu_has(X86_FEATURE_AES) ||
 	    !cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return simd_register_aeads_compat(&crypto_aegis128_aesni_alg, 1,
 					  &simd_alg);

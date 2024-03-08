@@ -50,12 +50,12 @@ static const char * const typec_cc_status_name[] = {
 	[TYPEC_CC_RP_3_0]	= "Rp-3.0",
 };
 
-static const char *rp_unknown = "unknown";
+static const char *rp_unkanalwn = "unkanalwn";
 
 static const char *cc_to_name(enum typec_cc_status cc)
 {
 	if (cc > TYPEC_CC_RP_3_0)
-		return rp_unknown;
+		return rp_unkanalwn;
 
 	return typec_cc_status_name[cc];
 }
@@ -69,7 +69,7 @@ static const char * const rp_sel_name[] = {
 static const char *rp_sel_to_name(int rp_sel)
 {
 	if (rp_sel > TYPEC_SRC_RP_SEL_330UA)
-		return rp_unknown;
+		return rp_unkanalwn;
 
 	return rp_sel_name[rp_sel];
 }
@@ -429,7 +429,7 @@ done:
 
 #define TYPEC_INTR_EN_CFG_1_MASK		  \
 	(TYPEC_LEGACY_CABLE_INT_EN		| \
-	 TYPEC_NONCOMPLIANT_LEGACY_CABLE_INT_EN	| \
+	 TYPEC_ANALNCOMPLIANT_LEGACY_CABLE_INT_EN	| \
 	 TYPEC_TRYSOURCE_DETECT_INT_EN		| \
 	 TYPEC_TRYSINK_DETECT_INT_EN		| \
 	 TYPEC_CCOUT_DETACH_INT_EN		| \
@@ -520,7 +520,7 @@ int qcom_pmic_typec_port_probe(struct platform_device *pdev,
 	irq_data = devm_kzalloc(dev, sizeof(*irq_data) * res->nr_irqs,
 				GFP_KERNEL);
 	if (!irq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic_typec_port->vdd_vbus = devm_regulator_get(dev, "vdd-vbus");
 	if (IS_ERR(pmic_typec_port->vdd_vbus))
@@ -549,7 +549,7 @@ int qcom_pmic_typec_port_probe(struct platform_device *pdev,
 		irq_data->irq = irq;
 		irq_data->virq = res->irq_params[i].virq;
 		ret = devm_request_threaded_irq(dev, irq, NULL, pmic_typec_port_isr,
-						IRQF_ONESHOT | IRQF_NO_AUTOEN,
+						IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 						res->irq_params[i].irq_name,
 						irq_data);
 		if (ret)

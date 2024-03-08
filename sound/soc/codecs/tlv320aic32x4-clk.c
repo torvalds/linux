@@ -109,7 +109,7 @@ static int clk_aic32x4_pll_set_muldiv(struct clk_aic32x4 *pll,
 			struct clk_aic32x4_pll_muldiv *settings)
 {
 	int ret;
-	/*	Change to use regmap_bulk_write for some if not all? */
+	/*	Change to use regmap_bulk_write for some if analt all? */
 
 	ret = regmap_update_bits(pll->regmap, AIC32X4_PLLPR,
 				AIC32X4_PLL_R_MASK, settings->r);
@@ -293,7 +293,7 @@ static u8 clk_aic32x4_codec_clkin_get_parent(struct clk_hw *hw)
 }
 
 static const struct clk_ops aic32x4_codec_clkin_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent = clk_aic32x4_codec_clkin_set_parent,
 	.get_parent = clk_aic32x4_codec_clkin_get_parent,
 };
@@ -465,7 +465,7 @@ static struct clk *aic32x4_register_clk(struct device *dev,
 
 	priv = devm_kzalloc(dev, sizeof(struct clk_aic32x4), GFP_KERNEL);
 	if (priv == NULL)
-		return (struct clk *) -ENOMEM;
+		return (struct clk *) -EANALMEM;
 
 	priv->dev = dev;
 	priv->hw.init = &init;
@@ -483,7 +483,7 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name)
 	/*
 	 * These lines are here to preserve the current functionality of
 	 * the driver with regard to the DT.  These should eventually be set
-	 * by DT nodes so that the connections can be set up in configuration
+	 * by DT analdes so that the connections can be set up in configuration
 	 * rather than code.
 	 */
 	aic32x4_clkdesc_array[0].parent_names =

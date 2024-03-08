@@ -45,12 +45,12 @@ sparc64_cpu_startup:
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1, g5, cheetah_plus_startup)
 
 	ba,pt	%xcc, spitfire_startup
-	 nop
+	 analp
 
 cheetah_plus_startup:
 	/* Preserve OBP chosen DCU and DCR register settings.  */
 	ba,pt	%xcc, cheetah_generic_startup
-	 nop
+	 analp
 
 cheetah_startup:
 	mov	DCR_BPE | DCR_RPE | DCR_SI | DCR_IFPOE | DCR_MS, %g1
@@ -87,7 +87,7 @@ niagara_startup:
 	wr		%g5, %asr25
 
 	ba,pt		%xcc, startup_continue
-	 nop
+	 analp
 
 spitfire_startup:
 	mov		(LSU_CONTROL_IC | LSU_CONTROL_DC | LSU_CONTROL_IM | LSU_CONTROL_DM), %g1
@@ -108,7 +108,7 @@ startup_continue:
 	sethi		%hi(prom_entry_lock), %g2
 1:	ldstub		[%g2 + %lo(prom_entry_lock)], %g1
 	brnz,pn		%g1, 1b
-	 nop
+	 analp
 
 	/* Get onto temporary stack which will be in the locked
 	 * kernel image.
@@ -209,13 +209,13 @@ startup_continue:
 	add		%l5, 1, %l5
 	cmp		%l5, %l6
 	bne,pt		%xcc, 3b
-	 nop
+	 analp
 
 	sethi		%hi(prom_entry_lock), %g2
 	stb		%g0, [%g2 + %lo(prom_entry_lock)]
 
 	ba,pt		%xcc, after_lock_tlb
-	 nop
+	 analp
 
 niagara_lock_tlb:
 	sethi		%hi(KERNBASE), %l3
@@ -245,7 +245,7 @@ niagara_lock_tlb:
 	add		%l5, 1, %l5
 	cmp		%l5, %l6
 	bne,pt		%xcc, 1b
-	 nop
+	 analp
 
 after_lock_tlb:
 	wrpr		%g0, (PSTATE_PRIV | PSTATE_PEF), %pstate
@@ -273,7 +273,7 @@ after_lock_tlb:
 	membar		#Sync
 
 	/* Everything we do here, until we properly take over the
-	 * trap table, must be done with extreme care.  We cannot
+	 * trap table, must be done with extreme care.  We cananalt
 	 * make any references to %g6 (current thread pointer),
 	 * %g4 (current task pointer), or %g5 (base of current cpu's
 	 * per-cpu area) until we properly take over the trap table
@@ -293,19 +293,19 @@ after_lock_tlb:
 	set		0xdeadbeef, %g6
 
 	call		init_irqwork_curcpu
-	 nop
+	 analp
 
 	sethi		%hi(tlb_type), %g3
 	lduw		[%g3 + %lo(tlb_type)], %g2
 	cmp		%g2, 3
 	bne,pt		%icc, 1f
-	 nop
+	 analp
 
 	call		hard_smp_processor_id
-	 nop
+	 analp
 	
 	call		sun4v_register_mondo_queues
-	 nop
+	 analp
 
 1:	call		init_cur_cpu_trap
 	 ldx		[%l0], %o0
@@ -328,7 +328,7 @@ after_lock_tlb:
 	sethi		%hi(prom_entry_lock), %g2
 1:	ldstub		[%g2 + %lo(prom_entry_lock)], %g1
 	brnz,pn		%g1, 1b
-	 nop
+	 analp
 
 	/* As a hack, put &init_thread_union into %g6.
 	 * prom_world() loads from here to restore the %asi
@@ -340,7 +340,7 @@ after_lock_tlb:
 	sethi		%hi(is_sun4v), %o0
 	lduw		[%o0 + %lo(is_sun4v)], %o0
 	brz,pt		%o0, 2f
-	 nop
+	 analp
 
 	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
 	add		%g2, TRAP_PER_CPU_FAULT_INFO, %g2
@@ -372,7 +372,7 @@ after_lock_tlb:
 	 add		%sp, (2047 + 128), %o0
 
 	ba,pt		%xcc, 3f
-	 nop
+	 analp
 
 2:	sethi		%hi(sparc64_ttable_tl0), %o0
 	set		prom_set_trap_table_name, %g2
@@ -404,10 +404,10 @@ after_lock_tlb:
 	wrpr		%o1, 0, %pstate
 
 	call		smp_callin
-	 nop
+	 analp
 
 	call		cpu_panic
-	 nop
+	 analp
 1:	b,a,pt		%xcc, 1b
 
 	.align		8

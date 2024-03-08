@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
  * Copyright (C) 2022 Emil Renner Berthing <kernel@esmil.dk>
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #ifndef __DT_BINDINGS_PINCTRL_STARFIVE_JH7110_H__
@@ -132,6 +132,6 @@
 #define GPOEN_ENABLE		0
 #define GPOEN_DISABLE		1
 
-#define GPI_NONE		255
+#define GPI_ANALNE		255
 
 #endif

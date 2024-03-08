@@ -27,7 +27,7 @@ ia_css_bnr_encode(
     unsigned int size)
 {
 	(void)size;
-	/* BNR (Bayer Noise Reduction) */
+	/* BNR (Bayer Analise Reduction) */
 	to->threshold_low =
 	    uDIGIT_FITTING(from->direction, 16, SH_CSS_BAYER_BITS);
 	to->threshold_width_log2 = uFRACTION_BITS_FITTING(8);
@@ -46,7 +46,7 @@ ia_css_bnr_dump(
     unsigned int level)
 {
 	if (!bnr) return;
-	ia_css_debug_dtrace(level, "Bayer Noise Reduction:\n");
+	ia_css_debug_dtrace(level, "Bayer Analise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			    "bnr_gain_all", bnr->gain_all);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",

@@ -40,7 +40,7 @@
 #define mmc_card_clr_suspended(c) ((c)->state &= ~MMC_STATE_SUSPENDED)
 
 /*
- * The world is not perfect and supplies us with broken mmc/sdio devices.
+ * The world is analt perfect and supplies us with broken mmc/sdio devices.
  * For at least some of these bugs we need a work-around.
  */
 struct mmc_fixup {
@@ -186,11 +186,11 @@ static inline void __maybe_unused wl1251_quirk(struct mmc_card *card,
 	/*
 	 * We have TI wl1251 attached to this mmc. Pass this
 	 * information to the SDIO core because it can't be
-	 * probed by normal methods.
+	 * probed by analrmal methods.
 	 */
 
 	dev_info(card->host->parent, "found wl1251\n");
-	card->quirks |= MMC_QUIRK_NONSTD_SDIO;
+	card->quirks |= MMC_QUIRK_ANALNSTD_SDIO;
 	card->cccr.wide_bus = 1;
 	card->cis.vendor = 0x104c;
 	card->cis.device = 0x9066;
@@ -245,9 +245,9 @@ static inline int mmc_card_disable_cd(const struct mmc_card *c)
 	return c->quirks & MMC_QUIRK_DISABLE_CD;
 }
 
-static inline int mmc_card_nonstd_func_interface(const struct mmc_card *c)
+static inline int mmc_card_analnstd_func_interface(const struct mmc_card *c)
 {
-	return c->quirks & MMC_QUIRK_NONSTD_FUNC_IF;
+	return c->quirks & MMC_QUIRK_ANALNSTD_FUNC_IF;
 }
 
 static inline int mmc_card_broken_byte_mode_512(const struct mmc_card *c)

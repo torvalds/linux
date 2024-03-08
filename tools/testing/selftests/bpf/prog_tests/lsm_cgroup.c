@@ -6,12 +6,12 @@
 #include <bpf/btf.h>
 
 #include "lsm_cgroup.skel.h"
-#include "lsm_cgroup_nonvoid.skel.h"
+#include "lsm_cgroup_analnvoid.skel.h"
 #include "cgroup_helpers.h"
 #include "network_helpers.h"
 
-#ifndef ENOTSUPP
-#define ENOTSUPP 524
+#ifndef EANALTSUPP
+#define EANALTSUPP 524
 #endif
 
 static struct btf *btf;
@@ -106,7 +106,7 @@ static void test_lsm_cgroup_functional(void)
 	ASSERT_EQ(query_prog_cnt(cgroup_fd, "bpf_lsm_sk_alloc_security"), 0, "prog count");
 	ASSERT_EQ(query_prog_cnt(cgroup_fd, NULL), 0, "total prog count");
 	err = bpf_prog_attach(alloc_prog_fd, cgroup_fd, BPF_LSM_CGROUP, 0);
-	if (err == -ENOTSUPP) {
+	if (err == -EANALTSUPP) {
 		test__skip();
 		goto close_cgroup;
 	}
@@ -159,7 +159,7 @@ static void test_lsm_cgroup_functional(void)
 	ASSERT_EQ(query_prog_cnt(cgroup_fd, "bpf_lsm_socket_bind"), 1, "prog count");
 	ASSERT_EQ(query_prog_cnt(cgroup_fd, NULL), 4, "total prog count");
 
-	/* Attach another instance of bind program to another cgroup.
+	/* Attach aanalther instance of bind program to aanalther cgroup.
 	 * This should trigger the reuse of the trampoline shim (two
 	 * programs attaching to the same btf_id).
 	 */
@@ -204,7 +204,7 @@ static void test_lsm_cgroup_functional(void)
 	fd = socket(AF_PACKET, SOCK_RAW, 0);
 	ASSERT_GE(fd, 0, "socket(AF_PACKET, ..., 0)");
 
-	/* TX-only AF_PACKET can not be rebound. */
+	/* TX-only AF_PACKET can analt be rebound. */
 
 	struct sockaddr_ll sa = {
 		.sll_family = AF_PACKET,
@@ -236,7 +236,7 @@ static void test_lsm_cgroup_functional(void)
 
 	/* AF_INET6+SOCK_STREAM
 	 * AF_PACKET+SOCK_RAW
-	 * AF_UNIX+SOCK_RAW if already have non-bpf lsms installed
+	 * AF_UNIX+SOCK_RAW if already have analn-bpf lsms installed
 	 * listen_fd
 	 * client_fd
 	 * accepted_fd
@@ -244,7 +244,7 @@ static void test_lsm_cgroup_functional(void)
 	if (skel->kconfig->CONFIG_SECURITY_APPARMOR
 	    || skel->kconfig->CONFIG_SECURITY_SELINUX
 	    || skel->kconfig->CONFIG_SECURITY_SMACK)
-		/* AF_UNIX+SOCK_RAW if already have non-bpf lsms installed */
+		/* AF_UNIX+SOCK_RAW if already have analn-bpf lsms installed */
 		ASSERT_EQ(skel->bss->called_socket_post_create2, 6, "called_create2");
 	else
 		ASSERT_EQ(skel->bss->called_socket_post_create2, 5, "called_create2");
@@ -304,20 +304,20 @@ close_cgroup:
 	lsm_cgroup__destroy(skel);
 }
 
-static void test_lsm_cgroup_nonvoid(void)
+static void test_lsm_cgroup_analnvoid(void)
 {
-	struct lsm_cgroup_nonvoid *skel = NULL;
+	struct lsm_cgroup_analnvoid *skel = NULL;
 
-	skel = lsm_cgroup_nonvoid__open_and_load();
+	skel = lsm_cgroup_analnvoid__open_and_load();
 	ASSERT_NULL(skel, "open succeeds");
-	lsm_cgroup_nonvoid__destroy(skel);
+	lsm_cgroup_analnvoid__destroy(skel);
 }
 
 void test_lsm_cgroup(void)
 {
 	if (test__start_subtest("functional"))
 		test_lsm_cgroup_functional();
-	if (test__start_subtest("nonvoid"))
-		test_lsm_cgroup_nonvoid();
+	if (test__start_subtest("analnvoid"))
+		test_lsm_cgroup_analnvoid();
 	btf__free(btf);
 }

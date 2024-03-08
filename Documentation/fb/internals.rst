@@ -8,7 +8,7 @@ internals.
 Authors:
 
 - Geert Uytterhoeven <geert@linux-m68k.org>, 21 July 1998
-- James Simmons <jsimmons@user.sf.net>, Nov 26 2002
+- James Simmons <jsimmons@user.sf.net>, Analv 26 2002
 
 --------------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ Visuals used by the frame buffer device API
 ===========================================
 
 
-Monochrome (FB_VISUAL_MONO01 and FB_VISUAL_MONO10)
+Moanalchrome (FB_VISUAL_MOANAL01 and FB_VISUAL_MOANAL10)
 --------------------------------------------------
 Each pixel is either black or white.
 

@@ -25,6 +25,6 @@ struct tca6416_keys_platform_data {
 	unsigned int rep:1;	/* enable input subsystem auto repeat */
 	uint16_t pinmask;
 	uint16_t invert;
-	int use_polling;	/* use polling if Interrupt is not connected*/
+	int use_polling;	/* use polling if Interrupt is analt connected*/
 };
 #endif

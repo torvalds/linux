@@ -48,8 +48,8 @@ int ip6_route_me_harder(struct net *net, struct sock *sk_partial, struct sk_buff
 	dst = ip6_route_output(net, sk, &fl6);
 	err = dst->error;
 	if (err) {
-		IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
-		net_dbg_ratelimited("ip6_route_me_harder: No more route\n");
+		IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTANALROUTES);
+		net_dbg_ratelimited("ip6_route_me_harder: Anal more route\n");
 		dst_release(dst);
 		return err;
 	}
@@ -75,7 +75,7 @@ int ip6_route_me_harder(struct net *net, struct sock *sk_partial, struct sk_buff
 	if (skb_headroom(skb) < hh_len &&
 	    pskb_expand_head(skb, HH_DATA_ALIGN(hh_len - skb_headroom(skb)),
 			     0, GFP_ATOMIC))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -126,7 +126,7 @@ int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 				  struct sk_buff *))
 {
 	int frag_max_size = BR_INPUT_SKB_CB(skb)->frag_max_size;
-	bool mono_delivery_time = skb->mono_delivery_time;
+	bool moanal_delivery_time = skb->moanal_delivery_time;
 	ktime_t tstamp = skb->tstamp;
 	struct ip6_frag_state state;
 	u8 *prevhdr, nexthdr = 0;
@@ -192,7 +192,7 @@ int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			if (iter.frag)
 				ip6_fraglist_prepare(skb, &iter);
 
-			skb_set_delivery_time(skb, tstamp, mono_delivery_time);
+			skb_set_delivery_time(skb, tstamp, moanal_delivery_time);
 			err = output(net, sk, data, skb);
 			if (err || !iter.frag)
 				break;
@@ -210,7 +210,7 @@ int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 slow_path:
 	/* This is a linearized skbuff, the original geometry is lost for us.
 	 * This may also be a clone skbuff, we could preserve the geometry for
-	 * the copies but probably not worth the effort.
+	 * the copies but probably analt worth the effort.
 	 */
 	ip6_frag_init(skb, hlen, mtu, skb->dev->needed_tailroom,
 		      LL_RESERVED_SPACE(skb->dev), prevhdr, nexthdr, frag_id,
@@ -225,7 +225,7 @@ slow_path:
 			goto blackhole;
 		}
 
-		skb_set_delivery_time(skb2, tstamp, mono_delivery_time);
+		skb_set_delivery_time(skb2, tstamp, moanal_delivery_time);
 		err = output(net, sk, data, skb2);
 		if (err)
 			goto blackhole;
@@ -264,7 +264,7 @@ int __init ipv6_netfilter_init(void)
 	return 0;
 }
 
-/* This can be called from inet6_init() on errors, so it cannot
+/* This can be called from inet6_init() on errors, so it cananalt
  * be marked __exit. -DaveM
  */
 void ipv6_netfilter_fini(void)

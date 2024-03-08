@@ -24,8 +24,8 @@
  * other events, and allow to use them from tools without special MSR
  * access code.
  *
- * The events only support system-wide mode counting. There is no
- * sampling support because it is not supported by the hardware.
+ * The events only support system-wide mode counting. There is anal
+ * sampling support because it is analt supported by the hardware.
  *
  * According to counters' scope and category, two PMUs are registered
  * with the perf_event core subsystem.
@@ -108,7 +108,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include "../perf_event.h"
@@ -191,7 +191,7 @@ static struct attribute *attrs_empty[] = {
 };
 
 /*
- * There are no default events, but we need to create
+ * There are anal default events, but we need to create
  * "events" group (with empty attrs) before updating
  * it with detected events.
  */
@@ -320,10 +320,10 @@ static int cstate_pmu_event_init(struct perf_event *event)
 	int cpu;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* anal sampling */
 		return -EINVAL;
 
 	if (event->cpu < 0)
@@ -332,7 +332,7 @@ static int cstate_pmu_event_init(struct perf_event *event)
 	if (event->pmu == &cstate_core_pmu) {
 		if (cfg >= PERF_CSTATE_CORE_EVENT_MAX)
 			return -EINVAL;
-		cfg = array_index_nospec((unsigned long)cfg, PERF_CSTATE_CORE_EVENT_MAX);
+		cfg = array_index_analspec((unsigned long)cfg, PERF_CSTATE_CORE_EVENT_MAX);
 		if (!(core_msr_mask & (1 << cfg)))
 			return -EINVAL;
 		event->hw.event_base = core_msr[cfg].msr;
@@ -341,7 +341,7 @@ static int cstate_pmu_event_init(struct perf_event *event)
 	} else if (event->pmu == &cstate_pkg_pmu) {
 		if (cfg >= PERF_CSTATE_PKG_EVENT_MAX)
 			return -EINVAL;
-		cfg = array_index_nospec((unsigned long)cfg, PERF_CSTATE_PKG_EVENT_MAX);
+		cfg = array_index_analspec((unsigned long)cfg, PERF_CSTATE_PKG_EVENT_MAX);
 		if (!(pkg_msr_mask & (1 << cfg)))
 			return -EINVAL;
 
@@ -353,18 +353,18 @@ static int cstate_pmu_event_init(struct perf_event *event)
 	} else if (event->pmu == &cstate_module_pmu) {
 		if (cfg >= PERF_CSTATE_MODULE_EVENT_MAX)
 			return -EINVAL;
-		cfg = array_index_nospec((unsigned long)cfg, PERF_CSTATE_MODULE_EVENT_MAX);
+		cfg = array_index_analspec((unsigned long)cfg, PERF_CSTATE_MODULE_EVENT_MAX);
 		if (!(module_msr_mask & (1 << cfg)))
 			return -EINVAL;
 		event->hw.event_base = module_msr[cfg].msr;
 		cpu = cpumask_any_and(&cstate_module_cpu_mask,
 				      topology_cluster_cpumask(event->cpu));
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (cpu >= nr_cpu_ids)
-		return -ENODEV;
+		return -EANALDEV;
 
 	event->cpu = cpu;
 	event->hw.config = cfg;
@@ -530,7 +530,7 @@ static struct pmu cstate_core_pmu = {
 	.start		= cstate_pmu_event_start,
 	.stop		= cstate_pmu_event_stop,
 	.read		= cstate_pmu_event_update,
-	.capabilities	= PERF_PMU_CAP_NO_INTERRUPT | PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities	= PERF_PMU_CAP_ANAL_INTERRUPT | PERF_PMU_CAP_ANAL_EXCLUDE,
 	.module		= THIS_MODULE,
 };
 
@@ -545,7 +545,7 @@ static struct pmu cstate_pkg_pmu = {
 	.start		= cstate_pmu_event_start,
 	.stop		= cstate_pmu_event_stop,
 	.read		= cstate_pmu_event_update,
-	.capabilities	= PERF_PMU_CAP_NO_INTERRUPT | PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities	= PERF_PMU_CAP_ANAL_INTERRUPT | PERF_PMU_CAP_ANAL_EXCLUDE,
 	.module		= THIS_MODULE,
 };
 
@@ -560,7 +560,7 @@ static struct pmu cstate_module_pmu = {
 	.start		= cstate_pmu_event_start,
 	.stop		= cstate_pmu_event_stop,
 	.read		= cstate_pmu_event_update,
-	.capabilities	= PERF_PMU_CAP_NO_INTERRUPT | PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities	= PERF_PMU_CAP_ANAL_INTERRUPT | PERF_PMU_CAP_ANAL_EXCLUDE,
 	.module		= THIS_MODULE,
 };
 
@@ -734,7 +734,7 @@ static const struct x86_cpu_id intel_cstates_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L,		&hswult_cstates),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		&hswult_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L,	&cnl_cstates),
+	X86_MATCH_INTEL_FAM6_MODEL(CANANALNLAKE_L,	&cnl_cstates),
 
 	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,	&knl_cstates),
 	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNM,	&knl_cstates),
@@ -796,13 +796,13 @@ static int __init cstate_probe(const struct cstate_model *cm)
 	has_cstate_pkg  = !!pkg_msr_mask;
 	has_cstate_module  = !!module_msr_mask;
 
-	return (has_cstate_core || has_cstate_pkg || has_cstate_module) ? 0 : -ENODEV;
+	return (has_cstate_core || has_cstate_pkg || has_cstate_module) ? 0 : -EANALDEV;
 }
 
 static inline void cstate_cleanup(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_ONLINE);
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_STARTING);
+	cpuhp_remove_state_analcalls(CPUHP_AP_PERF_X86_CSTATE_ONLINE);
+	cpuhp_remove_state_analcalls(CPUHP_AP_PERF_X86_CSTATE_STARTING);
 
 	if (has_cstate_core)
 		perf_pmu_unregister(&cstate_core_pmu);
@@ -867,11 +867,11 @@ static int __init cstate_pmu_init(void)
 	int err;
 
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = x86_match_cpu(intel_cstates_match);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = cstate_probe((const struct cstate_model *) id->driver_data);
 	if (err)

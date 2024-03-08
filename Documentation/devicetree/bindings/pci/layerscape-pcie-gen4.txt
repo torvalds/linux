@@ -14,9 +14,9 @@ Required properties:
 - interrupt-names: It could include the following entries:
   "intr": The interrupt that is asserted for controller interrupts
   "aer": Asserted for aer interrupt when chip support the aer interrupt with
-	 none MSI/MSI-X/INTx mode,but there is interrupt line for aer.
+	 analne MSI/MSI-X/INTx mode,but there is interrupt line for aer.
   "pme": Asserted for pme interrupt when chip support the pme interrupt with
-	 none MSI/MSI-X/INTx mode,but there is interrupt line for pme.
+	 analne MSI/MSI-X/INTx mode,but there is interrupt line for pme.
 - dma-coherent: Indicates that the hardware IP block can ensure the coherency
   of the data transferred from/to the IP block. This can avoid the software
   cache flush/invalid actions, and improve the performance significantly.

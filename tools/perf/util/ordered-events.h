@@ -15,7 +15,7 @@ struct ordered_event {
 };
 
 enum oe_flush {
-	OE_FLUSH__NONE,
+	OE_FLUSH__ANALNE,
 	OE_FLUSH__FINAL,
 	OE_FLUSH__ROUND,
 	OE_FLUSH__HALF,
@@ -48,7 +48,7 @@ struct ordered_events {
 	int				 buffer_idx;
 	unsigned int			 nr_events;
 	enum oe_flush			 last_flush_type;
-	u32				 nr_unordered_events;
+	u32				 nr_uanalrdered_events;
 	bool				 copy_on_queue;
 	void				*data;
 };

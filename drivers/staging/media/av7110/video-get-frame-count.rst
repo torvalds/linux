@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.video
 
 .. _VIDEO_GET_FRAME_COUNT:
@@ -14,7 +14,7 @@ VIDEO_GET_FRAME_COUNT
 
 .. attention:: This ioctl is deprecated.
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: VIDEO_GET_FRAME_COUNT
@@ -50,7 +50,7 @@ Arguments
 Description
 -----------
 
-This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
+This ioctl is obsolete. Do analt use in new drivers. For V4L2 decoders
 this ioctl has been replaced by the ``V4L2_CID_MPEG_VIDEO_DEC_FRAME``
 control.
 
@@ -60,6 +60,6 @@ frames since the decoder was started.
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

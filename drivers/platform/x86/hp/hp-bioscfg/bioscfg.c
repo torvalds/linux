@@ -14,7 +14,7 @@
 #include "bioscfg.h"
 #include "../../firmware_attributes_class.h"
 #include <linux/nls.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 MODULE_AUTHOR("Jorge Lopez <jorge.lopez2@hp.com>");
 MODULE_DESCRIPTION("HP BIOS Configuration Driver");
@@ -40,7 +40,7 @@ int hp_get_integer_from_buffer(u8 **buffer, u32 *buffer_size, u32 *integer)
 {
 	int *ptr = PTR_ALIGN((int *)*buffer, sizeof(int));
 
-	/* Ensure there is enough space remaining to read the integer */
+	/* Ensure there is eanalugh space remaining to read the integer */
 	if (*buffer_size < sizeof(int))
 		return -EINVAL;
 
@@ -67,7 +67,7 @@ int hp_get_string_from_buffer(u8 **buffer, u32 *buffer_size, char *dst, u32 dst_
 	/* size value in u16 chars */
 	size = src_size / sizeof(u16);
 
-	/* Ensure there is enough space remaining to read and convert
+	/* Ensure there is eanalugh space remaining to read and convert
 	 * the string
 	 */
 	if (*buffer_size < src_size)
@@ -246,8 +246,8 @@ int hp_wmi_error_and_message(int error_code)
 		ret = -EINVAL;
 		break;
 	case INVALID_CMD_VALUE:
-		error_msg = "Invalid command value/Feature not supported";
-		ret = -EOPNOTSUPP;
+		error_msg = "Invalid command value/Feature analt supported";
+		ret = -EOPANALTSUPP;
 		break;
 	case INVALID_CMD_TYPE:
 		error_msg = "Invalid command type";
@@ -265,8 +265,8 @@ int hp_wmi_error_and_message(int error_code)
 		error_msg = "Secure/encrypted command required";
 		ret = -EACCES;
 		break;
-	case NO_SECURE_SESSION:
-		error_msg = "No secure session established";
+	case ANAL_SECURE_SESSION:
+		error_msg = "Anal secure session established";
 		ret = -EACCES;
 		break;
 	case SECURE_SESSION_FOUND:
@@ -285,24 +285,24 @@ int hp_wmi_error_and_message(int error_code)
 		error_msg = "Invalid BIOS administrator password";
 		ret = -EINVAL;
 		break;
-	case NONCE_DID_NOT_MATCH:
-		error_msg = "Nonce did not match";
+	case ANALNCE_DID_ANALT_MATCH:
+		error_msg = "Analnce did analt match";
 		ret = -EINVAL;
 		break;
 	case GENERIC_ERROR:
 		error_msg = "Generic/Other error";
 		ret = -EIO;
 		break;
-	case BIOS_ADMIN_POLICY_NOT_MET:
-		error_msg = "BIOS Admin password does not meet password policy requirements";
+	case BIOS_ADMIN_POLICY_ANALT_MET:
+		error_msg = "BIOS Admin password does analt meet password policy requirements";
 		ret = -EINVAL;
 		break;
-	case BIOS_ADMIN_NOT_SET:
-		error_msg = "BIOS Setup password is not set";
+	case BIOS_ADMIN_ANALT_SET:
+		error_msg = "BIOS Setup password is analt set";
 		ret = -EPERM;
 		break;
-	case P21_NO_PROVISIONED:
-		error_msg = "P21 is not provisioned";
+	case P21_ANAL_PROVISIONED:
+		error_msg = "P21 is analt provisioned";
 		ret = -EPERM;
 		break;
 	case P21_PROVISION_IN_PROGRESS:
@@ -310,11 +310,11 @@ int hp_wmi_error_and_message(int error_code)
 		ret = -EINPROGRESS;
 		break;
 	case P21_IN_USE:
-		error_msg = "P21 in use (cannot deprovision)";
+		error_msg = "P21 in use (cananalt deprovision)";
 		ret = -EPERM;
 		break;
-	case HEP_NOT_ACTIVE:
-		error_msg = "HEP not activated";
+	case HEP_ANALT_ACTIVE:
+		error_msg = "HEP analt activated";
 		ret = -EPERM;
 		break;
 	case HEP_ALREADY_SET:
@@ -447,7 +447,7 @@ int hp_convert_hexstr_to_str(const char *input, u32 input_len, char **str, int *
 
 	new_str = kmalloc(input_len, GFP_KERNEL);
 	if (!new_str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < input_len; i += 5) {
 		strncpy(tmp, input + i, strlen(tmp));
@@ -477,7 +477,7 @@ int hp_convert_hexstr_to_str(const char *input, u32 input_len, char **str, int *
 		if (*str)
 			*len = new_len;
 		else
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 	} else {
 		ret = -EFAULT;
 	}
@@ -573,11 +573,11 @@ static void release_attributes_data(void)
 }
 
 /**
- * hp_add_other_attributes() - Initialize HP custom attributes not
+ * hp_add_other_attributes() - Initialize HP custom attributes analt
  * reported by BIOS and required to support Secure Platform and Sure
  * Start.
  *
- * @attr_type: Custom HP attribute not reported by BIOS
+ * @attr_type: Custom HP attribute analt reported by BIOS
  *
  * Initialize all 2 types of attributes: Platform and Sure Start
  * object.  Populates each attribute types respective properties
@@ -593,7 +593,7 @@ static int hp_add_other_attributes(int attr_type)
 
 	attr_name_kobj = kzalloc(sizeof(*attr_name_kobj), GFP_KERNEL);
 	if (!attr_name_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&bioscfg_drv.mutex);
 
@@ -610,7 +610,7 @@ static int hp_add_other_attributes(int attr_type)
 		break;
 
 	default:
-		pr_err("Error: Unknown attr_type: %d\n", attr_type);
+		pr_err("Error: Unkanalwn attr_type: %d\n", attr_type);
 		ret = -EINVAL;
 		kfree(attr_name_kobj);
 		goto unlock_drv_mutex;
@@ -665,7 +665,7 @@ static int hp_init_bios_package_attribute(enum hp_wmi_data_type attr_type,
 
 	/* Take action appropriate to each ACPI TYPE */
 	if (obj->package.count < min_elements) {
-		pr_err("ACPI-package does not have enough elements: %d < %d\n",
+		pr_err("ACPI-package does analt have eanalugh elements: %d < %d\n",
 		       obj->package.count, min_elements);
 		goto pack_attr_exit;
 	}
@@ -699,7 +699,7 @@ static int hp_init_bios_package_attribute(enum hp_wmi_data_type attr_type,
 		return ret;
 	}
 
-	/* All duplicate attributes found are ignored */
+	/* All duplicate attributes found are iganalred */
 	duplicate = kset_find_obj(temp_kset, str_value);
 	if (duplicate) {
 		pr_debug("Duplicate attribute name found - %s\n", str_value);
@@ -711,7 +711,7 @@ static int hp_init_bios_package_attribute(enum hp_wmi_data_type attr_type,
 	/* build attribute */
 	attr_name_kobj = kzalloc(sizeof(*attr_name_kobj), GFP_KERNEL);
 	if (!attr_name_kobj) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto pack_attr_exit;
 	}
 
@@ -753,7 +753,7 @@ static int hp_init_bios_package_attribute(enum hp_wmi_data_type attr_type,
 							attr_name_kobj);
 		break;
 	default:
-		pr_debug("Unknown attribute type found: 0x%x\n", attr_type);
+		pr_debug("Unkanalwn attribute type found: 0x%x\n", attr_type);
 		break;
 	}
 
@@ -792,7 +792,7 @@ static int hp_init_bios_buffer_attribute(enum hp_wmi_data_type attr_type,
 	else
 		temp_kset = bioscfg_drv.main_dir_kset;
 
-	/* All duplicate attributes found are ignored */
+	/* All duplicate attributes found are iganalred */
 	duplicate = kset_find_obj(temp_kset, str);
 	if (duplicate) {
 		pr_debug("Duplicate attribute name found - %s\n", str);
@@ -804,7 +804,7 @@ static int hp_init_bios_buffer_attribute(enum hp_wmi_data_type attr_type,
 	/* build attribute */
 	attr_name_kobj = kzalloc(sizeof(*attr_name_kobj), GFP_KERNEL);
 	if (!attr_name_kobj) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto buff_attr_exit;
 	}
 
@@ -854,7 +854,7 @@ static int hp_init_bios_buffer_attribute(enum hp_wmi_data_type attr_type,
 						       attr_name_kobj);
 		break;
 	default:
-		pr_debug("Unknown attribute type found: 0x%x\n", attr_type);
+		pr_debug("Unkanalwn attribute type found: 0x%x\n", attr_type);
 		break;
 	}
 
@@ -878,7 +878,7 @@ static int hp_init_bios_attributes(enum hp_wmi_data_type attr_type, const char *
 	int min_elements;
 
 	/* instance_id needs to be reset for each type GUID
-	 * also, instance IDs are unique within GUID but not across
+	 * also, instance IDs are unique within GUID but analt across
 	 */
 	int instance_id = 0;
 	int cur_instance_id = instance_id;
@@ -905,14 +905,14 @@ static int hp_init_bios_attributes(enum hp_wmi_data_type attr_type, const char *
 		min_elements = PSWD_ELEM_CNT;
 		break;
 	default:
-		pr_err("Error: Unknown attr_type: %d\n", attr_type);
+		pr_err("Error: Unkanalwn attr_type: %d\n", attr_type);
 		return -EINVAL;
 	}
 
 	/* need to use specific instance_id and guid combination to get right data */
 	obj = hp_get_wmiobj_pointer(instance_id, guid);
 	if (!obj)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&bioscfg_drv.mutex);
 	while (obj) {
@@ -935,7 +935,7 @@ static int hp_init_bios_attributes(enum hp_wmi_data_type attr_type, const char *
 		}
 
 		/*
-		 * Failure reported in one attribute must not
+		 * Failure reported in one attribute must analt
 		 * stop process of the remaining attribute values.
 		 */
 		if (ret >= 0)
@@ -959,13 +959,13 @@ static int __init hp_init(void)
 	int set_bios_settings = wmi_has_guid(HP_WMI_SET_BIOS_SETTING_GUID);
 
 	if (!hp_bios_capable) {
-		pr_err("Unable to run on non-HP system\n");
-		return -ENODEV;
+		pr_err("Unable to run on analn-HP system\n");
+		return -EANALDEV;
 	}
 
 	if (!set_bios_settings) {
 		pr_err("Unable to set BIOS settings on HP systems\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = hp_init_attr_set_interface();
@@ -986,7 +986,7 @@ static int __init hp_init(void)
 	bioscfg_drv.main_dir_kset = kset_create_and_add("attributes", NULL,
 							&bioscfg_drv.class_dev->kobj);
 	if (!bioscfg_drv.main_dir_kset) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		pr_debug("Failed to create and add attributes\n");
 		goto err_destroy_classdev;
 	}
@@ -994,7 +994,7 @@ static int __init hp_init(void)
 	bioscfg_drv.authentication_dir_kset = kset_create_and_add("authentication", NULL,
 								  &bioscfg_drv.class_dev->kobj);
 	if (!bioscfg_drv.authentication_dir_kset) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		pr_debug("Failed to create and add authentication\n");
 		goto err_release_attributes_data;
 	}

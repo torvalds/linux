@@ -128,12 +128,12 @@ struct atomisp_shading_table32 {
 struct atomisp_parameters32 {
 	compat_uptr_t wb_config;  /* White Balance config */
 	compat_uptr_t cc_config;  /* Color Correction config */
-	compat_uptr_t tnr_config; /* Temporal Noise Reduction */
+	compat_uptr_t tnr_config; /* Temporal Analise Reduction */
 	compat_uptr_t ecd_config; /* Eigen Color Demosaicing */
-	compat_uptr_t ynr_config; /* Y(Luma) Noise Reduction */
+	compat_uptr_t ynr_config; /* Y(Luma) Analise Reduction */
 	compat_uptr_t fc_config;  /* Fringe Control */
 	compat_uptr_t formats_config;  /* Formats Control */
-	compat_uptr_t cnr_config; /* Chroma Noise Reduction */
+	compat_uptr_t cnr_config; /* Chroma Analise Reduction */
 	compat_uptr_t macc_config;  /* MACC */
 	compat_uptr_t ctc_config; /* Chroma Tone Control */
 	compat_uptr_t aa_config;  /* Anti-Aliasing */
@@ -142,13 +142,13 @@ struct atomisp_parameters32 {
 	compat_uptr_t dvs_6axis_config;
 	compat_uptr_t ob_config;  /* Objective Black config */
 	compat_uptr_t dp_config;  /* Dead Pixel config */
-	compat_uptr_t nr_config;  /* Noise Reduction config */
+	compat_uptr_t nr_config;  /* Analise Reduction config */
 	compat_uptr_t ee_config;  /* Edge Enhancement config */
 	compat_uptr_t de_config;  /* Demosaic config */
 	compat_uptr_t gc_config;  /* Gamma Correction config */
-	compat_uptr_t anr_config; /* Advanced Noise Reduction */
+	compat_uptr_t anr_config; /* Advanced Analise Reduction */
 	compat_uptr_t a3a_config; /* 3A Statistics config */
-	compat_uptr_t xnr_config; /* eXtra Noise Reduction */
+	compat_uptr_t xnr_config; /* eXtra Analise Reduction */
 	compat_uptr_t dz_config;  /* Digital Zoom */
 	compat_uptr_t yuv2rgb_cc_config; /* Color
 							Correction config */
@@ -171,7 +171,7 @@ struct atomisp_parameters32 {
 
 	compat_uptr_t	lin_2500_config;       /* Skylake: Linearization config */
 	compat_uptr_t	obgrid_2500_config;    /* Skylake: OBGRID config */
-	compat_uptr_t	bnr_2500_config;       /* Skylake: bayer denoise config */
+	compat_uptr_t	bnr_2500_config;       /* Skylake: bayer deanalise config */
 	compat_uptr_t	shd_2500_config;       /* Skylake: shading config */
 	compat_uptr_t	dm_2500_config;        /* Skylake: demosaic config */
 	compat_uptr_t	rgbpp_2500_config;     /* Skylake: RGBPP config */

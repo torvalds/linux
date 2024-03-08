@@ -26,7 +26,7 @@
  * @ssi: suppress-suspended interruption
  * @zcc: zero condition code
  * @ectl: extended control
- * @pno: path not operational
+ * @panal: path analt operational
  * @res: reserved
  * @fctl: function control
  * @actl: activity control
@@ -48,7 +48,7 @@ struct cmd_scsw {
 	__u32 ssi  : 1;
 	__u32 zcc  : 1;
 	__u32 ectl : 1;
-	__u32 pno  : 1;
+	__u32 panal  : 1;
 	__u32 res  : 1;
 	__u32 fctl : 3;
 	__u32 actl : 7;
@@ -68,7 +68,7 @@ struct cmd_scsw {
  * @x: IRB-format control
  * @q: interrogate-complete
  * @ectl: extended control
- * @pno: path not operational
+ * @panal: path analt operational
  * @fctl: function control
  * @actl: activity control
  * @stctl: status control
@@ -88,7 +88,7 @@ struct tm_scsw {
 	u32 q:1;
 	u32 :1;
 	u32 ectl:1;
-	u32 pno:1;
+	u32 panal:1;
 	u32 :1;
 	u32 fctl:3;
 	u32 actl:7;
@@ -179,8 +179,8 @@ union scsw {
 #define SCHN_STAT_INTF_CTRL_CHK	 0x02
 #define SCHN_STAT_CHAIN_CHECK	 0x01
 
-#define SCSW_SESQ_DEV_NOFCX	 3
-#define SCSW_SESQ_PATH_NOFCX	 4
+#define SCSW_SESQ_DEV_ANALFCX	 3
+#define SCSW_SESQ_PATH_ANALFCX	 4
 
 /*
  * architectured values for first sense byte
@@ -201,7 +201,7 @@ union scsw {
 #define SNS1_INV_TRACK_FORMAT	0x40
 #define SNS1_EOC		0x20
 #define SNS1_MESSAGE_TO_OPER	0x10
-#define SNS1_NO_REC_FOUND	0x08
+#define SNS1_ANAL_REC_FOUND	0x08
 #define SNS1_FILE_PROTECTED	0x04
 #define SNS1_WRITE_INHIBITED	0x02
 #define SNS1_INPRECISE_END	0x01
@@ -224,7 +224,7 @@ union scsw {
  * scsw_is_tm - check for transport mode scsw
  * @scsw: pointer to scsw
  *
- * Return non-zero if the specified scsw is a transport mode scsw, zero
+ * Return analn-zero if the specified scsw is a transport mode scsw, zero
  * otherwise.
  */
 static inline int scsw_is_tm(union scsw *scsw)
@@ -293,18 +293,18 @@ static inline u32 scsw_ectl(union scsw *scsw)
 }
 
 /**
- * scsw_pno - return scsw pno field
+ * scsw_panal - return scsw panal field
  * @scsw: pointer to scsw
  *
- * Return the value of the pno field of the specified scsw, regardless of
+ * Return the value of the panal field of the specified scsw, regardless of
  * whether it is a transport mode or command mode scsw.
  */
-static inline u32 scsw_pno(union scsw *scsw)
+static inline u32 scsw_panal(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
-		return scsw->tm.pno;
+		return scsw->tm.panal;
 	else
-		return scsw->cmd.pno;
+		return scsw->cmd.panal;
 }
 
 /**
@@ -386,7 +386,7 @@ static inline u32 scsw_cstat(union scsw *scsw)
  * scsw_cmd_is_valid_key - check key field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the key field of the specified command mode scsw is
+ * Return analn-zero if the key field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_key(union scsw *scsw)
@@ -398,7 +398,7 @@ static inline int scsw_cmd_is_valid_key(union scsw *scsw)
  * scsw_cmd_is_valid_sctl - check sctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the sctl field of the specified command mode scsw is
+ * Return analn-zero if the sctl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_sctl(union scsw *scsw)
@@ -410,7 +410,7 @@ static inline int scsw_cmd_is_valid_sctl(union scsw *scsw)
  * scsw_cmd_is_valid_eswf - check eswf field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the eswf field of the specified command mode scsw is
+ * Return analn-zero if the eswf field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_eswf(union scsw *scsw)
@@ -422,7 +422,7 @@ static inline int scsw_cmd_is_valid_eswf(union scsw *scsw)
  * scsw_cmd_is_valid_cc - check cc field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the cc field of the specified command mode scsw is
+ * Return analn-zero if the cc field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_cc(union scsw *scsw)
@@ -435,7 +435,7 @@ static inline int scsw_cmd_is_valid_cc(union scsw *scsw)
  * scsw_cmd_is_valid_fmt - check fmt field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the fmt field of the specified command mode scsw is
+ * Return analn-zero if the fmt field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_fmt(union scsw *scsw)
@@ -447,7 +447,7 @@ static inline int scsw_cmd_is_valid_fmt(union scsw *scsw)
  * scsw_cmd_is_valid_pfch - check pfch field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the pfch field of the specified command mode scsw is
+ * Return analn-zero if the pfch field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_pfch(union scsw *scsw)
@@ -459,7 +459,7 @@ static inline int scsw_cmd_is_valid_pfch(union scsw *scsw)
  * scsw_cmd_is_valid_isic - check isic field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the isic field of the specified command mode scsw is
+ * Return analn-zero if the isic field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_isic(union scsw *scsw)
@@ -471,7 +471,7 @@ static inline int scsw_cmd_is_valid_isic(union scsw *scsw)
  * scsw_cmd_is_valid_alcc - check alcc field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the alcc field of the specified command mode scsw is
+ * Return analn-zero if the alcc field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_alcc(union scsw *scsw)
@@ -483,7 +483,7 @@ static inline int scsw_cmd_is_valid_alcc(union scsw *scsw)
  * scsw_cmd_is_valid_ssi - check ssi field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the ssi field of the specified command mode scsw is
+ * Return analn-zero if the ssi field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_ssi(union scsw *scsw)
@@ -495,7 +495,7 @@ static inline int scsw_cmd_is_valid_ssi(union scsw *scsw)
  * scsw_cmd_is_valid_zcc - check zcc field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the zcc field of the specified command mode scsw is
+ * Return analn-zero if the zcc field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_zcc(union scsw *scsw)
@@ -508,7 +508,7 @@ static inline int scsw_cmd_is_valid_zcc(union scsw *scsw)
  * scsw_cmd_is_valid_ectl - check ectl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the ectl field of the specified command mode scsw is
+ * Return analn-zero if the ectl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_ectl(union scsw *scsw)
@@ -522,7 +522,7 @@ static inline int scsw_cmd_is_valid_ectl(union scsw *scsw)
 		return 0;
 
 	/* Must be alone or together with primary, secondary or both,
-	 * => no intermediate status.
+	 * => anal intermediate status.
 	 */
 	if (scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS)
 		return 0;
@@ -531,13 +531,13 @@ static inline int scsw_cmd_is_valid_ectl(union scsw *scsw)
 }
 
 /**
- * scsw_cmd_is_valid_pno - check pno field validity
+ * scsw_cmd_is_valid_panal - check panal field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the pno field of the specified command mode scsw is
+ * Return analn-zero if the panal field of the specified command mode scsw is
  * valid, zero otherwise.
  */
-static inline int scsw_cmd_is_valid_pno(union scsw *scsw)
+static inline int scsw_cmd_is_valid_panal(union scsw *scsw)
 {
 	/* Must indicate at least one I/O function. */
 	if (!scsw->cmd.fctl)
@@ -548,7 +548,7 @@ static inline int scsw_cmd_is_valid_pno(union scsw *scsw)
 		return 0;
 
 	/* Can be status pending alone, or with any combination of primary,
-	 * secondary and alert => no intermediate status.
+	 * secondary and alert => anal intermediate status.
 	 */
 	if (!(scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS))
 		return 1;
@@ -564,7 +564,7 @@ static inline int scsw_cmd_is_valid_pno(union scsw *scsw)
  * scsw_cmd_is_valid_fctl - check fctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the fctl field of the specified command mode scsw is
+ * Return analn-zero if the fctl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_fctl(union scsw *scsw)
@@ -577,7 +577,7 @@ static inline int scsw_cmd_is_valid_fctl(union scsw *scsw)
  * scsw_cmd_is_valid_actl - check actl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the actl field of the specified command mode scsw is
+ * Return analn-zero if the actl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_actl(union scsw *scsw)
@@ -590,7 +590,7 @@ static inline int scsw_cmd_is_valid_actl(union scsw *scsw)
  * scsw_cmd_is_valid_stctl - check stctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the stctl field of the specified command mode scsw is
+ * Return analn-zero if the stctl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_stctl(union scsw *scsw)
@@ -603,7 +603,7 @@ static inline int scsw_cmd_is_valid_stctl(union scsw *scsw)
  * scsw_cmd_is_valid_dstat - check dstat field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the dstat field of the specified command mode scsw is
+ * Return analn-zero if the dstat field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_dstat(union scsw *scsw)
@@ -616,7 +616,7 @@ static inline int scsw_cmd_is_valid_dstat(union scsw *scsw)
  * scsw_cmd_is_valid_cstat - check cstat field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the cstat field of the specified command mode scsw is
+ * Return analn-zero if the cstat field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_cstat(union scsw *scsw)
@@ -629,7 +629,7 @@ static inline int scsw_cmd_is_valid_cstat(union scsw *scsw)
  * scsw_tm_is_valid_key - check key field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the key field of the specified transport mode scsw is
+ * Return analn-zero if the key field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_key(union scsw *scsw)
@@ -641,7 +641,7 @@ static inline int scsw_tm_is_valid_key(union scsw *scsw)
  * scsw_tm_is_valid_eswf - check eswf field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the eswf field of the specified transport mode scsw is
+ * Return analn-zero if the eswf field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_eswf(union scsw *scsw)
@@ -653,7 +653,7 @@ static inline int scsw_tm_is_valid_eswf(union scsw *scsw)
  * scsw_tm_is_valid_cc - check cc field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the cc field of the specified transport mode scsw is
+ * Return analn-zero if the cc field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_cc(union scsw *scsw)
@@ -666,7 +666,7 @@ static inline int scsw_tm_is_valid_cc(union scsw *scsw)
  * scsw_tm_is_valid_fmt - check fmt field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the fmt field of the specified transport mode scsw is
+ * Return analn-zero if the fmt field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_fmt(union scsw *scsw)
@@ -678,7 +678,7 @@ static inline int scsw_tm_is_valid_fmt(union scsw *scsw)
  * scsw_tm_is_valid_x - check x field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the x field of the specified transport mode scsw is
+ * Return analn-zero if the x field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_x(union scsw *scsw)
@@ -690,7 +690,7 @@ static inline int scsw_tm_is_valid_x(union scsw *scsw)
  * scsw_tm_is_valid_q - check q field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the q field of the specified transport mode scsw is
+ * Return analn-zero if the q field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_q(union scsw *scsw)
@@ -702,7 +702,7 @@ static inline int scsw_tm_is_valid_q(union scsw *scsw)
  * scsw_tm_is_valid_ectl - check ectl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the ectl field of the specified transport mode scsw is
+ * Return analn-zero if the ectl field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_ectl(union scsw *scsw)
@@ -716,7 +716,7 @@ static inline int scsw_tm_is_valid_ectl(union scsw *scsw)
 		return 0;
 
 	/* Must be alone or together with primary, secondary or both,
-	 * => no intermediate status.
+	 * => anal intermediate status.
 	 */
 	if (scsw->tm.stctl & SCSW_STCTL_INTER_STATUS)
 		return 0;
@@ -725,13 +725,13 @@ static inline int scsw_tm_is_valid_ectl(union scsw *scsw)
 }
 
 /**
- * scsw_tm_is_valid_pno - check pno field validity
+ * scsw_tm_is_valid_panal - check panal field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the pno field of the specified transport mode scsw is
+ * Return analn-zero if the panal field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
-static inline int scsw_tm_is_valid_pno(union scsw *scsw)
+static inline int scsw_tm_is_valid_panal(union scsw *scsw)
 {
 	/* Must indicate at least one I/O function. */
 	if (!scsw->tm.fctl)
@@ -742,7 +742,7 @@ static inline int scsw_tm_is_valid_pno(union scsw *scsw)
 		return 0;
 
 	/* Can be status pending alone, or with any combination of primary,
-	 * secondary and alert => no intermediate status.
+	 * secondary and alert => anal intermediate status.
 	 */
 	if (!(scsw->tm.stctl & SCSW_STCTL_INTER_STATUS))
 		return 1;
@@ -758,7 +758,7 @@ static inline int scsw_tm_is_valid_pno(union scsw *scsw)
  * scsw_tm_is_valid_fctl - check fctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the fctl field of the specified transport mode scsw is
+ * Return analn-zero if the fctl field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_fctl(union scsw *scsw)
@@ -771,7 +771,7 @@ static inline int scsw_tm_is_valid_fctl(union scsw *scsw)
  * scsw_tm_is_valid_actl - check actl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the actl field of the specified transport mode scsw is
+ * Return analn-zero if the actl field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_actl(union scsw *scsw)
@@ -784,7 +784,7 @@ static inline int scsw_tm_is_valid_actl(union scsw *scsw)
  * scsw_tm_is_valid_stctl - check stctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the stctl field of the specified transport mode scsw is
+ * Return analn-zero if the stctl field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_stctl(union scsw *scsw)
@@ -797,7 +797,7 @@ static inline int scsw_tm_is_valid_stctl(union scsw *scsw)
  * scsw_tm_is_valid_dstat - check dstat field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the dstat field of the specified transport mode scsw is
+ * Return analn-zero if the dstat field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_dstat(union scsw *scsw)
@@ -810,7 +810,7 @@ static inline int scsw_tm_is_valid_dstat(union scsw *scsw)
  * scsw_tm_is_valid_cstat - check cstat field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the cstat field of the specified transport mode scsw is
+ * Return analn-zero if the cstat field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_cstat(union scsw *scsw)
@@ -823,7 +823,7 @@ static inline int scsw_tm_is_valid_cstat(union scsw *scsw)
  * scsw_tm_is_valid_fcxs - check fcxs field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the fcxs field of the specified transport mode scsw is
+ * Return analn-zero if the fcxs field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_fcxs(union scsw *scsw)
@@ -835,7 +835,7 @@ static inline int scsw_tm_is_valid_fcxs(union scsw *scsw)
  * scsw_tm_is_valid_schxs - check schxs field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the schxs field of the specified transport mode scsw is
+ * Return analn-zero if the schxs field of the specified transport mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_tm_is_valid_schxs(union scsw *scsw)
@@ -850,9 +850,9 @@ static inline int scsw_tm_is_valid_schxs(union scsw *scsw)
  * scsw_is_valid_actl - check actl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the actl field of the specified scsw is valid,
+ * Return analn-zero if the actl field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_actl(union scsw *scsw)
 {
@@ -866,9 +866,9 @@ static inline int scsw_is_valid_actl(union scsw *scsw)
  * scsw_is_valid_cc - check cc field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the cc field of the specified scsw is valid,
+ * Return analn-zero if the cc field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_cc(union scsw *scsw)
 {
@@ -882,9 +882,9 @@ static inline int scsw_is_valid_cc(union scsw *scsw)
  * scsw_is_valid_cstat - check cstat field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the cstat field of the specified scsw is valid,
+ * Return analn-zero if the cstat field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_cstat(union scsw *scsw)
 {
@@ -898,9 +898,9 @@ static inline int scsw_is_valid_cstat(union scsw *scsw)
  * scsw_is_valid_dstat - check dstat field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the dstat field of the specified scsw is valid,
+ * Return analn-zero if the dstat field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_dstat(union scsw *scsw)
 {
@@ -914,9 +914,9 @@ static inline int scsw_is_valid_dstat(union scsw *scsw)
  * scsw_is_valid_ectl - check ectl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the ectl field of the specified scsw is valid,
+ * Return analn-zero if the ectl field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_ectl(union scsw *scsw)
 {
@@ -930,9 +930,9 @@ static inline int scsw_is_valid_ectl(union scsw *scsw)
  * scsw_is_valid_eswf - check eswf field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the eswf field of the specified scsw is valid,
+ * Return analn-zero if the eswf field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_eswf(union scsw *scsw)
 {
@@ -946,9 +946,9 @@ static inline int scsw_is_valid_eswf(union scsw *scsw)
  * scsw_is_valid_fctl - check fctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the fctl field of the specified scsw is valid,
+ * Return analn-zero if the fctl field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_fctl(union scsw *scsw)
 {
@@ -962,9 +962,9 @@ static inline int scsw_is_valid_fctl(union scsw *scsw)
  * scsw_is_valid_key - check key field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the key field of the specified scsw is valid,
+ * Return analn-zero if the key field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_key(union scsw *scsw)
 {
@@ -975,28 +975,28 @@ static inline int scsw_is_valid_key(union scsw *scsw)
 }
 
 /**
- * scsw_is_valid_pno - check pno field validity
+ * scsw_is_valid_panal - check panal field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the pno field of the specified scsw is valid,
+ * Return analn-zero if the panal field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
-static inline int scsw_is_valid_pno(union scsw *scsw)
+static inline int scsw_is_valid_panal(union scsw *scsw)
 {
 	if (scsw_is_tm(scsw))
-		return scsw_tm_is_valid_pno(scsw);
+		return scsw_tm_is_valid_panal(scsw);
 	else
-		return scsw_cmd_is_valid_pno(scsw);
+		return scsw_cmd_is_valid_panal(scsw);
 }
 
 /**
  * scsw_is_valid_stctl - check stctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the stctl field of the specified scsw is valid,
+ * Return analn-zero if the stctl field of the specified scsw is valid,
  * regardless of whether it is a transport mode or command mode scsw.
- * Return zero if the field does not contain a valid value.
+ * Return zero if the field does analt contain a valid value.
  */
 static inline int scsw_is_valid_stctl(union scsw *scsw)
 {
@@ -1010,7 +1010,7 @@ static inline int scsw_is_valid_stctl(union scsw *scsw)
  * scsw_cmd_is_solicited - check for solicited scsw
  * @scsw: pointer to scsw
  *
- * Return non-zero if the command mode scsw indicates that the associated
+ * Return analn-zero if the command mode scsw indicates that the associated
  * status condition is solicited, zero if it is unsolicited.
  */
 static inline int scsw_cmd_is_solicited(union scsw *scsw)
@@ -1023,7 +1023,7 @@ static inline int scsw_cmd_is_solicited(union scsw *scsw)
  * scsw_tm_is_solicited - check for solicited scsw
  * @scsw: pointer to scsw
  *
- * Return non-zero if the transport mode scsw indicates that the associated
+ * Return analn-zero if the transport mode scsw indicates that the associated
  * status condition is solicited, zero if it is unsolicited.
  */
 static inline int scsw_tm_is_solicited(union scsw *scsw)
@@ -1036,7 +1036,7 @@ static inline int scsw_tm_is_solicited(union scsw *scsw)
  * scsw_is_solicited - check for solicited scsw
  * @scsw: pointer to scsw
  *
- * Return non-zero if the transport or command mode scsw indicates that the
+ * Return analn-zero if the transport or command mode scsw indicates that the
  * associated status condition is solicited, zero if it is unsolicited.
  */
 static inline int scsw_is_solicited(union scsw *scsw)

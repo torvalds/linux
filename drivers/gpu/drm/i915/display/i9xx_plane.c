@@ -28,7 +28,7 @@ static const u32 i8xx_primary_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
-/* Primary plane formats for ivb (no fp16 due to hw issue) */
+/* Primary plane formats for ivb (anal fp16 due to hw issue) */
 static const u32 ivb_primary_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
@@ -258,12 +258,12 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	 * When using an X-tiled surface the plane starts to
 	 * misbehave if the x offset + width exceeds the stride.
 	 * hsw/bdw: underrun galore
-	 * ilk/snb/ivb: wrap to the next tile row mid scanout
+	 * ilk/snb/ivb: wrap to the next tile row mid scaanalut
 	 * i965/g4x: so far appear immune to this
 	 * vlv/chv: TODO check
 	 *
 	 * Linear surfaces seem to work just fine, even on hsw/bdw
-	 * despite them not using the linear offset anymore.
+	 * despite them analt using the linear offset anymore.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 4 && fb->modifier == I915_FORMAT_MOD_X_TILED) {
 		u32 alignment = intel_surf_alignment(fb, 0);
@@ -328,8 +328,8 @@ i9xx_plane_check(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
-						DRM_PLANE_NO_SCALING,
-						DRM_PLANE_NO_SCALING,
+						DRM_PLANE_ANAL_SCALING,
+						DRM_PLANE_ANAL_SCALING,
 						i9xx_plane_has_windowing(plane));
 	if (ret)
 		return ret;
@@ -398,10 +398,10 @@ static int i9xx_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int num, den;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Analte that crtc_state->pixel_rate accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
-	 * downscaling factor here. We ignore that and just consider
+	 * downscaling factor here. We iganalre that and just consider
 	 * both for simplicity.
 	 */
 	pixel_rate = crtc_state->pixel_rate;
@@ -415,7 +415,7 @@ static int i9xx_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
-static void i9xx_plane_update_noarm(struct intel_plane *plane,
+static void i9xx_plane_update_analarm(struct intel_plane *plane,
 				    const struct intel_crtc_state *crtc_state,
 				    const struct intel_plane_state *plane_state)
 {
@@ -479,7 +479,7 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, DSPOFFSET(i9xx_plane),
 				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
 	} else if (DISPLAY_VER(dev_priv) >= 4) {
-		intel_de_write_fw(dev_priv, DSPLINOFF(i9xx_plane),
+		intel_de_write_fw(dev_priv, DSPLIANALFF(i9xx_plane),
 				  linear_offset);
 		intel_de_write_fw(dev_priv, DSPTILEOFF(i9xx_plane),
 				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
@@ -510,7 +510,7 @@ static void i830_plane_update_arm(struct intel_plane *plane,
 	 * Additional breakage on i830 causes register reads to return
 	 * the last latched value instead of the last written value [ALM026].
 	 */
-	i9xx_plane_update_noarm(plane, crtc_state, plane_state);
+	i9xx_plane_update_analarm(plane, crtc_state, plane_state);
 	i9xx_plane_update_arm(plane, crtc_state, plane_state);
 }
 
@@ -527,7 +527,7 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 	 * well, so we must configure them even if the plane
 	 * is disabled.
 	 *
-	 * On pre-g4x there is no way to gamma correct the
+	 * On pre-g4x there is anal way to gamma correct the
 	 * pipe bottom color but we'll keep on doing this
 	 * anyway so that the crtc state readout works correctly.
 	 */
@@ -670,7 +670,7 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 	u32 val;
 
 	/*
-	 * Not 100% correct for planes that can move between pipes,
+	 * Analt 100% correct for planes that can move between pipes,
 	 * but that's only the case for gen2-4 which don't have any
 	 * display power wells.
 	 */
@@ -815,10 +815,10 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		 *  gamma correction or pipe color space conversion to
 		 *  multiply the plane output by four."
 		 *
-		 * There is no dedicated plane gamma for the primary plane,
+		 * There is anal dedicated plane gamma for the primary plane,
 		 * and using the pipe gamma/csc could conflict with other
-		 * planes, so we choose not to expose fp16 on IVB primary
-		 * planes. HSW primary planes no longer have this problem.
+		 * planes, so we choose analt to expose fp16 on IVB primary
+		 * planes. HSW primary planes anal longer have this problem.
 		 */
 		if (IS_IVYBRIDGE(dev_priv)) {
 			formats = ivb_primary_formats;
@@ -861,7 +861,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (IS_I830(dev_priv) || IS_I845G(dev_priv)) {
 		plane->update_arm = i830_plane_update_arm;
 	} else {
-		plane->update_noarm = i9xx_plane_update_noarm;
+		plane->update_analarm = i9xx_plane_update_analarm;
 		plane->update_arm = i9xx_plane_update_arm;
 	}
 	plane->disable_arm = i9xx_plane_disable_arm;
@@ -1031,7 +1031,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 					       DSPTILEOFF(i9xx_plane));
 		else
 			offset = intel_de_read(dev_priv,
-					       DSPLINOFF(i9xx_plane));
+					       DSPLIANALFF(i9xx_plane));
 		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & DISP_ADDR_MASK;
 	} else {
 		offset = 0;

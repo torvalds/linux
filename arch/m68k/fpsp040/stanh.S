@@ -2,7 +2,7 @@
 |	stanh.sa 3.1 12/10/90
 |
 |	The entry point sTanh computes the hyperbolic tangent of
-|	an input argument; sTanhd does the same except for denormalized
+|	an input argument; sTanhd does the same except for deanalrmalized
 |	input.
 |
 |	Input: Double-extended number X in location pointed to
@@ -10,10 +10,10 @@
 |
 |	Output: The value tanh(X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 3 ulps in
+|	Accuracy and Moanaltonicity: The returned result is within 3 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moanaltonic in double precision.
 |
 |	Speed: The program stanh takes approximately 270 cycles.
 |
@@ -75,7 +75,7 @@ BOUNDS1:	.long 0x3FD78000,0x3FFFDDCE | ... 2^(-40), (5/2)LOG2
 
 	.global	stanhd
 stanhd:
-|--TANH(X) = X FOR DENORMALIZED X
+|--TANH(X) = X FOR DEANALRMALIZED X
 
 	bra		t_extdnrm
 

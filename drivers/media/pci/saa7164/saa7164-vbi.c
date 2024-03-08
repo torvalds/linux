@@ -18,7 +18,7 @@ static void saa7164_vbi_configure(struct saa7164_port *port)
 	port->vbi_params.width = port->enc_port->width;
 	port->vbi_params.height = port->enc_port->height;
 	port->vbi_params.is_50hz =
-		(port->enc_port->encodernorm.id & V4L2_STD_625_50) != 0;
+		(port->enc_port->encoderanalrm.id & V4L2_STD_625_50) != 0;
 
 	/* Set up the DIF (enable it) for analog mode by default */
 	saa7164_api_initialize_dif(port);
@@ -69,7 +69,7 @@ static int saa7164_vbi_buffers_alloc(struct saa7164_port *port)
 	struct saa7164_buffer *buf;
 	struct saa7164_user_buffer *ubuf;
 	struct tmHWStreamParameters *params = &port->hw_streamingparams;
-	int result = -ENODEV, i;
+	int result = -EANALDEV, i;
 	int len = 0;
 
 	dprintk(DBGLVL_VBI, "%s()\n", __func__);
@@ -96,9 +96,9 @@ static int saa7164_vbi_buffers_alloc(struct saa7164_port *port)
 			params->pitch);
 
 		if (!buf) {
-			printk(KERN_ERR "%s() failed (errno = %d), unable to allocate buffer\n",
+			printk(KERN_ERR "%s() failed (erranal = %d), unable to allocate buffer\n",
 				__func__, result);
-			result = -ENOMEM;
+			result = -EANALMEM;
 			goto failed;
 		} else {
 
@@ -336,7 +336,7 @@ static int saa7164_vbi_start_streaming(struct saa7164_port *port)
 
 	/* Negotiate format */
 	if (saa7164_api_set_vbi_format(port) != SAA_OK) {
-		printk(KERN_ERR "%s() No supported VBI format\n", __func__);
+		printk(KERN_ERR "%s() Anal supported VBI format\n", __func__);
 		ret = -EIO;
 		goto out;
 	}
@@ -417,7 +417,7 @@ static int fops_open(struct file *file)
 
 	port = (struct saa7164_port *)video_get_drvdata(video_devdata(file));
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = port->dev;
 
@@ -426,7 +426,7 @@ static int fops_open(struct file *file)
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (NULL == fh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fh->port = port;
 	v4l2_fh_init(&fh->fh, video_devdata(file));
@@ -526,7 +526,7 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 	}
 
 	/* blocking wait for buffer */
-	if ((file->f_flags & O_NONBLOCK) == 0) {
+	if ((file->f_flags & O_ANALNBLOCK) == 0) {
 		if (wait_event_interruptible(port->wait_read,
 			saa7164_vbi_next_buf(port))) {
 				printk(KERN_ERR "%s() ERESTARTSYS\n", __func__);
@@ -578,7 +578,7 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 			mutex_unlock(&port->dmaqueue_lock);
 
 			/* Dequeue next */
-			if ((file->f_flags & O_NONBLOCK) == 0) {
+			if ((file->f_flags & O_ANALNBLOCK) == 0) {
 				if (wait_event_interruptible(port->wait_read,
 					saa7164_vbi_next_buf(port))) {
 						break;
@@ -623,7 +623,7 @@ static __poll_t fops_poll(struct file *file, poll_table *wait)
 	}
 
 	/* blocking wait for buffer */
-	if ((file->f_flags & O_NONBLOCK) == 0) {
+	if ((file->f_flags & O_ANALNBLOCK) == 0) {
 		if (wait_event_interruptible(port->wait_read,
 			saa7164_vbi_next_buf(port))) {
 				return EPOLLERR;
@@ -632,7 +632,7 @@ static __poll_t fops_poll(struct file *file, poll_table *wait)
 
 	/* Pull the first buffer from the used list */
 	if (!list_empty(&port->list_buf_used.list))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
@@ -665,8 +665,8 @@ static struct video_device saa7164_vbi_template = {
 	.name          = "saa7164",
 	.fops          = &vbi_fops,
 	.ioctl_ops     = &vbi_ioctl_ops,
-	.minor         = -1,
-	.tvnorms       = SAA7164_NORMS,
+	.mianalr         = -1,
+	.tvanalrms       = SAA7164_ANALRMS,
 	.device_caps   = V4L2_CAP_VBI_CAPTURE | V4L2_CAP_READWRITE |
 			 V4L2_CAP_TUNER,
 };
@@ -698,7 +698,7 @@ static struct video_device *saa7164_vbi_alloc(
 int saa7164_vbi_register(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
-	int result = -ENODEV;
+	int result = -EANALDEV;
 
 	dprintk(DBGLVL_VBI, "%s()\n", __func__);
 
@@ -706,22 +706,22 @@ int saa7164_vbi_register(struct saa7164_port *port)
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
-		printk(KERN_ERR "%s() failed (errno = %d), NO PCI configuration\n",
+		printk(KERN_ERR "%s() failed (erranal = %d), ANAL PCI configuration\n",
 			__func__, result);
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto failed;
 	}
 
 	/* Establish VBI defaults here */
 
-	/* Allocate and register the video device node */
+	/* Allocate and register the video device analde */
 	port->v4l_device = saa7164_vbi_alloc(port,
 		dev->pci, &saa7164_vbi_template, "vbi");
 
 	if (!port->v4l_device) {
 		printk(KERN_INFO "%s: can't allocate vbi device\n",
 			dev->name);
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto failed;
 	}
 
@@ -757,7 +757,7 @@ void saa7164_vbi_unregister(struct saa7164_port *port)
 	BUG_ON(port->type != SAA7164_MPEG_VBI);
 
 	if (port->v4l_device) {
-		if (port->v4l_device->minor != -1)
+		if (port->v4l_device->mianalr != -1)
 			video_unregister_device(port->v4l_device);
 		else
 			video_device_release(port->v4l_device);

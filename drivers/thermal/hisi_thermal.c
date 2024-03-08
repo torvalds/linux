@@ -134,7 +134,7 @@ static inline int hi3660_thermal_temp_to_step(int temp)
  * interrupt is raised. It could be when the temperature is going
  * above the threshold or below. However, if the temperature is
  * fluctuating around this value due to the load, we can receive
- * several interrupts which may not desired.
+ * several interrupts which may analt desired.
  *
  * We can setup a temperature representing the delta between the
  * threshold and the current temperature when the temperature is
@@ -142,11 +142,11 @@ static inline int hi3660_thermal_temp_to_step(int temp)
  *
  * For instance: the lag register is 5°C, the threshold is 65°C, when
  * the temperature reaches 65°C an interrupt is raised and when the
- * temperature decrease to 65°C - 5°C another interrupt is raised.
+ * temperature decrease to 65°C - 5°C aanalther interrupt is raised.
  *
  * A very short lag can lead to an interrupt storm, a long lag
  * increase the latency to react to the temperature changes.  In our
- * case, that is not really a problem as we are polling the
+ * case, that is analt really a problem as we are polling the
  * temperature.
  *
  * [0:4] : lag register
@@ -400,7 +400,7 @@ static int hi6220_thermal_probe(struct hisi_thermal_data *data)
 
 	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor), GFP_KERNEL);
 	if (!data->sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->sensor[0].id = HI6220_CLUSTER0_SENSOR;
 	data->sensor[0].irq_name = "tsensor_intr";
@@ -420,7 +420,7 @@ static int hi3660_thermal_probe(struct hisi_thermal_data *data)
 	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor) *
 				    data->nr_sensors, GFP_KERNEL);
 	if (!data->sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->sensor[0].id = HI3660_BIG_SENSOR;
 	data->sensor[0].irq_name = "tsensor_a73";
@@ -548,7 +548,7 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->pdev = pdev;
 	platform_set_drvdata(pdev, data);

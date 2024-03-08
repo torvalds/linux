@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Media Bus API header
  *
@@ -48,7 +48,7 @@ struct v4l2_mbus_framefmt {
 
 #ifndef __KERNEL__
 /*
- * enum v4l2_mbus_pixelcode and its definitions are now deprecated, and
+ * enum v4l2_mbus_pixelcode and its definitions are analw deprecated, and
  * MEDIA_BUS_FMT_ definitions (defined in media-bus-format.h) should be
  * used instead.
  *

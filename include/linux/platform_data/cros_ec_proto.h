@@ -11,7 +11,7 @@
 #include <linux/device.h>
 #include <linux/lockdep_types.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <linux/platform_data/cros_ec_commands.h>
 
@@ -37,16 +37,16 @@
  * I2C requires 2 additional bytes for responses.
  * SPI requires up to 32 additional bytes for responses.
  */
-#define EC_PROTO_VERSION_UNKNOWN	0
+#define EC_PROTO_VERSION_UNKANALWN	0
 #define EC_MAX_REQUEST_OVERHEAD		1
 #define EC_MAX_RESPONSE_OVERHEAD	32
 
 /*
- * EC panic is not covered by the standard (0-F) ACPI notify values.
- * Arbitrarily choosing B0 to notify ec panic, which is in the 84-BF
- * device specific ACPI notify range.
+ * EC panic is analt covered by the standard (0-F) ACPI analtify values.
+ * Arbitrarily choosing B0 to analtify ec panic, which is in the 84-BF
+ * device specific ACPI analtify range.
  */
-#define ACPI_NOTIFY_CROS_EC_PANIC 0xB0
+#define ACPI_ANALTIFY_CROS_EC_PANIC 0xB0
 
 /*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.
@@ -92,7 +92,7 @@ struct cros_ec_command {
  *     @offset: Is within EC_LPC_ADDR_MEMMAP region.
  *     @bytes: Number of bytes to read. zero means "read a string" (including
  *             the trailing '\0'). At most only EC_MEMMAP_SIZE bytes can be
- *             read. Caller must ensure that the buffer is large enough for the
+ *             read. Caller must ensure that the buffer is large eanalugh for the
  *             result when reading a string.
  * @max_request: Max size of message requested.
  * @max_response: Max size of message response.
@@ -102,13 +102,13 @@ struct cros_ec_command {
  * @irq: Interrupt to use.
  * @id: Device id.
  * @din: Input buffer (for data from EC). This buffer will always be
- *       dword-aligned and include enough space for up to 7 word-alignment
+ *       dword-aligned and include eanalugh space for up to 7 word-alignment
  *       bytes also, so we can ensure that the body of the message is always
  *       dword-aligned (64-bit). We use this alignment to keep ARM and x86
  *       happy. Probably word alignment would be OK, there might be a small
  *       performance advantage to using dword.
  * @dout: Output buffer (for data to EC). This buffer will always be
- *        dword-aligned and include enough space for up to 7 word-alignment
+ *        dword-aligned and include eanalugh space for up to 7 word-alignment
  *        bytes also, so we can ensure that the body of the message is always
  *        dword-aligned (64-bit). We use this alignment to keep ARM and x86
  *        happy. Probably word alignment would be OK, there might be a small
@@ -124,35 +124,35 @@ struct cros_ec_command {
  *            code.
  * @pkt_xfer: Send packet to EC and get response.
  * @lockdep_key: Lockdep class for each instance. Unused if CONFIG_LOCKDEP is
- *		 not enabled.
+ *		 analt enabled.
  * @lock: One transaction at a time.
- * @mkbp_event_supported: 0 if MKBP not supported. Otherwise its value is
+ * @mkbp_event_supported: 0 if MKBP analt supported. Otherwise its value is
  *                        the maximum supported version of the MKBP host event
  *                        command + 1.
  * @host_sleep_v1: True if this EC supports the sleep v1 command.
- * @event_notifier: Interrupt event notifier for transport devices.
+ * @event_analtifier: Interrupt event analtifier for transport devices.
  * @event_data: Raw payload transferred with the MKBP event.
  * @event_size: Size in bytes of the event data.
  * @host_event_wake_mask: Mask of host events that cause wake from suspend.
  * @suspend_timeout_ms: The timeout in milliseconds between when sleep event
  *                      is received and when the EC will declare sleep
- *                      transition failure if the sleep signal is not
+ *                      transition failure if the sleep signal is analt
  *                      asserted.  See also struct
  *                      ec_params_host_sleep_event_v1 in cros_ec_commands.h.
  * @last_resume_result: The number of sleep power signal transitions that
  *                      occurred since the suspend message. The high bit
  *                      indicates a timeout occurred.  See also struct
  *                      ec_response_host_sleep_event_v1 in cros_ec_commands.h.
- * @last_event_time: exact time from the hard irq when we got notified of
+ * @last_event_time: exact time from the hard irq when we got analtified of
  *     a new event.
- * @notifier_ready: The notifier_block to let the kernel re-query EC
+ * @analtifier_ready: The analtifier_block to let the kernel re-query EC
  *		    communication protocol when the EC sends
  *		    EC_HOST_EVENT_INTERFACE_READY.
  * @ec: The platform_device used by the mfd driver to interface with the
  *      main EC.
  * @pd: The platform_device used by the mfd driver to interface with the
  *      PD behind an EC.
- * @panic_notifier: EC panic notifier.
+ * @panic_analtifier: EC panic analtifier.
  */
 struct cros_ec_device {
 	/* These are used by other drivers that want to talk to the EC */
@@ -183,7 +183,7 @@ struct cros_ec_device {
 	struct mutex lock;
 	u8 mkbp_event_supported;
 	bool host_sleep_v1;
-	struct blocking_notifier_head event_notifier;
+	struct blocking_analtifier_head event_analtifier;
 
 	struct ec_response_get_next_event_v1 event_data;
 	int event_size;
@@ -191,13 +191,13 @@ struct cros_ec_device {
 	u32 last_resume_result;
 	u16 suspend_timeout_ms;
 	ktime_t last_event_time;
-	struct notifier_block notifier_ready;
+	struct analtifier_block analtifier_ready;
 
 	/* The platform devices used by the mfd driver */
 	struct platform_device *ec;
 	struct platform_device *pd;
 
-	struct blocking_notifier_head panic_notifier;
+	struct blocking_analtifier_head panic_analtifier;
 };
 
 /**
@@ -205,7 +205,7 @@ struct cros_ec_device {
  * @ec_name: Name of EC device (e.g. 'cros-ec', 'cros-pd', ...)
  *           used in /dev/ and sysfs.
  * @cmd_offset: Offset to apply for each command. Set when
- *              registering a device behind another one.
+ *              registering a device behind aanalther one.
  */
 struct cros_ec_platform {
 	const char *ec_name;

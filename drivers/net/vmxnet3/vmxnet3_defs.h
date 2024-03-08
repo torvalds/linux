@@ -5,16 +5,16 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and anal later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * The full GNU General Public License is included in this distribution in
@@ -182,7 +182,7 @@ struct Vmxnet3_TxDesc {
 };
 
 /* TxDesc.OM values */
-#define VMXNET3_OM_NONE         0
+#define VMXNET3_OM_ANALNE         0
 #define VMXNET3_OM_ENCAP        1
 #define VMXNET3_OM_CSUM         2
 #define VMXNET3_OM_TSO          3
@@ -257,7 +257,7 @@ struct Vmxnet3_RxDesc {
 struct Vmxnet3_RxCompDesc {
 #ifdef __BIG_ENDIAN_BITFIELD
 	u32		ext2:1;
-	u32		cnc:1;        /* Checksum Not Calculated */
+	u32		cnc:1;        /* Checksum Analt Calculated */
 	u32		rssType:4;    /* RSS hash type used */
 	u32		rqID:10;      /* rx queue/ring ID */
 	u32		sop:1;        /* Start of Packet */
@@ -273,7 +273,7 @@ struct Vmxnet3_RxCompDesc {
 	u32		sop:1;        /* Start of Packet */
 	u32		rqID:10;      /* rx queue/ring ID */
 	u32		rssType:4;    /* RSS hash type used */
-	u32		cnc:1;        /* Checksum Not Calculated */
+	u32		cnc:1;        /* Checksum Analt Calculated */
 	u32		ext2:1;
 #endif  /* __BIG_ENDIAN_BITFIELD */
 
@@ -368,7 +368,7 @@ struct Vmxnet3_RxCompDescExt {
 #define VMXNET3_TXD_EOP_SIZE 1
 
 /* value of RxCompDesc.rssType */
-#define VMXNET3_RCD_RSS_TYPE_NONE     0
+#define VMXNET3_RCD_RSS_TYPE_ANALNE     0
 #define VMXNET3_RCD_RSS_TYPE_IPV4     1
 #define VMXNET3_RCD_RSS_TYPE_TCPIPV4  2
 #define VMXNET3_RCD_RSS_TYPE_IPV6     3
@@ -400,7 +400,7 @@ union Vmxnet3_GenericDesc {
 #define VMXNET3_TXD_NEEDED(size) (((size) + VMXNET3_MAX_TX_BUF_SIZE - 1) / \
 				  VMXNET3_MAX_TX_BUF_SIZE)
 
-/* max # of tx descs for a non-tso pkt */
+/* max # of tx descs for a analn-tso pkt */
 #define VMXNET3_MAX_TXD_PER_PKT 16
 /* max # of tx descs for a tso pkt */
 #define VMXNET3_MAX_TSO_TXD_PER_PKT 24
@@ -442,10 +442,10 @@ union Vmxnet3_GenericDesc {
 /* a list of reasons for queue stop */
 
 enum {
- VMXNET3_ERR_NOEOP        = 0x80000000,  /* cannot find the EOP desc of a pkt */
+ VMXNET3_ERR_ANALEOP        = 0x80000000,  /* cananalt find the EOP desc of a pkt */
  VMXNET3_ERR_TXD_REUSE    = 0x80000001,  /* reuse TxDesc before tx completion */
  VMXNET3_ERR_BIG_PKT      = 0x80000002,  /* too many TxDesc for a pkt */
- VMXNET3_ERR_DESC_NOT_SPT = 0x80000003,  /* descriptor type not supported */
+ VMXNET3_ERR_DESC_ANALT_SPT = 0x80000003,  /* descriptor type analt supported */
  VMXNET3_ERR_SMALL_BUF    = 0x80000004,  /* type 0 buffer too small */
  VMXNET3_ERR_STRESS       = 0x80000005,  /* stress option firing in vmkernel */
  VMXNET3_ERR_SWITCH       = 0x80000006,  /* mode switch failure */
@@ -458,7 +458,7 @@ enum {
 #define VMXNET3_CDTYPE_RXCOMP_LRO  4    /* Rx Completion Descriptor for LRO */
 
 enum {
-	VMXNET3_GOS_BITS_UNK    = 0,   /* unknown */
+	VMXNET3_GOS_BITS_UNK    = 0,   /* unkanalwn */
 	VMXNET3_GOS_BITS_32     = 1,
 	VMXNET3_GOS_BITS_64     = 2,
 };

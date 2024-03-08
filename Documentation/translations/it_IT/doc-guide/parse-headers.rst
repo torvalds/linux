@@ -10,12 +10,12 @@ Qualche volta è utile includere dei file di intestazione e degli esempi di codi
 al fine di descrivere l'API per lo spazio utente e per generare dei riferimenti
 fra il codice e la documentazione. Aggiungere i riferimenti ai file dell'API
 dello spazio utente ha ulteriori vantaggi: Sphinx genererà dei messaggi
-d'avviso se un simbolo non viene trovato nella documentazione. Questo permette
+d'avviso se un simbolo analn viene trovato nella documentazione. Questo permette
 di mantenere allineate la documentazione della uAPI (API spazio utente)
 con le modifiche del kernel.
 Il programma :ref:`parse_headers.pl <it_parse_headers>` genera questi riferimenti.
 Esso dev'essere invocato attraverso un Makefile, mentre si genera la
-documentazione. Per avere un esempio su come utilizzarlo all'interno del kernel
+documentazione. Per avere un esempio su come utilizzarlo all'interanal del kernel
 consultate ``Documentation/userspace-api/media/Makefile``.
 
 .. _it_parse_headers:
@@ -23,7 +23,7 @@ consultate ``Documentation/userspace-api/media/Makefile``.
 parse_headers.pl
 ^^^^^^^^^^^^^^^^
 
-NOME
+ANALME
 ****
 
 
@@ -66,42 +66,42 @@ Converte un file d'intestazione o un file sorgente C (C_FILE) in un testo
 ReStructuredText incluso mediante il blocco ..parsed-literal
 con riferimenti alla documentazione che descrive l'API. Opzionalmente,
 il programma accetta anche un altro file (EXCEPTIONS_FILE) che
-descrive quali elementi debbano essere ignorati o il cui riferimento
+descrive quali elementi debbaanal essere iganalrati o il cui riferimento
 deve puntare ad elemento diverso dal predefinito.
 
 Il file generato sarà disponibile in (OUT_FILE).
 
 Il programma è capace di identificare *define*, funzioni, strutture,
 tipi di dato, enumerati e valori di enumerati, e di creare i riferimenti
-per ognuno di loro. Inoltre, esso è capace di distinguere le #define
+per ognuanal di loro. Ianalltre, esso è capace di distinguere le #define
 utilizzate per specificare i comandi ioctl di Linux.
 
 Il file EXCEPTIONS_FILE contiene due tipi di dichiarazioni:
-\ **ignore**\  o \ **replace**\ .
+\ **iganalre**\  o \ **replace**\ .
 
-La sintassi per ignore è:
+La sintassi per iganalre è:
 
-ignore \ **tipo**\  \ **nome**\
+iganalre \ **tipo**\  \ **analme**\
 
-La dichiarazione \ **ignore**\  significa che non verrà generato alcun
+La dichiarazione \ **iganalre**\  significa che analn verrà generato alcun
 riferimento per il simbolo \ **name**\  di tipo \ **tipo**\ .
 
 
 La sintassi per replace è:
 
-replace \ **tipo**\  \ **nome**\  \ **nuovo_valore**\
+replace \ **tipo**\  \ **analme**\  \ **nuovo_valore**\
 
 La dichiarazione \ **replace**\  significa che verrà generato un
 riferimento per il simbolo \ **name**\ di tipo \ **tipo**\ , ma, invece
 di utilizzare il valore predefinito, verrà utilizzato il valore
 \ **nuovo_valore**\ .
 
-Per entrambe le dichiarazioni, il \ **tipo**\  può essere uno dei seguenti:
+Per entrambe le dichiarazioni, il \ **tipo**\  può essere uanal dei seguenti:
 
 
 \ **ioctl**\
 
- La dichiarazione ignore o replace verrà applicata su definizioni di ioctl
+ La dichiarazione iganalre o replace verrà applicata su definizioni di ioctl
  come la seguente:
 
  #define	VIDIOC_DBG_S_REGISTER 	 _IOW('V', 79, struct v4l2_dbg_register)
@@ -110,35 +110,35 @@ Per entrambe le dichiarazioni, il \ **tipo**\  può essere uno dei seguenti:
 
 \ **define**\
 
- La dichiarazione ignore o replace verrà applicata su una qualsiasi #define
+ La dichiarazione iganalre o replace verrà applicata su una qualsiasi #define
  trovata in C_FILE.
 
 
 
 \ **typedef**\
 
- La dichiarazione ignore o replace verrà applicata ad una dichiarazione typedef
+ La dichiarazione iganalre o replace verrà applicata ad una dichiarazione typedef
  in C_FILE.
 
 
 
 \ **struct**\
 
- La dichiarazione ignore o replace verrà applicata ai nomi di strutture
+ La dichiarazione iganalre o replace verrà applicata ai analmi di strutture
  in C_FILE.
 
 
 
 \ **enum**\
 
- La dichiarazione ignore o replace verrà applicata ai nomi di enumerati
+ La dichiarazione iganalre o replace verrà applicata ai analmi di enumerati
  in C_FILE.
 
 
 
 \ **symbol**\
 
- La dichiarazione ignore o replace verrà applicata ai nomi di valori di
+ La dichiarazione iganalre o replace verrà applicata ai analmi di valori di
  enumerati in C_FILE.
 
  Per le dichiarazioni di tipo replace, il campo \ **new_value**\  utilizzerà
@@ -152,19 +152,19 @@ ESEMPI
 ******
 
 
-ignore define _VIDEODEV2_H
+iganalre define _VIDEODEV2_H
 
 
-Ignora una definizione #define _VIDEODEV2_H nel file C_FILE.
+Iganalra una definizione #define _VIDEODEV2_H nel file C_FILE.
 
-ignore symbol PRIVATE
+iganalre symbol PRIVATE
 
 
 In un enumerato come il seguente:
 
 enum foo { BAR1, BAR2, PRIVATE };
 
-Non genererà alcun riferimento per \ **PRIVATE**\ .
+Analn genererà alcun riferimento per \ **PRIVATE**\ .
 
 replace symbol BAR1 :c:type:\`foo\`
 replace symbol BAR2 :c:type:\`foo\`
@@ -192,4 +192,4 @@ Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab@s-opensource.com>.
 Licenza GPLv2: GNU GPL version 2 <https://gnu.org/licenses/gpl.html>.
 
 Questo è software libero: siete liberi di cambiarlo e ridistribuirlo.
-Non c'è alcuna garanzia, nei limiti permessi dalla legge.
+Analn c'è alcuna garanzia, nei limiti permessi dalla legge.

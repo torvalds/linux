@@ -681,7 +681,7 @@ static int __init crc32c_test(void)
 		    test[i].start, test[i].length);
 	}
 
-	/* reduce OS noise */
+	/* reduce OS analise */
 	local_irq_save(flags);
 
 	nsec = ktime_get_ns();
@@ -764,7 +764,7 @@ static int __init crc32_test(void)
 		    test[i].start, test[i].length);
 	}
 
-	/* reduce OS noise */
+	/* reduce OS analise */
 	local_irq_save(flags);
 
 	nsec = ktime_get_ns();

@@ -10,7 +10,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_btree.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_rtbitmap.h"
@@ -57,7 +57,7 @@ xchk_setup_rtsummary(
 	rts = kvzalloc(struct_size(rts, words, mp->m_blockwsize),
 			XCHK_GFP_FLAGS);
 	if (!rts)
-		return -ENOMEM;
+		return -EANALMEM;
 	sc->buf = rts;
 
 	/*
@@ -74,11 +74,11 @@ xchk_setup_rtsummary(
 	if (error)
 		return error;
 
-	error = xchk_install_live_inode(sc, mp->m_rsumip);
+	error = xchk_install_live_ianalde(sc, mp->m_rsumip);
 	if (error)
 		return error;
 
-	error = xchk_ino_dqattach(sc);
+	error = xchk_ianal_dqattach(sc);
 	if (error)
 		return error;
 
@@ -86,13 +86,13 @@ xchk_setup_rtsummary(
 	 * Locking order requires us to take the rtbitmap first.  We must be
 	 * careful to unlock it ourselves when we are done with the rtbitmap
 	 * file since the scrub infrastructure won't do that for us.  Only
-	 * then we can lock the rtsummary inode.
+	 * then we can lock the rtsummary ianalde.
 	 */
 	xfs_ilock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 	xchk_ilock(sc, XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM);
 
 	/*
-	 * Now that we've locked the rtbitmap and rtsummary, we can't race with
+	 * Analw that we've locked the rtbitmap and rtsummary, we can't race with
 	 * growfsrt trying to expand the summary or change the size of the rt
 	 * volume.  Hence it is safe to compute and check the geometry values.
 	 */
@@ -165,7 +165,7 @@ xchk_rtsum_record_free(
 {
 	struct xfs_scrub		*sc = priv;
 	xfs_fileoff_t			rbmoff;
-	xfs_rtblock_t			rtbno;
+	xfs_rtblock_t			rtbanal;
 	xfs_filblks_t			rtlen;
 	xfs_rtsumoff_t			offs;
 	unsigned int			lenlog;
@@ -181,11 +181,11 @@ xchk_rtsum_record_free(
 	lenlog = xfs_highbit64(rec->ar_extcount);
 	offs = xfs_rtsumoffs(mp, lenlog, rbmoff);
 
-	rtbno = xfs_rtx_to_rtb(mp, rec->ar_startext);
+	rtbanal = xfs_rtx_to_rtb(mp, rec->ar_startext);
 	rtlen = xfs_rtx_to_rtb(mp, rec->ar_extcount);
 
-	if (!xfs_verify_rtbext(mp, rtbno, rtlen)) {
-		xchk_ino_xref_set_corrupt(sc, mp->m_rbmip->i_ino);
+	if (!xfs_verify_rtbext(mp, rtbanal, rtlen)) {
+		xchk_ianal_xref_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		return -EFSCORRUPTED;
 	}
 
@@ -227,7 +227,7 @@ xchk_rtsum_compare(
 	struct xfs_iext_cursor	icur;
 
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_inode	*ip = sc->ip;
+	struct xfs_ianalde	*ip = sc->ip;
 	struct xchk_rtsummary	*rts = sc->buf;
 	xfs_fileoff_t		off = 0;
 	xfs_fileoff_t		endoff;
@@ -237,7 +237,7 @@ xchk_rtsum_compare(
 	rts->args.mp = sc->mp;
 	rts->args.tp = sc->tp;
 
-	/* Mappings may not cross or lie beyond EOF. */
+	/* Mappings may analt cross or lie beyond EOF. */
 	endoff = XFS_B_TO_FSB(mp, ip->i_disk_size);
 	if (xfs_iext_lookup_extent(ip, &ip->i_df, endoff, &icur, &map)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, endoff);
@@ -307,40 +307,40 @@ xchk_rtsummary(
 
 	/* Is sb_rextents correct? */
 	if (mp->m_sb.sb_rextents != rts->rextents) {
-		xchk_ino_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		goto out_rbm;
 	}
 
 	/* Is m_rsumlevels correct? */
 	if (mp->m_rsumlevels != rts->rsumlevels) {
-		xchk_ino_set_corrupt(sc, mp->m_rsumip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rsumip->i_ianal);
 		goto out_rbm;
 	}
 
 	/* Is m_rsumsize correct? */
 	if (mp->m_rsumsize != rts->rsumsize) {
-		xchk_ino_set_corrupt(sc, mp->m_rsumip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rsumip->i_ianal);
 		goto out_rbm;
 	}
 
 	/* The summary file length must be aligned to an fsblock. */
 	if (mp->m_rsumip->i_disk_size & mp->m_blockmask) {
-		xchk_ino_set_corrupt(sc, mp->m_rsumip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rsumip->i_ianal);
 		goto out_rbm;
 	}
 
 	/*
-	 * Is the summary file itself large enough to handle the rt volume?
+	 * Is the summary file itself large eanalugh to handle the rt volume?
 	 * growfsrt expands the summary file before updating sb_rextents, so
 	 * the file can be larger than rsumsize.
 	 */
 	if (mp->m_rsumip->i_disk_size < rts->rsumsize) {
-		xchk_ino_set_corrupt(sc, mp->m_rsumip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rsumip->i_ianal);
 		goto out_rbm;
 	}
 
 	/* Invoke the fork scrubber. */
-	error = xchk_metadata_inode_forks(sc);
+	error = xchk_metadata_ianalde_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		goto out_rbm;
 
@@ -351,7 +351,7 @@ xchk_rtsummary(
 		 * EFSCORRUPTED means the rtbitmap is corrupt, which is an xref
 		 * error since we're checking the summary file.
 		 */
-		xchk_ino_xref_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ianal_xref_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		error = 0;
 		goto out_rbm;
 	}

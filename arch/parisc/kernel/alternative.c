@@ -12,13 +12,13 @@
 
 #include <linux/module.h>
 
-static int no_alternatives;
-static int __init setup_no_alternatives(char *str)
+static int anal_alternatives;
+static int __init setup_anal_alternatives(char *str)
 {
-	no_alternatives = 1;
+	anal_alternatives = 1;
 	return 1;
 }
-__setup("no-alternatives", setup_no_alternatives);
+__setup("anal-alternatives", setup_anal_alternatives);
 
 void __init_or_module apply_alternatives(struct alt_instr *start,
 		 struct alt_instr *end, const char *module_name)
@@ -29,19 +29,19 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 	u16 cond_check;
 
 	cond_check = ALT_COND_ALWAYS |
-		((num_cpus == 1) ? ALT_COND_NO_SMP : 0) |
-		((cache_info.dc_size == 0) ? ALT_COND_NO_DCACHE : 0) |
-		((cache_info.ic_size == 0) ? ALT_COND_NO_ICACHE : 0) |
+		((num_cpus == 1) ? ALT_COND_ANAL_SMP : 0) |
+		((cache_info.dc_size == 0) ? ALT_COND_ANAL_DCACHE : 0) |
+		((cache_info.ic_size == 0) ? ALT_COND_ANAL_ICACHE : 0) |
 		(running_on_qemu ? ALT_COND_RUN_ON_QEMU : 0) |
-		((split_tlb == 0) ? ALT_COND_NO_SPLIT_TLB : 0) |
+		((split_tlb == 0) ? ALT_COND_ANAL_SPLIT_TLB : 0) |
 		/*
-		 * If the PDC_MODEL capabilities has Non-coherent IO-PDIR bit
+		 * If the PDC_MODEL capabilities has Analn-coherent IO-PDIR bit
 		 * set (bit #61, big endian), we have to flush and sync every
 		 * time IO-PDIR is changed in Ike/Astro.
 		 */
 		(((boot_cpu_data.cpu_type > pcxw_) &&
 		  ((boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC) == 0))
-			? ALT_COND_NO_IOC_FDC : 0);
+			? ALT_COND_ANAL_IOC_FDC : 0);
 
 	for (entry = start; entry < end; entry++, index++) {
 
@@ -56,13 +56,13 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 
 		WARN_ON(!cond);
 
-		if ((cond & ALT_COND_ALWAYS) == 0 && no_alternatives)
+		if ((cond & ALT_COND_ALWAYS) == 0 && anal_alternatives)
 			continue;
 
 		pr_debug("Check %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
 			index, cond, len, from, replacement);
 
-		/* Bounce out if none of the conditions are true. */
+		/* Bounce out if analne of the conditions are true. */
 		if ((cond & cond_check) == 0)
 			continue;
 
@@ -74,10 +74,10 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		}
 
 		/*
-		 * Replace instruction with NOPs?
+		 * Replace instruction with ANALPs?
 		 * For long distance insert a branch instruction instead.
 		 */
-		if (replacement == INSN_NOP && len > 1)
+		if (replacement == INSN_ANALP && len > 1)
 			replacement = 0xe8000002 + (len-2)*8; /* "b,n .+8" */
 
 		pr_debug("ALTERNATIVE %3d: Cond %2x, Replace %2d instructions to 0x%08x @ 0x%px (%pS)\n",

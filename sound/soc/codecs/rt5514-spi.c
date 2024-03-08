@@ -81,7 +81,7 @@ static void rt5514_spi_copy_work(struct work_struct *work)
 
 	mutex_lock(&rt5514_dsp->dma_lock);
 	if (!rt5514_dsp->substream) {
-		dev_err(rt5514_dsp->dev, "No pcm substream\n");
+		dev_err(rt5514_dsp->dev, "Anal pcm substream\n");
 		goto done;
 	}
 
@@ -161,7 +161,7 @@ static void rt5514_schedule_copy(struct rt5514_dsp *rt5514_dsp)
 	rt5514_dsp->get_size = 0;
 
 	/**
-	 * The address area x1800XXXX is the register address, and it cannot
+	 * The address area x1800XXXX is the register address, and it cananalt
 	 * support spi burst read perfectly. So we use the spi burst read
 	 * individually to make sure the data correctly.
 	 */
@@ -265,7 +265,7 @@ static int rt5514_spi_pcm_probe(struct snd_soc_component *component)
 	rt5514_dsp = devm_kzalloc(component->dev, sizeof(*rt5514_dsp),
 			GFP_KERNEL);
 	if (!rt5514_dsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt5514_dsp->dev = &rt5514_spi->dev;
 	mutex_init(&rt5514_dsp->dma_lock);
@@ -403,7 +403,7 @@ int rt5514_spi_burst_write(u32 addr, const u8 *txbuf, size_t len)
 	write_buf = kmalloc(RT5514_SPI_BUF_LEN + 6, GFP_KERNEL);
 
 	if (write_buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (offset < len) {
 		if (offset + RT5514_SPI_BUF_LEN <= len)

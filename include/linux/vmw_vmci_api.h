@@ -33,9 +33,9 @@ int vmci_datagram_destroy_handle(struct vmci_handle handle);
 int vmci_datagram_send(struct vmci_datagram *msg);
 int vmci_doorbell_create(struct vmci_handle *handle, u32 flags,
 			 u32 priv_flags,
-			 vmci_callback notify_cb, void *client_data);
+			 vmci_callback analtify_cb, void *client_data);
 int vmci_doorbell_destroy(struct vmci_handle handle);
-int vmci_doorbell_notify(struct vmci_handle handle, u32 priv_flags);
+int vmci_doorbell_analtify(struct vmci_handle handle, u32 priv_flags);
 u32 vmci_get_context_id(void);
 bool vmci_is_context_owner(u32 context_id, kuid_t uid);
 int vmci_register_vsock_callback(vmci_vsock_cb callback);

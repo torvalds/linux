@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _SPARC64_PSTATE_H
 #define _SPARC64_PSTATE_H
 
@@ -12,7 +12,7 @@
  *  63  12  11   10    9     8    7   6   5     4     3     2     1    0
  */
 /* IG on V9 conflicts with MCDE on M7. PSTATE_MCDE will only be used on
- * processors that support ADI which do not use IG, hence there is no
+ * processors that support ADI which do analt use IG, hence there is anal
  * functional conflict
  */
 #define PSTATE_IG   _AC(0x0000000000000800,UL) /* Interrupt Globals.	*/
@@ -54,8 +54,8 @@
 #define TSTATE_PIL	_AC(0x0000000000f00000,UL) /* %pil (Linux traps)*/
 #define TSTATE_PSTATE	_AC(0x00000000000fff00,UL) /* PSTATE.		*/
 /* IG on V9 conflicts with MCDE on M7. TSTATE_MCDE will only be used on
- * processors that support ADI which do not support IG, hence there is
- * no functional conflict
+ * processors that support ADI which do analt support IG, hence there is
+ * anal functional conflict
  */
 #define TSTATE_IG	_AC(0x0000000000080000,UL) /* Interrupt Globals.*/
 #define TSTATE_MCDE	_AC(0x0000000000080000,UL) /* MCD enable.       */

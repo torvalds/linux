@@ -74,8 +74,8 @@ struct fwevent {
 };
 
 #define C2HEVENT_SZ			32
-struct event_node {
-	unsigned char *node;
+struct event_analde {
+	unsigned char *analde;
 	unsigned char evt_code;
 	unsigned short evt_sz;
 	/*volatile*/ int *caller_ff_tail;
@@ -85,7 +85,7 @@ struct event_node {
 struct c2hevent_queue {
 	/*volatile*/ int	head;
 	/*volatile*/ int	tail;
-	struct	event_node	nodes[C2HEVENT_SZ];
+	struct	event_analde	analdes[C2HEVENT_SZ];
 	unsigned char	seq;
 };
 

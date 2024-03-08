@@ -15,9 +15,9 @@ description: |
   or MSM8974. It is built using a simple protocol layer on top of a DMA engine
   (Qualcomm BAM DMA) and bidirectional interrupts to coordinate power control.
 
-  Note that this schema does not directly describe a hardware block but rather
+  Analte that this schema does analt directly describe a hardware block but rather
   a firmware convention that combines several other hardware blocks (such as the
-  DMA engine). As such it is specific to a firmware version, not a particular
+  DMA engine). As such it is specific to a firmware version, analt a particular
   SoC or hardware version.
 
 properties:
@@ -30,7 +30,7 @@ properties:
       Both interrupts must be declared as IRQ_TYPE_EDGE_BOTH.
     items:
       - description: Power control
-      - description: Power control acknowledgment
+      - description: Power control ackanalwledgment
 
   interrupt-names:
     items:
@@ -42,7 +42,7 @@ properties:
     description: State bits used by the AP to signal the modem.
     items:
       - description: Power control
-      - description: Power control acknowledgment
+      - description: Power control ackanalwledgment
 
   qcom,smem-state-names:
     description: Names for the state bits used by the AP to signal the modem.

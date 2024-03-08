@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/kernel.h>
@@ -150,7 +150,7 @@ static int wl1271_ap_init_deauth_template(struct wl1271 *wl,
 
 	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
 	if (!tmpl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -177,7 +177,7 @@ static int wl1271_ap_init_null_template(struct wl1271 *wl,
 
 	nullfunc = kzalloc(sizeof(*nullfunc), GFP_KERNEL);
 	if (!nullfunc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -210,7 +210,7 @@ static int wl1271_ap_init_qos_null_template(struct wl1271 *wl,
 
 	qosnull = kzalloc(sizeof(*qosnull), GFP_KERNEL);
 	if (!qosnull) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -323,7 +323,7 @@ static int wl12xx_init_fwlog(struct wl1271 *wl)
 {
 	int ret;
 
-	if (wl->quirks & WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED)
+	if (wl->quirks & WLCORE_QUIRK_FWLOG_ANALT_IMPLEMENTED)
 		return 0;
 
 	ret = wl12xx_cmd_config_fwlog(wl);
@@ -333,7 +333,7 @@ static int wl12xx_init_fwlog(struct wl1271 *wl)
 	return 0;
 }
 
-/* generic sta initialization (non vif-specific) */
+/* generic sta initialization (analn vif-specific) */
 int wl1271_sta_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
@@ -369,7 +369,7 @@ static int wl1271_sta_hw_init_post_mem(struct wl1271 *wl,
 	return 0;
 }
 
-/* generic ap initialization (non vif-specific) */
+/* generic ap initialization (analn vif-specific) */
 static int wl1271_ap_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
@@ -572,7 +572,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 		ret = wl1271_event_unmask(wl);
 		if (ret < 0)
 			return ret;
-	/* first STA, no APs */
+	/* first STA, anal APs */
 	} else if (wl->sta_count == 0 && wl->ap_count == 0 && !is_ap) {
 		u8 sta_auth = wl->conf.conn.sta_sleep_auth;
 		/* Configure for power according to debugfs */

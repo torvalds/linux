@@ -10,7 +10,7 @@ Tuner number Card name
 1            Philips PAL_I (FI1246 and compatibles)
 2            Philips NTSC (FI1236,FM1236 and compatibles)
 3            Philips (SECAM+PAL_BG) (FI1216MF, FM1216MF, FR1216MF)
-4            NoTuner
+4            AnalTuner
 5            Philips PAL_BG (FI1216 and compatibles)
 6            Temic NTSC (4032 FY5)
 7            Temic PAL_I (4062 FY5)

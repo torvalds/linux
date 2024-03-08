@@ -10,7 +10,7 @@ maintainers:
   - Michal Simek <michal.simek@amd.com>
 
 description: |
-  The zynqmp-power node describes the power management configurations.
+  The zynqmp-power analde describes the power management configurations.
   It will control remote suspend/shutdown interfaces.
 
 properties:
@@ -24,9 +24,9 @@ properties:
     description: |
       Standard property to specify a Mailbox. Each value of
       the mboxes property should contain a phandle to the
-      mailbox controller device node and an args specifier
+      mailbox controller device analde and an args specifier
       that will be the phandle to the intended sub-mailbox
-      child node to be used for communication. See
+      child analde to be used for communication. See
       Documentation/devicetree/bindings/mailbox/mailbox.txt
       for more details about the generic mailbox controller
       and client driver bindings. Also see

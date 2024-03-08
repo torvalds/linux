@@ -10,7 +10,7 @@
  * Copyright (C) 2002 Dave Engebretsen <engebret@us.ibm.com>, IBM
  *	Rework to support virtual processors
  *
- * Type of int is used as a full 64b word is not necessary.
+ * Type of int is used as a full 64b word is analt necessary.
  *
  * (the type definitions are in asm/simple_spinlock_types.h)
  */
@@ -75,7 +75,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 /*
  * On a system with shared processors (that is, where a physical
  * processor is multiplexed between several virtual processors),
- * there is no point spinning on a lock if the holder of the lock
+ * there is anal point spinning on a lock if the holder of the lock
  * isn't currently scheduled on a physical processor.  Instead
  * we detect this situation and ask the hypervisor to give the
  * rest of our timeslice to the lock holder.
@@ -137,10 +137,10 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  * Read-write spinlocks, allowing multiple readers
  * but only one writer.
  *
- * NOTE! it is quite common to have readers in interrupts
- * but no interrupt writers. For those circumstances we
+ * ANALTE! it is quite common to have readers in interrupts
+ * but anal interrupt writers. For those circumstances we
  * can "mix" irq-safe locks - any writer needs to get a
- * irq-safe write-lock, but readers can get non-irqsafe
+ * irq-safe write-lock, but readers can get analn-irqsafe
  * read-locks.
  */
 

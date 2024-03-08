@@ -357,7 +357,7 @@
 	pinctrl-0 = <&pinctrl_usb_otg1>;
 	power-active-high;
 	over-current-active-low;
-	/* we implement only dual role but not a fully featured OTG */
+	/* we implement only dual role but analt a fully featured OTG */
 	hnp-disable;
 	srp-disable;
 	adp-disable;
@@ -366,7 +366,7 @@
 };
 
 /* 7-port usb hub */
-/* id, pwr, oc pins not connected */
+/* id, pwr, oc pins analt connected */
 &usbotg2 {
 	disable-over-current;
 	vbus-supply = <&reg_otg2vbus_5v0>;
@@ -382,9 +382,9 @@
 	bus-width = <4>;
 	vmmc-supply = <&reg_mba6ul_3v3>;
 	vqmmc-supply = <&reg_vccsd>;
-	no-1-8-v;
-	no-mmc;
-	no-sdio;
+	anal-1-8-v;
+	anal-mmc;
+	anal-sdio;
 	status = "okay";
 };
 

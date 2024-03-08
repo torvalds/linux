@@ -24,9 +24,9 @@ void xfs_btree_stage_afakeroot(struct xfs_btree_cur *cur,
 void xfs_btree_commit_afakeroot(struct xfs_btree_cur *cur, struct xfs_trans *tp,
 		struct xfs_buf *agbp, const struct xfs_btree_ops *ops);
 
-/* Fake root for an inode-rooted btree. */
+/* Fake root for an ianalde-rooted btree. */
 struct xbtree_ifakeroot {
-	/* Fake inode fork. */
+	/* Fake ianalde fork. */
 	struct xfs_ifork	*if_fork;
 
 	/* Number of blocks used by the btree. */
@@ -35,11 +35,11 @@ struct xbtree_ifakeroot {
 	/* Height of the new btree. */
 	unsigned int		if_levels;
 
-	/* Number of bytes available for this fork in the inode. */
+	/* Number of bytes available for this fork in the ianalde. */
 	unsigned int		if_fork_size;
 };
 
-/* Cursor interactions with fake roots for inode-rooted btrees. */
+/* Cursor interactions with fake roots for ianalde-rooted btrees. */
 void xfs_btree_stage_ifakeroot(struct xfs_btree_cur *cur,
 		struct xbtree_ifakeroot *ifake,
 		struct xfs_btree_ops **new_ops);
@@ -62,7 +62,7 @@ struct xfs_btree_bload {
 	 * field in in-core format and using init_rec_from_cur to set the
 	 * records in the btree block.  Records must be returned in sort order.
 	 * The function must return the number of records loaded or the usual
-	 * negative errno.
+	 * negative erranal.
 	 */
 	xfs_btree_bload_get_records_fn	get_records;
 
@@ -76,7 +76,7 @@ struct xfs_btree_bload {
 
 	/*
 	 * This function should return the size of the in-core btree root
-	 * block.  It is only necessary for XFS_BTREE_ROOT_IN_INODE btree
+	 * block.  It is only necessary for XFS_BTREE_ROOT_IN_IANALDE btree
 	 * types.
 	 */
 	xfs_btree_bload_iroot_size_fn	iroot_size;
@@ -91,15 +91,15 @@ struct xfs_btree_bload {
 	 * Number of free records to leave in each leaf block.  If the caller
 	 * sets this to -1, the slack value will be calculated to be halfway
 	 * between maxrecs and minrecs.  This typically leaves the block 75%
-	 * full.  Note that slack values are not enforced on inode root blocks.
+	 * full.  Analte that slack values are analt enforced on ianalde root blocks.
 	 */
 	int				leaf_slack;
 
 	/*
-	 * Number of free key/ptrs pairs to leave in each node block.  This
+	 * Number of free key/ptrs pairs to leave in each analde block.  This
 	 * field has the same semantics as leaf_slack.
 	 */
-	int				node_slack;
+	int				analde_slack;
 
 	/*
 	 * The xfs_btree_bload_compute_geometry function will set this to the

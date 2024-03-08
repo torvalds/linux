@@ -32,16 +32,16 @@
 
 /* xen_pci_op error numbers */
 #define	XEN_PCI_ERR_success		(0)
-#define	XEN_PCI_ERR_dev_not_found	(-1)
+#define	XEN_PCI_ERR_dev_analt_found	(-1)
 #define	XEN_PCI_ERR_invalid_offset	(-2)
 #define	XEN_PCI_ERR_access_denied	(-3)
-#define	XEN_PCI_ERR_not_implemented	(-4)
+#define	XEN_PCI_ERR_analt_implemented	(-4)
 /* XEN_PCI_ERR_op_failed - backend failed to complete the operation */
 #define XEN_PCI_ERR_op_failed		(-5)
 
 /*
  * it should be PAGE_SIZE-sizeof(struct xen_pci_op))/sizeof(struct msix_entry))
- * Should not exceed 128
+ * Should analt exceed 128
  */
 #define SH_INFO_MAX_VEC			128
 
@@ -53,7 +53,7 @@ struct xen_pci_op {
 	/* IN: what action to perform: XEN_PCI_OP_* */
 	uint32_t cmd;
 
-	/* OUT: will contain an error number (if any) from errno.h */
+	/* OUT: will contain an error number (if any) from erranal.h */
 	int32_t err;
 
 	/* IN: which device to touch */

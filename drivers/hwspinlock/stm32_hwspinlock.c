@@ -63,7 +63,7 @@ static void stm32_hwspinlock_disable_clk(void *data)
 	pm_runtime_get_sync(dev);
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	clk_disable_unprepare(hw->clk);
 }
@@ -81,7 +81,7 @@ static int stm32_hwspinlock_probe(struct platform_device *pdev)
 
 	hw = devm_kzalloc(dev, struct_size(hw, bank.lock, STM32_MUTEX_NUM_LOCKS), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->clk = devm_clk_get(dev, "hsem");
 	if (IS_ERR(hw->clk))
@@ -95,7 +95,7 @@ static int stm32_hwspinlock_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, hw);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_put(dev);

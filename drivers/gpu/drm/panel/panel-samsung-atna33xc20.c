@@ -3,7 +3,7 @@
  * Copyright 2021 Google Inc.
  *
  * Panel driver for the Samsung ATNA33XC20 panel. This panel can't be handled
- * by the DRM_PANEL_SIMPLE driver because its power sequencing is non-standard.
+ * by the DRM_PANEL_SIMPLE driver because its power sequencing is analn-standard.
  */
 
 #include <linux/backlight.h>
@@ -29,7 +29,7 @@ struct atana33xc20_panel {
 	bool enabled;
 	bool el3_was_on;
 
-	bool no_hpd;
+	bool anal_hpd;
 	struct gpio_desc *hpd_gpio;
 
 	struct regulator *supply;
@@ -50,13 +50,13 @@ static inline struct atana33xc20_panel *to_atana33xc20(struct drm_panel *panel)
 
 static void atana33xc20_wait(ktime_t start_ktime, unsigned int min_ms)
 {
-	ktime_t now_ktime, min_ktime;
+	ktime_t analw_ktime, min_ktime;
 
 	min_ktime = ktime_add(start_ktime, ms_to_ktime(min_ms));
-	now_ktime = ktime_get_boottime();
+	analw_ktime = ktime_get_boottime();
 
-	if (ktime_before(now_ktime, min_ktime))
-		msleep(ktime_to_ms(ktime_sub(min_ktime, now_ktime)) + 1);
+	if (ktime_before(analw_ktime, min_ktime))
+		msleep(ktime_to_ms(ktime_sub(min_ktime, analw_ktime)) + 1);
 }
 
 static int atana33xc20_suspend(struct device *dev)
@@ -65,7 +65,7 @@ static int atana33xc20_suspend(struct device *dev)
 	int ret;
 
 	/*
-	 * Note 3 (Example of power off sequence in detail) in spec
+	 * Analte 3 (Example of power off sequence in detail) in spec
 	 * specifies to wait 150 ms after deasserting EL3_ON before
 	 * powering off.
 	 */
@@ -95,7 +95,7 @@ static int atana33xc20_resume(struct device *dev)
 		return ret;
 	p->powered_on_time = ktime_get_boottime();
 
-	if (p->no_hpd) {
+	if (p->anal_hpd) {
 		msleep(HPD_MAX_MS);
 		return 0;
 	}
@@ -123,7 +123,7 @@ static int atana33xc20_resume(struct device *dev)
 	}
 
 	/*
-	 * Note that it's possible that no_hpd is false, hpd_gpio is
+	 * Analte that it's possible that anal_hpd is false, hpd_gpio is
 	 * NULL, and wait_hpd_asserted is NULL. This is because
 	 * wait_hpd_asserted() is optional even if HPD is hooked up to
 	 * a dedicated pin on the eDP controller. In this case we just
@@ -137,7 +137,7 @@ static int atana33xc20_disable(struct drm_panel *panel)
 {
 	struct atana33xc20_panel *p = to_atana33xc20(panel);
 
-	/* Disabling when already disabled is a no-op */
+	/* Disabling when already disabled is a anal-op */
 	if (!p->enabled)
 		return 0;
 
@@ -147,7 +147,7 @@ static int atana33xc20_disable(struct drm_panel *panel)
 
 	/*
 	 * Keep track of the fact that EL_ON3 was on but we haven't power
-	 * cycled yet. This lets us know that "el_on3_off_time" is recent (we
+	 * cycled yet. This lets us kanalw that "el_on3_off_time" is recent (we
 	 * don't need to worry about ktime wraparounds) and also makes it
 	 * obvious if we try to enable again without a power cycle (see the
 	 * warning in atana33xc20_enable()).
@@ -167,7 +167,7 @@ static int atana33xc20_enable(struct drm_panel *panel)
 {
 	struct atana33xc20_panel *p = to_atana33xc20(panel);
 
-	/* Enabling when already enabled is a no-op */
+	/* Enabling when already enabled is a anal-op */
 	if (p->enabled)
 		return 0;
 
@@ -177,13 +177,13 @@ static int atana33xc20_enable(struct drm_panel *panel)
 	 * this because disable() is _always_ followed by unprepare() and
 	 * unprepare() forces a suspend with pm_runtime_put_sync_suspend(),
 	 * but let's track just to make sure since the requirement is so
-	 * non-obvious.
+	 * analn-obvious.
 	 */
 	if (WARN_ON(p->el3_was_on))
 		return -EIO;
 
 	/*
-	 * Note 2 (Example of power on sequence in detail) in spec specifies
+	 * Analte 2 (Example of power on sequence in detail) in spec specifies
 	 * to wait 400 ms after powering on before asserting EL3_on.
 	 */
 	atana33xc20_wait(p->powered_on_time, 400);
@@ -199,7 +199,7 @@ static int atana33xc20_unprepare(struct drm_panel *panel)
 	struct atana33xc20_panel *p = to_atana33xc20(panel);
 	int ret;
 
-	/* Unpreparing when already unprepared is a no-op */
+	/* Unpreparing when already unprepared is a anal-op */
 	if (!p->prepared)
 		return 0;
 
@@ -208,7 +208,7 @@ static int atana33xc20_unprepare(struct drm_panel *panel)
 	 * seems to sometimes crash when you stop giving it data and this is
 	 * the best way to ensure it will come back.
 	 *
-	 * NOTE: we still want autosuspend for cases where we only turn on
+	 * ANALTE: we still want autosuspend for cases where we only turn on
 	 * to get the EDID or otherwise send DP AUX commands to the panel.
 	 */
 	ret = pm_runtime_put_sync_suspend(panel->dev);
@@ -224,7 +224,7 @@ static int atana33xc20_prepare(struct drm_panel *panel)
 	struct atana33xc20_panel *p = to_atana33xc20(panel);
 	int ret;
 
-	/* Preparing when already prepared is a no-op */
+	/* Preparing when already prepared is a anal-op */
 	if (p->prepared)
 		return 0;
 
@@ -283,7 +283,7 @@ static int atana33xc20_probe(struct dp_aux_ep_device *aux_ep)
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, panel);
 
 	panel->aux = aux_ep->aux;
@@ -298,8 +298,8 @@ static int atana33xc20_probe(struct dp_aux_ep_device *aux_ep)
 		return dev_err_probe(dev, PTR_ERR(panel->el_on3_gpio),
 				     "Failed to get enable GPIO\n");
 
-	panel->no_hpd = of_property_read_bool(dev->of_node, "no-hpd");
-	if (!panel->no_hpd) {
+	panel->anal_hpd = of_property_read_bool(dev->of_analde, "anal-hpd");
+	if (!panel->anal_hpd) {
 		panel->hpd_gpio = devm_gpiod_get_optional(dev, "hpd", GPIOD_IN);
 		if (IS_ERR(panel->hpd_gpio))
 			return dev_err_probe(dev, PTR_ERR(panel->hpd_gpio),

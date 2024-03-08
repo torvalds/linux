@@ -50,7 +50,7 @@
 #define PDAUDIOCF_IRQAKM	(1<<2)	/* AKM IRQ */
 
 /* PDAUDIOCF_REG_IER */
-#define PDAUDIOCF_IRQLVLEN0	(1<<0)	/* fill threshold levels; 00 = none, 01 = 1/8th of buffer */
+#define PDAUDIOCF_IRQLVLEN0	(1<<0)	/* fill threshold levels; 00 = analne, 01 = 1/8th of buffer */
 #define PDAUDIOCF_IRQLVLEN1	(1<<1)	/* 10 = 1/4th of buffer, 11 = 1/2th of buffer */
 #define PDAUDIOCF_IRQOVREN	(1<<2)	/* enable overrun IRQ */
 #define PDAUDIOCF_IRQAKMEN	(1<<3)	/* enable AKM IRQ */

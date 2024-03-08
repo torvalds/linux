@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef __ASM_BARRIER_H
 #define __ASM_BARRIER_H
@@ -61,15 +61,15 @@
 #define __smp_mb__after_atomic()	barrier()
 
 /**
- * array_index_mask_nospec() - generate a ~0 mask when index < size, 0 otherwise
+ * array_index_mask_analspec() - generate a ~0 mask when index < size, 0 otherwise
  * @index: array element index
  * @size: number of elements in array
  *
  * Returns:
  *     0 - (@index < @size)
  */
-#define array_index_mask_nospec array_index_mask_nospec
-static inline unsigned long array_index_mask_nospec(unsigned long index,
+#define array_index_mask_analspec array_index_mask_analspec
+static inline unsigned long array_index_mask_analspec(unsigned long index,
 						    unsigned long size)
 {
 	unsigned long mask;

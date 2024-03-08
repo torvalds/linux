@@ -99,7 +99,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, &priv->common);
 
 	cfg = device_get_match_data(dev);
@@ -122,7 +122,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->vref))
 		return dev_err_probe(dev, PTR_ERR(priv->vref), "vref get failed\n");
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -162,7 +162,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	}
 
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, dev);
+	ret = of_platform_populate(pdev->dev.of_analde, NULL, NULL, dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to populate DT children\n");
 		goto err_hw_stop;
@@ -177,7 +177,7 @@ err_hw_stop:
 err_pm_stop:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	return ret;
 }
@@ -189,7 +189,7 @@ static void stm32_dac_remove(struct platform_device *pdev)
 	stm32_dac_core_hw_stop(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 }
 
 static int stm32_dac_core_resume(struct device *dev)

@@ -11,8 +11,8 @@
 #define O_DIRECTORY	00200000
 #endif
 
-#ifndef O_NOATIME
-#define O_NOATIME	01000000
+#ifndef O_ANALATIME
+#define O_ANALATIME	01000000
 #endif
 
 #ifndef O_TMPFILE
@@ -46,12 +46,12 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool sh
 	P_FLAG(DIRECTORY);
 	P_FLAG(EXCL);
 	P_FLAG(LARGEFILE);
-	P_FLAG(NOFOLLOW);
+	P_FLAG(ANALFOLLOW);
 	P_FLAG(TMPFILE);
-	P_FLAG(NOATIME);
-	P_FLAG(NOCTTY);
-#ifdef O_NONBLOCK
-	P_FLAG(NONBLOCK);
+	P_FLAG(ANALATIME);
+	P_FLAG(ANALCTTY);
+#ifdef O_ANALNBLOCK
+	P_FLAG(ANALNBLOCK);
 #elif O_NDELAY
 	P_FLAG(NDELAY);
 #endif

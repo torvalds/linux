@@ -49,7 +49,7 @@ EXPORT_SYMBOL_GPL(can_fd_len2dlc);
  * 	of a given skb.
  * @skb: socket buffer of a CAN message.
  *
- * Do a rough calculation: bit stuffing is ignored and length in bits
+ * Do a rough calculation: bit stuffing is iganalred and length in bits
  * is rounded up to a length in bytes.
  *
  * Rationale: this function is to be used for the BQL functions
@@ -57,11 +57,11 @@ EXPORT_SYMBOL_GPL(can_fd_len2dlc);
  * value in bytes. Just using skb->len is insufficient because it will
  * return the constant value of CAN(FD)_MTU. Doing the bit stuffing
  * calculation would be too expensive in term of computing resources
- * for no noticeable gain.
+ * for anal analticeable gain.
  *
  * Remarks: The payload of CAN FD frames with BRS flag are sent at a
  * different bitrate. Currently, the can-utils canbusload tool does
- * not support CAN-FD yet and so we could not run any benchmark to
+ * analt support CAN-FD yet and so we could analt run any benchmark to
  * measure the impact. There might be possible improvement here.
  *
  * Return: length in bytes.

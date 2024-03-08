@@ -3,7 +3,7 @@ C IRIW+poonceonces+OnceOnce
 (*
  * Result: Sometimes
  *
- * Test of independent reads from independent writes with nothing
+ * Test of independent reads from independent writes with analthing
  * between each pairs of reads.  In other words, is anything at all
  * needed to cause two different reading processes to agree on the order
  * of a pair of writes, where each write is to a different variable by a

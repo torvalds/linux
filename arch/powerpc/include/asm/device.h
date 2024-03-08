@@ -5,7 +5,7 @@
 #ifndef _ASM_POWERPC_DEVICE_H
 #define _ASM_POWERPC_DEVICE_H
 
-struct device_node;
+struct device_analde;
 #ifdef CONFIG_PPC64
 struct pci_dn;
 struct iommu_table;

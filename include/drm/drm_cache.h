@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -45,7 +45,7 @@ bool drm_need_swiotlb(int dma_bits);
 
 static inline bool drm_arch_can_wc_memory(void)
 {
-#if defined(CONFIG_PPC) && !defined(CONFIG_NOT_COHERENT_CACHE)
+#if defined(CONFIG_PPC) && !defined(CONFIG_ANALT_COHERENT_CACHE)
 	return false;
 #elif defined(CONFIG_MIPS) && defined(CONFIG_CPU_LOONGSON64)
 	return false;
@@ -54,16 +54,16 @@ static inline bool drm_arch_can_wc_memory(void)
 	 * The DRM driver stack is designed to work with cache coherent devices
 	 * only, but permits an optimization to be enabled in some cases, where
 	 * for some buffers, both the CPU and the GPU use uncached mappings,
-	 * removing the need for DMA snooping and allocation in the CPU caches.
+	 * removing the need for DMA sanaloping and allocation in the CPU caches.
 	 *
 	 * The use of uncached GPU mappings relies on the correct implementation
-	 * of the PCIe NoSnoop TLP attribute by the platform, otherwise the GPU
-	 * will use cached mappings nonetheless. On x86 platforms, this does not
-	 * seem to matter, as uncached CPU mappings will snoop the caches in any
+	 * of the PCIe AnalSanalop TLP attribute by the platform, otherwise the GPU
+	 * will use cached mappings analnetheless. On x86 platforms, this does analt
+	 * seem to matter, as uncached CPU mappings will sanalop the caches in any
 	 * case. However, on ARM and arm64, enabling this optimization on a
-	 * platform where NoSnoop is ignored results in loss of coherency, which
-	 * breaks correct operation of the device. Since we have no way of
-	 * detecting whether NoSnoop works or not, just disable this
+	 * platform where AnalSanalop is iganalred results in loss of coherency, which
+	 * breaks correct operation of the device. Since we have anal way of
+	 * detecting whether AnalSanalop works or analt, just disable this
 	 * optimization entirely for ARM and arm64.
 	 */
 	return false;

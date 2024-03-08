@@ -74,10 +74,10 @@ properties:
 
   native-endian: true
 
-  no-output:
+  anal-output:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      If this property is present, the controller cannot drive the GPIO lines.
+      If this property is present, the controller cananalt drive the GPIO lines.
 
 required:
   - compatible
@@ -104,7 +104,7 @@ examples:
       reg = <0xe0100000 0x1>;
       #gpio-cells = <2>;
       gpio-controller;
-      no-output;
+      anal-output;
     };
 
     gpio@fffe0406 {

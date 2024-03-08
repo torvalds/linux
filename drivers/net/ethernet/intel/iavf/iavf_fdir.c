@@ -88,15 +88,15 @@ int iavf_validate_fdir_fltr_masks(struct iavf_adapter *adapter,
 	return 0;
 
 partial_mask:
-	dev_err(&adapter->pdev->dev, "Failed to add Flow Director filter, partial masks are not supported\n");
-	return -EOPNOTSUPP;
+	dev_err(&adapter->pdev->dev, "Failed to add Flow Director filter, partial masks are analt supported\n");
+	return -EOPANALTSUPP;
 }
 
 /**
- * iavf_pkt_udp_no_pay_len - the length of UDP packet without payload
+ * iavf_pkt_udp_anal_pay_len - the length of UDP packet without payload
  * @fltr: Flow Director filter data structure
  */
-static u16 iavf_pkt_udp_no_pay_len(struct iavf_fdir_fltr *fltr)
+static u16 iavf_pkt_udp_anal_pay_len(struct iavf_fdir_fltr *fltr)
 {
 	return sizeof(struct ethhdr) +
 	       (fltr->ip_ver == 4 ? sizeof(struct iphdr) : sizeof(struct ipv6hdr)) +
@@ -122,7 +122,7 @@ iavf_fill_fdir_gtpu_hdr(struct iavf_fdir_fltr *fltr,
 
 	VIRTCHNL_SET_PROTO_HDR_TYPE(ghdr, GTPU_IP);
 
-	adj_offs = iavf_pkt_udp_no_pay_len(fltr);
+	adj_offs = iavf_pkt_udp_anal_pay_len(fltr);
 
 	for (i = 0; i < fltr->flex_cnt; i++) {
 #define IAVF_GTPU_HDR_TEID_OFFS0	4
@@ -153,7 +153,7 @@ iavf_fill_fdir_gtpu_hdr(struct iavf_fdir_fltr *fltr,
 			if ((fltr->flex_words[i].word &
 			     IAVF_GTPU_HDR_NEXT_EXTHDR_TYPE_MASK) !=
 						IAVF_GTPU_PSC_EXTHDR_TYPE)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			if (!ehdr)
 				ehdr = &proto_hdrs->proto_hdr[proto_hdrs->count++];
 			VIRTCHNL_SET_PROTO_HDR_TYPE(ehdr, GTPU_EH);
@@ -171,7 +171,7 @@ iavf_fill_fdir_gtpu_hdr(struct iavf_fdir_fltr *fltr,
 		}
 	}
 
-	uhdr->field_selector = 0; /* The PF ignores the UDP header fields */
+	uhdr->field_selector = 0; /* The PF iganalres the UDP header fields */
 
 	return 0;
 }
@@ -194,7 +194,7 @@ iavf_fill_fdir_pfcp_hdr(struct iavf_fdir_fltr *fltr,
 
 	VIRTCHNL_SET_PROTO_HDR_TYPE(hdr, PFCP);
 
-	adj_offs = iavf_pkt_udp_no_pay_len(fltr);
+	adj_offs = iavf_pkt_udp_anal_pay_len(fltr);
 
 	for (i = 0; i < fltr->flex_cnt; i++) {
 #define IAVF_PFCP_HDR_SFIELD_AND_MSG_TYPE_OFFS	0
@@ -213,7 +213,7 @@ iavf_fill_fdir_pfcp_hdr(struct iavf_fdir_fltr *fltr,
 		}
 	}
 
-	uhdr->field_selector = 0; /* The PF ignores the UDP header fields */
+	uhdr->field_selector = 0; /* The PF iganalres the UDP header fields */
 
 	return 0;
 }
@@ -237,7 +237,7 @@ iavf_fill_fdir_nat_t_esp_hdr(struct iavf_fdir_fltr *fltr,
 
 	VIRTCHNL_SET_PROTO_HDR_TYPE(hdr, ESP);
 
-	adj_offs = iavf_pkt_udp_no_pay_len(fltr);
+	adj_offs = iavf_pkt_udp_anal_pay_len(fltr);
 
 	for (i = 0; i < fltr->flex_cnt; i++) {
 #define IAVF_NAT_T_ESP_SPI_OFFS0	0
@@ -260,12 +260,12 @@ iavf_fill_fdir_nat_t_esp_hdr(struct iavf_fdir_fltr *fltr,
 	}
 
 	if (!spi)
-		return -EOPNOTSUPP; /* Not support IKE Header Format with SPI 0 */
+		return -EOPANALTSUPP; /* Analt support IKE Header Format with SPI 0 */
 
 	*(__be32 *)hdr->buffer = htonl(spi);
 	VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, ESP, SPI);
 
-	uhdr->field_selector = 0; /* The PF ignores the UDP header fields */
+	uhdr->field_selector = 0; /* The PF iganalres the UDP header fields */
 
 	return 0;
 }
@@ -294,7 +294,7 @@ iavf_fill_fdir_udp_flex_pay_hdr(struct iavf_fdir_fltr *fltr,
 		err = iavf_fill_fdir_pfcp_hdr(fltr, proto_hdrs);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -549,7 +549,7 @@ iavf_fill_fdir_l4_hdr(struct iavf_fdir_fltr *fltr,
 
 		*l4_4_data = fltr->ip_data.l4_header;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -574,7 +574,7 @@ iavf_fill_fdir_eth_hdr(struct iavf_fdir_fltr *fltr,
 	if (fltr->eth_mask.etype == htons(U16_MAX)) {
 		if (fltr->eth_data.etype == htons(ETH_P_IP) ||
 		    fltr->eth_data.etype == htons(ETH_P_IPV6))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		ehdr->h_proto = fltr->eth_data.etype;
 		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, ETH, ETHERTYPE);
@@ -651,7 +651,7 @@ int iavf_fill_fdir_add_msg(struct iavf_adapter *adapter, struct iavf_fdir_fltr *
 		err = iavf_fill_fdir_ip6_hdr(fltr, proto_hdrs) |
 		      iavf_fill_fdir_l4_hdr(fltr, proto_hdrs);
 		break;
-	case IAVF_FDIR_FLOW_NON_IP_L2:
+	case IAVF_FDIR_FLOW_ANALN_IP_L2:
 		break;
 	default:
 		err = -EINVAL;
@@ -694,7 +694,7 @@ static const char *iavf_fdir_flow_proto_name(enum iavf_fdir_flow_type flow_type)
 	case IAVF_FDIR_FLOW_IPV4_OTHER:
 	case IAVF_FDIR_FLOW_IPV6_OTHER:
 		return "Other";
-	case IAVF_FDIR_FLOW_NON_IP_L2:
+	case IAVF_FDIR_FLOW_ANALN_IP_L2:
 		return "Ethernet";
 	default:
 		return NULL;
@@ -772,7 +772,7 @@ void iavf_print_fdir_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *f
 			 fltr->ip_data.proto,
 			 ntohl(fltr->ip_data.l4_header));
 		break;
-	case IAVF_FDIR_FLOW_NON_IP_L2:
+	case IAVF_FDIR_FLOW_ANALN_IP_L2:
 		dev_info(&adapter->pdev->dev, "Rule ID: %u eth_type: 0x%x\n",
 			 fltr->loc,
 			 ntohs(fltr->eth_data.etype));
@@ -833,9 +833,9 @@ struct iavf_fdir_fltr *iavf_find_fdir_fltr_by_loc(struct iavf_adapter *adapter, 
 }
 
 /**
- * iavf_fdir_list_add_fltr - add a new node to the flow director filter list
+ * iavf_fdir_list_add_fltr - add a new analde to the flow director filter list
  * @adapter: pointer to the VF adapter structure
- * @fltr: filter node to add to structure
+ * @fltr: filter analde to add to structure
  */
 void iavf_fdir_list_add_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr)
 {

@@ -77,7 +77,7 @@ static const char * const bcm63xx_cfe_part_types[] = {
 	NULL,
 };
 
-static int bcm63xx_parse_cfe_nor_partitions(struct mtd_info *master,
+static int bcm63xx_parse_cfe_analr_partitions(struct mtd_info *master,
 	const struct mtd_partition **pparts, struct bcm963xx_nvram *nvram)
 {
 	struct mtd_partition *parts;
@@ -95,7 +95,7 @@ static int bcm63xx_parse_cfe_nor_partitions(struct mtd_info *master,
 
 	parts = kzalloc(sizeof(*parts) * nrparts + 10 * nrparts, GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Start building partition list */
 	parts[curpart].name = "CFE";
@@ -135,14 +135,14 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 
 	nvram = vzalloc(sizeof(*nvram));
 	if (!nvram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = bcm63xx_read_nvram(master, nvram);
 	if (ret)
 		goto out;
 
 	if (!mtd_type_is_nand(master))
-		ret = bcm63xx_parse_cfe_nor_partitions(master, pparts, nvram);
+		ret = bcm63xx_parse_cfe_analr_partitions(master, pparts, nvram);
 	else
 		ret = -EINVAL;
 
@@ -152,7 +152,7 @@ out:
 };
 
 static const struct of_device_id parse_bcm63xx_cfe_match_table[] = {
-	{ .compatible = "brcm,bcm963xx-cfe-nor-partitions" },
+	{ .compatible = "brcm,bcm963xx-cfe-analr-partitions" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, parse_bcm63xx_cfe_match_table);

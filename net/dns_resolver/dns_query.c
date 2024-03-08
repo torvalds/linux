@@ -32,7 +32,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, see <http://www.gnu.org/licenses/>.
+ *   along with this library; if analt, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -53,7 +53,7 @@
  * @type: Query type (or NULL for straight host->IP lookup)
  * @name: Name to look up
  * @namelen: Length of name
- * @options: Request options (or NULL if no options)
+ * @options: Request options (or NULL if anal options)
  * @_result: Where to place the returned data (or NULL)
  * @_expiry: Where to store the result expiry time (or NULL)
  * @invalidate: Always invalidate the key after use
@@ -62,7 +62,7 @@
  * caller is responsible for freeing it.
  *
  * The description should be of the form "[<query_type>:]<domain_name>", and
- * the options need to be appropriate for the query type requested.  If no
+ * the options need to be appropriate for the query type requested.  If anal
  * query_type is given, then the query is a straight hostname to IP address
  * lookup.
  *
@@ -105,7 +105,7 @@ int dns_query(struct net *net,
 
 	desc = kmalloc(desclen, GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cp = desc;
 	if (type) {
@@ -150,7 +150,7 @@ int dns_query(struct net *net,
 	len = upayload->datalen;
 
 	if (_result) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		*_result = kmemdup_nul(upayload->data, len, GFP_KERNEL);
 		if (!*_result)
 			goto put;

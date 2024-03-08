@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, see <http://www.gnu.org/licenses/>.
+ *   along with this library; if analt, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/compiler.h>

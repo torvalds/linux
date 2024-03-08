@@ -85,7 +85,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 
 		cck_agc_rpt = p_phystrpt->cfosho[0];
 
-		/* (1)Hardware does not provide RSSI for CCK
+		/* (1)Hardware does analt provide RSSI for CCK
 		 * (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
@@ -195,7 +195,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 	} else {
 		/* (1)Get RSSI for HT rate */
 		for (i = RF90_PATH_A; i < RF6052_MAX_PATH; i++) {
-			/* we will judge RF RX path now. */
+			/* we will judge RF RX path analw. */
 			if (rtlpriv->dm.rfpath_rxenable[i])
 				rf_rx_num++;
 
@@ -322,7 +322,7 @@ static void translate_rx_signal_stuff(struct ieee80211_hw *hw,
 		u16 tid = le16_to_cpu(hdr_qos->qos_ctrl) & 0xf;
 
 		if (tid != 0 && tid != 3)
-			rtl_priv(hw)->dm.dbginfo.num_non_be_pkt++;
+			rtl_priv(hw)->dm.dbginfo.num_analn_be_pkt++;
 	}
 
 	query_rxphystatus(hw, pstatus, pdesc, p_drvinfo,
@@ -471,7 +471,7 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 	if (get_rx_status_desc_rpt_sel(pdesc))
 		status->packet_report_type = C2H_PACKET;
 	else
-		status->packet_report_type = NORMAL_RX;
+		status->packet_report_type = ANALRMAL_RX;
 
 	if (get_rx_status_desc_pattern_match(pdesc))
 		wake_match = BIT(2);
@@ -512,7 +512,7 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 
 	/* hw will set status->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame.
-	 * So hw will not decryption robust managment frame
+	 * So hw will analt decryption robust managment frame
 	 * for IEEE80211w but still set status->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help
@@ -592,7 +592,7 @@ static u8 rtl8821ae_sc_mapping(struct ieee80211_hw *hw,
 
 	if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_80) {
 		if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_80) {
-			sc_setting_of_desc = VHT_DATA_SC_DONOT_CARE;
+			sc_setting_of_desc = VHT_DATA_SC_DOANALT_CARE;
 		} else if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_20_40) {
 			if (mac->cur_80_prime_sc ==
 			    HAL_PRIME_CHNL_OFFSET_LOWER)
@@ -604,7 +604,7 @@ static u8 rtl8821ae_sc_mapping(struct ieee80211_hw *hw,
 					VHT_DATA_SC_40_UPPER_OF_80MHZ;
 			else
 				rtl_dbg(rtlpriv, COMP_SEND, DBG_LOUD,
-					"%s: Not Correct Primary40MHz Setting\n",
+					"%s: Analt Correct Primary40MHz Setting\n",
 					__func__);
 		} else {
 			if ((mac->cur_40_prime_sc ==
@@ -633,12 +633,12 @@ static u8 rtl8821ae_sc_mapping(struct ieee80211_hw *hw,
 					VHT_DATA_SC_20_UPPERST_OF_80MHZ;
 			else
 				rtl_dbg(rtlpriv, COMP_SEND, DBG_LOUD,
-					"%s: Not Correct Primary40MHz Setting\n",
+					"%s: Analt Correct Primary40MHz Setting\n",
 					__func__);
 		}
 	} else if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20_40) {
 		if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_20_40) {
-			sc_setting_of_desc = VHT_DATA_SC_DONOT_CARE;
+			sc_setting_of_desc = VHT_DATA_SC_DOANALT_CARE;
 		} else if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_20) {
 			if (mac->cur_40_prime_sc ==
 				HAL_PRIME_CHNL_OFFSET_UPPER) {
@@ -649,11 +649,11 @@ static u8 rtl8821ae_sc_mapping(struct ieee80211_hw *hw,
 				sc_setting_of_desc =
 					VHT_DATA_SC_20_LOWER_OF_80MHZ;
 			} else {
-				sc_setting_of_desc = VHT_DATA_SC_DONOT_CARE;
+				sc_setting_of_desc = VHT_DATA_SC_DOANALT_CARE;
 			}
 		}
 	} else {
-		sc_setting_of_desc = VHT_DATA_SC_DONOT_CARE;
+		sc_setting_of_desc = VHT_DATA_SC_DOANALT_CARE;
 	}
 
 	return sc_setting_of_desc;
@@ -891,7 +891,7 @@ void rtl8821ae_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 			break;
 		default:
 			WARN_ONCE(true,
-				  "rtl8821ae: ERR txdesc :%d not processed\n",
+				  "rtl8821ae: ERR txdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -911,7 +911,7 @@ void rtl8821ae_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 			break;
 		default:
 			WARN_ONCE(true,
-				  "rtl8821ae: ERR rxdesc :%d not processed\n",
+				  "rtl8821ae: ERR rxdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -934,7 +934,7 @@ u64 rtl8821ae_get_desc(struct ieee80211_hw *hw,
 			break;
 		default:
 			WARN_ONCE(true,
-				  "rtl8821ae: ERR txdesc :%d not processed\n",
+				  "rtl8821ae: ERR txdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -951,7 +951,7 @@ u64 rtl8821ae_get_desc(struct ieee80211_hw *hw,
 			break;
 		default:
 			WARN_ONCE(true,
-				  "rtl8821ae: ERR rxdesc :%d not processed\n",
+				  "rtl8821ae: ERR rxdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -969,7 +969,7 @@ bool rtl8821ae_is_tx_desc_closed(struct ieee80211_hw *hw,
 
 	/**
 	 *beacon packet will only use the first
-	 *descriptor defautly,and the own may not
+	 *descriptor defautly,and the own may analt
 	 *be cleared by the hardware
 	 */
 	if (own)

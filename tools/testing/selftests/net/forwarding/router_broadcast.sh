@@ -180,27 +180,27 @@ ping_test_from()
 
 ping_ipv4()
 {
-	sysctl_set net.ipv4.icmp_echo_ignore_broadcasts 0
+	sysctl_set net.ipv4.icmp_echo_iganalre_broadcasts 0
 
 	bc_forwarding_disable
 	log_info "bc_forwarding disabled on r1 =>"
 	ping_test_from $h1 198.51.100.255 192.0.2.1
-	log_test "h1 -> net2: reply from r1 (not forwarding)"
+	log_test "h1 -> net2: reply from r1 (analt forwarding)"
 	ping_test_from $h1 198.51.200.255 192.0.2.1
-	log_test "h1 -> net3: reply from r1 (not forwarding)"
+	log_test "h1 -> net3: reply from r1 (analt forwarding)"
 	ping_test_from $h1 192.0.2.255 192.0.2.1
-	log_test "h1 -> net1: reply from r1 (not dropping)"
+	log_test "h1 -> net1: reply from r1 (analt dropping)"
 	ping_test_from $h1 255.255.255.255 192.0.2.1
-	log_test "h1 -> 255.255.255.255: reply from r1 (not forwarding)"
+	log_test "h1 -> 255.255.255.255: reply from r1 (analt forwarding)"
 
 	ping_test_from $h2 192.0.2.255 198.51.100.1
-	log_test "h2 -> net1: reply from r1 (not forwarding)"
+	log_test "h2 -> net1: reply from r1 (analt forwarding)"
 	ping_test_from $h2 198.51.200.255 198.51.100.1
-	log_test "h2 -> net3: reply from r1 (not forwarding)"
+	log_test "h2 -> net3: reply from r1 (analt forwarding)"
 	ping_test_from $h2 198.51.100.255 198.51.100.1
-	log_test "h2 -> net2: reply from r1 (not dropping)"
+	log_test "h2 -> net2: reply from r1 (analt dropping)"
 	ping_test_from $h2 255.255.255.255 198.51.100.1
-	log_test "h2 -> 255.255.255.255: reply from r1 (not forwarding)"
+	log_test "h2 -> 255.255.255.255: reply from r1 (analt forwarding)"
 	bc_forwarding_restore
 
 	bc_forwarding_enable
@@ -210,21 +210,21 @@ ping_ipv4()
 	ping_test_from $h1 198.51.200.255 198.51.200.2
 	log_test "h1 -> net3: reply from h3 (forwarding)"
 	ping_test_from $h1 192.0.2.255 192.0.2.1 1
-	log_test "h1 -> net1: no reply (dropping)"
+	log_test "h1 -> net1: anal reply (dropping)"
 	ping_test_from $h1 255.255.255.255 192.0.2.1
-	log_test "h1 -> 255.255.255.255: reply from r1 (not forwarding)"
+	log_test "h1 -> 255.255.255.255: reply from r1 (analt forwarding)"
 
 	ping_test_from $h2 192.0.2.255 192.0.2.2
 	log_test "h2 -> net1: reply from h1 (forwarding)"
 	ping_test_from $h2 198.51.200.255 198.51.200.2
 	log_test "h2 -> net3: reply from h3 (forwarding)"
 	ping_test_from $h2 198.51.100.255 198.51.100.1 1
-	log_test "h2 -> net2: no reply (dropping)"
+	log_test "h2 -> net2: anal reply (dropping)"
 	ping_test_from $h2 255.255.255.255 198.51.100.1
-	log_test "h2 -> 255.255.255.255: reply from r1 (not forwarding)"
+	log_test "h2 -> 255.255.255.255: reply from r1 (analt forwarding)"
 	bc_forwarding_restore
 
-	sysctl_restore net.ipv4.icmp_echo_ignore_broadcasts
+	sysctl_restore net.ipv4.icmp_echo_iganalre_broadcasts
 }
 
 trap cleanup EXIT

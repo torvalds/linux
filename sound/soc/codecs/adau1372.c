@@ -127,7 +127,7 @@ static const DECLARE_TLV_DB_SCALE(adau1372_pga_tlv, -1200, 75, 0);
 static const DECLARE_TLV_DB_SCALE(adau1372_pga_boost_tlv, 0, 1000, 0);
 
 static const char * const adau1372_bias_text[] = {
-	"Normal operation", "Extreme power saving", "Enhanced performance",
+	"Analrmal operation", "Extreme power saving", "Enhanced performance",
 	"Power saving",
 };
 
@@ -136,11 +136,11 @@ static const unsigned int adau1372_bias_adc_values[] = {
 };
 
 static const char * const adau1372_bias_adc_text[] = {
-	"Normal operation", "Enhanced performance", "Power saving",
+	"Analrmal operation", "Enhanced performance", "Power saving",
 };
 
 static const char * const adau1372_bias_dac_text[] = {
-	"Normal operation", "Power saving", "Superior performance",
+	"Analrmal operation", "Power saving", "Superior performance",
 	"Enhanced performance",
 };
 
@@ -386,49 +386,49 @@ static const struct snd_soc_dapm_widget adau1372_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Output ASRC2 Decimator", ADAU1372_REG_DECIM_PWR, 6, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("Output ASRC3 Decimator", ADAU1372_REG_DECIM_PWR, 7, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("Decimator0 Mux", SND_SOC_NOPM, 0, 0, &adau1372_decimator0_1_mux_control),
-	SND_SOC_DAPM_MUX("Decimator1 Mux", SND_SOC_NOPM, 0, 0, &adau1372_decimator0_1_mux_control),
-	SND_SOC_DAPM_MUX("Decimator2 Mux", SND_SOC_NOPM, 0, 0, &adau1372_decimator2_3_mux_control),
-	SND_SOC_DAPM_MUX("Decimator3 Mux", SND_SOC_NOPM, 0, 0, &adau1372_decimator2_3_mux_control),
+	SND_SOC_DAPM_MUX("Decimator0 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_decimator0_1_mux_control),
+	SND_SOC_DAPM_MUX("Decimator1 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_decimator0_1_mux_control),
+	SND_SOC_DAPM_MUX("Decimator2 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_decimator2_3_mux_control),
+	SND_SOC_DAPM_MUX("Decimator3 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_decimator2_3_mux_control),
 
-	SND_SOC_DAPM_MUX("Output ASRC0 Mux", SND_SOC_NOPM, 0, 0, &adau1372_asrco0_mux_control),
-	SND_SOC_DAPM_MUX("Output ASRC1 Mux", SND_SOC_NOPM, 0, 0, &adau1372_asrco1_mux_control),
-	SND_SOC_DAPM_MUX("Output ASRC2 Mux", SND_SOC_NOPM, 0, 0, &adau1372_asrco2_mux_control),
-	SND_SOC_DAPM_MUX("Output ASRC3 Mux", SND_SOC_NOPM, 0, 0, &adau1372_asrco3_mux_control),
-	SND_SOC_DAPM_MUX("Serial Output 0 Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Output ASRC0 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_asrco0_mux_control),
+	SND_SOC_DAPM_MUX("Output ASRC1 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_asrco1_mux_control),
+	SND_SOC_DAPM_MUX("Output ASRC2 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_asrco2_mux_control),
+	SND_SOC_DAPM_MUX("Output ASRC3 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_asrco3_mux_control),
+	SND_SOC_DAPM_MUX("Serial Output 0 Capture Mux", SND_SOC_ANALPM, 0, 0,
 			 &adau1372_sout0_mux_control),
-	SND_SOC_DAPM_MUX("Serial Output 1 Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Serial Output 1 Capture Mux", SND_SOC_ANALPM, 0, 0,
 			 &adau1372_sout1_mux_control),
-	SND_SOC_DAPM_MUX("Serial Output 2 Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Serial Output 2 Capture Mux", SND_SOC_ANALPM, 0, 0,
 			 &adau1372_sout2_mux_control),
-	SND_SOC_DAPM_MUX("Serial Output 3 Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Serial Output 3 Capture Mux", SND_SOC_ANALPM, 0, 0,
 			 &adau1372_sout3_mux_control),
-	SND_SOC_DAPM_MUX("Serial Output 4 Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Serial Output 4 Capture Mux", SND_SOC_ANALPM, 0, 0,
 			 &adau1372_sout4_mux_control),
-	SND_SOC_DAPM_MUX("Serial Output 5 Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Serial Output 5 Capture Mux", SND_SOC_ANALPM, 0, 0,
 			 &adau1372_sout5_mux_control),
-	SND_SOC_DAPM_MUX("Serial Output 6 Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Serial Output 6 Capture Mux", SND_SOC_ANALPM, 0, 0,
 			 &adau1372_sout6_mux_control),
-	SND_SOC_DAPM_MUX("Serial Output 7 Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Serial Output 7 Capture Mux", SND_SOC_ANALPM, 0, 0,
 			 &adau1372_sout7_mux_control),
 
-	SND_SOC_DAPM_AIF_IN("Serial Input 0", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Serial Input 1", NULL, 1, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Serial Input 2", NULL, 2, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Serial Input 3", NULL, 3, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Serial Input 4", NULL, 4, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Serial Input 5", NULL, 5, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Serial Input 6", NULL, 6, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Serial Input 7", NULL, 7, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Serial Input 0", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Serial Input 1", NULL, 1, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Serial Input 2", NULL, 2, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Serial Input 3", NULL, 3, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Serial Input 4", NULL, 4, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Serial Input 5", NULL, 5, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Serial Input 6", NULL, 6, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Serial Input 7", NULL, 7, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_OUT("Serial Output 0", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("Serial Output 1", NULL, 1, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("Serial Output 2", NULL, 2, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("Serial Output 3", NULL, 3, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("Serial Output 4", NULL, 4, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("Serial Output 5", NULL, 5, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("Serial Output 6", NULL, 6, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("Serial Output 7", NULL, 7, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Serial Output 0", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Serial Output 1", NULL, 1, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Serial Output 2", NULL, 2, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Serial Output 3", NULL, 3, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Serial Output 4", NULL, 4, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Serial Output 5", NULL, 5, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Serial Output 6", NULL, 6, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Serial Output 7", NULL, 7, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_SUPPLY("Output ASRC Supply", ADAU1372_REG_ASRC_MODE, 1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("Input ASRC Supply", ADAU1372_REG_ASRC_MODE, 0, 0, NULL, 0),
@@ -438,11 +438,11 @@ static const struct snd_soc_dapm_widget adau1372_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Input ASRC1 Interpolator", ADAU1372_REG_INTERP_PWR, 1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("Input ASRC0 Interpolator", ADAU1372_REG_INTERP_PWR, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("Input ASRC0 Mux", SND_SOC_NOPM, 0, 0, &adau1372_asrci_mux_control),
-	SND_SOC_DAPM_MUX("Input ASRC1 Mux", SND_SOC_NOPM, 0, 0, &adau1372_asrci_mux_control),
+	SND_SOC_DAPM_MUX("Input ASRC0 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_asrci_mux_control),
+	SND_SOC_DAPM_MUX("Input ASRC1 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_asrci_mux_control),
 
-	SND_SOC_DAPM_MUX("DAC 0 Mux", SND_SOC_NOPM, 0, 0, &adau1372_dac0_mux_control),
-	SND_SOC_DAPM_MUX("DAC 1 Mux", SND_SOC_NOPM, 0, 0, &adau1372_dac1_mux_control),
+	SND_SOC_DAPM_MUX("DAC 0 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_dac0_mux_control),
+	SND_SOC_DAPM_MUX("DAC 1 Mux", SND_SOC_ANALPM, 0, 0, &adau1372_dac1_mux_control),
 
 	SND_SOC_DAPM_DAC("DAC0", NULL, ADAU1372_REG_DAC_CTRL, 0, 0),
 	SND_SOC_DAPM_DAC("DAC1", NULL, ADAU1372_REG_DAC_CTRL, 1, 0),
@@ -691,7 +691,7 @@ static int adau1372_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		return 0;
 	}
 
-	/* We have 8 channels anything outside that is not supported */
+	/* We have 8 channels anything outside that is analt supported */
 	if ((tx_mask & ~0xff) != 0 || (rx_mask & ~0xff) != 0)
 		return -EINVAL;
 
@@ -814,7 +814,7 @@ static void adau1372_set_power(struct adau1372 *adau1372, bool enable)
 		if (adau1372->pd_gpio) {
 			/*
 			 * This will turn everything off and reset the register
-			 * map. No need to do any register writes to manually
+			 * map. Anal need to do any register writes to manually
 			 * turn things off.
 			 */
 			gpiod_set_value(adau1372->pd_gpio, 1);
@@ -880,7 +880,7 @@ static struct snd_soc_dai_driver adau1372_dai_driver = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = ADAU1372_FORMATS,
 		.sig_bits = 24,
 	},
@@ -888,7 +888,7 @@ static struct snd_soc_dai_driver adau1372_dai_driver = {
 		.stream_name = "Capture",
 		.channels_min = 2,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = ADAU1372_FORMATS,
 		.sig_bits = 24,
 	},
@@ -925,7 +925,7 @@ int adau1372_probe(struct device *dev, struct regmap *regmap,
 
 	adau1372 = devm_kzalloc(dev, sizeof(*adau1372), GFP_KERNEL);
 	if (!adau1372)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adau1372->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(adau1372->mclk))
@@ -976,7 +976,7 @@ int adau1372_probe(struct device *dev, struct regmap *regmap,
 	regmap_update_bits(regmap, ADAU1372_REG_CLK_CTRL, ADAU1372_CLK_CTRL_CC_MDIV, clk_ctrl);
 
 	/*
-	 * No pinctrl support yet, put the multi-purpose pins in the most
+	 * Anal pinctrl support yet, put the multi-purpose pins in the most
 	 * sensible mode for general purpose CODEC operation.
 	 */
 	regmap_write(regmap, ADAU1372_REG_MODE_MP(1), 0x00); /* SDATA OUT */

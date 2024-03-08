@@ -32,7 +32,7 @@
 #define SPINLOCK_NUMLOCKS_BIT_OFFSET	(24)
 
 /* Possible values of SPINLOCK_LOCK_REG */
-#define SPINLOCK_NOTTAKEN		(0)	/* free */
+#define SPINLOCK_ANALTTAKEN		(0)	/* free */
 #define SPINLOCK_TAKEN			(1)	/* locked */
 
 static int omap_hwspinlock_trylock(struct hwspinlock *lock)
@@ -40,7 +40,7 @@ static int omap_hwspinlock_trylock(struct hwspinlock *lock)
 	void __iomem *lock_addr = lock->priv;
 
 	/* attempt to acquire the lock by reading its value */
-	return (SPINLOCK_NOTTAKEN == readl(lock_addr));
+	return (SPINLOCK_ANALTTAKEN == readl(lock_addr));
 }
 
 static void omap_hwspinlock_unlock(struct hwspinlock *lock)
@@ -48,7 +48,7 @@ static void omap_hwspinlock_unlock(struct hwspinlock *lock)
 	void __iomem *lock_addr = lock->priv;
 
 	/* release the lock by writing 0 to it */
-	writel(SPINLOCK_NOTTAKEN, lock_addr);
+	writel(SPINLOCK_ANALTTAKEN, lock_addr);
 }
 
 /*
@@ -74,7 +74,7 @@ static const struct hwspinlock_ops omap_hwspinlock_ops = {
 
 static int omap_hwspinlock_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct hwspinlock_device *bank;
 	struct hwspinlock *hwlock;
 	void __iomem *io_base;
@@ -82,8 +82,8 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	/* Only a single hwspinlock block device is supported */
 	int base_id = 0;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(io_base))
@@ -110,7 +110,7 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto runtime_err;
 
-	/* one of the four lsb's must be set, and nothing else */
+	/* one of the four lsb's must be set, and analthing else */
 	if (hweight_long(i & 0xf) != 1 || i > 8) {
 		ret = -EINVAL;
 		goto runtime_err;
@@ -121,7 +121,7 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	bank = devm_kzalloc(&pdev->dev, struct_size(bank, lock, num_locks),
 			    GFP_KERNEL);
 	if (!bank) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto runtime_err;
 	}
 

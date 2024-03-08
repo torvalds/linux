@@ -2,7 +2,7 @@
 /*
  * Strings for the various x86 power flags
  *
- * This file must not contain any executable code.
+ * This file must analt contain any executable code.
  */
 
 #include <asm/cpufeature.h>

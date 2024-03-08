@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * PPC32 code to handle Linux booting another kernel.
+ * PPC32 code to handle Linux booting aanalther kernel.
  *
  * Copyright (C) 2002-2003 Eric Biederman  <ebiederm@xmission.com>
  * GameCube/ppc32 port Copyright (C) 2004 Albert Herranz
@@ -17,11 +17,11 @@
 typedef void (*relocate_new_kernel_t)(
 				unsigned long indirection_page,
 				unsigned long reboot_code_buffer,
-				unsigned long start_address) __noreturn;
+				unsigned long start_address) __analreturn;
 
 /*
  * This is a generic machine_kexec function suitable at least for
- * non-OpenFirmware embedded platforms.
+ * analn-OpenFirmware embedded platforms.
  * It merely copies the image relocation code to the control page and
  * jumps to it.
  * A platform specific function may just call this one.
@@ -58,7 +58,7 @@ void default_machine_kexec(struct kimage *image)
 	if (!IS_ENABLED(CONFIG_PPC_85xx) && !IS_ENABLED(CONFIG_44x))
 		relocate_new_kernel(page_list, reboot_code_buffer_phys, image->start);
 
-	/* now call it */
+	/* analw call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
 	(*rnk)(page_list, reboot_code_buffer_phys, image->start);
 }

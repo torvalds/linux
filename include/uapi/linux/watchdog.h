@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *	Generic watchdog defines. Derived from..
  *
@@ -33,8 +33,8 @@ struct watchdog_info {
 #define	WDIOC_GETPRETIMEOUT	_IOR(WATCHDOG_IOCTL_BASE, 9, int)
 #define	WDIOC_GETTIMELEFT	_IOR(WATCHDOG_IOCTL_BASE, 10, int)
 
-#define	WDIOF_UNKNOWN		-1	/* Unknown flag error */
-#define	WDIOS_UNKNOWN		-1	/* Unknown status error */
+#define	WDIOF_UNKANALWN		-1	/* Unkanalwn flag error */
+#define	WDIOS_UNKANALWN		-1	/* Unkanalwn status error */
 
 #define	WDIOF_OVERHEAT		0x0001	/* Reset due to CPU overheat */
 #define	WDIOF_FANFAULT		0x0002	/* Fan failed */
@@ -47,7 +47,7 @@ struct watchdog_info {
 #define	WDIOF_MAGICCLOSE	0x0100	/* Supports magic close char */
 #define	WDIOF_PRETIMEOUT	0x0200  /* Pretimeout (in seconds), get/set */
 #define	WDIOF_ALARMONLY		0x0400	/* Watchdog triggers a management or
-					   other external alarm not a reboot */
+					   other external alarm analt a reboot */
 #define	WDIOF_KEEPALIVEPING	0x8000	/* Keep alive ping reply */
 
 #define	WDIOS_DISABLECARD	0x0001	/* Turn off the watchdog timer */

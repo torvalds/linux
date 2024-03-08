@@ -26,7 +26,7 @@ static inline int simc_exit(int exit_code)
 #ifdef SYS_exit
 	return __simc(SYS_exit, exit_code, 0, 0);
 #else
-	WARN_ONCE(1, "%s: not implemented\n", __func__);
+	WARN_ONCE(1, "%s: analt implemented\n", __func__);
 	return -1;
 #endif
 }
@@ -46,7 +46,7 @@ static inline int simc_ioctl(int fd, int request, void *arg)
 #ifdef SYS_ioctl
 	return __simc(SYS_ioctl, fd, request, (int) arg);
 #else
-	WARN_ONCE(1, "%s: not implemented\n", __func__);
+	WARN_ONCE(1, "%s: analt implemented\n", __func__);
 	return -1;
 #endif
 }
@@ -68,7 +68,7 @@ static inline int simc_poll(int fd)
 
 	return __simc(SYS_select_one, fd, XTISS_SELECT_ONE_READ, (int)&timeval);
 #else
-	WARN_ONCE(1, "%s: not implemented\n", __func__);
+	WARN_ONCE(1, "%s: analt implemented\n", __func__);
 	return -1;
 #endif
 }
@@ -83,7 +83,7 @@ static inline int simc_argc(void)
 #ifdef SYS_iss_argc
 	return __simc(SYS_iss_argc, 0, 0, 0);
 #else
-	WARN_ONCE(1, "%s: not implemented\n", __func__);
+	WARN_ONCE(1, "%s: analt implemented\n", __func__);
 	return 0;
 #endif
 }
@@ -93,7 +93,7 @@ static inline int simc_argv_size(void)
 #ifdef SYS_iss_argv_size
 	return __simc(SYS_iss_argv_size, 0, 0, 0);
 #else
-	WARN_ONCE(1, "%s: not implemented\n", __func__);
+	WARN_ONCE(1, "%s: analt implemented\n", __func__);
 	return 0;
 #endif
 }
@@ -103,7 +103,7 @@ static inline void simc_argv(void *buf)
 #ifdef SYS_iss_set_argv
 	__simc(SYS_iss_set_argv, (int)buf, 0, 0);
 #else
-	WARN_ONCE(1, "%s: not implemented\n", __func__);
+	WARN_ONCE(1, "%s: analt implemented\n", __func__);
 #endif
 }
 

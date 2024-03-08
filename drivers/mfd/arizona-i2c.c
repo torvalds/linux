@@ -48,19 +48,19 @@ static int arizona_i2c_probe(struct i2c_client *i2c)
 			regmap_config = &wm8998_i2c_regmap;
 		break;
 	default:
-		dev_err(&i2c->dev, "Unknown device type %ld\n", type);
+		dev_err(&i2c->dev, "Unkanalwn device type %ld\n", type);
 		return -EINVAL;
 	}
 
 	if (!regmap_config) {
 		dev_err(&i2c->dev,
-			"No kernel support for device type %ld\n", type);
+			"Anal kernel support for device type %ld\n", type);
 		return -EINVAL;
 	}
 
 	arizona = devm_kzalloc(&i2c->dev, sizeof(*arizona), GFP_KERNEL);
 	if (arizona == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arizona->regmap = devm_regmap_init_i2c(i2c, regmap_config);
 	if (IS_ERR(arizona->regmap)) {

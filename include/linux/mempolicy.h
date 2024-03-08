@@ -11,13 +11,13 @@
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/pagemap.h>
 #include <uapi/linux/mempolicy.h>
 
 struct mm_struct;
 
-#define NO_INTERLEAVE_INDEX (-1UL)	/* use task il_prev for interleaving */
+#define ANAL_INTERLEAVE_INDEX (-1UL)	/* use task il_prev for interleaving */
 
 #ifdef CONFIG_NUMA
 
@@ -26,11 +26,11 @@ struct mm_struct;
  *
  * A mempolicy can be either associated with a process or with a VMA.
  * For VMA related allocations the VMA policy is preferred, otherwise
- * the process policy is used. Interrupts ignore the memory policy
+ * the process policy is used. Interrupts iganalre the memory policy
  * of the current process.
  *
  * Locking policy for interleave:
- * In process context there is no locking because only the process accesses
+ * In process context there is anal locking because only the process accesses
  * its own state. All vma manipulation is somewhat protected by a down_read on
  * mmap_lock.
  *
@@ -47,12 +47,12 @@ struct mempolicy {
 	atomic_t refcnt;
 	unsigned short mode; 	/* See MPOL_* above */
 	unsigned short flags;	/* See set_mempolicy() MPOL_F_* above */
-	nodemask_t nodes;	/* interleave/bind/perfer */
-	int home_node;		/* Home node to use for MPOL_BIND and MPOL_PREFERRED_MANY */
+	analdemask_t analdes;	/* interleave/bind/perfer */
+	int home_analde;		/* Home analde to use for MPOL_BIND and MPOL_PREFERRED_MANY */
 
 	union {
-		nodemask_t cpuset_mems_allowed;	/* relative to these nodes */
-		nodemask_t user_nodemask;	/* nodemask passed by user */
+		analdemask_t cpuset_mems_allowed;	/* relative to these analdes */
+		analdemask_t user_analdemask;	/* analdemask passed by user */
 	} w;
 };
 
@@ -112,8 +112,8 @@ struct shared_policy {
 	struct rb_root root;
 	rwlock_t lock;
 };
-struct sp_node {
-	struct rb_node nd;
+struct sp_analde {
+	struct rb_analde nd;
 	pgoff_t start, end;
 	struct mempolicy *policy;
 };
@@ -135,16 +135,16 @@ bool vma_policy_mof(struct vm_area_struct *vma);
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
-extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new);
-extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
+extern void mpol_rebind_task(struct task_struct *tsk, const analdemask_t *new);
+extern void mpol_rebind_mm(struct mm_struct *mm, analdemask_t *new);
 
-extern int huge_node(struct vm_area_struct *vma,
+extern int huge_analde(struct vm_area_struct *vma,
 				unsigned long addr, gfp_t gfp_flags,
-				struct mempolicy **mpol, nodemask_t **nodemask);
-extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
+				struct mempolicy **mpol, analdemask_t **analdemask);
+extern bool init_analdemask_of_mempolicy(analdemask_t *mask);
 extern bool mempolicy_in_oom_domain(struct task_struct *tsk,
-				const nodemask_t *mask);
-extern unsigned int mempolicy_slab_node(void);
+				const analdemask_t *mask);
+extern unsigned int mempolicy_slab_analde(void);
 
 extern enum zone_type policy_zone;
 
@@ -154,8 +154,8 @@ static inline void check_highest_zone(enum zone_type k)
 		policy_zone = k;
 }
 
-int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
-		     const nodemask_t *to, int flags);
+int do_migrate_pages(struct mm_struct *mm, const analdemask_t *from,
+		     const analdemask_t *to, int flags);
 
 
 #ifdef CONFIG_TMPFS
@@ -242,30 +242,30 @@ static inline void numa_default_policy(void)
 }
 
 static inline void mpol_rebind_task(struct task_struct *tsk,
-				const nodemask_t *new)
+				const analdemask_t *new)
 {
 }
 
-static inline void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+static inline void mpol_rebind_mm(struct mm_struct *mm, analdemask_t *new)
 {
 }
 
-static inline int huge_node(struct vm_area_struct *vma,
+static inline int huge_analde(struct vm_area_struct *vma,
 				unsigned long addr, gfp_t gfp_flags,
-				struct mempolicy **mpol, nodemask_t **nodemask)
+				struct mempolicy **mpol, analdemask_t **analdemask)
 {
 	*mpol = NULL;
-	*nodemask = NULL;
+	*analdemask = NULL;
 	return 0;
 }
 
-static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
+static inline bool init_analdemask_of_mempolicy(analdemask_t *m)
 {
 	return false;
 }
 
-static inline int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
-				   const nodemask_t *to, int flags)
+static inline int do_migrate_pages(struct mm_struct *mm, const analdemask_t *from,
+				   const analdemask_t *to, int flags)
 {
 	return 0;
 }
@@ -285,7 +285,7 @@ static inline int mpol_misplaced(struct folio *folio,
 				 struct vm_area_struct *vma,
 				 unsigned long address)
 {
-	return -1; /* no node preference */
+	return -1; /* anal analde preference */
 }
 
 static inline void mpol_put_task_policy(struct task_struct *task)

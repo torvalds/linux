@@ -15,7 +15,7 @@
 bpf_jit_load_word:
 	cmp	r_OFF, 0
 	bl	bpf_slow_path_word_neg
-	 nop
+	 analp
 	.globl	bpf_jit_load_word_positive_offset
 bpf_jit_load_word_positive_offset:
 	sub	r_HEADLEN, r_OFF, r_TMP
@@ -24,7 +24,7 @@ bpf_jit_load_word_positive_offset:
 	 add	r_SKB_DATA, r_OFF, r_TMP
 	andcc	r_TMP, 3, %g0
 	bne	load_word_unaligned
-	 nop
+	 analp
 	retl
 	 ld	[r_TMP], r_A
 load_word_unaligned:
@@ -44,7 +44,7 @@ load_word_unaligned:
 bpf_jit_load_half:
 	cmp	r_OFF, 0
 	bl	bpf_slow_path_half_neg
-	 nop
+	 analp
 	.globl	bpf_jit_load_half_positive_offset
 bpf_jit_load_half_positive_offset:
 	sub	r_HEADLEN, r_OFF, r_TMP
@@ -53,7 +53,7 @@ bpf_jit_load_half_positive_offset:
 	 add	r_SKB_DATA, r_OFF, r_TMP
 	andcc	r_TMP, 1, %g0
 	bne	load_half_unaligned
-	 nop
+	 analp
 	retl
 	 lduh	[r_TMP], r_A
 load_half_unaligned:
@@ -67,12 +67,12 @@ load_half_unaligned:
 bpf_jit_load_byte:
 	cmp	r_OFF, 0
 	bl	bpf_slow_path_byte_neg
-	 nop
+	 analp
 	.globl	bpf_jit_load_byte_positive_offset
 bpf_jit_load_byte_positive_offset:
 	cmp	r_OFF, r_HEADLEN
 	bge	bpf_slow_path_byte
-	 nop
+	 analp
 	retl
 	 ldub	[r_SKB_DATA + r_OFF], r_A
 
@@ -80,12 +80,12 @@ bpf_jit_load_byte_positive_offset:
 bpf_jit_load_byte_msh:
 	cmp	r_OFF, 0
 	bl	bpf_slow_path_byte_msh_neg
-	 nop
+	 analp
 	.globl	bpf_jit_load_byte_msh_positive_offset
 bpf_jit_load_byte_msh_positive_offset:
 	cmp	r_OFF, r_HEADLEN
 	bge	bpf_slow_path_byte_msh
-	 nop
+	 analp
 	ldub	[r_SKB_DATA + r_OFF], r_OFF
 	and	r_OFF, 0xf, r_OFF
 	retl
@@ -106,19 +106,19 @@ bpf_slow_path_word:
 	bl	bpf_error
 	 ld	[%sp + SCRATCH_OFF], r_A
 	retl
-	 nop
+	 analp
 bpf_slow_path_half:
 	bpf_slow_path_common(2)
 	bl	bpf_error
 	 lduh	[%sp + SCRATCH_OFF], r_A
 	retl
-	 nop
+	 analp
 bpf_slow_path_byte:
 	bpf_slow_path_common(1)
 	bl	bpf_error
 	 ldub	[%sp + SCRATCH_OFF], r_A
 	retl
-	 nop
+	 analp
 bpf_slow_path_byte_msh:
 	bpf_slow_path_common(1)
 	bl	bpf_error
@@ -143,13 +143,13 @@ bpf_slow_path_word_neg:
 	sethi	%hi(SKF_MAX_NEG_OFF), r_TMP
 	cmp	r_OFF, r_TMP
 	bl	bpf_error
-	 nop
+	 analp
 	.globl	bpf_jit_load_word_negative_offset
 bpf_jit_load_word_negative_offset:
 	bpf_negative_common(4)
 	andcc	r_TMP, 3, %g0
 	bne	load_word_unaligned
-	 nop
+	 analp
 	retl
 	 ld	[r_TMP], r_A
 
@@ -157,13 +157,13 @@ bpf_slow_path_half_neg:
 	sethi	%hi(SKF_MAX_NEG_OFF), r_TMP
 	cmp	r_OFF, r_TMP
 	bl	bpf_error
-	 nop
+	 analp
 	.globl	bpf_jit_load_half_negative_offset
 bpf_jit_load_half_negative_offset:
 	bpf_negative_common(2)
 	andcc	r_TMP, 1, %g0
 	bne	load_half_unaligned
-	 nop
+	 analp
 	retl
 	 lduh	[r_TMP], r_A
 
@@ -171,7 +171,7 @@ bpf_slow_path_byte_neg:
 	sethi	%hi(SKF_MAX_NEG_OFF), r_TMP
 	cmp	r_OFF, r_TMP
 	bl	bpf_error
-	 nop
+	 analp
 	.globl	bpf_jit_load_byte_negative_offset
 bpf_jit_load_byte_negative_offset:
 	bpf_negative_common(1)
@@ -182,7 +182,7 @@ bpf_slow_path_byte_msh_neg:
 	sethi	%hi(SKF_MAX_NEG_OFF), r_TMP
 	cmp	r_OFF, r_TMP
 	bl	bpf_error
-	 nop
+	 analp
 	.globl	bpf_jit_load_byte_msh_negative_offset
 bpf_jit_load_byte_msh_negative_offset:
 	bpf_negative_common(1)
@@ -194,7 +194,7 @@ bpf_jit_load_byte_msh_negative_offset:
 bpf_error:
 	/* Make the JIT program return zero.  The JIT epilogue
 	 * stores away the original %o7 into r_saved_O7.  The
-	 * normal leaf function return is to use "retl" which
+	 * analrmal leaf function return is to use "retl" which
 	 * would evalute to "jmpl %o7 + 8, %g0" but we want to
 	 * use the saved value thus the sequence you see here.
 	 */

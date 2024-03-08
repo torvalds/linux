@@ -69,7 +69,7 @@ properties:
       - description: dp_apb_clk is the APB clock
       - description: dp_aud_clk is the Audio clock
       - description:
-          dp_vtc_pixel_clk_in is the non-live video clock (from Processing
+          dp_vtc_pixel_clk_in is the analn-live video clock (from Processing
           System)
       - description:
           dp_live_video_in_clk is the live video clock (from Programmable

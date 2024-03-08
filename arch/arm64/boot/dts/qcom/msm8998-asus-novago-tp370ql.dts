@@ -6,8 +6,8 @@
 #include "msm8998-clamshell.dtsi"
 
 / {
-	model = "Asus NovaGo TP370QL";
-	compatible = "asus,novago-tp370ql", "qcom,msm8998";
+	model = "Asus AnalvaGo TP370QL";
+	compatible = "asus,analvago-tp370ql", "qcom,msm8998";
 	chassis-type = "convertible";
 };
 

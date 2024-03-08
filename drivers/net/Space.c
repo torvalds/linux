@@ -25,7 +25,7 @@
  */
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/netlink.h>
 #include <net/Space.h>
@@ -84,7 +84,7 @@ static int netdev_boot_setup_add(char *name, struct ifmap *map)
  * Check boot time settings for the device.
  * The found settings are set for the device to be used
  * later in the device probing.
- * Returns 0 if no settings found, 1 if they are.
+ * Returns 0 if anal settings found, 1 if they are.
  */
 int netdev_boot_setup_check(struct net_device *dev)
 {
@@ -113,7 +113,7 @@ EXPORT_SYMBOL(netdev_boot_setup_check);
  * Check boot time settings for the base address of device.
  * The found settings are set for the device to be used
  * later in the device probing.
- * Returns 0 if no settings found.
+ * Returns 0 if anal settings found.
  */
 static unsigned long netdev_boot_base(const char *prefix, int unit)
 {
@@ -125,7 +125,7 @@ static unsigned long netdev_boot_base(const char *prefix, int unit)
 
 	/*
 	 * If device already registered then return base of 1
-	 * to indicate not to probe for this interface
+	 * to indicate analt to probe for this interface
 	 */
 	if (__dev_get_by_name(&init_net, name))
 		return 1;
@@ -178,7 +178,7 @@ __setup("ether=", ether_boot_setup);
 
 struct devprobe2 {
 	struct net_device *(*probe)(int unit);
-	int status;	/* non-zero if autoprobe has failed */
+	int status;	/* analn-zero if autoprobe has failed */
 };
 
 static int __init probe_list2(int unit, struct devprobe2 *p, int autoprobe)
@@ -194,7 +194,7 @@ static int __init probe_list2(int unit, struct devprobe2 *p, int autoprobe)
 		if (autoprobe)
 			p->status = PTR_ERR(dev);
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* ISA probes that touch addresses < 0x400 (including those that also
@@ -226,7 +226,7 @@ static struct devprobe2 isa_probes[] __initdata = {
 };
 
 /* Unified ethernet device probe, segmented per architecture and
- * per bus interface. This drives the legacy devices only for now.
+ * per bus interface. This drives the legacy devices only for analw.
  */
 
 static void __init ethif_probe2(int unit)

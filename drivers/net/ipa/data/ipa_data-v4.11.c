@@ -29,13 +29,13 @@ enum ipa_rsrc_group_id {
 	IPA_RSRC_GROUP_SRC_UL_DL			= 0,
 	IPA_RSRC_GROUP_SRC_UC_RX_Q,
 	IPA_RSRC_GROUP_SRC_UNUSED_2,
-	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; not a source group */
+	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; analt a source group */
 
 	/* Destination resource group identifiers */
 	IPA_RSRC_GROUP_DST_UL_DL_DPL			= 0,
 	IPA_RSRC_GROUP_DST_UNUSED_1,
 	IPA_RSRC_GROUP_DST_DRB_IP,
-	IPA_RSRC_GROUP_DST_COUNT,	/* Last; not a destination group */
+	IPA_RSRC_GROUP_DST_COUNT,	/* Last; analt a destination group */
 };
 
 /* QSB configuration data for an SoC having IPA v4.11 */

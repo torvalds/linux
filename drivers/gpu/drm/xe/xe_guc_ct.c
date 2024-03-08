@@ -27,7 +27,7 @@
 /* Used when a CT send wants to block and / or receive data */
 struct g2h_fence {
 	u32 *response_buffer;
-	u32 seqno;
+	u32 seqanal;
 	u16 response_len;
 	u16 error;
 	u16 hint;
@@ -44,12 +44,12 @@ static void g2h_fence_init(struct g2h_fence *g2h_fence, u32 *response_buffer)
 	g2h_fence->fail = false;
 	g2h_fence->retry = false;
 	g2h_fence->done = false;
-	g2h_fence->seqno = ~0x0;
+	g2h_fence->seqanal = ~0x0;
 }
 
 static bool g2h_fence_needs_alloc(struct g2h_fence *g2h_fence)
 {
-	return g2h_fence->seqno == ~0x0;
+	return g2h_fence->seqanal == ~0x0;
 }
 
 static struct xe_guc *
@@ -93,7 +93,7 @@ ct_to_xe(struct xe_guc_ct *ct)
  * We don't expect too many messages in flight at any time, unless we are
  * using the GuC submission. In that case each request requires a minimum
  * 2 dwords which gives us a maximum 256 queue'd requests. Hopefully this
- * enough space to avoid backpressure on the driver. We increase the size
+ * eanalugh space to avoid backpressure on the driver. We increase the size
  * of the receive buffer (relative to the send) to ensure a G2H response
  * CTB has a landing spot.
  */
@@ -422,7 +422,7 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	xe_assert(xe, full_len <= GUC_CTB_MSG_MAX_LEN);
 	xe_assert(xe, tail <= h2g->info.size);
 
-	/* Command will wrap, zero fill (NOPs), return and check credits again */
+	/* Command will wrap, zero fill (ANALPs), return and check credits again */
 	if (tail + full_len > h2g->info.size) {
 		xe_map_memset(xe, &map, 0, 0,
 			      (h2g->info.size - tail) * sizeof(u32));
@@ -494,7 +494,7 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 	}
 
 	if (unlikely(!ct->enabled)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -505,9 +505,9 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 		if (g2h_fence_needs_alloc(g2h_fence)) {
 			void *ptr;
 
-			g2h_fence->seqno = (ct->fence_seqno++ & 0xffff);
+			g2h_fence->seqanal = (ct->fence_seqanal++ & 0xffff);
 			ptr = xa_store(&ct->fence_lookup,
-				       g2h_fence->seqno,
+				       g2h_fence->seqanal,
 				       g2h_fence, GFP_ATOMIC);
 			if (IS_ERR(ptr)) {
 				ret = PTR_ERR(ptr);
@@ -523,7 +523,7 @@ retry:
 	if (unlikely(ret))
 		goto out_unlock;
 
-	ret = h2g_write(ct, action, len, g2h_fence ? g2h_fence->seqno : 0,
+	ret = h2g_write(ct, action, len, g2h_fence ? g2h_fence->seqanal : 0,
 			!!g2h_fence);
 	if (unlikely(ret)) {
 		if (ret == -EAGAIN)
@@ -532,7 +532,7 @@ retry:
 	}
 
 	__g2h_reserve_space(ct, g2h_len, num_g2h);
-	xe_guc_notify(ct_to_guc(ct));
+	xe_guc_analtify(ct_to_guc(ct));
 out_unlock:
 	if (g2h_len)
 		spin_unlock_irq(&ct->fast_lock);
@@ -566,7 +566,7 @@ try_again:
 
 	/*
 	 * We wait to try to restore credits for about 1 second before bailing.
-	 * In the case of H2G credits we have no choice but just to wait for the
+	 * In the case of H2G credits we have anal choice but just to wait for the
 	 * GuC to consume H2Gs in the channel so we use a wait / sleep loop. In
 	 * the case of G2H we process any G2H in the channel, hopefully freeing
 	 * credits as we consume the G2H messages.
@@ -614,7 +614,7 @@ try_again:
 	return ret;
 
 broken:
-	drm_err(drm, "No forward process on H2G, reset required");
+	drm_err(drm, "Anal forward process on H2G, reset required");
 	xe_guc_ct_print(ct, &p, true);
 	ct->ctbs.h2g.info.broken = true;
 
@@ -678,7 +678,7 @@ int xe_guc_ct_send_g2h_handler(struct xe_guc_ct *ct, const u32 *action, u32 len)
  */
 static bool retry_failure(struct xe_guc_ct *ct, int ret)
 {
-	if (!(ret == -EDEADLK || ret == -EPIPE || ret == -ENODEV))
+	if (!(ret == -EDEADLK || ret == -EPIPE || ret == -EANALDEV))
 		return false;
 
 #define ct_alive(ct)	\
@@ -691,7 +691,7 @@ static bool retry_failure(struct xe_guc_ct *ct, int ret)
 }
 
 static int guc_ct_send_recv(struct xe_guc_ct *ct, const u32 *action, u32 len,
-			    u32 *response_buffer, bool no_fail)
+			    u32 *response_buffer, bool anal_fail)
 {
 	struct xe_device *xe = ct_to_xe(ct);
 	struct g2h_fence g2h_fence;
@@ -699,22 +699,22 @@ static int guc_ct_send_recv(struct xe_guc_ct *ct, const u32 *action, u32 len,
 
 	/*
 	 * We use a fence to implement blocking sends / receiving response data.
-	 * The seqno of the fence is sent in the H2G, returned in the G2H, and
-	 * an xarray is used as storage media with the seqno being to key.
+	 * The seqanal of the fence is sent in the H2G, returned in the G2H, and
+	 * an xarray is used as storage media with the seqanal being to key.
 	 * Fields in the fence hold success, failure, retry status and the
 	 * response data. Safe to allocate on the stack as the xarray is the
-	 * only reference and it cannot be present after this function exits.
+	 * only reference and it cananalt be present after this function exits.
 	 */
 retry:
 	g2h_fence_init(&g2h_fence, response_buffer);
 retry_same_fence:
 	ret = guc_ct_send(ct, action, len, 0, 0, &g2h_fence);
-	if (unlikely(ret == -ENOMEM)) {
+	if (unlikely(ret == -EANALMEM)) {
 		void *ptr;
 
 		/* Retry allocation /w GFP_KERNEL */
 		ptr = xa_store(&ct->fence_lookup,
-			       g2h_fence.seqno,
+			       g2h_fence.seqanal,
 			       &g2h_fence, GFP_KERNEL);
 		if (IS_ERR(ptr))
 			return PTR_ERR(ptr);
@@ -724,11 +724,11 @@ retry_same_fence:
 		if (ret == -EDEADLK)
 			kick_reset(ct);
 
-		if (no_fail && retry_failure(ct, ret))
+		if (anal_fail && retry_failure(ct, ret))
 			goto retry_same_fence;
 
 		if (!g2h_fence_needs_alloc(&g2h_fence))
-			xa_erase_irq(&ct->fence_lookup, g2h_fence.seqno);
+			xa_erase_irq(&ct->fence_lookup, g2h_fence.seqanal);
 
 		return ret;
 	}
@@ -736,8 +736,8 @@ retry_same_fence:
 	ret = wait_event_timeout(ct->g2h_fence_wq, g2h_fence.done, HZ);
 	if (!ret) {
 		drm_err(&xe->drm, "Timed out wait for G2H, fence %u, action %04x",
-			g2h_fence.seqno, action[0]);
-		xa_erase_irq(&ct->fence_lookup, g2h_fence.seqno);
+			g2h_fence.seqanal, action[0]);
+		xa_erase_irq(&ct->fence_lookup, g2h_fence.seqanal);
 		return -ETIME;
 	}
 
@@ -761,7 +761,7 @@ int xe_guc_ct_send_recv(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	return guc_ct_send_recv(ct, action, len, response_buffer, false);
 }
 
-int xe_guc_ct_send_recv_no_fail(struct xe_guc_ct *ct, const u32 *action,
+int xe_guc_ct_send_recv_anal_fail(struct xe_guc_ct *ct, const u32 *action,
 				u32 len, u32 *response_buffer)
 {
 	return guc_ct_send_recv(ct, action, len, response_buffer, true);
@@ -797,12 +797,12 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	g2h_fence = xa_erase(&ct->fence_lookup, fence);
 	if (unlikely(!g2h_fence)) {
 		/* Don't tear down channel, as send could've timed out */
-		drm_warn(&xe->drm, "G2H fence (%u) not found!\n", fence);
+		drm_warn(&xe->drm, "G2H fence (%u) analt found!\n", fence);
 		g2h_release_space(ct, GUC_CTB_HXG_MSG_MAX_LEN);
 		return 0;
 	}
 
-	xe_assert(xe, fence == g2h_fence->seqno);
+	xe_assert(xe, fence == g2h_fence->seqanal);
 
 	if (type == GUC_HXG_TYPE_RESPONSE_FAILURE) {
 		g2h_fence->fail = true;
@@ -810,7 +810,7 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 			FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, msg[1]);
 		g2h_fence->hint =
 			FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, msg[1]);
-	} else if (type == GUC_HXG_TYPE_NO_RESPONSE_RETRY) {
+	} else if (type == GUC_HXG_TYPE_ANAL_RESPONSE_RETRY) {
 		g2h_fence->retry = true;
 		g2h_fence->reason =
 			FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, msg[1]);
@@ -857,7 +857,7 @@ static int parse_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		break;
 	case GUC_HXG_TYPE_RESPONSE_SUCCESS:
 	case GUC_HXG_TYPE_RESPONSE_FAILURE:
-	case GUC_HXG_TYPE_NO_RESPONSE_RETRY:
+	case GUC_HXG_TYPE_ANAL_RESPONSE_RETRY:
 		ret = parse_g2h_response(ct, msg, len);
 		break;
 	default:
@@ -866,7 +866,7 @@ static int parse_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 			type);
 		ct->ctbs.g2h.info.broken = true;
 
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -891,21 +891,21 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	case XE_GUC_ACTION_DEREGISTER_CONTEXT_DONE:
 		ret = xe_guc_deregister_done_handler(guc, payload, adj_len);
 		break;
-	case XE_GUC_ACTION_CONTEXT_RESET_NOTIFICATION:
+	case XE_GUC_ACTION_CONTEXT_RESET_ANALTIFICATION:
 		ret = xe_guc_exec_queue_reset_handler(guc, payload, adj_len);
 		break;
-	case XE_GUC_ACTION_ENGINE_FAILURE_NOTIFICATION:
+	case XE_GUC_ACTION_ENGINE_FAILURE_ANALTIFICATION:
 		ret = xe_guc_exec_queue_reset_failure_handler(guc, payload,
 							      adj_len);
 		break;
 	case XE_GUC_ACTION_SCHED_ENGINE_MODE_DONE:
 		/* Selftest only at the moment */
 		break;
-	case XE_GUC_ACTION_STATE_CAPTURE_NOTIFICATION:
-	case XE_GUC_ACTION_NOTIFY_FLUSH_LOG_BUFFER_TO_FILE:
+	case XE_GUC_ACTION_STATE_CAPTURE_ANALTIFICATION:
+	case XE_GUC_ACTION_ANALTIFY_FLUSH_LOG_BUFFER_TO_FILE:
 		/* FIXME: Handle this */
 		break;
-	case XE_GUC_ACTION_NOTIFY_MEMORY_CAT_ERROR:
+	case XE_GUC_ACTION_ANALTIFY_MEMORY_CAT_ERROR:
 		ret = xe_guc_exec_queue_memory_cat_error_handler(guc, payload,
 								 adj_len);
 		break;
@@ -916,8 +916,8 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_tlb_invalidation_done_handler(guc, payload,
 							   adj_len);
 		break;
-	case XE_GUC_ACTION_ACCESS_COUNTER_NOTIFY:
-		ret = xe_guc_access_counter_notify_handler(guc, payload,
+	case XE_GUC_ACTION_ACCESS_COUNTER_ANALTIFY:
+		ret = xe_guc_access_counter_analtify_handler(guc, payload,
 							   adj_len);
 		break;
 	default:
@@ -942,7 +942,7 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	lockdep_assert_held(&ct->fast_lock);
 
 	if (!ct->enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (g2h->info.broken)
 		return -EPIPE;
@@ -1032,7 +1032,7 @@ static void g2h_fast_path(struct xe_guc_ct *ct, u32 *msg, u32 len)
 							   adj_len);
 		break;
 	default:
-		drm_warn(&xe->drm, "NOT_POSSIBLE");
+		drm_warn(&xe->drm, "ANALT_POSSIBLE");
 	}
 
 	if (ret)
@@ -1046,7 +1046,7 @@ static void g2h_fast_path(struct xe_guc_ct *ct, u32 *msg, u32 len)
  *
  * Anything related to page faults is critical for performance, process these
  * critical G2H in the IRQ. This is safe as these handlers either just wake up
- * waiters or queue another worker.
+ * waiters or queue aanalther worker.
  */
 void xe_guc_ct_fast_path(struct xe_guc_ct *ct)
 {
@@ -1102,7 +1102,7 @@ static void g2h_worker_func(struct work_struct *w)
 	int ret;
 
 	/*
-	 * Normal users must always hold mem_access.ref around CT calls. However
+	 * Analrmal users must always hold mem_access.ref around CT calls. However
 	 * during the runtime pm callbacks we rely on CT to talk to the GuC, but
 	 * at this stage we can't rely on mem_access.ref and even the
 	 * callback_task will be different than current.  For such cases we just
@@ -1118,7 +1118,7 @@ static void g2h_worker_func(struct work_struct *w)
 	 * mem_access.ref).  It seems like it might in theory be possible to
 	 * receive unsolicited events from the GuC just as we are
 	 * suspending-resuming, but those will currently anyway be lost when
-	 * eventually exiting from suspend, hence no need to wake up the device
+	 * eventually exiting from suspend, hence anal need to wake up the device
 	 * here. If we ever need something stronger than get_if_ongoing() then
 	 * we need to be careful with blocking the pm callbacks from getting CT
 	 * responses, if the worker here is blocked on those callbacks
@@ -1133,7 +1133,7 @@ static void g2h_worker_func(struct work_struct *w)
 		ret = dequeue_one_g2h(ct);
 		mutex_unlock(&ct->lock);
 
-		if (unlikely(ret == -EPROTO || ret == -EOPNOTSUPP)) {
+		if (unlikely(ret == -EPROTO || ret == -EOPANALTSUPP)) {
 			struct drm_device *drm = &ct_to_xe(ct)->drm;
 			struct drm_printer p = drm_info_printer(drm->dev);
 

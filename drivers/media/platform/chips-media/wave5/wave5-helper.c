@@ -10,8 +10,8 @@
 const char *state_to_str(enum vpu_instance_state state)
 {
 	switch (state) {
-	case VPU_INST_STATE_NONE:
-		return "NONE";
+	case VPU_INST_STATE_ANALNE:
+		return "ANALNE";
 	case VPU_INST_STATE_OPEN:
 		return "OPEN";
 	case VPU_INST_STATE_INIT_SEQ:
@@ -21,7 +21,7 @@ const char *state_to_str(enum vpu_instance_state state)
 	case VPU_INST_STATE_STOP:
 		return "STOP";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -54,7 +54,7 @@ int wave5_vpu_release_device(struct file *filp,
 	struct vpu_instance *inst = wave5_to_vpu_inst(filp->private_data);
 
 	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
-	if (inst->state != VPU_INST_STATE_NONE) {
+	if (inst->state != VPU_INST_STATE_ANALNE) {
 		u32 fail_res;
 		int ret;
 
@@ -189,7 +189,7 @@ enum wave_std wave5_to_vpu_std(unsigned int v4l2_pix_fmt, enum vpu_instance_type
 	case V4L2_PIX_FMT_HEVC:
 		return type == VPU_INST_TYPE_DEC ? W_HEVC_DEC : W_HEVC_ENC;
 	default:
-		return STD_UNKNOWN;
+		return STD_UNKANALWN;
 	}
 }
 

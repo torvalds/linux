@@ -10,7 +10,7 @@
 /*
  * intel_idle is a cpuidle driver that loads on all Intel CPUs with MWAIT
  * in lieu of the legacy ACPI processor_idle driver.  The intent is to
- * make Linux more efficient on these processors, as intel_idle knows
+ * make Linux more efficient on these processors, as intel_idle kanalws
  * more than ACPI, as well as make Linux more immune to ACPI BIOS bugs.
  */
 
@@ -19,7 +19,7 @@
  *
  * All CPUs have same idle states as boot CPU
  *
- * Chipset BM_STS (bus master status) bit is a NOP
+ * Chipset BM_STS (bus master status) bit is a ANALP
  *	for preventing entry into deep C-states
  *
  * CPU will flush caches as needed when entering a C-state via MWAIT
@@ -28,11 +28,11 @@
  */
 
 /*
- * Known limitations
+ * Kanalwn limitations
  *
  * ACPI has a .suspend hack to turn off deep c-statees during suspend
  * to avoid complications with the lapic timer workaround.
- * Have not seen issues with suspend, but may need same workaround here.
+ * Have analt seen issues with suspend, but may need same workaround here.
  *
  */
 
@@ -48,7 +48,7 @@
 #include <trace/events/power.h>
 #include <linux/sched.h>
 #include <linux/sched/smt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/moduleparam.h>
 #include <asm/cpu_device_id.h>
@@ -84,7 +84,7 @@ struct idle_cpu {
 	struct cpuidle_state *state_table;
 
 	/*
-	 * Hardware C-state auto-demotion may not always be optimal.
+	 * Hardware C-state auto-demotion may analt always be optimal.
 	 * Indicate which enable bits to clear here.
 	 */
 	unsigned long auto_demotion_disable_flags;
@@ -105,7 +105,7 @@ static unsigned int mwait_substates __initdata;
 #define CPUIDLE_FLAG_IRQ_ENABLE		BIT(14)
 
 /*
- * Enable this state by default even if the ACPI _CST does not list it.
+ * Enable this state by default even if the ACPI _CST does analt list it.
  */
 #define CPUIDLE_FLAG_ALWAYS_ENABLE	BIT(15)
 
@@ -149,10 +149,10 @@ static __always_inline int __intel_idle(struct cpuidle_device *dev,
  * @drv: cpuidle driver (assumed to point to intel_idle_driver).
  * @index: Target idle state index.
  *
- * Use the MWAIT instruction to notify the processor that the CPU represented by
+ * Use the MWAIT instruction to analtify the processor that the CPU represented by
  * @dev is idle and it can try to enter the idle state corresponding to @index.
  *
- * If the local APIC timer is not known to be reliable in the target idle state,
+ * If the local APIC timer is analt kanalwn to be reliable in the target idle state,
  * enable one-shot tick broadcasting for the target CPU before executing MWAIT.
  *
  * Must be called under local_irq_disable().
@@ -200,7 +200,7 @@ static __cpuidle int intel_idle_xstate(struct cpuidle_device *dev,
  * @drv: cpuidle driver (assumed to point to intel_idle_driver).
  * @index: Target idle state index.
  *
- * Use the MWAIT instruction to notify the processor that the CPU represented by
+ * Use the MWAIT instruction to analtify the processor that the CPU represented by
  * @dev is idle and it can try to enter the idle state corresponding to @index.
  *
  * Invoked as a suspend-to-idle callback routine with frozen user space, frozen
@@ -821,9 +821,9 @@ static struct cpuidle_state icx_cstates[] __initdata = {
 /*
  * On AlderLake C1 has to be disabled if C1E is enabled, and vice versa.
  * C1E is enabled only if "C1E promotion" bit is set in MSR_IA32_POWER_CTL.
- * But in this case there is effectively no C1, because C1 requests are
+ * But in this case there is effectively anal C1, because C1 requests are
  * promoted to C1E. If the "C1E promotion" bit is cleared, then both C1
- * and C1E requests end up with C1, so there is effectively no C1E.
+ * and C1E requests end up with C1, so there is effectively anal C1E.
  *
  * By default we enable C1E and disable C1 by marking it with
  * 'CPUIDLE_FLAG_UNUSABLE'.
@@ -1234,7 +1234,7 @@ static struct cpuidle_state dnv_cstates[] __initdata = {
 };
 
 /*
- * Note, depending on HW and FW revision, SnowRidge SoC may or may not support
+ * Analte, depending on HW and FW revision, SanalwRidge SoC may or may analt support
  * C6, and this is indicated in the CPUID mwait leaf.
  */
 static struct cpuidle_state snr_cstates[] __initdata = {
@@ -1575,11 +1575,11 @@ static bool __init intel_idle_state_needs_timer_stop(struct cpuidle_state *state
 #ifdef CONFIG_ACPI_PROCESSOR_CSTATE
 #include <acpi/processor.h>
 
-static bool no_acpi __read_mostly;
-module_param(no_acpi, bool, 0444);
-MODULE_PARM_DESC(no_acpi, "Do not use ACPI _CST for building the idle states list");
+static bool anal_acpi __read_mostly;
+module_param(anal_acpi, bool, 0444);
+MODULE_PARM_DESC(anal_acpi, "Do analt use ACPI _CST for building the idle states list");
 
-static bool force_use_acpi __read_mostly; /* No effect if no_acpi is set. */
+static bool force_use_acpi __read_mostly; /* Anal effect if anal_acpi is set. */
 module_param_named(use_acpi, force_use_acpi, bool, 0444);
 MODULE_PARM_DESC(use_acpi, "Use ACPI _CST for building the idle states list");
 
@@ -1612,8 +1612,8 @@ static bool __init intel_idle_acpi_cst_extract(void)
 {
 	unsigned int cpu;
 
-	if (no_acpi) {
-		pr_debug("Not allowed to use ACPI _CST\n");
+	if (anal_acpi) {
+		pr_debug("Analt allowed to use ACPI _CST\n");
 		return false;
 	}
 
@@ -1638,7 +1638,7 @@ static bool __init intel_idle_acpi_cst_extract(void)
 	}
 
 	acpi_state_table.count = 0;
-	pr_debug("ACPI _CST not found or not usable\n");
+	pr_debug("ACPI _CST analt found or analt usable\n");
 	return false;
 }
 
@@ -1697,7 +1697,7 @@ static bool __init intel_idle_off_by_default(u32 mwait_hint)
 	int cstate, limit;
 
 	/*
-	 * If there are no _CST C-states, do not disable any C-states by
+	 * If there are anal _CST C-states, do analt disable any C-states by
 	 * default.
 	 */
 	if (!acpi_state_table.count)
@@ -1835,13 +1835,13 @@ static void __init sklh_idle_state_table_update(void)
 	if (max_cstate <= 7)
 		return;
 
-	/* if PC10 not present in CPUID.MWAIT.EDX */
+	/* if PC10 analt present in CPUID.MWAIT.EDX */
 	if ((mwait_substates & (0xF << 28)) == 0)
 		return;
 
 	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr);
 
-	/* PC10 is not enabled in PKG C-state limit */
+	/* PC10 is analt enabled in PKG C-state limit */
 	if ((msr & 0xF) != 8)
 		return;
 
@@ -1873,11 +1873,11 @@ static void __init skx_idle_state_table_update(void)
 	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr);
 
 	/*
-	 * 000b: C0/C1 (no package C-state support)
+	 * 000b: C0/C1 (anal package C-state support)
 	 * 001b: C2
-	 * 010b: C6 (non-retention)
+	 * 010b: C6 (analn-retention)
 	 * 011b: C6 (retention)
-	 * 111b: No Package C state limits.
+	 * 111b: Anal Package C state limits.
 	 */
 	if ((msr & 0x7) < 2) {
 		/*
@@ -1938,11 +1938,11 @@ static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 	unsigned int num_substates = (mwait_substates >> mwait_cstate * 4) &
 					MWAIT_SUBSTATE_MASK;
 
-	/* Ignore the C-state if there are NO sub-states in CPUID for it. */
+	/* Iganalre the C-state if there are ANAL sub-states in CPUID for it. */
 	if (num_substates == 0)
 		return false;
 
-	if (mwait_cstate > 2 && !boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
+	if (mwait_cstate > 2 && !boot_cpu_has(X86_FEATURE_ANALNSTOP_TSC))
 		mark_tsc_unstable("TSC halts in idle states deeper than C2");
 
 	return true;
@@ -1953,7 +1953,7 @@ static void state_update_enter_method(struct cpuidle_state *state, int cstate)
 	if (state->flags & CPUIDLE_FLAG_INIT_XSTATE) {
 		/*
 		 * Combining with XSTATE with IBRS or IRQ_ENABLE flags
-		 * is not currently supported but this driver.
+		 * is analt currently supported but this driver.
 		 */
 		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IBRS);
 		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
@@ -2173,9 +2173,9 @@ static int __init intel_idle_init(void)
 	unsigned int eax, ebx, ecx;
 	int retval;
 
-	/* Do not load intel_idle at all for now if idle= is passed */
-	if (boot_option_idle_override != IDLE_NO_OVERRIDE)
-		return -ENODEV;
+	/* Do analt load intel_idle at all for analw if idle= is passed */
+	if (boot_option_idle_override != IDLE_ANAL_OVERRIDE)
+		return -EANALDEV;
 
 	if (max_cstate == 0) {
 		pr_debug("disabled\n");
@@ -2186,23 +2186,23 @@ static int __init intel_idle_init(void)
 	if (id) {
 		if (!boot_cpu_has(X86_FEATURE_MWAIT)) {
 			pr_debug("Please enable MWAIT in BIOS SETUP\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else {
 		id = x86_match_cpu(intel_mwait_ids);
 		if (!id)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (boot_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &mwait_substates);
 
 	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED) ||
 	    !(ecx & CPUID5_ECX_INTERRUPT_BREAK) ||
 	    !mwait_substates)
-			return -ENODEV;
+			return -EANALDEV;
 
 	pr_debug("MWAIT substates: 0x%x\n", mwait_substates);
 
@@ -2215,7 +2215,7 @@ static int __init intel_idle_init(void)
 		if (icpu->use_acpi || force_use_acpi)
 			intel_idle_acpi_cst_extract();
 	} else if (!intel_idle_acpi_cst_extract()) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pr_debug("v" INTEL_IDLE_VERSION " model 0x%X\n",
@@ -2223,7 +2223,7 @@ static int __init intel_idle_init(void)
 
 	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
 	if (!intel_idle_cpuidle_devices)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_idle_cpuidle_driver_init(&intel_idle_driver);
 
@@ -2231,7 +2231,7 @@ static int __init intel_idle_init(void)
 	if (retval) {
 		struct cpuidle_driver *drv = cpuidle_get_driver();
 		printk(KERN_DEBUG pr_fmt("intel_idle yielding to %s\n"),
-		       drv ? drv->name : "none");
+		       drv ? drv->name : "analne");
 		goto init_driver_fail;
 	}
 
@@ -2256,7 +2256,7 @@ init_driver_fail:
 device_initcall(intel_idle_init);
 
 /*
- * We are not really modular, but we used to support that.  Meaning we also
+ * We are analt really modular, but we used to support that.  Meaning we also
  * support "intel_idle.max_cstate=..." at boot and also a read-only export of
  * it at /sys/module/intel_idle/parameters/max_cstate -- so using module_param
  * is the easiest way (currently) to continue doing that.
@@ -2272,18 +2272,18 @@ module_param_named(states_off, disabled_states_mask, uint, 0444);
 MODULE_PARM_DESC(states_off, "Mask of disabled idle states");
 /*
  * Some platforms come with mutually exclusive C-states, so that if one is
- * enabled, the other C-states must not be used. Example: C1 and C1E on
+ * enabled, the other C-states must analt be used. Example: C1 and C1E on
  * Sapphire Rapids platform. This parameter allows for selecting the
  * preferred C-states among the groups of mutually exclusive C-states - the
  * selected C-states will be registered, the other C-states from the mutually
- * exclusive group won't be registered. If the platform has no mutually
- * exclusive C-states, this parameter has no effect.
+ * exclusive group won't be registered. If the platform has anal mutually
+ * exclusive C-states, this parameter has anal effect.
  */
 module_param_named(preferred_cstates, preferred_states_mask, uint, 0444);
 MODULE_PARM_DESC(preferred_cstates, "Mask of preferred idle states");
 /*
  * Debugging option that forces the driver to enter all C-states with
- * interrupts enabled. Does not apply to C-states with
+ * interrupts enabled. Does analt apply to C-states with
  * 'CPUIDLE_FLAG_INIT_XSTATE' and 'CPUIDLE_FLAG_IBRS' flags.
  */
 module_param(force_irq_on, bool, 0444);

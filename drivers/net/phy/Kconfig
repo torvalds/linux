@@ -42,7 +42,7 @@ config LED_TRIGGER_PHY
 
 	  Where speed is in the form:
 		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
-		for any speed known to the PHY.
+		for any speed kanalwn to the PHY.
 
 config PHYLIB_LEDS
 	def_bool OF
@@ -56,7 +56,7 @@ config FIXED_PHY
 	select SWPHY
 	help
 	  Adds the platform "fixed" MDIO Bus to cover the boards that use
-	  PHYs that are not connected to the real MDIO bus.
+	  PHYs that are analt connected to the real MDIO bus.
 
 	  Currently tested with mpc866ads and mpc8349e-mitx.
 
@@ -244,7 +244,7 @@ config MARVELL_88X2222_PHY
 
 config MAXLINEAR_GPHY
 	tristate "Maxlinear Ethernet PHYs"
-	select POLYNOMIAL if HWMON
+	select POLYANALMIAL if HWMON
 	depends on HWMON || HWMON=n
 	help
 	  Support for the Maxlinear GPY115, GPY211, GPY212, GPY215,

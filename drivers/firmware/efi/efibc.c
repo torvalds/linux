@@ -20,7 +20,7 @@ static int efibc_set_variable(efi_char16_t *name, efi_char16_t *value,
 	efi_status_t status;
 
 	status = efi.set_variable(name, &LINUX_EFI_LOADER_ENTRY_GUID,
-				  EFI_VARIABLE_NON_VOLATILE
+				  EFI_VARIABLE_ANALN_VOLATILE
 				  | EFI_VARIABLE_BOOTSERVICE_ACCESS
 				  | EFI_VARIABLE_RUNTIME_ACCESS,
 				  len * sizeof(efi_char16_t), value);
@@ -32,7 +32,7 @@ static int efibc_set_variable(efi_char16_t *name, efi_char16_t *value,
 	return 0;
 }
 
-static int efibc_reboot_notifier_call(struct notifier_block *notifier,
+static int efibc_reboot_analtifier_call(struct analtifier_block *analtifier,
 				      unsigned long event, void *data)
 {
 	efi_char16_t *reason = event == SYS_RESTART ? L"reboot"
@@ -45,11 +45,11 @@ static int efibc_reboot_notifier_call(struct notifier_block *notifier,
 	ret = efibc_set_variable(L"LoaderEntryRebootReason", reason,
 				 ucs2_strlen(reason));
 	if (ret || !data)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	wdata = kmalloc(MAX_DATA_LEN * sizeof(efi_char16_t), GFP_KERNEL);
 	if (!wdata)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	for (l = 0; l < MAX_DATA_LEN - 1 && str[l] != '\0'; l++)
 		wdata[l] = str[l];
@@ -58,11 +58,11 @@ static int efibc_reboot_notifier_call(struct notifier_block *notifier,
 	efibc_set_variable(L"LoaderEntryOneShot", wdata, l);
 
 	kfree(wdata);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block efibc_reboot_notifier = {
-	.notifier_call = efibc_reboot_notifier_call,
+static struct analtifier_block efibc_reboot_analtifier = {
+	.analtifier_call = efibc_reboot_analtifier_call,
 };
 
 static int __init efibc_init(void)
@@ -70,11 +70,11 @@ static int __init efibc_init(void)
 	int ret;
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_SET_VARIABLE))
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = register_reboot_notifier(&efibc_reboot_notifier);
+	ret = register_reboot_analtifier(&efibc_reboot_analtifier);
 	if (ret)
-		pr_err("unable to register reboot notifier\n");
+		pr_err("unable to register reboot analtifier\n");
 
 	return ret;
 }
@@ -82,7 +82,7 @@ module_init(efibc_init);
 
 static void __exit efibc_exit(void)
 {
-	unregister_reboot_notifier(&efibc_reboot_notifier);
+	unregister_reboot_analtifier(&efibc_reboot_analtifier);
 }
 module_exit(efibc_exit);
 

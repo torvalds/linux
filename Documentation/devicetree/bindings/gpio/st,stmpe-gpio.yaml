@@ -34,10 +34,10 @@ properties:
 
   interrupt-controller: true
 
-  st,norequest-mask:
+  st,analrequest-mask:
     description:
-      A bitmask of GPIO lines that cannot be requested because for
-      for example not being connected to anything on the system
+      A bitmask of GPIO lines that cananalt be requested because for
+      for example analt being connected to anything on the system
     $ref: /schemas/types.yaml#/definitions/uint32
 
 patternProperties:

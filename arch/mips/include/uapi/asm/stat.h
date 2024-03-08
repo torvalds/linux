@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -19,7 +19,7 @@
 struct stat {
 	unsigned	st_dev;
 	long		st_pad1[3];		/* Reserved for network id */
-	__kernel_ino_t	st_ino;
+	__kernel_ianal_t	st_ianal;
 	__kernel_mode_t	st_mode;
 	__u32		st_nlink;
 	__kernel_uid32_t st_uid;
@@ -53,7 +53,7 @@ struct stat64 {
 	unsigned long	st_dev;
 	unsigned long	st_pad0[3];	/* Reserved for st_dev expansion  */
 
-	unsigned long long	st_ino;
+	unsigned long long	st_ianal;
 
 	__kernel_mode_t	st_mode;
 	__u32		st_nlink;
@@ -94,7 +94,7 @@ struct stat {
 	unsigned int		st_dev;
 	unsigned int		st_pad0[3]; /* Reserved for st_dev expansion */
 
-	unsigned long		st_ino;
+	unsigned long		st_ianal;
 
 	__kernel_mode_t		st_mode;
 	__u32			st_nlink;

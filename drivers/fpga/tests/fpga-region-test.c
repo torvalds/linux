@@ -109,7 +109,7 @@ static void fpga_region_test_program_fpga(struct kunit *test)
 	int ret;
 
 	img_info = fpga_image_info_alloc(&ctx->mgr_pdev->dev);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, img_info);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, img_info);
 
 	img_info->buf = img_buf;
 	img_info->count = sizeof(img_buf);
@@ -146,10 +146,10 @@ static int fpga_region_test_init(struct kunit *test)
 	struct fpga_region_info region_info = { 0 };
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 	ctx->mgr_pdev = platform_device_register_simple("mgr_pdev", PLATFORM_DEVID_AUTO, NULL, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->mgr_pdev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->mgr_pdev);
 
 	ctx->mgr = devm_fpga_mgr_register(&ctx->mgr_pdev->dev, "Fake FPGA Manager", &fake_mgr_ops,
 					  &ctx->mgr_stats);
@@ -157,7 +157,7 @@ static int fpga_region_test_init(struct kunit *test)
 
 	ctx->bridge_pdev = platform_device_register_simple("bridge_pdev", PLATFORM_DEVID_AUTO,
 							   NULL, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->bridge_pdev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->bridge_pdev);
 
 	ctx->bridge = fpga_bridge_register(&ctx->bridge_pdev->dev, "Fake FPGA Bridge",
 					   &fake_bridge_ops, &ctx->bridge_stats);
@@ -167,7 +167,7 @@ static int fpga_region_test_init(struct kunit *test)
 
 	ctx->region_pdev = platform_device_register_simple("region_pdev", PLATFORM_DEVID_AUTO,
 							   NULL, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->region_pdev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->region_pdev);
 
 	region_info.mgr = ctx->mgr;
 	region_info.priv = ctx->bridge;

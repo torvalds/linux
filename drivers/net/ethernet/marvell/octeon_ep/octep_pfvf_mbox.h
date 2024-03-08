@@ -37,7 +37,7 @@ enum octep_pfvf_mbox_opcode {
 	OCTEP_PFVF_MBOX_CMD_DEV_REMOVE,
 	OCTEP_PFVF_MBOX_CMD_GET_FW_INFO,
 	OCTEP_PFVF_MBOX_CMD_SET_OFFLOADS,
-	OCTEP_PFVF_MBOX_NOTIF_LINK_STATUS,
+	OCTEP_PFVF_MBOX_ANALTIF_LINK_STATUS,
 	OCTEP_PFVF_MBOX_CMD_MAX,
 };
 
@@ -48,7 +48,7 @@ enum octep_pfvf_mbox_word_type {
 };
 
 enum octep_pfvf_mbox_cmd_status {
-	OCTEP_PFVF_MBOX_CMD_STATUS_NOT_SETUP = 1,
+	OCTEP_PFVF_MBOX_CMD_STATUS_ANALT_SETUP = 1,
 	OCTEP_PFVF_MBOX_CMD_STATUS_TIMEDOUT = 2,
 	OCTEP_PFVF_MBOX_CMD_STATUS_NACK = 3,
 	OCTEP_PFVF_MBOX_CMD_STATUS_BUSY = 4
@@ -65,7 +65,7 @@ enum octep_pfvf_link_status {
 };
 
 enum octep_pfvf_link_speed {
-	OCTEP_PFVF_LINK_SPEED_NONE,
+	OCTEP_PFVF_LINK_SPEED_ANALNE,
 	OCTEP_PFVF_LINK_SPEED_1000,
 	OCTEP_PFVF_LINK_SPEED_10000,
 	OCTEP_PFVF_LINK_SPEED_25000,
@@ -163,5 +163,5 @@ union octep_pfvf_mbox_word {
 void octep_pfvf_mbox_work(struct work_struct *work);
 int octep_setup_pfvf_mbox(struct octep_device *oct);
 void octep_delete_pfvf_mbox(struct octep_device *oct);
-void octep_pfvf_notify(struct octep_device *oct, struct octep_ctrl_mbox_msg *msg);
+void octep_pfvf_analtify(struct octep_device *oct, struct octep_ctrl_mbox_msg *msg);
 #endif

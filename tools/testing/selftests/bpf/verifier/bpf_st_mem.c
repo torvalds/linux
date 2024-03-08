@@ -1,5 +1,5 @@
 {
-	"BPF_ST_MEM stack imm non-zero",
+	"BPF_ST_MEM stack imm analn-zero",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 42),
 	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
@@ -53,10 +53,10 @@
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_10),
 	BPF_ST_MEM(BPF_B, BPF_REG_0, 0, 0),
 	/* r0 = fp[-20], if variable offset write was tracked correctly
-	 *               r0 would be a known zero.
+	 *               r0 would be a kanalwn zero.
 	 */
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_10, -20),
-	/* Would fail return code verification if r0 range is not tracked correctly. */
+	/* Would fail return code verification if r0 range is analt tracked correctly. */
 	BPF_EXIT_INSN(),
 	},
 	.result = ACCEPT,

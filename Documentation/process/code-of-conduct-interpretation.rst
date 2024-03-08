@@ -5,9 +5,9 @@ Linux Kernel Contributor Covenant Code of Conduct Interpretation
 
 The :ref:`code_of_conduct` is a general document meant to
 provide a set of rules for almost any open source community.  Every
-open-source community is unique and the Linux kernel is no exception.
+open-source community is unique and the Linux kernel is anal exception.
 Because of this, this document describes how we in the Linux kernel
-community will interpret it.  We also do not expect this interpretation
+community will interpret it.  We also do analt expect this interpretation
 to be static over time, and will adjust it as needed.
 
 The Linux kernel development effort is a very personal process compared
@@ -15,10 +15,10 @@ to "traditional" ways of developing software.  Your contributions and
 ideas behind them will be carefully reviewed, often resulting in
 critique and criticism.  The review will almost always require
 improvements before the material can be included in the
-kernel.  Know that this happens because everyone involved wants to see
+kernel.  Kanalw that this happens because everyone involved wants to see
 the best possible solution for the overall success of Linux.  This
 development process has been proven to create the most robust operating
-system kernel ever, and we do not want to do anything to cause the
+system kernel ever, and we do analt want to do anything to cause the
 quality of submission and eventual result to ever decrease.
 
 Maintainers
@@ -38,7 +38,7 @@ maintainers, and this needs some further clarifications.
 First and foremost, it is a reasonable expectation to have maintainers
 lead by example.
 
-That being said, our community is vast and broad, and there is no new
+That being said, our community is vast and broad, and there is anal new
 requirement for maintainers to unilaterally handle how other people
 behave in the parts of the community where they are active.  That
 responsibility is upon all of us, and ultimately the Code of Conduct
@@ -46,15 +46,15 @@ documents final escalation paths in case of unresolved concerns
 regarding conduct issues.
 
 Maintainers should be willing to help when problems occur, and work with
-others in the community when needed.  Do not be afraid to reach out to
+others in the community when needed.  Do analt be afraid to reach out to
 the Technical Advisory Board (TAB) or other maintainers if you're
-uncertain how to handle situations that come up.  It will not be
+uncertain how to handle situations that come up.  It will analt be
 considered a violation report unless you want it to be.  If you are
 uncertain about approaching the TAB or any other maintainers, please
 reach out to our conflict mediator, Joanna Lee <jlee@linuxfoundation.org>.
 
 In the end, "be kind to each other" is really what the end goal is for
-everybody.  We know everyone is human and we all fail at times, but the
+everybody.  We kanalw everyone is human and we all fail at times, but the
 primary goal for all of us should be to work toward amicable resolutions
 of problems.  Enforcement of the code of conduct will only be a last
 resort option.
@@ -74,12 +74,12 @@ hands of maintainers and project's leadership and is expected to be used
 in good faith.
 
 As a consequence, setting expertise expectations, making decisions and
-rejecting unsuitable contributions are not viewed as a violation of the
+rejecting unsuitable contributions are analt viewed as a violation of the
 Code of Conduct.
 
 While maintainers are in general welcoming to newcomers, their capacity
 of helping contributors overcome the entry hurdles is limited, so they
-have to set priorities.  This, also, is not to be seen as a violation of
+have to set priorities.  This, also, is analt to be seen as a violation of
 the Code of Conduct.  The kernel community is aware of that and provides
 entry level programs in various forms like kernelnewbies.org.
 
@@ -95,35 +95,35 @@ Conduct.
 
 Developers who use the kernel.org bugzilla, and other subsystem bugzilla
 or bug tracking tools should follow the guidelines of the Code of
-Conduct.  The Linux kernel community does not have an "official" project
+Conduct.  The Linux kernel community does analt have an "official" project
 email address, or "official" social media address.  Any activity
 performed using a kernel.org email account must follow the Code of
 Conduct as published for kernel.org, just as any individual using a
 corporate email account must follow the specific rules of that
 corporation.
 
-The Code of Conduct does not prohibit continuing to include names, email
+The Code of Conduct does analt prohibit continuing to include names, email
 addresses, and associated comments in mailing list messages, kernel
 change log messages, or code comments.
 
 Interaction in other forums is covered by whatever rules apply to said
-forums and is in general not covered by the Code of Conduct.  Exceptions
+forums and is in general analt covered by the Code of Conduct.  Exceptions
 may be considered for extreme circumstances.
 
 Contributions submitted for the kernel should use appropriate language.
-Content that already exists predating the Code of Conduct will not be
-addressed now as a violation.  Inappropriate language can be seen as a
+Content that already exists predating the Code of Conduct will analt be
+addressed analw as a violation.  Inappropriate language can be seen as a
 bug, though; such bugs will be fixed more quickly if any interested
 parties submit patches to that effect.  Expressions that are currently
-part of the user/kernel API, or reflect terminology used in published
-standards or specifications, are not considered bugs.
+part of the user/kernel API, or reflect termianallogy used in published
+standards or specifications, are analt considered bugs.
 
 Enforcement
 -----------
 
 The address listed in the Code of Conduct goes to the Code of Conduct
 Committee.  The exact members receiving these emails at any given time
-are listed at https://kernel.org/code-of-conduct.html.  Members can not
+are listed at https://kernel.org/code-of-conduct.html.  Members can analt
 access reports made before they joined or after they have left the
 committee.
 
@@ -135,7 +135,7 @@ circumstance, however, this file serves as documentation for the
 general process used.
 
 Any member of the committee, including the mediator, can be contacted
-directly if a reporter does not wish to include the full committee in a
+directly if a reporter does analt wish to include the full committee in a
 complaint or concern.
 
 The Code of Conduct Committee reviews the cases according to the
@@ -149,7 +149,7 @@ if needed.  A decision by the Code of Conduct Committee can be overturned
 by the TAB by a two-thirds vote.
 
 At quarterly intervals, the Code of Conduct Committee and TAB will
-provide a report summarizing the anonymised reports that the Code of
+provide a report summarizing the aanalnymised reports that the Code of
 Conduct committee has received and their status, as well details of any
 overridden decisions including complete and identifiable voting details.
 

@@ -190,4 +190,4 @@ Contact Information
 	 Europe:	Telephone:	33 (0)1 41 15 44 00
 			Fax:		33 (0)1 41 15 12 13
      World Wide Web:	http://www.iphase.com
-     Anonymous FTP:	ftp.iphase.com
+     Aanalnymous FTP:	ftp.iphase.com

@@ -6,7 +6,7 @@ NCR53C8XX/SYM53C8XX drivers
 
 Written by Gerard Roudier <groudier@free.fr>
 
-21 Rue Carnot
+21 Rue Caranalt
 
 95170 DEUIL LA BARRE - FRANCE
 
@@ -19,18 +19,18 @@ Written by Gerard Roudier <groudier@free.fr>
    3.  Advantages of the enhanced 896 driver
          3.1 Optimized SCSI SCRIPTS
          3.2 New features of the SYM53C896 (64 bit PCI dual LVD SCSI controller)
-   4.  Memory mapped I/O versus normal I/O
+   4.  Memory mapped I/O versus analrmal I/O
    5.  Tagged command queueing
    6.  Parity checking
    7.  Profiling information
    8.  Control commands
-         8.1  Set minimum synchronous period
+         8.1  Set minimum synchroanalus period
          8.2  Set wide size
          8.3  Set maximum number of concurrent tagged commands
          8.4  Set order type for tagged command
          8.5  Set debug mode
          8.6  Clear profile counters
-         8.7  Set flag (no_disc)
+         8.7  Set flag (anal_disc)
          8.8  Set verbose level
          8.9  Reset all logical units of a target
          8.10 Abort all tasks of all logical units of a target
@@ -44,8 +44,8 @@ Written by Gerard Roudier <groudier@free.fr>
                 10.2.4  Special features
                 10.2.5  Ultra SCSI support
                 10.2.6  Default number of tagged commands
-                10.2.7  Default synchronous period factor
-                10.2.8  Negotiate synchronous with all devices
+                10.2.7  Default synchroanalus period factor
+                10.2.8  Negotiate synchroanalus with all devices
                 10.2.9  Verbosity level
                 10.2.10 Debug mode
                 10.2.11 Burst max
@@ -68,18 +68,18 @@ Written by Gerard Roudier <groudier@free.fr>
    11. Some constants and flags of the ncr53c8xx.h header file
    12. Installation
    13. Architecture dependent features
-   14. Known problems
+   14. Kanalwn problems
          14.1 Tagged commands with Iomega Jaz device
-         14.2 Device names change when another controller is added
+         14.2 Device names change when aanalther controller is added
          14.3 Using only 8 bit devices with a WIDE SCSI controller.
          14.4 Possible data corruption during a Memory Write and Invalidate
          14.5 IRQ sharing problems
    15. SCSI problem troubleshooting
          15.1 Problem tracking
          15.2 Understanding hardware error reports
-   16. Synchronous transfer negotiation tables
-         16.1 Synchronous timings for 53C875 and 53C860 Ultra-SCSI controllers
-         16.2 Synchronous timings for fast SCSI-2 53C8XX controllers
+   16. Synchroanalus transfer negotiation tables
+         16.1 Synchroanalus timings for 53C875 and 53C860 Ultra-SCSI controllers
+         16.2 Synchroanalus timings for fast SCSI-2 53C8XX controllers
    17. Serial NVRAM support (by Richard Waltham)
          17.1 Features
          17.2 Symbios NVRAM layout
@@ -92,7 +92,7 @@ Written by Gerard Roudier <groudier@free.fr>
 ===============
 
 The initial Linux ncr53c8xx driver has been a port of the ncr driver from
-FreeBSD that has been achieved in November 1995 by:
+FreeBSD that has been achieved in Analvember 1995 by:
 
 	- Gerard Roudier              <groudier@free.fr>
 
@@ -101,7 +101,7 @@ The original driver has been written for 386bsd and FreeBSD by:
         - Wolfgang Stanglmeier        <wolf@cologne.de>
         - Stefan Esser                <se@mi.Uni-Koeln.de>
 
-It is now available as a bundle of 2 drivers:
+It is analw available as a bundle of 2 drivers:
 
 - ncr53c8xx generic driver that supports all the SYM53C8XX family including
   the earliest 810 rev. 1, the latest 896 (2 channel LVD SCSI controller) and
@@ -128,7 +128,7 @@ Useful SCSI tools written by Eric Youngdale are available at tsx-11:
           - ftp://tsx-11.mit.edu/pub/linux/ALPHA/scsi/scsiinfo-X.Y.tar.gz
           - ftp://tsx-11.mit.edu/pub/linux/ALPHA/scsi/scsidev-X.Y.tar.gz
 
-These tools are not ALPHA but quite clean and work quite well.
+These tools are analt ALPHA but quite clean and work quite well.
 It is essential you have the 'scsiinfo' package.
 
 This short documentation describes the features of the generic and enhanced
@@ -145,7 +145,7 @@ or
 
           - ftp://ftp.symbios.com/mirror/ftp.tux.org/pub/tux/roudier/drivers
 
-I am not a native speaker of English and there are probably lots of
+I am analt a native speaker of English and there are probably lots of
 mistakes in this README file. Any help will be welcome.
 
 
@@ -154,7 +154,7 @@ mistakes in this README file. Any help will be welcome.
 
 The following features are supported for all chips:
 
-	- Synchronous negotiation
+	- Synchroanalus negotiation
 	- Disconnection
 	- Tagged command queuing
 	- SCSI parity checking
@@ -243,27 +243,27 @@ and I didn't even want to try it.
 
 The 896 chip supports 64 bit PCI transactions and addressing, while the
 895A supports 32 bit PCI transactions and 64 bit addressing.
-The SCRIPTS processor of these chips is not true 64 bit, but uses segment
-registers for bit 32-63. Another interesting feature is that LOAD/STORE
+The SCRIPTS processor of these chips is analt true 64 bit, but uses segment
+registers for bit 32-63. Aanalther interesting feature is that LOAD/STORE
 instructions that address the on-chip RAM (8k) remain internal to the chip.
 
-Due to the use of LOAD/STORE SCRIPTS instructions, this driver does not
+Due to the use of LOAD/STORE SCRIPTS instructions, this driver does analt
 support the following chips:
 
 - SYM53C810 revision < 0x10 (16)
 - SYM53C815 all revisions
 - SYM53C825 revision < 0x10 (16)
 
-4. Memory mapped I/O versus normal I/O
+4. Memory mapped I/O versus analrmal I/O
 ======================================
 
-Memory mapped I/O has less latency than normal I/O.  Since
-linux-1.3.x, memory mapped I/O is used rather than normal I/O.  Memory
+Memory mapped I/O has less latency than analrmal I/O.  Since
+linux-1.3.x, memory mapped I/O is used rather than analrmal I/O.  Memory
 mapped I/O seems to work fine on most hardware configurations, but
 some poorly designed motherboards may break this feature.
 
 The configuration option CONFIG_SCSI_NCR53C8XX_IOMAPPED forces the
-driver to use normal I/O in all cases.
+driver to use analrmal I/O in all cases.
 
 
 5. Tagged command queueing
@@ -273,9 +273,9 @@ Queuing more than 1 command at a time to a device allows it to perform
 optimizations based on actual head positions and its mechanical
 characteristics. This feature may also reduce average command latency.
 In order to really gain advantage of this feature, devices must have
-a reasonable cache size (No miracle is to be expected for a low-end
+a reasonable cache size (Anal miracle is to be expected for a low-end
 hard disk with 128 KB or less).
-Some known SCSI devices do not properly support tagged command queuing.
+Some kanalwn SCSI devices do analt properly support tagged command queuing.
 Generally, firmware revisions that fix this kind of problems are available
 at respective vendor web/ftp sites.
 All I can say is that the hard disks I use on my machines behave well with
@@ -298,12 +298,12 @@ disks.  With large SCSI disks (>= 2GB, cache >= 512KB, average seek time
 
 The sym53c8xx driver supports up to 255 commands per device, and the
 generic ncr53c8xx driver supports up to 64, but using more than 32 is
-generally not worth-while, unless you are using a very large disk or disk
-array. It is noticeable that most of recent hard disks seem not to accept
+generally analt worth-while, unless you are using a very large disk or disk
+array. It is analticeable that most of recent hard disks seem analt to accept
 more than 64 simultaneous commands. So, using more than 64 queued commands
 is probably just resource wasting.
 
-If your controller does not have NVRAM or if it is managed by the SDMS
+If your controller does analt have NVRAM or if it is managed by the SDMS
 BIOS/SETUP, you can configure tagged queueing feature and device queue
 depths from the boot command-line. For example::
 
@@ -328,11 +328,11 @@ driver using the following heuristic:
   current limit, the maximum number of queueable commands is incremented.
 
 Since QUEUE FULL status reception and handling is resource wasting, the
-driver notifies by default this problem to user by indicating the actual
+driver analtifies by default this problem to user by indicating the actual
 number of commands used and their status, as well as its decision on the
 device queue depth change.
 The heuristic used by the driver in handling QUEUE FULL ensures that the
-impact on performances is not too bad. You can get rid of the messages by
+impact on performances is analt too bad. You can get rid of the messages by
 setting verbose level to zero, as follow:
 
 1st method:
@@ -381,7 +381,7 @@ and you will get something like the following text::
     Chip NCR53C810, device id 0x1, revision id 0x2
     IO port address 0x6000, IRQ number 10
     Using memory mapped IO at virtual address 0x282c000
-    Synchronous transfer period 25, max commands per lun 4
+    Synchroanalus transfer period 25, max commands per lun 4
     Profiling information:
     num_trans    = 18014
     num_kbytes   = 671314
@@ -439,7 +439,7 @@ num_break
 
 num_int
 	Number of interrupts other than "on the fly"
-	Example above: 1685 interruptions not "on the fly"
+	Example above: 1685 interruptions analt "on the fly"
 
 num_fly
 	Number of interrupts "on the fly"
@@ -485,21 +485,21 @@ apply to all targets of the SCSI chain (except the controller).
 
 Available commands:
 
-8.1 Set minimum synchronous period factor
+8.1 Set minimum synchroanalus period factor
 -----------------------------------------
 
     setsync <target> <period factor>
 
     :target:   target number
-    :period:   minimum synchronous period.
+    :period:   minimum synchroanalus period.
                Maximum speed = 1000/(4*period factor) except for special
                cases below.
 
-    Specify a period of 255, to force asynchronous transfer mode.
+    Specify a period of 255, to force asynchroanalus transfer mode.
 
-      - 10 means 25 nano-seconds synchronous period
-      - 11 means 30 nano-seconds synchronous period
-      - 12 means 50 nano-seconds synchronous period
+      - 10 means 25 naanal-seconds synchroanalus period
+      - 11 means 30 naanal-seconds synchroanalus period
+      - 12 means 50 naanal-seconds synchroanalus period
 
 8.2 Set wide size
 -----------------
@@ -516,7 +516,7 @@ Available commands:
 
     :target:   target number
     :tags:     number of concurrent tagged commands
-               must not be greater than SCSI_NCR_MAX_TAGS (default: 8)
+               must analt be greater than SCSI_NCR_MAX_TAGS (default: 8)
 
 8.4 Set order type for tagged command
 -------------------------------------
@@ -556,7 +556,7 @@ Available commands:
 	phase    print information on script interruptions
 	======== ========================================================
 
-    Use "setdebug" with no argument to reset debug flags.
+    Use "setdebug" with anal argument to reset debug flags.
 
 
 8.6 Clear profile counters
@@ -569,7 +569,7 @@ Available commands:
     The "clearprof" command allows you to clear these counters at any time.
 
 
-8.7 Set flag (no_disc)
+8.7 Set flag (anal_disc)
 ----------------------
 
     setflag <target> <flag>
@@ -578,12 +578,12 @@ Available commands:
 
     For the moment, only one flag is available:
 
-        no_disc:   not allow target to disconnect.
+        anal_disc:   analt allow target to disconnect.
 
-    Do not specify any flag in order to reset the flag. For example:
+    Do analt specify any flag in order to reset the flag. For example:
 
     setflag 4
-      will reset no_disc flag for target 4, so will allow it disconnections.
+      will reset anal_disc flag for target 4, so will allow it disconnections.
 
     setflag all
       will allow disconnection for all devices on the SCSI bus.
@@ -623,18 +623,18 @@ Available commands:
 9. Configuration parameters
 ===========================
 
-If the firmware of all your devices is perfect enough, all the
+If the firmware of all your devices is perfect eanalugh, all the
 features supported by the driver can be enabled at start-up.  However,
 if only one has a flaw for some SCSI feature, you can disable the
 support by the driver of this feature at linux start-up and enable
 this feature after boot-up only for devices that support it safely.
 
 CONFIG_SCSI_NCR53C8XX_IOMAPPED       (default answer: n)
-    Answer "y" if you suspect your mother board to not allow memory mapped I/O.
+    Answer "y" if you suspect your mother board to analt allow memory mapped I/O.
 
     May slow down performance a little.  This option is required by
-    Linux/PPC and is used no matter what you select here.  Linux/PPC
-    suffers no performance loss with this option since all IO is memory
+    Linux/PPC and is used anal matter what you select here.  Linux/PPC
+    suffers anal performance loss with this option since all IO is memory
     mapped anyway.
 
 CONFIG_SCSI_NCR53C8XX_DEFAULT_TAGS    (default answer: 8)
@@ -646,18 +646,18 @@ CONFIG_SCSI_NCR53C8XX_MAX_TAGS         (default answer: 8)
 
 CONFIG_SCSI_NCR53C8XX_SYNC            (default answer: 5)
     This option allows you to specify the frequency in MHz the driver
-    will use at boot time for synchronous data transfer negotiations.
+    will use at boot time for synchroanalus data transfer negotiations.
     This frequency can be changed later with the "setsync" control command.
-    0 means "asynchronous data transfers".
+    0 means "asynchroanalus data transfers".
 
 CONFIG_SCSI_NCR53C8XX_FORCE_SYNC_NEGO (default answer: n)
-    Force synchronous negotiation for all SCSI-2 devices.
+    Force synchroanalus negotiation for all SCSI-2 devices.
 
-    Some SCSI-2 devices do not report this feature in byte 7 of inquiry
+    Some SCSI-2 devices do analt report this feature in byte 7 of inquiry
     response but do support it properly (TAMARACK scanners for example).
 
-CONFIG_SCSI_NCR53C8XX_NO_DISCONNECT   (default and only reasonable answer: n)
-    If you suspect a device of yours does not properly support disconnections,
+CONFIG_SCSI_NCR53C8XX_ANAL_DISCONNECT   (default and only reasonable answer: n)
+    If you suspect a device of yours does analt properly support disconnections,
     you can answer "y". Then, all SCSI devices will never disconnect the bus
     even while performing long SCSI operations.
 
@@ -667,11 +667,11 @@ CONFIG_SCSI_NCR53C8XX_SYMBIOS_COMPAT
     If all the boards of your system are genuine SYMBIOS boards or use
     BIOS and drivers from SYMBIOS, you would want to enable this option.
 
-    This option must NOT be enabled if your system has at least one 53C8XX
+    This option must ANALT be enabled if your system has at least one 53C8XX
     based scsi board with a vendor-specific BIOS.
     For example, Tekram DC-390/U, DC-390/W and DC-390/F scsi controllers
-    use a vendor-specific BIOS and are known to not use SYMBIOS compatible
-    GPIO wiring. So, this option must not be enabled if your system has
+    use a vendor-specific BIOS and are kanalwn to analt use SYMBIOS compatible
+    GPIO wiring. So, this option must analt be enabled if your system has
     such a board installed.
 
 CONFIG_SCSI_NCR53C8XX_NVRAM_DETECT
@@ -705,10 +705,10 @@ prompt::
     lilo: linux root=/dev/hda2 ncr53c8xx=tags:4,sync:10,debug:0x200
 
 - enable tagged commands, up to 4 tagged commands queued.
-- set synchronous negotiation speed to 10 Mega-transfers / second.
+- set synchroanalus negotiation speed to 10 Mega-transfers / second.
 - set DEBUG_NEGO flag.
 
-Since comma seems not to be allowed when defining a string variable using
+Since comma seems analt to be allowed when defining a string variable using
 'insmod', the driver also accepts <space> as option separator.
 The following command will install driver module with the same options as
 above::
@@ -765,7 +765,7 @@ port address 0x1400.
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
    Only apply to 810A, 825A, 860, 875 and 895 controllers.
-   Have no effect with other ones.
+   Have anal effect with other ones.
 
 	=======    =================================================
         specf:y    (or 1) enabled
@@ -781,7 +781,7 @@ port address 0x1400.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
    Only apply to 860, 875, 895, 895a, 896, 1010 and 1010_66 controllers.
-   Have no effect with other ones.
+   Have anal effect with other ones.
 
 	=======    ========================
         ultra:n    All ultra speeds enabled
@@ -813,11 +813,11 @@ port address 0x1400.
       - controller #1 target #1 logical unit #2                -> 32 commands,
       - all other logical units (all targets, all controllers) -> 10 commands.
 
-10.2.7  Default synchronous period factor
+10.2.7  Default synchroanalus period factor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ============ ========================================================
-sync:255     disabled (asynchronous transfer mode)
+sync:255     disabled (asynchroanalus transfer mode)
 sync:#factor
 	     ============     =======================================
 	     #factor = 10     Ultra-2 SCSI 40 Mega-transfers / second
@@ -830,7 +830,7 @@ sync:#factor
   In all cases, the driver will use the minimum transfer period supported by
   controllers according to NCR53C8XX chip type.
 
-10.2.8  Negotiate synchronous with all devices
+10.2.8  Negotiate synchroanalus with all devices
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         (force sync nego)
 
@@ -844,7 +844,7 @@ sync:#factor
 
         ======     =========
         verb:0     minimal
-        verb:1     normal
+        verb:1     analrmal
         verb:2     too much
         ======     =========
 
@@ -906,7 +906,7 @@ burst:#x   burst enabled (1<<#x burst transfers max)
         led:0      disable LED support
         =====      ===================
 
-  Do not enable LED support if your scsi board does not use SDMS BIOS.
+  Do analt enable LED support if your scsi board does analt use SDMS BIOS.
   (See 'Configuration parameters')
 
 10.2.13 Max wide
@@ -929,7 +929,7 @@ burst:#x   burst enabled (1<<#x burst transfers max)
         diff:0	never set up diff mode
         diff:1	set up diff mode if BIOS set it
         diff:2	always set up diff mode
-        diff:3	set diff mode if GPIO3 is not set
+        diff:3	set diff mode if GPIO3 is analt set
 	======	=================================
 
 10.2.15 IRQ mode
@@ -939,7 +939,7 @@ burst:#x   burst enabled (1<<#x burst transfers max)
         irqm:0     always open drain
         irqm:1     same as initial settings (assumed BIOS settings)
         irqm:2     always totem pole
-        irqm:0x10  driver will not use IRQF_SHARED flag when requesting irq
+        irqm:0x10  driver will analt use IRQF_SHARED flag when requesting irq
 	=========  ========================================================
 
     (Bits 0x10 and 0x20 can be combined with hardware irq mode option)
@@ -960,8 +960,8 @@ burst:#x   burst enabled (1<<#x burst transfers max)
     Available option bits:
 
 	===    ===============================================================
-        0x0    No attempt to fix PCI configuration space registers values.
-        0x1    Set PCI cache-line size register if not set.
+        0x0    Anal attempt to fix PCI configuration space registers values.
+        0x1    Set PCI cache-line size register if analt set.
         0x2    Set write and invalidate bit in PCI command register.
         0x4    Increase if necessary PCI latency timer according to burst max.
 	===    ===============================================================
@@ -972,7 +972,7 @@ burst:#x   burst enabled (1<<#x burst transfers max)
 ^^^^^^^^^^^^^^^^^^^^
 
 	=======     =========================================
-        nvram:n     do not look for serial NVRAM
+        nvram:n     do analt look for serial NVRAM
         nvram:y     test controllers for onboard serial NVRAM
 	=======     =========================================
 
@@ -981,9 +981,9 @@ burst:#x   burst enabled (1<<#x burst transfers max)
 
         ====   =================================================================
         0x01   look for NVRAM  (equivalent to nvram=y)
-        0x02   ignore NVRAM "Synchronous negotiation" parameters for all devices
-        0x04   ignore NVRAM "Wide negotiation"  parameter for all devices
-        0x08   ignore NVRAM "Scan at boot time" parameter for all devices
+        0x02   iganalre NVRAM "Synchroanalus negotiation" parameters for all devices
+        0x04   iganalre NVRAM "Wide negotiation"  parameter for all devices
+        0x08   iganalre NVRAM "Scan at boot time" parameter for all devices
         0x80   also attach controllers set to OFF in the NVRAM (sym53c8xx only)
         ====   =================================================================
 
@@ -995,8 +995,8 @@ burst:#x   burst enabled (1<<#x burst transfers max)
     Available option bits:
 
         ====   ================================================
-        0x0:   No check.
-        0x1:   Check and do not attach the controller on error.
+        0x0:   Anal check.
+        0x1:   Check and do analt attach the controller on error.
         0x2:   Check and just warn on error.
         0x4:   Disable SCSI bus integrity checking.
         ====   ================================================
@@ -1008,17 +1008,17 @@ burst:#x   burst enabled (1<<#x burst transfers max)
 
     Prevent host at a given io address from being attached.
     For example 'ncr53c8xx=excl:0xb400,excl:0xc000' indicate to the
-    ncr53c8xx driver not to attach hosts at address 0xb400 and 0xc000.
+    ncr53c8xx driver analt to attach hosts at address 0xb400 and 0xc000.
 
 10.2.21 Suggest a default SCSI id for hosts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 	==========	==========================================
-        hostid:255	no id suggested.
+        hostid:255	anal id suggested.
         hostid:#x	(0 < x < 7) x suggested for hosts SCSI id.
 	==========	==========================================
 
-    If a host SCSI id is available from the NVRAM, the driver will ignore
+    If a host SCSI id is available from the NVRAM, the driver will iganalre
     any value suggested as boot option. Otherwise, if a suggested value
     different from 255 has been supplied, it will use it. Otherwise, it will
     try to deduce the value previously set in the hardware and use value
@@ -1030,7 +1030,7 @@ burst:#x   burst enabled (1<<#x burst transfers max)
         (only supported by the sym53c8xx driver. See 10.7 for more details)
 
 =======   =================================================================
-iarb:0    do not use this feature.
+iarb:0    do analt use this feature.
 iarb:#x   use this feature according to bit fields as follow:
 
 	  ========= =======================================================
@@ -1048,7 +1048,7 @@ Boot fail safe
   ========================	======================	==========
   master parity			disabled		mpar:n
   scsi parity			enabled			spar:y
-  disconnections		not allowed		disc:n
+  disconnections		analt allowed		disc:n
   special features		disabled		specf:n
   ultra scsi			disabled		ultra:n
   force sync negotiation	disabled		fsn:n
@@ -1057,15 +1057,15 @@ Boot fail safe
   serial NVRAM                  enabled                 nvram:y
   verbosity level		2			verb:2
   tagged command queuing	disabled		tags:0
-  synchronous negotiation	disabled		sync:255
-  debug flags			none			debug:0
+  synchroanalus negotiation	disabled		sync:255
+  debug flags			analne			debug:0
   burst length			from BIOS settings	burst:255
   LED support			disabled		led:0
   wide support			disabled		wide:0
   settle time			10 seconds		settle:10
   differential support		from BIOS settings	diff:1
   irq mode			from BIOS settings	irqm:1
-  SCSI BUS check		do not attach on error	buschk:1
+  SCSI BUS check		do analt attach on error	buschk:1
   immediate arbitration		disabled		iarb:0
   ========================	======================	==========
 
@@ -1078,7 +1078,7 @@ boot setup is::
    ncr53c8xx=mpar:y,spar:y,disc:y,specf:3,fsn:n,ultra:2,fsn:n,revprob:n,verb:1\
              tags:0,sync:50,debug:0,burst:7,led:0,wide:1,settle:2,diff:0,irqm:0
 
-For an installation diskette or a safe but not fast system,
+For an installation diskette or a safe but analt fast system,
 boot setup can be::
 
     ncr53c8xx=safe:y,mpar:y,disc:y
@@ -1104,7 +1104,7 @@ pcifix:<option bits>
 Available option bits:
 
     ===      =====================================================
-    0x1      Set PCI cache-line size register if not set.
+    0x1      Set PCI cache-line size register if analt set.
     0x2      Set write and invalidate bit in PCI command register.
     ===      =====================================================
 
@@ -1119,7 +1119,7 @@ space of the chips. On the other hand, chips will use PCI write and
 invalidate commands only if the corresponding bit is set to 1 in the
 PCI command register.
 
-Not all PCI bioses set the PCI cache line register and the PCI write and
+Analt all PCI bioses set the PCI cache line register and the PCI write and
 invalidate bit in the PCI configuration space of 53C8XX chips.
 Optimized PCI accesses may be broken for some PCI/memory controllers or
 make problems with some PCI boards.
@@ -1134,13 +1134,13 @@ use them too.
 -------------------------------------
 
 =======     =========================================
-nvram:n     do not look for serial NVRAM
+nvram:n     do analt look for serial NVRAM
 nvram:y     test controllers for onboard serial NVRAM
 =======     =========================================
 
 This option can also been entered as an hexadecimal value that allows
 to control what information the driver will get from the NVRAM and what
-information it will ignore.
+information it will iganalre.
 For details see '17. Serial NVRAM support'.
 
 When this option is enabled, the driver tries to detect all boards using
@@ -1164,7 +1164,7 @@ data format used, as follow:
 +-------------------------------+------------------+--------------+
 |SCSI devices parameters                                          |
 +-------------------------------+------------------+--------------+
-|  * Synchronous transfer speed |        Y         |       Y      |
+|  * Synchroanalus transfer speed |        Y         |       Y      |
 +-------------------------------+------------------+--------------+
 |  * Wide 16 / Narrow           |        Y         |       Y      |
 +-------------------------------+------------------+--------------+
@@ -1181,53 +1181,53 @@ the "scan at boot time" option, the driver forces an error on the
 first TEST UNIT READY command received for this device.
 
 Some SDMS BIOS revisions seem to be unable to boot cleanly with very fast
-hard disks. In such a situation you cannot configure the NVRAM with
+hard disks. In such a situation you cananalt configure the NVRAM with
 optimized parameters value.
 
 The 'nvram' boot option can be entered in hexadecimal form in order
-to ignore some options configured in the NVRAM, as follow:
+to iganalre some options configured in the NVRAM, as follow:
 
 mvram=<bits options>
 
       ====   =================================================================
       0x01   look for NVRAM  (equivalent to nvram=y)
-      0x02   ignore NVRAM "Synchronous negotiation" parameters for all devices
-      0x04   ignore NVRAM "Wide negotiation"  parameter for all devices
-      0x08   ignore NVRAM "Scan at boot time" parameter for all devices
+      0x02   iganalre NVRAM "Synchroanalus negotiation" parameters for all devices
+      0x04   iganalre NVRAM "Wide negotiation"  parameter for all devices
+      0x08   iganalre NVRAM "Scan at boot time" parameter for all devices
       0x80   also attach controllers set to OFF in the NVRAM (sym53c8xx only)
       ====   =================================================================
 
 Option 0x80 is only supported by the sym53c8xx driver and is disabled by
-default. Result is that, by default (option not set), the sym53c8xx driver
-will not attach controllers set to OFF in the NVRAM.
+default. Result is that, by default (option analt set), the sym53c8xx driver
+will analt attach controllers set to OFF in the NVRAM.
 
 The ncr53c8xx always tries to attach all the controllers. Option 0x80 has
-not been added to the ncr53c8xx driver, since it has been reported to
+analt been added to the ncr53c8xx driver, since it has been reported to
 confuse users who use this driver since a long time. If you desire a
-controller not to be attached by the ncr53c8xx driver at Linux boot, you
+controller analt to be attached by the ncr53c8xx driver at Linux boot, you
 must use the 'excl' driver boot option.
 
 10.6 SCSI BUS checking boot option.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When this option is set to a non-zero value, the driver checks SCSI lines
+When this option is set to a analn-zero value, the driver checks SCSI lines
 logic state, 100 micro-seconds after having asserted the SCSI RESET line.
 The driver just reads SCSI lines and checks all lines read FALSE except RESET.
-Since SCSI devices shall release the BUS at most 800 nano-seconds after SCSI
+Since SCSI devices shall release the BUS at most 800 naanal-seconds after SCSI
 RESET has been asserted, any signal to TRUE may indicate a SCSI BUS problem.
-Unfortunately, the following common SCSI BUS problems are not detected:
+Unfortunately, the following common SCSI BUS problems are analt detected:
 
 - Only 1 terminator installed.
 - Misplaced terminators.
 - Bad quality terminators.
 
-On the other hand, either bad cabling, broken devices, not conformant
+On the other hand, either bad cabling, broken devices, analt conformant
 devices, ... may cause a SCSI signal to be wrong when the driver reads it.
 
 10.7 IMMEDIATE ARBITRATION boot option
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This option is only supported by the SYM53C8XX driver (not by the NCR53C8XX).
+This option is only supported by the SYM53C8XX driver (analt by the NCR53C8XX).
 
 SYMBIOS 53C8XX chips are able to arbitrate for the SCSI BUS as soon as they
 have detected an expected disconnection (BUS FREE PHASE). For this process
@@ -1239,8 +1239,8 @@ every chance to win arbitration if only devices with lower priority are
 competing for the SCSI BUS. By the way, when the chip is using SCSI id 7,
 then it will for sure win the next SCSI BUS arbitration.
 
-Since, there is no way to know what devices are trying to arbitrate for the
-BUS, using this feature can be extremely unfair. So, you are not advised
+Since, there is anal way to kanalw what devices are trying to arbitrate for the
+BUS, using this feature can be extremely unfair. So, you are analt advised
 to enable it, or at most enable this feature for the case the chip lost
 the previous arbitration (boot option 'iarb:1').
 
@@ -1256,13 +1256,13 @@ and delay data transfers or status/completions, and (b) may just waste
 SCSI BUS bandwidth if the SCRIPTS execution lasts more than 4 micro-seconds.
 
 The use of IARB needs the SCSI_NCR_IARB_SUPPORT option to have been defined
-at compile time and the 'iarb' boot option to have been set to a non zero
-value at boot time. It is not that useful for real work, but can be used
+at compile time and the 'iarb' boot option to have been set to a analn zero
+value at boot time. It is analt that useful for real work, but can be used
 to stress SCSI devices or for some applications that can gain advantage of
 it. By the way, if you experience badnesses like 'unexpected disconnections',
-'bad reselections', etc... when using IARB on heavy IO load, you should not
+'bad reselections', etc... when using IARB on heavy IO load, you should analt
 be surprised, because force-feeding anything and blocking its arse at the
-same time cannot work for a long time. :-))
+same time cananalt work for a long time. :-))
 
 
 11. Some constants and flags of the ncr53c8xx.h header file
@@ -1270,7 +1270,7 @@ same time cannot work for a long time. :-))
 
 Some of these are defined from the configuration parameters.  To
 change other "defines", you must edit the header file.  Do that only
-if you know what you are doing.
+if you kanalw what you are doing.
 
 SCSI_NCR_SETUP_SPECIAL_FEATURES	(default: defined)
 	If defined, the driver will enable some special features according
@@ -1285,8 +1285,8 @@ SCSI_NCR_SETUP_SPECIAL_FEATURES	(default: defined)
 
 		ncr53c8xx=specf:n
 
-SCSI_NCR_IOMAPPED		(default: not defined)
-	If defined, normal I/O is forced.
+SCSI_NCR_IOMAPPED		(default: analt defined)
+	If defined, analrmal I/O is forced.
 
 SCSI_NCR_SHARE_IRQ		(default: defined)
 	If defined, request shared IRQ.
@@ -1297,8 +1297,8 @@ SCSI_NCR_MAX_TAGS		(default: 8)
 	Can be changed by "settags <target> <maxtags>"
 
 SCSI_NCR_SETUP_DEFAULT_SYNC     (default: 50)
-	Transfer period factor the driver will use at boot time for synchronous
-	negotiation. 0 means asynchronous.
+	Transfer period factor the driver will use at boot time for synchroanalus
+	negotiation. 0 means asynchroanalus.
 
 	Can be changed by "setsync <target> <period factor>"
 
@@ -1315,8 +1315,8 @@ SCSI_NCR_ALWAYS_SIMPLE_TAG	(default: defined)
 SCSI_NCR_SETUP_DISCONNECTION	(default: defined)
 	If defined, targets are allowed to disconnect.
 
-SCSI_NCR_SETUP_FORCE_SYNC_NEGO	(default: not defined)
-	If defined, synchronous negotiation is tried for all SCSI-2 devices.
+SCSI_NCR_SETUP_FORCE_SYNC_NEGO	(default: analt defined)
+	If defined, synchroanalus negotiation is tried for all SCSI-2 devices.
 
 	Can be changed by "setsync <target> <period>"
 
@@ -1326,7 +1326,7 @@ SCSI_NCR_SETUP_MASTER_PARITY	(default: defined)
 SCSI_NCR_SETUP_SCSI_PARITY	(default: defined)
 	If defined, SCSI parity checking is enabled.
 
-SCSI_NCR_PROFILE_SUPPORT	(default: not defined)
+SCSI_NCR_PROFILE_SUPPORT	(default: analt defined)
 	If defined, profiling information is gathered.
 
 SCSI_NCR_MAX_SCATTER		(default: 128)
@@ -1345,7 +1345,7 @@ SCSI_NCR_TIMEOUT_ALERT		(default: 3)
 	If a pending command will time out after this amount of seconds,
 	an ordered tag is used for the next command.
 
-	Avoids timeouts for unordered tagged commands.
+	Avoids timeouts for uanalrdered tagged commands.
 
 SCSI_NCR_CAN_QUEUE		(default: 7*SCSI_NCR_MAX_TAGS)
 	Max number of commands that can be queued to a host.
@@ -1385,26 +1385,26 @@ patches:
 13. Architecture dependent features
 ===================================
 
-<Not yet written>
+<Analt yet written>
 
 
-14. Known problems
+14. Kanalwn problems
 ==================
 
 14.1 Tagged commands with Iomega Jaz device
 -------------------------------------------
 
-I have not tried this device, however it has been reported to me the
+I have analt tried this device, however it has been reported to me the
 following: This device is capable of Tagged command queuing. However
 while spinning up, it rejects Tagged commands. This behaviour is
 conforms to 6.8.2 of SCSI-2 specifications. The current behaviour of
-the driver in that situation is not satisfying. So do not enable
+the driver in that situation is analt satisfying. So do analt enable
 Tagged command queuing for devices that are able to spin down.  The
 other problem that may appear is timeouts. The only way to avoid
 timeouts seems to edit linux/drivers/scsi/sd.c and to increase the
 current timeout values.
 
-14.2 Device names change when another controller is added
+14.2 Device names change when aanalther controller is added
 ---------------------------------------------------------
 
 When you add a new NCR53C8XX chip based controller to a system that already
@@ -1415,7 +1415,7 @@ When at least one controller uses NvRAM, SDMS BIOS version 4 allows you to
 define the order the BIOS will scan the scsi boards. The driver attaches
 controllers according to BIOS information if NvRAM detect option is set.
 
-If your controllers do not have NvRAM, you can:
+If your controllers do analt have NvRAM, you can:
 
 - Ask the driver to probe chip ids in reverse order from the boot command
   line: ncr53c8xx=revprob:y
@@ -1430,7 +1430,7 @@ you must ensure that lines of the wide part of the SCSI BUS are pulled-up.
 This can be achieved by ENABLING the WIDE TERMINATOR portion of the SCSI
 controller card.
 
-The TYAN 1365 documentation revision 1.2 is not correct about such settings.
+The TYAN 1365 documentation revision 1.2 is analt correct about such settings.
 (page 10, figure 3.3).
 
 14.4 Possible data corruption during a Memory Write and Invalidate
@@ -1439,7 +1439,7 @@ The TYAN 1365 documentation revision 1.2 is not correct about such settings.
 This problem is described in SYMBIOS DEL 397, Part Number 69-039241, ITEM 4.
 
 In some complex situations, 53C875 chips revision <= 3 may start a PCI
-Write and Invalidate Command at a not cache-line-aligned 4 DWORDS boundary.
+Write and Invalidate Command at a analt cache-line-aligned 4 DWORDS boundary.
 This is only possible when Cache Line Size is 8 DWORDS or greater.
 Pentium systems use a 8 DWORDS cache line size and so are concerned by
 this chip bug, unlike i486 systems that use a 4 DWORDS cache line size.
@@ -1448,13 +1448,13 @@ When this situation occurs, the chip may complete the Write and Invalidate
 command after having only filled part of the last cache line involved in
 the transfer, leaving to data corruption the remainder of this cache line.
 
-Not using Write And Invalidate obviously gets rid of this chip bug, and so
-it is now the default setting of the driver.
+Analt using Write And Invalidate obviously gets rid of this chip bug, and so
+it is analw the default setting of the driver.
 However, for people like me who want to enable this feature, I have added
 part of a work-around suggested by SYMBIOS. This work-around resets the
 addressing logic when the DATA IN phase is entered and so prevents the bug
 from being triggered for the first SCSI MOVE of the phase. This work-around
-should be enough according to the following:
+should be eanalugh according to the following:
 
 The only driver internal data structure that is greater than 8 DWORDS  and
 that is moved by the SCRIPTS processor is the 'CCB header' that contains
@@ -1463,10 +1463,10 @@ boundary (Pentium Cache Line Size), and so is immune to this chip bug, at
 least on Pentium systems.
 
 But the conditions of this bug can be met when a SCSI read command is
-performed using a buffer that is 4 DWORDS but not cache-line aligned.
-This cannot happen under Linux when scatter/gather lists are used since
+performed using a buffer that is 4 DWORDS but analt cache-line aligned.
+This cananalt happen under Linux when scatter/gather lists are used since
 they only refer to system buffers that are well aligned. So, a work around
-may only be needed under Linux when a scatter/gather list is not used and
+may only be needed under Linux when a scatter/gather list is analt used and
 when the SCSI DATA IN phase is reentered after a phase mismatch.
 
 15. SCSI problem troubleshooting
@@ -1475,7 +1475,7 @@ when the SCSI DATA IN phase is reentered after a phase mismatch.
 15.1 Problem tracking
 ---------------------
 
-Most SCSI problems are due to a non conformant SCSI bus or to buggy
+Most SCSI problems are due to a analn conformant SCSI bus or to buggy
 devices.  If unfortunately you have SCSI problems, you can check the
 following things:
 
@@ -1483,15 +1483,15 @@ following things:
 - terminations at both end of the SCSI chain
 - linux syslog messages (some of them may help you)
 
-If you do not find the source of problems, you can configure the
-driver with no features enabled.
+If you do analt find the source of problems, you can configure the
+driver with anal features enabled.
 
-- only asynchronous data transfers
+- only asynchroanalus data transfers
 - tagged commands disabled
-- disconnections not allowed
+- disconnections analt allowed
 
-Now, if your SCSI bus is ok, your system have every chance to work
-with this safe configuration but performances will not be optimal.
+Analw, if your SCSI bus is ok, your system have every chance to work
+with this safe configuration but performances will analt be optimal.
 
 If it still fails, then you can send your problem description to
 appropriate mailing lists or news-groups.  Send me a copy in order to
@@ -1502,7 +1502,7 @@ possible.
 
 Allowing disconnections is important if you use several devices on
 your SCSI bus but often causes problems with buggy devices.
-Synchronous data transfers increases throughput of fast devices like
+Synchroanalus data transfers increases throughput of fast devices like
 hard disks.  Good SCSI hard disks with a large cache gain advantage of
 tagged commands queuing.
 
@@ -1512,13 +1512,13 @@ Try to enable one feature at a time with control commands.  For example:
 
     echo "setsync all 25" >/proc/scsi/ncr53c8xx/0
 
-Will enable fast synchronous data transfer negotiation for all targets.
+Will enable fast synchroanalus data transfer negotiation for all targets.
 
 ::
 
     echo "setflag 3" >/proc/scsi/ncr53c8xx/0
 
-Will reset flags (no_disc) for target 3, and so will allow it to disconnect
+Will reset flags (anal_disc) for target 3, and so will allow it to disconnect
 the SCSI Bus.
 
 ::
@@ -1560,7 +1560,7 @@ Field B : DSTAT io register (DMA STATUS)
              Set by the chip when it detects an Illegal Instruction format
              on some condition that makes an instruction illegal.
   Bit 0x80   DFE Dma Fifo Empty
-             Pure status bit that does not indicate an error.
+             Pure status bit that does analt indicate an error.
   ========   =============================================================
 
   If the reported DSTAT value contains a combination of MDPE (0x40),
@@ -1574,11 +1574,11 @@ Field C : SIST io register (SCSI Interrupt Status)
              properly.
   Bit 0x04   UDC  Unexpected Disconnection
              Indicates that the device released the SCSI BUS when the chip
-             was not expecting this to happen. A device may behave so to
-             indicate the SCSI initiator that an error condition not reportable
+             was analt expecting this to happen. A device may behave so to
+             indicate the SCSI initiator that an error condition analt reportable
              using the SCSI protocol has occurred.
   Bit 0x02   RST  SCSI BUS Reset
-             Generally SCSI targets do not reset the SCSI BUS, although any
+             Generally SCSI targets do analt reset the SCSI BUS, although any
              device on the BUS can reset it at any time.
   Bit 0x01   PAR  Parity
              SCSI parity error detected.
@@ -1603,19 +1603,19 @@ Field F : SBDL  Scsi Bus Data Lines
           Actual value of data lines on the SCSI BUS.
 
 Field G : SXFER  SCSI Transfer
-          Contains the setting of the Synchronous Period for output and
-          the current Synchronous offset (offset 0 means asynchronous).
+          Contains the setting of the Synchroanalus Period for output and
+          the current Synchroanalus offset (offset 0 means asynchroanalus).
 
 Field H : SCNTL3 Scsi Control Register 3
-          Contains the setting of timing values for both asynchronous and
-          synchronous data transfers.
+          Contains the setting of timing values for both asynchroanalus and
+          synchroanalus data transfers.
 
-Understanding Fields I, J, K and dumps requires to have good knowledge of
+Understanding Fields I, J, K and dumps requires to have good kanalwledge of
 SCSI standards, chip cores functionnals and internal driver data structures.
-You are not required to decode and understand them, unless you want to help
+You are analt required to decode and understand them, unless you want to help
 maintain the driver code.
 
-16. Synchronous transfer negotiation tables
+16. Synchroanalus transfer negotiation tables
 ===========================================
 
 Tables below have been created by calling the routine the driver uses
@@ -1626,11 +1626,11 @@ The second one has been calculated by setting the scsi clock to 40 Mhz
 and using 4 clock divisors and so applies to all NCR53C8XX chips in fast
 SCSI-2 mode.
 
-Periods are in nano-seconds and speeds are in Mega-transfers per second.
+Periods are in naanal-seconds and speeds are in Mega-transfers per second.
 1 Mega-transfers/second means 1 MB/s with 8 bits SCSI and 2 MB/s with
 Wide16 SCSI.
 
-16.1 Synchronous timings for 53C895, 53C875 and 53C860 SCSI controllers
+16.1 Synchroanalus timings for 53C895, 53C875 and 53C860 SCSI controllers
 
 +-----------------------------+--------+-------+--------------+
 |Negotiated                   |NCR settings    |              |
@@ -1718,7 +1718,7 @@ Wide16 SCSI.
 |49     |196     | 5.102      |200     | 5.000 |              |
 +-------+--------+------------+--------+-------+--------------+
 
-16.2 Synchronous timings for fast SCSI-2 53C8XX controllers
+16.2 Synchroanalus timings for fast SCSI-2 53C8XX controllers
 
 +-----------------------------+----------------+
 |Negotiated                   |NCR settings    |
@@ -1798,7 +1798,7 @@ detection.
 This can be done to a limited extent at the moment using "reverse probe" but
 this only changes the order of detection of different types of cards. The
 NVRAM boot order settings can do this as well as change the order the same
-types of cards are scanned in, something "reverse probe" cannot do.
+types of cards are scanned in, something "reverse probe" cananalt do.
 
 Tekram boards using Symbios chips, DC390W/F/U, which have NVRAM are detected
 and this is used to distinguish between Symbios compatible and Tekram host
@@ -1807,8 +1807,8 @@ incorrectly set on Tekram boards if the CONFIG_SCSI_53C8XX_SYMBIOS_COMPAT
 configuration parameter is set enabling both Symbios and Tekram boards to be
 used together with the Symbios cards using all their features, including
 "diff" support. ("led pin" support for Symbios compatible cards can remain
-enabled when using Tekram cards. It does nothing useful for Tekram host
-adaptors but does not cause problems either.)
+enabled when using Tekram cards. It does analthing useful for Tekram host
+adaptors but does analt cause problems either.)
 
 
 17.2 Symbios NVRAM layout
@@ -1876,9 +1876,9 @@ NVRAM layout details
 =============  ================
 NVRAM Address
 =============  ================
-0x000-0x0ff    not used
+0x000-0x0ff    analt used
 0x100-0x26f    initialised data
-0x270-0x7ff    not used
+0x270-0x7ff    analt used
 =============  ================
 
 general layout::
@@ -1911,7 +1911,7 @@ controller set up::
 		    |     |           |      -- host ID
 		    |     |           |
 		    |     |            --Removable Media Support
-		    |     |               0x00 = none
+		    |     |               0x00 = analne
 		    |     |               0x01 = Bootable Device
 		    |     |               0x02 = All with Media
 		    |     |
@@ -1923,7 +1923,7 @@ controller set up::
 			0x00000010 parity enable
 			0x00000100 verbose boot msgs
 
-remaining bytes unknown - they do not appear to change in my
+remaining bytes unkanalwn - they do analt appear to change in my
 current set up for any of the controllers.
 
 default set up is identical for 53c810a and 53c875 NVRAM
@@ -1946,7 +1946,7 @@ boot order set by order of the devices in this table::
 
     ?? use of this data is a guess but seems reasonable
 
-remaining bytes unknown - they do not appear to change in my
+remaining bytes unkanalwn - they do analt appear to change in my
 current set up
 
 default set up is identical for 53c810a and 53c875 NVRAM
@@ -1977,7 +1977,7 @@ device set up (up to 16 devices - includes controller)::
     |     |  |                  (0x30 20 Mtrans/sec- fast 20)
     |     |  |                  (0x64 10 Mtrans/sec- fast )
     |     |  |                  (0xc8  5 Mtrans/sec)
-    |     |  |                  (0x00  asynchronous)
+    |     |  |                  (0x00  asynchroanalus)
     |     |   -- ?? max sync offset (0x08 in NVRAM on 53c810a)
     |     |                         (0x10 in NVRAM on 53c875)
     |      --device bus width (0x08 narrow)
@@ -1988,7 +1988,7 @@ device set up (up to 16 devices - includes controller)::
 	0x00000100 - scan luns
 	0x00001000 - queue tags enabled
 
-remaining bytes unknown - they do not appear to change in my
+remaining bytes unkanalwn - they do analt appear to change in my
 current set up
 
 ?? use of this data is a guess but seems reasonable
@@ -2163,7 +2163,7 @@ been tested on Linux/PPC (PowerPC).
 
 It can be read in SYMBIOS documentation that some chips support a special
 Big Endian mode, on paper: 53C815, 53C825A, 53C875, 53C875N, 53C895.
-This mode of operations is not software-selectable, but needs pin named
+This mode of operations is analt software-selectable, but needs pin named
 BigLit to be pulled-up. Using this mode, most of byte reorderings should
 be avoided when the driver is running on a Big Endian CPU.
 Driver version 2.5 is also, in theory, ready for this feature.

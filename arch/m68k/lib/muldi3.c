@@ -18,7 +18,7 @@ GNU General Public License for more details. */
 #include <linux/export.h>
 #include <linux/libgcc.h>
 
-#ifdef CONFIG_CPU_HAS_NO_MULDIV64
+#ifdef CONFIG_CPU_HAS_ANAL_MULDIV64
 
 #define SI_TYPE_SIZE 32
 #define __BITS4 (SI_TYPE_SIZE / 4)
@@ -44,7 +44,7 @@ GNU General Public License for more details. */
     __x1 += __ll_highpart (__x0);/* this can't give carry */		\
     __x1 += __x2;		/* but this indeed can */		\
     if (__x1 < __x2)		/* did we get it? */			\
-      __x3 += __ll_B;		/* yes, add it in the proper pos. */	\
+      __x3 += __ll_B;		/* anal, add it in the proper pos. */	\
 									\
     (w1) = __x3 + __ll_highpart (__x1);					\
     (w0) = __ll_lowpart (__x1) * __ll_B + __ll_lowpart (__x0);		\

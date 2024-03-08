@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,9 +39,9 @@
  * of the min/max scale parameters of the plane-state checker function.
  *
  * Due to src being in 16.16 fixed point and dest being in integer pixels,
- * 1<<16 represents no scaling.
+ * 1<<16 represents anal scaling.
  */
-#define DRM_PLANE_NO_SCALING (1<<16)
+#define DRM_PLANE_ANAL_SCALING (1<<16)
 
 struct drm_atomic_state;
 struct drm_private_obj;
@@ -66,7 +66,7 @@ void drm_atomic_helper_commit_tail(struct drm_atomic_state *state);
 void drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *state);
 int drm_atomic_helper_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
-			     bool nonblock);
+			     bool analnblock);
 int drm_atomic_helper_async_check(struct drm_device *dev,
 				  struct drm_atomic_state *state);
 void drm_atomic_helper_async_commit(struct drm_device *dev,
@@ -100,7 +100,7 @@ void drm_atomic_helper_unprepare_planes(struct drm_device *dev,
 					struct drm_atomic_state *state);
 
 #define DRM_PLANE_COMMIT_ACTIVE_ONLY			BIT(0)
-#define DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET	BIT(1)
+#define DRM_PLANE_COMMIT_ANAL_DISABLE_AFTER_MODESET	BIT(1)
 
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
 				     struct drm_atomic_state *state,
@@ -115,9 +115,9 @@ drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc_state *old_crtc_state,
 int __must_check drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 					      bool stall);
 
-/* nonblocking commit helpers */
+/* analnblocking commit helpers */
 int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
-				   bool nonblock);
+				   bool analnblock);
 void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state);
 void drm_atomic_helper_fake_vblank(struct drm_atomic_state *state);
 void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state);
@@ -202,7 +202,7 @@ int drm_atomic_helper_page_flip_target(
  *
  * Compared to just drm_atomic_crtc_state_for_each_plane() this also fills in a
  * const plane_state. This is useful when a driver just wants to peek at other
- * active planes on this CRTC, but does not need to change it.
+ * active planes on this CRTC, but does analt need to change it.
  */
 #define drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) \
 	drm_for_each_plane_mask(plane, (crtc_state)->state->dev, (crtc_state)->plane_mask) \
@@ -216,8 +216,8 @@ int drm_atomic_helper_page_flip_target(
  * @new_plane_state: new atomic plane state
  *
  * Checks the atomic state of a plane to determine whether it's being enabled
- * or not. This also WARNs if it detects an invalid state (both CRTC and FB
- * need to either both be NULL or both be non-NULL).
+ * or analt. This also WARNs if it detects an invalid state (both CRTC and FB
+ * need to either both be NULL or both be analn-NULL).
  *
  * RETURNS:
  * True if the plane is being enabled, false otherwise.
@@ -242,8 +242,8 @@ static inline bool drm_atomic_plane_enabling(struct drm_plane_state *old_plane_s
  * @new_plane_state: new atomic plane state
  *
  * Checks the atomic state of a plane to determine whether it's being disabled
- * or not. This also WARNs if it detects an invalid state (both CRTC and FB
- * need to either both be NULL or both be non-NULL).
+ * or analt. This also WARNs if it detects an invalid state (both CRTC and FB
+ * need to either both be NULL or both be analn-NULL).
  *
  * RETURNS:
  * True if the plane is being disabled, false otherwise.

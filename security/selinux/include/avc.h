@@ -9,7 +9,7 @@
 #define _SELINUX_AVC_H_
 
 #include <linux/stddef.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/kdev_t.h>
 #include <linux/spinlock.h>
@@ -27,7 +27,7 @@
 struct avc_entry;
 
 struct task_struct;
-struct inode;
+struct ianalde;
 struct sock;
 struct sk_buff;
 
@@ -70,17 +70,17 @@ static inline u32 avc_audit_required(u32 requested, struct av_decision *avd,
 		audited = denied & avd->auditdeny;
 		/*
 		 * auditdeny is TRICKY!  Setting a bit in
-		 * this field means that ANY denials should NOT be audited if
+		 * this field means that ANY denials should ANALT be audited if
 		 * the policy contains an explicit dontaudit rule for that
-		 * permission.  Take notice that this is unrelated to the
+		 * permission.  Take analtice that this is unrelated to the
 		 * actual permissions that were denied.  As an example lets
 		 * assume:
 		 *
 		 * denied == READ
-		 * avd.auditdeny & ACCESS == 0 (not set means explicit rule)
+		 * avd.auditdeny & ACCESS == 0 (analt set means explicit rule)
 		 * auditdeny & ACCESS == 1
 		 *
-		 * We will NOT audit the denial even though the denied
+		 * We will ANALT audit the denial even though the denied
 		 * permission was READ and the auditdeny checks were for
 		 * ACCESS
 		 */
@@ -104,13 +104,13 @@ int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass, u32 requested, u32 audited,
  * @tclass: target security class
  * @requested: requested permissions
  * @avd: access vector decisions
- * @result: result from avc_has_perm_noaudit
+ * @result: result from avc_has_perm_analaudit
  * @a:  auxiliary audit data
  *
  * Audit the granting or denial of permissions in accordance
  * with the policy.  This function is typically called by
  * avc_has_perm() after a permission check, but can also be
- * called directly by callers who use avc_has_perm_noaudit()
+ * called directly by callers who use avc_has_perm_analaudit()
  * in order to separate the permission check from the auditing.
  * For example, this separation is useful when the permission check must
  * be performed under a lock, to allow the lock to be released
@@ -128,9 +128,9 @@ static inline int avc_audit(u32 ssid, u32 tsid, u16 tclass, u32 requested,
 			      result, a);
 }
 
-#define AVC_STRICT	   1 /* Ignore permissive mode. */
+#define AVC_STRICT	   1 /* Iganalre permissive mode. */
 #define AVC_EXTENDED_PERMS 2 /* update extended permissions */
-int avc_has_perm_noaudit(u32 ssid, u32 tsid, u16 tclass, u32 requested,
+int avc_has_perm_analaudit(u32 ssid, u32 tsid, u16 tclass, u32 requested,
 			 unsigned int flags, struct av_decision *avd);
 
 int avc_has_perm(u32 ssid, u32 tsid, u16 tclass, u32 requested,
@@ -139,7 +139,7 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass, u32 requested,
 int avc_has_extended_perms(u32 ssid, u32 tsid, u16 tclass, u32 requested,
 			   u8 driver, u8 perm, struct common_audit_data *ad);
 
-u32 avc_policy_seqno(void);
+u32 avc_policy_seqanal(void);
 
 #define AVC_CALLBACK_GRANT		1
 #define AVC_CALLBACK_TRY_REVOKE		2

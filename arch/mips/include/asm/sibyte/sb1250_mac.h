@@ -314,7 +314,7 @@
  * Configuration Register.
  */
 
-#define K_MAC_IFG_RX_10		    _SB_MAKE64(0)	/* See table 176, not used */
+#define K_MAC_IFG_RX_10		    _SB_MAKE64(0)	/* See table 176, analt used */
 #define K_MAC_IFG_RX_100	    _SB_MAKE64(0)
 #define K_MAC_IFG_RX_1000	    _SB_MAKE64(0)
 
@@ -513,7 +513,7 @@
  * Registers: MAC_ADDR0_2 through MAC_ADDR7_2
  */
 
-/* No bitfields */
+/* Anal bitfields */
 
 /*
  * MAC Receive Address Filter Mask Registers
@@ -522,7 +522,7 @@
  * Registers: MAC_ADDRMASK2_0 and MAC_ADDRMASK2_1
  */
 
-/* No bitfields */
+/* Anal bitfields */
 
 /*
  * MAC Receive Address Filter Hash Match Registers (Table 9-22)
@@ -531,7 +531,7 @@
  * Registers: MAC_HASH0_2 through MAC_HASH7_2
  */
 
-/* No bitfields */
+/* Anal bitfields */
 
 /*
  * MAC Transmit Source Address Registers (Table 9-23)
@@ -540,7 +540,7 @@
  * Register: MAC_ETHERNET_ADDR_2
  */
 
-/* No bitfields */
+/* Anal bitfields */
 
 /*
  * MAC Packet Type Configuration Register
@@ -618,7 +618,7 @@
  * MAC Receive Channel Select Registers (Table 9-25)
  */
 
-/* no bitfields */
+/* anal bitfields */
 
 /*
  * MAC MII Management Interface Registers (Table 9-26)

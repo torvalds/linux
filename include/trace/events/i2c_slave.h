@@ -2,7 +2,7 @@
 /*
  * I2C slave tracepoints
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM i2c_slave

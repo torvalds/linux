@@ -117,7 +117,7 @@ void dump_backtrace_stm(u32 *stack, u32 instruction, const char *loglvl)
 #ifndef CONFIG_ARM_UNWIND
 /*
  * Stack pointers should always be within the kernels view of
- * physical memory.  If it is not there, then we can't dump
+ * physical memory.  If it is analt there, then we can't dump
  * out any information relating to the stack.
  */
 static int verify_stack(unsigned long sp)
@@ -152,7 +152,7 @@ void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 		for (p = first, i = 0; i < 8 && p < top; i++, p += 4) {
 			if (p >= bottom && p < top) {
 				unsigned long val;
-				if (!get_kernel_nofault(val, (unsigned long *)p))
+				if (!get_kernel_analfault(val, (unsigned long *)p))
 					sprintf(str + i * 9, " %08lx", val);
 				else
 					sprintf(str + i * 9, " ????????");
@@ -171,7 +171,7 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 	int i;
 
 	/*
-	 * Note that we now dump the code first, just in case the backtrace
+	 * Analte that we analw dump the code first, just in case the backtrace
 	 * kills us.
 	 */
 
@@ -184,14 +184,14 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 			if (user_mode(regs))
 				bad = get_user(tmp, &((u16 __user *)addr)[i]);
 			else
-				bad = get_kernel_nofault(tmp, &((u16 *)addr)[i]);
+				bad = get_kernel_analfault(tmp, &((u16 *)addr)[i]);
 
 			val = __mem_to_opcode_thumb16(tmp);
 		} else {
 			if (user_mode(regs))
 				bad = get_user(val, &((u32 __user *)addr)[i]);
 			else
-				bad = get_kernel_nofault(val, &((u32 *)addr)[i]);
+				bad = get_kernel_analfault(val, &((u32 *)addr)[i]);
 
 			val = __mem_to_opcode_arm(val);
 		}
@@ -237,7 +237,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 	}
 
 	if (!fp) {
-		pr_cont("no frame pointer");
+		pr_cont("anal frame pointer");
 		ok = 0;
 	} else if (verify_stack(fp)) {
 		pr_cont("invalid frame pointer 0x%08x", fp);
@@ -285,8 +285,8 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 	         str, err, ++die_counter);
 
 	/* trap and error numbers are mostly meaningless on ARM */
-	ret = notify_die(DIE_OOPS, str, regs, err, tsk->thread.trap_no, SIGSEGV);
-	if (ret == NOTIFY_STOP)
+	ret = analtify_die(DIE_OOPS, str, regs, err, tsk->thread.trap_anal, SIGSEGV);
+	if (ret == ANALTIFY_STOP)
 		return 1;
 
 	print_modules();
@@ -340,7 +340,7 @@ static void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 
 	bust_spinlocks(0);
 	die_owner = -1;
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	die_nest_count--;
 	if (!die_nest_count)
 		/* Nest count reaches zero, release the lock. */
@@ -361,13 +361,13 @@ static void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
  */
 void die(const char *str, struct pt_regs *regs, int err)
 {
-	enum bug_trap_type bug_type = BUG_TRAP_TYPE_NONE;
+	enum bug_trap_type bug_type = BUG_TRAP_TYPE_ANALNE;
 	unsigned long flags = oops_begin();
 	int sig = SIGSEGV;
 
 	if (!user_mode(regs))
 		bug_type = report_bug(regs->ARM_pc, regs);
-	if (bug_type != BUG_TRAP_TYPE_NONE)
+	if (bug_type != BUG_TRAP_TYPE_ANALNE)
 		str = "Oops - BUG";
 
 	if (__die(str, err, regs))
@@ -376,15 +376,15 @@ void die(const char *str, struct pt_regs *regs, int err)
 	oops_end(flags, regs, sig);
 }
 
-void arm_notify_die(const char *str, struct pt_regs *regs,
-		int signo, int si_code, void __user *addr,
+void arm_analtify_die(const char *str, struct pt_regs *regs,
+		int siganal, int si_code, void __user *addr,
 		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
-		current->thread.trap_no = trap;
+		current->thread.trap_anal = trap;
 
-		force_sig_fault(signo, si_code, addr);
+		force_sig_fault(siganal, si_code, addr);
 	} else {
 		die(str, regs, err);
 	}
@@ -402,7 +402,7 @@ int is_valid_bugaddr(unsigned long pc)
 	u32 insn = __opcode_to_mem_arm(BUG_INSTR_VALUE);
 #endif
 
-	if (get_kernel_nofault(bkpt, (void *)pc))
+	if (get_kernel_analfault(bkpt, (void *)pc))
 		return 0;
 
 	return bkpt == insn;
@@ -418,7 +418,7 @@ void register_undef_hook(struct undef_hook *hook)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_add(&hook->node, &undef_hook);
+	list_add(&hook->analde, &undef_hook);
 	raw_spin_unlock_irqrestore(&undef_lock, flags);
 }
 
@@ -427,11 +427,11 @@ void unregister_undef_hook(struct undef_hook *hook)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_del(&hook->node);
+	list_del(&hook->analde);
 	raw_spin_unlock_irqrestore(&undef_lock, flags);
 }
 
-static nokprobe_inline
+static analkprobe_inline
 int call_undef_hook(struct pt_regs *regs, unsigned int instr)
 {
 	struct undef_hook *hook;
@@ -439,7 +439,7 @@ int call_undef_hook(struct pt_regs *regs, unsigned int instr)
 	int (*fn)(struct pt_regs *regs, unsigned int instr) = NULL;
 
 	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_for_each_entry(hook, &undef_hook, node)
+	list_for_each_entry(hook, &undef_hook, analde)
 		if ((instr & hook->instr_mask) == hook->instr_val &&
 		    (regs->ARM_cpsr & hook->cpsr_mask) == hook->cpsr_val)
 			fn = hook->fn;
@@ -496,10 +496,10 @@ die_sig:
 		dump_instr(KERN_INFO, regs);
 	}
 #endif
-	arm_notify_die("Oops - undefined instruction", regs,
+	arm_analtify_die("Oops - undefined instruction", regs,
 		       SIGILL, ILL_ILLOPC, pc, 0, 6);
 }
-NOKPROBE_SYMBOL(do_undefinstr)
+ANALKPROBE_SYMBOL(do_undefinstr)
 
 /*
  * Handle FIQ similarly to NMI on x86 systems.
@@ -507,10 +507,10 @@ NOKPROBE_SYMBOL(do_undefinstr)
  * The runtime environment for NMIs is extremely restrictive
  * (NMIs can pre-empt critical sections meaning almost all locking is
  * forbidden) meaning this default FIQ handling must only be used in
- * circumstances where non-maskability improves robustness, such as
+ * circumstances where analn-maskability improves robustness, such as
  * watchdog or debug logic.
  *
- * This handler is not appropriate for general purpose use in drivers
+ * This handler is analt appropriate for general purpose use in drivers
  * platform code and can be overrideen using set_fiq_handler.
  */
 asmlinkage void __exception_irq_entry handle_fiq_as_nmi(struct pt_regs *regs)
@@ -519,7 +519,7 @@ asmlinkage void __exception_irq_entry handle_fiq_as_nmi(struct pt_regs *regs)
 
 	nmi_enter();
 
-	/* nop. FIQ handlers for special arch/arm features can be added here. */
+	/* analp. FIQ handlers for special arch/arm features can be added here. */
 
 	nmi_exit();
 
@@ -558,7 +558,7 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	}
 #endif
 
-	arm_notify_die("Oops - bad syscall", regs, SIGILL, ILL_ILLTRP,
+	arm_analtify_die("Oops - bad syscall", regs, SIGILL, ILL_ILLTRP,
 		       (void __user *)instruction_pointer(regs) -
 			 (thumb_mode(regs) ? 2 : 4),
 		       n, 0);
@@ -605,14 +605,14 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
  *  0x9f0000 - 0x9fffff are some more esoteric system calls
  */
 #define NR(x) ((__ARM_NR_##x) - __ARM_NR_BASE)
-asmlinkage int arm_syscall(int no, struct pt_regs *regs)
+asmlinkage int arm_syscall(int anal, struct pt_regs *regs)
 {
-	if ((no >> 16) != (__ARM_NR_BASE>> 16))
-		return bad_syscall(no, regs);
+	if ((anal >> 16) != (__ARM_NR_BASE>> 16))
+		return bad_syscall(anal, regs);
 
-	switch (no & 0xffff) {
+	switch (anal & 0xffff) {
 	case 0: /* branch through 0 */
-		arm_notify_die("branch through zero", regs,
+		arm_analtify_die("branch through zero", regs,
 			       SIGSEGV, SEGV_MAPERR, NULL, 0, 0);
 		return 0;
 
@@ -623,14 +623,14 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 	/*
 	 * Flush a region from virtual address 'r0' to virtual address 'r1'
-	 * _exclusive_.  There is no alignment requirement on either address;
-	 * user space does not need to know the hardware cache layout.
+	 * _exclusive_.  There is anal alignment requirement on either address;
+	 * user space does analt need to kanalw the hardware cache layout.
 	 *
 	 * r2 contains flags.  It should ALWAYS be passed as ZERO until it
-	 * is defined to be something else.  For now we ignore it, but may
+	 * is defined to be something else.  For analw we iganalre it, but may
 	 * the fires of hell burn in your belly if you break this rule. ;)
 	 *
-	 * (at a later date, we may want to allow this call to not flush
+	 * (at a later date, we may want to allow this call to analt flush
 	 * various aspects of the cache.  Passing '0' will guarantee that
 	 * everything necessary gets flushed to maintain consistency in
 	 * the specified region).
@@ -658,12 +658,12 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		return current_thread_info()->tp_value[0];
 
 	default:
-		/* Calls 9f00xx..9f07ff are defined to return -ENOSYS
-		   if not implemented, rather than raising SIGILL.  This
+		/* Calls 9f00xx..9f07ff are defined to return -EANALSYS
+		   if analt implemented, rather than raising SIGILL.  This
 		   way the calling program can gracefully determine whether
 		   a feature is supported.  */
-		if ((no & 0xffff) <= 0x7ff)
-			return -ENOSYS;
+		if ((anal & 0xffff) <= 0x7ff)
+			return -EANALSYS;
 		break;
 	}
 #ifdef CONFIG_DEBUG_USER
@@ -673,7 +673,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	 */
 	if (user_debug & UDBG_SYSCALL) {
 		pr_err("[%d] %s: arm syscall %d\n",
-		       task_pid_nr(current), current->comm, no);
+		       task_pid_nr(current), current->comm, anal);
 		dump_instr(KERN_ERR, regs);
 		if (user_mode(regs)) {
 			__show_regs(regs);
@@ -681,10 +681,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		}
 	}
 #endif
-	arm_notify_die("Oops - bad syscall(2)", regs, SIGILL, ILL_ILLTRP,
+	arm_analtify_die("Oops - bad syscall(2)", regs, SIGILL, ILL_ILLTRP,
 		       (void __user *)instruction_pointer(regs) -
 			 (thumb_mode(regs) ? 2 : 4),
-		       no, 0);
+		       anal, 0);
 	return 0;
 }
 
@@ -727,7 +727,7 @@ late_initcall(arm_mrc_hook_init);
 #endif
 
 /*
- * A data abort trap was taken, but we did not handle the instruction.
+ * A data abort trap was taken, but we did analt handle the instruction.
  * Try to abort the user program, or panic if it was the kernel.
  */
 asmlinkage void
@@ -745,13 +745,13 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	}
 #endif
 
-	arm_notify_die("unknown data abort code", regs,
+	arm_analtify_die("unkanalwn data abort code", regs,
 		       SIGILL, ILL_ILLOPC, (void __user *)addr, instr, 0);
 }
 
 void __readwrite_bug(const char *fn)
 {
-	pr_err("%s called, but not implemented\n", fn);
+	pr_err("%s called, but analt implemented\n", fn);
 	BUG();
 }
 EXPORT_SYMBOL(__readwrite_bug);
@@ -848,7 +848,7 @@ int spectre_bhb_update_vectors(unsigned int method)
 		break;
 
 	default:
-		pr_err("CPU%u: unknown Spectre BHB state %d\n",
+		pr_err("CPU%u: unkanalwn Spectre BHB state %d\n",
 		       smp_processor_id(), method);
 		return SPECTRE_VULNERABLE;
 	}
@@ -893,7 +893,7 @@ void __init early_trap_init(void *vectors_base)
 void __init early_trap_init(void *vectors_base)
 {
 	/*
-	 * on V7-M there is no need to copy the vector table to a dedicated
+	 * on V7-M there is anal need to copy the vector table to a dedicated
 	 * memory area. The address is configurable and so a table in the kernel
 	 * image can be used.
 	 */
@@ -914,7 +914,7 @@ static int __init allocate_overflow_stacks(void)
 	for_each_possible_cpu(cpu) {
 		stack = (u8 *)__get_free_page(GFP_KERNEL);
 		if (WARN_ON(!stack))
-			return -ENOMEM;
+			return -EANALMEM;
 		per_cpu(overflow_stack_ptr, cpu) = &stack[OVERFLOW_STACK_SIZE];
 	}
 	return 0;
@@ -946,9 +946,9 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 
 #ifndef CONFIG_ARM_LPAE
 /*
- * Normally, we rely on the logic in do_translation_fault() to update stale PMD
+ * Analrmally, we rely on the logic in do_translation_fault() to update stale PMD
  * entries covering the vmalloc space in a task's page tables when it first
- * accesses the region in question. Unfortunately, this is not sufficient when
+ * accesses the region in question. Unfortunately, this is analt sufficient when
  * the task stack resides in the vmalloc region, as do_translation_fault() is a
  * C function that needs a stack to run.
  *

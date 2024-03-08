@@ -6,7 +6,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -185,7 +185,7 @@ struct clk_hw *imx93_clk_composite_flags(const char *name, const char * const *p
 					 int num_parents, void __iomem *reg, u32 domain_id,
 					 unsigned long flags)
 {
-	struct clk_hw *hw = ERR_PTR(-ENOMEM), *mux_hw;
+	struct clk_hw *hw = ERR_PTR(-EANALMEM), *mux_hw;
 	struct clk_hw *div_hw, *gate_hw;
 	struct clk_divider *div = NULL;
 	struct clk_gate *gate = NULL;
@@ -237,13 +237,13 @@ struct clk_hw *imx93_clk_composite_flags(const char *name, const char * const *p
 					       mux_hw, &imx93_clk_composite_mux_ops, div_hw,
 					       &imx93_clk_composite_divider_ops, gate_hw,
 					       &imx93_clk_composite_gate_ops,
-					       flags | CLK_SET_RATE_NO_REPARENT);
+					       flags | CLK_SET_RATE_ANAL_REPARENT);
 	} else {
 		hw = clk_hw_register_composite(NULL, name, parent_names, num_parents,
 					       mux_hw, &imx93_clk_composite_mux_ops, div_hw,
 					       &imx93_clk_composite_divider_ops, NULL,
 					       &imx93_clk_composite_gate_ops,
-					       flags | CLK_SET_RATE_NO_REPARENT);
+					       flags | CLK_SET_RATE_ANAL_REPARENT);
 	}
 
 	if (IS_ERR(hw))

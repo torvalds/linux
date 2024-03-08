@@ -45,7 +45,7 @@ struct power_supply_attr {
 	_POWER_SUPPLY_ENUM_ATTR(_name, POWER_SUPPLY_ ## _name ## _TEXT)
 
 static const char * const POWER_SUPPLY_TYPE_TEXT[] = {
-	[POWER_SUPPLY_TYPE_UNKNOWN]		= "Unknown",
+	[POWER_SUPPLY_TYPE_UNKANALWN]		= "Unkanalwn",
 	[POWER_SUPPLY_TYPE_BATTERY]		= "Battery",
 	[POWER_SUPPLY_TYPE_UPS]			= "UPS",
 	[POWER_SUPPLY_TYPE_MAINS]		= "Mains",
@@ -61,7 +61,7 @@ static const char * const POWER_SUPPLY_TYPE_TEXT[] = {
 };
 
 static const char * const POWER_SUPPLY_USB_TYPE_TEXT[] = {
-	[POWER_SUPPLY_USB_TYPE_UNKNOWN]		= "Unknown",
+	[POWER_SUPPLY_USB_TYPE_UNKANALWN]		= "Unkanalwn",
 	[POWER_SUPPLY_USB_TYPE_SDP]		= "SDP",
 	[POWER_SUPPLY_USB_TYPE_DCP]		= "DCP",
 	[POWER_SUPPLY_USB_TYPE_CDP]		= "CDP",
@@ -74,16 +74,16 @@ static const char * const POWER_SUPPLY_USB_TYPE_TEXT[] = {
 };
 
 static const char * const POWER_SUPPLY_STATUS_TEXT[] = {
-	[POWER_SUPPLY_STATUS_UNKNOWN]		= "Unknown",
+	[POWER_SUPPLY_STATUS_UNKANALWN]		= "Unkanalwn",
 	[POWER_SUPPLY_STATUS_CHARGING]		= "Charging",
 	[POWER_SUPPLY_STATUS_DISCHARGING]	= "Discharging",
-	[POWER_SUPPLY_STATUS_NOT_CHARGING]	= "Not charging",
+	[POWER_SUPPLY_STATUS_ANALT_CHARGING]	= "Analt charging",
 	[POWER_SUPPLY_STATUS_FULL]		= "Full",
 };
 
 static const char * const POWER_SUPPLY_CHARGE_TYPE_TEXT[] = {
-	[POWER_SUPPLY_CHARGE_TYPE_UNKNOWN]	= "Unknown",
-	[POWER_SUPPLY_CHARGE_TYPE_NONE]		= "N/A",
+	[POWER_SUPPLY_CHARGE_TYPE_UNKANALWN]	= "Unkanalwn",
+	[POWER_SUPPLY_CHARGE_TYPE_ANALNE]		= "N/A",
 	[POWER_SUPPLY_CHARGE_TYPE_TRICKLE]	= "Trickle",
 	[POWER_SUPPLY_CHARGE_TYPE_FAST]		= "Fast",
 	[POWER_SUPPLY_CHARGE_TYPE_STANDARD]	= "Standard",
@@ -94,7 +94,7 @@ static const char * const POWER_SUPPLY_CHARGE_TYPE_TEXT[] = {
 };
 
 static const char * const POWER_SUPPLY_HEALTH_TEXT[] = {
-	[POWER_SUPPLY_HEALTH_UNKNOWN]		    = "Unknown",
+	[POWER_SUPPLY_HEALTH_UNKANALWN]		    = "Unkanalwn",
 	[POWER_SUPPLY_HEALTH_GOOD]		    = "Good",
 	[POWER_SUPPLY_HEALTH_OVERHEAT]		    = "Overheat",
 	[POWER_SUPPLY_HEALTH_DEAD]		    = "Dead",
@@ -108,30 +108,30 @@ static const char * const POWER_SUPPLY_HEALTH_TEXT[] = {
 	[POWER_SUPPLY_HEALTH_WARM]		    = "Warm",
 	[POWER_SUPPLY_HEALTH_COOL]		    = "Cool",
 	[POWER_SUPPLY_HEALTH_HOT]		    = "Hot",
-	[POWER_SUPPLY_HEALTH_NO_BATTERY]	    = "No battery",
+	[POWER_SUPPLY_HEALTH_ANAL_BATTERY]	    = "Anal battery",
 };
 
-static const char * const POWER_SUPPLY_TECHNOLOGY_TEXT[] = {
-	[POWER_SUPPLY_TECHNOLOGY_UNKNOWN]	= "Unknown",
-	[POWER_SUPPLY_TECHNOLOGY_NiMH]		= "NiMH",
-	[POWER_SUPPLY_TECHNOLOGY_LION]		= "Li-ion",
-	[POWER_SUPPLY_TECHNOLOGY_LIPO]		= "Li-poly",
-	[POWER_SUPPLY_TECHNOLOGY_LiFe]		= "LiFe",
-	[POWER_SUPPLY_TECHNOLOGY_NiCd]		= "NiCd",
-	[POWER_SUPPLY_TECHNOLOGY_LiMn]		= "LiMn",
+static const char * const POWER_SUPPLY_TECHANALLOGY_TEXT[] = {
+	[POWER_SUPPLY_TECHANALLOGY_UNKANALWN]	= "Unkanalwn",
+	[POWER_SUPPLY_TECHANALLOGY_NiMH]		= "NiMH",
+	[POWER_SUPPLY_TECHANALLOGY_LION]		= "Li-ion",
+	[POWER_SUPPLY_TECHANALLOGY_LIPO]		= "Li-poly",
+	[POWER_SUPPLY_TECHANALLOGY_LiFe]		= "LiFe",
+	[POWER_SUPPLY_TECHANALLOGY_NiCd]		= "NiCd",
+	[POWER_SUPPLY_TECHANALLOGY_LiMn]		= "LiMn",
 };
 
 static const char * const POWER_SUPPLY_CAPACITY_LEVEL_TEXT[] = {
-	[POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN]	= "Unknown",
+	[POWER_SUPPLY_CAPACITY_LEVEL_UNKANALWN]	= "Unkanalwn",
 	[POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL]	= "Critical",
 	[POWER_SUPPLY_CAPACITY_LEVEL_LOW]	= "Low",
-	[POWER_SUPPLY_CAPACITY_LEVEL_NORMAL]	= "Normal",
+	[POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL]	= "Analrmal",
 	[POWER_SUPPLY_CAPACITY_LEVEL_HIGH]	= "High",
 	[POWER_SUPPLY_CAPACITY_LEVEL_FULL]	= "Full",
 };
 
 static const char * const POWER_SUPPLY_SCOPE_TEXT[] = {
-	[POWER_SUPPLY_SCOPE_UNKNOWN]	= "Unknown",
+	[POWER_SUPPLY_SCOPE_UNKANALWN]	= "Unkanalwn",
 	[POWER_SUPPLY_SCOPE_SYSTEM]	= "System",
 	[POWER_SUPPLY_SCOPE_DEVICE]	= "Device",
 };
@@ -150,27 +150,27 @@ static struct power_supply_attr power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(PRESENT),
 	POWER_SUPPLY_ATTR(ONLINE),
 	POWER_SUPPLY_ATTR(AUTHENTIC),
-	POWER_SUPPLY_ENUM_ATTR(TECHNOLOGY),
+	POWER_SUPPLY_ENUM_ATTR(TECHANALLOGY),
 	POWER_SUPPLY_ATTR(CYCLE_COUNT),
 	POWER_SUPPLY_ATTR(VOLTAGE_MAX),
 	POWER_SUPPLY_ATTR(VOLTAGE_MIN),
 	POWER_SUPPLY_ATTR(VOLTAGE_MAX_DESIGN),
 	POWER_SUPPLY_ATTR(VOLTAGE_MIN_DESIGN),
-	POWER_SUPPLY_ATTR(VOLTAGE_NOW),
+	POWER_SUPPLY_ATTR(VOLTAGE_ANALW),
 	POWER_SUPPLY_ATTR(VOLTAGE_AVG),
 	POWER_SUPPLY_ATTR(VOLTAGE_OCV),
 	POWER_SUPPLY_ATTR(VOLTAGE_BOOT),
 	POWER_SUPPLY_ATTR(CURRENT_MAX),
-	POWER_SUPPLY_ATTR(CURRENT_NOW),
+	POWER_SUPPLY_ATTR(CURRENT_ANALW),
 	POWER_SUPPLY_ATTR(CURRENT_AVG),
 	POWER_SUPPLY_ATTR(CURRENT_BOOT),
-	POWER_SUPPLY_ATTR(POWER_NOW),
+	POWER_SUPPLY_ATTR(POWER_ANALW),
 	POWER_SUPPLY_ATTR(POWER_AVG),
 	POWER_SUPPLY_ATTR(CHARGE_FULL_DESIGN),
 	POWER_SUPPLY_ATTR(CHARGE_EMPTY_DESIGN),
 	POWER_SUPPLY_ATTR(CHARGE_FULL),
 	POWER_SUPPLY_ATTR(CHARGE_EMPTY),
-	POWER_SUPPLY_ATTR(CHARGE_NOW),
+	POWER_SUPPLY_ATTR(CHARGE_ANALW),
 	POWER_SUPPLY_ATTR(CHARGE_AVG),
 	POWER_SUPPLY_ATTR(CHARGE_COUNTER),
 	POWER_SUPPLY_ATTR(CONSTANT_CHARGE_CURRENT),
@@ -189,7 +189,7 @@ static struct power_supply_attr power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(ENERGY_EMPTY_DESIGN),
 	POWER_SUPPLY_ATTR(ENERGY_FULL),
 	POWER_SUPPLY_ATTR(ENERGY_EMPTY),
-	POWER_SUPPLY_ATTR(ENERGY_NOW),
+	POWER_SUPPLY_ATTR(ENERGY_ANALW),
 	POWER_SUPPLY_ATTR(ENERGY_AVG),
 	POWER_SUPPLY_ATTR(CAPACITY),
 	POWER_SUPPLY_ATTR(CAPACITY_ALERT_MIN),
@@ -204,9 +204,9 @@ static struct power_supply_attr power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(TEMP_AMBIENT),
 	POWER_SUPPLY_ATTR(TEMP_AMBIENT_ALERT_MIN),
 	POWER_SUPPLY_ATTR(TEMP_AMBIENT_ALERT_MAX),
-	POWER_SUPPLY_ATTR(TIME_TO_EMPTY_NOW),
+	POWER_SUPPLY_ATTR(TIME_TO_EMPTY_ANALW),
 	POWER_SUPPLY_ATTR(TIME_TO_EMPTY_AVG),
-	POWER_SUPPLY_ATTR(TIME_TO_FULL_NOW),
+	POWER_SUPPLY_ATTR(TIME_TO_FULL_ANALW),
 	POWER_SUPPLY_ATTR(TIME_TO_FULL_AVG),
 	POWER_SUPPLY_ENUM_ATTR(TYPE),
 	POWER_SUPPLY_ATTR(USB_TYPE),
@@ -286,11 +286,11 @@ static ssize_t power_supply_show_property(struct device *dev,
 		ret = power_supply_get_property(psy, psp, &value);
 
 		if (ret < 0) {
-			if (ret == -ENODATA)
+			if (ret == -EANALDATA)
 				dev_dbg_ratelimited(dev,
-					"driver has no data for `%s' property\n",
+					"driver has anal data for `%s' property\n",
 					attr->attr.name);
-			else if (ret != -ENODEV && ret != -EAGAIN)
+			else if (ret != -EANALDEV && ret != -EAGAIN)
 				dev_err_ratelimited(dev,
 					"driver failed to report `%s' property: %zd\n",
 					attr->attr.name, ret);
@@ -334,7 +334,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 	}
 
 	/*
-	 * If no match was found, then check to see if it is an integer.
+	 * If anal match was found, then check to see if it is an integer.
 	 * Integer values are valid for enums in addition to the text value.
 	 */
 	if (ret < 0) {
@@ -358,23 +358,23 @@ static ssize_t power_supply_store_property(struct device *dev,
 
 static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 					   struct attribute *attr,
-					   int attrno)
+					   int attranal)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct power_supply *psy = dev_get_drvdata(dev);
 	umode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
 	int i;
 
-	if (!power_supply_attrs[attrno].prop_name)
+	if (!power_supply_attrs[attranal].prop_name)
 		return 0;
 
-	if (attrno == POWER_SUPPLY_PROP_TYPE)
+	if (attranal == POWER_SUPPLY_PROP_TYPE)
 		return mode;
 
 	for (i = 0; i < psy->desc->num_properties; i++) {
 		int property = psy->desc->properties[i];
 
-		if (property == attrno) {
+		if (property == attranal) {
 			if (psy->desc->property_is_writeable &&
 			    psy->desc->property_is_writeable(psy, property) > 0)
 				mode |= S_IWUSR;
@@ -383,7 +383,7 @@ static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 		}
 	}
 
-	if (power_supply_battery_info_has_prop(psy->battery_info, attrno))
+	if (power_supply_battery_info_has_prop(psy->battery_info, attranal))
 		return mode;
 
 	return 0;
@@ -438,9 +438,9 @@ static int add_prop_uevent(const struct device *dev, struct kobj_uevent_env *env
 	dev_attr = &pwr_attr->dev_attr;
 
 	ret = power_supply_show_property((struct device *)dev, dev_attr, prop_buf);
-	if (ret == -ENODEV || ret == -ENODATA) {
+	if (ret == -EANALDEV || ret == -EANALDATA) {
 		/*
-		 * When a battery is absent, we expect -ENODEV. Don't abort;
+		 * When a battery is absent, we expect -EANALDEV. Don't abort;
 		 * send the uevent with at least the PRESENT=0 property
 		 */
 		return 0;
@@ -468,7 +468,7 @@ int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	char *prop_buf;
 
 	if (!psy || !psy->desc) {
-		dev_dbg(dev, "No power supply yet\n");
+		dev_dbg(dev, "Anal power supply yet\n");
 		return ret;
 	}
 
@@ -485,7 +485,7 @@ int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env)
 
 	prop_buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!prop_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = add_prop_uevent(dev, env, POWER_SUPPLY_PROP_TYPE, prop_buf);
 	if (ret)

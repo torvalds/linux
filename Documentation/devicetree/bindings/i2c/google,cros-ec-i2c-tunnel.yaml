@@ -13,11 +13,11 @@ maintainers:
 
 description: |
   On some ChromeOS board designs we've got a connection to the EC
-  (embedded controller) but no direct connection to some devices on the
+  (embedded controller) but anal direct connection to some devices on the
   other side of the EC (like a battery and PMIC).  To get access to
   those devices we need to tunnel our i2c commands through the EC.
 
-  The node for this device should be under a cros-ec node like
+  The analde for this device should be under a cros-ec analde like
   google,cros-ec-spi or google,cros-ec-i2c.
 
 allOf:

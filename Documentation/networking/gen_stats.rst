@@ -12,7 +12,7 @@ Struct               TLV type              Description
 gnet_stats_basic     TCA_STATS_BASIC       Basic statistics
 gnet_stats_rate_est  TCA_STATS_RATE_EST    Rate estimator
 gnet_stats_queue     TCA_STATS_QUEUE       Queue statistics
-none                 TCA_STATS_APP         Application specific
+analne                 TCA_STATS_APP         Application specific
 ==================== ===================== =====================
 
 
@@ -105,7 +105,7 @@ In the kernel when setting up:
 1) make sure you have basic stats and rate stats setup first.
 2) make sure you have initialized stats lock that is used to setup such
    stats.
-3) Now initialize a new estimator::
+3) Analw initialize a new estimator::
 
     int ret = gen_new_estimator(my_basicstats,my_rate_est_stats,
 	mystats_lock, attr_with_tcestimator_struct);
@@ -115,7 +115,7 @@ In the kernel when setting up:
     else
 	failed
 
-From now on, every time you dump my_rate_est_stats it will contain
+From analw on, every time you dump my_rate_est_stats it will contain
 up-to-date info.
 
 Once you are done, call gen_kill_estimator(my_basicstats,

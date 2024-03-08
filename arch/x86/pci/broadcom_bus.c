@@ -31,8 +31,8 @@ static void __init cnb20le_res(u8 bus, u8 slot, u8 func)
 	/*
 	 * Add the legacy IDE ports on bus 0
 	 *
-	 * These do not exist anywhere in the bridge registers, AFAICT. I do
-	 * not have the datasheet, so this is the best I can do.
+	 * These do analt exist anywhere in the bridge registers, AFAICT. I do
+	 * analt have the datasheet, so this is the best I can do.
 	 */
 	if (fbus == 0) {
 		update_res(info, 0x01f0, 0x01f7, IORESOURCE_IO, 0);
@@ -42,7 +42,7 @@ static void __init cnb20le_res(u8 bus, u8 slot, u8 func)
 		update_res(info, 0xffa0, 0xffaf, IORESOURCE_IO, 0);
 	}
 
-	/* read the non-prefetchable memory window */
+	/* read the analn-prefetchable memory window */
 	word1 = read_pci_config_16(bus, slot, func, 0xc0);
 	word2 = read_pci_config_16(bus, slot, func, 0xc2);
 	if (word1 != word2) {

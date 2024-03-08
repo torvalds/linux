@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,27 +35,27 @@
  */
 
 /**
- * dmub_srv_stat_get_notification - Retrieves a dmub outbox notification, set up dmub notification
+ * dmub_srv_stat_get_analtification - Retrieves a dmub outbox analtification, set up dmub analtification
  *                                  structure with message information. Also a pending bit if queue
- *                                  is having more notifications
+ *                                  is having more analtifications
  *  @dmub: dmub srv structure
- *  @notify: dmub notification structure to be filled up
+ *  @analtify: dmub analtification structure to be filled up
  *
  *  Returns: dmub_status
  */
-enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
-						struct dmub_notification *notify)
+enum dmub_status dmub_srv_stat_get_analtification(struct dmub_srv *dmub,
+						struct dmub_analtification *analtify)
 {
 	/**
 	 * This function is called without dal and dc locks, so
-	 * we shall not modify any dmub variables, only dmub->outbox1_rb
+	 * we shall analt modify any dmub variables, only dmub->outbox1_rb
 	 * is exempted as it is exclusively accessed by this function
 	 */
 	union dmub_rb_out_cmd cmd = {0};
 
 	if (!dmub->hw_init) {
-		notify->type = DMUB_NOTIFICATION_NO_DATA;
-		notify->pending_notification = false;
+		analtify->type = DMUB_ANALTIFICATION_ANAL_DATA;
+		analtify->pending_analtification = false;
 		return DMUB_STATUS_INVALID;
 	}
 
@@ -63,58 +63,58 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 	dmub->outbox1_rb.wrpt = dmub->hw_funcs.get_outbox1_wptr(dmub);
 
 	if (!dmub_rb_out_front(&dmub->outbox1_rb, &cmd)) {
-		notify->type = DMUB_NOTIFICATION_NO_DATA;
-		notify->pending_notification = false;
+		analtify->type = DMUB_ANALTIFICATION_ANAL_DATA;
+		analtify->pending_analtification = false;
 		return DMUB_STATUS_OK;
 	}
 
 	switch (cmd.cmd_common.header.type) {
 	case DMUB_OUT_CMD__DP_AUX_REPLY:
-		notify->type = DMUB_NOTIFICATION_AUX_REPLY;
-		notify->link_index = cmd.dp_aux_reply.control.instance;
-		notify->result = cmd.dp_aux_reply.control.result;
-		dmub_memcpy((void *)&notify->aux_reply,
+		analtify->type = DMUB_ANALTIFICATION_AUX_REPLY;
+		analtify->link_index = cmd.dp_aux_reply.control.instance;
+		analtify->result = cmd.dp_aux_reply.control.result;
+		dmub_memcpy((void *)&analtify->aux_reply,
 			(void *)&cmd.dp_aux_reply.reply_data, sizeof(struct aux_reply_data));
 		break;
-	case DMUB_OUT_CMD__DP_HPD_NOTIFY:
-		if (cmd.dp_hpd_notify.hpd_data.hpd_type == DP_HPD) {
-			notify->type = DMUB_NOTIFICATION_HPD;
-			notify->hpd_status = cmd.dp_hpd_notify.hpd_data.hpd_status;
+	case DMUB_OUT_CMD__DP_HPD_ANALTIFY:
+		if (cmd.dp_hpd_analtify.hpd_data.hpd_type == DP_HPD) {
+			analtify->type = DMUB_ANALTIFICATION_HPD;
+			analtify->hpd_status = cmd.dp_hpd_analtify.hpd_data.hpd_status;
 		} else {
-			notify->type = DMUB_NOTIFICATION_HPD_IRQ;
+			analtify->type = DMUB_ANALTIFICATION_HPD_IRQ;
 		}
 
-		notify->link_index = cmd.dp_hpd_notify.hpd_data.instance;
-		notify->result = AUX_RET_SUCCESS;
+		analtify->link_index = cmd.dp_hpd_analtify.hpd_data.instance;
+		analtify->result = AUX_RET_SUCCESS;
 		break;
 	case DMUB_OUT_CMD__SET_CONFIG_REPLY:
-		notify->type = DMUB_NOTIFICATION_SET_CONFIG_REPLY;
-		notify->link_index = cmd.set_config_reply.set_config_reply_control.instance;
-		notify->sc_status = cmd.set_config_reply.set_config_reply_control.status;
+		analtify->type = DMUB_ANALTIFICATION_SET_CONFIG_REPLY;
+		analtify->link_index = cmd.set_config_reply.set_config_reply_control.instance;
+		analtify->sc_status = cmd.set_config_reply.set_config_reply_control.status;
 		break;
-	case DMUB_OUT_CMD__DPIA_NOTIFICATION:
-		notify->type = DMUB_NOTIFICATION_DPIA_NOTIFICATION;
-		notify->link_index = cmd.dpia_notification.payload.header.instance;
+	case DMUB_OUT_CMD__DPIA_ANALTIFICATION:
+		analtify->type = DMUB_ANALTIFICATION_DPIA_ANALTIFICATION;
+		analtify->link_index = cmd.dpia_analtification.payload.header.instance;
 
-		if (cmd.dpia_notification.payload.header.type == DPIA_NOTIFY__BW_ALLOCATION) {
+		if (cmd.dpia_analtification.payload.header.type == DPIA_ANALTIFY__BW_ALLOCATION) {
 
-			notify->dpia_notification.payload.data.dpia_bw_alloc.estimated_bw =
-					cmd.dpia_notification.payload.data.dpia_bw_alloc.estimated_bw;
-			notify->dpia_notification.payload.data.dpia_bw_alloc.allocated_bw =
-					cmd.dpia_notification.payload.data.dpia_bw_alloc.allocated_bw;
+			analtify->dpia_analtification.payload.data.dpia_bw_alloc.estimated_bw =
+					cmd.dpia_analtification.payload.data.dpia_bw_alloc.estimated_bw;
+			analtify->dpia_analtification.payload.data.dpia_bw_alloc.allocated_bw =
+					cmd.dpia_analtification.payload.data.dpia_bw_alloc.allocated_bw;
 
-			if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_request_failed)
-				notify->result = DPIA_BW_REQ_FAILED;
-			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_request_succeeded)
-				notify->result = DPIA_BW_REQ_SUCCESS;
-			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.est_bw_changed)
-				notify->result = DPIA_EST_BW_CHANGED;
-			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_alloc_cap_changed)
-				notify->result = DPIA_BW_ALLOC_CAPS_CHANGED;
+			if (cmd.dpia_analtification.payload.data.dpia_bw_alloc.bits.bw_request_failed)
+				analtify->result = DPIA_BW_REQ_FAILED;
+			else if (cmd.dpia_analtification.payload.data.dpia_bw_alloc.bits.bw_request_succeeded)
+				analtify->result = DPIA_BW_REQ_SUCCESS;
+			else if (cmd.dpia_analtification.payload.data.dpia_bw_alloc.bits.est_bw_changed)
+				analtify->result = DPIA_EST_BW_CHANGED;
+			else if (cmd.dpia_analtification.payload.data.dpia_bw_alloc.bits.bw_alloc_cap_changed)
+				analtify->result = DPIA_BW_ALLOC_CAPS_CHANGED;
 		}
 		break;
 	default:
-		notify->type = DMUB_NOTIFICATION_NO_DATA;
+		analtify->type = DMUB_ANALTIFICATION_ANAL_DATA;
 		break;
 	}
 
@@ -123,13 +123,13 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 	dmub->hw_funcs.set_outbox1_rptr(dmub, dmub->outbox1_rb.rptr);
 
 	/**
-	 * Notify dc whether dmub has a pending outbox message,
-	 * this is to avoid one more call to dmub_srv_stat_get_notification
+	 * Analtify dc whether dmub has a pending outbox message,
+	 * this is to avoid one more call to dmub_srv_stat_get_analtification
 	 */
 	if (dmub_rb_empty(&dmub->outbox1_rb))
-		notify->pending_notification = false;
+		analtify->pending_analtification = false;
 	else
-		notify->pending_notification = true;
+		analtify->pending_analtification = true;
 
 	return DMUB_STATUS_OK;
 }

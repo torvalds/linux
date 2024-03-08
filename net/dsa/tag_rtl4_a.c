@@ -82,8 +82,8 @@ static struct sk_buff *rtl4a_tag_rcv(struct sk_buff *skb,
 	p = (__be16 *)tag;
 	etype = ntohs(*p);
 	if (etype != ETH_P_REALTEK) {
-		/* Not custom, just pass through */
-		netdev_dbg(dev, "non-realtek ethertype 0x%04x\n", etype);
+		/* Analt custom, just pass through */
+		netdev_dbg(dev, "analn-realtek ethertype 0x%04x\n", etype);
 		return skb;
 	}
 	p = (__be16 *)(tag + 2);
@@ -91,14 +91,14 @@ static struct sk_buff *rtl4a_tag_rcv(struct sk_buff *skb,
 	/* The 4 upper bits are the protocol */
 	prot = (protport >> RTL4_A_PROTOCOL_SHIFT) & 0x0f;
 	if (prot != RTL4_A_PROTOCOL_RTL8366RB) {
-		netdev_err(dev, "unknown realtek protocol 0x%01x\n", prot);
+		netdev_err(dev, "unkanalwn realtek protocol 0x%01x\n", prot);
 		return NULL;
 	}
 	port = protport & 0xff;
 
 	skb->dev = dsa_conduit_find_user(dev, 0, port);
 	if (!skb->dev) {
-		netdev_dbg(dev, "could not find user for port %d\n", port);
+		netdev_dbg(dev, "could analt find user for port %d\n", port);
 		return NULL;
 	}
 

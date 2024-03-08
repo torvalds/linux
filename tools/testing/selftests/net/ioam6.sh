@@ -7,12 +7,12 @@
 # consistency directly inside packets on the receiver side. Tests are divided
 # into three categories: OUTPUT (evaluates the IOAM processing by the sender),
 # INPUT (evaluates the IOAM processing by a receiver) and GLOBAL (evaluates
-# wider use cases that do not fall into the other two categories). Both OUTPUT
-# and INPUT tests only use a two-node topology (alpha and beta), while GLOBAL
-# tests use the entire three-node topology (alpha, beta, gamma). Each test is
+# wider use cases that do analt fall into the other two categories). Both OUTPUT
+# and INPUT tests only use a two-analde topology (alpha and beta), while GLOBAL
+# tests use the entire three-analde topology (alpha, beta, gamma). Each test is
 # documented inside its own handler in the code below.
 #
-# An IOAM domain is configured from Alpha to Gamma but not on the reverse path.
+# An IOAM domain is configured from Alpha to Gamma but analt on the reverse path.
 # When either Beta or Gamma is the destination (depending on the test category),
 # Alpha adds an IOAM option (Pre-allocated Trace) inside a Hop-by-hop.
 #
@@ -46,9 +46,9 @@
 #        =============================================================
 #        |                Alpha - IOAM configuration                 |
 #        +===========================================================+
-#        | Node ID             | 1                                   |
+#        | Analde ID             | 1                                   |
 #        +-----------------------------------------------------------+
-#        | Node Wide ID        | 11111111                            |
+#        | Analde Wide ID        | 11111111                            |
 #        +-----------------------------------------------------------+
 #        | Ingress ID          | 0xffff (default value)              |
 #        +-----------------------------------------------------------+
@@ -71,9 +71,9 @@
 #        =============================================================
 #        |                 Beta - IOAM configuration                 |
 #        +===========================================================+
-#        | Node ID             | 2                                   |
+#        | Analde ID             | 2                                   |
 #        +-----------------------------------------------------------+
-#        | Node Wide ID        | 22222222                            |
+#        | Analde Wide ID        | 22222222                            |
 #        +-----------------------------------------------------------+
 #        | Ingress ID          | 201                                 |
 #        +-----------------------------------------------------------+
@@ -96,9 +96,9 @@
 #        =============================================================
 #        |                Gamma - IOAM configuration                 |
 #        +===========================================================+
-#        | Node ID             | 3                                   |
+#        | Analde ID             | 3                                   |
 #        +-----------------------------------------------------------+
-#        | Node Wide ID        | 33333333                            |
+#        | Analde Wide ID        | 33333333                            |
 #        +-----------------------------------------------------------+
 #        | Ingress ID          | 301                                 |
 #        +-----------------------------------------------------------+
@@ -112,7 +112,7 @@
 #        +-----------------------------------------------------------+
 #        | Namespace Wide Data | 0xcafec0caf22dc0de                  |
 #        +-----------------------------------------------------------+
-#        | Schema ID           | 0xffffff (= None)                   |
+#        | Schema ID           | 0xffffff (= Analne)                   |
 #        +-----------------------------------------------------------+
 #        | Schema Data         |                                     |
 #        +-----------------------------------------------------------+
@@ -136,7 +136,7 @@ ALPHA=(
 	101101					# Egress Wide ID
 	0xdeadbee0				# Namespace Data
 	0xcafec0caf00dc0de			# Namespace Wide Data
-	777					# Schema ID (0xffffff = None)
+	777					# Schema ID (0xffffff = Analne)
 	"something that will be 4n-aligned"	# Schema Data
 )
 
@@ -168,14 +168,14 @@ GAMMA=(
 
 TESTS_OUTPUT="
 	out_undef_ns
-	out_no_room
+	out_anal_room
 	out_bits
 	out_full_supp_trace
 "
 
 TESTS_INPUT="
 	in_undef_ns
-	in_no_room
+	in_anal_room
 	in_oflag
 	in_bits
 	in_full_supp_trace
@@ -194,45 +194,45 @@ TESTS_GLOBAL="
 
 check_kernel_compatibility()
 {
-  setup_ns ioam_tmp_node
-  ip link add name veth0 netns $ioam_tmp_node type veth \
-         peer name veth1 netns $ioam_tmp_node
+  setup_ns ioam_tmp_analde
+  ip link add name veth0 netns $ioam_tmp_analde type veth \
+         peer name veth1 netns $ioam_tmp_analde
 
-  ip -netns $ioam_tmp_node link set veth0 up
-  ip -netns $ioam_tmp_node link set veth1 up
+  ip -netns $ioam_tmp_analde link set veth0 up
+  ip -netns $ioam_tmp_analde link set veth1 up
 
-  ip -netns $ioam_tmp_node ioam namespace add 0
+  ip -netns $ioam_tmp_analde ioam namespace add 0
   ns_ad=$?
 
-  ip -netns $ioam_tmp_node ioam namespace show | grep -q "namespace 0"
+  ip -netns $ioam_tmp_analde ioam namespace show | grep -q "namespace 0"
   ns_sh=$?
 
   if [[ $ns_ad != 0 || $ns_sh != 0 ]]
   then
     echo "SKIP: kernel version probably too old, missing ioam support"
     ip link del veth0 2>/dev/null || true
-    cleanup_ns $ioam_tmp_node || true
+    cleanup_ns $ioam_tmp_analde || true
     exit $ksft_skip
   fi
 
-  ip -netns $ioam_tmp_node route add db02::/64 encap ioam6 mode inline \
+  ip -netns $ioam_tmp_analde route add db02::/64 encap ioam6 mode inline \
          trace prealloc type 0x800000 ns 0 size 4 dev veth0
   tr_ad=$?
 
-  ip -netns $ioam_tmp_node -6 route | grep -q "encap ioam6"
+  ip -netns $ioam_tmp_analde -6 route | grep -q "encap ioam6"
   tr_sh=$?
 
   if [[ $tr_ad != 0 || $tr_sh != 0 ]]
   then
-    echo "SKIP: cannot attach an ioam trace to a route, did you compile" \
+    echo "SKIP: cananalt attach an ioam trace to a route, did you compile" \
          "without CONFIG_IPV6_IOAM6_LWTUNNEL?"
     ip link del veth0 2>/dev/null || true
-    cleanup_ns $ioam_tmp_node || true
+    cleanup_ns $ioam_tmp_analde || true
     exit $ksft_skip
   fi
 
   ip link del veth0 2>/dev/null || true
-  cleanup_ns $ioam_tmp_node || true
+  cleanup_ns $ioam_tmp_analde || true
 
   lsmod | grep -q "ip6_tunnel"
   ip6tnl_loaded=$?
@@ -252,7 +252,7 @@ check_kernel_compatibility()
 
       if [ $encap_tests != 0 ]
       then
-        echo "Note: ip6_tunnel not found neither as a module nor inside the" \
+        echo "Analte: ip6_tunnel analt found neither as a module analr inside the" \
              "kernel, tests that require it (encap mode) will be omitted"
       fi
     fi
@@ -264,7 +264,7 @@ cleanup()
   ip link del ioam-veth-alpha 2>/dev/null || true
   ip link del ioam-veth-gamma 2>/dev/null || true
 
-  cleanup_ns $ioam_node_alpha $ioam_node_beta $ioam_node_gamma || true
+  cleanup_ns $ioam_analde_alpha $ioam_analde_beta $ioam_analde_gamma || true
 
   if [ $ip6tnl_loaded != 0 ]
   then
@@ -274,67 +274,67 @@ cleanup()
 
 setup()
 {
-  setup_ns ioam_node_alpha ioam_node_beta ioam_node_gamma
+  setup_ns ioam_analde_alpha ioam_analde_beta ioam_analde_gamma
 
-  ip link add name ioam-veth-alpha netns $ioam_node_alpha type veth \
-         peer name ioam-veth-betaL netns $ioam_node_beta
-  ip link add name ioam-veth-betaR netns $ioam_node_beta type veth \
-         peer name ioam-veth-gamma netns $ioam_node_gamma
+  ip link add name ioam-veth-alpha netns $ioam_analde_alpha type veth \
+         peer name ioam-veth-betaL netns $ioam_analde_beta
+  ip link add name ioam-veth-betaR netns $ioam_analde_beta type veth \
+         peer name ioam-veth-gamma netns $ioam_analde_gamma
 
-  ip -netns $ioam_node_alpha link set ioam-veth-alpha name veth0
-  ip -netns $ioam_node_beta link set ioam-veth-betaL name veth0
-  ip -netns $ioam_node_beta link set ioam-veth-betaR name veth1
-  ip -netns $ioam_node_gamma link set ioam-veth-gamma name veth0
+  ip -netns $ioam_analde_alpha link set ioam-veth-alpha name veth0
+  ip -netns $ioam_analde_beta link set ioam-veth-betaL name veth0
+  ip -netns $ioam_analde_beta link set ioam-veth-betaR name veth1
+  ip -netns $ioam_analde_gamma link set ioam-veth-gamma name veth0
 
-  ip -netns $ioam_node_alpha addr add db01::2/64 dev veth0
-  ip -netns $ioam_node_alpha link set veth0 up
-  ip -netns $ioam_node_alpha link set lo up
-  ip -netns $ioam_node_alpha route add db02::/64 via db01::1 dev veth0
-  ip -netns $ioam_node_alpha route del db01::/64
-  ip -netns $ioam_node_alpha route add db01::/64 dev veth0
+  ip -netns $ioam_analde_alpha addr add db01::2/64 dev veth0
+  ip -netns $ioam_analde_alpha link set veth0 up
+  ip -netns $ioam_analde_alpha link set lo up
+  ip -netns $ioam_analde_alpha route add db02::/64 via db01::1 dev veth0
+  ip -netns $ioam_analde_alpha route del db01::/64
+  ip -netns $ioam_analde_alpha route add db01::/64 dev veth0
 
-  ip -netns $ioam_node_beta addr add db01::1/64 dev veth0
-  ip -netns $ioam_node_beta addr add db02::1/64 dev veth1
-  ip -netns $ioam_node_beta link set veth0 up
-  ip -netns $ioam_node_beta link set veth1 up
-  ip -netns $ioam_node_beta link set lo up
+  ip -netns $ioam_analde_beta addr add db01::1/64 dev veth0
+  ip -netns $ioam_analde_beta addr add db02::1/64 dev veth1
+  ip -netns $ioam_analde_beta link set veth0 up
+  ip -netns $ioam_analde_beta link set veth1 up
+  ip -netns $ioam_analde_beta link set lo up
 
-  ip -netns $ioam_node_gamma addr add db02::2/64 dev veth0
-  ip -netns $ioam_node_gamma link set veth0 up
-  ip -netns $ioam_node_gamma link set lo up
-  ip -netns $ioam_node_gamma route add db01::/64 via db02::1 dev veth0
+  ip -netns $ioam_analde_gamma addr add db02::2/64 dev veth0
+  ip -netns $ioam_analde_gamma link set veth0 up
+  ip -netns $ioam_analde_gamma link set lo up
+  ip -netns $ioam_analde_gamma route add db01::/64 via db02::1 dev veth0
 
   # - IOAM config -
-  ip netns exec $ioam_node_alpha sysctl -wq net.ipv6.ioam6_id=${ALPHA[0]}
-  ip netns exec $ioam_node_alpha sysctl -wq net.ipv6.ioam6_id_wide=${ALPHA[1]}
-  ip netns exec $ioam_node_alpha sysctl -wq net.ipv6.conf.veth0.ioam6_id=${ALPHA[4]}
-  ip netns exec $ioam_node_alpha sysctl -wq net.ipv6.conf.veth0.ioam6_id_wide=${ALPHA[5]}
-  ip -netns $ioam_node_alpha ioam namespace add 123 data ${ALPHA[6]} wide ${ALPHA[7]}
-  ip -netns $ioam_node_alpha ioam schema add ${ALPHA[8]} "${ALPHA[9]}"
-  ip -netns $ioam_node_alpha ioam namespace set 123 schema ${ALPHA[8]}
+  ip netns exec $ioam_analde_alpha sysctl -wq net.ipv6.ioam6_id=${ALPHA[0]}
+  ip netns exec $ioam_analde_alpha sysctl -wq net.ipv6.ioam6_id_wide=${ALPHA[1]}
+  ip netns exec $ioam_analde_alpha sysctl -wq net.ipv6.conf.veth0.ioam6_id=${ALPHA[4]}
+  ip netns exec $ioam_analde_alpha sysctl -wq net.ipv6.conf.veth0.ioam6_id_wide=${ALPHA[5]}
+  ip -netns $ioam_analde_alpha ioam namespace add 123 data ${ALPHA[6]} wide ${ALPHA[7]}
+  ip -netns $ioam_analde_alpha ioam schema add ${ALPHA[8]} "${ALPHA[9]}"
+  ip -netns $ioam_analde_alpha ioam namespace set 123 schema ${ALPHA[8]}
 
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.conf.all.forwarding=1
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.ioam6_id=${BETA[0]}
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.ioam6_id_wide=${BETA[1]}
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.conf.veth0.ioam6_enabled=1
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.conf.veth0.ioam6_id=${BETA[2]}
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.conf.veth0.ioam6_id_wide=${BETA[3]}
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.conf.veth1.ioam6_id=${BETA[4]}
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.conf.veth1.ioam6_id_wide=${BETA[5]}
-  ip -netns $ioam_node_beta ioam namespace add 123 data ${BETA[6]} wide ${BETA[7]}
-  ip -netns $ioam_node_beta ioam schema add ${BETA[8]} "${BETA[9]}"
-  ip -netns $ioam_node_beta ioam namespace set 123 schema ${BETA[8]}
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.conf.all.forwarding=1
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.ioam6_id=${BETA[0]}
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.ioam6_id_wide=${BETA[1]}
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.conf.veth0.ioam6_enabled=1
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.conf.veth0.ioam6_id=${BETA[2]}
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.conf.veth0.ioam6_id_wide=${BETA[3]}
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.conf.veth1.ioam6_id=${BETA[4]}
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.conf.veth1.ioam6_id_wide=${BETA[5]}
+  ip -netns $ioam_analde_beta ioam namespace add 123 data ${BETA[6]} wide ${BETA[7]}
+  ip -netns $ioam_analde_beta ioam schema add ${BETA[8]} "${BETA[9]}"
+  ip -netns $ioam_analde_beta ioam namespace set 123 schema ${BETA[8]}
 
-  ip netns exec $ioam_node_gamma sysctl -wq net.ipv6.ioam6_id=${GAMMA[0]}
-  ip netns exec $ioam_node_gamma sysctl -wq net.ipv6.ioam6_id_wide=${GAMMA[1]}
-  ip netns exec $ioam_node_gamma sysctl -wq net.ipv6.conf.veth0.ioam6_enabled=1
-  ip netns exec $ioam_node_gamma sysctl -wq net.ipv6.conf.veth0.ioam6_id=${GAMMA[2]}
-  ip netns exec $ioam_node_gamma sysctl -wq net.ipv6.conf.veth0.ioam6_id_wide=${GAMMA[3]}
-  ip -netns $ioam_node_gamma ioam namespace add 123 data ${GAMMA[6]} wide ${GAMMA[7]}
+  ip netns exec $ioam_analde_gamma sysctl -wq net.ipv6.ioam6_id=${GAMMA[0]}
+  ip netns exec $ioam_analde_gamma sysctl -wq net.ipv6.ioam6_id_wide=${GAMMA[1]}
+  ip netns exec $ioam_analde_gamma sysctl -wq net.ipv6.conf.veth0.ioam6_enabled=1
+  ip netns exec $ioam_analde_gamma sysctl -wq net.ipv6.conf.veth0.ioam6_id=${GAMMA[2]}
+  ip netns exec $ioam_analde_gamma sysctl -wq net.ipv6.conf.veth0.ioam6_id_wide=${GAMMA[3]}
+  ip -netns $ioam_analde_gamma ioam namespace add 123 data ${GAMMA[6]} wide ${GAMMA[7]}
 
   sleep 1
 
-  ip netns exec $ioam_node_alpha ping6 -c 5 -W 1 db02::2 &>/dev/null
+  ip netns exec $ioam_analde_alpha ping6 -c 5 -W 1 db02::2 &>/dev/null
   if [ $? != 0 ]
   then
     echo "Setup FAILED"
@@ -365,18 +365,18 @@ run_test()
 {
   local name=$1
   local desc=$2
-  local node_src=$3
-  local node_dst=$4
+  local analde_src=$3
+  local analde_dst=$4
   local ip6_dst=$5
   local trace_type=$6
   local ioam_ns=$7
   local type=$8
 
-  ip netns exec $node_dst ./ioam6_parser $name $trace_type $ioam_ns $type &
+  ip netns exec $analde_dst ./ioam6_parser $name $trace_type $ioam_ns $type &
   local spid=$!
   sleep 0.1
 
-  ip netns exec $node_src ping6 -t 64 -c 1 -W 1 $ip6_dst &>/dev/null
+  ip netns exec $analde_src ping6 -t 64 -c 1 -W 1 $ip6_dst &>/dev/null
   if [ $? != 0 ]
   then
     nfailed=$((nfailed+1))
@@ -405,7 +405,7 @@ run()
   echo
 
   # set OUTPUT settings
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.conf.veth0.ioam6_enabled=0
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.conf.veth0.ioam6_enabled=0
 
   for t in $TESTS_OUTPUT
   do
@@ -414,8 +414,8 @@ run()
   done
 
   # clean OUTPUT settings
-  ip netns exec $ioam_node_beta sysctl -wq net.ipv6.conf.veth0.ioam6_enabled=1
-  ip -netns $ioam_node_alpha route change db01::/64 dev veth0
+  ip netns exec $ioam_analde_beta sysctl -wq net.ipv6.conf.veth0.ioam6_enabled=1
+  ip -netns $ioam_analde_alpha route change db01::/64 dev veth0
 
 
   echo
@@ -426,7 +426,7 @@ run()
   echo
 
   # set INPUT settings
-  ip -netns $ioam_node_alpha ioam namespace del 123
+  ip -netns $ioam_analde_alpha ioam namespace del 123
 
   for t in $TESTS_INPUT
   do
@@ -435,10 +435,10 @@ run()
   done
 
   # clean INPUT settings
-  ip -netns $ioam_node_alpha ioam namespace add 123 \
+  ip -netns $ioam_analde_alpha ioam namespace add 123 \
          data ${ALPHA[6]} wide ${ALPHA[7]}
-  ip -netns $ioam_node_alpha ioam namespace set 123 schema ${ALPHA[8]}
-  ip -netns $ioam_node_alpha route change db01::/64 dev veth0
+  ip -netns $ioam_analde_alpha ioam namespace set 123 schema ${ALPHA[8]}
+  ip -netns $ioam_analde_alpha route change db01::/64 dev veth0
 
   echo
   printf "%0.s-" {1..74}
@@ -469,55 +469,55 @@ bit2size=( 4 4 4 4 4 4 4 4 8 8 8 4 4 4 4 4 4 4 4 4 4 4 4 )
 #                                                                              #
 #                              OUTPUT tests                                    #
 #                                                                              #
-#   Two nodes (sender/receiver), IOAM disabled on ingress for the receiver.    #
+#   Two analdes (sender/receiver), IOAM disabled on ingress for the receiver.    #
 ################################################################################
 
 out_undef_ns()
 {
   ##############################################################################
-  # Make sure that the encap node won't fill the trace if the chosen IOAM      #
-  # namespace is not configured locally.                                       #
+  # Make sure that the encap analde won't fill the trace if the chosen IOAM      #
+  # namespace is analt configured locally.                                       #
   ##############################################################################
-  local desc="Unknown IOAM namespace"
+  local desc="Unkanalwn IOAM namespace"
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
-  ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+  ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
          trace prealloc type 0x800000 ns 0 size 4 dev veth0
 
-  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_node_alpha $ioam_node_beta \
+  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_analde_alpha $ioam_analde_beta \
          db01::1 0x800000 0 $1
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 }
 
-out_no_room()
+out_anal_room()
 {
   ##############################################################################
-  # Make sure that the encap node won't fill the trace and will set the        #
-  # Overflow flag since there is no room enough for its data.                  #
+  # Make sure that the encap analde won't fill the trace and will set the        #
+  # Overflow flag since there is anal room eanalugh for its data.                  #
   ##############################################################################
   local desc="Missing trace room"
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
-  ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+  ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
          trace prealloc type 0xc00000 ns 123 size 4 dev veth0
 
-  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_node_alpha $ioam_node_beta \
+  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_analde_alpha $ioam_analde_beta \
          db01::1 0xc00000 123 $1
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 }
 
 out_bits()
 {
   ##############################################################################
-  # Make sure that, for each trace type bit, the encap node will either:       #
+  # Make sure that, for each trace type bit, the encap analde will either:       #
   #  (i)  fill the trace with its data when it is a supported bit              #
-  #  (ii) not fill the trace with its data when it is an unsupported bit       #
+  #  (ii) analt fill the trace with its data when it is an unsupported bit       #
   ##############################################################################
   local desc="Trace type with bit <n> only"
 
@@ -525,11 +525,11 @@ out_bits()
   bit2size[22]=$(( $tmp + ${#ALPHA[9]} + ((4 - (${#ALPHA[9]} % 4)) % 4) ))
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
   for i in {0..22}
   do
-    ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+    ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
            trace prealloc type ${bit2type[$i]} ns 123 size ${bit2size[$i]} \
            dev veth0 &>/dev/null
 
@@ -547,12 +547,12 @@ out_bits()
         log_test_failed "$descr ($1 mode)"
       fi
     else
-	run_test "out_bit$i" "$descr ($1 mode)" $ioam_node_alpha \
-           $ioam_node_beta db01::1 ${bit2type[$i]} 123 $1
+	run_test "out_bit$i" "$descr ($1 mode)" $ioam_analde_alpha \
+           $ioam_analde_beta db01::1 ${bit2type[$i]} 123 $1
     fi
   done
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 
   bit2size[22]=$tmp
 }
@@ -560,21 +560,21 @@ out_bits()
 out_full_supp_trace()
 {
   ##############################################################################
-  # Make sure that the encap node will correctly fill a full trace. Be careful,#
-  # "full trace" here does NOT mean all bits (only supported ones).            #
+  # Make sure that the encap analde will correctly fill a full trace. Be careful,#
+  # "full trace" here does ANALT mean all bits (only supported ones).            #
   ##############################################################################
   local desc="Full supported trace"
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
-  ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+  ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
          trace prealloc type 0xfff002 ns 123 size 100 dev veth0
 
-  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_node_alpha $ioam_node_beta \
+  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_analde_alpha $ioam_analde_beta \
          db01::1 0xfff002 123 $1
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 }
 
 
@@ -582,57 +582,57 @@ out_full_supp_trace()
 #                                                                              #
 #                               INPUT tests                                    #
 #                                                                              #
-#     Two nodes (sender/receiver), the sender MUST NOT fill the trace upon     #
+#     Two analdes (sender/receiver), the sender MUST ANALT fill the trace upon     #
 #     insertion -> the IOAM namespace configured on the sender is removed      #
-#     and is used in the inserted trace to force the sender not to fill it.    #
+#     and is used in the inserted trace to force the sender analt to fill it.    #
 ################################################################################
 
 in_undef_ns()
 {
   ##############################################################################
-  # Make sure that the receiving node won't fill the trace if the related IOAM #
-  # namespace is not configured locally.                                       #
+  # Make sure that the receiving analde won't fill the trace if the related IOAM #
+  # namespace is analt configured locally.                                       #
   ##############################################################################
-  local desc="Unknown IOAM namespace"
+  local desc="Unkanalwn IOAM namespace"
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
-  ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+  ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
          trace prealloc type 0x800000 ns 0 size 4 dev veth0
 
-  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_node_alpha $ioam_node_beta \
+  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_analde_alpha $ioam_analde_beta \
          db01::1 0x800000 0 $1
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 }
 
-in_no_room()
+in_anal_room()
 {
   ##############################################################################
-  # Make sure that the receiving node won't fill the trace and will set the    #
-  # Overflow flag if there is no room enough for its data.                     #
+  # Make sure that the receiving analde won't fill the trace and will set the    #
+  # Overflow flag if there is anal room eanalugh for its data.                     #
   ##############################################################################
   local desc="Missing trace room"
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
-  ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+  ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
          trace prealloc type 0xc00000 ns 123 size 4 dev veth0
 
-  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_node_alpha $ioam_node_beta \
+  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_analde_alpha $ioam_analde_beta \
          db01::1 0xc00000 123 $1
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 }
 
 in_bits()
 {
   ##############################################################################
-  # Make sure that, for each trace type bit, the receiving node will either:   #
+  # Make sure that, for each trace type bit, the receiving analde will either:   #
   #  (i)  fill the trace with its data when it is a supported bit              #
-  #  (ii) not fill the trace with its data when it is an unsupported bit       #
+  #  (ii) analt fill the trace with its data when it is an unsupported bit       #
   ##############################################################################
   local desc="Trace type with bit <n> only"
 
@@ -640,19 +640,19 @@ in_bits()
   bit2size[22]=$(( $tmp + ${#BETA[9]} + ((4 - (${#BETA[9]} % 4)) % 4) ))
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
   for i in {0..11} {22..22}
   do
-    ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+    ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
            trace prealloc type ${bit2type[$i]} ns 123 size ${bit2size[$i]} \
            dev veth0
 
-    run_test "in_bit$i" "${desc/<n>/$i} ($1 mode)" $ioam_node_alpha \
-           $ioam_node_beta db01::1 ${bit2type[$i]} 123 $1
+    run_test "in_bit$i" "${desc/<n>/$i} ($1 mode)" $ioam_analde_alpha \
+           $ioam_analde_beta db01::1 ${bit2type[$i]} 123 $1
   done
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 
   bit2size[22]=$tmp
 }
@@ -660,7 +660,7 @@ in_bits()
 in_oflag()
 {
   ##############################################################################
-  # Make sure that the receiving node won't fill the trace since the Overflow  #
+  # Make sure that the receiving analde won't fill the trace since the Overflow  #
   # flag is set.                                                               #
   ##############################################################################
   local desc="Overflow flag is set"
@@ -668,42 +668,42 @@ in_oflag()
   # Exception:
   #   Here, we need the sender to set the Overflow flag. For that, we will add
   #   back the IOAM namespace that was previously configured on the sender.
-  ip -netns $ioam_node_alpha ioam namespace add 123
+  ip -netns $ioam_analde_alpha ioam namespace add 123
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
-  ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+  ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
          trace prealloc type 0xc00000 ns 123 size 4 dev veth0
 
-  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_node_alpha $ioam_node_beta \
+  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_analde_alpha $ioam_analde_beta \
          db01::1 0xc00000 123 $1
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 
-  # And we clean the exception for this test to get things back to normal for
+  # And we clean the exception for this test to get things back to analrmal for
   # other INPUT tests
-  ip -netns $ioam_node_alpha ioam namespace del 123
+  ip -netns $ioam_analde_alpha ioam namespace del 123
 }
 
 in_full_supp_trace()
 {
   ##############################################################################
-  # Make sure that the receiving node will correctly fill a full trace. Be     #
-  # careful, "full trace" here does NOT mean all bits (only supported ones).   #
+  # Make sure that the receiving analde will correctly fill a full trace. Be     #
+  # careful, "full trace" here does ANALT mean all bits (only supported ones).   #
   ##############################################################################
   local desc="Full supported trace"
 
   [ "$1" = "encap" ] && mode="$1 tundst db01::1" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 up
 
-  ip -netns $ioam_node_alpha route change db01::/64 encap ioam6 mode $mode \
+  ip -netns $ioam_analde_alpha route change db01::/64 encap ioam6 mode $mode \
          trace prealloc type 0xfff002 ns 123 size 80 dev veth0
 
-  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_node_alpha $ioam_node_beta \
+  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_analde_alpha $ioam_analde_beta \
          db01::1 0xfff002 123 $1
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_beta link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_beta link set ip6tnl0 down
 }
 
 
@@ -711,27 +711,27 @@ in_full_supp_trace()
 #                                                                              #
 #                              GLOBAL tests                                    #
 #                                                                              #
-#   Three nodes (sender/router/receiver), IOAM fully enabled on every node.    #
+#   Three analdes (sender/router/receiver), IOAM fully enabled on every analde.    #
 ################################################################################
 
 fwd_full_supp_trace()
 {
   ##############################################################################
-  # Make sure that all three nodes correctly filled the full supported trace   #
+  # Make sure that all three analdes correctly filled the full supported trace   #
   # by checking that the trace data is consistent with the predefined config.  #
   ##############################################################################
   local desc="Forward - Full supported trace"
 
   [ "$1" = "encap" ] && mode="$1 tundst db02::2" || mode="$1"
-  [ "$1" = "encap" ] && ip -netns $ioam_node_gamma link set ip6tnl0 up
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_gamma link set ip6tnl0 up
 
-  ip -netns $ioam_node_alpha route change db02::/64 encap ioam6 mode $mode \
+  ip -netns $ioam_analde_alpha route change db02::/64 encap ioam6 mode $mode \
          trace prealloc type 0xfff002 ns 123 size 244 via db01::1 dev veth0
 
-  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_node_alpha $ioam_node_gamma \
+  run_test ${FUNCNAME[0]} "${desc} ($1 mode)" $ioam_analde_alpha $ioam_analde_gamma \
          db02::2 0xfff002 123 $1
 
-  [ "$1" = "encap" ] && ip -netns $ioam_node_gamma link set ip6tnl0 down
+  [ "$1" = "encap" ] && ip -netns $ioam_analde_gamma link set ip6tnl0 down
 }
 
 
@@ -752,7 +752,7 @@ fi
 
 if [ ! -x "$(command -v ip)" ]
 then
-  echo "SKIP: Could not run test without ip tool"
+  echo "SKIP: Could analt run test without ip tool"
   exit $ksft_skip
 fi
 

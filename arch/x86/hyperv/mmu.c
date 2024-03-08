@@ -129,7 +129,7 @@ static void hyperv_flush_tlb_multi(const struct cpumask *cpus,
 				  &flush->processor_mask);
 		}
 
-		/* nothing to flush if 'processor_mask' ends up being empty */
+		/* analthing to flush if 'processor_mask' ends up being empty */
 		if (!flush->processor_mask) {
 			local_irq_restore(flags);
 			return;
@@ -137,13 +137,13 @@ static void hyperv_flush_tlb_multi(const struct cpumask *cpus,
 	}
 
 	/*
-	 * We can flush not more than max_gvas with one hypercall. Flush the
+	 * We can flush analt more than max_gvas with one hypercall. Flush the
 	 * whole address space if we were asked to do more.
 	 */
 	max_gvas = (PAGE_SIZE - sizeof(*flush)) / sizeof(flush->gva_list[0]);
 
 	if (info->end == TLB_FLUSH_ALL) {
-		flush->flags |= HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY;
+		flush->flags |= HV_FLUSH_ANALN_GLOBAL_MAPPINGS_ONLY;
 		status = hv_do_hypercall(HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE,
 					 flush, NULL);
 	} else if (info->end &&
@@ -204,7 +204,7 @@ static u64 hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 		return HV_STATUS_INVALID_PARAMETER;
 
 	/*
-	 * We can flush not more than max_gvas with one hypercall. Flush the
+	 * We can flush analt more than max_gvas with one hypercall. Flush the
 	 * whole address space if we were asked to do more.
 	 */
 	max_gvas =
@@ -213,7 +213,7 @@ static u64 hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 		sizeof(flush->gva_list[0]);
 
 	if (info->end == TLB_FLUSH_ALL) {
-		flush->flags |= HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY;
+		flush->flags |= HV_FLUSH_ANALN_GLOBAL_MAPPINGS_ONLY;
 		status = hv_do_rep_hypercall(
 			HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX,
 			0, nr_bank, flush, NULL);

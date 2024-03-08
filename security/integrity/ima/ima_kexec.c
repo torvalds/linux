@@ -26,7 +26,7 @@ static int ima_dump_measurement_list(unsigned long *buffer_size, void **buffer,
 	/* segment size can't change between kexec load and execute */
 	file.buf = vmalloc(segment_size);
 	if (!file.buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -54,14 +54,14 @@ static int ima_dump_measurement_list(unsigned long *buffer_size, void **buffer,
 	 * (eg. version, buffer size, number of measurements)
 	 */
 	khdr.buffer_size = file.count;
-	if (ima_canonical_fmt) {
+	if (ima_caanalnical_fmt) {
 		khdr.version = cpu_to_le16(khdr.version);
 		khdr.count = cpu_to_le64(khdr.count);
 		khdr.buffer_size = cpu_to_le64(khdr.buffer_size);
 	}
 	memcpy(file.buf, &khdr, sizeof(khdr));
 
-	print_hex_dump_debug("ima dump: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ima dump: ", DUMP_PREFIX_ANALNE, 16, 1,
 			     file.buf, file.count < 100 ? file.count : 100,
 			     true);
 
@@ -111,7 +111,7 @@ void ima_add_kexec_buffer(struct kimage *image)
 	ima_dump_measurement_list(&kexec_buffer_size, &kexec_buffer,
 				  kexec_segment_size);
 	if (!kexec_buffer) {
-		pr_err("Not enough memory for the kexec measurement buffer.\n");
+		pr_err("Analt eanalugh memory for the kexec measurement buffer.\n");
 		return;
 	}
 
@@ -154,11 +154,11 @@ void __init ima_load_kexec_buffer(void)
 
 		ima_free_kexec_buffer();
 		break;
-	case -ENOTSUPP:
-		pr_debug("Restoring the measurement list not supported\n");
+	case -EANALTSUPP:
+		pr_debug("Restoring the measurement list analt supported\n");
 		break;
-	case -ENOENT:
-		pr_debug("No measurement list to restore\n");
+	case -EANALENT:
+		pr_debug("Anal measurement list to restore\n");
 		break;
 	default:
 		pr_debug("Error restoring the measurement list: %d\n", rc);

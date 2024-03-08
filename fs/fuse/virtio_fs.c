@@ -49,7 +49,7 @@ struct virtio_fs_vq {
 	struct fuse_dev *fud;
 	bool connected;
 	long in_flight;
-	struct completion in_flight_zero; /* No inflight requests */
+	struct completion in_flight_zero; /* Anal inflight requests */
 	char name[VQ_NAME_LEN];
 } ____cacheline_aligned_in_smp;
 
@@ -92,7 +92,7 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 static const struct constant_table dax_param_enums[] = {
 	{"always",	FUSE_DAX_ALWAYS },
 	{"never",	FUSE_DAX_NEVER },
-	{"inode",	FUSE_DAX_INODE_USER },
+	{"ianalde",	FUSE_DAX_IANALDE_USER },
 	{}
 };
 
@@ -191,7 +191,7 @@ static void virtio_fs_drain_queue(struct virtio_fs_vq *fsvq)
 	/* Wait for in flight requests to finish.*/
 	spin_lock(&fsvq->lock);
 	if (fsvq->in_flight) {
-		/* We are holding virtio_fs_mutex. There should not be any
+		/* We are holding virtio_fs_mutex. There should analt be any
 		 * waiters waiting for completion.
 		 */
 		reinit_completion(&fsvq->in_flight_zero);
@@ -221,7 +221,7 @@ static void virtio_fs_drain_all_queues(struct virtio_fs *fs)
 	/* Provides mutual exclusion between ->remove and ->kill_sb
 	 * paths. We don't want both of these draining queue at the
 	 * same time. Current completion logic reinits completion
-	 * and that means there should not be any other thread
+	 * and that means there should analt be any other thread
 	 * doing reinit or waiting for completion already.
 	 */
 	mutex_lock(&virtio_fs_mutex);
@@ -279,7 +279,7 @@ static struct virtio_fs *virtio_fs_find_instance(const char *tag)
 		}
 	}
 
-	fs = NULL; /* not found */
+	fs = NULL; /* analt found */
 
 found:
 	mutex_unlock(&virtio_fs_mutex);
@@ -320,7 +320,7 @@ static int virtio_fs_read_tag(struct virtio_device *vdev, struct virtio_fs *fs)
 	len = end - tag_buf;
 	fs->tag = devm_kmalloc(&vdev->dev, len + 1, GFP_KERNEL);
 	if (!fs->tag)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(fs->tag, tag_buf, len);
 	fs->tag[len] = '\0';
 	return 0;
@@ -385,7 +385,7 @@ static void virtio_fs_request_dispatch_work(struct work_struct *work)
 
 		ret = virtio_fs_enqueue_req(fsvq, req, true);
 		if (ret < 0) {
-			if (ret == -ENOMEM || ret == -ENOSPC) {
+			if (ret == -EANALMEM || ret == -EANALSPC) {
 				spin_lock(&fsvq->lock);
 				list_add_tail(&req->list, &fsvq->queued_reqs);
 				schedule_delayed_work(&fsvq->dispatch_work,
@@ -415,7 +415,7 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 	struct scatterlist sg;
 	struct virtqueue *vq;
 	int ret = 0;
-	bool notify;
+	bool analtify;
 	struct virtio_fs_forget_req *req = &forget->req;
 
 	spin_lock(&fsvq->lock);
@@ -432,8 +432,8 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 
 	ret = virtqueue_add_outbuf(vq, &sg, 1, forget, GFP_ATOMIC);
 	if (ret < 0) {
-		if (ret == -ENOMEM || ret == -ENOSPC) {
-			pr_debug("virtio-fs: Could not queue FORGET: err=%d. Will try later\n",
+		if (ret == -EANALMEM || ret == -EANALSPC) {
+			pr_debug("virtio-fs: Could analt queue FORGET: err=%d. Will try later\n",
 				 ret);
 			list_add_tail(&forget->list, &fsvq->queued_reqs);
 			schedule_delayed_work(&fsvq->dispatch_work,
@@ -443,7 +443,7 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 			/* Queue is full */
 			ret = 1;
 		} else {
-			pr_debug("virtio-fs: Could not queue FORGET: err=%d. Dropping it.\n",
+			pr_debug("virtio-fs: Could analt queue FORGET: err=%d. Dropping it.\n",
 				 ret);
 			kfree(forget);
 			if (in_flight)
@@ -454,11 +454,11 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 
 	if (!in_flight)
 		inc_in_flight_req(fsvq);
-	notify = virtqueue_kick_prepare(vq);
+	analtify = virtqueue_kick_prepare(vq);
 	spin_unlock(&fsvq->lock);
 
-	if (notify)
-		virtqueue_notify(vq);
+	if (analtify)
+		virtqueue_analtify(vq);
 	return ret;
 out:
 	spin_unlock(&fsvq->lock);
@@ -504,7 +504,7 @@ static int copy_args_to_argbuf(struct fuse_req *req)
 
 	req->argbuf = kmalloc(len, GFP_ATOMIC);
 	if (!req->argbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_in; i++) {
 		memcpy(req->argbuf + offset,
@@ -638,7 +638,7 @@ static void virtio_fs_requests_done_work(struct work_struct *work)
 		if (req->args->may_block) {
 			struct virtio_fs_req_work *w;
 
-			w = kzalloc(sizeof(*w), GFP_NOFS | __GFP_NOFAIL);
+			w = kzalloc(sizeof(*w), GFP_ANALFS | __GFP_ANALFAIL);
 			INIT_WORK(&w->done_work, virtio_fs_complete_req_work);
 			w->fsvq = fsvq;
 			w->req = req;
@@ -697,14 +697,14 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 	fs->nvqs = VQ_REQUEST + fs->num_request_queues;
 	fs->vqs = kcalloc(fs->nvqs, sizeof(fs->vqs[VQ_HIPRIO]), GFP_KERNEL);
 	if (!fs->vqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vqs = kmalloc_array(fs->nvqs, sizeof(vqs[VQ_HIPRIO]), GFP_KERNEL);
 	callbacks = kmalloc_array(fs->nvqs, sizeof(callbacks[VQ_HIPRIO]),
 					GFP_KERNEL);
 	names = kmalloc_array(fs->nvqs, sizeof(names[VQ_HIPRIO]), GFP_KERNEL);
 	if (!vqs || !callbacks || !names) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -808,23 +808,23 @@ static int virtio_fs_setup_dax(struct virtio_device *vdev, struct virtio_fs *fs)
 	have_cache = virtio_get_shm_region(vdev, &cache_reg,
 					   (u8)VIRTIO_FS_SHMCAP_ID_CACHE);
 	if (!have_cache) {
-		dev_notice(&vdev->dev, "%s: No cache capability\n", __func__);
+		dev_analtice(&vdev->dev, "%s: Anal cache capability\n", __func__);
 		return 0;
 	}
 
 	if (!devm_request_mem_region(&vdev->dev, cache_reg.addr, cache_reg.len,
 				     dev_name(&vdev->dev))) {
-		dev_warn(&vdev->dev, "could not reserve region addr=0x%llx len=0x%llx\n",
+		dev_warn(&vdev->dev, "could analt reserve region addr=0x%llx len=0x%llx\n",
 			 cache_reg.addr, cache_reg.len);
 		return -EBUSY;
 	}
 
-	dev_notice(&vdev->dev, "Cache len: 0x%llx @ 0x%llx\n", cache_reg.len,
+	dev_analtice(&vdev->dev, "Cache len: 0x%llx @ 0x%llx\n", cache_reg.len,
 		   cache_reg.addr);
 
 	pgmap = devm_kzalloc(&vdev->dev, sizeof(*pgmap), GFP_KERNEL);
 	if (!pgmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pgmap->type = MEMORY_DEVICE_FS_DAX;
 
@@ -864,7 +864,7 @@ static int virtio_fs_probe(struct virtio_device *vdev)
 
 	fs = kzalloc(sizeof(*fs), GFP_KERNEL);
 	if (!fs)
-		return -ENOMEM;
+		return -EANALMEM;
 	kref_init(&fs->refcount);
 	vdev->priv = fs;
 
@@ -922,7 +922,7 @@ static void virtio_fs_remove(struct virtio_device *vdev)
 	struct virtio_fs *fs = vdev->priv;
 
 	mutex_lock(&virtio_fs_mutex);
-	/* This device is going away. No one should get new reference */
+	/* This device is going away. Anal one should get new reference */
 	list_del_init(&fs->list);
 	virtio_fs_stop_all_queues(fs);
 	virtio_fs_drain_all_queues_locked(fs);
@@ -939,8 +939,8 @@ static void virtio_fs_remove(struct virtio_device *vdev)
 static int virtio_fs_freeze(struct virtio_device *vdev)
 {
 	/* TODO need to save state here */
-	pr_warn("virtio-fs: suspend/resume not yet supported\n");
-	return -EOPNOTSUPP;
+	pr_warn("virtio-fs: suspend/resume analt yet supported\n");
+	return -EOPANALTSUPP;
 }
 
 static int virtio_fs_restore(struct virtio_device *vdev)
@@ -989,12 +989,12 @@ __releases(fiq->lock)
 	spin_unlock(&fiq->lock);
 
 	/* Allocate a buffer for the request */
-	forget = kmalloc(sizeof(*forget), GFP_NOFS | __GFP_NOFAIL);
+	forget = kmalloc(sizeof(*forget), GFP_ANALFS | __GFP_ANALFAIL);
 	req = &forget->req;
 
 	req->ih = (struct fuse_in_header){
 		.opcode = FUSE_FORGET,
-		.nodeid = link->forget_one.nodeid,
+		.analdeid = link->forget_one.analdeid,
 		.unique = unique,
 		.len = sizeof(*req),
 	};
@@ -1012,7 +1012,7 @@ __releases(fiq->lock)
 	/*
 	 * TODO interrupts.
 	 *
-	 * Normal fs operations on a local filesystems aren't interruptible.
+	 * Analrmal fs operations on a local filesystems aren't interruptible.
 	 * Exceptions are blocking lock operations; for example fcntl(F_SETLKW)
 	 * with shared lock between host and guest.
 	 */
@@ -1134,7 +1134,7 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 	unsigned int total_sgs;
 	unsigned int i;
 	int ret;
-	bool notify;
+	bool analtify;
 	struct fuse_pqueue *fpq;
 
 	/* Does the sglist fit on the stack? */
@@ -1143,12 +1143,12 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 		sgs = kmalloc_array(total_sgs, sizeof(sgs[0]), GFP_ATOMIC);
 		sg = kmalloc_array(total_sgs, sizeof(sg[0]), GFP_ATOMIC);
 		if (!sgs || !sg) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
 
-	/* Use a bounce buffer since stack args cannot be mapped */
+	/* Use a bounce buffer since stack args cananalt be mapped */
 	ret = copy_args_to_argbuf(req);
 	if (ret < 0)
 		goto out;
@@ -1179,7 +1179,7 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 
 	if (!fsvq->connected) {
 		spin_unlock(&fsvq->lock);
-		ret = -ENOTCONN;
+		ret = -EANALTCONN;
 		goto out;
 	}
 
@@ -1201,12 +1201,12 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 
 	if (!in_flight)
 		inc_in_flight_req(fsvq);
-	notify = virtqueue_kick_prepare(vq);
+	analtify = virtqueue_kick_prepare(vq);
 
 	spin_unlock(&fsvq->lock);
 
-	if (notify)
-		virtqueue_notify(vq);
+	if (analtify)
+		virtqueue_analtify(vq);
 
 out:
 	if (ret < 0 && req->argbuf) {
@@ -1239,15 +1239,15 @@ __releases(fiq->lock)
 
 	fs = fiq->priv;
 
-	pr_debug("%s: opcode %u unique %#llx nodeid %#llx in.len %u out.len %u\n",
+	pr_debug("%s: opcode %u unique %#llx analdeid %#llx in.len %u out.len %u\n",
 		  __func__, req->in.h.opcode, req->in.h.unique,
-		 req->in.h.nodeid, req->in.h.len,
+		 req->in.h.analdeid, req->in.h.len,
 		 fuse_len_args(req->args->out_numargs, req->args->out_args));
 
 	fsvq = &fs->vqs[queue_id];
 	ret = virtio_fs_enqueue_req(fsvq, req, false);
 	if (ret < 0) {
-		if (ret == -ENOMEM || ret == -ENOSPC) {
+		if (ret == -EANALMEM || ret == -EANALSPC) {
 			/*
 			 * Virtqueue full. Retry submission from worker
 			 * context as we might be holding fc->bg_lock.
@@ -1287,8 +1287,8 @@ static inline void virtio_fs_ctx_set_defaults(struct fuse_fs_context *ctx)
 	ctx->max_read = UINT_MAX;
 	ctx->blksize = 512;
 	ctx->destroy = true;
-	ctx->no_control = true;
-	ctx->no_force_umount = true;
+	ctx->anal_control = true;
+	ctx->anal_force_umount = true;
 }
 
 static int virtio_fs_fill_super(struct super_block *sb, struct fs_context *fsc)
@@ -1309,12 +1309,12 @@ static int virtio_fs_fill_super(struct super_block *sb, struct fs_context *fsc)
 	 */
 	err = -EINVAL;
 	if (list_empty(&fs->list)) {
-		pr_info("virtio-fs: tag <%s> not found\n", fs->tag);
+		pr_info("virtio-fs: tag <%s> analt found\n", fs->tag);
 		goto err;
 	}
 
-	err = -ENOMEM;
-	/* Allocate fuse_dev for hiprio and notification queues */
+	err = -EANALMEM;
+	/* Allocate fuse_dev for hiprio and analtification queues */
 	for (i = 0; i < fs->nvqs; i++) {
 		struct virtio_fs_vq *fsvq = &fs->vqs[i];
 
@@ -1329,7 +1329,7 @@ static int virtio_fs_fill_super(struct super_block *sb, struct fs_context *fsc)
 		if (ctx->dax_mode == FUSE_DAX_ALWAYS && !fs->dax_dev) {
 			err = -EINVAL;
 			pr_err("virtio-fs: dax can't be enabled as filesystem"
-			       " device does not support it.\n");
+			       " device does analt support it.\n");
 			goto err_free_fuse_devs;
 		}
 		ctx->dax_dev = fs->dax_dev;
@@ -1363,8 +1363,8 @@ static void virtio_fs_conn_destroy(struct fuse_mount *fm)
 	struct virtio_fs *vfs = fc->iq.priv;
 	struct virtio_fs_vq *fsvq = &vfs->vqs[VQ_HIPRIO];
 
-	/* Stop dax worker. Soon evict_inodes() will be called which
-	 * will free all memory ranges belonging to all inodes.
+	/* Stop dax worker. Soon evict_ianaldes() will be called which
+	 * will free all memory ranges belonging to all ianaldes.
 	 */
 	if (IS_ENABLED(CONFIG_FUSE_DAX))
 		fuse_dax_cancel_work(fc);
@@ -1398,7 +1398,7 @@ static void virtio_kill_sb(struct super_block *sb)
 		if (last)
 			virtio_fs_conn_destroy(fm);
 	}
-	kill_anon_super(sb);
+	kill_aanaln_super(sb);
 	fuse_mount_destroy(fm);
 }
 
@@ -1426,7 +1426,7 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 	 */
 	fs = virtio_fs_find_instance(fsc->source);
 	if (!fs) {
-		pr_info("virtio-fs: tag <%s> not found\n", fsc->source);
+		pr_info("virtio-fs: tag <%s> analt found\n", fsc->source);
 		return -EINVAL;
 	}
 
@@ -1434,7 +1434,7 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 	if (WARN_ON(virtqueue_size <= FUSE_HEADER_OVERHEAD))
 		goto out_err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	fc = kzalloc(sizeof(struct fuse_conn), GFP_KERNEL);
 	if (!fc)
 		goto out_err;
@@ -1454,7 +1454,7 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 				    virtqueue_size - FUSE_HEADER_OVERHEAD);
 
 	fsc->s_fs_info = fm;
-	sb = sget_fc(fsc, virtio_fs_test_super, set_anon_super_fc);
+	sb = sget_fc(fsc, virtio_fs_test_super, set_aanaln_super_fc);
 	if (fsc->s_fs_info)
 		fuse_mount_destroy(fm);
 	if (IS_ERR(sb))
@@ -1497,7 +1497,7 @@ static int virtio_fs_init_fs_context(struct fs_context *fsc)
 
 	ctx = kzalloc(sizeof(struct fuse_fs_context), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	fsc->fs_private = ctx;
 	fsc->ops = &virtio_fs_context_ops;
 	return 0;
@@ -1535,7 +1535,7 @@ static void __exit virtio_fs_exit(void)
 }
 module_exit(virtio_fs_exit);
 
-MODULE_AUTHOR("Stefan Hajnoczi <stefanha@redhat.com>");
+MODULE_AUTHOR("Stefan Hajanalczi <stefanha@redhat.com>");
 MODULE_DESCRIPTION("Virtio Filesystem");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_FS(KBUILD_MODNAME);

@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,7 +55,7 @@ static int mthca_query_device(struct ib_device *ibdev, struct ib_device_attr *pr
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct mthca_dev *mdev = to_mdev(ibdev);
 
 	if (uhw->inlen || uhw->outlen)
@@ -71,7 +71,7 @@ static int mthca_query_device(struct ib_device *ibdev, struct ib_device_attr *pr
 	props->fw_ver              = mdev->fw_ver;
 
 	ib_init_query_mad(in_mad);
-	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
+	in_mad->attr_id = IB_SMP_ATTR_ANALDE_INFO;
 
 	err = mthca_MAD_IFC(mdev, 1, 1,
 			    1, NULL, NULL, in_mad, out_mad);
@@ -104,7 +104,7 @@ static int mthca_query_device(struct ib_device *ibdev, struct ib_device_attr *pr
 	props->max_srq_sge         = mdev->limits.max_srq_sge;
 	props->local_ca_ack_delay  = mdev->limits.local_ca_ack_delay;
 	props->atomic_cap          = mdev->limits.flags & DEV_LIM_FLAG_ATOMIC ?
-					IB_ATOMIC_HCA : IB_ATOMIC_NONE;
+					IB_ATOMIC_HCA : IB_ATOMIC_ANALNE;
 	props->max_pkeys           = mdev->limits.pkey_table_len;
 	props->max_mcast_grp       = mdev->limits.num_mgms + mdev->limits.num_amgms;
 	props->max_mcast_qp_attach = MTHCA_QP_PER_MGM;
@@ -123,7 +123,7 @@ static int mthca_query_port(struct ib_device *ibdev,
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
@@ -171,14 +171,14 @@ static int mthca_modify_device(struct ib_device *ibdev,
 			       int mask,
 			       struct ib_device_modify *props)
 {
-	if (mask & ~IB_DEVICE_MODIFY_NODE_DESC)
-		return -EOPNOTSUPP;
+	if (mask & ~IB_DEVICE_MODIFY_ANALDE_DESC)
+		return -EOPANALTSUPP;
 
-	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
+	if (mask & IB_DEVICE_MODIFY_ANALDE_DESC) {
 		if (mutex_lock_interruptible(&to_mdev(ibdev)->cap_mask_mutex))
 			return -ERESTARTSYS;
-		memcpy(ibdev->node_desc, props->node_desc,
-		       IB_DEVICE_NODE_DESC_MAX);
+		memcpy(ibdev->analde_desc, props->analde_desc,
+		       IB_DEVICE_ANALDE_DESC_MAX);
 		mutex_unlock(&to_mdev(ibdev)->cap_mask_mutex);
 	}
 
@@ -219,7 +219,7 @@ static int mthca_query_pkey(struct ib_device *ibdev,
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
@@ -248,7 +248,7 @@ static int mthca_query_gid(struct ib_device *ibdev, u32 port,
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
@@ -335,7 +335,7 @@ static int mthca_mmap_uar(struct ib_ucontext *context,
 	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 		return -EINVAL;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	if (io_remap_pfn_range(vma, vma->vm_start,
 			       to_mucontext(context)->uar.pfn,
@@ -399,7 +399,7 @@ static int mthca_create_srq(struct ib_srq *ibsrq,
 	int err;
 
 	if (init_attr->srq_type != IB_SRQT_BASIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (udata) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
@@ -463,7 +463,7 @@ static int mthca_create_qp(struct ib_qp *ibqp,
 	int err;
 
 	if (init_attr->create_flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:
@@ -518,7 +518,7 @@ static int mthca_create_qp(struct ib_qp *ibqp,
 	{
 		qp->sqp = kzalloc(sizeof(struct mthca_sqp), GFP_KERNEL);
 		if (!qp->sqp)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		qp->ibqp.qp_num = init_attr->qp_type == IB_QPT_SMI ? 0 : 1;
 
@@ -532,7 +532,7 @@ static int mthca_create_qp(struct ib_qp *ibqp,
 	}
 	default:
 		/* Don't support raw QPs */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (err) {
@@ -586,7 +586,7 @@ static int mthca_create_cq(struct ib_cq *ibcq,
 		udata, struct mthca_ucontext, ibucontext);
 
 	if (attr->flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (entries < 1 || entries > to_mdev(ibdev)->limits.max_cqes)
 		return -EINVAL;
@@ -617,7 +617,7 @@ static int mthca_create_cq(struct ib_cq *ibcq,
 	}
 
 	for (nent = 1; nent <= entries; nent <<= 1)
-		; /* nothing */
+		; /* analthing */
 
 	err = mthca_init_cq(to_mdev(ibdev), nent, context,
 			    udata ? ucmd.pdn : to_mdev(ibdev)->driver_pd.pd_num,
@@ -661,7 +661,7 @@ static int mthca_alloc_resize_buf(struct mthca_dev *dev, struct mthca_cq *cq,
 
 	cq->resize_buf = kmalloc(sizeof *cq->resize_buf, GFP_ATOMIC);
 	if (!cq->resize_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -807,9 +807,9 @@ static struct ib_mr *mthca_get_dma_mr(struct ib_pd *pd, int acc)
 
 	mr = kmalloc(sizeof *mr, GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	err = mthca_mr_alloc_notrans(to_mdev(pd->device),
+	err = mthca_mr_alloc_analtrans(to_mdev(pd->device),
 				     to_mpd(pd)->pd_num,
 				     convert_access(acc), mr);
 
@@ -839,7 +839,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	if (udata->inlen < sizeof ucmd) {
 		if (!context->reg_mr_warned) {
-			mthca_warn(dev, "Process '%s' did not pass in MR attrs.\n",
+			mthca_warn(dev, "Process '%s' did analt pass in MR attrs.\n",
 				   current->comm);
 			mthca_warn(dev, "  Update libmthca to fix this.\n");
 		}
@@ -850,7 +850,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mr = kmalloc(sizeof *mr, GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr->umem = ib_umem_get(pd->device, start, length, acc);
 	if (IS_ERR(mr->umem)) {
@@ -868,7 +868,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	pages = (u64 *) __get_free_page(GFP_KERNEL);
 	if (!pages) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mtt;
 	}
 
@@ -942,18 +942,18 @@ static DEVICE_ATTR_RO(hw_rev);
 static const char *hca_type_string(int hca_type)
 {
 	switch (hca_type) {
-	case PCI_DEVICE_ID_MELLANOX_TAVOR:
+	case PCI_DEVICE_ID_MELLAANALX_TAVOR:
 		return "MT23108";
-	case PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT:
+	case PCI_DEVICE_ID_MELLAANALX_ARBEL_COMPAT:
 		return "MT25208 (MT23108 compat mode)";
-	case PCI_DEVICE_ID_MELLANOX_ARBEL:
+	case PCI_DEVICE_ID_MELLAANALX_ARBEL:
 		return "MT25208";
-	case PCI_DEVICE_ID_MELLANOX_SINAI:
-	case PCI_DEVICE_ID_MELLANOX_SINAI_OLD:
+	case PCI_DEVICE_ID_MELLAANALX_SINAI:
+	case PCI_DEVICE_ID_MELLAANALX_SINAI_OLD:
 		return "MT25204";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static ssize_t hca_type_show(struct device *device,
@@ -987,11 +987,11 @@ static const struct attribute_group mthca_attr_group = {
 	.attrs = mthca_dev_attributes,
 };
 
-static int mthca_init_node_data(struct mthca_dev *dev)
+static int mthca_init_analde_data(struct mthca_dev *dev)
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
@@ -999,16 +999,16 @@ static int mthca_init_node_data(struct mthca_dev *dev)
 		goto out;
 
 	ib_init_query_mad(in_mad);
-	in_mad->attr_id = IB_SMP_ATTR_NODE_DESC;
+	in_mad->attr_id = IB_SMP_ATTR_ANALDE_DESC;
 
 	err = mthca_MAD_IFC(dev, 1, 1,
 			    1, NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 
-	memcpy(dev->ib_dev.node_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
+	memcpy(dev->ib_dev.analde_desc, out_mad->data, IB_DEVICE_ANALDE_DESC_MAX);
 
-	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
+	in_mad->attr_id = IB_SMP_ATTR_ANALDE_INFO;
 
 	err = mthca_MAD_IFC(dev, 1, 1,
 			    1, NULL, NULL, in_mad, out_mad);
@@ -1017,7 +1017,7 @@ static int mthca_init_node_data(struct mthca_dev *dev)
 
 	if (mthca_is_memfree(dev))
 		dev->rev_id = be32_to_cpup((__be32 *) (out_mad->data + 32));
-	memcpy(&dev->ib_dev.node_guid, out_mad->data + 12, 8);
+	memcpy(&dev->ib_dev.analde_guid, out_mad->data + 12, 8);
 
 out:
 	kfree(in_mad);
@@ -1058,7 +1058,7 @@ static const struct ib_device_ops mthca_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_MTHCA,
 	.uverbs_abi_ver = MTHCA_UVERBS_ABI_VERSION,
-	.uverbs_no_driver_id_binding = 1,
+	.uverbs_anal_driver_id_binding = 1,
 
 	.alloc_pd = mthca_alloc_pd,
 	.alloc_ucontext = mthca_alloc_ucontext,
@@ -1122,24 +1122,24 @@ static const struct ib_device_ops mthca_dev_tavor_srq_ops = {
 static const struct ib_device_ops mthca_dev_arbel_ops = {
 	.post_recv = mthca_arbel_post_receive,
 	.post_send = mthca_arbel_post_send,
-	.req_notify_cq = mthca_arbel_arm_cq,
+	.req_analtify_cq = mthca_arbel_arm_cq,
 };
 
 static const struct ib_device_ops mthca_dev_tavor_ops = {
 	.post_recv = mthca_tavor_post_receive,
 	.post_send = mthca_tavor_post_send,
-	.req_notify_cq = mthca_tavor_arm_cq,
+	.req_analtify_cq = mthca_tavor_arm_cq,
 };
 
 int mthca_register_device(struct mthca_dev *dev)
 {
 	int ret;
 
-	ret = mthca_init_node_data(dev);
+	ret = mthca_init_analde_data(dev);
 	if (ret)
 		return ret;
 
-	dev->ib_dev.node_type            = RDMA_NODE_IB_CA;
+	dev->ib_dev.analde_type            = RDMA_ANALDE_IB_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.num_comp_vectors     = 1;
 	dev->ib_dev.dev.parent           = &dev->pdev->dev;

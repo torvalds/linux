@@ -25,7 +25,7 @@ endif
 GCOV_PROFILE		:= n
 KASAN_SANITIZE		:= n
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is analt linked in.
 KCOV_INSTRUMENT		:= n
 UBSAN_SANITIZE		:= n
 
@@ -57,8 +57,8 @@ endif
 endif
 
 #
-# We now have a PIC decompressor implementation.  Decompressors running
-# from RAM should not define ZTEXTADDR.  Decompressors running directly
+# We analw have a PIC decompressor implementation.  Decompressors running
+# from RAM should analt define ZTEXTADDR.  Decompressors running directly
 # from ROM or Flash must define ZTEXTADDR (preferably via the config)
 # FIXME: Previous assignment to ztextaddr-y is lost here. See SHARK
 ifeq ($(CONFIG_ZBOOT_ROM),y)
@@ -100,8 +100,8 @@ targets       := vmlinux vmlinux.lds piggy_data piggy.o \
 
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 
-ccflags-y := -fpic $(call cc-option,-mno-single-pic-base,) -fno-builtin \
-	     -I$(srctree)/scripts/dtc/libfdt -fno-stack-protector \
+ccflags-y := -fpic $(call cc-option,-manal-single-pic-base,) -fanal-builtin \
+	     -I$(srctree)/scripts/dtc/libfdt -fanal-stack-protector \
 	     -I$(obj) $(DISABLE_ARM_SSP_PER_TASK_PLUGIN)
 ccflags-remove-$(CONFIG_FUNCTION_TRACER) += -pg
 asflags-y := -DZIMAGE
@@ -119,7 +119,7 @@ ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux += --be8
 endif
 # Report unresolved symbol references
-LDFLAGS_vmlinux += --no-undefined
+LDFLAGS_vmlinux += --anal-undefined
 # Delete all temporary local symbols
 LDFLAGS_vmlinux += -X
 # Report orphan sections
@@ -130,16 +130,16 @@ endif
 LDFLAGS_vmlinux += -T
 
 # We need to prevent any GOTOFF relocs being used with references
-# to symbols in the .bss section since we cannot relocate them
+# to symbols in the .bss section since we cananalt relocate them
 # independently from the rest at run time.  This can be achieved by
-# ensuring that no private .bss symbols exist, as global symbols
+# ensuring that anal private .bss symbols exist, as global symbols
 # always have a GOT entry which is what we need.
-# The .data section is already discarded by the linker script so no need
+# The .data section is already discarded by the linker script so anal need
 # to bother about it here.
 check_for_bad_syms = \
 bad_syms=$$($(NM) $@ | sed -n 's/^.\{8\} [bc] \(.*\)/\1/p') && \
 [ -z "$$bad_syms" ] || \
-  ( echo "following symbols must have non local/private scope:" >&2; \
+  ( echo "following symbols must have analn local/private scope:" >&2; \
     echo "$$bad_syms" >&2; false )
 
 check_for_multiple_zreladdr = \

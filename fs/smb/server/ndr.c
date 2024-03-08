@@ -20,7 +20,7 @@ static int try_to_realloc_ndr_blob(struct ndr *n, size_t sz)
 
 	data = krealloc(n->data, n->offset + sz + 1024, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n->data = data;
 	n->length += 1024;
@@ -176,7 +176,7 @@ int ndr_encode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 	n->length = 1024;
 	n->data = kzalloc(n->length, GFP_KERNEL);
 	if (!n->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (da->version == 3) {
 		snprintf(hex_attr, 10, "0x%x", da->attr);
@@ -242,7 +242,7 @@ int ndr_decode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 		return ret;
 
 	if (da->version != 3 && da->version != 4) {
-		ksmbd_debug(VFS, "v%d version is not supported\n", da->version);
+		ksmbd_debug(VFS, "v%d version is analt supported\n", da->version);
 		return -EINVAL;
 	}
 
@@ -339,7 +339,7 @@ static int ndr_encode_posix_acl_entry(struct ndr *n, struct xattr_smb_acl *acl)
 
 int ndr_encode_posix_acl(struct ndr *n,
 			 struct mnt_idmap *idmap,
-			 struct inode *inode,
+			 struct ianalde *ianalde,
 			 struct xattr_smb_acl *acl,
 			 struct xattr_smb_acl *def_acl)
 {
@@ -352,7 +352,7 @@ int ndr_encode_posix_acl(struct ndr *n,
 	n->length = 1024;
 	n->data = kzalloc(n->length, GFP_KERNEL);
 	if (!n->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (acl) {
 		/* ACL ACCESS */
@@ -374,15 +374,15 @@ int ndr_encode_posix_acl(struct ndr *n,
 	if (ret)
 		return ret;
 
-	vfsuid = i_uid_into_vfsuid(idmap, inode);
+	vfsuid = i_uid_into_vfsuid(idmap, ianalde);
 	ret = ndr_write_int64(n, from_kuid(&init_user_ns, vfsuid_into_kuid(vfsuid)));
 	if (ret)
 		return ret;
-	vfsgid = i_gid_into_vfsgid(idmap, inode);
+	vfsgid = i_gid_into_vfsgid(idmap, ianalde);
 	ret = ndr_write_int64(n, from_kgid(&init_user_ns, vfsgid_into_kgid(vfsgid)));
 	if (ret)
 		return ret;
-	ret = ndr_write_int32(n, inode->i_mode);
+	ret = ndr_write_int32(n, ianalde->i_mode);
 	if (ret)
 		return ret;
 
@@ -403,7 +403,7 @@ int ndr_encode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 	n->length = 2048;
 	n->data = kzalloc(n->length, GFP_KERNEL);
 	if (!n->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ndr_write_int16(n, acl->version);
 	if (ret)
@@ -457,7 +457,7 @@ int ndr_decode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 	if (ret)
 		return ret;
 	if (acl->version != 4) {
-		ksmbd_debug(VFS, "v%d version is not supported\n", acl->version);
+		ksmbd_debug(VFS, "v%d version is analt supported\n", acl->version);
 		return -EINVAL;
 	}
 
@@ -507,7 +507,7 @@ int ndr_decode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 	acl->sd_size = n->length - n->offset;
 	acl->sd_buf = kzalloc(acl->sd_size, GFP_KERNEL);
 	if (!acl->sd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ndr_read_bytes(n, acl->sd_buf, acl->sd_size);
 	return ret;

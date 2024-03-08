@@ -39,8 +39,8 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 			struct dvb_usb_adapter_fe_properties *props = &adap->props.fe[o];
 			/* speed - when running at FULL speed we need a HW PID filter */
 			if (d->udev->speed == USB_SPEED_FULL && !(props->caps & DVB_USB_ADAP_HAS_PID_FILTER)) {
-				err("This USB2.0 device cannot be run on a USB1.1 port. (it lacks a hardware PID filter)");
-				return -ENODEV;
+				err("This USB2.0 device cananalt be run on a USB1.1 port. (it lacks a hardware PID filter)");
+				return -EANALDEV;
 			}
 
 			if ((d->udev->speed == USB_SPEED_FULL && props->caps & DVB_USB_ADAP_HAS_PID_FILTER) ||
@@ -65,8 +65,8 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 			if (props->size_of_priv > 0) {
 				adap->fe_adap[o].priv = kzalloc(props->size_of_priv, GFP_KERNEL);
 				if (adap->fe_adap[o].priv == NULL) {
-					err("no memory for priv for adapter %d fe %d.", n, o);
-					return -ENOMEM;
+					err("anal memory for priv for adapter %d fe %d.", n, o);
+					return -EANALMEM;
 				}
 			}
 		}
@@ -74,8 +74,8 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 		if (adap->props.size_of_priv > 0) {
 			adap->priv = kzalloc(adap->props.size_of_priv, GFP_KERNEL);
 			if (adap->priv == NULL) {
-				err("no memory for priv for adapter %d.", n);
-				return -ENOMEM;
+				err("anal memory for priv for adapter %d.", n);
+				return -EANALMEM;
 			}
 		}
 
@@ -142,7 +142,7 @@ static int dvb_usb_exit(struct dvb_usb_device *d)
 	dvb_usb_remote_exit(d);
 	dvb_usb_adapter_exit(d);
 	dvb_usb_i2c_exit(d);
-	deb_info("state should be zero now: %x\n", d->state);
+	deb_info("state should be zero analw: %x\n", d->state);
 	d->state = DVB_USB_STATE_INIT;
 
 	if (d->priv != NULL && d->props.priv_destroy != NULL)
@@ -166,8 +166,8 @@ static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
 	if (d->props.size_of_priv > 0) {
 		d->priv = kzalloc(d->props.size_of_priv, GFP_KERNEL);
 		if (d->priv == NULL) {
-			err("no memory for priv in 'struct dvb_usb_device'");
-			return -ENOMEM;
+			err("anal memory for priv in 'struct dvb_usb_device'");
+			return -EANALMEM;
 		}
 
 		if (d->props.priv_init != NULL) {
@@ -188,7 +188,7 @@ static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
 		goto err_adapter_init;
 
 	if ((ret = dvb_usb_remote_init(d)))
-		err("could not initialize remote control.");
+		err("could analt initialize remote control.");
 
 	dvb_usb_device_power_ctrl(d, 0);
 
@@ -246,17 +246,17 @@ static const struct dvb_usb_device_description *dvb_usb_find_device(struct usb_d
 	return desc;
 }
 
-int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
+int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
-	if (onoff)
+	if (oanalff)
 		d->powered++;
 	else
 		d->powered--;
 
-	if (d->powered == 0 || (onoff && d->powered == 1)) { /* when switching from 1 to 0 or from 0 to 1 */
-		deb_info("power control: %d\n", onoff);
+	if (d->powered == 0 || (oanalff && d->powered == 1)) { /* when switching from 1 to 0 or from 0 to 1 */
+		deb_info("power control: %d\n", oanalff);
 		if (d->props.power_ctrl)
-			return d->props.power_ctrl(d, onoff);
+			return d->props.power_ctrl(d, oanalff);
 	}
 	return 0;
 }
@@ -273,30 +273,30 @@ int dvb_usb_device_init(struct usb_interface *intf,
 	struct dvb_usb_device *d = NULL;
 	const struct dvb_usb_device_description *desc = NULL;
 
-	int ret = -ENOMEM, cold = 0;
+	int ret = -EANALMEM, cold = 0;
 
 	if (du != NULL)
 		*du = NULL;
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d) {
-		err("no memory for 'struct dvb_usb_device'");
-		return -ENOMEM;
+		err("anal memory for 'struct dvb_usb_device'");
+		return -EANALMEM;
 	}
 
 	memcpy(&d->props, props, sizeof(struct dvb_usb_device_properties));
 
 	desc = dvb_usb_find_device(udev, &d->props, &cold);
 	if (!desc) {
-		deb_err("something went very wrong, device was not found in current device list - let's see what comes next.\n");
-		ret = -ENODEV;
+		deb_err("something went very wrong, device was analt found in current device list - let's see what comes next.\n");
+		ret = -EANALDEV;
 		goto error;
 	}
 
 	if (cold) {
 		info("found a '%s' in cold state, will try to load a firmware", desc->name);
 		ret = dvb_usb_download_firmware(udev, props);
-		if (!props->no_reconnect || ret != 0)
+		if (!props->anal_reconnect || ret != 0)
 			goto error;
 	}
 

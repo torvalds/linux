@@ -10,11 +10,11 @@
  * Driver: contec_pci_dio
  * Description: Contec PIO1616L digital I/O board
  * Devices: [Contec] PIO1616L (contec_pci_dio)
- * Author: Stefano Rivoir <s.rivoir@gts.it>
+ * Author: Stefaanal Rivoir <s.rivoir@gts.it>
  * Updated: Wed, 27 Jun 2007 13:00:06 +0100
  * Status: works
  *
- * Configuration Options: not applicable, uses comedi PCI auto config
+ * Configuration Options: analt applicable, uses comedi PCI auto config
  */
 
 #include <linux/module.h>

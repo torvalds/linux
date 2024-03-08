@@ -52,12 +52,12 @@ int cxllib_get_xsl_config(struct pci_dev *dev, struct cxllib_xsl_config *cfg);
 
 /*
  * Activate capi for the pci host bridge associated with the device.
- * Can be extended to deactivate once we know how to do it.
+ * Can be extended to deactivate once we kanalw how to do it.
  * Device must be ready to accept messages from the CAPP unit and
  * respond accordingly (TLB invalidates, ...)
  *
  * PHB is switched to capi mode through calls to skiboot.
- * CAPP snooping is activated
+ * CAPP sanaloping is activated
  *
  * Input:
  *	dev: device whose PHB should switch mode
@@ -69,7 +69,7 @@ enum cxllib_mode {
 	CXL_MODE_PCI,
 };
 
-#define CXL_MODE_NO_DMA       0
+#define CXL_MODE_ANAL_DMA       0
 #define CXL_MODE_DMA_TVT0     1
 #define CXL_MODE_DMA_TVT1     2
 

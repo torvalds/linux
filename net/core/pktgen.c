@@ -23,7 +23,7 @@
  * MAC address typo fixed. 010417 --ro
  * Integrated.  020301 --DaveM
  * Added multiskb option 020301 --DaveM
- * Scaling of results. 020417--sigurdur@linpro.no
+ * Scaling of results. 020417--sigurdur@linpro.anal
  * Significant re-work of the module:
  *   *  Convert to threaded model to more efficiently be able to transmit
  *       and receive on multiple interfaces at once.
@@ -31,7 +31,7 @@
  *   *  Allow configuration of ranges, like min/max IP address, MACs,
  *       and UDP-ports, for both source and destination, and can
  *       set to use a random distribution or sequentially walk the range.
- *   *  Can now change most values after starting.
+ *   *  Can analw change most values after starting.
  *   *  Place 12-byte packet in UDP payload with magic number,
  *       sequence number, and timestamp.
  *   *  Add receiver code that detects dropped pkts, re-ordered pkts, and
@@ -70,9 +70,9 @@
  * By design there should only be *one* "controlling" process. In practice
  * multiple write accesses gives unpredictable result. Understood by "write"
  * to /proc gives result code thats should be read be the "writer".
- * For practical use this should be no problem.
+ * For practical use this should be anal problem.
  *
- * Note when adding devices to a specific CPU there good idea to also assign
+ * Analte when adding devices to a specific CPU there good idea to also assign
  * /proc/irq/XX/smp_affinity so TX-interrupts gets bound to the same CPU.
  * --ro
  *
@@ -124,7 +124,7 @@
 #include <linux/unistd.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/capability.h>
@@ -189,7 +189,7 @@
 	pf(UDPSRC_RND)		/* UDP-Src Random */			\
 	pf(UDPDST_RND)		/* UDP-Dst Random */			\
 	pf(UDPCSUM)		/* Include UDP checksum */		\
-	pf(NO_TIMESTAMP)	/* Don't timestamp packets (default TS) */ \
+	pf(ANAL_TIMESTAMP)	/* Don't timestamp packets (default TS) */ \
 	pf(MPLS_RND)		/* Random MPLS labels */		\
 	pf(QUEUE_MAP_RND)	/* queue map Random */			\
 	pf(QUEUE_MAP_CPU)	/* queue map mirrors smp_processor_id() */ \
@@ -199,7 +199,7 @@
 	pf(MACDST_RND)		/* MAC-Dst Random */			\
 	pf(VID_RND)		/* Random VLAN ID */			\
 	pf(SVID_RND)		/* Random SVLAN ID */			\
-	pf(NODE)		/* Node memory alloc*/			\
+	pf(ANALDE)		/* Analde memory alloc*/			\
 	pf(SHARED)		/* Shared SKB */			\
 
 #define pf(flag)		flag##_SHIFT,
@@ -228,7 +228,7 @@ static char *pkt_flag_names[] = {
 #define T_REMDEV      (1<<3)	/* Remove one dev */
 
 /* Xmit modes */
-#define M_START_XMIT		0	/* Default normal TX */
+#define M_START_XMIT		0	/* Default analrmal TX */
 #define M_NETIF_RECEIVE 	1	/* Inject packets into stack */
 #define M_QUEUE_XMIT		2	/* Inject packet into qdisc */
 
@@ -284,13 +284,13 @@ struct pktgen_dev {
 	int max_pkt_size;
 	int pkt_overhead;	/* overhead for MPLS, VLANs, IPSEC etc */
 	int nfrags;
-	int removal_mark;	/* non-zero => the device is marked for
+	int removal_mark;	/* analn-zero => the device is marked for
 				 * removal by worker thread */
 
 	struct page *page;
-	u64 delay;		/* nano-seconds */
+	u64 delay;		/* naanal-seconds */
 
-	__u64 count;		/* Default No packets to send */
+	__u64 count;		/* Default Anal packets to send */
 	__u64 sofar;		/* How many pkts we've sent so far */
 	__u64 tx_bytes;		/* How many bytes we've transmitted */
 	__u64 errors;		/* Errors when trying to transmit, */
@@ -305,7 +305,7 @@ struct pktgen_dev {
 	ktime_t next_tx;
 	ktime_t started_at;
 	ktime_t stopped_at;
-	u64	idle_acc;	/* nano-seconds */
+	u64	idle_acc;	/* naanal-seconds */
 
 	__u32 seq_num;
 
@@ -360,17 +360,17 @@ struct pktgen_dev {
 	__u8 imix_distribution[IMIX_PRECISION];
 
 	/* MPLS */
-	unsigned int nr_labels;	/* Depth of stack, 0 = no MPLS */
+	unsigned int nr_labels;	/* Depth of stack, 0 = anal MPLS */
 	__be32 labels[MAX_MPLS_LABELS];
 
 	/* VLAN/SVLAN (802.1Q/Q-in-Q) */
 	__u8  vlan_p;
 	__u8  vlan_cfi;
-	__u16 vlan_id;  /* 0xffff means no vlan tag */
+	__u16 vlan_id;  /* 0xffff means anal vlan tag */
 
 	__u8  svlan_p;
 	__u8  svlan_cfi;
-	__u16 svlan_id; /* 0xffff means no svlan tag */
+	__u16 svlan_id; /* 0xffff means anal svlan tag */
 
 	__u32 src_mac_count;	/* How many MACs to iterate through */
 	__u32 dst_mac_count;	/* How many MACs to iterate through */
@@ -404,11 +404,11 @@ struct pktgen_dev {
 				 * are transmitting the same one multiple times
 				 */
 	struct net_device *odev; /* The out-going device.
-				  * Note that the device should have it's
+				  * Analte that the device should have it's
 				  * pg_info pointer pointing back to this
 				  * device.
 				  * Set when the user specifies the out-going
-				  * device name (not when the inject is
+				  * device name (analt when the inject is
 				  * started as it used to do.)
 				  */
 	netdevice_tracker dev_tracker;
@@ -423,7 +423,7 @@ struct pktgen_dev {
 	u16 queue_map_max;
 	__u32 skb_priority;	/* skb priority field */
 	unsigned int burst;	/* number of duplicated packets to burst */
-	int node;               /* Memory node */
+	int analde;               /* Memory analde */
 
 #ifdef CONFIG_XFRM
 	__u8	ipsmode;		/* IPSEC mode (config) */
@@ -481,7 +481,7 @@ static int pktgen_remove_device(struct pktgen_thread *t, struct pktgen_dev *i);
 static int pktgen_add_device(struct pktgen_thread *t, const char *ifname);
 static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t,
 					  const char *ifname, bool exact);
-static int pktgen_device_event(struct notifier_block *, unsigned long, void *);
+static int pktgen_device_event(struct analtifier_block *, unsigned long, void *);
 static void pktgen_run_all_threads(struct pktgen_net *pn);
 static void pktgen_reset_all_threads(struct pktgen_net *pn);
 static void pktgen_stop_all_threads(struct pktgen_net *pn);
@@ -498,8 +498,8 @@ static int debug  __read_mostly;
 
 static DEFINE_MUTEX(pktgen_thread_lock);
 
-static struct notifier_block pktgen_notifier_block = {
-	.notifier_call = pktgen_device_event,
+static struct analtifier_block pktgen_analtifier_block = {
+	.analtifier_call = pktgen_device_event,
 };
 
 /*
@@ -545,9 +545,9 @@ static ssize_t pgctrl_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int pgctrl_open(struct inode *inode, struct file *file)
+static int pgctrl_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, pgctrl_show, pde_data(inode));
+	return single_open(file, pgctrl_show, pde_data(ianalde));
 }
 
 static const struct proc_ops pktgen_proc_ops = {
@@ -659,8 +659,8 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 	if (pkt_dev->burst > 1)
 		seq_printf(seq, "     burst: %d\n", pkt_dev->burst);
 
-	if (pkt_dev->node >= 0)
-		seq_printf(seq, "     node: %d\n", pkt_dev->node);
+	if (pkt_dev->analde >= 0)
+		seq_printf(seq, "     analde: %d\n", pkt_dev->analde);
 
 	if (pkt_dev->xmit_mode == M_NETIF_RECEIVE)
 		seq_puts(seq, "     xmit_mode: netif_receive\n");
@@ -687,7 +687,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "\n");
 
-	/* not really stopped, more like last-running-at */
+	/* analt really stopped, more like last-running-at */
 	stopped = pkt_dev->running ? ktime_get() : pkt_dev->stopped_at;
 	idle = pkt_dev->idle_acc;
 	do_div(idle, NSEC_PER_USEC);
@@ -1192,13 +1192,13 @@ static ssize_t pktgen_if_write(struct file *file,
 		len = num_arg(&user_buffer[i], 10, &value);
 		if (len < 0)
 			return len;
-		/* clone_skb is not supported for netif_receive xmit_mode and
+		/* clone_skb is analt supported for netif_receive xmit_mode and
 		 * IMIX mode.
 		 */
 		if ((value > 0) &&
 		    ((pkt_dev->xmit_mode == M_NETIF_RECEIVE) ||
 		     !(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		if (value > 0 && (pkt_dev->n_imix_entries > 0 ||
 				  !(pkt_dev->flags & F_SHARED)))
 			return -EINVAL;
@@ -1258,7 +1258,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		    ((pkt_dev->xmit_mode == M_QUEUE_XMIT) ||
 		     ((pkt_dev->xmit_mode == M_START_XMIT) &&
 		     (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		if (value > 1 && !(pkt_dev->flags & F_SHARED))
 			return -EINVAL;
@@ -1267,23 +1267,23 @@ static ssize_t pktgen_if_write(struct file *file,
 		sprintf(pg_result, "OK: burst=%u", pkt_dev->burst);
 		return count;
 	}
-	if (!strcmp(name, "node")) {
+	if (!strcmp(name, "analde")) {
 		len = num_arg(&user_buffer[i], 10, &value);
 		if (len < 0)
 			return len;
 
 		i += len;
 
-		if (node_possible(value)) {
-			pkt_dev->node = value;
-			sprintf(pg_result, "OK: node=%d", pkt_dev->node);
+		if (analde_possible(value)) {
+			pkt_dev->analde = value;
+			sprintf(pg_result, "OK: analde=%d", pkt_dev->analde);
 			if (pkt_dev->page) {
 				put_page(pkt_dev->page);
 				pkt_dev->page = NULL;
 			}
 		}
 		else
-			sprintf(pg_result, "ERROR: node not possible");
+			sprintf(pg_result, "ERROR: analde analt possible");
 		return count;
 	}
 	if (!strcmp(name, "xmit_mode")) {
@@ -1301,9 +1301,9 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (strcmp(f, "start_xmit") == 0) {
 			pkt_dev->xmit_mode = M_START_XMIT;
 		} else if (strcmp(f, "netif_receive") == 0) {
-			/* clone_skb set earlier, not supported in this mode */
+			/* clone_skb set earlier, analt supported in this mode */
 			if (pkt_dev->clone_skb > 0)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			pkt_dev->xmit_mode = M_NETIF_RECEIVE;
 
@@ -1316,7 +1316,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->last_ok = 1;
 		} else {
 			sprintf(pg_result,
-				"xmit_mode -:%s:- unknown\nAvailable modes: %s",
+				"xmit_mode -:%s:- unkanalwn\nAvailable modes: %s",
 				f, "start_xmit, netif_receive\n");
 			return count;
 		}
@@ -1358,10 +1358,10 @@ static ssize_t pktgen_if_write(struct file *file,
 			return count;
 		}
 
-		/* Unknown flag */
+		/* Unkanalwn flag */
 		end = pkt_dev->result + sizeof(pkt_dev->result);
 		pg_result += sprintf(pg_result,
-			"Flag -:%s:- unknown\n"
+			"Flag -:%s:- unkanalwn\n"
 			"Available flags, (prepend ! to un-set flag):\n", f);
 
 		for (int n = 0; n < NR_PKT_FLAGS && pg_result < end; n++) {
@@ -1826,13 +1826,13 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 
-	sprintf(pkt_dev->result, "No such parameter \"%s\"", name);
+	sprintf(pkt_dev->result, "Anal such parameter \"%s\"", name);
 	return -EINVAL;
 }
 
-static int pktgen_if_open(struct inode *inode, struct file *file)
+static int pktgen_if_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, pktgen_if_show, pde_data(inode));
+	return single_open(file, pktgen_if_show, pde_data(ianalde));
 }
 
 static const struct proc_ops pktgen_if_proc_ops = {
@@ -1917,7 +1917,7 @@ static ssize_t pktgen_thread_write(struct file *file,
 		pr_debug("t=%s, count=%lu\n", name, (unsigned long)count);
 
 	if (!t) {
-		pr_err("ERROR: No thread\n");
+		pr_err("ERROR: Anal thread\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1942,7 +1942,7 @@ static ssize_t pktgen_thread_write(struct file *file,
 			ret = count;
 			sprintf(pg_result, "OK: add_device=%s", f);
 		} else
-			sprintf(pg_result, "ERROR: can not add device %s", f);
+			sprintf(pg_result, "ERROR: can analt add device %s", f);
 		goto out;
 	}
 
@@ -1957,7 +1957,7 @@ static ssize_t pktgen_thread_write(struct file *file,
 	}
 
 	if (!strcmp(name, "max_before_softirq")) {
-		sprintf(pg_result, "OK: Note! max_before_softirq is obsoleted -- Do not use");
+		sprintf(pg_result, "OK: Analte! max_before_softirq is obsoleted -- Do analt use");
 		ret = count;
 		goto out;
 	}
@@ -1967,9 +1967,9 @@ out:
 	return ret;
 }
 
-static int pktgen_thread_open(struct inode *inode, struct file *file)
+static int pktgen_thread_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, pktgen_thread_show, pde_data(inode));
+	return single_open(file, pktgen_thread_show, pde_data(ianalde));
 }
 
 static const struct proc_ops pktgen_thread_proc_ops = {
@@ -2066,16 +2066,16 @@ static void pktgen_change_name(const struct pktgen_net *pn, struct net_device *d
 	mutex_unlock(&pktgen_thread_lock);
 }
 
-static int pktgen_device_event(struct notifier_block *unused,
+static int pktgen_device_event(struct analtifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct pktgen_net *pn = net_generic(dev_net(dev), pg_net_id);
 
 	if (pn->pktgen_exiting)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	/* It is OK that we do not hold the group lock right now,
+	/* It is OK that we do analt hold the group lock right analw,
 	 * as we run under the RTNL lock.
 	 */
 
@@ -2089,7 +2089,7 @@ static int pktgen_device_event(struct notifier_block *unused,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static struct net_device *pktgen_dev_get_by_name(const struct pktgen_net *pn,
@@ -2127,12 +2127,12 @@ static int pktgen_setup_dev(const struct pktgen_net *pn,
 
 	odev = pktgen_dev_get_by_name(pn, pkt_dev, ifname);
 	if (!odev) {
-		pr_err("no such netdevice: \"%s\"\n", ifname);
-		return -ENODEV;
+		pr_err("anal such netdevice: \"%s\"\n", ifname);
+		return -EANALDEV;
 	}
 
 	if (odev->type != ARPHRD_ETHER && odev->type != ARPHRD_LOOPBACK) {
-		pr_err("not an ethernet or loopback device: \"%s\"\n", ifname);
+		pr_err("analt an ethernet or loopback device: \"%s\"\n", ifname);
 		err = -EINVAL;
 	} else if (!netif_running(odev)) {
 		pr_err("device is down: \"%s\"\n", ifname);
@@ -2161,7 +2161,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 		return;
 	}
 
-	/* make sure that we don't pick a non-existing transmit queue */
+	/* make sure that we don't pick a analn-existing transmit queue */
 	ntxq = pkt_dev->odev->real_num_tx_queues;
 
 	if (ntxq <= pkt_dev->queue_map_min) {
@@ -2177,7 +2177,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 		pkt_dev->queue_map_max = (ntxq ?: 1) - 1;
 	}
 
-	/* Default to the interface's mac if not explicitly set. */
+	/* Default to the interface's mac if analt explicitly set. */
 
 	if (is_zero_ether_addr(pkt_dev->src_mac))
 		ether_addr_copy(&(pkt_dev->hh[6]), pkt_dev->odev->dev_addr);
@@ -2228,7 +2228,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 			}
 			rcu_read_unlock();
 			if (err)
-				pr_err("ERROR: IPv6 link address not available\n");
+				pr_err("ERROR: IPv6 link address analt available\n");
 		}
 	} else {
 		if (pkt_dev->min_pkt_size == 0) {
@@ -2285,7 +2285,7 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	s64 remaining;
 	struct hrtimer_sleeper t;
 
-	hrtimer_init_sleeper_on_stack(&t, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init_sleeper_on_stack(&t, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	hrtimer_set_expires(&t.timer, spin_until);
 
 	remaining = ktime_to_ns(hrtimer_expires_remaining(&t.timer));
@@ -2629,7 +2629,7 @@ static void fill_imix_distribution(struct pktgen_dev *pkt_dev)
 	for (i = 0; i < pkt_dev->n_imix_entries; i++)
 		total_weight += pkt_dev->imix_entries[i].weight;
 
-	/* Fill cumulative_probabilites with sum of normalized probabilities */
+	/* Fill cumulative_probabilites with sum of analrmalized probabilities */
 	for (i = 0; i < pkt_dev->n_imix_entries - 1; i++) {
 		cumulative_prob += div64_u64(pkt_dev->imix_entries[i].weight *
 						     IMIX_PRECISION,
@@ -2659,7 +2659,7 @@ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 
 	if (!x)
 		return 0;
-	/* XXX: we dont support tunnel mode for now until
+	/* XXX: we dont support tunnel mode for analw until
 	 * we resolve the dst issue */
 	if ((x->props.mode != XFRM_MODE_TRANSPORT) && (pkt_dev->spi == 0))
 		return 0;
@@ -2668,7 +2668,7 @@ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 	 * supports both transport/tunnel mode + ESP/AH type.
 	 */
 	if ((x->props.mode == XFRM_MODE_TUNNEL) && (pkt_dev->spi != 0))
-		skb->_skb_refdst = (unsigned long)&pkt_dev->xdst.u.dst | SKB_DST_NOREF;
+		skb->_skb_refdst = (unsigned long)&pkt_dev->xdst.u.dst | SKB_DST_ANALREF;
 
 	rcu_read_lock_bh();
 	err = pktgen_xfrm_outer_mode_output(x, skb);
@@ -2726,7 +2726,7 @@ static int process_ipsec(struct pktgen_dev *pkt_dev,
 				}
 			}
 
-			/* ipsec is not expecting ll header */
+			/* ipsec is analt expecting ll header */
 			skb_pull(skb, ETH_HLEN);
 			ret = pktgen_output_ipsec(skb, pkt_dev);
 			if (ret) {
@@ -2797,11 +2797,11 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 			   (datalen/frags) : PAGE_SIZE;
 		while (datalen > 0) {
 			if (unlikely(!pkt_dev->page)) {
-				int node = numa_node_id();
+				int analde = numa_analde_id();
 
-				if (pkt_dev->node >= 0 && (pkt_dev->flags & F_NODE))
-					node = pkt_dev->node;
-				pkt_dev->page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
+				if (pkt_dev->analde >= 0 && (pkt_dev->flags & F_ANALDE))
+					analde = pkt_dev->analde;
+				pkt_dev->page = alloc_pages_analde(analde, GFP_KERNEL | __GFP_ZERO, 0);
 				if (!pkt_dev->page)
 					break;
 			}
@@ -2831,7 +2831,7 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 	pgh->pgh_magic = htonl(PKTGEN_MAGIC);
 	pgh->seq_num = htonl(pkt_dev->seq_num);
 
-	if (pkt_dev->flags & F_NO_TIMESTAMP) {
+	if (pkt_dev->flags & F_ANAL_TIMESTAMP) {
 		pgh->tv_sec = 0;
 		pgh->tv_usec = 0;
 	} else {
@@ -2839,7 +2839,7 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 		 * pgh->tv_sec wraps in y2106 when interpreted as unsigned
 		 * as done by wireshark, or y2038 when interpreted as signed.
 		 * This is probably harmless, but if anyone wants to improve
-		 * it, we could introduce a variant that puts 64-bit nanoseconds
+		 * it, we could introduce a variant that puts 64-bit naanalseconds
 		 * into the respective header bytes.
 		 * This would also be slightly faster to read.
 		 */
@@ -2857,16 +2857,16 @@ static struct sk_buff *pktgen_alloc_skb(struct net_device *dev,
 	unsigned int size;
 
 	size = pkt_dev->cur_pkt_size + 64 + extralen + pkt_dev->pkt_overhead;
-	if (pkt_dev->flags & F_NODE) {
-		int node = pkt_dev->node >= 0 ? pkt_dev->node : numa_node_id();
+	if (pkt_dev->flags & F_ANALDE) {
+		int analde = pkt_dev->analde >= 0 ? pkt_dev->analde : numa_analde_id();
 
-		skb = __alloc_skb(NET_SKB_PAD + size, GFP_NOWAIT, 0, node);
+		skb = __alloc_skb(NET_SKB_PAD + size, GFP_ANALWAIT, 0, analde);
 		if (likely(skb)) {
 			skb_reserve(skb, NET_SKB_PAD);
 			skb->dev = dev;
 		}
 	} else {
-		 skb = __netdev_alloc_skb(dev, size, GFP_NOWAIT);
+		 skb = __netdev_alloc_skb(dev, size, GFP_ANALWAIT);
 	}
 
 	/* the caller pre-fetches from skb->data and reserves for the mac hdr */
@@ -2906,7 +2906,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 
 	skb = pktgen_alloc_skb(odev, pkt_dev);
 	if (!skb) {
-		sprintf(pkt_dev->result, "No memory");
+		sprintf(pkt_dev->result, "Anal memory");
 		return NULL;
 	}
 
@@ -2980,7 +2980,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	pktgen_finalize_skb(pkt_dev, skb, datalen);
 
 	if (!(pkt_dev->flags & F_UDPCSUM)) {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 	} else if (odev->features & (NETIF_F_HW_CSUM | NETIF_F_IP_CSUM)) {
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;
@@ -3034,7 +3034,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 
 	skb = pktgen_alloc_skb(odev, pkt_dev);
 	if (!skb) {
-		sprintf(pkt_dev->result, "No memory");
+		sprintf(pkt_dev->result, "Anal memory");
 		return NULL;
 	}
 
@@ -3115,7 +3115,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	pktgen_finalize_skb(pkt_dev, skb, datalen);
 
 	if (!(pkt_dev->flags & F_UDPCSUM)) {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 	} else if (odev->features & (NETIF_F_HW_CSUM | NETIF_F_IPV6_CSUM)) {
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum_start = skb_transport_header(skb) - skb->head;
@@ -3177,7 +3177,7 @@ static void pktgen_run(struct pktgen_thread *t)
 			set_pkt_overhead(pkt_dev);
 
 			strcpy(pkt_dev->result, "Starting");
-			pkt_dev->running = 1;	/* Cranke yeself! */
+			pkt_dev->running = 1;	/* Cranke analelf! */
 			started++;
 		} else
 			strcpy(pkt_dev->result, "Error starting");
@@ -3224,7 +3224,7 @@ static int pktgen_wait_thread_run(struct pktgen_thread *t)
 {
 	while (thread_is_running(t)) {
 
-		/* note: 't' will still be around even after the unlock/lock
+		/* analte: 't' will still be around even after the unlock/lock
 		 * cycle because pktgen_thread threads are only cleared at
 		 * net exit
 		 */
@@ -3493,7 +3493,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		return;
 	}
 
-	/* If no skb or clone count exhausted then get new one */
+	/* If anal skb or clone count exhausted then get new one */
 	if (!pkt_dev->skb || (pkt_dev->last_ok &&
 			      ++pkt_dev->clone_count >= clone_skb)) {
 		/* build a new pkt */
@@ -3531,7 +3531,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 			}
 			if (refcount_read(&skb->users) != burst) {
 				/* skb was queued by rps/rfs or taps,
-				 * so cannot reuse this skb
+				 * so cananalt reuse this skb
 				 */
 				WARN_ON(refcount_sub_and_test(burst - 1, &skb->users));
 				/* get out of the loop and wait
@@ -3569,7 +3569,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		 */
 		case NETDEV_TX_BUSY:
 		/* qdisc may call dev_hard_start_xmit directly in cases
-		 * where no queues exist e.g. loopback device, virtual
+		 * where anal queues exist e.g. loopback device, virtual
 		 * devices, etc. In this case we need to handle
 		 * NETDEV_TX_ codes.
 		 */
@@ -3615,7 +3615,7 @@ xmit_more:
 		/* skb has been consumed */
 		pkt_dev->errors++;
 		break;
-	default: /* Drivers are not supposed to return other values! */
+	default: /* Drivers are analt supposed to return other values! */
 		net_info_ratelimited("%s xmit error: %d\n",
 				     pkt_dev->odevname, ret);
 		pkt_dev->errors++;
@@ -3749,9 +3749,9 @@ static int add_dev_to_thread(struct pktgen_thread *t,
 {
 	int rv = 0;
 
-	/* This function cannot be called concurrently, as its called
+	/* This function cananalt be called concurrently, as its called
 	 * under pktgen_thread_lock mutex, but it can run from
-	 * userspace on another CPU than the kthread.  The if_lock()
+	 * userspace on aanalther CPU than the kthread.  The if_lock()
 	 * is used here to sync with concurrent instances of
 	 * _rem_dev_from_if_list() invoked via kthread, which is also
 	 * updating the if_list */
@@ -3778,7 +3778,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 {
 	struct pktgen_dev *pkt_dev;
 	int err;
-	int node = cpu_to_node(t->cpu);
+	int analde = cpu_to_analde(t->cpu);
 
 	/* We don't allow a device to be on several threads */
 
@@ -3788,17 +3788,17 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 		return -EBUSY;
 	}
 
-	pkt_dev = kzalloc_node(sizeof(struct pktgen_dev), GFP_KERNEL, node);
+	pkt_dev = kzalloc_analde(sizeof(struct pktgen_dev), GFP_KERNEL, analde);
 	if (!pkt_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(pkt_dev->odevname, ifname);
-	pkt_dev->flows = vzalloc_node(array_size(MAX_CFLOWS,
+	pkt_dev->flows = vzalloc_analde(array_size(MAX_CFLOWS,
 						 sizeof(struct flow_state)),
-				      node);
+				      analde);
 	if (pkt_dev->flows == NULL) {
 		kfree(pkt_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pkt_dev->removal_mark = 0;
@@ -3817,7 +3817,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->svlan_cfi = 0;
 	pkt_dev->svlan_id = 0xffff;
 	pkt_dev->burst = 1;
-	pkt_dev->node = NUMA_NO_NODE;
+	pkt_dev->analde = NUMA_ANAL_ANALDE;
 	pkt_dev->flags = F_SHARED;	/* SKB shared by default */
 
 	err = pktgen_setup_dev(t->net, pkt_dev, ifname);
@@ -3829,7 +3829,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->entry = proc_create_data(ifname, 0600, t->net->proc_dir,
 					  &pktgen_if_proc_ops, pkt_dev);
 	if (!pkt_dev->entry) {
-		pr_err("cannot create %s/%s procfs entry\n",
+		pr_err("cananalt create %s/%s procfs entry\n",
 		       PG_PROC_DIR, ifname);
 		err = -EINVAL;
 		goto out2;
@@ -3868,11 +3868,11 @@ static int __net_init pktgen_create_thread(int cpu, struct pktgen_net *pn)
 	struct proc_dir_entry *pe;
 	struct task_struct *p;
 
-	t = kzalloc_node(sizeof(struct pktgen_thread), GFP_KERNEL,
-			 cpu_to_node(cpu));
+	t = kzalloc_analde(sizeof(struct pktgen_thread), GFP_KERNEL,
+			 cpu_to_analde(cpu));
 	if (!t) {
 		pr_err("ERROR: out of memory, can't create new thread\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&t->if_lock);
@@ -3883,12 +3883,12 @@ static int __net_init pktgen_create_thread(int cpu, struct pktgen_net *pn)
 	list_add_tail(&t->th_list, &pn->pktgen_threads);
 	init_completion(&t->start_done);
 
-	p = kthread_create_on_node(pktgen_thread_worker,
+	p = kthread_create_on_analde(pktgen_thread_worker,
 				   t,
-				   cpu_to_node(cpu),
+				   cpu_to_analde(cpu),
 				   "kpktgend_%d", cpu);
 	if (IS_ERR(p)) {
-		pr_err("kthread_create_on_node() failed for cpu %d\n", t->cpu);
+		pr_err("kthread_create_on_analde() failed for cpu %d\n", t->cpu);
 		list_del(&t->th_list);
 		kfree(t);
 		return PTR_ERR(p);
@@ -3899,7 +3899,7 @@ static int __net_init pktgen_create_thread(int cpu, struct pktgen_net *pn)
 	pe = proc_create_data(t->tsk->comm, 0600, pn->proc_dir,
 			      &pktgen_thread_proc_ops, t);
 	if (!pe) {
-		pr_err("cannot create %s/%s procfs entry\n",
+		pr_err("cananalt create %s/%s procfs entry\n",
 		       PG_PROC_DIR, t->tsk->comm);
 		kthread_stop(p);
 		list_del(&t->th_list);
@@ -3939,7 +3939,7 @@ static int pktgen_remove_device(struct pktgen_thread *t,
 	pr_debug("remove_device pkt_dev=%p\n", pkt_dev);
 
 	if (pkt_dev->running) {
-		pr_warn("WARNING: trying to remove a running interface, stopping it now\n");
+		pr_warn("WARNING: trying to remove a running interface, stopping it analw\n");
 		pktgen_stop_device(pkt_dev);
 	}
 
@@ -3979,12 +3979,12 @@ static int __net_init pg_net_init(struct net *net)
 	pn->pktgen_exiting = false;
 	pn->proc_dir = proc_mkdir(PG_PROC_DIR, pn->net->proc_net);
 	if (!pn->proc_dir) {
-		pr_warn("cannot create /proc/net/%s\n", PG_PROC_DIR);
-		return -ENODEV;
+		pr_warn("cananalt create /proc/net/%s\n", PG_PROC_DIR);
+		return -EANALDEV;
 	}
 	pe = proc_create(PGCTRL, 0600, pn->proc_dir, &pktgen_proc_ops);
 	if (pe == NULL) {
-		pr_err("cannot create %s procfs entry\n", PGCTRL);
+		pr_err("cananalt create %s procfs entry\n", PGCTRL);
 		ret = -EINVAL;
 		goto remove;
 	}
@@ -3994,13 +3994,13 @@ static int __net_init pg_net_init(struct net *net)
 
 		err = pktgen_create_thread(cpu, pn);
 		if (err)
-			pr_warn("Cannot create thread for cpu %d (%d)\n",
+			pr_warn("Cananalt create thread for cpu %d (%d)\n",
 				   cpu, err);
 	}
 
 	if (list_empty(&pn->pktgen_threads)) {
 		pr_err("Initialization failed for all threads\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto remove_entry;
 	}
 
@@ -4053,7 +4053,7 @@ static int __init pg_init(void)
 	ret = register_pernet_subsys(&pg_net_ops);
 	if (ret)
 		return ret;
-	ret = register_netdevice_notifier(&pktgen_notifier_block);
+	ret = register_netdevice_analtifier(&pktgen_analtifier_block);
 	if (ret)
 		unregister_pernet_subsys(&pg_net_ops);
 
@@ -4062,7 +4062,7 @@ static int __init pg_init(void)
 
 static void __exit pg_cleanup(void)
 {
-	unregister_netdevice_notifier(&pktgen_notifier_block);
+	unregister_netdevice_analtifier(&pktgen_analtifier_block);
 	unregister_pernet_subsys(&pg_net_ops);
 	/* Don't need rcu_barrier() due to use of kfree_rcu() */
 }
@@ -4077,7 +4077,7 @@ MODULE_VERSION(VERSION);
 module_param(pg_count_d, int, 0);
 MODULE_PARM_DESC(pg_count_d, "Default number of packets to inject");
 module_param(pg_delay_d, int, 0);
-MODULE_PARM_DESC(pg_delay_d, "Default delay between packets (nanoseconds)");
+MODULE_PARM_DESC(pg_delay_d, "Default delay between packets (naanalseconds)");
 module_param(pg_clone_skb_d, int, 0);
 MODULE_PARM_DESC(pg_clone_skb_d, "Default number of copies of the same packet");
 module_param(debug, int, 0);

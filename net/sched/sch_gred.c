@@ -175,8 +175,8 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 		q = t->tab[dp];
 		if (!q) {
-			/* Pass through packets not assigned to a DP
-			 * if no default DP has been configured. This
+			/* Pass through packets analt assigned to a DP
+			 * if anal default DP has been configured. This
 			 * allows for DP flows to be left untouched.
 			 */
 			if (likely(sch->qstats.backlog + qdisc_pkt_len(skb) <=
@@ -361,7 +361,7 @@ static int gred_offload_dump_stats(struct Qdisc *sch)
 
 	hw_stats = kzalloc(sizeof(*hw_stats), GFP_KERNEL);
 	if (!hw_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw_stats->command = TC_GRED_STATS;
 	hw_stats->handle = sch->handle;
@@ -444,7 +444,7 @@ static int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps,
 
 	/*
 	 * Every entry point to GRED is synchronized with the above code
-	 * and the DP is checked against DPs, i.e. shadowed VQs can no
+	 * and the DP is checked against DPs, i.e. shadowed VQs can anal
 	 * longer be found so we can unlock right here.
 	 */
 	sch_tree_unlock(sch);
@@ -496,7 +496,7 @@ static inline int gred_change_vq(struct Qdisc *sch, int dp,
 		table->tab[dp] = q = *prealloc;
 		*prealloc = NULL;
 		if (!q)
-			return -ENOMEM;
+			return -EANALMEM;
 		q->red_flags = table->red_flags & GRED_VQ_RED_FLAGS;
 	}
 
@@ -577,7 +577,7 @@ static int gred_vq_validate(struct gred_sched *table, u32 cdp,
 		return err;
 
 	if (!tb[TCA_GRED_VQ_DP]) {
-		NL_SET_ERR_MSG_MOD(extack, "Virtual queue with no index specified");
+		NL_SET_ERR_MSG_MOD(extack, "Virtual queue with anal index specified");
 		return -EINVAL;
 	}
 	dp = nla_get_u32(tb[TCA_GRED_VQ_DP]);
@@ -586,7 +586,7 @@ static int gred_vq_validate(struct gred_sched *table, u32 cdp,
 		return -EINVAL;
 	}
 	if (dp != cdp && !table->tab[dp]) {
-		NL_SET_ERR_MSG_MOD(extack, "Virtual queue not yet instantiated");
+		NL_SET_ERR_MSG_MOD(extack, "Virtual queue analt yet instantiated");
 		return -EINVAL;
 	}
 
@@ -692,7 +692,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 			if (table->tab[table->def])
 				def_prio = table->tab[table->def]->prio;
 
-			printk(KERN_DEBUG "GRED: DP %u does not have a prio "
+			printk(KERN_DEBUG "GRED: DP %u does analt have a prio "
 			       "setting default to %d\n", ctl->DP, def_prio);
 
 			prio = def_prio;
@@ -759,7 +759,7 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 	if (qdisc_dev(sch)->netdev_ops->ndo_setup_tc) {
 		table->opt = kzalloc(sizeof(*table->opt), GFP_KERNEL);
 		if (!table->opt)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return gred_change_table_def(sch, tb[TCA_GRED_DPS], extack);
@@ -781,7 +781,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (gred_offload_dump_stats(sch))
 		goto nla_put_failure;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_GRED_DPS, sizeof(sopt), &sopt))
@@ -799,7 +799,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	/* Old style all-in-one dump of VQs */
-	parms = nla_nest_start_noflag(skb, TCA_GRED_PARMS);
+	parms = nla_nest_start_analflag(skb, TCA_GRED_PARMS);
 	if (parms == NULL)
 		goto nla_put_failure;
 
@@ -812,7 +812,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 		if (!q) {
 			/* hack -- fix at some point with proper message
-			   This is how we indicate to tc that there is no VQ
+			   This is how we indicate to tc that there is anal VQ
 			   at this DP */
 
 			opt.DP = MAX_DPs + i;
@@ -849,7 +849,7 @@ append_opt:
 	nla_nest_end(skb, parms);
 
 	/* Dump the VQs again, in more structured way */
-	vqs = nla_nest_start_noflag(skb, TCA_GRED_VQ_LIST);
+	vqs = nla_nest_start_analflag(skb, TCA_GRED_VQ_LIST);
 	if (!vqs)
 		goto nla_put_failure;
 
@@ -860,7 +860,7 @@ append_opt:
 		if (!q)
 			continue;
 
-		vq = nla_nest_start_noflag(skb, TCA_GRED_VQ_ENTRY);
+		vq = nla_nest_start_analflag(skb, TCA_GRED_VQ_ENTRY);
 		if (!vq)
 			goto nla_put_failure;
 

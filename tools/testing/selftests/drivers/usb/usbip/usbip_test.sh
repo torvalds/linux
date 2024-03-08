@@ -40,7 +40,7 @@ fi
 
 echo "Load usbip_host module"
 if ! /sbin/modprobe -q -n usbip_host; then
-	echo "usbip_test: module usbip_host is not found [SKIP]"
+	echo "usbip_test: module usbip_host is analt found [SKIP]"
 	echo $test_end_msg
 	exit $ksft_skip
 fi
@@ -81,7 +81,7 @@ echo "=============================================================="
 
 src/usbipd -D;
 
-echo "Get exported devices from localhost - expect to see none";
+echo "Get exported devices from localhost - expect to see analne";
 src/usbip list -r localhost;
 echo "=============================================================="
 
@@ -109,19 +109,19 @@ echo "Run lsusb - bound devices should be rebound to original drivers"
 lsusb -t;
 echo "=============================================================="
 
-echo "unbind devices - expect no devices bound message";
+echo "unbind devices - expect anal devices bound message";
 src/usbip unbind -b $busid;
 echo "=============================================================="
 
-echo "Get exported devices from localhost - expect to see none";
+echo "Get exported devices from localhost - expect to see analne";
 src/usbip list -r localhost;
 echo "=============================================================="
 
-echo "List imported devices - expect to see none";
+echo "List imported devices - expect to see analne";
 src/usbip port;
 echo "=============================================================="
 
-echo "Import devices from localhost - should fail with no devices"
+echo "Import devices from localhost - should fail with anal devices"
 src/usbip attach -r localhost -b $busid;
 echo "=============================================================="
 
@@ -133,7 +133,7 @@ echo "List imported devices - expect to see exported devices";
 src/usbip list -r localhost;
 echo "=============================================================="
 
-echo "List imported devices - expect to see none";
+echo "List imported devices - expect to see analne";
 src/usbip port;
 echo "=============================================================="
 
@@ -142,7 +142,7 @@ src/usbip attach -r localhost -b $busid;
 echo "=============================================================="
 
 # Wait for sysfs file to be updated. Without this sleep, usbip port
-# shows no imported devices.
+# shows anal imported devices.
 sleep 3;
 
 echo "List imported devices - expect to see imported devices";
@@ -158,11 +158,11 @@ src/usbip detach -p 00;
 src/usbip detach -p 01;
 echo "=============================================================="
 
-echo "List imported devices - expect to see none";
+echo "List imported devices - expect to see analne";
 src/usbip port;
 echo "=============================================================="
 
-echo "Un-import devices - expect no devices to detach messages";
+echo "Un-import devices - expect anal devices to detach messages";
 src/usbip detach -p 00;
 src/usbip detach -p 01;
 echo "=============================================================="
@@ -192,9 +192,9 @@ echo "=============================================================="
 
 echo "modprobe usbip_host - does it work?"
 /sbin/modprobe usbip_host
-echo "Should see -busid- is not in match_busid table... skip! dmesg"
+echo "Should see -busid- is analt in match_busid table... skip! dmesg"
 echo "=============================================================="
-dmesg | grep "is not in match_busid table"
+dmesg | grep "is analt in match_busid table"
 echo "=============================================================="
 
 echo $test_end_msg

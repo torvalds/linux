@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 #define PP_MAX_CLOCK_LEVELS 16
 
 enum amd_pp_display_config_type{
-	AMD_PP_DisplayConfigType_None = 0,
+	AMD_PP_DisplayConfigType_Analne = 0,
 	AMD_PP_DisplayConfigType_DP54 ,
 	AMD_PP_DisplayConfigType_DP432 ,
 	AMD_PP_DisplayConfigType_DP324 ,
@@ -77,7 +77,7 @@ struct amd_pp_display_configuration {
 	uint32_t cpu_pstate_separation_time;
 
 	uint32_t num_display;  /* total number of display*/
-	uint32_t num_path_including_non_display;
+	uint32_t num_path_including_analn_display;
 	uint32_t crossfire_display_index;
 	uint32_t min_mem_set_clock;
 	uint32_t min_core_set_clock;
@@ -103,7 +103,7 @@ struct amd_pp_display_configuration {
 	/*
 	 * for given display configuration if multimonitormnsync == false then
 	 * Memory clock DPMS with this latency or below is allowed, DPMS with
-	 * higher latency not allowed.
+	 * higher latency analt allowed.
 	 */
 	uint32_t dce_tolerable_mclk_in_active_latency;
 	uint32_t min_dcef_set_clk;
@@ -120,12 +120,12 @@ enum PP_DAL_POWERLEVEL {
 	PP_DAL_POWERLEVEL_INVALID = 0,
 	PP_DAL_POWERLEVEL_ULTRALOW,
 	PP_DAL_POWERLEVEL_LOW,
-	PP_DAL_POWERLEVEL_NOMINAL,
+	PP_DAL_POWERLEVEL_ANALMINAL,
 	PP_DAL_POWERLEVEL_PERFORMANCE,
 
 	PP_DAL_POWERLEVEL_0 = PP_DAL_POWERLEVEL_ULTRALOW,
 	PP_DAL_POWERLEVEL_1 = PP_DAL_POWERLEVEL_LOW,
-	PP_DAL_POWERLEVEL_2 = PP_DAL_POWERLEVEL_NOMINAL,
+	PP_DAL_POWERLEVEL_2 = PP_DAL_POWERLEVEL_ANALMINAL,
 	PP_DAL_POWERLEVEL_3 = PP_DAL_POWERLEVEL_PERFORMANCE,
 	PP_DAL_POWERLEVEL_4 = PP_DAL_POWERLEVEL_3+1,
 	PP_DAL_POWERLEVEL_5 = PP_DAL_POWERLEVEL_4+1,

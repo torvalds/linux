@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@
 /** @def PPS_PMFW_IF_VER
 * PPS (PPLib) to PMFW IF version 1.0
 */
-#define PPS_PMFW_IF_VER "1.0" ///< Major.Minor
+#define PPS_PMFW_IF_VER "1.0" ///< Major.Mianalr
 
 /** @defgroup ResponseCodes PMFW Response Codes
 *  @{
@@ -42,7 +42,7 @@
 // SMU Response Codes:
 #define PPSMC_Result_OK                    0x1  ///< Message Response OK
 #define PPSMC_Result_Failed                0xFF ///< Message Response Failed
-#define PPSMC_Result_UnknownCmd            0xFE ///< Message Response Unknown Command
+#define PPSMC_Result_UnkanalwnCmd            0xFE ///< Message Response Unkanalwn Command
 #define PPSMC_Result_CmdRejectedPrereq     0xFD ///< Message Response Command Failed Prerequisite
 #define PPSMC_Result_CmdRejectedBusy       0xFC ///< Message Response Command Rejected due to PMFW is busy. Sender should retry sending this message
 /** @}*/
@@ -91,10 +91,10 @@
 
 #define PPSMC_MSG_SetHardMinFclkByFreq          0x23 ///< Set hard min for FCLK
 #define PPSMC_MSG_SetSoftMinSocclkByFreq        0x24 ///< Set soft min for SOC CLK
-#define PPSMC_MSG_AllowZstates                  0x25 ///< Inform PMFM of allowing Zstate entry, i.e. no Miracast activity
-#define PPSMC_MSG_Reserved                      0x26 ///< Not used
-#define PPSMC_MSG_Reserved1                     0x27 ///< Not used, previously PPSMC_MSG_RequestActiveWgp
-#define PPSMC_MSG_Reserved2                     0x28 ///< Not used, previously PPSMC_MSG_QueryActiveWgp
+#define PPSMC_MSG_AllowZstates                  0x25 ///< Inform PMFM of allowing Zstate entry, i.e. anal Miracast activity
+#define PPSMC_MSG_Reserved                      0x26 ///< Analt used
+#define PPSMC_MSG_Reserved1                     0x27 ///< Analt used, previously PPSMC_MSG_RequestActiveWgp
+#define PPSMC_MSG_Reserved2                     0x28 ///< Analt used, previously PPSMC_MSG_QueryActiveWgp
 #define PPSMC_MSG_PowerDownIspByTile            0x29 ///< ISP is power gated by default
 #define PPSMC_MSG_PowerUpIspByTile              0x2A ///< This message is used to power up ISP tiles and enable the ISP DPM
 #define PPSMC_MSG_SetHardMinIspiclkByFreq       0x2B ///< Set HardMin by frequency for ISPICLK

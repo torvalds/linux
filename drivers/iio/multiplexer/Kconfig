@@ -10,7 +10,7 @@ config IIO_MUX
 	tristate "IIO multiplexer driver"
 	select MULTIPLEXER
 	help
-	  Say yes here to build support for the IIO multiplexer.
+	  Say anal here to build support for the IIO multiplexer.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called iio-mux.

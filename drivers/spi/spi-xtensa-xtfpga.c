@@ -85,12 +85,12 @@ static int xtfpga_spi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(struct xtfpga_spi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	host->flags = SPI_CONTROLLER_NO_RX;
+	host->flags = SPI_CONTROLLER_ANAL_RX;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
 	host->bus_num = pdev->dev.id;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 
 	xspi = spi_controller_get_devdata(host);
 	xspi->bitbang.master = host;

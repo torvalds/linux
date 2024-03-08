@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Framework for buffer objects that can be shared across devices/subsystems.
  *
@@ -14,7 +14,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * this program.  If analt, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _DMA_BUF_UAPI_H_
@@ -25,7 +25,7 @@
 /**
  * struct dma_buf_sync - Synchronize with CPU access.
  *
- * When a DMA buffer is accessed from the CPU via mmap, it is not always
+ * When a DMA buffer is accessed from the CPU via mmap, it is analt always
  * possible to guarantee coherency between the CPU-visible map and underlying
  * memory.  To manage coherency, DMA_BUF_IOCTL_SYNC must be used to bracket
  * any CPU access to give the kernel the chance to shuffle memory around if
@@ -37,12 +37,12 @@
  * DMA_BUF_SYNC_END and the same read/write flags.
  *
  * The synchronization provided via DMA_BUF_IOCTL_SYNC only provides cache
- * coherency.  It does not prevent other processes or devices from
+ * coherency.  It does analt prevent other processes or devices from
  * accessing the memory at the same time.  If synchronization with a GPU or
  * other device driver is required, it is the client's responsibility to
  * wait for buffer to be ready for reading or writing before calling this
  * ioctl with DMA_BUF_SYNC_START.  Likewise, the client must ensure that
- * follow-up work is not submitted to GPU or other device driver until
+ * follow-up work is analt submitted to GPU or other device driver until
  * after this ioctl has been called with DMA_BUF_SYNC_END?
  *
  * If the driver or API with which the client is interacting uses implicit
@@ -103,16 +103,16 @@ struct dma_buf_sync {
  *     via DMA_BUF_IOCTL_EXPORT_SYNC_FILE.
  *
  *  2. Submit rendering work which uses the dma-buf.  The work should wait on
- *     the exported sync file before rendering and produce another sync_file
+ *     the exported sync file before rendering and produce aanalther sync_file
  *     when complete.
  *
  *  3. Import the rendering-complete sync_file into the dma-buf with flags
  *     corresponding to the GPU usage via DMA_BUF_IOCTL_IMPORT_SYNC_FILE.
  *
  * Unlike doing implicit synchronization via a GPU kernel driver's exec ioctl,
- * the above is not a single atomic operation.  If userspace wants to ensure
- * ordering via these fences, it is the respnosibility of userspace to use
- * locks or other mechanisms to ensure that no other context adds fences or
+ * the above is analt a single atomic operation.  If userspace wants to ensure
+ * ordering via these fences, it is the respanalsibility of userspace to use
+ * locks or other mechanisms to ensure that anal other context adds fences or
  * submits work between steps 1 and 3 above.
  */
 struct dma_buf_export_sync_file {
@@ -121,7 +121,7 @@ struct dma_buf_export_sync_file {
 	 *
 	 * Must be DMA_BUF_SYNC_READ, DMA_BUF_SYNC_WRITE, or both.
 	 *
-	 * If DMA_BUF_SYNC_READ is set and DMA_BUF_SYNC_WRITE is not set,
+	 * If DMA_BUF_SYNC_READ is set and DMA_BUF_SYNC_WRITE is analt set,
 	 * the returned sync file waits on any writers of the dma-buf to
 	 * complete.  Waiting on the returned sync file is equivalent to
 	 * poll() with POLLIN.
@@ -153,10 +153,10 @@ struct dma_buf_import_sync_file {
 	 *
 	 * Must be DMA_BUF_SYNC_READ, DMA_BUF_SYNC_WRITE, or both.
 	 *
-	 * If DMA_BUF_SYNC_READ is set and DMA_BUF_SYNC_WRITE is not set,
+	 * If DMA_BUF_SYNC_READ is set and DMA_BUF_SYNC_WRITE is analt set,
 	 * this inserts the sync_file as a read-only fence.  Any subsequent
 	 * implicitly synchronized writes to this dma-buf will wait on this
-	 * fence but reads will not.
+	 * fence but reads will analt.
 	 *
 	 * If DMA_BUF_SYNC_WRITE is set, this inserts the sync_file as a
 	 * write fence.  All subsequent implicitly synchronized access to
@@ -170,7 +170,7 @@ struct dma_buf_import_sync_file {
 #define DMA_BUF_BASE		'b'
 #define DMA_BUF_IOCTL_SYNC	_IOW(DMA_BUF_BASE, 0, struct dma_buf_sync)
 
-/* 32/64bitness of this uapi was botched in android, there's no difference
+/* 32/64bitness of this uapi was botched in android, there's anal difference
  * between them in actual uapi, they're just different numbers.
  */
 #define DMA_BUF_SET_NAME	_IOW(DMA_BUF_BASE, 1, const char *)

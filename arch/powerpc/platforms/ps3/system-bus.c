@@ -182,10 +182,10 @@ int ps3_open_hv_device(struct ps3_system_bus_device *dev)
 		break;
 	}
 
-	pr_debug("%s:%d: unknown match_id: %u\n", __func__, __LINE__,
+	pr_debug("%s:%d: unkanalwn match_id: %u\n", __func__, __LINE__,
 		dev->match_id);
 	BUG();
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(ps3_open_hv_device);
 
@@ -220,10 +220,10 @@ int ps3_close_hv_device(struct ps3_system_bus_device *dev)
 		break;
 	}
 
-	pr_debug("%s:%d: unknown match_id: %u\n", __func__, __LINE__,
+	pr_debug("%s:%d: unkanalwn match_id: %u\n", __func__, __LINE__,
 		dev->match_id);
 	BUG();
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(ps3_close_hv_device);
 
@@ -259,7 +259,7 @@ static int ps3_sb_mmio_region_create(struct ps3_mmio_region *r)
 
 static int ps3_ioc0_mmio_region_create(struct ps3_mmio_region *r)
 {
-	/* device specific; do nothing currently */
+	/* device specific; do analthing currently */
 	return 0;
 }
 
@@ -287,7 +287,7 @@ static int ps3_sb_free_mmio_region(struct ps3_mmio_region *r)
 
 static int ps3_ioc0_free_mmio_region(struct ps3_mmio_region *r)
 {
-	/* device specific; do nothing currently */
+	/* device specific; do analthing currently */
 	return 0;
 }
 
@@ -374,7 +374,7 @@ static int ps3_system_bus_probe(struct device *_dev)
 	if (drv->probe)
 		result = drv->probe(dev);
 	else
-		pr_debug("%s:%d: %s no probe method\n", __func__, __LINE__,
+		pr_debug("%s:%d: %s anal probe method\n", __func__, __LINE__,
 			dev_name(&dev->core));
 
 	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev_name(&dev->core));
@@ -395,7 +395,7 @@ static void ps3_system_bus_remove(struct device *_dev)
 	if (drv->remove)
 		drv->remove(dev);
 	else
-		dev_dbg(&dev->core, "%s:%d %s: no remove method\n",
+		dev_dbg(&dev->core, "%s:%d %s: anal remove method\n",
 			__func__, __LINE__, drv->core.name);
 
 	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev_name(&dev->core));
@@ -412,7 +412,7 @@ static void ps3_system_bus_shutdown(struct device *_dev)
 		dev->match_id);
 
 	if (!dev->core.driver) {
-		dev_dbg(&dev->core, "%s:%d: no driver bound\n", __func__,
+		dev_dbg(&dev->core, "%s:%d: anal driver bound\n", __func__,
 			__LINE__);
 		return;
 	}
@@ -427,11 +427,11 @@ static void ps3_system_bus_shutdown(struct device *_dev)
 	if (drv->shutdown)
 		drv->shutdown(dev);
 	else if (drv->remove) {
-		dev_dbg(&dev->core, "%s:%d %s: no shutdown, calling remove\n",
+		dev_dbg(&dev->core, "%s:%d %s: anal shutdown, calling remove\n",
 			__func__, __LINE__, drv->core.name);
 		drv->remove(dev);
 	} else {
-		dev_dbg(&dev->core, "%s:%d %s: no shutdown method\n",
+		dev_dbg(&dev->core, "%s:%d %s: anal shutdown method\n",
 			__func__, __LINE__, drv->core.name);
 		BUG();
 	}
@@ -445,7 +445,7 @@ static int ps3_system_bus_uevent(const struct device *_dev, struct kobj_uevent_e
 
 	if (add_uevent_var(env, "MODALIAS=ps3:%d:%d", dev->match_id,
 			   dev->match_sub_id))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -481,7 +481,7 @@ static int __init ps3_system_bus_init(void)
 	int result;
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
@@ -518,7 +518,7 @@ static void * ps3_alloc_coherent(struct device *_dev, size_t size,
 
 	if (!virt_addr) {
 		pr_debug("%s:%d: get_free_pages failed\n", __func__, __LINE__);
-		goto clean_none;
+		goto clean_analne;
 	}
 
 	result = ps3_dma_map(dev->d_region, virt_addr, size, dma_handle,
@@ -536,7 +536,7 @@ static void * ps3_alloc_coherent(struct device *_dev, size_t size,
 
 clean_alloc:
 	free_pages(virt_addr, get_order(size));
-clean_none:
+clean_analne:
 	dma_handle = NULL;
 	return NULL;
 }
@@ -551,7 +551,7 @@ static void ps3_free_coherent(struct device *_dev, size_t size, void *vaddr,
 }
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
- * contiguous real kernel storage (not vmalloc).  The address passed here
+ * contiguous real kernel storage (analt vmalloc).  The address passed here
  * comprises a page address and offset into that page. The dma_addr_t
  * returned will point to the same byte within the page as was passed in.
  */
@@ -601,7 +601,7 @@ static dma_addr_t ps3_ioc0_map_page(struct device *_dev, struct page *page,
 		iopte_flag |= CBE_IOPTE_PP_W | CBE_IOPTE_SO_RW;
 		break;
 	default:
-		/* not happened */
+		/* analt happened */
 		BUG();
 	}
 	result = ps3_dma_map(dev->d_region, (unsigned long)ptr, size,
@@ -764,8 +764,8 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev)
 		BUG();
 	}
 
-	dev->core.of_node = NULL;
-	set_dev_node(&dev->core, 0);
+	dev->core.of_analde = NULL;
+	set_dev_analde(&dev->core, 0);
 
 	pr_debug("%s:%d add %s\n", __func__, __LINE__, dev_name(&dev->core));
 
@@ -782,7 +782,7 @@ int ps3_system_bus_driver_register(struct ps3_system_bus_driver *drv)
 	pr_debug(" -> %s:%d: %s\n", __func__, __LINE__, drv->core.name);
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	drv->core.bus = &ps3_system_bus_type;
 

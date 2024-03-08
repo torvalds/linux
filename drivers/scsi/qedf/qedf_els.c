@@ -37,19 +37,19 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 
 	rc = fc_remote_port_chkready(fcport->rport);
 	if (rc) {
-		QEDF_ERR(&(qedf->dbg_ctx), "els 0x%x: rport not ready\n", op);
+		QEDF_ERR(&(qedf->dbg_ctx), "els 0x%x: rport analt ready\n", op);
 		rc = -EAGAIN;
 		goto els_err;
 	}
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "els 0x%x: link is not ready\n",
+		QEDF_ERR(&(qedf->dbg_ctx), "els 0x%x: link is analt ready\n",
 			  op);
 		rc = -EAGAIN;
 		goto els_err;
 	}
 
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "els 0x%x: fcport not ready\n", op);
+		QEDF_ERR(&(qedf->dbg_ctx), "els 0x%x: fcport analt ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
@@ -58,7 +58,7 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	if (!els_req) {
 		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_ELS,
 			  "Failed to alloc ELS request 0x%x\n", op);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto els_err;
 	}
 
@@ -214,7 +214,7 @@ static void qedf_rrq_compl(struct qedf_els_cb_arg *cb_arg)
 		   orig_io_req, orig_io_req->xid, rrq_req->xid, refcount);
 
 	/*
-	 * This should return the aborted io_req to the command pool. Note that
+	 * This should return the aborted io_req to the command pool. Analte that
 	 * we need to check the refcound in case the original request was
 	 * flushed but we get a completion on this xid.
 	 */
@@ -225,7 +225,7 @@ out_free:
 	/*
 	 * Release a reference to the rrq request if we timed out as the
 	 * rrq completion handler is called directly from the timeout handler
-	 * and not from els_compl where the reference would have normally been
+	 * and analt from els_compl where the reference would have analrmally been
 	 * released.
 	 */
 	if (rrq_req->event == QEDF_IOREQ_EV_ELS_TMO)
@@ -265,7 +265,7 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 
 	/* Check that fcport is still offloaded */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
+		QEDF_ERR(NULL, "fcport is anal longer offloaded.\n");
 		return -EINVAL;
 	}
 
@@ -283,7 +283,7 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	refcount = kref_read(&aborted_io_req->refcount);
 	if (refcount != 1) {
 		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_ELS,
-			  "refcount for xid=%x io_req=%p refcount=%d is not 1.\n",
+			  "refcount for xid=%x io_req=%p refcount=%d is analt 1.\n",
 			  aborted_io_req->xid, aborted_io_req, refcount);
 		return -EINVAL;
 	}
@@ -297,11 +297,11 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 		   aborted_io_req->xid);
 	memset(&rrq, 0, sizeof(rrq));
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_ANALIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate cb_arg for "
 			  "RRQ\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto rrq_err;
 	}
 
@@ -337,7 +337,7 @@ static void qedf_process_l2_frame_compl(struct qedf_rport *fcport,
 	fh = (struct fc_frame_header *)fc_frame_header_get(fp);
 
 	/* Set the OXID we return to what libfc used */
-	if (l2_oxid != FC_XID_UNKNOWN)
+	if (l2_oxid != FC_XID_UNKANALWN)
 		fh->fh_ox_id = htons(l2_oxid);
 
 	/* Setup header fields */
@@ -381,13 +381,13 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 	if (test_bit(QEDF_RPORT_IN_RESET, &fcport->flags) ||
 	    !test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) ||
 	    test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
-		QEDF_ERR(&(fcport->qedf->dbg_ctx), "fcport %p already in reset or not offloaded.\n",
+		QEDF_ERR(&(fcport->qedf->dbg_ctx), "fcport %p already in reset or analt offloaded.\n",
 		    fcport);
 		spin_unlock_irqrestore(&fcport->rport_lock, flags);
 		return;
 	}
 
-	/* Set that we are now in reset */
+	/* Set that we are analw in reset */
 	set_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 
@@ -435,7 +435,7 @@ static void qedf_l2_els_compl(struct qedf_els_cb_arg *cb_arg)
 	}
 
 	/*
-	 * If we are flushing the command just free the cb_arg as none of the
+	 * If we are flushing the command just free the cb_arg as analne of the
 	 * response data will be valid.
 	 */
 	if (els_req->event == QEDF_IOREQ_EV_ELS_FLUSH) {
@@ -510,11 +510,11 @@ int qedf_send_adisc(struct qedf_rport *fcport, struct fc_frame *fp)
 	qedf = fcport->qedf;
 	fh = fc_frame_header_get(fp);
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_ANALIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate cb_arg for "
 			  "ADISC\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto adisc_err;
 	}
 	cb_arg->l2_oxid = ntohs(fh->fh_ox_id);
@@ -578,7 +578,7 @@ static void qedf_srr_compl(struct qedf_els_cb_arg *cb_arg)
 		goto out_put;
 	}
 
-	/* Normalize response data into struct fc_frame */
+	/* Analrmalize response data into struct fc_frame */
 	mp_req = &(srr_req->mp_req);
 	mp_fc_hdr = &(mp_req->resp_fc_hdr);
 	resp_len = mp_req->resp_len;
@@ -639,7 +639,7 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 
 	/* Check that fcport is still offloaded */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
+		QEDF_ERR(NULL, "fcport is anal longer offloaded.\n");
 		return -EINVAL;
 	}
 
@@ -659,11 +659,11 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 		   "orig_xid=0x%x\n", orig_io_req, orig_io_req->xid);
 	memset(&srr, 0, sizeof(srr));
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_ANALIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate cb_arg for "
 			  "SRR\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto srr_err;
 	}
 
@@ -708,7 +708,7 @@ static void qedf_initiate_seq_cleanup(struct qedf_ioreq *orig_io_req,
 	    "Doing sequence cleanup for xid=0x%x offset=%u.\n",
 	    orig_io_req->xid, offset);
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_ANALIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(fcport->qedf->dbg_ctx), "Unable to allocate cb_arg "
 			  "for sequence cleanup\n");
@@ -788,7 +788,7 @@ static bool qedf_requeue_io_req(struct qedf_ioreq *orig_io_req)
 
 	new_io_req = qedf_alloc_cmd(fcport, QEDF_SCSI_CMD);
 	if (!new_io_req) {
-		QEDF_ERR(&(fcport->qedf->dbg_ctx), "Could not allocate new "
+		QEDF_ERR(&(fcport->qedf->dbg_ctx), "Could analt allocate new "
 		    "io_req.\n");
 		goto out;
 	}
@@ -798,7 +798,7 @@ static bool qedf_requeue_io_req(struct qedf_ioreq *orig_io_req)
 	/*
 	 * This keeps the sc_cmd struct from being returned to the tape
 	 * driver and being requeued twice. We do need to put a reference
-	 * for the original I/O request since we will not do a SCSI completion
+	 * for the original I/O request since we will analt do a SCSI completion
 	 * for it.
 	 */
 	orig_io_req->sc_cmd = NULL;
@@ -816,8 +816,8 @@ static bool qedf_requeue_io_req(struct qedf_ioreq *orig_io_req)
 		    "Reissued SCSI command from  orig_xid=0x%x on "
 		    "new_xid=0x%x.\n", orig_io_req->xid, new_io_req->xid);
 		/*
-		 * Abort the original I/O but do not return SCSI command as
-		 * it has been reissued on another OX_ID.
+		 * Abort the original I/O but do analt return SCSI command as
+		 * it has been reissued on aanalther OX_ID.
 		 */
 		spin_unlock_irqrestore(&fcport->rport_lock, flags);
 		qedf_initiate_abts(orig_io_req, false);
@@ -878,7 +878,7 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 		goto out_put;
 	}
 
-	/* Normalize response data into struct fc_frame */
+	/* Analrmalize response data into struct fc_frame */
 	mp_req = &(rec_req->mp_req);
 	mp_fc_hdr = &(mp_req->resp_fc_hdr);
 	resp_len = mp_req->resp_len;
@@ -912,7 +912,7 @@ static void qedf_rec_compl(struct qedf_els_cb_arg *cb_arg)
 		    "er_explan=0x%x.\n", rjt->er_reason, rjt->er_explan);
 		/*
 		 * The following response(s) mean that we need to reissue the
-		 * request on another exchange.  We need to do this without
+		 * request on aanalther exchange.  We need to do this without
 		 * informing the upper layers lest it cause an application
 		 * error.
 		 */
@@ -1014,7 +1014,7 @@ int qedf_send_rec(struct qedf_ioreq *orig_io_req)
 
 	/* Check that fcport is still offloaded */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
+		QEDF_ERR(NULL, "fcport is anal longer offloaded.\n");
 		return -EINVAL;
 	}
 
@@ -1033,11 +1033,11 @@ int qedf_send_rec(struct qedf_ioreq *orig_io_req)
 
 	memset(&rec, 0, sizeof(rec));
 
-	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc(sizeof(struct qedf_els_cb_arg), GFP_ANALIO);
 	if (!cb_arg) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate cb_arg for "
 			  "REC\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto rec_err;
 	}
 

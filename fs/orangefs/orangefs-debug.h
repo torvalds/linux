@@ -21,10 +21,10 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
 
-#define	GOSSIP_NO_DEBUG			(__u64)0
+#define	GOSSIP_ANAL_DEBUG			(__u64)0
 
 #define GOSSIP_SUPER_DEBUG		((__u64)1 << 0)
-#define GOSSIP_INODE_DEBUG		((__u64)1 << 1)
+#define GOSSIP_IANALDE_DEBUG		((__u64)1 << 1)
 #define GOSSIP_FILE_DEBUG		((__u64)1 << 2)
 #define GOSSIP_DIR_DEBUG		((__u64)1 << 3)
 #define GOSSIP_UTILS_DEBUG		((__u64)1 << 4)
@@ -64,7 +64,7 @@ struct __keyword_mask_s {
  */
 static struct __keyword_mask_s s_kmod_keyword_mask_map[] = {
 	{"super", GOSSIP_SUPER_DEBUG},
-	{"inode", GOSSIP_INODE_DEBUG},
+	{"ianalde", GOSSIP_IANALDE_DEBUG},
 	{"file", GOSSIP_FILE_DEBUG},
 	{"dir", GOSSIP_DIR_DEBUG},
 	{"utils", GOSSIP_UTILS_DEBUG},
@@ -79,7 +79,7 @@ static struct __keyword_mask_s s_kmod_keyword_mask_map[] = {
 	{"xattr", GOSSIP_XATTR_DEBUG},
 	{"init", GOSSIP_INIT_DEBUG},
 	{"sysfs", GOSSIP_SYSFS_DEBUG},
-	{"none", GOSSIP_NO_DEBUG},
+	{"analne", GOSSIP_ANAL_DEBUG},
 	{"all", GOSSIP_MAX_DEBUG}
 };
 

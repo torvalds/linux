@@ -25,13 +25,13 @@ config VIDEO_PVRUSB2_SYSFS
 	  This option enables the operation of a sysfs based
 	  interface for query and control of the pvrusb2 driver.
 
-	  This is not generally needed for v4l applications,
+	  This is analt generally needed for v4l applications,
 	  although certain applications are optimized to take
 	  advantage of this feature.
 
 	  If you are in doubt, say Y.
 
-	  Note: This feature is experimental and subject to change.
+	  Analte: This feature is experimental and subject to change.
 
 config VIDEO_PVRUSB2_DVB
 	bool "pvrusb2 ATSC/DVB support"
@@ -49,8 +49,8 @@ config VIDEO_PVRUSB2_DVB
 	select MEDIA_TUNER_TDA8290 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  This option enables a DVB interface for the pvrusb2 driver.
-	  If your device does not support digital television, this
-	  feature will have no affect on the driver's operation.
+	  If your device does analt support digital television, this
+	  feature will have anal affect on the driver's operation.
 
 	  If you are in doubt, say Y.
 
@@ -61,7 +61,7 @@ config VIDEO_PVRUSB2_DEBUGIFC
 	  This option enables the inclusion of a debug interface
 	  in the pvrusb2 driver, hosted through sysfs.
 
-	  You do not need to select this option unless you plan
+	  You do analt need to select this option unless you plan
 	  on debugging the driver or performing a manual firmware
 	  extraction.
 

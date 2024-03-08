@@ -182,7 +182,7 @@
 		wakeup-source;
 		debounce-delay-ms = <100>;
 		col-scan-delay-us = <5000>;
-		linux,no-autorepeat;
+		linux,anal-autorepeat;
 	};
 
 	spi_gpio: spi {
@@ -272,7 +272,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tx28_pca9554_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <28 IRQ_TYPE_NONE>;
+		interrupts = <28 IRQ_TYPE_ANALNE>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;
@@ -444,7 +444,7 @@
 	phy-mode = "rmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mac1_pins_a>;
-	/* not enabled by default */
+	/* analt enabled by default */
 };
 
 &mxs_rtc {

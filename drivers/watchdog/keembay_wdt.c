@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Watchdog driver for Intel Keem Bay non-secure watchdog.
+ * Watchdog driver for Intel Keem Bay analn-secure watchdog.
  *
  * Copyright (C) 2020 Intel Corporation
  */
@@ -17,7 +17,7 @@
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
 
-/* Non-secure watchdog register offsets */
+/* Analn-secure watchdog register offsets */
 #define TIM_WATCHDOG		0x0
 #define TIM_WATCHDOG_INT_THRES	0x4
 #define TIM_WDOG_EN		0x8
@@ -42,10 +42,10 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout period in seconds (default = "
 		 __MODULE_STRING(WDT_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default = "
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default = "
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct keembay_wdt {
 	struct watchdog_device	wdd;
@@ -147,7 +147,7 @@ static irqreturn_t keembay_wdt_to_isr(int irq, void *dev_id)
 	struct arm_smccc_res res;
 
 	arm_smccc_smc(WDT_INT_CLEAR_SMC, WDT_TO_INT_MASK, 0, 0, 0, 0, 0, 0, &res);
-	dev_crit(wdt->wdd.parent, "Intel Keem Bay non-secure wdt timeout.\n");
+	dev_crit(wdt->wdd.parent, "Intel Keem Bay analn-secure wdt timeout.\n");
 	emergency_restart();
 
 	return IRQ_HANDLED;
@@ -161,8 +161,8 @@ static irqreturn_t keembay_wdt_th_isr(int irq, void *dev_id)
 	keembay_wdt_set_pretimeout(&wdt->wdd, 0x0);
 
 	arm_smccc_smc(WDT_INT_CLEAR_SMC, WDT_TH_INT_MASK, 0, 0, 0, 0, 0, 0, &res);
-	dev_crit(wdt->wdd.parent, "Intel Keem Bay non-secure wdt pre-timeout.\n");
-	watchdog_notify_pretimeout(&wdt->wdd);
+	dev_crit(wdt->wdd.parent, "Intel Keem Bay analn-secure wdt pre-timeout.\n");
+	watchdog_analtify_pretimeout(&wdt->wdd);
 
 	return IRQ_HANDLED;
 }
@@ -193,13 +193,13 @@ static int keembay_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	/* we do not need to enable the clock as it is enabled by default */
+	/* we do analt need to enable the clock as it is enabled by default */
 	wdt->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(wdt->clk))
 		return dev_err_probe(dev, PTR_ERR(wdt->clk), "Failed to get clock\n");
@@ -235,7 +235,7 @@ static int keembay_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.pretimeout	= WDT_PRETIMEOUT;
 
 	watchdog_set_drvdata(&wdt->wdd, wdt);
-	watchdog_set_nowayout(&wdt->wdd, nowayout);
+	watchdog_set_analwayout(&wdt->wdd, analwayout);
 	watchdog_init_timeout(&wdt->wdd, timeout, dev);
 	keembay_wdt_set_timeout(&wdt->wdd, wdt->wdd.timeout);
 	keembay_wdt_set_pretimeout(&wdt->wdd, wdt->wdd.pretimeout);
@@ -246,7 +246,7 @@ static int keembay_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 	dev_info(dev, "Initial timeout %d sec%s.\n",
-		 wdt->wdd.timeout, nowayout ? ", nowayout" : "");
+		 wdt->wdd.timeout, analwayout ? ", analwayout" : "");
 
 	return 0;
 }

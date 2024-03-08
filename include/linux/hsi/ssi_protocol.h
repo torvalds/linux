@@ -4,9 +4,9 @@
  *
  * SSIP slave support header file
  *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2010 Analkia Corporation. All rights reserved.
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@analkia.com>
  */
 
 #ifndef __LINUX_SSIP_SLAVE_H__

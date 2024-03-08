@@ -219,7 +219,7 @@ static int prm_probe(gpr_device_t *gdev)
 
 	cc = devm_kzalloc(dev, sizeof(*cc), GFP_KERNEL);
 	if (!cc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cc->dev = dev;
 	cc->gdev = gdev;

@@ -57,34 +57,34 @@ struct rk808_rtc {
 };
 
 /*
- * The Rockchip calendar used by the RK808 counts November with 31 days. We use
+ * The Rockchip calendar used by the RK808 counts Analvember with 31 days. We use
  * these translation functions to convert its dates to/from the Gregorian
  * calendar used by the rest of the world. We arbitrarily define Jan 1st, 2016
  * as the day when both calendars were in sync, and treat all other dates
  * relative to that.
- * NOTE: Other system software (e.g. firmware) that reads the same hardware must
+ * ANALTE: Other system software (e.g. firmware) that reads the same hardware must
  * implement this exact same conversion algorithm, with the same anchor date.
  */
-static time64_t nov2dec_transitions(struct rtc_time *tm)
+static time64_t analv2dec_transitions(struct rtc_time *tm)
 {
 	return (tm->tm_year + 1900) - 2016 + (tm->tm_mon + 1 > 11 ? 1 : 0);
 }
 
 static void rockchip_to_gregorian(struct rtc_time *tm)
 {
-	/* If it's Nov 31st, rtc_tm_to_time64() will count that like Dec 1st */
+	/* If it's Analv 31st, rtc_tm_to_time64() will count that like Dec 1st */
 	time64_t time = rtc_tm_to_time64(tm);
-	rtc_time64_to_tm(time + nov2dec_transitions(tm) * 86400, tm);
+	rtc_time64_to_tm(time + analv2dec_transitions(tm) * 86400, tm);
 }
 
 static void gregorian_to_rockchip(struct rtc_time *tm)
 {
-	time64_t extra_days = nov2dec_transitions(tm);
+	time64_t extra_days = analv2dec_transitions(tm);
 	time64_t time = rtc_tm_to_time64(tm);
 	rtc_time64_to_tm(time - extra_days * 86400, tm);
 
-	/* Compensate if we went back over Nov 31st (will work up to 2381) */
-	if (nov2dec_transitions(tm) < extra_days) {
+	/* Compensate if we went back over Analv 31st (will work up to 2381) */
+	if (analv2dec_transitions(tm) < extra_days) {
 		if (tm->tm_mon + 1 == 11)
 			tm->tm_mday++;	/* This may result in 31! */
 		else
@@ -99,7 +99,7 @@ static int rk808_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	u8 rtc_data[NUM_TIME_REGS];
 	int ret;
 
-	/* Force an update of the shadowed registers right now */
+	/* Force an update of the shadowed registers right analw */
 	ret = regmap_update_bits(rk808_rtc->regmap, rk808_rtc->creg->ctrl_reg,
 				 BIT_RTC_CTRL_REG_RTC_GET_TIME,
 				 BIT_RTC_CTRL_REG_RTC_GET_TIME);
@@ -331,7 +331,7 @@ static const struct rtc_class_ops rk808_rtc_ops = {
 };
 
 #ifdef CONFIG_PM_SLEEP
-/* Turn off the alarm if it should not be a wake source. */
+/* Turn off the alarm if it should analt be a wake source. */
 static int rk808_rtc_suspend(struct device *dev)
 {
 	struct rk808_rtc *rk808_rtc = dev_get_drvdata(dev);
@@ -383,7 +383,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 
 	rk808_rtc = devm_kzalloc(&pdev->dev, sizeof(*rk808_rtc), GFP_KERNEL);
 	if (rk808_rtc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (rk808->variant) {
 	case RK809_ID:
@@ -397,7 +397,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rk808_rtc);
 	rk808_rtc->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!rk808_rtc->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* start rtc running by default, and use shadowed timer. */
 	ret = regmap_update_bits(rk808_rtc->regmap, rk808_rtc->creg->ctrl_reg,

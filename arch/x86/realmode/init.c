@@ -33,7 +33,7 @@ void load_trampoline_pgtable(void)
 #endif
 
 	/*
-	 * The CR3 write above will not flush global TLB entries.
+	 * The CR3 write above will analt flush global TLB entries.
 	 * Stale, global entries from previous page tables may still be
 	 * present.  Flush those stale entries.
 	 *
@@ -56,7 +56,7 @@ void __init reserve_real_mode(void)
 	/* Has to be under 1M so we can execute real-mode AP code. */
 	mem = memblock_phys_alloc_range(size, PAGE_SIZE, 0, 1<<20);
 	if (!mem)
-		pr_info("No sub-1M memory is available for the trampoline\n");
+		pr_info("Anal sub-1M memory is available for the trampoline\n");
 	else
 		set_real_mode_mem(mem);
 
@@ -78,7 +78,7 @@ static void __init sme_sev_setup_real_mode(struct trampoline_header *th)
 		 * Skip the call to verify_cpu() in secondary_startup_64 as it
 		 * will cause #VC exceptions when the AP can't handle them yet.
 		 */
-		th->start = (u64) secondary_startup_64_no_verify;
+		th->start = (u64) secondary_startup_64_anal_verify;
 
 		if (sev_es_setup_ap_jump_table(real_mode_header))
 			panic("Failed to get/update SEV-ES AP Jump Table");
@@ -106,7 +106,7 @@ static void __init setup_real_mode(void)
 	/*
 	 * If SME is active, the trampoline area will need to be in
 	 * decrypted memory in order to bring up other processors
-	 * successfully. This is not needed for SEV.
+	 * successfully. This is analt needed for SEV.
 	 */
 	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
 		set_memory_decrypted((unsigned long)base, size >> PAGE_SHIFT);
@@ -164,7 +164,7 @@ static void __init setup_real_mode(void)
 
 	/*
 	 * Include the entirety of the kernel mapping into the trampoline
-	 * PGD.  This way, all mappings present in the normal kernel page
+	 * PGD.  This way, all mappings present in the analrmal kernel page
 	 * tables are usable while running on trampoline_pgd.
 	 */
 	for (i = pgd_index(__PAGE_OFFSET); i < PTRS_PER_PGD; i++)
@@ -177,7 +177,7 @@ static void __init setup_real_mode(void)
 /*
  * reserve_real_mode() gets called very early, to guarantee the
  * availability of low memory. This is before the proper kernel page
- * tables are set up, so we cannot set page permissions in that
+ * tables are set up, so we cananalt set page permissions in that
  * function. Also trampoline code will be executed by APs so we
  * need to mark it executable at do_pre_smp_initcalls() at least,
  * thus run it as a early_initcall().
@@ -206,7 +206,7 @@ static void __init set_real_mode_permissions(void)
 void __init init_real_mode(void)
 {
 	if (!real_mode_header)
-		panic("Real mode trampoline was not allocated");
+		panic("Real mode trampoline was analt allocated");
 
 	setup_real_mode();
 	set_real_mode_permissions();

@@ -12,7 +12,7 @@
  *   - tested with BTP2185 PC Mode.
  *
  *  0x8380:0x1850 "BTP2185 V2 PC mode USB Gamepad"
- *   - tested with BTP2185 PC Mode with another version.
+ *   - tested with BTP2185 PC Mode with aanalther version.
  *
  *  0x20bc:0x5500 "BTP2185 V2 BFM mode Joystick"
  *   - tested with BTP2171s.
@@ -64,16 +64,16 @@ static int betopff_init(struct hid_device *hid)
 	int i, j;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 
 	hidinput = list_first_entry(&hid->inputs, struct hid_input, list);
 	dev = hidinput->input;
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output reports found\n");
-		return -ENODEV;
+		hid_err(hid, "anal output reports found\n");
+		return -EANALDEV;
 	}
 
 	report = list_first_entry(report_list, struct hid_report, list);
@@ -86,14 +86,14 @@ static int betopff_init(struct hid_device *hid)
 	 * Do init them with default value.
 	 */
 	if (report->maxfield < 4) {
-		hid_err(hid, "not enough fields in the report: %d\n",
+		hid_err(hid, "analt eanalugh fields in the report: %d\n",
 				report->maxfield);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	for (i = 0; i < report->maxfield; i++) {
 		if (report->field[i]->report_count < 1) {
-			hid_err(hid, "no values in the field\n");
-			return -ENODEV;
+			hid_err(hid, "anal values in the field\n");
+			return -EANALDEV;
 		}
 		for (j = 0; j < report->field[i]->report_count; j++) {
 			report->field[i]->value[j] = 0x00;
@@ -102,7 +102,7 @@ static int betopff_init(struct hid_device *hid)
 
 	betopff = kzalloc(sizeof(*betopff), GFP_KERNEL);
 	if (!betopff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_bit(FF_RUMBLE, dev->ffbit);
 

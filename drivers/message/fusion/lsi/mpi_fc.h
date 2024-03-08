@@ -29,7 +29,7 @@
  *                      Added MPI_FC_PRIM_SEND_FLAGS_STOP_SEND.
  *  02-20-01  01.01.05  Started using MPI_POINTER.
  *  03-27-01  01.01.06  Added Flags field to MSG_LINK_SERVICE_BUFFER_POST_REPLY
- *                      and defined MPI_LS_BUF_POST_REPLY_FLAG_NO_RSP_NEEDED.
+ *                      and defined MPI_LS_BUF_POST_REPLY_FLAG_ANAL_RSP_NEEDED.
  *                      Added MPI_FC_PRIM_SEND_FLAGS_RESET_LINK define.
  *                      Added structure offset comments.
  *  04-09-01  01.01.07  Added RspLength field to MSG_LINK_SERVICE_RSP_REQUEST.
@@ -78,8 +78,8 @@ typedef struct _WWNFORMAT
 {
     U32                     PortNameHigh;       /* 00h */
     U32                     PortNameLow;        /* 04h */
-    U32                     NodeNameHigh;       /* 08h */
-    U32                     NodeNameLow;        /* 0Ch */
+    U32                     AnaldeNameHigh;       /* 08h */
+    U32                     AnaldeNameLow;        /* 0Ch */
 } WWNFORMAT,
   WwnFormat_t;
 
@@ -112,7 +112,7 @@ typedef struct _MSG_LINK_SERVICE_BUFFER_POST_REPLY
 } MSG_LINK_SERVICE_BUFFER_POST_REPLY, MPI_POINTER PTR_MSG_LINK_SERVICE_BUFFER_POST_REPLY,
   LinkServiceBufferPostReply_t, MPI_POINTER pLinkServiceBufferPostReply_t;
 
-#define MPI_LS_BUF_POST_REPLY_FLAG_NO_RSP_NEEDED    (0x80)
+#define MPI_LS_BUF_POST_REPLY_FLAG_ANAL_RSP_NEEDED    (0x80)
 
 #define MPI_FC_DID_MASK                             (0x00FFFFFF)
 #define MPI_FC_DID_SHIFT                            (0)

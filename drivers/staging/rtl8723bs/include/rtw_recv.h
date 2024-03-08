@@ -91,7 +91,7 @@ struct phy_info {
 	u16 	Cfo_tail[4];			/*  per-path's Cfo_tail */
 
 	s8		RxPower; /*  in dBm Translate from PWdB */
-	s8		RecvSignalPower;/*  Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures. */
+	s8		RecvSignalPower;/*  Real power in dBm for this packet, anal beautification and aggregation. Keep this raw info to be used for the other procedures. */
 	u8 bt_rx_rssi_percentage;
 	u8 SignalStrength; /*  in 0-100 index. */
 
@@ -134,7 +134,7 @@ struct rx_pkt_attrib	{
 	u8 order;
 	u8 privacy; /* in frame_ctrl field */
 	u8 bdecrypted;
-	u8 encrypt; /* when 0 indicates no encryption; when non-zero, indicates the encryption algorithm */
+	u8 encrypt; /* when 0 indicates anal encryption; when analn-zero, indicates the encryption algorithm */
 	u8 iv_len;
 	u8 icv_len;
 	u8 crc_err;
@@ -208,7 +208,7 @@ struct recv_priv {
 	u8 *precv_frame_buf;
 	uint free_recvframe_cnt;
 	struct adapter	*adapter;
-	u32 bIsAnyNonBEPkts;
+	u32 bIsAnyAnalnBEPkts;
 	u64	rx_bytes;
 	u64	rx_pkts;
 	u64	rx_drop;
@@ -240,7 +240,7 @@ struct recv_priv {
 	struct rx_raw_rssi raw_rssi_info;
 	#endif
 	/* s8 rxpwdb; */
-	s16 noise;
+	s16 analise;
 	/* int RxSNRdB[2]; */
 	/* s8 RxRssi[2]; */
 	/* int FalseAlmCnt_all; */
@@ -352,7 +352,7 @@ union recv_frame {
 };
 
 enum {
-	NORMAL_RX,/* Normal rx packet */
+	ANALRMAL_RX,/* Analrmal rx packet */
 	TX_REPORT1,/* CCX */
 	TX_REPORT2,/* TX RPT */
 	HIS_REPORT,/*  USB HISR RPT */

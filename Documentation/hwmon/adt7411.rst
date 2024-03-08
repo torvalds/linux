@@ -41,10 +41,10 @@ Besides standard interfaces, this driver adds (0 = off, 1 = on):
   ============== =======================================================
   adc_ref_vdd	 Use vdd as reference instead of 2.25 V
   fast_sampling	 Sample at 22.5 kHz instead of 1.4 kHz, but drop filters
-  no_average	 Turn off averaging over 16 samples
+  anal_average	 Turn off averaging over 16 samples
   ============== =======================================================
 
-Notes
+Analtes
 -----
 
-SPI, external temperature sensor and limit registers are not supported yet.
+SPI, external temperature sensor and limit registers are analt supported yet.

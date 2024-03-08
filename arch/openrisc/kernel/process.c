@@ -15,7 +15,7 @@
 
 #define __KERNEL_SYSCALLS__
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -54,7 +54,7 @@ void machine_restart(char *cmd)
 {
 	do_kernel_restart(cmd);
 
-	__asm__("l.nop 13");
+	__asm__("l.analp 13");
 
 	/* Give a grace period for failure to restart of 1s */
 	mdelay(1000);
@@ -65,24 +65,24 @@ void machine_restart(char *cmd)
 }
 
 /*
- * This is used if pm_power_off has not been set by a power management
+ * This is used if pm_power_off has analt been set by a power management
  * driver, in this case we can assume we are on a simulator.  On
- * OpenRISC simulators l.nop 1 will trigger the simulator exit.
+ * OpenRISC simulators l.analp 1 will trigger the simulator exit.
  */
 static void default_power_off(void)
 {
-	__asm__("l.nop 1");
+	__asm__("l.analp 1");
 }
 
 /*
  * Similar to machine_power_off, but don't shut off power.  Add code
  * here to freeze the system for e.g. post-mortem debug purpose when
- * possible.  This halt has nothing to do with the idle halt.
+ * possible.  This halt has analthing to do with the idle halt.
  */
 void machine_halt(void)
 {
 	printk(KERN_INFO "*** MACHINE HALT ***\n");
-	__asm__("l.nop 1");
+	__asm__("l.analp 1");
 }
 
 /* If or when software power-off is implemented, add code here.  */
@@ -144,7 +144,7 @@ extern asmlinkage void ret_from_fork(void);
  * structures.  The first (topmost) is the userspace context of the thread.
  * The second is the kernelspace context of the thread.
  *
- * A kernel thread will not be returning to userspace, so the topmost pt_regs
+ * A kernel thread will analt be returning to userspace, so the topmost pt_regs
  * struct can be uninitialized; it _does_ need to exist, though, because
  * a kernel thread can become a userspace thread by doing a kernel_execve, in
  * which case the topmost context will be initialized and used for 'returning'

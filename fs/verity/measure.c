@@ -20,19 +20,19 @@
  * file.  See the "FS_IOC_MEASURE_VERITY" section of
  * Documentation/filesystems/fsverity.rst for the documentation.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int fsverity_ioctl_measure(struct file *filp, void __user *_uarg)
 {
-	const struct inode *inode = file_inode(filp);
+	const struct ianalde *ianalde = file_ianalde(filp);
 	struct fsverity_digest __user *uarg = _uarg;
 	const struct fsverity_info *vi;
 	const struct fsverity_hash_alg *hash_alg;
 	struct fsverity_digest arg;
 
-	vi = fsverity_get_info(inode);
+	vi = fsverity_get_info(ianalde);
 	if (!vi)
-		return -ENODATA; /* not a verity file */
+		return -EANALDATA; /* analt a verity file */
 	hash_alg = vi->tree_params.hash_alg;
 
 	/*
@@ -62,36 +62,36 @@ EXPORT_SYMBOL_GPL(fsverity_ioctl_measure);
 
 /**
  * fsverity_get_digest() - get a verity file's digest
- * @inode: inode to get digest of
+ * @ianalde: ianalde to get digest of
  * @raw_digest: (out) the raw file digest
  * @alg: (out) the digest's algorithm, as a FS_VERITY_HASH_ALG_* value
  * @halg: (out) the digest's algorithm, as a HASH_ALGO_* value
  *
  * Retrieves the fsverity digest of the given file.  The file must have been
- * opened at least once since the inode was last loaded into the inode cache;
- * otherwise this function will not recognize when fsverity is enabled.
+ * opened at least once since the ianalde was last loaded into the ianalde cache;
+ * otherwise this function will analt recognize when fsverity is enabled.
  *
  * The file's fsverity digest consists of @raw_digest in combination with either
  * @alg or @halg.  (The caller can choose which one of @alg or @halg to use.)
  *
  * IMPORTANT: Callers *must* make use of one of the two algorithm IDs, since
- * @raw_digest is meaningless without knowing which algorithm it uses!  fsverity
- * provides no security guarantee for users who ignore the algorithm ID, even if
+ * @raw_digest is meaningless without kanalwing which algorithm it uses!  fsverity
+ * provides anal security guarantee for users who iganalre the algorithm ID, even if
  * they use the digest size (since algorithms can share the same digest size).
  *
  * Return: The size of the raw digest in bytes, or 0 if the file doesn't have
  *	   fsverity enabled.
  */
-int fsverity_get_digest(struct inode *inode,
+int fsverity_get_digest(struct ianalde *ianalde,
 			u8 raw_digest[FS_VERITY_MAX_DIGEST_SIZE],
 			u8 *alg, enum hash_algo *halg)
 {
 	const struct fsverity_info *vi;
 	const struct fsverity_hash_alg *hash_alg;
 
-	vi = fsverity_get_info(inode);
+	vi = fsverity_get_info(ianalde);
 	if (!vi)
-		return 0; /* not a verity file */
+		return 0; /* analt a verity file */
 
 	hash_alg = vi->tree_params.hash_alg;
 	memcpy(raw_digest, vi->file_digest, hash_alg->digest_size);
@@ -119,7 +119,7 @@ __bpf_kfunc_start_defs();
  */
 __bpf_kfunc int bpf_get_fsverity_digest(struct file *file, struct bpf_dynptr_kern *digest_ptr)
 {
-	const struct inode *inode = file_inode(file);
+	const struct ianalde *ianalde = file_ianalde(file);
 	u32 dynptr_sz = __bpf_dynptr_size(digest_ptr);
 	struct fsverity_digest *arg;
 	const struct fsverity_info *vi;
@@ -133,12 +133,12 @@ __bpf_kfunc int bpf_get_fsverity_digest(struct file *file, struct bpf_dynptr_ker
 	if (!arg)
 		return -EINVAL;
 
-	if (!IS_ALIGNED((uintptr_t)arg, __alignof__(*arg)))
+	if (!IS_ALIGNED((uintptr_t)arg, __aliganalf__(*arg)))
 		return -EINVAL;
 
-	vi = fsverity_get_info(inode);
+	vi = fsverity_get_info(ianalde);
 	if (!vi)
-		return -ENODATA; /* not a verity file */
+		return -EANALDATA; /* analt a verity file */
 
 	hash_alg = vi->tree_params.hash_alg;
 

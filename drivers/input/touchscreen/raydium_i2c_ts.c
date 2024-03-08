@@ -4,8 +4,8 @@
  *
  * Copyright (C) 2012-2014, Raydium Semiconductor Corporation.
  *
- * Raydium reserves the right to make changes without further notice
- * to the materials described herein. Raydium does not assume any
+ * Raydium reserves the right to make changes without further analtice
+ * to the materials described herein. Raydium does analt assume any
  * liability arising out of the application described herein.
  *
  * Contact Raydium Semiconductor Corporation at www.rad-ic.com
@@ -174,7 +174,7 @@ static int raydium_i2c_send(struct i2c_client *client,
 
 	tx_buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_buf[0] = reg_addr;
 	memcpy(tx_buf + 1, data, len);
@@ -187,10 +187,10 @@ static int raydium_i2c_send(struct i2c_client *client,
 
 		/*
 		 * Perform as a single i2c_transfer transaction to ensure that
-		 * no other I2C transactions are initiated on the bus to any
+		 * anal other I2C transactions are initiated on the bus to any
 		 * other device in between. Initiating transacations to other
-		 * devices after RM_CMD_BANK_SWITCH is sent is known to cause
-		 * issues. This is also why regmap infrastructure cannot be used
+		 * devices after RM_CMD_BANK_SWITCH is sent is kanalwn to cause
+		 * issues. This is also why regmap infrastructure cananalt be used
 		 * for this driver. Regmap handles page(bank) switch and reads
 		 * as separate i2c_transfer() operations. This can result in
 		 * problems if the Raydium device is on a shared I2C bus.
@@ -236,10 +236,10 @@ static int raydium_i2c_read(struct i2c_client *client,
 
 		/*
 		 * Perform as a single i2c_transfer transaction to ensure that
-		 * no other I2C transactions are initiated on the bus to any
+		 * anal other I2C transactions are initiated on the bus to any
 		 * other device in between. Initiating transacations to other
-		 * devices after RM_CMD_BANK_SWITCH is sent is known to cause
-		 * issues. This is also why regmap infrastructure cannot be used
+		 * devices after RM_CMD_BANK_SWITCH is sent is kanalwn to cause
+		 * issues. This is also why regmap infrastructure cananalt be used
 		 * for this driver. Regmap handles page(bank) switch and writes
 		 * as separate i2c_transfer() operations. This can result in
 		 * problems if the Raydium device is on a shared I2C bus.
@@ -822,7 +822,7 @@ static int raydium_i2c_fw_update(struct raydium_data *ts)
 	fw_file = kasprintf(GFP_KERNEL, "raydium_%#04x.fw",
 			    le32_to_cpu(ts->info.hw_ver));
 	if (!fw_file)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(&client->dev, "firmware name: %s\n", fw_file);
 
@@ -890,7 +890,7 @@ static void raydium_mt_event(struct raydium_data *ts)
 		wy = contact[RM_CONTACT_WIDTH_Y_POS];
 
 		input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, max(wx, wy));
-		input_report_abs(ts->input, ABS_MT_TOUCH_MINOR, min(wx, wy));
+		input_report_abs(ts->input, ABS_MT_TOUCH_MIANALR, min(wx, wy));
 	}
 
 	input_mt_sync_frame(ts->input);
@@ -954,7 +954,7 @@ static ssize_t raydium_i2c_boot_mode_show(struct device *dev,
 
 	return sprintf(buf, "%s\n",
 		       ts->boot_mode == RAYDIUM_TS_MAIN ?
-				"Normal" : "Recovery");
+				"Analrmal" : "Recovery");
 }
 
 static ssize_t raydium_i2c_update_fw_store(struct device *dev,
@@ -1076,7 +1076,7 @@ static int raydium_i2c_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ts->sysfs_mutex);
 
@@ -1114,7 +1114,7 @@ static int raydium_i2c_probe(struct i2c_client *client)
 	/* Make sure there is something at this address */
 	if (i2c_smbus_xfer(client->adapter, client->addr, 0,
 			   I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
-		dev_err(&client->dev, "nothing at this address\n");
+		dev_err(&client->dev, "analthing at this address\n");
 		return -ENXIO;
 	}
 
@@ -1127,12 +1127,12 @@ static int raydium_i2c_probe(struct i2c_client *client)
 	ts->report_data = devm_kmalloc(&client->dev,
 				       ts->pkg_size, GFP_KERNEL);
 	if (!ts->report_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->input = devm_input_allocate_device(&client->dev);
 	if (!ts->input) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->input->name = "Raydium Touchscreen";
@@ -1191,7 +1191,7 @@ static int raydium_i2c_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct raydium_data *ts = i2c_get_clientdata(client);
 
-	/* Sleep is not available in BLDR recovery mode */
+	/* Sleep is analt available in BLDR recovery mode */
 	if (ts->boot_mode != RAYDIUM_TS_MAIN)
 		return -EBUSY;
 

@@ -207,7 +207,7 @@ static void b43_phy_ht_pa_override(struct b43_wldev *dev, bool enable)
 	} else {
 		for (i = 0; i < 3; i++)
 			htphy->rf_ctl_int_save[i] = b43_phy_read(dev, regs[i]);
-		/* TODO: Does 5GHz band use different value (not 0x0400)? */
+		/* TODO: Does 5GHz band use different value (analt 0x0400)? */
 		for (i = 0; i < 3; i++)
 			b43_phy_write(dev, regs[i], 0x0400);
 	}
@@ -261,7 +261,7 @@ static void b43_phy_ht_zero_extg(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_EXTG(base[i] + 0xc), 0);
 }
 
-/* Some unknown AFE (Analog Frondned) op */
+/* Some unkanalwn AFE (Analog Frondned) op */
 static void b43_phy_ht_afe_unk1(struct b43_wldev *dev)
 {
 	u8 i;
@@ -436,7 +436,7 @@ static void b43_phy_ht_rssi_select(struct b43_wldev *dev, u8 core_sel,
 	int core;
 
 	if (core_sel == 0) {
-		b43err(dev->wl, "RSSI selection for core off not implemented yet\n");
+		b43err(dev->wl, "RSSI selection for core off analt implemented yet\n");
 	} else {
 		for (core = 0; core < 3; core++) {
 			/* Check if caller requested a one specific core */
@@ -457,7 +457,7 @@ static void b43_phy_ht_rssi_select(struct b43_wldev *dev, u8 core_sel,
 						0x11);
 				break;
 			default:
-				b43err(dev->wl, "RSSI selection for type %d not implemented yet\n",
+				b43err(dev->wl, "RSSI selection for type %d analt implemented yet\n",
 				       rssi_type);
 			}
 		}
@@ -736,7 +736,7 @@ static void b43_phy_ht_spur_avoid(struct b43_wldev *dev,
 	struct bcma_device *core = dev->dev->bdev;
 	int spuravoid = 0;
 
-	/* Check for 13 and 14 is just a guess, we don't have enough logs. */
+	/* Check for 13 and 14 is just a guess, we don't have eanalugh logs. */
 	if (new_channel->hw_value == 13 || new_channel->hw_value == 14)
 		spuravoid = 1;
 	bcma_core_pll_ctl(core, B43_BCMA_CLKCTLST_PHY_PLL_REQ, 0, false);
@@ -844,7 +844,7 @@ static int b43_phy_ht_op_allocate(struct b43_wldev *dev)
 
 	phy_ht = kzalloc(sizeof(*phy_ht), GFP_KERNEL);
 	if (!phy_ht)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->phy.ht = phy_ht;
 
 	return 0;
@@ -875,7 +875,7 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 
 	if (dev->dev->bus_type != B43_BUS_BCMA) {
 		b43err(dev->wl, "HT-PHY is supported only on BCMA bus!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	b43_phy_ht_tables_init(dev);
@@ -1020,7 +1020,7 @@ static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
 {
 	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
-		b43err(dev->wl, "MAC not suspended\n");
+		b43err(dev->wl, "MAC analt suspended\n");
 
 	if (blocked) {
 		b43_phy_mask(dev, B43_PHY_HT_RF_CTL_CMD,
@@ -1107,7 +1107,7 @@ static void b43_phy_ht_op_radio_write(struct b43_wldev *dev, u16 reg,
 }
 
 static enum b43_txpwr_result
-b43_phy_ht_op_recalc_txpower(struct b43_wldev *dev, bool ignore_tssi)
+b43_phy_ht_op_recalc_txpower(struct b43_wldev *dev, bool iganalre_tssi)
 {
 	return B43_TXPWR_RES_DONE;
 }

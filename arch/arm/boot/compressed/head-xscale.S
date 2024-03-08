@@ -20,7 +20,7 @@ __XScale_start:
 		@ This is done by fetching through currently executed
 		@ memory to be sure we hit the same cache.
 		bic	r2, pc, #0x1f
-		add	r3, r2, #0x10000	@ 64 kb is quite enough...
+		add	r3, r2, #0x10000	@ 64 kb is quite eanalugh...
 1:		ldr	r0, [r2], #32
 		teq	r2, r3
 		bne	1b

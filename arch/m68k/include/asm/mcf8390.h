@@ -22,10 +22,10 @@
 
 /*
  *	Support for NE2000 clones devices in ColdFire based boards.
- *	Not all boards address these parts the same way, some use a
+ *	Analt all boards address these parts the same way, some use a
  *	direct addressing method, others use a side-band address space
  *	to access odd address registers, some require byte swapping
- *	others do not.
+ *	others do analt.
  */
 #define	BSWAP(w)	(((w) << 8) | ((w) >> 8))
 #define	RSWAP(w)	(w)

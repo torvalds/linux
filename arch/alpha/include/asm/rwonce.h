@@ -10,8 +10,8 @@
 #include <asm/barrier.h>
 
 /*
- * Alpha is apparently daft enough to reorder address-dependent loads
- * on some CPU implementations. Knock some common sense into it with
+ * Alpha is apparently daft eanalugh to reorder address-dependent loads
+ * on some CPU implementations. Kanalck some common sense into it with
  * a memory barrier in READ_ONCE().
  *
  * For the curious, more information about this unusual reordering is

@@ -108,7 +108,7 @@
 
 ERR=4 # Return 4 by default, which is the SKIP code for kselftest
 PING6="ping"
-PAUSE_ON_FAIL="no"
+PAUSE_ON_FAIL="anal"
 
 readonly NS0=$(mktemp -u ns0-XXXXXXXX)
 readonly NS1=$(mktemp -u ns1-XXXXXXXX)
@@ -175,7 +175,7 @@ iface_config()
 
 	ip -netns "${NS}" link set dev "${DEV}" up
 	ip -netns "${NS}" address add dev "${DEV}" "${LOCAL_IP4}" peer "${PEER_IP4}"
-	ip -netns "${NS}" address add dev "${DEV}" "${LOCAL_IP6}" peer "${PEER_IP6}" nodad
+	ip -netns "${NS}" address add dev "${DEV}" "${LOCAL_IP6}" peer "${PEER_IP6}" analdad
 }
 
 # Create base networking topology:
@@ -237,7 +237,7 @@ setup_overlay_ipv4()
 
 	# The intermediate namespaces don't have routes for the reverse path,
 	# as it will be handled by tc. So we need to ensure that rp_filter is
-	# not going to block the traffic.
+	# analt going to block the traffic.
 	ip netns exec "${NS1}" sysctl -qw net.ipv4.conf.all.rp_filter=0
 	ip netns exec "${NS2}" sysctl -qw net.ipv4.conf.all.rp_filter=0
 	ip netns exec "${NS1}" sysctl -qw net.ipv4.conf.default.rp_filter=0
@@ -280,7 +280,7 @@ setup_overlay_mpls()
 #
 # Parameters:
 #
-#   * $1: the variant of ping to use (normally either "ping" or "ping6"),
+#   * $1: the variant of ping to use (analrmally either "ping" or "ping6"),
 #   * $2: the IP address to ping,
 #   * $3: a human readable description of the purpose of the test.
 #
@@ -306,7 +306,7 @@ ping_test_one()
 	else
 		ERR=1
 		printf "[FAIL]\n"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			printf "\nHit enter to continue, 'q' to quit\n"
 			read a
 			if [ "$a" = "q" ]; then
@@ -514,7 +514,7 @@ usage()
 while getopts :p o
 do
 	case $o in
-		p) PAUSE_ON_FAIL="yes";;
+		p) PAUSE_ON_FAIL="anal";;
 		*) usage;;
 	esac
 done
@@ -522,7 +522,7 @@ done
 check_features
 
 # Create namespaces before setting up the exit trap.
-# Otherwise, exit_cleanup_all() could delete namespaces that were not created
+# Otherwise, exit_cleanup_all() could delete namespaces that were analt created
 # by this script.
 create_namespaces
 
@@ -534,10 +534,10 @@ setup_overlay_ipv4
 setup_overlay_ipv6
 setup_overlay_mpls
 
-test_overlay ipv4 nomultiproto
-test_overlay ipv6 nomultiproto
+test_overlay ipv4 analmultiproto
+test_overlay ipv6 analmultiproto
 test_overlay ipv4 multiproto
-test_overlay mpls_uc nomultiproto
+test_overlay mpls_uc analmultiproto
 
 if [ "${ERR}" -eq 1 ]; then
 	echo "Some tests failed." >&2

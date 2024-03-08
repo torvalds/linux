@@ -192,7 +192,7 @@ static void aq_fw2x_upd_flow_control_bits(struct aq_hw_s *self,
 			HW_ATL_FW2X_CTRL_ASYMMETRIC_PAUSE);
 
 	switch (fc) {
-	/* There is not explicit mode of RX only pause frames,
+	/* There is analt explicit mode of RX only pause frames,
 	 * thus, we join this mode with FC full.
 	 * FC full is either Rx, either Tx, or both.
 	 */
@@ -236,7 +236,7 @@ static int aq_fw2x_set_state(struct aq_hw_s *self,
 		break;
 	case MPI_RESET:
 	case MPI_POWER:
-		/* No actions */
+		/* Anal actions */
 		break;
 	}
 	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_state);
@@ -469,7 +469,7 @@ static void aq_fw3x_adjust_ptp(struct aq_hw_s *self, uint64_t adj)
 static int aq_fw2x_led_control(struct aq_hw_s *self, u32 mode)
 {
 	if (self->fw_ver_actual < HW_ATL_FW_VER_LED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_LED_ADDR, mode);
 
@@ -636,7 +636,7 @@ static int aq_fw2x_set_media_detect(struct aq_hw_s *self, bool on)
 	u32 offset;
 
 	if (self->fw_ver_actual < HW_ATL_FW_VER_MEDIA_CONTROL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	offset = offsetof(struct hw_atl_utils_settings, media_detect);
 	enable = on;
@@ -676,7 +676,7 @@ static int aq_fw2x_send_macsec_req(struct aq_hw_s *hw,
 
 	caps_lo = aq_fw2x_get_link_capabilities(hw);
 	if (!(caps_lo & BIT(CAPS_LO_MACSEC)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Write macsec request to cfg memory */
 	dword_cnt = (sizeof(*req) + sizeof(u32) - 1) / sizeof(u32);

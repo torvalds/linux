@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -70,7 +70,7 @@ struct fw_fcoe_port_cmd_params {
 /* Device master in HELLO command */
 enum csio_dev_master { CSIO_MASTER_CANT, CSIO_MASTER_MAY, CSIO_MASTER_MUST };
 
-enum csio_mb_owner { CSIO_MBOWNER_NONE, CSIO_MBOWNER_FW, CSIO_MBOWNER_PL };
+enum csio_mb_owner { CSIO_MBOWNER_ANALNE, CSIO_MBOWNER_FW, CSIO_MBOWNER_PL };
 
 enum csio_dev_state {
 	CSIO_DEV_STATE_UNINIT,
@@ -215,24 +215,24 @@ void csio_fcoe_read_res_info_init_mb(struct csio_hw *, struct csio_mb *,
 			uint32_t,
 			void (*) (struct csio_hw *, struct csio_mb *));
 
-void csio_write_fcoe_link_cond_init_mb(struct csio_lnode *, struct csio_mb *,
+void csio_write_fcoe_link_cond_init_mb(struct csio_lanalde *, struct csio_mb *,
 			uint32_t, uint8_t, uint32_t, uint8_t, bool, uint32_t,
 			void (*) (struct csio_hw *, struct csio_mb *));
 
-void csio_fcoe_vnp_alloc_init_mb(struct csio_lnode *, struct csio_mb *,
+void csio_fcoe_vnp_alloc_init_mb(struct csio_lanalde *, struct csio_mb *,
 			uint32_t, uint32_t , uint32_t , uint16_t,
 			uint8_t [8], uint8_t [8],
 			void (*) (struct csio_hw *, struct csio_mb *));
 
-void csio_fcoe_vnp_read_init_mb(struct csio_lnode *, struct csio_mb *,
+void csio_fcoe_vnp_read_init_mb(struct csio_lanalde *, struct csio_mb *,
 			uint32_t, uint32_t , uint32_t ,
 			void (*) (struct csio_hw *, struct csio_mb *));
 
-void csio_fcoe_vnp_free_init_mb(struct csio_lnode *, struct csio_mb *,
+void csio_fcoe_vnp_free_init_mb(struct csio_lanalde *, struct csio_mb *,
 			uint32_t , uint32_t, uint32_t ,
 			void (*) (struct csio_hw *, struct csio_mb *));
 
-void csio_fcoe_read_fcf_init_mb(struct csio_lnode *, struct csio_mb *,
+void csio_fcoe_read_fcf_init_mb(struct csio_lanalde *, struct csio_mb *,
 			uint32_t, uint32_t, uint32_t,
 			void (*cbfn) (struct csio_hw *, struct csio_mb *));
 

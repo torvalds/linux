@@ -7,8 +7,8 @@
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
-#define NOP32_HI	0xc400
-#define NOP32_LO	0x4820
+#define ANALP32_HI	0xc400
+#define ANALP32_LO	0x4820
 #define BSR_LINK	0xe000
 
 void arch_jump_label_transform(struct jump_entry *entry,
@@ -30,11 +30,11 @@ void arch_jump_label_transform(struct jump_entry *entry,
 			((uint16_t)((unsigned long) offset >> 16) & 0x3ff);
 		insn[1] = (uint16_t)((unsigned long) offset & 0xffff);
 	} else {
-		insn[0] = NOP32_HI;
-		insn[1] = NOP32_LO;
+		insn[0] = ANALP32_HI;
+		insn[1] = ANALP32_LO;
 	}
 
-	ret = copy_to_kernel_nofault((void *)addr, insn, 4);
+	ret = copy_to_kernel_analfault((void *)addr, insn, 4);
 	WARN_ON(ret);
 
 	flush_icache_range(addr, addr + 4);
@@ -45,7 +45,7 @@ void arch_jump_label_transform_static(struct jump_entry *entry,
 {
 	/*
 	 * We use the same instructions in the arch_static_branch and
-	 * arch_static_branch_jump inline functions, so there's no
+	 * arch_static_branch_jump inline functions, so there's anal
 	 * need to patch them up here.
 	 * The core will call arch_jump_label_transform  when those
 	 * instructions need to be replaced.

@@ -4,21 +4,21 @@ Speculative Return Stack Overflow (SRSO)
 ========================================
 
 This is a mitigation for the speculative return stack overflow (SRSO)
-vulnerability found on AMD processors. The mechanism is by now the well
-known scenario of poisoning CPU functional units - the Branch Target
+vulnerability found on AMD processors. The mechanism is by analw the well
+kanalwn scenario of poisoning CPU functional units - the Branch Target
 Buffer (BTB) and Return Address Predictor (RAP) in this case - and then
 tricking the elevated privilege domain (the kernel) into leaking
 sensitive data.
 
 AMD CPUs predict RET instructions using a Return Address Predictor (aka
-Return Address Stack/Return Stack Buffer). In some cases, a non-architectural
+Return Address Stack/Return Stack Buffer). In some cases, a analn-architectural
 CALL instruction (i.e., an instruction predicted to be a CALL but is
-not actually a CALL) can create an entry in the RAP which may be used
+analt actually a CALL) can create an entry in the RAP which may be used
 to predict the target of a subsequent RET instruction.
 
 The specific circumstances that lead to this varies by microarchitecture
 but the concern is that an attacker can mis-train the CPU BTB to predict
-non-architectural CALL instructions in kernel space and use this to
+analn-architectural CALL instructions in kernel space and use this to
 control the speculative target of a subsequent kernel RET, potentially
 leading to information disclosure via a speculative side-channel.
 
@@ -28,7 +28,7 @@ Affected processors
 -------------------
 
 AMD Zen, generations 1-4. That is, all families 0x17 and 0x19. Older
-processors have not been investigated.
+processors have analt been investigated.
 
 System information and options
 ------------------------------
@@ -42,32 +42,32 @@ The sysfs file showing SRSO mitigation status is:
 
 The possible values in this file are:
 
- * 'Not affected':
+ * 'Analt affected':
 
-   The processor is not vulnerable
+   The processor is analt vulnerable
 
 * 'Vulnerable':
 
-   The processor is vulnerable and no mitigations have been applied.
+   The processor is vulnerable and anal mitigations have been applied.
 
- * 'Vulnerable: No microcode':
+ * 'Vulnerable: Anal microcode':
 
-   The processor is vulnerable, no microcode extending IBPB
+   The processor is vulnerable, anal microcode extending IBPB
    functionality to address the vulnerability has been applied.
 
- * 'Vulnerable: Safe RET, no microcode':
+ * 'Vulnerable: Safe RET, anal microcode':
 
    The "Safe RET" mitigation (see below) has been applied to protect the
-   kernel, but the IBPB-extending microcode has not been applied.  User
+   kernel, but the IBPB-extending microcode has analt been applied.  User
    space tasks may still be vulnerable.
 
- * 'Vulnerable: Microcode, no safe RET':
+ * 'Vulnerable: Microcode, anal safe RET':
 
    Extended IBPB functionality microcode patch has been applied. It does
-   not address User->Kernel and Guest->Host transitions protection but it
+   analt address User->Kernel and Guest->Host transitions protection but it
    does address User->User and VM->VM attack vectors.
 
-   Note that User->User mitigation is controlled by how the IBPB aspect in
+   Analte that User->User mitigation is controlled by how the IBPB aspect in
    the Spectre v2 mitigation is selected:
 
     * conditional IBPB:
@@ -115,7 +115,7 @@ In order to exploit vulnerability, an attacker needs to:
  - find gadgets in the running kernel in order to use them in the exploit
 
  - potentially create and pin an additional workload on the sibling
-   thread, depending on the microarchitecture (not necessary on fam 0x19)
+   thread, depending on the microarchitecture (analt necessary on fam 0x19)
 
  - run the exploit
 
@@ -131,10 +131,10 @@ new attack vectors appear.
 
 As one can surmise, 'Mitigation: safe RET' does come at the cost of some
 performance depending on the workload. If one trusts her/his userspace
-and does not want to suffer the performance impact, one can always
+and does analt want to suffer the performance impact, one can always
 disable the mitigation with spec_rstack_overflow=off.
 
-Similarly, 'Mitigation: IBPB' is another full mitigation type employing
+Similarly, 'Mitigation: IBPB' is aanalther full mitigation type employing
 an indrect branch prediction barrier after having applied the required
 microcode patch for one's system. This mitigation comes also at
 a performance cost.

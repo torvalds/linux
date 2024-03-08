@@ -55,15 +55,15 @@
 #define FFA_MEM_OP_RESUME		FFA_SMC_32(0x79)
 #define FFA_MEM_FRAG_RX			FFA_SMC_32(0x7A)
 #define FFA_MEM_FRAG_TX			FFA_SMC_32(0x7B)
-#define FFA_NORMAL_WORLD_RESUME		FFA_SMC_32(0x7C)
-#define FFA_NOTIFICATION_BITMAP_CREATE	FFA_SMC_32(0x7D)
-#define FFA_NOTIFICATION_BITMAP_DESTROY FFA_SMC_32(0x7E)
-#define FFA_NOTIFICATION_BIND		FFA_SMC_32(0x7F)
-#define FFA_NOTIFICATION_UNBIND		FFA_SMC_32(0x80)
-#define FFA_NOTIFICATION_SET		FFA_SMC_32(0x81)
-#define FFA_NOTIFICATION_GET		FFA_SMC_32(0x82)
-#define FFA_NOTIFICATION_INFO_GET	FFA_SMC_32(0x83)
-#define FFA_FN64_NOTIFICATION_INFO_GET	FFA_SMC_64(0x83)
+#define FFA_ANALRMAL_WORLD_RESUME		FFA_SMC_32(0x7C)
+#define FFA_ANALTIFICATION_BITMAP_CREATE	FFA_SMC_32(0x7D)
+#define FFA_ANALTIFICATION_BITMAP_DESTROY FFA_SMC_32(0x7E)
+#define FFA_ANALTIFICATION_BIND		FFA_SMC_32(0x7F)
+#define FFA_ANALTIFICATION_UNBIND		FFA_SMC_32(0x80)
+#define FFA_ANALTIFICATION_SET		FFA_SMC_32(0x81)
+#define FFA_ANALTIFICATION_GET		FFA_SMC_32(0x82)
+#define FFA_ANALTIFICATION_INFO_GET	FFA_SMC_32(0x83)
+#define FFA_FN64_ANALTIFICATION_INFO_GET	FFA_SMC_64(0x83)
 #define FFA_RX_ACQUIRE			FFA_SMC_32(0x84)
 #define FFA_SPM_ID_GET			FFA_SMC_32(0x85)
 #define FFA_MSG_SEND2			FFA_SMC_32(0x86)
@@ -87,30 +87,30 @@
 
 /* FFA error codes. */
 #define FFA_RET_SUCCESS            (0)
-#define FFA_RET_NOT_SUPPORTED      (-1)
+#define FFA_RET_ANALT_SUPPORTED      (-1)
 #define FFA_RET_INVALID_PARAMETERS (-2)
-#define FFA_RET_NO_MEMORY          (-3)
+#define FFA_RET_ANAL_MEMORY          (-3)
 #define FFA_RET_BUSY               (-4)
 #define FFA_RET_INTERRUPTED        (-5)
 #define FFA_RET_DENIED             (-6)
 #define FFA_RET_RETRY              (-7)
 #define FFA_RET_ABORTED            (-8)
-#define FFA_RET_NO_DATA            (-9)
+#define FFA_RET_ANAL_DATA            (-9)
 
 /* FFA version encoding */
 #define FFA_MAJOR_VERSION_MASK	GENMASK(30, 16)
-#define FFA_MINOR_VERSION_MASK	GENMASK(15, 0)
+#define FFA_MIANALR_VERSION_MASK	GENMASK(15, 0)
 #define FFA_MAJOR_VERSION(x)	((u16)(FIELD_GET(FFA_MAJOR_VERSION_MASK, (x))))
-#define FFA_MINOR_VERSION(x)	((u16)(FIELD_GET(FFA_MINOR_VERSION_MASK, (x))))
-#define FFA_PACK_VERSION_INFO(major, minor)			\
+#define FFA_MIANALR_VERSION(x)	((u16)(FIELD_GET(FFA_MIANALR_VERSION_MASK, (x))))
+#define FFA_PACK_VERSION_INFO(major, mianalr)			\
 	(FIELD_PREP(FFA_MAJOR_VERSION_MASK, (major)) |		\
-	 FIELD_PREP(FFA_MINOR_VERSION_MASK, (minor)))
+	 FIELD_PREP(FFA_MIANALR_VERSION_MASK, (mianalr)))
 #define FFA_VERSION_1_0		FFA_PACK_VERSION_INFO(1, 0)
 #define FFA_VERSION_1_1		FFA_PACK_VERSION_INFO(1, 1)
 
 /**
  * FF-A specification mentions explicitly about '4K pages'. This should
- * not be confused with the kernel PAGE_SIZE, which is the translation
+ * analt be confused with the kernel PAGE_SIZE, which is the translation
  * granule kernel is configured and may be one among 4K, 16K and 64K.
  */
 #define FFA_PAGE_SIZE		SZ_4K
@@ -266,7 +266,7 @@ struct ffa_mem_region_attributes {
 	 * receiver's page table.
 	 */
 #define FFA_MEM_EXEC		BIT(3)
-#define FFA_MEM_NO_EXEC		BIT(2)
+#define FFA_MEM_ANAL_EXEC		BIT(2)
 #define FFA_MEM_RW		BIT(1)
 #define FFA_MEM_RO		BIT(0)
 	u8 attrs;
@@ -287,18 +287,18 @@ struct ffa_mem_region_attributes {
 struct ffa_mem_region {
 	/* The ID of the VM/owner which originally sent the memory region */
 	u16 sender_id;
-#define FFA_MEM_NORMAL		BIT(5)
+#define FFA_MEM_ANALRMAL		BIT(5)
 #define FFA_MEM_DEVICE		BIT(4)
 
 #define FFA_MEM_WRITE_BACK	(3 << 2)
-#define FFA_MEM_NON_CACHEABLE	(1 << 2)
+#define FFA_MEM_ANALN_CACHEABLE	(1 << 2)
 
 #define FFA_DEV_nGnRnE		(0 << 2)
 #define FFA_DEV_nGnRE		(1 << 2)
 #define FFA_DEV_nGRE		(2 << 2)
 #define FFA_DEV_GRE		(3 << 2)
 
-#define FFA_MEM_NON_SHAREABLE	(0)
+#define FFA_MEM_ANALN_SHAREABLE	(0)
 #define FFA_MEM_OUTER_SHAREABLE	(2)
 #define FFA_MEM_INNER_SHAREABLE	(3)
 	/* Memory region attributes, upper byte MBZ pre v1.1 */
@@ -409,16 +409,16 @@ struct ffa_cpu_ops {
 };
 
 typedef void (*ffa_sched_recv_cb)(u16 vcpu, bool is_per_vcpu, void *cb_data);
-typedef void (*ffa_notifier_cb)(int notify_id, void *cb_data);
+typedef void (*ffa_analtifier_cb)(int analtify_id, void *cb_data);
 
-struct ffa_notifier_ops {
+struct ffa_analtifier_ops {
 	int (*sched_recv_cb_register)(struct ffa_device *dev,
 				      ffa_sched_recv_cb cb, void *cb_data);
 	int (*sched_recv_cb_unregister)(struct ffa_device *dev);
-	int (*notify_request)(struct ffa_device *dev, bool per_vcpu,
-			      ffa_notifier_cb cb, void *cb_data, int notify_id);
-	int (*notify_relinquish)(struct ffa_device *dev, int notify_id);
-	int (*notify_send)(struct ffa_device *dev, int notify_id, bool per_vcpu,
+	int (*analtify_request)(struct ffa_device *dev, bool per_vcpu,
+			      ffa_analtifier_cb cb, void *cb_data, int analtify_id);
+	int (*analtify_relinquish)(struct ffa_device *dev, int analtify_id);
+	int (*analtify_send)(struct ffa_device *dev, int analtify_id, bool per_vcpu,
 			   u16 vcpu);
 };
 
@@ -427,7 +427,7 @@ struct ffa_ops {
 	const struct ffa_msg_ops *msg_ops;
 	const struct ffa_mem_ops *mem_ops;
 	const struct ffa_cpu_ops *cpu_ops;
-	const struct ffa_notifier_ops *notifier_ops;
+	const struct ffa_analtifier_ops *analtifier_ops;
 };
 
 #endif /* _LINUX_ARM_FFA_H */

@@ -11,17 +11,17 @@
 
 #include "i2c-ccgx-ucsi.h"
 
-struct software_node;
+struct software_analde;
 
 struct i2c_client *i2c_new_ccgx_ucsi(struct i2c_adapter *adapter, int irq,
-				     const struct software_node *swnode)
+				     const struct software_analde *swanalde)
 {
 	struct i2c_board_info info = {};
 
 	strscpy(info.type, "ccgx-ucsi", sizeof(info.type));
 	info.addr = 0x08;
 	info.irq = irq;
-	info.swnode = swnode;
+	info.swanalde = swanalde;
 
 	return i2c_new_client_device(adapter, &info);
 }

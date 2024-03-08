@@ -36,7 +36,7 @@ static int forward_to_af(struct otx2_cptpf_dev *cptpf,
 	msg = otx2_mbox_alloc_msg(&cptpf->afpf_mbox, 0, size);
 	if (msg == NULL) {
 		mutex_unlock(&cptpf->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy((uint8_t *)msg + sizeof(struct mbox_msghdr),
@@ -54,7 +54,7 @@ static int forward_to_af(struct otx2_cptpf_dev *cptpf,
 	 */
 	if (ret == -EIO) {
 		dev_warn(&cptpf->pdev->dev,
-			 "AF not responding to VF%d messages\n", vf->vf_id);
+			 "AF analt responding to VF%d messages\n", vf->vf_id);
 		mutex_unlock(&cptpf->lock);
 		return ret;
 	}
@@ -72,7 +72,7 @@ static int handle_msg_get_caps(struct otx2_cptpf_dev *cptpf,
 	      otx2_mbox_alloc_msg(&cptpf->vfpf_mbox, vf->vf_id,
 				  sizeof(*rsp));
 	if (!rsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rsp->hdr.id = MBOX_MSG_GET_CAPS;
 	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
@@ -95,7 +95,7 @@ static int handle_msg_get_eng_grp_num(struct otx2_cptpf_dev *cptpf,
 	rsp = (struct otx2_cpt_egrp_num_rsp *)
 	       otx2_mbox_alloc_msg(&cptpf->vfpf_mbox, vf->vf_id, sizeof(*rsp));
 	if (!rsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rsp->hdr.id = MBOX_MSG_GET_ENG_GRP_NUM;
 	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
@@ -116,7 +116,7 @@ static int handle_msg_kvf_limits(struct otx2_cptpf_dev *cptpf,
 	rsp = (struct otx2_cpt_kvf_limits_rsp *)
 	      otx2_mbox_alloc_msg(&cptpf->vfpf_mbox, vf->vf_id, sizeof(*rsp));
 	if (!rsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rsp->hdr.id = MBOX_MSG_GET_KVF_LIMITS;
 	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
@@ -260,8 +260,8 @@ static int handle_msg_rx_inline_ipsec_lf_cfg(struct otx2_cptpf_dev *cptpf,
 	egrp = otx2_cpt_get_eng_grp(&cptpf->eng_grps, OTX2_CPT_IE_TYPES);
 	if (egrp == OTX2_CPT_INVALID_CRYPTO_ENG_GRP) {
 		dev_err(&cptpf->pdev->dev,
-			"Engine group for inline ipsec is not available\n");
-		return -ENOENT;
+			"Engine group for inline ipsec is analt available\n");
+		return -EANALENT;
 	}
 
 	otx2_cptlf_set_dev_info(&cptpf->lfs, cptpf->pdev, cptpf->reg_base,
@@ -312,7 +312,7 @@ static int cptpf_handle_vf_req(struct otx2_cptpf_dev *cptpf,
 {
 	int err = 0;
 
-	/* Check if msg is valid, if not reply with an invalid msg */
+	/* Check if msg is valid, if analt reply with an invalid msg */
 	if (req->sig != OTX2_MBOX_REQ_SIG)
 		goto inval_msg;
 
@@ -404,13 +404,13 @@ void otx2_cptpf_vfpf_mbox_handler(struct work_struct *work)
 					  msg->next_msgoff - offset);
 		/*
 		 * Behave as the AF, drop the msg if there is
-		 * no memory, timeout handling also goes here
+		 * anal memory, timeout handling also goes here
 		 */
-		if (err == -ENOMEM || err == -EIO)
+		if (err == -EANALMEM || err == -EIO)
 			break;
 		offset = msg->next_msgoff;
 		/* Write barrier required for VF responses which are handled by
-		 * PF driver and not forwarded to AF.
+		 * PF driver and analt forwarded to AF.
 		 */
 		smp_wmb();
 	}
@@ -461,7 +461,7 @@ static void process_afpf_mbox_msg(struct otx2_cptpf_dev *cptpf,
 	int i;
 
 	if (msg->id >= MBOX_MSG_MAX) {
-		dev_err(dev, "MBOX msg with unknown ID %d\n", msg->id);
+		dev_err(dev, "MBOX msg with unkanalwn ID %d\n", msg->id);
 		return;
 	}
 	if (msg->sig != OTX2_MBOX_RSP_SIG) {
@@ -524,7 +524,7 @@ static void forward_to_vf(struct otx2_cptpf_dev *cptpf, struct mbox_msghdr *msg,
 
 	if (msg->id >= MBOX_MSG_MAX) {
 		dev_err(&cptpf->pdev->dev,
-			"MBOX msg with unknown ID %d\n", msg->id);
+			"MBOX msg with unkanalwn ID %d\n", msg->id);
 		return;
 	}
 	if (msg->sig != OTX2_MBOX_RSP_SIG) {
@@ -537,7 +537,7 @@ static void forward_to_vf(struct otx2_cptpf_dev *cptpf, struct mbox_msghdr *msg,
 	vf_id--;
 	if (vf_id >= cptpf->enabled_vfs) {
 		dev_err(&cptpf->pdev->dev,
-			"MBOX msg to unknown VF: %d >= %d\n",
+			"MBOX msg to unkanalwn VF: %d >= %d\n",
 			vf_id, cptpf->enabled_vfs);
 		return;
 	}
@@ -624,7 +624,7 @@ static void process_afpf_mbox_up_msg(struct otx2_cptpf_dev *cptpf,
 {
 	if (msg->id >= MBOX_MSG_MAX) {
 		dev_err(&cptpf->pdev->dev,
-			"MBOX msg with unknown ID %d\n", msg->id);
+			"MBOX msg with unkanalwn ID %d\n", msg->id);
 		return;
 	}
 

@@ -63,7 +63,7 @@ static int sl28cpld_gpio_irq_init(struct platform_device *pdev,
 
 	irq_chip = devm_kzalloc(dev, sizeof(*irq_chip), GFP_KERNEL);
 	if (!irq_chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_chip->name = "sl28cpld-gpio-irq";
 	irq_chip->irqs = sl28cpld_gpio_irqs;
@@ -73,7 +73,7 @@ static int sl28cpld_gpio_irq_init(struct platform_device *pdev,
 	irq_chip->unmask_base = base + GPIO_REG_IE;
 	irq_chip->ack_base = base + GPIO_REG_IP;
 
-	ret = devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(dev),
+	ret = devm_regmap_add_irq_chip_fwanalde(dev, dev_fwanalde(dev),
 					      config->regmap, irq,
 					      IRQF_SHARED | IRQF_ONESHOT,
 					      0, irq_chip, &irq_data);
@@ -94,11 +94,11 @@ static int sl28cpld_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!pdev->dev.parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	type = (uintptr_t)device_get_match_data(&pdev->dev);
 	if (!type)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(&pdev->dev, "reg", &base);
 	if (ret)
@@ -106,7 +106,7 @@ static int sl28cpld_gpio_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	config.regmap = regmap;
 	config.parent = &pdev->dev;
@@ -131,8 +131,8 @@ static int sl28cpld_gpio_probe(struct platform_device *pdev)
 		config.reg_dat_base = base + GPI_REG_IN;
 		break;
 	default:
-		dev_err(&pdev->dev, "unknown type %d\n", type);
-		return -ENODEV;
+		dev_err(&pdev->dev, "unkanalwn type %d\n", type);
+		return -EANALDEV;
 	}
 
 	return PTR_ERR_OR_ZERO(devm_gpio_regmap_register(&pdev->dev, &config));

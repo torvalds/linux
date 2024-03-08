@@ -56,7 +56,7 @@ static int inv_icm42600_probe(struct i2c_client *client)
 	struct regmap *regmap;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	match = device_get_match_data(&client->dev);
 	if (!match)

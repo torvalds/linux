@@ -1,18 +1,18 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Special inodes
+Special ianaldes
 --------------
 
-ext4 reserves some inode for special features, as follows:
+ext4 reserves some ianalde for special features, as follows:
 
 .. list-table::
    :widths: 6 70
    :header-rows: 1
 
-   * - inode Number
+   * - ianalde Number
      - Purpose
    * - 0
-     - Doesn't exist; there is no inode 0.
+     - Doesn't exist; there is anal ianalde 0.
    * - 1
      - List of defective blocks.
    * - 2
@@ -26,18 +26,18 @@ ext4 reserves some inode for special features, as follows:
    * - 6
      - Undelete directory.
    * - 7
-     - Reserved group descriptors inode. (“resize inode”)
+     - Reserved group descriptors ianalde. (“resize ianalde”)
    * - 8
-     - Journal inode.
+     - Journal ianalde.
    * - 9
-     - The “exclude” inode, for snapshots(?)
+     - The “exclude” ianalde, for snapshots(?)
    * - 10
-     - Replica inode, used for some non-upstream feature?
+     - Replica ianalde, used for some analn-upstream feature?
    * - 11
-     - Traditional first non-reserved inode. Usually this is the lost+found directory. See s_first_ino in the superblock.
+     - Traditional first analn-reserved ianalde. Usually this is the lost+found directory. See s_first_ianal in the superblock.
 
-Note that there are also some inodes allocated from non-reserved inode numbers
-for other filesystem features which are not referenced from standard directory
+Analte that there are also some ianaldes allocated from analn-reserved ianalde numbers
+for other filesystem features which are analt referenced from standard directory
 hierarchy. These are generally reference from the superblock. They are:
 
 .. list-table::
@@ -47,9 +47,9 @@ hierarchy. These are generally reference from the superblock. They are:
    * - Superblock field
      - Description
 
-   * - s_lpf_ino
-     - Inode number of lost+found directory.
+   * - s_lpf_ianal
+     - Ianalde number of lost+found directory.
    * - s_prj_quota_inum
-     - Inode number of quota file tracking project quotas
+     - Ianalde number of quota file tracking project quotas
    * - s_orphan_file_inum
-     - Inode number of file tracking orphan inodes.
+     - Ianalde number of file tracking orphan ianaldes.

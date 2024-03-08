@@ -5,7 +5,7 @@
  * PCI initialization for the I-O DATA Device, Inc. LANDISK board
  *
  * Copyright (C) 2006 kogiidena
- * Copyright (C) 2010 Nobuhiro Iwamatsu
+ * Copyright (C) 2010 Analbuhiro Iwamatsu
  */
 #include <linux/kernel.h>
 #include <linux/types.h>

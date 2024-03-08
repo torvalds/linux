@@ -15,7 +15,7 @@ description: |
   requires only a single power-supply.
   There are optionally a backlight and an enable GPIO.
   The panel may use an OF graph binding for the association to the display,
-  or it may be a direct child node of the display.
+  or it may be a direct child analde of the display.
 
   If the panel is more advanced a dedicated binding file is required.
 
@@ -30,8 +30,8 @@ properties:
       - auo,b080uan01
         # Boe Corporation 8.0" WUXGA TFT LCD panel
       - boe,tv080wum-nl0
-        # Innolux P079ZCA 7.85" 768x1024 TFT LCD panel
-      - innolux,p079zca
+        # Inanallux P079ZCA 7.85" 768x1024 TFT LCD panel
+      - inanallux,p079zca
         # JDI FHD_R63452 1080x1920 5.2" IPS LCD Panel
       - jdi,fhd-r63452
         # Khadas TS050 5" 1080x1920 LCD panel

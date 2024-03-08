@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_FS_NOTIFY_H
-#define _LINUX_FS_NOTIFY_H
+#ifndef _LINUX_FS_ANALTIFY_H
+#define _LINUX_FS_ANALTIFY_H
 
 /*
- * include/linux/fsnotify.h - generic hooks for filesystem notification, to
- * reduce in-source duplication from both dnotify and inotify.
+ * include/linux/fsanaltify.h - generic hooks for filesystem analtification, to
+ * reduce in-source duplication from both danaltify and ianaltify.
  *
  * We don't compile any of this away in some complicated menagerie of ifdefs.
  * Instead, we rely on the code inside to optimize away as needed.
@@ -12,176 +12,176 @@
  * (C) Copyright 2005 Robert Love
  */
 
-#include <linux/fsnotify_backend.h>
+#include <linux/fsanaltify_backend.h>
 #include <linux/audit.h>
 #include <linux/slab.h>
 #include <linux/bug.h>
 
 /*
- * Notify this @dir inode about a change in a child directory entry.
- * The directory entry may have turned positive or negative or its inode may
+ * Analtify this @dir ianalde about a change in a child directory entry.
+ * The directory entry may have turned positive or negative or its ianalde may
  * have changed (i.e. renamed over).
  *
- * Unlike fsnotify_parent(), the event will be reported regardless of the
- * FS_EVENT_ON_CHILD mask on the parent inode and will not be reported if only
- * the child is interested and not the parent.
+ * Unlike fsanaltify_parent(), the event will be reported regardless of the
+ * FS_EVENT_ON_CHILD mask on the parent ianalde and will analt be reported if only
+ * the child is interested and analt the parent.
  */
-static inline int fsnotify_name(__u32 mask, const void *data, int data_type,
-				struct inode *dir, const struct qstr *name,
+static inline int fsanaltify_name(__u32 mask, const void *data, int data_type,
+				struct ianalde *dir, const struct qstr *name,
 				u32 cookie)
 {
-	if (atomic_long_read(&dir->i_sb->s_fsnotify_connectors) == 0)
+	if (atomic_long_read(&dir->i_sb->s_fsanaltify_connectors) == 0)
 		return 0;
 
-	return fsnotify(mask, data, data_type, dir, name, NULL, cookie);
+	return fsanaltify(mask, data, data_type, dir, name, NULL, cookie);
 }
 
-static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,
+static inline void fsanaltify_dirent(struct ianalde *dir, struct dentry *dentry,
 				   __u32 mask)
 {
-	fsnotify_name(mask, dentry, FSNOTIFY_EVENT_DENTRY, dir, &dentry->d_name, 0);
+	fsanaltify_name(mask, dentry, FSANALTIFY_EVENT_DENTRY, dir, &dentry->d_name, 0);
 }
 
-static inline void fsnotify_inode(struct inode *inode, __u32 mask)
+static inline void fsanaltify_ianalde(struct ianalde *ianalde, __u32 mask)
 {
-	if (atomic_long_read(&inode->i_sb->s_fsnotify_connectors) == 0)
+	if (atomic_long_read(&ianalde->i_sb->s_fsanaltify_connectors) == 0)
 		return;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		mask |= FS_ISDIR;
 
-	fsnotify(mask, inode, FSNOTIFY_EVENT_INODE, NULL, NULL, inode, 0);
+	fsanaltify(mask, ianalde, FSANALTIFY_EVENT_IANALDE, NULL, NULL, ianalde, 0);
 }
 
-/* Notify this dentry's parent about a child's events. */
-static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
+/* Analtify this dentry's parent about a child's events. */
+static inline int fsanaltify_parent(struct dentry *dentry, __u32 mask,
 				  const void *data, int data_type)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	if (atomic_long_read(&inode->i_sb->s_fsnotify_connectors) == 0)
+	if (atomic_long_read(&ianalde->i_sb->s_fsanaltify_connectors) == 0)
 		return 0;
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(ianalde->i_mode)) {
 		mask |= FS_ISDIR;
 
-		/* sb/mount marks are not interested in name of directory */
-		if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
-			goto notify_child;
+		/* sb/mount marks are analt interested in name of directory */
+		if (!(dentry->d_flags & DCACHE_FSANALTIFY_PARENT_WATCHED))
+			goto analtify_child;
 	}
 
-	/* disconnected dentry cannot notify parent */
+	/* disconnected dentry cananalt analtify parent */
 	if (IS_ROOT(dentry))
-		goto notify_child;
+		goto analtify_child;
 
-	return __fsnotify_parent(dentry, mask, data, data_type);
+	return __fsanaltify_parent(dentry, mask, data, data_type);
 
-notify_child:
-	return fsnotify(mask, data, data_type, NULL, NULL, inode, 0);
+analtify_child:
+	return fsanaltify(mask, data, data_type, NULL, NULL, ianalde, 0);
 }
 
 /*
- * Simple wrappers to consolidate calls to fsnotify_parent() when an event
+ * Simple wrappers to consolidate calls to fsanaltify_parent() when an event
  * is on a file/dentry.
  */
-static inline void fsnotify_dentry(struct dentry *dentry, __u32 mask)
+static inline void fsanaltify_dentry(struct dentry *dentry, __u32 mask)
 {
-	fsnotify_parent(dentry, mask, dentry, FSNOTIFY_EVENT_DENTRY);
+	fsanaltify_parent(dentry, mask, dentry, FSANALTIFY_EVENT_DENTRY);
 }
 
-static inline int fsnotify_file(struct file *file, __u32 mask)
+static inline int fsanaltify_file(struct file *file, __u32 mask)
 {
 	const struct path *path;
 
-	if (file->f_mode & FMODE_NONOTIFY)
+	if (file->f_mode & FMODE_ANALANALTIFY)
 		return 0;
 
 	path = &file->f_path;
-	return fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
+	return fsanaltify_parent(path->dentry, mask, path, FSANALTIFY_EVENT_PATH);
 }
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+#ifdef CONFIG_FAANALTIFY_ACCESS_PERMISSIONS
 /*
- * fsnotify_file_area_perm - permission hook before access to file range
+ * fsanaltify_file_area_perm - permission hook before access to file range
  */
-static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
+static inline int fsanaltify_file_area_perm(struct file *file, int perm_mask,
 					  const loff_t *ppos, size_t count)
 {
-	__u32 fsnotify_mask = FS_ACCESS_PERM;
+	__u32 fsanaltify_mask = FS_ACCESS_PERM;
 
 	/*
 	 * filesystem may be modified in the context of permission events
 	 * (e.g. by HSM filling a file on access), so sb freeze protection
-	 * must not be held.
+	 * must analt be held.
 	 */
-	lockdep_assert_once(file_write_not_started(file));
+	lockdep_assert_once(file_write_analt_started(file));
 
 	if (!(perm_mask & MAY_READ))
 		return 0;
 
-	return fsnotify_file(file, fsnotify_mask);
+	return fsanaltify_file(file, fsanaltify_mask);
 }
 
 /*
- * fsnotify_file_perm - permission hook before file access
+ * fsanaltify_file_perm - permission hook before file access
  */
-static inline int fsnotify_file_perm(struct file *file, int perm_mask)
+static inline int fsanaltify_file_perm(struct file *file, int perm_mask)
 {
-	return fsnotify_file_area_perm(file, perm_mask, NULL, 0);
+	return fsanaltify_file_area_perm(file, perm_mask, NULL, 0);
 }
 
 /*
- * fsnotify_open_perm - permission hook before file open
+ * fsanaltify_open_perm - permission hook before file open
  */
-static inline int fsnotify_open_perm(struct file *file)
+static inline int fsanaltify_open_perm(struct file *file)
 {
 	int ret;
 
 	if (file->f_flags & __FMODE_EXEC) {
-		ret = fsnotify_file(file, FS_OPEN_EXEC_PERM);
+		ret = fsanaltify_file(file, FS_OPEN_EXEC_PERM);
 		if (ret)
 			return ret;
 	}
 
-	return fsnotify_file(file, FS_OPEN_PERM);
+	return fsanaltify_file(file, FS_OPEN_PERM);
 }
 
 #else
-static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
+static inline int fsanaltify_file_area_perm(struct file *file, int perm_mask,
 					  const loff_t *ppos, size_t count)
 {
 	return 0;
 }
 
-static inline int fsnotify_file_perm(struct file *file, int perm_mask)
+static inline int fsanaltify_file_perm(struct file *file, int perm_mask)
 {
 	return 0;
 }
 
-static inline int fsnotify_open_perm(struct file *file)
+static inline int fsanaltify_open_perm(struct file *file)
 {
 	return 0;
 }
 #endif
 
 /*
- * fsnotify_link_count - inode's link count changed
+ * fsanaltify_link_count - ianalde's link count changed
  */
-static inline void fsnotify_link_count(struct inode *inode)
+static inline void fsanaltify_link_count(struct ianalde *ianalde)
 {
-	fsnotify_inode(inode, FS_ATTRIB);
+	fsanaltify_ianalde(ianalde, FS_ATTRIB);
 }
 
 /*
- * fsnotify_move - file old_name at old_dir was moved to new_name at new_dir
+ * fsanaltify_move - file old_name at old_dir was moved to new_name at new_dir
  */
-static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
+static inline void fsanaltify_move(struct ianalde *old_dir, struct ianalde *new_dir,
 				 const struct qstr *old_name,
-				 int isdir, struct inode *target,
+				 int isdir, struct ianalde *target,
 				 struct dentry *moved)
 {
-	struct inode *source = moved->d_inode;
-	u32 fs_cookie = fsnotify_get_cookie();
+	struct ianalde *source = moved->d_ianalde;
+	u32 fs_cookie = fsanaltify_get_cookie();
 	__u32 old_dir_mask = FS_MOVED_FROM;
 	__u32 new_dir_mask = FS_MOVED_TO;
 	__u32 rename_mask = FS_RENAME;
@@ -194,206 +194,206 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	}
 
 	/* Event with information about both old and new parent+name */
-	fsnotify_name(rename_mask, moved, FSNOTIFY_EVENT_DENTRY,
+	fsanaltify_name(rename_mask, moved, FSANALTIFY_EVENT_DENTRY,
 		      old_dir, old_name, 0);
 
-	fsnotify_name(old_dir_mask, source, FSNOTIFY_EVENT_INODE,
+	fsanaltify_name(old_dir_mask, source, FSANALTIFY_EVENT_IANALDE,
 		      old_dir, old_name, fs_cookie);
-	fsnotify_name(new_dir_mask, source, FSNOTIFY_EVENT_INODE,
+	fsanaltify_name(new_dir_mask, source, FSANALTIFY_EVENT_IANALDE,
 		      new_dir, new_name, fs_cookie);
 
 	if (target)
-		fsnotify_link_count(target);
-	fsnotify_inode(source, FS_MOVE_SELF);
-	audit_inode_child(new_dir, moved, AUDIT_TYPE_CHILD_CREATE);
+		fsanaltify_link_count(target);
+	fsanaltify_ianalde(source, FS_MOVE_SELF);
+	audit_ianalde_child(new_dir, moved, AUDIT_TYPE_CHILD_CREATE);
 }
 
 /*
- * fsnotify_inode_delete - and inode is being evicted from cache, clean up is needed
+ * fsanaltify_ianalde_delete - and ianalde is being evicted from cache, clean up is needed
  */
-static inline void fsnotify_inode_delete(struct inode *inode)
+static inline void fsanaltify_ianalde_delete(struct ianalde *ianalde)
 {
-	__fsnotify_inode_delete(inode);
+	__fsanaltify_ianalde_delete(ianalde);
 }
 
 /*
- * fsnotify_vfsmount_delete - a vfsmount is being destroyed, clean up is needed
+ * fsanaltify_vfsmount_delete - a vfsmount is being destroyed, clean up is needed
  */
-static inline void fsnotify_vfsmount_delete(struct vfsmount *mnt)
+static inline void fsanaltify_vfsmount_delete(struct vfsmount *mnt)
 {
-	__fsnotify_vfsmount_delete(mnt);
+	__fsanaltify_vfsmount_delete(mnt);
 }
 
 /*
- * fsnotify_inoderemove - an inode is going away
+ * fsanaltify_ianalderemove - an ianalde is going away
  */
-static inline void fsnotify_inoderemove(struct inode *inode)
+static inline void fsanaltify_ianalderemove(struct ianalde *ianalde)
 {
-	fsnotify_inode(inode, FS_DELETE_SELF);
-	__fsnotify_inode_delete(inode);
+	fsanaltify_ianalde(ianalde, FS_DELETE_SELF);
+	__fsanaltify_ianalde_delete(ianalde);
 }
 
 /*
- * fsnotify_create - 'name' was linked in
+ * fsanaltify_create - 'name' was linked in
  *
  * Caller must make sure that dentry->d_name is stable.
- * Note: some filesystems (e.g. kernfs) leave @dentry negative and instantiate
- * ->d_inode later
+ * Analte: some filesystems (e.g. kernfs) leave @dentry negative and instantiate
+ * ->d_ianalde later
  */
-static inline void fsnotify_create(struct inode *dir, struct dentry *dentry)
+static inline void fsanaltify_create(struct ianalde *dir, struct dentry *dentry)
 {
-	audit_inode_child(dir, dentry, AUDIT_TYPE_CHILD_CREATE);
+	audit_ianalde_child(dir, dentry, AUDIT_TYPE_CHILD_CREATE);
 
-	fsnotify_dirent(dir, dentry, FS_CREATE);
+	fsanaltify_dirent(dir, dentry, FS_CREATE);
 }
 
 /*
- * fsnotify_link - new hardlink in 'inode' directory
+ * fsanaltify_link - new hardlink in 'ianalde' directory
  *
  * Caller must make sure that new_dentry->d_name is stable.
- * Note: We have to pass also the linked inode ptr as some filesystems leave
- *   new_dentry->d_inode NULL and instantiate inode pointer later
+ * Analte: We have to pass also the linked ianalde ptr as some filesystems leave
+ *   new_dentry->d_ianalde NULL and instantiate ianalde pointer later
  */
-static inline void fsnotify_link(struct inode *dir, struct inode *inode,
+static inline void fsanaltify_link(struct ianalde *dir, struct ianalde *ianalde,
 				 struct dentry *new_dentry)
 {
-	fsnotify_link_count(inode);
-	audit_inode_child(dir, new_dentry, AUDIT_TYPE_CHILD_CREATE);
+	fsanaltify_link_count(ianalde);
+	audit_ianalde_child(dir, new_dentry, AUDIT_TYPE_CHILD_CREATE);
 
-	fsnotify_name(FS_CREATE, inode, FSNOTIFY_EVENT_INODE,
+	fsanaltify_name(FS_CREATE, ianalde, FSANALTIFY_EVENT_IANALDE,
 		      dir, &new_dentry->d_name, 0);
 }
 
 /*
- * fsnotify_delete - @dentry was unlinked and unhashed
+ * fsanaltify_delete - @dentry was unlinked and unhashed
  *
  * Caller must make sure that dentry->d_name is stable.
  *
- * Note: unlike fsnotify_unlink(), we have to pass also the unlinked inode
+ * Analte: unlike fsanaltify_unlink(), we have to pass also the unlinked ianalde
  * as this may be called after d_delete() and old_dentry may be negative.
  */
-static inline void fsnotify_delete(struct inode *dir, struct inode *inode,
+static inline void fsanaltify_delete(struct ianalde *dir, struct ianalde *ianalde,
 				   struct dentry *dentry)
 {
 	__u32 mask = FS_DELETE;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		mask |= FS_ISDIR;
 
-	fsnotify_name(mask, inode, FSNOTIFY_EVENT_INODE, dir, &dentry->d_name,
+	fsanaltify_name(mask, ianalde, FSANALTIFY_EVENT_IANALDE, dir, &dentry->d_name,
 		      0);
 }
 
 /**
- * d_delete_notify - delete a dentry and call fsnotify_delete()
+ * d_delete_analtify - delete a dentry and call fsanaltify_delete()
  * @dentry: The dentry to delete
  *
- * This helper is used to guaranty that the unlinked inode cannot be found
- * by lookup of this name after fsnotify_delete() event has been delivered.
+ * This helper is used to guaranty that the unlinked ianalde cananalt be found
+ * by lookup of this name after fsanaltify_delete() event has been delivered.
  */
-static inline void d_delete_notify(struct inode *dir, struct dentry *dentry)
+static inline void d_delete_analtify(struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	ihold(inode);
+	ihold(ianalde);
 	d_delete(dentry);
-	fsnotify_delete(dir, inode, dentry);
-	iput(inode);
+	fsanaltify_delete(dir, ianalde, dentry);
+	iput(ianalde);
 }
 
 /*
- * fsnotify_unlink - 'name' was unlinked
+ * fsanaltify_unlink - 'name' was unlinked
  *
  * Caller must make sure that dentry->d_name is stable.
  */
-static inline void fsnotify_unlink(struct inode *dir, struct dentry *dentry)
+static inline void fsanaltify_unlink(struct ianalde *dir, struct dentry *dentry)
 {
 	if (WARN_ON_ONCE(d_is_negative(dentry)))
 		return;
 
-	fsnotify_delete(dir, d_inode(dentry), dentry);
+	fsanaltify_delete(dir, d_ianalde(dentry), dentry);
 }
 
 /*
- * fsnotify_mkdir - directory 'name' was created
+ * fsanaltify_mkdir - directory 'name' was created
  *
  * Caller must make sure that dentry->d_name is stable.
- * Note: some filesystems (e.g. kernfs) leave @dentry negative and instantiate
- * ->d_inode later
+ * Analte: some filesystems (e.g. kernfs) leave @dentry negative and instantiate
+ * ->d_ianalde later
  */
-static inline void fsnotify_mkdir(struct inode *dir, struct dentry *dentry)
+static inline void fsanaltify_mkdir(struct ianalde *dir, struct dentry *dentry)
 {
-	audit_inode_child(dir, dentry, AUDIT_TYPE_CHILD_CREATE);
+	audit_ianalde_child(dir, dentry, AUDIT_TYPE_CHILD_CREATE);
 
-	fsnotify_dirent(dir, dentry, FS_CREATE | FS_ISDIR);
+	fsanaltify_dirent(dir, dentry, FS_CREATE | FS_ISDIR);
 }
 
 /*
- * fsnotify_rmdir - directory 'name' was removed
+ * fsanaltify_rmdir - directory 'name' was removed
  *
  * Caller must make sure that dentry->d_name is stable.
  */
-static inline void fsnotify_rmdir(struct inode *dir, struct dentry *dentry)
+static inline void fsanaltify_rmdir(struct ianalde *dir, struct dentry *dentry)
 {
 	if (WARN_ON_ONCE(d_is_negative(dentry)))
 		return;
 
-	fsnotify_delete(dir, d_inode(dentry), dentry);
+	fsanaltify_delete(dir, d_ianalde(dentry), dentry);
 }
 
 /*
- * fsnotify_access - file was read
+ * fsanaltify_access - file was read
  */
-static inline void fsnotify_access(struct file *file)
+static inline void fsanaltify_access(struct file *file)
 {
-	fsnotify_file(file, FS_ACCESS);
+	fsanaltify_file(file, FS_ACCESS);
 }
 
 /*
- * fsnotify_modify - file was modified
+ * fsanaltify_modify - file was modified
  */
-static inline void fsnotify_modify(struct file *file)
+static inline void fsanaltify_modify(struct file *file)
 {
-	fsnotify_file(file, FS_MODIFY);
+	fsanaltify_file(file, FS_MODIFY);
 }
 
 /*
- * fsnotify_open - file was opened
+ * fsanaltify_open - file was opened
  */
-static inline void fsnotify_open(struct file *file)
+static inline void fsanaltify_open(struct file *file)
 {
 	__u32 mask = FS_OPEN;
 
 	if (file->f_flags & __FMODE_EXEC)
 		mask |= FS_OPEN_EXEC;
 
-	fsnotify_file(file, mask);
+	fsanaltify_file(file, mask);
 }
 
 /*
- * fsnotify_close - file was closed
+ * fsanaltify_close - file was closed
  */
-static inline void fsnotify_close(struct file *file)
+static inline void fsanaltify_close(struct file *file)
 {
 	__u32 mask = (file->f_mode & FMODE_WRITE) ? FS_CLOSE_WRITE :
-						    FS_CLOSE_NOWRITE;
+						    FS_CLOSE_ANALWRITE;
 
-	fsnotify_file(file, mask);
+	fsanaltify_file(file, mask);
 }
 
 /*
- * fsnotify_xattr - extended attributes were changed
+ * fsanaltify_xattr - extended attributes were changed
  */
-static inline void fsnotify_xattr(struct dentry *dentry)
+static inline void fsanaltify_xattr(struct dentry *dentry)
 {
-	fsnotify_dentry(dentry, FS_ATTRIB);
+	fsanaltify_dentry(dentry, FS_ATTRIB);
 }
 
 /*
- * fsnotify_change - notify_change event.  file was modified and/or metadata
+ * fsanaltify_change - analtify_change event.  file was modified and/or metadata
  * was changed.
  */
-static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
+static inline void fsanaltify_change(struct dentry *dentry, unsigned int ia_valid)
 {
 	__u32 mask = 0;
 
@@ -416,20 +416,20 @@ static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
 		mask |= FS_ATTRIB;
 
 	if (mask)
-		fsnotify_dentry(dentry, mask);
+		fsanaltify_dentry(dentry, mask);
 }
 
-static inline int fsnotify_sb_error(struct super_block *sb, struct inode *inode,
+static inline int fsanaltify_sb_error(struct super_block *sb, struct ianalde *ianalde,
 				    int error)
 {
 	struct fs_error_report report = {
 		.error = error,
-		.inode = inode,
+		.ianalde = ianalde,
 		.sb = sb,
 	};
 
-	return fsnotify(FS_ERROR, &report, FSNOTIFY_EVENT_ERROR,
+	return fsanaltify(FS_ERROR, &report, FSANALTIFY_EVENT_ERROR,
 			NULL, NULL, NULL, 0);
 }
 
-#endif	/* _LINUX_FS_NOTIFY_H */
+#endif	/* _LINUX_FS_ANALTIFY_H */

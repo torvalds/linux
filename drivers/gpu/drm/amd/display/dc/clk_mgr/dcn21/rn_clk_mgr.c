@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,7 +38,7 @@
 #include "atomfirmware.h"
 #include "clk/clk_10_0_2_offset.h"
 #include "clk/clk_10_0_2_sh_mask.h"
-#include "renoir_ip_offset.h"
+#include "reanalir_ip_offset.h"
 
 
 /* Constants */
@@ -113,7 +113,7 @@ static void rn_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
 		int dpp_inst, dppclk_khz, prev_dppclk_khz;
 
-		/* Loop index may not match dpp->inst if some pipes disabled,
+		/* Loop index may analt match dpp->inst if some pipes disabled,
 		 * so select correct inst from res_pool
 		 */
 		dpp_inst = clk_mgr->base.ctx->dc->res_pool->dpps[i]->inst;
@@ -150,7 +150,7 @@ static void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	 * also if safe to lower is false, we just go in the higher state
 	 */
 	if (safe_to_lower && !dc->debug.disable_48mhz_pwrdwn) {
-		/* check that we're not already in lower */
+		/* check that we're analt already in lower */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
 
 			display_count = rn_get_active_display_cnt_wa(dc, context);
@@ -163,7 +163,7 @@ static void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			}
 		}
 	} else {
-		/* check that we're not already in D0 */
+		/* check that we're analt already in D0 */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_MISSION_MODE) {
 			rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_MISSION_MODE);
 			/* update power state */
@@ -183,12 +183,12 @@ static void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	// workaround: Limit dppclk to 100Mhz to avoid lower eDP panel switch to plus 4K monitor underflow.
-	// Do not adjust dppclk if dppclk is 0 to avoid unexpected result
+	// Do analt adjust dppclk if dppclk is 0 to avoid unexpected result
 	if (new_clocks->dppclk_khz < 100000 && new_clocks->dppclk_khz > 0)
 		new_clocks->dppclk_khz = 100000;
 
 	/*
-	 * Temporally ignore thew 0 cases for disp and dpp clks.
+	 * Temporally iganalre thew 0 cases for disp and dpp clks.
 	 * We may have a new feature that requires 0 clks in the future.
 	 */
 	if (new_clocks->dppclk_khz == 0 || new_clocks->dispclk_khz == 0) {
@@ -234,7 +234,7 @@ static void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			clk_mgr_base->clks.actual_dppclk_khz =
 					rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
 
-		// always update dtos unless clock is lowered and not safe to lower
+		// always update dtos unless clock is lowered and analt safe to lower
 		rn_update_clocks_update_dpp_dto(
 				clk_mgr,
 				context,
@@ -277,7 +277,7 @@ static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
 	/* multiply by REFCLK period */
 	pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
 
-	/* integer part is now VCO frequency in kHz */
+	/* integer part is analw VCO frequency in kHz */
 	return dc_fixpt_floor(pll_req);
 }
 
@@ -448,7 +448,7 @@ static void rn_init_clocks(struct clk_mgr *clk_mgr)
 	// Assumption is that boot state always supports pstate
 	clk_mgr->clks.p_state_change_support = true;
 	clk_mgr->clks.prev_p_state_change_support = true;
-	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKNOWN;
+	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKANALWN;
 }
 
 static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
@@ -458,13 +458,13 @@ static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_sm
 	num_valid_sets = 0;
 
 	for (i = 0; i < WM_SET_COUNT; i++) {
-		/* skip empty entries, the smu array has no holes*/
+		/* skip empty entries, the smu array has anal holes*/
 		if (!bw_params->wm_table.entries[i].valid)
 			continue;
 
 		ranges->reader_wm_sets[num_valid_sets].wm_inst = bw_params->wm_table.entries[i].wm_inst;
 		ranges->reader_wm_sets[num_valid_sets].wm_type = bw_params->wm_table.entries[i].wm_type;
-		/* We will not select WM based on fclk, so leave it as unconstrained */
+		/* We will analt select WM based on fclk, so leave it as unconstrained */
 		ranges->reader_wm_sets[num_valid_sets].min_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 		ranges->reader_wm_sets[num_valid_sets].max_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 		/* dcfclk wil be used to select WM*/
@@ -473,7 +473,7 @@ static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_sm
 			if (i == 0)
 				ranges->reader_wm_sets[num_valid_sets].min_drain_clk_mhz = 0;
 			else {
-				/* add 1 to make it non-overlapping with next lvl */
+				/* add 1 to make it analn-overlapping with next lvl */
 				ranges->reader_wm_sets[num_valid_sets].min_drain_clk_mhz = bw_params->clk_table.entries[i - 1].dcfclk_mhz + 1;
 			}
 			ranges->reader_wm_sets[num_valid_sets].max_drain_clk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
@@ -498,7 +498,7 @@ static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_sm
 	ranges->reader_wm_sets[ranges->num_reader_wm_sets - 1].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 	ranges->reader_wm_sets[ranges->num_reader_wm_sets - 1].max_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 
-	/* This is for writeback only, does not matter currently as no writeback support*/
+	/* This is for writeback only, does analt matter currently as anal writeback support*/
 	ranges->num_writer_wm_sets = 1;
 	ranges->writer_wm_sets[0].wm_inst = WM_A;
 	ranges->writer_wm_sets[0].min_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
@@ -508,7 +508,7 @@ static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_sm
 
 }
 
-static void rn_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
+static void rn_analtify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	struct dc_debug_options *debug = &clk_mgr_base->ctx->dc->debug;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
@@ -517,7 +517,7 @@ static void rn_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 	if (!debug->disable_pplib_wm_range) {
 		build_watermark_ranges(clk_mgr_base->bw_params, &clk_mgr_base->ranges);
 
-		/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
+		/* Analtify PP Lib/SMU which Watermarks to use for which clock ranges */
 		if (pp_smu && pp_smu->rn_funcs.set_wm_ranges)
 			pp_smu->rn_funcs.set_wm_ranges(&pp_smu->rn_funcs.pp_smu, &clk_mgr_base->ranges);
 	}
@@ -540,8 +540,8 @@ static bool rn_are_clock_states_equal(struct dc_clocks *a,
 }
 
 
-/* Notify clk_mgr of a change in link rate, update phyclk frequency if necessary */
-static void rn_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc_link *link)
+/* Analtify clk_mgr of a change in link rate, update phyclk frequency if necessary */
+static void rn_analtify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc_link *link)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	unsigned int i, max_phyclk_req = 0;
@@ -566,8 +566,8 @@ static struct clk_mgr_funcs dcn21_funcs = {
 	.enable_pme_wa = rn_enable_pme_wa,
 	.are_clock_states_equal = rn_are_clock_states_equal,
 	.set_low_power_state = rn_set_low_power_state,
-	.notify_wm_ranges = rn_notify_wm_ranges,
-	.notify_link_rate_change = rn_notify_link_rate_change,
+	.analtify_wm_ranges = rn_analtify_wm_ranges,
+	.analtify_link_rate_change = rn_analtify_link_rate_change,
 };
 
 static struct clk_bw_params rn_bw_params = {
@@ -728,7 +728,7 @@ void rn_clk_mgr_construct(
 
 	clk_mgr->periodic_retraining_disabled = rn_vbios_smu_is_periodic_retraining_disabled(clk_mgr);
 
-	/* SMU Version 55.51.0 and up no longer have an issue
+	/* SMU Version 55.51.0 and up anal longer have an issue
 	 * that needs to limit minimum dispclk */
 	if (clk_mgr->smu_ver >= SMU_VER_55_51_0)
 		debug->min_disp_clk_khz = 0;

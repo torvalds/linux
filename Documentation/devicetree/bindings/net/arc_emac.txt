@@ -1,4 +1,4 @@
-* Synopsys ARC EMAC 10/100 Ethernet driver (EMAC)
+* Syanalpsys ARC EMAC 10/100 Ethernet driver (EMAC)
 
 Required properties:
 - compatible: Should be "snps,arc-emac"
@@ -20,7 +20,7 @@ It must be provided by one of:
 - clock-frequency: CPU frequency.
 - clocks: reference to the clock supplying the EMAC.
 
-Child nodes of the driver are the individual PHY devices connected to the
+Child analdes of the driver are the individual PHY devices connected to the
 MDIO bus. They must have a "reg" property given the PHY address on the MDIO bus.
 
 Examples:

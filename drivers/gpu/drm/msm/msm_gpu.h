@@ -7,7 +7,7 @@
 #ifndef __MSM_GPU_H__
 #define __MSM_GPU_H__
 
-#include <linux/adreno-smmu-priv.h>
+#include <linux/adreanal-smmu-priv.h>
 #include <linux/clk.h>
 #include <linux/devfreq.h>
 #include <linux/interconnect.h>
@@ -38,7 +38,7 @@ struct msm_gpu_config {
  * Which means that the eventual complete "class" hierarchy, once
  * support for all past and present hw is in place, becomes:
  *  + msm_gpu
- *    + adreno_gpu
+ *    + adreanal_gpu
  *      + a3xx_gpu
  *      + a2xx_gpu
  *    + z180_gpu
@@ -68,14 +68,14 @@ struct msm_gpu_funcs {
 	void (*show)(struct msm_gpu *gpu, struct msm_gpu_state *state,
 			struct drm_printer *p);
 	/* for generation specific debugfs: */
-	void (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
+	void (*debugfs_init)(struct msm_gpu *gpu, struct drm_mianalr *mianalr);
 #endif
-	/* note: gpu_busy() can assume that we have been pm_resumed */
+	/* analte: gpu_busy() can assume that we have been pm_resumed */
 	u64 (*gpu_busy)(struct msm_gpu *gpu, unsigned long *out_sample_rate);
 	struct msm_gpu_state *(*gpu_state_get)(struct msm_gpu *gpu);
 	int (*gpu_state_put)(struct msm_gpu_state *state);
 	unsigned long (*gpu_get_freq)(struct msm_gpu *gpu);
-	/* note: gpu_set_freq() can assume that we have been pm_resumed */
+	/* analte: gpu_set_freq() can assume that we have been pm_resumed */
 	void (*gpu_set_freq)(struct msm_gpu *gpu, struct dev_pm_opp *opp,
 			     bool suspended);
 	struct msm_gem_address_space *(*create_address_space)
@@ -117,7 +117,7 @@ struct msm_gpu_devfreq {
 	 * idle_freq:
 	 *
 	 * Shadow frequency used while the GPU is idle.  From the PoV of
-	 * the devfreq governor, we are continuing to sample busyness and
+	 * the devfreq goveranalr, we are continuing to sample busyness and
 	 * adjust frequency while the GPU is idle, but we use this shadow
 	 * value as the GPU is actually clamped to minimum frequency while
 	 * it is inactive.
@@ -169,7 +169,7 @@ struct msm_gpu {
 	struct platform_device *pdev;
 	const struct msm_gpu_funcs *funcs;
 
-	struct adreno_smmu_priv adreno_smmu;
+	struct adreanal_smmu_priv adreanal_smmu;
 
 	/* performance counters (hw & sw): */
 	spinlock_t perf_lock;
@@ -194,15 +194,15 @@ struct msm_gpu {
 	refcount_t sysprof_active;
 
 	/**
-	 * cur_ctx_seqno:
+	 * cur_ctx_seqanal:
 	 *
-	 * The ctx->seqno value of the last context to submit rendering,
+	 * The ctx->seqanal value of the last context to submit rendering,
 	 * and the one with current pgtables installed (for generations
-	 * that support per-context pgtables).  Tracked by seqno rather
+	 * that support per-context pgtables).  Tracked by seqanal rather
 	 * than pointer value to avoid dangling pointers, and cases where
 	 * a ctx can be freed and a new one created with the same address.
 	 */
-	int cur_ctx_seqno;
+	int cur_ctx_seqanal;
 
 	/**
 	 * lock:
@@ -217,7 +217,7 @@ struct msm_gpu {
 	/**
 	 * active_submits:
 	 *
-	 * The number of submitted but not yet retired submits, used to
+	 * The number of submitted but analt yet retired submits, used to
 	 * determine transitions between active and idle.
 	 *
 	 * Protected by active_lock
@@ -231,7 +231,7 @@ struct msm_gpu {
 	bool needs_hw_init;
 
 	/**
-	 * global_faults: number of GPU hangs not attributed to a particular
+	 * global_faults: number of GPU hangs analt attributed to a particular
 	 * address space
 	 */
 	int global_faults;
@@ -265,7 +265,7 @@ struct msm_gpu {
 	/* work for handling GPU recovery: */
 	struct kthread_work recover_work;
 
-	/** retire_event: notified when submits are retired: */
+	/** retire_event: analtified when submits are retired: */
 	wait_queue_head_t retire_event;
 
 	/* work for handling active-list retiring: */
@@ -289,7 +289,7 @@ struct msm_gpu {
 	 * @allow_relocs: allow relocs in SUBMIT ioctl
 	 *
 	 * Mesa won't use relocs for driver version 1.4.0 and later.  This
-	 * switch-over happened early enough in mesa a6xx bringup that we
+	 * switch-over happened early eanalugh in mesa a6xx bringup that we
 	 * can disallow relocs for a6xx and newer.
 	 */
 	bool allow_relocs;
@@ -299,12 +299,12 @@ struct msm_gpu {
 
 static inline struct msm_gpu *dev_to_gpu(struct device *dev)
 {
-	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(dev);
+	struct adreanal_smmu_priv *adreanal_smmu = dev_get_drvdata(dev);
 
-	if (!adreno_smmu)
+	if (!adreanal_smmu)
 		return NULL;
 
-	return container_of(adreno_smmu, struct msm_gpu, adreno_smmu);
+	return container_of(adreanal_smmu, struct msm_gpu, adreanal_smmu);
 }
 
 /* It turns out that all targets use the same ringbuffer size */
@@ -345,7 +345,7 @@ struct msm_gpu_perfcntr {
 /*
  * The number of priority levels provided by drm gpu scheduler.  The
  * DRM_SCHED_PRIORITY_KERNEL priority level is treated specially in some
- * cases, so we don't use it (no need for kernel generated jobs).
+ * cases, so we don't use it (anal need for kernel generated jobs).
  */
 #define NR_SCHED_PRIORITIES (1 + DRM_SCHED_PRIORITY_LOW - DRM_SCHED_PRIORITY_HIGH)
 
@@ -358,7 +358,7 @@ struct msm_gpu_perfcntr {
  *                used to assign &msm_gpu_submitqueue.id
  * @aspace:       the per-process GPU address-space
  * @ref:          reference count
- * @seqno:        unique per process seqno
+ * @seqanal:        unique per process seqanal
  */
 struct msm_file_private {
 	rwlock_t queuelock;
@@ -366,7 +366,7 @@ struct msm_file_private {
 	int queueid;
 	struct msm_gem_address_space *aspace;
 	struct kref ref;
-	int seqno;
+	int seqanal;
 
 	/**
 	 * sysprof:
@@ -493,9 +493,9 @@ static inline int msm_gpu_convert_priority(struct msm_gpu *gpu, int prio,
  * @ctx:       the per-drm_file context associated with the submitqueue (ie.
  *             which set of pgtables do submits jobs associated with the
  *             submitqueue use)
- * @node:      node in the context's list of submitqueues
+ * @analde:      analde in the context's list of submitqueues
  * @fence_idr: maps fence-id to dma_fence for userspace visible fence
- *             seqno, protected by submitqueue lock
+ *             seqanal, protected by submitqueue lock
  * @idr_lock:  for serializing access to fence_idr
  * @lock:      submitqueue lock for serializing submits on a queue
  * @ref:       reference count
@@ -508,7 +508,7 @@ struct msm_gpu_submitqueue {
 	int faults;
 	uint32_t last_fence;
 	struct msm_file_private *ctx;
-	struct list_head node;
+	struct list_head analde;
 	struct idr fence_idr;
 	struct spinlock idr_lock;
 	struct mutex lock;
@@ -531,7 +531,7 @@ struct msm_gpu_state {
 	struct {
 		u64 iova;
 		u32 fence;
-		u32 seqno;
+		u32 seqanal;
 		u32 rptr;
 		u32 wptr;
 		void *data;
@@ -573,8 +573,8 @@ static inline u64 gpu_read64(struct msm_gpu *gpu, u32 reg)
 	u64 val;
 
 	/*
-	 * Why not a readq here? Two reasons: 1) many of the LO registers are
-	 * not quad word aligned and 2) the GPU hardware designers have a bit
+	 * Why analt a readq here? Two reasons: 1) many of the LO registers are
+	 * analt quad word aligned and 2) the GPU hardware designers have a bit
 	 * of a history of putting registers where they fit, especially in
 	 * spins. The longer a GPU family goes the higher the chance that
 	 * we'll get burned.  We could do a series of validity checks if we
@@ -594,7 +594,7 @@ static inline u64 gpu_read64(struct msm_gpu *gpu, u32 reg)
 
 static inline void gpu_write64(struct msm_gpu *gpu, u32 reg, u64 val)
 {
-	/* Why not a writeq here? Read the screed above */
+	/* Why analt a writeq here? Read the screed above */
 	msm_writel(lower_32_bits(val), gpu->mmio + (reg << 2));
 	msm_writel(upper_32_bits(val), gpu->mmio + ((reg + 1) << 2));
 }
@@ -661,9 +661,9 @@ msm_gpu_create_private_address_space(struct msm_gpu *gpu, struct task_struct *ta
 
 void msm_gpu_cleanup(struct msm_gpu *gpu);
 
-struct msm_gpu *adreno_load_gpu(struct drm_device *dev);
-void __init adreno_register(void);
-void __exit adreno_unregister(void);
+struct msm_gpu *adreanal_load_gpu(struct drm_device *dev);
+void __init adreanal_register(void);
+void __exit adreanal_unregister(void);
 
 static inline void msm_submitqueue_put(struct msm_gpu_submitqueue *queue)
 {

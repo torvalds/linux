@@ -9,7 +9,7 @@
 /* These may be implemented by architectures that need to hook into the
  * module loader code.  Architectures that don't need to do anything special
  * can just rely on the 'weak' default hooks defined in kernel/module.c.
- * Note, however, that at least one of apply_relocate or apply_relocate_add
+ * Analte, however, that at least one of apply_relocate or apply_relocate_add
  * must be implemented by each architecture.
  */
 
@@ -43,7 +43,7 @@ bool module_init_section(const char *name);
 bool module_exit_section(const char *name);
 
 /* Describes whether within_module_init() will consider this an init section
- * or not. This behaviour changes with CONFIG_MODULE_UNLOAD.
+ * or analt. This behaviour changes with CONFIG_MODULE_UNLOAD.
  */
 bool module_init_layout_section(const char *sname);
 
@@ -66,7 +66,7 @@ static inline int apply_relocate(Elf_Shdr *sechdrs,
 {
 	printk(KERN_ERR "module %s: REL relocation unsupported\n",
 	       module_name(me));
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 #endif
 
@@ -106,7 +106,7 @@ static inline int apply_relocate_add(Elf_Shdr *sechdrs,
 {
 	printk(KERN_ERR "module %s: REL relocation unsupported\n",
 	       module_name(me));
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 #endif
 

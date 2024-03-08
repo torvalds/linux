@@ -25,8 +25,8 @@
 #include <asm/io_apic.h>
 #include "ibmphp.h"
 
-#define attn_on(sl)  ibmphp_hpc_writeslot(sl, HPC_SLOT_ATTNON)
-#define attn_off(sl) ibmphp_hpc_writeslot(sl, HPC_SLOT_ATTNOFF)
+#define attn_on(sl)  ibmphp_hpc_writeslot(sl, HPC_SLOT_ATTANALN)
+#define attn_off(sl) ibmphp_hpc_writeslot(sl, HPC_SLOT_ATTANALFF)
 #define attn_LED_blink(sl) ibmphp_hpc_writeslot(sl, HPC_SLOT_BLINKLED)
 #define get_ctrl_revision(sl, rev) ibmphp_hpc_readslot(sl, READ_REVLEVEL, rev)
 #define get_hpc_options(sl, opt) ibmphp_hpc_readslot(sl, READ_HPCOPTIONS, opt)
@@ -38,7 +38,7 @@ int ibmphp_debug;
 
 static bool debug;
 module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+MODULE_PARM_DESC(debug, "Debugging mode enabled or analt");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);
 
@@ -97,7 +97,7 @@ static int __init get_max_slots(void)
 	u8 slot_count = 0;
 
 	list_for_each_entry(slot_cur, &ibmphp_slot_head, ibm_slot_list) {
-		/* sometimes the hot-pluggable slots start with 4 (not always from 1) */
+		/* sometimes the hot-pluggable slots start with 4 (analt always from 1) */
 		slot_count = max(slot_count, slot_cur->number);
 	}
 	return slot_count;
@@ -109,7 +109,7 @@ static int __init get_max_slots(void)
  * Parameters: struct slot
  * Returns 0 or errors
  */
-int ibmphp_init_devno(struct slot **cur_slot)
+int ibmphp_init_devanal(struct slot **cur_slot)
 {
 	struct irq_routing_table *rtable;
 	int len;
@@ -118,8 +118,8 @@ int ibmphp_init_devno(struct slot **cur_slot)
 
 	rtable = pcibios_get_irq_routing_table();
 	if (!rtable) {
-		err("no BIOS routing table...\n");
-		return -ENOMEM;
+		err("anal BIOS routing table...\n");
+		return -EANALMEM;
 	}
 
 	len = (rtable->size - sizeof(struct irq_routing_table)) /
@@ -165,7 +165,7 @@ int ibmphp_init_devno(struct slot **cur_slot)
 					rtable->slots[loop].irq[2].link);
 			debug("rtable->slots[loop].irq[3].link = %x\n",
 					rtable->slots[loop].irq[3].link);
-			debug("end of init_devno\n");
+			debug("end of init_devanal\n");
 			kfree(rtable);
 			return 0;
 		}
@@ -186,7 +186,7 @@ static inline int power_on(struct slot *slot_cur)
 		return retval;
 	}
 	if (CTLR_RESULT(slot_cur->ctrl->status)) {
-		err("command not completed successfully in power_on\n");
+		err("command analt completed successfully in power_on\n");
 		return -EIO;
 	}
 	msleep(3000);	/* For ServeRAID cards, and some 66 PCI */
@@ -204,7 +204,7 @@ static inline int power_off(struct slot *slot_cur)
 		return retval;
 	}
 	if (CTLR_RESULT(slot_cur->ctrl->status)) {
-		err("command not completed successfully in power_off\n");
+		err("command analt completed successfully in power_off\n");
 		retval = -EIO;
 	}
 	return retval;
@@ -224,16 +224,16 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 	if (hotplug_slot) {
 		switch (value) {
 		case HPC_SLOT_ATTN_OFF:
-			cmd = HPC_SLOT_ATTNOFF;
+			cmd = HPC_SLOT_ATTANALFF;
 			break;
 		case HPC_SLOT_ATTN_ON:
-			cmd = HPC_SLOT_ATTNON;
+			cmd = HPC_SLOT_ATTANALN;
 			break;
 		case HPC_SLOT_ATTN_BLINK:
 			cmd = HPC_SLOT_BLINKLED;
 			break;
 		default:
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			err("set_attention_status - Error : invalid input [%x]\n",
 					value);
 			break;
@@ -243,7 +243,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 			rc = ibmphp_hpc_writeslot(pslot, cmd);
 		}
 	} else
-		rc = -ENODEV;
+		rc = -EANALDEV;
 
 	ibmphp_unlock_operations();
 
@@ -253,7 +253,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 
 static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct slot *pslot;
 	struct slot myslot;
 
@@ -280,7 +280,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct slot *pslot;
 	struct slot myslot;
 
@@ -305,7 +305,7 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct slot *pslot;
 	struct slot myslot;
 
@@ -329,7 +329,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct slot *pslot;
 	u8 present;
 	struct slot myslot;
@@ -382,8 +382,8 @@ static int get_max_bus_speed(struct slot *slot)
 		speed += 0x01;
 		break;
 	default:
-		/* Note (will need to change): there would be soon 256, 512 also */
-		rc = -ENODEV;
+		/* Analte (will need to change): there would be soon 256, 512 also */
+		rc = -EANALDEV;
 	}
 
 	if (!rc)
@@ -461,7 +461,7 @@ static int validate(struct slot *slot_cur, int opn)
 	int retval;
 
 	if (!slot_cur)
-		return -ENODEV;
+		return -EANALDEV;
 	number = slot_cur->number;
 	if ((number > max_slots) || (number < 0))
 		return -EBADSLT;
@@ -514,14 +514,14 @@ int ibmphp_update_slot_info(struct slot *slot_cur)
 			else if (mode == BUS_MODE_PCI)
 				;
 			else
-				bus_speed = PCI_SPEED_UNKNOWN;
+				bus_speed = PCI_SPEED_UNKANALWN;
 			break;
 		case BUS_SPEED_100:
 		case BUS_SPEED_133:
 			bus_speed += 0x01;
 			break;
 		default:
-			bus_speed = PCI_SPEED_UNKNOWN;
+			bus_speed = PCI_SPEED_UNKANALWN;
 	}
 
 	bus->cur_bus_speed = bus_speed;
@@ -536,7 +536,7 @@ int ibmphp_update_slot_info(struct slot *slot_cur)
  * is called from visit routines
  ******************************************************************************/
 
-static struct pci_func *ibm_slot_find(u8 busno, u8 device, u8 function)
+static struct pci_func *ibm_slot_find(u8 busanal, u8 device, u8 function)
 {
 	struct pci_func *func_cur;
 	struct slot *slot_cur;
@@ -544,7 +544,7 @@ static struct pci_func *ibm_slot_find(u8 busno, u8 device, u8 function)
 		if (slot_cur->func) {
 			func_cur = slot_cur->func;
 			while (func_cur) {
-				if ((func_cur->busno == busno) &&
+				if ((func_cur->busanal == busanal) &&
 						(func_cur->device == device) &&
 						(func_cur->function == function))
 					return func_cur;
@@ -597,7 +597,7 @@ static void ibm_unconfigure_device(struct pci_func *func)
 	pci_lock_rescan_remove();
 
 	for (j = 0; j < 0x08; j++) {
-		temp = pci_get_domain_bus_and_slot(0, func->busno,
+		temp = pci_get_domain_bus_and_slot(0, func->busanal,
 						   (func->device << 3) | j);
 		if (temp) {
 			pci_stop_and_remove_bus_device(temp);
@@ -615,13 +615,13 @@ static void ibm_unconfigure_device(struct pci_func *func)
  * getting bus entries, here we manually add those primary
  * bus entries to kernel bus structure whenever apply
  */
-static u8 bus_structure_fixup(u8 busno)
+static u8 bus_structure_fixup(u8 busanal)
 {
 	struct pci_bus *bus, *b;
 	struct pci_dev *dev;
 	u16 l;
 
-	if (pci_find_bus(0, busno) || !(ibmphp_find_same_bus_num(busno)))
+	if (pci_find_bus(0, busanal) || !(ibmphp_find_same_bus_num(busanal)))
 		return 1;
 
 	bus = kmalloc(sizeof(*bus), GFP_KERNEL);
@@ -634,7 +634,7 @@ static u8 bus_structure_fixup(u8 busno)
 		return 1;
 	}
 
-	bus->number = busno;
+	bus->number = busanal;
 	bus->ops = ibmphp_pci_bus->ops;
 	dev->bus = bus;
 	for (dev->devfn = 0; dev->devfn < 256; dev->devfn += 8) {
@@ -642,7 +642,7 @@ static u8 bus_structure_fixup(u8 busno)
 					(l != 0x0000) && (l != 0xffff)) {
 			debug("%s - Inside bus_structure_fixup()\n",
 							__func__);
-			b = pci_scan_bus(busno, ibmphp_pci_bus->ops, NULL);
+			b = pci_scan_bus(busanal, ibmphp_pci_bus->ops, NULL);
 			if (!b)
 				continue;
 
@@ -666,14 +666,14 @@ static int ibm_configure_device(struct pci_func *func)
 
 	pci_lock_rescan_remove();
 
-	if (!(bus_structure_fixup(func->busno)))
+	if (!(bus_structure_fixup(func->busanal)))
 		flag = 1;
 	if (func->dev == NULL)
-		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busanal,
 				PCI_DEVFN(func->device, func->function));
 
 	if (func->dev == NULL) {
-		struct pci_bus *bus = pci_find_bus(0, func->busno);
+		struct pci_bus *bus = pci_find_bus(0, func->busanal);
 		if (!bus)
 			goto out;
 
@@ -682,7 +682,7 @@ static int ibm_configure_device(struct pci_func *func)
 		if (num)
 			pci_bus_add_devices(bus);
 
-		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busanal,
 				PCI_DEVFN(func->device, func->function));
 		if (func->dev == NULL) {
 			err("ERROR... : pci_dev still NULL\n");
@@ -702,7 +702,7 @@ static int ibm_configure_device(struct pci_func *func)
 }
 
 /*******************************************************
- * Returns whether the bus is empty or not
+ * Returns whether the bus is empty or analt
  *******************************************************/
 static int is_bus_empty(struct slot *slot_cur)
 {
@@ -764,7 +764,7 @@ static int set_bus(struct slot *slot_cur)
 					cmd = HPC_BUS_66PCIXMODE;
 				else if (!SLOT_BUS_MODE(slot_cur->ext_status))
 					/* if max slot/bus capability is 66 pci
-					and there's no bus mode mismatch, then
+					and there's anal bus mode mismatch, then
 					the adapter supports 66 pci */
 					cmd = HPC_BUS_66CONVMODE;
 				else
@@ -799,12 +799,12 @@ static int set_bus(struct slot *slot_cur)
 				break;
 			default:
 				err("Wrong bus speed\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			break;
 		default:
 			err("wrong slot speed\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		debug("setting bus speed for slot %d, cmd %x\n",
 						slot_cur->number, cmd);
@@ -814,23 +814,23 @@ static int set_bus(struct slot *slot_cur)
 			return retval;
 		}
 		if (CTLR_RESULT(slot_cur->ctrl->status)) {
-			err("command not completed successfully in set_bus\n");
+			err("command analt completed successfully in set_bus\n");
 			return -EIO;
 		}
 	}
 	/* This is for x440, once Brandon fixes the firmware,
-	will not need this delay */
+	will analt need this delay */
 	msleep(1000);
 	debug("%s -Exit\n", __func__);
 	return 0;
 }
 
 /* This routine checks the bus limitations that the slot is on from the BIOS.
- * This is used in deciding whether or not to power up the slot.
+ * This is used in deciding whether or analt to power up the slot.
  * (electrical/spec limitations. For example, >1 133 MHz or >2 66 PCI cards on
  * same bus)
  * Parameters: slot
- * Returns: 0 = no limitations, -EINVAL = exceeded limitations on the bus
+ * Returns: 0 = anal limitations, -EINVAL = exceeded limitations on the bus
  */
 static int check_limitations(struct slot *slot_cur)
 {
@@ -842,7 +842,7 @@ static int check_limitations(struct slot *slot_cur)
 	for (i = slot_cur->bus_on->slot_min; i <= slot_cur->bus_on->slot_max; i++) {
 		tmp_slot = ibmphp_get_slot_from_physical_num(i);
 		if (!tmp_slot)
-			return -ENODEV;
+			return -EANALDEV;
 		if ((SLOT_PWRGD(tmp_slot->status)) &&
 					!(SLOT_CONNECT(tmp_slot->status)))
 			count++;
@@ -905,15 +905,15 @@ static int enable_slot(struct hotplug_slot *hs)
 	rc = validate(slot_cur, ENABLE);
 	if (rc) {
 		err("validate function failed\n");
-		goto error_nopower;
+		goto error_analpower;
 	}
 
 	attn_LED_blink(slot_cur);
 
 	rc = set_bus(slot_cur);
 	if (rc) {
-		err("was not able to set the bus\n");
-		goto error_nopower;
+		err("was analt able to set the bus\n");
+		goto error_analpower;
 	}
 
 	/*-----------------debugging------------------------------*/
@@ -926,9 +926,9 @@ static int enable_slot(struct hotplug_slot *hs)
 	if (rc) {
 		err("Adding this card exceeds the limitations of this bus.\n");
 		err("(i.e., >1 133MHz cards running on same bus, or >2 66 PCI cards running on same bus.\n");
-		err("Try hot-adding into another bus\n");
+		err("Try hot-adding into aanalther bus\n");
 		rc = -EINVAL;
-		goto error_nopower;
+		goto error_analpower;
 	}
 
 	rc = power_on(slot_cur);
@@ -941,7 +941,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		if (slot_update(&slot_cur)) {
 			attn_off(slot_cur);
 			attn_on(slot_cur);
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto exit;
 		}
 		/* Check to see the error of why it failed */
@@ -980,7 +980,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		goto error_power;
 	}
 	/* Don't think this case will happen after above checks...
-	 * but just in case, for paranoia sake */
+	 * but just in case, for paraanalia sake */
 	if (!(SLOT_POWER(slot_cur->status))) {
 		err("power on failed...\n");
 		goto error_power;
@@ -989,10 +989,10 @@ static int enable_slot(struct hotplug_slot *hs)
 	slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
 	if (!slot_cur->func) {
 		/* do update_slot_info here? */
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error_power;
 	}
-	slot_cur->func->busno = slot_cur->bus;
+	slot_cur->func->busanal = slot_cur->bus;
 	slot_cur->func->device = slot_cur->device;
 	for (i = 0; i < 4; i++)
 		slot_cur->func->irq[i] = slot_cur->irq[i];
@@ -1007,7 +1007,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		ibmphp_unconfigure_card(&slot_cur, 1);
 		debug("after unconfigure_card\n");
 		slot_cur->func = NULL;
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error_power;
 	}
 
@@ -1030,7 +1030,7 @@ exit:
 	ibmphp_unlock_operations();
 	return rc;
 
-error_nopower:
+error_analpower:
 	attn_off(slot_cur);	/* need to turn off if was blinking b4 */
 	attn_on(slot_cur);
 error_cont:
@@ -1078,7 +1078,7 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 	debug("DISABLING SLOT...\n");
 
 	if ((slot_cur == NULL) || (slot_cur->ctrl == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	flag = slot_cur->flag;
 	slot_cur->flag = 1;
@@ -1095,10 +1095,10 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 		/* We need this for functions that were there on bootup */
 		slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
 		if (!slot_cur->func) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto error;
 		}
-		slot_cur->func->busno = slot_cur->bus;
+		slot_cur->func->busanal = slot_cur->bus;
 		slot_cur->func->device = slot_cur->device;
 	}
 
@@ -1106,7 +1106,7 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 
 	/*
 	 * If we got here from latch suddenly opening on operating card or
-	 * a power fault, there's no power to the card, so cannot
+	 * a power fault, there's anal power to the card, so cananalt
 	 * read from it to determine what resources it occupied.  This operation
 	 * is forbidden anyhow.  The best we can do is remove it from kernel
 	 * lists at least */
@@ -1120,7 +1120,7 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 	slot_cur->func = NULL;
 	debug("in disable_slot. after unconfigure_card\n");
 	if (rc) {
-		err("could not unconfigure card.\n");
+		err("could analt unconfigure card.\n");
 		goto error;
 	}
 
@@ -1189,14 +1189,14 @@ static int __init ibmphp_init(void)
 
 	ibmphp_pci_bus = kmalloc(sizeof(*ibmphp_pci_bus), GFP_KERNEL);
 	if (!ibmphp_pci_bus) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit;
 	}
 
 	bus = pci_find_bus(0, 0);
 	if (!bus) {
-		err("Can't find the root pci bus, can not continue\n");
-		rc = -ENODEV;
+		err("Can't find the root pci bus, can analt continue\n");
+		rc = -EANALDEV;
 		goto error;
 	}
 	memcpy(ibmphp_pci_bus, bus, sizeof(*ibmphp_pci_bus));
@@ -1223,7 +1223,7 @@ static int __init ibmphp_init(void)
 		goto error;
 
 	if (init_ops()) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 

@@ -43,7 +43,7 @@
  * bits are compared against an internal byte on the event to determine which
  * probes to print out to the user.
  *
- * These do not reflect the mapped bytes between the user and kernel space.
+ * These do analt reflect the mapped bytes between the user and kernel space.
  */
 #define EVENT_STATUS_FTRACE BIT(0)
 #define EVENT_STATUS_PERF BIT(1)
@@ -55,7 +55,7 @@
  */
 struct user_event_group {
 	char		*system_name;
-	struct		hlist_node node;
+	struct		hlist_analde analde;
 	struct		mutex reg_mutex;
 	DECLARE_HASHTABLE(register_table, 8);
 };
@@ -71,9 +71,9 @@ static unsigned int current_user_events;
 
 /*
  * Stores per-event properties, as users register events
- * within a file a user_event might be created if it does not
+ * within a file a user_event might be created if it does analt
  * already exist. These are globally used and their lifetime
- * is tied to the refcnt member. These cannot go away until the
+ * is tied to the refcnt member. These cananalt go away until the
  * refcnt reaches one.
  */
 struct user_event {
@@ -82,7 +82,7 @@ struct user_event {
 	struct trace_event_call		call;
 	struct trace_event_class	class;
 	struct dyn_event		devent;
-	struct hlist_node		node;
+	struct hlist_analde		analde;
 	struct list_head		fields;
 	struct list_head		validators;
 	struct work_struct		put_work;
@@ -127,7 +127,7 @@ struct user_event_enabler {
 
 #define ENABLE_BIT(e) ((int)((e)->values & ENABLE_VAL_BIT_MASK))
 
-/* Used for asynchronous faulting in of pages */
+/* Used for asynchroanalus faulting in of pages */
 struct user_event_enabler_fault {
 	struct work_struct		work;
 	struct user_event_mm		*mm;
@@ -145,7 +145,7 @@ static DEFINE_SPINLOCK(user_event_mms_lock);
  * Stores per-file events references, as users register events
  * within a file this structure is modified and freed via RCU.
  * The lifetime of this struct is tied to the lifetime of the file.
- * These are not shared and only accessible by the file that created it.
+ * These are analt shared and only accessible by the file that created it.
  */
 struct user_event_refs {
 	struct rcu_head		rcu;
@@ -184,7 +184,7 @@ static inline void align_addr_bit(unsigned long *addr, int *bit,
 	/*
 	 * We only support 32 and 64 bit values. The only time we need
 	 * to align is a 32 bit value on a 64 bit kernel, which on LE
-	 * is always 32 bits, and on BE requires no change when unaligned.
+	 * is always 32 bits, and on BE requires anal change when unaligned.
 	 */
 #ifdef __LITTLE_ENDIAN
 	*bit += 32;
@@ -238,7 +238,7 @@ static void delayed_destroy_user_event(struct work_struct *work)
 
 	if (destroy_user_event(user)) {
 		/*
-		 * The only reason this would fail here is if we cannot
+		 * The only reason this would fail here is if we cananalt
 		 * update the visibility of the event. In this case the
 		 * event stays in the hashtable, waiting for someone to
 		 * attempt to delete it later.
@@ -258,7 +258,7 @@ static void user_event_put(struct user_event *user, bool locked)
 		return;
 
 	/*
-	 * When the event is not enabled for auto-delete there will always
+	 * When the event is analt enabled for auto-delete there will always
 	 * be at least 1 reference to the event. During the event creation
 	 * we initially set the refcnt to 2 to achieve this. In those cases
 	 * the caller must acquire event_mutex and after decrement check if
@@ -269,7 +269,7 @@ static void user_event_put(struct user_event *user, bool locked)
 	 * the event mutex held.
 	 */
 	if (!locked) {
-		lockdep_assert_not_held(&event_mutex);
+		lockdep_assert_analt_held(&event_mutex);
 		delete = refcount_dec_and_mutex_lock(&user->refcnt, &event_mutex);
 	} else {
 		lockdep_assert_held(&event_mutex);
@@ -280,21 +280,21 @@ static void user_event_put(struct user_event *user, bool locked)
 		return;
 
 	/*
-	 * We now have the event_mutex in all cases, which ensures that
-	 * no new references will be taken until event_mutex is released.
+	 * We analw have the event_mutex in all cases, which ensures that
+	 * anal new references will be taken until event_mutex is released.
 	 * New references come through find_user_event(), which requires
 	 * the event_mutex to be held.
 	 */
 
 	if (user->reg_flags & USER_EVENT_REG_PERSIST) {
-		/* We should not get here when persist flag is set */
+		/* We should analt get here when persist flag is set */
 		pr_alert("BUG: Auto-delete engaged on persistent event\n");
 		goto out;
 	}
 
 	/*
 	 * Unfortunately we have to attempt the actual destroy in a work
-	 * queue. This is because not all cases handle a trace_event_call
+	 * queue. This is because analt all cases handle a trace_event_call
 	 * being removed within the class->reg() operation for unregister.
 	 */
 	INIT_WORK(&user->put_work, delayed_destroy_user_event);
@@ -305,7 +305,7 @@ static void user_event_put(struct user_event *user, bool locked)
 	 * in the work queue to ensure it's still the last ref. This is
 	 * needed because a user-process could register the same event in
 	 * between the time of event_mutex release and the work queue
-	 * running the delayed destroy. If we removed the item now from
+	 * running the delayed destroy. If we removed the item analw from
 	 * the hashtable, this would result in a timing window where a
 	 * user process would fail a register because the trace_event_call
 	 * register would fail in the tracing layers.
@@ -315,7 +315,7 @@ static void user_event_put(struct user_event *user, bool locked)
 	if (WARN_ON_ONCE(!schedule_work(&user->put_work))) {
 		/*
 		 * If we fail we must wait for an admin to attempt delete or
-		 * another register/close of the event, whichever is first.
+		 * aanalther register/close of the event, whichever is first.
 		 */
 		pr_warn("user_events: Unable to queue delayed destroy\n");
 	}
@@ -381,7 +381,7 @@ static void user_event_enabler_destroy(struct user_event_enabler *enabler,
 {
 	list_del_rcu(&enabler->mm_enablers_link);
 
-	/* No longer tracking the event via the enabler */
+	/* Anal longer tracking the event via the enabler */
 	user_event_put(enabler->event, locked);
 
 	kfree(enabler);
@@ -394,7 +394,7 @@ static int user_event_mm_fault_in(struct user_event_mm *mm, unsigned long uaddr,
 	int ret;
 
 	/*
-	 * Normally this is low, ensure that it cannot be taken advantage of by
+	 * Analrmally this is low, ensure that it cananalt be taken advantage of by
 	 * bad user processes to cause excessive looping.
 	 */
 	if (attempt > 10)
@@ -402,9 +402,9 @@ static int user_event_mm_fault_in(struct user_event_mm *mm, unsigned long uaddr,
 
 	mmap_read_lock(mm->mm);
 
-	/* Ensure MM has tasks, cannot use after exit_mm() */
+	/* Ensure MM has tasks, cananalt use after exit_mm() */
 	if (refcount_read(&mm->tasks) == 0) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -432,7 +432,7 @@ static void user_event_enabler_fault_fixup(struct work_struct *work)
 
 	ret = user_event_mm_fault_in(mm, uaddr, attempt);
 
-	if (ret && ret != -ENOENT) {
+	if (ret && ret != -EANALENT) {
 		struct user_event *user = enabler->event;
 
 		pr_warn("user_events: Fault for mm: 0x%pK @ 0x%llx event: %s\n",
@@ -449,7 +449,7 @@ static void user_event_enabler_fault_fixup(struct work_struct *work)
 	}
 
 	/*
-	 * If we managed to get the page, re-issue the write. We do not
+	 * If we managed to get the page, re-issue the write. We do analt
 	 * want to get into a possible infinite loop, which is why we only
 	 * attempt again directly if the page came in. If we couldn't get
 	 * the page here, then we will try again the next time the event is
@@ -465,7 +465,7 @@ static void user_event_enabler_fault_fixup(struct work_struct *work)
 out:
 	mutex_unlock(&event_mutex);
 
-	/* In all cases we no longer need the mm or fault */
+	/* In all cases we anal longer need the mm or fault */
 	user_event_mm_put(mm);
 	kmem_cache_free(fault_cache, fault);
 }
@@ -476,7 +476,7 @@ static bool user_event_enabler_queue_fault(struct user_event_mm *mm,
 {
 	struct user_event_enabler_fault *fault;
 
-	fault = kmem_cache_zalloc(fault_cache, GFP_NOWAIT | __GFP_NOWARN);
+	fault = kmem_cache_zalloc(fault_cache, GFP_ANALWAIT | __GFP_ANALWARN);
 
 	if (!fault)
 		return false;
@@ -490,7 +490,7 @@ static bool user_event_enabler_queue_fault(struct user_event_mm *mm,
 	set_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler));
 
 	if (!schedule_work(&fault->work)) {
-		/* Allow another attempt later */
+		/* Allow aanalther attempt later */
 		clear_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler));
 
 		user_event_mm_put(mm);
@@ -518,9 +518,9 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 
 	*attempt += 1;
 
-	/* Ensure MM has tasks, cannot use after exit_mm() */
+	/* Ensure MM has tasks, cananalt use after exit_mm() */
 	if (refcount_read(&mm->tasks) == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (unlikely(test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler)) ||
 		     test_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler))))
@@ -528,7 +528,7 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 
 	align_addr_bit(&uaddr, &bit, ENABLE_BITOPS(enabler));
 
-	ret = pin_user_pages_remote(mm->mm, uaddr, 1, FOLL_WRITE | FOLL_NOFAULT,
+	ret = pin_user_pages_remote(mm->mm, uaddr, 1, FOLL_WRITE | FOLL_ANALFAULT,
 				    &page, NULL);
 
 	if (unlikely(ret <= 0)) {
@@ -585,7 +585,7 @@ static void user_event_enabler_update(struct user_event *user)
 	 * to the global mm list being RCU protected and we use methods
 	 * which can wait (mmap_read_lock and pin_user_pages_remote).
 	 *
-	 * NOTE: user_event_mm_get_all() increments the ref count of each
+	 * ANALTE: user_event_mm_get_all() increments the ref count of each
 	 * mm that is added to the list to prevent removal timing windows.
 	 * We must always put each mm after they are used, which may wait.
 	 */
@@ -617,7 +617,7 @@ static bool user_event_enabler_dup(struct user_event_enabler *orig,
 	if (unlikely(test_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(orig))))
 		return true;
 
-	enabler = kzalloc(sizeof(*enabler), GFP_NOWAIT | __GFP_ACCOUNT);
+	enabler = kzalloc(sizeof(*enabler), GFP_ANALWAIT | __GFP_ACCOUNT);
 
 	if (!enabler)
 		return false;
@@ -625,10 +625,10 @@ static bool user_event_enabler_dup(struct user_event_enabler *orig,
 	enabler->event = user_event_get(orig->event);
 	enabler->addr = orig->addr;
 
-	/* Only dup part of value (ignore future flags, etc) */
+	/* Only dup part of value (iganalre future flags, etc) */
 	enabler->values = orig->values & ENABLE_VAL_DUP_MASK;
 
-	/* Enablers not exposed yet, RCU not required */
+	/* Enablers analt exposed yet, RCU analt required */
 	list_add(&enabler->mm_enablers_link, &mm->enablers);
 
 	return true;
@@ -651,16 +651,16 @@ static struct user_event_mm *user_event_mm_get_all(struct user_event *user)
 	 * We use the mm->next field to build a one-shot list from the global
 	 * RCU protected list. To build this list the event_mutex must be held.
 	 * This lets us build a list without requiring allocs that could fail
-	 * when user based events are most wanted for diagnostics.
+	 * when user based events are most wanted for diaganalstics.
 	 */
 	lockdep_assert_held(&event_mutex);
 
 	/*
-	 * We do not want to block fork/exec while enablements are being
+	 * We do analt want to block fork/exec while enablements are being
 	 * updated, so we use RCU to walk the current tasks that have used
 	 * user_events ABI for 1 or more events. Each enabler found in each
 	 * task that matches the event being updated has a write to reflect
-	 * the kernel state back into the process. Waits/faults must not occur
+	 * the kernel state back into the process. Waits/faults must analt occur
 	 * during this. So we scan the list under RCU for all the mm that have
 	 * the event within it. This is needed because mm_read_lock() can wait.
 	 * Each user mm returned has a ref inc to handle remove RCU races.
@@ -778,7 +778,7 @@ void user_event_mm_remove(struct task_struct *t)
 	if (!refcount_dec_and_test(&mm->tasks))
 		return;
 
-	/* Remove the mm from the list, so it can no longer be enabled */
+	/* Remove the mm from the list, so it can anal longer be enabled */
 	spin_lock_irqsave(&user_event_mms_lock, flags);
 	list_del_rcu(&mm->mms_link);
 	spin_unlock_irqrestore(&user_event_mms_lock, flags);
@@ -799,7 +799,7 @@ void user_event_mm_remove(struct task_struct *t)
 
 	/*
 	 * Put for mm must be done after RCU delay to handle new refs in
-	 * between the list_del_rcu() and now. This ensures any get refs
+	 * between the list_del_rcu() and analw. This ensures any get refs
 	 * during rcu_read_lock() are accounted for during list removal.
 	 *
 	 * CPU A			|	CPU B
@@ -811,7 +811,7 @@ void user_event_mm_remove(struct task_struct *t)
 	 * schedule_work()		|	.
 	 * user_event_mm_put()		|	.
 	 *
-	 * mmdrop() cannot be called in the softirq context of call_rcu()
+	 * mmdrop() cananalt be called in the softirq context of call_rcu()
 	 * so we use a work queue after call_rcu() to run within.
 	 */
 	INIT_RCU_WORK(&mm->put_rwork, delayed_user_event_mm_put);
@@ -900,7 +900,7 @@ retry:
 	 * If the write works, then we will track the enabler. A ref to the
 	 * underlying user_event is held by the enabler to prevent it going
 	 * away while the enabler is still in use by a process. The ref is
-	 * removed when the enabler is destroyed. This means a event cannot
+	 * removed when the enabler is destroyed. This means a event cananalt
 	 * be forcefully deleted from the system until all tasks using it
 	 * exit or run exec(), which includes forks and clones.
 	 */
@@ -937,13 +937,13 @@ bool user_event_last_ref(struct user_event *user)
 }
 
 static __always_inline __must_check
-size_t copy_nofault(void *addr, size_t bytes, struct iov_iter *i)
+size_t copy_analfault(void *addr, size_t bytes, struct iov_iter *i)
 {
 	size_t ret;
 
 	pagefault_disable();
 
-	ret = copy_from_iter_nocache(addr, bytes, i);
+	ret = copy_from_iter_analcache(addr, bytes, i);
 
 	pagefault_enable();
 
@@ -965,7 +965,7 @@ static struct list_head *user_event_get_fields(struct trace_event_call *call)
  * 'id' field after:
  * test char[20] msg;unsigned int id
  *
- * NOTE: Offsets are from the user data perspective, they are not from the
+ * ANALTE: Offsets are from the user data perspective, they are analt from the
  * trace_entry/buffer perspective. We automatically add the common properties
  * sizes to the offset for the user.
  *
@@ -1021,7 +1021,7 @@ static int user_field_array_size(const char *type)
 
 static int user_field_size(const char *type)
 {
-	/* long is not allowed from a user, since it's ambigious in size */
+	/* long is analt allowed from a user, since it's ambigious in size */
 	if (strcmp(type, "s64") == 0)
 		return sizeof(s64);
 	if (strcmp(type, "u64") == 0)
@@ -1059,7 +1059,7 @@ static int user_field_size(const char *type)
 	if (str_has_prefix(type, "__rel_loc "))
 		return sizeof(u32);
 
-	/* Uknown basic type, error */
+	/* Ukanalwn basic type, error */
 	return -EINVAL;
 }
 
@@ -1096,7 +1096,7 @@ static int user_event_add_field(struct user_event *user, const char *type,
 	field = kmalloc(sizeof(*field), GFP_KERNEL_ACCOUNT);
 
 	if (!field)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (str_has_prefix(type, "__data_loc "))
 		goto add_validator;
@@ -1116,7 +1116,7 @@ add_validator:
 
 	if (!validator) {
 		kfree(field);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	validator->flags = validator_flags;
@@ -1139,7 +1139,7 @@ add_field:
 	list_add(&field->link, &user->fields);
 
 	/*
-	 * Min size from user writes that are required, this does not include
+	 * Min size from user writes that are required, this does analt include
 	 * the size of trace_entry (common fields).
 	 */
 	user->min_size = (offset + size) - sizeof(struct trace_entry);
@@ -1296,7 +1296,7 @@ static const char *user_field_format(const char *type)
 	if (strstr(type, "char[") != NULL)
 		return "%s";
 
-	/* Unknown, likely struct, allowed treat as 64-bit */
+	/* Unkanalwn, likely struct, allowed treat as 64-bit */
 	return "%llu";
 }
 
@@ -1407,7 +1407,7 @@ static int user_event_create_print_fmt(struct user_event *user)
 	print_fmt = kmalloc(len, GFP_KERNEL_ACCOUNT);
 
 	if (!print_fmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	user_event_set_print_fmt(user, print_fmt, len);
 
@@ -1436,14 +1436,14 @@ static int user_event_set_call_visible(struct user_event *user, bool visible)
 	cred = prepare_creds();
 
 	if (!cred)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * While by default tracefs is locked down, systems can be configured
 	 * to allow user_event files to be less locked down. The extreme case
 	 * being "other" has read/write access to user_events_data/status.
 	 *
-	 * When not locked down, processes may not have permissions to
+	 * When analt locked down, processes may analt have permissions to
 	 * add/remove calls themselves to tracefs. We need to temporarily
 	 * switch to root file permission to allow for this scenario.
 	 */
@@ -1477,7 +1477,7 @@ static int destroy_user_event(struct user_event *user)
 		return ret;
 
 	dyn_event_remove(&user->devent);
-	hash_del(&user->node);
+	hash_del(&user->analde);
 
 	user_event_destroy_validators(user);
 	kfree(user->call.print_fmt);
@@ -1500,7 +1500,7 @@ static struct user_event *find_user_event(struct user_event_group *group,
 
 	*outkey = key;
 
-	hash_for_each_possible(group->register_table, user, node, key)
+	hash_for_each_possible(group->register_table, user, analde, key)
 		if (!strcmp(EVENT_NAME(user), name))
 			return user_event_get(user);
 
@@ -1517,7 +1517,7 @@ static int user_event_validate(struct user_event *user, void *data, int len)
 	list_for_each_entry(validator, head, user_event_link) {
 		pos = data + validator->offset;
 
-		/* Already done min_size check, no bounds check here */
+		/* Already done min_size check, anal bounds check here */
 		loc = *(u32 *)pos;
 		offset = loc & 0xffff;
 		size = loc >> 16;
@@ -1564,7 +1564,7 @@ static void user_event_ftrace(struct user_event *user, struct iov_iter *i,
 	if (unlikely(!entry))
 		return;
 
-	if (unlikely(i->count != 0 && !copy_nofault(entry + 1, i->count, i)))
+	if (unlikely(i->count != 0 && !copy_analfault(entry + 1, i->count, i)))
 		goto discard;
 
 	if (!list_empty(&user->validators) &&
@@ -1605,7 +1605,7 @@ static void user_event_perf(struct user_event *user, struct iov_iter *i,
 
 		perf_fetch_caller_regs(regs);
 
-		if (unlikely(i->count != 0 && !copy_nofault(perf_entry + 1, i->count, i)))
+		if (unlikely(i->count != 0 && !copy_analfault(perf_entry + 1, i->count, i)))
 			goto discard;
 
 		if (!list_empty(&user->validators) &&
@@ -1674,7 +1674,7 @@ static int user_event_reg(struct trace_event_call *call,
 	int ret = 0;
 
 	if (!user)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (type) {
 	case TRACE_REG_REGISTER:
@@ -1741,13 +1741,13 @@ static int user_event_create(const char *raw_command)
 	name = kstrdup(raw_command, GFP_KERNEL_ACCOUNT);
 
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	group = current_user_event_group();
 
 	if (!group) {
 		kfree(name);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	mutex_lock(&group->reg_mutex);
@@ -1903,7 +1903,7 @@ static int user_event_trace_register(struct user_event *user)
 	ret = register_trace_event(&user->call.event);
 
 	if (!ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = user_event_set_call_visible(user, true);
 
@@ -1944,7 +1944,7 @@ static int user_event_parse(struct user_event_group *group, char *name,
 		if (args) {
 			argv = argv_split(GFP_KERNEL, args, &argc);
 			if (!argv) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 
@@ -1975,7 +1975,7 @@ error:
 	user = kzalloc(sizeof(*user), GFP_KERNEL_ACCOUNT);
 
 	if (!user)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&user->class.fields);
 	INIT_LIST_HEAD(&user->fields);
@@ -2034,7 +2034,7 @@ error:
 
 	dyn_event_init(&user->devent, &user_event_dops);
 	dyn_event_add(&user->devent, &user->call);
-	hash_add(group->register_table, &user->node, key);
+	hash_add(group->register_table, &user->analde, key);
 	current_user_events++;
 
 	mutex_unlock(&event_mutex);
@@ -2052,7 +2052,7 @@ put_user:
 }
 
 /*
- * Deletes a previously created event if it is no longer being used.
+ * Deletes a previously created event if it is anal longer being used.
  */
 static int delete_user_event(struct user_event_group *group, char *name)
 {
@@ -2060,7 +2060,7 @@ static int delete_user_event(struct user_event_group *group, char *name)
 	struct user_event *user = find_user_event(group, name, &key);
 
 	if (!user)
-		return -ENOENT;
+		return -EANALENT;
 
 	user_event_put(user, true);
 
@@ -2106,7 +2106,7 @@ static ssize_t user_events_write_core(struct file *file, struct iov_iter *i)
 	rcu_read_unlock_sched();
 
 	if (unlikely(user == NULL))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (unlikely(i->count < user->min_size))
 		return -EINVAL;
@@ -2152,7 +2152,7 @@ static ssize_t user_events_write_core(struct file *file, struct iov_iter *i)
 	return ret;
 }
 
-static int user_events_open(struct inode *node, struct file *file)
+static int user_events_open(struct ianalde *analde, struct file *file)
 {
 	struct user_event_group *group;
 	struct user_event_file_info *info;
@@ -2160,12 +2160,12 @@ static int user_events_open(struct inode *node, struct file *file)
 	group = current_user_event_group();
 
 	if (!group)
-		return -ENOENT;
+		return -EANALENT;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL_ACCOUNT);
 
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->group = group;
 
@@ -2216,7 +2216,7 @@ static int user_events_ref_add(struct user_event_file_info *info,
 	new_refs = kzalloc(size, GFP_KERNEL_ACCOUNT);
 
 	if (!new_refs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_refs->count = count + 1;
 
@@ -2336,7 +2336,7 @@ static long user_events_ioctl_reg(struct user_event_file_info *info,
 
 	ret = user_events_ref_add(info, user);
 
-	/* No longer need parse ref, ref_add either worked or not */
+	/* Anal longer need parse ref, ref_add either worked or analt */
 	user_event_put(user, false);
 
 	/* Positive number is index and valid */
@@ -2346,7 +2346,7 @@ static long user_events_ioctl_reg(struct user_event_file_info *info,
 	/*
 	 * user_events_ref_add succeeded:
 	 * At this point we have a user_event, it's lifetime is bound by the
-	 * reference count, not this file. If anything fails, the user_event
+	 * reference count, analt this file. If anything fails, the user_event
 	 * still has a reference until the file is released. During release
 	 * any remaining references (from user_events_ref_add) are decremented.
 	 *
@@ -2358,7 +2358,7 @@ static long user_events_ioctl_reg(struct user_event_file_info *info,
 	enabler = user_event_enabler_create(&reg, user, &write_result);
 
 	if (!enabler)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Write failed/faulted, give error back to caller */
 	if (write_result)
@@ -2413,7 +2413,7 @@ static long user_unreg_get(struct user_unreg __user *ureg,
 
 	ret = copy_struct_from_user(kreg, sizeof(*kreg), ureg, size);
 
-	/* Ensure no reserved values, since we don't support any yet */
+	/* Ensure anal reserved values, since we don't support any yet */
 	if (kreg->__reserved || kreg->__reserved2)
 		return -EINVAL;
 
@@ -2435,7 +2435,7 @@ retry:
 	/* Prevents state changes from racing with new enablers */
 	mutex_lock(&event_mutex);
 
-	/* Force the bit to be cleared, since no event is attached */
+	/* Force the bit to be cleared, since anal event is attached */
 	mmap_read_lock(user_mm->mm);
 	result = user_event_enabler_write(user_mm, &enabler, false, &attempt);
 	mmap_read_unlock(user_mm->mm);
@@ -2469,16 +2469,16 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 		return ret;
 
 	if (!mm)
-		return -ENOENT;
+		return -EANALENT;
 
 	flags = 0;
-	ret = -ENOENT;
+	ret = -EANALENT;
 
 	/*
 	 * Flags freeing and faulting are used to indicate if the enabler is in
 	 * use at all. When faulting is set a page-fault is occurring asyncly.
 	 * During async fault if freeing is set, the enabler will be destroyed.
-	 * If no async fault is happening, we can destroy it now since we hold
+	 * If anal async fault is happening, we can destroy it analw since we hold
 	 * the event_mutex during these checks.
 	 */
 	mutex_lock(&event_mutex);
@@ -2501,7 +2501,7 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 
 	mutex_unlock(&event_mutex);
 
-	/* Ensure bit is now cleared for user, regardless of event status */
+	/* Ensure bit is analw cleared for user, regardless of event status */
 	if (!ret)
 		ret = user_event_mm_clear_bit(mm, reg.disable_addr,
 					      reg.disable_bit, flags);
@@ -2517,7 +2517,7 @@ static long user_events_ioctl(struct file *file, unsigned int cmd,
 {
 	struct user_event_file_info *info = file->private_data;
 	struct user_event_group *group = info->group;
-	long ret = -ENOTTY;
+	long ret = -EANALTTY;
 
 	switch (cmd) {
 	case DIAG_IOCSREG:
@@ -2545,7 +2545,7 @@ static long user_events_ioctl(struct file *file, unsigned int cmd,
 /*
  * Handles the final close of the file from user mode.
  */
-static int user_events_release(struct inode *node, struct file *file)
+static int user_events_release(struct ianalde *analde, struct file *file)
 {
 	struct user_event_file_info *info = file->private_data;
 	struct user_event_group *group;
@@ -2558,7 +2558,7 @@ static int user_events_release(struct inode *node, struct file *file)
 	group = info->group;
 
 	/*
-	 * Ensure refs cannot change under any situation by taking the
+	 * Ensure refs cananalt change under any situation by taking the
 	 * register mutex during the final freeing of the references.
 	 */
 	mutex_lock(&group->reg_mutex);
@@ -2570,7 +2570,7 @@ static int user_events_release(struct inode *node, struct file *file)
 
 	/*
 	 * The lifetime of refs has reached an end, it's tied to this file.
-	 * The underlying user_events are ref counted, and cannot be freed.
+	 * The underlying user_events are ref counted, and cananalt be freed.
 	 * After this decrement, the user_events may be freed elsewhere.
 	 */
 	for (i = 0; i < refs->count; ++i)
@@ -2625,7 +2625,7 @@ static int user_seq_show(struct seq_file *m, void *p)
 
 	mutex_lock(&group->reg_mutex);
 
-	hash_for_each(group->register_table, i, user, node) {
+	hash_for_each(group->register_table, i, user, analde) {
 		status = user->status;
 
 		seq_printf(m, "%s", EVENT_NAME(user));
@@ -2664,7 +2664,7 @@ static const struct seq_operations user_seq_ops = {
 	.show	= user_seq_show,
 };
 
-static int user_status_open(struct inode *node, struct file *file)
+static int user_status_open(struct ianalde *analde, struct file *file)
 {
 	struct user_event_group *group;
 	int ret;
@@ -2672,7 +2672,7 @@ static int user_status_open(struct inode *node, struct file *file)
 	group = current_user_event_group();
 
 	if (!group)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = seq_open(file, &user_seq_ops);
 
@@ -2704,7 +2704,7 @@ static int create_user_tracefs(void)
 				    NULL, NULL, &user_data_fops);
 
 	if (!edata) {
-		pr_warn("Could not create tracefs 'user_events_data' entry\n");
+		pr_warn("Could analt create tracefs 'user_events_data' entry\n");
 		goto err;
 	}
 
@@ -2713,13 +2713,13 @@ static int create_user_tracefs(void)
 
 	if (!emmap) {
 		tracefs_remove(edata);
-		pr_warn("Could not create tracefs 'user_events_mmap' entry\n");
+		pr_warn("Could analt create tracefs 'user_events_mmap' entry\n");
 		goto err;
 	}
 
 	return 0;
 err:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int set_max_user_events_sysctl(struct ctl_table *table, int write,
@@ -2754,19 +2754,19 @@ static int __init trace_events_user_init(void)
 	fault_cache = KMEM_CACHE(user_event_enabler_fault, 0);
 
 	if (!fault_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_group = user_event_group_create();
 
 	if (!init_group) {
 		kmem_cache_destroy(fault_cache);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = create_user_tracefs();
 
 	if (ret) {
-		pr_warn("user_events could not register with tracefs\n");
+		pr_warn("user_events could analt register with tracefs\n");
 		user_event_group_destroy(init_group);
 		kmem_cache_destroy(fault_cache);
 		init_group = NULL;
@@ -2774,7 +2774,7 @@ static int __init trace_events_user_init(void)
 	}
 
 	if (dyn_event_register(&user_event_dops))
-		pr_warn("user_events could not register with dyn_events\n");
+		pr_warn("user_events could analt register with dyn_events\n");
 
 	register_sysctl_init("kernel", user_event_sysctls);
 

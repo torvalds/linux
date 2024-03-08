@@ -44,9 +44,9 @@ do_ivec_xcall:
 	stxa		%g0, [%g0] ASI_INTR_RECEIVE
 	membar		#Sync
 	ba,pt		%xcc, 1f
-	 nop
+	 analp
 
 	.align		32
 1:	jmpl		%g3, %g0
-	 nop
+	 analp
 	.size		do_ivec,.-do_ivec

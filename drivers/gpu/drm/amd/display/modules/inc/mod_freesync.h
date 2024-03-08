@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -117,7 +117,7 @@ bool mod_freesync_get_vmin_vmax(struct mod_freesync *mod_freesync,
 
 bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 		struct dc_stream_state *stream,
-		unsigned int *nom_v_pos,
+		unsigned int *analm_v_pos,
 		unsigned int *v_pos);
 
 void mod_freesync_get_settings(struct mod_freesync *mod_freesync,
@@ -152,7 +152,7 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		struct mod_vrr_params *in_out_vrr);
 
-unsigned long long mod_freesync_calc_nominal_field_rate(
+unsigned long long mod_freesync_calc_analminal_field_rate(
 			const struct dc_stream_state *stream);
 
 unsigned long long mod_freesync_calc_field_rate_from_timing(
@@ -160,7 +160,7 @@ unsigned long long mod_freesync_calc_field_rate_from_timing(
 
 bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 		uint32_t max_refresh_cap_in_uhz,
-		uint32_t nominal_field_rate_in_uhz);
+		uint32_t analminal_field_rate_in_uhz);
 
 unsigned int mod_freesync_calc_v_total_from_refresh(
 		const struct dc_stream_state *stream,

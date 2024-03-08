@@ -24,7 +24,7 @@
 
 
 #include "../cluster/heartbeat.h"
-#include "../cluster/nodemanager.h"
+#include "../cluster/analdemanager.h"
 #include "../cluster/tcp.h"
 
 #include "dlmapi.h"
@@ -44,7 +44,7 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 					       struct dlm_lock_resource *res,
 					       struct dlm_lock *lock, int flags);
 static void dlm_init_lock(struct dlm_lock *newlock, int type,
-			  u8 node, u64 cookie);
+			  u8 analde, u64 cookie);
 static void dlm_lock_release(struct kref *kref);
 static void dlm_lock_detach_lockres(struct dlm_lock *lock);
 
@@ -54,7 +54,7 @@ int dlm_init_lock_cache(void)
 					   sizeof(struct dlm_lock),
 					   0, SLAB_HWCACHE_ALIGN, NULL);
 	if (dlm_lock_cache == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -66,8 +66,8 @@ void dlm_destroy_lock_cache(void)
 /* Tell us whether we can grant a new lock request.
  * locking:
  *   caller needs:  res->spinlock
- *   taken:         none
- *   held on exit:  none
+ *   taken:         analne
+ *   held on exit:  analne
  * returns: 1 if the lock can be granted, 0 otherwise.
  */
 static int dlm_can_grant_new_lock(struct dlm_lock_resource *res,
@@ -93,26 +93,26 @@ static int dlm_can_grant_new_lock(struct dlm_lock_resource *res,
 
 /* performs lock creation at the lockres master site
  * locking:
- *   caller needs:  none
+ *   caller needs:  analne
  *   taken:         takes and drops res->spinlock
- *   held on exit:  none
- * returns: DLM_NORMAL, DLM_NOTQUEUED
+ *   held on exit:  analne
+ * returns: DLM_ANALRMAL, DLM_ANALTQUEUED
  */
 static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 				      struct dlm_lock_resource *res,
 				      struct dlm_lock *lock, int flags)
 {
 	int call_ast = 0, kick_thread = 0;
-	enum dlm_status status = DLM_NORMAL;
+	enum dlm_status status = DLM_ANALRMAL;
 
 	mlog(0, "type=%d\n", lock->ml.type);
 
 	spin_lock(&res->spinlock);
 	/* if called from dlm_create_lock_handler, need to
-	 * ensure it will not sleep in dlm_wait_on_lockres */
+	 * ensure it will analt sleep in dlm_wait_on_lockres */
 	status = __dlm_lockres_state_to_status(res);
-	if (status != DLM_NORMAL &&
-	    lock->ml.node != dlm->node_num) {
+	if (status != DLM_ANALRMAL &&
+	    lock->ml.analde != dlm->analde_num) {
 		/* erf.  state changed after lock was dropped. */
 		spin_unlock(&res->spinlock);
 		dlm_error(status);
@@ -124,38 +124,38 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 	if (dlm_can_grant_new_lock(res, lock)) {
 		mlog(0, "I can grant this lock right away\n");
 		/* got it right away */
-		lock->lksb->status = DLM_NORMAL;
-		status = DLM_NORMAL;
+		lock->lksb->status = DLM_ANALRMAL;
+		status = DLM_ANALRMAL;
 		dlm_lock_get(lock);
 		list_add_tail(&lock->list, &res->granted);
 
 		/* for the recovery lock, we can't allow the ast
 		 * to be queued since the dlmthread is already
 		 * frozen.  but the recovery lock is always locked
-		 * with LKM_NOQUEUE so we do not need the ast in
+		 * with LKM_ANALQUEUE so we do analt need the ast in
 		 * this special case */
 		if (!dlm_is_recovery_lock(res->lockname.name,
 					  res->lockname.len)) {
 			kick_thread = 1;
 			call_ast = 1;
 		} else {
-			mlog(0, "%s: returning DLM_NORMAL to "
-			     "node %u for reco lock\n", dlm->name,
-			     lock->ml.node);
+			mlog(0, "%s: returning DLM_ANALRMAL to "
+			     "analde %u for reco lock\n", dlm->name,
+			     lock->ml.analde);
 		}
 	} else {
-		/* for NOQUEUE request, unless we get the
-		 * lock right away, return DLM_NOTQUEUED */
-		if (flags & LKM_NOQUEUE) {
-			status = DLM_NOTQUEUED;
+		/* for ANALQUEUE request, unless we get the
+		 * lock right away, return DLM_ANALTQUEUED */
+		if (flags & LKM_ANALQUEUE) {
+			status = DLM_ANALTQUEUED;
 			if (dlm_is_recovery_lock(res->lockname.name,
 						 res->lockname.len)) {
-				mlog(0, "%s: returning NOTQUEUED to "
-				     "node %u for reco lock\n", dlm->name,
-				     lock->ml.node);
+				mlog(0, "%s: returning ANALTQUEUED to "
+				     "analde %u for reco lock\n", dlm->name,
+				     lock->ml.analde);
 			}
 		} else {
-			status = DLM_NORMAL;
+			status = DLM_ANALRMAL;
 			dlm_lock_get(lock);
 			list_add_tail(&lock->list, &res->blocked);
 			kick_thread = 1;
@@ -189,9 +189,9 @@ void dlm_revert_pending_lock(struct dlm_lock_resource *res,
 
 /*
  * locking:
- *   caller needs:  none
+ *   caller needs:  analne
  *   taken:         takes and drops res->spinlock
- *   held on exit:  none
+ *   held on exit:  analne
  * returns: DLM_DENIED, DLM_RECOVERING, or net status
  */
 static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
@@ -211,7 +211,7 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 	 */
 	spin_lock(&res->spinlock);
 	__dlm_wait_on_lockres(res);
-	if (res->owner == dlm->node_num) {
+	if (res->owner == dlm->analde_num) {
 		spin_unlock(&res->spinlock);
 		return DLM_RECOVERING;
 	}
@@ -223,26 +223,26 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 	lock->lock_pending = 1;
 	spin_unlock(&res->spinlock);
 
-	/* spec seems to say that you will get DLM_NORMAL when the lock
+	/* spec seems to say that you will get DLM_ANALRMAL when the lock
 	 * has been queued, meaning we need to wait for a reply here. */
 	status = dlm_send_remote_lock_request(dlm, res, lock, flags);
 
 	spin_lock(&res->spinlock);
 	res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
 	lock->lock_pending = 0;
-	if (status != DLM_NORMAL) {
+	if (status != DLM_ANALRMAL) {
 		if (status == DLM_RECOVERING &&
 		    dlm_is_recovery_lock(res->lockname.name,
 					 res->lockname.len)) {
-			/* recovery lock was mastered by dead node.
+			/* recovery lock was mastered by dead analde.
 			 * we need to have calc_usage shoot down this
 			 * lockres and completely remaster it. */
 			mlog(0, "%s: recovery lock was owned by "
-			     "dead node %u, remaster it now.\n",
+			     "dead analde %u, remaster it analw.\n",
 			     dlm->name, res->owner);
-		} else if (status != DLM_NOTQUEUED) {
+		} else if (status != DLM_ANALTQUEUED) {
 			/*
-			 * DO NOT call calc_usage, as this would unhash
+			 * DO ANALT call calc_usage, as this would unhash
 			 * the remote lockres before we ever get to use
 			 * it.  treat as if we never made any change to
 			 * the lockres.
@@ -258,9 +258,9 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 		 * there will never be an AST delivered to put
 		 * this lock on the proper secondary queue
 		 * (granted), so do it manually. */
-		mlog(0, "%s: $RECOVERY lock for this node (%u) is "
-		     "mastered by %u; got lock, manually granting (no ast)\n",
-		     dlm->name, dlm->node_num, res->owner);
+		mlog(0, "%s: $RECOVERY lock for this analde (%u) is "
+		     "mastered by %u; got lock, manually granting (anal ast)\n",
+		     dlm->name, dlm->analde_num, res->owner);
 		list_move_tail(&lock->list, &res->granted);
 	}
 	spin_unlock(&res->spinlock);
@@ -275,10 +275,10 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 
 /* for remote lock creation.
  * locking:
- *   caller needs:  none, but need res->state & DLM_LOCK_RES_IN_PROGRESS
- *   taken:         none
- *   held on exit:  none
- * returns: DLM_NOLOCKMGR, or net status
+ *   caller needs:  analne, but need res->state & DLM_LOCK_RES_IN_PROGRESS
+ *   taken:         analne
+ *   held on exit:  analne
+ * returns: DLM_ANALLOCKMGR, or net status
  */
 static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 					       struct dlm_lock_resource *res,
@@ -289,7 +289,7 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 	enum dlm_status ret;
 
 	memset(&create, 0, sizeof(create));
-	create.node_idx = dlm->node_num;
+	create.analde_idx = dlm->analde_num;
 	create.requested_type = lock->ml.type;
 	create.cookie = lock->ml.cookie;
 	create.namelen = res->lockname.len;
@@ -301,8 +301,8 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 	if (tmpret >= 0) {
 		ret = status;
 		if (ret == DLM_REJECTED) {
-			mlog(ML_ERROR, "%s: res %.*s, Stale lockres no longer "
-			     "owned by node %u. That node is coming back up "
+			mlog(ML_ERROR, "%s: res %.*s, Stale lockres anal longer "
+			     "owned by analde %u. That analde is coming back up "
 			     "currently.\n", dlm->name, create.namelen,
 			     create.name, res->owner);
 			dlm_print_one_lock_resource(res);
@@ -310,7 +310,7 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 		}
 	} else {
 		mlog(ML_ERROR, "%s: res %.*s, Error %d send CREATE LOCK to "
-		     "node %u\n", dlm->name, create.namelen, create.name,
+		     "analde %u\n", dlm->name, create.namelen, create.name,
 		     tmpret, res->owner);
 		if (dlm_is_host_down(tmpret))
 			ret = DLM_RECOVERING;
@@ -374,7 +374,7 @@ static void dlm_lock_detach_lockres(struct dlm_lock *lock)
 }
 
 static void dlm_init_lock(struct dlm_lock *newlock, int type,
-			  u8 node, u64 cookie)
+			  u8 analde, u64 cookie)
 {
 	INIT_LIST_HEAD(&newlock->list);
 	INIT_LIST_HEAD(&newlock->ast_list);
@@ -383,7 +383,7 @@ static void dlm_init_lock(struct dlm_lock *newlock, int type,
 	newlock->ml.type = type;
 	newlock->ml.convert_type = LKM_IVMODE;
 	newlock->ml.highest_blocked = LKM_IVMODE;
-	newlock->ml.node = node;
+	newlock->ml.analde = analde;
 	newlock->ml.pad1 = 0;
 	newlock->ml.list = 0;
 	newlock->ml.flags = 0;
@@ -402,19 +402,19 @@ static void dlm_init_lock(struct dlm_lock *newlock, int type,
 	kref_init(&newlock->lock_refs);
 }
 
-struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
+struct dlm_lock * dlm_new_lock(int type, u8 analde, u64 cookie,
 			       struct dlm_lockstatus *lksb)
 {
 	struct dlm_lock *lock;
 	int kernel_allocated = 0;
 
-	lock = kmem_cache_zalloc(dlm_lock_cache, GFP_NOFS);
+	lock = kmem_cache_zalloc(dlm_lock_cache, GFP_ANALFS);
 	if (!lock)
 		return NULL;
 
 	if (!lksb) {
 		/* zero memory only if kernel-allocated */
-		lksb = kzalloc(sizeof(*lksb), GFP_NOFS);
+		lksb = kzalloc(sizeof(*lksb), GFP_ANALFS);
 		if (!lksb) {
 			kmem_cache_free(dlm_lock_cache, lock);
 			return NULL;
@@ -422,7 +422,7 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 		kernel_allocated = 1;
 	}
 
-	dlm_init_lock(lock, type, node, cookie);
+	dlm_init_lock(lock, type, analde, cookie);
 	if (kernel_allocated)
 		lock->lksb_kernel_allocated = 1;
 	lock->lksb = lksb;
@@ -432,10 +432,10 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 
 /* handler for lock creation net message
  * locking:
- *   caller needs:  none
+ *   caller needs:  analne
  *   taken:         takes and drops res->spinlock
- *   held on exit:  none
- * returns: DLM_NORMAL, DLM_SYSERR, DLM_IVLOCKID, DLM_NOTQUEUED
+ *   held on exit:  analne
+ * returns: DLM_ANALRMAL, DLM_SYSERR, DLM_IVLOCKID, DLM_ANALTQUEUED
  */
 int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 			    void **ret_data)
@@ -445,7 +445,7 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	struct dlm_lock_resource *res = NULL;
 	struct dlm_lock *newlock = NULL;
 	struct dlm_lockstatus *lksb = NULL;
-	enum dlm_status status = DLM_NORMAL;
+	enum dlm_status status = DLM_ANALRMAL;
 	char *name;
 	unsigned int namelen;
 
@@ -458,9 +458,9 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	namelen = create->namelen;
 	status = DLM_REJECTED;
 	if (!dlm_domain_fully_joined(dlm)) {
-		mlog(ML_ERROR, "Domain %s not fully joined, but node %u is "
+		mlog(ML_ERROR, "Domain %s analt fully joined, but analde %u is "
 		     "sending a create_lock message for lock %.*s!\n",
-		     dlm->name, create->node_idx, namelen, name);
+		     dlm->name, create->analde_idx, namelen, name);
 		dlm_error(status);
 		goto leave;
 	}
@@ -473,7 +473,7 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	status = DLM_SYSERR;
 	newlock = dlm_new_lock(create->requested_type,
-			       create->node_idx,
+			       create->analde_idx,
 			       be64_to_cpu(create->cookie), NULL);
 	if (!newlock) {
 		dlm_error(status);
@@ -498,7 +498,7 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	status = __dlm_lockres_state_to_status(res);
 	spin_unlock(&res->spinlock);
 
-	if (status != DLM_NORMAL) {
+	if (status != DLM_ANALRMAL) {
 		mlog(0, "lockres recovering/migrating/in-progress\n");
 		goto leave;
 	}
@@ -507,7 +507,7 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	status = dlmlock_master(dlm, res, newlock, be32_to_cpu(create->flags));
 leave:
-	if (status != DLM_NORMAL)
+	if (status != DLM_ANALRMAL)
 		if (newlock)
 			dlm_lock_put(newlock);
 
@@ -520,18 +520,18 @@ leave:
 }
 
 
-/* fetch next node-local (u8 nodenum + u56 cookie) into u64 */
-static inline void dlm_get_next_cookie(u8 node_num, u64 *cookie)
+/* fetch next analde-local (u8 analdenum + u56 cookie) into u64 */
+static inline void dlm_get_next_cookie(u8 analde_num, u64 *cookie)
 {
-	u64 tmpnode = node_num;
+	u64 tmpanalde = analde_num;
 
-	/* shift single byte of node num into top 8 bits */
-	tmpnode <<= 56;
+	/* shift single byte of analde num into top 8 bits */
+	tmpanalde <<= 56;
 
 	spin_lock(&dlm_cookie_lock);
-	*cookie = (dlm_next_cookie | tmpnode);
+	*cookie = (dlm_next_cookie | tmpanalde);
 	if (++dlm_next_cookie & 0xff00000000000000ull) {
-		mlog(0, "This node's cookie will now wrap!\n");
+		mlog(0, "This analde's cookie will analw wrap!\n");
 		dlm_next_cookie = 1;
 	}
 	spin_unlock(&dlm_cookie_lock);
@@ -547,7 +547,7 @@ enum dlm_status dlmlock(struct dlm_ctxt *dlm, int mode,
 	struct dlm_lock *lock = NULL;
 	int convert = 0, recovery = 0;
 
-	/* yes this function is a mess.
+	/* anal this function is a mess.
 	 * TODO: clean this up.  lots of common code in the
 	 *       lock and convert paths, especially in the retry blocks */
 	if (!lksb) {
@@ -601,7 +601,7 @@ enum dlm_status dlmlock(struct dlm_ctxt *dlm, int mode,
 		/* XXX: for ocfs2 purposes, the ast/bast/astdata/lksb are
 	 	 * static after the original lock call.  convert requests will
 		 * ensure that everything is the same, or return DLM_BADARGS.
-	 	 * this means that DLM_DENIED_NOASTS will never be returned.
+	 	 * this means that DLM_DENIED_ANALASTS will never be returned.
 	 	 */
 		if (lock->lksb != lksb || lock->ast != ast ||
 		    lock->bast != bast || lock->astdata != data) {
@@ -616,16 +616,16 @@ enum dlm_status dlmlock(struct dlm_ctxt *dlm, int mode,
 retry_convert:
 		dlm_wait_for_recovery(dlm);
 
-		if (res->owner == dlm->node_num)
+		if (res->owner == dlm->analde_num)
 			status = dlmconvert_master(dlm, res, lock, flags, mode);
 		else
 			status = dlmconvert_remote(dlm, res, lock, flags, mode);
 		if (status == DLM_RECOVERING || status == DLM_MIGRATING ||
 		    status == DLM_FORWARD) {
-			/* for now, see how this works without sleeping
+			/* for analw, see how this works without sleeping
 			 * and just retry right away.  I suspect the reco
-			 * or migration will complete fast enough that
-			 * no waiting will be necessary */
+			 * or migration will complete fast eanalugh that
+			 * anal waiting will be necessary */
 			mlog(0, "retrying convert with migration/recovery/"
 			     "in-progress\n");
 			msleep(100);
@@ -647,8 +647,8 @@ retry_convert:
 			goto error;
 		}
 
-		dlm_get_next_cookie(dlm->node_num, &tmpcookie);
-		lock = dlm_new_lock(mode, dlm->node_num, tmpcookie, lksb);
+		dlm_get_next_cookie(dlm->analde_num, &tmpcookie);
+		lock = dlm_new_lock(mode, dlm->analde_num, tmpcookie, lksb);
 		if (!lock) {
 			dlm_error(status);
 			goto error;
@@ -677,8 +677,8 @@ retry_lock:
 		if (flags & LKM_VALBLK) {
 			mlog(0, "LKM_VALBLK passed by caller\n");
 
-			/* LVB requests for non PR, PW or EX locks are
-			 * ignored. */
+			/* LVB requests for analn PR, PW or EX locks are
+			 * iganalred. */
 			if (mode < LKM_PRMODE)
 				flags &= ~LKM_VALBLK;
 			else {
@@ -687,7 +687,7 @@ retry_lock:
 			}
 		}
 
-		if (res->owner == dlm->node_num)
+		if (res->owner == dlm->analde_num)
 			status = dlmlock_master(dlm, res, lock, flags);
 		else
 			status = dlmlock_remote(dlm, res, lock, flags);
@@ -698,11 +698,11 @@ retry_lock:
 			if (recovery) {
 				if (status != DLM_RECOVERING)
 					goto retry_lock;
-				/* wait to see the node go down, then
+				/* wait to see the analde go down, then
 				 * drop down and allow the lockres to
 				 * get cleaned up.  need to remaster. */
-				dlm_wait_for_node_death(dlm, res->owner,
-						DLM_NODE_DEATH_WAIT_MAX);
+				dlm_wait_for_analde_death(dlm, res->owner,
+						DLM_ANALDE_DEATH_WAIT_MAX);
 			} else {
 				dlm_wait_for_recovery(dlm);
 				goto retry_lock;
@@ -717,16 +717,16 @@ retry_lock:
 		dlm_lockres_calc_usage(dlm, res);
 		dlm_kick_thread(dlm, res);
 
-		if (status != DLM_NORMAL) {
+		if (status != DLM_ANALRMAL) {
 			lock->lksb->flags &= ~DLM_LKSB_GET_LVB;
-			if (status != DLM_NOTQUEUED)
+			if (status != DLM_ANALTQUEUED)
 				dlm_error(status);
 			goto error;
 		}
 	}
 
 error:
-	if (status != DLM_NORMAL) {
+	if (status != DLM_ANALRMAL) {
 		if (lock && !convert)
 			dlm_lock_put(lock);
 		// this is kind of unnecessary

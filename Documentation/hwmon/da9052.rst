@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'da9052'
 
-    Datasheet: Datasheet is not publicly available.
+    Datasheet: Datasheet is analt publicly available.
 
 Authors: David Dajun Chen <dchen@diasemi.com>
 

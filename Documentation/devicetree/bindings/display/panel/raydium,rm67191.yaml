@@ -36,8 +36,8 @@ properties:
   video-mode:
     description: |
       0 - burst-mode
-      1 - non-burst with sync event
-      2 - non-burst with sync pulse
+      1 - analn-burst with sync event
+      2 - analn-burst with sync pulse
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2]
 

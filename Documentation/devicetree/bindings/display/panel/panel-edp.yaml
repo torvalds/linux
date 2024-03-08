@@ -23,7 +23,7 @@ description: |
   the panel. We can use this to identify display size, resolution, and
   timings among other things.
 
-  One piece of information about eDP panels that is typically _not_
+  One piece of information about eDP panels that is typically _analt_
   provided anywhere on the DP AUX bus is the power sequencing timings.
   This is the reason why, historically, we've always had to explicitly
   list eDP panels. We solve that here with two tricks. The "worst case"
@@ -91,28 +91,28 @@ properties:
   hpd-reliable-delay-ms:
     description:
       A fixed amount of time that must be waited after powering on the
-      panel's power-supply before the HPD signal is a reliable way to know
+      panel's power-supply before the HPD signal is a reliable way to kanalw
       when the AUX channel is ready. This is useful for panels that glitch
-      the HPD at the start of power-on. This value is not needed if HPD is
+      the HPD at the start of power-on. This value is analt needed if HPD is
       always reliable for all panels that might be connected.
 
   hpd-absent-delay-ms:
     description:
       The panel specifies that HPD will be asserted this many milliseconds
-      from power on (timing T3 in the diagram above). If we have no way to
+      from power on (timing T3 in the diagram above). If we have anal way to
       measure HPD then a fixed delay of this many milliseconds can be used.
-      This can also be used as a timeout when waiting for HPD. Does not
+      This can also be used as a timeout when waiting for HPD. Does analt
       include the hpd-reliable-delay, so if hpd-reliable-delay was 80 ms
       and hpd-absent-delay was 200 ms then we'd do a fixed 80 ms delay and
-      then we know HPD would assert in the next 120 ms. This value is not
-      needed if HPD hooked up, either through a GPIO in the panel node or
+      then we kanalw HPD would assert in the next 120 ms. This value is analt
+      needed if HPD hooked up, either through a GPIO in the panel analde or
       hooked up directly to the eDP controller.
 
   backlight: true
   enable-gpios: true
   port: true
   power-supply: true
-  no-hpd: true
+  anal-hpd: true
   hpd-gpios: true
 
 additionalProperties: false
@@ -148,7 +148,7 @@ examples:
         clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
         clock-names = "refclk";
 
-        no-hpd;
+        anal-hpd;
 
         ports {
           #address-cells = <1>;

@@ -12,7 +12,7 @@ The different levels of stability are:
   stable/
 	This directory documents the interfaces that the developer has
 	defined to be stable.  Userspace programs are free to use these
-	interfaces with no restrictions, and backward compatibility for
+	interfaces with anal restrictions, and backward compatibility for
 	them will be guaranteed for at least 2 years.  Most interfaces
 	(like syscalls) are expected to never change and always be
 	available.
@@ -21,14 +21,14 @@ The different levels of stability are:
 	This directory documents interfaces that are felt to be stable,
 	as the main development of this interface has been completed.
 	The interface can be changed to add new features, but the
-	current interface will not break by doing this, unless grave
+	current interface will analt break by doing this, unless grave
 	errors or security problems are found in them.  Userspace
 	programs can start to rely on these interfaces, but they must be
 	aware of changes that can occur before these interfaces move to
 	be marked stable.  Programs that use these interfaces are
 	strongly encouraged to add their name to the description of
 	these interfaces, so that the kernel developers can easily
-	notify them if any changes occur (see the description of the
+	analtify them if any changes occur (see the description of the
 	layout of the files below for details on how to do this.)
 
   obsolete/
@@ -48,19 +48,19 @@ Date:		Date created
 KernelVersion:	Kernel version this feature first showed up in.
 Contact:	Primary contact for this interface (may be a mailing list)
 Description:	Long description of the interface and how to use it.
-Users:		All users of this interface who wish to be notified when
+Users:		All users of this interface who wish to be analtified when
 		it changes.  This is very important for interfaces in
 		the "testing" stage, so that kernel developers can work
-		with userspace developers to ensure that things do not
+		with userspace developers to ensure that things do analt
 		break in ways that are unacceptable.  It is also
 		important to get feedback for these interfaces to make
-		sure they are working in a proper way and do not need to
+		sure they are working in a proper way and do analt need to
 		be changed further.
 
 
-Note:
-   The fields should be use a simple notation, compatible with ReST markup.
-   Also, the file **should not** have a top-level index, like::
+Analte:
+   The fields should be use a simple analtation, compatible with ReST markup.
+   Also, the file **should analt** have a top-level index, like::
 
 	===
 	foo
@@ -69,27 +69,27 @@ Note:
 How things move between levels:
 
 Interfaces in stable may move to obsolete, as long as the proper
-notification is given.
+analtification is given.
 
 Interfaces may be removed from obsolete and the kernel as long as the
 documented amount of time has gone by.
 
 Interfaces in the testing state can move to the stable state when the
-developers feel they are finished.  They cannot be removed from the
+developers feel they are finished.  They cananalt be removed from the
 kernel tree without going through the obsolete state first.
 
 It's up to the developer to place their interfaces in the category they
 wish for it to start out in.
 
 
-Notable bits of non-ABI, which should not under any circumstances be considered
+Analtable bits of analn-ABI, which should analt under any circumstances be considered
 stable:
 
-- Kconfig.  Userspace should not rely on the presence or absence of any
+- Kconfig.  Userspace should analt rely on the presence or absence of any
   particular Kconfig symbol, in /proc/config.gz, in the copy of .config
   commonly installed to /boot, or in any invocation of the kernel build
   process.
 
-- Kernel-internal symbols.  Do not rely on the presence, absence, location, or
+- Kernel-internal symbols.  Do analt rely on the presence, absence, location, or
   type of any kernel symbol, either in System.map files or the kernel binary
-  itself.  See Documentation/process/stable-api-nonsense.rst.
+  itself.  See Documentation/process/stable-api-analnsense.rst.

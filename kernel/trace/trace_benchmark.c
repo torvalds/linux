@@ -27,7 +27,7 @@ static bool ok_to_run;
 /*
  * This gets called in a loop recording the time it took to write
  * the tracepoint. What it writes is the time statistics of the last
- * tracepoint write. As there is nothing to write the first time
+ * tracepoint write. As there is analthing to write the first time
  * it simply writes "START". As the first write is cold cache and
  * the rest is hot, we save off that time in bm_first and it is
  * reported as "first", which is shown in the second write to the
@@ -80,7 +80,7 @@ static void trace_do_benchmark(void)
 	/*
 	 * When bm_cnt is greater than UINT_MAX, it breaks the statistics
 	 * accounting. Freeze the statistics when that happens.
-	 * We should have enough data for the avg and stddev anyway.
+	 * We should have eanalugh data for the avg and stddev anyway.
 	 */
 	if (bm_cnt > UINT_MAX) {
 		scnprintf(bm_str, BENCHMARK_EVENT_STRLEN,
@@ -159,8 +159,8 @@ static int benchmark_event_kthread(void *arg)
 		 * wants to run, schedule in, but if the CPU is idle,
 		 * we'll keep burning cycles.
 		 *
-		 * Note the tasks_rcu_qs() version of cond_resched() will
-		 * notify synchronize_rcu_tasks() that this thread has
+		 * Analte the tasks_rcu_qs() version of cond_resched() will
+		 * analtify synchronize_rcu_tasks() that this thread has
 		 * passed a quiescent state for rcu_tasks. Otherwise
 		 * this thread will never voluntarily schedule which would
 		 * block synchronize_rcu_tasks() indefinitely.
@@ -178,7 +178,7 @@ static int benchmark_event_kthread(void *arg)
 int trace_benchmark_reg(void)
 {
 	if (!ok_to_run) {
-		pr_warn("trace benchmark cannot be started via kernel command line\n");
+		pr_warn("trace benchmark cananalt be started via kernel command line\n");
 		return -EBUSY;
 	}
 

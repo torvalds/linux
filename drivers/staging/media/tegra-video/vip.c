@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "vip.h"
 #include "video.h"
@@ -64,7 +64,7 @@ static int tegra_vip_enable_stream(struct v4l2_subdev *subdev)
 		goto err_start_streaming;
 
 	err = v4l2_subdev_call(prev_subdev, video, s_stream, true);
-	if (err < 0 && err != -ENOIOCTLCMD)
+	if (err < 0 && err != -EANALIOCTLCMD)
 		goto err_prev_subdev_start_stream;
 
 	return 0;
@@ -111,12 +111,12 @@ static const struct v4l2_subdev_ops tegra_vip_ops = {
 static int tegra_vip_channel_of_parse(struct tegra_vip *vip)
 {
 	struct device *dev = vip->dev;
-	struct device_node *np = dev->of_node;
-	struct v4l2_fwnode_endpoint v4l2_ep = {
+	struct device_analde *np = dev->of_analde;
+	struct v4l2_fwanalde_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_PARALLEL
 	};
-	struct fwnode_handle *fwh;
-	struct device_node *ep;
+	struct fwanalde_handle *fwh;
+	struct device_analde *ep;
 	unsigned int num_pads;
 	int err;
 
@@ -125,33 +125,33 @@ static int tegra_vip_channel_of_parse(struct tegra_vip *vip)
 	ep = of_graph_get_endpoint_by_regs(np, 0, 0);
 	if (!ep) {
 		err = -EINVAL;
-		dev_err_probe(dev, err, "%pOF: error getting endpoint node\n", np);
-		goto err_node_put;
+		dev_err_probe(dev, err, "%pOF: error getting endpoint analde\n", np);
+		goto err_analde_put;
 	}
 
-	fwh = of_fwnode_handle(ep);
-	err = v4l2_fwnode_endpoint_parse(fwh, &v4l2_ep);
-	of_node_put(ep);
+	fwh = of_fwanalde_handle(ep);
+	err = v4l2_fwanalde_endpoint_parse(fwh, &v4l2_ep);
+	of_analde_put(ep);
 	if (err) {
 		dev_err_probe(dev, err, "%pOF: failed to parse v4l2 endpoint\n", np);
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
 	num_pads = of_graph_get_endpoint_count(np);
 	if (num_pads != TEGRA_VIP_PADS_NUM) {
 		err = -EINVAL;
 		dev_err_probe(dev, err, "%pOF: need 2 pads, got %d\n", np, num_pads);
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
-	vip->chan.of_node = of_node_get(np);
+	vip->chan.of_analde = of_analde_get(np);
 	vip->chan.pads[TEGRA_VIP_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	vip->chan.pads[TEGRA_VIP_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
 	return 0;
 
-err_node_put:
-	of_node_put(np);
+err_analde_put:
+	of_analde_put(np);
 	return err;
 }
 
@@ -164,10 +164,10 @@ static int tegra_vip_channel_init(struct tegra_vip *vip)
 	v4l2_subdev_init(subdev, &tegra_vip_ops);
 	subdev->dev = vip->dev;
 	snprintf(subdev->name, sizeof(subdev->name), "%s",
-		 kbasename(vip->chan.of_node->full_name));
+		 kbasename(vip->chan.of_analde->full_name));
 
 	v4l2_set_subdevdata(subdev, &vip->chan);
-	subdev->fwnode = of_fwnode_handle(vip->chan.of_node);
+	subdev->fwanalde = of_fwanalde_handle(vip->chan.of_analde);
 	subdev->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 
 	err = media_entity_pads_init(&subdev->entity, TEGRA_VIP_PADS_NUM, vip->chan.pads);
@@ -203,7 +203,7 @@ static int tegra_vip_init(struct host1x_client *client)
 	return 0;
 
 err_init:
-	of_node_put(vip->chan.of_node);
+	of_analde_put(vip->chan.of_analde);
 	return err;
 }
 
@@ -214,7 +214,7 @@ static int tegra_vip_exit(struct host1x_client *client)
 
 	v4l2_async_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
-	of_node_put(vip->chan.of_node);
+	of_analde_put(vip->chan.of_analde);
 
 	return 0;
 }
@@ -229,11 +229,11 @@ static int tegra_vip_probe(struct platform_device *pdev)
 	struct tegra_vip *vip;
 	int err;
 
-	dev_dbg(&pdev->dev, "Probing VIP \"%s\" from %pOF\n", pdev->name, pdev->dev.of_node);
+	dev_dbg(&pdev->dev, "Probing VIP \"%s\" from %pOF\n", pdev->name, pdev->dev.of_analde);
 
 	vip = devm_kzalloc(&pdev->dev, sizeof(*vip), GFP_KERNEL);
 	if (!vip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vip->soc = of_device_get_match_data(&pdev->dev);
 

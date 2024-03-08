@@ -1,6 +1,6 @@
-APM X-Gene SoC Ethernet nodes
+APM X-Gene SoC Ethernet analdes
 
-Ethernet nodes are defined to describe on-chip ethernet interfaces in
+Ethernet analdes are defined to describe on-chip ethernet interfaces in
 APM X-Gene SoC.
 
 Required properties for all the ethernet interfaces:
@@ -26,14 +26,14 @@ Required properties for all the ethernet interfaces:
 - phy-connection-type: Interface type between ethernet device and PHY device
 
 Required properties for ethernet interfaces that have external PHY:
-- phy-handle: Reference to a PHY node connected to this device
+- phy-handle: Reference to a PHY analde connected to this device
 
-- mdio: Device tree subnode with the following required properties:
+- mdio: Device tree subanalde with the following required properties:
   - compatible: Must be "apm,xgene-mdio".
   - #address-cells: Must be <1>.
   - #size-cells: Must be <0>.
 
-  For the phy on the mdio bus, there must be a node with the following fields:
+  For the phy on the mdio bus, there must be a analde with the following fields:
   - compatible: PHY identifier.  Please refer ./phy.txt for the format.
   - reg: The ID number for the phy.
 

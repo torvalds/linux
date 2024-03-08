@@ -217,7 +217,7 @@ static int udl_handle_damage(struct drm_framebuffer *fb,
 
 	urb = udl_get_urb(dev);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 	cmd = urb->transfer_buffer;
 
 	for (i = clip->y1; i < clip->y2; i++) {
@@ -271,8 +271,8 @@ static int udl_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
 
 	return drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   false, false);
 }
 
@@ -289,7 +289,7 @@ static void udl_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	int ret, idx;
 
 	if (!fb)
-		return; /* no framebuffer; plane is disabled */
+		return; /* anal framebuffer; plane is disabled */
 
 	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
 	if (ret)
@@ -439,7 +439,7 @@ static int udl_get_edid_block(void *data, u8 *buf, unsigned int block, size_t le
 
 	read_buff = kmalloc(2, GFP_KERNEL);
 	if (!read_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < len; i++) {
 		int bval = (i + block * EDID_LENGTH) << 8;
@@ -518,7 +518,7 @@ struct drm_connector *udl_connector_init(struct drm_device *dev)
 
 	udl_connector = kzalloc(sizeof(*udl_connector), GFP_KERNEL);
 	if (!udl_connector)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	connector = &udl_connector->connector;
 	ret = drm_connector_init(dev, connector, &udl_connector_funcs, DRM_MODE_CONNECTOR_VGA);

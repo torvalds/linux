@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright (C) 2022 Huawei Technologies Duesseldorf GmbH
+ * Copyright (C) 2022 Huawei Techanallogies Duesseldorf GmbH
  *
  * Author: Roberto Sassu <roberto.sassu@huawei.com>
  */
 
 #include "vmlinux.h"
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_kfuncs.h"
@@ -78,7 +78,7 @@ int BPF_PROG(bpf, int cmd, union bpf_attr *attr, unsigned int size)
 		trusted_keyring = bpf_lookup_system_key(system_keyring_id);
 
 	if (!trusted_keyring)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = bpf_verify_pkcs7_signature(&data_ptr, &sig_ptr, trusted_keyring);
 

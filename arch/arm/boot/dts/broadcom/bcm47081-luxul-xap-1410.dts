@@ -34,13 +34,13 @@
 		led-5ghz {
 			label = "bcm53xx:blue:5ghz";
 			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-2ghz {
 			label = "bcm53xx:blue:2ghz";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		led-status {
@@ -66,7 +66,7 @@
 	nvmem-cell-names = "mac-address";
 };
 
-&spi_nor {
+&spi_analr {
 	status = "okay";
 };
 

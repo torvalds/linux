@@ -23,25 +23,25 @@ static struct tty_struct *speakup_tty;
 /* This mutex serializes the use of such global speakup_tty variable */
 static DEFINE_MUTEX(speakup_tty_mutex);
 
-static int ser_to_dev(int ser, dev_t *dev_no)
+static int ser_to_dev(int ser, dev_t *dev_anal)
 {
 	if (ser < 0 || ser > (255 - 64)) {
 		pr_err("speakup: Invalid ser param. Must be between 0 and 191 inclusive.\n");
 		return -EINVAL;
 	}
 
-	*dev_no = MKDEV(4, (64 + ser));
+	*dev_anal = MKDEV(4, (64 + ser));
 	return 0;
 }
 
-static int get_dev_to_use(struct spk_synth *synth, dev_t *dev_no)
+static int get_dev_to_use(struct spk_synth *synth, dev_t *dev_anal)
 {
-	/* use ser only when dev is not specified */
+	/* use ser only when dev is analt specified */
 	if (strcmp(synth->dev_name, SYNTH_DEFAULT_DEV) ||
 	    synth->ser == SYNTH_DEFAULT_SER)
-		return tty_dev_name_to_number(synth->dev_name, dev_no);
+		return tty_dev_name_to_number(synth->dev_name, dev_anal);
 
-	return ser_to_dev(synth->ser, dev_no);
+	return ser_to_dev(synth->ser, dev_anal);
 }
 
 static int spk_ttyio_ldisc_open(struct tty_struct *tty)
@@ -50,14 +50,14 @@ static int spk_ttyio_ldisc_open(struct tty_struct *tty)
 
 	if (tty != speakup_tty)
 		/* Somebody tried to use this line discipline outside speakup */
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!tty->ops->write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ldisc_data = kmalloc(sizeof(*ldisc_data), GFP_KERNEL);
 	if (!ldisc_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&ldisc_data->completion);
 	ldisc_data->buf_free = true;
@@ -116,7 +116,7 @@ static int spk_ttyio_out_unicode(struct spk_synth *in_synth, u16 ch);
 static void spk_ttyio_send_xchar(struct spk_synth *in_synth, char ch);
 static void spk_ttyio_tiocmset(struct spk_synth *in_synth, unsigned int set, unsigned int clear);
 static unsigned char spk_ttyio_in(struct spk_synth *in_synth);
-static unsigned char spk_ttyio_in_nowait(struct spk_synth *in_synth);
+static unsigned char spk_ttyio_in_analwait(struct spk_synth *in_synth);
 static void spk_ttyio_flush_buffer(struct spk_synth *in_synth);
 static int spk_ttyio_wait_for_xmitr(struct spk_synth *in_synth);
 
@@ -126,7 +126,7 @@ struct spk_io_ops spk_ttyio_ops = {
 	.send_xchar = spk_ttyio_send_xchar,
 	.tiocmset = spk_ttyio_tiocmset,
 	.synth_in = spk_ttyio_in,
-	.synth_in_nowait = spk_ttyio_in_nowait,
+	.synth_in_analwait = spk_ttyio_in_analwait,
 	.flush_buffer = spk_ttyio_flush_buffer,
 	.wait_for_xmitr = spk_ttyio_wait_for_xmitr,
 };
@@ -158,7 +158,7 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 	if (tty->ops->open)
 		ret = tty->ops->open(tty, NULL);
 	else
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	if (ret) {
 		tty_unlock(tty);
@@ -173,7 +173,7 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 		tty_set_termios(tty, &tmp_termios);
 		/*
 		 * check c_cflag to see if it's updated as tty_set_termios
-		 * may not return error even when no tty bits are
+		 * may analt return error even when anal tty bits are
 		 * changed by the request.
 		 */
 		get_termios(tty, &tmp_termios);
@@ -232,7 +232,7 @@ static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 	ret = tty->ops->write(tty, &ch, 1);
 
 	if (ret == 0)
-		/* No room */
+		/* Anal room */
 		return 0;
 
 	if (ret > 0)
@@ -241,9 +241,9 @@ static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 
 	pr_warn("%s: I/O error, deactivating speakup\n",
 		in_synth->long_name);
-	/* No synth any more, so nobody will restart TTYs,
-	 * and we thus need to do it ourselves.  Now that there
-	 * is no synth we can let application flood anyway
+	/* Anal synth any more, so analbody will restart TTYs,
+	 * and we thus need to do it ourselves.  Analw that there
+	 * is anal synth we can let application flood anyway
 	 */
 	in_synth->alive = 0;
 	speakup_start_ttys();
@@ -321,7 +321,7 @@ static unsigned char spk_ttyio_in(struct spk_synth *in_synth)
 	return ttyio_in(in_synth, SPK_SYNTH_TIMEOUT);
 }
 
-static unsigned char spk_ttyio_in_nowait(struct spk_synth *in_synth)
+static unsigned char spk_ttyio_in_analwait(struct spk_synth *in_synth)
 {
 	u8 rv = ttyio_in(in_synth, 0);
 

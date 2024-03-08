@@ -158,7 +158,7 @@
 			arm,tag-latency = <2 2 2>;
 		};
 
-		scu: snoop-control-unit@ad0000 {
+		scu: sanalop-control-unit@ad0000 {
 			compatible = "arm,cortex-a9-scu";
 			reg = <0xad0000 0x58>;
 		};

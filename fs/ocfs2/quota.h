@@ -29,10 +29,10 @@ struct ocfs2_dquot {
 	loff_t dq_local_off;	/* Offset in the local quota file */
 	u64 dq_local_phys_blk;	/* Physical block carrying quota structure */
 	struct ocfs2_quota_chunk *dq_chunk;	/* Chunk dquot is in */
-	unsigned int dq_use_count;	/* Number of nodes having reference to this entry in global quota file */
+	unsigned int dq_use_count;	/* Number of analdes having reference to this entry in global quota file */
 	s64 dq_origspace;	/* Last globally synced space usage */
-	s64 dq_originodes;	/* Last globally synced inode usage */
-	struct llist_node list;	/* Member of list of dquots to drop */
+	s64 dq_origianaldes;	/* Last globally synced ianalde usage */
+	struct llist_analde list;	/* Member of list of dquots to drop */
 };
 
 /* Description of one chunk to recover in memory */
@@ -52,14 +52,14 @@ struct ocfs2_mem_dqinfo {
 	unsigned int dqi_flags;		/* Flags OLQF_* */
 	unsigned int dqi_chunks;	/* Number of chunks in local quota file */
 	unsigned int dqi_blocks;	/* Number of blocks allocated for local quota file */
-	unsigned int dqi_syncms;	/* How often should we sync with other nodes */
+	unsigned int dqi_syncms;	/* How often should we sync with other analdes */
 	struct list_head dqi_chunk;	/* List of chunks */
-	struct inode *dqi_gqinode;	/* Global quota file inode */
+	struct ianalde *dqi_gqianalde;	/* Global quota file ianalde */
 	struct ocfs2_lock_res dqi_gqlock;	/* Lock protecting quota information structure */
-	struct buffer_head *dqi_gqi_bh;	/* Buffer head with global quota file inode - set only if inode lock is obtained */
+	struct buffer_head *dqi_gqi_bh;	/* Buffer head with global quota file ianalde - set only if ianalde lock is obtained */
 	int dqi_gqi_count;		/* Number of holders of dqi_gqi_bh */
 	u64 dqi_giblk;			/* Number of block with global information header */
-	struct buffer_head *dqi_lqi_bh;	/* Buffer head with local quota file inode */
+	struct buffer_head *dqi_lqi_bh;	/* Buffer head with local quota file ianalde */
 	struct buffer_head *dqi_libh;	/* Buffer with local information header */
 	struct qtree_mem_dqinfo dqi_gi;	/* Info about global file */
 	struct delayed_work dqi_sync_work;	/* Work for syncing dquots */
@@ -111,7 +111,7 @@ static inline int ocfs2_global_release_dquot(struct dquot *dquot)
 int ocfs2_lock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex);
 void ocfs2_unlock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex);
 int ocfs2_validate_quota_block(struct super_block *sb, struct buffer_head *bh);
-int ocfs2_read_quota_phys_block(struct inode *inode, u64 p_block,
+int ocfs2_read_quota_phys_block(struct ianalde *ianalde, u64 p_block,
 				struct buffer_head **bh);
 int ocfs2_create_local_dquot(struct dquot *dquot);
 int ocfs2_local_release_dquot(handle_t *handle, struct dquot *dquot);

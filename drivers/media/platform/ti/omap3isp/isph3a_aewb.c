@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - H3A module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: David Cohen <dacohen@gmail.com>
@@ -101,7 +101,7 @@ static u32 h3a_aewb_get_buf_size(struct omap3isp_h3a_aewb_config *conf)
 
 	/*
 	 * Unsaturated block counts for each 8 windows.
-	 * 1 extra for the last (win_count % 8) windows if win_count is not
+	 * 1 extra for the last (win_count % 8) windows if win_count is analt
 	 * divisible by 8.
 	 */
 	win_count += (win_count + 7) / 8;
@@ -255,7 +255,7 @@ static long h3a_aewb_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	}
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static const struct ispstat_ops h3a_aewb_ops = {
@@ -293,7 +293,7 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 
 	aewb_cfg = kzalloc(sizeof(*aewb_cfg), GFP_KERNEL);
 	if (!aewb_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aewb->ops = &h3a_aewb_ops;
 	aewb->priv = aewb_cfg;
@@ -304,8 +304,8 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	aewb_recover_cfg = kzalloc(sizeof(*aewb_recover_cfg), GFP_KERNEL);
 	if (!aewb_recover_cfg) {
 		dev_err(aewb->isp->dev,
-			"AEWB: cannot allocate memory for recover configuration.\n");
-		ret = -ENOMEM;
+			"AEWB: cananalt allocate memory for recover configuration.\n");
+		ret = -EANALMEM;
 		goto err;
 	}
 

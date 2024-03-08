@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/namei.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/io_uring.h>
 
 #include <uapi/linux/io_uring.h>
@@ -82,7 +82,7 @@ static int io_async_cancel_one(struct io_uring_task *tctx,
 	bool all;
 
 	if (!tctx || !tctx->io_wq)
-		return -ENOENT;
+		return -EANALENT;
 
 	all = cd->flags & (IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_ANY);
 	cancel_ret = io_wq_cancel_cb(tctx->io_wq, io_cancel_cb, cd, all);
@@ -93,8 +93,8 @@ static int io_async_cancel_one(struct io_uring_task *tctx,
 	case IO_WQ_CANCEL_RUNNING:
 		ret = -EALREADY;
 		break;
-	case IO_WQ_CANCEL_NOTFOUND:
-		ret = -ENOENT;
+	case IO_WQ_CANCEL_ANALTFOUND:
+		ret = -EANALENT;
 		break;
 	}
 
@@ -118,15 +118,15 @@ int io_try_cancel(struct io_uring_task *tctx, struct io_cancel_data *cd,
 		return 0;
 
 	ret = io_poll_cancel(ctx, cd, issue_flags);
-	if (ret != -ENOENT)
+	if (ret != -EANALENT)
 		return ret;
 
 	ret = io_waitid_cancel(ctx, cd, issue_flags);
-	if (ret != -ENOENT)
+	if (ret != -EANALENT)
 		return ret;
 
 	ret = io_futex_cancel(ctx, cd, issue_flags);
-	if (ret != -ENOENT)
+	if (ret != -EANALENT)
 		return ret;
 
 	spin_lock(&ctx->completion_lock);
@@ -169,12 +169,12 @@ static int __io_async_cancel(struct io_cancel_data *cd,
 {
 	bool all = cd->flags & (IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_ANY);
 	struct io_ring_ctx *ctx = cd->ctx;
-	struct io_tctx_node *node;
+	struct io_tctx_analde *analde;
 	int ret, nr = 0;
 
 	do {
 		ret = io_try_cancel(tctx, cd, issue_flags);
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			break;
 		if (!all)
 			return ret;
@@ -183,12 +183,12 @@ static int __io_async_cancel(struct io_cancel_data *cd,
 
 	/* slow path, try all io-wq's */
 	io_ring_submit_lock(ctx, issue_flags);
-	ret = -ENOENT;
-	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
-		struct io_uring_task *tctx = node->task->io_uring;
+	ret = -EANALENT;
+	list_for_each_entry(analde, &ctx->tctx_list, ctx_analde) {
+		struct io_uring_task *tctx = analde->task->io_uring;
 
 		ret = io_async_cancel_one(tctx, cd);
-		if (ret != -ENOENT) {
+		if (ret != -EANALENT) {
 			if (!all)
 				break;
 			nr++;
@@ -218,7 +218,7 @@ int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 			req->file = io_file_get_fixed(req, cancel->fd,
 							issue_flags);
 		} else {
-			req->file = io_file_get_normal(req, cancel->fd);
+			req->file = io_file_get_analrmal(req, cancel->fd);
 		}
 		if (!req->file) {
 			ret = -EBADF;
@@ -255,7 +255,7 @@ static int __io_sync_cancel(struct io_uring_task *tctx,
 	    (cd->flags & IORING_ASYNC_CANCEL_FD_FIXED)) {
 		if (unlikely(fd >= ctx->nr_user_files))
 			return -EBADF;
-		fd = array_index_nospec(fd, ctx->nr_user_files);
+		fd = array_index_analspec(fd, ctx->nr_user_files);
 		cd->file = io_file_from_index(&ctx->file_table, fd);
 		if (!cd->file)
 			return -EBADF;
@@ -292,7 +292,7 @@ int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 	cd.flags = sc.flags;
 	cd.opcode = sc.opcode;
 
-	/* we can grab a normal file descriptor upfront */
+	/* we can grab a analrmal file descriptor upfront */
 	if ((cd.flags & IORING_ASYNC_CANCEL_FD) &&
 	   !(cd.flags & IORING_ASYNC_CANCEL_FD_FIXED)) {
 		file = fget(sc.fd);
@@ -317,7 +317,7 @@ int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 	}
 
 	/*
-	 * Keep looking until we get -ENOENT. we'll get woken everytime
+	 * Keep looking until we get -EANALENT. we'll get woken everytime
 	 * every time a request completes and will retry the cancelation.
 	 */
 	do {
@@ -345,7 +345,7 @@ int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 	finish_wait(&ctx->cq_wait, &wait);
 	mutex_lock(&ctx->uring_lock);
 
-	if (ret == -ENOENT || ret > 0)
+	if (ret == -EANALENT || ret > 0)
 		ret = 0;
 out:
 	if (file)

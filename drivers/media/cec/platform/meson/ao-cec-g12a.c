@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 #include <linux/clk-provider.h>
 
 /* CEC Registers */
@@ -43,7 +43,7 @@
 #define CECB_CLK_CNTL_BYPASS_EN		BIT(24)
 
 /*
- * [14:12] Filter_del. For glitch-filtering CEC line, ignore signal
+ * [14:12] Filter_del. For glitch-filtering CEC line, iganalre signal
  *       change pulse width < filter_del * T(filter_tick) * 3.
  * [9:8] Filter_tick_sel: Select which periodical pulse for
  *       glitch-filtering CEC line signal.
@@ -54,9 +54,9 @@
  * [3]   Sysclk_en. 0=Disable system clock; 1=Enable system clock.
  * [2:1] cntl_clk
  *  - 0 = Disable clk (Power-off mode)
- *  - 1 = Enable gated clock (Normal mode)
+ *  - 1 = Enable gated clock (Analrmal mode)
  *  - 2 = Enable free-run clk (Debug mode)
- * [0] SW_RESET 1=Apply reset; 0=No reset.
+ * [0] SW_RESET 1=Apply reset; 0=Anal reset.
  */
 #define CECB_GEN_CNTL_REG		0x08
 
@@ -92,7 +92,7 @@
 /*
  * [0] DONE Interrupt
  * [1] End Of Message Interrupt
- * [2] Not Acknowlegde Interrupt
+ * [2] Analt Ackanalwlegde Interrupt
  * [3] Arbitration Loss Interrupt
  * [4] Initiator Error Interrupt
  * [5] Follower Error Interrupt
@@ -178,7 +178,7 @@ struct meson_ao_cec_g12a_device {
 	struct regmap			*regmap;
 	struct regmap			*regmap_cec;
 	spinlock_t			cec_reg_lock;
-	struct cec_notifier		*notify;
+	struct cec_analtifier		*analtify;
 	struct cec_adapter		*adap;
 	struct cec_msg			rx_msg;
 	struct clk			*oscin;
@@ -341,11 +341,11 @@ static int meson_ao_cec_g12a_setup_clk(struct meson_ao_cec_g12a_device *ao_cec)
 
 	dualdiv_clk = devm_kzalloc(dev, sizeof(*dualdiv_clk), GFP_KERNEL);
 	if (!dualdiv_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name = kasprintf(GFP_KERNEL, "%s#dualdiv_clk", dev_name(dev));
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parent_name = __clk_get_name(ao_cec->oscin);
 
@@ -458,7 +458,7 @@ static irqreturn_t meson_ao_cec_g12a_irq(int irq, void *data)
 	if (stat)
 		return IRQ_WAKE_THREAD;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t meson_ao_cec_g12a_irq_thread(int irq, void *data)
@@ -604,7 +604,7 @@ static int meson_ao_cec_g12a_adap_enable(struct cec_adapter *adap, bool enable)
 			   CECB_GEN_CNTL_SYS_CLK_EN,
 			   CECB_GEN_CNTL_SYS_CLK_EN);
 
-	/* Enable gated clock (Normal mode). */
+	/* Enable gated clock (Analrmal mode). */
 	regmap_update_bits(ao_cec->regmap, CECB_GEN_CNTL_REG,
 			   CECB_GEN_CNTL_CLK_CTRL_MASK,
 			    FIELD_PREP(CECB_GEN_CNTL_CLK_CTRL_MASK,
@@ -636,18 +636,18 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret, irq;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
+	hdmi_dev = cec_analtifier_parse_hdmi_phandle(&pdev->dev);
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
 
 	ao_cec = devm_kzalloc(&pdev->dev, sizeof(*ao_cec), GFP_KERNEL);
 	if (!ao_cec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ao_cec->data = of_device_get_match_data(&pdev->dev);
 	if (!ao_cec->data) {
 		dev_err(&pdev->dev, "failed to get match data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_init(&ao_cec->cec_reg_lock);
@@ -714,24 +714,24 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ao_cec);
 
-	ao_cec->notify = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+	ao_cec->analtify = cec_analtifier_cec_adap_register(hdmi_dev, NULL,
 							ao_cec->adap);
-	if (!ao_cec->notify) {
-		ret = -ENOMEM;
+	if (!ao_cec->analtify) {
+		ret = -EANALMEM;
 		goto out_probe_core_clk;
 	}
 
 	ret = cec_register_adapter(ao_cec->adap, &pdev->dev);
 	if (ret < 0)
-		goto out_probe_notify;
+		goto out_probe_analtify;
 
 	/* Setup Hardware */
 	regmap_write(ao_cec->regmap, CECB_GEN_CNTL_REG, CECB_GEN_CNTL_RESET);
 
 	return 0;
 
-out_probe_notify:
-	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
+out_probe_analtify:
+	cec_analtifier_cec_adap_unregister(ao_cec->analtify, ao_cec->adap);
 
 out_probe_core_clk:
 	clk_disable_unprepare(ao_cec->core);
@@ -750,7 +750,7 @@ static void meson_ao_cec_g12a_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ao_cec->core);
 
-	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
+	cec_analtifier_cec_adap_unregister(ao_cec->analtify, ao_cec->adap);
 
 	cec_unregister_adapter(ao_cec->adap);
 }

@@ -34,7 +34,7 @@
 };
 
 &sdio0 {
-	non-removable;
+	analn-removable;
 	full-pwr-cycle;
 };
 

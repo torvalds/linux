@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2004-2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004-2013 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Registers and bits definitions of ARC EMAC
  */

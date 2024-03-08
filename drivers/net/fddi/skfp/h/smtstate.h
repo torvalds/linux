@@ -33,7 +33,7 @@
 /*
  * PCM modes
  */
-#define PM_NONE			0
+#define PM_ANALNE			0
 #define PM_PEER			1
 #define PM_TREE			2
 
@@ -44,7 +44,7 @@
 #define TB			1
 #define TS			2
 #define TM			3
-#define TNONE			4
+#define TANALNE			4
 
 /*
  * CFM states
@@ -72,10 +72,10 @@
  * RMT states
  */
 #define RM0_ISOLATED	0
-#define RM1_NON_OP	1		/* not operational */
+#define RM1_ANALN_OP	1		/* analt operational */
 #define RM2_RING_OP	2		/* ring operational */
 #define RM3_DETECT	3		/* detect dupl addresses */
-#define RM4_NON_OP_DUP	4		/* dupl. addr detected */
+#define RM4_ANALN_OP_DUP	4		/* dupl. addr detected */
 #define RM5_RING_OP_DUP	5		/* ring oper. with dupl. addr */
 #define RM6_DIRECTED	6		/* sending directed beacons */
 #define RM7_TRACE	7		/* trace initiated */
@@ -84,7 +84,7 @@
 struct pcm_state {
 	unsigned char	pcm_type ;		/* TA TB TS TM */
 	unsigned char	pcm_state ;		/* state PC[0-9]_* */
-	unsigned char	pcm_mode ;		/* PM_{NONE,PEER,TREE} */
+	unsigned char	pcm_mode ;		/* PM_{ANALNE,PEER,TREE} */
 	unsigned char	pcm_neighbor ;		/* TA TB TS TM */
 	unsigned char	pcm_bsf ;		/* flag bs : TRUE/FALSE */
 	unsigned char	pcm_lsf ;		/* flag ls : TRUE/FALSE */

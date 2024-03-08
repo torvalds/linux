@@ -5,13 +5,13 @@
 $id: http://devicetree.org/schemas/iio/dac/lltc,ltc1660.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Linear Technology Micropower octal 8-Bit and 10-Bit DACs
+title: Linear Techanallogy Micropower octal 8-Bit and 10-Bit DACs
 
 maintainers:
   - Marcus Folkesson <marcus.folkesson@gmail.com>
 
 description: |
-  Bindings for the Linear Technology Micropower octal 8-Bit and 10-Bit DAC.
+  Bindings for the Linear Techanallogy Micropower octal 8-Bit and 10-Bit DAC.
   Datasheet can be found here: https://www.analog.com/media/en/technical-documentation/data-sheets/166560fa.pdf
 
 properties:

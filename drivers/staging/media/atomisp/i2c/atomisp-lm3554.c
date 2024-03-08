@@ -78,7 +78,7 @@ struct lm3554 {
 
 #define to_lm3554(p_sd)	container_of(p_sd, struct lm3554, sd)
 
-/* Return negative errno else zero on success */
+/* Return negative erranal else zero on success */
 static int lm3554_write(struct lm3554 *flash, u8 addr, u8 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&flash->sd);
@@ -92,7 +92,7 @@ static int lm3554_write(struct lm3554 *flash, u8 addr, u8 val)
 	return ret;
 }
 
-/* Return negative errno else a data byte received from the device. */
+/* Return negative erranal else a data byte received from the device. */
 static int lm3554_read(struct lm3554 *flash, u8 addr)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&flash->sd);
@@ -183,7 +183,7 @@ static int lm3554_hw_strobe(struct i2c_client *client, bool strobe)
 	struct lm3554_platform_data *pdata = flash->pdata;
 
 	/*
-	 * An abnormal high flash current is observed when strobe off the
+	 * An abanalrmal high flash current is observed when strobe off the
 	 * flash. Workaround here is firstly set flash current to lower level,
 	 * wait a short moment, and then strobe off the flash.
 	 */
@@ -204,7 +204,7 @@ static int lm3554_hw_strobe(struct i2c_client *client, bool strobe)
 	/* Flash on */
 
 	/*
-	 * If timer is killed before run, flash is not strobe off,
+	 * If timer is killed before run, flash is analt strobe off,
 	 * so must strobe off here
 	 */
 	if (timer_pending)
@@ -234,7 +234,7 @@ static int lm3554_read_status(struct lm3554 *flash)
 	int ret;
 	struct i2c_client *client = v4l2_get_subdevdata(&flash->sd);
 
-	/* NOTE: reading register clear fault status */
+	/* ANALTE: reading register clear fault status */
 	ret = lm3554_read(flash, LM3554_FLAGS_REG);
 	if (ret < 0)
 		return ret;
@@ -246,8 +246,8 @@ static int lm3554_read_status(struct lm3554 *flash)
 	ret &= ~LM3554_FLAG_UNUSED;
 
 	/*
-	 * Do not take TX1/TX2 signal as an error
-	 * because MSIC will not turn off flash, but turn to
+	 * Do analt take TX1/TX2 signal as an error
+	 * because MSIC will analt turn off flash, but turn to
 	 * torch mode according to gsm modem signal by hardware.
 	 */
 	ret &= ~(LM3554_FLAG_TX1_INTERRUPT | LM3554_FLAG_TX2_INTERRUPT);
@@ -583,7 +583,7 @@ static const struct v4l2_ctrl_config lm3554_controls[] = {
  * V4L2 subdev core operations
  */
 
-/* Put device into known state. */
+/* Put device into kanalwn state. */
 static int lm3554_setup(struct lm3554 *flash)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&flash->sd);
@@ -631,7 +631,7 @@ static int __lm3554_s_power(struct lm3554 *flash, int power)
 
 	if (power) {
 		/* Setup default values. This makes sure that the chip
-		 * is in a known state.
+		 * is in a kanalwn state.
 		 */
 		ret = lm3554_setup(flash);
 		if (ret < 0) {
@@ -681,7 +681,7 @@ static int lm3554_detect(struct v4l2_subdev *sd)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&client->dev, "lm3554_detect i2c error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Power up the flash driver and reset it */
@@ -838,7 +838,7 @@ static int lm3554_probe(struct i2c_client *client)
 
 	flash = kzalloc(sizeof(*flash), GFP_KERNEL);
 	if (!flash)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flash->pdata = lm3554_platform_data_func(client);
 	if (IS_ERR(flash->pdata)) {
@@ -848,7 +848,7 @@ static int lm3554_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&flash->sd, client, &lm3554_ops);
 	flash->sd.internal_ops = &lm3554_internal_ops;
-	flash->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	flash->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	flash->mode = ATOMISP_FLASH_MODE_OFF;
 	flash->timeout = LM3554_MAX_TIMEOUT / LM3554_TIMEOUT_STEPSIZE - 1;
 	err =

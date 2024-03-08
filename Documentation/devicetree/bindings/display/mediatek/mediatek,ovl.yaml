@@ -13,7 +13,7 @@ maintainers:
 description: |
   Mediatek display overlay, namely OVL, can do alpha blending from
   the memory.
-  OVL device node must be siblings to the central MMSYS_CONFIG node.
+  OVL device analde must be siblings to the central MMSYS_CONFIG analde.
   For a description of the MMSYS_CONFIG binding, see
   Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.yaml
   for details.

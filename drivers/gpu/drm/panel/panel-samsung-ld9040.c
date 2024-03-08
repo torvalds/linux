@@ -296,7 +296,7 @@ static const struct drm_panel_funcs ld9040_drm_funcs = {
 static int ld9040_parse_dt(struct ld9040 *ctx)
 {
 	struct device *dev = ctx->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	ret = of_get_videomode(np, &ctx->vm, 0);
@@ -327,7 +327,7 @@ static const struct backlight_ops ld9040_bl_ops = {
 
 static const struct backlight_properties ld9040_bl_props = {
 	.type = BACKLIGHT_RAW,
-	.scale = BACKLIGHT_SCALE_NON_LINEAR,
+	.scale = BACKLIGHT_SCALE_ANALN_LINEAR,
 	.max_brightness = ARRAY_SIZE(ld9040_gammas) - 1,
 	.brightness = ARRAY_SIZE(ld9040_gammas) - 1,
 };
@@ -341,7 +341,7 @@ static int ld9040_probe(struct spi_device *spi)
 
 	ctx = devm_kzalloc(dev, sizeof(struct ld9040), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, ctx);
 
@@ -361,7 +361,7 @@ static int ld9040_probe(struct spi_device *spi)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset-gpios %ld\n",
+		dev_err(dev, "cananalt get reset-gpios %ld\n",
 			PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}

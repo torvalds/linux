@@ -21,7 +21,7 @@ static const struct mfp_test_case {
 } accept_mfp_cases[] = {
 	/* regular public action */
 	{
-		.desc = "public action: accept unicast from unknown peer",
+		.desc = "public action: accept unicast from unkanalwn peer",
 		.stype = IEEE80211_STYPE_ACTION,
 		.category = WLAN_CATEGORY_PUBLIC,
 		.action = WLAN_PUB_ACTION_DSE_ENABLEMENT,
@@ -29,7 +29,7 @@ static const struct mfp_test_case {
 		.result = RX_CONTINUE,
 	},
 	{
-		.desc = "public action: accept multicast from unknown peer",
+		.desc = "public action: accept multicast from unkanalwn peer",
 		.stype = IEEE80211_STYPE_ACTION,
 		.category = WLAN_CATEGORY_PUBLIC,
 		.action = WLAN_PUB_ACTION_DSE_ENABLEMENT,
@@ -76,7 +76,7 @@ static const struct mfp_test_case {
 	},
 	/* protected dual of public action */
 	{
-		.desc = "protected dual: drop unicast from unknown peer",
+		.desc = "protected dual: drop unicast from unkanalwn peer",
 		.stype = IEEE80211_STYPE_ACTION,
 		.category = WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION,
 		.action = WLAN_PUB_ACTION_DSE_ENABLEMENT,
@@ -84,7 +84,7 @@ static const struct mfp_test_case {
 		.result = RX_DROP_U_UNPROT_DUAL,
 	},
 	{
-		.desc = "protected dual: drop multicast from unknown peer",
+		.desc = "protected dual: drop multicast from unkanalwn peer",
 		.stype = IEEE80211_STYPE_ACTION,
 		.category = WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION,
 		.action = WLAN_PUB_ACTION_DSE_ENABLEMENT,
@@ -168,7 +168,7 @@ static const struct mfp_test_case {
 		.unicast = true,
 		.result = RX_CONTINUE,
 	},
-	/* non-public robust action frame ... */
+	/* analn-public robust action frame ... */
 	{
 		.desc = "BA action: drop unicast before assoc",
 		.stype = IEEE80211_STYPE_ACTION,
@@ -239,7 +239,7 @@ static void accept_mfp(struct kunit *test)
 		set_bit(WLAN_STA_ASSOC, &sta._flags);
 
 	rx.skb = kunit_zalloc_skb(test, 128, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, rx.skb);
+	KUNIT_ASSERT_ANALT_NULL(test, rx.skb);
 	status = IEEE80211_SKB_RXCB(rx.skb);
 
 	if (params->decrypted) {

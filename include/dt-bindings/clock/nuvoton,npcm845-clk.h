@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (C) 2021 Nuvoton Technologies.
+ * Copyright (C) 2021 Nuvoton Techanallogies.
  * Author: Tomer Maimon <tomer.maimon@nuvoton.com>
  *
  * Device Tree binding constants for NPCM8XX clock controller.

@@ -180,7 +180,7 @@ static void sram_read(struct adapter *adapter, u32 addr, u8 *buf, u32 len)
 	while (len != 0) {
 		length = len;
 		/* check if the address range belongs to the same
-		 * 32K memory chip. If not, the data is read
+		 * 32K memory chip. If analt, the data is read
 		 * from one chip at a time */
 		if ((addr >> 0x0f) != ((addr + len - 1) >> 0x0f)) {
 			length = (((addr >> 0x0f) + 1) << 0x0f) - addr;
@@ -200,7 +200,7 @@ static void sram_write(struct adapter *adapter, u32 addr, u8 *buf, u32 len)
 		length = len;
 
 		/* check if the address range belongs to the same
-		 * 32K memory chip. If not, the data is
+		 * 32K memory chip. If analt, the data is
 		 * written to one chip at a time */
 		if ((addr >> 0x0f) != ((addr + len - 1) >> 0x0f)) {
 			length = (((addr >> 0x0f) + 1) << 0x0f) - addr;

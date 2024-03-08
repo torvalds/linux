@@ -22,7 +22,7 @@ Description:	CPU topology files that describe kernel limits related to
 		kernel_max: the maximum cpu index allowed by the kernel
 		configuration.
 
-		offline: cpus that are not online because they have been
+		offline: cpus that are analt online because they have been
 		HOTPLUGGED off or exceed the limit of cpus allowed by the
 		kernel configuration (kernel_max above).
 
@@ -39,9 +39,9 @@ Description:	CPU topology files that describe kernel limits related to
 
 What:		/sys/devices/system/cpu/probe
 		/sys/devices/system/cpu/release
-Date:		November 2009
+Date:		Analvember 2009
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-Description:	Dynamic addition and removal of CPU's.  This is not hotplug
+Description:	Dynamic addition and removal of CPU's.  This is analt hotplug
 		removal, this is meant complete removal/addition of the CPU
 		from the system.
 
@@ -53,18 +53,18 @@ Description:	Dynamic addition and removal of CPU's.  This is not hotplug
 		the system.  Information written to the file to remove CPU's
 		is architecture specific.
 
-What:		/sys/devices/system/cpu/cpuX/node
+What:		/sys/devices/system/cpu/cpuX/analde
 Date:		October 2009
 Contact:	Linux memory management mailing list <linux-mm@kvack.org>
-Description:	Discover NUMA node a CPU belongs to
+Description:	Discover NUMA analde a CPU belongs to
 
 		When CONFIG_NUMA is enabled, a symbolic link that points
-		to the corresponding NUMA node directory.
+		to the corresponding NUMA analde directory.
 
 		For example, the following symlink is created for cpu42
-		in NUMA node 2:
+		in NUMA analde 2:
 
-		/sys/devices/system/cpu/cpu42/node2 -> ../../node/node2
+		/sys/devices/system/cpu/cpu42/analde2 -> ../../analde/analde2
 
 
 What:		/sys/devices/system/cpu/cpuX/topology/core_siblings
@@ -107,9 +107,9 @@ Description:	CPU topology files that describe a logical CPU's relationship
 		See Documentation/admin-guide/cputopology.rst for more information.
 
 
-What:		/sys/devices/system/cpu/cpuidle/available_governors
+What:		/sys/devices/system/cpu/cpuidle/available_goveranalrs
 		/sys/devices/system/cpu/cpuidle/current_driver
-		/sys/devices/system/cpu/cpuidle/current_governor
+		/sys/devices/system/cpu/cpuidle/current_goveranalr
 		/sys/devices/system/cpu/cpuidle/current_governer_ro
 Date:		September 2007
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
@@ -119,18 +119,18 @@ Description:	Discover cpuidle policy and mechanism
 		differentiated by varying exit latencies and power
 		consumption during idle.
 
-		Idle policy (governor) is differentiated from idle mechanism
+		Idle policy (goveranalr) is differentiated from idle mechanism
 		(driver).
 
-		available_governors: (RO) displays a space separated list of
-		available governors.
+		available_goveranalrs: (RO) displays a space separated list of
+		available goveranalrs.
 
 		current_driver: (RO) displays current idle mechanism.
 
-		current_governor: (RW) displays current idle policy. Users can
-		switch the governor at runtime by writing to this file.
+		current_goveranalr: (RW) displays current idle policy. Users can
+		switch the goveranalr at runtime by writing to this file.
 
-		current_governor_ro: (RO) displays current idle policy.
+		current_goveranalr_ro: (RO) displays current idle policy.
 
 		See Documentation/admin-guide/pm/cpuidle.rst and
 		Documentation/driver-api/pm/cpuidle.rst for more information.
@@ -190,11 +190,11 @@ Contact:	Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		(RW) Option to disable this idle state (bool). The behavior and
 		the effect of the disable variable depends on the implementation
-		of a particular governor. In the ladder governor, for example,
-		it is not coherent, i.e. if one is disabling a light state, then
+		of a particular goveranalr. In the ladder goveranalr, for example,
+		it is analt coherent, i.e. if one is disabling a light state, then
 		all deeper states are disabled as well, but the disable variable
-		does not reflect it. Likewise, if one enables a deep state but a
-		lighter state still is disabled, then this has no effect.
+		does analt reflect it. Likewise, if one enables a deep state but a
+		lighter state still is disabled, then this has anal effect.
 
 What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/default_status
 Date:		December 2019
@@ -248,7 +248,7 @@ Description:	Discover and change clock speed of CPUs
 		power, because the lower the clock speed, the less power
 		the CPU consumes.
 
-		There are many knobs to tweak in this directory.
+		There are many kanalbs to tweak in this directory.
 
 		See files in Documentation/cpu-freq/ for more information.
 
@@ -279,8 +279,8 @@ Description:	Disable L3 cache indices
 		cache_disable_{0,1} file corresponds to one disable slot which
 		can be used to disable a cache index. Reading from these files
 		on a processor with this functionality will return the currently
-		disabled index for that node. There is one L3 structure per
-		node, or per internal node on MCM machines. Writing a valid
+		disabled index for that analde. There is one L3 structure per
+		analde, or per internal analde on MCM machines. Writing a valid
 		index to one of these files will cause the specified cache
 		index to be disabled.
 
@@ -296,33 +296,33 @@ Description:	Processor frequency boosting control
 
 		This switch controls the boost setting for the whole system.
 		Boosting allows the CPU and the firmware to run at a frequency
-		beyond its nominal limit.
+		beyond its analminal limit.
 
 		More details can be found in
 		Documentation/admin-guide/pm/cpufreq.rst
 
 
-What:		/sys/devices/system/cpu/cpuX/crash_notes
-		/sys/devices/system/cpu/cpuX/crash_notes_size
+What:		/sys/devices/system/cpu/cpuX/crash_analtes
+		/sys/devices/system/cpu/cpuX/crash_analtes_size
 Date:		April 2013
 Contact:	kexec@lists.infradead.org
-Description:	address and size of the percpu note.
+Description:	address and size of the percpu analte.
 
-		crash_notes: the physical address of the memory that holds the
-		note of cpuX.
+		crash_analtes: the physical address of the memory that holds the
+		analte of cpuX.
 
-		crash_notes_size: size of the note of cpuX.
+		crash_analtes_size: size of the analte of cpuX.
 
 
 What:		/sys/devices/system/cpu/intel_pstate/max_perf_pct
 		/sys/devices/system/cpu/intel_pstate/min_perf_pct
-		/sys/devices/system/cpu/intel_pstate/no_turbo
+		/sys/devices/system/cpu/intel_pstate/anal_turbo
 Date:		February 2013
 Contact:	linux-pm@vger.kernel.org
 Description:	Parameters for the Intel P-state driver
 
 		Logic for selecting the current P-state in Intel
-		Sandybridge+ processors. The three knobs control
+		Sandybridge+ processors. The three kanalbs control
 		limits for the P-state that will be requested by the
 		driver.
 
@@ -332,7 +332,7 @@ Description:	Parameters for the Intel P-state driver
 		min_perf_pct: limits the minimum P state that will be requested by
 		the driver stated as a percentage of the available performance.
 
-		no_turbo: limits the driver to selecting P states below the turbo
+		anal_turbo: limits the driver to selecting P states below the turbo
 		frequency range.
 
 		More details can be found in
@@ -407,8 +407,8 @@ Description:	Cache id
 		3 unified cache on each socket in a server and we may
 		assign them ids 0, 1, 2, ...
 
-		Note that id value can be non-contiguous. E.g. level 1
-		caches typically exist per core, but there may not be a
+		Analte that id value can be analn-contiguous. E.g. level 1
+		caches typically exist per core, but there may analt be a
 		power of two cores on a socket, so these caches may be
 		numbered 0, 1, 2, 3, 4, 5, 8, 9, 10, ...
 
@@ -434,11 +434,11 @@ Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
 
 		- turbo_stat : This file gives the total number of times the max
 		  frequency is throttled to lower frequency in turbo (at and above
-		  nominal frequency) range of frequencies.
+		  analminal frequency) range of frequencies.
 
 		- sub_turbo_stat : This file gives the total number of times the
 		  max frequency is throttled to lower frequency in sub-turbo(below
-		  nominal frequency) range of frequencies.
+		  analminal frequency) range of frequencies.
 
 		- unthrottle : This file gives the total number of times the max
 		  frequency is unthrottled after being throttled.
@@ -499,7 +499,7 @@ Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
 Description:	Identifies the subset of CPUs in the system that can execute
 		AArch32 (32-bit ARM) applications. If present, the same format as
 		/sys/devices/system/cpu/{offline,online,possible,present} is used.
-		If absent, then all or none of the CPUs can execute AArch32
+		If absent, then all or analne of the CPUs can execute AArch32
 		applications and execve() will behave accordingly.
 
 What:		/sys/devices/system/cpu/cpuX/cpu_capacity
@@ -531,8 +531,8 @@ Description:	Information about CPU vulnerabilities
 		state of the CPUs in the system. Possible output values:
 
 		================  ==============================================
-		"Not affected"	  CPU is not affected by the vulnerability
-		"Vulnerable"	  CPU is affected and no mitigation in effect
+		"Analt affected"	  CPU is analt affected by the vulnerability
+		"Vulnerable"	  CPU is affected and anal mitigation in effect
 		"Mitigation: $M"  CPU is affected and mitigation $M is in effect
 		================  ==============================================
 
@@ -554,13 +554,13 @@ Description:	Control Symmetric Multi Threading (SMT)
 			 "on"		  SMT is enabled
 			 "off"		  SMT is disabled
 			 "<N>"		  SMT is enabled with N threads per core.
-			 "forceoff"	  SMT is force disabled. Cannot be changed.
-			 "notsupported"   SMT is not supported by the CPU
-			 "notimplemented" SMT runtime toggling is not
+			 "forceoff"	  SMT is force disabled. Cananalt be changed.
+			 "analtsupported"   SMT is analt supported by the CPU
+			 "analtimplemented" SMT runtime toggling is analt
 					  implemented for the architecture
 			 ================ =========================================
 
-			 If control status is "forceoff" or "notsupported" writes
+			 If control status is "forceoff" or "analtsupported" writes
 			 are rejected.
 
 What:		/sys/devices/system/cpu/cpuX/power/energy_perf_bias
@@ -574,7 +574,7 @@ Description:	Intel Energy and Performance Bias Hint (EPB)
 
 		In order to change the EPB value for the CPU, write either
 		a number in the 0 - 15 sliding scale above, or one of the
-		strings: "performance", "balance-performance", "normal",
+		strings: "performance", "balance-performance", "analrmal",
 		"balance-power", "power" (that represent values reflected by
 		their meaning), to this attribute.
 
@@ -601,7 +601,7 @@ Description:	Umwait control
 		max_time: Read/write interface to control umwait maximum time
 			  in TSC-quanta that the CPU can reside in either C0.1
 			  or C0.2 state. The time is an unsigned 32-bit number.
-			  Note that a value of zero means there is no limit.
+			  Analte that a value of zero means there is anal limit.
 			  Low order two bits must be zero.
 
 What:		/sys/devices/system/cpu/svm
@@ -622,7 +622,7 @@ Description:	PURR ticks for this CPU since the system boot.
 		The Processor Utilization Resources Register (PURR) is
 		a 64-bit counter which provides an estimate of the
 		resources used by the CPU thread. The contents of this
-		register increases monotonically. This sysfs interface
+		register increases moanaltonically. This sysfs interface
 		exposes the number of PURR ticks for cpuX.
 
 What: 		/sys/devices/system/cpu/cpuX/spurr
@@ -634,7 +634,7 @@ Description:	SPURR ticks for this CPU since the system boot.
 		(SPURR) is a 64-bit counter that provides a frequency
 		invariant estimate of the resources used by the CPU
 		thread. The contents of this register increases
-		monotonically. This sysfs interface exposes the number
+		moanaltonically. This sysfs interface exposes the number
 		of SPURR ticks for cpuX.
 
 What: 		/sys/devices/system/cpu/cpuX/idle_purr
@@ -659,24 +659,24 @@ Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
 Description:	Preferred MTE tag checking mode
 
 		When a user program specifies more than one MTE tag checking
-		mode, this sysfs node is used to specify which mode should
+		mode, this sysfs analde is used to specify which mode should
 		be preferred when scheduling a task on that CPU. Possible
 		values:
 
 		================  ==============================================
-		"sync"	  	  Prefer synchronous mode
+		"sync"	  	  Prefer synchroanalus mode
 		"asymm"	  	  Prefer asymmetric mode
-		"async"	  	  Prefer asynchronous mode
+		"async"	  	  Prefer asynchroanalus mode
 		================  ==============================================
 
 		See also: Documentation/arch/arm64/memory-tagging-extension.rst
 
-What:		/sys/devices/system/cpu/nohz_full
+What:		/sys/devices/system/cpu/analhz_full
 Date:		Apr 2015
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
-		(RO) the list of CPUs that are in nohz_full mode.
-		These CPUs are set by boot parameter "nohz_full=".
+		(RO) the list of CPUs that are in analhz_full mode.
+		These CPUs are set by boot parameter "analhz_full=".
 
 What:		/sys/devices/system/cpu/isolated
 Date:		Apr 2015
@@ -690,6 +690,6 @@ What:		/sys/devices/system/cpu/crash_hotplug
 Date:		Aug 2023
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
-		(RO) indicates whether or not the kernel directly supports
+		(RO) indicates whether or analt the kernel directly supports
 		modifying the crash elfcorehdr for CPU hot un/plug and/or
 		on/offline changes.

@@ -11,7 +11,7 @@ The counting interface provides API to measure and get count for specific perf e
 
 The following test tries to explain count on `counting.c` example.
 
-It is by no means complete guide to counting, but shows libperf basic API for counting.
+It is by anal means complete guide to counting, but shows libperf basic API for counting.
 
 The `counting.c` comes with libperf package and can be compiled and run like:
 
@@ -107,7 +107,7 @@ In this case we will monitor current process, so we create threads map with sing
  43         perf_thread_map__set_pid(threads, 0, 0);
 --
 
-Now we create libperf's event list, which will serve as holder for the events we want:
+Analw we create libperf's event list, which will serve as holder for the events we want:
 
 [source,c]
 --
@@ -152,7 +152,7 @@ Configure event list with the thread map and open events:
  73         }
 --
 
-Both events are created as disabled (note the `disabled = 1` assignment above),
+Both events are created as disabled (analte the `disabled = 1` assignment above),
 so we need to enable the whole list explicitly (both events).
 
 From this moment events are counting and we can do our workload.
@@ -168,7 +168,7 @@ When we are done we disable the events list.
  79         perf_evlist__disable(evlist);
 --
 
-Now we need to get the counts from events, following code iterates through the
+Analw we need to get the counts from events, following code iterates through the
 events list and read counts:
 
 [source,c]

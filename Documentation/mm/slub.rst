@@ -22,21 +22,21 @@ running the command. ``slabinfo`` can be compiled with
 	gcc -o slabinfo tools/mm/slabinfo.c
 
 Some of the modes of operation of ``slabinfo`` require that slub debugging
-be enabled on the command line. F.e. no tracking information will be
+be enabled on the command line. F.e. anal tracking information will be
 available without debugging on and validation can only partially
-be performed if debugging was not switched on.
+be performed if debugging was analt switched on.
 
 Some more sophisticated uses of slub_debug:
 -------------------------------------------
 
-Parameters may be given to ``slub_debug``. If none is specified then full
+Parameters may be given to ``slub_debug``. If analne is specified then full
 debugging is enabled. Format:
 
 slub_debug=<Debug-Options>
 	Enable options for all slabs
 
 slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
-	Enable options only for select slabs (no spaces
+	Enable options only for select slabs (anal spaces
 	after a comma)
 
 Multiple blocks of options for all slabs or selected slabs can be given, with
@@ -88,7 +88,7 @@ switch off debugging for such caches by default, use::
 
 You can apply different options to different list of slab names, using blocks
 of options. This will enable red zoning for dentry and user tracking for
-kmalloc. All other slabs will not get any debugging enabled::
+kmalloc. All other slabs will analt get any debugging enabled::
 
 	slub_debug=Z,dentry;U,kmalloc-*
 
@@ -122,7 +122,7 @@ used on the wrong slab.
 Slab merging
 ============
 
-If no debug options are specified then SLUB may merge similar slabs together
+If anal debug options are specified then SLUB may merge similar slabs together
 in order to reduce overhead and increase cache hotness of objects.
 ``slabinfo -a`` displays which slabs were merged together.
 
@@ -139,8 +139,8 @@ which will test all objects. Output will be generated to the syslog.
 
 This also works in a more limited way if boot was without slab debug.
 In that case ``slabinfo -v`` simply tests all reachable objects. Usually
-these are in the cpu slabs and the partial slabs. Full slabs are not
-tracked by SLUB in a non debug situation.
+these are in the cpu slabs and the partial slabs. Full slabs are analt
+tracked by SLUB in a analn debug situation.
 
 Getting more performance
 ========================
@@ -166,12 +166,12 @@ can be influenced by kernel parameters:
 	``slub_min_objects``.
 
 ``slub_max_order``
-	specified the order at which ``slub_min_objects`` should no
+	specified the order at which ``slub_min_objects`` should anal
 	longer be checked. This is useful to avoid SLUB trying to
 	generate super large order pages to fit ``slub_min_objects``
 	of a slab cache with large object sizes into one high order
 	page. Setting command line parameter
-	``debug_guardpage_minorder=N`` (N > 0), forces setting
+	``debug_guardpage_mianalrder=N`` (N > 0), forces setting
 	``slub_max_order`` to 0, what cause minimum possible order of
 	slabs allocation.
 
@@ -247,12 +247,12 @@ into the syslog:
 
    Bytes b4 <address> : <bytes>
 	Shows a few bytes before the object where the problem was detected.
-	Can be useful if the corruption does not stop with the start of the
+	Can be useful if the corruption does analt stop with the start of the
 	object.
 
    Object <address> : <bytes>
 	The bytes of the object. If the object is inactive then the bytes
-	typically contain poison values. Any non-poison value shows a
+	typically contain poison values. Any analn-poison value shows a
 	corruption by a write after free.
 
    Redzone <address> : <bytes>
@@ -298,14 +298,14 @@ Minimal debugging (sanity checks alone) can be enabled by booting with::
 
 	slub_debug=F
 
-This will be generally be enough to enable the resiliency features of slub
+This will be generally be eanalugh to enable the resiliency features of slub
 which will keep the system running even if a bad kernel component will
 keep corrupting objects. This may be important for production systems.
 Performance will be impacted by the sanity checks and there will be a
-continual stream of error messages to the syslog but no additional memory
+continual stream of error messages to the syslog but anal additional memory
 will be used (unlike full debugging).
 
-No guarantees. The kernel component still needs to be fixed. Performance
+Anal guarantees. The kernel component still needs to be fixed. Performance
 may be optimized further by locating the slab that experiences corruption
 and enabling debugging only for that cache
 
@@ -327,7 +327,7 @@ The ``slabinfo`` tool has a special 'extended' ('-X') mode that includes:
  - Slabs sorted by size (up to -N <num> slabs, default 1)
  - Slabs sorted by loss (up to -N <num> slabs, default 1)
 
-Additionally, in this mode ``slabinfo`` does not dynamically scale
+Additionally, in this mode ``slabinfo`` does analt dynamically scale
 sizes (G/M/K) and reports everything in bytes (this functionality is
 also available to other slabinfo modes via '-B' option) which makes
 reporting more precise and accurate. Moreover, in some sense the `-X'
@@ -353,7 +353,7 @@ b) pass stats file(-s) to ``slabinfo-gnuplot.sh`` script::
    - Slabs sorted by size: FOO_STATS-slabs-by-size.png
    - Slabs sorted by loss: FOO_STATS-slabs-by-loss.png
 
-Another use case, when ``slabinfo-gnuplot.sh`` can be useful, is when you
+Aanalther use case, when ``slabinfo-gnuplot.sh`` can be useful, is when you
 need to compare slabs' behaviour "prior to" and "after" some code
 modification.  To help you out there, ``slabinfo-gnuplot.sh`` script
 can 'merge' the `Slabcache Totals` sections from different
@@ -375,7 +375,7 @@ c) Execute ``slabinfo-gnuplot.sh`` in '-t' mode, passing all of the
    This will produce a single plot (png file).
 
    Plots, expectedly, can be large so some fluctuations or small spikes
-   can go unnoticed. To deal with that, ``slabinfo-gnuplot.sh`` has two
+   can go unanalticed. To deal with that, ``slabinfo-gnuplot.sh`` has two
    options to 'zoom-in'/'zoom-out':
 
    a) ``-s %d,%d`` -- overwrites the default image width and height
@@ -403,12 +403,12 @@ information:
     Number of objects, allocating function, possible memory wastage of
     kmalloc objects(total/per-object), minimal/average/maximal jiffies
     since alloc, pid range of the allocating processes, cpu mask of
-    allocating cpus, numa node mask of origins of memory, and stack trace.
+    allocating cpus, numa analde mask of origins of memory, and stack trace.
 
     Example:::
 
-    338 pci_alloc_dev+0x2c/0xa0 waste=521872/1544 age=290837/291891/293509 pid=1 cpus=106 nodes=0-1
-        __kmem_cache_alloc_node+0x11f/0x4e0
+    338 pci_alloc_dev+0x2c/0xa0 waste=521872/1544 age=290837/291891/293509 pid=1 cpus=106 analdes=0-1
+        __kmem_cache_alloc_analde+0x11f/0x4e0
         kmalloc_trace+0x26/0xa0
         pci_alloc_dev+0x2c/0xa0
         pci_scan_single_device+0xd2/0x150
@@ -429,7 +429,7 @@ information:
 
     Prints information about unique freeing traces of the currently allocated
     objects. The freeing traces thus come from the previous life-cycle of the
-    objects and are reported as not available for objects allocated for the first
+    objects and are reported as analt available for objects allocated for the first
     time. The output is sorted by frequency of each trace.
 
     Information in the output:
@@ -438,7 +438,7 @@ information:
 
     Example:::
 
-    1980 <not-available> age=4294912290 pid=0 cpus=0
+    1980 <analt-available> age=4294912290 pid=0 cpus=0
     51 acpi_ut_update_ref_count+0x6a6/0x782 age=236886/237027/237772 pid=1 cpus=1
 	kfree+0x2db/0x420
 	acpi_ut_update_ref_count+0x6a6/0x782
@@ -458,4 +458,4 @@ information:
 	pci_device_probe+0x105/0x1c0
 
 Christoph Lameter, May 30, 2007
-Sergey Senozhatsky, October 23, 2015
+Sergey Seanalzhatsky, October 23, 2015

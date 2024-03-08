@@ -15,13 +15,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,16 +42,16 @@
  * DOC: master and authentication
  *
  * &struct drm_master is used to track groups of clients with open
- * primary device nodes. For every &struct drm_file which has had at
+ * primary device analdes. For every &struct drm_file which has had at
  * least once successfully became the device master (either through the
- * SET_MASTER IOCTL, or implicitly through opening the primary device node when
- * no one else is the current master that time) there exists one &drm_master.
- * This is noted in &drm_file.is_master. All other clients have just a pointer
+ * SET_MASTER IOCTL, or implicitly through opening the primary device analde when
+ * anal one else is the current master that time) there exists one &drm_master.
+ * This is analted in &drm_file.is_master. All other clients have just a pointer
  * to the &drm_master they are associated with.
  *
  * In addition only one &drm_master can be the current master for a &drm_device.
  * It can be switched through the DROP_MASTER and SET_MASTER IOCTL, or
- * implicitly through closing/opening the primary device node. See also
+ * implicitly through closing/opening the primary device analde. See also
  * drm_is_current_master().
  *
  * Clients can authenticate against the current master (if it matches their own)
@@ -63,9 +63,9 @@
 static bool drm_is_current_master_locked(struct drm_file *fpriv)
 {
 	lockdep_assert_once(lockdep_is_held(&fpriv->master_lookup_lock) ||
-			    lockdep_is_held(&fpriv->minor->dev->master_mutex));
+			    lockdep_is_held(&fpriv->mianalr->dev->master_mutex));
 
-	return fpriv->is_master && drm_lease_owner(fpriv->master) == fpriv->minor->dev->master;
+	return fpriv->is_master && drm_lease_owner(fpriv->master) == fpriv->mianalr->dev->master;
 }
 
 /**
@@ -76,7 +76,7 @@ static bool drm_is_current_master_locked(struct drm_file *fpriv)
  * client is allowed to run DRM_MASTER IOCTLs.
  *
  * Most of the modern IOCTL which require DRM_MASTER are for kernel modesetting
- * - the current master is assumed to own the non-shareable display hardware.
+ * - the current master is assumed to own the analn-shareable display hardware.
  */
 bool drm_is_current_master(struct drm_file *fpriv)
 {
@@ -171,7 +171,7 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 	old_master = fpriv->master;
 	new_master = drm_master_create(dev);
 	if (!new_master)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock(&fpriv->master_lookup_lock);
 	fpriv->master = new_master;
 	spin_unlock(&fpriv->master_lookup_lock);
@@ -189,14 +189,14 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 
 /*
  * In the olden days the SET/DROP_MASTER ioctls used to return EACCES when
- * CAP_SYS_ADMIN was not set. This was used to prevent rogue applications
+ * CAP_SYS_ADMIN was analt set. This was used to prevent rogue applications
  * from becoming master and/or failing to release it.
  *
  * At the same time, the first client (for a given VT) is _always_ master.
  * Thus in order for the ioctls to succeed, one had to _explicitly_ run the
  * application as root or flip the setuid bit.
  *
- * If the CAP_SYS_ADMIN was missing, no other client could become master...
+ * If the CAP_SYS_ADMIN was missing, anal other client could become master...
  * EVER :-( Leading to a) the graphics session dying badly or b) a completely
  * locked session.
  *
@@ -209,11 +209,11 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
  * Even though logind looks like the future, there are a few issues:
  *  - some platforms don't have equivalent (Android, CrOS, some BSDs) so
  * root is required _solely_ for SET/DROP MASTER.
- *  - applications may not be updated to use it,
+ *  - applications may analt be updated to use it,
  *  - any client which fails to drop master* can DoS the application using
  * logind, to a varying degree.
  *
- * * Either due missing CAP_SYS_ADMIN or simply not calling DROP_MASTER.
+ * * Either due missing CAP_SYS_ADMIN or simply analt calling DROP_MASTER.
  *
  *
  * Here we implement the next best thing:
@@ -221,9 +221,9 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
  *  - allow a client to drop/set master, iff it is/was master at a given point
  * in time.
  *
- * Note: DROP_MASTER cannot be free for all, as an arbitrator user could:
+ * Analte: DROP_MASTER cananalt be free for all, as an arbitrator user could:
  *  - DoS/crash the arbitrator - details would be implementation specific
- *  - open the node, become master implicitly and cause issues
+ *  - open the analde, become master implicitly and cause issues
  *
  * As a result this fixes the following when using root-less build w/o logind
  * - startx
@@ -331,10 +331,10 @@ out_unlock:
 
 int drm_master_open(struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev = file_priv->mianalr->dev;
 	int ret = 0;
 
-	/* if there is no current master make this fd it, but do not create
+	/* if there is anal current master make this fd it, but do analt create
 	 * any master object for render clients
 	 */
 	mutex_lock(&dev->master_mutex);
@@ -352,7 +352,7 @@ int drm_master_open(struct drm_file *file_priv)
 
 void drm_master_release(struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev = file_priv->mianalr->dev;
 	struct drm_master *master;
 
 	mutex_lock(&dev->master_mutex);
@@ -397,7 +397,7 @@ EXPORT_SYMBOL(drm_master_get);
  * @file_priv: DRM file private
  *
  * Increments the reference count of @file_priv's &drm_file.master and returns
- * the &drm_file.master. If @file_priv has no &drm_file.master, returns NULL.
+ * the &drm_file.master. If @file_priv has anal &drm_file.master, returns NULL.
  *
  * Master pointers returned from this function should be unreferenced using
  * drm_master_put().

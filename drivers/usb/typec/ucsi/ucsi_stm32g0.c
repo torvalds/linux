@@ -107,7 +107,7 @@ static int ucsi_stm32g0_bl_check_ack(struct ucsi *ucsi)
 	case STM32G0_I2C_BL_ACK:
 		return 0;
 	case STM32G0_I2C_BL_NACK:
-		return -ENOENT;
+		return -EANALENT;
 	case STM32G0_I2C_BL_BUSY:
 		return -EBUSY;
 	default:
@@ -269,7 +269,7 @@ static int ucsi_stm32g0_bl_write(struct ucsi *ucsi, u32 addr, const void *data, 
 	/* Write memory: len bytes -1, data up to 256 bytes + XOR'ed bytes */
 	data8 = kmalloc(STM32G0_I2C_BL_SZ + 2, GFP_KERNEL);
 	if (!data8)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ucsi_stm32g0_bl_cmd(ucsi, STM32_CMD_WM);
 	if (ret)
@@ -373,7 +373,7 @@ static int ucsi_stm32g0_async_write(struct ucsi *ucsi, unsigned int offset, cons
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = offset;
 	memcpy(&buf[1], val, len);
@@ -423,7 +423,7 @@ static irqreturn_t ucsi_stm32g0_irq_handler(int irq, void *data)
 
 	ret = ucsi_stm32g0_read(g0->ucsi, UCSI_CCI, &cci, sizeof(cci));
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (UCSI_CCI_CONNECTOR(cci))
 		ucsi_connector_change(g0->ucsi, UCSI_CCI_CONNECTOR(cci));
@@ -612,7 +612,7 @@ static int ucsi_stm32g0_probe_bootloader(struct ucsi *ucsi)
 	if (!ret || !g0->fw_name)
 		return ret;
 
-	/* Speculatively read the bootloader version that has a known length. */
+	/* Speculatively read the bootloader version that has a kanalwn length. */
 	ret = ucsi_stm32g0_bl_get_version(ucsi, &g0->bl_version);
 	if (ret < 0) {
 		i2c_unregister_device(g0->i2c_bl);
@@ -634,7 +634,7 @@ static int ucsi_stm32g0_probe(struct i2c_client *client)
 
 	g0 = devm_kzalloc(dev, sizeof(*g0), GFP_KERNEL);
 	if (!g0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	g0->dev = dev;
 	g0->client = client;
@@ -663,10 +663,10 @@ static int ucsi_stm32g0_probe(struct i2c_client *client)
 
 	if (g0->fw_name) {
 		/*
-		 * Asynchronously flash (e.g. bootloader mode) or update the running firmware,
-		 * not to hang the boot process
+		 * Asynchroanalusly flash (e.g. bootloader mode) or update the running firmware,
+		 * analt to hang the boot process
 		 */
-		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT, g0->fw_name, g0->dev,
+		ret = request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT, g0->fw_name, g0->dev,
 					      GFP_KERNEL, g0->ucsi, ucsi_stm32g0_fw_cb);
 		if (ret < 0) {
 			dev_err_probe(dev, ret, "firmware request failed\n");

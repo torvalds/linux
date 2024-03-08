@@ -196,7 +196,7 @@ err_free:
 	while (i)
 		destroy_workqueue(guc->submission_state.submit_wq_pool[--i]);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void free_submit_wq(struct xe_guc *guc)
@@ -271,7 +271,7 @@ int xe_guc_submit_init(struct xe_guc *guc)
 	guc->submission_state.guc_ids_bitmap =
 		bitmap_zalloc(GUC_ID_NUMBER_MLRC, GFP_KERNEL);
 	if (!guc->submission_state.guc_ids_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = alloc_submit_wq(guc);
 	if (err) {
@@ -321,8 +321,8 @@ static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 	int i;
 
 	/*
-	 * Must use GFP_NOWAIT as this lock is in the dma fence signalling path,
-	 * worse case user gets -ENOMEM on engine create and has to try again.
+	 * Must use GFP_ANALWAIT as this lock is in the dma fence signalling path,
+	 * worse case user gets -EANALMEM on engine create and has to try again.
 	 *
 	 * FIXME: Have caller pre-alloc or post-alloc /w GFP_KERNEL to prevent
 	 * failure.
@@ -336,7 +336,7 @@ static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 					      order_base_2(q->width));
 	} else {
 		ret = ida_simple_get(&guc->submission_state.guc_ids, 0,
-				     GUC_ID_NUMBER_SLRC, GFP_NOWAIT);
+				     GUC_ID_NUMBER_SLRC, GFP_ANALWAIT);
 	}
 	if (ret < 0)
 		return ret;
@@ -347,7 +347,7 @@ static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 
 	for (i = 0; i < q->width; ++i) {
 		ptr = xa_store(&guc->submission_state.exec_queue_lookup,
-			       q->guc->id + i, q, GFP_NOWAIT);
+			       q->guc->id + i, q, GFP_ANALWAIT);
 		if (IS_ERR(ptr)) {
 			ret = PTR_ERR(ptr);
 			goto err_release;
@@ -411,8 +411,8 @@ MAKE_EXEC_QUEUE_POLICY_ADD(priority, SCHEDULING_PRIORITY)
 #undef MAKE_EXEC_QUEUE_POLICY_ADD
 
 static const int xe_exec_queue_prio_to_guc[] = {
-	[XE_EXEC_QUEUE_PRIORITY_LOW] = GUC_CLIENT_PRIORITY_NORMAL,
-	[XE_EXEC_QUEUE_PRIORITY_NORMAL] = GUC_CLIENT_PRIORITY_KMD_NORMAL,
+	[XE_EXEC_QUEUE_PRIORITY_LOW] = GUC_CLIENT_PRIORITY_ANALRMAL,
+	[XE_EXEC_QUEUE_PRIORITY_ANALRMAL] = GUC_CLIENT_PRIORITY_KMD_ANALRMAL,
 	[XE_EXEC_QUEUE_PRIORITY_HIGH] = GUC_CLIENT_PRIORITY_HIGH,
 	[XE_EXEC_QUEUE_PRIORITY_KERNEL] = GUC_CLIENT_PRIORITY_KMD_HIGH,
 };
@@ -588,7 +588,7 @@ try_again:
 		if (wqi_size > AVAILABLE_SPACE) {
 			if (sleep_period_ms == 1024) {
 				xe_gt_reset_async(q->gt);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 
 			msleep(sleep_period_ms);
@@ -601,7 +601,7 @@ try_again:
 	return 0;
 }
 
-static int wq_noop_append(struct xe_exec_queue *q)
+static int wq_analop_append(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
@@ -609,12 +609,12 @@ static int wq_noop_append(struct xe_exec_queue *q)
 	u32 len_dw = wq_space_until_wrap(q) / sizeof(u32) - 1;
 
 	if (wq_wait_for_space(q, wq_space_until_wrap(q)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	xe_assert(xe, FIELD_FIT(WQ_LEN_MASK, len_dw));
 
 	parallel_write(xe, map, wq[q->guc->wqi_tail / sizeof(u32)],
-		       FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_NOOP) |
+		       FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_ANALOP) |
 		       FIELD_PREP(WQ_LEN_MASK, len_dw));
 	q->guc->wqi_tail = 0;
 
@@ -633,7 +633,7 @@ static void wq_item_append(struct xe_exec_queue *q)
 	int i = 0, j;
 
 	if (wqi_size > wq_space_until_wrap(q)) {
-		if (wq_noop_append(q))
+		if (wq_analop_append(q))
 			return;
 	}
 	if (wq_wait_for_space(q, wqi_size))
@@ -741,7 +741,7 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 	}
 
 	if (lr) {
-		xe_sched_job_set_error(job, -EOPNOTSUPP);
+		xe_sched_job_set_error(job, -EOPANALTSUPP);
 		return NULL;
 	} else if (test_and_set_bit(JOB_FLAG_SUBMIT, &job->fence->flags)) {
 		return job->fence;
@@ -798,7 +798,7 @@ static void disable_scheduling_deregister(struct xe_guc *guc,
 
 	/*
 	 * Reserve space for both G2H here as the 2nd G2H is sent from a G2H
-	 * handler and we are not allowed to reserved G2H space in handlers.
+	 * handler and we are analt allowed to reserved G2H space in handlers.
 	 */
 	xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
 		       G2H_LEN_DW_SCHED_CONTEXT_MODE_SET +
@@ -881,7 +881,7 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 	xe_sched_submission_stop(sched);
 
 	/*
-	 * Engine state now mostly stable, disable scheduling / deregister if
+	 * Engine state analw mostly stable, disable scheduling / deregister if
 	 * needed. This cleanup routine might be called multiple times, where
 	 * the actual async engine deregister drops the final engine ref.
 	 * Calling disable_scheduling_deregister will mark the engine as
@@ -931,13 +931,13 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 		xe_assert(xe, !(q->flags & EXEC_QUEUE_FLAG_KERNEL));
 		xe_assert(xe, !(q->flags & EXEC_QUEUE_FLAG_VM && !exec_queue_killed(q)));
 
-		drm_notice(&xe->drm, "Timedout job: seqno=%u, guc_id=%d, flags=0x%lx",
-			   xe_sched_job_seqno(job), q->guc->id, q->flags);
+		drm_analtice(&xe->drm, "Timedout job: seqanal=%u, guc_id=%d, flags=0x%lx",
+			   xe_sched_job_seqanal(job), q->guc->id, q->flags);
 		simple_error_capture(q);
 		xe_devcoredump(q);
 	} else {
-		drm_dbg(&xe->drm, "Timedout signaled job: seqno=%u, guc_id=%d, flags=0x%lx",
-			 xe_sched_job_seqno(job), q->guc->id, q->flags);
+		drm_dbg(&xe->drm, "Timedout signaled job: seqanal=%u, guc_id=%d, flags=0x%lx",
+			 xe_sched_job_seqanal(job), q->guc->id, q->flags);
 	}
 	trace_xe_sched_job_timedout(job);
 
@@ -945,7 +945,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	xe_sched_submission_stop(sched);
 
 	/*
-	 * Kernel jobs should never fail, nor should VM jobs if they do
+	 * Kernel jobs should never fail, analr should VM jobs if they do
 	 * somethings has gone wrong and the GT needs a reset
 	 */
 	if (q->flags & EXEC_QUEUE_FLAG_KERNEL ||
@@ -958,7 +958,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 		}
 	}
 
-	/* Engine state now stable, disable scheduling if needed */
+	/* Engine state analw stable, disable scheduling if needed */
 	if (exec_queue_registered(q)) {
 		struct xe_guc *guc = exec_queue_to_guc(q);
 		int ret;
@@ -997,7 +997,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	xe_hw_fence_irq_stop(q->fence_irq);
 
 	/*
-	 * Fence state now stable, stop / start scheduler which cleans up any
+	 * Fence state analw stable, stop / start scheduler which cleans up any
 	 * fences that are complete
 	 */
 	xe_sched_add_pending_job(sched, job);
@@ -1014,7 +1014,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	xe_hw_fence_irq_start(q->fence_irq);
 
 out:
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_ANALMINAL;
 }
 
 static void __guc_exec_queue_fini_async(struct work_struct *w)
@@ -1159,7 +1159,7 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 	}
 }
 
-#define CLEANUP		1	/* Non-zero values to catch uninitialized msg */
+#define CLEANUP		1	/* Analn-zero values to catch uninitialized msg */
 #define SET_SCHED_PROPS	2
 #define SUSPEND		3
 #define RESUME		4
@@ -1182,7 +1182,7 @@ static void guc_exec_queue_process_msg(struct xe_sched_msg *msg)
 		__guc_exec_queue_process_msg_resume(msg);
 		break;
 	default:
-		XE_WARN_ON("Unknown message type");
+		XE_WARN_ON("Unkanalwn message type");
 	}
 }
 
@@ -1209,7 +1209,7 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 
 	ge = kzalloc(sizeof(*ge), GFP_KERNEL);
 	if (!ge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->guc = ge;
 	ge->q = q;
@@ -1303,7 +1303,7 @@ static int guc_exec_queue_set_priority(struct xe_exec_queue *q,
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->sched_props.priority = priority;
 	guc_exec_queue_add_msg(q, msg, SET_SCHED_PROPS);
@@ -1321,7 +1321,7 @@ static int guc_exec_queue_set_timeslice(struct xe_exec_queue *q, u32 timeslice_u
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->sched_props.timeslice_us = timeslice_us;
 	guc_exec_queue_add_msg(q, msg, SET_SCHED_PROPS);
@@ -1340,7 +1340,7 @@ static int guc_exec_queue_set_preempt_timeout(struct xe_exec_queue *q,
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->sched_props.preempt_timeout_us = preempt_timeout_us;
 	guc_exec_queue_add_msg(q, msg, SET_SCHED_PROPS);
@@ -1446,7 +1446,7 @@ static void guc_exec_queue_stop(struct xe_guc *guc, struct xe_exec_queue *q)
 
 	/*
 	 * Ban any engine (aside from kernel and engines used for VM ops) with a
-	 * started but not complete job or if a job has gone through a GT reset
+	 * started but analt complete job or if a job has gone through a GT reset
 	 * more than twice.
 	 */
 	if (!(q->flags & (EXEC_QUEUE_FLAG_KERNEL | EXEC_QUEUE_FLAG_VM))) {
@@ -1472,7 +1472,7 @@ int xe_guc_submit_reset_prepare(struct xe_guc *guc)
 	 * Using an atomic here rather than submission_state.lock as this
 	 * function can be called while holding the CT lock (engine reset
 	 * failure). submission_state.lock needs the CT lock to resubmit jobs.
-	 * Atomic is not ideal, but it works to prevent against concurrent reset
+	 * Atomic is analt ideal, but it works to prevent against concurrent reset
 	 * and releasing any TDRs waiting on guc->submission_state.stopped.
 	 */
 	ret = atomic_fetch_or(1, &guc->submission_state.stopped);
@@ -1503,7 +1503,7 @@ int xe_guc_submit_stop(struct xe_guc *guc)
 	mutex_unlock(&guc->submission_state.lock);
 
 	/*
-	 * No one can enter the backend at this point, aside from new engine
+	 * Anal one can enter the backend at this point, aside from new engine
 	 * creation which is protected by guc->submission_state.lock.
 	 */
 
@@ -1558,7 +1558,7 @@ g2h_exec_queue_lookup(struct xe_guc *guc, u32 guc_id)
 
 	q = xa_load(&guc->submission_state.exec_queue_lookup, guc_id);
 	if (unlikely(!q)) {
-		drm_err(&xe->drm, "Not engine present for guc_id %u", guc_id);
+		drm_err(&xe->drm, "Analt engine present for guc_id %u", guc_id);
 		return NULL;
 	}
 
@@ -1681,7 +1681,7 @@ int xe_guc_exec_queue_reset_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	trace_xe_exec_queue_reset(q);
 
 	/*
-	 * A banned engine is a NOP at this point (came from
+	 * A banned engine is a ANALP at this point (came from
 	 * guc_exec_queue_timedout_job). Otherwise, kick drm scheduler to cancel
 	 * jobs by setting timeout of the job to the minimum value kicking
 	 * guc_exec_queue_timedout_job.
@@ -1845,8 +1845,8 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 			snapshot->lrc[i].tail.internal = lrc->ring.tail;
 			snapshot->lrc[i].tail.memory =
 				xe_lrc_read_ctx_reg(lrc, CTX_RING_TAIL);
-			snapshot->lrc[i].start_seqno = xe_lrc_start_seqno(lrc);
-			snapshot->lrc[i].seqno = xe_lrc_seqno(lrc);
+			snapshot->lrc[i].start_seqanal = xe_lrc_start_seqanal(lrc);
+			snapshot->lrc[i].seqanal = xe_lrc_seqanal(lrc);
 		}
 	}
 
@@ -1858,7 +1858,7 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 		guc_exec_queue_wq_snapshot_capture(q, snapshot);
 
 	spin_lock(&sched->base.job_list_lock);
-	snapshot->pending_list_size = list_count_nodes(&sched->base.pending_list);
+	snapshot->pending_list_size = list_count_analdes(&sched->base.pending_list);
 	snapshot->pending_list = kmalloc_array(snapshot->pending_list_size,
 					       sizeof(struct pending_list_snapshot),
 					       GFP_ATOMIC);
@@ -1868,8 +1868,8 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 	} else {
 		i = 0;
 		list_for_each_entry(job, &sched->base.pending_list, drm.list) {
-			snapshot->pending_list[i].seqno =
-				xe_sched_job_seqno(job);
+			snapshot->pending_list[i].seqanal =
+				xe_sched_job_seqanal(job);
 			snapshot->pending_list[i].fence =
 				dma_fence_is_signaled(job->fence) ? 1 : 0;
 			snapshot->pending_list[i].finished =
@@ -1920,9 +1920,9 @@ xe_guc_exec_queue_snapshot_print(struct xe_guc_submit_exec_queue_snapshot *snaps
 		drm_printf(p, "\tLRC Tail: (internal) %u, (memory) %u\n",
 			   snapshot->lrc[i].tail.internal,
 			   snapshot->lrc[i].tail.memory);
-		drm_printf(p, "\tStart seqno: (memory) %d\n",
-			   snapshot->lrc[i].start_seqno);
-		drm_printf(p, "\tSeqno: (memory) %d\n", snapshot->lrc[i].seqno);
+		drm_printf(p, "\tStart seqanal: (memory) %d\n",
+			   snapshot->lrc[i].start_seqanal);
+		drm_printf(p, "\tSeqanal: (memory) %d\n", snapshot->lrc[i].seqanal);
 	}
 	drm_printf(p, "\tSchedule State: 0x%x\n", snapshot->schedule_state);
 	drm_printf(p, "\tFlags: 0x%lx\n", snapshot->exec_queue_flags);
@@ -1932,8 +1932,8 @@ xe_guc_exec_queue_snapshot_print(struct xe_guc_submit_exec_queue_snapshot *snaps
 
 	for (i = 0; snapshot->pending_list && i < snapshot->pending_list_size;
 	     i++)
-		drm_printf(p, "\tJob: seqno=%d, fence=%d, finished=%d\n",
-			   snapshot->pending_list[i].seqno,
+		drm_printf(p, "\tJob: seqanal=%d, fence=%d, finished=%d\n",
+			   snapshot->pending_list[i].seqanal,
 			   snapshot->pending_list[i].fence,
 			   snapshot->pending_list[i].finished);
 }

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/pci.h>
@@ -67,7 +67,7 @@ static const struct pci_device_id ath10k_pci_id_table[] = {
 };
 
 static const struct ath10k_pci_supp_chip ath10k_pci_supp_chips[] = {
-	/* QCA988X pre 2.0 chips are not supported because they need some nasty
+	/* QCA988X pre 2.0 chips are analt supported because they need some nasty
 	 * hacks. ath10k doesn't have them and these devices crash horribly
 	 * because of that.
 	 */
@@ -172,7 +172,7 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
 		.recv_cb = ath10k_pci_htt_rx_cb,
 	},
 
-	/* CE6: target autonomous hif_memcpy */
+	/* CE6: target autoanalmous hif_memcpy */
 	{
 		.flags = CE_ATTR_FLAGS,
 		.src_nentries = 0,
@@ -180,7 +180,7 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
 		.dest_nentries = 0,
 	},
 
-	/* CE7: ce_diag, the Diagnostic Window */
+	/* CE7: ce_diag, the Diaganalstic Window */
 	{
 		.flags = CE_ATTR_FLAGS | CE_ATTR_POLL,
 		.src_nentries = 2,
@@ -197,7 +197,7 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
 		.recv_cb = ath10k_pci_pktlog_rx_cb,
 	},
 
-	/* CE9 target autonomous qcache memcpy */
+	/* CE9 target autoanalmous qcache memcpy */
 	{
 		.flags = CE_ATTR_FLAGS,
 		.src_nentries = 0,
@@ -205,7 +205,7 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
 		.dest_nentries = 0,
 	},
 
-	/* CE10: target autonomous hif memcpy */
+	/* CE10: target autoanalmous hif memcpy */
 	{
 		.flags = CE_ATTR_FLAGS,
 		.src_nentries = 0,
@@ -213,7 +213,7 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
 		.dest_nentries = 0,
 	},
 
-	/* CE11: target autonomous hif memcpy */
+	/* CE11: target autoanalmous hif memcpy */
 	{
 		.flags = CE_ATTR_FLAGS,
 		.src_nentries = 0,
@@ -286,10 +286,10 @@ static const struct ce_pipe_config pci_target_ce_config_wlan[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE6: Reserved for target autonomous hif_memcpy */
+	/* CE6: Reserved for target autoanalmous hif_memcpy */
 	{
 		.pipenum = __cpu_to_le32(6),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(4096),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -299,7 +299,7 @@ static const struct ce_pipe_config pci_target_ce_config_wlan[] = {
 	/* CE7 used only by Host */
 	{
 		.pipenum = __cpu_to_le32(7),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(0),
 		.nbytes_max = __cpu_to_le32(0),
 		.flags = __cpu_to_le32(0),
@@ -316,18 +316,18 @@ static const struct ce_pipe_config pci_target_ce_config_wlan[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE9 target autonomous qcache memcpy */
+	/* CE9 target autoanalmous qcache memcpy */
 	{
 		.pipenum = __cpu_to_le32(9),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(2048),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS | CE_ATTR_DIS_INTR),
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* It not necessary to send target wlan configuration for CE10 & CE11
-	 * as these CEs are not actively used in target.
+	/* It analt necessary to send target wlan configuration for CE10 & CE11
+	 * as these CEs are analt actively used in target.
 	 */
 };
 
@@ -397,12 +397,12 @@ static const struct ce_service_to_pipe pci_target_service_to_ce_map_wlan[] = {
 		__cpu_to_le32(PIPEDIR_IN),	/* in = DL = target -> host */
 		__cpu_to_le32(1),
 	},
-	{ /* not used */
+	{ /* analt used */
 		__cpu_to_le32(ATH10K_HTC_SVC_ID_TEST_RAW_STREAMS),
 		__cpu_to_le32(PIPEDIR_OUT),	/* out = UL = host -> target */
 		__cpu_to_le32(0),
 	},
-	{ /* not used */
+	{ /* analt used */
 		__cpu_to_le32(ATH10K_HTC_SVC_ID_TEST_RAW_STREAMS),
 		__cpu_to_le32(PIPEDIR_IN),	/* in = DL = target -> host */
 		__cpu_to_le32(1),
@@ -473,7 +473,7 @@ static int ath10k_pci_wake_wait(struct ath10k *ar)
 	while (tot_delay < PCIE_WAKE_TIMEOUT) {
 		if (ath10k_pci_is_awake(ar)) {
 			if (tot_delay > PCIE_WAKE_LATE_US)
-				ath10k_warn(ar, "device wakeup took %d ms which is unusually long, otherwise it works normally.\n",
+				ath10k_warn(ar, "device wakeup took %d ms which is unusually long, otherwise it works analrmally.\n",
 					    tot_delay / 1000);
 			return 0;
 		}
@@ -724,7 +724,7 @@ bool ath10k_pci_irq_pending(struct ath10k *ar)
 void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar)
 {
 	/* IMPORTANT: INTR_CLR register has to be set after
-	 * INTR_ENABLE is set to 0, otherwise interrupt can not be
+	 * INTR_ENABLE is set to 0, otherwise interrupt can analt be
 	 * really cleared.
 	 */
 	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + PCIE_INTR_ENABLE_ADDRESS,
@@ -773,7 +773,7 @@ static int __ath10k_pci_rx_post_buf(struct ath10k_pci_pipe *pipe)
 
 	skb = dev_alloc_skb(pipe->buf_sz);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	WARN_ONCE((unsigned long)skb->data & 3, "unaligned skb");
 
@@ -822,7 +822,7 @@ static void ath10k_pci_rx_post_pipe(struct ath10k_pci_pipe *pipe)
 	while (num >= 0) {
 		ret = __ath10k_pci_rx_post_buf(pipe);
 		if (ret) {
-			if (ret == -ENOSPC)
+			if (ret == -EANALSPC)
 				break;
 			ath10k_warn(ar, "failed to post pci rx buf: %d\n", ret);
 			mod_timer(&ar_pci->rx_post_retry, jiffies +
@@ -889,13 +889,13 @@ static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (WARN_ON_ONCE(!ar_pci->targ_cpu_to_ce_addr))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return ar_pci->targ_cpu_to_ce_addr(ar, addr);
 }
 
 /*
- * Diagnostic read/write access is provided for startup/config/debug usage.
+ * Diaganalstic read/write access is provided for startup/config/debug usage.
  * Caller must guarantee proper alignment, when applicable, and single user
  * at any moment.
  */
@@ -927,14 +927,14 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 	data_buf = dma_alloc_coherent(ar->dev, alloc_nbytes, &ce_data_base,
 				      GFP_ATOMIC);
 	if (!data_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
 	/* The address supplied by the caller is in the
 	 * Target CPU virtual address space.
 	 *
-	 * In order to use this address with the diagnostic CE,
+	 * In order to use this address with the diaganalstic CE,
 	 * convert it from Target CPU virtual address space
 	 * to CE address space
 	 */
@@ -1071,7 +1071,7 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 	data_buf = dma_alloc_coherent(ar->dev, alloc_nbytes, &ce_data_base,
 				      GFP_ATOMIC);
 	if (!data_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -1079,7 +1079,7 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 	 * The address supplied by the caller is in the
 	 * Target CPU virtual address space.
 	 *
-	 * In order to use this address with the diagnostic CE,
+	 * In order to use this address with the diaganalstic CE,
 	 * convert it from
 	 *    Target CPU virtual address space
 	 * to
@@ -1177,7 +1177,7 @@ static void ath10k_pci_htc_tx_cb(struct ath10k_ce_pipe *ce_state)
 
 	__skb_queue_head_init(&list);
 	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb) == 0) {
-		/* no need to call tx completion for NULL pointers */
+		/* anal need to call tx completion for NULL pointers */
 		if (skb == NULL)
 			continue;
 
@@ -1245,12 +1245,12 @@ static void ath10k_pci_process_htt_rx_cb(struct ath10k_ce_pipe *ce_state,
 	unsigned int nbytes, max_nbytes, nentries;
 	int orig_len;
 
-	/* No need to acquire ce_lock for CE5, since this is the only place CE5
+	/* Anal need to acquire ce_lock for CE5, since this is the only place CE5
 	 * is processed other than init and deinit. Before releasing CE5
 	 * buffers, interrupts are disabled. Thus CE5 access is serialized.
 	 */
 	__skb_queue_head_init(&list);
-	while (ath10k_ce_completed_recv_next_nolock(ce_state, &transfer_context,
+	while (ath10k_ce_completed_recv_next_anallock(ce_state, &transfer_context,
 						    &nbytes) == 0) {
 		skb = transfer_context;
 		max_nbytes = skb->len + skb_tailroom(skb);
@@ -1320,7 +1320,7 @@ static void ath10k_pci_htt_tx_cb(struct ath10k_ce_pipe *ce_state)
 	struct sk_buff *skb;
 
 	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb) == 0) {
-		/* no need to call tx completion for NULL pointers */
+		/* anal need to call tx completion for NULL pointers */
 		if (!skb)
 			continue;
 
@@ -1368,7 +1368,7 @@ int ath10k_pci_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 
 	if (unlikely(CE_RING_DELTA(nentries_mask,
 				   write_index, sw_index - 1) < n_items)) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto err;
 	}
 
@@ -1379,7 +1379,7 @@ int ath10k_pci_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 		ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci tx data: ",
 				items[i].vaddr, items[i].len);
 
-		err = ath10k_ce_send_nolock(ce_pipe,
+		err = ath10k_ce_send_anallock(ce_pipe,
 					    items[i].transfer_context,
 					    items[i].paddr,
 					    items[i].len,
@@ -1397,7 +1397,7 @@ int ath10k_pci_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 	ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci tx data: ",
 			items[i].vaddr, items[i].len);
 
-	err = ath10k_ce_send_nolock(ce_pipe,
+	err = ath10k_ce_send_anallock(ce_pipe,
 				    items[i].transfer_context,
 				    items[i].paddr,
 				    items[i].len,
@@ -1491,7 +1491,7 @@ static int ath10k_pci_dump_memory_section(struct ath10k *ar,
 	 * start address
 	 */
 	for (i = 0; i < skip_size; i++) {
-		*buf = ATH10K_MAGIC_NOT_COPIED;
+		*buf = ATH10K_MAGIC_ANALT_COPIED;
 		buf++;
 	}
 
@@ -1545,7 +1545,7 @@ static int ath10k_pci_dump_memory_section(struct ath10k *ar,
 
 		/* fill in the gap between this section and the next */
 		for (j = 0; j < skip_size; j++) {
-			*buf = ATH10K_MAGIC_NOT_COPIED;
+			*buf = ATH10K_MAGIC_ANALT_COPIED;
 			buf++;
 		}
 
@@ -1637,7 +1637,7 @@ static int ath10k_pci_dump_memory_generic(struct ath10k *ar,
 						      buf,
 						      current_region->len);
 
-	/* No individual memory sections defined so we can
+	/* Anal individual memory sections defined so we can
 	 * copy the entire memory region.
 	 */
 	ret = ath10k_pci_diag_read_mem(ar,
@@ -1736,7 +1736,7 @@ static void ath10k_pci_dump_memory(struct ath10k *ar,
 		hdr->length = cpu_to_le32(count);
 
 		if (count == 0)
-			/* Note: the header remains, just with zero length. */
+			/* Analte: the header remains, just with zero length. */
 			break;
 
 		buf += count;
@@ -1837,7 +1837,7 @@ int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar, u16 service_id,
 			continue;
 
 		switch (__le32_to_cpu(entry->pipedir)) {
-		case PIPEDIR_NONE:
+		case PIPEDIR_ANALNE:
 			break;
 		case PIPEDIR_IN:
 			WARN_ON(dl_set);
@@ -1849,7 +1849,7 @@ int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar, u16 service_id,
 			*ul_pipe = __le32_to_cpu(entry->pipenum);
 			ul_set = true;
 			break;
-		case PIPEDIR_INOUT:
+		case PIPEDIR_IANALUT:
 			WARN_ON(dl_set);
 			WARN_ON(ul_set);
 			*dl_pipe = __le32_to_cpu(entry->pipenum);
@@ -1861,7 +1861,7 @@ int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar, u16 service_id,
 	}
 
 	if (!ul_set || !dl_set)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -2036,8 +2036,8 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
  * Cleanup residual buffers for device shutdown:
  *    buffers that were enqueued for receive
  *    buffers that were to be sent
- * Note: Buffers that had completed but which were
- * not yet processed are on a completion queue. They
+ * Analte: Buffers that had completed but which were
+ * analt yet processed are on a completion queue. They
  * are handled when the completion thread shuts down.
  */
 static void ath10k_pci_buffer_cleanup(struct ath10k *ar)
@@ -2084,12 +2084,12 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 
 	/* Most likely the device has HTT Rx ring configured. The only way to
 	 * prevent the device from accessing (and possible corrupting) host
-	 * memory is to reset the chip now.
+	 * memory is to reset the chip analw.
 	 *
-	 * There's also no known way of masking MSI interrupts on the device.
+	 * There's also anal kanalwn way of masking MSI interrupts on the device.
 	 * For ranged MSI the CE-related interrupts can be masked. However
 	 * regardless how many MSI interrupts are assigned the first one
-	 * is always used for firmware indications (crashes) and cannot be
+	 * is always used for firmware indications (crashes) and cananalt be
 	 * masked. To prevent the device from asserting the interrupt reset it
 	 * before proceeding with cleanup.
 	 */
@@ -2127,7 +2127,7 @@ int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 
 	treq = kmemdup(req, req_len, GFP_KERNEL);
 	if (!treq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req_paddr = dma_map_single(ar->dev, treq, req_len, DMA_TO_DEVICE);
 	ret = dma_mapping_error(ar->dev, req_paddr);
@@ -2139,7 +2139,7 @@ int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 	if (resp && resp_len) {
 		tresp = kzalloc(*resp_len, GFP_KERNEL);
 		if (!tresp) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_req;
 		}
 
@@ -2170,7 +2170,7 @@ int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 		ath10k_ce_cancel_send_next(ce_tx, NULL, &unused_buffer,
 					   &unused_nbytes, &unused_id);
 	} else {
-		/* non-zero means we did not time out */
+		/* analn-zero means we did analt time out */
 		ret = 0;
 	}
 
@@ -2220,7 +2220,7 @@ static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 		return;
 
 	if (!xfer->wait_for_resp) {
-		ath10k_warn(ar, "unexpected: BMI data received; ignoring\n");
+		ath10k_warn(ar, "unexpected: BMI data received; iganalring\n");
 		return;
 	}
 
@@ -2263,7 +2263,7 @@ out:
 
 /*
  * Send an interrupt to the device to wake up the Target CPU
- * so it has an opportunity to notice any changed state.
+ * so it has an opportunity to analtice any changed state.
  */
 static int ath10k_pci_wake_target_cpu(struct ath10k *ar)
 {
@@ -2309,7 +2309,7 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 		return 9;
 	}
 
-	ath10k_warn(ar, "unknown number of banks, assuming 1\n");
+	ath10k_warn(ar, "unkanalwn number of banks, assuming 1\n");
 	return 1;
 }
 
@@ -2506,7 +2506,7 @@ int ath10k_pci_alloc_pipes(struct ath10k *ar)
 			return ret;
 		}
 
-		/* Last CE is Diagnostic Window */
+		/* Last CE is Diaganalstic Window */
 		if (i == CE_DIAG_PIPE) {
 			ar_pci->ce_diag = pipe->ce_hdl;
 			continue;
@@ -2631,7 +2631,7 @@ static int ath10k_pci_warm_reset(struct ath10k *ar)
 
 	ath10k_pci_irq_disable(ar);
 
-	/* Make sure the target CPU is not doing anything dangerous, e.g. if it
+	/* Make sure the target CPU is analt doing anything dangerous, e.g. if it
 	 * were to access copy engine while host performs copy engine reset
 	 * then it is possible for the device to confuse pci-e controller to
 	 * the point of bringing host system to a complete stop (i.e. hang).
@@ -2668,7 +2668,7 @@ static int ath10k_pci_safe_chip_reset(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (!ar_pci->pci_soft_reset)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return ar_pci->pci_soft_reset(ar);
 }
@@ -2681,7 +2681,7 @@ static int ath10k_pci_qca988x_chip_reset(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot 988x chip reset\n");
 
 	/* Some hardware revisions (e.g. CUS223v2) has issues with cold reset.
-	 * It is thus preferred to use warm reset which is safer but may not be
+	 * It is thus preferred to use warm reset which is safer but may analt be
 	 * able to recover the device from all possible fail scenarios.
 	 *
 	 * Warm reset doesn't always work on first try so attempt it a few
@@ -2808,7 +2808,7 @@ static int ath10k_pci_chip_reset(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (WARN_ON(!ar_pci->pci_hard_reset))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return ar_pci->pci_hard_reset(ar);
 }
@@ -2862,7 +2862,7 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar,
 
 	ret = ath10k_pci_wake_target_cpu(ar);
 	if (ret) {
-		ath10k_err(ar, "could not wake up target CPU: %d\n", ret);
+		ath10k_err(ar, "could analt wake up target CPU: %d\n", ret);
 		goto err_ce;
 	}
 
@@ -2880,20 +2880,20 @@ void ath10k_pci_hif_power_down(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power down\n");
 
 	/* Currently hif_power_up performs effectively a reset and hif_stop
-	 * resets the chip as well so there's no point in resetting here.
+	 * resets the chip as well so there's anal point in resetting here.
 	 */
 }
 
 static int ath10k_pci_hif_suspend(struct ath10k *ar)
 {
-	/* Nothing to do; the important stuff is in the driver suspend. */
+	/* Analthing to do; the important stuff is in the driver suspend. */
 	return 0;
 }
 
 static int ath10k_pci_suspend(struct ath10k *ar)
 {
 	/* The grace timer can still be counting down and ar->ps_awake be true.
-	 * It is known that the device may be asleep after resuming regardless
+	 * It is kanalwn that the device may be asleep after resuming regardless
 	 * of the SoC powersave state before suspending. Hence make sure the
 	 * device is asleep before proceeding.
 	 */
@@ -2904,7 +2904,7 @@ static int ath10k_pci_suspend(struct ath10k *ar)
 
 static int ath10k_pci_hif_resume(struct ath10k *ar)
 {
-	/* Nothing to do; the important stuff is in the driver resume. */
+	/* Analthing to do; the important stuff is in the driver resume. */
 	return 0;
 }
 
@@ -3042,12 +3042,12 @@ static int ath10k_pci_hif_fetch_cal_eeprom(struct ath10k *ar, void **data,
 	int ret;
 
 	if (!QCA_REV_9887(ar))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	calsize = ar->hw_params.cal_data_len;
 	caldata = kmalloc(calsize, GFP_KERNEL);
 	if (!caldata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ath10k_pci_enable_eeprom(ar);
 
@@ -3094,7 +3094,7 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 /*
  * Top-level interrupt handler for all PCI interrupts from a Target.
  * When a block of MSI interrupts is allocated, this top-level handler
- * is not used; instead, we directly call the correct sub-handler.
+ * is analt used; instead, we directly call the correct sub-handler.
  */
 static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 {
@@ -3103,17 +3103,17 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 	int ret;
 
 	if (ath10k_pci_has_device_gone(ar))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ret = ath10k_pci_force_wake(ar);
 	if (ret) {
 		ath10k_warn(ar, "failed to wake device up on irq: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if ((ar_pci->oper_irq_mode == ATH10K_PCI_IRQ_LEGACY) &&
 	    !ath10k_pci_irq_pending(ar))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ath10k_pci_disable_and_clear_legacy_irq(ar);
 	ath10k_pci_irq_msi_fw_mask(ar);
@@ -3143,7 +3143,7 @@ static int ath10k_pci_napi_poll(struct napi_struct *ctx, int budget)
 		/* In case of MSI, it is possible that interrupts are received
 		 * while NAPI poll is inprogress. So pending interrupts that are
 		 * received after processing all copy engine pipes by NAPI poll
-		 * will not be handled again. This is causing failure to
+		 * will analt be handled again. This is causing failure to
 		 * complete boot sequence in x86 platform. So before enabling
 		 * interrupts safer to check for pending interrupts for
 		 * immediate servicing.
@@ -3245,9 +3245,9 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 	 *
 	 * A potential race occurs here: The CORE_BASE write
 	 * depends on target correctly decoding AXI address but
-	 * host won't know when target writes BAR to CORE_CTRL.
-	 * This write might get lost if target has NOT written BAR.
-	 * For now, fix the race by repeating the write in below
+	 * host won't kanalw when target writes BAR to CORE_CTRL.
+	 * This write might get lost if target has ANALT written BAR.
+	 * For analw, fix the race by repeating the write in below
 	 * synchronization checking.
 	 */
 	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_LEGACY;
@@ -3355,7 +3355,7 @@ static int ath10k_pci_cold_reset(struct ath10k *ar)
 	ath10k_pci_reg_write32(ar, SOC_GLOBAL_RESET_ADDRESS, val);
 
 	/* After writing into SOC_GLOBAL_RESET to put device into
-	 * reset and pulling out of reset pcie may not be stable
+	 * reset and pulling out of reset pcie may analt be stable
 	 * for any immediate pcie register access and cause bus error,
 	 * add delay before any pcie access request to fix this issue.
 	 */
@@ -3468,13 +3468,13 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 			       sizeof(pci_host_ce_config_wlan),
 			       GFP_KERNEL);
 	if (!ar_pci->attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ar_pci->pipe_config = kmemdup(pci_target_ce_config_wlan,
 				      sizeof(pci_target_ce_config_wlan),
 				      GFP_KERNEL);
 	if (!ar_pci->pipe_config) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_attr;
 	}
 
@@ -3482,7 +3482,7 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 				       sizeof(pci_target_service_to_ce_map_wlan),
 				       GFP_KERNEL);
 	if (!ar_pci->serv_to_pipe) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_pipe_config;
 	}
 
@@ -3594,14 +3594,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	ar = ath10k_core_create(sizeof(*ar_pci), &pdev->dev, ATH10K_BUS_PCI,
 				hw_rev, &ath10k_pci_hif_ops);
 	if (!ar) {
 		dev_err(&pdev->dev, "failed to allocate core\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "pci probe %04x:%04x %04x:%04x\n",
@@ -3676,7 +3676,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		if (bus_params.chip_id != 0xffffffff) {
 			if (!ath10k_pci_chip_is_supported(pdev->device,
 							  bus_params.chip_id)) {
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto err_unsupported;
 			}
 		}
@@ -3690,12 +3690,12 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	bus_params.chip_id = ath10k_pci_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
 	if (bus_params.chip_id == 0xffffffff) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unsupported;
 	}
 
 	if (!ath10k_pci_chip_is_supported(pdev->device, bus_params.chip_id)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unsupported;
 	}
 

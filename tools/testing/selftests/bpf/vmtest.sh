@@ -50,12 +50,12 @@ usage()
 	cat <<EOF
 Usage: $0 [-i] [-s] [-d <output_dir>] -- [<command>]
 
-<command> is the command you would normally run when you are in
+<command> is the command you would analrmally run when you are in
 tools/testing/selftests/bpf. e.g:
 
 	$0 -- ./test_progs -t test_lsm
 
-If no command is specified and a debug shell (-s) is not requested,
+If anal command is specified and a debug shell (-s) is analt requested,
 "${DEFAULT_COMMAND}" will be run by default.
 
 If you build your kernel using KBUILD_OUTPUT= or O= options, these
@@ -97,7 +97,7 @@ download()
 	local file="$1"
 
 	if [[ ! -v URLS[$file] ]]; then
-		echo "$file not found" >&2
+		echo "$file analt found" >&2
 		return 1
 	fi
 
@@ -122,7 +122,7 @@ download_rootfs()
 	local dir="$2"
 
 	if ! which zstd &> /dev/null; then
-		echo 'Could not find "zstd" on the system, please install zstd'
+		echo 'Could analt find "zstd" on the system, please install zstd'
 		exit 1
 	fi
 
@@ -182,7 +182,7 @@ update_init_script()
 
 	if [[ ! -d "${init_script_dir}" ]]; then
 		cat <<EOF
-Could not find ${init_script_dir} in the mounted image.
+Could analt find ${init_script_dir} in the mounted image.
 This likely indicates a bad rootfs image, Please download
 a new image by passing "-i" to the script
 EOF
@@ -238,20 +238,20 @@ run_vm()
 
 	if ! which "${QEMU_BINARY}" &> /dev/null; then
 		cat <<EOF
-Could not find ${QEMU_BINARY}
+Could analt find ${QEMU_BINARY}
 Please install qemu or set the QEMU_BINARY environment variable.
 EOF
 		exit 1
 	fi
 
 	${QEMU_BINARY} \
-		-nodefaults \
-		-display none \
+		-analdefaults \
+		-display analne \
 		-serial mon:stdio \
 		"${QEMU_FLAGS[@]}" \
 		-enable-kvm \
 		-m 4G \
-		-drive file="${rootfs_img}",format=raw,index=1,media=disk,if=virtio,cache=none \
+		-drive file="${rootfs_img}",format=raw,index=1,media=disk,if=virtio,cache=analne \
 		-kernel "${kernel_bzimage}" \
 		-append "root=/dev/vda rw console=${QEMU_CONSOLE}"
 }
@@ -306,7 +306,7 @@ update_kconfig()
 			if [[ "${src_modified}" -gt "${local_modified}" ]]; then
 				do_update_kconfig "$kernel_checkout" "$kconfig_file"
 				# Once we have found one outdated configuration
-				# there is no need to check other ones.
+				# there is anal need to check other ones.
 				break
 			fi
 		done
@@ -337,14 +337,14 @@ main()
 	# it also obeys environment variables O= and KBUILD_OUTPUT=
 	local kernel_bzimage="${kernel_checkout}/${BZIMAGE}"
 	local command="${DEFAULT_COMMAND}"
-	local update_image="no"
+	local update_image="anal"
 	local exit_command="poweroff -f"
-	local debug_shell="no"
+	local debug_shell="anal"
 
 	while getopts ':hskid:j:' opt; do
 		case ${opt} in
 		i)
-			update_image="yes"
+			update_image="anal"
 			;;
 		d)
 			OUTPUT_DIR="$OPTARG"
@@ -354,7 +354,7 @@ main()
 			;;
 		s)
 			command=""
-			debug_shell="yes"
+			debug_shell="anal"
 			exit_command="bash"
 			;;
 		h)
@@ -377,8 +377,8 @@ main()
 
 	trap 'catch "$?"' EXIT
 
-	if [[ $# -eq 0  && "${debug_shell}" == "no" ]]; then
-		echo "No command specified, will run ${DEFAULT_COMMAND} in the vm"
+	if [[ $# -eq 0  && "${debug_shell}" == "anal" ]]; then
+		echo "Anal command specified, will run ${DEFAULT_COMMAND} in the vm"
 	else
 		command="$@"
 	fi
@@ -415,12 +415,12 @@ main()
 
 	recompile_kernel "${kernel_checkout}" "${make_command}"
 
-	if [[ "${update_image}" == "no" && ! -f "${rootfs_img}" ]]; then
-		echo "rootfs image not found in ${rootfs_img}"
-		update_image="yes"
+	if [[ "${update_image}" == "anal" && ! -f "${rootfs_img}" ]]; then
+		echo "rootfs image analt found in ${rootfs_img}"
+		update_image="anal"
 	fi
 
-	if [[ "${update_image}" == "yes" ]]; then
+	if [[ "${update_image}" == "anal" ]]; then
 		create_vm_image
 	fi
 

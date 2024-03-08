@@ -411,7 +411,7 @@ SYM_FUNC_END(pmull_ghash_update_p8)
 	enc_round	\state, \key
 	.endr
 
-	tbnz		\rounds, #2, .Lnot128_\@
+	tbnz		\rounds, #2, .Lanalt128_\@
 .Lout256_\@:
 	enc_round	\state, K6
 	enc_round	\state, K7
@@ -422,7 +422,7 @@ SYM_FUNC_END(pmull_ghash_update_p8)
 	eor		\state\().16b, \state\().16b, KM.16b
 
 	.subsection	1
-.Lnot128_\@:
+.Lanalt128_\@:
 	ld1		{K8.4s-K9.4s}, [\tmp], #32
 	enc_round	\state, K6
 	enc_round	\state, K7
@@ -480,7 +480,7 @@ CPU_LE(	rev		w8, w8		)
 	 * 47 bytes    |        |xxxxxxxx|xxxxxxxx|xxxxxxx |
 	 * etc etc
 	 *
-	 * Note that this code may read up to 15 bytes before the start of
+	 * Analte that this code may read up to 15 bytes before the start of
 	 * the input. It is up to the calling code to ensure this is safe if
 	 * this happens in the first iteration of the loop (i.e., when the
 	 * input size is < 16 bytes)
@@ -590,7 +590,7 @@ CPU_LE(	rev		w8, w8		)
 
 	.if		\enc == 1
 	ld1		{T1.16b}, [x17]
-	tbl		INP3.16b, {INP3.16b}, T1.16b	// clear non-data bits
+	tbl		INP3.16b, {INP3.16b}, T1.16b	// clear analn-data bits
 	bl		pmull_gcm_ghash_4x
 	.endif
 	b		3b
@@ -721,9 +721,9 @@ SYM_FUNC_START_LOCAL(pmull_gcm_enc_4x)
 	enc_qround	KS0, KS1, KS2, KS3, \key
 	.endr
 
-	tbnz		x7, #2, .Lnot128
+	tbnz		x7, #2, .Lanalt128
 	.subsection	1
-.Lnot128:
+.Lanalt128:
 	ld1		{K8.4s-K9.4s}, [x10], #32
 	.irp		key, K6, K7
 	enc_qround	KS0, KS1, KS2, KS3, \key

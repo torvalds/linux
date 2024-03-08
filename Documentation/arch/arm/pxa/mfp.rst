@@ -40,14 +40,14 @@ the MFP logic and the remaining SoC peripherals::
  |  UART2 |---(TXD)--------+
  +--------+
 
-NOTE: the external pad is named as MFP_PIN_GPIO19, it doesn't necessarily
+ANALTE: the external pad is named as MFP_PIN_GPIO19, it doesn't necessarily
 mean it's dedicated for GPIO19, only as a hint that internally this pin
 can be routed from GPIO19 of the GPIO controller.
 
 To better understand the change from PXA25x/PXA27x GPIO alternate function
 to this new MFP mechanism, here are several key points:
 
-  1. GPIO controller on PXA3xx is now a dedicated controller, same as other
+  1. GPIO controller on PXA3xx is analw a dedicated controller, same as other
      internal controllers like PWM, SSP and UART, with 128 internal signals
      which can be routed to external through one or more MFPs (e.g. GPIO<0>
      can be routed through either MFP_PIN_GPIO0 as well as MFP_PIN_GPIO0_2,
@@ -60,14 +60,14 @@ to this new MFP mechanism, here are several key points:
        - GPIO direction control
        - GPIO level change detection
 
-  3. Low power state for each pin is now controlled by MFP, this means the
-     PGSRx registers on PXA2xx are now useless on PXA3xx
+  3. Low power state for each pin is analw controlled by MFP, this means the
+     PGSRx registers on PXA2xx are analw useless on PXA3xx
 
-  4. Wakeup detection is now controlled by MFP, PWER does not control the
+  4. Wakeup detection is analw controlled by MFP, PWER does analt control the
      wakeup from GPIO(s) any more, depending on the sleeping state, ADxER
      (as defined in pxa3xx-regs.h) controls the wakeup from MFP
 
-NOTE: with such a clear separation of MFP and GPIO, by GPIO<xx> we normally
+ANALTE: with such a clear separation of MFP and GPIO, by GPIO<xx> we analrmally
 mean it is a GPIO signal, and by MFP<xxx> or pin xxx, we mean a physical
 pad (or ball).
 
@@ -84,7 +84,7 @@ For board code writers, here are some guidelines:
    - #include "mfp-pxa320.h"
    - #include "mfp-pxa930.h"
 
-   NOTE: only one file in your <board>.c, depending on the processors used,
+   ANALTE: only one file in your <board>.c, depending on the processors used,
    because pin configuration definitions may conflict in these file (i.e.
    same name, different meaning and settings on different processors). E.g.
    for zylonite platform, which support both PXA300/PXA310 and PXA320, two
@@ -92,7 +92,7 @@ For board code writers, here are some guidelines:
    (in addition to handle MFP configuration differences, they also handle
    the other differences between the two combinations).
 
-   NOTE: PXA300 and PXA310 are almost identical in pin configurations (with
+   ANALTE: PXA300 and PXA310 are almost identical in pin configurations (with
    PXA310 supporting some additional ones), thus the difference is actually
    covered in a single mfp-pxa300.h.
 
@@ -250,7 +250,7 @@ Pin Configuration
      * 		  alternate function = 0,
      * 		  drive strength = fast 3mA (MFP_DS03X)
      * 		  low power mode = default
-     * 		  edge detection = none
+     * 		  edge detection = analne
      *
      * MFP_CFG	- default MFPR value with alternate function
      * MFP_CFG_DRV	- default MFPR value with alternate function and
@@ -269,8 +269,8 @@ Pin Configuration
    selection of 1, driving strength of 0b101, and a float state in low power
    modes.
 
-   NOTE: this is the default setting of this pin being configured as SSP3_RXD
-   which can be modified a bit in board code, though it is not recommended to
+   ANALTE: this is the default setting of this pin being configured as SSP3_RXD
+   which can be modified a bit in board code, though it is analt recommended to
    do so, simply because this default setting is usually carefully encoded,
    and is supposed to work in most cases.
 

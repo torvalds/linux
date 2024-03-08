@@ -59,23 +59,23 @@ struct priv_pcm3724 {
 	int dio_2;
 };
 
-static int compute_buffer(int config, int devno, struct comedi_subdevice *s)
+static int compute_buffer(int config, int devanal, struct comedi_subdevice *s)
 {
 	/* 1 in io_bits indicates output */
 	if (s->io_bits & 0x0000ff) {
-		if (devno == 0)
+		if (devanal == 0)
 			config |= PCM3724_DIO_DIR_A0_OUT;
 		else
 			config |= PCM3724_DIO_DIR_A1_OUT;
 	}
 	if (s->io_bits & 0x00ff00) {
-		if (devno == 0)
+		if (devanal == 0)
 			config |= PCM3724_DIO_DIR_B0_OUT;
 		else
 			config |= PCM3724_DIO_DIR_B1_OUT;
 	}
 	if (s->io_bits & 0xff0000) {
-		if (devno == 0)
+		if (devanal == 0)
 			config |= PCM3724_DIO_DIR_C0_OUT;
 		else
 			config |= PCM3724_DIO_DIR_C1_OUT;
@@ -192,7 +192,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 	priv = comedi_alloc_devpriv(dev, sizeof(*priv));
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)

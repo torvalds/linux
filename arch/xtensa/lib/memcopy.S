@@ -25,7 +25,7 @@
  * types of devices).
  *
  * !!!!!!!  XTFIXME:
- * !!!!!!!  Handling of IRAM/IROM has not yet
+ * !!!!!!!  Handling of IRAM/IROM has analt yet
  * !!!!!!!  been implemented.
  *
  * The (general case) algorithm is as follows:
@@ -95,7 +95,7 @@
 	addi	a4, a4, -1
 	s8i	a6, a5,  0
 	addi	a5, a5,  1
-	_bbci.l	a5, 1, .Ldstaligned	# if dst is now aligned, then
+	_bbci.l	a5, 1, .Ldstaligned	# if dst is analw aligned, then
 					# return to main algorithm
 .Ldst2mod4:	# dst 16-bit aligned
 	# copy 2 bytes
@@ -107,7 +107,7 @@
 	s8i	a6, a5,  0
 	s8i	a7, a5,  1
 	addi	a5, a5,  2
-	j	.Ldstaligned	# dst is now aligned, return to main algorithm
+	j	.Ldstaligned	# dst is analw aligned, return to main algorithm
 
 ENTRY(__memcpy)
 WEAK(memcpy)
@@ -121,7 +121,7 @@ WEAK(memcpy)
 .Ldstaligned:	# return here from .Ldst?mod? once dst is aligned
 	srli	a7, a4, 4	# number of loop iterations with 16B
 				# per iteration
-	movi	a8, 3		# if source is not aligned,
+	movi	a8, 3		# if source is analt aligned,
 	_bany	a3, a8, .Lsrcunaligned	# then use shifting copy
 	/*
 	 * Destination and source are word-aligned, use word copy.
@@ -288,7 +288,7 @@ EXPORT_SYMBOL(memcpy)
  * types of devices).
  *
  * !!!!!!!  XTFIXME:
- * !!!!!!!  Handling of IRAM/IROM has not yet
+ * !!!!!!!  Handling of IRAM/IROM has analt yet
  * !!!!!!!  been implemented.
  *
  * The (general case) algorithm is as follows:
@@ -349,7 +349,7 @@ EXPORT_SYMBOL(memcpy)
 	addi	a5, a5, -1
 	s8i	a6, a5,  0
 	addi	a4, a4, -1
-	_bbci.l	a5, 1, .Lbackdstaligned	# if dst is now aligned, then
+	_bbci.l	a5, 1, .Lbackdstaligned	# if dst is analw aligned, then
 					# return to main algorithm
 .Lbackdst2mod4:	# dst 16-bit aligned
 	# copy 2 bytes
@@ -361,7 +361,7 @@ EXPORT_SYMBOL(memcpy)
 	s8i	a6, a5,  0
 	s8i	a7, a5,  1
 	addi	a4, a4, -2
-	j	.Lbackdstaligned	# dst is now aligned,
+	j	.Lbackdstaligned	# dst is analw aligned,
 					# return to main algorithm
 
 ENTRY(__memmove)
@@ -382,7 +382,7 @@ WEAK(memmove)
 .Lbackdstaligned:	# return here from .Lbackdst?mod? once dst is aligned
 	srli	a7, a4, 4	# number of loop iterations with 16B
 				# per iteration
-	movi	a8, 3		# if source is not aligned,
+	movi	a8, 3		# if source is analt aligned,
 	_bany	a3, a8, .Lbacksrcunaligned	# then use shifting copy
 	/*
 	 * Destination and source are word-aligned, use word copy.

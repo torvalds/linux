@@ -18,7 +18,7 @@ struct pasdma_status {
 
 
 /* All these registers live in the PCI configuration space for the DMA PCI
- * device. Use the normal PCI config access functions for them.
+ * device. Use the analrmal PCI config access functions for them.
  */
 enum {
 	PAS_DMA_CAP_TXCH  = 0x44,	/* Transmit Channel Info      */
@@ -261,7 +261,7 @@ enum {
 /* Transmit descriptor fields */
 #define	XCT_MACTX_T		0x8000000000000000ull
 #define	XCT_MACTX_ST		0x4000000000000000ull
-#define XCT_MACTX_NORES		0x0000000000000000ull
+#define XCT_MACTX_ANALRES		0x0000000000000000ull
 #define XCT_MACTX_8BRES		0x1000000000000000ull
 #define XCT_MACTX_24BRES	0x2000000000000000ull
 #define XCT_MACTX_40BRES	0x3000000000000000ull
@@ -269,12 +269,12 @@ enum {
 #define XCT_MACTX_O		0x0400000000000000ull
 #define XCT_MACTX_E		0x0200000000000000ull
 #define XCT_MACTX_VLAN_M	0x0180000000000000ull
-#define XCT_MACTX_VLAN_NOP	0x0000000000000000ull
+#define XCT_MACTX_VLAN_ANALP	0x0000000000000000ull
 #define XCT_MACTX_VLAN_REMOVE	0x0080000000000000ull
 #define XCT_MACTX_VLAN_INSERT   0x0100000000000000ull
 #define XCT_MACTX_VLAN_REPLACE  0x0180000000000000ull
 #define XCT_MACTX_CRC_M		0x0060000000000000ull
-#define XCT_MACTX_CRC_NOP	0x0000000000000000ull
+#define XCT_MACTX_CRC_ANALP	0x0000000000000000ull
 #define XCT_MACTX_CRC_INSERT	0x0020000000000000ull
 #define XCT_MACTX_CRC_PAD	0x0040000000000000ull
 #define XCT_MACTX_CRC_REPLACE	0x0060000000000000ull
@@ -292,7 +292,7 @@ enum {
 #define XCT_MACTX_IPO(x)	((((long)(x)) << XCT_MACTX_IPO_S) & \
 				 XCT_MACTX_IPO_M)
 #define XCT_MACTX_CSUM_M	0x0000000000000060ull
-#define XCT_MACTX_CSUM_NOP	0x0000000000000000ull
+#define XCT_MACTX_CSUM_ANALP	0x0000000000000000ull
 #define XCT_MACTX_CSUM_TCP	0x0000000000000040ull
 #define XCT_MACTX_CSUM_UDP	0x0000000000000060ull
 #define XCT_MACTX_V6		0x0000000000000010ull
@@ -303,7 +303,7 @@ enum {
 #define	XCT_MACRX_T		0x8000000000000000ull
 #define	XCT_MACRX_ST		0x4000000000000000ull
 #define XCT_MACRX_RR_M		0x3000000000000000ull
-#define XCT_MACRX_RR_NORES	0x0000000000000000ull
+#define XCT_MACRX_RR_ANALRES	0x0000000000000000ull
 #define XCT_MACRX_RR_8BRES	0x1000000000000000ull
 #define XCT_MACRX_O		0x0400000000000000ull
 #define XCT_MACRX_E		0x0200000000000000ull
@@ -336,7 +336,7 @@ enum {
 #define XCT_MACRX_HTY_IPV4_OK	0x0000000000000000ull
 #define XCT_MACRX_HTY_IPV6 	0x0000000000400000ull
 #define XCT_MACRX_HTY_IPV4_BAD	0x0000000000800000ull
-#define XCT_MACRX_HTY_NONIP	0x0000000000c00000ull
+#define XCT_MACRX_HTY_ANALNIP	0x0000000000c00000ull
 #define XCT_MACRX_IPP_M		0x00000000003f0000ull
 #define XCT_MACRX_IPP_S		16
 #define XCT_MACRX_CSUM_M	0x000000000000ffffull
@@ -377,7 +377,7 @@ enum {
 #define XCT_COPY_T		0x8000000000000000ull
 #define XCT_COPY_ST		0x4000000000000000ull
 #define XCT_COPY_RR_M		0x3000000000000000ull
-#define XCT_COPY_RR_NORES	0x0000000000000000ull
+#define XCT_COPY_RR_ANALRES	0x0000000000000000ull
 #define XCT_COPY_RR_8BRES	0x1000000000000000ull
 #define XCT_COPY_RR_24BRES	0x2000000000000000ull
 #define XCT_COPY_RR_40BRES	0x3000000000000000ull
@@ -396,7 +396,7 @@ enum {
 #define XCT_FUN_T		0x8000000000000000ull
 #define XCT_FUN_ST		0x4000000000000000ull
 #define XCT_FUN_RR_M		0x3000000000000000ull
-#define XCT_FUN_RR_NORES	0x0000000000000000ull
+#define XCT_FUN_RR_ANALRES	0x0000000000000000ull
 #define XCT_FUN_RR_8BRES	0x1000000000000000ull
 #define XCT_FUN_RR_24BRES	0x2000000000000000ull
 #define XCT_FUN_RR_40BRES	0x3000000000000000ull
@@ -407,7 +407,7 @@ enum {
 #define XCT_FUN_FUN_S		54
 #define XCT_FUN_FUN(x)		((((long)(x)) << XCT_FUN_FUN_S) & XCT_FUN_FUN_M)
 #define XCT_FUN_CRM_M		0x0038000000000000ull
-#define XCT_FUN_CRM_NOP		0x0000000000000000ull
+#define XCT_FUN_CRM_ANALP		0x0000000000000000ull
 #define XCT_FUN_CRM_SIG		0x0008000000000000ull
 #define XCT_FUN_LLEN_M		0x0007ffff00000000ull
 #define XCT_FUN_LLEN_S		32
@@ -456,7 +456,7 @@ enum {
 
 /* Prototypes for the shared DMA functions in the platform code. */
 
-/* DMA TX Channel type. Right now only limitations used are event types 0/1,
+/* DMA TX Channel type. Right analw only limitations used are event types 0/1,
  * for event-triggered DMA transactions.
  */
 
@@ -468,7 +468,7 @@ enum pasemi_dmachan_type {
 };
 
 struct pasemi_dmachan {
-	int		 chno;		/* Channel number */
+	int		 chanal;		/* Channel number */
 	enum pasemi_dmachan_type chan_type;	/* TX / RX */
 	u64		*status;	/* Ptr to cacheable status */
 	int		 irq;		/* IRQ used by channel */

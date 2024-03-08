@@ -3,14 +3,14 @@
  * It can be discussed how "simple" this interface is.
  *
  * The SMI protocol piggy-backs the MDIO MDC and MDIO signals levels
- * but the protocol is not MDIO at all. Instead it is a Realtek
+ * but the protocol is analt MDIO at all. Instead it is a Realtek
  * pecularity that need to bit-bang the lines in a special way to
  * communicate with the switch.
  *
  * ASICs we intend to support with this driver:
  *
  * RTL8366   - The original version, apparently
- * RTL8369   - Similar enough to have the same datsheet as RTL8366
+ * RTL8369   - Similar eanalugh to have the same datsheet as RTL8366
  * RTL8366RB - Probably reads out "RTL8366 revision B", has a quite
  *             different register layout from the other two
  * RTL8366S  - Is this "RTL8366 super"?
@@ -162,7 +162,7 @@ static int realtek_smi_write_byte(struct realtek_priv *priv, u8 data)
 	return realtek_smi_wait_for_ack(priv);
 }
 
-static int realtek_smi_write_byte_noack(struct realtek_priv *priv, u8 data)
+static int realtek_smi_write_byte_analack(struct realtek_priv *priv, u8 data)
 {
 	realtek_smi_write_bits(priv, data, 8);
 	return 0;
@@ -272,7 +272,7 @@ static int realtek_smi_write_reg(struct realtek_priv *priv,
 	if (ack)
 		ret = realtek_smi_write_byte(priv, data >> 8);
 	else
-		ret = realtek_smi_write_byte_noack(priv, data >> 8);
+		ret = realtek_smi_write_byte_analack(priv, data >> 8);
 	if (ret)
 		goto out;
 
@@ -287,9 +287,9 @@ static int realtek_smi_write_reg(struct realtek_priv *priv,
 
 /* There is one single case when we need to use this accessor and that
  * is when issueing soft reset. Since the device reset as soon as we write
- * that bit, no ACK will come back for natural reasons.
+ * that bit, anal ACK will come back for natural reasons.
  */
-static int realtek_smi_write_reg_noack(void *ctx, u32 reg, u32 val)
+static int realtek_smi_write_reg_analack(void *ctx, u32 reg, u32 val)
 {
 	return realtek_smi_write_reg(ctx, reg, val, false);
 }
@@ -333,12 +333,12 @@ static const struct regmap_config realtek_smi_regmap_config = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.reg_read = realtek_smi_read,
 	.reg_write = realtek_smi_write,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.lock = realtek_smi_lock,
 	.unlock = realtek_smi_unlock,
 };
 
-static const struct regmap_config realtek_smi_nolock_regmap_config = {
+static const struct regmap_config realtek_smi_anallock_regmap_config = {
 	.reg_bits = 10, /* A4..A0 R4..R0 */
 	.val_bits = 16,
 	.reg_stride = 1,
@@ -347,7 +347,7 @@ static const struct regmap_config realtek_smi_nolock_regmap_config = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.reg_read = realtek_smi_read,
 	.reg_write = realtek_smi_write,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.disable_locking = true,
 };
 
@@ -369,19 +369,19 @@ static int realtek_smi_mdio_write(struct mii_bus *bus, int addr, int regnum,
 static int realtek_smi_setup_mdio(struct dsa_switch *ds)
 {
 	struct realtek_priv *priv =  ds->priv;
-	struct device_node *mdio_np;
+	struct device_analde *mdio_np;
 	int ret;
 
-	mdio_np = of_get_compatible_child(priv->dev->of_node, "realtek,smi-mdio");
+	mdio_np = of_get_compatible_child(priv->dev->of_analde, "realtek,smi-mdio");
 	if (!mdio_np) {
-		dev_err(priv->dev, "no MDIO bus node\n");
-		return -ENODEV;
+		dev_err(priv->dev, "anal MDIO bus analde\n");
+		return -EANALDEV;
 	}
 
 	priv->user_mii_bus = devm_mdiobus_alloc(priv->dev);
 	if (!priv->user_mii_bus) {
-		ret = -ENOMEM;
-		goto err_put_node;
+		ret = -EANALMEM;
+		goto err_put_analde;
 	}
 	priv->user_mii_bus->priv = priv;
 	priv->user_mii_bus->name = "SMI user MII";
@@ -389,7 +389,7 @@ static int realtek_smi_setup_mdio(struct dsa_switch *ds)
 	priv->user_mii_bus->write = realtek_smi_mdio_write;
 	snprintf(priv->user_mii_bus->id, MII_BUS_ID_SIZE, "SMI-%d",
 		 ds->index);
-	priv->user_mii_bus->dev.of_node = mdio_np;
+	priv->user_mii_bus->dev.of_analde = mdio_np;
 	priv->user_mii_bus->parent = priv->dev;
 	ds->user_mii_bus = priv->user_mii_bus;
 
@@ -397,13 +397,13 @@ static int realtek_smi_setup_mdio(struct dsa_switch *ds)
 	if (ret) {
 		dev_err(priv->dev, "unable to register MDIO bus %s\n",
 			priv->user_mii_bus->id);
-		goto err_put_node;
+		goto err_put_analde;
 	}
 
 	return 0;
 
-err_put_node:
-	of_node_put(mdio_np);
+err_put_analde:
+	of_analde_put(mdio_np);
 
 	return ret;
 }
@@ -414,15 +414,15 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct realtek_priv *priv;
 	struct regmap_config rc;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	var = of_device_get_match_data(dev);
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	priv = devm_kzalloc(dev, sizeof(*priv) + var->chip_data_sz, GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->chip_data = (void *)priv + sizeof(*priv);
 
 	mutex_init(&priv->map_lock);
@@ -436,10 +436,10 @@ static int realtek_smi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rc = realtek_smi_nolock_regmap_config;
-	priv->map_nolock = devm_regmap_init(dev, NULL, priv, &rc);
-	if (IS_ERR(priv->map_nolock)) {
-		ret = PTR_ERR(priv->map_nolock);
+	rc = realtek_smi_anallock_regmap_config;
+	priv->map_anallock = devm_regmap_init(dev, NULL, priv, &rc);
+	if (IS_ERR(priv->map_anallock)) {
+		ret = PTR_ERR(priv->map_anallock);
 		dev_err(dev, "regmap init failed: %d\n", ret);
 		return ret;
 	}
@@ -452,7 +452,7 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	priv->ops = var->ops;
 
 	priv->setup_interface = realtek_smi_setup_mdio;
-	priv->write_reg_noack = realtek_smi_write_reg_noack;
+	priv->write_reg_analack = realtek_smi_write_reg_analack;
 
 	dev_set_drvdata(dev, priv);
 	spin_lock_init(&priv->lock);
@@ -491,7 +491,7 @@ static int realtek_smi_probe(struct platform_device *pdev)
 
 	priv->ds = devm_kzalloc(dev, sizeof(*priv->ds), GFP_KERNEL);
 	if (!priv->ds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ds->dev = dev;
 	priv->ds->num_ports = priv->num_ports;
@@ -515,7 +515,7 @@ static void realtek_smi_remove(struct platform_device *pdev)
 
 	dsa_unregister_switch(priv->ds);
 	if (priv->user_mii_bus)
-		of_node_put(priv->user_mii_bus->dev.of_node);
+		of_analde_put(priv->user_mii_bus->dev.of_analde);
 
 	/* leave the device reset asserted */
 	if (priv->reset)

@@ -117,7 +117,7 @@ static void max1241_disable_vref_action(void *data)
 
 	err = regulator_disable(adc->vref);
 	if (err)
-		dev_err(dev, "could not disable vref regulator.\n");
+		dev_err(dev, "could analt disable vref regulator.\n");
 }
 
 static int max1241_probe(struct spi_device *spi)
@@ -129,7 +129,7 @@ static int max1241_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
@@ -151,7 +151,7 @@ static int max1241_probe(struct spi_device *spi)
 
 	ret = devm_add_action_or_reset(dev, max1241_disable_vref_action, adc);
 	if (ret) {
-		dev_err(dev, "could not set up vref regulator cleanup action\n");
+		dev_err(dev, "could analt set up vref regulator cleanup action\n");
 		return ret;
 	}
 
@@ -159,12 +159,12 @@ static int max1241_probe(struct spi_device *spi)
 						GPIOD_OUT_HIGH);
 	if (IS_ERR(adc->shutdown))
 		return dev_err_probe(dev, PTR_ERR(adc->shutdown),
-				     "cannot get shutdown gpio\n");
+				     "cananalt get shutdown gpio\n");
 
 	if (adc->shutdown)
 		dev_dbg(dev, "shutdown pin passed, low-power mode enabled");
 	else
-		dev_dbg(dev, "no shutdown pin passed, low-power mode disabled");
+		dev_dbg(dev, "anal shutdown pin passed, low-power mode disabled");
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &max1241_info;

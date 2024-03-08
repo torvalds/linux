@@ -4,13 +4,13 @@
  * in the media subsystem. It can also aid developers working on userspace
  * applications.
  *
- * This file contains the code for an AES3 (also known as AES/EBU) encoder.
+ * This file contains the code for an AES3 (also kanalwn as AES/EBU) encoder.
  * It is based on EBU Tech 3250 and SMPTE 302M technical documents.
  *
  * This encoder currently supports 16bit AES3 subframes using 16bit signed
  * integers.
  *
- * Note: AU stands for Access Unit, and AAU stands for Audio Access Unit
+ * Analte: AU stands for Access Unit, and AAU stands for Audio Access Unit
  *
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
@@ -74,74 +74,74 @@ static const u8 reverse[256] = {
 };
 
 struct tone_duration {
-	enum musical_notes note;
+	enum musical_analtes analte;
 	int duration;
 };
 
 #define COMPASS 100 /* beats per minute */
 static const struct tone_duration beethoven_fur_elise[] = {
-	{ NOTE_SILENT, 512},
-	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
-	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
-	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
-	{ NOTE_GS_5, 128}, { NOTE_B_5, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_5, 128},
-	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
-	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
-	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
-	{ NOTE_C_6, 128},  { NOTE_B_5, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_SILENT, 128},
+	{ ANALTE_SILENT, 512},
+	{ ANALTE_E_6, 128},  { ANALTE_DS_6, 128}, { ANALTE_E_6, 128},
+	{ ANALTE_DS_6, 128}, { ANALTE_E_6, 128},  { ANALTE_B_5, 128},
+	{ ANALTE_D_6, 128},  { ANALTE_C_6, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_C_5, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_A_5, 128},  { ANALTE_E_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_GS_4, 128}, { ANALTE_E_5, 128},
+	{ ANALTE_GS_5, 128}, { ANALTE_B_5, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_E_5, 128},
+	{ ANALTE_E_6, 128},  { ANALTE_DS_6, 128}, { ANALTE_E_6, 128},
+	{ ANALTE_DS_6, 128}, { ANALTE_E_6, 128},  { ANALTE_B_5, 128},
+	{ ANALTE_D_6, 128},  { ANALTE_C_6, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_C_5, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_A_5, 128},  { ANALTE_E_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_GS_4, 128}, { ANALTE_E_5, 128},
+	{ ANALTE_C_6, 128},  { ANALTE_B_5, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_SILENT, 128},
 
-	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
-	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
-	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
-	{ NOTE_GS_5, 128}, { NOTE_B_5, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_5, 128},
-	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
-	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
-	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
-	{ NOTE_C_6, 128},  { NOTE_B_5, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_B_4, 128},
-	{ NOTE_C_5, 128},  { NOTE_D_5, 128},  { NOTE_C_4, 128},
-	{ NOTE_G_4, 128},  { NOTE_C_5, 128},  { NOTE_G_4, 128},
-	{ NOTE_F_5, 128},  { NOTE_E_5, 128},  { NOTE_G_3, 128},
-	{ NOTE_G_4, 128},  { NOTE_B_3, 128},  { NOTE_F_4, 128},
-	{ NOTE_E_5, 128},  { NOTE_D_5, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_4, 128},
-	{ NOTE_D_5, 128},  { NOTE_C_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_E_5, 128},  { NOTE_E_5, 128},
-	{ NOTE_E_6, 128},  { NOTE_E_5, 128},  { NOTE_E_6, 128},
-	{ NOTE_E_5, 128},  { NOTE_E_5, 128},  { NOTE_DS_5, 128},
-	{ NOTE_E_5, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_DS_5, 128}, { NOTE_E_5, 128},  { NOTE_DS_6, 128},
-	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
-	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
-	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
-	{ NOTE_GS_5, 128}, { NOTE_B_5, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_5, 128},
-	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
-	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
-	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
-	{ NOTE_C_6, 128},  { NOTE_B_5, 128},  { NOTE_A_5, 512},
-	{ NOTE_SILENT, 256},
+	{ ANALTE_E_6, 128},  { ANALTE_DS_6, 128}, { ANALTE_E_6, 128},
+	{ ANALTE_DS_6, 128}, { ANALTE_E_6, 128},  { ANALTE_B_5, 128},
+	{ ANALTE_D_6, 128},  { ANALTE_C_6, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_C_5, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_A_5, 128},  { ANALTE_E_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_GS_4, 128}, { ANALTE_E_5, 128},
+	{ ANALTE_GS_5, 128}, { ANALTE_B_5, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_E_5, 128},
+	{ ANALTE_E_6, 128},  { ANALTE_DS_6, 128}, { ANALTE_E_6, 128},
+	{ ANALTE_DS_6, 128}, { ANALTE_E_6, 128},  { ANALTE_B_5, 128},
+	{ ANALTE_D_6, 128},  { ANALTE_C_6, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_C_5, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_A_5, 128},  { ANALTE_E_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_GS_4, 128}, { ANALTE_E_5, 128},
+	{ ANALTE_C_6, 128},  { ANALTE_B_5, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_B_4, 128},
+	{ ANALTE_C_5, 128},  { ANALTE_D_5, 128},  { ANALTE_C_4, 128},
+	{ ANALTE_G_4, 128},  { ANALTE_C_5, 128},  { ANALTE_G_4, 128},
+	{ ANALTE_F_5, 128},  { ANALTE_E_5, 128},  { ANALTE_G_3, 128},
+	{ ANALTE_G_4, 128},  { ANALTE_B_3, 128},  { ANALTE_F_4, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_D_5, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_E_4, 128},
+	{ ANALTE_D_5, 128},  { ANALTE_C_5, 128},  { ANALTE_E_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_E_5, 128},  { ANALTE_E_5, 128},
+	{ ANALTE_E_6, 128},  { ANALTE_E_5, 128},  { ANALTE_E_6, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_E_5, 128},  { ANALTE_DS_5, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_DS_6, 128}, { ANALTE_E_6, 128},
+	{ ANALTE_DS_5, 128}, { ANALTE_E_5, 128},  { ANALTE_DS_6, 128},
+	{ ANALTE_E_6, 128},  { ANALTE_DS_6, 128}, { ANALTE_E_6, 128},
+	{ ANALTE_DS_6, 128}, { ANALTE_E_6, 128},  { ANALTE_B_5, 128},
+	{ ANALTE_D_6, 128},  { ANALTE_C_6, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_C_5, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_A_5, 128},  { ANALTE_E_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_GS_4, 128}, { ANALTE_E_5, 128},
+	{ ANALTE_GS_5, 128}, { ANALTE_B_5, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_E_5, 128},
+	{ ANALTE_E_6, 128},  { ANALTE_DS_6, 128}, { ANALTE_E_6, 128},
+	{ ANALTE_DS_6, 128}, { ANALTE_E_6, 128},  { ANALTE_B_5, 128},
+	{ ANALTE_D_6, 128},  { ANALTE_C_6, 128},  { ANALTE_A_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_A_4, 128},  { ANALTE_C_5, 128},
+	{ ANALTE_E_5, 128},  { ANALTE_A_5, 128},  { ANALTE_E_3, 128},
+	{ ANALTE_E_4, 128},  { ANALTE_GS_4, 128}, { ANALTE_E_5, 128},
+	{ ANALTE_C_6, 128},  { ANALTE_B_5, 128},  { ANALTE_A_5, 512},
+	{ ANALTE_SILENT, 256},
 };
 
 static struct vidtv_access_unit *vidtv_s302m_access_unit_init(struct vidtv_access_unit *head)
@@ -246,21 +246,21 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 			if (e->src_buf_offset >= ARRAY_SIZE(beethoven_fur_elise))
 				e->src_buf_offset = 0;
 
-			ctx->last_tone = beethoven_fur_elise[e->src_buf_offset].note;
+			ctx->last_tone = beethoven_fur_elise[e->src_buf_offset].analte;
 			ctx->last_duration = beethoven_fur_elise[e->src_buf_offset].duration *
 					     S302M_SAMPLING_RATE_HZ / COMPASS / 5;
 			e->src_buf_offset++;
-			ctx->note_offset = 0;
+			ctx->analte_offset = 0;
 		} else {
 			ctx->last_duration--;
 		}
 
-		/* Handle pause notes */
+		/* Handle pause analtes */
 		if (!ctx->last_tone)
 			return 0x8000;
 
-		pos = (2 * PI * ctx->note_offset * ctx->last_tone) / S302M_SAMPLING_RATE_HZ;
-		ctx->note_offset++;
+		pos = (2 * PI * ctx->analte_offset * ctx->last_tone) / S302M_SAMPLING_RATE_HZ;
+		ctx->analte_offset++;
 
 		return (fixp_sin32(pos % (2 * PI)) >> 16) + 0x8000;
 	}
@@ -275,7 +275,7 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 	}
 
 	if (e->src_buf_offset >= e->src_buf_sz) {
-		/* let the source know we are out of data */
+		/* let the source kanalw we are out of data */
 		if (e->last_sample_cb)
 			e->last_sample_cb(e->sample_count);
 

@@ -6,7 +6,7 @@
  * Reference program demonstrating tcp mmap() usage,
  * and SO_RCVLOWAT hints for receiver.
  *
- * Note : NIC with header split is needed to use mmap() on TCP :
+ * Analte : NIC with header split is needed to use mmap() on TCP :
  * Each incoming frame must be a multiple of PAGE_SIZE bytes of TCP payload.
  *
  * How to use on loopback interface :
@@ -20,7 +20,7 @@
  *  tcp_mmap -s -z -M $((4096+12)) &
  *  tcp_mmap -H ::1 -z -M $((4096+12))
  *
- * Note: -z option on sender uses MSG_ZEROCOPY, which forces a copy when packets go through loopback interface.
+ * Analte: -z option on sender uses MSG_ZEROCOPY, which forces a copy when packets go through loopback interface.
  *       We might use sendfile() instead, but really this test program is about mmap(), for receivers ;)
  *
  * $ ./tcp_mmap -s &                                 # Without mmap()
@@ -58,7 +58,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <time.h>
 #include <sys/time.h>
 #include <netinet/in.h>
@@ -85,7 +85,7 @@ static int rcvbuf; /* Default: autotuning.  Can be set with -r <integer> option 
 static int sndbuf; /* Default: autotuning.  Can be set with -w <integer> option */
 static int zflg; /* zero copy option. (MSG_ZEROCOPY for sender, mmap() for receiver */
 static int xflg; /* hash received data (simple xor) (-h option) */
-static int keepflag; /* -k option: receiver shall keep all received file in memory (no munmap() calls) */
+static int keepflag; /* -k option: receiver shall keep all received file in memory (anal munmap() calls) */
 static int integrity; /* -i option: sender and receiver compute sha256 over the data.*/
 
 static size_t chunk_size  = 512*1024;
@@ -139,12 +139,12 @@ static void *mmap_large_buffer(size_t need, size_t *allocated)
 	/* Attempt to use huge pages if possible. */
 	sz = ALIGN_UP(need, map_align);
 	buffer = mmap(NULL, sz, PROT_READ | PROT_WRITE,
-		      MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+		      MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB, -1, 0);
 
 	if (buffer == (void *)-1) {
 		sz = need;
 		buffer = mmap(NULL, sz, PROT_READ | PROT_WRITE,
-			      MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
+			      MAP_PRIVATE | MAP_AANALNYMOUS | MAP_POPULATE,
 			      -1, 0);
 		if (buffer != (void *)-1)
 			fprintf(stderr, "MAP_HUGETLB attempt failed, look at /sys/kernel/mm/hugepages for optimal performance\n");
@@ -205,7 +205,7 @@ void *child_thread(void *arg)
 	if (integrity) {
 		ctx = EVP_MD_CTX_new();
 		if (!ctx) {
-			perror("cannot enable SHA computing");
+			perror("cananalt enable SHA computing");
 			goto error;
 		}
 		EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
@@ -235,7 +235,7 @@ void *child_thread(void *arg)
 				total_mmap += zc.length;
 				if (xflg)
 					hash_zone(addr, zc.length);
-				/* It is more efficient to unmap the pages right now,
+				/* It is more efficient to unmap the pages right analw,
 				 * instead of doing this in next TCP_ZEROCOPY_RECEIVE.
 				 */
 				madvise(addr, zc.length, MADV_DONTNEED);
@@ -282,11 +282,11 @@ end:
 		EVP_DigestFinal_ex(ctx, digest, &digest_len);
 		lu = read(fd, buffer, SHA256_DIGEST_LENGTH);
 		if (lu != SHA256_DIGEST_LENGTH)
-			perror("Error: Cannot read SHA256\n");
+			perror("Error: Cananalt read SHA256\n");
 
 		if (memcmp(digest, buffer,
 			   SHA256_DIGEST_LENGTH))
-			fprintf(stderr, "Error: SHA256 of the data is not right\n");
+			fprintf(stderr, "Error: SHA256 of the data is analt right\n");
 		else
 			printf("\nSHA256 is correct\n");
 	}
@@ -392,14 +392,14 @@ static void do_accept(int fdlisten)
 		res = pthread_create(&th, &attr, child_thread,
 				     (void *)(unsigned long)fd);
 		if (res) {
-			errno = res;
+			erranal = res;
 			perror("pthread_create");
 			close(fd);
 		}
 	}
 }
 
-/* Each thread should reserve a big enough vma to avoid
+/* Each thread should reserve a big eanalugh vma to avoid
  * spinlock collisions in ptl locks.
  * This size is 2MB on x86_64, and is exported in /proc/meminfo.
  */
@@ -509,7 +509,7 @@ int main(int argc, char *argv[])
 	}
 	if (!map_align) {
 		map_align = default_huge_page_size();
-		/* if really /proc/meminfo is not helping,
+		/* if really /proc/meminfo is analt helping,
 		 * we use the default x86_64 hugepagesize.
 		 */
 		if (!map_align)
@@ -582,7 +582,7 @@ int main(int argc, char *argv[])
 		randomize(buffer, buffer_sz);
 		ctx = EVP_MD_CTX_new();
 		if (!ctx) {
-			perror("cannot enable SHA computing");
+			perror("cananalt enable SHA computing");
 			exit(1);
 		}
 		EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
@@ -593,7 +593,7 @@ int main(int argc, char *argv[])
 
 		if (wr > chunk_size - offset)
 			wr = chunk_size - offset;
-		/* Note : we just want to fill the pipe with random bytes */
+		/* Analte : we just want to fill the pipe with random bytes */
 		wr = send(fd, buffer + offset,
 			  (size_t)wr, zflg ? MSG_ZEROCOPY : 0);
 		if (wr <= 0)

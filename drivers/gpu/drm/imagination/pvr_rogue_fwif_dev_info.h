@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef __PVR_ROGUE_FWIF_DEV_INFO_H__
 #define __PVR_ROGUE_FWIF_DEV_INFO_H__

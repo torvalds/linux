@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/if_bridge.h>
 #include <linux/list.h>
@@ -89,7 +89,7 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	entries_count = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_SPAN);
 	span = kzalloc(struct_size(span, entries, entries_count), GFP_KERNEL);
 	if (!span)
-		return -ENOMEM;
+		return -EANALMEM;
 	refcount_set(&span->policer_id_base_ref_count, 0);
 	span->entries_count = entries_count;
 	atomic_set(&span->active_entries_count, 0);
@@ -140,14 +140,14 @@ static int mlxsw_sp1_span_entry_cpu_parms(struct mlxsw_sp *mlxsw_sp,
 					  const struct net_device *to_dev,
 					  struct mlxsw_sp_span_parms *sparmsp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
 mlxsw_sp1_span_entry_cpu_configure(struct mlxsw_sp_span_entry *span_entry,
 				   struct mlxsw_sp_span_parms sparms)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void
@@ -244,7 +244,7 @@ static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
 	if ((neigh->nud_state & NUD_VALID) && !neigh->dead)
 		memcpy(dmac, neigh->ha, ETH_ALEN);
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 	read_unlock_bh(&neigh->lock);
 
 	neigh_release(neigh);
@@ -252,7 +252,7 @@ static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
 }
 
 static int
-mlxsw_sp_span_entry_unoffloadable(struct mlxsw_sp_span_parms *sparmsp)
+mlxsw_sp_span_entry_uanalffloadable(struct mlxsw_sp_span_parms *sparmsp)
 {
 	sparmsp->dest_port = NULL;
 	return 0;
@@ -366,7 +366,7 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 		gw = daddr;
 
 	if (!edev || mlxsw_sp_span_dmac(tbl, &gw, edev, dmac))
-		goto unoffloadable;
+		goto uanalffloadable;
 
 	if (is_vlan_dev(edev))
 		edev = mlxsw_sp_span_entry_vlan(edev, &vid);
@@ -374,25 +374,25 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 	if (netif_is_bridge_master(edev)) {
 		edev = mlxsw_sp_span_entry_bridge(edev, dmac, &vid);
 		if (!edev)
-			goto unoffloadable;
+			goto uanalffloadable;
 	}
 
 	if (is_vlan_dev(edev)) {
 		if (vid || !(edev->flags & IFF_UP))
-			goto unoffloadable;
+			goto uanalffloadable;
 		edev = mlxsw_sp_span_entry_vlan(edev, &vid);
 	}
 
 	if (netif_is_lag_master(edev)) {
 		if (!(edev->flags & IFF_UP))
-			goto unoffloadable;
+			goto uanalffloadable;
 		edev = mlxsw_sp_span_entry_lag(edev);
 		if (!edev)
-			goto unoffloadable;
+			goto uanalffloadable;
 	}
 
 	if (!mlxsw_sp_port_dev_check(edev))
-		goto unoffloadable;
+		goto uanalffloadable;
 
 	sparmsp->dest_port = netdev_priv(edev);
 	sparmsp->ttl = ttl;
@@ -403,8 +403,8 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 	sparmsp->vid = vid;
 	return 0;
 
-unoffloadable:
-	return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+uanalffloadable:
+	return mlxsw_sp_span_entry_uanalffloadable(sparmsp);
 }
 
 #if IS_ENABLED(CONFIG_NET_IPGRE)
@@ -437,7 +437,7 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 	*saddrp = fl4.saddr;
 	if (rt->rt_gw_family == AF_INET)
 		*daddrp = rt->rt_gw4;
-	/* can not offload if route has an IPv6 gateway */
+	/* can analt offload if route has an IPv6 gateway */
 	else if (rt->rt_gw_family == AF_INET6)
 		dev = NULL;
 
@@ -464,9 +464,9 @@ mlxsw_sp_span_entry_gretap4_parms(struct mlxsw_sp *mlxsw_sp,
 	    tparm.i_flags || tparm.o_flags ||
 	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
 	    inherit_ttl || !inherit_tos ||
-	    /* A destination address may not be "any". */
+	    /* A destination address may analt be "any". */
 	    mlxsw_sp_l3addr_is_zero(daddr))
-		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+		return mlxsw_sp_span_entry_uanalffloadable(sparmsp);
 
 	l3edev = mlxsw_sp_span_gretap4_route(to_dev, &saddr.addr4, &gw.addr4);
 	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
@@ -491,7 +491,7 @@ mlxsw_sp_span_entry_gretap4_configure(struct mlxsw_sp_span_entry *span_entry,
 	mlxsw_reg_mpat_pid_set(mpat_pl, sparms.policer_id);
 	mlxsw_reg_mpat_eth_rspan_pack(mpat_pl, sparms.vid);
 	mlxsw_reg_mpat_eth_rspan_l2_pack(mpat_pl,
-				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER,
+				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_ANAL_HEADER,
 				    sparms.dmac, !!sparms.vid);
 	mlxsw_reg_mpat_eth_rspan_l3_ipv4_pack(mpat_pl,
 					      sparms.ttl, sparms.smac,
@@ -568,9 +568,9 @@ mlxsw_sp_span_entry_gretap6_parms(struct mlxsw_sp *mlxsw_sp,
 	    tparm.i_flags || tparm.o_flags ||
 	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
 	    inherit_ttl || !inherit_tos ||
-	    /* A destination address may not be "any". */
+	    /* A destination address may analt be "any". */
 	    mlxsw_sp_l3addr_is_zero(daddr))
-		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+		return mlxsw_sp_span_entry_uanalffloadable(sparmsp);
 
 	l3edev = mlxsw_sp_span_gretap6_route(to_dev, &saddr.addr6, &gw.addr6);
 	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
@@ -595,7 +595,7 @@ mlxsw_sp_span_entry_gretap6_configure(struct mlxsw_sp_span_entry *span_entry,
 	mlxsw_reg_mpat_pid_set(mpat_pl, sparms.policer_id);
 	mlxsw_reg_mpat_eth_rspan_pack(mpat_pl, sparms.vid);
 	mlxsw_reg_mpat_eth_rspan_l2_pack(mpat_pl,
-				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER,
+				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_ANAL_HEADER,
 				    sparms.dmac, !!sparms.vid);
 	mlxsw_reg_mpat_eth_rspan_l3_ipv6_pack(mpat_pl, sparms.ttl, sparms.smac,
 					      sparms.saddr.addr6,
@@ -636,7 +636,7 @@ mlxsw_sp_span_entry_vlan_parms(struct mlxsw_sp *mlxsw_sp,
 	u16 vid;
 
 	if (!(to_dev->flags & IFF_UP))
-		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+		return mlxsw_sp_span_entry_uanalffloadable(sparmsp);
 
 	real_dev = mlxsw_sp_span_entry_vlan(to_dev, &vid);
 	sparmsp->dest_port = netdev_priv(real_dev);
@@ -746,29 +746,29 @@ struct mlxsw_sp_span_entry_ops *mlxsw_sp2_span_entry_ops_arr[] = {
 };
 
 static int
-mlxsw_sp_span_entry_nop_parms(struct mlxsw_sp *mlxsw_sp,
+mlxsw_sp_span_entry_analp_parms(struct mlxsw_sp *mlxsw_sp,
 			      const struct net_device *to_dev,
 			      struct mlxsw_sp_span_parms *sparmsp)
 {
-	return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+	return mlxsw_sp_span_entry_uanalffloadable(sparmsp);
 }
 
 static int
-mlxsw_sp_span_entry_nop_configure(struct mlxsw_sp_span_entry *span_entry,
+mlxsw_sp_span_entry_analp_configure(struct mlxsw_sp_span_entry *span_entry,
 				  struct mlxsw_sp_span_parms sparms)
 {
 	return 0;
 }
 
 static void
-mlxsw_sp_span_entry_nop_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+mlxsw_sp_span_entry_analp_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 {
 }
 
-static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_nop = {
-	.parms_set = mlxsw_sp_span_entry_nop_parms,
-	.configure = mlxsw_sp_span_entry_nop_configure,
-	.deconfigure = mlxsw_sp_span_entry_nop_deconfigure,
+static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_analp = {
+	.parms_set = mlxsw_sp_span_entry_analp_parms,
+	.configure = mlxsw_sp_span_entry_analp_configure,
+	.deconfigure = mlxsw_sp_span_entry_analp_deconfigure,
 };
 
 static void
@@ -783,7 +783,7 @@ mlxsw_sp_span_entry_configure(struct mlxsw_sp *mlxsw_sp,
 
 	if (sparms.dest_port->mlxsw_sp != mlxsw_sp) {
 		dev_err(mlxsw_sp->bus_info->dev,
-			"Cannot mirror to a port which belongs to a different mlxsw instance\n");
+			"Cananalt mirror to a port which belongs to a different mlxsw instance\n");
 		sparms.dest_port = NULL;
 		goto set_parms;
 	}
@@ -815,7 +815,7 @@ static int mlxsw_sp_span_policer_id_base_set(struct mlxsw_sp_span *span,
 
 	/* Policers set on SPAN agents must be in the range of
 	 * `policer_id_base .. policer_id_base + max_span_agents - 1`. If the
-	 * base is set and the new policer is not within the range, then we
+	 * base is set and the new policer is analt within the range, then we
 	 * must error out.
 	 */
 	if (refcount_read(&span->policer_id_base_ref_count)) {
@@ -911,7 +911,7 @@ void mlxsw_sp_span_entry_invalidate(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_span_entry *span_entry)
 {
 	mlxsw_sp_span_entry_deconfigure(span_entry);
-	span_entry->ops = &mlxsw_sp_span_entry_ops_nop;
+	span_entry->ops = &mlxsw_sp_span_entry_ops_analp;
 }
 
 static struct mlxsw_sp_span_entry *
@@ -1077,8 +1077,8 @@ int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp, int *p_span_id,
 
 	ops = mlxsw_sp_span_entry_ops(mlxsw_sp, to_dev);
 	if (!ops) {
-		dev_err(mlxsw_sp->bus_info->dev, "Cannot mirror to requested destination\n");
-		return -EOPNOTSUPP;
+		dev_err(mlxsw_sp->bus_info->dev, "Cananalt mirror to requested destination\n");
+		return -EOPANALTSUPP;
 	}
 
 	memset(&sparms, 0, sizeof(sparms));
@@ -1091,7 +1091,7 @@ int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp, int *p_span_id,
 	sparms.session_id = parms->session_id;
 	span_entry = mlxsw_sp_span_entry_get(mlxsw_sp, to_dev, ops, sparms);
 	if (!span_entry)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	*p_span_id = span_entry->id;
 
@@ -1121,7 +1121,7 @@ mlxsw_sp_span_analyzed_port_create(struct mlxsw_sp_span *span,
 
 	analyzed_port = kzalloc(sizeof(*analyzed_port), GFP_KERNEL);
 	if (!analyzed_port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	refcount_set(&analyzed_port->ref_count, 1);
 	analyzed_port->local_port = mlxsw_sp_port->local_port;
@@ -1150,7 +1150,7 @@ mlxsw_sp_span_analyzed_port_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 				    struct mlxsw_sp_span_analyzed_port *
 				    analyzed_port)
 {
-	/* Remove egress mirror buffer now that port is no longer analyzed
+	/* Remove egress mirror buffer analw that port is anal longer analyzed
 	 * at egress.
 	 */
 	if (!analyzed_port->ingress)
@@ -1295,7 +1295,7 @@ static int
 mlxsw_sp1_span_trigger_global_bind(struct mlxsw_sp_span_trigger_entry *
 				   trigger_entry)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void
@@ -1320,7 +1320,7 @@ mlxsw_sp1_span_trigger_global_enable(struct mlxsw_sp_span_trigger_entry *
 				     struct mlxsw_sp_port *mlxsw_sp_port,
 				     u8 tc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void
@@ -1382,8 +1382,8 @@ static void
 mlxsw_sp2_span_trigger_global_unbind(struct mlxsw_sp_span_trigger_entry *
 				     trigger_entry)
 {
-	/* There is no unbinding for global triggers. The trigger should be
-	 * disabled on all ports by now.
+	/* There is anal unbinding for global triggers. The trigger should be
+	 * disabled on all ports by analw.
 	 */
 }
 
@@ -1506,7 +1506,7 @@ mlxsw_sp_span_trigger_entry_create(struct mlxsw_sp_span *span,
 
 	trigger_entry = kzalloc(sizeof(*trigger_entry), GFP_KERNEL);
 	if (!trigger_entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	refcount_set(&trigger_entry->ref_count, 1);
 	trigger_entry->local_port = mlxsw_sp_port ? mlxsw_sp_port->local_port :
@@ -1687,7 +1687,7 @@ static int mlxsw_sp1_span_init(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp1_span_policer_id_base_set(struct mlxsw_sp *mlxsw_sp,
 					      u16 policer_id_base)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops = {

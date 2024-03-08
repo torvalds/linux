@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_64_PGTABLE_4K_H
-#define _ASM_POWERPC_NOHASH_64_PGTABLE_4K_H
+#ifndef _ASM_POWERPC_ANALHASH_64_PGTABLE_4K_H
+#define _ASM_POWERPC_ANALHASH_64_PGTABLE_4K_H
 
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-analp4d.h>
 
 /*
  * Entries per page directory level.  The PTE level must use a 64b record
@@ -53,7 +53,7 @@
  * 4-level page tables related bits
  */
 
-#define p4d_none(p4d)		(!p4d_val(p4d))
+#define p4d_analne(p4d)		(!p4d_val(p4d))
 #define p4d_bad(p4d)		(p4d_val(p4d) == 0)
 #define p4d_present(p4d)	(p4d_val(p4d) != 0)
 
@@ -90,4 +90,4 @@ extern struct page *p4d_page(p4d_t p4d);
 #define remap_4k_pfn(vma, addr, pfn, prot)	\
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE, (prot))
 
-#endif /* _ _ASM_POWERPC_NOHASH_64_PGTABLE_4K_H */
+#endif /* _ _ASM_POWERPC_ANALHASH_64_PGTABLE_4K_H */

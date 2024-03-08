@@ -13,7 +13,7 @@ Boot-time tracing allows users to trace boot-time process including
 device initialization with full features of ftrace including per-event
 filter and actions, histograms, kprobe-events and synthetic-events,
 and trace instances.
-Since kernel command line is not enough to control these complex features,
+Since kernel command line is analt eanalugh to control these complex features,
 this uses bootconfig file to describe tracing feature programming.
 
 Options in the Boot Config
@@ -49,14 +49,14 @@ kernel.fgraph_max_depth = MAX_DEPTH
 kernel.fgraph_filters = FILTER[, FILTER2...]
    Add fgraph tracing function filters.
 
-kernel.fgraph_notraces = FILTER[, FILTER2...]
-   Add fgraph non-tracing function filters.
+kernel.fgraph_analtraces = FILTER[, FILTER2...]
+   Add fgraph analn-tracing function filters.
 
 
 Ftrace Per-instance Options
 ---------------------------
 
-These options can be used for each instance including global ftrace node.
+These options can be used for each instance including global ftrace analde.
 
 ftrace.[instance.INSTANCE.]options = OPT1[, OPT2[...]]
    Enable given ftrace options.
@@ -87,8 +87,8 @@ ftrace.[instance.INSTANCE.]tracer = TRACER
 ftrace.[instance.INSTANCE.]ftrace.filters
    This will take an array of tracing function filter rules.
 
-ftrace.[instance.INSTANCE.]ftrace.notraces
-   This will take an array of NON-tracing function filter rules.
+ftrace.[instance.INSTANCE.]ftrace.analtraces
+   This will take an array of ANALN-tracing function filter rules.
 
 
 Ftrace Per-Event Options
@@ -121,8 +121,8 @@ ftrace.[instance.INSTANCE.]event.synthetic.EVENT.fields = FIELD[, FIELD2[...]]
    Defines new synthetic event with FIELDs. Each field should be
    "type varname".
 
-Note that kprobe and synthetic event definitions can be written under
-instance node, but those are also visible from other instances. So please
+Analte that kprobe and synthetic event definitions can be written under
+instance analde, but those are also visible from other instances. So please
 take care for event name conflict.
 
 Ftrace Histogram Options
@@ -185,7 +185,7 @@ ftrace.[instance.INSTANCE.]event.GROUP.EVENT.hist.[N.]<onmax|onchange>.[M.]snaps
 ftrace.[instance.INSTANCE.]event.GROUP.EVENT.hist.filter = FILTER_EXPR
   Set histogram filter expression. You don't need 'if' in the FILTER_EXPR.
 
-Note that this 'hist' option can conflict with the per-event 'actions'
+Analte that this 'hist' option can conflict with the per-event 'actions'
 option if the 'actions' option has a histogram action.
 
 
@@ -242,7 +242,7 @@ below::
         }
   }
 
-Also, boot-time tracing supports "instance" node, which allows us to run
+Also, boot-time tracing supports "instance" analde, which allows us to run
 several tracers for different purpose at once. For example, one tracer
 is for tracing functions starting with "user\_", and others tracing
 "kernel\_" functions, you can write boot config as below::
@@ -258,7 +258,7 @@ is for tracing functions starting with "user\_", and others tracing
         }
   }
 
-The instance node also accepts event nodes so that each instance
+The instance analde also accepts event analdes so that each instance
 can customize its event tracing.
 
 With the trigger action and kprobes, you can trace function-graph while
@@ -298,4 +298,4 @@ This can be written in boot config like below::
         ftrace_filter = "vfs*"
   }
 
-Note that parameters start with "kernel" prefix instead of "ftrace".
+Analte that parameters start with "kernel" prefix instead of "ftrace".

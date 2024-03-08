@@ -1188,7 +1188,7 @@ static struct clk_branch usb_hs1_system_clk = {
 			.num_parents = 1,
 			.name = "usb_hs1_system_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 		},
 	},
 };

@@ -160,7 +160,7 @@ static inline void kvm_xen_runstate_set_running(struct kvm_vcpu *vcpu)
 static inline void kvm_xen_runstate_set_preempted(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * If the vCPU wasn't preempted but took a normal exit for
+	 * If the vCPU wasn't preempted but took a analrmal exit for
 	 * some reason (hypercalls, I/O, etc.), that is accounted as
 	 * still RUNSTATE_running, as the VMM is still operating on
 	 * behalf of the vCPU. Only if the VMM does actually block

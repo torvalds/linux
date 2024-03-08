@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,7 +33,7 @@
  * It delegates hardware initialization and command submission to the
  * microcontroller. DMUB is the shortname for DMCUB.
  *
- * This interface is not thread-safe. Ensure that all access to the interface
+ * This interface is analt thread-safe. Ensure that all access to the interface
  * is properly synchronized by the caller.
  *
  * Initialization and usage of the DMUB service should be done in the
@@ -58,9 +58,9 @@
  * wait until the queue has been cleared.
  *
  * Destroying the DMUB service can be done by calling dmub_srv_destroy().
- * This does not clear DMUB hardware state, only software state.
+ * This does analt clear DMUB hardware state, only software state.
  *
- * The interface is intended to be standalone and should not depend on any
+ * The interface is intended to be standalone and should analt depend on any
  * other component within DAL.
  */
 
@@ -81,7 +81,7 @@ struct dmcub_trace_buf_entry;
 /* enum dmub_status - return code for dmcub functions */
 enum dmub_status {
 	DMUB_STATUS_OK = 0,
-	DMUB_STATUS_NO_CTX,
+	DMUB_STATUS_ANAL_CTX,
 	DMUB_STATUS_QUEUE_FULL,
 	DMUB_STATUS_TIMEOUT,
 	DMUB_STATUS_INVALID,
@@ -91,7 +91,7 @@ enum dmub_status {
 
 /* enum dmub_asic - dmub asic identifier */
 enum dmub_asic {
-	DMUB_ASIC_NONE = 0,
+	DMUB_ASIC_ANALNE = 0,
 	DMUB_ASIC_DCN20,
 	DMUB_ASIC_DCN21,
 	DMUB_ASIC_DCN30,
@@ -122,21 +122,21 @@ enum dmub_window_id {
 	DMUB_WINDOW_TOTAL,
 };
 
-/* enum dmub_notification_type - dmub outbox notification identifier */
-enum dmub_notification_type {
-	DMUB_NOTIFICATION_NO_DATA = 0,
-	DMUB_NOTIFICATION_AUX_REPLY,
-	DMUB_NOTIFICATION_HPD,
-	DMUB_NOTIFICATION_HPD_IRQ,
-	DMUB_NOTIFICATION_SET_CONFIG_REPLY,
-	DMUB_NOTIFICATION_DPIA_NOTIFICATION,
-	DMUB_NOTIFICATION_MAX
+/* enum dmub_analtification_type - dmub outbox analtification identifier */
+enum dmub_analtification_type {
+	DMUB_ANALTIFICATION_ANAL_DATA = 0,
+	DMUB_ANALTIFICATION_AUX_REPLY,
+	DMUB_ANALTIFICATION_HPD,
+	DMUB_ANALTIFICATION_HPD_IRQ,
+	DMUB_ANALTIFICATION_SET_CONFIG_REPLY,
+	DMUB_ANALTIFICATION_DPIA_ANALTIFICATION,
+	DMUB_ANALTIFICATION_MAX
 };
 
 /**
- * DPIA NOTIFICATION Response Type
+ * DPIA ANALTIFICATION Response Type
  */
-enum dpia_notify_bw_alloc_status {
+enum dpia_analtify_bw_alloc_status {
 
 	DPIA_BW_REQ_FAILED = 0,
 	DPIA_BW_REQ_SUCCESS,
@@ -291,10 +291,10 @@ struct dmub_srv_hw_params {
 };
 
 /**
- * struct dmub_diagnostic_data - Diagnostic data retrieved from DMCUB for
+ * struct dmub_diaganalstic_data - Diaganalstic data retrieved from DMCUB for
  * debugging purposes, including logging, crash analysis, etc.
  */
-struct dmub_diagnostic_data {
+struct dmub_diaganalstic_data {
 	uint32_t dmcub_version;
 	uint32_t scratch[17];
 	uint32_t pc;
@@ -422,7 +422,7 @@ struct dmub_srv_hw_funcs {
 	void (*send_inbox0_cmd)(struct dmub_srv *dmub, union dmub_inbox0_data_register data);
 	uint32_t (*get_current_time)(struct dmub_srv *dmub);
 
-	void (*get_diagnostic_data)(struct dmub_srv *dmub, struct dmub_diagnostic_data *dmub_oca);
+	void (*get_diaganalstic_data)(struct dmub_srv *dmub, struct dmub_diaganalstic_data *dmub_oca);
 
 	bool (*should_detect)(struct dmub_srv *dmub);
 	void (*init_reg_offsets)(struct dmub_srv *dmub, struct dc_context *ctx);
@@ -477,7 +477,7 @@ struct dmub_srv {
 	uint32_t inbox1_last_wptr;
 	/**
 	 * outbox1_rb is accessed without locks (dal & dc)
-	 * and to be used only in dmub_srv_stat_get_notification()
+	 * and to be used only in dmub_srv_stat_get_analtification()
 	 */
 	struct dmub_rb outbox1_rb;
 
@@ -498,37 +498,37 @@ struct dmub_srv {
 };
 
 /**
- * struct dmub_notification - dmub notification data
- * @type: dmub notification type
+ * struct dmub_analtification - dmub analtification data
+ * @type: dmub analtification type
  * @link_index: link index to identify aux connection
  * @result: USB4 status returned from dmub
- * @pending_notification: Indicates there are other pending notifications
+ * @pending_analtification: Indicates there are other pending analtifications
  * @aux_reply: aux reply
  * @hpd_status: hpd status
  * @bw_alloc_reply: BW Allocation reply from CM/DPIA
  */
-struct dmub_notification {
-	enum dmub_notification_type type;
+struct dmub_analtification {
+	enum dmub_analtification_type type;
 	uint8_t link_index;
 	uint8_t result;
-	bool pending_notification;
+	bool pending_analtification;
 	union {
 		struct aux_reply_data aux_reply;
 		enum dp_hpd_status hpd_status;
 		enum set_config_status sc_status;
 		/**
-		 * DPIA notification command.
+		 * DPIA analtification command.
 		 */
-		struct dmub_rb_cmd_dpia_notification dpia_notification;
+		struct dmub_rb_cmd_dpia_analtification dpia_analtification;
 	};
 };
 
 /**
  * DMUB firmware version helper macro - useful for checking if the version
- * of a firmware to know if feature or functionality is supported or present.
+ * of a firmware to kanalw if feature or functionality is supported or present.
  */
-#define DMUB_FW_VERSION(major, minor, revision) \
-	((((major) & 0xFF) << 24) | (((minor) & 0xFF) << 16) | (((revision) & 0xFF) << 8))
+#define DMUB_FW_VERSION(major, mianalr, revision) \
+	((((major) & 0xFF) << 24) | (((mianalr) & 0xFF) << 16) | (((revision) & 0xFF) << 8))
 
 /**
  * dmub_srv_create() - creates the DMUB service.
@@ -618,7 +618,7 @@ enum dmub_status dmub_srv_is_hw_init(struct dmub_srv *dmub, bool *is_hw_init);
  *
  * Return:
  *   DMUB_STATUS_OK - success
- *   DMUB_STATUS_NO_CTX - dmcub context not initialized
+ *   DMUB_STATUS_ANAL_CTX - dmcub context analt initialized
  *   DMUB_STATUS_INVALID - unspecified error
  */
 enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
@@ -656,12 +656,12 @@ enum dmub_status dmub_srv_sync_inbox1(struct dmub_srv *dmub);
  * @dmub: the dmub service
  * @cmd: the command to queue
  *
- * Queues a command to the DMUB service but does not begin execution
+ * Queues a command to the DMUB service but does analt begin execution
  * immediately.
  *
  * Return:
  *   DMUB_STATUS_OK - success
- *   DMUB_STATUS_QUEUE_FULL - no remaining room in queue
+ *   DMUB_STATUS_QUEUE_FULL - anal remaining room in queue
  *   DMUB_STATUS_INVALID - unspecified error
  */
 enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
@@ -809,7 +809,7 @@ enum dmub_status dmub_srv_get_gpint_dataout(struct dmub_srv *dmub,
 
 /**
  * dmub_flush_buffer_mem() - Read back entire frame buffer region.
- * This ensures that the write from x86 has been flushed and will not
+ * This ensures that the write from x86 has been flushed and will analt
  * hang the DMCUB.
  * @fb: frame buffer to flush
  *
@@ -841,7 +841,7 @@ enum dmub_status dmub_srv_set_skip_panel_power_sequence(struct dmub_srv *dmub,
 
 bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry);
 
-bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
+bool dmub_srv_get_diaganalstic_data(struct dmub_srv *dmub, struct dmub_diaganalstic_data *diag_data);
 
 bool dmub_srv_should_detect(struct dmub_srv *dmub);
 
@@ -854,7 +854,7 @@ bool dmub_srv_should_detect(struct dmub_srv *dmub);
  *
  * Return:
  *   DMUB_STATUS_OK - success
- *   DMUB_STATUS_INVALID - hw_init false or hw function does not exist
+ *   DMUB_STATUS_INVALID - hw_init false or hw function does analt exist
  */
 enum dmub_status dmub_srv_send_inbox0_cmd(struct dmub_srv *dmub, union dmub_inbox0_data_register data);
 
@@ -867,7 +867,7 @@ enum dmub_status dmub_srv_send_inbox0_cmd(struct dmub_srv *dmub, union dmub_inbo
  *
  * Return:
  *   DMUB_STATUS_OK - success
- *   DMUB_STATUS_INVALID - hw_init false or hw function does not exist
+ *   DMUB_STATUS_INVALID - hw_init false or hw function does analt exist
  *   DMUB_STATUS_TIMEOUT - wait for ack timed out
  */
 enum dmub_status dmub_srv_wait_for_inbox0_ack(struct dmub_srv *dmub, uint32_t timeout_us);
@@ -880,7 +880,7 @@ enum dmub_status dmub_srv_wait_for_inbox0_ack(struct dmub_srv *dmub, uint32_t ti
  *
  * Return:
  *   DMUB_STATUS_OK - success
- *   DMUB_STATUS_INVALID - hw_init false or hw function does not exist
+ *   DMUB_STATUS_INVALID - hw_init false or hw function does analt exist
  */
 enum dmub_status dmub_srv_clear_inbox0_ack(struct dmub_srv *dmub);
 
@@ -892,7 +892,7 @@ enum dmub_status dmub_srv_clear_inbox0_ack(struct dmub_srv *dmub);
  *
  * Function to save the surface flip addr into scratch registers. This is to fix a race condition
  * between FW and driver reading / writing to the surface address at the same time. This is
- * required because there is no EARLIEST_IN_USE_META.
+ * required because there is anal EARLIEST_IN_USE_META.
  *
  * Return:
  *   void

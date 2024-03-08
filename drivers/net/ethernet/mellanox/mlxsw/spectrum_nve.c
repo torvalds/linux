@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/err.h>
 #include <linux/gfp.h>
@@ -72,14 +72,14 @@ struct mlxsw_sp_nve_mc_record {
 
 struct mlxsw_sp_nve_mc_list {
 	struct list_head records_list;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct mlxsw_sp_nve_mc_list_key key;
 };
 
 static const struct rhashtable_params mlxsw_sp_nve_mc_list_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_nve_mc_list_key),
 	.key_offset = offsetof(struct mlxsw_sp_nve_mc_list, key),
-	.head_offset = offsetof(struct mlxsw_sp_nve_mc_list, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_nve_mc_list, ht_analde),
 };
 
 static int
@@ -218,12 +218,12 @@ mlxsw_sp_nve_mc_list_create(struct mlxsw_sp *mlxsw_sp,
 
 	mc_list = kmalloc(sizeof(*mc_list), GFP_KERNEL);
 	if (!mc_list)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&mc_list->records_list);
 	mc_list->key = *key;
 
-	err = rhashtable_insert_fast(&nve->mc_list_ht, &mc_list->ht_node,
+	err = rhashtable_insert_fast(&nve->mc_list_ht, &mc_list->ht_analde,
 				     mlxsw_sp_nve_mc_list_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -240,7 +240,7 @@ static void mlxsw_sp_nve_mc_list_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
 
-	rhashtable_remove_fast(&nve->mc_list_ht, &mc_list->ht_node,
+	rhashtable_remove_fast(&nve->mc_list_ht, &mc_list->ht_analde,
 			       mlxsw_sp_nve_mc_list_ht_params);
 	WARN_ON(!list_empty(&mc_list->records_list));
 	kfree(mc_list);
@@ -280,7 +280,7 @@ mlxsw_sp_nve_mc_record_create(struct mlxsw_sp *mlxsw_sp,
 	mc_record = kzalloc(struct_size(mc_record, entries, num_max_entries),
 			    GFP_KERNEL);
 	if (!mc_record)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT, 1,
 				  &mc_record->kvdl_index);
@@ -453,7 +453,7 @@ mlxsw_sp_nve_mc_record_ip_add(struct mlxsw_sp_nve_mc_record *mc_record,
 	if (err)
 		goto err_record_refresh;
 
-	/* If this is a new record and not the first one, then we need to
+	/* If this is a new record and analt the first one, then we need to
 	 * update the next pointer of the previous entry
 	 */
 	if (mc_record->num_entries != 1 ||
@@ -492,8 +492,8 @@ mlxsw_sp_nve_mc_record_entry_del(struct mlxsw_sp_nve_mc_record *mc_record,
 		return;
 	}
 
-	/* If the record needs to be deleted, but it is not the first,
-	 * then we need to make sure that the previous record no longer
+	/* If the record needs to be deleted, but it is analt the first,
+	 * then we need to make sure that the previous record anal longer
 	 * points to it. Remove deleted record from the list to reflect
 	 * that and then re-add it at the end, so that it could be
 	 * properly removed by the record destruction code
@@ -509,7 +509,7 @@ mlxsw_sp_nve_mc_record_entry_del(struct mlxsw_sp_nve_mc_record *mc_record,
 		return;
 	}
 
-	/* If the first record needs to be deleted, but the list is not
+	/* If the first record needs to be deleted, but the list is analt
 	 * singular, then the second record needs to be written in the
 	 * first record's address, as this address is stored as a property
 	 * of the FID
@@ -802,8 +802,8 @@ struct mlxsw_sp_nve_ipv6_ht_key {
 	u16 fid_index;
 };
 
-struct mlxsw_sp_nve_ipv6_ht_node {
-	struct rhash_head ht_node;
+struct mlxsw_sp_nve_ipv6_ht_analde {
+	struct rhash_head ht_analde;
 	struct list_head list;
 	struct mlxsw_sp_nve_ipv6_ht_key key;
 	struct in6_addr addr6;
@@ -811,8 +811,8 @@ struct mlxsw_sp_nve_ipv6_ht_node {
 
 static const struct rhashtable_params mlxsw_sp_nve_ipv6_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_nve_ipv6_ht_key),
-	.key_offset = offsetof(struct mlxsw_sp_nve_ipv6_ht_node, key),
-	.head_offset = offsetof(struct mlxsw_sp_nve_ipv6_ht_node, ht_node),
+	.key_offset = offsetof(struct mlxsw_sp_nve_ipv6_ht_analde, key),
+	.head_offset = offsetof(struct mlxsw_sp_nve_ipv6_ht_analde, ht_analde),
 };
 
 int mlxsw_sp_nve_ipv6_addr_kvdl_set(struct mlxsw_sp *mlxsw_sp,
@@ -828,8 +828,8 @@ void mlxsw_sp_nve_ipv6_addr_kvdl_unset(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_ipv6_addr_put(mlxsw_sp, addr6);
 }
 
-static struct mlxsw_sp_nve_ipv6_ht_node *
-mlxsw_sp_nve_ipv6_ht_node_lookup(struct mlxsw_sp *mlxsw_sp, const char *mac,
+static struct mlxsw_sp_nve_ipv6_ht_analde *
+mlxsw_sp_nve_ipv6_ht_analde_lookup(struct mlxsw_sp *mlxsw_sp, const char *mac,
 				 u16 fid_index)
 {
 	struct mlxsw_sp_nve_ipv6_ht_key key = {};
@@ -844,42 +844,42 @@ static int mlxsw_sp_nve_ipv6_ht_insert(struct mlxsw_sp *mlxsw_sp,
 				       const char *mac, u16 fid_index,
 				       const struct in6_addr *addr6)
 {
-	struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node;
+	struct mlxsw_sp_nve_ipv6_ht_analde *ipv6_ht_analde;
 	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
 	int err;
 
-	ipv6_ht_node = kzalloc(sizeof(*ipv6_ht_node), GFP_KERNEL);
-	if (!ipv6_ht_node)
-		return -ENOMEM;
+	ipv6_ht_analde = kzalloc(sizeof(*ipv6_ht_analde), GFP_KERNEL);
+	if (!ipv6_ht_analde)
+		return -EANALMEM;
 
-	ether_addr_copy(ipv6_ht_node->key.mac, mac);
-	ipv6_ht_node->key.fid_index = fid_index;
-	ipv6_ht_node->addr6 = *addr6;
+	ether_addr_copy(ipv6_ht_analde->key.mac, mac);
+	ipv6_ht_analde->key.fid_index = fid_index;
+	ipv6_ht_analde->addr6 = *addr6;
 
-	err = rhashtable_insert_fast(&nve->ipv6_ht, &ipv6_ht_node->ht_node,
+	err = rhashtable_insert_fast(&nve->ipv6_ht, &ipv6_ht_analde->ht_analde,
 				     mlxsw_sp_nve_ipv6_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
 
-	list_add(&ipv6_ht_node->list, &nve->ipv6_addr_list);
+	list_add(&ipv6_ht_analde->list, &nve->ipv6_addr_list);
 
 	return 0;
 
 err_rhashtable_insert:
-	kfree(ipv6_ht_node);
+	kfree(ipv6_ht_analde);
 	return err;
 }
 
 static void
 mlxsw_sp_nve_ipv6_ht_remove(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node)
+			    struct mlxsw_sp_nve_ipv6_ht_analde *ipv6_ht_analde)
 {
 	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
 
-	list_del(&ipv6_ht_node->list);
-	rhashtable_remove_fast(&nve->ipv6_ht, &ipv6_ht_node->ht_node,
+	list_del(&ipv6_ht_analde->list);
+	rhashtable_remove_fast(&nve->ipv6_ht, &ipv6_ht_analde->ht_analde,
 			       mlxsw_sp_nve_ipv6_ht_params);
-	kfree(ipv6_ht_node);
+	kfree(ipv6_ht_analde);
 }
 
 int
@@ -887,49 +887,49 @@ mlxsw_sp_nve_ipv6_addr_map_replace(struct mlxsw_sp *mlxsw_sp, const char *mac,
 				   u16 fid_index,
 				   const struct in6_addr *new_addr6)
 {
-	struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node;
+	struct mlxsw_sp_nve_ipv6_ht_analde *ipv6_ht_analde;
 
 	ASSERT_RTNL();
 
-	ipv6_ht_node = mlxsw_sp_nve_ipv6_ht_node_lookup(mlxsw_sp, mac,
+	ipv6_ht_analde = mlxsw_sp_nve_ipv6_ht_analde_lookup(mlxsw_sp, mac,
 							fid_index);
-	if (!ipv6_ht_node)
+	if (!ipv6_ht_analde)
 		return mlxsw_sp_nve_ipv6_ht_insert(mlxsw_sp, mac, fid_index,
 						   new_addr6);
 
-	mlxsw_sp_ipv6_addr_put(mlxsw_sp, &ipv6_ht_node->addr6);
-	ipv6_ht_node->addr6 = *new_addr6;
+	mlxsw_sp_ipv6_addr_put(mlxsw_sp, &ipv6_ht_analde->addr6);
+	ipv6_ht_analde->addr6 = *new_addr6;
 	return 0;
 }
 
 void mlxsw_sp_nve_ipv6_addr_map_del(struct mlxsw_sp *mlxsw_sp, const char *mac,
 				    u16 fid_index)
 {
-	struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node;
+	struct mlxsw_sp_nve_ipv6_ht_analde *ipv6_ht_analde;
 
 	ASSERT_RTNL();
 
-	ipv6_ht_node = mlxsw_sp_nve_ipv6_ht_node_lookup(mlxsw_sp, mac,
+	ipv6_ht_analde = mlxsw_sp_nve_ipv6_ht_analde_lookup(mlxsw_sp, mac,
 							fid_index);
-	if (WARN_ON(!ipv6_ht_node))
+	if (WARN_ON(!ipv6_ht_analde))
 		return;
 
-	mlxsw_sp_nve_ipv6_ht_remove(mlxsw_sp, ipv6_ht_node);
+	mlxsw_sp_nve_ipv6_ht_remove(mlxsw_sp, ipv6_ht_analde);
 }
 
 static void mlxsw_sp_nve_ipv6_addr_flush_by_fid(struct mlxsw_sp *mlxsw_sp,
 						u16 fid_index)
 {
-	struct mlxsw_sp_nve_ipv6_ht_node *ipv6_ht_node, *tmp;
+	struct mlxsw_sp_nve_ipv6_ht_analde *ipv6_ht_analde, *tmp;
 	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
 
-	list_for_each_entry_safe(ipv6_ht_node, tmp, &nve->ipv6_addr_list,
+	list_for_each_entry_safe(ipv6_ht_analde, tmp, &nve->ipv6_addr_list,
 				 list) {
-		if (ipv6_ht_node->key.fid_index != fid_index)
+		if (ipv6_ht_analde->key.fid_index != fid_index)
 			continue;
 
-		mlxsw_sp_ipv6_addr_put(mlxsw_sp, &ipv6_ht_node->addr6);
-		mlxsw_sp_nve_ipv6_ht_remove(mlxsw_sp, ipv6_ht_node);
+		mlxsw_sp_ipv6_addr_put(mlxsw_sp, &ipv6_ht_analde->addr6);
+		mlxsw_sp_nve_ipv6_ht_remove(mlxsw_sp, ipv6_ht_analde);
 	}
 }
 
@@ -1038,7 +1038,7 @@ static int mlxsw_sp_nve_ecn_encap_init(struct mlxsw_sp *mlxsw_sp)
 	int i;
 
 	/* Iterate over inner ECN values */
-	for (i = INET_ECN_NOT_ECT; i <= INET_ECN_CE; i++) {
+	for (i = INET_ECN_ANALT_ECT; i <= INET_ECN_CE; i++) {
 		u8 outer_ecn = INET_ECN_encapsulate(0, i);
 		char tneem_pl[MLXSW_REG_TNEEM_LEN];
 		int err;
@@ -1072,11 +1072,11 @@ static int mlxsw_sp_nve_ecn_decap_init(struct mlxsw_sp *mlxsw_sp)
 	int i;
 
 	/* Iterate over inner ECN values */
-	for (i = INET_ECN_NOT_ECT; i <= INET_ECN_CE; i++) {
+	for (i = INET_ECN_ANALT_ECT; i <= INET_ECN_CE; i++) {
 		int j;
 
 		/* Iterate over outer ECN values */
-		for (j = INET_ECN_NOT_ECT; j <= INET_ECN_CE; j++) {
+		for (j = INET_ECN_ANALT_ECT; j <= INET_ECN_CE; j++) {
 			int err;
 
 			err = __mlxsw_sp_nve_ecn_decap_init(mlxsw_sp, i, j);
@@ -1121,7 +1121,7 @@ int mlxsw_sp_nve_init(struct mlxsw_sp *mlxsw_sp)
 
 	nve = kzalloc(sizeof(*mlxsw_sp->nve), GFP_KERNEL);
 	if (!nve)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_sp->nve = nve;
 	nve->mlxsw_sp = mlxsw_sp;
 	nve->nve_ops_arr = mlxsw_sp->nve_ops_arr;

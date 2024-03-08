@@ -10,9 +10,9 @@ maintainers:
   - Patrice Chotard <patrice.chotard@foss.st.com>
 
 description: |
-  Binding for the various sysconfig nodes used within the STi
+  Binding for the various sysconfig analdes used within the STi
   platform device-tree to point to some common configuration
-  registers used by other nodes.
+  registers used by other analdes.
 
 properties:
   compatible:

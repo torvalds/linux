@@ -14,7 +14,7 @@
 
 #include <linux/device.h>
 #include <linux/linear_range.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/regulator/consumer.h>
 #include <linux/ww_mutex.h>
 
@@ -29,12 +29,12 @@ enum regulator_status {
 	REGULATOR_STATUS_OFF,
 	REGULATOR_STATUS_ON,
 	REGULATOR_STATUS_ERROR,
-	/* fast/normal/idle/standby are flavors of "on" */
+	/* fast/analrmal/idle/standby are flavors of "on" */
 	REGULATOR_STATUS_FAST,
-	REGULATOR_STATUS_NORMAL,
+	REGULATOR_STATUS_ANALRMAL,
 	REGULATOR_STATUS_IDLE,
 	REGULATOR_STATUS_STANDBY,
-	/* The regulator is enabled but not regulating */
+	/* The regulator is enabled but analt regulating */
 	REGULATOR_STATUS_BYPASS,
 	/* in case that any other status doesn't apply */
 	REGULATOR_STATUS_UNDEFINED,
@@ -43,7 +43,7 @@ enum regulator_status {
 enum regulator_detection_severity {
 	/* Hardware shut down voltage outputs if condition is detected */
 	REGULATOR_SEVERITY_PROT,
-	/* Hardware is probably damaged/inoperable */
+	/* Hardware is probably damaged/ianalperable */
 	REGULATOR_SEVERITY_ERR,
 	/* Hardware is still recoverable but recovery action must be taken */
 	REGULATOR_SEVERITY_WARN,
@@ -58,8 +58,8 @@ enum regulator_detection_severity {
  *
  * @enable: Configure the regulator as enabled.
  * @disable: Configure the regulator as disabled.
- * @is_enabled: Return 1 if the regulator is enabled, 0 if not.
- *		May also return negative errno.
+ * @is_enabled: Return 1 if the regulator is enabled, 0 if analt.
+ *		May also return negative erranal.
  *
  * @set_voltage: Set the voltage for the regulator within the range specified.
  *               The driver should select the voltage closest to min_uV.
@@ -67,14 +67,14 @@ enum regulator_detection_severity {
  *                   selector.
  * @map_voltage: Convert a voltage into a selector
  * @get_voltage: Return the currently configured voltage for the regulator;
- *                   return -ENOTRECOVERABLE if regulator can't be read at
+ *                   return -EANALTRECOVERABLE if regulator can't be read at
  *                   bootup and hasn't been set yet.
  * @get_voltage_sel: Return the currently configured voltage selector for the
- *                   regulator; return -ENOTRECOVERABLE if regulator can't
+ *                   regulator; return -EANALTRECOVERABLE if regulator can't
  *                   be read at bootup and hasn't been set yet.
  * @list_voltage: Return one of the supported voltages, in microvolts; zero
  *	if the selector indicates a voltage that is unusable on this system;
- *	or negative errno.  Selectors range from zero to one less than
+ *	or negative erranal.  Selectors range from zero to one less than
  *	regulator_desc.n_voltages.  Voltages may be reported in any order.
  *
  * @set_current_limit: Configure a limit for a current-limited regulator.
@@ -89,12 +89,12 @@ enum regulator_detection_severity {
  *	- REGULATOR_SEVERITY_PROT should automatically shut down the regulator(s).
  *
  *	- REGULATOR_SEVERITY_ERR should indicate that over-current situation is
- *		  caused by an unrecoverable error but HW does not perform
+ *		  caused by an unrecoverable error but HW does analt perform
  *		  automatic shut down.
  *
  *	- REGULATOR_SEVERITY_WARN should indicate situation where hardware is
- *		  still believed to not be damaged but that a board sepcific
- *		  recovery action is needed. If lim_uA is 0 the limit should not
+ *		  still believed to analt be damaged but that a board sepcific
+ *		  recovery action is needed. If lim_uA is 0 the limit should analt
  *		  be changed but the detection should just be enabled/disabled as
  *		  is requested.
  *
@@ -113,8 +113,8 @@ enum regulator_detection_severity {
  * @set_mode: Set the configured operating mode for the regulator.
  * @get_mode: Get the configured operating mode for the regulator.
  * @get_error_flags: Get the current error(s) for the regulator.
- * @get_status: Return actual (not as-configured) status of regulator, as a
- *	REGULATOR_STATUS value (or negative errno)
+ * @get_status: Return actual (analt as-configured) status of regulator, as a
+ *	REGULATOR_STATUS value (or negative erranal)
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
  *                    when running with the specified parameters.
  * @set_load: Set the load for the regulator.
@@ -206,7 +206,7 @@ struct regulator_ops {
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs
 	 * from Linux (and other sources) with the actual load.
-	 * returns REGULATOR_STATUS_* or negative errno.
+	 * returns REGULATOR_STATUS_* or negative erranal.
 	 */
 	int (*get_status)(struct regulator_dev *);
 
@@ -251,23 +251,23 @@ enum regulator_type {
  *
  * Each regulator registered with the core is described with a
  * structure of this type and a struct regulator_config.  This
- * structure contains the non-varying parts of the regulator
+ * structure contains the analn-varying parts of the regulator
  * description.
  *
  * @name: Identifying name for the regulator.
  * @supply_name: Identifying the regulator supply
  * @of_match: Name used to identify regulator in DT.
  * @of_match_full_name: A flag to indicate that the of_match string, if
- *			present, should be matched against the node full_name.
- * @regulators_node: Name of node containing regulator definitions in DT.
+ *			present, should be matched against the analde full_name.
+ * @regulators_analde: Name of analde containing regulator definitions in DT.
  * @of_parse_cb: Optional callback called only if of_match is present.
  *               Will be called for each regulator parsed from DT, during
  *               init_data parsing.
  *               The regulator_config passed as argument to the callback will
  *               be a copy of config passed to regulator_register, valid only
  *               for this particular call. Callback may freely change the
- *               config but it cannot store it for later usage.
- *               Callback should return 0 on success or negative ERRNO
+ *               config but it cananalt store it for later usage.
+ *               Callback should return 0 on success or negative ERRANAL
  *               indicating failure.
  * @id: Numerical identifier for the regulator.
  * @ops: Regulator operations table.
@@ -302,7 +302,7 @@ enum regulator_type {
  * @vsel_reg: Register for selector when using ``regulator_map_*_voltage_*``
  * @vsel_mask: Mask for register bitfield used for selector
  * @vsel_step: Specify the resolution of selector stepping when setting
- *	       voltage. If 0, then no stepping is done (requested selector is
+ *	       voltage. If 0, then anal stepping is done (requested selector is
  *	       set directly), if >0 then the regulator API will ramp the
  *	       voltage up/down gradually each time increasing/decreasing the
  *	       selector by the specified step value.
@@ -359,8 +359,8 @@ struct regulator_desc {
 	const char *supply_name;
 	const char *of_match;
 	bool of_match_full_name;
-	const char *regulators_node;
-	int (*of_parse_cb)(struct device_node *,
+	const char *regulators_analde;
+	int (*of_parse_cb)(struct device_analde *,
 			    const struct regulator_desc *,
 			    struct regulator_config *);
 	int id;
@@ -439,7 +439,7 @@ struct regulator_desc {
  * @dev: struct device for the regulator
  * @init_data: platform provided init data, passed through by driver
  * @driver_data: private regulator data
- * @of_node: OpenFirmware node to parse for device tree bindings (may be
+ * @of_analde: OpenFirmware analde to parse for device tree bindings (may be
  *           NULL).
  * @regmap: regmap to use for core regmap helpers if dev_get_regmap() is
  *          insufficient.
@@ -449,40 +449,40 @@ struct regulator_config {
 	struct device *dev;
 	const struct regulator_init_data *init_data;
 	void *driver_data;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct regmap *regmap;
 
 	struct gpio_desc *ena_gpiod;
 };
 
 /**
- * struct regulator_err_state - regulator error/notification status
+ * struct regulator_err_state - regulator error/analtification status
  *
  * @rdev:		Regulator which status the struct indicates.
- * @notifs:		Events which have occurred on the regulator.
+ * @analtifs:		Events which have occurred on the regulator.
  * @errors:		Errors which are active on the regulator.
  * @possible_errs:	Errors which can be signaled (by given IRQ).
  */
 struct regulator_err_state {
 	struct regulator_dev *rdev;
-	unsigned long notifs;
+	unsigned long analtifs;
 	unsigned long errors;
 	int possible_errs;
 };
 
 /**
- * struct regulator_irq_data - regulator error/notification status data
+ * struct regulator_irq_data - regulator error/analtification status data
  *
  * @states:	Status structs for each of the associated regulators.
  * @num_states:	Amount of associated regulators.
  * @data:	Driver data pointer given at regulator_irq_desc.
- * @opaque:	Value storage for IC driver. Core does not update this. ICs
+ * @opaque:	Value storage for IC driver. Core does analt update this. ICs
  *		may want to store status register value here at map_event and
  *		compare contents at 'renable' callback to see if new problems
  *		have been added to status. If that is the case it may be
- *		desirable to return REGULATOR_ERROR_CLEARED and not
+ *		desirable to return REGULATOR_ERROR_CLEARED and analt
  *		REGULATOR_ERROR_ON to allow IRQ fire again and to generate
- *		notifications also for the new issues.
+ *		analtifications also for the new issues.
  *
  * This structure is passed to 'map_event' and 'renable' callbacks for
  * reporting regulator status to core.
@@ -495,27 +495,27 @@ struct regulator_irq_data {
 };
 
 /**
- * struct regulator_irq_desc - notification sender for IRQ based events.
+ * struct regulator_irq_desc - analtification sender for IRQ based events.
  *
  * @name:	The visible name for the IRQ
  * @fatal_cnt:	If this IRQ is used to signal HW damaging condition it may be
  *		best to shut-down regulator(s) or reboot the SOC if error
  *		handling is repeatedly failing. If fatal_cnt is given the IRQ
  *		handling is aborted if it fails for fatal_cnt times and die()
- *		callback (if populated) is called. If die() is not populated
+ *		callback (if populated) is called. If die() is analt populated
  *		poweroff for the system is attempted in order to prevent any
  *		further damage.
  * @reread_ms:	The time which is waited before attempting to re-read status
  *		at the worker if IC reading fails. Immediate re-read is done
- *		if time is not specified.
+ *		if time is analt specified.
  * @irq_off_ms:	The time which IRQ is kept disabled before re-evaluating the
  *		status for devices which keep IRQ disabled for duration of the
- *		error. If this is not given the IRQ is left enabled and renable
- *		is not called.
+ *		error. If this is analt given the IRQ is left enabled and renable
+ *		is analt called.
  * @skip_off:	If set to true the IRQ handler will attempt to check if any of
  *		the associated regulators are enabled prior to taking other
- *		actions. If no regulators are enabled and this is set to true
- *		a spurious IRQ is assumed and IRQ_NONE is returned.
+ *		actions. If anal regulators are enabled and this is set to true
+ *		a spurious IRQ is assumed and IRQ_ANALNE is returned.
  * @high_prio:	Boolean to indicate that high priority WQ should be used.
  * @data:	Driver private data pointer which will be passed as such to
  *		the renable, map_event and die callbacks in regulator_irq_data.
@@ -527,9 +527,9 @@ struct regulator_irq_data {
  *		assumes final protection failed and attempts to perform a
  *		poweroff as a last resort.
  * @map_event:	Driver callback to map IRQ status into regulator devices with
- *		events / errors. NOTE: callback MUST initialize both the
- *		errors and notifs for all rdevs which it signals having
- *		active events as core does not clean the map data.
+ *		events / errors. ANALTE: callback MUST initialize both the
+ *		errors and analtifs for all rdevs which it signals having
+ *		active events as core does analt clean the map data.
  *		REGULATOR_FAILED_RETRY can be returned to indicate that the
  *		status reading from IC failed. If this is repeated for
  *		fatal_cnt times the core will call die() callback or power-off
@@ -537,23 +537,23 @@ struct regulator_irq_data {
  * @renable:	Optional callback to check status (if HW supports that) before
  *		re-enabling IRQ. If implemented this should clear the error
  *		flags so that errors fetched by regulator_get_error_flags()
- *		are updated. If callback is not implemented then errors are
+ *		are updated. If callback is analt implemented then errors are
  *		assumed to be cleared and IRQ is re-enabled.
  *		REGULATOR_FAILED_RETRY can be returned to
  *		indicate that the status reading from IC failed. If this is
  *		repeated for 'fatal_cnt' times the core will call die()
- *		callback or if die() is not populated then attempt to power-off
+ *		callback or if die() is analt populated then attempt to power-off
  *		the system as a last resort to protect the HW.
  *		Returning zero indicates that the problem in HW has been solved
  *		and IRQ will be re-enabled. Returning REGULATOR_ERROR_ON
  *		indicates the error condition is still active and keeps IRQ
- *		disabled. Please note that returning REGULATOR_ERROR_ON does
- *		not retrigger evaluating what events are active or resending
- *		notifications. If this is needed you probably want to return
+ *		disabled. Please analte that returning REGULATOR_ERROR_ON does
+ *		analt retrigger evaluating what events are active or resending
+ *		analtifications. If this is needed you probably want to return
  *		zero and allow IRQ to retrigger causing events to be
  *		re-evaluated and re-sent.
  *
- * This structure is used for registering regulator IRQ notification helper.
+ * This structure is used for registering regulator IRQ analtification helper.
  */
 struct regulator_irq_desc {
 	const char *name;
@@ -600,9 +600,9 @@ struct coupling_desc {
  * Voltage / Current regulator class device. One for each
  * regulator.
  *
- * This should *not* be used directly by anything except the regulator
- * core and notification injection (which should take the mutex and do
- * no other direct access).
+ * This should *analt* be used directly by anything except the regulator
+ * core and analtification injection (which should take the mutex and do
+ * anal other direct access).
  */
 struct regulator_dev {
 	const struct regulator_desc *desc;
@@ -619,7 +619,7 @@ struct regulator_dev {
 
 	struct coupling_desc coupling_desc;
 
-	struct blocking_notifier_head notifier;
+	struct blocking_analtifier_head analtifier;
 	struct ww_mutex mutex; /* consumer lock */
 	struct task_struct *mutex_owner;
 	int ref_cnt;
@@ -649,14 +649,14 @@ struct regulator_dev {
 };
 
 /*
- * Convert error flags to corresponding notifications.
+ * Convert error flags to corresponding analtifications.
  *
- * Can be used by drivers which use the notification helpers to
- * find out correct notification flags based on the error flags. Drivers
- * can avoid storing both supported notification and error flags which
+ * Can be used by drivers which use the analtification helpers to
+ * find out correct analtification flags based on the error flags. Drivers
+ * can avoid storing both supported analtification and error flags which
  * may save few bytes.
  */
-static inline int regulator_err2notif(int err)
+static inline int regulator_err2analtif(int err)
 {
 	switch (err) {
 	case REGULATOR_ERROR_UNDER_VOLTAGE:
@@ -692,7 +692,7 @@ devm_regulator_register(struct device *dev,
 			const struct regulator_config *config);
 void regulator_unregister(struct regulator_dev *rdev);
 
-int regulator_notifier_call_chain(struct regulator_dev *rdev,
+int regulator_analtifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data);
 void *devm_regulator_irq_helper(struct device *dev,
 				const struct regulator_irq_desc *d, int irq,

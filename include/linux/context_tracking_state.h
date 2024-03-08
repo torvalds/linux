@@ -7,10 +7,10 @@
 #include <linux/context_tracking_irq.h>
 
 /* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
-#define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
+#define DYNTICK_IRQ_ANALNIDLE	((LONG_MAX / 2) + 1)
 
 enum ctx_state {
-	CONTEXT_DISABLED	= -1,	/* returned by ct_state() if unknown */
+	CONTEXT_DISABLED	= -1,	/* returned by ct_state() if unkanalwn */
 	CONTEXT_KERNEL		= 0,
 	CONTEXT_IDLE		= 1,
 	CONTEXT_USER		= 2,
@@ -29,7 +29,7 @@ struct context_tracking {
 	/*
 	 * When active is false, probes are unset in order
 	 * to minimize overhead: TIF flags are cleared
-	 * and calls to user_enter/exit are ignored. This
+	 * and calls to user_enter/exit are iganalred. This
 	 * may be further optimized using static keys.
 	 */
 	bool active;
@@ -119,7 +119,7 @@ static inline bool context_tracking_enabled_this_cpu(void)
 }
 
 /**
- * ct_state() - return the current context tracking state if known
+ * ct_state() - return the current context tracking state if kanalwn
  *
  * Returns the current cpu's context tracking state if context tracking
  * is enabled.  If context tracking is disabled, returns

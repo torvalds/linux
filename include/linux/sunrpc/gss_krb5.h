@@ -10,7 +10,7 @@
  */
 
 /*
- * Copyright 1995 by the Massachusetts Institute of Technology.
+ * Copyright 1995 by the Massachusetts Institute of Techanallogy.
  * All Rights Reserved.
  *
  * Export of this software from the United States of America may
@@ -21,14 +21,14 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of M.I.T. not be used in advertising or publicity pertaining
+ * analtice appear in all copies and that both that copyright analtice and
+ * this permission analtice appear in supporting documentation, and that
+ * the name of M.I.T. analt be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
  * permission.  Furthermore if you modify this software you must label
- * your software as modified software and not distribute it in such a
+ * your software as modified software and analt distribute it in such a
  * fashion that it might be confused with the original M.I.T. software.
- * M.I.T. makes no representations about the suitability of
+ * M.I.T. makes anal representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -76,13 +76,13 @@ enum sgn_alg {
 	SGN_ALG_DES_MAC_MD5 = 0x0000,
 	SGN_ALG_MD2_5 = 0x0001,
 	SGN_ALG_DES_MAC = 0x0002,
-	SGN_ALG_3 = 0x0003,		/* not published */
+	SGN_ALG_3 = 0x0003,		/* analt published */
 	SGN_ALG_HMAC_SHA1_DES3_KD = 0x0004
 };
 enum seal_alg {
-	SEAL_ALG_NONE = 0xffff,
+	SEAL_ALG_ANALNE = 0xffff,
 	SEAL_ALG_DES = 0x0000,
-	SEAL_ALG_1 = 0x0001,		/* not published */
+	SEAL_ALG_1 = 0x0001,		/* analt published */
 	SEAL_ALG_DES3KD = 0x0002
 };
 
@@ -109,10 +109,10 @@ enum seal_alg {
 #define CKSUMTYPE_HMAC_MD5_ARCFOUR      -138 /* Microsoft md5 hmac cksumtype */
 
 /* from gssapi_err_krb5.h */
-#define KG_CCACHE_NOMATCH                        (39756032L)
-#define KG_KEYTAB_NOMATCH                        (39756033L)
+#define KG_CCACHE_ANALMATCH                        (39756032L)
+#define KG_KEYTAB_ANALMATCH                        (39756033L)
 #define KG_TGT_MISSING                           (39756034L)
-#define KG_NO_SUBKEY                             (39756035L)
+#define KG_ANAL_SUBKEY                             (39756035L)
 #define KG_CONTEXT_ESTABLISHED                   (39756036L)
 #define KG_BAD_SIGN_TYPE                         (39756037L)
 #define KG_BAD_LENGTH                            (39756038L)
@@ -122,7 +122,7 @@ enum seal_alg {
 #define KG_ENC_DESC                              (39756042L)
 #define KG_BAD_SEQ                               (39756043L)
 #define KG_EMPTY_CCACHE                          (39756044L)
-#define KG_NO_CTYPES                             (39756045L)
+#define KG_ANAL_CTYPES                             (39756045L)
 
 /* per Kerberos v5 protocol spec crypto types from the wire. 
  * these get mapped to linux kernel crypto routines.  
@@ -150,7 +150,7 @@ enum seal_alg {
 #define ENCTYPE_ARCFOUR_HMAC_EXP        0x0018
 #define ENCTYPE_CAMELLIA128_CTS_CMAC	0x0019
 #define ENCTYPE_CAMELLIA256_CTS_CMAC	0x001A
-#define ENCTYPE_UNKNOWN         0x01ff
+#define ENCTYPE_UNKANALWN         0x01ff
 
 /*
  * Constants used for key derivation

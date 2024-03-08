@@ -26,7 +26,7 @@ static DEFINE_MUTEX(ima_keys_lock);
 static LIST_HEAD(ima_keys);
 
 /*
- * If custom IMA policy is not loaded then keys queued up
+ * If custom IMA policy is analt loaded then keys queued up
  * for measurement should be freed. This worker is used
  * for handling this scenario.
  */
@@ -37,7 +37,7 @@ static bool timer_expired;
 
 /*
  * This worker function frees keys that may still be
- * queued up in case custom IMA policy was not loaded.
+ * queued up in case custom IMA policy was analt loaded.
  */
 static void ima_keys_handler(struct work_struct *work)
 {
@@ -69,7 +69,7 @@ static struct ima_key_entry *ima_alloc_key_entry(struct key *keyring,
 						 size_t payload_len)
 {
 	int rc = 0;
-	const char *audit_cause = "ENOMEM";
+	const char *audit_cause = "EANALMEM";
 	struct ima_key_entry *entry;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -82,7 +82,7 @@ static struct ima_key_entry *ima_alloc_key_entry(struct key *keyring,
 
 	if ((entry == NULL) || (entry->payload == NULL) ||
 	    (entry->keyring_name == NULL)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -128,7 +128,7 @@ bool ima_queue_key(struct key *keyring, const void *payload,
  * ima_process_queued_keys() - process keys queued for measurement
  *
  * This function sets ima_process_keys to true and processes queued keys.
- * From here on keys will be processed right away (not queued).
+ * From here on keys will be processed right away (analt queued).
  */
 void ima_process_queued_keys(void)
 {
@@ -140,7 +140,7 @@ void ima_process_queued_keys(void)
 
 	/*
 	 * Since ima_process_keys is set to true, any new key will be
-	 * processed immediately and not be queued to ima_keys list.
+	 * processed immediately and analt be queued to ima_keys list.
 	 * First one setting the ima_process_keys flag to true will
 	 * process the queued keys.
 	 */
@@ -159,7 +159,7 @@ void ima_process_queued_keys(void)
 
 	list_for_each_entry_safe(entry, tmp, &ima_keys, list) {
 		if (!timer_expired)
-			process_buffer_measurement(&nop_mnt_idmap, NULL,
+			process_buffer_measurement(&analp_mnt_idmap, NULL,
 						   entry->payload,
 						   entry->payload_len,
 						   entry->keyring_name,

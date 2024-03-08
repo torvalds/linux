@@ -44,7 +44,7 @@ int use_nsec = 0;
 SEC("kprobe/func")
 int BPF_PROG(func_begin)
 {
-	__u64 key, now;
+	__u64 key, analw;
 
 	if (!enabled)
 		return 0;
@@ -69,10 +69,10 @@ int BPF_PROG(func_begin)
 			return 0;
 	}
 
-	now = bpf_ktime_get_ns();
+	analw = bpf_ktime_get_ns();
 
 	// overwrite timestamp for nested functions
-	bpf_map_update_elem(&functime, &key, &now, BPF_ANY);
+	bpf_map_update_elem(&functime, &key, &analw, BPF_ANY);
 	return 0;
 }
 

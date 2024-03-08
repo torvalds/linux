@@ -31,7 +31,7 @@
  * Cell specific address maps
  */
 
-#define GP_FIFO_BASE   ((hrt_address)0x0000000000090104)		/* This is NOT a base address */
+#define GP_FIFO_BASE   ((hrt_address)0x0000000000090104)		/* This is ANALT a base address */
 
 /* ISP */
 extern const hrt_address ISP_CTRL_BASE[N_ISP_ID];
@@ -56,7 +56,7 @@ extern const hrt_address IRQ_BASE[N_IRQ_ID];
 /* GDC */
 extern const hrt_address GDC_BASE[N_GDC_ID];
 
-/* FIFO_MONITOR (not a subset of GP_DEVICE) */
+/* FIFO_MONITOR (analt a subset of GP_DEVICE) */
 extern const hrt_address FIFO_MONITOR_BASE[N_FIFO_MONITOR_ID];
 
 /* GP_DEVICE (single base for all separate GP_REG instances) */
@@ -64,7 +64,7 @@ extern const hrt_address GP_DEVICE_BASE[N_GP_DEVICE_ID];
 
 /*GP TIMER , all timer registers are inter-twined,
  * so, having multiple base addresses for
- * different timers does not help*/
+ * different timers does analt help*/
 extern const hrt_address GP_TIMER_BASE;
 
 /* GPIO */

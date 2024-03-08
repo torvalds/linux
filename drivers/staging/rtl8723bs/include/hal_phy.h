@@ -42,7 +42,7 @@ enum rf_path {
 #define	RF_PATH_MAX_90_8812		4	/* Max RF number 90 support */
 
 enum wireless_mode {
-	WIRELESS_MODE_UNKNOWN = 0x00,
+	WIRELESS_MODE_UNKANALWN = 0x00,
 	WIRELESS_MODE_B = 0x02,
 	WIRELESS_MODE_G = 0x04,
 	WIRELESS_MODE_AUTO = 0x08,

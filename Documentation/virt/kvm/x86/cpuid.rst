@@ -7,7 +7,7 @@ KVM CPUID bits
 :Author: Glauber Costa <glommer@gmail.com>
 
 A guest running on a kvm host, can check some of its features using
-cpuid. This is not always guaranteed to work, since userspace can
+cpuid. This is analt always guaranteed to work, since userspace can
 mask-out some, or even all KVM-related cpuid features before launching
 a guest.
 
@@ -22,10 +22,10 @@ returns::
    ecx = 0x564b4d56
    edx = 0x4d
 
-Note that this value in ebx, ecx and edx corresponds to the string "KVMKVMKVM".
+Analte that this value in ebx, ecx and edx corresponds to the string "KVMKVMKVM".
 The value in eax corresponds to the maximum cpuid function present in this leaf,
 and will be updated if more functions are added in the future.
-Note also that old hosts set eax value to 0x0. This should
+Analte also that old hosts set eax value to 0x0. This should
 be interpreted as if the value was 0x40000001.
 This function queries the presence of KVM cpuid leafs.
 
@@ -44,7 +44,7 @@ flag                               value       meaning
 KVM_FEATURE_CLOCKSOURCE            0           kvmclock available at msrs
                                                0x11 and 0x12
 
-KVM_FEATURE_NOP_IO_DELAY           1           not necessary to perform delays
+KVM_FEATURE_ANALP_IO_DELAY           1           analt necessary to perform delays
                                                on PIO operations
 
 KVM_FEATURE_MMU_OP                 2           deprecated
@@ -89,7 +89,7 @@ KVM_FEATURE_PV_SCHED_YIELD         13          guest checks this feature bit
 KVM_FEATURE_ASYNC_PF_INT           14          guest checks this feature bit
                                                before using the second async
                                                pf control msr 0x4b564d06 and
-                                               async pf acknowledgment msr
+                                               async pf ackanalwledgment msr
                                                0x4b564d07.
 
 KVM_FEATURE_MSI_EXT_DEST_ID        15          guest checks this feature bit
@@ -98,12 +98,12 @@ KVM_FEATURE_MSI_EXT_DEST_ID        15          guest checks this feature bit
 
 KVM_FEATURE_HC_MAP_GPA_RANGE       16          guest checks this feature bit before
                                                using the map gpa range hypercall
-                                               to notify the page state change
+                                               to analtify the page state change
 
 KVM_FEATURE_MIGRATION_CONTROL      17          guest checks this feature bit before
                                                using MSR_KVM_MIGRATION_CONTROL
 
-KVM_FEATURE_CLOCKSOURCE_STABLE_BIT 24          host will warn if no guest-side
+KVM_FEATURE_CLOCKSOURCE_STABLE_BIT 24          host will warn if anal guest-side
                                                per-cpu warps are expected in
                                                kvmclock
 ================================== =========== ================================

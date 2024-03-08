@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Generic GPIO driver for logic cells found in the Nomadik SoC
+ * Generic GPIO driver for logic cells found in the Analmadik SoC
  *
  * Copyright (C) 2008,2009 STMicroelectronics
  * Copyright (C) 2009 Alessandro Rubini <rubini@unipv.it>
@@ -36,14 +36,14 @@
 #include "../core.h"
 #include "../pinctrl-utils.h"
 
-#include "pinctrl-nomadik.h"
+#include "pinctrl-analmadik.h"
 
 /*
- * The GPIO module in the Nomadik family of Systems-on-Chip is an
+ * The GPIO module in the Analmadik family of Systems-on-Chip is an
  * AMBA device, managing 32 pins and alternate functions.  The logic block
- * is currently used in the Nomadik and ux500.
+ * is currently used in the Analmadik and ux500.
  *
- * Symbols in this file are called "nmk_gpio" for "nomadik gpio"
+ * Symbols in this file are called "nmk_gpio" for "analmadik gpio"
  */
 
 /*
@@ -69,9 +69,9 @@
  *		     sleep mode = input/wakeup
  *		     direction = input
  *		     value = low
- *		     SLPM direction = same as normal
- *		     SLPM pull = same as normal
- *		     SLPM value = same as normal
+ *		     SLPM direction = same as analrmal
+ *		     SLPM pull = same as analrmal
+ *		     SLPM value = same as analrmal
  *
  * PIN_CFG	   - default config with alternate function
  */
@@ -92,7 +92,7 @@ typedef unsigned long pin_cfg_t;
 #define PIN_PULL_SHIFT		11
 #define PIN_PULL_MASK		(0x3 << PIN_PULL_SHIFT)
 #define PIN_PULL(x)		(((x) & PIN_PULL_MASK) >> PIN_PULL_SHIFT)
-#define PIN_PULL_NONE		(NMK_GPIO_PULL_NONE << PIN_PULL_SHIFT)
+#define PIN_PULL_ANALNE		(NMK_GPIO_PULL_ANALNE << PIN_PULL_SHIFT)
 #define PIN_PULL_UP		(NMK_GPIO_PULL_UP << PIN_PULL_SHIFT)
 #define PIN_PULL_DOWN		(NMK_GPIO_PULL_DOWN << PIN_PULL_SHIFT)
 
@@ -100,7 +100,7 @@ typedef unsigned long pin_cfg_t;
 #define PIN_SLPM_MASK		(0x1 << PIN_SLPM_SHIFT)
 #define PIN_SLPM(x)		(((x) & PIN_SLPM_MASK) >> PIN_SLPM_SHIFT)
 #define PIN_SLPM_MAKE_INPUT	(NMK_GPIO_SLPM_INPUT << PIN_SLPM_SHIFT)
-#define PIN_SLPM_NOCHANGE	(NMK_GPIO_SLPM_NOCHANGE << PIN_SLPM_SHIFT)
+#define PIN_SLPM_ANALCHANGE	(NMK_GPIO_SLPM_ANALCHANGE << PIN_SLPM_SHIFT)
 /* These two replace the above in DB8500v2+ */
 #define PIN_SLPM_WAKEUP_ENABLE	(NMK_GPIO_SLPM_WAKEUP_ENABLE << PIN_SLPM_SHIFT)
 #define PIN_SLPM_WAKEUP_DISABLE	(NMK_GPIO_SLPM_WAKEUP_DISABLE << PIN_SLPM_SHIFT)
@@ -125,8 +125,8 @@ typedef unsigned long pin_cfg_t;
 #define PIN_SLPM_PULL_MASK	(0x7 << PIN_SLPM_PULL_SHIFT)
 #define PIN_SLPM_PULL(x)	\
 	(((x) & PIN_SLPM_PULL_MASK) >> PIN_SLPM_PULL_SHIFT)
-#define PIN_SLPM_PULL_NONE	\
-	((1 + NMK_GPIO_PULL_NONE) << PIN_SLPM_PULL_SHIFT)
+#define PIN_SLPM_PULL_ANALNE	\
+	((1 + NMK_GPIO_PULL_ANALNE) << PIN_SLPM_PULL_SHIFT)
 #define PIN_SLPM_PULL_UP	\
 	((1 + NMK_GPIO_PULL_UP) << PIN_SLPM_PULL_SHIFT)
 #define PIN_SLPM_PULL_DOWN	\
@@ -150,7 +150,7 @@ typedef unsigned long pin_cfg_t;
 #define PIN_SLPM_PDIS_MASK		(0x3 << PIN_SLPM_PDIS_SHIFT)
 #define PIN_SLPM_PDIS(x)	\
 	(((x) & PIN_SLPM_PDIS_MASK) >> PIN_SLPM_PDIS_SHIFT)
-#define PIN_SLPM_PDIS_NO_CHANGE		(0 << PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS_ANAL_CHANGE		(0 << PIN_SLPM_PDIS_SHIFT)
 #define PIN_SLPM_PDIS_DISABLED		(1 << PIN_SLPM_PDIS_SHIFT)
 #define PIN_SLPM_PDIS_ENABLED		(2 << PIN_SLPM_PDIS_SHIFT)
 
@@ -176,13 +176,13 @@ typedef unsigned long pin_cfg_t;
 /* Shortcuts.  Use these instead of separate DIR, PULL, and VAL.  */
 #define PIN_INPUT_PULLDOWN	(PIN_DIR_INPUT | PIN_PULL_DOWN)
 #define PIN_INPUT_PULLUP	(PIN_DIR_INPUT | PIN_PULL_UP)
-#define PIN_INPUT_NOPULL	(PIN_DIR_INPUT | PIN_PULL_NONE)
+#define PIN_INPUT_ANALPULL	(PIN_DIR_INPUT | PIN_PULL_ANALNE)
 #define PIN_OUTPUT_LOW		(PIN_DIR_OUTPUT | PIN_VAL_LOW)
 #define PIN_OUTPUT_HIGH		(PIN_DIR_OUTPUT | PIN_VAL_HIGH)
 
 #define PIN_SLPM_INPUT_PULLDOWN	(PIN_SLPM_DIR_INPUT | PIN_SLPM_PULL_DOWN)
 #define PIN_SLPM_INPUT_PULLUP	(PIN_SLPM_DIR_INPUT | PIN_SLPM_PULL_UP)
-#define PIN_SLPM_INPUT_NOPULL	(PIN_SLPM_DIR_INPUT | PIN_SLPM_PULL_NONE)
+#define PIN_SLPM_INPUT_ANALPULL	(PIN_SLPM_DIR_INPUT | PIN_SLPM_PULL_ANALNE)
 #define PIN_SLPM_OUTPUT_LOW	(PIN_SLPM_DIR_OUTPUT | PIN_SLPM_VAL_LOW)
 #define PIN_SLPM_OUTPUT_HIGH	(PIN_SLPM_DIR_OUTPUT | PIN_SLPM_VAL_HIGH)
 
@@ -201,7 +201,7 @@ typedef unsigned long pin_cfg_t;
 	 (PIN_NUM(num) | PIN_##alt | PIN_OUTPUT_##val))
 
 /*
- * "nmk_gpio" and "NMK_GPIO" stand for "Nomadik GPIO", leaving
+ * "nmk_gpio" and "NMK_GPIO" stand for "Analmadik GPIO", leaving
  * the "gpio" namespace for generic and cross-machine functions
  */
 
@@ -236,7 +236,7 @@ typedef unsigned long pin_cfg_t;
 
 /* Pull up/down values */
 enum nmk_gpio_pull {
-	NMK_GPIO_PULL_NONE,
+	NMK_GPIO_PULL_ANALNE,
 	NMK_GPIO_PULL_UP,
 	NMK_GPIO_PULL_DOWN,
 };
@@ -245,8 +245,8 @@ enum nmk_gpio_pull {
 enum nmk_gpio_slpm {
 	NMK_GPIO_SLPM_INPUT,
 	NMK_GPIO_SLPM_WAKEUP_ENABLE = NMK_GPIO_SLPM_INPUT,
-	NMK_GPIO_SLPM_NOCHANGE,
-	NMK_GPIO_SLPM_WAKEUP_DISABLE = NMK_GPIO_SLPM_NOCHANGE,
+	NMK_GPIO_SLPM_ANALCHANGE,
+	NMK_GPIO_SLPM_WAKEUP_DISABLE = NMK_GPIO_SLPM_ANALCHANGE,
 };
 
 struct nmk_gpio_chip {
@@ -270,7 +270,7 @@ struct nmk_gpio_chip {
 };
 
 /**
- * struct nmk_pinctrl - state container for the Nomadik pin controller
+ * struct nmk_pinctrl - state container for the Analmadik pin controller
  * @dev: containing device pointer
  * @pctl: corresponding pin controller device
  * @soc: SoC data for this specific chip
@@ -310,7 +310,7 @@ static void __nmk_gpio_set_slpm(struct nmk_gpio_chip *nmk_chip,
 	u32 slpm;
 
 	slpm = readl(nmk_chip->addr + NMK_GPIO_SLPC);
-	if (mode == NMK_GPIO_SLPM_NOCHANGE)
+	if (mode == NMK_GPIO_SLPM_ANALCHANGE)
 		slpm |= BIT(offset);
 	else
 		slpm &= ~BIT(offset);
@@ -323,7 +323,7 @@ static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
 	u32 pdis;
 
 	pdis = readl(nmk_chip->addr + NMK_GPIO_PDIS);
-	if (pull == NMK_GPIO_PULL_NONE) {
+	if (pull == NMK_GPIO_PULL_ANALNE) {
 		pdis |= BIT(offset);
 		nmk_chip->pull_up &= ~BIT(offset);
 	} else {
@@ -470,7 +470,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 			break;
 	}
 	if (i == npct->soc->npins_altcx) {
-		dev_dbg(npct->dev, "PRCM GPIOCR: pin %i is not found\n",
+		dev_dbg(npct->dev, "PRCM GPIOCR: pin %i is analt found\n",
 			offset);
 		return;
 	}
@@ -501,7 +501,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	alt_index = alt_num - 1;
 	if (pin_desc->altcx[alt_index].used == false) {
 		dev_warn(npct->dev,
-			"PRCM GPIOCR: pin %i: alternate-C%i does not exist\n",
+			"PRCM GPIOCR: pin %i: alternate-C%i does analt exist\n",
 			offset, alt_num);
 		return;
 	}
@@ -541,7 +541,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
  *  - Modify the AFLSA/B registers for the IOs that are being switched
  *  - Set IOFORCE=0
  *  - Restore SLPM registers
- *  - Any spurious wake up event during switch sequence to be ignored and
+ *  - Any spurious wake up event during switch sequence to be iganalred and
  *    cleared
  */
 static void nmk_gpio_glitch_slpm_init(unsigned int *slpm)
@@ -623,7 +623,7 @@ static void nmk_gpio_irq_ack(struct irq_data *d)
 }
 
 enum nmk_gpio_irq_type {
-	NORMAL,
+	ANALRMAL,
 	WAKE,
 };
 
@@ -636,7 +636,7 @@ static void __nmk_gpio_irq_modify(struct nmk_gpio_chip *nmk_chip,
 	u32 rimscreg;
 	u32 fimscreg;
 
-	if (which == NORMAL) {
+	if (which == ANALRMAL) {
 		rimscreg = NMK_GPIO_RIMSC;
 		fimscreg = NMK_GPIO_FIMSC;
 		rimscval = &nmk_chip->rimsc;
@@ -669,7 +669,7 @@ static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 				int offset, bool on)
 {
 	/*
-	 * Ensure WAKEUP_ENABLE is on.  No need to disable it if wakeup is
+	 * Ensure WAKEUP_ENABLE is on.  Anal need to disable it if wakeup is
 	 * disabled, since setting SLPM to 1 increases power consumption, and
 	 * wakeup is anyhow controlled by the RIMSC and FIMSC registers.
 	 */
@@ -690,7 +690,7 @@ static void nmk_gpio_irq_maskunmask(struct nmk_gpio_chip *nmk_chip,
 	spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
 	spin_lock(&nmk_chip->lock);
 
-	__nmk_gpio_irq_modify(nmk_chip, d->hwirq, NORMAL, enable);
+	__nmk_gpio_irq_modify(nmk_chip, d->hwirq, ANALRMAL, enable);
 
 	if (!(nmk_chip->real_wake & BIT(d->hwirq)))
 		__nmk_gpio_set_wake(nmk_chip, d->hwirq, enable);
@@ -760,7 +760,7 @@ static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	spin_lock_irqsave(&nmk_chip->lock, flags);
 
 	if (enabled)
-		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, NORMAL, false);
+		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, ANALRMAL, false);
 
 	if (enabled || wake)
 		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, WAKE, false);
@@ -774,7 +774,7 @@ static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		nmk_chip->edge_falling |= BIT(d->hwirq);
 
 	if (enabled)
-		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, NORMAL, true);
+		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, ANALRMAL, true);
 
 	if (enabled || wake)
 		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, WAKE, true);
@@ -949,23 +949,23 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 	if (is_out) {
 		seq_printf(s, " gpio-%-3d (%-20.20s) out %s           %s",
 			   gpio,
-			   label ?: "(none)",
+			   label ?: "(analne)",
 			   data_out ? "hi" : "lo",
-			   (mode < 0) ? "unknown" : modes[mode]);
+			   (mode < 0) ? "unkanalwn" : modes[mode]);
 	} else {
 		int irq = chip->to_irq(chip, offset);
 		const int pullidx = pull ? 1 : 0;
 		int val;
 		static const char * const pulls[] = {
-			"none        ",
+			"analne        ",
 			"pull enabled",
 		};
 
 		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %s",
 			   gpio,
-			   label ?: "(none)",
+			   label ?: "(analne)",
 			   pulls[pullidx],
-			   (mode < 0) ? "unknown" : modes[mode]);
+			   (mode < 0) ? "unkanalwn" : modes[mode]);
 
 		val = nmk_gpio_get_input(chip, offset);
 		seq_printf(s, " VAL %d", val);
@@ -1021,7 +1021,7 @@ static inline void nmk_gpio_dbg_show_one(struct seq_file *s,
  * it is the pin controller or GPIO driver. However we need to use the right
  * platform device when looking up resources so pay attention to pdev.
  */
-static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
+static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_analde *np,
 						struct platform_device *pdev)
 {
 	struct nmk_gpio_chip *nmk_chip;
@@ -1032,13 +1032,13 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	void __iomem *base;
 	u32 id;
 
-	gpio_pdev = of_find_device_by_node(np);
+	gpio_pdev = of_find_device_by_analde(np);
 	if (!gpio_pdev) {
-		pr_err("populate \"%pOFn\": device not found\n", np);
-		return ERR_PTR(-ENODEV);
+		pr_err("populate \"%pOFn\": device analt found\n", np);
+		return ERR_PTR(-EANALDEV);
 	}
 	if (of_property_read_u32(np, "gpio-bank", &id)) {
-		dev_err(&pdev->dev, "populate: gpio-bank property not found\n");
+		dev_err(&pdev->dev, "populate: gpio-bank property analt found\n");
 		platform_device_put(gpio_pdev);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1053,7 +1053,7 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	nmk_chip = devm_kzalloc(&pdev->dev, sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
 		platform_device_put(gpio_pdev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	nmk_chip->bank = id;
@@ -1108,7 +1108,7 @@ static const struct irq_chip nmk_irq_chip = {
 
 static int nmk_gpio_probe(struct platform_device *dev)
 {
-	struct device_node *np = dev->dev.of_node;
+	struct device_analde *np = dev->dev.of_analde;
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_chip *chip;
 	struct gpio_irq_chip *girq;
@@ -1118,7 +1118,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 
 	nmk_chip = nmk_gpio_populate_chip(np, dev);
 	if (IS_ERR(nmk_chip)) {
-		dev_err(&dev->dev, "could not populate nmk chip struct\n");
+		dev_err(&dev->dev, "could analt populate nmk chip struct\n");
 		return PTR_ERR(nmk_chip);
 	}
 
@@ -1133,7 +1133,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 		return irq;
 
 	/*
-	 * The virt address in nmk_chip->addr is in the nomadik register space,
+	 * The virt address in nmk_chip->addr is in the analmadik register space,
 	 * so we can simply convert the resource address, without remapping
 	 */
 	nmk_chip->sleepmode = supports_sleepmode;
@@ -1160,9 +1160,9 @@ static int nmk_gpio_probe(struct platform_device *dev)
 				     sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 	girq->parents[0] = irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_edge_irq;
 
 	clk_enable(nmk_chip->clk);
@@ -1248,7 +1248,7 @@ static int nmk_dt_add_map_mux(struct pinctrl_map **map, unsigned *reserved_maps,
 		const char *function)
 {
 	if (*num_maps == *reserved_maps)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_MUX_GROUP;
 	(*map)[*num_maps].data.mux.group = group;
@@ -1266,12 +1266,12 @@ static int nmk_dt_add_map_configs(struct pinctrl_map **map,
 	unsigned long *dup_configs;
 
 	if (*num_maps == *reserved_maps)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
 			      GFP_KERNEL);
 	if (!dup_configs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_CONFIGS_PIN;
 
@@ -1288,7 +1288,7 @@ static int nmk_dt_add_map_configs(struct pinctrl_map **map,
 	.size = ARRAY_SIZE(y), }
 
 static const unsigned long nmk_pin_input_modes[] = {
-	PIN_INPUT_NOPULL,
+	PIN_INPUT_ANALPULL,
 	PIN_INPUT_PULLUP,
 	PIN_INPUT_PULLDOWN,
 };
@@ -1305,7 +1305,7 @@ static const unsigned long nmk_pin_sleep_modes[] = {
 };
 
 static const unsigned long nmk_pin_sleep_input_modes[] = {
-	PIN_SLPM_INPUT_NOPULL,
+	PIN_SLPM_INPUT_ANALPULL,
 	PIN_SLPM_INPUT_PULLUP,
 	PIN_SLPM_INPUT_PULLDOWN,
 	PIN_SLPM_DIR_INPUT,
@@ -1376,7 +1376,7 @@ static const char *nmk_find_pin_name(struct pinctrl_dev *pctldev, const char *pi
 	return NULL;
 }
 
-static bool nmk_pinctrl_dt_get_config(struct device_node *np,
+static bool nmk_pinctrl_dt_get_config(struct device_analde *np,
 		unsigned long *configs)
 {
 	bool has_config = 0;
@@ -1397,8 +1397,8 @@ static bool nmk_pinctrl_dt_get_config(struct device_node *np,
 	return has_config;
 }
 
-static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-		struct device_node *np,
+static int nmk_pinctrl_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+		struct device_analde *np,
 		struct pinctrl_map **map,
 		unsigned *reserved_maps,
 		unsigned *num_maps)
@@ -1408,7 +1408,7 @@ static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	unsigned long configs = 0;
 	bool has_config = 0;
 	struct property *prop;
-	struct device_node *np_config;
+	struct device_analde *np_config;
 
 	ret = of_property_read_string(np, "function", &function);
 	if (ret >= 0) {
@@ -1436,7 +1436,7 @@ static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	np_config = of_parse_phandle(np, "ste,config", 0);
 	if (np_config) {
 		has_config |= nmk_pinctrl_dt_get_config(np_config, &configs);
-		of_node_put(np_config);
+		of_analde_put(np_config);
 	}
 	if (has_config) {
 		const char *gpio_name;
@@ -1466,24 +1466,24 @@ exit:
 	return ret;
 }
 
-static int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np_config,
+static int nmk_pinctrl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_analde *np_config,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	unsigned reserved_maps;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	reserved_maps = 0;
 	*map = NULL;
 	*num_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
-		ret = nmk_pinctrl_dt_subnode_to_map(pctldev, np, map,
+	for_each_child_of_analde(np_config, np) {
+		ret = nmk_pinctrl_dt_subanalde_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}
@@ -1496,7 +1496,7 @@ static const struct pinctrl_ops nmk_pinctrl_ops = {
 	.get_group_name = nmk_get_group_name,
 	.get_group_pins = nmk_get_group_pins,
 	.pin_dbg_show = nmk_pin_dbg_show,
-	.dt_node_to_map = nmk_pinctrl_dt_node_to_map,
+	.dt_analde_to_map = nmk_pinctrl_dt_analde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -1560,12 +1560,12 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
 	 *  - Modify the AFLSA/B registers for the IOs that are being switched
 	 *  - Set IOFORCE=0
 	 *  - Restore SLPM registers
-	 *  - Any spurious wake up event during switch sequence to be ignored
+	 *  - Any spurious wake up event during switch sequence to be iganalred
 	 *    and cleared
 	 *
 	 * We REALLY need to save ALL slpm registers, because the external
 	 * IOFORCE will switch *all* ports to their sleepmode setting to as
-	 * to avoid glitches. (Not just one port!)
+	 * to avoid glitches. (Analt just one port!)
 	 */
 	glitch = ((g->altsetting & NMK_GPIO_ALT_C) == NMK_GPIO_ALT_C);
 
@@ -1576,7 +1576,7 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
 		memset(slpm, 0xff, sizeof(slpm));
 
 		/*
-		 * Then mask the pins that need to be sleeping now when we're
+		 * Then mask the pins that need to be sleeping analw when we're
 		 * switching to the ALT C function.
 		 */
 		for (i = 0; i < g->grp.npins; i++)
@@ -1661,7 +1661,7 @@ static int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	clk_enable(nmk_chip->clk);
 	bit = offset % NMK_GPIO_PER_CHIP;
-	/* There is no glitch when converting any pin to GPIO */
+	/* There is anal glitch when converting any pin to GPIO */
 	__nmk_gpio_set_mode(nmk_chip, bit, NMK_GPIO_ALT_GPIO);
 	clk_disable(nmk_chip->clk);
 
@@ -1691,7 +1691,7 @@ static const struct pinmux_ops nmk_pinmux_ops = {
 static int nmk_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 			      unsigned long *config)
 {
-	/* Not implemented */
+	/* Analt implemented */
 	return -EINVAL;
 }
 
@@ -1699,14 +1699,14 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 			      unsigned long *configs, unsigned num_configs)
 {
 	static const char *pullnames[] = {
-		[NMK_GPIO_PULL_NONE]	= "none",
+		[NMK_GPIO_PULL_ANALNE]	= "analne",
 		[NMK_GPIO_PULL_UP]	= "up",
 		[NMK_GPIO_PULL_DOWN]	= "down",
 		[3] /* illegal */	= "??"
 	};
 	static const char *slpmnames[] = {
 		[NMK_GPIO_SLPM_INPUT]		= "input/wakeup",
-		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change/no-wakeup",
+		[NMK_GPIO_SLPM_ANALCHANGE]	= "anal-change/anal-wakeup",
 	};
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	struct nmk_gpio_chip *nmk_chip;
@@ -1725,7 +1725,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	for (i = 0; i < num_configs; i++) {
 		/*
 		 * The pin config contains pin number and altfunction fields,
-		 * here we just ignore that part. It's being handled by the
+		 * here we just iganalre that part. It's being handled by the
 		 * framework and pinmux callback respectively.
 		 */
 		cfg = (pin_cfg_t) configs[i];
@@ -1746,8 +1746,8 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 			gpiomode = true;
 
 			/*
-			 * The SLPM_* values are normal values + 1 to allow zero
-			 * to mean "same as normal".
+			 * The SLPM_* values are analrmal values + 1 to allow zero
+			 * to mean "same as analrmal".
 			 */
 			if (slpm_pull)
 				pull = slpm_pull - 1;
@@ -1775,7 +1775,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 		clk_enable(nmk_chip->clk);
 		bit = pin % NMK_GPIO_PER_CHIP;
 		if (gpiomode)
-			/* No glitch when going to GPIO mode */
+			/* Anal glitch when going to GPIO mode */
 			__nmk_gpio_set_mode(nmk_chip, bit, NMK_GPIO_ALT_GPIO);
 		if (output)
 			__nmk_gpio_make_output(nmk_chip, bit, val);
@@ -1799,7 +1799,7 @@ static const struct pinconf_ops nmk_pinconf_ops = {
 };
 
 static struct pinctrl_desc nmk_pinctrl_desc = {
-	.name = "pinctrl-nomadik",
+	.name = "pinctrl-analmadik",
 	.pctlops = &nmk_pinctrl_ops,
 	.pmxops = &nmk_pinmux_ops,
 	.confops = &nmk_pinconf_ops,
@@ -1844,15 +1844,15 @@ static int nmk_pinctrl_resume(struct device *dev)
 
 static int nmk_pinctrl_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *prcm_np;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *prcm_np;
 	struct nmk_pinctrl *npct;
 	unsigned int version = 0;
 	int i;
 
 	npct = devm_kzalloc(&pdev->dev, sizeof(*npct), GFP_KERNEL);
 	if (!npct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	version = (unsigned int)device_get_match_data(&pdev->dev);
 
@@ -1870,10 +1870,10 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	 * or after this point: it shouldn't matter as the APIs are orthogonal.
 	 */
 	for (i = 0; i < NMK_MAX_BANKS; i++) {
-		struct device_node *gpio_np;
+		struct device_analde *gpio_np;
 		struct nmk_gpio_chip *nmk_chip;
 
-		gpio_np = of_parse_phandle(np, "nomadik-gpio-chips", i);
+		gpio_np = of_parse_phandle(np, "analmadik-gpio-chips", i);
 		if (gpio_np) {
 			dev_info(&pdev->dev,
 				 "populate NMK GPIO %d \"%pOFn\"\n",
@@ -1881,22 +1881,22 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 			nmk_chip = nmk_gpio_populate_chip(gpio_np, pdev);
 			if (IS_ERR(nmk_chip))
 				dev_err(&pdev->dev,
-					"could not populate nmk chip struct "
+					"could analt populate nmk chip struct "
 					"- continue anyway\n");
-			of_node_put(gpio_np);
+			of_analde_put(gpio_np);
 		}
 	}
 
 	prcm_np = of_parse_phandle(np, "prcm", 0);
 	if (prcm_np) {
 		npct->prcm_base = of_iomap(prcm_np, 0);
-		of_node_put(prcm_np);
+		of_analde_put(prcm_np);
 	}
 	if (!npct->prcm_base) {
 		if (version == PINCTRL_NMK_STN8815) {
 			dev_info(&pdev->dev,
-				 "No PRCM base, "
-				 "assuming no ALT-Cx control is available\n");
+				 "Anal PRCM base, "
+				 "assuming anal ALT-Cx control is available\n");
 		} else {
 			dev_err(&pdev->dev, "missing PRCM base address\n");
 			return -EINVAL;
@@ -1909,18 +1909,18 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 
 	npct->pctl = devm_pinctrl_register(&pdev->dev, &nmk_pinctrl_desc, npct);
 	if (IS_ERR(npct->pctl)) {
-		dev_err(&pdev->dev, "could not register Nomadik pinctrl driver\n");
+		dev_err(&pdev->dev, "could analt register Analmadik pinctrl driver\n");
 		return PTR_ERR(npct->pctl);
 	}
 
 	platform_set_drvdata(pdev, npct);
-	dev_info(&pdev->dev, "initialized Nomadik pin control driver\n");
+	dev_info(&pdev->dev, "initialized Analmadik pin control driver\n");
 
 	return 0;
 }
 
 static const struct of_device_id nmk_gpio_match[] = {
-	{ .compatible = "st,nomadik-gpio", },
+	{ .compatible = "st,analmadik-gpio", },
 	{}
 };
 
@@ -1938,7 +1938,7 @@ static SIMPLE_DEV_PM_OPS(nmk_pinctrl_pm_ops,
 
 static struct platform_driver nmk_pinctrl_driver = {
 	.driver = {
-		.name = "pinctrl-nomadik",
+		.name = "pinctrl-analmadik",
 		.of_match_table = nmk_pinctrl_match,
 		.pm = &nmk_pinctrl_pm_ops,
 	},

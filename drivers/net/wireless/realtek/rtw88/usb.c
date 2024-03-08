@@ -54,7 +54,7 @@ static u32 rtw_usb_read(struct rtw_dev *rtwdev, u32 addr, u16 len)
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			      RTW_USB_CMD_REQ, RTW_USB_CMD_READ, addr,
 			      RTW_USB_VENQT_CMD_IDX, data, len, 1000);
-	if (ret < 0 && ret != -ENODEV && count++ < 4)
+	if (ret < 0 && ret != -EANALDEV && count++ < 4)
 		rtw_err(rtwdev, "read register 0x%x failed with %d\n",
 			addr, ret);
 
@@ -99,7 +99,7 @@ static void rtw_usb_write(struct rtw_dev *rtwdev, u32 addr, u32 val, int len)
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			      RTW_USB_CMD_REQ, RTW_USB_CMD_WRITE,
 			      addr, 0, data, len, 30000);
-	if (ret < 0 && ret != -ENODEV && count++ < 4)
+	if (ret < 0 && ret != -EANALDEV && count++ < 4)
 		rtw_err(rtwdev, "write register 0x%x failed with %d\n",
 			addr, ret);
 }
@@ -124,7 +124,7 @@ static int dma_mapping_to_ep(enum rtw_dma_mapping dma_mapping)
 	switch (dma_mapping) {
 	case RTW_DMA_MAPPING_HIGH:
 		return 0;
-	case RTW_DMA_MAPPING_NORMAL:
+	case RTW_DMA_MAPPING_ANALRMAL:
 		return 1;
 	case RTW_DMA_MAPPING_LOW:
 		return 2;
@@ -241,8 +241,8 @@ static void rtw_usb_write_port_tx_complete(struct urb *urb)
 
 		/* always ACK for others, then they won't be marked as drop */
 		ieee80211_tx_info_clear_status(info);
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-			info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+			info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 		else
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
@@ -276,7 +276,7 @@ static int rtw_usb_write_port(struct rtw_dev *rtwdev, u8 qsel, struct sk_buff *s
 	pipe = usb_sndbulkpipe(usbd, rtwusb->out_ep[ep]);
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_fill_bulk_urb(urb, usbd, pipe, skb->data, skb->len, cb, context);
 	urb->transfer_flags |= URB_ZERO_PACKET;
@@ -404,7 +404,7 @@ static int rtw_usb_write_data(struct rtw_dev *rtwdev,
 
 	skb = dev_alloc_skb(headsize + size);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, headsize);
 	skb_put_data(skb, buf, size);
@@ -556,7 +556,7 @@ static void rtw_usb_rx_resubmit(struct rtw_usb *rtwusb, struct rx_usb_ctrl_block
 	error = usb_submit_urb(rxcb->rx_urb, GFP_ATOMIC);
 	if (error) {
 		kfree_skb(rxcb->rx_skb);
-		if (error != -ENODEV)
+		if (error != -EANALDEV)
 			rtw_err(rtwdev, "Err sending rx data urb %d\n",
 				error);
 	}
@@ -585,9 +585,9 @@ static void rtw_usb_read_port_complete(struct urb *urb)
 		switch (urb->status) {
 		case -EINVAL:
 		case -EPIPE:
-		case -ENODEV:
+		case -EANALDEV:
 		case -ESHUTDOWN:
-		case -ENOENT:
+		case -EANALENT:
 		case -EPROTO:
 		case -EILSEQ:
 		case -ETIME:
@@ -643,7 +643,7 @@ static int rtw_usb_alloc_rx_bufs(struct rtw_usb *rtwusb)
 	return 0;
 err:
 	rtw_usb_free_rx_bufs(rtwusb);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int rtw_usb_setup(struct rtw_dev *rtwdev)
@@ -705,7 +705,7 @@ static int rtw_usb_init_rx(struct rtw_dev *rtwdev)
 	rtwusb->rxwq = create_singlethread_workqueue("rtw88_usb: rx wq");
 	if (!rtwusb->rxwq) {
 		rtw_err(rtwdev, "failed to create RX work queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_queue_head_init(&rtwusb->rx_queue);
@@ -739,7 +739,7 @@ static int rtw_usb_init_tx(struct rtw_dev *rtwdev)
 	rtwusb->txwq = create_singlethread_workqueue("rtw88_usb: tx wq");
 	if (!rtwusb->txwq) {
 		rtw_err(rtwdev, "failed to create TX work queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(rtwusb->tx_queue); i++)
@@ -774,7 +774,7 @@ static int rtw_usb_intf_init(struct rtw_dev *rtwdev,
 	rtwusb->usb_data = kcalloc(RTW_USB_MAX_RXTX_COUNT, sizeof(u32),
 				   GFP_KERNEL);
 	if (!rtwusb->usb_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_set_intfdata(intf, rtwdev->hw);
 
@@ -805,7 +805,7 @@ int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	drv_data_size = sizeof(struct rtw_dev) + sizeof(struct rtw_usb);
 	hw = ieee80211_alloc_hw(drv_data_size, &rtw_ops);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtwdev = hw->priv;
 	rtwdev->hw = hw;
@@ -897,7 +897,7 @@ void rtw_usb_disconnect(struct usb_interface *intf)
 	rtw_usb_deinit_tx(rtwdev);
 	rtw_usb_deinit_rx(rtwdev);
 
-	if (rtwusb->udev->state != USB_STATE_NOTATTACHED)
+	if (rtwusb->udev->state != USB_STATE_ANALTATTACHED)
 		usb_reset_device(rtwusb->udev);
 
 	rtw_usb_free_rx_bufs(rtwusb);

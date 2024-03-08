@@ -4,9 +4,9 @@
 
 / {
 	cpus {
-		/delete-node/ cpu@2;
+		/delete-analde/ cpu@2;
 
-		/delete-node/ cpu@3;
+		/delete-analde/ cpu@3;
 	};
 
 	timer {

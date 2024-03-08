@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -61,7 +61,7 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size);
 static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
-static int kfd_resume(struct kfd_node *kfd);
+static int kfd_resume(struct kfd_analde *kfd);
 
 static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 {
@@ -72,7 +72,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(4, 0, 1):/* VEGA12 */
 	case IP_VERSION(4, 1, 0):/* RAVEN */
 	case IP_VERSION(4, 1, 1):/* RAVEN */
-	case IP_VERSION(4, 1, 2):/* RENOIR */
+	case IP_VERSION(4, 1, 2):/* REANALIR */
 	case IP_VERSION(5, 2, 1):/* VANGOGH */
 	case IP_VERSION(5, 2, 3):/* YELLOW_CARP */
 	case IP_VERSION(5, 2, 6):/* GC 10.3.6 */
@@ -134,7 +134,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(9, 1, 0): /* RAVEN */
 	case IP_VERSION(9, 2, 1): /* VEGA12 */
 	case IP_VERSION(9, 2, 2): /* RAVEN */
-	case IP_VERSION(9, 3, 0): /* RENOIR */
+	case IP_VERSION(9, 3, 0): /* REANALIR */
 	case IP_VERSION(9, 4, 0): /* VEGA20 */
 	case IP_VERSION(9, 4, 1): /* ARCTURUS */
 	case IP_VERSION(9, 4, 2): /* ALDEBARAN */
@@ -181,7 +181,7 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 	uint32_t asic_type = kfd->adev->asic_type;
 
 	kfd->device_info.max_pasid_bits = 16;
-	kfd->device_info.max_no_of_hqd = 24;
+	kfd->device_info.max_anal_of_hqd = 24;
 	kfd->device_info.num_of_watch_points = 4;
 	kfd->device_info.mqd_size_aligned = MQD_SIZE_ALIGNED;
 	kfd->device_info.gfx_target_version = gfx_target_version;
@@ -198,25 +198,25 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 		if (gc_version < IP_VERSION(11, 0, 0)) {
 			/* Navi2x+, Navi1x+ */
 			if (gc_version == IP_VERSION(10, 3, 6))
-				kfd->device_info.no_atomic_fw_version = 14;
+				kfd->device_info.anal_atomic_fw_version = 14;
 			else if (gc_version == IP_VERSION(10, 3, 7))
-				kfd->device_info.no_atomic_fw_version = 3;
+				kfd->device_info.anal_atomic_fw_version = 3;
 			else if (gc_version >= IP_VERSION(10, 3, 0))
-				kfd->device_info.no_atomic_fw_version = 92;
+				kfd->device_info.anal_atomic_fw_version = 92;
 			else if (gc_version >= IP_VERSION(10, 1, 1))
-				kfd->device_info.no_atomic_fw_version = 145;
+				kfd->device_info.anal_atomic_fw_version = 145;
 
 			/* Navi1x+ */
 			if (gc_version >= IP_VERSION(10, 1, 1))
 				kfd->device_info.needs_pci_atomics = true;
 		} else if (gc_version < IP_VERSION(12, 0, 0)) {
 			/*
-			 * PCIe atomics support acknowledgment in GFX11 RS64 CPFW requires
+			 * PCIe atomics support ackanalwledgment in GFX11 RS64 CPFW requires
 			 * MEC version >= 509. Prior RS64 CPFW versions (and all F32) require
 			 * PCIe atomics support.
 			 */
 			kfd->device_info.needs_pci_atomics = true;
-			kfd->device_info.no_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
+			kfd->device_info.anal_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
 		}
 	} else {
 		kfd->device_info.doorbell_size = 4;
@@ -301,7 +301,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			if (!vf)
 				f2g = &gfx_v9_kfd2kgd;
 			break;
-		/* Renoir */
+		/* Reanalir */
 		case IP_VERSION(9, 3, 0):
 			gfx_target_version = 90012;
 			if (!vf)
@@ -409,10 +409,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			     adev->pdev->revision == 0x00) ||
 			    (adev->pdev->device == 0x7461 &&
 			     adev->pdev->revision == 0x00))
-				/* Note: Compiler version is 11.0.5 while HW version is 11.0.3 */
+				/* Analte: Compiler version is 11.0.5 while HW version is 11.0.3 */
 				gfx_target_version = 110005;
 			else
-				/* Note: Compiler version is 11.0.1 while HW version is 11.0.3 */
+				/* Analte: Compiler version is 11.0.1 while HW version is 11.0.3 */
 				gfx_target_version = 110001;
 			f2g = &gfx_v11_kfd2kgd;
 			break;
@@ -429,11 +429,11 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 	if (!f2g) {
 		if (amdgpu_ip_version(adev, GC_HWIP, 0))
 			dev_err(kfd_device,
-				"GC IP %06x %s not supported in kfd\n",
+				"GC IP %06x %s analt supported in kfd\n",
 				amdgpu_ip_version(adev, GC_HWIP, 0),
 				vf ? "VF" : "");
 		else
-			dev_err(kfd_device, "%s %s not supported in kfd\n",
+			dev_err(kfd_device, "%s %s analt supported in kfd\n",
 				amdgpu_asic_name[adev->asic_type], vf ? "VF" : "");
 		return NULL;
 	}
@@ -496,148 +496,148 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 	}
 }
 
-static int kfd_gws_init(struct kfd_node *node)
+static int kfd_gws_init(struct kfd_analde *analde)
 {
 	int ret = 0;
-	struct kfd_dev *kfd = node->kfd;
-	uint32_t mes_rev = node->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
+	struct kfd_dev *kfd = analde->kfd;
+	uint32_t mes_rev = analde->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
 
-	if (node->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
+	if (analde->dqm->sched_policy == KFD_SCHED_POLICY_ANAL_HWS)
 		return 0;
 
-	if (hws_gws_support || (KFD_IS_SOC15(node) &&
-		((KFD_GC_VERSION(node) == IP_VERSION(9, 0, 1)
+	if (hws_gws_support || (KFD_IS_SOC15(analde) &&
+		((KFD_GC_VERSION(analde) == IP_VERSION(9, 0, 1)
 			&& kfd->mec2_fw_version >= 0x81b3) ||
-		(KFD_GC_VERSION(node) <= IP_VERSION(9, 4, 0)
+		(KFD_GC_VERSION(analde) <= IP_VERSION(9, 4, 0)
 			&& kfd->mec2_fw_version >= 0x1b3)  ||
-		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 1)
+		(KFD_GC_VERSION(analde) == IP_VERSION(9, 4, 1)
 			&& kfd->mec2_fw_version >= 0x30)   ||
-		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 2)
+		(KFD_GC_VERSION(analde) == IP_VERSION(9, 4, 2)
 			&& kfd->mec2_fw_version >= 0x28) ||
-		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 3)) ||
-		(KFD_GC_VERSION(node) >= IP_VERSION(10, 3, 0)
-			&& KFD_GC_VERSION(node) < IP_VERSION(11, 0, 0)
+		(KFD_GC_VERSION(analde) == IP_VERSION(9, 4, 3)) ||
+		(KFD_GC_VERSION(analde) >= IP_VERSION(10, 3, 0)
+			&& KFD_GC_VERSION(analde) < IP_VERSION(11, 0, 0)
 			&& kfd->mec2_fw_version >= 0x6b) ||
-		(KFD_GC_VERSION(node) >= IP_VERSION(11, 0, 0)
-			&& KFD_GC_VERSION(node) < IP_VERSION(12, 0, 0)
+		(KFD_GC_VERSION(analde) >= IP_VERSION(11, 0, 0)
+			&& KFD_GC_VERSION(analde) < IP_VERSION(12, 0, 0)
 			&& mes_rev >= 68))))
-		ret = amdgpu_amdkfd_alloc_gws(node->adev,
-				node->adev->gds.gws_size, &node->gws);
+		ret = amdgpu_amdkfd_alloc_gws(analde->adev,
+				analde->adev->gds.gws_size, &analde->gws);
 
 	return ret;
 }
 
-static void kfd_smi_init(struct kfd_node *dev)
+static void kfd_smi_init(struct kfd_analde *dev)
 {
 	INIT_LIST_HEAD(&dev->smi_clients);
 	spin_lock_init(&dev->smi_lock);
 }
 
-static int kfd_init_node(struct kfd_node *node)
+static int kfd_init_analde(struct kfd_analde *analde)
 {
 	int err = -1;
 
-	if (kfd_interrupt_init(node)) {
+	if (kfd_interrupt_init(analde)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
 		goto kfd_interrupt_error;
 	}
 
-	node->dqm = device_queue_manager_init(node);
-	if (!node->dqm) {
+	analde->dqm = device_queue_manager_init(analde);
+	if (!analde->dqm) {
 		dev_err(kfd_device, "Error initializing queue manager\n");
 		goto device_queue_manager_error;
 	}
 
-	if (kfd_gws_init(node)) {
-		dev_err(kfd_device, "Could not allocate %d gws\n",
-			node->adev->gds.gws_size);
+	if (kfd_gws_init(analde)) {
+		dev_err(kfd_device, "Could analt allocate %d gws\n",
+			analde->adev->gds.gws_size);
 		goto gws_error;
 	}
 
-	if (kfd_resume(node))
+	if (kfd_resume(analde))
 		goto kfd_resume_error;
 
-	if (kfd_topology_add_device(node)) {
+	if (kfd_topology_add_device(analde)) {
 		dev_err(kfd_device, "Error adding device to topology\n");
 		goto kfd_topology_add_device_error;
 	}
 
-	kfd_smi_init(node);
+	kfd_smi_init(analde);
 
 	return 0;
 
 kfd_topology_add_device_error:
 kfd_resume_error:
 gws_error:
-	device_queue_manager_uninit(node->dqm);
+	device_queue_manager_uninit(analde->dqm);
 device_queue_manager_error:
-	kfd_interrupt_exit(node);
+	kfd_interrupt_exit(analde);
 kfd_interrupt_error:
-	if (node->gws)
-		amdgpu_amdkfd_free_gws(node->adev, node->gws);
+	if (analde->gws)
+		amdgpu_amdkfd_free_gws(analde->adev, analde->gws);
 
-	/* Cleanup the node memory here */
-	kfree(node);
+	/* Cleanup the analde memory here */
+	kfree(analde);
 	return err;
 }
 
-static void kfd_cleanup_nodes(struct kfd_dev *kfd, unsigned int num_nodes)
+static void kfd_cleanup_analdes(struct kfd_dev *kfd, unsigned int num_analdes)
 {
-	struct kfd_node *knode;
+	struct kfd_analde *kanalde;
 	unsigned int i;
 
-	for (i = 0; i < num_nodes; i++) {
-		knode = kfd->nodes[i];
-		device_queue_manager_uninit(knode->dqm);
-		kfd_interrupt_exit(knode);
-		kfd_topology_remove_device(knode);
-		if (knode->gws)
-			amdgpu_amdkfd_free_gws(knode->adev, knode->gws);
-		kfree(knode);
-		kfd->nodes[i] = NULL;
+	for (i = 0; i < num_analdes; i++) {
+		kanalde = kfd->analdes[i];
+		device_queue_manager_uninit(kanalde->dqm);
+		kfd_interrupt_exit(kanalde);
+		kfd_topology_remove_device(kanalde);
+		if (kanalde->gws)
+			amdgpu_amdkfd_free_gws(kanalde->adev, kanalde->gws);
+		kfree(kanalde);
+		kfd->analdes[i] = NULL;
 	}
 }
 
-static void kfd_setup_interrupt_bitmap(struct kfd_node *node,
-				       unsigned int kfd_node_idx)
+static void kfd_setup_interrupt_bitmap(struct kfd_analde *analde,
+				       unsigned int kfd_analde_idx)
 {
-	struct amdgpu_device *adev = node->adev;
-	uint32_t xcc_mask = node->xcc_mask;
+	struct amdgpu_device *adev = analde->adev;
+	uint32_t xcc_mask = analde->xcc_mask;
 	uint32_t xcc, mapped_xcc;
 	/*
 	 * Interrupt bitmap is setup for processing interrupts from
 	 * different XCDs and AIDs.
 	 * Interrupt bitmap is defined as follows:
-	 * 1. Bits 0-15 - correspond to the NodeId field.
-	 *    Each bit corresponds to NodeId number. For example, if
-	 *    a KFD node has interrupt bitmap set to 0x7, then this
-	 *    KFD node will process interrupts with NodeId = 0, 1 and 2
+	 * 1. Bits 0-15 - correspond to the AnaldeId field.
+	 *    Each bit corresponds to AnaldeId number. For example, if
+	 *    a KFD analde has interrupt bitmap set to 0x7, then this
+	 *    KFD analde will process interrupts with AnaldeId = 0, 1 and 2
 	 *    in the IH cookie.
 	 * 2. Bits 16-31 - unused.
 	 *
-	 * Please note that the kfd_node_idx argument passed to this
-	 * function is not related to NodeId field received in the
+	 * Please analte that the kfd_analde_idx argument passed to this
+	 * function is analt related to AnaldeId field received in the
 	 * IH cookie.
 	 *
-	 * In CPX mode, a KFD node will process an interrupt if:
-	 * - the Node Id matches the corresponding bit set in
+	 * In CPX mode, a KFD analde will process an interrupt if:
+	 * - the Analde Id matches the corresponding bit set in
 	 *   Bits 0-15.
 	 * - AND VMID reported in the interrupt lies within the
-	 *   VMID range of the node.
+	 *   VMID range of the analde.
 	 */
 	for_each_inst(xcc, xcc_mask) {
 		mapped_xcc = GET_INST(GC, xcc);
-		node->interrupt_bitmap |= (mapped_xcc % 2 ? 5 : 3) << (4 * (mapped_xcc / 2));
+		analde->interrupt_bitmap |= (mapped_xcc % 2 ? 5 : 3) << (4 * (mapped_xcc / 2));
 	}
-	dev_info(kfd_device, "Node: %d, interrupt_bitmap: %x\n", kfd_node_idx,
-							node->interrupt_bitmap);
+	dev_info(kfd_device, "Analde: %d, interrupt_bitmap: %x\n", kfd_analde_idx,
+							analde->interrupt_bitmap);
 }
 
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
 	unsigned int size, map_process_packet_size, i;
-	struct kfd_node *node;
+	struct kfd_analde *analde;
 	uint32_t first_vmid_kfd, last_vmid_kfd, vmid_num_kfd;
 	unsigned int max_proc_per_quantum;
 	int partition_mode;
@@ -651,11 +651,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
 
-	kfd->num_nodes = amdgpu_xcp_get_num_xcp(kfd->adev->xcp_mgr);
+	kfd->num_analdes = amdgpu_xcp_get_num_xcp(kfd->adev->xcp_mgr);
 
-	if (kfd->num_nodes == 0) {
+	if (kfd->num_analdes == 0) {
 		dev_err(kfd_device,
-			"KFD num nodes cannot be 0, num_xcc_in_node: %d\n",
+			"KFD num analdes cananalt be 0, num_xcc_in_analde: %d\n",
 			kfd->adev->gfx.num_xcc_per_xcp);
 		goto out;
 	}
@@ -667,13 +667,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kfd->adev);
 	if (!kfd->pci_atomic_requested &&
 	    kfd->device_info.needs_pci_atomics &&
-	    (!kfd->device_info.no_atomic_fw_version ||
-	     kfd->mec_fw_version < kfd->device_info.no_atomic_fw_version)) {
+	    (!kfd->device_info.anal_atomic_fw_version ||
+	     kfd->mec_fw_version < kfd->device_info.anal_atomic_fw_version)) {
 		dev_info(kfd_device,
 			 "skipped device %x:%x, PCI rejects atomics %d<%d\n",
 			 kfd->adev->pdev->vendor, kfd->adev->pdev->device,
 			 kfd->mec_fw_version,
-			 kfd->device_info.no_atomic_fw_version);
+			 kfd->device_info.anal_atomic_fw_version);
 		return false;
 	}
 
@@ -685,7 +685,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * partition mode.
 	 * In CPX mode, the VMID range needs to be shared between XCDs.
 	 * Additionally, there are 13 VMIDs (3-15) available for KFD. To
-	 * divide them equally, we change starting VMID to 4 and not use
+	 * divide them equally, we change starting VMID to 4 and analt use
 	 * VMID 3.
 	 * If the VMID range changes for GFX9.4.3, then this code MUST be
 	 * revisited.
@@ -694,7 +694,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		partition_mode = amdgpu_xcp_query_partition_mode(kfd->adev->xcp_mgr,
 								 AMDGPU_XCP_FL_LOCKED);
 		if (partition_mode == AMDGPU_CPX_PARTITION_MODE &&
-		    kfd->num_nodes != 1) {
+		    kfd->num_analdes != 1) {
 			vmid_num_kfd /= 2;
 			first_vmid_kfd = last_vmid_kfd + 1 - vmid_num_kfd*2;
 		}
@@ -724,14 +724,14 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	/* Add size of HIQ & DIQ */
 	size += KFD_KERNEL_QUEUE_SIZE * 2;
 
-	/* add another 512KB for all other allocations on gart (HPD, fences) */
+	/* add aanalther 512KB for all other allocations on gart (HPD, fences) */
 	size += 512 * 1024;
 
 	if (amdgpu_amdkfd_alloc_gtt_mem(
 			kfd->adev, size, &kfd->gtt_mem,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
-		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
+		dev_err(kfd_device, "Could analt allocate %d bytes\n", size);
 		goto alloc_gtt_mem_failure;
 	}
 
@@ -757,81 +757,81 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * xGMI connected in the topology so assign a unique hive id per
 	 * device based on the pci device location if device is in PCIe mode.
 	 */
-	if (!kfd->hive_id && (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) && kfd->num_nodes > 1)
+	if (!kfd->hive_id && (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) && kfd->num_analdes > 1)
 		kfd->hive_id = pci_dev_id(kfd->adev->pdev);
 
-	kfd->noretry = kfd->adev->gmc.noretry;
+	kfd->analretry = kfd->adev->gmc.analretry;
 
 	kfd_cwsr_init(kfd);
 
-	dev_info(kfd_device, "Total number of KFD nodes to be created: %d\n",
-				kfd->num_nodes);
+	dev_info(kfd_device, "Total number of KFD analdes to be created: %d\n",
+				kfd->num_analdes);
 
-	/* Allocate the KFD nodes */
-	for (i = 0, xcp_idx = 0; i < kfd->num_nodes; i++) {
-		node = kzalloc(sizeof(struct kfd_node), GFP_KERNEL);
-		if (!node)
-			goto node_alloc_error;
+	/* Allocate the KFD analdes */
+	for (i = 0, xcp_idx = 0; i < kfd->num_analdes; i++) {
+		analde = kzalloc(sizeof(struct kfd_analde), GFP_KERNEL);
+		if (!analde)
+			goto analde_alloc_error;
 
-		node->node_id = i;
-		node->adev = kfd->adev;
-		node->kfd = kfd;
-		node->kfd2kgd = kfd->kfd2kgd;
-		node->vm_info.vmid_num_kfd = vmid_num_kfd;
-		node->xcp = amdgpu_get_next_xcp(kfd->adev->xcp_mgr, &xcp_idx);
+		analde->analde_id = i;
+		analde->adev = kfd->adev;
+		analde->kfd = kfd;
+		analde->kfd2kgd = kfd->kfd2kgd;
+		analde->vm_info.vmid_num_kfd = vmid_num_kfd;
+		analde->xcp = amdgpu_get_next_xcp(kfd->adev->xcp_mgr, &xcp_idx);
 		/* TODO : Check if error handling is needed */
-		if (node->xcp) {
-			amdgpu_xcp_get_inst_details(node->xcp, AMDGPU_XCP_GFX,
-						    &node->xcc_mask);
+		if (analde->xcp) {
+			amdgpu_xcp_get_inst_details(analde->xcp, AMDGPU_XCP_GFX,
+						    &analde->xcc_mask);
 			++xcp_idx;
 		} else {
-			node->xcc_mask =
+			analde->xcc_mask =
 				(1U << NUM_XCC(kfd->adev->gfx.xcc_mask)) - 1;
 		}
 
-		if (node->xcp) {
-			dev_info(kfd_device, "KFD node %d partition %d size %lldM\n",
-				node->node_id, node->xcp->mem_id,
-				KFD_XCP_MEMORY_SIZE(node->adev, node->node_id) >> 20);
+		if (analde->xcp) {
+			dev_info(kfd_device, "KFD analde %d partition %d size %lldM\n",
+				analde->analde_id, analde->xcp->mem_id,
+				KFD_XCP_MEMORY_SIZE(analde->adev, analde->analde_id) >> 20);
 		}
 
 		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
 		    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
-		    kfd->num_nodes != 1) {
+		    kfd->num_analdes != 1) {
 			/* For GFX9.4.3 and CPX mode, first XCD gets VMID range
 			 * 4-9 and second XCD gets VMID range 10-15.
 			 */
 
-			node->vm_info.first_vmid_kfd = (i%2 == 0) ?
+			analde->vm_info.first_vmid_kfd = (i%2 == 0) ?
 						first_vmid_kfd :
 						first_vmid_kfd+vmid_num_kfd;
-			node->vm_info.last_vmid_kfd = (i%2 == 0) ?
+			analde->vm_info.last_vmid_kfd = (i%2 == 0) ?
 						last_vmid_kfd-vmid_num_kfd :
 						last_vmid_kfd;
-			node->compute_vmid_bitmap =
-				((0x1 << (node->vm_info.last_vmid_kfd + 1)) - 1) -
-				((0x1 << (node->vm_info.first_vmid_kfd)) - 1);
+			analde->compute_vmid_bitmap =
+				((0x1 << (analde->vm_info.last_vmid_kfd + 1)) - 1) -
+				((0x1 << (analde->vm_info.first_vmid_kfd)) - 1);
 		} else {
-			node->vm_info.first_vmid_kfd = first_vmid_kfd;
-			node->vm_info.last_vmid_kfd = last_vmid_kfd;
-			node->compute_vmid_bitmap =
+			analde->vm_info.first_vmid_kfd = first_vmid_kfd;
+			analde->vm_info.last_vmid_kfd = last_vmid_kfd;
+			analde->compute_vmid_bitmap =
 				gpu_resources->compute_vmid_bitmap;
 		}
-		node->max_proc_per_quantum = max_proc_per_quantum;
-		atomic_set(&node->sram_ecc_flag, 0);
+		analde->max_proc_per_quantum = max_proc_per_quantum;
+		atomic_set(&analde->sram_ecc_flag, 0);
 
 		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
-					&node->local_mem_info, node->xcp);
+					&analde->local_mem_info, analde->xcp);
 
 		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3))
-			kfd_setup_interrupt_bitmap(node, i);
+			kfd_setup_interrupt_bitmap(analde, i);
 
-		/* Initialize the KFD node */
-		if (kfd_init_node(node)) {
-			dev_err(kfd_device, "Error initializing KFD node\n");
-			goto node_init_error;
+		/* Initialize the KFD analde */
+		if (kfd_init_analde(analde)) {
+			dev_err(kfd_device, "Error initializing KFD analde\n");
+			goto analde_init_error;
 		}
-		kfd->nodes[i] = node;
+		kfd->analdes[i] = analde;
 	}
 
 	svm_range_set_max_pages(kfd->adev);
@@ -843,13 +843,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		 kfd->adev->pdev->device);
 
 	pr_debug("Starting kfd with the following scheduling policy %d\n",
-		node->dqm->sched_policy);
+		analde->dqm->sched_policy);
 
 	goto out;
 
-node_init_error:
-node_alloc_error:
-	kfd_cleanup_nodes(kfd, i);
+analde_init_error:
+analde_alloc_error:
+	kfd_cleanup_analdes(kfd, i);
 	kfd_doorbell_fini(kfd);
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
@@ -857,7 +857,7 @@ kfd_gtt_sa_init_error:
 	amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
 alloc_gtt_mem_failure:
 	dev_err(kfd_device,
-		"device %x:%x NOT added due to errors\n",
+		"device %x:%x ANALT added due to errors\n",
 		kfd->adev->pdev->vendor, kfd->adev->pdev->device);
 out:
 	return kfd->init_complete;
@@ -866,8 +866,8 @@ out:
 void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
 	if (kfd->init_complete) {
-		/* Cleanup KFD nodes */
-		kfd_cleanup_nodes(kfd, kfd->num_nodes);
+		/* Cleanup KFD analdes */
+		kfd_cleanup_analdes(kfd, kfd->num_analdes);
 		/* Cleanup common/shared resources */
 		kfd_doorbell_fini(kfd);
 		ida_destroy(&kfd->doorbell_ida);
@@ -880,28 +880,28 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 {
-	struct kfd_node *node;
+	struct kfd_analde *analde;
 	int i;
 
 	if (!kfd->init_complete)
 		return 0;
 
-	for (i = 0; i < kfd->num_nodes; i++) {
-		node = kfd->nodes[i];
-		kfd_smi_event_update_gpu_reset(node, false);
-		node->dqm->ops.pre_reset(node->dqm);
+	for (i = 0; i < kfd->num_analdes; i++) {
+		analde = kfd->analdes[i];
+		kfd_smi_event_update_gpu_reset(analde, false);
+		analde->dqm->ops.pre_reset(analde->dqm);
 	}
 
 	kgd2kfd_suspend(kfd, false);
 
-	for (i = 0; i < kfd->num_nodes; i++)
-		kfd_signal_reset_event(kfd->nodes[i]);
+	for (i = 0; i < kfd->num_analdes; i++)
+		kfd_signal_reset_event(kfd->analdes[i]);
 
 	return 0;
 }
 
 /*
- * Fix me. KFD won't be able to resume existing process for now.
+ * Fix me. KFD won't be able to resume existing process for analw.
  * We will keep all existing process in a evicted state and
  * wait the process to be terminated.
  */
@@ -909,14 +909,14 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 int kgd2kfd_post_reset(struct kfd_dev *kfd)
 {
 	int ret;
-	struct kfd_node *node;
+	struct kfd_analde *analde;
 	int i;
 
 	if (!kfd->init_complete)
 		return 0;
 
-	for (i = 0; i < kfd->num_nodes; i++) {
-		ret = kfd_resume(kfd->nodes[i]);
+	for (i = 0; i < kfd->num_analdes; i++) {
+		ret = kfd_resume(kfd->analdes[i]);
 		if (ret)
 			return ret;
 	}
@@ -925,10 +925,10 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	--kfd_locked;
 	mutex_unlock(&kfd_processes_mutex);
 
-	for (i = 0; i < kfd->num_nodes; i++) {
-		node = kfd->nodes[i];
-		atomic_set(&node->sram_ecc_flag, 0);
-		kfd_smi_event_update_gpu_reset(node, true);
+	for (i = 0; i < kfd->num_analdes; i++) {
+		analde = kfd->analdes[i];
+		atomic_set(&analde->sram_ecc_flag, 0);
+		kfd_smi_event_update_gpu_reset(analde, true);
 	}
 
 	return 0;
@@ -942,7 +942,7 @@ bool kfd_is_locked(void)
 
 void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
 {
-	struct kfd_node *node;
+	struct kfd_analde *analde;
 	int i;
 	int count;
 
@@ -960,9 +960,9 @@ void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
 			kfd_suspend_all_processes();
 	}
 
-	for (i = 0; i < kfd->num_nodes; i++) {
-		node = kfd->nodes[i];
-		node->dqm->ops.stop(node->dqm);
+	for (i = 0; i < kfd->num_analdes; i++) {
+		analde = kfd->analdes[i];
+		analde->dqm->ops.stop(analde->dqm);
 	}
 }
 
@@ -973,8 +973,8 @@ int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
 	if (!kfd->init_complete)
 		return 0;
 
-	for (i = 0; i < kfd->num_nodes; i++) {
-		ret = kfd_resume(kfd->nodes[i]);
+	for (i = 0; i < kfd->num_analdes; i++) {
+		ret = kfd_resume(kfd->analdes[i]);
 		if (ret)
 			return ret;
 	}
@@ -993,15 +993,15 @@ int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
 	return ret;
 }
 
-static int kfd_resume(struct kfd_node *node)
+static int kfd_resume(struct kfd_analde *analde)
 {
 	int err = 0;
 
-	err = node->dqm->ops.start(node->dqm);
+	err = analde->dqm->ops.start(analde->dqm);
 	if (err)
 		dev_err(kfd_device,
 			"Error starting queue manager for device %x:%x\n",
-			node->adev->pdev->vendor, node->adev->pdev->device);
+			analde->adev->pdev->vendor, analde->adev->pdev->device);
 
 	return err;
 }
@@ -1014,7 +1014,7 @@ static inline void kfd_queue_work(struct workqueue_struct *wq,
 	cpu = new_cpu = smp_processor_id();
 	do {
 		new_cpu = cpumask_next(new_cpu, cpu_online_mask) % nr_cpu_ids;
-		if (cpu_to_node(new_cpu) == numa_node_id())
+		if (cpu_to_analde(new_cpu) == numa_analde_id())
 			break;
 	} while (cpu != new_cpu);
 
@@ -1027,7 +1027,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 	uint32_t patched_ihre[KFD_MAX_RING_ENTRY_SIZE], i;
 	bool is_patched = false;
 	unsigned long flags;
-	struct kfd_node *node;
+	struct kfd_analde *analde;
 
 	if (!kfd->init_complete)
 		return;
@@ -1037,20 +1037,20 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 		return;
 	}
 
-	for (i = 0; i < kfd->num_nodes; i++) {
-		node = kfd->nodes[i];
-		spin_lock_irqsave(&node->interrupt_lock, flags);
+	for (i = 0; i < kfd->num_analdes; i++) {
+		analde = kfd->analdes[i];
+		spin_lock_irqsave(&analde->interrupt_lock, flags);
 
-		if (node->interrupts_active
-		    && interrupt_is_wanted(node, ih_ring_entry,
+		if (analde->interrupts_active
+		    && interrupt_is_wanted(analde, ih_ring_entry,
 			    	patched_ihre, &is_patched)
-		    && enqueue_ih_ring_entry(node,
+		    && enqueue_ih_ring_entry(analde,
 			    	is_patched ? patched_ihre : ih_ring_entry)) {
-			kfd_queue_work(node->ih_wq, &node->interrupt_work);
-			spin_unlock_irqrestore(&node->interrupt_lock, flags);
+			kfd_queue_work(analde->ih_wq, &analde->interrupt_work);
+			spin_unlock_irqrestore(&analde->interrupt_lock, flags);
 			return;
 		}
-		spin_unlock_irqrestore(&node->interrupt_lock, flags);
+		spin_unlock_irqrestore(&analde->interrupt_lock, flags);
 	}
 
 }
@@ -1117,12 +1117,12 @@ int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 
 	p = kfd_lookup_process_by_mm(mm);
 	if (!p)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (fence->seqno == p->last_eviction_seqno)
+	if (fence->seqanal == p->last_eviction_seqanal)
 		goto out;
 
-	p->last_eviction_seqno = fence->seqno;
+	p->last_eviction_seqanal = fence->seqanal;
 
 	/* Avoid KFD process starvation. Wait for at least
 	 * PROCESS_ACTIVE_TIME_MS before evicting the process again
@@ -1160,7 +1160,7 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 	kfd->gtt_sa_bitmap = bitmap_zalloc(kfd->gtt_sa_num_of_chunks,
 					   GFP_KERNEL);
 	if (!kfd->gtt_sa_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_debug("gtt_sa_num_of_chunks = %d, gtt_sa_bitmap = %p\n",
 			kfd->gtt_sa_num_of_chunks, kfd->gtt_sa_bitmap);
@@ -1190,21 +1190,21 @@ static inline uint32_t *kfd_gtt_sa_calc_cpu_addr(void *start_addr,
 	return (uint32_t *) ((uint64_t) start_addr + bit_num * chunk_size);
 }
 
-int kfd_gtt_sa_allocate(struct kfd_node *node, unsigned int size,
+int kfd_gtt_sa_allocate(struct kfd_analde *analde, unsigned int size,
 			struct kfd_mem_obj **mem_obj)
 {
 	unsigned int found, start_search, cur_size;
-	struct kfd_dev *kfd = node->kfd;
+	struct kfd_dev *kfd = analde->kfd;
 
 	if (size == 0)
 		return -EINVAL;
 
 	if (size > kfd->gtt_sa_num_of_chunks * kfd->gtt_sa_chunk_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 	if (!(*mem_obj))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_debug("Allocated mem_obj = %p for size = %d\n", *mem_obj, size);
 
@@ -1222,7 +1222,7 @@ kfd_gtt_restart_search:
 
 	/* If there wasn't any free chunk, bail out */
 	if (found == kfd->gtt_sa_num_of_chunks)
-		goto kfd_gtt_no_free_chunk;
+		goto kfd_gtt_anal_free_chunk;
 
 	/* Update fields of mem_obj */
 	(*mem_obj)->range_start = found;
@@ -1246,14 +1246,14 @@ kfd_gtt_restart_search:
 		goto kfd_gtt_out;
 	}
 
-	/* Otherwise, try to see if we have enough contiguous chunks */
+	/* Otherwise, try to see if we have eanalugh contiguous chunks */
 	cur_size = size - kfd->gtt_sa_chunk_size;
 	do {
 		(*mem_obj)->range_end =
 			find_next_zero_bit(kfd->gtt_sa_bitmap,
 					kfd->gtt_sa_num_of_chunks, ++found);
 		/*
-		 * If next free chunk is not contiguous than we need to
+		 * If next free chunk is analt contiguous than we need to
 		 * restart our search from the last free chunk we found (which
 		 * wasn't contiguous to the previous ones
 		 */
@@ -1266,9 +1266,9 @@ kfd_gtt_restart_search:
 		 * If we reached end of buffer, bail out with error
 		 */
 		if (found == kfd->gtt_sa_num_of_chunks)
-			goto kfd_gtt_no_free_chunk;
+			goto kfd_gtt_anal_free_chunk;
 
-		/* Check if we don't need another chunk */
+		/* Check if we don't need aanalther chunk */
 		if (cur_size <= kfd->gtt_sa_chunk_size)
 			cur_size = 0;
 		else
@@ -1287,16 +1287,16 @@ kfd_gtt_out:
 	mutex_unlock(&kfd->gtt_sa_lock);
 	return 0;
 
-kfd_gtt_no_free_chunk:
+kfd_gtt_anal_free_chunk:
 	pr_debug("Allocation failed with mem_obj = %p\n", *mem_obj);
 	mutex_unlock(&kfd->gtt_sa_lock);
 	kfree(*mem_obj);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-int kfd_gtt_sa_free(struct kfd_node *node, struct kfd_mem_obj *mem_obj)
+int kfd_gtt_sa_free(struct kfd_analde *analde, struct kfd_mem_obj *mem_obj)
 {
-	struct kfd_dev *kfd = node->kfd;
+	struct kfd_dev *kfd = analde->kfd;
 
 	/* Act like kfree when trying to free a NULL object */
 	if (!mem_obj)
@@ -1320,38 +1320,38 @@ int kfd_gtt_sa_free(struct kfd_node *node, struct kfd_mem_obj *mem_obj)
 void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 {
 	/*
-	 * TODO: Currently update SRAM ECC flag for first node.
+	 * TODO: Currently update SRAM ECC flag for first analde.
 	 * This needs to be updated later when we can
-	 * identify SRAM ECC error on other nodes also.
+	 * identify SRAM ECC error on other analdes also.
 	 */
 	if (kfd)
-		atomic_inc(&kfd->nodes[0]->sram_ecc_flag);
+		atomic_inc(&kfd->analdes[0]->sram_ecc_flag);
 }
 
-void kfd_inc_compute_active(struct kfd_node *node)
+void kfd_inc_compute_active(struct kfd_analde *analde)
 {
-	if (atomic_inc_return(&node->kfd->compute_profile) == 1)
-		amdgpu_amdkfd_set_compute_idle(node->adev, false);
+	if (atomic_inc_return(&analde->kfd->compute_profile) == 1)
+		amdgpu_amdkfd_set_compute_idle(analde->adev, false);
 }
 
-void kfd_dec_compute_active(struct kfd_node *node)
+void kfd_dec_compute_active(struct kfd_analde *analde)
 {
-	int count = atomic_dec_return(&node->kfd->compute_profile);
+	int count = atomic_dec_return(&analde->kfd->compute_profile);
 
 	if (count == 0)
-		amdgpu_amdkfd_set_compute_idle(node->adev, true);
+		amdgpu_amdkfd_set_compute_idle(analde->adev, true);
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 
 void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
 {
 	/*
-	 * TODO: For now, raise the throttling event only on first node.
+	 * TODO: For analw, raise the throttling event only on first analde.
 	 * This will need to change after we are able to determine
-	 * which node raised the throttling event.
+	 * which analde raised the throttling event.
 	 */
 	if (kfd && kfd->init_complete)
-		kfd_smi_event_update_thermal_throttling(kfd->nodes[0],
+		kfd_smi_event_update_thermal_throttling(kfd->analdes[0],
 							throttle_bitmask);
 }
 
@@ -1360,20 +1360,20 @@ void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
  * When the device has more than two engines, we reserve two for PCIe to enable
  * full-duplex and the rest are used as XGMI.
  */
-unsigned int kfd_get_num_sdma_engines(struct kfd_node *node)
+unsigned int kfd_get_num_sdma_engines(struct kfd_analde *analde)
 {
-	/* If XGMI is not supported, all SDMA engines are PCIe */
-	if (!node->adev->gmc.xgmi.supported)
-		return node->adev->sdma.num_instances/(int)node->kfd->num_nodes;
+	/* If XGMI is analt supported, all SDMA engines are PCIe */
+	if (!analde->adev->gmc.xgmi.supported)
+		return analde->adev->sdma.num_instances/(int)analde->kfd->num_analdes;
 
-	return min(node->adev->sdma.num_instances/(int)node->kfd->num_nodes, 2);
+	return min(analde->adev->sdma.num_instances/(int)analde->kfd->num_analdes, 2);
 }
 
-unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_node *node)
+unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_analde *analde)
 {
 	/* After reserved for PCIe, the rest of engines are XGMI */
-	return node->adev->sdma.num_instances/(int)node->kfd->num_nodes -
-		kfd_get_num_sdma_engines(node);
+	return analde->adev->sdma.num_instances/(int)analde->kfd->num_analdes -
+		kfd_get_num_sdma_engines(analde);
 }
 
 int kgd2kfd_check_and_lock_kfd(void)
@@ -1400,12 +1400,12 @@ void kgd2kfd_unlock_kfd(void)
 #if defined(CONFIG_DEBUG_FS)
 
 /* This function will send a package to HIQ to hang the HWS
- * which will trigger a GPU reset and bring the HWS back to normal state
+ * which will trigger a GPU reset and bring the HWS back to analrmal state
  */
-int kfd_debugfs_hang_hws(struct kfd_node *dev)
+int kfd_debugfs_hang_hws(struct kfd_analde *dev)
 {
 	if (dev->dqm->sched_policy != KFD_SCHED_POLICY_HWS) {
-		pr_err("HWS is not enabled");
+		pr_err("HWS is analt enabled");
 		return -EINVAL;
 	}
 

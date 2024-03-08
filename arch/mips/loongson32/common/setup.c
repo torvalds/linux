@@ -21,6 +21,6 @@ const char *get_system_type(void)
 		return "LOONGSON LS1C";
 #endif
 	default:
-		return "LOONGSON (unknown)";
+		return "LOONGSON (unkanalwn)";
 	}
 }

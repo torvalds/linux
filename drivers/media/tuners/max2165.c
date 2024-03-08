@@ -196,7 +196,7 @@ static int max2165_set_rf(struct max2165_priv *priv, u32 freq)
 	max2165_write_reg(priv, REG_NDIV_FRAC1, fraction >> 8);
 	max2165_write_reg(priv, REG_NDIV_FRAC0, fraction);
 
-	/* Norch Filter */
+	/* Analrch Filter */
 	tf_ntch = (freq < 725000000) ?
 		priv->tf_ntch_low_cfg : priv->tf_ntch_hi_cfg;
 
@@ -258,7 +258,7 @@ static int max2165_set_params(struct dvb_frontend *fe)
 		priv->frequency = c->frequency;
 		break;
 	default:
-		printk(KERN_INFO "MAX2165: bandwidth %d Hz not supported.\n",
+		printk(KERN_INFO "MAX2165: bandwidth %d Hz analt supported.\n",
 		       c->bandwidth_hz);
 		return -EINVAL;
 	}

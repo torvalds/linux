@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. */
 
 #include "en.h"
 #include "monitor_stats.h"
@@ -56,13 +56,13 @@ static void mlx5e_monitor_counters_work(struct work_struct *work)
 	mlx5e_monitor_counter_arm(priv);
 }
 
-static int mlx5e_monitor_event_handler(struct notifier_block *nb,
+static int mlx5e_monitor_event_handler(struct analtifier_block *nb,
 				       unsigned long event, void *eqe)
 {
 	struct mlx5e_priv *priv = mlx5_nb_cof(nb, struct mlx5e_priv,
 					      monitor_counters_nb);
 	queue_work(priv->wq, &priv->monitor_counters_work);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int fill_monitor_counter_ppcnt_set1(int cnt, u32 *in)
@@ -130,7 +130,7 @@ void mlx5e_monitor_counter_init(struct mlx5e_priv *priv)
 	INIT_WORK(&priv->monitor_counters_work, mlx5e_monitor_counters_work);
 	MLX5_NB_INIT(&priv->monitor_counters_nb, mlx5e_monitor_event_handler,
 		     MONITOR_COUNTER);
-	mlx5_eq_notifier_register(priv->mdev, &priv->monitor_counters_nb);
+	mlx5_eq_analtifier_register(priv->mdev, &priv->monitor_counters_nb);
 
 	mlx5e_set_monitor_counter(priv);
 	mlx5e_monitor_counter_arm(priv);
@@ -146,6 +146,6 @@ void mlx5e_monitor_counter_cleanup(struct mlx5e_priv *priv)
 		 MLX5_CMD_OP_SET_MONITOR_COUNTER);
 
 	mlx5_cmd_exec_in(priv->mdev, set_monitor_counter, in);
-	mlx5_eq_notifier_unregister(priv->mdev, &priv->monitor_counters_nb);
+	mlx5_eq_analtifier_unregister(priv->mdev, &priv->monitor_counters_nb);
 	cancel_work_sync(&priv->monitor_counters_work);
 }

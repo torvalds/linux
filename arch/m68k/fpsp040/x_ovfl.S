@@ -12,8 +12,8 @@
 | Trap disabled results
 |
 | If the instruction is move_out, then garbage is stored in the
-| destination.  If the instruction is not move_out, then the
-| destination is not affected.  For 68881 compatibility, the
+| destination.  If the instruction is analt move_out, then the
+| destination is analt affected.  For 68881 compatibility, the
 | following values should be stored at the destination, based
 | on the current rounding mode:
 |
@@ -67,21 +67,21 @@ fpsp_ovfl:
 |
 	bsetb	#ainex_bit,FPSR_AEXCEPT(%a6)
 |
-	bsrl	ovf_adj		|denormalize, round & store interm op
+	bsrl	ovf_adj		|deanalrmalize, round & store interm op
 |
-|	if overflow traps not enabled check for inexact exception
+|	if overflow traps analt enabled check for inexact exception
 |
 	btstb	#ovfl_bit,FPCR_ENABLE(%a6)
 	beqs	ck_inex
 |
 	btstb		#E3,E_BYTE(%a6)
-	beqs		no_e3_1
-	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg no
+	beqs		anal_e3_1
+	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg anal
 	bclrb		%d0,FPR_DIRTY_BITS(%a6)	|clr dest dirty bit
 	bsrl		b1238_fix
 	movel		USER_FPSR(%a6),FPSR_SHADOW(%a6)
 	orl		#sx_mask,E_BYTE(%a6)
-no_e3_1:
+anal_e3_1:
 	moveml		USER_DA(%a6),%d0-%d1/%a0-%a1
 	fmovemx	USER_FP0(%a6),%fp0-%fp3
 	fmoveml	USER_FPCR(%a6),%fpcr/%fpsr/%fpiar
@@ -105,13 +105,13 @@ ck_inex:
 |
 take_inex:
 	btstb		#E3,E_BYTE(%a6)
-	beqs		no_e3_2
-	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg no
+	beqs		anal_e3_2
+	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg anal
 	bclrb		%d0,FPR_DIRTY_BITS(%a6)	|clr dest dirty bit
 	bsrl		b1238_fix
 	movel		USER_FPSR(%a6),FPSR_SHADOW(%a6)
 	orl		#sx_mask,E_BYTE(%a6)
-no_e3_2:
+anal_e3_2:
 	moveb		#INEX_VEC,EXC_VEC+1(%a6)
 	moveml		USER_DA(%a6),%d0-%d1/%a0-%a1
 	fmovemx	USER_FP0(%a6),%fp0-%fp3
@@ -127,7 +127,7 @@ ovfl_exit:
 | Clear dirty bit on dest resister in the frame before branching
 | to b1238_fix.
 |
-	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg no
+	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg anal
 	bclrb		%d0,FPR_DIRTY_BITS(%a6)	|clr dest dirty bit
 	bsrl		b1238_fix		|test for bug1238 case
 
@@ -167,18 +167,18 @@ ovf_com:
 
 	bsrl	g_opcls		|returns opclass in d0
 	cmpiw	#3,%d0		|check for opclass3
-	bnes	not_opc011
+	bnes	analt_opc011
 
 |
 | FPSR_CC is saved and restored because ovf_r_x3 affects it. The
-| CCs are defined to be 'not affected' for the opclass3 instruction.
+| CCs are defined to be 'analt affected' for the opclass3 instruction.
 |
 	moveb	FPSR_CC(%a6),L_SCR1(%a6)
 	bsrl	ovf_r_x3	|returns a0 pointing to result
 	moveb	L_SCR1(%a6),FPSR_CC(%a6)
 	bral	store		|stores to memory or register
 
-not_opc011:
+analt_opc011:
 	bsrl	ovf_r_x2	|returns a0 pointing to result
 	bral	store		|stores to memory or register
 

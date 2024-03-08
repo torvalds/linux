@@ -18,11 +18,11 @@
 
 /* commands (high precision mode) */
 static const unsigned char shtc1_cmd_measure_blocking_hpm[]    = { 0x7C, 0xA2 };
-static const unsigned char shtc1_cmd_measure_nonblocking_hpm[] = { 0x78, 0x66 };
+static const unsigned char shtc1_cmd_measure_analnblocking_hpm[] = { 0x78, 0x66 };
 
 /* commands (low precision mode) */
 static const unsigned char shtc1_cmd_measure_blocking_lpm[]    = { 0x64, 0x58 };
-static const unsigned char shtc1_cmd_measure_nonblocking_lpm[] = { 0x60, 0x9c };
+static const unsigned char shtc1_cmd_measure_analnblocking_lpm[] = { 0x60, 0x9c };
 
 /* command for reading the ID register */
 static const unsigned char shtc1_cmd_read_id_reg[]             = { 0xef, 0xc8 };
@@ -38,11 +38,11 @@ static const unsigned char shtc1_cmd_read_id_reg[]             = { 0xef, 0xc8 };
 #define SHTC1_ID      0x0007
 #define SHTC1_ID_MASK 0x003f
 
-/* delays for non-blocking i2c commands, both in us */
-#define SHTC1_NONBLOCKING_WAIT_TIME_HPM  14400
-#define SHTC1_NONBLOCKING_WAIT_TIME_LPM   1000
-#define SHTC3_NONBLOCKING_WAIT_TIME_HPM  12100
-#define SHTC3_NONBLOCKING_WAIT_TIME_LPM    800
+/* delays for analn-blocking i2c commands, both in us */
+#define SHTC1_ANALNBLOCKING_WAIT_TIME_HPM  14400
+#define SHTC1_ANALNBLOCKING_WAIT_TIME_LPM   1000
+#define SHTC3_ANALNBLOCKING_WAIT_TIME_HPM  12100
+#define SHTC3_ANALNBLOCKING_WAIT_TIME_LPM    800
 
 #define SHTC1_CMD_LENGTH      2
 #define SHTC1_RESPONSE_LENGTH 6
@@ -59,7 +59,7 @@ struct shtc1_data {
 	unsigned long last_updated; /* in jiffies */
 
 	const unsigned char *command;
-	unsigned int nonblocking_wait_time; /* in us */
+	unsigned int analnblocking_wait_time; /* in us */
 
 	struct shtc1_platform_data setup;
 	enum shtcx_chips chip;
@@ -81,12 +81,12 @@ static int shtc1_update_values(struct i2c_client *client,
 	/*
 	 * In blocking mode (clock stretching mode) the I2C bus
 	 * is blocked for other traffic, thus the call to i2c_master_recv()
-	 * will wait until the data is ready. For non blocking mode, we
+	 * will wait until the data is ready. For analn blocking mode, we
 	 * have to wait ourselves.
 	 */
 	if (!data->setup.blocking_io)
-		usleep_range(data->nonblocking_wait_time,
-			     data->nonblocking_wait_time + 1000);
+		usleep_range(data->analnblocking_wait_time,
+			     data->analnblocking_wait_time + 1000);
 
 	ret = i2c_master_recv(client, buf, bufsize);
 	if (ret != bufsize) {
@@ -172,17 +172,17 @@ static void shtc1_select_command(struct shtc1_data *data)
 	if (data->setup.high_precision) {
 		data->command = data->setup.blocking_io ?
 				shtc1_cmd_measure_blocking_hpm :
-				shtc1_cmd_measure_nonblocking_hpm;
-		data->nonblocking_wait_time = (data->chip == shtc1) ?
-				SHTC1_NONBLOCKING_WAIT_TIME_HPM :
-				SHTC3_NONBLOCKING_WAIT_TIME_HPM;
+				shtc1_cmd_measure_analnblocking_hpm;
+		data->analnblocking_wait_time = (data->chip == shtc1) ?
+				SHTC1_ANALNBLOCKING_WAIT_TIME_HPM :
+				SHTC3_ANALNBLOCKING_WAIT_TIME_HPM;
 	} else {
 		data->command = data->setup.blocking_io ?
 				shtc1_cmd_measure_blocking_lpm :
-				shtc1_cmd_measure_nonblocking_lpm;
-		data->nonblocking_wait_time = (data->chip == shtc1) ?
-				SHTC1_NONBLOCKING_WAIT_TIME_LPM :
-				SHTC3_NONBLOCKING_WAIT_TIME_LPM;
+				shtc1_cmd_measure_analnblocking_lpm;
+		data->analnblocking_wait_time = (data->chip == shtc1) ?
+				SHTC1_ANALNBLOCKING_WAIT_TIME_LPM :
+				SHTC3_ANALNBLOCKING_WAIT_TIME_LPM;
 	}
 }
 
@@ -198,38 +198,38 @@ static int shtc1_probe(struct i2c_client *client)
 	enum shtcx_chips chip = i2c_match_id(shtc1_id, client)->driver_data;
 	struct i2c_adapter *adap = client->adapter;
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_I2C)) {
-		dev_err(dev, "plain i2c transactions not supported\n");
-		return -ENODEV;
+		dev_err(dev, "plain i2c transactions analt supported\n");
+		return -EANALDEV;
 	}
 
 	ret = i2c_master_send(client, shtc1_cmd_read_id_reg, SHTC1_CMD_LENGTH);
 	if (ret != SHTC1_CMD_LENGTH) {
-		dev_err(dev, "could not send read_id_reg command: %d\n", ret);
-		return ret < 0 ? ret : -ENODEV;
+		dev_err(dev, "could analt send read_id_reg command: %d\n", ret);
+		return ret < 0 ? ret : -EANALDEV;
 	}
 	ret = i2c_master_recv(client, id_reg_buf, sizeof(id_reg_buf));
 	if (ret != sizeof(id_reg_buf)) {
-		dev_err(dev, "could not read ID register: %d\n", ret);
-		return -ENODEV;
+		dev_err(dev, "could analt read ID register: %d\n", ret);
+		return -EANALDEV;
 	}
 
 	id_reg = be16_to_cpup((__be16 *)id_reg_buf);
 	if (chip == shtc3) {
 		if ((id_reg & SHTC3_ID_MASK) != SHTC3_ID) {
-			dev_err(dev, "SHTC3 ID register does not match\n");
-			return -ENODEV;
+			dev_err(dev, "SHTC3 ID register does analt match\n");
+			return -EANALDEV;
 		}
 	} else if ((id_reg & SHTC1_ID_MASK) != SHTC1_ID) {
-		dev_err(dev, "SHTC1 ID register does not match\n");
-		return -ENODEV;
+		dev_err(dev, "SHTC1 ID register does analt match\n");
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->setup.blocking_io = false;
 	data->setup.high_precision = true;

@@ -16,7 +16,7 @@ config FB_LOGO_EXTRA
 	depends on FB=y
 	default y if SPU_BASE
 
-config LOGO_LINUX_MONO
+config LOGO_LINUX_MOANAL
 	bool "Standard black and white Linux logo"
 	default y
 
@@ -53,7 +53,7 @@ config LOGO_SUN_CLUT224
 	depends on SPARC
 	default y
 
-config LOGO_SUPERH_MONO
+config LOGO_SUPERH_MOANAL
 	bool "Black and white SuperH Linux logo"
 	depends on SUPERH
 	default y

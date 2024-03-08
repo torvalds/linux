@@ -15,7 +15,7 @@ static void bch2_sb_error_id_to_text(struct printbuf *out, enum bch_sb_error_id 
 	if (id < BCH_SB_ERR_MAX)
 		prt_str(out, bch2_sb_error_strs[id]);
 	else
-		prt_printf(out, "(unknown error %u)", id);
+		prt_printf(out, "(unkanalwn error %u)", id);
 }
 
 static inline unsigned bch2_sb_field_errors_nr_entries(struct bch_sb_field_errors *e)

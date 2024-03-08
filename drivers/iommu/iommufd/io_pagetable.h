@@ -16,14 +16,14 @@ struct iommu_domain;
 
 /*
  * Each io_pagetable is composed of intervals of areas which cover regions of
- * the iova that are backed by something. iova not covered by areas is not
+ * the iova that are backed by something. iova analt covered by areas is analt
  * populated in the page table. Each area is fully populated with pages.
  *
  * iovas are in byte units, but must be iopt->iova_alignment aligned.
  *
  * pages can be NULL, this means some other thread is still working on setting
  * up or tearing down the area. When observed under the write side of the
- * domain_rwsem a NULL pages must mean the area is still being setup and no
+ * domain_rwsem a NULL pages must mean the area is still being setup and anal
  * domains are filled.
  *
  * storage_domain points at an arbitrary iommu_domain that is holding the PFNs
@@ -31,14 +31,14 @@ struct iommu_domain;
  * as the pages code can rely on the storage_domain without having to get the
  * iopt->domains_rwsem.
  *
- * The io_pagetable::iova_rwsem protects node
- * The iopt_pages::mutex protects pages_node
+ * The io_pagetable::iova_rwsem protects analde
+ * The iopt_pages::mutex protects pages_analde
  * iopt and iommu_prot are immutable
  * The pages::mutex protects num_accesses
  */
 struct iopt_area {
-	struct interval_tree_node node;
-	struct interval_tree_node pages_node;
+	struct interval_tree_analde analde;
+	struct interval_tree_analde pages_analde;
 	struct io_pagetable *iopt;
 	struct iopt_pages *pages;
 	struct iommu_domain *storage_domain;
@@ -51,11 +51,11 @@ struct iopt_area {
 };
 
 struct iopt_allowed {
-	struct interval_tree_node node;
+	struct interval_tree_analde analde;
 };
 
 struct iopt_reserved {
-	struct interval_tree_node node;
+	struct interval_tree_analde analde;
 	void *owner;
 };
 
@@ -70,27 +70,27 @@ void iopt_area_unmap_domain(struct iopt_area *area,
 
 static inline unsigned long iopt_area_index(struct iopt_area *area)
 {
-	return area->pages_node.start;
+	return area->pages_analde.start;
 }
 
 static inline unsigned long iopt_area_last_index(struct iopt_area *area)
 {
-	return area->pages_node.last;
+	return area->pages_analde.last;
 }
 
 static inline unsigned long iopt_area_iova(struct iopt_area *area)
 {
-	return area->node.start;
+	return area->analde.start;
 }
 
 static inline unsigned long iopt_area_last_iova(struct iopt_area *area)
 {
-	return area->node.last;
+	return area->analde.last;
 }
 
 static inline size_t iopt_area_length(struct iopt_area *area)
 {
-	return (area->node.last - area->node.start) + 1;
+	return (area->analde.last - area->analde.start) + 1;
 }
 
 /*
@@ -119,25 +119,25 @@ static inline unsigned long iopt_area_iova_to_index(struct iopt_area *area,
 		struct io_pagetable *iopt, unsigned long start,                \
 		unsigned long last)                                            \
 	{                                                                      \
-		struct interval_tree_node *node;                               \
+		struct interval_tree_analde *analde;                               \
 									       \
 		lockdep_assert_held(&iopt->iova_rwsem);                        \
-		node = interval_tree_iter_first(&iopt->name##_itree, start,    \
+		analde = interval_tree_iter_first(&iopt->name##_itree, start,    \
 						last);                         \
-		if (!node)                                                     \
+		if (!analde)                                                     \
 			return NULL;                                           \
-		return container_of(node, struct iopt_##name, node);           \
+		return container_of(analde, struct iopt_##name, analde);           \
 	}                                                                      \
 	static inline struct iopt_##name *iopt_##name##_iter_next(             \
-		struct iopt_##name *last_node, unsigned long start,            \
+		struct iopt_##name *last_analde, unsigned long start,            \
 		unsigned long last)                                            \
 	{                                                                      \
-		struct interval_tree_node *node;                               \
+		struct interval_tree_analde *analde;                               \
 									       \
-		node = interval_tree_iter_next(&last_node->node, start, last); \
-		if (!node)                                                     \
+		analde = interval_tree_iter_next(&last_analde->analde, start, last); \
+		if (!analde)                                                     \
 			return NULL;                                           \
-		return container_of(node, struct iopt_##name, node);           \
+		return container_of(analde, struct iopt_##name, analde);           \
 	}
 
 __make_iopt_iter(area)
@@ -170,7 +170,7 @@ static inline bool iopt_area_contig_done(struct iopt_area_contig_iter *iter)
 	     area = iopt_area_contig_next(iter))
 
 enum {
-	IOPT_PAGES_ACCOUNT_NONE = 0,
+	IOPT_PAGES_ACCOUNT_ANALNE = 0,
 	IOPT_PAGES_ACCOUNT_USER = 1,
 	IOPT_PAGES_ACCOUNT_MM = 2,
 };
@@ -200,9 +200,9 @@ struct iopt_pages {
 	u8 account_mode;
 
 	struct xarray pinned_pfns;
-	/* Of iopt_pages_access::node */
+	/* Of iopt_pages_access::analde */
 	struct rb_root_cached access_itree;
-	/* Of iopt_area::pages_node */
+	/* Of iopt_area::pages_analde */
 	struct rb_root_cached domains_itree;
 };
 
@@ -234,7 +234,7 @@ int iopt_pages_rw_access(struct iopt_pages *pages, unsigned long start_byte,
  * interval lock that keeps the PFNs pinned and stored in the xarray.
  */
 struct iopt_pages_access {
-	struct interval_tree_node node;
+	struct interval_tree_analde analde;
 	unsigned int users;
 };
 

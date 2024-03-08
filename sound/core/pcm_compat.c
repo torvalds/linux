@@ -191,7 +191,7 @@ static int snd_pcm_status_user_compat64(struct snd_pcm_substream *substream,
 	/*
 	 * with extension, parameters are read/write,
 	 * get audio_tstamp_data from user,
-	 * ignore rest of status structure
+	 * iganalre rest of status structure
 	 */
 	if (ext && get_user(status.audio_tstamp_data,
 				(u32 __user *)(&src->audio_tstamp_data)))
@@ -241,11 +241,11 @@ static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 
 	runtime = substream->runtime;
 	if (!runtime)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* only fifo_size (RO from userspace) is different, so just copy all */
 	if (copy_from_user(data, data32, sizeof(*data32))) {
@@ -296,7 +296,7 @@ static int snd_pcm_ioctl_xferi_compat(struct snd_pcm_substream *substream,
 	int err;
 
 	if (! substream->runtime)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (substream->stream != dir)
 		return -EINVAL;
 	if (substream->runtime->state == SNDRV_PCM_STATE_OPEN)
@@ -342,7 +342,7 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 	int err, ch, i;
 
 	if (! substream->runtime)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (substream->stream != dir)
 		return -EINVAL;
 	if (substream->runtime->state == SNDRV_PCM_STATE_OPEN)
@@ -357,7 +357,7 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 	bufptr = compat_ptr(buf);
 	bufs = kmalloc_array(ch, sizeof(void __user *), GFP_KERNEL);
 	if (bufs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < ch; i++) {
 		u32 ptr;
 		if (get_user(ptr, bufptr)) {
@@ -578,17 +578,17 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 
 	pcm_file = file->private_data;
 	if (! pcm_file)
-		return -ENOTTY;
+		return -EANALTTY;
 	substream = pcm_file->substream;
 	if (! substream)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	/*
 	 * When PCM is used on 32bit mode, we need to disable
 	 * mmap of the old PCM status/control records because
 	 * of the size incompatibility.
 	 */
-	pcm_file->no_compat_mmap = 1;
+	pcm_file->anal_compat_mmap = 1;
 
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_PVERSION:
@@ -652,5 +652,5 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 #endif /* CONFIG_X86_X32_ABI */
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }

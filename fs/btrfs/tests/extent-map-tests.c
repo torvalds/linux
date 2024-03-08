@@ -6,7 +6,7 @@
 #include <linux/types.h>
 #include "btrfs-tests.h"
 #include "../ctree.h"
-#include "../btrfs_inode.h"
+#include "../btrfs_ianalde.h"
 #include "../volumes.h"
 #include "../disk-io.h"
 #include "../block-group.h"
@@ -14,12 +14,12 @@
 static void free_extent_map_tree(struct extent_map_tree *em_tree)
 {
 	struct extent_map *em;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	write_lock(&em_tree->lock);
 	while (!RB_EMPTY_ROOT(&em_tree->map.rb_root)) {
-		node = rb_first_cached(&em_tree->map);
-		em = rb_entry(node, struct extent_map, rb_node);
+		analde = rb_first_cached(&em_tree->map);
+		em = rb_entry(analde, struct extent_map, rb_analde);
 		remove_extent_mapping(em_tree, em);
 
 #ifdef CONFIG_BTRFS_DEBUG
@@ -40,8 +40,8 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 /*
  * Test scenario:
  *
- * Suppose that no extent map has been loaded into memory yet, there is a file
- * extent [0, 16K), followed by another file extent [16K, 20K), two dio reads
+ * Suppose that anal extent map has been loaded into memory yet, there is a file
+ * extent [0, 16K), followed by aanalther file extent [16K, 20K), two dio reads
  * are entering btrfs_get_extent() concurrently, t1 is reading [8K, 16K), t2 is
  * reading [0, 8K)
  *
@@ -64,7 +64,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Add [0, 16K) */
@@ -76,7 +76,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [0, 16K)");
+		test_err("cananalt add extent range [0, 16K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -85,7 +85,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -97,7 +97,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [16K, 20K)");
+		test_err("cananalt add extent range [16K, 20K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -105,7 +105,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -122,9 +122,9 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 	if (!em) {
-		test_err("case1 [%llu %llu]: no extent map returned",
+		test_err("case1 [%llu %llu]: anal extent map returned",
 			 start, start + len);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	if (em->start != 0 || extent_map_end(em) != SZ_16K ||
@@ -157,7 +157,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Add [0, 1K) */
@@ -169,7 +169,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [0, 1K)");
+		test_err("cananalt add extent range [0, 1K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -178,7 +178,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -190,7 +190,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [4K, 8K)");
+		test_err("cananalt add extent range [4K, 8K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -198,7 +198,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -215,8 +215,8 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 	if (!em) {
-		test_err("case2 [0 1K]: no extent map returned");
-		ret = -ENOENT;
+		test_err("case2 [0 1K]: anal extent map returned");
+		ret = -EANALENT;
 		goto out;
 	}
 	if (em->start != 0 || extent_map_end(em) != SZ_1K ||
@@ -244,7 +244,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Add [4K, 8K) */
@@ -256,7 +256,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [4K, 8K)");
+		test_err("cananalt add extent range [4K, 8K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -264,7 +264,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -282,9 +282,9 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 	if (!em) {
-		test_err("case3 [%llu %llu): no extent map returned",
+		test_err("case3 [%llu %llu): anal extent map returned",
 			 start, start + len);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	/*
@@ -309,7 +309,7 @@ out:
 /*
  * Test scenario:
  *
- * Suppose that no extent map has been loaded into memory yet.
+ * Suppose that anal extent map has been loaded into memory yet.
  * There is a file extent [0, 16K), two jobs are running concurrently
  * against it, t1 is buffered writing to [4K, 8K) and t2 is doing dio
  * read from [0, 4K) or [8K, 12K) or [12K, 16K).
@@ -348,7 +348,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Add [0K, 8K) */
@@ -360,7 +360,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [0, 8K)");
+		test_err("cananalt add extent range [0, 8K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -368,7 +368,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -381,7 +381,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [8K, 32K)");
+		test_err("cananalt add extent range [8K, 32K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -389,7 +389,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	/* Add [0K, 32K) */
@@ -406,9 +406,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 	if (!em) {
-		test_err("case4 [%llu %llu): no extent map returned",
+		test_err("case4 [%llu %llu): anal extent map returned",
 			 start, start + len);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	if (start < em->start || start + len > extent_map_end(em)) {
@@ -428,7 +428,7 @@ out:
 /*
  * Test scenario:
  *
- * Suppose that no extent map has been loaded into memory yet.
+ * Suppose that anal extent map has been loaded into memory yet.
  * There is a file extent [0, 32K), two jobs are running concurrently
  * against it, t1 is doing dio write to [8K, 32K) and t2 is doing dio
  * read from [0, 4K) or [4K, 8K).
@@ -473,7 +473,7 @@ static int add_compressed_extent(struct btrfs_fs_info *fs_info,
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	em->start = start;
@@ -486,7 +486,7 @@ static int add_compressed_extent(struct btrfs_fs_info *fs_info,
 	write_unlock(&em_tree->lock);
 	free_extent_map(em);
 	if (ret < 0) {
-		test_err("cannot add extent map [%llu, %llu)", start, start + len);
+		test_err("cananalt add extent map [%llu, %llu)", start, start + len);
 		return ret;
 	}
 
@@ -531,13 +531,13 @@ struct extent_range valid_ranges[][7] = {
 
 static int validate_range(struct extent_map_tree *em_tree, int index)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 	int i;
 
 	for (i = 0, n = rb_first_cached(&em_tree->map);
 	     valid_ranges[index][i].len && n;
 	     i++, n = rb_next(n)) {
-		struct extent_map *entry = rb_entry(n, struct extent_map, rb_node);
+		struct extent_map *entry = rb_entry(n, struct extent_map, rb_analde);
 
 		if (entry->start != valid_ranges[index][i].start) {
 			test_err("mapping has start %llu expected %llu",
@@ -591,88 +591,88 @@ static int validate_range(struct extent_map_tree *em_tree, int index)
 static int test_case_5(struct btrfs_fs_info *fs_info)
 {
 	struct extent_map_tree *em_tree;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	u64 start, end;
 	int ret;
 
 	test_msg("Running btrfs_drop_extent_map_range tests");
 
-	inode = btrfs_new_test_inode();
-	if (!inode) {
-		test_std_err(TEST_ALLOC_INODE);
-		return -ENOMEM;
+	ianalde = btrfs_new_test_ianalde();
+	if (!ianalde) {
+		test_std_err(TEST_ALLOC_IANALDE);
+		return -EANALMEM;
 	}
 
-	em_tree = &BTRFS_I(inode)->extent_tree;
+	em_tree = &BTRFS_I(ianalde)->extent_tree;
 
 	/* [0, 12k) */
 	ret = add_compressed_extent(fs_info, em_tree, 0, SZ_4K * 3, 0);
 	if (ret) {
-		test_err("cannot add extent range [0, 12K)");
+		test_err("cananalt add extent range [0, 12K)");
 		goto out;
 	}
 
 	/* [12k, 24k) */
 	ret = add_compressed_extent(fs_info, em_tree, SZ_4K * 3, SZ_4K * 3, SZ_4K);
 	if (ret) {
-		test_err("cannot add extent range [12k, 24k)");
+		test_err("cananalt add extent range [12k, 24k)");
 		goto out;
 	}
 
 	/* [24k, 36k) */
 	ret = add_compressed_extent(fs_info, em_tree, SZ_4K * 6, SZ_4K * 3, SZ_8K);
 	if (ret) {
-		test_err("cannot add extent range [12k, 24k)");
+		test_err("cananalt add extent range [12k, 24k)");
 		goto out;
 	}
 
 	/* [36k, 40k) */
 	ret = add_compressed_extent(fs_info, em_tree, SZ_32K + SZ_4K, SZ_4K, SZ_4K * 3);
 	if (ret) {
-		test_err("cannot add extent range [12k, 24k)");
+		test_err("cananalt add extent range [12k, 24k)");
 		goto out;
 	}
 
 	/* [40k, 64k) */
 	ret = add_compressed_extent(fs_info, em_tree, SZ_4K * 10, SZ_4K * 6, SZ_16K);
 	if (ret) {
-		test_err("cannot add extent range [12k, 24k)");
+		test_err("cananalt add extent range [12k, 24k)");
 		goto out;
 	}
 
 	/* Drop [8k, 12k) */
 	start = SZ_8K;
 	end = (3 * SZ_4K) - 1;
-	btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
-	ret = validate_range(&BTRFS_I(inode)->extent_tree, 0);
+	btrfs_drop_extent_map_range(BTRFS_I(ianalde), start, end, false);
+	ret = validate_range(&BTRFS_I(ianalde)->extent_tree, 0);
 	if (ret)
 		goto out;
 
 	/* Drop [12k, 20k) */
 	start = SZ_4K * 3;
 	end = SZ_16K + SZ_4K - 1;
-	btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
-	ret = validate_range(&BTRFS_I(inode)->extent_tree, 1);
+	btrfs_drop_extent_map_range(BTRFS_I(ianalde), start, end, false);
+	ret = validate_range(&BTRFS_I(ianalde)->extent_tree, 1);
 	if (ret)
 		goto out;
 
 	/* Drop [28k, 32k) */
 	start = SZ_32K - SZ_4K;
 	end = SZ_32K - 1;
-	btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
-	ret = validate_range(&BTRFS_I(inode)->extent_tree, 2);
+	btrfs_drop_extent_map_range(BTRFS_I(ianalde), start, end, false);
+	ret = validate_range(&BTRFS_I(ianalde)->extent_tree, 2);
 	if (ret)
 		goto out;
 
 	/* Drop [32k, 64k) */
 	start = SZ_32K;
 	end = SZ_64K - 1;
-	btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
-	ret = validate_range(&BTRFS_I(inode)->extent_tree, 3);
+	btrfs_drop_extent_map_range(BTRFS_I(ianalde), start, end, false);
+	ret = validate_range(&BTRFS_I(ianalde)->extent_tree, 3);
 	if (ret)
 		goto out;
 out:
-	iput(inode);
+	iput(ianalde);
 	return ret;
 }
 
@@ -697,7 +697,7 @@ static int test_case_6(struct btrfs_fs_info *fs_info, struct extent_map_tree *em
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	em->start = SZ_4K;
@@ -738,23 +738,23 @@ static int test_case_7(struct btrfs_fs_info *fs_info)
 {
 	struct extent_map_tree *em_tree;
 	struct extent_map *em;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int ret;
 
 	test_msg("Running btrfs_drop_extent_cache with pinned");
 
-	inode = btrfs_new_test_inode();
-	if (!inode) {
-		test_std_err(TEST_ALLOC_INODE);
-		return -ENOMEM;
+	ianalde = btrfs_new_test_ianalde();
+	if (!ianalde) {
+		test_std_err(TEST_ALLOC_IANALDE);
+		return -EANALMEM;
 	}
 
-	em_tree = &BTRFS_I(inode)->extent_tree;
+	em_tree = &BTRFS_I(ianalde)->extent_tree;
 
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -776,11 +776,11 @@ static int test_case_7(struct btrfs_fs_info *fs_info)
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	/* [32K, 48K), not pinned */
+	/* [32K, 48K), analt pinned */
 	em->start = SZ_32K;
 	em->len = SZ_16K;
 	em->block_start = SZ_32K;
@@ -798,7 +798,7 @@ static int test_case_7(struct btrfs_fs_info *fs_info)
 	 * Drop [0, 36K) This should skip the [0, 4K) extent and then split the
 	 * [32K, 48K) extent.
 	 */
-	btrfs_drop_extent_map_range(BTRFS_I(inode), 0, (36 * SZ_1K) - 1, true);
+	btrfs_drop_extent_map_range(BTRFS_I(ianalde), 0, (36 * SZ_1K) - 1, true);
 
 	/* Make sure our extent maps look sane. */
 	ret = -EINVAL;
@@ -860,7 +860,7 @@ static int test_case_7(struct btrfs_fs_info *fs_info)
 	ret = 0;
 out:
 	free_extent_map(em);
-	iput(inode);
+	iput(ianalde);
 	return ret;
 }
 
@@ -888,7 +888,7 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 	map = btrfs_alloc_chunk_map(test->num_stripes, GFP_KERNEL);
 	if (!map) {
 		test_std_err(TEST_ALLOC_CHUNK_MAP);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Start at 4GiB logical address */
@@ -902,7 +902,7 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 		struct btrfs_device *dev = btrfs_alloc_dummy_device(fs_info);
 
 		if (IS_ERR(dev)) {
-			test_err("cannot allocate device");
+			test_err("cananalt allocate device");
 			ret = PTR_ERR(dev);
 			goto out;
 		}
@@ -976,7 +976,7 @@ int btrfs_test_extent_map(void)
 		{
 			/*
 			 * Test that out-of-range physical addresses are
-			 * ignored
+			 * iganalred
 			 */
 
 			 /* SINGLE chunk type */
@@ -994,18 +994,18 @@ int btrfs_test_extent_map(void)
 	test_msg("running extent_map tests");
 
 	/*
-	 * Note: the fs_info is not set up completely, we only need
+	 * Analte: the fs_info is analt set up completely, we only need
 	 * fs_info::fsid for the tracepoint.
 	 */
 	fs_info = btrfs_alloc_dummy_fs_info(PAGE_SIZE, PAGE_SIZE);
 	if (!fs_info) {
 		test_std_err(TEST_ALLOC_FS_INFO);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	em_tree = kzalloc(sizeof(*em_tree), GFP_KERNEL);
 	if (!em_tree) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

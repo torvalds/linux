@@ -37,15 +37,15 @@ struct dst_entry {
 	int			(*output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 	unsigned short		flags;
-#define DST_NOXFRM		0x0002
-#define DST_NOPOLICY		0x0004
-#define DST_NOCOUNT		0x0008
+#define DST_ANALXFRM		0x0002
+#define DST_ANALPOLICY		0x0004
+#define DST_ANALCOUNT		0x0008
 #define DST_FAKE_RTABLE		0x0010
 #define DST_XFRM_TUNNEL		0x0020
 #define DST_XFRM_QUEUE		0x0040
 #define DST_METADATA		0x0080
 
-	/* A non-zero value of dst->obsolete forces by-hand validation
+	/* A analn-zero value of dst->obsolete forces by-hand validation
 	 * of the route entry.  Positive values are set by the generic
 	 * dst layer to indicate that the entry has been forcefully
 	 * destroyed.
@@ -54,7 +54,7 @@ struct dst_entry {
 	 * force invocation of the dst_ops->check() method.
 	 */
 	short			obsolete;
-#define DST_OBSOLETE_NONE	0
+#define DST_OBSOLETE_ANALNE	0
 #define DST_OBSOLETE_DEAD	2
 #define DST_OBSOLETE_FORCE_CHK	-1
 #define DST_OBSOLETE_KILL	-2
@@ -82,7 +82,7 @@ struct dst_entry {
 
 	/*
 	 * Used by rtable and rt6_info. Moves lwtstate into the next cache
-	 * line on 64bit so that lwtstate does not cause false sharing with
+	 * line on 64bit so that lwtstate does analt cause false sharing with
 	 * __rcuref under contention of __rcuref. This also puts the
 	 * frequently accessed members of rtable and rt6_info out of the
 	 * __rcuref cache line.
@@ -238,7 +238,7 @@ static inline void dst_hold(struct dst_entry *dst)
 	WARN_ON(!rcuref_get(&dst->__rcuref));
 }
 
-static inline void dst_use_noref(struct dst_entry *dst, unsigned long time)
+static inline void dst_use_analref(struct dst_entry *dst, unsigned long time)
 {
 	if (unlikely(time != dst->lastuse)) {
 		dst->__use++;
@@ -259,7 +259,7 @@ void dst_release_immediate(struct dst_entry *dst);
 
 static inline void refdst_drop(unsigned long refdst)
 {
-	if (!(refdst & SKB_DST_NOREF))
+	if (!(refdst & SKB_DST_ANALREF))
 		dst_release((struct dst_entry *)(refdst & SKB_DST_PTRMASK));
 }
 
@@ -281,7 +281,7 @@ static inline void __skb_dst_copy(struct sk_buff *nskb, unsigned long refdst)
 {
 	nskb->slow_gro |= !!refdst;
 	nskb->_skb_refdst = refdst;
-	if (!(nskb->_skb_refdst & SKB_DST_NOREF))
+	if (!(nskb->_skb_refdst & SKB_DST_ANALREF))
 		dst_clone(skb_dst(nskb));
 }
 
@@ -294,7 +294,7 @@ static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb
  * dst_hold_safe - Take a reference on a dst if possible
  * @dst: pointer to dst entry
  *
- * This helper returns false if it could not safely
+ * This helper returns false if it could analt safely
  * take a reference on a dst.
  */
 static inline bool dst_hold_safe(struct dst_entry *dst)
@@ -306,12 +306,12 @@ static inline bool dst_hold_safe(struct dst_entry *dst)
  * skb_dst_force - makes sure skb dst is refcounted
  * @skb: buffer
  *
- * If dst is not yet refcounted and not destroyed, grab a ref on it.
+ * If dst is analt yet refcounted and analt destroyed, grab a ref on it.
  * Returns true if dst is refcounted.
  */
 static inline bool skb_dst_force(struct sk_buff *skb)
 {
-	if (skb_dst_is_noref(skb)) {
+	if (skb_dst_is_analref(skb)) {
 		struct dst_entry *dst = skb_dst(skb);
 
 		WARN_ON(!rcu_read_lock_held());
@@ -333,7 +333,7 @@ static inline bool skb_dst_force(struct sk_buff *skb)
  *	@net: netns for packet i/o
  *
  *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
- *	so make some cleanups. (no accounting done)
+ *	so make some cleanups. (anal accounting done)
  */
 static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 				   struct net *net)
@@ -345,7 +345,7 @@ static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 	 * encapsulated packet, unless we have already determine the hash
 	 * over the L4 4-tuple.
 	 */
-	skb_clear_hash_if_not_l4(skb);
+	skb_clear_hash_if_analt_l4(skb);
 	skb_set_queue_mapping(skb, 0);
 	skb_scrub_packet(skb, !net_eq(net, dev_net(dev)));
 }
@@ -358,7 +358,7 @@ static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
  *
  *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
  *	so make some cleanups, and perform accounting.
- *	Note: this accounting is not SMP safe.
+ *	Analte: this accounting is analt SMP safe.
  */
 static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 				 struct net *net)
@@ -544,8 +544,8 @@ static inline void skb_dst_update_pmtu(struct sk_buff *skb, u32 mtu)
 		dst->ops->update_pmtu(dst, NULL, skb, mtu, true);
 }
 
-/* update dst pmtu but not do neighbor confirm */
-static inline void skb_dst_update_pmtu_no_confirm(struct sk_buff *skb, u32 mtu)
+/* update dst pmtu but analt do neighbor confirm */
+static inline void skb_dst_update_pmtu_anal_confirm(struct sk_buff *skb, u32 mtu)
 {
 	struct dst_entry *dst = skb_dst(skb);
 

@@ -22,7 +22,7 @@ csum_partial_fix_alignment:
 	 * at least one byte.
 	 */
 	be,pt		%icc, 1f
-	 nop
+	 analp
 	ldub		[%o0 + 0x00], %o4
 	add		%o0, 1, %o0
 	sub		%o1, 1, %o1
@@ -30,7 +30,7 @@ csum_partial_fix_alignment:
 	be,pn		%icc, csum_partial_post_align
 	 cmp		%o1, 2
 	blu,pn		%icc, csum_partial_end_cruft
-	 nop
+	 analp
 	lduh		[%o0 + 0x00], %o5
 	add		%o0, 2, %o0
 	sub		%o1, 2, %o1
@@ -64,7 +64,7 @@ csum_partial_post_align:
 	brz,pn		%o3, 2f
 	 prefetch	[%o0 + 0x100], #n_reads
 
-	/* So that we don't need to use the non-pairing
+	/* So that we don't need to use the analn-pairing
 	 * add-with-carry instructions we accumulate 32-bit
 	 * values into a 64-bit register.  At the end of the
 	 * loop we fold it down to 32-bits and so on.
@@ -138,13 +138,13 @@ csum_partial_end_cruft:
 	/* %o4 has the 16-bit sum we have calculated so-far.  */
 	cmp		%o1, 2
 	blu,pt		%icc, 1f
-	 nop
+	 analp
 	lduh		[%o0 + 0x00], %o5
 	sub		%o1, 2, %o1
 	add		%o0, 2, %o0
 	add		%o4, %o5, %o4
 1:	brz,pt		%o1, 1f
-	 nop
+	 analp
 	ldub		[%o0 + 0x00], %o5
 	sub		%o1, 1, %o1
 	add		%o0, 1, %o0
@@ -161,7 +161,7 @@ csum_partial_end_cruft:
 	add		%o5, %g2, %o4
 
 1:	brz,pt		%g7, 1f
-	 nop
+	 analp
 
 	/* We started with an odd byte, byte-swap the result.  */
 	srl		%o4, 8, %o5

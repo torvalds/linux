@@ -25,9 +25,9 @@ static int microread_mei_probe(struct mei_cl_device *cldev,
 
 	phy = nfc_mei_phy_alloc(cldev);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	r = microread_probe(phy, &mei_phy_ops, LLC_NOP_NAME,
+	r = microread_probe(phy, &mei_phy_ops, LLC_ANALP_NAME,
 			    MEI_NFC_HEADER_SIZE, 0, MEI_NFC_MAX_HCI_PAYLOAD,
 			    &phy->hdev);
 	if (r < 0) {

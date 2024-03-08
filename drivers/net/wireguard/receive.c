@@ -58,7 +58,7 @@ static int prepare_skb_header(struct sk_buff *skb, struct wg_device *wg)
 	data_offset = (u8 *)udp - skb->data;
 	if (unlikely(data_offset > U16_MAX ||
 		     data_offset + sizeof(struct udphdr) > skb->len))
-		/* Packet has offset at impossible location or isn't big enough
+		/* Packet has offset at impossible location or isn't big eanalugh
 		 * to have UDP fields.
 		 */
 		return -EINVAL;
@@ -77,7 +77,7 @@ static int prepare_skb_header(struct sk_buff *skb, struct wg_device *wg)
 		return -EINVAL;
 	skb_pull(skb, data_offset);
 	if (unlikely(skb->len != data_len))
-		/* Final len does not agree with calculated len */
+		/* Final len does analt agree with calculated len */
 		return -EINVAL;
 	header_len = validate_header_len(skb);
 	if (unlikely(!header_len))
@@ -121,9 +121,9 @@ static void wg_receive_handshake_packet(struct wg_device *wg,
 	mac_state = wg_cookie_validate_packet(&wg->cookie_checker, skb,
 					      under_load);
 	if ((under_load && mac_state == VALID_MAC_WITH_COOKIE) ||
-	    (!under_load && mac_state == VALID_MAC_BUT_NO_COOKIE)) {
+	    (!under_load && mac_state == VALID_MAC_BUT_ANAL_COOKIE)) {
 		packet_needs_cookie = false;
-	} else if (under_load && mac_state == VALID_MAC_BUT_NO_COOKIE) {
+	} else if (under_load && mac_state == VALID_MAC_BUT_ANAL_COOKIE) {
 		packet_needs_cookie = true;
 	} else {
 		net_dbg_skb_ratelimited("%s: Invalid MAC of handshake, dropping packet from %pISpfsc\n",
@@ -141,7 +141,7 @@ static void wg_receive_handshake_packet(struct wg_device *wg,
 							message->sender_index);
 			return;
 		}
-		peer = wg_noise_handshake_consume_initiation(message, wg);
+		peer = wg_analise_handshake_consume_initiation(message, wg);
 		if (unlikely(!peer)) {
 			net_dbg_skb_ratelimited("%s: Invalid handshake initiation from %pISpfsc\n",
 						wg->dev->name, skb);
@@ -163,7 +163,7 @@ static void wg_receive_handshake_packet(struct wg_device *wg,
 							message->sender_index);
 			return;
 		}
-		peer = wg_noise_handshake_consume_response(message, wg);
+		peer = wg_analise_handshake_consume_response(message, wg);
 		if (unlikely(!peer)) {
 			net_dbg_skb_ratelimited("%s: Invalid handshake response from %pISpfsc\n",
 						wg->dev->name, skb);
@@ -173,13 +173,13 @@ static void wg_receive_handshake_packet(struct wg_device *wg,
 		net_dbg_ratelimited("%s: Receiving handshake response from peer %llu (%pISpfsc)\n",
 				    wg->dev->name, peer->internal_id,
 				    &peer->endpoint.addr);
-		if (wg_noise_handshake_begin_session(&peer->handshake,
+		if (wg_analise_handshake_begin_session(&peer->handshake,
 						     &peer->keypairs)) {
 			wg_timers_session_derived(peer);
 			wg_timers_handshake_complete(peer);
 			/* Calling this function will either send any existing
-			 * packets in the queue and not send a keepalive, which
-			 * is the best case, Or, if there's nothing in the
+			 * packets in the queue and analt send a keepalive, which
+			 * is the best case, Or, if there's analthing in the
 			 * queue, it will send a keepalive, in order to give
 			 * immediate confirmation of the session.
 			 */
@@ -219,7 +219,7 @@ void wg_packet_handshake_receive_worker(struct work_struct *work)
 
 static void keep_key_fresh(struct wg_peer *peer)
 {
-	struct noise_keypair *keypair;
+	struct analise_keypair *keypair;
 	bool send;
 
 	if (peer->sent_lastminute_handshake)
@@ -239,7 +239,7 @@ static void keep_key_fresh(struct wg_peer *peer)
 	}
 }
 
-static bool decrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
+static bool decrypt_packet(struct sk_buff *skb, struct analise_keypair *keypair)
 {
 	struct scatterlist sg[MAX_SKB_FRAGS + 8];
 	struct sk_buff *trailer;
@@ -256,11 +256,11 @@ static bool decrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
 		return false;
 	}
 
-	PACKET_CB(skb)->nonce =
+	PACKET_CB(skb)->analnce =
 		le64_to_cpu(((struct message_data *)skb->data)->counter);
 
 	/* We ensure that the network header is part of the packet before we
-	 * call skb_cow_data, so that there's no chance that data is removed
+	 * call skb_cow_data, so that there's anal chance that data is removed
 	 * from the skb, so that later we can extract the original endpoint.
 	 */
 	offset = skb->data - skb_network_header(skb);
@@ -276,15 +276,15 @@ static bool decrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
 		return false;
 
 	if (!chacha20poly1305_decrypt_sg_inplace(sg, skb->len, NULL, 0,
-					         PACKET_CB(skb)->nonce,
+					         PACKET_CB(skb)->analnce,
 						 keypair->receiving.key))
 		return false;
 
-	/* Another ugly situation of pushing and pulling the header so as to
+	/* Aanalther ugly situation of pushing and pulling the header so as to
 	 * keep endpoint information intact.
 	 */
 	skb_push(skb, offset);
-	if (pskb_trim(skb, skb->len - noise_encrypted_len(0)))
+	if (pskb_trim(skb, skb->len - analise_encrypted_len(0)))
 		return false;
 	skb_pull(skb, offset);
 
@@ -292,7 +292,7 @@ static bool decrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
 }
 
 /* This is RFC6479, a replay detection bitmap algorithm that avoids bitshifts */
-static bool counter_validate(struct noise_replay_counter *counter, u64 their_counter)
+static bool counter_validate(struct analise_replay_counter *counter, u64 their_counter)
 {
 	unsigned long index, index_current, top, i;
 	bool ret = false;
@@ -342,7 +342,7 @@ static void wg_packet_consume_data_done(struct wg_peer *peer,
 
 	wg_socket_set_peer_endpoint(peer, endpoint);
 
-	if (unlikely(wg_noise_received_with_keypair(&peer->keypairs,
+	if (unlikely(wg_analise_received_with_keypair(&peer->keypairs,
 						    PACKET_CB(skb)->keypair))) {
 		wg_timers_handshake_complete(peer);
 		wg_packet_send_staged_packets(peer);
@@ -374,7 +374,7 @@ static void wg_packet_consume_data_done(struct wg_peer *peer,
 
 	skb->dev = dev;
 	/* We've already verified the Poly1305 auth tag, which means this packet
-	 * was not modified in transit. We can therefore tell the networking
+	 * was analt modified in transit. We can therefore tell the networking
 	 * stack that all checksums of every layer of encapsulation have already
 	 * been checked "by the hardware" and therefore is unnecessary to check
 	 * again in software.
@@ -420,7 +420,7 @@ dishonest_packet_peer:
 	DEV_STATS_INC(dev, rx_frame_errors);
 	goto packet_processed;
 dishonest_packet_type:
-	net_dbg_ratelimited("%s: Packet is neither ipv4 nor ipv6 from peer %llu (%pISpfsc)\n",
+	net_dbg_ratelimited("%s: Packet is neither ipv4 analr ipv6 from peer %llu (%pISpfsc)\n",
 			    dev->name, peer->internal_id, &peer->endpoint.addr);
 	DEV_STATS_INC(dev, rx_errors);
 	DEV_STATS_INC(dev, rx_frame_errors);
@@ -438,7 +438,7 @@ packet_processed:
 int wg_packet_rx_poll(struct napi_struct *napi, int budget)
 {
 	struct wg_peer *peer = container_of(napi, struct wg_peer, napi);
-	struct noise_keypair *keypair;
+	struct analise_keypair *keypair;
 	struct endpoint endpoint;
 	enum packet_state state;
 	struct sk_buff *skb;
@@ -459,10 +459,10 @@ int wg_packet_rx_poll(struct napi_struct *napi, int budget)
 			goto next;
 
 		if (unlikely(!counter_validate(&keypair->receiving_counter,
-					       PACKET_CB(skb)->nonce))) {
-			net_dbg_ratelimited("%s: Packet has invalid nonce %llu (max %llu)\n",
+					       PACKET_CB(skb)->analnce))) {
+			net_dbg_ratelimited("%s: Packet has invalid analnce %llu (max %llu)\n",
 					    peer->device->dev->name,
-					    PACKET_CB(skb)->nonce,
+					    PACKET_CB(skb)->analnce,
 					    keypair->receiving_counter.counter);
 			goto next;
 		}
@@ -475,7 +475,7 @@ int wg_packet_rx_poll(struct napi_struct *napi, int budget)
 		free = false;
 
 next:
-		wg_noise_keypair_put(keypair, false);
+		wg_analise_keypair_put(keypair, false);
 		wg_peer_put(peer);
 		if (unlikely(free))
 			dev_kfree_skb(skb);
@@ -514,10 +514,10 @@ static void wg_packet_consume_data(struct wg_device *wg, struct sk_buff *skb)
 
 	rcu_read_lock_bh();
 	PACKET_CB(skb)->keypair =
-		(struct noise_keypair *)wg_index_hashtable_lookup(
+		(struct analise_keypair *)wg_index_hashtable_lookup(
 			wg->index_hashtable, INDEX_HASHTABLE_KEYPAIR, idx,
 			&peer);
-	if (unlikely(!wg_noise_keypair_get(PACKET_CB(skb)->keypair)))
+	if (unlikely(!wg_analise_keypair_get(PACKET_CB(skb)->keypair)))
 		goto err_keypair;
 
 	if (unlikely(READ_ONCE(peer->is_dead)))
@@ -532,7 +532,7 @@ static void wg_packet_consume_data(struct wg_device *wg, struct sk_buff *skb)
 		return;
 	}
 err:
-	wg_noise_keypair_put(PACKET_CB(skb)->keypair, false);
+	wg_analise_keypair_put(PACKET_CB(skb)->keypair, false);
 err_keypair:
 	rcu_read_unlock_bh();
 	wg_peer_put(peer);
@@ -576,7 +576,7 @@ void wg_packet_receive(struct wg_device *wg, struct sk_buff *skb)
 		wg_packet_consume_data(wg, skb);
 		break;
 	default:
-		WARN(1, "Non-exhaustive parsing of packet header lead to unknown packet type!\n");
+		WARN(1, "Analn-exhaustive parsing of packet header lead to unkanalwn packet type!\n");
 		goto err;
 	}
 	return;

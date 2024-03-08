@@ -22,7 +22,7 @@
 #include <linux/platform_data/gpio/gpio-amd-fch.h>
 
 /*
- * NOTE: this driver only supports APUv2/3 - not APUv1, as this one
+ * ANALTE: this driver only supports APUv2/3 - analt APUv1, as this one
  * has completely different register layouts.
  */
 
@@ -130,7 +130,7 @@ static struct gpiod_lookup_table gpios_key_table = {
 
 /* Board setup */
 
-/* Note: matching works on string prefix, so "apu2" must come before "apu" */
+/* Analte: matching works on string prefix, so "apu2" must come before "apu" */
 static const struct dmi_system_id apu_gpio_dmi_table[] __initconst = {
 
 	/* APU2 w/ legacy BIOS < 4.0.8 */
@@ -231,7 +231,7 @@ static struct platform_device * __init apu_create_pdev(
 
 	pdev = platform_device_register_resndata(NULL,
 		name,
-		PLATFORM_DEVID_NONE,
+		PLATFORM_DEVID_ANALNE,
 		NULL,
 		0,
 		pdata,
@@ -250,7 +250,7 @@ static int __init apu_board_init(void)
 	id = dmi_first_match(apu_gpio_dmi_table);
 	if (!id) {
 		pr_err("failed to detect APU board via DMI\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gpiod_add_lookup_table(&gpios_led_table);

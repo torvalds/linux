@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/capability.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/memblock.h>
 #include <linux/syscalls.h>
 #include <linux/irq.h>
@@ -43,7 +43,7 @@ static void fixup_cpc710_pci64(struct pci_dev* dev);
  */
 static int pci_assign_all_buses;
 
-/* This will remain NULL for now, until isa-bridge.c is made common
+/* This will remain NULL for analw, until isa-bridge.c is made common
  * to both 32-bit and 64-bit.
  */
 struct pci_dev *isa_bridge_pcidev;
@@ -71,30 +71,30 @@ static int pci_bus_count;
  * Functions below are used on OpenFirmware machines.
  */
 static void
-make_one_node_map(struct device_node* node, u8 pci_bus)
+make_one_analde_map(struct device_analde* analde, u8 pci_bus)
 {
 	const int *bus_range;
 	int len;
 
 	if (pci_bus >= pci_bus_count)
 		return;
-	bus_range = of_get_property(node, "bus-range", &len);
+	bus_range = of_get_property(analde, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %pOF, "
-		       "assuming it starts at 0\n", node);
+		       "assuming it starts at 0\n", analde);
 		pci_to_OF_bus_map[pci_bus] = 0;
 	} else
 		pci_to_OF_bus_map[pci_bus] = bus_range[0];
 
-	for_each_child_of_node(node, node) {
+	for_each_child_of_analde(analde, analde) {
 		struct pci_dev* dev;
 		const unsigned int *class_code, *reg;
 	
-		class_code = of_get_property(node, "class-code", NULL);
+		class_code = of_get_property(analde, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		reg = of_get_property(node, "reg", NULL);
+		reg = of_get_property(analde, "reg", NULL);
 		if (!reg)
 			continue;
 		dev = pci_get_domain_bus_and_slot(0, pci_bus,
@@ -103,7 +103,7 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 			pci_dev_put(dev);
 			continue;
 		}
-		make_one_node_map(node, dev->subordinate->number);
+		make_one_analde_map(analde, dev->subordinate->number);
 		pci_dev_put(dev);
 	}
 }
@@ -114,7 +114,7 @@ pcibios_make_OF_bus_map(void)
 	int i;
 	struct pci_controller *hose, *tmp;
 	struct property *map_prop;
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	pci_to_OF_bus_map = kmalloc(pci_bus_count, GFP_KERNEL);
 	if (!pci_to_OF_bus_map) {
@@ -129,20 +129,20 @@ pcibios_make_OF_bus_map(void)
 		pci_to_OF_bus_map[i] = 0xff;
 
 	/* For each hose, we begin searching bridges */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		struct device_node* node = hose->dn;
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_analde) {
+		struct device_analde* analde = hose->dn;
 
-		if (!node)
+		if (!analde)
 			continue;
-		make_one_node_map(node, hose->first_busno);
+		make_one_analde_map(analde, hose->first_busanal);
 	}
-	dn = of_find_node_by_path("/");
+	dn = of_find_analde_by_path("/");
 	map_prop = of_find_property(dn, "pci-OF-bus-map", NULL);
 	if (map_prop) {
 		BUG_ON(pci_bus_count > map_prop->length);
 		memcpy(map_prop->value, pci_to_OF_bus_map, pci_bus_count);
 	}
-	of_node_put(dn);
+	of_analde_put(dn);
 #ifdef DEBUG
 	printk("PCI->OF bus map:\n");
 	for (i=0; i<pci_bus_count; i++) {
@@ -157,9 +157,9 @@ pcibios_make_OF_bus_map(void)
 
 #ifdef CONFIG_PPC_PMAC
 /*
- * Returns the PCI device matching a given OF node
+ * Returns the PCI device matching a given OF analde
  */
-int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
+int pci_device_from_OF_analde(struct device_analde *analde, u8 *bus, u8 *devfn)
 {
 #ifdef CONFIG_PPC_PCI_OF_BUS_MAP
 	struct pci_dev *dev = NULL;
@@ -168,12 +168,12 @@ int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 	int size;
 
 	/* Check if it might have a chance to be a PCI device */
-	if (!pci_find_hose_for_OF_device(node))
-		return -ENODEV;
+	if (!pci_find_hose_for_OF_device(analde))
+		return -EANALDEV;
 
-	reg = of_get_property(node, "reg", &size);
+	reg = of_get_property(analde, "reg", &size);
 	if (!reg || size < 5 * sizeof(u32))
-		return -ENODEV;
+		return -EANALDEV;
 
 	*bus = (be32_to_cpup(&reg[0]) >> 16) & 0xff;
 	*devfn = (be32_to_cpup(&reg[0]) >> 8) & 0xff;
@@ -183,7 +183,7 @@ int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 #else
 	/* Ok, here we need some tweak. If we have already renumbered
 	 * all busses, we can't rely on the OF bus number any more.
-	 * the pci_to_OF_bus_map is not enough as several PCI busses
+	 * the pci_to_OF_bus_map is analt eanalugh as several PCI busses
 	 * may match the same OF bus number.
 	 */
 	if (!pci_to_OF_bus_map)
@@ -197,35 +197,35 @@ int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 			return 0;
 		}
 
-	return -ENODEV;
+	return -EANALDEV;
 #endif // CONFIG_PPC_PCI_OF_BUS_MAP
 }
-EXPORT_SYMBOL(pci_device_from_OF_node);
+EXPORT_SYMBOL(pci_device_from_OF_analde);
 #endif
 
 #ifdef CONFIG_PPC_PCI_OF_BUS_MAP
-/* We create the "pci-OF-bus-map" property now so it appears in the
+/* We create the "pci-OF-bus-map" property analw so it appears in the
  * /proc device tree
  */
 void __init
 pci_create_OF_bus_map(void)
 {
 	struct property* of_prop;
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	of_prop = memblock_alloc(sizeof(struct property) + 256,
 				 SMP_CACHE_BYTES);
 	if (!of_prop)
 		panic("%s: Failed to allocate %zu bytes\n", __func__,
 		      sizeof(struct property) + 256);
-	dn = of_find_node_by_path("/");
+	dn = of_find_analde_by_path("/");
 	if (dn) {
 		memset(of_prop, -1, sizeof(struct property) + 256);
 		of_prop->name = "pci-OF-bus-map";
 		of_prop->length = 256;
 		of_prop->value = &of_prop[1];
 		of_add_property(dn, of_prop);
-		of_node_put(dn);
+		of_analde_put(dn);
 	}
 }
 #endif // CONFIG_PPC_PCI_OF_BUS_MAP
@@ -245,14 +245,14 @@ static int __init pcibios_init(void)
 {
 	struct pci_controller *hose, *tmp;
 #ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
-	int next_busno = 0;
+	int next_busanal = 0;
 #endif
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
 #ifdef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 	/*
-	 * Enable PCI domains in /proc when PCI bus numbers are not unique
+	 * Enable PCI domains in /proc when PCI bus numbers are analt unique
 	 * across all PCI domains to prevent conflicts. And keep PCI domain 0
 	 * backward compatible in /proc for video cards.
 	 */
@@ -263,23 +263,23 @@ static int __init pcibios_init(void)
 		pci_assign_all_buses = 1;
 
 	/* Scan all of the recorded PCI controllers.  */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_analde) {
 #ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 		if (pci_assign_all_buses)
-			hose->first_busno = next_busno;
+			hose->first_busanal = next_busanal;
 #endif
-		hose->last_busno = 0xff;
+		hose->last_busanal = 0xff;
 		pcibios_scan_phb(hose);
 		pci_bus_add_devices(hose->bus);
 #ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
-		if (pci_assign_all_buses || next_busno <= hose->last_busno)
-			next_busno = hose->last_busno + pcibios_assign_bus_offset;
+		if (pci_assign_all_buses || next_busanal <= hose->last_busanal)
+			next_busanal = hose->last_busanal + pcibios_assign_bus_offset;
 #endif
 	}
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
 #ifdef CONFIG_PPC_PCI_OF_BUS_MAP
-	pci_bus_count = next_busno;
+	pci_bus_count = next_busanal;
 
 	/* OpenFirmware based machines need a map of OF bus
 	 * numbers vs. kernel bus numbers since we may have to
@@ -311,8 +311,8 @@ pci_bus_to_hose(int bus)
 {
 	struct pci_controller *hose, *tmp;
 
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-		if (bus >= hose->first_busno && bus <= hose->last_busno)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_analde)
+		if (bus >= hose->first_busanal && bus <= hose->last_busanal)
 			return hose;
 	return NULL;
 }
@@ -320,22 +320,22 @@ pci_bus_to_hose(int bus)
 /* Provide information on locations of various I/O regions in physical
  * memory.  Do this on a per-card basis so that we choose the right
  * root bridge.
- * Note that the returned IO or memory base is a physical address
+ * Analte that the returned IO or memory base is a physical address
  */
 
 SYSCALL_DEFINE3(pciconfig_iobase, long, which,
 		unsigned long, bus, unsigned long, devfn)
 {
 	struct pci_controller* hose;
-	long result = -EOPNOTSUPP;
+	long result = -EOPANALTSUPP;
 
 	hose = pci_bus_to_hose(bus);
 	if (!hose)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (which) {
 	case IOBASE_BRIDGE_NUMBER:
-		return (long)hose->first_busno;
+		return (long)hose->first_busanal;
 	case IOBASE_MEMORY:
 		return (long)hose->mem_offset[0];
 	case IOBASE_IO:

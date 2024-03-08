@@ -13,7 +13,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
@@ -39,7 +39,7 @@ struct tracepoint_path {
 	struct tracepoint_path *next;
 };
 
-/* unfortunately, you can not stat debugfs or proc files for size */
+/* unfortunately, you can analt stat debugfs or proc files for size */
 static int record_file(const char *file, ssize_t hdr_sz)
 {
 	unsigned long long size = 0;
@@ -51,7 +51,7 @@ static int record_file(const char *file, ssize_t hdr_sz)
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
 		pr_debug("Can't read '%s'", file);
-		return -errno;
+		return -erranal;
 	}
 
 	/* put in zeros for file size, then fill true size later */
@@ -93,7 +93,7 @@ static int record_header_files(void)
 
 	if (!path) {
 		pr_debug("can't get tracing/events/header_page");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (stat(path, &st) < 0) {
@@ -116,7 +116,7 @@ static int record_header_files(void)
 	path = get_events_file("header_event");
 	if (!path) {
 		pr_debug("can't get tracing/events/header_event");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -171,7 +171,7 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 	dir = opendir(sys);
 	if (!dir) {
 		pr_debug("can't read directory '%s'", sys);
-		return -errno;
+		return -erranal;
 	}
 
 	for_each_event_tps(dir, dent, tps) {
@@ -179,7 +179,7 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 			continue;
 
 		if (asprintf(&format, "%s/%s/format", sys, dent->d_name) < 0) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		ret = stat(format, &st);
@@ -201,7 +201,7 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 			continue;
 
 		if (asprintf(&format, "%s/%s/format", sys, dent->d_name) < 0) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		ret = stat(format, &st);
@@ -229,7 +229,7 @@ static int record_ftrace_files(struct tracepoint_path *tps)
 	path = get_events_file("ftrace");
 	if (!path) {
 		pr_debug("can't get tracing/events/ftrace");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = copy_event_system(path, tps);
@@ -264,12 +264,12 @@ static int record_event_files(struct tracepoint_path *tps)
 	path = get_tracing_file("events");
 	if (!path) {
 		pr_debug("can't get tracing/events");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dir = opendir(path);
 	if (!dir) {
-		err = -errno;
+		err = -erranal;
 		pr_debug("can't read directory '%s'", path);
 		goto out;
 	}
@@ -295,7 +295,7 @@ static int record_event_files(struct tracepoint_path *tps)
 			continue;
 
 		if (asprintf(&sys, "%s/%s", path, dent->d_name) < 0) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		ret = stat(sys, &st);
@@ -342,12 +342,12 @@ static int record_ftrace_printk(void)
 	path = get_tracing_file("printk_formats");
 	if (!path) {
 		pr_debug("can't get tracing/printk_formats");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = stat(path, &st);
 	if (ret < 0) {
-		/* not found */
+		/* analt found */
 		size = 0;
 		if (write(output_fd, &size, 4) != 4)
 			err = -EIO;
@@ -370,12 +370,12 @@ static int record_saved_cmdline(void)
 	path = get_tracing_file("saved_cmdlines");
 	if (!path) {
 		pr_debug("can't get tracing/saved_cmdline");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = stat(path, &st);
 	if (ret < 0) {
-		/* not found */
+		/* analt found */
 		size = 0;
 		if (write(output_fd, &size, 8) != 8)
 			err = -EIO;
@@ -508,7 +508,7 @@ get_tracepoints_path(struct list_head *pattrs)
 	struct evsel *pos;
 	int nr_tracepoints = 0;
 
-	list_for_each_entry(pos, pattrs, core.node) {
+	list_for_each_entry(pos, pattrs, core.analde) {
 		if (pos->core.attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 		++nr_tracepoints;
@@ -528,7 +528,7 @@ try_id:
 		ppath->next = tracepoint_id_to_path(pos->core.attr.config);
 		if (!ppath->next) {
 error:
-			pr_debug("No memory to alloc tracepoints list\n");
+			pr_debug("Anal memory to alloc tracepoints list\n");
 			put_tracepoints_path(path.next);
 			return NULL;
 		}
@@ -543,7 +543,7 @@ bool have_tracepoints(struct list_head *pattrs)
 {
 	struct evsel *pos;
 
-	list_for_each_entry(pos, pattrs, core.node)
+	list_for_each_entry(pos, pattrs, core.analde)
 		if (pos->core.attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 
@@ -656,7 +656,7 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 
 out:
 	/*
-	 * All tracing data are stored by now, we can restore
+	 * All tracing data are stored by analw, we can restore
 	 * the default output file in case we used temp file.
 	 */
 	if (temp) {
@@ -692,11 +692,11 @@ int read_tracing_data(int fd, struct list_head *pattrs)
 
 	/*
 	 * We work over the real file, so we can write data
-	 * directly, no temp file is needed.
+	 * directly, anal temp file is needed.
 	 */
 	tdata = tracing_data_get(pattrs, fd, false);
 	if (!tdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = tracing_data_put(tdata);
 	return err;

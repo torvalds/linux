@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include <linux/smp.h>
 #include "dr_types.h"
@@ -59,7 +59,7 @@ struct dr_qp_init_attr {
 struct mlx5dr_send_info_pool_obj {
 	struct mlx5dr_ste_send_info ste_send_info;
 	struct mlx5dr_send_info_pool *pool;
-	struct list_head list_node;
+	struct list_head list_analde;
 };
 
 struct mlx5dr_send_info_pool {
@@ -77,26 +77,26 @@ static int dr_send_info_pool_fill(struct mlx5dr_send_info_pool *pool)
 			goto clean_pool;
 
 		pool_obj->pool = pool;
-		list_add_tail(&pool_obj->list_node, &pool->free_list);
+		list_add_tail(&pool_obj->list_analde, &pool->free_list);
 	}
 
 	return 0;
 
 clean_pool:
-	list_for_each_entry_safe(pool_obj, tmp_pool_obj, &pool->free_list, list_node) {
-		list_del(&pool_obj->list_node);
+	list_for_each_entry_safe(pool_obj, tmp_pool_obj, &pool->free_list, list_analde) {
+		list_del(&pool_obj->list_analde);
 		kfree(pool_obj);
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void dr_send_info_pool_destroy(struct mlx5dr_send_info_pool *pool)
 {
 	struct mlx5dr_send_info_pool_obj *pool_obj, *tmp_pool_obj;
 
-	list_for_each_entry_safe(pool_obj, tmp_pool_obj, &pool->free_list, list_node) {
-		list_del(&pool_obj->list_node);
+	list_for_each_entry_safe(pool_obj, tmp_pool_obj, &pool->free_list, list_analde) {
+		list_del(&pool_obj->list_analde);
 		kfree(pool_obj);
 	}
 
@@ -133,12 +133,12 @@ int mlx5dr_send_info_pool_create(struct mlx5dr_domain *dmn)
 {
 	dmn->send_info_pool_rx = dr_send_info_pool_create();
 	if (!dmn->send_info_pool_rx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmn->send_info_pool_tx = dr_send_info_pool_create();
 	if (!dmn->send_info_pool_tx) {
 		dr_send_info_pool_destroy(dmn->send_info_pool_rx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -163,10 +163,10 @@ struct mlx5dr_ste_send_info
 
 	pool_obj = list_first_entry_or_null(&pool->free_list,
 					    struct mlx5dr_send_info_pool_obj,
-					    list_node);
+					    list_analde);
 
 	if (likely(pool_obj)) {
-		list_del_init(&pool_obj->list_node);
+		list_del_init(&pool_obj->list_analde);
 	} else {
 		WARN_ONCE(!pool_obj, "Failed getting ste send info obj from pool");
 		return NULL;
@@ -183,7 +183,7 @@ void mlx5dr_send_info_free(struct mlx5dr_ste_send_info *ste_send_info)
 				struct mlx5dr_send_info_pool_obj,
 				ste_send_info);
 
-	list_add(&pool_obj->list_node, &pool_obj->pool->free_list);
+	list_add(&pool_obj->list_analde, &pool_obj->pool->free_list);
 }
 
 static int dr_parse_cqe(struct mlx5dr_cq *dr_cq, struct mlx5_cqe64 *cqe64)
@@ -262,8 +262,8 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 	if (!dr_qp)
 		return NULL;
 
-	wqp.buf_numa_node = mdev->priv.numa_node;
-	wqp.db_numa_node = mdev->priv.numa_node;
+	wqp.buf_numa_analde = mdev->priv.numa_analde;
+	wqp.db_numa_analde = mdev->priv.numa_analde;
 
 	dr_qp->rq.pc = 0;
 	dr_qp->rq.cc = 0;
@@ -297,7 +297,7 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 		dr_qp->wq_ctrl.buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_in;
 	}
 
@@ -315,7 +315,7 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 	MLX5_SET(qpc, qpc, cqn_rcv, attr->cqn);
 	MLX5_SET(qpc, qpc, log_rq_stride, ilog2(MLX5_SEND_WQE_DS) - 4);
 	MLX5_SET(qpc, qpc, log_rq_size, ilog2(dr_qp->rq.wqe_cnt));
-	MLX5_SET(qpc, qpc, rq_type, MLX5_NON_ZERO_RQ);
+	MLX5_SET(qpc, qpc, rq_type, MLX5_ANALN_ZERO_RQ);
 	MLX5_SET(qpc, qpc, log_sq_size, ilog2(dr_qp->sq.wqe_cnt));
 	MLX5_SET(qpc, qpc, ts_format, mlx5_get_qp_default_ts(mdev));
 	MLX5_SET64(qpc, qpc, dbr_addr, dr_qp->wq_ctrl.db.dma);
@@ -358,7 +358,7 @@ static void dr_destroy_qp(struct mlx5_core_dev *mdev,
 	kfree(dr_qp);
 }
 
-static void dr_cmd_notify_hw(struct mlx5dr_qp *dr_qp, void *ctrl)
+static void dr_cmd_analtify_hw(struct mlx5dr_qp *dr_qp, void *ctrl)
 {
 	dma_wmb();
 	*dr_qp->wq.sq.db = cpu_to_be32(dr_qp->sq.pc & 0xffff);
@@ -436,7 +436,7 @@ static void dr_set_ctrl_seg(struct mlx5_wqe_ctrl_seg *wq_ctrl,
 
 static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 			     u32 rkey, struct dr_data_seg *data_seg,
-			     u32 opcode, bool notify_hw)
+			     u32 opcode, bool analtify_hw)
 {
 	struct mlx5_wqe_ctrl_seg *wq_ctrl;
 	int opcode_mod = 0;
@@ -477,8 +477,8 @@ static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 	dr_qp->sq.pc += DIV_ROUND_UP(size * 16, MLX5_SEND_WQE_BB);
 	dr_qp->sq.wqe_head[idx] = dr_qp->sq.head++;
 
-	if (notify_hw)
-		dr_cmd_notify_hw(dr_qp, wq_ctrl);
+	if (analtify_hw)
+		dr_cmd_analtify_hw(dr_qp, wq_ctrl);
 }
 
 static void dr_post_send(struct mlx5dr_qp *dr_qp, struct postsend_info *send_info)
@@ -506,7 +506,7 @@ static void dr_post_send(struct mlx5dr_qp *dr_qp, struct postsend_info *send_inf
  *     @ste_info:  ste to be sent with send_list
  *     @send_list: to append into it
  *     @copy_data: if true indicates that the data should be kept because
- *                 it's not backuped any where (like in re-hash).
+ *                 it's analt backuped any where (like in re-hash).
  *                 if false, it lets the data to be updated after
  *                 it was added to the list.
  */
@@ -674,7 +674,7 @@ static int dr_get_tbl_copy_details(struct mlx5dr_domain *dmn,
 
 	*data = kvzalloc(alloc_size, GFP_KERNEL);
 	if (!*data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -740,7 +740,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 			struct mlx5dr_ste *ste = &htbl->chunk->ste_arr[ste_index + j];
 			u32 ste_off = j * DR_STE_SIZE;
 
-			if (mlx5dr_ste_is_not_used(ste)) {
+			if (mlx5dr_ste_is_analt_used(ste)) {
 				memcpy(data + ste_off,
 				       formatted_ste, DR_STE_SIZE);
 			} else {
@@ -1016,7 +1016,7 @@ static int dr_prepare_qp_to_rts(struct mlx5dr_domain *dmn)
 	rtr_attr.udp_src_port	= dmn->info.caps.roce_min_src_udp;
 
 	/* If QP creation with force loopback is allowed, then there
-	 * is no need for GID index when creating the QP.
+	 * is anal need for GID index when creating the QP.
 	 * Otherwise we query GID attributes and use GID index.
 	 */
 	rtr_attr.fl = dr_send_allow_fl(&dmn->info.caps);
@@ -1077,8 +1077,8 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	ncqe = roundup_pow_of_two(ncqe);
 	MLX5_SET(cqc, temp_cqc, log_cq_size, ilog2(ncqe));
 
-	wqp.buf_numa_node = mdev->priv.numa_node;
-	wqp.db_numa_node = mdev->priv.numa_node;
+	wqp.buf_numa_analde = mdev->priv.numa_analde;
+	wqp.db_numa_analde = mdev->priv.numa_analde;
 
 	err = mlx5_cqwq_create(mdev, &wqp, temp_cqc, &cq->wq,
 			       &cq->wq_ctrl);
@@ -1127,7 +1127,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	cq->mcq.arm_db = cq->wq_ctrl.db.db + 1;
 	*cq->mcq.set_ci_db = 0;
 
-	/* set no-zero value, in order to avoid the HW to run db-recovery on
+	/* set anal-zero value, in order to avoid the HW to run db-recovery on
 	 * CQ that used in polling mode.
 	 */
 	*cq->mcq.arm_db = cpu_to_be32(2 << 28);
@@ -1226,13 +1226,13 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 
 	dmn->send_ring = kzalloc(sizeof(*dmn->send_ring), GFP_KERNEL);
 	if (!dmn->send_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cq_size = QUEUE_SIZE + 1;
 	dmn->send_ring->cq = dr_create_cq(dmn->mdev, dmn->uar, cq_size);
 	if (!dmn->send_ring->cq) {
 		mlx5dr_err(dmn, "Failed creating CQ\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_send_ring;
 	}
 
@@ -1250,7 +1250,7 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 	dmn->send_ring->qp = dr_create_rc_qp(dmn->mdev, &init_attr);
 	if (!dmn->send_ring->qp)  {
 		mlx5dr_err(dmn, "Failed creating QP\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clean_cq;
 	}
 
@@ -1276,7 +1276,7 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 	size = dmn->send_ring->signal_th * dmn->send_ring->max_post_send_size;
 	dmn->send_ring->buf = kzalloc(size, GFP_KERNEL);
 	if (!dmn->send_ring->buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clean_qp;
 	}
 
@@ -1285,14 +1285,14 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 	dmn->send_ring->mr = dr_reg_mr(dmn->mdev,
 				       dmn->pdn, dmn->send_ring->buf, size);
 	if (!dmn->send_ring->mr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_mem;
 	}
 
 	dmn->send_ring->sync_buff = kzalloc(dmn->send_ring->max_post_send_size,
 					    GFP_KERNEL);
 	if (!dmn->send_ring->sync_buff) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clean_mr;
 	}
 
@@ -1300,7 +1300,7 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 					    dmn->pdn, dmn->send_ring->sync_buff,
 					    dmn->send_ring->max_post_send_size);
 	if (!dmn->send_ring->sync_mr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_sync_mem;
 	}
 

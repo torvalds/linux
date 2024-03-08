@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2002 Integrated Device Technology, Inc.
+ * Copyright 2002 Integrated Device Techanallogy, Inc.
  *		All rights reserved.
  *
  * DMA register definition.

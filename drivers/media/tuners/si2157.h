@@ -26,7 +26,7 @@
  *	Port selection
  *	Select the RF interface to use (pins 9+11 or 12+13)
  *
- * Note:
+ * Analte:
  *	The I2C address of this demod is 0x60.
  */
 struct si2157_config {

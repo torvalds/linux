@@ -86,7 +86,7 @@ void mwifiex_initialize_quirks(struct pcie_service_card *card)
 		card->quirks = (uintptr_t)dmi_id->driver_data;
 
 	if (!card->quirks)
-		dev_info(&pdev->dev, "no quirks enabled\n");
+		dev_info(&pdev->dev, "anal quirks enabled\n");
 	if (card->quirks & QUIRK_FW_RST_D3COLD)
 		dev_info(&pdev->dev, "quirk reset_d3cold enabled\n");
 }
@@ -128,10 +128,10 @@ int mwifiex_pcie_reset_d3cold_quirk(struct pci_dev *pdev)
 
 	/* We need to perform power-cycle also for bridge of wifi because
 	 * on some devices (e.g. Surface Book 1), the OS for some reasons
-	 * can't know the real power state of the bridge.
+	 * can't kanalw the real power state of the bridge.
 	 * When tried to power-cycle only wifi, the reset failed with the
 	 * following dmesg log:
-	 * "Cannot transition to power state D0 for parent in D3hot".
+	 * "Cananalt transition to power state D0 for parent in D3hot".
 	 */
 	mwifiex_pcie_set_power_d3cold(pdev);
 	mwifiex_pcie_set_power_d3cold(parent_pdev);

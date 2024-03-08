@@ -8,13 +8,13 @@
  * Authors: Sedji Gaouaou <sedji.gaouaou@atmel.com>
  *
  * Based on at91-pcm. by:
- * Frank Mandarino <fmandarino@endrelia.com>
- * Copyright 2006 Endrelia Technologies Inc.
+ * Frank Mandarianal <fmandarianal@endrelia.com>
+ * Copyright 2006 Endrelia Techanallogies Inc.
  *
  * Based on pxa2xx-pcm.c by:
  *
  * Author:	Nicolas Pitre
- * Created:	Nov 30, 2004
+ * Created:	Analv 30, 2004
  * Copyright:	(C) 2004 MontaVista Software, Inc.
  */
 
@@ -290,7 +290,7 @@ static int atmel_pcm_open(struct snd_soc_component *component,
 
 	prtd = kzalloc(sizeof(struct atmel_runtime_data), GFP_KERNEL);
 	if (prtd == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	runtime->private_data = prtd;

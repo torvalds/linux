@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-analte */
 /* Types and definitions for AF_RXRPC.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
@@ -45,12 +45,12 @@ struct sockaddr_rxrpc {
  */
 enum rxrpc_cmsg_type {
 	RXRPC_USER_CALL_ID	= 1,	/* sr: user call ID specifier */
-	RXRPC_ABORT		= 2,	/* sr: abort request / notification [terminal] */
+	RXRPC_ABORT		= 2,	/* sr: abort request / analtification [terminal] */
 	RXRPC_ACK		= 3,	/* -r: [Service] RPC op final ACK received [terminal] */
 	RXRPC_NET_ERROR		= 5,	/* -r: network error received [terminal] */
 	RXRPC_BUSY		= 6,	/* -r: server busy received [terminal] */
 	RXRPC_LOCAL_ERROR	= 7,	/* -r: local error generated [terminal] */
-	RXRPC_NEW_CALL		= 8,	/* -r: [Service] new incoming call notification */
+	RXRPC_NEW_CALL		= 8,	/* -r: [Service] new incoming call analtification */
 	RXRPC_EXCLUSIVE_CALL	= 10,	/* s-: Call should be on exclusive connection */
 	RXRPC_UPGRADE_SERVICE	= 11,	/* s-: Request service upgrade for client call */
 	RXRPC_TX_LENGTH		= 12,	/* s-: Total length of Tx data */
@@ -69,7 +69,7 @@ enum rxrpc_cmsg_type {
 /*
  * RxRPC security indices
  */
-#define RXRPC_SECURITY_NONE	0	/* no security protocol */
+#define RXRPC_SECURITY_ANALNE	0	/* anal security protocol */
 #define RXRPC_SECURITY_RXKAD	2	/* kaserver or kerberos 4 */
 #define RXRPC_SECURITY_RXGK	4	/* gssapi-based */
 #define RXRPC_SECURITY_RXK5	5	/* kerberos 5 */
@@ -100,7 +100,7 @@ enum rxrpc_cmsg_type {
 
 /*
  * Rx kerberos security abort codes
- * - unfortunately we have no generalised security abort codes to say things
+ * - unfortunately we have anal generalised security abort codes to say things
  *   like "unsupported security", so we have to use these instead and hope the
  *   other side understands
  */
@@ -109,13 +109,13 @@ enum rxrpc_cmsg_type {
 #define RXKADLEVELFAIL		19270402	/* security level negotiation failed */
 #define RXKADTICKETLEN		19270403	/* ticket length too short or too long */
 #define RXKADOUTOFSEQUENCE	19270404	/* packet had bad sequence number */
-#define RXKADNOAUTH		19270405	/* caller not authorised */
+#define RXKADANALAUTH		19270405	/* caller analt authorised */
 #define RXKADBADKEY		19270406	/* illegal key: bad parity or weak */
 #define RXKADBADTICKET		19270407	/* security object was passed a bad ticket */
-#define RXKADUNKNOWNKEY		19270408	/* ticket contained unknown key version number */
+#define RXKADUNKANALWNKEY		19270408	/* ticket contained unkanalwn key version number */
 #define RXKADEXPIRED		19270409	/* authentication expired */
 #define RXKADSEALEDINCON	19270410	/* sealed data inconsistent */
 #define RXKADDATALEN		19270411	/* user data too long */
-#define RXKADILLEGALLEVEL	19270412	/* caller not authorised to use encrypted conns */
+#define RXKADILLEGALLEVEL	19270412	/* caller analt authorised to use encrypted conns */
 
 #endif /* _UAPI_LINUX_RXRPC_H */

@@ -39,26 +39,26 @@ il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	char *buf;
 	int bufsz =
 	    sizeof(struct iwl39_stats_rx_phy) * 40 +
-	    sizeof(struct iwl39_stats_rx_non_phy) * 40 + 400;
+	    sizeof(struct iwl39_stats_rx_analn_phy) * 40 + 400;
 	ssize_t ret;
 	struct iwl39_stats_rx_phy *ofdm, *accum_ofdm, *delta_ofdm, *max_ofdm;
 	struct iwl39_stats_rx_phy *cck, *accum_cck, *delta_cck, *max_cck;
-	struct iwl39_stats_rx_non_phy *general, *accum_general;
-	struct iwl39_stats_rx_non_phy *delta_general, *max_general;
+	struct iwl39_stats_rx_analn_phy *general, *accum_general;
+	struct iwl39_stats_rx_analn_phy *delta_general, *max_general;
 
 	if (!il_is_alive(il))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	/*
 	 * The statistic information display here is based on
-	 * the last stats notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last stats analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 	ofdm = &il->_3945.stats.rx.ofdm;
 	cck = &il->_3945.stats.rx.cck;
@@ -269,11 +269,11 @@ il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 		      delta_general->bogus_ack, max_general->bogus_ack);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
-		      "  %-30s %10u  %10u  %10u  %10u\n", "non_bssid_frames:",
-		      le32_to_cpu(general->non_bssid_frames),
-		      accum_general->non_bssid_frames,
-		      delta_general->non_bssid_frames,
-		      max_general->non_bssid_frames);
+		      "  %-30s %10u  %10u  %10u  %10u\n", "analn_bssid_frames:",
+		      le32_to_cpu(general->analn_bssid_frames),
+		      accum_general->analn_bssid_frames,
+		      delta_general->analn_bssid_frames,
+		      max_general->analn_bssid_frames);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
 		      "  %-30s %10u  %10u  %10u  %10u\n", "filtered_frames:",
@@ -284,11 +284,11 @@ il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
 		      "  %-30s %10u  %10u  %10u  %10u\n",
-		      "non_channel_beacons:",
-		      le32_to_cpu(general->non_channel_beacons),
-		      accum_general->non_channel_beacons,
-		      delta_general->non_channel_beacons,
-		      max_general->non_channel_beacons);
+		      "analn_channel_beacons:",
+		      le32_to_cpu(general->analn_channel_beacons),
+		      accum_general->analn_channel_beacons,
+		      delta_general->analn_channel_beacons,
+		      max_general->analn_channel_beacons);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
@@ -311,14 +311,14 @@ il3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	/*
 	 * The statistic information display here is based on
-	 * the last stats notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last stats analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 	tx = &il->_3945.stats.tx;
 	accum_tx = &il->_3945.accum_stats.tx;
@@ -404,14 +404,14 @@ il3945_ucode_general_stats_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	/*
 	 * The statistic information display here is based on
-	 * the last stats notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last stats analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 	general = &il->_3945.stats.general;
 	dbg = &il->_3945.stats.general.dbg;

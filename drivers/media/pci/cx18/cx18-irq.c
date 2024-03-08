@@ -63,5 +63,5 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 	if (sw2)
 		xpu_ack(cx, sw2);
 
-	return (sw1 || sw2 || hw2) ? IRQ_HANDLED : IRQ_NONE;
+	return (sw1 || sw2 || hw2) ? IRQ_HANDLED : IRQ_ANALNE;
 }

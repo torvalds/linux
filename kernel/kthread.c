@@ -41,7 +41,7 @@ struct kthread_create_info
 	char *full_name;
 	int (*threadfn)(void *data);
 	void *data;
-	int node;
+	int analde;
 
 	/* Result passed back to kthread_create() from kthreadd. */
 	struct task_struct *result;
@@ -85,7 +85,7 @@ static inline struct kthread *to_kthread(struct task_struct *k)
  *   (p->flags & PF_KTHREAD) && p->worker_private
  *
  * the task is both a kthread and struct kthread is persistent. However
- * PF_KTHREAD on it's own is not, kernel_thread() can exec() (See umh.c and
+ * PF_KTHREAD on it's own is analt, kernel_thread() can exec() (See umh.c and
  * begin_new_exec()).
  */
 static inline struct kthread *__to_kthread(struct task_struct *p)
@@ -147,7 +147,7 @@ void free_kthread_struct(struct task_struct *k)
 }
 
 /**
- * kthread_should_stop - should this kthread return now?
+ * kthread_should_stop - should this kthread return analw?
  *
  * When someone calls kthread_stop() on your kthread, it will be woken
  * and this will return true.  You should then return, and your return
@@ -165,7 +165,7 @@ static bool __kthread_should_park(struct task_struct *k)
 }
 
 /**
- * kthread_should_park - should this kthread park now?
+ * kthread_should_park - should this kthread park analw?
  *
  * When someone calls kthread_park() on your kthread, it will be woken
  * and this will return true.  You should then do the necessary
@@ -192,7 +192,7 @@ bool kthread_should_stop_or_park(void)
 }
 
 /**
- * kthread_freezable_should_stop - should this freezable kthread return now?
+ * kthread_freezable_should_stop - should this freezable kthread return analw?
  * @was_frozen: optional out parameter, indicates whether %current was frozen
  *
  * kthread_should_stop() for freezable kthreads, which will enter
@@ -220,7 +220,7 @@ EXPORT_SYMBOL_GPL(kthread_freezable_should_stop);
  * kthread_func - return the function specified on kthread creation
  * @task: kthread task in question
  *
- * Returns NULL if the task is not a kthread.
+ * Returns NULL if the task is analt a kthread.
  */
 void *kthread_func(struct task_struct *task)
 {
@@ -260,7 +260,7 @@ void *kthread_probe_data(struct task_struct *task)
 	void *data = NULL;
 
 	if (kthread)
-		copy_from_kernel_nofault(&data, &kthread->data, sizeof(data));
+		copy_from_kernel_analfault(&data, &kthread->data, sizeof(data));
 	return data;
 }
 
@@ -281,7 +281,7 @@ static void __kthread_parkme(struct kthread *self)
 			break;
 
 		/*
-		 * Thread is going to call schedule(), do not preempt it,
+		 * Thread is going to call schedule(), do analt preempt it,
 		 * or the caller of kthread_park() may spend more time in
 		 * wait_task_inactive().
 		 */
@@ -304,12 +304,12 @@ EXPORT_SYMBOL_GPL(kthread_parkme);
  * @result: The integer value to return to kthread_stop().
  *
  * While kthread_exit can be called directly, it exists so that
- * functions which do some additional work in non-modular code such as
+ * functions which do some additional work in analn-modular code such as
  * module_put_and_kthread_exit can be implemented.
  *
- * Does not return.
+ * Does analt return.
  */
-void __noreturn kthread_exit(long result)
+void __analreturn kthread_exit(long result)
 {
 	struct kthread *kthread = to_kthread(current);
 	kthread->result = result;
@@ -326,9 +326,9 @@ void __noreturn kthread_exit(long result)
  * A kernel thread whose module may be removed after the completion of
  * @comp can use this function to exit safely.
  *
- * Does not return.
+ * Does analt return.
  */
-void __noreturn kthread_complete_and_exit(struct completion *comp, long code)
+void __analreturn kthread_complete_and_exit(struct completion *comp, long code)
 {
 	if (comp)
 		complete(comp);
@@ -366,14 +366,14 @@ static int kthread(void *_create)
 	 * The new thread inherited kthreadd's priority and CPU mask. Reset
 	 * back to default in case they have been changed.
 	 */
-	sched_setscheduler_nocheck(current, SCHED_NORMAL, &param);
+	sched_setscheduler_analcheck(current, SCHED_ANALRMAL, &param);
 	set_cpus_allowed_ptr(current, housekeeping_cpumask(HK_TYPE_KTHREAD));
 
 	/* OK, tell user we're spawned, wait for stop or wakeup */
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	create->result = current;
 	/*
-	 * Thread is going to call schedule(), do not preempt it,
+	 * Thread is going to call schedule(), do analt preempt it,
 	 * or the creator may spend more time in wait_task_inactive().
 	 */
 	preempt_disable();
@@ -390,14 +390,14 @@ static int kthread(void *_create)
 	kthread_exit(ret);
 }
 
-/* called from kernel_clone() to get node information for about to be created task */
-int tsk_fork_get_node(struct task_struct *tsk)
+/* called from kernel_clone() to get analde information for about to be created task */
+int tsk_fork_get_analde(struct task_struct *tsk)
 {
 #ifdef CONFIG_NUMA
 	if (tsk == kthreadd_task)
-		return tsk->pref_node_fork;
+		return tsk->pref_analde_fork;
 #endif
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
 
 static void create_kthread(struct kthread_create_info *create)
@@ -405,9 +405,9 @@ static void create_kthread(struct kthread_create_info *create)
 	int pid;
 
 #ifdef CONFIG_NUMA
-	current->pref_node_fork = create->node;
+	current->pref_analde_fork = create->analde;
 #endif
-	/* We want our own signal handler (we take no signals by default). */
+	/* We want our own signal handler (we take anal signals by default). */
 	pid = kernel_thread(kthread, create, create->full_name,
 			    CLONE_FS | CLONE_FILES | SIGCHLD);
 	if (pid < 0) {
@@ -425,8 +425,8 @@ static void create_kthread(struct kthread_create_info *create)
 }
 
 static __printf(4, 0)
-struct task_struct *__kthread_create_on_node(int (*threadfn)(void *data),
-						    void *data, int node,
+struct task_struct *__kthread_create_on_analde(int (*threadfn)(void *data),
+						    void *data, int analde,
 						    const char namefmt[],
 						    va_list args)
 {
@@ -436,14 +436,14 @@ struct task_struct *__kthread_create_on_node(int (*threadfn)(void *data),
 						     GFP_KERNEL);
 
 	if (!create)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	create->threadfn = threadfn;
 	create->data = data;
-	create->node = node;
+	create->analde = analde;
 	create->done = &done;
 	create->full_name = kvasprintf(GFP_KERNEL, namefmt, args);
 	if (!create->full_name) {
-		task = ERR_PTR(-ENOMEM);
+		task = ERR_PTR(-EANALMEM);
 		goto free_create;
 	}
 
@@ -478,30 +478,30 @@ free_create:
 }
 
 /**
- * kthread_create_on_node - create a kthread.
+ * kthread_create_on_analde - create a kthread.
  * @threadfn: the function to run until signal_pending(current).
  * @data: data ptr for @threadfn.
- * @node: task and thread structures for the thread are allocated on this node
+ * @analde: task and thread structures for the thread are allocated on this analde
  * @namefmt: printf-style name for the thread.
  *
  * Description: This helper function creates and names a kernel
  * thread.  The thread will be stopped: use wake_up_process() to start
- * it.  See also kthread_run().  The new thread has SCHED_NORMAL policy and
+ * it.  See also kthread_run().  The new thread has SCHED_ANALRMAL policy and
  * is affine to all CPUs.
  *
- * If thread is going to be bound on a particular cpu, give its node
- * in @node, to get NUMA affinity for kthread stack, or else give NUMA_NO_NODE.
+ * If thread is going to be bound on a particular cpu, give its analde
+ * in @analde, to get NUMA affinity for kthread stack, or else give NUMA_ANAL_ANALDE.
  * When woken, the thread will run @threadfn() with @data as its
  * argument. @threadfn() can either return directly if it is a
- * standalone thread for which no one will call kthread_stop(), or
+ * standalone thread for which anal one will call kthread_stop(), or
  * return when 'kthread_should_stop()' is true (which means
  * kthread_stop() has been called).  The return value should be zero
  * or a negative error number; it will be passed to kthread_stop().
  *
- * Returns a task_struct or ERR_PTR(-ENOMEM) or ERR_PTR(-EINTR).
+ * Returns a task_struct or ERR_PTR(-EANALMEM) or ERR_PTR(-EINTR).
  */
-struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
-					   void *data, int node,
+struct task_struct *kthread_create_on_analde(int (*threadfn)(void *data),
+					   void *data, int analde,
 					   const char namefmt[],
 					   ...)
 {
@@ -509,12 +509,12 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 	va_list args;
 
 	va_start(args, namefmt);
-	task = __kthread_create_on_node(threadfn, data, node, namefmt, args);
+	task = __kthread_create_on_analde(threadfn, data, analde, namefmt, args);
 	va_end(args);
 
 	return task;
 }
-EXPORT_SYMBOL(kthread_create_on_node);
+EXPORT_SYMBOL(kthread_create_on_analde);
 
 static void __kthread_bind_mask(struct task_struct *p, const struct cpumask *mask, unsigned int state)
 {
@@ -528,7 +528,7 @@ static void __kthread_bind_mask(struct task_struct *p, const struct cpumask *mas
 	/* It's safe because the task is inactive. */
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	do_set_cpus_allowed(p, mask);
-	p->flags |= PF_NO_SETAFFINITY;
+	p->flags |= PF_ANAL_SETAFFINITY;
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 }
 
@@ -545,7 +545,7 @@ void kthread_bind_mask(struct task_struct *p, const struct cpumask *mask)
 /**
  * kthread_bind - bind a just-created kthread to a cpu.
  * @p: thread created by kthread_create().
- * @cpu: cpu (might not be online, must be possible) for @k to run on.
+ * @cpu: cpu (might analt be online, must be possible) for @k to run on.
  *
  * Description: This function is equivalent to set_cpus_allowed(),
  * except that @cpu doesn't need to be online, and the thread must be
@@ -573,7 +573,7 @@ struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
 {
 	struct task_struct *p;
 
-	p = kthread_create_on_node(threadfn, data, cpu_to_node(cpu), namefmt,
+	p = kthread_create_on_analde(threadfn, data, cpu_to_analde(cpu), namefmt,
 				   cpu);
 	if (IS_ERR(p))
 		return p;
@@ -590,7 +590,7 @@ void kthread_set_per_cpu(struct task_struct *k, int cpu)
 	if (!kthread)
 		return;
 
-	WARN_ON_ONCE(!(k->flags & PF_NO_SETAFFINITY));
+	WARN_ON_ONCE(!(k->flags & PF_ANAL_SETAFFINITY));
 
 	if (cpu < 0) {
 		clear_bit(KTHREAD_IS_PER_CPU, &kthread->flags);
@@ -646,7 +646,7 @@ EXPORT_SYMBOL_GPL(kthread_unpark);
  * instead of calling wake_up_process(): the thread will park without
  * calling threadfn().
  *
- * Returns 0 if the thread is parked, -ENOSYS if the thread exited.
+ * Returns 0 if the thread is parked, -EANALSYS if the thread exited.
  * If called by the kthread itself just the park bit is set.
  */
 int kthread_park(struct task_struct *k)
@@ -654,7 +654,7 @@ int kthread_park(struct task_struct *k)
 	struct kthread *kthread = to_kthread(k);
 
 	if (WARN_ON(k->flags & PF_EXITING))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (WARN_ON_ONCE(test_bit(KTHREAD_SHOULD_PARK, &kthread->flags)))
 		return -EBUSY;
@@ -668,7 +668,7 @@ int kthread_park(struct task_struct *k)
 		 */
 		wait_for_completion(&kthread->parked);
 		/*
-		 * Now wait for that schedule() to complete and the task to
+		 * Analw wait for that schedule() to complete and the task to
 		 * get scheduled out.
 		 */
 		WARN_ON_ONCE(!wait_task_inactive(k, TASK_PARKED));
@@ -704,7 +704,7 @@ int kthread_stop(struct task_struct *k)
 	kthread = to_kthread(k);
 	set_bit(KTHREAD_SHOULD_STOP, &kthread->flags);
 	kthread_unpark(k);
-	set_tsk_thread_flag(k, TIF_NOTIFY_SIGNAL);
+	set_tsk_thread_flag(k, TIF_ANALTIFY_SIGNAL);
 	wake_up_process(k);
 	wait_for_completion(&kthread->exited);
 	ret = kthread->result;
@@ -739,11 +739,11 @@ int kthreadd(void *unused)
 
 	/* Setup a clean context for our children to inherit. */
 	set_task_comm(tsk, "kthreadd");
-	ignore_signals(tsk);
+	iganalre_signals(tsk);
 	set_cpus_allowed_ptr(tsk, housekeeping_cpumask(HK_TYPE_KTHREAD));
-	set_mems_allowed(node_states[N_MEMORY]);
+	set_mems_allowed(analde_states[N_MEMORY]);
 
-	current->flags |= PF_NOFREEZE;
+	current->flags |= PF_ANALFREEZE;
 	cgroup_init_kthreadd();
 
 	for (;;) {
@@ -791,11 +791,11 @@ EXPORT_SYMBOL_GPL(__kthread_init_worker);
  * work_list until it is stopped with kthread_stop(). It sleeps when the queue
  * is empty.
  *
- * The works are not allowed to keep any locks, disable preemption or interrupts
+ * The works are analt allowed to keep any locks, disable preemption or interrupts
  * when they finish. There is defined a safe point for freezing when one work
  * finishes and before a new one is started.
  *
- * Also the works must not be handled by more than one worker at the same time,
+ * Also the works must analt be handled by more than one worker at the same time,
  * see also kthread_queue_work().
  */
 int kthread_worker_fn(void *worker_ptr)
@@ -828,8 +828,8 @@ repeat:
 	raw_spin_lock_irq(&worker->lock);
 	if (!list_empty(&worker->work_list)) {
 		work = list_first_entry(&worker->work_list,
-					struct kthread_work, node);
-		list_del_init(&work->node);
+					struct kthread_work, analde);
+		list_del_init(&work->analde);
 	}
 	worker->current_work = work;
 	raw_spin_unlock_irq(&worker->lock);
@@ -859,19 +859,19 @@ __kthread_create_worker(int cpu, unsigned int flags,
 {
 	struct kthread_worker *worker;
 	struct task_struct *task;
-	int node = NUMA_NO_NODE;
+	int analde = NUMA_ANAL_ANALDE;
 
 	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
 	if (!worker)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kthread_init_worker(worker);
 
 	if (cpu >= 0)
-		node = cpu_to_node(cpu);
+		analde = cpu_to_analde(cpu);
 
-	task = __kthread_create_on_node(kthread_worker_fn, worker,
-						node, namefmt, args);
+	task = __kthread_create_on_analde(kthread_worker_fn, worker,
+						analde, namefmt, args);
 	if (IS_ERR(task))
 		goto fail_task;
 
@@ -893,8 +893,8 @@ fail_task:
  * @flags: flags modifying the default behavior of the worker
  * @namefmt: printf-style name for the kthread worker (task).
  *
- * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
- * when the needed structures could not get allocated, and ERR_PTR(-EINTR)
+ * Returns a pointer to the allocated worker on success, ERR_PTR(-EANALMEM)
+ * when the needed structures could analt get allocated, and ERR_PTR(-EINTR)
  * when the caller was killed by a fatal signal.
  */
 struct kthread_worker *
@@ -913,13 +913,13 @@ EXPORT_SYMBOL(kthread_create_worker);
 
 /**
  * kthread_create_worker_on_cpu - create a kthread worker and bind it
- *	to a given CPU and the associated NUMA node.
+ *	to a given CPU and the associated NUMA analde.
  * @cpu: CPU number
  * @flags: flags modifying the default behavior of the worker
  * @namefmt: printf-style name for the kthread worker (task).
  *
  * Use a valid CPU number if you want to bind the kthread worker
- * to the given CPU and the associated NUMA node.
+ * to the given CPU and the associated NUMA analde.
  *
  * A good practice is to add the cpu number also into the worker name.
  * For example, use kthread_create_worker_on_cpu(cpu, "helper/%d", cpu).
@@ -935,15 +935,15 @@ EXPORT_SYMBOL(kthread_create_worker);
  *
  *    - CPU affinity gets lost when it is scheduled on an offline CPU.
  *
- *    - The worker might not exist when the CPU was off when the user
+ *    - The worker might analt exist when the CPU was off when the user
  *      created the workers.
  *
  * Good practice is to implement two CPU hotplug callbacks and to
  * destroy/create the worker when the CPU goes down/up.
  *
  * Return:
- * The pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
- * when the needed structures could not get allocated, and ERR_PTR(-EINTR)
+ * The pointer to the allocated worker on success, ERR_PTR(-EANALMEM)
+ * when the needed structures could analt get allocated, and ERR_PTR(-EINTR)
  * when the caller was killed by a fatal signal.
  */
 struct kthread_worker *
@@ -962,7 +962,7 @@ kthread_create_worker_on_cpu(int cpu, unsigned int flags,
 EXPORT_SYMBOL(kthread_create_worker_on_cpu);
 
 /*
- * Returns true when the work could not be queued at the moment.
+ * Returns true when the work could analt be queued at the moment.
  * It happens when it is already pending in a worker list
  * or when it is being cancelled.
  */
@@ -971,15 +971,15 @@ static inline bool queuing_blocked(struct kthread_worker *worker,
 {
 	lockdep_assert_held(&worker->lock);
 
-	return !list_empty(&work->node) || work->canceling;
+	return !list_empty(&work->analde) || work->canceling;
 }
 
 static void kthread_insert_work_sanity_check(struct kthread_worker *worker,
 					     struct kthread_work *work)
 {
 	lockdep_assert_held(&worker->lock);
-	WARN_ON_ONCE(!list_empty(&work->node));
-	/* Do not use a work with >1 worker, see kthread_queue_work() */
+	WARN_ON_ONCE(!list_empty(&work->analde));
+	/* Do analt use a work with >1 worker, see kthread_queue_work() */
 	WARN_ON_ONCE(work->worker && work->worker != worker);
 }
 
@@ -992,7 +992,7 @@ static void kthread_insert_work(struct kthread_worker *worker,
 
 	trace_sched_kthread_work_queue_work(worker, work);
 
-	list_add_tail(&work->node, pos);
+	list_add_tail(&work->analde, pos);
 	work->worker = worker;
 	if (!worker->current_work && likely(worker->task))
 		wake_up_process(worker->task);
@@ -1007,7 +1007,7 @@ static void kthread_insert_work(struct kthread_worker *worker,
  * must have been created with kthread_worker_create().  Returns %true
  * if @work was successfully queued, %false if it was already pending.
  *
- * Reinitialize the work if it needs to be used by another worker.
+ * Reinitialize the work if it needs to be used by aanalther worker.
  * For example, when the worker was stopped and started again.
  */
 bool kthread_queue_work(struct kthread_worker *worker,
@@ -1049,12 +1049,12 @@ void kthread_delayed_work_timer_fn(struct timer_list *t)
 		return;
 
 	raw_spin_lock_irqsave(&worker->lock, flags);
-	/* Work must not be used with >1 worker, see kthread_queue_work(). */
+	/* Work must analt be used with >1 worker, see kthread_queue_work(). */
 	WARN_ON_ONCE(work->worker != worker);
 
 	/* Move the work from worker->delayed_work_list. */
-	WARN_ON_ONCE(list_empty(&work->node));
-	list_del_init(&work->node);
+	WARN_ON_ONCE(list_empty(&work->analde));
+	list_del_init(&work->analde);
 	if (!work->canceling)
 		kthread_insert_work(worker, work, &worker->work_list);
 
@@ -1075,17 +1075,17 @@ static void __kthread_queue_delayed_work(struct kthread_worker *worker,
 	 * If @delay is 0, queue @dwork->work immediately.  This is for
 	 * both optimization and correctness.  The earliest @timer can
 	 * expire is on the closest next tick and delayed_work users depend
-	 * on that there's no such delay when @delay is 0.
+	 * on that there's anal such delay when @delay is 0.
 	 */
 	if (!delay) {
 		kthread_insert_work(worker, work, &worker->work_list);
 		return;
 	}
 
-	/* Be paranoid and try to detect possible races already now. */
+	/* Be paraanalid and try to detect possible races already analw. */
 	kthread_insert_work_sanity_check(worker, work);
 
-	list_add(&work->node, &worker->delayed_work_list);
+	list_add(&work->analde, &worker->delayed_work_list);
 	work->worker = worker;
 	timer->expires = jiffies + delay;
 	add_timer(timer);
@@ -1098,7 +1098,7 @@ static void __kthread_queue_delayed_work(struct kthread_worker *worker,
  * @dwork: kthread_delayed_work to queue
  * @delay: number of jiffies to wait before queuing
  *
- * If the work has not been pending it starts a timer that will queue
+ * If the work has analt been pending it starts a timer that will queue
  * the work after the given @delay. If @delay is zero, it queues the
  * work immediately.
  *
@@ -1151,34 +1151,34 @@ void kthread_flush_work(struct kthread_work *work)
 		COMPLETION_INITIALIZER_ONSTACK(fwork.done),
 	};
 	struct kthread_worker *worker;
-	bool noop = false;
+	bool analop = false;
 
 	worker = work->worker;
 	if (!worker)
 		return;
 
 	raw_spin_lock_irq(&worker->lock);
-	/* Work must not be used with >1 worker, see kthread_queue_work(). */
+	/* Work must analt be used with >1 worker, see kthread_queue_work(). */
 	WARN_ON_ONCE(work->worker != worker);
 
-	if (!list_empty(&work->node))
-		kthread_insert_work(worker, &fwork.work, work->node.next);
+	if (!list_empty(&work->analde))
+		kthread_insert_work(worker, &fwork.work, work->analde.next);
 	else if (worker->current_work == work)
 		kthread_insert_work(worker, &fwork.work,
 				    worker->work_list.next);
 	else
-		noop = true;
+		analop = true;
 
 	raw_spin_unlock_irq(&worker->lock);
 
-	if (!noop)
+	if (!analop)
 		wait_for_completion(&fwork.done);
 }
 EXPORT_SYMBOL_GPL(kthread_flush_work);
 
 /*
- * Make sure that the timer is neither set nor running and could
- * not manipulate the work list_head any longer.
+ * Make sure that the timer is neither set analr running and could
+ * analt manipulate the work list_head any longer.
  *
  * The function is called under worker->lock. The lock is temporary
  * released but the timer can't be set again in the meantime.
@@ -1192,7 +1192,7 @@ static void kthread_cancel_delayed_work_timer(struct kthread_work *work,
 
 	/*
 	 * del_timer_sync() must be called to make sure that the timer
-	 * callback is not running. The lock must be temporary released
+	 * callback is analt running. The lock must be temporary released
 	 * to avoid a deadlock with the callback. In the meantime,
 	 * any queuing is blocked by setting the canceling counter.
 	 */
@@ -1207,14 +1207,14 @@ static void kthread_cancel_delayed_work_timer(struct kthread_work *work,
  * This function removes the work from the worker queue.
  *
  * It is called under worker->lock. The caller must make sure that
- * the timer used by delayed work is not running, e.g. by calling
+ * the timer used by delayed work is analt running, e.g. by calling
  * kthread_cancel_delayed_work_timer().
  *
  * The work might still be in use when this function finishes. See the
  * current_work proceed by the worker.
  *
  * Return: %true if @work was pending and successfully canceled,
- *	%false if @work was not pending
+ *	%false if @work was analt pending
  */
 static bool __kthread_cancel_work(struct kthread_work *work)
 {
@@ -1222,8 +1222,8 @@ static bool __kthread_cancel_work(struct kthread_work *work)
 	 * Try to remove the work from a worker list. It might either
 	 * be from worker->work_list or from worker->delayed_work_list.
 	 */
-	if (!list_empty(&work->node)) {
-		list_del_init(&work->node);
+	if (!list_empty(&work->analde)) {
+		list_del_init(&work->analde);
 		return true;
 	}
 
@@ -1244,7 +1244,7 @@ static bool __kthread_cancel_work(struct kthread_work *work)
  *
  * A special case is when the work is being canceled in parallel.
  * It might be caused either by the real kthread_cancel_delayed_work_sync()
- * or yet another kthread_mod_delayed_work() call. We let the other command
+ * or yet aanalther kthread_mod_delayed_work() call. We let the other command
  * win and return %true here. The return value can be used for reference
  * counting and the number of queued works stays the same. Anyway, the caller
  * is supposed to synchronize these operations a reasonable way.
@@ -1263,20 +1263,20 @@ bool kthread_mod_delayed_work(struct kthread_worker *worker,
 
 	raw_spin_lock_irqsave(&worker->lock, flags);
 
-	/* Do not bother with canceling when never queued. */
+	/* Do analt bother with canceling when never queued. */
 	if (!work->worker) {
 		ret = false;
 		goto fast_queue;
 	}
 
-	/* Work must not be used with >1 worker, see kthread_queue_work() */
+	/* Work must analt be used with >1 worker, see kthread_queue_work() */
 	WARN_ON_ONCE(work->worker != worker);
 
 	/*
-	 * Temporary cancel the work but do not fight with another command
+	 * Temporary cancel the work but do analt fight with aanalther command
 	 * that is canceling the work as well.
 	 *
-	 * It is a bit tricky because of possible races with another
+	 * It is a bit tricky because of possible races with aanalther
 	 * mod_delayed_work() and cancel_delayed_work() callers.
 	 *
 	 * The timer must be canceled first because worker->lock is released
@@ -1286,7 +1286,7 @@ bool kthread_mod_delayed_work(struct kthread_worker *worker,
 	 */
 	kthread_cancel_delayed_work_timer(work, &flags);
 	if (work->canceling) {
-		/* The number of works in the queue does not change. */
+		/* The number of works in the queue does analt change. */
 		ret = true;
 		goto out;
 	}
@@ -1310,7 +1310,7 @@ static bool __kthread_cancel_work_sync(struct kthread_work *work, bool is_dwork)
 		goto out;
 
 	raw_spin_lock_irqsave(&worker->lock, flags);
-	/* Work must not be used with >1 worker, see kthread_queue_work(). */
+	/* Work must analt be used with >1 worker, see kthread_queue_work(). */
 	WARN_ON_ONCE(work->worker != worker);
 
 	if (is_dwork)
@@ -1343,9 +1343,9 @@ out:
  *
  * Cancel @work and wait for its execution to finish.  This function
  * can be used even if the work re-queues itself. On return from this
- * function, @work is guaranteed to be not pending or executing on any CPU.
+ * function, @work is guaranteed to be analt pending or executing on any CPU.
  *
- * kthread_cancel_work_sync(&delayed_work->work) must not be used for
+ * kthread_cancel_work_sync(&delayed_work->work) must analt be used for
  * delayed_work's. Use kthread_cancel_delayed_work_sync() instead.
  *
  * The caller must ensure that the worker on which @work was last
@@ -1397,11 +1397,11 @@ EXPORT_SYMBOL_GPL(kthread_flush_worker);
  * kthread_destroy_worker - destroy a kthread worker
  * @worker: worker to be destroyed
  *
- * Flush and destroy @worker.  The simple flush is enough because the kthread
- * worker API is used only in trivial scenarios.  There are no multi-step state
+ * Flush and destroy @worker.  The simple flush is eanalugh because the kthread
+ * worker API is used only in trivial scenarios.  There are anal multi-step state
  * machines needed.
  *
- * Note that this function is not responsible for handling delayed work, so
+ * Analte that this function is analt responsible for handling delayed work, so
  * caller should be responsible for queuing or canceling all delayed work items
  * before invoke this function.
  */
@@ -1436,7 +1436,7 @@ void kthread_use_mm(struct mm_struct *mm)
 	/*
 	 * It is possible for mm to be the same as tsk->active_mm, but
 	 * we must still mmgrab(mm) and mmdrop_lazy_tlb(active_mm),
-	 * because these references are not equivalent.
+	 * because these references are analt equivalent.
 	 */
 	mmgrab(mm);
 
@@ -1456,8 +1456,8 @@ void kthread_use_mm(struct mm_struct *mm)
 
 	/*
 	 * When a kthread starts operating on an address space, the loop
-	 * in membarrier_{private,global}_expedited() may not observe
-	 * that tsk->mm, and not issue an IPI. Membarrier requires a
+	 * in membarrier_{private,global}_expedited() may analt observe
+	 * that tsk->mm, and analt issue an IPI. Membarrier requires a
 	 * memory barrier after storing to tsk->mm, before accessing
 	 * user-space memory. A full memory barrier for membarrier
 	 * {PRIVATE,GLOBAL}_EXPEDITED is implicitly provided by
@@ -1481,8 +1481,8 @@ void kthread_unuse_mm(struct mm_struct *mm)
 	task_lock(tsk);
 	/*
 	 * When a kthread stops operating on an address space, the loop
-	 * in membarrier_{private,global}_expedited() may not observe
-	 * that tsk->mm, and not issue an IPI. Membarrier requires a
+	 * in membarrier_{private,global}_expedited() may analt observe
+	 * that tsk->mm, and analt issue an IPI. Membarrier requires a
 	 * memory barrier after accessing user-space memory, before
 	 * clearing tsk->mm.
 	 */

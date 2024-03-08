@@ -34,14 +34,14 @@ ENTRY(memmove) /* o0=dst o1=src o2=len */
 
 	/* We can't just call memcpy for these memmove cases.  On some
 	 * chips the memcpy uses cache initializing stores and when dst
-	 * and src are close enough, those can clobber the source data
+	 * and src are close eanalugh, those can clobber the source data
 	 * before we've loaded it in.
 	 */
 2:	or		%o0, %o1, %g7
 	or		%o2, %g7, %g7
 	andcc		%g7, 0x7, %g0
 	bne,pn		%xcc, 4f
-	 nop
+	 analp
 
 3:	ldx		[%o1], %g7
 	add		%o1, 8, %o1

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * uapi/sound/asoc.h -- ALSA SoC Firmware Controls and DAPM
  *
@@ -155,7 +155,7 @@
 #define SND_SOC_DAI_FORMAT_AC97         6 /* AC97 */
 #define SND_SOC_DAI_FORMAT_PDM          7 /* Pulse density modulation */
 
-/* left and right justified also known as MSB and LSB respectively */
+/* left and right justified also kanalwn as MSB and LSB respectively */
 #define SND_SOC_DAI_FORMAT_MSB          SND_SOC_DAI_FORMAT_LEFT_J
 #define SND_SOC_DAI_FORMAT_LSB          SND_SOC_DAI_FORMAT_RIGHT_J
 
@@ -231,7 +231,7 @@ struct snd_soc_tplg_vendor_array {
 /*
  * Private data.
  * All topology objects may have private data that can be used by the driver or
- * firmware. Core will ignore this data.
+ * firmware. Core will iganalre this data.
  */
 struct snd_soc_tplg_private {
 	__le32 size;	/* in bytes of private data */
@@ -336,8 +336,8 @@ struct snd_soc_tplg_hw_config {
 	__le32 id;		/* unique ID - - used to match */
 	__le32 fmt;		/* SND_SOC_DAI_FORMAT_ format value */
 	__u8 clock_gated;	/* SND_SOC_TPLG_DAI_CLK_GATE_ value */
-	__u8 invert_bclk;	/* 1 for inverted BCLK, 0 for normal */
-	__u8 invert_fsync;	/* 1 for inverted frame clock, 0 for normal */
+	__u8 invert_bclk;	/* 1 for inverted BCLK, 0 for analrmal */
+	__u8 invert_fsync;	/* 1 for inverted frame clock, 0 for analrmal */
 	__u8 bclk_provider;	/* SND_SOC_TPLG_BCLK_ value */
 	__u8 fsync_provider;	/* SND_SOC_TPLG_FSYNC_ value */
 	__u8 mclk_direction;    /* SND_SOC_TPLG_MCLK_ value */
@@ -356,7 +356,7 @@ struct snd_soc_tplg_hw_config {
 } __attribute__((packed));
 
 /*
- * Manifest. List totals for each payload type. Not used in parsing, but will
+ * Manifest. List totals for each payload type. Analt used in parsing, but will
  * be passed to the component driver before any other objects in order for any
  * global component resource allocations.
  *
@@ -483,12 +483,12 @@ struct snd_soc_tplg_dapm_widget {
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	char sname[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
-	__le32 reg;		/* negative reg = no direct dapm */
+	__le32 reg;		/* negative reg = anal direct dapm */
 	__le32 shift;		/* bits to shift */
-	__le32 mask;		/* non-shifted mask */
+	__le32 mask;		/* analn-shifted mask */
 	__le32 subseq;		/* sort within widget type */
 	__le32 invert;		/* invert the power bit */
-	__le32 ignore_suspend;	/* kept enabled over suspend */
+	__le32 iganalre_suspend;	/* kept enabled over suspend */
 	__le16 event_flags;
 	__le16 event_type;
 	__le32 num_kcontrols;

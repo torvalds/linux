@@ -30,7 +30,7 @@ across the sample scripts.  Usage example is printed on errors::
   -x : ($DEBUG)     debug
   -6 : ($IP6)       IPv6
   -w : ($DELAY)     Tx Delay value (ns)
-  -a : ($APPEND)    Script will not reset generator's state, but will append its config
+  -a : ($APPEND)    Script will analt reset generator's state, but will append its config
 
 The global variable being set is also listed.  E.g. the required
 interface/device parameter "-i" sets variable $DEV.

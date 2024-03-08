@@ -7,7 +7,7 @@ Description:	The current security information used by a Linux
 		The details of permissions required to read from
 		this interface and hence obtain the security state
 		of the task identified is LSM dependent.
-		A process cannot write to this interface unless it
+		A process cananalt write to this interface unless it
 		refers to itself.
 		The other details of permissions required to write to
 		this interface and hence change the security state of

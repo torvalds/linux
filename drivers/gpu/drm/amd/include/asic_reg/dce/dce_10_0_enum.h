@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -131,17 +131,17 @@ typedef enum DCIO_DC_REF_CLK_CNTL_GENLK_CLK_OUTPUT_SEL {
 	DCIO_GENLK_CLK_OUTPUT_SEL_RESERVED_VALUE3        = 0x3,
 } DCIO_DC_REF_CLK_CNTL_GENLK_CLK_OUTPUT_SEL;
 typedef enum DCIO_DC_GPIO_VIP_DEBUG {
-	DCIO_DC_GPIO_VIP_DEBUG_NORMAL                    = 0x0,
+	DCIO_DC_GPIO_VIP_DEBUG_ANALRMAL                    = 0x0,
 	DCIO_DC_GPIO_VIP_DEBUG_CG_BIG                    = 0x1,
 } DCIO_DC_GPIO_VIP_DEBUG;
 typedef enum DCIO_DC_GPIO_MACRO_DEBUG {
-	DCIO_DC_GPIO_MACRO_DEBUG_NORMAL                  = 0x0,
+	DCIO_DC_GPIO_MACRO_DEBUG_ANALRMAL                  = 0x0,
 	DCIO_DC_GPIO_MACRO_DEBUG_CHIP_BIF                = 0x1,
 	DCIO_DC_GPIO_MACRO_DEBUG_RESERVED_VALUE2         = 0x2,
 	DCIO_DC_GPIO_MACRO_DEBUG_RESERVED_VALUE3         = 0x3,
 } DCIO_DC_GPIO_MACRO_DEBUG;
 typedef enum DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL {
-	DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL_NORMAL       = 0x0,
+	DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL_ANALRMAL       = 0x0,
 	DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL_SWAP         = 0x1,
 } DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL;
 typedef enum DCIO_DC_GPIO_DEBUG_BUS_FLOP_EN {
@@ -149,7 +149,7 @@ typedef enum DCIO_DC_GPIO_DEBUG_BUS_FLOP_EN {
 	DCIO_DC_GPIO_DEBUG_BUS_FLOP_EN_ENABLE            = 0x1,
 } DCIO_DC_GPIO_DEBUG_BUS_FLOP_EN;
 typedef enum DCIO_DC_GPIO_DEBUG_DPRX_LOOPBACK_ENABLE {
-	DCIO_DPRX_LOOPBACK_ENABLE_NORMAL                 = 0x0,
+	DCIO_DPRX_LOOPBACK_ENABLE_ANALRMAL                 = 0x0,
 	DCIO_DPRX_LOOPBACK_ENABLE_LOOP                   = 0x1,
 } DCIO_DC_GPIO_DEBUG_DPRX_LOOPBACK_ENABLE;
 typedef enum DCIO_UNIPHY_LINK_CNTL_MINIMUM_PIXVLD_LOW_DURATION {
@@ -163,7 +163,7 @@ typedef enum DCIO_UNIPHY_LINK_CNTL_MINIMUM_PIXVLD_LOW_DURATION {
 	DCIO_UNIPHY_MINIMUM_PIXVLD_LOW_DURATION_31_CLOCKS= 0x7,
 } DCIO_UNIPHY_LINK_CNTL_MINIMUM_PIXVLD_LOW_DURATION;
 typedef enum DCIO_UNIPHY_LINK_CNTL_CHANNEL_INVERT {
-	DCIO_UNIPHY_CHANNEL_NO_INVERSION                 = 0x0,
+	DCIO_UNIPHY_CHANNEL_ANAL_INVERSION                 = 0x0,
 	DCIO_UNIPHY_CHANNEL_INVERTED                     = 0x1,
 } DCIO_UNIPHY_LINK_CNTL_CHANNEL_INVERT;
 typedef enum DCIO_UNIPHY_LINK_CNTL_ENABLE_HPD_MASK {
@@ -199,7 +199,7 @@ typedef enum DCIO_LVTMA_PWRSEQ_CNTL_TARGET_STATE {
 	DCIO_LVTMA_PWRSEQ_TARGET_STATE_LCD_ON            = 0x1,
 } DCIO_LVTMA_PWRSEQ_CNTL_TARGET_STATE;
 typedef enum DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_SYNCEN_POL {
-	DCIO_LVTMA_SYNCEN_POL_NON_INVERT                 = 0x0,
+	DCIO_LVTMA_SYNCEN_POL_ANALN_INVERT                 = 0x0,
 	DCIO_LVTMA_SYNCEN_POL_INVERT                     = 0x1,
 } DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_SYNCEN_POL;
 typedef enum DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_DIGON {
@@ -207,7 +207,7 @@ typedef enum DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_DIGON {
 	DCIO_LVTMA_DIGON_ON                              = 0x1,
 } DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_DIGON;
 typedef enum DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_DIGON_POL {
-	DCIO_LVTMA_DIGON_POL_NON_INVERT                  = 0x0,
+	DCIO_LVTMA_DIGON_POL_ANALN_INVERT                  = 0x0,
 	DCIO_LVTMA_DIGON_POL_INVERT                      = 0x1,
 } DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_DIGON_POL;
 typedef enum DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_BLON {
@@ -215,7 +215,7 @@ typedef enum DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_BLON {
 	DCIO_LVTMA_BLON_ON                               = 0x1,
 } DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_BLON;
 typedef enum DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_BLON_POL {
-	DCIO_LVTMA_BLON_POL_NON_INVERT                   = 0x0,
+	DCIO_LVTMA_BLON_POL_ANALN_INVERT                   = 0x0,
 	DCIO_LVTMA_BLON_POL_INVERT                       = 0x1,
 } DCIO_LVTMA_PWRSEQ_CNTL_LVTMA_BLON_POL;
 typedef enum DCIO_LVTMA_PWRSEQ_DELAY2_LVTMA_VARY_BL_OVERRIDE_EN {
@@ -231,7 +231,7 @@ typedef enum DCIO_BL_PWM_CNTL_BL_PWM_EN {
 	DCIO_BL_PWM_ENABLE                               = 0x1,
 } DCIO_BL_PWM_CNTL_BL_PWM_EN;
 typedef enum DCIO_BL_PWM_CNTL2_DBG_BL_PWM_INPUT_REFCLK_SELECT {
-	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_NORMAL       = 0x0,
+	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_ANALRMAL       = 0x0,
 	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DEBUG1       = 0x1,
 	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DEBUG2       = 0x2,
 	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DEBUG3       = 0x3,
@@ -241,7 +241,7 @@ typedef enum DCIO_BL_PWM_CNTL2_BL_PWM_OVERRIDE_BL_OUT_ENABLE {
 	DCIO_BL_PWM_OVERRIDE_BL_OUT_ENABLE               = 0x1,
 } DCIO_BL_PWM_CNTL2_BL_PWM_OVERRIDE_BL_OUT_ENABLE;
 typedef enum DCIO_BL_PWM_CNTL2_BL_PWM_OVERRIDE_LVTMA_PWRSEQ_EN {
-	DCIO_BL_PWM_OVERRIDE_LVTMA_PWRSEQ_EN_NORMAL      = 0x0,
+	DCIO_BL_PWM_OVERRIDE_LVTMA_PWRSEQ_EN_ANALRMAL      = 0x0,
 	DCIO_BL_PWM_OVERRIDE_LVTMA_PWRSEQ_EN_PWM         = 0x1,
 } DCIO_BL_PWM_CNTL2_BL_PWM_OVERRIDE_LVTMA_PWRSEQ_EN;
 typedef enum DCIO_BL_PWM_GRP1_REG_LOCK {
@@ -264,32 +264,32 @@ typedef enum DCIO_BL_PWM_GRP1_READBACK_DB_REG_VALUE_EN {
 	DCIO_BL_PWM_GRP1_READBACK_DB_REG_VALUE_EN_BL_PWM = 0x0,
 	DCIO_BL_PWM_GRP1_READBACK_DB_REG_VALUE_EN_BL1_PWM= 0x1,
 } DCIO_BL_PWM_GRP1_READBACK_DB_REG_VALUE_EN;
-typedef enum DCIO_BL_PWM_GRP1_IGNORE_MASTER_LOCK_EN {
-	DCIO_BL_PWM_GRP1_IGNORE_MASTER_LOCK_ENABLE       = 0x0,
-	DCIO_BL_PWM_GRP1_IGNORE_MASTER_LOCK_DISABLE      = 0x1,
-} DCIO_BL_PWM_GRP1_IGNORE_MASTER_LOCK_EN;
+typedef enum DCIO_BL_PWM_GRP1_IGANALRE_MASTER_LOCK_EN {
+	DCIO_BL_PWM_GRP1_IGANALRE_MASTER_LOCK_ENABLE       = 0x0,
+	DCIO_BL_PWM_GRP1_IGANALRE_MASTER_LOCK_DISABLE      = 0x1,
+} DCIO_BL_PWM_GRP1_IGANALRE_MASTER_LOCK_EN;
 typedef enum DCIO_GSL_SEL {
 	DCIO_GSL_SEL_GROUP_0                             = 0x0,
 	DCIO_GSL_SEL_GROUP_1                             = 0x1,
 	DCIO_GSL_SEL_GROUP_2                             = 0x2,
 } DCIO_GSL_SEL;
 typedef enum DCIO_GENLK_CLK_GSL_MASK {
-	DCIO_GENLK_CLK_GSL_MASK_NO                       = 0x0,
+	DCIO_GENLK_CLK_GSL_MASK_ANAL                       = 0x0,
 	DCIO_GENLK_CLK_GSL_MASK_TIMING                   = 0x1,
 	DCIO_GENLK_CLK_GSL_MASK_STEREO                   = 0x2,
 } DCIO_GENLK_CLK_GSL_MASK;
 typedef enum DCIO_GENLK_VSYNC_GSL_MASK {
-	DCIO_GENLK_VSYNC_GSL_MASK_NO                     = 0x0,
+	DCIO_GENLK_VSYNC_GSL_MASK_ANAL                     = 0x0,
 	DCIO_GENLK_VSYNC_GSL_MASK_TIMING                 = 0x1,
 	DCIO_GENLK_VSYNC_GSL_MASK_STEREO                 = 0x2,
 } DCIO_GENLK_VSYNC_GSL_MASK;
 typedef enum DCIO_SWAPLOCK_A_GSL_MASK {
-	DCIO_SWAPLOCK_A_GSL_MASK_NO                      = 0x0,
+	DCIO_SWAPLOCK_A_GSL_MASK_ANAL                      = 0x0,
 	DCIO_SWAPLOCK_A_GSL_MASK_TIMING                  = 0x1,
 	DCIO_SWAPLOCK_A_GSL_MASK_STEREO                  = 0x2,
 } DCIO_SWAPLOCK_A_GSL_MASK;
 typedef enum DCIO_SWAPLOCK_B_GSL_MASK {
-	DCIO_SWAPLOCK_B_GSL_MASK_NO                      = 0x0,
+	DCIO_SWAPLOCK_B_GSL_MASK_ANAL                      = 0x0,
 	DCIO_SWAPLOCK_B_GSL_MASK_TIMING                  = 0x1,
 	DCIO_SWAPLOCK_B_GSL_MASK_STEREO                  = 0x2,
 } DCIO_SWAPLOCK_B_GSL_MASK;
@@ -377,14 +377,14 @@ typedef enum DCIO_DCO_DCFE_EXT_VSYNC_MUX {
 	DCIO_EXT_VSYNC_MUX_GENERICB                      = 0x7,
 } DCIO_DCO_DCFE_EXT_VSYNC_MUX;
 typedef enum DCIO_DCO_EXT_VSYNC_MASK {
-	DCIO_EXT_VSYNC_MASK_NONE                         = 0x0,
+	DCIO_EXT_VSYNC_MASK_ANALNE                         = 0x0,
 	DCIO_EXT_VSYNC_MASK_PIPE0                        = 0x1,
 	DCIO_EXT_VSYNC_MASK_PIPE1                        = 0x2,
 	DCIO_EXT_VSYNC_MASK_PIPE2                        = 0x3,
 	DCIO_EXT_VSYNC_MASK_PIPE3                        = 0x4,
 	DCIO_EXT_VSYNC_MASK_PIPE4                        = 0x5,
 	DCIO_EXT_VSYNC_MASK_PIPE5                        = 0x6,
-	DCIO_EXT_VSYNC_MASK_NONE_DUPLICATE               = 0x7,
+	DCIO_EXT_VSYNC_MASK_ANALNE_DUPLICATE               = 0x7,
 } DCIO_DCO_EXT_VSYNC_MASK;
 typedef enum DCIO_DBG_OUT_PIN_SEL {
 	DCIO_DBG_OUT_PIN_SEL_LOW_12BIT                   = 0x0,
@@ -439,18 +439,18 @@ typedef enum DCIO_DC_GPU_TIMER_READ_SELECT {
 	DCIO_GPU_TIMER_READ_SELECT_UPPER_D5_P_FLIP       = 0x15,
 	DCIO_GPU_TIMER_READ_SELECT_LOWER_D6_P_FLIP       = 0x16,
 	DCIO_GPU_TIMER_READ_SELECT_UPPER_D6_P_FLIP       = 0x17,
-	DCIO_GPU_TIMER_READ_SELECT_LOWER_D1_VSYNC_NOM    = 0x18,
-	DCIO_GPU_TIMER_READ_SELECT_UPPER_D1_VSYNC_NOM    = 0x19,
-	DCIO_GPU_TIMER_READ_SELECT_LOWER_D2_VSYNC_NOM    = 0x1a,
-	DCIO_GPU_TIMER_READ_SELECT_UPPER_D2_VSYNC_NOM    = 0x1b,
-	DCIO_GPU_TIMER_READ_SELECT_LOWER_D3_VSYNC_NOM    = 0x1c,
-	DCIO_GPU_TIMER_READ_SELECT_UPPER_D3_VSYNC_NOM    = 0x1d,
-	DCIO_GPU_TIMER_READ_SELECT_LOWER_D4_VSYNC_NOM    = 0x1e,
-	DCIO_GPU_TIMER_READ_SELECT_UPPER_D4_VSYNC_NOM    = 0x1f,
-	DCIO_GPU_TIMER_READ_SELECT_LOWER_D5_VSYNC_NOM    = 0x20,
-	DCIO_GPU_TIMER_READ_SELECT_UPPER_D5_VSYNC_NOM    = 0x21,
-	DCIO_GPU_TIMER_READ_SELECT_LOWER_D6_VSYNC_NOM    = 0x22,
-	DCIO_GPU_TIMER_READ_SELECT_UPPER_D6_VSYNC_NOM    = 0x23,
+	DCIO_GPU_TIMER_READ_SELECT_LOWER_D1_VSYNC_ANALM    = 0x18,
+	DCIO_GPU_TIMER_READ_SELECT_UPPER_D1_VSYNC_ANALM    = 0x19,
+	DCIO_GPU_TIMER_READ_SELECT_LOWER_D2_VSYNC_ANALM    = 0x1a,
+	DCIO_GPU_TIMER_READ_SELECT_UPPER_D2_VSYNC_ANALM    = 0x1b,
+	DCIO_GPU_TIMER_READ_SELECT_LOWER_D3_VSYNC_ANALM    = 0x1c,
+	DCIO_GPU_TIMER_READ_SELECT_UPPER_D3_VSYNC_ANALM    = 0x1d,
+	DCIO_GPU_TIMER_READ_SELECT_LOWER_D4_VSYNC_ANALM    = 0x1e,
+	DCIO_GPU_TIMER_READ_SELECT_UPPER_D4_VSYNC_ANALM    = 0x1f,
+	DCIO_GPU_TIMER_READ_SELECT_LOWER_D5_VSYNC_ANALM    = 0x20,
+	DCIO_GPU_TIMER_READ_SELECT_UPPER_D5_VSYNC_ANALM    = 0x21,
+	DCIO_GPU_TIMER_READ_SELECT_LOWER_D6_VSYNC_ANALM    = 0x22,
+	DCIO_GPU_TIMER_READ_SELECT_UPPER_D6_VSYNC_ANALM    = 0x23,
 } DCIO_DC_GPU_TIMER_READ_SELECT;
 typedef enum DCIO_IMPCAL_STEP_DELAY {
 	DCIO_IMPCAL_STEP_DELAY_1us                       = 0x0,
@@ -487,11 +487,11 @@ typedef enum DCIOCHIP_AUXSLAVE_PAD_MODE {
 	DCIOCHIP_AUXSLAVE_PAD_MODE_AUX                   = 0x1,
 } DCIOCHIP_AUXSLAVE_PAD_MODE;
 typedef enum DCIOCHIP_INVERT {
-	DCIOCHIP_POL_NON_INVERT                          = 0x0,
+	DCIOCHIP_POL_ANALN_INVERT                          = 0x0,
 	DCIOCHIP_POL_INVERT                              = 0x1,
 } DCIOCHIP_INVERT;
 typedef enum DCIOCHIP_PD_EN {
-	DCIOCHIP_PD_EN_NOTALLOW                          = 0x0,
+	DCIOCHIP_PD_EN_ANALTALLOW                          = 0x0,
 	DCIOCHIP_PD_EN_ALLOW                             = 0x1,
 } DCIOCHIP_PD_EN;
 typedef enum DCIOCHIP_GPIO_MASK_EN {
@@ -588,19 +588,19 @@ typedef enum COL_MAN_OUTPUT_CSC_MODE {
 	COL_MAN_OUTPUT_CSC_A                             = 0x4,
 	COL_MAN_OUTPUT_CSC_B                             = 0x5,
 } COL_MAN_OUTPUT_CSC_MODE;
-typedef enum COL_MAN_DENORM_CLAMP_CONTROL {
-	DENORM_CLAMP_CONTROL_UNITY                       = 0x0,
-	DENORM_CLAMP_CONTROL_8                           = 0x1,
-	DENORM_CLAMP_CONTROL_10                          = 0x2,
-	DENORM_CLAMP_CONTROL_12                          = 0x3,
-} COL_MAN_DENORM_CLAMP_CONTROL;
+typedef enum COL_MAN_DEANALRM_CLAMP_CONTROL {
+	DEANALRM_CLAMP_CONTROL_UNITY                       = 0x0,
+	DEANALRM_CLAMP_CONTROL_8                           = 0x1,
+	DEANALRM_CLAMP_CONTROL_10                          = 0x2,
+	DEANALRM_CLAMP_CONTROL_12                          = 0x3,
+} COL_MAN_DEANALRM_CLAMP_CONTROL;
 typedef enum COL_MAN_GAMMA_CORR_CONTROL {
 	GAMMA_CORR_CONTROL_BYPASS                        = 0x0,
 	GAMMA_CORR_CONTROL_A                             = 0x1,
 	GAMMA_CORR_CONTROL_B                             = 0x2,
 } COL_MAN_GAMMA_CORR_CONTROL;
 typedef enum SurfaceEndian {
-	ENDIAN_NONE                                      = 0x0,
+	ENDIAN_ANALNE                                      = 0x0,
 	ENDIAN_8IN16                                     = 0x1,
 	ENDIAN_8IN32                                     = 0x2,
 	ENDIAN_8IN64                                     = 0x3,
@@ -1325,7 +1325,7 @@ typedef enum DebugBlockId_BY16 {
 } DebugBlockId_BY16;
 typedef enum ColorTransform {
 	DCC_CT_AUTO                                      = 0x0,
-	DCC_CT_NONE                                      = 0x1,
+	DCC_CT_ANALNE                                      = 0x1,
 	ABGR_TO_A_BG_G_RB                                = 0x2,
 	BGRA_TO_BG_G_RB_A                                = 0x3,
 } ColorTransform;
@@ -1335,7 +1335,7 @@ typedef enum CompareRef {
 	REF_EQUAL                                        = 0x2,
 	REF_LEQUAL                                       = 0x3,
 	REF_GREATER                                      = 0x4,
-	REF_NOTEQUAL                                     = 0x5,
+	REF_ANALTEQUAL                                     = 0x5,
 	REF_GEQUAL                                       = 0x6,
 	REF_ALWAYS                                       = 0x7,
 } CompareRef;
@@ -1364,7 +1364,7 @@ typedef enum StencilFormat {
 	STENCIL_8                                        = 0x1,
 } StencilFormat;
 typedef enum CmaskMode {
-	CMASK_CLEAR_NONE                                 = 0x0,
+	CMASK_CLEAR_ANALNE                                 = 0x0,
 	CMASK_CLEAR_ONE                                  = 0x1,
 	CMASK_CLEAR_ALL                                  = 0x2,
 	CMASK_ANY_EXPANDED                               = 0x3,
@@ -1576,8 +1576,8 @@ typedef enum IMG_DATA_FORMAT {
 	IMG_DATA_FORMAT_32_AS_32_32_32_32                = 0x3f,
 } IMG_DATA_FORMAT;
 typedef enum BUF_NUM_FORMAT {
-	BUF_NUM_FORMAT_UNORM                             = 0x0,
-	BUF_NUM_FORMAT_SNORM                             = 0x1,
+	BUF_NUM_FORMAT_UANALRM                             = 0x0,
+	BUF_NUM_FORMAT_SANALRM                             = 0x1,
 	BUF_NUM_FORMAT_USCALED                           = 0x2,
 	BUF_NUM_FORMAT_SSCALED                           = 0x3,
 	BUF_NUM_FORMAT_UINT                              = 0x4,
@@ -1586,8 +1586,8 @@ typedef enum BUF_NUM_FORMAT {
 	BUF_NUM_FORMAT_FLOAT                             = 0x7,
 } BUF_NUM_FORMAT;
 typedef enum IMG_NUM_FORMAT {
-	IMG_NUM_FORMAT_UNORM                             = 0x0,
-	IMG_NUM_FORMAT_SNORM                             = 0x1,
+	IMG_NUM_FORMAT_UANALRM                             = 0x0,
+	IMG_NUM_FORMAT_SANALRM                             = 0x1,
 	IMG_NUM_FORMAT_USCALED                           = 0x2,
 	IMG_NUM_FORMAT_SSCALED                           = 0x3,
 	IMG_NUM_FORMAT_UINT                              = 0x4,
@@ -1607,10 +1607,10 @@ typedef enum TileType {
 	ARRAY_COLOR_TILE                                 = 0x0,
 	ARRAY_DEPTH_TILE                                 = 0x1,
 } TileType;
-typedef enum NonDispTilingOrder {
+typedef enum AnalnDispTilingOrder {
 	ADDR_SURF_MICRO_TILING_DISPLAY                   = 0x0,
-	ADDR_SURF_MICRO_TILING_NON_DISPLAY               = 0x1,
-} NonDispTilingOrder;
+	ADDR_SURF_MICRO_TILING_ANALN_DISPLAY               = 0x1,
+} AnalnDispTilingOrder;
 typedef enum MicroTileMode {
 	ADDR_SURF_DISPLAY_MICRO_TILING                   = 0x0,
 	ADDR_SURF_THIN_MICRO_TILING                      = 0x1,
@@ -1684,7 +1684,7 @@ typedef enum MacroTileAspect {
 	ADDR_SURF_MACRO_ASPECT_8                         = 0x3,
 } MacroTileAspect;
 typedef enum GATCL1RequestType {
-	GATCL1_TYPE_NORMAL                               = 0x0,
+	GATCL1_TYPE_ANALRMAL                               = 0x0,
 	GATCL1_TYPE_SHOOTDOWN                            = 0x1,
 	GATCL1_TYPE_BYPASS                               = 0x2,
 } GATCL1RequestType;
@@ -1714,9 +1714,9 @@ typedef enum PERFMON_COUNTER_MODE {
 typedef enum PERFMON_SPM_MODE {
 	PERFMON_SPM_MODE_OFF                             = 0x0,
 	PERFMON_SPM_MODE_16BIT_CLAMP                     = 0x1,
-	PERFMON_SPM_MODE_16BIT_NO_CLAMP                  = 0x2,
+	PERFMON_SPM_MODE_16BIT_ANAL_CLAMP                  = 0x2,
 	PERFMON_SPM_MODE_32BIT_CLAMP                     = 0x3,
-	PERFMON_SPM_MODE_32BIT_NO_CLAMP                  = 0x4,
+	PERFMON_SPM_MODE_32BIT_ANAL_CLAMP                  = 0x4,
 	PERFMON_SPM_MODE_RESERVED_5                      = 0x5,
 	PERFMON_SPM_MODE_RESERVED_6                      = 0x6,
 	PERFMON_SPM_MODE_RESERVED_7                      = 0x7,
@@ -1747,13 +1747,13 @@ typedef enum ENUM_NUM_SIMD_PER_CU {
 	NUM_SIMD_PER_CU                                  = 0x4,
 } ENUM_NUM_SIMD_PER_CU;
 typedef enum MEM_PWR_FORCE_CTRL {
-	NO_FORCE_REQUEST                                 = 0x0,
+	ANAL_FORCE_REQUEST                                 = 0x0,
 	FORCE_LIGHT_SLEEP_REQUEST                        = 0x1,
 	FORCE_DEEP_SLEEP_REQUEST                         = 0x2,
 	FORCE_SHUT_DOWN_REQUEST                          = 0x3,
 } MEM_PWR_FORCE_CTRL;
 typedef enum MEM_PWR_FORCE_CTRL2 {
-	NO_FORCE_REQ                                     = 0x0,
+	ANAL_FORCE_REQ                                     = 0x0,
 	FORCE_LIGHT_SLEEP_REQ                            = 0x1,
 } MEM_PWR_FORCE_CTRL2;
 typedef enum MEM_PWR_DIS_CTRL {

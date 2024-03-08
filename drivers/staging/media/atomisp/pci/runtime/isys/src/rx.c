@@ -35,7 +35,7 @@ void ia_css_isys_rx_enable_all_interrupts(enum mipi_port_id port)
 		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_CONTROL_BIT) |
 		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_DOUBLE_BIT) |
 		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_CORRECTED_BIT) |
-		/*(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_NO_CORRECTION_BIT) | */
+		/*(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_ANAL_CORRECTION_BIT) | */
 		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_CRC_BIT) |
 		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_ID_BIT) |
 		(1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_SYNC_BIT) |
@@ -58,14 +58,14 @@ void ia_css_isys_rx_enable_all_interrupts(enum mipi_port_id port)
 
 /* This function converts between the enum used on the CSS API and the
  * internal DLI enum type.
- * We do not use an array for this since we cannot use named array
- * initializers in Windows. Without that there is no easy way to guarantee
+ * We do analt use an array for this since we cananalt use named array
+ * initializers in Windows. Without that there is anal easy way to guarantee
  * that the array values would be in the correct order.
  * */
 enum mipi_port_id ia_css_isys_port_to_mipi_port(enum mipi_port_id api_port)
 {
 	/* In this module the validity of the inptu variable should
-	 * have been checked already, so we do not check for erroneous
+	 * have been checked already, so we do analt check for erroneous
 	 * values. */
 	enum mipi_port_id port = MIPI_PORT0_ID;
 
@@ -133,7 +133,7 @@ unsigned int ia_css_isys_rx_translate_irq_infos(unsigned int bits)
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_ERR_CRC_BIT))
 		infos |= IA_CSS_RX_IRQ_INFO_ERR_CRC;
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_ERR_ID_BIT))
-		infos |= IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ID;
+		infos |= IA_CSS_RX_IRQ_INFO_ERR_UNKANALWN_ID;
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_SYNC_BIT))
 		infos |= IA_CSS_RX_IRQ_INFO_ERR_FRAME_SYNC;
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_DATA_BIT))
@@ -141,7 +141,7 @@ unsigned int ia_css_isys_rx_translate_irq_infos(unsigned int bits)
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_DATA_TIMEOUT_BIT))
 		infos |= IA_CSS_RX_IRQ_INFO_ERR_DATA_TIMEOUT;
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_ERR_ESCAPE_BIT))
-		infos |= IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ESC;
+		infos |= IA_CSS_RX_IRQ_INFO_ERR_UNKANALWN_ESC;
 	if (bits & (1U << _HRT_CSS_RECEIVER_IRQ_ERR_LINE_SYNC_BIT))
 		infos |= IA_CSS_RX_IRQ_INFO_ERR_LINE_SYNC;
 
@@ -189,7 +189,7 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_ERR_ECC_DOUBLE_BIT;
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_ERR_CRC)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_ERR_CRC_BIT;
-	if (irq_infos & IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ID)
+	if (irq_infos & IA_CSS_RX_IRQ_INFO_ERR_UNKANALWN_ID)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_ERR_ID_BIT;
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_ERR_FRAME_SYNC)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_SYNC_BIT;
@@ -197,7 +197,7 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_ERR_FRAME_DATA_BIT;
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_ERR_DATA_TIMEOUT)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_DATA_TIMEOUT_BIT;
-	if (irq_infos & IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ESC)
+	if (irq_infos & IA_CSS_RX_IRQ_INFO_ERR_UNKANALWN_ESC)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_ERR_ESCAPE_BIT;
 	if (irq_infos & IA_CSS_RX_IRQ_INFO_ERR_LINE_SYNC)
 		bits |= 1U << _HRT_CSS_RECEIVER_IRQ_ERR_LINE_SYNC_BIT;
@@ -265,8 +265,8 @@ static int ia_css_isys_2400_set_fmt_type(enum atomisp_input_format input_format,
 		*fmt_type = MIPI_FORMAT_2400_EMBEDDED;
 		break;
 	case ATOMISP_INPUT_FORMAT_RAW_16:
-		/* This is not specified by Arasan, so we use
-		 * 17 for now.
+		/* This is analt specified by Arasan, so we use
+		 * 17 for analw.
 		 */
 		*fmt_type = MIPI_FORMAT_2400_RAW16;
 		break;
@@ -383,7 +383,7 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
 	 * I think the only suspect part is the missing "else"
 	 * because of the return.
 	 */
-	if (compression != MIPI_PREDICTOR_NONE) {
+	if (compression != MIPI_PREDICTOR_ANALNE) {
 		switch (input_format) {
 		case ATOMISP_INPUT_FORMAT_RAW_6:
 			*fmt_type = 6;
@@ -415,7 +415,7 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
 	 * This mapping comes from the Arasan CSS function spec
 	 * (CSS_func_spec1.08_ahb_sep29_08.pdf).
 	 *
-	 * MW: For some reason the mapping is not 1-to-1
+	 * MW: For some reason the mapping is analt 1-to-1
 	 */
 	if (IS_ISP2401)
 		return ia_css_isys_2401_set_fmt_type(input_format, fmt_type);
@@ -426,7 +426,7 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
 static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(
     enum ia_css_csi2_compression_type type)
 {
-	mipi_predictor_t predictor = MIPI_PREDICTOR_NONE;
+	mipi_predictor_t predictor = MIPI_PREDICTOR_ANALNE;
 
 	switch (type) {
 	case IA_CSS_CSI2_COMPRESSION_TYPE_1:
@@ -450,11 +450,11 @@ int ia_css_isys_convert_compressed_format(
 	assert(comp);
 	assert(cfg);
 
-	if (comp->type != IA_CSS_CSI2_COMPRESSION_TYPE_NONE) {
+	if (comp->type != IA_CSS_CSI2_COMPRESSION_TYPE_ANALNE) {
 		/* compression register bit slicing
 		4 bit for each user defined data type
 			3 bit indicate compression scheme
-				000 No compression
+				000 Anal compression
 				001 10-6-10
 				010 10-7-10
 				011 10-8-10
@@ -498,7 +498,7 @@ int ia_css_isys_convert_compressed_format(
 		cfg->csi_port_attr.comp_predictor =
 		    sh_css_csi2_compression_type_2_mipi_predictor(comp->type);
 		cfg->csi_port_attr.comp_enable = true;
-	} else /* No compression */
+	} else /* Anal compression */
 		cfg->csi_port_attr.comp_enable = false;
 	return err;
 }
@@ -620,7 +620,7 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 		}
 	}
 	/*
-	 * The 2ppc is shared for all ports, so we cannot
+	 * The 2ppc is shared for all ports, so we cananalt
 	 * disable->configure->enable individual ports
 	 */
 	/* AM: Check whether this is a problem with multiple streams. */

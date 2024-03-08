@@ -82,11 +82,11 @@ static irqreturn_t ns_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, DP83865_INT_STATUS);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & DP83865_INT_MASK_DEFAULT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* clear the interrupt */
 	phy_write(phydev, DP83865_INT_CLEAR, irq_status & ~0x7);
@@ -124,7 +124,7 @@ static void ns_giga_speed_fallback(struct phy_device *phydev, int mode)
 
 	phy_write(phydev, MII_BMCR, (bmcr | BMCR_PDOWN));
 
-	/* Enable 8 bit expended memory read/write (no auto increment) */
+	/* Enable 8 bit expended memory read/write (anal auto increment) */
 	phy_write(phydev, NS_EXP_MEM_CTL, 0);
 	phy_write(phydev, NS_EXP_MEM_ADD, 0x1C0);
 	phy_write(phydev, NS_EXP_MEM_DATA, 0x0008);

@@ -30,7 +30,7 @@ static irqreturn_t mv88e6185_pcs_handle_irq(int irq, void *dev_id)
 {
 	struct mv88e6185_pcs *mpcs = dev_id;
 	struct mv88e6xxx_chip *chip;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	bool link_up;
 	u16 status;
 	int port;
@@ -120,9 +120,9 @@ static int mv88e6185_pcs_init(struct mv88e6xxx_chip *chip, int port)
 	unsigned int irq;
 	int err;
 
-	/* There are no configurable serdes lanes on this switch chip, so
+	/* There are anal configurable serdes lanes on this switch chip, so
 	 * we use the static cmode configuration to determine whether we
-	 * have a PCS or not.
+	 * have a PCS or analt.
 	 */
 	if (chip->ports[port].cmode != MV88E6185_PORT_STS_CMODE_SERDES &&
 	    chip->ports[port].cmode != MV88E6185_PORT_STS_CMODE_1000BASE_X)
@@ -132,7 +132,7 @@ static int mv88e6185_pcs_init(struct mv88e6xxx_chip *chip, int port)
 
 	mpcs = kzalloc(sizeof(*mpcs), GFP_KERNEL);
 	if (!mpcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mpcs->chip = chip;
 	mpcs->port = port;

@@ -29,7 +29,7 @@
 		/* 3 MiB reserved for Amlogic Trust OS (BL32) */
 		secos_reserved: secos@3d00000 {
 			reg = <0x0 0x03d00000 0x0 0x300000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -139,7 +139,7 @@
 	cap-sd-highspeed;
 	sd-uhs-sdr104;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	vmmc-supply = <&vddao_3v3>;

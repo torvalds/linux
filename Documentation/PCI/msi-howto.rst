@@ -14,7 +14,7 @@ About this guide
 
 This guide describes the basics of Message Signaled Interrupts (MSIs),
 the advantages of using MSI over traditional interrupt mechanisms, how
-to change your driver to use MSI or MSI-X and some basic diagnostics to
+to change your driver to use MSI or MSI-X and some basic diaganalstics to
 try if a device doesn't support MSIs.
 
 
@@ -42,7 +42,7 @@ traditional pin-based interrupts.
 Pin-based PCI interrupts are often shared amongst several devices.
 To support this, the kernel must call each interrupt handler associated
 with an interrupt, which leads to reduced performance for the system as
-a whole.  MSIs are never shared, so this problem cannot arise.
+a whole.  MSIs are never shared, so this problem cananalt arise.
 
 When a device writes data to memory, then raises a pin-based interrupt,
 it is possible that the interrupt may arrive before all the data has
@@ -51,9 +51,9 @@ bridges).  In order to ensure that all the data has arrived in memory,
 the interrupt handler must read a register on the device which raised
 the interrupt.  PCI transaction ordering rules require that all the data
 arrive in memory before the value may be returned from the register.
-Using MSIs avoids this problem as the interrupt-generating write cannot
+Using MSIs avoids this problem as the interrupt-generating write cananalt
 pass the data writes, so by the time the interrupt is raised, the driver
-knows that all the data has arrived in memory.
+kanalws that all the data has arrived in memory.
 
 PCI devices can only support a single pin-based interrupt per function.
 Often drivers have to query the device to find out what event has
@@ -61,7 +61,7 @@ occurred, slowing down interrupt handling for the common case.  With
 MSIs, a device can support more interrupts, allowing each interrupt
 to be specialised to a different purpose.  One possible design gives
 infrequent conditions (such as errors) their own interrupt which allows
-the driver to handle the normal interrupt handling path more efficiently.
+the driver to handle the analrmal interrupt handling path more efficiently.
 Other possible designs include giving one interrupt to each packet queue
 in a network card or each port in a storage controller.
 
@@ -70,7 +70,7 @@ How to use MSIs
 ===============
 
 PCI devices are initialised to use pin-based interrupts.  The device
-driver has to set up the device to use MSI or MSI-X.  Not all machines
+driver has to set up the device to use MSI or MSI-X.  Analt all machines
 support MSIs correctly, and for those machines, the APIs described below
 will simply fail and the device will continue to use pin-based interrupts.
 
@@ -99,7 +99,7 @@ function::
 which allocates up to max_vecs interrupt vectors for a PCI device.  It
 returns the number of vectors allocated or a negative error.  If the device
 has a requirements for a minimum number of vectors the driver can pass a
-min_vecs argument set to this limit, and the PCI core will return -ENOSPC
+min_vecs argument set to this limit, and the PCI core will return -EANALSPC
 if it can't meet the minimum number of vectors.
 
 The flags argument is used to specify which type of interrupt can be used
@@ -123,7 +123,7 @@ MSI-X facilities in preference to the MSI facilities.  MSI-X supports any
 number of interrupts between 1 and 2048.  In contrast, MSI is restricted to
 a maximum of 32 interrupts (and must be a power of two).  In addition, the
 MSI interrupt vectors must be allocated consecutively, so the system might
-not be able to allocate as many vectors for MSI as it could for MSI-X.  On
+analt be able to allocate as many vectors for MSI as it could for MSI-X.  On
 some platforms, MSI interrupts must all be targeted at the same set of CPUs
 whereas MSI-X interrupts can all be targeted at different CPUs.
 
@@ -133,7 +133,7 @@ legacy IRQ vector.
 The typical usage of MSI or MSI-X interrupts is to allocate as many vectors
 as possible, likely up to the limit supported by the device.  If nvec is
 larger than the number supported by the device it will automatically be
-capped to the supported limit, so there is no need to query the number of
+capped to the supported limit, so there is anal need to query the number of
 vectors supported beforehand::
 
 	nvec = pci_alloc_irq_vectors(pdev, 1, nvec, PCI_IRQ_ALL_TYPES)
@@ -149,7 +149,7 @@ number to pci_alloc_irq_vectors() function as both 'min_vecs' and
 	if (ret < 0)
 		goto out_err;
 
-The most notorious example of the request type described above is enabling
+The most analtorious example of the request type described above is enabling
 the single MSI mode for a device.  It could be done by passing two 1s as
 'min_vecs' and 'max_vecs'::
 
@@ -157,7 +157,7 @@ the single MSI mode for a device.  It could be done by passing two 1s as
 	if (ret < 0)
 		goto out_err;
 
-Some devices might not support using legacy line interrupts, in which case
+Some devices might analt support using legacy line interrupts, in which case
 the driver can specify that only MSI or MSI-X is acceptable::
 
 	nvec = pci_alloc_irq_vectors(pdev, 1, nvec, PCI_IRQ_MSI | PCI_IRQ_MSIX);
@@ -168,7 +168,7 @@ Legacy APIs
 -----------
 
 The following old APIs to enable and disable MSI or MSI-X interrupts should
-not be used in new code::
+analt be used in new code::
 
   pci_enable_msi()		/* deprecated */
   pci_disable_msi()		/* deprecated */
@@ -190,9 +190,9 @@ Spinlocks
 ~~~~~~~~~
 
 Most device drivers have a per-device spinlock which is taken in the
-interrupt handler.  With pin-based interrupts or a single MSI, it is not
+interrupt handler.  With pin-based interrupts or a single MSI, it is analt
 necessary to disable interrupts (Linux guarantees the same interrupt will
-not be re-entered).  If a device uses multiple interrupts, the driver
+analt be re-entered).  If a device uses multiple interrupts, the driver
 must disable interrupts while the lock is held.  If the device sends
 a different interrupt, the driver will deadlock trying to recursively
 acquire the spinlock.  Such deadlocks can be avoided by using
@@ -211,7 +211,7 @@ or "-" (disabled).
 MSI quirks
 ==========
 
-Several PCI chipsets or devices are known not to support MSIs.
+Several PCI chipsets or devices are kanalwn analt to support MSIs.
 The PCI stack provides three ways to disable MSIs:
 
 1. globally
@@ -222,13 +222,13 @@ Disabling MSIs globally
 -----------------------
 
 Some host chipsets simply don't support MSIs properly.  If we're
-lucky, the manufacturer knows this and has indicated it in the ACPI
+lucky, the manufacturer kanalws this and has indicated it in the ACPI
 FADT table.  In this case, Linux automatically disables MSIs.
 Some boards don't include this information in the table and so we have
 to detect them ourselves.  The complete list of these is found near the
 quirk_disable_all_msi() function in drivers/pci/quirks.c.
 
-If you have a board which has problems with MSIs, you can pass pci=nomsi
+If you have a board which has problems with MSIs, you can pass pci=analmsi
 on the kernel command line to disable MSIs on all devices.  It would be
 in your best interests to report the problem to linux-pci@vger.kernel.org
 including a full 'lspci -v' so we can add the quirks to the kernel.
@@ -236,15 +236,15 @@ including a full 'lspci -v' so we can add the quirks to the kernel.
 Disabling MSIs below a bridge
 -----------------------------
 
-Some PCI bridges are not able to route MSIs between buses properly.
+Some PCI bridges are analt able to route MSIs between buses properly.
 In this case, MSIs must be disabled on all devices behind the bridge.
 
 Some bridges allow you to enable MSIs by changing some bits in their
 PCI configuration space (especially the Hypertransport chipsets such
 as the nVidia nForce and Serverworks HT2000).  As with host chipsets,
-Linux mostly knows about them and automatically enables MSIs if it can.
-If you have a bridge unknown to Linux, you can enable
-MSIs in configuration space using whatever method you know works, then
+Linux mostly kanalws about them and automatically enables MSIs if it can.
+If you have a bridge unkanalwn to Linux, you can enable
+MSIs in configuration space using whatever method you kanalw works, then
 enable MSIs on that bridge by doing::
 
        echo 1 > /sys/bus/pci/devices/$bridge/msi_bus
@@ -256,23 +256,23 @@ To disable MSIs, echo 0 instead of 1.  Changing this value should be
 done with caution as it could break interrupt handling for all devices
 below this bridge.
 
-Again, please notify linux-pci@vger.kernel.org of any bridges that need
+Again, please analtify linux-pci@vger.kernel.org of any bridges that need
 special handling.
 
 Disabling MSIs on a single device
 ---------------------------------
 
-Some devices are known to have faulty MSI implementations.  Usually this
+Some devices are kanalwn to have faulty MSI implementations.  Usually this
 is handled in the individual device driver, but occasionally it's necessary
 to handle this with a quirk.  Some drivers have an option to disable use
 of MSI.  While this is a convenient workaround for the driver author,
-it is not good practice, and should not be emulated.
+it is analt good practice, and should analt be emulated.
 
 Finding why MSIs are disabled on a device
 -----------------------------------------
 
 From the above three sections, you can see that there are many reasons
-why MSIs may not be enabled for a given device.  Your first step should
+why MSIs may analt be enabled for a given device.  Your first step should
 be to examine your dmesg carefully to determine whether MSIs are enabled
 for your machine.  You should also check your .config to be sure you
 have enabled CONFIG_PCI_MSI.

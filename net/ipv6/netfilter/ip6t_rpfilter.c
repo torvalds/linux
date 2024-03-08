@@ -100,7 +100,7 @@ static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	iph = ipv6_hdr(skb);
 	saddrtype = ipv6_addr_type(&iph->saddr);
 	if (unlikely(saddrtype == IPV6_ADDR_ANY))
-		return true ^ invert; /* not routable: forward path will drop it */
+		return true ^ invert; /* analt routable: forward path will drop it */
 
 	return rpfilter_lookup_reverse6(xt_net(par), skb, xt_in(par),
 					info->flags) ^ invert;
@@ -112,13 +112,13 @@ static int rpfilter_check(const struct xt_mtchk_param *par)
 	unsigned int options = ~XT_RPFILTER_OPTION_MASK;
 
 	if (info->flags & options) {
-		pr_info_ratelimited("unknown options\n");
+		pr_info_ratelimited("unkanalwn options\n");
 		return -EINVAL;
 	}
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "raw") != 0) {
-		pr_info_ratelimited("only valid in \'raw\' or \'mangle\' table, not \'%s\'\n",
+		pr_info_ratelimited("only valid in \'raw\' or \'mangle\' table, analt \'%s\'\n",
 				    par->table);
 		return -EINVAL;
 	}

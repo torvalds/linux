@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* drivers/media/platform/s5p-cec/exynos_hdmi_cec.h
+/* drivers/media/platform/s5p-cec/exyanals_hdmi_cec.h
  *
  * Copyright (c) 2010, 2014 Samsung Electronics
  *		http://www.samsung.com/
  *
- * Header file for interface of Samsung Exynos hdmi cec hardware
+ * Header file for interface of Samsung Exyanals hdmi cec hardware
  */
 
-#ifndef _EXYNOS_HDMI_CEC_H_
-#define _EXYNOS_HDMI_CEC_H_ __FILE__
+#ifndef _EXYANALS_HDMI_CEC_H_
+#define _EXYANALS_HDMI_CEC_H_ __FILE__
 
 #include <linux/regmap.h>
 #include "s5p_cec.h"
@@ -31,4 +31,4 @@ void s5p_clr_pending_tx(struct s5p_cec_dev *cec);
 void s5p_clr_pending_rx(struct s5p_cec_dev *cec);
 void s5p_cec_get_rx_buf(struct s5p_cec_dev *cec, u32 size, u8 *buffer);
 
-#endif /* _EXYNOS_HDMI_CEC_H_ */
+#endif /* _EXYANALS_HDMI_CEC_H_ */

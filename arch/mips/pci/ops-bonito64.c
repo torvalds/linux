@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 1999, 2000, 2004  MIPS Technologies, Inc.
+ * Copyright (C) 1999, 2000, 2004  MIPS Techanallogies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>

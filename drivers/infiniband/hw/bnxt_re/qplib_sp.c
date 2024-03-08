@@ -15,18 +15,18 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
@@ -83,7 +83,7 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 	if (rc)
 		return;
 	fw_ver[0] = resp.fw_maj;
-	fw_ver[1] = resp.fw_minor;
+	fw_ver[1] = resp.fw_mianalr;
 	fw_ver[2] = resp.fw_bld;
 	fw_ver[3] = resp.fw_rsvd;
 }
@@ -108,7 +108,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
 				     &sbuf.dma_addr, GFP_KERNEL);
 	if (!sbuf.sb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sb = sbuf.sb;
 	req.resp_size = sbuf.size / BNXT_QPLIB_CMDQE_UNITS;
 	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, &sbuf, sizeof(req),
@@ -237,8 +237,8 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 
 	/* Do we need a sgid_lock here? */
 	if (!sgid_tbl->active) {
-		dev_err(&res->pdev->dev, "SGID table has no active entries\n");
-		return -ENOMEM;
+		dev_err(&res->pdev->dev, "SGID table has anal active entries\n");
+		return -EANALMEM;
 	}
 	for (index = 0; index < sgid_tbl->max; index++) {
 		if (!memcmp(&sgid_tbl->tbl[index].gid, gid, sizeof(*gid)) &&
@@ -246,7 +246,7 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 			break;
 	}
 	if (index == sgid_tbl->max) {
-		dev_warn(&res->pdev->dev, "GID not found in the SGID table\n");
+		dev_warn(&res->pdev->dev, "GID analt found in the SGID table\n");
 		return 0;
 	}
 	/* Remove GID from the SGID table */
@@ -298,7 +298,7 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	/* Do we need a sgid_lock here? */
 	if (sgid_tbl->active == sgid_tbl->max) {
 		dev_err(&res->pdev->dev, "SGID table is full\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	free_idx = sgid_tbl->max;
 	for (i = 0; i < sgid_tbl->max; i++) {
@@ -316,8 +316,8 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	}
 	if (free_idx == sgid_tbl->max) {
 		dev_err(&res->pdev->dev,
-			"SGID table is FULL but count is not MAX??\n");
-		return -ENOMEM;
+			"SGID table is FULL but count is analt MAX??\n");
+		return -EANALMEM;
 	}
 	if (update) {
 		struct creq_add_gid_resp resp = {};
@@ -335,8 +335,8 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 		req.gid[3] = cpu_to_be32(((u32 *)gid->data)[0]);
 		/*
 		 * driver should ensure that all RoCE traffic is always VLAN
-		 * tagged if RoCE traffic is running on non-zero VLAN ID or
-		 * RoCE traffic is running on non-zero Priority.
+		 * tagged if RoCE traffic is running on analn-zero VLAN ID or
+		 * RoCE traffic is running on analn-zero Priority.
 		 */
 		if ((vlan_id != 0xFFFF) || res->prio) {
 			if (vlan_id != 0xFFFF)
@@ -607,8 +607,8 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 	if (num_pbls) {
 		pages = roundup_pow_of_two(num_pbls);
-		/* Allocate memory for the non-leaf pages to store buf ptrs.
-		 * Non-leaf pages always uses system PAGE_SIZE
+		/* Allocate memory for the analn-leaf pages to store buf ptrs.
+		 * Analn-leaf pages always uses system PAGE_SIZE
 		 */
 		/* Free the hwq if it already exist, must be a rereg */
 		if (mr->hwq.max_elements)
@@ -626,7 +626,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 		if (rc) {
 			dev_err(&res->pdev->dev,
 				"SP: Reg MR memory allocation failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -636,7 +636,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 	/* Configure the request */
 	if (mr->hwq.level == PBL_LVL_MAX) {
-		/* No PBL provided, just use system PAGE_SIZE */
+		/* Anal PBL provided, just use system PAGE_SIZE */
 		level = 0;
 		req.pbl = 0;
 		pg_size = PAGE_SIZE;
@@ -686,10 +686,10 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 		pages++;
 
 	if (pages > MAX_PBL_LVL_1_PGS)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sginfo.pgsize = PAGE_SIZE;
-	sginfo.nopte = true;
+	sginfo.analpte = true;
 
 	hwq_attr.res = res;
 	hwq_attr.depth = pg_ptrs;
@@ -728,7 +728,7 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
 				     &sbuf.dma_addr, GFP_KERNEL);
 	if (!sbuf.sb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sb = sbuf.sb;
 
 	req.resp_size = sbuf.size / BNXT_QPLIB_CMDQE_UNITS;
@@ -758,11 +758,11 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 	stats->res_opcode_err = le64_to_cpu(sb->res_opcode_err);
 	stats->res_rx_invalid_rkey = le64_to_cpu(sb->res_rx_invalid_rkey);
 	stats->res_rx_domain_err = le64_to_cpu(sb->res_rx_domain_err);
-	stats->res_rx_no_perm = le64_to_cpu(sb->res_rx_no_perm);
+	stats->res_rx_anal_perm = le64_to_cpu(sb->res_rx_anal_perm);
 	stats->res_rx_range_err = le64_to_cpu(sb->res_rx_range_err);
 	stats->res_tx_invalid_rkey = le64_to_cpu(sb->res_tx_invalid_rkey);
 	stats->res_tx_domain_err = le64_to_cpu(sb->res_tx_domain_err);
-	stats->res_tx_no_perm = le64_to_cpu(sb->res_tx_no_perm);
+	stats->res_tx_anal_perm = le64_to_cpu(sb->res_tx_anal_perm);
 	stats->res_tx_range_err = le64_to_cpu(sb->res_tx_range_err);
 	stats->res_irrq_oflow = le64_to_cpu(sb->res_irrq_oflow);
 	stats->res_unsup_opcode = le64_to_cpu(sb->res_unsup_opcode);
@@ -807,7 +807,7 @@ int bnxt_qplib_qext_stat(struct bnxt_qplib_rcfw *rcfw, u32 fid,
 	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
 				     &sbuf.dma_addr, GFP_KERNEL);
 	if (!sbuf.sb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb = sbuf.sb;
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,

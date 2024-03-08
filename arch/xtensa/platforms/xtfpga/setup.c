@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/reboot.h>
 #include <linux/kdev_t.h>
 #include <linux/types.h>
@@ -39,25 +39,25 @@ static int xtfpga_power_off(struct sys_off_data *unused)
 	local_irq_disable();
 	while (1)
 		cpu_relax();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int xtfpga_restart(struct notifier_block *this,
+static int xtfpga_restart(struct analtifier_block *this,
 			  unsigned long event, void *ptr)
 {
 	/* Try software reset first. */
 	WRITE_ONCE(*(u32 *)XTFPGA_SWRST_VADDR, 0xdead);
 
-	/* If software reset did not work, flush and reset the mmu,
+	/* If software reset did analt work, flush and reset the mmu,
 	 * simulate a processor reset, and jump to the reset vector.
 	 */
 	cpu_reset();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block xtfpga_restart_block = {
-	.notifier_call = xtfpga_restart,
+static struct analtifier_block xtfpga_restart_block = {
+	.analtifier_call = xtfpga_restart,
 };
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
@@ -79,7 +79,7 @@ static void __init xtfpga_register_handlers(void)
 
 #ifdef CONFIG_USE_OF
 
-static void __init xtfpga_clk_setup(struct device_node *np)
+static void __init xtfpga_clk_setup(struct device_analde *np)
 {
 	void __iomem *base = of_iomap(np, 0);
 	struct clk *clk;
@@ -107,13 +107,13 @@ static void __init xtfpga_clk_setup(struct device_node *np)
 CLK_OF_DECLARE(xtfpga_clk, "cdns,xtfpga-clock", xtfpga_clk_setup);
 
 #define MAC_LEN 6
-static void __init update_local_mac(struct device_node *node)
+static void __init update_local_mac(struct device_analde *analde)
 {
 	struct property *newmac;
 	const u8* macaddr;
 	int prop_len;
 
-	macaddr = of_get_property(node, "local-mac-address", &prop_len);
+	macaddr = of_get_property(analde, "local-mac-address", &prop_len);
 	if (macaddr == NULL || prop_len != MAC_LEN)
 		return;
 
@@ -131,16 +131,16 @@ static void __init update_local_mac(struct device_node *node)
 
 	memcpy(newmac->value, macaddr, MAC_LEN);
 	((u8*)newmac->value)[5] = (*(u32*)DIP_SWITCHES_VADDR) & 0x3f;
-	of_update_property(node, newmac);
+	of_update_property(analde, newmac);
 }
 
 static int __init machine_setup(void)
 {
-	struct device_node *eth = NULL;
+	struct device_analde *eth = NULL;
 
-	if ((eth = of_find_compatible_node(eth, NULL, "opencores,ethoc")))
+	if ((eth = of_find_compatible_analde(eth, NULL, "opencores,ethoc")))
 		update_local_mac(eth);
-	of_node_put(eth);
+	of_analde_put(eth);
 
 	xtfpga_register_handlers();
 
@@ -286,7 +286,7 @@ static int __init xtavnet_init(void)
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 	/* ETHOC driver is a bit quiet; at least display Ethernet MAC, so user
-	 * knows whether they set it correctly on the DIP switches.
+	 * kanalws whether they set it correctly on the DIP switches.
 	 */
 	pr_info("XTFPGA: Ethernet MAC %pM\n", ethoc_pdata.hwaddr);
 	ethoc_pdata.eth_clkfreq = *(long *)XTFPGA_CLKFRQ_VADDR;

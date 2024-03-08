@@ -18,18 +18,18 @@
  * A driver for the relatively straightforward-to-program PCM-D/A-12.
  * This board doesn't support commands, and the only way to set its
  * analog output range is to jumper the board. As such,
- * comedi_data_write() ignores the range value specified.
+ * comedi_data_write() iganalres the range value specified.
  *
  * The board uses 16 consecutive I/O addresses starting at the I/O port
  * base address. Each address corresponds to the LSB then MSB of a
  * particular channel from 0-7.
  *
- * Note that the board is not ISA-PNP capable and thus needs the I/O
+ * Analte that the board is analt ISA-PNP capable and thus needs the I/O
  * port comedi_config parameter.
  *
- * Note that passing a nonzero value as the second config option will
+ * Analte that passing a analnzero value as the second config option will
  * enable "simultaneous xfer" mode for this board, in which AO writes
- * will not take effect until a subsequent read of any AO channel. This
+ * will analt take effect until a subsequent read of any AO channel. This
  * is so that one can speed up programming by preloading all AO registers
  * with values before simultaneously setting them to take effect with one
  * read command.
@@ -42,7 +42,7 @@
 #include <linux/module.h>
 #include <linux/comedi/comedidev.h>
 
-/* AI range is not configurable, it's set by jumpers on the board */
+/* AI range is analt configurable, it's set by jumpers on the board */
 static const struct comedi_lrange pcmda12_ranges = {
 	3, {
 		UNI_RANGE(5),
@@ -72,7 +72,7 @@ static int pcmda12_ao_insn_write(struct comedi_device *dev,
 		outb((val >> 8) & 0xff, ioreg + 1);
 
 		/*
-		 * Initiate transfer if not in simultaneaous xfer
+		 * Initiate transfer if analt in simultaneaous xfer
 		 * mode by reading one of the AO registers.
 		 */
 		if (!devpriv->simultaneous_xfer_mode)
@@ -126,7 +126,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devpriv->simultaneous_xfer_mode = it->options[1];
 

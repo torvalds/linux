@@ -154,7 +154,7 @@ static int scpsys_bus_protect_clear(struct scpsys_domain *pd,
 	else
 		regmap_write(regmap, bpd->bus_prot_clr, bpd->bus_prot_set_clr_mask);
 
-	if (bpd->flags & BUS_PROT_IGNORE_CLR_ACK)
+	if (bpd->flags & BUS_PROT_IGANALRE_CLR_ACK)
 		return 0;
 
 	return regmap_read_poll_timeout(sta_regmap, bpd->bus_prot_sta,
@@ -349,12 +349,12 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 }
 
 static struct
-generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_node *node)
+generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_analde *analde)
 {
 	const struct scpsys_domain_data *domain_data;
 	struct scpsys_domain *pd;
-	struct device_node *root_node = scpsys->dev->of_node;
-	struct device_node *smi_node;
+	struct device_analde *root_analde = scpsys->dev->of_analde;
+	struct device_analde *smi_analde;
 	struct property *prop;
 	const char *clk_name;
 	int i, ret, num_clks;
@@ -362,74 +362,74 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 	int clk_ind = 0;
 	u32 id;
 
-	ret = of_property_read_u32(node, "reg", &id);
+	ret = of_property_read_u32(analde, "reg", &id);
 	if (ret) {
 		dev_err(scpsys->dev, "%pOF: failed to retrieve domain id from reg: %d\n",
-			node, ret);
+			analde, ret);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (id >= scpsys->soc_data->num_domains) {
-		dev_err(scpsys->dev, "%pOF: invalid domain id %d\n", node, id);
+		dev_err(scpsys->dev, "%pOF: invalid domain id %d\n", analde, id);
 		return ERR_PTR(-EINVAL);
 	}
 
 	domain_data = &scpsys->soc_data->domains_data[id];
 	if (domain_data->sta_mask == 0) {
-		dev_err(scpsys->dev, "%pOF: undefined domain id %d\n", node, id);
+		dev_err(scpsys->dev, "%pOF: undefined domain id %d\n", analde, id);
 		return ERR_PTR(-EINVAL);
 	}
 
 	pd = devm_kzalloc(scpsys->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pd->data = domain_data;
 	pd->scpsys = scpsys;
 
 	if (MTK_SCPD_CAPS(pd, MTK_SCPD_DOMAIN_SUPPLY)) {
 		/*
-		 * Find regulator in current power domain node.
-		 * devm_regulator_get() finds regulator in a node and its child
-		 * node, so set of_node to current power domain node then change
-		 * back to original node after regulator is found for current
-		 * power domain node.
+		 * Find regulator in current power domain analde.
+		 * devm_regulator_get() finds regulator in a analde and its child
+		 * analde, so set of_analde to current power domain analde then change
+		 * back to original analde after regulator is found for current
+		 * power domain analde.
 		 */
-		scpsys->dev->of_node = node;
+		scpsys->dev->of_analde = analde;
 		pd->supply = devm_regulator_get(scpsys->dev, "domain");
-		scpsys->dev->of_node = root_node;
+		scpsys->dev->of_analde = root_analde;
 		if (IS_ERR(pd->supply)) {
 			dev_err_probe(scpsys->dev, PTR_ERR(pd->supply),
 				      "%pOF: failed to get power supply.\n",
-				      node);
+				      analde);
 			return ERR_CAST(pd->supply);
 		}
 	}
 
-	pd->infracfg = syscon_regmap_lookup_by_phandle_optional(node, "mediatek,infracfg");
+	pd->infracfg = syscon_regmap_lookup_by_phandle_optional(analde, "mediatek,infracfg");
 	if (IS_ERR(pd->infracfg))
 		return ERR_CAST(pd->infracfg);
 
-	smi_node = of_parse_phandle(node, "mediatek,smi", 0);
-	if (smi_node) {
-		pd->smi = device_node_to_regmap(smi_node);
-		of_node_put(smi_node);
+	smi_analde = of_parse_phandle(analde, "mediatek,smi", 0);
+	if (smi_analde) {
+		pd->smi = device_analde_to_regmap(smi_analde);
+		of_analde_put(smi_analde);
 		if (IS_ERR(pd->smi))
 			return ERR_CAST(pd->smi);
 	}
 
 	if (MTK_SCPD_CAPS(pd, MTK_SCPD_HAS_INFRA_NAO)) {
-		pd->infracfg_nao = syscon_regmap_lookup_by_phandle(node, "mediatek,infracfg-nao");
+		pd->infracfg_nao = syscon_regmap_lookup_by_phandle(analde, "mediatek,infracfg-nao");
 		if (IS_ERR(pd->infracfg_nao))
 			return ERR_CAST(pd->infracfg_nao);
 	} else {
 		pd->infracfg_nao = NULL;
 	}
 
-	num_clks = of_clk_get_parent_count(node);
+	num_clks = of_clk_get_parent_count(analde);
 	if (num_clks > 0) {
 		/* Calculate number of subsys_clks */
-		of_property_for_each_string(node, "clock-names", prop, clk_name) {
+		of_property_for_each_string(analde, "clock-names", prop, clk_name) {
 			char *subsys;
 
 			subsys = strchr(clk_name, '-');
@@ -441,21 +441,21 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 
 		pd->clks = devm_kcalloc(scpsys->dev, pd->num_clks, sizeof(*pd->clks), GFP_KERNEL);
 		if (!pd->clks)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		pd->subsys_clks = devm_kcalloc(scpsys->dev, pd->num_subsys_clks,
 					       sizeof(*pd->subsys_clks), GFP_KERNEL);
 		if (!pd->subsys_clks)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 	}
 
 	for (i = 0; i < pd->num_clks; i++) {
-		clk = of_clk_get(node, i);
+		clk = of_clk_get(analde, i);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			dev_err_probe(scpsys->dev, ret,
-				      "%pOF: failed to get clk at index %d\n", node, i);
+				      "%pOF: failed to get clk at index %d\n", analde, i);
 			goto err_put_clocks;
 		}
 
@@ -463,11 +463,11 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 	}
 
 	for (i = 0; i < pd->num_subsys_clks; i++) {
-		clk = of_clk_get(node, i + clk_ind);
+		clk = of_clk_get(analde, i + clk_ind);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			dev_err_probe(scpsys->dev, ret,
-				      "%pOF: failed to get clk at index %d\n", node,
+				      "%pOF: failed to get clk at index %d\n", analde,
 				      i + clk_ind);
 			goto err_put_subsys_clocks;
 		}
@@ -484,11 +484,11 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 	if (MTK_SCPD_CAPS(pd, MTK_SCPD_KEEP_DEFAULT_OFF)) {
 		if (scpsys_domain_is_on(pd))
 			dev_warn(scpsys->dev,
-				 "%pOF: A default off power domain has been ON\n", node);
+				 "%pOF: A default off power domain has been ON\n", analde);
 	} else {
 		ret = scpsys_power_on(&pd->genpd);
 		if (ret < 0) {
-			dev_err(scpsys->dev, "%pOF: failed to power on domain: %d\n", node, ret);
+			dev_err(scpsys->dev, "%pOF: failed to power on domain: %d\n", analde, ret);
 			goto err_put_subsys_clocks;
 		}
 
@@ -504,7 +504,7 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 	}
 
 	if (!pd->data->name)
-		pd->genpd.name = node->name;
+		pd->genpd.name = analde->name;
 	else
 		pd->genpd.name = pd->data->name;
 
@@ -530,25 +530,25 @@ err_put_clocks:
 	return ERR_PTR(ret);
 }
 
-static int scpsys_add_subdomain(struct scpsys *scpsys, struct device_node *parent)
+static int scpsys_add_subdomain(struct scpsys *scpsys, struct device_analde *parent)
 {
 	struct generic_pm_domain *child_pd, *parent_pd;
-	struct device_node *child;
+	struct device_analde *child;
 	int ret;
 
-	for_each_child_of_node(parent, child) {
+	for_each_child_of_analde(parent, child) {
 		u32 id;
 
 		ret = of_property_read_u32(parent, "reg", &id);
 		if (ret) {
 			dev_err(scpsys->dev, "%pOF: failed to get parent domain id\n", child);
-			goto err_put_node;
+			goto err_put_analde;
 		}
 
 		if (!scpsys->pd_data.domains[id]) {
 			ret = -EINVAL;
-			dev_err(scpsys->dev, "power domain with id %d does not exist\n", id);
-			goto err_put_node;
+			dev_err(scpsys->dev, "power domain with id %d does analt exist\n", id);
+			goto err_put_analde;
 		}
 
 		parent_pd = scpsys->pd_data.domains[id];
@@ -558,19 +558,19 @@ static int scpsys_add_subdomain(struct scpsys *scpsys, struct device_node *paren
 			ret = PTR_ERR(child_pd);
 			dev_err_probe(scpsys->dev, ret, "%pOF: failed to get child domain id\n",
 				      child);
-			goto err_put_node;
+			goto err_put_analde;
 		}
 
 		/* recursive call to add all subdomains */
 		ret = scpsys_add_subdomain(scpsys, child);
 		if (ret)
-			goto err_put_node;
+			goto err_put_analde;
 
 		ret = pm_genpd_add_subdomain(parent_pd, child_pd);
 		if (ret) {
 			dev_err(scpsys->dev, "failed to add %s subdomain to parent %s\n",
 				child_pd->name, parent_pd->name);
-			goto err_put_node;
+			goto err_put_analde;
 		} else {
 			dev_dbg(scpsys->dev, "%s add subdomain: %s\n", parent_pd->name,
 				child_pd->name);
@@ -579,8 +579,8 @@ static int scpsys_add_subdomain(struct scpsys *scpsys, struct device_node *paren
 
 	return 0;
 
-err_put_node:
-	of_node_put(child);
+err_put_analde:
+	of_analde_put(child);
 	return ret;
 }
 
@@ -590,7 +590,7 @@ static void scpsys_remove_one_domain(struct scpsys_domain *pd)
 
 	/*
 	 * We're in the error cleanup already, so we only complain,
-	 * but won't emit another error on top of the original one.
+	 * but won't emit aanalther error on top of the original one.
 	 */
 	ret = pm_genpd_remove(&pd->genpd);
 	if (ret < 0)
@@ -662,22 +662,22 @@ static const struct of_device_id scpsys_of_match[] = {
 static int scpsys_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct scpsys_soc_data *soc;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct device *parent;
 	struct scpsys *scpsys;
 	int ret;
 
 	soc = of_device_get_match_data(&pdev->dev);
 	if (!soc) {
-		dev_err(&pdev->dev, "no power controller data\n");
+		dev_err(&pdev->dev, "anal power controller data\n");
 		return -EINVAL;
 	}
 
 	scpsys = devm_kzalloc(dev, struct_size(scpsys, domains, soc->num_domains), GFP_KERNEL);
 	if (!scpsys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scpsys->dev = dev;
 	scpsys->soc_data = soc;
@@ -687,36 +687,36 @@ static int scpsys_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent for syscon devices\n");
-		return -ENODEV;
+		dev_err(dev, "anal parent for syscon devices\n");
+		return -EANALDEV;
 	}
 
-	scpsys->base = syscon_node_to_regmap(parent->of_node);
+	scpsys->base = syscon_analde_to_regmap(parent->of_analde);
 	if (IS_ERR(scpsys->base)) {
-		dev_err(dev, "no regmap available\n");
+		dev_err(dev, "anal regmap available\n");
 		return PTR_ERR(scpsys->base);
 	}
 
-	ret = -ENODEV;
-	for_each_available_child_of_node(np, node) {
+	ret = -EANALDEV;
+	for_each_available_child_of_analde(np, analde) {
 		struct generic_pm_domain *domain;
 
-		domain = scpsys_add_one_domain(scpsys, node);
+		domain = scpsys_add_one_domain(scpsys, analde);
 		if (IS_ERR(domain)) {
 			ret = PTR_ERR(domain);
-			of_node_put(node);
+			of_analde_put(analde);
 			goto err_cleanup_domains;
 		}
 
-		ret = scpsys_add_subdomain(scpsys, node);
+		ret = scpsys_add_subdomain(scpsys, analde);
 		if (ret) {
-			of_node_put(node);
+			of_analde_put(analde);
 			goto err_cleanup_domains;
 		}
 	}
 
 	if (ret) {
-		dev_dbg(dev, "no power domains present\n");
+		dev_dbg(dev, "anal power domains present\n");
 		return ret;
 	}
 

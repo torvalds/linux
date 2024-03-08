@@ -6,11 +6,11 @@
 #include "pmi8950.dtsi"
 #include <dt-bindings/leds/common.h>
 
-/delete-node/ &cont_splash_mem;
-/delete-node/ &qseecom_mem;
+/delete-analde/ &cont_splash_mem;
+/delete-analde/ &qseecom_mem;
 
 / {
-	model = "Xiaomi Redmi Note 4X";
+	model = "Xiaomi Redmi Analte 4X";
 	compatible = "xiaomi,mido", "qcom,msm8953";
 	chassis-type = "handset";
 	qcom,msm-id = <293 0>;
@@ -70,12 +70,12 @@
 	reserved-memory {
 		qseecom_mem: qseecom@84a00000 {
 			reg = <0x0 0x84a00000 0x0 0x1900000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: cont-splash@90001000 {
 			reg = <0x0 0x90001000 0x0 (1080 * 1920 * 3)>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@9ff00000 {

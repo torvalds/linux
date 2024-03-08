@@ -17,7 +17,7 @@
 #define select_skb_count(skb) (&rxrpc_n_rx_skbs)
 
 /*
- * Note the allocation or reception of a socket buffer.
+ * Analte the allocation or reception of a socket buffer.
  */
 void rxrpc_new_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 {
@@ -26,7 +26,7 @@ void rxrpc_new_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 }
 
 /*
- * Note the re-emergence of a socket buffer from a queue or buffer.
+ * Analte the re-emergence of a socket buffer from a queue or buffer.
  */
 void rxrpc_see_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 {
@@ -37,7 +37,7 @@ void rxrpc_see_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 }
 
 /*
- * Note the addition of a ref on a socket buffer.
+ * Analte the addition of a ref on a socket buffer.
  */
 void rxrpc_get_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 {
@@ -47,7 +47,7 @@ void rxrpc_get_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 }
 
 /*
- * Note the dropping of a ref on a socket buffer by the core.
+ * Analte the dropping of a ref on a socket buffer by the core.
  */
 void rxrpc_eaten_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 {
@@ -56,7 +56,7 @@ void rxrpc_eaten_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 }
 
 /*
- * Note the destruction of a socket buffer.
+ * Analte the destruction of a socket buffer.
  */
 void rxrpc_free_skb(struct sk_buff *skb, enum rxrpc_skb_trace why)
 {

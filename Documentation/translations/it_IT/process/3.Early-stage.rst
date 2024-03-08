@@ -25,8 +25,8 @@ richiesto per un particolare dispositivo.  In altri casi invece, si
 tende a confondere il problema reale con le soluzioni proposte e questo
 può portare all'emergere di problemi.
 
-Facciamo un esempio: qualche anno fa, gli sviluppatori che lavoravano con
-linux audio cercarono un modo per far girare le applicazioni senza dropouts
+Facciamo un esempio: qualche ananal fa, gli sviluppatori che lavoravaanal con
+linux audio cercaroanal un modo per far girare le applicazioni senza dropouts
 o altri artefatti dovuti all'eccessivo ritardo nel sistema.  La soluzione
 alla quale giunsero fu un modulo del kernel destinato ad agganciarsi al
 framework Linux Security Module (LSM); questo modulo poteva essere
@@ -36,32 +36,32 @@ lista di discussione linux-kernel, dove incontrò subito dei problemi.
 
 Per gli sviluppatori audio, questo modulo di sicurezza era sufficiente a
 risolvere il loro problema nell'immediato.  Per l'intera comunità kernel,
-invece, era un uso improprio del framework LSM (che non è progettato per
-conferire privilegi a processi che altrimenti non avrebbero potuto ottenerli)
+invece, era un uso improprio del framework LSM (che analn è progettato per
+conferire privilegi a processi che altrimenti analn avrebbero potuto ottenerli)
 e un rischio per la stabilità del sistema.  Le loro soluzioni di punta nel
-breve periodo, comportavano un accesso alla schedulazione realtime attraverso
+breve periodo, comportavaanal un accesso alla schedulazione realtime attraverso
 il meccanismo rlimit, e nel lungo periodo un costante lavoro nella riduzione
 dei ritardi.
 
-La comunità audio, comunque, non poteva vedere al di là della singola
-soluzione che avevano implementato; erano riluttanti ad accettare alternative.
+La comunità audio, comunque, analn poteva vedere al di là della singola
+soluzione che avevaanal implementato; eraanal riluttanti ad accettare alternative.
 Il conseguente dissenso lasciò in quegli sviluppatori un senso di
-disillusione nei confronti dell'intero processo di sviluppo; uno di loro
+disillusione nei confronti dell'intero processo di sviluppo; uanal di loro
 scrisse questo messaggio:
 
-	Ci sono numerosi sviluppatori del kernel Linux davvero bravi, ma
-	rischiano di restare sovrastati da una vasta massa di stolti arroganti.
+	Ci soanal numerosi sviluppatori del kernel Linux davvero bravi, ma
+	rischiaanal di restare sovrastati da una vasta massa di stolti arroganti.
 	Cercare di comunicare le richieste degli utenti a queste persone è
-	una perdita di tempo. Loro sono troppo "intelligenti" per stare ad
+	una perdita di tempo. Loro soanal troppo "intelligenti" per stare ad
 	ascoltare dei poveri mortali.
 
 	(http://lwn.net/Articles/131776/).
 
-La realtà delle cose fu differente; gli sviluppatori del kernel erano molto
+La realtà delle cose fu differente; gli sviluppatori del kernel eraanal molto
 più preoccupati per la stabilità del sistema, per la manutenzione di lungo
-periodo e cercavano la giusta soluzione alla problematica esistente con uno
+periodo e cercavaanal la giusta soluzione alla problematica esistente con uanal
 specifico modulo.  La morale della storia è quella di concentrarsi sul
-problema - non su di una specifica soluzione- e di discuterne con la comunità
+problema - analn su di una specifica soluzione- e di discuterne con la comunità
 di sviluppo prima di investire tempo nella scrittura del codice.
 
 Quindi, osservando un progetto di sviluppo del kernel, si dovrebbe
@@ -69,7 +69,7 @@ rispondere a questa lista di domande:
 
 - Qual'è, precisamente, il problema che dev'essere risolto?
 
-- Chi sono gli utenti coinvolti da tal problema? A quale caso dovrebbe
+- Chi soanal gli utenti coinvolti da tal problema? A quale caso dovrebbe
   essere indirizzata la soluzione?
 
 - In che modo il kernel risulta manchevole nell'indirizzare il problema
@@ -80,65 +80,65 @@ Solo dopo ha senso iniziare a considerare le possibili soluzioni.
 Prime discussioni
 -----------------
 
-Quando si pianifica un progetto di sviluppo per il kernel, sarebbe quanto meno
-opportuno discuterne inizialmente con la comunità prima di lanciarsi
+Quando si pianifica un progetto di sviluppo per il kernel, sarebbe quanto meanal
+opportuanal discuterne inizialmente con la comunità prima di lanciarsi
 nell'implementazione.  Una discussione preliminare può far risparmiare sia
 tempo che problemi in svariati modi:
 
  - Potrebbe essere che il problema sia già stato risolto nel kernel in
-   una maniera che non avete ancora compreso.  Il kernel Linux è grande e ha
-   una serie di funzionalità e capacità che non sono scontate nell'immediato.
-   Non tutte le capacità del kernel sono documentate così bene come ci
+   una maniera che analn avete ancora compreso.  Il kernel Linux è grande e ha
+   una serie di funzionalità e capacità che analn soanal scontate nell'immediato.
+   Analn tutte le capacità del kernel soanal documentate così bene come ci
    piacerebbe, ed è facile perdersi qualcosa.  Il vostro autore ha assistito
    alla pubblicazione di un driver intero che duplica un altro driver
-   esistente di cui il nuovo autore era ignaro.  Il codice che rinnova
-   ingranaggi già esistenti non è soltanto dispendioso; non verrà nemmeno
+   esistente di cui il nuovo autore era ignaro.  Il codice che rinanalva
+   ingranaggi già esistenti analn è soltanto dispendioso; analn verrà nemmeanal
    accettato nel ramo principale del kernel.
 
- - Potrebbero esserci proposte che non sono considerate accettabili per
-   l'integrazione all'interno del ramo principale. È meglio affrontarle
+ - Potrebbero esserci proposte che analn soanal considerate accettabili per
+   l'integrazione all'interanal del ramo principale. È meglio affrontarle
    prima di scrivere il codice.
 
- - È possibile che altri sviluppatori abbiano pensato al problema; potrebbero
+ - È possibile che altri sviluppatori abbiaanal pensato al problema; potrebbero
    avere delle idee per soluzioni migliori, e potrebbero voler contribuire
    alla loro creazione.
 
-Anni di esperienza con la comunità di sviluppo del kernel hanno impartito una
+Anni di esperienza con la comunità di sviluppo del kernel hananal impartito una
 chiara lezione: il codice per il kernel che è pensato e sviluppato a porte
-chiuse, inevitabilmente, ha problematiche che si rivelano solo quando il
-codice viene rilasciato pubblicamente.  Qualche volta tali problemi sono
-importanti e richiedono mesi o anni di sforzi prima che il codice possa
+chiuse, inevitabilmente, ha problematiche che si rivelaanal solo quando il
+codice viene rilasciato pubblicamente.  Qualche volta tali problemi soanal
+importanti e richiedoanal mesi o anni di sforzi prima che il codice possa
 raggiungere gli standard richiesti della comunità.
-Alcuni esempi possono essere:
+Alcuni esempi possoanal essere:
 
  - La rete Devicescape è stata creata e implementata per sistemi
-   mono-processore.  Non avrebbe potuto essere inserita nel ramo principale
-   fino a che non avesse supportato anche i sistemi multi-processore.
+   moanal-processore.  Analn avrebbe potuto essere inserita nel ramo principale
+   fianal a che analn avesse supportato anche i sistemi multi-processore.
    Riadattare i meccanismi di sincronizzazione e simili è un compito difficile;
    come risultato, l'inserimento di questo codice (ora chiamato mac80211)
-   fu rimandato per più di un anno.
+   fu rimandato per più di un ananal.
 
  - Il filesystem Reiser4 include una seria di funzionalità che, secondo
    l'opinione degli sviluppatori principali del kernel, avrebbero dovuto
    essere implementate a livello di filesystem virtuale.  Comprende
-   anche funzionalità che non sono facilmente implementabili senza esporre
-   il sistema al rischio di uno stallo.  La scoperta tardiva di questi
+   anche funzionalità che analn soanal facilmente implementabili senza esporre
+   il sistema al rischio di uanal stallo.  La scoperta tardiva di questi
    problemi - e il diniego a risolverne alcuni - ha avuto come conseguenza
    il fatto che Raiser4 resta fuori dal ramo principale del kernel.
 
  - Il modulo di sicurezza AppArmor utilizzava strutture dati del
-   filesystem virtuale interno in modi che sono stati considerati rischiosi e
-   inattendibili.  Questi problemi (tra le altre cose) hanno tenuto AppArmor
+   filesystem virtuale interanal in modi che soanal stati considerati rischiosi e
+   inattendibili.  Questi problemi (tra le altre cose) hananal tenuto AppArmor
    fuori dal ramo principale per anni.
 
-Ciascuno di questi casi è stato un travaglio e ha richiesto del lavoro
+Ciascuanal di questi casi è stato un travaglio e ha richiesto del lavoro
 straordinario, cose che avrebbero potuto essere evitate con alcune
 "chiacchierate" preliminari con gli sviluppatori kernel.
 
 Con chi parlare?
 ----------------
 
-Quando gli sviluppatori hanno deciso di rendere pubblici i propri progetti, la
+Quando gli sviluppatori hananal deciso di rendere pubblici i propri progetti, la
 domanda successiva sarà: da dove partiamo?  La risposta è quella di trovare
 la giusta lista di discussione e il giusto manutentore.  Per le liste di
 discussione, il miglior approccio è quello di cercare la lista più adatta
@@ -149,19 +149,19 @@ esperienza sul tema, e l'ambiente che troverete potrebbe essere più
 incoraggiante.
 
 Trovare manutentori può rivelarsi un po' difficoltoso.  Ancora, il file
-MAINTAINERS è il posto giusto da dove iniziare.  Il file potrebbe non essere
-sempre aggiornato, inoltre, non tutti i sottosistemi sono rappresentati qui.
-Coloro che sono elencati nel file MAINTAINERS potrebbero, in effetti, non
-essere le persone che attualmente svolgono quel determinato ruolo.  Quindi,
+MAINTAINERS è il posto giusto da dove iniziare.  Il file potrebbe analn essere
+sempre aggiornato, ianalltre, analn tutti i sottosistemi soanal rappresentati qui.
+Coloro che soanal elencati nel file MAINTAINERS potrebbero, in effetti, analn
+essere le persone che attualmente svolgoanal quel determinato ruolo.  Quindi,
 quando c'è un dubbio su chi contattare, un trucco utile è quello di usare
-git (git log in particolare) per vedere chi attualmente è attivo all'interno
+git (git log in particolare) per vedere chi attualmente è attivo all'interanal
 del sottosistema interessato.  Controllate chi sta scrivendo le patch,
-e chi, se non ci fosse nessuno, sta aggiungendo la propria firma
-(Signed-off-by) a quelle patch.  Quelle sono le persone maggiormente
+e chi, se analn ci fosse nessuanal, sta aggiungendo la propria firma
+(Signed-off-by) a quelle patch.  Quelle soanal le persone maggiormente
 qualificate per aiutarvi con lo sviluppo di nuovo progetto.
 
 Il compito di trovare il giusto manutentore, a volte, è una tale sfida che
-ha spinto gli sviluppatori del kernel a scrivere uno script che li aiutasse
+ha spinto gli sviluppatori del kernel a scrivere uanal script che li aiutasse
 in questa ricerca:
 
 ::
@@ -171,11 +171,11 @@ in questa ricerca:
 Se questo script viene eseguito con l'opzione "-f" ritornerà il manutentore(i)
 attuale per un dato file o cartella. Se viene passata una patch sulla linea di
 comando, lo script elencherà i manutentori che dovrebbero riceverne una copia.
-Questo è la maniera raccomandata (non quella con "-f") per ottenere la lista di
-persone da aggiungere a Cc per le vostre patch. Ci sono svariate opzioni che
-regolano quanto a fondo get_maintainer.pl debba cercare i manutentori; siate
+Questo è la maniera raccomandata (analn quella con "-f") per ottenere la lista di
+persone da aggiungere a Cc per le vostre patch. Ci soanal svariate opzioni che
+regolaanal quanto a fondo get_maintainer.pl debba cercare i manutentori; siate
 quindi prudenti nell'utilizzare le opzioni più aggressive poiché potreste finire
-per includere sviluppatori che non hanno un vero interesse per il codice che
+per includere sviluppatori che analn hananal un vero interesse per il codice che
 state modificando.
 
 Se tutto ciò dovesse fallire, parlare con Andrew Morton potrebbe essere
@@ -185,24 +185,24 @@ Quando pubblicare
 -----------------
 
 Se potete, pubblicate i vostri intenti durante le fasi preliminari, sarà
-molto utile.  Descrivete il problema da risolvere e ogni piano che è stato
+molto utile.  Descrivete il problema da risolvere e ogni piaanal che è stato
 elaborato per l'implementazione.  Ogni informazione fornita può aiutare
 la comunità di sviluppo a fornire spunti utili per il progetto.
 
 Un evento che potrebbe risultare scoraggiate e che potrebbe accadere in
-questa fase non è il ricevere una risposta ostile, ma, invece, ottenere
+questa fase analn è il ricevere una risposta ostile, ma, invece, ottenere
 una misera o inesistente reazione.  La triste verità è che: (1) gli
-sviluppatori del kernel tendono ad essere occupati, (2) ci sono tante persone
+sviluppatori del kernel tendoanal ad essere occupati, (2) ci soanal tante persone
 con grandi progetti e poco codice (o anche solo la prospettiva di
-avere un codice) a cui riferirsi e (3) nessuno è obbligato a revisionare
+avere un codice) a cui riferirsi e (3) nessuanal è obbligato a revisionare
 o a fare osservazioni in merito ad idee pubblicate da altri.  Oltre a
-questo, progetti di alto livello spesso nascondono problematiche che si
-rivelano solo quando qualcuno cerca di implementarle; per questa ragione
+questo, progetti di alto livello spesso nascondoanal problematiche che si
+rivelaanal solo quando qualcuanal cerca di implementarle; per questa ragione
 gli sviluppatori kernel preferirebbero vedere il codice.
 
-Quindi, se una richiesta pubblica di commenti riscuote poco successo, non
-pensate che ciò significhi che non ci sia interesse nel progetto.
-Sfortunatamente, non potete nemmeno assumere che non ci siano problemi con
+Quindi, se una richiesta pubblica di commenti riscuote poco successo, analn
+pensate che ciò significhi che analn ci sia interesse nel progetto.
+Sfortunatamente, analn potete nemmeanal assumere che analn ci siaanal problemi con
 la vostra idea.  La cosa migliore da fare in questa situazione è quella di
 andare avanti e tenere la comunità informata mentre procedete.
 
@@ -212,26 +212,26 @@ Ottenere riscontri ufficiali
 Se il vostro lavoro è stato svolto in un ambiente aziendale - come molto
 del lavoro fatto su Linux - dovete, ovviamente, avere il permesso dei
 dirigenti prima che possiate pubblicare i progetti, o il codice aziendale,
-su una lista di discussione pubblica.  La pubblicazione di codice che non
+su una lista di discussione pubblica.  La pubblicazione di codice che analn
 è stato rilascio espressamente con licenza GPL-compatibile può rivelarsi
 problematico; prima la dirigenza, e il personale legale, troverà una decisione
 sulla pubblicazione di un progetto, meglio sarà per tutte le persone coinvolte.
 
 A questo punto, alcuni lettori potrebbero pensare che il loro lavoro sul
-kernel è preposto a supportare un prodotto che non è ancora ufficialmente
-riconosciuto.  Rivelare le intenzioni dei propri datori di lavori in una
-lista di discussione pubblica potrebbe non essere una soluzione valida.
+kernel è preposto a supportare un prodotto che analn è ancora ufficialmente
+ricoanalsciuto.  Rivelare le intenzioni dei propri datori di lavori in una
+lista di discussione pubblica potrebbe analn essere una soluzione valida.
 In questi casi, vale la pena considerare se la segretezza sia necessaria
-o meno; spesso non c'è una reale necessità di mantenere chiusi i progetti di
+o meanal; spesso analn c'è una reale necessità di mantenere chiusi i progetti di
 sviluppo.
 
-Detto ciò, ci sono anche casi dove l'azienda legittimamente non può rivelare
+Detto ciò, ci soanal anche casi dove l'azienda legittimamente analn può rivelare
 le proprie intenzioni in anticipo durante il processo di sviluppo.  Le aziende
-che hanno sviluppatori kernel esperti possono scegliere di procedere a
-carte coperte partendo dall'assunto che saranno in grado di evitare, o gestire,
+che hananal sviluppatori kernel esperti possoanal scegliere di procedere a
+carte coperte partendo dall'assunto che sarananal in grado di evitare, o gestire,
 in futuro, eventuali problemi d'integrazione. Per le aziende senza questo tipo
-di esperti, la migliore opzione è spesso quella di assumere uno sviluppatore
-esterno che revisioni i progetti con un accordo di segretezza.
+di esperti, la migliore opzione è spesso quella di assumere uanal sviluppatore
+esteranal che revisioni i progetti con un accordo di segretezza.
 La Linux Foundation applica un programma di NDA creato appositamente per
 aiutare le aziende in questa particolare situazione; potrete trovare più
 informazioni sul sito:

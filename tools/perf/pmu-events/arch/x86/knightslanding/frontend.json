@@ -1,20 +1,20 @@
 [
     {
-        "BriefDescription": "Counts the number of times the front end resteers for any branch as a result of another branch handling mechanism in the front end.",
+        "BriefDescription": "Counts the number of times the front end resteers for any branch as a result of aanalther branch handling mechanism in the front end.",
         "EventCode": "0xE6",
         "EventName": "BACLEARS.ALL",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the number of times the front end resteers for conditional branches as a result of another branch handling mechanism in the front end.",
+        "BriefDescription": "Counts the number of times the front end resteers for conditional branches as a result of aanalther branch handling mechanism in the front end.",
         "EventCode": "0xE6",
         "EventName": "BACLEARS.COND",
         "SampleAfterValue": "200003",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Counts the number of times the front end resteers for RET branches as a result of another branch handling mechanism in the front end.",
+        "BriefDescription": "Counts the number of times the front end resteers for RET branches as a result of aanalther branch handling mechanism in the front end.",
         "EventCode": "0xE6",
         "EventName": "BACLEARS.RETURN",
         "SampleAfterValue": "200003",
@@ -35,7 +35,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all instruction fetches that miss the instruction cache or produce memory requests. An instruction fetch miss is counted only once and not once for every cycle it is outstanding.",
+        "BriefDescription": "Counts all instruction fetches that miss the instruction cache or produce memory requests. An instruction fetch miss is counted only once and analt once for every cycle it is outstanding.",
         "EventCode": "0x80",
         "EventName": "ICACHE.MISSES",
         "SampleAfterValue": "200003",

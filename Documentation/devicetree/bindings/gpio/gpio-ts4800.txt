@@ -1,7 +1,7 @@
 * TS-4800 FPGA's GPIO controller bindings
 
 Required properties:
-- compatible: Must be "technologic,ts4800-gpio".
+- compatible: Must be "techanallogic,ts4800-gpio".
 - #gpio-cells: Should be two. The first cell is the pin number.
 - reg: Physical base address of the controller and length
        of memory mapped region.
@@ -12,7 +12,7 @@ Optional property:
 Example:
 
 gpio1: gpio {
-	compatible = "technologic,ts4800-gpio";
+	compatible = "techanallogic,ts4800-gpio";
 	reg = <0x10020 0x6>;
 	ngpios = <8>;
 	gpio-controller;

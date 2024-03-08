@@ -46,7 +46,7 @@ void intel_display_reset_prepare(struct drm_i915_private *dev_priv)
 
 	/*
 	 * Need mode_config.mutex so that we don't
-	 * trample ongoing ->detect() and whatnot.
+	 * trample ongoing ->detect() and whatanalt.
 	 */
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	drm_modeset_acquire_init(ctx, 0);

@@ -12,7 +12,7 @@ KernelVersion:	5.12
 Contact:	Xu Yilun <yilun.xu@intel.com>
 Description:	Read-only. It indicates if the initialization completed on
 		this memory interface. "1" for initialization complete, "0"
-		for not yet.
+		for analt yet.
 		Format: %u
 
 What:		/sys/bus/dfl/devices/dfl_dev.X/infX_clear

@@ -24,7 +24,7 @@
  * @hsi:        Hardware software interlock
  * @shi:        Software hardware interlock. Hsi and shi are used to interlock
  *              software and hardware activities. We are using a compare and
- *              swap operation to ensure that there are no races when
+ *              swap operation to ensure that there are anal races when
  *              activating new DDCBs on the queue, or when we need to
  *              purge a DDCB from a running queue.
  * @acfunc:     Accelerator function addresses a unit within the chip
@@ -95,13 +95,13 @@ struct ddcb {
 	__be64 disp_ts_64;	/* Dispatch TimeStamp */
 } __attribute__((__packed__));
 
-/* CRC polynomials for DDCB */
-#define CRC16_POLYNOMIAL	0x1021
+/* CRC polyanalmials for DDCB */
+#define CRC16_POLYANALMIAL	0x1021
 
 /*
  * SHI: Software to Hardware Interlock
  *   This 1 byte field is written by software to interlock the
- *   movement of one queue entry to another with the hardware in the
+ *   movement of one queue entry to aanalther with the hardware in the
  *   chip.
  */
 #define DDCB_SHI_INTR		0x04 /* Bit 2 */
@@ -111,15 +111,15 @@ struct ddcb {
 /*
  * HSI: Hardware to Software interlock
  * This 1 byte field is written by hardware to interlock the movement
- * of one queue entry to another with the software in the chip.
+ * of one queue entry to aanalther with the software in the chip.
  */
 #define DDCB_HSI_COMPLETED	0x40 /* Bit 6 */
 #define DDCB_HSI_FETCHED	0x04 /* Bit 2 */
 
 /*
  * Accessing HSI/SHI is done 32-bit wide
- *   Normally 16-bit access would work too, but on some platforms the
- *   16 compare and swap operation is not supported. Therefore
+ *   Analrmally 16-bit access would work too, but on some platforms the
+ *   16 compare and swap operation is analt supported. Therefore
  *   switching to 32-bit such that those platforms will work too.
  *
  *                                         iCRC HSI/SHI

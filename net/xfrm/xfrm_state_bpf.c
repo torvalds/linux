@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Unstable XFRM state BPF helpers.
  *
- * Note that it is allowed to break compatibility for these functions since the
+ * Analte that it is allowed to break compatibility for these functions since the
  * interface they are exposed through to BPF programs is explicitly unstable.
  */
 
@@ -18,8 +18,8 @@
  *		 Values:
  *		   -EINVAL - netns_id is less than -1
  *		   -EINVAL - opts__sz isn't BPF_XFRM_STATE_OPTS_SZ
- *		   -ENONET - No network namespace found for netns_id
- *		   -ENOENT - No xfrm_state found
+ *		   -EANALNET - Anal network namespace found for netns_id
+ *		   -EANALENT - Anal xfrm_state found
  * @netns_id	- Specify the network namespace for lookup
  *		 Values:
  *		   BPF_F_CURRENT_NETNS (-1)
@@ -55,9 +55,9 @@ __bpf_kfunc_start_defs();
  *
  * Parameters:
  * @ctx	- Pointer to ctx (xdp_md) in XDP program
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @opts	- Options for lookup (documented above)
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @opts__sz	- Length of the bpf_xfrm_state_opts structure
  *		    Must be BPF_XFRM_STATE_OPTS_SZ
  */
@@ -84,7 +84,7 @@ bpf_xdp_get_xfrm_state(struct xdp_md *ctx, struct bpf_xfrm_state_opts *opts, u32
 	if (opts->netns_id >= 0) {
 		net = get_net_ns_by_id(net, opts->netns_id);
 		if (unlikely(!net)) {
-			opts->error = -ENONET;
+			opts->error = -EANALNET;
 			return NULL;
 		}
 	}
@@ -95,7 +95,7 @@ bpf_xdp_get_xfrm_state(struct xdp_md *ctx, struct bpf_xfrm_state_opts *opts, u32
 	if (opts->netns_id >= 0)
 		put_net(net);
 	if (!x)
-		opts->error = -ENOENT;
+		opts->error = -EANALENT;
 
 	return x;
 }

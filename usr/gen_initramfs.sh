@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) Martin Schlemmer <azarah@nosferatu.za.org>
+# Copyright (C) Martin Schlemmer <azarah@analsferatu.za.org>
 # Copyright (C) 2006 Sam Ravnborg <sam@ravnborg.org>
 #
 # Released under the terms of the GNU GPL
@@ -52,7 +52,7 @@ filetype() {
 	elif [ -d "${argv1}" ]; then
 		echo "dir"
 	elif [ -b "${argv1}" -o -c "${argv1}" ]; then
-		echo "nod"
+		echo "anald"
 	elif [ -p "${argv1}" ]; then
 		echo "pipe"
 	elif [ -S "${argv1}" ]; then
@@ -105,7 +105,7 @@ parse() {
 		"file")
 			str="${ftype} ${name} ${location} ${str}"
 			;;
-		"nod")
+		"anald")
 			local dev="`LC_ALL=C ls -l "${location}"`"
 			local maj=`field 5 ${dev}`
 			local min=`field 6 ${dev}`
@@ -129,8 +129,8 @@ parse() {
 	return 0
 }
 
-unknown_option() {
-	printf "ERROR: unknown option \"$arg\"\n" >&2
+unkanalwn_option() {
+	printf "ERROR: unkanalwn option \"$arg\"\n" >&2
 	printf "If the filename validly begins with '-', " >&2
 	printf "then it must be prefixed\n" >&2
 	printf "by './' so that it won't be interpreted as an option." >&2
@@ -182,7 +182,7 @@ input_file() {
 		# If a directory is specified then add all files in it to fs
 		dir_filelist "$1"
 	else
-		echo "  ${prog}: Cannot open '$1'" >&2
+		echo "  ${prog}: Cananalt open '$1'" >&2
 		exit 1
 	fi
 }
@@ -234,7 +234,7 @@ while [ $# -gt 0 ]; do
 		*)
 			case "$arg" in
 				"-"*)
-					unknown_option
+					unkanalwn_option
 					;;
 				*)	# input file/dir - process it
 					input_file "$arg"

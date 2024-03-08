@@ -11,7 +11,7 @@
 void bch2_bio_free_pages_pool(struct bch_fs *, struct bio *);
 void bch2_bio_alloc_pages_pool(struct bch_fs *, struct bio *, size_t);
 
-#ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
+#ifndef CONFIG_BCACHEFS_ANAL_LATENCY_ACCT
 void bch2_latency_acct(struct bch_dev *, u64, int);
 #else
 static inline void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw) {}
@@ -21,7 +21,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
 			       enum bch_data_type, const struct bkey_i *, bool);
 
 #define BCH_WRITE_FLAGS()		\
-	x(ALLOC_NOWAIT)			\
+	x(ALLOC_ANALWAIT)			\
 	x(CACHED)			\
 	x(DATA_ENCODED)			\
 	x(PAGES_STABLE)			\
@@ -29,7 +29,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
 	x(ONLY_SPECIFIED_DEVS)		\
 	x(WROTE_DATA_INLINE)		\
 	x(FROM_INTERNAL)		\
-	x(CHECK_ENOSPC)			\
+	x(CHECK_EANALSPC)			\
 	x(SYNC)				\
 	x(MOVE)				\
 	x(IN_WORKER)			\
@@ -74,7 +74,7 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->compression_opt	= opts.compression;
 	op->nr_replicas		= 0;
 	op->nr_replicas_required = c->opts.data_replicas_required;
-	op->watermark		= BCH_WATERMARK_normal;
+	op->watermark		= BCH_WATERMARK_analrmal;
 	op->incompressible	= 0;
 	op->open_buckets.nr	= 0;
 	op->devs_have.nr	= 0;

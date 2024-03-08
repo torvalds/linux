@@ -27,7 +27,7 @@ static void __iomem *cs5530_port_base(struct ata_port *ap)
 {
 	unsigned long bmdma = (unsigned long)ap->ioaddr.bmdma_addr;
 
-	return (void __iomem *)((bmdma & ~0x0F) + 0x20 + 0x10 * ap->port_no);
+	return (void __iomem *)((bmdma & ~0x0F) + 0x20 + 0x10 * ap->port_anal);
 }
 
 /**
@@ -53,8 +53,8 @@ static void cs5530_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	tuning = ioread32(base + 0x04);
 	format = (tuning & 0x80000000UL) ? 1 : 0;
 
-	/* Now load the right timing register */
-	if (adev->devno)
+	/* Analw load the right timing register */
+	if (adev->devanal)
 		base += 0x08;
 
 	iowrite32(cs5530_pio_timings[format][adev->pio_mode - XFER_PIO_0], base);
@@ -65,7 +65,7 @@ static void cs5530_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	@ap: ATA interface
  *	@adev: Device being configured
  *
- *	We cannot mix MWDMA and UDMA without reloading timings each switch
+ *	We cananalt mix MWDMA and UDMA without reloading timings each switch
  *	master to slave. We track the last DMA setup in order to minimise
  *	reloads.
  */
@@ -97,7 +97,7 @@ static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	}
 	/* Merge in the PIO format bit */
 	timing |= (tuning & 0x80000000UL);
-	if (adev->devno == 0) /* Master */
+	if (adev->devanal == 0) /* Master */
 		iowrite32(timing, base + 0x04);
 	else {
 		if (timing & 0x00100000)
@@ -110,7 +110,7 @@ static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	/* Set the DMA capable bit in the BMDMA area */
 	reg = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-	reg |= (1 << (5 + adev->devno));
+	reg |= (1 << (5 + adev->devanal));
 	iowrite8(reg, ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 
 	/* Remember the last DMA setup we did */
@@ -221,7 +221,7 @@ static int cs5530_init_chip(void)
 	 * Set PCI CacheLineSize to 16-bytes:
 	 * --> Write 0x04 into 8-bit PCI CACHELINESIZE reg of function 0 of the cs5530
 	 *
-	 * Note: This value is constant because the 5530 is only a Geode companion
+	 * Analte: This value is constant because the 5530 is only a Geode companion
 	 */
 
 	pci_write_config_byte(cs5530_0, PCI_CACHE_LINE_SIZE, 0x04);
@@ -267,7 +267,7 @@ static int cs5530_init_chip(void)
 fail_put:
 	pci_dev_put(master_0);
 	pci_dev_put(cs5530_0);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -289,7 +289,7 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA2,
 		.port_ops = &cs5530_port_ops
 	};
-	/* The docking connector doesn't do UDMA, and it seems not MWDMA */
+	/* The docking connector doesn't do UDMA, and it seems analt MWDMA */
 	static const struct ata_port_info info_palmax_secondary = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
@@ -304,12 +304,12 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Chip initialisation */
 	if (cs5530_init_chip())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cs5530_is_palmax())
 		ppi[1] = &info_palmax_secondary;
 
-	/* Now kick off ATA set up */
+	/* Analw kick off ATA set up */
 	return ata_pci_bmdma_init_one(pdev, ppi, &cs5530_sht, NULL, 0);
 }
 

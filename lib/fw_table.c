@@ -6,7 +6,7 @@
  *  Copyright (C) 2001 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (C) 2023 Intel Corp.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -137,13 +137,13 @@ static __init_or_fwtbl_lib int call_handler(struct acpi_subtable_proc *proc,
  * on it. Assumption is that there's only single handler for particular
  * entry id.
  *
- * The table_size is not the size of the complete ACPI table (the length
+ * The table_size is analt the size of the complete ACPI table (the length
  * field in the header struct), but only the size of the root table; i.e.,
  * the offset from the very first byte of the complete ACPI table, to the
  * first byte of the very first subtable.
  *
  * On success returns sum of all matching entries for all proc handlers.
- * Otherwise, -ENODEV or -EINVAL is returned.
+ * Otherwise, -EANALDEV or -EINVAL is returned.
  */
 int __init_or_fwtbl_lib
 acpi_parse_entries_array(char *id, unsigned long table_size,
@@ -197,7 +197,7 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 	}
 
 	if (max_entries && count > max_entries) {
-		pr_warn("[%4.4s:0x%02x] ignored %i entries of %i found\n",
+		pr_warn("[%4.4s:0x%02x] iganalred %i entries of %i found\n",
 			id, proc->id, count - max_entries, count);
 	}
 

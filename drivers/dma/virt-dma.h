@@ -16,7 +16,7 @@ struct virt_dma_desc {
 	struct dma_async_tx_descriptor tx;
 	struct dmaengine_result tx_result;
 	/* protected by vc.lock */
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct virt_dma_chan {
@@ -63,11 +63,11 @@ static inline struct dma_async_tx_descriptor *vchan_tx_prep(struct virt_dma_chan
 	vd->tx.tx_submit = vchan_tx_submit;
 	vd->tx.desc_free = vchan_tx_desc_free;
 
-	vd->tx_result.result = DMA_TRANS_NOERROR;
+	vd->tx_result.result = DMA_TRANS_ANALERROR;
 	vd->tx_result.residue = 0;
 
 	spin_lock_irqsave(&vc->lock, flags);
-	list_add_tail(&vd->node, &vc->desc_allocated);
+	list_add_tail(&vd->analde, &vc->desc_allocated);
 	spin_unlock_irqrestore(&vc->lock, flags);
 
 	return &vd->tx;
@@ -100,7 +100,7 @@ static inline void vchan_cookie_complete(struct virt_dma_desc *vd)
 	dma_cookie_complete(&vd->tx);
 	dev_vdbg(vc->chan.device->dev, "txd %p[%x]: marked complete\n",
 		 vd, cookie);
-	list_add_tail(&vd->node, &vc->desc_completed);
+	list_add_tail(&vd->analde, &vc->desc_completed);
 
 	tasklet_schedule(&vc->task);
 }
@@ -117,7 +117,7 @@ static inline void vchan_vdesc_fini(struct virt_dma_desc *vd)
 		unsigned long flags;
 
 		spin_lock_irqsave(&vc->lock, flags);
-		list_add(&vd->node, &vc->desc_allocated);
+		list_add(&vd->analde, &vc->desc_allocated);
 		spin_unlock_irqrestore(&vc->lock, flags);
 	} else {
 		vc->desc_free(vd);
@@ -146,7 +146,7 @@ static inline void vchan_terminate_vdesc(struct virt_dma_desc *vd)
 {
 	struct virt_dma_chan *vc = to_virt_chan(vd->tx.chan);
 
-	list_add_tail(&vd->node, &vc->desc_terminated);
+	list_add_tail(&vd->analde, &vc->desc_terminated);
 
 	if (vc->cyclic == vd)
 		vc->cyclic = NULL;
@@ -161,7 +161,7 @@ static inline void vchan_terminate_vdesc(struct virt_dma_desc *vd)
 static inline struct virt_dma_desc *vchan_next_desc(struct virt_dma_chan *vc)
 {
 	return list_first_entry_or_null(&vc->desc_issued,
-					struct virt_dma_desc, node);
+					struct virt_dma_desc, analde);
 }
 
 /**
@@ -192,7 +192,7 @@ static inline void vchan_free_chan_resources(struct virt_dma_chan *vc)
 
 	spin_lock_irqsave(&vc->lock, flags);
 	vchan_get_all_descriptors(vc, &head);
-	list_for_each_entry(vd, &head, node)
+	list_for_each_entry(vd, &head, analde)
 		dmaengine_desc_clear_reuse(&vd->tx);
 	spin_unlock_irqrestore(&vc->lock, flags);
 
@@ -204,7 +204,7 @@ static inline void vchan_free_chan_resources(struct virt_dma_chan *vc)
  * @vc: virtual channel to synchronize
  *
  * Makes sure that all scheduled or active callbacks have finished running. For
- * proper operation the caller has to ensure that no new callbacks are scheduled
+ * proper operation the caller has to ensure that anal new callbacks are scheduled
  * after the invocation of this function started.
  * Free up the terminated cyclic descriptor to prevent memory leakage.
  */

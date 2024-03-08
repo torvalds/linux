@@ -5,7 +5,7 @@
 #include <linux/bits.h>
 #include <asm/gpr-num.h>
 
-#define EX_TYPE_NONE			0
+#define EX_TYPE_ANALNE			0
 #define EX_TYPE_BPF			1
 #define EX_TYPE_UACCESS_ERR_ZERO	2
 #define EX_TYPE_KACCESS_ERR_ZERO	3
@@ -61,7 +61,7 @@
 
 /*
  * Create an exception table entry for `insn` if `fixup` is provided. Otherwise
- * do nothing.
+ * do analthing.
  */
 	.macro		_cond_uaccess_extable, insn, fixup
 	.ifnc			\fixup,

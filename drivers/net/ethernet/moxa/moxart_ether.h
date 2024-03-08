@@ -5,7 +5,7 @@
  * Jonas Jensen <jonas.jensen@gmail.com>
  *
  * Based on code from
- * Moxa Technology Co., Ltd. <www.moxa.com>
+ * Moxa Techanallogy Co., Ltd. <www.moxa.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -119,9 +119,9 @@
 
 /* REG_INTERRUPT_STATUS */
 #define RPKT_FINISH		BIT(0)	/* DMA data received */
-#define NORXBUF			BIT(1)	/* receive buffer unavailable */
+#define ANALRXBUF			BIT(1)	/* receive buffer unavailable */
 #define XPKT_FINISH		BIT(2)	/* DMA moved data to TX FIFO */
-#define NOTXBUF			BIT(3)	/* transmit buffer unavailable */
+#define ANALTXBUF			BIT(3)	/* transmit buffer unavailable */
 #define XPKT_OK_INT_STS		BIT(4)	/* transmit to ethernet success */
 #define XPKT_LOST_INT_STS	BIT(5)	/* transmit ethernet lost (collision) */
 #define RPKT_SAV		BIT(6)	/* FIFO receive success */
@@ -131,9 +131,9 @@
 
 /* REG_INTERRUPT_MASK */
 #define RPKT_FINISH_M		BIT(0)
-#define NORXBUF_M		BIT(1)
+#define ANALRXBUF_M		BIT(1)
 #define XPKT_FINISH_M		BIT(2)
-#define NOTXBUF_M		BIT(3)
+#define ANALTXBUF_M		BIT(3)
 #define XPKT_OK_M		BIT(4)
 #define XPKT_LOST_M		BIT(5)
 #define RPKT_SAV_M		BIT(6)
@@ -173,7 +173,7 @@
 #define RX_MULTIPKT		BIT(16)	/* receive all multicast packets */
 #define FULLDUP			BIT(15)	/* full duplex */
 #define CRC_APD			BIT(14)	/* append CRC to transmitted packet */
-#define RCV_ALL			BIT(12)	/* ignore incoming packet destination */
+#define RCV_ALL			BIT(12)	/* iganalre incoming packet destination */
 #define RX_FTL			BIT(11)	/* accept packets larger than 1518 B */
 #define RX_RUNT			BIT(10)	/* accept packets smaller than 64 B */
 #define HT_MULTI_EN		BIT(9)	/* accept on hash and mcast pass */

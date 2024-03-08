@@ -286,7 +286,7 @@ static void rtl8225_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | RTL818X_CONFIG3_ANAPARAM_WRITE);
 	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, RTL8225_ANAPARAM2_ON);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_ANALRMAL);
 
 	rtl818x_iowrite8(priv, &priv->map->TX_GAIN_OFDM,
 			 rtl8225_tx_gain_cck_ofdm[ofdm_power/6] >> 1);
@@ -323,7 +323,7 @@ static void rtl8225_rf_init(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, &priv->map->RF_PARA, 0x00100044);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, 0x44);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_ANALRMAL);
 
 	rtl8225_write(dev, 0x0, 0x067);
 	rtl8225_write(dev, 0x1, 0xFE0);
@@ -552,7 +552,7 @@ static void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, &priv->map->RF_PARA, 0x00100044);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, 0x44);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_ANALRMAL);
 
 	rtl818x_iowrite16(priv, &priv->map->RFPinsEnable, 0x1FFF);
 
@@ -648,7 +648,7 @@ static void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 	rtl8225_write_phy_ofdm(dev, 0x20, 0x1f); msleep(1);
 	rtl8225_write_phy_ofdm(dev, 0x21, 0x27); msleep(1);
 	rtl8225_write_phy_ofdm(dev, 0x22, 0x16); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x23, 0x80); msleep(1); /* FIXME: not needed? */
+	rtl8225_write_phy_ofdm(dev, 0x23, 0x80); msleep(1); /* FIXME: analt needed? */
 	rtl8225_write_phy_ofdm(dev, 0x24, 0x46); msleep(1);
 	rtl8225_write_phy_ofdm(dev, 0x25, 0x20); msleep(1);
 	rtl8225_write_phy_ofdm(dev, 0x26, 0x90); msleep(1);
@@ -709,7 +709,7 @@ static void rtl8225_rf_stop(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, RTL8225_ANAPARAM2_OFF);
 	rtl818x_iowrite32(priv, &priv->map->ANAPARAM, RTL8225_ANAPARAM_OFF);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_ANALRMAL);
 }
 
 static void rtl8225_rf_set_channel(struct ieee80211_hw *dev,

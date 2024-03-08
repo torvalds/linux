@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Device Tree file for Globalscale MOCHAbin
- * Copyright (C) 2019 Globalscale technologies, Inc.
+ * Copyright (C) 2019 Globalscale techanallogies, Inc.
  * Copyright (C) 2021 Sartura Ltd.
  *
  */
@@ -64,9 +64,9 @@
 	status = "okay";
 
 	bus-width = <4>;
-	non-removable;
-	/delete-property/ marvell,xenon-phy-slow-mode;
-	no-1-8-v;
+	analn-removable;
+	/delete-property/ marvell,xeanaln-phy-slow-mode;
+	anal-1-8-v;
 };
 
 &cp0_pinctrl {
@@ -148,7 +148,7 @@
 	pinctrl-0 = <&cp0_spi0_pins>;
 };
 
-/* SPI-NOR */
+/* SPI-ANALR */
 &cp0_spi1 {
 	status = "okay";
 
@@ -158,7 +158,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 

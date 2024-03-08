@@ -6,7 +6,7 @@
  *     Atish Patra <atish.patra@wdc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <asm/sbi.h>
@@ -118,11 +118,11 @@ static int kvm_sbi_ext_rfence_handler(struct kvm_vcpu *vcpu, struct kvm_run *run
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA_ASID:
 		/*
 		 * Until nested virtualization is implemented, the
-		 * SBI HFENCE calls should be treated as NOPs
+		 * SBI HFENCE calls should be treated as ANALPs
 		 */
 		break;
 	default:
-		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
+		retdata->err_val = SBI_ERR_ANALT_SUPPORTED;
 	}
 
 	return 0;
@@ -160,11 +160,11 @@ static int kvm_sbi_ext_srst_handler(struct kvm_vcpu *vcpu,
 			retdata->uexit = true;
 			break;
 		default:
-			retdata->err_val = SBI_ERR_NOT_SUPPORTED;
+			retdata->err_val = SBI_ERR_ANALT_SUPPORTED;
 		}
 		break;
 	default:
-		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
+		retdata->err_val = SBI_ERR_ANALT_SUPPORTED;
 	}
 
 	return 0;
@@ -195,7 +195,7 @@ static int kvm_sbi_ext_dbcn_handler(struct kvm_vcpu *vcpu,
 		retdata->uexit = true;
 		break;
 	default:
-		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
+		retdata->err_val = SBI_ERR_ANALT_SUPPORTED;
 	}
 
 	return 0;

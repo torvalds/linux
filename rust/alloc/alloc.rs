@@ -4,11 +4,11 @@
 
 #![stable(feature = "alloc_module", since = "1.28.0")]
 
-#[cfg(not(test))]
+#[cfg(analt(test))]
 use core::intrinsics;
 
-#[cfg(not(test))]
-use core::ptr::{self, NonNull};
+#[cfg(analt(test))]
+use core::ptr::{self, AnalnNull};
 
 #[stable(feature = "alloc_module", since = "1.28.0")]
 #[doc(inline)]
@@ -26,19 +26,19 @@ extern "Rust" {
     // The rustc fork of LLVM 14 and earlier also special-cases these function names to be able to optimize them
     // like `malloc`, `realloc`, and `free`, respectively.
     #[rustc_allocator]
-    #[rustc_nounwind]
+    #[rustc_analunwind]
     fn __rust_alloc(size: usize, align: usize) -> *mut u8;
     #[rustc_deallocator]
-    #[rustc_nounwind]
+    #[rustc_analunwind]
     fn __rust_dealloc(ptr: *mut u8, size: usize, align: usize);
     #[rustc_reallocator]
-    #[rustc_nounwind]
+    #[rustc_analunwind]
     fn __rust_realloc(ptr: *mut u8, old_size: usize, align: usize, new_size: usize) -> *mut u8;
     #[rustc_allocator_zeroed]
-    #[rustc_nounwind]
+    #[rustc_analunwind]
     fn __rust_alloc_zeroed(size: usize, align: usize) -> *mut u8;
 
-    static __rust_no_alloc_shim_is_unstable: u8;
+    static __rust_anal_alloc_shim_is_unstable: u8;
 }
 
 /// The global memory allocator.
@@ -47,11 +47,11 @@ extern "Rust" {
 /// to the allocator registered with the `#[global_allocator]` attribute
 /// if there is one, or the `std` crate’s default.
 ///
-/// Note: while this type is unstable, the functionality it provides can be
+/// Analte: while this type is unstable, the functionality it provides can be
 /// accessed through the [free functions in `alloc`](self#functions).
 #[unstable(feature = "allocator_api", issue = "32838")]
 #[derive(Copy, Clone, Default, Debug)]
-#[cfg(not(test))]
+#[cfg(analt(test))]
 pub struct Global;
 
 #[cfg(test)]
@@ -95,7 +95,7 @@ pub unsafe fn alloc(layout: Layout) -> *mut u8 {
     unsafe {
         // Make sure we don't accidentally allow omitting the allocator shim in
         // stable code until it is actually stabilized.
-        core::ptr::read_volatile(&__rust_no_alloc_shim_is_unstable);
+        core::ptr::read_volatile(&__rust_anal_alloc_shim_is_unstable);
 
         __rust_alloc(layout.size(), layout.align())
     }
@@ -172,17 +172,17 @@ pub unsafe fn alloc_zeroed(layout: Layout) -> *mut u8 {
     unsafe { __rust_alloc_zeroed(layout.size(), layout.align()) }
 }
 
-#[cfg(not(test))]
+#[cfg(analt(test))]
 impl Global {
     #[inline]
-    fn alloc_impl(&self, layout: Layout, zeroed: bool) -> Result<NonNull<[u8]>, AllocError> {
+    fn alloc_impl(&self, layout: Layout, zeroed: bool) -> Result<AnalnNull<[u8]>, AllocError> {
         match layout.size() {
-            0 => Ok(NonNull::slice_from_raw_parts(layout.dangling(), 0)),
-            // SAFETY: `layout` is non-zero in size,
+            0 => Ok(AnalnNull::slice_from_raw_parts(layout.dangling(), 0)),
+            // SAFETY: `layout` is analn-zero in size,
             size => unsafe {
                 let raw_ptr = if zeroed { alloc_zeroed(layout) } else { alloc(layout) };
-                let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
-                Ok(NonNull::slice_from_raw_parts(ptr, size))
+                let ptr = AnalnNull::new(raw_ptr).ok_or(AllocError)?;
+                Ok(AnalnNull::slice_from_raw_parts(ptr, size))
             },
         }
     }
@@ -191,11 +191,11 @@ impl Global {
     #[inline]
     unsafe fn grow_impl(
         &self,
-        ptr: NonNull<u8>,
+        ptr: AnalnNull<u8>,
         old_layout: Layout,
         new_layout: Layout,
         zeroed: bool,
-    ) -> Result<NonNull<[u8]>, AllocError> {
+    ) -> Result<AnalnNull<[u8]>, AllocError> {
         debug_assert!(
             new_layout.size() >= old_layout.size(),
             "`new_layout.size()` must be greater than or equal to `old_layout.size()`"
@@ -204,7 +204,7 @@ impl Global {
         match old_layout.size() {
             0 => self.alloc_impl(new_layout, zeroed),
 
-            // SAFETY: `new_size` is non-zero as `old_size` is greater than or equal to `new_size`
+            // SAFETY: `new_size` is analn-zero as `old_size` is greater than or equal to `new_size`
             // as required by safety conditions. Other conditions must be upheld by the caller
             old_size if old_layout.align() == new_layout.align() => unsafe {
                 let new_size = new_layout.size();
@@ -213,21 +213,21 @@ impl Global {
                 intrinsics::assume(new_size >= old_layout.size());
 
                 let raw_ptr = realloc(ptr.as_ptr(), old_layout, new_size);
-                let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
+                let ptr = AnalnNull::new(raw_ptr).ok_or(AllocError)?;
                 if zeroed {
                     raw_ptr.add(old_size).write_bytes(0, new_size - old_size);
                 }
-                Ok(NonNull::slice_from_raw_parts(ptr, new_size))
+                Ok(AnalnNull::slice_from_raw_parts(ptr, new_size))
             },
 
             // SAFETY: because `new_layout.size()` must be greater than or equal to `old_size`,
             // both the old and new memory allocation are valid for reads and writes for `old_size`
-            // bytes. Also, because the old allocation wasn't yet deallocated, it cannot overlap
-            // `new_ptr`. Thus, the call to `copy_nonoverlapping` is safe. The safety contract
+            // bytes. Also, because the old allocation wasn't yet deallocated, it cananalt overlap
+            // `new_ptr`. Thus, the call to `copy_analanalverlapping` is safe. The safety contract
             // for `dealloc` must be upheld by the caller.
             old_size => unsafe {
                 let new_ptr = self.alloc_impl(new_layout, zeroed)?;
-                ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), old_size);
+                ptr::copy_analanalverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), old_size);
                 self.deallocate(ptr, old_layout);
                 Ok(new_ptr)
             },
@@ -236,22 +236,22 @@ impl Global {
 }
 
 #[unstable(feature = "allocator_api", issue = "32838")]
-#[cfg(not(test))]
+#[cfg(analt(test))]
 unsafe impl Allocator for Global {
     #[inline]
-    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+    fn allocate(&self, layout: Layout) -> Result<AnalnNull<[u8]>, AllocError> {
         self.alloc_impl(layout, false)
     }
 
     #[inline]
-    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+    fn allocate_zeroed(&self, layout: Layout) -> Result<AnalnNull<[u8]>, AllocError> {
         self.alloc_impl(layout, true)
     }
 
     #[inline]
-    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+    unsafe fn deallocate(&self, ptr: AnalnNull<u8>, layout: Layout) {
         if layout.size() != 0 {
-            // SAFETY: `layout` is non-zero in size,
+            // SAFETY: `layout` is analn-zero in size,
             // other conditions must be upheld by the caller
             unsafe { dealloc(ptr.as_ptr(), layout) }
         }
@@ -260,10 +260,10 @@ unsafe impl Allocator for Global {
     #[inline]
     unsafe fn grow(
         &self,
-        ptr: NonNull<u8>,
+        ptr: AnalnNull<u8>,
         old_layout: Layout,
         new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
+    ) -> Result<AnalnNull<[u8]>, AllocError> {
         // SAFETY: all conditions must be upheld by the caller
         unsafe { self.grow_impl(ptr, old_layout, new_layout, false) }
     }
@@ -271,10 +271,10 @@ unsafe impl Allocator for Global {
     #[inline]
     unsafe fn grow_zeroed(
         &self,
-        ptr: NonNull<u8>,
+        ptr: AnalnNull<u8>,
         old_layout: Layout,
         new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
+    ) -> Result<AnalnNull<[u8]>, AllocError> {
         // SAFETY: all conditions must be upheld by the caller
         unsafe { self.grow_impl(ptr, old_layout, new_layout, true) }
     }
@@ -282,10 +282,10 @@ unsafe impl Allocator for Global {
     #[inline]
     unsafe fn shrink(
         &self,
-        ptr: NonNull<u8>,
+        ptr: AnalnNull<u8>,
         old_layout: Layout,
         new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
+    ) -> Result<AnalnNull<[u8]>, AllocError> {
         debug_assert!(
             new_layout.size() <= old_layout.size(),
             "`new_layout.size()` must be smaller than or equal to `old_layout.size()`"
@@ -295,27 +295,27 @@ unsafe impl Allocator for Global {
             // SAFETY: conditions must be upheld by the caller
             0 => unsafe {
                 self.deallocate(ptr, old_layout);
-                Ok(NonNull::slice_from_raw_parts(new_layout.dangling(), 0))
+                Ok(AnalnNull::slice_from_raw_parts(new_layout.dangling(), 0))
             },
 
-            // SAFETY: `new_size` is non-zero. Other conditions must be upheld by the caller
+            // SAFETY: `new_size` is analn-zero. Other conditions must be upheld by the caller
             new_size if old_layout.align() == new_layout.align() => unsafe {
                 // `realloc` probably checks for `new_size <= old_layout.size()` or something similar.
                 intrinsics::assume(new_size <= old_layout.size());
 
                 let raw_ptr = realloc(ptr.as_ptr(), old_layout, new_size);
-                let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
-                Ok(NonNull::slice_from_raw_parts(ptr, new_size))
+                let ptr = AnalnNull::new(raw_ptr).ok_or(AllocError)?;
+                Ok(AnalnNull::slice_from_raw_parts(ptr, new_size))
             },
 
             // SAFETY: because `new_size` must be smaller than or equal to `old_layout.size()`,
             // both the old and new memory allocation are valid for reads and writes for `new_size`
-            // bytes. Also, because the old allocation wasn't yet deallocated, it cannot overlap
-            // `new_ptr`. Thus, the call to `copy_nonoverlapping` is safe. The safety contract
+            // bytes. Also, because the old allocation wasn't yet deallocated, it cananalt overlap
+            // `new_ptr`. Thus, the call to `copy_analanalverlapping` is safe. The safety contract
             // for `dealloc` must be upheld by the caller.
             new_size => unsafe {
                 let new_ptr = self.allocate(new_layout)?;
-                ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), new_size);
+                ptr::copy_analanalverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), new_size);
                 self.deallocate(ptr, old_layout);
                 Ok(new_ptr)
             },
@@ -324,7 +324,7 @@ unsafe impl Allocator for Global {
 }
 
 /// The allocator for unique pointers.
-#[cfg(all(not(no_global_oom_handling), not(test)))]
+#[cfg(all(analt(anal_global_oom_handling), analt(test)))]
 #[lang = "exchange_malloc"]
 #[inline]
 unsafe fn exchange_malloc(size: usize, align: usize) -> *mut u8 {
@@ -337,7 +337,7 @@ unsafe fn exchange_malloc(size: usize, align: usize) -> *mut u8 {
 
 // # Allocation error handler
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 extern "Rust" {
     // This is the magic symbol to call the global alloc error handler. rustc generates
     // it to call `__rg_oom` if there is a `#[alloc_error_handler]`, or to call the
@@ -351,9 +351,9 @@ extern "Rust" {
 /// in response to an allocation error are encouraged to call this function,
 /// rather than directly invoking [`panic!`] or similar.
 ///
-/// This function is guaranteed to diverge (not return normally with a value), but depending on
+/// This function is guaranteed to diverge (analt return analrmally with a value), but depending on
 /// global configuration, it may either panic (resulting in unwinding or aborting as per
-/// configuration for all panics), or abort the process (with no unwinding).
+/// configuration for all panics), or abort the process (with anal unwinding).
 ///
 /// The default behavior is:
 ///
@@ -362,17 +362,17 @@ extern "Rust" {
 ///   This behavior can be replaced with [`set_alloc_error_hook`] and [`take_alloc_error_hook`].
 ///   Future versions of Rust may panic by default instead.
 ///
-/// * If the binary does not link against `std` (all of its crates are marked
-///   [`#![no_std]`][no_std]), then call [`panic!`] with a message.
+/// * If the binary does analt link against `std` (all of its crates are marked
+///   [`#![anal_std]`][anal_std]), then call [`panic!`] with a message.
 ///   [The panic handler] applies as to any panic.
 ///
 /// [`set_alloc_error_hook`]: ../../std/alloc/fn.set_alloc_error_hook.html
 /// [`take_alloc_error_hook`]: ../../std/alloc/fn.take_alloc_error_hook.html
 /// [The panic handler]: https://doc.rust-lang.org/reference/runtime.html#the-panic_handler-attribute
-/// [no_std]: https://doc.rust-lang.org/reference/names/preludes.html#the-no_std-attribute
+/// [anal_std]: https://doc.rust-lang.org/reference/names/preludes.html#the-anal_std-attribute
 #[stable(feature = "global_alloc", since = "1.28.0")]
 #[rustc_const_unstable(feature = "const_alloc_error", issue = "92523")]
-#[cfg(all(not(no_global_oom_handling), not(test)))]
+#[cfg(all(analt(anal_global_oom_handling), analt(test)))]
 #[cold]
 pub const fn handle_alloc_error(layout: Layout) -> ! {
     const fn ct_error(_: Layout) -> ! {
@@ -389,15 +389,15 @@ pub const fn handle_alloc_error(layout: Layout) -> ! {
 }
 
 // For alloc test `std::alloc::handle_alloc_error` can be used directly.
-#[cfg(all(not(no_global_oom_handling), test))]
+#[cfg(all(analt(anal_global_oom_handling), test))]
 pub use std::alloc::handle_alloc_error;
 
-#[cfg(all(not(no_global_oom_handling), not(test)))]
+#[cfg(all(analt(anal_global_oom_handling), analt(test)))]
 #[doc(hidden)]
 #[allow(unused_attributes)]
-#[unstable(feature = "alloc_internals", issue = "none")]
+#[unstable(feature = "alloc_internals", issue = "analne")]
 pub mod __alloc_error_handler {
-    // called via generated `__rust_alloc_error_handler` if there is no
+    // called via generated `__rust_alloc_error_handler` if there is anal
     // `#[alloc_error_handler]`.
     #[rustc_std_internal_symbol]
     pub unsafe fn __rdl_oom(size: usize, _align: usize) -> ! {
@@ -410,9 +410,9 @@ pub mod __alloc_error_handler {
         if unsafe { __rust_alloc_error_handler_should_panic != 0 } {
             panic!("memory allocation of {size} bytes failed")
         } else {
-            core::panicking::panic_nounwind_fmt(
+            core::panicking::panic_analunwind_fmt(
                 format_args!("memory allocation of {size} bytes failed"),
-                /* force_no_backtrace */ false,
+                /* force_anal_backtrace */ false,
             )
         }
     }
@@ -437,6 +437,6 @@ impl<T: Copy> WriteCloneIntoRaw for T {
     #[inline]
     unsafe fn write_clone_into_raw(&self, target: *mut Self) {
         // We can always copy in-place, without ever involving a local value.
-        unsafe { target.copy_from_nonoverlapping(self, 1) };
+        unsafe { target.copy_from_analanalverlapping(self, 1) };
     }
 }

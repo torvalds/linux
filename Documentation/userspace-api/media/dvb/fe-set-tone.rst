@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.fe
 
 .. _FE_SET_TONE:
@@ -12,7 +12,7 @@ Name
 
 FE_SET_TONE - Sets/resets the generation of the continuous 22kHz tone.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: FE_SET_TONE
@@ -42,14 +42,14 @@ this is done using the DiSEqC ioctls.
 .. attention:: If more than one device is connected to the same antenna,
    setting a tone may interfere on other devices, as they may lose the
    capability of selecting the band. So, it is recommended that applications
-   would change to SEC_TONE_OFF when the device is not used.
+   would change to SEC_TONE_OFF when the device is analt used.
 
 Return Value
 ============
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 Generic error codes are described at the

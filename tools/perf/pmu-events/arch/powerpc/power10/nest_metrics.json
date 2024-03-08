@@ -12,13 +12,13 @@
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "LOCAL_NODE_PUMP_RETRY_RATIO_P01",
+      "MetricName": "LOCAL_ANALDE_PUMP_RETRY_RATIO_P01",
       "MetricExpr": "(hv_24x7@PM_PB_RTY_LNS_PUMP01\\,chip\\=?@ / hv_24x7@PM_PB_LNS_PUMP01\\,chip\\=?@) * 100",
       "ScaleUnit": "1%",
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "LOCAL_NODE_PUMP_RETRY_RATIO_P23",
+      "MetricName": "LOCAL_ANALDE_PUMP_RETRY_RATIO_P23",
       "MetricExpr": "(hv_24x7@PM_PB_RTY_LNS_PUMP23\\,chip\\=?@ / hv_24x7@PM_PB_LNS_PUMP23\\,chip\\=?@) * 100",
       "ScaleUnit": "1%",
       "AggregationMode": "PerChip"
@@ -60,13 +60,13 @@
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "REMOTE_NODE_PUMPS_RETRIES_RATIO_P01",
+      "MetricName": "REMOTE_ANALDE_PUMPS_RETRIES_RATIO_P01",
       "MetricExpr": "(hv_24x7@PM_PB_RTY_RNS_PUMP01\\,chip\\=?@ / (1 + hv_24x7@PM_PB_RNS_PUMP01\\,chip\\=?@)) * 100",
       "ScaleUnit": "1%",
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "REMOTE_NODE_PUMPS_RETRIES_RATIO_P23",
+      "MetricName": "REMOTE_ANALDE_PUMPS_RETRIES_RATIO_P23",
       "MetricExpr": "(hv_24x7@PM_PB_RTY_RNS_PUMP23\\,chip\\=?@ / (1 + hv_24x7@PM_PB_RNS_PUMP23\\,chip\\=?@)) * 100",
       "ScaleUnit": "1%",
       "AggregationMode": "PerChip"
@@ -84,13 +84,13 @@
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "TOTAL_LOCAL_NODE_PUMPS_P01",
+      "MetricName": "TOTAL_LOCAL_ANALDE_PUMPS_P01",
       "MetricExpr": "(hv_24x7@PM_PB_LNS_PUMP01\\,chip\\=?@ / hv_24x7@PM_PAU_CYC\\,chip\\=?@)",
       "ScaleUnit": "4",
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "TOTAL_LOCAL_NODE_PUMPS_P23",
+      "MetricName": "TOTAL_LOCAL_ANALDE_PUMPS_P23",
       "MetricExpr": "(hv_24x7@PM_PB_LNS_PUMP23\\,chip\\=?@ / hv_24x7@PM_PAU_CYC\\,chip\\=?@)",
       "ScaleUnit": "4",
       "AggregationMode": "PerChip"
@@ -108,37 +108,37 @@
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "TOTAL_LOCAL_NODE_PUMPS_RETRIES_P01",
+      "MetricName": "TOTAL_LOCAL_ANALDE_PUMPS_RETRIES_P01",
       "MetricExpr": "(hv_24x7@PM_PB_RTY_LNS_PUMP01\\,chip\\=?@ / hv_24x7@PM_PAU_CYC\\,chip\\=?@)",
       "ScaleUnit": "4",
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "TOTAL_LOCAL_NODE_PUMPS_RETRIES_P23",
+      "MetricName": "TOTAL_LOCAL_ANALDE_PUMPS_RETRIES_P23",
       "MetricExpr": "(hv_24x7@PM_PB_RTY_LNS_PUMP23\\,chip\\=?@ / hv_24x7@PM_PAU_CYC\\,chip\\=?@)",
       "ScaleUnit": "4",
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "TOTAL_REMOTE_NODE_PUMPS_P01",
+      "MetricName": "TOTAL_REMOTE_ANALDE_PUMPS_P01",
       "MetricExpr": "(hv_24x7@PM_PB_RNS_PUMP01\\,chip\\=?@ / hv_24x7@PM_PAU_CYC\\,chip\\=?@)",
       "ScaleUnit": "4",
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "TOTAL_REMOTE_NODE_PUMPS_P23",
+      "MetricName": "TOTAL_REMOTE_ANALDE_PUMPS_P23",
       "MetricExpr": "(hv_24x7@PM_PB_RNS_PUMP23\\,chip\\=?@ / hv_24x7@PM_PAU_CYC\\,chip\\=?@)",
       "ScaleUnit": "4",
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "TOTAL_NEAR_NODE_PUMPS_P01",
+      "MetricName": "TOTAL_NEAR_ANALDE_PUMPS_P01",
       "MetricExpr": "(hv_24x7@PM_PB_NNS_PUMP01\\,chip\\=?@ / hv_24x7@PM_PAU_CYC\\,chip\\=?@)",
       "ScaleUnit": "4",
       "AggregationMode": "PerChip"
     },
     {
-      "MetricName": "TOTAL_NEAR_NODE_PUMPS_P23",
+      "MetricName": "TOTAL_NEAR_ANALDE_PUMPS_P23",
       "MetricExpr": "(hv_24x7@PM_PB_NNS_PUMP23\\,chip\\=?@ / hv_24x7@PM_PAU_CYC\\,chip\\=?@)",
       "ScaleUnit": "4",
       "AggregationMode": "PerChip"
@@ -343,13 +343,13 @@
     },
     {
       "MetricName": "TOTAL_DATA_BANDWIDTH_TRANSFERRED_OVER_PB_PCI1",
-      "MetricExpr": "(hv_24x7@PM_PCI1_32B_INOUT\\,chip\\=?@)",
+      "MetricExpr": "(hv_24x7@PM_PCI1_32B_IANALUT\\,chip\\=?@)",
       "ScaleUnit": "3.28e-2MB",
       "AggregationMode": "PerChip"
     },
     {
       "MetricName": "TOTAL_DATA_BANDWIDTH_TRANSFERRED_OVER_PB_PCI0",
-      "MetricExpr": "(hv_24x7@PM_PCI0_32B_INOUT\\,chip\\=?@)",
+      "MetricExpr": "(hv_24x7@PM_PCI0_32B_IANALUT\\,chip\\=?@)",
       "ScaleUnit": "3.28e-2MB",
       "AggregationMode": "PerChip"
     },

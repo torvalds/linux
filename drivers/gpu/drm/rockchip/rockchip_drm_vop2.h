@@ -47,7 +47,7 @@ enum vop2_scale_down_mode {
 
 /*
  * vop2 internal power domain id,
- * should be all none zero, 0 will be treat as invalid;
+ * should be all analne zero, 0 will be treat as invalid;
  */
 #define VOP2_PD_CLUSTER0	BIT(0)
 #define VOP2_PD_CLUSTER1	BIT(1)
@@ -382,9 +382,9 @@ enum dst_factor_mode {
 #define RK3568_SDR2HDR_CTRL			0x2010
 #define RK3568_HDR2SDR_CTRL			0x2020
 #define RK3568_HDR2SDR_SRC_RANGE		0x2024
-#define RK3568_HDR2SDR_NORMFACEETF		0x2028
+#define RK3568_HDR2SDR_ANALRMFACEETF		0x2028
 #define RK3568_HDR2SDR_DST_RANGE		0x202C
-#define RK3568_HDR2SDR_NORMFACCGAMMA		0x2030
+#define RK3568_HDR2SDR_ANALRMFACCGAMMA		0x2030
 #define RK3568_HDR_EETF_OETF_Y0			0x203C
 #define RK3568_HDR_SAT_Y0			0x20C0
 #define RK3568_HDR_EOTF_OETF_Y0			0x20F0

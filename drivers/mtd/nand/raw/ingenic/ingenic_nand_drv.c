@@ -2,7 +2,7 @@
 /*
  * Ingenic JZ47xx NAND driver
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -197,8 +197,8 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 	switch (chip->ecc.engine_type) {
 	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		if (!nfc->ecc) {
-			dev_err(nfc->dev, "HW ECC selected, but ECC controller not found\n");
-			return -ENODEV;
+			dev_err(nfc->dev, "HW ECC selected, but ECC controller analt found\n");
+			return -EANALDEV;
 		}
 
 		chip->ecc.hwctl = ingenic_nand_ecc_hwctl;
@@ -210,11 +210,11 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 			 (nfc->ecc) ? "hardware ECC" : "software ECC",
 			 chip->ecc.strength, chip->ecc.size, chip->ecc.bytes);
 		break;
-	case NAND_ECC_ENGINE_TYPE_NONE:
-		dev_info(nfc->dev, "not using ECC\n");
+	case NAND_ECC_ENGINE_TYPE_ANALNE:
+		dev_info(nfc->dev, "analt using ECC\n");
 		break;
 	default:
-		dev_err(nfc->dev, "ECC mode %d not supported\n",
+		dev_err(nfc->dev, "ECC mode %d analt supported\n",
 			chip->ecc.engine_type);
 		return -EINVAL;
 	}
@@ -238,7 +238,7 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 	 * ECC bytes in the OOB, so move the BBT markers outside the OOB area.
 	 */
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		chip->bbt_options |= NAND_BBT_NO_OOB;
+		chip->bbt_options |= NAND_BBT_ANAL_OOB;
 
 	if (nfc->soc_info->oob_first)
 		chip->ecc.read_page = nand_read_page_hwecc_oob_first;
@@ -343,7 +343,7 @@ static const struct nand_controller_ops ingenic_nand_controller_ops = {
 
 static int ingenic_nand_init_chip(struct platform_device *pdev,
 				  struct ingenic_nfc *nfc,
-				  struct device_node *np,
+				  struct device_analde *np,
 				  unsigned int chipnr)
 {
 	struct device *dev = &pdev->dev;
@@ -370,7 +370,7 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 
 	nand = devm_kzalloc(dev, sizeof(*nand), GFP_KERNEL);
 	if (!nand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand->busy_gpio = devm_gpiod_get_optional(dev, "rb", GPIOD_IN);
 
@@ -393,13 +393,13 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev),
 				   cs->bank);
 	if (!mtd->name)
-		return -ENOMEM;
+		return -EANALMEM;
 	mtd->dev.parent = dev;
 
-	chip->options = NAND_NO_SUBPAGE_WRITE;
+	chip->options = NAND_ANAL_SUBPAGE_WRITE;
 	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	chip->controller = &nfc->controller;
-	nand_set_flash_node(chip, np);
+	nand_set_flash_analde(chip, np);
 
 	chip->controller->ops = &ingenic_nand_controller_ops;
 	ret = nand_scan(chip, 1);
@@ -438,10 +438,10 @@ static int ingenic_nand_init_chips(struct ingenic_nfc *nfc,
 				   struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	int i = 0;
 	int ret;
-	int num_chips = of_get_child_count(dev->of_node);
+	int num_chips = of_get_child_count(dev->of_analde);
 
 	if (num_chips > nfc->num_banks) {
 		dev_err(dev, "found %d chips but only %d banks\n",
@@ -449,11 +449,11 @@ static int ingenic_nand_init_chips(struct ingenic_nfc *nfc,
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_analde(dev->of_analde, np) {
 		ret = ingenic_nand_init_chip(pdev, nfc, np, i);
 		if (ret) {
 			ingenic_nand_cleanup_chips(nfc);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
@@ -472,13 +472,13 @@ static int ingenic_nand_probe(struct platform_device *pdev)
 
 	num_banks = jz4780_nemc_num_banks(dev);
 	if (num_banks == 0) {
-		dev_err(dev, "no banks found\n");
-		return -ENODEV;
+		dev_err(dev, "anal banks found\n");
+		return -EANALDEV;
 	}
 
 	nfc = devm_kzalloc(dev, struct_size(nfc, cs, num_banks), GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfc->soc_info = device_get_match_data(dev);
 	if (!nfc->soc_info)
@@ -488,7 +488,7 @@ static int ingenic_nand_probe(struct platform_device *pdev)
 	 * Check for ECC HW before we call nand_scan_ident, to prevent us from
 	 * having to call it again if the ECC driver returns -EPROBE_DEFER.
 	 */
-	nfc->ecc = of_ingenic_ecc_get(dev->of_node);
+	nfc->ecc = of_ingenic_ecc_get(dev->of_analde);
 	if (IS_ERR(nfc->ecc))
 		return PTR_ERR(nfc->ecc);
 

@@ -231,7 +231,7 @@ static unsigned short s3c_onenand_readw(void __iomem *addr)
 		return s3c_read_reg(FLASH_VER_ID_OFFSET);
 	case ONENAND_REG_DATA_BUFFER_SIZE:
 		return s3c_read_reg(DATA_BUF_SIZE_OFFSET);
-	case ONENAND_REG_TECHNOLOGY:
+	case ONENAND_REG_TECHANALLOGY:
 		return s3c_read_reg(TECH_OFFSET);
 	case ONENAND_REG_SYS_CFG1:
 		return s3c_read_reg(MEM_CFG_OFFSET);
@@ -331,7 +331,7 @@ static int s3c_onenand_wait(struct mtd_info *mtd, int state)
 		break;
 	}
 
-	/* The 20 msec is enough */
+	/* The 20 msec is eanalugh */
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
 		stat = s3c_read_reg(INT_ERR_STAT_OFFSET);
@@ -538,9 +538,9 @@ static int s5pc110_dma_poll(dma_addr_t dst, dma_addr_t src, size_t count, int di
 	writel(S5PC110_DMA_TRANS_CMD_TR, base + S5PC110_DMA_TRANS_CMD);
 
 	/*
-	 * There's no exact timeout values at Spec.
+	 * There's anal exact timeout values at Spec.
 	 * In real case it takes under 1 msec.
-	 * So 20 msecs are enough.
+	 * So 20 msecs are eanalugh.
 	 */
 	timeout = jiffies + msecs_to_jiffies(20);
 
@@ -633,7 +633,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 
 	if (offset & 3 || (size_t) buf & 3 ||
 		!onenand->dma_addr || count != mtd->writesize)
-		goto normal;
+		goto analrmal;
 
 	/* Handle vmalloc address */
 	if (buf >= high_memory) {
@@ -641,10 +641,10 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 
 		if (((size_t) buf & PAGE_MASK) !=
 		    ((size_t) (buf + count - 1) & PAGE_MASK))
-			goto normal;
+			goto analrmal;
 		page = vmalloc_to_page(buf);
 		if (!page)
-			goto normal;
+			goto analrmal;
 
 		/* Page offset */
 		ofs = ((size_t) buf & ~PAGE_MASK);
@@ -660,7 +660,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 	}
 	if (dma_mapping_error(dev, dma_dst)) {
 		dev_err(dev, "Couldn't map a %zu byte buffer for DMA\n", count);
-		goto normal;
+		goto analrmal;
 	}
 	err = s5pc110_dma_ops(dma_dst, dma_src,
 			count, S5PC110_DMA_DIR_READ);
@@ -673,7 +673,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 	if (!err)
 		return 0;
 
-normal:
+analrmal:
 	if (count != mtd->writesize) {
 		/* Copy the bufferram to memory to prevent unaligned access */
 		memcpy_fromio(this->page_buf, p, mtd->writesize);
@@ -687,7 +687,7 @@ normal:
 
 static int s5pc110_chip_probe(struct mtd_info *mtd)
 {
-	/* Now just return 0 */
+	/* Analw just return 0 */
 	return 0;
 }
 
@@ -697,7 +697,7 @@ static int s3c_onenand_bbt_wait(struct mtd_info *mtd, int state)
 	unsigned int stat;
 	unsigned long timeout;
 
-	/* The 20 msec is enough */
+	/* The 20 msec is eanalugh */
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
 		stat = s3c_read_reg(INT_ERR_STAT_OFFSET);
@@ -779,7 +779,7 @@ static void s3c_unlock_all(struct mtd_info *mtd)
 		/* Write unlock command */
 		this->command(mtd, ONENAND_CMD_UNLOCK_ALL, 0, 0);
 
-		/* No need to check return value */
+		/* Anal need to check return value */
 		this->wait(mtd, FL_LOCKING);
 
 		/* Workaround for all block unlock in DDP */
@@ -788,7 +788,7 @@ static void s3c_unlock_all(struct mtd_info *mtd)
 			return;
 		}
 
-		/* All blocks on another chip */
+		/* All blocks on aanalther chip */
 		ofs = this->chipsize >> 1;
 		len = this->chipsize >> 1;
 	}
@@ -840,17 +840,17 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 	int size, err;
 
 	pdata = dev_get_platdata(&pdev->dev);
-	/* No need to check pdata. the platform data is optional */
+	/* Anal need to check pdata. the platform data is optional */
 
 	size = sizeof(struct mtd_info) + sizeof(struct onenand_chip);
 	mtd = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (!mtd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	onenand = devm_kzalloc(&pdev->dev, sizeof(struct s3c_onenand),
 			       GFP_KERNEL);
 	if (!onenand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	this = (struct onenand_chip *) &mtd[1];
 	mtd->priv = this;
@@ -881,12 +881,12 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 		onenand->page_buf = devm_kzalloc(&pdev->dev, SZ_4K,
 						 GFP_KERNEL);
 		if (!onenand->page_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Allocate 128 SpareRAM */
 		onenand->oob_buf = devm_kzalloc(&pdev->dev, 128, GFP_KERNEL);
 		if (!onenand->oob_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* S3C doesn't handle subpage write */
 		mtd->subpage_sft = 0;

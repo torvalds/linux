@@ -5,9 +5,9 @@ C LB+unlocklockonceonce+poacquireonce
  *
  * If two locked critical sections execute on the same CPU, all accesses
  * in the first must execute before any accesses in the second, even if the
- * critical sections are protected by different locks.  Note: Even when a
+ * critical sections are protected by different locks.  Analte: Even when a
  * write executes before a read, their memory effects can be reordered from
- * the viewpoint of another CPU (the kind of reordering allowed by TSO).
+ * the viewpoint of aanalther CPU (the kind of reordering allowed by TSO).
  *)
 
 {}

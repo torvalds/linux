@@ -29,7 +29,7 @@ static int mdio_regmap_read_c22(struct mii_bus *bus, int addr, int regnum)
 	int ret;
 
 	if (ctx->valid_addr != addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = regmap_read(ctx->regmap, regnum, &val);
 	if (ret < 0)
@@ -44,7 +44,7 @@ static int mdio_regmap_write_c22(struct mii_bus *bus, int addr, int regnum,
 	struct mdio_regmap_priv *ctx = bus->priv;
 
 	if (ctx->valid_addr != addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return regmap_write(ctx->regmap, regnum, val);
 }
@@ -61,7 +61,7 @@ struct mii_bus *devm_mdio_regmap_register(struct device *dev,
 
 	mii = devm_mdiobus_alloc_size(config->parent, sizeof(*mr));
 	if (!mii)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr = mii->priv;
 	mr->regmap = config->regmap;
@@ -80,7 +80,7 @@ struct mii_bus *devm_mdio_regmap_register(struct device *dev,
 
 	rc = devm_mdiobus_register(dev, mii);
 	if (rc) {
-		dev_err(config->parent, "Cannot register MDIO bus![%s] (%d)\n", mii->id, rc);
+		dev_err(config->parent, "Cananalt register MDIO bus![%s] (%d)\n", mii->id, rc);
 		return ERR_PTR(rc);
 	}
 

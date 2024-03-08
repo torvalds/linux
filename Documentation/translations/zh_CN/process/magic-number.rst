@@ -46,7 +46,7 @@ tty源码经常通过特定驱动使用这种方法用来反复地排列特定�
   现在应该最新的Linux 2.1.112.因为在特性冻结期间，不能在2.2.x前改变任
   何东西。这些条目被数域所排序。
 
-					Krzysztof G.Baranowski
+					Krzysztof G.Baraanalwski
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
@@ -55,7 +55,7 @@ tty源码经常通过特定驱动使用这种方法用来反复地排列特定�
 
 					Petr Baudis
 					<pasky@ucw.cz>
-					03 Nov 2002
+					03 Analv 2002
 
   更新魔术表到Linux 2.5.74。
 

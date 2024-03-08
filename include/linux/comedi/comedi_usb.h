@@ -29,7 +29,7 @@ void comedi_usb_driver_unregister(struct comedi_driver *comedi_driver,
  * @__comedi_driver: comedi_driver struct
  * @__usb_driver: usb_driver struct
  *
- * Helper macro for comedi USB drivers which do not do anything special
+ * Helper macro for comedi USB drivers which do analt do anything special
  * in module init/exit. This eliminates a lot of boilerplate. Each
  * module may only use this macro once, and calling it replaces
  * module_init() and module_exit()

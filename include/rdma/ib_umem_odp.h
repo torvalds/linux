@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2014 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #ifndef IB_UMEM_ODP_H
@@ -11,7 +11,7 @@
 
 struct ib_umem_odp {
 	struct ib_umem umem;
-	struct mmu_interval_notifier notifier;
+	struct mmu_interval_analtifier analtifier;
 	struct pid *tgid;
 
 	/* An array of the pfns included in the on-demand paging umem. */
@@ -26,7 +26,7 @@ struct ib_umem_odp {
 	/*
 	 * The umem_mutex protects the page_list and dma_list fields of an ODP
 	 * umem, allowing only a single thread to map/unmap pages. The mutex
-	 * also protects access to the mmu notifier counters.
+	 * also protects access to the mmu analtifier counters.
 	 */
 	struct mutex		umem_mutex;
 	void			*private; /* for the HW driver to use. */
@@ -34,7 +34,7 @@ struct ib_umem_odp {
 	int npages;
 
 	/*
-	 * An implicit odp umem cannot be DMA mapped, has 0 length, and serves
+	 * An implicit odp umem cananalt be DMA mapped, has 0 length, and serves
 	 * only as an anchor for the driver to hold onto the per_mm. FIXME:
 	 * This should be removed and drivers should work with the per_mm
 	 * directly.
@@ -52,13 +52,13 @@ static inline struct ib_umem_odp *to_ib_umem_odp(struct ib_umem *umem)
 /* Returns the first page of an ODP umem. */
 static inline unsigned long ib_umem_start(struct ib_umem_odp *umem_odp)
 {
-	return umem_odp->notifier.interval_tree.start;
+	return umem_odp->analtifier.interval_tree.start;
 }
 
 /* Returns the address of the page after the last one of an ODP umem. */
 static inline unsigned long ib_umem_end(struct ib_umem_odp *umem_odp)
 {
-	return umem_odp->notifier.interval_tree.last + 1;
+	return umem_odp->analtifier.interval_tree.last + 1;
 }
 
 static inline size_t ib_umem_odp_num_pages(struct ib_umem_odp *umem_odp)
@@ -84,13 +84,13 @@ static inline size_t ib_umem_odp_num_pages(struct ib_umem_odp *umem_odp)
 
 struct ib_umem_odp *
 ib_umem_odp_get(struct ib_device *device, unsigned long addr, size_t size,
-		int access, const struct mmu_interval_notifier_ops *ops);
+		int access, const struct mmu_interval_analtifier_ops *ops);
 struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_device *device,
 					       int access);
 struct ib_umem_odp *
 ib_umem_odp_alloc_child(struct ib_umem_odp *root_umem, unsigned long addr,
 			size_t size,
-			const struct mmu_interval_notifier_ops *ops);
+			const struct mmu_interval_analtifier_ops *ops);
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp);
 
 int ib_umem_odp_map_dma_and_lock(struct ib_umem_odp *umem_odp, u64 start_offset,
@@ -103,7 +103,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 start_offset,
 
 static inline struct ib_umem_odp *
 ib_umem_odp_get(struct ib_device *device, unsigned long addr, size_t size,
-		int access, const struct mmu_interval_notifier_ops *ops)
+		int access, const struct mmu_interval_analtifier_ops *ops)
 {
 	return ERR_PTR(-EINVAL);
 }

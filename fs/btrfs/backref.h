@@ -13,22 +13,22 @@
 #include "extent_io.h"
 
 /*
- * Used by implementations of iterate_extent_inodes_t (see definition below) to
- * signal that backref iteration can stop immediately and no error happened.
- * The value must be non-negative and must not be 0, 1 (which is a common return
+ * Used by implementations of iterate_extent_ianaldes_t (see definition below) to
+ * signal that backref iteration can stop immediately and anal error happened.
+ * The value must be analn-negative and must analt be 0, 1 (which is a common return
  * value from things like btrfs_search_slot() and used internally in the backref
  * walking code) and different from BACKREF_FOUND_SHARED and
- * BACKREF_FOUND_NOT_SHARED
+ * BACKREF_FOUND_ANALT_SHARED
  */
-#define BTRFS_ITERATE_EXTENT_INODES_STOP 5
+#define BTRFS_ITERATE_EXTENT_IANALDES_STOP 5
 
 /*
- * Should return 0 if no errors happened and iteration of backrefs should
- * continue. Can return BTRFS_ITERATE_EXTENT_INODES_STOP or any other non-zero
+ * Should return 0 if anal errors happened and iteration of backrefs should
+ * continue. Can return BTRFS_ITERATE_EXTENT_IANALDES_STOP or any other analn-zero
  * value to immediately stop iteration and possibly signal an error back to
  * the caller.
  */
-typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 num_bytes,
+typedef int (iterate_extent_ianaldes_t)(u64 inum, u64 offset, u64 num_bytes,
 				      u64 root, void *ctx);
 
 /*
@@ -57,19 +57,19 @@ struct btrfs_backref_walk_ctx {
 	/*
 	 * If true and bytenr corresponds to a data extent, then references from
 	 * all file extent items that point to the data extent are considered,
-	 * @extent_item_pos is ignored.
+	 * @extent_item_pos is iganalred.
 	 */
-	bool ignore_extent_item_pos;
+	bool iganalre_extent_item_pos;
 	/*
-	 * If true and bytenr corresponds to a data extent, then the inode list
-	 * (each member describing inode number, file offset and root) is not
+	 * If true and bytenr corresponds to a data extent, then the ianalde list
+	 * (each member describing ianalde number, file offset and root) is analt
 	 * added to each reference added to the @refs ulist.
 	 */
-	bool skip_inode_ref_list;
+	bool skip_ianalde_ref_list;
 	/* A valid transaction handle or NULL. */
 	struct btrfs_trans_handle *trans;
 	/*
-	 * The file system's info object, can not be NULL.
+	 * The file system's info object, can analt be NULL.
 	 *
 	 * Must always be set by the top level caller.
 	 */
@@ -78,7 +78,7 @@ struct btrfs_backref_walk_ctx {
 	 * Time sequence acquired from btrfs_get_tree_mod_seq(), in case the
 	 * caller joined the tree mod log to get a consistent view of b+trees
 	 * while we do backref walking, or BTRFS_SEQ_LAST.
-	 * When using BTRFS_SEQ_LAST, delayed refs are not checked and it uses
+	 * When using BTRFS_SEQ_LAST, delayed refs are analt checked and it uses
 	 * commit roots when searching b+trees - this is a special case for
 	 * qgroups used during a transaction commit.
 	 */
@@ -90,13 +90,13 @@ struct btrfs_backref_walk_ctx {
 	struct ulist *refs;
 	/*
 	 * List used to collect the IDs of the roots from which the target
-	 * extent is accessible. Can be NULL in case the caller does not care
+	 * extent is accessible. Can be NULL in case the caller does analt care
 	 * about collecting root IDs.
 	 */
 	struct ulist *roots;
 	/*
-	 * Used by iterate_extent_inodes() and the main backref walk code
-	 * (find_parent_nodes()). Lookup and store functions for an optional
+	 * Used by iterate_extent_ianaldes() and the main backref walk code
+	 * (find_parent_analdes()). Lookup and store functions for an optional
 	 * cache which maps the logical address (bytenr) of leaves to an array
 	 * of root IDs.
 	 */
@@ -105,17 +105,17 @@ struct btrfs_backref_walk_ctx {
 	void (*cache_store)(u64 leaf_bytenr, const struct ulist *root_ids,
 			    void *user_ctx);
 	/*
-	 * If this is not NULL, then the backref walking code will call this
+	 * If this is analt NULL, then the backref walking code will call this
 	 * for each indirect data extent reference as soon as it finds one,
 	 * before collecting all the remaining backrefs and before resolving
 	 * indirect backrefs. This allows for the caller to terminate backref
 	 * walking as soon as it finds one backref that matches some specific
-	 * criteria. The @cache_lookup and @cache_store callbacks should not
+	 * criteria. The @cache_lookup and @cache_store callbacks should analt
 	 * be NULL in order to use this callback.
 	 */
-	iterate_extent_inodes_t *indirect_ref_iterator;
+	iterate_extent_ianaldes_t *indirect_ref_iterator;
 	/*
-	 * If this is not NULL, then the backref walking code will call this for
+	 * If this is analt NULL, then the backref walking code will call this for
 	 * each extent item it's meant to process before it actually starts
 	 * processing it. If this returns anything other than 0, then it stops
 	 * the backref walking code immediately.
@@ -123,19 +123,19 @@ struct btrfs_backref_walk_ctx {
 	int (*check_extent_item)(u64 bytenr, const struct btrfs_extent_item *ei,
 				 const struct extent_buffer *leaf, void *user_ctx);
 	/*
-	 * If this is not NULL, then the backref walking code will call this for
+	 * If this is analt NULL, then the backref walking code will call this for
 	 * each extent data ref it finds (BTRFS_EXTENT_DATA_REF_KEY keys) before
 	 * processing that data ref. If this callback return false, then it will
-	 * ignore this data ref and it will never resolve the indirect data ref,
+	 * iganalre this data ref and it will never resolve the indirect data ref,
 	 * saving time searching for leaves in a fs tree with file extent items
 	 * matching the data ref.
 	 */
-	bool (*skip_data_ref)(u64 root, u64 ino, u64 offset, void *user_ctx);
+	bool (*skip_data_ref)(u64 root, u64 ianal, u64 offset, void *user_ctx);
 	/* Context object to pass to the callbacks defined above. */
 	void *user_ctx;
 };
 
-struct inode_fs_paths {
+struct ianalde_fs_paths {
 	struct btrfs_path		*btrfs_path;
 	struct btrfs_root		*fs_root;
 	struct btrfs_data_container	*fspath;
@@ -178,12 +178,12 @@ struct btrfs_backref_share_check_ctx {
 	 * It's very common to have several file extent items that point to the
 	 * same extent (bytenr) but with different offsets and lengths. This
 	 * typically happens for COW writes, partial writes into prealloc
-	 * extents, NOCOW writes after snapshoting a root, hole punching or
+	 * extents, ANALCOW writes after snapshoting a root, hole punching or
 	 * reflinking within the same file (less common perhaps).
 	 * So keep a small cache with the lookup results for the extent pointed
 	 * by the last few file extent items. This cache is checked, with a
 	 * linear scan, whenever btrfs_is_data_extent_shared() is called, so
-	 * it must be small so that it does not negatively affect performance in
+	 * it must be small so that it does analt negatively affect performance in
 	 * case we don't have multiple file extent items that point to the same
 	 * data extent.
 	 */
@@ -209,15 +209,15 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 			    struct btrfs_key *key, struct btrfs_extent_item *ei,
 			    u32 item_size, u64 *out_root, u8 *out_level);
 
-int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
+int iterate_extent_ianaldes(struct btrfs_backref_walk_ctx *ctx,
 			  bool search_commit_root,
-			  iterate_extent_inodes_t *iterate, void *user_ctx);
+			  iterate_extent_ianaldes_t *iterate, void *user_ctx);
 
-int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
+int iterate_ianaldes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 				struct btrfs_path *path, void *ctx,
-				bool ignore_offset);
+				bool iganalre_offset);
 
-int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
+int paths_from_ianalde(u64 inum, struct ianalde_fs_paths *ipath);
 
 int btrfs_find_all_leafs(struct btrfs_backref_walk_ctx *ctx);
 int btrfs_find_all_roots(struct btrfs_backref_walk_ctx *ctx,
@@ -228,15 +228,15 @@ char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			char *dest, u32 size);
 
 struct btrfs_data_container *init_data_container(u32 total_bytes);
-struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
+struct ianalde_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 					struct btrfs_path *path);
-void free_ipath(struct inode_fs_paths *ipath);
+void free_ipath(struct ianalde_fs_paths *ipath);
 
-int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
+int btrfs_find_one_extref(struct btrfs_root *root, u64 ianalde_objectid,
 			  u64 start_off, struct btrfs_path *path,
-			  struct btrfs_inode_extref **ret_extref,
+			  struct btrfs_ianalde_extref **ret_extref,
 			  u64 *found_off);
-int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
+int btrfs_is_data_extent_shared(struct btrfs_ianalde *ianalde, u64 bytenr,
 				u64 extent_gen,
 				struct btrfs_backref_share_check_ctx *ctx);
 
@@ -244,12 +244,12 @@ int __init btrfs_prelim_ref_init(void);
 void __cold btrfs_prelim_ref_exit(void);
 
 struct prelim_ref {
-	struct rb_node rbnode;
+	struct rb_analde rbanalde;
 	u64 root_id;
 	struct btrfs_key key_for_search;
 	u8 level;
 	int count;
-	struct extent_inode_elem *inode_list;
+	struct extent_ianalde_elem *ianalde_list;
 	u64 parent;
 	u64 wanted_disk_byte;
 };
@@ -257,7 +257,7 @@ struct prelim_ref {
 /*
  * Iterate backrefs of one extent.
  *
- * Now it only supports iteration of tree block in commit root.
+ * Analw it only supports iteration of tree block in commit root.
  */
 struct btrfs_backref_iter {
 	u64 bytenr;
@@ -284,11 +284,11 @@ static inline struct extent_buffer *btrfs_backref_get_eb(
 {
 	if (!iter)
 		return NULL;
-	return iter->path->nodes[0];
+	return iter->path->analdes[0];
 }
 
 /*
- * For metadata with EXTENT_ITEM key (non-skinny) case, the first inline data
+ * For metadata with EXTENT_ITEM key (analn-skinny) case, the first inline data
  * is btrfs_tree_block_info, without a btrfs_extent_inline_ref header.
  *
  * This helper determines if that's the case.
@@ -329,38 +329,38 @@ static inline void btrfs_backref_iter_release(struct btrfs_backref_iter *iter)
  * Backref cache related structures
  *
  * The whole objective of backref_cache is to build a bi-directional map
- * of tree blocks (represented by backref_node) and all their parents.
+ * of tree blocks (represented by backref_analde) and all their parents.
  */
 
 /*
  * Represent a tree block in the backref cache
  */
-struct btrfs_backref_node {
+struct btrfs_backref_analde {
 	struct {
-		struct rb_node rb_node;
+		struct rb_analde rb_analde;
 		u64 bytenr;
-	}; /* Use rb_simple_node for search/insert */
+	}; /* Use rb_simple_analde for search/insert */
 
 	u64 new_bytenr;
-	/* Objectid of tree block owner, can be not uptodate */
+	/* Objectid of tree block owner, can be analt uptodate */
 	u64 owner;
 	/* Link to pending, changed or detached list */
 	struct list_head list;
 
-	/* List of upper level edges, which link this node to its parents */
+	/* List of upper level edges, which link this analde to its parents */
 	struct list_head upper;
-	/* List of lower level edges, which link this node to its children */
+	/* List of lower level edges, which link this analde to its children */
 	struct list_head lower;
 
-	/* NULL if this node is not tree root */
+	/* NULL if this analde is analt tree root */
 	struct btrfs_root *root;
 	/* Extent buffer got by COWing the block */
 	struct extent_buffer *eb;
 	/* Level of the tree block */
 	unsigned int level:8;
-	/* Is the block in a non-shareable tree */
+	/* Is the block in a analn-shareable tree */
 	unsigned int cowonly:1;
-	/* 1 if no child node is in the cache */
+	/* 1 if anal child analde is in the cache */
 	unsigned int lowest:1;
 	/* Is the extent buffer locked */
 	unsigned int locked:1;
@@ -370,10 +370,10 @@ struct btrfs_backref_node {
 	unsigned int checked:1;
 	/*
 	 * 1 if corresponding block has been COWed but some upper level block
-	 * pointers may not point to the new location
+	 * pointers may analt point to the new location
 	 */
 	unsigned int pending:1;
-	/* 1 if the backref node isn't connected to any other backref node */
+	/* 1 if the backref analde isn't connected to any other backref analde */
 	unsigned int detached:1;
 
 	/*
@@ -387,50 +387,50 @@ struct btrfs_backref_node {
 #define UPPER	1
 
 /*
- * Represent an edge connecting upper and lower backref nodes.
+ * Represent an edge connecting upper and lower backref analdes.
  */
 struct btrfs_backref_edge {
 	/*
-	 * list[LOWER] is linked to btrfs_backref_node::upper of lower level
-	 * node, and list[UPPER] is linked to btrfs_backref_node::lower of
-	 * upper level node.
+	 * list[LOWER] is linked to btrfs_backref_analde::upper of lower level
+	 * analde, and list[UPPER] is linked to btrfs_backref_analde::lower of
+	 * upper level analde.
 	 *
 	 * Also, build_backref_tree() uses list[UPPER] for pending edges, before
-	 * linking list[UPPER] to its upper level nodes.
+	 * linking list[UPPER] to its upper level analdes.
 	 */
 	struct list_head list[2];
 
-	/* Two related nodes */
-	struct btrfs_backref_node *node[2];
+	/* Two related analdes */
+	struct btrfs_backref_analde *analde[2];
 };
 
 struct btrfs_backref_cache {
-	/* Red black tree of all backref nodes in the cache */
+	/* Red black tree of all backref analdes in the cache */
 	struct rb_root rb_root;
-	/* For passing backref nodes to btrfs_reloc_cow_block */
-	struct btrfs_backref_node *path[BTRFS_MAX_LEVEL];
+	/* For passing backref analdes to btrfs_reloc_cow_block */
+	struct btrfs_backref_analde *path[BTRFS_MAX_LEVEL];
 	/*
 	 * List of blocks that have been COWed but some block pointers in upper
-	 * level blocks may not reflect the new location
+	 * level blocks may analt reflect the new location
 	 */
 	struct list_head pending[BTRFS_MAX_LEVEL];
-	/* List of backref nodes with no child node */
+	/* List of backref analdes with anal child analde */
 	struct list_head leaves;
 	/* List of blocks that have been COWed in current transaction */
 	struct list_head changed;
-	/* List of detached backref node. */
+	/* List of detached backref analde. */
 	struct list_head detached;
 
 	u64 last_trans;
 
-	int nr_nodes;
+	int nr_analdes;
 	int nr_edges;
 
 	/* List of unchecked backref edges during backref cache build */
 	struct list_head pending_edge;
 
-	/* List of useless backref nodes during backref cache build */
-	struct list_head useless_node;
+	/* List of useless backref analdes during backref cache build */
+	struct list_head useless_analde;
 
 	struct btrfs_fs_info *fs_info;
 
@@ -445,7 +445,7 @@ struct btrfs_backref_cache {
 
 void btrfs_backref_init_cache(struct btrfs_fs_info *fs_info,
 			      struct btrfs_backref_cache *cache, bool is_reloc);
-struct btrfs_backref_node *btrfs_backref_alloc_node(
+struct btrfs_backref_analde *btrfs_backref_alloc_analde(
 		struct btrfs_backref_cache *cache, u64 bytenr, int level);
 struct btrfs_backref_edge *btrfs_backref_alloc_edge(
 		struct btrfs_backref_cache *cache);
@@ -453,29 +453,29 @@ struct btrfs_backref_edge *btrfs_backref_alloc_edge(
 #define		LINK_LOWER	(1 << 0)
 #define		LINK_UPPER	(1 << 1)
 static inline void btrfs_backref_link_edge(struct btrfs_backref_edge *edge,
-					   struct btrfs_backref_node *lower,
-					   struct btrfs_backref_node *upper,
+					   struct btrfs_backref_analde *lower,
+					   struct btrfs_backref_analde *upper,
 					   int link_which)
 {
 	ASSERT(upper && lower && upper->level == lower->level + 1);
-	edge->node[LOWER] = lower;
-	edge->node[UPPER] = upper;
+	edge->analde[LOWER] = lower;
+	edge->analde[UPPER] = upper;
 	if (link_which & LINK_LOWER)
 		list_add_tail(&edge->list[LOWER], &lower->upper);
 	if (link_which & LINK_UPPER)
 		list_add_tail(&edge->list[UPPER], &upper->lower);
 }
 
-static inline void btrfs_backref_free_node(struct btrfs_backref_cache *cache,
-					   struct btrfs_backref_node *node)
+static inline void btrfs_backref_free_analde(struct btrfs_backref_cache *cache,
+					   struct btrfs_backref_analde *analde)
 {
-	if (node) {
-		ASSERT(list_empty(&node->list));
-		ASSERT(list_empty(&node->lower));
-		ASSERT(node->eb == NULL);
-		cache->nr_nodes--;
-		btrfs_put_root(node->root);
-		kfree(node);
+	if (analde) {
+		ASSERT(list_empty(&analde->list));
+		ASSERT(list_empty(&analde->lower));
+		ASSERT(analde->eb == NULL);
+		cache->nr_analdes--;
+		btrfs_put_root(analde->root);
+		kfree(analde);
 	}
 }
 
@@ -488,47 +488,47 @@ static inline void btrfs_backref_free_edge(struct btrfs_backref_cache *cache,
 	}
 }
 
-static inline void btrfs_backref_unlock_node_buffer(
-		struct btrfs_backref_node *node)
+static inline void btrfs_backref_unlock_analde_buffer(
+		struct btrfs_backref_analde *analde)
 {
-	if (node->locked) {
-		btrfs_tree_unlock(node->eb);
-		node->locked = 0;
+	if (analde->locked) {
+		btrfs_tree_unlock(analde->eb);
+		analde->locked = 0;
 	}
 }
 
-static inline void btrfs_backref_drop_node_buffer(
-		struct btrfs_backref_node *node)
+static inline void btrfs_backref_drop_analde_buffer(
+		struct btrfs_backref_analde *analde)
 {
-	if (node->eb) {
-		btrfs_backref_unlock_node_buffer(node);
-		free_extent_buffer(node->eb);
-		node->eb = NULL;
+	if (analde->eb) {
+		btrfs_backref_unlock_analde_buffer(analde);
+		free_extent_buffer(analde->eb);
+		analde->eb = NULL;
 	}
 }
 
 /*
- * Drop the backref node from cache without cleaning up its children
+ * Drop the backref analde from cache without cleaning up its children
  * edges.
  *
- * This can only be called on node without parent edges.
+ * This can only be called on analde without parent edges.
  * The children edges are still kept as is.
  */
-static inline void btrfs_backref_drop_node(struct btrfs_backref_cache *tree,
-					   struct btrfs_backref_node *node)
+static inline void btrfs_backref_drop_analde(struct btrfs_backref_cache *tree,
+					   struct btrfs_backref_analde *analde)
 {
-	ASSERT(list_empty(&node->upper));
+	ASSERT(list_empty(&analde->upper));
 
-	btrfs_backref_drop_node_buffer(node);
-	list_del_init(&node->list);
-	list_del_init(&node->lower);
-	if (!RB_EMPTY_NODE(&node->rb_node))
-		rb_erase(&node->rb_node, &tree->rb_root);
-	btrfs_backref_free_node(tree, node);
+	btrfs_backref_drop_analde_buffer(analde);
+	list_del_init(&analde->list);
+	list_del_init(&analde->lower);
+	if (!RB_EMPTY_ANALDE(&analde->rb_analde))
+		rb_erase(&analde->rb_analde, &tree->rb_root);
+	btrfs_backref_free_analde(tree, analde);
 }
 
-void btrfs_backref_cleanup_node(struct btrfs_backref_cache *cache,
-				struct btrfs_backref_node *node);
+void btrfs_backref_cleanup_analde(struct btrfs_backref_cache *cache,
+				struct btrfs_backref_analde *analde);
 
 void btrfs_backref_release_cache(struct btrfs_backref_cache *cache);
 
@@ -540,17 +540,17 @@ static inline void btrfs_backref_panic(struct btrfs_fs_info *fs_info,
 		    bytenr);
 }
 
-int btrfs_backref_add_tree_node(struct btrfs_trans_handle *trans,
+int btrfs_backref_add_tree_analde(struct btrfs_trans_handle *trans,
 				struct btrfs_backref_cache *cache,
 				struct btrfs_path *path,
 				struct btrfs_backref_iter *iter,
-				struct btrfs_key *node_key,
-				struct btrfs_backref_node *cur);
+				struct btrfs_key *analde_key,
+				struct btrfs_backref_analde *cur);
 
 int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
-				     struct btrfs_backref_node *start);
+				     struct btrfs_backref_analde *start);
 
 void btrfs_backref_error_cleanup(struct btrfs_backref_cache *cache,
-				 struct btrfs_backref_node *node);
+				 struct btrfs_backref_analde *analde);
 
 #endif

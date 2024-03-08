@@ -62,14 +62,14 @@ module_param_named(safe, safe_string, charp, 0);
 MODULE_PARM_DESC(cmd_per_lun, "The maximum number of tags to use by default");
 MODULE_PARM_DESC(burst, "Maximum burst.  0 to disable, 255 to read from registers");
 MODULE_PARM_DESC(led, "Set to 1 to enable LED support");
-MODULE_PARM_DESC(diff, "0 for no differential mode, 1 for BIOS, 2 for always, 3 for not GPIO3");
+MODULE_PARM_DESC(diff, "0 for anal differential mode, 1 for BIOS, 2 for always, 3 for analt GPIO3");
 MODULE_PARM_DESC(irqm, "0 for open drain, 1 to leave alone, 2 for totem pole");
-MODULE_PARM_DESC(buschk, "0 to not check, 1 for detach on error, 2 for warn on error");
+MODULE_PARM_DESC(buschk, "0 to analt check, 1 for detach on error, 2 for warn on error");
 MODULE_PARM_DESC(hostid, "The SCSI ID to use for the host adapters");
-MODULE_PARM_DESC(verb, "0 for minimal verbosity, 1 for normal, 2 for excessive");
+MODULE_PARM_DESC(verb, "0 for minimal verbosity, 1 for analrmal, 2 for excessive");
 MODULE_PARM_DESC(debug, "Set bits to enable debugging");
 MODULE_PARM_DESC(settle, "Settle delay in seconds.  Default 3");
-MODULE_PARM_DESC(nvram, "Option currently not used");
+MODULE_PARM_DESC(nvram, "Option currently analt used");
 MODULE_PARM_DESC(excl, "List ioport addresses here to prevent controllers from being attached");
 MODULE_PARM_DESC(safe, "Set other settings to a \"safe mode\"");
 
@@ -103,7 +103,7 @@ static void sym2_setup_params(void)
 			sym_driver_setup.settle_delay = 10;
 			sym_driver_setup.use_nvram = 1;
 		} else if (*safe_string != 'n') {
-			printk(KERN_WARNING NAME53C8XX "Ignoring parameter %s"
+			printk(KERN_WARNING NAME53C8XX "Iganalring parameter %s"
 					" passed to safe option", safe_string);
 		}
 	}
@@ -140,7 +140,7 @@ void sym_xpt_done(struct sym_hcb *np, struct scsi_cmnd *cmd)
  */
 void sym_xpt_async_bus_reset(struct sym_hcb *np)
 {
-	printf_notice("%s: SCSI BUS has been reset.\n", sym_name(np));
+	printf_analtice("%s: SCSI BUS has been reset.\n", sym_name(np));
 	np->s.settle_time = jiffies + sym_driver_setup.settle_delay * HZ;
 	np->s.settle_time_valid = 1;
 	if (sym_verbose >= 2)
@@ -217,7 +217,7 @@ void sym_set_cam_result_error(struct sym_hcb *np, struct sym_ccb *cp, int resid)
 	} else if (cp->host_status == HS_COMPLETE) 	/* Bad SCSI status */
 		cam_status = DID_OK;
 	else if (cp->host_status == HS_SEL_TIMEOUT)	/* Selection timeout */
-		cam_status = DID_NO_CONNECT;
+		cam_status = DID_ANAL_CONNECT;
 	else if (cp->host_status == HS_UNEXPECTED)	/* Unexpected BUS FREE*/
 		cam_status = DID_ERROR;
 	else {						/* Extended error */
@@ -334,10 +334,10 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 		goto out_abort;
 
 	/*
-	 *  No direction means no data.
+	 *  Anal direction means anal data.
 	 */
 	dir = cmd->sc_data_direction;
-	if (dir != DMA_NONE) {
+	if (dir != DMA_ANALNE) {
 		cp->segments = sym_scatter(np, cp, cmd);
 		if (cp->segments < 0) {
 			sym_set_cam_status(cmd, DID_ERROR);
@@ -345,10 +345,10 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 		}
 
 		/*
-		 *  No segments means no data.
+		 *  Anal segments means anal data.
 		 */
 		if (!cp->segments)
-			dir = DMA_NONE;
+			dir = DMA_ANALNE;
 	} else {
 		cp->data_len = 0;
 		cp->segments = 0;
@@ -371,9 +371,9 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 		goalp = SCRIPTA_BA(np, data_in2) + 8;
 		lastp = goalp - 8 - (cp->segments * (2*4));
 		break;
-	case DMA_NONE:
+	case DMA_ANALNE:
 	default:
-		lastp = goalp = SCRIPTB_BA(np, no_data);
+		lastp = goalp = SCRIPTB_BA(np, anal_data);
 		break;
 	}
 
@@ -389,12 +389,12 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 	 *  When `#ifed 1', the code below makes the driver 
 	 *  panic on the first attempt to write to a SCSI device.
 	 *  It is the first test we want to do after a driver 
-	 *  change that does not seem obviously safe. :)
+	 *  change that does analt seem obviously safe. :)
 	 */
 #if 0
 	switch (cp->cdb_buf[0]) {
 	case 0x0A: case 0x2A: case 0xAA:
-		panic("XXXXXXXXXXXXX WRITE NOT YET ALLOWED XXXXXXXXXXXXXX\n");
+		panic("XXXXXXXXXXXXX WRITE ANALT YET ALLOWED XXXXXXXXXXXXXX\n");
 		break;
 	default:
 		break;
@@ -418,7 +418,7 @@ out_abort:
  *  timer daemon.
  *
  *  Misused to keep the driver running when
- *  interrupts are not configured correctly.
+ *  interrupts are analt configured correctly.
  */
 static void sym_timer(struct sym_hcb *np)
 {
@@ -445,7 +445,7 @@ static void sym_timer(struct sym_hcb *np)
 	}
 
 	/*
-	 *	Nothing to do for now, but that may come.
+	 *	Analthing to do for analw, but that may come.
 	 */
 	if (np->s.lasttime + 4*HZ < thistime) {
 		np->s.lasttime = thistime;
@@ -495,7 +495,7 @@ static int sym53c8xx_queue_command_lck(struct scsi_cmnd *cmd)
 
 	/*
 	 *  Shorten our settle_time if needed for 
-	 *  this command not to time out.
+	 *  this command analt to time out.
 	 */
 	if (np->s.settle_time_valid && scsi_cmd_to_rq(cmd)->timeout) {
 		unsigned long tlimit = jiffies + scsi_cmd_to_rq(cmd)->timeout;
@@ -527,7 +527,7 @@ static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 
 	/* Avoid spinloop trying to handle interrupts on frozen device */
 	if (pci_channel_offline(sym_data->pdev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("[");
 
@@ -707,7 +707,7 @@ static int sym53c8xx_eh_host_reset_handler(struct scsi_cmnd *cmd)
 	/* We may be in an error condition because the PCI bus
 	 * went down. In this case, we need to wait until the
 	 * PCI bus is reset, the card is reset, and only then
-	 * proceed with the scsi error recovery.  There's no
+	 * proceed with the scsi error recovery.  There's anal
 	 * point in hurrying; take a leisurely wait.
 	 */
 #define WAIT_FOR_PCI_RECOVERY	35
@@ -779,12 +779,12 @@ static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 	spin_lock_irqsave(np->s.host->host_lock, flags);
 
 	/*
-	 * Fail the device init if the device is flagged NOSCAN at BOOT in
+	 * Fail the device init if the device is flagged ANALSCAN at BOOT in
 	 * the NVRAM.  This may speed up boot and maintain coherency with
 	 * BIOS device numbering.  Clearing the flag allows the user to
 	 * rescan skipped devices later.  We also return an error for
-	 * devices not flagged for SCAN LUNS in the NVRAM since some single
-	 * lun devices behave badly when asked for a non zero LUN.
+	 * devices analt flagged for SCAN LUNS in the NVRAM since some single
+	 * lun devices behave badly when asked for a analn zero LUN.
 	 */
 
 	if (tp->usrflags & SYM_SCAN_BOOT_DISABLED) {
@@ -806,7 +806,7 @@ static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 
 	lp = sym_alloc_lcb(np, sdev->id, sdev->lun);
 	if (!lp) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 	if (tp->nlcb == 1)
@@ -839,9 +839,9 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 
 	/*
 	 *  Select queue depth from driver setup.
-	 *  Do not use more than configured by user.
+	 *  Do analt use more than configured by user.
 	 *  Use at least 1.
-	 *  Do not use more than our maximum.
+	 *  Do analt use more than our maximum.
 	 */
 	reqtags = sym_driver_setup.max_tag;
 	if (reqtags > tp->usrtags)
@@ -1174,7 +1174,7 @@ printk("sym_user_command: data=%ld\n", uc->data);
 	case UC_SETFLAG:
 		while (len > 0) {
 			SKIP_SPACES(ptr, len);
-			if	((arg_len = is_keyword(ptr, len, "no_disc")))
+			if	((arg_len = is_keyword(ptr, len, "anal_disc")))
 				uc->data &= ~SYM_DISC_ENABLED;
 			else
 				return -EINVAL;
@@ -1233,7 +1233,7 @@ static int sym_show_info(struct seq_file *m, struct Scsi_Host *shost)
 #endif /* SYM_LINUX_PROC_INFO_SUPPORT */
 
 /*
- * Free resources claimed by sym_iomap_device().  Note that
+ * Free resources claimed by sym_iomap_device().  Analte that
  * sym_free_resources() should be used instead of this function after calling
  * sym_attach().
  */
@@ -1346,7 +1346,7 @@ static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int u
 			!dma_set_mask(&pdev->dev, DMA_DAC_MASK)) {
 		set_dac(np);
 	} else if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		printf_warning("%s: No suitable DMA available\n", sym_name(np));
+		printf_warning("%s: Anal suitable DMA available\n", sym_name(np));
 		goto attach_failed;
 	}
 
@@ -1356,7 +1356,7 @@ static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int u
 	/*
 	 *  Install the interrupt handler.
 	 *  If we synchonize the C code with SCRIPTS on interrupt, 
-	 *  we do not want to share the INTR line at all.
+	 *  we do analt want to share the INTR line at all.
 	 */
 	if (request_irq(pdev->irq, sym53c8xx_intr, IRQF_SHARED, NAME53C8XX,
 			shost)) {
@@ -1367,7 +1367,7 @@ static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int u
 	do_free_irq = 1;
 
 	/*
-	 *  After SCSI devices have been opened, we cannot
+	 *  After SCSI devices have been opened, we cananalt
 	 *  reset the bus safely, so we do it here.
 	 */
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -1402,7 +1402,7 @@ static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int u
 	BUG_ON(sym2_transport_template == NULL);
 	shost->transportt	= sym2_transport_template;
 
-	/* 53c896 rev 1 errata: DMA may not cross 16MB boundary */
+	/* 53c896 rev 1 errata: DMA may analt cross 16MB boundary */
 	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && pdev->revision < 2)
 		shost->dma_boundary = 0xFFFFFF;
 
@@ -1452,13 +1452,13 @@ static int sym_check_supported(struct sym_device *device)
 	int i;
 
 	/*
-	 *  If user excluded this chip, do not initialize it.
+	 *  If user excluded this chip, do analt initialize it.
 	 *  I hate this code so much.  Must kill it.
 	 */
 	if (io_port) {
 		for (i = 0 ; i < 8 ; i++) {
 			if (sym_driver_setup.excludes[i] == io_port)
-				return -ENODEV;
+				return -EANALDEV;
 		}
 	}
 
@@ -1469,8 +1469,8 @@ static int sym_check_supported(struct sym_device *device)
 	 */
 	chip = sym_lookup_chip_table(pdev->device, pdev->revision);
 	if (!chip) {
-		dev_info(&pdev->dev, "device not supported\n");
-		return -ENODEV;
+		dev_info(&pdev->dev, "device analt supported\n");
+		return -EANALDEV;
 	}
 	memcpy(&device->chip, chip, sizeof(device->chip));
 
@@ -1478,7 +1478,7 @@ static int sym_check_supported(struct sym_device *device)
 }
 
 /*
- * Ignore Symbios chips controlled by various RAID controllers.
+ * Iganalre Symbios chips controlled by various RAID controllers.
  * These controllers set value 0x52414944 at RAM end - 16.
  */
 static int sym_check_raid(struct sym_device *device)
@@ -1498,8 +1498,8 @@ static int sym_check_raid(struct sym_device *device)
 		return 0;
 
 	dev_info(&device->pdev->dev,
-			"not initializing, driven by RAID controller.\n");
-	return -ENODEV;
+			"analt initializing, driven by RAID controller.\n");
+	return -EANALDEV;
 }
 
 static int sym_set_workarounds(struct sym_device *device)
@@ -1511,7 +1511,7 @@ static int sym_set_workarounds(struct sym_device *device)
 	/*
 	 *  (ITEM 12 of a DEL about the 896 I haven't yet).
 	 *  We must ensure the chip will use WRITE AND INVALIDATE.
-	 *  The revision number limit is for now arbitrary.
+	 *  The revision number limit is for analw arbitrary.
 	 */
 	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && pdev->revision < 0x4) {
 		chip->features	|= (FE_WRIE | FE_CLSE);
@@ -1520,7 +1520,7 @@ static int sym_set_workarounds(struct sym_device *device)
 	/* If the chip can do Memory Write Invalidate, enable it */
 	if (chip->features & FE_WRIE) {
 		if (pci_set_mwi(pdev))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	/*
@@ -1530,7 +1530,7 @@ static int sym_set_workarounds(struct sym_device *device)
 	 *
 	 *  Make sure Config space and Features agree.
 	 *
-	 *  Recall: writes are not normal to status register -
+	 *  Recall: writes are analt analrmal to status register -
 	 *  write a 1 to clear and a 0 to leave unchanged.
 	 *  Can only reset bits.
 	 */
@@ -1582,7 +1582,7 @@ static int sym_iomap_device(struct sym_device *device)
 		device->s.ioaddr = pci_iomap(pdev, 0,
 						pci_resource_len(pdev, 0));
 	if (!device->s.ioaddr) {
-		dev_err(&pdev->dev, "could not map registers; giving up.\n");
+		dev_err(&pdev->dev, "could analt map registers; giving up.\n");
 		return -EIO;
 	}
 	if (device->ram_base) {
@@ -1590,7 +1590,7 @@ static int sym_iomap_device(struct sym_device *device)
 						pci_resource_len(pdev, i));
 		if (!device->s.ramaddr) {
 			dev_warn(&pdev->dev,
-				"could not map SRAM; continuing anyway.\n");
+				"could analt map SRAM; continuing anyway.\n");
 			device->ram_base = 0;
 		}
 	}
@@ -1602,7 +1602,7 @@ static int sym_iomap_device(struct sym_device *device)
  * The NCR PQS and PDS cards are constructed as a DEC bridge
  * behind which sits a proprietary NCR memory controller and
  * either four or two 53c875s as separate devices.  We can tell
- * if an 875 is part of a PQS/PDS or not since if it is, it will
+ * if an 875 is part of a PQS/PDS or analt since if it is, it will
  * be on the same bus as the memory controller.  In its usual
  * mode of operation, the 875s are slaved to the memory
  * controller for all transfers.  To operate with the Linux
@@ -1661,7 +1661,7 @@ static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 	/*
 	 * Reset NCR chip.
 	 * We should use sym_soft_reset(), but we don't want to do 
-	 * so, since we may not be safe if interrupts occur.
+	 * so, since we may analt be safe if interrupts occur.
 	 */
 	printk("%s: resetting chip\n", sym_name(np));
 	OUTB(np, nc_istat, SRST);
@@ -1767,7 +1767,7 @@ static int sym2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (do_disable_device)
 		pci_disable_device(pdev);
  leave:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void sym2_remove(struct pci_dev *pdev)
@@ -1822,7 +1822,7 @@ static pci_ers_result_t sym2_io_slot_dump(struct pci_dev *pdev)
  * @pdev: pointer to PCI device
  *
  * This routine is similar to sym_set_workarounds(), except
- * that, at this point, we already know that the device was
+ * that, at this point, we already kanalw that the device was
  * successfully initialized at least once before, and so most
  * of the steps taken there are un-needed here.
  */
@@ -1890,11 +1890,11 @@ static pci_ers_result_t sym2_io_slot_reset(struct pci_dev *pdev)
 }
 
 /**
- * sym2_io_resume() - resume normal ops after PCI reset
+ * sym2_io_resume() - resume analrmal ops after PCI reset
  * @pdev: pointer to PCI device
  *
  * Called when the error recovery driver tells us that its
- * OK to resume normal operation. Use completion to allow
+ * OK to resume analrmal operation. Use completion to allow
  * halted scsi ops to resume.
  */
 static void sym2_io_resume(struct pci_dev *pdev)
@@ -1924,7 +1924,7 @@ static void sym2_get_signalling(struct Scsi_Host *shost)
 		type = SPI_SIGNAL_HVD;
 		break;
 	default:
-		type = SPI_SIGNAL_UNKNOWN;
+		type = SPI_SIGNAL_UNKANALWN;
 		break;
 	}
 	spi_signalling(shost) = type;
@@ -2092,7 +2092,7 @@ static int __init sym2_init(void)
 	sym2_setup_params();
 	sym2_transport_template = spi_attach_transport(&sym2_transport_functions);
 	if (!sym2_transport_template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = pci_register_driver(&sym2_driver);
 	if (error)

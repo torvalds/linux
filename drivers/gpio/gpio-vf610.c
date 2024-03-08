@@ -282,7 +282,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->sdata = of_device_get_match_data(dev);
 
@@ -378,9 +378,9 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 				     sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 	girq->parents[0] = port->irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_edge_irq;
 
 	return devm_gpiochip_add_data(dev, gc, port);

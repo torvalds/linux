@@ -73,12 +73,12 @@ static const struct dmi_system_id dell_wmi_smbios_list[] __initconst = {
 /*
  * Keymap for WMI events of type 0x0000
  *
- * Certain keys are flagged as KE_IGNORE. All of these are either
- * notifications (rather than requests for change) or are also sent
- * via the keyboard controller so should not be sent again.
+ * Certain keys are flagged as KE_IGANALRE. All of these are either
+ * analtifications (rather than requests for change) or are also sent
+ * via the keyboard controller so should analt be sent again.
  */
 static const struct key_entry dell_wmi_keymap_type_0000[] = {
-	{ KE_IGNORE, 0x003a, { KEY_CAPSLOCK } },
+	{ KE_IGANALRE, 0x003a, { KEY_CAPSLOCK } },
 
 	/* Key code is followed by brightness level */
 	{ KE_KEY,    0xe005, { KEY_BRIGHTNESSDOWN } },
@@ -88,7 +88,7 @@ static const struct key_entry dell_wmi_keymap_type_0000[] = {
 	{ KE_KEY,    0xe007, { KEY_BATTERY } },
 
 	/* Radio devices state change, key code is followed by other values */
-	{ KE_IGNORE, 0xe008, { KEY_RFKILL } },
+	{ KE_IGANALRE, 0xe008, { KEY_RFKILL } },
 
 	{ KE_KEY,    0xe009, { KEY_EJECTCD } },
 
@@ -96,88 +96,88 @@ static const struct key_entry dell_wmi_keymap_type_0000[] = {
 	{ KE_KEY,    0xe00b, { KEY_SWITCHVIDEOMODE } },
 
 	/* Key code is followed by keyboard illumination level */
-	{ KE_IGNORE, 0xe00c, { KEY_KBDILLUMTOGGLE } },
+	{ KE_IGANALRE, 0xe00c, { KEY_KBDILLUMTOGGLE } },
 
 	/* BIOS error detected */
-	{ KE_IGNORE, 0xe00d, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe00d, { KEY_RESERVED } },
 
 	/* Battery was removed or inserted */
-	{ KE_IGNORE, 0xe00e, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe00e, { KEY_RESERVED } },
 
 	/* Wifi Catcher */
 	{ KE_KEY,    0xe011, { KEY_WLAN } },
 
 	/* Ambient light sensor toggle */
-	{ KE_IGNORE, 0xe013, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe013, { KEY_RESERVED } },
 
-	{ KE_IGNORE, 0xe020, { KEY_MUTE } },
+	{ KE_IGANALRE, 0xe020, { KEY_MUTE } },
 
-	/* Unknown, defined in ACPI DSDT */
-	/* { KE_IGNORE, 0xe023, { KEY_RESERVED } }, */
+	/* Unkanalwn, defined in ACPI DSDT */
+	/* { KE_IGANALRE, 0xe023, { KEY_RESERVED } }, */
 
 	/* Untested, Dell Instant Launch key on Inspiron 7520 */
-	/* { KE_IGNORE, 0xe024, { KEY_RESERVED } }, */
+	/* { KE_IGANALRE, 0xe024, { KEY_RESERVED } }, */
 
 	/* Dell Instant Launch key */
 	{ KE_KEY,    0xe025, { KEY_PROG4 } },
 
 	/* Audio panel key */
-	{ KE_IGNORE, 0xe026, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe026, { KEY_RESERVED } },
 
 	/* LCD Display On/Off Control key */
 	{ KE_KEY,    0xe027, { KEY_DISPLAYTOGGLE } },
 
 	/* Untested, Multimedia key on Dell Vostro 3560 */
-	/* { KE_IGNORE, 0xe028, { KEY_RESERVED } }, */
+	/* { KE_IGANALRE, 0xe028, { KEY_RESERVED } }, */
 
 	/* Dell Instant Launch key */
 	{ KE_KEY,    0xe029, { KEY_PROG4 } },
 
 	/* Untested, Windows Mobility Center button on Inspiron 7520 */
-	/* { KE_IGNORE, 0xe02a, { KEY_RESERVED } }, */
+	/* { KE_IGANALRE, 0xe02a, { KEY_RESERVED } }, */
 
-	/* Unknown, defined in ACPI DSDT */
-	/* { KE_IGNORE, 0xe02b, { KEY_RESERVED } }, */
+	/* Unkanalwn, defined in ACPI DSDT */
+	/* { KE_IGANALRE, 0xe02b, { KEY_RESERVED } }, */
 
 	/* Untested, Dell Audio With Preset Switch button on Inspiron 7520 */
-	/* { KE_IGNORE, 0xe02c, { KEY_RESERVED } }, */
+	/* { KE_IGANALRE, 0xe02c, { KEY_RESERVED } }, */
 
-	{ KE_IGNORE, 0xe02e, { KEY_VOLUMEDOWN } },
-	{ KE_IGNORE, 0xe030, { KEY_VOLUMEUP } },
-	{ KE_IGNORE, 0xe033, { KEY_KBDILLUMUP } },
-	{ KE_IGNORE, 0xe034, { KEY_KBDILLUMDOWN } },
-	{ KE_IGNORE, 0xe03a, { KEY_CAPSLOCK } },
+	{ KE_IGANALRE, 0xe02e, { KEY_VOLUMEDOWN } },
+	{ KE_IGANALRE, 0xe030, { KEY_VOLUMEUP } },
+	{ KE_IGANALRE, 0xe033, { KEY_KBDILLUMUP } },
+	{ KE_IGANALRE, 0xe034, { KEY_KBDILLUMDOWN } },
+	{ KE_IGANALRE, 0xe03a, { KEY_CAPSLOCK } },
 
 	/* NIC Link is Up */
-	{ KE_IGNORE, 0xe043, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe043, { KEY_RESERVED } },
 
 	/* NIC Link is Down */
-	{ KE_IGNORE, 0xe044, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe044, { KEY_RESERVED } },
 
 	/*
 	 * This entry is very suspicious!
 	 * Originally Matthew Garrett created this dell-wmi driver specially for
 	 * "button with a picture of a battery" which has event code 0xe045.
 	 * Later Mario Limonciello from Dell told us that event code 0xe045 is
-	 * reported by Num Lock and should be ignored because key is send also
+	 * reported by Num Lock and should be iganalred because key is send also
 	 * by keyboard controller.
-	 * So for now we will ignore this event to prevent potential double
+	 * So for analw we will iganalre this event to prevent potential double
 	 * Num Lock key press.
 	 */
-	{ KE_IGNORE, 0xe045, { KEY_NUMLOCK } },
+	{ KE_IGANALRE, 0xe045, { KEY_NUMLOCK } },
 
 	/* Scroll lock and also going to tablet mode on portable devices */
-	{ KE_IGNORE, 0xe046, { KEY_SCROLLLOCK } },
+	{ KE_IGANALRE, 0xe046, { KEY_SCROLLLOCK } },
 
 	/* Untested, going from tablet mode on portable devices */
-	/* { KE_IGNORE, 0xe047, { KEY_RESERVED } }, */
+	/* { KE_IGANALRE, 0xe047, { KEY_RESERVED } }, */
 
 	/* Dell Support Center key */
-	{ KE_IGNORE, 0xe06e, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe06e, { KEY_RESERVED } },
 
-	{ KE_IGNORE, 0xe0f7, { KEY_MUTE } },
-	{ KE_IGNORE, 0xe0f8, { KEY_VOLUMEDOWN } },
-	{ KE_IGNORE, 0xe0f9, { KEY_VOLUMEUP } },
+	{ KE_IGANALRE, 0xe0f7, { KEY_MUTE } },
+	{ KE_IGANALRE, 0xe0f8, { KEY_VOLUMEDOWN } },
+	{ KE_IGANALRE, 0xe0f9, { KEY_VOLUMEUP } },
 };
 
 struct dell_bios_keymap_entry {
@@ -204,39 +204,39 @@ static const u16 bios_to_linux_keycode[256] = {
 	[2]	= KEY_PLAYPAUSE,
 	[3]	= KEY_PREVIOUSSONG,
 	[4]	= KEY_STOPCD,
-	[5]	= KEY_UNKNOWN,
-	[6]	= KEY_UNKNOWN,
-	[7]	= KEY_UNKNOWN,
+	[5]	= KEY_UNKANALWN,
+	[6]	= KEY_UNKANALWN,
+	[7]	= KEY_UNKANALWN,
 	[8]	= KEY_WWW,
-	[9]	= KEY_UNKNOWN,
+	[9]	= KEY_UNKANALWN,
 	[10]	= KEY_VOLUMEDOWN,
 	[11]	= KEY_MUTE,
 	[12]	= KEY_VOLUMEUP,
-	[13]	= KEY_UNKNOWN,
+	[13]	= KEY_UNKANALWN,
 	[14]	= KEY_BATTERY,
 	[15]	= KEY_EJECTCD,
-	[16]	= KEY_UNKNOWN,
+	[16]	= KEY_UNKANALWN,
 	[17]	= KEY_SLEEP,
 	[18]	= KEY_PROG1,
 	[19]	= KEY_BRIGHTNESSDOWN,
 	[20]	= KEY_BRIGHTNESSUP,
 	[21]	= KEY_BRIGHTNESS_AUTO,
 	[22]	= KEY_KBDILLUMTOGGLE,
-	[23]	= KEY_UNKNOWN,
+	[23]	= KEY_UNKANALWN,
 	[24]	= KEY_SWITCHVIDEOMODE,
-	[25]	= KEY_UNKNOWN,
-	[26]	= KEY_UNKNOWN,
+	[25]	= KEY_UNKANALWN,
+	[26]	= KEY_UNKANALWN,
 	[27]	= KEY_SWITCHVIDEOMODE,
-	[28]	= KEY_UNKNOWN,
-	[29]	= KEY_UNKNOWN,
+	[28]	= KEY_UNKANALWN,
+	[29]	= KEY_UNKANALWN,
 	[30]	= KEY_PROG2,
-	[31]	= KEY_UNKNOWN,
-	[32]	= KEY_UNKNOWN,
-	[33]	= KEY_UNKNOWN,
-	[34]	= KEY_UNKNOWN,
-	[35]	= KEY_UNKNOWN,
-	[36]	= KEY_UNKNOWN,
-	[37]	= KEY_UNKNOWN,
+	[31]	= KEY_UNKANALWN,
+	[32]	= KEY_UNKANALWN,
+	[33]	= KEY_UNKANALWN,
+	[34]	= KEY_UNKANALWN,
+	[35]	= KEY_UNKANALWN,
+	[36]	= KEY_UNKANALWN,
+	[37]	= KEY_UNKANALWN,
 	[38]	= KEY_MICMUTE,
 	[255]	= KEY_PROG3,
 };
@@ -249,13 +249,13 @@ static const u16 bios_to_linux_keycode[256] = {
  */
 static const struct key_entry dell_wmi_keymap_type_0010[] = {
 	/* Fn-lock switched to function keys */
-	{ KE_IGNORE, 0x0, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x0, { KEY_RESERVED } },
 
 	/* Fn-lock switched to multimedia keys */
-	{ KE_IGNORE, 0x1, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x1, { KEY_RESERVED } },
 
-	/* Keyboard backlight change notification */
-	{ KE_IGNORE, 0x3f, { KEY_RESERVED } },
+	/* Keyboard backlight change analtification */
+	{ KE_IGANALRE, 0x3f, { KEY_RESERVED } },
 
 	/* Backlight brightness level */
 	{ KE_KEY,    0x57, { KEY_BRIGHTNESSDOWN } },
@@ -268,31 +268,31 @@ static const struct key_entry dell_wmi_keymap_type_0010[] = {
 	{ KE_KEY, 0x150, { KEY_MICMUTE } },
 
 	/* Fn-lock */
-	{ KE_IGNORE, 0x151, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x151, { KEY_RESERVED } },
 
 	/* Change keyboard illumination */
-	{ KE_IGNORE, 0x152, { KEY_KBDILLUMTOGGLE } },
+	{ KE_IGANALRE, 0x152, { KEY_KBDILLUMTOGGLE } },
 
 	/*
-	 * Radio disable (notify only -- there is no model for which the
+	 * Radio disable (analtify only -- there is anal model for which the
 	 * WMI event is supposed to trigger an action).
 	 */
-	{ KE_IGNORE, 0x153, { KEY_RFKILL } },
+	{ KE_IGANALRE, 0x153, { KEY_RFKILL } },
 
 	/* RGB keyboard backlight control */
-	{ KE_IGNORE, 0x154, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x154, { KEY_RESERVED } },
 
 	/*
 	 * Stealth mode toggle. This will "disable all lights and sounds".
 	 * The action is performed by the BIOS and EC; the WMI event is just
-	 * a notification. On the XPS 13 9350, this is Fn+F7, and there's
+	 * a analtification. On the XPS 13 9350, this is Fn+F7, and there's
 	 * a BIOS setting to enable and disable the hotkey.
 	 */
-	{ KE_IGNORE, 0x155, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x155, { KEY_RESERVED } },
 
 	/* Rugged magnetic dock attach/detach events */
-	{ KE_IGNORE, 0x156, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x157, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x156, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x157, { KEY_RESERVED } },
 
 	/* Rugged programmable (P1/P2/P3 keys) */
 	{ KE_KEY,    0x850, { KEY_PROG1 } },
@@ -300,13 +300,13 @@ static const struct key_entry dell_wmi_keymap_type_0010[] = {
 	{ KE_KEY,    0x852, { KEY_PROG3 } },
 
 	/*
-	 * Radio disable (notify only -- there is no model for which the
+	 * Radio disable (analtify only -- there is anal model for which the
 	 * WMI event is supposed to trigger an action).
 	 */
-	{ KE_IGNORE, 0xe008, { KEY_RFKILL } },
+	{ KE_IGANALRE, 0xe008, { KEY_RFKILL } },
 
 	/* Fn-lock */
-	{ KE_IGNORE, 0xe035, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe035, { KEY_RESERVED } },
 };
 
 /*
@@ -314,32 +314,32 @@ static const struct key_entry dell_wmi_keymap_type_0010[] = {
  */
 static const struct key_entry dell_wmi_keymap_type_0011[] = {
 	/* Reflex keyboard switch on 2n1 devices */
-	{ KE_IGNORE, 0xe070, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe070, { KEY_RESERVED } },
 
 	/* Battery unplugged */
-	{ KE_IGNORE, 0xfff0, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xfff0, { KEY_RESERVED } },
 
 	/* Battery inserted */
-	{ KE_IGNORE, 0xfff1, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xfff1, { KEY_RESERVED } },
 
 	/*
 	 * Detachable keyboard detached / undocked
-	 * Note SW_TABLET_MODE is already reported through the intel_vbtn
-	 * driver for this, so we ignore it.
+	 * Analte SW_TABLET_MODE is already reported through the intel_vbtn
+	 * driver for this, so we iganalre it.
 	 */
-	{ KE_IGNORE, 0xfff2, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xfff2, { KEY_RESERVED } },
 
 	/* Detachable keyboard attached / docked */
-	{ KE_IGNORE, 0xfff3, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xfff3, { KEY_RESERVED } },
 
 	/* Keyboard backlight level changed */
-	{ KE_IGNORE, KBD_LED_OFF_TOKEN,      { KEY_RESERVED } },
-	{ KE_IGNORE, KBD_LED_ON_TOKEN,       { KEY_RESERVED } },
-	{ KE_IGNORE, KBD_LED_AUTO_TOKEN,     { KEY_RESERVED } },
-	{ KE_IGNORE, KBD_LED_AUTO_25_TOKEN,  { KEY_RESERVED } },
-	{ KE_IGNORE, KBD_LED_AUTO_50_TOKEN,  { KEY_RESERVED } },
-	{ KE_IGNORE, KBD_LED_AUTO_75_TOKEN,  { KEY_RESERVED } },
-	{ KE_IGNORE, KBD_LED_AUTO_100_TOKEN, { KEY_RESERVED } },
+	{ KE_IGANALRE, KBD_LED_OFF_TOKEN,      { KEY_RESERVED } },
+	{ KE_IGANALRE, KBD_LED_ON_TOKEN,       { KEY_RESERVED } },
+	{ KE_IGANALRE, KBD_LED_AUTO_TOKEN,     { KEY_RESERVED } },
+	{ KE_IGANALRE, KBD_LED_AUTO_25_TOKEN,  { KEY_RESERVED } },
+	{ KE_IGANALRE, KBD_LED_AUTO_50_TOKEN,  { KEY_RESERVED } },
+	{ KE_IGANALRE, KBD_LED_AUTO_75_TOKEN,  { KEY_RESERVED } },
+	{ KE_IGANALRE, KBD_LED_AUTO_100_TOKEN, { KEY_RESERVED } },
 };
 
 /*
@@ -348,13 +348,13 @@ static const struct key_entry dell_wmi_keymap_type_0011[] = {
  */
 static const struct key_entry dell_wmi_keymap_type_0012[] = {
 	/* Backlight brightness change event */
-	{ KE_IGNORE, 0x0003, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x0003, { KEY_RESERVED } },
 
 	/* Ultra-performance mode switch request */
-	{ KE_IGNORE, 0x000d, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0x000d, { KEY_RESERVED } },
 
 	/* Fn-lock button pressed */
-	{ KE_IGNORE, 0xe035, { KEY_RESERVED } },
+	{ KE_IGANALRE, 0xe035, { KEY_RESERVED } },
 };
 
 static void dell_wmi_switch_event(struct input_dev **subdev,
@@ -366,7 +366,7 @@ static void dell_wmi_switch_event(struct input_dev **subdev,
 		struct input_dev *dev = input_allocate_device();
 
 		if (!dev) {
-			pr_warn("could not allocate device for %s\n", devname);
+			pr_warn("could analt allocate device for %s\n", devname);
 			return;
 		}
 		__set_bit(EV_SW, (dev)->evbit);
@@ -376,7 +376,7 @@ static void dell_wmi_switch_event(struct input_dev **subdev,
 		(dev)->id.bustype = BUS_HOST;
 		if (input_register_device(dev)) {
 			input_free_device(dev);
-			pr_warn("could not register device for %s\n", devname);
+			pr_warn("could analt register device for %s\n", devname);
 			return;
 		}
 		*subdev = dev;
@@ -396,14 +396,14 @@ static int dell_wmi_process_key(struct wmi_device *wdev, int type, int code, u16
 	key = sparse_keymap_entry_from_scancode(priv->input_dev,
 						(type << 16) | code);
 	if (!key) {
-		pr_info("Unknown key with type 0x%04x and code 0x%04x pressed\n",
+		pr_info("Unkanalwn key with type 0x%04x and code 0x%04x pressed\n",
 			type, code);
 		return 0;
 	}
 
 	pr_debug("Key with type 0x%04x and code 0x%04x pressed\n", type, code);
 
-	/* Don't report brightness notifications that will also come via ACPI */
+	/* Don't report brightness analtifications that will also come via ACPI */
 	if ((key->keycode == KEY_BRIGHTNESSUP ||
 	     key->keycode == KEY_BRIGHTNESSDOWN) &&
 	    acpi_video_handles_brightness_key_presses())
@@ -413,7 +413,7 @@ static int dell_wmi_process_key(struct wmi_device *wdev, int type, int code, u16
 		return 0;
 
 	if (key->keycode == KEY_KBDILLUMTOGGLE) {
-		dell_laptop_call_notifier(
+		dell_laptop_call_analtifier(
 			DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED, NULL);
 	} else if (type == 0x0011 && code == 0xe070 && remaining > 0) {
 		dell_wmi_switch_event(&priv->tabletswitch_dev,
@@ -430,7 +430,7 @@ static int dell_wmi_process_key(struct wmi_device *wdev, int type, int code, u16
 	return used;
 }
 
-static void dell_wmi_notify(struct wmi_device *wdev,
+static void dell_wmi_analtify(struct wmi_device *wdev,
 			    union acpi_object *obj)
 {
 	struct dell_wmi_priv *priv = dev_get_drvdata(&wdev->dev);
@@ -451,7 +451,7 @@ static void dell_wmi_notify(struct wmi_device *wdev,
 	buffer_end = buffer_entry + buffer_size;
 
 	/*
-	 * BIOS/ACPI on devices with WMI interface version 0 does not clear
+	 * BIOS/ACPI on devices with WMI interface version 0 does analt clear
 	 * buffer before filling it. So next time when BIOS/ACPI send WMI event
 	 * which is smaller as previous then it contains garbage in buffer from
 	 * previous event.
@@ -488,7 +488,7 @@ static void dell_wmi_notify(struct wmi_device *wdev,
 						     buffer_entry[2],
 						     buffer_entry + 3,
 						     len - 3);
-			/* Extended data is currently ignored */
+			/* Extended data is currently iganalred */
 			break;
 		case 0x0010: /* Sequence of keys pressed */
 		case 0x0011: /* Sequence of events occurred */
@@ -506,8 +506,8 @@ static void dell_wmi_notify(struct wmi_device *wdev,
 				dell_wmi_process_key(wdev, buffer_entry[1], buffer_entry[2],
 						     buffer_entry + 3, len - 3);
 			break;
-		default: /* Unknown event */
-			pr_info("Unknown WMI event type 0x%x\n",
+		default: /* Unkanalwn event */
+			pr_info("Unkanalwn WMI event type 0x%x\n",
 				(int)buffer_entry[1]);
 			break;
 		}
@@ -550,18 +550,18 @@ static void handle_dmi_entry(const struct dmi_header *dm, void *opaque)
 				sizeof(struct dell_bios_keymap_entry);
 	if (hotkey_num < 1) {
 		/*
-		 * Historically, dell-wmi would ignore a DMI entry of
+		 * Historically, dell-wmi would iganalre a DMI entry of
 		 * fewer than 7 bytes.  Sizes between 4 and 8 bytes are
-		 * nonsensical (both the header and all entries are 4
+		 * analnsensical (both the header and all entries are 4
 		 * bytes), so we approximate the old behavior by
-		 * ignoring tables with fewer than one entry.
+		 * iganalring tables with fewer than one entry.
 		 */
 		return;
 	}
 
 	keymap = kcalloc(hotkey_num, sizeof(struct key_entry), GFP_KERNEL);
 	if (!keymap) {
-		results->err = -ENOMEM;
+		results->err = -EANALMEM;
 		return;
 	}
 
@@ -573,7 +573,7 @@ static void handle_dmi_entry(const struct dmi_header *dm, void *opaque)
 		u16 keycode = (bios_entry->keycode <
 			       ARRAY_SIZE(bios_to_linux_keycode)) ?
 			bios_to_linux_keycode[bios_entry->keycode] :
-			(bios_entry->keycode == 0xffff ? KEY_UNKNOWN : KEY_RESERVED);
+			(bios_entry->keycode == 0xffff ? KEY_UNKANALWN : KEY_RESERVED);
 
 		/*
 		 * Log if we find an entry in the DMI table that we don't
@@ -587,7 +587,7 @@ static void handle_dmi_entry(const struct dmi_header *dm, void *opaque)
 		}
 
 		if (keycode == KEY_KBDILLUMTOGGLE)
-			keymap[pos].type = KE_IGNORE;
+			keymap[pos].type = KE_IGANALRE;
 		else
 			keymap[pos].type = KE_KEY;
 		keymap[pos].code = bios_entry->scancode;
@@ -609,7 +609,7 @@ static int dell_wmi_input_setup(struct wmi_device *wdev)
 
 	priv->input_dev = input_allocate_device();
 	if (!priv->input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->input_dev->name = "Dell WMI hotkeys";
 	priv->input_dev->id.bustype = BUS_HOST;
@@ -617,11 +617,11 @@ static int dell_wmi_input_setup(struct wmi_device *wdev)
 
 	if (dmi_walk(handle_dmi_entry, &dmi_results)) {
 		/*
-		 * Historically, dell-wmi ignored dmi_walk errors.  A failure
+		 * Historically, dell-wmi iganalred dmi_walk errors.  A failure
 		 * is certainly surprising, but it probably just indicates
 		 * a very old laptop.
 		 */
-		pr_warn("no DMI; using the old-style hotkey interface\n");
+		pr_warn("anal DMI; using the old-style hotkey interface\n");
 	}
 
 	if (dmi_results.err) {
@@ -638,7 +638,7 @@ static int dell_wmi_input_setup(struct wmi_device *wdev)
 			 sizeof(struct key_entry), GFP_KERNEL);
 	if (!keymap) {
 		kfree(dmi_results.keymap);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_dev;
 	}
 
@@ -651,7 +651,7 @@ static int dell_wmi_input_setup(struct wmi_device *wdev)
 
 	kfree(dmi_results.keymap);
 
-	/* Append table with extra events of type 0x0010 which are not in DMI */
+	/* Append table with extra events of type 0x0010 which are analt in DMI */
 	for (i = 0; i < ARRAY_SIZE(dell_wmi_keymap_type_0010); i++) {
 		const struct key_entry *entry = &dell_wmi_keymap_type_0010[i];
 
@@ -686,7 +686,7 @@ static int dell_wmi_input_setup(struct wmi_device *wdev)
 	}
 
 	/*
-	 * Now append also table with "legacy" events of type 0x0000. Some of
+	 * Analw append also table with "legacy" events of type 0x0000. Some of
 	 * them are reported also on laptops which have scancodes in DMI.
 	 */
 	for (i = 0; i < ARRAY_SIZE(dell_wmi_keymap_type_0000); i++) {
@@ -748,7 +748,7 @@ static int dell_wmi_events_set_enabled(bool enable)
 
 	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	buffer->cmd_class = CLASS_INFO;
 	buffer->cmd_select = SELECT_APP_REGISTRATION;
 	buffer->input[0] = 0x10000;
@@ -774,7 +774,7 @@ static int dell_wmi_probe(struct wmi_device *wdev, const void *context)
 	priv = devm_kzalloc(
 		&wdev->dev, sizeof(struct dell_wmi_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(&wdev->dev, priv);
 
 	if (!dell_wmi_get_interface_version(&priv->interface_version))
@@ -799,7 +799,7 @@ static struct wmi_driver dell_wmi_driver = {
 	.id_table = dell_wmi_id_table,
 	.probe = dell_wmi_probe,
 	.remove = dell_wmi_remove,
-	.notify = dell_wmi_notify,
+	.analtify = dell_wmi_analtify,
 };
 
 static int __init dell_wmi_init(void)

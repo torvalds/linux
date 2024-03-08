@@ -134,7 +134,7 @@ static inline const char *amic_micbias_str(enum amic_micbias micbias)
 	case AMIC_MICBIAS_VAMIC2:
 		return "VAMIC2";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -146,7 +146,7 @@ static inline const char *amic_type_str(enum amic_type type)
 	case AMIC_TYPE_SINGLE_ENDED:
 		return "SINGLE ENDED";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -196,13 +196,13 @@ static const char * const enum_ear_lineout_source[] = {"Headset Left",
 static SOC_ENUM_SINGLE_DECL(dapm_enum_ear_lineout_source, AB8500_DMICFILTCONF,
 			AB8500_DMICFILTCONF_DA3TOEAR, enum_ear_lineout_source);
 static const struct snd_kcontrol_new dapm_ear_lineout_source =
-	SOC_DAPM_ENUM("Earpiece or LineOut Mono Source",
+	SOC_DAPM_ENUM("Earpiece or LineOut Moanal Source",
 		dapm_enum_ear_lineout_source);
 
 /* LineOut */
 
 /* LineOut source selector */
-static const char * const enum_lineout_source[] = {"Mono Path", "Stereo Path"};
+static const char * const enum_lineout_source[] = {"Moanal Path", "Stereo Path"};
 static SOC_ENUM_DOUBLE_DECL(dapm_enum_lineout_source, AB8500_ANACONF5,
 			AB8500_ANACONF5_HSLDACTOLOL,
 			AB8500_ANACONF5_HSRDACTOLOR, enum_lineout_source);
@@ -379,30 +379,30 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			AB8500_POWERUP, AB8500_POWERUP_ENANA, 0,
 			NULL, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	/* Main supply node */
-	SND_SOC_DAPM_SUPPLY("Main Supply", SND_SOC_NOPM, 0, 0,
+	/* Main supply analde */
+	SND_SOC_DAPM_SUPPLY("Main Supply", SND_SOC_ANALPM, 0, 0,
 			NULL, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* DA/AD */
 
 	SND_SOC_DAPM_INPUT("ADC Input"),
-	SND_SOC_DAPM_ADC("ADC", "ab8500_0c", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC", "ab8500_0c", SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("DAC Output"),
 
-	SND_SOC_DAPM_AIF_IN("DA_IN1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DA_IN2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DA_IN3", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DA_IN4", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DA_IN5", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DA_IN6", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AD_OUT1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AD_OUT2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AD_OUT3", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AD_OUT4", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AD_OUT57", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AD_OUT68", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DA_IN1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DA_IN2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DA_IN3", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DA_IN4", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DA_IN5", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DA_IN6", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AD_OUT1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AD_OUT2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AD_OUT3", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AD_OUT4", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AD_OUT57", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AD_OUT68", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Headset path */
 
@@ -414,9 +414,9 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DA2 Enable", "ab8500_0p",
 			AB8500_DAPATHENA, AB8500_DAPATHENA_ENDA2, 0),
 
-	SND_SOC_DAPM_PGA("HSL Digital Volume", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA("HSL Digital Volume", SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
-	SND_SOC_DAPM_PGA("HSR Digital Volume", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA("HSR Digital Volume", SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 
 	SND_SOC_DAPM_DAC("HSL DAC", "ab8500_0p",
@@ -447,10 +447,10 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			AB8500_ANACONF4, AB8500_ANACONF4_ENHSR, 0,
 			NULL, 0),
 	SND_SOC_DAPM_PGA("HSL Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_PGA("HSR Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("Headset Left"),
@@ -459,7 +459,7 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	/* LineOut path */
 
 	SND_SOC_DAPM_MUX("LineOut Source",
-			SND_SOC_NOPM, 0, 0, dapm_lineout_source),
+			SND_SOC_ANALPM, 0, 0, dapm_lineout_source),
 
 	SND_SOC_DAPM_MIXER("LOL Disable HFL",
 			AB8500_ANACONF4, AB8500_ANACONF4_ENHFL, 1,
@@ -480,8 +480,8 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 
 	/* Earpiece path */
 
-	SND_SOC_DAPM_MUX("Earpiece or LineOut Mono Source",
-			SND_SOC_NOPM, 0, 0, &dapm_ear_lineout_source),
+	SND_SOC_DAPM_MUX("Earpiece or LineOut Moanal Source",
+			SND_SOC_ANALPM, 0, 0, &dapm_ear_lineout_source),
 	SND_SOC_DAPM_MIXER("EAR DAC",
 			AB8500_DAPATHCONF, AB8500_DAPATHCONF_ENDACEAR, 0,
 			NULL, 0),
@@ -503,9 +503,9 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			AB8500_DAPATHENA, AB8500_DAPATHENA_ENDA4, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MUX("Speaker Left Source",
-			SND_SOC_NOPM, 0, 0, dapm_HFl_select),
+			SND_SOC_ANALPM, 0, 0, dapm_HFl_select),
 	SND_SOC_DAPM_MUX("Speaker Right Source",
-			SND_SOC_NOPM, 0, 0, dapm_HFr_select),
+			SND_SOC_ANALPM, 0, 0, dapm_HFr_select),
 	SND_SOC_DAPM_MIXER("HFL DAC", AB8500_DAPATHCONF,
 			AB8500_DAPATHCONF_ENDACHFL, 0,
 			NULL, 0),
@@ -546,9 +546,9 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			AB8500_DAPATHCONF, AB8500_DAPATHCONF_ENDACVIB2, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MUX("Vibra 1 Controller",
-			SND_SOC_NOPM, 0, 0, dapm_pwm2vib1),
+			SND_SOC_ANALPM, 0, 0, dapm_pwm2vib1),
 	SND_SOC_DAPM_MUX("Vibra 2 Controller",
-			SND_SOC_NOPM, 0, 0, dapm_pwm2vib2),
+			SND_SOC_ANALPM, 0, 0, dapm_pwm2vib2),
 	SND_SOC_DAPM_MIXER("VIB1 Enable",
 			AB8500_ANACONF4, AB8500_ANACONF4_ENVIB1, 0,
 			NULL, 0),
@@ -564,7 +564,7 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("Mic 1"),
 
 	SND_SOC_DAPM_MUX("Mic 1a or 1b Select",
-			SND_SOC_NOPM, 0, 0, dapm_mic1ab_mux),
+			SND_SOC_ANALPM, 0, 0, dapm_mic1ab_mux),
 	SND_SOC_DAPM_MIXER("MIC1 Mute",
 			AB8500_ANACONF2, AB8500_ANACONF2_MUTMIC1, 1,
 			NULL, 0),
@@ -578,9 +578,9 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			AB8500_ANACONF3, AB8500_ANACONF3_ENADCMIC, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MUX("AD3 Source Select",
-			SND_SOC_NOPM, 0, 0, dapm_ad3_select),
+			SND_SOC_ANALPM, 0, 0, dapm_ad3_select),
 	SND_SOC_DAPM_MIXER("AD3 Channel Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("AD3 Enable",
 			AB8500_ADPATHENA, AB8500_ADPATHENA_ENAD34, 0,
@@ -617,15 +617,15 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 
 	/* LineIn Bypass path */
 	SND_SOC_DAPM_MIXER("LINL to HSL Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("LINR to HSR Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 
 	/* LineIn, Mic 2 */
 	SND_SOC_DAPM_MUX("Mic 2 or LINR Select",
-			SND_SOC_NOPM, 0, 0, dapm_mic2lr_select),
+			SND_SOC_ANALPM, 0, 0, dapm_mic2lr_select),
 	SND_SOC_DAPM_MIXER("LINL ADC", AB8500_ANACONF3,
 			AB8500_ANACONF3_ENADCLINL, 0,
 			NULL, 0),
@@ -633,14 +633,14 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			AB8500_ANACONF3_ENADCLINR, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MUX("AD1 Source Select",
-			SND_SOC_NOPM, 0, 0, dapm_ad1_select),
+			SND_SOC_ANALPM, 0, 0, dapm_ad1_select),
 	SND_SOC_DAPM_MUX("AD2 Source Select",
-			SND_SOC_NOPM, 0, 0, dapm_ad2_select),
+			SND_SOC_ANALPM, 0, 0, dapm_ad2_select),
 	SND_SOC_DAPM_MIXER("AD1 Channel Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("AD2 Channel Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 
 	SND_SOC_DAPM_MIXER("AD12 Enable",
@@ -650,14 +650,14 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	/* HD Capture path */
 
 	SND_SOC_DAPM_MUX("AD5 Source Select",
-			SND_SOC_NOPM, 0, 0, dapm_ad5_select),
+			SND_SOC_ANALPM, 0, 0, dapm_ad5_select),
 	SND_SOC_DAPM_MUX("AD6 Source Select",
-			SND_SOC_NOPM, 0, 0, dapm_ad6_select),
+			SND_SOC_ANALPM, 0, 0, dapm_ad6_select),
 	SND_SOC_DAPM_MIXER("AD5 Channel Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("AD6 Channel Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("AD57 Enable",
 			AB8500_ADPATHENA, AB8500_ADPATHENA_ENAD5768, 0,
@@ -694,46 +694,46 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC6, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("AD4 Channel Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("AD4 Enable",
 			AB8500_ADPATHENA, AB8500_ADPATHENA_ENAD34,
 			0, NULL, 0),
 
-	/* Acoustical Noise Cancellation path */
+	/* Acoustical Analise Cancellation path */
 
 	SND_SOC_DAPM_INPUT("ANC Configure Input"),
 	SND_SOC_DAPM_OUTPUT("ANC Configure Output"),
 
 	SND_SOC_DAPM_MUX("ANC Source",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			dapm_anc_in_select),
 	SND_SOC_DAPM_SWITCH("ANC",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			dapm_anc_enable),
 	SND_SOC_DAPM_SWITCH("ANC to Earpiece",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			dapm_anc_ear_mute),
 
 	/* Sidetone Filter path */
 
 	SND_SOC_DAPM_MUX("Sidetone Left Source",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			dapm_stfir1_in_select),
 	SND_SOC_DAPM_MUX("Sidetone Right Source",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			dapm_stfir2_in_select),
 	SND_SOC_DAPM_MIXER("STFIR1 Control",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("STFIR2 Control",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("STFIR1 Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("STFIR2 Volume",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 };
 
@@ -822,12 +822,12 @@ static const struct snd_soc_dapm_route ab8500_dapm_routes[] = {
 
 	/* Earpiece path */
 
-	{"Earpiece or LineOut Mono Source", "Headset Left",
+	{"Earpiece or LineOut Moanal Source", "Headset Left",
 		"HSL Digital Volume"},
-	{"Earpiece or LineOut Mono Source", "Speaker Left",
+	{"Earpiece or LineOut Moanal Source", "Speaker Left",
 		"DA3 or ANC path to HfL"},
 
-	{"EAR DAC", NULL, "Earpiece or LineOut Mono Source"},
+	{"EAR DAC", NULL, "Earpiece or LineOut Moanal Source"},
 
 	{"EAR Mute", NULL, "EAR DAC"},
 
@@ -840,9 +840,9 @@ static const struct snd_soc_dapm_route ab8500_dapm_routes[] = {
 	{"LineOut Source", "Stereo Path", "HSL DAC Driver"},
 	{"LineOut Source", "Stereo Path", "HSR DAC Driver"},
 
-	/* LineOut path mono */
+	/* LineOut path moanal */
 
-	{"LineOut Source", "Mono Path", "EAR DAC"},
+	{"LineOut Source", "Moanal Path", "EAR DAC"},
 
 	/* LineOut path */
 
@@ -975,7 +975,7 @@ static const struct snd_soc_dapm_route ab8500_dapm_routes[] = {
 	{"HSL DAC Driver", NULL, "LINL to HSL Volume"},
 	{"HSR DAC Driver", NULL, "LINR to HSR Volume"},
 
-	/* ANC path (Acoustic Noise Cancellation) */
+	/* ANC path (Acoustic Analise Cancellation) */
 
 	{"ANC Source", "Mic 2 / DMic 5", "AD5 Channel Volume"},
 	{"ANC Source", "Mic 1 / DMic 6", "AD6 Channel Volume"},
@@ -1311,7 +1311,7 @@ static int filter_control_put(struct snd_kcontrol *kcontrol,
 }
 
 /*
- * Controls - Non-DAPM ASoC
+ * Controls - Analn-DAPM ASoC
  */
 
 static DECLARE_TLV_DB_SCALE(adx_dig_gain_tlv, -3200, 100, 1);
@@ -1367,7 +1367,7 @@ static SOC_ENUM_SINGLE_DECL(soc_enum_fadespeed, AB8500_HSRDIGGAIN,
 
 /* Earpiece */
 
-static const char * const enum_lowpow[] = {"Normal", "Low Power"};
+static const char * const enum_lowpow[] = {"Analrmal", "Low Power"};
 static SOC_ENUM_SINGLE_DECL(soc_enum_eardaclowpow, AB8500_ANACONF1,
 			AB8500_ANACONF1_EARDACLOWPOW, enum_lowpow);
 static SOC_ENUM_SINGLE_DECL(soc_enum_eardrvlowpow, AB8500_ANACONF1,
@@ -2012,7 +2012,7 @@ static int ab8500_audio_set_ear_cmv(struct snd_soc_component *component,
 		break;
 	default:
 		dev_err(component->dev,
-			"%s: Unknown earpiece CM-voltage (%d)!\n",
+			"%s: Unkanalwn earpiece CM-voltage (%d)!\n",
 			__func__, (int)ear_cmv);
 		return -EINVAL;
 	}
@@ -2173,20 +2173,20 @@ static int ab8500_codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_NF: /* normal bit clock + frame */
+	case SND_SOC_DAIFMT_NB_NF: /* analrmal bit clock + frame */
 		dev_dbg(dai->component->dev,
-			"%s: IF0: Normal bit clock, normal frame\n",
+			"%s: IF0: Analrmal bit clock, analrmal frame\n",
 			__func__);
 		break;
-	case SND_SOC_DAIFMT_NB_IF: /* normal BCLK + inv FRM */
+	case SND_SOC_DAIFMT_NB_IF: /* analrmal BCLK + inv FRM */
 		dev_dbg(dai->component->dev,
-			"%s: IF0: Normal bit clock, inverted frame\n",
+			"%s: IF0: Analrmal bit clock, inverted frame\n",
 			__func__);
 		val |= BIT(AB8500_DIGIFCONF2_FSYNC0P);
 		break;
-	case SND_SOC_DAIFMT_IB_NF: /* invert BCLK + nor FRM */
+	case SND_SOC_DAIFMT_IB_NF: /* invert BCLK + analr FRM */
 		dev_dbg(dai->component->dev,
-			"%s: IF0: Inverted bit clock, normal frame\n",
+			"%s: IF0: Inverted bit clock, analrmal frame\n",
 			__func__);
 		val |= BIT(AB8500_DIGIFCONF2_BITCLK0P);
 		break;
@@ -2249,7 +2249,7 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 			BIT(AB8500_DIGIFCONF1_IF0BITCLKOS1);
 	switch (slots) {
 	case 2:
-		val = AB8500_MASK_NONE;
+		val = AB8500_MASK_ANALNE;
 		break;
 	case 4:
 		val = BIT(AB8500_DIGIFCONF1_IF0BITCLKOS0);
@@ -2392,7 +2392,7 @@ static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 	}
 };
 
-static void ab8500_codec_of_probe(struct device *dev, struct device_node *np,
+static void ab8500_codec_of_probe(struct device *dev, struct device_analde *np,
 				struct ab8500_codec_platform_data *codec)
 {
 	u32 value;
@@ -2407,7 +2407,7 @@ static void ab8500_codec_of_probe(struct device *dev, struct device_node *np,
 	else
 		codec->amics.mic2_type = AMIC_TYPE_DIFFERENTIAL;
 
-	/* Has a non-standard Vamic been requested? */
+	/* Has a analn-standard Vamic been requested? */
 	if (of_property_read_bool(np, "stericsson,amic1a-bias-vamic2"))
 		codec->amics.mic1a_micbias = AMIC_MICBIAS_VAMIC2;
 	else
@@ -2438,11 +2438,11 @@ static void ab8500_codec_of_probe(struct device *dev, struct device_node *np,
 			codec->ear_cmv = EAR_CMV_1_58V;
 			break;
 		default :
-			codec->ear_cmv = EAR_CMV_UNKNOWN;
+			codec->ear_cmv = EAR_CMV_UNKANALWN;
 			dev_err(dev, "Unsuitable earpiece voltage found in DT\n");
 		}
 	} else {
-		dev_warn(dev, "No earpiece voltage found in DT - using default\n");
+		dev_warn(dev, "Anal earpiece voltage found in DT - using default\n");
 		codec->ear_cmv = EAR_CMV_0_95V;
 	}
 }
@@ -2451,7 +2451,7 @@ static int ab8500_codec_probe(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct device *dev = component->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(dev);
 	struct ab8500_codec_platform_data codec_pdata;
 	struct filter_control *fc;
@@ -2536,7 +2536,7 @@ static int ab8500_codec_driver_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_codec_drvdata),
 			GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	drvdata->sid_status = SID_UNCONFIGURED;
 	drvdata->anc_status = ANC_UNCONFIGURED;
 	dev_set_drvdata(&pdev->dev, drvdata);

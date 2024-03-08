@@ -8,7 +8,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mfd/cs42l43-regs.h>
 #include <linux/module.h>
 #include <linux/soundwire/sdw.h>
@@ -73,7 +73,7 @@ static int cs42l43_read_prop(struct sdw_slave *sdw)
 	prop->src_dpn_prop = devm_kmemdup(dev, cs42l43_src_port_props,
 					  sizeof(cs42l43_src_port_props), GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(cs42l43_sink_port_props); i++)
 		prop->sink_ports |= BIT(cs42l43_sink_port_props[i].num);
@@ -81,7 +81,7 @@ static int cs42l43_read_prop(struct sdw_slave *sdw)
 	prop->sink_dpn_prop = devm_kmemdup(dev, cs42l43_sink_port_props,
 					   sizeof(cs42l43_sink_port_props), GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -94,7 +94,7 @@ static int cs42l43_sdw_update_status(struct sdw_slave *sdw, enum sdw_slave_statu
 	case SDW_SLAVE_ATTACHED:
 		dev_dbg(cs42l43->dev, "Device attach\n");
 
-		sdw_write_no_pm(sdw, CS42L43_GEN_INT_MASK_1,
+		sdw_write_anal_pm(sdw, CS42L43_GEN_INT_MASK_1,
 				CS42L43_INT_STAT_GEN1_MASK);
 
 		cs42l43->attached = true;
@@ -122,13 +122,13 @@ static int cs42l43_sdw_interrupt(struct sdw_slave *sdw,
 	/*
 	 * The IRQ itself was handled through the regmap_irq handler, this is
 	 * just clearing up the additional Cirrus SoundWire registers that are
-	 * not covered by the SoundWire framework or the IRQ handler itself.
+	 * analt covered by the SoundWire framework or the IRQ handler itself.
 	 * There is only a single bit in GEN_INT_STAT_1 and it doesn't clear if
 	 * IRQs are still pending so doing a read/write here after handling the
 	 * IRQ is fine.
 	 */
-	sdw_read_no_pm(sdw, CS42L43_GEN_INT_STAT_1);
-	sdw_write_no_pm(sdw, CS42L43_GEN_INT_STAT_1, CS42L43_INT_STAT_GEN1_MASK);
+	sdw_read_anal_pm(sdw, CS42L43_GEN_INT_STAT_1);
+	sdw_write_anal_pm(sdw, CS42L43_GEN_INT_STAT_1, CS42L43_INT_STAT_GEN1_MASK);
 
 	return 0;
 }
@@ -171,7 +171,7 @@ static int cs42l43_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *
 
 	cs42l43 = devm_kzalloc(dev, sizeof(*cs42l43), GFP_KERNEL);
 	if (!cs42l43)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs42l43->dev = dev;
 	cs42l43->sdw = sdw;

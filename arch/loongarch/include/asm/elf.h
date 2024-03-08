@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_ELF_H
 #define _ASM_ELF_H
@@ -22,7 +22,7 @@
 #define EF_LOONGARCH_ABI_ILP32_DOUBLE_FLOAT	0x7
 
 /* LoongArch relocation types used by the dynamic linker */
-#define R_LARCH_NONE				0
+#define R_LARCH_ANALNE				0
 #define R_LARCH_32				1
 #define R_LARCH_64				2
 #define R_LARCH_RELATIVE			3
@@ -46,7 +46,7 @@
 #define R_LARCH_SOP_PUSH_TLS_GD			28
 #define R_LARCH_SOP_PUSH_PLT_PCREL		29
 #define R_LARCH_SOP_ASSERT			30
-#define R_LARCH_SOP_NOT				31
+#define R_LARCH_SOP_ANALT				31
 #define R_LARCH_SOP_SUB				32
 #define R_LARCH_SOP_SL				33
 #define R_LARCH_SOP_SR				34
@@ -204,7 +204,7 @@ void loongarch_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 #define vmcore_elf64_check_arch loongarch_elf_check_machine
 
 /*
- * Return non-zero if HDR identifies an 32bit ELF binary.
+ * Return analn-zero if HDR identifies an 32bit ELF binary.
  */
 #define elf32_check_arch(hdr)						\
 ({									\
@@ -220,7 +220,7 @@ void loongarch_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 })
 
 /*
- * Return non-zero if HDR identifies an 64bit ELF binary.
+ * Return analn-zero if HDR identifies an 64bit ELF binary.
  */
 #define elf64_check_arch(hdr)						\
 ({									\
@@ -271,7 +271,7 @@ do {									\
 /*
  * This yields a mask that user programs can use to figure out what
  * instruction set this cpu supports. This could be done in userspace,
- * but it's not easy, and we've already done it here.
+ * but it's analt easy, and we've already done it here.
  */
 
 #define ELF_HWCAP	(elf_hwcap)

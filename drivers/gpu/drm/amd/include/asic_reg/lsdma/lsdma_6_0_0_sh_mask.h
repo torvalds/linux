@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -138,7 +138,7 @@
 #define LSDMA_STATUS_REG__MC_RD_IDLE__SHIFT                                                                   0x13
 #define LSDMA_STATUS_REG__DELTA_RPTR_EMPTY__SHIFT                                                             0x14
 #define LSDMA_STATUS_REG__MC_RD_RET_STALL__SHIFT                                                              0x15
-#define LSDMA_STATUS_REG__MC_RD_NO_POLL_IDLE__SHIFT                                                           0x16
+#define LSDMA_STATUS_REG__MC_RD_ANAL_POLL_IDLE__SHIFT                                                           0x16
 #define LSDMA_STATUS_REG__Reserved__SHIFT                                                                     0x18
 #define LSDMA_STATUS_REG__PREV_CMD_IDLE__SHIFT                                                                0x19
 #define LSDMA_STATUS_REG__SEM_IDLE__SHIFT                                                                     0x1a
@@ -168,7 +168,7 @@
 #define LSDMA_STATUS_REG__MC_RD_IDLE_MASK                                                                     0x00080000L
 #define LSDMA_STATUS_REG__DELTA_RPTR_EMPTY_MASK                                                               0x00100000L
 #define LSDMA_STATUS_REG__MC_RD_RET_STALL_MASK                                                                0x00200000L
-#define LSDMA_STATUS_REG__MC_RD_NO_POLL_IDLE_MASK                                                             0x00400000L
+#define LSDMA_STATUS_REG__MC_RD_ANAL_POLL_IDLE_MASK                                                             0x00400000L
 #define LSDMA_STATUS_REG__Reserved_MASK                                                                       0x01000000L
 #define LSDMA_STATUS_REG__PREV_CMD_IDLE_MASK                                                                  0x02000000L
 #define LSDMA_STATUS_REG__SEM_IDLE_MASK                                                                       0x04000000L
@@ -632,12 +632,12 @@
 #define LSDMA_UTCL1_PAGE__REQ_TYPE__SHIFT                                                                     0x1
 #define LSDMA_UTCL1_PAGE__TMZ_ENABLE__SHIFT                                                                   0x5
 #define LSDMA_UTCL1_PAGE__USE_MTYPE__SHIFT                                                                    0x6
-#define LSDMA_UTCL1_PAGE__USE_PT_SNOOP__SHIFT                                                                 0x9
+#define LSDMA_UTCL1_PAGE__USE_PT_SANALOP__SHIFT                                                                 0x9
 #define LSDMA_UTCL1_PAGE__VM_HOLE_MASK                                                                        0x00000001L
 #define LSDMA_UTCL1_PAGE__REQ_TYPE_MASK                                                                       0x0000001EL
 #define LSDMA_UTCL1_PAGE__TMZ_ENABLE_MASK                                                                     0x00000020L
 #define LSDMA_UTCL1_PAGE__USE_MTYPE_MASK                                                                      0x000001C0L
-#define LSDMA_UTCL1_PAGE__USE_PT_SNOOP_MASK                                                                   0x00000200L
+#define LSDMA_UTCL1_PAGE__USE_PT_SANALOP_MASK                                                                   0x00000200L
 //LSDMA_RELAX_ORDERING_LUT
 #define LSDMA_RELAX_ORDERING_LUT__RESERVED0__SHIFT                                                            0x0
 #define LSDMA_RELAX_ORDERING_LUT__COPY__SHIFT                                                                 0x1
@@ -842,33 +842,33 @@
 #define LSDMA_EXCEPTION_STATUS__RB_FETCH_ECC__SHIFT                                                           0x0
 #define LSDMA_EXCEPTION_STATUS__IB_FETCH_ECC__SHIFT                                                           0x1
 #define LSDMA_EXCEPTION_STATUS__COPY_CMD_ECC__SHIFT                                                           0x2
-#define LSDMA_EXCEPTION_STATUS__NON_COPY_CMD_ECC__SHIFT                                                       0x3
+#define LSDMA_EXCEPTION_STATUS__ANALN_COPY_CMD_ECC__SHIFT                                                       0x3
 #define LSDMA_EXCEPTION_STATUS__SRAM_ECC__SHIFT                                                               0x6
 #define LSDMA_EXCEPTION_STATUS__RB_FETCH_NACK_GEN_ERR__SHIFT                                                  0x8
 #define LSDMA_EXCEPTION_STATUS__IB_FETCH_NACK_GEN_ERR__SHIFT                                                  0x9
 #define LSDMA_EXCEPTION_STATUS__COPY_CMD_NACK_GEN_ERR__SHIFT                                                  0xa
-#define LSDMA_EXCEPTION_STATUS__NON_COPY_CMD_NACK_GEN_ERR__SHIFT                                              0xb
+#define LSDMA_EXCEPTION_STATUS__ANALN_COPY_CMD_NACK_GEN_ERR__SHIFT                                              0xb
 #define LSDMA_EXCEPTION_STATUS__RPTR_WB_NACK_GEN_ERR__SHIFT                                                   0xd
 #define LSDMA_EXCEPTION_STATUS__RB_FETCH_NACK_PRT__SHIFT                                                      0x10
 #define LSDMA_EXCEPTION_STATUS__IB_FETCH_NACK_PRT__SHIFT                                                      0x11
 #define LSDMA_EXCEPTION_STATUS__COPY_CMD_NACK_PRT__SHIFT                                                      0x12
-#define LSDMA_EXCEPTION_STATUS__NON_COPY_CMD_NACK_PRT__SHIFT                                                  0x13
+#define LSDMA_EXCEPTION_STATUS__ANALN_COPY_CMD_NACK_PRT__SHIFT                                                  0x13
 #define LSDMA_EXCEPTION_STATUS__RPTR_WB_NACK_PRT__SHIFT                                                       0x15
 #define LSDMA_EXCEPTION_STATUS__VM_HOLE__SHIFT                                                                0x18
 #define LSDMA_EXCEPTION_STATUS__RB_FETCH_ECC_MASK                                                             0x00000001L
 #define LSDMA_EXCEPTION_STATUS__IB_FETCH_ECC_MASK                                                             0x00000002L
 #define LSDMA_EXCEPTION_STATUS__COPY_CMD_ECC_MASK                                                             0x00000004L
-#define LSDMA_EXCEPTION_STATUS__NON_COPY_CMD_ECC_MASK                                                         0x00000008L
+#define LSDMA_EXCEPTION_STATUS__ANALN_COPY_CMD_ECC_MASK                                                         0x00000008L
 #define LSDMA_EXCEPTION_STATUS__SRAM_ECC_MASK                                                                 0x00000040L
 #define LSDMA_EXCEPTION_STATUS__RB_FETCH_NACK_GEN_ERR_MASK                                                    0x00000100L
 #define LSDMA_EXCEPTION_STATUS__IB_FETCH_NACK_GEN_ERR_MASK                                                    0x00000200L
 #define LSDMA_EXCEPTION_STATUS__COPY_CMD_NACK_GEN_ERR_MASK                                                    0x00000400L
-#define LSDMA_EXCEPTION_STATUS__NON_COPY_CMD_NACK_GEN_ERR_MASK                                                0x00000800L
+#define LSDMA_EXCEPTION_STATUS__ANALN_COPY_CMD_NACK_GEN_ERR_MASK                                                0x00000800L
 #define LSDMA_EXCEPTION_STATUS__RPTR_WB_NACK_GEN_ERR_MASK                                                     0x00002000L
 #define LSDMA_EXCEPTION_STATUS__RB_FETCH_NACK_PRT_MASK                                                        0x00010000L
 #define LSDMA_EXCEPTION_STATUS__IB_FETCH_NACK_PRT_MASK                                                        0x00020000L
 #define LSDMA_EXCEPTION_STATUS__COPY_CMD_NACK_PRT_MASK                                                        0x00040000L
-#define LSDMA_EXCEPTION_STATUS__NON_COPY_CMD_NACK_PRT_MASK                                                    0x00080000L
+#define LSDMA_EXCEPTION_STATUS__ANALN_COPY_CMD_NACK_PRT_MASK                                                    0x00080000L
 #define LSDMA_EXCEPTION_STATUS__RPTR_WB_NACK_PRT_MASK                                                         0x00200000L
 #define LSDMA_EXCEPTION_STATUS__VM_HOLE_MASK                                                                  0x01000000L
 //LSDMA_PIO_SRC_ADDR_LO
@@ -906,12 +906,12 @@
 #define LSDMA_PIO_CONTROL__GPA__SHIFT                                                                         0x4
 #define LSDMA_PIO_CONTROL__SYS__SHIFT                                                                         0x5
 #define LSDMA_PIO_CONTROL__GCC__SHIFT                                                                         0x6
-#define LSDMA_PIO_CONTROL__SNOOP__SHIFT                                                                       0x7
+#define LSDMA_PIO_CONTROL__SANALOP__SHIFT                                                                       0x7
 #define LSDMA_PIO_CONTROL__VMID_MASK                                                                          0x0000000FL
 #define LSDMA_PIO_CONTROL__GPA_MASK                                                                           0x00000010L
 #define LSDMA_PIO_CONTROL__SYS_MASK                                                                           0x00000020L
 #define LSDMA_PIO_CONTROL__GCC_MASK                                                                           0x00000040L
-#define LSDMA_PIO_CONTROL__SNOOP_MASK                                                                         0x00000080L
+#define LSDMA_PIO_CONTROL__SANALOP_MASK                                                                         0x00000080L
 //LSDMA_INT_CNTL
 #define LSDMA_INT_CNTL__ATOMIC_RTN_DONE_INT_ENABLE__SHIFT                                                     0x0
 #define LSDMA_INT_CNTL__TRAP_INT_ENABLE__SHIFT                                                                0x1
@@ -982,7 +982,7 @@
 #define LSDMA_CNTL__AUTO_CTXSW_ENABLE_MASK                                                                    0x00040000L
 //LSDMA_CHICKEN_BITS
 #define LSDMA_CHICKEN_BITS__STALL_ON_TRANS_FULL_ENABLE__SHIFT                                                 0x1
-#define LSDMA_CHICKEN_BITS__STALL_ON_NO_FREE_DATA_BUFFER_ENABLE__SHIFT                                        0x2
+#define LSDMA_CHICKEN_BITS__STALL_ON_ANAL_FREE_DATA_BUFFER_ENABLE__SHIFT                                        0x2
 #define LSDMA_CHICKEN_BITS__F32_MGCG_ENABLE__SHIFT                                                            0x3
 #define LSDMA_CHICKEN_BITS__WRITE_BURST_LENGTH__SHIFT                                                         0x8
 #define LSDMA_CHICKEN_BITS__WRITE_BURST_WAIT_CYCLE__SHIFT                                                     0xa
@@ -992,7 +992,7 @@
 #define LSDMA_CHICKEN_BITS__SRBM_POLL_RETRYING__SHIFT                                                         0x14
 #define LSDMA_CHICKEN_BITS__CG_STATUS_OUTPUT__SHIFT                                                           0x17
 #define LSDMA_CHICKEN_BITS__STALL_ON_TRANS_FULL_ENABLE_MASK                                                   0x00000002L
-#define LSDMA_CHICKEN_BITS__STALL_ON_NO_FREE_DATA_BUFFER_ENABLE_MASK                                          0x00000004L
+#define LSDMA_CHICKEN_BITS__STALL_ON_ANAL_FREE_DATA_BUFFER_ENABLE_MASK                                          0x00000004L
 #define LSDMA_CHICKEN_BITS__F32_MGCG_ENABLE_MASK                                                              0x00000008L
 #define LSDMA_CHICKEN_BITS__WRITE_BURST_LENGTH_MASK                                                           0x00000300L
 #define LSDMA_CHICKEN_BITS__WRITE_BURST_WAIT_CYCLE_MASK                                                       0x00001C00L
@@ -1177,9 +1177,9 @@
 #define LSDMA_QUEUE0_RB_AQL_CNTL__AQL_ENABLE_MASK                                                             0x00000001L
 #define LSDMA_QUEUE0_RB_AQL_CNTL__AQL_PACKET_SIZE_MASK                                                        0x000000FEL
 #define LSDMA_QUEUE0_RB_AQL_CNTL__PACKET_STEP_MASK                                                            0x0000FF00L
-//LSDMA_QUEUE0_MINOR_PTR_UPDATE
-#define LSDMA_QUEUE0_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                          0x0
-#define LSDMA_QUEUE0_MINOR_PTR_UPDATE__ENABLE_MASK                                                            0x00000001L
+//LSDMA_QUEUE0_MIANALR_PTR_UPDATE
+#define LSDMA_QUEUE0_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                          0x0
+#define LSDMA_QUEUE0_MIANALR_PTR_UPDATE__ENABLE_MASK                                                            0x00000001L
 //LSDMA_QUEUE0_CNTL
 #define LSDMA_QUEUE0_CNTL__QUANTUM__SHIFT                                                                     0x0
 #define LSDMA_QUEUE0_CNTL__QUANTUM_MASK                                                                       0x000000FFL
@@ -1381,9 +1381,9 @@
 #define LSDMA_QUEUE1_RB_AQL_CNTL__AQL_ENABLE_MASK                                                             0x00000001L
 #define LSDMA_QUEUE1_RB_AQL_CNTL__AQL_PACKET_SIZE_MASK                                                        0x000000FEL
 #define LSDMA_QUEUE1_RB_AQL_CNTL__PACKET_STEP_MASK                                                            0x0000FF00L
-//LSDMA_QUEUE1_MINOR_PTR_UPDATE
-#define LSDMA_QUEUE1_MINOR_PTR_UPDATE__ENABLE__SHIFT                                                          0x0
-#define LSDMA_QUEUE1_MINOR_PTR_UPDATE__ENABLE_MASK                                                            0x00000001L
+//LSDMA_QUEUE1_MIANALR_PTR_UPDATE
+#define LSDMA_QUEUE1_MIANALR_PTR_UPDATE__ENABLE__SHIFT                                                          0x0
+#define LSDMA_QUEUE1_MIANALR_PTR_UPDATE__ENABLE_MASK                                                            0x00000001L
 //LSDMA_QUEUE1_CNTL
 #define LSDMA_QUEUE1_CNTL__QUANTUM__SHIFT                                                                     0x0
 #define LSDMA_QUEUE1_CNTL__QUANTUM_MASK                                                                       0x000000FFL

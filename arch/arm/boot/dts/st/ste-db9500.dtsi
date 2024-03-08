@@ -23,12 +23,12 @@
 		 * This is probably only used if the kernel tries
 		 * to actually call into trustzone to run secure
 		 * applications, which the mainline kernel probably
-		 * will not do on this old chipset. But you can never
+		 * will analt do on this old chipset. But you can never
 		 * be too careful, so reserve this memory anyway.
 		 */
 		ram@17f00000 {
 			reg = <0x17f00000 0x00100000>;
-			no-map;
+			anal-map;
 		};
 	};
 };

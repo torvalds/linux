@@ -6,7 +6,7 @@ menuconfig MACINTOSH_DRIVERS
 	default y if (PPC_PMAC || MAC)
 	help
 	  Say Y here to get to see options for devices used with Macintosh
-	  computers. This option alone does not add any kernel code.
+	  computers. This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -64,7 +64,7 @@ config ADB_PMU
 	  PMU is an embedded microprocessor whose primary function is to
 	  control system power, and battery charging on the portable models.
 	  The PMU also controls the ADB (Apple Desktop Bus) which connects to
-	  the keyboard and mouse on some machines, as well as the non-volatile
+	  the keyboard and mouse on some machines, as well as the analn-volatile
 	  RAM and the RTC (real time clock) chip.  Say Y to enable support for
 	  this device; you should do so if your machine is one of those
 	  mentioned above.
@@ -101,7 +101,7 @@ config PMAC_SMU
 	help
 	  This option adds support for the newer G5 iMacs and PowerMacs based
 	  on the "SMU" system control chip which replaces the old PMU.
-	  If you don't know, say Y.
+	  If you don't kanalw, say Y.
 
 config PMAC_APM_EMU
 	tristate "APM emulation"
@@ -114,7 +114,7 @@ config PMAC_MEDIABAY
 	help
 	  This option adds support for older PowerBook's hotswap media bay
 	  that can contains batteries, floppy drives, or IDE devices. PCI
-	  devices are not fully supported in the bay as I never had one to
+	  devices are analt fully supported in the bay as I never had one to
 	  try with
 
 config PMAC_BACKLIGHT

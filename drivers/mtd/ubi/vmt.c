@@ -48,7 +48,7 @@ static struct device_attribute attr_vol_upd_marker =
  * B. process 2 removes volume Y;
  * C. process 1 starts reading the /<sysfs>/class/ubi/ubiX_Y/reserved_ebs file;
  *
- * In this situation, this function will return %-ENODEV because it will find
+ * In this situation, this function will return %-EANALDEV because it will find
  * out that the volume was removed from the @ubi->volumes array.
  */
 static ssize_t vol_attribute_show(struct device *dev,
@@ -61,7 +61,7 @@ static ssize_t vol_attribute_show(struct device *dev,
 	spin_lock(&ubi->volumes_lock);
 	if (!ubi->volumes[vol->vol_id]) {
 		spin_unlock(&ubi->volumes_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* Take a reference to prevent volume removal */
 	vol->ref_count += 1;
@@ -132,7 +132,7 @@ static void vol_release(struct device *dev)
  * This function creates volume described by @req. If @req->vol_id id
  * %UBI_VOL_NUM_AUTO, this function automatically assign ID to the new volume
  * and saves it in @req->vol_id. Returns zero in case of success and a negative
- * error code in case of failure. Note, the caller has to have the
+ * error code in case of failure. Analte, the caller has to have the
  * @ubi->device_mutex locked.
  */
 int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
@@ -147,7 +147,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	vol = kzalloc(sizeof(struct ubi_volume), GFP_KERNEL);
 	if (!vol)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_initialize(&vol->dev);
 	vol->dev.release = vol_release;
@@ -180,7 +180,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 		ubi->ubi_num, vol_id, (unsigned long long)req->bytes,
 		(int)req->vol_type, req->name);
 
-	/* Ensure that this volume does not exist */
+	/* Ensure that this volume does analt exist */
 	err = -EEXIST;
 	if (ubi->volumes[vol_id]) {
 		ubi_err(ubi, "volume %d already exists", vol_id);
@@ -204,12 +204,12 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	/* Reserve physical eraseblocks */
 	if (vol->reserved_pebs > ubi->avail_pebs) {
-		ubi_err(ubi, "not enough PEBs, only %d available",
+		ubi_err(ubi, "analt eanalugh PEBs, only %d available",
 			ubi->avail_pebs);
 		if (ubi->corr_peb_count)
-			ubi_err(ubi, "%d PEBs are corrupted and not used",
+			ubi_err(ubi, "%d PEBs are corrupted and analt used",
 				ubi->corr_peb_count);
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto out_unlock;
 	}
 	ubi->avail_pebs -= vol->reserved_pebs;
@@ -269,7 +269,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	dev_set_name(&vol->dev, "%s_%d", ubi->ubi_name, vol->vol_id);
 	err = cdev_device_add(&vol->cdev, &vol->dev);
 	if (err) {
-		ubi_err(ubi, "cannot add device");
+		ubi_err(ubi, "cananalt add device");
 		goto out_mapping;
 	}
 
@@ -293,13 +293,13 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	if (err)
 		goto out_sysfs;
 
-	ubi_volume_notify(ubi, vol, UBI_VOLUME_ADDED);
+	ubi_volume_analtify(ubi, vol, UBI_VOLUME_ADDED);
 	self_check_volumes(ubi);
 	return err;
 
 out_sysfs:
 	/*
-	 * We have registered our device, we should not free the volume
+	 * We have registered our device, we should analt free the volume
 	 * description object in this function in case of an error - it is
 	 * freed by the release function.
 	 */
@@ -316,21 +316,21 @@ out_acc:
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
 	put_device(&vol->dev);
-	ubi_err(ubi, "cannot create volume %d, error %d", vol_id, err);
+	ubi_err(ubi, "cananalt create volume %d, error %d", vol_id, err);
 	return err;
 }
 
 /**
  * ubi_remove_volume - remove volume.
  * @desc: volume descriptor
- * @no_vtbl: do not change volume table if not zero
+ * @anal_vtbl: do analt change volume table if analt zero
  *
  * This function removes volume described by @desc. The volume has to be opened
  * in "exclusive" mode. Returns zero in case of success and a negative error
  * code in case of failure. The caller has to have the @ubi->device_mutex
  * locked.
  */
-int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
+int ubi_remove_volume(struct ubi_volume_desc *desc, int anal_vtbl)
 {
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
@@ -355,7 +355,7 @@ int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 	ubi->volumes[vol_id] = NULL;
 	spin_unlock(&ubi->volumes_lock);
 
-	if (!no_vtbl) {
+	if (!anal_vtbl) {
 		err = ubi_change_vtbl_record(ubi, vol_id, NULL);
 		if (err)
 			goto out_err;
@@ -377,14 +377,14 @@ int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 	ubi->vol_count -= 1;
 	spin_unlock(&ubi->volumes_lock);
 
-	ubi_volume_notify(ubi, vol, UBI_VOLUME_REMOVED);
-	if (!no_vtbl)
+	ubi_volume_analtify(ubi, vol, UBI_VOLUME_REMOVED);
+	if (!anal_vtbl)
 		self_check_volumes(ubi);
 
 	return 0;
 
 out_err:
-	ubi_err(ubi, "cannot remove volume %d, error %d", vol_id, err);
+	ubi_err(ubi, "cananalt remove volume %d, error %d", vol_id, err);
 	spin_lock(&ubi->volumes_lock);
 	ubi->volumes[vol_id] = vol;
 out_unlock:
@@ -423,7 +423,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 		return -EINVAL;
 	}
 
-	/* If the size is the same, we have nothing to do */
+	/* If the size is the same, we have analthing to do */
 	if (reserved_pebs == vol->reserved_pebs)
 		return 0;
 
@@ -444,13 +444,13 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	if (pebs > 0) {
 		spin_lock(&ubi->volumes_lock);
 		if (pebs > ubi->avail_pebs) {
-			ubi_err(ubi, "not enough PEBs: requested %d, available %d",
+			ubi_err(ubi, "analt eanalugh PEBs: requested %d, available %d",
 				pebs, ubi->avail_pebs);
 			if (ubi->corr_peb_count)
-				ubi_err(ubi, "%d PEBs are corrupted and not used",
+				ubi_err(ubi, "%d PEBs are corrupted and analt used",
 					ubi->corr_peb_count);
 			spin_unlock(&ubi->volumes_lock);
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto out_free;
 		}
 		ubi->avail_pebs -= pebs;
@@ -501,7 +501,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 			(long long)vol->used_ebs * vol->usable_leb_size;
 	}
 
-	ubi_volume_notify(ubi, vol, UBI_VOLUME_RESIZED);
+	ubi_volume_analtify(ubi, vol, UBI_VOLUME_RESIZED);
 	self_check_volumes(ubi);
 	return err;
 
@@ -549,7 +549,7 @@ int ubi_rename_volumes(struct ubi_device *ubi, struct list_head *rename_list)
 			vol->name_len = re->new_name_len;
 			memcpy(vol->name, re->new_name, re->new_name_len + 1);
 			spin_unlock(&ubi->volumes_lock);
-			ubi_volume_notify(ubi, vol, UBI_VOLUME_RENAMED);
+			ubi_volume_analtify(ubi, vol, UBI_VOLUME_RENAMED);
 		}
 	}
 
@@ -580,7 +580,7 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 	dev = MKDEV(MAJOR(ubi->cdev.dev), vol->vol_id + 1);
 	err = cdev_add(&vol->cdev, dev, 1);
 	if (err) {
-		ubi_err(ubi, "cannot add character device for volume %d, error %d",
+		ubi_err(ubi, "cananalt add character device for volume %d, error %d",
 			vol_id, err);
 		vol_release(&vol->dev);
 		return err;
@@ -608,7 +608,7 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol)
  * @ubi: UBI device description object
  * @vol: volume description object
  *
- * This function frees all resources for volume @vol but does not remove it.
+ * This function frees all resources for volume @vol but does analt remove it.
  * Used only when the UBI device is detached.
  */
 void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol)
@@ -625,7 +625,7 @@ void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol)
  * @ubi: UBI device description object
  * @vol_id: volume ID
  *
- * Returns zero if volume is all right and a negative error code if not.
+ * Returns zero if volume is all right and a negative error code if analt.
  */
 static int self_check_volume(struct ubi_device *ubi, int vol_id)
 {
@@ -641,7 +641,7 @@ static int self_check_volume(struct ubi_device *ubi, int vol_id)
 
 	if (!vol) {
 		if (reserved_pebs) {
-			ubi_err(ubi, "no volume info, but volume exists");
+			ubi_err(ubi, "anal volume info, but volume exists");
 			goto fail;
 		}
 		spin_unlock(&ubi->volumes_lock);
@@ -660,7 +660,7 @@ static int self_check_volume(struct ubi_device *ubi, int vol_id)
 
 	n = vol->alignment & (ubi->min_io_size - 1);
 	if (vol->alignment != 1 && n) {
-		ubi_err(ubi, "alignment is not multiple of min I/O unit");
+		ubi_err(ubi, "alignment is analt multiple of min I/O unit");
 		goto fail;
 	}
 
@@ -778,7 +778,7 @@ fail:
  * self_check_volumes - check information about all volumes.
  * @ubi: UBI device description object
  *
- * Returns zero if volumes are all right and a negative error code if not.
+ * Returns zero if volumes are all right and a negative error code if analt.
  */
 static int self_check_volumes(struct ubi_device *ubi)
 {

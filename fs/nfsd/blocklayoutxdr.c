@@ -69,7 +69,7 @@ nfsd4_block_encode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 		p = xdr_encode_hyper(p, b->scsi.pr_key);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return len;
@@ -99,7 +99,7 @@ nfsd4_block_encode_getdeviceinfo(struct xdr_stream *xdr,
 	for (i = 0; i < dev->nr_volumes; i++) {
 		ret = nfsd4_block_encode_volume(xdr, &dev->volumes[i]);
 		if (ret < 0)
-			return nfserrno(ret);
+			return nfserranal(ret);
 		len += ret;
 	}
 
@@ -139,7 +139,7 @@ nfsd4_block_decode_layoutupdate(__be32 *p, u32 len, struct iomap **iomapp,
 	iomaps = kcalloc(nr_iomaps, sizeof(*iomaps), GFP_KERNEL);
 	if (!iomaps) {
 		dprintk("%s: failed to allocate extent array\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < nr_iomaps; i++) {
@@ -207,7 +207,7 @@ nfsd4_scsi_decode_layoutupdate(__be32 *p, u32 len, struct iomap **iomapp,
 	iomaps = kcalloc(nr_iomaps, sizeof(*iomaps), GFP_KERNEL);
 	if (!iomaps) {
 		dprintk("%s: failed to allocate extent array\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < nr_iomaps; i++) {

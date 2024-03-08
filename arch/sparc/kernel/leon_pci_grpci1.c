@@ -4,10 +4,10 @@
  *
  * Copyright (C) 2013 Aeroflex Gaisler AB
  *
- * This GRPCI1 driver does not support PCI interrupts taken from
+ * This GRPCI1 driver does analt support PCI interrupts taken from
  * GPIO pins. Interrupt generation at PCI parity and system error
  * detection is by default turned off since some GRPCI1 cores does
- * not support detection. It can be turned on from the bootloader
+ * analt support detection. It can be turned on from the bootloader
  * using the all_pci_errors property.
  *
  * Contributors: Daniel Hellstrom <daniel@gaisler.com>
@@ -241,23 +241,23 @@ static int grpci1_read_config(struct pci_bus *bus, unsigned int devfn,
 			      int where, int size, u32 *val)
 {
 	struct grpci1_priv *priv = grpci1priv;
-	unsigned int busno = bus->number;
+	unsigned int busanal = bus->number;
 	int ret;
 
-	if (PCI_SLOT(devfn) > 15 || busno > 15) {
+	if (PCI_SLOT(devfn) > 15 || busanal > 15) {
 		*val = ~0;
 		return 0;
 	}
 
 	switch (size) {
 	case 1:
-		ret = grpci1_cfg_r8(priv, busno, devfn, where, val);
+		ret = grpci1_cfg_r8(priv, busanal, devfn, where, val);
 		break;
 	case 2:
-		ret = grpci1_cfg_r16(priv, busno, devfn, where, val);
+		ret = grpci1_cfg_r16(priv, busanal, devfn, where, val);
 		break;
 	case 4:
-		ret = grpci1_cfg_r32(priv, busno, devfn, where, val);
+		ret = grpci1_cfg_r32(priv, busanal, devfn, where, val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -267,7 +267,7 @@ static int grpci1_read_config(struct pci_bus *bus, unsigned int devfn,
 #ifdef GRPCI1_DEBUG_CFGACCESS
 	printk(KERN_INFO
 		"grpci1_read_config: [%02x:%02x:%x] ofs=%d val=%x size=%d\n",
-		busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where, *val, size);
+		busanal, PCI_SLOT(devfn), PCI_FUNC(devfn), where, *val, size);
 #endif
 
 	return ret;
@@ -280,26 +280,26 @@ static int grpci1_write_config(struct pci_bus *bus, unsigned int devfn,
 			       int where, int size, u32 val)
 {
 	struct grpci1_priv *priv = grpci1priv;
-	unsigned int busno = bus->number;
+	unsigned int busanal = bus->number;
 
-	if (PCI_SLOT(devfn) > 15 || busno > 15)
+	if (PCI_SLOT(devfn) > 15 || busanal > 15)
 		return 0;
 
 #ifdef GRPCI1_DEBUG_CFGACCESS
 	printk(KERN_INFO
 		"grpci1_write_config: [%02x:%02x:%x] ofs=%d size=%d val=%x\n",
-		busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where, size, val);
+		busanal, PCI_SLOT(devfn), PCI_FUNC(devfn), where, size, val);
 #endif
 
 	switch (size) {
 	default:
 		return -EINVAL;
 	case 1:
-		return grpci1_cfg_w8(priv, busno, devfn, where, val);
+		return grpci1_cfg_w8(priv, busanal, devfn, where, val);
 	case 2:
-		return grpci1_cfg_w16(priv, busno, devfn, where, val);
+		return grpci1_cfg_w16(priv, busanal, devfn, where, val);
 	case 4:
-		return grpci1_cfg_w32(priv, busno, devfn, where, val);
+		return grpci1_cfg_w32(priv, busanal, devfn, where, val);
 	}
 }
 
@@ -310,7 +310,7 @@ static struct pci_ops grpci1_ops = {
 
 /* GENIRQ IRQ chip implementation for grpci1 irqmode=0..2. In configuration
  * 3 where all PCI Interrupts has a separate IRQ on the system IRQ controller
- * this is not needed and the standard IRQ controller can be used.
+ * this is analt needed and the standard IRQ controller can be used.
  */
 
 static void grpci1_mask_irq(struct irq_data *data)
@@ -417,7 +417,7 @@ out:
  * Target BARs:
  *  BAR0: unused in this implementation
  *  BAR1: peripheral DMA to host's memory (size at least 256MByte)
- *  BAR2..BAR5: not implemented in hardware
+ *  BAR2..BAR5: analt implemented in hardware
  */
 static void grpci1_hw_init(struct grpci1_priv *priv)
 {
@@ -437,8 +437,8 @@ static void grpci1_hw_init(struct grpci1_priv *priv)
 	/* disable and clear pending interrupts */
 	REGSTORE(regs->irq, 0);
 
-	/* Setup BAR0 outside access range so that it does not conflict with
-	 * peripheral DMA. There is no need to set up the PAGE0 register.
+	/* Setup BAR0 outside access range so that it does analt conflict with
+	 * peripheral DMA. There is anal need to set up the PAGE0 register.
 	 */
 	grpci1_cfg_w32(priv, TGT, 0, PCI_BASE_ADDRESS_0, 0xffffffff);
 	grpci1_cfg_r32(priv, TGT, 0, PCI_BASE_ADDRESS_0, &bar_sz);
@@ -470,7 +470,7 @@ static irqreturn_t grpci1_jump_interrupt(int irq, void *arg)
 {
 	struct grpci1_priv *priv = arg;
 	dev_err(priv->dev, "Jump IRQ happened\n");
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /* Handle GRPCI1 Error Interrupt */
@@ -483,7 +483,7 @@ static irqreturn_t grpci1_err_interrupt(int irq, void *arg)
 	status &= priv->pci_err_mask;
 
 	if (status == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & PCI_STATUS_PARITY)
 		dev_err(priv->dev, "Data Parity Error\n");
@@ -520,18 +520,18 @@ static int grpci1_of_probe(struct platform_device *ofdev)
 
 	if (grpci1priv) {
 		dev_err(&ofdev->dev, "only one GRPCI1 supported\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ofdev->num_resources < 3) {
-		dev_err(&ofdev->dev, "not enough APB/AHB resources\n");
+		dev_err(&ofdev->dev, "analt eanalugh APB/AHB resources\n");
 		return -EIO;
 	}
 
 	priv = devm_kzalloc(&ofdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&ofdev->dev, "memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	platform_set_drvdata(ofdev, priv);
 	priv->dev = &ofdev->dev;
@@ -544,11 +544,11 @@ static int grpci1_of_probe(struct platform_device *ofdev)
 
 	/*
 	 * check that we're in Host Slot and that we can act as a Host Bridge
-	 * and not only as target/peripheral.
+	 * and analt only as target/peripheral.
 	 */
 	cfg = REGLOAD(regs->cfg_stat);
 	if ((cfg & CFGSTAT_HOST) == 0) {
-		dev_err(&ofdev->dev, "not in host system slot\n");
+		dev_err(&ofdev->dev, "analt in host system slot\n");
 		return -EIO;
 	}
 
@@ -567,7 +567,7 @@ static int grpci1_of_probe(struct platform_device *ofdev)
 	}
 
 	priv->regs = regs;
-	priv->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	priv->irq = irq_of_parse_and_map(ofdev->dev.of_analde, 0);
 	dev_info(&ofdev->dev, "host found at 0x%p, irq%d\n", regs, priv->irq);
 
 	/* Find PCI Memory, I/O and Configuration Space Windows */
@@ -601,8 +601,8 @@ static int grpci1_of_probe(struct platform_device *ofdev)
 	priv->info.io_space.flags = IORESOURCE_IO;
 
 	/*
-	 * grpci1 has no prefetchable memory, map everything as
-	 * non-prefetchable memory
+	 * grpci1 has anal prefetchable memory, map everything as
+	 * analn-prefetchable memory
 	 */
 	priv->info.mem_space.name = "GRPCI1 PCI MEM Space";
 	priv->info.mem_space.start = priv->pci_area;
@@ -611,13 +611,13 @@ static int grpci1_of_probe(struct platform_device *ofdev)
 
 	if (request_resource(&iomem_resource, &priv->info.mem_space) < 0) {
 		dev_err(&ofdev->dev, "unable to request PCI memory area\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err1;
 	}
 
 	if (request_resource(&ioport_resource, &priv->info.io_space) < 0) {
 		dev_err(&ofdev->dev, "unable to request PCI I/O area\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err2;
 	}
 
@@ -665,7 +665,7 @@ static int grpci1_of_probe(struct platform_device *ofdev)
 		goto err3;
 	}
 
-	tmp = of_get_property(ofdev->dev.of_node, "all_pci_errors", &len);
+	tmp = of_get_property(ofdev->dev.of_analde, "all_pci_errors", &len);
 	if (tmp && (len == 4)) {
 		priv->pci_err_mask = ALL_PCI_ERRORS;
 		err_mask = IRQ_ALL_ERRORS << IRQ_MASK_BIT;

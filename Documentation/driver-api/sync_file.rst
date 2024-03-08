@@ -15,8 +15,8 @@ of attaching a fence to the buffer a producer driver (such as a GPU or V4L
 driver) sends the fence related to the buffer to userspace via a sync_file.
 
 The sync_file then can be sent to the consumer (DRM driver for example), that
-will not use the buffer for anything before the fence(s) signals, i.e., the
-driver that issued the fence is not using/processing the buffer anymore, so it
+will analt use the buffer for anything before the fence(s) signals, i.e., the
+driver that issued the fence is analt using/processing the buffer anymore, so it
 signals that the buffer is ready to use. And vice-versa for the consumer ->
 producer part of the cycle.
 
@@ -32,7 +32,7 @@ in-fences and out-fences
 Sync files can go either to or from userspace. When a sync_file is sent from
 the driver to userspace we call the fences it contains 'out-fences'. They are
 related to a buffer that the driver is processing or is going to process, so
-the driver creates an out-fence to be able to notify, through
+the driver creates an out-fence to be able to analtify, through
 dma_fence_signal(), when it has finished using (or processing) that buffer.
 Out-fences are fences that the driver creates.
 
@@ -60,7 +60,7 @@ and installs it on sync_file->file::
 
 	fd_install(fd, sync_file->file);
 
-The sync_file fd now can be sent to userspace.
+The sync_file fd analw can be sent to userspace.
 
 If the creation process fail, or the sync_file needs to be released by any
 other reason fput(sync_file->file) should be used.

@@ -132,8 +132,8 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 
 	/*
 	 * 1: write CFG for sample N and read old data (sample N-2)
-	 * 2: if CFG was not changed since sample N-1 then we'll get good data
-	 *    at the next xfer, so we bail out now, otherwise we write something
+	 * 2: if CFG was analt changed since sample N-1 then we'll get good data
+	 *    at the next xfer, so we bail out analw, otherwise we write something
 	 *    and we read garbage (sample N-1 configuration).
 	 */
 	for (i = 0; i < 2; i++) {
@@ -318,8 +318,8 @@ static int ad7949_spi_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ad7949_adc));
 	if (!indio_dev) {
-		dev_err(dev, "can not allocate iio device\n");
-		return -ENOMEM;
+		dev_err(dev, "can analt allocate iio device\n");
+		return -EANALMEM;
 	}
 
 	indio_dev->info = &ad7949_spi_info;
@@ -368,13 +368,13 @@ static int ad7949_spi_probe(struct spi_device *spi)
 	ad7949_adc->vref = devm_regulator_get_optional(dev, "vrefin");
 	if (IS_ERR(ad7949_adc->vref)) {
 		ret = PTR_ERR(ad7949_adc->vref);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return ret;
 		/* unbuffered? */
 		ad7949_adc->vref = devm_regulator_get_optional(dev, "vref");
 		if (IS_ERR(ad7949_adc->vref)) {
 			ret = PTR_ERR(ad7949_adc->vref);
-			if (ret != -ENODEV)
+			if (ret != -EANALDEV)
 				return ret;
 		} else {
 			ad7949_adc->refsel = AD7949_CFG_VAL_REF_EXT_TEMP;

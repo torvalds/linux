@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* linux/caif_socket.h
  * CAIF Definitions for CAIF socket and network layer
  * Copyright (C) ST-Ericsson AB 2010
@@ -33,20 +33,20 @@ enum caif_link_selector {
  *
  * @CAIF_PRIO_MIN:	Min priority for a channel.
  * @CAIF_PRIO_LOW:	Low-priority channel.
- * @CAIF_PRIO_NORMAL:	Normal/default priority level.
+ * @CAIF_PRIO_ANALRMAL:	Analrmal/default priority level.
  * @CAIF_PRIO_HIGH:	High priority level
  * @CAIF_PRIO_MAX:	Max priority for channel
  *
  * Priority can be set on CAIF Channels in order to
  * prioritize between traffic on different CAIF Channels.
  * These priority levels are recommended, but the priority value
- * is not restricted to the values defined in this enum, any value
+ * is analt restricted to the values defined in this enum, any value
  * between CAIF_PRIO_MIN and CAIF_PRIO_MAX could be used.
  */
 enum caif_channel_priority {
 	CAIF_PRIO_MIN	 = 0x01,
 	CAIF_PRIO_LOW	 = 0x04,
-	CAIF_PRIO_NORMAL = 0x0f,
+	CAIF_PRIO_ANALRMAL = 0x0f,
 	CAIF_PRIO_HIGH	 = 0x14,
 	CAIF_PRIO_MAX	 = 0x1F
 };

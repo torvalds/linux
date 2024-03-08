@@ -840,7 +840,7 @@ static int us5182d_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -858,7 +858,7 @@ static int us5182d_probe(struct i2c_client *client)
 	if (ret != US5182D_CHIPID) {
 		dev_err(&data->client->dev,
 			"Failed to detect US5182 light chip\n");
-		return (ret < 0) ? ret : -ENODEV;
+		return (ret < 0) ? ret : -EANALDEV;
 	}
 
 	if (client->irq > 0) {
@@ -869,7 +869,7 @@ static int us5182d_probe(struct i2c_client *client)
 		if (ret < 0)
 			return ret;
 	} else
-		dev_warn(&client->dev, "no valid irq found\n");
+		dev_warn(&client->dev, "anal valid irq found\n");
 
 	us5182d_get_platform_data(indio_dev);
 	ret = us5182d_init(indio_dev);

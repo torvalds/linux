@@ -3,7 +3,7 @@
  * vsock sock_diag(7) module
  *
  * Copyright (C) 2017 Red Hat, Inc.
- * Author: Stefan Hajnoczi <stefanha@redhat.com>
+ * Author: Stefan Hajanalczi <stefanha@redhat.com>
  */
 
 #include <linux/module.h>
@@ -27,7 +27,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	rep->vdiag_family = AF_VSOCK;
 
 	/* Lock order dictates that sk_lock is acquired before
-	 * vsock_table_lock, so we cannot lock here.  Simply don't take
+	 * vsock_table_lock, so we cananalt lock here.  Simply don't take
 	 * sk_lock; sk is guaranteed to stay alive since vsock_table_lock is
 	 * held.
 	 */
@@ -38,7 +38,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	rep->vdiag_src_port = vsk->local_addr.svm_port;
 	rep->vdiag_dst_cid = vsk->remote_addr.svm_cid;
 	rep->vdiag_dst_port = vsk->remote_addr.svm_port;
-	rep->vdiag_ino = sock_i_ino(sk);
+	rep->vdiag_ianal = sock_i_ianal(sk);
 
 	sock_diag_save_cookie(sk, rep->vdiag_cookie);
 
@@ -153,7 +153,7 @@ static int vsock_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 		return netlink_dump_start(net->diag_nlsk, skb, h, &c);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct sock_diag_handler vsock_diag_handler = {

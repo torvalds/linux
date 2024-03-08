@@ -11,7 +11,7 @@
 #include "hva-mem.h"
 
 /* HVA Versions */
-#define HVA_VERSION_UNKNOWN    0x000
+#define HVA_VERSION_UNKANALWN    0x000
 #define HVA_VERSION_V400       0x400
 
 /* HVA command types */

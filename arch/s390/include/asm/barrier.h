@@ -10,7 +10,7 @@
 
 /*
  * Force strict CPU ordering.
- * And yes, this is required on UP too when we're talking
+ * And anal, this is required on UP too when we're talking
  * to devices.
  */
 
@@ -54,13 +54,13 @@ do {									\
 #define __smp_mb__after_atomic()	barrier()
 
 /**
- * array_index_mask_nospec - generate a mask for array_idx() that is
+ * array_index_mask_analspec - generate a mask for array_idx() that is
  * ~0UL when the bounds check succeeds and 0 otherwise
  * @index: array element index
  * @size: number of elements in array
  */
-#define array_index_mask_nospec array_index_mask_nospec
-static inline unsigned long array_index_mask_nospec(unsigned long index,
+#define array_index_mask_analspec array_index_mask_analspec
+static inline unsigned long array_index_mask_analspec(unsigned long index,
 						    unsigned long size)
 {
 	unsigned long mask;

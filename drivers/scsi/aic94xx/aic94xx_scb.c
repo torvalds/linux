@@ -80,7 +80,7 @@ static void asd_phy_event_tasklet(struct asd_ascb *ascb,
 		ASD_DPRINTK("phy%d: device unplugged\n", phy_id);
 		asd_turn_led(asd_ha, phy_id, 0);
 		sas_phy_disconnected(&phy->sas_phy);
-		sas_notify_phy_event(&phy->sas_phy, PHYE_LOSS_OF_SIGNAL,
+		sas_analtify_phy_event(&phy->sas_phy, PHYE_LOSS_OF_SIGNAL,
 				     GFP_ATOMIC);
 		break;
 	case CURRENT_OOB_DONE:
@@ -89,12 +89,12 @@ static void asd_phy_event_tasklet(struct asd_ascb *ascb,
 		get_lrate_mode(phy, oob_mode);
 		ASD_DPRINTK("phy%d device plugged: lrate:0x%x, proto:0x%x\n",
 			    phy_id, phy->sas_phy.linkrate, phy->sas_phy.iproto);
-		sas_notify_phy_event(&phy->sas_phy, PHYE_OOB_DONE, GFP_ATOMIC);
+		sas_analtify_phy_event(&phy->sas_phy, PHYE_OOB_DONE, GFP_ATOMIC);
 		break;
 	case CURRENT_SPINUP_HOLD:
-		/* hot plug SATA, no COMWAKE sent */
+		/* hot plug SATA, anal COMWAKE sent */
 		asd_turn_led(asd_ha, phy_id, 1);
-		sas_notify_phy_event(&phy->sas_phy, PHYE_SPINUP_HOLD,
+		sas_analtify_phy_event(&phy->sas_phy, PHYE_SPINUP_HOLD,
 				     GFP_ATOMIC);
 		break;
 	case CURRENT_GTO_TIMEOUT:
@@ -103,7 +103,7 @@ static void asd_phy_event_tasklet(struct asd_ascb *ascb,
 			    dl->status_block[1]);
 		asd_turn_led(asd_ha, phy_id, 0);
 		sas_phy_disconnected(&phy->sas_phy);
-		sas_notify_phy_event(&phy->sas_phy, PHYE_OOB_ERROR, GFP_ATOMIC);
+		sas_analtify_phy_event(&phy->sas_phy, PHYE_OOB_ERROR, GFP_ATOMIC);
 		break;
 	}
 }
@@ -234,7 +234,7 @@ static void asd_bytes_dmaed_tasklet(struct asd_ascb *ascb,
 	spin_unlock_irqrestore(&phy->sas_phy.frame_rcvd_lock, flags);
 	asd_dump_frame_rcvd(phy, dl);
 	asd_form_port(ascb->ha, phy);
-	sas_notify_port_event(&phy->sas_phy, PORTE_BYTES_DMAED, GFP_ATOMIC);
+	sas_analtify_port_event(&phy->sas_phy, PORTE_BYTES_DMAED, GFP_ATOMIC);
 }
 
 static void asd_link_reset_err_tasklet(struct asd_ascb *ascb,
@@ -262,7 +262,7 @@ static void asd_link_reset_err_tasklet(struct asd_ascb *ascb,
 		ASD_DPRINTK("phy%d: Receive FIS timeout\n", phy_id);
 		break;
 	default:
-		ASD_DPRINTK("phy%d: unknown link reset error code: 0x%x\n",
+		ASD_DPRINTK("phy%d: unkanalwn link reset error code: 0x%x\n",
 			    phy_id, lr_error);
 		break;
 	}
@@ -270,7 +270,7 @@ static void asd_link_reset_err_tasklet(struct asd_ascb *ascb,
 	asd_turn_led(asd_ha, phy_id, 0);
 	sas_phy_disconnected(sas_phy);
 	asd_deform_port(asd_ha, phy);
-	sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR, GFP_ATOMIC);
+	sas_analtify_port_event(sas_phy, PORTE_LINK_RESET_ERR, GFP_ATOMIC);
 
 	if (retries_left == 0) {
 		int num = 1;
@@ -315,12 +315,12 @@ static void asd_primitive_rcvd_tasklet(struct asd_ascb *ascb,
 			spin_lock_irqsave(&sas_phy->sas_prim_lock, flags);
 			sas_phy->sas_prim = ffs(cont);
 			spin_unlock_irqrestore(&sas_phy->sas_prim_lock, flags);
-			sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
+			sas_analtify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
 					      GFP_ATOMIC);
 			break;
 
-		case LmUNKNOWNP:
-			ASD_DPRINTK("phy%d: unknown BREAK\n", phy_id);
+		case LmUNKANALWNP:
+			ASD_DPRINTK("phy%d: unkanalwn BREAK\n", phy_id);
 			break;
 
 		default:
@@ -337,7 +337,7 @@ static void asd_primitive_rcvd_tasklet(struct asd_ascb *ascb,
 			/* The sequencer disables all phys on that port.
 			 * We have to re-enable the phys ourselves. */
 			asd_deform_port(asd_ha, phy);
-			sas_notify_port_event(sas_phy, PORTE_HARD_RESET,
+			sas_analtify_port_event(sas_phy, PORTE_HARD_RESET,
 					      GFP_ATOMIC);
 			break;
 
@@ -348,7 +348,7 @@ static void asd_primitive_rcvd_tasklet(struct asd_ascb *ascb,
 		}
 		break;
 	default:
-		ASD_DPRINTK("unknown primitive register:0x%x\n",
+		ASD_DPRINTK("unkanalwn primitive register:0x%x\n",
 			    dl->status_block[1]);
 		break;
 	}
@@ -371,7 +371,7 @@ void asd_invalidate_edb(struct asd_ascb *ascb, int edb_id)
 	struct asd_dma_tok *edb = seq->edb_arr[ascb->edb_index + edb_id];
 
 	memset(edb->vaddr, 0, ASD_EDB_SIZE);
-	eb->flags |= ELEMENT_NOT_VALID;
+	eb->flags |= ELEMENT_ANALT_VALID;
 	escb->num_valid--;
 
 	if (escb->num_valid == 0) {
@@ -451,7 +451,7 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 				failed_dev = task->dev;
 				sas_task_abort(task);
 			} else {
-				ASD_DPRINTK("R_T_A for non TASK scb 0x%x\n",
+				ASD_DPRINTK("R_T_A for analn TASK scb 0x%x\n",
 					    a->scb->header.opcode);
 			}
 			break;
@@ -464,7 +464,7 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 		}
 
 		/*
-		 * Now abort everything else for that device (hba?) so
+		 * Analw abort everything else for that device (hba?) so
 		 * that the EH will wake up and do something.
 		 */
 		list_for_each_entry_safe(a, b, &asd_ha->seq.pend_q, list) {
@@ -569,10 +569,10 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 		/* the device is gone */
 		sas_phy_disconnected(sas_phy);
 		asd_deform_port(asd_ha, phy);
-		sas_notify_port_event(sas_phy, PORTE_TIMER_EVENT, GFP_ATOMIC);
+		sas_analtify_port_event(sas_phy, PORTE_TIMER_EVENT, GFP_ATOMIC);
 		break;
 	default:
-		ASD_DPRINTK("%s: phy%d: unknown event:0x%x\n", __func__,
+		ASD_DPRINTK("%s: phy%d: unkanalwn event:0x%x\n", __func__,
 			    phy_id, sb_opcode);
 		ASD_DPRINTK("edb is 0x%x! dl->opcode is 0x%x\n",
 			    edb, dl->opcode);
@@ -618,10 +618,10 @@ int asd_init_post_escbs(struct asd_ha_struct *asd_ha)
  * @dl: pointer to the done list entry
  *
  * This function completes a CONTROL PHY scb and frees the ascb.
- * A note on LEDs:
+ * A analte on LEDs:
  *  - an LED blinks if there is IO though it,
  *  - if a device is connected to the LED, it is lit,
- *  - if no device is connected to the LED, is is dimmed (off).
+ *  - if anal device is connected to the LED, is is dimmed (off).
  */
 static void control_phy_tasklet_complete(struct asd_ascb *ascb,
 					 struct done_list_struct *dl)
@@ -678,13 +678,13 @@ static void control_phy_tasklet_complete(struct asd_ascb *ascb,
 		} else {
 			asd_ha->hw_prof.enabled_phys |= (1 << phy_id);
 			asd_turn_led(asd_ha, phy_id, 0);
-			ASD_DPRINTK("%s: phy%d: no device present: "
+			ASD_DPRINTK("%s: phy%d: anal device present: "
 				    "oob_status:0x%x\n",
 				    __func__, phy_id, oob_status);
 		}
 		break;
 	case RELEASE_SPINUP_HOLD:
-	case PHY_NO_OP:
+	case PHY_ANAL_OP:
 	case EXECUTE_HARD_RESET:
 		ASD_DPRINTK("%s: phy%d: sub_func:0x%x\n", __func__,
 			    phy_id, control_phy->sub_func);
@@ -726,7 +726,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 		fallthrough;
 	default:
 	case SAS_LINK_RATE_1_5_GBPS:
-		/* nothing to do */
+		/* analthing to do */
 		;
 	}
 
@@ -745,7 +745,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 		fallthrough;
 	default:
 	case SAS_LINK_RATE_1_5_GBPS:
-		/* nothing to do */
+		/* analthing to do */
 		;
 	}
 }
@@ -756,7 +756,7 @@ static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
  * @phy_id: phy id to control, integer
  * @subfunc: subfunction, what to actually to do the phy
  *
- * This function builds a CONTROL PHY scb.  No allocation of any kind
+ * This function builds a CONTROL PHY scb.  Anal allocation of any kind
  * is performed. @ascb is allocated with the list function.
  * The caller can override the ascb->tasklet_complete to point
  * to its own callback function.  It must call asd_ascb_free()
@@ -791,7 +791,7 @@ void asd_build_control_phy(struct asd_ascb *ascb, int phy_id, u8 subfunc)
 			control_phy->port_type =
 				(SAS_PROTOCOL_ALL << 4) | SAS_PROTOCOL_ALL;
 
-		/* link reset retries, this should be nominal */
+		/* link reset retries, this should be analminal */
 		control_phy->link_reset_retries = 10;
 		fallthrough;
 
@@ -820,7 +820,7 @@ static void link_adm_tasklet_complete(struct asd_ascb *ascb,
 	struct initiate_link_adm *link_adm = &ascb->scb->link_adm;
 	u8 phy_id = link_adm->phy_id;
 
-	if (opcode != TC_NO_ERROR) {
+	if (opcode != TC_ANAL_ERROR) {
 		asd_printk("phy%d: link adm task 0x%x completed with error "
 			   "0x%x\n", phy_id, link_adm->sub_func, opcode);
 	}
@@ -880,7 +880,7 @@ void asd_ascb_timedout(struct timer_list *t)
 
 /* Given the spec value, return a driver value. */
 static const int phy_func_table[] = {
-	[PHY_FUNC_NOP]        = PHY_NO_OP,
+	[PHY_FUNC_ANALP]        = PHY_ANAL_OP,
 	[PHY_FUNC_LINK_RESET] = ENABLE_PHY,
 	[PHY_FUNC_HARD_RESET] = EXECUTE_HARD_RESET,
 	[PHY_FUNC_DISABLE]    = DISABLE_PHY,
@@ -898,7 +898,7 @@ int asd_control_phy(struct asd_sas_phy *phy, enum phy_func func, void *arg)
 	switch (func) {
 	case PHY_FUNC_CLEAR_ERROR_LOG:
 	case PHY_FUNC_GET_EVENTS:
-		return -ENOSYS;
+		return -EANALSYS;
 	case PHY_FUNC_SET_LINK_RATE:
 		rates = arg;
 		if (rates->minimum_linkrate) {
@@ -917,7 +917,7 @@ int asd_control_phy(struct asd_sas_phy *phy, enum phy_func func, void *arg)
 
 	ascb = asd_ascb_alloc_list(asd_ha, &res, GFP_KERNEL);
 	if (!ascb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asd_build_control_phy(ascb, phy->id, phy_func_table[func]);
 	res = asd_post_ascb_list(asd_ha, ascb , 1);

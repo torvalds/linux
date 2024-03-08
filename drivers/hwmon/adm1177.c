@@ -95,7 +95,7 @@ static int adm1177_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = st->alert_threshold_ua;
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	case hwmon_in:
 		ret = adm1177_read_raw(st, 3, data);
@@ -114,7 +114,7 @@ static int adm1177_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = DIV_ROUND_CLOSEST(dummy, 4096);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -130,10 +130,10 @@ static int adm1177_write(struct device *dev, enum hwmon_sensor_types type,
 			adm1177_write_alert_thr(st, val);
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -197,7 +197,7 @@ static int adm1177_probe(struct i2c_client *client)
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->client = client;
 

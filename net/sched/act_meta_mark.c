@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -43,7 +43,7 @@ static struct tcf_meta_ops ife_skbmark_ops = {
 	.metaid = IFE_META_SKBMARK,
 	.metatype = NLA_U32,
 	.name = "skbmark",
-	.synopsis = "skb mark 32 bit metadata",
+	.syanalpsis = "skb mark 32 bit metadata",
 	.check_presence = skbmark_check,
 	.encode = skbmark_encode,
 	.decode = skbmark_decode,

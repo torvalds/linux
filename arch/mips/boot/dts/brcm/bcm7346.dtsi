@@ -328,7 +328,7 @@
 			compatible = "brcm,bcm7346-ohci", "generic-ohci";
 			reg = <0x480400 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <70>;
 			status = "disabled";
@@ -347,7 +347,7 @@
 			compatible = "brcm,bcm7346-ohci", "generic-ohci";
 			reg = <0x480600 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <71>;
 			status = "disabled";
@@ -366,7 +366,7 @@
 			compatible = "brcm,bcm7346-ohci", "generic-ohci";
 			reg = <0x490400 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <75>;
 			status = "disabled";
@@ -385,7 +385,7 @@
 			compatible = "brcm,bcm7346-ohci", "generic-ohci";
 			reg = <0x490600 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <76>;
 			status = "disabled";

@@ -72,7 +72,7 @@ static inline u32 opa_get_mcast_base(u32 nr_top_bits)
 	return (be32_to_cpu(OPA_LID_PERMISSIVE) << (32 - nr_top_bits));
 }
 
-/* Check for a valid unicast LID for non-SM traffic types */
+/* Check for a valid unicast LID for analn-SM traffic types */
 static inline bool rdma_is_valid_unicast_lid(struct rdma_ah_attr *attr)
 {
 	if (attr->type == RDMA_AH_ATTR_TYPE_IB) {

@@ -13,7 +13,7 @@
 #include <linux/module.h>
 
 MODULE_AUTHOR("Jochen Voss <voss@seehuhn.de>");
-MODULE_DESCRIPTION("PT2258 volume controller (Princeton Technology Corp.)");
+MODULE_DESCRIPTION("PT2258 volume controller (Princeton Techanallogy Corp.)");
 MODULE_LICENSE("GPL");
 
 #define PT2258_CMD_RESET 0xc0
@@ -83,7 +83,7 @@ static int pt2258_stereo_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_pt2258 *pt = kcontrol->private_data;
 	int base = kcontrol->private_value;
 
-	/* chip does not support register reads */
+	/* chip does analt support register reads */
 	ucontrol->value.integer.value[0] = 79 - pt->volume[base];
 	ucontrol->value.integer.value[1] = 79 - pt->volume[base + 1];
 	return 0;
@@ -128,7 +128,7 @@ static int pt2258_stereo_volume_put(struct snd_kcontrol *kcontrol,
 	return -EIO;
 }
 
-#define pt2258_switch_info	snd_ctl_boolean_mono_info
+#define pt2258_switch_info	snd_ctl_boolean_moanal_info
 
 static int pt2258_switch_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)

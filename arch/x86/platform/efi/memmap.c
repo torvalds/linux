@@ -50,8 +50,8 @@ void __init __efi_memmap_free(u64 phys, unsigned long size, unsigned long flags)
  * @num_entries: Number of entries in the allocated map.
  * @data: efi memmap installation parameters
  *
- * Depending on whether mm_init() has already been invoked or not,
- * either memblock or "normal" page allocation is used.
+ * Depending on whether mm_init() has already been invoked or analt,
+ * either memblock or "analrmal" page allocation is used.
  *
  * Returns zero on success, a negative error code on failure.
  */
@@ -76,7 +76,7 @@ int __init efi_memmap_alloc(unsigned int num_entries,
 	}
 
 	if (!data->phys_map)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -84,7 +84,7 @@ int __init efi_memmap_alloc(unsigned int num_entries,
  * efi_memmap_install - Install a new EFI memory map in efi.memmap
  * @data: efi memmap installation parameters
  *
- * Unlike efi_memmap_init_*(), this function does not allow the caller
+ * Unlike efi_memmap_init_*(), this function does analt allow the caller
  * to switch from early to late mappings. It simply uses the existing
  * mapping function and installs the new memmap.
  *

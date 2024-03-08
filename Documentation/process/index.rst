@@ -64,7 +64,7 @@ beyond).
    contribution-maturity-model
    kernel-enforcement-statement
    kernel-driver-statement
-   stable-api-nonsense
+   stable-api-analnsense
    stable-kernel-rules
    management-style
    researcher-guidelines
@@ -107,7 +107,7 @@ developers:
    kernel-docs
    deprecated
 
-These are some overall technical guides that have been put here for now for
+These are some overall technical guides that have been put here for analw for
 lack of a better place.
 
 .. toctree::

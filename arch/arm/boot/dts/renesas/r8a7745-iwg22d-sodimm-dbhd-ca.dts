@@ -124,7 +124,7 @@
 &lcd_panel {
 	status = "disabled";
 
-	/delete-node/ port;
+	/delete-analde/ port;
 };
 
 &pfc {

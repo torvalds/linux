@@ -9,7 +9,7 @@ menuconfig WAN
 	  Wide Area Networks (WANs), such as X.25, Frame Relay and leased
 	  lines, are used to interconnect Local Area Networks (LANs) over vast
 	  distances with data transfer rates significantly higher than those
-	  achievable with commonly used asynchronous modem connections.
+	  achievable with commonly used asynchroanalus modem connections.
 
 	  Usually, a quite expensive external device called a `WAN router' is
 	  needed to connect to a WAN. As an alternative, a relatively
@@ -34,7 +34,7 @@ config HDLC
 	  You will need supporting software from
 	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
 	  Generic HDLC driver currently supports raw HDLC, Cisco HDLC, Frame
-	  Relay, synchronous Point-to-Point Protocol (PPP) and X.25.
+	  Relay, synchroanalus Point-to-Point Protocol (PPP) and X.25.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hdlc.
@@ -77,7 +77,7 @@ config HDLC_FR
 	  If unsure, say N.
 
 config HDLC_PPP
-	tristate "Synchronous Point-to-Point Protocol (PPP) support"
+	tristate "Synchroanalus Point-to-Point Protocol (PPP) support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting PPP over WAN connections.
@@ -157,7 +157,7 @@ config N2
 	  If you have such a card, say Y here and see
 	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
 
-	  Note that N2csu and N2dds cards are not supported by this driver.
+	  Analte that N2csu and N2dds cards are analt supported by this driver.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called n2.
@@ -168,7 +168,7 @@ config C101
 	tristate "Moxa C101 support"
 	depends on HDLC && ISA
 	help
-	  Driver for C101 SuperSync ISA cards by Moxa Technologies Co., Ltd.
+	  Driver for C101 SuperSync ISA cards by Moxa Techanallogies Co., Ltd.
 
 	  If you have such a card, say Y here and see
 	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
@@ -185,8 +185,8 @@ config FARSYNC
 	  Support for the FarSync T-Series X.21 (and V.35/V.24) cards by
 	  FarSite Communications Ltd.
 
-	  Synchronous communication is supported on all ports at speeds up to
-	  8Mb/s (128K on V.24) using synchronous PPP, Cisco HDLC, raw HDLC,
+	  Synchroanalus communication is supported on all ports at speeds up to
+	  8Mb/s (128K on V.24) using synchroanalus PPP, Cisco HDLC, raw HDLC,
 	  Frame Relay or X.25/LAPB.
 
 	  If you want the module to be automatically loaded when the interface
@@ -221,7 +221,7 @@ config SLIC_DS26522
 	  module will be called slic_ds26522.
 
 config IXP4XX_HSS
-	tristate "Intel IXP4xx HSS (synchronous serial port) support"
+	tristate "Intel IXP4xx HSS (synchroanalus serial port) support"
 	depends on HDLC && IXP4XX_NPE && IXP4XX_QMGR
 	depends on ARCH_IXP4XX && OF
 	select MFD_SYSCON

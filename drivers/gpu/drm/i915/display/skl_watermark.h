@@ -36,7 +36,7 @@ void skl_write_cursor_wm(struct intel_plane *plane,
 
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
-				 int num_entries, int ignore_idx);
+				 int num_entries, int iganalre_idx);
 
 void intel_wm_state_verify(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc);

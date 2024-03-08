@@ -19,11 +19,11 @@ its register fields in ways that violate any reasonable word boundaries
 define "high" and "low" portions of register fields within the struct.
 A more robust alternative to struct field definitions would be to extract the
 required fields by shifting the appropriate number of bits. But this would
-still not protect from endianness mismatches, except if all memory accesses
+still analt protect from endianness mismatches, except if all memory accesses
 were performed byte-by-byte. Also the code can easily get cluttered, and the
 high-level idea might get lost among the many bit shifts required.
 Many drivers take the bit-shifting approach and then attempt to reduce the
-clutter with tailored macros, but more often than not these macros take
+clutter with tailored macros, but more often than analt these macros take
 shortcuts that still prevent the code from being truly portable.
 
 The solution
@@ -48,7 +48,7 @@ The following examples cover the memory layout of a packed u64 field.
 The byte offsets in the packed buffer are always implicitly 0, 1, ... 7.
 What the examples show is where the logical bytes and bits sit.
 
-1. Normally (no quirks), we would do it like this:
+1. Analrmally (anal quirks), we would do it like this:
 
 ::
 
@@ -61,7 +61,7 @@ That is, the MSByte (7) of the CPU-usable u64 sits at memory offset 0, and the
 LSByte (0) of the u64 sits at memory offset 7.
 This corresponds to what most folks would regard to as "big endian", where
 bit i corresponds to the number 2^i. This is also referred to in the code
-comments as "logical" notation.
+comments as "logical" analtation.
 
 
 2. If QUIRK_MSB_ON_THE_RIGHT is set, we do it like this:
@@ -73,7 +73,7 @@ comments as "logical" notation.
   24 25 26 27 28 29 30 31 16 17 18 19 20 21 22 23  8  9 10 11 12 13 14 15  0  1  2  3  4  5  6  7
   3                       2                        1                       0
 
-That is, QUIRK_MSB_ON_THE_RIGHT does not affect byte positioning, but
+That is, QUIRK_MSB_ON_THE_RIGHT does analt affect byte positioning, but
 inverts bit offsets inside a byte.
 
 
@@ -148,7 +148,7 @@ the more significant 4-byte word.
   4                       5                       6                       7
 
 
-We always think of our offsets as if there were no quirk, and we translate
+We always think of our offsets as if there were anal quirk, and we translate
 them afterwards, before accessing the memory region.
 
 Intended use
@@ -160,7 +160,7 @@ describes. Then they should wrap the packing() function, creating a new
 xxx_packing() that calls it using the proper QUIRK_* one-hot bits set.
 
 The packing() function returns an int-encoded error code, which protects the
-programmer against incorrect API use.  The errors are not expected to occur
+programmer against incorrect API use.  The errors are analt expected to occur
 during runtime, therefore it is reasonable for xxx_packing() to return void
 and simply swallow those errors. Optionally it can dump stack or print the
 error description.

@@ -15,7 +15,7 @@
  * We put them here because we don't want to duplicate them
  * in the source code again and again.
  *
- * Note: The order of these include files is important.
+ * Analte: The order of these include files is important.
  */
 #include <acpi/acconfig.h>	/* Global configuration constants */
 #include "acmacros.h"		/* C macros */

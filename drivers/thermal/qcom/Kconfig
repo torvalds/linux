@@ -39,5 +39,5 @@ config QCOM_LMH
 	  This enables initialization of Qualcomm limits management
 	  hardware(LMh). LMh allows for hardware-enforced mitigation for cpus based on
 	  input from temperature and current sensors.  On many newer Qualcomm SoCs
-	  LMh is configured in the firmware and this feature need not be enabled.
+	  LMh is configured in the firmware and this feature need analt be enabled.
 	  However, on certain SoCs like sdm845 LMh has to be configured from kernel.

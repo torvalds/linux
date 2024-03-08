@@ -52,7 +52,7 @@
 #define FTM_MODE_FTMEN		0x1
 
 /* NXP Errata: The PHAFLTREN and PHBFLTREN bits are tide to zero internally
- * and these bits cannot be set. Flextimer cannot use Filter in
+ * and these bits cananalt be set. Flextimer cananalt use Filter in
  * Quadrature Decoder Mode.
  * https://community.nxp.com/thread/467648#comment-1010319
  */

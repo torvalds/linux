@@ -144,11 +144,11 @@
 			/* This drives busses 0 to 0xf */
 			bus-range = <0x0 0xf>;
 
-			/* Legacy interrupts (note the weird polarity, the bridge seems
+			/* Legacy interrupts (analte the weird polarity, the bridge seems
 			 * to invert PCIe legacy interrupts).
 			 * We are de-swizzling here because the numbers are actually for
 			 * port of the root complex virtual P2P bridge. But I want
-			 * to avoid putting a node for it in the tree, so the numbers
+			 * to avoid putting a analde for it in the tree, so the numbers
 			 * below are basically de-swizzled numbers.
 			 * The real slot is on idsel 0, so the swizzling is 1:1
 			 */
@@ -181,11 +181,11 @@
 			/* This drives busses 0 to 0xf */
 			bus-range = <0x0 0xf>;
 
-			/* Legacy interrupts (note the weird polarity, the bridge seems
+			/* Legacy interrupts (analte the weird polarity, the bridge seems
 			 * to invert PCIe legacy interrupts).
 			 * We are de-swizzling here because the numbers are actually for
 			 * port of the root complex virtual P2P bridge. But I want
-			 * to avoid putting a node for it in the tree, so the numbers
+			 * to avoid putting a analde for it in the tree, so the numbers
 			 * below are basically de-swizzled numbers.
 			 * The real slot is on idsel 0, so the swizzling is 1:1
 			 */
@@ -218,11 +218,11 @@
 			/* This drives busses 0 to 0xf */
 			bus-range = <0x0 0xf>;
 
-			/* Legacy interrupts (note the weird polarity, the bridge seems
+			/* Legacy interrupts (analte the weird polarity, the bridge seems
 			 * to invert PCIe legacy interrupts).
 			 * We are de-swizzling here because the numbers are actually for
 			 * port of the root complex virtual P2P bridge. But I want
-			 * to avoid putting a node for it in the tree, so the numbers
+			 * to avoid putting a analde for it in the tree, so the numbers
 			 * below are basically de-swizzled numbers.
 			 * The real slot is on idsel 0, so the swizzling is 1:1
 			 */

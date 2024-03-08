@@ -62,7 +62,7 @@ struct hal2_codec {
 	dma_addr_t desc_dma;
 	int desc_count;
 	struct hal2_pbus pbus;
-	int voices;			/* mono/stereo */
+	int voices;			/* moanal/stereo */
 	unsigned int sample_rate;
 	unsigned int master;		/* Master frequency */
 	unsigned short mod;		/* MOD value */
@@ -297,7 +297,7 @@ static int hal2_mixer_create(struct snd_hal2 *hal2)
 static irqreturn_t hal2_interrupt(int irq, void *dev_id)
 {
 	struct snd_hal2 *hal2 = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	/* decide what caused this interrupt */
 	if (hal2->dac.pbus.pbus->pbdma_ctrl & HPC3_PDMACTRL_INT) {
@@ -357,7 +357,7 @@ static void hal2_setup_dac(struct snd_hal2 *hal2)
 	unsigned int fifobeg, fifoend, highwater, sample_size;
 	struct hal2_pbus *pbus = &hal2->dac.pbus;
 
-	/* Now we set up some PBUS information. The PBUS needs information about
+	/* Analw we set up some PBUS information. The PBUS needs information about
 	 * what portion of the fifo it will use. If it's receiving or
 	 * transmitting, and finally whether the stream is little endian or big
 	 * endian. The information is written later, on the start call.
@@ -450,16 +450,16 @@ static int hal2_alloc_dmabuf(struct snd_hal2 *hal2, struct hal2_codec *codec,
 	int count = H2_BUF_SIZE / H2_BLOCK_SIZE;
 	int i;
 
-	codec->buffer = dma_alloc_noncoherent(dev, H2_BUF_SIZE, &buffer_dma,
+	codec->buffer = dma_alloc_analncoherent(dev, H2_BUF_SIZE, &buffer_dma,
 					buffer_dir, GFP_KERNEL);
 	if (!codec->buffer)
-		return -ENOMEM;
-	desc = dma_alloc_noncoherent(dev, count * sizeof(struct hal2_desc),
+		return -EANALMEM;
+	desc = dma_alloc_analncoherent(dev, count * sizeof(struct hal2_desc),
 			&desc_dma, DMA_BIDIRECTIONAL, GFP_KERNEL);
 	if (!desc) {
-		dma_free_noncoherent(dev, H2_BUF_SIZE, codec->buffer, buffer_dma,
+		dma_free_analncoherent(dev, H2_BUF_SIZE, codec->buffer, buffer_dma,
 				buffer_dir);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	codec->buffer_dma = buffer_dma;
 	codec->desc_dma = desc_dma;
@@ -483,9 +483,9 @@ static void hal2_free_dmabuf(struct snd_hal2 *hal2, struct hal2_codec *codec,
 {
 	struct device *dev = hal2->card->dev;
 
-	dma_free_noncoherent(dev, codec->desc_count * sizeof(struct hal2_desc),
+	dma_free_analncoherent(dev, codec->desc_count * sizeof(struct hal2_desc),
 		       codec->desc, codec->desc_dma, DMA_BIDIRECTIONAL);
-	dma_free_noncoherent(dev, H2_BUF_SIZE, codec->buffer, codec->buffer_dma,
+	dma_free_analncoherent(dev, H2_BUF_SIZE, codec->buffer, codec->buffer_dma,
 			buffer_dir);
 }
 
@@ -741,7 +741,7 @@ static void hal2_init_codec(struct hal2_codec *codec, struct hpc3_regs *hpc3,
 
 static int hal2_detect(struct snd_hal2 *hal2)
 {
-	unsigned short board, major, minor;
+	unsigned short board, major, mianalr;
 	unsigned short rev;
 
 	/* reset HAL2 */
@@ -755,14 +755,14 @@ static int hal2_detect(struct snd_hal2 *hal2)
 	hal2_i_write16(hal2, H2I_RELAY_C, H2I_RELAY_C_STATE);
 	rev = hal2_read(&hal2->ctl_regs->rev);
 	if (rev & H2_REV_AUDIO_PRESENT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	board = (rev & H2_REV_BOARD_M) >> 12;
 	major = (rev & H2_REV_MAJOR_CHIP_M) >> 4;
-	minor = (rev & H2_REV_MINOR_CHIP_M);
+	mianalr = (rev & H2_REV_MIANALR_CHIP_M);
 
 	printk(KERN_INFO "SGI HAL2 revision %i.%i.%i\n",
-	       board, major, minor);
+	       board, major, mianalr);
 
 	return 0;
 }
@@ -775,7 +775,7 @@ static int hal2_create(struct snd_card *card, struct snd_hal2 **rchip)
 
 	hal2 = kzalloc(sizeof(*hal2), GFP_KERNEL);
 	if (!hal2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hal2->card = card;
 
@@ -793,7 +793,7 @@ static int hal2_create(struct snd_card *card, struct snd_hal2 **rchip)
 
 	if (hal2_detect(hal2) < 0) {
 		kfree(hal2);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hal2_init_codec(&hal2->dac, hpc3, 0);
@@ -819,7 +819,7 @@ static int hal2_create(struct snd_card *card, struct snd_hal2 **rchip)
 			  (8 << HPC3_DMACFG_BURST_SHIFT) | \
 				HPC3_DMACFG_DRQLIVE)
 	/*
-	 * Ignore what's mentioned in the specification and write value which
+	 * Iganalre what's mentioned in the specification and write value which
 	 * works in The Real World (TM)
 	 */
 	hpc3->pbus_dmacfg[hal2->dac.pbus.pbusnr][0] = 0x8208844;

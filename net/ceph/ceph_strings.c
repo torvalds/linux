@@ -13,7 +13,7 @@ const char *ceph_entity_type_name(int type)
 	case CEPH_ENTITY_TYPE_MON: return "mon";
 	case CEPH_ENTITY_TYPE_CLIENT: return "client";
 	case CEPH_ENTITY_TYPE_AUTH: return "auth";
-	default: return "unknown";
+	default: return "unkanalwn";
 	}
 }
 EXPORT_SYMBOL(ceph_entity_type_name);
@@ -21,10 +21,10 @@ EXPORT_SYMBOL(ceph_entity_type_name);
 const char *ceph_auth_proto_name(int proto)
 {
 	switch (proto) {
-	case CEPH_AUTH_UNKNOWN:
-		return "unknown";
-	case CEPH_AUTH_NONE:
-		return "none";
+	case CEPH_AUTH_UNKANALWN:
+		return "unkanalwn";
+	case CEPH_AUTH_ANALNE:
+		return "analne";
 	case CEPH_AUTH_CEPHX:
 		return "cephx";
 	default:
@@ -35,8 +35,8 @@ const char *ceph_auth_proto_name(int proto)
 const char *ceph_con_mode_name(int mode)
 {
 	switch (mode) {
-	case CEPH_CON_MODE_UNKNOWN:
-		return "unknown";
+	case CEPH_CON_MODE_UNKANALWN:
+		return "unkanalwn";
 	case CEPH_CON_MODE_CRC:
 		return "crc";
 	case CEPH_CON_MODE_SECURE:

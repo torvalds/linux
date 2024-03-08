@@ -44,7 +44,7 @@ bool debug_display_time;
 FILE *debug_file(void)
 {
 	if (!_debug_file) {
-		pr_warning_once("debug_file not set");
+		pr_warning_once("debug_file analt set");
 		debug_set_file(stderr);
 	}
 	return _debug_file;

@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -562,7 +562,7 @@ static const u32 qca953x_1p0_modes_xpa_tx_gain_table[][2] = {
 	{0x00016448, 0x66482400},
 };
 
-static const u32 qca953x_1p0_modes_no_xpa_tx_gain_table[][2] = {
+static const u32 qca953x_1p0_modes_anal_xpa_tx_gain_table[][2] = {
 	/* Addr      allmodes  */
 	{0x0000a2dc, 0xffd5f552},
 	{0x0000a2e0, 0xffe60664},
@@ -627,7 +627,7 @@ static const u32 qca953x_1p0_modes_no_xpa_tx_gain_table[][2] = {
 	{0x00016448, 0x6c927a70},
 };
 
-static const u32 qca953x_1p1_modes_no_xpa_tx_gain_table[][2] = {
+static const u32 qca953x_1p1_modes_anal_xpa_tx_gain_table[][2] = {
 	/* Addr      allmodes  */
 	{0x0000a2dc, 0xffd5f552},
 	{0x0000a2e0, 0xffe60664},
@@ -757,7 +757,7 @@ static const u32 qca953x_1p1_modes_xpa_tx_gain_table[][2] = {
 	{0x00016448, 0x6c927a70},
 };
 
-static const u32 qca953x_1p1_modes_no_xpa_low_power_tx_gain_table[][2] = {
+static const u32 qca953x_1p1_modes_anal_xpa_low_power_tx_gain_table[][2] = {
 	/* Addr      allmodes  */
 	{0x0000a2dc, 0xfff55592},
 	{0x0000a2e0, 0xfff99924},
@@ -1352,7 +1352,7 @@ static const u32 qca953x_2p0_modes_xpa_tx_gain_table[][2] = {
 	{0x00016448, 0x6c927a70},
 };
 
-static const u32 qca953x_2p0_modes_no_xpa_tx_gain_table[][2] = {
+static const u32 qca953x_2p0_modes_anal_xpa_tx_gain_table[][2] = {
 	/* Addr      allmodes  */
 	{0x0000a2dc, 0xffd5f552},
 	{0x0000a2e0, 0xffe60664},

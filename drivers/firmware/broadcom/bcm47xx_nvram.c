@@ -101,7 +101,7 @@ static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_siz
 	if (bcm47xx_nvram_is_valid(flash_start + offset))
 		goto found;
 
-	pr_err("no nvram found\n");
+	pr_err("anal nvram found\n");
 	return -ENXIO;
 
 found:
@@ -118,8 +118,8 @@ int bcm47xx_nvram_init_from_iomem(void __iomem *nvram_start, size_t res_size)
 	}
 
 	if (!bcm47xx_nvram_is_valid(nvram_start)) {
-		pr_err("No valid NVRAM found\n");
-		return -ENOENT;
+		pr_err("Anal valid NVRAM found\n");
+		return -EANALENT;
 	}
 
 	bcm47xx_nvram_copy(nvram_start, res_size);
@@ -142,7 +142,7 @@ int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 
 	iobase = ioremap(base, lim);
 	if (!iobase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = bcm47xx_nvram_find_and_copy(iobase, lim);
 
@@ -161,7 +161,7 @@ static int nvram_init(void)
 
 	mtd = get_mtd_device_nm("nvram");
 	if (IS_ERR(mtd))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = mtd_read(mtd, 0, sizeof(header), &bytes_read, (uint8_t *)&header);
 	if (!err && header.magic == NVRAM_MAGIC &&
@@ -209,7 +209,7 @@ int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 			return snprintf(val, val_len, "%s", value);
 		var = value + strlen(value) + 1;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL(bcm47xx_nvram_getenv);
 
@@ -230,7 +230,7 @@ int bcm47xx_nvram_gpio_pin(const char *name)
 		if (!strcmp(name, buf))
 			return i;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL(bcm47xx_nvram_gpio_pin);
 

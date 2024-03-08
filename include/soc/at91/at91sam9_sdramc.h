@@ -15,8 +15,8 @@
 /* SDRAM Controller (SDRAMC) registers */
 #define AT91_SDRAMC_MR		0x00	/* SDRAM Controller Mode Register */
 #define		AT91_SDRAMC_MODE	(0xf << 0)		/* Command Mode */
-#define			AT91_SDRAMC_MODE_NORMAL		0
-#define			AT91_SDRAMC_MODE_NOP		1
+#define			AT91_SDRAMC_MODE_ANALRMAL		0
+#define			AT91_SDRAMC_MODE_ANALP		1
 #define			AT91_SDRAMC_MODE_PRECHARGE	2
 #define			AT91_SDRAMC_MODE_LMR		3
 #define			AT91_SDRAMC_MODE_REFRESH	4

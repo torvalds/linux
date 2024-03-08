@@ -43,12 +43,12 @@ static inline void pit_timer_disable(void)
 	__raw_writel(0, clkevt_base + PITTCTRL);
 }
 
-static inline void pit_irq_acknowledge(void)
+static inline void pit_irq_ackanalwledge(void)
 {
 	__raw_writel(PITTFLG_TIF, clkevt_base + PITTFLG);
 }
 
-static u64 notrace pit_read_sched_clock(void)
+static u64 analtrace pit_read_sched_clock(void)
 {
 	return ~__raw_readl(clksrc_base + PITCVAL);
 }
@@ -69,7 +69,7 @@ static int pit_set_next_event(unsigned long delta,
 				struct clock_event_device *unused)
 {
 	/*
-	 * set a new value to PITLDVAL register will not restart the timer,
+	 * set a new value to PITLDVAL register will analt restart the timer,
 	 * to abort the current cycle and start a timer period with the new
 	 * value, the timer must be disabled and enabled again.
 	 * and the PITLAVAL should be set to delta minus one according to pit
@@ -98,7 +98,7 @@ static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 
-	pit_irq_acknowledge();
+	pit_irq_ackanalwledge();
 
 	/*
 	 * pit hardware doesn't support oneshot, it will generate an interrupt
@@ -146,7 +146,7 @@ static int __init pit_clockevent_init(unsigned long rate, int irq)
 	return 0;
 }
 
-static int __init pit_timer_init(struct device_node *np)
+static int __init pit_timer_init(struct device_analde *np)
 {
 	struct clk *pit_clk;
 	void __iomem *timer_base;

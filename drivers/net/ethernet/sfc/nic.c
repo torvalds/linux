@@ -34,7 +34,7 @@ int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 	buffer->addr = dma_alloc_coherent(&efx->pci_dev->dev, len,
 					  &buffer->dma_addr, gfp_flags);
 	if (!buffer->addr)
-		return -ENOMEM;
+		return -EANALMEM;
 	buffer->len = len;
 	return 0;
 }
@@ -98,7 +98,7 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 		efx->net_dev->rx_cpu_rmap =
 			alloc_irq_cpu_rmap(efx->n_rx_channels);
 		if (!efx->net_dev->rx_cpu_rmap) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto fail1;
 		}
 	}
@@ -108,7 +108,7 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 	n_irqs = 0;
 	efx_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, efx->type->irq_handle_msi,
-				 IRQF_PROBE_SHARED, /* Not shared */
+				 IRQF_PROBE_SHARED, /* Analt shared */
 				 efx->msi_context[channel->channel].name,
 				 &efx->msi_context[channel->channel]);
 		if (rc) {
@@ -187,7 +187,7 @@ struct efx_nic_reg {
 #define REGISTER_DZ(name) REGISTER(name, E, D, Z)
 
 static const struct efx_nic_reg efx_nic_regs[] = {
-	/* XX_PRBS_CTL, XX_PRBS_CHK and XX_PRBS_ERR are not used */
+	/* XX_PRBS_CTL, XX_PRBS_CHK and XX_PRBS_ERR are analt used */
 	/* XX_CORE_STAT is partly RC */
 	REGISTER_DZ(BIU_HW_REV_ID),
 	REGISTER_DZ(MC_DB_LWRD),
@@ -338,7 +338,7 @@ int efx_nic_copy_stats(struct efx_nic *efx, __le64 *dest)
 	if (!dma_stats)
 		goto return_zeroes;
 
-	/* If we're unlucky enough to read statistics during the DMA, wait
+	/* If we're unlucky eanalugh to read statistics during the DMA, wait
 	 * up to 10ms for it to finish (typically takes <500us)
 	 */
 	for (retry = 0; retry < 100; ++retry) {
@@ -366,7 +366,7 @@ return_zeroes:
  * @desc: Array of &struct efx_hw_stat_desc describing the DMA buffer
  *	layout.  DMA widths of 0, 16, 32 and 64 are supported; where
  *	the width is specified as 0 the corresponding element of
- *	@stats is not updated.
+ *	@stats is analt updated.
  * @count: Length of the @desc array
  * @mask: Bitmask of which elements of @desc are enabled
  * @stats: Buffer to update with the converted statistics.  The length
@@ -410,13 +410,13 @@ void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 	}
 }
 
-void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *rx_nodesc_drops)
+void efx_nic_fix_analdesc_drop_stat(struct efx_nic *efx, u64 *rx_analdesc_drops)
 {
 	/* if down, or this is the first update after coming up */
-	if (!(efx->net_dev->flags & IFF_UP) || !efx->rx_nodesc_drops_prev_state)
-		efx->rx_nodesc_drops_while_down +=
-			*rx_nodesc_drops - efx->rx_nodesc_drops_total;
-	efx->rx_nodesc_drops_total = *rx_nodesc_drops;
-	efx->rx_nodesc_drops_prev_state = !!(efx->net_dev->flags & IFF_UP);
-	*rx_nodesc_drops -= efx->rx_nodesc_drops_while_down;
+	if (!(efx->net_dev->flags & IFF_UP) || !efx->rx_analdesc_drops_prev_state)
+		efx->rx_analdesc_drops_while_down +=
+			*rx_analdesc_drops - efx->rx_analdesc_drops_total;
+	efx->rx_analdesc_drops_total = *rx_analdesc_drops;
+	efx->rx_analdesc_drops_prev_state = !!(efx->net_dev->flags & IFF_UP);
+	*rx_analdesc_drops -= efx->rx_analdesc_drops_while_down;
 }

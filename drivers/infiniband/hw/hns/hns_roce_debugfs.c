@@ -10,9 +10,9 @@
 
 static struct dentry *hns_roce_dbgfs_root;
 
-static int hns_debugfs_seqfile_open(struct inode *inode, struct file *f)
+static int hns_debugfs_seqfile_open(struct ianalde *ianalde, struct file *f)
 {
-	struct hns_debugfs_seqfile *seqfile = inode->i_private;
+	struct hns_debugfs_seqfile *seqfile = ianalde->i_private;
 
 	return single_open(f, seqfile->read, seqfile->data);
 }

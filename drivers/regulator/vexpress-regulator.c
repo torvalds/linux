@@ -48,7 +48,7 @@ static int vexpress_regulator_probe(struct platform_device *pdev)
 
 	desc = devm_kzalloc(&pdev->dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_vexpress_config(&pdev->dev);
 	if (IS_ERR(regmap))
@@ -59,7 +59,7 @@ static int vexpress_regulator_probe(struct platform_device *pdev)
 	desc->owner = THIS_MODULE;
 	desc->continuous_voltage_range = true;
 
-	init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
+	init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_analde,
 					       desc);
 	if (!init_data)
 		return -EINVAL;
@@ -73,7 +73,7 @@ static int vexpress_regulator_probe(struct platform_device *pdev)
 	config.regmap = regmap;
 	config.dev = &pdev->dev;
 	config.init_data = init_data;
-	config.of_node = pdev->dev.of_node;
+	config.of_analde = pdev->dev.of_analde;
 
 	rdev = devm_regulator_register(&pdev->dev, desc, &config);
 	return PTR_ERR_OR_ZERO(rdev);
@@ -89,7 +89,7 @@ static struct platform_driver vexpress_regulator_driver = {
 	.probe = vexpress_regulator_probe,
 	.driver	= {
 		.name = DRVNAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = vexpress_regulator_of_match,
 	},
 };

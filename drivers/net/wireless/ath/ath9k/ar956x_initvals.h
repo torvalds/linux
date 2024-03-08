@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -409,7 +409,7 @@ static const u32 qca956x_1p0_baseband_core_txfir_coeff_japan_2484[][2] = {
 	{0x0000a394, 0xca9228ee},
 };
 
-static const u32 qca956x_1p0_modes_no_xpa_tx_gain_table[][3] = {
+static const u32 qca956x_1p0_modes_anal_xpa_tx_gain_table[][3] = {
 	/* Addr      5G          2G        */
 	{0x0000a2dc, 0xffa9ac94, 0xffa9ac94},
 	{0x0000a2e0, 0xff323118, 0xff323118},
@@ -567,7 +567,7 @@ static const u32 qca956x_1p0_modes_xpa_tx_gain_table[][3] = {
 	{0x00016850, 0x8036d36c, 0x8036d36c},
 };
 
-static const u32 qca956x_1p0_modes_no_xpa_low_ob_db_tx_gain_table[][3] = {
+static const u32 qca956x_1p0_modes_anal_xpa_low_ob_db_tx_gain_table[][3] = {
 	/* Addr      5G          2G        */
 	{0x0000a2dc, 0xffa9ac94, 0xffa9ac94},
 	{0x0000a2e0, 0xff323118, 0xff323118},
@@ -657,7 +657,7 @@ static const u32 qca956x_1p0_modes_no_xpa_low_ob_db_tx_gain_table[][3] = {
 	{0x00016948, 0x00008050, 0x00008050},
 };
 
-static const u32 qca956x_1p0_modes_no_xpa_green_tx_gain_table[][3] = {
+static const u32 qca956x_1p0_modes_anal_xpa_green_tx_gain_table[][3] = {
 	/* Addr      5G          2G        */
 	{0x000098bc, 0x00000001, 0x00000001},
 	{0x0000a2dc, 0xd3555284, 0xd3555284},

@@ -1,8 +1,8 @@
 /* tnum: tracked (or tristate) numbers
  *
- * A tnum tracks knowledge about the bits of a value.  Each bit can be either
- * known (0 or 1), or unknown (x).  Arithmetic operations on tnums will
- * propagate the unknown bits such that the tnum result represents all the
+ * A tnum tracks kanalwledge about the bits of a value.  Each bit can be either
+ * kanalwn (0 or 1), or unkanalwn (x).  Arithmetic operations on tnums will
+ * propagate the unkanalwn bits such that the tnum result represents all the
  * possible results for possible values of the operands.
  */
 
@@ -17,11 +17,11 @@ struct tnum {
 };
 
 /* Constructors */
-/* Represent a known constant as a tnum. */
+/* Represent a kanalwn constant as a tnum. */
 struct tnum tnum_const(u64 value);
-/* A completely unknown value */
-extern const struct tnum tnum_unknown;
-/* An unknown value that is a superset of @min <= value <= @max.
+/* A completely unkanalwn value */
+extern const struct tnum tnum_unkanalwn;
+/* An unkanalwn value that is a superset of @min <= value <= @max.
  *
  * Could include values outside the range of [@min, @max].
  * For example tnum_range(0, 2) is represented by {0, 1, 2, *3*},
@@ -55,7 +55,7 @@ struct tnum tnum_intersect(struct tnum a, struct tnum b);
 /* Return @a with all but the lowest @size bytes cleared */
 struct tnum tnum_cast(struct tnum a, u8 size);
 
-/* Returns true if @a is a known constant */
+/* Returns true if @a is a kanalwn constant */
 static inline bool tnum_is_const(struct tnum a)
 {
 	return !a.mask;
@@ -67,20 +67,20 @@ static inline bool tnum_equals_const(struct tnum a, u64 b)
 	return tnum_is_const(a) && a.value == b;
 }
 
-/* Returns true if @a is completely unknown */
-static inline bool tnum_is_unknown(struct tnum a)
+/* Returns true if @a is completely unkanalwn */
+static inline bool tnum_is_unkanalwn(struct tnum a)
 {
 	return !~a.mask;
 }
 
-/* Returns true if @a is known to be a multiple of @size.
+/* Returns true if @a is kanalwn to be a multiple of @size.
  * @size must be a power of two.
  */
 bool tnum_is_aligned(struct tnum a, u64 size);
 
 /* Returns true if @b represents a subset of @a.
  *
- * Note that using tnum_range() as @a requires extra cautions as tnum_in() may
+ * Analte that using tnum_range() as @a requires extra cautions as tnum_in() may
  * return true unexpectedly due to tnum limited ability to represent tight
  * range, e.g.
  *
@@ -112,7 +112,7 @@ struct tnum tnum_clear_subreg(struct tnum a);
 struct tnum tnum_with_subreg(struct tnum reg, struct tnum subreg);
 /* Returns the tnum with the lower 32-bit subreg set to value */
 struct tnum tnum_const_subreg(struct tnum a, u32 value);
-/* Returns true if 32-bit subreg @a is a known constant*/
+/* Returns true if 32-bit subreg @a is a kanalwn constant*/
 static inline bool tnum_subreg_is_const(struct tnum a)
 {
 	return !(tnum_subreg(a)).mask;

@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -1200,10 +1200,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_30_31:2;
-		uint64_t nokasu:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analkasu:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t rst_sht:1;
 		uint64_t bist_dis:1;
 		uint64_t chip_id:8;
@@ -1213,10 +1213,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t chip_id:8;
 		uint64_t bist_dis:1;
 		uint64_t rst_sht:1;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nokasu:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analkasu:1;
 		uint64_t reserved_30_31:2;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1232,9 +1232,9 @@ union cvmx_mio_fus_dat2 {
 	struct cvmx_mio_fus_dat2_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_29_63:35;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t rst_sht:1;
 		uint64_t bist_dis:1;
 		uint64_t chip_id:8;
@@ -1248,18 +1248,18 @@ union cvmx_mio_fus_dat2 {
 		uint64_t chip_id:8;
 		uint64_t bist_dis:1;
 		uint64_t rst_sht:1;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_29_63:35;
 #endif
 	} cn30xx;
 	struct cvmx_mio_fus_dat2_cn31xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_29_63:35;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t rst_sht:1;
 		uint64_t bist_dis:1;
 		uint64_t chip_id:8;
@@ -1273,18 +1273,18 @@ union cvmx_mio_fus_dat2 {
 		uint64_t chip_id:8;
 		uint64_t bist_dis:1;
 		uint64_t rst_sht:1;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_29_63:35;
 #endif
 	} cn31xx;
 	struct cvmx_mio_fus_dat2_cn38xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_29_63:35;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t rst_sht:1;
 		uint64_t bist_dis:1;
 		uint64_t chip_id:8;
@@ -1294,9 +1294,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t chip_id:8;
 		uint64_t bist_dis:1;
 		uint64_t rst_sht:1;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_29_63:35;
 #endif
 	} cn38xx;
@@ -1306,10 +1306,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_30_31:2;
-		uint64_t nokasu:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analkasu:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t rst_sht:1;
 		uint64_t bist_dis:1;
 		uint64_t chip_id:8;
@@ -1321,10 +1321,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t chip_id:8;
 		uint64_t bist_dis:1;
 		uint64_t rst_sht:1;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nokasu:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analkasu:1;
 		uint64_t reserved_30_31:2;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1337,10 +1337,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_30_31:2;
-		uint64_t nokasu:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analkasu:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t rst_sht:1;
 		uint64_t bist_dis:1;
 		uint64_t chip_id:8;
@@ -1352,10 +1352,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t chip_id:8;
 		uint64_t bist_dis:1;
 		uint64_t rst_sht:1;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nokasu:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analkasu:1;
 		uint64_t reserved_30_31:2;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1368,10 +1368,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_30_31:2;
-		uint64_t nokasu:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analkasu:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t rst_sht:1;
 		uint64_t bist_dis:1;
 		uint64_t chip_id:8;
@@ -1383,10 +1383,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t chip_id:8;
 		uint64_t bist_dis:1;
 		uint64_t rst_sht:1;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nokasu:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analkasu:1;
 		uint64_t reserved_30_31:2;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1396,10 +1396,10 @@ union cvmx_mio_fus_dat2 {
 	struct cvmx_mio_fus_dat2_cn58xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_30_63:34;
-		uint64_t nokasu:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analkasu:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t rst_sht:1;
 		uint64_t bist_dis:1;
 		uint64_t chip_id:8;
@@ -1409,10 +1409,10 @@ union cvmx_mio_fus_dat2 {
 		uint64_t chip_id:8;
 		uint64_t bist_dis:1;
 		uint64_t rst_sht:1;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
-		uint64_t nokasu:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analkasu:1;
 		uint64_t reserved_30_63:34;
 #endif
 	} cn58xx;
@@ -1426,9 +1426,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_29_31:3;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t reserved_24_25:2;
 		uint64_t chip_id:8;
 		uint64_t reserved_4_15:12;
@@ -1438,9 +1438,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t reserved_4_15:12;
 		uint64_t chip_id:8;
 		uint64_t reserved_24_25:2;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_29_31:3;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1458,9 +1458,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_29_31:3;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t reserved_24_25:2;
 		uint64_t chip_id:8;
 		uint64_t reserved_6_15:10;
@@ -1470,9 +1470,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t reserved_6_15:10;
 		uint64_t chip_id:8;
 		uint64_t reserved_24_25:2;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_29_31:3;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1490,9 +1490,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_29_31:3;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t reserved_24_25:2;
 		uint64_t chip_id:8;
 		uint64_t reserved_10_15:6;
@@ -1502,9 +1502,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t reserved_10_15:6;
 		uint64_t chip_id:8;
 		uint64_t reserved_24_25:2;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_29_31:3;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1523,9 +1523,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_29_31:3;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t reserved_24_25:2;
 		uint64_t chip_id:8;
 		uint64_t reserved_0_15:16;
@@ -1533,9 +1533,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t reserved_0_15:16;
 		uint64_t chip_id:8;
 		uint64_t reserved_24_25:2;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_29_31:3;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1554,9 +1554,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_31_29:3;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t reserved_25_24:2;
 		uint64_t chip_id:8;
 		uint64_t reserved_15_0:16;
@@ -1564,9 +1564,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t reserved_15_0:16;
 		uint64_t chip_id:8;
 		uint64_t reserved_25_24:2;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_31_29:3;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1589,9 +1589,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_31_29:3;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t reserved_25_24:2;
 		uint64_t chip_id:8;
 		uint64_t reserved_15_0:16;
@@ -1599,9 +1599,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t reserved_15_0:16;
 		uint64_t chip_id:8;
 		uint64_t reserved_25_24:2;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_31_29:3;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1626,9 +1626,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_31_29:3;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t reserved_25_24:2;
 		uint64_t chip_id:8;
 		uint64_t reserved_0_15:16;
@@ -1636,9 +1636,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t reserved_0_15:16;
 		uint64_t chip_id:8;
 		uint64_t reserved_25_24:2;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_31_29:3;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1663,9 +1663,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t fus318:1;
 		uint64_t raid_en:1;
 		uint64_t reserved_31_29:3;
-		uint64_t nodfa_cp2:1;
-		uint64_t nomul:1;
-		uint64_t nocrypto:1;
+		uint64_t analdfa_cp2:1;
+		uint64_t analmul:1;
+		uint64_t analcrypto:1;
 		uint64_t reserved_25_24:2;
 		uint64_t chip_id:8;
 		uint64_t reserved_0_15:16;
@@ -1673,9 +1673,9 @@ union cvmx_mio_fus_dat2 {
 		uint64_t reserved_0_15:16;
 		uint64_t chip_id:8;
 		uint64_t reserved_25_24:2;
-		uint64_t nocrypto:1;
-		uint64_t nomul:1;
-		uint64_t nodfa_cp2:1;
+		uint64_t analcrypto:1;
+		uint64_t analmul:1;
+		uint64_t analdfa_cp2:1;
 		uint64_t reserved_31_29:3;
 		uint64_t raid_en:1;
 		uint64_t fus318:1;
@@ -1707,13 +1707,13 @@ union cvmx_mio_fus_dat3 {
 		uint64_t reserved_28_31:4;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t reserved_0_23:24;
 #else
 		uint64_t reserved_0_23:24;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t reserved_28_31:4;
@@ -1737,13 +1737,13 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_en:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t icache:24;
 #else
 		uint64_t icache:24;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_en:1;
@@ -1760,13 +1760,13 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_en:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t icache:24;
 #else
 		uint64_t icache:24;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_en:1;
@@ -1782,13 +1782,13 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_en:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t icache:24;
 #else
 		uint64_t icache:24;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_en:1;
@@ -1802,13 +1802,13 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_en:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t icache:24;
 #else
 		uint64_t icache:24;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_en:1;
@@ -1832,13 +1832,13 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_en:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t reserved_0_23:24;
 #else
 		uint64_t reserved_0_23:24;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_en:1;
@@ -1863,7 +1863,7 @@ union cvmx_mio_fus_dat3 {
 		uint64_t dfa_info_dte:3;
 		uint64_t dfa_info_clm:4;
 		uint64_t pll_alt_matrix:1;
-		uint64_t pll_bwadj_denom:2;
+		uint64_t pll_bwadj_deanalm:2;
 		uint64_t efus_lck_rsv:1;
 		uint64_t efus_lck_man:1;
 		uint64_t pll_half_dis:1;
@@ -1873,15 +1873,15 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_sz_conf:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t ema1:6;
 		uint64_t reserved_0_17:18;
 #else
 		uint64_t reserved_0_17:18;
 		uint64_t ema1:6;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_sz_conf:1;
@@ -1891,7 +1891,7 @@ union cvmx_mio_fus_dat3 {
 		uint64_t pll_half_dis:1;
 		uint64_t efus_lck_man:1;
 		uint64_t efus_lck_rsv:1;
-		uint64_t pll_bwadj_denom:2;
+		uint64_t pll_bwadj_deanalm:2;
 		uint64_t pll_alt_matrix:1;
 		uint64_t dfa_info_clm:4;
 		uint64_t dfa_info_dte:3;
@@ -1915,15 +1915,15 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_sz_conf:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t ema1:6;
 		uint64_t reserved_0_17:18;
 #else
 		uint64_t reserved_0_17:18;
 		uint64_t ema1:6;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_sz_conf:1;
@@ -1947,7 +1947,7 @@ union cvmx_mio_fus_dat3 {
 		uint64_t dfa_info_dte:3;
 		uint64_t dfa_info_clm:4;
 		uint64_t pll_alt_matrix:1;
-		uint64_t pll_bwadj_denom:2;
+		uint64_t pll_bwadj_deanalm:2;
 		uint64_t efus_lck_rsv:1;
 		uint64_t efus_lck_man:1;
 		uint64_t pll_half_dis:1;
@@ -1957,10 +1957,10 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_sz_conf:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t ema1:6;
-		uint64_t nohna_dte:1;
+		uint64_t analhna_dte:1;
 		uint64_t hna_info_dte:3;
 		uint64_t hna_info_clm:4;
 		uint64_t reserved_9_9:1;
@@ -1972,10 +1972,10 @@ union cvmx_mio_fus_dat3 {
 		uint64_t reserved_9_9:1;
 		uint64_t hna_info_clm:4;
 		uint64_t hna_info_dte:3;
-		uint64_t nohna_dte:1;
+		uint64_t analhna_dte:1;
 		uint64_t ema1:6;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_sz_conf:1;
@@ -1985,7 +1985,7 @@ union cvmx_mio_fus_dat3 {
 		uint64_t pll_half_dis:1;
 		uint64_t efus_lck_man:1;
 		uint64_t efus_lck_rsv:1;
-		uint64_t pll_bwadj_denom:2;
+		uint64_t pll_bwadj_deanalm:2;
 		uint64_t pll_alt_matrix:1;
 		uint64_t dfa_info_clm:4;
 		uint64_t dfa_info_dte:3;
@@ -2009,10 +2009,10 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_sz_conf:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t ema1:6;
-		uint64_t nohna_dte:1;
+		uint64_t analhna_dte:1;
 		uint64_t hna_info_dte:3;
 		uint64_t hna_info_clm:4;
 		uint64_t reserved_0_9:10;
@@ -2020,10 +2020,10 @@ union cvmx_mio_fus_dat3 {
 		uint64_t reserved_0_9:10;
 		uint64_t hna_info_clm:4;
 		uint64_t hna_info_dte:3;
-		uint64_t nohna_dte:1;
+		uint64_t analhna_dte:1;
 		uint64_t ema1:6;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_sz_conf:1;
@@ -2047,7 +2047,7 @@ union cvmx_mio_fus_dat3 {
 		uint64_t dfa_info_dte:3;
 		uint64_t dfa_info_clm:4;
 		uint64_t pll_alt_matrix:1;
-		uint64_t pll_bwadj_denom:2;
+		uint64_t pll_bwadj_deanalm:2;
 		uint64_t efus_lck_rsv:1;
 		uint64_t efus_lck_man:1;
 		uint64_t pll_half_dis:1;
@@ -2057,8 +2057,8 @@ union cvmx_mio_fus_dat3 {
 		uint64_t bar2_sz_conf:1;
 		uint64_t efus_lck:1;
 		uint64_t efus_ign:1;
-		uint64_t nozip:1;
-		uint64_t nodfa_dte:1;
+		uint64_t analzip:1;
+		uint64_t analdfa_dte:1;
 		uint64_t ema1:6;
 		uint64_t reserved_9_17:9;
 		uint64_t core_pll_mul:5;
@@ -2068,8 +2068,8 @@ union cvmx_mio_fus_dat3 {
 		uint64_t core_pll_mul:5;
 		uint64_t reserved_9_17:9;
 		uint64_t ema1:6;
-		uint64_t nodfa_dte:1;
-		uint64_t nozip:1;
+		uint64_t analdfa_dte:1;
+		uint64_t analzip:1;
 		uint64_t efus_ign:1;
 		uint64_t efus_lck:1;
 		uint64_t bar2_sz_conf:1;
@@ -2079,7 +2079,7 @@ union cvmx_mio_fus_dat3 {
 		uint64_t pll_half_dis:1;
 		uint64_t efus_lck_man:1;
 		uint64_t efus_lck_rsv:1;
-		uint64_t pll_bwadj_denom:2;
+		uint64_t pll_bwadj_deanalm:2;
 		uint64_t pll_alt_matrix:1;
 		uint64_t dfa_info_clm:4;
 		uint64_t dfa_info_dte:3;
@@ -2578,11 +2578,11 @@ union cvmx_mio_ptp_ckout_hi_incr {
 	uint64_t u64;
 	struct cvmx_mio_ptp_ckout_hi_incr_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:32;
-		uint64_t frnanosec:32;
+		uint64_t naanalsec:32;
+		uint64_t frnaanalsec:32;
 #else
-		uint64_t frnanosec:32;
-		uint64_t nanosec:32;
+		uint64_t frnaanalsec:32;
+		uint64_t naanalsec:32;
 #endif
 	} s;
 };
@@ -2591,11 +2591,11 @@ union cvmx_mio_ptp_ckout_lo_incr {
 	uint64_t u64;
 	struct cvmx_mio_ptp_ckout_lo_incr_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:32;
-		uint64_t frnanosec:32;
+		uint64_t naanalsec:32;
+		uint64_t frnaanalsec:32;
 #else
-		uint64_t frnanosec:32;
-		uint64_t nanosec:32;
+		uint64_t frnaanalsec:32;
+		uint64_t naanalsec:32;
 #endif
 	} s;
 };
@@ -2604,9 +2604,9 @@ union cvmx_mio_ptp_ckout_thresh_hi {
 	uint64_t u64;
 	struct cvmx_mio_ptp_ckout_thresh_hi_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:64;
+		uint64_t naanalsec:64;
 #else
-		uint64_t nanosec:64;
+		uint64_t naanalsec:64;
 #endif
 	} s;
 };
@@ -2616,9 +2616,9 @@ union cvmx_mio_ptp_ckout_thresh_lo {
 	struct cvmx_mio_ptp_ckout_thresh_lo_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
-		uint64_t frnanosec:32;
+		uint64_t frnaanalsec:32;
 #else
-		uint64_t frnanosec:32;
+		uint64_t frnaanalsec:32;
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
@@ -2743,11 +2743,11 @@ union cvmx_mio_ptp_clock_comp {
 	uint64_t u64;
 	struct cvmx_mio_ptp_clock_comp_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:32;
-		uint64_t frnanosec:32;
+		uint64_t naanalsec:32;
+		uint64_t frnaanalsec:32;
 #else
-		uint64_t frnanosec:32;
-		uint64_t nanosec:32;
+		uint64_t frnaanalsec:32;
+		uint64_t naanalsec:32;
 #endif
 	} s;
 };
@@ -2756,9 +2756,9 @@ union cvmx_mio_ptp_clock_hi {
 	uint64_t u64;
 	struct cvmx_mio_ptp_clock_hi_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:64;
+		uint64_t naanalsec:64;
 #else
-		uint64_t nanosec:64;
+		uint64_t naanalsec:64;
 #endif
 	} s;
 };
@@ -2768,9 +2768,9 @@ union cvmx_mio_ptp_clock_lo {
 	struct cvmx_mio_ptp_clock_lo_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
-		uint64_t frnanosec:32;
+		uint64_t frnaanalsec:32;
 #else
-		uint64_t frnanosec:32;
+		uint64_t frnaanalsec:32;
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
@@ -2804,11 +2804,11 @@ union cvmx_mio_ptp_pps_hi_incr {
 	uint64_t u64;
 	struct cvmx_mio_ptp_pps_hi_incr_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:32;
-		uint64_t frnanosec:32;
+		uint64_t naanalsec:32;
+		uint64_t frnaanalsec:32;
 #else
-		uint64_t frnanosec:32;
-		uint64_t nanosec:32;
+		uint64_t frnaanalsec:32;
+		uint64_t naanalsec:32;
 #endif
 	} s;
 };
@@ -2817,11 +2817,11 @@ union cvmx_mio_ptp_pps_lo_incr {
 	uint64_t u64;
 	struct cvmx_mio_ptp_pps_lo_incr_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:32;
-		uint64_t frnanosec:32;
+		uint64_t naanalsec:32;
+		uint64_t frnaanalsec:32;
 #else
-		uint64_t frnanosec:32;
-		uint64_t nanosec:32;
+		uint64_t frnaanalsec:32;
+		uint64_t naanalsec:32;
 #endif
 	} s;
 };
@@ -2830,9 +2830,9 @@ union cvmx_mio_ptp_pps_thresh_hi {
 	uint64_t u64;
 	struct cvmx_mio_ptp_pps_thresh_hi_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:64;
+		uint64_t naanalsec:64;
 #else
-		uint64_t nanosec:64;
+		uint64_t naanalsec:64;
 #endif
 	} s;
 };
@@ -2842,9 +2842,9 @@ union cvmx_mio_ptp_pps_thresh_lo {
 	struct cvmx_mio_ptp_pps_thresh_lo_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
-		uint64_t frnanosec:32;
+		uint64_t frnaanalsec:32;
 #else
-		uint64_t frnanosec:32;
+		uint64_t frnaanalsec:32;
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
@@ -2854,9 +2854,9 @@ union cvmx_mio_ptp_timestamp {
 	uint64_t u64;
 	struct cvmx_mio_ptp_timestamp_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t nanosec:64;
+		uint64_t naanalsec:64;
 #else
-		uint64_t nanosec:64;
+		uint64_t naanalsec:64;
 #endif
 	} s;
 };

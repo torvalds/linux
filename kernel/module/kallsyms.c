@@ -54,7 +54,7 @@ static char elf_type(const Elf_Sym *sym, const struct load_info *info)
 	if (sechdrs[sym->st_shndx].sh_flags & SHF_EXECINSTR)
 		return 't';
 	if (sechdrs[sym->st_shndx].sh_flags & SHF_ALLOC &&
-	    sechdrs[sym->st_shndx].sh_type != SHT_NOBITS) {
+	    sechdrs[sym->st_shndx].sh_type != SHT_ANALBITS) {
 		if (!(sechdrs[sym->st_shndx].sh_flags & SHF_WRITE))
 			return 'r';
 		else if (sechdrs[sym->st_shndx].sh_flags & ARCH_SHF_SMALL)
@@ -62,7 +62,7 @@ static char elf_type(const Elf_Sym *sym, const struct load_info *info)
 		else
 			return 'd';
 	}
-	if (sechdrs[sym->st_shndx].sh_type == SHT_NOBITS) {
+	if (sechdrs[sym->st_shndx].sh_type == SHT_ANALBITS) {
 		if (sechdrs[sym->st_shndx].sh_flags & ARCH_SHF_SMALL)
 			return 's';
 		else
@@ -142,7 +142,7 @@ void layout_symtab(struct module *mod, struct load_info *info)
 	info->symoffs = ALIGN(mod_mem_data->size, symsect->sh_addralign ?: 1);
 	info->stroffs = mod_mem_data->size = info->symoffs + ndst * sizeof(Elf_Sym);
 	mod_mem_data->size += strtab_size;
-	/* Note add_kallsyms() computes strtab_size as core_typeoffs - stroffs */
+	/* Analte add_kallsyms() computes strtab_size as core_typeoffs - stroffs */
 	info->core_typeoffs = mod_mem_data->size;
 	mod_mem_data->size += ndst * sizeof(char);
 
@@ -154,7 +154,7 @@ void layout_symtab(struct module *mod, struct load_info *info)
 
 	/* We'll tack temporary mod_kallsyms on the end. */
 	mod_mem_init_data->size = ALIGN(mod_mem_init_data->size,
-					__alignof__(struct mod_kallsyms));
+					__aliganalf__(struct mod_kallsyms));
 	info->mod_kallsyms_init_off = mod_mem_init_data->size;
 
 	mod_mem_init_data->size += sizeof(struct mod_kallsyms);
@@ -183,7 +183,7 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 		info->mod_kallsyms_init_off;
 
 	rcu_read_lock();
-	/* The following is safe since this pointer cannot change */
+	/* The following is safe since this pointer cananalt change */
 	rcu_dereference(mod->kallsyms)->symtab = (void *)symsec->sh_addr;
 	rcu_dereference(mod->kallsyms)->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
 	/* Make sure we get permanent strtab: don't use info->strtab. */
@@ -192,7 +192,7 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	rcu_dereference(mod->kallsyms)->typetab = init_data_base + info->init_typeoffs;
 
 	/*
-	 * Now populate the cut down core kallsyms for after init
+	 * Analw populate the cut down core kallsyms for after init
 	 * and set types up while we still have access to sections.
 	 */
 	mod->core_kallsyms.symtab = dst = data_base + info->symoffs;
@@ -232,7 +232,7 @@ void init_build_id(struct module *mod, const struct load_info *info)
 
 	for (i = 0; i < info->hdr->e_shnum; i++) {
 		sechdr = &info->sechdrs[i];
-		if (!sect_empty(sechdr) && sechdr->sh_type == SHT_NOTE &&
+		if (!sect_empty(sechdr) && sechdr->sh_type == SHT_ANALTE &&
 		    !build_id_parse_buf((void *)sechdr->sh_addr, mod->build_id,
 					sechdr->sh_size))
 			break;
@@ -285,7 +285,7 @@ static const char *find_kallsyms_symbol(struct module *mod,
 			continue;
 
 		/*
-		 * We ignore unnamed symbols: they're uninformative
+		 * We iganalre unnamed symbols: they're uninformative
 		 * and inserted at a whim.
 		 */
 		if (*kallsyms_symbol_name(kallsyms, i) == '\0' ||
@@ -318,8 +318,8 @@ void * __weak dereference_module_function_descriptor(struct module *mod,
 }
 
 /*
- * For kallsyms to ask for address resolution.  NULL means not found.  Careful
- * not to lock to avoid deadlock on oopses, simply disable preemption.
+ * For kallsyms to ask for address resolution.  NULL means analt found.  Careful
+ * analt to lock to avoid deadlock on oopses, simply disable preemption.
  */
 const char *module_address_lookup(unsigned long addr,
 				  unsigned long *size,
@@ -456,7 +456,7 @@ unsigned long module_kallsyms_lookup_name(const char *name)
 {
 	unsigned long ret;
 
-	/* Don't lock: we're in enough trouble already. */
+	/* Don't lock: we're in eanalugh trouble already. */
 	preempt_disable();
 	ret = __module_kallsyms_lookup_name(name);
 	preempt_enable();
@@ -509,7 +509,7 @@ int module_kallsyms_on_each_symbol(const char *modname,
 		}
 
 		/*
-		 * The given module is found, the subsequent modules do not
+		 * The given module is found, the subsequent modules do analt
 		 * need to be compared.
 		 */
 		if (modname)

@@ -2,8 +2,8 @@
 /*
  * Copyright IBM Corp. 2020
  *
- * This test attempts to cause a FP denormal exception on POWER8 CPUs. Unfortunately
- * if the denormal handler is not configured or working properly, this can cause a bad
+ * This test attempts to cause a FP deanalrmal exception on POWER8 CPUs. Unfortunately
+ * if the deanalrmal handler is analt configured or working properly, this can cause a bad
  * crash in kernel mode when the kernel tries to save FP registers when the process
  * exits.
  */
@@ -13,26 +13,26 @@
 
 #include "utils.h"
 
-static int test_denormal_fpu(void)
+static int test_deanalrmal_fpu(void)
 {
 	unsigned int m32;
 	unsigned long m64;
 	volatile float f;
 	volatile double d;
 
-	/* try to induce lfs <denormal> ; stfd */
+	/* try to induce lfs <deanalrmal> ; stfd */
 
-	m32 = 0x00715fcf; /* random denormal */
+	m32 = 0x00715fcf; /* random deanalrmal */
 	memcpy((float *)&f, &m32, sizeof(f));
 	d = f;
 	memcpy(&m64, (double *)&d, sizeof(d));
 
-	FAIL_IF((long)(m64 != 0x380c57f3c0000000)); /* renormalised value */
+	FAIL_IF((long)(m64 != 0x380c57f3c0000000)); /* reanalrmalised value */
 
 	return 0;
 }
 
 int main(int argc, char *argv[])
 {
-	return test_harness(test_denormal_fpu, "fpu_denormal");
+	return test_harness(test_deanalrmal_fpu, "fpu_deanalrmal");
 }

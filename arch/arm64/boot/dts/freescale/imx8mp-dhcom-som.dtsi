@@ -116,7 +116,7 @@
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
 			reset-gpios = <&ioexp 4 GPIO_ACTIVE_LOW>;
-			/* Non-default PHY population option. */
+			/* Analn-default PHY population option. */
 			status = "disabled";
 		};
 
@@ -162,7 +162,7 @@
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
 			reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
-			/* Non-default PHY population option. */
+			/* Analn-default PHY population option. */
 			status = "disabled";
 		};
 	};
@@ -186,7 +186,7 @@
 	status = "okay";
 
 	flash@0 {	/* W25Q128JWPIM */
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <80000000>;
 		spi-tx-bus-width = <4>;
@@ -577,7 +577,7 @@
 	mmc-pwrseq = <&wlan_pwrseq>;
 	vmmc-supply = <&buck4>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
 	status = "okay";
@@ -589,7 +589,7 @@
 		reg = <1>;
 		compatible = "cypress,cyw4373-fmac", "brcm,bcm4329-fmac";
 		/*
-		 * The "host-wake" interrupt output is by default not
+		 * The "host-wake" interrupt output is by default analt
 		 * connected to the SoC, but can be connected on to
 		 * SoC pin on the carrier board.
 		 */
@@ -617,7 +617,7 @@
 	vmmc-supply = <&buck4>;
 	vqmmc-supply = <&buck5>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

@@ -10,8 +10,8 @@ title: Marvell Berlin reset controller
 maintainers:
   - Antoine Tenart <atenart@kernel.org>
 
-description: The reset controller node must be a sub-node of the chip
-  controller node on Berlin SoCs.
+description: The reset controller analde must be a sub-analde of the chip
+  controller analde on Berlin SoCs.
 
 properties:
   compatible:

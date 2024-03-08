@@ -55,7 +55,7 @@ static void timbuart_start_tx(struct uart_port *port)
 	struct timbuart_port *uart =
 		container_of(port, struct timbuart_port, port);
 
-	/* do not transfer anything here -> fire off the tasklet */
+	/* do analt transfer anything here -> fire off the tasklet */
 	tasklet_schedule(&uart->tasklet);
 }
 
@@ -84,7 +84,7 @@ static void timbuart_rx_chars(struct uart_port *port)
 	while (ioread32(port->membase + TIMBUART_ISR) & RXDP) {
 		u8 ch = ioread8(port->membase + TIMBUART_RXFIFO);
 		port->icount.rx++;
-		tty_insert_flip_char(tport, ch, TTY_NORMAL);
+		tty_insert_flip_char(tport, ch, TTY_ANALRMAL);
 	}
 
 	tty_flip_buffer_push(tport);
@@ -303,10 +303,10 @@ static void timbuart_set_termios(struct uart_port *port,
 
 static const char *timbuart_type(struct uart_port *port)
 {
-	return port->type == PORT_UNKNOWN ? "timbuart" : NULL;
+	return port->type == PORT_UNKANALWN ? "timbuart" : NULL;
 }
 
-/* We do not request/release mappings of the registers here,
+/* We do analt request/release mappings of the registers here,
  * currently it's done in the proble function.
  */
 static void timbuart_release_port(struct uart_port *port)
@@ -336,7 +336,7 @@ static int timbuart_request_port(struct uart_port *port)
 		port->membase = ioremap(port->mapbase, size);
 		if (port->membase == NULL) {
 			release_mem_region(port->mapbase, size);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -358,7 +358,7 @@ static irqreturn_t timbuart_handleinterrupt(int irq, void *devid)
 
 		return IRQ_HANDLED;
 	} else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 /*
@@ -403,7 +403,7 @@ static struct uart_driver timbuart_driver = {
 	.driver_name = "timberdale_uart",
 	.dev_name = "ttyTU",
 	.major = TIMBUART_MAJOR,
-	.minor = TIMBUART_MINOR,
+	.mianalr = TIMBUART_MIANALR,
 	.nr = 1
 };
 
@@ -435,7 +435,7 @@ static int timbuart_probe(struct platform_device *dev)
 
 	iomem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!iomem) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_register;
 	}
 	uart->port.mapbase = iomem->start;

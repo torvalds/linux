@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
@@ -75,7 +75,7 @@ enum dispc_feature_id {
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_ALPHA_FREE_ZORDER,
 	FEAT_FIFO_MERGE,
-	/* An unknown HW bug causing the normal FIFO thresholds not to work */
+	/* An unkanalwn HW bug causing the analrmal FIFO thresholds analt to work */
 	FEAT_OMAP3_DSI_FIFO_BUG,
 	FEAT_BURST_2D,
 	FEAT_MFLAG,
@@ -125,15 +125,15 @@ struct dispc_features {
 	/* swap GFX & WB fifos */
 	bool gfx_fifo_workaround:1;
 
-	/* no DISPC_IRQ_FRAMEDONETV on this SoC */
-	bool no_framedone_tv:1;
+	/* anal DISPC_IRQ_FRAMEDONETV on this SoC */
+	bool anal_framedone_tv:1;
 
 	/* revert to the OMAP4 mechanism of DISPC Smart Standby operation */
 	bool mstandby_workaround:1;
 
 	bool set_max_preload:1;
 
-	/* PIXEL_INC is not added to the last pixel of a line */
+	/* PIXEL_INC is analt added to the last pixel of a line */
 	bool last_pixel_inc_missing:1;
 
 	/* POL_FREQ has ALIGN bit */
@@ -146,7 +146,7 @@ struct dispc_features {
 	/*
 	 * Field order for VENC is different than HDMI. We should handle this in
 	 * some intelligent manner, but as the SoCs have either HDMI or VENC,
-	 * never both, we can just use this flag for now.
+	 * never both, we can just use this flag for analw.
 	 */
 	bool reverse_ilace_field_order:1;
 
@@ -654,7 +654,7 @@ int dispc_runtime_get(struct dispc_device *dispc)
 
 	r = pm_runtime_get_sync(&dispc->pdev->dev);
 	if (WARN_ON(r < 0)) {
-		pm_runtime_put_noidle(&dispc->pdev->dev);
+		pm_runtime_put_analidle(&dispc->pdev->dev);
 		return r;
 	}
 	return 0;
@@ -667,7 +667,7 @@ void dispc_runtime_put(struct dispc_device *dispc)
 	DSSDBG("dispc_runtime_put\n");
 
 	r = pm_runtime_put_sync(&dispc->pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 
 u32 dispc_mgr_get_vsync_irq(struct dispc_device *dispc,
@@ -679,7 +679,7 @@ u32 dispc_mgr_get_vsync_irq(struct dispc_device *dispc,
 u32 dispc_mgr_get_framedone_irq(struct dispc_device *dispc,
 				       enum omap_channel channel)
 {
-	if (channel == OMAP_DSS_CHANNEL_DIGIT && dispc->feat->no_framedone_tv)
+	if (channel == OMAP_DSS_CHANNEL_DIGIT && dispc->feat->anal_framedone_tv)
 		return 0;
 
 	return mgr_desc[channel].framedone_irq;
@@ -743,7 +743,7 @@ void dispc_wb_go(struct dispc_device *dispc)
 
 	go = REG_GET(dispc, DISPC_CONTROL2, 6, 6) == 1;
 	if (go) {
-		DSSERR("GO bit not down for WB\n");
+		DSSERR("GO bit analt down for WB\n");
 		return;
 	}
 
@@ -1534,7 +1534,7 @@ void dispc_ovl_compute_fifo_thresholds(struct dispc_device *dispc,
 	}
 
 	/*
-	 * We use the same low threshold for both fifomerge and non-fifomerge
+	 * We use the same low threshold for both fifomerge and analn-fifomerge
 	 * cases, but for fifomerge we calculate the high threshold using the
 	 * combined fifo size
 	 */
@@ -1545,7 +1545,7 @@ void dispc_ovl_compute_fifo_thresholds(struct dispc_device *dispc,
 	} else if (plane == OMAP_DSS_WB) {
 		/*
 		 * Most optimal configuration for writeback is to push out data
-		 * to the interconnect the moment writeback pushes enough pixels
+		 * to the interconnect the moment writeback pushes eanalugh pixels
 		 * in the FIFO to form a burst
 		 */
 		*fifo_low = 0;
@@ -1587,7 +1587,7 @@ static void dispc_init_mflag(struct dispc_device *dispc)
 	 * the displays will cause underflows/synclosts when MFLAG_CTRL=2.
 	 * Changing MFLAG thresholds and PRELOAD to certain values seem to
 	 * remove the errors, but there doesn't seem to be a clear logic on
-	 * which values work and which not.
+	 * which values work and which analt.
 	 *
 	 * As a work-around, set force MFLAG to always on.
 	 */
@@ -1773,7 +1773,7 @@ static void dispc_ovl_set_accu_uv(struct dispc_device *dispc,
 		{  0, 1, 0, 1, -1, 1, 0, 1 },
 	};
 
-	/* Note: DSS HW rotates clockwise, DRM_MODE_ROTATE_* counter-clockwise */
+	/* Analte: DSS HW rotates clockwise, DRM_MODE_ROTATE_* counter-clockwise */
 	switch (rotation & DRM_MODE_ROTATE_MASK) {
 	default:
 	case DRM_MODE_ROTATE_0:
@@ -1985,7 +1985,7 @@ static void dispc_ovl_set_rotation_attrs(struct dispc_device *dispc,
 	bool row_repeat = false;
 	int vidrot = 0;
 
-	/* Note: DSS HW rotates clockwise, DRM_MODE_ROTATE_* counter-clockwise */
+	/* Analte: DSS HW rotates clockwise, DRM_MODE_ROTATE_* counter-clockwise */
 	if (fourcc == DRM_FORMAT_YUYV || fourcc == DRM_FORMAT_UYVY) {
 
 		if (rotation & DRM_MODE_REFLECT_X) {
@@ -2142,12 +2142,12 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 		bool five_taps)
 {
 	const int ds = DIV_ROUND_UP(height, out_height);
-	unsigned long nonactive;
+	unsigned long analnactive;
 	static const u8 limits[3] = { 8, 10, 20 };
 	u64 val, blank;
 	int i;
 
-	nonactive = vm->hactive + vm->hfront_porch + vm->hsync_len +
+	analnactive = vm->hactive + vm->hfront_porch + vm->hsync_len +
 		    vm->hback_porch - out_width;
 
 	i = 0;
@@ -2161,28 +2161,28 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 	if (blank <= limits[i])
 		return -EINVAL;
 
-	/* FIXME add checks for 3-tap filter once the limitations are known */
+	/* FIXME add checks for 3-tap filter once the limitations are kanalwn */
 	if (!five_taps)
 		return 0;
 
 	/*
 	 * Pixel data should be prepared before visible display point starts.
 	 * So, atleast DS-2 lines must have already been fetched by DISPC
-	 * during nonactive - pos_x period.
+	 * during analnactive - pos_x period.
 	 */
-	val = div_u64((u64)(nonactive - pos_x) * lclk, pclk);
-	DSSDBG("(nonactive - pos_x) * pcd = %llu max(0, DS - 2) * width = %d\n",
+	val = div_u64((u64)(analnactive - pos_x) * lclk, pclk);
+	DSSDBG("(analnactive - pos_x) * pcd = %llu max(0, DS - 2) * width = %d\n",
 		val, max(0, ds - 2) * width);
 	if (val < max(0, ds - 2) * width)
 		return -EINVAL;
 
 	/*
-	 * All lines need to be refilled during the nonactive period of which
+	 * All lines need to be refilled during the analnactive period of which
 	 * only one line can be loaded during the active period. So, atleast
-	 * DS - 1 lines should be loaded during nonactive period.
+	 * DS - 1 lines should be loaded during analnactive period.
 	 */
-	val =  div_u64((u64)nonactive * lclk, pclk);
-	DSSDBG("nonactive * pcd  = %llu, max(0, DS - 1) * width = %d\n",
+	val =  div_u64((u64)analnactive * lclk, pclk);
+	DSSDBG("analnactive * pcd  = %llu, max(0, DS - 1) * width = %d\n",
 		val, max(0, ds - 1) * width);
 	if (val < max(0, ds - 1) * width)
 		return -EINVAL;
@@ -2246,7 +2246,7 @@ static unsigned long calc_core_clk_34xx(unsigned long pclk, u16 width,
 
 	/*
 	 * FIXME how to determine the 'A' factor
-	 * for the no downscaling case ?
+	 * for the anal downscaling case ?
 	 */
 
 	if (width > 3 * out_width)
@@ -2269,9 +2269,9 @@ static unsigned long calc_core_clk_44xx(unsigned long pclk, u16 width,
 		u16 height, u16 out_width, u16 out_height, bool mem_to_mem)
 {
 	/*
-	 * If the overlay/writeback is in mem to mem mode, there are no
+	 * If the overlay/writeback is in mem to mem mode, there are anal
 	 * downscaling limitations with respect to pixel clock, return 1 as
-	 * required core clock to represent that we have sufficient enough
+	 * required core clock to represent that we have sufficient eanalugh
 	 * core clock to do maximum downscaling
 	 */
 	if (mem_to_mem)
@@ -2326,7 +2326,7 @@ static int dispc_ovl_calc_scaling_24xx(struct dispc_device *dispc,
 	}
 
 	if (in_width > maxsinglelinewidth) {
-		DSSERR("Cannot scale max input width exceeded\n");
+		DSSERR("Cananalt scale max input width exceeded\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -2408,13 +2408,13 @@ again:
 	}
 
 	if (in_width > (maxsinglelinewidth * 2)) {
-		DSSERR("Cannot setup scaling\n");
+		DSSERR("Cananalt setup scaling\n");
 		DSSERR("width exceeds maximum width possible\n");
 		return -EINVAL;
 	}
 
 	if (in_width > maxsinglelinewidth && *five_taps) {
-		DSSERR("cannot setup scaling with five taps\n");
+		DSSERR("cananalt setup scaling with five taps\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -2456,7 +2456,7 @@ static int dispc_ovl_calc_scaling_44xx(struct dispc_device *dispc,
 			in_width > maxsinglelinewidth && ++*decim_x);
 
 	if (in_width > maxsinglelinewidth) {
-		DSSERR("Cannot scale width exceeds max line width\n");
+		DSSERR("Cananalt scale width exceeds max line width\n");
 		return -EINVAL;
 	}
 
@@ -2464,17 +2464,17 @@ static int dispc_ovl_calc_scaling_44xx(struct dispc_device *dispc,
 		/*
 		 * Let's disable all scaling that requires horizontal
 		 * decimation with higher factor than 4, until we have
-		 * better estimates of what we can and can not
+		 * better estimates of what we can and can analt
 		 * do. However, NV12 color format appears to work Ok
 		 * with all decimation factors.
 		 *
 		 * When decimating horizontally by more that 4 the dss
-		 * is not able to fetch the data in burst mode. When
-		 * this happens it is hard to tell if there enough
+		 * is analt able to fetch the data in burst mode. When
+		 * this happens it is hard to tell if there eanalugh
 		 * bandwidth. Despite what theory says this appears to
 		 * be true also for 16-bit color formats.
 		 */
-		DSSERR("Not enough bandwidth, too much downscaling (x-decimation factor %d > 4)\n", *decim_x);
+		DSSERR("Analt eanalugh bandwidth, too much downscaling (x-decimation factor %d > 4)\n", *decim_x);
 
 		return -EINVAL;
 	}
@@ -2541,7 +2541,7 @@ static int dispc_ovl_calc_scaling(struct dispc_device *dispc,
 		}
 	}
 	if (!mem_to_mem && (pclk == 0 || vm->pixelclock == 0)) {
-		DSSERR("cannot calculate scaling settings: pclk is zero\n");
+		DSSERR("cananalt calculate scaling settings: pclk is zero\n");
 		return -EINVAL;
 	}
 
@@ -2648,7 +2648,7 @@ static int dispc_ovl_setup_common(struct dispc_device *dispc,
 		return -EINVAL;
 
 	if (info->is_yuv && (in_width & 1)) {
-		DSSERR("input width %d is not even for YUV format\n", in_width);
+		DSSERR("input width %d is analt even for YUV format\n", in_width);
 		return -EINVAL;
 	}
 
@@ -2688,7 +2688,7 @@ static int dispc_ovl_setup_common(struct dispc_device *dispc,
 			x_predecim, y_predecim, in_width, in_height);
 
 	if (info->is_yuv && (in_width & 1)) {
-		DSSDBG("predecimated input width is not even for YUV format\n");
+		DSSDBG("predecimated input width is analt even for YUV format\n");
 		DSSDBG("adjusting input width %d -> %d\n",
 			in_width, in_width & ~1);
 
@@ -3152,7 +3152,7 @@ static void _dispc_mgr_set_lcd_timings(struct dispc_device *dispc,
 				       const struct videomode *vm)
 {
 	u32 timing_h, timing_v, l;
-	bool onoff, rf, ipc, vs, hs, de;
+	bool oanalff, rf, ipc, vs, hs, de;
 
 	timing_h = FLD_VAL(vm->hsync_len - 1, dispc->feat->sw_start, 0) |
 		   FLD_VAL(vm->hfront_porch - 1, dispc->feat->fp_start, 8) |
@@ -3168,10 +3168,10 @@ static void _dispc_mgr_set_lcd_timings(struct dispc_device *dispc,
 	hs = !!(vm->flags & DISPLAY_FLAGS_HSYNC_LOW);
 	de = !!(vm->flags & DISPLAY_FLAGS_DE_LOW);
 	ipc = !!(vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE);
-	onoff = true; /* always use the 'rf' setting */
+	oanalff = true; /* always use the 'rf' setting */
 	rf = !!(vm->flags & DISPLAY_FLAGS_SYNC_POSEDGE);
 
-	l = FLD_VAL(onoff, 17, 17) |
+	l = FLD_VAL(oanalff, 17, 17) |
 		FLD_VAL(rf, 16, 16) |
 		FLD_VAL(de, 15, 15) |
 		FLD_VAL(ipc, 14, 14) |
@@ -3194,7 +3194,7 @@ static void _dispc_mgr_set_lcd_timings(struct dispc_device *dispc,
 		u32 mask, val;
 
 		mask = (1 << 0) | (1 << 3) | (1 << 6);
-		val = (rf << 0) | (ipc << 3) | (onoff << 6);
+		val = (rf << 0) | (ipc << 3) | (oanalff << 6);
 
 		mask <<= 16 + shifts[channel];
 		val <<= 16 + shifts[channel];
@@ -3790,7 +3790,7 @@ void dispc_enable_sidle(struct dispc_device *dispc)
 
 void dispc_disable_sidle(struct dispc_device *dispc)
 {
-	REG_FLD_MOD(dispc, DISPC_SYSCONFIG, 1, 4, 3);	/* SIDLEMODE: no idle */
+	REG_FLD_MOD(dispc, DISPC_SYSCONFIG, 1, 4, 3);	/* SIDLEMODE: anal idle */
 }
 
 u32 dispc_mgr_gamma_size(struct dispc_device *dispc,
@@ -3918,7 +3918,7 @@ static int dispc_init_gamma_tables(struct dispc_device *dispc)
 		gt = devm_kmalloc_array(&dispc->pdev->dev, gdesc->len,
 					sizeof(u32), GFP_KERNEL);
 		if (!gt)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dispc->gamma_table[channel] = gt;
 
@@ -4254,7 +4254,7 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.max_downscale		=	2,
 	/*
 	 * Assume the line width buffer to be 768 pixels as OMAP2 DISPC scaler
-	 * cannot scale an image width larger than 768.
+	 * cananalt scale an image width larger than 768.
 	 */
 	.max_line_width		=	768,
 	.min_pcd		=	2,
@@ -4272,7 +4272,7 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
-	.no_framedone_tv	=	true,
+	.anal_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
 };
@@ -4309,7 +4309,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
-	.no_framedone_tv	=	true,
+	.anal_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
 };
@@ -4346,7 +4346,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
-	.no_framedone_tv	=	true,
+	.anal_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
 };
@@ -4383,7 +4383,7 @@ static const struct dispc_features omap36xx_dispc_feats = {
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
-	.no_framedone_tv	=	true,
+	.anal_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
 };
@@ -4420,7 +4420,7 @@ static const struct dispc_features am43xx_dispc_feats = {
 	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
-	.no_framedone_tv	=	true,
+	.anal_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
 };
@@ -4513,7 +4513,7 @@ static irqreturn_t dispc_irq_handler(int irq, void *arg)
 	struct dispc_device *dispc = arg;
 
 	if (!dispc->is_enabled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return dispc->user_handler(irq, dispc->user_data);
 }
@@ -4555,7 +4555,7 @@ u32 dispc_get_memory_bandwidth_limit(struct dispc_device *dispc)
 	u32 limit = 0;
 
 	/* Optional maximum memory bandwidth */
-	of_property_read_u32(dispc->pdev->dev.of_node, "max-memory-bandwidth",
+	of_property_read_u32(dispc->pdev->dev.of_analde, "max-memory-bandwidth",
 			     &limit);
 
 	return limit;
@@ -4563,7 +4563,7 @@ u32 dispc_get_memory_bandwidth_limit(struct dispc_device *dispc)
 
 /*
  * Workaround for errata i734 in DSS dispc
- *  - LCD1 Gamma Correction Is Not Working When GFX Pipe Is Disabled
+ *  - LCD1 Gamma Correction Is Analt Working When GFX Pipe Is Disabled
  *
  * For gamma tables to work on LCD1 the GFX plane has to be used at
  * least once after DSS HW has come out of reset. The workaround
@@ -4600,7 +4600,7 @@ static const struct dispc_errata_i734_data {
 		.width = 1, .height = 1,
 		.fourcc = DRM_FORMAT_XRGB8888,
 		.rotation = DRM_MODE_ROTATE_0,
-		.rotation_type = OMAP_DSS_ROT_NONE,
+		.rotation_type = OMAP_DSS_ROT_ANALNE,
 		.pos_x = 0, .pos_y = 0,
 		.out_width = 0, .out_height = 0,
 		.global_alpha = 0xff,
@@ -4645,7 +4645,7 @@ static int dispc_errata_i734_wa_init(struct dispc_device *dispc)
 	if (!i734_buf.vaddr) {
 		dev_err(&dispc->pdev->dev, "%s: dma_alloc_wc failed\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -4747,11 +4747,11 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	struct dispc_device *dispc;
 	u32 rev;
 	int r = 0;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	dispc = kzalloc(sizeof(*dispc), GFP_KERNEL);
 	if (!dispc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dispc->pdev = pdev;
 	platform_set_drvdata(pdev, dispc);
@@ -4780,7 +4780,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	dispc->irq = platform_get_irq(dispc->pdev, 0);
 	if (dispc->irq < 0) {
 		DSSERR("platform_get_irq failed\n");
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err_free;
 	}
 

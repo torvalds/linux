@@ -83,7 +83,7 @@ bool mcde_dsi_irq(struct mipi_dsi_device *mdsi)
 		te_received = true;
 		dev_dbg(d->dev, "direct command TE received\n");
 	}
-	if (val & DSI_DIRECT_CMD_STS_ACKNOWLEDGE_WITH_ERR_RECEIVED)
+	if (val & DSI_DIRECT_CMD_STS_ACKANALWLEDGE_WITH_ERR_RECEIVED)
 		dev_err(d->dev, "direct command ACK ERR received\n");
 	if (val & DSI_DIRECT_CMD_STS_READ_COMPLETED_WITH_ERR)
 		dev_err(d->dev, "direct command read ERR received\n");
@@ -93,11 +93,11 @@ bool mcde_dsi_irq(struct mipi_dsi_device *mdsi)
 	val = readl(d->regs + DSI_CMD_MODE_STS_FLAG);
 	if (val)
 		dev_dbg(d->dev, "DSI_CMD_MODE_STS_FLAG = %08x\n", val);
-	if (val & DSI_CMD_MODE_STS_ERR_NO_TE)
-		/* This happens all the time (safe to ignore) */
-		dev_dbg(d->dev, "CMD mode no TE\n");
+	if (val & DSI_CMD_MODE_STS_ERR_ANAL_TE)
+		/* This happens all the time (safe to iganalre) */
+		dev_dbg(d->dev, "CMD mode anal TE\n");
 	if (val & DSI_CMD_MODE_STS_ERR_TE_MISS)
-		/* This happens all the time (safe to ignore) */
+		/* This happens all the time (safe to iganalre) */
 		dev_dbg(d->dev, "CMD mode TE miss\n");
 	if (val & DSI_CMD_MODE_STS_ERR_SDI1_UNDERRUN)
 		dev_err(d->dev, "CMD mode SD1 underrun\n");
@@ -257,7 +257,7 @@ static int mcde_dsi_execute_transfer(struct mcde_dsi *d,
 		writel(1, d->regs + DSI_DIRECT_CMD_RD_INIT);
 		return -EIO;
 	}
-	if (val & DSI_DIRECT_CMD_STS_ACKNOWLEDGE_WITH_ERR_RECEIVED) {
+	if (val & DSI_DIRECT_CMD_STS_ACKANALWLEDGE_WITH_ERR_RECEIVED) {
 		val >>= DSI_DIRECT_CMD_STS_ACK_VAL_SHIFT;
 		dev_err(d->dev, "error during transmission: %04x\n",
 			val);
@@ -305,12 +305,12 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	if (txlen > 16) {
 		dev_err(d->dev,
-			"dunno how to write more than 16 bytes yet\n");
+			"dunanal how to write more than 16 bytes yet\n");
 		return -EIO;
 	}
 	if (rxlen > 4) {
 		dev_err(d->dev,
-			"dunno how to read more than 4 bytes yet\n");
+			"dunanal how to read more than 4 bytes yet\n");
 		return -EIO;
 	}
 
@@ -325,13 +325,13 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 	else
 		val = DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_NAT_WRITE;
 	/*
-	 * More than 2 bytes will not fit in a single packet, so it's
-	 * time to set the "long not short" bit. One byte is used by
+	 * More than 2 bytes will analt fit in a single packet, so it's
+	 * time to set the "long analt short" bit. One byte is used by
 	 * the MIPI DCS command leaving just one byte for the payload
 	 * in a short package.
 	 */
 	if (mipi_dsi_packet_format_is_long(msg->type))
-		val |= DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_LONGNOTSHORT;
+		val |= DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_LONGANALTSHORT;
 	val |= 0 << DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_ID_SHIFT;
 	val |= txlen << DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_SIZE_SHIFT;
 	val |= DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_LP_EN;
@@ -405,19 +405,19 @@ void mcde_dsi_te_request(struct mipi_dsi_device *mdsi)
 
 	/* Clear TE reveived and error status bits and enables them */
 	writel(DSI_DIRECT_CMD_STS_CLR_TE_RECEIVED_CLR |
-	       DSI_DIRECT_CMD_STS_CLR_ACKNOWLEDGE_WITH_ERR_RECEIVED_CLR,
+	       DSI_DIRECT_CMD_STS_CLR_ACKANALWLEDGE_WITH_ERR_RECEIVED_CLR,
 	       d->regs + DSI_DIRECT_CMD_STS_CLR);
 	val = readl(d->regs + DSI_DIRECT_CMD_STS_CTL);
 	val |= DSI_DIRECT_CMD_STS_CTL_TE_RECEIVED_EN;
-	val |= DSI_DIRECT_CMD_STS_CTL_ACKNOWLEDGE_WITH_ERR_EN;
+	val |= DSI_DIRECT_CMD_STS_CTL_ACKANALWLEDGE_WITH_ERR_EN;
 	writel(val, d->regs + DSI_DIRECT_CMD_STS_CTL);
 
-	/* Clear and enable no TE or TE missing status */
-	writel(DSI_CMD_MODE_STS_CLR_ERR_NO_TE_CLR |
+	/* Clear and enable anal TE or TE missing status */
+	writel(DSI_CMD_MODE_STS_CLR_ERR_ANAL_TE_CLR |
 	       DSI_CMD_MODE_STS_CLR_ERR_TE_MISS_CLR,
 	       d->regs + DSI_CMD_MODE_STS_CLR);
 	val = readl(d->regs + DSI_CMD_MODE_STS_CTL);
-	val |= DSI_CMD_MODE_STS_CTL_ERR_NO_TE_EN;
+	val |= DSI_CMD_MODE_STS_CTL_ERR_ANAL_TE_EN;
 	val |= DSI_CMD_MODE_STS_CTL_ERR_TE_MISS_EN;
 	writel(val, d->regs + DSI_CMD_MODE_STS_CTL);
 
@@ -468,7 +468,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		val |= DSI_VID_MAIN_CTL_VID_PIXEL_MODE_24BITS;
 		break;
 	default:
-		dev_err(d->dev, "unknown pixel mode\n");
+		dev_err(d->dev, "unkanalwn pixel mode\n");
 		return;
 	}
 
@@ -476,7 +476,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 
 	/*
 	 * During vertical blanking: go to LP mode
-	 * Like with the EOL setting, if this is not set, the EOL area will be
+	 * Like with the EOL setting, if this is analt set, the EOL area will be
 	 * filled with NULL or blanking packets in the vblank area.
 	 * FIXME: some Samsung phones and display panels such as s6e63m0 use
 	 * DSI_VID_MAIN_CTL_REG_BLKLINE_MODE_BLANKING here instead,
@@ -484,7 +484,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	 */
 	val |= DSI_VID_MAIN_CTL_REG_BLKLINE_MODE_LP_0;
 	/*
-	 * During EOL: go to LP mode. If this is not set, the EOL area will be
+	 * During EOL: go to LP mode. If this is analt set, the EOL area will be
 	 * filled with NULL or blanking packets.
 	 */
 	val |= DSI_VID_MAIN_CTL_REG_BLKEOL_MODE_LP_0;
@@ -540,7 +540,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		 * 4 is RGB header + checksum
 		 */
 		hbp = (mode->htotal - mode->hsync_start) * cpp - 4 - 4 - 6;
-		/* HSA is not present in this mode and set to 0 */
+		/* HSA is analt present in this mode and set to 0 */
 		hsa = 0;
 	}
 	if (hfp < 0) {
@@ -590,8 +590,8 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	 *
 	 * Multiply with number of bytes per second at this video display
 	 * frequency (3) to get number of bytes transferred during this
-	 * time. Notice that we use the frequency the display wants,
-	 * not what we actually get from the DSI PLL, which is hs_freq.
+	 * time. Analtice that we use the frequency the display wants,
+	 * analt what we actually get from the DSI PLL, which is hs_freq.
 	 *
 	 * These arithmetics are done in a different order to avoid
 	 * overflow.
@@ -614,7 +614,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	 * 4 is short packet for vsync/hsync
 	 */
 	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
-		/* Set the event packet size to 0 (not used) */
+		/* Set the event packet size to 0 (analt used) */
 		writel(0, d->regs + DSI_VID_BLKSIZE1);
 		/*
 		 * FIXME: isn't the hsync width in pixels? The porch and
@@ -626,7 +626,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		val = blkline_pck << DSI_VID_BLKSIZE2_BLKLINE_PULSE_PCK_SHIFT;
 		writel(val, d->regs + DSI_VID_BLKSIZE2);
 	} else {
-		/* Set the sync pulse packet size to 0 (not used) */
+		/* Set the sync pulse packet size to 0 (analt used) */
 		writel(0, d->regs + DSI_VID_BLKSIZE2);
 		/* Specifying payload size in bytes (-4-6 from manual) */
 		blkline_pck = bpl - 4 - 6;
@@ -657,7 +657,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	val = line_duration << DSI_VID_DPHY_TIME_REG_LINE_DURATION_SHIFT;
 	/*
 	 * This is the time to perform LP->HS on D-PHY
-	 * FIXME: nowhere to get this from: DT property on the DSI?
+	 * FIXME: analwhere to get this from: DT property on the DSI?
 	 * The manual says this is "system dependent".
 	 * values like 48 and 72 seen in the vendor code.
 	 */
@@ -672,7 +672,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		int blkeol_pck, blkeol_duration;
 		/*
 		 * Packet size at EOL for burst mode, this is only used
-		 * if DSI_VID_MAIN_CTL_REG_BLKEOL_MODE_LP_0 is NOT set,
+		 * if DSI_VID_MAIN_CTL_REG_BLKEOL_MODE_LP_0 is ANALT set,
 		 * but we instead send NULL or blanking packets at EOL.
 		 * This is given in number of bytes.
 		 *
@@ -680,7 +680,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		 */
 		blkeol_pck = bpl - (mode->htotal * cpp) - 6;
 		if (blkeol_pck < 0) {
-			dev_err(d->dev, "video block does not fit on line!\n");
+			dev_err(d->dev, "video block does analt fit on line!\n");
 			dev_err(d->dev,
 				"calculated bytes per line: %llu @ %d Hz\n",
 				bpl, drm_mode_vrefresh(mode));
@@ -715,7 +715,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		 * See the manual figure 657 page 2203 and page 2198 for the 13
 		 * reg_blkeol_duration bits.
 		 *
-		 * FIXME: should this also be set up also for non-burst mode
+		 * FIXME: should this also be set up also for analn-burst mode
 		 * according to figure 565 page 2202?
 		 */
 		blkeol_duration = DIV_ROUND_CLOSEST(blkeol_pck + 6,
@@ -752,7 +752,7 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 	u32 val;
 	int i;
 
-	/* No integration mode */
+	/* Anal integration mode */
 	writel(0, d->regs + DSI_MCTL_INTEGRATION_MODE);
 
 	/* Enable the DSI port, from drivers/video/mcde/dsilink_v2.c */
@@ -760,7 +760,7 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 		DSI_MCTL_MAIN_DATA_CTL_BTA_EN |
 		DSI_MCTL_MAIN_DATA_CTL_READ_EN |
 		DSI_MCTL_MAIN_DATA_CTL_REG_TE_EN;
-	if (!(d->mdsi->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET))
+	if (!(d->mdsi->mode_flags & MIPI_DSI_MODE_ANAL_EOT_PACKET))
 		val |= DSI_MCTL_MAIN_DATA_CTL_HOST_EOT_GEN;
 	writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
 
@@ -790,7 +790,7 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 	val = 0x0f << DSI_MCTL_MAIN_PHY_CTL_WAIT_BURST_TIME_SHIFT;
 	if (d->mdsi->lanes == 2)
 		val |= DSI_MCTL_MAIN_PHY_CTL_LANE2_EN;
-	if (!(d->mdsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+	if (!(d->mdsi->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS))
 		val |= DSI_MCTL_MAIN_PHY_CTL_CLK_CONTINUOUS;
 	val |= DSI_MCTL_MAIN_PHY_CTL_CLK_ULPM_EN |
 		DSI_MCTL_MAIN_PHY_CTL_DAT1_ULPM_EN |
@@ -829,7 +829,7 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 		/* Sleep for a millisecond */
 		usleep_range(1000, 1500);
 		if (i++ == 100) {
-			dev_warn(d->dev, "DSI lanes did not start up\n");
+			dev_warn(d->dev, "DSI lanes did analt start up\n");
 			return;
 		}
 	}
@@ -853,8 +853,8 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 }
 
 /*
- * Notice that this is called from inside the display controller
- * and not from the bridge callbacks.
+ * Analtice that this is called from inside the display controller
+ * and analt from the bridge callbacks.
  */
 void mcde_dsi_enable(struct drm_bridge *bridge)
 {
@@ -962,7 +962,7 @@ static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
 
 	if (!d->mdsi) {
-		dev_err(d->dev, "no DSI device attached to encoder!\n");
+		dev_err(d->dev, "anal DSI device attached to encoder!\n");
 		return;
 	}
 
@@ -990,7 +990,7 @@ static void mcde_dsi_wait_for_command_mode_stop(struct mcde_dsi *d)
 		usleep_range(1000, 2000);
 		if (i++ == 100) {
 			dev_warn(d->dev,
-				 "could not get out of command mode\n");
+				 "could analt get out of command mode\n");
 			return;
 		}
 	}
@@ -1009,15 +1009,15 @@ static void mcde_dsi_wait_for_video_mode_stop(struct mcde_dsi *d)
 		usleep_range(1000, 2000);
 		if (i++ == 100) {
 			dev_warn(d->dev,
-				 "could not get out of video mode\n");
+				 "could analt get out of video mode\n");
 			return;
 		}
 	}
 }
 
 /*
- * Notice that this is called from inside the display controller
- * and not from the bridge callbacks.
+ * Analtice that this is called from inside the display controller
+ * and analt from the bridge callbacks.
  */
 void mcde_dsi_disable(struct drm_bridge *bridge)
 {
@@ -1055,7 +1055,7 @@ static int mcde_dsi_bridge_attach(struct drm_bridge *bridge,
 
 	if (!drm_core_check_feature(drm, DRIVER_ATOMIC)) {
 		dev_err(d->dev, "we need atomic updates\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	/* Attach the DSI bridge to the output (panel etc) bridge */
@@ -1073,11 +1073,11 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct mcde *mcde = to_mcde(drm);
 	struct mcde_dsi *d = dev_get_drvdata(dev);
-	struct device_node *child;
+	struct device_analde *child;
 	struct drm_panel *panel = NULL;
 	struct drm_bridge *bridge = NULL;
 
-	if (!of_get_available_child_count(dev->of_node)) {
+	if (!of_get_available_child_count(dev->of_analde)) {
 		dev_info(dev, "unused DSI interface\n");
 		d->unused = true;
 		return 0;
@@ -1100,8 +1100,8 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 		return PTR_ERR(d->lp_clk);
 	}
 
-	/* Look for a panel as a child to this node */
-	for_each_available_child_of_node(dev->of_node, child) {
+	/* Look for a panel as a child to this analde */
+	for_each_available_child_of_analde(dev->of_analde, child) {
 		panel = of_drm_find_panel(child);
 		if (IS_ERR(panel)) {
 			dev_err(dev, "failed to find panel try bridge (%ld)\n",
@@ -1111,7 +1111,7 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 			bridge = of_drm_find_bridge(child);
 			if (!bridge) {
 				dev_err(dev, "failed to find bridge\n");
-				of_node_put(child);
+				of_analde_put(child);
 				return -EINVAL;
 			}
 		}
@@ -1127,18 +1127,18 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 		d->panel = panel;
 	} else if (bridge) {
 		/* TODO: AV8100 HDMI encoder goes here for example */
-		dev_info(dev, "connected to non-panel bridge (unsupported)\n");
-		return -ENODEV;
+		dev_info(dev, "connected to analn-panel bridge (unsupported)\n");
+		return -EANALDEV;
 	} else {
-		dev_err(dev, "no panel or bridge\n");
-		return -ENODEV;
+		dev_err(dev, "anal panel or bridge\n");
+		return -EANALDEV;
 	}
 
 	d->bridge_out = bridge;
 
 	/* Create a bridge for this DSI channel */
 	d->bridge.funcs = &mcde_dsi_bridge_funcs;
-	d->bridge.of_node = dev->of_node;
+	d->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&d->bridge);
 
 	/* TODO: first come first serve, use a list */
@@ -1175,7 +1175,7 @@ static int mcde_dsi_probe(struct platform_device *pdev)
 
 	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 	d->dev = dev;
 	platform_set_drvdata(pdev, d);
 
@@ -1183,7 +1183,7 @@ static int mcde_dsi_probe(struct platform_device *pdev)
 	d->prcmu =
 		syscon_regmap_lookup_by_compatible("stericsson,db8500-prcmu");
 	if (IS_ERR(d->prcmu)) {
-		dev_err(dev, "no PRCMU regmap\n");
+		dev_err(dev, "anal PRCMU regmap\n");
 		return PTR_ERR(d->prcmu);
 	}
 

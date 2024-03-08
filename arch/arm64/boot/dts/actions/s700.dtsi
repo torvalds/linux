@@ -54,7 +54,7 @@
 
 		secmon@1f000000 {
 			reg = <0x0 0x1f000000 0x0 0x1000000>;
-			no-map;
+			anal-map;
 		};
 	};
 

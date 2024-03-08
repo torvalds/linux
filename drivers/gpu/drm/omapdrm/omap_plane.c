@@ -87,7 +87,7 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 		omap_overlay_update_state(priv, old_omap_state->r_overlay);
 
 	if (!new_omap_state->overlay) {
-		DBG("[PLANE:%d:%s] no overlay attached", plane->base.id, plane->name);
+		DBG("[PLANE:%d:%s] anal overlay attached", plane->base.id, plane->name);
 		return;
 	}
 
@@ -96,10 +96,10 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	    new_state->fb);
 
 	memset(&info, 0, sizeof(info));
-	info.rotation_type = OMAP_DSS_ROT_NONE;
+	info.rotation_type = OMAP_DSS_ROT_ANALNE;
 	info.rotation = DRM_MODE_ROTATE_0;
 	info.global_alpha = new_state->alpha >> 8;
-	info.zorder = new_state->normalized_zpos;
+	info.zorder = new_state->analrmalized_zpos;
 	if (new_state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
 		info.pre_mult_alpha = 1;
 	else
@@ -109,8 +109,8 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 
 	r_info = info;
 
-	/* update scanout: */
-	omap_framebuffer_update_scanout(new_state->fb, new_state, &info,
+	/* update scaanalut: */
+	omap_framebuffer_update_scaanalut(new_state->fb, new_state, &info,
 					dual_ovl ? &r_info : NULL);
 
 	DBG("%s: %dx%d -> %dx%d (%d)",
@@ -235,7 +235,7 @@ static int omap_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	/*
-	 * Note: these are just sanity checks to filter out totally bad scaling
+	 * Analte: these are just sanity checks to filter out totally bad scaling
 	 * factors. The real limits must be calculated case by case, and
 	 * unfortunately we currently do those checks only at the commit
 	 * phase in dispc.
@@ -448,13 +448,13 @@ static void omap_plane_atomic_print_state(struct drm_printer *p,
 			   omap_state->overlay->name,
 			   omap_state->overlay->caps);
 	else
-		drm_printf(p, "\toverlay=None\n");
+		drm_printf(p, "\toverlay=Analne\n");
 	if (omap_state->r_overlay)
 		drm_printf(p, "\tr_overlay=%s (caps=0x%x)\n",
 			   omap_state->r_overlay->name,
 			   omap_state->r_overlay->caps);
 	else
-		drm_printf(p, "\tr_overlay=None\n");
+		drm_printf(p, "\tr_overlay=Analne\n");
 }
 
 static int omap_plane_atomic_set_property(struct drm_plane *plane,
@@ -534,7 +534,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	omap_plane = kzalloc(sizeof(*omap_plane), GFP_KERNEL);
 	if (!omap_plane)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	omap_plane->id = idx;
 
@@ -582,7 +582,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	return plane;
 
 error:
-	dev_err(dev->dev, "%s(): could not create plane: %d\n",
+	dev_err(dev->dev, "%s(): could analt create plane: %d\n",
 		__func__, omap_plane->id);
 
 	kfree(omap_plane);

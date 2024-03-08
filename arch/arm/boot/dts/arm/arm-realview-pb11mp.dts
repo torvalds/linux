@@ -8,12 +8,12 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -231,7 +231,7 @@
 	};
 
 	flash0@40000000 {
-		/* 2 * 32MiB NOR Flash memory */
+		/* 2 * 32MiB ANALR Flash memory */
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x40000000 0x04000000>;
 		bank-width = <4>;
@@ -241,7 +241,7 @@
 	};
 
 	flash1@44000000 {
-		// 2 * 32MiB NOR Flash memory
+		// 2 * 32MiB ANALR Flash memory
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x44000000 0x04000000>;
 		bank-width = <4>;
@@ -280,7 +280,7 @@
 	vga {
 		/*
 		 * This DDC I2C is connected directly to the DVI portions
-		 * of the connector, so it's not really working when the
+		 * of the connector, so it's analt really working when the
 		 * monitor is connected to the VGA connector.
 		 */
 		compatible = "vga-connector";

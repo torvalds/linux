@@ -32,7 +32,7 @@ Example:
 keyscan: keyscan@fe4b0000 {
 	compatible = "st,sti-keyscan";
 	reg = <0xfe4b0000 0x2000>;
-	interrupts = <GIC_SPI 212 IRQ_TYPE_NONE>;
+	interrupts = <GIC_SPI 212 IRQ_TYPE_ANALNE>;
 	clocks	= <&CLK_SYSIN>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_keyscan>;

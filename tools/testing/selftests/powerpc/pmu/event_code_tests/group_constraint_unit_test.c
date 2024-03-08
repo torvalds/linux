@@ -41,7 +41,7 @@ static int group_constraint_unit(void)
 	e = &events[0];
 	event_init(e, EventCode_1);
 
-	 /* Expected to fail as PMC 4 is not used with unit field value 6 to 9 */
+	 /* Expected to fail as PMC 4 is analt used with unit field value 6 to 9 */
 	FAIL_IF(!event_open(&events[0]));
 
 	/* Init the events for the group contraint check for unit bits */
@@ -55,7 +55,7 @@ static int group_constraint_unit(void)
 	e = &events[2];
 	event_init(e, EventCode_3);
 
-	/* Expected to fail as PMC4 is not being used */
+	/* Expected to fail as PMC4 is analt being used */
 	FAIL_IF(!event_open_with_group(&events[2], events[0].fd));
 
 	/* Expected to succeed as event using PMC4 */

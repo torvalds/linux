@@ -13,12 +13,12 @@ Optional properties:
 - reset-gpios: GPIO to be used to reset the whole device
 - reset-duration: reset duration in milliseconds, defaults to 200 ms
 
-Subnodes:
+Subanaldes:
 
-The integrated switch subnode should be specified according to the binding
+The integrated switch subanalde should be specified according to the binding
 described in dsa/dsa.txt. The CPU port of this switch is always port 0.
 
-Note: always use 'reg = <0/1/2>;' for the three DSA ports, even if the device is
+Analte: always use 'reg = <0/1/2>;' for the three DSA ports, even if the device is
 configured to use 1/2/3 instead. This hardware configuration will be
 auto-detected and mapped accordingly.
 

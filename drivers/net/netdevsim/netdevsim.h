@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017 Netroanalme Systems, Inc.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -7,7 +7,7 @@
  *
  * THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS"
  * WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
- * BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE
  * OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
@@ -109,7 +109,7 @@ struct netdevsim {
 	struct xdp_attachment_info xdp_hw;
 
 	bool bpf_tc_accept;
-	bool bpf_tc_non_bound_accept;
+	bool bpf_tc_analn_bound_accept;
 	bool bpf_xdpdrv_accept;
 	bool bpf_xdpoffload_accept;
 
@@ -168,7 +168,7 @@ static inline void nsim_bpf_uninit(struct netdevsim *ns)
 
 static inline int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int nsim_bpf_disable_tc(struct netdevsim *ns)
@@ -180,12 +180,12 @@ static inline int
 nsim_bpf_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 			   void *cb_priv)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
 enum nsim_resource_id {
-	NSIM_RESOURCE_NONE,   /* DEVLINK_RESOURCE_ID_PARENT_TOP */
+	NSIM_RESOURCE_ANALNE,   /* DEVLINK_RESOURCE_ID_PARENT_TOP */
 	NSIM_RESOURCE_IPV4,
 	NSIM_RESOURCE_IPV4_FIB,
 	NSIM_RESOURCE_IPV4_FIB_RULES,
@@ -222,7 +222,7 @@ struct nsim_dev_hwstats {
 	struct mutex hwsdev_list_lock; /* protects hwsdev list(s) */
 	struct list_head l3_list;
 
-	struct notifier_block netdevice_nb;
+	struct analtifier_block netdevice_nb;
 	struct delayed_work traffic_dw;
 };
 
@@ -282,7 +282,7 @@ struct nsim_dev {
 	struct dentry *ddir;
 	struct dentry *ports_ddir;
 	struct dentry *take_snapshot;
-	struct dentry *nodes_ddir;
+	struct dentry *analdes_ddir;
 
 	struct nsim_vf_config *vfconfigs;
 

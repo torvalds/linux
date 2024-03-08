@@ -14,10 +14,10 @@
 	compatible = "google,veyron-pinky-rev2", "google,veyron-pinky",
 		     "google,veyron", "rockchip,rk3288";
 
-	/delete-node/backlight-regulator;
-	/delete-node/panel-regulator;
-	/delete-node/emmc-pwrseq;
-	/delete-node/vcc18-lcd;
+	/delete-analde/backlight-regulator;
+	/delete-analde/panel-regulator;
+	/delete-analde/emmc-pwrseq;
+	/delete-analde/vcc18-lcd;
 };
 
 &backlight {
@@ -66,7 +66,7 @@
 &pinctrl {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but anal owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -76,7 +76,7 @@
 		&bt_dev_wake_awake
 	>;
 	pinctrl-1 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but anal owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -86,15 +86,15 @@
 		&bt_dev_wake_sleep
 	>;
 
-	/delete-node/ lcd;
+	/delete-analde/ lcd;
 
 	backlight {
-		/delete-node/ bl_pwr_en;
+		/delete-analde/ bl_pwr_en;
 	};
 
 	buttons {
 		pwr_key_h: pwr-key-h {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

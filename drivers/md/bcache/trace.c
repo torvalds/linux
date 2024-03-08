@@ -30,9 +30,9 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_cache_cannibalize);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_read);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_write);
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_alloc);
-EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_alloc_fail);
-EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_free);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_analde_alloc);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_analde_alloc_fail);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_analde_free);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_gc_coalesce);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_gc_start);
@@ -42,8 +42,8 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_gc_copy_collision);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_insert_key);
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_split);
-EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_compact);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_analde_split);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_analde_compact);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_set_root);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_invalidate);

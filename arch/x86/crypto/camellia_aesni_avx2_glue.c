@@ -108,14 +108,14 @@ static int __init camellia_aesni_init(void)
 	    !boot_cpu_has(X86_FEATURE_AVX2) ||
 	    !boot_cpu_has(X86_FEATURE_AES) ||
 	    !boot_cpu_has(X86_FEATURE_OSXSAVE)) {
-		pr_info("AVX2 or AES-NI instructions are not detected.\n");
-		return -ENODEV;
+		pr_info("AVX2 or AES-NI instructions are analt detected.\n");
+		return -EANALDEV;
 	}
 
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM,
 				&feature_name)) {
-		pr_info("CPU feature '%s' is not supported.\n", feature_name);
-		return -ENODEV;
+		pr_info("CPU feature '%s' is analt supported.\n", feature_name);
+		return -EANALDEV;
 	}
 
 	return simd_register_skciphers_compat(camellia_algs,

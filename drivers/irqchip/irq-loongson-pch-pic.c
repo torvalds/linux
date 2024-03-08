@@ -50,7 +50,7 @@ struct pch_pic {
 
 static struct pch_pic *pch_pic_priv[MAX_IO_PICS];
 
-struct fwnode_handle *pch_pic_handle[MAX_IO_PICS];
+struct fwanalde_handle *pch_pic_handle[MAX_IO_PICS];
 
 static void pch_pic_bitset(struct pch_pic *priv, int offset, int bit)
 {
@@ -158,9 +158,9 @@ static int pch_pic_domain_translate(struct irq_domain *d,
 					unsigned int *type)
 {
 	struct pch_pic *priv = d->host_data;
-	struct device_node *of_node = to_of_node(fwspec->fwnode);
+	struct device_analde *of_analde = to_of_analde(fwspec->fwanalde);
 
-	if (of_node) {
+	if (of_analde) {
 		if (fwspec->param_count < 2)
 			return -EINVAL;
 
@@ -174,7 +174,7 @@ static int pch_pic_domain_translate(struct irq_domain *d,
 		if (fwspec->param_count > 1)
 			*type = fwspec->param[1] & IRQ_TYPE_SENSE_MASK;
 		else
-			*type = IRQ_TYPE_NONE;
+			*type = IRQ_TYPE_ANALNE;
 	}
 
 	return 0;
@@ -194,7 +194,7 @@ static int pch_pic_alloc(struct irq_domain *domain, unsigned int virq,
 	if (err)
 		return err;
 
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	parent_fwspec.param_count = 1;
 	parent_fwspec.param[0] = hwirq + priv->ht_vec_base;
 
@@ -280,14 +280,14 @@ static struct syscore_ops pch_pic_syscore_ops = {
 };
 
 static int pch_pic_init(phys_addr_t addr, unsigned long size, int vec_base,
-			struct irq_domain *parent_domain, struct fwnode_handle *domain_handle,
+			struct irq_domain *parent_domain, struct fwanalde_handle *domain_handle,
 			u32 gsi_base)
 {
 	struct pch_pic *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&priv->pic_lock);
 	priv->base = ioremap(addr, size);
@@ -326,14 +326,14 @@ free_priv:
 
 #ifdef CONFIG_OF
 
-static int pch_pic_of_init(struct device_node *node,
-				struct device_node *parent)
+static int pch_pic_of_init(struct device_analde *analde,
+				struct device_analde *parent)
 {
 	int err, vec_base;
 	struct resource res;
 	struct irq_domain *parent_domain;
 
-	if (of_address_to_resource(node, 0, &res))
+	if (of_address_to_resource(analde, 0, &res))
 		return -EINVAL;
 
 	parent_domain = irq_find_host(parent);
@@ -342,13 +342,13 @@ static int pch_pic_of_init(struct device_node *node,
 		return -ENXIO;
 	}
 
-	if (of_property_read_u32(node, "loongson,pic-base-vec", &vec_base)) {
+	if (of_property_read_u32(analde, "loongson,pic-base-vec", &vec_base)) {
 		pr_err("Failed to determine pic-base-vec\n");
 		return -EINVAL;
 	}
 
 	err = pch_pic_init(res.start, resource_size(&res), vec_base,
-				parent_domain, of_node_to_fwnode(node), 0);
+				parent_domain, of_analde_to_fwanalde(analde), 0);
 	if (err < 0)
 		return err;
 
@@ -402,22 +402,22 @@ int __init pch_pic_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_bio_pic *acpi_pchpic)
 {
 	int ret;
-	struct fwnode_handle *domain_handle;
+	struct fwanalde_handle *domain_handle;
 
 	if (find_pch_pic(acpi_pchpic->gsi_base) >= 0)
 		return 0;
 
-	domain_handle = irq_domain_alloc_fwnode(&acpi_pchpic->address);
+	domain_handle = irq_domain_alloc_fwanalde(&acpi_pchpic->address);
 	if (!domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = pch_pic_init(acpi_pchpic->address, acpi_pchpic->size,
 				0, parent, domain_handle, acpi_pchpic->gsi_base);
 
 	if (ret < 0) {
-		irq_domain_free_fwnode(domain_handle);
+		irq_domain_free_fwanalde(domain_handle);
 		return ret;
 	}
 

@@ -58,8 +58,8 @@
 				status = "okay";
 
 				bus-width = <8>;
-				no-1-8-v;
-				non-removable;
+				anal-1-8-v;
+				analn-removable;
 			};
 
 			usb3@f0000 {
@@ -105,9 +105,9 @@
 		maximum-power-milliwatt = <3000>;
 
 		/*
-		 * For now this has to be enabled at boot time by U-Boot when
+		 * For analw this has to be enabled at boot time by U-Boot when
 		 * a SFP module is present. Read more in the comment in the
-		 * eth2 node below.
+		 * eth2 analde below.
 		 */
 		status = "disabled";
 	};
@@ -188,7 +188,7 @@
 	 * a SFP module is present, as determined by the mode-def0 GPIO.
 	 *
 	 * Until kernel supports this configuration properly, in case SFP module
-	 * is present, U-Boot has to enable the sfp node above, remove phy
+	 * is present, U-Boot has to enable the sfp analde above, remove phy
 	 * handle and add managed = "in-band-status" property.
 	 */
 	status = "okay";
@@ -231,16 +231,16 @@
 				 * LEDs are controlled by MCU (STM32F0) at
 				 * address 0x2b.
 				 *
-				 * LED functions are not stable yet:
+				 * LED functions are analt stable yet:
 				 * - there are 3 LEDs connected via MCU to PCIe
 				 *   ports. One of these ports supports mSATA.
-				 *   There is no mSATA nor PCIe function.
-				 *   For now we use LED_FUNCTION_WLAN, since
+				 *   There is anal mSATA analr PCIe function.
+				 *   For analw we use LED_FUNCTION_WLAN, since
 				 *   in most cases users have wifi cards in
 				 *   these slots
 				 * - there are 2 LEDs dedicated for user: A and
-				 *   B. Again there is no such function defined.
-				 *   For now we use LED_FUNCTION_INDICATOR
+				 *   B. Again there is anal such function defined.
+				 *   For analw we use LED_FUNCTION_INDICATOR
 				 */
 
 				multi-led@0 {
@@ -528,7 +528,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "spansion,s25fl164k", "jedec,spi-nor";
+		compatible = "spansion,s25fl164k", "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;

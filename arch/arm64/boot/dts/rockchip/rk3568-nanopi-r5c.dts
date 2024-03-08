@@ -7,11 +7,11 @@
  */
 
 /dts-v1/;
-#include "rk3568-nanopi-r5s.dtsi"
+#include "rk3568-naanalpi-r5s.dtsi"
 
 / {
-	model = "FriendlyElec NanoPi R5C";
-	compatible = "friendlyarm,nanopi-r5c", "rockchip,rk3568";
+	model = "FriendlyElec NaanalPi R5C";
+	compatible = "friendlyarm,naanalpi-r5c", "rockchip,rk3568";
 
 	gpio-keys {
 		compatible = "gpio-keys";
@@ -82,19 +82,19 @@
 &pinctrl {
 	gpio-leds {
 		lan_led_pin: lan-led-pin {
-			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		power_led_pin: power-led-pin {
-			rockchip,pins = <3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wan_led_pin: wan-led-pin {
-			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wlan_led_pin: wlan-led-pin {
-			rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

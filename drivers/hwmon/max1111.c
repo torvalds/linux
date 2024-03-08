@@ -30,7 +30,7 @@ enum chips { max1110, max1111, max1112, max1113 };
 #define MAX1111_CTRL_SGL      (1u << 2)
 #define MAX1111_CTRL_UNI      (1u << 3)
 #define MAX1110_CTRL_SEL_SH   (4)
-#define MAX1111_CTRL_SEL_SH   (5)	/* NOTE: bit 4 is ignored */
+#define MAX1111_CTRL_SEL_SH   (5)	/* ANALTE: bit 4 is iganalred */
 #define MAX1111_CTRL_STR      (1u << 7)
 
 struct max1111_data {
@@ -52,7 +52,7 @@ static int max1111_read(struct device *dev, int channel)
 	uint8_t v1, v2;
 	int err;
 
-	/* writing to drvdata struct is not thread safe, wait on mutex */
+	/* writing to drvdata struct is analt thread safe, wait on mutex */
 	mutex_lock(&data->drvdata_lock);
 
 	data->tx_buf[0] = (channel << data->sel_sh) |
@@ -84,7 +84,7 @@ int max1111_read_channel(int channel);
 int max1111_read_channel(int channel)
 {
 	if (!the_max1111 || !the_max1111->spi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return max1111_read(&the_max1111->spi->dev, channel);
 }
@@ -92,7 +92,7 @@ EXPORT_SYMBOL(max1111_read_channel);
 #endif
 
 /*
- * NOTE: SPI devices do not have a default 'name' attribute, which is
+ * ANALTE: SPI devices do analt have a default 'name' attribute, which is
  * likely to be used by hwmon applications to distinguish between
  * different devices, explicitly add a name attribute here.
  */
@@ -194,7 +194,7 @@ static int max1111_probe(struct spi_device *spi)
 
 	data = devm_kzalloc(&spi->dev, sizeof(struct max1111_data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (chip) {
 	case max1110:

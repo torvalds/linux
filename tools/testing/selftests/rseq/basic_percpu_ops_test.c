@@ -66,13 +66,13 @@ struct spinlock_test_data {
 	int reps;
 };
 
-struct percpu_list_node {
+struct percpu_list_analde {
 	intptr_t data;
-	struct percpu_list_node *next;
+	struct percpu_list_analde *next;
 };
 
 struct percpu_list_entry {
-	struct percpu_list_node *head;
+	struct percpu_list_analde *head;
 } __attribute__((aligned(128)));
 
 struct percpu_list {
@@ -119,7 +119,7 @@ void *test_percpu_spinlock_thread(void *arg)
 
 	if (rseq_register_current_thread()) {
 		fprintf(stderr, "Error: rseq_register_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		abort();
 	}
 	for (i = 0; i < data->reps; i++) {
@@ -129,7 +129,7 @@ void *test_percpu_spinlock_thread(void *arg)
 	}
 	if (rseq_unregister_current_thread()) {
 		fprintf(stderr, "Error: rseq_unregister_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		abort();
 	}
 
@@ -168,7 +168,7 @@ void test_percpu_spinlock(void)
 }
 
 void this_cpu_list_push(struct percpu_list *list,
-			struct percpu_list_node *node,
+			struct percpu_list_analde *analde,
 			int *_cpu)
 {
 	int cpu;
@@ -180,9 +180,9 @@ void this_cpu_list_push(struct percpu_list *list,
 		cpu = get_current_cpu_id();
 		/* Load list->c[cpu].head with single-copy atomicity. */
 		expect = (intptr_t)RSEQ_READ_ONCE(list->c[cpu].head);
-		newval = (intptr_t)node;
+		newval = (intptr_t)analde;
 		targetptr = (intptr_t *)&list->c[cpu].head;
-		node->next = (struct percpu_list_node *)expect;
+		analde->next = (struct percpu_list_analde *)expect;
 		ret = rseq_cmpeqv_storev(RSEQ_MO_RELAXED, RSEQ_PERCPU,
 					 targetptr, expect, newval, cpu);
 		if (rseq_likely(!ret))
@@ -198,22 +198,22 @@ void this_cpu_list_push(struct percpu_list *list,
  * rseq primitive allows us to implement pop without concerns over
  * ABA-type races.
  */
-struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
+struct percpu_list_analde *this_cpu_list_pop(struct percpu_list *list,
 					   int *_cpu)
 {
 	for (;;) {
-		struct percpu_list_node *head;
-		intptr_t *targetptr, expectnot, *load;
+		struct percpu_list_analde *head;
+		intptr_t *targetptr, expectanalt, *load;
 		long offset;
 		int ret, cpu;
 
 		cpu = get_current_cpu_id();
 		targetptr = (intptr_t *)&list->c[cpu].head;
-		expectnot = (intptr_t)NULL;
-		offset = offsetof(struct percpu_list_node, next);
+		expectanalt = (intptr_t)NULL;
+		offset = offsetof(struct percpu_list_analde, next);
 		load = (intptr_t *)&head;
 		ret = rseq_cmpnev_storeoffp_load(RSEQ_MO_RELAXED, RSEQ_PERCPU,
-						 targetptr, expectnot,
+						 targetptr, expectanalt,
 						 offset, load, cpu);
 		if (rseq_likely(!ret)) {
 			if (_cpu)
@@ -227,18 +227,18 @@ struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
 }
 
 /*
- * __percpu_list_pop is not safe against concurrent accesses. Should
- * only be used on lists that are not concurrently modified.
+ * __percpu_list_pop is analt safe against concurrent accesses. Should
+ * only be used on lists that are analt concurrently modified.
  */
-struct percpu_list_node *__percpu_list_pop(struct percpu_list *list, int cpu)
+struct percpu_list_analde *__percpu_list_pop(struct percpu_list *list, int cpu)
 {
-	struct percpu_list_node *node;
+	struct percpu_list_analde *analde;
 
-	node = list->c[cpu].head;
-	if (!node)
+	analde = list->c[cpu].head;
+	if (!analde)
 		return NULL;
-	list->c[cpu].head = node->next;
-	return node;
+	list->c[cpu].head = analde->next;
+	return analde;
 }
 
 void *test_percpu_list_thread(void *arg)
@@ -248,22 +248,22 @@ void *test_percpu_list_thread(void *arg)
 
 	if (rseq_register_current_thread()) {
 		fprintf(stderr, "Error: rseq_register_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		abort();
 	}
 
 	for (i = 0; i < 100000; i++) {
-		struct percpu_list_node *node;
+		struct percpu_list_analde *analde;
 
-		node = this_cpu_list_pop(list, NULL);
+		analde = this_cpu_list_pop(list, NULL);
 		sched_yield();  /* encourage shuffling */
-		if (node)
-			this_cpu_list_push(list, node, NULL);
+		if (analde)
+			this_cpu_list_push(list, analde, NULL);
 	}
 
 	if (rseq_unregister_current_thread()) {
 		fprintf(stderr, "Error: rseq_unregister_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		abort();
 	}
 
@@ -287,15 +287,15 @@ void test_percpu_list(void)
 		if (rseq_use_cpu_index() && !CPU_ISSET(i, &allowed_cpus))
 			continue;
 		for (j = 1; j <= 100; j++) {
-			struct percpu_list_node *node;
+			struct percpu_list_analde *analde;
 
 			expected_sum += j;
 
-			node = malloc(sizeof(*node));
-			assert(node);
-			node->data = j;
-			node->next = list.c[i].head;
-			list.c[i].head = node;
+			analde = malloc(sizeof(*analde));
+			assert(analde);
+			analde->data = j;
+			analde->next = list.c[i].head;
+			list.c[i].head = analde;
 		}
 	}
 
@@ -307,19 +307,19 @@ void test_percpu_list(void)
 		pthread_join(test_threads[i], NULL);
 
 	for (i = 0; i < CPU_SETSIZE; i++) {
-		struct percpu_list_node *node;
+		struct percpu_list_analde *analde;
 
 		if (rseq_use_cpu_index() && !CPU_ISSET(i, &allowed_cpus))
 			continue;
 
-		while ((node = __percpu_list_pop(&list, i))) {
-			sum += node->data;
-			free(node);
+		while ((analde = __percpu_list_pop(&list, i))) {
+			sum += analde->data;
+			free(analde);
 		}
 	}
 
 	/*
-	 * All entries should now be accounted for (unless some external
+	 * All entries should analw be accounted for (unless some external
 	 * actor is interfering with our allowed affinity while this
 	 * test is running).
 	 */
@@ -330,7 +330,7 @@ int main(int argc, char **argv)
 {
 	if (rseq_register_current_thread()) {
 		fprintf(stderr, "Error: rseq_register_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		goto error;
 	}
 	if (!rseq_validate_cpu_id()) {
@@ -343,7 +343,7 @@ int main(int argc, char **argv)
 	test_percpu_list();
 	if (rseq_unregister_current_thread()) {
 		fprintf(stderr, "Error: rseq_unregister_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		goto error;
 	}
 	return 0;

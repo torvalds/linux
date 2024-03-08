@@ -10,7 +10,7 @@
 #define SUSBCR_SBR_115200			0x4000
 
 #define SUSBCR_SPASB_MASK			0x0070
-#define SUSBCR_SPASB_NoParity			0x0010
+#define SUSBCR_SPASB_AnalParity			0x0010
 #define SUSBCR_SPASB_OddParity			0x0020
 #define SUSBCR_SPASB_EvenParity			0x0040
 

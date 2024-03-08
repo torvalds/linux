@@ -49,7 +49,7 @@ static __always_inline __u32 rol32(__u32 word, unsigned int shift)
 
 typedef unsigned int u32;
 
-static __noinline
+static __analinline
 u32 jhash(const void *key, u32 length, u32 initval)
 {
 	u32 a, b, c;
@@ -79,14 +79,14 @@ u32 jhash(const void *key, u32 length, u32 initval)
 	case 2:  a += (u32)k[1]<<8;
 	case 1:  a += k[0];
 		 __jhash_final(a, b, c);
-	case 0: /* Nothing left to add */
+	case 0: /* Analthing left to add */
 		break;
 	}
 
 	return c;
 }
 
-__noinline
+__analinline
 u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 {
 	a += initval;
@@ -96,7 +96,7 @@ u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 	return c;
 }
 
-__noinline
+__analinline
 u32 jhash_2words(u32 a, u32 b, u32 initval)
 {
 	return __jhash_nwords(a, b, 0, initval + JHASH_INITVAL + (2 << 2));
@@ -213,7 +213,7 @@ struct eth_hdr {
 	unsigned short eth_proto;
 };
 
-static __noinline __u64 calc_offset(bool is_ipv6, bool is_icmp)
+static __analinline __u64 calc_offset(bool is_ipv6, bool is_icmp)
 {
 	__u64 off = sizeof(struct eth_hdr);
 	if (is_ipv6) {
@@ -228,7 +228,7 @@ static __noinline __u64 calc_offset(bool is_ipv6, bool is_icmp)
 	return off;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 bool parse_udp(void *data, void *data_end,
 	       bool is_ipv6, struct packet_description *pckt)
 {
@@ -250,7 +250,7 @@ bool parse_udp(void *data, void *data_end,
 	return true;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 bool parse_tcp(void *data, void *data_end,
 	       bool is_ipv6, struct packet_description *pckt)
 {
@@ -274,7 +274,7 @@ bool parse_tcp(void *data, void *data_end,
 	return true;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 bool encap_v6(struct xdp_md *xdp, struct ctl_value *cval,
 	      struct packet_description *pckt,
 	      struct real_definition *dst, __u32 pkt_bytes)
@@ -317,7 +317,7 @@ bool encap_v6(struct xdp_md *xdp, struct ctl_value *cval,
 	return true;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 	      struct packet_description *pckt,
 	      struct real_definition *dst, __u32 pkt_bytes)
@@ -371,7 +371,7 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 	return true;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 int swap_mac_and_send(void *data, void *data_end)
 {
 	unsigned char tmp_mac[6];
@@ -384,7 +384,7 @@ int swap_mac_and_send(void *data, void *data_end)
 	return XDP_TX;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 int send_icmp_reply(void *data, void *data_end)
 {
 	struct icmphdr *icmp_hdr;
@@ -416,7 +416,7 @@ int send_icmp_reply(void *data, void *data_end)
 	return swap_mac_and_send(data, data_end);
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 int send_icmp6_reply(void *data, void *data_end)
 {
 	struct icmp6hdr *icmp_hdr;
@@ -440,7 +440,7 @@ int send_icmp6_reply(void *data, void *data_end)
 	return swap_mac_and_send(data, data_end);
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 int parse_icmpv6(void *data, void *data_end, __u64 off,
 		 struct packet_description *pckt)
 {
@@ -465,7 +465,7 @@ int parse_icmpv6(void *data, void *data_end, __u64 off,
 	return -1;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 int parse_icmp(void *data, void *data_end, __u64 off,
 	       struct packet_description *pckt)
 {
@@ -492,7 +492,7 @@ int parse_icmp(void *data, void *data_end, __u64 off,
 	return -1;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 __u32 get_packet_hash(struct packet_description *pckt,
 		      bool hash_16bytes)
 {
@@ -504,7 +504,7 @@ __u32 get_packet_hash(struct packet_description *pckt,
 				    24);
 }
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 static bool get_packet_dst(struct real_definition **real,
 			   struct packet_description *pckt,
 			   struct vip_meta *vip_info,
@@ -557,7 +557,7 @@ static bool get_packet_dst(struct real_definition **real,
 	return true;
 }
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 static void connection_table_lookup(struct real_definition **real,
 				    struct packet_description *pckt,
 				    void *lru_map)
@@ -580,11 +580,11 @@ static void connection_table_lookup(struct real_definition **real,
 	*real = bpf_map_lookup_elem(&reals, &key);
 }
 
-/* don't believe your eyes!
+/* don't believe your eanal!
  * below function has 6 arguments whereas bpf and llvm allow maximum of 5
  * but since it's _static_ llvm can optimize one argument away
  */
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 static int process_l3_headers_v6(struct packet_description *pckt,
 				 __u8 *protocol, __u64 off,
 				 __u16 *pkt_bytes, void *data,
@@ -615,7 +615,7 @@ static int process_l3_headers_v6(struct packet_description *pckt,
 	return -1;
 }
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 static int process_l3_headers_v4(struct packet_description *pckt,
 				 __u8 *protocol, __u64 off,
 				 __u16 *pkt_bytes, void *data,
@@ -646,7 +646,7 @@ static int process_l3_headers_v4(struct packet_description *pckt,
 	return -1;
 }
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 static int process_packet(void *data, __u64 off, void *data_end,
 			  bool is_ipv6, struct xdp_md *xdp)
 {

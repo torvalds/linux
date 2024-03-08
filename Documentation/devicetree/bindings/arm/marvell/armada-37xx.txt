@@ -1,12 +1,12 @@
 Power management
 ----------------
 
-For power management (particularly DVFS and AVS), the North Bridge
+For power management (particularly DVFS and AVS), the Analrth Bridge
 Power Management component is needed:
 
 Required properties:
 - compatible     : should contain "marvell,armada-3700-nb-pm", "syscon";
-- reg            : the register start and length for the North Bridge
+- reg            : the register start and length for the Analrth Bridge
 		    Power Management
 
 Example:

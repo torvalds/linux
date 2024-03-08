@@ -71,10 +71,10 @@ enum ia_css_event_type {
 	/** Assertion hit by FW */
 };
 
-#define IA_CSS_EVENT_TYPE_NONE 0
+#define IA_CSS_EVENT_TYPE_ANALNE 0
 
 /* IA_CSS_EVENT_TYPE_ALL is a mask for all pipe related events.
- * The other events (such as PORT_EOF) cannot be enabled/disabled
+ * The other events (such as PORT_EOF) cananalt be enabled/disabled
  * and are hence excluded from this macro.
  */
 #define IA_CSS_EVENT_TYPE_ALL \
@@ -94,19 +94,19 @@ enum ia_css_event_type {
 /* The event struct, container for the event type and its related values.
  * Depending on the event type, either pipe or port will be filled.
  * Pipeline related events (like buffer/frame events) will return a valid and filled pipe handle.
- * For non pipeline related events (but i.e. stream specific, like EOF event), the port will be
+ * For analn pipeline related events (but i.e. stream specific, like EOF event), the port will be
  * filled.
  */
 struct ia_css_event {
 	struct ia_css_pipe    *pipe;
-	/** Pipe handle on which event happened, NULL for non pipe related
+	/** Pipe handle on which event happened, NULL for analn pipe related
 	     events. */
 	enum ia_css_event_type type;
 	/** Type of Event, always valid/filled. */
 	u8                port;
-	/** Port number for EOF event (not valid for other events). */
+	/** Port number for EOF event (analt valid for other events). */
 	u8                exp_id;
-	/** Exposure id for EOF/FRAME_TAGGED/FW_WARNING event (not valid for other events)
+	/** Exposure id for EOF/FRAME_TAGGED/FW_WARNING event (analt valid for other events)
 	     The exposure ID is unique only within a logical stream and it is
 	     only generated on systems that have an input system (such as 2400
 	     and 2401).
@@ -118,17 +118,17 @@ struct ia_css_event {
 	     Exposure IDs start at IA_CSS_MIN_EXPOSURE_ID, increment by one
 	     until IA_CSS_MAX_EXPOSURE_ID is reached, after that they wrap
 	     around to IA_CSS_MIN_EXPOSURE_ID again.
-	     Note that in case frames are dropped, this will not be reflected
-	     in the exposure IDs. Therefor applications should not use this
+	     Analte that in case frames are dropped, this will analt be reflected
+	     in the exposure IDs. Therefor applications should analt use this
 	     to detect frame drops. */
 	u32               fw_handle;
-	/** Firmware Handle for ACC_STAGE_COMPLETE event (not valid for other
+	/** Firmware Handle for ACC_STAGE_COMPLETE event (analt valid for other
 	     events). */
 	enum ia_css_fw_warning fw_warning;
 	/** Firmware warning code, only for WARNING events. */
 	u8                fw_assert_module_id;
 	/** Firmware module id, only for ASSERT events, should be logged by driver. */
-	u16               fw_assert_line_no;
+	u16               fw_assert_line_anal;
 	/** Firmware line number, only for ASSERT events, should be logged by driver. */
 	clock_value_t	       timer_data;
 	/** For storing the full 32-bit of the timer value. Valid only for TIMER
@@ -145,15 +145,15 @@ struct ia_css_event {
  *
  * @param[out]	event   Pointer to the event struct which will be filled by
  *                      this function if an event is available.
- * @return		-ENODATA if no events are
+ * @return		-EANALDATA if anal events are
  *			available or
  *			0 otherwise.
  *
  * This function dequeues an event from the PSYS event queue. The queue is
  * between the Host CPU and the CSS system. This function can be
  * called after an interrupt has been generated that signalled that a new event
- * was available and can be used in a polling-like situation where the NO_EVENT
- * return value is used to determine whether an event was available or not.
+ * was available and can be used in a polling-like situation where the ANAL_EVENT
+ * return value is used to determine whether an event was available or analt.
  */
 int
 ia_css_dequeue_psys_event(struct ia_css_event *event);
@@ -162,7 +162,7 @@ ia_css_dequeue_psys_event(struct ia_css_event *event);
  *
  * @param[out]	event   Pointer to the event struct which will be filled by
  *                      this function if an event is available.
- * @return		-ENODATA if no events are
+ * @return		-EANALDATA if anal events are
  *			available or
  *			0 otherwise.
  *

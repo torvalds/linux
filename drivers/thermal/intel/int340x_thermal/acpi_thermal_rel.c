@@ -27,7 +27,7 @@ static DEFINE_SPINLOCK(acpi_thermal_rel_chrdev_lock);
 static int acpi_thermal_rel_chrdev_count;	/* #times opened */
 static int acpi_thermal_rel_chrdev_exclu;	/* already open exclusive? */
 
-static int acpi_thermal_rel_open(struct inode *inode, struct file *file)
+static int acpi_thermal_rel_open(struct ianalde *ianalde, struct file *file)
 {
 	spin_lock(&acpi_thermal_rel_chrdev_lock);
 	if (acpi_thermal_rel_chrdev_exclu ||
@@ -42,10 +42,10 @@ static int acpi_thermal_rel_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&acpi_thermal_rel_chrdev_lock);
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int acpi_thermal_rel_release(struct inode *inode, struct file *file)
+static int acpi_thermal_rel_release(struct ianalde *ianalde, struct file *file)
 {
 	spin_lock(&acpi_thermal_rel_chrdev_lock);
 	acpi_thermal_rel_chrdev_count--;
@@ -79,7 +79,7 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 
 	status = acpi_evaluate_object(handle, "_TRT", NULL, &buffer);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	p = buffer.pointer;
 	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
@@ -91,7 +91,7 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 	*trt_count = p->package.count;
 	trts = kcalloc(*trt_count, sizeof(struct trt), GFP_KERNEL);
 	if (!trts) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto end;
 	}
 
@@ -105,7 +105,7 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 					      &trt_format, &element);
 		if (ACPI_FAILURE(status)) {
 			nr_bad_entries++;
-			pr_warn("_TRT package %d is invalid, ignored\n", i);
+			pr_warn("_TRT package %d is invalid, iganalred\n", i);
 			continue;
 		}
 		if (!create_dev)
@@ -154,7 +154,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 
 	status = acpi_evaluate_object(handle, "_ART", NULL, &buffer);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	p = buffer.pointer;
 	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
@@ -163,11 +163,11 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 		goto end;
 	}
 
-	/* ignore p->package.elements[0], as this is _ART Revision field */
+	/* iganalre p->package.elements[0], as this is _ART Revision field */
 	*art_count = p->package.count - 1;
 	arts = kcalloc(*art_count, sizeof(struct art), GFP_KERNEL);
 	if (!arts) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto end;
 	}
 
@@ -180,7 +180,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 		status = acpi_extract_package(&(p->package.elements[i + 1]),
 					      &art_format, &element);
 		if (ACPI_FAILURE(status)) {
-			pr_warn("_ART package %d is invalid, ignored", i);
+			pr_warn("_ART package %d is invalid, iganalred", i);
 			nr_bad_entries++;
 			continue;
 		}
@@ -221,11 +221,11 @@ static int acpi_parse_psvt(acpi_handle handle, int *psvt_count, struct psvt **ps
 	struct psvt *psvts;
 
 	if (!acpi_has_method(handle, "PSVT"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = acpi_evaluate_object(handle, "PSVT", NULL, &buffer);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	p = buffer.pointer;
 	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
@@ -258,7 +258,7 @@ static int acpi_parse_psvt(acpi_handle handle, int *psvt_count, struct psvt **ps
 
 	psvts = kcalloc(*psvt_count, sizeof(*psvts), GFP_KERNEL);
 	if (!psvts) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto end;
 	}
 
@@ -270,7 +270,7 @@ static int acpi_parse_psvt(acpi_handle handle, int *psvt_count, struct psvt **ps
 		struct psvt *psvt = &psvts[i - 1 - nr_bad_entries];
 		struct acpi_buffer *psvt_format = &psvt_int_format;
 		struct acpi_buffer element = { 0, NULL };
-		union acpi_object *knob;
+		union acpi_object *kanalb;
 		struct acpi_device *res;
 		struct psvt *psvt_ptr;
 
@@ -278,25 +278,25 @@ static int acpi_parse_psvt(acpi_handle handle, int *psvt_count, struct psvt **ps
 		element.pointer = NULL;
 
 		if (package->package.count >= ACPI_NR_PSVT_ELEMENTS) {
-			knob = &(package->package.elements[ACPI_PSVT_CONTROL_KNOB]);
+			kanalb = &(package->package.elements[ACPI_PSVT_CONTROL_KANALB]);
 		} else {
 			nr_bad_entries++;
-			pr_info("PSVT package %d is invalid, ignored\n", i);
+			pr_info("PSVT package %d is invalid, iganalred\n", i);
 			continue;
 		}
 
-		if (knob->type == ACPI_TYPE_STRING) {
+		if (kanalb->type == ACPI_TYPE_STRING) {
 			psvt_format = &psvt_str_format;
-			if (knob->string.length > ACPI_LIMIT_STR_MAX_LEN - 1) {
+			if (kanalb->string.length > ACPI_LIMIT_STR_MAX_LEN - 1) {
 				pr_info("PSVT package %d limit string len exceeds max\n", i);
-				knob->string.length = ACPI_LIMIT_STR_MAX_LEN - 1;
+				kanalb->string.length = ACPI_LIMIT_STR_MAX_LEN - 1;
 			}
 		}
 
 		status = acpi_extract_package(&(p->package.elements[i]), psvt_format, &element);
 		if (ACPI_FAILURE(status)) {
 			nr_bad_entries++;
-			pr_info("PSVT package %d is invalid, ignored\n", i);
+			pr_info("PSVT package %d is invalid, iganalred\n", i);
 			continue;
 		}
 
@@ -305,11 +305,11 @@ static int acpi_parse_psvt(acpi_handle handle, int *psvt_count, struct psvt **ps
 		memcpy(psvt, psvt_ptr, sizeof(*psvt));
 
 		/* The limit element can be string or U64 */
-		psvt->control_knob_type = (u64)knob->type;
+		psvt->control_kanalb_type = (u64)kanalb->type;
 
-		if (knob->type == ACPI_TYPE_STRING) {
+		if (kanalb->type == ACPI_TYPE_STRING) {
 			memset(&psvt->limit, 0, sizeof(u64));
-			strncpy(psvt->limit.string, psvt_ptr->limit.str_ptr, knob->string.length);
+			strncpy(psvt->limit.string, psvt_ptr->limit.str_ptr, kanalb->string.length);
 		} else {
 			psvt->limit.integer = psvt_ptr->limit.integer;
 		}
@@ -377,10 +377,10 @@ static int fill_art(char __user *ubuf)
 	art_len = count * sizeof(union art_object);
 	art_user = kzalloc(art_len, GFP_KERNEL);
 	if (!art_user) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_art;
 	}
-	/* now fill in user art data */
+	/* analw fill in user art data */
 	for (i = 0; i < count; i++) {
 		/* userspace art needs device name instead of acpi reference */
 		get_single_name(arts[i].source, art_user[i].source_device);
@@ -414,10 +414,10 @@ static int fill_trt(char __user *ubuf)
 	trt_len = count * sizeof(union trt_object);
 	trt_user = kzalloc(trt_len, GFP_KERNEL);
 	if (!trt_user) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_trt;
 	}
-	/* now fill in user trt data */
+	/* analw fill in user trt data */
 	for (i = 0; i < count; i++) {
 		/* userspace trt needs device name instead of acpi reference */
 		get_single_name(trts[i].source, trt_user[i].source_device);
@@ -448,11 +448,11 @@ static int fill_psvt(char __user *ubuf)
 
 	psvt_user = kzalloc(psvt_len, GFP_KERNEL);
 	if (!psvt_user) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_psvt;
 	}
 
-	/* now fill in user psvt data */
+	/* analw fill in user psvt data */
 	for (i = 0; i < count; i++) {
 		/* userspace psvt needs device name instead of acpi reference */
 		get_single_name(psvts[i].source, psvt_user[i].source_device);
@@ -462,12 +462,12 @@ static int fill_psvt(char __user *ubuf)
 		psvt_user[i].sample_period = psvts[i].sample_period;
 		psvt_user[i].passive_temp = psvts[i].passive_temp;
 		psvt_user[i].source_domain = psvts[i].source_domain;
-		psvt_user[i].control_knob = psvts[i].control_knob;
+		psvt_user[i].control_kanalb = psvts[i].control_kanalb;
 		psvt_user[i].step_size = psvts[i].step_size;
 		psvt_user[i].limit_coeff = psvts[i].limit_coeff;
 		psvt_user[i].unlimit_coeff = psvts[i].unlimit_coeff;
-		psvt_user[i].control_knob_type = psvts[i].control_knob_type;
-		if (psvt_user[i].control_knob_type == ACPI_TYPE_STRING)
+		psvt_user[i].control_kanalb_type = psvts[i].control_kanalb_type;
+		if (psvt_user[i].control_kanalb_type == ACPI_TYPE_STRING)
 			strncpy(psvt_user[i].limit.string, psvts[i].limit.string,
 				ACPI_LIMIT_STR_MAX_LEN);
 		else
@@ -555,7 +555,7 @@ static long acpi_thermal_rel_ioctl(struct file *f, unsigned int cmd,
 		return fill_psvt(arg);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -564,11 +564,11 @@ static const struct file_operations acpi_thermal_rel_fops = {
 	.open		= acpi_thermal_rel_open,
 	.release	= acpi_thermal_rel_release,
 	.unlocked_ioctl	= acpi_thermal_rel_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice acpi_thermal_rel_misc_device = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	"acpi_thermal_rel",
 	&acpi_thermal_rel_fops
 };

@@ -22,11 +22,11 @@ static void print_error(jvmtiEnv *jvmti, const char *msg, jvmtiError ret)
 	char *err_msg = NULL;
 	jvmtiError err;
 	err = (*jvmti)->GetErrorName(jvmti, ret, &err_msg);
-	if (err == JVMTI_ERROR_NONE) {
+	if (err == JVMTI_ERROR_ANALNE) {
 		warnx("%s failed with %s", msg, err_msg);
 		(*jvmti)->Deallocate(jvmti, (unsigned char *)err_msg);
 	} else {
-		warnx("%s failed with an unknown error %d", msg, ret);
+		warnx("%s failed with an unkanalwn error %d", msg, ret);
 	}
 }
 
@@ -42,9 +42,9 @@ do_get_line_number(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
 
 	ret = (*jvmti)->GetLineNumberTable(jvmti, m, &nr_lines, &loc_tab);
 	if (ret == JVMTI_ERROR_ABSENT_INFORMATION || ret == JVMTI_ERROR_NATIVE_METHOD) {
-		/* No debug information for this method */
+		/* Anal debug information for this method */
 		return ret;
-	} else if (ret != JVMTI_ERROR_NONE) {
+	} else if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "GetLineNumberTable", ret);
 		return ret;
 	}
@@ -56,10 +56,10 @@ do_get_line_number(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
 	if (src_line != -1) {
 		tab->pc = (unsigned long)pc;
 		tab->line_number = loc_tab[src_line].line_number;
-		tab->discrim = 0; /* not yet used */
+		tab->discrim = 0; /* analt yet used */
 		tab->methodID = m;
 
-		ret = JVMTI_ERROR_NONE;
+		ret = JVMTI_ERROR_ANALNE;
 	} else {
 		ret = JVMTI_ERROR_ABSENT_INFORMATION;
 	}
@@ -93,10 +93,10 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 	}
 
 	if (nr_total == 0)
-		return JVMTI_ERROR_NOT_FOUND;
+		return JVMTI_ERROR_ANALT_FOUND;
 
 	/*
-	 * Phase 2 -- allocate big enough line table
+	 * Phase 2 -- allocate big eanalugh line table
 	 */
 	*tab = malloc(nr_total * sizeof(**tab));
 	if (!*tab)
@@ -110,19 +110,19 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
                                 /*
                                  * c->methods is the stack of inlined method calls
                                  * at c->pc. [0] is the leaf method. Caller frames
-                                 * are ignored at the moment.
+                                 * are iganalred at the moment.
                                  */
 				ret = do_get_line_number(jvmti, c->pc,
 							 c->methods[0],
 							 c->bcis[0],
 							 *tab + lines_total);
-				if (ret == JVMTI_ERROR_NONE)
+				if (ret == JVMTI_ERROR_ANALNE)
 					lines_total++;
 			}
 		}
 	}
 	*nr_lines = lines_total;
-	return JVMTI_ERROR_NONE;
+	return JVMTI_ERROR_ANALNE;
 }
 #else /* HAVE_JVMTI_CMLR */
 
@@ -130,7 +130,7 @@ static jvmtiError
 get_line_numbers(jvmtiEnv *jvmti __maybe_unused, const void *compile_info __maybe_unused,
 		 jvmti_line_info_t **tab __maybe_unused, int *nr_lines __maybe_unused)
 {
-	return JVMTI_ERROR_NONE;
+	return JVMTI_ERROR_ANALNE;
 }
 #endif /* HAVE_JVMTI_CMLR */
 
@@ -149,7 +149,7 @@ copy_class_filename(const char * class_sign, const char * file_name, char * resu
 				result[i] = class_sign[i+1];
 		}
 		/*
-		* append file name, we use loops and not string ops to avoid modifying
+		* append file name, we use loops and analt string ops to avoid modifying
 		* class_sign which is used later for the symbol name
 		*/
 		for (j = 0; i < (max_length - 1) && file_name && j < strlen(file_name); j++, i++)
@@ -173,19 +173,19 @@ get_source_filename(jvmtiEnv *jvmti, jmethodID methodID, char ** buffer)
 	size_t len;
 
 	ret = (*jvmti)->GetMethodDeclaringClass(jvmti, methodID, &decl_class);
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "GetMethodDeclaringClass", ret);
 		return ret;
 	}
 
 	ret = (*jvmti)->GetSourceFileName(jvmti, decl_class, &file_name);
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "GetSourceFileName", ret);
 		return ret;
 	}
 
 	ret = (*jvmti)->GetClassSignature(jvmti, decl_class, &class_sign, NULL);
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "GetClassSignature", ret);
 		goto free_file_name_error;
 	}
@@ -199,7 +199,7 @@ get_source_filename(jvmtiEnv *jvmti, jmethodID methodID, char ** buffer)
 		goto free_class_sign_error;
 	}
 	strcpy(*buffer, fn);
-	ret = JVMTI_ERROR_NONE;
+	ret = JVMTI_ERROR_ANALNE;
 
 free_class_sign_error:
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)class_sign);
@@ -219,11 +219,11 @@ fill_source_filenames(jvmtiEnv *jvmti, int nr_lines,
 
 	for (index = 0; index < nr_lines; ++index) {
 		ret = get_source_filename(jvmti, line_tab[index].methodID, &(file_names[index]));
-		if (ret != JVMTI_ERROR_NONE)
+		if (ret != JVMTI_ERROR_ANALNE)
 			return ret;
 	}
 
-	return JVMTI_ERROR_NONE;
+	return JVMTI_ERROR_ANALNE;
 }
 
 static void JNICALL
@@ -249,26 +249,26 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 
 	ret = (*jvmti)->GetMethodDeclaringClass(jvmti, method,
 						&decl_class);
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "GetMethodDeclaringClass", ret);
 		return;
 	}
 
 	if (has_line_numbers && map && map_length) {
 		ret = get_line_numbers(jvmti, compile_info, &line_tab, &nr_lines);
-		if (ret != JVMTI_ERROR_NONE) {
-			if (ret != JVMTI_ERROR_NOT_FOUND) {
-				warnx("jvmti: cannot get line table for method");
+		if (ret != JVMTI_ERROR_ANALNE) {
+			if (ret != JVMTI_ERROR_ANALT_FOUND) {
+				warnx("jvmti: cananalt get line table for method");
 			}
 			nr_lines = 0;
 		} else if (nr_lines > 0) {
 			line_file_names = malloc(sizeof(char*) * nr_lines);
 			if (!line_file_names) {
-				warnx("jvmti: cannot allocate space for line table method names");
+				warnx("jvmti: cananalt allocate space for line table method names");
 			} else {
 				memset(line_file_names, 0, sizeof(char*) * nr_lines);
 				ret = fill_source_filenames(jvmti, nr_lines, line_tab, line_file_names);
-				if (ret != JVMTI_ERROR_NONE) {
+				if (ret != JVMTI_ERROR_ANALNE) {
 					warnx("jvmti: fill_source_filenames failed");
 				} else {
 					output_debug_info = 1;
@@ -279,14 +279,14 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 
 	ret = (*jvmti)->GetClassSignature(jvmti, decl_class,
 					  &class_sign, NULL);
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "GetClassSignature", ret);
 		goto error;
 	}
 
 	ret = (*jvmti)->GetMethodName(jvmti, method, &func_name,
 				      &func_sign, NULL);
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "GetMethodName", ret);
 		goto error;
 	}
@@ -354,7 +354,7 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved __maybe_unused)
 	 */
 	ret = (*jvm)->GetEnv(jvm, (void *)&jvmti, JVMTI_VERSION_1);
 	if (ret != JNI_OK) {
-		warnx("jvmti: jvmti version 1 not supported");
+		warnx("jvmti: jvmti version 1 analt supported");
 		return -1;
 	}
 
@@ -366,19 +366,19 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved __maybe_unused)
 	caps1.can_generate_compiled_method_load_events = 1;
 
 	ret = (*jvmti)->AddCapabilities(jvmti, &caps1);
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "AddCapabilities", ret);
 		return -1;
 	}
 	ret = (*jvmti)->GetJLocationFormat(jvmti, &format);
-        if (ret == JVMTI_ERROR_NONE && format == JVMTI_JLOCATION_JVMBCI) {
+        if (ret == JVMTI_ERROR_ANALNE && format == JVMTI_JLOCATION_JVMBCI) {
                 memset(&caps1, 0, sizeof(caps1));
                 caps1.can_get_line_numbers = 1;
                 caps1.can_get_source_file_name = 1;
 		ret = (*jvmti)->AddCapabilities(jvmti, &caps1);
-                if (ret == JVMTI_ERROR_NONE)
+                if (ret == JVMTI_ERROR_ANALNE)
                         has_line_numbers = 1;
-        } else if (ret != JVMTI_ERROR_NONE)
+        } else if (ret != JVMTI_ERROR_ANALNE)
 		print_error(jvmti, "GetJLocationFormat", ret);
 
 
@@ -388,22 +388,22 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved __maybe_unused)
 	cb.DynamicCodeGenerated = code_generated_cb;
 
 	ret = (*jvmti)->SetEventCallbacks(jvmti, &cb, sizeof(cb));
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret != JVMTI_ERROR_ANALNE) {
 		print_error(jvmti, "SetEventCallbacks", ret);
 		return -1;
 	}
 
-	ret = (*jvmti)->SetEventNotificationMode(jvmti, JVMTI_ENABLE,
+	ret = (*jvmti)->SetEventAnaltificationMode(jvmti, JVMTI_ENABLE,
 			JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
-	if (ret != JVMTI_ERROR_NONE) {
-		print_error(jvmti, "SetEventNotificationMode(METHOD_LOAD)", ret);
+	if (ret != JVMTI_ERROR_ANALNE) {
+		print_error(jvmti, "SetEventAnaltificationMode(METHOD_LOAD)", ret);
 		return -1;
 	}
 
-	ret = (*jvmti)->SetEventNotificationMode(jvmti, JVMTI_ENABLE,
+	ret = (*jvmti)->SetEventAnaltificationMode(jvmti, JVMTI_ENABLE,
 			JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
-	if (ret != JVMTI_ERROR_NONE) {
-		print_error(jvmti, "SetEventNotificationMode(CODE_GENERATED)", ret);
+	if (ret != JVMTI_ERROR_ANALNE) {
+		print_error(jvmti, "SetEventAnaltificationMode(CODE_GENERATED)", ret);
 		return -1;
 	}
 	return 0;

@@ -28,9 +28,9 @@ acpi_ut_get_mutex_object(acpi_handle handle,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Get an AML mutex object. The mutex node is pointed to by
+ * DESCRIPTION: Get an AML mutex object. The mutex analde is pointed to by
  *              Handle:Pathname. Either Handle or Pathname can be NULL, but
- *              not both.
+ *              analt both.
  *
  ******************************************************************************/
 
@@ -39,7 +39,7 @@ acpi_ut_get_mutex_object(acpi_handle handle,
 			 acpi_string pathname,
 			 union acpi_operand_object **ret_obj)
 {
-	struct acpi_namespace_node *mutex_node;
+	struct acpi_namespace_analde *mutex_analde;
 	union acpi_operand_object *mutex_obj;
 	acpi_status status;
 
@@ -49,13 +49,13 @@ acpi_ut_get_mutex_object(acpi_handle handle,
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Get a the namespace node for the mutex */
+	/* Get a the namespace analde for the mutex */
 
-	mutex_node = handle;
+	mutex_analde = handle;
 	if (pathname != NULL) {
 		status =
 		    acpi_get_handle(handle, pathname,
-				    ACPI_CAST_PTR(acpi_handle, &mutex_node));
+				    ACPI_CAST_PTR(acpi_handle, &mutex_analde));
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
@@ -63,13 +63,13 @@ acpi_ut_get_mutex_object(acpi_handle handle,
 
 	/* Ensure that we actually have a Mutex object */
 
-	if (!mutex_node || (mutex_node->type != ACPI_TYPE_MUTEX)) {
+	if (!mutex_analde || (mutex_analde->type != ACPI_TYPE_MUTEX)) {
 		return (AE_TYPE);
 	}
 
 	/* Get the low-level mutex object */
 
-	mutex_obj = acpi_ns_get_attached_object(mutex_node);
+	mutex_obj = acpi_ns_get_attached_object(mutex_analde);
 	if (!mutex_obj) {
 		return (AE_NULL_OBJECT);
 	}
@@ -90,9 +90,9 @@ acpi_ut_get_mutex_object(acpi_handle handle,
  *
  * DESCRIPTION: Acquire an AML mutex. This is a device driver interface to
  *              AML mutex objects, and allows for transaction locking between
- *              drivers and AML code. The mutex node is pointed to by
+ *              drivers and AML code. The mutex analde is pointed to by
  *              Handle:Pathname. Either Handle or Pathname can be NULL, but
- *              not both.
+ *              analt both.
  *
  ******************************************************************************/
 
@@ -128,9 +128,9 @@ ACPI_EXPORT_SYMBOL(acpi_acquire_mutex)
  *
  * DESCRIPTION: Release an AML mutex. This is a device driver interface to
  *              AML mutex objects, and allows for transaction locking between
- *              drivers and AML code. The mutex node is pointed to by
+ *              drivers and AML code. The mutex analde is pointed to by
  *              Handle:Pathname. Either Handle or Pathname can be NULL, but
- *              not both.
+ *              analt both.
  *
  ******************************************************************************/
 acpi_status acpi_release_mutex(acpi_handle handle, acpi_string pathname)

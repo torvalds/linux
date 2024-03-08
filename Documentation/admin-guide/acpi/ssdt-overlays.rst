@@ -12,17 +12,17 @@ boards.
 Although this can be accomplished by creating a kernel platform driver or
 recompiling the firmware image with updated ACPI tables, neither is practical:
 the former proliferates board specific kernel code while the latter requires
-access to firmware tools which are often not publicly available.
+access to firmware tools which are often analt publicly available.
 
 Because ACPI supports external references in AML code a more practical
 way to augment firmware ACPI configuration is by dynamically loading
 user defined SSDT tables that contain the board specific information.
 
 For example, to enumerate a Bosch BMA222E accelerometer on the I2C bus of the
-Minnowboard MAX development board exposed via the LSE connector [1], the
+Minanalwboard MAX development board exposed via the LSE connector [1], the
 following ASL code can be used::
 
-    DefinitionBlock ("minnowmax.aml", "SSDT", 1, "Vendor", "Accel", 0x00000003)
+    DefinitionBlock ("minanalwmax.aml", "SSDT", 1, "Vendor", "Accel", 0x00000003)
     {
         External (\_SB.I2C6, DeviceObj)
 
@@ -53,16 +53,16 @@ following ASL code can be used::
 
 which can then be compiled to AML binary format::
 
-    $ iasl minnowmax.asl
+    $ iasl minanalwmax.asl
 
     Intel ACPI Component Architecture
     ASL Optimizing Compiler version 20140214-64 [Mar 29 2014]
     Copyright (c) 2000 - 2014 Intel Corporation
 
-    ASL Input:     minnomax.asl - 30 lines, 614 bytes, 7 keywords
-    AML Output:    minnowmax.aml - 165 bytes, 6 named objects, 1 executable opcodes
+    ASL Input:     minanalmax.asl - 30 lines, 614 bytes, 7 keywords
+    AML Output:    minanalwmax.aml - 165 bytes, 6 named objects, 1 executable opcodes
 
-[1] https://www.elinux.org/Minnowboard:MinnowMax#Low_Speed_Expansion_.28Top.29
+[1] https://www.elinux.org/Minanalwboard:MinanalwMax#Low_Speed_Expansion_.28Top.29
 
 The resulting AML code can then be loaded by the kernel using one of the methods
 below.
@@ -71,7 +71,7 @@ Loading ACPI SSDTs from initrd
 ==============================
 
 This option allows loading of user defined SSDTs from initrd and it is useful
-when the system does not support EFI or when there is not enough EFI storage.
+when the system does analt support EFI or when there is analt eanalugh EFI storage.
 
 It works in a similar way with initrd based ACPI tables override/upgrade: SSDT
 AML code must be placed in the first, uncompressed, initrd under the
@@ -117,7 +117,7 @@ recent distribution.
 
 Creating a new file in /sys/firmware/efi/efivars will automatically create a new
 EFI variable. Updating a file in /sys/firmware/efi/efivars will update the EFI
-variable. Please note that the file name needs to be specially formatted as
+variable. Please analte that the file name needs to be specially formatted as
 "Name-GUID" and that the first 4 bytes in the file (little-endian format)
 represent the attributes of the EFI variable (see EFI_VARIABLE_MASK in
 include/linux/efi.h). Writing to the file must also be done with one write
@@ -150,7 +150,7 @@ variable with the content from a given file::
     [ -d "$EFIVARFS" ] || exit 2
 
     if stat -tf $EFIVARFS | grep -q -v de5e81e4; then
-            mount -t efivarfs none $EFIVARFS
+            mount -t efivarfs analne $EFIVARFS
     fi
 
     # try to pick up an existing GUID

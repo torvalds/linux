@@ -79,7 +79,7 @@
 #define DRV260X_PWM_ANALOG_IN		0x03
 #define DRV260X_AUDIOHAPTIC			0x04
 #define DRV260X_RT_PLAYBACK			0x05
-#define DRV260X_DIAGNOSTICS			0x06
+#define DRV260X_DIAGANALSTICS			0x06
 #define DRV260X_AUTO_CAL			0x07
 
 /* Audio to Haptics Control */
@@ -174,7 +174,7 @@
  * @enable_gpio: Pointer to the gpio used for enable/disabling
  * @regulator: Pointer to the regulator for the IC
  * @magnitude: Magnitude of the vibration event
- * @mode: The operating mode of the IC (LRA_NO_CAL, ERM or LRA)
+ * @mode: The operating mode of the IC (LRA_ANAL_CAL, ERM or LRA)
  * @library: The vibration library to be used
  * @rated_voltage: The rated_voltage of the actuator
  * @overdrive_voltage: The over drive voltage of the actuator
@@ -235,7 +235,7 @@ static int drv260x_haptics_play(struct input_dev *input, void *data,
 {
 	struct drv260x_data *haptics = input_get_drvdata(input);
 
-	haptics->mode = DRV260X_LRA_NO_CAL_MODE;
+	haptics->mode = DRV260X_LRA_ANAL_CAL_MODE;
 
 	/* Scale u16 magnitude into u8 register value */
 	if (effect->u.rumble.strong_magnitude > 0)
@@ -385,7 +385,7 @@ static int drv260x_init(struct drv260x_data *haptics)
 			return error;
 		}
 
-		/* No need to set GO bit here */
+		/* Anal need to set GO bit here */
 		return 0;
 	}
 
@@ -416,7 +416,7 @@ static const struct regmap_config drv260x_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = DRV260X_MAX_REG,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int drv260x_probe(struct i2c_client *client)
@@ -428,7 +428,7 @@ static int drv260x_probe(struct i2c_client *client)
 
 	haptics = devm_kzalloc(dev, sizeof(*haptics), GFP_KERNEL);
 	if (!haptics)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = device_property_read_u32(dev, "mode", &haptics->mode);
 	if (error) {
@@ -492,7 +492,7 @@ static int drv260x_probe(struct i2c_client *client)
 	haptics->input_dev = devm_input_allocate_device(dev);
 	if (!haptics->input_dev) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	haptics->input_dev->name = "drv260x:haptics";

@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <arpa/inet.h>
 #include <error.h>
-#include <errno.h>
+#include <erranal.h>
 #include <net/if.h>
 #include <linux/in.h>
 #include <linux/netlink.h>
@@ -66,7 +66,7 @@ struct testcase {
 	bool tfail;		/* send() call is expected to fail */
 	int gso_len;		/* mss after applying gso */
 	int r_num_mss;		/* recv(): number of calls of full mss */
-	int r_len_last;		/* recv(): size of last non-mss dgram, if any */
+	int r_len_last;		/* recv(): size of last analn-mss dgram, if any */
 };
 
 const struct in6_addr addr6 = IN6ADDR_LOOPBACK_INIT;
@@ -74,22 +74,22 @@ const struct in_addr addr4 = { .s_addr = __constant_htonl(INADDR_LOOPBACK + 2) }
 
 struct testcase testcases_v4[] = {
 	{
-		/* no GSO: send a single byte */
+		/* anal GSO: send a single byte */
 		.tlen = 1,
 		.r_len_last = 1,
 	},
 	{
-		/* no GSO: send a single MSS */
+		/* anal GSO: send a single MSS */
 		.tlen = CONST_MSS_V4,
 		.r_num_mss = 1,
 	},
 	{
-		/* no GSO: send a single MSS + 1B: fail */
+		/* anal GSO: send a single MSS + 1B: fail */
 		.tlen = CONST_MSS_V4 + 1,
 		.tfail = true,
 	},
 	{
-		/* send a single MSS: will fall back to no GSO */
+		/* send a single MSS: will fall back to anal GSO */
 		.tlen = CONST_MSS_V4,
 		.gso_len = CONST_MSS_V4,
 		.r_num_mss = 1,
@@ -136,7 +136,7 @@ struct testcase testcases_v4[] = {
 		.tfail = true,
 	},
 	{
-		/* send a single 1B MSS: will fall back to no GSO */
+		/* send a single 1B MSS: will fall back to anal GSO */
 		.tlen = 1,
 		.gso_len = 1,
 		.r_num_mss = 1,
@@ -177,22 +177,22 @@ struct testcase testcases_v4[] = {
 
 struct testcase testcases_v6[] = {
 	{
-		/* no GSO: send a single byte */
+		/* anal GSO: send a single byte */
 		.tlen = 1,
 		.r_len_last = 1,
 	},
 	{
-		/* no GSO: send a single MSS */
+		/* anal GSO: send a single MSS */
 		.tlen = CONST_MSS_V6,
 		.r_num_mss = 1,
 	},
 	{
-		/* no GSO: send a single MSS + 1B: fail */
+		/* anal GSO: send a single MSS + 1B: fail */
 		.tlen = CONST_MSS_V6 + 1,
 		.tfail = true,
 	},
 	{
-		/* send a single MSS: will fall back to no GSO */
+		/* send a single MSS: will fall back to anal GSO */
 		.tlen = CONST_MSS_V6,
 		.gso_len = CONST_MSS_V6,
 		.r_num_mss = 1,
@@ -239,7 +239,7 @@ struct testcase testcases_v6[] = {
 		.tfail = true,
 	},
 	{
-		/* send a single 1B MSS: will fall back to no GSO */
+		/* send a single 1B MSS: will fall back to anal GSO */
 		.tlen = 1,
 		.gso_len = 1,
 		.r_num_mss = 1,
@@ -283,7 +283,7 @@ static unsigned int get_device_mtu(int fd, const char *ifname)
 	strcpy(ifr.ifr_name, ifname);
 
 	if (ioctl(fd, SIOCGIFMTU, &ifr))
-		error(1, errno, "ioctl get mtu");
+		error(1, erranal, "ioctl get mtu");
 
 	return ifr.ifr_mtu;
 }
@@ -298,7 +298,7 @@ static void __set_device_mtu(int fd, const char *ifname, unsigned int mtu)
 	strcpy(ifr.ifr_name, ifname);
 
 	if (ioctl(fd, SIOCSIFMTU, &ifr))
-		error(1, errno, "ioctl set mtu");
+		error(1, erranal, "ioctl set mtu");
 }
 
 static void set_device_mtu(int fd, int mtu)
@@ -331,7 +331,7 @@ static void set_pmtu_discover(int fd, bool is_ipv4)
 	}
 
 	if (setsockopt(fd, level, name, &val, sizeof(val)))
-		error(1, errno, "setsockopt path mtu");
+		error(1, erranal, "setsockopt path mtu");
 }
 
 static unsigned int get_path_mtu(int fd, bool is_ipv4)
@@ -347,7 +347,7 @@ static unsigned int get_path_mtu(int fd, bool is_ipv4)
 		ret = getsockopt(fd, SOL_IPV6, IPV6_MTU, &mtu, &vallen);
 
 	if (ret)
-		error(1, errno, "getsockopt mtu");
+		error(1, erranal, "getsockopt mtu");
 
 
 	fprintf(stderr, "path mtu (read):  %u\n", mtu);
@@ -372,7 +372,7 @@ static void set_route_mtu(int mtu, bool is_ipv4)
 
 	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (fd == -1)
-		error(1, errno, "socket netlink");
+		error(1, erranal, "socket netlink");
 
 	memset(data, 0, sizeof(data));
 
@@ -411,7 +411,7 @@ static void set_route_mtu(int mtu, bool is_ipv4)
 	rta->rta_len = RTA_LENGTH(0) + RTA_LENGTH(sizeof(int));
 	off += NLMSG_ALIGN(rta->rta_len);
 
-	/* now fill MTU subtype. Note that it fits within above rta_len */
+	/* analw fill MTU subtype. Analte that it fits within above rta_len */
 	rta = (void *)(((char *) rta) + RTA_LENGTH(0));
 	rta->rta_type = RTAX_MTU;
 	rta->rta_len = RTA_LENGTH(sizeof(int));
@@ -421,10 +421,10 @@ static void set_route_mtu(int mtu, bool is_ipv4)
 
 	ret = sendto(fd, data, off, 0, (void *)&nladdr, sizeof(nladdr));
 	if (ret != off)
-		error(1, errno, "send netlink: %uB != %uB\n", ret, off);
+		error(1, erranal, "send netlink: %uB != %uB\n", ret, off);
 
 	if (close(fd))
-		error(1, errno, "close netlink");
+		error(1, erranal, "close netlink");
 
 	fprintf(stderr, "route mtu (test): %u\n", mtu);
 }
@@ -435,10 +435,10 @@ static bool __send_one(int fd, struct msghdr *msg, int flags)
 
 	ret = sendmsg(fd, msg, flags);
 	if (ret == -1 &&
-	    (errno == EMSGSIZE || errno == ENOMEM || errno == EINVAL))
+	    (erranal == EMSGSIZE || erranal == EANALMEM || erranal == EINVAL))
 		return false;
 	if (ret == -1)
-		error(1, errno, "sendmsg");
+		error(1, erranal, "sendmsg");
 	if (ret != msg->msg_iov->iov_len)
 		error(1, 0, "sendto: %d != %llu", ret,
 			(unsigned long long)msg->msg_iov->iov_len);
@@ -494,10 +494,10 @@ static int recv_one(int fd, int flags)
 	int ret;
 
 	ret = recv(fd, buf, sizeof(buf), flags);
-	if (ret == -1 && errno == EAGAIN && (flags & MSG_DONTWAIT))
+	if (ret == -1 && erranal == EAGAIN && (flags & MSG_DONTWAIT))
 		return 0;
 	if (ret == -1)
-		error(1, errno, "recv");
+		error(1, erranal, "recv");
 
 	return ret;
 }
@@ -516,7 +516,7 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 	val = test->gso_len;
 	if (cfg_do_setsockopt) {
 		if (setsockopt(fdt, SOL_UDP, UDP_SEGMENT, &val, sizeof(val)))
-			error(1, errno, "setsockopt udp segment");
+			error(1, erranal, "setsockopt udp segment");
 	}
 
 	sent = send_one(fdt, test->tlen, test->gso_len, addr, alen);
@@ -540,7 +540,7 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 			error(1, 0, "recv.%d: %d != %d", i, ret, mss);
 	}
 
-	/* Recv the non-full last datagram, if tlen was not a multiple of mss */
+	/* Recv the analn-full last datagram, if tlen was analt a multiple of mss */
 	if (test->r_len_last) {
 		ret = recv_one(fdr, 0);
 		if (ret != test->r_len_last)
@@ -575,20 +575,20 @@ static void run_test(struct sockaddr *addr, socklen_t alen)
 
 	fdr = socket(addr->sa_family, SOCK_DGRAM, 0);
 	if (fdr == -1)
-		error(1, errno, "socket r");
+		error(1, erranal, "socket r");
 
 	if (bind(fdr, addr, alen))
-		error(1, errno, "bind");
+		error(1, erranal, "bind");
 
 	/* Have tests fail quickly instead of hang */
 	if (setsockopt(fdr, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
-		error(1, errno, "setsockopt rcv timeout");
+		error(1, erranal, "setsockopt rcv timeout");
 
 	fdt = socket(addr->sa_family, SOCK_DGRAM, 0);
 	if (fdt == -1)
-		error(1, errno, "socket t");
+		error(1, erranal, "socket t");
 
-	/* Do not fragment these datagrams: only succeed if GSO works */
+	/* Do analt fragment these datagrams: only succeed if GSO works */
 	set_pmtu_discover(fdt, addr->sa_family == AF_INET);
 
 	if (cfg_do_connectionless) {
@@ -601,7 +601,7 @@ static void run_test(struct sockaddr *addr, socklen_t alen)
 		set_route_mtu(CONST_MTU_TEST, addr->sa_family == AF_INET);
 
 		if (connect(fdt, addr, alen))
-			error(1, errno, "connect");
+			error(1, erranal, "connect");
 
 		val = get_path_mtu(fdt, addr->sa_family == AF_INET);
 		if (val != CONST_MTU_TEST)
@@ -611,9 +611,9 @@ static void run_test(struct sockaddr *addr, socklen_t alen)
 	}
 
 	if (close(fdt))
-		error(1, errno, "close t");
+		error(1, erranal, "close t");
 	if (close(fdr))
-		error(1, errno, "close r");
+		error(1, erranal, "close r");
 }
 
 static void run_test_v4(void)

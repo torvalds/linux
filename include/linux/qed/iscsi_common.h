@@ -50,7 +50,7 @@
 #define ISCSI_TARGET_MODE	1
 
 /* iSCSI request op codes */
-#define ISCSI_OPCODE_NOP_OUT		(0)
+#define ISCSI_OPCODE_ANALP_OUT		(0)
 #define ISCSI_OPCODE_SCSI_CMD		(1)
 #define ISCSI_OPCODE_TMF_REQUEST	(2)
 #define ISCSI_OPCODE_LOGIN_REQUEST	(3)
@@ -59,7 +59,7 @@
 #define ISCSI_OPCODE_LOGOUT_REQUEST	(6)
 
 /* iSCSI response/messages op codes */
-#define ISCSI_OPCODE_NOP_IN		(0x20)
+#define ISCSI_OPCODE_ANALP_IN		(0x20)
 #define ISCSI_OPCODE_SCSI_RESPONSE	(0x21)
 #define ISCSI_OPCODE_TMF_RESPONSE	(0x22)
 #define ISCSI_OPCODE_LOGIN_RESPONSE	(0x23)
@@ -151,8 +151,8 @@ struct dif_on_immediate_params {
 	u8 flags0;
 #define DIF_ON_IMMEDIATE_PARAMS_RESERVED_MASK			0x1
 #define DIF_ON_IMMEDIATE_PARAMS_RESERVED_SHIFT			0
-#define DIF_ON_IMMEDIATE_PARAMS_IGNORE_APP_TAG_MASK		0x1
-#define DIF_ON_IMMEDIATE_PARAMS_IGNORE_APP_TAG_SHIFT		1
+#define DIF_ON_IMMEDIATE_PARAMS_IGANALRE_APP_TAG_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_IGANALRE_APP_TAG_SHIFT		1
 #define DIF_ON_IMMEDIATE_PARAMS_INITIAL_REF_TAG_IS_VALID_MASK	0x1
 #define DIF_ON_IMMEDIATE_PARAMS_INITIAL_REF_TAG_IS_VALID_SHIFT	2
 #define DIF_ON_IMMEDIATE_PARAMS_HOST_GUARD_TYPE_MASK		0x1
@@ -420,14 +420,14 @@ struct iscsi_r2t_hdr {
 	__le32 desired_data_trns_len;
 };
 
-/* iSCSI NOP-out PDU header */
-struct iscsi_nop_out_hdr {
+/* iSCSI ANALP-out PDU header */
+struct iscsi_analp_out_hdr {
 	__le16 reserved1;
 	u8 flags_attr;
-#define ISCSI_NOP_OUT_HDR_RSRV_MASK	0x7F
-#define ISCSI_NOP_OUT_HDR_RSRV_SHIFT	0
-#define ISCSI_NOP_OUT_HDR_CONST1_MASK	0x1
-#define ISCSI_NOP_OUT_HDR_CONST1_SHIFT	7
+#define ISCSI_ANALP_OUT_HDR_RSRV_MASK	0x7F
+#define ISCSI_ANALP_OUT_HDR_RSRV_SHIFT	0
+#define ISCSI_ANALP_OUT_HDR_CONST1_MASK	0x1
+#define ISCSI_ANALP_OUT_HDR_CONST1_SHIFT	7
 	u8 opcode;
 	__le32 reserved2;
 	struct regpair lun;
@@ -441,20 +441,20 @@ struct iscsi_nop_out_hdr {
 	__le32 reserved6;
 };
 
-/* iSCSI NOP-in PDU header */
-struct iscsi_nop_in_hdr {
+/* iSCSI ANALP-in PDU header */
+struct iscsi_analp_in_hdr {
 	__le16 reserved0;
 	u8 flags_attr;
-#define ISCSI_NOP_IN_HDR_RSRV_MASK	0x7F
-#define ISCSI_NOP_IN_HDR_RSRV_SHIFT	0
-#define ISCSI_NOP_IN_HDR_CONST1_MASK	0x1
-#define ISCSI_NOP_IN_HDR_CONST1_SHIFT	7
+#define ISCSI_ANALP_IN_HDR_RSRV_MASK	0x7F
+#define ISCSI_ANALP_IN_HDR_RSRV_SHIFT	0
+#define ISCSI_ANALP_IN_HDR_CONST1_MASK	0x1
+#define ISCSI_ANALP_IN_HDR_CONST1_SHIFT	7
 	u8 opcode;
 	__le32 hdr_second_dword;
-#define ISCSI_NOP_IN_HDR_DATA_SEG_LEN_MASK	0xFFFFFF
-#define ISCSI_NOP_IN_HDR_DATA_SEG_LEN_SHIFT	0
-#define ISCSI_NOP_IN_HDR_TOTAL_AHS_LEN_MASK	0xFF
-#define ISCSI_NOP_IN_HDR_TOTAL_AHS_LEN_SHIFT	24
+#define ISCSI_ANALP_IN_HDR_DATA_SEG_LEN_MASK	0xFFFFFF
+#define ISCSI_ANALP_IN_HDR_DATA_SEG_LEN_SHIFT	0
+#define ISCSI_ANALP_IN_HDR_TOTAL_AHS_LEN_MASK	0xFF
+#define ISCSI_ANALP_IN_HDR_TOTAL_AHS_LEN_SHIFT	24
 	struct regpair lun;
 	__le32 itt;
 	__le32 ttt;
@@ -655,7 +655,7 @@ struct iscsi_reject_hdr {
 	__le32 reserved3[2];
 };
 
-/* iSCSI Asynchronous Message PDU header */
+/* iSCSI Asynchroanalus Message PDU header */
 struct iscsi_async_msg_hdr {
 	__le16 reserved0;
 	u8 flags_attr;
@@ -694,8 +694,8 @@ union iscsi_task_hdr {
 	struct iscsi_data_out_hdr data_out;
 	struct iscsi_data_in_hdr data_in;
 	struct iscsi_r2t_hdr r2t;
-	struct iscsi_nop_out_hdr nop_out;
-	struct iscsi_nop_in_hdr nop_in;
+	struct iscsi_analp_out_hdr analp_out;
+	struct iscsi_analp_in_hdr analp_in;
 	struct iscsi_login_response_hdr login_response;
 	struct iscsi_logout_response_hdr logout_response;
 	struct iscsi_text_request_hdr text_request;
@@ -1091,7 +1091,7 @@ enum iscsi_cqes_type {
 
 /* iSCSI CQE type */
 enum iscsi_cqe_unsolicited_type {
-	ISCSI_CQE_UNSOLICITED_NONE,
+	ISCSI_CQE_UNSOLICITED_ANALNE,
 	ISCSI_CQE_UNSOLICITED_SINGLE,
 	ISCSI_CQE_UNSOLICITED_FIRST,
 	ISCSI_CQE_UNSOLICITED_MIDDLE,
@@ -1112,8 +1112,8 @@ struct iscsi_debug_modes {
 #define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_SHIFT			3
 #define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_MASK		0x1
 #define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_SHIFT		4
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_MASK			0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_SHIFT			5
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_ANALP_MASK			0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_ANALP_SHIFT			5
 #define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_OR_DATA_DIGEST_ERROR_MASK	0x1
 #define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_OR_DATA_DIGEST_ERROR_SHIFT	6
 #define ISCSI_DEBUG_MODES_ASSERT_IF_HQ_CORRUPT_MASK			0x1
@@ -1147,10 +1147,10 @@ enum iscsi_eqe_opcode {
 
 /* iSCSI EQE and CQE completion status */
 enum iscsi_error_types {
-	ISCSI_STATUS_NONE = 0,
+	ISCSI_STATUS_ANALNE = 0,
 	ISCSI_CQE_ERROR_UNSOLICITED_RCV_ON_INVALID_CONN = 1,
 	ISCSI_CONN_ERROR_TASK_CID_MISMATCH,
-	ISCSI_CONN_ERROR_TASK_NOT_VALID,
+	ISCSI_CONN_ERROR_TASK_ANALT_VALID,
 	ISCSI_CONN_ERROR_RQ_RING_IS_FULL,
 	ISCSI_CONN_ERROR_CMDQ_RING_IS_FULL,
 	ISCSI_CONN_ERROR_HQE_CACHING_FAILED,
@@ -1169,8 +1169,8 @@ enum iscsi_error_types {
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_DATA_SEG_LEN_EXCEEDS_PDU_SIZE,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_INVALID_OPCODE,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_INVALID_OPCODE_BEFORE_UPDATE,
-	ISCSI_CONN_ERROR_UNVALID_NOPIN_DSL,
-	ISCSI_CONN_ERROR_PROTOCOL_ERR_R2T_CARRIES_NO_DATA,
+	ISCSI_CONN_ERROR_UNVALID_ANALPIN_DSL,
+	ISCSI_CONN_ERROR_PROTOCOL_ERR_R2T_CARRIES_ANAL_DATA,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_DATA_SN,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_DATA_IN_TTT,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_DATA_OUT_ITT,
@@ -1185,7 +1185,7 @@ enum iscsi_error_types {
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_F_BIT_ZERO,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_F_BIT_ZERO_S_BIT_ONE,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_EXP_STAT_SN,
-	ISCSI_CONN_ERROR_PROTOCOL_ERR_DSL_NOT_ZERO,
+	ISCSI_CONN_ERROR_PROTOCOL_ERR_DSL_ANALT_ZERO,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_INVALID_DSL,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_DATA_SEG_LEN_TOO_BIG,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_OUTSTANDING_R2T_COUNT,
@@ -1193,7 +1193,7 @@ enum iscsi_error_types {
 	ISCSI_CONN_ERROR_SENSE_DATA_LENGTH,
 	ISCSI_CONN_ERROR_DATA_PLACEMENT_ERROR,
 	ISCSI_CONN_ERROR_INVALID_ITT,
-	ISCSI_ERROR_UNKNOWN,
+	ISCSI_ERROR_UNKANALWN,
 	MAX_ISCSI_ERROR_TYPES
 };
 
@@ -1352,12 +1352,12 @@ struct iscsi_wqe {
 
 /* iSCSI wqe type */
 enum iscsi_wqe_type {
-	ISCSI_WQE_TYPE_NORMAL,
+	ISCSI_WQE_TYPE_ANALRMAL,
 	ISCSI_WQE_TYPE_TASK_CLEANUP,
 	ISCSI_WQE_TYPE_MIDDLE_PATH,
 	ISCSI_WQE_TYPE_LOGIN,
 	ISCSI_WQE_TYPE_FIRST_R2T_CONT,
-	ISCSI_WQE_TYPE_NONFIRST_R2T_CONT,
+	ISCSI_WQE_TYPE_ANALNFIRST_R2T_CONT,
 	ISCSI_WQE_TYPE_RESPONSE,
 	MAX_ISCSI_WQE_TYPE
 };
@@ -1384,7 +1384,7 @@ struct iscsi_xhqe {
 
 /* Per PF iSCSI receive path statistics - mStorm RAM structure */
 struct mstorm_iscsi_stats_drv {
-	struct regpair iscsi_rx_dropped_pdus_task_not_valid;
+	struct regpair iscsi_rx_dropped_pdus_task_analt_valid;
 	struct regpair iscsi_rx_dup_ack_cnt;
 };
 

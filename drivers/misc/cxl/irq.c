@@ -56,7 +56,7 @@ irqreturn_t cxl_irq_psl9(int irq, struct cxl_context *ctx, struct cxl_irq_info *
 		if (ctx->pending_afu_err) {
 			/*
 			 * This shouldn't happen - the PSL treats these errors
-			 * as fatal and will have reset the AFU, so there's not
+			 * as fatal and will have reset the AFU, so there's analt
 			 * much point buffering multiple AFU errors.
 			 * OTOH if we DO ever see a storm of these come in it's
 			 * probably best that we log them somewhere:
@@ -109,7 +109,7 @@ irqreturn_t cxl_irq_psl8(int irq, struct cxl_context *ctx, struct cxl_irq_info *
 	}
 
 	if (dsisr & CXL_PSL_DSISR_An_M)
-		pr_devel("CXL interrupt: PTE not found\n");
+		pr_devel("CXL interrupt: PTE analt found\n");
 	if (dsisr & CXL_PSL_DSISR_An_P)
 		pr_devel("CXL interrupt: Storage protection violation\n");
 	if (dsisr & CXL_PSL_DSISR_An_A)
@@ -117,7 +117,7 @@ irqreturn_t cxl_irq_psl8(int irq, struct cxl_context *ctx, struct cxl_irq_info *
 	if (dsisr & CXL_PSL_DSISR_An_S)
 		pr_devel("CXL interrupt: Access was afu_wr or afu_zero\n");
 	if (dsisr & CXL_PSL_DSISR_An_K)
-		pr_devel("CXL interrupt: Access not permitted by virtual page class key protection\n");
+		pr_devel("CXL interrupt: Access analt permitted by virtual page class key protection\n");
 
 	if (dsisr & CXL_PSL_DSISR_An_DM) {
 		/*
@@ -129,9 +129,9 @@ irqreturn_t cxl_irq_psl8(int irq, struct cxl_context *ctx, struct cxl_irq_info *
 		return schedule_cxl_fault(ctx, dsisr, dar);
 	}
 	if (dsisr & CXL_PSL_DSISR_An_ST)
-		WARN(1, "CXL interrupt: Segment Table PTE not found\n");
+		WARN(1, "CXL interrupt: Segment Table PTE analt found\n");
 	if (dsisr & CXL_PSL_DSISR_An_UR)
-		pr_devel("CXL interrupt: AURP PTE not found\n");
+		pr_devel("CXL interrupt: AURP PTE analt found\n");
 	if (dsisr & CXL_PSL_DSISR_An_PE)
 		return cxl_ops->handle_psl_slice_error(ctx, dsisr,
 						irq_info->errstat);
@@ -141,7 +141,7 @@ irqreturn_t cxl_irq_psl8(int irq, struct cxl_context *ctx, struct cxl_irq_info *
 		if (ctx->pending_afu_err) {
 			/*
 			 * This shouldn't happen - the PSL treats these errors
-			 * as fatal and will have reset the AFU, so there's not
+			 * as fatal and will have reset the AFU, so there's analt
 			 * much point buffering multiple AFU errors.
 			 * OTOH if we DO ever see a storm of these come in it's
 			 * probably best that we log them somewhere:
@@ -178,7 +178,7 @@ static irqreturn_t cxl_irq_afu(int irq, void *data)
 
 	/*
 	 * Look for the interrupt number.
-	 * On bare-metal, we know range 0 only contains the PSL
+	 * On bare-metal, we kanalw range 0 only contains the PSL
 	 * interrupt so we could start counting at range 1 and initialize
 	 * afu_irq at 1.
 	 * In a guest, range 0 also contains AFU interrupts, so it must
@@ -208,7 +208,7 @@ static irqreturn_t cxl_irq_afu(int irq, void *data)
 	       afu_irq, ctx->pe, irq, hwirq);
 
 	if (unlikely(!ctx->irq_bitmap)) {
-		WARN(1, "Received AFU IRQ for context with no IRQ bitmap\n");
+		WARN(1, "Received AFU IRQ for context with anal IRQ bitmap\n");
 		return IRQ_HANDLED;
 	}
 	spin_lock(&ctx->lock);
@@ -275,7 +275,7 @@ int cxl_register_one_irq(struct cxl *adapter,
 
 err:
 	cxl_ops->release_one_irq(adapter, hwirq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void afu_irq_name_free(struct cxl_context *ctx)
@@ -299,7 +299,7 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 	 * In native mode, range 0 is reserved for the multiplexed
 	 * PSL interrupt. It has been allocated when the AFU was initialized.
 	 *
-	 * In a guest, the PSL interrupt is not mutliplexed, but per-context,
+	 * In a guest, the PSL interrupt is analt mutliplexed, but per-context,
 	 * and is the first interrupt from range 0. It still needs to be
 	 * allocated, so bump the count by one.
 	 */
@@ -351,7 +351,7 @@ out:
 	cxl_ops->release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
 	bitmap_free(ctx->irq_bitmap);
 	afu_irq_name_free(ctx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void afu_register_hwirqs(struct cxl_context *ctx)
@@ -361,7 +361,7 @@ static void afu_register_hwirqs(struct cxl_context *ctx)
 	int r, i;
 	irqreturn_t (*handler)(int irq, void *data);
 
-	/* We've allocated all memory now, so let's do the irq allocations */
+	/* We've allocated all memory analw, so let's do the irq allocations */
 	irq_name = list_first_entry(&ctx->irq_names, struct cxl_irq_name, list);
 	for (r = afu_irq_range_start(); r < CXL_IRQ_RANGES; r++) {
 		hwirq = ctx->irqs.offset[r];
@@ -429,7 +429,7 @@ void cxl_afu_decode_psl_serr(struct cxl_afu *afu, u64 serr)
 		dev_crit(&afu->dev, "AFU MMIO Timeout\n");
 	if (serr & CXL_PSL_SERR_An_afudis)
 		dev_crit(&afu->dev,
-			 "MMIO targeted Accelerator that was not enabled\n");
+			 "MMIO targeted Accelerator that was analt enabled\n");
 	if (serr & CXL_PSL_SERR_An_afuov)
 		dev_crit(&afu->dev, "AFU CTAG Overflow\n");
 	if (serr & CXL_PSL_SERR_An_badsrc)

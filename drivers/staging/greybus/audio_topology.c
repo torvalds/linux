@@ -400,7 +400,7 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 
 	if (data->vcount == 2)
 		dev_warn(widget->dapm->dev,
-			 "GB: Control '%s' is stereo, which is not supported\n",
+			 "GB: Control '%s' is stereo, which is analt supported\n",
 			 kcontrol->id.name);
 
 	ret = gb_pm_runtime_get_sync(bundle);
@@ -450,7 +450,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 
 	if (data->vcount == 2)
 		dev_warn(widget->dapm->dev,
-			 "GB: Control '%s' is stereo, which is not supported\n",
+			 "GB: Control '%s' is stereo, which is analt supported\n",
 			 kcontrol->id.name);
 
 	max = le32_to_cpu(info->value.integer.max);
@@ -650,7 +650,7 @@ static int gbaudio_tplg_create_enum_kctl(struct gbaudio_module_info *gb,
 
 	gbe = devm_kzalloc(gb->dev, sizeof(*gbe), GFP_KERNEL);
 	if (!gbe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gb_enum = &ctl->info.value.enumerated;
 
@@ -658,7 +658,7 @@ static int gbaudio_tplg_create_enum_kctl(struct gbaudio_module_info *gb,
 	gbe->items = le32_to_cpu(gb_enum->items);
 	gbe->texts = gb_generate_enum_strings(gb, gb_enum);
 	if (!gbe->texts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* debug enum info */
 	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gbe->items,
@@ -690,7 +690,7 @@ static int gbaudio_tplg_create_kcontrol(struct gbaudio_module_info *gb,
 					       sizeof(struct gbaudio_ctl_pvt),
 					       GFP_KERNEL);
 			if (!ctldata)
-				return -ENOMEM;
+				return -EANALMEM;
 			ctldata->ctl_id = ctl->id;
 			ctldata->data_cport = le16_to_cpu(ctl->data_cport);
 			ctldata->access = le32_to_cpu(ctl->access);
@@ -859,7 +859,7 @@ static int gbaudio_tplg_create_enum_ctl(struct gbaudio_module_info *gb,
 
 	gbe = devm_kzalloc(gb->dev, sizeof(*gbe), GFP_KERNEL);
 	if (!gbe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gb_enum = &ctl->info.value.enumerated;
 
@@ -867,7 +867,7 @@ static int gbaudio_tplg_create_enum_ctl(struct gbaudio_module_info *gb,
 	gbe->items = le32_to_cpu(gb_enum->items);
 	gbe->texts = gb_generate_enum_strings(gb, gb_enum);
 	if (!gbe->texts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* debug enum info */
 	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gbe->items,
@@ -890,7 +890,7 @@ static int gbaudio_tplg_create_mixer_ctl(struct gbaudio_module_info *gb,
 	ctldata = devm_kzalloc(gb->dev, sizeof(struct gbaudio_ctl_pvt),
 			       GFP_KERNEL);
 	if (!ctldata)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctldata->ctl_id = ctl->id;
 	ctldata->data_cport = le16_to_cpu(ctl->data_cport);
 	ctldata->access = le32_to_cpu(ctl->access);
@@ -986,33 +986,33 @@ static const struct snd_soc_dapm_widget gbaudio_widgets[] = {
 	[snd_soc_dapm_mic]	= SND_SOC_DAPM_MIC(NULL, gbcodec_event_int_mic),
 	[snd_soc_dapm_output]	= SND_SOC_DAPM_OUTPUT(NULL),
 	[snd_soc_dapm_input]	= SND_SOC_DAPM_INPUT(NULL),
-	[snd_soc_dapm_switch]	= SND_SOC_DAPM_SWITCH_E(NULL, SND_SOC_NOPM,
+	[snd_soc_dapm_switch]	= SND_SOC_DAPM_SWITCH_E(NULL, SND_SOC_ANALPM,
 					0, 0, NULL,
 					gbaudio_widget_event,
 					SND_SOC_DAPM_PRE_PMU |
 					SND_SOC_DAPM_POST_PMD),
-	[snd_soc_dapm_pga]	= SND_SOC_DAPM_PGA_E(NULL, SND_SOC_NOPM,
+	[snd_soc_dapm_pga]	= SND_SOC_DAPM_PGA_E(NULL, SND_SOC_ANALPM,
 					0, 0, NULL, 0,
 					gbaudio_widget_event,
 					SND_SOC_DAPM_PRE_PMU |
 					SND_SOC_DAPM_POST_PMD),
-	[snd_soc_dapm_mixer]	= SND_SOC_DAPM_MIXER_E(NULL, SND_SOC_NOPM,
+	[snd_soc_dapm_mixer]	= SND_SOC_DAPM_MIXER_E(NULL, SND_SOC_ANALPM,
 					0, 0, NULL, 0,
 					gbaudio_widget_event,
 					SND_SOC_DAPM_PRE_PMU |
 					SND_SOC_DAPM_POST_PMD),
-	[snd_soc_dapm_mux]	= SND_SOC_DAPM_MUX_E(NULL, SND_SOC_NOPM,
+	[snd_soc_dapm_mux]	= SND_SOC_DAPM_MUX_E(NULL, SND_SOC_ANALPM,
 					0, 0, NULL,
 					gbaudio_widget_event,
 					SND_SOC_DAPM_PRE_PMU |
 					SND_SOC_DAPM_POST_PMD),
 	[snd_soc_dapm_aif_in]	= SND_SOC_DAPM_AIF_IN_E(NULL, NULL, 0,
-					SND_SOC_NOPM, 0, 0,
+					SND_SOC_ANALPM, 0, 0,
 					gbaudio_widget_event,
 					SND_SOC_DAPM_PRE_PMU |
 					SND_SOC_DAPM_POST_PMD),
 	[snd_soc_dapm_aif_out]	= SND_SOC_DAPM_AIF_OUT_E(NULL, NULL, 0,
-					SND_SOC_NOPM, 0, 0,
+					SND_SOC_ANALPM, 0, 0,
 					gbaudio_widget_event,
 					SND_SOC_DAPM_PRE_PMU |
 					SND_SOC_DAPM_POST_PMD),
@@ -1041,7 +1041,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 		size = sizeof(struct snd_kcontrol_new) * w->ncontrols;
 		widget_kctls = devm_kzalloc(module->dev, size, GFP_KERNEL);
 		if (!widget_kctls)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	*w_size = sizeof(struct gb_audio_widget);
@@ -1053,7 +1053,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 						   curr);
 		if (ret) {
 			dev_err(module->dev,
-				"%s:%d type widget_ctl not supported\n",
+				"%s:%d type widget_ctl analt supported\n",
 				curr->name, curr->iface);
 			goto error;
 		}
@@ -1061,7 +1061,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 				       sizeof(struct gbaudio_control),
 				       GFP_KERNEL);
 		if (!control) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 		control->id = curr->id;
@@ -1079,7 +1079,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 			control->texts = (const char * const *)
 				gb_generate_enum_strings(module, gbenum);
 			if (!control->texts) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 			control->items = le32_to_cpu(gbenum->items);
@@ -1157,14 +1157,14 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 	size = sizeof(struct snd_kcontrol_new) * module->num_controls;
 	dapm_kctls = devm_kzalloc(module->dev, size, GFP_KERNEL);
 	if (!dapm_kctls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	curr = controls;
 	for (i = 0; i < module->num_controls; i++) {
 		ret = gbaudio_tplg_create_kcontrol(module, &dapm_kctls[i],
 						   curr);
 		if (ret) {
-			dev_err(module->dev, "%s:%d type not supported\n",
+			dev_err(module->dev, "%s:%d type analt supported\n",
 				curr->name, curr->iface);
 			goto error;
 		}
@@ -1172,7 +1172,7 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 							   gbaudio_control),
 				      GFP_KERNEL);
 		if (!control) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 		control->id = curr->id;
@@ -1192,7 +1192,7 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 			control->texts = (const char * const *)
 				gb_generate_enum_strings(module, gbenum);
 			if (!control->texts) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 			control->items = le32_to_cpu(gbenum->items);
@@ -1230,14 +1230,14 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 	size = sizeof(struct snd_soc_dapm_widget) * module->num_dapm_widgets;
 	dapm_widgets = devm_kzalloc(module->dev, size, GFP_KERNEL);
 	if (!dapm_widgets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	curr = widgets;
 	for (i = 0; i < module->num_dapm_widgets; i++) {
 		ret = gbaudio_tplg_create_widget(module, &dapm_widgets[i],
 						 curr, &w_size);
 		if (ret) {
-			dev_err(module->dev, "%s:%d type not supported\n",
+			dev_err(module->dev, "%s:%d type analt supported\n",
 				curr->name, curr->type);
 			goto error;
 		}
@@ -1245,7 +1245,7 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 							   gbaudio_widget),
 				      GFP_KERNEL);
 		if (!widget) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 		widget->id = curr->id;
@@ -1278,7 +1278,7 @@ static int gbaudio_tplg_process_routes(struct gbaudio_module_info *module,
 	size = sizeof(struct snd_soc_dapm_route) * module->num_dapm_routes;
 	dapm_routes = devm_kzalloc(module->dev, size, GFP_KERNEL);
 	if (!dapm_routes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	module->dapm_routes = dapm_routes;
 	curr = routes;
@@ -1331,7 +1331,7 @@ error:
 static int gbaudio_tplg_process_header(struct gbaudio_module_info *module,
 				       struct gb_audio_topology *tplg_data)
 {
-	/* fetch no. of kcontrols, widgets & routes */
+	/* fetch anal. of kcontrols, widgets & routes */
 	module->num_controls = tplg_data->num_controls;
 	module->num_dapm_widgets = tplg_data->num_widgets;
 	module->num_dapm_routes = tplg_data->num_routes;

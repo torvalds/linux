@@ -19,7 +19,7 @@ static const struct mfd_cell tps65086_cells[] = {
 	{ .name = "tps65086-reset", },
 };
 
-static const struct regmap_range tps65086_yes_ranges[] = {
+static const struct regmap_range tps65086_anal_ranges[] = {
 	regmap_reg_range(TPS65086_IRQ, TPS65086_IRQ),
 	regmap_reg_range(TPS65086_PMICSTAT, TPS65086_SHUTDNSRC),
 	regmap_reg_range(TPS65086_GPOCTRL, TPS65086_GPOCTRL),
@@ -27,8 +27,8 @@ static const struct regmap_range tps65086_yes_ranges[] = {
 };
 
 static const struct regmap_access_table tps65086_volatile_table = {
-	.yes_ranges = tps65086_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tps65086_yes_ranges),
+	.anal_ranges = tps65086_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(tps65086_anal_ranges),
 };
 
 static const struct regmap_config tps65086_regmap_config = {
@@ -70,7 +70,7 @@ static int tps65086_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, tps);
 	tps->dev = &client->dev;

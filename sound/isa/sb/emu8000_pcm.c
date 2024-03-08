@@ -14,11 +14,11 @@
 #include <sound/pcm.h>
 
 /*
- * define the following if you want to use this pcm with non-interleaved mode
+ * define the following if you want to use this pcm with analn-interleaved mode
  */
-/* #define USE_NONINTERLEAVE */
+/* #define USE_ANALNINTERLEAVE */
 
-/* NOTE: for using the non-interleaved mode with alsa-lib, you have to set
+/* ANALTE: for using the analn-interleaved mode with alsa-lib, you have to set
  * mmap_emulation flag to 1 in your .asoundrc, such like
  *
  *	pcm.emu8k {
@@ -31,7 +31,7 @@
  *		}
  *	}
  *
- * besides, for the time being, the non-interleaved mode doesn't work well on
+ * besides, for the time being, the analn-interleaved mode doesn't work well on
  * alsa-lib...
  */
 
@@ -78,7 +78,7 @@ emu8k_open_dram_for_pcm(struct snd_emu8000 *emu, int channels)
 	for (i = channels + 1; i < EMU8000_DRAM_VOICES; i++) {
 		unsigned int mode = EMU8000_RAM_WRITE;
 		snd_emux_lock_voice(emu->emu, i);
-#ifndef USE_NONINTERLEAVE
+#ifndef USE_ANALNINTERLEAVE
 		if (channels > 1 && (i & 1) != 0)
 			mode |= EMU8000_RAM_RIGHT;
 #endif
@@ -145,8 +145,8 @@ static int calc_rate_offset(int hz)
  */
 
 static const struct snd_pcm_hardware emu8k_pcm_hw = {
-#ifdef USE_NONINTERLEAVE
-	.info =			SNDRV_PCM_INFO_NONINTERLEAVED,
+#ifdef USE_ANALNINTERLEAVE
+	.info =			SNDRV_PCM_INFO_ANALNINTERLEAVED,
 #else
 	.info =			SNDRV_PCM_INFO_INTERLEAVED,
 #endif
@@ -221,7 +221,7 @@ static int emu8k_pcm_open(struct snd_pcm_substream *subs)
 
 	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
 	if (! rec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rec->emu = emu;
 	rec->substream = subs;
@@ -311,7 +311,7 @@ static void setup_voice(struct snd_emu8k_pcm *rec, int ch)
 	temp = 0; // filterQ
 	temp = (temp << 28) | ((unsigned int)rec->loop_start[ch] - 1);
 	EMU8000_CCCA_WRITE(hw, ch, temp);
-	/* clear unknown registers */
+	/* clear unkanalwn registers */
 	EMU8000_00A0_WRITE(hw, ch, 0);
 	EMU8000_0080_WRITE(hw, ch, 0);
 }
@@ -417,7 +417,7 @@ do { \
 			return -EFAULT;					\
 	} while (0)
 
-#ifdef USE_NONINTERLEAVE
+#ifdef USE_ANALNINTERLEAVE
 
 #define LOOP_WRITE(rec, offset, iter, count)			\
 	do {							\
@@ -532,9 +532,9 @@ static int emu8k_pcm_hw_params(struct snd_pcm_substream *subs,
 	rec->allocated_bytes = params_buffer_bytes(hw_params) + LOOP_BLANK_SIZE * 4;
 	rec->block = snd_util_mem_alloc(rec->emu->memhdr, rec->allocated_bytes);
 	if (! rec->block)
-		return -ENOMEM;
+		return -EANALMEM;
 	rec->offset = EMU8000_DRAM_OFFSET + (rec->block->offset >> 1); /* in word */
-	/* at least dma_bytes must be set for non-interleaved mode */
+	/* at least dma_bytes must be set for analn-interleaved mode */
 	subs->dma_buffer.bytes = params_buffer_bytes(hw_params);
 
 	return 0;

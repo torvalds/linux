@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Cadence Design Systems Inc.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
@@ -60,7 +60,7 @@ static int phy_mipi_dphy_calc_config(unsigned long pixel_clock,
 	 *
 	 * where n = 1 for forward-direction HS mode and n = 4 for reverse-
 	 * direction HS mode. There's only one setting and this function does
-	 * not parameterize on anything other that ui, so this code will
+	 * analt parameterize on anything other that ui, so this code will
 	 * assumes that reverse-direction HS mode is supported and uses n = 4.
 	 */
 	cfg->hs_trail = max(4 * 8 * ui, 60000 + 4 * 4 * ui);

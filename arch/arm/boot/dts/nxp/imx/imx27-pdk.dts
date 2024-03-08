@@ -16,7 +16,7 @@
 
 
 	usbphy0: usbphy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		clocks = <&clks IMX27_CLK_DUMMY>;
 		clock-names = "main_clk";
 		#phy-cells = <0>;

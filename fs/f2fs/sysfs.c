@@ -42,7 +42,7 @@ enum {
 };
 
 static const char *gc_mode_names[MAX_GC_MODE] = {
-	"GC_NORMAL",
+	"GC_ANALRMAL",
 	"GC_IDLE_CB",
 	"GC_IDLE_GREEDY",
 	"GC_IDLE_AT",
@@ -193,18 +193,18 @@ static ssize_t features_show(struct f2fs_attr *a,
 	if (f2fs_sb_has_project_quota(sbi))
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%s%s",
 				len ? ", " : "", "projquota");
-	if (f2fs_sb_has_inode_chksum(sbi))
+	if (f2fs_sb_has_ianalde_chksum(sbi))
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%s%s",
-				len ? ", " : "", "inode_checksum");
+				len ? ", " : "", "ianalde_checksum");
 	if (f2fs_sb_has_flexible_inline_xattr(sbi))
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%s%s",
 				len ? ", " : "", "flexible_inline_xattr");
-	if (f2fs_sb_has_quota_ino(sbi))
+	if (f2fs_sb_has_quota_ianal(sbi))
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%s%s",
-				len ? ", " : "", "quota_ino");
-	if (f2fs_sb_has_inode_crtime(sbi))
+				len ? ", " : "", "quota_ianal");
+	if (f2fs_sb_has_ianalde_crtime(sbi))
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%s%s",
-				len ? ", " : "", "inode_crtime");
+				len ? ", " : "", "ianalde_crtime");
 	if (f2fs_sb_has_lost_found(sbi))
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%s%s",
 				len ? ", " : "", "lost_found");
@@ -259,7 +259,7 @@ static ssize_t encoding_show(struct f2fs_attr *a,
 			(sb->s_encoding->version >> 8) & 0xff,
 			sb->s_encoding->version & 0xff);
 #endif
-	return sysfs_emit(buf, "(none)\n");
+	return sysfs_emit(buf, "(analne)\n");
 }
 
 static ssize_t mounted_time_sec_show(struct f2fs_attr *a,
@@ -276,7 +276,7 @@ static ssize_t moved_blocks_foreground_show(struct f2fs_attr *a,
 
 	return sysfs_emit(buf, "%llu\n",
 		(unsigned long long)(si->tot_blks -
-			(si->bg_data_blks + si->bg_node_blks)));
+			(si->bg_data_blks + si->bg_analde_blks)));
 }
 
 static ssize_t moved_blocks_background_show(struct f2fs_attr *a,
@@ -285,7 +285,7 @@ static ssize_t moved_blocks_background_show(struct f2fs_attr *a,
 	struct f2fs_stat_info *si = F2FS_STAT(sbi);
 
 	return sysfs_emit(buf, "%llu\n",
-		(unsigned long long)(si->bg_data_blks + si->bg_node_blks));
+		(unsigned long long)(si->bg_data_blks + si->bg_analde_blks));
 }
 
 static ssize_t avg_vblocks_show(struct f2fs_attr *a,
@@ -356,8 +356,8 @@ static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 	if (!strcmp(a->attr.name, "compr_saved_block"))
 		return sysfs_emit(buf, "%llu\n", sbi->compr_saved_block);
 
-	if (!strcmp(a->attr.name, "compr_new_inode"))
-		return sysfs_emit(buf, "%u\n", sbi->compr_new_inode);
+	if (!strcmp(a->attr.name, "compr_new_ianalde"))
+		return sysfs_emit(buf, "%u\n", sbi->compr_new_ianalde);
 #endif
 
 	if (!strcmp(a->attr.name, "gc_segment_mode"))
@@ -557,7 +557,7 @@ out:
 
 	if (!strcmp(a->attr.name, "gc_urgent")) {
 		if (t == 0) {
-			sbi->gc_mode = GC_NORMAL;
+			sbi->gc_mode = GC_ANALRMAL;
 		} else if (t == 1) {
 			sbi->gc_mode = GC_URGENT_HIGH;
 			if (sbi->gc_thread) {
@@ -590,7 +590,7 @@ out:
 				return -EINVAL;
 			sbi->gc_mode = GC_IDLE_AT;
 		} else {
-			sbi->gc_mode = GC_NORMAL;
+			sbi->gc_mode = GC_ANALRMAL;
 		}
 		return count;
 	}
@@ -631,10 +631,10 @@ out:
 		return count;
 	}
 
-	if (!strcmp(a->attr.name, "compr_new_inode")) {
+	if (!strcmp(a->attr.name, "compr_new_ianalde")) {
 		if (t != 0)
 			return -EINVAL;
-		sbi->compr_new_inode = 0;
+		sbi->compr_new_ianalde = 0;
 		return count;
 	}
 
@@ -827,7 +827,7 @@ static void f2fs_sb_release(struct kobject *kobj)
 }
 
 /*
- * Note that there are three feature list entries:
+ * Analte that there are three feature list entries:
  * 1) /sys/fs/f2fs/features
  *   : shows runtime features supported by in-kernel f2fs along with Kconfig.
  *     - ref. F2FS_FEATURE_RO_ATTR()
@@ -946,7 +946,7 @@ static struct f2fs_attr f2fs_attr_##name = __ATTR(name, 0444, name##_show, NULL)
 GC_THREAD_RW_ATTR(gc_urgent_sleep_time, urgent_sleep_time);
 GC_THREAD_RW_ATTR(gc_min_sleep_time, min_sleep_time);
 GC_THREAD_RW_ATTR(gc_max_sleep_time, max_sleep_time);
-GC_THREAD_RW_ATTR(gc_no_gc_sleep_time, no_gc_sleep_time);
+GC_THREAD_RW_ATTR(gc_anal_gc_sleep_time, anal_gc_sleep_time);
 
 /* SM_INFO ATTR */
 SM_INFO_RW_ATTR(reclaim_segments, rec_prefree_segments);
@@ -970,7 +970,7 @@ DCC_INFO_GENERAL_RW_ATTR(max_ordered_discard);
 DCC_INFO_GENERAL_RW_ATTR(discard_io_aware);
 
 /* NM_INFO ATTR */
-NM_INFO_RW_ATTR(max_roll_forward_node_blocks, max_rf_node_blocks);
+NM_INFO_RW_ATTR(max_roll_forward_analde_blocks, max_rf_analde_blocks);
 NM_INFO_GENERAL_RW_ATTR(ram_thresh);
 NM_INFO_GENERAL_RW_ATTR(ra_nid_pages);
 NM_INFO_GENERAL_RW_ATTR(dirty_nats_ratio);
@@ -996,7 +996,7 @@ F2FS_SBI_GENERAL_RW_ATTR(iostat_period_ms);
 F2FS_SBI_GENERAL_RW_ATTR(readdir_ra);
 F2FS_SBI_GENERAL_RW_ATTR(max_io_bytes);
 F2FS_SBI_GENERAL_RW_ATTR(data_io_flag);
-F2FS_SBI_GENERAL_RW_ATTR(node_io_flag);
+F2FS_SBI_GENERAL_RW_ATTR(analde_io_flag);
 F2FS_SBI_GENERAL_RW_ATTR(gc_remaining_trials);
 F2FS_SBI_GENERAL_RW_ATTR(seq_file_ra_mul);
 F2FS_SBI_GENERAL_RW_ATTR(gc_segment_mode);
@@ -1005,7 +1005,7 @@ F2FS_SBI_GENERAL_RW_ATTR(max_fragment_hole);
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 F2FS_SBI_GENERAL_RW_ATTR(compr_written_block);
 F2FS_SBI_GENERAL_RW_ATTR(compr_saved_block);
-F2FS_SBI_GENERAL_RW_ATTR(compr_new_inode);
+F2FS_SBI_GENERAL_RW_ATTR(compr_new_ianalde);
 F2FS_SBI_GENERAL_RW_ATTR(compress_percent);
 F2FS_SBI_GENERAL_RW_ATTR(compress_watermark);
 #endif
@@ -1079,10 +1079,10 @@ F2FS_FEATURE_RO_ATTR(block_zoned);
 F2FS_FEATURE_RO_ATTR(atomic_write);
 F2FS_FEATURE_RO_ATTR(extra_attr);
 F2FS_FEATURE_RO_ATTR(project_quota);
-F2FS_FEATURE_RO_ATTR(inode_checksum);
+F2FS_FEATURE_RO_ATTR(ianalde_checksum);
 F2FS_FEATURE_RO_ATTR(flexible_inline_xattr);
-F2FS_FEATURE_RO_ATTR(quota_ino);
-F2FS_FEATURE_RO_ATTR(inode_crtime);
+F2FS_FEATURE_RO_ATTR(quota_ianal);
+F2FS_FEATURE_RO_ATTR(ianalde_crtime);
 F2FS_FEATURE_RO_ATTR(lost_found);
 #ifdef CONFIG_FS_VERITY
 F2FS_FEATURE_RO_ATTR(verity);
@@ -1102,7 +1102,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(gc_urgent_sleep_time),
 	ATTR_LIST(gc_min_sleep_time),
 	ATTR_LIST(gc_max_sleep_time),
-	ATTR_LIST(gc_no_gc_sleep_time),
+	ATTR_LIST(gc_anal_gc_sleep_time),
 	ATTR_LIST(gc_idle),
 	ATTR_LIST(gc_urgent),
 	ATTR_LIST(reclaim_segments),
@@ -1131,7 +1131,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(ram_thresh),
 	ATTR_LIST(ra_nid_pages),
 	ATTR_LIST(dirty_nats_ratio),
-	ATTR_LIST(max_roll_forward_node_blocks),
+	ATTR_LIST(max_roll_forward_analde_blocks),
 	ATTR_LIST(cp_interval),
 	ATTR_LIST(idle_interval),
 	ATTR_LIST(discard_idle_interval),
@@ -1150,7 +1150,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(inject_type),
 #endif
 	ATTR_LIST(data_io_flag),
-	ATTR_LIST(node_io_flag),
+	ATTR_LIST(analde_io_flag),
 	ATTR_LIST(gc_remaining_trials),
 	ATTR_LIST(ckpt_thread_ioprio),
 	ATTR_LIST(dirty_segments),
@@ -1178,7 +1178,7 @@ static struct attribute *f2fs_attrs[] = {
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	ATTR_LIST(compr_written_block),
 	ATTR_LIST(compr_saved_block),
-	ATTR_LIST(compr_new_inode),
+	ATTR_LIST(compr_new_ianalde),
 	ATTR_LIST(compress_percent),
 	ATTR_LIST(compress_watermark),
 #endif
@@ -1217,10 +1217,10 @@ static struct attribute *f2fs_feat_attrs[] = {
 	ATTR_LIST(atomic_write),
 	ATTR_LIST(extra_attr),
 	ATTR_LIST(project_quota),
-	ATTR_LIST(inode_checksum),
+	ATTR_LIST(ianalde_checksum),
 	ATTR_LIST(flexible_inline_xattr),
-	ATTR_LIST(quota_ino),
-	ATTR_LIST(inode_crtime),
+	ATTR_LIST(quota_ianal),
+	ATTR_LIST(ianalde_crtime),
 	ATTR_LIST(lost_found),
 #ifdef CONFIG_FS_VERITY
 	ATTR_LIST(verity),
@@ -1258,10 +1258,10 @@ F2FS_SB_FEATURE_RO_ATTR(encryption, ENCRYPT);
 F2FS_SB_FEATURE_RO_ATTR(block_zoned, BLKZONED);
 F2FS_SB_FEATURE_RO_ATTR(extra_attr, EXTRA_ATTR);
 F2FS_SB_FEATURE_RO_ATTR(project_quota, PRJQUOTA);
-F2FS_SB_FEATURE_RO_ATTR(inode_checksum, INODE_CHKSUM);
+F2FS_SB_FEATURE_RO_ATTR(ianalde_checksum, IANALDE_CHKSUM);
 F2FS_SB_FEATURE_RO_ATTR(flexible_inline_xattr, FLEXIBLE_INLINE_XATTR);
-F2FS_SB_FEATURE_RO_ATTR(quota_ino, QUOTA_INO);
-F2FS_SB_FEATURE_RO_ATTR(inode_crtime, INODE_CRTIME);
+F2FS_SB_FEATURE_RO_ATTR(quota_ianal, QUOTA_IANAL);
+F2FS_SB_FEATURE_RO_ATTR(ianalde_crtime, IANALDE_CRTIME);
 F2FS_SB_FEATURE_RO_ATTR(lost_found, LOST_FOUND);
 F2FS_SB_FEATURE_RO_ATTR(verity, VERITY);
 F2FS_SB_FEATURE_RO_ATTR(sb_checksum, SB_CHKSUM);
@@ -1274,10 +1274,10 @@ static struct attribute *f2fs_sb_feat_attrs[] = {
 	ATTR_LIST(sb_block_zoned),
 	ATTR_LIST(sb_extra_attr),
 	ATTR_LIST(sb_project_quota),
-	ATTR_LIST(sb_inode_checksum),
+	ATTR_LIST(sb_ianalde_checksum),
 	ATTR_LIST(sb_flexible_inline_xattr),
-	ATTR_LIST(sb_quota_ino),
-	ATTR_LIST(sb_inode_crtime),
+	ATTR_LIST(sb_quota_ianal),
+	ATTR_LIST(sb_ianalde_crtime),
 	ATTR_LIST(sb_lost_found),
 	ATTR_LIST(sb_verity),
 	ATTR_LIST(sb_sb_checksum),
@@ -1462,7 +1462,7 @@ static int __maybe_unused discard_plist_seq_show(struct seq_file *seq,
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 	int i, count;
 
-	seq_puts(seq, "Discard pend list(Show diacrd_cmd count on each entry, .:not exist):\n");
+	seq_puts(seq, "Discard pend list(Show diacrd_cmd count on each entry, .:analt exist):\n");
 	if (!f2fs_realtime_discard_enable(sbi))
 		return 0;
 
@@ -1509,7 +1509,7 @@ int __init f2fs_init_sysfs(void)
 
 	f2fs_proc_root = proc_mkdir("fs/f2fs", NULL);
 	if (!f2fs_proc_root) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_kobject;
 	}
 
@@ -1557,7 +1557,7 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 
 	sbi->s_proc = proc_mkdir(sb->s_id, f2fs_proc_root);
 	if (!sbi->s_proc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_feature_list_kobj;
 	}
 

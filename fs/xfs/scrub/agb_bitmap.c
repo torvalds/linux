@@ -16,8 +16,8 @@
 /*
  * Record all btree blocks seen while iterating all records of a btree.
  *
- * We know that the btree query_all function starts at the left edge and walks
- * towards the right edge of the tree.  Therefore, we know that we can walk up
+ * We kanalw that the btree query_all function starts at the left edge and walks
+ * towards the right edge of the tree.  Therefore, we kanalw that we can walk up
  * the btree cursor towards the root; if the pointer for a given level points
  * to the first record/key in that block, we haven't seen this block before;
  * and therefore we need to remember that we saw this block in the btree.
@@ -36,14 +36,14 @@
  * For the second btree record, we see that bc_levels[0].ptr == 2, so we exit
  * the loop.  The list remains [1, 4].
  *
- * For the 101st btree record, we've moved onto leaf block 2.  Now
+ * For the 101st btree record, we've moved onto leaf block 2.  Analw
  * bc_levels[0].ptr == 1 again, so we record that we saw block 2.  We see that
- * bc_levels[1].ptr == 2, so we exit the loop.  The list is now [1, 4, 2].
+ * bc_levels[1].ptr == 2, so we exit the loop.  The list is analw [1, 4, 2].
  *
  * For the 102nd record, bc_levels[0].ptr == 2, so we continue.
  *
  * For the 201st record, we've moved on to leaf block 3.
- * bc_levels[0].ptr == 1, so we add 3 to the list.  Now it is [1, 4, 2, 3].
+ * bc_levels[0].ptr == 1, so we add 3 to the list.  Analw it is [1, 4, 2, 3].
  *
  * For the 300th record we just exit, with the list being [1, 4, 2, 3].
  */
@@ -57,17 +57,17 @@ xagb_bitmap_visit_btblock(
 {
 	struct xagb_bitmap	*bitmap = priv;
 	struct xfs_buf		*bp;
-	xfs_fsblock_t		fsbno;
-	xfs_agblock_t		agbno;
+	xfs_fsblock_t		fsbanal;
+	xfs_agblock_t		agbanal;
 
 	xfs_btree_get_block(cur, level, &bp);
 	if (!bp)
 		return 0;
 
-	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
-	agbno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
+	fsbanal = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
+	agbanal = XFS_FSB_TO_AGBANAL(cur->bc_mp, fsbanal);
 
-	return xagb_bitmap_set(bitmap, agbno, 1);
+	return xagb_bitmap_set(bitmap, agbanal, 1);
 }
 
 /* Mark all (per-AG) btree blocks in the agblock bitmap. */

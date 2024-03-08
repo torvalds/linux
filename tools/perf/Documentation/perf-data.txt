@@ -5,7 +5,7 @@ NAME
 ----
 perf-data - Data file related processing
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf data' [<common options>] <command> [<options>]",
@@ -17,7 +17,7 @@ Data file related processing.
 COMMANDS
 --------
 convert::
-	Converts perf data file into another format.
+	Converts perf data file into aanalther format.
 	It's possible to set data-convert debug variable to get debug messages from conversion,
 	like:
 	  perf --debug data-convert data convert ...
@@ -45,7 +45,7 @@ OPTIONS for 'convert'
         Be more verbose (show counter open errors, etc).
 
 --all::
-	Convert all events, including non-sample events (comm, fork, ...), to output.
+	Convert all events, including analn-sample events (comm, fork, ...), to output.
 	Default is off, only convert samples.
 
 SEE ALSO

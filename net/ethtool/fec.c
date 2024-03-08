@@ -35,7 +35,7 @@ ethtool_fec_to_link_modes(u32 fec, unsigned long *link_modes, u8 *fec_auto)
 		*fec_auto = !!(fec & ETHTOOL_FEC_AUTO);
 
 	if (fec & ETHTOOL_FEC_OFF)
-		__set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT, link_modes);
+		__set_bit(ETHTOOL_LINK_MODE_FEC_ANALNE_BIT, link_modes);
 	if (fec & ETHTOOL_FEC_RS)
 		__set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT, link_modes);
 	if (fec & ETHTOOL_FEC_BASER)
@@ -53,7 +53,7 @@ ethtool_link_modes_to_fecparam(struct ethtool_fecparam *fec,
 	if (fec_auto)
 		fec->fec |= ETHTOOL_FEC_AUTO;
 
-	if (__test_and_clear_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT, link_modes))
+	if (__test_and_clear_bit(ETHTOOL_LINK_MODE_FEC_ANALNE_BIT, link_modes))
 		fec->fec |= ETHTOOL_FEC_OFF;
 	if (__test_and_clear_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT, link_modes))
 		fec->fec |= ETHTOOL_FEC_RS;
@@ -73,16 +73,16 @@ fec_stats_recalc(struct fec_stat_grp *grp, struct ethtool_fec_stat *stats)
 {
 	int i;
 
-	if (stats->lanes[0] == ETHTOOL_STAT_NOT_SET) {
+	if (stats->lanes[0] == ETHTOOL_STAT_ANALT_SET) {
 		grp->stats[0] = stats->total;
-		grp->cnt = stats->total != ETHTOOL_STAT_NOT_SET;
+		grp->cnt = stats->total != ETHTOOL_STAT_ANALT_SET;
 		return;
 	}
 
 	grp->cnt = 1;
 	grp->stats[0] = 0;
 	for (i = 0; i < ETHTOOL_MAX_LANES; i++) {
-		if (stats->lanes[i] == ETHTOOL_STAT_NOT_SET)
+		if (stats->lanes[i] == ETHTOOL_STAT_ANALT_SET)
 			break;
 
 		grp->stats[0] += stats->lanes[i];
@@ -101,7 +101,7 @@ static int fec_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_fecparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
@@ -128,8 +128,8 @@ static int fec_prepare_data(const struct ethnl_req_info *req_base,
 	ethtool_fec_to_link_modes(fec.active_fec, active_fec_modes, NULL);
 	data->active_fec = find_first_bit(active_fec_modes,
 					  __ETHTOOL_LINK_MODE_MASK_NBITS);
-	/* Don't report attr if no FEC mode set. Note that
-	 * ethtool_fecparam_to_link_modes() ignores NONE and AUTO.
+	/* Don't report attr if anal FEC mode set. Analte that
+	 * ethtool_fecparam_to_link_modes() iganalres ANALNE and AUTO.
 	 */
 	if (data->active_fec == __ETHTOOL_LINK_MODE_MASK_NBITS)
 		data->active_fec = 0;
@@ -230,7 +230,7 @@ ethnl_set_fec_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
 
-	return ops->get_fecparam && ops->set_fecparam ? 1 : -EOPNOTSUPP;
+	return ops->get_fecparam && ops->set_fecparam ? 1 : -EOPANALTSUPP;
 }
 
 static int
@@ -268,7 +268,7 @@ ethnl_set_fec(struct ethnl_req_info *req_info, struct genl_info *info)
 	}
 	if (!fec.fec) {
 		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_FEC_MODES],
-				    "no FEC modes set");
+				    "anal FEC modes set");
 		return -EINVAL;
 	}
 

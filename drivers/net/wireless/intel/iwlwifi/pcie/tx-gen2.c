@@ -35,7 +35,7 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	dma_addr_t phys_addr;
 	int i, cmd_pos, idx;
 	u16 copy_size, cmd_size, tb0_size;
-	bool had_nocopy = false;
+	bool had_analcopy = false;
 	u8 group_id = iwl_cmd_groupid(cmd->id);
 	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
@@ -66,8 +66,8 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 			copy_size += copy;
 		}
 
-		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY) {
-			had_nocopy = true;
+		if (cmd->dataflags[i] & IWL_HCMD_DFL_ANALCOPY) {
+			had_analcopy = true;
 			if (WARN_ON(cmd->dataflags[i] & IWL_HCMD_DFL_DUP)) {
 				idx = -EINVAL;
 				goto free_dup_buf;
@@ -75,9 +75,9 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		} else if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP) {
 			/*
 			 * This is also a chunk that isn't copied
-			 * to the static buffer so set had_nocopy.
+			 * to the static buffer so set had_analcopy.
 			 */
-			had_nocopy = true;
+			had_analcopy = true;
 
 			/* only allowed once */
 			if (WARN_ON(dup_buf)) {
@@ -88,10 +88,10 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 			dup_buf = kmemdup(cmddata[i], cmdlen[i],
 					  GFP_ATOMIC);
 			if (!dup_buf)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
-			/* NOCOPY must not be followed by normal! */
-			if (WARN_ON(had_nocopy)) {
+			/* ANALCOPY must analt be followed by analrmal! */
+			if (WARN_ON(had_analcopy)) {
 				idx = -EINVAL;
 				goto free_dup_buf;
 			}
@@ -121,9 +121,9 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	if (iwl_txq_space(trans, txq) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		spin_unlock_irqrestore(&txq->lock, flags);
 
-		IWL_ERR(trans, "No space in command queue\n");
+		IWL_ERR(trans, "Anal space in command queue\n");
 		iwl_op_mode_cmd_queue_full(trans->op_mode);
-		idx = -ENOSPC;
+		idx = -EANALSPC;
 		goto free_dup_buf;
 	}
 
@@ -156,8 +156,8 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		if (!cmd->len[i])
 			continue;
 
-		/* copy everything if not nocopy/dup */
-		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
+		/* copy everything if analt analcopy/dup */
+		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_ANALCOPY |
 					   IWL_HCMD_DFL_DUP))) {
 			copy = cmd->len[i];
 
@@ -206,7 +206,7 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 					   copy_size - tb0_size,
 					   DMA_TO_DEVICE);
 		if (dma_mapping_error(trans->dev, phys_addr)) {
-			idx = -ENOMEM;
+			idx = -EANALMEM;
 			iwl_txq_gen2_tfd_unmap(trans, out_meta, tfd);
 			goto out;
 		}
@@ -214,13 +214,13 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 				    copy_size - tb0_size);
 	}
 
-	/* map the remaining (adjusted) nocopy/dup fragments */
+	/* map the remaining (adjusted) analcopy/dup fragments */
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 		void *data = (void *)(uintptr_t)cmddata[i];
 
 		if (!cmdlen[i])
 			continue;
-		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
+		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_ANALCOPY |
 					   IWL_HCMD_DFL_DUP)))
 			continue;
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP)
@@ -228,7 +228,7 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		phys_addr = dma_map_single(trans->dev, data,
 					   cmdlen[i], DMA_TO_DEVICE);
 		if (dma_mapping_error(trans->dev, phys_addr)) {
-			idx = -ENOMEM;
+			idx = -EANALMEM;
 			iwl_txq_gen2_tfd_unmap(trans, out_meta, tfd);
 			goto out;
 		}

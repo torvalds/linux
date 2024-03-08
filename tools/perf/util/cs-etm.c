@@ -49,18 +49,18 @@ struct cs_etm_auxtrace {
 	struct perf_tsc_conversion tc;
 
 	/*
-	 * Timeless has no timestamps in the trace so overlapping mmap lookups
+	 * Timeless has anal timestamps in the trace so overlapping mmap lookups
 	 * are less accurate but produces smaller trace data. We use context IDs
 	 * in the trace instead of matching timestamps with fork records so
-	 * they're not really needed in the general case. Overlapping mmaps
+	 * they're analt really needed in the general case. Overlapping mmaps
 	 * happen in cases like between a fork and an exec.
 	 */
 	bool timeless_decoding;
 
 	/*
-	 * Per-thread ignores the trace channel ID and instead assumes that
+	 * Per-thread iganalres the trace channel ID and instead assumes that
 	 * everything in a buffer comes from the same process regardless of
-	 * which CPU it ran on. It also implies no context IDs so the TID is
+	 * which CPU it ran on. It also implies anal context IDs so the TID is
 	 * taken from the auxtrace buffer.
 	 */
 	bool per_thread_decoding;
@@ -146,28 +146,28 @@ static u32 cs_etm__get_v7_protocol_version(u32 etmidr)
 
 static int cs_etm__get_magic(u8 trace_chan_id, u64 *magic)
 {
-	struct int_node *inode;
+	struct int_analde *ianalde;
 	u64 *metadata;
 
-	inode = intlist__find(traceid_list, trace_chan_id);
-	if (!inode)
+	ianalde = intlist__find(traceid_list, trace_chan_id);
+	if (!ianalde)
 		return -EINVAL;
 
-	metadata = inode->priv;
+	metadata = ianalde->priv;
 	*magic = metadata[CS_ETM_MAGIC];
 	return 0;
 }
 
 int cs_etm__get_cpu(u8 trace_chan_id, int *cpu)
 {
-	struct int_node *inode;
+	struct int_analde *ianalde;
 	u64 *metadata;
 
-	inode = intlist__find(traceid_list, trace_chan_id);
-	if (!inode)
+	ianalde = intlist__find(traceid_list, trace_chan_id);
+	if (!ianalde)
 		return -EINVAL;
 
-	metadata = inode->priv;
+	metadata = ianalde->priv;
 	*cpu = (int)metadata[CS_ETM_CPU];
 	return 0;
 }
@@ -177,7 +177,7 @@ int cs_etm__get_cpu(u8 trace_chan_id, int *cpu)
  *
  *   CS_ETM_PIDFMT_CTXTID: CONTEXTIDR or CONTEXTIDR_EL1 is traced.
  *   CS_ETM_PIDFMT_CTXTID2: CONTEXTIDR_EL2 is traced.
- *   CS_ETM_PIDFMT_NONE: No context IDs
+ *   CS_ETM_PIDFMT_ANALNE: Anal context IDs
  *
  * It's possible that the two bits ETM_OPT_CTXTID and ETM_OPT_CTXTID2
  * are enabled at the same time when the session runs on an EL2 kernel.
@@ -207,7 +207,7 @@ static enum cs_etm_pid_fmt cs_etm__init_pid_fmt(u64 *metadata)
 			return CS_ETM_PIDFMT_CTXTID;
 	}
 
-	return CS_ETM_PIDFMT_NONE;
+	return CS_ETM_PIDFMT_ANALNE;
 }
 
 enum cs_etm_pid_fmt cs_etm__get_pid_fmt(struct cs_etm_queue *etmq)
@@ -217,24 +217,24 @@ enum cs_etm_pid_fmt cs_etm__get_pid_fmt(struct cs_etm_queue *etmq)
 
 static int cs_etm__map_trace_id(u8 trace_chan_id, u64 *cpu_metadata)
 {
-	struct int_node *inode;
+	struct int_analde *ianalde;
 
-	/* Get an RB node for this CPU */
-	inode = intlist__findnew(traceid_list, trace_chan_id);
+	/* Get an RB analde for this CPU */
+	ianalde = intlist__findnew(traceid_list, trace_chan_id);
 
-	/* Something went wrong, no need to continue */
-	if (!inode)
-		return -ENOMEM;
+	/* Something went wrong, anal need to continue */
+	if (!ianalde)
+		return -EANALMEM;
 
 	/*
-	 * The node for that CPU should not be taken.
+	 * The analde for that CPU should analt be taken.
 	 * Back out if that's the case.
 	 */
-	if (inode->priv)
+	if (ianalde->priv)
 		return -EINVAL;
 
 	/* All good, associate the traceID with the metadata pointer */
-	inode->priv = cpu_metadata;
+	ianalde->priv = cpu_metadata;
 
 	return 0;
 }
@@ -322,7 +322,7 @@ static int cs_etm__process_aux_output_hw_id(struct perf_session *session,
 {
 	struct cs_etm_auxtrace *etm;
 	struct perf_sample sample;
-	struct int_node *inode;
+	struct int_analde *ianalde;
 	struct evsel *evsel;
 	u64 *cpu_data;
 	u64 hw_id;
@@ -352,15 +352,15 @@ static int cs_etm__process_aux_output_hw_id(struct perf_session *session,
 		return err;
 	cpu = sample.cpu;
 	if (cpu == -1) {
-		/* no CPU in the sample - possibly recorded with an old version of perf */
-		pr_err("CS_ETM: no CPU AUX_OUTPUT_HW_ID sample. Use compatible perf to record.");
+		/* anal CPU in the sample - possibly recorded with an old version of perf */
+		pr_err("CS_ETM: anal CPU AUX_OUTPUT_HW_ID sample. Use compatible perf to record.");
 		return -EINVAL;
 	}
 
 	/* See if the ID is mapped to a CPU, and it matches the current CPU */
-	inode = intlist__find(traceid_list, trace_chan_id);
-	if (inode) {
-		cpu_data = inode->priv;
+	ianalde = intlist__find(traceid_list, trace_chan_id);
+	if (ianalde) {
+		cpu_data = ianalde->priv;
 		if ((int)cpu_data[CS_ETM_CPU] != cpu) {
 			pr_err("CS_ETM: map mismatch between HW_ID packet CPU and Trace ID\n");
 			return -EINVAL;
@@ -383,7 +383,7 @@ static int cs_etm__process_aux_output_hw_id(struct perf_session *session,
 	if (cpu_data == NULL)
 		return err;
 
-	/* not one we've seen before - lets map it */
+	/* analt one we've seen before - lets map it */
 	err = cs_etm__map_trace_id(trace_chan_id, cpu_data);
 	if (err)
 		return err;
@@ -425,7 +425,7 @@ static u64 cs_etm__etmq_get_timestamp(struct cs_etm_queue *etmq,
 	if (!packet_queue)
 		return 0;
 
-	/* Acknowledge pending status */
+	/* Ackanalwledge pending status */
 	etmq->pending_timestamp_chan_id = 0;
 
 	/* See function cs_etm_decoder__do_{hard|soft}_timestamp() */
@@ -440,7 +440,7 @@ static void cs_etm__clear_packet_queue(struct cs_etm_packet_queue *queue)
 	queue->tail = 0;
 	queue->packet_count = 0;
 	for (i = 0; i < CS_ETM_PACKET_MAX_BUFFER; i++) {
-		queue->packet_buffer[i].isa = CS_ETM_ISA_UNKNOWN;
+		queue->packet_buffer[i].isa = CS_ETM_ISA_UNKANALWN;
 		queue->packet_buffer[i].start_addr = CS_ETM_INVAL_ADDR;
 		queue->packet_buffer[i].end_addr = CS_ETM_INVAL_ADDR;
 		queue->packet_buffer[i].instr_count = 0;
@@ -459,12 +459,12 @@ static void cs_etm__clear_packet_queue(struct cs_etm_packet_queue *queue)
 static void cs_etm__clear_all_packet_queues(struct cs_etm_queue *etmq)
 {
 	int idx;
-	struct int_node *inode;
+	struct int_analde *ianalde;
 	struct cs_etm_traceid_queue *tidq;
 	struct intlist *traceid_queues_list = etmq->traceid_queues_list;
 
-	intlist__for_each_entry(inode, traceid_queues_list) {
-		idx = (int)(intptr_t)inode->priv;
+	intlist__for_each_entry(ianalde, traceid_queues_list) {
+		idx = (int)(intptr_t)ianalde->priv;
 		tidq = etmq->traceid_queues[idx];
 		cs_etm__clear_packet_queue(&tidq->packet_queue);
 	}
@@ -474,7 +474,7 @@ static int cs_etm__init_traceid_queue(struct cs_etm_queue *etmq,
 				      struct cs_etm_traceid_queue *tidq,
 				      u8 trace_chan_id)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 	struct auxtrace_queue *queue;
 	struct cs_etm_auxtrace *etm = etmq->etm;
 
@@ -482,7 +482,7 @@ static int cs_etm__init_traceid_queue(struct cs_etm_queue *etmq,
 
 	queue = &etmq->etm->queues.queue_array[etmq->queue_nr];
 	tidq->trace_chan_id = trace_chan_id;
-	tidq->el = tidq->prev_packet_el = ocsd_EL_unknown;
+	tidq->el = tidq->prev_packet_el = ocsd_EL_unkanalwn;
 	tidq->thread = machine__findnew_thread(&etm->session->machines.host, -1,
 					       queue->tid);
 	tidq->prev_packet_thread = machine__idle_thread(&etm->session->machines.host);
@@ -527,7 +527,7 @@ static struct cs_etm_traceid_queue
 *cs_etm__etmq_get_traceid_queue(struct cs_etm_queue *etmq, u8 trace_chan_id)
 {
 	int idx;
-	struct int_node *inode;
+	struct int_analde *ianalde;
 	struct intlist *traceid_queues_list;
 	struct cs_etm_traceid_queue *tidq, **traceid_queues;
 	struct cs_etm_auxtrace *etm = etmq->etm;
@@ -541,9 +541,9 @@ static struct cs_etm_traceid_queue
 	 * Check if the traceid_queue exist for this traceID by looking
 	 * in the queue list.
 	 */
-	inode = intlist__find(traceid_queues_list, trace_chan_id);
-	if (inode) {
-		idx = (int)(intptr_t)inode->priv;
+	ianalde = intlist__find(traceid_queues_list, trace_chan_id);
+	if (ianalde) {
+		idx = (int)(intptr_t)ianalde->priv;
 		return etmq->traceid_queues[idx];
 	}
 
@@ -556,13 +556,13 @@ static struct cs_etm_traceid_queue
 
 	/* Get a valid index for the new traceid_queue */
 	idx = intlist__nr_entries(traceid_queues_list);
-	/* Memory for the inode is free'ed in cs_etm_free_traceid_queues () */
-	inode = intlist__findnew(traceid_queues_list, trace_chan_id);
-	if (!inode)
+	/* Memory for the ianalde is free'ed in cs_etm_free_traceid_queues () */
+	ianalde = intlist__findnew(traceid_queues_list, trace_chan_id);
+	if (!ianalde)
 		goto out_free;
 
 	/* Associate this traceID with this index */
-	inode->priv = (void *)(intptr_t)idx;
+	ianalde->priv = (void *)(intptr_t)idx;
 
 	if (cs_etm__init_traceid_queue(etmq, tidq, trace_chan_id))
 		goto out_free;
@@ -587,10 +587,10 @@ static struct cs_etm_traceid_queue
 
 out_free:
 	/*
-	 * Function intlist__remove() removes the inode from the list
+	 * Function intlist__remove() removes the ianalde from the list
 	 * and delete the memory associated to it.
 	 */
-	intlist__remove(traceid_queues_list, inode);
+	intlist__remove(traceid_queues_list, ianalde);
 	free(tidq);
 
 	return NULL;
@@ -707,7 +707,7 @@ static int cs_etm__init_trace_params(struct cs_etm_trace_params *t_params,
 		else {
 			m_idx = get_cpu_data_idx(etm, sample_cpu);
 			if (m_idx == -1) {
-				pr_warning("CS_ETM: unknown CPU, falling back to first metadata\n");
+				pr_warning("CS_ETM: unkanalwn CPU, falling back to first metadata\n");
 				m_idx = 0;
 			}
 		}
@@ -811,12 +811,12 @@ static void cs_etm__free_traceid_queues(struct cs_etm_queue *etmq)
 {
 	int idx;
 	uintptr_t priv;
-	struct int_node *inode, *tmp;
+	struct int_analde *ianalde, *tmp;
 	struct cs_etm_traceid_queue *tidq;
 	struct intlist *traceid_queues_list = etmq->traceid_queues_list;
 
-	intlist__for_each_entry_safe(inode, tmp, traceid_queues_list) {
-		priv = (uintptr_t)inode->priv;
+	intlist__for_each_entry_safe(ianalde, tmp, traceid_queues_list) {
+		priv = (uintptr_t)ianalde->priv;
 		idx = priv;
 
 		/* Free this traceid_queue from the array */
@@ -831,10 +831,10 @@ static void cs_etm__free_traceid_queues(struct cs_etm_queue *etmq)
 		zfree(&tidq);
 
 		/*
-		 * Function intlist__remove() removes the inode from the list
+		 * Function intlist__remove() removes the ianalde from the list
 		 * and delete the memory associated to it.
 		 */
-		intlist__remove(traceid_queues_list, inode);
+		intlist__remove(traceid_queues_list, ianalde);
 	}
 
 	/* Then the RB tree itself */
@@ -876,16 +876,16 @@ static void cs_etm__free_events(struct perf_session *session)
 static void cs_etm__free(struct perf_session *session)
 {
 	int i;
-	struct int_node *inode, *tmp;
+	struct int_analde *ianalde, *tmp;
 	struct cs_etm_auxtrace *aux = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
 						   auxtrace);
 	cs_etm__free_events(session);
 	session->auxtrace = NULL;
 
-	/* First remove all traceID/metadata nodes for the RB tree */
-	intlist__for_each_entry_safe(inode, tmp, traceid_list)
-		intlist__remove(traceid_list, inode);
+	/* First remove all traceID/metadata analdes for the RB tree */
+	intlist__for_each_entry_safe(ianalde, tmp, traceid_list)
+		intlist__remove(traceid_list, ianalde);
 	/* Then the RB tree itself */
 	intlist__delete(traceid_list);
 
@@ -919,7 +919,7 @@ static struct machine *cs_etm__get_machine(struct cs_etm_queue *etmq,
 		return &etmq->etm->session->machines.host;
 
 	/*
-	 * Not perfect, but otherwise assume anything in EL1 is the default
+	 * Analt perfect, but otherwise assume anything in EL1 is the default
 	 * guest, and everything else is the host. Distinguishing between guest
 	 * and host userspaces isn't currently supported either. Neither is
 	 * multiple guest support. All this does is reduce the likeliness of
@@ -933,7 +933,7 @@ static struct machine *cs_etm__get_machine(struct cs_etm_queue *etmq,
 	case ocsd_EL3:
 	case ocsd_EL2:
 	case ocsd_EL0:
-	case ocsd_EL_unknown:
+	case ocsd_EL_unkanalwn:
 	default:
 		return &etmq->etm->session->machines.host;
 	}
@@ -956,7 +956,7 @@ static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address,
 			/*
 			 * Can't really happen at the moment because
 			 * cs_etm__get_machine() will always return
-			 * machines.host for any non EL1 trace.
+			 * machines.host for any analn EL1 trace.
 			 */
 			return PERF_RECORD_MISC_GUEST_USER;
 		}
@@ -993,7 +993,7 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 	if (!(mem_space == OCSD_MEM_SPACE_ANY ||
 	      mem_space == OCSD_MEM_SPACE_N || mem_space == OCSD_MEM_SPACE_S)) {
 		if (mem_space & OCSD_MEM_SPACE_EL1N) {
-			/* Includes both non secure EL1 and EL0 */
+			/* Includes both analn secure EL1 and EL0 */
 			assert(tidq->el == ocsd_EL1 || tidq->el == ocsd_EL0);
 		} else if (mem_space & OCSD_MEM_SPACE_EL2)
 			assert(tidq->el == ocsd_EL2);
@@ -1025,9 +1025,9 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		ui__warning_once("CS ETM Trace: Missing DSO. Use 'perf archive' or debuginfod to export data from the traced system.\n"
 				 "              Enable CONFIG_PROC_KCORE or use option '-k /path/to/vmlinux' for kernel symbols.\n");
 		if (!dso->auxtrace_warned) {
-			pr_err("CS ETM Trace: Debug data not found for address %#"PRIx64" in %s\n",
+			pr_err("CS ETM Trace: Debug data analt found for address %#"PRIx64" in %s\n",
 				    address,
-				    dso->long_name ? dso->long_name : "Unknown");
+				    dso->long_name ? dso->long_name : "Unkanalwn");
 			dso->auxtrace_warned = true;
 		}
 		goto out;
@@ -1115,7 +1115,7 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 	etmq = cs_etm__alloc_queue(etm, formatted, sample_cpu);
 
 	if (!etmq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	queue->priv = etmq;
 	etmq->etm = etm;
@@ -1135,16 +1135,16 @@ static int cs_etm__queue_first_cs_timestamp(struct cs_etm_auxtrace *etm,
 	u64 cs_timestamp;
 
 	/*
-	 * We are under a CPU-wide trace scenario.  As such we need to know
+	 * We are under a CPU-wide trace scenario.  As such we need to kanalw
 	 * when the code that generated the traces started to execute so that
 	 * it can be correlated with execution on other CPUs.  So we get a
 	 * handle on the beginning of traces and decode until we find a
 	 * timestamp.  The timestamp is then added to the auxtrace min heap
-	 * in order to know what nibble (of all the etmqs) to decode first.
+	 * in order to kanalw what nibble (of all the etmqs) to decode first.
 	 */
 	while (1) {
 		/*
-		 * Fetch an aux_buffer from this etmq.  Bail if no more
+		 * Fetch an aux_buffer from this etmq.  Bail if anal more
 		 * blocks or an error has been encountered.
 		 */
 		ret = cs_etm__get_data_block(etmq);
@@ -1166,15 +1166,15 @@ static int cs_etm__queue_first_cs_timestamp(struct cs_etm_auxtrace *etm,
 		 */
 		cs_timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
 
-		/* We found a timestamp, no need to continue. */
+		/* We found a timestamp, anal need to continue. */
 		if (cs_timestamp)
 			break;
 
 		/*
 		 * We didn't find a timestamp so empty all the traceid packet
-		 * queues before looking for another timestamp packet, either
+		 * queues before looking for aanalther timestamp packet, either
 		 * in the current data block or a new one.  Packets that were
-		 * just decoded are useless since no timestamp has been
+		 * just decoded are useless since anal timestamp has been
 		 * associated with them.  As such simply discard them.
 		 */
 		cs_etm__clear_all_packet_queues(etmq);
@@ -1185,9 +1185,9 @@ static int cs_etm__queue_first_cs_timestamp(struct cs_etm_auxtrace *etm,
 	 * instructions conveyed by the range packets of this traceID queue
 	 * started to execute.  Once the same has been done for all the traceID
 	 * queues of each etmq, redenring and decoding can start in
-	 * chronological order.
+	 * chroanallogical order.
 	 *
-	 * Note that packets decoded above are still in the traceID's packet
+	 * Analte that packets decoded above are still in the traceID's packet
 	 * queue and will be processed in cs_etm__process_timestamped_queues().
 	 */
 	cs_queue_nr = TO_CS_QUEUE_NR(queue_nr, trace_chan_id);
@@ -1211,7 +1211,7 @@ void cs_etm__copy_last_branch_rb(struct cs_etm_queue *etmq,
 	bs_dst->nr = bs_src->nr;
 
 	/*
-	 * Early exit when there is nothing to copy.
+	 * Early exit when there is analthing to copy.
 	 */
 	if (!bs_src->nr)
 		return;
@@ -1257,7 +1257,7 @@ static inline int cs_etm__t32_instr_size(struct cs_etm_queue *etmq,
 	/*
 	 * T32 instruction size is indicated by bits[15:11] of the first
 	 * 16-bit word of the instruction: 0b11101, 0b11110 and 0b11111
-	 * denote a 32-bit instruction.
+	 * deanalte a 32-bit instruction.
 	 */
 	return ((instrBytes[1] & 0xF8) >= 0xE8) ? 4 : 2;
 }
@@ -1309,7 +1309,7 @@ static void cs_etm__update_last_branch_rb(struct cs_etm_queue *etmq,
 
 	/*
 	 * The branches are recorded in a circular buffer in reverse
-	 * chronological order: we start recording from the last element of the
+	 * chroanallogical order: we start recording from the last element of the
 	 * buffer down.  After writing the first element of the stack, move the
 	 * insert position back to the end of the buffer.
 	 */
@@ -1321,7 +1321,7 @@ static void cs_etm__update_last_branch_rb(struct cs_etm_queue *etmq,
 	be       = &bs->entries[tidq->last_branch_pos];
 	be->from = cs_etm__last_executed_instr(tidq->prev_packet);
 	be->to	 = cs_etm__first_executed_instr(tidq->packet);
-	/* No support for mispredict */
+	/* Anal support for mispredict */
 	be->flags.mispred = 0;
 	be->flags.predicted = 1;
 
@@ -1352,7 +1352,7 @@ cs_etm__get_trace(struct cs_etm_queue *etmq)
 
 	aux_buffer = auxtrace_buffer__next(queue, aux_buffer);
 
-	/* If no more data, drop the previous auxtrace_buffer and return */
+	/* If anal more data, drop the previous auxtrace_buffer and return */
 	if (!aux_buffer) {
 		if (old_buffer)
 			auxtrace_buffer__drop_data(old_buffer);
@@ -1369,7 +1369,7 @@ cs_etm__get_trace(struct cs_etm_queue *etmq)
 
 		aux_buffer->data = auxtrace_buffer__get_data(aux_buffer, fd);
 		if (!aux_buffer->data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* If valid, drop the previous buffer */
@@ -1394,7 +1394,7 @@ static void cs_etm__set_thread(struct cs_etm_queue *etmq,
 		tidq->thread = machine__find_thread(machine, -1, tid);
 	}
 
-	/* Couldn't find a known thread */
+	/* Couldn't find a kanalwn thread */
 	if (!tidq->thread)
 		tidq->thread = machine__idle_thread(machine);
 
@@ -1561,7 +1561,7 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq,
 			  &sample);
 
 	/*
-	 * perf report cannot handle events without a branch stack
+	 * perf report cananalt handle events without a branch stack
 	 */
 	if (etm->synth_opts.last_branch) {
 		dummy_bs = (struct dummy_branch_stack){
@@ -1639,7 +1639,7 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 	}
 
 	if (!found) {
-		pr_debug("No selected events with CoreSight Trace data\n");
+		pr_debug("Anal selected events with CoreSight Trace data\n");
 		return 0;
 	}
 
@@ -1769,7 +1769,7 @@ static int cs_etm__sample(struct cs_etm_queue *etmq,
 		 * etm->instructions_sample_period.
 		 *
 		 * When generate new samples, it combines with two parts
-		 * instructions, one is the tail of the old packet and another
+		 * instructions, one is the tail of the old packet and aanalther
 		 * is the head of the new coming packet, to generate
 		 * sample(n+1); sample(n+2) and sample(n+3) consume the
 		 * instructions with sample period.  After sample(n+3), the rest
@@ -1794,7 +1794,7 @@ static int cs_etm__sample(struct cs_etm_queue *etmq,
 			/*
 			 * Calculate the address of the sampled instruction (-1
 			 * as sample is reported as though instruction has just
-			 * been executed, but PC has not advanced to next
+			 * been executed, but PC has analt advanced to next
 			 * instruction)
 			 */
 			addr = cs_etm__instr_addr(etmq, trace_chan_id,
@@ -1839,7 +1839,7 @@ static int cs_etm__exception(struct cs_etm_traceid_queue *tidq)
 {
 	/*
 	 * When the exception packet is inserted, whether the last instruction
-	 * in previous range packet is taken branch or not, we need to force
+	 * in previous range packet is taken branch or analt, we need to force
 	 * to set 'prev_packet->last_instr_taken_branch' to true.  This ensures
 	 * to generate branch sample for the instruction range before the
 	 * exception is trapped to kernel or before the exception returning.
@@ -1914,7 +1914,7 @@ static int cs_etm__end_block(struct cs_etm_queue *etmq,
 	int err;
 
 	/*
-	 * It has no new packet coming and 'etmq->packet' contains the stale
+	 * It has anal new packet coming and 'etmq->packet' contains the stale
 	 * packet which was set at the previous time with packets swapping;
 	 * so skip to generate branch sample to avoid stale packet.
 	 *
@@ -1951,7 +1951,7 @@ static int cs_etm__end_block(struct cs_etm_queue *etmq,
  * cs_etm__get_data_block: Fetch a block from the auxtrace_buffer queue
  *			   if need be.
  * Returns:	< 0	if error
- *		= 0	if no more auxtrace_buffer to read
+ *		= 0	if anal more auxtrace_buffer to read
  *		> 0	if the current buffer isn't empty yet
  */
 static int cs_etm__get_data_block(struct cs_etm_queue *etmq)
@@ -1963,7 +1963,7 @@ static int cs_etm__get_data_block(struct cs_etm_queue *etmq)
 		if (ret <= 0)
 			return ret;
 		/*
-		 * We cannot assume consecutive blocks in the data file
+		 * We cananalt assume consecutive blocks in the data file
 		 * are contiguous, reset the decoder to force re-sync.
 		 */
 		ret = cs_etm_decoder__reset(etmq->decoder);
@@ -1994,7 +1994,7 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		 * +-----------------+--------+
 		 *
 		 * According to the specification, it only defines SVC for T32
-		 * with 16 bits instruction and has no definition for 32bits;
+		 * with 16 bits instruction and has anal definition for 32bits;
 		 * so below only read 2 bytes as instruction size for T32.
 		 */
 		addr = end_addr - 2;
@@ -2037,7 +2037,7 @@ static bool cs_etm__is_svc_instr(struct cs_etm_queue *etmq, u8 trace_chan_id,
 			return true;
 
 		break;
-	case CS_ETM_ISA_UNKNOWN:
+	case CS_ETM_ISA_UNKANALWN:
 	default:
 		break;
 	}
@@ -2158,12 +2158,12 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq,
 	switch (packet->sample_type) {
 	case CS_ETM_RANGE:
 		/*
-		 * Immediate branch instruction without neither link nor
-		 * return flag, it's normal branch instruction within
+		 * Immediate branch instruction without neither link analr
+		 * return flag, it's analrmal branch instruction within
 		 * the function.
 		 */
 		if (packet->last_instr_type == OCSD_INSTR_BR &&
-		    packet->last_instr_subtype == OCSD_S_INSTR_NONE) {
+		    packet->last_instr_subtype == OCSD_S_INSTR_ANALNE) {
 			packet->flags = PERF_IP_FLAG_BRANCH;
 
 			if (packet->last_instr_cond)
@@ -2204,7 +2204,7 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq,
 		 * within dynamic link lib.
 		 */
 		if (packet->last_instr_type == OCSD_INSTR_BR_INDIRECT &&
-		    packet->last_instr_subtype == OCSD_S_INSTR_NONE)
+		    packet->last_instr_subtype == OCSD_S_INSTR_ANALNE)
 			packet->flags = PERF_IP_FLAG_BRANCH |
 					PERF_IP_FLAG_RETURN;
 
@@ -2278,7 +2278,7 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq,
 
 		/*
 		 * When the exception packet is inserted, since exception
-		 * packet is not used standalone for generating samples
+		 * packet is analt used standalone for generating samples
 		 * and it's affiliation to the previous instruction range
 		 * packet; so set previous range packet flags to tell perf
 		 * it is an exception taken branch.
@@ -2289,19 +2289,19 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq,
 	case CS_ETM_EXCEPTION_RET:
 		/*
 		 * When the exception return packet is inserted, since
-		 * exception return packet is not used standalone for
+		 * exception return packet is analt used standalone for
 		 * generating samples and it's affiliation to the previous
 		 * instruction range packet; so set previous range packet
 		 * flags to tell perf it is an exception return branch.
 		 *
 		 * The exception return can be for either system call or
 		 * other exception types; unfortunately the packet doesn't
-		 * contain exception type related info so we cannot decide
+		 * contain exception type related info so we cananalt decide
 		 * the exception type purely based on exception return packet.
 		 * If we record the exception number from exception packet and
-		 * reuse it for exception return packet, this is not reliable
+		 * reuse it for exception return packet, this is analt reliable
 		 * due the trace can be discontinuity or the interrupt can
-		 * be nested, thus the recorded exception number cannot be
+		 * be nested, thus the recorded exception number cananalt be
 		 * used for exception return packet for these two cases.
 		 *
 		 * For exception return packet, we only need to distinguish the
@@ -2333,7 +2333,7 @@ static int cs_etm__decode_data_block(struct cs_etm_queue *etmq)
 	/*
 	 * Packets are decoded and added to the decoder's packet queue
 	 * until the decoder packet processing callback has requested that
-	 * processing stops or there is nothing left in the buffer.  Normal
+	 * processing stops or there is analthing left in the buffer.  Analrmal
 	 * operations that stop processing are a timestamp packet or a full
 	 * decoder buffer queue.
 	 */
@@ -2410,7 +2410,7 @@ static int cs_etm__process_traceid_queue(struct cs_etm_queue *etmq,
 			break;
 		case CS_ETM_EMPTY:
 			/*
-			 * Should not receive empty packet,
+			 * Should analt receive empty packet,
 			 * report error.
 			 */
 			pr_err("CS ETM Trace: empty packet\n");
@@ -2426,15 +2426,15 @@ static int cs_etm__process_traceid_queue(struct cs_etm_queue *etmq,
 static void cs_etm__clear_all_traceid_queues(struct cs_etm_queue *etmq)
 {
 	int idx;
-	struct int_node *inode;
+	struct int_analde *ianalde;
 	struct cs_etm_traceid_queue *tidq;
 	struct intlist *traceid_queues_list = etmq->traceid_queues_list;
 
-	intlist__for_each_entry(inode, traceid_queues_list) {
-		idx = (int)(intptr_t)inode->priv;
+	intlist__for_each_entry(ianalde, traceid_queues_list) {
+		idx = (int)(intptr_t)ianalde->priv;
 		tidq = etmq->traceid_queues[idx];
 
-		/* Ignore return value */
+		/* Iganalre return value */
 		cs_etm__process_traceid_queue(etmq, tidq);
 
 		/*
@@ -2467,7 +2467,7 @@ static int cs_etm__run_per_thread_timeless_decoder(struct cs_etm_queue *etmq)
 				return err;
 
 			/*
-			 * Process each packet in this chunk, nothing to do if
+			 * Process each packet in this chunk, analthing to do if
 			 * an error occurs other than hoping the next one will
 			 * be better.
 			 */
@@ -2487,7 +2487,7 @@ static int cs_etm__run_per_cpu_timeless_decoder(struct cs_etm_queue *etmq)
 {
 	int idx, err = 0;
 	struct cs_etm_traceid_queue *tidq;
-	struct int_node *inode;
+	struct int_analde *ianalde;
 
 	/* Go through each buffer in the queue and decode them one by one */
 	while (1) {
@@ -2507,16 +2507,16 @@ static int cs_etm__run_per_cpu_timeless_decoder(struct cs_etm_queue *etmq)
 			 * buffer. But here in per-cpu mode we need to iterate
 			 * over each channel instead.
 			 */
-			intlist__for_each_entry(inode,
+			intlist__for_each_entry(ianalde,
 						etmq->traceid_queues_list) {
-				idx = (int)(intptr_t)inode->priv;
+				idx = (int)(intptr_t)ianalde->priv;
 				tidq = etmq->traceid_queues[idx];
 				cs_etm__process_traceid_queue(etmq, tidq);
 			}
 		} while (etmq->buf_len);
 
-		intlist__for_each_entry(inode, etmq->traceid_queues_list) {
-			idx = (int)(intptr_t)inode->priv;
+		intlist__for_each_entry(ianalde, etmq->traceid_queues_list) {
+			idx = (int)(intptr_t)ianalde->priv;
 			tidq = etmq->traceid_queues[idx];
 			/* Flush any remaining branch stack entries */
 			err = cs_etm__end_block(etmq, tidq);
@@ -2602,8 +2602,8 @@ static int cs_etm__process_timestamped_queues(struct cs_etm_auxtrace *etm)
 		tidq  = cs_etm__etmq_get_traceid_queue(etmq, trace_chan_id);
 		if (!tidq) {
 			/*
-			 * No traceID queue has been allocated for this traceID,
-			 * which means something somewhere went very wrong.  No
+			 * Anal traceID queue has been allocated for this traceID,
+			 * which means something somewhere went very wrong.  Anal
 			 * other choice than simply exit.
 			 */
 			ret = -EINVAL;
@@ -2629,8 +2629,8 @@ refetch:
 			goto out;
 
 		/*
-		 * No more auxtrace_buffers to process in this etmq, simply
-		 * move on to another entry in the auxtrace_heap.
+		 * Anal more auxtrace_buffers to process in this etmq, simply
+		 * move on to aanalther entry in the auxtrace_heap.
 		 */
 		if (!ret)
 			continue;
@@ -2644,16 +2644,16 @@ refetch:
 		if (!cs_timestamp) {
 			/*
 			 * Function cs_etm__decode_data_block() returns when
-			 * there is no more traces to decode in the current
+			 * there is anal more traces to decode in the current
 			 * auxtrace_buffer OR when a timestamp has been
 			 * encountered on any of the traceID queues.  Since we
-			 * did not get a timestamp, there is no more traces to
+			 * did analt get a timestamp, there is anal more traces to
 			 * process in this auxtrace_buffer.  As such empty and
 			 * flush all traceID queues.
 			 */
 			cs_etm__clear_all_traceid_queues(etmq);
 
-			/* Fetch another auxtrace_buffer for this etmq */
+			/* Fetch aanalther auxtrace_buffer for this etmq */
 			goto refetch;
 		}
 
@@ -2689,7 +2689,7 @@ static int cs_etm__process_itrace_start(struct cs_etm_auxtrace *etm,
 				     event->itrace_start.pid,
 				     event->itrace_start.tid);
 	if (!th)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	thread__put(th);
 
@@ -2727,7 +2727,7 @@ static int cs_etm__process_switch_cpu_wide(struct cs_etm_auxtrace *etm,
 				     event->context_switch.next_prev_pid,
 				     event->context_switch.next_prev_tid);
 	if (!th)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	thread__put(th);
 
@@ -2755,7 +2755,7 @@ static int cs_etm__process_event(struct perf_session *session,
 	case PERF_RECORD_EXIT:
 		/*
 		 * Don't need to wait for cs_etm__flush_events() in per-thread mode to
-		 * start the decode because we know there will be no more trace from
+		 * start the decode because we kanalw there will be anal more trace from
 		 * this thread. All this does is emit samples earlier than waiting for
 		 * the flush in other modes, but with timestamps it makes sense to wait
 		 * for flush so that events from different threads are interleaved
@@ -2825,7 +2825,7 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 		else {
 			data_offset = lseek(fd, 0, SEEK_CUR);
 			if (data_offset == -1)
-				return -errno;
+				return -erranal;
 		}
 
 		err = auxtrace_queues__add_event(&etm->queues, session,
@@ -2834,8 +2834,8 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 			return err;
 
 		/*
-		 * Knowing if the trace is formatted or not requires a lookup of
-		 * the aux record so only works in non-piped mode where data is
+		 * Kanalwing if the trace is formatted or analt requires a lookup of
+		 * the aux record so only works in analn-piped mode where data is
 		 * queued in cs_etm__queue_aux_records(). Always assume
 		 * formatted in piped mode (true).
 		 */
@@ -2946,7 +2946,7 @@ static u64 *cs_etm__create_meta_blk(u64 *buff_in, int *buff_in_offset,
  * on the bounds of aux_event, if it matches with the buffer that's at
  * file_offset.
  *
- * Normally, whole auxtrace buffers would be added to the queue. But we
+ * Analrmally, whole auxtrace buffers would be added to the queue. But we
  * want to reset the decoder for every PERF_RECORD_AUX event, and the decoder
  * is reset across each buffer, so splitting the buffers up in advance has
  * the same effect.
@@ -2988,8 +2988,8 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 	 * In per-thread mode, auxtrace CPU is set to -1, but TID will be set instead. See
 	 * auxtrace_mmap_params__set_idx(). However, the sample AUX event will contain a
 	 * CPU as we set this always for the AUX_OUTPUT_HW_ID event.
-	 * So now compare only TIDs if auxtrace CPU is -1, and CPUs if auxtrace CPU is not -1.
-	 * Return 'not found' if mismatch.
+	 * So analw compare only TIDs if auxtrace CPU is -1, and CPUs if auxtrace CPU is analt -1.
+	 * Return 'analt found' if mismatch.
 	 */
 	if (auxtrace_event->cpu == (__u32) -1) {
 		etm->per_thread_decoding = true;
@@ -3017,7 +3017,7 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 
 		/*
 		 * In this mode, the head also points to the end of the buffer so aux_offset
-		 * needs to have the size subtracted so it points to the beginning as in normal mode
+		 * needs to have the size subtracted so it points to the beginning as in analrmal mode
 		 */
 		aux_offset = aux_event->aux_offset - aux_size;
 	} else {
@@ -3049,7 +3049,7 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 					   idx, formatted, sample->cpu);
 	}
 
-	/* Wasn't inside this buffer, but there were no parse errors. 1 == 'not found' */
+	/* Wasn't inside this buffer, but there were anal parse errors. 1 == 'analt found' */
 	return 1;
 }
 
@@ -3106,7 +3106,7 @@ static int cs_etm__queue_aux_records_cb(struct perf_session *session, union perf
 							 ent->sz, &event->aux, &sample);
 			/*
 			 * Stop search on error or successful values. Continue search on
-			 * 1 ('not found')
+			 * 1 ('analt found')
 			 */
 			if (ret != 1)
 				return ret;
@@ -3132,12 +3132,12 @@ static int cs_etm__queue_aux_records(struct perf_session *session)
 						 cs_etm__queue_aux_records_cb, NULL);
 
 	/*
-	 * We would get here if there are no entries in the index (either no auxtrace
-	 * buffers or no index at all). Fail silently as there is the possibility of
+	 * We would get here if there are anal entries in the index (either anal auxtrace
+	 * buffers or anal index at all). Fail silently as there is the possibility of
 	 * queueing them in cs_etm__process_auxtrace_event() if etm->data_queued is still
 	 * false.
 	 *
-	 * In that scenario, buffers will not be split by AUX records.
+	 * In that scenario, buffers will analt be split by AUX records.
 	 */
 	return 0;
 }
@@ -3164,7 +3164,7 @@ static bool cs_etm__has_virtual_ts(u64 **metadata, int num_cpu)
 				return false;
 			break;
 		default:
-			/* Unknown / unsupported magic number. */
+			/* Unkanalwn / unsupported magic number. */
 			return false;
 		}
 	}
@@ -3191,7 +3191,7 @@ static int cs_etm__map_trace_ids_metadata(int num_cpu, u64 **metadata)
 			trace_chan_id = (u8)(metadata[i][CS_ETMV4_TRCTRACEIDR]);
 			break;
 		default:
-			/* unknown magic number */
+			/* unkanalwn magic number */
 			return -EINVAL;
 		}
 		err = cs_etm__map_trace_id(trace_chan_id, metadata[i]);
@@ -3223,7 +3223,7 @@ static int cs_etm__clear_unused_trace_ids_metadata(int num_cpu, u64 **metadata)
 				metadata[i][CS_ETMV4_TRCTRACEIDR] = CORESIGHT_TRACE_ID_UNUSED_VAL;
 			break;
 		default:
-			/* unknown magic number */
+			/* unkanalwn magic number */
 			return -EINVAL;
 		}
 	}
@@ -3253,14 +3253,14 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 	 */
 	traceid_list = intlist__new(NULL);
 	if (!traceid_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* First the global part */
 	ptr = (u64 *) auxtrace_info->priv;
 	num_cpu = ptr[CS_PMU_TYPE_CPUS] & 0xffffffff;
 	metadata = zalloc(sizeof(*metadata) * num_cpu);
 	if (!metadata) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_traceid_list;
 	}
 
@@ -3294,7 +3294,7 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 		}
 
 		if (!metadata[j]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_free_metadata;
 		}
 	}
@@ -3315,7 +3315,7 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 	etm = zalloc(sizeof(*etm));
 
 	if (!etm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_metadata;
 	}
 
@@ -3334,7 +3334,7 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 		etm->synth_opts = *session->itrace_synth_opts;
 	} else {
 		itrace_synth_opts__set_default(&etm->synth_opts,
-				session->itrace_synth_opts->default_no_sample);
+				session->itrace_synth_opts->default_anal_sample);
 		etm->synth_opts.callchain = false;
 	}
 
@@ -3349,10 +3349,10 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 	if (etm->synth_opts.use_timestamp)
 		/*
 		 * Prior to Armv8.4, Arm CPUs don't support FEAT_TRF feature,
-		 * therefore the decoder cannot know if the timestamp trace is
+		 * therefore the decoder cananalt kanalw if the timestamp trace is
 		 * same with the kernel time.
 		 *
-		 * If a user has knowledge for the working platform and can
+		 * If a user has kanalwledge for the working platform and can
 		 * specify itrace option 'T' to tell decoder to forcely use the
 		 * traced timestamp as the kernel time.
 		 */
@@ -3362,8 +3362,8 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 		etm->has_virtual_ts = cs_etm__has_virtual_ts(metadata, num_cpu);
 
 	if (!etm->has_virtual_ts)
-		ui__warning("Virtual timestamps are not enabled, or not supported by the traced system.\n"
-			    "The time field of the samples will not be set accurately.\n"
+		ui__warning("Virtual timestamps are analt enabled, or analt supported by the traced system.\n"
+			    "The time field of the samples will analt be set accurately.\n"
 			    "For Arm CPUs prior to Armv8.4 or without support FEAT_TRF,\n"
 			    "you can specify the itrace option 'T' for timestamp decoding\n"
 			    "if the Coresight timestamp on the platform is same with the kernel time.\n\n");
@@ -3408,9 +3408,9 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 	 * For a perf able to interpret AUX_HW_ID packets we first check for the presence of
 	 * those packets. If they are there then the values will be mapped and plugged into
 	 * the metadata. We then set any remaining metadata values with the used flag to a
-	 * value CORESIGHT_TRACE_ID_UNUSED_VAL - which indicates no decoder is required.
+	 * value CORESIGHT_TRACE_ID_UNUSED_VAL - which indicates anal decoder is required.
 	 *
-	 * If no AUX_HW_ID packets are present - which means a file recorded on an old kernel
+	 * If anal AUX_HW_ID packets are present - which means a file recorded on an old kernel
 	 * then we map Trace ID values to CPU directly from the metadata - clearing any unused
 	 * flags if present.
 	 */
@@ -3446,7 +3446,7 @@ err_free_queues:
 err_free_etm:
 	zfree(&etm);
 err_free_metadata:
-	/* No need to check @metadata[j], free(NULL) is supported */
+	/* Anal need to check @metadata[j], free(NULL) is supported */
 	for (j = 0; j < num_cpu; j++)
 		zfree(&metadata[j]);
 	zfree(&metadata);

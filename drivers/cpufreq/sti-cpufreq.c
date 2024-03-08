@@ -23,7 +23,7 @@
 #define VERSION_SHIFT		28
 #define HW_INFO_INDEX		1
 #define MAJOR_ID_INDEX		1
-#define MINOR_ID_INDEX		2
+#define MIANALR_ID_INDEX		2
 
 /*
  * Only match on "suitable for ALL versions" entries
@@ -42,7 +42,7 @@ enum {
 /**
  * struct sti_cpufreq_ddata - ST CPUFreq Driver Data
  *
- * @cpu:		CPU's OF node
+ * @cpu:		CPU's OF analde
  * @syscfg_eng:		Engineering Syscon register map
  * @syscfg:		Syscon register map
  */
@@ -53,7 +53,7 @@ static struct sti_cpufreq_ddata {
 } ddata;
 
 static int sti_cpufreq_fetch_major(void) {
-	struct device_node *np = ddata.cpu->of_node;
+	struct device_analde *np = ddata.cpu->of_analde;
 	struct device *dev = ddata.cpu;
 	unsigned int major_offset;
 	unsigned int socid;
@@ -62,7 +62,7 @@ static int sti_cpufreq_fetch_major(void) {
 	ret = of_property_read_u32_index(np, "st,syscfg",
 					 MAJOR_ID_INDEX, &major_offset);
 	if (ret) {
-		dev_err(dev, "No major number offset provided in %pOF [%d]\n",
+		dev_err(dev, "Anal major number offset provided in %pOF [%d]\n",
 			np, ret);
 		return ret;
 	}
@@ -77,27 +77,27 @@ static int sti_cpufreq_fetch_major(void) {
 	return ((socid >> VERSION_SHIFT) & 0xf) + 1;
 }
 
-static int sti_cpufreq_fetch_minor(void)
+static int sti_cpufreq_fetch_mianalr(void)
 {
 	struct device *dev = ddata.cpu;
-	struct device_node *np = dev->of_node;
-	unsigned int minor_offset;
+	struct device_analde *np = dev->of_analde;
+	unsigned int mianalr_offset;
 	unsigned int minid;
 	int ret;
 
 	ret = of_property_read_u32_index(np, "st,syscfg-eng",
-					 MINOR_ID_INDEX, &minor_offset);
+					 MIANALR_ID_INDEX, &mianalr_offset);
 	if (ret) {
 		dev_err(dev,
-			"No minor number offset provided %pOF [%d]\n",
+			"Anal mianalr number offset provided %pOF [%d]\n",
 			np, ret);
 		return ret;
 	}
 
-	ret = regmap_read(ddata.syscfg_eng, minor_offset, &minid);
+	ret = regmap_read(ddata.syscfg_eng, mianalr_offset, &minid);
 	if (ret) {
 		dev_err(dev,
-			"Failed to read the minor number from syscon [%d]\n",
+			"Failed to read the mianalr number from syscon [%d]\n",
 			ret);
 		return ret;
 	}
@@ -151,11 +151,11 @@ static const struct reg_field *sti_cpufreq_match(void)
 static int sti_cpufreq_set_opp_info(void)
 {
 	struct device *dev = ddata.cpu;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct reg_field *reg_fields;
 	unsigned int hw_info_offset;
 	unsigned int version[VERSION_ELEMENTS];
-	int pcode, substrate, major, minor;
+	int pcode, substrate, major, mianalr;
 	int opp_token, ret;
 	char name[MAX_PCODE_NAME_LEN];
 	struct dev_pm_opp_config config = {
@@ -167,7 +167,7 @@ static int sti_cpufreq_set_opp_info(void)
 	reg_fields = sti_cpufreq_match();
 	if (!reg_fields) {
 		dev_err(dev, "This SoC doesn't support voltage scaling\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = of_property_read_u32_index(np, "st,syscfg-eng",
@@ -205,17 +205,17 @@ use_defaults:
 		major = DEFAULT_VERSION;
 	}
 
-	minor = sti_cpufreq_fetch_minor();
-	if (minor < 0) {
-		dev_err(dev, "Failed to obtain minor version\n");
-		/* Use default minor number */
-		minor = DEFAULT_VERSION;
+	mianalr = sti_cpufreq_fetch_mianalr();
+	if (mianalr < 0) {
+		dev_err(dev, "Failed to obtain mianalr version\n");
+		/* Use default mianalr number */
+		mianalr = DEFAULT_VERSION;
 	}
 
 	snprintf(name, MAX_PCODE_NAME_LEN, "pcode%d", pcode);
 
 	version[0] = BIT(major);
-	version[1] = BIT(minor);
+	version[1] = BIT(mianalr);
 	version[2] = BIT(substrate);
 
 	opp_token = dev_pm_opp_set_config(dev, &config);
@@ -224,8 +224,8 @@ use_defaults:
 		return opp_token;
 	}
 
-	dev_dbg(dev, "pcode: %d major: %d minor: %d substrate: %d\n",
-		pcode, major, minor, substrate);
+	dev_dbg(dev, "pcode: %d major: %d mianalr: %d substrate: %d\n",
+		pcode, major, mianalr, substrate);
 	dev_dbg(dev, "version[0]: %x version[1]: %x version[2]: %x\n",
 		version[0], version[1], version[2]);
 
@@ -235,17 +235,17 @@ use_defaults:
 static int sti_cpufreq_fetch_syscon_registers(void)
 {
 	struct device *dev = ddata.cpu;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	ddata.syscfg = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(ddata.syscfg)) {
-		dev_err(dev,  "\"st,syscfg\" not supplied\n");
+		dev_err(dev,  "\"st,syscfg\" analt supplied\n");
 		return PTR_ERR(ddata.syscfg);
 	}
 
 	ddata.syscfg_eng = syscon_regmap_lookup_by_phandle(np, "st,syscfg-eng");
 	if (IS_ERR(ddata.syscfg_eng)) {
-		dev_err(dev, "\"st,syscfg-eng\" not supplied\n");
+		dev_err(dev, "\"st,syscfg-eng\" analt supplied\n");
 		return PTR_ERR(ddata.syscfg_eng);
 	}
 
@@ -259,7 +259,7 @@ static int __init sti_cpufreq_init(void)
 	if ((!of_machine_is_compatible("st,stih407")) &&
 		(!of_machine_is_compatible("st,stih410")) &&
 		(!of_machine_is_compatible("st,stih418")))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ddata.cpu = get_cpu_device(0);
 	if (!ddata.cpu) {
@@ -267,8 +267,8 @@ static int __init sti_cpufreq_init(void)
 		goto skip_voltage_scaling;
 	}
 
-	if (!of_get_property(ddata.cpu->of_node, "operating-points-v2", NULL)) {
-		dev_err(ddata.cpu, "OPP-v2 not supported\n");
+	if (!of_get_property(ddata.cpu->of_analde, "operating-points-v2", NULL)) {
+		dev_err(ddata.cpu, "OPP-v2 analt supported\n");
 		goto skip_voltage_scaling;
 	}
 
@@ -281,7 +281,7 @@ static int __init sti_cpufreq_init(void)
 		goto register_cpufreq_dt;
 
 skip_voltage_scaling:
-	dev_err(ddata.cpu, "Not doing voltage scaling\n");
+	dev_err(ddata.cpu, "Analt doing voltage scaling\n");
 
 register_cpufreq_dt:
 	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);

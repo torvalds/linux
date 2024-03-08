@@ -25,7 +25,7 @@ struct fqdir {
 	/* Keep atomic mem on separate cachelines in structs that include it */
 	atomic_long_t		mem ____cacheline_aligned_in_smp;
 	struct work_struct	destroy_work;
-	struct llist_node	free_list;
+	struct llist_analde	free_list;
 };
 
 /**
@@ -34,7 +34,7 @@ struct fqdir {
  * @INET_FRAG_FIRST_IN: first fragment has arrived
  * @INET_FRAG_LAST_IN: final fragment has arrived
  * @INET_FRAG_COMPLETE: frag queue has been processed and is due for destruction
- * @INET_FRAG_HASH_DEAD: inet_frag_kill() has not removed fq from rhashtable
+ * @INET_FRAG_HASH_DEAD: inet_frag_kill() has analt removed fq from rhashtable
  * @INET_FRAG_DROP: if skbs must be dropped (instead of being consumed)
  */
 enum {
@@ -65,7 +65,7 @@ struct frag_v6_compare_key {
 /**
  * struct inet_frag_queue - fragment queue
  *
- * @node: rhash node
+ * @analde: rhash analde
  * @key: keys identifying this frag.
  * @timer: queue expiration timer
  * @lock: spinlock protecting this frag
@@ -76,14 +76,14 @@ struct frag_v6_compare_key {
  * @stamp: timestamp of the last received fragment
  * @len: total length of the original datagram
  * @meat: length of received fragments so far
- * @mono_delivery_time: stamp has a mono delivery time (EDT)
+ * @moanal_delivery_time: stamp has a moanal delivery time (EDT)
  * @flags: fragment queue flags
  * @max_size: maximum received fragment size
  * @fqdir: pointer to struct fqdir
  * @rcu: rcu head for freeing deferall
  */
 struct inet_frag_queue {
-	struct rhash_head	node;
+	struct rhash_head	analde;
 	union {
 		struct frag_v4_compare_key v4;
 		struct frag_v6_compare_key v6;
@@ -97,7 +97,7 @@ struct inet_frag_queue {
 	ktime_t			stamp;
 	int			len;
 	int			meat;
-	u8			mono_delivery_time;
+	u8			moanal_delivery_time;
 	__u8			flags;
 	u16			max_size;
 	struct fqdir		*fqdir;
@@ -172,7 +172,7 @@ static inline void add_frag_mem_limit(struct fqdir *fqdir, long val)
  * We want to check ECN values of all fragments, do detect invalid combinations.
  * In ipq->ecn, we store the OR value of each ip4_frag_ecn() fragment value.
  */
-#define	IPFRAG_ECN_NOT_ECT	0x01 /* one frag had ECN_NOT_ECT */
+#define	IPFRAG_ECN_ANALT_ECT	0x01 /* one frag had ECN_ANALT_ECT */
 #define	IPFRAG_ECN_ECT_1	0x02 /* one frag had ECN_ECT_1 */
 #define	IPFRAG_ECN_ECT_0	0x04 /* one frag had ECN_ECT_0 */
 #define	IPFRAG_ECN_CE		0x08 /* one frag had ECN_CE */

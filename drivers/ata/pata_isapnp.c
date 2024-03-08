@@ -29,10 +29,10 @@ static struct ata_port_operations isapnp_port_ops = {
 	.cable_detect	= ata_cable_40wire,
 };
 
-static struct ata_port_operations isapnp_noalt_port_ops = {
+static struct ata_port_operations isapnp_analalt_port_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.cable_detect	= ata_cable_40wire,
-	/* No altstatus so we don't want to use the lost interrupt poll */
+	/* Anal altstatus so we don't want to use the lost interrupt poll */
 	.lost_interrupt = ATA_OP_NULL,
 };
 
@@ -42,7 +42,7 @@ static struct ata_port_operations isapnp_noalt_port_ops = {
  *	@dev_id: matching detect line
  *
  *	Register an ISA bus IDE interface. Such interfaces are PIO 0 and
- *	non shared IRQ.
+ *	analn shared IRQ.
  */
 
 static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev_id)
@@ -54,7 +54,7 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 	irq_handler_t handler = NULL;
 
 	if (pnp_port_valid(idev, 0) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pnp_irq_valid(idev, 0)) {
 		irq = pnp_irq(idev, 0);
@@ -64,16 +64,16 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 	/* allocate host */
 	host = ata_host_alloc(&idev->dev, 1);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* acquire resources and fill host */
 	cmd_addr = devm_ioport_map(&idev->dev, pnp_port_start(idev, 0), 8);
 	if (!cmd_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap = host->ports[0];
 
-	ap->ops = &isapnp_noalt_port_ops;
+	ap->ops = &isapnp_analalt_port_ops;
 	ap->pio_mask = ATA_PIO0;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
@@ -83,7 +83,7 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 		ctl_addr = devm_ioport_map(&idev->dev,
 					   pnp_port_start(idev, 1), 1);
 		if (!ctl_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ap->ioaddr.altstatus_addr = ctl_addr;
 		ap->ioaddr.ctl_addr = ctl_addr;
@@ -106,7 +106,7 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
  *	@idev: PnP device
  *
  *	Remove a previously configured PnP ATA port. Called only on module
- *	unload events as the core does not currently deal with ISAPnP docking.
+ *	unload events as the core does analt currently deal with ISAPnP docking.
  */
 
 static void isapnp_remove_one(struct pnp_dev *idev)

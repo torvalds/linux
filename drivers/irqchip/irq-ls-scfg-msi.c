@@ -74,7 +74,7 @@ static int msi_affinity_flag = 1;
 
 static int __init early_parse_ls_scfg_msi(char *p)
 {
-	if (p && strncmp(p, "no-affinity", 11) == 0)
+	if (p && strncmp(p, "anal-affinity", 11) == 0)
 		msi_affinity_flag = 0;
 	else
 		msi_affinity_flag = 1;
@@ -119,7 +119,7 @@ static int ls_scfg_msi_set_affinity(struct irq_data *irq_data,
 		return -EINVAL;
 
 	if (msi_data->msir[cpu].gic_irq <= 0) {
-		pr_warn("cannot bind the irq to cpu%d\n", cpu);
+		pr_warn("cananalt bind the irq to cpu%d\n", cpu);
 		return -EINVAL;
 	}
 
@@ -150,7 +150,7 @@ static int ls_scfg_msi_domain_irq_alloc(struct irq_domain *domain,
 	if (pos < msi_data->irqs_num)
 		__set_bit(pos, msi_data->used);
 	else
-		err = -ENOSPC;
+		err = -EANALSPC;
 	spin_unlock(&msi_data->lock);
 
 	if (err)
@@ -222,17 +222,17 @@ static int ls_scfg_msi_domains_init(struct ls_scfg_msi *msi_data)
 						 msi_data);
 	if (!msi_data->parent) {
 		dev_err(&msi_data->pdev->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msi_data->msi_domain = pci_msi_create_irq_domain(
-				of_node_to_fwnode(msi_data->pdev->dev.of_node),
+				of_analde_to_fwanalde(msi_data->pdev->dev.of_analde),
 				&ls_scfg_msi_domain_info,
 				msi_data->parent);
 	if (!msi_data->msi_domain) {
 		dev_err(&msi_data->pdev->dev, "failed to create MSI domain\n");
 		irq_domain_remove(msi_data->parent);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -245,7 +245,7 @@ static int ls_scfg_msi_setup_hwirq(struct ls_scfg_msi *msi_data, int index)
 
 	virq = platform_get_irq(msi_data->pdev, index);
 	if (virq <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	msir = &msi_data->msir[index];
 	msir->index = index;
@@ -341,11 +341,11 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 
 	msi_data = devm_kzalloc(&pdev->dev, sizeof(*msi_data), GFP_KERNEL);
 	if (!msi_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msi_data->cfg = (struct ls_scfg_msi_cfg *)device_get_match_data(&pdev->dev);
 	if (!msi_data->cfg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	msi_data->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(msi_data->regs)) {
@@ -361,14 +361,14 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 			     (1 << msi_data->cfg->ibs_shift);
 	msi_data->used = devm_bitmap_zalloc(&pdev->dev, msi_data->irqs_num, GFP_KERNEL);
 	if (!msi_data->used)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*
 	 * Reserve all the hwirqs
 	 * The available hwirqs will be released in ls1_msi_setup_hwirq()
 	 */
 	bitmap_set(msi_data->used, 0, msi_data->irqs_num);
 
-	msi_data->msir_num = of_irq_count(pdev->dev.of_node);
+	msi_data->msir_num = of_irq_count(pdev->dev.of_analde);
 
 	if (msi_affinity_flag) {
 		u32 cpu_num;
@@ -384,7 +384,7 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 				      sizeof(*msi_data->msir),
 				      GFP_KERNEL);
 	if (!msi_data->msir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < msi_data->msir_num; i++)
 		ls_scfg_msi_setup_hwirq(msi_data, i);

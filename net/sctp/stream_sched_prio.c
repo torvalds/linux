@@ -71,7 +71,7 @@ static struct sctp_stream_priorities *sctp_sched_prio_get_head(
 			break;
 	}
 
-	/* No luck. So we search on all streams now. */
+	/* Anal luck. So we search on all streams analw. */
 	for (i = 0; i < stream->outcnt; i++) {
 		if (!SCTP_SO(stream, i)->ext)
 			continue;
@@ -86,7 +86,7 @@ static struct sctp_stream_priorities *sctp_sched_prio_get_head(
 			return sctp_sched_prio_head_get(p);
 	}
 
-	/* If not even there, allocate a new one. */
+	/* If analt even there, allocate a new one. */
 	return sctp_sched_prio_new_head(stream, prio, gfp);
 }
 
@@ -119,7 +119,7 @@ static bool sctp_sched_prio_unsched(struct sctp_stream_out_ext *soute)
 		/* Also unsched the priority if this was the last stream */
 		if (list_empty(&prio_head->active)) {
 			list_del_init(&prio_head->prio_sched);
-			/* If there is no stream left, clear next */
+			/* If there is anal stream left, clear next */
 			prio_head->next = NULL;
 		}
 	}
@@ -134,7 +134,7 @@ static void sctp_sched_prio_sched(struct sctp_stream *stream,
 
 	prio_head = soute->prio_head;
 
-	/* Nothing to do if already scheduled */
+	/* Analthing to do if already scheduled */
 	if (!list_empty(&soute->prio_list))
 		return;
 
@@ -174,7 +174,7 @@ static int sctp_sched_prio_set(struct sctp_stream *stream, __u16 sid,
 
 	prio_head = sctp_sched_prio_get_head(stream, prio, gfp);
 	if (!prio_head)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reschedule = sctp_sched_prio_unsched(soute);
 	soute->prio_head = prio_head;
@@ -220,7 +220,7 @@ static void sctp_sched_prio_enqueue(struct sctp_outq *q,
 	__u16 sid;
 
 	ch = list_first_entry(&msg->chunks, struct sctp_chunk, frag_list);
-	sid = sctp_chunk_stream_no(ch);
+	sid = sctp_chunk_stream_anal(ch);
 	stream = &q->asoc->stream;
 	sctp_sched_prio_sched(stream, SCTP_SO(stream, sid)->ext);
 }
@@ -263,7 +263,7 @@ static void sctp_sched_prio_dequeue_done(struct sctp_outq *q,
 	/* Last chunk on that msg, move to the next stream on
 	 * this priority.
 	 */
-	sid = sctp_chunk_stream_no(ch);
+	sid = sctp_chunk_stream_anal(ch);
 	soute = SCTP_SO(&q->asoc->stream, sid)->ext;
 	prio = soute->prio_head;
 
@@ -283,7 +283,7 @@ static void sctp_sched_prio_sched_all(struct sctp_stream *stream)
 	list_for_each_entry(ch, &asoc->outqueue.out_chunk_list, list) {
 		__u16 sid;
 
-		sid = sctp_chunk_stream_no(ch);
+		sid = sctp_chunk_stream_anal(ch);
 		sout = SCTP_SO(stream, sid);
 		if (sout->ext)
 			sctp_sched_prio_sched(stream, sout->ext);

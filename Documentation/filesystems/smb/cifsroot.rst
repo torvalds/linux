@@ -23,12 +23,12 @@ A CIFS root mount currently requires the use of SMB1+UNIX Extensions
 which is only supported by the Samba server. SMB1 is the older
 deprecated version of the protocol but it has been extended to support
 POSIX features (See [1]). The equivalent extensions for the newer
-recommended version of the protocol (SMB3) have not been fully
+recommended version of the protocol (SMB3) have analt been fully
 implemented yet which means SMB3 doesn't support some required POSIX
 file system objects (e.g. block devices, pipes, sockets).
 
-As a result, a CIFS root will default to SMB1 for now but the version
-to use can nonetheless be changed via the 'vers=' mount option.  This
+As a result, a CIFS root will default to SMB1 for analw but the version
+to use can analnetheless be changed via the 'vers=' mount option.  This
 default will change once the SMB3 POSIX extensions are fully
 implemented.
 
@@ -40,7 +40,7 @@ settings in Samba smb.conf::
 
     [global]
     server min protocol = NT1
-    unix extension = yes        # default
+    unix extension = anal        # default
 
 Kernel command line
 ===================
@@ -78,14 +78,14 @@ Export root file system as a Samba share in smb.conf file::
     ...
     [linux]
 	    path = /path/to/rootfs
-	    read only = no
-	    guest ok = yes
+	    read only = anal
+	    guest ok = anal
 	    force user = root
 	    force group = root
-	    browseable = yes
-	    writeable = yes
+	    browseable = anal
+	    writeable = anal
 	    admin users = root
-	    public = yes
+	    public = anal
 	    create mask = 0777
 	    directory mask = 0777
     ...
@@ -98,7 +98,7 @@ Test it under QEMU on a kernel built with CONFIG_CIFS_ROOT and
 CONFIG_IP_PNP options enabled::
 
     # qemu-system-x86_64 -enable-kvm -cpu host -m 1024 \
-    -kernel /path/to/linux/arch/x86/boot/bzImage -nographic \
+    -kernel /path/to/linux/arch/x86/boot/bzImage -analgraphic \
     -append "root=/dev/cifs rw ip=dhcp cifsroot=//10.0.2.2/linux,username=foo,password=bar console=ttyS0 3"
 
 

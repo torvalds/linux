@@ -2,7 +2,7 @@
 /*
  * Driver for BCM6358 GPIO unit (pinctrl + GPIO)
  *
- * Copyright (C) 2021 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2021 Álvaro Fernández Rojas <analltari@gmail.com>
  * Copyright (C) 2016 Jonas Gorski <jonas.gorski@gmail.com>
  */
 
@@ -21,7 +21,7 @@
 #define BCM6358_NUM_GPIOS		40
 
 #define BCM6358_MODE_REG		0x18
-#define  BCM6358_MODE_MUX_NONE		0
+#define  BCM6358_MODE_MUX_ANALNE		0
 #define  BCM6358_MODE_MUX_EBI_CS	BIT(5)
 #define  BCM6358_MODE_MUX_UART1		BIT(6)
 #define  BCM6358_MODE_MUX_SPI_CS	BIT(7)
@@ -39,7 +39,7 @@ struct bcm6358_pingroup {
 
 	const uint16_t mode_val;
 
-	/* non-GPIO function muxes require the gpio direction to be set */
+	/* analn-GPIO function muxes require the gpio direction to be set */
 	const uint16_t direction;
 };
 
@@ -63,18 +63,18 @@ struct bcm6358_priv {
 	}
 
 static const struct pinctrl_pin_desc bcm6358_pins[] = {
-	BCM6358_GPIO_PIN(0, "gpio0", LED, NONE, NONE),
-	BCM6358_GPIO_PIN(1, "gpio1", LED, NONE, NONE),
-	BCM6358_GPIO_PIN(2, "gpio2", LED, NONE, NONE),
-	BCM6358_GPIO_PIN(3, "gpio3", LED, NONE, NONE),
+	BCM6358_GPIO_PIN(0, "gpio0", LED, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(1, "gpio1", LED, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(2, "gpio2", LED, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(3, "gpio3", LED, ANALNE, ANALNE),
 	PINCTRL_PIN(4, "gpio4"),
-	BCM6358_GPIO_PIN(5, "gpio5", SYS_IRQ, NONE, NONE),
-	BCM6358_GPIO_PIN(6, "gpio6", SERIAL_LED, NONE, NONE),
-	BCM6358_GPIO_PIN(7, "gpio7", SERIAL_LED, NONE, NONE),
-	BCM6358_GPIO_PIN(8, "gpio8", PWM_SYN_CLK, NONE, NONE),
-	BCM6358_GPIO_PIN(9, "gpio09", LEGACY_LED, NONE, NONE),
-	BCM6358_GPIO_PIN(10, "gpio10", LEGACY_LED, NONE, NONE),
-	BCM6358_GPIO_PIN(11, "gpio11", LEGACY_LED, NONE, NONE),
+	BCM6358_GPIO_PIN(5, "gpio5", SYS_IRQ, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(6, "gpio6", SERIAL_LED, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(7, "gpio7", SERIAL_LED, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(8, "gpio8", PWM_SYN_CLK, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(9, "gpio09", LEGACY_LED, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(10, "gpio10", LEGACY_LED, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(11, "gpio11", LEGACY_LED, ANALNE, ANALNE),
 	BCM6358_GPIO_PIN(12, "gpio12", LEGACY_LED, ASYNC_MODEM, UTOPIA),
 	BCM6358_GPIO_PIN(13, "gpio13", LEGACY_LED, ASYNC_MODEM, UTOPIA),
 	BCM6358_GPIO_PIN(14, "gpio14", LEGACY_LED, ASYNC_MODEM, UTOPIA),
@@ -85,18 +85,18 @@ static const struct pinctrl_pin_desc bcm6358_pins[] = {
 	PINCTRL_PIN(19, "gpio19"),
 	PINCTRL_PIN(20, "gpio20"),
 	PINCTRL_PIN(21, "gpio21"),
-	BCM6358_GPIO_PIN(22, "gpio22", UTOPIA, NONE, NONE),
-	BCM6358_GPIO_PIN(23, "gpio23", UTOPIA, NONE, NONE),
-	BCM6358_GPIO_PIN(24, "gpio24", UTOPIA, NONE, NONE),
-	BCM6358_GPIO_PIN(25, "gpio25", UTOPIA, NONE, NONE),
-	BCM6358_GPIO_PIN(26, "gpio26", UTOPIA, NONE, NONE),
-	BCM6358_GPIO_PIN(27, "gpio27", UTOPIA, NONE, NONE),
-	BCM6358_GPIO_PIN(28, "gpio28", UTOPIA, UART1, NONE),
-	BCM6358_GPIO_PIN(29, "gpio29", UTOPIA, UART1, NONE),
+	BCM6358_GPIO_PIN(22, "gpio22", UTOPIA, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(23, "gpio23", UTOPIA, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(24, "gpio24", UTOPIA, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(25, "gpio25", UTOPIA, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(26, "gpio26", UTOPIA, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(27, "gpio27", UTOPIA, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(28, "gpio28", UTOPIA, UART1, ANALNE),
+	BCM6358_GPIO_PIN(29, "gpio29", UTOPIA, UART1, ANALNE),
 	BCM6358_GPIO_PIN(30, "gpio30", UTOPIA, UART1, EBI_CS),
 	BCM6358_GPIO_PIN(31, "gpio31", UTOPIA, UART1, EBI_CS),
-	BCM6358_GPIO_PIN(32, "gpio32", SPI_CS, NONE, NONE),
-	BCM6358_GPIO_PIN(33, "gpio33", SPI_CS, NONE, NONE),
+	BCM6358_GPIO_PIN(32, "gpio32", SPI_CS, ANALNE, ANALNE),
+	BCM6358_GPIO_PIN(33, "gpio33", SPI_CS, ANALNE, ANALNE),
 	PINCTRL_PIN(34, "gpio34"),
 	PINCTRL_PIN(35, "gpio35"),
 	PINCTRL_PIN(36, "gpio36"),
@@ -301,7 +301,7 @@ static int bcm6358_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 static const struct pinctrl_ops bcm6358_pctl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.get_group_name = bcm6358_pinctrl_get_group_name,
 	.get_group_pins = bcm6358_pinctrl_get_group_pins,
 	.get_groups_count = bcm6358_pinctrl_get_group_count,
@@ -334,7 +334,7 @@ static int bcm6358_pinctrl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = bcm63xx_pinctrl_probe(pdev, &bcm6358_soc, (void *) priv);
 	if (err)

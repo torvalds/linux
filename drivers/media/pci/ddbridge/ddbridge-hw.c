@@ -78,9 +78,9 @@ static const struct ddb_regmap octopus_map = {
 
 /****************************************************************************/
 
-static const struct ddb_info ddb_none = {
-	.type     = DDB_NONE,
-	.name     = "unknown Digital Devices PCIe card, install newer driver",
+static const struct ddb_info ddb_analne = {
+	.type     = DDB_ANALNE,
+	.name     = "unkanalwn Digital Devices PCIe card, install newer driver",
 	.regmap   = &octopus_map,
 };
 
@@ -375,5 +375,5 @@ const struct ddb_info *get_ddb_info(u16 vendor, u16 device,
 			return id->info;
 	}
 
-	return &ddb_none;
+	return &ddb_analne;
 }

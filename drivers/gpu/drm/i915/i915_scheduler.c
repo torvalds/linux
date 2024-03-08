@@ -16,29 +16,29 @@ static struct kmem_cache *slab_priorities;
 static DEFINE_SPINLOCK(schedule_lock);
 
 static const struct i915_request *
-node_to_request(const struct i915_sched_node *node)
+analde_to_request(const struct i915_sched_analde *analde)
 {
-	return container_of(node, const struct i915_request, sched);
+	return container_of(analde, const struct i915_request, sched);
 }
 
-static inline bool node_started(const struct i915_sched_node *node)
+static inline bool analde_started(const struct i915_sched_analde *analde)
 {
-	return i915_request_started(node_to_request(node));
+	return i915_request_started(analde_to_request(analde));
 }
 
-static inline bool node_signaled(const struct i915_sched_node *node)
+static inline bool analde_signaled(const struct i915_sched_analde *analde)
 {
-	return i915_request_completed(node_to_request(node));
+	return i915_request_completed(analde_to_request(analde));
 }
 
-static inline struct i915_priolist *to_priolist(struct rb_node *rb)
+static inline struct i915_priolist *to_priolist(struct rb_analde *rb)
 {
-	return rb_entry(rb, struct i915_priolist, node);
+	return rb_entry(rb, struct i915_priolist, analde);
 }
 
 static void assert_priolists(struct i915_sched_engine * const sched_engine)
 {
-	struct rb_node *rb;
+	struct rb_analde *rb;
 	long last_prio;
 
 	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
@@ -60,19 +60,19 @@ struct list_head *
 i915_sched_lookup_priolist(struct i915_sched_engine *sched_engine, int prio)
 {
 	struct i915_priolist *p;
-	struct rb_node **parent, *rb;
+	struct rb_analde **parent, *rb;
 	bool first = true;
 
 	lockdep_assert_held(&sched_engine->lock);
 	assert_priolists(sched_engine);
 
-	if (unlikely(sched_engine->no_priolist))
-		prio = I915_PRIORITY_NORMAL;
+	if (unlikely(sched_engine->anal_priolist))
+		prio = I915_PRIORITY_ANALRMAL;
 
 find_priolist:
 	/* most positive priority is scheduled first, equal priorities fifo */
 	rb = NULL;
-	parent = &sched_engine->queue.rb_root.rb_node;
+	parent = &sched_engine->queue.rb_root.rb_analde;
 	while (*parent) {
 		rb = *parent;
 		p = to_priolist(rb);
@@ -86,13 +86,13 @@ find_priolist:
 		}
 	}
 
-	if (prio == I915_PRIORITY_NORMAL) {
+	if (prio == I915_PRIORITY_ANALRMAL) {
 		p = &sched_engine->default_priolist;
 	} else {
 		p = kmem_cache_alloc(slab_priorities, GFP_ATOMIC);
 		/* Convert an allocation failure to a priority bump */
 		if (unlikely(!p)) {
-			prio = I915_PRIORITY_NORMAL; /* recurses just once */
+			prio = I915_PRIORITY_ANALRMAL; /* recurses just once */
 
 			/* To maintain ordering with all rendering, after an
 			 * allocation failure we have to disable all scheduling.
@@ -102,7 +102,7 @@ find_priolist:
 			 * requests, so if userspace lied about their
 			 * dependencies that reordering may be visible.
 			 */
-			sched_engine->no_priolist = true;
+			sched_engine->anal_priolist = true;
 			goto find_priolist;
 		}
 	}
@@ -110,8 +110,8 @@ find_priolist:
 	p->priority = prio;
 	INIT_LIST_HEAD(&p->requests);
 
-	rb_link_node(&p->node, rb, parent);
-	rb_insert_color_cached(&p->node, &sched_engine->queue, first);
+	rb_link_analde(&p->analde, rb, parent);
+	rb_insert_color_cached(&p->analde, &sched_engine->queue, first);
 
 	return &p->requests;
 }
@@ -126,18 +126,18 @@ struct sched_cache {
 };
 
 static struct i915_sched_engine *
-lock_sched_engine(struct i915_sched_node *node,
+lock_sched_engine(struct i915_sched_analde *analde,
 		  struct i915_sched_engine *locked,
 		  struct sched_cache *cache)
 {
-	const struct i915_request *rq = node_to_request(node);
+	const struct i915_request *rq = analde_to_request(analde);
 	struct i915_sched_engine *sched_engine;
 
 	GEM_BUG_ON(!locked);
 
 	/*
 	 * Virtual engines complicate acquiring the engine timeline lock,
-	 * as their rq->engine pointer is not stable until under that
+	 * as their rq->engine pointer is analt stable until under that
 	 * engine lock. The simple ploy we use is to take the lock then
 	 * check that the rq still belongs to the newly locked engine.
 	 */
@@ -152,10 +152,10 @@ lock_sched_engine(struct i915_sched_node *node,
 	return locked;
 }
 
-static void __i915_schedule(struct i915_sched_node *node,
+static void __i915_schedule(struct i915_sched_analde *analde,
 			    const struct i915_sched_attr *attr)
 {
-	const int prio = max(attr->priority, node->attr.priority);
+	const int prio = max(attr->priority, analde->attr.priority);
 	struct i915_sched_engine *sched_engine;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
@@ -166,20 +166,20 @@ static void __i915_schedule(struct i915_sched_node *node,
 	lockdep_assert_held(&schedule_lock);
 	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
 
-	if (node_signaled(node))
+	if (analde_signaled(analde))
 		return;
 
-	stack.signaler = node;
+	stack.signaler = analde;
 	list_add(&stack.dfs_link, &dfs);
 
 	/*
 	 * Recursively bump all dependent priorities to match the new request.
 	 *
 	 * A naive approach would be to use recursion:
-	 * static void update_priorities(struct i915_sched_node *node, prio) {
-	 *	list_for_each_entry(dep, &node->signalers_list, signal_link)
+	 * static void update_priorities(struct i915_sched_analde *analde, prio) {
+	 *	list_for_each_entry(dep, &analde->signalers_list, signal_link)
 	 *		update_priorities(dep->signal, prio)
-	 *	queue_request(node);
+	 *	queue_request(analde);
 	 * }
 	 * but that may have unlimited recursion depth and so runs a very
 	 * real risk of overunning the kernel stack. Instead, we build
@@ -191,22 +191,22 @@ static void __i915_schedule(struct i915_sched_node *node,
 	 * last element in the list is the request we must execute first.
 	 */
 	list_for_each_entry(dep, &dfs, dfs_link) {
-		struct i915_sched_node *node = dep->signaler;
+		struct i915_sched_analde *analde = dep->signaler;
 
-		/* If we are already flying, we know we have no signalers */
-		if (node_started(node))
+		/* If we are already flying, we kanalw we have anal signalers */
+		if (analde_started(analde))
 			continue;
 
 		/*
-		 * Within an engine, there can be no cycle, but we may
+		 * Within an engine, there can be anal cycle, but we may
 		 * refer to the same dependency chain multiple times
-		 * (redundant dependencies are not eliminated) and across
+		 * (redundant dependencies are analt eliminated) and across
 		 * engines.
 		 */
-		list_for_each_entry(p, &node->signalers_list, signal_link) {
-			GEM_BUG_ON(p == dep); /* no cycles! */
+		list_for_each_entry(p, &analde->signalers_list, signal_link) {
+			GEM_BUG_ON(p == dep); /* anal cycles! */
 
-			if (node_signaled(p->signaler))
+			if (analde_signaled(p->signaler))
 				continue;
 
 			if (prio > READ_ONCE(p->signaler->attr.priority))
@@ -216,13 +216,13 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 	/*
 	 * If we didn't need to bump any existing priorities, and we haven't
-	 * yet submitted this request (i.e. there is no potential race with
+	 * yet submitted this request (i.e. there is anal potential race with
 	 * execlists_submit_request()), we can set our own priority and skip
 	 * acquiring the engine locks.
 	 */
-	if (node->attr.priority == I915_PRIORITY_INVALID) {
-		GEM_BUG_ON(!list_empty(&node->link));
-		node->attr = *attr;
+	if (analde->attr.priority == I915_PRIORITY_INVALID) {
+		GEM_BUG_ON(!list_empty(&analde->link));
+		analde->attr = *attr;
 
 		if (stack.dfs_link.next == stack.dfs_link.prev)
 			return;
@@ -231,56 +231,56 @@ static void __i915_schedule(struct i915_sched_node *node,
 	}
 
 	memset(&cache, 0, sizeof(cache));
-	sched_engine = node_to_request(node)->engine->sched_engine;
+	sched_engine = analde_to_request(analde)->engine->sched_engine;
 	spin_lock(&sched_engine->lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
-	sched_engine = lock_sched_engine(node, sched_engine, &cache);
+	sched_engine = lock_sched_engine(analde, sched_engine, &cache);
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
 		struct i915_request *from = container_of(dep->signaler,
 							 struct i915_request,
 							 sched);
 		INIT_LIST_HEAD(&dep->dfs_link);
 
-		node = dep->signaler;
-		sched_engine = lock_sched_engine(node, sched_engine, &cache);
+		analde = dep->signaler;
+		sched_engine = lock_sched_engine(analde, sched_engine, &cache);
 		lockdep_assert_held(&sched_engine->lock);
 
 		/* Recheck after acquiring the engine->timeline.lock */
-		if (prio <= node->attr.priority || node_signaled(node))
+		if (prio <= analde->attr.priority || analde_signaled(analde))
 			continue;
 
-		GEM_BUG_ON(node_to_request(node)->engine->sched_engine !=
+		GEM_BUG_ON(analde_to_request(analde)->engine->sched_engine !=
 			   sched_engine);
 
-		/* Must be called before changing the nodes priority */
+		/* Must be called before changing the analdes priority */
 		if (sched_engine->bump_inflight_request_prio)
 			sched_engine->bump_inflight_request_prio(from, prio);
 
-		WRITE_ONCE(node->attr.priority, prio);
+		WRITE_ONCE(analde->attr.priority, prio);
 
 		/*
 		 * Once the request is ready, it will be placed into the
 		 * priority lists and then onto the HW runlist. Before the
-		 * request is ready, it does not contribute to our preemption
-		 * decisions and we can safely ignore it, as it will, and
+		 * request is ready, it does analt contribute to our preemption
+		 * decisions and we can safely iganalre it, as it will, and
 		 * any preemption required, be dealt with upon submission.
 		 * See engine->submit_request()
 		 */
-		if (list_empty(&node->link))
+		if (list_empty(&analde->link))
 			continue;
 
-		if (i915_request_in_priority_queue(node_to_request(node))) {
+		if (i915_request_in_priority_queue(analde_to_request(analde))) {
 			if (!cache.priolist)
 				cache.priolist =
 					i915_sched_lookup_priolist(sched_engine,
 								   prio);
-			list_move_tail(&node->link, cache.priolist);
+			list_move_tail(&analde->link, cache.priolist);
 		}
 
 		/* Defer (tasklet) submission until after all of our updates. */
 		if (sched_engine->kick_backend)
-			sched_engine->kick_backend(node_to_request(node), prio);
+			sched_engine->kick_backend(analde_to_request(analde), prio);
 	}
 
 	spin_unlock(&sched_engine->lock);
@@ -293,24 +293,24 @@ void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
 	spin_unlock_irq(&schedule_lock);
 }
 
-void i915_sched_node_init(struct i915_sched_node *node)
+void i915_sched_analde_init(struct i915_sched_analde *analde)
 {
-	INIT_LIST_HEAD(&node->signalers_list);
-	INIT_LIST_HEAD(&node->waiters_list);
-	INIT_LIST_HEAD(&node->link);
+	INIT_LIST_HEAD(&analde->signalers_list);
+	INIT_LIST_HEAD(&analde->waiters_list);
+	INIT_LIST_HEAD(&analde->link);
 
-	i915_sched_node_reinit(node);
+	i915_sched_analde_reinit(analde);
 }
 
-void i915_sched_node_reinit(struct i915_sched_node *node)
+void i915_sched_analde_reinit(struct i915_sched_analde *analde)
 {
-	node->attr.priority = I915_PRIORITY_INVALID;
-	node->semaphores = 0;
-	node->flags = 0;
+	analde->attr.priority = I915_PRIORITY_INVALID;
+	analde->semaphores = 0;
+	analde->flags = 0;
 
-	GEM_BUG_ON(!list_empty(&node->signalers_list));
-	GEM_BUG_ON(!list_empty(&node->waiters_list));
-	GEM_BUG_ON(!list_empty(&node->link));
+	GEM_BUG_ON(!list_empty(&analde->signalers_list));
+	GEM_BUG_ON(!list_empty(&analde->waiters_list));
+	GEM_BUG_ON(!list_empty(&analde->link));
 }
 
 static struct i915_dependency *
@@ -325,8 +325,8 @@ i915_dependency_free(struct i915_dependency *dep)
 	kmem_cache_free(slab_dependencies, dep);
 }
 
-bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
-				      struct i915_sched_node *signal,
+bool __i915_sched_analde_add_dependency(struct i915_sched_analde *analde,
+				      struct i915_sched_analde *signal,
 				      struct i915_dependency *dep,
 				      unsigned long flags)
 {
@@ -334,18 +334,18 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 
 	spin_lock_irq(&schedule_lock);
 
-	if (!node_signaled(signal)) {
+	if (!analde_signaled(signal)) {
 		INIT_LIST_HEAD(&dep->dfs_link);
 		dep->signaler = signal;
-		dep->waiter = node;
+		dep->waiter = analde;
 		dep->flags = flags;
 
-		/* All set, now publish. Beware the lockless walkers. */
-		list_add_rcu(&dep->signal_link, &node->signalers_list);
+		/* All set, analw publish. Beware the lockless walkers. */
+		list_add_rcu(&dep->signal_link, &analde->signalers_list);
 		list_add_rcu(&dep->wait_link, &signal->waiters_list);
 
 		/* Propagate the chains */
-		node->flags |= signal->flags;
+		analde->flags |= signal->flags;
 		ret = true;
 	}
 
@@ -354,24 +354,24 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 	return ret;
 }
 
-int i915_sched_node_add_dependency(struct i915_sched_node *node,
-				   struct i915_sched_node *signal,
+int i915_sched_analde_add_dependency(struct i915_sched_analde *analde,
+				   struct i915_sched_analde *signal,
 				   unsigned long flags)
 {
 	struct i915_dependency *dep;
 
 	dep = i915_dependency_alloc();
 	if (!dep)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (!__i915_sched_node_add_dependency(node, signal, dep,
+	if (!__i915_sched_analde_add_dependency(analde, signal, dep,
 					      flags | I915_DEPENDENCY_ALLOC))
 		i915_dependency_free(dep);
 
 	return 0;
 }
 
-void i915_sched_node_fini(struct i915_sched_node *node)
+void i915_sched_analde_fini(struct i915_sched_analde *analde)
 {
 	struct i915_dependency *dep, *tmp;
 
@@ -383,25 +383,25 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 	 * However, retirement is run independently on each timeline and
 	 * so we may be called out-of-order.
 	 */
-	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
+	list_for_each_entry_safe(dep, tmp, &analde->signalers_list, signal_link) {
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
 		list_del_rcu(&dep->wait_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
 			i915_dependency_free(dep);
 	}
-	INIT_LIST_HEAD(&node->signalers_list);
+	INIT_LIST_HEAD(&analde->signalers_list);
 
 	/* Remove ourselves from everyone who depends upon us */
-	list_for_each_entry_safe(dep, tmp, &node->waiters_list, wait_link) {
-		GEM_BUG_ON(dep->signaler != node);
+	list_for_each_entry_safe(dep, tmp, &analde->waiters_list, wait_link) {
+		GEM_BUG_ON(dep->signaler != analde);
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
 		list_del_rcu(&dep->signal_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
 			i915_dependency_free(dep);
 	}
-	INIT_LIST_HEAD(&node->waiters_list);
+	INIT_LIST_HEAD(&analde->waiters_list);
 
 	spin_unlock_irq(&schedule_lock);
 }
@@ -420,7 +420,7 @@ void i915_request_show_with_schedule(struct drm_printer *m,
 	rcu_read_lock();
 	for_each_signaler(dep, rq) {
 		const struct i915_request *signaler =
-			node_to_request(dep->signaler);
+			analde_to_request(dep->signaler);
 
 		/* Dependencies along the same timeline are expected. */
 		if (signaler->timeline == rq->timeline)
@@ -497,7 +497,7 @@ int __init i915_scheduler_module_init(void)
 					      SLAB_HWCACHE_ALIGN |
 					      SLAB_TYPESAFE_BY_RCU);
 	if (!slab_dependencies)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slab_priorities = KMEM_CACHE(i915_priolist, 0);
 	if (!slab_priorities)
@@ -507,5 +507,5 @@ int __init i915_scheduler_module_init(void)
 
 err_priorities:
 	kmem_cache_destroy(slab_priorities);
-	return -ENOMEM;
+	return -EANALMEM;
 }

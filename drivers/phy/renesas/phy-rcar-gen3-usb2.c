@@ -69,7 +69,7 @@
 #define USB2_LINECTRL1_DP_RPD		BIT(18)
 #define USB2_LINECTRL1_DMRPD_EN		BIT(17)
 #define USB2_LINECTRL1_DM_RPD		BIT(16)
-#define USB2_LINECTRL1_OPMODE_NODRV	BIT(6)
+#define USB2_LINECTRL1_OPMODE_ANALDRV	BIT(6)
 
 /* ADPCTRL */
 #define USB2_ADPCTRL_OTGSESSVLD		BIT(20)
@@ -119,12 +119,12 @@ struct rcar_gen3_chan {
 	bool extcon_host;
 	bool is_otg_channel;
 	bool uses_otg_pins;
-	bool soc_no_adp_ctrl;
+	bool soc_anal_adp_ctrl;
 };
 
 struct rcar_gen3_phy_drv_data {
 	const struct phy_ops *phy_usb2_ops;
-	bool no_adp_ctrl;
+	bool anal_adp_ctrl;
 };
 
 /*
@@ -187,7 +187,7 @@ static void rcar_gen3_enable_vbus_ctrl(struct rcar_gen3_chan *ch, int vbus)
 	u32 val;
 
 	dev_vdbg(ch->dev, "%s: %08x, %d\n", __func__, val, vbus);
-	if (ch->soc_no_adp_ctrl) {
+	if (ch->soc_anal_adp_ctrl) {
 		vbus_ctrl_reg = USB2_VBCTRL;
 		vbus_ctrl_val = USB2_VBCTRL_VBOUT;
 	}
@@ -238,14 +238,14 @@ static void rcar_gen3_init_for_b_host(struct rcar_gen3_chan *ch)
 	u32 val;
 
 	val = readl(usb2_base + USB2_LINECTRL1);
-	writel(val | USB2_LINECTRL1_OPMODE_NODRV, usb2_base + USB2_LINECTRL1);
+	writel(val | USB2_LINECTRL1_OPMODE_ANALDRV, usb2_base + USB2_LINECTRL1);
 
 	rcar_gen3_set_linectrl(ch, 1, 1);
 	rcar_gen3_set_host_mode(ch, 1);
 	rcar_gen3_enable_vbus_ctrl(ch, 0);
 
 	val = readl(usb2_base + USB2_LINECTRL1);
-	writel(val & ~USB2_LINECTRL1_OPMODE_NODRV, usb2_base + USB2_LINECTRL1);
+	writel(val & ~USB2_LINECTRL1_OPMODE_ANALDRV, usb2_base + USB2_LINECTRL1);
 }
 
 static void rcar_gen3_init_for_a_peri(struct rcar_gen3_chan *ch)
@@ -270,7 +270,7 @@ static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 	if (!ch->uses_otg_pins)
 		return (ch->dr_mode == USB_DR_MODE_HOST) ? false : true;
 
-	if (ch->soc_no_adp_ctrl)
+	if (ch->soc_anal_adp_ctrl)
 		return !!(readl(ch->base + USB2_LINECTRL1) & USB2_LINECTRL1_USB2_IDMON);
 
 	return !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
@@ -391,13 +391,13 @@ static void rcar_gen3_init_otg(struct rcar_gen3_chan *ch)
 	void __iomem *usb2_base = ch->base;
 	u32 val;
 
-	/* Should not use functions of read-modify-write a register */
+	/* Should analt use functions of read-modify-write a register */
 	val = readl(usb2_base + USB2_LINECTRL1);
 	val = (val & ~USB2_LINECTRL1_DP_RPD) | USB2_LINECTRL1_DPRPD_EN |
 	      USB2_LINECTRL1_DMRPD_EN | USB2_LINECTRL1_DM_RPD;
 	writel(val, usb2_base + USB2_LINECTRL1);
 
-	if (!ch->soc_no_adp_ctrl) {
+	if (!ch->soc_anal_adp_ctrl) {
 		val = readl(usb2_base + USB2_VBCTRL);
 		val &= ~USB2_VBCTRL_OCCLREN;
 		writel(val | USB2_VBCTRL_DRVVBUSSEL, usb2_base + USB2_VBCTRL);
@@ -417,7 +417,7 @@ static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 	struct rcar_gen3_chan *ch = _ch;
 	void __iomem *usb2_base = ch->base;
 	u32 status = readl(usb2_base + USB2_OBINTSTA);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (status & ch->obint_enable_bits) {
 		dev_vdbg(ch->dev, "%s: %08x\n", __func__, status);
@@ -442,7 +442,7 @@ static int rcar_gen3_phy_usb2_init(struct phy *p)
 		ret = request_irq(channel->irq, rcar_gen3_phy_usb2_irq,
 				  IRQF_SHARED, dev_name(channel->dev), channel);
 		if (ret < 0) {
-			dev_err(channel->dev, "No irq handler (%d)\n", channel->irq);
+			dev_err(channel->dev, "Anal irq handler (%d)\n", channel->irq);
 			return ret;
 		}
 	}
@@ -559,17 +559,17 @@ static const struct phy_ops rz_g1c_phy_usb2_ops = {
 
 static const struct rcar_gen3_phy_drv_data rcar_gen3_phy_usb2_data = {
 	.phy_usb2_ops = &rcar_gen3_phy_usb2_ops,
-	.no_adp_ctrl = false,
+	.anal_adp_ctrl = false,
 };
 
 static const struct rcar_gen3_phy_drv_data rz_g1c_phy_usb2_data = {
 	.phy_usb2_ops = &rz_g1c_phy_usb2_ops,
-	.no_adp_ctrl = false,
+	.anal_adp_ctrl = false,
 };
 
 static const struct rcar_gen3_phy_drv_data rz_g2l_phy_usb2_data = {
 	.phy_usb2_ops = &rcar_gen3_phy_usb2_ops,
-	.no_adp_ctrl = true,
+	.anal_adp_ctrl = true,
 };
 
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
@@ -604,7 +604,7 @@ MODULE_DEVICE_TABLE(of, rcar_gen3_phy_usb2_match_table);
 static const unsigned int rcar_gen3_phy_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static struct phy *rcar_gen3_phy_usb2_xlate(struct device *dev,
@@ -615,32 +615,32 @@ static struct phy *rcar_gen3_phy_usb2_xlate(struct device *dev,
 	if (args->args_count == 0)	/* For old version dts */
 		return ch->rphys[PHY_INDEX_BOTH_HC].phy;
 	else if (args->args_count > 1)	/* Prevent invalid args count */
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (args->args[0] >= NUM_OF_PHYS)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return ch->rphys[args->args[0]].phy;
 }
 
-static enum usb_dr_mode rcar_gen3_get_dr_mode(struct device_node *np)
+static enum usb_dr_mode rcar_gen3_get_dr_mode(struct device_analde *np)
 {
-	enum usb_dr_mode candidate = USB_DR_MODE_UNKNOWN;
+	enum usb_dr_mode candidate = USB_DR_MODE_UNKANALWN;
 	int i;
 
 	/*
-	 * If one of device nodes has other dr_mode except UNKNOWN,
-	 * this function returns UNKNOWN. To achieve backward compatibility,
+	 * If one of device analdes has other dr_mode except UNKANALWN,
+	 * this function returns UNKANALWN. To achieve backward compatibility,
 	 * this loop starts the index as 0.
 	 */
 	for (i = 0; i < NUM_OF_PHYS; i++) {
 		enum usb_dr_mode mode = of_usb_get_dr_mode_by_phy(np, i);
 
-		if (mode != USB_DR_MODE_UNKNOWN) {
-			if (candidate == USB_DR_MODE_UNKNOWN)
+		if (mode != USB_DR_MODE_UNKANALWN) {
+			if (candidate == USB_DR_MODE_UNKANALWN)
 				candidate = mode;
 			else if (candidate != mode)
-				return USB_DR_MODE_UNKNOWN;
+				return USB_DR_MODE_UNKANALWN;
 		}
 	}
 
@@ -655,14 +655,14 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	int ret = 0, i;
 
-	if (!dev->of_node) {
+	if (!dev->of_analde) {
 		dev_err(dev, "This driver needs device tree\n");
 		return -EINVAL;
 	}
 
 	channel = devm_kzalloc(dev, sizeof(*channel), GFP_KERNEL);
 	if (!channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	channel->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(channel->base))
@@ -671,11 +671,11 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	channel->obint_enable_bits = USB2_OBINT_BITS;
 	/* get irq number here and request_irq for OTG in phy_init */
 	channel->irq = platform_get_irq_optional(pdev, 0);
-	channel->dr_mode = rcar_gen3_get_dr_mode(dev->of_node);
-	if (channel->dr_mode != USB_DR_MODE_UNKNOWN) {
+	channel->dr_mode = rcar_gen3_get_dr_mode(dev->of_analde);
+	if (channel->dr_mode != USB_DR_MODE_UNKANALWN) {
 		channel->is_otg_channel = true;
-		channel->uses_otg_pins = !of_property_read_bool(dev->of_node,
-							"renesas,no-otg-pins");
+		channel->uses_otg_pins = !of_property_read_bool(dev->of_analde,
+							"renesas,anal-otg-pins");
 		channel->extcon = devm_extcon_dev_allocate(dev,
 							rcar_gen3_phy_cable);
 		if (IS_ERR(channel->extcon))
@@ -700,8 +700,8 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	channel->soc_no_adp_ctrl = phy_data->no_adp_ctrl;
-	if (phy_data->no_adp_ctrl)
+	channel->soc_anal_adp_ctrl = phy_data->anal_adp_ctrl;
+	if (phy_data->anal_adp_ctrl)
 		channel->obint_enable_bits = USB2_OBINT_IDCHG_EN;
 
 	mutex_init(&channel->lock);

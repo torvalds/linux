@@ -4,10 +4,10 @@
  *
  * Author: Artem B. Bityuckiy <dedekind@oktetlabs.ru>, <dedekind@infradead.org>
  *
- * Copyright (C) 2004 Nokia Corporation
+ * Copyright (C) 2004 Analkia Corporation
  *
- * Note: NS means "NAND Simulator".
- * Note: Input means input TO flash chip, output means output FROM chip.
+ * Analte: NS means "NAND Simulator".
+ * Analte: Input means input TO flash chip, output means output FROM chip.
  */
 
 #define pr_fmt(fmt)  "[nandsim]" fmt
@@ -19,7 +19,7 @@
 #include <linux/vmalloc.h>
 #include <linux/math64.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
@@ -41,8 +41,8 @@
     !defined(CONFIG_NANDSIM_FOURTH_ID_BYTE)
 #define CONFIG_NANDSIM_FIRST_ID_BYTE  0x98
 #define CONFIG_NANDSIM_SECOND_ID_BYTE 0x39
-#define CONFIG_NANDSIM_THIRD_ID_BYTE  0xFF /* No byte */
-#define CONFIG_NANDSIM_FOURTH_ID_BYTE 0xFF /* No byte */
+#define CONFIG_NANDSIM_THIRD_ID_BYTE  0xFF /* Anal byte */
+#define CONFIG_NANDSIM_FOURTH_ID_BYTE 0xFF /* Anal byte */
 #endif
 
 #ifndef CONFIG_NANDSIM_ACCESS_DELAY
@@ -137,12 +137,12 @@ MODULE_PARM_DESC(fourth_id_byte, "The fourth byte returned by NAND Flash 'read I
 MODULE_PARM_DESC(access_delay,   "Initial page access delay (microseconds)");
 MODULE_PARM_DESC(programm_delay, "Page programm delay (microseconds");
 MODULE_PARM_DESC(erase_delay,    "Sector erase delay (milliseconds)");
-MODULE_PARM_DESC(output_cycle,   "Word output (from flash) time (nanoseconds)");
-MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (nanoseconds)");
+MODULE_PARM_DESC(output_cycle,   "Word output (from flash) time (naanalseconds)");
+MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (naanalseconds)");
 MODULE_PARM_DESC(bus_width,      "Chip's bus width (8- or 16-bit)");
-MODULE_PARM_DESC(do_delays,      "Simulate NAND delays using busy-waits if not zero");
-MODULE_PARM_DESC(log,            "Perform logging if not zero");
-MODULE_PARM_DESC(dbg,            "Output debug information if not zero");
+MODULE_PARM_DESC(do_delays,      "Simulate NAND delays using busy-waits if analt zero");
+MODULE_PARM_DESC(log,            "Perform logging if analt zero");
+MODULE_PARM_DESC(dbg,            "Output debug information if analt zero");
 MODULE_PARM_DESC(parts,          "Partition sizes (in erase blocks) separated by commas");
 /* Page and erase block positions for the following parameters are independent of any partitions */
 MODULE_PARM_DESC(badblocks,      "Erase blocks that are initially marked bad, separated by commas");
@@ -239,8 +239,8 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 /* Previous operation is done, ready to accept new requests */
 #define STATE_READY            0x00000000
 
-/* This state is used to mark that the next state isn't known yet */
-#define STATE_UNKNOWN          0x10000000
+/* This state is used to mark that the next state isn't kanalwn yet */
+#define STATE_UNKANALWN          0x10000000
 
 /* Simulator's actions bit masks */
 #define ACTION_CPY       0x00100000 /* copy page/OOB to the internal buffer */
@@ -298,7 +298,7 @@ struct nandsim {
 	uint32_t state;         /* current chip state */
 	uint32_t nxstate;       /* next expected state */
 
-	uint32_t *op;           /* current operation, NULL operations isn't known yet  */
+	uint32_t *op;           /* current operation, NULL operations isn't kanalwn yet  */
 	uint32_t pstates[NS_MAX_PREVSTATES]; /* previous states */
 	uint16_t npstates;      /* number of previous states saved */
 	uint16_t stateidx;      /* current state index */
@@ -405,7 +405,7 @@ static struct nandsim_operations {
 
 struct weak_block {
 	struct list_head list;
-	unsigned int erase_block_no;
+	unsigned int erase_block_anal;
 	unsigned int max_erases;
 	unsigned int erases_done;
 };
@@ -414,7 +414,7 @@ static LIST_HEAD(weak_blocks);
 
 struct weak_page {
 	struct list_head list;
-	unsigned int page_no;
+	unsigned int page_anal;
 	unsigned int max_writes;
 	unsigned int writes_done;
 };
@@ -423,7 +423,7 @@ static LIST_HEAD(weak_pages);
 
 struct grave_page {
 	struct list_head list;
-	unsigned int page_no;
+	unsigned int page_anal;
 	unsigned int max_reads;
 	unsigned int reads_done;
 };
@@ -515,7 +515,7 @@ static int ns_debugfs_create(struct nandsim *ns)
 	ns->dent = debugfs_create_file("nandsim_wear_report", 0400, root, ns,
 				       &ns_fops);
 	if (IS_ERR_OR_NULL(ns->dent)) {
-		NS_ERR("cannot create \"nandsim_wear_report\" debugfs entry\n");
+		NS_ERR("cananalt create \"nandsim_wear_report\" debugfs entry\n");
 		return -1;
 	}
 
@@ -531,7 +531,7 @@ static void ns_debugfs_remove(struct nandsim *ns)
  * Allocate array of page pointers, create slab allocation for an array
  * and initialize the array by NULL pointers.
  *
- * RETURNS: 0 if success, -ENOMEM if memory alloc fails.
+ * RETURNS: 0 if success, -EANALMEM if memory alloc fails.
  */
 static int __init ns_alloc_device(struct nandsim *ns)
 {
@@ -543,12 +543,12 @@ static int __init ns_alloc_device(struct nandsim *ns)
 		if (IS_ERR(cfile))
 			return PTR_ERR(cfile);
 		if (!(cfile->f_mode & FMODE_CAN_READ)) {
-			NS_ERR("alloc_device: cache file not readable\n");
+			NS_ERR("alloc_device: cache file analt readable\n");
 			err = -EINVAL;
 			goto err_close_filp;
 		}
 		if (!(cfile->f_mode & FMODE_CAN_WRITE)) {
-			NS_ERR("alloc_device: cache file not writeable\n");
+			NS_ERR("alloc_device: cache file analt writeable\n");
 			err = -EINVAL;
 			goto err_close_filp;
 		}
@@ -557,13 +557,13 @@ static int __init ns_alloc_device(struct nandsim *ns)
 					   BITS_TO_LONGS(ns->geom.pgnum)));
 		if (!ns->pages_written) {
 			NS_ERR("alloc_device: unable to allocate pages written array\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_close_filp;
 		}
 		ns->file_buf = kmalloc(ns->geom.pgszoob, GFP_KERNEL);
 		if (!ns->file_buf) {
 			NS_ERR("alloc_device: unable to allocate file buf\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_free_pw;
 		}
 		ns->cfile = cfile;
@@ -581,7 +581,7 @@ err_close_filp:
 	ns->pages = vmalloc(array_size(sizeof(union ns_mem), ns->geom.pgnum));
 	if (!ns->pages) {
 		NS_ERR("alloc_device: unable to allocate page array\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (i = 0; i < ns->geom.pgnum; i++) {
 		ns->pages[i].byte = NULL;
@@ -590,7 +590,7 @@ err_close_filp:
 						ns->geom.pgszoob, 0, 0, NULL);
 	if (!ns->nand_pages_slab) {
 		NS_ERR("cache_create: unable to create kmem_cache\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_pg;
 	}
 
@@ -635,7 +635,7 @@ static char __init *ns_get_partition_name(int i)
 /*
  * Initialize the nandsim structure.
  *
- * RETURNS: 0 if success, -ERRNO if failure.
+ * RETURNS: 0 if success, -ERRANAL if failure.
  */
 static int __init ns_init(struct mtd_info *mtd)
 {
@@ -674,7 +674,7 @@ static int __init ns_init(struct mtd_info *mtd)
 	} else if (ns->geom.pgsz == 4096) {
 		ns->options |= OPT_PAGE4096;
 	} else {
-		NS_ERR("init_nandsim: unknown page size %u\n", ns->geom.pgsz);
+		NS_ERR("init_nandsim: unkanalwn page size %u\n", ns->geom.pgsz);
 		return -EIO;
 	}
 
@@ -713,7 +713,7 @@ static int __init ns_init(struct mtd_info *mtd)
 		ns->partitions[i].name = ns_get_partition_name(i);
 		if (!ns->partitions[i].name) {
 			NS_ERR("unable to allocate memory.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		ns->partitions[i].offset = next_offset;
 		ns->partitions[i].size   = part_sz;
@@ -730,7 +730,7 @@ static int __init ns_init(struct mtd_info *mtd)
 		ns->partitions[i].name = ns_get_partition_name(i);
 		if (!ns->partitions[i].name) {
 			NS_ERR("unable to allocate memory.\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_partition_names;
 		}
 		ns->partitions[i].offset = next_offset;
@@ -767,7 +767,7 @@ static int __init ns_init(struct mtd_info *mtd)
 	if (!ns->buf.byte) {
 		NS_ERR("init_nandsim: unable to allocate %u bytes for the internal buffer\n",
 			ns->geom.pgszoob);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_device;
 	}
 	memset(ns->buf.byte, 0xFF, ns->geom.pgszoob);
@@ -803,7 +803,7 @@ static int ns_parse_badblocks(struct nandsim *ns, struct mtd_info *mtd)
 {
 	char *w;
 	int zero_ok;
-	unsigned int erase_block_no;
+	unsigned int erase_block_anal;
 	loff_t offset;
 
 	if (!badblocks)
@@ -811,12 +811,12 @@ static int ns_parse_badblocks(struct nandsim *ns, struct mtd_info *mtd)
 	w = badblocks;
 	do {
 		zero_ok = (*w == '0' ? 1 : 0);
-		erase_block_no = simple_strtoul(w, &w, 0);
-		if (!zero_ok && !erase_block_no) {
+		erase_block_anal = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !erase_block_anal) {
 			NS_ERR("invalid badblocks.\n");
 			return -EINVAL;
 		}
-		offset = (loff_t)erase_block_no * ns->geom.secsz;
+		offset = (loff_t)erase_block_anal * ns->geom.secsz;
 		if (mtd_block_markbad(mtd, offset)) {
 			NS_ERR("invalid badblocks.\n");
 			return -EINVAL;
@@ -831,7 +831,7 @@ static int ns_parse_weakblocks(void)
 {
 	char *w;
 	int zero_ok;
-	unsigned int erase_block_no;
+	unsigned int erase_block_anal;
 	unsigned int max_erases;
 	struct weak_block *wb;
 
@@ -840,8 +840,8 @@ static int ns_parse_weakblocks(void)
 	w = weakblocks;
 	do {
 		zero_ok = (*w == '0' ? 1 : 0);
-		erase_block_no = simple_strtoul(w, &w, 0);
-		if (!zero_ok && !erase_block_no) {
+		erase_block_anal = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !erase_block_anal) {
 			NS_ERR("invalid weakblocks.\n");
 			return -EINVAL;
 		}
@@ -855,21 +855,21 @@ static int ns_parse_weakblocks(void)
 		wb = kzalloc(sizeof(*wb), GFP_KERNEL);
 		if (!wb) {
 			NS_ERR("unable to allocate memory.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		wb->erase_block_no = erase_block_no;
+		wb->erase_block_anal = erase_block_anal;
 		wb->max_erases = max_erases;
 		list_add(&wb->list, &weak_blocks);
 	} while (*w);
 	return 0;
 }
 
-static int ns_erase_error(unsigned int erase_block_no)
+static int ns_erase_error(unsigned int erase_block_anal)
 {
 	struct weak_block *wb;
 
 	list_for_each_entry(wb, &weak_blocks, list)
-		if (wb->erase_block_no == erase_block_no) {
+		if (wb->erase_block_anal == erase_block_anal) {
 			if (wb->erases_done >= wb->max_erases)
 				return 1;
 			wb->erases_done += 1;
@@ -882,7 +882,7 @@ static int ns_parse_weakpages(void)
 {
 	char *w;
 	int zero_ok;
-	unsigned int page_no;
+	unsigned int page_anal;
 	unsigned int max_writes;
 	struct weak_page *wp;
 
@@ -891,8 +891,8 @@ static int ns_parse_weakpages(void)
 	w = weakpages;
 	do {
 		zero_ok = (*w == '0' ? 1 : 0);
-		page_no = simple_strtoul(w, &w, 0);
-		if (!zero_ok && !page_no) {
+		page_anal = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !page_anal) {
 			NS_ERR("invalid weakpages.\n");
 			return -EINVAL;
 		}
@@ -906,21 +906,21 @@ static int ns_parse_weakpages(void)
 		wp = kzalloc(sizeof(*wp), GFP_KERNEL);
 		if (!wp) {
 			NS_ERR("unable to allocate memory.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		wp->page_no = page_no;
+		wp->page_anal = page_anal;
 		wp->max_writes = max_writes;
 		list_add(&wp->list, &weak_pages);
 	} while (*w);
 	return 0;
 }
 
-static int ns_write_error(unsigned int page_no)
+static int ns_write_error(unsigned int page_anal)
 {
 	struct weak_page *wp;
 
 	list_for_each_entry(wp, &weak_pages, list)
-		if (wp->page_no == page_no) {
+		if (wp->page_anal == page_anal) {
 			if (wp->writes_done >= wp->max_writes)
 				return 1;
 			wp->writes_done += 1;
@@ -933,7 +933,7 @@ static int ns_parse_gravepages(void)
 {
 	char *g;
 	int zero_ok;
-	unsigned int page_no;
+	unsigned int page_anal;
 	unsigned int max_reads;
 	struct grave_page *gp;
 
@@ -942,8 +942,8 @@ static int ns_parse_gravepages(void)
 	g = gravepages;
 	do {
 		zero_ok = (*g == '0' ? 1 : 0);
-		page_no = simple_strtoul(g, &g, 0);
-		if (!zero_ok && !page_no) {
+		page_anal = simple_strtoul(g, &g, 0);
+		if (!zero_ok && !page_anal) {
 			NS_ERR("invalid gravepagess.\n");
 			return -EINVAL;
 		}
@@ -957,21 +957,21 @@ static int ns_parse_gravepages(void)
 		gp = kzalloc(sizeof(*gp), GFP_KERNEL);
 		if (!gp) {
 			NS_ERR("unable to allocate memory.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		gp->page_no = page_no;
+		gp->page_anal = page_anal;
 		gp->max_reads = max_reads;
 		list_add(&gp->list, &grave_pages);
 	} while (*g);
 	return 0;
 }
 
-static int ns_read_error(unsigned int page_no)
+static int ns_read_error(unsigned int page_anal)
 {
 	struct grave_page *gp;
 
 	list_for_each_entry(gp, &grave_pages, list)
-		if (gp->page_no == page_no) {
+		if (gp->page_anal == page_anal) {
 			if (gp->reads_done >= gp->max_reads)
 				return 1;
 			gp->reads_done += 1;
@@ -986,25 +986,25 @@ static int ns_setup_wear_reporting(struct mtd_info *mtd)
 	erase_block_wear = kcalloc(wear_eb_count, sizeof(unsigned long), GFP_KERNEL);
 	if (!erase_block_wear) {
 		NS_ERR("Too many erase blocks for wear reporting\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
 
-static void ns_update_wear(unsigned int erase_block_no)
+static void ns_update_wear(unsigned int erase_block_anal)
 {
 	if (!erase_block_wear)
 		return;
 	total_wear += 1;
 	/*
-	 * TODO: Notify this through a debugfs entry,
+	 * TODO: Analtify this through a debugfs entry,
 	 * instead of showing an error message.
 	 */
 	if (total_wear == 0)
 		NS_ERR("Erase counter total overflow\n");
-	erase_block_wear[erase_block_no] += 1;
-	if (erase_block_wear[erase_block_no] == 0)
-		NS_ERR("Erase counter overflow for erase block %u\n", erase_block_no);
+	erase_block_wear[erase_block_anal] += 1;
+	if (erase_block_wear[erase_block_anal] == 0)
+		NS_ERR("Erase counter overflow for erase block %u\n", erase_block_anal);
 }
 
 /*
@@ -1057,11 +1057,11 @@ static char *ns_get_state_name(uint32_t state)
 			return "STATE_DATAOUT_STATUS";
 		case STATE_READY:
 			return "STATE_READY";
-		case STATE_UNKNOWN:
-			return "STATE_UNKNOWN";
+		case STATE_UNKANALWN:
+			return "STATE_UNKANALWN";
 	}
 
-	NS_ERR("get_state_name: unknown state, BUG\n");
+	NS_ERR("get_state_name: unkanalwn state, BUG\n");
 	return NULL;
 }
 
@@ -1128,7 +1128,7 @@ static uint32_t ns_get_state_by_command(unsigned command)
 			return STATE_CMD_RNDOUTSTART;
 	}
 
-	NS_ERR("get_state_by_command: unknown command, BUG\n");
+	NS_ERR("get_state_by_command: unkanalwn command, BUG\n");
 	return 0;
 }
 
@@ -1159,7 +1159,7 @@ static inline void ns_switch_to_ready_state(struct nandsim *ns, u_char status)
 	       ns_get_state_name(STATE_READY));
 
 	ns->state       = STATE_READY;
-	ns->nxstate     = STATE_UNKNOWN;
+	ns->nxstate     = STATE_UNKANALWN;
 	ns->op          = NULL;
 	ns->npstates    = 0;
 	ns->stateidx    = 0;
@@ -1172,10 +1172,10 @@ static inline void ns_switch_to_ready_state(struct nandsim *ns, u_char status)
 }
 
 /*
- * If the operation isn't known yet, try to find it in the global array
+ * If the operation isn't kanalwn yet, try to find it in the global array
  * of supported operations.
  *
- * Operation can be unknown because of the following.
+ * Operation can be unkanalwn because of the following.
  *   1. New command was accepted and this is the first call to find the
  *      correspondent states chain. In this case ns->npstates = 0;
  *   2. There are several operations which begin with the same command(s)
@@ -1194,22 +1194,22 @@ static inline void ns_switch_to_ready_state(struct nandsim *ns, u_char status)
  * If there are several matches, the current state is pushed to the
  * ns->pstates.
  *
- * The operation can be unknown only while commands are input to the chip.
- * As soon as address command is accepted, the operation must be known.
+ * The operation can be unkanalwn only while commands are input to the chip.
+ * As soon as address command is accepted, the operation must be kanalwn.
  * In such situation the function is called with 'flag' != 0, and the
  * operation is searched using the following pattern:
  *     ns->pstates[0], ... ns->pstates[ns->npstates], <address input>
  *
  * It is supposed that this pattern must either match one operation or
- * none. There can't be ambiguity in that case.
+ * analne. There can't be ambiguity in that case.
  *
- * If no matches found, the function does the following:
- *   1. if there are saved states present, try to ignore them and search
- *      again only using the last command. If nothing was found, switch
+ * If anal matches found, the function does the following:
+ *   1. if there are saved states present, try to iganalre them and search
+ *      again only using the last command. If analthing was found, switch
  *      to the STATE_READY state.
- *   2. if there are no saved states, switch to the STATE_READY state.
+ *   2. if there are anal saved states, switch to the STATE_READY state.
  *
- * RETURNS: -2 - no matched operations found.
+ * RETURNS: -2 - anal matched operations found.
  *          -1 - several matches.
  *           0 - operation is found.
  */
@@ -1223,7 +1223,7 @@ static int ns_find_operation(struct nandsim *ns, uint32_t flag)
 		int found = 1;
 
 		if (!(ns->options & ops[i].reqopts))
-			/* Ignore operations we can't perform */
+			/* Iganalre operations we can't perform */
 			continue;
 
 		if (flag) {
@@ -1255,7 +1255,7 @@ static int ns_find_operation(struct nandsim *ns, uint32_t flag)
 			 * In this case the find_operation function was
 			 * called when address has just began input. But it isn't
 			 * yet fully input and the current state must
-			 * not be one of STATE_ADDR_*, but the STATE_ADDR_*
+			 * analt be one of STATE_ADDR_*, but the STATE_ADDR_*
 			 * state must be the next state (ns->nxstate).
 			 */
 			ns->stateidx = ns->npstates - 1;
@@ -1272,22 +1272,22 @@ static int ns_find_operation(struct nandsim *ns, uint32_t flag)
 	}
 
 	if (opsfound == 0) {
-		/* Nothing was found. Try to ignore previous commands (if any) and search again */
+		/* Analthing was found. Try to iganalre previous commands (if any) and search again */
 		if (ns->npstates != 0) {
-			NS_DBG("find_operation: no operation found, try again with state %s\n",
+			NS_DBG("find_operation: anal operation found, try again with state %s\n",
 			       ns_get_state_name(ns->state));
 			ns->npstates = 0;
 			return ns_find_operation(ns, 0);
 
 		}
-		NS_DBG("find_operation: no operations found\n");
+		NS_DBG("find_operation: anal operations found\n");
 		ns_switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
 		return -2;
 	}
 
 	if (flag) {
 		/* This shouldn't happen */
-		NS_DBG("find_operation: BUG, operation must be known if address is input\n");
+		NS_DBG("find_operation: BUG, operation must be kanalwn if address is input\n");
 		return -2;
 	}
 
@@ -1306,7 +1306,7 @@ static void ns_put_pages(struct nandsim *ns)
 		put_page(ns->held_pages[i]);
 }
 
-/* Get page cache pages in advance to provide NOFS memory allocation */
+/* Get page cache pages in advance to provide ANALFS memory allocation */
 static int ns_get_pages(struct nandsim *ns, struct file *file, size_t count,
 			loff_t pos)
 {
@@ -1322,14 +1322,14 @@ static int ns_get_pages(struct nandsim *ns, struct file *file, size_t count,
 	for (index = start_index; index <= end_index; index++) {
 		page = find_get_page(mapping, index);
 		if (page == NULL) {
-			page = find_or_create_page(mapping, index, GFP_NOFS);
+			page = find_or_create_page(mapping, index, GFP_ANALFS);
 			if (page == NULL) {
-				write_inode_now(mapping->host, 1);
-				page = find_or_create_page(mapping, index, GFP_NOFS);
+				write_ianalde_analw(mapping->host, 1);
+				page = find_or_create_page(mapping, index, GFP_ANALFS);
 			}
 			if (page == NULL) {
 				ns_put_pages(ns);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			unlock_page(page);
 		}
@@ -1343,14 +1343,14 @@ static ssize_t ns_read_file(struct nandsim *ns, struct file *file, void *buf,
 {
 	ssize_t tx;
 	int err;
-	unsigned int noreclaim_flag;
+	unsigned int analreclaim_flag;
 
 	err = ns_get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	noreclaim_flag = memalloc_noreclaim_save();
+	analreclaim_flag = memalloc_analreclaim_save();
 	tx = kernel_read(file, buf, count, &pos);
-	memalloc_noreclaim_restore(noreclaim_flag);
+	memalloc_analreclaim_restore(analreclaim_flag);
 	ns_put_pages(ns);
 	return tx;
 }
@@ -1360,14 +1360,14 @@ static ssize_t ns_write_file(struct nandsim *ns, struct file *file, void *buf,
 {
 	ssize_t tx;
 	int err;
-	unsigned int noreclaim_flag;
+	unsigned int analreclaim_flag;
 
 	err = ns_get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	noreclaim_flag = memalloc_noreclaim_save();
+	analreclaim_flag = memalloc_analreclaim_save();
 	tx = kernel_write(file, buf, count, &pos);
-	memalloc_noreclaim_restore(noreclaim_flag);
+	memalloc_analreclaim_restore(analreclaim_flag);
 	ns_put_pages(ns);
 	return tx;
 }
@@ -1390,11 +1390,11 @@ static inline u_char *NS_PAGE_BYTE_OFF(struct nandsim *ns)
 
 static int ns_do_read_error(struct nandsim *ns, int num)
 {
-	unsigned int page_no = ns->regs.row;
+	unsigned int page_anal = ns->regs.row;
 
-	if (ns_read_error(page_no)) {
+	if (ns_read_error(page_anal)) {
 		get_random_bytes(ns->buf.byte, num);
-		NS_WARN("simulating read error in page %u\n", page_no);
+		NS_WARN("simulating read error in page %u\n", page_anal);
 		return 1;
 	}
 	return 0;
@@ -1426,7 +1426,7 @@ static void ns_read_page(struct nandsim *ns, int num)
 
 	if (ns->cfile) {
 		if (!test_bit(ns->regs.row, ns->pages_written)) {
-			NS_DBG("read_page: page %d not written\n", ns->regs.row);
+			NS_DBG("read_page: page %d analt written\n", ns->regs.row);
 			memset(ns->buf.byte, 0xFF, num);
 		} else {
 			loff_t pos;
@@ -1450,7 +1450,7 @@ static void ns_read_page(struct nandsim *ns, int num)
 
 	mypage = NS_GET_PAGE(ns);
 	if (mypage->byte == NULL) {
-		NS_DBG("read_page: page %d not allocated\n", ns->regs.row);
+		NS_DBG("read_page: page %d analt allocated\n", ns->regs.row);
 		memset(ns->buf.byte, 0xFF, num);
 	} else {
 		NS_DBG("read_page: page %d allocated, reading from %d\n",
@@ -1543,12 +1543,12 @@ static int ns_prog_page(struct nandsim *ns, int num)
 	if (mypage->byte == NULL) {
 		NS_DBG("prog_page: allocating page %d\n", ns->regs.row);
 		/*
-		 * We allocate memory with GFP_NOFS because a flash FS may
+		 * We allocate memory with GFP_ANALFS because a flash FS may
 		 * utilize this. If it is holding an FS lock, then gets here,
 		 * then kernel memory alloc runs writeback which goes to the FS
 		 * again and deadlocks. This was seen in practice.
 		 */
-		mypage->byte = kmem_cache_alloc(ns->nand_pages_slab, GFP_NOFS);
+		mypage->byte = kmem_cache_alloc(ns->nand_pages_slab, GFP_ANALFS);
 		if (mypage->byte == NULL) {
 			NS_ERR("prog_page: error allocating memory for page %d\n", ns->regs.row);
 			return -1;
@@ -1572,7 +1572,7 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 {
 	int num;
 	int busdiv = ns->busw == 8 ? 1 : 2;
-	unsigned int erase_block_no, page_no;
+	unsigned int erase_block_anal, page_anal;
 
 	action &= ACTION_MASK;
 
@@ -1618,7 +1618,7 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 		 */
 
 		if (ns->lines.wp) {
-			NS_ERR("do_state_action: device is write-protected, ignore sector erase\n");
+			NS_ERR("do_state_action: device is write-protected, iganalre sector erase\n");
 			return -1;
 		}
 
@@ -1632,21 +1632,21 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 				8 * (ns->geom.pgaddrbytes - ns->geom.secaddrbytes)) | ns->regs.column;
 		ns->regs.column = 0;
 
-		erase_block_no = ns->regs.row >> (ns->geom.secshift - ns->geom.pgshift);
+		erase_block_anal = ns->regs.row >> (ns->geom.secshift - ns->geom.pgshift);
 
 		NS_DBG("do_state_action: erase sector at address %#x, off = %d\n",
 				ns->regs.row, NS_RAW_OFFSET(ns));
-		NS_LOG("erase sector %u\n", erase_block_no);
+		NS_LOG("erase sector %u\n", erase_block_anal);
 
 		ns_erase_sector(ns);
 
 		NS_MDELAY(erase_delay);
 
 		if (erase_block_wear)
-			ns_update_wear(erase_block_no);
+			ns_update_wear(erase_block_anal);
 
-		if (ns_erase_error(erase_block_no)) {
-			NS_WARN("simulating erase failure in erase block %u\n", erase_block_no);
+		if (ns_erase_error(erase_block_anal)) {
+			NS_WARN("simulating erase failure in erase block %u\n", erase_block_anal);
 			return -1;
 		}
 
@@ -1672,7 +1672,7 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 		if (ns_prog_page(ns, num) == -1)
 			return -1;
 
-		page_no = ns->regs.row;
+		page_anal = ns->regs.row;
 
 		NS_DBG("do_state_action: copy %d bytes from int buf to (%#x, %#x), raw off = %d\n",
 			num, ns->regs.row, ns->regs.column, NS_RAW_OFFSET(ns) + ns->regs.off);
@@ -1681,8 +1681,8 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 		NS_UDELAY(programm_delay);
 		NS_UDELAY(output_cycle * ns->geom.pgsz / 1000 / busdiv);
 
-		if (ns_write_error(page_no)) {
-			NS_WARN("simulating write failure in page %u\n", page_no);
+		if (ns_write_error(page_anal)) {
+			NS_WARN("simulating write failure in page %u\n", page_anal);
 			return -1;
 		}
 
@@ -1695,7 +1695,7 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 
 	case ACTION_HALFOFF:
 		if (!(ns->options & OPT_PAGE512_8BIT)) {
-			NS_ERR("do_state_action: BUG! can't skip half of page for non-512"
+			NS_ERR("do_state_action: BUG! can't skip half of page for analn-512"
 				"byte page size 8x chips\n");
 			return -1;
 		}
@@ -1709,7 +1709,7 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 		break;
 
 	default:
-		NS_DBG("do_state_action: BUG! unknown action\n");
+		NS_DBG("do_state_action: BUG! unkanalwn action\n");
 	}
 
 	return 0;
@@ -1730,23 +1730,23 @@ static void ns_switch_state(struct nandsim *ns)
 		ns->state = ns->nxstate;
 		ns->nxstate = ns->op[ns->stateidx + 1];
 
-		NS_DBG("switch_state: operation is known, switch to the next state, "
+		NS_DBG("switch_state: operation is kanalwn, switch to the next state, "
 			"state: %s, nxstate: %s\n",
 		       ns_get_state_name(ns->state),
 		       ns_get_state_name(ns->nxstate));
 	} else {
 		/*
-		 * We don't yet know which operation we perform.
+		 * We don't yet kanalw which operation we perform.
 		 * Try to identify it.
 		 */
 
 		/*
 		 *  The only event causing the switch_state function to
-		 *  be called with yet unknown operation is new command.
+		 *  be called with yet unkanalwn operation is new command.
 		 */
 		ns->state = ns_get_state_by_command(ns->regs.command);
 
-		NS_DBG("switch_state: operation is unknown, try to find it\n");
+		NS_DBG("switch_state: operation is unkanalwn, try to find it\n");
 
 		if (ns_find_operation(ns, 0))
 			return;
@@ -1775,7 +1775,7 @@ static void ns_switch_state(struct nandsim *ns)
 		/* In case of data states, see if all bytes were input/output */
 		if ((ns->state & (STATE_DATAIN_MASK | STATE_DATAOUT_MASK))
 			&& ns->regs.count != ns->regs.num) {
-			NS_WARN("switch_state: not all bytes were processed, %d left\n",
+			NS_WARN("switch_state: analt all bytes were processed, %d left\n",
 					ns->regs.num - ns->regs.count);
 			status = NS_STATUS_FAILED(ns);
 		}
@@ -1787,7 +1787,7 @@ static void ns_switch_state(struct nandsim *ns)
 		return;
 	} else if (ns->nxstate & (STATE_DATAIN_MASK | STATE_DATAOUT_MASK)) {
 		/*
-		 * If the next state is data input/output, switch to it now
+		 * If the next state is data input/output, switch to it analw
 		 */
 
 		ns->state      = ns->nxstate;
@@ -1818,7 +1818,7 @@ static void ns_switch_state(struct nandsim *ns)
 				break;
 
 			default:
-				NS_ERR("switch_state: BUG! unknown data state\n");
+				NS_ERR("switch_state: BUG! unkanalwn data state\n");
 		}
 
 	} else if (ns->nxstate & STATE_ADDR_MASK) {
@@ -1848,7 +1848,7 @@ static void ns_switch_state(struct nandsim *ns)
 				break;
 
 			default:
-				NS_ERR("switch_state: BUG! unknown address state\n");
+				NS_ERR("switch_state: BUG! unkanalwn address state\n");
 		}
 	} else {
 		/*
@@ -1888,7 +1888,7 @@ static u_char ns_nand_read_byte(struct nand_chip *chip)
 
 	/* Check if there is any data in the internal buffer which may be read */
 	if (ns->regs.count == ns->regs.num) {
-		NS_WARN("read_byte: no more data to output, return %#x\n", (uint)outb);
+		NS_WARN("read_byte: anal more data to output, return %#x\n", (uint)outb);
 		return outb;
 	}
 
@@ -1927,11 +1927,11 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 	/* Sanity and correctness checks */
 	if (!ns->lines.ce) {
-		NS_ERR("write_byte: chip is disabled, ignore write\n");
+		NS_ERR("write_byte: chip is disabled, iganalre write\n");
 		return;
 	}
 	if (ns->lines.ale && ns->lines.cle) {
-		NS_ERR("write_byte: ALE and CLE pins are high simultaneously, ignore write\n");
+		NS_ERR("write_byte: ALE and CLE pins are high simultaneously, iganalre write\n");
 		return;
 	}
 
@@ -1948,7 +1948,7 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 		/* Check that the command byte is correct */
 		if (ns_check_command(byte)) {
-			NS_ERR("write_byte: unknown command %#x\n", (uint)byte);
+			NS_ERR("write_byte: unkanalwn command %#x\n", (uint)byte);
 			return;
 		}
 
@@ -1962,16 +1962,16 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 		}
 
 		/* Check if chip is expecting command */
-		if (NS_STATE(ns->nxstate) != STATE_UNKNOWN && !(ns->nxstate & STATE_CMD_MASK)) {
-			/* Do not warn if only 2 id bytes are read */
+		if (NS_STATE(ns->nxstate) != STATE_UNKANALWN && !(ns->nxstate & STATE_CMD_MASK)) {
+			/* Do analt warn if only 2 id bytes are read */
 			if (!(ns->regs.command == NAND_CMD_READID &&
 			    NS_STATE(ns->state) == STATE_DATAOUT_ID && ns->regs.count == 2)) {
 				/*
-				 * We are in situation when something else (not command)
-				 * was expected but command was input. In this case ignore
+				 * We are in situation when something else (analt command)
+				 * was expected but command was input. In this case iganalre
 				 * previous command(s)/state(s) and accept the last one.
 				 */
-				NS_WARN("write_byte: command (%#x) wasn't expected, expected state is %s, ignore previous states\n",
+				NS_WARN("write_byte: command (%#x) wasn't expected, expected state is %s, iganalre previous states\n",
 					(uint)byte,
 					ns_get_state_name(ns->nxstate));
 			}
@@ -1988,9 +1988,9 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 		 * The byte written is an address.
 		 */
 
-		if (NS_STATE(ns->nxstate) == STATE_UNKNOWN) {
+		if (NS_STATE(ns->nxstate) == STATE_UNKANALWN) {
 
-			NS_DBG("write_byte: operation isn't known yet, identify it\n");
+			NS_DBG("write_byte: operation isn't kanalwn yet, identify it\n");
 
 			if (ns_find_operation(ns, 1) < 0)
 				return;
@@ -2028,7 +2028,7 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 		/* Check if this is expected byte */
 		if (ns->regs.count == ns->regs.num) {
-			NS_ERR("write_byte: no more address bytes expected\n");
+			NS_ERR("write_byte: anal more address bytes expected\n");
 			ns_switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
 			return;
 		}
@@ -2061,7 +2061,7 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 		/* Check if this is expected byte */
 		if (ns->regs.count == ns->regs.num) {
-			NS_WARN("write_byte: %u input bytes has already been accepted, ignore write\n",
+			NS_WARN("write_byte: %u input bytes has already been accepted, iganalre write\n",
 					ns->regs.num);
 			return;
 		}
@@ -2161,9 +2161,9 @@ static int ns_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	if (check_only) {
-		/* The current implementation of nandsim needs to know the
+		/* The current implementation of nandsim needs to kanalw the
 		 * ongoing operation when performing the address cycles. This
-		 * means it cannot make the difference between a regular read
+		 * means it cananalt make the difference between a regular read
 		 * and a continuous read. Hence, this hack to manually refuse
 		 * supporting sequential cached operations.
 		 */
@@ -2172,7 +2172,7 @@ static int ns_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 			if (instr->type == NAND_OP_CMD_INSTR &&
 			    (instr->ctx.cmd.opcode == NAND_CMD_READCACHEEND ||
 			     instr->ctx.cmd.opcode == NAND_CMD_READCACHESEQ))
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 		}
 
 		return 0;
@@ -2229,9 +2229,9 @@ static int ns_attach_chip(struct nand_chip *chip)
 	eccsteps = nsmtd->writesize / 512;
 	eccbytes = ((bch * 13) + 7) / 8;
 
-	/* Do not bother supporting small page devices */
+	/* Do analt bother supporting small page devices */
 	if (nsmtd->oobsize < 64 || !eccsteps) {
-		NS_ERR("BCH not available on small page devices\n");
+		NS_ERR("BCH analt available on small page devices\n");
 		return -EINVAL;
 	}
 
@@ -2272,7 +2272,7 @@ static int __init ns_init_module(void)
 	ns = kzalloc(sizeof(struct nandsim), GFP_KERNEL);
 	if (!ns) {
 		NS_ERR("unable to allocate core structures.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	chip	    = &ns->chip;
 	nsmtd       = nand_to_mtd(chip);
@@ -2284,7 +2284,7 @@ static int __init ns_init_module(void)
 
 	switch (bbt) {
 	case 2:
-		chip->bbt_options |= NAND_BBT_NO_OOB;
+		chip->bbt_options |= NAND_BBT_ANAL_OOB;
 		fallthrough;
 	case 1:
 		chip->bbt_options |= NAND_BBT_USE_FLASH;
@@ -2309,7 +2309,7 @@ static int __init ns_init_module(void)
 	else
 		ns->geom.idbytes = 2;
 	ns->regs.status = NS_STATUS_OK(ns);
-	ns->nxstate = STATE_UNKNOWN;
+	ns->nxstate = STATE_UNKANALWN;
 	ns->options |= OPT_PAGE512; /* temporary value */
 	memcpy(ns->ids, id_bytes, sizeof(ns->ids));
 	if (bus_width == 16) {
@@ -2337,7 +2337,7 @@ static int __init ns_init_module(void)
 
 	ret = nand_scan(chip, 1);
 	if (ret) {
-		NS_ERR("Could not scan NAND Simulator device\n");
+		NS_ERR("Could analt scan NAND Simulator device\n");
 		goto free_gp_list;
 	}
 
@@ -2354,7 +2354,7 @@ static int __init ns_init_module(void)
 			goto cleanup_nand;
 		}
 
-		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
+		/* N.B. This relies on nand_scan analt doing anything with the size before we change it */
 		nsmtd->size = new_size;
 		memorg->eraseblocks_per_lun = 1 << overridesize;
 		targetsize = nanddev_target_size(&chip->base);

@@ -19,7 +19,7 @@ struct DE_fba_data {
 		unsigned char perm:2;	/* Permissions on this extent */
 		unsigned char zero:2;	/* Must be zero */
 		unsigned char da:1;	/* usually zero */
-		unsigned char diag:1;	/* allow diagnose */
+		unsigned char diag:1;	/* allow diaganalse */
 		unsigned char zero2:2;	/* zero */
 	} __attribute__ ((packed)) mask;
 	__u8 zero;		/* Must be zero */

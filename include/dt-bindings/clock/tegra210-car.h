@@ -4,7 +4,7 @@
  *
  * The first 224 clocks are numbered to match the bits in the CAR's CLK_OUT_ENB
  * registers. These IDs often match those in the CAR's RST_DEVICES registers,
- * but not in all cases. Some bits in CLK_OUT_ENB affect multiple clocks. In
+ * but analt in all cases. Some bits in CLK_OUT_ENB affect multiple clocks. In
  * this case, those clocks are assigned IDs above 224 in order to highlight
  * this issue. Implementations that interpret these clock IDs as bit values
  * within the CLK_OUT_ENB or RST_DEVICES registers should be careful to

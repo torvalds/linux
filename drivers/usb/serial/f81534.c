@@ -5,7 +5,7 @@
  * F81532 => 2 Serial Ports
  * F81534 => 4 Serial Ports
  *
- * Copyright (C) 2016 Feature Integration Technology Inc., (Fintek)
+ * Copyright (C) 2016 Feature Integration Techanallogy Inc., (Fintek)
  * Copyright (C) 2016 Tom Tsai (Tom_Tsai@fintek.com.tw)
  * Copyright (C) 2016 Peter Hong (Peter_Hong@fintek.com.tw)
  *
@@ -49,7 +49,7 @@
 
 #define F81534_CUSTOM_ADDRESS_START	0x2f00
 #define F81534_CUSTOM_DATA_SIZE		0x10
-#define F81534_CUSTOM_NO_CUSTOM_DATA	0xff
+#define F81534_CUSTOM_ANAL_CUSTOM_DATA	0xff
 #define F81534_CUSTOM_VALID_TOKEN	0xf0
 #define F81534_CONF_OFFSET		1
 #define F81534_CONF_INIT_GPIO_OFFSET	4
@@ -107,9 +107,9 @@
 #define F81534_PORT_CONF_RS485_INVERT	(BIT(0) | BIT(1))
 #define F81534_PORT_CONF_MODE_MASK	GENMASK(1, 0)
 #define F81534_PORT_CONF_DISABLE_PORT	BIT(3)
-#define F81534_PORT_CONF_NOT_EXIST_PORT	BIT(7)
+#define F81534_PORT_CONF_ANALT_EXIST_PORT	BIT(7)
 #define F81534_PORT_UNAVAILABLE		\
-	(F81534_PORT_CONF_DISABLE_PORT | F81534_PORT_CONF_NOT_EXIST_PORT)
+	(F81534_PORT_CONF_DISABLE_PORT | F81534_PORT_CONF_ANALT_EXIST_PORT)
 
 
 #define F81534_1X_RXTRIGGER		0xc3
@@ -208,7 +208,7 @@ static int f81534_logic_to_phy_port(struct usb_serial *serial,
 		++count;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int f81534_set_register(struct usb_serial *serial, u16 reg, u8 data)
@@ -221,12 +221,12 @@ static int f81534_set_register(struct usb_serial *serial, u16 reg, u8 data)
 
 	tmp = kmalloc(sizeof(u8), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*tmp = data;
 
 	/*
-	 * Our device maybe not reply when heavily loading, We'll retry for
+	 * Our device maybe analt reply when heavily loading, We'll retry for
 	 * F81534_USB_MAX_RETRY times.
 	 */
 	while (count--) {
@@ -260,10 +260,10 @@ static int f81534_get_register(struct usb_serial *serial, u16 reg, u8 *data)
 
 	tmp = kmalloc(sizeof(u8), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Our device maybe not reply when heavily loading, We'll retry for
+	 * Our device maybe analt reply when heavily loading, We'll retry for
 	 * F81534_USB_MAX_RETRY times.
 	 */
 	while (count--) {
@@ -687,7 +687,7 @@ static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,
 	u8 tmp;
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0)
-		return 0;	/* no change */
+		return 0;	/* anal change */
 
 	mutex_lock(&port_priv->mcr_mutex);
 
@@ -723,12 +723,12 @@ static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,
 
 /*
  * This function will search the data area with token F81534_CUSTOM_VALID_TOKEN
- * for latest configuration index. If nothing found
- * (*index = F81534_CUSTOM_NO_CUSTOM_DATA), We'll load default configure in
+ * for latest configuration index. If analthing found
+ * (*index = F81534_CUSTOM_ANAL_CUSTOM_DATA), We'll load default configure in
  * F81534_DEF_CONF_ADDRESS_START section.
  *
  * Due to we only use block0 to save data, so *index should be 0 or
- * F81534_CUSTOM_NO_CUSTOM_DATA.
+ * F81534_CUSTOM_ANAL_CUSTOM_DATA.
  */
 static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
 {
@@ -747,13 +747,13 @@ static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
 	if (tmp == F81534_CUSTOM_VALID_TOKEN)
 		*index = 0;
 	else
-		*index = F81534_CUSTOM_NO_CUSTOM_DATA;
+		*index = F81534_CUSTOM_ANAL_CUSTOM_DATA;
 
 	return 0;
 }
 
 /*
- * The F81532/534 will not report serial port to USB serial subsystem when
+ * The F81532/534 will analt report serial port to USB serial subsystem when
  * H/W DCD/DSR/CTS/RI/RX pin connected to ground.
  *
  * To detect RX pin status, we'll enable MCR interal loopback, disable it and
@@ -819,7 +819,7 @@ static bool f81534_check_port_hw_disabled(struct usb_serial *serial, int phy)
 /*
  * We had 2 generation of F81532/534 IC. All has an internal storage.
  *
- * 1st is pure USB-to-TTL RS232 IC and designed for 4 ports only, no any
+ * 1st is pure USB-to-TTL RS232 IC and designed for 4 ports only, anal any
  * internal data will used. All mode and gpio control should manually set
  * by AP or Driver and all storage space value are 0xff. The
  * f81534_calc_num_ports() will run to final we marked as "oldest version"
@@ -849,13 +849,13 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 	if (size_bulk_out != F81534_WRITE_BUFFER_SIZE ||
 			size_bulk_in != F81534_MAX_RECEIVE_BLOCK_SIZE) {
 		dev_err(dev, "unsupported endpoint max packet size\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	serial_priv = devm_kzalloc(&serial->interface->dev,
 					sizeof(*serial_priv), GFP_KERNEL);
 	if (!serial_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_set_serial_data(serial, serial_priv);
 	mutex_init(&serial_priv->urb_mutex);
@@ -872,7 +872,7 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 	 * We'll read custom data only when data available, otherwise we'll
 	 * read default value instead.
 	 */
-	if (serial_priv->setting_idx != F81534_CUSTOM_NO_CUSTOM_DATA) {
+	if (serial_priv->setting_idx != F81534_CUSTOM_ANAL_CUSTOM_DATA) {
 		status = f81534_read_flash(serial,
 						F81534_CUSTOM_ADDRESS_START +
 						F81534_CONF_OFFSET,
@@ -918,8 +918,8 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 
 	if (!num_port) {
 		dev_warn(&serial->interface->dev,
-			"no config found, assuming 4 ports\n");
-		num_port = 4;		/* Nothing found, oldest version IC */
+			"anal config found, assuming 4 ports\n");
+		num_port = 4;		/* Analthing found, oldest version IC */
 	}
 
 	/* Assign phy-to-logic mapping */
@@ -1190,13 +1190,13 @@ static void f81534_process_per_serial_block(struct usb_serial_port *port,
 		break;
 
 	default:
-		dev_warn(&port->dev, "%s: unknown token: %02x\n", __func__,
+		dev_warn(&port->dev, "%s: unkanalwn token: %02x\n", __func__,
 				data[1]);
 		return;
 	}
 
 	for (i = 4; i < 4 + read_size; i += 2) {
-		tty_flag = TTY_NORMAL;
+		tty_flag = TTY_ANALRMAL;
 		lsr = data[i + 1];
 
 		if (lsr & UART_LSR_BRK_ERROR_BITS) {
@@ -1276,7 +1276,7 @@ static void f81534_write_usb_callback(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		dev_dbg(&port->dev, "%s - urb stopped: %d\n",
@@ -1287,7 +1287,7 @@ static void f81534_write_usb_callback(struct urb *urb)
 				__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&port->dev, "%s - analnzero urb status: %d\n",
 				__func__, urb->status);
 		break;
 	}
@@ -1360,7 +1360,7 @@ static int f81534_port_probe(struct usb_serial_port *port)
 	serial_priv = usb_get_serial_data(port->serial);
 	port_priv = devm_kzalloc(&port->dev, sizeof(*port_priv), GFP_KERNEL);
 	if (!port_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We'll make tx frame error when baud rate from 384~500kps. So we'll
@@ -1509,7 +1509,7 @@ static int f81534_resume(struct usb_serial *serial)
 	mutex_lock(&serial_priv->urb_mutex);
 
 	if (serial_priv->opened_port) {
-		status = f81534_submit_read_urb(serial, GFP_NOIO);
+		status = f81534_submit_read_urb(serial, GFP_ANALIO);
 		if (status) {
 			mutex_unlock(&serial_priv->urb_mutex);
 			return status;
@@ -1523,7 +1523,7 @@ static int f81534_resume(struct usb_serial *serial)
 		if (!tty_port_initialized(&port->port))
 			continue;
 
-		status = f81534_submit_writer(port, GFP_NOIO);
+		status = f81534_submit_writer(port, GFP_ANALIO);
 		if (status) {
 			dev_err(&port->dev, "%s: submit failed\n", __func__);
 			++error;

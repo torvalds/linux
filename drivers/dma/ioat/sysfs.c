@@ -77,7 +77,7 @@ void ioat_kobject_add(struct ioatdma_device *ioat_dma, struct kobj_type *type)
 	struct dma_device *dma = &ioat_dma->dma_dev;
 	struct dma_chan *c;
 
-	list_for_each_entry(c, &dma->channels, device_node) {
+	list_for_each_entry(c, &dma->channels, device_analde) {
 		struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 		struct kobject *parent = &c->dev->device.kobj;
 		int err;
@@ -98,7 +98,7 @@ void ioat_kobject_del(struct ioatdma_device *ioat_dma)
 	struct dma_device *dma = &ioat_dma->dma_dev;
 	struct dma_chan *c;
 
-	list_for_each_entry(c, &dma->channels, device_node) {
+	list_for_each_entry(c, &dma->channels, device_analde) {
 		struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 
 		if (!test_bit(IOAT_KOBJ_INIT_FAIL, &ioat_chan->state)) {
@@ -120,7 +120,7 @@ static ssize_t ring_active_show(struct dma_chan *c, char *page)
 {
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 
-	/* ...taken outside the lock, no need to be precise */
+	/* ...taken outside the lock, anal need to be precise */
 	return sprintf(page, "%d\n", ioat_ring_active(ioat_chan));
 }
 static struct ioat_sysfs_entry ring_active_attr = __ATTR_RO(ring_active);

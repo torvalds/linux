@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -50,7 +50,7 @@ static inline void submit_dmub_read_modify_write(
 	cmd_buf->header.payload_bytes =
 			sizeof(struct dmub_cmd_read_modify_write_sequence) * offload->reg_seq_count;
 
-	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_ANAL_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -67,7 +67,7 @@ static inline void submit_dmub_burst_write(
 	cmd_buf->header.payload_bytes =
 			sizeof(uint32_t) * offload->reg_seq_count;
 
-	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_ANAL_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -80,7 +80,7 @@ static inline void submit_dmub_reg_wait(
 {
 	struct dmub_rb_cmd_reg_wait *cmd_buf = &offload->cmd_data.reg_wait;
 
-	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_ANAL_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 	offload->reg_seq_count = 0;
@@ -399,7 +399,7 @@ uint32_t generic_reg_get8(const struct dc_context *ctx, uint32_t addr,
 	*field_value8 = get_reg_field_value_ex(reg_val, mask8, shift8);
 	return reg_val;
 }
-/* note:  va version of this is pretty bad idea, since there is a output parameter pass by pointer
+/* analte:  va version of this is pretty bad idea, since there is a output parameter pass by pointer
  * compiler won't be able to check for size match and is prone to stack corruption type of bugs
 
 uint32_t generic_reg_get(const struct dc_context *ctx,
@@ -496,7 +496,7 @@ uint32_t generic_read_indirect_reg(const struct dc_context *ctx,
 {
 	uint32_t value = 0;
 
-	// when reg read, there should not be any offload.
+	// when reg read, there should analt be any offload.
 	if (ctx->dmub_srv &&
 	    ctx->dmub_srv->reg_helper_offload.gather_in_progress) {
 		ASSERT(false);
@@ -640,7 +640,7 @@ void reg_sequence_start_gather(const struct dc_context *ctx)
 		struct dc_reg_helper_state *offload =
 			&ctx->dmub_srv->reg_helper_offload;
 
-		/* caller sequence mismatch.  need to debug caller.  offload will not work!!! */
+		/* caller sequence mismatch.  need to debug caller.  offload will analt work!!! */
 		ASSERT(!offload->gather_in_progress);
 
 		offload->gather_in_progress = true;
@@ -748,6 +748,6 @@ char *dce_version_to_string(const int version)
 	case DCN_VERSION_3_51:
 		return "DCN 3.5.1";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }

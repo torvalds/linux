@@ -73,7 +73,7 @@ Playback on PCM0 to Headset would look like :-
                       *           * <----DAI5-----> FM
                       *************
 
-The headset is removed from the jack by user so the speakers must now be used :-
+The headset is removed from the jack by user so the speakers must analw be used :-
 ::
 
                       *************
@@ -97,7 +97,7 @@ The audio driver processes this as follows :-
 2. Machine driver OR audio HAL disables the Headset path.
 
 3. DPCM runs the PCM trigger(stop), hw_free(), shutdown() operations on DAI0
-   for headset since the path is now disabled.
+   for headset since the path is analw disabled.
 
 4. Machine driver or audio HAL enables the speaker path.
 
@@ -106,14 +106,14 @@ The audio driver processes this as follows :-
 
 In this example, the machine driver or userspace audio HAL can alter the routing
 and then DPCM will take care of managing the DAI PCM operations to either bring
-the link up or down. Audio playback does not stop during this transition.
+the link up or down. Audio playback does analt stop during this transition.
 
 
 
 DPCM machine driver
 ===================
 
-The DPCM enabled ASoC machine driver is similar to normal machine drivers
+The DPCM enabled ASoC machine driver is similar to analrmal machine drivers
 except that we also have to :-
 
 1. Define the FE and BE DAI links.
@@ -182,11 +182,11 @@ The BE DAIs are configured as follows :-
 		.name = "Codec Headset",
 		.cpu_dai_name = "ssp-dai.0",
 		.platform_name = "snd-soc-dummy",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.codec_name = "rt5640.0-001c",
 		.codec_dai_name = "rt5640-aif1",
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
+		.iganalre_suspend = 1,
+		.iganalre_pmdown_time = 1,
 		.be_hw_params_fixup = hswult_ssp0_fixup,
 		.ops = &haswell_ops,
 		.dpcm_playback = 1,
@@ -196,11 +196,11 @@ The BE DAIs are configured as follows :-
   };
 
 This BE DAI link connects DAI0 to the codec (in this case RT5460 AIF1). It sets
-the ``no_pcm`` flag to mark it has a BE and sets flags for supported stream
+the ``anal_pcm`` flag to mark it has a BE and sets flags for supported stream
 directions using ``dpcm_playback`` and ``dpcm_capture`` above.
 
-The BE has also flags set for ignoring suspend and PM down time. This allows
-the BE to work in a hostless mode where the host CPU is not transferring data
+The BE has also flags set for iganalring suspend and PM down time. This allows
+the BE to work in a hostless mode where the host CPU is analt transferring data
 like a BT phone call :-
 ::
 
@@ -264,7 +264,7 @@ The other PCM operation are the same as for regular DAI links. Use as necessary.
 Widget graph connections
 ------------------------
 
-The BE DAI links will normally be connected to the graph at initialisation time
+The BE DAI links will analrmally be connected to the graph at initialisation time
 by the ASoC DAPM core. However, if the BE codec or BE DAI is a dummy then this
 has to be set explicitly in the driver :-
 ::
@@ -298,8 +298,8 @@ defined for each BE and each stream direction. e.g for BE DAI0 above we would
 have :-
 ::
 
-  SND_SOC_DAPM_AIF_IN("DAI0 RX", NULL, 0, SND_SOC_NOPM, 0, 0),
-  SND_SOC_DAPM_AIF_OUT("DAI0 TX", NULL, 0, SND_SOC_NOPM, 0, 0),
+  SND_SOC_DAPM_AIF_IN("DAI0 RX", NULL, 0, SND_SOC_ANALPM, 0, 0),
+  SND_SOC_DAPM_AIF_OUT("DAI0 TX", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
 The BE AIF are used to connect the DSP graph to the graphs for the other
 component drivers (e.g. codec graph).
@@ -308,7 +308,7 @@ component drivers (e.g. codec graph).
 Hostless PCM streams
 ====================
 
-A hostless PCM stream is a stream that is not routed through the host CPU. An
+A hostless PCM stream is a stream that is analt routed through the host CPU. An
 example of this would be a phone call from handset to modem.
 ::
 
@@ -375,15 +375,15 @@ The machine driver sets some additional parameters to the DAI link i.e.
 
 These parameters are used to configure the DAI hw_params() when DAPM detects a
 valid path and then calls the PCM operations to start the link. DAPM will also
-call the appropriate PCM operations to disable the DAI when the path is no
+call the appropriate PCM operations to disable the DAI when the path is anal
 longer valid.
 
 
 Hostless FE
 -----------
 
-The DAI link(s) are enabled by a FE that does not read or write any PCM data.
+The DAI link(s) are enabled by a FE that does analt read or write any PCM data.
 This means creating a new FE that is connected with a virtual path to both
 DAI links. The DAI links will be started when the FE PCM is started and stopped
-when the FE PCM is stopped. Note that the FE PCM cannot read or write data in
+when the FE PCM is stopped. Analte that the FE PCM cananalt read or write data in
 this configuration.

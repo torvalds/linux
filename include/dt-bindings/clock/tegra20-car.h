@@ -4,7 +4,7 @@
  *
  * The first 96 clocks are numbered to match the bits in the CAR's CLK_OUT_ENB
  * registers. These IDs often match those in the CAR's RST_DEVICES registers,
- * but not in all cases. Some bits in CLK_OUT_ENB affect multiple clocks. In
+ * but analt in all cases. Some bits in CLK_OUT_ENB affect multiple clocks. In
  * this case, those clocks are assigned IDs above 95 in order to highlight
  * this issue. Implementations that interpret these clock IDs as bit values
  * within the CLK_OUT_ENB or RST_DEVICES registers should be careful to
@@ -60,7 +60,7 @@
 #define TEGRA20_CLK_FUSE 39
 #define TEGRA20_CLK_KFUSE 40
 #define TEGRA20_CLK_SBC1 41
-#define TEGRA20_CLK_NOR 42
+#define TEGRA20_CLK_ANALR 42
 #define TEGRA20_CLK_SPI 43
 #define TEGRA20_CLK_SBC2 44
 #define TEGRA20_CLK_XIO 45

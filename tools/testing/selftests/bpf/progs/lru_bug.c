@@ -27,8 +27,8 @@ int printk(void *ctx)
 	return 0;
 }
 
-SEC("fentry/do_nanosleep")
-int nanosleep(void *ctx)
+SEC("fentry/do_naanalsleep")
+int naanalsleep(void *ctx)
 {
 	struct map_value val = {}, *v;
 	struct task_struct *current;

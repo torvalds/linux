@@ -12,8 +12,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "SiPeed MAIXDUINO";
-	compatible = "sipeed,maixduino", "canaan,kendryte-k210";
+	model = "SiPeed MAIXDUIANAL";
+	compatible = "sipeed,maixduianal", "canaan,kendryte-k210";
 
 	chosen {
 		bootargs = "earlycon console=ttySIF0";
@@ -175,7 +175,7 @@
 
 &spi3 {
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		spi-tx-bus-width = <4>;

@@ -9,13 +9,13 @@
 
 /*
  * void *memcpy(void *dst, const void *src, size_t n);
- * No overlap between the memory of DST and of SRC are assumed.
+ * Anal overlap between the memory of DST and of SRC are assumed.
  */
 
 #include <linux/linkage.h>
 ENTRY(memcpy)
 	tst	r6,r6
-	bt/s	9f		! if n=0, do nothing
+	bt/s	9f		! if n=0, do analthing
 	 mov	r4,r0
 	sub	r4,r5		! From here, r5 has the distance to r0
 	add	r6,r0		! From here, r0 points the end of copying point
@@ -59,7 +59,7 @@ jmptable:
 	 mov.b	r1,@-r0
 9:
 	rts
-	 nop
+	 analp
 
 case0:
 	!
@@ -95,7 +95,7 @@ case0:
 
 case1:
 	!
-	!	GHIJ KLMN OPQR -->  ...G HIJK LMNO PQR.
+	!	GHIJ KLMN OPQR -->  ...G HIJK LMANAL PQR.
 	!
 	! First, align to long word boundary
 	mov	r0,r3
@@ -132,7 +132,7 @@ case1:
 	mov.l	@(r0,r5),r1	! KLMN
 	mov	r1,r6
 	shll8	r6		! LMNx
-	or	r6,r3		! LMNO
+	or	r6,r3		! LMANAL
 	cmp/hi	r2,r0
 	bt/s	3b
 	 mov.l	r3,@-r0
@@ -147,7 +147,7 @@ case1:
 
 case2:
 	!
-	!	GHIJ KLMN OPQR -->  ..GH IJKL MNOP QR..
+	!	GHIJ KLMN OPQR -->  ..GH IJKL MANALP QR..
 	!
 	! First, align to word boundary
 	tst	#1,r0
@@ -176,7 +176,7 @@ case2:
 
 case3:
 	!
-	!	GHIJ KLMN OPQR -->  .GHI JKLM NOPQ R...
+	!	GHIJ KLMN OPQR -->  .GHI JKLM ANALPQ R...
 	!
 	! First, align to long word boundary
 	mov	r0,r3
@@ -214,7 +214,7 @@ case3:
 	mov	r1,r6
 	shll16	r6
 	shll8	r6		! Nxxx
-	or	r6,r3		! NOPQ
+	or	r6,r3		! ANALPQ
 	cmp/hi	r2,r0
 	bt/s	3b
 	 mov.l	r3,@-r0

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -112,7 +112,7 @@ static int is_sqp(enum ib_qp_type qp_type)
  * @bytes_copied: number of bytes to copy (return value)
  *
  * Copies from start of WQE bcnt or less bytes.
- * Does not gurantee to copy the entire WQE.
+ * Does analt gurantee to copy the entire WQE.
  *
  * Return: zero on success, or an error code.
  */
@@ -207,7 +207,7 @@ static int mlx5_ib_read_user_wqe_sq(struct mlx5_ib_qp *qp, int wqe_index,
 	ds = be32_to_cpu(ctrl->qpn_ds) & MLX5_WQE_CTRL_DS_MASK;
 	wqe_length = ds * MLX5_WQE_DS_UNITS;
 
-	/* if we copied enough then we are done */
+	/* if we copied eanalugh then we are done */
 	if (bytes_copied >= wqe_length) {
 		*bc = bytes_copied;
 		return 0;
@@ -277,7 +277,7 @@ int mlx5_ib_read_wqe_rq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,
 		return -EINVAL;
 
 	if (!umem)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mlx5_ib_read_user_wqe_rq(qp, wqe_index, buffer, buflen, bc);
 }
@@ -309,7 +309,7 @@ int mlx5_ib_read_wqe_srq(struct mlx5_ib_srq *srq, int wqe_index, void *buffer,
 		return -EINVAL;
 
 	if (!umem)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mlx5_ib_read_user_wqe_srq(srq, wqe_index, buffer, buflen, bc);
 }
@@ -414,11 +414,11 @@ static void mlx5_ib_qp_event(struct mlx5_core_qp *qp, int type)
 	}
 
 	if (!ibqp->event_handler)
-		goto out_no_handler;
+		goto out_anal_handler;
 
 	qpe_work = kzalloc(sizeof(*qpe_work), GFP_ATOMIC);
 	if (!qpe_work)
-		goto out_no_handler;
+		goto out_anal_handler;
 
 	qpe_work->qp = qp;
 	qpe_work->type = type;
@@ -426,7 +426,7 @@ static void mlx5_ib_qp_event(struct mlx5_core_qp *qp, int type)
 	queue_work(mlx5_ib_qp_event_wq, &qpe_work->work);
 	return;
 
-out_no_handler:
+out_anal_handler:
 	mlx5_core_res_put(&qp->common);
 }
 
@@ -619,12 +619,12 @@ static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 			    attr->cap.max_send_wr, wqe_size, MLX5_SEND_WQE_BB,
 			    qp->sq.wqe_cnt,
 			    1 << MLX5_CAP_GEN(dev->mdev, log_max_qp_sz));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
 	qp->sq.max_gs = get_send_sge(attr, wqe_size);
 	if (qp->sq.max_gs < attr->cap.max_send_sge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attr->cap.max_send_sge = qp->sq.max_gs;
 	qp->sq.max_post = wq_size / wqe_size;
@@ -648,7 +648,7 @@ static int set_user_buf_size(struct mlx5_ib_dev *dev,
 	}
 
 	if (ucmd->sq_wqe_count && !is_power_of_2(ucmd->sq_wqe_count)) {
-		mlx5_ib_warn(dev, "sq_wqe_count %d is not a power of two\n",
+		mlx5_ib_warn(dev, "sq_wqe_count %d is analt a power of two\n",
 			     ucmd->sq_wqe_count);
 		return -EINVAL;
 	}
@@ -687,17 +687,17 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 
 enum {
 	/* this is the first blue flame register in the array of bfregs assigned
-	 * to a processes. Since we do not use it for blue flame but rather
-	 * regular 64 bit doorbells, we do not need a lock for maintaiing
+	 * to a processes. Since we do analt use it for blue flame but rather
+	 * regular 64 bit doorbells, we do analt need a lock for maintaiing
 	 * "odd/even" order
 	 */
-	NUM_NON_BLUE_FLAME_BFREGS = 1,
+	NUM_ANALN_BLUE_FLAME_BFREGS = 1,
 };
 
 static int max_bfregs(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi)
 {
 	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) *
-	       bfregi->num_static_sys_pages * MLX5_NON_FP_BFREGS_PER_UAR;
+	       bfregi->num_static_sys_pages * MLX5_ANALN_FP_BFREGS_PER_UAR;
 }
 
 static int num_med_bfreg(struct mlx5_ib_dev *dev,
@@ -706,7 +706,7 @@ static int num_med_bfreg(struct mlx5_ib_dev *dev,
 	int n;
 
 	n = max_bfregs(dev, bfregi) - bfregi->num_low_latency_bfregs -
-	    NUM_NON_BLUE_FLAME_BFREGS;
+	    NUM_ANALN_BLUE_FLAME_BFREGS;
 
 	return n >= 0 ? n : 0;
 }
@@ -714,7 +714,7 @@ static int num_med_bfreg(struct mlx5_ib_dev *dev,
 static int first_med_bfreg(struct mlx5_ib_dev *dev,
 			   struct mlx5_bfreg_info *bfregi)
 {
-	return num_med_bfreg(dev, bfregi) ? 1 : -ENOMEM;
+	return num_med_bfreg(dev, bfregi) ? 1 : -EANALMEM;
 }
 
 static int first_hi_bfreg(struct mlx5_ib_dev *dev,
@@ -738,7 +738,7 @@ static int alloc_high_class_bfreg(struct mlx5_ib_dev *dev,
 		}
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int alloc_med_class_bfreg(struct mlx5_ib_dev *dev,
@@ -764,7 +764,7 @@ static int alloc_med_class_bfreg(struct mlx5_ib_dev *dev,
 static int alloc_bfreg(struct mlx5_ib_dev *dev,
 		       struct mlx5_bfreg_info *bfregi)
 {
-	int bfregn = -ENOMEM;
+	int bfregn = -EANALMEM;
 
 	if (bfregi->lib_uar_dyn)
 		return -EINVAL;
@@ -777,7 +777,7 @@ static int alloc_bfreg(struct mlx5_ib_dev *dev,
 	}
 
 	if (bfregn < 0) {
-		BUILD_BUG_ON(NUM_NON_BLUE_FLAME_BFREGS != 1);
+		BUILD_BUG_ON(NUM_ANALN_BLUE_FLAME_BFREGS != 1);
 		bfregn = 0;
 		bfregi->count[bfregn]++;
 	}
@@ -841,7 +841,7 @@ int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 		return -EINVAL;
 
 	bfregs_per_sys_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k) *
-				MLX5_NON_FP_BFREGS_PER_UAR;
+				MLX5_ANALN_FP_BFREGS_PER_UAR;
 	index_of_sys_page = bfregn / bfregs_per_sys_page;
 
 	if (dyn_bfreg) {
@@ -857,7 +857,7 @@ int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 		}
 	}
 
-	offset = bfregn % bfregs_per_sys_page / MLX5_NON_FP_BFREGS_PER_UAR;
+	offset = bfregn % bfregs_per_sys_page / MLX5_ANALN_FP_BFREGS_PER_UAR;
 	return bfregi->sys_pages[index_of_sys_page] + offset;
 }
 
@@ -934,8 +934,8 @@ err_umem:
 static int adjust_bfregn(struct mlx5_ib_dev *dev,
 			 struct mlx5_bfreg_info *bfregi, int bfregn)
 {
-	return bfregn / MLX5_NON_FP_BFREGS_PER_UAR * MLX5_BFREGS_PER_UAR +
-				bfregn % MLX5_NON_FP_BFREGS_PER_UAR;
+	return bfregn / MLX5_ANALN_FP_BFREGS_PER_UAR * MLX5_BFREGS_PER_UAR +
+				bfregn % MLX5_ANALN_FP_BFREGS_PER_UAR;
 }
 
 static int _create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
@@ -1023,7 +1023,7 @@ static int _create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		 MLX5_FLD_SZ_BYTES(create_qp_in, pas[0]) * ncont;
 	*in = kvzalloc(*inlen, GFP_KERNEL);
 	if (!*in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_umem;
 	}
 
@@ -1128,8 +1128,8 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 	qp->sq.offset = qp->rq.wqe_cnt << qp->rq.wqe_shift;
 	base->ubuffer.buf_size = err + (qp->rq.wqe_cnt << qp->rq.wqe_shift);
 
-	err = mlx5_frag_buf_alloc_node(dev->mdev, base->ubuffer.buf_size,
-				       &qp->buf, dev->mdev->priv.numa_node);
+	err = mlx5_frag_buf_alloc_analde(dev->mdev, base->ubuffer.buf_size,
+				       &qp->buf, dev->mdev->priv.numa_analde);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
 		return err;
@@ -1155,7 +1155,7 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 		 MLX5_FLD_SZ_BYTES(create_qp_in, pas[0]) * qp->buf.npages;
 	*in = kvzalloc(*inlen, GFP_KERNEL);
 	if (!*in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_buf;
 	}
 
@@ -1194,7 +1194,7 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 
 	if (!qp->sq.wrid || !qp->sq.wr_data || !qp->rq.wrid ||
 	    !qp->sq.w_list || !qp->sq.wqe_head) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_wrid;
 	}
 
@@ -1224,7 +1224,7 @@ static u32 get_rx_type(struct mlx5_ib_qp *qp, struct ib_qp_init_attr *attr)
 	else if (!qp->has_rq)
 		return MLX5_ZERO_LEN_RQ;
 
-	return MLX5_NON_ZERO_RQ;
+	return MLX5_ANALN_ZERO_RQ;
 }
 
 static int create_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
@@ -1271,16 +1271,16 @@ static int get_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	if (cq->private_flags & MLX5_IB_CQ_PR_FLAGS_REAL_TIME_TS) {
 		if (!rt_sup) {
 			mlx5_ib_dbg(dev,
-				    "Real time TS format is not supported\n");
-			return -EOPNOTSUPP;
+				    "Real time TS format is analt supported\n");
+			return -EOPANALTSUPP;
 		}
 		return MLX5_TIMESTAMP_FORMAT_REAL_TIME;
 	}
 	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION) {
 		if (!fr_sup) {
 			mlx5_ib_dbg(dev,
-				    "Free running TS format is not supported\n");
-			return -EOPNOTSUPP;
+				    "Free running TS format is analt supported\n");
+			return -EOPANALTSUPP;
 		}
 		return MLX5_TIMESTAMP_FORMAT_FREE_RUNNING;
 	}
@@ -1320,15 +1320,15 @@ static int get_qp_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq,
 			  default_ts;
 
 	if (send_ts_format < 0 || recv_ts_format < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (send_ts_format != MLX5_TIMESTAMP_FORMAT_DEFAULT &&
 	    recv_ts_format != MLX5_TIMESTAMP_FORMAT_DEFAULT &&
 	    send_ts_format != recv_ts_format) {
 		mlx5_ib_dbg(
 			dev,
-			"The send ts_format does not match the receive ts_format\n");
-		return -EOPNOTSUPP;
+			"The send ts_format does analt match the receive ts_format\n");
+		return -EOPANALTSUPP;
 	}
 
 	return send_ts_format == default_ts ? recv_ts_format : send_ts_format;
@@ -1372,7 +1372,7 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 			ib_umem_num_dma_blocks(sq->ubuffer.umem, page_size);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_umem;
 	}
 
@@ -1461,7 +1461,7 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 		sizeof(u64) * ib_umem_num_dma_blocks(umem, page_size);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_rq_in, in, uid, to_mpd(pd)->uid);
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
@@ -1530,7 +1530,7 @@ static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 	inlen = MLX5_ST_SZ_BYTES(create_tir_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_tir_in, in, uid, to_mpd(pd)->uid);
 	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
@@ -1553,7 +1553,7 @@ static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 
 	MLX5_SET(tirc, tirc, self_lb_block, lb_flag);
 	MLX5_SET(create_tir_in, in, opcode, MLX5_CMD_OP_CREATE_TIR);
-	err = mlx5_cmd_exec_inout(dev->mdev, create_tir, in, out);
+	err = mlx5_cmd_exec_ianalut(dev->mdev, create_tir, in, out);
 	rq->tirn = MLX5_GET(create_tir_out, out, tirn);
 	if (!err && MLX5_GET(tirc, tirc, self_lb_block)) {
 		err = mlx5_ib_enable_lb(dev, false, true);
@@ -1735,13 +1735,13 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	if (ucmd->comp_mask) {
 		mlx5_ib_dbg(dev, "invalid comp mask\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ucmd->rx_hash_fields_mask & MLX5_RX_HASH_INNER &&
 	    !(ucmd->flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS)) {
 		mlx5_ib_dbg(dev, "Tunnel offloads must be set for inner RSS\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (dev->is_rep)
@@ -1757,7 +1757,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	outlen = MLX5_ST_SZ_BYTES(create_tir_out);
 	in = kvzalloc(inlen + outlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	out = in + MLX5_ST_SZ_DW(create_tir_in);
 	MLX5_SET(create_tir_in, in, uid, to_mpd(pd)->uid);
@@ -1796,7 +1796,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		break;
 	}
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err;
 	}
 
@@ -1816,7 +1816,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		goto err;
 	}
 
-	/* If none of IPV4 & IPV6 SRC/DST was set - this bit field is ignored */
+	/* If analne of IPV4 & IPV6 SRC/DST was set - this bit field is iganalred */
 	if ((ucmd->rx_hash_fields_mask & MLX5_RX_HASH_SRC_IPV4) ||
 	    (ucmd->rx_hash_fields_mask & MLX5_RX_HASH_DST_IPV4))
 		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
@@ -1840,7 +1840,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		goto err;
 	}
 
-	/* If none of TCP & UDP SRC/DST was set - this bit field is ignored */
+	/* If analne of TCP & UDP SRC/DST was set - this bit field is iganalred */
 	if ((ucmd->rx_hash_fields_mask & MLX5_RX_HASH_SRC_PORT_TCP) ||
 	    (ucmd->rx_hash_fields_mask & MLX5_RX_HASH_DST_PORT_TCP))
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
@@ -1873,7 +1873,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 create_tir:
 	MLX5_SET(create_tir_in, in, opcode, MLX5_CMD_OP_CREATE_TIR);
-	err = mlx5_cmd_exec_inout(dev->mdev, create_tir, in, out);
+	err = mlx5_cmd_exec_ianalut(dev->mdev, create_tir, in, out);
 
 	qp->rss_qp.tirn = MLX5_GET(create_tir_out, out, tirn);
 	if (!err && MLX5_GET(tirc, tirc, self_lb_block)) {
@@ -1944,14 +1944,14 @@ static void configure_requester_scat_cqe(struct mlx5_ib_dev *dev,
 
 static int atomic_size_to_mode(int size_mask)
 {
-	/* driver does not support atomic_size > 256B
-	 * and does not know how to translate bigger sizes
+	/* driver does analt support atomic_size > 256B
+	 * and does analt kanalw how to translate bigger sizes
 	 */
 	int supported_size_mask = size_mask & 0x1ff;
 	int log_max_size;
 
 	if (!supported_size_mask)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	log_max_size = __fls(supported_size_mask);
 
@@ -1966,11 +1966,11 @@ static int get_atomic_mode(struct mlx5_ib_dev *dev,
 {
 	u8 atomic_operations = MLX5_CAP_ATOMIC(dev->mdev, atomic_operations);
 	u8 atomic = MLX5_CAP_GEN(dev->mdev, atomic);
-	int atomic_mode = -EOPNOTSUPP;
+	int atomic_mode = -EOPANALTSUPP;
 	int atomic_size_mask;
 
 	if (!atomic)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qp_type == MLX5_IB_QPT_DCT)
 		atomic_size_mask = MLX5_CAP_ATOMIC(dev->mdev, atomic_size_dc);
@@ -2009,7 +2009,7 @@ static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
 
@@ -2028,7 +2028,7 @@ static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 	MLX5_SET(qpc, qpc, ts_format, mlx5_get_qp_default_ts(dev->mdev));
 	MLX5_SET(qpc, qpc, rq_type, MLX5_SRQ_RQ);
-	MLX5_SET(qpc, qpc, no_sq, 1);
+	MLX5_SET(qpc, qpc, anal_sq, 1);
 	MLX5_SET(qpc, qpc, cqn_rcv, to_mcq(devr->c0)->mcq.cqn);
 	MLX5_SET(qpc, qpc, cqn_snd, to_mcq(devr->c0)->mcq.cqn);
 	MLX5_SET(qpc, qpc, srqn_rmpn_xrqn, to_msrq(devr->s0)->msrq.srqn);
@@ -2343,7 +2343,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (qp->sq.wqe_cnt) {
 		MLX5_SET(qpc, qpc, log_sq_size, ilog2(qp->sq.wqe_cnt));
 	} else {
-		MLX5_SET(qpc, qpc, no_sq, 1);
+		MLX5_SET(qpc, qpc, anal_sq, 1);
 		if (init_attr->srq &&
 		    init_attr->srq->srq_type == IB_SRQT_TM)
 			MLX5_SET(qpc, qpc, offload_type,
@@ -2498,7 +2498,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (qp->sq.wqe_cnt)
 		MLX5_SET(qpc, qpc, log_sq_size, ilog2(qp->sq.wqe_cnt));
 	else
-		MLX5_SET(qpc, qpc, no_sq, 1);
+		MLX5_SET(qpc, qpc, anal_sq, 1);
 
 	if (attr->srq) {
 		MLX5_SET(qpc, qpc, xrcd, devr->xrcdn0);
@@ -2736,11 +2736,11 @@ static int create_dct(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	void *dctc;
 
 	if (mlx5_lag_is_active(dev->mdev) && !MLX5_CAP_GEN(dev->mdev, lag_dct))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	qp->dct.in = kzalloc(MLX5_ST_SZ_BYTES(create_dct_in), GFP_KERNEL);
 	if (!qp->dct.in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_dct_in, qp->dct.in, uid, to_mpd(pd)->uid);
 	dctc = MLX5_ADDR_OF(create_dct_in, qp->dct.in, dct_context_entry);
@@ -2794,7 +2794,7 @@ static int check_qp_type(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 
 out:
 	mlx5_ib_dbg(dev, "Unsupported QP type %d\n", attr->qp_type);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int check_valid_flow(struct mlx5_ib_dev *dev, struct ib_pd *pd,
@@ -2807,12 +2807,12 @@ static int check_valid_flow(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (!udata) {
 		/* Kernel create_qp callers */
 		if (attr->rwq_ind_tbl)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		switch (attr->qp_type) {
 		case IB_QPT_RAW_PACKET:
 		case IB_QPT_DRIVER:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		default:
 			return 0;
 		}
@@ -2866,7 +2866,7 @@ static void process_vendor_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
 	default:
 		break;
 	}
-	mlx5_ib_dbg(dev, "Vendor create QP flag 0x%X is not supported\n", flag);
+	mlx5_ib_dbg(dev, "Vendor create QP flag 0x%X is analt supported\n", flag);
 }
 
 static int process_vendor_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
@@ -2892,7 +2892,7 @@ static int process_vendor_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		if (qp->type != IB_QPT_DRIVER)
 			break;
 		/*
-		 * It is IB_QPT_DRIVER and or no subtype or
+		 * It is IB_QPT_DRIVER and or anal subtype or
 		 * wrong subtype were provided.
 		 */
 		return -EINVAL;
@@ -2967,7 +2967,7 @@ static void process_create_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
 		*flags &= ~MLX5_IB_QP_CREATE_WC_TEST;
 		return;
 	}
-	mlx5_ib_dbg(dev, "Verbs create QP flag 0x%X is not supported\n", flag);
+	mlx5_ib_dbg(dev, "Verbs create QP flag 0x%X is analt supported\n", flag);
 }
 
 static int process_create_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
@@ -3035,7 +3035,7 @@ static int process_create_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (create_flags) {
 		mlx5_ib_dbg(dev, "Create QP has unsupported flags 0x%X\n",
 			    create_flags);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -3097,7 +3097,7 @@ static int create_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	switch (qp->type) {
 	case MLX5_IB_QPT_DCT:
 		err = create_dct(dev, pd, qp, params);
-		rdma_restrack_no_track(&qp->ibqp.res);
+		rdma_restrack_anal_track(&qp->ibqp.res);
 		break;
 	case MLX5_IB_QPT_DCI:
 		err = create_dci(dev, pd, qp, params);
@@ -3110,7 +3110,7 @@ static int create_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		break;
 	case MLX5_IB_QPT_HW_GSI:
 	case MLX5_IB_QPT_REG_UMR:
-		rdma_restrack_no_track(&qp->ibqp.res);
+		rdma_restrack_anal_track(&qp->ibqp.res);
 		fallthrough;
 	default:
 		if (params->udata)
@@ -3224,7 +3224,7 @@ static int check_ucmd_data(struct mlx5_ib_dev *dev,
 
 	/*
 	 * User provides different create_qp structures based on the
-	 * flow and we need to know if he cleared memory after our
+	 * flow and we need to kanalw if he cleared memory after our
 	 * struct create_qp ends.
 	 */
 	size = udata->inlen - last;
@@ -3232,7 +3232,7 @@ static int check_ucmd_data(struct mlx5_ib_dev *dev,
 	if (!ret)
 		mlx5_ib_dbg(
 			dev,
-			"udata is not cleared, inlen = %zu, ucmd = %zu, last = %zu, size = %zu\n",
+			"udata is analt cleared, inlen = %zu, ucmd = %zu, last = %zu, size = %zu\n",
 			udata->inlen, params->ucmd_size, last, size);
 	return ret ? 0 : -EINVAL;
 }
@@ -3271,7 +3271,7 @@ int mlx5_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attr,
 
 		params.ucmd = kzalloc(params.ucmd_size, GFP_KERNEL);
 		if (!params.ucmd)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		err = ib_copy_from_udata(params.ucmd, udata, params.inlen);
 		if (err)
@@ -3376,7 +3376,7 @@ static int set_qpc_atomic_flags(struct mlx5_ib_qp *qp,
 
 		atomic_mode = get_atomic_mode(dev, qp->type);
 		if (atomic_mode < 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		MLX5_SET(qpc, qpc, rae, 1);
 		MLX5_SET(qpc, qpc, atomic_mode, atomic_mode);
@@ -3459,7 +3459,7 @@ static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
 	inlen = MLX5_ST_SZ_BYTES(modify_tis_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(modify_tis_in, in, bitmask.prio, 1);
 	MLX5_SET(modify_tis_in, in, uid, to_mpd(pd)->uid);
@@ -3486,7 +3486,7 @@ static int modify_raw_packet_tx_affinity(struct mlx5_core_dev *dev,
 	inlen = MLX5_ST_SZ_BYTES(modify_tis_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(modify_tis_in, in, bitmask.lag_tx_port_affinity, 1);
 	MLX5_SET(modify_tis_in, in, uid, to_mpd(pd)->uid);
@@ -3719,7 +3719,7 @@ static int ib_nr_to_mlx5_nr(int ib_mask)
 		return 0;
 	case IB_QP_CUR_STATE:
 		return 0;
-	case IB_QP_EN_SQD_ASYNC_NOTIFY:
+	case IB_QP_EN_SQD_ASYNC_ANALTIFY:
 		return 0;
 	case IB_QP_ACCESS_FLAGS:
 		return MLX5_QP_OPTPAR_RWE | MLX5_QP_OPTPAR_RRE |
@@ -3789,7 +3789,7 @@ static int modify_raw_packet_qp_rq(
 	inlen = MLX5_ST_SZ_BYTES(modify_rq_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(modify_rq_in, in, rq_state, rq->state);
 	MLX5_SET(modify_rq_in, in, uid, to_mpd(pd)->uid);
@@ -3805,7 +3805,7 @@ static int modify_raw_packet_qp_rq(
 		} else
 			dev_info_once(
 				&dev->ib_dev.dev,
-				"RAW PACKET QP counters are not supported on current FW\n");
+				"RAW PACKET QP counters are analt supported on current FW\n");
 	}
 
 	err = mlx5_core_modify_rq(dev->mdev, rq->base.mqp.qpn, in);
@@ -3836,7 +3836,7 @@ static int modify_raw_packet_qp_sq(
 	inlen = MLX5_ST_SZ_BYTES(modify_sq_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(modify_sq_in, in, uid, to_mpd(pd)->uid);
 	MLX5_SET(modify_sq_in, in, sq_state, sq->state);
@@ -3867,7 +3867,7 @@ static int modify_raw_packet_qp_sq(
 		}
 
 		MLX5_SET64(modify_sq_in, in, modify_bitmask, 1);
-		/* index 0 means no limit */
+		/* index 0 means anal limit */
 		MLX5_SET(sqc, sqc, packet_pacing_rate_limit_index, rl_index);
 	}
 
@@ -4165,7 +4165,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 	qpc = kzalloc(MLX5_ST_SZ_BYTES(qpc), GFP_KERNEL);
 	if (!qpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd = to_mpd(qp->ibqp.pd);
 	MLX5_SET(qpc, qpc, st, mlx5_st);
@@ -4447,7 +4447,7 @@ static inline bool is_valid_mask(int mask, int req, int opt)
 }
 
 /* check valid transition for driver QP types
- * for now the only QP type that this function supports is DCI
+ * for analw the only QP type that this function supports is DCI
  */
 static bool modify_dci_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state new_state,
 				enum ib_qp_attr_mask attr_mask)
@@ -4510,7 +4510,7 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		/*
 		 * DCT doesn't initialize QP till modify command is executed,
 		 * so we need to overwrite previously set ECE field if user
-		 * provided any value except zero, which means not set/not
+		 * provided any value except zero, which means analt set/analt
 		 * valid.
 		 */
 		MLX5_SET(dctc, dctc, ece, ucmd->ece_options);
@@ -4537,7 +4537,7 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 			atomic_mode = get_atomic_mode(dev, MLX5_IB_QPT_DCT);
 			if (atomic_mode < 0)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			MLX5_SET(dctc, dctc, atomic_mode, atomic_mode);
 			MLX5_SET(dctc, dctc, rae, 1);
@@ -4559,7 +4559,7 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		if (udata->outlen < min_resp_len)
 			return -EINVAL;
 		/*
-		 * If we don't have enough space for the ECE options,
+		 * If we don't have eanalugh space for the ECE options,
 		 * simply indicate it with resp.response_length.
 		 */
 		resp.response_length = (udata->outlen < sizeof(resp)) ?
@@ -4610,7 +4610,7 @@ static bool mlx5_ib_modify_qp_allowed(struct mlx5_ib_dev *dev,
 	if (qp->type == IB_QPT_RAW_PACKET || qp->type == MLX5_IB_QPT_REG_UMR)
 		return true;
 
-	/* Internal QP used for wc testing, with NOPs in wq */
+	/* Internal QP used for wc testing, with ANALPs in wq */
 	if (qp->flags & MLX5_IB_QP_CREATE_WC_TEST)
 		return true;
 
@@ -4663,13 +4663,13 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int err = -EINVAL;
 
 	if (!mlx5_ib_modify_qp_allowed(dev, qp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (attr_mask & ~(IB_QP_ATTR_STANDARD_BITS | IB_QP_RATE_LIMIT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ibqp->rwq_ind_tbl)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (udata && udata->inlen) {
 		if (udata->inlen < offsetofend(typeof(ucmd), ece_options))
@@ -4678,7 +4678,7 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		if (udata->inlen > sizeof(ucmd) &&
 		    !ib_is_udata_cleared(udata, sizeof(ucmd),
 					 udata->inlen - sizeof(ucmd)))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (ib_copy_from_udata(&ucmd, udata,
 				       min(udata->inlen, sizeof(ucmd))))
@@ -4687,7 +4687,7 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		if (ucmd.comp_mask ||
 		    memchr_inv(&ucmd.burst_info.reserved, 0,
 			       sizeof(ucmd.burst_info.reserved)))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 	}
 
@@ -4843,7 +4843,7 @@ static int query_raw_packet_qp_rq_state(struct mlx5_ib_dev *dev,
 	inlen = MLX5_ST_SZ_BYTES(query_rq_out);
 	out = kvzalloc(inlen, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_core_query_rq(dev->mdev, rq->base.mqp.qpn, out);
 	if (err)
@@ -4940,7 +4940,7 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 	outb = kzalloc(outlen, GFP_KERNEL);
 	if (!outb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_core_qp_query(dev, &qp->trans_qp.base.mqp, outb, outlen,
 				 false);
@@ -5019,7 +5019,7 @@ static int mlx5_ib_dct_query_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *mqp,
 
 	out = kzalloc(outlen, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_core_dct_query(dev, dct, out, outlen);
 	if (err)
@@ -5068,13 +5068,13 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	u8 raw_packet_qp_state;
 
 	if (ibqp->rwq_ind_tbl)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (qp->type == IB_QPT_GSI)
 		return mlx5_ib_gsi_query_qp(ibqp, qp_attr, qp_attr_mask,
 					    qp_init_attr);
 
-	/* Not all of output fields are applicable, make sure to zero them */
+	/* Analt all of output fields are applicable, make sure to zero them */
 	memset(qp_init_attr, 0, sizeof(*qp_init_attr));
 	memset(qp_attr, 0, sizeof(*qp_attr));
 
@@ -5135,7 +5135,7 @@ int mlx5_ib_alloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata)
 	struct mlx5_ib_xrcd *xrcd = to_mxrcd(ibxrcd);
 
 	if (!MLX5_CAP_GEN(dev->mdev, xrc))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mlx5_cmd_xrcd_alloc(dev->mdev, &xrcd->xrcdn, 0);
 }
@@ -5213,7 +5213,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	inlen = MLX5_ST_SZ_BYTES(create_rq_in) + sizeof(u64) * rwq->rq_num_pas;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_rq_in, in, uid, to_mpd(pd)->uid);
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
@@ -5230,8 +5230,8 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 		 MLX5_WQ_TYPE_CYCLIC_STRIDING_RQ : MLX5_WQ_TYPE_CYCLIC);
 	if (init_attr->create_flags & IB_WQ_FLAGS_PCI_WRITE_END_PADDING) {
 		if (!MLX5_CAP_GEN(dev->mdev, end_pad)) {
-			mlx5_ib_dbg(dev, "Scatter end padding is not supported\n");
-			err = -EOPNOTSUPP;
+			mlx5_ib_dbg(dev, "Scatter end padding is analt supported\n");
+			err = -EOPANALTSUPP;
 			goto out;
 		} else {
 			MLX5_SET(wq, wq, end_padding_mode, MLX5_WQ_END_PAD_MODE_ALIGN);
@@ -5264,8 +5264,8 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	has_net_offloads = MLX5_CAP_GEN(dev->mdev, eth_net_offloads);
 	if (init_attr->create_flags & IB_WQ_FLAGS_CVLAN_STRIPPING) {
 		if (!(has_net_offloads && MLX5_CAP_ETH(dev->mdev, vlan_cap))) {
-			mlx5_ib_dbg(dev, "VLAN offloads are not supported\n");
-			err = -EOPNOTSUPP;
+			mlx5_ib_dbg(dev, "VLAN offloads are analt supported\n");
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 	} else {
@@ -5273,8 +5273,8 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	}
 	if (init_attr->create_flags & IB_WQ_FLAGS_SCATTER_FCS) {
 		if (!(has_net_offloads && MLX5_CAP_ETH(dev->mdev, scatter_fcs))) {
-			mlx5_ib_dbg(dev, "Scatter FCS is not supported\n");
-			err = -EOPNOTSUPP;
+			mlx5_ib_dbg(dev, "Scatter FCS is analt supported\n");
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 		MLX5_SET(rqc, rqc, scatter_fcs, 1);
@@ -5282,8 +5282,8 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	if (init_attr->create_flags & IB_WQ_FLAGS_DELAY_DROP) {
 		if (!(dev->ib_dev.attrs.raw_packet_caps &
 		      IB_RAW_PACKET_CAP_DELAY_DROP)) {
-			mlx5_ib_dbg(dev, "Delay drop is not supported\n");
-			err = -EOPNOTSUPP;
+			mlx5_ib_dbg(dev, "Delay drop is analt supported\n");
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 		MLX5_SET(rqc, rqc, delay_drop_en, 1);
@@ -5361,8 +5361,8 @@ static int prepare_user_rq(struct ib_pd *pd,
 	if (udata->inlen > sizeof(ucmd) &&
 	    !ib_is_udata_cleared(udata, sizeof(ucmd),
 				 udata->inlen - sizeof(ucmd))) {
-		mlx5_ib_dbg(dev, "inlen is not supported\n");
-		return -EOPNOTSUPP;
+		mlx5_ib_dbg(dev, "inlen is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (ib_copy_from_udata(&ucmd, udata, min(sizeof(ucmd), udata->inlen))) {
@@ -5372,11 +5372,11 @@ static int prepare_user_rq(struct ib_pd *pd,
 
 	if (ucmd.comp_mask & (~MLX5_IB_CREATE_WQ_STRIDING_RQ)) {
 		mlx5_ib_dbg(dev, "invalid comp mask\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else if (ucmd.comp_mask & MLX5_IB_CREATE_WQ_STRIDING_RQ) {
 		if (!MLX5_CAP_GEN(dev->mdev, striding_rq)) {
-			mlx5_ib_dbg(dev, "Striding RQ is not supported\n");
-			return -EOPNOTSUPP;
+			mlx5_ib_dbg(dev, "Striding RQ is analt supported\n");
+			return -EOPANALTSUPP;
 		}
 		if ((ucmd.single_stride_log_num_of_bytes <
 		    MLX5_MIN_SINGLE_STRIDE_LOG_NUM_BYTES) ||
@@ -5434,7 +5434,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 	int err;
 
 	if (!udata)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EANALSYS);
 
 	min_resp_len = offsetofend(struct mlx5_ib_create_wq_resp, reserved);
 	if (udata->outlen && udata->outlen < min_resp_len)
@@ -5449,7 +5449,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 	case IB_WQT_RQ:
 		rwq = kzalloc(sizeof(*rwq), GFP_KERNEL);
 		if (!rwq)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		err = prepare_user_rq(pd, init_attr, udata, rwq);
 		if (err)
 			goto err;
@@ -5519,7 +5519,7 @@ int mlx5_ib_create_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_table,
 	if (udata->inlen > 0 &&
 	    !ib_is_udata_cleared(udata, 0,
 				 udata->inlen))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (init_attr->log_ind_tbl_size >
 	    MLX5_CAP_GEN(dev->mdev, log_max_rqt_size)) {
@@ -5537,7 +5537,7 @@ int mlx5_ib_create_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_table,
 	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + sizeof(u32) * sz;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rqtc = MLX5_ADDR_OF(create_rqt_in, in, rqt_context);
 
@@ -5601,18 +5601,18 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 	if (udata->inlen > sizeof(ucmd) &&
 	    !ib_is_udata_cleared(udata, sizeof(ucmd),
 				 udata->inlen - sizeof(ucmd)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ib_copy_from_udata(&ucmd, udata, min(sizeof(ucmd), udata->inlen)))
 		return -EFAULT;
 
 	if (ucmd.comp_mask || ucmd.reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_rq_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rqc = MLX5_ADDR_OF(modify_rq_in, in, ctx);
 
@@ -5630,8 +5630,8 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		if (wq_attr->flags_mask & IB_WQ_FLAGS_CVLAN_STRIPPING) {
 			if (!(MLX5_CAP_GEN(dev->mdev, eth_net_offloads) &&
 			      MLX5_CAP_ETH(dev->mdev, vlan_cap))) {
-				mlx5_ib_dbg(dev, "VLAN offloads are not supported\n");
-				err = -EOPNOTSUPP;
+				mlx5_ib_dbg(dev, "VLAN offloads are analt supported\n");
+				err = -EOPANALTSUPP;
 				goto out;
 			}
 			MLX5_SET64(modify_rq_in, in, modify_bitmask,
@@ -5641,8 +5641,8 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		}
 
 		if (wq_attr->flags_mask & IB_WQ_FLAGS_PCI_WRITE_END_PADDING) {
-			mlx5_ib_dbg(dev, "Modifying scatter end padding is not supported\n");
-			err = -EOPNOTSUPP;
+			mlx5_ib_dbg(dev, "Modifying scatter end padding is analt supported\n");
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 	}
@@ -5658,7 +5658,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		} else
 			dev_info_once(
 				&dev->ib_dev.dev,
-				"Receive WQ counters are not supported on current FW\n");
+				"Receive WQ counters are analt supported on current FW\n");
 	}
 
 	err = mlx5_core_modify_rq(dev->mdev, rwq->core_qp.qpn, in);
@@ -5704,8 +5704,8 @@ static void handle_drain_completion(struct ib_cq *cq,
 
 		spin_lock_irqsave(&dev->reset_flow_resource_lock, flags);
 		/* Make sure that the CQ handler won't run if wasn't run yet */
-		if (!mcq->mcq.reset_notify_added)
-			mcq->mcq.reset_notify_added = 1;
+		if (!mcq->mcq.reset_analtify_added)
+			mcq->mcq.reset_analtify_added = 1;
 		else
 			triggered = true;
 		spin_unlock_irqrestore(&dev->reset_flow_resource_lock, flags);
@@ -5816,7 +5816,7 @@ int mlx5_ib_qp_set_counter(struct ib_qp *qp, struct rdma_counter *counter)
 	}
 
 	if (!MLX5_CAP_GEN(dev->mdev, rts2rts_qp_counters_set_id)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -5840,7 +5840,7 @@ int mlx5_ib_qp_event_init(void)
 {
 	mlx5_ib_qp_event_wq = alloc_ordered_workqueue("mlx5_ib_qp_event_wq", 0);
 	if (!mlx5_ib_qp_event_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

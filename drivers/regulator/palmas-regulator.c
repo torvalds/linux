@@ -454,7 +454,7 @@ static int palmas_set_mode_smps(struct regulator_dev *dev, unsigned int mode)
 		rail_enable = false;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		reg |= SMPS_CTRL_MODE_ON;
 		break;
 	case REGULATOR_MODE_IDLE:
@@ -487,7 +487,7 @@ static unsigned int palmas_get_mode_smps(struct regulator_dev *dev)
 
 	switch (reg) {
 	case SMPS_CTRL_MODE_ON:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case SMPS_CTRL_MODE_ECO:
 		return REGULATOR_MODE_IDLE;
 	case SMPS_CTRL_MODE_PWM:
@@ -507,7 +507,7 @@ static int palmas_smps_set_ramp_delay(struct regulator_dev *rdev,
 	unsigned int reg = 0;
 	int ret;
 
-	/* SMPS3 and SMPS7 do not have tstep_addr setting */
+	/* SMPS3 and SMPS7 do analt have tstep_addr setting */
 	switch (id) {
 	case PALMAS_REG_SMPS3:
 	case PALMAS_REG_SMPS7:
@@ -905,7 +905,7 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			reg_init = NULL;
 
 		rinfo = &ddata->palmas_regs_info[id];
-		/* Miss out regulators which are not available due
+		/* Miss out regulators which are analt available due
 		 * to alternate functions.
 		 */
 
@@ -933,7 +933,7 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 							      rinfo->ctrl_addr);
 			desc->enable_mask = PALMAS_LDO1_CTRL_MODE_ACTIVE;
 
-			/* Check if LDO8 is in tracking mode or not */
+			/* Check if LDO8 is in tracking mode or analt */
 			if (pdata && (id == PALMAS_REG_LDO8) &&
 			    pdata->enable_ldo8_tracking) {
 				palmas_enable_ldo8_track(pmic->palmas);
@@ -975,7 +975,7 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			config.init_data = NULL;
 
 		desc->supply_name = rinfo->sname;
-		config.of_node = ddata->palmas_matches[id].of_node;
+		config.of_analde = ddata->palmas_matches[id].of_analde;
 
 		rdev = devm_regulator_register(pmic->dev, desc, &config);
 		if (IS_ERR(rdev)) {
@@ -1022,7 +1022,7 @@ static int tps65917_ldo_registration(struct palmas_pmic *pmic,
 		else
 			reg_init = NULL;
 
-		/* Miss out regulators which are not available due
+		/* Miss out regulators which are analt available due
 		 * to alternate functions.
 		 */
 		rinfo = &ddata->palmas_regs_info[id];
@@ -1082,7 +1082,7 @@ static int tps65917_ldo_registration(struct palmas_pmic *pmic,
 			config.init_data = NULL;
 
 		desc->supply_name = rinfo->sname;
-		config.of_node = ddata->palmas_matches[id].of_node;
+		config.of_analde = ddata->palmas_matches[id].of_analde;
 
 		rdev = devm_regulator_register(pmic->dev, desc, &config);
 		if (IS_ERR(rdev)) {
@@ -1128,7 +1128,7 @@ static int palmas_smps_registration(struct palmas_pmic *pmic,
 		bool ramp_delay_support = false;
 
 		/*
-		 * Miss out regulators which are not available due
+		 * Miss out regulators which are analt available due
 		 * to slaving configurations.
 		 */
 		switch (id) {
@@ -1267,7 +1267,7 @@ static int palmas_smps_registration(struct palmas_pmic *pmic,
 			config.init_data = NULL;
 
 		desc->supply_name = rinfo->sname;
-		config.of_node = ddata->palmas_matches[id].of_node;
+		config.of_analde = ddata->palmas_matches[id].of_analde;
 
 		rdev = devm_regulator_register(pmic->dev, desc, &config);
 		if (IS_ERR(rdev)) {
@@ -1296,7 +1296,7 @@ static int tps65917_smps_registration(struct palmas_pmic *pmic,
 
 	for (id = ddata->smps_start; id <= ddata->smps_end; id++) {
 		/*
-		 * Miss out regulators which are not available due
+		 * Miss out regulators which are analt available due
 		 * to slaving configurations.
 		 */
 		desc = &pmic->desc[id];
@@ -1371,7 +1371,7 @@ static int tps65917_smps_registration(struct palmas_pmic *pmic,
 			config.init_data = NULL;
 
 		desc->supply_name = rinfo->sname;
-		config.of_node = ddata->palmas_matches[id].of_node;
+		config.of_analde = ddata->palmas_matches[id].of_analde;
 
 		rdev = devm_regulator_register(pmic->dev, desc, &config);
 		if (IS_ERR(rdev)) {
@@ -1463,23 +1463,23 @@ static struct palmas_pmic_driver_data tps65917_ddata = {
 };
 
 static int palmas_dt_to_pdata(struct device *dev,
-			      struct device_node *node,
+			      struct device_analde *analde,
 			      struct palmas_pmic_platform_data *pdata,
 			      struct palmas_pmic_driver_data *ddata)
 {
-	struct device_node *regulators;
+	struct device_analde *regulators;
 	u32 prop;
 	int idx, ret;
 
-	regulators = of_get_child_by_name(node, "regulators");
+	regulators = of_get_child_by_name(analde, "regulators");
 	if (!regulators) {
-		dev_info(dev, "regulator node not found\n");
+		dev_info(dev, "regulator analde analt found\n");
 		return 0;
 	}
 
 	ret = of_regulator_match(dev, regulators, ddata->palmas_matches,
 				 ddata->max_reg);
-	of_node_put(regulators);
+	of_analde_put(regulators);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n", ret);
 		return 0;
@@ -1488,28 +1488,28 @@ static int palmas_dt_to_pdata(struct device *dev,
 	for (idx = 0; idx < ddata->max_reg; idx++) {
 		struct of_regulator_match *match;
 		struct palmas_reg_init *rinit;
-		struct device_node *np;
+		struct device_analde *np;
 
 		match = &ddata->palmas_matches[idx];
-		np = match->of_node;
+		np = match->of_analde;
 
 		if (!match->init_data || !np)
 			continue;
 
 		rinit = devm_kzalloc(dev, sizeof(*rinit), GFP_KERNEL);
 		if (!rinit)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pdata->reg_data[idx] = match->init_data;
 		pdata->reg_init[idx] = rinit;
 
 		rinit->warm_reset = of_property_read_bool(np, "ti,warm-reset");
 		ret = of_property_read_u32(np, "ti,roof-floor", &prop);
-		/* EINVAL: Property not found */
+		/* EINVAL: Property analt found */
 		if (ret != -EINVAL) {
 			int econtrol;
 
-			/* use default value, when no value is specified */
+			/* use default value, when anal value is specified */
 			econtrol = PALMAS_EXT_CONTROL_NSLEEP;
 			if (!ret) {
 				switch (prop) {
@@ -1546,7 +1546,7 @@ static int palmas_dt_to_pdata(struct device *dev,
 						np, "ti,enable-ldo8-tracking");
 	}
 
-	pdata->ldo6_vibrator = of_property_read_bool(node, "ti,ldo6-vibrator");
+	pdata->ldo6_vibrator = of_property_read_bool(analde, "ti,ldo6-vibrator");
 
 	return 0;
 }
@@ -1595,7 +1595,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
 	struct palmas_pmic_platform_data *pdata;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct palmas_pmic_driver_data *driver_data;
 	struct regulator_config config = { };
 	struct palmas_pmic *pmic;
@@ -1605,17 +1605,17 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 
 	driver_data = (struct palmas_pmic_driver_data *)device_get_match_data(&pdev->dev);
 	if (!driver_data)
-		return -ENODATA;
+		return -EANALDATA;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (of_device_is_compatible(node, "ti,tps659038-pmic")) {
+	if (of_device_is_compatible(analde, "ti,tps659038-pmic")) {
 		palmas_generic_regs_info[PALMAS_REG_REGEN2].ctrl_addr =
 							TPS659038_REGEN2_CTRL;
 		palmas_ddata.has_regen3 = false;
@@ -1627,7 +1627,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmic);
 	pmic->palmas->pmic_ddata = driver_data;
 
-	ret = palmas_dt_to_pdata(&pdev->dev, node, pdata, driver_data);
+	ret = palmas_dt_to_pdata(&pdev->dev, analde, pdata, driver_data);
 	if (ret)
 		return ret;
 
@@ -1662,7 +1662,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 static struct platform_driver palmas_driver = {
 	.driver = {
 		.name = "palmas-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_palmas_match_tbl,
 	},
 	.probe = palmas_regulators_probe,

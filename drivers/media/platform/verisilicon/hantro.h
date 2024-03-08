@@ -105,7 +105,7 @@ struct hantro_variant {
 
 /**
  * enum hantro_codec_mode - codec operating mode.
- * @HANTRO_MODE_NONE:  No operating mode. Used for RAW video formats.
+ * @HANTRO_MODE_ANALNE:  Anal operating mode. Used for RAW video formats.
  * @HANTRO_MODE_JPEG_ENC: JPEG encoder.
  * @HANTRO_MODE_H264_DEC: H264 decoder.
  * @HANTRO_MODE_MPEG2_DEC: MPEG-2 decoder.
@@ -115,7 +115,7 @@ struct hantro_variant {
  * @HANTRO_MODE_AV1_DEC: AV1 decoder
  */
 enum hantro_codec_mode {
-	HANTRO_MODE_NONE = -1,
+	HANTRO_MODE_ANALNE = -1,
 	HANTRO_MODE_JPEG_ENC,
 	HANTRO_MODE_H264_DEC,
 	HANTRO_MODE_MPEG2_DEC,
@@ -148,7 +148,7 @@ struct hantro_ctrl {
  * @sink_pad:		&struct media_pad with the sink pad.
  * @proc:		&struct media_entity pointer with the M2M device itself.
  * @proc_pads:		&struct media_pad with the @proc pads.
- * @intf_devnode:	&struct media_intf devnode pointer with the interface
+ * @intf_devanalde:	&struct media_intf devanalde pointer with the interface
  *			with controls the M2M device.
  *
  * Contains everything needed to attach the video device to the media device.
@@ -161,7 +161,7 @@ struct hantro_func {
 	struct media_pad sink_pad;
 	struct media_entity proc;
 	struct media_pad proc_pads[2];
-	struct media_intf_devnode *intf_devnode;
+	struct media_intf_devanalde *intf_devanalde;
 };
 
 static inline struct hantro_func *

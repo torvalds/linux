@@ -38,7 +38,7 @@ extern void flush_tlb_one(unsigned long);
  * could be referenced by the VM kernel based on a stale mapping, since
  * they would only be located by consulting the mm structure, and they
  * will have been purged from that structure by the munmap.  Seems like
- * a noop on HVM as well.
+ * a analop on HVM as well.
  */
 #define flush_tlb_pgtables(mm, start, end)
 

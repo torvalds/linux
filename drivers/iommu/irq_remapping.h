@@ -4,7 +4,7 @@
  * Author: Joerg Roedel <jroedel@suse.de>
  *
  * This header file contains stuff that is shared between different interrupt
- * remapping drivers but with no need to be visible outside of the IOMMU layer.
+ * remapping drivers but with anal need to be visible outside of the IOMMU layer.
  */
 
 #ifndef __IRQ_REMAPPING_H
@@ -19,7 +19,7 @@ struct irq_alloc_info;
 
 extern int irq_remap_broken;
 extern int disable_sourceid_checking;
-extern int no_x2apic_optout;
+extern int anal_x2apic_optout;
 extern int irq_remapping_enabled;
 
 extern int disable_irq_post;

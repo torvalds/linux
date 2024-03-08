@@ -122,7 +122,7 @@ static const struct palmas_clks_of_match_data palmas_of_clk32kg = {
 	.init = {
 		.name = "clk32kg",
 		.ops = &palmas_clks_ops,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.desc = {
 		.clk_name = "clk32kg",
@@ -138,7 +138,7 @@ static const struct palmas_clks_of_match_data palmas_of_clk32kgaudio = {
 	.init = {
 		.name = "clk32kgaudio",
 		.ops = &palmas_clks_ops,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.desc = {
 		.clk_name = "clk32kgaudio",
@@ -166,11 +166,11 @@ MODULE_DEVICE_TABLE(of, palmas_clks_of_match);
 static void palmas_clks_get_clk_data(struct platform_device *pdev,
 				     struct palmas_clock_info *cinfo)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	unsigned int prop;
 	int ret;
 
-	ret = of_property_read_u32(node, "ti,external-sleep-control",
+	ret = of_property_read_u32(analde, "ti,external-sleep-control",
 				   &prop);
 	if (ret)
 		return;
@@ -187,7 +187,7 @@ static void palmas_clks_get_clk_data(struct platform_device *pdev,
 		break;
 	default:
 		dev_warn(&pdev->dev, "%pOFn: Invalid ext control option: %u\n",
-			 node, prop);
+			 analde, prop);
 		prop = 0;
 		break;
 	}
@@ -230,7 +230,7 @@ static int palmas_clks_init_configure(struct palmas_clock_info *cinfo)
 static int palmas_clks_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	const struct palmas_clks_of_match_data *match_data;
 	struct palmas_clock_info *cinfo;
 	int ret;
@@ -241,7 +241,7 @@ static int palmas_clks_probe(struct platform_device *pdev)
 
 	cinfo = devm_kzalloc(&pdev->dev, sizeof(*cinfo), GFP_KERNEL);
 	if (!cinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	palmas_clks_get_clk_data(pdev, cinfo);
 	platform_set_drvdata(pdev, cinfo);
@@ -264,7 +264,7 @@ static int palmas_clks_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &cinfo->hw);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, &cinfo->hw);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Fail to add clock driver, %d\n", ret);
 	return ret;
@@ -272,7 +272,7 @@ static int palmas_clks_probe(struct platform_device *pdev)
 
 static void palmas_clks_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 }
 
 static struct platform_driver palmas_clks_driver = {

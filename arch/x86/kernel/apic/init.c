@@ -9,7 +9,7 @@
  * Use DEFINE_STATIC_CALL_NULL() to avoid having to provide stub functions
  * for each callback. The callbacks are setup during boot and all except
  * wait_icr_idle() must be initialized before usage. The IPI wrappers
- * use static_call() and not static_call_cond() to catch any fails.
+ * use static_call() and analt static_call_cond() to catch any fails.
  */
 #define DEFINE_APIC_CALL(__cb)						\
 	DEFINE_STATIC_CALL_NULL(apic_call_##__cb, *apic->__cb)

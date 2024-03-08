@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology corporation.
+// Copyright (c) 2018 Nuvoton Techanallogy corporation.
 // Copyright 2018 Google, Inc.
 
 #define pr_fmt(fmt) "nuvoton,npcm7xx-smp: " fmt
@@ -21,20 +21,20 @@ extern void npcm7xx_secondary_startup(void);
 static int npcm7xx_smp_boot_secondary(unsigned int cpu,
 				      struct task_struct *idle)
 {
-	struct device_node *gcr_np;
+	struct device_analde *gcr_np;
 	void __iomem *gcr_base;
 	int ret = 0;
 
-	gcr_np = of_find_compatible_node(NULL, NULL, "nuvoton,npcm750-gcr");
+	gcr_np = of_find_compatible_analde(NULL, NULL, "nuvoton,npcm750-gcr");
 	if (!gcr_np) {
-		pr_err("no gcr device node\n");
-		ret = -ENODEV;
+		pr_err("anal gcr device analde\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 	gcr_base = of_iomap(gcr_np, 0);
 	if (!gcr_base) {
-		pr_err("could not iomap gcr");
-		ret = -ENOMEM;
+		pr_err("could analt iomap gcr");
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -51,17 +51,17 @@ out:
 
 static void __init npcm7xx_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *scu_np;
+	struct device_analde *scu_np;
 	void __iomem *scu_base;
 
-	scu_np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	scu_np = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-scu");
 	if (!scu_np) {
-		pr_err("no scu device node\n");
+		pr_err("anal scu device analde\n");
 		return;
 	}
 	scu_base = of_iomap(scu_np, 0);
 	if (!scu_base) {
-		pr_err("could not iomap scu");
+		pr_err("could analt iomap scu");
 		return;
 	}
 

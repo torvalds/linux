@@ -32,24 +32,24 @@ static int __initdata testcase_total;
 static int __initdata testcase_successes;
 static int __initdata expected_testcase_failures;
 static int __initdata unexpected_testcase_failures;
-static int __initdata unexpected_testcase_unknowns;
+static int __initdata unexpected_testcase_unkanalwns;
 
 static int __init nmi_unk_cb(unsigned int val, struct pt_regs *regs)
 {
-	unexpected_testcase_unknowns++;
+	unexpected_testcase_unkanalwns++;
 	return NMI_HANDLED;
 }
 
 static void __init init_nmi_testsuite(void)
 {
-	/* trap all the unknown NMIs we may generate */
-	register_nmi_handler(NMI_UNKNOWN, nmi_unk_cb, 0, "nmi_selftest_unk",
+	/* trap all the unkanalwn NMIs we may generate */
+	register_nmi_handler(NMI_UNKANALWN, nmi_unk_cb, 0, "nmi_selftest_unk",
 			__initdata);
 }
 
 static void __init cleanup_nmi_testsuite(void)
 {
-	unregister_nmi_handler(NMI_UNKNOWN, "nmi_selftest_unk");
+	unregister_nmi_handler(NMI_UNKANALWN, "nmi_selftest_unk");
 }
 
 static int __init test_nmi_ipi_callback(unsigned int val, struct pt_regs *regs)

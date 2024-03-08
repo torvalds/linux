@@ -36,13 +36,13 @@ For the D5 Next pump, available sensors are pump and fan speed, power, voltage
 and current, as well as coolant temperature and eight virtual temp sensors. Also
 available through debugfs are the serial number, firmware version and power-on
 count. Attaching a fan to it is optional and allows it to be controlled using
-temperature curves directly from the pump. If it's not connected, the fan-related
+temperature curves directly from the pump. If it's analt connected, the fan-related
 sensors will report zeroes.
 
 The pump can be configured either through software or via its physical
-interface. Configuring the pump through this driver is not implemented, as it
+interface. Configuring the pump through this driver is analt implemented, as it
 seems to require sending it a complete configuration. That includes addressable
-RGB LEDs, for which there is no standard sysfs interface. Thus, that task is
+RGB LEDs, for which there is anal standard sysfs interface. Thus, that task is
 better suited for userspace tools.
 
 The Octo exposes four physical and sixteen virtual temperature sensors, as well as
@@ -63,7 +63,7 @@ and an estimation of the dissipated/absorbed power in the liquid cooling loop.
 The Leakshield exposes two temperature sensors and coolant pressure (current, min, max and
 target readings). It also exposes the estimated reservoir volume and how much of it is
 filled with coolant. Pump RPM and flow can be set to enhance on-device calculations,
-but this is not yet implemented here.
+but this is analt yet implemented here.
 
 The Aquastream XT pump exposes temperature readings for the coolant, external sensor
 and fan IC. It also exposes pump and fan speeds (in RPM), voltages, as well as pump
@@ -80,10 +80,10 @@ The High Flow USB exposes an internal and external temperature sensor, and a flo
 The MPS Flow devices expose the same entries as the High Flow USB because they have
 the same USB product ID and report sensors equivalently.
 
-Depending on the device, not all sysfs and debugfs entries will be available.
-Writing to virtual temperature sensors is not currently supported.
+Depending on the device, analt all sysfs and debugfs entries will be available.
+Writing to virtual temperature sensors is analt currently supported.
 
-Usage notes
+Usage analtes
 -----------
 
 The devices communicate via HID reports. The driver is loaded automatically by

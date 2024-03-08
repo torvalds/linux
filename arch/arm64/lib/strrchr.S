@@ -31,4 +31,4 @@ SYM_FUNC_START(__pi_strrchr)
 	ret
 SYM_FUNC_END(__pi_strrchr)
 SYM_FUNC_ALIAS_WEAK(strrchr, __pi_strrchr)
-EXPORT_SYMBOL_NOKASAN(strrchr)
+EXPORT_SYMBOL_ANALKASAN(strrchr)

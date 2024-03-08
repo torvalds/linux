@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -74,7 +74,7 @@
  *   handling, and likely that of many GL client applications as well.
  *
  * This led to a plan of using our own integer IDs (called handles, following
- * DRM terminology) to mimic fds, and implement the fd syscalls we need as
+ * DRM termianallogy) to mimic fds, and implement the fd syscalls we need as
  * ioctls.  The objects themselves will still include the struct file so
  * that we can transition to fds if the required kernel infrastructure shows
  * up at a later date, and as our interface with shmfs for memory allocation.
@@ -102,7 +102,7 @@ drm_gem_init(struct drm_device *dev)
 					  GFP_KERNEL);
 	if (!vma_offset_manager) {
 		DRM_ERROR("out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->vma_offset_manager = vma_offset_manager;
@@ -129,7 +129,7 @@ int drm_gem_object_init(struct drm_device *dev,
 
 	drm_gem_private_object_init(dev, obj, size);
 
-	filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
+	filp = shmem_file_setup("drm mm object", size, VM_ANALRESERVE);
 	if (IS_ERR(filp))
 		return PTR_ERR(filp);
 
@@ -146,7 +146,7 @@ EXPORT_SYMBOL(drm_gem_object_init);
  * @size: object size
  *
  * Initialize an already allocated GEM object of the specified size with
- * no GEM provided backing store. Instead the caller is responsible for
+ * anal GEM provided backing store. Instead the caller is responsible for
  * backing the object and handling it.
  */
 void drm_gem_private_object_init(struct drm_device *dev,
@@ -167,8 +167,8 @@ void drm_gem_private_object_init(struct drm_device *dev,
 	if (drm_core_check_feature(dev, DRIVER_GEM_GPUVA))
 		drm_gem_gpuva_init(obj);
 
-	drm_vma_node_reset(&obj->vma_node);
-	INIT_LIST_HEAD(&obj->lru_node);
+	drm_vma_analde_reset(&obj->vma_analde);
+	INIT_LIST_HEAD(&obj->lru_analde);
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
 
@@ -192,7 +192,7 @@ EXPORT_SYMBOL(drm_gem_private_object_fini);
  *
  * Called after the last handle to the object has been closed
  *
- * Removes any name for the object. Note that this must be
+ * Removes any name for the object. Analte that this must be
  * called before drm_gem_object_free or we'll be touching
  * freed memory
  */
@@ -257,7 +257,7 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 		obj->funcs->close(obj, file_priv);
 
 	drm_prime_remove_buf_handle(&file_priv->prime, id);
-	drm_vma_node_revoke(&obj->vma_node, file_priv);
+	drm_vma_analde_revoke(&obj->vma_analde, file_priv);
 
 	drm_gem_object_handle_put_unlocked(obj);
 
@@ -319,7 +319,7 @@ int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 
 	obj = drm_gem_object_lookup(file, handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Don't allow imported objects to be mapped */
 	if (obj->import_attach) {
@@ -331,7 +331,7 @@ int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
+	*offset = drm_vma_analde_offset_addr(&obj->vma_analde);
 out:
 	drm_gem_object_put(obj);
 
@@ -373,7 +373,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	idr_preload(GFP_KERNEL);
 	spin_lock(&file_priv->table_lock);
 
-	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_NOWAIT);
+	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_ANALWAIT);
 
 	spin_unlock(&file_priv->table_lock);
 	idr_preload_end();
@@ -384,7 +384,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 
 	handle = ret;
 
-	ret = drm_vma_node_allow(&obj->vma_node, file_priv);
+	ret = drm_vma_analde_allow(&obj->vma_analde, file_priv);
 	if (ret)
 		goto err_remove;
 
@@ -398,7 +398,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	return 0;
 
 err_revoke:
-	drm_vma_node_revoke(&obj->vma_node, file_priv);
+	drm_vma_analde_revoke(&obj->vma_analde, file_priv);
 err_remove:
 	spin_lock(&file_priv->table_lock);
 	idr_remove(&file_priv->object_idr, handle);
@@ -438,7 +438,7 @@ EXPORT_SYMBOL(drm_gem_handle_create);
  *
  * This routine frees fake offsets allocated by drm_gem_create_mmap_offset().
  *
- * Note that drm_gem_object_release() already calls this function, so drivers
+ * Analte that drm_gem_object_release() already calls this function, so drivers
  * don't have to take care of releasing the mmap offset themselves when freeing
  * the GEM object.
  */
@@ -447,7 +447,7 @@ drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 
-	drm_vma_offset_remove(dev->vma_offset_manager, &obj->vma_node);
+	drm_vma_offset_remove(dev->vma_offset_manager, &obj->vma_analde);
 }
 EXPORT_SYMBOL(drm_gem_free_mmap_offset);
 
@@ -466,14 +466,14 @@ EXPORT_SYMBOL(drm_gem_free_mmap_offset);
  * Otherwise just use drm_gem_create_mmap_offset().
  *
  * This function is idempotent and handles an already allocated mmap offset
- * transparently. Drivers do not need to check for this case.
+ * transparently. Drivers do analt need to check for this case.
  */
 int
 drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size)
 {
 	struct drm_device *dev = obj->dev;
 
-	return drm_vma_offset_add(dev->vma_offset_manager, &obj->vma_node,
+	return drm_vma_offset_add(dev->vma_offset_manager, &obj->vma_analde,
 				  size / PAGE_SIZE);
 }
 EXPORT_SYMBOL(drm_gem_create_mmap_offset_size);
@@ -515,8 +515,8 @@ static void drm_gem_check_release_batch(struct folio_batch *fbatch)
  * @obj: obj in question
  *
  * This reads the page-array of the shmem-backing storage of the given gem
- * object. An array of pages is returned. If a page is not allocated or
- * swapped-out, this will allocate/swap-in the required pages. Note that the
+ * object. An array of pages is returned. If a page is analt allocated or
+ * swapped-out, this will allocate/swap-in the required pages. Analte that the
  * whole object is covered by the page-array and pinned in memory.
  *
  * Use drm_gem_put_pages() to release the array and unpin all pages.
@@ -524,14 +524,14 @@ static void drm_gem_check_release_batch(struct folio_batch *fbatch)
  * This uses the GFP-mask set on the shmem-mapping (see mapping_set_gfp_mask()).
  * If you require other GFP-masks, you have to do those allocations yourself.
  *
- * Note that you are not allowed to change gfp-zones during runtime. That is,
+ * Analte that you are analt allowed to change gfp-zones during runtime. That is,
  * shmem_read_mapping_page_gfp() must be called with the same gfp_zone(gfp) as
  * set during initialization. If you have special zone constraints, set them
  * after drm_gem_object_init() via mapping_set_gfp_mask(). shmem-core takes care
  * to keep pages in the required zone during swap-in.
  *
  * This function is only valid on objects initialized with
- * drm_gem_object_init(), but not for those initialized with
+ * drm_gem_object_init(), but analt for those initialized with
  * drm_gem_private_object_init() only.
  */
 struct page **drm_gem_get_pages(struct drm_gem_object *obj)
@@ -548,7 +548,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 	/* This is the shared memory object that backs the GEM resource */
 	mapping = obj->filp->f_mapping;
 
-	/* We already BUG_ON() for non-page-aligned sizes in
+	/* We already BUG_ON() for analn-page-aligned sizes in
 	 * drm_gem_object_init(), so we should never hit this unless
 	 * driver author is doing something really wrong:
 	 */
@@ -558,7 +558,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 
 	pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (pages == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mapping_set_unevictable(mapping);
 
@@ -574,8 +574,8 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 			pages[i] = folio_file_page(folio, i);
 
 		/* Make sure shmem keeps __GFP_DMA32 allocated pages in the
-		 * correct region during swapin. Note that this requires
-		 * __GFP_DMA32 to be set in mapping_gfp_mask(inode->i_mapping)
+		 * correct region during swapin. Analte that this requires
+		 * __GFP_DMA32 to be set in mapping_gfp_mask(ianalde->i_mapping)
 		 * so shmem can relocate pages during swapin if required.
 		 */
 		BUG_ON(mapping_gfp_constraint(mapping, __GFP_DMA32) &&
@@ -616,10 +616,10 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 	struct address_space *mapping;
 	struct folio_batch fbatch;
 
-	mapping = file_inode(obj->filp)->i_mapping;
+	mapping = file_ianalde(obj->filp)->i_mapping;
 	mapping_clear_unevictable(mapping);
 
-	/* We already BUG_ON() for non-page-aligned sizes in
+	/* We already BUG_ON() for analn-page-aligned sizes in
 	 * drm_gem_object_init(), so we should never hit this unless
 	 * driver author is doing something really wrong:
 	 */
@@ -665,7 +665,7 @@ static int objects_lookup(struct drm_file *filp, u32 *handle, int count,
 		/* Check if we currently have a reference on the object */
 		obj = idr_find(&filp->object_idr, handle[i]);
 		if (!obj) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			break;
 		}
 		drm_gem_object_get(obj);
@@ -691,7 +691,7 @@ static int objects_lookup(struct drm_file *filp, u32 *handle, int count,
  * Returns:
  *
  * @objs filled in with GEM object pointers. Returned GEM objects need to be
- * released with drm_gem_object_put(). -ENOENT is returned on a lookup
+ * released with drm_gem_object_put(). -EANALENT is returned on a lookup
  * failure. 0 is returned on success.
  *
  */
@@ -708,13 +708,13 @@ int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 	objs = kvmalloc_array(count, sizeof(struct drm_gem_object *),
 			     GFP_KERNEL | __GFP_ZERO);
 	if (!objs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*objs_out = objs;
 
 	handles = kvmalloc_array(count, sizeof(u32), GFP_KERNEL);
 	if (!handles) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -808,7 +808,7 @@ drm_gem_close_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = drm_gem_handle_delete(file_priv, args->handle);
 
@@ -823,7 +823,7 @@ drm_gem_close_ioctl(struct drm_device *dev, void *data,
  *
  * Create a global name for an object, returning the name.
  *
- * Note that the name does not hold a reference; when the object
+ * Analte that the name does analt hold a reference; when the object
  * is freed, the name goes away.
  */
 int
@@ -835,16 +835,16 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (obj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	mutex_lock(&dev->object_name_lock);
 	/* prevent races with concurrent gem_close. */
 	if (obj->handle_count == 0) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err;
 	}
 
@@ -874,7 +874,7 @@ err:
  * Open an object using the global name, returning a handle and the size.
  *
  * This handle (of course) holds a reference to the object, so the object
- * will not go away until the handle is deleted.
+ * will analt go away until the handle is deleted.
  */
 int
 drm_gem_open_ioctl(struct drm_device *dev, void *data,
@@ -886,7 +886,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	u32 handle;
 
 	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&dev->object_name_lock);
 	obj = idr_find(&dev->object_name_idr, (int) args->name);
@@ -894,7 +894,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 		drm_gem_object_get(obj);
 	} else {
 		mutex_unlock(&dev->object_name_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* drm_gem_handle_create_tail unlocks dev->object_name_lock. */
@@ -911,7 +911,7 @@ err:
 }
 
 /**
- * drm_gem_open - initializes GEM file-private structures at devnode open time
+ * drm_gem_open - initializes GEM file-private structures at devanalde open time
  * @dev: drm_device which is being opened by userspace
  * @file_private: drm file-private structure to set up
  *
@@ -1024,10 +1024,10 @@ EXPORT_SYMBOL(drm_gem_vm_close);
  * provide a fault handler in their vm_ops (in which case any accesses to
  * the object will be trapped, to perform migration, GTT binding, surface
  * register allocation, or performance monitoring), or mmap the buffer memory
- * synchronously after calling drm_gem_mmap_obj.
+ * synchroanalusly after calling drm_gem_mmap_obj.
  *
  * This function is mainly intended to implement the DMABUF mmap operation, when
- * the GEM object is not looked up based on its fake offset. To implement the
+ * the GEM object is analt looked up based on its fake offset. To implement the
  * DRM mmap operation, drivers should use the drm_gem_mmap() function.
  *
  * drm_gem_mmap_obj() assumes the user is granted access to the buffer while
@@ -1035,7 +1035,7 @@ EXPORT_SYMBOL(drm_gem_vm_close);
  * callers must verify access restrictions before calling this helper.
  *
  * Return 0 or success or -EINVAL if the object size is smaller than the VMA
- * size, or if no vm_ops are provided.
+ * size, or if anal vm_ops are provided.
  */
 int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 		     struct vm_area_struct *vma)
@@ -1093,32 +1093,32 @@ EXPORT_SYMBOL(drm_gem_mmap_obj);
  * contain the fake offset we created when the GTT map ioctl was called on
  * the object) and map it with a call to drm_gem_mmap_obj().
  *
- * If the caller is not granted access to the buffer object, the mmap will fail
+ * If the caller is analt granted access to the buffer object, the mmap will fail
  * with EACCES. Please see the vma manager for more information.
  */
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->mianalr->dev;
 	struct drm_gem_object *obj = NULL;
-	struct drm_vma_offset_node *node;
+	struct drm_vma_offset_analde *analde;
 	int ret;
 
 	if (drm_dev_is_unplugged(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
-	node = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
+	analde = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
 						  vma->vm_pgoff,
 						  vma_pages(vma));
-	if (likely(node)) {
-		obj = container_of(node, struct drm_gem_object, vma_node);
+	if (likely(analde)) {
+		obj = container_of(analde, struct drm_gem_object, vma_analde);
 		/*
 		 * When the object is being freed, after it hits 0-refcnt it
 		 * proceeds to tear down the object. In the process it will
 		 * attempt to remove the VMA offset and so acquire this
 		 * mgr->vm_lock.  Therefore if we find an object with a 0-refcnt
-		 * that matches our range, we know it is in the process of being
+		 * that matches our range, we kanalw it is in the process of being
 		 * destroyed and will be freed as soon as we release the lock -
 		 * so we have to check for the 0-refcnted object and treat it as
 		 * invalid.
@@ -1131,12 +1131,12 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (!obj)
 		return -EINVAL;
 
-	if (!drm_vma_node_is_allowed(node, priv)) {
+	if (!drm_vma_analde_is_allowed(analde, priv)) {
 		drm_gem_object_put(obj);
 		return -EACCES;
 	}
 
-	ret = drm_gem_mmap_obj(obj, drm_vma_node_size(node) << PAGE_SHIFT,
+	ret = drm_gem_mmap_obj(obj, drm_vma_analde_size(analde) << PAGE_SHIFT,
 			       vma);
 
 	drm_gem_object_put(obj);
@@ -1152,10 +1152,10 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 	drm_printf_indent(p, indent, "refcount=%u\n",
 			  kref_read(&obj->refcount));
 	drm_printf_indent(p, indent, "start=%08lx\n",
-			  drm_vma_node_start(&obj->vma_node));
+			  drm_vma_analde_start(&obj->vma_analde));
 	drm_printf_indent(p, indent, "size=%zu\n", obj->size);
 	drm_printf_indent(p, indent, "imported=%s\n",
-			  str_yes_no(obj->import_attach));
+			  str_anal_anal(obj->import_attach));
 
 	if (obj->funcs->print_info)
 		obj->funcs->print_info(p, indent, obj);
@@ -1182,13 +1182,13 @@ int drm_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 	dma_resv_assert_held(obj->resv);
 
 	if (!obj->funcs->vmap)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = obj->funcs->vmap(obj, map);
 	if (ret)
 		return ret;
 	else if (iosys_map_is_null(map))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1327,7 +1327,7 @@ drm_gem_lru_remove_locked(struct drm_gem_object *obj)
 {
 	obj->lru->count -= obj->size >> PAGE_SHIFT;
 	WARN_ON(obj->lru->count < 0);
-	list_del(&obj->lru_node);
+	list_del(&obj->lru_analde);
 	obj->lru = NULL;
 }
 
@@ -1369,7 +1369,7 @@ drm_gem_lru_move_tail_locked(struct drm_gem_lru *lru, struct drm_gem_object *obj
 		drm_gem_lru_remove_locked(obj);
 
 	lru->count += obj->size >> PAGE_SHIFT;
-	list_add_tail(&obj->lru_node, &lru->list);
+	list_add_tail(&obj->lru_analde, &lru->list);
 	obj->lru = lru;
 }
 EXPORT_SYMBOL(drm_gem_lru_move_tail_locked);
@@ -1423,7 +1423,7 @@ drm_gem_lru_scan(struct drm_gem_lru *lru,
 	mutex_lock(lru->lock);
 
 	while (freed < nr_to_scan) {
-		obj = list_first_entry_or_null(&lru->list, typeof(*obj), lru_node);
+		obj = list_first_entry_or_null(&lru->list, typeof(*obj), lru_analde);
 
 		if (!obj)
 			break;
@@ -1439,14 +1439,14 @@ drm_gem_lru_scan(struct drm_gem_lru *lru,
 			continue;
 
 		/*
-		 * Now that we own a reference, we can drop the lock for the
+		 * Analw that we own a reference, we can drop the lock for the
 		 * rest of the loop body, to reduce contention with other
 		 * code paths that need the LRU lock
 		 */
 		mutex_unlock(lru->lock);
 
 		/*
-		 * Note that this still needs to be trylock, since we can
+		 * Analte that this still needs to be trylock, since we can
 		 * hit shrinker in response to trying to get backing pages
 		 * for this obj (ie. while it's lock is already held)
 		 */
@@ -1478,7 +1478,7 @@ tail:
 	 * Move objects we've skipped over out of the temporary still_in_lru
 	 * back into this LRU
 	 */
-	list_for_each_entry (obj, &still_in_lru.list, lru_node)
+	list_for_each_entry (obj, &still_in_lru.list, lru_analde)
 		obj->lru = lru;
 	list_splice_tail(&still_in_lru.list, &lru->list);
 	lru->count += still_in_lru.count;

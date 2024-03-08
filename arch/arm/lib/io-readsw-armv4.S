@@ -16,7 +16,7 @@
 		.endm
 
 .Linsw_align:	movs	ip, r1, lsl #31
-		bne	.Linsw_noalign
+		bne	.Linsw_analalign
 		ldrh	ip, [r0]
 		sub	r2, r2, #1
 		strh	ip, [r1], #2
@@ -30,7 +30,7 @@ ENTRY(__raw_readsw)
 		stmfd	sp!, {r4, r5, lr}
 
 		subs	r2, r2, #8
-		bmi	.Lno_insw_8
+		bmi	.Lanal_insw_8
 
 .Linsw_8_lp:	ldrh	r3, [r0]
 		ldrh	r4, [r0]
@@ -52,8 +52,8 @@ ENTRY(__raw_readsw)
 		stmia	r1!, {r3 - r5, ip}
 		bpl	.Linsw_8_lp
 
-.Lno_insw_8:	tst	r2, #4
-		beq	.Lno_insw_4
+.Lanal_insw_8:	tst	r2, #4
+		beq	.Lanal_insw_4
 
 		ldrh	r3, [r0]
 		ldrh	r4, [r0]
@@ -65,15 +65,15 @@ ENTRY(__raw_readsw)
 
 		stmia	r1!, {r3, r4}
 
-.Lno_insw_4:	movs	r2, r2, lsl #31
-		bcc	.Lno_insw_2
+.Lanal_insw_4:	movs	r2, r2, lsl #31
+		bcc	.Lanal_insw_2
 
 		ldrh	r3, [r0]
 		ldrh	ip, [r0]
 		pack	r3, r3, ip
 		str	r3, [r1], #4
 
-.Lno_insw_2:	ldrhne	r3, [r0]
+.Lanal_insw_2:	ldrhne	r3, [r0]
 		strhne	r3, [r1]
 
 		ldmfd	sp!, {r4, r5, pc}
@@ -90,7 +90,7 @@ ENTRY(__raw_readsw)
 #define pull_hbyte1		lsr #8
 #endif
 
-.Linsw_noalign:	stmfd	sp!, {r4, lr}
+.Linsw_analalign:	stmfd	sp!, {r4, lr}
 		ldrbcc	ip, [r1, #-1]!
 		bcc	1f
 

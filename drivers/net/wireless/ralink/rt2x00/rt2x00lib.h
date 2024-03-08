@@ -104,7 +104,7 @@ void rt2x00queue_free_skb(struct queue_entry *entry);
  * @skb: The skb to align
  *
  * Align the start of the 802.11 frame to a 4-byte boundary, this could
- * mean the payload is not aligned properly though.
+ * mean the payload is analt aligned properly though.
  */
 void rt2x00queue_align_frame(struct sk_buff *skb);
 
@@ -123,7 +123,7 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length);
  * @header_length: Length of 802.11 header
  *
  * Remove L2 padding used to align both header and payload to 4-byte boundary,
- * by removing the L2 padding the header will no longer be 4-byte aligned.
+ * by removing the L2 padding the header will anal longer be 4-byte aligned.
  */
 void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length);
 
@@ -131,7 +131,7 @@ void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length);
  * rt2x00queue_write_tx_frame - Write TX frame to hardware
  * @queue: Queue over which the frame should be send
  * @skb: The skb to send
- * @local: frame is not from mac80211
+ * @local: frame is analt from mac80211
  */
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 			       struct ieee80211_sta *sta, bool local);
@@ -215,7 +215,7 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev);
  * rt2x00link_stop_tuner - Stop periodic link tuner work
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  *
- * After this function completed the link tuner will not
+ * After this function completed the link tuner will analt
  * be running until &rt2x00link_start_tuner is called.
  */
 void rt2x00link_stop_tuner(struct rt2x00_dev *rt2x00dev);
@@ -255,7 +255,7 @@ void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev);
  * rt2x00link_stop_watchdog - Stop periodic watchdog monitoring
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  *
- * After this function completed the watchdog monitoring will not
+ * After this function completed the watchdog monitoring will analt
  * be running until &rt2x00link_start_watchdog is called.
  */
 void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev);
@@ -265,7 +265,7 @@ void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev);
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  *
  * Initialize work structure and all link tuning and watchdog related
- * parameters. This will not start the periodic work itself.
+ * parameters. This will analt start the periodic work itself.
  */
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev);
 
@@ -329,7 +329,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 #else
 static inline enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key)
 {
-	return CIPHER_NONE;
+	return CIPHER_ANALNE;
 }
 
 static inline void rt2x00crypto_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,

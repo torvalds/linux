@@ -68,10 +68,10 @@ This driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does analt auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
@@ -115,7 +115,7 @@ curr[1-12]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.
 curr[1-12]_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
 
 			For each attribute index, either voltage or current is
-			reported, but not both. If voltage or current is
+			reported, but analt both. If voltage or current is
 			reported depends on the chip configuration.
 
 temp[1-2]_input		Measured temperatures. From READ_TEMPERATURE_1 and
@@ -132,6 +132,6 @@ fan[1-4]_fault		Fan fault.
 			Fan attributes are only available on chips supporting
 			fan control (UCD90124, UCD90910). Attribute files are
 			created only for enabled fans.
-			Note that even though UCD90910 supports up to 10 fans,
+			Analte that even though UCD90910 supports up to 10 fans,
 			only up to four fans are currently supported.
 ======================= ========================================================

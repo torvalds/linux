@@ -4,7 +4,7 @@ ARTPEC series SoC Device Tree Bindings
 ARTPEC-6 ARM SoC
 ================
 
-Required root node properties:
+Required root analde properties:
 - compatible = "axis,artpec6";
 
 ARTPEC-6 System Controller
@@ -25,5 +25,5 @@ Example:
 
 ARTPEC-6 Development board:
 ---------------------------
-Required root node properties:
+Required root analde properties:
 - compatible = "axis,artpec6-dev-board", "axis,artpec6";

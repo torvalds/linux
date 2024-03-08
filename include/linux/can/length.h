@@ -26,7 +26,7 @@
  *	FD Format indicator (FDF)		1
  *	Data Length Code (DLC)			4
  *
- * including all fields preceding the data field, ignoring bitstuffing
+ * including all fields preceding the data field, iganalring bitstuffing
  */
 #define CAN_FRAME_HEADER_SFF_BITS 19
 
@@ -47,7 +47,7 @@
  *	Reserved bit (r0)			1
  *	Data length code (DLC)			4
  *
- * including all fields preceding the data field, ignoring bitstuffing
+ * including all fields preceding the data field, iganalring bitstuffing
  */
 #define CAN_FRAME_HEADER_EFF_BITS 39
 
@@ -68,7 +68,7 @@
  *	Error Status Indicator (ESI)		1
  *	Data length code (DLC)			4
  *
- * including all fields preceding the data field, ignoring bitstuffing
+ * including all fields preceding the data field, iganalring bitstuffing
  */
 #define CANFD_FRAME_HEADER_SFF_BITS 22
 
@@ -91,7 +91,7 @@
  *	Error Status Indicator (ESI)		1
  *	Data length code (DLC)			4
  *
- * including all fields preceding the data field, ignoring bitstuffing
+ * including all fields preceding the data field, iganalring bitstuffing
  */
 #define CANFD_FRAME_HEADER_EFF_BITS 41
 
@@ -103,7 +103,7 @@
  * CRC sequence (CRC15)			15
  * CRC Delimiter			1
  *
- * ignoring bitstuffing
+ * iganalring bitstuffing
  */
 #define CAN_FRAME_CRC_FIELD_BITS 16
 
@@ -160,7 +160,7 @@
  *   Destuffed: 1 1111  0000  1111  0000  1111
  *   Stuffed:   1 1111o 0000i 1111o 0000i 1111o
  *
- * Nomenclature
+ * Analmenclature
  *
  *  - "0": dominant bit
  *  - "o": dominant stuff bit
@@ -210,16 +210,16 @@
  * @is_fd: true: CAN-FD frame; false: Classical CAN frame.
  * @is_eff: true: Extended frame; false: Standard frame.
  * @bitstuffing: true: calculate the bitstuffing worst case; false:
- *	calculate the bitstuffing best case (no dynamic
+ *	calculate the bitstuffing best case (anal dynamic
  *	bitstuffing). CAN-FD's fixed stuff bits are always included.
  * @intermission: if and only if true, include the inter frame space
- *	assuming no bus idle (i.e. only the intermission). Strictly
- *	speaking, the inter frame space is not part of the
+ *	assuming anal bus idle (i.e. only the intermission). Strictly
+ *	speaking, the inter frame space is analt part of the
  *	frame. However, it is needed when calculating the delay
  *	between the Start Of Frame of two consecutive frames.
  * @data_len: length of the data field in bytes. Correspond to
- *	can(fd)_frame->len. Should be zero for remote frames. No
- *	sanitization is done on @data_len and it shall have no side
+ *	can(fd)_frame->len. Should be zero for remote frames. Anal
+ *	sanitization is done on @data_len and it shall have anal side
  *	effects.
  *
  * Return: the numbers of bits on the wire of a CAN frame.
@@ -244,13 +244,13 @@
 
 /*
  * Maximum size of a Classical CAN frame
- * (rounded up, ignoring bitstuffing but including intermission)
+ * (rounded up, iganalring bitstuffing but including intermission)
  */
 #define CAN_FRAME_LEN_MAX can_frame_bytes(false, true, false, CAN_MAX_DLEN)
 
 /*
  * Maximum size of a CAN-FD frame
- * (rounded up, ignoring dynamic bitstuffing but including intermission)
+ * (rounded up, iganalring dynamic bitstuffing but including intermission)
  */
 #define CANFD_FRAME_LEN_MAX can_frame_bytes(true, true, false, CANFD_MAX_DLEN)
 

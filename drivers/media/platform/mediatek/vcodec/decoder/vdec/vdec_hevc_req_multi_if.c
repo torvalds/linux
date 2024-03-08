@@ -254,7 +254,7 @@ struct vdec_hevc_slice_lat_dec_param {
  * struct vdec_hevc_slice_info - decode information
  *
  * @wdma_end_addr_offset: wdma end address offset
- * @timeout:              Decode timeout: 1 timeout, 0 no timeount
+ * @timeout:              Decode timeout: 1 timeout, 0 anal timeount
  * @vdec_fb_va:           VDEC frame buffer struct virtual address
  * @crc:                  Used to check whether hardware's status is right
  */
@@ -859,7 +859,7 @@ static int vdec_hevc_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inst->ctx = ctx;
 
@@ -980,7 +980,7 @@ static int vdec_hevc_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	if (vdec_msg_queue_init(&inst->ctx->msg_queue, inst->ctx,
 				vdec_hevc_slice_core_decode,
 				sizeof(*share_info)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* bs NULL means flush decoder */
 	if (!bs) {

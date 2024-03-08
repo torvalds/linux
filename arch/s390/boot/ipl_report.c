@@ -134,7 +134,7 @@ int read_ipl_report(void)
 
 	/*
 	 * With either the component list or the certificate list
-	 * missing the kernel will stay ignorant of secure IPL.
+	 * missing the kernel will stay iganalrant of secure IPL.
 	 */
 	if (!comps || !certs) {
 		certs = NULL;

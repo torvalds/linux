@@ -10,7 +10,7 @@
 #include <linux/cpumask.h>
 
 #define MASK_MSG(m) \
-	"%s contains %sCPUs %*pbl", #m, (cpumask_weight(m) ? "" : "no "), \
+	"%s contains %sCPUs %*pbl", #m, (cpumask_weight(m) ? "" : "anal "), \
 	nr_cpumask_bits, cpumask_bits(m)
 
 #define EXPECT_FOR_EACH_CPU_EQ(test, mask)			\
@@ -106,12 +106,12 @@ static void test_cpumask_iterators(struct kunit *test)
 	EXPECT_FOR_EACH_CPU_WRAP_EQ(test, &mask_empty);
 	EXPECT_FOR_EACH_CPU_OP_EQ(test, and, &mask_empty, &mask_empty);
 	EXPECT_FOR_EACH_CPU_OP_EQ(test, and, cpu_possible_mask, &mask_empty);
-	EXPECT_FOR_EACH_CPU_OP_EQ(test, andnot, &mask_empty, &mask_empty);
+	EXPECT_FOR_EACH_CPU_OP_EQ(test, andanalt, &mask_empty, &mask_empty);
 
 	EXPECT_FOR_EACH_CPU_EQ(test, cpu_possible_mask);
 	EXPECT_FOR_EACH_CPU_WRAP_EQ(test, cpu_possible_mask);
 	EXPECT_FOR_EACH_CPU_OP_EQ(test, and, cpu_possible_mask, cpu_possible_mask);
-	EXPECT_FOR_EACH_CPU_OP_EQ(test, andnot, cpu_possible_mask, &mask_empty);
+	EXPECT_FOR_EACH_CPU_OP_EQ(test, andanalt, cpu_possible_mask, &mask_empty);
 }
 
 static void test_cpumask_iterators_builtin(struct kunit *test)

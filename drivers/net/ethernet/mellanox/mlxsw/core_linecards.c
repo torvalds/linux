@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2022 NVIDIA Corporation and Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2022 NVIDIA Corporation and Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -408,8 +408,8 @@ static int mlxsw_linecard_device_info_update(struct mlxsw_linecard *linecard)
 						  &data_valid, &flash_owner,
 						  &device_index,
 						  &info.fw_major,
-						  &info.fw_minor,
-						  &info.fw_sub_minor);
+						  &info.fw_mianalr,
+						  &info.fw_sub_mianalr);
 		if (!data_valid)
 			break;
 		if (!flash_owner) /* We care only about flashable ones. */
@@ -533,7 +533,7 @@ int mlxsw_linecards_event_ops_register(struct mlxsw_core *mlxsw_core,
 		return 0;
 	item = kzalloc(sizeof(*item), GFP_KERNEL);
 	if (!item)
-		return -ENOMEM;
+		return -EANALMEM;
 	item->event_ops = ops;
 	item->priv = priv;
 
@@ -581,7 +581,7 @@ int mlxsw_linecard_devlink_info_get(struct mlxsw_linecard *linecard,
 
 	mutex_lock(&linecard->lock);
 	if (WARN_ON(!linecard->provisioned)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock;
 	}
 
@@ -602,8 +602,8 @@ int mlxsw_linecard_devlink_info_get(struct mlxsw_linecard *linecard,
 						     DEVLINK_INFO_VERSION_GENERIC_FW_PSID,
 						     info->psid);
 
-		sprintf(buf, "%u.%u.%u", info->fw_major, info->fw_minor,
-			info->fw_sub_minor);
+		sprintf(buf, "%u.%u.%u", info->fw_major, info->fw_mianalr,
+			info->fw_sub_mianalr);
 		err = devlink_info_version_running_put(req,
 						       DEVLINK_INFO_VERSION_GENERIC_FW,
 						       buf);
@@ -630,7 +630,7 @@ mlxsw_linecard_provision_set(struct mlxsw_linecard *linecard, u8 card_type,
 	if (!type) {
 		/* It is possible for a line card to be provisioned before
 		 * driver initialization. Due to a missing INI bundle file
-		 * or an outdated one, the queried card's type might not
+		 * or an outdated one, the queried card's type might analt
 		 * be recognized by the driver. In this case, try to query
 		 * the card's name from the device.
 		 */
@@ -927,7 +927,7 @@ mlxsw_linecard_ini_erase(struct mlxsw_core *mlxsw_core,
 	case MLXSW_REG_MBCT_STATUS_ERASE_COMPLETE:
 		break;
 	default:
-		/* Should not happen */
+		/* Should analt happen */
 		fallthrough;
 	case MLXSW_REG_MBCT_STATUS_ERASE_FAILED:
 		NL_SET_ERR_MSG_MOD(extack, "Failed to erase linecard INI");
@@ -1384,7 +1384,7 @@ mlxsw_linecard_types_file_validate(struct mlxsw_linecards *linecards,
 		count++;
 	}
 	if (!count) {
-		dev_warn(linecards->bus_info->dev, "Linecards INIs file does not contain any INI\n");
+		dev_warn(linecards->bus_info->dev, "Linecards INIs file does analt contain any INI\n");
 		return -EINVAL;
 	}
 	types_info->count = count;
@@ -1418,7 +1418,7 @@ mlxsw_linecard_types_file_parse(struct mlxsw_linecard_types_info *types_info)
 }
 
 #define MLXSW_LINECARDS_INI_BUNDLE_FILENAME_FMT \
-	"mellanox/lc_ini_bundle_%u_%u.bin"
+	"mellaanalx/lc_ini_bundle_%u_%u.bin"
 #define MLXSW_LINECARDS_INI_BUNDLE_FILENAME_LEN \
 	(sizeof(MLXSW_LINECARDS_INI_BUNDLE_FILENAME_FMT) + 4)
 
@@ -1433,13 +1433,13 @@ static int mlxsw_linecard_types_init(struct mlxsw_core *mlxsw_core,
 
 	err = snprintf(filename, sizeof(filename),
 		       MLXSW_LINECARDS_INI_BUNDLE_FILENAME_FMT,
-		       rev->minor, rev->subminor);
+		       rev->mianalr, rev->submianalr);
 	WARN_ON(err >= sizeof(filename));
 
 	err = request_firmware_direct(&firmware, filename,
 				      linecards->bus_info->dev);
 	if (err) {
-		dev_warn(linecards->bus_info->dev, "Could not request linecards INI file \"%s\", provisioning will not be possible\n",
+		dev_warn(linecards->bus_info->dev, "Could analt request linecards INI file \"%s\", provisioning will analt be possible\n",
 			 filename);
 		return 0;
 	}
@@ -1447,14 +1447,14 @@ static int mlxsw_linecard_types_init(struct mlxsw_core *mlxsw_core,
 	types_info = kzalloc(sizeof(*types_info), GFP_KERNEL);
 	if (!types_info) {
 		release_firmware(firmware);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	linecards->types_info = types_info;
 
 	types_info->data_size = firmware->size;
 	types_info->data = vmalloc(types_info->data_size);
 	if (!types_info->data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		release_firmware(firmware);
 		goto err_data_alloc;
 	}
@@ -1471,7 +1471,7 @@ static int mlxsw_linecard_types_init(struct mlxsw_core *mlxsw_core,
 					      sizeof(struct mlxsw_linecard_ini_file *),
 					      GFP_KERNEL);
 	if (!types_info->ini_files) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ini_files_alloc;
 	}
 
@@ -1519,7 +1519,7 @@ int mlxsw_linecards_init(struct mlxsw_core *mlxsw_core,
 
 	linecards = vzalloc(struct_size(linecards, linecards, slot_count));
 	if (!linecards)
-		return -ENOMEM;
+		return -EANALMEM;
 	linecards->count = slot_count;
 	linecards->mlxsw_core = mlxsw_core;
 	linecards->bus_info = bus_info;

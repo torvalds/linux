@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/iio/dac/lltc,ltc2632.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Linear Technology LTC263x 12-/10-/8-Bit Rail-to-Rail DAC
+title: Linear Techanallogy LTC263x 12-/10-/8-Bit Rail-to-Rail DAC
 
 maintainers:
   - Michael Hennerich <michael.hennerich@analog.com>
 
 description: |
-  Bindings for the Linear Technology LTC2632/2634/2636 DAC
+  Bindings for the Linear Techanallogy LTC2632/2634/2636 DAC
   Datasheet can be found here: https://www.analog.com/media/en/technical-documentation/data-sheets/LTC263[246].pdf
 
 properties:
@@ -45,7 +45,7 @@ properties:
     description:
       Phandle to the external reference voltage supply. This should
       only be set if there is an external reference voltage connected to the VREF
-      pin. If the property is not set the internal reference is used.
+      pin. If the property is analt set the internal reference is used.
 
 required:
   - compatible

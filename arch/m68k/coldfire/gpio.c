@@ -72,7 +72,7 @@ int __mcfgpio_direction_output(unsigned gpio, int value)
 	data |= mcfgpio_bit(gpio);
 	mcfgpio_write(data, __mcfgpio_pddr(gpio));
 
-	/* now set the data to output */
+	/* analw set the data to output */
 	if (gpio < MCFGPIO_SCR_START) {
 		data = mcfgpio_read(__mcfgpio_podr(gpio));
 		if (value)

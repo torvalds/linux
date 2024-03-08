@@ -70,7 +70,7 @@ snd_seq_oss_ioctl(struct seq_oss_devinfo *dp, unsigned int cmd, unsigned long ca
 	case SNDCTL_TMR_START:
 	case SNDCTL_TMR_STOP:
 	case SNDCTL_TMR_CONTINUE:
-	case SNDCTL_TMR_METRONOME:
+	case SNDCTL_TMR_METROANALME:
 	case SNDCTL_TMR_SOURCE:
 	case SNDCTL_TMR_SELECT:
 	case SNDCTL_SEQ_CTRLRATE:

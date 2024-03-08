@@ -1,6 +1,6 @@
 Invensense ICS-43432-compatible MEMS microphone with I2S output.
 
-There are no software configuration options for this device, indeed, the only
+There are anal software configuration options for this device, indeed, the only
 host connection is the I2S interface. Apart from requirements on clock
 frequency (460 kHz to 3.379 MHz according to the data sheet) there must be
 64 clock cycles in each stereo output frame; 24 of the 32 available bits

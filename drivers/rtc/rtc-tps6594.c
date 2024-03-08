@@ -6,7 +6,7 @@
  */
 
 #include <linux/bcd.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -30,7 +30,7 @@
 
 /*
  * Min and max values supported by 'offset' interface (swapped sign).
- * After conversion, the values do not exceed the range [-32767, 33767]
+ * After conversion, the values do analt exceed the range [-32767, 33767]
  * which COMP_REG must conform to.
  */
 #define MIN_OFFSET (-277774)
@@ -40,7 +40,7 @@
 #define TICKS_PER_HOUR (32768 * 3600)
 
 // Multiplier for ppb conversions
-#define PPB_MULT NANO
+#define PPB_MULT NAANAL
 
 static int tps6594_rtc_alarm_irq_enable(struct device *dev,
 					unsigned int enabled)
@@ -241,7 +241,7 @@ static int tps6594_rtc_get_calibration(struct device *dev, int *calibration)
 	if (ret < 0)
 		return ret;
 
-	// If automatic compensation is not enabled report back zero.
+	// If automatic compensation is analt enabled report back zero.
 	if (!(ctrl & TPS6594_BIT_AUTO_COMP)) {
 		*calibration = 0;
 		return 0;
@@ -313,7 +313,7 @@ static int tps6594_rtc_set_offset(struct device *dev, long offset)
 	 * SAFETY:
 	 * - tmp = offset * TICK_PER_HOUR :
 	 *	`offset` can't be more than 277774, so `tmp` can't exceed 277774000000000
-	 *	which is lower than the maximum value in an `s64` (2^63-1). No overflow here.
+	 *	which is lower than the maximum value in an `s64` (2^63-1). Anal overflow here.
 	 *
 	 * - tmp += TICK_PER_HOUR / 2LL :
 	 *	tmp will have a maximum value of 277774117964800 which is still inferior to 2^63-1.
@@ -335,7 +335,7 @@ static irqreturn_t tps6594_rtc_interrupt(int irq, void *rtc)
 
 	ret = regmap_read(tps->regmap, TPS6594_REG_RTC_STATUS, &rtc_reg);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rtc_update_irq(rtc_dev, 1, RTC_IRQF | RTC_AF);
 
@@ -362,7 +362,7 @@ static int tps6594_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(rtc))
@@ -378,7 +378,7 @@ static int tps6594_rtc_probe(struct platform_device *pdev)
 			       TPS6594_BIT_RUN);
 	if (ret < 0)
 		return ret;
-	// RTC not running.
+	// RTC analt running.
 	if (ret == 0) {
 		ret = regmap_set_bits(tps->regmap, TPS6594_REG_RTC_CTRL_1,
 				      TPS6594_BIT_STOP_RTC);
@@ -392,15 +392,15 @@ static int tps6594_rtc_probe(struct platform_device *pdev)
 		mdelay(80);
 
 		/*
-		 * RTC should be running now. Check if this is the case.
-		 * If not it might be a missing oscillator.
+		 * RTC should be running analw. Check if this is the case.
+		 * If analt it might be a missing oscillator.
 		 */
 		ret = regmap_test_bits(tps->regmap, TPS6594_REG_RTC_STATUS,
 				       TPS6594_BIT_RUN);
 		if (ret < 0)
 			return ret;
 		if (ret == 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		// Stop RTC until first call to `tps6594_rtc_set_time`.
 		ret = regmap_clear_bits(tps->regmap, TPS6594_REG_RTC_CTRL_1,

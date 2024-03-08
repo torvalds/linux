@@ -50,7 +50,7 @@ struct fnic_trace_data {
 		};
 		u64 val;
 	} timestamp, fnaddr;
-	u32 host_no;
+	u32 host_anal;
 	u32 tag;
 	u64 data[5];
 } __attribute__((__packed__));
@@ -59,7 +59,7 @@ typedef struct fnic_trace_data fnic_trace_data_t;
 
 struct fc_trace_hdr {
 	struct timespec64 time_stamp;
-	u32 host_no;
+	u32 host_anal;
 	u8 frame_type;
 	u8 frame_len;
 } __attribute__((__packed__));
@@ -81,7 +81,7 @@ struct fc_trace_hdr {
 				trace_buf->timestamp.val = jiffies; \
 				trace_buf->fnaddr.val = (u64)(unsigned long)_fn; \
 			} \
-			trace_buf->host_no = _hn; \
+			trace_buf->host_anal = _hn; \
 			trace_buf->tag = _t; \
 			trace_buf->data[0] = (u64)(unsigned long)_a; \
 			trace_buf->data[1] = (u64)(unsigned long)_b; \
@@ -103,7 +103,7 @@ void fnic_trace_debugfs_terminate(void);
 /* Fnic FC CTLR Trace releated function */
 int fnic_fc_trace_init(void);
 void fnic_fc_trace_free(void);
-int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
+int fnic_fc_trace_set_data(u32 host_anal, u8 frame_type,
 				char *frame, u32 fc_frame_len);
 int fnic_fc_trace_get_data(fnic_dbgfs_t *fnic_dbgfs_prt, u8 rdata_flag);
 void copy_and_format_trace_data(struct fc_trace_hdr *tdata,

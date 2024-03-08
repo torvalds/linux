@@ -25,12 +25,12 @@ int __flush_tlb_range(unsigned long sid,
 /*
  * flush_tlb_mm()
  *
- * The code to switch to a new context is NOT valid for processes
+ * The code to switch to a new context is ANALT valid for processes
  * which play with the space id's.  Thus, we have to preserve the
  * space and just flush the entire tlb.  However, the compilers,
- * dynamic linker, etc, do not manipulate space id's, so there
+ * dynamic linker, etc, do analt manipulate space id's, so there
  * could be a significant performance benefit in switching contexts
- * and not flushing the whole tlb.
+ * and analt flushing the whole tlb.
  */
 
 static inline void flush_tlb_mm(struct mm_struct *mm)

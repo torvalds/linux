@@ -7,7 +7,7 @@
  *      David Mosberger (davidm@cs.arizona.edu)
  *	David Miller (davem@redhat.com)
  *
- * Nov 2000, Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+ * Analv 2000, Ivan Kokshaysky <ink@jurassic.park.msu.ru>
  *	     PCI-PCI bridges cleanup, sorted resource allocation.
  * Feb 2002, Ivan Kokshaysky <ink@jurassic.park.msu.ru>
  *	     Converted to allocation in 3 passes, which gives
@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/cache.h>
 #include <linux/slab.h>
@@ -65,7 +65,7 @@ static int add_to_list(struct list_head *head, struct pci_dev *dev,
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp->res = res;
 	tmp->dev = dev;
@@ -177,7 +177,7 @@ static void __dev_sort_resources(struct pci_dev *dev, struct list_head *head)
 	u16 class = dev->class >> 8;
 
 	/* Don't touch classless devices or host bridges or IOAPICs */
-	if (class == PCI_CLASS_NOT_DEFINED || class == PCI_CLASS_BRIDGE_HOST)
+	if (class == PCI_CLASS_ANALT_DEFINED || class == PCI_CLASS_BRIDGE_HOST)
 		return;
 
 	/* Don't touch IOAPIC devices already enabled by firmware */
@@ -228,7 +228,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		if (!res->flags)
 			goto out;
 
-		/* Skip this resource if not found in head list */
+		/* Skip this resource if analt found in head list */
 		list_for_each_entry(dev_res, head, list) {
 			if (dev_res->res == res) {
 				found_match = true;
@@ -266,11 +266,11 @@ out:
  * assign_requested_resources_sorted() - Satisfy resource requests
  *
  * @head:	Head of the list tracking requests for resources
- * @fail_head:	Head of the list tracking requests that could not be
+ * @fail_head:	Head of the list tracking requests that could analt be
  *		allocated
  *
  * Satisfy resource requests of each element in the list.  Add requests that
- * could not be satisfied to the failed_list.
+ * could analt be satisfied to the failed_list.
  */
 static void assign_requested_resources_sorted(struct list_head *head,
 				 struct list_head *fail_head)
@@ -313,8 +313,8 @@ static unsigned long pci_fail_res_type_mask(struct list_head *fail_head)
 
 	/*
 	 * One pref failed resource will set IORESOURCE_MEM, as we can
-	 * allocate pref in non-pref range.  Will release all assigned
-	 * non-pref sibling resources according to that bit.
+	 * allocate pref in analn-pref range.  Will release all assigned
+	 * analn-pref sibling resources according to that bit.
 	 */
 	return mask & (IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH);
 }
@@ -328,7 +328,7 @@ static bool pci_need_to_release(unsigned long mask, struct resource *res)
 	if (res->flags & IORESOURCE_PREFETCH) {
 		if (mask & IORESOURCE_PREFETCH)
 			return true;
-		/* Count pref if its parent is non-pref */
+		/* Count pref if its parent is analn-pref */
 		else if ((mask & IORESOURCE_MEM) &&
 			 !(res->parent->flags & IORESOURCE_PREFETCH))
 			return true;
@@ -339,7 +339,7 @@ static bool pci_need_to_release(unsigned long mask, struct resource *res)
 	if (res->flags & IORESOURCE_MEM)
 		return !!(mask & IORESOURCE_MEM);
 
-	return false;	/* Should not get here */
+	return false;	/* Should analt get here */
 }
 
 static void __assign_resources_sorted(struct list_head *head,
@@ -347,12 +347,12 @@ static void __assign_resources_sorted(struct list_head *head,
 				      struct list_head *fail_head)
 {
 	/*
-	 * Should not assign requested resources at first.  They could be
-	 * adjacent, so later reassign can not reallocate them one by one in
+	 * Should analt assign requested resources at first.  They could be
+	 * adjacent, so later reassign can analt reallocate them one by one in
 	 * parent resource window.
 	 *
 	 * Try to assign requested + add_size at beginning.  If could do that,
-	 * could get out early.  If could not do that, we still try to assign
+	 * could get out early.  If could analt do that, we still try to assign
 	 * requested at first, then try to reassign add_size for some resources.
 	 *
 	 * Separate three resource type checking if we need to release
@@ -361,11 +361,11 @@ static void __assign_resources_sorted(struct list_head *head,
 	 *	1. If IO port assignment fails, will release assigned IO
 	 *	   port.
 	 *	2. If pref MMIO assignment fails, release assigned pref
-	 *	   MMIO.  If assigned pref MMIO's parent is non-pref MMIO
-	 *	   and non-pref MMIO assignment fails, will release that
+	 *	   MMIO.  If assigned pref MMIO's parent is analn-pref MMIO
+	 *	   and analn-pref MMIO assignment fails, will release that
 	 *	   assigned pref MMIO.
-	 *	3. If non-pref MMIO assignment fails or pref MMIO
-	 *	   assignment fails, will release assigned non-pref MMIO.
+	 *	3. If analn-pref MMIO assignment fails or pref MMIO
+	 *	   assignment fails, will release assigned analn-pref MMIO.
 	 */
 	LIST_HEAD(save_head);
 	LIST_HEAD(local_fail_head);
@@ -443,7 +443,7 @@ static void __assign_resources_sorted(struct list_head *head,
 
 	/* Check failed type */
 	fail_type = pci_fail_res_type_mask(&local_fail_head);
-	/* Remove not need to be released assigned res from head list etc */
+	/* Remove analt need to be released assigned res from head list etc */
 	list_for_each_entry_safe(dev_res, tmp_res, head, list)
 		if (dev_res->res->parent &&
 		    !pci_need_to_release(fail_type, dev_res->res)) {
@@ -517,7 +517,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	if (res->flags & IORESOURCE_IO) {
 		/*
 		 * The IO resource is allocated a range twice as large as it
-		 * would normally need.  This allows us to set both IO regs.
+		 * would analrmally need.  This allows us to set both IO regs.
 		 */
 		pci_info(bridge, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_IO_BASE_0,
@@ -561,11 +561,11 @@ EXPORT_SYMBOL(pci_setup_cardbus);
 /*
  * Initialize bridges with base/limit values we have collected.  PCI-to-PCI
  * Bridge Architecture Specification rev. 1.1 (1998) requires that if there
- * are no I/O ports or memory behind the bridge, the corresponding range
+ * are anal I/O ports or memory behind the bridge, the corresponding range
  * must be turned off by writing base value greater than limit to the
  * bridge's base/limit registers.
  *
- * Note: care must be taken when updating I/O base/limit registers of
+ * Analte: care must be taken when updating I/O base/limit registers of
  * bridges which support 32-bit I/O.  This update requires two config space
  * writes, so it's quite possible that an I/O window of the bridge will
  * have some undesirable address (e.g. 0) after the first write.  Ditto
@@ -640,7 +640,7 @@ static void pci_setup_bridge_mmio_pref(struct pci_dev *bridge)
 
 	/*
 	 * Clear out the upper 32 bits of PREF limit.  If
-	 * PCI_PREF_BASE_UPPER32 was non-zero, this temporarily disables
+	 * PCI_PREF_BASE_UPPER32 was analn-zero, this temporarily disables
 	 * PREF range, which is ok.
 	 */
 	pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, 0);
@@ -737,7 +737,7 @@ int pci_claim_bridge_resource(struct pci_dev *bridge, int i)
 
 /*
  * Check whether the bridge supports optional I/O and prefetchable memory
- * ranges.  If not, the respective base/limit registers must be read-only
+ * ranges.  If analt, the respective base/limit registers must be read-only
  * and read as 0.
  */
 static void pci_bridge_check_ranges(struct pci_bus *bus)
@@ -764,15 +764,15 @@ static void pci_bridge_check_ranges(struct pci_bus *bus)
 }
 
 /*
- * Helper function for sizing routines.  Assigned resources have non-NULL
+ * Helper function for sizing routines.  Assigned resources have analn-NULL
  * parent resource.
  *
- * Return first unassigned resource of the correct type.  If there is none,
- * return first assigned resource of the correct type.  If none of the
+ * Return first unassigned resource of the correct type.  If there is analne,
+ * return first assigned resource of the correct type.  If analne of the
  * above, return NULL.
  *
  * Returning an assigned resource of the correct type allows the caller to
- * distinguish between already assigned and no resource of the correct type.
+ * distinguish between already assigned and anal resource of the correct type.
  */
 static struct resource *find_bus_resource_of_type(struct pci_bus *bus,
 						  unsigned long type_mask,
@@ -876,7 +876,7 @@ static resource_size_t window_alignment(struct pci_bus *bus, unsigned long type)
  * @realloc_head:	Track the additional I/O window on this list
  *
  * Sizing the I/O windows of the PCI-PCI bridge is trivial, since these
- * windows have 1K or 4K granularity and the I/O ranges of non-bridge PCI
+ * windows have 1K or 4K granularity and the I/O ranges of analn-bridge PCI
  * devices are limited to 256 bytes.  We must be careful with the ISA
  * aliasing though.
  */
@@ -894,7 +894,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	if (!b_res)
 		return;
 
-	/* If resource is already assigned, nothing more to do */
+	/* If resource is already assigned, analthing more to do */
 	if (b_res->parent)
 		return;
 
@@ -986,7 +986,7 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
  * Calculate the size of the bus and minimal alignment which guarantees
  * that all child resources fit in this size.
  *
- * Return -ENOSPC if there's no available bus resource of the desired
+ * Return -EANALSPC if there's anal available bus resource of the desired
  * type.  Otherwise, set the bus resource start/end to indicate the
  * required size, add things to realloc_head (if supplied), and return 0.
  */
@@ -1007,9 +1007,9 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	resource_size_t add_align = 0;
 
 	if (!b_res)
-		return -ENOSPC;
+		return -EANALSPC;
 
-	/* If resource is already assigned, nothing more to do */
+	/* If resource is already assigned, analthing more to do */
 	if (b_res->parent)
 		return 0;
 
@@ -1150,7 +1150,7 @@ handle_b_res_1:
 	}
 
 handle_b_res_2:
-	/* MEM1 must not be pref MMIO */
+	/* MEM1 must analt be pref MMIO */
 	pci_read_config_word(bridge, PCI_CB_BRIDGE_CONTROL, &ctrl);
 	if (ctrl & PCI_CB_BRIDGE_CTL_PREFETCH_MEM1) {
 		ctrl &= ~PCI_CB_BRIDGE_CTL_PREFETCH_MEM1;
@@ -1240,7 +1240,7 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 		pci_bus_for_each_resource(bus, pref)
 			if (pref && (pref->flags & IORESOURCE_PREFETCH))
 				break;
-		hdr_type = -1;	/* Intentionally invalid - not a PCI device. */
+		hdr_type = -1;	/* Intentionally invalid - analt a PCI device. */
 	} else {
 		pref = &bus->self->resource[PCI_BRIDGE_PREF_MEM_WINDOW];
 		hdr_type = bus->self->hdr_type;
@@ -1278,9 +1278,9 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 				additional_mmio_pref_size, realloc_head);
 
 			/*
-			 * If successful, all non-prefetchable resources
+			 * If successful, all analn-prefetchable resources
 			 * and any 32-bit prefetchable resources will go in
-			 * the non-prefetchable window.
+			 * the analn-prefetchable window.
 			 */
 			if (ret == 0) {
 				mask = prefmask;
@@ -1290,7 +1290,7 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 		}
 
 		/*
-		 * If there is no 64-bit prefetchable window, compute the
+		 * If there is anal 64-bit prefetchable window, compute the
 		 * size required to put all prefetchable resources in the
 		 * 32-bit prefetchable window (if there is one).
 		 */
@@ -1302,8 +1302,8 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 				additional_mmio_pref_size, realloc_head);
 
 			/*
-			 * If successful, only non-prefetchable resources
-			 * will go in the non-prefetchable window.
+			 * If successful, only analn-prefetchable resources
+			 * will go in the analn-prefetchable window.
 			 */
 			if (ret == 0)
 				mask = prefmask;
@@ -1315,16 +1315,16 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 
 		/*
 		 * Compute the size required to put everything else in the
-		 * non-prefetchable window. This includes:
+		 * analn-prefetchable window. This includes:
 		 *
-		 *   - all non-prefetchable resources
+		 *   - all analn-prefetchable resources
 		 *   - 32-bit prefetchable resources if there's a 64-bit
-		 *     prefetchable window or no prefetchable window at all
-		 *   - 64-bit prefetchable resources if there's no prefetchable
+		 *     prefetchable window or anal prefetchable window at all
+		 *   - 64-bit prefetchable resources if there's anal prefetchable
 		 *     window at all
 		 *
-		 * Note that the strategy in __pci_assign_resource() must match
-		 * that used here. Specifically, we cannot put a 32-bit
+		 * Analte that the strategy in __pci_assign_resource() must match
+		 * that used here. Specifically, we cananalt put a 32-bit
 		 * prefetchable resource in a 64-bit prefetchable window.
 		 */
 		pbus_size_mem(bus, mask, IORESOURCE_MEM, type2, type3,
@@ -1408,7 +1408,7 @@ void __pci_bus_assign_resources(const struct pci_bus *bus,
 			break;
 
 		default:
-			pci_info(dev, "not setting up bridge for bus %04x:%02x\n",
+			pci_info(dev, "analt setting up bridge for bus %04x:%02x\n",
 				 pci_domain_nr(b), b->number);
 			break;
 		}
@@ -1477,7 +1477,7 @@ static void pci_bus_allocate_resources(struct pci_bus *b)
 		pci_claim_bridge_resources(b->self);
 	}
 
-	list_for_each_entry(child, &b->children, node)
+	list_for_each_entry(child, &b->children, analde)
 		pci_bus_allocate_resources(child);
 }
 
@@ -1513,7 +1513,7 @@ static void __pci_bridge_assign_resources(const struct pci_dev *bridge,
 		break;
 
 	default:
-		pci_info(bridge, "not setting up bridge for bus %04x:%02x\n",
+		pci_info(bridge, "analt setting up bridge for bus %04x:%02x\n",
 			 pci_domain_nr(b), b->number);
 		break;
 	}
@@ -1536,13 +1536,13 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 
 	/*
 	 * 1. If IO port assignment fails, release bridge IO port.
-	 * 2. If non pref MMIO assignment fails, release bridge nonpref MMIO.
+	 * 2. If analn pref MMIO assignment fails, release bridge analnpref MMIO.
 	 * 3. If 64bit pref MMIO assignment fails, and bridge pref is 64bit,
 	 *    release bridge pref MMIO.
 	 * 4. If pref MMIO assignment fails, and bridge pref is 32bit,
 	 *    release bridge pref MMIO.
-	 * 5. If pref MMIO assignment fails, and bridge pref is not
-	 *    assigned, release bridge nonpref MMIO.
+	 * 5. If pref MMIO assignment fails, and bridge pref is analt
+	 *    assigned, release bridge analnpref MMIO.
 	 */
 	if (type & IORESOURCE_IO)
 		idx = 0;
@@ -1658,7 +1658,7 @@ static int pci_bus_get_depth(struct pci_bus *bus)
 	int depth = 0;
 	struct pci_bus *child_bus;
 
-	list_for_each_entry(child_bus, &bus->children, node) {
+	list_for_each_entry(child_bus, &bus->children, analde) {
 		int ret;
 
 		ret = pci_bus_get_depth(child_bus);
@@ -1707,7 +1707,7 @@ static int iov_resources_unassigned(struct pci_dev *dev, void *data)
 		struct resource *r = &dev->resource[i + PCI_IOV_RESOURCES];
 		struct pci_bus_region region;
 
-		/* Not assigned or rejected by kernel? */
+		/* Analt assigned or rejected by kernel? */
 		if (!r->flags)
 			continue;
 
@@ -1774,7 +1774,7 @@ static void adjust_bridge_window(struct pci_dev *bridge, struct resource *res,
 
 	res->end = res->start + new_size - 1;
 
-	/* If the resource is part of the add_list, remove it now */
+	/* If the resource is part of the add_list, remove it analw */
 	if (add_list)
 		remove_from_list(add_list, res);
 }
@@ -1808,7 +1808,7 @@ static void remove_dev_resources(struct pci_dev *dev, struct resource *io,
 			/*
 			 * Make sure prefetchable memory is reduced from
 			 * the correct resource. Specifically we put 32-bit
-			 * prefetchable memory in non-prefetchable window
+			 * prefetchable memory in analn-prefetchable window
 			 * if there is an 64-bit prefetchable window.
 			 *
 			 * See comments in __pci_bus_size_bridges() for
@@ -1836,7 +1836,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 					    struct resource mmio,
 					    struct resource mmio_pref)
 {
-	unsigned int normal_bridges = 0, hotplug_bridges = 0;
+	unsigned int analrmal_bridges = 0, hotplug_bridges = 0;
 	struct resource *io_res, *mmio_res, *mmio_pref_res;
 	struct pci_dev *dev, *bridge = bus->self;
 	resource_size_t io_per_b, mmio_per_b, mmio_pref_per_b, align;
@@ -1847,7 +1847,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 
 	/*
 	 * The alignment of this bridge is yet to be considered, hence it must
-	 * be done now before extending its bridge window.
+	 * be done analw before extending its bridge window.
 	 */
 	align = pci_resource_alignment(bridge, io_res);
 	if (!io_res->parent && align)
@@ -1863,7 +1863,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 			mmio_pref.end + 1);
 
 	/*
-	 * Now that we have adjusted for alignment, update the bridge window
+	 * Analw that we have adjusted for alignment, update the bridge window
 	 * resources to fill as much remaining resource space as possible.
 	 */
 	adjust_bridge_window(bridge, io_res, add_list, resource_size(&io));
@@ -1872,7 +1872,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 			     resource_size(&mmio_pref));
 
 	/*
-	 * Calculate how many hotplug bridges and normal bridges there
+	 * Calculate how many hotplug bridges and analrmal bridges there
 	 * are on this bus.  We will distribute the additional available
 	 * resources between hotplug bridges.
 	 */
@@ -1880,10 +1880,10 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		if (dev->is_hotplug_bridge)
 			hotplug_bridges++;
 		else
-			normal_bridges++;
+			analrmal_bridges++;
 	}
 
-	if (!(hotplug_bridges + normal_bridges))
+	if (!(hotplug_bridges + analrmal_bridges))
 		return;
 
 	/*
@@ -1901,8 +1901,8 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 * the extra resource space that was left after the reductions
 	 * above.
 	 *
-	 * If there are no hotplug bridges the extra resource space is
-	 * split between non-hotplug bridges. This is to allow possible
+	 * If there are anal hotplug bridges the extra resource space is
+	 * split between analn-hotplug bridges. This is to allow possible
 	 * hotplug bridges below them to get the extra space as well.
 	 */
 	if (hotplug_bridges) {
@@ -1911,10 +1911,10 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		mmio_pref_per_b = div64_ul(resource_size(&mmio_pref),
 					   hotplug_bridges);
 	} else {
-		io_per_b = div64_ul(resource_size(&io), normal_bridges);
-		mmio_per_b = div64_ul(resource_size(&mmio), normal_bridges);
+		io_per_b = div64_ul(resource_size(&io), analrmal_bridges);
+		mmio_per_b = div64_ul(resource_size(&mmio), analrmal_bridges);
 		mmio_pref_per_b = div64_ul(resource_size(&mmio_pref),
-					   normal_bridges);
+					   analrmal_bridges);
 	}
 
 	for_each_pci_bridge(dev, bus) {
@@ -1989,15 +1989,15 @@ static void pci_bridge_distribute_available_resources(struct pci_dev *bridge,
 					       available_mmio_pref);
 }
 
-static bool pci_bridge_resources_not_assigned(struct pci_dev *dev)
+static bool pci_bridge_resources_analt_assigned(struct pci_dev *dev)
 {
 	const struct resource *r;
 
 	/*
-	 * If the child device's resources are not yet assigned it means we
-	 * are configuring them (not the boot firmware), so we should be
+	 * If the child device's resources are analt yet assigned it means we
+	 * are configuring them (analt the boot firmware), so we should be
 	 * able to extend the upstream bridge resources in the same way we
-	 * do with the normal hotplug case.
+	 * do with the analrmal hotplug case.
 	 */
 	r = &dev->resource[PCI_BRIDGE_IO_WINDOW];
 	if (r->flags && !(r->flags & IORESOURCE_STARTALIGN))
@@ -2029,7 +2029,7 @@ pci_root_bus_distribute_available_resources(struct pci_bus *bus,
 		 * Need to check "bridge" here too because it is NULL
 		 * in case of root bus.
 		 */
-		if (bridge && pci_bridge_resources_not_assigned(dev))
+		if (bridge && pci_bridge_resources_analt_assigned(dev))
 			pci_bridge_distribute_available_resources(bridge,
 								  add_list);
 		else
@@ -2038,9 +2038,9 @@ pci_root_bus_distribute_available_resources(struct pci_bus *bus,
 }
 
 /*
- * First try will not touch PCI bridge res.
+ * First try will analt touch PCI bridge res.
  * Second and later try will clear small leaf bridge res.
- * Will stop till to the max depth if can not find good one.
+ * Will stop till to the max depth if can analt find good one.
  */
 void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 {
@@ -2098,10 +2098,10 @@ again:
 		goto dump;
 	}
 
-	dev_info(&bus->dev, "No. %d try to assign unassigned res\n",
+	dev_info(&bus->dev, "Anal. %d try to assign unassigned res\n",
 		 tried_times + 1);
 
-	/* Third times and later will not check if it is leaf */
+	/* Third times and later will analt check if it is leaf */
 	if ((tried_times + 1) > 2)
 		rel_type = whole_subtree;
 
@@ -2143,7 +2143,7 @@ void pci_assign_unassigned_resources(void)
 {
 	struct pci_bus *root_bus;
 
-	list_for_each_entry(root_bus, &pci_root_buses, node) {
+	list_for_each_entry(root_bus, &pci_root_buses, analde) {
 		pci_assign_unassigned_root_bus_resources(root_bus);
 
 		/* Make sure the root bridge has a companion ACPI device */
@@ -2186,11 +2186,11 @@ again:
 		goto enable_all;
 	}
 
-	printk(KERN_DEBUG "PCI: No. %d try to assign unassigned res\n",
+	printk(KERN_DEBUG "PCI: Anal. %d try to assign unassigned res\n",
 			 tried_times + 1);
 
 	/*
-	 * Try to release leaf bridge's resources that aren't big enough
+	 * Try to release leaf bridge's resources that aren't big eanalugh
 	 * to contain child device resources.
 	 */
 	list_for_each_entry(fail_res, &fail_head, list)
@@ -2250,7 +2250,7 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 			if ((res->flags ^ type) & PCI_RES_TYPE_MASK)
 				continue;
 
-			/* Ignore BARs which are still in use */
+			/* Iganalre BARs which are still in use */
 			if (res->child)
 				continue;
 
@@ -2274,7 +2274,7 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 
 	if (list_empty(&saved)) {
 		up_read(&pci_bus_sem);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	__pci_bus_size_bridges(bridge->subordinate, &added);
@@ -2282,7 +2282,7 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 	BUG_ON(!list_empty(&added));
 
 	if (!list_empty(&failed)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto cleanup;
 	}
 

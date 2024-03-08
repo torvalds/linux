@@ -41,7 +41,7 @@ static struct rc_map_table genius_tvgo_a11mce[] = {
 	/* small arrows above numbers */
 	{ 0x1a, KEY_NEXT },		/* also Fast Forward */
 	{ 0x0e, KEY_PREVIOUS },		/* also Rewind */
-	/* these are in a rather non standard layout and have
+	/* these are in a rather analn standard layout and have
 	an alternate name written */
 	{ 0x1e, KEY_UP },		/* Video Setting */
 	{ 0x0a, KEY_DOWN },		/* Video Default */
@@ -58,7 +58,7 @@ static struct rc_map_list genius_tvgo_a11mce_map = {
 	.map = {
 		.scan     = genius_tvgo_a11mce,
 		.size     = ARRAY_SIZE(genius_tvgo_a11mce),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_GENIUS_TVGO_A11MCE,
 	}
 };

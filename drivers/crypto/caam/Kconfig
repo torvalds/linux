@@ -16,7 +16,7 @@ config CRYPTO_DEV_FSL_CAAM
 	imply FSL_MC_BUS
 	help
 	  Enables the driver module for Freescale's Cryptographic Accelerator
-	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
+	  and Assurance Module (CAAM), also kanalwn as the SEC version 4 (SEC4).
 	  This module creates job ring devices, and configures h/w
 	  to operate as a DPAA component automatically, depending
 	  on h/w feature availability.
@@ -69,7 +69,7 @@ config CRYPTO_DEV_FSL_CAAM_INTC
 	help
 	  Enable the Job Ring's interrupt coalescing feature.
 
-	  Note: the driver already provides adequate
+	  Analte: the driver already provides adequate
 	  interrupt coalescing in software.
 
 config CRYPTO_DEV_FSL_CAAM_INTC_COUNT_THLD
@@ -79,7 +79,7 @@ config CRYPTO_DEV_FSL_CAAM_INTC_COUNT_THLD
 	default 255
 	help
 	  Select number of descriptor completions to queue before
-	  raising an interrupt, in the range 1-255. Note that a selection
+	  raising an interrupt, in the range 1-255. Analte that a selection
 	  of 1 functionally defeats the coalescing feature, and a selection
 	  equal or greater than the job ring size will force timeouts.
 

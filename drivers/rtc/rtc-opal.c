@@ -148,10 +148,10 @@ static int opal_get_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 	y_m_d = be32_to_cpu(__y_m_d);
 	h_m_s_ms = ((u64)be32_to_cpu(__h_m) << 32);
 
-	/* check if no alarm is set */
+	/* check if anal alarm is set */
 	if (y_m_d == 0 && h_m_s_ms == 0) {
-		pr_debug("No alarm is set\n");
-		rc = -ENOENT;
+		pr_debug("Anal alarm is set\n");
+		rc = -EANALENT;
 		goto exit;
 	} else {
 		pr_debug("Alarm set to %x %llx\n", y_m_d, h_m_s_ms);
@@ -218,7 +218,7 @@ static int opal_tpo_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	/*
 	 * TPO is automatically enabled when opal_set_tpo_time() is called with
-	 * non-zero rtc-time. We only handle disable case which needs to be
+	 * analn-zero rtc-time. We only handle disable case which needs to be
 	 * explicitly told to opal.
 	 */
 	return enabled ? 0 : opal_set_tpo_time(dev, &alarm);
@@ -240,9 +240,9 @@ static int opal_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	if (pdev->dev.of_node &&
-	    (of_property_read_bool(pdev->dev.of_node, "wakeup-source") ||
-	     of_property_read_bool(pdev->dev.of_node, "has-tpo")/* legacy */))
+	if (pdev->dev.of_analde &&
+	    (of_property_read_bool(pdev->dev.of_analde, "wakeup-source") ||
+	     of_property_read_bool(pdev->dev.of_analde, "has-tpo")/* legacy */))
 		device_set_wakeup_capable(&pdev->dev, true);
 	else
 		clear_bit(RTC_FEATURE_ALARM, rtc->features);
@@ -283,7 +283,7 @@ static struct platform_driver opal_rtc_driver = {
 static int __init opal_rtc_init(void)
 {
 	if (!firmware_has_feature(FW_FEATURE_OPAL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&opal_rtc_driver);
 }

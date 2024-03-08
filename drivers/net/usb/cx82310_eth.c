@@ -15,12 +15,12 @@
 #include <linux/usb/usbnet.h>
 
 enum cx82310_cmd {
-	CMD_START		= 0x84,	/* no effect? */
-	CMD_STOP		= 0x85,	/* no effect? */
-	CMD_GET_STATUS		= 0x90,	/* returns nothing? */
+	CMD_START		= 0x84,	/* anal effect? */
+	CMD_STOP		= 0x85,	/* anal effect? */
+	CMD_GET_STATUS		= 0x90,	/* returns analthing? */
 	CMD_GET_MAC_ADDR	= 0x91,	/* read MAC address */
-	CMD_GET_LINK_STATUS	= 0x92,	/* not useful, link is always up */
-	CMD_ETHERNET_MODE	= 0x99,	/* unknown, needed during init */
+	CMD_GET_LINK_STATUS	= 0x92,	/* analt useful, link is always up */
+	CMD_ETHERNET_MODE	= 0x99,	/* unkanalwn, needed during init */
 };
 
 enum cx82310_status {
@@ -59,7 +59,7 @@ static int cx82310_cmd(struct usbnet *dev, enum cx82310_cmd cmd, bool reply,
 	u8 *buf = kzalloc(CMD_PACKET_SIZE, GFP_KERNEL);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create command packet */
 	buf[0] = cmd;
@@ -92,7 +92,7 @@ static int cx82310_cmd(struct usbnet *dev, enum cx82310_cmd cmd, bool reply,
 				break;
 		}
 		if (actual_len == 0) {
-			netdev_err(dev->net, "no reply to command %#x\n", cmd);
+			netdev_err(dev->net, "anal reply to command %#x\n", cmd);
 			ret = -EIO;
 			goto end;
 		}
@@ -151,8 +151,8 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* avoid ADSL modems - continue only if iProduct is "USB NET CARD" */
 	if (usb_string(udev, udev->descriptor.iProduct, buf, sizeof(buf)) > 0
 	    && strcmp(buf, "USB NET CARD")) {
-		dev_info(&udev->dev, "ignoring: probably an ADSL modem\n");
-		return -ENODEV;
+		dev_info(&udev->dev, "iganalring: probably an ADSL modem\n");
+		return -EANALDEV;
 	}
 
 	ret = usbnet_get_endpoints(dev, intf);
@@ -160,8 +160,8 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 		return ret;
 
 	/*
-	 * this must not include ethernet header as the device can send partial
-	 * packets with no header (and sometimes even empty URBs)
+	 * this must analt include ethernet header as the device can send partial
+	 * packets with anal header (and sometimes even empty URBs)
 	 */
 	dev->net->hard_header_len = 0;
 	/* we can send at most 1514 bytes of data (+ 2-byte header) per URB */
@@ -171,11 +171,11 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->partial_data = (unsigned long) kmalloc(dev->hard_mtu, GFP_KERNEL);
 	if (!dev->partial_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_partial;
 	}
 	dev->driver_priv = priv;
@@ -186,13 +186,13 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 	while (--timeout) {
 		ret = cx82310_cmd(dev, CMD_GET_LINK_STATUS, true, NULL, 0,
 				  link, sizeof(link));
-		/* the command can time out during boot - it's not an error */
+		/* the command can time out during boot - it's analt an error */
 		if (!ret && link[0] == 1 && link[2] == 1)
 			break;
 		msleep(500);
 	}
 	if (!timeout) {
-		netdev_err(dev->net, "firmware not ready in time\n");
+		netdev_err(dev->net, "firmware analt ready in time\n");
 		ret = -ETIMEDOUT;
 		goto err;
 	}
@@ -210,7 +210,7 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 	eth_hw_addr_set(dev->net, addr);
 
-	/* start (does not seem to have any effect?) */
+	/* start (does analt seem to have any effect?) */
 	ret = cx82310_cmd(dev, CMD_START, false, NULL, 0, NULL, 0);
 	if (ret)
 		goto err;
@@ -233,7 +233,7 @@ static void cx82310_unbind(struct usbnet *dev, struct usb_interface *intf)
 }
 
 /*
- * RX is NOT easy - we can receive multiple packets per skb, each having 2-byte
+ * RX is ANALT easy - we can receive multiple packets per skb, each having 2-byte
  * packet length at the beginning.
  * The last packet might be incomplete (when it crosses the 4KB URB size),
  * continuing in the next skb (without any headers).

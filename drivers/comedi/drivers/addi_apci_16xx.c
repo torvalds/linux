@@ -98,7 +98,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(apci16xx_boardtypes))
 		board = &apci16xx_boardtypes[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 

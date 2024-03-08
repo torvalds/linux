@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -23,18 +23,18 @@
 
 /* supported Major FW version */
 #define MAJOR_VERSION_REQ 1
-#define MINOR_VERSION_REQ 3
-/* minimal and maximal supported Minor FW version. */
-#define FIRMWARE_MINOR_IDX_MAX  4
-#define FIRMWARE_MINOR_IDX_MIN  3
+#define MIANALR_VERSION_REQ 3
+/* minimal and maximal supported Mianalr FW version. */
+#define FIRMWARE_MIANALR_IDX_MAX  4
+#define FIRMWARE_MIANALR_IDX_MIN  3
 #define HTC_FW_PATH	"ath9k_htc"
 
 #define HTC_9271_MODULE_FW  HTC_FW_PATH "/htc_9271-" \
 			__stringify(MAJOR_VERSION_REQ) \
-			"." __stringify(FIRMWARE_MINOR_IDX_MAX) ".0.fw"
+			"." __stringify(FIRMWARE_MIANALR_IDX_MAX) ".0.fw"
 #define HTC_7010_MODULE_FW  HTC_FW_PATH "/htc_7010-" \
 			__stringify(MAJOR_VERSION_REQ) \
-			"." __stringify(FIRMWARE_MINOR_IDX_MAX) ".0.fw"
+			"." __stringify(FIRMWARE_MIANALR_IDX_MAX) ".0.fw"
 
 extern int htc_use_dev_fw;
 
@@ -127,7 +127,7 @@ struct hif_device_usb {
 	struct usb_anchor mgmt_submitted;
 	struct sk_buff *remain_skb;
 	char fw_name[64];
-	int fw_minor_index;
+	int fw_mianalr_index;
 	int rx_remain_len;
 	int rx_pkt_len;
 	int rx_transfer_len;

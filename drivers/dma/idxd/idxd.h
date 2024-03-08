@@ -26,7 +26,7 @@ struct idxd_wq;
 struct idxd_dev;
 
 enum idxd_dev_type {
-	IDXD_DEV_NONE = -1,
+	IDXD_DEV_ANALNE = -1,
 	IDXD_DEV_DSA = 0,
 	IDXD_DEV_IAX,
 	IDXD_DEV_WQ,
@@ -46,7 +46,7 @@ struct idxd_dev {
 #define IDXD_DRAIN_TIMEOUT	5000
 
 enum idxd_type {
-	IDXD_TYPE_UNKNOWN = -1,
+	IDXD_TYPE_UNKANALWN = -1,
 	IDXD_TYPE_DSA = 0,
 	IDXD_TYPE_IAX,
 	IDXD_TYPE_MAX,
@@ -59,7 +59,7 @@ enum idxd_type {
 #define IDXD_ENQCMDS_MAX_RETRIES	64
 
 enum idxd_complete_type {
-	IDXD_COMPLETE_NORMAL = 0,
+	IDXD_COMPLETE_ANALRMAL = 0,
 	IDXD_COMPLETE_ABORT,
 	IDXD_COMPLETE_DEV_FAIL,
 };
@@ -136,7 +136,7 @@ struct idxd_pmu {
 	unsigned long supported_filters;
 	int n_filters;
 
-	struct hlist_node cpuhp_node;
+	struct hlist_analde cpuhp_analde;
 };
 
 #define IDXD_MAX_PRIORITY	0xf
@@ -160,7 +160,7 @@ enum idxd_wq_flag {
 };
 
 enum idxd_wq_type {
-	IDXD_WQT_NONE = 0,
+	IDXD_WQT_ANALNE = 0,
 	IDXD_WQT_KERNEL,
 	IDXD_WQT_USER,
 };
@@ -169,7 +169,7 @@ struct idxd_cdev {
 	struct idxd_wq *wq;
 	struct cdev cdev;
 	struct idxd_dev idxd_dev;
-	int minor;
+	int mianalr;
 };
 
 #define DRIVER_NAME_SIZE		128
@@ -184,7 +184,7 @@ struct idxd_cdev {
 
 enum idxd_op_type {
 	IDXD_OP_BLOCK = 0,
-	IDXD_OP_NONBLOCK = 1,
+	IDXD_OP_ANALNBLOCK = 1,
 };
 
 struct idxd_dma_chan {
@@ -355,7 +355,7 @@ struct idxd_device {
 	int max_wqs;
 	int max_wq_size;
 	int rdbuf_limit;
-	int nr_rdbufs;		/* non-reserved read buffers */
+	int nr_rdbufs;		/* analn-reserved read buffers */
 	unsigned int wqcfg_size;
 	unsigned long *wq_enable_map;
 
@@ -411,7 +411,7 @@ struct idxd_desc {
 		struct dma_async_tx_descriptor txd;
 		struct crypto_ctx crypto;
 	};
-	struct llist_node llnode;
+	struct llist_analde llanalde;
 	struct list_head list;
 	int id;
 	int cpu;
@@ -484,7 +484,7 @@ static inline struct idxd_cdev *dev_to_cdev(struct device *dev)
 static inline void idxd_dev_set_type(struct idxd_dev *idev, int type)
 {
 	if (type >= IDXD_DEV_MAX_TYPE) {
-		idev->type = IDXD_DEV_NONE;
+		idev->type = IDXD_DEV_ANALNE;
 		return;
 	}
 
@@ -622,7 +622,7 @@ static inline int idxd_get_wq_portal_full_offset(int wq_id,
  * hit a threshold until iops becomes many million times a second. So the occasional
  * reuse of the same address is tolerable compare to using an atomic variable. This is
  * safe on a system that has atomic load/store for 32bit integers. Given that this is an
- * Intel iEP device, that should not be a problem.
+ * Intel iEP device, that should analt be a problem.
  */
 static inline void __iomem *idxd_wq_portal_addr(struct idxd_wq *wq)
 {
@@ -658,7 +658,7 @@ static inline void *idxd_wq_get_private(struct idxd_wq *wq)
 }
 
 /*
- * Intel IAA does not support batch processing.
+ * Intel IAA does analt support batch processing.
  * The max batch size of device, max batch size of wq and
  * max batch shift of wqcfg should be always 0 on IAA.
  */

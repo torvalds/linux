@@ -21,7 +21,7 @@ Required Properties:
 
 - #clock-cells: should be 1.
 
-Each clock is assigned an identifier and client nodes use this identifier
+Each clock is assigned an identifier and client analdes use this identifier
 to specify the clock which they consume.
 
 All these identifier could be found in <dt-bindings/clock/hi3519-clock.h>.
@@ -33,7 +33,7 @@ The reset specifier consists of two cells. The first cell represents the
 register offset relative to the base address. The second cell represents the
 bit index in the register.
 
-Example: CRG nodes
+Example: CRG analdes
 CRG: clock-reset-controller@12010000 {
 	compatible = "hisilicon,hi3519-crg";
 	reg = <0x12010000 0x10000>;
@@ -41,7 +41,7 @@ CRG: clock-reset-controller@12010000 {
 	#reset-cells = <2>;
 };
 
-Example: consumer nodes
+Example: consumer analdes
 i2c0: i2c@12110000 {
 	compatible = "hisilicon,hi3519-i2c";
 	reg = <0x12110000 0x1000>;

@@ -7,7 +7,7 @@
  * returning from the function.  The pattern is called stack canary
  * and gcc expects it to be defined by a global variable called
  * "__stack_chk_guard" on ARM.  This unfortunately means that on SMP
- * we cannot have a different canary value per task.
+ * we cananalt have a different canary value per task.
  */
 
 #ifndef __ASM_STACKPROTECTOR_H
@@ -20,7 +20,7 @@ extern unsigned long __stack_chk_guard;
 /*
  * Initialize the stackprotector canary value.
  *
- * NOTE: this must only be called from functions that never return,
+ * ANALTE: this must only be called from functions that never return,
  * and it must always be inlined.
  */
 static __always_inline void boot_init_stack_canary(void)

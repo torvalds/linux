@@ -13,7 +13,7 @@
 /* MDIO_MMD_VEND2 registers */
 #define DP83TD510E_PHY_STS			0x10
 /* Bit 7 - mii_interrupt, active high. Clears on read.
- * Note: Clearing does not necessarily deactivate IRQ pin if interrupts pending.
+ * Analte: Clearing does analt necessarily deactivate IRQ pin if interrupts pending.
  * This differs from the DP83TD510E datasheet (2020) which states this bit
  * clears on write 0.
  */
@@ -37,9 +37,9 @@
 #define DP83TD510_SQI_MAX	7
 
 /* Register values are converted to SNR(dB) as suggested by
- * "Application Report - DP83TD510E Cable Diagnostics Toolkit":
+ * "Application Report - DP83TD510E Cable Diaganalstics Toolkit":
  * SNR(dB) = -10 * log10 (VAL/2^17) - 1.76 dB.
- * SQI ranges are implemented according to "OPEN ALLIANCE - Advanced diagnostic
+ * SQI ranges are implemented according to "OPEN ALLIANCE - Advanced diaganalstic
  * features for 100BASE-T1 automotive Ethernet PHYs"
  */
 static const u16 dp83td510_mse_sqi_map[] = {
@@ -93,10 +93,10 @@ static irqreturn_t dp83td510_handle_interrupt(struct phy_device *phydev)
 	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_INTERRUPT_REG_1);
 	if (ret < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	} else if (!(ret & DP83TD510E_INT1_LINK_EN) ||
 		   !(ret & DP83TD510E_INT1_LINK)) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	phy_trigger_machine(phydev);
@@ -109,8 +109,8 @@ static int dp83td510_read_status(struct phy_device *phydev)
 	u16 phy_sts;
 	int ret;
 
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 	linkmode_zero(phydev->lp_advertising);
@@ -200,9 +200,9 @@ static int dp83td510_get_sqi_max(struct phy_device *phydev)
 
 static int dp83td510_get_features(struct phy_device *phydev)
 {
-	/* This PHY can't respond on MDIO bus if no RMII clock is enabled.
+	/* This PHY can't respond on MDIO bus if anal RMII clock is enabled.
 	 * In case RMII mode is used (most meaningful mode for this PHY) and
-	 * the PHY do not have own XTAL, and CLK providing MAC is not probed,
+	 * the PHY do analt have own XTAL, and CLK providing MAC is analt probed,
 	 * we won't be able to read all needed ability registers.
 	 * So provide it manually.
 	 */

@@ -183,7 +183,7 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 			fmt_cfg = (struct nhlt_fmt_cfg *)(fmt_cfg->config.caps +
 							  fmt_cfg->config.size);
 			/*
-			 * Do not copy the config data if there is no parent
+			 * Do analt copy the config data if there is anal parent
 			 * clock available for this clock source select
 			 */
 			if (!parent)

@@ -21,7 +21,7 @@ description: |
   The topckgen provides dividers and muxes which provide the clock source to other IP blocks.
   The infracfg_ao provides clock gate in peripheral and infrastructure IP blocks.
   The mcusys provides mux control to select the clock source in AP MCU.
-  The device nodes also provide the system control capacity for configuration.
+  The device analdes also provide the system control capacity for configuration.
 
 properties:
   compatible:

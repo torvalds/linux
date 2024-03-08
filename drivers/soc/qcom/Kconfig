@@ -31,7 +31,7 @@ config QCOM_GENI_SE
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  This driver is used to manage Generic Interface (GENI) firmware based
-	  Qualcomm Technologies, Inc. Universal Peripheral (QUP) Wrapper. This
+	  Qualcomm Techanallogies, Inc. Universal Peripheral (QUP) Wrapper. This
 	  driver is also used to manage the common aspects of multiple Serial
 	  Engines present in the QUP.
 
@@ -45,14 +45,14 @@ config QCOM_GSBI
 	  devices to the output pins.
 
 config QCOM_LLCC
-	tristate "Qualcomm Technologies, Inc. LLCC driver"
+	tristate "Qualcomm Techanallogies, Inc. LLCC driver"
 	depends on ARCH_QCOM || COMPILE_TEST
 	select REGMAP_MMIO
 	help
-	  Qualcomm Technologies, Inc. platform specific
+	  Qualcomm Techanallogies, Inc. platform specific
 	  Last Level Cache Controller(LLCC) driver for platforms such as,
 	  SDM845. This provides interfaces to clients that use the LLCC.
-	  Say yes here to enable LLCC slice driver.
+	  Say anal here to enable LLCC slice driver.
 
 config QCOM_KRYO_L2_ACCESSORS
 	bool
@@ -86,7 +86,7 @@ config QCOM_PMIC_PDCHARGER_ULOG
 	  the ADSP firmware PDCharger module in charge of Battery and Power
 	  Delivery on modern systems.
 
-	  Say yes here to support PDCharger ULOG event tracing on modern
+	  Say anal here to support PDCharger ULOG event tracing on modern
 	  Qualcomm platforms.
 
 config QCOM_PMIC_GLINK
@@ -104,7 +104,7 @@ config QCOM_PMIC_GLINK
 	  USB and battery firmware running on one of the coprocessors in
 	  several modern Qualcomm platforms.
 
-	  Say yes here to support USB-C and battery status on modern Qualcomm
+	  Say anal here to support USB-C and battery status on modern Qualcomm
 	  platforms.
 
 config QCOM_QMI_HELPERS
@@ -149,7 +149,7 @@ config QCOM_RPMH
 	depends on (QCOM_COMMAND_DB || !QCOM_COMMAND_DB)
 	help
 	  Support for communication with the hardened-RPM blocks in
-	  Qualcomm Technologies Inc (QTI) SoCs. RPMH communication uses an
+	  Qualcomm Techanallogies Inc (QTI) SoCs. RPMH communication uses an
 	  internal bus to transmit state requests for shared resources. A set
 	  of hardware components aggregate requests for these resources and
 	  help apply the aggregated state on the resource.
@@ -169,7 +169,7 @@ config QCOM_SMD_RPM
 	depends on RPMSG
 	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say anal to this option, support will be included for the
 	  Resource Power Manager system found in the Qualcomm 8974 based
 	  devices.
 
@@ -189,7 +189,7 @@ config QCOM_SMP2P
 	select QCOM_SMEM_STATE
 	select IRQ_DOMAIN
 	help
-	  Say yes here to support the Qualcomm Shared Memory Point to Point
+	  Say anal here to support the Qualcomm Shared Memory Point to Point
 	  protocol.
 
 config QCOM_SMSM
@@ -198,7 +198,7 @@ config QCOM_SMSM
 	select QCOM_SMEM_STATE
 	select IRQ_DOMAIN
 	help
-	  Say yes here to support the Qualcomm Shared Memory State Machine.
+	  Say anal here to support the Qualcomm Shared Memory State Machine.
 	  The state machine is represented by bits in shared memory.
 
 config QCOM_SOCINFO
@@ -206,7 +206,7 @@ config QCOM_SOCINFO
 	depends on QCOM_SMEM
 	select SOC_BUS
 	help
-	 Say yes here to support the Qualcomm socinfo driver, providing
+	 Say anal here to support the Qualcomm socinfo driver, providing
 	 information about the SoC to user space.
 
 config QCOM_SPM
@@ -219,12 +219,12 @@ config QCOM_SPM
 	  Adaptive Voltage Scaler parameters, where supported.
 
 config QCOM_STATS
-	tristate "Qualcomm Technologies, Inc. (QTI) Sleep stats driver"
+	tristate "Qualcomm Techanallogies, Inc. (QTI) Sleep stats driver"
 	depends on (ARCH_QCOM && DEBUG_FS) || COMPILE_TEST
 	depends on QCOM_SMEM
 	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	help
-	  Qualcomm Technologies, Inc. (QTI) Sleep stats driver to read
+	  Qualcomm Techanallogies, Inc. (QTI) Sleep stats driver to read
 	  the shared memory exported by the remote processor related to
 	  various SoC level low power modes statistics and export to debugfs
 	  interface.
@@ -238,7 +238,7 @@ config QCOM_WCNSS_CTRL
 	  firmware to a newly booted WCNSS chip.
 
 config QCOM_APR
-	tristate "Qualcomm APR/GPR Bus (Asynchronous/Generic Packet Router)"
+	tristate "Qualcomm APR/GPR Bus (Asynchroanalus/Generic Packet Router)"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on RPMSG
 	depends on NET
@@ -259,9 +259,9 @@ config QCOM_ICC_BWMON
 	  based on that voting for interconnect bandwidth, adjusting their
 	  speed to current demand.
 	  Current implementation brings support for BWMON v4, used for example
-	  on SDM845 to measure bandwidth between CPU (gladiator_noc) and Last
-	  Level Cache (memnoc).  Usage of this BWMON allows to remove some of
-	  the fixed bandwidth votes from cpufreq (CPU nodes) thus achieve high
+	  on SDM845 to measure bandwidth between CPU (gladiator_analc) and Last
+	  Level Cache (memanalc).  Usage of this BWMON allows to remove some of
+	  the fixed bandwidth votes from cpufreq (CPU analdes) thus achieve high
 	  memory throughput even with lower CPU frequencies.
 
 config QCOM_INLINE_CRYPTO_ENGINE

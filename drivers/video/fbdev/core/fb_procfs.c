@@ -31,7 +31,7 @@ static int fb_seq_show(struct seq_file *m, void *v)
 	struct fb_info *fi = registered_fb[i];
 
 	if (fi)
-		seq_printf(m, "%d %s\n", fi->node, fi->fix.id);
+		seq_printf(m, "%d %s\n", fi->analde, fi->fix.id);
 
 	return 0;
 }
@@ -49,7 +49,7 @@ int fb_init_procfs(void)
 
 	proc = proc_create_seq("fb", 0, NULL, &fb_proc_seq_ops);
 	if (!proc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fb_proc_dir_entry = proc;
 

@@ -12,20 +12,20 @@
 	SIS 730
 	SIS 964
 
-   Notable differences between chips:
+   Analtable differences between chips:
 	+------------------------+--------------------+-------------------+
 	|                        |     SIS630/730     |      SIS964       |
 	+------------------------+--------------------+-------------------+
 	| Clock                  | 14kHz/56kHz        | 55.56kHz/27.78kHz |
 	| SMBus registers offset | 0x80               | 0xE0              |
 	| SMB_CNT                | Bit 1 = Slave Busy | Bit 1 = Bus probe |
-	|         (not used yet) | Bit 3 is reserved  | Bit 3 = Last byte |
+	|         (analt used yet) | Bit 3 is reserved  | Bit 3 = Last byte |
 	| SMB_PCOUNT		 | Offset + 0x06      | Offset + 0x14     |
 	| SMB_COUNT              | 4:0 bits           | 5:0 bits          |
 	+------------------------+--------------------+-------------------+
 	(Other differences don't affect the functions provided by the driver)
 
-   Note: we assume there can only be one device, with one SMBus interface.
+   Analte: we assume there can only be one device, with one SMBus interface.
 */
 
 #include <linux/kernel.h>
@@ -203,7 +203,7 @@ static void sis630_transaction_end(struct i2c_adapter *adap, u8 oldclock)
 
 	/*
 	 * restore old Host Master Clock if high_clock is set
-	 * and oldclock was not 56KHz
+	 * and oldclock was analt 56KHz
 	 */
 	if (high_clock && !(oldclock & SMBCLK_SEL))
 		sis630_write(SMB_CNT, sis630_read(SMB_CNT) & ~SMBCLK_SEL);
@@ -260,7 +260,7 @@ static int sis630_block_data(struct i2c_adapter *adap,
 						"clear smbary_sts"
 						" len=%d i=%d\n", len, i);
 					/*
-					   If this is not first transaction,
+					   If this is analt first transaction,
 					   we must clear sticky bit.
 					   clear SMBARY_STS
 					*/
@@ -319,7 +319,7 @@ static int sis630_block_data(struct i2c_adapter *adap,
 	return rc;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 sis630_access(struct i2c_adapter *adap, u16 addr,
 			 unsigned short flags, char read_write,
 			 u8 command, int size, union i2c_smbus_data *data)
@@ -367,7 +367,7 @@ static s32 sis630_access(struct i2c_adapter *adap, u16 addr,
 		return sis630_block_data(adap, data, read_write);
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	status = sis630_transaction(adap, size);
@@ -423,7 +423,7 @@ static int sis630_setup(struct pci_dev *sis630_dev)
 			"WARNING: Can't detect SIS630 compatible device, but "
 			"loading because of force option enabled\n");
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -432,14 +432,14 @@ static int sis630_setup(struct pci_dev *sis630_dev)
 	*/
 	if (pci_read_config_byte(sis630_dev, SIS630_BIOS_CTL_REG, &b)) {
 		dev_err(&sis630_dev->dev, "Error: Can't read bios ctl reg\n");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
-	/* if ACPI already enabled , do nothing */
+	/* if ACPI already enabled , do analthing */
 	if (!(b & 0x80) &&
 	    pci_write_config_byte(sis630_dev, SIS630_BIOS_CTL_REG, b | 0x80)) {
 		dev_err(&sis630_dev->dev, "Error: Can't enable ACPI\n");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 
@@ -448,7 +448,7 @@ static int sis630_setup(struct pci_dev *sis630_dev)
 				 SIS630_ACPI_BASE_REG, &acpi_base)) {
 		dev_err(&sis630_dev->dev,
 			"Error: Can't determine ACPI base address\n");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 
@@ -511,9 +511,9 @@ static int sis630_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	if (sis630_setup(dev)) {
 		dev_err(&dev->dev,
-			"SIS630 compatible bus not detected, "
-			"module not inserted.\n");
-		return -ENODEV;
+			"SIS630 compatible bus analt detected, "
+			"module analt inserted.\n");
+		return -EANALDEV;
 	}
 
 	/* set up the sysfs linkage to our parent device */

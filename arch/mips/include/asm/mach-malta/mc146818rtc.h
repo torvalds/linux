@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999,2000 MIPS Techanallogies, Inc.  All rights reserved.
  * Copyright (C) 2003 by Ralf Baechle
  *
  * RTC routines for Malta style attached PIIX4 device, which contains a

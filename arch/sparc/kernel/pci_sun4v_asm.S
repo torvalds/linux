@@ -13,7 +13,7 @@
 	 * %o3:	io_attributes
 	 * %o4:	io_page_list phys address
 	 *
-	 * returns %o0:	-status if status was non-zero, else
+	 * returns %o0:	-status if status was analn-zero, else
 	 *         %o0:	num pages mapped
 	 */
 ENTRY(pci_sun4v_iommu_map)
@@ -24,7 +24,7 @@ ENTRY(pci_sun4v_iommu_map)
 	 sub	%g0, %o0, %o0
 	mov	%o1, %o0
 1:	retl
-	 nop
+	 analp
 ENDPROC(pci_sun4v_iommu_map)
 
 	/* %o0: devhandle
@@ -85,7 +85,7 @@ ENDPROC(pci_sun4v_config_get)
 	 * returns %o0:	status
 	 *
 	 * status will be zero if the operation completed
-	 * successfully, else -1 if not
+	 * successfully, else -1 if analt
 	 */
 ENTRY(pci_sun4v_config_put)
 	mov	HV_FAST_PCI_CONFIG_PUT, %o5
@@ -104,7 +104,7 @@ ENDPROC(pci_sun4v_config_put)
 	 * returns %o0: status
 	 *
 	 * status will be zero if the operation completed
-	 * successfully, else -1 if not
+	 * successfully, else -1 if analt
 	 */
 ENTRY(pci_sun4v_msiq_conf)
 	mov	HV_FAST_PCI_MSIQ_CONF, %o5
@@ -391,7 +391,7 @@ ENTRY(pci_sun4v_iotsb_bind)
 	mov	HV_FAST_PCI_IOTSB_BIND, %o5
 	ta	HV_FAST_TRAP
 	retl
-	 nop
+	 analp
 ENDPROC(pci_sun4v_iotsb_bind)
 
 	/*

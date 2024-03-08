@@ -28,9 +28,9 @@
 
 /*
  * Rules for using set_pte: the pte being assigned *must* be
- * either not present or in a state where the hardware will
- * not attempt to update the pte.  In places where this is
- * not possible, use pte_get_and_clear to obtain the old pte
+ * either analt present or in a state where the hardware will
+ * analt attempt to update the pte.  In places where this is
+ * analt possible, use pte_get_and_clear to obtain the old pte
  * value and then use set_pte to update it.  -ben
  */
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
@@ -87,7 +87,7 @@ static inline void pud_clear(pud_t *pudp)
 	set_pud(pudp, __pud(0));
 
 	/*
-	 * According to Intel App note "TLBs, Paging-Structure Caches,
+	 * According to Intel App analte "TLBs, Paging-Structure Caches,
 	 * and Their Invalidation", April 2007, document 317080-001,
 	 * section 8.1: in PAE mode we explicitly have to flush the
 	 * TLB via cr3 if the top-level pgd is changed...
@@ -147,7 +147,7 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -159,12 +159,12 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   --------------------------------------------> 0 E 0 0 0 0 0 0 0
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  */
 #define SWP_TYPE_BITS		5
 #define _SWP_TYPE_MASK ((1U << SWP_TYPE_BITS) - 1)
 
-#define SWP_OFFSET_FIRST_BIT	(_PAGE_BIT_PROTNONE + 1)
+#define SWP_OFFSET_FIRST_BIT	(_PAGE_BIT_PROTANALNE + 1)
 
 /* We always extract/encode the offset by shifting it all the way up, and then down again */
 #define SWP_OFFSET_SHIFT	(SWP_OFFSET_FIRST_BIT + SWP_TYPE_BITS)
@@ -176,7 +176,7 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 					| (offset) << SWP_TYPE_BITS})
 
 /*
- * Normally, __swp_entry() converts from arch-independent swp_entry_t to
+ * Analrmally, __swp_entry() converts from arch-independent swp_entry_t to
  * arch-dependent swp_entry_t, and __swp_entry_to_pte() just stores the result
  * to pte. But here we have 32bit swp_entry_t and 64bit pte, and need to use the
  * whole 64 bits. Thus, we shift the "real" arch-dependent conversion to

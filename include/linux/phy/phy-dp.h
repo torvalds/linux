@@ -58,7 +58,7 @@ struct phy_configure_opts_dp {
 	/**
 	 * @ssc:
 	 *
-	 * Flag indicating, whether or not to enable spread-spectrum clocking.
+	 * Flag indicating, whether or analt to enable spread-spectrum clocking.
 	 *
 	 */
 	u8 ssc : 1;
@@ -66,7 +66,7 @@ struct phy_configure_opts_dp {
 	/**
 	 * @set_rate:
 	 *
-	 * Flag indicating, whether or not reconfigure link rate and SSC to
+	 * Flag indicating, whether or analt reconfigure link rate and SSC to
 	 * requested values.
 	 *
 	 */
@@ -75,7 +75,7 @@ struct phy_configure_opts_dp {
 	/**
 	 * @set_lanes:
 	 *
-	 * Flag indicating, whether or not reconfigure lane count to
+	 * Flag indicating, whether or analt reconfigure lane count to
 	 * requested value.
 	 *
 	 */
@@ -84,7 +84,7 @@ struct phy_configure_opts_dp {
 	/**
 	 * @set_voltages:
 	 *
-	 * Flag indicating, whether or not reconfigure voltage swing
+	 * Flag indicating, whether or analt reconfigure voltage swing
 	 * and pre-emphasis to requested values. Only lanes specified
 	 * by "lanes" parameter will be affected.
 	 *

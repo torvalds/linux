@@ -15,18 +15,18 @@
 #include "aoe.h"
 
 enum {
-	//MINOR_STAT = 1, (moved to sysfs)
-	MINOR_ERR = 2,
-	MINOR_DISCOVER,
-	MINOR_INTERFACES,
-	MINOR_REVALIDATE,
-	MINOR_FLUSH,
+	//MIANALR_STAT = 1, (moved to sysfs)
+	MIANALR_ERR = 2,
+	MIANALR_DISCOVER,
+	MIANALR_INTERFACES,
+	MIANALR_REVALIDATE,
+	MIANALR_FLUSH,
 	MSGSZ = 2048,
 	NMSG = 100,		/* message backlog to retain */
 };
 
 struct aoe_chardev {
-	ulong minor;
+	ulong mianalr;
 	char name[32];
 };
 
@@ -41,7 +41,7 @@ struct ErrMsg {
 static DEFINE_MUTEX(aoechr_mutex);
 
 /* A ring buffer of error messages, to be read through
- * "/dev/etherd/err".  When no messages are present,
+ * "/dev/etherd/err".  When anal messages are present,
  * readers will block waiting for messages to appear.
  */
 static struct ErrMsg emsgs[NMSG];
@@ -51,21 +51,21 @@ static spinlock_t emsgs_lock;
 static int nblocked_emsgs_readers;
 
 static struct aoe_chardev chardevs[] = {
-	{ MINOR_ERR, "err" },
-	{ MINOR_DISCOVER, "discover" },
-	{ MINOR_INTERFACES, "interfaces" },
-	{ MINOR_REVALIDATE, "revalidate" },
-	{ MINOR_FLUSH, "flush" },
+	{ MIANALR_ERR, "err" },
+	{ MIANALR_DISCOVER, "discover" },
+	{ MIANALR_INTERFACES, "interfaces" },
+	{ MIANALR_REVALIDATE, "revalidate" },
+	{ MIANALR_FLUSH, "flush" },
 };
 
-static char *aoe_devnode(const struct device *dev, umode_t *mode)
+static char *aoe_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "etherd/%s", dev_name(dev));
 }
 
 static const struct class aoe_class = {
 	.name = "aoe",
-	.devnode = aoe_devnode,
+	.devanalde = aoe_devanalde,
 };
 
 static int
@@ -80,7 +80,7 @@ interfaces(const char __user *str, size_t size)
 {
 	if (set_aoe_iflist(str, size)) {
 		printk(KERN_ERR
-			"aoe: could not set interface list: too many interfaces\n");
+			"aoe: could analt set interface list: too many interfaces\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -89,7 +89,7 @@ interfaces(const char __user *str, size_t size)
 static int
 revalidate(const char __user *str, size_t size)
 {
-	int major, minor, n;
+	int major, mianalr, n;
 	ulong flags;
 	struct aoedev *d;
 	struct sk_buff *skb;
@@ -101,17 +101,17 @@ revalidate(const char __user *str, size_t size)
 	if (copy_from_user(buf, str, size))
 		return -EFAULT;
 
-	n = sscanf(buf, "e%d.%d", &major, &minor);
+	n = sscanf(buf, "e%d.%d", &major, &mianalr);
 	if (n != 2) {
 		pr_err("aoe: invalid device specification %s\n", buf);
 		return -EINVAL;
 	}
-	d = aoedev_by_aoeaddr(major, minor, 0);
+	d = aoedev_by_aoeaddr(major, mianalr, 0);
 	if (!d)
 		return -EINVAL;
 	spin_lock_irqsave(&d->lock, flags);
 	aoecmd_cleanslate(d);
-	aoecmd_cfg(major, minor);
+	aoecmd_cfg(major, mianalr);
 loop:
 	skb = aoecmd_ata_id(d);
 	spin_unlock_irqrestore(&d->lock, flags);
@@ -175,16 +175,16 @@ aoechr_write(struct file *filp, const char __user *buf, size_t cnt, loff_t *offp
 	default:
 		printk(KERN_INFO "aoe: can't write to that file.\n");
 		break;
-	case MINOR_DISCOVER:
+	case MIANALR_DISCOVER:
 		ret = discover();
 		break;
-	case MINOR_INTERFACES:
+	case MIANALR_INTERFACES:
 		ret = interfaces(buf, cnt);
 		break;
-	case MINOR_REVALIDATE:
+	case MIANALR_REVALIDATE:
 		ret = revalidate(buf, cnt);
 		break;
-	case MINOR_FLUSH:
+	case MIANALR_FLUSH:
 		ret = aoedev_flush(buf, cnt);
 		break;
 	}
@@ -194,16 +194,16 @@ aoechr_write(struct file *filp, const char __user *buf, size_t cnt, loff_t *offp
 }
 
 static int
-aoechr_open(struct inode *inode, struct file *filp)
+aoechr_open(struct ianalde *ianalde, struct file *filp)
 {
 	int n, i;
 
 	mutex_lock(&aoechr_mutex);
-	n = iminor(inode);
+	n = imianalr(ianalde);
 	filp->private_data = (void *) (unsigned long) n;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		if (chardevs[i].minor == n) {
+		if (chardevs[i].mianalr == n) {
 			mutex_unlock(&aoechr_mutex);
 			return 0;
 		}
@@ -212,7 +212,7 @@ aoechr_open(struct inode *inode, struct file *filp)
 }
 
 static int
-aoechr_rel(struct inode *inode, struct file *filp)
+aoechr_rel(struct ianalde *ianalde, struct file *filp)
 {
 	return 0;
 }
@@ -227,7 +227,7 @@ aoechr_read(struct file *filp, char __user *buf, size_t cnt, loff_t *off)
 	ulong flags;
 
 	n = (unsigned long) filp->private_data;
-	if (n != MINOR_ERR)
+	if (n != MIANALR_ERR)
 		return -EFAULT;
 
 	spin_lock_irqsave(&emsgs_lock, flags);
@@ -280,7 +280,7 @@ static const struct file_operations aoe_fops = {
 	.open = aoechr_open,
 	.release = aoechr_rel,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 int __init
@@ -303,7 +303,7 @@ aoechr_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
 		device_create(&aoe_class, NULL,
-			      MKDEV(AOE_MAJOR, chardevs[i].minor), NULL,
+			      MKDEV(AOE_MAJOR, chardevs[i].mianalr), NULL,
 			      chardevs[i].name);
 
 	return 0;
@@ -315,7 +315,7 @@ aoechr_exit(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		device_destroy(&aoe_class, MKDEV(AOE_MAJOR, chardevs[i].minor));
+		device_destroy(&aoe_class, MKDEV(AOE_MAJOR, chardevs[i].mianalr));
 	class_unregister(&aoe_class);
 	unregister_chrdev(AOE_MAJOR, "aoechr");
 }

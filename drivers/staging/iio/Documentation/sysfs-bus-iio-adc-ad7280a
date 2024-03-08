@@ -4,7 +4,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Writing 1 enables the cell balance output switch corresponding
 		to input Y. Writing 0 disables it. If the inY-inZ_balance_timer
-		is set to a none zero value, the corresponding switch will
+		is set to a analne zero value, the corresponding switch will
 		enable for the programmed amount of time, before it
 		automatically disables.
 

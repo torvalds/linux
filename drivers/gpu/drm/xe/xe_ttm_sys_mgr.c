@@ -15,15 +15,15 @@
 #include "xe_bo.h"
 #include "xe_gt.h"
 
-struct xe_ttm_sys_node {
+struct xe_ttm_sys_analde {
 	struct ttm_buffer_object *tbo;
-	struct ttm_range_mgr_node base;
+	struct ttm_range_mgr_analde base;
 };
 
-static inline struct xe_ttm_sys_node *
-to_xe_ttm_sys_node(struct ttm_resource *res)
+static inline struct xe_ttm_sys_analde *
+to_xe_ttm_sys_analde(struct ttm_resource *res)
 {
-	return container_of(res, struct xe_ttm_sys_node, base.base);
+	return container_of(res, struct xe_ttm_sys_analde, base.base);
 }
 
 static int xe_ttm_sys_mgr_new(struct ttm_resource_manager *man,
@@ -31,43 +31,43 @@ static int xe_ttm_sys_mgr_new(struct ttm_resource_manager *man,
 			      const struct ttm_place *place,
 			      struct ttm_resource **res)
 {
-	struct xe_ttm_sys_node *node;
+	struct xe_ttm_sys_analde *analde;
 	int r;
 
-	node = kzalloc(struct_size(node, base.mm_nodes, 1), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kzalloc(struct_size(analde, base.mm_analdes, 1), GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
-	node->tbo = tbo;
-	ttm_resource_init(tbo, place, &node->base.base);
+	analde->tbo = tbo;
+	ttm_resource_init(tbo, place, &analde->base.base);
 
 	if (!(place->flags & TTM_PL_FLAG_TEMPORARY) &&
 	    ttm_resource_manager_usage(man) > (man->size << PAGE_SHIFT)) {
-		r = -ENOSPC;
+		r = -EANALSPC;
 		goto err_fini;
 	}
 
-	node->base.mm_nodes[0].start = 0;
-	node->base.mm_nodes[0].size = PFN_UP(node->base.base.size);
-	node->base.base.start = XE_BO_INVALID_OFFSET;
+	analde->base.mm_analdes[0].start = 0;
+	analde->base.mm_analdes[0].size = PFN_UP(analde->base.base.size);
+	analde->base.base.start = XE_BO_INVALID_OFFSET;
 
-	*res = &node->base.base;
+	*res = &analde->base.base;
 
 	return 0;
 
 err_fini:
-	ttm_resource_fini(man, &node->base.base);
-	kfree(node);
+	ttm_resource_fini(man, &analde->base.base);
+	kfree(analde);
 	return r;
 }
 
 static void xe_ttm_sys_mgr_del(struct ttm_resource_manager *man,
 			       struct ttm_resource *res)
 {
-	struct xe_ttm_sys_node *node = to_xe_ttm_sys_node(res);
+	struct xe_ttm_sys_analde *analde = to_xe_ttm_sys_analde(res);
 
 	ttm_resource_fini(man, res);
-	kfree(node);
+	kfree(analde);
 }
 
 static void xe_ttm_sys_mgr_debug(struct ttm_resource_manager *man,

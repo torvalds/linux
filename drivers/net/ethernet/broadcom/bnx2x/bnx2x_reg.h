@@ -28,7 +28,7 @@
 #define ATC_ATC_INT_STS_REG_ATC_IREQ_LESS_THAN_STU		 (0x1<<5)
 #define ATC_ATC_INT_STS_REG_ATC_RCPL_TO_EMPTY_CNT		 (0x1<<3)
 #define ATC_ATC_INT_STS_REG_ATC_TCPL_ERROR			 (0x1<<4)
-#define ATC_ATC_INT_STS_REG_ATC_TCPL_TO_NOT_PEND		 (0x1<<1)
+#define ATC_ATC_INT_STS_REG_ATC_TCPL_TO_ANALT_PEND		 (0x1<<1)
 /* [RW 1] Initiate the ATC array - reset all the valid bits */
 #define ATC_REG_ATC_INIT_ARRAY					 0x1100b8
 /* [R 1] ATC initialization done */
@@ -55,8 +55,8 @@
  * address BRB1_IND_FREE_LIST_PRS_CRDT+1 initialize free tail. At address
  * BRB1_IND_FREE_LIST_PRS_CRDT+2 initialize parser initial credit. Warning -
  * following reset the first rbc access to this reg must be write; there can
- * be no more rbc writes after the first one; there can be any number of rbc
- * read following the first write; rbc access not following these rules will
+ * be anal more rbc writes after the first one; there can be any number of rbc
+ * read following the first write; rbc access analt following these rules will
  * result in hang condition. */
 #define BRB1_REG_FREE_LIST_PRS_CRDT				 0x60200
 /* [RW 10] The number of free blocks below which the full signal to class 0
@@ -159,7 +159,7 @@
  * is de-asserted */
 #define BRB1_REG_PAUSE_1_XON_THRESHOLD_0			 0x601cc
 #define BRB1_REG_PAUSE_1_XON_THRESHOLD_1			 0x6022c
-/* [RW 10] Write client 0: De-assert pause threshold. Not Functional */
+/* [RW 10] Write client 0: De-assert pause threshold. Analt Functional */
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_0 			 0x60078
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_1 			 0x6007c
 /* [RW 10] Write client 0: Assert pause threshold. */
@@ -175,12 +175,12 @@
 /* [R 5] Used to read the value of the XX protection CAM occupancy counter. */
 #define CCM_REG_CAM_OCCUP					 0xd0188
 /* [RW 1] CM - CFC Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define CCM_REG_CCM_CFC_IFEN					 0xd003c
-/* [RW 1] CM - QM Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - QM Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define CCM_REG_CCM_CQM_IFEN					 0xd000c
 /* [RW 1] If set the Q index; received from the QM is inserted to event ID.
    Otherwise 0 is inserted. */
@@ -200,29 +200,29 @@
    Is used to determine the number of the AG context REG-pairs written back;
    when the input message Reg1WbFlg isn't set. */
 #define CCM_REG_CCM_REG0_SZ					 0xd00c4
-/* [RW 1] CM - STORM 0 Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - STORM 0 Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define CCM_REG_CCM_STORM0_IFEN 				 0xd0004
-/* [RW 1] CM - STORM 1 Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - STORM 1 Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define CCM_REG_CCM_STORM1_IFEN 				 0xd0008
 /* [RW 1] CDU AG read Interface enable. If 0 - the request input is
    disregarded; valid output is deasserted; all other signals are treated as
-   usual; if 1 - normal activity. */
+   usual; if 1 - analrmal activity. */
 #define CCM_REG_CDU_AG_RD_IFEN					 0xd0030
 /* [RW 1] CDU AG write Interface enable. If 0 - the request and valid input
-   are disregarded; all other signals are treated as usual; if 1 - normal
+   are disregarded; all other signals are treated as usual; if 1 - analrmal
    activity. */
 #define CCM_REG_CDU_AG_WR_IFEN					 0xd002c
 /* [RW 1] CDU STORM read Interface enable. If 0 - the request input is
    disregarded; valid output is deasserted; all other signals are treated as
-   usual; if 1 - normal activity. */
+   usual; if 1 - analrmal activity. */
 #define CCM_REG_CDU_SM_RD_IFEN					 0xd0038
 /* [RW 1] CDU STORM write Interface enable. If 0 - the request and valid
    input is disregarded; all other signals are treated as usual; if 1 -
-   normal activity. */
+   analrmal activity. */
 #define CCM_REG_CDU_SM_WR_IFEN					 0xd0034
 /* [RW 4] CFC output initial credit. Max credit available - 15.Write writes
    the initial credit value; read returns the current value of the credit
@@ -237,8 +237,8 @@
 /* [RW 28] The CM header value for QM request (secondary). */
 #define CCM_REG_CQM_CCM_HDR_S					 0xd0090
 /* [RW 1] QM - CM Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define CCM_REG_CQM_CCM_IFEN					 0xd0014
 /* [RW 6] QM output initial credit. Max credit available - 32. Write writes
    the initial credit value; read returns the current value of the credit
@@ -253,8 +253,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define CCM_REG_CQM_S_WEIGHT					 0xd00bc
 /* [RW 1] Input SDM Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define CCM_REG_CSDM_IFEN					 0xd0018
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the SDM interface is detected. */
@@ -305,8 +305,8 @@
 #define CCM_REG_N_SM_CTX_LD_3					 0xd0058
 #define CCM_REG_N_SM_CTX_LD_4					 0xd005c
 /* [RW 1] Input pbf Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define CCM_REG_PBF_IFEN					 0xd0028
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the pbf interface is detected. */
@@ -330,8 +330,8 @@
 #define CCM_REG_QOS_PHYS_QNUM3_0				 0xd012c
 #define CCM_REG_QOS_PHYS_QNUM3_1				 0xd0130
 /* [RW 1] STORM - CM Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define CCM_REG_STORM_CCM_IFEN					 0xd0010
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the STORM interface is detected. */
@@ -342,8 +342,8 @@
    tc. */
 #define CCM_REG_STORM_WEIGHT					 0xd009c
 /* [RW 1] Input tsem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define CCM_REG_TSEM_IFEN					 0xd001c
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the tsem interface is detected. */
@@ -353,8 +353,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define CCM_REG_TSEM_WEIGHT					 0xd00a0
 /* [RW 1] Input usem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define CCM_REG_USEM_IFEN					 0xd0024
 /* [RC 1] Set when message length mismatch (relative to last indication) at
    the usem interface is detected. */
@@ -364,8 +364,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define CCM_REG_USEM_WEIGHT					 0xd00a8
 /* [RW 1] Input xsem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define CCM_REG_XSEM_IFEN					 0xd0020
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the xsem interface is detected. */
@@ -496,7 +496,7 @@
 #define CSDM_REG_AGG_INT_EVENT_7				 0xc2054
 #define CSDM_REG_AGG_INT_EVENT_8				 0xc2058
 #define CSDM_REG_AGG_INT_EVENT_9				 0xc205c
-/* [RW 1] For each aggregated interrupt index whether the mode is normal (0)
+/* [RW 1] For each aggregated interrupt index whether the mode is analrmal (0)
    or auto-mask-mode (1) */
 #define CSDM_REG_AGG_INT_MODE_10				 0xc21e0
 #define CSDM_REG_AGG_INT_MODE_11				 0xc21e4
@@ -589,25 +589,25 @@
 /* [RW 3] The source that is associated with arbitration element 1. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~csem_registers_arb_element0.arb_element0 */
+   Could analt be equal to register ~csem_registers_arb_element0.arb_element0 */
 #define CSEM_REG_ARB_ELEMENT1					 0x200024
 /* [RW 3] The source that is associated with arbitration element 2. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~csem_registers_arb_element0.arb_element0
+   Could analt be equal to register ~csem_registers_arb_element0.arb_element0
    and ~csem_registers_arb_element1.arb_element1 */
 #define CSEM_REG_ARB_ELEMENT2					 0x200028
 /* [RW 3] The source that is associated with arbitration element 3. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.Could
-   not be equal to register ~csem_registers_arb_element0.arb_element0 and
+   analt be equal to register ~csem_registers_arb_element0.arb_element0 and
    ~csem_registers_arb_element1.arb_element1 and
    ~csem_registers_arb_element2.arb_element2 */
 #define CSEM_REG_ARB_ELEMENT3					 0x20002c
 /* [RW 3] The source that is associated with arbitration element 4. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~csem_registers_arb_element0.arb_element0
+   Could analt be equal to register ~csem_registers_arb_element0.arb_element0
    and ~csem_registers_arb_element1.arb_element1 and
    ~csem_registers_arb_element2.arb_element2 and
    ~csem_registers_arb_element3.arb_element3 */
@@ -640,7 +640,7 @@
 /* [RW 1] Disables input messages from FIC1 May be updated during run_time
    by the microcode */
 #define CSEM_REG_FIC1_DISABLE					 0x200234
-/* [RW 15] Interrupt table Read and write access to it is not possible in
+/* [RW 15] Interrupt table Read and write access to it is analt possible in
    the middle of the work */
 #define CSEM_REG_INT_TABLE					 0x200400
 /* [ST 24] Statistics register. The number of messages that entered through
@@ -713,7 +713,7 @@
 /* [RW 3] The arbitration scheme of time_slot 9 */
 #define CSEM_REG_TS_9_AS					 0x20005c
 /* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
- * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
+ * VF; values 64-67 reset error for 4 PF; values 68-127 are analt valid. */
 #define CSEM_REG_VFPF_ERR_NUM					 0x200380
 /* [RW 1] Parity mask register #0 read/write */
 #define DBG_REG_DBG_PRTY_MASK					 0xc0a8
@@ -775,13 +775,13 @@
 #define DMAE_REG_GO_C8						 0x1020b8
 /* [RW 1] Command 9 go. */
 #define DMAE_REG_GO_C9						 0x1020bc
-/* [RW 1] DMAE GRC Interface (Target; aster) enable. If 0 - the acknowledge
+/* [RW 1] DMAE GRC Interface (Target; aster) enable. If 0 - the ackanalwledge
    input is disregarded; valid is deasserted; all other signals are treated
-   as usual; if 1 - normal activity. */
+   as usual; if 1 - analrmal activity. */
 #define DMAE_REG_GRC_IFEN					 0x102008
 /* [RW 1] DMAE PCI Interface (Request; ead; rite) enable. If 0 - the
-   acknowledge input is disregarded; valid is deasserted; full is asserted;
-   all other signals are treated as usual; if 1 - normal activity. */
+   ackanalwledge input is disregarded; valid is deasserted; full is asserted;
+   all other signals are treated as usual; if 1 - analrmal activity. */
 #define DMAE_REG_PCI_IFEN					 0x102004
 /* [RW 4] DMAE- PCI Request Interface initial credit. Write writes the
    initial value to the credit counter; related to the address. Read returns
@@ -831,10 +831,10 @@
 #define DORQ_REG_IF_EN						 0x170004
 #define DORQ_REG_MAX_RVFID_SIZE				 0x1701ec
 #define DORQ_REG_MODE_ACT					 0x170008
-/* [RW 5] The normal mode CID extraction offset. */
-#define DORQ_REG_NORM_CID_OFST					 0x17002c
+/* [RW 5] The analrmal mode CID extraction offset. */
+#define DORQ_REG_ANALRM_CID_OFST					 0x17002c
 /* [RW 28] TCM Header when only TCP context is loaded. */
-#define DORQ_REG_NORM_CMHEAD_TX 				 0x17004c
+#define DORQ_REG_ANALRM_CMHEAD_TX 				 0x17004c
 /* [RW 3] The number of simultaneous outstanding requests to Context Fetch
    Interface. */
 #define DORQ_REG_OUTST_REQ					 0x17003c
@@ -853,11 +853,11 @@
    read reads this written value. */
 #define DORQ_REG_RSP_INIT_CRD					 0x170048
 #define DORQ_REG_RSPB_CRD_CNT					 0x1700b0
-#define DORQ_REG_VF_NORM_CID_BASE				 0x1701a0
-#define DORQ_REG_VF_NORM_CID_OFST				 0x1701f4
-#define DORQ_REG_VF_NORM_CID_WND_SIZE				 0x1701a4
-#define DORQ_REG_VF_NORM_MAX_CID_COUNT				 0x1701e4
-#define DORQ_REG_VF_NORM_VF_BASE				 0x1701a8
+#define DORQ_REG_VF_ANALRM_CID_BASE				 0x1701a0
+#define DORQ_REG_VF_ANALRM_CID_OFST				 0x1701f4
+#define DORQ_REG_VF_ANALRM_CID_WND_SIZE				 0x1701a4
+#define DORQ_REG_VF_ANALRM_MAX_CID_COUNT				 0x1701e4
+#define DORQ_REG_VF_ANALRM_VF_BASE				 0x1701a8
 /* [RW 10] VF type validation mask value */
 #define DORQ_REG_VF_TYPE_MASK_0					 0x170218
 /* [RW 17] VF type validation Min MCID value */
@@ -925,7 +925,7 @@
 #define IGU_REG_ATTN_FSM					 0x130054
 #define IGU_REG_ATTN_MSG_ADDR_H				 0x13011c
 #define IGU_REG_ATTN_MSG_ADDR_L				 0x130120
-/* [R 4] Debug: [3] - attention write done message is pending (0-no pending;
+/* [R 4] Debug: [3] - attention write done message is pending (0-anal pending;
  * 1-pending). [2:0] = PFID. Pending means attention message was sent; but
  * write done didn't receive. */
 #define IGU_REG_ATTN_WRITE_DONE_PENDING			 0x130030
@@ -938,7 +938,7 @@
 #define IGU_REG_CSTORM_TYPE_0_SB_CLEANUP			 0x130200
 /* [R 5] Debug: ctrl_fsm */
 #define IGU_REG_CTRL_FSM					 0x130064
-/* [R 1] data available for error memory. If this bit is clear do not red
+/* [R 1] data available for error memory. If this bit is clear do analt red
  * from error_handling_memory. */
 #define IGU_REG_ERROR_HANDLING_DATA_VALID			 0x130130
 /* [RW 11] Parity mask register #0 read/write */
@@ -960,9 +960,9 @@
 #define IGU_REG_PCI_PF_MSI_EN					 0x130140
 #define IGU_REG_PCI_PF_MSIX_EN					 0x130144
 #define IGU_REG_PCI_PF_MSIX_FUNC_MASK				 0x130148
-/* [WB_R 32] Each bit represent the pending bits status for that SB. 0 = no
+/* [WB_R 32] Each bit represent the pending bits status for that SB. 0 = anal
  * pending; 1 = pending. Pendings means interrupt was asserted; and write
- * done was not received. Data valid only in addresses 0-4. all the rest are
+ * done was analt received. Data valid only in addresses 0-4. all the rest are
  * zero. */
 #define IGU_REG_PENDING_BITS_STATUS				 0x130300
 #define IGU_REG_PF_CONFIGURATION				 0x130154
@@ -970,7 +970,7 @@
  * memory; 136 - PF0 default prod; 137 PF1 default prod; 138 - PF2 default
  * prod; 139 PF3 default prod; 140 - PF0 - ATTN prod; 141 - PF1 - ATTN prod;
  * 142 - PF2 - ATTN prod; 143 - PF3 - ATTN prod; 144-147 reserved. E1.5 mode
- * - In backward compatible mode; for non default SB; each even line in the
+ * - In backward compatible mode; for analn default SB; each even line in the
  * memory holds the U producer and each odd line hold the C producer. The
  * first 128 producer are for NDSB (PF0 - 0-31; PF1 - 32-63 and so on). The
  * last 20 producers are for the DSB for each PF. each PF has five segments
@@ -993,7 +993,7 @@
 /* [RW 16] Number of command that were dropped without causing an interrupt
  * due to: read access for WO BAR address; or write access for RO BAR
  * address or any access for reserved address or PCI function error is set
- * and address is not MSIX; PBA or cleanup */
+ * and address is analt MSIX; PBA or cleanup */
 #define IGU_REG_SILENT_DROP					 0x13016c
 /* [RW 10] Number of MSI/MSIX/ATTN messages sent for the function: 0-63 -
  * number of MSIX messages per VF; 64-67 - number of MSI/MSIX messages per
@@ -1005,7 +1005,7 @@
 #define IGU_REG_TRAILING_EDGE_LATCH				 0x130104
 #define IGU_REG_VF_CONFIGURATION				 0x130170
 /* [WB_R 32] Each bit represent write done pending bits status for that SB
- * (MSI/MSIX message was sent and write done was not received yet). 0 =
+ * (MSI/MSIX message was sent and write done was analt received yet). 0 =
  * clear; 1 = set. Data valid only in addresses 0-4. all the rest are zero. */
 #define IGU_REG_WRITE_DONE_PENDING				 0x130480
 #define MCP_A_REG_MCPR_SCRATCH					 0x3a0000
@@ -1439,7 +1439,7 @@
 #define MISC_REG_AEU_GENERAL_ATTN_9				 0xa024
 #define MISC_REG_AEU_GENERAL_MASK				 0xa61c
 /* [RW 32] first 32b for inverting the input for function 0; for each bit:
-   0= do not invert; 1= invert; mapped as follows: [0] NIG attention for
+   0= do analt invert; 1= invert; mapped as follows: [0] NIG attention for
    function0; [1] NIG attention for function1; [2] GPIO1 mcp; [3] GPIO2 mcp;
    [4] GPIO3 mcp; [5] GPIO4 mcp; [6] GPIO1 function 1; [7] GPIO2 function 1;
    [8] GPIO3 function 1; [9] GPIO4 function 1; [10] PCIE glue/PXP VPD event
@@ -1454,7 +1454,7 @@
 #define MISC_REG_AEU_INVERTER_1_FUNC_0				 0xa22c
 #define MISC_REG_AEU_INVERTER_1_FUNC_1				 0xa23c
 /* [RW 32] second 32b for inverting the input for function 0; for each bit:
-   0= do not invert; 1= invert. mapped as follows: [0] PBClient Parity
+   0= do analt invert; 1= invert. mapped as follows: [0] PBClient Parity
    error; [1] PBClient Hw interrupt; [2] QM Parity error; [3] QM Hw
    interrupt; [4] Timers Parity error; [5] Timers Hw interrupt; [6] XSDM
    Parity error; [7] XSDM Hw interrupt; [8] XCM Parity error; [9] XCM Hw
@@ -1669,7 +1669,7 @@
 #define MISC_REG_GENERIC_POR_1					 0xa474
 /* [RW 32] Bit[0]: EPIO MODE SEL: Setting this bit to 1 will allow SW/FW to
    use all of the 32 Extended GPIO pins. Without setting this bit; an EPIO
-   can not be configured as an output. Each output has its output enable in
+   can analt be configured as an output. Each output has its output enable in
    the MCP register space; but this bit needs to be set to make use of that.
    Bit[3:1] spare. Bit[4]: WCVTMON_PWRDN: Powerdown for Warpcore VTMON. When
    set to 1 - Powerdown. Bit[5]: WCVTMON_RESETB: Reset for Warpcore VTMON.
@@ -1691,8 +1691,8 @@
    bits will be a '1' if that last command (#SET; #CLR; or #FLOAT) for this
    bit was a #SET. (reset value 0). [7-4] VALUE port 1; [3-0] VALUE port 0;
    RO; These bits indicate the read value of each of the eight GPIO pins.
-   This is the result value of the pin; not the drive value. Writing these
-   bits will have not effect. */
+   This is the result value of the pin; analt the drive value. Writing these
+   bits will have analt effect. */
 #define MISC_REG_GPIO						 0xa490
 /* [RW 8] These bits enable the GPIO_INTs to signals event to the
    IGU/MCP.according to the following map: [0] p0_gpio_0; [1] p0_gpio_1; [2]
@@ -1701,10 +1701,10 @@
 #define MISC_REG_GPIO_EVENT_EN					 0xa2bc
 /* [RW 32] GPIO INT. [31-28] OLD_CLR port1; [27-24] OLD_CLR port0; Writing a
    '1' to these bit clears the corresponding bit in the #OLD_VALUE register.
-   This will acknowledge an interrupt on the falling edge of corresponding
+   This will ackanalwledge an interrupt on the falling edge of corresponding
    GPIO input (reset value 0). [23-16] OLD_SET [23-16] port1; OLD_SET port0;
    Writing a '1' to these bit sets the corresponding bit in the #OLD_VALUE
-   register. This will acknowledge an interrupt on the rising edge of
+   register. This will ackanalwledge an interrupt on the rising edge of
    corresponding SPIO input (reset value 0). [15-12] OLD_VALUE [11-8] port1;
    OLD_VALUE port0; RO; These bits indicate the old value of the GPIO input
    value. When the ~INT_STATE bit is set; this bit indicates the OLD value
@@ -1714,7 +1714,7 @@
    [7-4] INT_STATE port1; [3-0] INT_STATE RO port0; These bits indicate the
    current GPIO interrupt state for each GPIO pin. This bit is cleared when
    the appropriate #OLD_SET or #OLD_CLR command bit is written. This bit is
-   set when the GPIO input does not match the current value in #OLD_VALUE
+   set when the GPIO input does analt match the current value in #OLD_VALUE
    (reset value 0). */
 #define MISC_REG_GPIO_INT					 0xa494
 /* [R 28] this field hold the last information that caused reserved
@@ -1730,7 +1730,7 @@
    dbu; 8 = dmae */
 #define MISC_REG_GRC_TIMEOUT_ATTN				 0xa3c4
 /* [RW 1] Setting this bit enables a timer in the GRC block to timeout any
-   access that does not finish within
+   access that does analt finish within
    ~misc_registers_grc_timout_val.grc_timeout_val cycles. When this bit is
    cleared; this timeout is disabled. If this timeout occurs; the GRC shall
    assert it attention output. */
@@ -1751,7 +1751,7 @@
    connected to RESET input directly. [15] capRetry_en (reset value 0)
    enable retry on cap search failure (inverted). [16] freqMonitor_e (reset
    value 0) bit to continuously monitor vco freq (inverted). [17]
-   freqDetRestart_en (reset value 0) bit to enable restart when not freq
+   freqDetRestart_en (reset value 0) bit to enable restart when analt freq
    locked (inverted). [18] freqDetRetry_en (reset value 0) bit to enable
    retry on freq det failure(inverted). [19] pllForceFdone_en (reset value
    0) bit to enable pllForceFdone & pllForceFpass into pllSeq. [20]
@@ -1819,10 +1819,10 @@
    write/read zero = the specific block is in reset; addr 0-wr- the write
    value will be written to the register; addr 1-set - one will be written
    to all the bits that have the value of one in the data written (bits that
-   have the value of zero will not be change) ; addr 2-clear - zero will be
+   have the value of zero will analt be change) ; addr 2-clear - zero will be
    written to all the bits that have the value of one in the data written
-   (bits that have the value of zero will not be change); addr 3-ignore;
-   read ignore from all addr except addr 00; inside order of the bits is:
+   (bits that have the value of zero will analt be change); addr 3-iganalre;
+   read iganalre from all addr except addr 00; inside order of the bits is:
    [0] rst_bmac0; [1] rst_bmac1; [2] rst_emac0; [3] rst_emac1; [4] rst_grc;
    [5] rst_mcp_n_reset_reg_hard_core; [6] rst_ mcp_n_hard_core_rst_b; [7]
    rst_ mcp_n_reset_cmn_cpu; [8] rst_ mcp_n_reset_cmn_core; [9] rst_rbcn;
@@ -1846,16 +1846,16 @@
    high (if it has that capability). The read value of these bits will be a
    '1' if that last command (#SET; #CLR; or #FLOAT) for this bit was a #SET.
    (reset value 0). [7-0] VALUE RO; These bits indicate the read value of
-   each of the eight SPIO pins. This is the result value of the pin; not the
-   drive value. Writing these bits will have not effect. Each 8 bits field
+   each of the eight SPIO pins. This is the result value of the pin; analt the
+   drive value. Writing these bits will have analt effect. Each 8 bits field
    is divided as follows: [0] VAUX Enable; when pulsed low; enables supply
-   from VAUX. (This is an output pin only; the FLOAT field is not applicable
+   from VAUX. (This is an output pin only; the FLOAT field is analt applicable
    for this pin); [1] VAUX Disable; when pulsed low; disables supply form
-   VAUX. (This is an output pin only; FLOAT field is not applicable for this
+   VAUX. (This is an output pin only; FLOAT field is analt applicable for this
    pin); [2] SEL_VAUX_B - Control to power switching logic. Drive low to
-   select VAUX supply. (This is an output pin only; it is not controlled by
+   select VAUX supply. (This is an output pin only; it is analt controlled by
    the SET and CLR fields; it is controlled by the Main Power SM; the FLOAT
-   field is not applicable for this pin; only the VALUE fields is relevant -
+   field is analt applicable for this pin; only the VALUE fields is relevant -
    it reflects the output value); [3] port swap [4] spio_4; [5] spio_5; [6]
    Bit 0 of UMP device ID select; read by UMP firmware; [7] Bit 1 of UMP
    device ID select; read by UMP firmware. */
@@ -1865,10 +1865,10 @@
    [7:0] reserved */
 #define MISC_REG_SPIO_EVENT_EN					 0xa2b8
 /* [RW 32] SPIO INT. [31-24] OLD_CLR Writing a '1' to these bit clears the
-   corresponding bit in the #OLD_VALUE register. This will acknowledge an
+   corresponding bit in the #OLD_VALUE register. This will ackanalwledge an
    interrupt on the falling edge of corresponding SPIO input (reset value
    0). [23-16] OLD_SET Writing a '1' to these bit sets the corresponding bit
-   in the #OLD_VALUE register. This will acknowledge an interrupt on the
+   in the #OLD_VALUE register. This will ackanalwledge an interrupt on the
    rising edge of corresponding SPIO input (reset value 0). [15-8] OLD_VALUE
    RO; These bits indicate the old value of the SPIO input value. When the
    ~INT_STATE bit is set; this bit indicates the OLD value of the pin such
@@ -1877,7 +1877,7 @@
    interrupt is due to a high to low edge (reset value 0). [7-0] INT_STATE
    RO; These bits indicate the current SPIO interrupt state for each SPIO
    pin. This bit is cleared when the appropriate #OLD_SET or #OLD_CLR
-   command bit is written. This bit is set when the SPIO input does not
+   command bit is written. This bit is set when the SPIO input does analt
    match the current value in #OLD_VALUE (reset value 0). */
 #define MISC_REG_SPIO_INT					 0xa500
 /* [RW 32] reload value for counter 4 if reload; the value will be reload if
@@ -1901,18 +1901,18 @@
 #define MISC_REG_UNPREPARED					 0xa424
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_BRCST	 (0x1<<0)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_MLCST	 (0x1<<1)
-#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN	 (0x1<<4)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_ANAL_VLAN	 (0x1<<4)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST	 (0x1<<2)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_VLAN	 (0x1<<3)
 /* [RW 5] MDIO PHY Address. The WC uses this address to determine whether or
- * not it is the recipient of the message on the MDIO interface. The value
+ * analt it is the recipient of the message on the MDIO interface. The value
  * is compared to the value on ctrl_md_devad. Drives output
  * misc_xgxs0_phy_addr. Global register. */
 #define MISC_REG_WC0_CTRL_PHY_ADDR				 0xa9cc
 #define MISC_REG_WC0_RESET					 0xac30
 /* [RW 2] XMAC Core port mode. Indicates the number of ports on the system
    side. This should be less than or equal to phy_port_mode; if some of the
-   ports are not used. This enables reduction of frequency on the core side.
+   ports are analt used. This enables reduction of frequency on the core side.
    This is a strap input for the XMAC_MP core. 00 - Single Port Mode; 01 -
    Dual Port Mode; 10 - Tri Port Mode; 11 - Quad Port Mode. This is a strap
    input for the XMAC_MP core; and should be changed only while reset is
@@ -1932,7 +1932,7 @@
 #define MSTAT_REG_TX_STAT_GTXPOK_LO				 0
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_BRCST	 (0x1<<0)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_MLCST	 (0x1<<1)
-#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN	 (0x1<<4)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_ANAL_VLAN	 (0x1<<4)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST	 (0x1<<2)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_VLAN	 (0x1<<3)
 #define NIG_LLH0_XCM_MASK_REG_LLH0_XCM_MASK_BCN			 (0x1<<0)
@@ -1966,7 +1966,7 @@
 /* [RW 1] Input enable for TX Debug packet */
 #define NIG_REG_EGRESS_DEBUG_IN_EN				 0x100dc
 /* [RW 1] If 1 - egress drain mode for port0 is active. In this mode all
-   packets from PBFare not forwarded to the MAC and just deleted from FIFO.
+   packets from PBFare analt forwarded to the MAC and just deleted from FIFO.
    First packet may be deleted from the middle. And last packet will be
    always deleted till the end. */
 #define NIG_REG_EGRESS_DRAIN0_MODE				 0x10060
@@ -2032,7 +2032,7 @@
    8Hz. */
 #define NIG_REG_LED_CONTROL_BLINK_RATE_ENA_P0			 0x10318
 /* [RW 12] Port0: Specifies the period of each blink cycle (on + off) for
-   Traffic LED in milliseconds. Must be a non-zero value. This 12-bit field
+   Traffic LED in milliseconds. Must be a analn-zero value. This 12-bit field
    is reset to 0x080; giving a default blink period of approximately 8Hz. */
 #define NIG_REG_LED_CONTROL_BLINK_RATE_P0			 0x10310
 /* [RW 1] Port0: If set along with the
@@ -2080,9 +2080,9 @@
 #define NIG_REG_LLH0_ACPI_PAT_6_LEN				 0x10154
 #define NIG_REG_LLH0_BRB1_DRV_MASK				 0x10244
 #define NIG_REG_LLH0_BRB1_DRV_MASK_MF				 0x16048
-/* [RW 1] send to BRB1 if no match on any of RMP rules. */
-#define NIG_REG_LLH0_BRB1_NOT_MCP				 0x1025c
-/* [RW 2] Determine the classification participants. 0: no classification.1:
+/* [RW 1] send to BRB1 if anal match on any of RMP rules. */
+#define NIG_REG_LLH0_BRB1_ANALT_MCP				 0x1025c
+/* [RW 2] Determine the classification participants. 0: anal classification.1:
    classification upon VLAN id. 2: classification upon MAC address. 3:
    classification upon both VLAN id & MAC addr. */
 #define NIG_REG_LLH0_CLS_TYPE					 0x16080
@@ -2114,9 +2114,9 @@
 #define NIG_REG_LLH0_XCM_INIT_CREDIT				 0x10554
 #define NIG_REG_LLH0_XCM_MASK					 0x10130
 #define NIG_REG_LLH1_BRB1_DRV_MASK				 0x10248
-/* [RW 1] send to BRB1 if no match on any of RMP rules. */
-#define NIG_REG_LLH1_BRB1_NOT_MCP				 0x102dc
-/* [RW 2] Determine the classification participants. 0: no classification.1:
+/* [RW 1] send to BRB1 if anal match on any of RMP rules. */
+#define NIG_REG_LLH1_BRB1_ANALT_MCP				 0x102dc
+/* [RW 2] Determine the classification participants. 0: anal classification.1:
    classification upon VLAN id. 2: classification upon MAC address. 3:
    classification upon both VLAN id & MAC addr. */
 #define NIG_REG_LLH1_CLS_TYPE					 0x16084
@@ -2139,7 +2139,7 @@
 /* [RW 1] When this bit is set; the LLH will expect all packets to be with
    e1hov */
 #define NIG_REG_LLH_E1HOV_MODE					 0x160d8
-/* [RW 16] Outer VLAN type identifier for multi-function mode. In non
+/* [RW 16] Outer VLAN type identifier for multi-function mode. In analn
  * multi-function mode; it will hold the inner VLAN type. Typically 0x8100.
  */
 #define NIG_REG_LLH_E1HOV_TYPE_1				 0x16028
@@ -2154,7 +2154,7 @@
 #define NIG_REG_NIG_EMAC1_EN					 0x10040
 /* [RW 1] Output signal from NIG to TX_EMAC0. When set indicates to the
    EMAC0 to strip the CRC from the ingress packets. */
-#define NIG_REG_NIG_INGRESS_EMAC0_NO_CRC			 0x10044
+#define NIG_REG_NIG_INGRESS_EMAC0_ANAL_CRC			 0x10044
 /* [R 32] Interrupt register #0 read */
 #define NIG_REG_NIG_INT_STS_0					 0x103b0
 #define NIG_REG_NIG_INT_STS_1					 0x103c0
@@ -2219,9 +2219,9 @@
  * UDP DP 0} . 7-{IPv6 DA 1; UDP DP 1} . 8-{MAC DA 0; Ethertype 0} . 9-{MAC
  * DA 1; Ethertype 0} . 10-{MAC DA 0; Ethertype 1} . 11-{MAC DA 1; Ethertype
  * 1} . 12-{MAC DA 2; Ethertype 0} . 13-{MAC DA 2; Ethertype 1} . The reset
- * default is to mask out all of the rules. Note that rules 0-3 are for IPv4
+ * default is to mask out all of the rules. Analte that rules 0-3 are for IPv4
  * packets only and require that the packet is IPv4 for the rules to match.
- * Note that rules 4-7 are for IPv6 packets only and require that the packet
+ * Analte that rules 4-7 are for IPv6 packets only and require that the packet
  * is IPv6 for the rules to match.
  */
 #define NIG_REG_P0_LLH_PTP_RULE_MASK				 0x187a4
@@ -2245,7 +2245,7 @@
  * frame format in timesync event detection on RX side. Bit 3 enables
  * TimeSync on TX side. Bit 4 enables V1 frame format in timesync event
  * detection on TX side. Bit 5 enables V2 frame format in timesync event
- * detection on TX side. Note that for HW to detect PTP packet and extract
+ * detection on TX side. Analte that for HW to detect PTP packet and extract
  * data from the packet, at least one of the version bits of that traffic
  * direction has to be enabled.
  */
@@ -2283,28 +2283,28 @@
 /* [R 1] RX FIFO for receiving data from MAC is empty. */
 /* [RW 15] Specify which of the credit registers the client is to be mapped
  * to. Bits[2:0] are for client 0; bits [14:12] are for client 4. For
- * clients that are not subject to WFQ credit blocking - their
- * specifications here are not used. */
+ * clients that are analt subject to WFQ credit blocking - their
+ * specifications here are analt used. */
 #define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP			 0x180f0
 /* [RW 32] Specify which of the credit registers the client is to be mapped
  * to. This register specifies bits 31:0 of the 36-bit value. Bits[3:0] are
- * for client 0; bits [35:32] are for client 8. For clients that are not
- * subject to WFQ credit blocking - their specifications here are not used.
+ * for client 0; bits [35:32] are for client 8. For clients that are analt
+ * subject to WFQ credit blocking - their specifications here are analt used.
  * This is a new register (with 2_) added in E3 B0 to accommodate the 9
  * input clients to ETS arbiter. The reset default is set for management and
  * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
- * use credit registers 0-5 respectively (0x543210876). Note that credit
- * registers can not be shared between clients. */
+ * use credit registers 0-5 respectively (0x543210876). Analte that credit
+ * registers can analt be shared between clients. */
 #define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_LSB		 0x18688
 /* [RW 4] Specify which of the credit registers the client is to be mapped
  * to. This register specifies bits 35:32 of the 36-bit value. Bits[3:0] are
- * for client 0; bits [35:32] are for client 8. For clients that are not
- * subject to WFQ credit blocking - their specifications here are not used.
+ * for client 0; bits [35:32] are for client 8. For clients that are analt
+ * subject to WFQ credit blocking - their specifications here are analt used.
  * This is a new register (with 2_) added in E3 B0 to accommodate the 9
  * input clients to ETS arbiter. The reset default is set for management and
  * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
- * use credit registers 0-5 respectively (0x543210876). Note that credit
- * registers can not be shared between clients. */
+ * use credit registers 0-5 respectively (0x543210876). Analte that credit
+ * registers can analt be shared between clients. */
 #define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_MSB		 0x1868c
 /* [RW 5] Specify whether the client competes directly in the strict
  * priority arbiter. The bits are mapped according to client ID (client IDs
@@ -2313,7 +2313,7 @@
 #define NIG_REG_P0_TX_ARB_CLIENT_IS_STRICT			 0x180e8
 /* [RW 5] Specify whether the client is subject to WFQ credit blocking. The
  * bits are mapped according to client ID (client IDs are defined in
- * tx_arb_priority_client). Default value is 0 for not using WFQ credit
+ * tx_arb_priority_client). Default value is 0 for analt using WFQ credit
  * blocking. */
 #define NIG_REG_P0_TX_ARB_CLIENT_IS_SUBJECT2WFQ		 0x180ec
 /* [RW 32] Specify the upper bound that credit register 0 is allowed to
@@ -2340,7 +2340,7 @@
 #define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_8			 0x1869c
 /* [RW 12] Specify the number of strict priority arbitration slots between
  * two round-robin arbitration slots to avoid starvation. A value of 0 means
- * no strict priority cycles - the strict priority with anti-starvation
+ * anal strict priority cycles - the strict priority with anti-starvation
  * arbiter becomes a round-robin arbiter. */
 #define NIG_REG_P0_TX_ARB_NUM_STRICT_ARB_SLOTS			 0x180f4
 /* [RW 15] Specify the client number to be assigned to each priority of the
@@ -2388,9 +2388,9 @@
  * UDP DP 0} . 7-{IPv6 DA 1; UDP DP 1} . 8-{MAC DA 0; Ethertype 0} . 9-{MAC
  * DA 1; Ethertype 0} . 10-{MAC DA 0; Ethertype 1} . 11-{MAC DA 1; Ethertype
  * 1} . 12-{MAC DA 2; Ethertype 0} . 13-{MAC DA 2; Ethertype 1} . The reset
- * default is to mask out all of the rules. Note that rules 0-3 are for IPv4
+ * default is to mask out all of the rules. Analte that rules 0-3 are for IPv4
  * packets only and require that the packet is IPv4 for the rules to match.
- * Note that rules 4-7 are for IPv6 packets only and require that the packet
+ * Analte that rules 4-7 are for IPv6 packets only and require that the packet
  * is IPv6 for the rules to match.
  */
 #define NIG_REG_P1_LLH_PTP_RULE_MASK				 0x187cc
@@ -2443,7 +2443,7 @@
  * frame format in timesync event detection on RX side. Bit 3 enables
  * TimeSync on TX side. Bit 4 enables V1 frame format in timesync event
  * detection on TX side. Bit 5 enables V2 frame format in timesync event
- * detection on TX side. Note that for HW to detect PTP packet and extract
+ * detection on TX side. Analte that for HW to detect PTP packet and extract
  * data from the packet, at least one of the version bits of that traffic
  * direction has to be enabled.
  */
@@ -2541,26 +2541,26 @@
 #define NIG_REG_P1_TLLH_PTP_RULE_MASK				 0x187fc
 /* [RW 32] Specify which of the credit registers the client is to be mapped
  * to. This register specifies bits 31:0 of the 36-bit value. Bits[3:0] are
- * for client 0; bits [35:32] are for client 8. For clients that are not
- * subject to WFQ credit blocking - their specifications here are not used.
+ * for client 0; bits [35:32] are for client 8. For clients that are analt
+ * subject to WFQ credit blocking - their specifications here are analt used.
  * This is a new register (with 2_) added in E3 B0 to accommodate the 9
  * input clients to ETS arbiter. The reset default is set for management and
  * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
- * use credit registers 0-5 respectively (0x543210876). Note that credit
- * registers can not be shared between clients. Note also that there are
+ * use credit registers 0-5 respectively (0x543210876). Analte that credit
+ * registers can analt be shared between clients. Analte also that there are
  * only COS0-2 in port 1- there is a total of 6 clients in port 1. Only
  * credit registers 0-5 are valid. This register should be configured
  * appropriately before enabling WFQ. */
 #define NIG_REG_P1_TX_ARB_CLIENT_CREDIT_MAP2_LSB		 0x186e8
 /* [RW 4] Specify which of the credit registers the client is to be mapped
  * to. This register specifies bits 35:32 of the 36-bit value. Bits[3:0] are
- * for client 0; bits [35:32] are for client 8. For clients that are not
- * subject to WFQ credit blocking - their specifications here are not used.
+ * for client 0; bits [35:32] are for client 8. For clients that are analt
+ * subject to WFQ credit blocking - their specifications here are analt used.
  * This is a new register (with 2_) added in E3 B0 to accommodate the 9
  * input clients to ETS arbiter. The reset default is set for management and
  * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
- * use credit registers 0-5 respectively (0x543210876). Note that credit
- * registers can not be shared between clients. Note also that there are
+ * use credit registers 0-5 respectively (0x543210876). Analte that credit
+ * registers can analt be shared between clients. Analte also that there are
  * only COS0-2 in port 1- there is a total of 6 clients in port 1. Only
  * credit registers 0-5 are valid. This register should be configured
  * appropriately before enabling WFQ. */
@@ -2577,7 +2577,7 @@
  * tx_arb_priority_client2): 0-management; 1-debug traffic from this port;
  * 2-debug traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2
  * traffic; 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. Default value is
- * 0 for not using WFQ credit blocking. */
+ * 0 for analt using WFQ credit blocking. */
 #define NIG_REG_P1_TX_ARB_CLIENT_IS_SUBJECT2WFQ			 0x18238
 #define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_0			 0x18258
 #define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_1			 0x1825c
@@ -2595,7 +2595,7 @@
 #define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_5			 0x186f0
 /* [RW 12] Specify the number of strict priority arbitration slots between
    two round-robin arbitration slots to avoid starvation. A value of 0 means
-   no strict priority cycles - the strict priority with anti-starvation
+   anal strict priority cycles - the strict priority with anti-starvation
    arbiter becomes a round-robin arbiter. */
 #define NIG_REG_P1_TX_ARB_NUM_STRICT_ARB_SLOTS			 0x18240
 /* [RW 32] Specify the client number to be assigned to each priority of the
@@ -2606,9 +2606,9 @@
    traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
    6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
    set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
-   accommodate the 9 input clients to ETS arbiter. Note that this register
+   accommodate the 9 input clients to ETS arbiter. Analte that this register
    is the same as the one for port 0, except that port 1 only has COS 0-2
-   traffic. There is no traffic for COS 3-5 of port 1. */
+   traffic. There is anal traffic for COS 3-5 of port 1. */
 #define NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_LSB			 0x186e0
 /* [RW 4] Specify the client number to be assigned to each priority of the
    strict priority arbiter. This register specifies bits 35:32 of the 36-bit
@@ -2618,9 +2618,9 @@
    traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
    6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
    set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
-   accommodate the 9 input clients to ETS arbiter. Note that this register
+   accommodate the 9 input clients to ETS arbiter. Analte that this register
    is the same as the one for port 0, except that port 1 only has COS 0-2
-   traffic. There is no traffic for COS 3-5 of port 1. */
+   traffic. There is anal traffic for COS 3-5 of port 1. */
 #define NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_MSB			 0x186e4
 /* [R 1] TX FIFO for transmitting data to MAC is empty. */
 #define NIG_REG_P1_TX_MACFIFO_EMPTY				 0x18594
@@ -2774,12 +2774,12 @@
 #define PBF_REG_DISABLE_VF					 0x1402ec
 /* [RW 18] For port 0: For each client that is subject to WFQ (the
  * corresponding bit is 1); indicates to which of the credit registers this
- * client is mapped. For clients which are not credit blocked; their mapping
+ * client is mapped. For clients which are analt credit blocked; their mapping
  * is dont care. */
 #define PBF_REG_ETS_ARB_CLIENT_CREDIT_MAP_P0			 0x15c288
 /* [RW 9] For port 1: For each client that is subject to WFQ (the
  * corresponding bit is 1); indicates to which of the credit registers this
- * client is mapped. For clients which are not credit blocked; their mapping
+ * client is mapped. For clients which are analt credit blocked; their mapping
  * is dont care. */
 #define PBF_REG_ETS_ARB_CLIENT_CREDIT_MAP_P1			 0x15c28c
 /* [RW 6] For port 0: Bit per client to indicate if the client competes in
@@ -2799,24 +2799,24 @@
  * WFQ credit blocking (corresponding bit = 1). */
 #define PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P1		 0x15c284
 /* [RW 16] For port 0: The number of strict priority arbitration slots
- * between 2 RR arbitration slots. A value of 0 means no strict priority
+ * between 2 RR arbitration slots. A value of 0 means anal strict priority
  * cycles; i.e. the strict-priority w/ anti-starvation arbiter is a RR
  * arbiter. */
 #define PBF_REG_ETS_ARB_NUM_STRICT_ARB_SLOTS_P0			 0x15c2a0
 /* [RW 16] For port 1: The number of strict priority arbitration slots
- * between 2 RR arbitration slots. A value of 0 means no strict priority
+ * between 2 RR arbitration slots. A value of 0 means anal strict priority
  * cycles; i.e. the strict-priority w/ anti-starvation arbiter is a RR
  * arbiter. */
 #define PBF_REG_ETS_ARB_NUM_STRICT_ARB_SLOTS_P1			 0x15c2a4
 /* [RW 18] For port 0: Indicates which client is connected to each priority
  * in the strict-priority arbiter. Priority 0 is the highest priority, and
  * priority 5 is the lowest; to which the RR output is connected to (this is
- * not configurable). */
+ * analt configurable). */
 #define PBF_REG_ETS_ARB_PRIORITY_CLIENT_P0			 0x15c270
 /* [RW 9] For port 1: Indicates which client is connected to each priority
  * in the strict-priority arbiter. Priority 0 is the highest priority, and
  * priority 5 is the lowest; to which the RR output is connected to (this is
- * not configurable). */
+ * analt configurable). */
 #define PBF_REG_ETS_ARB_PRIORITY_CLIENT_P1			 0x15c274
 /* [RW 1] Indicates that ETS is performed between the COSes in the command
  * arbiter. If reset strict priority w/ anti-starvation will be performed
@@ -2874,11 +2874,11 @@
 /* [RW 6] Bit-map indicating which headers must appear in the packet */
 #define PBF_REG_MUST_HAVE_HDRS					 0x15c0c4
 /* [RW 16] The number of strict priority arbitration slots between 2 RR
- * arbitration slots. A value of 0 means no strict priority cycles; i.e. the
+ * arbitration slots. A value of 0 means anal strict priority cycles; i.e. the
  * strict-priority w/ anti-starvation arbiter is a RR arbiter. */
 #define PBF_REG_NUM_STRICT_ARB_SLOTS				 0x15c064
 /* [RW 10] Port 0 threshold used by arbiter in 16 byte lines used when pause
-   not suppoterd. */
+   analt suppoterd. */
 #define PBF_REG_P0_ARB_THRSH					 0x1400e4
 /* [R 11] Current credit for port 0 in the tx port buffers in 16 byte lines. */
 #define PBF_REG_P0_CREDIT					 0x140200
@@ -2961,7 +2961,7 @@
 #define PBF_REG_TQ_OCCUPANCY_Q1					 0x1403b0
 /* [RW 16] One of 8 values that should be compared to type in Ethernet
  * parsing. If there is a match; the field after Ethernet is the first VLAN.
- * Reset value is 0x8100 which is the standard VLAN type. Note that when
+ * Reset value is 0x8100 which is the standard VLAN type. Analte that when
  * checking second VLAN; type is compared only to 0x8100.
  */
 #define PBF_REG_VLAN_TYPE_0					 0x15c06c
@@ -2976,7 +2976,7 @@
 /* [RC 4] Parity register #0 read clear */
 #define PB_REG_PB_PRTY_STS_CLR					 0x30
 #define PGLUE_B_PGLUE_B_INT_STS_REG_ADDRESS_ERROR		 (0x1<<0)
-#define PGLUE_B_PGLUE_B_INT_STS_REG_CSSNOOP_FIFO_OVERFLOW	 (0x1<<8)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_CSSANALOP_FIFO_OVERFLOW	 (0x1<<8)
 #define PGLUE_B_PGLUE_B_INT_STS_REG_INCORRECT_RCV_BEHAVIOR	 (0x1<<1)
 #define PGLUE_B_PGLUE_B_INT_STS_REG_TCPL_ERROR_ATTN		 (0x1<<6)
 #define PGLUE_B_PGLUE_B_INT_STS_REG_TCPL_IN_TWO_RCBS_ATTN	 (0x1<<7)
@@ -2986,12 +2986,12 @@
 #define PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN		 (0x1<<2)
 /* [R 8] Config space A attention dirty bits. Each bit indicates that the
  * corresponding PF generates config space A attention. Set by PXP. Reset by
- * MCP writing 1 to icfg_space_a_request_clr. Note: register contains bits
+ * MCP writing 1 to icfg_space_a_request_clr. Analte: register contains bits
  * from both paths. */
 #define PGLUE_B_REG_CFG_SPACE_A_REQUEST			 0x9010
 /* [R 8] Config space B attention dirty bits. Each bit indicates that the
  * corresponding PF generates config space B attention. Set by PXP. Reset by
- * MCP writing 1 to icfg_space_b_request_clr. Note: register contains bits
+ * MCP writing 1 to icfg_space_b_request_clr. Analte: register contains bits
  * from both paths. */
 #define PGLUE_B_REG_CFG_SPACE_B_REQUEST			 0x9014
 /* [RW 1] Type A PF enable inbound interrupt table for CSDM. 0 - disable; 1
@@ -3013,12 +3013,12 @@
 #define PGLUE_B_REG_CSDM_ZONE_A_SIZE_PF			 0x91ac
 /* [R 8] FLR request attention dirty bits for PFs 0 to 7. Each bit indicates
  * that the FLR register of the corresponding PF was set. Set by PXP. Reset
- * by MCP writing 1 to flr_request_pf_7_0_clr. Note: register contains bits
+ * by MCP writing 1 to flr_request_pf_7_0_clr. Analte: register contains bits
  * from both paths. */
 #define PGLUE_B_REG_FLR_REQUEST_PF_7_0				 0x9028
 /* [W 8] FLR request attention dirty bits clear for PFs 0 to 7. MCP writes 1
  * to a bit in this register in order to clear the corresponding bit in
- * flr_request_pf_7_0 register. Note: register contains bits from both
+ * flr_request_pf_7_0 register. Analte: register contains bits from both
  * paths. */
 #define PGLUE_B_REG_FLR_REQUEST_PF_7_0_CLR			 0x9418
 /* [R 32] FLR request attention dirty bits for VFs 96 to 127. Each bit
@@ -3043,9 +3043,9 @@
  * arrived with a correctable error. Bit 3 - Configuration RW arrived with
  * an uncorrectable error. Bit 4 - Completion with Configuration Request
  * Retry Status. Bit 5 - Expansion ROM access received with a write request.
- * Bit 6 - Completion with pcie_rx_err of 0000; CMPL_STATUS of non-zero; and
- * pcie_rx_last not asserted. Bit 7 - Completion with pcie_rx_err of 1010;
- * and pcie_rx_last not asserted. */
+ * Bit 6 - Completion with pcie_rx_err of 0000; CMPL_STATUS of analn-zero; and
+ * pcie_rx_last analt asserted. Bit 7 - Completion with pcie_rx_err of 1010;
+ * and pcie_rx_last analt asserted. */
 #define PGLUE_B_REG_INCORRECT_RCV_DETAILS			 0x9068
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER		 0x942c
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ		 0x9430
@@ -3074,14 +3074,14 @@
 #define PGLUE_B_REG_PGLUE_B_PRTY_STS_CLR			 0x92ac
 /* [R 13] Details of first request received with error. [2:0] - PFID. [3] -
  * VF_VALID. [9:4] - VFID. [11:10] - Error Code - 0 - Indicates Completion
- * Timeout of a User Tx non-posted request. 1 - unsupported request. 2 -
+ * Timeout of a User Tx analn-posted request. 1 - unsupported request. 2 -
  * completer abort. 3 - Illegal value for this field. [12] valid - indicates
  * if there was a completion error since the last time this register was
  * cleared. */
 #define PGLUE_B_REG_RX_ERR_DETAILS				 0x9080
 /* [R 18] Details of first ATS Translation Completion request received with
  * error. [2:0] - PFID. [3] - VF_VALID. [9:4] - VFID. [11:10] - Error Code -
- * 0 - Indicates Completion Timeout of a User Tx non-posted request. 1 -
+ * 0 - Indicates Completion Timeout of a User Tx analn-posted request. 1 -
  * unsupported request. 2 - completer abort. 3 - Illegal value for this
  * field. [16:12] - ATC OTB EntryID. [17] valid - indicates if there was a
  * completion error since the last time this register was cleared. */
@@ -3089,16 +3089,16 @@
 /* [W 8] Debug only - Shadow BME bits clear for PFs 0 to 7. MCP writes 1 to
  * a bit in this register in order to clear the corresponding bit in
  * shadow_bme_pf_7_0 register. MCP should never use this unless a
- * work-around is needed. Note: register contains bits from both paths. */
+ * work-around is needed. Analte: register contains bits from both paths. */
 #define PGLUE_B_REG_SHADOW_BME_PF_7_0_CLR			 0x9458
 /* [R 8] SR IOV disabled attention dirty bits. Each bit indicates that the
  * VF enable register of the corresponding PF is written to 0 and was
  * previously 1. Set by PXP. Reset by MCP writing 1 to
- * sr_iov_disabled_request_clr. Note: register contains bits from both
+ * sr_iov_disabled_request_clr. Analte: register contains bits from both
  * paths. */
 #define PGLUE_B_REG_SR_IOV_DISABLED_REQUEST			 0x9030
 /* [R 32] Indicates the status of tags 32-63. 0 - tags is used - read
- * completion did not return yet. 1 - tag is unused. Same functionality as
+ * completion did analt return yet. 1 - tag is unused. Same functionality as
  * pxp2_registers_pgl_exp_rom_data2 for tags 0-31. */
 #define PGLUE_B_REG_TAGS_63_32					 0x9244
 /* [RW 1] Type A PF enable inbound interrupt table for TSDM. 0 - disable; 1
@@ -3112,37 +3112,37 @@
 #define PGLUE_B_REG_TSDM_VF_SHIFT_B				 0x90d4
 /* [RW 1] 0 - Zone A size is 136x32B; 1 - Zone A size is 152x32B. */
 #define PGLUE_B_REG_TSDM_ZONE_A_SIZE_PF			 0x91a0
-/* [R 32] Address [31:0] of first read request not submitted due to error */
+/* [R 32] Address [31:0] of first read request analt submitted due to error */
 #define PGLUE_B_REG_TX_ERR_RD_ADD_31_0				 0x9098
-/* [R 32] Address [63:32] of first read request not submitted due to error */
+/* [R 32] Address [63:32] of first read request analt submitted due to error */
 #define PGLUE_B_REG_TX_ERR_RD_ADD_63_32			 0x909c
-/* [R 31] Details of first read request not submitted due to error. [4:0]
+/* [R 31] Details of first read request analt submitted due to error. [4:0]
  * VQID. [5] TREQ. 1 - Indicates the request is a Translation Request.
  * [20:8] - Length in bytes. [23:21] - PFID. [24] - VF_VALID. [30:25] -
  * VFID. */
 #define PGLUE_B_REG_TX_ERR_RD_DETAILS				 0x90a0
-/* [R 26] Details of first read request not submitted due to error. [15:0]
+/* [R 26] Details of first read request analt submitted due to error. [15:0]
  * Request ID. [19:16] client ID. [20] - last SR. [24:21] - Error type -
  * [21] - Indicates was_error was set; [22] - Indicates BME was cleared;
  * [23] - Indicates FID_enable was cleared; [24] - Indicates VF with parent
  * PF FLR_request or IOV_disable_request dirty bit is set. [25] valid -
- * indicates if there was a request not submitted due to error since the
+ * indicates if there was a request analt submitted due to error since the
  * last time this register was cleared. */
 #define PGLUE_B_REG_TX_ERR_RD_DETAILS2				 0x90a4
-/* [R 32] Address [31:0] of first write request not submitted due to error */
+/* [R 32] Address [31:0] of first write request analt submitted due to error */
 #define PGLUE_B_REG_TX_ERR_WR_ADD_31_0				 0x9088
-/* [R 32] Address [63:32] of first write request not submitted due to error */
+/* [R 32] Address [63:32] of first write request analt submitted due to error */
 #define PGLUE_B_REG_TX_ERR_WR_ADD_63_32			 0x908c
-/* [R 31] Details of first write request not submitted due to error. [4:0]
+/* [R 31] Details of first write request analt submitted due to error. [4:0]
  * VQID. [20:8] - Length in bytes. [23:21] - PFID. [24] - VF_VALID. [30:25]
  * - VFID. */
 #define PGLUE_B_REG_TX_ERR_WR_DETAILS				 0x9090
-/* [R 26] Details of first write request not submitted due to error. [15:0]
+/* [R 26] Details of first write request analt submitted due to error. [15:0]
  * Request ID. [19:16] client ID. [20] - last SR. [24:21] - Error type -
  * [21] - Indicates was_error was set; [22] - Indicates BME was cleared;
  * [23] - Indicates FID_enable was cleared; [24] - Indicates VF with parent
  * PF FLR_request or IOV_disable_request dirty bit is set. [25] valid -
- * indicates if there was a request not submitted due to error since the
+ * indicates if there was a request analt submitted due to error since the
  * last time this register was cleared. */
 #define PGLUE_B_REG_TX_ERR_WR_DETAILS2				 0x9094
 /* [RW 10] Type A PF/VF inbound interrupt table for USDM: bits[9:5]-mask;
@@ -3184,7 +3184,7 @@
  * [14:13] BAR. [20:15] VFID. [23:21] - PFID. [29:24] - Length in DWs. [30]
  * valid - indicates if there was a request with length violation since the
  * last time this register was cleared. Length violations: length of more
- * than 2DWs; length of 2DWs and address not QW aligned; window is GRC and
+ * than 2DWs; length of 2DWs and address analt QW aligned; window is GRC and
  * length is more than 1 DW. */
 #define PGLUE_B_REG_VF_LENGTH_VIOLATION_DETAILS		 0x9230
 /* [R 8] Was_error indication dirty bits for PFs 0 to 7. Each bit indicates
@@ -3251,7 +3251,7 @@
 /* [RW 6] The initial credit for the search message to the CFC interface.
    Credit is transaction based. */
 #define PRS_REG_CFC_SEARCH_INITIAL_CREDIT			 0x4011c
-/* [RW 24] CID for port 0 if no match */
+/* [RW 24] CID for port 0 if anal match */
 #define PRS_REG_CID_PORT_0					 0x400fc
 /* [RW 32] The CM header for flush message where 'load existed' bit in CFC
    load response is reset and packet type is 0. Used in packet start message
@@ -3265,12 +3265,12 @@
 /* [RW 32] The CM header for flush message where 'load existed' bit in CFC
    load response is set and packet type is 0. Used in packet start message
    to TCM. */
-#define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_0			 0x400bc
-#define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_1			 0x400c0
-#define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_2			 0x400c4
-#define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_3			 0x400c8
-#define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_4			 0x400cc
-#define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_5			 0x400d0
+#define PRS_REG_CM_HDR_FLUSH_ANAL_LOAD_TYPE_0			 0x400bc
+#define PRS_REG_CM_HDR_FLUSH_ANAL_LOAD_TYPE_1			 0x400c0
+#define PRS_REG_CM_HDR_FLUSH_ANAL_LOAD_TYPE_2			 0x400c4
+#define PRS_REG_CM_HDR_FLUSH_ANAL_LOAD_TYPE_3			 0x400c8
+#define PRS_REG_CM_HDR_FLUSH_ANAL_LOAD_TYPE_4			 0x400cc
+#define PRS_REG_CM_HDR_FLUSH_ANAL_LOAD_TYPE_5			 0x400d0
 /* [RW 32] The CM header for a match and packet type 1 for loopback port.
    Used in packet start message to TCM. */
 #define PRS_REG_CM_HDR_LOOPBACK_TYPE_1				 0x4009c
@@ -3284,9 +3284,9 @@
 #define PRS_REG_CM_HDR_TYPE_2					 0x40080
 #define PRS_REG_CM_HDR_TYPE_3					 0x40084
 #define PRS_REG_CM_HDR_TYPE_4					 0x40088
-/* [RW 32] The CM header in case there was not a match on the connection */
-#define PRS_REG_CM_NO_MATCH_HDR 				 0x400b8
-/* [RW 1] Indicates if in e1hov mode. 0=non-e1hov mode; 1=e1hov mode. */
+/* [RW 32] The CM header in case there was analt a match on the connection */
+#define PRS_REG_CM_ANAL_MATCH_HDR 				 0x400b8
+/* [RW 1] Indicates if in e1hov mode. 0=analn-e1hov mode; 1=e1hov mode. */
 #define PRS_REG_E1HOV_MODE					 0x401c8
 /* [RW 8] The 8-bit event ID for a match and packet type 1. Used in packet
    start message to TCM. */
@@ -3327,13 +3327,13 @@
 #define PRS_REG_MUST_HAVE_HDRS_PORT_0				 0x4028c
 #define PRS_REG_MUST_HAVE_HDRS_PORT_1				 0x402ac
 #define PRS_REG_NIC_MODE					 0x40138
-/* [RW 8] The 8-bit event ID for cases where there is no match on the
+/* [RW 8] The 8-bit event ID for cases where there is anal match on the
    connection. Used in packet start message to TCM. */
-#define PRS_REG_NO_MATCH_EVENT_ID				 0x40070
+#define PRS_REG_ANAL_MATCH_EVENT_ID				 0x40070
 /* [ST 24] The number of input CFC flush packets */
 #define PRS_REG_NUM_OF_CFC_FLUSH_MESSAGES			 0x40128
 /* [ST 32] The number of cycles the Parser halted its operation since it
-   could not allocate the next serial number */
+   could analt allocate the next serial number */
 #define PRS_REG_NUM_OF_DEAD_CYCLES				 0x40130
 /* [ST 24] The number of input packets */
 #define PRS_REG_NUM_OF_PACKETS					 0x40124
@@ -3361,16 +3361,16 @@
 #define PRS_REG_PRS_PRTY_STS					 0x40198
 /* [RC 8] Parity register #0 read clear */
 #define PRS_REG_PRS_PRTY_STS_CLR				 0x4019c
-/* [RW 8] Context region for pure acknowledge packets. Used in CFC load
+/* [RW 8] Context region for pure ackanalwledge packets. Used in CFC load
    request message */
 #define PRS_REG_PURE_REGIONS					 0x40024
 /* [R 32] debug only: Serial number status lsb 32 bits. '1' indicates this
-   serail number was released by SDM but cannot be used because a previous
-   serial number was not released. */
+   serail number was released by SDM but cananalt be used because a previous
+   serial number was analt released. */
 #define PRS_REG_SERIAL_NUM_STATUS_LSB				 0x40154
 /* [R 32] debug only: Serial number status msb 32 bits. '1' indicates this
-   serail number was released by SDM but cannot be used because a previous
-   serial number was not released. */
+   serail number was released by SDM but cananalt be used because a previous
+   serial number was analt released. */
 #define PRS_REG_SERIAL_NUM_STATUS_MSB				 0x40158
 /* [R 4] debug only: SRC current credit. Transaction based. */
 #define PRS_REG_SRC_CURRENT_CREDIT				 0x4016c
@@ -3385,7 +3385,7 @@
 #define PRS_REG_TSDM_CURRENT_CREDIT				 0x4015c
 /* [RW 16] One of 8 values that should be compared to type in Ethernet
  * parsing. If there is a match; the field after Ethernet is the first VLAN.
- * Reset value is 0x8100 which is the standard VLAN type. Note that when
+ * Reset value is 0x8100 which is the standard VLAN type. Analte that when
  * checking second VLAN; type is compared only to 0x8100.
  */
 #define PRS_REG_VLAN_TYPE_0					 0x401a8
@@ -3426,7 +3426,7 @@
 /* [RW 32] third dword data of expansion rom request. this register is
    special. reading from it provides a vector outstanding read requests. if
    a bit is zero it means that a read request on the corresponding tag did
-   not finish yet (not all completions have arrived for it) */
+   analt finish yet (analt all completions have arrived for it) */
 #define PXP2_REG_PGL_EXP_ROM2					 0x120808
 /* [RW 32] Inbound interrupt table for CSDM: bits[31:16]-mask;
    its[15:0]-address */
@@ -3468,11 +3468,11 @@
 #define PXP2_REG_PGL_INT_XSDM_5 				 0x1204e8
 #define PXP2_REG_PGL_INT_XSDM_6 				 0x1204ec
 #define PXP2_REG_PGL_INT_XSDM_7 				 0x1204f0
-/* [RW 3] this field allows one function to pretend being another function
+/* [RW 3] this field allows one function to pretend being aanalther function
    when accessing any BAR mapped resource within the device. the value of
    the field is the number of the function that will be accessed
    effectively. after software write to this bit it must read it in order to
-   know that the new value is updated */
+   kanalw that the new value is updated */
 #define PXP2_REG_PGL_PRETEND_FUNC_F0				 0x120674
 #define PXP2_REG_PGL_PRETEND_FUNC_F1				 0x120678
 #define PXP2_REG_PGL_PRETEND_FUNC_F2				 0x12067c
@@ -3550,11 +3550,11 @@
 /* [R 8] Debug only: The blocks counter - number of unused block ids */
 #define PXP2_REG_RD_BLK_CNT					 0x120418
 /* [RW 8] Debug only: Total number of available blocks in Tetris Buffer.
-   Must be bigger than 6. Normally should not be changed. */
+   Must be bigger than 6. Analrmally should analt be changed. */
 #define PXP2_REG_RD_BLK_NUM_CFG 				 0x12040c
 /* [RW 2] CDU byte swapping mode configuration for master read requests */
 #define PXP2_REG_RD_CDURD_SWAP_MODE				 0x120404
-/* [RW 1] When '1'; inputs to the PSWRD block are ignored */
+/* [RW 1] When '1'; inputs to the PSWRD block are iganalred */
 #define PXP2_REG_RD_DISABLE_INPUTS				 0x120374
 /* [R 1] PSWRD internal memories initialization is done */
 #define PXP2_REG_RD_INIT_DONE					 0x120370
@@ -3597,7 +3597,7 @@
 /* [RW 2] SRC byte swapping mode configuration for master read requests */
 #define PXP2_REG_RD_SRC_SWAP_MODE				 0x120400
 /* [RW 7] Debug only: Total number of available PCI read sub-requests. Must
-   be bigger than 1. Normally should not be changed. */
+   be bigger than 1. Analrmally should analt be changed. */
 #define PXP2_REG_RD_SR_NUM_CFG					 0x120408
 /* [RW 1] Signals the PSWRD block to start initializing internal memories */
 #define PXP2_REG_RD_START_INIT					 0x12036c
@@ -3673,7 +3673,7 @@
 #define PXP2_REG_RQ_BW_RD_L27					 0x120314
 /* [RW 10] Bandwidth Typical L for VQ4 Read requests */
 #define PXP2_REG_RQ_BW_RD_L4					 0x1202bc
-/* [RW 10] Bandwidth Typical L for VQ5 Read- currently not used */
+/* [RW 10] Bandwidth Typical L for VQ5 Read- currently analt used */
 #define PXP2_REG_RQ_BW_RD_L5					 0x1202c0
 /* [RW 7] Bandwidth upper bound for VQ0 read requests */
 #define PXP2_REG_RQ_BW_RD_UBOUND0				 0x120234
@@ -3751,13 +3751,13 @@
 /* [RW 1] when set the new alignment method (E2) will be applied; when reset
  * the original alignment method (E1 E1H) will be applied */
 #define PXP2_REG_RQ_DRAM_ALIGN_SEL				 0x120930
-/* [RW 1] If 1 ILT failiue will not result in ELT access; An interrupt will
+/* [RW 1] If 1 ILT failiue will analt result in ELT access; An interrupt will
    be asserted */
 #define PXP2_REG_RQ_ELT_DISABLE 				 0x12066c
 /* [RW 2] Endian mode for hc */
 #define PXP2_REG_RQ_HC_ENDIAN_M 				 0x1201a8
 /* [RW 1] when '0' ILT logic will work as in A0; otherwise B0; for back
-   compatibility needs; Note that different registers are used per mode */
+   compatibility needs; Analte that different registers are used per mode */
 #define PXP2_REG_RQ_ILT_MODE					 0x1205b4
 /* [WB 53] Onchip address table */
 #define PXP2_REG_RQ_ONCHIP_AT					 0x122000
@@ -3916,7 +3916,7 @@
 /* [R 8] debug only: A bit mask for all PSWHST arbiter clients. '1' means
    this client is waiting for the arbiter. */
 #define PXP_REG_HST_CLIENTS_WAITING_TO_ARB			 0x103008
-/* [RW 1] When 1; doorbells are discarded and not passed to doorbell queue
+/* [RW 1] When 1; doorbells are discarded and analt passed to doorbell queue
    block. Should be used for close the gates. */
 #define PXP_REG_HST_DISCARD_DOORBELLS				 0x1030a4
 /* [R 1] debug only: '1' means this PSWHST is discarding doorbells. This bit
@@ -3959,12 +3959,12 @@
 #define QM_REG_ACTCTRINITVAL_2					 0x168048
 #define QM_REG_ACTCTRINITVAL_3					 0x16804c
 /* [RW 32] The base logical address (in bytes) of each physical queue. The
-   index I represents the physical queue number. The 12 lsbs are ignore and
+   index I represents the physical queue number. The 12 lsbs are iganalre and
    considered zero so practically there are only 20 bits in this register;
    queues 63-0 */
 #define QM_REG_BASEADDR 					 0x168900
 /* [RW 32] The base logical address (in bytes) of each physical queue. The
-   index I represents the physical queue number. The 12 lsbs are ignore and
+   index I represents the physical queue number. The 12 lsbs are iganalre and
    considered zero so practically there are only 20 bits in this register;
    queues 127-64 */
 #define QM_REG_BASEADDR_EXT_A					 0x16e100
@@ -4035,23 +4035,23 @@
 /* [RW 32] A bit mask per each physical queue. If a bit is set then the
    physical queue uses the byte credit; queues 127-96 */
 #define QM_REG_ENBYTECRD_MSB_EXT_A				 0x16e514
-/* [RW 4] If cleared then the secondary interface will not be served by the
+/* [RW 4] If cleared then the secondary interface will analt be served by the
    RR arbiter */
 #define QM_REG_ENSEC						 0x1680f0
 /* [RW 32] NA */
 #define QM_REG_FUNCNUMSEL_LSB					 0x168230
 /* [RW 32] NA */
 #define QM_REG_FUNCNUMSEL_MSB					 0x16822c
-/* [RW 32] A mask register to mask the Almost empty signals which will not
+/* [RW 32] A mask register to mask the Almost empty signals which will analt
    be use for the almost empty indication to the HW block; queues 31:0 */
 #define QM_REG_HWAEMPTYMASK_LSB 				 0x168218
-/* [RW 32] A mask register to mask the Almost empty signals which will not
+/* [RW 32] A mask register to mask the Almost empty signals which will analt
    be use for the almost empty indication to the HW block; queues 95-64 */
 #define QM_REG_HWAEMPTYMASK_LSB_EXT_A				 0x16e510
-/* [RW 32] A mask register to mask the Almost empty signals which will not
+/* [RW 32] A mask register to mask the Almost empty signals which will analt
    be use for the almost empty indication to the HW block; queues 63:32 */
 #define QM_REG_HWAEMPTYMASK_MSB 				 0x168214
-/* [RW 32] A mask register to mask the Almost empty signals which will not
+/* [RW 32] A mask register to mask the Almost empty signals which will analt
    be use for the almost empty indication to the HW block; queues 127-96 */
 #define QM_REG_HWAEMPTYMASK_MSB_EXT_A				 0x16e50c
 /* [RW 4] The number of outstanding request to CFC */
@@ -4083,7 +4083,7 @@
 /* [R 24] The number of tasks stored in the QM for the PF. only even
  * functions are valid in E2 (odd I registers will be hard wired to 0) */
 #define QM_REG_PF_USG_CNT_0					 0x16e040
-/* [R 16] NOT USED */
+/* [R 16] ANALT USED */
 #define QM_REG_PORT0BYTECRD					 0x168300
 /* [R 16] The byte credit of port 1 */
 #define QM_REG_PORT1BYTECRD					 0x168304
@@ -4435,19 +4435,19 @@
 #define TCM_REG_CAM_OCCUP					 0x5017c
 /* [RW 1] CDU AG read Interface enable. If 0 - the request input is
    disregarded; valid output is deasserted; all other signals are treated as
-   usual; if 1 - normal activity. */
+   usual; if 1 - analrmal activity. */
 #define TCM_REG_CDU_AG_RD_IFEN					 0x50034
 /* [RW 1] CDU AG write Interface enable. If 0 - the request and valid input
-   are disregarded; all other signals are treated as usual; if 1 - normal
+   are disregarded; all other signals are treated as usual; if 1 - analrmal
    activity. */
 #define TCM_REG_CDU_AG_WR_IFEN					 0x50030
 /* [RW 1] CDU STORM read Interface enable. If 0 - the request input is
    disregarded; valid output is deasserted; all other signals are treated as
-   usual; if 1 - normal activity. */
+   usual; if 1 - analrmal activity. */
 #define TCM_REG_CDU_SM_RD_IFEN					 0x5003c
 /* [RW 1] CDU STORM write Interface enable. If 0 - the request and valid
    input is disregarded; all other signals are treated as usual; if 1 -
-   normal activity. */
+   analrmal activity. */
 #define TCM_REG_CDU_SM_WR_IFEN					 0x50038
 /* [RW 4] CFC output initial credit. Max credit available - 15.Write writes
    the initial credit value; read returns the current value of the credit
@@ -4458,8 +4458,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define TCM_REG_CP_WEIGHT					 0x500c0
 /* [RW 1] Input csem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define TCM_REG_CSEM_IFEN					 0x5002c
 /* [RC 1] Message length mismatch (relative to last indication) at the In#9
    interface. */
@@ -4507,8 +4507,8 @@
 #define TCM_REG_N_SM_CTX_LD_4					 0x50060
 #define TCM_REG_N_SM_CTX_LD_5					 0x50064
 /* [RW 1] Input pbf Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define TCM_REG_PBF_IFEN					 0x50024
 /* [RC 1] Message length mismatch (relative to last indication) at the In#7
    interface. */
@@ -4526,8 +4526,8 @@
 #define TCM_REG_PHYS_QNUM3_0					 0x500f8
 #define TCM_REG_PHYS_QNUM3_1					 0x500fc
 /* [RW 1] Input prs Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define TCM_REG_PRS_IFEN					 0x50020
 /* [RC 1] Message length mismatch (relative to last indication) at the In#6
    interface. */
@@ -4542,16 +4542,16 @@
    interface. */
 #define TCM_REG_STORM_LENGTH_MIS				 0x50160
 /* [RW 1] STORM - CM Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define TCM_REG_STORM_TCM_IFEN					 0x50010
 /* [RW 3] The weight of the STORM input in the WRR mechanism. 0 stands for
    weight 8 (the most prioritised); 1 stands for weight 1(least
    prioritised); 2 stands for weight 2; tc. */
 #define TCM_REG_STORM_WEIGHT					 0x500ac
 /* [RW 1] CM - CFC Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define TCM_REG_TCM_CFC_IFEN					 0x50040
 /* [RW 11] Interrupt mask register #0 read/write */
 #define TCM_REG_TCM_INT_MASK					 0x501dc
@@ -4568,25 +4568,25 @@
    Is used to determine the number of the AG context REG-pairs written back;
    when the input message Reg1WbFlg isn't set. */
 #define TCM_REG_TCM_REG0_SZ					 0x500d8
-/* [RW 1] CM - STORM 0 Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - STORM 0 Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define TCM_REG_TCM_STORM0_IFEN 				 0x50004
-/* [RW 1] CM - STORM 1 Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - STORM 1 Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define TCM_REG_TCM_STORM1_IFEN 				 0x50008
-/* [RW 1] CM - QM Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - QM Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define TCM_REG_TCM_TQM_IFEN					 0x5000c
 /* [RW 1] If set the Q index; received from the QM is inserted to event ID. */
 #define TCM_REG_TCM_TQM_USE_Q					 0x500d4
 /* [RW 28] The CM header for Timers expiration command. */
 #define TCM_REG_TM_TCM_HDR					 0x50098
 /* [RW 1] Timers - CM Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define TCM_REG_TM_TCM_IFEN					 0x5001c
 /* [RW 3] The weight of the Timers input in the WRR mechanism. 0 stands for
    weight 8 (the most prioritised); 1 stands for weight 1(least
@@ -4609,12 +4609,12 @@
 /* [RW 28] The CM header value for QM request (secondary). */
 #define TCM_REG_TQM_TCM_HDR_S					 0x50094
 /* [RW 1] QM - CM Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define TCM_REG_TQM_TCM_IFEN					 0x50014
 /* [RW 1] Input SDM Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define TCM_REG_TSDM_IFEN					 0x50018
 /* [RC 1] Message length mismatch (relative to last indication) at the SDM
    interface. */
@@ -4624,8 +4624,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define TCM_REG_TSDM_WEIGHT					 0x500c4
 /* [RW 1] Input usem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define TCM_REG_USEM_IFEN					 0x50028
 /* [RC 1] Message length mismatch (relative to last indication) at the In#8
    interface. */
@@ -4820,25 +4820,25 @@
 /* [RW 3] The source that is associated with arbitration element 1. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~tsem_registers_arb_element0.arb_element0 */
+   Could analt be equal to register ~tsem_registers_arb_element0.arb_element0 */
 #define TSEM_REG_ARB_ELEMENT1					 0x180024
 /* [RW 3] The source that is associated with arbitration element 2. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~tsem_registers_arb_element0.arb_element0
+   Could analt be equal to register ~tsem_registers_arb_element0.arb_element0
    and ~tsem_registers_arb_element1.arb_element1 */
 #define TSEM_REG_ARB_ELEMENT2					 0x180028
 /* [RW 3] The source that is associated with arbitration element 3. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.Could
-   not be equal to register ~tsem_registers_arb_element0.arb_element0 and
+   analt be equal to register ~tsem_registers_arb_element0.arb_element0 and
    ~tsem_registers_arb_element1.arb_element1 and
    ~tsem_registers_arb_element2.arb_element2 */
 #define TSEM_REG_ARB_ELEMENT3					 0x18002c
 /* [RW 3] The source that is associated with arbitration element 4. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~tsem_registers_arb_element0.arb_element0
+   Could analt be equal to register ~tsem_registers_arb_element0.arb_element0
    and ~tsem_registers_arb_element1.arb_element1 and
    ~tsem_registers_arb_element2.arb_element2 and
    ~tsem_registers_arb_element3.arb_element3 */
@@ -4856,7 +4856,7 @@
 /* [RW 1] Disables input messages from FIC1 May be updated during run_time
    by the microcode */
 #define TSEM_REG_FIC1_DISABLE					 0x180234
-/* [RW 15] Interrupt table Read and write access to it is not possible in
+/* [RW 15] Interrupt table Read and write access to it is analt possible in
    the middle of the work */
 #define TSEM_REG_INT_TABLE					 0x180400
 /* [ST 24] Statistics register. The number of messages that entered through
@@ -4944,7 +4944,7 @@
 #define TSEM_REG_TSEM_PRTY_STS_0				 0x180114
 #define TSEM_REG_TSEM_PRTY_STS_1				 0x180124
 /* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
- * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
+ * VF; values 64-67 reset error for 4 PF; values 68-127 are analt valid. */
 #define TSEM_REG_VFPF_ERR_NUM					 0x180380
 /* [RW 32] Indirect access to AG context with 32-bits granularity. The bits
  * [10:8] of the address should be the offset within the accessed LCID
@@ -4955,19 +4955,19 @@
 #define UCM_REG_CAM_OCCUP					 0xe0170
 /* [RW 1] CDU AG read Interface enable. If 0 - the request input is
    disregarded; valid output is deasserted; all other signals are treated as
-   usual; if 1 - normal activity. */
+   usual; if 1 - analrmal activity. */
 #define UCM_REG_CDU_AG_RD_IFEN					 0xe0038
 /* [RW 1] CDU AG write Interface enable. If 0 - the request and valid input
-   are disregarded; all other signals are treated as usual; if 1 - normal
+   are disregarded; all other signals are treated as usual; if 1 - analrmal
    activity. */
 #define UCM_REG_CDU_AG_WR_IFEN					 0xe0034
 /* [RW 1] CDU STORM read Interface enable. If 0 - the request input is
    disregarded; valid output is deasserted; all other signals are treated as
-   usual; if 1 - normal activity. */
+   usual; if 1 - analrmal activity. */
 #define UCM_REG_CDU_SM_RD_IFEN					 0xe0040
 /* [RW 1] CDU STORM write Interface enable. If 0 - the request and valid
    input is disregarded; all other signals are treated as usual; if 1 -
-   normal activity. */
+   analrmal activity. */
 #define UCM_REG_CDU_SM_WR_IFEN					 0xe003c
 /* [RW 4] CFC output initial credit. Max credit available - 15.Write writes
    the initial credit value; read returns the current value of the credit
@@ -4978,8 +4978,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define UCM_REG_CP_WEIGHT					 0xe00c4
 /* [RW 1] Input csem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define UCM_REG_CSEM_IFEN					 0xe0028
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the csem interface is detected. */
@@ -4989,8 +4989,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define UCM_REG_CSEM_WEIGHT					 0xe00b8
 /* [RW 1] Input dorq Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define UCM_REG_DORQ_IFEN					 0xe0030
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the dorq interface is detected. */
@@ -5053,8 +5053,8 @@
    at the STORM interface is detected. */
 #define UCM_REG_STORM_LENGTH_MIS				 0xe0154
 /* [RW 1] STORM - CM Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define UCM_REG_STORM_UCM_IFEN					 0xe0010
 /* [RW 3] The weight of the STORM input in the WRR mechanism. 0 stands for
    weight 8 (the most prioritised); 1 stands for weight 1(least
@@ -5067,16 +5067,16 @@
 /* [RW 28] The CM header for Timers expiration command. */
 #define UCM_REG_TM_UCM_HDR					 0xe009c
 /* [RW 1] Timers - CM Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define UCM_REG_TM_UCM_IFEN					 0xe001c
 /* [RW 3] The weight of the Timers input in the WRR mechanism. 0 stands for
    weight 8 (the most prioritised); 1 stands for weight 1(least
    prioritised); 2 stands for weight 2; tc. */
 #define UCM_REG_TM_WEIGHT					 0xe00d4
 /* [RW 1] Input tsem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define UCM_REG_TSEM_IFEN					 0xe0024
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the tsem interface is detected. */
@@ -5086,8 +5086,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define UCM_REG_TSEM_WEIGHT					 0xe00b4
 /* [RW 1] CM - CFC Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define UCM_REG_UCM_CFC_IFEN					 0xe0044
 /* [RW 11] Interrupt mask register #0 read/write */
 #define UCM_REG_UCM_INT_MASK					 0xe01d4
@@ -5104,21 +5104,21 @@
    Is used to determine the number of the AG context REG-pairs written back;
    when the Reg1WbFlg isn't set. */
 #define UCM_REG_UCM_REG0_SZ					 0xe00dc
-/* [RW 1] CM - STORM 0 Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - STORM 0 Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define UCM_REG_UCM_STORM0_IFEN 				 0xe0004
-/* [RW 1] CM - STORM 1 Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - STORM 1 Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define UCM_REG_UCM_STORM1_IFEN 				 0xe0008
 /* [RW 1] CM - Timers Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define UCM_REG_UCM_TM_IFEN					 0xe0020
-/* [RW 1] CM - QM Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - QM Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define UCM_REG_UCM_UQM_IFEN					 0xe000c
 /* [RW 1] If set the Q index; received from the QM is inserted to event ID. */
 #define UCM_REG_UCM_UQM_USE_Q					 0xe00d8
@@ -5139,12 +5139,12 @@
 /* [RW 28] The CM header value for QM request (secondary). */
 #define UCM_REG_UQM_UCM_HDR_S					 0xe0098
 /* [RW 1] QM - CM Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define UCM_REG_UQM_UCM_IFEN					 0xe0014
 /* [RW 1] Input SDM Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define UCM_REG_USDM_IFEN					 0xe0018
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the SDM interface is detected. */
@@ -5154,8 +5154,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define UCM_REG_USDM_WEIGHT					 0xe00c8
 /* [RW 1] Input xsem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define UCM_REG_XSEM_IFEN					 0xe002c
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the xsem interface isdetected. */
@@ -5186,11 +5186,11 @@
    header pointer. */
 #define UCM_REG_XX_TABLE					 0xe0300
 #define UMAC_COMMAND_CONFIG_REG_HD_ENA				 (0x1<<10)
-#define UMAC_COMMAND_CONFIG_REG_IGNORE_TX_PAUSE			 (0x1<<28)
+#define UMAC_COMMAND_CONFIG_REG_IGANALRE_TX_PAUSE			 (0x1<<28)
 #define UMAC_COMMAND_CONFIG_REG_LOOP_ENA			 (0x1<<15)
-#define UMAC_COMMAND_CONFIG_REG_NO_LGTH_CHECK			 (0x1<<24)
+#define UMAC_COMMAND_CONFIG_REG_ANAL_LGTH_CHECK			 (0x1<<24)
 #define UMAC_COMMAND_CONFIG_REG_PAD_EN				 (0x1<<5)
-#define UMAC_COMMAND_CONFIG_REG_PAUSE_IGNORE			 (0x1<<8)
+#define UMAC_COMMAND_CONFIG_REG_PAUSE_IGANALRE			 (0x1<<8)
 #define UMAC_COMMAND_CONFIG_REG_PROMIS_EN			 (0x1<<4)
 #define UMAC_COMMAND_CONFIG_REG_RX_ENA				 (0x1<<1)
 #define UMAC_COMMAND_CONFIG_REG_SW_RESET			 (0x1<<13)
@@ -5218,7 +5218,7 @@
 #define USDM_REG_AGG_INT_EVENT_4				 0xc4048
 #define USDM_REG_AGG_INT_EVENT_5				 0xc404c
 #define USDM_REG_AGG_INT_EVENT_6				 0xc4050
-/* [RW 1] For each aggregated interrupt index whether the mode is normal (0)
+/* [RW 1] For each aggregated interrupt index whether the mode is analrmal (0)
    or auto-mask-mode (1) */
 #define USDM_REG_AGG_INT_MODE_0 				 0xc41b8
 #define USDM_REG_AGG_INT_MODE_1 				 0xc41bc
@@ -5312,25 +5312,25 @@
 /* [RW 3] The source that is associated with arbitration element 1. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~usem_registers_arb_element0.arb_element0 */
+   Could analt be equal to register ~usem_registers_arb_element0.arb_element0 */
 #define USEM_REG_ARB_ELEMENT1					 0x300024
 /* [RW 3] The source that is associated with arbitration element 2. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~usem_registers_arb_element0.arb_element0
+   Could analt be equal to register ~usem_registers_arb_element0.arb_element0
    and ~usem_registers_arb_element1.arb_element1 */
 #define USEM_REG_ARB_ELEMENT2					 0x300028
 /* [RW 3] The source that is associated with arbitration element 3. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.Could
-   not be equal to register ~usem_registers_arb_element0.arb_element0 and
+   analt be equal to register ~usem_registers_arb_element0.arb_element0 and
    ~usem_registers_arb_element1.arb_element1 and
    ~usem_registers_arb_element2.arb_element2 */
 #define USEM_REG_ARB_ELEMENT3					 0x30002c
 /* [RW 3] The source that is associated with arbitration element 4. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~usem_registers_arb_element0.arb_element0
+   Could analt be equal to register ~usem_registers_arb_element0.arb_element0
    and ~usem_registers_arb_element1.arb_element1 and
    ~usem_registers_arb_element2.arb_element2 and
    ~usem_registers_arb_element3.arb_element3 */
@@ -5348,7 +5348,7 @@
 /* [RW 1] Disables input messages from FIC1 May be updated during run_time
    by the microcode */
 #define USEM_REG_FIC1_DISABLE					 0x300234
-/* [RW 15] Interrupt table Read and write access to it is not possible in
+/* [RW 15] Interrupt table Read and write access to it is analt possible in
    the middle of the work */
 #define USEM_REG_INT_TABLE					 0x300400
 /* [ST 24] Statistics register. The number of messages that entered through
@@ -5436,7 +5436,7 @@
 #define USEM_REG_USEM_PRTY_STS_CLR_0				 0x300128
 #define USEM_REG_USEM_PRTY_STS_CLR_1				 0x300138
 /* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
- * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
+ * VF; values 64-67 reset error for 4 PF; values 68-127 are analt valid. */
 #define USEM_REG_VFPF_ERR_NUM					 0x300380
 #define VFC_MEMORIES_RST_REG_CAM_RST				 (0x1<<0)
 #define VFC_MEMORIES_RST_REG_RAM_RST				 (0x1<<1)
@@ -5454,19 +5454,19 @@
 #define XCM_REG_CAM_OCCUP					 0x20244
 /* [RW 1] CDU AG read Interface enable. If 0 - the request input is
    disregarded; valid output is deasserted; all other signals are treated as
-   usual; if 1 - normal activity. */
+   usual; if 1 - analrmal activity. */
 #define XCM_REG_CDU_AG_RD_IFEN					 0x20044
 /* [RW 1] CDU AG write Interface enable. If 0 - the request and valid input
-   are disregarded; all other signals are treated as usual; if 1 - normal
+   are disregarded; all other signals are treated as usual; if 1 - analrmal
    activity. */
 #define XCM_REG_CDU_AG_WR_IFEN					 0x20040
 /* [RW 1] CDU STORM read Interface enable. If 0 - the request input is
    disregarded; valid output is deasserted; all other signals are treated as
-   usual; if 1 - normal activity. */
+   usual; if 1 - analrmal activity. */
 #define XCM_REG_CDU_SM_RD_IFEN					 0x2004c
 /* [RW 1] CDU STORM write Interface enable. If 0 - the request and valid
    input is disregarded; all other signals are treated as usual; if 1 -
-   normal activity. */
+   analrmal activity. */
 #define XCM_REG_CDU_SM_WR_IFEN					 0x20048
 /* [RW 4] CFC output initial credit. Max credit available - 15.Write writes
    the initial credit value; read returns the current value of the credit
@@ -5477,8 +5477,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define XCM_REG_CP_WEIGHT					 0x200dc
 /* [RW 1] Input csem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_CSEM_IFEN					 0x20028
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the csem interface. */
@@ -5488,8 +5488,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define XCM_REG_CSEM_WEIGHT					 0x200c4
 /* [RW 1] Input dorq Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_DORQ_IFEN					 0x20030
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the dorq interface. */
@@ -5530,8 +5530,8 @@
    complement of the other 3 groups. */
 #define XCM_REG_GR_LD1_PR					 0x20218
 /* [RW 1] Input nig0 Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_NIG0_IFEN					 0x20038
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the nig0 interface. */
@@ -5541,8 +5541,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define XCM_REG_NIG0_WEIGHT					 0x200d4
 /* [RW 1] Input nig1 Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_NIG1_IFEN					 0x2003c
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the nig1 interface. */
@@ -5559,8 +5559,8 @@
 #define XCM_REG_N_SM_CTX_LD_4					 0x20070
 #define XCM_REG_N_SM_CTX_LD_5					 0x20074
 /* [RW 1] Input pbf Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define XCM_REG_PBF_IFEN					 0x20034
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the pbf interface. */
@@ -5581,8 +5581,8 @@
    prioritised); 2 stands for weight 2; tc. */
 #define XCM_REG_STORM_WEIGHT					 0x200bc
 /* [RW 1] STORM - CM Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_STORM_XCM_IFEN					 0x20010
 /* [RW 4] Timers output initial credit. Max credit available - 15.Write
    writes the initial credit value; read returns the current value of the
@@ -5595,12 +5595,12 @@
 /* [RW 28] The CM header for Timers expiration command. */
 #define XCM_REG_TM_XCM_HDR					 0x200a8
 /* [RW 1] Timers - CM Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_TM_XCM_IFEN					 0x2001c
 /* [RW 1] Input tsem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_TSEM_IFEN					 0x20024
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the tsem interface. */
@@ -5612,8 +5612,8 @@
 /* [RW 2] The queue index for registration on UNA greater NXT decision rule. */
 #define XCM_REG_UNA_GT_NXT_Q					 0x20120
 /* [RW 1] Input usem Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_USEM_IFEN					 0x2002c
 /* [RC 1] Message length mismatch (relative to last indication) at the usem
    interface. */
@@ -5635,8 +5635,8 @@
 #define XCM_REG_WU_DA_SET_TMR_CNT_FLG_CMD10			 0x201cc
 #define XCM_REG_WU_DA_SET_TMR_CNT_FLG_CMD11			 0x201d0
 /* [RW 1] CM - CFC Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define XCM_REG_XCM_CFC_IFEN					 0x20050
 /* [RW 14] Interrupt mask register #0 read/write */
 #define XCM_REG_XCM_INT_MASK					 0x202b4
@@ -5654,21 +5654,21 @@
    Is used to determine the number of the AG context REG-pairs written back;
    when the Reg1WbFlg isn't set. */
 #define XCM_REG_XCM_REG0_SZ					 0x200f4
-/* [RW 1] CM - STORM 0 Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - STORM 0 Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define XCM_REG_XCM_STORM0_IFEN 				 0x20004
-/* [RW 1] CM - STORM 1 Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - STORM 1 Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define XCM_REG_XCM_STORM1_IFEN 				 0x20008
 /* [RW 1] CM - Timers Interface enable. If 0 - the valid input is
-   disregarded; acknowledge output is deasserted; all other signals are
-   treated as usual; if 1 - normal activity. */
+   disregarded; ackanalwledge output is deasserted; all other signals are
+   treated as usual; if 1 - analrmal activity. */
 #define XCM_REG_XCM_TM_IFEN					 0x20020
-/* [RW 1] CM - QM Interface enable. If 0 - the acknowledge input is
+/* [RW 1] CM - QM Interface enable. If 0 - the ackanalwledge input is
    disregarded; valid is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   if 1 - analrmal activity. */
 #define XCM_REG_XCM_XQM_IFEN					 0x2000c
 /* [RW 1] If set the Q index; received from the QM is inserted to event ID. */
 #define XCM_REG_XCM_XQM_USE_Q					 0x200f0
@@ -5691,12 +5691,12 @@
 /* [RW 28] The CM header value for QM request (secondary). */
 #define XCM_REG_XQM_XCM_HDR_S					 0x200a4
 /* [RW 1] QM - CM Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define XCM_REG_XQM_XCM_IFEN					 0x20014
 /* [RW 1] Input SDM Interface enable. If 0 - the valid input is disregarded;
-   acknowledge output is deasserted; all other signals are treated as usual;
-   if 1 - normal activity. */
+   ackanalwledge output is deasserted; all other signals are treated as usual;
+   if 1 - analrmal activity. */
 #define XCM_REG_XSDM_IFEN					 0x20018
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the SDM interface. */
@@ -5778,7 +5778,7 @@
 #define XSDM_REG_AGG_INT_EVENT_7				 0x166054
 #define XSDM_REG_AGG_INT_EVENT_8				 0x166058
 #define XSDM_REG_AGG_INT_EVENT_9				 0x16605c
-/* [RW 1] For each aggregated interrupt index whether the mode is normal (0)
+/* [RW 1] For each aggregated interrupt index whether the mode is analrmal (0)
    or auto-mask-mode (1) */
 #define XSDM_REG_AGG_INT_MODE_0 				 0x1661b8
 #define XSDM_REG_AGG_INT_MODE_1 				 0x1661bc
@@ -5866,25 +5866,25 @@
 /* [RW 3] The source that is associated with arbitration element 1. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~xsem_registers_arb_element0.arb_element0 */
+   Could analt be equal to register ~xsem_registers_arb_element0.arb_element0 */
 #define XSEM_REG_ARB_ELEMENT1					 0x280024
 /* [RW 3] The source that is associated with arbitration element 2. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~xsem_registers_arb_element0.arb_element0
+   Could analt be equal to register ~xsem_registers_arb_element0.arb_element0
    and ~xsem_registers_arb_element1.arb_element1 */
 #define XSEM_REG_ARB_ELEMENT2					 0x280028
 /* [RW 3] The source that is associated with arbitration element 3. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.Could
-   not be equal to register ~xsem_registers_arb_element0.arb_element0 and
+   analt be equal to register ~xsem_registers_arb_element0.arb_element0 and
    ~xsem_registers_arb_element1.arb_element1 and
    ~xsem_registers_arb_element2.arb_element2 */
 #define XSEM_REG_ARB_ELEMENT3					 0x28002c
 /* [RW 3] The source that is associated with arbitration element 4. Source
    decoding is: 0- foc0; 1-fic1; 2-sleeping thread with priority 0; 3-
    sleeping thread with priority 1; 4- sleeping thread with priority 2.
-   Could not be equal to register ~xsem_registers_arb_element0.arb_element0
+   Could analt be equal to register ~xsem_registers_arb_element0.arb_element0
    and ~xsem_registers_arb_element1.arb_element1 and
    ~xsem_registers_arb_element2.arb_element2 and
    ~xsem_registers_arb_element3.arb_element3 */
@@ -5902,7 +5902,7 @@
 /* [RW 1] Disables input messages from FIC1 May be updated during run_time
    by the microcode */
 #define XSEM_REG_FIC1_DISABLE					 0x280234
-/* [RW 15] Interrupt table Read and write access to it is not possible in
+/* [RW 15] Interrupt table Read and write access to it is analt possible in
    the middle of the work */
 #define XSEM_REG_INT_TABLE					 0x280400
 /* [ST 24] Statistics register. The number of messages that entered through
@@ -5975,7 +5975,7 @@
 /* [RW 3] The arbitration scheme of time_slot 9 */
 #define XSEM_REG_TS_9_AS					 0x28005c
 /* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
- * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
+ * VF; values 64-67 reset error for 4 PF; values 68-127 are analt valid. */
 #define XSEM_REG_VFPF_ERR_NUM					 0x280380
 /* [RW 32] Interrupt mask register #0 read/write */
 #define XSEM_REG_XSEM_INT_MASK_0				 0x280110
@@ -6385,7 +6385,7 @@
 #define PCICFG_COMMAND_BUS_MASTER		(1<<2)
 #define PCICFG_COMMAND_SPECIAL_CYCLES		(1<<3)
 #define PCICFG_COMMAND_MWI_CYCLES		(1<<4)
-#define PCICFG_COMMAND_VGA_SNOOP		(1<<5)
+#define PCICFG_COMMAND_VGA_SANALOP		(1<<5)
 #define PCICFG_COMMAND_PERR_ENA 		(1<<6)
 #define PCICFG_COMMAND_STEPPING 		(1<<7)
 #define PCICFG_COMMAND_SERR_ENA 		(1<<8)
@@ -6441,11 +6441,11 @@
 #define PCICFG_DEVICE_CONTROL				0xb4
 #define PCICFG_DEVICE_STATUS				0xb6
 #define PCICFG_DEVICE_STATUS_CORR_ERR_DET	(1<<0)
-#define PCICFG_DEVICE_STATUS_NON_FATAL_ERR_DET	(1<<1)
+#define PCICFG_DEVICE_STATUS_ANALN_FATAL_ERR_DET	(1<<1)
 #define PCICFG_DEVICE_STATUS_FATAL_ERR_DET	(1<<2)
 #define PCICFG_DEVICE_STATUS_UNSUP_REQ_DET	(1<<3)
 #define PCICFG_DEVICE_STATUS_AUX_PWR_DET	(1<<4)
-#define PCICFG_DEVICE_STATUS_NO_PEND		(1<<5)
+#define PCICFG_DEVICE_STATUS_ANAL_PEND		(1<<5)
 #define PCICFG_LINK_CONTROL				0xbc
 
 
@@ -6552,7 +6552,7 @@
  */
 
 #define PXPCS_TL_CONTROL_5		    0x814
-#define PXPCS_TL_CONTROL_5_UNKNOWNTYPE_ERR_ATTN    (1 << 29) /*WC*/
+#define PXPCS_TL_CONTROL_5_UNKANALWNTYPE_ERR_ATTN    (1 << 29) /*WC*/
 #define PXPCS_TL_CONTROL_5_BOUNDARY4K_ERR_ATTN	   (1 << 28)   /*WC*/
 #define PXPCS_TL_CONTROL_5_MRRS_ERR_ATTN   (1 << 27)   /*WC*/
 #define PXPCS_TL_CONTROL_5_MPS_ERR_ATTN    (1 << 26)   /*WC*/
@@ -7096,7 +7096,7 @@
 #define MDIO_COMBO_IEEE0_AUTO_NEG_ADV_FULL_DUPLEX			0x0020
 #define MDIO_COMBO_IEEE0_AUTO_NEG_ADV_HALF_DUPLEX			0x0040
 #define MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK			0x0180
-#define MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_NONE			0x0000
+#define MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ANALNE			0x0000
 #define MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_SYMMETRIC			0x0080
 #define MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC			0x0100
 #define MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH			0x0180
@@ -7105,12 +7105,12 @@
 #define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_NEXT_PAGE	0x8000
 #define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_ACK		0x4000
 #define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_PAUSE_MASK	0x0180
-#define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_PAUSE_NONE	0x0000
+#define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_PAUSE_ANALNE	0x0000
 #define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_PAUSE_BOTH	0x0180
 #define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_HALF_DUP_CAP	0x0040
 #define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_FULL_DUP_CAP	0x0020
 /*WhenthelinkpartnerisinSGMIImode(bit0=1),then
-bit15=link,bit12=duplex,bits11:10=speed,bit14=acknowledge.
+bit15=link,bit12=duplex,bits11:10=speed,bit14=ackanalwledge.
 Theotherbitsarereservedandshouldbezero*/
 #define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_SGMII_MODE	0x0001
 
@@ -7302,7 +7302,7 @@ Theotherbitsarereservedandshouldbezero*/
 /* BCM84833 only */
 #define MDIO_84833_TOP_CFG_FW_REV			0x400f
 #define MDIO_84833_TOP_CFG_FW_EEE		0x10b1
-#define MDIO_84833_TOP_CFG_FW_NO_EEE		0x1f81
+#define MDIO_84833_TOP_CFG_FW_ANAL_EEE		0x1f81
 #define MDIO_84833_TOP_CFG_XGPHY_STRAP1			0x401a
 #define MDIO_84833_SUPER_ISOLATE		0x8000
 /* These are mailbox register set used by 84833/84858. */
@@ -7336,7 +7336,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define PHY84833_STATUS_CMD_COMPLETE_ERROR		0x0008
 #define PHY84833_STATUS_CMD_OPEN_FOR_CMDS		0x0010
 #define PHY84833_STATUS_CMD_SYSTEM_BOOT			0x0020
-#define PHY84833_STATUS_CMD_NOT_OPEN_FOR_CMDS		0x0040
+#define PHY84833_STATUS_CMD_ANALT_OPEN_FOR_CMDS		0x0040
 #define PHY84833_STATUS_CMD_CLEAR_COMPLETE		0x0080
 #define PHY84833_STATUS_CMD_OPEN_OVERRIDE		0xa5a5
 /* Mailbox Process */
@@ -7529,9 +7529,9 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_ADDR_ATTN_BITS_UPD	0x0202
 #define IGU_ADDR_ATTN_BITS_SET	0x0203
 #define IGU_ADDR_ATTN_BITS_CLR	0x0204
-#define IGU_ADDR_COALESCE_NOW	0x0205
+#define IGU_ADDR_COALESCE_ANALW	0x0205
 #define IGU_ADDR_SIMD_MASK		0x0206
-#define IGU_ADDR_SIMD_NOMASK	0x0207
+#define IGU_ADDR_SIMD_ANALMASK	0x0207
 #define IGU_ADDR_MSI_CTL		0x0210
 #define IGU_ADDR_MSI_ADDR_LO	0x0211
 #define IGU_ADDR_MSI_ADDR_HI	0x0212
@@ -7547,9 +7547,9 @@ Theotherbitsarereservedandshouldbezero*/
 #define COMMAND_REG_ATTN_BITS_UPD   0x8
 #define COMMAND_REG_ATTN_BITS_SET   0xc
 #define COMMAND_REG_ATTN_BITS_CLR   0x10
-#define COMMAND_REG_COALESCE_NOW    0x14
+#define COMMAND_REG_COALESCE_ANALW    0x14
 #define COMMAND_REG_SIMD_MASK	    0x18
-#define COMMAND_REG_SIMD_NOMASK     0x1c
+#define COMMAND_REG_SIMD_ANALMASK     0x1c
 
 
 #define IGU_MEM_BASE						0x0000
@@ -7602,10 +7602,10 @@ Theotherbitsarereservedandshouldbezero*/
 
 #define IGU_BC_DSB_NUM_SEGS    5
 #define IGU_BC_NDSB_NUM_SEGS   2
-#define IGU_NORM_DSB_NUM_SEGS  2
-#define IGU_NORM_NDSB_NUM_SEGS 1
+#define IGU_ANALRM_DSB_NUM_SEGS  2
+#define IGU_ANALRM_NDSB_NUM_SEGS 1
 #define IGU_BC_BASE_DSB_PROD   128
-#define IGU_NORM_BASE_DSB_PROD 136
+#define IGU_ANALRM_BASE_DSB_PROD 136
 
 	/* FID (if VF - [6] = 0; [5:0] = VF number; if PF - [6] = 1; \
 	[5:2] = 0; [1:0] = PF number) */
@@ -7717,7 +7717,7 @@ Theotherbitsarereservedandshouldbezero*/
 
 /******************************************************************************
  * Description:
- *	   Calculates crc 8 on a word value: polynomial 0-1-2-8
+ *	   Calculates crc 8 on a word value: polyanalmial 0-1-2-8
  *	   Code was translated from Verilog.
  * Return:
  *****************************************************************************/

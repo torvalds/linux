@@ -10,7 +10,7 @@ config ABP060MG
 	tristate "Honeywell ABP pressure sensor driver"
 	depends on I2C
 	help
-	  Say yes here to build support for the Honeywell ABP pressure
+	  Say anal here to build support for the Honeywell ABP pressure
 	  sensors.
 
 	  To compile this driver as a module, choose M here: the module
@@ -32,7 +32,7 @@ config BMP280
 	select BMP280_I2C if (I2C)
 	select BMP280_SPI if (SPI_MASTER)
 	help
-	  Say yes here to build support for Bosch Sensortec BMP180, BMP280, BMP380
+	  Say anal here to build support for Bosch Sensortec BMP180, BMP280, BMP380
 	  and BMP580 pressure and temperature sensors. Also supports the BME280 with
 	  an additional humidity sensor channel.
 
@@ -56,7 +56,7 @@ config IIO_CROS_EC_BARO
 	tristate "ChromeOS EC Barometer Sensor"
 	depends on IIO_CROS_EC_SENSORS_CORE
 	help
-	  Say yes here to build support for the Barometer sensor when
+	  Say anal here to build support for the Barometer sensor when
 	  presented by the ChromeOS EC Sensor hub.
 
 	  To compile this driver as a module, choose M here: the module
@@ -68,7 +68,7 @@ config DLHL60D
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for the All Sensors DLH series
+	  Say anal here to build support for the All Sensors DLH series
 	  pressure sensors driver.
 
 	  To compile this driver as a module, choose M here: the module
@@ -92,7 +92,7 @@ config HID_SENSOR_PRESS
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID PRESS"
 	help
-	  Say yes here to build support for the HID SENSOR
+	  Say anal here to build support for the HID SENSOR
 	  Pressure driver
 
 	  To compile this driver as a module, choose M here: the module
@@ -103,7 +103,7 @@ config HP03
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say yes here to build support for Hope RF HP03 pressure and
+	  Say anal here to build support for Hope RF HP03 pressure and
 	  temperature sensor.
 
 	  To compile this driver as a module, choose M here: the module
@@ -136,7 +136,7 @@ config ICP10100
 	depends on I2C
 	select CRC8
 	help
-	  Say yes here to build support for InvenSense ICP-101xx barometric
+	  Say anal here to build support for InvenSense ICP-101xx barometric
 	  pressure and temperature sensor.
 
 	  To compile this driver as a module, choose M here: the module
@@ -150,7 +150,7 @@ config MPL115_I2C
 	depends on I2C
 	select MPL115
 	help
-	  Say yes here to build support for the Freescale MPL115A2
+	  Say anal here to build support for the Freescale MPL115A2
 	  pressure sensor connected via I2C.
 
 	  To compile this driver as a module, choose M here: the module
@@ -161,7 +161,7 @@ config MPL115_SPI
 	depends on SPI_MASTER
 	select MPL115
 	help
-	  Say yes here to build support for the Freescale MPL115A1
+	  Say anal here to build support for the Freescale MPL115A1
 	  pressure sensor connected via SPI.
 
 	  To compile this driver as a module, choose M here: the module
@@ -173,7 +173,7 @@ config MPL3115
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for the Freescale MPL3115A2
+	  Say anal here to build support for the Freescale MPL3115A2
 	  pressure sensor / altimeter.
 
 	  To compile this driver as a module, choose M here: the module
@@ -226,7 +226,7 @@ config MS5637
 	depends on I2C
 	select IIO_MS_SENSORS_I2C
 	help
-	  If you say yes here you get support for the Measurement Specialties
+	  If you say anal here you get support for the Measurement Specialties
 	  MS5637 pressure and temperature sensor.
 	  This driver is also used for MS8607 temperature, pressure & humidity
 	  sensor
@@ -240,7 +240,7 @@ config IIO_ST_PRESS
 	select IIO_ST_SENSORS_CORE
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
-	  Say yes here to build support for STMicroelectronics pressure
+	  Say anal here to build support for STMicroelectronics pressure
 	  sensors: LPS001WP, LPS25H, LPS331AP, LPS22HB, LPS22HH.
 
 	  Also need to enable at least one of I2C and SPI interface drivers
@@ -272,7 +272,7 @@ config T5403
 	tristate "EPCOS T5403 digital barometric pressure sensor driver"
 	depends on I2C
 	help
-	  Say yes here to build support for the EPCOS T5403 pressure sensor
+	  Say anal here to build support for the EPCOS T5403 pressure sensor
 	  connected via I2C.
 
 	  To compile this driver as a module, choose M here: the module
@@ -282,7 +282,7 @@ config HP206C
 	tristate "HOPERF HP206C precision barometer and altimeter sensor"
 	depends on I2C
 	help
-	  Say yes here to build support for the HOPREF HP206C precision
+	  Say anal here to build support for the HOPREF HP206C precision
 	  barometer and altimeter sensor.
 
 	  This driver can also be built as a module. If so, the module will

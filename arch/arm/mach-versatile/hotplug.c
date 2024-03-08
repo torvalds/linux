@@ -4,12 +4,12 @@
  *  All Rights Reserved
  *
  * This hotplug implementation is _specific_ to the situation found on
- * ARM development platforms where there is _no_ possibility of actually
+ * ARM development platforms where there is _anal_ possibility of actually
  * taking a CPU offline, resetting it, or otherwise.  Real platforms must
- * NOT copy this code.
+ * ANALT copy this code.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/smp.h>
 
 #include <asm/smp_plat.h>
@@ -57,11 +57,11 @@ static inline void versatile_immitation_leave_lowpower(unsigned int actrl_mask)
 static inline void versatile_immitation_do_lowpower(unsigned int cpu, int *spurious)
 {
 	/*
-	 * there is no power-control hardware on this platform, so all
+	 * there is anal power-control hardware on this platform, so all
 	 * we can do is put the core into WFI; this is safe as the calling
 	 * code will have already disabled interrupts.
 	 *
-	 * This code should not be used outside Versatile platforms.
+	 * This code should analt be used outside Versatile platforms.
 	 */
 	for (;;) {
 		wfi();
@@ -77,7 +77,7 @@ static inline void versatile_immitation_do_lowpower(unsigned int cpu, int *spuri
 		 * Getting here, means that we have come out of WFI without
 		 * having been woken up - this shouldn't happen
 		 *
-		 * Just note it happening - when we're woken, we can report
+		 * Just analte it happening - when we're woken, we can report
 		 * its occurrence.
 		 */
 		(*spurious)++;

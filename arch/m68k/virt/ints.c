@@ -95,7 +95,7 @@ static irqreturn_t virt_nmi_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	WRITE_ONCE(in_nmi, 1);
 
-	pr_warn("Non-Maskable Interrupt\n");
+	pr_warn("Analn-Maskable Interrupt\n");
 	show_registers(get_irq_regs());
 
 	WRITE_ONCE(in_nmi, 0);
@@ -140,7 +140,7 @@ void __init virt_init_IRQ(void)
 		    DEFINE_RES_MEM_NAMED(virt_bi_data.pic.mmio + i * 0x1000,
 					 0x1000, picname[i]);
 		if (request_resource(&iomem_resource, &picres[i])) {
-			pr_err("Cannot allocate %s resource\n", picname[i]);
+			pr_err("Cananalt allocate %s resource\n", picname[i]);
 			return;
 		}
 

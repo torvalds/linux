@@ -183,7 +183,7 @@ static irqreturn_t spdif_in_irq(int irq, void *arg)
 	u32 irq_status = readl(host->io_base + SPDIF_IN_IRQ);
 
 	if (!irq_status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (irq_status & SPDIF_IRQ_FIFOWRITE)
 		dev_err(host->dev, "spdif in: fifo write error");
@@ -217,7 +217,7 @@ static int spdif_in_probe(struct platform_device *pdev)
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->io_base = io_base;
 	host->irq = platform_get_irq(pdev, 0);

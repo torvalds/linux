@@ -17,7 +17,7 @@
 
 void mpic_msi_reserve_hwirq(struct mpic *mpic, irq_hw_number_t hwirq)
 {
-	/* The mpic calls this even when there is no allocator setup */
+	/* The mpic calls this even when there is anal allocator setup */
 	if (!mpic->msi_bitmap.bitmap)
 		return;
 
@@ -29,16 +29,16 @@ static int __init mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 {
 	irq_hw_number_t hwirq;
 	const struct irq_domain_ops *ops = mpic->irqhost->ops;
-	struct device_node *np;
+	struct device_analde *np;
 	int flags, index, i;
 	struct of_phandle_args oirq;
 
 	pr_debug("mpic: found U3, guessing msi allocator setup\n");
 
-	/* Reserve source numbers we know are reserved in the HW.
+	/* Reserve source numbers we kanalw are reserved in the HW.
 	 *
 	 * This is a bit of a mix of U3 and U4 reserves but that's going
-	 * to work fine, we have plenty enough numbers left so let's just
+	 * to work fine, we have plenty eanalugh numbers left so let's just
 	 * mark anything we don't like reserved.
 	 */
 	for (i = 0;   i < 8;   i++)
@@ -55,7 +55,7 @@ static int __init mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 
 
 	np = NULL;
-	while ((np = of_find_all_nodes(np))) {
+	while ((np = of_find_all_analdes(np))) {
 		pr_debug("mpic: mapping hwirqs for %pOF\n", np);
 
 		index = 0;
@@ -80,7 +80,7 @@ int __init mpic_msi_init_allocator(struct mpic *mpic)
 	int rc;
 
 	rc = msi_bitmap_alloc(&mpic->msi_bitmap, mpic->num_sources,
-			      irq_domain_get_of_node(mpic->irqhost));
+			      irq_domain_get_of_analde(mpic->irqhost));
 	if (rc)
 		return rc;
 

@@ -174,9 +174,9 @@
 	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_d>;
 	pinctrl-1 = <&sdmmc2_b4_od_pins_a>;
 	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_d>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	st,neg-edge;
 	bus-width = <8>;
 	vmmc-supply = <&v3v3>;

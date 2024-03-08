@@ -11,9 +11,9 @@
  * and 'string' versions: ins{b,w,l}/outs{b,w,l}
  *
  * While read{b,w,l,q} and write{b,w,l,q} contain memory barriers
- * automatically, there are also __raw versions, which do not.
+ * automatically, there are also __raw versions, which do analt.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/cache.h>
 #include <asm/addrspace.h>
 #include <asm/machvec.h>
@@ -151,7 +151,7 @@ __BUILD_MEMORY_STRING(__raw_, q, u64)
 #undef CONF_SLOWDOWN_IO
 
 /*
- * On SuperH I/O ports are memory mapped, so we access them using normal
+ * On SuperH I/O ports are memory mapped, so we access them using analrmal
  * load/store instructions. sh_io_port_base is the virtual address to
  * which all ports are being mapped.
  */
@@ -241,7 +241,7 @@ __BUILD_IOPORT_STRING(q, u64)
 
 #else /* !CONFIG_HAS_IOPORT_MAP */
 
-#include <asm/io_noioport.h>
+#include <asm/io_analioport.h>
 
 #endif
 
@@ -296,7 +296,7 @@ unsigned long long poke_real_address_q(unsigned long long addr,
 #define ioremap_prot ioremap_prot
 #define iounmap iounmap
 
-#define _PAGE_IOREMAP pgprot_val(PAGE_KERNEL_NOCACHE)
+#define _PAGE_IOREMAP pgprot_val(PAGE_KERNEL_ANALCACHE)
 
 #define ioremap_cache(addr, size)  \
 	ioremap_prot((addr), (size), pgprot_val(PAGE_KERNEL))

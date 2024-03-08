@@ -24,7 +24,7 @@ static void ui_browser__argv_write(struct ui_browser *browser,
 		str = str + offset;
 
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
-						       HE_COLORSET_NORMAL);
+						       HE_COLORSET_ANALRMAL);
 
 	ui_browser__write_nstring(browser, str, browser->width);
 }

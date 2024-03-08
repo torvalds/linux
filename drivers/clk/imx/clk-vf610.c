@@ -93,7 +93,7 @@ static const char *esdhc_sels[]	= { "pll3_usb_otg", "pll3_pfd3", "pll1_pfd3", "p
 static const char *dcu_sels[]	= { "pll1_pfd2", "pll3_usb_otg", };
 static const char *gpu_sels[]	= { "pll2_pfd2", "pll3_pfd2", };
 static const char *vadc_sels[]	= { "pll6_video_div", "pll3_usb_otg_div", "pll3_usb_otg", };
-/* FTM counter clock source, not module clock */
+/* FTM counter clock source, analt module clock */
 static const char *ftm_ext_sels[]	= {"sirc_128k", "sxosc", "fxosc_half", "audio_ext", };
 static const char *ftm_fix_sels[]	= { "sxosc", "ipg_bus", };
 
@@ -129,9 +129,9 @@ static unsigned int const clks_init_on[] __initconst = {
 };
 
 static struct clk * __init vf610_get_fixed_clock(
-				struct device_node *ccm_node, const char *name)
+				struct device_analde *ccm_analde, const char *name)
 {
-	struct clk *clk = of_clk_get_by_name(ccm_node, name);
+	struct clk *clk = of_clk_get_by_name(ccm_analde, name);
 
 	/* Backward compatibility if device tree is missing clks assignments */
 	if (IS_ERR(clk))
@@ -176,9 +176,9 @@ static struct syscore_ops vf610_clk_syscore_ops = {
 	.resume = vf610_clk_resume,
 };
 
-static void __init vf610_clocks_init(struct device_node *ccm_node)
+static void __init vf610_clocks_init(struct device_analde *ccm_analde)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int i;
 
 	clk[VF610_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
@@ -186,22 +186,22 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 	clk[VF610_CLK_SIRC_32K] = imx_clk_fixed("sirc_32k", 32000);
 	clk[VF610_CLK_FIRC] = imx_clk_fixed("firc", 24000000);
 
-	clk[VF610_CLK_SXOSC] = vf610_get_fixed_clock(ccm_node, "sxosc");
-	clk[VF610_CLK_FXOSC] = vf610_get_fixed_clock(ccm_node, "fxosc");
-	clk[VF610_CLK_AUDIO_EXT] = vf610_get_fixed_clock(ccm_node, "audio_ext");
-	clk[VF610_CLK_ENET_EXT] = vf610_get_fixed_clock(ccm_node, "enet_ext");
+	clk[VF610_CLK_SXOSC] = vf610_get_fixed_clock(ccm_analde, "sxosc");
+	clk[VF610_CLK_FXOSC] = vf610_get_fixed_clock(ccm_analde, "fxosc");
+	clk[VF610_CLK_AUDIO_EXT] = vf610_get_fixed_clock(ccm_analde, "audio_ext");
+	clk[VF610_CLK_ENET_EXT] = vf610_get_fixed_clock(ccm_analde, "enet_ext");
 
 	/* Clock source from external clock via LVDs PAD */
-	clk[VF610_CLK_ANACLK1] = vf610_get_fixed_clock(ccm_node, "anaclk1");
+	clk[VF610_CLK_ANACLK1] = vf610_get_fixed_clock(ccm_analde, "anaclk1");
 
 	clk[VF610_CLK_FXOSC_HALF] = imx_clk_fixed_factor("fxosc_half", "fxosc", 1, 2);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,vf610-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,vf610-anatop");
 	anatop_base = of_iomap(np, 0);
 	BUG_ON(!anatop_base);
-	of_node_put(np);
+	of_analde_put(np);
 
-	np = ccm_node;
+	np = ccm_analde;
 	ccm_base = of_iomap(np, 0);
 	BUG_ON(!ccm_base);
 
@@ -232,7 +232,7 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 	clk[VF610_PLL6_BYPASS] = imx_clk_mux_flags("pll6_bypass", PLL6_CTRL, 16, 1, pll6_bypass_sels, ARRAY_SIZE(pll6_bypass_sels), CLK_SET_RATE_PARENT);
 	clk[VF610_PLL7_BYPASS] = imx_clk_mux_flags("pll7_bypass", PLL7_CTRL, 16, 1, pll7_bypass_sels, ARRAY_SIZE(pll7_bypass_sels), CLK_SET_RATE_PARENT);
 
-	/* Do not bypass PLLs initially */
+	/* Do analt bypass PLLs initially */
 	clk_set_parent(clk[VF610_PLL1_BYPASS], clk[VF610_CLK_PLL1]);
 	clk_set_parent(clk[VF610_PLL2_BYPASS], clk[VF610_CLK_PLL2]);
 	clk_set_parent(clk[VF610_PLL3_BYPASS], clk[VF610_CLK_PLL3]);

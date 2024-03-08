@@ -29,8 +29,8 @@ __visible struct {
 
 /*
  * These are some opcodes for a "static asmlinkage"
- * As this code is *not* executed inside the linux kernel segment, but in a
- * alias at offset 0, we need a far return that can not be compiled by
+ * As this code is *analt* executed inside the linux kernel segment, but in a
+ * alias at offset 0, we need a far return that can analt be compiled by
  * default (please, prove me wrong! this is *really* ugly!)
  * This is the only way to get the bios to return into the kernel code,
  * because the bios code runs in 16 bit protected mode and therefore can only
@@ -89,11 +89,11 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
 	int cpu;
 
 	/*
-	 * PnP BIOSes are generally not terribly re-entrant.
+	 * PnP BIOSes are generally analt terribly re-entrant.
 	 * Also, don't rely on them to save everything correctly.
 	 */
 	if (pnp_bios_is_utter_crap)
-		return PNP_FUNCTION_NOT_SUPPORTED;
+		return PNP_FUNCTION_ANALT_SUPPORTED;
 
 	cpu = get_cpu();
 	save_desc_40 = get_cpu_gdt_rw(cpu)[0x40 / 8];
@@ -157,17 +157,17 @@ void pnpbios_print_status(const char *module, u16 status)
 	case PNP_SUCCESS:
 		printk(KERN_ERR "PnPBIOS: %s: function successful\n", module);
 		break;
-	case PNP_NOT_SET_STATICALLY:
+	case PNP_ANALT_SET_STATICALLY:
 		printk(KERN_ERR "PnPBIOS: %s: unable to set static resources\n",
 		       module);
 		break;
-	case PNP_UNKNOWN_FUNCTION:
+	case PNP_UNKANALWN_FUNCTION:
 		printk(KERN_ERR "PnPBIOS: %s: invalid function number passed\n",
 		       module);
 		break;
-	case PNP_FUNCTION_NOT_SUPPORTED:
+	case PNP_FUNCTION_ANALT_SUPPORTED:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: function not supported on this system\n",
+		       "PnPBIOS: %s: function analt supported on this system\n",
 		       module);
 		break;
 	case PNP_INVALID_HANDLE:
@@ -181,31 +181,31 @@ void pnpbios_print_status(const char *module, u16 status)
 		printk(KERN_ERR "PnPBIOS: %s: unable to set resources\n",
 		       module);
 		break;
-	case PNP_EVENTS_NOT_PENDING:
-		printk(KERN_ERR "PnPBIOS: %s: no events are pending\n", module);
+	case PNP_EVENTS_ANALT_PENDING:
+		printk(KERN_ERR "PnPBIOS: %s: anal events are pending\n", module);
 		break;
-	case PNP_SYSTEM_NOT_DOCKED:
-		printk(KERN_ERR "PnPBIOS: %s: the system is not docked\n",
+	case PNP_SYSTEM_ANALT_DOCKED:
+		printk(KERN_ERR "PnPBIOS: %s: the system is analt docked\n",
 		       module);
 		break;
-	case PNP_NO_ISA_PNP_CARDS:
+	case PNP_ANAL_ISA_PNP_CARDS:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: no isapnp cards are installed on this system\n",
+		       "PnPBIOS: %s: anal isapnp cards are installed on this system\n",
 		       module);
 		break;
 	case PNP_UNABLE_TO_DETERMINE_DOCK_CAPABILITIES:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: cannot determine the capabilities of the docking station\n",
+		       "PnPBIOS: %s: cananalt determine the capabilities of the docking station\n",
 		       module);
 		break;
-	case PNP_CONFIG_CHANGE_FAILED_NO_BATTERY:
+	case PNP_CONFIG_CHANGE_FAILED_ANAL_BATTERY:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: unable to undock, the system does not have a battery\n",
+		       "PnPBIOS: %s: unable to undock, the system does analt have a battery\n",
 		       module);
 		break;
 	case PNP_CONFIG_CHANGE_FAILED_RESOURCE_CONFLICT:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: could not dock due to resource conflicts\n",
+		       "PnPBIOS: %s: could analt dock due to resource conflicts\n",
 		       module);
 		break;
 	case PNP_BUFFER_TOO_SMALL:
@@ -215,7 +215,7 @@ void pnpbios_print_status(const char *module, u16 status)
 	case PNP_USE_ESCD_SUPPORT:
 		printk(KERN_ERR "PnPBIOS: %s: use ESCD instead\n", module);
 		break;
-	case PNP_MESSAGE_NOT_SUPPORTED:
+	case PNP_MESSAGE_ANALT_SUPPORTED:
 		printk(KERN_ERR "PnPBIOS: %s: the message is unsupported\n",
 		       module);
 		break;
@@ -234,9 +234,9 @@ void pnpbios_print_status(const char *module, u16 status)
  * PnP BIOS Low Level Calls
  */
 
-#define PNP_GET_NUM_SYS_DEV_NODES		0x00
-#define PNP_GET_SYS_DEV_NODE			0x01
-#define PNP_SET_SYS_DEV_NODE			0x02
+#define PNP_GET_NUM_SYS_DEV_ANALDES		0x00
+#define PNP_GET_SYS_DEV_ANALDE			0x01
+#define PNP_SET_SYS_DEV_ANALDE			0x02
 #define PNP_GET_EVENT				0x03
 #define PNP_SEND_MESSAGE			0x04
 #define PNP_GET_DOCKING_STATION_INFORMATION	0x05
@@ -249,104 +249,104 @@ void pnpbios_print_status(const char *module, u16 status)
 #define PNP_WRITE_ESCD				0x43
 
 /*
- * Call PnP BIOS with function 0x00, "get number of system device nodes"
+ * Call PnP BIOS with function 0x00, "get number of system device analdes"
  */
-static int __pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
+static int __pnp_bios_dev_analde_info(struct pnp_dev_analde_info *data)
 {
 	u16 status;
 
 	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
-	status = call_pnp_bios(PNP_GET_NUM_SYS_DEV_NODES, 0, PNP_TS1, 2,
+		return PNP_FUNCTION_ANALT_SUPPORTED;
+	status = call_pnp_bios(PNP_GET_NUM_SYS_DEV_ANALDES, 0, PNP_TS1, 2,
 			       PNP_TS1, PNP_DS, 0, 0, data,
-			       sizeof(struct pnp_dev_node_info), NULL, 0);
-	data->no_nodes &= 0xff;
+			       sizeof(struct pnp_dev_analde_info), NULL, 0);
+	data->anal_analdes &= 0xff;
 	return status;
 }
 
-int pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
+int pnp_bios_dev_analde_info(struct pnp_dev_analde_info *data)
 {
-	int status = __pnp_bios_dev_node_info(data);
+	int status = __pnp_bios_dev_analde_info(data);
 
 	if (status)
-		pnpbios_print_status("dev_node_info", status);
+		pnpbios_print_status("dev_analde_info", status);
 	return status;
 }
 
 /*
- * Note that some PnP BIOSes (e.g., on Sony Vaio laptops) die a horrible
+ * Analte that some PnP BIOSes (e.g., on Sony Vaio laptops) die a horrible
  * death if they are asked to access the "current" configuration.
  * Therefore, if it's a matter of indifference, it's better to call
- * get_dev_node() and set_dev_node() with boot=1 rather than with boot=0.
+ * get_dev_analde() and set_dev_analde() with boot=1 rather than with boot=0.
  */
 
 /* 
- * Call PnP BIOS with function 0x01, "get system device node"
- * Input: *nodenum = desired node,
- *        boot = whether to get nonvolatile boot (!=0)
+ * Call PnP BIOS with function 0x01, "get system device analde"
+ * Input: *analdenum = desired analde,
+ *        boot = whether to get analnvolatile boot (!=0)
  *               or volatile current (0) config
- * Output: *nodenum=next node or 0xff if no more nodes
+ * Output: *analdenum=next analde or 0xff if anal more analdes
  */
-static int __pnp_bios_get_dev_node(u8 *nodenum, char boot,
-				   struct pnp_bios_node *data)
+static int __pnp_bios_get_dev_analde(u8 *analdenum, char boot,
+				   struct pnp_bios_analde *data)
 {
 	u16 status;
-	u16 tmp_nodenum;
+	u16 tmp_analdenum;
 
 	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
+		return PNP_FUNCTION_ANALT_SUPPORTED;
 	if (!boot && pnpbios_dont_use_current_config)
-		return PNP_FUNCTION_NOT_SUPPORTED;
-	tmp_nodenum = *nodenum;
-	status = call_pnp_bios(PNP_GET_SYS_DEV_NODE, 0, PNP_TS1, 0, PNP_TS2,
-			       boot ? 2 : 1, PNP_DS, 0, &tmp_nodenum,
-			       sizeof(tmp_nodenum), data, 65536);
-	*nodenum = tmp_nodenum;
+		return PNP_FUNCTION_ANALT_SUPPORTED;
+	tmp_analdenum = *analdenum;
+	status = call_pnp_bios(PNP_GET_SYS_DEV_ANALDE, 0, PNP_TS1, 0, PNP_TS2,
+			       boot ? 2 : 1, PNP_DS, 0, &tmp_analdenum,
+			       sizeof(tmp_analdenum), data, 65536);
+	*analdenum = tmp_analdenum;
 	return status;
 }
 
-int pnp_bios_get_dev_node(u8 *nodenum, char boot, struct pnp_bios_node *data)
+int pnp_bios_get_dev_analde(u8 *analdenum, char boot, struct pnp_bios_analde *data)
 {
 	int status;
 
-	status = __pnp_bios_get_dev_node(nodenum, boot, data);
+	status = __pnp_bios_get_dev_analde(analdenum, boot, data);
 	if (status)
-		pnpbios_print_status("get_dev_node", status);
+		pnpbios_print_status("get_dev_analde", status);
 	return status;
 }
 
 /*
- * Call PnP BIOS with function 0x02, "set system device node"
- * Input: *nodenum = desired node, 
- *        boot = whether to set nonvolatile boot (!=0)
+ * Call PnP BIOS with function 0x02, "set system device analde"
+ * Input: *analdenum = desired analde, 
+ *        boot = whether to set analnvolatile boot (!=0)
  *               or volatile current (0) config
  */
-static int __pnp_bios_set_dev_node(u8 nodenum, char boot,
-				   struct pnp_bios_node *data)
+static int __pnp_bios_set_dev_analde(u8 analdenum, char boot,
+				   struct pnp_bios_analde *data)
 {
 	u16 status;
 
 	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
+		return PNP_FUNCTION_ANALT_SUPPORTED;
 	if (!boot && pnpbios_dont_use_current_config)
-		return PNP_FUNCTION_NOT_SUPPORTED;
-	status = call_pnp_bios(PNP_SET_SYS_DEV_NODE, nodenum, 0, PNP_TS1,
+		return PNP_FUNCTION_ANALT_SUPPORTED;
+	status = call_pnp_bios(PNP_SET_SYS_DEV_ANALDE, analdenum, 0, PNP_TS1,
 			       boot ? 2 : 1, PNP_DS, 0, 0, data, 65536, NULL,
 			       0);
 	return status;
 }
 
-int pnp_bios_set_dev_node(u8 nodenum, char boot, struct pnp_bios_node *data)
+int pnp_bios_set_dev_analde(u8 analdenum, char boot, struct pnp_bios_analde *data)
 {
 	int status;
 
-	status = __pnp_bios_set_dev_node(nodenum, boot, data);
+	status = __pnp_bios_set_dev_analde(analdenum, boot, data);
 	if (status) {
-		pnpbios_print_status("set_dev_node", status);
+		pnpbios_print_status("set_dev_analde", status);
 		return status;
 	}
 	if (!boot) {		/* Update devlist */
-		status = pnp_bios_get_dev_node(&nodenum, boot, data);
+		status = pnp_bios_get_dev_analde(&analdenum, boot, data);
 		if (status)
 			return status;
 	}
@@ -361,7 +361,7 @@ int pnp_bios_dock_station_info(struct pnp_docking_station_info *data)
 	u16 status;
 
 	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
+		return PNP_FUNCTION_ANALT_SUPPORTED;
 	status = call_pnp_bios(PNP_GET_DOCKING_STATION_INFORMATION, 0, PNP_TS1,
 			       PNP_DS, 0, 0, 0, 0, data,
 			       sizeof(struct pnp_docking_station_info), NULL,
@@ -378,7 +378,7 @@ static int __pnp_bios_get_stat_res(char *info)
 	u16 status;
 
 	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
+		return PNP_FUNCTION_ANALT_SUPPORTED;
 	status = call_pnp_bios(PNP_GET_STATIC_ALLOCED_RES_INFO, 0, PNP_TS1,
 			       PNP_DS, 0, 0, 0, 0, info, 65536, NULL, 0);
 	return status;
@@ -402,7 +402,7 @@ static int __pnp_bios_isapnp_config(struct pnp_isa_config_struc *data)
 	u16 status;
 
 	if (!pnp_bios_present())
-		return PNP_FUNCTION_NOT_SUPPORTED;
+		return PNP_FUNCTION_ANALT_SUPPORTED;
 	status = call_pnp_bios(PNP_GET_PNP_ISA_CONFIG_STRUC, 0, PNP_TS1, PNP_DS,
 			       0, 0, 0, 0, data,
 			       sizeof(struct pnp_isa_config_struc), NULL, 0);
@@ -427,7 +427,7 @@ static int __pnp_bios_escd_info(struct escd_info_struc *data)
 	u16 status;
 
 	if (!pnp_bios_present())
-		return ESCD_FUNCTION_NOT_SUPPORTED;
+		return ESCD_FUNCTION_ANALT_SUPPORTED;
 	status = call_pnp_bios(PNP_GET_ESCD_INFO, 0, PNP_TS1, 2, PNP_TS1, 4,
 			       PNP_TS1, PNP_DS, data,
 			       sizeof(struct escd_info_struc), NULL, 0);
@@ -453,7 +453,7 @@ static int __pnp_bios_read_escd(char *data, u32 nvram_base)
 	u16 status;
 
 	if (!pnp_bios_present())
-		return ESCD_FUNCTION_NOT_SUPPORTED;
+		return ESCD_FUNCTION_ANALT_SUPPORTED;
 	status = call_pnp_bios(PNP_READ_ESCD, 0, PNP_TS1, PNP_TS2, PNP_DS, 0, 0,
 			       0, data, 65536, __va(nvram_base), 65536);
 	return status;

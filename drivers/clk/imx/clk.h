@@ -53,7 +53,7 @@ enum imx_pfdv2_type {
 	IMX_PFDV2_IMX8ULP,
 };
 
-/* NOTE: Rate table should be kept sorted in descending order. */
+/* ANALTE: Rate table should be kept sorted in descending order. */
 struct imx_pll14xx_rate_table {
 	unsigned int rate;
 	unsigned int pdiv;
@@ -76,7 +76,7 @@ extern struct imx_pll14xx_clk imx_1443x_dram_pll;
 #define CLK_FRACN_GPPLL_INTEGER	BIT(0)
 #define CLK_FRACN_GPPLL_FRACN	BIT(1)
 
-/* NOTE: Rate table should be kept sorted in descending order. */
+/* ANALTE: Rate table should be kept sorted in descending order. */
 struct imx_fracn_gppll_rate_table {
 	unsigned int rate;
 	unsigned int mfi;
@@ -292,10 +292,10 @@ struct clk * imx_obtain_fixed_clock(
 struct clk_hw *imx_obtain_fixed_clock_hw(
 			const char *name, unsigned long rate);
 
-struct clk_hw *imx_obtain_fixed_of_clock(struct device_node *np,
+struct clk_hw *imx_obtain_fixed_of_clock(struct device_analde *np,
 					 const char *name, unsigned long rate);
 
-struct clk_hw *imx_get_clk_hw_by_name(struct device_node *np, const char *name);
+struct clk_hw *imx_get_clk_hw_by_name(struct device_analde *np, const char *name);
 
 struct clk_hw *imx_clk_hw_gate_exclusive(const char *name, const char *parent,
 	 void __iomem *reg, u8 shift, u32 exclusive_mask);
@@ -394,7 +394,7 @@ static inline struct clk_hw *__imx_clk_hw_mux(const char *name, void __iomem *re
 			int num_parents, unsigned long flags, unsigned long clk_mux_flags)
 {
 	return clk_hw_register_mux(NULL, name, parents, num_parents,
-			flags | CLK_SET_RATE_NO_REPARENT, reg, shift,
+			flags | CLK_SET_RATE_ANAL_REPARENT, reg, shift,
 			width, clk_mux_flags, &imx_ccm_lock);
 }
 
@@ -407,13 +407,13 @@ struct clk_hw *imx_clk_hw_cpu(const char *name, const char *parent_name,
 #define IMX_COMPOSITE_FW_MANAGED	BIT(2)
 
 #define IMX_COMPOSITE_CLK_FLAGS_DEFAULT \
-	(CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE)
+	(CLK_SET_RATE_ANAL_REPARENT | CLK_OPS_PARENT_ENABLE)
 #define IMX_COMPOSITE_CLK_FLAGS_CRITICAL \
 	(IMX_COMPOSITE_CLK_FLAGS_DEFAULT | CLK_IS_CRITICAL)
-#define IMX_COMPOSITE_CLK_FLAGS_GET_RATE_NO_CACHE \
-	(IMX_COMPOSITE_CLK_FLAGS_DEFAULT | CLK_GET_RATE_NOCACHE)
-#define IMX_COMPOSITE_CLK_FLAGS_CRITICAL_GET_RATE_NO_CACHE \
-	(IMX_COMPOSITE_CLK_FLAGS_GET_RATE_NO_CACHE | CLK_IS_CRITICAL)
+#define IMX_COMPOSITE_CLK_FLAGS_GET_RATE_ANAL_CACHE \
+	(IMX_COMPOSITE_CLK_FLAGS_DEFAULT | CLK_GET_RATE_ANALCACHE)
+#define IMX_COMPOSITE_CLK_FLAGS_CRITICAL_GET_RATE_ANAL_CACHE \
+	(IMX_COMPOSITE_CLK_FLAGS_GET_RATE_ANAL_CACHE | CLK_IS_CRITICAL)
 
 struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 					    const char * const *parent_names,
@@ -453,12 +453,12 @@ struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 #define imx8m_clk_hw_fw_managed_composite(name, parent_names, reg) \
 	_imx8m_clk_hw_composite(name, parent_names, reg, \
 			IMX_COMPOSITE_FW_MANAGED, \
-			IMX_COMPOSITE_CLK_FLAGS_GET_RATE_NO_CACHE)
+			IMX_COMPOSITE_CLK_FLAGS_GET_RATE_ANAL_CACHE)
 
 #define imx8m_clk_hw_fw_managed_composite_critical(name, parent_names, reg) \
 	_imx8m_clk_hw_composite(name, parent_names, reg, \
 			IMX_COMPOSITE_FW_MANAGED, \
-			IMX_COMPOSITE_CLK_FLAGS_CRITICAL_GET_RATE_NO_CACHE)
+			IMX_COMPOSITE_CLK_FLAGS_CRITICAL_GET_RATE_ANAL_CACHE)
 
 struct clk_hw *imx93_clk_composite_flags(const char *name,
 					 const char * const *parent_names,
@@ -468,7 +468,7 @@ struct clk_hw *imx93_clk_composite_flags(const char *name,
 					 unsigned long flags);
 #define imx93_clk_composite(name, parent_names, num_parents, reg, domain_id) \
 	imx93_clk_composite_flags(name, parent_names, num_parents, reg, domain_id \
-				  CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE)
+				  CLK_SET_RATE_ANAL_REPARENT | CLK_OPS_PARENT_ENABLE)
 
 struct clk_hw *imx93_clk_gate(struct device *dev, const char *name, const char *parent_name,
 			      unsigned long flags, void __iomem *reg, u32 bit_idx, u32 val,

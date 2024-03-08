@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netlink.h>
 #include <linux/slab.h>
 
@@ -273,14 +273,14 @@ nfnl_hook_entries_head(u8 pf, unsigned int hook, struct net *net, const char *de
 #if defined(CONFIG_NETFILTER_INGRESS) || defined(CONFIG_NETFILTER_EGRESS)
 	case NFPROTO_NETDEV:
 		if (hook >= NF_NETDEV_NUMHOOKS)
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 
 		if (!dev)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 
 		netdev = dev_get_by_name_rcu(net, dev);
 		if (!netdev)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 
 #ifdef CONFIG_NETFILTER_INGRESS
 		if (hook == NF_NETDEV_INGRESS)
@@ -293,7 +293,7 @@ nfnl_hook_entries_head(u8 pf, unsigned int hook, struct net *net, const char *de
 		fallthrough;
 #endif
 	default:
-		return ERR_PTR(-EPROTONOSUPPORT);
+		return ERR_PTR(-EPROTOANALSUPPORT);
 	}
 
 	return hook_head;
@@ -363,7 +363,7 @@ static int nfnl_hook_dump_start(struct netlink_callback *cb)
 	}
 
 	rcu_read_lock();
-	/* Not dereferenced; for consistency check only */
+	/* Analt dereferenced; for consistency check only */
 	head = nfnl_hook_entries_head(family, hooknum, net, name);
 	rcu_read_unlock();
 
@@ -372,7 +372,7 @@ static int nfnl_hook_dump_start(struct netlink_callback *cb)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(ctx->devname, name, sizeof(ctx->devname));
 	ctx->headv = (unsigned long)head;
@@ -409,7 +409,7 @@ static int nfnl_hook_get(struct sk_buff *skb,
 		return nf_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct nfnl_callback nfnl_hook_cb[NFNL_MSG_HOOK_MAX] = {

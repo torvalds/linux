@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys DDR ECC Driver
+ * Syanalpsys DDR ECC Driver
  * This driver is based on ppc4xx_edac.c drivers
  *
  * Copyright (C) 2012 - 2014 Xilinx, Inc.
@@ -28,7 +28,7 @@
 #define SYNPS_EDAC_MOD_STRING		"synps_edac"
 #define SYNPS_EDAC_MOD_VER		"1"
 
-/* Synopsys DDR memory controller registers that are relevant to ECC */
+/* Syanalpsys DDR memory controller registers that are relevant to ECC */
 #define CTRL_OFST			0x0
 #define T_ZQ_OFST			0xA4
 
@@ -348,7 +348,7 @@ struct synps_platform_data {
  * zynq_get_error_info - Get the current ECC error info.
  * @priv:	DDR memory controller private instance data.
  *
- * Return: one if there is no error, otherwise zero.
+ * Return: one if there is anal error, otherwise zero.
  */
 static int zynq_get_error_info(struct synps_edac_priv *priv)
 {
@@ -403,7 +403,7 @@ out:
  * zynqmp_get_error_info - Get the current ECC error info.
  * @priv:	DDR memory controller private instance data.
  *
- * Return: one if there is no error otherwise returns zero.
+ * Return: one if there is anal error otherwise returns zero.
  */
 static int zynqmp_get_error_info(struct synps_edac_priv *priv)
 {
@@ -463,7 +463,7 @@ out:
 /**
  * handle_error - Handle Correctable and Uncorrectable errors.
  * @mci:	EDAC memory controller instance.
- * @p:		Synopsys ECC status structure.
+ * @p:		Syanalpsys ECC status structure.
  *
  * Handles ECC correctable and uncorrectable errors.
  */
@@ -540,7 +540,7 @@ static void disable_intr(struct synps_edac_priv *priv)
  * @irq:        IRQ number.
  * @dev_id:     Device ID.
  *
- * Return: IRQ_NONE, if interrupt not set or IRQ_HANDLED otherwise.
+ * Return: IRQ_ANALNE, if interrupt analt set or IRQ_HANDLED otherwise.
  */
 static irqreturn_t intr_handler(int irq, void *dev_id)
 {
@@ -554,18 +554,18 @@ static irqreturn_t intr_handler(int irq, void *dev_id)
 
 	/*
 	 * v3.0 of the controller has the ce/ue bits cleared automatically,
-	 * so this condition does not apply.
+	 * so this condition does analt apply.
 	 */
 	if (!(priv->p_data->quirks & DDR_ECC_INTR_SELF_CLEAR)) {
 		regval = readl(priv->baseaddr + DDR_QOS_IRQ_STAT_OFST);
 		regval &= (DDR_QOSCE_MASK | DDR_QOSUE_MASK);
 		if (!(regval & ECC_CE_UE_INTR_MASK))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	}
 
 	status = p_data->get_error_info(priv);
 	if (status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	priv->ce_cnt += priv->stat.ce_cnt;
 	priv->ue_cnt += priv->stat.ue_cnt;
@@ -573,7 +573,7 @@ static irqreturn_t intr_handler(int irq, void *dev_id)
 
 	edac_dbg(3, "Total error count CE %d UE %d\n",
 		 priv->ce_cnt, priv->ue_cnt);
-	/* v3.0 of the controller does not have this register */
+	/* v3.0 of the controller does analt have this register */
 	if (!(priv->p_data->quirks & DDR_ECC_INTR_SELF_CLEAR))
 		writel(regval, priv->baseaddr + DDR_QOS_IRQ_STAT_OFST);
 	else
@@ -634,7 +634,7 @@ static enum dev_type zynq_get_dtype(const void __iomem *base)
 		dt = DEV_X4;
 		break;
 	default:
-		dt = DEV_UNKNOWN;
+		dt = DEV_UNKANALWN;
 	}
 
 	return dt;
@@ -667,7 +667,7 @@ static enum dev_type zynqmp_get_dtype(const void __iomem *base)
 		dt = DEV_X8;
 		break;
 	default:
-		dt = DEV_UNKNOWN;
+		dt = DEV_UNKANALWN;
 	}
 
 	return dt;
@@ -687,7 +687,7 @@ static bool zynq_get_ecc_state(void __iomem *base)
 	u32 ecctype;
 
 	dt = zynq_get_dtype(base);
-	if (dt == DEV_UNKNOWN)
+	if (dt == DEV_UNKANALWN)
 		return false;
 
 	ecctype = readl(base + SCRUB_OFST) & SCRUB_MODE_MASK;
@@ -711,7 +711,7 @@ static bool zynqmp_get_ecc_state(void __iomem *base)
 	u32 ecctype;
 
 	dt = zynqmp_get_dtype(base);
-	if (dt == DEV_UNKNOWN)
+	if (dt == DEV_UNKANALWN)
 		return false;
 
 	ecctype = readl(base + ECC_CFG0_OFST) & SCRUB_MODE_MASK;
@@ -738,7 +738,7 @@ static u32 get_memsize(void)
 
 /**
  * zynq_get_mtype - Return the controller memory type.
- * @base:	Synopsys ECC status structure.
+ * @base:	Syanalpsys ECC status structure.
  *
  * Get the EDAC memory type appropriate for the current controller
  * configuration.
@@ -762,7 +762,7 @@ static enum mem_type zynq_get_mtype(const void __iomem *base)
 
 /**
  * zynqmp_get_mtype - Returns controller memory type.
- * @base:	Synopsys ECC status structure.
+ * @base:	Syanalpsys ECC status structure.
  *
  * Get the EDAC memory type appropriate for the current controller
  * configuration.
@@ -840,9 +840,9 @@ static void mc_init(struct mem_ctl_info *mci, struct platform_device *pdev)
 
 	/* Initialize controller capabilities and configuration */
 	mci->mtype_cap = MEM_FLAG_DDR3 | MEM_FLAG_DDR2;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->scrub_cap = SCRUB_HW_SRC;
-	mci->scrub_mode = SCRUB_NONE;
+	mci->scrub_mode = SCRUB_ANALNE;
 
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->ctl_name = "synps_ddr_controller";
@@ -870,7 +870,7 @@ static int setup_irq(struct mem_ctl_info *mci,
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		edac_printk(KERN_ERR, EDAC_MC,
-			    "No IRQ %d in DT\n", irq);
+			    "Anal IRQ %d in DT\n", irq);
 		return irq;
 	}
 
@@ -906,7 +906,7 @@ static const struct synps_platform_data zynqmp_edac_def = {
 			  ),
 };
 
-static const struct synps_platform_data synopsys_edac_def = {
+static const struct synps_platform_data syanalpsys_edac_def = {
 	.get_error_info	= zynqmp_get_error_info,
 	.get_mtype	= zynqmp_get_mtype,
 	.get_dtype	= zynqmp_get_dtype,
@@ -930,7 +930,7 @@ static const struct of_device_id synps_edac_match[] = {
 	},
 	{
 		.compatible = "snps,ddrc-3.80a",
-		.data = (void *)&synopsys_edac_def
+		.data = (void *)&syanalpsys_edac_def
 	},
 	{
 		/* end of table */
@@ -947,7 +947,7 @@ MODULE_DEVICE_TABLE(of, synps_edac_match);
  * @priv:		DDR memory controller private instance data.
  *
  * Update poison registers as per DDR mapping.
- * Return: none.
+ * Return: analne.
  */
 static void ddr_poison_setup(struct synps_edac_priv *priv)
 {
@@ -1282,7 +1282,7 @@ static void setup_rank_address_map(struct synps_edac_priv *priv, u32 *addrmap)
  *
  * Set Address Map by querying ADDRMAP registers.
  *
- * Return: none.
+ * Return: analne.
  */
 static void setup_address_map(struct synps_edac_priv *priv)
 {
@@ -1334,10 +1334,10 @@ static int mc_probe(struct platform_device *pdev)
 
 	p_data = of_device_get_match_data(&pdev->dev);
 	if (!p_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!p_data->get_ecc_state(baseaddr)) {
-		edac_printk(KERN_INFO, EDAC_MC, "ECC not enabled\n");
+		edac_printk(KERN_INFO, EDAC_MC, "ECC analt enabled\n");
 		return -ENXIO;
 	}
 
@@ -1353,7 +1353,7 @@ static int mc_probe(struct platform_device *pdev)
 	if (!mci) {
 		edac_printk(KERN_ERR, EDAC_MC,
 			    "Failed memory allocation for mc instance\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv = mci->pvt_info;
@@ -1429,7 +1429,7 @@ static void mc_remove(struct platform_device *pdev)
 
 static struct platform_driver synps_edac_mc_driver = {
 	.driver = {
-		   .name = "synopsys-edac",
+		   .name = "syanalpsys-edac",
 		   .of_match_table = synps_edac_match,
 		   },
 	.probe = mc_probe,
@@ -1439,5 +1439,5 @@ static struct platform_driver synps_edac_mc_driver = {
 module_platform_driver(synps_edac_mc_driver);
 
 MODULE_AUTHOR("Xilinx Inc");
-MODULE_DESCRIPTION("Synopsys DDR ECC driver");
+MODULE_DESCRIPTION("Syanalpsys DDR ECC driver");
 MODULE_LICENSE("GPL v2");

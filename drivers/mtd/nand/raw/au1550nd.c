@@ -132,7 +132,7 @@ static int find_nand_cs(unsigned long nand_base)
 			return i;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int au1550nd_waitrdy(struct nand_chip *this, unsigned int timeout_ms)
@@ -240,7 +240,7 @@ static int au1550nd_exec_op(struct nand_chip *this,
 static int au1550nd_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -263,29 +263,29 @@ static int au1550nd_probe(struct platform_device *pdev)
 	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no NAND memory resource\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "anal NAND memory resource\n");
+		ret = -EANALDEV;
 		goto out1;
 	}
 	if (request_mem_region(r->start, resource_size(r), "au1550-nand")) {
-		dev_err(&pdev->dev, "cannot claim NAND memory area\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "cananalt claim NAND memory area\n");
+		ret = -EANALMEM;
 		goto out1;
 	}
 
 	ctx->base = ioremap(r->start, 0x1000);
 	if (!ctx->base) {
-		dev_err(&pdev->dev, "cannot remap NAND memory area\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "cananalt remap NAND memory area\n");
+		ret = -EANALDEV;
 		goto out2;
 	}
 
@@ -296,8 +296,8 @@ static int au1550nd_probe(struct platform_device *pdev)
 	/* figure out which CS# r->start belongs to */
 	cs = find_nand_cs(r->start);
 	if (cs < 0) {
-		dev_err(&pdev->dev, "cannot detect NAND chipselect\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "cananalt detect NAND chipselect\n");
+		ret = -EANALDEV;
 		goto out3;
 	}
 	ctx->cs = cs;

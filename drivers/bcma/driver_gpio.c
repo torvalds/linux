@@ -116,7 +116,7 @@ static irqreturn_t bcma_gpio_irq_handler(int irq, void *dev_id)
 	int gpio;
 
 	if (!irqs)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for_each_set_bit(gpio, &irqs, gc->ngpio)
 		generic_handle_domain_irq_safe(gc->irq.domain, gpio);
@@ -148,7 +148,7 @@ static int bcma_gpio_irq_init(struct bcma_drv_cc *cc)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 
 	return 0;
@@ -188,7 +188,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->parent		= bus->dev;
-	chip->fwnode		= dev_fwnode(&cc->core->dev);
+	chip->fwanalde		= dev_fwanalde(&cc->core->dev);
 
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4707:

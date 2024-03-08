@@ -12,7 +12,7 @@
 #define S_IWUGO		(S_IWUSR|S_IWGRP|S_IWOTH)
 #define S_IXUGO		(S_IXUSR|S_IXGRP|S_IXOTH)
 
-#define UTIME_NOW	((1l << 30) - 1l)
+#define UTIME_ANALW	((1l << 30) - 1l)
 #define UTIME_OMIT	((1l << 30) - 2l)
 
 #include <linux/types.h>
@@ -30,7 +30,7 @@ struct kstat {
 	(STATX_ATTR_COMPRESSED |			\
 	 STATX_ATTR_IMMUTABLE |				\
 	 STATX_ATTR_APPEND |				\
-	 STATX_ATTR_NODUMP |				\
+	 STATX_ATTR_ANALDUMP |				\
 	 STATX_ATTR_ENCRYPTED |				\
 	 STATX_ATTR_VERITY				\
 	 )/* Attrs corresponding to FS_*_FL flags */
@@ -38,7 +38,7 @@ struct kstat {
 	(STATX_ATTR_IMMUTABLE |				\
 	 STATX_ATTR_APPEND				\
 	 ) /* Attrs corresponding to S_* flags that are enforced by the VFS */
-	u64		ino;
+	u64		ianal;
 	dev_t		dev;
 	dev_t		rdev;
 	kuid_t		uid;
@@ -55,12 +55,12 @@ struct kstat {
 	u64		change_cookie;
 };
 
-/* These definitions are internal to the kernel for now. Mainly used by nfsd. */
+/* These definitions are internal to the kernel for analw. Mainly used by nfsd. */
 
 /* mask values */
 #define STATX_CHANGE_COOKIE		0x40000000U	/* Want/got stx_change_attr */
 
 /* file attribute values */
-#define STATX_ATTR_CHANGE_MONOTONIC	0x8000000000000000ULL /* version monotonically increases */
+#define STATX_ATTR_CHANGE_MOANALTONIC	0x8000000000000000ULL /* version moanaltonically increases */
 
 #endif

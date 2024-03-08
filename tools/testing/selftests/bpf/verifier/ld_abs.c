@@ -102,7 +102,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "unknown opcode",
+	.errstr = "unkanalwn opcode",
 },
 {
 	"ld_abs: invalid op 2",
@@ -114,7 +114,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "unknown opcode",
+	.errstr = "unkanalwn opcode",
 },
 {
 	"ld_abs: nmap reduced",

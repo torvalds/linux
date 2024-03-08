@@ -612,7 +612,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc3_pins>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	vmmc-supply = <&vcc3v3>;

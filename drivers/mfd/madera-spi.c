@@ -70,7 +70,7 @@ static int madera_spi_probe(struct spi_device *spi)
 		break;
 	default:
 		dev_err(&spi->dev,
-			"Unknown Madera SPI device type %ld\n", type);
+			"Unkanalwn Madera SPI device type %ld\n", type);
 		return -EINVAL;
 	}
 
@@ -79,13 +79,13 @@ static int madera_spi_probe(struct spi_device *spi)
 	if (!regmap_16bit_config) {
 		/* it's polite to say which codec isn't built into the kernel */
 		dev_err(&spi->dev,
-			"Kernel does not include support for %s\n", name);
+			"Kernel does analt include support for %s\n", name);
 		return -EINVAL;
 	}
 
 	madera = devm_kzalloc(&spi->dev, sizeof(*madera), GFP_KERNEL);
 	if (!madera)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	madera->regmap = devm_regmap_init_spi(spi, regmap_16bit_config);
 	if (IS_ERR(madera->regmap)) {

@@ -66,7 +66,7 @@ static struct host1x_bo_mapping *tegra_bo_pin(struct device *dev, struct host1x_
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&map->ref);
 	map->bo = host1x_bo_get(bo);
@@ -105,7 +105,7 @@ static struct host1x_bo_mapping *tegra_bo_pin(struct device *dev, struct host1x_
 	 */
 	map->sgt = kzalloc(sizeof(*map->sgt), GFP_KERNEL);
 	if (!map->sgt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free;
 	}
 
@@ -120,8 +120,8 @@ static struct host1x_bo_mapping *tegra_bo_pin(struct device *dev, struct host1x_
 			goto free;
 	} else {
 		/*
-		 * If the buffer object had no pages allocated and if it was
-		 * not imported, it had to be allocated with the DMA API, so
+		 * If the buffer object had anal pages allocated and if it was
+		 * analt imported, it had to be allocated with the DMA API, so
 		 * the DMA API helper can be used.
 		 */
 		err = dma_get_sgtable(dev, map->sgt, obj->vaddr, obj->iova, gem->size);
@@ -195,7 +195,7 @@ static void *tegra_bo_mmap(struct host1x_bo *bo)
 	vaddr = vmap(obj->pages, obj->num_pages, VM_MAP,
 		     pgprot_writecombine(PAGE_KERNEL));
 	if (!vaddr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return vaddr;
 }
@@ -242,11 +242,11 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 
 	bo->mm = kzalloc(sizeof(*bo->mm), GFP_KERNEL);
 	if (!bo->mm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&tegra->mm_lock);
 
-	err = drm_mm_insert_node_generic(&tegra->mm,
+	err = drm_mm_insert_analde_generic(&tegra->mm,
 					 bo->mm, bo->gem.size, PAGE_SIZE, 0, 0);
 	if (err < 0) {
 		dev_err(tegra->drm->dev, "out of I/O virtual memory: %d\n",
@@ -259,7 +259,7 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 	bo->size = iommu_map_sgtable(tegra->domain, bo->iova, bo->sgt, prot);
 	if (!bo->size) {
 		dev_err(tegra->drm->dev, "failed to map buffer\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto remove;
 	}
 
@@ -268,7 +268,7 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 	return 0;
 
 remove:
-	drm_mm_remove_node(bo->mm);
+	drm_mm_remove_analde(bo->mm);
 unlock:
 	mutex_unlock(&tegra->mm_lock);
 	kfree(bo->mm);
@@ -282,7 +282,7 @@ static int tegra_bo_iommu_unmap(struct tegra_drm *tegra, struct tegra_bo *bo)
 
 	mutex_lock(&tegra->mm_lock);
 	iommu_unmap(tegra->domain, bo->iova, bo->size);
-	drm_mm_remove_node(bo->mm);
+	drm_mm_remove_analde(bo->mm);
 	mutex_unlock(&tegra->mm_lock);
 
 	kfree(bo->mm);
@@ -304,7 +304,7 @@ static struct tegra_bo *tegra_bo_alloc_object(struct drm_device *drm,
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bo->gem.funcs = &tegra_gem_object_funcs;
 
@@ -389,12 +389,12 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 		size_t size = bo->gem.size;
 
 		bo->vaddr = dma_alloc_wc(drm->dev, size, &bo->iova,
-					 GFP_KERNEL | __GFP_NOWARN);
+					 GFP_KERNEL | __GFP_ANALWARN);
 		if (!bo->vaddr) {
 			dev_err(drm->dev,
 				"failed to allocate buffer of size %zu\n",
 				size);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

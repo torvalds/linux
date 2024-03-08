@@ -1,6 +1,6 @@
 [config]
 command = record
-args    = --no-bpf-event -e arm_spe_0/pa_enable=1/ -- kill >/dev/null 2>&1
+args    = --anal-bpf-event -e arm_spe_0/pa_enable=1/ -- kill >/dev/null 2>&1
 ret     = 1
 arch    = aarch64
 

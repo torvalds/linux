@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -127,7 +127,7 @@ static void ar9003_mci_send_coex_version_query(struct ath_hw *ah,
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 payload[4] = {0, 0, 0, 0};
 
-	if (mci->bt_version_known ||
+	if (mci->bt_version_kanalwn ||
 	    (mci->bt_state == MCI_BT_SLEEP))
 		return;
 
@@ -146,8 +146,8 @@ static void ar9003_mci_send_coex_version_response(struct ath_hw *ah,
 				MCI_GPM_COEX_VERSION_RESPONSE);
 	*(((u8 *)payload) + MCI_GPM_COEX_B_MAJOR_VERSION) =
 		mci->wlan_ver_major;
-	*(((u8 *)payload) + MCI_GPM_COEX_B_MINOR_VERSION) =
-		mci->wlan_ver_minor;
+	*(((u8 *)payload) + MCI_GPM_COEX_B_MIANALR_VERSION) =
+		mci->wlan_ver_mianalr;
 	ar9003_mci_send_message(ah, MCI_GPM, 0, payload, 16, wait_done, true);
 }
 
@@ -185,7 +185,7 @@ static void ar9003_mci_send_coex_bt_status_query(struct ath_hw *ah,
 	*(((u8 *)payload) + MCI_GPM_COEX_B_BT_BITMAP) = query_type;
 
 	/*
-	 * If bt_status_query message is  not sent successfully,
+	 * If bt_status_query message is  analt sent successfully,
 	 * then need_flush_btinfo should be set again.
 	 */
 	if (!ar9003_mci_send_message(ah, MCI_GPM, 0, payload, 16,
@@ -209,7 +209,7 @@ static void ar9003_mci_send_coex_halt_bt_gpm(struct ath_hw *ah, bool halt,
 
 	if (halt) {
 		mci->query_bt = true;
-		/* Send next unhalt no matter halt sent or not */
+		/* Send next unhalt anal matter halt sent or analt */
 		mci->unhalt_bt_gpm = true;
 		mci->need_flush_btinfo = true;
 		*(((u8 *)payload) + MCI_GPM_COEX_B_HALT_STATE) =
@@ -258,7 +258,7 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 	 * and BT SW will respond this req_wake with a remote_reset and
 	 * sys_waking. In this case, WLAN will receive BT's SW
 	 * sys_waking. In either case, BT's RX is cleaned up. So we
-	 * don't need to reply BT's remote_reset now, if any.
+	 * don't need to reply BT's remote_reset analw, if any.
 	 * Similarly, if in any case, WLAN can receive BT's sys_waking,
 	 * that means WLAN's RX is also fine.
 	 */
@@ -522,7 +522,7 @@ void ar9003_mci_check_bt(struct ath_hw *ah)
 
 	/*
 	 * check BT state again to make
-	 * sure it's not changed.
+	 * sure it's analt changed.
 	 */
 	ar9003_mci_sync_bt_state(ah);
 	ar9003_mci_2g5g_switch(ah, true);
@@ -552,11 +552,11 @@ static void ar9003_mci_process_gpm_extra(struct ath_hw *ah, u8 gpm_type,
 		ath_dbg(common, MCI, "MCI Recv GPM COEX Version Response\n");
 		mci->bt_ver_major =
 			*(p_data + MCI_GPM_COEX_B_MAJOR_VERSION);
-		mci->bt_ver_minor =
-			*(p_data + MCI_GPM_COEX_B_MINOR_VERSION);
-		mci->bt_version_known = true;
+		mci->bt_ver_mianalr =
+			*(p_data + MCI_GPM_COEX_B_MIANALR_VERSION);
+		mci->bt_version_kanalwn = true;
 		ath_dbg(common, MCI, "MCI BT Coex version: %d.%d\n",
-			mci->bt_ver_major, mci->bt_ver_minor);
+			mci->bt_ver_major, mci->bt_ver_mianalr);
 		break;
 	case MCI_GPM_COEX_STATUS_QUERY:
 		ath_dbg(common, MCI,
@@ -590,7 +590,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 	u8 recv_type = 0, recv_opcode = 0;
 	bool b_is_bt_cal_done = (gpm_type == MCI_GPM_BT_CAL_DONE);
 
-	more_data = time_out ? MCI_GPM_NOMORE : MCI_GPM_MORE;
+	more_data = time_out ? MCI_GPM_ANALMORE : MCI_GPM_MORE;
 
 	while (time_out > 0) {
 		if (p_gpm) {
@@ -654,7 +654,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 						false, false);
 			continue;
 		} else {
-			ath_dbg(common, MCI, "MCI GPM subtype not match 0x%x\n",
+			ath_dbg(common, MCI, "MCI GPM subtype analt match 0x%x\n",
 				*(p_gpm + 1));
 			ar9003_mci_process_gpm_extra(ah, recv_type,
 						     recv_opcode, p_gpm);
@@ -719,7 +719,7 @@ bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan)
 		ath_dbg(common, MCI, "MCI BT_CAL_DONE received\n");
 	else
 		ath_dbg(common, MCI,
-			"MCI BT_CAL_DONE not received\n");
+			"MCI BT_CAL_DONE analt received\n");
 
 	mci_hw->bt_state = MCI_BT_AWAKE;
 	/* MCI FIX: enable mci interrupt here */
@@ -799,7 +799,7 @@ static void ar9003_mci_mute_bt(struct ath_hw *ah)
 
 	/*
 	 * Send LNA_TAKE and SYS_SLEEPING when
-	 * 1. reset not after resuming from full sleep
+	 * 1. reset analt after resuming from full sleep
 	 * 2. before reset MCI RX, to quiet BT and avoid MCI RX misalignment
 	 */
 	if (MCI_ANT_ARCH_PA_LNA_SHARED(mci)) {
@@ -1030,7 +1030,7 @@ int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		ar9003_mci_enable_interrupt(ah);
 
 	if (ath9k_hw_is_aic_enabled(ah))
-		ar9003_aic_start_normal(ah);
+		ar9003_aic_start_analrmal(ah);
 
 	return 0;
 }
@@ -1178,7 +1178,7 @@ bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 
 	if ((regval == 0xdeadbeef) || !(regval & AR_BTCOEX_CTRL_MCI_MODE_EN)) {
 		ath_dbg(common, MCI,
-			"MCI Not sending 0x%x. MCI is not enabled. full_sleep = %d\n",
+			"MCI Analt sending 0x%x. MCI is analt enabled. full_sleep = %d\n",
 			header, (ah->power_mode == ATH9K_PM_FULL_SLEEP) ? 1 : 0);
 		ar9003_mci_queue_unsent_gpm(ah, header, payload, true);
 		return false;
@@ -1246,7 +1246,7 @@ void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable)
 		ath_dbg(common, MCI, "MCI BT_CAL_GRANT received\n");
 	} else {
 		*is_reusable = false;
-		ath_dbg(common, MCI, "MCI BT_CAL_GRANT not received\n");
+		ath_dbg(common, MCI, "MCI BT_CAL_GRANT analt received\n");
 	}
 }
 
@@ -1358,7 +1358,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 		tsf = ath9k_hw_gettsf32(ah);
 		if ((tsf - mci->last_recovery) <= MCI_RECOVERY_DUR_TSF) {
 			ath_dbg(ath9k_hw_common(ah), MCI,
-				"(MCI) ignore Rx recovery\n");
+				"(MCI) iganalre Rx recovery\n");
 			break;
 		}
 		ath_dbg(ath9k_hw_common(ah), MCI, "(MCI) RECOVER RX\n");
@@ -1382,7 +1382,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 		break;
 	case MCI_STATE_AIC_START:
 		if (ath9k_hw_is_aic_enabled(ah))
-			ar9003_aic_start_normal(ah);
+			ar9003_aic_start_analrmal(ah);
 		break;
 	case MCI_STATE_AIC_CAL_RESET:
 		if (ath9k_hw_is_aic_enabled(ah))
@@ -1415,7 +1415,7 @@ void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah)
 	mci->update_2g5g = true;
 	ar9003_mci_send_2g5g_status(ah, true);
 
-	/* Force another 2g5g update at next scanning */
+	/* Force aanalther 2g5g update at next scanning */
 	mci->update_2g5g = true;
 }
 
@@ -1503,7 +1503,7 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, u32 *more)
 
 	if ((offset == 0xFFFF) || (gpm_ptr == mci->gpm_idx)) {
 		offset = MCI_GPM_INVALID;
-		more_gpm = MCI_GPM_NOMORE;
+		more_gpm = MCI_GPM_ANALMORE;
 		goto out;
 	}
 	for (;;) {
@@ -1514,7 +1514,7 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, u32 *more)
 		if (offset != mci->gpm_idx)
 			more_gpm = MCI_GPM_MORE;
 		else
-			more_gpm = MCI_GPM_NOMORE;
+			more_gpm = MCI_GPM_ANALMORE;
 
 		temp_index = mci->gpm_idx;
 
@@ -1531,7 +1531,7 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, u32 *more)
 			break;
 		}
 
-		if (more_gpm == MCI_GPM_NOMORE) {
+		if (more_gpm == MCI_GPM_ANALMORE) {
 			offset = MCI_GPM_INVALID;
 			break;
 		}
@@ -1547,15 +1547,15 @@ out:
 }
 EXPORT_SYMBOL(ar9003_mci_get_next_gpm_offset);
 
-void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 minor)
+void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 mianalr)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
 	mci->bt_ver_major = major;
-	mci->bt_ver_minor = minor;
-	mci->bt_version_known = true;
+	mci->bt_ver_mianalr = mianalr;
+	mci->bt_version_kanalwn = true;
 	ath_dbg(ath9k_hw_common(ah), MCI, "MCI BT version set: %d.%d\n",
-		mci->bt_ver_major, mci->bt_ver_minor);
+		mci->bt_ver_major, mci->bt_ver_mianalr);
 }
 EXPORT_SYMBOL(ar9003_mci_set_bt_version);
 

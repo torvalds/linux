@@ -25,7 +25,7 @@
 /*
  * @brief Read the oldest element from the circular buffer.
  * Read the oldest element WITHOUT checking whehter the
- * circular buffer is empty or not. The oldest element is
+ * circular buffer is empty or analt. The oldest element is
  * also removed out from the circular buffer.
  *
  * @param cb The pointer to the circular buffer.
@@ -61,7 +61,7 @@ ia_css_circbuf_elem_get_val(ia_css_circbuf_elem_t *elem);
 
 /**********************************************************************
  *
- * Non-inline functions.
+ * Analn-inline functions.
  *
  **********************************************************************/
 /*
@@ -216,7 +216,7 @@ bool ia_css_circbuf_increase_size(
 	curr_end = cb->desc->end;
 	/* We assume cb was pre defined as global to allow
 	 * increase in size */
-	/* FM: are we sure this cannot cause size to become too big? */
+	/* FM: are we sure this cananalt cause size to become too big? */
 	if (((uint8_t)(cb->desc->size + (uint8_t)sz_delta) > cb->desc->size) &&
 	    ((uint8_t)sz_delta == sz_delta))
 		cb->desc->size += (uint8_t)sz_delta;
@@ -226,10 +226,10 @@ bool ia_css_circbuf_increase_size(
 	/* If elems are passed update them else we assume its been taken
 	 * care before calling this function */
 	if (elems) {
-		/* cb element array size will not be increased dynamically,
+		/* cb element array size will analt be increased dynamically,
 		 * but pointers to new elements can be added at the end
 		 * of existing pre defined cb element array of
-		 * size >= new size if not already added */
+		 * size >= new size if analt already added */
 		for (i = curr_size; i <  cb->desc->size; i++)
 			cb->elems[i] = elems[i - curr_size];
 	}

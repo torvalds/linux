@@ -27,7 +27,7 @@ static bool rtl2832_sdr_emulated_fmt;
 module_param_named(emulated_formats, rtl2832_sdr_emulated_fmt, bool, 0644);
 MODULE_PARM_DESC(emulated_formats, "enable emulated formats (disappears in future)");
 
-/* Original macro does not contain enough null pointer checks for our need */
+/* Original macro does analt contain eanalugh null pointer checks for our need */
 #define V4L2_SUBDEV_HAS_OP(sd, o, f) \
 	((sd) && (sd)->ops && (sd)->ops->o && (sd)->ops->o->f)
 
@@ -116,7 +116,7 @@ struct rtl2832_sdr_dev {
 	spinlock_t queued_bufs_lock; /* Protects queued_bufs */
 	unsigned sequence;	     /* buffer sequence counter */
 
-	/* Note if taking both locks v4l2_lock must always be locked first! */
+	/* Analte if taking both locks v4l2_lock must always be locked first! */
 	struct mutex v4l2_lock;      /* Protects everything else */
 	struct mutex vb_queue_lock;  /* Protects vb_queue and capt_file */
 
@@ -175,7 +175,7 @@ static unsigned int rtl2832_sdr_convert_stream(struct rtl2832_sdr_dev *dev,
 	unsigned int dst_len;
 
 	if (dev->pixelformat ==  V4L2_SDR_FMT_CU8) {
-		/* native stream, no need to convert */
+		/* native stream, anal need to convert */
 		memcpy(dst, src, src_len);
 		dst_len = src_len;
 	} else if (dev->pixelformat == V4L2_SDR_FMT_CU16LE) {
@@ -212,7 +212,7 @@ static unsigned int rtl2832_sdr_convert_stream(struct rtl2832_sdr_dev *dev,
 
 /*
  * This gets called for the bulk stream pipe. This is done in interrupt
- * time, so it has to be fast, not crash, and not stall. Neat.
+ * time, so it has to be fast, analt crash, and analt stall. Neat.
  */
 static void rtl2832_sdr_urb_complete(struct urb *urb)
 {
@@ -229,7 +229,7 @@ static void rtl2832_sdr_urb_complete(struct urb *urb)
 	case -ETIMEDOUT:    /* NAK */
 		break;
 	case -ECONNRESET:   /* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:            /* error */
@@ -244,7 +244,7 @@ static void rtl2832_sdr_urb_complete(struct urb *urb)
 		fbuf = rtl2832_sdr_get_next_fill_buf(dev);
 		if (unlikely(fbuf == NULL)) {
 			dev->vb_full++;
-			dev_notice_ratelimited(&pdev->dev,
+			dev_analtice_ratelimited(&pdev->dev,
 					       "video buffer is full, %d packets dropped\n",
 					       dev->vb_full);
 			goto skip;
@@ -288,7 +288,7 @@ static int rtl2832_sdr_submit_urbs(struct rtl2832_sdr_dev *dev)
 		ret = usb_submit_urb(dev->urb_list[i], GFP_KERNEL);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"Could not submit urb no. %d - get them all back\n",
+				"Could analt submit urb anal. %d - get them all back\n",
 				i);
 			rtl2832_sdr_kill_urbs(dev);
 			return ret;
@@ -335,7 +335,7 @@ static int rtl2832_sdr_alloc_stream_bufs(struct rtl2832_sdr_dev *dev)
 			dev_dbg(&pdev->dev, "alloc buf=%d failed\n",
 				dev->buf_num);
 			rtl2832_sdr_free_stream_bufs(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dev_dbg(&pdev->dev, "alloc buf=%d %p (dma %llu)\n",
@@ -381,7 +381,7 @@ static int rtl2832_sdr_alloc_urbs(struct rtl2832_sdr_dev *dev)
 				dev->urb_list[j] = NULL;
 			}
 			dev->urbs_initialized = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		usb_fill_bulk_urb(dev->urb_list[i],
 				dev->udev,
@@ -390,7 +390,7 @@ static int rtl2832_sdr_alloc_urbs(struct rtl2832_sdr_dev *dev)
 				BULK_BUFFER_SIZE,
 				rtl2832_sdr_urb_complete, dev);
 
-		dev->urb_list[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		dev->urb_list[i]->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 		dev->urb_list[i]->transfer_dma = dev->dma_addr[i];
 		dev->urbs_initialized++;
 	}
@@ -458,7 +458,7 @@ static int rtl2832_sdr_buf_prepare(struct vb2_buffer *vb)
 
 	/* Don't allow queueing new buffers after device disconnection */
 	if (!dev->udev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -471,7 +471,7 @@ static void rtl2832_sdr_buf_queue(struct vb2_buffer *vb)
 			container_of(vbuf, struct rtl2832_sdr_frame_buf, vb);
 	unsigned long flags;
 
-	/* Check the device has not disconnected between prep and queuing */
+	/* Check the device has analt disconnected between prep and queuing */
 	if (!dev->udev) {
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		return;
@@ -720,7 +720,7 @@ static int rtl2832_sdr_set_adc(struct rtl2832_sdr_dev *dev)
 		ret = regmap_bulk_write(dev->regmap, 0x011, "\xe9\xf4", 2);
 		break;
 	default:
-		dev_notice(&pdev->dev, "Unsupported tuner\n");
+		dev_analtice(&pdev->dev, "Unsupported tuner\n");
 	}
 
 	/* software reset */
@@ -856,7 +856,7 @@ static int rtl2832_sdr_start_streaming(struct vb2_queue *vq, unsigned int count)
 	dev_dbg(&pdev->dev, "\n");
 
 	if (!dev->udev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mutex_lock_interruptible(&dev->v4l2_lock))
 		return -ERESTARTSYS;
@@ -971,7 +971,7 @@ static int rtl2832_sdr_g_tuner(struct file *file, void *priv,
 		   V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, tuner, g_tuner)) {
 		ret = v4l2_subdev_call(dev->v4l2_subdev, tuner, g_tuner, v);
 	} else if (v->index == 1) {
-		strscpy(v->name, "RF: <unknown>", sizeof(v->name));
+		strscpy(v->name, "RF: <unkanalwn>", sizeof(v->name));
 		v->type = V4L2_TUNER_RF;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow =    50000000;
@@ -1317,12 +1317,12 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "\n");
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "Cannot proceed without platform data\n");
+		dev_err(&pdev->dev, "Cananalt proceed without platform data\n");
 		ret = -EINVAL;
 		goto err;
 	}
 	if (!pdev->dev.parent->driver) {
-		dev_dbg(&pdev->dev, "No parent device\n");
+		dev_dbg(&pdev->dev, "Anal parent device\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1334,7 +1334,7 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 	}
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_module_put;
 	}
 
@@ -1364,10 +1364,10 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 	dev->vb_queue.buf_struct_size = sizeof(struct rtl2832_sdr_frame_buf);
 	dev->vb_queue.ops = &rtl2832_sdr_vb2_ops;
 	dev->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	dev->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	dev->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	ret = vb2_queue_init(&dev->vb_queue);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not initialize vb2 queue\n");
+		dev_err(&pdev->dev, "Could analt initialize vb2 queue\n");
 		goto err_kfree;
 	}
 
@@ -1411,12 +1411,12 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 	default:
 		v4l2_ctrl_handler_init(&dev->hdl, 0);
 		dev_err(&pdev->dev, "Unsupported tuner\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_v4l2_ctrl_handler_free;
 	}
 	if (dev->hdl.error) {
 		ret = dev->hdl.error;
-		dev_err(&pdev->dev, "Could not initialize controls\n");
+		dev_err(&pdev->dev, "Could analt initialize controls\n");
 		goto err_v4l2_ctrl_handler_free;
 	}
 
@@ -1446,9 +1446,9 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 		goto err_v4l2_device_unregister;
 	}
 	dev_info(&pdev->dev, "Registered as %s\n",
-		 video_device_node_name(&dev->vdev));
+		 video_device_analde_name(&dev->vdev));
 	dev_info(&pdev->dev, "Realtek RTL2832 SDR attached\n");
-	dev_notice(&pdev->dev,
+	dev_analtice(&pdev->dev,
 		   "SDR API is still slightly experimental and functionality changes may follow\n");
 	platform_set_drvdata(pdev, dev);
 	return 0;
@@ -1472,7 +1472,7 @@ static void rtl2832_sdr_remove(struct platform_device *pdev)
 
 	mutex_lock(&dev->vb_queue_lock);
 	mutex_lock(&dev->v4l2_lock);
-	/* No need to keep the urbs around after disconnection */
+	/* Anal need to keep the urbs around after disconnection */
 	dev->udev = NULL;
 	v4l2_device_disconnect(&dev->v4l2_dev);
 	video_unregister_device(&dev->vdev);

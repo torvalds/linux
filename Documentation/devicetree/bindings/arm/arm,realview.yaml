@@ -15,7 +15,7 @@ description: |+
   the earlier CPUs such as TrustZone and multicore (MPCore).
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -47,7 +47,7 @@ properties:
           - const: arm,realview-pbx
 
   soc:
-    description: All RealView boards must provide a soc node in the root of the
+    description: All RealView boards must provide a soc analde in the root of the
       device tree, representing the System-on-Chip since these test chips are
       rather complex.
     type: object
@@ -74,7 +74,7 @@ properties:
       "^.*syscon@[0-9a-f]+$":
         type: object
         description: All RealView boards must provide a syscon system controller
-          node inside the soc node.
+          analde inside the soc analde.
 
     required:
       - compatible

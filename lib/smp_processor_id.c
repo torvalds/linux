@@ -8,7 +8,7 @@
 #include <linux/kprobes.h>
 #include <linux/sched.h>
 
-noinstr static
+analinstr static
 unsigned int check_preemption_disabled(const char *what1, const char *what2)
 {
 	int this_cpu = raw_smp_processor_id();
@@ -36,7 +36,7 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	/*
 	 * Avoid recursion:
 	 */
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 
 	instrumentation_begin();
 	if (!printk_ratelimit())
@@ -50,18 +50,18 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 
 out_enable:
 	instrumentation_end();
-	preempt_enable_no_resched_notrace();
+	preempt_enable_anal_resched_analtrace();
 out:
 	return this_cpu;
 }
 
-noinstr unsigned int debug_smp_processor_id(void)
+analinstr unsigned int debug_smp_processor_id(void)
 {
 	return check_preemption_disabled("smp_processor_id", "");
 }
 EXPORT_SYMBOL(debug_smp_processor_id);
 
-noinstr void __this_cpu_preempt_check(const char *op)
+analinstr void __this_cpu_preempt_check(const char *op)
 {
 	check_preemption_disabled("__this_cpu_", op);
 }

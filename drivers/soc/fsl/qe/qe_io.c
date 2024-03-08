@@ -12,7 +12,7 @@
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
 
@@ -24,7 +24,7 @@
 static struct qe_pio_regs __iomem *par_io;
 static int num_par_io_ports = 0;
 
-int par_io_init(struct device_node *np)
+int par_io_init(struct device_analde *np)
 {
 	struct resource res;
 	int ret;
@@ -36,7 +36,7 @@ int par_io_init(struct device_node *np)
 		return ret;
 	par_io = ioremap(res.start, resource_size(&res));
 	if (!par_io)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!of_property_read_u32(np, "num-ports", &num_ports))
 		num_par_io_ports = num_ports;
@@ -139,26 +139,26 @@ int par_io_data_set(u8 port, u8 pin, u8 val)
 }
 EXPORT_SYMBOL(par_io_data_set);
 
-int par_io_of_config(struct device_node *np)
+int par_io_of_config(struct device_analde *np)
 {
-	struct device_node *pio;
+	struct device_analde *pio;
 	int pio_map_len;
 	const __be32 *pio_map;
 
 	if (par_io == NULL) {
-		printk(KERN_ERR "par_io not initialized\n");
+		printk(KERN_ERR "par_io analt initialized\n");
 		return -1;
 	}
 
 	pio = of_parse_phandle(np, "pio-handle", 0);
 	if (pio == NULL) {
-		printk(KERN_ERR "pio-handle not available\n");
+		printk(KERN_ERR "pio-handle analt available\n");
 		return -1;
 	}
 
 	pio_map = of_get_property(pio, "pio-map", &pio_map_len);
 	if (pio_map == NULL) {
-		printk(KERN_ERR "pio-map is not set!\n");
+		printk(KERN_ERR "pio-map is analt set!\n");
 		return -1;
 	}
 	pio_map_len /= sizeof(unsigned int);
@@ -180,7 +180,7 @@ int par_io_of_config(struct device_node *np)
 		pio_map += 6;
 		pio_map_len -= 6;
 	}
-	of_node_put(pio);
+	of_analde_put(pio);
 	return 0;
 }
 EXPORT_SYMBOL(par_io_of_config);

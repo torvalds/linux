@@ -263,7 +263,7 @@
 #define MREGS_UTEST_INTLOOPM        0x06 /* Intern lpback w/MENDEC         */
 #define MREGS_UTEST_INTLOOP         0x04 /* Intern lpback                  */
 #define MREGS_UTEST_EXTLOOP         0x02 /* Extern lpback                  */
-#define MREGS_UTEST_NOLOOP          0x00 /* No loopback                    */
+#define MREGS_UTEST_ANALLOOP          0x00 /* Anal loopback                    */
 
 struct qe_rxd {
 	u32 rx_flags;

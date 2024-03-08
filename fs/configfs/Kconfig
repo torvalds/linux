@@ -9,4 +9,4 @@ config CONFIGFS_FS
 	  of kernel objects, or config_items.
 
 	  Both sysfs and configfs can and should exist together on the
-	  same system. One is not a replacement for the other.
+	  same system. One is analt a replacement for the other.

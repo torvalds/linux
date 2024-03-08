@@ -40,7 +40,7 @@ static inline u64 fadump_str_to_u64(const char *str)
 	return val;
 }
 
-#define FADUMP_CPU_UNKNOWN		(~((u32)0))
+#define FADUMP_CPU_UNKANALWN		(~((u32)0))
 
 #define FADUMP_CRASH_INFO_MAGIC		fadump_str_to_u64("FADMPINF")
 
@@ -94,8 +94,8 @@ struct fw_dump {
 	u64		boot_mem_regs_cnt;
 
 	unsigned long	fadumphdr_addr;
-	unsigned long	cpu_notes_buf_vaddr;
-	unsigned long	cpu_notes_buf_size;
+	unsigned long	cpu_analtes_buf_vaddr;
+	unsigned long	cpu_analtes_buf_size;
 
 	/*
 	 * Maximum size supported by firmware to copy from source to
@@ -110,7 +110,7 @@ struct fw_dump {
 	unsigned long	fadump_supported:1;
 	unsigned long	dump_active:1;
 	unsigned long	dump_registered:1;
-	unsigned long	nocma:1;
+	unsigned long	analcma:1;
 
 	struct fadump_ops	*ops;
 };
@@ -132,9 +132,9 @@ struct fadump_ops {
 };
 
 /* Helper functions */
-s32 __init fadump_setup_cpu_notes_buf(u32 num_cpus);
-void fadump_free_cpu_notes_buf(void);
-u32 *__init fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs);
+s32 __init fadump_setup_cpu_analtes_buf(u32 num_cpus);
+void fadump_free_cpu_analtes_buf(void);
+u32 *__init fadump_regs_to_elf_analtes(u32 *buf, struct pt_regs *regs);
 void __init fadump_update_elfcore_header(char *bufp);
 bool is_fadump_boot_mem_contiguous(void);
 bool is_fadump_reserved_mem_contiguous(void);
@@ -150,17 +150,17 @@ struct fw_dump {
 #endif /* CONFIG_PRESERVE_FA_DUMP */
 
 #ifdef CONFIG_PPC_PSERIES
-extern void rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node);
+extern void rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 analde);
 #else
 static inline void
-rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node) { }
+rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 analde) { }
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-extern void opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node);
+extern void opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 analde);
 #else
 static inline void
-opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node) { }
+opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 analde) { }
 #endif
 
 #endif /* _ASM_POWERPC_FADUMP_INTERNAL_H */

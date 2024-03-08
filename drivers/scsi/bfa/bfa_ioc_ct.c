@@ -29,7 +29,7 @@ BFA_TRC_FILE(CNA, IOC_CT);
  */
 static bfa_boolean_t bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc);
-static void bfa_ioc_ct_notify_fail(struct bfa_ioc_s *ioc);
+static void bfa_ioc_ct_analtify_fail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_ct_sync_start(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_sync_join(struct bfa_ioc_s *ioc);
@@ -75,12 +75,12 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	bfa_trc(ioc, ioc_fwstate);
 
 	/*
-	 * Use count cannot be non-zero and chip in uninitialized state.
+	 * Use count cananalt be analn-zero and chip in uninitialized state.
 	 */
 	WARN_ON(ioc_fwstate == BFI_IOC_UNINIT);
 
 	/*
-	 * Check if another driver with a different firmware is active
+	 * Check if aanalther driver with a different firmware is active
 	 */
 	bfa_ioc_fwver_get(ioc, &fwhdr);
 	if (!bfa_ioc_fwver_cmp(ioc, &fwhdr)) {
@@ -122,10 +122,10 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 }
 
 /*
- * Notify other functions on HB failure.
+ * Analtify other functions on HB failure.
  */
 static void
-bfa_ioc_ct_notify_fail(struct bfa_ioc_s *ioc)
+bfa_ioc_ct_analtify_fail(struct bfa_ioc_s *ioc)
 {
 	if (bfa_ioc_is_cna(ioc)) {
 		writel(__FW_INIT_HALT_P, ioc->ioc_regs.ll_halt);
@@ -233,7 +233,7 @@ bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc)
 	ioc->ioc_regs.smem_pg0 = BFI_IOC_SMEM_PG0_CT;
 
 	/*
-	 * err set reg : for notification of hb failure in fcmode
+	 * err set reg : for analtification of hb failure in fcmode
 	 */
 	ioc->ioc_regs.err_set = (rb + ERR_SET_REG);
 }
@@ -291,7 +291,7 @@ bfa_ioc_ct2_reg_init(struct bfa_ioc_s *ioc)
 	ioc->ioc_regs.smem_pg0 = BFI_IOC_SMEM_PG0_CT;
 
 	/*
-	 * err set reg : for notification of hb failure in fcmode
+	 * err set reg : for analtification of hb failure in fcmode
 	 */
 	ioc->ioc_regs.err_set = (rb + ERR_SET_REG);
 }
@@ -347,7 +347,7 @@ bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 		__F0_INTX_STATUS;
 
 	/*
-	 * If already in desired mode, do not change anything
+	 * If already in desired mode, do analt change anything
 	 */
 	if ((!msix && mode) || (msix && !mode))
 		return;
@@ -393,7 +393,7 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	writel(0, ioc->ioc_regs.ioc_fail_sync);
 	/*
 	 * Read the hw sem reg to make sure that it is locked
-	 * before we clear it. If it is not locked, writing 1
+	 * before we clear it. If it is analt locked, writing 1
 	 * will lock it instead of clearing it.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
@@ -410,7 +410,7 @@ bfa_ioc_ct_sync_start(struct bfa_ioc_s *ioc)
 	 * Driver load time.  If the sync required bit for this PCI fn
 	 * is set, it is due to an unclean exit by the driver for this
 	 * PCI fn in the previous incarnation. Whoever comes here first
-	 * should clean it up, no matter which PCI fn.
+	 * should clean it up, anal matter which PCI fn.
 	 */
 
 	if (sync_reqd & bfa_ioc_ct_sync_pos(ioc)) {
@@ -486,7 +486,7 @@ bfa_ioc_ct_sync_complete(struct bfa_ioc_s *ioc)
 	}
 
 	/*
-	 * If another PCI fn reinitialized and failed again while
+	 * If aanalther PCI fn reinitialized and failed again while
 	 * this IOC was waiting for hw sem, the sync_ackd bit for
 	 * this IOC need to be set again to allow reinitialization.
 	 */
@@ -504,7 +504,7 @@ bfa_ioc_set_ctx_hwif(struct bfa_ioc_s *ioc, struct bfa_ioc_hwif_s *hwif)
 {
 	hwif->ioc_firmware_lock = bfa_ioc_ct_firmware_lock;
 	hwif->ioc_firmware_unlock = bfa_ioc_ct_firmware_unlock;
-	hwif->ioc_notify_fail = bfa_ioc_ct_notify_fail;
+	hwif->ioc_analtify_fail = bfa_ioc_ct_analtify_fail;
 	hwif->ioc_ownership_reset = bfa_ioc_ct_ownership_reset;
 	hwif->ioc_sync_start = bfa_ioc_ct_sync_start;
 	hwif->ioc_sync_join = bfa_ioc_ct_sync_join;
@@ -549,7 +549,7 @@ bfa_ioc_set_ct2_hwif(struct bfa_ioc_s *ioc)
 }
 
 /*
- * Workaround for MSI-X resource allocation for catapult-2 with no asic block
+ * Workaround for MSI-X resource allocation for catapult-2 with anal asic block
  */
 #define HOSTFN_MSIX_DEFAULT		64
 #define HOSTFN_MSIX_VT_INDEX_MBOX_ERR	0x30138
@@ -659,7 +659,7 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb)
 	writel(r32, (rb + CT2_APP_PLL_SCLK_CTL_REG));
 
 	/*
-	 * Ignore mode and program for the max clock (which is FC16)
+	 * Iganalre mode and program for the max clock (which is FC16)
 	 * Firmware/NFC will do the PLL init appropiately
 	 */
 	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
@@ -940,7 +940,7 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode)
 	writel(1, (rb + CT2_LPU0_HOSTFN_MBOX0_MSK));
 	writel(1, (rb + CT2_LPU1_HOSTFN_MBOX0_MSK));
 
-	/* For first time initialization, no need to clear interrupts */
+	/* For first time initialization, anal need to clear interrupts */
 	r32 = readl(rb + HOST_SEM5_REG);
 	if (r32 & 0x1) {
 		r32 = readl((rb + CT2_LPU0_HOSTFN_CMD_STAT));

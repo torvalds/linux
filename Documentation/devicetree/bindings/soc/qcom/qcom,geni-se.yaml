@@ -14,7 +14,7 @@ description: |
  is a programmable module for supporting a wide range of serial interfaces
  like UART, SPI, I2C, I3C, etc. A single QUP module can provide upto 8 Serial
  Interfaces, using its internal Serial Engines. The GENI Serial Engine QUP
- Wrapper controller is modeled as a node with zero or more child nodes each
+ Wrapper controller is modeled as a analde with zero or more child analdes each
  representing a serial engine.
 
 properties:

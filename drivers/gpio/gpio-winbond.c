@@ -62,8 +62,8 @@
 #define WB_SIO_REG_G1MF_FS_GPIO1	2
 #define WB_SIO_REG_G1MF_FS_UARTB	3
 
-/* not an actual device number, just a value meaning 'no device' */
-#define WB_SIO_DEV_NONE		0xff
+/* analt an actual device number, just a value meaning 'anal device' */
+#define WB_SIO_DEV_ANALNE		0xff
 
 /* registers with offsets >= 0x30 are specific for a particular device */
 
@@ -204,13 +204,13 @@ static bool winbond_sio_reg_btest(unsigned long base, u8 reg, u8 bit)
 
 /**
  * struct winbond_gpio_port_conflict - possibly conflicting device information
- * @name:	device name (NULL means no conflicting device defined)
+ * @name:	device name (NULL means anal conflicting device defined)
  * @dev:	Super I/O logical device number where the testreg register
- *		is located (or WB_SIO_DEV_NONE - don't select any
+ *		is located (or WB_SIO_DEV_ANALNE - don't select any
  *		logical device)
  * @testreg:	register number where the testbit bit is located
  * @testbit:	index of a bit to check whether an actual conflict exists
- * @warnonly:	if set then a conflict isn't fatal (just warn about it),
+ * @waranalnly:	if set then a conflict isn't fatal (just warn about it),
  *		otherwise disable the particular GPIO port if a conflict
  *		is detected
  */
@@ -219,7 +219,7 @@ struct winbond_gpio_port_conflict {
 	u8 dev;
 	u8 testreg;
 	u8 testbit;
-	bool warnonly;
+	bool waranalnly;
 };
 
 /**
@@ -263,7 +263,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 			.dev = WB_SIO_DEV_UARTB,
 			.testreg = WB_SIO_UARTB_REG_ENABLE,
 			.testbit = WB_SIO_UARTB_ENABLE_ON,
-			.warnonly = true
+			.waranalnly = true
 		}
 	},
 	{ /* 1 */
@@ -291,7 +291,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 			.dev = WB_SIO_DEV_UARTC,
 			.testreg = WB_SIO_UARTC_REG_ENABLE,
 			.testbit = WB_SIO_UARTC_ENABLE_ON,
-			.warnonly = true
+			.waranalnly = true
 		}
 	},
 	{ /* 3 */
@@ -308,7 +308,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 			.dev = WB_SIO_DEV_UARTD,
 			.testreg = WB_SIO_UARTD_REG_ENABLE,
 			.testbit = WB_SIO_UARTD_ENABLE_ON,
-			.warnonly = true
+			.waranalnly = true
 		}
 	},
 	{ /* 4 */
@@ -325,7 +325,7 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 			.dev = WB_SIO_DEV_UARTE,
 			.testreg = WB_SIO_UARTE_REG_ENABLE,
 			.testbit = WB_SIO_UARTE_ENABLE_ON,
-			.warnonly = true
+			.waranalnly = true
 		}
 	},
 	{ /* 5 */
@@ -339,10 +339,10 @@ static const struct winbond_gpio_info winbond_gpio_infos[6] = {
 		.datareg = WB_SIO_WDGPIO56_REG_DATA6,
 		.conflict = {
 			.name = "FDC",
-			.dev = WB_SIO_DEV_NONE,
+			.dev = WB_SIO_DEV_ANALNE,
 			.testreg = WB_SIO_REG_GLOBAL_OPT,
 			.testbit = WB_SIO_REG_GO_ENFDC,
-			.warnonly = false
+			.waranalnly = false
 		}
 	}
 };
@@ -526,12 +526,12 @@ static bool winbond_gpio_configure_port(unsigned long base, unsigned int idx)
 
 	/* is there a possible conflicting device defined? */
 	if (conflict->name != NULL) {
-		if (conflict->dev != WB_SIO_DEV_NONE)
+		if (conflict->dev != WB_SIO_DEV_ANALNE)
 			winbond_sio_select_logical(base, conflict->dev);
 
 		if (winbond_sio_reg_btest(base, conflict->testreg,
 					  conflict->testbit)) {
-			if (conflict->warnonly)
+			if (conflict->waranalnly)
 				pr_warn("enabled GPIO%u share pins with active %s\n",
 					idx + 1, conflict->name);
 			else {
@@ -559,7 +559,7 @@ static bool winbond_gpio_configure_port(unsigned long base, unsigned int idx)
 		winbond_sio_reg_bclear(base, info->outputreg,
 				       info->outputppbit);
 	else
-		pr_notice("GPIO%u pins are %s\n", idx + 1,
+		pr_analtice("GPIO%u pins are %s\n", idx + 1,
 			  winbond_sio_reg_btest(base, info->outputreg,
 						info->outputppbit) ?
 			  "push-pull" :
@@ -596,12 +596,12 @@ static int winbond_gpio_check_chip(unsigned long base)
 	chip = winbond_sio_reg_read(base, WB_SIO_REG_CHIP_MSB) << 8;
 	chip |= winbond_sio_reg_read(base, WB_SIO_REG_CHIP_LSB);
 
-	pr_notice("chip ID at %lx is %.4x\n", base, chip);
+	pr_analtice("chip ID at %lx is %.4x\n", base, chip);
 
 	if ((chip & WB_SIO_CHIP_ID_W83627UHG_MASK) !=
 	    WB_SIO_CHIP_ID_W83627UHG) {
-		pr_err("not an our chip\n");
-		ret = -ENODEV;
+		pr_err("analt an our chip\n");
+		ret = -EANALDEV;
 	}
 
 	winbond_sio_leave(base);
@@ -617,7 +617,7 @@ static int winbond_gpio_imatch(struct device *dev, unsigned int id)
 	gpios_rem = params.gpios & ~GENMASK(ARRAY_SIZE(winbond_gpio_infos) - 1,
 					    0);
 	if (gpios_rem) {
-		pr_warn("unknown ports (%lx) enabled in GPIO ports bitmask\n",
+		pr_warn("unkanalwn ports (%lx) enabled in GPIO ports bitmask\n",
 			gpios_rem);
 		params.gpios &= ~gpios_rem;
 	}
@@ -638,7 +638,7 @@ static int winbond_gpio_imatch(struct device *dev, unsigned int id)
 	ret = winbond_gpio_check_chip(params.base);
 	if (ret == 0)
 		return 1;
-	if (ret != -ENODEV && ret != -EBUSY)
+	if (ret != -EANALDEV && ret != -EBUSY)
 		return 0;
 
 	params.base = WB_SIO_BASE_HIGH;
@@ -722,11 +722,11 @@ MODULE_PARM_DESC(odgpios,
  */
 module_param_named(pledgpio, params.pledgpio, bool, 0644);
 MODULE_PARM_DESC(pledgpio,
-		 "enable changing value of GPIO2.0 bit (Power LED), default no.");
+		 "enable changing value of GPIO2.0 bit (Power LED), default anal.");
 
 module_param_named(beepgpio, params.beepgpio, bool, 0644);
 MODULE_PARM_DESC(beepgpio,
-		 "enable changing value of GPIO2.1 bit (BEEP), default no.");
+		 "enable changing value of GPIO2.1 bit (BEEP), default anal.");
 
 MODULE_AUTHOR("Maciej S. Szmigiero <mail@maciej.szmigiero.name>");
 MODULE_DESCRIPTION("GPIO interface for Winbond Super I/O chips");

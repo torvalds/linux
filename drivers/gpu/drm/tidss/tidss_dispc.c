@@ -179,7 +179,7 @@ const struct dispc_features dispc_am65x_feats = {
 	},
 
 	.num_planes = 2,
-	/* note: vid is plane_id 0 and vidl1 is plane_id 1 */
+	/* analte: vid is plane_id 0 and vidl1 is plane_id 1 */
 	.vid_name = { "vid", "vidl1" },
 	.vid_lite = { false, true, },
 	.vid_order = { 1, 0 },
@@ -316,7 +316,7 @@ const struct dispc_features dispc_am625_feats = {
 	},
 
 	.num_planes = 2,
-	/* note: vid is plane_id 0 and vidl1 is plane_id 1 */
+	/* analte: vid is plane_id 0 and vidl1 is plane_id 1 */
 	.vid_name = { "vid", "vidl1" },
 	.vid_lite = { false, true, },
 	.vid_order = { 1, 0 },
@@ -370,7 +370,7 @@ const struct dispc_features dispc_am62a7_feats = {
 	},
 
 	.num_planes = 2,
-	/* note: vid is plane_id 0 and vidl1 is plane_id 1 */
+	/* analte: vid is plane_id 0 and vidl1 is plane_id 1 */
 	.vid_name = { "vid", "vidl1" },
 	.vid_lite = { false, true, },
 	.vid_order = { 1, 0 },
@@ -958,7 +958,7 @@ int dispc_vp_bus_check(struct dispc_device *dispc, u32 hw_videoport,
 
 	if (dispc->feat->vp_bus_type[hw_videoport] != DISPC_VP_OLDI &&
 	    fmt->is_oldi_fmt) {
-		dev_dbg(dispc->dev, "%s: %s is not OLDI-port\n",
+		dev_dbg(dispc->dev, "%s: %s is analt OLDI-port\n",
 			__func__, dispc->feat->vp_name[hw_videoport]);
 		return -EINVAL;
 	}
@@ -1026,7 +1026,7 @@ static void dispc_enable_oldi(struct dispc_device *dispc, u32 hw_videoport,
 	if (fmt->data_width == 24)
 		oldi_cfg |= BIT(8); /* MSB */
 	else if (fmt->data_width != 18)
-		dev_warn(dispc->dev, "%s: %d port width not supported\n",
+		dev_warn(dispc->dev, "%s: %d port width analt supported\n",
 			 __func__, fmt->data_width);
 
 	oldi_cfg |= BIT(7); /* DEPOL */
@@ -1072,7 +1072,7 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 {
 	const struct drm_display_mode *mode = &state->adjusted_mode;
 	const struct tidss_crtc_state *tstate = to_tidss_crtc_state(state);
-	bool align, onoff, rf, ieo, ipc, ihs, ivs;
+	bool align, oanalff, rf, ieo, ipc, ihs, ivs;
 	const struct dispc_bus_format *fmt;
 	u32 hsw, hfp, hbp, vsw, vfp, vbp;
 
@@ -1111,7 +1111,7 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 	ipc = !!(tstate->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE);
 
 	/* always use the 'rf' setting */
-	onoff = true;
+	oanalff = true;
 
 	rf = !!(tstate->bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE);
 
@@ -1124,7 +1124,7 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_POL_FREQ,
 		       FLD_VAL(align, 18, 18) |
-		       FLD_VAL(onoff, 17, 17) |
+		       FLD_VAL(oanalff, 17, 17) |
 		       FLD_VAL(rf, 16, 16) |
 		       FLD_VAL(ieo, 15, 15) |
 		       FLD_VAL(ipc, 14, 14) |
@@ -1245,7 +1245,7 @@ enum drm_mode_status dispc_vp_mode_valid(struct dispc_device *dispc,
 
 	/* TODO: add interlace support */
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	/*
 	 * Enforce the output width is divisible by 2. Actually this
@@ -1349,7 +1349,7 @@ static void dispc_k2g_ovr_set_plane(struct dispc_device *dispc,
 				    u32 hw_plane, u32 hw_videoport,
 				    u32 x, u32 y, u32 layer)
 {
-	/* On k2g there is only one plane and no need for ovr */
+	/* On k2g there is only one plane and anal need for ovr */
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_K2G_POSITION,
 			x | (y << 16));
 }
@@ -1498,7 +1498,7 @@ static void dispc_k2g_vid_write_csc(struct dispc_device *dispc, u32 hw_plane,
 		DISPC_VID_CSC_COEF(0), DISPC_VID_CSC_COEF(1),
 		DISPC_VID_CSC_COEF(2), DISPC_VID_CSC_COEF(3),
 		DISPC_VID_CSC_COEF(4), DISPC_VID_CSC_COEF(5),
-		DISPC_VID_CSC_COEF(6), /* K2G has no post offset support */
+		DISPC_VID_CSC_COEF(6), /* K2G has anal post offset support */
 	};
 	u32 regval[DISPC_CSC_REGVAL_LEN];
 	unsigned int i;
@@ -1506,7 +1506,7 @@ static void dispc_k2g_vid_write_csc(struct dispc_device *dispc, u32 hw_plane,
 	csc->to_regval(csc, regval);
 
 	if (regval[7] != 0)
-		dev_warn(dispc->dev, "%s: No post offset support for %s\n",
+		dev_warn(dispc->dev, "%s: Anal post offset support for %s\n",
 			 __func__, csc->name);
 
 	for (i = 0; i < ARRAY_SIZE(dispc_vid_csc_coef_reg); i++)
@@ -1618,7 +1618,7 @@ static void dispc_vid_csc_setup(struct dispc_device *dispc, u32 hw_plane,
 
 	coef = dispc_find_csc(state->color_encoding, state->color_range);
 	if (!coef) {
-		dev_err(dispc->dev, "%s: CSC (%u,%u) not found\n",
+		dev_err(dispc->dev, "%s: CSC (%u,%u) analt found\n",
 			__func__, state->color_encoding, state->color_range);
 		return;
 	}
@@ -1673,7 +1673,7 @@ static void dispc_vid_write_fir_coefs(struct dispc_device *dispc,
 	int phase;
 
 	if (!coefs) {
-		dev_err(dispc->dev, "%s: No coefficients given.\n", __func__);
+		dev_err(dispc->dev, "%s: Anal coefficients given.\n", __func__);
 		return;
 	}
 
@@ -1754,7 +1754,7 @@ static int dispc_vid_calc_scaling(struct dispc_device *dispc,
 		}
 	}
 
-	/* Skip the rest if no scaling is used */
+	/* Skip the rest if anal scaling is used */
 	if ((!sp->scale_x && !sp->scale_y) || lite_plane)
 		return 0;
 
@@ -1895,7 +1895,7 @@ static void dispc_vid_set_scaling(struct dispc_device *dispc,
 	VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES,
 			sp->scale_y, 8, 8);
 
-	/* Skip the rest if no scaling is used */
+	/* Skip the rest if anal scaling is used */
 	if (!sp->scale_x && !sp->scale_y)
 		return;
 
@@ -2207,7 +2207,7 @@ static void dispc_k2g_plane_init(struct dispc_device *dispc)
 
 	/* MFLAG_CTRL = ENABLED */
 	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 2, 1, 0);
-	/* MFLAG_START = MFLAGNORMALSTARTMODE */
+	/* MFLAG_START = MFLAGANALRMALSTARTMODE */
 	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 0, 6, 6);
 
 	for (hw_plane = 0; hw_plane < dispc->feat->num_planes; hw_plane++) {
@@ -2241,8 +2241,8 @@ static void dispc_k2g_plane_init(struct dispc_device *dispc)
 
 		/*
 		 * Prefetch up to fifo high-threshold value to minimize the
-		 * possibility of underflows. Note that this means the PRELOAD
-		 * register is ignored.
+		 * possibility of underflows. Analte that this means the PRELOAD
+		 * register is iganalred.
 		 */
 		VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, 1,
 				19, 19);
@@ -2262,7 +2262,7 @@ static void dispc_k3_plane_init(struct dispc_device *dispc)
 
 	/* MFLAG_CTRL = ENABLED */
 	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 2, 1, 0);
-	/* MFLAG_START = MFLAGNORMALSTARTMODE */
+	/* MFLAG_START = MFLAGANALRMALSTARTMODE */
 	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 0, 6, 6);
 
 	for (hw_plane = 0; hw_plane < dispc->feat->num_planes; hw_plane++) {
@@ -2333,7 +2333,7 @@ static void dispc_initial_config(struct dispc_device *dispc)
 	dispc_plane_init(dispc);
 	dispc_vp_init(dispc);
 
-	/* Note: Hardcoded DPI routing on J721E for now */
+	/* Analte: Hardcoded DPI routing on J721E for analw */
 	if (dispc->feat->subrev == DISPC_J721E) {
 		dispc_write(dispc, DISPC_CONNECTIONS,
 			    FLD_VAL(2, 3, 0) |		/* VP1 to DPI0 */
@@ -2680,7 +2680,7 @@ int dispc_runtime_resume(struct dispc_device *dispc)
 	clk_prepare_enable(dispc->fclk);
 
 	if (REG_GET(dispc, DSS_SYSSTATUS, 0, 0) == 0)
-		dev_warn(dispc->dev, "DSS FUNC RESET not done!\n");
+		dev_warn(dispc->dev, "DSS FUNC RESET analt done!\n");
 
 	dev_dbg(dispc->dev, "OMAP DSS7 rev 0x%x\n",
 		dispc_read(dispc, DSS_REVISION));
@@ -2723,7 +2723,7 @@ static int dispc_iomap_resource(struct platform_device *pdev, const char *name,
 
 	b = devm_platform_ioremap_resource_byname(pdev, name);
 	if (IS_ERR(b)) {
-		dev_err(&pdev->dev, "cannot ioremap resource '%s'\n", name);
+		dev_err(&pdev->dev, "cananalt ioremap resource '%s'\n", name);
 		return PTR_ERR(b);
 	}
 
@@ -2736,9 +2736,9 @@ static int dispc_init_am65x_oldi_io_ctrl(struct device *dev,
 					 struct dispc_device *dispc)
 {
 	dispc->oldi_io_ctrl =
-		syscon_regmap_lookup_by_phandle(dev->of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_analde,
 						"ti,am65x-oldi-io-ctrl");
-	if (PTR_ERR(dispc->oldi_io_ctrl) == -ENODEV) {
+	if (PTR_ERR(dispc->oldi_io_ctrl) == -EANALDEV) {
 		dispc->oldi_io_ctrl = NULL;
 	} else if (IS_ERR(dispc->oldi_io_ctrl)) {
 		dev_err(dev, "%s: syscon_regmap_lookup_by_phandle failed %ld\n",
@@ -2762,7 +2762,7 @@ static void dispc_init_errata(struct dispc_device *dispc)
 }
 
 /*
- * K2G display controller does not support soft reset, so we do a basic manual
+ * K2G display controller does analt support soft reset, so we do a basic manual
  * reset here: make sure the IRQs are masked and VPs are disabled.
  */
 static void dispc_softreset_k2g(struct dispc_device *dispc)
@@ -2856,14 +2856,14 @@ int dispc_init(struct tidss_device *tidss)
 	if (feat->subrev != DISPC_K2G) {
 		r = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 		if (r)
-			dev_warn(dev, "cannot set DMA masks to 48-bit\n");
+			dev_warn(dev, "cananalt set DMA masks to 48-bit\n");
 	}
 
 	dma_set_max_seg_size(dev, UINT_MAX);
 
 	dispc = devm_kzalloc(dev, sizeof(*dispc), GFP_KERNEL);
 	if (!dispc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dispc->tidss = tidss;
 	dispc->dev = dev;
@@ -2874,7 +2874,7 @@ int dispc_init(struct tidss_device *tidss)
 	dispc->fourccs = devm_kcalloc(dev, ARRAY_SIZE(dispc_color_formats),
 				      sizeof(*dispc->fourccs), GFP_KERNEL);
 	if (!dispc->fourccs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_fourccs = 0;
 	for (i = 0; i < ARRAY_SIZE(dispc_color_formats); ++i) {
@@ -2928,7 +2928,7 @@ int dispc_init(struct tidss_device *tidss)
 						 sizeof(*gamma_table),
 						 GFP_KERNEL);
 		if (!gamma_table)
-			return -ENOMEM;
+			return -EANALMEM;
 		dispc->vp_data[i].gamma_table = gamma_table;
 	}
 
@@ -2946,7 +2946,7 @@ int dispc_init(struct tidss_device *tidss)
 	}
 	dev_dbg(dev, "DSS fclk %lu Hz\n", clk_get_rate(dispc->fclk));
 
-	of_property_read_u32(dispc->dev->of_node, "max-memory-bandwidth",
+	of_property_read_u32(dispc->dev->of_analde, "max-memory-bandwidth",
 			     &dispc->memory_bandwidth_limit);
 
 	r = dispc_init_hw(dispc);

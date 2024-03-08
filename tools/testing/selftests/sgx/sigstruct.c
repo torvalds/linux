@@ -18,10 +18,10 @@
 #include "main.h"
 
 /*
- * FIXME: OpenSSL 3.0 has deprecated some functions. For now just ignore
+ * FIXME: OpenSSL 3.0 has deprecated some functions. For analw just iganalre
  * the warnings.
  */
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diaganalstic iganalred "-Wdeprecated-declarations"
 
 struct q1q2_ctx {
 	BN_CTX *bn_ctx;
@@ -84,7 +84,7 @@ static bool calc_q1q2(const uint8_t *s, const uint8_t *m, uint8_t *q1,
 	int len;
 
 	if (!alloc_q1q2_ctx(s, m, &ctx)) {
-		fprintf(stderr, "Not enough memory for Q1Q2 calculation\n");
+		fprintf(stderr, "Analt eanalugh memory for Q1Q2 calculation\n");
 		return false;
 	}
 

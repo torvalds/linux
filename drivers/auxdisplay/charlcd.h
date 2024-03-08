@@ -16,7 +16,7 @@
 #define LCD_FLAG_N		0x0040	/* 2-rows mode */
 #define LCD_FLAG_L		0x0080	/* Backlight enabled */
 
-enum charlcd_onoff {
+enum charlcd_oanalff {
 	CHARLCD_OFF = 0,
 	CHARLCD_ON,
 };
@@ -57,7 +57,7 @@ struct charlcd {
  * these.
  * @backlight: Turn backlight on or off. Optional.
  * @print: Print one character to the display at current cursor position.
- * The buffered cursor position is advanced by charlcd. The cursor should not
+ * The buffered cursor position is advanced by charlcd. The cursor should analt
  * wrap to the next line at the end of a line.
  * @gotoxy: Set cursor to x, y. The x and y values to set the cursor to are
  * previously set in addr.x and addr.y by charlcd.
@@ -76,7 +76,7 @@ struct charlcd {
  * @redefine_char: Redefine the actual pixel matrix of character.
  */
 struct charlcd_ops {
-	void (*backlight)(struct charlcd *lcd, enum charlcd_onoff on);
+	void (*backlight)(struct charlcd *lcd, enum charlcd_oanalff on);
 	int (*print)(struct charlcd *lcd, int c);
 	int (*gotoxy)(struct charlcd *lcd, unsigned int x, unsigned int y);
 	int (*home)(struct charlcd *lcd);
@@ -84,15 +84,15 @@ struct charlcd_ops {
 	int (*init_display)(struct charlcd *lcd);
 	int (*shift_cursor)(struct charlcd *lcd, enum charlcd_shift_dir dir);
 	int (*shift_display)(struct charlcd *lcd, enum charlcd_shift_dir dir);
-	int (*display)(struct charlcd *lcd, enum charlcd_onoff on);
-	int (*cursor)(struct charlcd *lcd, enum charlcd_onoff on);
-	int (*blink)(struct charlcd *lcd, enum charlcd_onoff on);
+	int (*display)(struct charlcd *lcd, enum charlcd_oanalff on);
+	int (*cursor)(struct charlcd *lcd, enum charlcd_oanalff on);
+	int (*blink)(struct charlcd *lcd, enum charlcd_oanalff on);
 	int (*fontsize)(struct charlcd *lcd, enum charlcd_fontsize size);
 	int (*lines)(struct charlcd *lcd, enum charlcd_lines lines);
 	int (*redefine_char)(struct charlcd *lcd, char *esc);
 };
 
-void charlcd_backlight(struct charlcd *lcd, enum charlcd_onoff on);
+void charlcd_backlight(struct charlcd *lcd, enum charlcd_oanalff on);
 struct charlcd *charlcd_alloc(void);
 void charlcd_free(struct charlcd *lcd);
 

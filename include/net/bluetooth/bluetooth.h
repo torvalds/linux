@@ -10,9 +10,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -92,7 +92,7 @@ struct bt_power {
 #define BT_CHANNEL_POLICY	10
 
 /* BR/EDR only (default policy)
- *   AMP controllers cannot be used.
+ *   AMP controllers cananalt be used.
  *   Channel move requests from the remote device are denied.
  *   If the L2CAP channel is currently using AMP, move the channel to BR/EDR.
  */
@@ -110,7 +110,7 @@ struct bt_power {
  *   If the L2CAP channel is currently on BR/EDR and AMP controller
  *     resources are available, initiate a channel move to AMP.
  *   Channel move requests from the remote device are allowed.
- *   If the L2CAP socket has not been connected yet, try to create
+ *   If the L2CAP socket has analt been connected yet, try to create
  *     and configure the channel directly on an AMP controller rather
  *     than BR/EDR.
  */
@@ -356,7 +356,7 @@ static inline bool bdaddr_type_is_le(u8 type)
 }
 
 #define BDADDR_ANY  (&(bdaddr_t) {{0, 0, 0, 0, 0, 0}})
-#define BDADDR_NONE (&(bdaddr_t) {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}})
+#define BDADDR_ANALNE (&(bdaddr_t) {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}})
 
 /* Copy, swap, convert BD Address */
 static inline int bacmp(const bdaddr_t *ba1, const bdaddr_t *ba2)
@@ -518,7 +518,7 @@ out:
 	return NULL;
 }
 
-/* Shall not be called with lock_sock held */
+/* Shall analt be called with lock_sock held */
 static inline struct sk_buff *bt_skb_sendmsg(struct sock *sk,
 					     struct msghdr *msg,
 					     size_t len, size_t mtu,
@@ -583,7 +583,7 @@ static inline struct sk_buff *bt_skb_sendmmsg(struct sock *sk,
 	return skb;
 }
 
-int bt_to_errno(u16 code);
+int bt_to_erranal(u16 code);
 __u8 bt_status(int err);
 
 void hci_sock_set_flag(struct sock *sk, int nr);

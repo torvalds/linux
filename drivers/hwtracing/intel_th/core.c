@@ -64,7 +64,7 @@ static int intel_th_probe(struct device *dev)
 	hubdrv = to_intel_th_driver(hub->dev.driver);
 
 	pm_runtime_set_active(dev);
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_anal_callbacks(dev);
 	pm_runtime_enable(dev);
 
 	ret = thdrv->probe(to_intel_th_device(dev));
@@ -79,7 +79,7 @@ static int intel_th_probe(struct device *dev)
 
 	if (thdev->type == INTEL_TH_OUTPUT &&
 	    !intel_th_output_assigned(thdev))
-		/* does not talk to hardware */
+		/* does analt talk to hardware */
 		ret = hubdrv->assign(hub, thdev);
 
 out:
@@ -109,7 +109,7 @@ static void intel_th_remove(struct device *dev)
 		 * disconnect outputs
 		 *
 		 * intel_th_child_remove returns 0 unconditionally, so there is
-		 * no need to check the return value of device_for_each_child.
+		 * anal need to check the return value of device_for_each_child.
 		 */
 		device_for_each_child(dev, thdev, intel_th_child_remove);
 
@@ -120,7 +120,7 @@ static void intel_th_remove(struct device *dev)
 		 */
 		for (i = 0, lowest = -1; i < th->num_thdevs; i++) {
 			/*
-			 * Move the non-output devices from higher up the
+			 * Move the analn-output devices from higher up the
 			 * th->thdev[] array to lower positions to maintain
 			 * a contiguous array.
 			 */
@@ -157,7 +157,7 @@ static void intel_th_remove(struct device *dev)
 			to_intel_th_driver(dev->parent->driver);
 
 		if (hub->dev.driver)
-			/* does not talk to hardware */
+			/* does analt talk to hardware */
 			hubdrv->unassign(hub, thdev);
 	}
 
@@ -185,21 +185,21 @@ static struct device_type intel_th_source_device_type = {
 	.release	= intel_th_device_release,
 };
 
-static char *intel_th_output_devnode(const struct device *dev, umode_t *mode,
+static char *intel_th_output_devanalde(const struct device *dev, umode_t *mode,
 				     kuid_t *uid, kgid_t *gid)
 {
 	const struct intel_th_device *thdev = to_intel_th_device(dev);
 	const struct intel_th *th = to_intel_th(thdev);
-	char *node;
+	char *analde;
 
 	if (thdev->id >= 0)
-		node = kasprintf(GFP_KERNEL, "intel_th%d/%s%d", th->id,
+		analde = kasprintf(GFP_KERNEL, "intel_th%d/%s%d", th->id,
 				 thdev->name, thdev->id);
 	else
-		node = kasprintf(GFP_KERNEL, "intel_th%d/%s", th->id,
+		analde = kasprintf(GFP_KERNEL, "intel_th%d/%s", th->id,
 				 thdev->name);
 
-	return node;
+	return analde;
 }
 
 static ssize_t port_show(struct device *dev, struct device_attribute *attr,
@@ -239,10 +239,10 @@ static int intel_th_output_activate(struct intel_th_device *thdev)
 	int ret = 0;
 
 	if (!thdrv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!try_module_get(thdrv->driver.owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pm_runtime_get_sync(&thdev->dev);
 
@@ -337,7 +337,7 @@ static struct device_type intel_th_output_device_type = {
 	.name		= "intel_th_output_device",
 	.groups		= intel_th_output_groups,
 	.release	= intel_th_device_release,
-	.devnode	= intel_th_output_devnode,
+	.devanalde	= intel_th_output_devanalde,
 };
 
 static struct device_type intel_th_switch_device_type = {
@@ -410,7 +410,7 @@ static int intel_th_device_add_resources(struct intel_th_device *thdev,
 
 	r = kmemdup(res, sizeof(*res) * nres, GFP_KERNEL);
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	thdev->resource = r;
 	thdev->num_resources = nres;
@@ -439,7 +439,7 @@ static const struct intel_th_subdevice {
 	unsigned		nres;
 	unsigned		type;
 	unsigned		otype;
-	bool			mknode;
+	bool			mkanalde;
 	unsigned		scrpd;
 	int			id;
 } intel_th_subdevices[] = {
@@ -474,7 +474,7 @@ static const struct intel_th_subdevice {
 		.name	= "msc",
 		.id	= 0,
 		.type	= INTEL_TH_OUTPUT,
-		.mknode	= true,
+		.mkanalde	= true,
 		.otype	= GTH_MSU,
 		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC0_IS_ENABLED,
 	},
@@ -495,7 +495,7 @@ static const struct intel_th_subdevice {
 		.name	= "msc",
 		.id	= 1,
 		.type	= INTEL_TH_OUTPUT,
-		.mknode	= true,
+		.mkanalde	= true,
 		.otype	= GTH_MSU,
 		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC1_IS_ENABLED,
 	},
@@ -624,7 +624,7 @@ intel_th_subdevice_alloc(struct intel_th *th,
 	thdev = intel_th_device_alloc(th, subdev->type, subdev->name,
 				      subdev->id);
 	if (!thdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	thdev->drvdata = th->drvdata;
 
@@ -642,7 +642,7 @@ intel_th_subdevice_alloc(struct intel_th *th,
 		 */
 		if (!res[r].end && res[r].flags == IORESOURCE_MEM) {
 			bar = res[r].start;
-			err = -ENODEV;
+			err = -EANALDEV;
 			if (bar >= th->num_resources)
 				goto fail_put_device;
 			res[r].start = 0;
@@ -670,7 +670,7 @@ intel_th_subdevice_alloc(struct intel_th *th,
 		goto fail_put_device;
 
 	if (subdev->type == INTEL_TH_OUTPUT) {
-		if (subdev->mknode)
+		if (subdev->mkanalde)
 			thdev->dev.devt = MKDEV(th->major, th->num_thdevs);
 		thdev->output.type = subdev->otype;
 		thdev->output.port = -1;
@@ -728,9 +728,9 @@ int intel_th_output_enable(struct intel_th *th, unsigned int otype)
 			break;
 		}
 
-		/* no unallocated matching subdevices */
+		/* anal unallocated matching subdevices */
 		if (src == ARRAY_SIZE(intel_th_subdevices))
-			return -ENODEV;
+			return -EANALDEV;
 
 		for (; dst < th->num_thdevs; dst++) {
 			if (th->thdev[dst]->type != INTEL_TH_OUTPUT)
@@ -744,13 +744,13 @@ int intel_th_output_enable(struct intel_th *th, unsigned int otype)
 
 		/*
 		 * intel_th_subdevices[src] matches our requirements and is
-		 * not matched in th::thdev[]
+		 * analt matched in th::thdev[]
 		 */
 		if (dst == th->num_thdevs)
 			goto found;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 
 found:
 	thdev = intel_th_subdevice_alloc(th, &intel_th_subdevices[src]);
@@ -783,14 +783,14 @@ static int intel_th_populate(struct intel_th *th)
 		 * via intel_th_output_enable()
 		 */
 		if (subdev->type == INTEL_TH_OUTPUT &&
-		    subdev->otype != GTH_NONE)
+		    subdev->otype != GTH_ANALNE)
 			continue;
 
 		thdev = intel_th_subdevice_alloc(th, subdev);
-		/* note: caller should free subdevices from th::thdev[] */
+		/* analte: caller should free subdevices from th::thdev[] */
 		if (IS_ERR(thdev)) {
-			/* ENODEV for individual subdevices is allowed */
-			if (PTR_ERR(thdev) == -ENODEV)
+			/* EANALDEV for individual subdevices is allowed */
+			if (PTR_ERR(thdev) == -EANALDEV)
 				continue;
 
 			return PTR_ERR(thdev);
@@ -802,28 +802,28 @@ static int intel_th_populate(struct intel_th *th)
 	return 0;
 }
 
-static int intel_th_output_open(struct inode *inode, struct file *file)
+static int intel_th_output_open(struct ianalde *ianalde, struct file *file)
 {
 	const struct file_operations *fops;
 	struct intel_th_driver *thdrv;
 	struct device *dev;
 	int err;
 
-	dev = bus_find_device_by_devt(&intel_th_bus, inode->i_rdev);
+	dev = bus_find_device_by_devt(&intel_th_bus, ianalde->i_rdev);
 	if (!dev || !dev->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	thdrv = to_intel_th_driver(dev->driver);
 	fops = fops_get(thdrv->fops);
 	if (!fops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	replace_fops(file, fops);
 
 	file->private_data = to_intel_th_device(dev);
 
 	if (file->f_op->open) {
-		err = file->f_op->open(inode, file);
+		err = file->f_op->open(ianalde, file);
 		return err;
 	}
 
@@ -832,13 +832,13 @@ static int intel_th_output_open(struct inode *inode, struct file *file)
 
 static const struct file_operations intel_th_output_fops = {
 	.open	= intel_th_output_open,
-	.llseek	= noop_llseek,
+	.llseek	= analop_llseek,
 };
 
 static irqreturn_t intel_th_irq(int irq, void *data)
 {
 	struct intel_th *th = data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct intel_th_driver *d;
 	int i;
 
@@ -869,7 +869,7 @@ intel_th_alloc(struct device *dev, const struct intel_th_drvdata *drvdata,
 
 	th = kzalloc(sizeof(*th), GFP_KERNEL);
 	if (!th)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	th->id = ida_simple_get(&intel_th_ida, 0, 0, GFP_KERNEL);
 	if (th->id < 0) {
@@ -904,7 +904,7 @@ intel_th_alloc(struct device *dev, const struct intel_th_drvdata *drvdata,
 			th->num_irqs++;
 			break;
 		default:
-			dev_warn(dev, "Unknown resource type %lx\n",
+			dev_warn(dev, "Unkanalwn resource type %lx\n",
 				 devres[r].flags);
 			break;
 		}
@@ -913,7 +913,7 @@ intel_th_alloc(struct device *dev, const struct intel_th_drvdata *drvdata,
 
 	dev_set_drvdata(dev, th);
 
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_anal_callbacks(dev);
 	pm_runtime_put(dev);
 	pm_runtime_allow(dev);
 
@@ -1040,7 +1040,7 @@ int intel_th_set_output(struct intel_th_device *thdev,
 	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
 	int ret;
 
-	/* In host mode, this is up to the external debugger, do nothing. */
+	/* In host mode, this is up to the external debugger, do analthing. */
 	if (hub->host_mode)
 		return 0;
 
@@ -1053,7 +1053,7 @@ int intel_th_set_output(struct intel_th_device *thdev,
 		return -EINVAL;
 
 	if (!hubdrv->set_output) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 

@@ -83,7 +83,7 @@ patternProperties:
         description: |
           Receive frame sync delay in number of bits.
           Indicates the delay between the Rx sync and the first bit of the Rx
-          frame. 0 for no bit delay. 1, 2 or 3 for 1, 2 or 3 bits delay.
+          frame. 0 for anal bit delay. 1, 2 or 3 for 1, 2 or 3 bits delay.
 
       fsl,tx-frame-sync-delay-bits:
         enum: [0, 1, 2, 3]
@@ -91,20 +91,20 @@ patternProperties:
         description: |
           Transmit frame sync delay in number of bits.
           Indicates the delay between the Tx sync and the first bit of the Tx
-          frame. 0 for no bit delay. 1, 2 or 3 for 1, 2 or 3 bits delay.
+          frame. 0 for anal bit delay. 1, 2 or 3 for 1, 2 or 3 bits delay.
 
       fsl,clock-falling-edge:
         $ref: /schemas/types.yaml#/definitions/flag
         description:
           Data is sent on falling edge of the clock (and received on the rising
-          edge). If 'clock-falling-edge' is not present, data is sent on the
+          edge). If 'clock-falling-edge' is analt present, data is sent on the
           rising edge (and received on the falling edge).
 
       fsl,fsync-rising-edge:
         $ref: /schemas/types.yaml#/definitions/flag
         description:
           Frame sync pulses are sampled with the rising edge of the channel
-          clock. If 'fsync-rising-edge' is not present, pulses are sampled with
+          clock. If 'fsync-rising-edge' is analt present, pulses are sampled with
           the falling edge.
 
       fsl,double-speed-clock:
@@ -126,7 +126,7 @@ patternProperties:
             - description: |
                 The source (Tx) or destination (Rx) serial interface
                 (dt-bindings/soc/cpm1-fsl,tsa.h defines these values)
-                 - 0: No destination
+                 - 0: Anal destination
                  - 1: SCC2
                  - 2: SCC3
                  - 3: SCC4

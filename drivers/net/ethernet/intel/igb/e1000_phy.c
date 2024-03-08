@@ -32,7 +32,7 @@ static const u16 e1000_igp_2_cable_length_table[] = {
  *  @hw: pointer to the HW structure
  *
  *  Read the PHY management control register and check whether a PHY reset
- *  is blocked.  If a reset is not blocked return 0, otherwise
+ *  is blocked.  If a reset is analt blocked return 0, otherwise
  *  return E1000_BLK_PHY_RESET (12).
  **/
 s32 igb_check_reset_block(struct e1000_hw *hw)
@@ -143,7 +143,7 @@ s32 igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 			break;
 	}
 	if (!(mdic & E1000_MDIC_READY)) {
-		hw_dbg("MDI Read did not complete\n");
+		hw_dbg("MDI Read did analt complete\n");
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
@@ -200,7 +200,7 @@ s32 igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 			break;
 	}
 	if (!(mdic & E1000_MDIC_READY)) {
-		hw_dbg("MDI Write did not complete\n");
+		hw_dbg("MDI Write did analt complete\n");
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
@@ -246,7 +246,7 @@ s32 igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data)
 			break;
 	}
 	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg("I2CCMD Read did not complete\n");
+		hw_dbg("I2CCMD Read did analt complete\n");
 		return -E1000_ERR_PHY;
 	}
 	if (i2ccmd & E1000_I2CCMD_ERROR) {
@@ -303,7 +303,7 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 			break;
 	}
 	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg("I2CCMD Write did not complete\n");
+		hw_dbg("I2CCMD Write did analt complete\n");
 		return -E1000_ERR_PHY;
 	}
 	if (i2ccmd & E1000_I2CCMD_ERROR) {
@@ -321,10 +321,10 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
  *  @data: read data buffer pointer
  *
  *  Reads one byte from SFP module data stored
- *  in SFP resided EEPROM memory or SFP diagnostic area.
+ *  in SFP resided EEPROM memory or SFP diaganalstic area.
  *  Function should be called with
  *  E1000_I2CCMD_SFP_DATA_ADDR(<byte offset>) for SFP module database access
- *  E1000_I2CCMD_SFP_DIAG_ADDR(<byte offset>) for SFP diagnostics parameters
+ *  E1000_I2CCMD_SFP_DIAG_ADDR(<byte offset>) for SFP diaganalstics parameters
  *  access
  **/
 s32 igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data)
@@ -355,7 +355,7 @@ s32 igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data)
 			break;
 	}
 	if (!(data_local & E1000_I2CCMD_READY)) {
-		hw_dbg("I2CCMD Read did not complete\n");
+		hw_dbg("I2CCMD Read did analt complete\n");
 		return -E1000_ERR_PHY;
 	}
 	if (data_local & E1000_I2CCMD_ERROR) {
@@ -654,7 +654,7 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 		phy_data |= M88E1000_PSCR_MDIX_MANUAL_MODE;
 		break;
 	case 3:
-		/* M88E1112 does not support this mode) */
+		/* M88E1112 does analt support this mode) */
 		if (phy->id != M88E1112_E_PHY_ID) {
 			phy_data |= M88E1000_PSCR_AUTO_X_1000T;
 			break;
@@ -742,7 +742,7 @@ s32 igb_copper_link_setup_igp(struct e1000_hw *hw)
 	msleep(100);
 
 	/* The NVM settings will configure LPLU in D3 for
-	 * non-IGP1 PHYs.
+	 * analn-IGP1 PHYs.
 	 */
 	if (phy->type == e1000_phy_igp) {
 		/* disable lplu d3 during driver init */
@@ -869,7 +869,7 @@ static s32 igb_copper_link_autoneg(struct e1000_hw *hw)
 	 */
 	phy->autoneg_advertised &= phy->autoneg_mask;
 
-	/* If autoneg_advertised is zero, we assume it was not defaulted
+	/* If autoneg_advertised is zero, we assume it was analt defaulted
 	 * by the calling code so we set to advertise full capability.
 	 */
 	if (phy->autoneg_advertised == 0)
@@ -986,7 +986,7 @@ static s32 igb_phy_setup_autoneg(struct e1000_hw *hw)
 		mii_autoneg_adv_reg |= NWAY_AR_100TX_FD_CAPS;
 	}
 
-	/* We do not allow the Phy to advertise 1000 Mb Half Duplex */
+	/* We do analt allow the Phy to advertise 1000 Mb Half Duplex */
 	if (phy->autoneg_advertised & ADVERTISE_1000_HALF)
 		hw_dbg("Advertise 1000mb Half duplex request denied!\n");
 
@@ -1006,15 +1006,15 @@ static s32 igb_phy_setup_autoneg(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames
-	 *          but not send pause frames).
+	 *          but analt send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *          but we do not support receiving pause frames).
+	 *          but we do analt support receiving pause frames).
 	 *      3:  Both Rx and TX flow control (symmetric) are enabled.
-	 *  other:  No software override.  The flow control configuration
+	 *  other:  Anal software override.  The flow control configuration
 	 *          in the EEPROM is used.
 	 */
 	switch (hw->fc.current_mode) {
-	case e1000_fc_none:
+	case e1000_fc_analne:
 		/* Flow control (RX & TX) is completely disabled by a
 		 * software over-ride.
 		 */
@@ -1076,7 +1076,7 @@ out:
  *  Calls the appropriate function to configure the link for auto-neg or forced
  *  speed and duplex.  Then we check for link, once link is established calls
  *  to configure collision distance and flow control are called.  If link is
- *  not established, we return -E1000_ERR_PHY (-2).
+ *  analt established, we return -E1000_ERR_PHY (-2).
  **/
 s32 igb_setup_copper_link(struct e1000_hw *hw)
 {
@@ -1336,7 +1336,7 @@ static void igb_phy_force_speed_duplex_setup(struct e1000_hw *hw,
 	u32 ctrl;
 
 	/* Turn off flow control when forcing speed/duplex */
-	hw->fc.current_mode = e1000_fc_none;
+	hw->fc.current_mode = e1000_fc_analne;
 
 	/* Force speed/duplex on the mac */
 	ctrl = rd32(E1000_CTRL);
@@ -1444,7 +1444,7 @@ s32 igb_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 				goto out;
 		}
 	} else if ((phy->autoneg_advertised == E1000_ALL_SPEED_DUPLEX) ||
-		   (phy->autoneg_advertised == E1000_ALL_NOT_GIG) ||
+		   (phy->autoneg_advertised == E1000_ALL_ANALT_GIG) ||
 		   (phy->autoneg_advertised == E1000_ALL_10_SPEED)) {
 		data |= IGP02E1000_PM_D3_LPLU;
 		ret_val = phy->ops.write_reg(hw, IGP02E1000_PHY_POWER_MGMT,
@@ -1495,7 +1495,7 @@ s32 igb_check_downshift(struct e1000_hw *hw)
 		mask	= IGP01E1000_PLHR_SS_DOWNGRADE;
 		break;
 	default:
-		/* speed downshift not supported */
+		/* speed downshift analt supported */
 		phy->speed_downgraded = false;
 		ret_val = 0;
 		goto out;
@@ -1529,7 +1529,7 @@ s32 igb_check_polarity_m88(struct e1000_hw *hw)
 	if (!ret_val)
 		phy->cable_polarity = (data & M88E1000_PSSR_REV_POLARITY)
 				      ? e1000_rev_polarity_reversed
-				      : e1000_rev_polarity_normal;
+				      : e1000_rev_polarity_analrmal;
 
 	return ret_val;
 }
@@ -1541,7 +1541,7 @@ s32 igb_check_polarity_m88(struct e1000_hw *hw)
  *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
  *
  *  Polarity is determined based on the PHY port status register, and the
- *  current speed (since there is no polarity at 100Mbps).
+ *  current speed (since there is anal polarity at 100Mbps).
  **/
 static s32 igb_check_polarity_igp(struct e1000_hw *hw)
 {
@@ -1562,7 +1562,7 @@ static s32 igb_check_polarity_igp(struct e1000_hw *hw)
 		mask	= IGP01E1000_PHY_POLARITY_MASK;
 	} else {
 		/* This really only applies to 10Mbps since
-		 * there is no polarity for 100Mbps (always 0).
+		 * there is anal polarity for 100Mbps (always 0).
 		 */
 		offset	= IGP01E1000_PHY_PORT_STATUS;
 		mask	= IGP01E1000_PSSR_POLARITY_REVERSED;
@@ -1573,7 +1573,7 @@ static s32 igb_check_polarity_igp(struct e1000_hw *hw)
 	if (!ret_val)
 		phy->cable_polarity = (data & mask)
 				      ? e1000_rev_polarity_reversed
-				      : e1000_rev_polarity_normal;
+				      : e1000_rev_polarity_analrmal;
 
 out:
 	return ret_val;
@@ -1615,7 +1615,7 @@ static s32 igb_wait_autoneg(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *  @iterations: number of times to poll for link
  *  @usec_interval: delay between polling attempts
- *  @success: pointer to whether polling was successful or not
+ *  @success: pointer to whether polling was successful or analt
  *
  *  Polls the PHY status register for link, 'iterations' number of times.
  **/
@@ -1627,12 +1627,12 @@ s32 igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
 
 	for (i = 0; i < iterations; i++) {
 		/* Some PHYs require the PHY_STATUS register to be read
-		 * twice due to the link bit being sticky.  No harm doing
+		 * twice due to the link bit being sticky.  Anal harm doing
 		 * it across the board.
 		 */
 		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
 		if (ret_val && usec_interval > 0) {
-			/* If the first read fails, another entity may have
+			/* If the first read fails, aanalther entity may have
 			 * ownership of the resources, wait and try again to
 			 * see if they have relinquished the resources yet.
 			 */
@@ -1827,7 +1827,7 @@ out:
  *  igb_get_cable_length_igp_2 - Determine cable length for igp2 PHY
  *  @hw: pointer to the HW structure
  *
- *  The automatic gain control (agc) normalizes the amplitude of the
+ *  The automatic gain control (agc) analrmalizes the amplitude of the
  *  received signal, adjusting for the attenuation produced by the
  *  cable.  By reading the AGC registers, which represent the
  *  combination of coarse and fine gain value, the value can be put
@@ -1956,11 +1956,11 @@ s32 igb_get_phy_info_m88(struct e1000_hw *hw)
 
 		phy->local_rx = (phy_data & SR_1000T_LOCAL_RX_STATUS)
 				? e1000_1000t_rx_status_ok
-				: e1000_1000t_rx_status_not_ok;
+				: e1000_1000t_rx_status_analt_ok;
 
 		phy->remote_rx = (phy_data & SR_1000T_REMOTE_RX_STATUS)
 				 ? e1000_1000t_rx_status_ok
-				 : e1000_1000t_rx_status_not_ok;
+				 : e1000_1000t_rx_status_analt_ok;
 	} else {
 		/* Set values to "undefined" */
 		phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
@@ -2022,11 +2022,11 @@ s32 igb_get_phy_info_igp(struct e1000_hw *hw)
 
 		phy->local_rx = (data & SR_1000T_LOCAL_RX_STATUS)
 				? e1000_1000t_rx_status_ok
-				: e1000_1000t_rx_status_not_ok;
+				: e1000_1000t_rx_status_analt_ok;
 
 		phy->remote_rx = (data & SR_1000T_REMOTE_RX_STATUS)
 				 ? e1000_1000t_rx_status_ok
-				 : e1000_1000t_rx_status_not_ok;
+				 : e1000_1000t_rx_status_analt_ok;
 	} else {
 		phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
 		phy->local_rx = e1000_1000t_rx_status_undefined;
@@ -2071,7 +2071,7 @@ out:
  *  igb_phy_hw_reset - PHY hardware reset
  *  @hw: pointer to the HW structure
  *
- *  Verify the reset block is not blocking us from resetting.  Acquire
+ *  Verify the reset block is analt blocking us from resetting.  Acquire
  *  semaphore (if necessary) and read/set/write the device control reset
  *  bit in the PHY.  Wait the appropriate delay time for the device to
  *  reset and release the semaphore (if necessary).
@@ -2115,7 +2115,7 @@ out:
  *  igb_phy_init_script_igp3 - Inits the IGP3 PHY
  *  @hw: pointer to the HW structure
  *
- *  Initializes a Intel Gigabit PHY3 when an EEPROM is not present.
+ *  Initializes a Intel Gigabit PHY3 when an EEPROM is analt present.
  **/
 s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 {
@@ -2180,7 +2180,7 @@ s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 	hw->phy.ops.write_reg(hw, 0x1898, 0xD918);
 	/* Disable AHT in Slave mode on channel A */
 	hw->phy.ops.write_reg(hw, 0x187A, 0x0800);
-	/* Enable LPLU and disable AN to 1000 in non-D0a states,
+	/* Enable LPLU and disable AN to 1000 in analn-D0a states,
 	 * Enable SPD+B2B
 	 */
 	hw->phy.ops.write_reg(hw, 0x0019, 0x008D);
@@ -2394,7 +2394,7 @@ void igb_power_up_phy_copper(struct e1000_hw *hw)
  * @hw: pointer to the HW structure
  *
  * Power down PHY to save power when interface is down and wake on lan
- * is not enabled.
+ * is analt enabled.
  **/
 void igb_power_down_phy_copper(struct e1000_hw *hw)
 {
@@ -2427,7 +2427,7 @@ static s32 igb_check_polarity_82580(struct e1000_hw *hw)
 	if (!ret_val)
 		phy->cable_polarity = (data & I82580_PHY_STATUS2_REV_POLARITY)
 				      ? e1000_rev_polarity_reversed
-				      : e1000_rev_polarity_normal;
+				      : e1000_rev_polarity_analrmal;
 
 	return ret_val;
 }
@@ -2544,11 +2544,11 @@ s32 igb_get_phy_info_82580(struct e1000_hw *hw)
 
 		phy->local_rx = (data & SR_1000T_LOCAL_RX_STATUS)
 				? e1000_1000t_rx_status_ok
-				: e1000_1000t_rx_status_not_ok;
+				: e1000_1000t_rx_status_analt_ok;
 
 		phy->remote_rx = (data & SR_1000T_REMOTE_RX_STATUS)
 				 ? e1000_1000t_rx_status_ok
-				 : e1000_1000t_rx_status_not_ok;
+				 : e1000_1000t_rx_status_analt_ok;
 	} else {
 		phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
 		phy->local_rx = e1000_1000t_rx_status_undefined;
@@ -2563,7 +2563,7 @@ out:
  *  igb_get_cable_length_82580 - Determine cable length for 82580 PHY
  *  @hw: pointer to the HW structure
  *
- * Reads the diagnostic status register and verifies result is valid before
+ * Reads the diaganalstic status register and verifies result is valid before
  * placing it in the phy_cable_length field.
  **/
 s32 igb_get_cable_length_82580(struct e1000_hw *hw)

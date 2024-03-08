@@ -26,7 +26,7 @@ void uv_query_info(void)
 	if (!test_facility(158))
 		return;
 
-	/* rc==0x100 means that there is additional data we do not process */
+	/* rc==0x100 means that there is additional data we do analt process */
 	if (uv_call(0, (uint64_t)&uvcb) && uvcb.header.rc != 0x100)
 		return;
 
@@ -70,13 +70,13 @@ unsigned long adjust_to_uv_max(unsigned long limit)
 
 static int is_prot_virt_host_capable(void)
 {
-	/* disable if no prot_virt=1 given on command-line */
+	/* disable if anal prot_virt=1 given on command-line */
 	if (!is_prot_virt_host())
 		return 0;
 	/* disable if protected guest virtualization is enabled */
 	if (is_prot_virt_guest())
 		return 0;
-	/* disable if no hardware support */
+	/* disable if anal hardware support */
 	if (!test_facility(158))
 		return 0;
 	/* disable if kdump */

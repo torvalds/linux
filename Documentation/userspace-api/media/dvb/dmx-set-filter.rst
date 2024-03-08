@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _DMX_SET_FILTER:
@@ -12,7 +12,7 @@ Name
 
 DMX_SET_FILTER
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: DMX_SET_FILTER
@@ -34,7 +34,7 @@ Description
 
 This ioctl call sets up a filter according to the filter and mask
 parameters provided. A timeout may be defined stating number of seconds
-to wait for a section to be loaded. A value of 0 means that no timeout
+to wait for a section to be loaded. A value of 0 means that anal timeout
 should be applied. Finally there is a flag field where it is possible to
 state whether a section should be CRC-checked, whether the filter should
 be a "one-shot" filter, i.e. if the filtering operation should be
@@ -48,7 +48,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 The generic error codes are described at the

@@ -43,7 +43,7 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__BPF_PROG_INFO,
 	DSO_BINARY_TYPE__BPF_IMAGE,
 	DSO_BINARY_TYPE__OOL,
-	DSO_BINARY_TYPE__NOT_FOUND,
+	DSO_BINARY_TYPE__ANALT_FOUND,
 };
 
 enum dso_space_type {
@@ -54,13 +54,13 @@ enum dso_space_type {
 
 enum dso_swap_type {
 	DSO_SWAP__UNSET,
-	DSO_SWAP__NO,
-	DSO_SWAP__YES,
+	DSO_SWAP__ANAL,
+	DSO_SWAP__ANAL,
 };
 
 enum dso_data_status {
 	DSO_DATA_STATUS_ERROR	= -1,
-	DSO_DATA_STATUS_UNKNOWN	= 0,
+	DSO_DATA_STATUS_UNKANALWN	= 0,
 	DSO_DATA_STATUS_OK	= 1,
 };
 
@@ -69,42 +69,42 @@ enum dso_data_status_seen {
 };
 
 enum dso_type {
-	DSO__TYPE_UNKNOWN,
+	DSO__TYPE_UNKANALWN,
 	DSO__TYPE_64BIT,
 	DSO__TYPE_32BIT,
 	DSO__TYPE_X32BIT,
 };
 
-enum dso_load_errno {
-	DSO_LOAD_ERRNO__SUCCESS		= 0,
+enum dso_load_erranal {
+	DSO_LOAD_ERRANAL__SUCCESS		= 0,
 
 	/*
-	 * Choose an arbitrary negative big number not to clash with standard
-	 * errno since SUS requires the errno has distinct positive values.
+	 * Choose an arbitrary negative big number analt to clash with standard
+	 * erranal since SUS requires the erranal has distinct positive values.
 	 * See 'Issue 6' in the link below.
 	 *
-	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/erranal.h.html
 	 */
-	__DSO_LOAD_ERRNO__START		= -10000,
+	__DSO_LOAD_ERRANAL__START		= -10000,
 
-	DSO_LOAD_ERRNO__INTERNAL_ERROR	= __DSO_LOAD_ERRNO__START,
+	DSO_LOAD_ERRANAL__INTERNAL_ERROR	= __DSO_LOAD_ERRANAL__START,
 
 	/* for symsrc__init() */
-	DSO_LOAD_ERRNO__INVALID_ELF,
-	DSO_LOAD_ERRNO__CANNOT_READ_BUILDID,
-	DSO_LOAD_ERRNO__MISMATCHING_BUILDID,
+	DSO_LOAD_ERRANAL__INVALID_ELF,
+	DSO_LOAD_ERRANAL__CANANALT_READ_BUILDID,
+	DSO_LOAD_ERRANAL__MISMATCHING_BUILDID,
 
 	/* for decompress_kmodule */
-	DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE,
+	DSO_LOAD_ERRANAL__DECOMPRESSION_FAILURE,
 
-	__DSO_LOAD_ERRNO__END,
+	__DSO_LOAD_ERRANAL__END,
 };
 
 #define DSO__SWAP(dso, type, val)			\
 ({							\
 	type ____r = val;				\
 	BUG_ON(dso->needs_swap == DSO_SWAP__UNSET);	\
-	if (dso->needs_swap == DSO_SWAP__YES) {		\
+	if (dso->needs_swap == DSO_SWAP__ANAL) {		\
 		switch (sizeof(____r)) {		\
 		case 2:					\
 			____r = bswap_16(val);		\
@@ -131,12 +131,12 @@ enum dso_load_errno {
 struct dso_id {
 	u32	maj;
 	u32	min;
-	u64	ino;
-	u64	ino_generation;
+	u64	ianal;
+	u64	ianal_generation;
 };
 
 struct dso_cache {
-	struct rb_node	rb_node;
+	struct rb_analde	rb_analde;
 	u64 offset;
 	u64 size;
 	char data[];
@@ -146,13 +146,13 @@ struct auxtrace_cache;
 
 struct dso {
 	struct mutex	 lock;
-	struct list_head node;
-	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
-	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
+	struct list_head analde;
+	struct rb_analde	 rb_analde;	/* rbtree analde sorted by long name */
+	struct rb_root	 *root;		/* root of rbtree that rb_analde is in */
 	struct rb_root_cached symbols;
 	struct symbol	 **symbol_names;
 	size_t		 symbol_names_len;
-	struct rb_root_cached inlined_nodes;
+	struct rb_root_cached inlined_analdes;
 	struct rb_root_cached srclines;
 	struct rb_root	data_types;
 
@@ -168,13 +168,13 @@ struct dso {
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
 	enum dso_binary_type	binary_type;
-	enum dso_load_errno	load_errno;
+	enum dso_load_erranal	load_erranal;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 header_build_id:1;
 	u8		 has_srcline:1;
 	u8		 hit:1;
-	u8		 annotate_warned:1;
+	u8		 ananaltate_warned:1;
 	u8		 auxtrace_warned:1;
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
@@ -227,13 +227,13 @@ struct dso {
  *
  * @dso: the 'struct dso *' in which symbols are iterated
  * @pos: the 'struct symbol *' to use as a loop cursor
- * @n: the 'struct rb_node *' to use as a temporary storage
+ * @n: the 'struct rb_analde *' to use as a temporary storage
  */
 #define dso__for_each_symbol(dso, pos, n)	\
 	symbols__for_each_entry(&(dso)->symbols, pos, n)
 
 #define dsos__for_each_with_build_id(pos, head)	\
-	list_for_each_entry(pos, head, node)	\
+	list_for_each_entry(pos, head, analde)	\
 		if (!pos->has_build_id)		\
 			continue;		\
 		else
@@ -347,8 +347,8 @@ void dso__set_module_info(struct dso *dso, struct kmod_path *m,
  * Eventually close DSO's fd:
  *   dso__data_close(dso);
  *
- * It is not necessary to close the DSO object data file. Each time new
- * DSO data file is opened, the limit (RLIMIT_NOFILE/2) is checked. Once
+ * It is analt necessary to close the DSO object data file. Each time new
+ * DSO data file is opened, the limit (RLIMIT_ANALFILE/2) is checked. Once
  * it is crossed, the oldest opened DSO object is closed.
  *
  * The dso__delete function calls close_dso function to ensure the

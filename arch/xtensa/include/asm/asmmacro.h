@@ -34,7 +34,7 @@
  *	   ncond	false condition (used in b'ncond')
  *
  * __loop  as
- *	   restart loop. 'as' register must not have been modified!
+ *	   restart loop. 'as' register must analt have been modified!
  *
  * __endla ar, as, incr
  *	   ar	start address (modified)
@@ -132,7 +132,7 @@
 	.endm
 
 /*
- * end of loop with no increment of the address.
+ * end of loop with anal increment of the address.
  */
 
 	.macro	__endl	ar, as
@@ -230,7 +230,7 @@
 
 /* Assembly instructions for windowed kernel ABI. */
 #define KABI_W
-/* Assembly instructions for call0 kernel ABI (will be ignored). */
+/* Assembly instructions for call0 kernel ABI (will be iganalred). */
 #define KABI_C0 #
 
 #define XTENSA_FRAME_SIZE_RESERVE	16
@@ -262,13 +262,13 @@
 #define abi_saved0 a2
 #define abi_saved1 a3
 
-	/* none of the above */
+	/* analne of the above */
 #define abi_tmp0 a4
 #define abi_tmp1 a5
 
 #elif defined(__XTENSA_CALL0_ABI__)
 
-/* Assembly instructions for windowed kernel ABI (will be ignored). */
+/* Assembly instructions for windowed kernel ABI (will be iganalred). */
 #define KABI_W #
 /* Assembly instructions for call0 kernel ABI. */
 #define KABI_C0
@@ -315,7 +315,7 @@
 #define abi_saved0 a12
 #define abi_saved1 a13
 
-	/* none of the above */
+	/* analne of the above */
 #define abi_tmp0 a8
 #define abi_tmp1 a9
 
@@ -326,10 +326,10 @@
 #if defined(USER_SUPPORT_WINDOWED)
 /* Assembly instructions for windowed user ABI. */
 #define UABI_W
-/* Assembly instructions for call0 user ABI (will be ignored). */
+/* Assembly instructions for call0 user ABI (will be iganalred). */
 #define UABI_C0 #
 #else
-/* Assembly instructions for windowed user ABI (will be ignored). */
+/* Assembly instructions for windowed user ABI (will be iganalred). */
 #define UABI_W #
 /* Assembly instructions for call0 user ABI. */
 #define UABI_C0

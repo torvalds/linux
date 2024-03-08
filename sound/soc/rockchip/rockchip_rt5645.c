@@ -166,62 +166,62 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct snd_soc_card *card = &snd_soc_card_rk;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	/* register the soc card */
 	card->dev = &pdev->dev;
 
-	rk_dailink.codecs->of_node = of_parse_phandle(np,
+	rk_dailink.codecs->of_analde = of_parse_phandle(np,
 			"rockchip,audio-codec", 0);
-	if (!rk_dailink.codecs->of_node) {
+	if (!rk_dailink.codecs->of_analde) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	rk_dailink.cpus->of_node = of_parse_phandle(np,
+	rk_dailink.cpus->of_analde = of_parse_phandle(np,
 			"rockchip,i2s-controller", 0);
-	if (!rk_dailink.cpus->of_node) {
+	if (!rk_dailink.cpus->of_analde) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
-		goto put_codec_of_node;
+		goto put_codec_of_analde;
 	}
 
-	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
+	rk_dailink.platforms->of_analde = rk_dailink.cpus->of_analde;
 
 	ret = snd_soc_of_parse_card_name(card, "rockchip,model");
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Soc parse card name failed %d\n", ret);
-		goto put_cpu_of_node;
+		goto put_cpu_of_analde;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Soc register card failed %d\n", ret);
-		goto put_cpu_of_node;
+		goto put_cpu_of_analde;
 	}
 
 	return ret;
 
-put_cpu_of_node:
-	of_node_put(rk_dailink.cpus->of_node);
-	rk_dailink.cpus->of_node = NULL;
-put_codec_of_node:
-	of_node_put(rk_dailink.codecs->of_node);
-	rk_dailink.codecs->of_node = NULL;
+put_cpu_of_analde:
+	of_analde_put(rk_dailink.cpus->of_analde);
+	rk_dailink.cpus->of_analde = NULL;
+put_codec_of_analde:
+	of_analde_put(rk_dailink.codecs->of_analde);
+	rk_dailink.codecs->of_analde = NULL;
 
 	return ret;
 }
 
 static void snd_rk_mc_remove(struct platform_device *pdev)
 {
-	of_node_put(rk_dailink.cpus->of_node);
-	rk_dailink.cpus->of_node = NULL;
-	of_node_put(rk_dailink.codecs->of_node);
-	rk_dailink.codecs->of_node = NULL;
+	of_analde_put(rk_dailink.cpus->of_analde);
+	rk_dailink.cpus->of_analde = NULL;
+	of_analde_put(rk_dailink.codecs->of_analde);
+	rk_dailink.codecs->of_analde = NULL;
 }
 
 static const struct of_device_id rockchip_rt5645_of_match[] = {

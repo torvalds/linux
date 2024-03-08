@@ -328,8 +328,8 @@ static void ufs_renesas_pre_init(struct ufs_hba *hba)
 		ufs_renesas_reg_control(hba, &p[i]);
 }
 
-static int ufs_renesas_hce_enable_notify(struct ufs_hba *hba,
-					 enum ufs_notify_change_status status)
+static int ufs_renesas_hce_enable_analtify(struct ufs_hba *hba,
+					 enum ufs_analtify_change_status status)
 {
 	struct ufs_renesas_priv *priv = ufshcd_get_variant(hba);
 
@@ -345,7 +345,7 @@ static int ufs_renesas_hce_enable_notify(struct ufs_hba *hba,
 }
 
 static int ufs_renesas_setup_clocks(struct ufs_hba *hba, bool on,
-				    enum ufs_notify_change_status status)
+				    enum ufs_analtify_change_status status)
 {
 	if (on && status == PRE_CHANGE)
 		pm_runtime_get_sync(hba->dev);
@@ -361,7 +361,7 @@ static int ufs_renesas_init(struct ufs_hba *hba)
 
 	priv = devm_kzalloc(hba->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	ufshcd_set_variant(hba, priv);
 
 	hba->quirks |= UFSHCD_QUIRK_BROKEN_64BIT_ADDRESS | UFSHCD_QUIRK_HIBERN_FASTAUTO;
@@ -373,7 +373,7 @@ static const struct ufs_hba_variant_ops ufs_renesas_vops = {
 	.name		= "renesas",
 	.init		= ufs_renesas_init,
 	.setup_clocks	= ufs_renesas_setup_clocks,
-	.hce_enable_notify = ufs_renesas_hce_enable_notify,
+	.hce_enable_analtify = ufs_renesas_hce_enable_analtify,
 	.dbg_register_dump = ufs_renesas_dbg_register_dump,
 };
 

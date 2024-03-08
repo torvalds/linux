@@ -128,7 +128,7 @@ static const struct kobj_type dm_ktype = {
 
 /*
  * Initialize kobj
- * because nobody using md yet, no need to call explicit dm_get/put
+ * because analbody using md yet, anal need to call explicit dm_get/put
  */
 int dm_sysfs_init(struct mapped_device *md)
 {

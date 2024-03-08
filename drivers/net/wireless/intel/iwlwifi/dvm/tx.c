@@ -38,7 +38,7 @@ static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
 }
 
 /*
- * handle build REPLY_TX command notification.
+ * handle build REPLY_TX command analtification.
  */
 static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 				      struct sk_buff *skb,
@@ -51,7 +51,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 
 	tx_cmd->stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 		tx_flags |= TX_CMD_FLG_ACK_MSK;
 	else
 		tx_flags &= ~TX_CMD_FLG_ACK_MSK;
@@ -66,7 +66,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		 (ieee80211_is_auth(fc) || ieee80211_is_assoc_req(fc) ||
 		 ieee80211_is_reassoc_req(fc) ||
 		 info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
-		tx_flags |= TX_CMD_FLG_IGNORE_BT;
+		tx_flags |= TX_CMD_FLG_IGANALRE_BT;
 
 
 	tx_cmd->sta_id = sta_id;
@@ -78,7 +78,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_cmd->tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
 	} else {
-		tx_cmd->tid_tspec = IWL_TID_NON_QOS;
+		tx_cmd->tid_tspec = IWL_TID_ANALN_QOS;
 		if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 			tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 		else
@@ -146,7 +146,7 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 
 	/**
 	 * If the current TX rate stored in mac80211 has the MCS bit set, it's
-	 * not really a TX rate.  Thus, we use the lowest supported rate for
+	 * analt really a TX rate.  Thus, we use the lowest supported rate for
 	 * this band.  Also use the lowest supported rate if the stored rate
 	 * index is invalid.
 	 */
@@ -218,7 +218,7 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	default:
-		IWL_ERR(priv, "Unknown encode cipher %x\n", keyconf->cipher);
+		IWL_ERR(priv, "Unkanalwn encode cipher %x\n", keyconf->cipher);
 		break;
 	}
 }
@@ -244,7 +244,7 @@ static int iwl_sta_id_or_broadcast(struct iwl_rxon_context *context,
 	sta_id = iwl_sta_id(sta);
 
 	/*
-	 * mac80211 should not be passing a partially
+	 * mac80211 should analt be passing a partially
 	 * initialised station!
 	 */
 	WARN_ON(sta_id == IWL_INVALID_STATION);
@@ -292,20 +292,20 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 #endif
 
 	if (unlikely(ieee80211_is_probe_resp(fc))) {
-		struct iwl_wipan_noa_data *noa_data =
-			rcu_dereference(priv->noa_data);
+		struct iwl_wipan_anala_data *anala_data =
+			rcu_dereference(priv->anala_data);
 
-		if (noa_data &&
-		    pskb_expand_head(skb, 0, noa_data->length,
+		if (anala_data &&
+		    pskb_expand_head(skb, 0, anala_data->length,
 				     GFP_ATOMIC) == 0) {
-			skb_put_data(skb, noa_data->data, noa_data->length);
+			skb_put_data(skb, anala_data->data, anala_data->length);
 			hdr = (struct ieee80211_hdr *)skb->data;
 		}
 	}
 
 	hdr_len = ieee80211_hdrlen(fc);
 
-	/* For management frames use broadcast id to do not break aggregation */
+	/* For management frames use broadcast id to do analt break aggregation */
 	if (!ieee80211_is_data(fc))
 		sta_id = ctx->bcast_sta_id;
 	else {
@@ -322,17 +322,17 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		sta_priv = (void *)sta->drv_priv;
 
 	if (sta_priv && sta_priv->asleep &&
-	    (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER)) {
+	    (info->flags & IEEE80211_TX_CTL_ANAL_PS_BUFFER)) {
 		/*
-		 * This sends an asynchronous command to the device,
+		 * This sends an asynchroanalus command to the device,
 		 * but we can rely on it being processed before the
 		 * next frame is processed -- and the next frame to
 		 * this station is the one that will consume this
 		 * counter.
-		 * For now set the counter to just 1 since we do not
+		 * For analw set the counter to just 1 since we do analt
 		 * support uAPSD yet.
 		 *
-		 * FIXME: If we get two non-bufferable frames one
+		 * FIXME: If we get two analn-bufferable frames one
 		 * after the other, we might only send out one of
 		 * them because this is racy.
 		 */
@@ -364,7 +364,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 
 	info->driver_data[0] = ctx;
 	info->driver_data[1] = dev_cmd;
-	/* From now on, we cannot access info->control */
+	/* From analw on, we cananalt access info->control */
 
 	spin_lock(&priv->sta_lock);
 
@@ -381,7 +381,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
 		    tid_data->agg.state != IWL_AGG_ON) {
 			IWL_ERR(priv,
-				"TX_CTL_AMPDU while not in AGG: Tx flags = 0x%08x, agg.state = %d\n",
+				"TX_CTL_AMPDU while analt in AGG: Tx flags = 0x%08x, agg.state = %d\n",
 				info->flags, tid_data->agg.state);
 			IWL_ERR(priv, "sta_id = %d, tid = %d seq_num = %d\n",
 				sta_id, tid,
@@ -470,7 +470,7 @@ static int iwlagn_alloc_agg_txq(struct iwl_priv *priv, int mq)
 		}
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static void iwlagn_dealloc_agg_txq(struct iwl_priv *priv, int q)
@@ -519,7 +519,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		break;
 	default:
 		IWL_WARN(priv,
-			 "Stopping AGG while state not ON or starting for %d on %d (%d)\n",
+			 "Stopping AGG while state analt ON or starting for %d on %d (%d)\n",
 			 sta_id, tid, tid_data->agg.state);
 		spin_unlock_bh(&priv->sta_lock);
 		return 0;
@@ -530,7 +530,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	/* There are still packets for this RA / TID in the HW */
 	if (!test_bit(txq_id, priv->agg_q_alloc)) {
 		IWL_DEBUG_TX_QUEUES(priv,
-			"stopping AGG on STA/TID %d/%d but hwq %d not used\n",
+			"stopping AGG on STA/TID %d/%d but hwq %d analt used\n",
 			sta_id, tid, txq_id);
 	} else if (tid_data->agg.ssn != tid_data->next_reclaimed) {
 		IWL_DEBUG_TX_QUEUES(priv,
@@ -552,7 +552,7 @@ turn_off:
 
 	if (test_bit(txq_id, priv->agg_q_alloc)) {
 		/*
-		 * If the transport didn't know that we wanted to start
+		 * If the transport didn't kanalw that we wanted to start
 		 * agreggation, don't tell it that we want to stop them.
 		 * This can happen when we don't get the addBA response on
 		 * time, or we hadn't time to drain the AC queues.
@@ -589,14 +589,14 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	if (priv->tid_data[sta_id][tid].agg.state != IWL_AGG_OFF) {
-		IWL_ERR(priv, "Start AGG when state is not IWL_AGG_OFF !\n");
+		IWL_ERR(priv, "Start AGG when state is analt IWL_AGG_OFF !\n");
 		return -ENXIO;
 	}
 
 	txq_id = iwlagn_alloc_agg_txq(priv, ctx->ac_to_queue[tid_to_ac[tid]]);
 	if (txq_id < 0) {
 		IWL_DEBUG_TX_QUEUES(priv,
-			"No free aggregation queue for %pM/%d\n",
+			"Anal free aggregation queue for %pM/%d\n",
 			sta->addr, tid);
 		return txq_id;
 	}
@@ -658,7 +658,7 @@ int iwlagn_tx_agg_flush(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	if (test_bit(txq_id, priv->agg_q_alloc)) {
 		/*
-		 * If the transport didn't know that we wanted to start
+		 * If the transport didn't kanalw that we wanted to start
 		 * agreggation, don't tell it that we want to stop them.
 		 * This can happen when we don't get the addBA response on
 		 * time, or we hadn't time to drain the AC queues.
@@ -753,7 +753,7 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 
 	switch (priv->tid_data[sta_id][tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
-		/* There are no packets for this RA / TID in the HW any more */
+		/* There are anal packets for this RA / TID in the HW any more */
 		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
 			IWL_DEBUG_TX_QUEUES(priv,
 				"Can continue DELBA flow ssn = next_recl = %d\n",
@@ -766,7 +766,7 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
-		/* There are no packets for this RA / TID in the HW any more */
+		/* There are anal packets for this RA / TID in the HW any more */
 		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
 			IWL_DEBUG_TX_QUEUES(priv,
 				"Can continue ADDBA flow ssn = next_recl = %d\n",
@@ -780,7 +780,7 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 	}
 }
 
-static void iwlagn_non_agg_tx_status(struct iwl_priv *priv,
+static void iwlagn_analn_agg_tx_status(struct iwl_priv *priv,
 				     struct iwl_rxon_context *ctx,
 				     const u8 *addr1)
 {
@@ -851,11 +851,11 @@ const char *iwl_get_tx_fail_reason(u32 status)
 	TX_STATUS_FAIL(TID_DISABLE);
 	TX_STATUS_FAIL(FIFO_FLUSHED);
 	TX_STATUS_FAIL(INSUFFICIENT_CF_POLL);
-	TX_STATUS_FAIL(PASSIVE_NO_RX);
-	TX_STATUS_FAIL(NO_BEACON_ON_RADAR);
+	TX_STATUS_FAIL(PASSIVE_ANAL_RX);
+	TX_STATUS_FAIL(ANAL_BEACON_ON_RADAR);
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 
 #undef TX_STATUS_FAIL
 #undef TX_STATUS_POSTPONE
@@ -904,7 +904,7 @@ static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
 		priv->reply_agg_tx_stats.delay_tx++;
 		break;
 	default:
-		priv->reply_agg_tx_stats.unknown++;
+		priv->reply_agg_tx_stats.unkanalwn++;
 		break;
 	}
 }
@@ -927,7 +927,7 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 	u32 status = le16_to_cpu(tx_resp->status.status);
 	int i;
 
-	WARN_ON(tid == IWL_TID_NON_QOS);
+	WARN_ON(tid == IWL_TID_ANALN_QOS);
 
 	if (agg->wait_for_ba)
 		IWL_DEBUG_TX_REPLY(priv,
@@ -937,8 +937,8 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 	agg->wait_for_ba = (tx_resp->frame_count > 1);
 
 	/*
-	 * If the BT kill count is non-zero, we'll get this
-	 * notification again.
+	 * If the BT kill count is analn-zero, we'll get this
+	 * analtification again.
 	 */
 	if (tx_resp->bt_kill_count && tx_resp->frame_count == 1 &&
 	    priv->lib->bt_params &&
@@ -999,7 +999,7 @@ const char *iwl_get_agg_tx_fail_reason(u16 status)
 		AGG_TX_STATE_FAIL(DELAY_TX_MSK);
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
@@ -1068,14 +1068,14 @@ static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
 	case TX_STATUS_FAIL_INSUFFICIENT_CF_POLL:
 		priv->reply_tx_stats.insuff_cf_poll++;
 		break;
-	case TX_STATUS_FAIL_PASSIVE_NO_RX:
+	case TX_STATUS_FAIL_PASSIVE_ANAL_RX:
 		priv->reply_tx_stats.fail_hw_drop++;
 		break;
-	case TX_STATUS_FAIL_NO_BEACON_ON_RADAR:
+	case TX_STATUS_FAIL_ANAL_BEACON_ON_RADAR:
 		priv->reply_tx_stats.sta_color_mismatch++;
 		break;
 	default:
-		priv->reply_tx_stats.unknown++;
+		priv->reply_tx_stats.unkanalwn++;
 		break;
 	}
 }
@@ -1157,12 +1157,12 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 			 * response may allow to reclaim the hole and all the
 			 * subsequent packets that were already acked.
 			 * In that case, seq_ctl != ssn, and the next packet
-			 * to be reclaimed will be ssn and not seq_ctl.
+			 * to be reclaimed will be ssn and analt seq_ctl.
 			 */
 			next_reclaimed = ssn;
 		}
 
-		if (tid != IWL_TID_NON_QOS) {
+		if (tid != IWL_TID_ANALN_QOS) {
 			priv->tid_data[sta_id][tid].next_reclaimed =
 				next_reclaimed;
 			IWL_DEBUG_TX_REPLY(priv, "Next reclaimed packet:%d\n",
@@ -1188,11 +1188,11 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 
 			memset(&info->status, 0, sizeof(info->status));
 
-			if (status == TX_STATUS_FAIL_PASSIVE_NO_RX &&
+			if (status == TX_STATUS_FAIL_PASSIVE_ANAL_RX &&
 			    ctx->vif &&
 			    ctx->vif->type == NL80211_IFTYPE_STATION) {
 				/* block and stop all queues */
-				priv->passive_no_rx = true;
+				priv->passive_anal_rx = true;
 				IWL_DEBUG_TX_QUEUES(priv,
 					"stop all queues: passive channel\n");
 				ieee80211_stop_queues(priv->hw);
@@ -1213,16 +1213,16 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 
 			/* check if BAR is needed */
 			if (is_agg && !iwl_is_tx_success(status))
-				info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
+				info->flags |= IEEE80211_TX_STAT_AMPDU_ANAL_BACK;
 			iwlagn_set_tx_status(priv, IEEE80211_SKB_CB(skb),
 				     tx_resp);
 			if (!is_agg)
-				iwlagn_non_agg_tx_status(priv, ctx, hdr->addr1);
+				iwlagn_analn_agg_tx_status(priv, ctx, hdr->addr1);
 
 			freed++;
 		}
 
-		if (tid != IWL_TID_NON_QOS) {
+		if (tid != IWL_TID_ANALN_QOS) {
 			priv->tid_data[sta_id][tid].next_reclaimed =
 				next_reclaimed;
 			IWL_DEBUG_TX_REPLY(priv, "Next reclaimed packet:%d\n",
@@ -1255,7 +1255,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 /*
  * iwlagn_rx_reply_compressed_ba - Handler for REPLY_COMPRESSED_BA
  *
- * Handles block-acknowledge notification from device, which reports success
+ * Handles block-ackanalwledge analtification from device, which reports success
  * of frames sent via aggregation.
  */
 void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
@@ -1291,7 +1291,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	if (unlikely(!agg->wait_for_ba)) {
 		if (unlikely(ba_resp->bitmap))
-			IWL_ERR(priv, "Received BA when not expected\n");
+			IWL_ERR(priv, "Received BA when analt expected\n");
 		spin_unlock_bh(&priv->sta_lock);
 		return;
 	}
@@ -1299,9 +1299,9 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	if (unlikely(scd_flow != agg->txq_id)) {
 		/*
 		 * FIXME: this is a uCode bug which need to be addressed,
-		 * log the information and return for now.
+		 * log the information and return for analw.
 		 * Since it is can possibly happen very often and in order
-		 * not to fill the syslog, don't use IWL_ERR or IWL_WARN
+		 * analt to fill the syslog, don't use IWL_ERR or IWL_WARN
 		 */
 		IWL_DEBUG_TX_QUEUES(priv,
 				    "Bad queue mapping txq_id=%d, agg_txq[sta:%d,tid:%d]=%d\n",
@@ -1314,7 +1314,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	/* Release all TFDs before the SSN, i.e. all TFDs in front of
 	 * block-ack window (we assume that they've been successfully
-	 * transmitted ... if not, it's too late anyway). */
+	 * transmitted ... if analt, it's too late anyway). */
 	iwl_trans_reclaim(priv->trans, scd_flow, ba_resp_scd_ssn,
 			  &reclaimed_skbs, false);
 

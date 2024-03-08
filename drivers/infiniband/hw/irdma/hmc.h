@@ -150,7 +150,7 @@ int irdma_sc_del_hmc_obj(struct irdma_sc_dev *dev,
 int irdma_hmc_sd_one(struct irdma_sc_dev *dev, u8 hmc_fn_id, u64 pa, u32 sd_idx,
 		     enum irdma_sd_entry_type type,
 		     bool setsd);
-int irdma_update_sds_noccq(struct irdma_sc_dev *dev,
+int irdma_update_sds_analccq(struct irdma_sc_dev *dev,
 			   struct irdma_update_sds_info *info);
 struct irdma_vfdev *irdma_vfdev_from_fpm(struct irdma_sc_dev *dev,
 					 u8 hmc_fn_id);

@@ -10,10 +10,10 @@
  *
  * Released under the GPLv2.
  *
- * Many thanks to Carl Nordbeck
+ * Many thanks to Carl Analrdbeck
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -44,7 +44,7 @@ static const struct usb_device_id wdm_ids[] = {
 
 MODULE_DEVICE_TABLE (usb, wdm_ids);
 
-#define WDM_MINOR_BASE	176
+#define WDM_MIANALR_BASE	176
 
 
 #define WDM_IN_USE		1
@@ -61,7 +61,7 @@ MODULE_DEVICE_TABLE (usb, wdm_ids);
 
 #define WDM_MAX			16
 
-/* we cannot wait forever at flush() */
+/* we cananalt wait forever at flush() */
 #define WDM_FLUSH_TIMEOUT	(30 * HZ)
 
 /* CDC-WMC r1.1 requires wMaxCommand to be "at least 256 decimal (0x100)" */
@@ -132,13 +132,13 @@ found:
 	return desc;
 }
 
-static struct wdm_device *wdm_find_device_by_minor(int minor)
+static struct wdm_device *wdm_find_device_by_mianalr(int mianalr)
 {
 	struct wdm_device *desc;
 
 	spin_lock(&wdm_device_list_lock);
 	list_for_each_entry(desc, &wdm_device_list, device_list)
-		if (desc->intf->minor == minor)
+		if (desc->intf->mianalr == mianalr)
 			goto found;
 	desc = NULL;
 found:
@@ -177,21 +177,21 @@ static void wdm_in_callback(struct urb *urb)
 
 	if (status) {
 		switch (status) {
-		case -ENOENT:
+		case -EANALENT:
 			dev_dbg(&desc->intf->dev,
-				"nonzero urb status received: -ENOENT\n");
+				"analnzero urb status received: -EANALENT\n");
 			goto skip_error;
 		case -ECONNRESET:
 			dev_dbg(&desc->intf->dev,
-				"nonzero urb status received: -ECONNRESET\n");
+				"analnzero urb status received: -ECONNRESET\n");
 			goto skip_error;
 		case -ESHUTDOWN:
 			dev_dbg(&desc->intf->dev,
-				"nonzero urb status received: -ESHUTDOWN\n");
+				"analnzero urb status received: -ESHUTDOWN\n");
 			goto skip_error;
 		case -EPIPE:
 			dev_err(&desc->intf->dev,
-				"nonzero urb status received: -EPIPE\n");
+				"analnzero urb status received: -EPIPE\n");
 			break;
 		default:
 			dev_err(&desc->intf->dev,
@@ -206,7 +206,7 @@ static void wdm_in_callback(struct urb *urb)
 	}
 
 	/*
-	 * only set a new error if there is no previous error.
+	 * only set a new error if there is anal previous error.
 	 * Errors are only cleared during read/open
 	 * Avoid propagating -EPIPE (stall) to userspace since it is
 	 * better handled as an empty read
@@ -229,7 +229,7 @@ skip_error:
 
 	if (desc->rerr) {
 		/*
-		 * Since there was an error, userspace may decide to not read
+		 * Since there was an error, userspace may decide to analt read
 		 * any data after poll'ing.
 		 * We should respond to further attempts from the device to send
 		 * data, so that we can get unstuck.
@@ -250,15 +250,15 @@ static void wdm_int_callback(struct urb *urb)
 	int responding;
 	int status = urb->status;
 	struct wdm_device *desc;
-	struct usb_cdc_notification *dr;
+	struct usb_cdc_analtification *dr;
 
 	desc = urb->context;
-	dr = (struct usb_cdc_notification *)desc->sbuf;
+	dr = (struct usb_cdc_analtification *)desc->sbuf;
 
 	if (status) {
 		switch (status) {
 		case -ESHUTDOWN:
-		case -ENOENT:
+		case -EANALENT:
 		case -ECONNRESET:
 			return; /* unplug */
 		case -EPIPE:
@@ -267,39 +267,39 @@ static void wdm_int_callback(struct urb *urb)
 			goto sw; /* halt is cleared in work */
 		default:
 			dev_err(&desc->intf->dev,
-				"nonzero urb status received: %d\n", status);
+				"analnzero urb status received: %d\n", status);
 			break;
 		}
 	}
 
-	if (urb->actual_length < sizeof(struct usb_cdc_notification)) {
+	if (urb->actual_length < sizeof(struct usb_cdc_analtification)) {
 		dev_err(&desc->intf->dev, "wdm_int_callback - %d bytes\n",
 			urb->actual_length);
 		goto exit;
 	}
 
-	switch (dr->bNotificationType) {
-	case USB_CDC_NOTIFY_RESPONSE_AVAILABLE:
+	switch (dr->bAnaltificationType) {
+	case USB_CDC_ANALTIFY_RESPONSE_AVAILABLE:
 		dev_dbg(&desc->intf->dev,
-			"NOTIFY_RESPONSE_AVAILABLE received: index %d len %d\n",
+			"ANALTIFY_RESPONSE_AVAILABLE received: index %d len %d\n",
 			le16_to_cpu(dr->wIndex), le16_to_cpu(dr->wLength));
 		break;
 
-	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
+	case USB_CDC_ANALTIFY_NETWORK_CONNECTION:
 
 		dev_dbg(&desc->intf->dev,
-			"NOTIFY_NETWORK_CONNECTION %s network\n",
+			"ANALTIFY_NETWORK_CONNECTION %s network\n",
 			dr->wValue ? "connected to" : "disconnected from");
 		goto exit;
-	case USB_CDC_NOTIFY_SPEED_CHANGE:
+	case USB_CDC_ANALTIFY_SPEED_CHANGE:
 		dev_dbg(&desc->intf->dev, "SPEED_CHANGE received (len %u)\n",
 			urb->actual_length);
 		goto exit;
 	default:
 		clear_bit(WDM_POLL_RUNNING, &desc->flags);
 		dev_err(&desc->intf->dev,
-			"unknown notification %d received: index %d len %d\n",
-			dr->bNotificationType,
+			"unkanalwn analtification %d received: index %d len %d\n",
+			dr->bAnaltificationType,
 			le16_to_cpu(dr->wIndex),
 			le16_to_cpu(dr->wLength));
 		goto exit;
@@ -318,12 +318,12 @@ static void wdm_int_callback(struct urb *urb)
 		clear_bit(WDM_RESPONDING, &desc->flags);
 		if (rv == -EPERM)
 			return;
-		if (rv == -ENOMEM) {
+		if (rv == -EANALMEM) {
 sw:
 			rv = schedule_work(&desc->rxwork);
 			if (rv)
 				dev_err(&desc->intf->dev,
-					"Cannot schedule work\n");
+					"Cananalt schedule work\n");
 		}
 	}
 exit:
@@ -346,7 +346,7 @@ static void poison_urbs(struct wdm_device *desc)
 static void unpoison_urbs(struct wdm_device *desc)
 {
 	/*
-	 *  the order here is not essential
+	 *  the order here is analt essential
 	 *  it is symmetrical just to be nice
 	 */
 	usb_unpoison_urb(desc->response);
@@ -401,7 +401,7 @@ static ssize_t wdm_write
 		goto out_free_mem;
 
 	if (test_bit(WDM_DISCONNECTING, &desc->flags)) {
-		rv = -ENODEV;
+		rv = -EANALDEV;
 		goto out_free_mem_lock;
 	}
 
@@ -411,7 +411,7 @@ static ssize_t wdm_write
 		goto out_free_mem_lock;
 	}
 
-	if (!(file->f_flags & O_NONBLOCK))
+	if (!(file->f_flags & O_ANALNBLOCK))
 		r = wait_event_interruptible(desc->wait, !test_bit(WDM_IN_USE,
 								&desc->flags));
 	else
@@ -422,7 +422,7 @@ static ssize_t wdm_write
 		r = -EIO;
 
 	if (test_bit(WDM_DISCONNECTING, &desc->flags))
-		r = -ENODEV;
+		r = -EANALDEV;
 
 	if (r < 0) {
 		rv = r;
@@ -478,7 +478,7 @@ out_free_mem:
 }
 
 /*
- * Submit the read urb if resp_count is non-zero.
+ * Submit the read urb if resp_count is analn-zero.
  *
  * Called with desc->iuspin locked
  */
@@ -491,7 +491,7 @@ static int service_outstanding_interrupt(struct wdm_device *desc)
 		goto out;
 
 	if (test_bit(WDM_DISCONNECTING, &desc->flags)) {
-		rv = -ENODEV;
+		rv = -EANALDEV;
 		goto out;
 	}
 	if (test_bit(WDM_RESETTING, &desc->flags)) {
@@ -508,7 +508,7 @@ static int service_outstanding_interrupt(struct wdm_device *desc)
 			dev_err(&desc->intf->dev,
 				"usb_submit_urb failed with result %d\n", rv);
 
-		/* make sure the next notification trigger a submit */
+		/* make sure the next analtification trigger a submit */
 		clear_bit(WDM_RESPONDING, &desc->flags);
 		desc->resp_count = 0;
 	}
@@ -533,16 +533,16 @@ static ssize_t wdm_read
 		desc->read = 0;
 retry:
 		if (test_bit(WDM_DISCONNECTING, &desc->flags)) {
-			rv = -ENODEV;
+			rv = -EANALDEV;
 			goto err;
 		}
 		if (test_bit(WDM_OVERFLOW, &desc->flags)) {
 			clear_bit(WDM_OVERFLOW, &desc->flags);
-			rv = -ENOBUFS;
+			rv = -EANALBUFS;
 			goto err;
 		}
 		i++;
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			if (!test_bit(WDM_READ, &desc->flags)) {
 				rv = -EAGAIN;
 				goto err;
@@ -555,7 +555,7 @@ retry:
 
 		/* may have happened while we slept */
 		if (test_bit(WDM_DISCONNECTING, &desc->flags)) {
-			rv = -ENODEV;
+			rv = -EANALDEV;
 			goto err;
 		}
 		if (test_bit(WDM_RESETTING, &desc->flags)) {
@@ -631,7 +631,7 @@ static int wdm_wait_for_response(struct file *file, long timeout)
 	long rv; /* Use long here because (int) MAX_SCHEDULE_TIMEOUT < 0. */
 
 	/*
-	 * Needs both flags. We cannot do with one because resetting it would
+	 * Needs both flags. We cananalt do with one because resetting it would
 	 * cause a race with write() yet we need to signal a disconnect.
 	 */
 	rv = wait_event_interruptible_timeout(desc->wait,
@@ -644,7 +644,7 @@ static int wdm_wait_for_response(struct file *file, long timeout)
 	 * We are inevitably racing with the hardware.
 	 */
 	if (test_bit(WDM_DISCONNECTING, &desc->flags))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!rv)
 		return -EIO;
 	if (rv < 0)
@@ -662,7 +662,7 @@ static int wdm_wait_for_response(struct file *file, long timeout)
 /*
  * You need to send a signal when you react to malicious or defective hardware.
  * Also, don't abort when fsync() returned -EINVAL, for older kernels which do
- * not implement wdm_flush() will return -EINVAL.
+ * analt implement wdm_flush() will return -EINVAL.
  */
 static int wdm_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
@@ -692,11 +692,11 @@ static __poll_t wdm_poll(struct file *file, struct poll_table_struct *wait)
 		goto desc_out;
 	}
 	if (test_bit(WDM_READ, &desc->flags))
-		mask = EPOLLIN | EPOLLRDNORM;
+		mask = EPOLLIN | EPOLLRDANALRM;
 	if (desc->rerr || desc->werr)
 		mask |= EPOLLERR;
 	if (!test_bit(WDM_IN_USE, &desc->flags))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 	spin_unlock_irqrestore(&desc->iuspin, flags);
 
 	poll_wait(file, &desc->wait, wait);
@@ -705,15 +705,15 @@ desc_out:
 	return mask;
 }
 
-static int wdm_open(struct inode *inode, struct file *file)
+static int wdm_open(struct ianalde *ianalde, struct file *file)
 {
-	int minor = iminor(inode);
-	int rv = -ENODEV;
+	int mianalr = imianalr(ianalde);
+	int rv = -EANALDEV;
 	struct usb_interface *intf;
 	struct wdm_device *desc;
 
 	mutex_lock(&wdm_mutex);
-	desc = wdm_find_device_by_minor(minor);
+	desc = wdm_find_device_by_mianalr(mianalr);
 	if (!desc)
 		goto out;
 
@@ -757,7 +757,7 @@ out:
 	return rv;
 }
 
-static int wdm_release(struct inode *inode, struct file *file)
+static int wdm_release(struct ianalde *ianalde, struct file *file)
 {
 	struct wdm_device *desc = file->private_data;
 
@@ -799,7 +799,7 @@ static long wdm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			rv = -EFAULT;
 		break;
 	default:
-		rv = -ENOTTY;
+		rv = -EANALTTY;
 	}
 	return rv;
 }
@@ -815,13 +815,13 @@ static const struct file_operations wdm_fops = {
 	.poll =		wdm_poll,
 	.unlocked_ioctl = wdm_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
-	.llseek =	noop_llseek,
+	.llseek =	analop_llseek,
 };
 
 static struct usb_class_driver wdm_class = {
 	.name =		"cdc-wdm%d",
 	.fops =		&wdm_fops,
-	.minor_base =	WDM_MINOR_BASE,
+	.mianalr_base =	WDM_MIANALR_BASE,
 };
 
 /* --- WWAN framework integration --- */
@@ -923,9 +923,9 @@ static void wdm_wwan_init(struct wdm_device *desc)
 	struct usb_interface *intf = desc->intf;
 	struct wwan_port *port;
 
-	/* Only register to WWAN core if protocol/type is known */
-	if (desc->wwanp_type == WWAN_PORT_UNKNOWN) {
-		dev_info(&intf->dev, "Unknown control protocol\n");
+	/* Only register to WWAN core if protocol/type is kanalwn */
+	if (desc->wwanp_type == WWAN_PORT_UNKANALWN) {
+		dev_info(&intf->dev, "Unkanalwn control protocol\n");
 		return;
 	}
 
@@ -1018,7 +1018,7 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 		      u16 bufsize, enum wwan_port_type type,
 		      int (*manage_power)(struct usb_interface *, int))
 {
-	int rv = -ENOMEM;
+	int rv = -EANALMEM;
 	struct wdm_device *desc;
 
 	desc = kzalloc(sizeof(struct wdm_device), GFP_KERNEL);
@@ -1162,7 +1162,7 @@ static int wdm_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		goto err;
 	ep = &iface->endpoint[0].desc;
 
-	rv = wdm_create(intf, ep, maxcom, WWAN_PORT_UNKNOWN, &wdm_manage_power);
+	rv = wdm_create(intf, ep, maxcom, WWAN_PORT_UNKANALWN, &wdm_manage_power);
 
 err:
 	return rv;
@@ -1171,17 +1171,17 @@ err:
 /**
  * usb_cdc_wdm_register - register a WDM subdriver
  * @intf: usb interface the subdriver will associate with
- * @ep: interrupt endpoint to monitor for notifications
+ * @ep: interrupt endpoint to monitor for analtifications
  * @bufsize: maximum message size to support for read/write
  * @type: Type/protocol of the transported data (MBIM, QMI...)
  * @manage_power: call-back invoked during open and release to
  *                manage the device's power
  * Create WDM usb class character device and associate it with intf
- * without binding, allowing another driver to manage the interface.
+ * without binding, allowing aanalther driver to manage the interface.
  *
  * The subdriver will manage the given interrupt endpoint exclusively
  * and will issue control requests referring to the given intf. It
- * will otherwise avoid interferring, and in particular not do
+ * will otherwise avoid interferring, and in particular analt do
  * usb_set_intfdata/usb_get_intfdata on intf.
  *
  * The return value is a pointer to the subdriver's struct usb_driver.
@@ -1217,7 +1217,7 @@ static void wdm_disconnect(struct usb_interface *intf)
 
 	wdm_wwan_deinit(desc);
 
-	/* the spinlock makes sure no new urbs are generated in the callbacks */
+	/* the spinlock makes sure anal new urbs are generated in the callbacks */
 	spin_lock_irqsave(&desc->iuspin, flags);
 	set_bit(WDM_DISCONNECTING, &desc->flags);
 	set_bit(WDM_READ, &desc->flags);
@@ -1231,7 +1231,7 @@ static void wdm_disconnect(struct usb_interface *intf)
 	mutex_unlock(&desc->wlock);
 	mutex_unlock(&desc->rlock);
 
-	/* the desc->intf pointer used as list key is now invalid */
+	/* the desc->intf pointer used as list key is analw invalid */
 	spin_lock(&wdm_device_list_lock);
 	list_del(&desc->device_list);
 	spin_unlock(&wdm_device_list_lock);
@@ -1249,7 +1249,7 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 	struct wdm_device *desc = wdm_find_device(intf);
 	int rv = 0;
 
-	dev_dbg(&desc->intf->dev, "wdm%d_suspend\n", intf->minor);
+	dev_dbg(&desc->intf->dev, "wdm%d_suspend\n", intf->mianalr);
 
 	/* if this is an autosuspend the caller does the locking */
 	if (!PMSG_IS_AUTO(message)) {
@@ -1287,7 +1287,7 @@ static int recover_from_urb_loss(struct wdm_device *desc)
 	int rv = 0;
 
 	if (desc->count) {
-		rv = usb_submit_urb(desc->validity, GFP_NOIO);
+		rv = usb_submit_urb(desc->validity, GFP_ANALIO);
 		if (rv < 0)
 			dev_err(&desc->intf->dev,
 				"Error resume submitting int urb - %d\n", rv);
@@ -1301,7 +1301,7 @@ static int wdm_resume(struct usb_interface *intf)
 	struct wdm_device *desc = wdm_find_device(intf);
 	int rv;
 
-	dev_dbg(&desc->intf->dev, "wdm%d_resume\n", intf->minor);
+	dev_dbg(&desc->intf->dev, "wdm%d_resume\n", intf->mianalr);
 
 	clear_bit(WDM_SUSPENDING, &desc->flags);
 	rv = recover_from_urb_loss(desc);
@@ -1315,7 +1315,7 @@ static int wdm_pre_reset(struct usb_interface *intf)
 	struct wdm_device *desc = wdm_find_device(intf);
 
 	/*
-	 * we notify everybody using poll of
+	 * we analtify everybody using poll of
 	 * an exceptional situation
 	 * must be done before recovery lest a spontaneous
 	 * message from the device is lost

@@ -2,7 +2,7 @@
 /*
  * include/media/i2c/adp1653.h
  *
- * Copyright (C) 2008--2011 Nokia Corporation
+ * Copyright (C) 2008--2011 Analkia Corporation
  *
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *

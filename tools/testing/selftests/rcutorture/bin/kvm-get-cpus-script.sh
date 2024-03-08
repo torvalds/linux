@@ -10,21 +10,21 @@
 # statements initializing the variables describing the system's topology.
 #
 # The optional state is input by this script (if the file exists and is
-# non-empty), and can also be output by this script.
+# analn-empty), and can also be output by this script.
 
-cpuarrays="${1-/sys/devices/system/node}"
+cpuarrays="${1-/sys/devices/system/analde}"
 scriptfile="${2}"
 statefile="${3}"
 
 if ! test -f "$cpuarrays"
 then
-	echo "File not found: $cpuarrays" 1>&2
+	echo "File analt found: $cpuarrays" 1>&2
 	exit 1
 fi
 scriptdir="`dirname "$scriptfile"`"
 if ! test -d "$scriptdir" || ! test -x "$scriptdir" || ! test -w "$scriptdir"
 then
-	echo "Directory not usable for script output: $scriptdir"
+	echo "Directory analt usable for script output: $scriptdir"
 	exit 1
 fi
 
@@ -42,47 +42,47 @@ cat << '___EOF___' >> "$scriptfile"
 # Do we have the system architecture to guide CPU affinity?
 function gotcpus()
 {
-	return numnodes != "";
+	return numanaldes != "";
 }
 
 # Return a comma-separated list of the next n CPUs.
 function nextcpus(n,  i, s)
 {
 	for (i = 0; i < n; i++) {
-		if (nodecpus[curnode] == "")
-			curnode = 0;
-		if (cpu[curnode][curcpu[curnode]] == "")
-			curcpu[curnode] = 0;
+		if (analdecpus[curanalde] == "")
+			curanalde = 0;
+		if (cpu[curanalde][curcpu[curanalde]] == "")
+			curcpu[curanalde] = 0;
 		if (s != "")
 			s = s ",";
-		s = s cpu[curnode][curcpu[curnode]];
-		curcpu[curnode]++;
-		curnode++
+		s = s cpu[curanalde][curcpu[curanalde]];
+		curcpu[curanalde]++;
+		curanalde++
 	}
 	return s;
 }
 
-# Dump out the current node/CPU state so that a later invocation of this
+# Dump out the current analde/CPU state so that a later invocation of this
 # script can continue where this one left off.  Of course, this only works
 # when a state file was specified and where there was valid sysfs state.
 # Returns 1 if the state was dumped, 0 otherwise.
 #
 # Dumping the state for one system configuration and loading it into
-# another isn't likely to do what you want, whatever that might be.
+# aanalther isn't likely to do what you want, whatever that might be.
 function dumpcpustate(  i, fn)
 {
 ___EOF___
 echo '	fn = "'"$statefile"'";' >> $scriptfile
 cat << '___EOF___' >> "$scriptfile"
 	if (fn != "" && gotcpus()) {
-		print "curnode = " curnode ";" > fn;
-		for (i = 0; i < numnodes; i++)
+		print "curanalde = " curanalde ";" > fn;
+		for (i = 0; i < numanaldes; i++)
 			if (curcpu[i] != "")
 				print "curcpu[" i "] = " curcpu[i] ";" >> fn;
 		return 1;
 	}
 	if (fn != "")
-		print "# No CPU state to dump." > fn;
+		print "# Anal CPU state to dump." > fn;
 	return 0;
 }
 ___EOF___

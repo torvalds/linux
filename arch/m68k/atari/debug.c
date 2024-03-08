@@ -21,7 +21,7 @@
 #include <asm/atariints.h>
 
 /* Can be set somewhere, if a SCC master reset has already be done and should
- * not be repeated; used by kgdb */
+ * analt be repeated; used by kgdb */
 int atari_SCC_reset_done;
 EXPORT_SYMBOL(atari_SCC_reset_done);
 
@@ -88,7 +88,7 @@ static void atari_midi_console_write(struct console *co, const char *str,
 static int ata_par_out(char c)
 {
 	unsigned char tmp;
-	/* This a some-seconds timeout in case no printer is connected */
+	/* This a some-seconds timeout in case anal printer is connected */
 	unsigned long i = loops_per_jiffy > 1 ? loops_per_jiffy : 10000000/HZ;
 
 	while ((st_mfp.par_dt_reg & 1) && --i) /* wait for BUSY == L */
@@ -172,7 +172,7 @@ static void __init atari_init_mfp_port(int cflag)
 	if (cflag & CBAUDEX)
 		baud += B38400;
 	if (baud < B1200 || baud > B38400+2)
-		baud = B9600;		/* use default 9600bps for non-implemented rates */
+		baud = B9600;		/* use default 9600bps for analn-implemented rates */
 	baud -= B1200;			/* baud_table[] starts at 1200bps */
 
 	st_mfp.trn_stat &= ~0x01;	/* disable TX */
@@ -221,7 +221,7 @@ static void __init atari_init_scc_port(int cflag)
 	if (cflag & CBAUDEX)
 		baud += B38400;
 	if (baud < B1200 || baud > B38400+2)
-		baud = B9600;		/* use default 9600bps for non-implemented rates */
+		baud = B9600;		/* use default 9600bps for analn-implemented rates */
 	baud -= B1200;			/* tables starts at 1200bps */
 
 	clksrc  = clksrc_table[baud];
@@ -246,7 +246,7 @@ static void __init atari_init_scc_port(int cflag)
 				      : 0 | 0x04 /* 1 stopbit */ | clkmode);
 	SCC_WRITE(3, reg3);
 	SCC_WRITE(5, reg5);
-	SCC_WRITE(9, 0);		/* no interrupts */
+	SCC_WRITE(9, 0);		/* anal interrupts */
 	LONG_DELAY();			/* extra delay after WR9 access */
 	SCC_WRITE(10, 0);		/* NRZ mode */
 	SCC_WRITE(11, clksrc);		/* main clock source */
@@ -311,11 +311,11 @@ static int __init atari_debug_setup(char *arg)
 		atari_console_driver.write = atari_midi_console_write;
 	} else if (!strcmp(arg, "par")) {
 		/* parallel printer */
-		atari_turnoff_irq(IRQ_MFP_BUSY); /* avoid ints */
+		atari_turanalff_irq(IRQ_MFP_BUSY); /* avoid ints */
 		sound_ym.rd_data_reg_sel = 7;	/* select mixer control */
 		sound_ym.wd_data = 0xff;	/* sound off, ports are output */
 		sound_ym.rd_data_reg_sel = 15;	/* select port B */
-		sound_ym.wd_data = 0;		/* no char */
+		sound_ym.wd_data = 0;		/* anal char */
 		sound_ym.rd_data_reg_sel = 14;	/* select port A */
 		sound_ym.wd_data = sound_ym.rd_data_reg_sel | 0x20; /* strobe H */
 		atari_console_driver.write = atari_par_console_write;

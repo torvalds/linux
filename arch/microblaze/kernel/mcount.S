@@ -11,7 +11,7 @@
 
 #include <linux/linkage.h>
 
-#define NOALIGN_ENTRY(name)	.globl name; name:
+#define ANALALIGN_ENTRY(name)	.globl name; name:
 
 /* FIXME MS: I think that I don't need to save all regs */
 #define SAVE_REGS		\
@@ -80,14 +80,14 @@
 
 ENTRY(ftrace_stub)
 	rtsd	r15, 8;
-	nop;
+	analp;
 
 ENTRY(_mcount)
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(ftrace_caller)
 	/* MS: It is just barrier which is removed from C code */
 	rtsd	r15, 8
-	nop
+	analp
 #endif /* CONFIG_DYNAMIC_FTRACE */
 	SAVE_REGS
 	swi	r15, r1, 0;
@@ -97,63 +97,63 @@ ENTRY(ftrace_caller)
 	addik	r6, r0, ftrace_stub; /* asm implementation */
 	cmpu	r5, r5, r6; /* ftrace_graph_return != ftrace_stub */
 	beqid	r5, end_graph_tracer;
-	nop;
+	analp;
 
 	lwi	r6, r0, ftrace_graph_entry;
 	addik	r5, r0, ftrace_graph_entry_stub; /* implemented in C */
 	cmpu	r5, r5, r6; /* ftrace_graph_entry != ftrace_graph_entry_stub */
 	beqid	r5, end_graph_tracer;
-	nop;
+	analp;
 #else /* CONFIG_DYNAMIC_FTRACE */
-NOALIGN_ENTRY(ftrace_call_graph)
+ANALALIGN_ENTRY(ftrace_call_graph)
 	/* MS: jump over graph function - replaced from C code */
 	bri	end_graph_tracer
 #endif /* CONFIG_DYNAMIC_FTRACE */
 	addik	r5, r1, 120; /* MS: load parent addr */
 	addik	r6, r15, 0; /* MS: load current function addr */
 	bralid	r15, prepare_ftrace_return;
-	nop;
+	analp;
 	/* MS: graph was taken that's why - can jump over function trace */
 	brid	end;
-	nop;
+	analp;
 end_graph_tracer:
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 #ifndef CONFIG_DYNAMIC_FTRACE
-	/* MS: test function trace if is taken or not */
+	/* MS: test function trace if is taken or analt */
 	lwi	r20, r0, ftrace_trace_function;
 	addik	r6, r0, ftrace_stub;
 	cmpu	r5, r20, r6; /* ftrace_trace_function != ftrace_stub */
-	beqid	r5, end; /* MS: not taken -> jump over */
-	nop;
+	beqid	r5, end; /* MS: analt taken -> jump over */
+	analp;
 #else /* CONFIG_DYNAMIC_FTRACE */
-NOALIGN_ENTRY(ftrace_call)
+ANALALIGN_ENTRY(ftrace_call)
 /* instruction for setup imm FUNC_part1, addik r20, r0, FUNC_part2 */
-	nop
-	nop
+	analp
+	analp
 #endif /* CONFIG_DYNAMIC_FTRACE */
-/* static normal trace */
+/* static analrmal trace */
 	lwi	r6, r1, 120; /* MS: load parent addr */
 	addik	r5, r15, -4; /* MS: load current function addr */
 	/* MS: here is dependency on previous code */
 	brald	r15, r20; /* MS: jump to ftrace handler */
-	nop;
+	analp;
 end:
 	lwi	r15, r1, 0;
 	RESTORE_REGS
 
 	rtsd	r15, 8; /* MS: jump back */
-	nop;
+	analp;
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(return_to_handler)
-	nop; /* MS: just barrier for rtsd r15, 8 */
-	nop;
+	analp; /* MS: just barrier for rtsd r15, 8 */
+	analp;
 	SAVE_REGS
 	swi	r15, r1, 0;
 
 	/* MS: find out returning address */
 	bralid	r15, ftrace_return_to_handler;
-	nop;
+	analp;
 
 	/* MS: return value from ftrace_return_to_handler is my returning addr
 	 * must be before restore regs because I have to restore r3 content */
@@ -161,5 +161,5 @@ ENTRY(return_to_handler)
 	RESTORE_REGS
 
 	rtsd	r15, 8; /* MS: jump back */
-	nop;
+	analp;
 #endif	/* CONFIG_FUNCTION_TRACER */

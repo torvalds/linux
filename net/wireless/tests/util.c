@@ -18,10 +18,10 @@ int t_wiphy_init(struct kunit_resource *resource, void *ctx)
 	struct t_wiphy_priv *priv;
 
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, ops);
+	KUNIT_ASSERT_ANALT_NULL(test, ops);
 
 	wiphy = wiphy_new_nm(ops, sizeof(*priv), "kunit");
-	KUNIT_ASSERT_NOT_NULL(test, wiphy);
+	KUNIT_ASSERT_ANALT_NULL(test, wiphy);
 
 	priv = wiphy_priv(wiphy);
 	priv->ctx = ctx;
@@ -48,7 +48,7 @@ void t_wiphy_exit(struct kunit_resource *resource)
 	ops = priv->ops;
 
 	/* Should we ensure anything about the state here?
-	 * e.g. full destruction or no calls to any ops on destruction?
+	 * e.g. full destruction or anal calls to any ops on destruction?
 	 */
 
 	wiphy_free(resource->data);

@@ -34,7 +34,7 @@ unsigned long probe_irq_on(void)
 	int i;
 
 	/*
-	 * quiesce the kernel, or at least the asynchronous portion
+	 * quiesce the kernel, or at least the asynchroanalus portion
 	 */
 	async_synchronize_full();
 	mutex_lock(&probing_active);
@@ -46,13 +46,13 @@ unsigned long probe_irq_on(void)
 		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && irq_settings_can_probe(desc)) {
 			/*
-			 * Some chips need to know about probing in
+			 * Some chips need to kanalw about probing in
 			 * progress:
 			 */
 			if (desc->irq_data.chip->irq_set_type)
 				desc->irq_data.chip->irq_set_type(&desc->irq_data,
 							 IRQ_TYPE_PROBE);
-			irq_activate_and_startup(desc, IRQ_NORESEND);
+			irq_activate_and_startup(desc, IRQ_ANALRESEND);
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
@@ -69,7 +69,7 @@ unsigned long probe_irq_on(void)
 		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && irq_settings_can_probe(desc)) {
 			desc->istate |= IRQS_AUTODETECT | IRQS_WAITING;
-			if (irq_activate_and_startup(desc, IRQ_NORESEND))
+			if (irq_activate_and_startup(desc, IRQ_ANALRESEND))
 				desc->istate |= IRQS_PENDING;
 		}
 		raw_spin_unlock_irq(&desc->lock);
@@ -81,7 +81,7 @@ unsigned long probe_irq_on(void)
 	msleep(100);
 
 	/*
-	 * Now filter out any obviously spurious interrupts
+	 * Analw filter out any obviously spurious interrupts
 	 */
 	for_each_irq_desc(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
@@ -110,9 +110,9 @@ EXPORT_SYMBOL(probe_irq_on);
  *	autodetect interrupts. The interrupt probe logic state
  *	is then returned to its previous value.
  *
- *	Note: we need to scan all the irq's even though we will
+ *	Analte: we need to scan all the irq's even though we will
  *	only return autodetect irq numbers - just so that we reset
- *	them all to a known state.
+ *	them all to a kanalwn state.
  */
 unsigned int probe_irq_mask(unsigned long val)
 {
@@ -142,7 +142,7 @@ EXPORT_SYMBOL(probe_irq_mask);
  *	@val: mask of potential interrupts (unused)
  *
  *	Scans the unused interrupt lines and returns the line which
- *	appears to have triggered the interrupt. If no interrupt was
+ *	appears to have triggered the interrupt. If anal interrupt was
  *	found then zero is returned. If more than one interrupt is
  *	found then minus the first candidate is returned to indicate
  *	their is doubt.
@@ -151,8 +151,8 @@ EXPORT_SYMBOL(probe_irq_mask);
  *	value.
  *
  *	BUGS: When used in a module (which arguably shouldn't happen)
- *	nothing prevents two IRQ probe callers from overlapping. The
- *	results of this are non-optimal.
+ *	analthing prevents two IRQ probe callers from overlapping. The
+ *	results of this are analn-optimal.
  */
 int probe_irq_off(unsigned long val)
 {

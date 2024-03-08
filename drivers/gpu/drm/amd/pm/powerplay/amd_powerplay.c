@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,10 +46,10 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 
 	hwmgr = kzalloc(sizeof(struct pp_hwmgr), GFP_KERNEL);
 	if (hwmgr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->adev = adev;
-	hwmgr->not_vf = !amdgpu_sriov_vf(adev);
+	hwmgr->analt_vf = !amdgpu_sriov_vf(adev);
 	hwmgr->device = amdgpu_cgs_create_device(adev);
 	mutex_init(&hwmgr->msg_lock);
 	hwmgr->chip_family = adev->family;
@@ -104,7 +104,7 @@ static void pp_swctf_delayed_work_handler(struct work_struct *work)
 
 	/*
 	 * If the hotspot/edge temperature is confirmed as below SW CTF setting point
-	 * after the delay enforced, nothing will be done.
+	 * after the delay enforced, analthing will be done.
 	 * Otherwise, a graceful shutdown will be performed to prevent further damage.
 	 */
 	if (range->sw_ctf_threshold &&
@@ -114,10 +114,10 @@ static void pp_swctf_delayed_work_handler(struct work_struct *work)
 						     &gpu_temperature,
 						     &size);
 		/*
-		 * For some legacy ASICs, hotspot temperature retrieving might be not
+		 * For some legacy ASICs, hotspot temperature retrieving might be analt
 		 * supported. Check the edge temperature instead then.
 		 */
-		if (ret == -EOPNOTSUPP)
+		if (ret == -EOPANALTSUPP)
 			ret = hwmgr->hwmgr_func->read_sensor(hwmgr,
 							     AMDGPU_PP_SENSOR_EDGE_TEMP,
 							     &gpu_temperature,
@@ -202,8 +202,8 @@ static void pp_reserve_vram_for_smu(struct amdgpu_device *adev)
 		return;
 	}
 
-	if (hwmgr->hwmgr_func->notify_cac_buffer_info)
-		r = hwmgr->hwmgr_func->notify_cac_buffer_info(hwmgr,
+	if (hwmgr->hwmgr_func->analtify_cac_buffer_info)
+		r = hwmgr->hwmgr_func->analtify_cac_buffer_info(hwmgr,
 					lower_32_bits((unsigned long)cpu_ptr),
 					upper_32_bits((unsigned long)cpu_ptr),
 					lower_32_bits(gpu_addr),
@@ -213,7 +213,7 @@ static void pp_reserve_vram_for_smu(struct amdgpu_device *adev)
 	if (r) {
 		amdgpu_bo_free_kernel(&adev->pm.smu_prv_buffer, NULL, NULL);
 		adev->pm.smu_prv_buffer = NULL;
-		DRM_ERROR("amdgpu: failed to notify SMU buffer address\n");
+		DRM_ERROR("amdgpu: failed to analtify SMU buffer address\n");
 	}
 }
 
@@ -308,7 +308,7 @@ const struct amdgpu_ip_block_version pp_smu_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &pp_ip_funcs,
 };
@@ -346,7 +346,7 @@ static int pp_set_clockgating_by_smu(void *handle, uint32_t msg_id)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->update_clock_gatings == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 
@@ -414,7 +414,7 @@ static uint32_t pp_dpm_get_sclk(void *handle, bool low)
 		return 0;
 
 	if (hwmgr->hwmgr_func->get_sclk == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 	return hwmgr->hwmgr_func->get_sclk(hwmgr, low);
@@ -428,7 +428,7 @@ static uint32_t pp_dpm_get_mclk(void *handle, bool low)
 		return 0;
 
 	if (hwmgr->hwmgr_func->get_mclk == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 	return hwmgr->hwmgr_func->get_mclk(hwmgr, low);
@@ -442,7 +442,7 @@ static void pp_dpm_powergate_vce(void *handle, bool gate)
 		return;
 
 	if (hwmgr->hwmgr_func->powergate_vce == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return;
 	}
 	hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
@@ -456,7 +456,7 @@ static void pp_dpm_powergate_uvd(void *handle, bool gate)
 		return;
 
 	if (hwmgr->hwmgr_func->powergate_uvd == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return;
 	}
 	hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
@@ -510,10 +510,10 @@ static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hwmgr->hwmgr_func->set_fan_control_mode == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mode == U32_MAX)
 		return -EINVAL;
@@ -528,10 +528,10 @@ static int pp_dpm_get_fan_control_mode(void *handle, uint32_t *fan_mode)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hwmgr->hwmgr_func->get_fan_control_mode == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!fan_mode)
 		return -EINVAL;
@@ -545,10 +545,10 @@ static int pp_dpm_set_fan_speed_pwm(void *handle, uint32_t speed)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hwmgr->hwmgr_func->set_fan_speed_pwm == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed == U32_MAX)
 		return -EINVAL;
@@ -561,10 +561,10 @@ static int pp_dpm_get_fan_speed_pwm(void *handle, uint32_t *speed)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hwmgr->hwmgr_func->get_fan_speed_pwm == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!speed)
 		return -EINVAL;
@@ -577,10 +577,10 @@ static int pp_dpm_get_fan_speed_rpm(void *handle, uint32_t *rpm)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hwmgr->hwmgr_func->get_fan_speed_rpm == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rpm)
 		return -EINVAL;
@@ -593,10 +593,10 @@ static int pp_dpm_set_fan_speed_rpm(void *handle, uint32_t rpm)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hwmgr->hwmgr_func->set_fan_speed_rpm == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rpm == U32_MAX)
 		return -EINVAL;
@@ -670,7 +670,7 @@ static int amd_powerplay_reset(void *handle)
 static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 {
 	struct pp_hwmgr *hwmgr = handle;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
@@ -706,7 +706,7 @@ static int pp_dpm_force_clock_level(void *handle,
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->force_clock_level == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 
@@ -726,10 +726,10 @@ static int pp_dpm_emit_clock_levels(void *handle,
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!hwmgr->hwmgr_func->emit_clock_levels)
-		return -ENOENT;
+		return -EANALENT;
 
 	return hwmgr->hwmgr_func->emit_clock_levels(hwmgr, type, buf, offset);
 }
@@ -743,7 +743,7 @@ static int pp_dpm_print_clock_levels(void *handle,
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->print_clock_levels == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
@@ -757,7 +757,7 @@ static int pp_dpm_get_sclk_od(void *handle)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->get_sclk_od == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 	return hwmgr->hwmgr_func->get_sclk_od(hwmgr);
@@ -771,7 +771,7 @@ static int pp_dpm_set_sclk_od(void *handle, uint32_t value)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_sclk_od == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 
@@ -786,7 +786,7 @@ static int pp_dpm_get_mclk_od(void *handle)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->get_mclk_od == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 	return hwmgr->hwmgr_func->get_mclk_od(hwmgr);
@@ -800,7 +800,7 @@ static int pp_dpm_set_mclk_od(void *handle, uint32_t value)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_mclk_od == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 	return hwmgr->hwmgr_func->set_mclk_od(hwmgr, value);
@@ -856,7 +856,7 @@ static int pp_get_power_profile_mode(void *handle, char *buf)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en || !hwmgr->hwmgr_func->get_power_profile_mode)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!buf)
 		return -EINVAL;
 
@@ -868,7 +868,7 @@ static int pp_set_power_profile_mode(void *handle, long *input, uint32_t size)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en || !hwmgr->hwmgr_func->set_power_profile_mode)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
 		pr_debug("power profile setting is for manual dpm mode only.\n");
@@ -900,7 +900,7 @@ static int pp_odn_edit_dpm_table(void *handle, enum PP_OD_DPM_TABLE_COMMAND type
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->odn_edit_dpm_table == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 
@@ -934,7 +934,7 @@ static int pp_dpm_switch_power_profile(void *handle,
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_power_profile_mode == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -974,7 +974,7 @@ static int pp_set_power_limit(void *handle, uint32_t limit)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_power_limit == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1006,7 +1006,7 @@ static int pp_get_power_limit(void *handle, uint32_t *limit,
 		return -EINVAL;
 
 	if (power_type != PP_PWR_TYPE_SUSTAINED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (pp_limit_level) {
 		case PP_PWR_LIMIT_CURRENT:
@@ -1026,7 +1026,7 @@ static int pp_get_power_limit(void *handle, uint32_t *limit,
 			*limit = 0;
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 	}
 
@@ -1189,7 +1189,7 @@ static int pp_dpm_powergate_mmhub(void *handle)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->powergate_mmhub == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 
@@ -1204,7 +1204,7 @@ static int pp_dpm_powergate_gfx(void *handle, bool gate)
 		return 0;
 
 	if (hwmgr->hwmgr_func->powergate_gfx == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return 0;
 	}
 
@@ -1219,7 +1219,7 @@ static void pp_dpm_powergate_acp(void *handle, bool gate)
 		return;
 
 	if (hwmgr->hwmgr_func->powergate_acp == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return;
 	}
 
@@ -1234,7 +1234,7 @@ static void pp_dpm_powergate_sdma(void *handle, bool gate)
 		return;
 
 	if (hwmgr->hwmgr_func->powergate_sdma == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return;
 	}
 
@@ -1256,7 +1256,7 @@ static int pp_set_powergating_by_smu(void *handle,
 		break;
 	case AMD_IP_BLOCK_TYPE_GMC:
 		/*
-		 * For now, this is only used on PICASSO.
+		 * For analw, this is only used on PICASSO.
 		 * And only "gate" operation is supported.
 		 */
 		if (gate)
@@ -1277,19 +1277,19 @@ static int pp_set_powergating_by_smu(void *handle,
 	return ret;
 }
 
-static int pp_notify_smu_enable_pwe(void *handle)
+static int pp_analtify_smu_enable_pwe(void *handle)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->smus_notify_pwe == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+	if (hwmgr->hwmgr_func->smus_analtify_pwe == NULL) {
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
-	hwmgr->hwmgr_func->smus_notify_pwe(hwmgr);
+	hwmgr->hwmgr_func->smus_analtify_pwe(hwmgr);
 
 	return 0;
 }
@@ -1318,7 +1318,7 @@ static int pp_set_min_deep_sleep_dcefclk(void *handle, uint32_t clock)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk == NULL) {
-		pr_debug("%s was not implemented.\n", __func__);
+		pr_debug("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1335,7 +1335,7 @@ static int pp_set_hard_min_dcefclk_by_freq(void *handle, uint32_t clock)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq == NULL) {
-		pr_debug("%s was not implemented.\n", __func__);
+		pr_debug("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1352,7 +1352,7 @@ static int pp_set_hard_min_fclk_by_freq(void *handle, uint32_t clock)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_hard_min_fclk_by_freq == NULL) {
-		pr_debug("%s was not implemented.\n", __func__);
+		pr_debug("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1378,7 +1378,7 @@ static bool pp_get_asic_baco_capability(void *handle)
 	if (!hwmgr)
 		return false;
 
-	if (!(hwmgr->not_vf && amdgpu_dpm) ||
+	if (!(hwmgr->analt_vf && amdgpu_dpm) ||
 		!hwmgr->hwmgr_func->get_asic_baco_capability)
 		return false;
 
@@ -1407,7 +1407,7 @@ static int pp_set_asic_baco_state(void *handle, int state)
 	if (!hwmgr)
 		return -EINVAL;
 
-	if (!(hwmgr->not_vf && amdgpu_dpm) ||
+	if (!(hwmgr->analt_vf && amdgpu_dpm) ||
 		!hwmgr->hwmgr_func->set_asic_baco_state)
 		return 0;
 
@@ -1424,7 +1424,7 @@ static int pp_get_ppfeature_status(void *handle, char *buf)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->get_ppfeature_status == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1439,7 +1439,7 @@ static int pp_set_ppfeature_status(void *handle, uint64_t ppfeature_masks)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_ppfeature_status == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1454,7 +1454,7 @@ static int pp_asic_reset_mode_2(void *handle)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->asic_reset == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1469,7 +1469,7 @@ static int pp_smu_i2c_bus_access(void *handle, bool acquire)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->smu_i2c_bus_access == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1514,7 +1514,7 @@ static ssize_t pp_get_gpu_metrics(void *handle, void **table)
 		return -EINVAL;
 
 	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->get_gpu_metrics)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return hwmgr->hwmgr_func->get_gpu_metrics(hwmgr, table);
 }
@@ -1527,7 +1527,7 @@ static int pp_gfx_state_change_set(void *handle, uint32_t state)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->gfx_state_change == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		pr_info_ratelimited("%s was analt implemented.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1567,7 +1567,7 @@ static void pp_pm_compute_clocks(void *handle)
 		adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
 		adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
 		/* we have issues with mclk switching with
-		 * refresh rates over 120 hz on the non-DC code.
+		 * refresh rates over 120 hz on the analn-DC code.
 		 */
 		if (adev->pm.pm_display_cfg.vrefresh > 120)
 			adev->pm.pm_display_cfg.min_vblank_time = 0;
@@ -1628,7 +1628,7 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_watermarks_for_clocks_ranges = pp_set_watermarks_for_clocks_ranges,
 	.display_clock_voltage_request = pp_display_clock_voltage_request,
 	.get_display_mode_validation_clocks = pp_get_display_mode_validation_clocks,
-	.notify_smu_enable_pwe = pp_notify_smu_enable_pwe,
+	.analtify_smu_enable_pwe = pp_analtify_smu_enable_pwe,
 	.enable_mgpu_fan_boost = pp_enable_mgpu_fan_boost,
 	.set_active_display_count = pp_set_active_display_count,
 	.set_min_deep_sleep_dcefclk = pp_set_min_deep_sleep_dcefclk,

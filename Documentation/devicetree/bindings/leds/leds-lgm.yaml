@@ -43,7 +43,7 @@ properties:
   led-controller:
     type: object
     description:
-      This sub-node must contain a sub-node for each leds.
+      This sub-analde must contain a sub-analde for each leds.
 
     additionalProperties: false
 

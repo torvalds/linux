@@ -39,7 +39,7 @@ typedef struct {
 } pmi_message_t;
 
 struct pmi_handler {
-	struct list_head node;
+	struct list_head analde;
 	u8 type;
 	void (*handle_pmi_message) (pmi_message_t);
 };

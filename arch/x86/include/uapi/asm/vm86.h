@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_X86_VM86_H
 #define _UAPI_ASM_X86_VM86_H
 
@@ -31,7 +31,7 @@
 #define VM86_ARG(retval)	((retval) >> 8)
 
 #define VM86_SIGNAL	0	/* return due to signal */
-#define VM86_UNKNOWN	1	/* unhandled GP fault
+#define VM86_UNKANALWN	1	/* unhandled GP fault
 				   - IO-instruction or similar */
 #define VM86_INTx	2	/* int3/int x instruction (ARG = x) */
 #define VM86_STI	3	/* sti/popf/iret instruction enabled
@@ -48,7 +48,7 @@
  */
 #define VM86_PLUS_INSTALL_CHECK	0
 #define VM86_ENTER		1
-#define VM86_ENTER_NO_BYPASS	2
+#define VM86_ENTER_ANAL_BYPASS	2
 #define	VM86_REQUEST_IRQ	3
 #define VM86_FREE_IRQ		4
 #define VM86_GET_IRQ_BITS	5
@@ -62,7 +62,7 @@
 
 struct vm86_regs {
 /*
- * normal regs, with special meaning for the segment descriptors..
+ * analrmal regs, with special meaning for the segment descriptors..
  */
 	long ebx;
 	long ecx;
@@ -106,7 +106,7 @@ struct vm86_struct {
 /*
  * flags masks
  */
-#define VM86_SCREEN_BITMAP	0x0001        /* no longer supported */
+#define VM86_SCREEN_BITMAP	0x0001        /* anal longer supported */
 
 struct vm86plus_info_struct {
 	unsigned long force_return_for_pic:1;

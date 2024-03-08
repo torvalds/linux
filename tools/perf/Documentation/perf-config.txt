@@ -5,7 +5,7 @@ NAME
 ----
 perf-config - Get and set variables in a configuration file.
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf config' [<file-option>] [section.name[=value] ...]
@@ -78,7 +78,7 @@ Given a $HOME/.perfconfig like this:
 		# Color variables
 		top = red, default
 		medium = green, default
-		normal = lightgray, default
+		analrmal = lightgray, default
 		selected = white, lightgray
 		jump_arrows = blue, default
 		addr = magenta, default
@@ -87,14 +87,14 @@ Given a $HOME/.perfconfig like this:
 	[tui]
 		# Defaults if linked with libslang
 		report = on
-		annotate = on
+		ananaltate = on
 		top = on
 
 	[buildid]
 		# Default, disable using /dev/null
 		dir = ~/.debug
 
-	[annotate]
+	[ananaltate]
 		# Defaults
 		hide_src_code = false
 		use_offset = true
@@ -126,9 +126,9 @@ Given a $HOME/.perfconfig like this:
 		skip-empty = true
 
 
-You can hide source code of annotate feature setting the config to false with
+You can hide source code of ananaltate feature setting the config to false with
 
-	% perf config annotate.hide_src_code=true
+	% perf config ananaltate.hide_src_code=true
 
 If you want to add or modify several config items, you can do like
 
@@ -147,7 +147,7 @@ To query the record mode of call graph, do
 
 	% perf config call-graph.record-mode
 
-If you want to know multiple config key/value pairs, you can do like
+If you want to kanalw multiple config key/value pairs, you can do like
 
 	% perf config report.queue-size call-graph.order report.children
 
@@ -164,7 +164,7 @@ Variables
 
 colors.*::
 	The variables for customizing the colors used in the output for the
-	'report', 'top' and 'annotate' in the TUI. They should specify the
+	'report', 'top' and 'ananaltate' in the TUI. They should specify the
 	foreground and background colors, separated by a comma, for example:
 
 		medium = green, lightgray
@@ -186,20 +186,20 @@ colors.*::
 	colors.medium::
 		'medium' means a overhead percentage which has more than 0.5%.
 		Default values are 'green' and 'default'.
-	colors.normal::
-		'normal' means the rest of overhead percentages
+	colors.analrmal::
+		'analrmal' means the rest of overhead percentages
 		except 'top', 'medium', 'selected'.
 		Default values are 'lightgray' and 'default'.
 	colors.selected::
 		This selects the colors for the current entry in a list of entries
-		from sub-commands (top, report, annotate).
+		from sub-commands (top, report, ananaltate).
 		Default values are 'black' and 'lightgray'.
 	colors.jump_arrows::
 		Colors for jump arrows on assembly code listings
 		such as 'jns', 'jmp', 'jane', etc.
 		Default values are 'blue', 'default'.
 	colors.addr::
-		This selects colors for addresses from 'annotate'.
+		This selects colors for addresses from 'ananaltate'.
 		Default values are 'magenta', 'default'.
 	colors.root::
 		Colors for headers in the output of a sub-commands (top, report).
@@ -212,7 +212,7 @@ core.*::
 		subcommands. The default timeout is 500ms.
 
 tui.*, gtk.*::
-	Subcommands that can be configured here are 'top', 'report' and 'annotate'.
+	Subcommands that can be configured here are 'top', 'report' and 'ananaltate'.
 	These values are booleans, for example:
 
 	[tui]
@@ -226,7 +226,7 @@ buildid.*::
 		Each executable and shared library in modern distributions comes with a
 		content based identifier that, if available, will be inserted in a
 		'perf.data' file header to, at analysis time find what is needed to do
-		symbol resolution, code annotation, etc.
+		symbol resolution, code ananaltation, etc.
 
 		The recording tools also stores a hard link or copy in a per-user
 		directory, $HOME/.debug/, of binaries, shared libraries, /proc/kallsyms
@@ -243,25 +243,25 @@ buildid-cache.*::
 
 		  buildid-cache.debuginfod=http://192.168.122.174:8002
 
-annotate.*::
+ananaltate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
 
-	annotate.addr2line::
+	ananaltate.addr2line::
 		addr2line binary to use for file names and line numbers.
 
-	annotate.objdump::
-		objdump binary to use for disassembly and annotations,
+	ananaltate.objdump::
+		objdump binary to use for disassembly and ananaltations,
 		including in the 'perf test' command.
 
-	annotate.disassembler_style::
+	ananaltate.disassembler_style::
 		Use this to change the default disassembler style to some other value
 		supported by binutils, such as "intel", see the '-M' option help in the
 		'objdump' man page.
 
-	annotate.hide_src_code::
+	ananaltate.hide_src_code::
 		If a program which is analyzed has source code,
-		this option lets 'annotate' print a list of assembly code with the source code.
+		this option lets 'ananaltate' print a list of assembly code with the source code.
 		For example, let's see a part of a program. There're four lines.
 		If this option is 'true', they can be printed
 		without source code from a program as below.
@@ -274,20 +274,20 @@ annotate.*::
 		But if this option is 'false', source code of the part
 		can be also printed as below. Default is 'false'.
 
-		│      struct rb_node *rb_next(const struct rb_node *node)
+		│      struct rb_analde *rb_next(const struct rb_analde *analde)
 		│      {
 		│        push   %rbp
 		│        mov    %rsp,%rbp
 		│        sub    $0x10,%rsp
-		│              struct rb_node *parent;
+		│              struct rb_analde *parent;
 		│
-		│              if (RB_EMPTY_NODE(node))
+		│              if (RB_EMPTY_ANALDE(analde))
 		│        mov    (%rdi),%rdx
 		│              return n;
 
 		This option works with tui, stdio2 browsers.
 
-        annotate.use_offset::
+        ananaltate.use_offset::
 		Basing on a first address of a loaded function, offset can be used.
 		Instead of using original addresses of assembly code,
 		addresses subtracted from a base address can be printed.
@@ -307,10 +307,10 @@ annotate.*::
 
 		This option works with tui, stdio2 browsers.
 
-	annotate.jump_arrows::
+	ananaltate.jump_arrows::
 		There can be jump instruction among assembly code.
 		Depending on a boolean value of jump_arrows,
-		arrows can be printed or not which represent
+		arrows can be printed or analt which represent
 		where do the instruction jump into as below.
 
 		│     ┌──jmp    1333
@@ -328,7 +328,7 @@ annotate.*::
 
 		This option works with tui browser.
 
-        annotate.show_linenr::
+        ananaltate.show_linenr::
 		When showing source code if this option is 'true',
 		line numbers are printed as below.
 
@@ -349,7 +349,7 @@ annotate.*::
 
 		This option works with tui, stdio2 browsers.
 
-        annotate.show_nr_jumps::
+        ananaltate.show_nr_jumps::
 		Let's see a part of assembly code.
 
 		│1382:   movb   $0x1,-0x270(%rbp)
@@ -361,7 +361,7 @@ annotate.*::
 
 		This option works with tui, stdio2 browsers.
 
-        annotate.show_total_period::
+        ananaltate.show_total_period::
 		To compare two records on an instruction base, with this option
 		provided, display total number of samples that belong to a line
 		in assembly code. If this option is 'true', total periods are printed
@@ -376,8 +376,8 @@ annotate.*::
 
 		This option works with tui, stdio2, stdio browsers.
 
-	annotate.show_nr_samples::
-		By default perf annotate shows percentage of samples. This option
+	ananaltate.show_nr_samples::
+		By default perf ananaltate shows percentage of samples. This option
 		can be used to print absolute number of samples. Ex, when set as
 		false:
 
@@ -391,17 +391,17 @@ annotate.*::
 
 		This option works with tui, stdio2, stdio browsers.
 
-	annotate.offset_level::
+	ananaltate.offset_level::
 		Default is '1', meaning just jump targets will have offsets show right beside
 		the instruction. When set to '2' 'call' instructions will also have its offsets
 		shown, 3 or higher will show offsets for all instructions.
 
 		This option works with tui, stdio2 browsers.
 
-	annotate.demangle::
+	ananaltate.demangle::
 		Demangle symbol names to human readable form. Default is 'true'.
 
-	annotate.demangle_kernel::
+	ananaltate.demangle_kernel::
 		Demangle kernel symbol names to human readable form. Default is 'true'.
 
 hist.*::
@@ -436,7 +436,7 @@ call-graph.*::
 		and 'lbr'.  The value 'dwarf' is effective only if libunwind
 		(or a recent version of libdw) is present on the system;
 		the value 'lbr' only works for certain cpus. The method for
-		kernel space is controlled not by this option but by the
+		kernel space is controlled analt by this option but by the
 		kernel config (CONFIG_UNWINDER_*).
 
 	call-graph.dump-size::
@@ -474,7 +474,7 @@ call-graph.*::
 		'callee' which means callee is printed at top and then followed by its
 		caller and so on. The 'caller' prints it in reverse order.
 
-		If this option is not set and report.children or top.children is
+		If this option is analt set and report.children or top.children is
 		set to true (or the equivalent command line option is given),
 		the default value of this option is changed to 'caller' for the
 		execution of 'perf report' or 'perf top'. Other commands will
@@ -494,7 +494,7 @@ call-graph.*::
 
 	call-graph.print-limit::
 		This is a maximum number of lines of callchain printed for a single
-		histogram entry. Default is 0 which means no limitation.
+		histogram entry. Default is 0 which means anal limitation.
 
 report.*::
 	report.sort_order::
@@ -504,41 +504,41 @@ report.*::
 	report.percent-limit::
 		This one is mostly the same as call-graph.threshold but works for
 		histogram entries. Entries having an overhead lower than this
-		percentage will not be printed. Default is '0'. If percent-limit
+		percentage will analt be printed. Default is '0'. If percent-limit
 		is '10', only entries which have more than 10% of overhead will be
 		printed.
 
 	report.queue-size::
 		This option sets up the maximum allocation size of the internal
-		event queue for ordering events. Default is 0, meaning no limit.
+		event queue for ordering events. Default is 0, meaning anal limit.
 
 	report.children::
-		'Children' means functions called from another function.
+		'Children' means functions called from aanalther function.
 		If this option is true, 'perf report' cumulates callchains of children
 		and show (accumulated) total overhead as well as 'Self' overhead.
 		Please refer to the 'perf report' manual. The default is 'true'.
 
 	report.group::
 		This option is to show event group information together.
-		Example output with this turned on, notice that there is one column
+		Example output with this turned on, analtice that there is one column
 		per event in the group, ref-cycles and cycles:
 
 		# group: {ref-cycles,cycles}
 		# ========
 		#
-		# Samples: 7K of event 'anon group { ref-cycles, cycles }'
+		# Samples: 7K of event 'aanaln group { ref-cycles, cycles }'
 		# Event count (approx.): 6876107743
 		#
 		#         Overhead  Command      Shared Object               Symbol
 		# ................  .......  .................  ...................
 		#
-		    99.84%  99.76%  noploop  noploop            [.] main
-		     0.07%   0.00%  noploop  ld-2.15.so         [.] strcmp
-		     0.03%   0.00%  noploop  [kernel.kallsyms]  [k] timerqueue_del
+		    99.84%  99.76%  analploop  analploop            [.] main
+		     0.07%   0.00%  analploop  ld-2.15.so         [.] strcmp
+		     0.03%   0.00%  analploop  [kernel.kallsyms]  [k] timerqueue_del
 
 	report.skip-empty::
 		This option can change default stat behavior with empty results.
-		If it's set true, 'perf report --stat' will not show 0 stats.
+		If it's set true, 'perf report --stat' will analt show 0 stats.
 
 top.*::
 	top.children::
@@ -565,20 +565,20 @@ man.*::
 pager.*::
 	pager.<subcommand>::
 		When the subcommand is run on stdio, determine whether it uses
-		pager or not based on this value. Default is 'unspecified'.
+		pager or analt based on this value. Default is 'unspecified'.
 
 kmem.*::
 	kmem.default::
 		This option decides which allocator is to be analyzed if neither
-		'--slab' nor '--page' option is used. Default is 'slab'.
+		'--slab' analr '--page' option is used. Default is 'slab'.
 
 record.*::
 	record.build-id::
-		This option can be 'cache', 'no-cache', 'skip' or 'mmap'.
+		This option can be 'cache', 'anal-cache', 'skip' or 'mmap'.
 		'cache' is to post-process data and save/update the binaries into
 		the build-id cache (in ~/.debug). This is the default.
-		But if this option is 'no-cache', it will not update the build-id cache.
-		'skip' skips post-processing and does not update the cache.
+		But if this option is 'anal-cache', it will analt update the build-id cache.
+		'skip' skips post-processing and does analt update the cache.
 		'mmap' skips post-processing and reads build-ids from MMAP events.
 
 	record.call-graph::
@@ -588,7 +588,7 @@ record.*::
 		the command line option -g must be specified.
 
 	record.aio::
-		Use 'n' control blocks in asynchronous (Posix AIO) trace writing
+		Use 'n' control blocks in asynchroanalus (Posix AIO) trace writing
 		mode ('n' default: 1, max: 4).
 
 	record.debuginfod::
@@ -615,34 +615,34 @@ diff.*::
 trace.*::
 	trace.add_events::
 		Allows adding a set of events to add to the ones specified
-		by the user, or use as a default one if none was specified.
+		by the user, or use as a default one if analne was specified.
 		The initial use case is to add augmented_raw_syscalls.o to
 		activate the 'perf trace' logic that looks for syscall
-		pointer contents after the normal tracepoint payload.
+		pointer contents after the analrmal tracepoint payload.
 
 	trace.args_alignment::
 		Number of columns to align the argument list, default is 70,
-		use 40 for the strace default, zero to no alignment.
+		use 40 for the strace default, zero to anal alignment.
 
-	trace.no_inherit::
-		Do not follow children threads.
+	trace.anal_inherit::
+		Do analt follow children threads.
 
 	trace.show_arg_names::
-		Should syscall argument names be printed? If not then trace.show_zeros
+		Should syscall argument names be printed? If analt then trace.show_zeros
 		will be set.
 
 	trace.show_duration::
 		Show syscall duration.
 
 	trace.show_prefix::
-		If set to 'yes' will show common string prefixes in tables. The default
+		If set to 'anal' will show common string prefixes in tables. The default
 		is to remove the common prefix in things like "MAP_SHARED", showing just "SHARED".
 
 	trace.show_timestamp::
 		Show syscall start timestamp.
 
 	trace.show_zeros::
-		Do not suppress syscall arguments that are equal to zero.
+		Do analt suppress syscall arguments that are equal to zero.
 
 	trace.tracepoint_beautifiers::
 		Use "libtraceevent" to use that library to augment the tracepoint arguments,
@@ -651,8 +651,8 @@ trace.*::
 
 ftrace.*::
 	ftrace.tracer::
-		Can be used to select the default tracer when neither -G nor
-		-F option is not specified. Possible values are 'function' and
+		Can be used to select the default tracer when neither -G analr
+		-F option is analt specified. Possible values are 'function' and
 		'function_graph'.
 
 samples.*::
@@ -679,7 +679,7 @@ stat.*::
 
 	stat.big-num::
 		(boolean) Change the default for "--big-num". To make
-		"--no-big-num" the default, set "stat.big-num=false".
+		"--anal-big-num" the default, set "stat.big-num=false".
 
 intel-pt.*::
 
@@ -690,7 +690,7 @@ intel-pt.*::
 		branches.
 
 	intel-pt.max-loops::
-		If set and non-zero, the maximum number of unconditional
+		If set and analn-zero, the maximum number of unconditional
 		branches decoded without consuming any trace packets. If
 		the maximum is exceeded there will be a "Never-ending loop"
 		error. The default is 100000.
@@ -700,7 +700,7 @@ auxtrace.*::
 	auxtrace.dumpdir::
 		s390 only. The directory to save the auxiliary trace buffer
 		can be changed using this option. Ex, auxtrace.dumpdir=/tmp.
-		If the directory does not exist or has the wrong file type,
+		If the directory does analt exist or has the wrong file type,
 		the current directory is used.
 
 itrace.*::

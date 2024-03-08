@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  compress_offload.h - compress offload header definations
  *
  *  Copyright (C) 2011 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
+ *  Authors:	Vianald Koul <vianald.koul@linux.intel.com>
  *		Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
  */
 #ifndef __COMPRESS_OFFLOAD_H
@@ -29,12 +29,12 @@ struct snd_compressed_buffer {
  * struct snd_compr_params - compressed stream params
  * @buffer: buffer description
  * @codec: codec parameters
- * @no_wake_mode: dont wake on fragment elapsed
+ * @anal_wake_mode: dont wake on fragment elapsed
  */
 struct snd_compr_params {
 	struct snd_compressed_buffer buffer;
 	struct snd_codec codec;
-	__u8 no_wake_mode;
+	__u8 anal_wake_mode;
 } __attribute__((packed, aligned(4)));
 
 /**
@@ -43,7 +43,7 @@ struct snd_compr_params {
  * @copied_total: Total number of bytes copied from/to ring buffer to/by DSP
  * @pcm_frames: Frames decoded or encoded by DSP. This field will evolve by
  *	large steps and should only be used to monitor encoding/decoding
- *	progress. It shall not be used for timing estimates.
+ *	progress. It shall analt be used for timing estimates.
  * @pcm_io_frames: Frames rendered or received by DSP into a mixer or an audio
  * output/input. This field should be used for A/V sync or time estimates.
  * @sampling_rate: sampling rate of audio
@@ -107,9 +107,9 @@ struct snd_compr_codec_caps {
 
 /**
  * enum sndrv_compress_encoder - encoder metadata key
- * @SNDRV_COMPRESS_ENCODER_PADDING: no of samples appended by the encoder at the
+ * @SNDRV_COMPRESS_ENCODER_PADDING: anal of samples appended by the encoder at the
  * end of the track
- * @SNDRV_COMPRESS_ENCODER_DELAY: no of samples inserted by the encoder at the
+ * @SNDRV_COMPRESS_ENCODER_DELAY: anal of samples inserted by the encoder at the
  * beginning of the track
  */
 enum sndrv_compress_encoder {
@@ -132,7 +132,7 @@ struct snd_compr_metadata {
  * SNDRV_COMPRESS_GET_CAPS: Query capability of DSP
  * SNDRV_COMPRESS_GET_CODEC_CAPS: Query capability of a codec
  * SNDRV_COMPRESS_SET_PARAMS: Set codec and stream parameters
- * Note: only codec params can be changed runtime and stream params cant be
+ * Analte: only codec params can be changed runtime and stream params cant be
  * SNDRV_COMPRESS_GET_PARAMS: Query codec params
  * SNDRV_COMPRESS_TSTAMP: get the current timestamp value
  * SNDRV_COMPRESS_AVAIL: get the current buffer avail value.

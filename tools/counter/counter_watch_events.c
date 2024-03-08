@@ -6,7 +6,7 @@
  * Author: Fabrice Gasnier <fabrice.gasnier@foss.st.com>.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <linux/counter.h>
@@ -41,7 +41,7 @@ static const char * const counter_event_type_name[] = {
 };
 
 static const char * const counter_component_type_name[] = {
-	"COUNTER_COMPONENT_NONE",
+	"COUNTER_COMPONENT_ANALNE",
 	"COUNTER_COMPONENT_SIGNAL",
 	"COUNTER_COMPONENT_COUNT",
 	"COUNTER_COMPONENT_FUNCTION",
@@ -87,7 +87,7 @@ static void print_usage(void)
 		"counter_watch_events [options] [-w <watchoptions>]\n"
 		"counter_watch_events [options] [-w <watch1 options>] [-w <watch2 options>]...\n"
 		"\n"
-		"When no --watch option has been provided, simple watch example is used:\n"
+		"When anal --watch option has been provided, simple watch example is used:\n"
 		"counter_watch_events [options] -w comp_count,scope_count,evt_ovf_udf\n"
 		"\n"
 		"Test various watch events for given counter device.\n"
@@ -104,7 +104,7 @@ static void print_usage(void)
 		"  scope_signal               (COUNTER_SCOPE_SIGNAL)\n"
 		"  scope_count                (COUNTER_SCOPE_COUNT)\n"
 		"\n"
-		"  comp_none                  (COUNTER_COMPONENT_NONE) [default: comp_none]\n"
+		"  comp_analne                  (COUNTER_COMPONENT_ANALNE) [default: comp_analne]\n"
 		"  comp_signal                (COUNTER_COMPONENT_SIGNAL)\n"
 		"  comp_count                 (COUNTER_COMPONENT_COUNT)\n"
 		"  comp_function              (COUNTER_COMPONENT_FUNCTION)\n"
@@ -131,8 +131,8 @@ static void print_usage(void)
 }
 
 static const struct option longopts[] = {
-	{ "debug",		no_argument,       0, 'd' },
-	{ "help",		no_argument,       0, 'h' },
+	{ "debug",		anal_argument,       0, 'd' },
+	{ "help",		anal_argument,       0, 'h' },
 	{ "device-num",		required_argument, 0, 'n' },
 	{ "loop",		required_argument, 0, 'l' },
 	{ "watch",		required_argument, 0, 'w' },
@@ -144,7 +144,7 @@ enum {
 	WATCH_SCOPE_DEVICE,
 	WATCH_SCOPE_SIGNAL,
 	WATCH_SCOPE_COUNT,
-	WATCH_COMPONENT_NONE,
+	WATCH_COMPONENT_ANALNE,
 	WATCH_COMPONENT_SIGNAL,
 	WATCH_COMPONENT_COUNT,
 	WATCH_COMPONENT_FUNCTION,
@@ -169,7 +169,7 @@ static char * const counter_watch_subopts[WATCH_SUBOPTS_MAX + 1] = {
 	[WATCH_SCOPE_SIGNAL] = "scope_signal",
 	[WATCH_SCOPE_COUNT] = "scope_count",
 	/* component.type */
-	[WATCH_COMPONENT_NONE] = "comp_none",
+	[WATCH_COMPONENT_ANALNE] = "comp_analne",
 	[WATCH_COMPONENT_SIGNAL] = "comp_signal",
 	[WATCH_COMPONENT_COUNT] = "comp_count",
 	[WATCH_COMPONENT_FUNCTION] = "comp_function",
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
 	/*
 	 * 1st pass:
 	 * - list watch events number to allocate the watch array.
-	 * - parse normal options (other than watch options)
+	 * - parse analrmal options (other than watch options)
 	 */
 	while ((c = getopt_long(argc, argv, "dhn:l:w:", longopts, NULL)) != -1) {
 		switch (c) {
@@ -213,14 +213,14 @@ int main(int argc, char **argv)
 			return EXIT_SUCCESS;
 		case 'n':
 			dev_num = strtoul(optarg, NULL, 10);
-			if (errno) {
+			if (erranal) {
 				perror("strtol failed: --device-num <n>\n");
 				return EXIT_FAILURE;
 			}
 			break;
 		case 'l':
 			loop = strtol(optarg, NULL, 10);
-			if (errno) {
+			if (erranal) {
 				perror("strtol failed: --loop <n>\n");
 				return EXIT_FAILURE;
 			}
@@ -261,14 +261,14 @@ int main(int argc, char **argv)
 					/* match with counter_scope */
 					watches[i].component.scope = ret;
 					break;
-				case WATCH_COMPONENT_NONE:
+				case WATCH_COMPONENT_ANALNE:
 				case WATCH_COMPONENT_SIGNAL:
 				case WATCH_COMPONENT_COUNT:
 				case WATCH_COMPONENT_FUNCTION:
 				case WATCH_COMPONENT_SYNAPSE_ACTION:
 				case WATCH_COMPONENT_EXTENSION:
 					/* match counter_component_type: subtract enum value */
-					ret -= WATCH_COMPONENT_NONE;
+					ret -= WATCH_COMPONENT_ANALNE;
 					watches[i].component.type = ret;
 					break;
 				case WATCH_EVENT_OVERFLOW:
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 						goto err_free_watches;
 					}
 					watches[i].channel = strtoul(value, NULL, 10);
-					if (errno) {
+					if (erranal) {
 						perror("strtoul failed: chan=<number>\n");
 						rc = EXIT_FAILURE;
 						goto err_free_watches;
@@ -302,7 +302,7 @@ int main(int argc, char **argv)
 						goto err_free_watches;
 					}
 					watches[i].component.id = strtoul(value, NULL, 10);
-					if (errno) {
+					if (erranal) {
 						perror("strtoul failed: id=<number>\n");
 						rc = EXIT_FAILURE;
 						goto err_free_watches;
@@ -315,14 +315,14 @@ int main(int argc, char **argv)
 						goto err_free_watches;
 					}
 					watches[i].component.parent = strtoul(value, NULL, 10);
-					if (errno) {
+					if (erranal) {
 						perror("strtoul failed: parent=<number>\n");
 						rc = EXIT_FAILURE;
 						goto err_free_watches;
 					}
 					break;
 				default:
-					fprintf(stderr, "Unknown suboption '%s'\n", value);
+					fprintf(stderr, "Unkanalwn suboption '%s'\n", value);
 					rc = EXIT_FAILURE;
 					goto err_free_watches;
 				}
@@ -347,7 +347,7 @@ int main(int argc, char **argv)
 
 	fd = open(device_name, O_RDWR);
 	if (fd == -1) {
-		fprintf(stderr, "Unable to open %s: %s\n", device_name, strerror(errno));
+		fprintf(stderr, "Unable to open %s: %s\n", device_name, strerror(erranal));
 		free(device_name);
 		rc = EXIT_FAILURE;
 		goto err_free_watches;
@@ -358,7 +358,7 @@ int main(int argc, char **argv)
 		ret = ioctl(fd, COUNTER_ADD_WATCH_IOCTL, watches + i);
 		if (ret == -1) {
 			fprintf(stderr, "Error adding watches[%d]: %s\n", i,
-				strerror(errno));
+				strerror(erranal));
 			rc = EXIT_FAILURE;
 			goto err_close;
 		}

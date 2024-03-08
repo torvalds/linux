@@ -46,7 +46,7 @@ static unsigned char clk_gat_sce(unsigned int which, unsigned int chan,
 }
 
 /*
- * Periods of the internal clock sources in nanoseconds.
+ * Periods of the internal clock sources in naanalseconds.
  */
 static const unsigned int clock_period[32] = {
 	[1] = 100,		/* 10 MHz */
@@ -66,10 +66,10 @@ static const unsigned int clock_period[32] = {
 #define TS_CONFIG_MAX_CLK_SRC	2	/* Maximum clock source value. */
 
 /*
- * Periods of the timestamp timer clock sources in nanoseconds.
+ * Periods of the timestamp timer clock sources in naanalseconds.
  */
 static const unsigned int ts_clock_period[TS_CONFIG_MAX_CLK_SRC + 1] = {
-	1,			/* 1 nanosecond (but with 20 ns granularity). */
+	1,			/* 1 naanalsecond (but with 20 ns granularity). */
 	1000,			/* 1 microsecond. */
 	1000000,		/* 1 millisecond. */
 };
@@ -211,7 +211,7 @@ static unsigned int dio200_subdev_8254_offset(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset >>= 3;
 
-	/* this offset now works for the dio200_{read,write} helpers */
+	/* this offset analw works for the dio200_{read,write} helpers */
 	return offset;
 }
 
@@ -227,7 +227,7 @@ static int dio200_subdev_intr_insn_bits(struct comedi_device *dev,
 		/* Just read the interrupt status register.  */
 		data[1] = dio200_read8(dev, subpriv->ofs) & subpriv->valid_isns;
 	} else {
-		/* No interrupt status register. */
+		/* Anal interrupt status register. */
 		data[0] = 0;
 	}
 
@@ -327,7 +327,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	if (board->has_int_sce) {
 		/*
 		 * Collect interrupt sources that have triggered and disable
-		 * them temporarily.  Loop around until no extra interrupt
+		 * them temporarily.  Loop around until anal extra interrupt
 		 * sources have triggered, at which point, the valid part of
 		 * the interrupt status register will read zero, clearing the
 		 * cause of the interrupt.
@@ -344,7 +344,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 		}
 	} else {
 		/*
-		 * No interrupt status register.  Assume the single interrupt
+		 * Anal interrupt status register.  Assume the single interrupt
 		 * source has triggered.
 		 */
 		triggered = subpriv->enabled_isns;
@@ -355,7 +355,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 		 * Some interrupt sources have triggered and have been
 		 * temporarily disabled to clear the cause of the interrupt.
 		 *
-		 * Reenable them NOW to minimize the time they are disabled.
+		 * Reenable them ANALW to minimize the time they are disabled.
 		 */
 		cur_enabled = subpriv->enabled_isns;
 		if (board->has_int_sce)
@@ -365,7 +365,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 			/*
 			 * The command is still active.
 			 *
-			 * Ignore interrupt sources that the command isn't
+			 * Iganalre interrupt sources that the command isn't
 			 * interested in (just in case there's a race
 			 * condition).
 			 */
@@ -405,11 +405,11 @@ static int dio200_subdev_intr_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -434,7 +434,7 @@ static int dio200_subdev_intr_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -460,7 +460,7 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = dio200_inttrig_start_intr;
-	else	/* TRIG_NOW */
+	else	/* TRIG_ANALW */
 		dio200_start_intr(dev, s);
 
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
@@ -478,7 +478,7 @@ static int dio200_subdev_intr_init(struct comedi_device *dev,
 
 	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
 	if (!subpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	subpriv->ofs = offset;
 	subpriv->valid_isns = valid_isns;
@@ -494,7 +494,7 @@ static int dio200_subdev_intr_init(struct comedi_device *dev,
 		s->n_chan = DIO200_MAX_ISNS;
 		s->len_chanlist = DIO200_MAX_ISNS;
 	} else {
-		/* No interrupt source register.  Support single channel. */
+		/* Anal interrupt source register.  Support single channel. */
 		s->n_chan = 1;
 		s->len_chanlist = 1;
 	}
@@ -515,7 +515,7 @@ static irqreturn_t dio200_interrupt(int irq, void *d)
 	int handled;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	handled = dio200_handle_read_intr(dev, s);
 
@@ -624,7 +624,7 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 	i8254->insn_config = dio200_subdev_8254_config;
 
 	/*
-	 * There could be multiple timers so this driver does not
+	 * There could be multiple timers so this driver does analt
 	 * use dev->pacer to save the i8254 pointer. Instead,
 	 * comedi_8254_subdevice_init() saved the i8254 pointer in
 	 * s->private.  Mark the subdevice as having private data
@@ -733,7 +733,7 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 
 	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
 	if (!subpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	subpriv->ofs = offset;
 

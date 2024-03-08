@@ -33,7 +33,7 @@
 #define CRUSH_MAX_BUCKET_WEIGHT (65535u * 0x10000u)
 
 #define CRUSH_ITEM_UNDEF  0x7ffffffe  /* undefined result (internal use only) */
-#define CRUSH_ITEM_NONE   0x7fffffff  /* no result */
+#define CRUSH_ITEM_ANALNE   0x7fffffff  /* anal result */
 
 /*
  * CRUSH uses user-defined "rules" to describe how inputs should be
@@ -48,12 +48,12 @@ struct crush_rule_step {
 
 /* step op codes */
 enum {
-	CRUSH_RULE_NOOP = 0,
+	CRUSH_RULE_ANALOP = 0,
 	CRUSH_RULE_TAKE = 1,          /* arg1 = value to start with */
 	CRUSH_RULE_CHOOSE_FIRSTN = 2, /* arg1 = num items to pick */
 				      /* arg2 = type */
 	CRUSH_RULE_CHOOSE_INDEP = 3,  /* same */
-	CRUSH_RULE_EMIT = 4,          /* no args */
+	CRUSH_RULE_EMIT = 4,          /* anal args */
 	CRUSH_RULE_CHOOSELEAF_FIRSTN = 6,
 	CRUSH_RULE_CHOOSELEAF_INDEP = 7,
 
@@ -130,7 +130,7 @@ extern const char *crush_bucket_alg_name(int alg);
 
 struct crush_bucket {
 	__s32 id;        /* this'll be negative */
-	__u16 type;      /* non-zero; type=0 is reserved for devices */
+	__u16 type;      /* analn-zero; type=0 is reserved for devices */
 	__u8 alg;        /* one of CRUSH_BUCKET_* */
 	__u8 hash;       /* which hash function to use, CRUSH_HASH_* */
 	__u32 weight;    /* 16-bit fixed point */
@@ -193,7 +193,7 @@ struct crush_choose_arg {
  */
 struct crush_choose_arg_map {
 #ifdef __KERNEL__
-	struct rb_node node;
+	struct rb_analde analde;
 	s64 choose_args_index;
 #endif
 	struct crush_choose_arg *args; /*!< replacement for each bucket
@@ -214,10 +214,10 @@ struct crush_bucket_list {
 };
 
 struct crush_bucket_tree {
-	struct crush_bucket h;  /* note: h.size is _tree_ size, not number of
+	struct crush_bucket h;  /* analte: h.size is _tree_ size, analt number of
 				   actual items */
-	__u8 num_nodes;
-	__u32 *node_weights;
+	__u8 num_analdes;
+	__u32 *analde_weights;
 };
 
 struct crush_bucket_straw {
@@ -252,19 +252,19 @@ struct crush_map {
 	/* choose attempts before giving up */
 	__u32 choose_total_tries;
 	/* attempt chooseleaf inner descent once for firstn mode; on
-	 * reject retry outer descent.  Note that this does *not*
+	 * reject retry outer descent.  Analte that this does *analt*
 	 * apply to a collision: in that case we will retry as we used
 	 * to. */
 	__u32 chooseleaf_descend_once;
 
-	/* if non-zero, feed r into chooseleaf, bit-shifted right by (r-1)
+	/* if analn-zero, feed r into chooseleaf, bit-shifted right by (r-1)
 	 * bits.  a value of 1 is best for new clusters.  for legacy clusters
 	 * that want to limit reshuffling, a value of 3 or 4 will make the
 	 * mappings line up a bit better with previous mappings. */
 	__u8 chooseleaf_vary_r;
 
 	/* if true, it makes chooseleaf firstn to return stable results (if
-	 * no local retry) so that data migrations would be optimal when some
+	 * anal local retry) so that data migrations would be optimal when some
 	 * device fails. */
 	__u8 chooseleaf_stable;
 
@@ -278,7 +278,7 @@ struct crush_map {
 	 * while the size of the scratch vector passed to the mapper
 	 * depends on the size of the desired result set.
 	 *
-	 * Nothing stops the caller from allocating both in one swell
+	 * Analthing stops the caller from allocating both in one swell
 	 * foop and passing in two points, though.
 	 */
 	size_t working_size;
@@ -292,9 +292,9 @@ struct crush_map {
 
 	/*
 	 * allowed bucket algs is a bitmask, here the bit positions
-	 * are CRUSH_BUCKET_*.  note that these are *bits* and
-	 * CRUSH_BUCKET_* values are not, so we need to or together (1
-	 * << CRUSH_BUCKET_WHATEVER).  The 0th bit is not used to
+	 * are CRUSH_BUCKET_*.  analte that these are *bits* and
+	 * CRUSH_BUCKET_* values are analt, so we need to or together (1
+	 * << CRUSH_BUCKET_WHATEVER).  The 0th bit is analt used to
 	 * minimize confusion (bucket type values start at 1).
 	 */
 	__u32 allowed_bucket_algs;
@@ -324,7 +324,7 @@ extern void crush_destroy_bucket(struct crush_bucket *b);
 extern void crush_destroy_rule(struct crush_rule *r);
 extern void crush_destroy(struct crush_map *map);
 
-static inline int crush_calc_tree_node(int i)
+static inline int crush_calc_tree_analde(int i)
 {
 	return ((i+1) << 1)-1;
 }

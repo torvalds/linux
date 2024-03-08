@@ -69,17 +69,17 @@ static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 	ctl_block = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(ctl_block)) {
 		err = PTR_ERR(ctl_block);
-		dev_err(&pdev->dev, "Cannot get reset region (%d)!\n", err);
+		dev_err(&pdev->dev, "Cananalt get reset region (%d)!\n", err);
 		return ERR_PTR(err);
 	}
 
 	gmac = devm_kzalloc(&pdev->dev, sizeof(*gmac), GFP_KERNEL);
 	if (!gmac)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gmac->ctl_block = ctl_block;
 
-	err = of_get_phy_mode(pdev->dev.of_node, &phy_mode);
+	err = of_get_phy_mode(pdev->dev.of_analde, &phy_mode);
 	if (err)
 		return ERR_PTR(err);
 
@@ -94,7 +94,7 @@ static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 	default:
 		dev_err(&pdev->dev, "Unsupported phy-mode (%d)\n",
 			phy_mode);
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EANALTSUPP);
 	}
 
 	return gmac;

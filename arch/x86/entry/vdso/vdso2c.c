@@ -6,7 +6,7 @@
  * vdso2c requires stripped and unstripped input.  It would be trivial
  * to fully strip the input in here, but, for reasons described below,
  * we need to write a section table.  Doing this is more or less
- * equivalent to dropping all non-allocatable sections, but it's
+ * equivalent to dropping all analn-allocatable sections, but it's
  * easier to let objcopy handle that instead of doing it ourselves.
  * If we ever need to do something fancier than what objcopy provides,
  * it would be straightforward to add here.
@@ -16,9 +16,9 @@
  * The Go runtime had a couple of bugs: it would read the section
  * table to try to figure out how many dynamic symbols there were (it
  * shouldn't have looked at the section table at all) and, if there
- * were no SHT_SYNDYM section table entry, it would use an
+ * were anal SHT_SYNDYM section table entry, it would use an
  * uninitialized value for the number of symbols.  An empty DYNSYM
- * table would work, but I see no reason not to write a valid one (and
+ * table would work, but I see anal reason analt to write a valid one (and
  * keep full performance for old Go programs).  This hack is only
  * needed on x86_64.
  *
@@ -28,23 +28,23 @@
  * https://code.google.com/p/go/source/detail?r=fc1cd5e12595
  *
  * Binutils has issues debugging the vDSO: it reads the section table to
- * find SHT_NOTE; it won't look at PT_NOTE for the in-memory vDSO, which
+ * find SHT_ANALTE; it won't look at PT_ANALTE for the in-memory vDSO, which
  * would break build-id if we removed the section table.  Binutils
  * also requires that shstrndx != 0.  See:
  * https://sourceware.org/bugzilla/show_bug.cgi?id=17064
  *
- * elfutils might not look for PT_NOTE if there is a section table at
- * all.  I don't know whether this matters for any practical purpose.
+ * elfutils might analt look for PT_ANALTE if there is a section table at
+ * all.  I don't kanalw whether this matters for any practical purpose.
  *
  * For simplicity, rather than hacking up a partial section table, we
- * just write a mostly complete one.  We omit non-dynamic symbols,
+ * just write a mostly complete one.  We omit analn-dynamic symbols,
  * though, since they're rather large.
  *
  * Once binutils gets fixed, we might be able to drop this for all but
  * the 64-bit vdso, since build-id only works in kernel RPMs, and
- * systems that update to new enough kernel RPMs will likely update
+ * systems that update to new eanalugh kernel RPMs will likely update
  * binutils in sync.  build-id has never worked for home-built kernel
- * RPMs without manual symlinking, and I suspect that no one ever does
+ * RPMs without manual symlinking, and I suspect that anal one ever does
  * that.
  */
 
@@ -96,7 +96,7 @@ struct vdso_sym required_syms[] = {
 	[sym_pvclock_page] = {"pvclock_page", true},
 	[sym_hvclock_page] = {"hvclock_page", true},
 	[sym_timens_page] = {"timens_page", true},
-	{"VDSO32_NOTE_MASK", true},
+	{"VDSO32_ANALTE_MASK", true},
 	{"__kernel_vsyscall", true},
 	{"__kernel_sigreturn", true},
 	{"__kernel_rt_sigreturn", true},
@@ -105,7 +105,7 @@ struct vdso_sym required_syms[] = {
 	{"vdso32_sigreturn_landing_pad", true},
 };
 
-__attribute__((format(printf, 1, 2))) __attribute__((noreturn))
+__attribute__((format(printf, 1, 2))) __attribute__((analreturn))
 static void fail(const char *format, ...)
 {
 	va_list ap;
@@ -121,10 +121,10 @@ static void fail(const char *format, ...)
 /*
  * Evil macros for little-endian reads and writes
  */
-#define GLE(x, bits, ifnot)						\
+#define GLE(x, bits, ifanalt)						\
 	__builtin_choose_expr(						\
 		(sizeof(*(x)) == bits/8),				\
-		(__typeof__(*(x)))get_unaligned_le##bits(x), ifnot)
+		(__typeof__(*(x)))get_unaligned_le##bits(x), ifanalt)
 
 extern void bad_get_le(void);
 #define LAST_GLE(x)							\
@@ -133,10 +133,10 @@ extern void bad_get_le(void);
 #define GET_LE(x)							\
 	GLE(x, 64, GLE(x, 32, GLE(x, 16, LAST_GLE(x))))
 
-#define PLE(x, val, bits, ifnot)					\
+#define PLE(x, val, bits, ifanalt)					\
 	__builtin_choose_expr(						\
 		(sizeof(*(x)) == bits/8),				\
-		put_unaligned_le##bits((val), (x)), ifnot)
+		put_unaligned_le##bits((val), (x)), ifanalt)
 
 extern void bad_put_le(void);
 #define LAST_PLE(x, val)						\
@@ -179,7 +179,7 @@ static void go(void *raw_addr, size_t raw_len,
 		go32(raw_addr, raw_len, stripped_addr, stripped_len,
 		     outfile, name);
 	} else {
-		fail("unknown ELF class\n");
+		fail("unkanalwn ELF class\n");
 	}
 }
 

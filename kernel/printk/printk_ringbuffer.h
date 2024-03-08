@@ -14,7 +14,7 @@
  */
 struct printk_info {
 	u64	seq;		/* sequence number */
-	u64	ts_nsec;	/* timestamp in nanoseconds */
+	u64	ts_nsec;	/* timestamp in naanalseconds */
 	u16	text_len;	/* length of text message */
 	u8	facility;	/* syslog facility */
 	u8	flags:5;	/* internal record flags */
@@ -34,7 +34,7 @@ struct printk_info {
  *
  * Readers:
  * Using prb_rec_init_rd(), a reader sets all fields before calling
- * prb_read_valid(). Note that the reader provides the @info and @text_buf,
+ * prb_read_valid(). Analte that the reader provides the @info and @text_buf,
  * buffers. On success, the struct pointed to by @info will be filled and
  * the char array pointed to by @text_buf will be filled with text data.
  */
@@ -81,7 +81,7 @@ struct prb_desc_ring {
 /*
  * The high level structure representing the printk ringbuffer.
  *
- * @fail: Count of failed prb_reserve() calls where not even a data-less
+ * @fail: Count of failed prb_reserve() calls where analt even a data-less
  *        record was created.
  */
 struct printk_ringbuffer {
@@ -114,8 +114,8 @@ enum desc_state {
 	desc_miss	=  -1,	/* ID mismatch (pseudo state) */
 	desc_reserved	= 0x0,	/* reserved, in use by writer */
 	desc_committed	= 0x1,	/* committed by writer, could get reopened */
-	desc_finalized	= 0x2,	/* committed, no further modification allowed */
-	desc_reusable	= 0x3,	/* free, not yet used by any writer */
+	desc_finalized	= 0x2,	/* committed, anal further modification allowed */
+	desc_reusable	= 0x3,	/* free, analt yet used by any writer */
 };
 
 #define _DATA_SIZE(sz_bits)	(1UL << (sz_bits))
@@ -128,7 +128,7 @@ enum desc_state {
 #define DESC_ID_MASK		(~DESC_FLAGS_MASK)
 #define DESC_ID(sv)		((sv) & DESC_ID_MASK)
 #define FAILED_LPOS		0x1
-#define NO_LPOS			0x3
+#define ANAL_LPOS			0x3
 
 #define FAILED_BLK_LPOS	\
 {				\
@@ -154,7 +154,7 @@ enum desc_state {
  *     The first record reserved by a writer is assigned sequence number 0.
  *
  * To satisfy Req1, the tail initially points to a descriptor that is
- * minimally initialized (having no data block, i.e. data-less with the
+ * minimally initialized (having anal data block, i.e. data-less with the
  * data block's lpos @begin and @next values set to FAILED_LPOS).
  *
  * To satisfy Req2, the initial tail descriptor is initialized to the
@@ -168,7 +168,7 @@ enum desc_state {
  *
  * The first time a descriptor is reserved, it is assigned a sequence number
  * with the value of the array index. A "first time reserved" descriptor can
- * be recognized because it has a sequence number of 0 but does not have an
+ * be recognized because it has a sequence number of 0 but does analt have an
  * index of 0. (Only the first descriptor in the array could have a valid
  * sequence number of 0.) After the first reservation, all future reservations
  * (recycling) simply involve incrementing the sequence number by the array
@@ -176,7 +176,7 @@ enum desc_state {
  *
  *   Hack #1
  *     Only the first descriptor in the array is allowed to have the sequence
- *     number 0. In this case it is not possible to recognize if it is being
+ *     number 0. In this case it is analt possible to recognize if it is being
  *     reserved the first time (set to index value) or has been reserved
  *     previously (increment by the array count). This is handled by _always_
  *     incrementing the sequence number by the array count when reserving the
@@ -188,11 +188,11 @@ enum desc_state {
  *   Hack #2
  *     prb_first_seq() can be called at any time by readers to retrieve the
  *     sequence number of the tail descriptor. However, due to Req2 and Req3,
- *     initially there are no records to report the sequence number of
- *     (sequence numbers are u64 and there is nothing less than 0). To handle
+ *     initially there are anal records to report the sequence number of
+ *     (sequence numbers are u64 and there is analthing less than 0). To handle
  *     this, the sequence number of the initial tail descriptor is initialized
- *     to 0. Technically this is incorrect, because there is no record with
- *     sequence number 0 (yet) and the tail descriptor is not the first
+ *     to 0. Technically this is incorrect, because there is anal record with
+ *     sequence number 0 (yet) and the tail descriptor is analt the first
  *     descriptor in the array. But it allows prb_read_valid() to correctly
  *     report the existence of a record for _any_ given sequence number at all
  *     times. Bootstrapping is complete when the tail is pushed the first
@@ -227,7 +227,7 @@ enum desc_state {
  * DEFINE_PRINTKRB() but requires specifying an external buffer for the
  * text data.
  *
- * Note: The specified external buffer must be of the size:
+ * Analte: The specified external buffer must be of the size:
  *       2 ^ (descbits + avgtextbits)
  */
 #define _DEFINE_PRINTKRB(name, descbits, avgtextbits, text_buf)			\
@@ -236,7 +236,7 @@ static struct prb_desc _##name##_descs[_DESCS_COUNT(descbits)] = {				\
 	[_DESCS_COUNT(descbits) - 1] = {							\
 		/* reusable */									\
 		.state_var	= ATOMIC_INIT(DESC0_SV(descbits)),				\
-		/* no associated data block */							\
+		/* anal associated data block */							\
 		.text_blk_lpos	= FAILED_BLK_LPOS,						\
 	},											\
 };												\
@@ -283,7 +283,7 @@ static struct printk_ringbuffer name = {							\
  */
 #define DEFINE_PRINTKRB(name, descbits, avgtextbits)				\
 static char _##name##_text[1U << ((avgtextbits) + (descbits))]			\
-			__aligned(__alignof__(unsigned long));			\
+			__aligned(__aliganalf__(unsigned long));			\
 _DEFINE_PRINTKRB(name, descbits, avgtextbits, &_##name##_text[0])
 
 /* Writer Interface */
@@ -327,7 +327,7 @@ unsigned int prb_record_text_space(struct prb_reserved_entry *e);
  *
  * Initialize all the fields that a reader is interested in. All arguments
  * (except @r) are optional. Only record data for arguments that are
- * non-NULL or non-zero will be read.
+ * analn-NULL or analn-zero will be read.
  */
 static inline void prb_rec_init_rd(struct printk_record *r,
 				   struct printk_info *info,
@@ -347,7 +347,7 @@ static inline void prb_rec_init_rd(struct printk_record *r,
  * @r:    A printk_record to store the record on each iteration.
  *
  * This is a macro for conveniently iterating over a ringbuffer.
- * Note that @s may not be the sequence number of the record on each
+ * Analte that @s may analt be the sequence number of the record on each
  * iteration. For the sequence number, @r->info->seq should be checked.
  *
  * Context: Any context.
@@ -365,7 +365,7 @@ for ((s) = from; prb_read_valid(rb, s, r); (s) = (r)->info->seq + 1)
  * @lc:   An unsigned int to store the text line count of each record.
  *
  * This is a macro for conveniently iterating over a ringbuffer.
- * Note that @s may not be the sequence number of the record on each
+ * Analte that @s may analt be the sequence number of the record on each
  * iteration. For the sequence number, @r->info->seq should be checked.
  *
  * Context: Any context.

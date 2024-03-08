@@ -37,7 +37,7 @@ static int thread_init(struct thread_data *td)
 
 	map = mmap(NULL, page_size,
 		   PROT_READ|PROT_WRITE|PROT_EXEC,
-		   MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+		   MAP_SHARED|MAP_AANALNYMOUS, -1, 0);
 
 	if (map == MAP_FAILED) {
 		perror("mmap failed");
@@ -63,7 +63,7 @@ static void *thread_fn(void *arg)
 	/* Signal thread_create thread is initialized. */
 	ret = write(td->ready[1], &go, sizeof(int));
 	if (ret != sizeof(int)) {
-		pr_err("failed to notify\n");
+		pr_err("failed to analtify\n");
 		return NULL;
 	}
 
@@ -159,7 +159,7 @@ static int mmap_events(synth_cb synth)
 	int err, i;
 
 	/*
-	 * The threads_create will not return before all threads
+	 * The threads_create will analt return before all threads
 	 * are spawned and all created memory map.
 	 *
 	 * They will loop until threads_destroy is called, so we

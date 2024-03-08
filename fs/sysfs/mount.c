@@ -21,7 +21,7 @@
 #include "sysfs.h"
 
 static struct kernfs_root *sysfs_root;
-struct kernfs_node *sysfs_root_kn;
+struct kernfs_analde *sysfs_root_kn;
 
 static int sysfs_get_tree(struct fs_context *fc)
 {
@@ -64,7 +64,7 @@ static int sysfs_init_fs_context(struct fs_context *fc)
 
 	kfc = kzalloc(sizeof(struct kernfs_fs_context), GFP_KERNEL);
 	if (!kfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kfc->ns_tag = netns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
 	kfc->root = sysfs_root;
@@ -103,7 +103,7 @@ int __init sysfs_init(void)
 	if (IS_ERR(sysfs_root))
 		return PTR_ERR(sysfs_root);
 
-	sysfs_root_kn = kernfs_root_to_node(sysfs_root);
+	sysfs_root_kn = kernfs_root_to_analde(sysfs_root);
 
 	err = register_filesystem(&sysfs_fs_type);
 	if (err) {

@@ -113,7 +113,7 @@ int hw_atl2_utils_soft_reset(struct aq_hw_s *self)
 	if (hw_atl2_mif_host_req_int_get(self) &
 	    HW_ATL2_MCP_HOST_REQ_INT_READY) {
 		err = -EIO;
-		aq_pr_err("No FW detected. Dynamic FW load not implemented");
+		aq_pr_err("Anal FW detected. Dynamic FW load analt implemented");
 		goto err_exit;
 	}
 

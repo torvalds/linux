@@ -58,16 +58,16 @@ int init_initiator_login_request_task(struct iscsi_task_params *task_params,
 				      struct scsi_sgl_task_params *tx_params,
 				      struct scsi_sgl_task_params *rx_params);
 
-/* @brief init_initiator_nop_out_task - initializes iSCSI Initiator NOP Out
+/* @brief init_initiator_analp_out_task - initializes iSCSI Initiator ANALP Out
  * task context.
  *
  * @param task_params		- Pointer to task parameters struct
- * @param nop_out_pdu_header    - PDU Header Parameters
+ * @param analp_out_pdu_header    - PDU Header Parameters
  * @param tx_sgl_task_params	- Pointer to SGL task params
  * @param rx_sgl_task_params	- Pointer to SGL task params
  */
-int init_initiator_nop_out_task(struct iscsi_task_params *task_params,
-				struct iscsi_nop_out_hdr *nop_out_pdu_header,
+int init_initiator_analp_out_task(struct iscsi_task_params *task_params,
+				struct iscsi_analp_out_hdr *analp_out_pdu_header,
 				struct scsi_sgl_task_params *tx_sgl_params,
 				struct scsi_sgl_task_params *rx_sgl_params);
 

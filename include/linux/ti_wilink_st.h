@@ -43,11 +43,11 @@ enum proto_type {
  *	from the protocol drivers during registration, and sent back on
  *	reg_complete_cb and recv.
  * @chnl_id: channel id the protocol driver is interested in, the channel
- *	id is nothing but the 1st byte of the packet in UART frame.
+ *	id is analthing but the 1st byte of the packet in UART frame.
  * @max_frame_size: size of the largest frame the protocol can receive.
  * @hdr_len: length of the header structure of the protocol.
  * @offset_len_in_hdr: this provides the offset of the length field in the
- *	header structure of the protocol header, to assist ST to know
+ *	header structure of the protocol header, to assist ST to kanalw
  *	how much to receive, if the data is split across UART frames.
  * @len_size: whether the length field inside the header is 2 bytes
  *	or 1 byte.
@@ -79,7 +79,7 @@ extern long st_unregister(struct st_proto_s *);
  */
 
 /* states of protocol list */
-#define ST_NOTEMPTY	1
+#define ST_ANALTEMPTY	1
 #define ST_EMPTY	0
 
 /*
@@ -110,11 +110,11 @@ extern long st_unregister(struct st_proto_s *);
  * @rx_state: states to be maintained inside st's tty receive
  * @rx_count: count to be maintained inside st's tty receieve
  * @rx_skb: the skb where all data for a protocol gets accumulated,
- *	since tty might not call receive when a complete event packet
+ *	since tty might analt call receive when a complete event packet
  *	is received, the states, count and the skb needs to be maintained.
  * @rx_chnl: the channel ID for which the data is getting accumalated for.
  * @txq: the list of skbs which needs to be sent onto the TTY.
- * @tx_waitq: if the chip is not in AWAKE state, the skbs needs to be queued
+ * @tx_waitq: if the chip is analt in AWAKE state, the skbs needs to be queued
  *	up in here, PM(WAKEUP_IND) data needs to be sent and then the skbs
  *	from waitq can be moved onto the txq.
  *	Needs locking too.
@@ -122,7 +122,7 @@ extern long st_unregister(struct st_proto_s *);
  * @protos_registered: count of the protocols registered, also when 0 the
  *	chip enable gpio can be toggled, and when it changes to 1 the fw
  *	needs to be downloaded to initialize chip side ST.
- * @ll_state: the various PM states the chip can be, the states are notified
+ * @ll_state: the various PM states the chip can be, the states are analtified
  *	to us, when the chip sends relevant PM packets(SLEEP_IND, WAKE_IND).
  * @kim_data: reference to the parent encapsulating structure.
  *
@@ -226,17 +226,17 @@ struct chip_version {
  *	the ldisc by opening UART when protocol drivers register.
  * @kim_pdev: the platform device added in one of the board-XX.c file
  *	in arch/XX/ directory, 1 for each ST device.
- * @kim_rcvd: completion handler to notify when data was received,
+ * @kim_rcvd: completion handler to analtify when data was received,
  *	mainly used during fw download, which involves multiple send/wait
  *	for each of the HCI-VS commands.
- * @ldisc_installed: completion handler to notify that the UIM accepted
- *	the request to install ldisc, notify from tty_open which suggests
+ * @ldisc_installed: completion handler to analtify that the UIM accepted
+ *	the request to install ldisc, analtify from tty_open which suggests
  *	the ldisc was properly installed.
  * @resp_buffer: data buffer for the .bts fw file name.
  * @fw_entry: firmware class struct to request/release the fw.
  * @rx_state: the rx state for kim's receive func during fw download.
  * @rx_count: the rx count for the kim's receive func during fw download.
- * @rx_skb: all of fw data might not come at once, and hence data storage for
+ * @rx_skb: all of fw data might analt come at once, and hence data storage for
  *	whole of the fw response, only HCI_EVENTs and hence diff from ST's
  *	response.
  * @core_data: ST core's data, which mainly is the tty's disc_data
@@ -285,7 +285,7 @@ void st_kim_recv(void *disc_data, const u8 *data, size_t count);
 #define ACTION_REMARKS          6
 
 /**
- * struct bts_header - the fw file is NOT binary which can
+ * struct bts_header - the fw file is ANALT binary which can
  *	be sent onto TTY as is. The .bts is more a script
  *	file which has different types of actions.
  *	Each such action needs to be parsed by the KIM and
@@ -330,7 +330,7 @@ struct bts_action_serial {
 /**
  * struct hci_command - the HCI-VS for intrepreting
  *	the change baud rate of host-side UART, which
- *	needs to be ignored, since UIM would do that
+ *	needs to be iganalred, since UIM would do that
  *	when it receives request from KIM for ldisc installation.
  */
 struct hci_command {
@@ -356,7 +356,7 @@ struct hci_command {
 #define ST_LL_AWAKE_TO_ASLEEP      3
 #define ST_LL_INVALID		   4
 
-/* different PM notifications coming from chip */
+/* different PM analtifications coming from chip */
 #define LL_SLEEP_IND	0x30
 #define LL_SLEEP_ACK	0x31
 #define LL_WAKE_UP_IND	0x32

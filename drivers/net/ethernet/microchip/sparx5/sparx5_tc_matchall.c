@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip VCAP API
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include "sparx5_tc.h"
@@ -23,7 +23,7 @@ static int sparx5_tc_matchall_replace(struct net_device *ndev,
 	if (!flow_offload_has_one_action(&tmo->rule->action)) {
 		NL_SET_ERR_MSG_MOD(tmo->common.extack,
 				   "Only one action per filter is supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	action = &tmo->rule->action.entries[0];
 
@@ -37,27 +37,27 @@ static int sparx5_tc_matchall_replace(struct net_device *ndev,
 		if (err == -EFAULT) {
 			NL_SET_ERR_MSG_MOD(tmo->common.extack,
 					   "Unsupported goto chain");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		if (err == -EADDRINUSE) {
 			NL_SET_ERR_MSG_MOD(tmo->common.extack,
 					   "VCAP already enabled");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
-		if (err == -EADDRNOTAVAIL) {
+		if (err == -EADDRANALTAVAIL) {
 			NL_SET_ERR_MSG_MOD(tmo->common.extack,
 					   "Already matching this chain");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		if (err) {
 			NL_SET_ERR_MSG_MOD(tmo->common.extack,
-					   "Could not enable VCAP lookups");
+					   "Could analt enable VCAP lookups");
 			return err;
 		}
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(tmo->common.extack, "Unsupported action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -79,7 +79,7 @@ static int sparx5_tc_matchall_destroy(struct net_device *ndev,
 		return 0;
 	}
 	NL_SET_ERR_MSG_MOD(tmo->common.extack, "Unsupported action");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int sparx5_tc_matchall(struct net_device *ndev,
@@ -92,6 +92,6 @@ int sparx5_tc_matchall(struct net_device *ndev,
 	case TC_CLSMATCHALL_DESTROY:
 		return sparx5_tc_matchall_destroy(ndev, tmo, ingress);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

@@ -22,7 +22,7 @@ config VFIO_PCI
 	  Support for the generic PCI VFIO bus driver which can connect any
 	  PCI device to the VFIO framework.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 if VFIO_PCI
 config VFIO_PCI_VGA
@@ -33,7 +33,7 @@ config VFIO_PCI_VGA
 	  region on VGA devices for accessing legacy VGA addresses used by
 	  BIOS and generic video drivers.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config VFIO_PCI_IGD
 	bool "Generic VFIO PCI extensions for Intel graphics (GVT-d)"

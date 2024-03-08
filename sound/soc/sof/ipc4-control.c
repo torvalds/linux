@@ -34,7 +34,7 @@ static int sof_ipc4_set_get_kcontrol_data(struct snd_sof_control *scontrol,
 
 	if (!widget_found) {
 		dev_err(scomp->dev, "Failed to find widget for kcontrol %s\n", scontrol->name);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (lock)
@@ -45,7 +45,7 @@ static int sof_ipc4_set_get_kcontrol_data(struct snd_sof_control *scontrol,
 	/*
 	 * Volatile controls should always be part of static pipelines and the
 	 * widget use_count would always be > 0 in this case. For the others,
-	 * just return the cached value if the widget is not set up.
+	 * just return the cached value if the widget is analt set up.
 	 */
 	if (!swidget->use_count)
 		goto unlock;
@@ -62,14 +62,14 @@ static int sof_ipc4_set_get_kcontrol_data(struct snd_sof_control *scontrol,
 		if (!scontrol->old_ipc_control_data)
 			goto unlock;
 		/*
-		 * Current ipc_control_data is not valid, we use the last known good
+		 * Current ipc_control_data is analt valid, we use the last kanalwn good
 		 * configuration
 		 */
 		memcpy(scontrol->ipc_control_data, scontrol->old_ipc_control_data,
 		       scontrol->max_size);
 		kfree(scontrol->old_ipc_control_data);
 		scontrol->old_ipc_control_data = NULL;
-		/* Send the last known good configuration to firmware */
+		/* Send the last kanalwn good configuration to firmware */
 		ret = iops->set_get_data(sdev, msg, msg->data_size, set);
 		if (ret < 0)
 			goto unlock;
@@ -104,7 +104,7 @@ sof_ipc4_set_volume_data(struct snd_sof_dev *sdev, struct snd_sof_widget *swidge
 	}
 
 	/*
-	 * notify DSP with a single IPC message if all channel values are equal. Otherwise send
+	 * analtify DSP with a single IPC message if all channel values are equal. Otherwise send
 	 * a separate IPC for each channel.
 	 */
 	for (i = 0; i < scontrol->num_channels; i++) {
@@ -216,7 +216,7 @@ sof_ipc4_set_generic_control_data(struct snd_sof_dev *sdev,
 	data_size = struct_size(data, chanv, scontrol->num_channels);
 	data = kzalloc(data_size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->id = cdata->index;
 	data->num_elems = scontrol->num_channels;
@@ -509,7 +509,7 @@ static int sof_ipc4_bytes_ext_put(struct snd_sof_control *scontrol,
 
 	/*
 	 * The beginning of bytes data contains a header from where
-	 * the length (as bytes) is needed to know the correct copy
+	 * the length (as bytes) is needed to kanalw the correct copy
 	 * length of data from tlvd->tlv.
 	 */
 	if (copy_from_user(&header, tlvd, sizeof(struct snd_ctl_tlv)))
@@ -553,7 +553,7 @@ static int sof_ipc4_bytes_ext_put(struct snd_sof_control *scontrol,
 		scontrol->old_ipc_control_data = kmemdup(scontrol->ipc_control_data,
 							 scontrol->max_size, GFP_KERNEL);
 		if (!scontrol->old_ipc_control_data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Copy the whole binary data which includes the ABI header and the payload */
@@ -581,10 +581,10 @@ static int _sof_ipc4_bytes_ext_get(struct snd_sof_control *scontrol,
 
 	/*
 	 * Decrement the limit by ext bytes header size to ensure the user space
-	 * buffer is not exceeded.
+	 * buffer is analt exceeded.
 	 */
 	if (size < sizeof(struct snd_ctl_tlv))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	size -= sizeof(struct snd_ctl_tlv);
 
@@ -596,7 +596,7 @@ static int _sof_ipc4_bytes_ext_get(struct snd_sof_control *scontrol,
 		if (ret < 0)
 			return ret;
 
-		/* Set the ABI magic (if the control is not initialized) */
+		/* Set the ABI magic (if the control is analt initialized) */
 		data->magic = SOF_IPC4_ABI_MAGIC;
 	}
 
@@ -611,7 +611,7 @@ static int _sof_ipc4_bytes_ext_get(struct snd_sof_control *scontrol,
 
 	/* make sure we don't exceed size provided by user space for data */
 	if (data_size > size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	header.numid = scontrol->comp_id;
 	header.length = data_size;
@@ -655,7 +655,7 @@ sof_ipc4_volsw_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
 static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
 {
 	struct sof_ipc4_msg *ipc4_msg = ipc_message;
-	struct sof_ipc4_notify_module_data *ndata = ipc4_msg->data_ptr;
+	struct sof_ipc4_analtify_module_data *ndata = ipc4_msg->data_ptr;
 	struct sof_ipc4_control_msg_payload *msg_data;
 	struct sof_ipc4_control_data *cdata;
 	struct snd_soc_dapm_widget *widget;
@@ -674,7 +674,7 @@ static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
 		return;
 	}
 
-	event_param_id = ndata->event_id & SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_PARAMID_MASK;
+	event_param_id = ndata->event_id & SOF_IPC4_ANALTIFY_MODULE_EVENTID_ALSA_PARAMID_MASK;
 	switch (event_param_id) {
 	case SOF_IPC4_SWITCH_CONTROL_PARAM_ID:
 		type = SND_SOC_TPLG_TYPE_MIXER;
@@ -699,7 +699,7 @@ static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
 		return;
 	}
 
-	/* Find the scontrol which is the source of the notification */
+	/* Find the scontrol which is the source of the analtification */
 	msg_data = (struct sof_ipc4_control_msg_payload *)ndata->event_data;
 	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
 		if (scontrol->comp_id == swidget->comp_id) {
@@ -730,7 +730,7 @@ static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
 	if (msg_data->num_elems) {
 		/*
 		 * The message includes the updated value/data, update the
-		 * control's local cache using the received notification
+		 * control's local cache using the received analtification
 		 */
 		for (i = 0; i < msg_data->num_elems; i++) {
 			u32 channel = msg_data->chanv[i].channel;
@@ -760,11 +760,11 @@ static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
 
 	/*
 	 * Look up the ALSA kcontrol of the scontrol to be able to send a
-	 * notification to user space
+	 * analtification to user space
 	 */
 	widget = swidget->widget;
 	for (i = 0; i < widget->num_kcontrols; i++) {
-		/* skip non matching types or non matching indexes within type */
+		/* skip analn matching types or analn matching indexes within type */
 		if (widget->dobj.widget.kcontrol_type[i] == type &&
 		    widget->kcontrol_news[i].index == cdata->index) {
 			kc = widget->kcontrols[i];
@@ -775,7 +775,7 @@ static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
 	if (!kc)
 		return;
 
-	snd_ctl_notify_one(swidget->scomp->card->snd_card,
+	snd_ctl_analtify_one(swidget->scomp->card->snd_card,
 			   SNDRV_CTL_EVENT_MASK_VALUE, kc, 0);
 }
 
@@ -826,7 +826,7 @@ sof_ipc4_set_up_volume_table(struct snd_sof_control *scontrol, int tlv[SOF_TLV_I
 	/* init the volume table */
 	scontrol->volume_table = kcalloc(size, sizeof(u32), GFP_KERNEL);
 	if (!scontrol->volume_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* populate the volume table */
 	for (i = 0; i < size ; i++) {

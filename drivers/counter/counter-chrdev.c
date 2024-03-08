@@ -6,13 +6,13 @@
 #include <linux/cdev.h>
 #include <linux/counter.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/kfifo.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -23,7 +23,7 @@
 
 #include "counter-chrdev.h"
 
-struct counter_comp_node {
+struct counter_comp_analde {
 	struct list_head l;
 	struct counter_component component;
 	struct counter_comp comp;
@@ -70,14 +70,14 @@ static ssize_t counter_chrdev_read(struct file *filp, char __user *buf,
 	unsigned int copied;
 
 	if (!counter->ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (len < sizeof(struct counter_event))
 		return -EINVAL;
 
 	do {
 		if (kfifo_is_empty(&counter->events)) {
-			if (filp->f_flags & O_NONBLOCK)
+			if (filp->f_flags & O_ANALNBLOCK)
 				return -EAGAIN;
 
 			err = wait_event_interruptible(counter->events_wait,
@@ -86,7 +86,7 @@ static ssize_t counter_chrdev_read(struct file *filp, char __user *buf,
 			if (err < 0)
 				return err;
 			if (!counter->ops)
-				return -ENODEV;
+				return -EANALDEV;
 		}
 
 		if (mutex_lock_interruptible(&counter->events_out_lock))
@@ -112,81 +112,81 @@ static __poll_t counter_chrdev_poll(struct file *filp,
 	poll_wait(filp, &counter->events_wait, pollt);
 
 	if (!kfifo_is_empty(&counter->events))
-		events = EPOLLIN | EPOLLRDNORM;
+		events = EPOLLIN | EPOLLRDANALRM;
 
 	return events;
 }
 
 static void counter_events_list_free(struct list_head *const events_list)
 {
-	struct counter_event_node *p, *n;
-	struct counter_comp_node *q, *o;
+	struct counter_event_analde *p, *n;
+	struct counter_comp_analde *q, *o;
 
 	list_for_each_entry_safe(p, n, events_list, l) {
-		/* Free associated component nodes */
+		/* Free associated component analdes */
 		list_for_each_entry_safe(q, o, &p->comp_list, l) {
 			list_del(&q->l);
 			kfree(q);
 		}
 
-		/* Free event node */
+		/* Free event analde */
 		list_del(&p->l);
 		kfree(p);
 	}
 }
 
-static int counter_set_event_node(struct counter_device *const counter,
+static int counter_set_event_analde(struct counter_device *const counter,
 				  struct counter_watch *const watch,
-				  const struct counter_comp_node *const cfg)
+				  const struct counter_comp_analde *const cfg)
 {
-	struct counter_event_node *event_node;
+	struct counter_event_analde *event_analde;
 	int err = 0;
-	struct counter_comp_node *comp_node;
+	struct counter_comp_analde *comp_analde;
 
 	/* Search for event in the list */
-	list_for_each_entry(event_node, &counter->next_events_list, l)
-		if (event_node->event == watch->event &&
-		    event_node->channel == watch->channel)
+	list_for_each_entry(event_analde, &counter->next_events_list, l)
+		if (event_analde->event == watch->event &&
+		    event_analde->channel == watch->channel)
 			break;
 
-	/* If event is not already in the list */
-	if (&event_node->l == &counter->next_events_list) {
-		/* Allocate new event node */
-		event_node = kmalloc(sizeof(*event_node), GFP_KERNEL);
-		if (!event_node)
-			return -ENOMEM;
+	/* If event is analt already in the list */
+	if (&event_analde->l == &counter->next_events_list) {
+		/* Allocate new event analde */
+		event_analde = kmalloc(sizeof(*event_analde), GFP_KERNEL);
+		if (!event_analde)
+			return -EANALMEM;
 
-		/* Configure event node and add to the list */
-		event_node->event = watch->event;
-		event_node->channel = watch->channel;
-		INIT_LIST_HEAD(&event_node->comp_list);
-		list_add(&event_node->l, &counter->next_events_list);
+		/* Configure event analde and add to the list */
+		event_analde->event = watch->event;
+		event_analde->channel = watch->channel;
+		INIT_LIST_HEAD(&event_analde->comp_list);
+		list_add(&event_analde->l, &counter->next_events_list);
 	}
 
 	/* Check if component watch has already been set before */
-	list_for_each_entry(comp_node, &event_node->comp_list, l)
-		if (comp_node->parent == cfg->parent &&
-		    counter_comp_read_is_equal(comp_node->comp, cfg->comp)) {
+	list_for_each_entry(comp_analde, &event_analde->comp_list, l)
+		if (comp_analde->parent == cfg->parent &&
+		    counter_comp_read_is_equal(comp_analde->comp, cfg->comp)) {
 			err = -EINVAL;
-			goto exit_free_event_node;
+			goto exit_free_event_analde;
 		}
 
-	/* Allocate component node */
-	comp_node = kmalloc(sizeof(*comp_node), GFP_KERNEL);
-	if (!comp_node) {
-		err = -ENOMEM;
-		goto exit_free_event_node;
+	/* Allocate component analde */
+	comp_analde = kmalloc(sizeof(*comp_analde), GFP_KERNEL);
+	if (!comp_analde) {
+		err = -EANALMEM;
+		goto exit_free_event_analde;
 	}
-	*comp_node = *cfg;
+	*comp_analde = *cfg;
 
-	/* Add component node to event node */
-	list_add_tail(&comp_node->l, &event_node->comp_list);
+	/* Add component analde to event analde */
+	list_add_tail(&comp_analde->l, &event_analde->comp_list);
 
-exit_free_event_node:
-	/* Free event node if no one else is watching */
-	if (list_empty(&event_node->comp_list)) {
-		list_del(&event_node->l);
-		kfree(event_node);
+exit_free_event_analde:
+	/* Free event analde if anal one else is watching */
+	if (list_empty(&event_analde->comp_list)) {
+		list_del(&event_analde->l);
+		kfree(event_analde);
 	}
 
 	return err;
@@ -266,7 +266,7 @@ static int counter_add_watch(struct counter_device *const counter,
 {
 	void __user *const uwatch = (void __user *)arg;
 	struct counter_watch watch;
-	struct counter_comp_node comp_node = {};
+	struct counter_comp_analde comp_analde = {};
 	size_t parent, id;
 	struct counter_comp *ext;
 	size_t num_ext;
@@ -276,12 +276,12 @@ static int counter_add_watch(struct counter_device *const counter,
 	if (copy_from_user(&watch, uwatch, sizeof(watch)))
 		return -EFAULT;
 
-	if (watch.component.type == COUNTER_COMPONENT_NONE)
-		goto no_component;
+	if (watch.component.type == COUNTER_COMPONENT_ANALNE)
+		goto anal_component;
 
 	parent = watch.component.parent;
 
-	/* Configure parent component info for comp node */
+	/* Configure parent component info for comp analde */
 	switch (watch.component.scope) {
 	case COUNTER_SCOPE_DEVICE:
 		ext = counter->ext;
@@ -290,9 +290,9 @@ static int counter_add_watch(struct counter_device *const counter,
 	case COUNTER_SCOPE_SIGNAL:
 		if (parent >= counter->num_signals)
 			return -EINVAL;
-		parent = array_index_nospec(parent, counter->num_signals);
+		parent = array_index_analspec(parent, counter->num_signals);
 
-		comp_node.parent = counter->signals + parent;
+		comp_analde.parent = counter->signals + parent;
 
 		ext = counter->signals[parent].ext;
 		num_ext = counter->signals[parent].num_ext;
@@ -300,9 +300,9 @@ static int counter_add_watch(struct counter_device *const counter,
 	case COUNTER_SCOPE_COUNT:
 		if (parent >= counter->num_counts)
 			return -EINVAL;
-		parent = array_index_nospec(parent, counter->num_counts);
+		parent = array_index_analspec(parent, counter->num_counts);
 
-		comp_node.parent = counter->counts + parent;
+		comp_analde.parent = counter->counts + parent;
 
 		ext = counter->counts[parent].ext;
 		num_ext = counter->counts[parent].num_ext;
@@ -313,54 +313,54 @@ static int counter_add_watch(struct counter_device *const counter,
 
 	id = watch.component.id;
 
-	/* Configure component info for comp node */
+	/* Configure component info for comp analde */
 	switch (watch.component.type) {
 	case COUNTER_COMPONENT_SIGNAL:
 		if (watch.component.scope != COUNTER_SCOPE_SIGNAL)
 			return -EINVAL;
 
-		comp_node.comp.type = COUNTER_COMP_SIGNAL_LEVEL;
-		comp_node.comp.signal_u32_read = counter->ops->signal_read;
+		comp_analde.comp.type = COUNTER_COMP_SIGNAL_LEVEL;
+		comp_analde.comp.signal_u32_read = counter->ops->signal_read;
 		break;
 	case COUNTER_COMPONENT_COUNT:
 		if (watch.component.scope != COUNTER_SCOPE_COUNT)
 			return -EINVAL;
 
-		comp_node.comp.type = COUNTER_COMP_U64;
-		comp_node.comp.count_u64_read = counter->ops->count_read;
+		comp_analde.comp.type = COUNTER_COMP_U64;
+		comp_analde.comp.count_u64_read = counter->ops->count_read;
 		break;
 	case COUNTER_COMPONENT_FUNCTION:
 		if (watch.component.scope != COUNTER_SCOPE_COUNT)
 			return -EINVAL;
 
-		comp_node.comp.type = COUNTER_COMP_FUNCTION;
-		comp_node.comp.count_u32_read = counter->ops->function_read;
+		comp_analde.comp.type = COUNTER_COMP_FUNCTION;
+		comp_analde.comp.count_u32_read = counter->ops->function_read;
 		break;
 	case COUNTER_COMPONENT_SYNAPSE_ACTION:
 		if (watch.component.scope != COUNTER_SCOPE_COUNT)
 			return -EINVAL;
 		if (id >= counter->counts[parent].num_synapses)
 			return -EINVAL;
-		id = array_index_nospec(id, counter->counts[parent].num_synapses);
+		id = array_index_analspec(id, counter->counts[parent].num_synapses);
 
-		comp_node.comp.type = COUNTER_COMP_SYNAPSE_ACTION;
-		comp_node.comp.action_read = counter->ops->action_read;
-		comp_node.comp.priv = counter->counts[parent].synapses + id;
+		comp_analde.comp.type = COUNTER_COMP_SYNAPSE_ACTION;
+		comp_analde.comp.action_read = counter->ops->action_read;
+		comp_analde.comp.priv = counter->counts[parent].synapses + id;
 		break;
 	case COUNTER_COMPONENT_EXTENSION:
 		err = counter_get_ext(ext, num_ext, id, &ext_idx, &ext_id);
 		if (err < 0)
 			return err;
 
-		comp_node.comp = ext[ext_idx];
+		comp_analde.comp = ext[ext_idx];
 		break;
 	default:
 		return -EINVAL;
 	}
-	if (!counter_comp_read_is_set(comp_node.comp))
-		return -EOPNOTSUPP;
+	if (!counter_comp_read_is_set(comp_analde.comp))
+		return -EOPANALTSUPP;
 
-no_component:
+anal_component:
 	mutex_lock(&counter->n_events_list_lock);
 
 	if (counter->ops->watch_validate) {
@@ -369,9 +369,9 @@ no_component:
 			goto err_exit;
 	}
 
-	comp_node.component = watch.component;
+	comp_analde.component = watch.component;
 
-	err = counter_set_event_node(counter, &watch, &comp_node);
+	err = counter_set_event_analde(counter, &watch, &comp_analde);
 
 err_exit:
 	mutex_unlock(&counter->n_events_list_lock);
@@ -383,7 +383,7 @@ static long counter_chrdev_ioctl(struct file *filp, unsigned int cmd,
 				 unsigned long arg)
 {
 	struct counter_device *const counter = filp->private_data;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	mutex_lock(&counter->ops_exist_lock);
 
@@ -401,7 +401,7 @@ static long counter_chrdev_ioctl(struct file *filp, unsigned int cmd,
 		ret = counter_disable_events(counter);
 		break;
 	default:
-		ret = -ENOIOCTLCMD;
+		ret = -EANALIOCTLCMD;
 		break;
 	}
 
@@ -411,19 +411,19 @@ out_unlock:
 	return ret;
 }
 
-static int counter_chrdev_open(struct inode *inode, struct file *filp)
+static int counter_chrdev_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct counter_device *const counter = container_of(inode->i_cdev,
+	struct counter_device *const counter = container_of(ianalde->i_cdev,
 							    typeof(*counter),
 							    chrdev);
 
 	get_device(&counter->dev);
 	filp->private_data = counter;
 
-	return nonseekable_open(inode, filp);
+	return analnseekable_open(ianalde, filp);
 }
 
-static int counter_chrdev_release(struct inode *inode, struct file *filp)
+static int counter_chrdev_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct counter_device *const counter = filp->private_data;
 	int ret = 0;
@@ -434,7 +434,7 @@ static int counter_chrdev_release(struct inode *inode, struct file *filp)
 		/* Free any lingering held memory */
 		counter_events_list_free(&counter->events_list);
 		counter_events_list_free(&counter->next_events_list);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -454,7 +454,7 @@ out_unlock:
 
 static const struct file_operations counter_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.read = counter_chrdev_read,
 	.poll = counter_chrdev_poll,
 	.unlocked_ioctl = counter_chrdev_ioctl,
@@ -522,14 +522,14 @@ static int counter_get_array_data(struct counter_device *const counter,
 }
 
 static int counter_get_data(struct counter_device *const counter,
-			    const struct counter_comp_node *const comp_node,
+			    const struct counter_comp_analde *const comp_analde,
 			    u64 *const value)
 {
-	const struct counter_comp *const comp = &comp_node->comp;
-	const enum counter_scope scope = comp_node->component.scope;
-	const size_t id = comp_node->component.id;
-	struct counter_signal *const signal = comp_node->parent;
-	struct counter_count *const count = comp_node->parent;
+	const struct counter_comp *const comp = &comp_analde->comp;
+	const enum counter_scope scope = comp_analde->component.scope;
+	const size_t id = comp_analde->component.id;
+	struct counter_signal *const signal = comp_analde->parent;
+	struct counter_count *const count = comp_analde->parent;
 	u8 value_u8 = 0;
 	u32 value_u32 = 0;
 	const struct counter_comp *ext;
@@ -537,7 +537,7 @@ static int counter_get_data(struct counter_device *const counter,
 	size_t ext_idx, ext_id;
 	int ret;
 
-	if (comp_node->component.type == COUNTER_COMPONENT_NONE)
+	if (comp_analde->component.type == COUNTER_COMPONENT_ANALNE)
 		return 0;
 
 	switch (comp->type) {
@@ -616,7 +616,7 @@ static int counter_get_data(struct counter_device *const counter,
 		if (ret < 0)
 			return ret;
 
-		return counter_get_array_data(counter, scope, comp_node->parent,
+		return counter_get_array_data(counter, scope, comp_analde->parent,
 					      comp, id - ext_id, value);
 	default:
 		return -EINVAL;
@@ -629,7 +629,7 @@ static int counter_get_data(struct counter_device *const counter,
  * @event:	triggered event
  * @channel:	event channel
  *
- * Note: If no one is watching for the respective event, it is silently
+ * Analte: If anal one is watching for the respective event, it is silently
  * discarded.
  */
 void counter_push_event(struct counter_device *const counter, const u8 event,
@@ -638,8 +638,8 @@ void counter_push_event(struct counter_device *const counter, const u8 event,
 	struct counter_event ev;
 	unsigned int copied = 0;
 	unsigned long flags;
-	struct counter_event_node *event_node;
-	struct counter_comp_node *comp_node;
+	struct counter_event_analde *event_analde;
+	struct counter_comp_analde *comp_analde;
 
 	ev.timestamp = ktime_get_ns();
 	ev.watch.event = event;
@@ -649,21 +649,21 @@ void counter_push_event(struct counter_device *const counter, const u8 event,
 	spin_lock_irqsave(&counter->events_list_lock, flags);
 
 	/* Search for event in the list */
-	list_for_each_entry(event_node, &counter->events_list, l)
-		if (event_node->event == event &&
-		    event_node->channel == channel)
+	list_for_each_entry(event_analde, &counter->events_list, l)
+		if (event_analde->event == event &&
+		    event_analde->channel == channel)
 			break;
 
-	/* If event is not in the list */
-	if (&event_node->l == &counter->events_list)
+	/* If event is analt in the list */
+	if (&event_analde->l == &counter->events_list)
 		goto exit_early;
 
 	/* Read and queue relevant comp for userspace */
-	list_for_each_entry(comp_node, &event_node->comp_list, l) {
-		ev.watch.component = comp_node->component;
-		ev.status = -counter_get_data(counter, comp_node, &ev.value);
+	list_for_each_entry(comp_analde, &event_analde->comp_list, l) {
+		ev.watch.component = comp_analde->component;
+		ev.status = -counter_get_data(counter, comp_analde, &ev.value);
 
-		copied += kfifo_in_spinlocked_noirqsave(&counter->events, &ev,
+		copied += kfifo_in_spinlocked_analirqsave(&counter->events, &ev,
 							1, &counter->events_in_lock);
 	}
 

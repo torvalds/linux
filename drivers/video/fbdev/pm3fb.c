@@ -13,7 +13,7 @@
  *  Based on linux/drivers/video/skeletonfb.c:
  *	Copyright (C) 1997 Geert Uytterhoeven
  *  Based on linux/driver/video/pm2fb.c:
- *	Copyright (C) 1998-1999 Ilario Nardinocchi (nardinoc@CS.UniBO.IT)
+ *	Copyright (C) 1998-1999 Ilario Nardianalcchi (nardianalc@CS.UniBO.IT)
  *	Copyright (C) 1999 Jakub Jelinek (jakub@redhat.com)
  *
  *  This file is subject to the terms and conditions of the GNU General Public
@@ -25,7 +25,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -45,7 +45,7 @@
 #define DPRINTK(a, b...)	\
 	printk(KERN_DEBUG "pm3fb: %s: " a, __func__ , ## b)
 #else
-#define DPRINTK(a, b...)	no_printk(a, ##b)
+#define DPRINTK(a, b...)	anal_printk(a, ##b)
 #endif
 
 #define PM3_PIXMAP_SIZE	(2048 * 4)
@@ -55,11 +55,11 @@
  */
 static int hwcursor = 1;
 static char *mode_option;
-static bool noaccel;
-static bool nomtrr;
+static bool analaccel;
+static bool analmtrr;
 
 /*
- * This structure defines the hardware state of the graphics card. Normally
+ * This structure defines the hardware state of the graphics card. Analrmally
  * you place this in a header file in linux/include/video. This file usually
  * also includes register information. That allows other driver subsystems
  * and userland applications the ability to use the same header file to
@@ -118,11 +118,11 @@ static inline void PM3_WRITE_DAC_REG(struct pm3_par *par, unsigned r, u8 v)
 	wmb();
 }
 
-static inline void pm3fb_set_color(struct pm3_par *par, unsigned char regno,
+static inline void pm3fb_set_color(struct pm3_par *par, unsigned char reganal,
 			unsigned char r, unsigned char g, unsigned char b)
 {
 	PM3_WAIT(par, 4);
-	PM3_WRITE_REG(par, PM3RD_PaletteWriteAddress, regno);
+	PM3_WRITE_REG(par, PM3RD_PaletteWriteAddress, reganal);
 	wmb();
 	PM3_WRITE_REG(par, PM3RD_PaletteData, r);
 	wmb();
@@ -431,7 +431,7 @@ static void pm3fb_fillrect(struct fb_info *info,
 	PM3_WRITE_REG(par, PM3Render2D,
 		      PM3Render2D_XPositive |
 		      PM3Render2D_YPositive |
-		      PM3Render2D_Operation_Normal |
+		      PM3Render2D_Operation_Analrmal |
 		      PM3Render2D_SpanOperation |
 		      PM3Render2D_Width(modded.width) |
 		      PM3Render2D_Height(modded.height));
@@ -502,7 +502,7 @@ static void pm3fb_copyarea(struct fb_info *info,
 	PM3_WRITE_REG(par, PM3Render2D,
 			((modded.sx > modded.dx) ? PM3Render2D_XPositive : 0) |
 			((modded.sy > modded.dy) ? PM3Render2D_YPositive : 0) |
-			PM3Render2D_Operation_Normal |
+			PM3Render2D_Operation_Analrmal |
 			PM3Render2D_SpanOperation |
 			PM3Render2D_FBSourceReadEnable |
 			PM3Render2D_Width(modded.width + x_align) |
@@ -631,9 +631,9 @@ static int pm3fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	PM3_WRITE_DAC_REG(par, PM3RD_CursorMode, mode);
 
 	/*
-	 * If the cursor is not be changed this means either we want the
+	 * If the cursor is analt be changed this means either we want the
 	 * current cursor state (if enable is set) or we want to query what
-	 * we can do with the cursor (if enable is not set)
+	 * we can do with the cursor (if enable is analt set)
 	 */
 	if (!cursor->set)
 		return 0;
@@ -942,7 +942,7 @@ static int pm3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 			var->transp.length = 8;
 			break;
 		default:
-			DPRINTK("depth not supported: %u\n",
+			DPRINTK("depth analt supported: %u\n",
 				var->bits_per_pixel);
 			return -EINVAL;
 		}
@@ -959,23 +959,23 @@ static int pm3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	if (var->xres != var->xres_virtual) {
 		DPRINTK("virtual x resolution != "
-			"physical x resolution not supported\n");
+			"physical x resolution analt supported\n");
 		return -EINVAL;
 	}
 
 	if (var->yres > var->yres_virtual) {
 		DPRINTK("virtual y resolution < "
-			"physical y resolution not possible\n");
+			"physical y resolution analt possible\n");
 		return -EINVAL;
 	}
 
 	if (var->xoffset) {
-		DPRINTK("xoffset not supported\n");
+		DPRINTK("xoffset analt supported\n");
 		return -EINVAL;
 	}
 
 	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) {
-		DPRINTK("interlace not supported\n");
+		DPRINTK("interlace analt supported\n");
 		return -EINVAL;
 	}
 
@@ -983,17 +983,17 @@ static int pm3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	lpitch = var->xres * ((var->bits_per_pixel + 7) >> 3);
 
 	if (var->xres < 200 || var->xres > 2048) {
-		DPRINTK("width not supported: %u\n", var->xres);
+		DPRINTK("width analt supported: %u\n", var->xres);
 		return -EINVAL;
 	}
 
 	if (var->yres < 200 || var->yres > 4095) {
-		DPRINTK("height not supported: %u\n", var->yres);
+		DPRINTK("height analt supported: %u\n", var->yres);
 		return -EINVAL;
 	}
 
 	if (lpitch * var->yres_virtual > info->fix.smem_len) {
-		DPRINTK("no memory for screen (%ux%ux%u)\n",
+		DPRINTK("anal memory for screen (%ux%ux%u)\n",
 			var->xres, var->yres_virtual, var->bits_per_pixel);
 		return -EINVAL;
 	}
@@ -1034,7 +1034,7 @@ static int pm3fb_set_par(struct fb_info *info)
 	if ((info->var.vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE)
 		par->video |= PM3VideoControl_LINE_DOUBLE_ON;
 
-	if ((info->var.activate & FB_ACTIVATE_MASK) == FB_ACTIVATE_NOW)
+	if ((info->var.activate & FB_ACTIVATE_MASK) == FB_ACTIVATE_ANALW)
 		par->video |= PM3VideoControl_ENABLE;
 	else
 		DPRINTK("PM3Video disabled\n");
@@ -1066,13 +1066,13 @@ static int pm3fb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static int pm3fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int pm3fb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
 	struct pm3_par *par = info->par;
 
-	if (regno >= 256)  /* no. of hw registers */
+	if (reganal >= 256)  /* anal. of hw registers */
 	   return -EINVAL;
 
 	/* grayscale works only partially under directcolor */
@@ -1094,7 +1094,7 @@ static int pm3fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 *	var->{color}.offset is 0
 	 *	var->{color}.length contains width of DAC or the number
 	 *			of unique colors available (color depth)
-	 *	pseudo_palette is not used
+	 *	pseudo_palette is analt used
 	 *	RAMDAC[X] is programmed to (red, green, blue)
 	 *	color depth = var->{color}.length
 	 */
@@ -1114,7 +1114,7 @@ static int pm3fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
 		u32 v;
 
-		if (regno >= 16)
+		if (reganal >= 16)
 			return -EINVAL;
 
 		v = (red << info->var.red.offset) |
@@ -1127,12 +1127,12 @@ static int pm3fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			break;
 		case 16:
 		case 32:
-			((u32 *)(info->pseudo_palette))[regno] = v;
+			((u32 *)(info->pseudo_palette))[reganal] = v;
 			break;
 		}
 		return 0;
 	} else if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR)
-		pm3fb_set_color(par, regno, red, green, blue);
+		pm3fb_set_color(par, reganal, red, green, blue);
 
 	return 0;
 }
@@ -1171,7 +1171,7 @@ static int pm3fb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_UNBLANK:
 		video |= PM3VideoControl_ENABLE;
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		video &= ~PM3VideoControl_ENABLE;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
@@ -1276,7 +1276,7 @@ static unsigned long pm3fb_size_memory(struct pm3_par *par)
 
 	if (memsize + 1 == i) {
 		for (i = 0; i < 32; i++) {
-			/* Clear first 32MB ; 0 is 0, no need to byteswap */
+			/* Clear first 32MB ; 0 is 0, anal need to byteswap */
 			writel(0x0000000, (screen_mem + (i * 1048576)));
 		}
 		wmb();
@@ -1333,7 +1333,7 @@ static int pm3fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	info = framebuffer_alloc(sizeof(struct pm3_par), device);
 
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	par = info->par;
 
 	/*
@@ -1383,7 +1383,7 @@ static int pm3fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	}
 	info->screen_size = pm3fb_fix.smem_len;
 
-	if (!nomtrr)
+	if (!analmtrr)
 		par->wc_cookie = arch_phys_wc_add(pm3fb_fix.smem_start,
 						  pm3fb_fix.smem_len);
 	info->fbops = &pm3fb_ops;
@@ -1398,13 +1398,13 @@ static int pm3fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 			FBINFO_HWACCEL_IMAGEBLIT |
 			FBINFO_HWACCEL_FILLRECT;
 
-	if (noaccel) {
+	if (analaccel) {
 		printk(KERN_DEBUG "disabling acceleration\n");
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 	}
 	info->pixmap.addr = kmalloc(PM3_PIXMAP_SIZE, GFP_KERNEL);
 	if (!info->pixmap.addr) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_exit_pixmap;
 	}
 	info->pixmap.size = PM3_PIXMAP_SIZE;
@@ -1428,7 +1428,7 @@ static int pm3fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	}
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_exit_both;
 	}
 
@@ -1521,12 +1521,12 @@ static int __init pm3fb_setup(char *options)
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 		if (!*this_opt)
 			continue;
-		else if (!strncmp(this_opt, "noaccel", 7))
-			noaccel = 1;
+		else if (!strncmp(this_opt, "analaccel", 7))
+			analaccel = 1;
 		else if (!strncmp(this_opt, "hwcursor=", 9))
 			hwcursor = simple_strtoul(this_opt + 9, NULL, 0);
-		else if (!strncmp(this_opt, "nomtrr", 6))
-			nomtrr = 1;
+		else if (!strncmp(this_opt, "analmtrr", 6))
+			analmtrr = 1;
 		else
 			mode_option = this_opt;
 	}
@@ -1544,11 +1544,11 @@ static int __init pm3fb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("pm3fb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("pm3fb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	pm3fb_setup(option);
 #endif
 
@@ -1567,13 +1567,13 @@ module_init(pm3fb_init);
 
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
-module_param(noaccel, bool, 0);
-MODULE_PARM_DESC(noaccel, "Disable acceleration");
+module_param(analaccel, bool, 0);
+MODULE_PARM_DESC(analaccel, "Disable acceleration");
 module_param(hwcursor, int, 0644);
 MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
 			"(1=enable, 0=disable, default=1)");
-module_param(nomtrr, bool, 0);
-MODULE_PARM_DESC(nomtrr, "Disable MTRR support (0 or 1=disabled) (default=0)");
+module_param(analmtrr, bool, 0);
+MODULE_PARM_DESC(analmtrr, "Disable MTRR support (0 or 1=disabled) (default=0)");
 
 MODULE_DESCRIPTION("Permedia3 framebuffer device driver");
 MODULE_LICENSE("GPL");

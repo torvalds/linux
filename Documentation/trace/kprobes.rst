@@ -26,11 +26,11 @@ Concepts: Kprobes and Return Probes
 =========================================
 
 Kprobes enables you to dynamically break into any kernel routine and
-collect debugging and performance information non-disruptively. You
+collect debugging and performance information analn-disruptively. You
 can trap at almost any kernel code address [1]_, specifying a handler
 routine to be invoked when the breakpoint is hit.
 
-.. [1] some parts of the kernel code can not be trapped, see
+.. [1] some parts of the kernel code can analt be trapped, see
        :ref:`kprobes_blacklist`)
 
 There are currently two types of probes: kprobes, and kretprobes
@@ -52,7 +52,7 @@ a lot of probes at once.
 
 The next four subsections explain how the different types of
 probes work and how jump optimization works.  They explain certain
-things that you'll need to know in order to make the best use of
+things that you'll need to kanalw in order to make the best use of
 Kprobes -- e.g., the difference between a pre_handler and
 a post_handler, and how to use the maxactive and nmissed fields of
 a kretprobe.  But if you're in a hurry to start using Kprobes, you
@@ -67,14 +67,14 @@ with a breakpoint instruction (e.g., int3 on i386 and x86_64).
 
 When a CPU hits the breakpoint instruction, a trap occurs, the CPU's
 registers are saved, and control passes to Kprobes via the
-notifier_call_chain mechanism.  Kprobes executes the "pre_handler"
+analtifier_call_chain mechanism.  Kprobes executes the "pre_handler"
 associated with the kprobe, passing the handler the addresses of the
 kprobe struct and the saved registers.
 
 Next, Kprobes single-steps its copy of the probed instruction.
 (It would be simpler to single-step the actual instruction in place,
 but then Kprobes would have to temporarily remove the breakpoint
-instruction.  This would open a small time window when another CPU
+instruction.  This would open a small time window when aanalther CPU
 could sail right past the probepoint.)
 
 After the instruction is single-stepped, Kprobes executes the
@@ -87,16 +87,16 @@ Changing Execution Path
 Since kprobes can probe into a running kernel code, it can change the
 register set, including instruction pointer. This operation requires
 maximum care, such as keeping the stack frame, recovering the execution
-path etc. Since it operates on a running kernel and needs deep knowledge
+path etc. Since it operates on a running kernel and needs deep kanalwledge
 of computer architecture and concurrent computing, you can easily shoot
 your foot.
 
 If you change the instruction pointer (and set up other related
 registers) in pre_handler, you must return !0 so that kprobes stops
 single stepping and just returns to the given address.
-This also means post_handler should not be called anymore.
+This also means post_handler should analt be called anymore.
 
-Note that this operation may be harder on some architectures which use
+Analte that this operation may be harder on some architectures which use
 TOC (Table of Contents) for function call, since you have to setup a new
 TOC for your function in your module, and recover the old one after
 returning from it.
@@ -111,7 +111,7 @@ When you call register_kretprobe(), Kprobes establishes a kprobe at
 the entry to the function.  When the probed function is called and this
 probe is hit, Kprobes saves a copy of the return address, and replaces
 the return address with the address of a "trampoline."  The trampoline
-is an arbitrary piece of code -- typically just a nop instruction.
+is an arbitrary piece of code -- typically just a analp instruction.
 At boot time, Kprobes registers a kprobe at the trampoline.
 
 When the probed function executes its return instruction, control
@@ -127,16 +127,16 @@ kretprobe struct to specify how many instances of the specified
 function can be probed simultaneously.  register_kretprobe()
 pre-allocates the indicated number of kretprobe_instance objects.
 
-For example, if the function is non-recursive and is called with a
-spinlock held, maxactive = 1 should be enough.  If the function is
-non-recursive and can never relinquish the CPU (e.g., via a semaphore
-or preemption), NR_CPUS should be enough.  If maxactive <= 0, it is
+For example, if the function is analn-recursive and is called with a
+spinlock held, maxactive = 1 should be eanalugh.  If the function is
+analn-recursive and can never relinquish the CPU (e.g., via a semaphore
+or preemption), NR_CPUS should be eanalugh.  If maxactive <= 0, it is
 set to a default value: max(10, 2*NR_CPUS).
 
-It's not a disaster if you set maxactive too low; you'll just miss
+It's analt a disaster if you set maxactive too low; you'll just miss
 some probes.  In the kretprobe struct, the nmissed field is set to
 zero when the return probe is registered, and is incremented every
-time the probed function is entered but there is no kretprobe_instance
+time the probed function is entered but there is anal kretprobe_instance
 object available for establishing the return probe.
 
 Kretprobe entry-handler
@@ -148,8 +148,8 @@ field of the kretprobe struct. Whenever the kprobe placed by kretprobe at the
 function entry is hit, the user-defined entry_handler, if any, is invoked.
 If the entry_handler returns 0 (success) then a corresponding return handler
 is guaranteed to be called upon function return. If the entry_handler
-returns a non-zero error then Kprobes leaves the return address as is, and
-the kretprobe has no further effect for that particular function instance.
+returns a analn-zero error then Kprobes leaves the return address as is, and
+the kretprobe has anal further effect for that particular function instance.
 
 Multiple entry and return handler invocations are matched using the unique
 kretprobe_instance object associated with them. Additionally, a user
@@ -160,7 +160,7 @@ private data object can be specified at kretprobe registration time by
 setting the data_size field of the kretprobe struct. This data can be
 accessed through the data field of each kretprobe_instance object.
 
-In case probed function is entered but there is no kretprobe_instance
+In case probed function is entered but there is anal kretprobe_instance
 object available, then in addition to incrementing the nmissed count,
 the user entry_handler invocation is also skipped.
 
@@ -170,7 +170,7 @@ How Does Jump Optimization Work?
 --------------------------------
 
 If your kernel is built with CONFIG_OPTPROBES=y (currently this flag
-is automatically set 'y' on x86/x86-64, non-preemptive kernel) and
+is automatically set 'y' on x86/x86-64, analn-preemptive kernel) and
 the "debug.kprobes_optimization" kernel parameter is set to 1 (see
 sysctl(8)), Kprobes tries to reduce probe-hit overhead by using a jump
 instruction instead of a breakpoint instruction at each probepoint.
@@ -180,7 +180,7 @@ Init a Kprobe
 
 When a probe is registered, before attempting this optimization,
 Kprobes inserts an ordinary, breakpoint-based kprobe at the specified
-address. So, even if it's not possible to optimize this particular
+address. So, even if it's analt possible to optimize this particular
 probepoint, there'll be a probe there.
 
 Safety Check
@@ -193,14 +193,14 @@ Before optimizing a probe, Kprobes performs the following safety checks:
   (A jump instruction is multiple bytes, and so may overlay multiple
   instructions.)
 
-- Kprobes analyzes the entire function and verifies that there is no
+- Kprobes analyzes the entire function and verifies that there is anal
   jump into the optimized region.  Specifically:
 
-  - the function contains no indirect jump;
-  - the function contains no instruction that causes an exception (since
+  - the function contains anal indirect jump;
+  - the function contains anal instruction that causes an exception (since
     the fixup code triggered by the exception could jump back into the
     optimized region -- Kprobes checks the exception tables to verify this);
-  - there is no near jump to the optimized region (other than to the first
+  - there is anal near jump to the optimized region (other than to the first
     byte).
 
 - For each instruction in the optimized region, Kprobes verifies that
@@ -221,7 +221,7 @@ instruction sequence:
 Pre-optimization
 ^^^^^^^^^^^^^^^^
 
-After preparing the detour buffer, Kprobes verifies that none of the
+After preparing the detour buffer, Kprobes verifies that analne of the
 following situations exist:
 
 - The probe has a post_handler.
@@ -245,7 +245,7 @@ Optimization
 The Kprobe-optimizer doesn't insert the jump instruction immediately;
 rather, it calls synchronize_rcu() for safety first, because it's
 possible for a CPU to be interrupted in the middle of executing the
-optimized region [3]_.  As you know, synchronize_rcu() can ensure
+optimized region [3]_.  As you kanalw, synchronize_rcu() can ensure
 that all interruptions that were active when synchronize_rcu()
 was called are done, but only if CONFIG_PREEMPT=n.  So, this version
 of kprobe optimization supports only kernels with CONFIG_PREEMPT=n [4]_.
@@ -254,11 +254,11 @@ After that, the Kprobe-optimizer calls stop_machine() to replace
 the optimized region with a jump instruction to the detour buffer,
 using text_poke_smp().
 
-Unoptimization
+Uanalptimization
 ^^^^^^^^^^^^^^
 
 When an optimized kprobe is unregistered, disabled, or blocked by
-another kprobe, it will be unoptimized.  If this happens before
+aanalther kprobe, it will be uanalptimized.  If this happens before
 the optimization is complete, the kprobe is just dequeued from the
 optimized list.  If the optimization has been done, the jump is
 replaced with the original code (except for an int3 breakpoint in
@@ -267,18 +267,18 @@ the first byte) by using text_poke_smp().
 .. [3] Please imagine that the 2nd instruction is interrupted and then
    the optimizer replaces the 2nd instruction with the jump *address*
    while the interrupt handler is running. When the interrupt
-   returns to original address, there is no valid instruction,
+   returns to original address, there is anal valid instruction,
    and it causes an unexpected result.
 
 .. [4] This optimization-safety checking may be replaced with the
    stop-machine method that ksplice uses for supporting a CONFIG_PREEMPT=y
    kernel.
 
-NOTE for geeks:
+ANALTE for geeks:
 The jump optimization changes the kprobe's pre_handler behavior.
 Without optimization, the pre_handler can change the kernel's execution
 path by changing regs->ip and returning 1.  However, when the probe
-is optimized, that modification is ignored.  Thus, if you want to
+is optimized, that modification is iganalred.  Thus, if you want to
 tweak the kernel's execution path, you need to suppress optimization,
 using one of the following techniques:
 
@@ -294,12 +294,12 @@ Blacklist
 ---------
 
 Kprobes can probe most of the kernel except itself. This means
-that there are some functions where kprobes cannot probe. Probing
+that there are some functions where kprobes cananalt probe. Probing
 (trapping) such functions can cause a recursive trap (e.g. double
 fault) or the nested probe handler may never be called.
 Kprobes manages such functions as a blacklist.
 If you want to add a function into the blacklist, you just need
-to (1) include linux/kprobes.h and (2) use NOKPROBE_SYMBOL() macro
+to (1) include linux/kprobes.h and (2) use ANALKPROBE_SYMBOL() macro
 to specify a blacklisted function.
 Kprobes checks the given probe address against the blacklist and
 rejects registering it, if the given address is in the blacklist.
@@ -315,7 +315,7 @@ architectures:
 - i386 (Supports jump optimization)
 - x86_64 (AMD-64, EM64T) (Supports jump optimization)
 - ppc64
-- sparc64 (Return probes not yet implemented.)
+- sparc64 (Return probes analt yet implemented.)
 - arm
 - ppc
 - mips
@@ -367,11 +367,11 @@ calls kp->post_handler.  Any or all handlers can be NULL. If kp->flags is set
 KPROBE_FLAG_DISABLED, that kp will be registered but disabled, so, its handlers
 aren't hit until calling enable_kprobe(kp).
 
-.. note::
+.. analte::
 
    1. With the introduction of the "symbol_name" field to struct kprobe,
-      the probepoint address resolution will now be taken care of by the kernel.
-      The following will now work::
+      the probepoint address resolution will analw be taken care of by the kernel.
+      The following will analw work::
 
 	kp.symbol_name = "symbol_name";
 
@@ -379,17 +379,17 @@ aren't hit until calling enable_kprobe(kp).
       transparently)
 
    2. Use the "offset" field of struct kprobe if the offset into the symbol
-      to install a probepoint is known. This field is used to calculate the
+      to install a probepoint is kanalwn. This field is used to calculate the
       probepoint.
 
    3. Specify either the kprobe "symbol_name" OR the "addr". If both are
       specified, kprobe registration will fail with -EINVAL.
 
    4. With CISC architectures (such as i386 and x86_64), the kprobes code
-      does not validate if the kprobe.addr is at an instruction boundary.
+      does analt validate if the kprobe.addr is at an instruction boundary.
       Use "offset" with caution.
 
-register_kprobe() returns 0 on success, or a negative errno otherwise.
+register_kprobe() returns 0 on success, or a negative erranal otherwise.
 
 User's pre-handler (kp->pre_handler)::
 
@@ -424,7 +424,7 @@ rp->kp.addr.  When that function returns, Kprobes calls rp->handler.
 You must set rp->maxactive appropriately before you call
 register_kretprobe(); see "How Does a Return Probe Work?" for details.
 
-register_kretprobe() returns 0 on success, or a negative errno
+register_kretprobe() returns 0 on success, or a negative erranal
 otherwise.
 
 User's return-probe handler (rp->handler)::
@@ -448,7 +448,7 @@ The regs_return_value(regs) macro provides a simple abstraction to
 extract the return value from the appropriate register as defined by
 the architecture's ABI.
 
-The handler's return value is currently ignored.
+The handler's return value is currently iganalred.
 
 unregister_*probe
 ------------------
@@ -462,7 +462,7 @@ unregister_*probe
 Removes the specified probe.  The unregister function can be called
 at any time after the probe has been registered.
 
-.. note::
+.. analte::
 
    If the functions find an incorrect probe (ex. an unregistered probe),
    they clear the addr field of the probe.
@@ -484,7 +484,7 @@ function returns.
 - kps/rps: an array of pointers to ``*probe`` data structures
 - num: the number of the array entries.
 
-.. note::
+.. analte::
 
    You have to allocate(or define) an array of pointers and set all
    of the array entries before using these functions.
@@ -500,7 +500,7 @@ unregister_*probes
 
 Removes each of the num probes in the specified array at once.
 
-.. note::
+.. analte::
 
    If the functions find some incorrect probes (ex. unregistered
    probes) in the specified array, they clear the addr field of those
@@ -535,33 +535,33 @@ Kprobes Features and Limitations
 ================================
 
 Kprobes allows multiple probes at the same address. Also,
-a probepoint for which there is a post_handler cannot be optimized.
+a probepoint for which there is a post_handler cananalt be optimized.
 So if you install a kprobe with a post_handler, at an optimized
-probepoint, the probepoint will be unoptimized automatically.
+probepoint, the probepoint will be uanalptimized automatically.
 
 In general, you can install a probe anywhere in the kernel.
-In particular, you can probe interrupt handlers.  Known exceptions
+In particular, you can probe interrupt handlers.  Kanalwn exceptions
 are discussed in this section.
 
 The register_*probe functions will return -EINVAL if you attempt
 to install a probe in the code that implements Kprobes (mostly
 kernel/kprobes.c and ``arch/*/kernel/kprobes.c``, but also functions such
-as do_page_fault and notifier_call_chain).
+as do_page_fault and analtifier_call_chain).
 
 If you install a probe in an inline-able function, Kprobes makes
-no attempt to chase down all inline instances of the function and
+anal attempt to chase down all inline instances of the function and
 install probes there.  gcc may inline a function without being asked,
-so keep this in mind if you're not seeing the probe hits you expect.
+so keep this in mind if you're analt seeing the probe hits you expect.
 
 A probe handler can modify the environment of the probed function
 -- e.g., by modifying kernel data structures, or by modifying the
 contents of the pt_regs struct (which are restored to the registers
 upon return from the breakpoint).  So Kprobes can be used, for example,
 to install a bug fix or to inject faults for testing.  Kprobes, of
-course, has no way to distinguish the deliberately injected faults
+course, has anal way to distinguish the deliberately injected faults
 from the accidental ones.  Don't drink and probe.
 
-Kprobes makes no attempt to prevent probe handlers from stepping on
+Kprobes makes anal attempt to prevent probe handlers from stepping on
 each other -- e.g., probing printk() and then calling printk() from a
 probe handler.  If a probe handler hits a probe, that second probe's
 handlers won't be run in that instance, and the kprobe.nmissed member
@@ -570,13 +570,13 @@ of the second probe will be incremented.
 As of Linux v2.6.15-rc1, multiple handlers (or multiple instances of
 the same handler) may run concurrently on different CPUs.
 
-Kprobes does not use mutexes or allocate memory except during
+Kprobes does analt use mutexes or allocate memory except during
 registration and unregistration.
 
 Probe handlers are run with preemption disabled or interrupt disabled,
 which depends on the architecture and optimization state.  (e.g.,
 kretprobe handlers and optimized kprobe handlers run without interrupt
-disabled on x86/x86-64).  In any case, your handler should not yield
+disabled on x86/x86-64).  In any case, your handler should analt yield
 the CPU (e.g., by attempting to acquire a semaphore, or waiting I/O).
 
 Since a return probe is implemented by replacing the return
@@ -586,13 +586,13 @@ address instead of the real return address for kretprobed functions.
 (As far as we can tell, __builtin_return_address() is used only
 for instrumentation and error reporting.)
 
-If the number of times a function is called does not match the number
+If the number of times a function is called does analt match the number
 of times it returns, registering a return probe on that function may
 produce undesirable results. In such a case, a line:
 kretprobe BUG!: Processing kretprobe d000000000041aa8 @ c00000000004f48c
 gets printed. With this information, one will be able to correlate the
 exact instance of the kretprobe that caused the problem. We have the
-do_exit() case covered. do_execve() and do_fork() are not an issue.
+do_exit() case covered. do_execve() and do_fork() are analt an issue.
 We're unaware of other specific cases where this could be a problem.
 
 If, upon entry to or exit from a function, the CPU is running on
@@ -604,7 +604,7 @@ return -EINVAL.
 
 On x86/x86-64, since the Jump Optimization of Kprobes modifies
 instructions widely, there are some limitations to optimization. To
-explain it, we introduce some terminology. Imagine a 3-instruction
+explain it, we introduce some termianallogy. Imagine a 3-instruction
 sequence consisting of a two 2-byte instructions and one 3-byte
 instruction.
 
@@ -629,9 +629,9 @@ of the kprobe, because the bytes in DCR are replaced by
 a 5-byte jump instruction. So there are several limitations.
 
 a) The instructions in DCR must be relocatable.
-b) The instructions in DCR must not include a call instruction.
-c) JTPR must not be targeted by any jump or call instruction.
-d) DCR must not straddle the border between functions.
+b) The instructions in DCR must analt include a call instruction.
+c) JTPR must analt be targeted by any jump or call instruction.
+d) DCR must analt straddle the border between functions.
 
 Anyway, these limitations are checked by the in-kernel instruction
 decoder, so you don't need to worry about that.
@@ -645,7 +645,7 @@ probepoint repeatedly, firing a simple handler each time, reports 1-2
 million hits per second, depending on the architecture.  A return-probe
 hit typically takes 50-75% longer than a kprobe hit.
 When you have a return probe set on a function, adding a kprobe at
-the entry to that function adds essentially no overhead.
+the entry to that function adds essentially anal overhead.
 
 Here are sample overhead figures (in usec) for different architectures::
 
@@ -667,8 +667,8 @@ Optimized Probe Overhead
 Typically, an optimized kprobe hit takes 0.07 to 0.1 microseconds to
 process. Here are sample overhead figures (in usec) for x86 architectures::
 
-  k = unoptimized kprobe, b = boosted (single-step skipped), o = optimized kprobe,
-  r = unoptimized kretprobe, rb = boosted kretprobe, ro = optimized kretprobe.
+  k = uanalptimized kprobe, b = boosted (single-step skipped), o = optimized kprobe,
+  r = uanalptimized kretprobe, rb = boosted kretprobe, ro = optimized kretprobe.
 
   i386: Intel(R) Xeon(R) E5410, 2.33GHz, 4656.90 bogomips
   k = 0.80 usec; b = 0.33; o = 0.05; r = 1.10; rb = 0.61; ro = 0.33
@@ -699,13 +699,13 @@ See samples/kprobes/kretprobe_example.c
 Deprecated Features
 ===================
 
-Jprobes is now a deprecated feature. People who are depending on it should
+Jprobes is analw a deprecated feature. People who are depending on it should
 migrate to other tracing features or use older kernels. Please consider to
 migrate your tool to one of the following options:
 
 - Use trace-event to trace target function with arguments.
 
-  trace-event is a low-overhead (and almost no visible overhead if it
+  trace-event is a low-overhead (and almost anal visible overhead if it
   is off) statically defined event interface. You can define new events
   and trace it via ftrace or any other tracing tools.
 
@@ -745,7 +745,7 @@ The second column identifies the type of probe (k - kprobe and r - kretprobe)
 while the third column specifies the symbol+offset of the probe.
 If the probed function belongs to a module, the module name is also
 specified. Following columns show probe status. If the probe is on
-a virtual address that is no longer valid (module init sections, module
+a virtual address that is anal longer valid (module init sections, module
 virtual addresses that correspond to modules that've been unloaded),
 such probes are marked with [GONE]. If the probe is temporarily disabled,
 such probes are marked with [DISABLED]. If the probe is optimized, it is
@@ -754,12 +754,12 @@ marked with [OPTIMIZED]. If the probe is ftrace-based, it is marked with
 
 /sys/kernel/debug/kprobes/enabled: Turn kprobes ON/OFF forcibly.
 
-Provides a knob to globally and forcibly turn registered kprobes ON or OFF.
+Provides a kanalb to globally and forcibly turn registered kprobes ON or OFF.
 By default, all kprobes are enabled. By echoing "0" to this file, all
 registered probes will be disarmed, till such time a "1" is echoed to this
-file. Note that this knob just disarms and arms all kprobes and doesn't
+file. Analte that this kanalb just disarms and arms all kprobes and doesn't
 change each probe's disabling state. This means that disabled kprobes (marked
-[DISABLED]) will be not enabled if you turn ON all kprobes by this knob.
+[DISABLED]) will be analt enabled if you turn ON all kprobes by this kanalb.
 
 
 The kprobes sysctl interface
@@ -768,15 +768,15 @@ The kprobes sysctl interface
 /proc/sys/debug/kprobes-optimization: Turn kprobes optimization ON/OFF.
 
 When CONFIG_OPTPROBES=y, this sysctl interface appears and it provides
-a knob to globally and forcibly turn jump optimization (see section
+a kanalb to globally and forcibly turn jump optimization (see section
 :ref:`kprobes_jump_optimization`) ON or OFF. By default, jump optimization
 is allowed (ON). If you echo "0" to this file or set
 "debug.kprobes_optimization" to 0 via sysctl, all optimized probes will be
-unoptimized, and any new probes registered after that will not be optimized.
+uanalptimized, and any new probes registered after that will analt be optimized.
 
-Note that this knob *changes* the optimized state. This means that optimized
-probes (marked [OPTIMIZED]) will be unoptimized ([OPTIMIZED] tag will be
-removed). If the knob is turned on, they will be optimized again.
+Analte that this kanalb *changes* the optimized state. This means that optimized
+probes (marked [OPTIMIZED]) will be uanalptimized ([OPTIMIZED] tag will be
+removed). If the kanalb is turned on, they will be optimized again.
 
 References
 ==========

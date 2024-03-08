@@ -46,7 +46,7 @@ static int touch_cap_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 	if (vb2_plane_size(vb, 0) < size) {
-		dprintk(dev, 1, "%s data will not fit into plane (%lu < %u)\n",
+		dprintk(dev, 1, "%s data will analt fit into plane (%lu < %u)\n",
 			__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -61,7 +61,7 @@ static void touch_cap_buf_queue(struct vb2_buffer *vb)
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	spin_lock(&dev->slock);
 	list_add_tail(&buf->list, &dev->touch_cap_active);
 	spin_unlock(&dev->slock);
@@ -132,7 +132,7 @@ int vivid_g_fmt_tch(struct file *file, void *priv, struct v4l2_format *f)
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	f->fmt.pix = dev->tch_format;
 	return 0;
 }
@@ -143,7 +143,7 @@ int vivid_g_fmt_tch_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	struct v4l2_format sp_fmt;
 
 	if (!dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	sp_fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	sp_fmt.fmt.pix = dev->tch_format;
 	fmt_sp2mp(&sp_fmt, f);
@@ -193,7 +193,7 @@ int vivid_set_touch(struct vivid_dev *dev, unsigned int i)
 	f->pixelformat = V4L2_TCH_FMT_DELTA_TD16;
 	f->width =  VIVID_TCH_WIDTH;
 	f->height = VIVID_TCH_HEIGHT;
-	f->field = V4L2_FIELD_NONE;
+	f->field = V4L2_FIELD_ANALNE;
 	f->colorspace = V4L2_COLORSPACE_RAW;
 	f->bytesperline = f->width * sizeof(s16);
 	f->sizeimage = f->width * f->height * sizeof(s16);
@@ -205,7 +205,7 @@ int vivid_s_input_tch(struct file *file, void *priv, unsigned int i)
 	return vivid_set_touch(video_drvdata(file), i);
 }
 
-static void vivid_fill_buff_noise(__s16 *tch_buf, int size)
+static void vivid_fill_buff_analise(__s16 *tch_buf, int size)
 {
 	int i;
 
@@ -267,7 +267,7 @@ void vivid_fillbuff_tch(struct vivid_dev *dev, struct vivid_buffer *buf)
 	test_pattern = (buf->vb.sequence / TCH_SEQ_COUNT) % TEST_CASE_MAX;
 	test_pat_idx = buf->vb.sequence % TCH_SEQ_COUNT;
 
-	vivid_fill_buff_noise(tch_buf, size);
+	vivid_fill_buff_analise(tch_buf, size);
 
 	if (test_pat_idx >= TCH_PATTERN_COUNT)
 		return;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2005 MIPS Techanallogies, Inc.  All rights reserved.
  */
 
 #ifndef _ASM_MIPS_BOARDS_SIM_H

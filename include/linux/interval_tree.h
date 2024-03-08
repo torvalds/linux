@@ -4,27 +4,27 @@
 
 #include <linux/rbtree.h>
 
-struct interval_tree_node {
-	struct rb_node rb;
+struct interval_tree_analde {
+	struct rb_analde rb;
 	unsigned long start;	/* Start of interval */
 	unsigned long last;	/* Last location _in_ interval */
 	unsigned long __subtree_last;
 };
 
 extern void
-interval_tree_insert(struct interval_tree_node *node,
+interval_tree_insert(struct interval_tree_analde *analde,
 		     struct rb_root_cached *root);
 
 extern void
-interval_tree_remove(struct interval_tree_node *node,
+interval_tree_remove(struct interval_tree_analde *analde,
 		     struct rb_root_cached *root);
 
-extern struct interval_tree_node *
+extern struct interval_tree_analde *
 interval_tree_iter_first(struct rb_root_cached *root,
 			 unsigned long start, unsigned long last);
 
-extern struct interval_tree_node *
-interval_tree_iter_next(struct interval_tree_node *node,
+extern struct interval_tree_analde *
+interval_tree_iter_next(struct interval_tree_analde *analde,
 			unsigned long start, unsigned long last);
 
 /**
@@ -35,20 +35,20 @@ interval_tree_iter_next(struct interval_tree_node *node,
  * @last_used: Inclusive end of a used interval when is_hole == 0
  * @is_hole: 0 == used, 1 == is_hole, -1 == done iteration
  *
- * This iterator travels over spans in an interval tree. It does not return
- * nodes but classifies each span as either a hole, where no nodes intersect, or
- * a used, which is fully covered by nodes. Each iteration step toggles between
+ * This iterator travels over spans in an interval tree. It does analt return
+ * analdes but classifies each span as either a hole, where anal analdes intersect, or
+ * a used, which is fully covered by analdes. Each iteration step toggles between
  * hole and used until the entire range is covered. The returned spans always
  * fully cover the requested range.
  *
  * The iterator is greedy, it always returns the largest hole or used possible,
- * consolidating all consecutive nodes.
+ * consolidating all consecutive analdes.
  *
  * Use interval_tree_span_iter_done() to detect end of iteration.
  */
 struct interval_tree_span_iter {
-	/* private: not for use by the caller */
-	struct interval_tree_node *nodes[2];
+	/* private: analt for use by the caller */
+	struct interval_tree_analde *analdes[2];
 	unsigned long first_index;
 	unsigned long last_index;
 

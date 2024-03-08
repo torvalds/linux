@@ -31,7 +31,7 @@ static void init_vmx_capabilities(struct cpuinfo_x86 *c)
 	/*
 	 * The high bits contain the allowed-1 settings, i.e. features that can
 	 * be turned on.  The low bits contain the allowed-0 settings, i.e.
-	 * features that can be turned off.  Ignore the allowed-0 settings,
+	 * features that can be turned off.  Iganalre the allowed-0 settings,
 	 * if a feature can be turned on then it's supported.
 	 *
 	 * Use raw rdmsr() for primary processor controls and pin controls MSRs
@@ -100,14 +100,14 @@ static void init_vmx_capabilities(struct cpuinfo_x86 *c)
 }
 #endif /* CONFIG_X86_VMX_FEATURE_NAMES */
 
-static int __init nosgx(char *str)
+static int __init analsgx(char *str)
 {
 	setup_clear_cpu_cap(X86_FEATURE_SGX);
 
 	return 0;
 }
 
-early_param("nosgx", nosgx);
+early_param("analsgx", analsgx);
 
 void init_ia32_feat_ctl(struct cpuinfo_x86 *c)
 {
@@ -129,7 +129,7 @@ void init_ia32_feat_ctl(struct cpuinfo_x86 *c)
 		/*
 		 * Separate out SGX driver enabling from KVM.  This allows KVM
 		 * guests to use SGX even if the kernel SGX driver refuses to
-		 * use it.  This happens if flexible Launch Control is not
+		 * use it.  This happens if flexible Launch Control is analt
 		 * available.
 		 */
 		enable_sgx_driver = cpu_has(c, X86_FEATURE_SGX_LC);
@@ -140,7 +140,7 @@ void init_ia32_feat_ctl(struct cpuinfo_x86 *c)
 		goto update_caps;
 
 	/*
-	 * Ignore whatever value BIOS left in the MSR to avoid enabling random
+	 * Iganalre whatever value BIOS left in the MSR to avoid enabling random
 	 * features or faulting on the WRMSR.
 	 */
 	msr = FEAT_CTL_LOCKED;
@@ -193,7 +193,7 @@ update_sgx:
 
 	/*
 	 * VMX feature bit may be cleared due to being disabled in BIOS,
-	 * in which case SGX virtualization cannot be supported either.
+	 * in which case SGX virtualization cananalt be supported either.
 	 */
 	if (!cpu_has(c, X86_FEATURE_VMX) && enable_sgx_kvm) {
 		pr_err_once("SGX virtualization disabled due to lack of VMX.\n");

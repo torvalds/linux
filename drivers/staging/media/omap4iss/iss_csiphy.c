@@ -146,8 +146,8 @@ int omap4iss_csiphy_config(struct iss_device *iss,
 	if (subdevs->interface == ISS_INTERFACE_CSI2A_PHY1) {
 		cam_rx_ctrl &= ~(OMAP4_CAMERARX_CSI21_LANEENABLE_MASK |
 				OMAP4_CAMERARX_CSI21_CAMMODE_MASK);
-		/* NOTE: Leave CSIPHY1 config to 0x0: D-PHY mode */
-		/* Enable all lanes for now */
+		/* ANALTE: Leave CSIPHY1 config to 0x0: D-PHY mode */
+		/* Enable all lanes for analw */
 		cam_rx_ctrl |=
 			0x1f << OMAP4_CAMERARX_CSI21_LANEENABLE_SHIFT;
 		/* Enable CTRLCLK */
@@ -157,8 +157,8 @@ int omap4iss_csiphy_config(struct iss_device *iss,
 	if (subdevs->interface == ISS_INTERFACE_CSI2B_PHY2) {
 		cam_rx_ctrl &= ~(OMAP4_CAMERARX_CSI22_LANEENABLE_MASK |
 				OMAP4_CAMERARX_CSI22_CAMMODE_MASK);
-		/* NOTE: Leave CSIPHY2 config to 0x0: D-PHY mode */
-		/* Enable all lanes for now */
+		/* ANALTE: Leave CSIPHY2 config to 0x0: D-PHY mode */
+		/* Enable all lanes for analw */
 		cam_rx_ctrl |=
 			0x3 << OMAP4_CAMERARX_CSI22_LANEENABLE_SHIFT;
 		/* Enable CTRLCLK */

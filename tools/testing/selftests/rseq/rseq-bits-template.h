@@ -2,7 +2,7 @@
 /*
  * rseq-bits-template.h
  *
- * (C) Copyright 2016-2022 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2022 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  */
 
 #ifdef RSEQ_TEMPLATE_CPU_ID
@@ -25,7 +25,7 @@
 # else
 #  error "Never use <rseq-bits-template.h> directly; include <rseq.h> instead."
 # endif
-#elif defined (RSEQ_TEMPLATE_CPU_ID_NONE)
+#elif defined (RSEQ_TEMPLATE_CPU_ID_ANALNE)
 # ifdef RSEQ_TEMPLATE_MO_RELEASE
 #  define RSEQ_TEMPLATE_SUFFIX		_release
 # elif defined (RSEQ_TEMPLATE_MO_RELAXED)

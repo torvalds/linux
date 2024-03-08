@@ -12,9 +12,9 @@ maintainers:
 description: |
   The HDMI CEC GPIO module supports CEC implementations where the CEC line is
   hooked up to a pull-up GPIO line and - optionally - the HPD line is hooked up
-  to another GPIO line.
+  to aanalther GPIO line.
 
-  Please note:: the maximum voltage for the CEC line is 3.63V, for the HPD and
+  Please analte:: the maximum voltage for the CEC line is 3.63V, for the HPD and
   5V lines it is 5.3V. So you may need some sort of level conversion
   circuitry when connecting them to a GPIO line.
 
@@ -32,7 +32,7 @@ properties:
     maxItems: 1
     description:
       GPIO that the HPD line is connected to.  Used for debugging HPD changes
-      when the CEC line is not associated with an HDMI receiver/transmitter.
+      when the CEC line is analt associated with an HDMI receiver/transmitter.
 
   v5-gpios:
     maxItems: 1

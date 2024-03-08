@@ -12,7 +12,7 @@
  * rpmh_state: state for the request
  *
  * RPMH_SLEEP_STATE:       State of the resource when the processor subsystem
- *                         is powered down. There is no client using the
+ *                         is powered down. There is anal client using the
  *                         resource actively.
  * RPMH_WAKE_ONLY_STATE:   Resume resource state to the value previously
  *                         requested before the processor was powered down.
@@ -36,7 +36,7 @@ enum rpmh_state {
  *        rpmh_write() - Always waits.
  *                       (DEFINE_RPMH_MSG_ONSTACK will set .wait_for_compl)
  *        rpmh_write_async() - Never waits.
- *                       (There's no request completion callback)
+ *                       (There's anal request completion callback)
  */
 struct tcs_cmd {
 	u32 addr;

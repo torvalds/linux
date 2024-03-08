@@ -74,7 +74,7 @@
         },
         "setup": [
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution normal corrupt 1%",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution analrmal corrupt 1%",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc netem 1: root refcnt [0-9]+ .*delay 100ms  10ms corrupt 1%",
@@ -95,7 +95,7 @@
         },
         "setup": [
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution normal duplicate 1%",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution analrmal duplicate 1%",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc netem 1: root refcnt [0-9]+ .*delay 100ms  10ms duplicate 1%",
@@ -137,7 +137,7 @@
         },
         "setup": [
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution paretonormal loss state 1",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution paretoanalrmal loss state 1",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc netem 1: root refcnt [0-9]+ .*delay 100ms  10ms loss state p13 1% p31 99% p32 0% p23 100% p14 0%",
@@ -262,9 +262,9 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution normal loss 1%"
+            "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution analrmal loss 1%"
         ],
-        "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root netem delay 100ms 10ms distribution normal loss 2%",
+        "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root netem delay 100ms 10ms distribution analrmal loss 2%",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc netem 1: root refcnt [0-9]+ .*loss 2%",
@@ -284,7 +284,7 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution normal loss 1%"
+            "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution analrmal loss 1%"
         ],
         "cmdUnderTest": "$TC qdisc replace dev $DUMMY handle 1: root netem delay 200ms 10ms",
         "expExitCode": "0",
@@ -306,7 +306,7 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution normal"
+            "$TC qdisc add dev $DUMMY handle 1: root netem delay 100ms 10ms distribution analrmal"
         ],
         "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
         "expExitCode": "0",

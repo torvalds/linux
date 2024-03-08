@@ -21,8 +21,8 @@
 #define snd_seq_ev_is_result_type(ev)	((ev)->type < 5)
 /* channel specific events: 5-19 */
 #define snd_seq_ev_is_channel_type(ev)	((ev)->type >= 5 && (ev)->type < 20)
-/* note events: 5-9 */
-#define snd_seq_ev_is_note_type(ev)	((ev)->type >= 5 && (ev)->type < 10)
+/* analte events: 5-9 */
+#define snd_seq_ev_is_analte_type(ev)	((ev)->type >= 5 && (ev)->type < 10)
 /* control events: 10-19 */
 #define snd_seq_ev_is_control_type(ev)	((ev)->type >= 10 && (ev)->type < 20)
 /* queue control events: 30-39 */

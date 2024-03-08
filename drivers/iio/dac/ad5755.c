@@ -45,7 +45,7 @@
 
 #define AD5755_READ_FLAG 0x800000
 
-#define AD5755_NOOP 0x1CE000
+#define AD5755_ANALOP 0x1CE000
 
 #define AD5755_DAC_INT_EN			BIT(8)
 #define AD5755_DAC_CLR_EN			BIT(7)
@@ -174,7 +174,7 @@ struct ad5755_chip_info {
  * struct ad5755_state - driver instance specific data
  * @spi:	spi device the driver is attached to
  * @chip_info:	chip model specific constants, available modes etc
- * @pwr_down:	bitmask which contains  hether a channel is powered down or not
+ * @pwr_down:	bitmask which contains  hether a channel is powered down or analt
  * @ctrl:	software shadow of the channel ctrl registers
  * @channels:	iio channel spec for the device
  * @lock:	lock to protect the data buffer during SPI ops
@@ -311,7 +311,7 @@ static int ad5755_read(struct iio_dev *indio_dev, unsigned int addr)
 	mutex_lock(&st->lock);
 
 	st->data[0].d32 = cpu_to_be32(AD5755_READ_FLAG | (addr << 16));
-	st->data[1].d32 = cpu_to_be32(AD5755_NOOP);
+	st->data[1].d32 = cpu_to_be32(AD5755_ANALOP);
 
 	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret >= 0)
@@ -699,13 +699,13 @@ static const struct ad5755_platform_data ad5755_default_pdata = {
 
 static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 {
-	struct fwnode_handle *pp;
+	struct fwanalde_handle *pp;
 	struct ad5755_platform_data *pdata;
 	unsigned int tmp;
 	unsigned int tmparray[3];
 	int devnr, i;
 
-	if (!dev_fwnode(dev))
+	if (!dev_fwanalde(dev))
 		return NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -746,7 +746,7 @@ static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 	}
 
 	devnr = 0;
-	device_for_each_child_node(dev, pp) {
+	device_for_each_child_analde(dev, pp) {
 		if (devnr >= AD5755_NUM_CHANNELS) {
 			dev_err(dev,
 				"There are too many channels defined in DT\n");
@@ -754,15 +754,15 @@ static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 		}
 
 		pdata->dac[devnr].mode = AD5755_MODE_CURRENT_4mA_20mA;
-		fwnode_property_read_u32(pp, "adi,mode", &pdata->dac[devnr].mode);
+		fwanalde_property_read_u32(pp, "adi,mode", &pdata->dac[devnr].mode);
 
 		pdata->dac[devnr].ext_current_sense_resistor =
-		    fwnode_property_read_bool(pp, "adi,ext-current-sense-resistor");
+		    fwanalde_property_read_bool(pp, "adi,ext-current-sense-resistor");
 
 		pdata->dac[devnr].enable_voltage_overrange =
-		    fwnode_property_read_bool(pp, "adi,enable-voltage-overrange");
+		    fwanalde_property_read_bool(pp, "adi,enable-voltage-overrange");
 
-		if (!fwnode_property_read_u32_array(pp, "adi,slew", tmparray, 3)) {
+		if (!fwanalde_property_read_u32_array(pp, "adi,slew", tmparray, 3)) {
 			pdata->dac[devnr].slew.enable = tmparray[0];
 
 			pdata->dac[devnr].slew.rate = AD5755_SLEW_RATE_64k;
@@ -802,7 +802,7 @@ static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 	return pdata;
 
  error_out:
-	fwnode_handle_put(pp);
+	fwanalde_handle_put(pp);
 	devm_kfree(dev, pdata);
 	return NULL;
 }
@@ -818,7 +818,7 @@ static int ad5755_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
-		return  -ENOMEM;
+		return  -EANALMEM;
 	}
 
 	st = iio_priv(indio_dev);
@@ -838,7 +838,7 @@ static int ad5755_probe(struct spi_device *spi)
 
 	pdata = ad5755_parse_fw(&spi->dev);
 	if (!pdata) {
-		dev_warn(&spi->dev, "no firmware provided parameters? using default\n");
+		dev_warn(&spi->dev, "anal firmware provided parameters? using default\n");
 		pdata = &ad5755_default_pdata;
 	}
 

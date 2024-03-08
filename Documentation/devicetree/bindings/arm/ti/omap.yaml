@@ -12,7 +12,7 @@ maintainers:
 description: Platforms based on Texas Instruments OMAP SoC architecture.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -20,9 +20,9 @@ properties:
       - description: TI OMAP2420 SoC based platforms
         items:
           - enum:
-              - nokia,n800
-              - nokia,n810
-              - nokia,n810-wimax
+              - analkia,n800
+              - analkia,n810
+              - analkia,n810-wimax
               - ti,omap2420-h4
           - const: ti,omap2420
           - const: ti,omap2
@@ -40,7 +40,7 @@ properties:
               - compulab,omap3-cm-t3530
               - logicpd,dm3730-som-lv-devkit  # LogicPD Zoom OMAP35xx SOM-LV Development Kit
               - logicpd,dm3730-torpedo-devkit # LogicPD Zoom OMAP35xx Torpedo Development Kit
-              - nokia,omap3-n900
+              - analkia,omap3-n900
               - openpandora,omap3-pandora-600mhz
               - ti,omap3430-sdp
               - ti,omap3-beagle
@@ -82,8 +82,8 @@ properties:
               - lg,omap3-sniper               # LG Optimus Black
               - logicpd,dm3730-som-lv-devkit  # LogicPD Zoom DM3730 SOM-LV Development Kit
               - logicpd,dm3730-torpedo-devkit # LogicPD Zoom DM3730 Torpedo + Wireless Development Kit
-              - nokia,omap3-n9
-              - nokia,omap3-n950
+              - analkia,omap3-n9
+              - analkia,omap3-n950
               - openpandora,omap3-pandora-1ghz
               - ti,omap3-beagle-xm
               - ti,omap3-evm-37xx             # TI OMAP37XX EVM (TMDSEVM3730)
@@ -106,7 +106,7 @@ properties:
           - enum:
               - compulab,cm-t335
               - moxa,uc-8100-me-t
-              - novatech,am335x-lxm
+              - analvatech,am335x-lxm
               - ti,am335x-bone
               - ti,am335x-evm
               - ti,am3359-icev2

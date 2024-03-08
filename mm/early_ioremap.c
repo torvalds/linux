@@ -115,7 +115,7 @@ __early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
 		}
 	}
 
-	if (WARN(slot < 0, "%s(%pa, %08lx) not found slot\n",
+	if (WARN(slot < 0, "%s(%pa, %08lx) analt found slot\n",
 		 __func__, &phys_addr, size))
 		return NULL;
 
@@ -175,12 +175,12 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
 		}
 	}
 
-	if (WARN(slot < 0, "%s(%p, %08lx) not found slot\n",
+	if (WARN(slot < 0, "%s(%p, %08lx) analt found slot\n",
 		  __func__, addr, size))
 		return;
 
 	if (WARN(prev_size[slot] != size,
-		 "%s(%p, %08lx) [%d] size not consistent %08lx\n",
+		 "%s(%p, %08lx) [%d] size analt consistent %08lx\n",
 		  __func__, addr, size, slot, prev_size[slot]))
 		return;
 
@@ -218,7 +218,7 @@ void __init *
 early_memremap(resource_size_t phys_addr, unsigned long size)
 {
 	pgprot_t prot = early_memremap_pgprot_adjust(phys_addr, size,
-						     FIXMAP_PAGE_NORMAL);
+						     FIXMAP_PAGE_ANALRMAL);
 
 	return (__force void *)__early_ioremap(phys_addr, size, prot);
 }

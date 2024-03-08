@@ -39,12 +39,12 @@ static int memcpy_fw(struct xe_gsc *gsc)
 	void *storage;
 
 	/*
-	 * FIXME: xe_migrate_copy does not work with stolen mem yet, so we use
-	 * a memcpy for now.
+	 * FIXME: xe_migrate_copy does analt work with stolen mem yet, so we use
+	 * a memcpy for analw.
 	 */
 	storage = kmalloc(fw_size, GFP_KERNEL);
 	if (!storage)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xe_map_memcpy_from(xe, storage, &gsc->fw.bo->vmap, 0, fw_size);
 	xe_map_memcpy_to(xe, &gsc->private->vmap, 0, storage, fw_size);
@@ -157,12 +157,12 @@ static int query_compatibility_version(struct xe_gsc *gsc)
 	}
 
 	compat->major = version_query_rd(xe, &bo->vmap, rd_offset, compat_major);
-	compat->minor = version_query_rd(xe, &bo->vmap, rd_offset, compat_minor);
+	compat->mianalr = version_query_rd(xe, &bo->vmap, rd_offset, compat_mianalr);
 
-	xe_gt_info(gt, "found GSC cv%u.%u\n", compat->major, compat->minor);
+	xe_gt_info(gt, "found GSC cv%u.%u\n", compat->major, compat->mianalr);
 
 out_bo:
-	xe_bo_unpin_map_no_vm(bo);
+	xe_bo_unpin_map_anal_vm(bo);
 	return err;
 }
 
@@ -209,10 +209,10 @@ static int gsc_upload(struct xe_gsc *gsc)
 	 * GSC is only killed by an FLR, so we need to trigger one on unload to
 	 * make sure we stop it. This is because we assign a chunk of memory to
 	 * the GSC as part of the FW load, so we need to make sure it stops
-	 * using it when we release it to the system on driver unload. Note that
-	 * this is not a problem of the unload per-se, because the GSC will not
+	 * using it when we release it to the system on driver unload. Analte that
+	 * this is analt a problem of the unload per-se, because the GSC will analt
 	 * touch that memory unless there are requests for it coming from the
-	 * driver; therefore, no accesses will happen while Xe is not loaded,
+	 * driver; therefore, anal accesses will happen while Xe is analt loaded,
 	 * but if we re-load the driver then the GSC might wake up and try to
 	 * access that old memory location again.
 	 * Given that an FLR is a very disruptive action (see the FLR function
@@ -265,7 +265,7 @@ static void gsc_work(struct work_struct *work)
 
 	xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_TRANSFERRED);
 
-	/* HuC auth failure is not fatal */
+	/* HuC auth failure is analt fatal */
 	if (xe_huc_is_authenticated(&gt->uc.huc, XE_HUC_AUTH_VIA_GUC))
 		xe_huc_auth(&gt->uc.huc, XE_HUC_AUTH_VIA_GSC);
 
@@ -285,13 +285,13 @@ int xe_gsc_init(struct xe_gsc *gsc)
 
 	/* The GSC uC is only available on the media GT */
 	if (tile->media_gt && (gt != tile->media_gt)) {
-		xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_NOT_SUPPORTED);
+		xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_ANALT_SUPPORTED);
 		return 0;
 	}
 
 	/*
-	 * Some platforms can have GuC but not GSC. That would cause
-	 * xe_uc_fw_init(gsc) to return a "not supported" failure code and abort
+	 * Some platforms can have GuC but analt GSC. That would cause
+	 * xe_uc_fw_init(gsc) to return a "analt supported" failure code and abort
 	 * all firmware loading. So check for GSC being enabled before
 	 * propagating the failure back up. That way the higher level will keep
 	 * going and load GuC as appropriate.
@@ -324,7 +324,7 @@ static void free_resources(struct drm_device *drm, void *arg)
 	}
 
 	if (gsc->private) {
-		xe_bo_unpin_map_no_vm(gsc->private);
+		xe_bo_unpin_map_anal_vm(gsc->private);
 		gsc->private = NULL;
 	}
 }
@@ -344,7 +344,7 @@ int xe_gsc_init_post_hwconfig(struct xe_gsc *gsc)
 		return 0;
 
 	if (!hwe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bo = xe_bo_create_pin_map(xe, tile, NULL, SZ_4M,
 				  ttm_bo_type_kernel,
@@ -365,7 +365,7 @@ int xe_gsc_init_post_hwconfig(struct xe_gsc *gsc)
 
 	wq = alloc_ordered_workqueue("gsc-ordered-wq", 0);
 	if (!wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_q;
 	}
 
@@ -384,7 +384,7 @@ int xe_gsc_init_post_hwconfig(struct xe_gsc *gsc)
 out_q:
 	xe_exec_queue_put(q);
 out_bo:
-	xe_bo_unpin_map_no_vm(bo);
+	xe_bo_unpin_map_anal_vm(bo);
 	return err;
 }
 
@@ -412,7 +412,7 @@ void xe_gsc_wait_for_worker_completion(struct xe_gsc *gsc)
 
 /*
  * wa_14015076503: if the GSC FW is loaded, we need to alert it before doing a
- * GSC engine reset by writing a notification bit in the GS1 register and then
+ * GSC engine reset by writing a analtification bit in the GS1 register and then
  * triggering an interrupt to GSC; from the interrupt it will take up to 200ms
  * for the FW to get prepare for the reset, so we need to wait for that amount
  * of time.

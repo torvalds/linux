@@ -66,7 +66,7 @@ static int coalesce_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_coalesce)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	data->supported_params = dev->ethtool_ops->supported_coalesce_params;
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
@@ -239,14 +239,14 @@ ethnl_set_coalesce_validate(struct ethnl_req_info *req_info,
 	u16 a;
 
 	if (!ops->get_coalesce || !ops->set_coalesce)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* make sure that only supported parameters are present */
 	supported_params = ops->supported_coalesce_params;
 	for (a = ETHTOOL_A_COALESCE_RX_USECS; a < __ETHTOOL_A_COALESCE_CNT; a++)
 		if (tb[a] && !(supported_params & attr_to_mask(a))) {
 			NL_SET_ERR_MSG_ATTR(info->extack, tb[a],
-					    "cannot modify an unsupported parameter");
+					    "cananalt modify an unsupported parameter");
 			return -EINVAL;
 		}
 
@@ -344,9 +344,9 @@ ethnl_set_coalesce(struct ethnl_req_info *req_info, struct genl_info *info)
 
 	/* SET_COALESCE may change operation mode and parameters in one call.
 	 * Changing operation mode may cause the driver to reset the parameter
-	 * values, and therefore ignore user input (driver does not know which
+	 * values, and therefore iganalre user input (driver does analt kanalw which
 	 * parameters come from user and which are echoed back from ->get).
-	 * To not complicate the drivers if user tries to change both the mode
+	 * To analt complicate the drivers if user tries to change both the mode
 	 * and parameters at once - call the driver twice.
 	 */
 	err = __ethnl_set_coalesce(req_info, info, &dual_change);

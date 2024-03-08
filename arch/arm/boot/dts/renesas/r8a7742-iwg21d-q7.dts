@@ -43,7 +43,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel root=/dev/mmcblk0p1 rw rootwait";
+		bootargs = "iganalre_loglevel root=/dev/mmcblk0p1 rw rootwait";
 		stdout-path = "serial2:115200n8";
 	};
 
@@ -171,7 +171,7 @@
 
 	phy-handle = <&phy3>;
 	phy-mode = "gmii";
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	status = "okay";
 
 	phy3: ethernet-phy@3 {
@@ -267,7 +267,7 @@
 	status = "okay";
 
 	flash1: flash@0 {
-		compatible = "sst,sst25vf016b", "jedec,spi-nor";
+		compatible = "sst,sst25vf016b", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		m25p,fast-read;

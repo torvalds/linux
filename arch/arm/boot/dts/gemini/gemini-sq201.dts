@@ -165,7 +165,7 @@
 				};
 				/*
 				 * These GPIO groups will be mapped in over some
-				 * of the flash pins when the flash is not in
+				 * of the flash pins when the flash is analt in
 				 * active use.
 				 */
 				pflash_disabled_pins: pinctrl-pflash-disabled {

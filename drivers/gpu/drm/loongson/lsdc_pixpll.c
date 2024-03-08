@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/delay.h>
@@ -14,7 +14,7 @@
  * it can be different across different chip also.
  */
 
-/* size is u64, note that all loongson's cpu is little endian.
+/* size is u64, analte that all loongson's cpu is little endian.
  * This structure is same for ls7a2000, ls7a1000 and ls2k2000.
  */
 struct lsdc_pixpll_reg {
@@ -32,7 +32,7 @@ struct lsdc_pixpll_reg {
 	unsigned set_param     : 1;   /* 43         Trigger the update    */
 	unsigned bypass        : 1;   /* 44                               */
 	unsigned powerdown     : 1;   /* 45                               */
-	unsigned _reserved_4_  : 18;  /* 46 : 63    no use                */
+	unsigned _reserved_4_  : 18;  /* 46 : 63    anal use                */
 };
 
 union lsdc_pixpll_reg_bitmap {
@@ -121,12 +121,12 @@ static int lsdc_pixel_pll_setup(struct lsdc_pixpll * const this)
 
 	this->mmio = ioremap(this->reg_base, this->reg_size);
 	if (!this->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pparms = kzalloc(sizeof(*pparms), GFP_KERNEL);
 	if (!pparms) {
 		iounmap(this->mmio);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pparms->ref_clock = LSDC_PLL_REF_CLK_KHZ;
@@ -144,7 +144,7 @@ static int lsdc_pixel_pll_setup(struct lsdc_pixpll * const this)
  * @clock: the desired output pixel clock, the unit is kHz
  * @pout: point to where the parameters to store if found
  *
- * Return 0 if success, return -1 if not found.
+ * Return 0 if success, return -1 if analt found.
  */
 static int lsdc_pixpll_find(struct lsdc_pixpll * const this,
 			    unsigned int clock,

@@ -15,7 +15,7 @@
  *   GNU Library General Public License for more details.
  *
  *   You should have received a copy of the GNU Library General Public
- *   License along with this library; if not, write to the Free Software
+ *   License along with this library; if analt, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
@@ -36,7 +36,7 @@
 #define snd_pcm_plug_last(plug) ((plug)->runtime->oss.plugin_last)
 
 /*
- *  because some cards might have rates "very close", we ignore
+ *  because some cards might have rates "very close", we iganalre
  *  all "resampling" requests within +-5%
  */
 static int rate_match(unsigned int src_rate, unsigned int dst_rate)
@@ -65,7 +65,7 @@ static int snd_pcm_plugin_alloc(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t
 	size = array3_size(frames, format->channels, width);
 	/* check for too large period size once again */
 	if (size > 1024 * 1024)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (snd_BUG_ON(size % 8))
 		return -ENXIO;
 	size /= 8;
@@ -76,7 +76,7 @@ static int snd_pcm_plugin_alloc(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t
 	}
 	if (!plugin->buf) {
 		plugin->buf_frames = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	c = plugin->buf_channels;
 	if (plugin->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED) {
@@ -88,7 +88,7 @@ static int snd_pcm_plugin_alloc(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t
 			c->area.first = channel * width;
 			c->area.step = format->channels * width;
 		}
-	} else if (plugin->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED) {
+	} else if (plugin->access == SNDRV_PCM_ACCESS_RW_ANALNINTERLEAVED) {
 		if (snd_BUG_ON(size % format->channels))
 			return -EINVAL;
 		size /= format->channels;
@@ -163,7 +163,7 @@ int snd_pcm_plugin_build(struct snd_pcm_substream *plug,
 		return -ENXIO;
 	plugin = kzalloc(sizeof(*plugin) + extra, GFP_KERNEL);
 	if (plugin == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	plugin->name = name;
 	plugin->plug = plug;
 	plugin->stream = snd_pcm_plug_stream(plug);
@@ -181,7 +181,7 @@ int snd_pcm_plugin_build(struct snd_pcm_substream *plug,
 	plugin->buf_channels = kcalloc(channels, sizeof(*plugin->buf_channels), GFP_KERNEL);
 	if (plugin->buf_channels == NULL) {
 		snd_pcm_plugin_free(plugin);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	plugin->client_channels = snd_pcm_plugin_client_channels;
 	*ret = plugin;
@@ -392,7 +392,7 @@ int snd_pcm_plug_format_plugins(struct snd_pcm_substream *plug,
 		srcformat.channels = params_channels(params);
 		src_access = SNDRV_PCM_ACCESS_RW_INTERLEAVED;
 		dst_access = (slave_interleaved ? SNDRV_PCM_ACCESS_RW_INTERLEAVED :
-						  SNDRV_PCM_ACCESS_RW_NONINTERLEAVED);
+						  SNDRV_PCM_ACCESS_RW_ANALNINTERLEAVED);
 		break;
 	case SNDRV_PCM_STREAM_CAPTURE:
 		dstformat.format = params_format(params);
@@ -402,7 +402,7 @@ int snd_pcm_plug_format_plugins(struct snd_pcm_substream *plug,
 		srcformat.rate = params_rate(slave_params);
 		srcformat.channels = params_channels(slave_params);
 		src_access = (slave_interleaved ? SNDRV_PCM_ACCESS_RW_INTERLEAVED :
-						  SNDRV_PCM_ACCESS_RW_NONINTERLEAVED);
+						  SNDRV_PCM_ACCESS_RW_ANALNINTERLEAVED);
 		dst_access = SNDRV_PCM_ACCESS_RW_INTERLEAVED;
 		break;
 	default:

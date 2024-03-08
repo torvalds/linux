@@ -4,7 +4,7 @@ KernelVersion:	5.7
 Contact:	"Jithu Joseph" <jithu.joseph@intel.com>
 Description:
 		Allow user space entities to trigger update of Slim
-		Bootloader (SBL). This attribute normally has a value
+		Bootloader (SBL). This attribute analrmally has a value
 		of 0 and userspace can signal SBL to update firmware,
 		on next reboot, by writing a value of 1.
 		There are two available states:

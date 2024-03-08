@@ -12,22 +12,22 @@
 #include <linux/bitfield.h>
 
 #define CGX_FIRMWARE_MAJOR_VER		1
-#define CGX_FIRMWARE_MINOR_VER		0
+#define CGX_FIRMWARE_MIANALR_VER		0
 
 #define CGX_EVENT_ACK                   1UL
 
 /* CGX error types. set for cmd response status as CGX_STAT_FAIL */
 enum cgx_error_type {
-	CGX_ERR_NONE,
-	CGX_ERR_LMAC_NOT_ENABLED,
+	CGX_ERR_ANALNE,
+	CGX_ERR_LMAC_ANALT_ENABLED,
 	CGX_ERR_LMAC_MODE_INVALID,
 	CGX_ERR_REQUEST_ID_INVALID,
-	CGX_ERR_PREV_ACK_NOT_CLEAR,
+	CGX_ERR_PREV_ACK_ANALT_CLEAR,
 	CGX_ERR_PHY_LINK_DOWN,
 	CGX_ERR_PCS_RESET_FAIL,
 	CGX_ERR_AN_CPT_FAIL,
-	CGX_ERR_TX_NOT_IDLE,
-	CGX_ERR_RX_NOT_IDLE,
+	CGX_ERR_TX_ANALT_IDLE,
+	CGX_ERR_RX_ANALT_IDLE,
 	CGX_ERR_SPUX_BR_BLKLOCK_FAIL,
 	CGX_ERR_SPUX_RX_ALIGN_FAIL,
 	CGX_ERR_SPUX_TX_FAULT,
@@ -35,7 +35,7 @@ enum cgx_error_type {
 	CGX_ERR_SPUX_RESET_FAIL,
 	CGX_ERR_SPUX_AN_RESET_FAIL,
 	CGX_ERR_SPUX_USX_AN_RESET_FAIL,
-	CGX_ERR_SMUX_RX_LINK_NOT_OK,
+	CGX_ERR_SMUX_RX_LINK_ANALT_OK,
 	CGX_ERR_PCS_RECV_LINK_FAIL,
 	CGX_ERR_TRAINING_FAIL,
 	CGX_ERR_RX_EQU_FAIL,
@@ -45,13 +45,13 @@ enum cgx_error_type {
 	CGX_ERR_SET_FEC_INVALID,
 	CGX_ERR_SET_FEC_FAIL,
 	CGX_ERR_MODULE_INVALID,
-	CGX_ERR_MODULE_NOT_PRESENT,
+	CGX_ERR_MODULE_ANALT_PRESENT,
 	CGX_ERR_SPEED_CHANGE_INVALID,
 };
 
 /* LINK speed types */
 enum cgx_link_speed {
-	CGX_LINK_NONE,
+	CGX_LINK_ANALNE,
 	CGX_LINK_10M,
 	CGX_LINK_100M,
 	CGX_LINK_1G,
@@ -99,7 +99,7 @@ enum CGX_MODE_ {
 };
 /* REQUEST ID types. Input to firmware */
 enum cgx_cmd_id {
-	CGX_CMD_NONE,
+	CGX_CMD_ANALNE,
 	CGX_CMD_GET_FW_VER,
 	CGX_CMD_GET_MAC_ADDR,
 	CGX_CMD_SET_MTU,
@@ -132,7 +132,7 @@ enum cgx_cmd_id {
 
 /* async event ids */
 enum cgx_evt_id {
-	CGX_EVT_NONE,
+	CGX_EVT_ANALNE,
 	CGX_EVT_LINK_CHANGE,
 };
 
@@ -160,7 +160,7 @@ enum cgx_cmd_own {
 	(((x) & ~(m)) |			\
 	FIELD_PREP((m), (y)))
 
-/* scratchx(0) CSR used for ATF->non-secure SW communication.
+/* scratchx(0) CSR used for ATF->analn-secure SW communication.
  * This acts as the status register
  * Provides details on command ack/status, command response, error details
  */
@@ -171,7 +171,7 @@ enum cgx_cmd_own {
 
 /* Response to command IDs with command status as CGX_STAT_FAIL
  *
- * Not applicable for commands :
+ * Analt applicable for commands :
  * CGX_CMD_LINK_BRING_UP/DOWN/CGX_EVT_LINK_CHANGE
  */
 #define EVTREG_ERRTYPE		GENMASK_ULL(18, 9)
@@ -180,7 +180,7 @@ enum cgx_cmd_own {
  * CGX_STAT_SUCCESS
  */
 #define RESP_MAJOR_VER		GENMASK_ULL(12, 9)
-#define RESP_MINOR_VER		GENMASK_ULL(16, 13)
+#define RESP_MIANALR_VER		GENMASK_ULL(16, 13)
 
 /* Response to cmd ID as CGX_CMD_GET_MAC_ADDR with cmd status as
  * CGX_STAT_SUCCESS
@@ -210,7 +210,7 @@ enum cgx_cmd_own {
  * when processing link up/down/change command.
  * Both err_type and current link status will be updated
  *
- * In case of CGX_STAT_SUCCESS, err_type will be CGX_ERR_NONE and current
+ * In case of CGX_STAT_SUCCESS, err_type will be CGX_ERR_ANALNE and current
  * link status will be updated
  */
 struct cgx_lnk_sts {
@@ -219,8 +219,8 @@ struct cgx_lnk_sts {
 	uint64_t full_duplex:1;
 	uint64_t speed:4;		/* cgx_link_speed */
 	uint64_t err_type:10;
-	uint64_t an:1;			/* AN supported or not */
-	uint64_t fec:2;			/* FEC type if enabled, if not 0 */
+	uint64_t an:1;			/* AN supported or analt */
+	uint64_t fec:2;			/* FEC type if enabled, if analt 0 */
 	uint64_t port:8;
 	uint64_t reserved2:28;
 };
@@ -233,7 +233,7 @@ struct cgx_lnk_sts {
 #define RESP_LINKSTAT_FEC		GENMASK_ULL(27, 26)
 #define RESP_LINKSTAT_PORT		GENMASK_ULL(35, 28)
 
-/* scratchx(1) CSR used for non-secure SW->ATF communication
+/* scratchx(1) CSR used for analn-secure SW->ATF communication
  * This CSR acts as a command register
  */
 #define CMDREG_OWN	BIT_ULL(0)

@@ -53,7 +53,7 @@ static void _rtl92d_write_fw(struct ieee80211_hw *hw,
 	pagenums = size / FW_8192D_PAGE_SIZE;
 	remainsize = size % FW_8192D_PAGE_SIZE;
 	if (pagenums > 8)
-		pr_err("Page numbers should not greater then 8\n");
+		pr_err("Page numbers should analt greater then 8\n");
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8192D_PAGE_SIZE;
 		rtl_fw_page_write(hw, page, (bufferptr + offset),
@@ -143,11 +143,11 @@ static int _rtl92d_fw_init(struct ieee80211_hw *hw)
 
 	if (rtlhal->interfaceindex == 0) {
 		rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
-			"Polling FW ready fail!! MAC0 FW init not ready: 0x%x\n",
+			"Polling FW ready fail!! MAC0 FW init analt ready: 0x%x\n",
 			rtl_read_byte(rtlpriv, FW_MAC0_READY));
 	} else {
 		rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
-			"Polling FW ready fail!! MAC1 FW init not ready: 0x%x\n",
+			"Polling FW ready fail!! MAC1 FW init analt ready: 0x%x\n",
 			rtl_read_byte(rtlpriv, FW_MAC1_READY));
 	}
 	rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
@@ -215,7 +215,7 @@ int rtl92d_download_fw(struct ieee80211_hw *hw)
 				break;
 			else
 				rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
-					"Wait for another mac download fw\n");
+					"Wait for aanalther mac download fw\n");
 		}
 		spin_lock_irqsave(&globalmutex_for_fwdownload, flags);
 		value = rtl_read_byte(rtlpriv, 0x1f);
@@ -248,7 +248,7 @@ int rtl92d_download_fw(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, 0x1f, value);
 	spin_unlock_irqrestore(&globalmutex_for_fwdownload, flags);
 	if (err)
-		pr_err("fw is not ready to run!\n");
+		pr_err("fw is analt ready to run!\n");
 exit:
 	err = _rtl92d_fw_init(hw);
 	return err;
@@ -323,7 +323,7 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 	while (!bwrite_success) {
 		wait_writeh2c_limmit--;
 		if (wait_writeh2c_limmit == 0) {
-			pr_err("Write H2C fail because no trigger for FW INT!\n");
+			pr_err("Write H2C fail because anal trigger for FW INT!\n");
 			break;
 		}
 		boxnum = rtlhal->last_hmeboxnum;
@@ -345,7 +345,7 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 			box_extreg = REG_HMEBOX_EXT_3;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x analt processed\n",
 			       boxnum);
 			break;
 		}
@@ -367,7 +367,7 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 		}
 		if (!isfw_read) {
 			rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD,
-				"Write H2C register BOX[%d] fail!!!!! Fw do not read.\n",
+				"Write H2C register BOX[%d] fail!!!!! Fw do analt read.\n",
 				boxnum);
 			break;
 		}
@@ -422,7 +422,7 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 					       boxcontent[idx]);
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x analt processed\n",
 			       cmd_len);
 			break;
 		}

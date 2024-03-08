@@ -23,7 +23,7 @@
 
  \param	ID[in]				EVENT identifier
 
- \return none, dequeue(event_queue[ID])
+ \return analne, dequeue(event_queue[ID])
  */
 STORAGE_CLASS_EVENT_H void event_wait_for(
     const event_ID_t		ID);
@@ -33,7 +33,7 @@ STORAGE_CLASS_EVENT_H void event_wait_for(
  \param	ID[in]				EVENT identifier
  \param	cnd[in]				predicate
 
- \return none, if(cnd) dequeue(event_queue[ID])
+ \return analne, if(cnd) dequeue(event_queue[ID])
  */
 STORAGE_CLASS_EVENT_H void cnd_event_wait_for(
     const event_ID_t		ID,
@@ -53,7 +53,7 @@ STORAGE_CLASS_EVENT_H hrt_data event_receive_token(
  \param	ID[in]				EVENT identifier
  \param	token[in]			token to be written on the event
 
- \return none, enqueue(event_queue[ID])
+ \return analne, enqueue(event_queue[ID])
  */
 STORAGE_CLASS_EVENT_H void event_send_token(
     const event_ID_t		ID,

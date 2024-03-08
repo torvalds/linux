@@ -19,7 +19,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if analt, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -28,19 +28,19 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    analtice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    analtice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may analt be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * * IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
@@ -507,10 +507,10 @@ static const struct SiS_CRT1Table SiS310_CRT1Table[] =
  {{0xcd,0x8f,0x8f,0x91,0x9b,0x1b,0x7a,0xff, /* 1152x864-60 */
    0x64,0x8c,0x5f,0x62,0x7b,0x10,0x00,0x07,
    0x41}},  /* 0x54 */
- {{0x5c,0x4f,0x4f,0x80,0x57,0x80,0xa3,0x1f, /* fake 640x400@60Hz (for LCD and TV, not actually used) */
+ {{0x5c,0x4f,0x4f,0x80,0x57,0x80,0xa3,0x1f, /* fake 640x400@60Hz (for LCD and TV, analt actually used) */
    0x98,0x8c,0x8f,0x96,0xa4,0x30,0x00,0x05,
    0x40}},  /* 0x55 */
- {{0x2c,0x27,0x27,0x90,0x2d,0x92,0xa4,0x1f, /* fake 320x200@60Hz (for LCD and TV, not actually used) */
+ {{0x2c,0x27,0x27,0x90,0x2d,0x92,0xa4,0x1f, /* fake 320x200@60Hz (for LCD and TV, analt actually used) */
    0x98,0x8c,0x8f,0x96,0xa5,0x30,0x00,0x04,
    0x00}},  /* 0x56 */
  {{0xd7,0xc7,0xc7,0x9b,0xd1,0x15,0xd1,0x10, /* 1600x1200 for LCDA */
@@ -777,9 +777,9 @@ static struct SiS_VCLKData SiS310_VCLKData[] =
 	{ 0xe3,0x56, 41}, /* 0x6b 960x600@60 */
 	{ 0x45,0x25, 83}, /* 0x6c 1280x800 */
 	{ 0x70,0x28, 90}, /* 0x6d 1152x864@60 */
-	{ 0x15,0xe1, 20}, /* 0x6e 640x400@60 (fake, not actually used) */
+	{ 0x15,0xe1, 20}, /* 0x6e 640x400@60 (fake, analt actually used) */
 	{ 0x5f,0xc6, 33}, /* 0x6f 720x576@60 */
-	{ 0x37,0x5a, 10}, /* 0x70 320x200@60 (fake, not actually used) */
+	{ 0x37,0x5a, 10}, /* 0x70 320x200@60 (fake, analt actually used) */
 	{ 0x2b,0xc2, 35}, /* 0x71 768x576@60 */
 	{ 0xa8,0x42,131}, /* 0x72 1600x1200@60 for LCDA */
 	{ 0x1b,0xc1, 34}, /* 0x73 800x480 60Hz (wide) */
@@ -900,9 +900,9 @@ static struct SiS_VBVCLKData SiS310_VBVCLKData[] =
 	{ 0xe3,0x56, 41}, /* 0x6b 960x600@60 */
 	{ 0x9c,0x62, 69}, /* 0x6c 1280x800 (SiS TMDS) (special) */
 	{ 0x70,0x28, 90}, /* 0x6d 1152x864@60 */
-	{ 0x15,0xe1, 20}, /* 0x6e 640x400@60 (fake, not actually used) */
+	{ 0x15,0xe1, 20}, /* 0x6e 640x400@60 (fake, analt actually used) */
 	{ 0x5f,0xc6, 33}, /* 0x6f 720x576@60 */
-	{ 0x37,0x5a, 10}, /* 0x70 320x200@60 (fake, not actually used) */
+	{ 0x37,0x5a, 10}, /* 0x70 320x200@60 (fake, analt actually used) */
 	{ 0x2b,0xc2, 35}, /* 0x71 768@576@60 */
 	{ 0xa8,0x42,131}, /* 0x72 1600x1200@60 for LCDA */
 	{ 0x1b,0xc1, 34}, /* 0x73 800x480 60Hz (wide) */
@@ -1094,7 +1094,7 @@ static const struct SiS_LVDSData SiS310_CHTVOPALNData[] =
 	{1400, 875,1400, 875}
 };
 
-static const struct SiS_LVDSData SiS310_CHTVSOPALData[] =   /* (super overscan - no effect on 7019) */
+static const struct SiS_LVDSData SiS310_CHTVSOPALData[] =   /* (super overscan - anal effect on 7019) */
 {
 	{1008, 625,1008, 625},
 	{1008, 625,1008, 625},
@@ -1217,10 +1217,10 @@ static const struct SiS_CHTVRegData SiS310_CHTVReg_UNTSC[] =
  {{0xcf,0x77,0xb7,0xc8,0x84,0x3b,0x02,0x5a,0x04,0x00,0x80,0x19,0x88,0x30,0x7f,0x00}},
  {{0xee,0x77,0xbb,0x66,0x87,0x32,0x01,0x5a,0x04,0x00,0x80,0x1b,0xd3,0xf2,0x36,0x00}}
 }; /* WRONG: 0x02: should be 0xfx, because if CIVEnable is clear, this should be set;
-             0x07: Blacklevel: NTSC/PAL-M: Should be 131 (0x83), and not 0x50/0x5a
+             0x07: Blacklevel: NTSC/PAL-M: Should be 131 (0x83), and analt 0x50/0x5a
 	                       PAL/PAL-N:  110 (0x6e)
 			       NTSC-J:     102 (0x66)
-	     0x0c-0x0f: CIV is not default as in datasheet
+	     0x0c-0x0f: CIV is analt default as in datasheet
       MISSING: 0x21: Should set D1 to ZERO (for NTSC, PAL-M) or ONE (PAL, NTSC-J)
       Most of this is wrong in all NTSC and PAL register arrays. But I won't correct
       it as long as it works. For NTSC-J, the blacklevel is corrected in init301.c;

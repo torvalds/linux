@@ -32,18 +32,18 @@ struct workqueue_struct *gfs2_recovery_wq;
 int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 			   struct buffer_head **bh)
 {
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
+	struct gfs2_ianalde *ip = GFS2_I(jd->jd_ianalde);
 	struct gfs2_glock *gl = ip->i_gl;
 	u64 dblock;
 	u32 extlen;
 	int error;
 
 	extlen = 32;
-	error = gfs2_get_extent(&ip->i_inode, blk, &dblock, &extlen);
+	error = gfs2_get_extent(&ip->i_ianalde, blk, &dblock, &extlen);
 	if (error)
 		return error;
 	if (!dblock) {
-		gfs2_consist_inode(ip);
+		gfs2_consist_ianalde(ip);
 		return -EIO;
 	}
 
@@ -52,13 +52,13 @@ int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 	return error;
 }
 
-int gfs2_revoke_add(struct gfs2_jdesc *jd, u64 blkno, unsigned int where)
+int gfs2_revoke_add(struct gfs2_jdesc *jd, u64 blkanal, unsigned int where)
 {
 	struct list_head *head = &jd->jd_revoke_list;
 	struct gfs2_revoke_replay *rr = NULL, *iter;
 
 	list_for_each_entry(iter, head, rr_list) {
-		if (iter->rr_blkno == blkno) {
+		if (iter->rr_blkanal == blkanal) {
 			rr = iter;
 			break;
 		}
@@ -69,24 +69,24 @@ int gfs2_revoke_add(struct gfs2_jdesc *jd, u64 blkno, unsigned int where)
 		return 0;
 	}
 
-	rr = kmalloc(sizeof(struct gfs2_revoke_replay), GFP_NOFS);
+	rr = kmalloc(sizeof(struct gfs2_revoke_replay), GFP_ANALFS);
 	if (!rr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	rr->rr_blkno = blkno;
+	rr->rr_blkanal = blkanal;
 	rr->rr_where = where;
 	list_add(&rr->rr_list, head);
 
 	return 1;
 }
 
-int gfs2_revoke_check(struct gfs2_jdesc *jd, u64 blkno, unsigned int where)
+int gfs2_revoke_check(struct gfs2_jdesc *jd, u64 blkanal, unsigned int where)
 {
 	struct gfs2_revoke_replay *rr = NULL, *iter;
 	int wrap, a, b, revoke;
 
 	list_for_each_entry(iter, &jd->jd_revoke_list, rr_list) {
-		if (iter->rr_blkno == blkno) {
+		if (iter->rr_blkanal == blkanal) {
 			rr = iter;
 			break;
 		}
@@ -116,13 +116,13 @@ void gfs2_revoke_clean(struct gfs2_jdesc *jd)
 }
 
 int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
-		     unsigned int blkno, struct gfs2_log_header_host *head)
+		     unsigned int blkanal, struct gfs2_log_header_host *head)
 {
 	u32 hash, crc;
 
 	if (lh->lh_header.mh_magic != cpu_to_be32(GFS2_MAGIC) ||
 	    lh->lh_header.mh_type != cpu_to_be32(GFS2_METATYPE_LH) ||
-	    (blkno && be32_to_cpu(lh->lh_blkno) != blkno))
+	    (blkanal && be32_to_cpu(lh->lh_blkanal) != blkanal))
 		return 1;
 
 	hash = crc32(~0, lh, LH_V1_SIZE - 4);
@@ -140,11 +140,11 @@ int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
 	head->lh_sequence = be64_to_cpu(lh->lh_sequence);
 	head->lh_flags = be32_to_cpu(lh->lh_flags);
 	head->lh_tail = be32_to_cpu(lh->lh_tail);
-	head->lh_blkno = be32_to_cpu(lh->lh_blkno);
+	head->lh_blkanal = be32_to_cpu(lh->lh_blkanal);
 
 	head->lh_local_total = be64_to_cpu(lh->lh_local_total);
 	head->lh_local_free = be64_to_cpu(lh->lh_local_free);
-	head->lh_local_dinodes = be64_to_cpu(lh->lh_local_dinodes);
+	head->lh_local_dianaldes = be64_to_cpu(lh->lh_local_dianaldes);
 
 	return 0;
 }
@@ -159,13 +159,13 @@ int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
  *
  * Returns: 0 on success,
  *          1 if the header was invalid or incomplete,
- *          errno on error
+ *          erranal on error
  */
 
 static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 			  struct gfs2_log_header_host *head)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_ianalde);
 	struct buffer_head *bh;
 	int error;
 
@@ -190,13 +190,13 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
  * Call a given function once for every log descriptor in the active
  * portion of the log.
  *
- * Returns: errno
+ * Returns: erranal
  */
 
 static int foreach_descriptor(struct gfs2_jdesc *jd, u32 start,
 			      unsigned int end, int pass)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_ianalde);
 	struct buffer_head *bh;
 	struct gfs2_log_descriptor *ld;
 	int error = 0;
@@ -226,7 +226,7 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, u32 start,
 				continue;
 			}
 			if (error == 1) {
-				gfs2_consist_inode(GFS2_I(jd->jd_inode));
+				gfs2_consist_ianalde(GFS2_I(jd->jd_ianalde));
 				error = -EIO;
 			}
 			brelse(bh);
@@ -256,14 +256,14 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, u32 start,
  * @jd: the journal
  * @head: the head journal to start from
  *
- * Returns: errno
+ * Returns: erranal
  */
 
 static void clean_journal(struct gfs2_jdesc *jd,
 			  struct gfs2_log_header_host *head)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	u32 lblock = head->lh_blkno;
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_ianalde);
+	u32 lblock = head->lh_blkanal;
 
 	gfs2_replay_incr_blk(jd, &lblock);
 	gfs2_write_log_header(sdp, jd, head->lh_sequence + 1, 0, lblock,
@@ -296,47 +296,47 @@ static void gfs2_recovery_done(struct gfs2_sbd *sdp, unsigned int jid,
 }
 
 /**
- * update_statfs_inode - Update the master statfs inode or zero out the local
- *			 statfs inode for a given journal.
+ * update_statfs_ianalde - Update the master statfs ianalde or zero out the local
+ *			 statfs ianalde for a given journal.
  * @jd: The journal
- * @head: If NULL, @inode is the local statfs inode and we need to zero it out.
+ * @head: If NULL, @ianalde is the local statfs ianalde and we need to zero it out.
  *	  Otherwise, it @head contains the statfs change info that needs to be
- *	  synced to the master statfs inode (pointed to by @inode).
- * @inode: statfs inode to update.
+ *	  synced to the master statfs ianalde (pointed to by @ianalde).
+ * @ianalde: statfs ianalde to update.
  */
-static int update_statfs_inode(struct gfs2_jdesc *jd,
+static int update_statfs_ianalde(struct gfs2_jdesc *jd,
 			       struct gfs2_log_header_host *head,
-			       struct inode *inode)
+			       struct ianalde *ianalde)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	struct gfs2_inode *ip;
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_ianalde);
+	struct gfs2_ianalde *ip;
 	struct buffer_head *bh;
 	struct gfs2_statfs_change_host sc;
 	int error = 0;
 
-	BUG_ON(!inode);
-	ip = GFS2_I(inode);
+	BUG_ON(!ianalde);
+	ip = GFS2_I(ianalde);
 
-	error = gfs2_meta_inode_buffer(ip, &bh);
+	error = gfs2_meta_ianalde_buffer(ip, &bh);
 	if (error)
 		goto out;
 
 	spin_lock(&sdp->sd_statfs_spin);
 
-	if (head) { /* Update the master statfs inode */
-		gfs2_statfs_change_in(&sc, bh->b_data + sizeof(struct gfs2_dinode));
+	if (head) { /* Update the master statfs ianalde */
+		gfs2_statfs_change_in(&sc, bh->b_data + sizeof(struct gfs2_dianalde));
 		sc.sc_total += head->lh_local_total;
 		sc.sc_free += head->lh_local_free;
-		sc.sc_dinodes += head->lh_local_dinodes;
-		gfs2_statfs_change_out(&sc, bh->b_data + sizeof(struct gfs2_dinode));
+		sc.sc_dianaldes += head->lh_local_dianaldes;
+		gfs2_statfs_change_out(&sc, bh->b_data + sizeof(struct gfs2_dianalde));
 
 		fs_info(sdp, "jid=%u: Updated master statfs Total:%lld, "
-			"Free:%lld, Dinodes:%lld after change "
+			"Free:%lld, Dianaldes:%lld after change "
 			"[%+lld,%+lld,%+lld]\n", jd->jd_jid, sc.sc_total,
-			sc.sc_free, sc.sc_dinodes, head->lh_local_total,
-			head->lh_local_free, head->lh_local_dinodes);
-	} else { /* Zero out the local statfs inode */
-		memset(bh->b_data + sizeof(struct gfs2_dinode), 0,
+			sc.sc_free, sc.sc_dianaldes, head->lh_local_total,
+			head->lh_local_free, head->lh_local_dianaldes);
+	} else { /* Zero out the local statfs ianalde */
+		memset(bh->b_data + sizeof(struct gfs2_dianalde), 0,
 		       sizeof(struct gfs2_statfs_change));
 		/* If it's our own journal, reset any in-memory changes too */
 		if (jd->jd_jid == sdp->sd_lockstruct.ls_jid) {
@@ -348,7 +348,7 @@ static int update_statfs_inode(struct gfs2_jdesc *jd,
 
 	mark_buffer_dirty(bh);
 	brelse(bh);
-	gfs2_inode_metasync(ip->i_gl);
+	gfs2_ianalde_metasync(ip->i_gl);
 
 out:
 	return error;
@@ -358,42 +358,42 @@ out:
  * recover_local_statfs - Update the master and local statfs changes for this
  *			  journal.
  *
- * Previously, statfs updates would be read in from the local statfs inode and
- * synced to the master statfs inode during recovery.
+ * Previously, statfs updates would be read in from the local statfs ianalde and
+ * synced to the master statfs ianalde during recovery.
  *
- * We now use the statfs updates in the journal head to update the master statfs
- * inode instead of reading in from the local statfs inode. To preserve backward
+ * We analw use the statfs updates in the journal head to update the master statfs
+ * ianalde instead of reading in from the local statfs ianalde. To preserve backward
  * compatibility with kernels that can't do this, we still need to keep the
- * local statfs inode up to date by writing changes to it. At some point in the
- * future, we can do away with the local statfs inodes altogether and keep the
+ * local statfs ianalde up to date by writing changes to it. At some point in the
+ * future, we can do away with the local statfs ianaldes altogether and keep the
  * statfs changes solely in the journal.
  *
  * @jd: the journal
  * @head: the journal head
  *
- * Returns: errno
+ * Returns: erranal
  */
 static void recover_local_statfs(struct gfs2_jdesc *jd,
 				 struct gfs2_log_header_host *head)
 {
 	int error;
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_ianalde);
 
 	if (!head->lh_local_total && !head->lh_local_free
-	    && !head->lh_local_dinodes) /* No change */
+	    && !head->lh_local_dianaldes) /* Anal change */
 		goto zero_local;
 
-	 /* First update the master statfs inode with the changes we
+	 /* First update the master statfs ianalde with the changes we
 	  * found in the journal. */
-	error = update_statfs_inode(jd, head, sdp->sd_statfs_inode);
+	error = update_statfs_ianalde(jd, head, sdp->sd_statfs_ianalde);
 	if (error)
 		goto out;
 
 zero_local:
-	/* Zero out the local statfs inode so any changes in there
-	 * are not re-recovered. */
-	error = update_statfs_inode(jd, NULL,
-				    find_local_statfs_inode(sdp, jd->jd_jid));
+	/* Zero out the local statfs ianalde so any changes in there
+	 * are analt re-recovered. */
+	error = update_statfs_ianalde(jd, NULL,
+				    find_local_statfs_ianalde(sdp, jd->jd_jid));
 out:
 	return;
 }
@@ -401,8 +401,8 @@ out:
 void gfs2_recover_func(struct work_struct *work)
 {
 	struct gfs2_jdesc *jd = container_of(work, struct gfs2_jdesc, jd_work);
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_ianalde *ip = GFS2_I(jd->jd_ianalde);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_ianalde);
 	struct gfs2_log_header_host head;
 	struct gfs2_holder j_gh, ji_gh;
 	ktime_t t_start, t_jlck, t_jhd, t_tlck, t_rep;
@@ -412,7 +412,7 @@ void gfs2_recover_func(struct work_struct *work)
 	int jlocked = 0;
 
 	if (gfs2_withdrawing_or_withdrawn(sdp)) {
-		fs_err(sdp, "jid=%u: Recovery not attempted due to withdraw.\n",
+		fs_err(sdp, "jid=%u: Recovery analt attempted due to withdraw.\n",
 		       jd->jd_jid);
 		goto fail;
 	}
@@ -427,7 +427,7 @@ void gfs2_recover_func(struct work_struct *work)
 
 		error = gfs2_glock_nq_num(sdp, jd->jd_jid, &gfs2_journal_glops,
 					  LM_ST_EXCLUSIVE,
-					  LM_FLAG_NOEXP | LM_FLAG_TRY | GL_NOCACHE,
+					  LM_FLAG_ANALEXP | LM_FLAG_TRY | GL_ANALCACHE,
 					  &j_gh);
 		switch (error) {
 		case 0:
@@ -443,7 +443,7 @@ void gfs2_recover_func(struct work_struct *work)
 		}
 
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
-					   LM_FLAG_NOEXP | GL_NOCACHE, &ji_gh);
+					   LM_FLAG_ANALEXP | GL_ANALCACHE, &ji_gh);
 		if (error)
 			goto fail_gunlock_j;
 	} else {
@@ -496,12 +496,12 @@ void gfs2_recover_func(struct work_struct *work)
 			fs_warn(sdp, "jid=%u: Can't replay: read-only block "
 				"device\n", jd->jd_jid);
 			error = -EROFS;
-			goto fail_gunlock_nofreeze;
+			goto fail_gunlock_analfreeze;
 		}
 
 		t_tlck = ktime_get();
 		fs_info(sdp, "jid=%u: Replaying journal...0x%x to 0x%x\n",
-			jd->jd_jid, head.lh_tail, head.lh_blkno);
+			jd->jd_jid, head.lh_tail, head.lh_blkanal);
 
 		/* We take the sd_log_flush_lock here primarily to prevent log
 		 * flushes and simultaneous journal replays from stomping on
@@ -510,11 +510,11 @@ void gfs2_recover_func(struct work_struct *work)
 		for (pass = 0; pass < 2; pass++) {
 			lops_before_scan(jd, &head, pass);
 			error = foreach_descriptor(jd, head.lh_tail,
-						   head.lh_blkno, pass);
+						   head.lh_blkanal, pass);
 			lops_after_scan(jd, error, pass);
 			if (error) {
 				up_read(&sdp->sd_log_flush_lock);
-				goto fail_gunlock_nofreeze;
+				goto fail_gunlock_analfreeze;
 			}
 		}
 
@@ -543,7 +543,7 @@ void gfs2_recover_func(struct work_struct *work)
 	fs_info(sdp, "jid=%u: Done\n", jd->jd_jid);
 	goto done;
 
-fail_gunlock_nofreeze:
+fail_gunlock_analfreeze:
 	mutex_unlock(&sdp->sd_freeze_mutex);
 fail_gunlock_ji:
 	if (jlocked) {

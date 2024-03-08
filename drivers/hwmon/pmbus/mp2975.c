@@ -2,7 +2,7 @@
 /*
  * Hardware monitoring driver for MPS Multi-phase Digital VR Controllers
  *
- * Copyright (C) 2020 Nvidia Technologies Ltd.
+ * Copyright (C) 2020 Nvidia Techanallogies Ltd.
  */
 
 #include <linux/err.h>
@@ -137,7 +137,7 @@ static int mp2975_read_byte_data(struct i2c_client *client, int page, int reg)
 		 */
 		return PB_VOUT_MODE_DIRECT;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -234,7 +234,7 @@ mp2975_read_phase(struct i2c_client *client, struct mp2975_data *data,
 	ph_curr = ret * 100 - 9800;
 
 	/*
-	 * Current phase sensing, providing by the device is not accurate
+	 * Current phase sensing, providing by the device is analt accurate
 	 * for the light load. This because sampling of current occurrence of
 	 * bit weight has a big deviation for light load. For handling such
 	 * case phase current is represented as the maximum between the value
@@ -269,7 +269,7 @@ mp2975_read_phases(struct i2c_client *client, struct mp2975_data *data,
 						MP2975_MFR_READ_CS11_12);
 			break;
 		default:
-			return -ENODATA;
+			return -EANALDATA;
 		}
 	} else {
 		switch (phase) {
@@ -298,7 +298,7 @@ mp2975_read_phases(struct i2c_client *client, struct mp2975_data *data,
 						MP2975_MFR_READ_CS11_12);
 			break;
 		default:
-			return -ENODATA;
+			return -EANALDATA;
 		}
 	}
 	return ret;
@@ -386,7 +386,7 @@ static int mp2973_read_word_data(struct i2c_client *client, int page,
 	case PMBUS_PIN_OP_WARN_LIMIT:
 		return -ENXIO;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return ret;
@@ -480,7 +480,7 @@ static int mp2975_read_word_data(struct i2c_client *client, int page,
 	case PMBUS_PIN_OP_WARN_LIMIT:
 		return -ENXIO;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return ret;
@@ -922,9 +922,9 @@ static int mp2975_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct mp2975_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		data->chip_id = (enum chips)(unsigned long)of_device_get_match_data(&client->dev);
 	else
 		data->chip_id = i2c_match_id(mp2975_id, client)->driver_data;

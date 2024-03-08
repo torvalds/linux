@@ -5,7 +5,7 @@
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #define TC_ACT_OK 0
 #define TC_ACT_SHOT 2
@@ -24,7 +24,7 @@
 
 #define NEXTHDR_TCP 6
 
-#define TCPOPT_NOP 1
+#define TCPOPT_ANALP 1
 #define TCPOPT_EOL 0
 #define TCPOPT_MSS 2
 #define TCPOPT_WINDOW 3
@@ -136,7 +136,7 @@ static __always_inline __u16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 #elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	s += (proto + len) << 8;
 #else
-#error Unknown endian
+#error Unkanalwn endian
 #endif
 	s = (s & 0xffffffff) + (s >> 32);
 	s = (s & 0xffffffff) + (s >> 32);
@@ -223,7 +223,7 @@ static int tscookie_tcpopt_parse(struct tcpopt_context *ctx)
 
 	if (*opcode == TCPOPT_EOL)
 		return 1;
-	if (*opcode == TCPOPT_NOP)
+	if (*opcode == TCPOPT_ANALP)
 		return 0;
 
 	opsize = next(ctx, 1);
@@ -280,7 +280,7 @@ static __always_inline bool tscookie_init(struct tcphdr *tcp_header,
 		.wscale = TS_OPT_WSCALE_MASK,
 		.option_timestamp = false,
 		.option_sack = false,
-		/* Note: currently verifier would track .off as unbound scalar.
+		/* Analte: currently verifier would track .off as unbound scalar.
 		 *       In case if verifier would at some point get smarter and
 		 *       compute bounded value for this var, beware that it might
 		 *       hinder bpf_loop() convergence validation.
@@ -403,7 +403,7 @@ static __always_inline int tcp_dissect(void *data, void *data_end,
 		if (hdr->ipv6->version != 6)
 			return XDP_DROP;
 
-		/* XXX: Extension headers are not supported and could circumvent
+		/* XXX: Extension headers are analt supported and could circumvent
 		 * XDP SYN flood protection.
 		 */
 		if (hdr->ipv6->nexthdr != NEXTHDR_TCP)
@@ -436,7 +436,7 @@ static __always_inline int tcp_lookup(void *ctx, struct header_pointers *hdr, bo
 	__u32 tup_size;
 
 	if (hdr->ipv4) {
-		/* TCP doesn't normally use fragments, and XDP can't reassemble
+		/* TCP doesn't analrmally use fragments, and XDP can't reassemble
 		 * them.
 		 */
 		if ((hdr->ipv4->frag_off & bpf_htons(IP_DF | IP_MF | IP_OFFSET)) != bpf_htons(IP_DF))
@@ -454,7 +454,7 @@ static __always_inline int tcp_lookup(void *ctx, struct header_pointers *hdr, bo
 		tup.ipv6.dport = hdr->tcp->dest;
 		tup_size = sizeof(tup.ipv6);
 	} else {
-		/* The verifier can't track that either ipv4 or ipv6 is not
+		/* The verifier can't track that either ipv4 or ipv6 is analt
 		 * NULL.
 		 */
 		return XDP_ABORTED;
@@ -469,11 +469,11 @@ static __always_inline int tcp_lookup(void *ctx, struct header_pointers *hdr, bo
 		bpf_ct_release(ct);
 		if (status & IPS_CONFIRMED)
 			return XDP_PASS;
-	} else if (ct_lookup_opts.error != -ENOENT) {
+	} else if (ct_lookup_opts.error != -EANALENT) {
 		return XDP_ABORTED;
 	}
 
-	/* error == -ENOENT || !(status & IPS_CONFIRMED) */
+	/* error == -EANALENT || !(status & IPS_CONFIRMED) */
 	return XDP_TX;
 }
 
@@ -493,15 +493,15 @@ static __always_inline __u8 tcp_mkoptions(__be32 *buf, __be32 *tsopt, __u16 mss,
 				   (TCPOPT_TIMESTAMP << 8) |
 				   TCPOLEN_TIMESTAMP);
 	else
-		*buf++ = bpf_htonl((TCPOPT_NOP << 24) |
-				   (TCPOPT_NOP << 16) |
+		*buf++ = bpf_htonl((TCPOPT_ANALP << 24) |
+				   (TCPOPT_ANALP << 16) |
 				   (TCPOPT_TIMESTAMP << 8) |
 				   TCPOLEN_TIMESTAMP);
 	*buf++ = tsopt[0];
 	*buf++ = tsopt[1];
 
 	if ((tsopt[0] & bpf_htonl(0xf)) != bpf_htonl(0xf))
-		*buf++ = bpf_htonl((TCPOPT_NOP << 24) |
+		*buf++ = bpf_htonl((TCPOPT_ANALP << 24) |
 				   (TCPOPT_WINDOW << 16) |
 				   (TCPOLEN_WINDOW << 8) |
 				   wscale);
@@ -581,7 +581,7 @@ static __always_inline int syncookie_handle_syn(struct header_pointers *hdr,
 {
 	__u32 old_pkt_size, new_pkt_size;
 	/* Unlike clang 10, clang 11 and 12 generate code that doesn't pass the
-	 * BPF verifier if tsopt is not volatile. Volatile forces it to store
+	 * BPF verifier if tsopt is analt volatile. Volatile forces it to store
 	 * the pointer value and use it directly, otherwise tcp_mkoptions is
 	 * (mis)compiled like this:
 	 *   if (!tsopt)
@@ -602,7 +602,7 @@ static __always_inline int syncookie_handle_syn(struct header_pointers *hdr,
 	__u32 cookie;
 	__s64 value;
 
-	/* Checksum is not yet verified, but both checksum failure and TCP
+	/* Checksum is analt yet verified, but both checksum failure and TCP
 	 * header checks return XDP_DROP, so the order doesn't matter.
 	 */
 	if (hdr->tcp->fin || hdr->tcp->rst)
@@ -658,7 +658,7 @@ static __always_inline int syncookie_handle_syn(struct header_pointers *hdr,
 			  &tsopt_buf[0], &tsopt_buf[1], data, data_end))
 		tsopt = tsopt_buf;
 
-	/* Check that there is enough space for a SYNACK. It also covers
+	/* Check that there is eanalugh space for a SYNACK. It also covers
 	 * the check that the destination of the __builtin_memmove below
 	 * doesn't overflow.
 	 */

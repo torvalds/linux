@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2016-2022, AngeloGioacchino Del Regno
- *                          <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2016-2022, AngeloGioacchianal Del Reganal
+ *                          <angelogioacchianal.delreganal@somainline.org>
  * Copyright (c) 2022, Konrad Dybcio <konrad.dybcio@somainline.org>
  * Copyright (c) 2022, Marijn Suijten <marijn.suijten@somainline.org>
  */
@@ -256,7 +256,7 @@
 &sdhc_1 {
 	/* Toshiba THGBMHG8C4LBAU7 (032G34) */
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&pm8950_l8>;
 	vqmmc-supply = <&pm8950_l5>;
 	status = "okay";

@@ -30,7 +30,7 @@
 /*
  * Prototypes of local functions.
  */
-/* 28-Jun-1994 sw - Note: hwt_restart() is also used in module 'drvfbi.c'. */
+/* 28-Jun-1994 sw - Analte: hwt_restart() is also used in module 'drvfbi.c'. */
 /*static void hwt_restart() ; */
 
 /************************
@@ -47,7 +47,7 @@
  *
  *	time - The time in units of 16us to load the timer with.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 #define	HWT_MAX	(65000)
@@ -87,7 +87,7 @@ void hwt_start(struct s_smc *smc, u_long time)
  * In
  *	smc - A pointer to the SMT Context structure.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void hwt_stop(struct s_smc *smc)
@@ -109,7 +109,7 @@ void hwt_stop(struct s_smc *smc)
  * In
  *	smc - A pointer to the SMT Context structure.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void hwt_init(struct s_smc *smc)
@@ -132,7 +132,7 @@ void hwt_init(struct s_smc *smc)
  * In
  *	smc - A pointer to the SMT Context structure.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void hwt_restart(struct s_smc *smc)
@@ -213,7 +213,7 @@ u_long hwt_quick_read(struct s_smc *smc)
  * para	start		start time
  *	duration	time to wait
  *
- * NOTE: The function will return immediately, if the timer is not
+ * ANALTE: The function will return immediately, if the timer is analt
  *	 started
  ************************/
 void hwt_wait_time(struct s_smc *smc, u_long start, long int duration)

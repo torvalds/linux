@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Linear Technology LTC4245 I2C Multiple Supply Hot Swap Controller
+ * Driver for Linear Techanallogy LTC4245 I2C Multiple Supply Hot Swap Controller
  *
  * Copyright (C) 2008 Ira W. Snyder <iws@ovro.caltech.edu>
  *
@@ -80,7 +80,7 @@ static void ltc4245_update_gpios(struct device *dev)
 	u8 gpio_curr, gpio_next, gpio_reg;
 	int i;
 
-	/* no extra gpio support, we're basically done */
+	/* anal extra gpio support, we're basically done */
 	if (!data->use_extra_gpios) {
 		data->gpios[0] = data->vregs[LTC4245_GPIOADC - 0x10];
 		return;
@@ -212,7 +212,7 @@ static unsigned int ltc4245_get_current(struct device *dev, u8 reg)
 
 	/*
 	 * The strange looking conversions that follow are fixed-point
-	 * math, since we cannot do floating point in the kernel.
+	 * math, since we cananalt do floating point in the kernel.
 	 *
 	 * Step 1: convert sense register to microVolts
 	 * Step 2: convert voltage to milliAmperes
@@ -222,7 +222,7 @@ static unsigned int ltc4245_get_current(struct device *dev, u8 reg)
 	 *
 	 * With the resistors that are fractions of a milliOhm, we multiply
 	 * the voltage and resistance by 10, to shift the decimal point.
-	 * Now we can use the normal division operator again.
+	 * Analw we can use the analrmal division operator again.
 	 */
 
 	switch (reg) {
@@ -278,7 +278,7 @@ static int ltc4245_read_curr(struct device *dev, u32 attr, int channel,
 		*val = !!(data->cregs[LTC4245_FAULT1] & BIT(channel + 4));
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -307,7 +307,7 @@ static int ltc4245_read_in(struct device *dev, u32 attr, int channel, long *val)
 				  BIT(channel - 4));
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -325,7 +325,7 @@ static int ltc4245_read_power(struct device *dev, u32 attr, int channel,
 		*val = abs(curr * voltage);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -341,7 +341,7 @@ static int ltc4245_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_in:
 		return ltc4245_read_in(dev, attr, channel - 1, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -427,7 +427,7 @@ static const struct hwmon_chip_info ltc4245_chip_info = {
 static bool ltc4245_use_extra_gpios(struct i2c_client *client)
 {
 	struct ltc4245_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 
 	/* prefer platform data */
 	if (pdata)
@@ -447,11 +447,11 @@ static int ltc4245_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);

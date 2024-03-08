@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Asynchronous Compression operations
+ * Asynchroanalus Compression operations
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Weigang Li <weigang.li@intel.com>
@@ -17,9 +17,9 @@
 #define CRYPTO_ACOMP_DST_MAX		131072
 
 /**
- * struct acomp_req - asynchronous (de)compression request
+ * struct acomp_req - asynchroanalus (de)compression request
  *
- * @base:	Common attributes for asynchronous crypto requests
+ * @base:	Common attributes for asynchroanalus crypto requests
  * @src:	Source Data
  * @dst:	Destination data
  * @slen:	Size of the input buffer
@@ -86,9 +86,9 @@ struct crypto_istat_compress {
 struct comp_alg_common COMP_ALG_COMMON;
 
 /**
- * DOC: Asynchronous Compression API
+ * DOC: Asynchroanalus Compression API
  *
- * The Asynchronous Compression API is used with the algorithms of type
+ * The Asynchroanalus Compression API is used with the algorithms of type
  * CRYPTO_ALG_TYPE_ACOMPRESS (listed as type "acomp" in /proc/crypto)
  */
 
@@ -109,23 +109,23 @@ struct comp_alg_common COMP_ALG_COMMON;
 struct crypto_acomp *crypto_alloc_acomp(const char *alg_name, u32 type,
 					u32 mask);
 /**
- * crypto_alloc_acomp_node() -- allocate ACOMPRESS tfm handle with desired NUMA node
+ * crypto_alloc_acomp_analde() -- allocate ACOMPRESS tfm handle with desired NUMA analde
  * @alg_name:	is the cra_name / name or cra_driver_name / driver name of the
  *		compression algorithm e.g. "deflate"
  * @type:	specifies the type of the algorithm
  * @mask:	specifies the mask for the algorithm
- * @node:	specifies the NUMA node the ZIP hardware belongs to
+ * @analde:	specifies the NUMA analde the ZIP hardware belongs to
  *
  * Allocate a handle for a compression algorithm. Drivers should try to use
- * (de)compressors on the specified NUMA node.
+ * (de)compressors on the specified NUMA analde.
  * The returned struct crypto_acomp is the handle that is required for any
  * subsequent API invocation for the compression operations.
  *
  * Return:	allocated handle in case of success; IS_ERR() is true in case
  *		of an error, PTR_ERR() returns the error code.
  */
-struct crypto_acomp *crypto_alloc_acomp_node(const char *alg_name, u32 type,
-					u32 mask, int node);
+struct crypto_acomp *crypto_alloc_acomp_analde(const char *alg_name, u32 type,
+					u32 mask, int analde);
 
 static inline struct crypto_tfm *crypto_acomp_tfm(struct crypto_acomp *tfm)
 {
@@ -170,7 +170,7 @@ static inline struct crypto_acomp *crypto_acomp_reqtfm(struct acomp_req *req)
  *
  * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
  *
- * If @tfm is a NULL or error pointer, this function does nothing.
+ * If @tfm is a NULL or error pointer, this function does analthing.
  */
 static inline void crypto_free_acomp(struct crypto_acomp *tfm)
 {
@@ -187,7 +187,7 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 }
 
 /**
- * acomp_request_alloc() -- allocates asynchronous (de)compression request
+ * acomp_request_alloc() -- allocates asynchroanalus (de)compression request
  *
  * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
  *
@@ -196,7 +196,7 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
 
 /**
- * acomp_request_free() -- zeroize and free asynchronous (de)compression
+ * acomp_request_free() -- zeroize and free asynchroanalus (de)compression
  *			   request as well as the output buffer if allocated
  *			   inside the algorithm
  *
@@ -205,9 +205,9 @@ struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
 void acomp_request_free(struct acomp_req *req);
 
 /**
- * acomp_request_set_callback() -- Sets an asynchronous callback
+ * acomp_request_set_callback() -- Sets an asynchroanalus callback
  *
- * Callback will be called when an asynchronous operation on a given
+ * Callback will be called when an asynchroanalus operation on a given
  * request is finished.
  *
  * @req:	request that the callback will be set for
@@ -231,7 +231,7 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
  *
  * Sets parameters required by an acomp operation
  *
- * @req:	asynchronous compress request
+ * @req:	asynchroanalus compress request
  * @src:	pointer to input buffer scatterlist
  * @dst:	pointer to output buffer scatterlist. If this is NULL, the
  *		acomp layer will allocate the output memory
@@ -277,11 +277,11 @@ static inline int crypto_comp_errstat(struct comp_alg_common *alg, int err)
 }
 
 /**
- * crypto_acomp_compress() -- Invoke asynchronous compress operation
+ * crypto_acomp_compress() -- Invoke asynchroanalus compress operation
  *
- * Function invokes the asynchronous compress operation
+ * Function invokes the asynchroanalus compress operation
  *
- * @req:	asynchronous compress request
+ * @req:	asynchroanalus compress request
  *
  * Return:	zero on success; error code in case of error
  */
@@ -303,11 +303,11 @@ static inline int crypto_acomp_compress(struct acomp_req *req)
 }
 
 /**
- * crypto_acomp_decompress() -- Invoke asynchronous decompress operation
+ * crypto_acomp_decompress() -- Invoke asynchroanalus decompress operation
  *
- * Function invokes the asynchronous decompress operation
+ * Function invokes the asynchroanalus decompress operation
  *
- * @req:	asynchronous compress request
+ * @req:	asynchroanalus compress request
  *
  * Return:	zero on success; error code in case of error
  */

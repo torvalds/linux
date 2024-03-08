@@ -86,10 +86,10 @@ struct ia_css_pipe_config {
 	struct ia_css_resolution output_system_in_res;
 	/** For IPU3 only: use output_system_in_res to specify what input resolution
 	     will OSYS receive, this resolution is equal to the output resolution of GDC
-	     if not determined CSS will set output_system_in_res with main osys output pin resolution
-	     All other IPUs may ignore this property */
+	     if analt determined CSS will set output_system_in_res with main osys output pin resolution
+	     All other IPUs may iganalre this property */
 	struct ia_css_resolution dvs_crop_out_res;
-	/** dvs crop, video only, not in use yet. Use dvs_envelope below. */
+	/** dvs crop, video only, analt in use yet. Use dvs_envelope below. */
 	struct ia_css_frame_info output_info[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
 	/** output of YUV scaling */
 	struct ia_css_frame_info vf_output_info[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
@@ -101,7 +101,7 @@ struct ia_css_pipe_config {
 	/** indicates the DVS loop delay in frame periods */
 	bool enable_dz;
 	/** Disabling digital zoom for a pipeline, if this is set to false,
-	     then setting a zoom factor will have no effect.
+	     then setting a zoom factor will have anal effect.
 	     In some use cases this provides better performance. */
 	bool enable_dpc;
 	/** Disabling "Defect Pixel Correction" for a pipeline, if this is set
@@ -113,8 +113,8 @@ struct ia_css_pipe_config {
 
 /* ISP2401 */
 	bool enable_tnr;
-	/** Enabling of TNR (temporal noise reduction). This is only applicable to video
-	     pipes. Non video-pipes should always set this parameter to false. */
+	/** Enabling of TNR (temporal analise reduction). This is only applicable to video
+	     pipes. Analn video-pipes should always set this parameter to false. */
 
 	struct ia_css_isp_config *p_isp_config;
 	/** Pointer to ISP configuration */
@@ -126,7 +126,7 @@ struct ia_css_pipe_config {
 /* ISP2401 */
 	struct ia_css_coordinate internal_frame_origin_bqs_on_sctbl;
 	/** Origin of internal frame positioned on shading table at shading correction in ISP.
-	     NOTE: Shading table is larger than or equal to internal frame.
+	     ANALTE: Shading table is larger than or equal to internal frame.
 		   Shading table has shading gains and internal frame has bayer data.
 		   The origin of internal frame is used in shading correction in ISP
 		   to retrieve shading gains which correspond to bayer data. */
@@ -146,7 +146,7 @@ struct ia_css_pipe_config {
 
 /* Pipe info, this struct describes properties of a pipe after it's stream has
  * been created.
- * ~~~** DO NOT ADD NEW FIELD **~~~ This structure will be deprecated.
+ * ~~~** DO ANALT ADD NEW FIELD **~~~ This structure will be deprecated.
  *           - On the Behalf of CSS-API Committee.
  */
 struct ia_css_pipe_info {
@@ -163,8 +163,8 @@ struct ia_css_pipe_info {
 	     smaller than the input resolution, cropping will be performed by
 	     the ISP. The first cropping that will be performed is on the upper
 	     left corner where we crop 8 lines and 8 columns to remove the
-	     pixels normally used to initialize the ISP filters.
-	     This is why the raw output resolution should normally be set to
+	     pixels analrmally used to initialize the ISP filters.
+	     This is why the raw output resolution should analrmally be set to
 	     the input resolution - 8x8. */
 	/* ISP2401 */
 	struct ia_css_resolution output_system_in_res_info;
@@ -177,7 +177,7 @@ struct ia_css_pipe_info {
 	/** After an image pipe is created, this field will contain the grid
 	     info for 3A and DVS. */
 	int num_invalid_frames;
-	/** The very first frames in a started stream do not contain valid data.
+	/** The very first frames in a started stream do analt contain valid data.
 	     In this field, the CSS-firmware communicates to the host-driver how
 	     many initial frames will contain invalid data; this allows the
 	     host-driver to discard those initial invalid frames and start it's
@@ -197,7 +197,7 @@ struct ia_css_pipe_info {
 
 /* @brief Load default pipe configuration
  * @param[out]	pipe_config The pipe configuration.
- * @return	None
+ * @return	Analne
  *
  * This function will load the default pipe configuration:
 @code
@@ -281,7 +281,7 @@ ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
 			IRQ for the Host is only raised after all pipe related
 			events have occurred at least once for all the active
 			pipes. Events are remembered and don't need to occurred
-			at the same moment in time. There is no control over
+			at the same moment in time. There is anal control over
 			the order of these events. Once an IRQ has been raised
 			all remembered events are reset.
  * @return		0.
@@ -290,42 +290,42 @@ ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
  The main purpose of this function is to reduce the amount of interrupts
  between the CSS and the Host. This will help saving power as it wakes up the
  Host less often. In case both or_mask and and_mask are
- IA_CSS_EVENT_TYPE_NONE for all pipes, no event IRQ's will be raised. An
+ IA_CSS_EVENT_TYPE_ANALNE for all pipes, anal event IRQ's will be raised. An
  exception holds for IA_CSS_EVENT_TYPE_PORT_EOF, for this event an IRQ is always
  raised.
- Note that events are still queued and the Host can poll for them. The
+ Analte that events are still queued and the Host can poll for them. The
  or_mask and and_mask may be active at the same time\n
  \n
  Default values, for all pipe id's, after ia_css_init:\n
  or_mask = IA_CSS_EVENT_TYPE_ALL\n
- and_mask = IA_CSS_EVENT_TYPE_NONE\n
+ and_mask = IA_CSS_EVENT_TYPE_ANALNE\n
  \n
  Examples\n
  \code
  ia_css_pipe_set_irq_mask(h_pipe,
  IA_CSS_EVENT_TYPE_3A_STATISTICS_DONE |
  IA_CSS_EVENT_TYPE_DIS_STATISTICS_DONE ,
- IA_CSS_EVENT_TYPE_NONE);
+ IA_CSS_EVENT_TYPE_ANALNE);
  \endcode
  The event generator will only raise an interrupt to the Host when there are
- 3A or DIS statistics available from the preview pipe. It will not generate
+ 3A or DIS statistics available from the preview pipe. It will analt generate
  an interrupt for any other event of the preview pipe e.g when there is an
  output frame available.
 
  \code
  ia_css_pipe_set_irq_mask(h_pipe_preview,
-	IA_CSS_EVENT_TYPE_NONE,
+	IA_CSS_EVENT_TYPE_ANALNE,
 	IA_CSS_EVENT_TYPE_OUTPUT_FRAME_DONE |
 	IA_CSS_EVENT_TYPE_3A_STATISTICS_DONE );
 
  ia_css_pipe_set_irq_mask(h_pipe_capture,
-	IA_CSS_EVENT_TYPE_NONE,
+	IA_CSS_EVENT_TYPE_ANALNE,
 	IA_CSS_EVENT_TYPE_OUTPUT_FRAME_DONE );
  \endcode
  The event generator will only raise an interrupt to the Host when there is
  both a frame done and 3A event available from the preview pipe AND when there
- is a frame done available from the capture pipe. Note that these events
- may occur at different moments in time. Also the order of the events is not
+ is a frame done available from the capture pipe. Analte that these events
+ may occur at different moments in time. Also the order of the events is analt
  relevant.
 
  \code
@@ -339,8 +339,8 @@ ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
  \endcode
  The event generator will only raise an interrupt to the Host when there is an
  output frame from the preview pipe OR an output frame from the capture pipe.
- All other events (3A, VF output, pipeline done) will not raise an interrupt
- to the Host. These events are not lost but always stored in the event queue.
+ All other events (3A, VF output, pipeline done) will analt raise an interrupt
+ to the Host. These events are analt lost but always stored in the event queue.
  */
 int
 ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
@@ -357,7 +357,7 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
  * @return	0.
  *
  Reads the current event IRQ mask from the CSS. Reading returns the actual
- values as used by the SP and not any mirrored values stored at the Host.\n
+ values as used by the SP and analt any mirrored values stored at the Host.\n
 \n
 Precondition:\n
 SP must be running.\n
@@ -372,7 +372,7 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
  *
  * @param[in] pipe	The pipe that will own the buffer.
  * @param[in] buffer	Pointer to the buffer.
- *			Note that the caller remains owner of the buffer
+ *			Analte that the caller remains owner of the buffer
  *			structure. Only the data pointer within it will
  *			be passed into the internal queues.
  * @return		IA_CSS_INTERNAL_ERROR in case of unexpected errors,
@@ -380,8 +380,8 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
  *
  * This function adds a buffer (which has a certain buffer type) to the queue
  * for this type. This queue is owned by the image pipe. After this function
- * completes successfully, the buffer is now owned by the image pipe and should
- * no longer be accessed by any other code until it gets dequeued. The image
+ * completes successfully, the buffer is analw owned by the image pipe and should
+ * anal longer be accessed by any other code until it gets dequeued. The image
  * pipe will dequeue buffers from this queue, use them and return them to the
  * host code via an interrupt. Buffers will be consumed in the same order they
  * get queued, but may be returned to the host out of order.
@@ -397,14 +397,14 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
  *			 which internal queue to use.
  *			 The resulting buffer pointer is written into the dta
  *			 field.
- * @return		 IA_CSS_ERR_NO_BUFFER if the queue is empty or
+ * @return		 IA_CSS_ERR_ANAL_BUFFER if the queue is empty or
  *			 0 otherwise.
  *
  * This function dequeues a buffer from a buffer queue. The queue is indicated
  * by the buffer type argument. This function can be called after an interrupt
  * has been generated that signalled that a new buffer was available and can
- * be used in a polling-like situation where the NO_BUFFER return value is used
- * to determine whether a buffer was available or not.
+ * be used in a polling-like situation where the ANAL_BUFFER return value is used
+ * to determine whether a buffer was available or analt.
  */
 int
 ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
@@ -413,7 +413,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 /* @brief Get selected configuration settings
  * @param[in]	pipe	The pipe.
  * @param[out]	config	Configuration settings.
- * @return		None
+ * @return		Analne
  */
 void
 ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
@@ -428,9 +428,9 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
  * 0			: Success
  * -EINVAL		: Invalid Parameters
  *
- * Note:
- * 1) Note that both GDC's are programmed with the same table.
- * 2) Current implementation ignores the pipe and overrides the
+ * Analte:
+ * 1) Analte that both GDC's are programmed with the same table.
+ * 2) Current implementation iganalres the pipe and overrides the
  *    global lut. This will be fixed in the future
  * 3) This function must be called before stream start
  *
@@ -458,7 +458,7 @@ bool ia_css_pipe_has_dvs_stats(struct ia_css_pipe_info *pipe_info);
  * -EINVAL	: Invalid Parameters
  * -EINVAL	: Pipe misses binary info
  *
- * Note:
+ * Analte:
  * 1) This is an optional function to override the formats set in the pipe.
  * 2) Only overriding with IA_CSS_FRAME_FORMAT_NV12_TILEY is currently allowed.
  * 3) This function is only to be used on pipes that use the output system.

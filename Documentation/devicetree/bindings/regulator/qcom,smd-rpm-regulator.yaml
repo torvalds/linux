@@ -9,17 +9,17 @@ title: QCOM SMD RPM REGULATOR
 description:
   The Qualcomm RPM over SMD regulator is modelled as a subdevice of the RPM.
   Because SMD is used as the communication transport mechanism, the RPM
-  resides as a subnode of the SMD.  As such, the SMD-RPM regulator requires
-  that the SMD and RPM nodes be present.
+  resides as a subanalde of the SMD.  As such, the SMD-RPM regulator requires
+  that the SMD and RPM analdes be present.
 
   Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.yaml for
-  information pertaining to the SMD node.
+  information pertaining to the SMD analde.
 
   Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
-  for information regarding the RPM node.
+  for information regarding the RPM analde.
 
-  The regulator node houses sub-nodes for each regulator within the device.
-  Each sub-node is identified using the node's name, with valid values listed
+  The regulator analde houses sub-analdes for each regulator within the device.
+  Each sub-analde is identified using the analde's name, with valid values listed
   for each of the pmics below.
 
   For mp5496, s1, s2
@@ -109,7 +109,7 @@ properties:
 
 patternProperties:
   ".*-supply$":
-    description: Input supply phandle(s) for this node
+    description: Input supply phandle(s) for this analde
 
   "^((s|l|lvs|5vs)[0-9]*)|(boost-bypass)|(bob)$":
     description: List of regulators and its properties

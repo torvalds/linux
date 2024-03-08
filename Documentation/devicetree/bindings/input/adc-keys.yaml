@@ -35,7 +35,7 @@ patternProperties:
     $ref: input.yaml#
     additionalProperties: false
     description:
-      Each button (key) is represented as a sub-node.
+      Each button (key) is represented as a sub-analde.
 
     properties:
       label: true
@@ -44,7 +44,7 @@ patternProperties:
 
       press-threshold-microvolt:
         description:
-          Voltage above or equal to which this key is considered pressed. No
+          Voltage above or equal to which this key is considered pressed. Anal
           two values of press-threshold-microvolt may be the same. All values
           of press-threshold-microvolt must be less than
           keyup-threshold-microvolt.
@@ -65,7 +65,7 @@ examples:
   - |
     #include <dt-bindings/input/input.h>
     // +--------------------------------+------------------------+
-    // | 2.000.000 <= value             | no key pressed         |
+    // | 2.000.000 <= value             | anal key pressed         |
     // +--------------------------------+------------------------+
     // | 1.500.000 <= value < 2.000.000 | KEY_VOLUMEUP pressed   |
     // +--------------------------------+------------------------+
@@ -73,7 +73,7 @@ examples:
     // +--------------------------------+------------------------+
     // |   500.000 <= value < 1.000.000 | KEY_ENTER pressed      |
     // +--------------------------------+------------------------+
-    // |              value <   500.000 | no key pressed         |
+    // |              value <   500.000 | anal key pressed         |
     // +--------------------------------+------------------------+
 
     adc-keys {

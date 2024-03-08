@@ -19,7 +19,7 @@
  * Quantization luma table values are written to registers
  * VEPU_swreg_0-VEPU_swreg_15, and chroma table values to
  * VEPU_swreg_16-VEPU_swreg_31. A special order is needed, neither
- * zigzag, nor linear.
+ * zigzag, analr linear.
  */
 
 #include <asm/unaligned.h>
@@ -116,7 +116,7 @@ rockchip_vpu2_jpeg_enc_set_qtable(struct hantro_dev *vpu,
 
 	/*
 	 * Quantization table registers must be written in contiguous blocks.
-	 * DO NOT collapse the below two "for" loops into one.
+	 * DO ANALT collapse the below two "for" loops into one.
 	 */
 	for (i = 0; i < VEPU_JPEG_QUANT_TABLE_COUNT; i++) {
 		reg = get_unaligned_be32(&luma_qtable_p[i]);
@@ -144,7 +144,7 @@ int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx)
 	memset(&jpeg_ctx, 0, sizeof(jpeg_ctx));
 	jpeg_ctx.buffer = vb2_plane_vaddr(&dst_buf->vb2_buf, 0);
 	if (!jpeg_ctx.buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jpeg_ctx.width = ctx->dst_fmt.width;
 	jpeg_ctx.height = ctx->dst_fmt.height;

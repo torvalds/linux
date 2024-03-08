@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 
 

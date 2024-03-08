@@ -245,7 +245,7 @@ static int phy_meson8b_usb2_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -253,7 +253,7 @@ static int phy_meson8b_usb2_probe(struct platform_device *pdev)
 
 	priv->match = device_get_match_data(&pdev->dev);
 	if (!priv->match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					     &phy_meson8b_usb2_regmap_conf);
@@ -273,8 +273,8 @@ static int phy_meson8b_usb2_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(priv->reset),
 				     "Failed to get the reset line");
 
-	priv->dr_mode = of_usb_get_dr_mode_by_phy(pdev->dev.of_node, -1);
-	if (priv->dr_mode == USB_DR_MODE_UNKNOWN) {
+	priv->dr_mode = of_usb_get_dr_mode_by_phy(pdev->dev.of_analde, -1);
+	if (priv->dr_mode == USB_DR_MODE_UNKANALWN) {
 		dev_err(&pdev->dev,
 			"missing dual role configuration of the controller\n");
 		return -EINVAL;

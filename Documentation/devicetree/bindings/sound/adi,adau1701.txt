@@ -18,7 +18,7 @@ Optional properties:
 			firmware is loaded.
  - adi,pin-config:	An array of 12 numerical values selecting one of the
 			pin configurations as described in the datasheet,
-			table 53. Note that the value of this property has
+			table 53. Analte that the value of this property has
 			to be prefixed with '/bits/ 8'.
  - avdd-supply: 	Power supply for AVDD, providing 3.3V
  - dvdd-supply: 	Power supply for DVDD, providing 3.3V

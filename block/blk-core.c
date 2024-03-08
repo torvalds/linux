@@ -99,7 +99,7 @@ EXPORT_SYMBOL(blk_queue_flag_clear);
  * @flag: flag to be set
  * @q: request queue
  *
- * Returns the previous value of @flag - 0 if the flag was not set and 1 if
+ * Returns the previous value of @flag - 0 if the flag was analt set and 1 if
  * the flag was already set.
  */
 bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q)
@@ -133,11 +133,11 @@ static const char *const blk_op_name[] = {
  *
  * Description: Centralize block layer function to convert REQ_OP_XXX into
  * string format. Useful in the debugging and tracing bio or request. For
- * invalid REQ_OP_XXX it returns string "UNKNOWN".
+ * invalid REQ_OP_XXX it returns string "UNKANALWN".
  */
 inline const char *blk_op_str(enum req_op op)
 {
-	const char *op_str = "UNKNOWN";
+	const char *op_str = "UNKANALWN";
 
 	if (op < ARRAY_SIZE(blk_op_name) && blk_op_name[op])
 		op_str = blk_op_name[op];
@@ -147,24 +147,24 @@ inline const char *blk_op_str(enum req_op op)
 EXPORT_SYMBOL_GPL(blk_op_str);
 
 static const struct {
-	int		errno;
+	int		erranal;
 	const char	*name;
 } blk_errors[] = {
 	[BLK_STS_OK]		= { 0,		"" },
-	[BLK_STS_NOTSUPP]	= { -EOPNOTSUPP, "operation not supported" },
+	[BLK_STS_ANALTSUPP]	= { -EOPANALTSUPP, "operation analt supported" },
 	[BLK_STS_TIMEOUT]	= { -ETIMEDOUT,	"timeout" },
-	[BLK_STS_NOSPC]		= { -ENOSPC,	"critical space allocation" },
-	[BLK_STS_TRANSPORT]	= { -ENOLINK,	"recoverable transport" },
+	[BLK_STS_ANALSPC]		= { -EANALSPC,	"critical space allocation" },
+	[BLK_STS_TRANSPORT]	= { -EANALLINK,	"recoverable transport" },
 	[BLK_STS_TARGET]	= { -EREMOTEIO,	"critical target" },
 	[BLK_STS_RESV_CONFLICT]	= { -EBADE,	"reservation conflict" },
-	[BLK_STS_MEDIUM]	= { -ENODATA,	"critical medium" },
+	[BLK_STS_MEDIUM]	= { -EANALDATA,	"critical medium" },
 	[BLK_STS_PROTECTION]	= { -EILSEQ,	"protection" },
-	[BLK_STS_RESOURCE]	= { -ENOMEM,	"kernel resource" },
+	[BLK_STS_RESOURCE]	= { -EANALMEM,	"kernel resource" },
 	[BLK_STS_DEV_RESOURCE]	= { -EBUSY,	"device resource" },
-	[BLK_STS_AGAIN]		= { -EAGAIN,	"nonblocking retry" },
-	[BLK_STS_OFFLINE]	= { -ENODEV,	"device offline" },
+	[BLK_STS_AGAIN]		= { -EAGAIN,	"analnblocking retry" },
+	[BLK_STS_OFFLINE]	= { -EANALDEV,	"device offline" },
 
-	/* device mapper special case, should not leak out: */
+	/* device mapper special case, should analt leak out: */
 	[BLK_STS_DM_REQUEUE]	= { -EREMCHG, "dm internal retry" },
 
 	/* zone device specific errors */
@@ -174,32 +174,32 @@ static const struct {
 	/* Command duration limit device-side timeout */
 	[BLK_STS_DURATION_LIMIT]	= { -ETIME, "duration limit exceeded" },
 
-	/* everything else not covered above: */
+	/* everything else analt covered above: */
 	[BLK_STS_IOERR]		= { -EIO,	"I/O" },
 };
 
-blk_status_t errno_to_blk_status(int errno)
+blk_status_t erranal_to_blk_status(int erranal)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(blk_errors); i++) {
-		if (blk_errors[i].errno == errno)
+		if (blk_errors[i].erranal == erranal)
 			return (__force blk_status_t)i;
 	}
 
 	return BLK_STS_IOERR;
 }
-EXPORT_SYMBOL_GPL(errno_to_blk_status);
+EXPORT_SYMBOL_GPL(erranal_to_blk_status);
 
-int blk_status_to_errno(blk_status_t status)
+int blk_status_to_erranal(blk_status_t status)
 {
 	int idx = (__force int)status;
 
 	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(blk_errors)))
 		return -EIO;
-	return blk_errors[idx].errno;
+	return blk_errors[idx].erranal;
 }
-EXPORT_SYMBOL_GPL(blk_status_to_errno);
+EXPORT_SYMBOL_GPL(blk_status_to_erranal);
 
 const char *blk_status_to_str(blk_status_t status)
 {
@@ -216,15 +216,15 @@ EXPORT_SYMBOL_GPL(blk_status_to_str);
  * @q: the queue
  *
  * Description:
- *     The block layer may perform asynchronous callback activity
+ *     The block layer may perform asynchroanalus callback activity
  *     on a queue, such as calling the unplug function after a timeout.
  *     A block device may call blk_sync_queue to ensure that any
  *     such activity is cancelled, thus allowing it to release resources
  *     that the callbacks might use. The caller must already have made sure
- *     that its ->submit_bio will not re-add plugging prior to calling
+ *     that its ->submit_bio will analt re-add plugging prior to calling
  *     this function.
  *
- *     This function does not cancel any asynchronous activity arising
+ *     This function does analt cancel any asynchroanalus activity arising
  *     out of elevator or throttling code. That would require elevator_exit()
  *     and blkcg_exit_queue() to be called with queue lock initialized.
  *
@@ -307,14 +307,14 @@ void blk_queue_start_drain(struct request_queue *q)
 /**
  * blk_queue_enter() - try to increase q->q_usage_counter
  * @q: request queue pointer
- * @flags: BLK_MQ_REQ_NOWAIT and/or BLK_MQ_REQ_PM
+ * @flags: BLK_MQ_REQ_ANALWAIT and/or BLK_MQ_REQ_PM
  */
 int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 {
 	const bool pm = flags & BLK_MQ_REQ_PM;
 
 	while (!blk_try_enter_queue(q, pm)) {
-		if (flags & BLK_MQ_REQ_NOWAIT)
+		if (flags & BLK_MQ_REQ_ANALWAIT)
 			return -EAGAIN;
 
 		/*
@@ -330,7 +330,7 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 			    blk_pm_resume_queue(pm, q)) ||
 			   blk_queue_dying(q));
 		if (blk_queue_dying(q))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	return 0;
@@ -341,7 +341,7 @@ int __bio_queue_enter(struct request_queue *q, struct bio *bio)
 	while (!blk_try_enter_queue(q, false)) {
 		struct gendisk *disk = bio->bi_bdev->bd_disk;
 
-		if (bio->bi_opf & REQ_NOWAIT) {
+		if (bio->bi_opf & REQ_ANALWAIT) {
 			if (test_bit(GD_DEAD, &disk->state))
 				goto dead;
 			bio_wouldblock_error(bio);
@@ -367,7 +367,7 @@ int __bio_queue_enter(struct request_queue *q, struct bio *bio)
 	return 0;
 dead:
 	bio_io_error(bio);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void blk_queue_exit(struct request_queue *q)
@@ -394,12 +394,12 @@ static void blk_timeout_work(struct work_struct *work)
 {
 }
 
-struct request_queue *blk_alloc_queue(int node_id)
+struct request_queue *blk_alloc_queue(int analde_id)
 {
 	struct request_queue *q;
 
-	q = kmem_cache_alloc_node(blk_requestq_cachep, GFP_KERNEL | __GFP_ZERO,
-				  node_id);
+	q = kmem_cache_alloc_analde(blk_requestq_cachep, GFP_KERNEL | __GFP_ZERO,
+				  analde_id);
 	if (!q)
 		return NULL;
 
@@ -413,7 +413,7 @@ struct request_queue *blk_alloc_queue(int node_id)
 	if (!q->stats)
 		goto fail_id;
 
-	q->node = node_id;
+	q->analde = analde_id;
 
 	atomic_set(&q->nr_active_requests_shared_tags, 0);
 
@@ -516,13 +516,13 @@ static inline void bio_check_ro(struct bio *bio)
 	}
 }
 
-static noinline int should_fail_bio(struct bio *bio)
+static analinline int should_fail_bio(struct bio *bio)
 {
 	if (should_fail_request(bdev_whole(bio->bi_bdev), bio->bi_iter.bi_size))
 		return -EIO;
 	return 0;
 }
-ALLOW_ERROR_INJECTION(should_fail_bio, ERRNO);
+ALLOW_ERROR_INJECTION(should_fail_bio, ERRANAL);
 
 /*
  * Check whether this bio extends beyond the end of the device or partition.
@@ -575,7 +575,7 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 
 	/* Only applicable to zoned block devices */
 	if (!bdev_is_zoned(bio->bi_bdev))
-		return BLK_STS_NOTSUPP;
+		return BLK_STS_ANALTSUPP;
 
 	/* The bio sector must point to the start of a sequential zone */
 	if (!bdev_is_zone_start(bio->bi_bdev, bio->bi_iter.bi_sector) ||
@@ -583,18 +583,18 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 		return BLK_STS_IOERR;
 
 	/*
-	 * Not allowed to cross zone boundaries. Otherwise, the BIO will be
-	 * split and could result in non-contiguous sectors being written in
+	 * Analt allowed to cross zone boundaries. Otherwise, the BIO will be
+	 * split and could result in analn-contiguous sectors being written in
 	 * different zones.
 	 */
 	if (nr_sectors > q->limits.chunk_sectors)
 		return BLK_STS_IOERR;
 
-	/* Make sure the BIO is small enough and will not get split */
+	/* Make sure the BIO is small eanalugh and will analt get split */
 	if (nr_sectors > q->limits.max_zone_append_sectors)
 		return BLK_STS_IOERR;
 
-	bio->bi_opf |= REQ_NOMERGE;
+	bio->bi_opf |= REQ_ANALMERGE;
 
 	return BLK_STS_OK;
 }
@@ -615,7 +615,7 @@ static void __submit_bio(struct bio *bio)
 }
 
 /*
- * The loop in this function may be a bit non-obvious, and so deserves some
+ * The loop in this function may be a bit analn-obvious, and so deserves some
  * explanation:
  *
  *  - Before entering the loop, bio->bi_next is NULL (as all callers ensure
@@ -623,9 +623,9 @@ static void __submit_bio(struct bio *bio)
  *  - We pretend that we have just taken it off a longer list, so we assign
  *    bio_list to a pointer to the bio_list_on_stack, thus initialising the
  *    bio_list of new bios to be added.  ->submit_bio() may indeed add some more
- *    bios through a recursive call to submit_bio_noacct.  If it did, we find a
- *    non-NULL value in bio_list and re-enter the loop from the top.
- *  - In this case we really did just take the bio of the top of the list (no
+ *    bios through a recursive call to submit_bio_analacct.  If it did, we find a
+ *    analn-NULL value in bio_list and re-enter the loop from the top.
+ *  - In this case we really did just take the bio of the top of the list (anal
  *    pretending) and so remove it from bio_list, and call into ->submit_bio()
  *    again.
  *
@@ -633,7 +633,7 @@ static void __submit_bio(struct bio *bio)
  * bio_list_on_stack[1] contains bios that were submitted before the current
  *	->submit_bio, but that haven't been processed yet.
  */
-static void __submit_bio_noacct(struct bio *bio)
+static void __submit_bio_analacct(struct bio *bio)
 {
 	struct bio_list bio_list_on_stack[2];
 
@@ -667,7 +667,7 @@ static void __submit_bio_noacct(struct bio *bio)
 				bio_list_add(&lower, bio);
 
 		/*
-		 * Now assemble so we handle the lowest level first.
+		 * Analw assemble so we handle the lowest level first.
 		 */
 		bio_list_merge(&bio_list_on_stack[0], &lower);
 		bio_list_merge(&bio_list_on_stack[0], &same);
@@ -677,7 +677,7 @@ static void __submit_bio_noacct(struct bio *bio)
 	current->bio_list = NULL;
 }
 
-static void __submit_bio_noacct_mq(struct bio *bio)
+static void __submit_bio_analacct_mq(struct bio *bio)
 {
 	struct bio_list bio_list[2] = { };
 
@@ -690,7 +690,7 @@ static void __submit_bio_noacct_mq(struct bio *bio)
 	current->bio_list = NULL;
 }
 
-void submit_bio_noacct_nocheck(struct bio *bio)
+void submit_bio_analacct_analcheck(struct bio *bio)
 {
 	blk_cgroup_bio_start(bio);
 	blkcg_bio_issue_init(bio);
@@ -698,7 +698,7 @@ void submit_bio_noacct_nocheck(struct bio *bio)
 	if (!bio_flagged(bio, BIO_TRACE_COMPLETION)) {
 		trace_block_bio_queue(bio);
 		/*
-		 * Now that enqueuing has been traced, we need to trace
+		 * Analw that enqueuing has been traced, we need to trace
 		 * completion as well.
 		 */
 		bio_set_flag(bio, BIO_TRACE_COMPLETION);
@@ -713,13 +713,13 @@ void submit_bio_noacct_nocheck(struct bio *bio)
 	if (current->bio_list)
 		bio_list_add(&current->bio_list[0], bio);
 	else if (!bio->bi_bdev->bd_has_submit_bio)
-		__submit_bio_noacct_mq(bio);
+		__submit_bio_analacct_mq(bio);
 	else
-		__submit_bio_noacct(bio);
+		__submit_bio_analacct(bio);
 }
 
 /**
- * submit_bio_noacct - re-submit a bio to the block device layer for I/O
+ * submit_bio_analacct - re-submit a bio to the block device layer for I/O
  * @bio:  The bio describing the location in memory and on the device.
  *
  * This is a version of submit_bio() that shall only be used for I/O that is
@@ -727,7 +727,7 @@ void submit_bio_noacct_nocheck(struct bio *bio)
  * systems and other upper level users of the block layer should use
  * submit_bio() instead.
  */
-void submit_bio_noacct(struct bio *bio)
+void submit_bio_analacct(struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
@@ -736,11 +736,11 @@ void submit_bio_noacct(struct bio *bio)
 	might_sleep();
 
 	/*
-	 * For a REQ_NOWAIT based request, return -EOPNOTSUPP
-	 * if queue does not support NOWAIT.
+	 * For a REQ_ANALWAIT based request, return -EOPANALTSUPP
+	 * if queue does analt support ANALWAIT.
 	 */
-	if ((bio->bi_opf & REQ_NOWAIT) && !bdev_nowait(bdev))
-		goto not_supported;
+	if ((bio->bi_opf & REQ_ANALWAIT) && !bdev_analwait(bdev))
+		goto analt_supported;
 
 	if (should_fail_bio(bio))
 		goto end_io;
@@ -748,7 +748,7 @@ void submit_bio_noacct(struct bio *bio)
 	if (!bio_flagged(bio, BIO_REMAPPED)) {
 		if (unlikely(bio_check_eod(bio)))
 			goto end_io;
-		if (bdev->bd_partno && unlikely(blk_partition_remap(bio)))
+		if (bdev->bd_partanal && unlikely(blk_partition_remap(bio)))
 			goto end_io;
 	}
 
@@ -781,14 +781,14 @@ void submit_bio_noacct(struct bio *bio)
 		 * REQ_OP_FLUSH can't be submitted through bios, it is only
 		 * synthetized in struct request by the flush state machine.
 		 */
-		goto not_supported;
+		goto analt_supported;
 	case REQ_OP_DISCARD:
 		if (!bdev_max_discard_sectors(bdev))
-			goto not_supported;
+			goto analt_supported;
 		break;
 	case REQ_OP_SECURE_ERASE:
 		if (!bdev_max_secure_erase_sectors(bdev))
-			goto not_supported;
+			goto analt_supported;
 		break;
 	case REQ_OP_ZONE_APPEND:
 		status = blk_check_zone_append(q, bio);
@@ -797,18 +797,18 @@ void submit_bio_noacct(struct bio *bio)
 		break;
 	case REQ_OP_WRITE_ZEROES:
 		if (!q->limits.max_write_zeroes_sectors)
-			goto not_supported;
+			goto analt_supported;
 		break;
 	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_OPEN:
 	case REQ_OP_ZONE_CLOSE:
 	case REQ_OP_ZONE_FINISH:
 		if (!bdev_is_zoned(bio->bi_bdev))
-			goto not_supported;
+			goto analt_supported;
 		break;
 	case REQ_OP_ZONE_RESET_ALL:
 		if (!bdev_is_zoned(bio->bi_bdev) || !blk_queue_zone_resetall(q))
-			goto not_supported;
+			goto analt_supported;
 		break;
 	case REQ_OP_DRV_IN:
 	case REQ_OP_DRV_OUT:
@@ -818,26 +818,26 @@ void submit_bio_noacct(struct bio *bio)
 		 */
 		fallthrough;
 	default:
-		goto not_supported;
+		goto analt_supported;
 	}
 
 	if (blk_throtl_bio(bio))
 		return;
-	submit_bio_noacct_nocheck(bio);
+	submit_bio_analacct_analcheck(bio);
 	return;
 
-not_supported:
-	status = BLK_STS_NOTSUPP;
+analt_supported:
+	status = BLK_STS_ANALTSUPP;
 end_io:
 	bio->bi_status = status;
 	bio_endio(bio);
 }
-EXPORT_SYMBOL(submit_bio_noacct);
+EXPORT_SYMBOL(submit_bio_analacct);
 
 static void bio_set_ioprio(struct bio *bio)
 {
-	/* Nobody set ioprio so far? Initialize it based on task's nice value */
-	if (IOPRIO_PRIO_CLASS(bio->bi_ioprio) == IOPRIO_CLASS_NONE)
+	/* Analbody set ioprio so far? Initialize it based on task's nice value */
+	if (IOPRIO_PRIO_CLASS(bio->bi_ioprio) == IOPRIO_CLASS_ANALNE)
 		bio->bi_ioprio = get_current_ioprio();
 	blkcg_set_ioprio(bio);
 }
@@ -850,9 +850,9 @@ static void bio_set_ioprio(struct bio *bio)
  * fully set up &struct bio that describes the I/O that needs to be done.  The
  * bio will be send to the device described by the bi_bdev field.
  *
- * The success/failure status of the request, along with notification of
- * completion, is delivered asynchronously through the ->bi_end_io() callback
- * in @bio.  The bio must NOT be touched by the caller until ->bi_end_io() has
+ * The success/failure status of the request, along with analtification of
+ * completion, is delivered asynchroanalusly through the ->bi_end_io() callback
+ * in @bio.  The bio must ANALT be touched by the caller until ->bi_end_io() has
  * been called.
  */
 void submit_bio(struct bio *bio)
@@ -865,7 +865,7 @@ void submit_bio(struct bio *bio)
 	}
 
 	bio_set_ioprio(bio);
-	submit_bio_noacct(bio);
+	submit_bio_analacct(bio);
 }
 EXPORT_SYMBOL(submit_bio);
 
@@ -878,7 +878,7 @@ EXPORT_SYMBOL(submit_bio);
  * Poll for completions on queue associated with the bio. Returns number of
  * completed entries found.
  *
- * Note: the caller must either be the context that submitted @bio, or
+ * Analte: the caller must either be the context that submitted @bio, or
  * be in a RCU critical section to prevent freeing of @bio.
  */
 int bio_poll(struct bio *bio, struct io_comp_batch *iob, unsigned int flags)
@@ -893,14 +893,14 @@ int bio_poll(struct bio *bio, struct io_comp_batch *iob, unsigned int flags)
 		return 0;
 
 	q = bdev_get_queue(bdev);
-	if (cookie == BLK_QC_T_NONE ||
+	if (cookie == BLK_QC_T_ANALNE ||
 	    !test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
 		return 0;
 
 	/*
-	 * As the requests that require a zone lock are not plugged in the
+	 * As the requests that require a zone lock are analt plugged in the
 	 * first place, directly accessing the plug instead of using
-	 * blk_mq_plug() should not have any consequences during flushing for
+	 * blk_mq_plug() should analt have any consequences during flushing for
 	 * zoned devices.
 	 */
 	blk_flush_plug(current->plug, false);
@@ -940,15 +940,15 @@ int iocb_bio_iopoll(struct kiocb *kiocb, struct io_comp_batch *iob,
 	int ret = 0;
 
 	/*
-	 * Note: the bio cache only uses SLAB_TYPESAFE_BY_RCU, so bio can
+	 * Analte: the bio cache only uses SLAB_TYPESAFE_BY_RCU, so bio can
 	 * point to a freshly allocated bio at this point.  If that happens
 	 * we have a few cases to consider:
 	 *
 	 *  1) the bio is beeing initialized and bi_bdev is NULL.  We can just
-	 *     simply nothing in this case
-	 *  2) the bio points to a not poll enabled device.  bio_poll will catch
+	 *     simply analthing in this case
+	 *  2) the bio points to a analt poll enabled device.  bio_poll will catch
 	 *     this and return 0
-	 *  3) the bio points to a poll capable device, including but not
+	 *  3) the bio points to a poll capable device, including but analt
 	 *     limited to the one that the original bio pointed to.  In this
 	 *     case we will call into the actual poll method and poll for I/O,
 	 *     even if we don't need to, but it won't cause harm either.
@@ -969,16 +969,16 @@ int iocb_bio_iopoll(struct kiocb *kiocb, struct io_comp_batch *iob,
 }
 EXPORT_SYMBOL_GPL(iocb_bio_iopoll);
 
-void update_io_ticks(struct block_device *part, unsigned long now, bool end)
+void update_io_ticks(struct block_device *part, unsigned long analw, bool end)
 {
 	unsigned long stamp;
 again:
 	stamp = READ_ONCE(part->bd_stamp);
-	if (unlikely(time_after(now, stamp))) {
-		if (likely(try_cmpxchg(&part->bd_stamp, &stamp, now)))
-			__part_stat_add(part, io_ticks, end ? now - stamp : 1);
+	if (unlikely(time_after(analw, stamp))) {
+		if (likely(try_cmpxchg(&part->bd_stamp, &stamp, analw)))
+			__part_stat_add(part, io_ticks, end ? analw - stamp : 1);
 	}
-	if (part->bd_partno) {
+	if (part->bd_partanal) {
 		part = bdev_whole(part);
 		goto again;
 	}
@@ -1012,11 +1012,11 @@ void bdev_end_io_acct(struct block_device *bdev, enum req_op op,
 		      unsigned int sectors, unsigned long start_time)
 {
 	const int sgrp = op_stat_group(op);
-	unsigned long now = READ_ONCE(jiffies);
-	unsigned long duration = now - start_time;
+	unsigned long analw = READ_ONCE(jiffies);
+	unsigned long duration = analw - start_time;
 
 	part_stat_lock();
-	update_io_ticks(bdev, now, true);
+	update_io_ticks(bdev, analw, true);
 	part_stat_inc(bdev, ios[sgrp]);
 	part_stat_add(bdev, sectors[sgrp], sectors);
 	part_stat_add(bdev, nsecs[sgrp], jiffies_to_nsecs(duration));
@@ -1048,7 +1048,7 @@ EXPORT_SYMBOL_GPL(bio_end_io_acct_remapped);
  *    on burst I/O load.
  *
  * Return:
- *    0 - Not busy (The request stacking driver should dispatch request)
+ *    0 - Analt busy (The request stacking driver should dispatch request)
  *    1 - Busy (The request stacking driver should stop dispatching request)
  */
 int blk_lld_busy(struct request_queue *q)
@@ -1092,7 +1092,7 @@ void blk_start_plug_nr_ios(struct blk_plug *plug, unsigned short nr_ios)
 	INIT_LIST_HEAD(&plug->cb_list);
 
 	/*
-	 * Store ordering should not be needed here, since a potential
+	 * Store ordering should analt be needed here, since a potential
 	 * preempt will imply a full memory barrier
 	 */
 	tsk->plug = plug;
@@ -1157,7 +1157,7 @@ struct blk_plug_cb *blk_check_plugged(blk_plug_cb_fn unplug, void *data,
 		if (cb->callback == unplug && cb->data == data)
 			return cb;
 
-	/* Not currently on the callback list */
+	/* Analt currently on the callback list */
 	BUG_ON(size < sizeof(*cb));
 	cb = kzalloc(size, GFP_ATOMIC);
 	if (cb) {
@@ -1176,7 +1176,7 @@ void __blk_flush_plug(struct blk_plug *plug, bool from_schedule)
 	blk_mq_flush_plug_list(plug, from_schedule);
 	/*
 	 * Unconditionally flush out cached requests, even if the unplug
-	 * event came from schedule. Since we know hold references to the
+	 * event came from schedule. Since we kanalw hold references to the
 	 * queue for cached requests, we don't want a blocked task holding
 	 * up a queue freeze/quiesce event.
 	 */

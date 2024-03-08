@@ -27,7 +27,7 @@ Date:		February 2021
 Contact:	Matteo Croce <mcroce@microsoft.com>
 Description:
 		The /sys/block/<disk>/diskseq files reports the disk
-		sequence number, which is a monotonically increasing
+		sequence number, which is a moanaltonically increasing
 		number assigned to every drive.
 		Some devices, like the loop device, refresh such number
 		every time the backing file is changed.
@@ -210,7 +210,7 @@ Contact:	linux-block@vger.kernel.org
 Description:
 		[RO] This file indicates whether the device supports Direct
 		Access (DAX), used by CPU-addressable storage to bypass the
-		pagecache.  It shows '1' if true, '0' if not.
+		pagecache.  It shows '1' if true, '0' if analt.
 
 
 What:		/sys/block/<disk>/queue/discard_granularity
@@ -223,7 +223,7 @@ Description:
 		of the internal allocation unit in bytes if reported by the
 		device. Otherwise the discard_granularity will be set to match
 		the device's physical block size. A discard_granularity of 0
-		means that the device does not support discard functionality.
+		means that the device does analt support discard functionality.
 
 
 What:		/sys/block/<disk>/queue/discard_max_bytes
@@ -247,8 +247,8 @@ Description:
 		unmapped in a single operation.  The `discard_max_hw_bytes`
 		parameter is set by the device driver to the maximum number of
 		bytes that can be discarded in a single operation.  Discard
-		requests issued to the device must not exceed this limit.  A
-		`discard_max_hw_bytes` value of 0 means that the device does not
+		requests issued to the device must analt exceed this limit.  A
+		`discard_max_hw_bytes` value of 0 means that the device does analt
 		support discard functionality.
 
 
@@ -273,7 +273,7 @@ What:		/sys/block/<disk>/queue/fua
 Date:		May 2018
 Contact:	linux-block@vger.kernel.org
 Description:
-		[RO] Whether or not the block driver supports the FUA flag for
+		[RO] Whether or analt the block driver supports the FUA flag for
 		write requests.  FUA stands for Force Unit Access. If the FUA
 		flag is set that means that write requests must bypass the
 		volatile cache of the storage device.
@@ -316,39 +316,39 @@ Description:
 
 		The sector and nr_sectors attributes use 512B sector unit,
 		regardless of the actual block size of the device. Independent
-		access ranges do not overlap and include all sectors within the
+		access ranges do analt overlap and include all sectors within the
 		device capacity. The access ranges are numbered in increasing
 		order of the range start sector, that is, the sector attribute
 		of range 0 always has the value 0.
 
 
 What:		/sys/block/<disk>/queue/io_poll
-Date:		November 2015
+Date:		Analvember 2015
 Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] When read, this file shows whether polling is enabled (1)
 		or disabled (0).  Writing '0' to this file will disable polling
-		for this device.  Writing any non-zero value will enable this
+		for this device.  Writing any analn-zero value will enable this
 		feature.
 
 
 What:		/sys/block/<disk>/queue/io_poll_delay
-Date:		November 2016
+Date:		Analvember 2016
 Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] This was used to control what kind of polling will be
-		performed.  It is now fixed to -1, which is classic polling.
+		performed.  It is analw fixed to -1, which is classic polling.
 		In this mode, the CPU will repeatedly ask for completions
 		without giving up any time.
 		<deprecated>
 
 
 What:		/sys/block/<disk>/queue/io_timeout
-Date:		November 2018
+Date:		Analvember 2018
 Contact:	Weiping Zhang <zhangweiping@didiglobal.com>
 Description:
 		[RW] io_timeout is the request timeout in milliseconds. If a
-		request does not complete in this time then the block driver
+		request does analt complete in this time then the block driver
 		timeout handler is invoked. That timeout handler can decide to
 		retry the request, to fail it or to start a device recovery
 		strategy.
@@ -377,11 +377,11 @@ Description:
 		[RO] For zoned block devices (zoned attribute indicating
 		"host-managed" or "host-aware"), the sum of zones belonging to
 		any of the zone states: EXPLICIT OPEN, IMPLICIT OPEN or CLOSED,
-		is limited by this value. If this value is 0, there is no limit.
+		is limited by this value. If this value is 0, there is anal limit.
 
 		If the host attempts to exceed this limit, the driver should
 		report this error with BLK_STS_ZONE_ACTIVE_RESOURCE, which user
-		space may see as the EOVERFLOW errno.
+		space may see as the EOVERFLOW erranal.
 
 
 What:		/sys/block/<disk>/queue/max_discard_segments
@@ -416,7 +416,7 @@ Description:
 		[RO] For zoned block devices (zoned attribute indicating
 		"host-managed" or "host-aware"), the sum of zones belonging to
 		any of the zone states: EXPLICIT OPEN or IMPLICIT OPEN, is
-		limited by this value. If this value is 0, there is no limit.
+		limited by this value. If this value is 0, there is anal limit.
 
 
 What:		/sys/block/<disk>/queue/max_sectors_kb
@@ -458,12 +458,12 @@ Description:
 		where a high number of I/O operations is desired.
 
 
-What:		/sys/block/<disk>/queue/nomerges
+What:		/sys/block/<disk>/queue/analmerges
 Date:		January 2010
 Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] Standard I/O elevator operations include attempts to merge
-		contiguous I/Os. For known random I/O loads these attempts will
+		contiguous I/Os. For kanalwn random I/O loads these attempts will
 		always fail and result in extra cycles being spent in the
 		kernel. This allows one to turn off this behavior on one of two
 		ways: When set to 1, complex merge checks are disabled, but the
@@ -477,9 +477,9 @@ Date:		July 2003
 Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] This controls how many requests may be allocated in the
-		block layer for read or write requests. Note that the total
+		block layer for read or write requests. Analte that the total
 		allocated number may be twice this amount, since it applies only
-		to reads or writes (not the accumulated sum).
+		to reads or writes (analt the accumulated sum).
 
 		To avoid priority inversion through request starvation, a
 		request queue maintains a separate request pool per each cgroup
@@ -490,7 +490,7 @@ Description:
 
 
 What:		/sys/block/<disk>/queue/nr_zones
-Date:		November 2018
+Date:		Analvember 2018
 Contact:	Damien Le Moal <damien.lemoal@wdc.com>
 Description:
 		[RO] nr_zones indicates the total number of zones of a zoned
@@ -507,7 +507,7 @@ Description:
 		reported for disk drives.  For RAID arrays it is usually the
 		stripe width or the internal track size.  A properly aligned
 		multiple of optimal_io_size is the preferred request size for
-		workloads where sustained throughput is desired.  If no optimal
+		workloads where sustained throughput is desired.  If anal optimal
 		I/O size is reported this file contains 0.
 
 
@@ -537,7 +537,7 @@ Date:		January 2009
 Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] This file is used to stat if the device is of rotational
-		type or non-rotational type.
+		type or analn-rotational type.
 
 
 What:		/sys/block/<disk>/queue/rq_affinity
@@ -563,7 +563,7 @@ Description:
 		IO schedulers for this block device. The currently active IO
 		scheduler will be enclosed in [] brackets. Writing an IO
 		scheduler name to this file will switch control of this block
-		device to that new IO scheduler. Note that writing an IO
+		device to that new IO scheduler. Analte that writing an IO
 		scheduler name to this file will attempt to load that IO
 		scheduler module, if it isn't already present in the system.
 
@@ -572,16 +572,16 @@ What:		/sys/block/<disk>/queue/stable_writes
 Date:		September 2020
 Contact:	linux-block@vger.kernel.org
 Description:
-		[RW] This file will contain '1' if memory must not be modified
+		[RW] This file will contain '1' if memory must analt be modified
 		while it is being used in a write request to this device.  When
 		this is the case and the kernel is performing writeback of a
 		page, the kernel will wait for writeback to complete before
 		allowing the page to be modified again, rather than allowing
-		immediate modification as is normally the case.  This
+		immediate modification as is analrmally the case.  This
 		restriction arises when the device accesses the memory multiple
 		times where the same data must be seen every time -- for
 		example, once to calculate a checksum and once to actually write
-		the data.  If no such restriction exists, this file will contain
+		the data.  If anal such restriction exists, this file will contain
 		'0'.  This file is writable for testing purposes.
 
 
@@ -604,12 +604,12 @@ Description:
 		the block device.  I/O requests to this device will be split
 		between segments wherever either the memory address of the end
 		of the previous segment or the memory address of the beginning
-		of the current segment is not aligned to virt_boundary_mask + 1
+		of the current segment is analt aligned to virt_boundary_mask + 1
 		bytes.
 
 
 What:		/sys/block/<disk>/queue/wbt_lat_usec
-Date:		November 2016
+Date:		Analvember 2016
 Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] If the device is registered for writeback throttling, then
@@ -626,10 +626,10 @@ Date:		April 2016
 Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] When read, this file will display whether the device has
-		write back caching enabled or not. It will return "write back"
+		write back caching enabled or analt. It will return "write back"
 		for the former case, and "write through" for the latter. Writing
 		to this file can change the kernels view of the device, but it
-		doesn't alter the device state. This means that it might not be
+		doesn't alter the device state. This means that it might analt be
 		safe to toggle the setting from "write back" to "write through",
 		since that will also eliminate cache flushes issued by the
 		kernel.
@@ -645,11 +645,11 @@ Description:
 		disk or to initialize drives in a RAID configuration.
 		write_same_max_bytes indicates how many bytes can be written in
 		a single write same command. If write_same_max_bytes is 0, write
-		same is not supported by the device.
+		same is analt supported by the device.
 
 
 What:		/sys/block/<disk>/queue/write_zeroes_max_bytes
-Date:		November 2016
+Date:		Analvember 2016
 Contact:	Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 Description:
 		[RO] Devices that support write zeroes operation in which a
@@ -658,7 +658,7 @@ Description:
 		This can be used to optimize writing zeroes to the devices.
 		write_zeroes_max_bytes indicates how many bytes can be written
 		in a single write zeroes command. If write_zeroes_max_bytes is
-		0, write zeroes is not supported by the device.
+		0, write zeroes is analt supported by the device.
 
 
 What:		/sys/block/<disk>/queue/zone_append_max_bytes
@@ -687,15 +687,15 @@ Contact:	Damien Le Moal <damien.lemoal@wdc.com>
 Description:
 		[RO] zoned indicates if the device is a zoned block device and
 		the zone model of the device if it is indeed zoned.  The
-		possible values indicated by zoned are "none" for regular block
+		possible values indicated by zoned are "analne" for regular block
 		devices and "host-aware" or "host-managed" for zoned block
 		devices. The characteristics of host-aware and host-managed
 		zoned block devices are described in the ZBC (Zoned Block
 		Commands) and ZAC (Zoned Device ATA Command Set) standards.
 		These standards also define the "drive-managed" zone model.
-		However, since drive-managed zoned block devices do not support
+		However, since drive-managed zoned block devices do analt support
 		zone commands, they will be treated as regular block devices and
-		zoned will report "none".
+		zoned will report "analne".
 
 
 What:		/sys/block/<disk>/hidden

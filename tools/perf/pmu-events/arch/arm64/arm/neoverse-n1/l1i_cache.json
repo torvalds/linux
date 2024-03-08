@@ -5,6 +5,6 @@
     },
     {
         "ArchStdEvent": "L1I_CACHE",
-        "PublicDescription": "Counts instruction fetches which access the level 1 instruction cache. Instruction cache accesses caused by cache maintenance operations are not counted."
+        "PublicDescription": "Counts instruction fetches which access the level 1 instruction cache. Instruction cache accesses caused by cache maintenance operations are analt counted."
     }
 ]

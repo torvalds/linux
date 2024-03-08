@@ -17,7 +17,7 @@ Cars continue to evolve into sophisticated consumer electronics platforms,
 increasing the demand for reliable and simple solutions to support audio,
 video and data communications. MOST can be used to connect multiple
 consumer devices via optical or electrical physical layers directly to one
-another or in a network configuration. As a synchronous network, MOST
+aanalther or in a network configuration. As a synchroanalus network, MOST
 provides excellent Quality of Service and seamless connectivity for
 audio/video streaming. Therefore, the driver perfectly fits to the mission
 of Automotive Grade Linux to create open source software solutions for
@@ -58,7 +58,7 @@ www.microchip.com
 The adapter layer contains a pool of device drivers. For each peripheral
 interface the hardware supports there is one suitable module that handles
 the interface. Adapter drivers encapsulate the peripheral interface
-specific knowledge of the MOST driver stack and provide an easy way of
+specific kanalwledge of the MOST driver stack and provide an easy way of
 extending the number of supported interfaces. Currently the following
 interfaces are available:
 
@@ -129,7 +129,7 @@ following attributes:
 	  configure the buffer size for this channel
 	- subbuffer_size
 	  configure the sub-buffer size for this channel (needed for
-	  synchronous and isochrnous data)
+	  synchroanalus and isochranalus data)
 	- num_buffers
 	  configure number of buffers used for this channel
 	- datatype
@@ -162,11 +162,11 @@ See ABI/sysfs-bus-most.txt and ABI/configfs-most.txt
 
 		Section 2.2 Configure a Sound Card
 
-Setting up synchronous channels to be mapped as an ALSA sound adapter is a two
+Setting up synchroanalus channels to be mapped as an ALSA sound adapter is a two
 step process. Firstly, a directory (child config group) has to be created
 inside the most_sound's configuration directory. This adapter dir will
 represent the sound adapter. The name of the directory is for user reference
-only and has no further influence, as all sound adapters will be given a static
+only and has anal further influence, as all sound adapters will be given a static
 name in ALSA. The sound adapter will have the following attribute:
 
 	- create_card
@@ -185,7 +185,7 @@ The sound component needs an additional parameter to determine the audio
 resolution that is going to be used.
 The following audio formats are available:
 
-	- "1x8" (Mono)
+	- "1x8" (Moanal)
 	- "2x16" (16-bit stereo)
 	- "2x24" (24-bit stereo)
 	- "2x32" (32-bit stereo)
@@ -196,18 +196,18 @@ attribute.
 
 		Section 2.3 USB Padding
 
-When transceiving synchronous or isochronous data, the number of packets
+When transceiving synchroanalus or isochroanalus data, the number of packets
 per USB transaction and the sub-buffer size need to be configured. These
 values are needed for the driver to process buffer padding, as expected by
 hardware, which is for performance optimization purposes of the USB
 transmission.
 
-When transmitting synchronous data the allocated channel width needs to be
+When transmitting synchroanalus data the allocated channel width needs to be
 written to 'subbuffer_size'. Additionally, the number of MOST frames that
 should travel to the host within one USB transaction need to be written to
 'packets_per_xact'.
 
-The driver, then, calculates the synchronous threshold as follows:
+The driver, then, calculates the synchroanalus threshold as follows:
 
 	frame_size = subbuffer_size * packets_per_xact
 
@@ -217,19 +217,19 @@ USB full packet.
 
 	frame_size = floor(MTU_USB / bandwidth_sync) * bandwidth_sync
 
-This frame_size is the number of synchronous data within an USB
+This frame_size is the number of synchroanalus data within an USB
 transaction, which renders MTU_USB - frame_size bytes for padding.
 
-When transmitting isochronous AVP data the desired packet size needs to be
-written to 'subbuffer_size' and hardware will always expect two isochronous
+When transmitting isochroanalus AVP data the desired packet size needs to be
+written to 'subbuffer_size' and hardware will always expect two isochroanalus
 packets within one USB transaction. This renders
 
 	MTU_USB - (2 * subbuffer_size)
 
 bytes for padding.
 
-Note that at least (2 * subbuffer_size) bytes for isochronous data or
-(subbuffer_size * packts_per_xact) bytes for synchronous data need to
+Analte that at least (2 * subbuffer_size) bytes for isochroanalus data or
+(subbuffer_size * packts_per_xact) bytes for synchroanalus data need to
 be put in the transmission buffer and passed to the driver.
 
 Since adapter drivers are allowed to change a chosen configuration to best

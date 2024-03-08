@@ -12,7 +12,7 @@ maintainers:
 
 description: |
   The device tree allows to describe the layout of CPUs in a system through
-  the "cpus" node, which in turn contains a number of subnodes (ie "cpu")
+  the "cpus" analde, which in turn contains a number of subanaldes (ie "cpu")
   defining properties for every CPU.
 
 properties:

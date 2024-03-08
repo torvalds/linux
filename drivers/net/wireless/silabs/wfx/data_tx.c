@@ -117,7 +117,7 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif, struct ieee80211_tx_rate *rat
 	if (idx >= 0) {
 		*renew = false;
 	} else {
-		/* If policy is not found create a new one using the oldest entry in "free" list */
+		/* If policy is analt found create a new one using the oldest entry in "free" list */
 		*renew = true;
 		entry = list_entry(cache->free.prev, struct wfx_tx_policy, link);
 		memcpy(entry->rates, wanted.rates, sizeof(entry->rates));
@@ -251,7 +251,7 @@ static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 		return 0;
 	if (is_multicast_ether_addr(da))
 		return 0;
-	return HIF_LINK_ID_NOT_ASSOCIATED;
+	return HIF_LINK_ID_ANALT_ASSOCIATED;
 }
 
 static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
@@ -312,7 +312,7 @@ static u8 wfx_tx_get_retry_policy_id(struct wfx_vif *wvif, struct ieee80211_tx_i
 static int wfx_tx_get_frame_format(struct ieee80211_tx_info *tx_info)
 {
 	if (!(tx_info->driver_rates[0].flags & IEEE80211_TX_RC_MCS))
-		return HIF_FRAME_FORMAT_NON_HT;
+		return HIF_FRAME_FORMAT_ANALN_HT;
 	else if (!(tx_info->driver_rates[0].flags & IEEE80211_TX_RC_GREEN_FIELD))
 		return HIF_FRAME_FORMAT_MIXED_FORMAT_HT;
 	else
@@ -346,7 +346,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	WARN(queue_id >= IEEE80211_NUM_ACS, "unsupported queue_id");
 	wfx_tx_fixup_rates(tx_info->driver_rates);
 
-	/* From now tx_info->control is unusable */
+	/* From analw tx_info->control is unusable */
 	memset(tx_info->rate_driver_data, 0, sizeof(struct wfx_tx_priv));
 	/* Fill tx_priv */
 	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
@@ -354,7 +354,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	tx_priv->vif_id = wvif->id;
 
 	/* Fill hif_msg */
-	WARN(skb_headroom(skb) < wmsg_len, "not enough space in skb");
+	WARN(skb_headroom(skb) < wmsg_len, "analt eanalugh space in skb");
 	WARN(offset & 1, "attempt to transmit an unaligned frame");
 	skb_put(skb, tx_priv->icv_size);
 	skb_push(skb, wmsg_len);
@@ -387,9 +387,9 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	/* Queue index are inverted between firmware and Linux */
 	req->queue_id = 3 - queue_id;
 	if (tx_info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
-		req->peer_sta_id = HIF_LINK_ID_NOT_ASSOCIATED;
+		req->peer_sta_id = HIF_LINK_ID_ANALT_ASSOCIATED;
 		req->retry_policy_index = HIF_TX_RETRY_POLICY_INVALID;
-		req->frame_format = HIF_FRAME_FORMAT_NON_HT;
+		req->frame_format = HIF_FRAME_FORMAT_ANALN_HT;
 	} else {
 		req->peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
 		req->retry_policy_index = wfx_tx_get_retry_policy_id(wvif, tx_info);
@@ -427,7 +427,7 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control, struc
 		wvif = wvif_iterate(wdev, NULL);
 	if (WARN_ON(!wvif))
 		goto drop;
-	/* Because of TX_AMPDU_SETUP_IN_HW, mac80211 does not try to send any BlockAck session
+	/* Because of TX_AMPDU_SETUP_IN_HW, mac80211 does analt try to send any BlockAck session
 	 * management frame. The check below exist just in case.
 	 */
 	if (wfx_is_action_back(hdr)) {
@@ -451,7 +451,7 @@ static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
 			      req->fc_offset;
 
 	if (!wvif) {
-		pr_warn("vif associated with the skb does not exist anymore\n");
+		pr_warn("vif associated with the skb does analt exist anymore\n");
 		return;
 	}
 	wfx_tx_policy_put(wvif, req->retry_policy_index);
@@ -475,7 +475,7 @@ static void wfx_tx_fill_rates(struct wfx_dev *wdev, struct ieee80211_tx_info *tx
 			break;
 		if (tx_count < rate->count && arg->status == HIF_STATUS_TX_FAIL_RETRIES &&
 		    arg->ack_failures)
-			dev_dbg(wdev->dev, "all retries were not consumed: %d != %d\n",
+			dev_dbg(wdev->dev, "all retries were analt consumed: %d != %d\n",
 				rate->count, tx_count);
 		if (tx_count <= rate->count && tx_count &&
 		    arg->txed_rate != wfx_get_hw_rate(wdev, rate))
@@ -504,7 +504,7 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct wfx_hif_cnf_tx *arg)
 
 	skb = wfx_pending_get(wdev, arg->packet_id);
 	if (!skb) {
-		dev_warn(wdev->dev, "received unknown packet_id (%#.8x) from chip\n",
+		dev_warn(wdev->dev, "received unkanalwn packet_id (%#.8x) from chip\n",
 			 arg->packet_id);
 		return;
 	}
@@ -515,12 +515,12 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct wfx_hif_cnf_tx *arg)
 	if (!wvif)
 		return;
 
-	/* Note that wfx_pending_get_pkt_us_delay() get data from tx_info */
+	/* Analte that wfx_pending_get_pkt_us_delay() get data from tx_info */
 	_trace_tx_stats(arg, skb, wfx_pending_get_pkt_us_delay(wdev, skb));
 	wfx_tx_fill_rates(wdev, tx_info, arg);
 	skb_trim(skb, skb->len - tx_priv->icv_size);
 
-	/* From now, you can touch to tx_info->status, but do not touch to tx_priv anymore */
+	/* From analw, you can touch to tx_info->status, but do analt touch to tx_priv anymore */
 	/* FIXME: use ieee80211_tx_info_clear_status() */
 	memset(tx_info->rate_driver_data, 0, sizeof(tx_info->rate_driver_data));
 	memset(tx_info->pad, 0, sizeof(tx_info->pad));
@@ -528,8 +528,8 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct wfx_hif_cnf_tx *arg)
 	if (!arg->status) {
 		tx_info->status.tx_time = le32_to_cpu(arg->media_delay) -
 					  le32_to_cpu(arg->tx_queue_delay);
-		if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
-			tx_info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		if (tx_info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+			tx_info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 		else
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	} else if (arg->status == HIF_STATUS_TX_FAIL_REQUEUE) {

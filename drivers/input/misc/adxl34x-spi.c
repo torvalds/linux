@@ -15,7 +15,7 @@
 #include "adxl34x.h"
 
 #define MAX_SPI_FREQ_HZ		5000000
-#define MAX_FREQ_NO_FIFODELAY	1500000
+#define MAX_FREQ_ANAL_FIFODELAY	1500000
 #define ADXL34X_CMD_MULTB	(1 << 6)
 #define ADXL34X_CMD_READ	(1 << 7)
 #define ADXL34X_WRITECMD(reg)	(reg & 0x3F)
@@ -76,7 +76,7 @@ static int adxl34x_spi_probe(struct spi_device *spi)
 	}
 
 	ac = adxl34x_probe(&spi->dev, spi->irq,
-			   spi->max_speed_hz > MAX_FREQ_NO_FIFODELAY,
+			   spi->max_speed_hz > MAX_FREQ_ANAL_FIFODELAY,
 			   &adxl34x_spi_bops);
 
 	if (IS_ERR(ac))

@@ -47,7 +47,7 @@ static DECLARE_WORK(attach_usb_driver_work, onboard_hub_attach_usb_driver);
 
 /************************** Platform driver **************************/
 
-struct usbdev_node {
+struct usbdev_analde {
 	struct usb_device *udev;
 	struct list_head list;
 };
@@ -111,7 +111,7 @@ static int onboard_hub_power_off(struct onboard_hub *hub)
 static int __maybe_unused onboard_hub_suspend(struct device *dev)
 {
 	struct onboard_hub *hub = dev_get_drvdata(dev);
-	struct usbdev_node *node;
+	struct usbdev_analde *analde;
 	bool power_off = true;
 
 	if (hub->always_powered_in_suspend)
@@ -119,11 +119,11 @@ static int __maybe_unused onboard_hub_suspend(struct device *dev)
 
 	mutex_lock(&hub->lock);
 
-	list_for_each_entry(node, &hub->udev_list, list) {
-		if (!device_may_wakeup(node->udev->bus->controller))
+	list_for_each_entry(analde, &hub->udev_list, list) {
+		if (!device_may_wakeup(analde->udev->bus->controller))
 			continue;
 
-		if (usb_wakeup_enabled_descendants(node->udev)) {
+		if (usb_wakeup_enabled_descendants(analde->udev)) {
 			power_off = false;
 			break;
 		}
@@ -154,7 +154,7 @@ static inline void get_udev_link_name(const struct usb_device *udev, char *buf, 
 
 static int onboard_hub_add_usbdev(struct onboard_hub *hub, struct usb_device *udev)
 {
-	struct usbdev_node *node;
+	struct usbdev_analde *analde;
 	char link_name[64];
 	int err;
 
@@ -165,15 +165,15 @@ static int onboard_hub_add_usbdev(struct onboard_hub *hub, struct usb_device *ud
 		goto error;
 	}
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node) {
-		err = -ENOMEM;
+	analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+	if (!analde) {
+		err = -EANALMEM;
 		goto error;
 	}
 
-	node->udev = udev;
+	analde->udev = udev;
 
-	list_add(&node->list, &hub->udev_list);
+	list_add(&analde->list, &hub->udev_list);
 
 	mutex_unlock(&hub->lock);
 
@@ -190,7 +190,7 @@ error:
 
 static void onboard_hub_remove_usbdev(struct onboard_hub *hub, const struct usb_device *udev)
 {
-	struct usbdev_node *node;
+	struct usbdev_analde *analde;
 	char link_name[64];
 
 	get_udev_link_name(udev, link_name, sizeof(link_name));
@@ -198,10 +198,10 @@ static void onboard_hub_remove_usbdev(struct onboard_hub *hub, const struct usb_
 
 	mutex_lock(&hub->lock);
 
-	list_for_each_entry(node, &hub->udev_list, list) {
-		if (node->udev == udev) {
-			list_del(&node->list);
-			kfree(node);
+	list_for_each_entry(analde, &hub->udev_list, list) {
+		if (analde->udev == udev) {
+			list_del(&analde->list);
+			kfree(analde);
 			break;
 		}
 	}
@@ -258,7 +258,7 @@ static int onboard_hub_probe(struct platform_device *pdev)
 
 	hub = devm_kzalloc(dev, sizeof(*hub), GFP_KERNEL);
 	if (!hub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hub->pdata = device_get_match_data(&pdev->dev);
 	if (!hub->pdata)
@@ -312,7 +312,7 @@ static int onboard_hub_probe(struct platform_device *pdev)
 static void onboard_hub_remove(struct platform_device *pdev)
 {
 	struct onboard_hub *hub = dev_get_drvdata(&pdev->dev);
-	struct usbdev_node *node;
+	struct usbdev_analde *analde;
 	struct usb_device *udev;
 
 	hub->going_away = true;
@@ -321,8 +321,8 @@ static void onboard_hub_remove(struct platform_device *pdev)
 
 	/* unbind the USB devices to avoid dangling references to this device */
 	while (!list_empty(&hub->udev_list)) {
-		node = list_first_entry(&hub->udev_list, struct usbdev_node, list);
-		udev = node->udev;
+		analde = list_first_entry(&hub->udev_list, struct usbdev_analde, list);
+		udev = analde->udev;
 
 		/*
 		 * Unbinding the driver will call onboard_hub_remove_usbdev(),
@@ -374,22 +374,22 @@ static struct platform_driver onboard_hub_driver = {
 static struct onboard_hub *_find_onboard_hub(struct device *dev)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct onboard_hub *hub;
 
-	pdev = of_find_device_by_node(dev->of_node);
+	pdev = of_find_device_by_analde(dev->of_analde);
 	if (!pdev) {
-		np = of_parse_phandle(dev->of_node, "peer-hub", 0);
+		np = of_parse_phandle(dev->of_analde, "peer-hub", 0);
 		if (!np) {
-			dev_err(dev, "failed to find device node for peer hub\n");
+			dev_err(dev, "failed to find device analde for peer hub\n");
 			return ERR_PTR(-EINVAL);
 		}
 
-		pdev = of_find_device_by_node(np);
-		of_node_put(np);
+		pdev = of_find_device_by_analde(np);
+		of_analde_put(np);
 
 		if (!pdev)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 	}
 
 	hub = dev_get_drvdata(&pdev->dev);
@@ -414,9 +414,9 @@ static int onboard_hub_usbdev_probe(struct usb_device *udev)
 	struct onboard_hub *hub;
 	int err;
 
-	/* ignore supported hubs without device tree node */
-	if (!dev->of_node)
-		return -ENODEV;
+	/* iganalre supported hubs without device tree analde */
+	if (!dev->of_analde)
+		return -EANALDEV;
 
 	hub = _find_onboard_hub(dev);
 	if (IS_ERR(hub))

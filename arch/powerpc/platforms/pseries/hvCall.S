@@ -69,7 +69,7 @@ hcall_tracepoint_refcount:
 	ld	r3,STK_PARAM(R3)(r1);				\
 	mtlr	r0
 
-#define HCALL_INST_POSTCALL_NORETS				\
+#define HCALL_INST_POSTCALL_ANALRETS				\
 	li	r5,0;						\
 	__HCALL_INST_POSTCALL
 
@@ -99,12 +99,12 @@ END_FTR_SECTION(0, 1);						\
 
 #else
 #define HCALL_INST_PRECALL(FIRST_ARG)
-#define HCALL_INST_POSTCALL_NORETS
+#define HCALL_INST_POSTCALL_ANALRETS
 #define HCALL_INST_POSTCALL(BUFREG)
 #define HCALL_BRANCH(LABEL)
 #endif
 
-_GLOBAL_TOC(plpar_hcall_norets_notrace)
+_GLOBAL_TOC(plpar_hcall_analrets_analtrace)
 	HMT_MEDIUM
 
 	mfcr	r0
@@ -118,12 +118,12 @@ _GLOBAL_TOC(plpar_hcall_norets_notrace)
 	mtcrf	0xff,r0
 	blr				/* return r3 = status */
 
-_GLOBAL_TOC(plpar_hcall_norets)
+_GLOBAL_TOC(plpar_hcall_analrets)
 	HMT_MEDIUM
 
 	mfcr	r0
 	stw	r0,8(r1)
-	HCALL_BRANCH(plpar_hcall_norets_trace)
+	HCALL_BRANCH(plpar_hcall_analrets_trace)
 	HVSC				/* invoke the hypervisor */
 
 	li	r4,0
@@ -134,10 +134,10 @@ _GLOBAL_TOC(plpar_hcall_norets)
 	blr				/* return r3 = status */
 
 #ifdef CONFIG_TRACEPOINTS
-plpar_hcall_norets_trace:
+plpar_hcall_analrets_trace:
 	HCALL_INST_PRECALL(R4)
 	HVSC
-	HCALL_INST_POSTCALL_NORETS
+	HCALL_INST_POSTCALL_ANALRETS
 
 	li	r4,0
 	stb	r4,PACASRR_VALID(r13)
@@ -213,8 +213,8 @@ plpar_hcall_trace:
 /*
  * plpar_hcall_raw can be called in real mode. kexec/kdump need some
  * hypervisor calls to be executed in real mode. So plpar_hcall_raw
- * does not access the per cpu hypervisor call statistics variables,
- * since these variables may not be present in the RMO region.
+ * does analt access the per cpu hypervisor call statistics variables,
+ * since these variables may analt be present in the RMO region.
  */
 _GLOBAL(plpar_hcall_raw)
 	HMT_MEDIUM

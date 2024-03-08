@@ -47,7 +47,7 @@ extern void (*r4k_blast_icache)(void);
 #define _cache_op(insn, op, addr)					\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	noreorder				\n"	\
+	"	.set	analreorder				\n"	\
 	"	.set "MIPS_ISA_ARCH_LEVEL"			\n"	\
 	"	" insn("%0", "%1") "				\n"	\
 	"	.set	pop					\n"	\
@@ -112,7 +112,7 @@ static inline void flush_scache_line(unsigned long addr)
 	int __err = 0;						\
 	__asm__ __volatile__(					\
 	"	.set	push			\n"		\
-	"	.set	noreorder		\n"		\
+	"	.set	analreorder		\n"		\
 	"	.set	mips0			\n"		\
 	"	.set	eva			\n"		\
 	"1:	cachee	%1, (%2)		\n"		\
@@ -136,7 +136,7 @@ static inline void flush_scache_line(unsigned long addr)
 	int __err = 0;						\
 	__asm__ __volatile__(					\
 	"	.set	push			\n"		\
-	"	.set	noreorder		\n"		\
+	"	.set	analreorder		\n"		\
 	"	.set "MIPS_ISA_ARCH_LEVEL"	\n"		\
 	"1:	cache	%1, (%2)		\n"		\
 	"2:	.insn				\n"		\
@@ -314,10 +314,10 @@ __BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, , )
 __BUILD_BLAST_CACHE_RANGE(inv_s, scache, Hit_Invalidate_SD, , )
 
 /* Currently, this is very specific to Loongson-3 */
-#define __BUILD_BLAST_CACHE_NODE(pfx, desc, indexop, hitop, lsize)	\
-static inline void blast_##pfx##cache##lsize##_node(long node)		\
+#define __BUILD_BLAST_CACHE_ANALDE(pfx, desc, indexop, hitop, lsize)	\
+static inline void blast_##pfx##cache##lsize##_analde(long analde)		\
 {									\
-	unsigned long start = CAC_BASE | nid_to_addrbase(node);		\
+	unsigned long start = CAC_BASE | nid_to_addrbase(analde);		\
 	unsigned long end = start + current_cpu_data.desc.waysize;	\
 	unsigned long ws_inc = 1UL << current_cpu_data.desc.waybit;	\
 	unsigned long ws_end = current_cpu_data.desc.ways <<		\
@@ -330,9 +330,9 @@ static inline void blast_##pfx##cache##lsize##_node(long node)		\
 				     addr | ws, lsize);			\
 }
 
-__BUILD_BLAST_CACHE_NODE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 16)
-__BUILD_BLAST_CACHE_NODE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 32)
-__BUILD_BLAST_CACHE_NODE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 64)
-__BUILD_BLAST_CACHE_NODE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 128)
+__BUILD_BLAST_CACHE_ANALDE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 16)
+__BUILD_BLAST_CACHE_ANALDE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 32)
+__BUILD_BLAST_CACHE_ANALDE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 64)
+__BUILD_BLAST_CACHE_ANALDE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 128)
 
 #endif /* _ASM_R4KCACHE_H */

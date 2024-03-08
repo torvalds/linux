@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -60,12 +60,12 @@
 #include <nvhw/class/cl907d.h>
 #include <nvhw/class/cl917d.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_gem.h"
-#include "nouveau_connector.h"
-#include "nouveau_encoder.h"
-#include "nouveau_fence.h"
+#include "analuveau_drv.h"
+#include "analuveau_dma.h"
+#include "analuveau_gem.h"
+#include "analuveau_connector.h"
+#include "analuveau_encoder.h"
+#include "analuveau_fence.h"
 #include "nv50_display.h"
 
 /******************************************************************************
@@ -102,7 +102,7 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 	}
 
 	nvif_object_sclass_put(&sclass);
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void
@@ -133,7 +133,7 @@ nv50_dmac_kick(struct nvif_push *push)
 
 	dmac->cur = push->cur - (u32 __iomem *)dmac->_push.mem.object.map.ptr;
 	if (dmac->put != dmac->cur) {
-		/* Push buffer fetches are not coherent with BAR1, we need to ensure
+		/* Push buffer fetches are analt coherent with BAR1, we need to ensure
 		 * writes have been flushed right through to VRAM before writing PUT.
 		 */
 		if (dmac->push->mem.type & NVIF_MEM_VRAM) {
@@ -165,11 +165,11 @@ static int
 nv50_dmac_wind(struct nv50_dmac *dmac)
 {
 	/* Wait for GET to depart from the beginning of the push buffer to
-	 * prevent writing PUT == GET, which would be ignored by HW.
+	 * prevent writing PUT == GET, which would be iganalred by HW.
 	 */
 	u32 get = NVIF_RV32(&dmac->base.user, NV507C, GET, PTR);
 	if (get == 0) {
-		/* Corner-case, HW idle, but non-committed work pending. */
+		/* Corner-case, HW idle, but analn-committed work pending. */
 		if (dmac->put == 0)
 			nv50_dmac_kick(dmac->push);
 
@@ -229,7 +229,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		 const s32 *oclass, u8 head, void *data, u32 size, s64 syncbuf,
 		 struct nv50_dmac *dmac)
 {
-	struct nouveau_cli *cli = (void *)device->object.client;
+	struct analuveau_cli *cli = (void *)device->object.client;
 	struct nvif_disp_chan_v0 *args = data;
 	u8 type = NVIF_MEM_COHERENT;
 	int ret;
@@ -310,8 +310,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
  * Output path helpers
  *****************************************************************************/
 static void
-nv50_outp_dump_caps(struct nouveau_drm *drm,
-		    struct nouveau_encoder *outp)
+nv50_outp_dump_caps(struct analuveau_drm *drm,
+		    struct analuveau_encoder *outp)
 {
 	NV_DEBUG(drm, "%s caps: dp_interlace=%d\n",
 		 outp->base.base.name, outp->caps.dp_interlace);
@@ -326,15 +326,15 @@ nv50_outp_atomic_check_view(struct drm_encoder *encoder,
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	struct drm_display_mode *mode = &crtc_state->mode;
 	struct drm_connector *connector = conn_state->connector;
-	struct nouveau_conn_atom *asyc = nouveau_conn_atom(conn_state);
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
+	struct analuveau_conn_atom *asyc = analuveau_conn_atom(conn_state);
+	struct analuveau_drm *drm = analuveau_drm(encoder->dev);
 
 	NV_ATOMIC(drm, "%s atomic_check\n", encoder->name);
 	asyc->scaler.full = false;
 	if (!native_mode)
 		return 0;
 
-	if (asyc->scaler.mode == DRM_MODE_SCALE_NONE) {
+	if (asyc->scaler.mode == DRM_MODE_SCALE_ANALNE) {
 		switch (connector->connector_type) {
 		case DRM_MODE_CONNECTOR_LVDS:
 		case DRM_MODE_CONNECTOR_eDP:
@@ -368,7 +368,7 @@ static void
 nv50_outp_atomic_fix_depth(struct drm_encoder *encoder, struct drm_crtc_state *crtc_state)
 {
 	struct nv50_head_atom *asyh = nv50_head_atom(crtc_state);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
 	unsigned int max_rate, mode_rate;
 
@@ -399,7 +399,7 @@ nv50_outp_atomic_check(struct drm_encoder *encoder,
 		       struct drm_connector_state *conn_state)
 {
 	struct drm_connector *connector = conn_state->connector;
-	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct analuveau_connector *nv_connector = analuveau_connector(connector);
 	struct nv50_head_atom *asyh = nv50_head_atom(crtc_state);
 	int ret;
 
@@ -417,8 +417,8 @@ nv50_outp_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-struct nouveau_connector *
-nv50_outp_get_new_connector(struct drm_atomic_state *state, struct nouveau_encoder *outp)
+struct analuveau_connector *
+nv50_outp_get_new_connector(struct drm_atomic_state *state, struct analuveau_encoder *outp)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
@@ -427,14 +427,14 @@ nv50_outp_get_new_connector(struct drm_atomic_state *state, struct nouveau_encod
 
 	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->best_encoder == encoder)
-			return nouveau_connector(connector);
+			return analuveau_connector(connector);
 	}
 
 	return NULL;
 }
 
-struct nouveau_connector *
-nv50_outp_get_old_connector(struct drm_atomic_state *state, struct nouveau_encoder *outp)
+struct analuveau_connector *
+nv50_outp_get_old_connector(struct drm_atomic_state *state, struct analuveau_encoder *outp)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
@@ -443,14 +443,14 @@ nv50_outp_get_old_connector(struct drm_atomic_state *state, struct nouveau_encod
 
 	for_each_old_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->best_encoder == encoder)
-			return nouveau_connector(connector);
+			return analuveau_connector(connector);
 	}
 
 	return NULL;
 }
 
-static struct nouveau_crtc *
-nv50_outp_get_new_crtc(const struct drm_atomic_state *state, const struct nouveau_encoder *outp)
+static struct analuveau_crtc *
+nv50_outp_get_new_crtc(const struct drm_atomic_state *state, const struct analuveau_encoder *outp)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -459,7 +459,7 @@ nv50_outp_get_new_crtc(const struct drm_atomic_state *state, const struct nouvea
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (crtc_state->encoder_mask & mask)
-			return nouveau_crtc(crtc);
+			return analuveau_crtc(crtc);
 	}
 
 	return NULL;
@@ -471,9 +471,9 @@ nv50_outp_get_new_crtc(const struct drm_atomic_state *state, const struct nouvea
 static void
 nv50_dac_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
-	const u32 ctrl = NVDEF(NV507D, DAC_SET_CONTROL, OWNER, NONE);
+	const u32 ctrl = NVDEF(NV507D, DAC_SET_CONTROL, OWNER, ANALNE);
 
 	core->func->dac->ctrl(core, nv_encoder->outp.or.id, ctrl, NULL);
 	nv_encoder->crtc = NULL;
@@ -482,8 +482,8 @@ nv50_dac_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 static void
 nv50_dac_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
+	struct analuveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
 	struct nv50_head_atom *asyh =
 		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &nv_crtc->base));
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
@@ -513,11 +513,11 @@ nv50_dac_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 static enum drm_connector_status
 nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	u32 loadval;
 	int ret;
 
-	loadval = nouveau_drm(encoder->dev)->vbios.dactestval;
+	loadval = analuveau_drm(encoder->dev)->vbios.dactestval;
 	if (loadval == 0)
 		loadval = 340;
 
@@ -539,7 +539,7 @@ nv50_dac_help = {
 static void
 nv50_dac_destroy(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 
 	nvif_outp_dtor(&nv_encoder->outp);
 
@@ -553,10 +553,10 @@ nv50_dac_func = {
 };
 
 static int
-nv50_dac_create(struct nouveau_encoder *nv_encoder)
+nv50_dac_create(struct analuveau_encoder *nv_encoder)
 {
 	struct drm_connector *connector = &nv_encoder->conn->base;
-	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct analuveau_drm *drm = analuveau_drm(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus;
 	struct drm_encoder *encoder;
@@ -577,14 +577,14 @@ nv50_dac_create(struct nouveau_encoder *nv_encoder)
 }
 
 /*
- * audio component binding for ELD notification
+ * audio component binding for ELD analtification
  */
 static void
-nv50_audio_component_eld_notify(struct drm_audio_component *acomp, int port,
+nv50_audio_component_eld_analtify(struct drm_audio_component *acomp, int port,
 				int dev_id)
 {
-	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
-		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
+	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_analtify)
+		acomp->audio_ops->pin_eld_analtify(acomp->audio_ops->audio_ptr,
 						 port, dev_id);
 }
 
@@ -593,10 +593,10 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 			     bool *enabled, unsigned char *buf, int max_bytes)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(kdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct drm_encoder *encoder;
-	struct nouveau_encoder *nv_encoder;
-	struct nouveau_crtc *nv_crtc;
+	struct analuveau_encoder *nv_encoder;
+	struct analuveau_crtc *nv_crtc;
 	int ret = 0;
 
 	*enabled = false;
@@ -604,14 +604,14 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 	mutex_lock(&drm->audio.lock);
 
 	drm_for_each_encoder(encoder, drm->dev) {
-		struct nouveau_connector *nv_connector = NULL;
+		struct analuveau_connector *nv_connector = NULL;
 
 		if (encoder->encoder_type == DRM_MODE_ENCODER_DPMST)
 			continue; /* TODO */
 
-		nv_encoder = nouveau_encoder(encoder);
+		nv_encoder = analuveau_encoder(encoder);
 		nv_connector = nv_encoder->conn;
-		nv_crtc = nouveau_crtc(nv_encoder->crtc);
+		nv_crtc = analuveau_crtc(nv_encoder->crtc);
 
 		if (!nv_crtc || nv_encoder->outp.or.id != port || nv_crtc->index != dev_id)
 			continue;
@@ -639,11 +639,11 @@ nv50_audio_component_bind(struct device *kdev, struct device *hda_kdev,
 			  void *data)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(kdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct drm_audio_component *acomp = data;
 
 	if (WARN_ON(!device_link_add(hda_kdev, kdev, DL_FLAG_STATELESS)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_modeset_lock_all(drm_dev);
 	acomp->ops = &nv50_audio_component_ops;
@@ -658,7 +658,7 @@ nv50_audio_component_unbind(struct device *kdev, struct device *hda_kdev,
 			    void *data)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(kdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct drm_audio_component *acomp = data;
 
 	drm_modeset_lock_all(drm_dev);
@@ -674,7 +674,7 @@ static const struct component_ops nv50_audio_component_bind_ops = {
 };
 
 static void
-nv50_audio_component_init(struct nouveau_drm *drm)
+nv50_audio_component_init(struct analuveau_drm *drm)
 {
 	if (component_add(drm->dev->dev, &nv50_audio_component_bind_ops))
 		return;
@@ -684,7 +684,7 @@ nv50_audio_component_init(struct nouveau_drm *drm)
 }
 
 static void
-nv50_audio_component_fini(struct nouveau_drm *drm)
+nv50_audio_component_fini(struct analuveau_drm *drm)
 {
 	if (!drm->audio.component_registered)
 		return;
@@ -707,7 +707,7 @@ nv50_audio_supported(struct drm_encoder *encoder)
 		return false;
 
 	if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+		struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 
 		switch (nv_encoder->dcb->type) {
 		case DCB_OUTPUT_TMDS:
@@ -722,10 +722,10 @@ nv50_audio_supported(struct drm_encoder *encoder)
 }
 
 static void
-nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
+nv50_audio_disable(struct drm_encoder *encoder, struct analuveau_crtc *nv_crtc)
 {
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_drm *drm = analuveau_drm(encoder->dev);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct nvif_outp *outp = &nv_encoder->outp;
 
 	if (!nv50_audio_supported(encoder))
@@ -738,16 +738,16 @@ nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 	}
 	mutex_unlock(&drm->audio.lock);
 
-	nv50_audio_component_eld_notify(drm->audio.component, outp->or.id, nv_crtc->index);
+	nv50_audio_component_eld_analtify(drm->audio.component, outp->or.id, nv_crtc->index);
 }
 
 static void
-nv50_audio_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
-		  struct nouveau_connector *nv_connector, struct drm_atomic_state *state,
+nv50_audio_enable(struct drm_encoder *encoder, struct analuveau_crtc *nv_crtc,
+		  struct analuveau_connector *nv_connector, struct drm_atomic_state *state,
 		  struct drm_display_mode *mode)
 {
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_drm *drm = analuveau_drm(encoder->dev);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct nvif_outp *outp = &nv_encoder->outp;
 
 	if (!nv50_audio_supported(encoder) || !drm_detect_monitor_audio(nv_connector->edid))
@@ -761,19 +761,19 @@ nv50_audio_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 
 	mutex_unlock(&drm->audio.lock);
 
-	nv50_audio_component_eld_notify(drm->audio.component, outp->or.id, nv_crtc->index);
+	nv50_audio_component_eld_analtify(drm->audio.component, outp->or.id, nv_crtc->index);
 }
 
 /******************************************************************************
  * HDMI
  *****************************************************************************/
 static void
-nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
-		 struct nouveau_connector *nv_connector, struct drm_atomic_state *state,
+nv50_hdmi_enable(struct drm_encoder *encoder, struct analuveau_crtc *nv_crtc,
+		 struct analuveau_connector *nv_connector, struct drm_atomic_state *state,
 		 struct drm_display_mode *mode, bool hda)
 {
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_drm *drm = analuveau_drm(encoder->dev);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct drm_hdmi_info *hdmi = &nv_connector->base.display_info.hdmi;
 	union hdmi_infoframe infoframe = { 0 };
 	const u8 rekey = 56; /* binary driver, and tegra, constant */
@@ -873,12 +873,12 @@ struct nv50_msto {
 	u32 display_id;
 };
 
-struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder)
+struct analuveau_encoder *nv50_real_outp(struct drm_encoder *encoder)
 {
 	struct nv50_msto *msto;
 
 	if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST)
-		return nouveau_encoder(encoder);
+		return analuveau_encoder(encoder);
 
 	msto = nv50_msto(encoder);
 	if (!msto->mstc)
@@ -892,7 +892,7 @@ nv50_msto_cleanup(struct drm_atomic_state *state,
 		  struct drm_dp_mst_topology_mgr *mgr,
 		  struct nv50_msto *msto)
 {
-	struct nouveau_drm *drm = nouveau_drm(msto->encoder.dev);
+	struct analuveau_drm *drm = analuveau_drm(msto->encoder.dev);
 	struct drm_dp_mst_atomic_payload *new_payload =
 		drm_atomic_get_mst_payload_state(new_mst_state, msto->mstc->port);
 	struct drm_dp_mst_topology_state *old_mst_state =
@@ -925,7 +925,7 @@ nv50_msto_prepare(struct drm_atomic_state *state,
 		  struct drm_dp_mst_topology_mgr *mgr,
 		  struct nv50_msto *msto)
 {
-	struct nouveau_drm *drm = nouveau_drm(msto->encoder.dev);
+	struct analuveau_drm *drm = analuveau_drm(msto->encoder.dev);
 	struct nv50_mstc *mstc = msto->mstc;
 	struct nv50_mstm *mstm = mstc->mstm;
 	struct drm_dp_mst_atomic_payload *payload;
@@ -993,7 +993,7 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 		return PTR_ERR(mst_state);
 
 	if (!mst_state->pbn_div.full) {
-		struct nouveau_encoder *outp = mstc->mstm->outp;
+		struct analuveau_encoder *outp = mstc->mstm->outp;
 
 		mst_state->pbn_div = drm_dp_get_vc_payload_bw(&mstm->mgr,
 							      outp->dp.link_bw, outp->dp.link_nr);
@@ -1047,7 +1047,7 @@ nv50_msto_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 
 	if (!mstm->links++) {
 		nvif_outp_acquire_sor(&mstm->outp->outp, false /*TODO: MST audio... */);
-		nouveau_dp_train(mstm->outp, true, 0, 0);
+		analuveau_dp_train(mstm->outp, true, 0, 0);
 	}
 
 	if (head->func->display_id) {
@@ -1113,7 +1113,7 @@ nv50_msto_new(struct drm_device *dev, struct nv50_head *head, int id)
 
 	msto = kzalloc(sizeof(*msto), GFP_KERNEL);
 	if (!msto)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = drm_encoder_init(dev, &msto->encoder, &nv50_msto,
 			       DRM_MODE_ENCODER_DPMST, "mst-%d", id);
@@ -1148,7 +1148,7 @@ nv50_mstc_mode_valid(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
 	struct nv50_mstc *mstc = nv50_mstc(connector);
-	struct nouveau_encoder *outp = mstc->mstm->outp;
+	struct analuveau_encoder *outp = mstc->mstm->outp;
 
 	/* TODO: calculate the PBN from the dotclock and validate against the
 	 * MSTB's max possible PBN
@@ -1182,7 +1182,7 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 
 	if (mstc->native)
 		drm_mode_destroy(mstc->connector.dev, mstc->native);
-	mstc->native = nouveau_conn_native_mode(&mstc->connector);
+	mstc->native = analuveau_conn_native_mode(&mstc->connector);
 	return ret;
 }
 
@@ -1245,13 +1245,13 @@ nv50_mstc_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_funcs
 nv50_mstc = {
-	.reset = nouveau_conn_reset,
+	.reset = analuveau_conn_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = nv50_mstc_destroy,
-	.atomic_duplicate_state = nouveau_conn_atomic_duplicate_state,
-	.atomic_destroy_state = nouveau_conn_atomic_destroy_state,
-	.atomic_set_property = nouveau_conn_atomic_set_property,
-	.atomic_get_property = nouveau_conn_atomic_get_property,
+	.atomic_duplicate_state = analuveau_conn_atomic_duplicate_state,
+	.atomic_destroy_state = analuveau_conn_atomic_destroy_state,
+	.atomic_set_property = analuveau_conn_atomic_set_property,
+	.atomic_get_property = analuveau_conn_atomic_get_property,
 };
 
 static int
@@ -1264,7 +1264,7 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	int ret;
 
 	if (!(mstc = *pmstc = kzalloc(sizeof(*mstc), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	mstc->mstm = mstm;
 	mstc->port = port;
 
@@ -1279,7 +1279,7 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	drm_connector_helper_add(&mstc->connector, &nv50_mstc_help);
 
 	mstc->connector.funcs->reset(&mstc->connector);
-	nouveau_conn_attach_properties(&mstc->connector);
+	analuveau_conn_attach_properties(&mstc->connector);
 
 	drm_for_each_crtc(crtc, dev) {
 		if (!(mstm->outp->dcb->heads & drm_crtc_mask(crtc)))
@@ -1301,7 +1301,7 @@ nv50_mstm_cleanup(struct drm_atomic_state *state,
 		  struct drm_dp_mst_topology_state *mst_state,
 		  struct nv50_mstm *mstm)
 {
-	struct nouveau_drm *drm = nouveau_drm(mstm->outp->base.base.dev);
+	struct analuveau_drm *drm = analuveau_drm(mstm->outp->base.base.dev);
 	struct drm_encoder *encoder;
 
 	NV_ATOMIC(drm, "%s: mstm cleanup\n", mstm->outp->base.base.name);
@@ -1317,7 +1317,7 @@ nv50_mstm_cleanup(struct drm_atomic_state *state,
 	}
 
 	if (mstm->disabled) {
-		nouveau_dp_power_down(mstm->outp);
+		analuveau_dp_power_down(mstm->outp);
 		nvif_outp_release(&mstm->outp->outp);
 		mstm->disabled = false;
 	}
@@ -1330,7 +1330,7 @@ nv50_mstm_prepare(struct drm_atomic_state *state,
 		  struct drm_dp_mst_topology_state *mst_state,
 		  struct nv50_mstm *mstm)
 {
-	struct nouveau_drm *drm = nouveau_drm(mstm->outp->base.base.dev);
+	struct analuveau_drm *drm = analuveau_drm(mstm->outp->base.base.dev);
 	struct drm_encoder *encoder;
 
 	NV_ATOMIC(drm, "%s: mstm prepare\n", mstm->outp->base.base.name);
@@ -1379,8 +1379,8 @@ nv50_mstm = {
 };
 
 bool
-nv50_mstm_service(struct nouveau_drm *drm,
-		  struct nouveau_connector *nv_connector,
+nv50_mstm_service(struct analuveau_drm *drm,
+		  struct analuveau_connector *nv_connector,
 		  struct nv50_mstm *mstm)
 {
 	struct drm_dp_aux *aux = &nv_connector->aux;
@@ -1426,7 +1426,7 @@ nv50_mstm_remove(struct nv50_mstm *mstm)
 }
 
 int
-nv50_mstm_detect(struct nouveau_encoder *outp)
+nv50_mstm_detect(struct analuveau_encoder *outp)
 {
 	struct nv50_mstm *mstm = outp->dp.mstm;
 	struct drm_dp_aux *aux;
@@ -1454,7 +1454,7 @@ nv50_mstm_detect(struct nouveau_encoder *outp)
 }
 
 static void
-nv50_mstm_fini(struct nouveau_encoder *outp)
+nv50_mstm_fini(struct analuveau_encoder *outp)
 {
 	struct nv50_mstm *mstm = outp->dp.mstm;
 
@@ -1474,7 +1474,7 @@ nv50_mstm_fini(struct nouveau_encoder *outp)
 }
 
 static void
-nv50_mstm_init(struct nouveau_encoder *outp, bool runtime)
+nv50_mstm_init(struct analuveau_encoder *outp, bool runtime)
 {
 	struct nv50_mstm *mstm = outp->dp.mstm;
 	int ret = 0;
@@ -1508,7 +1508,7 @@ nv50_mstm_del(struct nv50_mstm **pmstm)
 }
 
 static int
-nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
+nv50_mstm_new(struct analuveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
 	      int conn_base_id, struct nv50_mstm **pmstm)
 {
 	const int max_payloads = hweight8(outp->dcb->heads);
@@ -1517,7 +1517,7 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
 	int ret;
 
 	if (!(mstm = *pmstm = kzalloc(sizeof(*mstm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	mstm->outp = outp;
 	mstm->mgr.cbs = &nv50_mstm;
 
@@ -1533,7 +1533,7 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
  * SOR
  *****************************************************************************/
 static void
-nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
+nv50_sor_update(struct analuveau_encoder *nv_encoder, u8 head,
 		struct nv50_head_atom *asyh, u8 proto, u8 depth)
 {
 	struct nv50_disp *disp = nv50_disp(nv_encoder->base.base.dev);
@@ -1541,7 +1541,7 @@ nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 
 	if (!asyh) {
 		nv_encoder->ctrl &= ~BIT(head);
-		if (NVDEF_TEST(nv_encoder->ctrl, NV507D, SOR_SET_CONTROL, OWNER, ==, NONE))
+		if (NVDEF_TEST(nv_encoder->ctrl, NV507D, SOR_SET_CONTROL, OWNER, ==, ANALNE))
 			nv_encoder->ctrl = 0;
 	} else {
 		nv_encoder->ctrl |= NVVAL(NV507D, SOR_SET_CONTROL, PROTOCOL, proto);
@@ -1553,19 +1553,19 @@ nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 }
 
 /* TODO: Should we extend this to PWM-only backlights?
- * As well, should we add a DRM helper for waiting for the backlight to acknowledge
+ * As well, should we add a DRM helper for waiting for the backlight to ackanalwledge
  * the panel backlight has been shut off? Intel doesn't seem to do this, and uses a
  * fixed time delay from the vbios…
  */
 static void
 nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct nv50_head *head = nv50_head(nv_encoder->crtc);
-#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
-	struct nouveau_connector *nv_connector = nv50_outp_get_old_connector(state, nv_encoder);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
-	struct nouveau_backlight *backlight = nv_connector->backlight;
+#ifdef CONFIG_DRM_ANALUVEAU_BACKLIGHT
+	struct analuveau_connector *nv_connector = nv50_outp_get_old_connector(state, nv_encoder);
+	struct analuveau_drm *drm = analuveau_drm(nv_encoder->base.base.dev);
+	struct analuveau_backlight *backlight = nv_connector->backlight;
 	struct drm_dp_aux *aux = &nv_connector->aux;
 	int ret;
 
@@ -1584,7 +1584,7 @@ nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 	}
 
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
-		nouveau_dp_power_down(nv_encoder);
+		analuveau_dp_power_down(nv_encoder);
 
 	if (head->func->display_id)
 		head->func->display_id(head, 0);
@@ -1601,7 +1601,7 @@ nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 #define DP_CONFIG_INCREASED_WATERMARK_LIMIT         22
 
 static bool
-nv50_sor_dp_watermark_sst(struct nouveau_encoder *outp,
+nv50_sor_dp_watermark_sst(struct analuveau_encoder *outp,
 			  struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	bool enhancedFraming = outp->dp.dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP;
@@ -1653,8 +1653,8 @@ nv50_sor_dp_watermark_sst(struct nouveau_encoder *outp,
 
 	//
 	//  Perform the SST calculation.
-	//	For auto mode the watermark calculation does not need to track accumulated error the
-	//	formulas for manual mode will not work.  So below calculation was extracted from the DTB.
+	//	For auto mode the watermark calculation does analt need to track accumulated error the
+	//	formulas for manual mode will analt work.  So below calculation was extracted from the DTB.
 	//
 	ratioF = div_u64((u64)pixelClockHz * depth * PrecisionFactor, DSC_FACTOR);
 
@@ -1739,8 +1739,8 @@ nv50_sor_dp_watermark_sst(struct nouveau_encoder *outp,
 static void
 nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
+	struct analuveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
 	struct nv50_head_atom *asyh =
 		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &nv_crtc->base));
 	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
@@ -1748,10 +1748,10 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 	struct nv50_head *head = nv50_head(&nv_crtc->base);
 	struct nvif_outp *outp = &nv_encoder->outp;
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_connector *nv_connector;
-#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
-	struct nouveau_backlight *backlight;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_connector *nv_connector;
+#ifdef CONFIG_DRM_ANALUVEAU_BACKLIGHT
+	struct analuveau_backlight *backlight;
 #endif
 	struct nvbios *bios = &drm->vbios;
 	bool lvds_dual = false, lvds_8bpc = false, hda = false;
@@ -1781,7 +1781,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 			/* Only enable dual-link if:
 			 *  - Need to (i.e. rate > 165MHz)
 			 *  - DCB says we can
-			 *  - Not an HDMI monitor, since there's no dual-link
+			 *  - Analt an HDMI monitor, since there's anal dual-link
 			 *    on HDMI.
 			 */
 			if (mode->clock >= 165000 &&
@@ -1795,7 +1795,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 	case DCB_OUTPUT_LVDS:
 		proto = NV507D_SOR_SET_CONTROL_PROTOCOL_LVDS_CUSTOM;
 
-		if (bios->fp_no_ddc) {
+		if (bios->fp_anal_ddc) {
 			lvds_dual = bios->fp.dual_link;
 			lvds_8bpc = bios->fp.if_is_24bit;
 		} else {
@@ -1822,7 +1822,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 		nvif_outp_lvds(&nv_encoder->outp, lvds_dual, lvds_8bpc);
 		break;
 	case DCB_OUTPUT_DP:
-		nouveau_dp_train(nv_encoder, false, mode->clock, asyh->or.bpc);
+		analuveau_dp_train(nv_encoder, false, mode->clock, asyh->or.bpc);
 		nv50_sor_dp_watermark_sst(nv_encoder, head, asyh);
 		depth = nv50_dp_bpc_to_depth(asyh->or.bpc);
 
@@ -1831,7 +1831,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 		else
 			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
-#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+#ifdef CONFIG_DRM_ANALUVEAU_BACKLIGHT
 		backlight = nv_connector->backlight;
 		if (backlight && backlight->uses_dpcd)
 			drm_edp_backlight_enable(&nv_connector->aux, &backlight->edp_info,
@@ -1860,7 +1860,7 @@ nv50_sor_help = {
 static void
 nv50_sor_destroy(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 
 	nv50_mstm_del(&nv_encoder->dp.mstm);
 	drm_encoder_cleanup(encoder);
@@ -1878,11 +1878,11 @@ nv50_sor_func = {
 };
 
 static int
-nv50_sor_create(struct nouveau_encoder *nv_encoder)
+nv50_sor_create(struct analuveau_encoder *nv_encoder)
 {
 	struct drm_connector *connector = &nv_encoder->conn->base;
-	struct nouveau_connector *nv_connector = nouveau_connector(connector);
-	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct analuveau_connector *nv_connector = analuveau_connector(connector);
+	struct analuveau_drm *drm = analuveau_drm(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct drm_encoder *encoder;
 	struct dcb_output *dcbe = nv_encoder->dcb;
@@ -1914,7 +1914,7 @@ nv50_sor_create(struct nouveau_encoder *nv_encoder)
 		mutex_init(&nv_encoder->dp.hpd_irq_lock);
 
 		if (disp->disp->object.oclass < GF110_DISP) {
-			/* HW has no support for address-only
+			/* HW has anal support for address-only
 			 * transactions, so we're required to
 			 * use custom I2C-over-AUX code.
 			 */
@@ -1965,9 +1965,9 @@ nv50_pior_atomic_check(struct drm_encoder *encoder,
 static void
 nv50_pior_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
-	const u32 ctrl = NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, NONE);
+	const u32 ctrl = NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, ANALNE);
 
 	core->func->pior->ctrl(core, nv_encoder->outp.or.id, ctrl, NULL);
 	nv_encoder->crtc = NULL;
@@ -1976,8 +1976,8 @@ nv50_pior_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *s
 static void
 nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
+	struct analuveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
 	struct nv50_head_atom *asyh =
 		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &nv_crtc->base));
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
@@ -2007,7 +2007,7 @@ nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 		break;
 	case DCB_OUTPUT_DP:
 		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
-		nouveau_dp_train(nv_encoder, false, asyh->state.adjusted_mode.clock, 6);
+		analuveau_dp_train(nv_encoder, false, asyh->state.adjusted_mode.clock, 6);
 		break;
 	default:
 		BUG();
@@ -2028,7 +2028,7 @@ nv50_pior_help = {
 static void
 nv50_pior_destroy(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 
 	nvif_outp_dtor(&nv_encoder->outp);
 
@@ -2044,11 +2044,11 @@ nv50_pior_func = {
 };
 
 static int
-nv50_pior_create(struct nouveau_encoder *nv_encoder)
+nv50_pior_create(struct analuveau_encoder *nv_encoder)
 {
 	struct drm_connector *connector = &nv_encoder->conn->base;
 	struct drm_device *dev = connector->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus = NULL;
@@ -2070,7 +2070,7 @@ nv50_pior_create(struct nouveau_encoder *nv_encoder)
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	nv_encoder->i2c = ddc;
@@ -2099,7 +2099,7 @@ nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 {
 	struct drm_dp_mst_topology_mgr *mgr;
 	struct drm_dp_mst_topology_state *mst_state;
-	struct nouveau_drm *drm = nouveau_drm(state->dev);
+	struct analuveau_drm *drm = analuveau_drm(state->dev);
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_atom *atom = nv50_atom(state);
 	struct nv50_core *core = disp->core;
@@ -2119,7 +2119,7 @@ nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 	core->func->update(core, interlock, true);
 	if (core->func->ntfy_wait_done(disp->sync, NV50_DISP_CORE_NTFY,
 				       disp->core->chan.base.device))
-		NV_ERROR(drm, "core notifier timeout\n");
+		NV_ERROR(drm, "core analtifier timeout\n");
 
 	for_each_new_mst_mgr_in_state(state, mgr, mst_state, i) {
 		mstm = nv50_mstm(mgr);
@@ -2129,10 +2129,10 @@ nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 
 	list_for_each_entry(outp, &atom->outp, head) {
 		if (outp->encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
-			struct nouveau_encoder *nv_encoder = nouveau_encoder(outp->encoder);
+			struct analuveau_encoder *nv_encoder = analuveau_encoder(outp->encoder);
 
 			if (outp->enabled) {
-				nv50_audio_enable(outp->encoder, nouveau_crtc(nv_encoder->crtc),
+				nv50_audio_enable(outp->encoder, analuveau_crtc(nv_encoder->crtc),
 						  nv_encoder->conn, NULL, NULL);
 				outp->enabled = outp->disabled = false;
 			} else {
@@ -2169,7 +2169,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_atom *atom = nv50_atom(state);
 	struct nv50_core *core = disp->core;
@@ -2198,7 +2198,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			  asyh->clr.mask, asyh->set.mask);
 
 		if (old_crtc_state->active && !new_crtc_state->active) {
-			pm_runtime_put_noidle(dev->dev);
+			pm_runtime_put_analidle(dev->dev);
 			drm_crtc_vblank_off(crtc);
 		}
 
@@ -2251,8 +2251,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	if (flushed)
-		nv50_crc_atomic_release_notifier_contexts(state);
-	nv50_crc_atomic_init_notifier_contexts(state);
+		nv50_crc_atomic_release_analtifier_contexts(state);
+	nv50_crc_atomic_init_analtifier_contexts(state);
 
 	/* Update output path(s). */
 	list_for_each_entry(outp, &atom->outp, head) {
@@ -2288,7 +2288,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		if (new_crtc_state->active) {
 			if (!old_crtc_state->active) {
 				drm_crtc_vblank_on(crtc);
-				pm_runtime_get_noresume(dev->dev);
+				pm_runtime_get_analresume(dev->dev);
 			}
 			if (new_crtc_state->event)
 				drm_crtc_vblank_get(crtc);
@@ -2297,11 +2297,11 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	/* Update window->head assignment.
 	 *
-	 * This has to happen in an update that's not interlocked with
+	 * This has to happen in an update that's analt interlocked with
 	 * any window channels to avoid hitting HW error checks.
 	 *
 	 *TODO: Proper handling of window ownership (Turing apparently
-	 *      supports non-fixed mappings).
+	 *      supports analn-fixed mappings).
 	 */
 	if (core->assign_windows) {
 		core->func->wndw.owner(core);
@@ -2399,7 +2399,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	nv50_crc_atomic_start_reporting(state);
 	if (!flushed)
-		nv50_crc_atomic_release_notifier_contexts(state);
+		nv50_crc_atomic_release_analtifier_contexts(state);
 
 	drm_atomic_helper_commit_hw_done(state);
 	drm_atomic_helper_cleanup_planes(dev, state);
@@ -2421,7 +2421,7 @@ nv50_disp_atomic_commit_work(struct work_struct *work)
 
 static int
 nv50_disp_atomic_commit(struct drm_device *dev,
-			struct drm_atomic_state *state, bool nonblock)
+			struct drm_atomic_state *state, bool analnblock)
 {
 	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
@@ -2433,7 +2433,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 		return ret;
 	}
 
-	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	ret = drm_atomic_helper_setup_commit(state, analnblock);
 	if (ret)
 		goto done;
 
@@ -2443,7 +2443,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 	if (ret)
 		goto done;
 
-	if (!nonblock) {
+	if (!analnblock) {
 		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
 		if (ret)
 			goto err_cleanup;
@@ -2464,12 +2464,12 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 	drm_atomic_state_get(state);
 
 	/*
-	 * Grab another RPM ref for the commit tail, which will release the
+	 * Grab aanalther RPM ref for the commit tail, which will release the
 	 * ref when it's finished
 	 */
-	pm_runtime_get_noresume(dev->dev);
+	pm_runtime_get_analresume(dev->dev);
 
-	if (nonblock)
+	if (analnblock)
 		queue_work(system_unbound_wq, &state->commit_work);
 	else
 		nv50_disp_atomic_commit_tail(state);
@@ -2494,7 +2494,7 @@ nv50_disp_outp_atomic_add(struct nv50_atom *atom, struct drm_encoder *encoder)
 
 	outp = kzalloc(sizeof(*outp), GFP_KERNEL);
 	if (!outp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	list_add(&outp->head, &atom->outp);
 	outp->encoder = encoder;
@@ -2521,7 +2521,7 @@ nv50_disp_outp_atomic_check_clr(struct nv50_atom *atom,
 			return PTR_ERR(outp);
 
 		if (outp->encoder->encoder_type == DRM_MODE_ENCODER_DPMST ||
-		    nouveau_encoder(outp->encoder)->dcb->type == DCB_OUTPUT_DP)
+		    analuveau_encoder(outp->encoder)->dcb->type == DCB_OUTPUT_DP)
 			atom->flush_disable = true;
 		outp->clr.ctrl = true;
 		atom->lock_core = true;
@@ -2650,7 +2650,7 @@ nv50_disp_atomic_state_alloc(struct drm_device *dev)
 
 static const struct drm_mode_config_funcs
 nv50_disp_func = {
-	.fb_create = nouveau_user_framebuffer_create,
+	.fb_create = analuveau_user_framebuffer_create,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = nv50_disp_atomic_check,
 	.atomic_commit = nv50_disp_atomic_commit,
@@ -2671,12 +2671,12 @@ nv50_disp_helper_func = {
 static void
 nv50_display_fini(struct drm_device *dev, bool runtime, bool suspend)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct drm_encoder *encoder;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST)
-			nv50_mstm_fini(nouveau_encoder(encoder));
+			nv50_mstm_fini(analuveau_encoder(encoder));
 	}
 
 	if (!runtime)
@@ -2685,7 +2685,7 @@ nv50_display_fini(struct drm_device *dev, bool runtime, bool suspend)
 
 static inline void
 nv50_display_read_hw_or_state(struct drm_device *dev, struct nv50_disp *disp,
-			      struct nouveau_encoder *outp)
+			      struct analuveau_encoder *outp)
 {
 	struct drm_crtc *crtc;
 	struct drm_connector_list_iter conn_iter;
@@ -2711,7 +2711,7 @@ nv50_display_read_hw_or_state(struct drm_device *dev, struct nv50_disp *disp,
 		ret = nvif_outp_inherit_rgb_crt(&outp->outp, &proto);
 		break;
 	default:
-		drm_dbg_kms(dev, "Readback for %s not implemented yet, skipping\n",
+		drm_dbg_kms(dev, "Readback for %s analt implemented yet, skipping\n",
 			    outp->base.base.name);
 		drm_WARN_ON(dev, true);
 		return;
@@ -2735,8 +2735,8 @@ nv50_display_read_hw_or_state(struct drm_device *dev, struct nv50_disp *disp,
 
 	/* Figure out which connector is being used by this encoder */
 	drm_connector_list_iter_begin(dev, &conn_iter);
-	nouveau_for_each_non_mst_connector_iter(conn, &conn_iter) {
-		if (nouveau_connector(conn)->index == outp->dcb->connector) {
+	analuveau_for_each_analn_mst_connector_iter(conn, &conn_iter) {
+		if (analuveau_connector(conn)->index == outp->dcb->connector) {
 			found_conn = true;
 			break;
 		}
@@ -2749,7 +2749,7 @@ nv50_display_read_hw_or_state(struct drm_device *dev, struct nv50_disp *disp,
 	armh->state.connector_mask = drm_connector_mask(conn);
 	armh->state.active = true;
 	armh->state.enable = true;
-	pm_runtime_get_noresume(dev->dev);
+	pm_runtime_get_analresume(dev->dev);
 
 	outp->crtc = crtc;
 	outp->ctrl = NVVAL(NV507D, SOR_SET_CONTROL, PROTOCOL, proto) | BIT(crtc->index);
@@ -2761,7 +2761,7 @@ nv50_display_read_hw_or_state(struct drm_device *dev, struct nv50_disp *disp,
 
 /* Read back the currently programmed display state */
 static void
-nv50_display_read_hw_state(struct nouveau_drm *drm)
+nv50_display_read_hw_state(struct analuveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 	struct drm_encoder *encoder;
@@ -2775,7 +2775,7 @@ nv50_display_read_hw_state(struct nouveau_drm *drm)
 		if (encoder->encoder_type == DRM_MODE_ENCODER_DPMST)
 			continue;
 
-		nv50_display_read_hw_or_state(dev, disp, nouveau_encoder(encoder));
+		nv50_display_read_hw_or_state(dev, disp, analuveau_encoder(encoder));
 	}
 
 	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
@@ -2792,14 +2792,14 @@ nv50_display_init(struct drm_device *dev, bool resume, bool runtime)
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
-			struct nouveau_encoder *nv_encoder =
-				nouveau_encoder(encoder);
+			struct analuveau_encoder *nv_encoder =
+				analuveau_encoder(encoder);
 			nv50_mstm_init(nv_encoder, runtime);
 		}
 	}
 
 	if (!resume)
-		nv50_display_read_hw_state(nouveau_drm(dev));
+		nv50_display_read_hw_state(analuveau_drm(dev));
 
 	return 0;
 }
@@ -2809,25 +2809,25 @@ nv50_display_destroy(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
 
-	nv50_audio_component_fini(nouveau_drm(dev));
+	nv50_audio_component_fini(analuveau_drm(dev));
 
 	nvif_object_unmap(&disp->caps);
 	nvif_object_dtor(&disp->caps);
 	nv50_core_del(&disp->core);
 
-	nouveau_bo_unmap(disp->sync);
+	analuveau_bo_unmap(disp->sync);
 	if (disp->sync)
-		nouveau_bo_unpin(disp->sync);
-	nouveau_bo_ref(NULL, &disp->sync);
+		analuveau_bo_unpin(disp->sync);
+	analuveau_bo_ref(NULL, &disp->sync);
 
-	nouveau_display(dev)->priv = NULL;
+	analuveau_display(dev)->priv = NULL;
 	kfree(disp);
 }
 
 int
 nv50_display_create(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct drm_connector *connector, *tmp;
 	struct nv50_disp *disp;
 	int ret, i;
@@ -2835,33 +2835,33 @@ nv50_display_create(struct drm_device *dev)
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&disp->mutex);
 
-	nouveau_display(dev)->priv = disp;
-	nouveau_display(dev)->dtor = nv50_display_destroy;
-	nouveau_display(dev)->init = nv50_display_init;
-	nouveau_display(dev)->fini = nv50_display_fini;
-	disp->disp = &nouveau_display(dev)->disp;
+	analuveau_display(dev)->priv = disp;
+	analuveau_display(dev)->dtor = nv50_display_destroy;
+	analuveau_display(dev)->init = nv50_display_init;
+	analuveau_display(dev)->fini = nv50_display_fini;
+	disp->disp = &analuveau_display(dev)->disp;
 	dev->mode_config.funcs = &nv50_disp_func;
 	dev->mode_config.helper_private = &nv50_disp_helper_func;
 	dev->mode_config.quirk_addfb_prefer_xbgr_30bpp = true;
-	dev->mode_config.normalize_zpos = true;
+	dev->mode_config.analrmalize_zpos = true;
 
-	/* small shared memory area we use for notifiers and semaphores */
-	ret = nouveau_bo_new(&drm->client, 4096, 0x1000,
-			     NOUVEAU_GEM_DOMAIN_VRAM,
+	/* small shared memory area we use for analtifiers and semaphores */
+	ret = analuveau_bo_new(&drm->client, 4096, 0x1000,
+			     ANALUVEAU_GEM_DOMAIN_VRAM,
 			     0, 0x0000, NULL, NULL, &disp->sync);
 	if (!ret) {
-		ret = nouveau_bo_pin(disp->sync, NOUVEAU_GEM_DOMAIN_VRAM, true);
+		ret = analuveau_bo_pin(disp->sync, ANALUVEAU_GEM_DOMAIN_VRAM, true);
 		if (!ret) {
-			ret = nouveau_bo_map(disp->sync);
+			ret = analuveau_bo_map(disp->sync);
 			if (ret)
-				nouveau_bo_unpin(disp->sync);
+				analuveau_bo_unpin(disp->sync);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &disp->sync);
+			analuveau_bo_ref(NULL, &disp->sync);
 	}
 
 	if (ret)
@@ -2881,19 +2881,19 @@ nv50_display_create(struct drm_device *dev)
 
 	/* Assign the correct format modifiers */
 	if (disp->disp->object.oclass >= TU102_DISP)
-		nouveau_display(dev)->format_modifiers = wndwc57e_modifiers;
+		analuveau_display(dev)->format_modifiers = wndwc57e_modifiers;
 	else
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
-		nouveau_display(dev)->format_modifiers = disp90xx_modifiers;
+		analuveau_display(dev)->format_modifiers = disp90xx_modifiers;
 	else
-		nouveau_display(dev)->format_modifiers = disp50xx_modifiers;
+		analuveau_display(dev)->format_modifiers = disp50xx_modifiers;
 
 	/* FIXME: 256x256 cursors are supported on Kepler, however unlike Maxwell and later
-	 * generations Kepler requires that we use small pages (4K) for cursor scanout surfaces. The
-	 * proper fix for this is to teach nouveau to migrate fbs being used for the cursor plane to
+	 * generations Kepler requires that we use small pages (4K) for cursor scaanalut surfaces. The
+	 * proper fix for this is to teach analuveau to migrate fbs being used for the cursor plane to
 	 * small page allocations in prepare_fb(). When this is implemented, we should also force
 	 * large pages (128K) for ovly fbs in order to fix Kepler ovlys.
-	 * But until then, just limit cursors to 128x128 - which is small enough to avoid ever using
+	 * But until then, just limit cursors to 128x128 - which is small eanalugh to avoid ever using
 	 * large pages.
 	 */
 	if (disp->disp->object.oclass >= GM107_DISP) {
@@ -2909,7 +2909,7 @@ nv50_display_create(struct drm_device *dev)
 
 	/* create encoder/connector objects based on VBIOS DCB table */
 	for_each_set_bit(i, &disp->disp->outp_mask, sizeof(disp->disp->outp_mask) * 8) {
-		struct nouveau_encoder *outp;
+		struct analuveau_encoder *outp;
 
 		outp = kzalloc(sizeof(*outp), GFP_KERNEL);
 		if (!outp)
@@ -2921,7 +2921,7 @@ nv50_display_create(struct drm_device *dev)
 			continue;
 		}
 
-		connector = nouveau_connector_create(dev, outp->outp.info.conn);
+		connector = analuveau_connector_create(dev, outp->outp.info.conn);
 		if (IS_ERR(connector)) {
 			nvif_outp_dtor(&outp->outp);
 			kfree(outp);
@@ -2930,7 +2930,7 @@ nv50_display_create(struct drm_device *dev)
 
 		outp->base.base.possible_crtcs = outp->outp.info.heads;
 		outp->base.base.possible_clones = 0;
-		outp->conn = nouveau_connector(connector);
+		outp->conn = analuveau_connector(connector);
 
 		outp->dcb = kzalloc(sizeof(*outp->dcb), GFP_KERNEL);
 		if (!outp->dcb)
@@ -2985,7 +2985,7 @@ nv50_display_create(struct drm_device *dev)
 		if (connector->possible_encoders)
 			continue;
 
-		NV_WARN(drm, "%s has no encoders, removing\n",
+		NV_WARN(drm, "%s has anal encoders, removing\n",
 			connector->name);
 		connector->funcs->destroy(connector);
 	}
@@ -3012,7 +3012,7 @@ nv50_display_create(struct drm_device *dev)
 			 * FIXME: This is a hack to workaround the following
 			 * issues:
 			 *
-			 * https://gitlab.gnome.org/GNOME/mutter/issues/759
+			 * https://gitlab.ganalme.org/GANALME/mutter/issues/759
 			 * https://gitlab.freedesktop.org/xorg/xserver/merge_requests/277
 			 *
 			 * Once these issues are closed, this should be

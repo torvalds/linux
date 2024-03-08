@@ -17,7 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/fcdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/timer.h>
 #include <linux/net.h>
 #include <linux/proc_fs.h>
@@ -96,11 +96,11 @@ static void fc_setup(struct net_device *dev)
  * Fill in the fields of the device structure with fibre channel-generic values.
  *
  * Constructs a new net device, complete with a private data area of
- * size @sizeof_priv.  A 32-byte (not bit) alignment is enforced for
+ * size @sizeof_priv.  A 32-byte (analt bit) alignment is enforced for
  * this private data area.
  */
 struct net_device *alloc_fcdev(int sizeof_priv)
 {
-	return alloc_netdev(sizeof_priv, "fc%d", NET_NAME_UNKNOWN, fc_setup);
+	return alloc_netdev(sizeof_priv, "fc%d", NET_NAME_UNKANALWN, fc_setup);
 }
 EXPORT_SYMBOL(alloc_fcdev);

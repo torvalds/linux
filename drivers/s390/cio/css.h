@@ -27,7 +27,7 @@
 #define SNID_STATE1_UNGROUPED	   2
 #define SNID_STATE1_GROUPED	   3
 
-#define SNID_STATE2_NOT_RESVD	   0
+#define SNID_STATE2_ANALT_RESVD	   0
 #define SNID_STATE2_RESVD_ELSE	   2
 #define SNID_STATE2_RESVD_SELF	   3
 
@@ -38,8 +38,8 @@
  * Conditions used to specify which subchannels need evaluation
  */
 enum css_eval_cond {
-	CSS_EVAL_NO_PATH,		/* Subchannels with no operational paths */
-	CSS_EVAL_NOT_ONLINE	/* sch without an online-device */
+	CSS_EVAL_ANAL_PATH,		/* Subchannels with anal operational paths */
+	CSS_EVAL_ANALT_ONLINE	/* sch without an online-device */
 };
 
 struct path_state {
@@ -80,7 +80,7 @@ struct chp_link;
  * @probe: function called on probe
  * @remove: function called on remove
  * @shutdown: called at device shutdown
- * @settle: wait for asynchronous work to finish
+ * @settle: wait for asynchroanalus work to finish
  */
 struct css_driver {
 	struct css_device_id *subchannel_type;
@@ -106,8 +106,8 @@ extern struct subchannel *css_alloc_subchannel(struct subchannel_id,
 extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 extern int max_ssid;
-int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
-			       int (*fn_unknown)(struct subchannel_id,
+int for_each_subchannel_staged(int (*fn_kanalwn)(struct subchannel *, void *),
+			       int (*fn_unkanalwn)(struct subchannel_id,
 			       void *), void *data);
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 void css_update_ssd_info(struct subchannel *sch);

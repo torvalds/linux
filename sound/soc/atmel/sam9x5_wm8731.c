@@ -7,7 +7,7 @@
  *		  Nicolas Ferre <nicolas.ferre@atmel.com>
  *
  *  Copyright (C) 2013 Paratronic,
- *		  Richard Genoud <richard.genoud@gmail.com>
+ *		  Richard Geanalud <richard.geanalud@gmail.com>
  *
  * Based on sam9g20_wm8731.c by:
  * Sedji Gaouaou <sedji.gaouaou@atmel.com>
@@ -72,8 +72,8 @@ static const struct snd_soc_dapm_widget sam9x5_dapm_widgets[] = {
 
 static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *codec_np, *cpu_np;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *codec_np, *cpu_np;
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dai;
 	struct sam9x5_drvdata *priv;
@@ -81,7 +81,7 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "No device node supplied\n");
+		dev_err(&pdev->dev, "Anal device analde supplied\n");
 		return -EINVAL;
 	}
 
@@ -90,7 +90,7 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 	dai = devm_kzalloc(&pdev->dev, sizeof(*dai), GFP_KERNEL);
 	comp = devm_kzalloc(&pdev->dev, 3 * sizeof(*comp), GFP_KERNEL);
 	if (!dai || !card || !priv || !comp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -119,33 +119,33 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 
 	ret = snd_soc_of_parse_card_name(card, "atmel,model");
 	if (ret) {
-		dev_err(&pdev->dev, "atmel,model node missing\n");
+		dev_err(&pdev->dev, "atmel,model analde missing\n");
 		goto out;
 	}
 
 	ret = snd_soc_of_parse_audio_routing(card, "atmel,audio-routing");
 	if (ret) {
-		dev_err(&pdev->dev, "atmel,audio-routing node missing\n");
+		dev_err(&pdev->dev, "atmel,audio-routing analde missing\n");
 		goto out;
 	}
 
 	codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
 	if (!codec_np) {
-		dev_err(&pdev->dev, "atmel,audio-codec node missing\n");
+		dev_err(&pdev->dev, "atmel,audio-codec analde missing\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	dai->codecs->of_node = codec_np;
+	dai->codecs->of_analde = codec_np;
 
 	cpu_np = of_parse_phandle(np, "atmel,ssc-controller", 0);
 	if (!cpu_np) {
-		dev_err(&pdev->dev, "atmel,ssc-controller node missing\n");
+		dev_err(&pdev->dev, "atmel,ssc-controller analde missing\n");
 		ret = -EINVAL;
 		goto out_put_codec_np;
 	}
-	dai->cpus->of_node = cpu_np;
-	dai->platforms->of_node = cpu_np;
+	dai->cpus->of_analde = cpu_np;
+	dai->platforms->of_analde = cpu_np;
 
 	priv->ssc_id = of_alias_get_id(cpu_np, "ssc");
 
@@ -169,9 +169,9 @@ static int sam9x5_wm8731_driver_probe(struct platform_device *pdev)
 out_put_audio:
 	atmel_ssc_put_audio(priv->ssc_id);
 out_put_cpu_np:
-	of_node_put(cpu_np);
+	of_analde_put(cpu_np);
 out_put_codec_np:
-	of_node_put(codec_np);
+	of_analde_put(codec_np);
 out:
 	return ret;
 }
@@ -202,7 +202,7 @@ module_platform_driver(sam9x5_wm8731_driver);
 
 /* Module information */
 MODULE_AUTHOR("Nicolas Ferre <nicolas.ferre@atmel.com>");
-MODULE_AUTHOR("Richard Genoud <richard.genoud@gmail.com>");
+MODULE_AUTHOR("Richard Geanalud <richard.geanalud@gmail.com>");
 MODULE_DESCRIPTION("ALSA SoC machine driver for AT91SAM9x5 - WM8731");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

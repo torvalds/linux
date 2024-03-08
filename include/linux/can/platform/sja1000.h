@@ -12,7 +12,7 @@
 /* output control register */
 #define OCR_MODE_BIPHASE  0x00
 #define OCR_MODE_TEST     0x01
-#define OCR_MODE_NORMAL   0x02
+#define OCR_MODE_ANALRMAL   0x02
 #define OCR_MODE_CLOCK    0x03
 #define OCR_MODE_MASK     0x03
 #define OCR_TX0_INVERT    0x04

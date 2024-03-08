@@ -2,7 +2,7 @@
 #include "symbol.h"
 #include "symsrc.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -27,11 +27,11 @@ static bool check_need_swap(int file_endian)
 	return host_endian != file_endian;
 }
 
-#define NOTE_ALIGN(sz) (((sz) + 3) & ~3)
+#define ANALTE_ALIGN(sz) (((sz) + 3) & ~3)
 
 #define NT_GNU_BUILD_ID	3
 
-static int read_build_id(void *note_data, size_t note_len, struct build_id *bid,
+static int read_build_id(void *analte_data, size_t analte_len, struct build_id *bid,
 			 bool need_swap)
 {
 	size_t size = sizeof(bid->data);
@@ -42,8 +42,8 @@ static int read_build_id(void *note_data, size_t note_len, struct build_id *bid,
 	} *nhdr;
 	void *ptr;
 
-	ptr = note_data;
-	while (ptr < (note_data + note_len)) {
+	ptr = analte_data;
+	while (ptr < (analte_data + analte_len)) {
 		const char *name;
 		size_t namesz, descsz;
 
@@ -54,8 +54,8 @@ static int read_build_id(void *note_data, size_t note_len, struct build_id *bid,
 			nhdr->n_type = bswap_32(nhdr->n_type);
 		}
 
-		namesz = NOTE_ALIGN(nhdr->n_namesz);
-		descsz = NOTE_ALIGN(nhdr->n_descsz);
+		namesz = ANALTE_ALIGN(nhdr->n_namesz);
+		descsz = ANALTE_ALIGN(nhdr->n_descsz);
 
 		ptr += sizeof(*nhdr);
 		name = ptr;
@@ -84,7 +84,7 @@ int filename__read_debuglink(const char *filename __maybe_unused,
 }
 
 /*
- * Just try PT_NOTE header otherwise fails
+ * Just try PT_ANALTE header otherwise fails
  */
 int filename__read_build_id(const char *filename, struct build_id *bid)
 {
@@ -144,7 +144,7 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 				phdr->p_filesz = bswap_32(phdr->p_filesz);
 			}
 
-			if (phdr->p_type != PT_NOTE)
+			if (phdr->p_type != PT_ANALTE)
 				continue;
 
 			buf_size = phdr->p_filesz;
@@ -196,7 +196,7 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 				phdr->p_filesz = bswap_64(phdr->p_filesz);
 			}
 
-			if (phdr->p_type != PT_NOTE)
+			if (phdr->p_type != PT_ANALTE)
 				continue;
 
 			buf_size = phdr->p_filesz;
@@ -260,7 +260,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 {
 	int fd = open(name, O_RDONLY);
 	if (fd < 0)
-		goto out_errno;
+		goto out_erranal;
 
 	ss->name = strdup(name);
 	if (!ss->name)
@@ -272,8 +272,8 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	return 0;
 out_close:
 	close(fd);
-out_errno:
-	dso->load_errno = errno;
+out_erranal:
+	dso->load_erranal = erranal;
 	return -1;
 }
 
@@ -324,13 +324,13 @@ enum dso_type dso__type_fd(int fd)
 
 	ret = fd__is_64_bit(fd);
 	if (ret < 0)
-		return DSO__TYPE_UNKNOWN;
+		return DSO__TYPE_UNKANALWN;
 
 	if (ret)
 		return DSO__TYPE_64BIT;
 
 	if (readn(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr))
-		return DSO__TYPE_UNKNOWN;
+		return DSO__TYPE_UNKANALWN;
 
 	if (ehdr.e_machine == EM_X86_64)
 		return DSO__TYPE_X32BIT;

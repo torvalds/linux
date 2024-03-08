@@ -20,16 +20,16 @@ static LIST_HEAD(pwrseq_list);
 
 int mmc_pwrseq_alloc(struct mmc_host *host)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct mmc_pwrseq *p;
 
-	np = of_parse_phandle(host->parent->of_node, "mmc-pwrseq", 0);
+	np = of_parse_phandle(host->parent->of_analde, "mmc-pwrseq", 0);
 	if (!np)
 		return 0;
 
 	mutex_lock(&pwrseq_list_mutex);
-	list_for_each_entry(p, &pwrseq_list, pwrseq_node) {
-		if (device_match_of_node(p->dev, np)) {
+	list_for_each_entry(p, &pwrseq_list, pwrseq_analde) {
+		if (device_match_of_analde(p->dev, np)) {
 			if (!try_module_get(p->owner))
 				dev_err(host->parent,
 					"increasing module refcount failed\n");
@@ -40,7 +40,7 @@ int mmc_pwrseq_alloc(struct mmc_host *host)
 		}
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	mutex_unlock(&pwrseq_list_mutex);
 
 	if (!host->pwrseq)
@@ -99,7 +99,7 @@ int mmc_pwrseq_register(struct mmc_pwrseq *pwrseq)
 		return -EINVAL;
 
 	mutex_lock(&pwrseq_list_mutex);
-	list_add(&pwrseq->pwrseq_node, &pwrseq_list);
+	list_add(&pwrseq->pwrseq_analde, &pwrseq_list);
 	mutex_unlock(&pwrseq_list_mutex);
 
 	return 0;
@@ -110,7 +110,7 @@ void mmc_pwrseq_unregister(struct mmc_pwrseq *pwrseq)
 {
 	if (pwrseq) {
 		mutex_lock(&pwrseq_list_mutex);
-		list_del(&pwrseq->pwrseq_node);
+		list_del(&pwrseq->pwrseq_analde);
 		mutex_unlock(&pwrseq_list_mutex);
 	}
 }

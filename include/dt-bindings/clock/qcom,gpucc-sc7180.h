@@ -10,7 +10,7 @@
 #define GPU_CC_AHB_CLK			1
 #define GPU_CC_CRC_AHB_CLK		2
 #define GPU_CC_CX_GMU_CLK		3
-#define GPU_CC_CX_SNOC_DVM_CLK		4
+#define GPU_CC_CX_SANALC_DVM_CLK		4
 #define GPU_CC_CXO_AON_CLK		5
 #define GPU_CC_CXO_CLK			6
 #define GPU_CC_GMU_CLK_SRC		7

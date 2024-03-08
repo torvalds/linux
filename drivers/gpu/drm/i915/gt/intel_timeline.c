@@ -14,7 +14,7 @@
 #include "intel_ring.h"
 #include "intel_timeline.h"
 
-#define TIMELINE_SEQNO_BYTES 8
+#define TIMELINE_SEQANAL_BYTES 8
 
 static struct i915_vma *hwsp_alloc(struct intel_gt *gt)
 {
@@ -66,8 +66,8 @@ intel_timeline_pin_map(struct intel_timeline *timeline)
 		return PTR_ERR(vaddr);
 
 	timeline->hwsp_map = vaddr;
-	timeline->hwsp_seqno = memset(vaddr + ofs, 0, TIMELINE_SEQNO_BYTES);
-	drm_clflush_virt_range(vaddr + ofs, TIMELINE_SEQNO_BYTES);
+	timeline->hwsp_seqanal = memset(vaddr + ofs, 0, TIMELINE_SEQANAL_BYTES);
+	drm_clflush_virt_range(vaddr + ofs, TIMELINE_SEQANAL_BYTES);
 
 	return 0;
 }
@@ -94,7 +94,7 @@ static int intel_timeline_init(struct intel_timeline *timeline,
 	}
 
 	timeline->hwsp_map = NULL;
-	timeline->hwsp_seqno = (void *)(long)timeline->hwsp_offset;
+	timeline->hwsp_seqanal = (void *)(long)timeline->hwsp_offset;
 
 	GEM_BUG_ON(timeline->hwsp_offset >= hwsp->size);
 
@@ -133,7 +133,7 @@ static void intel_timeline_fini(struct rcu_head *rcu)
 
 	/*
 	 * A small race exists between intel_gt_retire_requests_timeout and
-	 * intel_timeline_exit which could result in the syncmap not getting
+	 * intel_timeline_exit which could result in the syncmap analt getting
 	 * free'd. Rather than work to hard to seal this race, simply cleanup
 	 * the syncmap on fini.
 	 */
@@ -152,7 +152,7 @@ __intel_timeline_create(struct intel_gt *gt,
 
 	timeline = kzalloc(sizeof(*timeline), GFP_KERNEL);
 	if (!timeline)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = intel_timeline_init(timeline, gt, global_hwsp, offset);
 	if (err) {
@@ -220,15 +220,15 @@ int intel_timeline_pin(struct intel_timeline *tl, struct i915_gem_ww_ctx *ww)
 	return 0;
 }
 
-void intel_timeline_reset_seqno(const struct intel_timeline *tl)
+void intel_timeline_reset_seqanal(const struct intel_timeline *tl)
 {
-	u32 *hwsp_seqno = (u32 *)tl->hwsp_seqno;
-	/* Must be pinned to be writable, and no requests in flight. */
+	u32 *hwsp_seqanal = (u32 *)tl->hwsp_seqanal;
+	/* Must be pinned to be writable, and anal requests in flight. */
 	GEM_BUG_ON(!atomic_read(&tl->pin_count));
 
-	memset(hwsp_seqno + 1, 0, TIMELINE_SEQNO_BYTES - sizeof(*hwsp_seqno));
-	WRITE_ONCE(*hwsp_seqno, tl->seqno);
-	drm_clflush_virt_range(hwsp_seqno, TIMELINE_SEQNO_BYTES);
+	memset(hwsp_seqanal + 1, 0, TIMELINE_SEQANAL_BYTES - sizeof(*hwsp_seqanal));
+	WRITE_ONCE(*hwsp_seqanal, tl->seqanal);
+	drm_clflush_virt_range(hwsp_seqanal, TIMELINE_SEQANAL_BYTES);
 }
 
 void intel_timeline_enter(struct intel_timeline *tl)
@@ -246,8 +246,8 @@ void intel_timeline_enter(struct intel_timeline *tl)
 	 *
 	 * The rule is generally tl->mutex, otherwise engine->wakeref.mutex.
 	 *
-	 * However, intel_gt_retire_request() does not know which engine
-	 * it is retiring along and so cannot partake in the engine-pm
+	 * However, intel_gt_retire_request() does analt kanalw which engine
+	 * it is retiring along and so cananalt partake in the engine-pm
 	 * barrier, and there we use the tl->active_count as a means to
 	 * pin the timeline in the active_list while the locks are dropped.
 	 * Ergo, as that is outside of the engine-pm barrier, we need to
@@ -262,11 +262,11 @@ void intel_timeline_enter(struct intel_timeline *tl)
 	if (!atomic_fetch_inc(&tl->active_count)) {
 		/*
 		 * The HWSP is volatile, and may have been lost while inactive,
-		 * e.g. across suspend/resume. Be paranoid, and ensure that
-		 * the HWSP value matches our seqno so we don't proclaim
+		 * e.g. across suspend/resume. Be paraanalid, and ensure that
+		 * the HWSP value matches our seqanal so we don't proclaim
 		 * the next request as already complete.
 		 */
-		intel_timeline_reset_seqno(tl);
+		intel_timeline_reset_seqanal(tl);
 		list_add_tail(&tl->link, &timelines->active_list);
 	}
 	spin_unlock(&timelines->lock);
@@ -299,39 +299,39 @@ void intel_timeline_exit(struct intel_timeline *tl)
 static u32 timeline_advance(struct intel_timeline *tl)
 {
 	GEM_BUG_ON(!atomic_read(&tl->pin_count));
-	GEM_BUG_ON(tl->seqno & tl->has_initial_breadcrumb);
+	GEM_BUG_ON(tl->seqanal & tl->has_initial_breadcrumb);
 
-	return tl->seqno += 1 + tl->has_initial_breadcrumb;
+	return tl->seqanal += 1 + tl->has_initial_breadcrumb;
 }
 
-static noinline int
-__intel_timeline_get_seqno(struct intel_timeline *tl,
-			   u32 *seqno)
+static analinline int
+__intel_timeline_get_seqanal(struct intel_timeline *tl,
+			   u32 *seqanal)
 {
-	u32 next_ofs = offset_in_page(tl->hwsp_offset + TIMELINE_SEQNO_BYTES);
+	u32 next_ofs = offset_in_page(tl->hwsp_offset + TIMELINE_SEQANAL_BYTES);
 
 	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
-	if (TIMELINE_SEQNO_BYTES <= BIT(5) && (next_ofs & BIT(5)))
+	if (TIMELINE_SEQANAL_BYTES <= BIT(5) && (next_ofs & BIT(5)))
 		next_ofs = offset_in_page(next_ofs + BIT(5));
 
 	tl->hwsp_offset = i915_ggtt_offset(tl->hwsp_ggtt) + next_ofs;
-	tl->hwsp_seqno = tl->hwsp_map + next_ofs;
-	intel_timeline_reset_seqno(tl);
+	tl->hwsp_seqanal = tl->hwsp_map + next_ofs;
+	intel_timeline_reset_seqanal(tl);
 
-	*seqno = timeline_advance(tl);
-	GEM_BUG_ON(i915_seqno_passed(*tl->hwsp_seqno, *seqno));
+	*seqanal = timeline_advance(tl);
+	GEM_BUG_ON(i915_seqanal_passed(*tl->hwsp_seqanal, *seqanal));
 	return 0;
 }
 
-int intel_timeline_get_seqno(struct intel_timeline *tl,
+int intel_timeline_get_seqanal(struct intel_timeline *tl,
 			     struct i915_request *rq,
-			     u32 *seqno)
+			     u32 *seqanal)
 {
-	*seqno = timeline_advance(tl);
+	*seqanal = timeline_advance(tl);
 
 	/* Replace the HWSP on wraparound for HW semaphores */
-	if (unlikely(!*seqno && tl->has_initial_breadcrumb))
-		return __intel_timeline_get_seqno(tl, seqno);
+	if (unlikely(!*seqanal && tl->has_initial_breadcrumb))
+		return __intel_timeline_get_seqanal(tl, seqanal);
 
 	return 0;
 }
@@ -350,12 +350,12 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 		tl = NULL;
 
 	if (tl) {
-		/* hwsp_offset may wraparound, so use from->hwsp_seqno */
+		/* hwsp_offset may wraparound, so use from->hwsp_seqanal */
 		*hwsp = i915_ggtt_offset(tl->hwsp_ggtt) +
-			offset_in_page(from->hwsp_seqno);
+			offset_in_page(from->hwsp_seqanal);
 	}
 
-	/* ensure we wait on the right request, if not, we completed */
+	/* ensure we wait on the right request, if analt, we completed */
 	if (tl && __i915_request_is_complete(from)) {
 		i915_active_release(&tl->active);
 		tl = NULL;
@@ -452,8 +452,8 @@ void intel_gt_show_timelines(struct intel_gt *gt,
 		drm_printf(m, "Timeline %llx: { ", tl->fence_context);
 		drm_printf(m, "count: %lu, ready: %lu, inflight: %lu",
 			   count, ready, inflight);
-		drm_printf(m, ", seqno: { current: %d, last: %d }",
-			   *tl->hwsp_seqno, tl->seqno);
+		drm_printf(m, ", seqanal: { current: %d, last: %d }",
+			   *tl->hwsp_seqanal, tl->seqanal);
 		fence = i915_active_fence_get(&tl->last_request);
 		if (fence) {
 			drm_printf(m, ", engine: %s",

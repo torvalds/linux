@@ -28,7 +28,7 @@ extern const syscall_fn compat_sys_call_table[];
 static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
 	/*
-	 * Note that we are returning an int here. That means 0xffffffff, ie.
+	 * Analte that we are returning an int here. That means 0xffffffff, ie.
 	 * 32-bit negative 1, will be interpreted as -1 on a 64-bit kernel.
 	 * This is important for seccomp so that compat tasks can set r0 = -1
 	 * to reject the syscall.
@@ -75,7 +75,7 @@ static inline void syscall_set_return_value(struct task_struct *task,
 		regs->gpr[3] = (long) error ?: val;
 	} else {
 		/*
-		 * In the general case it's not obvious that we must deal with
+		 * In the general case it's analt obvious that we must deal with
 		 * CCR here, as the syscall exit path will also do that for us.
 		 * However there are some places, eg. the signal code, which
 		 * check ccr to decide if the value in r3 is actually an error.

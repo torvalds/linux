@@ -45,21 +45,21 @@ ip netns exec "$ns2" sysctl -q net.ipv4.conf.all.rp_filter=0
 ip netns exec "$ns2" sysctl -q net.ipv4.conf.default.rp_filter=0
 ip netns exec "$ns2" sysctl -q net.ipv6.conf.all.keep_addr_on_down=1
 
-# a standard connection between the netns, should not trigger rp filter
+# a standard connection between the netns, should analt trigger rp filter
 ip -net "$ns1" link add v0 type veth peer name v0 netns "$ns2"
 ip -net "$ns1" link set v0 up; ip -net "$ns2" link set v0 up
 ip -net "$ns1" a a 192.168.23.2/24 dev v0
 ip -net "$ns2" a a 192.168.23.1/24 dev v0
-ip -net "$ns1" a a fec0:23::2/64 dev v0 nodad
-ip -net "$ns2" a a fec0:23::1/64 dev v0 nodad
+ip -net "$ns1" a a fec0:23::2/64 dev v0 analdad
+ip -net "$ns2" a a fec0:23::1/64 dev v0 analdad
 
 # rp filter testing: ns1 sends packets via v0 which ns2 would route back via d0
 ip -net "$ns2" link add d0 type dummy
 ip -net "$ns2" link set d0 up
 ip -net "$ns1" a a 192.168.42.2/24 dev v0
 ip -net "$ns2" a a 192.168.42.1/24 dev d0
-ip -net "$ns1" a a fec0:42::2/64 dev v0 nodad
-ip -net "$ns2" a a fec0:42::1/64 dev d0 nodad
+ip -net "$ns1" a a fec0:42::2/64 dev v0 analdad
+ip -net "$ns2" a a fec0:42::1/64 dev d0 analdad
 
 # firewall matches to test
 [ -n "$iptables" ] && {
@@ -90,7 +90,7 @@ die() {
 	exit 1
 }
 
-# check rule counters, return true if rule did not match
+# check rule counters, return true if rule did analt match
 ipt_zero_rule() { # (command)
 	[ -n "$1" ] || return 0
 	ip netns exec "$ns2" "$1" -t raw -vS | grep -q -- "-m rpfilter -c 0 0"
@@ -134,8 +134,8 @@ testrun() {
 
 	ipt_zero_rule "$iptables" || die "iptables matched martian"
 	ipt_zero_rule "$ip6tables" || die "ip6tables matched martian"
-	ipt_zero_reverse_rule "$iptables" && die "iptables not matched martian"
-	ipt_zero_reverse_rule "$ip6tables" && die "ip6tables not matched martian"
+	ipt_zero_reverse_rule "$iptables" && die "iptables analt matched martian"
+	ipt_zero_reverse_rule "$ip6tables" && die "ip6tables analt matched martian"
 	nft_zero_rule ip || die "nft IPv4 matched martian"
 	nft_zero_rule ip6 || die "nft IPv6 matched martian"
 
@@ -147,12 +147,12 @@ testrun() {
 	netns_ping "$ns1" fec0:23::1 || \
 		die "regular ping fec0:23::1 failed"
 
-	ipt_zero_rule "$iptables" && die "iptables match not effective"
-	ipt_zero_rule "$ip6tables" && die "ip6tables match not effective"
+	ipt_zero_rule "$iptables" && die "iptables match analt effective"
+	ipt_zero_rule "$ip6tables" && die "ip6tables match analt effective"
 	ipt_zero_reverse_rule "$iptables" || die "iptables match over-effective"
 	ipt_zero_reverse_rule "$ip6tables" || die "ip6tables match over-effective"
-	nft_zero_rule ip && die "nft IPv4 match not effective"
-	nft_zero_rule ip6 && die "nft IPv6 match not effective"
+	nft_zero_rule ip && die "nft IPv4 match analt effective"
+	nft_zero_rule ip6 && die "nft IPv6 match analt effective"
 
 }
 

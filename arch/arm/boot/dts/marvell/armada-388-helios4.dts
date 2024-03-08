@@ -139,12 +139,12 @@
 	};
 
 	usb2_phy: usb2-phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vbus-regulator = <&reg_5p0v_usb>;
 	};
 
 	usb3_phy: usb3-phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 	};
 
 	soc {
@@ -251,7 +251,7 @@
 			sdhci@d8000 {
 				bus-width = <4>;
 				cd-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
-				no-1-8-v;
+				anal-1-8-v;
 				pinctrl-0 = <&helios_sdhci_pins
 					     &helios_sdhci_cd_pins>;
 				pinctrl-names = "default";

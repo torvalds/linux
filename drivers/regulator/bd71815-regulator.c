@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright 2014 Embest Technology Co. Ltd. Inc.
+// Copyright 2014 Embest Techanallogy Co. Ltd. Inc.
 // bd71815-regulator.c ROHM BD71815 regulator driver
 //
 // Author: Tony Luo <luofc@embedinfo.com>
@@ -169,7 +169,7 @@ static const struct rohm_dvs_config buck5_dvs = {
 	.lpsr_on_mask		= BD71815_BUCK_LPSR_ON,
 };
 
-static int set_hw_dvs_levels(struct device_node *np,
+static int set_hw_dvs_levels(struct device_analde *np,
 			     const struct regulator_desc *desc,
 			     struct regulator_config *cfg)
 {
@@ -186,12 +186,12 @@ static int set_hw_dvs_levels(struct device_node *np,
  * are given - then we assume HW state based control should be used.
  *
  * If volatge value is updated to currently selected register - then output
- * voltage is immediately changed no matter what is set as ramp rate. Thus we
+ * voltage is immediately changed anal matter what is set as ramp rate. Thus we
  * default changing voltage by writing new value to inactive register and
  * then updating the 'register selection' bit. This naturally only works when
- * HW state machine is not used to select the voltage.
+ * HW state machine is analt used to select the voltage.
  */
-static int buck12_set_hw_dvs_levels(struct device_node *np,
+static int buck12_set_hw_dvs_levels(struct device_analde *np,
 				    const struct regulator_desc *desc,
 				    struct regulator_config *cfg)
 {
@@ -236,8 +236,8 @@ static int buck12_set_hw_dvs_levels(struct device_node *np,
 			return ret;
 		/*
 		 * DVS levels were given => use HW-state machine for voltage
-		 * controls. NOTE: AFAIK, This means that if voltage is changed
-		 * by SW the ramp-rate is not respected. Should we disable
+		 * controls. ANALTE: AFAIK, This means that if voltage is changed
+		 * by SW the ramp-rate is analt respected. Should we disable
 		 * SW voltage control when the HW state machine is used?
 		 */
 		ret = regmap_update_bits(cfg->regmap, desc->vsel_reg,
@@ -338,13 +338,13 @@ static int bd7181x_buck12_set_voltage_sel(struct regulator_dev *rdev,
 	/*
 	 * If bucks 1 & 2 are controlled by state machine - then the RUN state
 	 * voltage is set to BD71815_REG_BUCK1_VOLT_H. Changing SUSPEND/LPSR
-	 * voltages at runtime is not supported by this driver.
+	 * voltages at runtime is analt supported by this driver.
 	 */
 	if (((val & BD71815_BUCK_STBY_DVS))) {
 		return regmap_update_bits(rdev->regmap, regh, BD71815_VOLT_MASK,
 					  sel);
 	}
-	/* Update new voltage to the register which is not selected now */
+	/* Update new voltage to the register which is analt selected analw */
 	if (val & BD71815_BUCK_DVSSEL)
 		reg = regl;
 	else
@@ -409,7 +409,7 @@ static const struct regulator_ops bd7181x_led_regulator_ops = {
 		.desc = {						\
 			.name = #_name,					\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_analde = of_match_ptr("regulators"),	\
 			.n_voltages = 1,				\
 			.ops = &bd7181x_fixed_regulator_ops,		\
 			.type = REGULATOR_VOLTAGE,			\
@@ -428,7 +428,7 @@ static const struct regulator_ops bd7181x_led_regulator_ops = {
 		.desc = {						\
 			.name = #_name,					\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_analde = of_match_ptr("regulators"),	\
 			.n_voltages = ((max) - (min)) / (step) + 1,	\
 			.ops = &bd7181x_buck_regulator_ops,		\
 			.type = REGULATOR_VOLTAGE,			\
@@ -451,7 +451,7 @@ static const struct regulator_ops bd7181x_led_regulator_ops = {
 		.desc = {						\
 			.name = #_name,					\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_analde = of_match_ptr("regulators"),	\
 			.n_voltages = ((max) - (min)) / (step) + 1,	\
 			.ops = &bd7181x_buck12_regulator_ops,		\
 			.type = REGULATOR_VOLTAGE,			\
@@ -477,7 +477,7 @@ static const struct regulator_ops bd7181x_led_regulator_ops = {
 		.desc = {						\
 			.name = #_name,					\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_analde = of_match_ptr("regulators"),	\
 			.n_current_limits = ARRAY_SIZE(currents),	\
 			.ops = &bd7181x_led_regulator_ops,		\
 			.type = REGULATOR_CURRENT,			\
@@ -497,7 +497,7 @@ static const struct regulator_ops bd7181x_led_regulator_ops = {
 		.desc = {						\
 			.name = #_name,					\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_analde = of_match_ptr("regulators"),	\
 			.n_voltages = ((max) - (min)) / (step) + 1,	\
 			.ops = &bd7181x_ldo_regulator_ops,		\
 			.type = REGULATOR_VOLTAGE,			\
@@ -567,16 +567,16 @@ static int bd7181x_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap) {
-		dev_err(&pdev->dev, "No parent regmap\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal parent regmap\n");
+		return -EANALDEV;
 	}
 
-	ldo4_en = devm_fwnode_gpiod_get(&pdev->dev,
-					dev_fwnode(pdev->dev.parent),
+	ldo4_en = devm_fwanalde_gpiod_get(&pdev->dev,
+					dev_fwanalde(pdev->dev.parent),
 					"rohm,vsel", GPIOD_ASIS, "ldo4-en");
 	if (IS_ERR(ldo4_en)) {
 		ret = PTR_ERR(ldo4_en);
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			return ret;
 		ldo4_en = NULL;
 	}
@@ -618,7 +618,7 @@ MODULE_DEVICE_TABLE(platform, bd7181x_pmic_id);
 static struct platform_driver bd7181x_regulator = {
 	.driver = {
 		.name = "bd7181x-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = bd7181x_probe,
 	.id_table = bd7181x_pmic_id,

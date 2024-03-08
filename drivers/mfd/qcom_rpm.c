@@ -65,7 +65,7 @@ struct qcom_rpm {
 
 #define RPM_MAX_SEL_SIZE	7
 
-#define RPM_NOTIFICATION	BIT(30)
+#define RPM_ANALTIFICATION	BIT(30)
 #define RPM_REJECTED		BIT(31)
 
 static const struct qcom_rpm_resource apq8064_rpm_resource_table[] = {
@@ -503,8 +503,8 @@ static irqreturn_t qcom_rpm_ack_interrupt(int irq, void *dev)
 			RPM_CTRL_REG(rpm, rpm->data->ack_sel_off + i));
 	writel(0, RPM_CTRL_REG(rpm, rpm->data->ack_ctx_off));
 
-	if (ack & RPM_NOTIFICATION) {
-		dev_warn(rpm->dev, "ignoring notification!\n");
+	if (ack & RPM_ANALTIFICATION) {
+		dev_warn(rpm->dev, "iganalring analtification!\n");
 	} else {
 		rpm->ack_status = ack;
 		complete(&rpm->ack);
@@ -530,7 +530,7 @@ static irqreturn_t qcom_rpm_wakeup_interrupt(int irq, void *dev)
 
 static int qcom_rpm_probe(struct platform_device *pdev)
 {
-	struct device_node *syscon_np;
+	struct device_analde *syscon_np;
 	struct qcom_rpm *rpm;
 	u32 fw_version[3];
 	int irq_wakeup;
@@ -540,7 +540,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 
 	rpm = devm_kzalloc(&pdev->dev, sizeof(*rpm), GFP_KERNEL);
 	if (!rpm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpm->dev = &pdev->dev;
 	mutex_init(&rpm->lock);
@@ -554,7 +554,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 			return ret;
 		/*
 		 * Fall through in all other cases, as the clock is
-		 * optional. (Does not exist on all platforms.)
+		 * optional. (Does analt exist on all platforms.)
 		 */
 		rpm->ramclk = NULL;
 	}
@@ -573,7 +573,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 
 	rpm->data = device_get_match_data(&pdev->dev);
 	if (!rpm->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rpm->status_regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(rpm->status_regs))
@@ -581,28 +581,28 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	rpm->ctrl_regs = rpm->status_regs + 0x400;
 	rpm->req_regs = rpm->status_regs + 0x600;
 
-	syscon_np = of_parse_phandle(pdev->dev.of_node, "qcom,ipc", 0);
+	syscon_np = of_parse_phandle(pdev->dev.of_analde, "qcom,ipc", 0);
 	if (!syscon_np) {
-		dev_err(&pdev->dev, "no qcom,ipc node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal qcom,ipc analde\n");
+		return -EANALDEV;
 	}
 
-	rpm->ipc_regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	rpm->ipc_regmap = syscon_analde_to_regmap(syscon_np);
+	of_analde_put(syscon_np);
 	if (IS_ERR(rpm->ipc_regmap))
 		return PTR_ERR(rpm->ipc_regmap);
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "qcom,ipc", 1,
+	ret = of_property_read_u32_index(pdev->dev.of_analde, "qcom,ipc", 1,
 					 &rpm->ipc_offset);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no offset in qcom,ipc\n");
+		dev_err(&pdev->dev, "anal offset in qcom,ipc\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "qcom,ipc", 2,
+	ret = of_property_read_u32_index(pdev->dev.of_analde, "qcom,ipc", 2,
 					 &rpm->ipc_bit);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no bit in qcom,ipc\n");
+		dev_err(&pdev->dev, "anal bit in qcom,ipc\n");
 		return -EINVAL;
 	}
 

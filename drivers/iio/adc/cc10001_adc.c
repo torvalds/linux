@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2015 Imagination Technologies Ltd.
+ * Copyright (c) 2014-2015 Imagination Techanallogies Ltd.
  */
 
 #include <linux/clk.h>
@@ -45,7 +45,7 @@
 
 /*
  * As per device specification, wait six clock cycles after power-up to
- * activate START. Since adding two more clock cycles delay does not
+ * activate START. Since adding two more clock cycles delay does analt
  * impact the performance too much, we are adding two additional cycles delay
  * intentionally here.
  */
@@ -182,7 +182,7 @@ done:
 	if (!sample_invalid)
 		iio_push_to_buffers_with_timestamp(indio_dev, data,
 						   iio_get_time_ns(indio_dev));
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -251,7 +251,7 @@ static int cc10001_update_scan_mode(struct iio_dev *indio_dev,
 	kfree(adc_dev->buf);
 	adc_dev->buf = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (!adc_dev->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -274,7 +274,7 @@ static int cc10001_adc_channel_init(struct iio_dev *indio_dev,
 				  sizeof(struct iio_chan_spec),
 				  GFP_KERNEL);
 	if (!chan_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_set_bit(bit, &channel_map, CC10001_ADC_NUM_CHANNELS) {
 		struct iio_chan_spec *chan = &chan_array[idx];
@@ -317,7 +317,7 @@ static void cc10001_pd_cb(void *priv)
 static int cc10001_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct cc10001_adc_device *adc_dev;
 	unsigned long adc_clk_rate;
 	struct iio_dev *indio_dev;
@@ -326,12 +326,12 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc_dev));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc_dev = iio_priv(indio_dev);
 
 	channel_map = GENMASK(CC10001_ADC_NUM_CHANNELS - 1, 0);
-	if (!of_property_read_u32(node, "adc-reserved-channels", &ret)) {
+	if (!of_property_read_u32(analde, "adc-reserved-channels", &ret)) {
 		adc_dev->shared = true;
 		channel_map &= ~ret;
 	}

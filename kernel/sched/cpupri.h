@@ -3,7 +3,7 @@
 #define CPUPRI_NR_PRIORITIES	(MAX_RT_PRIO+1)
 
 #define CPUPRI_INVALID		-1
-#define CPUPRI_NORMAL		 0
+#define CPUPRI_ANALRMAL		 0
 /* values 1-99 are for RT1-RT99 priorities */
 #define CPUPRI_HIGHER		100
 

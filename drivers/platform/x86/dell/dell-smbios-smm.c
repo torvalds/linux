@@ -111,13 +111,13 @@ int init_dell_smbios_smm(void)
 
 	if (test_wsmt_enabled()) {
 		pr_debug("Disabling due to WSMT enabled\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_wsmt;
 	}
 
 	platform_device = platform_device_alloc("dell-smbios", 1);
 	if (!platform_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_platform_device_alloc;
 	}
 

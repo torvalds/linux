@@ -28,7 +28,7 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 
 	if (HAS_DDI(dev_priv)) {
 		/*
-		 * DDI does not have a specific FDI_TX register.
+		 * DDI does analt have a specific FDI_TX register.
 		 *
 		 * FDI is never fed from EDP transcoder
 		 * so pipe->transcoder cast is fine here.
@@ -125,8 +125,8 @@ void intel_fdi_link_train(struct intel_crtc *crtc,
  * intel_fdi_add_affected_crtcs - add CRTCs on FDI affected by other modeset CRTCs
  * @state: intel atomic state
  *
- * Add a CRTC using FDI to @state if changing another CRTC's FDI BW usage is
- * known to affect the available FDI BW for the former CRTC. In practice this
+ * Add a CRTC using FDI to @state if changing aanalther CRTC's FDI BW usage is
+ * kanalwn to affect the available FDI BW for the former CRTC. In practice this
  * means adding CRTC B on IVYBRIDGE if its use of FDI lanes is limited (by
  * CRTC C) and CRTC C is getting disabled.
  *
@@ -293,7 +293,7 @@ int intel_fdi_link_freq(struct drm_i915_private *i915,
  *
  * Compute the pipe bpp limited by the CRTC's maximum link bpp. Encoders can
  * call this function during state computation in the simple case where the
- * link bpp will always match the pipe bpp. This is the case for all non-DP
+ * link bpp will always match the pipe bpp. This is the case for all analn-DP
  * encoders, while DP encoders will use a link bpp lower than pipe bpp in case
  * of DSC compression.
  *
@@ -385,7 +385,7 @@ static int intel_fdi_atomic_check_bw(struct intel_atomic_state *state,
  *     with fallback values with which the configuration of all CRTCs
  *     in @state must be recomputed
  *   - Other negative error, if the configuration is invalid without a
- *     fallback possibility, or the check failed for another reason
+ *     fallback possibility, or the check failed for aanalther reason
  */
 int intel_fdi_atomic_check_link(struct intel_atomic_state *state,
 				struct intel_link_bw_limits *limits)
@@ -459,7 +459,7 @@ static void ivb_update_fdi_bc_bifurcation(const struct intel_crtc_state *crtc_st
 	}
 }
 
-void intel_fdi_normal_train(struct intel_crtc *crtc)
+void intel_fdi_analrmal_train(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -467,15 +467,15 @@ void intel_fdi_normal_train(struct intel_crtc *crtc)
 	i915_reg_t reg;
 	u32 temp;
 
-	/* enable normal train */
+	/* enable analrmal train */
 	reg = FDI_TX_CTL(pipe);
 	temp = intel_de_read(dev_priv, reg);
 	if (IS_IVYBRIDGE(dev_priv)) {
-		temp &= ~FDI_LINK_TRAIN_NONE_IVB;
-		temp |= FDI_LINK_TRAIN_NONE_IVB | FDI_TX_ENHANCE_FRAME_ENABLE;
+		temp &= ~FDI_LINK_TRAIN_ANALNE_IVB;
+		temp |= FDI_LINK_TRAIN_ANALNE_IVB | FDI_TX_ENHANCE_FRAME_ENABLE;
 	} else {
-		temp &= ~FDI_LINK_TRAIN_NONE;
-		temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
+		temp &= ~FDI_LINK_TRAIN_ANALNE;
+		temp |= FDI_LINK_TRAIN_ANALNE | FDI_TX_ENHANCE_FRAME_ENABLE;
 	}
 	intel_de_write(dev_priv, reg, temp);
 
@@ -483,10 +483,10 @@ void intel_fdi_normal_train(struct intel_crtc *crtc)
 	temp = intel_de_read(dev_priv, reg);
 	if (HAS_PCH_CPT(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-		temp |= FDI_LINK_TRAIN_NORMAL_CPT;
+		temp |= FDI_LINK_TRAIN_ANALRMAL_CPT;
 	} else {
-		temp &= ~FDI_LINK_TRAIN_NONE;
-		temp |= FDI_LINK_TRAIN_NONE;
+		temp &= ~FDI_LINK_TRAIN_ANALNE;
+		temp |= FDI_LINK_TRAIN_ANALNE;
 	}
 	intel_de_write(dev_priv, reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
 
@@ -534,13 +534,13 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 	temp = intel_de_read(dev_priv, reg);
 	temp &= ~FDI_DP_PORT_WIDTH_MASK;
 	temp |= FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
-	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp &= ~FDI_LINK_TRAIN_ANALNE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	intel_de_write(dev_priv, reg, temp | FDI_TX_ENABLE);
 
 	reg = FDI_RX_CTL(pipe);
 	temp = intel_de_read(dev_priv, reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp &= ~FDI_LINK_TRAIN_ANALNE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	intel_de_write(dev_priv, reg, temp | FDI_RX_ENABLE);
 
@@ -569,9 +569,9 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 
 	/* Train 2 */
 	intel_de_rmw(dev_priv, FDI_TX_CTL(pipe),
-		     FDI_LINK_TRAIN_NONE, FDI_LINK_TRAIN_PATTERN_2);
+		     FDI_LINK_TRAIN_ANALNE, FDI_LINK_TRAIN_PATTERN_2);
 	intel_de_rmw(dev_priv, FDI_RX_CTL(pipe),
-		     FDI_LINK_TRAIN_NONE, FDI_LINK_TRAIN_PATTERN_2);
+		     FDI_LINK_TRAIN_ANALNE, FDI_LINK_TRAIN_PATTERN_2);
 	intel_de_posting_read(dev_priv, FDI_RX_CTL(pipe));
 	udelay(150);
 
@@ -634,7 +634,7 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	temp = intel_de_read(dev_priv, reg);
 	temp &= ~FDI_DP_PORT_WIDTH_MASK;
 	temp |= FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
-	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp &= ~FDI_LINK_TRAIN_ANALNE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
 	/* SNB-B */
@@ -650,7 +650,7 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
 		temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
 	} else {
-		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp &= ~FDI_LINK_TRAIN_ANALNE;
 		temp |= FDI_LINK_TRAIN_PATTERN_1;
 	}
 	intel_de_write(dev_priv, reg, temp | FDI_RX_ENABLE);
@@ -686,7 +686,7 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	/* Train 2 */
 	reg = FDI_TX_CTL(pipe);
 	temp = intel_de_read(dev_priv, reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp &= ~FDI_LINK_TRAIN_ANALNE;
 	temp |= FDI_LINK_TRAIN_PATTERN_2;
 	if (IS_SANDYBRIDGE(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -701,7 +701,7 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
 		temp |= FDI_LINK_TRAIN_PATTERN_2_CPT;
 	} else {
-		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp &= ~FDI_LINK_TRAIN_ANALNE;
 		temp |= FDI_LINK_TRAIN_PATTERN_2;
 	}
 	intel_de_write(dev_priv, reg, temp);
@@ -775,7 +775,7 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
 		/* disable first in case we need to retry */
 		reg = FDI_TX_CTL(pipe);
 		temp = intel_de_read(dev_priv, reg);
-		temp &= ~(FDI_LINK_TRAIN_AUTO | FDI_LINK_TRAIN_NONE_IVB);
+		temp &= ~(FDI_LINK_TRAIN_AUTO | FDI_LINK_TRAIN_ANALNE_IVB);
 		temp &= ~FDI_TX_ENABLE;
 		intel_de_write(dev_priv, reg, temp);
 
@@ -833,7 +833,7 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
 
 		/* Train 2 */
 		intel_de_rmw(dev_priv, FDI_TX_CTL(pipe),
-			     FDI_LINK_TRAIN_NONE_IVB,
+			     FDI_LINK_TRAIN_ANALNE_IVB,
 			     FDI_LINK_TRAIN_PATTERN_2_IVB);
 		intel_de_rmw(dev_priv, FDI_RX_CTL(pipe),
 			     FDI_LINK_TRAIN_PATTERN_MASK_CPT,
@@ -871,7 +871,7 @@ train_done:
  * both the DDI port and PCH receiver for the desired DDI buffer settings.
  *
  * The recommended port to work in FDI mode is DDI E, which we use here. Also,
- * please note that when FDI mode is active on DDI E, it shares 2 lines with
+ * please analte that when FDI mode is active on DDI E, it shares 2 lines with
  * DDI A (which is used for eDP)
  */
 void hsw_fdi_link_train(struct intel_encoder *encoder,
@@ -926,8 +926,8 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 			       DP_TP_CTL_ENABLE);
 
 		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage.
-		 * DDI E does not support port reversal, the functionality is
-		 * achieved on the PCH side in FDI_RX_CTL, so no need to set the
+		 * DDI E does analt support port reversal, the functionality is
+		 * achieved on the PCH side in FDI_RX_CTL, so anal need to set the
 		 * port reversal bit */
 		intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E),
 			       DDI_BUF_CTL_ENABLE |
@@ -992,10 +992,10 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		intel_de_posting_read(dev_priv, FDI_RX_MISC(PIPE_A));
 	}
 
-	/* Enable normal pixel sending for FDI */
+	/* Enable analrmal pixel sending for FDI */
 	intel_de_write(dev_priv, DP_TP_CTL(PORT_E),
 		       DP_TP_CTL_FDI_AUTOTRAIN |
-		       DP_TP_CTL_LINK_TRAIN_NORMAL |
+		       DP_TP_CTL_LINK_TRAIN_ANALRMAL |
 		       DP_TP_CTL_ENHANCED_FRAME_ENABLE |
 		       DP_TP_CTL_ENABLE);
 }
@@ -1103,7 +1103,7 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 
 	/* still set train pattern 1 */
 	intel_de_rmw(dev_priv, FDI_TX_CTL(pipe),
-		     FDI_LINK_TRAIN_NONE, FDI_LINK_TRAIN_PATTERN_1);
+		     FDI_LINK_TRAIN_ANALNE, FDI_LINK_TRAIN_PATTERN_1);
 
 	reg = FDI_RX_CTL(pipe);
 	temp = intel_de_read(dev_priv, reg);
@@ -1111,7 +1111,7 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
 		temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
 	} else {
-		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp &= ~FDI_LINK_TRAIN_ANALNE;
 		temp |= FDI_LINK_TRAIN_PATTERN_1;
 	}
 	/* BPC in FDI rx is consistent with that in TRANSCONF */

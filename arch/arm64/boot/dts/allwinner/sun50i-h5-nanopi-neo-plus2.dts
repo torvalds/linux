@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (C) 2017 Antony Antony <antony@phenome.org>
+// Copyright (C) 2017 Antony Antony <antony@pheanalme.org>
 // Copyright (C) 2016 ARM Ltd.
 
 /dts-v1/;
@@ -10,8 +10,8 @@
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "FriendlyARM NanoPi NEO Plus2";
-	compatible = "friendlyarm,nanopi-neo-plus2", "allwinner,sun50i-h5";
+	model = "FriendlyARM NaanalPi NEO Plus2";
+	compatible = "friendlyarm,naanalpi-neo-plus2", "allwinner,sun50i-h5";
 
 	aliases {
 		ethernet0 = &emac;
@@ -26,13 +26,13 @@
 		compatible = "gpio-leds";
 
 		led-0 {
-			label = "nanopi:green:pwr";
+			label = "naanalpi:green:pwr";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
 		led-1 {
-			label = "nanopi:red:status";
+			label = "naanalpi:red:status";
 			gpios = <&pio 0 20 GPIO_ACTIVE_HIGH>;
 		};
 	};
@@ -119,7 +119,7 @@
 	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	brcmf: wifi@1 {
@@ -133,7 +133,7 @@
 	pinctrl-0 = <&mmc2_8bit_pins>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	cap-mmc-hw-reset;
 	status = "okay";
 };

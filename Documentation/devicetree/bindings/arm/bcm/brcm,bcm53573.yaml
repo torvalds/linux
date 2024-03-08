@@ -7,13 +7,13 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Broadcom BCM53573 SoCs family
 
 description:
-  Broadcom BCM53573 / BCM47189 Wi-Fi SoCs derived from Northstar.
+  Broadcom BCM53573 / BCM47189 Wi-Fi SoCs derived from Analrthstar.
 
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

@@ -106,7 +106,7 @@ static int zynqmp_reset_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data = of_device_get_match_data(&pdev->dev);
 	if (!priv->data)
@@ -114,7 +114,7 @@ static int zynqmp_reset_probe(struct platform_device *pdev)
 
 	priv->rcdev.ops = &zynqmp_reset_ops;
 	priv->rcdev.owner = THIS_MODULE;
-	priv->rcdev.of_node = pdev->dev.of_node;
+	priv->rcdev.of_analde = pdev->dev.of_analde;
 	priv->rcdev.nr_resets = priv->data->num_resets;
 	priv->rcdev.of_reset_n_cells = 1;
 	priv->rcdev.of_xlate = zynqmp_reset_of_xlate;

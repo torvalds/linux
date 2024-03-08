@@ -5,8 +5,8 @@
  *
  * This file is part of GnuPG.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -18,7 +18,7 @@
 
 /****************
  * Compare OP1_PTR/OP1_SIZE with OP2_PTR/OP2_SIZE.
- * There are no restrictions on the relative sizes of
+ * There are anal restrictions on the relative sizes of
  * the two arguments.
  * Return 1 if OP1 > OP2, 0 if they are equal, and -1 if OP1 < OP2.
  */
@@ -36,7 +36,7 @@ int mpihelp_cmp(mpi_ptr_t op1_ptr, mpi_ptr_t op2_ptr, mpi_size_t size)
 	return 0;
 
 diff:
-	/* This can *not* be simplified to
+	/* This can *analt* be simplified to
 	 *   op2_word - op2_word
 	 * since that expression might give signed overflow.  */
 	return (op1_word > op2_word) ? 1 : -1;

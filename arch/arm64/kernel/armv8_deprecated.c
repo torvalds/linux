@@ -134,7 +134,7 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 	unsigned int res = 0;
 
 	if ((type != TYPE_SWPB) && (address & 0x3)) {
-		/* SWP to unaligned address not permitted */
+		/* SWP to unaligned address analt permitted */
 		pr_debug("SWP instruction on unaligned pointer!\n");
 		return -EFAULT;
 	}
@@ -178,7 +178,7 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 		/* Condition failed - return to next instruction */
 		goto ret;
 	case ARM_OPCODE_CONDTEST_UNCOND:
-		/* If unconditional encoding - not a SWP, undef */
+		/* If unconditional encoding - analt a SWP, undef */
 		return -EFAULT;
 	default:
 		return -EINVAL;
@@ -198,7 +198,7 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 	/* Check access in reasonable access range for both SWP and SWPB */
 	user_ptr = (const void __user *)(unsigned long)(address & ~3);
 	if (!access_ok(user_ptr, 4)) {
-		pr_debug("SWP{B} emulation: access to 0x%08x not allowed!\n",
+		pr_debug("SWP{B} emulation: access to 0x%08x analt allowed!\n",
 			address);
 		goto fault;
 	}
@@ -223,14 +223,14 @@ ret:
 
 fault:
 	pr_debug("SWP{B} emulation: access caused memory abort!\n");
-	arm64_notify_segfault(address);
+	arm64_analtify_segfault(address);
 
 	return 0;
 }
 
 static bool try_emulate_swp(struct pt_regs *regs, u32 insn)
 {
-	/* SWP{B} only exists in ARM state and does not exist in Thumb */
+	/* SWP{B} only exists in ARM state and does analt exist in Thumb */
 	if (!compat_user_mode(regs) || compat_thumb_mode(regs))
 		return false;
 
@@ -260,7 +260,7 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 		/* Condition failed - return to next instruction */
 		goto ret;
 	case ARM_OPCODE_CONDTEST_UNCOND:
-		/* If unconditional encoding - not a barrier instruction */
+		/* If unconditional encoding - analt a barrier instruction */
 		return -EFAULT;
 	default:
 		return -EINVAL;
@@ -287,7 +287,7 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 		 * isb - mcr p15, 0, Rt, c7, c5, 4
 		 *
 		 * Taking an exception or returning from one acts as an
-		 * instruction barrier. So no explicit barrier needed here.
+		 * instruction barrier. So anal explicit barrier needed here.
 		 */
 		trace_instruction_emulation(
 			"mcr p15, 0, Rt, c7, c5, 4 ; isb", regs->pc);
@@ -446,7 +446,7 @@ static int run_all_cpu_set_hw_mode(struct insn_emulation *insn, bool enable)
  * Run set_hw_mode for all insns on a starting CPU.
  * Returns:
  *  0 		- If all the hooks ran successfully.
- * -EINVAL	- At least one hook is not supported by the CPU.
+ * -EINVAL	- At least one hook is analt supported by the CPU.
  */
 static int run_all_insn_set_hw_mode(unsigned int cpu)
 {
@@ -456,14 +456,14 @@ static int run_all_insn_set_hw_mode(unsigned int cpu)
 	/*
 	 * Disable IRQs to serialize against an IPI from
 	 * run_all_cpu_set_hw_mode(), ensuring the HW is programmed to the most
-	 * recent enablement state if the two race with one another.
+	 * recent enablement state if the two race with one aanalther.
 	 */
 	local_irq_save(flags);
 	for (int i = 0; i < ARRAY_SIZE(insn_emulations); i++) {
 		struct insn_emulation *insn = insn_emulations[i];
 		bool enable = READ_ONCE(insn->current_mode) == INSN_HW;
 		if (insn->set_hw_mode && insn->set_hw_mode(enable)) {
-			pr_warn("CPU[%u] cannot support the emulation of %s",
+			pr_warn("CPU[%u] cananalt support the emulation of %s",
 				cpu, insn->name);
 			rc = -EINVAL;
 		}
@@ -479,13 +479,13 @@ static int update_insn_emulation_mode(struct insn_emulation *insn,
 	int ret = 0;
 
 	switch (prev) {
-	case INSN_UNDEF: /* Nothing to be done */
+	case INSN_UNDEF: /* Analthing to be done */
 		break;
 	case INSN_EMULATE:
 		break;
 	case INSN_HW:
 		if (!run_all_cpu_set_hw_mode(insn, false))
-			pr_notice("Disabled %s support\n", insn->name);
+			pr_analtice("Disabled %s support\n", insn->name);
 		break;
 	}
 
@@ -497,7 +497,7 @@ static int update_insn_emulation_mode(struct insn_emulation *insn,
 	case INSN_HW:
 		ret = run_all_cpu_set_hw_mode(insn, true);
 		if (!ret)
-			pr_notice("Enabled %s support\n", insn->name);
+			pr_analtice("Enabled %s support\n", insn->name);
 		break;
 	}
 
@@ -603,7 +603,7 @@ static int __init armv8_deprecated_init(void)
 #ifdef CONFIG_SETEND_EMULATION
 	if (!system_supports_mixed_endian_el0()) {
 		insn_setend.status = INSN_UNAVAILABLE;
-		pr_info("setend instruction emulation is not supported on this system\n");
+		pr_info("setend instruction emulation is analt supported on this system\n");
 	}
 
 #endif
@@ -616,7 +616,7 @@ static int __init armv8_deprecated_init(void)
 		register_insn_emulation(ie);
 	}
 
-	cpuhp_setup_state_nocalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
+	cpuhp_setup_state_analcalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
 				  "arm64/isndep:starting",
 				  run_all_insn_set_hw_mode, NULL);
 	return 0;

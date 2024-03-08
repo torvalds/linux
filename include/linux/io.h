@@ -76,11 +76,11 @@ pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
 #ifdef CONFIG_PCI
 /*
  * The PCI specifications (Rev 3.0, 3.2.5 "Transaction Ordering and
- * Posting") mandate non-posted configuration transactions. This default
+ * Posting") mandate analn-posted configuration transactions. This default
  * implementation attempts to use the ioremap_np() API to provide this
  * on arches that support it, and falls back to ioremap() on those that
  * don't. Overriding this function is deprecated; arches that properly
- * support non-posted accesses should implement ioremap_np() instead, which
+ * support analn-posted accesses should implement ioremap_np() instead, which
  * this default implementation can then use to return mappings compliant with
  * the PCI specification.
  */
@@ -95,8 +95,8 @@ static inline void __iomem *pci_remap_cfgspace(phys_addr_t offset,
 #endif
 
 /*
- * Some systems do not have legacy ISA devices.
- * /dev/port is not a valid interface on these systems.
+ * Some systems do analt have legacy ISA devices.
+ * /dev/port is analt a valid interface on these systems.
  * So for those archs, <asm/io.h> should define the following symbol.
  */
 #ifndef arch_has_dev_port
@@ -108,17 +108,17 @@ static inline void __iomem *pci_remap_cfgspace(phys_addr_t offset,
  * physical address range such that uncached mappings will actually
  * end up write-combining.  This facility should be used in conjunction
  * with pgprot_writecombine, ioremap-wc, or set_memory_wc, since it has
- * no effect if the per-page mechanisms are functional.
+ * anal effect if the per-page mechanisms are functional.
  * (On x86 without PAT, these functions manipulate MTRRs.)
  *
  * arch_phys_del_wc(0) or arch_phys_del_wc(any error code) is guaranteed
- * to have no effect.
+ * to have anal effect.
  */
 #ifndef arch_phys_wc_add
 static inline int __must_check arch_phys_wc_add(unsigned long base,
 						unsigned long size)
 {
-	return 0;  /* It worked (i.e. did nothing). */
+	return 0;  /* It worked (i.e. did analthing). */
 }
 
 static inline void arch_phys_wc_del(int handle)
@@ -156,7 +156,7 @@ void memunmap(void *addr);
  * wishes to map a range from a physical device into user memory
  * the tracking won't be updated. This API is to be used by
  * drivers which remap physical device pages into userspace,
- * and wants to make sure they are mapped WC and not UC.
+ * and wants to make sure they are mapped WC and analt UC.
  */
 #ifndef arch_io_reserve_memtype_wc
 static inline int arch_io_reserve_memtype_wc(resource_size_t base,

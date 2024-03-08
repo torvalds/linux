@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@
  * ttm_lru_bulk_move_init - initialize a bulk move structure
  * @bulk: the structure to init
  *
- * For now just memset the structure to zero.
+ * For analw just memset the structure to zero.
  */
 void ttm_lru_bulk_move_init(struct ttm_lru_bulk_move *bulk)
 {
@@ -266,7 +266,7 @@ EXPORT_SYMBOL(ttm_resource_free);
  * @size: How many bytes the new allocation needs.
  *
  * Test if @res intersects with @place and @size. Used for testing if evictions
- * are valueable or not.
+ * are valueable or analt.
  *
  * Returns true if the res placement intersects with @place and @size.
  */
@@ -413,7 +413,7 @@ int ttm_resource_manager_evict_all(struct ttm_device *bdev,
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false,
+		.anal_wait_gpu = false,
 		.force_alloc = true
 	};
 	struct dma_fence *fence;
@@ -612,7 +612,7 @@ EXPORT_SYMBOL(ttm_kmap_iter_iomap_init);
 /**
  * DOC: Linear io iterator
  *
- * This code should die in the not too near future. Best would be if we could
+ * This code should die in the analt too near future. Best would be if we could
  * make io-mapping use memremap for all io memory, and have memremap
  * implement a kmap_local functionality. We could then strip a huge amount of
  * code. These linear io iterators are implemented to mimic old functionality,
@@ -688,7 +688,7 @@ ttm_kmap_iter_linear_io_init(struct ttm_kmap_iter_linear_io *iter_io,
 							  mem->size));
 
 		if (iosys_map_is_null(&iter_io->dmap)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_io_free;
 		}
 	}

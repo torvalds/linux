@@ -54,7 +54,7 @@ extern void octeon_io_clk_delay(unsigned long);
 
 struct octeon_boot_descriptor {
 #ifdef __BIG_ENDIAN_BITFIELD
-	/* Start of block referenced by assembly code - do not change! */
+	/* Start of block referenced by assembly code - do analt change! */
 	uint32_t desc_version;
 	uint32_t desc_size;
 	uint64_t stack_top;
@@ -63,7 +63,7 @@ struct octeon_boot_descriptor {
 	/* Only used by bootloader */
 	uint64_t entry_point;
 	uint64_t desc_vaddr;
-	/* End of This block referenced by assembly code - do not change! */
+	/* End of This block referenced by assembly code - do analt change! */
 	uint32_t exception_base_addr;
 	uint32_t stack_size;
 	uint32_t heap_size;
@@ -73,7 +73,7 @@ struct octeon_boot_descriptor {
 
 #define	 BOOT_FLAG_INIT_CORE		(1 << 0)
 #define	 OCTEON_BL_FLAG_DEBUG		(1 << 1)
-#define	 OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
+#define	 OCTEON_BL_FLAG_ANAL_MAGIC	(1 << 2)
 	/* If set, use uart1 for console */
 #define	 OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
 	/* If set, use PCI console */
@@ -83,7 +83,7 @@ struct octeon_boot_descriptor {
 
 	uint32_t flags;
 	uint32_t core_mask;
-	/* DRAM size in megabyes. */
+	/* DRAM size in megabanal. */
 	uint32_t dram_size;
 	/* physical address of free memory descriptor block. */
 	uint32_t phy_mem_desc_addr;
@@ -97,10 +97,10 @@ struct octeon_boot_descriptor {
 	uint32_t spi_clock_hz;
 	uint16_t board_type;
 	uint8_t board_rev_major;
-	uint8_t board_rev_minor;
+	uint8_t board_rev_mianalr;
 	uint16_t chip_type;
 	uint8_t chip_rev_major;
-	uint8_t chip_rev_minor;
+	uint8_t chip_rev_mianalr;
 	char board_serial_number[OCTEON_SERIAL_LEN];
 	uint8_t mac_addr_base[6];
 	uint8_t mac_addr_count;
@@ -114,7 +114,7 @@ struct octeon_boot_descriptor {
 	/* Only used by bootloader */
 	uint64_t entry_point;
 	uint64_t desc_vaddr;
-	/* End of This block referenced by assembly code - do not change! */
+	/* End of This block referenced by assembly code - do analt change! */
 	uint32_t stack_size;
 	uint32_t exception_base_addr;
 	uint32_t argc;
@@ -127,7 +127,7 @@ struct octeon_boot_descriptor {
 
 #define  BOOT_FLAG_INIT_CORE		(1 << 0)
 #define  OCTEON_BL_FLAG_DEBUG		(1 << 1)
-#define  OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
+#define  OCTEON_BL_FLAG_ANAL_MAGIC	(1 << 2)
 	/* If set, use uart1 for console */
 #define  OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
 	/* If set, use PCI console */
@@ -139,7 +139,7 @@ struct octeon_boot_descriptor {
 	uint32_t flags;
 	/* physical address of free memory descriptor block. */
 	uint32_t phy_mem_desc_addr;
-	/* DRAM size in megabyes. */
+	/* DRAM size in megabanal. */
 	uint32_t dram_size;
 	/* CPU clock speed, in hz. */
 	uint32_t eclock_hz;
@@ -149,14 +149,14 @@ struct octeon_boot_descriptor {
 	uint32_t spi_clock_hz;
 	/* DRAM clock speed, in hz. */
 	uint32_t dclock_hz;
-	uint8_t chip_rev_minor;
+	uint8_t chip_rev_mianalr;
 	uint8_t chip_rev_major;
 	uint16_t chip_type;
-	uint8_t board_rev_minor;
+	uint8_t board_rev_mianalr;
 	uint8_t board_rev_major;
 	uint16_t board_type;
 
-	uint64_t unused1[4]; /* Not even filled in by bootloader. */
+	uint64_t unused1[4]; /* Analt even filled in by bootloader. */
 
 	uint64_t cvmx_desc_vaddr;
 #endif
@@ -184,11 +184,11 @@ union octeon_cvmemctl {
 		 * bitmask LRU or NLU. Bitmask LRU maintains a mask of
 		 * recently used TLB entries and avoids them as new entries
 		 * are allocated. NLU simply guarantees that the next
-		 * allocation is not the last used TLB entry. */
+		 * allocation is analt the last used TLB entry. */
 		__BITFIELD_FIELD(uint64_t tlbnlu:1,
 		/* OCTEON II - Selects the bit in the counter used for
 		 * releasing a PAUSE. This counter trips every 2(8+PAUSETIME)
-		 * cycles. If not already released, the cnMIPS II core will
+		 * cycles. If analt already released, the cnMIPS II core will
 		 * always release a given PAUSE instruction within
 		 * 2(8+PAUSETIME). If the counter trip happens to line up,
 		 * the cnMIPS II core may release the PAUSE instantly. */
@@ -200,7 +200,7 @@ union octeon_cvmemctl {
 		 * the same as other entries; if clear, marked
 		 * write-buffer entries use the maximum timeout. */
 		__BITFIELD_FIELD(uint64_t dismarkwblongto:1,
-		/* R/W If set, a merged store does not clear the
+		/* R/W If set, a merged store does analt clear the
 		 * write-buffer entry timeout state. */
 		__BITFIELD_FIELD(uint64_t dismrgclrwbto:1,
 		/* R/W Two bits that are the MSBs of the resultant
@@ -209,13 +209,13 @@ union octeon_cvmemctl {
 		__BITFIELD_FIELD(uint64_t iobdmascrmsb:2,
 		/* R/W If set, SYNCWS and SYNCS only order marked
 		 * stores; if clear, SYNCWS and SYNCS only order
-		 * unmarked stores. SYNCWSMARKED has no effect when
+		 * unmarked stores. SYNCWSMARKED has anal effect when
 		 * DISSYNCWS is set. */
 		__BITFIELD_FIELD(uint64_t syncwsmarked:1,
 		/* R/W If set, SYNCWS acts as SYNCW and SYNCS acts as
 		 * SYNC. */
 		__BITFIELD_FIELD(uint64_t dissyncws:1,
-		/* R/W If set, no stall happens on write buffer
+		/* R/W If set, anal stall happens on write buffer
 		 * full. */
 		__BITFIELD_FIELD(uint64_t diswbfst:1,
 		/* R/W If set (and SX set), supervisor-level
@@ -232,12 +232,12 @@ union octeon_cvmemctl {
 		/* R/W If set (and UX set), user-level loads/stores
 		 * can use XKPHYS addresses with VA<48>==1 */
 		__BITFIELD_FIELD(uint64_t xkioenau:1,
-		/* R/W If set, all stores act as SYNCW (NOMERGE must
+		/* R/W If set, all stores act as SYNCW (ANALMERGE must
 		 * be set when this is set) RW, reset to 0. */
 		__BITFIELD_FIELD(uint64_t allsyncw:1,
-		/* R/W If set, no stores merge, and all stores reach
+		/* R/W If set, anal stores merge, and all stores reach
 		 * the coherent bus in order. */
-		__BITFIELD_FIELD(uint64_t nomerge:1,
+		__BITFIELD_FIELD(uint64_t analmerge:1,
 		/* R/W Selects the bit in the counter used for DID
 		 * time-outs 0 = 231, 1 = 230, 2 = 229, 3 =
 		 * 214. Actual time-out is between 1x and 2x this
@@ -256,8 +256,8 @@ union octeon_cvmemctl {
 		 * write buffer expires between 2K and 4K cycles after
 		 * the write buffer entry is allocated. */
 		__BITFIELD_FIELD(uint64_t wbfltime:3,
-		/* R/W If set, do not put Istream in the L2 cache. */
-		__BITFIELD_FIELD(uint64_t istrnol2:1,
+		/* R/W If set, do analt put Istream in the L2 cache. */
+		__BITFIELD_FIELD(uint64_t istranall2:1,
 		/* R/W The write buffer threshold. */
 		__BITFIELD_FIELD(uint64_t wbthresh:4,
 		/* Reserved */
@@ -303,12 +303,12 @@ static inline void octeon_setup_smp(void) {}
 #endif
 
 struct irq_domain;
-struct device_node;
+struct device_analde;
 struct irq_data;
 struct irq_chip;
 void octeon_ciu3_mbox_send(int cpu, unsigned int mbox);
 int octeon_irq_ciu3_xlat(struct irq_domain *d,
-			 struct device_node *node,
+			 struct device_analde *analde,
 			 const u32 *intspec,
 			 unsigned int intsize,
 			 unsigned long *out_hwirq,
@@ -359,6 +359,6 @@ extern void octeon_fixup_irqs(void);
 
 extern struct semaphore octeon_bootbus_sem;
 
-struct irq_domain *octeon_irq_get_block_domain(int node, uint8_t block);
+struct irq_domain *octeon_irq_get_block_domain(int analde, uint8_t block);
 
 #endif /* __ASM_OCTEON_OCTEON_H */

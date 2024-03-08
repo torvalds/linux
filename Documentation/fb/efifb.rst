@@ -19,7 +19,7 @@ Supported Hardware
 How to use it?
 ==============
 
-For UGA displays, efifb does not have any kind of autodetection of your
+For UGA displays, efifb does analt have any kind of autodetection of your
 machine.
 
 You have to add the following kernel parameters in your elilo.conf::
@@ -39,7 +39,7 @@ address, so these should work out of the box without any special parameters.
 Accepted options:
 
 ======= ===========================================================
-nowc	Don't map the framebuffer write combined. This can be used
+analwc	Don't map the framebuffer write combined. This can be used
 	to workaround side-effects and slowdowns on other CPU cores
 	when large amounts of console data are written.
 ======= ===========================================================

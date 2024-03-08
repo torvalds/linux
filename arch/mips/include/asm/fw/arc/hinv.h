@@ -73,14 +73,14 @@ typedef enum configtype {
 
 	/* new stuff for IP30 */
 	/* added without moving anything */
-	/* except ANONYMOUS. */
+	/* except AANALNYMOUS. */
 
 	XTalkAdapter,
 	PCIAdapter,
 	GIOAdapter,
 	TPUAdapter,
 
-	Anonymous
+	Aanalnymous
 } CONFIGTYPE;
 
 typedef enum {

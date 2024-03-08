@@ -21,7 +21,7 @@
 #define BOUNCE_SIZE		(64*1024)
 
 #define PS3DISK_MAX_DISKS	16
-#define PS3DISK_MINORS		16
+#define PS3DISK_MIANALRS		16
 
 
 #define PS3DISK_NAME		"ps3d%c"
@@ -58,7 +58,7 @@ struct lv1_ata_cmnd_block {
 };
 
 enum lv1_ata_proto {
-	NON_DATA_PROTO     = 0,
+	ANALN_DATA_PROTO     = 0,
 	PIO_DATA_IN_PROTO  = 1,
 	PIO_DATA_OUT_PROTO = 2,
 	DMA_PROTO = 3
@@ -221,7 +221,7 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	req = priv->req;
 	if (!req) {
 		dev_dbg(&dev->sbd.core,
-			"%s:%u non-block layer request completed\n", __func__,
+			"%s:%u analn-block layer request completed\n", __func__,
 			__LINE__);
 		dev->lv1_status = status;
 		complete(&dev->done);
@@ -387,7 +387,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 
 	if (dev->blk_size < 512) {
 		dev_err(&dev->sbd.core,
-			"%s:%u: cannot handle block size %llu\n", __func__,
+			"%s:%u: cananalt handle block size %llu\n", __func__,
 			__LINE__, dev->blk_size);
 		return -EINVAL;
 	}
@@ -399,14 +399,14 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 		dev_err(&dev->sbd.core, "%s:%u: Too many disks\n", __func__,
 			__LINE__);
 		mutex_unlock(&ps3disk_mask_mutex);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	__set_bit(devidx, &ps3disk_mask);
 	mutex_unlock(&ps3disk_mask_mutex);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	}
 
@@ -416,7 +416,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 	dev->bounce_size = BOUNCE_SIZE;
 	dev->bounce_buf = kmalloc(BOUNCE_SIZE, GFP_DMA);
 	if (!dev->bounce_buf) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_free_priv;
 	}
 
@@ -452,8 +452,8 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 
 	priv->gendisk = gendisk;
 	gendisk->major = ps3disk_major;
-	gendisk->first_minor = devidx * PS3DISK_MINORS;
-	gendisk->minors = PS3DISK_MINORS;
+	gendisk->first_mianalr = devidx * PS3DISK_MIANALRS;
+	gendisk->mianalrs = PS3DISK_MIANALRS;
 	gendisk->fops = &ps3disk_fops;
 	gendisk->private_data = dev;
 	snprintf(gendisk->disk_name, sizeof(gendisk->disk_name), PS3DISK_NAME,
@@ -496,13 +496,13 @@ static void ps3disk_remove(struct ps3_system_bus_device *_dev)
 	struct ps3disk_private *priv = ps3_system_bus_get_drvdata(&dev->sbd);
 
 	mutex_lock(&ps3disk_mask_mutex);
-	__clear_bit(MINOR(disk_devt(priv->gendisk)) / PS3DISK_MINORS,
+	__clear_bit(MIANALR(disk_devt(priv->gendisk)) / PS3DISK_MIANALRS,
 		    &ps3disk_mask);
 	mutex_unlock(&ps3disk_mask_mutex);
 	del_gendisk(priv->gendisk);
 	put_disk(priv->gendisk);
 	blk_mq_free_tag_set(&priv->tag_set);
-	dev_notice(&dev->sbd.core, "Synchronizing disk cache\n");
+	dev_analtice(&dev->sbd.core, "Synchronizing disk cache\n");
 	ps3disk_sync_cache(dev);
 	ps3stor_teardown(dev);
 	kfree(dev->bounce_buf);
@@ -525,7 +525,7 @@ static int __init ps3disk_init(void)
 	int error;
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = register_blkdev(0, DEVICE_NAME);
 	if (error <= 0) {

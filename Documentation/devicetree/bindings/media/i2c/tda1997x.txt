@@ -42,7 +42,7 @@ Optional Properties:
  - nxp,audout-mclk-fs  : Multiplication factor between stream rate and codec
                          mclk.
 
-The port node shall contain one endpoint child node for its digital
+The port analde shall contain one endpoint child analde for its digital
 output video port, in accordance with the video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -28,7 +28,7 @@
 
 enum vc4_packet {
 	VC4_PACKET_HALT = 0,
-	VC4_PACKET_NOP = 1,
+	VC4_PACKET_ANALP = 1,
 
 	VC4_PACKET_FLUSH = 4,
 	VC4_PACKET_FLUSH_ALL = 5,
@@ -75,7 +75,7 @@ enum vc4_packet {
 	VC4_PACKET_CLEAR_COLORS = 114,
 	VC4_PACKET_TILE_COORDINATES = 115,
 
-	/* Not an actual hardware packet -- this is what we use to put
+	/* Analt an actual hardware packet -- this is what we use to put
 	 * references to GEM bos in the command stream, since we need the u32
 	 * int the actual address packet in order to store the offset from the
 	 * start of the BO.
@@ -84,7 +84,7 @@ enum vc4_packet {
 } __attribute__ ((__packed__));
 
 #define VC4_PACKET_HALT_SIZE						1
-#define VC4_PACKET_NOP_SIZE						1
+#define VC4_PACKET_ANALP_SIZE						1
 #define VC4_PACKET_FLUSH_SIZE						1
 #define VC4_PACKET_FLUSH_ALL_SIZE					1
 #define VC4_PACKET_START_TILE_BINNING_SIZE				1
@@ -204,7 +204,7 @@ enum vc4_packet {
 
 #define VC4_LOADSTORE_TILE_BUFFER_BUFFER_MASK      VC4_MASK(2, 0)
 #define VC4_LOADSTORE_TILE_BUFFER_BUFFER_SHIFT     0
-#define VC4_LOADSTORE_TILE_BUFFER_NONE             0
+#define VC4_LOADSTORE_TILE_BUFFER_ANALNE             0
 #define VC4_LOADSTORE_TILE_BUFFER_COLOR            1
 #define VC4_LOADSTORE_TILE_BUFFER_ZS               2
 #define VC4_LOADSTORE_TILE_BUFFER_Z                3
@@ -232,7 +232,7 @@ enum vc4_packet {
 #define VC4_CONFIG_BITS_DEPTH_FUNC_SHIFT           4
 #define VC4_CONFIG_BITS_COVERAGE_READ_LEAVE        BIT(3)
 
-#define VC4_CONFIG_BITS_COVERAGE_UPDATE_NONZERO    (0 << 1)
+#define VC4_CONFIG_BITS_COVERAGE_UPDATE_ANALNZERO    (0 << 1)
 #define VC4_CONFIG_BITS_COVERAGE_UPDATE_ODD        (1 << 1)
 #define VC4_CONFIG_BITS_COVERAGE_UPDATE_OR         (2 << 1)
 #define VC4_CONFIG_BITS_COVERAGE_UPDATE_ZERO       (3 << 1)
@@ -241,7 +241,7 @@ enum vc4_packet {
 /** @} */
 
 /** @{ byte 0 of config bits. */
-#define VC4_CONFIG_BITS_RASTERIZER_OVERSAMPLE_NONE (0 << 6)
+#define VC4_CONFIG_BITS_RASTERIZER_OVERSAMPLE_ANALNE (0 << 6)
 #define VC4_CONFIG_BITS_RASTERIZER_OVERSAMPLE_4X   (1 << 6)
 #define VC4_CONFIG_BITS_RASTERIZER_OVERSAMPLE_16X  (2 << 6)
 
@@ -253,7 +253,7 @@ enum vc4_packet {
 /** @} */
 
 /** @{ bits in the last u8 of VC4_PACKET_TILE_BINNING_MODE_CONFIG */
-#define VC4_BIN_CONFIG_DB_NON_MS                   BIT(7)
+#define VC4_BIN_CONFIG_DB_ANALN_MS                   BIT(7)
 
 #define VC4_BIN_CONFIG_ALLOC_BLOCK_SIZE_MASK       VC4_MASK(6, 5)
 #define VC4_BIN_CONFIG_ALLOC_BLOCK_SIZE_SHIFT      5
@@ -275,7 +275,7 @@ enum vc4_packet {
 /** @} */
 
 /** @{ bits in the last u16 of VC4_PACKET_TILE_RENDERING_MODE_CONFIG */
-#define VC4_RENDER_CONFIG_DB_NON_MS                BIT(12)
+#define VC4_RENDER_CONFIG_DB_ANALN_MS                BIT(12)
 #define VC4_RENDER_CONFIG_EARLY_Z_COVERAGE_DISABLE BIT(11)
 #define VC4_RENDER_CONFIG_EARLY_Z_DIRECTION_G      BIT(10)
 #define VC4_RENDER_CONFIG_COVERAGE_MODE            BIT(9)
@@ -373,7 +373,7 @@ enum vc4_texture_data_type {
 
 #define VC4_TEX_P2_PTYPE_MASK                      VC4_MASK(31, 30)
 #define VC4_TEX_P2_PTYPE_SHIFT                     30
-# define VC4_TEX_P2_PTYPE_IGNORED                  0
+# define VC4_TEX_P2_PTYPE_IGANALRED                  0
 # define VC4_TEX_P2_PTYPE_CUBE_MAP_STRIDE          1
 # define VC4_TEX_P2_PTYPE_CHILD_IMAGE_DIMENSIONS   2
 # define VC4_TEX_P2_PTYPE_CHILD_IMAGE_OFFSETS      3

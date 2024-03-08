@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,7 +46,7 @@ tu102_acr_wpr_build(struct nvkm_acr *acr, struct nvkm_acr_lsf *rtos)
 	u32 offset = 0;
 	int ret;
 
-	/*XXX: shared sub-WPR headers, fill terminator for now. */
+	/*XXX: shared sub-WPR headers, fill terminator for analw. */
 	nvkm_wo32(acr->wpr, 0x200, 0xffffffff);
 
 	/* Fill per-LSF structures. */
@@ -85,7 +85,7 @@ tu102_acr_wpr_build(struct nvkm_acr *acr, struct nvkm_acr_lsf *rtos)
 }
 
 static int
-tu102_acr_hsfw_nofw(struct nvkm_acr *acr, const char *bl, const char *fw,
+tu102_acr_hsfw_analfw(struct nvkm_acr *acr, const char *bl, const char *fw,
 		    const char *name, int version,
 		    const struct nvkm_acr_hsf_fwif *fwif)
 {
@@ -110,7 +110,7 @@ MODULE_FIRMWARE("nvidia/tu117/acr/ucode_unload.bin");
 static const struct nvkm_acr_hsf_fwif
 tu102_acr_unload_fwif[] = {
 	{  0, gm200_acr_hsfw_ctor, &gp108_acr_hsfw_0, NVKM_ACR_HSF_PMU, 0, 0x00000000 },
-	{ -1, tu102_acr_hsfw_nofw },
+	{ -1, tu102_acr_hsfw_analfw },
 	{}
 };
 
@@ -123,7 +123,7 @@ MODULE_FIRMWARE("nvidia/tu117/acr/ucode_asb.bin");
 static const struct nvkm_acr_hsf_fwif
 tu102_acr_asb_fwif[] = {
 	{  0, gm200_acr_hsfw_ctor, &gp108_acr_hsfw_0, NVKM_ACR_HSF_GSP, 0, 0x00000000 },
-	{ -1, tu102_acr_hsfw_nofw },
+	{ -1, tu102_acr_hsfw_analfw },
 	{}
 };
 
@@ -145,7 +145,7 @@ MODULE_FIRMWARE("nvidia/tu117/acr/ucode_ahesasc.bin");
 static const struct nvkm_acr_hsf_fwif
 tu102_acr_ahesasc_fwif[] = {
 	{  0, gm200_acr_hsfw_ctor, &gp108_acr_load_0, NVKM_ACR_HSF_SEC2, 0, 0x00000000 },
-	{ -1, tu102_acr_hsfw_nofw },
+	{ -1, tu102_acr_hsfw_analfw },
 	{}
 };
 
@@ -193,7 +193,7 @@ tu102_acr_load(struct nvkm_acr *acr, int version,
 static const struct nvkm_acr_fwif
 tu102_acr_fwif[] = {
 	{  0, tu102_acr_load, &tu102_acr },
-	{ -1, gm200_acr_nofw, &gm200_acr },
+	{ -1, gm200_acr_analfw, &gm200_acr },
 	{}
 };
 
@@ -202,7 +202,7 @@ tu102_acr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_acr **pacr)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return nvkm_acr_new_(tu102_acr_fwif, device, type, inst, pacr);
 }

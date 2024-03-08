@@ -18,7 +18,7 @@ MODULE_IMPORT_NS(DMA_BUF);
 
 #define HL_MMU_DEBUG	0
 
-/* use small pages for supporting non-pow2 (32M/40M/48M) DRAM phys page sizes */
+/* use small pages for supporting analn-pow2 (32M/40M/48M) DRAM phys page sizes */
 #define DRAM_POOL_PAGE_SIZE	SZ_8M
 
 #define MEM_HANDLE_INVALID	ULONG_MAX
@@ -33,13 +33,13 @@ static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u
 
 	/*
 	 * for ASIC that supports setting the allocation page size by user we will address
-	 * user's choice only if it is not 0 (as 0 means taking the default page size)
+	 * user's choice only if it is analt 0 (as 0 means taking the default page size)
 	 */
 	if (prop->supports_user_set_page_size && args->alloc.page_size) {
 		psize = args->alloc.page_size;
 
 		if (!is_power_of_2(psize)) {
-			dev_err(hdev->dev, "user page size (%#llx) is not power of 2\n", psize);
+			dev_err(hdev->dev, "user page size (%#llx) is analt power of 2\n", psize);
 			return -EINVAL;
 		}
 	} else {
@@ -71,7 +71,7 @@ static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u
  *
  * On finish, the list is checked to have only one chunk of all the relevant
  * virtual range (which is a half of the device total virtual range).
- * If not (means not all mappings were unmapped), a warning is printed.
+ * If analt (means analt all mappings were unmapped), a warning is printed.
  */
 
 /*
@@ -105,7 +105,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 	total_size = num_pgs * page_size;
 
 	if (!total_size) {
-		dev_err(hdev->dev, "Cannot allocate 0 bytes\n");
+		dev_err(hdev->dev, "Cananalt allocate 0 bytes\n");
 		return -EINVAL;
 	}
 
@@ -119,15 +119,15 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 			paddr = gen_pool_alloc(vm->dram_pg_pool, total_size);
 		if (!paddr) {
 			dev_err(hdev->dev,
-				"Cannot allocate %llu contiguous pages with total size of %llu\n",
+				"Cananalt allocate %llu contiguous pages with total size of %llu\n",
 				num_pgs, total_size);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
 	phys_pg_pack = kzalloc(sizeof(*phys_pg_pack), GFP_KERNEL);
 	if (!phys_pg_pack) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto pages_pack_err;
 	}
 
@@ -141,7 +141,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	phys_pg_pack->pages = kvmalloc_array(num_pgs, sizeof(u64), GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(phys_pg_pack->pages)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto pages_arr_err;
 	}
 
@@ -161,8 +161,8 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 			if (!phys_pg_pack->pages[i]) {
 				dev_err(hdev->dev,
-					"Cannot allocate device memory (out of memory)\n");
-				rc = -ENOMEM;
+					"Cananalt allocate device memory (out of memory)\n");
+				rc = -EANALMEM;
 				goto page_err;
 			}
 
@@ -230,7 +230,7 @@ static int dma_map_host_va(struct hl_device *hdev, u64 addr, u64 size,
 
 	userptr = kzalloc(sizeof(*userptr), GFP_KERNEL);
 	if (!userptr) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto userptr_err;
 	}
 
@@ -291,8 +291,8 @@ static void dram_pg_pool_do_release(struct kref *ref)
 			dram_pg_pool_refcount);
 
 	/*
-	 * free the idr here as only here we know for sure that there are no
-	 * allocated physical pages and hence there are no handles in use
+	 * free the idr here as only here we kanalw for sure that there are anal
+	 * allocated physical pages and hence there are anal handles in use
 	 */
 	idr_destroy(&vm->phys_pg_pack_handles);
 	gen_pool_destroy(vm->dram_pg_pool);
@@ -361,13 +361,13 @@ static int free_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args)
 	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, handle);
 	if (!phys_pg_pack) {
 		spin_unlock(&vm->idr_lock);
-		dev_err(hdev->dev, "free device memory failed, no match for handle %u\n", handle);
+		dev_err(hdev->dev, "free device memory failed, anal match for handle %u\n", handle);
 		return -EINVAL;
 	}
 
 	if (atomic_read(&phys_pg_pack->mapping_cnt) > 0) {
 		spin_unlock(&vm->idr_lock);
-		dev_err(hdev->dev, "handle %u is mapped, cannot free\n", handle);
+		dev_err(hdev->dev, "handle %u is mapped, cananalt free\n", handle);
 		return -EINVAL;
 	}
 
@@ -400,8 +400,8 @@ static void clear_va_list_locked(struct hl_device *hdev,
 {
 	struct hl_vm_va_block *va_block, *tmp;
 
-	list_for_each_entry_safe(va_block, tmp, va_list, node) {
-		list_del(&va_block->node);
+	list_for_each_entry_safe(va_block, tmp, va_list, analde) {
+		list_del(&va_block->analde);
 		kfree(va_block);
 	}
 }
@@ -424,7 +424,7 @@ static void print_va_list_locked(struct hl_device *hdev,
 
 	dev_dbg(hdev->dev, "print va list:\n");
 
-	list_for_each_entry(va_block, va_list, node)
+	list_for_each_entry(va_block, va_list, analde)
 		dev_dbg(hdev->dev,
 			"va block, start: 0x%llx, end: 0x%llx, size: %llu\n",
 			va_block->start, va_block->end, va_block->size);
@@ -448,20 +448,20 @@ static void merge_va_blocks_locked(struct hl_device *hdev,
 {
 	struct hl_vm_va_block *prev, *next;
 
-	prev = list_prev_entry(va_block, node);
-	if (&prev->node != va_list && prev->end + 1 == va_block->start) {
+	prev = list_prev_entry(va_block, analde);
+	if (&prev->analde != va_list && prev->end + 1 == va_block->start) {
 		prev->end = va_block->end;
 		prev->size = prev->end - prev->start + 1;
-		list_del(&va_block->node);
+		list_del(&va_block->analde);
 		kfree(va_block);
 		va_block = prev;
 	}
 
-	next = list_next_entry(va_block, node);
-	if (&next->node != va_list && va_block->end + 1 == next->start) {
+	next = list_next_entry(va_block, analde);
+	if (&next->analde != va_list && va_block->end + 1 == next->start) {
 		next->start = va_block->start;
 		next->size = next->end - next->start + 1;
-		list_del(&va_block->node);
+		list_del(&va_block->analde);
 		kfree(va_block);
 	}
 }
@@ -487,7 +487,7 @@ static int add_va_block_locked(struct hl_device *hdev,
 
 	print_va_list_locked(hdev, va_list);
 
-	list_for_each_entry(va_block, va_list, node) {
+	list_for_each_entry(va_block, va_list, analde) {
 		/* TODO: remove upon matureness */
 		if (hl_mem_area_crosses_range(start, size, va_block->start,
 				va_block->end)) {
@@ -503,16 +503,16 @@ static int add_va_block_locked(struct hl_device *hdev,
 
 	va_block = kmalloc(sizeof(*va_block), GFP_KERNEL);
 	if (!va_block)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	va_block->start = start;
 	va_block->end = end;
 	va_block->size = size;
 
 	if (!res)
-		list_add(&va_block->node, va_list);
+		list_add(&va_block->analde, va_list);
 	else
-		list_add(&va_block->node, &res->node);
+		list_add(&va_block->analde, &res->analde);
 
 	merge_va_blocks_locked(hdev, va_list, va_block);
 
@@ -611,16 +611,16 @@ static u64 get_va_block(struct hl_device *hdev,
 		align_mask = ~((u64)va_block_align - 1);
 	else
 		/*
-		 * with non-power-of-2 range we work only with page granularity
+		 * with analn-power-of-2 range we work only with page granularity
 		 * and the start address is page aligned,
-		 * so no need for alignment checking.
+		 * so anal need for alignment checking.
 		 */
 		size = DIV_ROUND_UP_ULL(size, va_range->page_size) *
 							va_range->page_size;
 
 	tmp_hint_addr = hint_addr & ~dram_hint_mask;
 
-	/* Check if we need to ignore hint address */
+	/* Check if we need to iganalre hint address */
 	if ((is_align_pow_2 && (hint_addr & (va_block_align - 1))) ||
 			(!is_align_pow_2 && is_hint_dram_addr &&
 			do_div(tmp_hint_addr, va_range->page_size))) {
@@ -628,13 +628,13 @@ static u64 get_va_block(struct hl_device *hdev,
 		if (force_hint) {
 			/* Hint must be respected, so here we just fail */
 			dev_err(hdev->dev,
-				"Hint address 0x%llx is not page aligned - cannot be respected\n",
+				"Hint address 0x%llx is analt page aligned - cananalt be respected\n",
 				hint_addr);
 			return 0;
 		}
 
 		dev_dbg(hdev->dev,
-			"Hint address 0x%llx will be ignored because it is not aligned\n",
+			"Hint address 0x%llx will be iganalred because it is analt aligned\n",
 			hint_addr);
 		hint_addr = 0;
 	}
@@ -643,7 +643,7 @@ static u64 get_va_block(struct hl_device *hdev,
 
 	print_va_list_locked(hdev, &va_range->list);
 
-	list_for_each_entry(va_block, &va_range->list, node) {
+	list_for_each_entry(va_block, &va_range->list, analde) {
 		/* Calc the first possible aligned addr */
 		valid_start = va_block->start;
 
@@ -685,17 +685,17 @@ static u64 get_va_block(struct hl_device *hdev,
 	}
 
 	if (!new_va_block) {
-		dev_err(hdev->dev, "no available va block for size %llu\n",
+		dev_err(hdev->dev, "anal available va block for size %llu\n",
 								size);
 		goto out;
 	}
 
 	if (force_hint && reserved_valid_start != hint_addr) {
 		/* Hint address must be respected. If we are here - this means
-		 * we could not respect it.
+		 * we could analt respect it.
 		 */
 		dev_err(hdev->dev,
-			"Hint address 0x%llx could not be respected\n",
+			"Hint address 0x%llx could analt be respected\n",
 			hint_addr);
 		reserved_valid_start = 0;
 		goto out;
@@ -719,7 +719,7 @@ static u64 get_va_block(struct hl_device *hdev,
 		new_va_block->start += size;
 		new_va_block->size = new_va_block->end - new_va_block->start + 1;
 	} else {
-		list_del(&new_va_block->node);
+		list_del(&new_va_block->analde);
 		kfree(new_va_block);
 	}
 
@@ -745,7 +745,7 @@ out:
  * @type: virtual addresses range type.
  * @size: requested block size.
  * @alignment: required alignment in bytes of the virtual block start address,
- *             0 means no alignment.
+ *             0 means anal alignment.
  *
  * This function does the following:
  * - Iterate on the virtual block list to find a suitable virtual block for the
@@ -806,7 +806,7 @@ int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 	rc = hl_get_va_range_type(ctx, start_addr, size, &type);
 	if (rc) {
 		dev_err(hdev->dev,
-			"cannot find va_range for va %#llx size %llu",
+			"cananalt find va_range for va %#llx size %llu",
 			start_addr, size);
 		return rc;
 	}
@@ -826,9 +826,9 @@ int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
  * @ctx: pointer to the context structure.
  * @userptr: userptr to initialize from.
  * @pphys_pg_pack: result pointer.
- * @force_regular_page: tell the function to ignore huge page optimization,
+ * @force_regular_page: tell the function to iganalre huge page optimization,
  *                      even if possible. Needed for cases where the device VA
- *                      is allocated before we know the composition of the
+ *                      is allocated before we kanalw the composition of the
  *                      physical pages
  *
  * This function does the following:
@@ -852,7 +852,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 	phys_pg_pack = kzalloc(sizeof(*phys_pg_pack), GFP_KERNEL);
 	if (!phys_pg_pack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phys_pg_pack->vm_type = userptr->vm_type;
 	phys_pg_pack->created_from_userptr = true;
@@ -888,7 +888,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	phys_pg_pack->pages = kvmalloc_array(total_npages, sizeof(u64),
 						GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(phys_pg_pack->pages)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto page_pack_arr_mem_err;
 	}
 
@@ -1053,7 +1053,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_userptr *userptr = NULL;
 	u32 handle = 0, va_block_align;
-	struct hl_vm_hash_node *hnode;
+	struct hl_vm_hash_analde *hanalde;
 	struct hl_vm *vm = &hdev->vm;
 	struct hl_va_range *va_range;
 	bool is_userptr, do_prefetch;
@@ -1120,11 +1120,11 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 		if (!phys_pg_pack) {
 			spin_unlock(&vm->idr_lock);
 			dev_err(hdev->dev,
-				"no match for handle %u\n", handle);
+				"anal match for handle %u\n", handle);
 			return -EINVAL;
 		}
 
-		/* increment now to avoid freeing device memory while mapping */
+		/* increment analw to avoid freeing device memory while mapping */
 		atomic_inc(&phys_pg_pack->mapping_cnt);
 
 		spin_unlock(&vm->idr_lock);
@@ -1146,29 +1146,29 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 	if (!is_userptr && !(phys_pg_pack->flags & HL_MEM_SHARED) &&
 			phys_pg_pack->asid != ctx->asid) {
 		dev_err(hdev->dev,
-			"Failed to map memory, handle %u is not shared\n",
+			"Failed to map memory, handle %u is analt shared\n",
 			handle);
 		rc = -EPERM;
 		goto shared_err;
 	}
 
-	hnode = kzalloc(sizeof(*hnode), GFP_KERNEL);
-	if (!hnode) {
-		rc = -ENOMEM;
-		goto hnode_err;
+	hanalde = kzalloc(sizeof(*hanalde), GFP_KERNEL);
+	if (!hanalde) {
+		rc = -EANALMEM;
+		goto hanalde_err;
 	}
 
 	if (hint_addr && phys_pg_pack->offset) {
 		if (args->flags & HL_MEM_FORCE_HINT) {
 			/* Fail if hint must be respected but it can't be */
 			dev_err(hdev->dev,
-				"Hint address 0x%llx cannot be respected because source memory is not aligned 0x%x\n",
+				"Hint address 0x%llx cananalt be respected because source memory is analt aligned 0x%x\n",
 				hint_addr, phys_pg_pack->offset);
 			rc = -EINVAL;
 			goto va_block_err;
 		}
 		dev_dbg(hdev->dev,
-			"Hint address 0x%llx will be ignored because source memory is not aligned 0x%x\n",
+			"Hint address 0x%llx will be iganalred because source memory is analt aligned 0x%x\n",
 			hint_addr, phys_pg_pack->offset);
 	}
 
@@ -1176,9 +1176,9 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 					hint_addr, va_block_align,
 					va_range_type, args->flags);
 	if (!ret_vaddr) {
-		dev_err(hdev->dev, "no available va block for handle %u\n",
+		dev_err(hdev->dev, "anal available va block for handle %u\n",
 				handle);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto va_block_err;
 	}
 
@@ -1211,12 +1211,12 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 
 	ret_vaddr += phys_pg_pack->offset;
 
-	hnode->ptr = vm_type;
-	hnode->vaddr = ret_vaddr;
-	hnode->handle = is_userptr ? MEM_HANDLE_INVALID : handle;
+	hanalde->ptr = vm_type;
+	hanalde->vaddr = ret_vaddr;
+	hanalde->handle = is_userptr ? MEM_HANDLE_INVALID : handle;
 
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_add(ctx->mem_hash, &hnode->node, ret_vaddr);
+	hash_add(ctx->mem_hash, &hanalde->analde, ret_vaddr);
 	mutex_unlock(&ctx->mem_hash_lock);
 
 	*device_addr = ret_vaddr;
@@ -1234,8 +1234,8 @@ map_err:
 				handle, ret_vaddr);
 
 va_block_err:
-	kfree(hnode);
-hnode_err:
+	kfree(hanalde);
+hanalde_err:
 shared_err:
 	atomic_dec(&phys_pg_pack->mapping_cnt);
 	if (is_userptr)
@@ -1248,13 +1248,13 @@ init_page_pack_err:
 }
 
 /* Should be called while the context's mem_hash_lock is taken */
-static struct hl_vm_hash_node *get_vm_hash_node_locked(struct hl_ctx *ctx, u64 vaddr)
+static struct hl_vm_hash_analde *get_vm_hash_analde_locked(struct hl_ctx *ctx, u64 vaddr)
 {
-	struct hl_vm_hash_node *hnode;
+	struct hl_vm_hash_analde *hanalde;
 
-	hash_for_each_possible(ctx->mem_hash, hnode, node, vaddr)
-		if (vaddr == hnode->vaddr)
-			return hnode;
+	hash_for_each_possible(ctx->mem_hash, hanalde, analde, vaddr)
+		if (vaddr == hanalde->vaddr)
+			return hanalde;
 
 	return NULL;
 }
@@ -1277,7 +1277,7 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct asic_fixed_properties *prop;
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_userptr *userptr = NULL;
-	struct hl_vm_hash_node *hnode;
+	struct hl_vm_hash_analde *hanalde;
 	struct hl_va_range *va_range;
 	enum vm_type *vm_type;
 	bool is_userptr;
@@ -1287,27 +1287,27 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	/* protect from double entrance */
 	mutex_lock(&ctx->mem_hash_lock);
-	hnode = get_vm_hash_node_locked(ctx, vaddr);
-	if (!hnode) {
+	hanalde = get_vm_hash_analde_locked(ctx, vaddr);
+	if (!hanalde) {
 		mutex_unlock(&ctx->mem_hash_lock);
-		dev_err(hdev->dev, "unmap failed, no mem hnode for vaddr 0x%llx\n", vaddr);
+		dev_err(hdev->dev, "unmap failed, anal mem hanalde for vaddr 0x%llx\n", vaddr);
 		return -EINVAL;
 	}
 
-	if (hnode->export_cnt) {
+	if (hanalde->export_cnt) {
 		mutex_unlock(&ctx->mem_hash_lock);
 		dev_err(hdev->dev, "failed to unmap %#llx, memory is exported\n", vaddr);
 		return -EINVAL;
 	}
 
-	hash_del(&hnode->node);
+	hash_del(&hanalde->analde);
 	mutex_unlock(&ctx->mem_hash_lock);
 
-	vm_type = hnode->ptr;
+	vm_type = hanalde->ptr;
 
 	if (*vm_type == VM_TYPE_USERPTR) {
 		is_userptr = true;
-		userptr = hnode->ptr;
+		userptr = hanalde->ptr;
 
 		rc = init_phys_pg_pack_from_userptr(ctx, userptr, &phys_pg_pack,
 							false);
@@ -1326,17 +1326,17 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	} else if (*vm_type == VM_TYPE_PHYS_PACK) {
 		is_userptr = false;
 		va_range = ctx->va_range[HL_VA_RANGE_TYPE_DRAM];
-		phys_pg_pack = hnode->ptr;
+		phys_pg_pack = hanalde->ptr;
 	} else {
 		dev_warn(hdev->dev,
-			"unmap failed, unknown vm desc for vaddr 0x%llx\n",
+			"unmap failed, unkanalwn vm desc for vaddr 0x%llx\n",
 				vaddr);
 		rc = -EFAULT;
 		goto vm_type_err;
 	}
 
 	if (atomic_read(&phys_pg_pack->mapping_cnt) == 0) {
-		dev_err(hdev->dev, "vaddr 0x%llx is not mapped\n", vaddr);
+		dev_err(hdev->dev, "vaddr 0x%llx is analt mapped\n", vaddr);
 		rc = -EINVAL;
 		goto mapping_cnt_err;
 	}
@@ -1385,7 +1385,7 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	}
 
 	atomic_dec(&phys_pg_pack->mapping_cnt);
-	kfree(hnode);
+	kfree(hanalde);
 
 	if (is_userptr) {
 		free_phys_pg_pack(hdev, phys_pg_pack);
@@ -1399,7 +1399,7 @@ mapping_cnt_err:
 		free_phys_pg_pack(hdev, phys_pg_pack);
 vm_type_err:
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_add(ctx->mem_hash, &hnode->node, vaddr);
+	hash_add(ctx->mem_hash, &hanalde->analde, vaddr);
 	mutex_unlock(&ctx->mem_hash_lock);
 
 	return rc;
@@ -1426,22 +1426,22 @@ static int map_block(struct hl_device *hdev, u64 address, u64 *handle, u32 *size
 
 static void hw_block_vm_close(struct vm_area_struct *vma)
 {
-	struct hl_vm_hw_block_list_node *lnode =
-		(struct hl_vm_hw_block_list_node *) vma->vm_private_data;
-	struct hl_ctx *ctx = lnode->ctx;
+	struct hl_vm_hw_block_list_analde *lanalde =
+		(struct hl_vm_hw_block_list_analde *) vma->vm_private_data;
+	struct hl_ctx *ctx = lanalde->ctx;
 	long new_mmap_size;
 
-	new_mmap_size = lnode->mapped_size - (vma->vm_end - vma->vm_start);
+	new_mmap_size = lanalde->mapped_size - (vma->vm_end - vma->vm_start);
 	if (new_mmap_size > 0) {
-		lnode->mapped_size = new_mmap_size;
+		lanalde->mapped_size = new_mmap_size;
 		return;
 	}
 
 	mutex_lock(&ctx->hw_block_list_lock);
-	list_del(&lnode->node);
+	list_del(&lanalde->analde);
 	mutex_unlock(&ctx->hw_block_list_lock);
 	hl_ctx_put(ctx);
-	kfree(lnode);
+	kfree(lanalde);
 	vma->vm_private_data = NULL;
 }
 
@@ -1459,7 +1459,7 @@ static const struct vm_operations_struct hw_block_vm_ops = {
  */
 int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 {
-	struct hl_vm_hw_block_list_node *lnode;
+	struct hl_vm_hw_block_list_analde *lanalde;
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
 	u32 block_id, block_size;
@@ -1482,29 +1482,29 @@ int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	lnode = kzalloc(sizeof(*lnode), GFP_KERNEL);
-	if (!lnode)
-		return -ENOMEM;
+	lanalde = kzalloc(sizeof(*lanalde), GFP_KERNEL);
+	if (!lanalde)
+		return -EANALMEM;
 
 	rc = hdev->asic_funcs->hw_block_mmap(hdev, vma, block_id, block_size);
 	if (rc) {
-		kfree(lnode);
+		kfree(lanalde);
 		return rc;
 	}
 
 	hl_ctx_get(ctx);
 
-	lnode->ctx = ctx;
-	lnode->vaddr = vma->vm_start;
-	lnode->block_size = block_size;
-	lnode->mapped_size = lnode->block_size;
-	lnode->id = block_id;
+	lanalde->ctx = ctx;
+	lanalde->vaddr = vma->vm_start;
+	lanalde->block_size = block_size;
+	lanalde->mapped_size = lanalde->block_size;
+	lanalde->id = block_id;
 
-	vma->vm_private_data = lnode;
+	vma->vm_private_data = lanalde;
 	vma->vm_ops = &hw_block_vm_ops;
 
 	mutex_lock(&ctx->hw_block_list_lock);
-	list_add_tail(&lnode->node, &ctx->hw_block_mem_list);
+	list_add_tail(&lanalde->analde, &ctx->hw_block_mem_list);
 	mutex_unlock(&ctx->hw_block_list_lock);
 
 	vma->vm_pgoff = block_id;
@@ -1555,7 +1555,7 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Use the offset to move to the actual first page that is exported */
 	for (start_page = 0 ; start_page < npages ; ++start_page) {
@@ -1584,7 +1584,7 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 			break;
 
 		if (!left_size_in_page) {
-			/* left_size_to_export is not zero so there must be another page */
+			/* left_size_to_export is analt zero so there must be aanalther page */
 			if (pages[curr_page] + page_size != pages[curr_page + 1])
 				next_sg_entry = true;
 
@@ -1630,7 +1630,7 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 				break;
 
 			if (!left_size_in_page) {
-				/* left_size_to_export is not zero so there must be another page */
+				/* left_size_to_export is analt zero so there must be aanalther page */
 				if (pages[curr_page] + page_size != pages[curr_page + 1]) {
 					device_address = pages[curr_page + 1];
 					next_sg_entry = true;
@@ -1642,7 +1642,7 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 			if (!left_size_in_dma_seg) {
 				/*
 				 * Skip setting a new device address if already moving to a page
-				 * which is not contiguous with the current page.
+				 * which is analt contiguous with the current page.
 				 */
 				if (!next_sg_entry) {
 					device_address += chunk_size;
@@ -1663,17 +1663,17 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 			goto err_unmap;
 	}
 
-	/* There should be nothing left to export exactly after looping over all SG elements */
+	/* There should be analthing left to export exactly after looping over all SG elements */
 	if (left_size_to_export) {
 		dev_err(hdev->dev,
 			"left size to export %#llx after initializing %u SG elements\n",
 			left_size_to_export, sgt->nents);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_unmap;
 	}
 
 	/*
-	 * Because we are not going to include a CPU list, we want to have some chance that other
+	 * Because we are analt going to include a CPU list, we want to have some chance that other
 	 * users will detect this when going over SG table, by setting the orig_nents to 0 and using
 	 * only nents (length of DMA list).
 	 */
@@ -1772,7 +1772,7 @@ static void hl_unmap_dmabuf(struct dma_buf_attachment *attachment,
 	 * only in the 'device' domain (after all, it maps a PCI bar address which points to the
 	 * device memory).
 	 *
-	 * Therefore, it was never in the 'CPU' domain and hence, there is no need to perform
+	 * Therefore, it was never in the 'CPU' domain and hence, there is anal need to perform
 	 * a sync of the memory to the CPU's cache, as it never resided inside that cache.
 	 */
 	for_each_sgtable_dma_sg(sgt, sg, i)
@@ -1786,41 +1786,41 @@ static void hl_unmap_dmabuf(struct dma_buf_attachment *attachment,
 	kfree(sgt);
 }
 
-static struct hl_vm_hash_node *memhash_node_export_get(struct hl_ctx *ctx, u64 addr)
+static struct hl_vm_hash_analde *memhash_analde_export_get(struct hl_ctx *ctx, u64 addr)
 {
 	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm_hash_node *hnode;
+	struct hl_vm_hash_analde *hanalde;
 
 	/* get the memory handle */
 	mutex_lock(&ctx->mem_hash_lock);
-	hnode = get_vm_hash_node_locked(ctx, addr);
-	if (!hnode) {
+	hanalde = get_vm_hash_analde_locked(ctx, addr);
+	if (!hanalde) {
 		mutex_unlock(&ctx->mem_hash_lock);
-		dev_dbg(hdev->dev, "map address %#llx not found\n", addr);
+		dev_dbg(hdev->dev, "map address %#llx analt found\n", addr);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (upper_32_bits(hnode->handle)) {
+	if (upper_32_bits(hanalde->handle)) {
 		mutex_unlock(&ctx->mem_hash_lock);
 		dev_dbg(hdev->dev, "invalid handle %#llx for map address %#llx\n",
-				hnode->handle, addr);
+				hanalde->handle, addr);
 		return ERR_PTR(-EINVAL);
 	}
 
 	/*
-	 * node found, increase export count so this memory cannot be unmapped
-	 * and the hash node cannot be deleted.
+	 * analde found, increase export count so this memory cananalt be unmapped
+	 * and the hash analde cananalt be deleted.
 	 */
-	hnode->export_cnt++;
+	hanalde->export_cnt++;
 	mutex_unlock(&ctx->mem_hash_lock);
 
-	return hnode;
+	return hanalde;
 }
 
-static void memhash_node_export_put(struct hl_ctx *ctx, struct hl_vm_hash_node *hnode)
+static void memhash_analde_export_put(struct hl_ctx *ctx, struct hl_vm_hash_analde *hanalde)
 {
 	mutex_lock(&ctx->mem_hash_lock);
-	hnode->export_cnt--;
+	hanalde->export_cnt--;
 	mutex_unlock(&ctx->mem_hash_lock);
 }
 
@@ -1834,8 +1834,8 @@ static void hl_release_dmabuf(struct dma_buf *dmabuf)
 
 	ctx = hl_dmabuf->ctx;
 
-	if (hl_dmabuf->memhash_hnode)
-		memhash_node_export_put(ctx, hl_dmabuf->memhash_hnode);
+	if (hl_dmabuf->memhash_hanalde)
+		memhash_analde_export_put(ctx, hl_dmabuf->memhash_hanalde);
 
 	atomic_dec(&ctx->hdev->dmabuf_export_cnt);
 	hl_ctx_put(ctx);
@@ -1925,7 +1925,7 @@ static int validate_export_params_common(struct hl_device *hdev, u64 addr, u64 s
 	return 0;
 }
 
-static int validate_export_params_no_mmu(struct hl_device *hdev, u64 device_addr, u64 size)
+static int validate_export_params_anal_mmu(struct hl_device *hdev, u64 device_addr, u64 size)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 bar_address;
@@ -1991,24 +1991,24 @@ static int validate_export_params(struct hl_device *hdev, u64 device_addr, u64 s
 	return 0;
 }
 
-static struct hl_vm_phys_pg_pack *get_phys_pg_pack_from_hash_node(struct hl_device *hdev,
-							struct hl_vm_hash_node *hnode)
+static struct hl_vm_phys_pg_pack *get_phys_pg_pack_from_hash_analde(struct hl_device *hdev,
+							struct hl_vm_hash_analde *hanalde)
 {
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_vm *vm = &hdev->vm;
 
 	spin_lock(&vm->idr_lock);
-	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, (u32) hnode->handle);
+	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, (u32) hanalde->handle);
 	if (!phys_pg_pack) {
 		spin_unlock(&vm->idr_lock);
-		dev_dbg(hdev->dev, "no match for handle 0x%x\n", (u32) hnode->handle);
+		dev_dbg(hdev->dev, "anal match for handle 0x%x\n", (u32) hanalde->handle);
 		return ERR_PTR(-EINVAL);
 	}
 
 	spin_unlock(&vm->idr_lock);
 
 	if (phys_pg_pack->vm_type != VM_TYPE_PHYS_PACK) {
-		dev_dbg(hdev->dev, "handle 0x%llx does not represent DRAM memory\n", hnode->handle);
+		dev_dbg(hdev->dev, "handle 0x%llx does analt represent DRAM memory\n", hanalde->handle);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -2029,13 +2029,13 @@ static struct hl_vm_phys_pg_pack *get_phys_pg_pack_from_hash_node(struct hl_devi
  * the device memory, and return a FD which is associated with the dma-buf
  * object.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, analn-zero for failure.
  */
 static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 offset,
 					int flags, int *dmabuf_fd)
 {
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
-	struct hl_vm_hash_node *hnode = NULL;
+	struct hl_vm_hash_analde *hanalde = NULL;
 	struct asic_fixed_properties *prop;
 	struct hl_dmabuf_priv *hl_dmabuf;
 	struct hl_device *hdev;
@@ -2046,21 +2046,21 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 
 	/* offset must be 0 in devices without virtual memory support */
 	if (!prop->dram_supports_virtual_memory && offset) {
-		dev_dbg(hdev->dev, "offset is not allowed in device without virtual memory\n");
+		dev_dbg(hdev->dev, "offset is analt allowed in device without virtual memory\n");
 		return -EINVAL;
 	}
 
 	hl_dmabuf = kzalloc(sizeof(*hl_dmabuf), GFP_KERNEL);
 	if (!hl_dmabuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (prop->dram_supports_virtual_memory) {
-		hnode = memhash_node_export_get(ctx, addr);
-		if (IS_ERR(hnode)) {
-			rc = PTR_ERR(hnode);
+		hanalde = memhash_analde_export_get(ctx, addr);
+		if (IS_ERR(hanalde)) {
+			rc = PTR_ERR(hanalde);
 			goto err_free_dmabuf_wrapper;
 		}
-		phys_pg_pack = get_phys_pg_pack_from_hash_node(hdev, hnode);
+		phys_pg_pack = get_phys_pg_pack_from_hash_analde(hdev, hanalde);
 		if (IS_ERR(phys_pg_pack)) {
 			rc = PTR_ERR(phys_pg_pack);
 			goto dec_memhash_export_cnt;
@@ -2070,10 +2070,10 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 			goto dec_memhash_export_cnt;
 
 		hl_dmabuf->phys_pg_pack = phys_pg_pack;
-		hl_dmabuf->memhash_hnode = hnode;
+		hl_dmabuf->memhash_hanalde = hanalde;
 		hl_dmabuf->offset = offset;
 	} else {
-		rc = validate_export_params_no_mmu(hdev, addr, size);
+		rc = validate_export_params_anal_mmu(hdev, addr, size);
 		if (rc)
 			goto err_free_dmabuf_wrapper;
 
@@ -2088,7 +2088,7 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 
 dec_memhash_export_cnt:
 	if (prop->dram_supports_virtual_memory)
-		memhash_node_export_put(ctx, hnode);
+		memhash_analde_export_put(ctx, hanalde);
 err_free_dmabuf_wrapper:
 	kfree(hl_dmabuf);
 	return rc;
@@ -2107,7 +2107,7 @@ static int hl_ts_mmap(struct hl_mmap_mem_buf *buf, struct vm_area_struct *vma, v
 {
 	struct hl_ts_buff *ts_buff = buf->private;
 
-	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP | VM_DONTCOPY | VM_NORESERVE);
+	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP | VM_DONTCOPY | VM_ANALRESERVE);
 	return remap_vmalloc_range(vma, ts_buff->user_buff_address, 0);
 }
 
@@ -2122,7 +2122,7 @@ static int hl_ts_alloc_buf(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args)
 
 	ts_buff = kzalloc(sizeof(*ts_buff), gfp);
 	if (!ts_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate the user buffer */
 	size = num_elements * sizeof(u64);
@@ -2150,7 +2150,7 @@ free_user_buff:
 	vfree(ts_buff->user_buff_address);
 free_mem:
 	kfree(ts_buff);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct hl_mmap_mem_buf_behavior hl_ts_behavior = {
@@ -2166,10 +2166,10 @@ static struct hl_mmap_mem_buf_behavior hl_ts_behavior = {
  * This function will allocate ts buffer that will later on be mapped to the user
  * in order to be able to read the timestamp.
  * in addition it'll allocate an extra buffer for registration management.
- * since we cannot fail during registration for out-of-memory situation, so
- * we'll prepare a pool which will be used as user interrupt nodes and instead
- * of dynamically allocating nodes while registration we'll pick the node from
- * this pool. in addition it'll add node to the mapping hash which will be used
+ * since we cananalt fail during registration for out-of-memory situation, so
+ * we'll prepare a pool which will be used as user interrupt analdes and instead
+ * of dynamically allocating analdes while registration we'll pick the analde from
+ * this pool. in addition it'll add analde to the mapping hash which will be used
  * to map user ts buffer to the internal kernel ts buffer.
  * @hpriv: pointer to the private data of the fd
  * @args: ioctl input
@@ -2188,7 +2188,7 @@ static int allocate_timestamps_buffers(struct hl_fpriv *hpriv, struct hl_mem_in 
 
 	buf = hl_mmap_mem_buf_alloc(mmg, &hl_ts_behavior, GFP_KERNEL, &args->num_of_elements);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*handle = buf->handle;
 
@@ -2222,7 +2222,7 @@ int hl_mem_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv
 			goto out;
 		}
 
-		/* If DRAM does not support virtual memory the driver won't
+		/* If DRAM does analt support virtual memory the driver won't
 		 * handle the allocation/freeing of that memory. However, for
 		 * system administration/monitoring purposes, the driver will
 		 * keep track of the amount of DRAM memory that is allocated
@@ -2236,7 +2236,7 @@ int hl_mem_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv
 			atomic64_add(args->in.alloc.mem_size,
 					&hdev->dram_used_mem);
 
-			dev_dbg(hdev->dev, "DRAM alloc is not supported\n");
+			dev_dbg(hdev->dev, "DRAM alloc is analt supported\n");
 			rc = 0;
 
 			memset(args, 0, sizeof(*args));
@@ -2251,7 +2251,7 @@ int hl_mem_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv
 		break;
 
 	case HL_MEM_OP_FREE:
-		/* If DRAM does not support virtual memory the driver won't
+		/* If DRAM does analt support virtual memory the driver won't
 		 * handle the allocation/freeing of that memory. However, for
 		 * system administration/monitoring purposes, the driver will
 		 * keep track of the amount of DRAM memory that is allocated
@@ -2265,7 +2265,7 @@ int hl_mem_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv
 			atomic64_sub(args->in.alloc.mem_size,
 					&hdev->dram_used_mem);
 
-			dev_dbg(hdev->dev, "DRAM alloc is not supported\n");
+			dev_dbg(hdev->dev, "DRAM alloc is analt supported\n");
 			rc = 0;
 
 			goto out;
@@ -2307,7 +2307,7 @@ int hl_mem_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv
 		rc = allocate_timestamps_buffers(hpriv, &args->in, &args->out.handle);
 		break;
 	default:
-		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
+		dev_err(hdev->dev, "Unkanalwn opcode for memory IOCTL\n");
 		rc = -EINVAL;
 		break;
 	}
@@ -2329,7 +2329,7 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 	userptr->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!userptr->pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = pin_user_pages_fast(start, npages, FOLL_WRITE | FOLL_LONGTERM,
 				 userptr->pages);
@@ -2401,7 +2401,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 	userptr->pid = current->pid;
 	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_KERNEL);
 	if (!userptr->sgt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	start = addr & PAGE_MASK;
 	offset = addr & ~PAGE_MASK;
@@ -2411,7 +2411,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 	userptr->size = size;
 	userptr->addr = addr;
 	userptr->dma_mapped = false;
-	INIT_LIST_HEAD(&userptr->job_node);
+	INIT_LIST_HEAD(&userptr->job_analde);
 
 	rc = get_user_memory(hdev, addr, size, npages, start, offset,
 				userptr);
@@ -2450,7 +2450,7 @@ void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 	unpin_user_pages_dirty_lock(userptr->pages, userptr->npages, true);
 	kvfree(userptr->pages);
 
-	list_del(&userptr->job_node);
+	list_del(&userptr->job_analde);
 
 	sg_free_table(userptr->sgt);
 	kfree(userptr->sgt);
@@ -2470,7 +2470,7 @@ void hl_userptr_delete_list(struct hl_device *hdev,
 {
 	struct hl_userptr *userptr, *tmp;
 
-	list_for_each_entry_safe(userptr, tmp, userptr_list, job_node) {
+	list_for_each_entry_safe(userptr, tmp, userptr_list, job_analde) {
 		hl_unpin_host_memory(hdev, userptr);
 		kfree(userptr);
 	}
@@ -2494,7 +2494,7 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr,
 				u32 size, struct list_head *userptr_list,
 				struct hl_userptr **userptr)
 {
-	list_for_each_entry((*userptr), userptr_list, job_node) {
+	list_for_each_entry((*userptr), userptr_list, job_analde) {
 		if ((addr == (*userptr)->addr) && (size == (*userptr)->size))
 			return true;
 	}
@@ -2527,7 +2527,7 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range **va_ranges,
 	/*
 	 * PAGE_SIZE alignment
 	 * it is the caller's responsibility to align the addresses if the
-	 * page size is not a power of 2
+	 * page size is analt a power of 2
 	 */
 
 	if (is_power_of_2(page_size)) {
@@ -2537,7 +2537,7 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range **va_ranges,
 		 * The end of the range is inclusive, hence we need to align it
 		 * to the end of the last full page in the range. For example if
 		 * end = 0x3ff5 with page size 0x1000, we need to align it to
-		 * 0x2fff. The remaining 0xff5 bytes do not form a full page.
+		 * 0x2fff. The remaining 0xff5 bytes do analt form a full page.
 		 */
 		end = round_down(end + 1, page_size) - 1;
 	}
@@ -2617,7 +2617,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 		ctx->va_range[i] =
 			kzalloc(sizeof(struct hl_va_range), GFP_KERNEL);
 		if (!ctx->va_range[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto free_va_range;
 		}
 	}
@@ -2740,8 +2740,8 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
  * - MMU for context.
  *
  * In addition this function does the following:
- * - Unmaps the existing hashtable nodes if the hashtable is not empty. The
- *   hashtable should be empty as no valid mappings should exist at this
+ * - Unmaps the existing hashtable analdes if the hashtable is analt empty. The
+ *   hashtable should be empty as anal valid mappings should exist at this
  *   point.
  * - Frees any existing physical page list from the idr which relates to the
  *   current context asid.
@@ -2751,11 +2751,11 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
  */
 void hl_vm_ctx_fini(struct hl_ctx *ctx)
 {
-	struct hl_vm_phys_pg_pack *phys_pg_list, *tmp_phys_node;
+	struct hl_vm_phys_pg_pack *phys_pg_list, *tmp_phys_analde;
 	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm_hash_node *hnode;
+	struct hl_vm_hash_analde *hanalde;
 	struct hl_vm *vm = &hdev->vm;
-	struct hlist_node *tmp_node;
+	struct hlist_analde *tmp_analde;
 	struct list_head free_list;
 	struct hl_mem_in args;
 	int i;
@@ -2766,18 +2766,18 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
 
 	/*
-	 * Clearly something went wrong on hard reset so no point in printing
-	 * another side effect error
+	 * Clearly something went wrong on hard reset so anal point in printing
+	 * aanalther side effect error
 	 */
 	if (!hdev->reset_info.hard_reset_pending && !hash_empty(ctx->mem_hash))
 		dev_dbg(hdev->dev,
 			"user released device without removing its memory mappings\n");
 
-	hash_for_each_safe(ctx->mem_hash, i, tmp_node, hnode, node) {
+	hash_for_each_safe(ctx->mem_hash, i, tmp_analde, hanalde, analde) {
 		dev_dbg(hdev->dev,
-			"hl_mem_hash_node of vaddr 0x%llx of asid %d is still alive\n",
-			hnode->vaddr, ctx->asid);
-		args.unmap.device_virt_addr = hnode->vaddr;
+			"hl_mem_hash_analde of vaddr 0x%llx of asid %d is still alive\n",
+			hanalde->vaddr, ctx->asid);
+		args.unmap.device_virt_addr = hanalde->vaddr;
 		unmap_device_va(ctx, &args, true);
 	}
 
@@ -2800,11 +2800,11 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 
 			atomic64_sub(phys_pg_list->total_size, &hdev->dram_used_mem);
 			idr_remove(&vm->phys_pg_pack_handles, i);
-			list_add(&phys_pg_list->node, &free_list);
+			list_add(&phys_pg_list->analde, &free_list);
 		}
 	spin_unlock(&vm->idr_lock);
 
-	list_for_each_entry_safe(phys_pg_list, tmp_phys_node, &free_list, node)
+	list_for_each_entry_safe(phys_pg_list, tmp_phys_analde, &free_list, analde)
 		free_phys_pg_pack(hdev, phys_pg_list);
 
 	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_DRAM]);
@@ -2817,7 +2817,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	hl_mmu_ctx_fini(ctx);
 
 	/* In this case we need to clear the global accounting of DRAM usage
-	 * because the user notifies us on allocations. If the user is no more,
+	 * because the user analtifies us on allocations. If the user is anal more,
 	 * all DRAM is available
 	 */
 	if (ctx->asid != HL_KERNEL_ASID_ID &&
@@ -2849,7 +2849,7 @@ int hl_vm_init(struct hl_device *hdev)
 
 	if (!vm->dram_pg_pool) {
 		dev_err(hdev->dev, "Failed to create dram page pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kref_init(&vm->dram_pg_pool_refcount);
@@ -2896,11 +2896,11 @@ void hl_vm_fini(struct hl_device *hdev)
 		return;
 
 	/*
-	 * At this point all the contexts should be freed and hence no DRAM
+	 * At this point all the contexts should be freed and hence anal DRAM
 	 * memory should be in use. Hence the DRAM pool should be freed here.
 	 */
 	if (kref_put(&vm->dram_pg_pool_refcount, dram_pg_pool_do_release) != 1)
-		dev_warn(hdev->dev, "dram_pg_pool was not destroyed on %s\n",
+		dev_warn(hdev->dev, "dram_pg_pool was analt destroyed on %s\n",
 				__func__);
 
 	vm->init_done = false;
@@ -2928,14 +2928,14 @@ void hl_hw_block_mem_init(struct hl_ctx *ctx)
  */
 void hl_hw_block_mem_fini(struct hl_ctx *ctx)
 {
-	struct hl_vm_hw_block_list_node *lnode, *tmp;
+	struct hl_vm_hw_block_list_analde *lanalde, *tmp;
 
 	if (!list_empty(&ctx->hw_block_mem_list))
 		dev_crit(ctx->hdev->dev, "HW block mem list isn't empty\n");
 
-	list_for_each_entry_safe(lnode, tmp, &ctx->hw_block_mem_list, node) {
-		list_del(&lnode->node);
-		kfree(lnode);
+	list_for_each_entry_safe(lanalde, tmp, &ctx->hw_block_mem_list, analde) {
+		list_del(&lanalde->analde);
+		kfree(lanalde);
 	}
 
 	mutex_destroy(&ctx->hw_block_list_lock);

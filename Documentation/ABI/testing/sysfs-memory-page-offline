@@ -11,14 +11,14 @@ Description:
 		on the bad page list and never be reused.
 
 		The offlining is done in kernel specific granularity.
-		Normally it's the base page size of the kernel, but
+		Analrmally it's the base page size of the kernel, but
 		this might change.
 
-		The page must be still accessible, not poisoned. The
+		The page must be still accessible, analt poisoned. The
 		kernel will never kill anything for this, but rather
 		fail the offline.  Return value is the size of the
 		number, or a error when the offlining failed.  Reading
-		the file is not allowed.
+		the file is analt allowed.
 
 What:		/sys/devices/system/memory/hard_offline_page
 Date:		Sep 2009
@@ -30,15 +30,15 @@ Description:
 		specifying the physical address of the page. The
 		kernel will then attempt to hard-offline the page, by
 		trying to drop the page or killing any owner or
-		triggering IO errors if needed.  Note this may kill
+		triggering IO errors if needed.  Analte this may kill
 		any processes owning the page. The kernel will avoid
 		to access this page assuming it's poisoned by the
 		hardware.
 
 		The offlining is done in kernel specific granularity.
-		Normally it's the base page size of the kernel, but
+		Analrmally it's the base page size of the kernel, but
 		this might change.
 
 		Return value is the size of the number, or a error when
 		the offlining failed.
-		Reading the file is not allowed.
+		Reading the file is analt allowed.

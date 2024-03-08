@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -26,8 +26,8 @@
 #include "gvt.h"
 
 /*
- * Note: Only for GVT-g virtual VBT generation, other usage must
- * not do like this.
+ * Analte: Only for GVT-g virtual VBT generation, other usage must
+ * analt do like this.
  */
 #define _INTEL_BIOS_PRIVATE
 #include "display/intel_vbt_defs.h"
@@ -63,7 +63,7 @@ struct bdb_data_header {
 
 /* For supporting windows guest with opregion, here hardcode the emulated
  * bdb header version as '186', and the corresponding child_device_config
- * length should be '33' but not '38'.
+ * length should be '33' but analt '38'.
  */
 struct efp_child_device_config {
 	u16 handle;
@@ -207,7 +207,7 @@ static void virt_vbt_generation(struct vbt *v)
 	/* driver features */
 	v->driver_features_header.id = BDB_DRIVER_FEATURES;
 	v->driver_features_header.size = sizeof(struct bdb_driver_features);
-	v->driver_features.lvds_config = BDB_DRIVER_FEATURE_NO_LVDS;
+	v->driver_features.lvds_config = BDB_DRIVER_FEATURE_ANAL_LVDS;
 }
 
 /**
@@ -230,7 +230,7 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu)
 			get_order(INTEL_GVT_OPREGION_SIZE));
 	if (!vgpu_opregion(vgpu)->va) {
 		gvt_err("fail to get memory for vgpu virt opregion\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* emulated opregion with VBT mailbox only */
@@ -242,7 +242,7 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu)
 	header->opregion_ver = 0x02000000;
 	header->mboxes = MBOX_VBT;
 
-	/* for unknown reason, the value in LID field is incorrect
+	/* for unkanalwn reason, the value in LID field is incorrect
 	 * which block the windows guest, so workaround it by force
 	 * setting it to "OPEN"
 	 */
@@ -333,7 +333,7 @@ static const char *opregion_func_name(u32 func)
 		break;
 
 	default:
-		name = "Unknown";
+		name = "Unkanalwn";
 		break;
 	}
 	return name;
@@ -378,7 +378,7 @@ static const char *opregion_subfunc_name(u32 subfunc)
 		break;
 
 	default:
-		name = "Unknown";
+		name = "Unkanalwn";
 		break;
 	}
 	return name;
@@ -439,7 +439,7 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 		gvt_vgpu_err("requesting SMI service\n");
 		return 0;
 	}
-	/* ignore non 0->1 trasitions */
+	/* iganalre analn 0->1 trasitions */
 	if ((vgpu_cfg_space(vgpu)[INTEL_GVT_PCI_SWSCI]
 				& SWSCI_SCI_TRIGGER) ||
 			!(swsci & SWSCI_SCI_TRIGGER)) {
@@ -455,7 +455,7 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 				opregion_subfunc_name(subfunc));
 		/*
 		 * emulate exit status of function call, '0' means
-		 * "failure, generic, unsupported or unknown cause"
+		 * "failure, generic, unsupported or unkanalwn cause"
 		 */
 		scic &= ~OPREGION_SCIC_EXIT_MASK;
 		goto out;

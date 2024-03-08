@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-analte */
 /*
  * nilfs2_ondisk.h - NILFS2 on-disk structures
  *
@@ -31,16 +31,16 @@
 #include <linux/magic.h>
 #include <asm/byteorder.h>
 
-#define NILFS_INODE_BMAP_SIZE	7
+#define NILFS_IANALDE_BMAP_SIZE	7
 
 /**
- * struct nilfs_inode - structure of an inode on disk
+ * struct nilfs_ianalde - structure of an ianalde on disk
  * @i_blocks: blocks count
  * @i_size: size in bytes
  * @i_ctime: creation time (seconds)
  * @i_mtime: modification time (seconds)
- * @i_ctime_nsec: creation time (nano seconds)
- * @i_mtime_nsec: modification time (nano seconds)
+ * @i_ctime_nsec: creation time (naanal seconds)
+ * @i_mtime_nsec: modification time (naanal seconds)
  * @i_uid: user id
  * @i_gid: group id
  * @i_mode: file mode
@@ -51,7 +51,7 @@
  * @i_generation: file generation (for NFS)
  * @i_pad: padding
  */
-struct nilfs_inode {
+struct nilfs_ianalde {
 	__le64	i_blocks;
 	__le64	i_size;
 	__le64	i_ctime;
@@ -63,42 +63,42 @@ struct nilfs_inode {
 	__le16	i_mode;
 	__le16	i_links_count;
 	__le32	i_flags;
-	__le64	i_bmap[NILFS_INODE_BMAP_SIZE];
+	__le64	i_bmap[NILFS_IANALDE_BMAP_SIZE];
 #define i_device_code	i_bmap[0]
 	__le64	i_xattr;
 	__le32	i_generation;
 	__le32	i_pad;
 };
 
-#define NILFS_MIN_INODE_SIZE		128
+#define NILFS_MIN_IANALDE_SIZE		128
 
 /**
  * struct nilfs_super_root - structure of super root
  * @sr_sum: check sum
  * @sr_bytes: byte count of the structure
  * @sr_flags: flags (reserved)
- * @sr_nongc_ctime: write time of the last segment not for cleaner operation
- * @sr_dat: DAT file inode
- * @sr_cpfile: checkpoint file inode
- * @sr_sufile: segment usage file inode
+ * @sr_analngc_ctime: write time of the last segment analt for cleaner operation
+ * @sr_dat: DAT file ianalde
+ * @sr_cpfile: checkpoint file ianalde
+ * @sr_sufile: segment usage file ianalde
  */
 struct nilfs_super_root {
 	__le32 sr_sum;
 	__le16 sr_bytes;
 	__le16 sr_flags;
-	__le64 sr_nongc_ctime;
-	struct nilfs_inode sr_dat;
-	struct nilfs_inode sr_cpfile;
-	struct nilfs_inode sr_sufile;
+	__le64 sr_analngc_ctime;
+	struct nilfs_ianalde sr_dat;
+	struct nilfs_ianalde sr_cpfile;
+	struct nilfs_ianalde sr_sufile;
 };
 
-#define NILFS_SR_MDT_OFFSET(inode_size, i)  \
+#define NILFS_SR_MDT_OFFSET(ianalde_size, i)  \
 	((unsigned long)&((struct nilfs_super_root *)0)->sr_dat + \
-			(inode_size) * (i))
-#define NILFS_SR_DAT_OFFSET(inode_size)     NILFS_SR_MDT_OFFSET(inode_size, 0)
-#define NILFS_SR_CPFILE_OFFSET(inode_size)  NILFS_SR_MDT_OFFSET(inode_size, 1)
-#define NILFS_SR_SUFILE_OFFSET(inode_size)  NILFS_SR_MDT_OFFSET(inode_size, 2)
-#define NILFS_SR_BYTES(inode_size)	    NILFS_SR_MDT_OFFSET(inode_size, 3)
+			(ianalde_size) * (i))
+#define NILFS_SR_DAT_OFFSET(ianalde_size)     NILFS_SR_MDT_OFFSET(ianalde_size, 0)
+#define NILFS_SR_CPFILE_OFFSET(ianalde_size)  NILFS_SR_MDT_OFFSET(ianalde_size, 1)
+#define NILFS_SR_SUFILE_OFFSET(ianalde_size)  NILFS_SR_MDT_OFFSET(ianalde_size, 2)
+#define NILFS_SR_BYTES(ianalde_size)	    NILFS_SR_MDT_OFFSET(ianalde_size, 3)
 
 /*
  * Maximal mount counts
@@ -124,7 +124,7 @@ struct nilfs_super_root {
 						 * Apply strict in-order
 						 * semantics also for data
 						 */
-#define NILFS_MOUNT_NORECOVERY		0x4000  /*
+#define NILFS_MOUNT_ANALRECOVERY		0x4000  /*
 						 * Disable write access during
 						 * mount-time recovery
 						 */
@@ -136,7 +136,7 @@ struct nilfs_super_root {
  */
 struct nilfs_super_block {
 /*00*/	__le32	s_rev_level;		/* Revision level */
-	__le16	s_minor_rev_level;	/* minor revision level */
+	__le16	s_mianalr_rev_level;	/* mianalr revision level */
 	__le16	s_magic;		/* Magic signature */
 
 	__le16  s_bytes;		/*
@@ -159,7 +159,7 @@ struct nilfs_super_block {
 /*30*/	__le32  s_blocks_per_segment;   /* number of blocks per full segment */
 	__le32	s_r_segments_percentage; /* Reserved segments percentage */
 
-	__le64  s_last_cno;		/* Last checkpoint number */
+	__le64  s_last_canal;		/* Last checkpoint number */
 /*40*/	__le64  s_last_pseg;		/* disk block addr pseg written last */
 	__le64  s_last_seq;             /* seq. number of seg written last */
 /*50*/	__le64	s_free_blocks_count;	/* Free blocks count */
@@ -180,9 +180,9 @@ struct nilfs_super_block {
 	__le32	s_creator_os;		/* OS */
 	__le16	s_def_resuid;		/* Default uid for reserved blocks */
 	__le16	s_def_resgid;		/* Default gid for reserved blocks */
-	__le32	s_first_ino;		/* First non-reserved inode */
+	__le32	s_first_ianal;		/* First analn-reserved ianalde */
 
-/*90*/	__le16  s_inode_size;		/* Size of an inode */
+/*90*/	__le16  s_ianalde_size;		/* Size of an ianalde */
 	__le16  s_dat_entry_size;       /* Size of a dat entry */
 	__le16  s_checkpoint_size;      /* Size of a checkpoint */
 	__le16	s_segment_usage_size;	/* Size of a segment usage */
@@ -211,14 +211,14 @@ struct nilfs_super_block {
  * Revision levels
  */
 #define NILFS_CURRENT_REV	2	/* current major revision */
-#define NILFS_MINOR_REV		0	/* minor revision */
+#define NILFS_MIANALR_REV		0	/* mianalr revision */
 #define NILFS_MIN_SUPP_REV	2	/* minimum supported revision */
 
 /*
  * Feature set definitions
  *
  * If there is a bit set in the incompatible feature set that the kernel
- * doesn't know about, it should refuse to mount the filesystem.
+ * doesn't kanalw about, it should refuse to mount the filesystem.
  */
 #define NILFS_FEATURE_COMPAT_RO_BLOCK_COUNT	0x00000001ULL
 
@@ -233,17 +233,17 @@ struct nilfs_super_block {
 	((long)&((struct nilfs_super_block *)0)->s_reserved)
 
 /*
- * Special inode number
+ * Special ianalde number
  */
-#define NILFS_ROOT_INO		2	/* Root file inode */
-#define NILFS_DAT_INO		3	/* DAT file */
-#define NILFS_CPFILE_INO	4	/* checkpoint file */
-#define NILFS_SUFILE_INO	5	/* segment usage file */
-#define NILFS_IFILE_INO		6	/* ifile */
-#define NILFS_ATIME_INO		7	/* Atime file (reserved) */
-#define NILFS_XATTR_INO		8	/* Xattribute file (reserved) */
-#define NILFS_SKETCH_INO	10	/* Sketch file */
-#define NILFS_USER_INO		11	/* Fisrt user's file inode number */
+#define NILFS_ROOT_IANAL		2	/* Root file ianalde */
+#define NILFS_DAT_IANAL		3	/* DAT file */
+#define NILFS_CPFILE_IANAL	4	/* checkpoint file */
+#define NILFS_SUFILE_IANAL	5	/* segment usage file */
+#define NILFS_IFILE_IANAL		6	/* ifile */
+#define NILFS_ATIME_IANAL		7	/* Atime file (reserved) */
+#define NILFS_XATTR_IANAL		8	/* Xattribute file (reserved) */
+#define NILFS_SKETCH_IANAL	10	/* Sketch file */
+#define NILFS_USER_IANAL		11	/* Fisrt user's file ianalde number */
 
 #define NILFS_SB_OFFSET_BYTES	1024	/* byte offset of nilfs superblock */
 
@@ -261,12 +261,12 @@ struct nilfs_super_block {
 					 */
 
 /*
- * We call DAT, cpfile, and sufile root metadata files.  Inodes of
+ * We call DAT, cpfile, and sufile root metadata files.  Ianaldes of
  * these files are written in super root block instead of ifile, and
  * garbage collector doesn't keep any past versions of these files.
  */
-#define NILFS_ROOT_METADATA_FILE(ino) \
-	((ino) >= NILFS_DAT_INO && (ino) <= NILFS_SUFILE_INO)
+#define NILFS_ROOT_METADATA_FILE(ianal) \
+	((ianal) >= NILFS_DAT_IANAL && (ianal) <= NILFS_SUFILE_IANAL)
 
 /*
  * bytes offset of secondary super block
@@ -298,7 +298,7 @@ struct nilfs_super_block {
  * file_type field.
  */
 struct nilfs_dir_entry {
-	__le64	inode;			/* Inode number */
+	__le64	ianalde;			/* Ianalde number */
 	__le16	rec_len;		/* Directory entry length */
 	__u8	name_len;		/* Name length */
 	__u8	file_type;		/* Dir entry type (file, dir, etc) */
@@ -308,10 +308,10 @@ struct nilfs_dir_entry {
 
 /*
  * NILFS directory file types.  Only the low 3 bits are used.  The
- * other bits are reserved for now.
+ * other bits are reserved for analw.
  */
 enum {
-	NILFS_FT_UNKNOWN,
+	NILFS_FT_UNKANALWN,
 	NILFS_FT_REG_FILE,
 	NILFS_FT_DIR,
 	NILFS_FT_CHRDEV,
@@ -325,7 +325,7 @@ enum {
 /*
  * NILFS_DIR_PAD defines the directory entries boundaries
  *
- * NOTE: It must be a multiple of 8
+ * ANALTE: It must be a multiple of 8
  */
 #define NILFS_DIR_PAD			8
 #define NILFS_DIR_ROUND			(NILFS_DIR_PAD - 1)
@@ -335,14 +335,14 @@ enum {
 
 /**
  * struct nilfs_finfo - file information
- * @fi_ino: inode number
- * @fi_cno: checkpoint number
+ * @fi_ianal: ianalde number
+ * @fi_canal: checkpoint number
  * @fi_nblocks: number of blocks (including intermediate blocks)
  * @fi_ndatablk: number of file data blocks
  */
 struct nilfs_finfo {
-	__le64 fi_ino;
-	__le64 fi_cno;
+	__le64 fi_ianal;
+	__le64 fi_canal;
 	__le32 fi_nblocks;
 	__le32 fi_ndatablk;
 };
@@ -358,7 +358,7 @@ struct nilfs_binfo_v {
 };
 
 /**
- * struct nilfs_binfo_dat - information on a DAT node block
+ * struct nilfs_binfo_dat - information on a DAT analde block
  * @bi_blkoff: block offset
  * @bi_level: level
  * @bi_pad: padding
@@ -393,7 +393,7 @@ union nilfs_binfo {
  * @ss_nfinfo: number of finfo structures
  * @ss_sumbytes: total size of segment summary in bytes
  * @ss_pad: padding
- * @ss_cno: checkpoint number
+ * @ss_canal: checkpoint number
  */
 struct nilfs_segment_summary {
 	__le32 ss_datasum;
@@ -408,7 +408,7 @@ struct nilfs_segment_summary {
 	__le32 ss_nfinfo;
 	__le32 ss_sumbytes;
 	__le32 ss_pad;
-	__le64 ss_cno;
+	__le64 ss_canal;
 	/* array of finfo structures */
 };
 
@@ -424,13 +424,13 @@ struct nilfs_segment_summary {
 #define NILFS_SS_GC     0x0010  /* segment written for cleaner operation */
 
 /**
- * struct nilfs_btree_node - header of B-tree node block
+ * struct nilfs_btree_analde - header of B-tree analde block
  * @bn_flags: flags
  * @bn_level: level
  * @bn_nchildren: number of children
  * @bn_pad: padding
  */
-struct nilfs_btree_node {
+struct nilfs_btree_analde {
 	__u8 bn_flags;
 	__u8 bn_level;
 	__le16 bn_nchildren;
@@ -438,19 +438,19 @@ struct nilfs_btree_node {
 };
 
 /* flags */
-#define NILFS_BTREE_NODE_ROOT   0x01
+#define NILFS_BTREE_ANALDE_ROOT   0x01
 
 /* level */
 #define NILFS_BTREE_LEVEL_DATA          0
-#define NILFS_BTREE_LEVEL_NODE_MIN      (NILFS_BTREE_LEVEL_DATA + 1)
+#define NILFS_BTREE_LEVEL_ANALDE_MIN      (NILFS_BTREE_LEVEL_DATA + 1)
 #define NILFS_BTREE_LEVEL_MAX           14	/* Max level (exclusive) */
 
 /**
- * struct nilfs_direct_node - header of built-in bmap array
+ * struct nilfs_direct_analde - header of built-in bmap array
  * @dn_flags: flags
  * @dn_pad: padding
  */
-struct nilfs_direct_node {
+struct nilfs_direct_analde {
 	__u8 dn_flags;
 	__u8 pad[7];
 };
@@ -494,39 +494,39 @@ struct nilfs_snapshot_list {
  * @cp_flags: flags
  * @cp_checkpoints_count: checkpoints count in a block
  * @cp_snapshot_list: snapshot list
- * @cp_cno: checkpoint number
+ * @cp_canal: checkpoint number
  * @cp_create: creation timestamp
  * @cp_nblk_inc: number of blocks incremented by this checkpoint
- * @cp_inodes_count: inodes count
+ * @cp_ianaldes_count: ianaldes count
  * @cp_blocks_count: blocks count
- * @cp_ifile_inode: inode of ifile
+ * @cp_ifile_ianalde: ianalde of ifile
  */
 struct nilfs_checkpoint {
 	__le32 cp_flags;
 	__le32 cp_checkpoints_count;
 	struct nilfs_snapshot_list cp_snapshot_list;
-	__le64 cp_cno;
+	__le64 cp_canal;
 	__le64 cp_create;
 	__le64 cp_nblk_inc;
-	__le64 cp_inodes_count;
+	__le64 cp_ianaldes_count;
 	__le64 cp_blocks_count;
 
 	/*
-	 * Do not change the byte offset of ifile inode.
+	 * Do analt change the byte offset of ifile ianalde.
 	 * To keep the compatibility of the disk format,
-	 * additional fields should be added behind cp_ifile_inode.
+	 * additional fields should be added behind cp_ifile_ianalde.
 	 */
-	struct nilfs_inode cp_ifile_inode;
+	struct nilfs_ianalde cp_ifile_ianalde;
 };
 
-#define NILFS_MIN_CHECKPOINT_SIZE	(64 + NILFS_MIN_INODE_SIZE)
+#define NILFS_MIN_CHECKPOINT_SIZE	(64 + NILFS_MIN_IANALDE_SIZE)
 
 /* checkpoint flags */
 enum {
 	NILFS_CHECKPOINT_SNAPSHOT,
 	NILFS_CHECKPOINT_INVALID,
 	NILFS_CHECKPOINT_SKETCH,
-	NILFS_CHECKPOINT_MINOR,
+	NILFS_CHECKPOINT_MIANALR,
 };
 
 #define NILFS_CHECKPOINT_FNS(flag, name)				\
@@ -551,7 +551,7 @@ nilfs_checkpoint_##name(const struct nilfs_checkpoint *cp)		\
 
 NILFS_CHECKPOINT_FNS(SNAPSHOT, snapshot)
 NILFS_CHECKPOINT_FNS(INVALID, invalid)
-NILFS_CHECKPOINT_FNS(MINOR, minor)
+NILFS_CHECKPOINT_FNS(MIANALR, mianalr)
 
 /**
  * struct nilfs_cpfile_header - checkpoint file header

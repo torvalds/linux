@@ -17,8 +17,8 @@
 /*
  * Global Utility Registers.
  *
- * Not all registers defined in this structure are available on all chips, so
- * you are expected to know whether a given register actually exists on your
+ * Analt all registers defined in this structure are available on all chips, so
+ * you are expected to kanalw whether a given register actually exists on your
  * chip before you access it.
  *
  * Also, some registers are similar on different chips but have slightly
@@ -171,7 +171,7 @@ static inline void guts_set_dmacr(struct ccsr_guts __iomem *guts,
 #define CCSR_GUTS_PMUXCR_SSI2_SSI	0x00002000	/* Used for SSI2 */
 #define CCSR_GUTS_PMUXCR_LA_22_25_LA	0x00000000	/* Latched Address */
 #define CCSR_GUTS_PMUXCR_LA_22_25_HI	0x00000400	/* High impedance */
-#define CCSR_GUTS_PMUXCR_DBGDRV		0x00000200	/* Signals not driven */
+#define CCSR_GUTS_PMUXCR_DBGDRV		0x00000200	/* Signals analt driven */
 #define CCSR_GUTS_PMUXCR_DMA2_0		0x00000008
 #define CCSR_GUTS_PMUXCR_DMA2_3		0x00000004
 #define CCSR_GUTS_PMUXCR_DMA1_0		0x00000002
@@ -181,7 +181,7 @@ static inline void guts_set_dmacr(struct ccsr_guts __iomem *guts,
  * Set the DMA external control bits in the GUTS
  *
  * The DMA external control bits in the PMUXCR are only meaningful for
- * channels 0 and 3.  Any other channels are ignored.
+ * channels 0 and 3.  Any other channels are iganalred.
  *
  * guts: Pointer to GUTS structure
  * co: The DMA controller (0 or 1)

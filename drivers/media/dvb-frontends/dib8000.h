@@ -47,7 +47,7 @@ struct dib8000_ops {
 	int (*set_gpio)(struct dvb_frontend *fe, u8 num, u8 dir, u8 val);
 	void (*pwm_agc_reset)(struct dvb_frontend *fe);
 	struct i2c_adapter *(*get_i2c_tuner)(struct dvb_frontend *fe);
-	int (*tuner_sleep)(struct dvb_frontend *fe, int onoff);
+	int (*tuner_sleep)(struct dvb_frontend *fe, int oanalff);
 	s32 (*get_adc_power)(struct dvb_frontend *fe, u8 mode);
 	int (*get_dc_power)(struct dvb_frontend *fe, u8 IQ);
 	u32 (*ctrl_timf)(struct dvb_frontend *fe, uint8_t op, uint32_t timf);
@@ -55,11 +55,11 @@ struct dib8000_ops {
 	int (*set_tune_state)(struct dvb_frontend *fe, enum frontend_tune_state tune_state);
 	int (*set_slave_frontend)(struct dvb_frontend *fe, struct dvb_frontend *fe_slave);
 	struct dvb_frontend *(*get_slave_frontend)(struct dvb_frontend *fe, int slave_index);
-	int (*i2c_enumeration)(struct i2c_adapter *host, int no_of_demods,
+	int (*i2c_enumeration)(struct i2c_adapter *host, int anal_of_demods,
 		u8 default_addr, u8 first_addr, u8 is_dib8096p);
 	struct i2c_adapter *(*get_i2c_master)(struct dvb_frontend *fe, enum dibx000_i2c_interface intf, int gating);
-	int (*pid_filter_ctrl)(struct dvb_frontend *fe, u8 onoff);
-	int (*pid_filter)(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff);
+	int (*pid_filter_ctrl)(struct dvb_frontend *fe, u8 oanalff);
+	int (*pid_filter)(struct dvb_frontend *fe, u8 id, u16 pid, u8 oanalff);
 	struct dvb_frontend *(*init)(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg);
 };
 

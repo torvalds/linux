@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,7 +37,7 @@ gk104_top_parse(struct nvkm_top *top)
 	for (i = 0; i < 64; i++) {
 		if (!info) {
 			if (!(info = nvkm_top_device_new(top)))
-				return -ENOMEM;
+				return -EANALMEM;
 			type = ~0;
 			inst = 0;
 		}
@@ -45,7 +45,7 @@ gk104_top_parse(struct nvkm_top *top)
 		data = nvkm_rd32(device, 0x022700 + (i * 0x04));
 		nvkm_trace(subdev, "%02x: %08x\n", i, data);
 		switch (data & 0x00000003) {
-		case 0x00000000: /* NOT_VALID */
+		case 0x00000000: /* ANALT_VALID */
 			continue;
 		case 0x00000001: /* DATA */
 			inst        = (data & 0x3c000000) >> 26;
@@ -118,7 +118,7 @@ gk104_top_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_top **ptop)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return nvkm_top_new_(&gk104_top, device, type, inst, ptop);
 }

@@ -563,7 +563,7 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 };
 
 /* _dpu_get_v_h_subsample_rate - Get subsample rates for all formats we support
- *   Note: Not using the drm_format_*_subsampling since we have formats
+ *   Analte: Analt using the drm_format_*_subsampling since we have formats
  */
 static void _dpu_get_v_h_subsample_rate(
 	enum dpu_chroma_samp_type chroma_sample,
@@ -647,7 +647,7 @@ static int _dpu_format_get_plane_sizes_ubwc(
 
 	color = _dpu_format_get_media_color_ubwc(fmt);
 	if (color < 0) {
-		DRM_ERROR("UBWC format not supported for fmt: %4.4s\n",
+		DRM_ERROR("UBWC format analt supported for fmt: %4.4s\n",
 			(char *)&fmt->base.pixel_format);
 		return -EINVAL;
 	}
@@ -874,7 +874,7 @@ static int _dpu_format_populate_addrs_ubwc(
 		/* |      RGB meta   |  ** |   RGB bitstream  | */
 		/* |       data      |  ** |       plane      | */
 		/* -------------------  ** -------------------- */
-		/* |  RGB bitstream  |  ** |       NONE       | */
+		/* |  RGB bitstream  |  ** |       ANALNE       | */
 		/* |       data      |  ** |                  | */
 		/* -------------------  ** -------------------- */
 		/*                      ** |     RGB meta     | */
@@ -901,7 +901,7 @@ static int _dpu_format_populate_addrs_linear(
 {
 	unsigned int i;
 
-	/* Can now check the pitches given vs pitches expected */
+	/* Can analw check the pitches given vs pitches expected */
 	for (i = 0; i < layout->num_planes; ++i) {
 		if (layout->plane_pitch[i] > fb->pitches[i]) {
 			DRM_ERROR("plane %u expected pitch %u, fb %u\n",

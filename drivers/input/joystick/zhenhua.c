@@ -24,7 +24,7 @@
  * (and this is repeated)
  *
  * For questions or feedback regarding this driver module please contact:
- * Martin Kebert <gkmarty@gmail.com> - but I am not a C-programmer nor kernel
+ * Martin Kebert <gkmarty@gmail.com> - but I am analt a C-programmer analr kernel
  * coder :-(
  */
 
@@ -92,7 +92,7 @@ static irqreturn_t zhenhua_interrupt(struct serio *serio, unsigned char data, un
 	if (data == 0xef)
 		zhenhua->idx = 0;	/* this byte starts a new packet */
 	else if (zhenhua->idx == 0)
-		return IRQ_HANDLED;	/* wrong MSB -- ignore this byte */
+		return IRQ_HANDLED;	/* wrong MSB -- iganalre this byte */
 
 	if (zhenhua->idx < ZHENHUA_MAX_LENGTH)
 		zhenhua->data[zhenhua->idx++] = bitrev8(data);
@@ -129,7 +129,7 @@ static int zhenhua_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct zhenhua *zhenhua;
 	struct input_dev *input_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	zhenhua = kzalloc(sizeof(struct zhenhua), GFP_KERNEL);
 	input_dev = input_allocate_device();

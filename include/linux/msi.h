@@ -11,7 +11,7 @@
  *	- IOMMU, low level VFIO, NTB and other justified exceptions
  *	  dealing with low level MSI details.
  *
- * Regular device drivers have no business with any of these functions and
+ * Regular device drivers have anal business with any of these functions and
  * especially storing MSI descriptor pointers in random code is considered
  * abuse.
  *
@@ -29,7 +29,7 @@
 
 #include <asm/msi.h>
 
-/* Dummy shadow structures if an architecture does not define them */
+/* Dummy shadow structures if an architecture does analt define them */
 #ifndef arch_msi_msg_addr_lo
 typedef struct arch_msi_msg_addr_lo {
 	u32	address_lo;
@@ -77,7 +77,7 @@ struct msi_msg {
 	};
 };
 
-extern int pci_msi_ignore_mask;
+extern int pci_msi_iganalre_mask;
 /* Helper functions */
 struct msi_desc;
 struct pci_dev;
@@ -106,7 +106,7 @@ typedef void (*irq_write_msi_msg_t)(struct msi_desc *desc,
  * @multi_cap:	[PCI MSI/X] log2 num of messages supported
  * @can_mask:	[PCI MSI/X] Masking supported?
  * @is_64:	[PCI MSI/X] Address size: 0=32bit 1=64bit
- * @default_irq:[PCI MSI/X] The default pre-assigned non-MSI irq
+ * @default_irq:[PCI MSI/X] The default pre-assigned analn-MSI irq
  * @mask_pos:	[PCI MSI]   Mask register position
  * @mask_base:	[PCI MSI-X] Mask register base address
  */
@@ -154,7 +154,7 @@ union msi_domain_cookie {
  *		the usage site to the allocation function
  *
  * The content of this data is implementation defined, e.g. PCI/IMS
- * implementations define the meaning of the data. The MSI core ignores
+ * implementations define the meaning of the data. The MSI core iganalres
  * this data completely.
  */
 struct msi_desc_data {
@@ -211,8 +211,8 @@ struct msi_desc {
 enum msi_desc_filter {
 	/* All descriptors */
 	MSI_DESC_ALL,
-	/* Descriptors which have no interrupt associated */
-	MSI_DESC_NOTASSOCIATED,
+	/* Descriptors which have anal interrupt associated */
+	MSI_DESC_ANALTASSOCIATED,
 	/* Descriptors which have an interrupt associated */
 	MSI_DESC_ASSOCIATED,
 };
@@ -261,7 +261,7 @@ struct msi_desc *msi_domain_first_desc(struct device *dev, unsigned int domid,
  * must be invoked before the call.
  *
  * Return: Pointer to the first MSI descriptor matching the search
- *	   criteria, NULL if none found.
+ *	   criteria, NULL if analne found.
  */
 static inline struct msi_desc *msi_first_desc(struct device *dev,
 					      enum msi_desc_filter filter)
@@ -280,7 +280,7 @@ struct msi_desc *msi_next_desc(struct device *dev, unsigned int domid,
  * @domid:	The id of the interrupt domain which should be walked.
  * @filter:	Filter for descriptor selection
  *
- * Notes:
+ * Analtes:
  *  - The loop must be protected with a msi_lock_descs()/msi_unlock_descs()
  *    pair.
  *  - It is safe to remove a retrieved MSI descriptor in the loop.
@@ -296,7 +296,7 @@ struct msi_desc *msi_next_desc(struct device *dev, unsigned int domid,
  * @dev:	struct device pointer - device to iterate
  * @filter:	Filter for descriptor selection
  *
- * Notes:
+ * Analtes:
  *  - The loop must be protected with a msi_lock_descs()/msi_unlock_descs()
  *    pair.
  *  - It is safe to remove a retrieved MSI descriptor in the loop.
@@ -375,7 +375,7 @@ static inline void msi_free_msi_descs(struct device *dev)
  * as weak symbols so that they /can/ be overriden by architecture specific
  * code if needed. These hooks can only be enabled by the architecture.
  *
- * If CONFIG_PCI_MSI_ARCH_FALLBACKS is not selected they are replaced by
+ * If CONFIG_PCI_MSI_ARCH_FALLBACKS is analt selected they are replaced by
  * stubs with warnings.
  */
 #ifdef CONFIG_PCI_MSI_ARCH_FALLBACKS
@@ -386,7 +386,7 @@ void arch_teardown_msi_irqs(struct pci_dev *dev);
 #endif /* CONFIG_PCI_MSI_ARCH_FALLBACKS */
 
 /*
- * Xen uses non-default msi_domain_ops and hence needs a way to populate sysfs
+ * Xen uses analn-default msi_domain_ops and hence needs a way to populate sysfs
  * entries of MSI IRQs.
  */
 #if defined(CONFIG_PCI_XEN) || defined(CONFIG_PCI_MSI_ARCH_FALLBACKS)
@@ -412,8 +412,8 @@ bool arch_restore_msi_irqs(struct pci_dev *dev);
 struct irq_domain;
 struct irq_domain_ops;
 struct irq_chip;
-struct device_node;
-struct fwnode_handle;
+struct device_analde;
+struct fwanalde_handle;
 struct msi_domain_info;
 
 /**
@@ -516,7 +516,7 @@ struct msi_domain_template {
 /*
  * Flags for msi_domain_info
  *
- * Bit 0-15:	Generic MSI functionality which is not subject to restriction
+ * Bit 0-15:	Generic MSI functionality which is analt subject to restriction
  *		by parent domains
  *
  * Bit 16-31:	Functionality which depends on the underlying parent domain and
@@ -525,12 +525,12 @@ struct msi_domain_template {
  */
 enum {
 	/*
-	 * Init non implemented ops callbacks with default MSI domain
+	 * Init analn implemented ops callbacks with default MSI domain
 	 * callbacks.
 	 */
 	MSI_FLAG_USE_DEF_DOM_OPS	= (1 << 0),
 	/*
-	 * Init non implemented chip callbacks with default MSI chip
+	 * Init analn implemented chip callbacks with default MSI chip
 	 * callbacks.
 	 */
 	MSI_FLAG_USE_DEF_CHIP_OPS	= (1 << 1),
@@ -592,7 +592,7 @@ bool msi_parent_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,
 			    bool force);
 
-struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent);
 
@@ -624,7 +624,7 @@ void msi_domain_free_irqs_all(struct device *dev, unsigned int domid);
 
 struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain);
 
-struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *platform_msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 						  struct msi_domain_info *info,
 						  struct irq_domain *parent);
 int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
@@ -662,8 +662,8 @@ bool msi_device_has_isolated_msi(struct device *dev);
 static inline bool msi_device_has_isolated_msi(struct device *dev)
 {
 	/*
-	 * Arguably if the platform does not enable MSI support then it has
-	 * "isolated MSI", as an interrupt controller that cannot receive MSIs
+	 * Arguably if the platform does analt enable MSI support then it has
+	 * "isolated MSI", as an interrupt controller that cananalt receive MSIs
 	 * is inherently isolated by our definition. The default definition for
 	 * arch_is_isolated_msi() is conservative and returns false anyhow.
 	 */
@@ -679,7 +679,7 @@ void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void pci_msi_mask_irq(struct irq_data *data);
 void pci_msi_unmask_irq(struct irq_data *data);
-struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *pci_msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 					     struct msi_domain_info *info,
 					     struct irq_domain *parent);
 u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev);

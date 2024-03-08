@@ -5,7 +5,7 @@ Linux Base Driver for WangXun(R) Gigabit PCI Express Adapters
 =============================================================
 
 WangXun Gigabit Linux driver.
-Copyright (c) 2019 - 2022 Beijing WangXun Technology Co., Ltd.
+Copyright (c) 2019 - 2022 Beijing WangXun Techanallogy Co., Ltd.
 
 Support
 =======

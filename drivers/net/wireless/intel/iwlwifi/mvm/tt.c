@@ -8,7 +8,7 @@
 
 #include "mvm.h"
 
-#define IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT	HZ
+#define IWL_MVM_TEMP_ANALTIF_WAIT_TIMEOUT	HZ
 
 void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 {
@@ -27,7 +27,7 @@ void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 	}
 
 	/* Don't schedule an exit work if we're in test mode, since
-	 * the temperature will not change unless we manually set it
+	 * the temperature will analt change unless we manually set it
 	 * again (or disable testing).
 	 */
 	if (!mvm->temperature_test)
@@ -46,7 +46,7 @@ static void iwl_mvm_exit_ctkill(struct iwl_mvm *mvm)
 
 static void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp)
 {
-	/* ignore the notification if we are in test mode */
+	/* iganalre the analtification if we are in test mode */
 	if (mvm->temperature_test)
 		return;
 
@@ -57,43 +57,43 @@ static void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp)
 	iwl_mvm_tt_handler(mvm);
 }
 
-static int iwl_mvm_temp_notif_parse(struct iwl_mvm *mvm,
+static int iwl_mvm_temp_analtif_parse(struct iwl_mvm *mvm,
 				    struct iwl_rx_packet *pkt)
 {
-	struct iwl_dts_measurement_notif_v1 *notif_v1;
+	struct iwl_dts_measurement_analtif_v1 *analtif_v1;
 	int len = iwl_rx_packet_payload_len(pkt);
 	int temp;
 
-	/* we can use notif_v1 only, because v2 only adds an additional
-	 * parameter, which is not used in this function.
+	/* we can use analtif_v1 only, because v2 only adds an additional
+	 * parameter, which is analt used in this function.
 	*/
-	if (WARN_ON_ONCE(len < sizeof(*notif_v1))) {
-		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
+	if (WARN_ON_ONCE(len < sizeof(*analtif_v1))) {
+		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_ANALTIFICATION\n");
 		return -EINVAL;
 	}
 
-	notif_v1 = (void *)pkt->data;
+	analtif_v1 = (void *)pkt->data;
 
-	temp = le32_to_cpu(notif_v1->temp);
+	temp = le32_to_cpu(analtif_v1->temp);
 
 	/* shouldn't be negative, but since it's s32, make sure it isn't */
 	if (WARN_ON_ONCE(temp < 0))
 		temp = 0;
 
-	IWL_DEBUG_TEMP(mvm, "DTS_MEASUREMENT_NOTIFICATION - %d\n", temp);
+	IWL_DEBUG_TEMP(mvm, "DTS_MEASUREMENT_ANALTIFICATION - %d\n", temp);
 
 	return temp;
 }
 
-static bool iwl_mvm_temp_notif_wait(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_mvm_temp_analtif_wait(struct iwl_analtif_wait_data *analtif_wait,
 				    struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_mvm *mvm =
-		container_of(notif_wait, struct iwl_mvm, notif_wait);
+		container_of(analtif_wait, struct iwl_mvm, analtif_wait);
 	int *temp = data;
 	int ret;
 
-	ret = iwl_mvm_temp_notif_parse(mvm, pkt);
+	ret = iwl_mvm_temp_analtif_parse(mvm, pkt);
 	if (ret < 0)
 		return true;
 
@@ -102,19 +102,19 @@ static bool iwl_mvm_temp_notif_wait(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
-void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_temp_analtif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_dts_measurement_notif_v2 *notif_v2;
+	struct iwl_dts_measurement_analtif_v2 *analtif_v2;
 	int len = iwl_rx_packet_payload_len(pkt);
 	int temp;
 	u32 ths_crossed;
 
-	/* the notification is handled synchronously in ctkill, so skip here */
+	/* the analtification is handled synchroanalusly in ctkill, so skip here */
 	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
 		return;
 
-	temp = iwl_mvm_temp_notif_parse(mvm, pkt);
+	temp = iwl_mvm_temp_analtif_parse(mvm, pkt);
 
 	if (!iwl_mvm_is_tt_in_fw(mvm)) {
 		if (temp >= 0)
@@ -122,16 +122,16 @@ void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		return;
 	}
 
-	if (WARN_ON_ONCE(len < sizeof(*notif_v2))) {
-		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
+	if (WARN_ON_ONCE(len < sizeof(*analtif_v2))) {
+		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_ANALTIFICATION\n");
 		return;
 	}
 
-	notif_v2 = (void *)pkt->data;
-	ths_crossed = le32_to_cpu(notif_v2->threshold_idx);
+	analtif_v2 = (void *)pkt->data;
+	ths_crossed = le32_to_cpu(analtif_v2->threshold_idx);
 
-	/* 0xFF in ths_crossed means the notification is not related
-	 * to a trip, so we can ignore it here.
+	/* 0xFF in ths_crossed means the analtification is analt related
+	 * to a trip, so we can iganalre it here.
 	 */
 	if (ths_crossed == 0xFF)
 		return;
@@ -152,19 +152,19 @@ void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 #endif /* CONFIG_THERMAL */
 }
 
-void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_ct_kill_analtif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct ct_kill_notif *notif;
+	struct ct_kill_analtif *analtif;
 
-	notif = (struct ct_kill_notif *)pkt->data;
-	IWL_DEBUG_TEMP(mvm, "CT Kill notification temperature = %d\n",
-		       notif->temperature);
-	if (iwl_fw_lookup_notif_ver(mvm->fw, PHY_OPS_GROUP,
-				    CT_KILL_NOTIFICATION, 0) > 1)
+	analtif = (struct ct_kill_analtif *)pkt->data;
+	IWL_DEBUG_TEMP(mvm, "CT Kill analtification temperature = %d\n",
+		       analtif->temperature);
+	if (iwl_fw_lookup_analtif_ver(mvm->fw, PHY_OPS_GROUP,
+				    CT_KILL_ANALTIFICATION, 0) > 1)
 		IWL_DEBUG_TEMP(mvm,
-			       "CT kill notification DTS bitmap = 0x%x, Scheme = %d\n",
-			       notif->dts, notif->scheme);
+			       "CT kill analtification DTS bitmap = 0x%x, Scheme = %d\n",
+			       analtif->dts, analtif->scheme);
 
 	iwl_mvm_enter_ctkill(mvm);
 }
@@ -234,37 +234,37 @@ static int iwl_mvm_send_temp_cmd(struct iwl_mvm *mvm, bool response, s32 *temp)
 
 int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp)
 {
-	struct iwl_notification_wait wait_temp_notif;
-	static u16 temp_notif[] = { WIDE_ID(PHY_OPS_GROUP,
-					    DTS_MEASUREMENT_NOTIF_WIDE) };
+	struct iwl_analtification_wait wait_temp_analtif;
+	static u16 temp_analtif[] = { WIDE_ID(PHY_OPS_GROUP,
+					    DTS_MEASUREMENT_ANALTIF_WIDE) };
 	int ret;
 	u8 cmd_ver;
 
 	/*
 	 * If command version is 1 we send the command and immediately get
 	 * a response. For older versions we send the command and wait for a
-	 * notification (no command TLV for previous versions).
+	 * analtification (anal command TLV for previous versions).
 	 */
 	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 					WIDE_ID(PHY_OPS_GROUP, CMD_DTS_MEASUREMENT_TRIGGER_WIDE),
-					IWL_FW_CMD_VER_UNKNOWN);
+					IWL_FW_CMD_VER_UNKANALWN);
 	if (cmd_ver == 1)
 		return iwl_mvm_send_temp_cmd(mvm, true, temp);
 
 	lockdep_assert_held(&mvm->mutex);
 
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_temp_notif,
-				   temp_notif, ARRAY_SIZE(temp_notif),
-				   iwl_mvm_temp_notif_wait, temp);
+	iwl_init_analtification_wait(&mvm->analtif_wait, &wait_temp_analtif,
+				   temp_analtif, ARRAY_SIZE(temp_analtif),
+				   iwl_mvm_temp_analtif_wait, temp);
 
 	ret = iwl_mvm_send_temp_cmd(mvm, false, temp);
 	if (ret) {
-		iwl_remove_notification(&mvm->notif_wait, &wait_temp_notif);
+		iwl_remove_analtification(&mvm->analtif_wait, &wait_temp_analtif);
 		return ret;
 	}
 
-	ret = iwl_wait_notification(&mvm->notif_wait, &wait_temp_notif,
-				    IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT);
+	ret = iwl_wait_analtification(&mvm->analtif_wait, &wait_temp_analtif,
+				    IWL_MVM_TEMP_ANALTIF_WAIT_TIMEOUT);
 	if (ret)
 		IWL_WARN(mvm, "Getting the temperature timed out\n");
 
@@ -408,7 +408,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 			IWL_DEBUG_TEMP(mvm, "Enable dynamic SMPS\n");
 			tt->dynamic_smps = true;
 			ieee80211_iterate_active_interfaces_atomic(
-					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+					mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 					iwl_mvm_tt_smps_iterator, mvm);
 			throttle_enable = true;
 		} else if (tt->dynamic_smps &&
@@ -416,7 +416,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 			IWL_DEBUG_TEMP(mvm, "Disable dynamic SMPS\n");
 			tt->dynamic_smps = false;
 			ieee80211_iterate_active_interfaces_atomic(
-					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+					mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 					iwl_mvm_tt_smps_iterator, mvm);
 		}
 	}
@@ -452,7 +452,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 		   tt->tx_backoff == tt->min_backoff &&
 		   temperature <= params->tx_protection_exit) {
 		IWL_WARN(mvm,
-			 "Temperature is back to normal thermal throttling stopped\n");
+			 "Temperature is back to analrmal thermal throttling stopped\n");
 		tt->throttle = false;
 	}
 }
@@ -623,7 +623,7 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
 
 	if (!iwl_mvm_firmware_running(mvm) ||
 	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		goto out;
 	}
 

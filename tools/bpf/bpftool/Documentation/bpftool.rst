@@ -11,7 +11,7 @@ tool for inspection and simple manipulation of eBPF programs and maps
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] *OBJECT* { *COMMAND* | **help** }
@@ -55,16 +55,16 @@ DESCRIPTION
 	*bpftool* allows for inspection and simple modification of BPF objects
 	on the system.
 
-	Note that format of the output of all tools is not guaranteed to be
-	stable and should not be depended upon.
+	Analte that format of the output of all tools is analt guaranteed to be
+	stable and should analt be depended upon.
 
 OPTIONS
 =======
 	.. include:: common_options.rst
 
 	-m, --mapcompat
-		  Allow loading maps with unknown map definitions.
+		  Allow loading maps with unkanalwn map definitions.
 
-	-n, --nomount
-		  Do not automatically attempt to mount any virtual file system
+	-n, --analmount
+		  Do analt automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.

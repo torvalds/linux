@@ -18,7 +18,7 @@ ACPI_MODULE_NAME("utstate")
  * PARAMETERS:  list_head           - Head of the state stack
  *              state               - State object to push
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Push a state object onto a state stack
  *
@@ -72,12 +72,12 @@ union acpi_generic_state *acpi_ut_pop_generic_state(union acpi_generic_state
  *
  * FUNCTION:    acpi_ut_create_generic_state
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      The new state object. NULL on failure.
  *
  * DESCRIPTION: Create a generic state object. Attempt to obtain one from
- *              the global state cache;  If none available, create a new one.
+ *              the global state cache;  If analne available, create a new one.
  *
  ******************************************************************************/
 
@@ -101,7 +101,7 @@ union acpi_generic_state *acpi_ut_create_generic_state(void)
  *
  * FUNCTION:    acpi_ut_create_thread_state
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      New Thread State. NULL on failure
  *
@@ -218,7 +218,7 @@ union acpi_generic_state *acpi_ut_create_pkg_state(void *internal_object,
  *
  * FUNCTION:    acpi_ut_create_control_state
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      New state object, null on failure
  *
@@ -254,10 +254,10 @@ union acpi_generic_state *acpi_ut_create_control_state(void)
  *
  * PARAMETERS:  state               - The state object to be deleted
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Release a state object to the state cache. NULL state objects
- *              are ignored.
+ *              are iganalred.
  *
  ******************************************************************************/
 
@@ -265,7 +265,7 @@ void acpi_ut_delete_generic_state(union acpi_generic_state *state)
 {
 	ACPI_FUNCTION_ENTRY();
 
-	/* Ignore null state */
+	/* Iganalre null state */
 
 	if (state) {
 		(void)acpi_os_release_object(acpi_gbl_state_cache, state);

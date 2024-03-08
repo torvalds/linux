@@ -31,14 +31,14 @@
 
 /* m_can lec values */
 enum m_can_lec_type {
-	LEC_NO_ERROR = 0,
+	LEC_ANAL_ERROR = 0,
 	LEC_STUFF_ERROR,
 	LEC_FORM_ERROR,
 	LEC_ACK_ERROR,
 	LEC_BIT1_ERROR,
 	LEC_BIT0_ERROR,
 	LEC_CRC_ERROR,
-	LEC_NO_CHANGE,
+	LEC_ANAL_CHANGE,
 };
 
 enum m_can_mram_cfg {

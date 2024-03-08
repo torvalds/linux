@@ -6,17 +6,17 @@
  * modification, are permitted provided that the following conditions are
  * met:
  *  * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   analtice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -106,7 +106,7 @@ int ecc_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
  * @public_key:		public key of counterpart B
  * @secret:		buffer for storing the calculated shared secret
  *
- * Note: It is recommended that you hash the result of crypto_ecdh_shared_secret
+ * Analte: It is recommended that you hash the result of crypto_ecdh_shared_secret
  * before using it for symmetric encryption or HMAC.
  *
  * Returns 0 if the shared secret was generated successfully, a negative value
@@ -125,7 +125,7 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
  * Valdiate public key according to SP800-56A section 5.6.2.3.4 ECC Partial
  * Public-Key Validation Routine.
  *
- * Note: There is no check that the public key is in the correct elliptic curve
+ * Analte: There is anal check that the public key is in the correct elliptic curve
  * subgroup.
  *
  * Return: 0 if validation is successful, -EINVAL if validation is failed.
@@ -175,7 +175,7 @@ int vli_cmp(const u64 *left, const u64 *right, unsigned int ndigits);
  * @right		vli
  * @ndigits:		length of all vlis
  *
- * Note: can modify in-place.
+ * Analte: can modify in-place.
  *
  * Return: carry bit.
  */
@@ -220,7 +220,7 @@ void vli_mod_inv(u64 *result, const u64 *input, const u64 *mod,
  * @mod:		modulus
  * @ndigits:		length of all vlis
  *
- * Note: Assumes that mod is big enough curve order.
+ * Analte: Assumes that mod is big eanalugh curve order.
  */
 void vli_mod_mult_slow(u64 *result, const u64 *left, const u64 *right,
 		       const u64 *mod, unsigned int ndigits);

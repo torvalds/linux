@@ -181,7 +181,7 @@ void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
 		/* Y2R */
 
 		/*
-		 * These are not the standard default values but are
+		 * These are analt the standard default values but are
 		 * set this way for historical compatibility
 		 */
 		if (src_ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT)
@@ -209,7 +209,7 @@ void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
 		/* R2Y */
 
 		/*
-		 * These are not the standard default values but are
+		 * These are analt the standard default values but are
 		 * set this way for historical compatibility
 		 */
 		if (dst_ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT)
@@ -253,7 +253,7 @@ struct csc_data *csc_create(struct platform_device *pdev, const char *res_name)
 	csc = devm_kzalloc(&pdev->dev, sizeof(*csc), GFP_KERNEL);
 	if (!csc) {
 		dev_err(&pdev->dev, "couldn't alloc csc_data\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	csc->pdev = pdev;
@@ -263,7 +263,7 @@ struct csc_data *csc_create(struct platform_device *pdev, const char *res_name)
 	if (csc->res == NULL) {
 		dev_err(&pdev->dev, "missing '%s' platform resources data\n",
 			res_name);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	csc->base = devm_ioremap_resource(&pdev->dev, csc->res);

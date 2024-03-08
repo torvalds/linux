@@ -21,7 +21,7 @@
 #include <asm/bitops-cas.h>
 #else
 #include <asm-generic/bitops/atomic.h>
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 #endif
 
 static inline unsigned long ffz(unsigned long word)
@@ -42,7 +42,7 @@ static inline unsigned long ffz(unsigned long word)
  * __ffs - find first bit in word.
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if anal bit exists, so code should check against 0 first.
  */
 static inline unsigned long __ffs(unsigned long word)
 {

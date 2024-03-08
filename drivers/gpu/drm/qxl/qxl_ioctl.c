@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -53,7 +53,7 @@ int qxl_alloc_ioctl(struct drm_device *dev, void *data, struct drm_file *file_pr
 	if (ret) {
 		DRM_ERROR("%s: failed to create gem ret=%d\n",
 			  __func__, ret);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	qxl_alloc->handle = handle;
 	return 0;
@@ -77,7 +77,7 @@ struct qxl_reloc_info {
 };
 
 /*
- * dst must be validated, i.e. whole bo on vram/surfacesram (right now all bo's
+ * dst must be validated, i.e. whole bo on vram/surfacesram (right analw all bo's
  * are on vram).
  * *(dst + dst_off) = qxl_bo_physical_address(src, src_off)
  */
@@ -133,7 +133,7 @@ static int qxlhw_handle_to_bo(struct drm_file *file_priv, uint64_t handle,
 /*
  * Usage of execbuffer:
  * Relocations need to take into account the full QXLDrawable size.
- * However, the command as passed from user space must *not* contain the initial
+ * However, the command as passed from user space must *analt* contain the initial
  * QXLReleaseInfo struct (first XXX bytes)
  */
 static int qxl_process_single_command(struct qxl_device *qdev,
@@ -169,7 +169,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 	reloc_info = kmalloc_array(cmd->relocs_num,
 				   sizeof(struct qxl_reloc_info), GFP_KERNEL);
 	if (!reloc_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qxl_alloc_release_reserved(qdev,
 					 sizeof(union qxl_release_info) +
@@ -182,7 +182,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 
 	/* TODO copy slow path code from i915 */
 	fb_cmd = qxl_bo_kmap_atomic_page(qdev, cmd_bo, (release->release_offset & PAGE_MASK));
-	unwritten = __copy_from_user_inatomic_nocache
+	unwritten = __copy_from_user_inatomic_analcache
 		(fb_cmd + sizeof(union qxl_release_info) + (release->release_offset & ~PAGE_MASK),
 		 u64_to_user_ptr(cmd->command), cmd->command_size);
 
@@ -213,7 +213,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		/* add the bos to the list of bos to validate -
 		   need to validate first then process relocs? */
 		if (reloc.reloc_type != QXL_RELOC_TYPE_BO && reloc.reloc_type != QXL_RELOC_TYPE_SURF) {
-			DRM_DEBUG("unknown reloc type %d\n", reloc.reloc_type);
+			DRM_DEBUG("unkanalwn reloc type %d\n", reloc.reloc_type);
 
 			ret = -EINVAL;
 			goto out_free_bos;
@@ -312,7 +312,7 @@ int qxl_update_area_ioctl(struct drm_device *dev, void *data, struct drm_file *f
 
 	gobj = drm_gem_object_lookup(file, update_area->handle);
 	if (gobj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	qobj = gem_to_qxl_bo(gobj);
 
@@ -331,7 +331,7 @@ int qxl_update_area_ioctl(struct drm_device *dev, void *data, struct drm_file *f
 	if (ret)
 		goto out2;
 	if (!qobj->surface_id)
-		DRM_ERROR("got update area for surface with no id %d\n", update_area->handle);
+		DRM_ERROR("got update area for surface with anal id %d\n", update_area->handle);
 	ret = qxl_io_update_area(qdev, qobj, &area);
 
 out2:
@@ -371,14 +371,14 @@ int qxl_clientcap_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	idx = param->index % 8;
 
 	if (pdev->revision < 4)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (byte >= 58)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (qdev->rom->client_capabilities[byte] & (1 << idx))
 		return 0;
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int qxl_alloc_surf_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -408,7 +408,7 @@ int qxl_alloc_surf_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	if (ret) {
 		DRM_ERROR("%s: failed to create gem ret=%d\n",
 			  __func__, ret);
-		return -ENOMEM;
+		return -EANALMEM;
 	} else
 		param->handle = handle;
 	return ret;

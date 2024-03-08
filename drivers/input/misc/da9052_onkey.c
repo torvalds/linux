@@ -31,11 +31,11 @@ static void da9052_onkey_query(struct da9052_onkey *onkey)
 			"Failed to read onkey event err=%d\n", ret);
 	} else {
 		/*
-		 * Since interrupt for deassertion of ONKEY pin is not
+		 * Since interrupt for deassertion of ONKEY pin is analt
 		 * generated, onkey event state determines the onkey
 		 * button state.
 		 */
-		bool pressed = !(ret & DA9052_STATUSA_NONKEY);
+		bool pressed = !(ret & DA9052_STATUSA_ANALNKEY);
 
 		input_report_key(onkey->input, KEY_POWER, pressed);
 		input_sync(onkey->input);
@@ -84,7 +84,7 @@ static int da9052_onkey_probe(struct platform_device *pdev)
 	input_dev = input_allocate_device();
 	if (!onkey || !input_dev) {
 		dev_err(&pdev->dev, "Failed to allocate memory\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -99,7 +99,7 @@ static int da9052_onkey_probe(struct platform_device *pdev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	__set_bit(KEY_POWER, input_dev->keybit);
 
-	error = da9052_request_irq(onkey->da9052, DA9052_IRQ_NONKEY, "ONKEY",
+	error = da9052_request_irq(onkey->da9052, DA9052_IRQ_ANALNKEY, "ONKEY",
 			    da9052_onkey_irq, onkey);
 	if (error < 0) {
 		dev_err(onkey->da9052->dev,
@@ -118,7 +118,7 @@ static int da9052_onkey_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_irq:
-	da9052_free_irq(onkey->da9052, DA9052_IRQ_NONKEY, onkey);
+	da9052_free_irq(onkey->da9052, DA9052_IRQ_ANALNKEY, onkey);
 	cancel_delayed_work_sync(&onkey->work);
 err_free_mem:
 	input_free_device(input_dev);
@@ -131,7 +131,7 @@ static void da9052_onkey_remove(struct platform_device *pdev)
 {
 	struct da9052_onkey *onkey = platform_get_drvdata(pdev);
 
-	da9052_free_irq(onkey->da9052, DA9052_IRQ_NONKEY, onkey);
+	da9052_free_irq(onkey->da9052, DA9052_IRQ_ANALNKEY, onkey);
 	cancel_delayed_work_sync(&onkey->work);
 
 	input_unregister_device(onkey->input);

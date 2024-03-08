@@ -40,12 +40,12 @@ struct rtp_test_case {
 	const struct xe_rtp_entry_sr *entries;
 };
 
-static bool match_yes(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
+static bool match_anal(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
 {
 	return true;
 }
 
-static bool match_no(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
+static bool match_anal(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
 {
 	return false;
 }
@@ -60,18 +60,18 @@ static const struct rtp_test_case cases[] = {
 		/* Different bits on the same register: create a single entry */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
 			{ XE_RTP_NAME("basic-2"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(1)))
 			},
 			{}
 		},
 	},
 	{
-		.name = "no-match-no-add",
+		.name = "anal-match-anal-add",
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
@@ -79,18 +79,18 @@ static const struct rtp_test_case cases[] = {
 		/* Don't coalesce second entry since rules don't match */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
 			{ XE_RTP_NAME("basic-2"),
-			  XE_RTP_RULES(FUNC(match_no)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(1)))
 			},
 			{}
 		},
 	},
 	{
-		.name = "no-match-no-add-multiple-rules",
+		.name = "anal-match-anal-add-multiple-rules",
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
@@ -98,11 +98,11 @@ static const struct rtp_test_case cases[] = {
 		/* Don't coalesce second entry due to one of the rules */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
 			{ XE_RTP_NAME("basic-2"),
-			  XE_RTP_RULES(FUNC(match_yes), FUNC(match_no)),
+			  XE_RTP_RULES(FUNC(match_anal), FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(1)))
 			},
 			{}
@@ -114,14 +114,14 @@ static const struct rtp_test_case cases[] = {
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
 		.expected_count = 2,
-		/* Same bits on different registers are not coalesced */
+		/* Same bits on different registers are analt coalesced */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
 			{ XE_RTP_NAME("basic-2"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG2, REG_BIT(0)))
 			},
 			{}
@@ -136,11 +136,11 @@ static const struct rtp_test_case cases[] = {
 		/* Check clr vs set actions on different bits */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
 			{ XE_RTP_NAME("basic-2"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(CLR(REGULAR_REG1, REG_BIT(1)))
 			},
 			{}
@@ -157,7 +157,7 @@ static const struct rtp_test_case cases[] = {
 		/* Check FIELD_SET works */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(FIELD_SET(REGULAR_REG1,
 						   TEMP_MASK, TEMP_FIELD))
 			},
@@ -175,19 +175,19 @@ static const struct rtp_test_case cases[] = {
 		.expected_sr_errors = 1,
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
 			/* drop: setting same values twice */
 			{ XE_RTP_NAME("basic-2"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
 			{}
 		},
 	},
 	{
-		.name = "conflict-not-disjoint",
+		.name = "conflict-analt-disjoint",
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
@@ -195,12 +195,12 @@ static const struct rtp_test_case cases[] = {
 		.expected_sr_errors = 1,
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
-			/* drop: bits are not disjoint with previous entries */
+			/* drop: bits are analt disjoint with previous entries */
 			{ XE_RTP_NAME("basic-2"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(CLR(REGULAR_REG1, REG_GENMASK(1, 0)))
 			},
 			{}
@@ -215,17 +215,17 @@ static const struct rtp_test_case cases[] = {
 		.expected_sr_errors = 2,
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(0)))
 			},
 			/* drop: regular vs MCR */
 			{ XE_RTP_NAME("basic-2"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(MCR_REG1, REG_BIT(1)))
 			},
 			/* drop: regular vs masked */
 			{ XE_RTP_NAME("basic-3"),
-			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_RULES(FUNC(match_anal)),
 			  XE_RTP_ACTIONS(SET(MASKED_REG1, REG_BIT(0)))
 			},
 			{}
@@ -274,12 +274,12 @@ static int xe_rtp_test_init(struct kunit *test)
 	int ret;
 
 	dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	xe = drm_kunit_helper_alloc_drm_device(test, dev,
 					       struct xe_device,
 					       drm, DRIVER_GEM);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xe);
 
 	/* Initialize an empty device */
 	test->priv = NULL;

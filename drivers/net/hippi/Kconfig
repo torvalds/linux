@@ -33,7 +33,7 @@ config ROADRUNNER_LARGE_RINGS
 	help
 	  If you say Y here, the RoadRunner driver will preallocate up to 2 MB
 	  of additional memory to allow for fastest operation, both for
-	  transmitting and receiving. This memory cannot be used by any other
+	  transmitting and receiving. This memory cananalt be used by any other
 	  kernel code or by user space programs. Say Y here only if you have
 	  the memory.
 

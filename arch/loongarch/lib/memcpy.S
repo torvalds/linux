@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/export.h>
@@ -10,7 +10,7 @@
 #include <asm/cpu.h>
 #include <asm/regdef.h>
 
-.section .noinstr.text, "ax"
+.section .analinstr.text, "ax"
 
 SYM_FUNC_START(memcpy)
 	/*
@@ -24,8 +24,8 @@ SYM_FUNC_ALIAS(__memcpy, memcpy)
 EXPORT_SYMBOL(memcpy)
 EXPORT_SYMBOL(__memcpy)
 
-_ASM_NOKPROBE(memcpy)
-_ASM_NOKPROBE(__memcpy)
+_ASM_ANALKPROBE(memcpy)
+_ASM_ANALKPROBE(__memcpy)
 
 /*
  * void *__memcpy_generic(void *dst, const void *src, size_t n)
@@ -48,10 +48,10 @@ SYM_FUNC_START(__memcpy_generic)
 2:	move	a0, a3
 	jr	ra
 SYM_FUNC_END(__memcpy_generic)
-_ASM_NOKPROBE(__memcpy_generic)
+_ASM_ANALKPROBE(__memcpy_generic)
 
 	.align	5
-SYM_FUNC_START_NOALIGN(__memcpy_small)
+SYM_FUNC_START_ANALALIGN(__memcpy_small)
 	pcaddi	t0, 8
 	slli.d	a2, a2, 5
 	add.d	t0, t0, a2
@@ -108,7 +108,7 @@ SYM_FUNC_START_NOALIGN(__memcpy_small)
 	st.d	t0, a0, 0
 	jr	ra
 SYM_FUNC_END(__memcpy_small)
-_ASM_NOKPROBE(__memcpy_small)
+_ASM_ANALKPROBE(__memcpy_small)
 
 /*
  * void *__memcpy_fast(void *dst, const void *src, size_t n)
@@ -196,4 +196,4 @@ SYM_FUNC_START(__memcpy_fast)
 	/* return */
 	jr	ra
 SYM_FUNC_END(__memcpy_fast)
-_ASM_NOKPROBE(__memcpy_fast)
+_ASM_ANALKPROBE(__memcpy_fast)

@@ -41,13 +41,13 @@ properties:
     $ref: /schemas/power/reset/syscon-poweroff.yaml#
     type: object
     description:
-      Node for power off method
+      Analde for power off method
 
   syscon-reboot:
     $ref: /schemas/power/reset/syscon-reboot.yaml#
     type: object
     description:
-      Node for reboot method
+      Analde for reboot method
 
 required:
   - compatible

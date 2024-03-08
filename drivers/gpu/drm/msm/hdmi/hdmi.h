@@ -187,12 +187,12 @@ int msm_hdmi_pll_8996_init(struct platform_device *pdev);
 #else
 static inline int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

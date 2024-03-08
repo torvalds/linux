@@ -5,7 +5,7 @@
 #include <asm/io.h>
 
 /*
- * Returns physical address of EBDA.  Returns 0 if there is no EBDA.
+ * Returns physical address of EBDA.  Returns 0 if there is anal EBDA.
  */
 static inline unsigned int get_bios_ebda(void)
 {
@@ -15,14 +15,14 @@ static inline unsigned int get_bios_ebda(void)
 	 */
 	unsigned int address = *(unsigned short *)phys_to_virt(0x40E);
 	address <<= 4;
-	return address;	/* 0 means none */
+	return address;	/* 0 means analne */
 }
 
 void reserve_bios_regions(void);
 
 #ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
 /*
- * This is obviously not a great place for this, but we want to be
+ * This is obviously analt a great place for this, but we want to be
  * able to scatter it around anywhere in the kernel.
  */
 void check_for_bios_corruption(void);

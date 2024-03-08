@@ -18,7 +18,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
+ *	along with this program; if analt, write to the Free Software
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  History:
@@ -73,7 +73,7 @@ struct usbdevfs_urb32 {
 };
 
 struct usbdevfs_ioctl32 {
-	s32 ifno;
+	s32 ifanal;
 	s32 ioctl_code;
 	compat_caddr_t data;
 };

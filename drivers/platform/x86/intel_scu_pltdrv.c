@@ -9,7 +9,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -26,7 +26,7 @@ static int intel_scu_platform_probe(struct platform_device *pdev)
 	scu_data.irq = platform_get_irq_optional(pdev, 0);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scu_data.mem = *res;
 

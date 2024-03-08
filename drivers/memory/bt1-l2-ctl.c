@@ -153,7 +153,7 @@ static struct l2_ctl *l2_ctl_create_data(struct platform_device *pdev)
 
 	l2 = devm_kzalloc(dev, sizeof(*l2), GFP_KERNEL);
 	if (!l2)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = devm_add_action(dev, l2_ctl_clear_data, l2);
 	if (ret) {
@@ -169,7 +169,7 @@ static struct l2_ctl *l2_ctl_create_data(struct platform_device *pdev)
 
 static int l2_ctl_find_sys_regs(struct l2_ctl *l2)
 {
-	l2->sys_regs = syscon_node_to_regmap(l2->dev->of_node->parent);
+	l2->sys_regs = syscon_analde_to_regmap(l2->dev->of_analde->parent);
 	if (IS_ERR(l2->sys_regs)) {
 		dev_err(l2->dev, "Couldn't get L2 CTL register map\n");
 		return PTR_ERR(l2->sys_regs);
@@ -184,7 +184,7 @@ static int l2_ctl_of_parse_property(struct l2_ctl *l2, enum l2_ctl_stall id,
 	int ret = 0;
 	u32 data;
 
-	if (!of_property_read_u32(l2->dev->of_node, propname, &data)) {
+	if (!of_property_read_u32(l2->dev->of_analde, propname, &data)) {
 		ret = l2_ctl_set_latency(l2, id, data);
 		if (ret)
 			dev_err(l2->dev, "Invalid value of '%s'\n", propname);
@@ -269,7 +269,7 @@ static int l2_ctl_init_sysfs(struct l2_ctl *l2)
 
 	ret = device_add_groups(l2->dev, l2_ctl_sysfs_groups);
 	if (ret) {
-		dev_err(l2->dev, "Failed to create L2 CTL sysfs nodes\n");
+		dev_err(l2->dev, "Failed to create L2 CTL sysfs analdes\n");
 		return ret;
 	}
 

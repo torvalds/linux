@@ -3,7 +3,7 @@
  * AXP20x PMIC USB power supply status driver
  *
  * Copyright (C) 2015 Hans de Goede <hdegoede@redhat.com>
- * Copyright (C) 2014 Bruno Prémont <bonbons@linux-vserver.org>
+ * Copyright (C) 2014 Bruanal Prémont <bonbons@linux-vserver.org>
  */
 
 #include <linux/bitops.h>
@@ -40,7 +40,7 @@
 #define AXP20X_ADC_EN1_VBUS_VOLT	BIT(3)
 
 /*
- * Note do not raise the debounce time, we must report Vusb high within
+ * Analte do analt raise the debounce time, we must report Vusb high within
  * 100ms otherwise we get Vbus errors in musb.
  */
 #define DEBOUNCE_TIME			msecs_to_jiffies(50)
@@ -138,7 +138,7 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 
 		val->intval = AXP20X_VBUS_VHOLD_uV(v);
 		return 0;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (IS_ENABLED(CONFIG_AXP20X_ADC)) {
 			ret = iio_read_channel_processed(power->vbus_v,
 							 &val->intval);
@@ -167,7 +167,7 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 
 		val->intval = power->axp_data->curr_lim_table[v];
 		return 0;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		if (IS_ENABLED(CONFIG_AXP20X_ADC)) {
 			ret = iio_read_channel_processed(power->vbus_i,
 							 &val->intval);
@@ -201,7 +201,7 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_HEALTH:
 		if (!(input & AXP20X_PWR_STATUS_VBUS_PRESENT)) {
-			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+			val->intval = POWER_SUPPLY_HEALTH_UNKANALWN;
 			break;
 		}
 
@@ -304,8 +304,8 @@ static int axp20x_usb_power_prop_writeable(struct power_supply *psy,
 
 	/*
 	 * The VBUS path select flag works differently on AXP288 and newer:
-	 *  - On AXP20x and AXP22x, the flag enables VBUS (ignoring N_VBUSEN).
-	 *  - On AXP288 and AXP8xx, the flag disables VBUS (ignoring N_VBUSEN).
+	 *  - On AXP20x and AXP22x, the flag enables VBUS (iganalring N_VBUSEN).
+	 *  - On AXP288 and AXP8xx, the flag disables VBUS (iganalring N_VBUSEN).
 	 * We only expose the control on variants where it can be used to force
 	 * the VBUS input offline.
 	 */
@@ -321,9 +321,9 @@ static enum power_supply_property axp20x_usb_power_properties[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 };
 
 static enum power_supply_property axp22x_usb_power_properties[] = {
@@ -358,7 +358,7 @@ static const char * const axp20x_irq_names[] = {
 	"VBUS_PLUGIN",
 	"VBUS_REMOVAL",
 	"VBUS_VALID",
-	"VBUS_NOT_VALID",
+	"VBUS_ANALT_VALID",
 };
 
 static const char * const axp22x_irq_names[] = {
@@ -452,7 +452,7 @@ static int axp20x_usb_power_suspend(struct device *dev)
 	/*
 	 * Allow wake via VBUS_PLUGIN only.
 	 *
-	 * As nested threaded IRQs are not automatically disabled during
+	 * As nested threaded IRQs are analt automatically disabled during
 	 * suspend, we must explicitly disable the remainder of the IRQs.
 	 */
 	if (device_may_wakeup(&power->supply->dev))
@@ -487,14 +487,14 @@ static int configure_iio_channels(struct platform_device *pdev,
 {
 	power->vbus_v = devm_iio_channel_get(&pdev->dev, "vbus_v");
 	if (IS_ERR(power->vbus_v)) {
-		if (PTR_ERR(power->vbus_v) == -ENODEV)
+		if (PTR_ERR(power->vbus_v) == -EANALDEV)
 			return -EPROBE_DEFER;
 		return PTR_ERR(power->vbus_v);
 	}
 
 	power->vbus_i = devm_iio_channel_get(&pdev->dev, "vbus_i");
 	if (IS_ERR(power->vbus_i)) {
-		if (PTR_ERR(power->vbus_i) == -ENODEV)
+		if (PTR_ERR(power->vbus_i) == -EANALDEV)
 			return -EPROBE_DEFER;
 		return PTR_ERR(power->vbus_i);
 	}
@@ -540,11 +540,11 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	const struct axp_data *axp_data;
 	int i, irq, ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
-		return -ENODEV;
+	if (!of_device_is_available(pdev->dev.of_analde))
+		return -EANALDEV;
 
 	if (!axp20x) {
-		dev_err(&pdev->dev, "Parent drvdata not set\n");
+		dev_err(&pdev->dev, "Parent drvdata analt set\n");
 		return -EINVAL;
 	}
 
@@ -554,7 +554,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 			     struct_size(power, irqs, axp_data->num_irq_names),
 			     GFP_KERNEL);
 	if (!power)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, power);
 
@@ -618,7 +618,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_analde = pdev->dev.of_analde;
 	psy_cfg.drv_data = power;
 
 	power->supply = devm_power_supply_register(&pdev->dev,

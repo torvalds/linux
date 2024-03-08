@@ -216,7 +216,7 @@ static int tegra_nand_ooblayout_rs_ecc(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-static int tegra_nand_ooblayout_no_free(struct mtd_info *mtd, int section,
+static int tegra_nand_ooblayout_anal_free(struct mtd_info *mtd, int section,
 					struct mtd_oob_region *oobregion)
 {
 	return -ERANGE;
@@ -224,7 +224,7 @@ static int tegra_nand_ooblayout_no_free(struct mtd_info *mtd, int section,
 
 static const struct mtd_ooblayout_ops tegra_nand_oob_rs_ops = {
 	.ecc = tegra_nand_ooblayout_rs_ecc,
-	.free = tegra_nand_ooblayout_no_free,
+	.free = tegra_nand_ooblayout_anal_free,
 };
 
 static int tegra_nand_ooblayout_bch_ecc(struct mtd_info *mtd, int section,
@@ -245,7 +245,7 @@ static int tegra_nand_ooblayout_bch_ecc(struct mtd_info *mtd, int section,
 
 static const struct mtd_ooblayout_ops tegra_nand_oob_bch_ops = {
 	.ecc = tegra_nand_ooblayout_bch_ecc,
-	.free = tegra_nand_ooblayout_no_free,
+	.free = tegra_nand_ooblayout_anal_free,
 };
 
 static irqreturn_t tegra_nand_irq(int irq, void *data)
@@ -258,7 +258,7 @@ static irqreturn_t tegra_nand_irq(int irq, void *data)
 	dev_dbg(ctrl->dev, "isr %08x\n", isr);
 
 	if (!isr && !(dma & DMA_MST_CTRL_IS_DONE))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * The bit name is somewhat missleading: This is also set when
@@ -669,7 +669,7 @@ static int tegra_nand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 	if (ret)
 		return ret;
 
-	/* No correctable or un-correctable errors, page must have 0 bitflips */
+	/* Anal correctable or un-correctable errors, page must have 0 bitflips */
 	if (!ctrl->last_read_error)
 		return 0;
 
@@ -677,7 +677,7 @@ static int tegra_nand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 	 * Correctable or un-correctable errors occurred. Use DEC_STAT_BUF
 	 * which contains information for all ECC selections.
 	 *
-	 * Note that since we do not use Command Queues DEC_RESULT does not
+	 * Analte that since we do analt use Command Queues DEC_RESULT does analt
 	 * state the number of pages we can read from the DEC_STAT_BUF. But
 	 * since CORRFAIL_ERR did occur during page read we do have a valid
 	 * result in DEC_STAT_BUF.
@@ -695,17 +695,17 @@ static int tegra_nand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 		int bit, max_bitflips = 0;
 
 		/*
-		 * Since we do not support subpage writes, a complete page
-		 * is either written or not. We can take a shortcut here by
+		 * Since we do analt support subpage writes, a complete page
+		 * is either written or analt. We can take a shortcut here by
 		 * checking wheather any of the sector has been successful
 		 * read. If at least one sectors has been read successfully,
-		 * the page must have been a written previously. It cannot
+		 * the page must have been a written previously. It cananalt
 		 * be an erased page.
 		 *
 		 * E.g. controller might return fail_sec_flag with 0x4, which
 		 * would mean only the third sector failed to correct. The
 		 * page must have been written and the third sector is really
-		 * not correctable anymore.
+		 * analt correctable anymore.
 		 */
 		if (fail_sec_flag ^ GENMASK(chip->ecc.steps - 1, 0)) {
 			mtd->ecc_stats.failed += hweight8(fail_sec_flag);
@@ -714,7 +714,7 @@ static int tegra_nand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 
 		/*
 		 * All sectors failed to correct, but the ECC isn't smart
-		 * enough to figure out if a page is really just erased.
+		 * eanalugh to figure out if a page is really just erased.
 		 * Read OOB data and check whether data/OOB is completely
 		 * erased or if error correction just failed for all sub-
 		 * pages.
@@ -750,8 +750,8 @@ static int tegra_nand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 		/*
 		 * The value returned in the register is the maximum of
 		 * bitflips encountered in any of the ECC regions. As there is
-		 * no way to get the number of bitflips in a specific regions
-		 * we are not able to deliver correct stats but instead
+		 * anal way to get the number of bitflips in a specific regions
+		 * we are analt able to deliver correct stats but instead
 		 * overestimate the number of corrected bitflips by assuming
 		 * that all regions where errors have been corrected
 		 * encountered the maximum number of bitflips.
@@ -922,7 +922,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	int ret;
 
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		chip->bbt_options |= NAND_BBT_NO_OOB;
+		chip->bbt_options |= NAND_BBT_ANAL_OOB;
 
 	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	chip->ecc.size = 512;
@@ -943,7 +943,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	if (chip->options & NAND_BUSWIDTH_16)
 		nand->config |= CONFIG_BUS_WIDTH_16;
 
-	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN) {
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN) {
 		if (mtd->writesize < 2048)
 			chip->ecc.algo = NAND_ECC_ALGO_RS;
 		else
@@ -959,7 +959,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 		ret = tegra_nand_select_strength(chip, mtd->oobsize);
 		if (ret < 0) {
 			dev_err(ctrl->dev,
-				"No valid strength found, minimum %d\n",
+				"Anal valid strength found, minimum %d\n",
 				requirements->strength);
 			return ret;
 		}
@@ -987,7 +987,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 			nand->config_ecc |= CONFIG_TVAL_8;
 			break;
 		default:
-			dev_err(ctrl->dev, "ECC strength %d not supported\n",
+			dev_err(ctrl->dev, "ECC strength %d analt supported\n",
 				chip->ecc.strength);
 			return -EINVAL;
 		}
@@ -1010,13 +1010,13 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 			nand->bch_config |= BCH_TVAL_16;
 			break;
 		default:
-			dev_err(ctrl->dev, "ECC strength %d not supported\n",
+			dev_err(ctrl->dev, "ECC strength %d analt supported\n",
 				chip->ecc.strength);
 			return -EINVAL;
 		}
 		break;
 	default:
-		dev_err(ctrl->dev, "ECC algorithm not supported\n");
+		dev_err(ctrl->dev, "ECC algorithm analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1045,13 +1045,13 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	default:
 		dev_err(ctrl->dev, "Unsupported writesize %d\n",
 			mtd->writesize);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Store complete configuration for HW ECC in config_ecc */
 	nand->config_ecc |= nand->config;
 
-	/* Non-HW ECC read/writes complete OOB */
+	/* Analn-HW ECC read/writes complete OOB */
 	nand->config |= CONFIG_TAG_BYTE_SIZE(mtd->oobsize - 1);
 	writel_relaxed(nand->config, ctrl->regs + CONFIG);
 
@@ -1067,8 +1067,8 @@ static const struct nand_controller_ops tegra_nand_controller_ops = {
 static int tegra_nand_chips_init(struct device *dev,
 				 struct tegra_nand_controller *ctrl)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *np_nand;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *np_nand;
 	int nsels, nchips = of_get_child_count(np);
 	struct tegra_nand_chip *nand;
 	struct mtd_info *mtd;
@@ -1092,13 +1092,13 @@ static int tegra_nand_chips_init(struct device *dev,
 	/* Retrieve CS id, currently only single die NAND supported */
 	ret = of_property_read_u32(np_nand, "reg", &cs);
 	if (ret) {
-		dev_err(dev, "could not retrieve reg property: %d\n", ret);
+		dev_err(dev, "could analt retrieve reg property: %d\n", ret);
 		return ret;
 	}
 
 	nand = devm_kzalloc(dev, sizeof(*nand), GFP_KERNEL);
 	if (!nand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand->cs[0] = cs;
 
@@ -1118,12 +1118,12 @@ static int tegra_nand_chips_init(struct device *dev,
 	mtd->dev.parent = dev;
 	mtd->owner = THIS_MODULE;
 
-	nand_set_flash_node(chip, np_nand);
+	nand_set_flash_analde(chip, np_nand);
 
 	if (!mtd->name)
 		mtd->name = "tegra_nand";
 
-	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USES_DMA;
+	chip->options = NAND_ANAL_SUBPAGE_WRITE | NAND_USES_DMA;
 
 	ret = nand_scan(chip, 1);
 	if (ret)
@@ -1151,7 +1151,7 @@ static int tegra_nand_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ctrl);

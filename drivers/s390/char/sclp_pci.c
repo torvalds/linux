@@ -10,7 +10,7 @@
 #include <linux/completion.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -24,16 +24,16 @@
 
 #define SCLP_ATYPE_PCI				2
 
-#define SCLP_ERRNOTIFY_AQ_RESET			0
-#define SCLP_ERRNOTIFY_AQ_REPAIR		1
-#define SCLP_ERRNOTIFY_AQ_INFO_LOG		2
+#define SCLP_ERRANALTIFY_AQ_RESET			0
+#define SCLP_ERRANALTIFY_AQ_REPAIR		1
+#define SCLP_ERRANALTIFY_AQ_INFO_LOG		2
 
 static DEFINE_MUTEX(sclp_pci_mutex);
 static struct sclp_register sclp_pci_event = {
-	.send_mask = EVTYP_ERRNOTIFY_MASK,
+	.send_mask = EVTYP_ERRANALTIFY_MASK,
 };
 
-struct err_notify_evbuf {
+struct err_analtify_evbuf {
 	struct evbuf_header header;
 	u8 action;
 	u8 atype;
@@ -42,9 +42,9 @@ struct err_notify_evbuf {
 	u8 data[];
 } __packed;
 
-struct err_notify_sccb {
+struct err_analtify_sccb {
 	struct sccb_header header;
-	struct err_notify_evbuf evbuf;
+	struct err_analtify_evbuf evbuf;
 } __packed;
 
 struct pci_cfg_sccb {
@@ -61,11 +61,11 @@ static int do_pci_configure(sclp_cmdw_t cmd, u32 fid)
 	int rc;
 
 	if (!SCLP_HAS_PCI_RECONFIG)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sccb = (struct pci_cfg_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sccb->header.length = PAGE_SIZE;
 	sccb->atype = SCLP_ATYPE_PCI;
@@ -113,15 +113,15 @@ static int sclp_pci_check_report(struct zpci_report_error_header *report)
 		return -EINVAL;
 
 	switch (report->action) {
-	case SCLP_ERRNOTIFY_AQ_RESET:
-	case SCLP_ERRNOTIFY_AQ_REPAIR:
-	case SCLP_ERRNOTIFY_AQ_INFO_LOG:
+	case SCLP_ERRANALTIFY_AQ_RESET:
+	case SCLP_ERRANALTIFY_AQ_REPAIR:
+	case SCLP_ERRANALTIFY_AQ_INFO_LOG:
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (report->length > (PAGE_SIZE - sizeof(struct err_notify_sccb)))
+	if (report->length > (PAGE_SIZE - sizeof(struct err_analtify_sccb)))
 		return -EINVAL;
 
 	return 0;
@@ -130,7 +130,7 @@ static int sclp_pci_check_report(struct zpci_report_error_header *report)
 int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
-	struct err_notify_sccb *sccb;
+	struct err_analtify_sccb *sccb;
 	struct sclp_req req;
 	int ret;
 
@@ -143,14 +143,14 @@ int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid)
 	if (ret)
 		goto out_unlock;
 
-	if (!(sclp_pci_event.sclp_receive_mask & EVTYP_ERRNOTIFY_MASK)) {
-		ret = -EOPNOTSUPP;
+	if (!(sclp_pci_event.sclp_receive_mask & EVTYP_ERRANALTIFY_MASK)) {
+		ret = -EOPANALTSUPP;
 		goto out_unregister;
 	}
 
 	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unregister;
 	}
 
@@ -162,7 +162,7 @@ int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid)
 	req.sccb = sccb;
 
 	sccb->evbuf.header.length = sizeof(sccb->evbuf) + report->length;
-	sccb->evbuf.header.type = EVTYP_ERRNOTIFY;
+	sccb->evbuf.header.type = EVTYP_ERRANALTIFY;
 	sccb->header.length = sizeof(sccb->header) + sccb->evbuf.header.length;
 
 	sccb->evbuf.action = report->action;

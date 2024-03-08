@@ -26,11 +26,11 @@ void gic_dist_config(void __iomem *base, int gic_irqs,
 void gic_cpu_config(void __iomem *base, int nr, void (*sync_access)(void));
 void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 		void *data);
-void gic_enable_of_quirks(const struct device_node *np,
+void gic_enable_of_quirks(const struct device_analde *np,
 			  const struct gic_quirk *quirks, void *data);
 
 #define RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING    (1 << 0)
 #define RDIST_FLAGS_RD_TABLES_PREALLOCATED     (1 << 1)
-#define RDIST_FLAGS_FORCE_NON_SHAREABLE        (1 << 2)
+#define RDIST_FLAGS_FORCE_ANALN_SHAREABLE        (1 << 2)
 
 #endif /* _IRQ_GIC_COMMON_H */

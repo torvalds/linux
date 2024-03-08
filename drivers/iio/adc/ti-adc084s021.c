@@ -138,7 +138,7 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 /**
  * adc084s021_buffer_trigger_handler() - Read ADC channels and push to buffer.
  *
- * @irq: The interrupt number (not used).
+ * @irq: The interrupt number (analt used).
  * @pollfunc: Pointer to the poll func.
  */
 static irqreturn_t adc084s021_buffer_trigger_handler(int irq, void *pollfunc)
@@ -155,7 +155,7 @@ static irqreturn_t adc084s021_buffer_trigger_handler(int irq, void *pollfunc)
 	iio_push_to_buffers_with_timestamp(indio_dev, &adc->scan,
 					   iio_get_time_ns(indio_dev));
 	mutex_unlock(&adc->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -204,7 +204,7 @@ static int adc084s021_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev) {
 		dev_err(&spi->dev, "Failed to allocate IIO device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adc = iio_priv(indio_dev);

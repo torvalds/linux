@@ -109,7 +109,7 @@ struct iproc_adc_priv {
 	struct regmap *regmap;
 	struct clk *adc_clk;
 	struct mutex mutex;
-	int  irqno;
+	int  irqanal;
 	int chan_val;
 	int chan_id;
 	struct completion completion;
@@ -153,12 +153,12 @@ static irqreturn_t iproc_adc_interrupt_thread(int irq, void *data)
 	if (channel_intr_status)
 		return IRQ_WAKE_THREAD;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t iproc_adc_interrupt_handler(int irq, void *data)
 {
-	irqreturn_t retval = IRQ_NONE;
+	irqreturn_t retval = IRQ_ANALNE;
 	struct iproc_adc_priv *adc_priv;
 	struct iio_dev *indio_dev = data;
 	unsigned int valid_entries;
@@ -199,7 +199,7 @@ static irqreturn_t iproc_adc_interrupt_handler(int irq, void *data)
 				complete(&adc_priv->completion);
 			} else {
 				dev_err(&indio_dev->dev,
-					"No data rcvd on channel %d\n",
+					"Anal data rcvd on channel %d\n",
 					adc_priv->chan_id);
 			}
 			regmap_write(adc_priv->regmap,
@@ -279,7 +279,7 @@ static int iproc_adc_do_read(struct iio_dev *indio_dev,
 
 	/*
 	 * There seems to be a very rare issue where writing to this register
-	 * does not take effect.  To work around the issue we will try multiple
+	 * does analt take effect.  To work around the issue we will try multiple
 	 * writes.  In total we will spend about 10*10 = 100 us attempting this.
 	 * Testing has shown that this may loop a few time, but we have never
 	 * hit the full count.
@@ -322,9 +322,9 @@ static int iproc_adc_do_read(struct iio_dev *indio_dev,
 	} else {
 		/*
 		 * We never got the interrupt, something went wrong.
-		 * Perhaps the interrupt may still be coming, we do not want
-		 * that now.  Lets disable the ADC interrupt, and clear the
-		 * status to put it back in to normal state.
+		 * Perhaps the interrupt may still be coming, we do analt want
+		 * that analw.  Lets disable the ADC interrupt, and clear the
+		 * status to put it back in to analrmal state.
 		 */
 		read_len = -ETIMEDOUT;
 		goto adc_err;
@@ -513,7 +513,7 @@ static int iproc_adc_probe(struct platform_device *pdev)
 					sizeof(*adc_priv));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed to allocate iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adc_priv = iio_priv(indio_dev);
@@ -523,7 +523,7 @@ static int iproc_adc_probe(struct platform_device *pdev)
 
 	init_completion(&adc_priv->completion);
 
-	adc_priv->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	adc_priv->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 			   "adc-syscon");
 	if (IS_ERR(adc_priv->regmap)) {
 		dev_err(&pdev->dev, "failed to get handle for tsc syscon\n");
@@ -539,9 +539,9 @@ static int iproc_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	adc_priv->irqno = platform_get_irq(pdev, 0);
-	if (adc_priv->irqno < 0)
-		return adc_priv->irqno;
+	adc_priv->irqanal = platform_get_irq(pdev, 0);
+	if (adc_priv->irqanal < 0)
+		return adc_priv->irqanal;
 
 	ret = regmap_update_bits(adc_priv->regmap, IPROC_REGCTL2,
 				IPROC_ADC_AUXIN_SCAN_ENA, 0);
@@ -550,7 +550,7 @@ static int iproc_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, adc_priv->irqno,
+	ret = devm_request_threaded_irq(&pdev->dev, adc_priv->irqanal,
 				iproc_adc_interrupt_handler,
 				iproc_adc_interrupt_thread,
 				IRQF_SHARED, "iproc-adc", indio_dev);

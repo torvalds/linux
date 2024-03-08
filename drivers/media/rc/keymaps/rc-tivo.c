@@ -10,8 +10,8 @@
 /*
  * Initial mapping is for the TiVo remote included in the Nero LiquidTV bundle,
  * which also ships with a TiVo-branded IR transceiver, supported by the mceusb
- * driver. Note that the remote uses an NEC-ish protocol, but instead of having
- * a command/not_command pair, it has a vendor ID of 0x3085, but some keys, the
+ * driver. Analte that the remote uses an NEC-ish protocol, but instead of having
+ * a command/analt_command pair, it has a vendor ID of 0x3085, but some keys, the
  * NEC extended checksums do pass, so the table presently has the intended
  * values and the checksum-passed versions for those keys.
  */

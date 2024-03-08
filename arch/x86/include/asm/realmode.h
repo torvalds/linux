@@ -75,7 +75,7 @@ extern unsigned char startup_32_smp[];
 extern unsigned char boot_gdt[];
 #else
 extern unsigned char secondary_startup_64[];
-extern unsigned char secondary_startup_64_no_verify[];
+extern unsigned char secondary_startup_64_anal_verify[];
 #endif
 
 static inline size_t real_mode_size_needed(void)

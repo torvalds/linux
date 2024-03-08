@@ -3,7 +3,7 @@
  * OMAP2/3/4 Power/Reset Management (PRM) bitfield definitions
  *
  * Copyright (C) 2007-2009, 2012 Texas Instruments, Inc.
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  *
  * Paul Walmsley
  */
@@ -86,10 +86,10 @@ int omap2_prcm_base_init(void);
  *
  * To the extent these happen to match the hardware register bit
  * shifts, it's purely coincidental.  Used by omap-wdt.c.
- * OMAP_UNKNOWN_RST_SRC_ID_SHIFT is a special value, used whenever
+ * OMAP_UNKANALWN_RST_SRC_ID_SHIFT is a special value, used whenever
  * there are any bits remaining in the global PRM_RSTST register that
  * haven't been identified, or when the PRM code for the current SoC
- * doesn't know how to interpret the register.
+ * doesn't kanalw how to interpret the register.
  */
 #define OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT			0
 #define OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT			1
@@ -103,7 +103,7 @@ int omap2_prcm_base_init(void);
 #define OMAP_ICEPICK_RST_SRC_ID_SHIFT				9
 #define OMAP_ICECRUSHER_RST_SRC_ID_SHIFT			10
 #define OMAP_C2C_RST_SRC_ID_SHIFT				11
-#define OMAP_UNKNOWN_RST_SRC_ID_SHIFT				12
+#define OMAP_UNKANALWN_RST_SRC_ID_SHIFT				12
 
 #ifndef __ASSEMBLER__
 

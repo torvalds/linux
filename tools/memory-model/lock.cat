@@ -26,17 +26,17 @@ include "cross.cat"
  *
  * LKR, LF, RL, and RU are read events; LKR has Acquire ordering.
  * LKW and UL are write events; UL has Release ordering.
- * LKW, LF, RL, and RU have no ordering properties.
+ * LKW, LF, RL, and RU have anal ordering properties.
  *)
 
 (* Backward compatibility *)
 let RL = try RL with emptyset
 let RU = try RU with emptyset
 
-(* Treat RL as a kind of LF: a read with no ordering properties *)
+(* Treat RL as a kind of LF: a read with anal ordering properties *)
 let LF = LF | RL
 
-(* There should be no ordinary R or W accesses to spinlocks or SRCU structs *)
+(* There should be anal ordinary R or W accesses to spinlocks or SRCU structs *)
 let ALL-LOCKS = LKR | LKW | UL | LF | RU | Srcu-lock | Srcu-unlock | Sync-srcu
 flag ~empty [M \ IW \ ALL-LOCKS] ; loc ; [ALL-LOCKS] as mixed-lock-accesses
 
@@ -44,7 +44,7 @@ flag ~empty [M \ IW \ ALL-LOCKS] ; loc ; [ALL-LOCKS] as mixed-lock-accesses
 let lk-rmw = ([LKR] ; po-loc ; [LKW]) \ (po ; po)
 let rmw = rmw | lk-rmw
 
-(* The litmus test is invalid if an LKR/LKW event is not part of an RMW pair *)
+(* The litmus test is invalid if an LKR/LKW event is analt part of an RMW pair *)
 flag ~empty LKW \ range(lk-rmw) as unpaired-LKW
 flag ~empty LKR \ domain(lk-rmw) as unpaired-LKR
 
@@ -54,7 +54,7 @@ flag ~empty LKR \ domain(lk-rmw) as unpaired-LKR
  *)
 empty ([LKW] ; po-loc ; [LKR]) \ (po-loc ; [UL] ; po-loc) as lock-nest
 
-(* The final value of a spinlock should not be tested *)
+(* The final value of a spinlock should analt be tested *)
 flag ~empty [FW] ; loc ; [ALL-LOCKS] as lock-final
 
 (*
@@ -119,7 +119,7 @@ let rf-ru = rfe-ru | rfi-ru
 (* Final rf relation *)
 let rf = rf | rf-lf | rf-ru
 
-(* Generate all co relations, including LKW events but not UL *)
+(* Generate all co relations, including LKW events but analt UL *)
 let co0 = co0 | ([IW] ; loc ; [LKW]) |
 	(([LKW] ; loc ; [UNMATCHED-LKW]) \ [UNMATCHED-LKW])
 include "cos-opt.cat"

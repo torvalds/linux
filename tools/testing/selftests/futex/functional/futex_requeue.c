@@ -33,7 +33,7 @@ void *waiterfn(void *arg)
 	to.tv_nsec = timeout_ns;
 
 	if (futex_wait(f1, *f1, &to, 0))
-		printf("waiter failed errno %d\n", errno);
+		printf("waiter failed erranal %d\n", erranal);
 
 	return NULL;
 }
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 	 * Requeue a waiter from f1 to f2, and wake f2.
 	 */
 	if (pthread_create(&waiter[0], NULL, waiterfn, NULL))
-		error("pthread_create failed\n", errno);
+		error("pthread_create failed\n", erranal);
 
 	usleep(WAKE_WAIT_US);
 
@@ -82,8 +82,8 @@ int main(int argc, char *argv[])
 	res = futex_cmp_requeue(f1, 0, &f2, 0, 1, 0);
 	if (res != 1) {
 		ksft_test_result_fail("futex_requeue simple returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	}
 
@@ -92,8 +92,8 @@ int main(int argc, char *argv[])
 	res = futex_wake(&f2, 1, 0);
 	if (res != 1) {
 		ksft_test_result_fail("futex_requeue simple returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_requeue simple succeeds\n");
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 	 */
 	for (i = 0; i < 10; i++) {
 		if (pthread_create(&waiter[i], NULL, waiterfn, NULL))
-			error("pthread_create failed\n", errno);
+			error("pthread_create failed\n", erranal);
 	}
 
 	usleep(WAKE_WAIT_US);
@@ -115,8 +115,8 @@ int main(int argc, char *argv[])
 	res = futex_cmp_requeue(f1, 0, &f2, 3, 7, 0);
 	if (res != 10) {
 		ksft_test_result_fail("futex_requeue many returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	}
 
@@ -124,8 +124,8 @@ int main(int argc, char *argv[])
 	res = futex_wake(&f2, INT_MAX, 0);
 	if (res != 7) {
 		ksft_test_result_fail("futex_requeue many returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_requeue many succeeds\n");

@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -52,7 +52,7 @@ enum r600_hdmi_iec_status_bits {
 	AUDIO_STATUS_VCFG         = 0x04,
 	AUDIO_STATUS_EMPHASIS     = 0x08,
 	AUDIO_STATUS_COPYRIGHT    = 0x10,
-	AUDIO_STATUS_NONAUDIO     = 0x20,
+	AUDIO_STATUS_ANALNAUDIO     = 0x20,
 	AUDIO_STATUS_PROFESSIONAL = 0x40,
 	AUDIO_STATUS_LEVEL        = 0x80
 };
@@ -85,7 +85,7 @@ static struct r600_audio_pin r600_audio_status(struct radeon_device *rdev)
 		status.bits_per_sample = 32;
 		break;
 	default:
-		dev_err(rdev->dev, "Unknown bits per sample 0x%x, using 16\n",
+		dev_err(rdev->dev, "Unkanalwn bits per sample 0x%x, using 16\n",
 			(int)value);
 		status.bits_per_sample = 16;
 	}
@@ -181,7 +181,7 @@ void r600_hdmi_update_acr(struct drm_encoder *encoder, long offset,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	/* DCE 3.0 uses register that's normally for CRC_CONTROL */
+	/* DCE 3.0 uses register that's analrmally for CRC_CONTROL */
 	uint32_t acr_ctl = ASIC_IS_DCE3(rdev) ? DCE3_HDMI0_ACR_PACKET_CONTROL :
 				       HDMI0_ACR_PACKET_CONTROL;
 	WREG32_P(acr_ctl + offset,
@@ -258,7 +258,7 @@ static void r600_hdmi_update_audio_infoframe(struct drm_encoder *encoder,
 }
 
 /*
- * test if audio buffer is filled enough to start playing
+ * test if audio buffer is filled eanalugh to start playing
  */
 static bool r600_hdmi_is_audio_buffer_filled(struct drm_encoder *encoder)
 {
@@ -357,7 +357,7 @@ void r600_set_audio_packet(struct drm_encoder *encoder, u32 offset)
 	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
 		HDMI0_AUDIO_SAMPLE_SEND |			/* send audio packets */
 		HDMI0_AUDIO_DELAY_EN(1) |			/* default audio delay */
-		HDMI0_AUDIO_PACKETS_PER_LINE(3) |	/* should be suffient for all audio modes and small enough for all hblanks */
+		HDMI0_AUDIO_PACKETS_PER_LINE(3) |	/* should be suffient for all audio modes and small eanalugh for all hblanks */
 		HDMI0_60958_CS_UPDATE,				/* allow 60958 channel status fields to be updated */
 		~(HDMI0_AUDIO_SAMPLE_SEND |
 		HDMI0_AUDIO_DELAY_EN_MASK |

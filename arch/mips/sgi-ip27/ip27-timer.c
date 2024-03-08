@@ -96,7 +96,7 @@ void hub_rt_clock_event_init(void)
 	cd->set_next_event	= rt_next_event;
 	clockevents_register_device(cd);
 
-	enable_percpu_irq(IP27_RT_TIMER_IRQ, IRQ_TYPE_NONE);
+	enable_percpu_irq(IP27_RT_TIMER_IRQ, IRQ_TYPE_ANALNE);
 }
 
 static void __init hub_rt_clock_event_global_init(void)
@@ -119,7 +119,7 @@ struct clocksource hub_rt_clocksource = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace hub_rt_read_sched_clock(void)
+static u64 analtrace hub_rt_read_sched_clock(void)
 {
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }
@@ -144,9 +144,9 @@ void hub_rtc_init(nasid_t nasid)
 {
 
 	/*
-	 * We only need to initialize the current node.
-	 * If this is not the current node then it is a cpuless
-	 * node and timeouts will not happen there.
+	 * We only need to initialize the current analde.
+	 * If this is analt the current analde then it is a cpuless
+	 * analde and timeouts will analt happen there.
 	 */
 	if (get_nasid() == nasid) {
 		LOCAL_HUB_S(PI_RT_EN_A, 1);

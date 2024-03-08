@@ -29,7 +29,7 @@ properties:
   regulators:
     $ref: ../regulator/samsung,s2mpa01.yaml
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
   wakeup-source: true
 

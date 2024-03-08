@@ -11,7 +11,7 @@
         "BriefDescription": "Number of machine clears due to memory ordering conflicts.",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
+        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may analt conform to the memory ordering rules of the x86 architecture",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -112,7 +112,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -121,7 +121,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -130,7 +130,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts demand data reads that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -139,7 +139,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts demand data reads that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -148,7 +148,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -157,7 +157,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the local socket's L1, L2, or L3 caches and were supplied by the local socket.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were analt supplied by the local socket's L1, L2, or L3 caches and were supplied by the local socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -166,7 +166,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -175,7 +175,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -193,7 +193,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts hardware prefetches to the L3 only that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts hardware prefetches to the L3 only that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L3.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -202,7 +202,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts full cacheline writes (ItoM) that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts full cacheline writes (ItoM) that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.ITOM.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -211,7 +211,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.OTHER.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -220,7 +220,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.OTHER.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -229,7 +229,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts hardware and software prefetches to all cache levels that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts hardware and software prefetches to all cache levels that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.PREFETCHES.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -238,7 +238,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -247,7 +247,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and were supplied by the local socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were analt supplied by the local socket's L1, L2, or L3 caches and were supplied by the local socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -256,7 +256,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that missed the L3 Cache and were supplied by the local socket (DRAM or PMM), whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM or DRAM accesses that are controlled by the close or distant SNC Cluster.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that missed the L3 Cache and were supplied by the local socket (DRAM or PMM), whether or analt in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM or DRAM accesses that are controlled by the close or distant SNC Cluster.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.L3_MISS_LOCAL_SOCKET",
         "MSRIndex": "0x1a6,0x1a7",
@@ -274,7 +274,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts streaming stores that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts streaming stores that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.STREAMING_WR.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -290,11 +290,11 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Cycles where at least one demand data read request known to have missed the L3 cache is pending.",
+        "BriefDescription": "Cycles where at least one demand data read request kanalwn to have missed the L3 cache is pending.",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_L3_MISS_DEMAND_DATA_RD",
-        "PublicDescription": "Cycles where at least one demand data read request known to have missed the L3 cache is pending.  Note that this does not capture all elapsed cycles while requests are outstanding - only cycles from when the requests were known to have missed the L3 cache.",
+        "PublicDescription": "Cycles where at least one demand data read request kanalwn to have missed the L3 cache is pending.  Analte that this does analt capture all elapsed cycles while requests are outstanding - only cycles from when the requests were kanalwn to have missed the L3 cache.",
         "SampleAfterValue": "1000003",
         "UMask": "0x10"
     },
@@ -307,11 +307,11 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Cycles where the core is waiting on at least 6 outstanding demand data read requests known to have missed the L3 cache.",
+        "BriefDescription": "Cycles where the core is waiting on at least 6 outstanding demand data read requests kanalwn to have missed the L3 cache.",
         "CounterMask": "6",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD_GE_6",
-        "PublicDescription": "Cycles where the core is waiting on at least 6 outstanding demand data read requests known to have missed the L3 cache.  Note that this event does not capture all elapsed cycles while the requests are outstanding - only cycles from when the requests were known to have missed the L3 cache.",
+        "PublicDescription": "Cycles where the core is waiting on at least 6 outstanding demand data read requests kanalwn to have missed the L3 cache.  Analte that this event does analt capture all elapsed cycles while the requests are outstanding - only cycles from when the requests were kanalwn to have missed the L3 cache.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -324,10 +324,10 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "BriefDescription": "Number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt)",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt).",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -367,7 +367,7 @@
         "BriefDescription": "Number of times an RTM execution started.",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an RTM region. Does analt count nested transactions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

@@ -105,7 +105,7 @@ static void test_xdp_adjust_tail_grow2(void)
 	/* Kernel side alloc packet memory area that is zero init */
 	err = bpf_prog_test_run_opts(prog_fd, &tattr);
 
-	ASSERT_EQ(errno, ENOSPC, "case-64 errno"); /* Due limit copy_size in bpf_test_finish */
+	ASSERT_EQ(erranal, EANALSPC, "case-64 erranal"); /* Due limit copy_size in bpf_test_finish */
 	ASSERT_EQ(tattr.retval, XDP_TX, "case-64 retval");
 	ASSERT_EQ(tattr.data_size_out, 192, "case-64 data_size_out"); /* Expected grow size */
 
@@ -168,7 +168,7 @@ static void test_xdp_adjust_frags_tail_shrink(void)
 
 	memset(buf, 0, 9000);
 
-	/* Test case removing 10 bytes from last frag, NOT freeing it */
+	/* Test case removing 10 bytes from last frag, ANALT freeing it */
 	exp_size = 8990; /* 9000 - 10 */
 	topts.data_in = buf;
 	topts.data_out = buf;

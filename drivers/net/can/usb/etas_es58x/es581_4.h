@@ -58,7 +58,7 @@ enum es581_4_rx_type {
  * @sync_edge: type enum es58x_sync_edge.
  * @physical_layer: type enum es58x_physical_layer.
  * @echo_mode: type enum es58x_echo_mode.
- * @channel_no: Channel number, starting from 1. Not to be confused
+ * @channel_anal: Channel number, starting from 1. Analt to be confused
  *	with channed_idx of the ES58X FD which starts from 0.
  */
 struct es581_4_tx_conf_msg {
@@ -70,14 +70,14 @@ struct es581_4_tx_conf_msg {
 	__le32 sync_edge;
 	__le32 physical_layer;
 	__le32 echo_mode;
-	u8 channel_no;
+	u8 channel_anal;
 } __packed;
 
 struct es581_4_tx_can_msg {
 	__le32 can_id;
 	__le32 packet_idx;
 	__le16 flags;
-	u8 channel_no;
+	u8 channel_anal;
 	u8 dlc;
 	u8 data[CAN_MAX_DLEN];
 } __packed;
@@ -98,16 +98,16 @@ struct es581_4_echo_msg {
 } __packed;
 
 struct es581_4_bulk_echo_msg {
-	u8 channel_no;
+	u8 channel_anal;
 	struct es581_4_echo_msg echo_msg[ES581_4_ECHO_BULK_MAX];
 } __packed;
 
-/* Normal Rx CAN Message */
+/* Analrmal Rx CAN Message */
 struct es581_4_rx_can_msg {
 	__le64 timestamp;
 	u8 rx_type;		/* type enum es581_4_rx_type */
 	u8 flags;		/* type enum es58x_flag */
-	u8 channel_no;
+	u8 channel_anal;
 	u8 dlc;
 	__le32 can_id;
 	u8 data[CAN_MAX_DLEN];
@@ -117,7 +117,7 @@ struct es581_4_rx_err_msg {
 	__le64 timestamp;
 	__le16 rx_type;		/* type enum es581_4_rx_type */
 	__le16 flags;		/* type enum es58x_flag */
-	u8 channel_no;
+	u8 channel_anal;
 	u8 __padding[2];
 	u8 dlc;
 	__le32 tag;		/* Related to the CAN filtering. Unused in this module */
@@ -129,7 +129,7 @@ struct es581_4_rx_err_msg {
 struct es581_4_rx_event_msg {
 	__le64 timestamp;
 	__le16 rx_type;		/* type enum es581_4_rx_type */
-	u8 channel_no;
+	u8 channel_anal;
 	u8 __padding;
 	__le32 tag;		/* Related to the CAN filtering. Unused in this module */
 	__le32 event;		/* type enum es58x_event */
@@ -138,13 +138,13 @@ struct es581_4_rx_event_msg {
 
 struct es581_4_tx_ack_msg {
 	__le16 tx_free_entries;	/* Number of remaining free entries in the device TX queue */
-	u8 channel_no;
+	u8 channel_anal;
 	u8 rx_cmd_ret_u8;	/* type enum es58x_cmd_ret_code_u8 */
 } __packed;
 
 struct es581_4_rx_cmd_ret {
 	__le32 rx_cmd_ret_le32;
-	u8 channel_no;
+	u8 channel_anal;
 	u8 __padding[3];
 } __packed;
 
@@ -163,15 +163,15 @@ struct es581_4_rx_cmd_ret {
  * @bulk_echo_msg: Tx message being looped back.
  * @rx_err_msg: Error message.
  * @rx_event_msg: Event message.
- * @tx_ack_msg: Tx acknowledgment message.
+ * @tx_ack_msg: Tx ackanalwledgment message.
  * @rx_cmd_ret: Command return code.
  * @timestamp: Timestamp reply.
  * @rx_cmd_ret_u8: Rx 8 bits return code (type: enum
  *	es58x_cmd_ret_code_u8).
  * @raw_msg: Message raw payload.
- * @reserved_for_crc16_do_not_use: The structure ends with a
+ * @reserved_for_crc16_do_analt_use: The structure ends with a
  *	CRC16. Because the structures in above union are of variable
- *	lengths, we can not predict the offset of the CRC in
+ *	lengths, we can analt predict the offset of the CRC in
  *	advance. Use functions es58x_get_crc() and es58x_set_crc() to
  *	manipulate it.
  */
@@ -195,7 +195,7 @@ struct es581_4_urb_cmd {
 		DECLARE_FLEX_ARRAY(u8, raw_msg);
 	} __packed;
 
-	__le16 reserved_for_crc16_do_not_use;
+	__le16 reserved_for_crc16_do_analt_use;
 } __packed;
 
 #define ES581_4_URB_CMD_HEADER_LEN (offsetof(struct es581_4_urb_cmd, raw_msg))

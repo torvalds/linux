@@ -22,16 +22,16 @@ ifndef CONFIG_AS_IS_LLVM
 KBUILD_AFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO),$(aflags_dwarf))
 endif
 KBUILD_CFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -O2 -mpacked-stack
-KBUILD_CFLAGS_DECOMPRESSOR += -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY
-KBUILD_CFLAGS_DECOMPRESSOR += -fno-delete-null-pointer-checks -msoft-float -mbackchain
-KBUILD_CFLAGS_DECOMPRESSOR += -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS_DECOMPRESSOR += -DDISABLE_BRANCH_PROFILING -D__ANAL_FORTIFY
+KBUILD_CFLAGS_DECOMPRESSOR += -fanal-delete-null-pointer-checks -msoft-float -mbackchain
+KBUILD_CFLAGS_DECOMPRESSOR += -fanal-asynchroanalus-unwind-tables
 KBUILD_CFLAGS_DECOMPRESSOR += -ffreestanding
-KBUILD_CFLAGS_DECOMPRESSOR += -fno-stack-protector
+KBUILD_CFLAGS_DECOMPRESSOR += -fanal-stack-protector
 KBUILD_CFLAGS_DECOMPRESSOR += -fPIE
 KBUILD_CFLAGS_DECOMPRESSOR += $(call cc-disable-warning, address-of-packed-member)
 KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO),-g)
 KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO_DWARF4), $(call cc-option, -gdwarf-4,))
-KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_CC_NO_ARRAY_BOUNDS),-Wno-array-bounds)
+KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_CC_ANAL_ARRAY_BOUNDS),-Wanal-array-bounds)
 
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= $(if $(CONFIG_KASAN),65536,16384)
@@ -65,7 +65,7 @@ cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 #
 # Prevent tail-call optimizations, to get clearer backtraces:
 #
-cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
+cflags-$(CONFIG_FRAME_POINTER) += -fanal-optimize-sibling-calls
 
 KBUILD_AFLAGS_DECOMPRESSOR += $(aflags-y)
 KBUILD_CFLAGS_DECOMPRESSOR += $(cflags-y)
@@ -95,7 +95,7 @@ ifdef CONFIG_EXPOLINE
 endif
 
 ifdef CONFIG_FUNCTION_TRACER
-  ifeq ($(call cc-option,-mfentry -mnop-mcount),)
+  ifeq ($(call cc-option,-mfentry -manalp-mcount),)
     # make use of hotpatch feature if the compiler supports it
     cc_hotpatch	:= -mhotpatch=0,3
     ifneq ($(call cc-option,$(cc_hotpatch)),)
@@ -110,8 +110,8 @@ endif
 cfi := $(call as-instr,.cfi_startproc\n.cfi_val_offset 15$(comma)-160\n.cfi_endproc,-DCONFIG_AS_CFI_VAL_OFFSET=1)
 
 KBUILD_CFLAGS	+= -mpacked-stack -mbackchain -msoft-float $(cflags-y)
-KBUILD_CFLAGS	+= -pipe -Wno-sign-compare
-KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables $(cfi)
+KBUILD_CFLAGS	+= -pipe -Wanal-sign-compare
+KBUILD_CFLAGS	+= -fanal-asynchroanalus-unwind-tables $(cfi)
 KBUILD_AFLAGS	+= $(aflags-y) $(cfi)
 export KBUILD_AFLAGS_DECOMPRESSOR
 export KBUILD_CFLAGS_DECOMPRESSOR

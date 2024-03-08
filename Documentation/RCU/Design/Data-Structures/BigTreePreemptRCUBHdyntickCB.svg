@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8" standalone="anal"?>
 <!-- Creator: fig2dev Version 3.2 Patchlevel 5e -->
 
 <!-- CreationDate: Wed Dec  9 17:29:48 2015 -->
@@ -45,7 +45,7 @@
       <path
          id="path897"
          d="M 0,0 5,-5 -12.5,0 5,5 Z"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
+         style="fill:#000000;fill-opacity:1;fill-rule:eveanaldd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
          transform="matrix(-0.4,0,0,-0.4,-4,0)"
          inkscape:connector-curvature="0" />
     </marker>
@@ -60,7 +60,7 @@
       <path
          id="path891"
          d="M 0,0 5,-5 -12.5,0 5,5 Z"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
+         style="fill:#000000;fill-opacity:1;fill-rule:eveanaldd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
          transform="matrix(-0.8,0,0,-0.8,-10,0)"
          inkscape:connector-curvature="0" />
     </marker>
@@ -74,7 +74,7 @@
       <path
          id="path3970"
          d="M 0,0 5,-5 -12.5,0 5,5 Z"
-         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.00000003pt"
+         style="fill-rule:eveanaldd;stroke:#000000;stroke-width:1.00000003pt"
          transform="matrix(-0.4,0,0,-0.4,-4,0)"
          inkscape:connector-curvature="0" />
     </marker>
@@ -100,7 +100,7 @@
      inkscape:window-maximized="1"
      inkscape:current-layer="g4" />
   <g
-     style="fill:none;stroke-width:0.025in"
+     style="fill:analne;stroke-width:0.025in"
      id="g4"
      transform="translate(0,-2415.6743)">
     <!-- Line: box -->
@@ -172,35 +172,35 @@
     <!-- Line -->
     <polyline
        points="1350,3900 2350,3040 "
-       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline46"
        transform="matrix(1,0,0,0.95854605,12.340758,1579.9033)" />
     <!-- Arrowhead on XXXpoint 1350 3900 - 2444 2960-->
     <!-- Line -->
     <polyline
        points="4950,3900 3948,3040 "
-       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline50"
        transform="matrix(1,0,0,0.95854605,12.340758,1579.9033)" />
     <!-- Arrowhead on XXXpoint 4950 3900 - 3854 2960-->
     <!-- Line -->
     <polyline
        points="4050,7050 4050,4864 "
-       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline54"
        transform="matrix(1,0,0,0.95854605,12.340758,1579.9033)" />
     <!-- Arrowhead on XXXpoint 4050 7050 - 4050 4740-->
     <!-- Line -->
     <polyline
        points="1050,7050 1050,4864 "
-       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline58"
        transform="matrix(1,0,0,0.95854605,12.340758,1579.9033)" />
     <!-- Arrowhead on XXXpoint 1050 7050 - 1050 4740-->
     <!-- Line -->
     <polyline
        points="2250,5850 2250,4864 "
-       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline62"
        transform="matrix(1,0,0,0.95854605,12.340758,1579.9033)" />
     <!-- Arrowhead on XXXpoint 2250 5850 - 2250 4740-->
@@ -399,77 +399,77 @@
        xml:space="preserve"
        x="7338.3037"
        y="8614.0625"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text140"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="7338.3037"
        y="8907.7783"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text142"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">rcu_head</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="7338.3037"
        y="10082.644"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text144"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="7338.3037"
        y="10376.36"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text146"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">rcu_head</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="7338.3037"
        y="11551.224"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text148"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="7338.3037"
        y="11844.94"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text150"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">rcu_head</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="5886.4043"
        y="2788.5688"
-       font-style="normal"
-       font-weight="normal"
+       font-style="analrmal"
+       font-weight="analrmal"
        font-size="192"
        id="text152"
-       style="font-style:normal;font-weight:normal;font-size:187.978302px;font-family:Helvetica;text-anchor:end;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:analrmal;font-size:187.978302px;font-family:Helvetica;text-anchor:end;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">rcu_state</text>
     <!-- Text -->
     <!-- Text -->
@@ -477,165 +477,165 @@
        xml:space="preserve"
        x="3096.1016"
        y="3963.4336"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text156"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="3096.1016"
        y="4257.1494"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text158"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
-       transform="scale(1.0213945,0.97905363)">rcu_node</text>
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       transform="scale(1.0213945,0.97905363)">rcu_analde</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="1627.5209"
        y="5725.7305"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text160"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="1627.5209"
        y="6019.4463"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text162"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
-       transform="scale(1.0213945,0.97905363)">rcu_node</text>
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       transform="scale(1.0213945,0.97905363)">rcu_analde</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="4564.6821"
        y="6019.4463"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text164"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
-       transform="scale(1.0213945,0.97905363)">rcu_node</text>
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       transform="scale(1.0213945,0.97905363)">rcu_analde</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="4564.6821"
        y="5725.7305"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text166"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="2214.9531"
        y="7634.8848"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text168"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="2214.9531"
        y="7928.6011"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text170"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">rcu_data</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="1040.0886"
        y="8809.749"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text172"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="1040.0886"
        y="9103.4648"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text174"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">rcu_data</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="5152.1138"
        y="7634.8848"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text176"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="5152.1138"
        y="7928.6011"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text178"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">rcu_data</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="3977.2495"
        y="8809.749"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text180"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="3977.2495"
        y="9103.4648"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text182"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:middle;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">rcu_data</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="452.6564"
        y="3376.0012"
-       font-style="normal"
+       font-style="analrmal"
        font-weight="bold"
        font-size="192"
        id="text184"
-       style="font-style:normal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:start;fill:#000000;stroke-width:0.02447634in"
+       style="font-style:analrmal;font-weight:bold;font-size:187.978302px;font-family:Courier;text-anchor:start;fill:#000000;stroke-width:0.02447634in"
        transform="scale(1.0213945,0.97905363)">struct rcu_state</text>
     <!-- Text -->
     <!-- Text -->
@@ -649,12 +649,12 @@
     <!-- Line -->
     <polyline
        points="5250,5850 5250,4864 "
-       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       style="stroke:#00d1d1;stroke-width:29.99464035;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;marker-end:url(#Arrow1Mend)"
        id="polyline204"
        transform="matrix(1,0,0,0.95854605,12.340758,1579.9033)" />
     <!-- Arrowhead on XXXpoint 5250 5850 - 5250 4740-->
     <path
-       style="fill:none;stroke:#000000;stroke-width:34.24744034;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker1177)"
+       style="fill:analne;stroke:#000000;stroke-width:34.24744034;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;stroke-opacity:1;marker-end:url(#marker1177)"
        d="m 6000.1472,7564.2558 c 1498.5508,0 1498.5508,0 1498.5508,0 v 520.0252"
        id="path886"
        inkscape:connector-curvature="0" />

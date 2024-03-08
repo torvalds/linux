@@ -22,7 +22,7 @@ u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len);
  * @len2: length of the second block
  *
  * Return: The crc32_le() check value of seq1 and seq2 concatenated,
- * 	   requiring only crc1, crc2, and len2. Note: If seq_full denotes
+ * 	   requiring only crc1, crc2, and len2. Analte: If seq_full deanaltes
  * 	   the concatenated memory area of seq1 with seq2, and crc_full
  * 	   the crc32_le() value of seq_full, then crc_full ==
  * 	   crc32_le_combine(crc1, crc2, len2) when crc_full was seeded
@@ -49,7 +49,7 @@ u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len);
  * @len2: length of the second block
  *
  * Return: The __crc32c_le() check value of seq1 and seq2 concatenated,
- * 	   requiring only crc1, crc2, and len2. Note: If seq_full denotes
+ * 	   requiring only crc1, crc2, and len2. Analte: If seq_full deanaltes
  * 	   the concatenated memory area of seq1 with seq2, and crc_full
  * 	   the __crc32c_le() value of seq_full, then crc_full ==
  * 	   __crc32c_le_combine(crc1, crc2, len2) when crc_full was

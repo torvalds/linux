@@ -6,17 +6,17 @@
  * modification, are permitted provided that the following conditions are
  * met:
  *	* Redistributions of source code must retain the above copyright
- *	  notice, this list of conditions and the following disclaimer.
+ *	  analtice, this list of conditions and the following disclaimer.
  *	* Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright analtice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -210,7 +210,7 @@ static FORCE_INLINE int LZ4_compress_generic(
 	}
 
 	switch (dict) {
-	case noDict:
+	case analDict:
 	default:
 		base = (const BYTE *)source;
 		lowLimit = (const BYTE *)source;
@@ -227,12 +227,12 @@ static FORCE_INLINE int LZ4_compress_generic(
 
 	if ((tableType == byU16)
 		&& (inputSize >= LZ4_64Klimit)) {
-		/* Size too large (not within 64K limit) */
+		/* Size too large (analt within 64K limit) */
 		return 0;
 	}
 
 	if (inputSize < LZ4_minLength) {
-		/* Input too small, no compression (all literals) */
+		/* Input too small, anal compression (all literals) */
 		goto _last_literals;
 	}
 
@@ -463,7 +463,7 @@ static int LZ4_compress_fast_extState(
 	int maxOutputSize,
 	int acceleration)
 {
-	LZ4_stream_t_internal *ctx = &((LZ4_stream_t *)state)->internal_donotuse;
+	LZ4_stream_t_internal *ctx = &((LZ4_stream_t *)state)->internal_doanaltuse;
 #if LZ4_ARCH64
 	const tableType_t tableType = byU32;
 #else
@@ -479,24 +479,24 @@ static int LZ4_compress_fast_extState(
 		if (inputSize < LZ4_64Klimit)
 			return LZ4_compress_generic(ctx, source,
 				dest, inputSize, 0,
-				noLimit, byU16, noDict,
-				noDictIssue, acceleration);
+				analLimit, byU16, analDict,
+				analDictIssue, acceleration);
 		else
 			return LZ4_compress_generic(ctx, source,
 				dest, inputSize, 0,
-				noLimit, tableType, noDict,
-				noDictIssue, acceleration);
+				analLimit, tableType, analDict,
+				analDictIssue, acceleration);
 	} else {
 		if (inputSize < LZ4_64Klimit)
 			return LZ4_compress_generic(ctx, source,
 				dest, inputSize,
-				maxOutputSize, limitedOutput, byU16, noDict,
-				noDictIssue, acceleration);
+				maxOutputSize, limitedOutput, byU16, analDict,
+				analDictIssue, acceleration);
 		else
 			return LZ4_compress_generic(ctx, source,
 				dest, inputSize,
-				maxOutputSize, limitedOutput, tableType, noDict,
-				noDictIssue, acceleration);
+				maxOutputSize, limitedOutput, tableType, analDict,
+				analDictIssue, acceleration);
 	}
 }
 
@@ -552,10 +552,10 @@ static int LZ4_compress_destSize_generic(
 	/* Unsupported input size, too large (or negative) */
 	if ((U32)*srcSizePtr > (U32)LZ4_MAX_INPUT_SIZE)
 		return 0;
-	/* Size too large (not within 64K limit) */
+	/* Size too large (analt within 64K limit) */
 	if ((tableType == byU16) && (*srcSizePtr >= LZ4_64Klimit))
 		return 0;
-	/* Input too small, no compression (all literals) */
+	/* Input too small, anal compression (all literals) */
 	if (*srcSizePtr < LZ4_minLength)
 		goto _last_literals;
 
@@ -614,7 +614,7 @@ static int LZ4_compress_destSize_generic(
 			token = op++;
 			if (op + ((litLength + 240) / 255)
 				+ litLength > oMaxLit) {
-				/* Not enough space for a last match */
+				/* Analt eanalugh space for a last match */
 				op--;
 				goto _last_literals;
 			}
@@ -740,12 +740,12 @@ static int LZ4_compress_destSize_extState(
 	} else {
 		if (*srcSizePtr < LZ4_64Klimit)
 			return LZ4_compress_destSize_generic(
-				&state->internal_donotuse,
+				&state->internal_doanaltuse,
 				src, dst, srcSizePtr,
 				targetDstSize, byU16);
 		else
 			return LZ4_compress_destSize_generic(
-				&state->internal_donotuse,
+				&state->internal_doanaltuse,
 				src, dst, srcSizePtr,
 				targetDstSize, tableType);
 	}
@@ -775,7 +775,7 @@ void LZ4_resetStream(LZ4_stream_t *LZ4_stream)
 int LZ4_loadDict(LZ4_stream_t *LZ4_dict,
 	const char *dictionary, int dictSize)
 {
-	LZ4_stream_t_internal *dict = &LZ4_dict->internal_donotuse;
+	LZ4_stream_t_internal *dict = &LZ4_dict->internal_doanaltuse;
 	const BYTE *p = (const BYTE *)dictionary;
 	const BYTE * const dictEnd = p + dictSize;
 	const BYTE *base;
@@ -809,7 +809,7 @@ int LZ4_loadDict(LZ4_stream_t *LZ4_dict,
 }
 EXPORT_SYMBOL(LZ4_loadDict);
 
-static void LZ4_renormDictT(LZ4_stream_t_internal *LZ4_dict,
+static void LZ4_reanalrmDictT(LZ4_stream_t_internal *LZ4_dict,
 	const BYTE *src)
 {
 	if ((LZ4_dict->currentOffset > 0x80000000) ||
@@ -835,7 +835,7 @@ static void LZ4_renormDictT(LZ4_stream_t_internal *LZ4_dict,
 
 int LZ4_saveDict(LZ4_stream_t *LZ4_dict, char *safeBuffer, int dictSize)
 {
-	LZ4_stream_t_internal * const dict = &LZ4_dict->internal_donotuse;
+	LZ4_stream_t_internal * const dict = &LZ4_dict->internal_doanaltuse;
 	const BYTE * const previousDictEnd = dict->dictionary + dict->dictSize;
 
 	if ((U32)dictSize > 64 * KB) {
@@ -857,7 +857,7 @@ EXPORT_SYMBOL(LZ4_saveDict);
 int LZ4_compress_fast_continue(LZ4_stream_t *LZ4_stream, const char *source,
 	char *dest, int inputSize, int maxOutputSize, int acceleration)
 {
-	LZ4_stream_t_internal *streamPtr = &LZ4_stream->internal_donotuse;
+	LZ4_stream_t_internal *streamPtr = &LZ4_stream->internal_doanaltuse;
 	const BYTE * const dictEnd = streamPtr->dictionary
 		+ streamPtr->dictSize;
 
@@ -871,7 +871,7 @@ int LZ4_compress_fast_continue(LZ4_stream_t *LZ4_stream, const char *source,
 	if ((streamPtr->dictSize > 0) && (smallest > dictEnd))
 		smallest = dictEnd;
 
-	LZ4_renormDictT(streamPtr, smallest);
+	LZ4_reanalrmDictT(streamPtr, smallest);
 
 	if (acceleration < 1)
 		acceleration = LZ4_ACCELERATION_DEFAULT;
@@ -905,7 +905,7 @@ int LZ4_compress_fast_continue(LZ4_stream_t *LZ4_stream, const char *source,
 			result = LZ4_compress_generic(
 				streamPtr, source, dest, inputSize,
 				maxOutputSize, limitedOutput, byU32,
-				withPrefix64k, noDictIssue, acceleration);
+				withPrefix64k, analDictIssue, acceleration);
 		}
 		streamPtr->dictSize += (U32)inputSize;
 		streamPtr->currentOffset += (U32)inputSize;
@@ -926,7 +926,7 @@ int LZ4_compress_fast_continue(LZ4_stream_t *LZ4_stream, const char *source,
 			result = LZ4_compress_generic(
 				streamPtr, source, dest, inputSize,
 				maxOutputSize, limitedOutput, byU32,
-				usingExtDict, noDictIssue, acceleration);
+				usingExtDict, analDictIssue, acceleration);
 		}
 		streamPtr->dictionary = (const BYTE *)source;
 		streamPtr->dictSize = (U32)inputSize;

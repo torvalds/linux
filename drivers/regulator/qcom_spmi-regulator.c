@@ -22,7 +22,7 @@
 #include <linux/io.h>
 
 /* Pin control enable input pins. */
-#define SPMI_REGULATOR_PIN_CTRL_ENABLE_NONE		0x00
+#define SPMI_REGULATOR_PIN_CTRL_ENABLE_ANALNE		0x00
 #define SPMI_REGULATOR_PIN_CTRL_ENABLE_EN0		0x01
 #define SPMI_REGULATOR_PIN_CTRL_ENABLE_EN1		0x02
 #define SPMI_REGULATOR_PIN_CTRL_ENABLE_EN2		0x04
@@ -30,7 +30,7 @@
 #define SPMI_REGULATOR_PIN_CTRL_ENABLE_HW_DEFAULT	0x10
 
 /* Pin control high power mode input pins. */
-#define SPMI_REGULATOR_PIN_CTRL_HPM_NONE		0x00
+#define SPMI_REGULATOR_PIN_CTRL_HPM_ANALNE		0x00
 #define SPMI_REGULATOR_PIN_CTRL_HPM_EN0			0x01
 #define SPMI_REGULATOR_PIN_CTRL_HPM_EN1			0x02
 #define SPMI_REGULATOR_PIN_CTRL_HPM_EN2			0x04
@@ -62,7 +62,7 @@ enum spmi_vs_soft_start_str {
  *				the bit specified by
  *				SPMI_REGULATOR_PIN_CTRL_ENABLE_HW_DEFAULT is
  *				set, then pin control enable hardware registers
- *				will not be modified.
+ *				will analt be modified.
  * @pin_ctrl_hpm:           Bit mask specifying which hardware pins should be
  *				used to force the regulator into high power
  *				mode, if any
@@ -71,7 +71,7 @@ enum spmi_vs_soft_start_str {
  *				the bit specified by
  *				SPMI_REGULATOR_PIN_CTRL_HPM_HW_DEFAULT is
  *				set, then pin control mode hardware registers
- *				will not be modified.
+ *				will analt be modified.
  * @vs_soft_start_strength: This parameter sets the soft start strength for
  *				voltage switch type regulators.  Its value
  *				should be one of SPMI_VS_SOFT_START_STR_*.  If
@@ -197,8 +197,8 @@ enum spmi_common_regulator_registers {
 
 /*
  * Second common register layout used by newer devices starting with ftsmps426
- * Note that some of the registers from the first common layout remain
- * unchanged and their definition is not duplicated.
+ * Analte that some of the registers from the first common layout remain
+ * unchanged and their definition is analt duplicated.
  */
 enum spmi_ftsmps426_regulator_registers {
 	SPMI_FTSMPS426_REG_VOLTAGE_LSB		= 0x40,
@@ -302,7 +302,7 @@ enum spmi_common_control_register_index {
 
 /* VS regulator over current protection control register layout */
 #define SPMI_VS_OCP_OVERRIDE			0x01
-#define SPMI_VS_OCP_NO_OVERRIDE			0x00
+#define SPMI_VS_OCP_ANAL_OVERRIDE			0x00
 
 /* VS regulator soft start control register layout */
 #define SPMI_VS_SOFT_START_ENABLE_MASK		0x80
@@ -382,8 +382,8 @@ enum spmi_common_control_register_index {
  * (set_point_max_uV - min_uV) % step_uV == 0*
  * n_voltages = (set_point_max_uV - set_point_min_uV) / step_uV + 1
  *
- * *Note, set_point_min_uV == set_point_max_uV == 0 is allowed in order to
- * specify that the voltage range has meaning, but is not preferred.
+ * *Analte, set_point_min_uV == set_point_max_uV == 0 is allowed in order to
+ * specify that the voltage range has meaning, but is analt preferred.
  */
 struct spmi_voltage_range {
 	int					min_uV;
@@ -420,7 +420,7 @@ struct spmi_regulator {
 	int					slew_rate;
 	ktime_t					vs_enable_time;
 	u16					base;
-	struct list_head			node;
+	struct list_head			analde;
 };
 
 struct spmi_regulator_mapping {
@@ -485,7 +485,7 @@ struct spmi_voltage_set_points name##_set_points = { \
 /*
  * These tables contain the physically available PMIC regulator voltage setpoint
  * ranges.  Where two ranges overlap in hardware, one of the ranges is trimmed
- * to ensure that the setpoints available to software are monotonically
+ * to ensure that the setpoints available to software are moanaltonically
  * increasing and unique.  The set_voltage callback functions expect these
  * properties to hold.
  */
@@ -705,7 +705,7 @@ static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
 
 	if (uV > max_uV) {
 		dev_err(vreg->dev,
-			"request v=[%d, %d] cannot be met by any set point; "
+			"request v=[%d, %d] cananalt be met by any set point; "
 			"next set point: %d\n",
 			min_uV, max_uV, uV);
 		return -EINVAL;
@@ -733,7 +733,7 @@ static int spmi_sw_selector_to_hw(struct spmi_regulator *vreg,
 		if (selector < range->n_voltages) {
 			/*
 			 * hardware selectors between set point min and real
-			 * min are invalid so we ignore them
+			 * min are invalid so we iganalre them
 			 */
 			offset = range->set_point_min_uV - range->min_uV;
 			offset /= range->step_uV;
@@ -828,7 +828,7 @@ static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
 
 	if (uV > max_uV) {
 		/*
-		 * No set point in the current voltage range is within the
+		 * Anal set point in the current voltage range is within the
 		 * requested min_uV to max_uV range.
 		 */
 		goto different_range;
@@ -959,7 +959,7 @@ static int spmi_regulator_single_range_set_voltage(struct regulator_dev *rdev,
 	u8 sel = selector;
 
 	/*
-	 * Certain types of regulators do not have a range select register so
+	 * Certain types of regulators do analt have a range select register so
 	 * only voltage set register needs to be written.
 	 */
 	return spmi_vreg_write(vreg, SPMI_COMMON_REG_VOLTAGE_SET, &sel, 1);
@@ -1081,7 +1081,7 @@ static unsigned int spmi_regulator_common_get_mode(struct regulator_dev *rdev)
 
 	switch (reg) {
 	case SPMI_COMMON_MODE_HPM_MASK:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case SPMI_COMMON_MODE_AUTO_MASK:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -1098,7 +1098,7 @@ static unsigned int spmi_regulator_ftsmps426_get_mode(struct regulator_dev *rdev
 
 	switch (reg) {
 	case SPMI_FTSMPS426_MODE_HPM_MASK:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case SPMI_FTSMPS426_MODE_AUTO_MASK:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -1115,7 +1115,7 @@ static unsigned int spmi_regulator_hfsmps_get_mode(struct regulator_dev *rdev)
 
 	switch (reg) {
 	case SPMI_HFSMPS_MODE_HPM_MASK:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case SPMI_HFSMPS_MODE_AUTO_MASK:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -1131,7 +1131,7 @@ spmi_regulator_common_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	u8 val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = SPMI_COMMON_MODE_HPM_MASK;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -1153,7 +1153,7 @@ spmi_regulator_ftsmps426_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	u8 val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = SPMI_FTSMPS426_MODE_HPM_MASK;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -1177,7 +1177,7 @@ spmi_regulator_hfsmps_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	u8 val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = SPMI_HFSMPS_MODE_HPM_MASK;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -1203,7 +1203,7 @@ spmi_regulator_common_set_load(struct regulator_dev *rdev, int load_uA)
 	unsigned int mode;
 
 	if (load_uA >= vreg->hpm_min_load)
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 	else
 		mode = REGULATOR_MODE_IDLE;
 
@@ -1317,7 +1317,7 @@ static irqreturn_t spmi_regulator_vs_ocp_isr(int irq, void *data)
 			msecs_to_jiffies(vreg->ocp_retry_delay_ms) + 1);
 	} else {
 		dev_err(vreg->dev,
-			"OCP triggered %d times; no further retries\n",
+			"OCP triggered %d times; anal further retries\n",
 			vreg->ocp_count);
 	}
 
@@ -1701,7 +1701,7 @@ static int spmi_regulator_match(struct spmi_regulator *vreg, u16 force_type)
 	ret = spmi_vreg_read(vreg, SPMI_COMMON_REG_DIG_MAJOR_REV, version,
 		ARRAY_SIZE(version));
 	if (ret) {
-		dev_dbg(vreg->dev, "could not read version registers\n");
+		dev_dbg(vreg->dev, "could analt read version registers\n");
 		return ret;
 	}
 	dig_major_rev	= version[SPMI_COMMON_REG_DIG_MAJOR_REV
@@ -1729,7 +1729,7 @@ static int spmi_regulator_match(struct spmi_regulator *vreg, u16 force_type)
 		"unsupported regulator: name=%s type=0x%02X, subtype=0x%02X, dig major rev=0x%02X\n",
 		vreg->desc.name, type, subtype, dig_major_rev);
 
-	return -ENODEV;
+	return -EANALDEV;
 
 found:
 	vreg->logical_type	= mapping->logical_type;
@@ -1914,39 +1914,39 @@ static int spmi_regulator_init_registers(struct spmi_regulator *vreg,
 }
 
 static void spmi_regulator_get_dt_config(struct spmi_regulator *vreg,
-		struct device_node *node, struct spmi_regulator_init_data *data)
+		struct device_analde *analde, struct spmi_regulator_init_data *data)
 {
 	/*
 	 * Initialize configuration parameters to use hardware default in case
-	 * no value is specified via device tree.
+	 * anal value is specified via device tree.
 	 */
 	data->pin_ctrl_enable	    = SPMI_REGULATOR_PIN_CTRL_ENABLE_HW_DEFAULT;
 	data->pin_ctrl_hpm	    = SPMI_REGULATOR_PIN_CTRL_HPM_HW_DEFAULT;
 	data->vs_soft_start_strength	= SPMI_VS_SOFT_START_STR_HW_DEFAULT;
 
 	/* These bindings are optional, so it is okay if they aren't found. */
-	of_property_read_u32(node, "qcom,ocp-max-retries",
+	of_property_read_u32(analde, "qcom,ocp-max-retries",
 		&vreg->ocp_max_retries);
-	of_property_read_u32(node, "qcom,ocp-retry-delay",
+	of_property_read_u32(analde, "qcom,ocp-retry-delay",
 		&vreg->ocp_retry_delay_ms);
-	of_property_read_u32(node, "qcom,pin-ctrl-enable",
+	of_property_read_u32(analde, "qcom,pin-ctrl-enable",
 		&data->pin_ctrl_enable);
-	of_property_read_u32(node, "qcom,pin-ctrl-hpm", &data->pin_ctrl_hpm);
-	of_property_read_u32(node, "qcom,vs-soft-start-strength",
+	of_property_read_u32(analde, "qcom,pin-ctrl-hpm", &data->pin_ctrl_hpm);
+	of_property_read_u32(analde, "qcom,vs-soft-start-strength",
 		&data->vs_soft_start_strength);
 }
 
 static unsigned int spmi_regulator_of_map_mode(unsigned int mode)
 {
 	if (mode == 1)
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	if (mode == 2)
 		return REGULATOR_MODE_FAST;
 
 	return REGULATOR_MODE_IDLE;
 }
 
-static int spmi_regulator_of_parse(struct device_node *node,
+static int spmi_regulator_of_parse(struct device_analde *analde,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *config)
 {
@@ -1955,7 +1955,7 @@ static int spmi_regulator_of_parse(struct device_node *node,
 	struct device *dev = config->dev;
 	int ret;
 
-	spmi_regulator_get_dt_config(vreg, node, &data);
+	spmi_regulator_get_dt_config(vreg, analde, &data);
 
 	if (!vreg->ocp_max_retries)
 		vreg->ocp_max_retries = SPMI_VS_OCP_DEFAULT_MAX_RETRIES;
@@ -2508,30 +2508,30 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	const char *name;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *syscon, *reg_node;
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct device_analde *syscon, *reg_analde;
 	struct property *reg_prop;
 	int ret, lenp;
 	struct list_head *vreg_list;
 
 	vreg_list = devm_kzalloc(dev, sizeof(*vreg_list), GFP_KERNEL);
 	if (!vreg_list)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(vreg_list);
 	platform_set_drvdata(pdev, vreg_list);
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = device_get_match_data(&pdev->dev);
 	if (!reg)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (of_find_property(node, "qcom,saw-reg", &lenp)) {
-		syscon = of_parse_phandle(node, "qcom,saw-reg", 0);
-		saw_regmap = syscon_node_to_regmap(syscon);
-		of_node_put(syscon);
+	if (of_find_property(analde, "qcom,saw-reg", &lenp)) {
+		syscon = of_parse_phandle(analde, "qcom,saw-reg", 0);
+		saw_regmap = syscon_analde_to_regmap(syscon);
+		of_analde_put(syscon);
 		if (IS_ERR(saw_regmap))
 			dev_err(dev, "ERROR reading SAW regmap\n");
 	}
@@ -2539,17 +2539,17 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	for (; reg->name; reg++) {
 
 		if (saw_regmap) {
-			reg_node = of_get_child_by_name(node, reg->name);
-			reg_prop = of_find_property(reg_node, "qcom,saw-slave",
+			reg_analde = of_get_child_by_name(analde, reg->name);
+			reg_prop = of_find_property(reg_analde, "qcom,saw-slave",
 						    &lenp);
-			of_node_put(reg_node);
+			of_analde_put(reg_analde);
 			if (reg_prop)
 				continue;
 		}
 
 		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		vreg->dev = dev;
 		vreg->base = reg->base;
@@ -2576,10 +2576,10 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 			continue;
 
 		if (saw_regmap) {
-			reg_node = of_get_child_by_name(node, reg->name);
-			reg_prop = of_find_property(reg_node, "qcom,saw-leader",
+			reg_analde = of_get_child_by_name(analde, reg->name);
+			reg_prop = of_find_property(reg_analde, "qcom,saw-leader",
 						    &lenp);
-			of_node_put(reg_node);
+			of_analde_put(reg_analde);
 			if (reg_prop) {
 				spmi_saw_ops = *(vreg->desc.ops);
 				spmi_saw_ops.set_voltage_sel =
@@ -2603,8 +2603,8 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 			return PTR_ERR(rdev);
 		}
 
-		INIT_LIST_HEAD(&vreg->node);
-		list_add(&vreg->node, vreg_list);
+		INIT_LIST_HEAD(&vreg->analde);
+		list_add(&vreg->analde, vreg_list);
 	}
 
 	return 0;
@@ -2613,7 +2613,7 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 static struct platform_driver qcom_spmi_regulator_driver = {
 	.driver		= {
 		.name	= "qcom-spmi-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = qcom_spmi_regulator_match,
 	},
 	.probe		= qcom_spmi_regulator_probe,

@@ -96,7 +96,7 @@ static int mc3230_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = mc3230_nscale;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -115,16 +115,16 @@ static int mc3230_probe(struct i2c_client *client)
 	/* First check chip-id and product-id */
 	ret = i2c_smbus_read_byte_data(client, MC3230_REG_CHIP_ID);
 	if (ret != MC3230_CHIP_ID)
-		return (ret < 0) ? ret : -ENODEV;
+		return (ret < 0) ? ret : -EANALDEV;
 
 	ret = i2c_smbus_read_byte_data(client, MC3230_REG_PRODUCT_CODE);
 	if (ret != MC3230_PRODUCT_CODE)
-		return (ret < 0) ? ret : -ENODEV;
+		return (ret < 0) ? ret : -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);

@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,7 +45,7 @@
  *
  * This is called from qib_make_ud_req() to forward a WQE addressed
  * to the same HCA.
- * Note that the receive interrupt handler may be calling qib_ud_rcv()
+ * Analte that the receive interrupt handler may be calling qib_ud_rcv()
  * while this is being called.
  */
 static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
@@ -118,7 +118,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	}
 
 	/*
-	 * A GRH is expected to precede the data even if not
+	 * A GRH is expected to precede the data even if analt
 	 * present on the wire.
 	 */
 	length = swqe->length;
@@ -405,7 +405,7 @@ static unsigned qib_lookup_pkey(struct qib_ibport *ibp, u16 pkey)
 			return i;
 
 	/*
-	 * Should not get here, this means hardware failed to validate pkeys.
+	 * Should analt get here, this means hardware failed to validate pkeys.
 	 * Punt and return index 0.
 	 */
 	return 0;
@@ -517,7 +517,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		goto drop;
 
 	/*
-	 * A GRH is expected to precede the data even if not
+	 * A GRH is expected to precede the data even if analt
 	 * present on the wire.
 	 */
 	wc.byte_len = tlen + sizeof(struct ib_grh);

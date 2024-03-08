@@ -85,11 +85,11 @@ ASD_WRITE_OCM(u32,dword,l);
 
 #define ASD_DDBSITE_READ(type, ord)                                        \
 static inline type asd_ddbsite_read_##ord (struct asd_ha_struct *asd_ha,   \
-					   u16 ddb_site_no,                \
+					   u16 ddb_site_anal,                \
 					   u16 offs)                       \
 {                                                                          \
 	asd_write_reg_word(asd_ha, ALTCIOADR, MnDDB_SITE + offs);          \
-	asd_write_reg_word(asd_ha, ADDBPTR, ddb_site_no);                  \
+	asd_write_reg_word(asd_ha, ADDBPTR, ddb_site_anal);                  \
 	return asd_read_reg_##ord (asd_ha, CTXACCESS);                     \
 }
 
@@ -97,25 +97,25 @@ ASD_DDBSITE_READ(u32, dword);
 ASD_DDBSITE_READ(u16, word);
 
 static inline u8 asd_ddbsite_read_byte(struct asd_ha_struct *asd_ha,
-				       u16 ddb_site_no,
+				       u16 ddb_site_anal,
 				       u16 offs)
 {
 	if (offs & 1)
-		return asd_ddbsite_read_word(asd_ha, ddb_site_no,
+		return asd_ddbsite_read_word(asd_ha, ddb_site_anal,
 					     offs & ~1) >> 8;
 	else
-		return asd_ddbsite_read_word(asd_ha, ddb_site_no,
+		return asd_ddbsite_read_word(asd_ha, ddb_site_anal,
 					     offs) & 0xFF;
 }
 
 
 #define ASD_DDBSITE_WRITE(type, ord)                                       \
 static inline void asd_ddbsite_write_##ord (struct asd_ha_struct *asd_ha,  \
-					u16 ddb_site_no,                   \
+					u16 ddb_site_anal,                   \
 					u16 offs, type val)                \
 {                                                                          \
 	asd_write_reg_word(asd_ha, ALTCIOADR, MnDDB_SITE + offs);          \
-	asd_write_reg_word(asd_ha, ADDBPTR, ddb_site_no);                  \
+	asd_write_reg_word(asd_ha, ADDBPTR, ddb_site_anal);                  \
 	asd_write_reg_##ord (asd_ha, CTXACCESS, val);                      \
 }
 
@@ -123,26 +123,26 @@ ASD_DDBSITE_WRITE(u32, dword);
 ASD_DDBSITE_WRITE(u16, word);
 
 static inline void asd_ddbsite_write_byte(struct asd_ha_struct *asd_ha,
-					  u16 ddb_site_no,
+					  u16 ddb_site_anal,
 					  u16 offs, u8 val)
 {
 	u16 base = offs & ~1;
-	u16 rval = asd_ddbsite_read_word(asd_ha, ddb_site_no, base);
+	u16 rval = asd_ddbsite_read_word(asd_ha, ddb_site_anal, base);
 	if (offs & 1)
 		rval = (val << 8) | (rval & 0xFF);
 	else
 		rval = (rval & 0xFF00) | val;
-	asd_ddbsite_write_word(asd_ha, ddb_site_no, base, rval);
+	asd_ddbsite_write_word(asd_ha, ddb_site_anal, base, rval);
 }
 
 
 #define ASD_SCBSITE_READ(type, ord)                                        \
 static inline type asd_scbsite_read_##ord (struct asd_ha_struct *asd_ha,   \
-					   u16 scb_site_no,                \
+					   u16 scb_site_anal,                \
 					   u16 offs)                       \
 {                                                                          \
 	asd_write_reg_word(asd_ha, ALTCIOADR, MnSCB_SITE + offs);          \
-	asd_write_reg_word(asd_ha, ASCBPTR, scb_site_no);                  \
+	asd_write_reg_word(asd_ha, ASCBPTR, scb_site_anal);                  \
 	return asd_read_reg_##ord (asd_ha, CTXACCESS);                     \
 }
 
@@ -150,25 +150,25 @@ ASD_SCBSITE_READ(u32, dword);
 ASD_SCBSITE_READ(u16, word);
 
 static inline u8 asd_scbsite_read_byte(struct asd_ha_struct *asd_ha,
-				       u16 scb_site_no,
+				       u16 scb_site_anal,
 				       u16 offs)
 {
 	if (offs & 1)
-		return asd_scbsite_read_word(asd_ha, scb_site_no,
+		return asd_scbsite_read_word(asd_ha, scb_site_anal,
 					     offs & ~1) >> 8;
 	else
-		return asd_scbsite_read_word(asd_ha, scb_site_no,
+		return asd_scbsite_read_word(asd_ha, scb_site_anal,
 					     offs) & 0xFF;
 }
 
 
 #define ASD_SCBSITE_WRITE(type, ord)                                       \
 static inline void asd_scbsite_write_##ord (struct asd_ha_struct *asd_ha,  \
-					u16 scb_site_no,                   \
+					u16 scb_site_anal,                   \
 					u16 offs, type val)                \
 {                                                                          \
 	asd_write_reg_word(asd_ha, ALTCIOADR, MnSCB_SITE + offs);          \
-	asd_write_reg_word(asd_ha, ASCBPTR, scb_site_no);                  \
+	asd_write_reg_word(asd_ha, ASCBPTR, scb_site_anal);                  \
 	asd_write_reg_##ord (asd_ha, CTXACCESS, val);                      \
 }
 
@@ -176,22 +176,22 @@ ASD_SCBSITE_WRITE(u32, dword);
 ASD_SCBSITE_WRITE(u16, word);
 
 static inline void asd_scbsite_write_byte(struct asd_ha_struct *asd_ha,
-					  u16 scb_site_no,
+					  u16 scb_site_anal,
 					  u16 offs, u8 val)
 {
 	u16 base = offs & ~1;
-	u16 rval = asd_scbsite_read_word(asd_ha, scb_site_no, base);
+	u16 rval = asd_scbsite_read_word(asd_ha, scb_site_anal, base);
 	if (offs & 1)
 		rval = (val << 8) | (rval & 0xFF);
 	else
 		rval = (rval & 0xFF00) | val;
-	asd_scbsite_write_word(asd_ha, scb_site_no, base, rval);
+	asd_scbsite_write_word(asd_ha, scb_site_anal, base, rval);
 }
 
 /**
  * asd_ddbsite_update_word -- atomically update a word in a ddb site
  * @asd_ha: pointer to host adapter structure
- * @ddb_site_no: the DDB site number
+ * @ddb_site_anal: the DDB site number
  * @offs: the offset into the DDB
  * @oldval: old value found in that offset
  * @newval: the new value to replace it
@@ -204,11 +204,11 @@ static inline void asd_scbsite_write_byte(struct asd_ha_struct *asd_ha,
  * is different than the current value at that offset.
  */
 static inline int asd_ddbsite_update_word(struct asd_ha_struct *asd_ha,
-					  u16 ddb_site_no, u16 offs,
+					  u16 ddb_site_anal, u16 offs,
 					  u16 oldval, u16 newval)
 {
 	u8  done;
-	u16 oval = asd_ddbsite_read_word(asd_ha, ddb_site_no, offs);
+	u16 oval = asd_ddbsite_read_word(asd_ha, ddb_site_anal, offs);
 	if (oval != oldval)
 		return -EAGAIN;
 	asd_write_reg_word(asd_ha, AOLDDATA, oldval);
@@ -225,12 +225,12 @@ static inline int asd_ddbsite_update_word(struct asd_ha_struct *asd_ha,
 }
 
 static inline int asd_ddbsite_update_byte(struct asd_ha_struct *asd_ha,
-					  u16 ddb_site_no, u16 offs,
+					  u16 ddb_site_anal, u16 offs,
 					  u8 _oldval, u8 _newval)
 {
 	u16 base = offs & ~1;
 	u16 oval;
-	u16 nval = asd_ddbsite_read_word(asd_ha, ddb_site_no, base);
+	u16 nval = asd_ddbsite_read_word(asd_ha, ddb_site_anal, base);
 	if (offs & 1) {
 		if ((nval >> 8) != _oldval)
 			return -EAGAIN;
@@ -242,7 +242,7 @@ static inline int asd_ddbsite_update_byte(struct asd_ha_struct *asd_ha,
 		nval = (nval & 0xFF00) | _newval;
 		oval = (nval & 0xFF00) | _oldval;
 	}
-	return asd_ddbsite_update_word(asd_ha, ddb_site_no, base, oval, nval);
+	return asd_ddbsite_update_word(asd_ha, ddb_site_anal, base, oval, nval);
 }
 
 static inline void asd_write_reg_addr(struct asd_ha_struct *asd_ha, u32 reg,

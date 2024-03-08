@@ -66,7 +66,7 @@ properties:
   iram:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle of the SRAM MMIO node.
+      Phandle of the SRAM MMIO analde.
 
   operating-points-v2:
     description:

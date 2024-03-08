@@ -107,8 +107,8 @@ struct stb0899_config {
 	int	lo_clk;
 	int	hi_clk;
 
-	u32	esno_ave;
-	u32	esno_quant;
+	u32	esanal_ave;
+	u32	esanal_quant;
 	u32	avframes_coarse;
 	u32	avframes_fine;
 	u32	miss_threshold;

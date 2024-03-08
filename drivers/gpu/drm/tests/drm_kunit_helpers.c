@@ -22,7 +22,7 @@ static const struct drm_mode_config_funcs drm_mode_config_funcs = {
  *
  * This allocates a fake struct &device to create a mock for a KUnit
  * test. The device will also be bound to a fake driver. It will thus be
- * able to leverage the usual infrastructure and most notably the
+ * able to leverage the usual infrastructure and most analtably the
  * device-managed resources just like a "real" device.
  *
  * Resources will be cleaned up automatically, but the removal can be
@@ -89,7 +89,7 @@ static void action_drm_release_context(void *ptr)
  *
  * Allocates and initializes a modeset acquire context.
  *
- * The context is tied to the kunit test context, so we must not call
+ * The context is tied to the kunit test context, so we must analt call
  * drm_modeset_acquire_fini() on it, it will be done so automatically.
  *
  * Returns:
@@ -102,7 +102,7 @@ drm_kunit_helper_acquire_ctx_alloc(struct kunit *test)
 	int ret;
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_NULL(test, ctx);
 
 	drm_modeset_acquire_init(ctx, 0);
 
@@ -131,7 +131,7 @@ static void kunit_action_drm_atomic_state_put(void *ptr)
  *
  * Allocates a empty atomic state.
  *
- * The state is tied to the kunit test context, so we must not call
+ * The state is tied to the kunit test context, so we must analt call
  * drm_atomic_state_put() on it, it will be done so automatically.
  *
  * Returns:
@@ -147,7 +147,7 @@ drm_kunit_helper_atomic_state_alloc(struct kunit *test,
 
 	state = drm_atomic_state_alloc(drm);
 	if (!state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = kunit_add_action_or_reset(test,
 					kunit_action_drm_atomic_state_put,
@@ -161,5 +161,5 @@ drm_kunit_helper_atomic_state_alloc(struct kunit *test,
 }
 EXPORT_SYMBOL_GPL(drm_kunit_helper_atomic_state_alloc);
 
-MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_AUTHOR("Maxime Ripard <maxime@ceranal.tech>");
 MODULE_LICENSE("GPL");

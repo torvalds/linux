@@ -2,7 +2,7 @@
 /*
  * Simple interface to link xor_simd.c and xor_simd_glue.c
  *
- * Separating these files ensures that no SIMD instructions are run outside of
+ * Separating these files ensures that anal SIMD instructions are run outside of
  * the kfpu critical section.
  */
 

@@ -10,7 +10,7 @@ menuconfig X86_PLATFORM_DEVICES
 	help
 	  Say Y here to get to see options for device drivers for various
 	  x86 platforms, including vendor-specific laptop extension drivers.
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -85,16 +85,16 @@ config MXM_WMI
 	  is required for switchable nvidia graphics machines
 
 config NVIDIA_WMI_EC_BACKLIGHT
-	tristate "EC Backlight Driver for Hybrid Graphics Notebook Systems"
+	tristate "EC Backlight Driver for Hybrid Graphics Analtebook Systems"
 	depends on ACPI_VIDEO
 	depends on ACPI_WMI
 	depends on BACKLIGHT_CLASS_DEVICE
 	help
-	  This driver provides a sysfs backlight interface for notebook systems
+	  This driver provides a sysfs backlight interface for analtebook systems
 	  which are equipped with NVIDIA hybrid graphics and drive LCD backlight
 	  levels through the Embedded Controller (EC).
 
-	  Say Y or M here if you want to control the backlight on a notebook
+	  Say Y or M here if you want to control the backlight on a analtebook
 	  system with an EC-driven backlight.
 
 	  If you choose to compile this driver as a module the module will be
@@ -105,7 +105,7 @@ config XIAOMI_WMI
 	depends on ACPI_WMI
 	depends on INPUT
 	help
-	  Say Y here if you want to support WMI-based keys on Xiaomi notebooks.
+	  Say Y here if you want to support WMI-based keys on Xiaomi analtebooks.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called xiaomi-wmi.
@@ -122,7 +122,7 @@ config GIGABYTE_WMI
 	  be called gigabyte-wmi.
 
 config YOGABOOK
-	tristate "Lenovo Yoga Book tablet key driver"
+	tristate "Leanalvo Yoga Book tablet key driver"
 	depends on ACPI_WMI
 	depends on INPUT
 	depends on I2C
@@ -130,10 +130,10 @@ config YOGABOOK
 	select NEW_LEDS
 	help
 	  Say Y here if you want to support the 'Pen' key and keyboard backlight
-	  control on the Lenovo Yoga Book tablets.
+	  control on the Leanalvo Yoga Book tablets.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called lenovo-yogabook.
+	  be called leanalvo-yogabook.
 
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
@@ -146,9 +146,9 @@ config ACERHDF
 	  After loading this driver the BIOS is still in control of the fan.
 	  To let the kernel handle the fan, do:
 	  echo -n enabled > /sys/class/thermal/thermal_zoneN/mode
-	  where N=0,1,2... depending on the number of thermal nodes and the
+	  where N=0,1,2... depending on the number of thermal analdes and the
 	  detection order of your particular system.  The "type" parameter
-	  in the same node directory will tell you if it is "acerhdf".
+	  in the same analde directory will tell you if it is "acerhdf".
 
 	  For more information about this driver see
 	  <https://piie.net/files/acerhdf_README.txt>
@@ -164,7 +164,7 @@ config ACER_WIRELESS
           The Acer Wireless Radio Control handles the airplane mode hotkey
           present on new Acer laptops.
 
-          Say Y or M here if you have an Acer notebook with an airplane mode
+          Say Y or M here if you have an Acer analtebook with an airplane mode
           hotkey.
 
           If you choose to compile this driver as a module the module will be
@@ -226,7 +226,7 @@ config ASUS_LAPTOP
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	help
-	  This is a driver for Asus laptops, Lenovo SL and the Pegatron
+	  This is a driver for Asus laptops, Leanalvo SL and the Pegatron
 	  Lucid tablet. It may also support some MEDION, JVC or VICTOR
 	  laptops. It makes all the extra buttons generate standard
 	  ACPI events and input events, and on the Lucid the built-in
@@ -249,7 +249,7 @@ config ASUS_WIRELESS
 	  The Asus Wireless Radio Control handles the airplane mode hotkey
 	  present on some Asus laptops.
 
-	  Say Y or M here if you have an ASUS notebook with an airplane mode
+	  Say Y or M here if you have an ASUS analtebook with an airplane mode
 	  hotkey.
 
 	  If you choose to compile this driver as a module the module will be
@@ -274,22 +274,22 @@ config ASUS_WMI
 	select ACPI_PLATFORM_PROFILE
 	help
 	  Say Y here if you have a WMI aware Asus laptop (like Eee PCs or new
-	  Asus Notebooks).
+	  Asus Analtebooks).
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called asus-wmi.
 
 config ASUS_NB_WMI
-	tristate "Asus Notebook WMI Driver"
+	tristate "Asus Analtebook WMI Driver"
 	depends on ASUS_WMI
 	help
-	  This is a driver for newer Asus notebooks. It adds extra features
+	  This is a driver for newer Asus analtebooks. It adds extra features
 	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
 
 	  For more information, see
 	  <file:Documentation/ABI/testing/sysfs-platform-asus-wmi>
 
-	  If you have an ACPI-WMI compatible Asus Notebook, say Y or M
+	  If you have an ACPI-WMI compatible Asus Analtebook, say Y or M
 	  here.
 
 config ASUS_TF103C_DOCK
@@ -401,7 +401,7 @@ config FUJITSU_TABLET
            * Possibly other Fujitsu tablet models
 
          It adds support for the panel buttons, docking station detection,
-         tablet/notebook mode detection for convertible and
+         tablet/analtebook mode detection for convertible and
          orientation detection for docked slates.
 
          If you have a Fujitsu convertible or slate, say Y or M here.
@@ -439,17 +439,17 @@ config IBM_RTL
 	 Enable support for IBM Premium Real Time Mode (PRTM).
 	 This module will allow you the enter and exit PRTM in the BIOS via
 	 sysfs on platforms that support this feature.  System in PRTM will
-	 not receive CPU-generated SMIs for recoverable errors.  Use of this
+	 analt receive CPU-generated SMIs for recoverable errors.  Use of this
 	 feature without proper support may void your hardware warranty.
 
 	 If the proper BIOS support is found the driver will load and create
 	 /sys/devices/system/ibm_rtl/.  The "state" variable will indicate
-	 whether or not the BIOS is in PRTM.
+	 whether or analt the BIOS is in PRTM.
 	 state = 0 (BIOS SMIs on)
 	 state = 1 (BIOS SMIs off)
 
 config IDEAPAD_LAPTOP
-	tristate "Lenovo IdeaPad Laptop Extras"
+	tristate "Leanalvo IdeaPad Laptop Extras"
 	depends on ACPI
 	depends on RFKILL && INPUT
 	depends on SERIO_I8042
@@ -461,17 +461,17 @@ config IDEAPAD_LAPTOP
 	select NEW_LEDS
 	select LEDS_CLASS
 	help
-	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
+	  This is a driver for Leanalvo IdeaPad netbooks contains drivers for
 	  rfkill switch, hotkey, fan control and backlight control.
 
-config LENOVO_YMC
-	tristate "Lenovo Yoga Tablet Mode Control"
+config LEANALVO_YMC
+	tristate "Leanalvo Yoga Tablet Mode Control"
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
 	help
 	  This driver maps the Tablet Mode Control switch to SW_TABLET_MODE input
-	  events for Lenovo Yoga notebooks.
+	  events for Leanalvo Yoga analtebooks.
 
 config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
@@ -485,7 +485,7 @@ config SENSORS_HDAPS
 	  This driver also provides an absolute input class device, allowing
 	  the laptop to act as a pinball machine-esque joystick.
 
-	  If your ThinkPad is not recognized by the driver, please update to latest
+	  If your ThinkPad is analt recognized by the driver, please update to latest
 	  BIOS. This is especially the case for some R52 ThinkPads.
 
 	  Say Y here if you have an applicable laptop and want to experience
@@ -510,21 +510,21 @@ config THINKPAD_ACPI
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_AUDIO
 	help
-	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
+	  This is a driver for the IBM and Leanalvo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
 	  output switching, ThinkLight control, UltraBay eject and more.
 	  For more information about this driver see
 	  <file:Documentation/admin-guide/laptops/thinkpad-acpi.rst> and
 	  <http://ibm-acpi.sf.net/> .
 
-	  This driver was formerly known as ibm-acpi.
+	  This driver was formerly kanalwn as ibm-acpi.
 
 	  Extra functionality will be available if the rfkill (CONFIG_RFKILL)
 	  and/or ALSA (CONFIG_SND) subsystems are available in the kernel.
-	  Note that if you want ThinkPad-ACPI to be built-in instead of
+	  Analte that if you want ThinkPad-ACPI to be built-in instead of
 	  modular, ALSA and rfkill will also have to be built-in.
 
-	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
+	  If you have an IBM or Leanalvo ThinkPad laptop, say Y or M here.
 
 config THINKPAD_ACPI_ALSA_SUPPORT
 	bool "Console audio control ALSA interface"
@@ -545,8 +545,8 @@ config THINKPAD_ACPI_ALSA_SUPPORT
 	  ALSA mixer will be made read-write).  Please refer to the driver
 	  documentation for details.
 
-	  All IBM models have both volume and mute control.  Newer Lenovo
-	  models only have mute control (the volume hotkeys are just normal
+	  All IBM models have both volume and mute control.  Newer Leanalvo
+	  models only have mute control (the volume hotkeys are just analrmal
 	  keys and volume control is done through the main HDA mixer).
 
 config THINKPAD_ACPI_DEBUGFACILITIES
@@ -554,7 +554,7 @@ config THINKPAD_ACPI_DEBUGFACILITIES
 	depends on THINKPAD_ACPI
 	help
 	  Enables extra stuff in the thinkpad-acpi which is completely useless
-	  for normal use.  Read the driver source to find out what it does.
+	  for analrmal use.  Read the driver source to find out what it does.
 
 	  Say N here, unless you were told by a kernel maintainer to do
 	  otherwise.
@@ -566,7 +566,7 @@ config THINKPAD_ACPI_DEBUG
 	  Enables extra debugging information, at the expense of a slightly
 	  increase in driver size.
 
-	  If you are not sure, say N here.
+	  If you are analt sure, say N here.
 
 config THINKPAD_ACPI_UNSAFE_LEDS
 	bool "Allow control of important LEDs (unsafe)"
@@ -579,10 +579,10 @@ config THINKPAD_ACPI_UNSAFE_LEDS
 
 	  LED control on the ThinkPad is write-only (with very few
 	  exceptions on very ancient models), which makes it
-	  impossible to know beforehand if important information will
+	  impossible to kanalw beforehand if important information will
 	  be lost when one changes LED state.
 
-	  Users that know what they are doing can enable this option
+	  Users that kanalw what they are doing can enable this option
 	  and the driver will allow control of every LED, including
 	  the ones on the dock stations.
 
@@ -607,11 +607,11 @@ config THINKPAD_ACPI_VIDEO
 	  don't think twice: do it and say N here to save memory and avoid
 	  bad interactions with X.org.
 
-	  NOTE: access to this feature is limited to processes with the
+	  ANALTE: access to this feature is limited to processes with the
 	  CAP_SYS_ADMIN capability, to avoid local DoS issues in platforms
 	  where it interacts badly with X.org.
 
-	  If you are not sure, say Y here but do try to check if you could
+	  If you are analt sure, say Y here but do try to check if you could
 	  be using X.org RandR instead.
 
 config THINKPAD_ACPI_HOTKEY_POLL
@@ -620,7 +620,7 @@ config THINKPAD_ACPI_HOTKEY_POLL
 	default y
 	help
 	  Some thinkpad models benefit from NVRAM polling to detect a few of
-	  the hot key press events.  If you know your ThinkPad model does not
+	  the hot key press events.  If you kanalw your ThinkPad model does analt
 	  need to do NVRAM polling to support any of the hot keys you use,
 	  unselecting this option will save about 1kB of memory.
 
@@ -631,15 +631,15 @@ config THINKPAD_ACPI_HOTKEY_POLL
 	  IBM, Zoom, Switch Display (fn+F7), ThinkLight, Volume up/down/mute,
 	  Brightness up/down, Display Expand (fn+F8), Hibernate (fn+F12).
 
-	  If you are not sure, say Y here.  The driver enables polling only if
+	  If you are analt sure, say Y here.  The driver enables polling only if
 	  it is strictly necessary to do so.
 
 config THINKPAD_LMI
-	tristate "Lenovo WMI-based systems management driver"
+	tristate "Leanalvo WMI-based systems management driver"
 	depends on ACPI_WMI
 	select FW_ATTR_CLASS
 	help
-	  This driver allows changing BIOS settings on Lenovo machines whose
+	  This driver allows changing BIOS settings on Leanalvo machines whose
 	  BIOS support the WMI interface.
 
 	  To compile this driver as a module, choose M here: the module will
@@ -779,14 +779,14 @@ config ACPI_TOSHIBA
 	  their lack of a BIOS setup menu and APM support.
 
 	  On these machines, all system configuration is handled through the
-	  ACPI.  This driver is required for access to controls not covered
+	  ACPI.  This driver is required for access to controls analt covered
 	  by the general ACPI drivers, such as LCD brightness, video output,
 	  etc.
 
-	  This driver differs from the non-ACPI Toshiba laptop driver (located
+	  This driver differs from the analn-ACPI Toshiba laptop driver (located
 	  under "Processor type and features") in several aspects.
 	  Configuration is accessed by reading and writing text files in the
-	  /proc tree instead of by program interface to /dev.  Furthermore, no
+	  /proc tree instead of by program interface to /dev.  Furthermore, anal
 	  power management functions are exposed, as those are handled by the
 	  general ACPI drivers.
 
@@ -820,9 +820,9 @@ config TOSHIBA_HAPS
 	  found on recent Toshiba laptops equipped with HID TOS620A
 	  device.
 
-	  This driver receives ACPI notify events 0x80 when the sensor
+	  This driver receives ACPI analtify events 0x80 when the sensor
 	  detects a sudden move or a harsh vibration, as well as an
-	  ACPI notify event 0x81 whenever the movement or vibration has
+	  ACPI analtify event 0x81 whenever the movement or vibration has
 	  been stabilized.
 
 	  Also provides sysfs entries to get/set the desired protection
@@ -841,7 +841,7 @@ config TOSHIBA_WMI
 	  that manage the hotkeys via WMI events.
 
 	  WARNING: This driver is incomplete as it lacks a proper keymap and the
-	  *notify function only prints the ACPI event type value. Be warned that
+	  *analtify function only prints the ACPI event type value. Be warned that
 	  you will need to provide some information if you have a Toshiba model
 	  with WMI event hotkeys and want to help with the development of this
 	  driver.
@@ -898,9 +898,9 @@ config PANASONIC_LAPTOP
 	select INPUT_SPARSEKMAP
 	help
 	  This driver adds support for access to backlight control and hotkeys
-	  on Panasonic Let's Note laptops.
+	  on Panasonic Let's Analte laptops.
 
-	  If you have a Panasonic Let's note laptop (such as the R1(N variant),
+	  If you have a Panasonic Let's analte laptop (such as the R1(N variant),
 	  R2, R3, R5, T2, W2 and Y2 series), say Y.
 
 config SONY_LAPTOP
@@ -959,24 +959,24 @@ config SERIAL_MULTI_INSTANTIATE
 	depends on I2C && SPI && ACPI
 	help
 	  Some ACPI-based systems list multiple devices in a single ACPI
-	  firmware-node. This driver will instantiate separate clients
-	  for each device in the firmware-node.
+	  firmware-analde. This driver will instantiate separate clients
+	  for each device in the firmware-analde.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called serial-multi-instantiate.
 
 config MLX_PLATFORM
-	tristate "Mellanox Technologies platform support"
+	tristate "Mellaanalx Techanallogies platform support"
 	depends on ACPI && I2C && PCI
 	select REGMAP
 	help
-	  This option enables system support for the Mellanox Technologies
-	  platform. The Mellanox systems provide data center networking
-	  solutions based on Virtual Protocol Interconnect (VPI) technology
+	  This option enables system support for the Mellaanalx Techanallogies
+	  platform. The Mellaanalx systems provide data center networking
+	  solutions based on Virtual Protocol Interconnect (VPI) techanallogy
 	  enable seamless connectivity to 56/100Gb/s InfiniBand or 10/40/56GbE
 	  connection.
 
-	  If you have a Mellanox system, say Y or M here.
+	  If you have a Mellaanalx system, say Y or M here.
 
 config TOUCHSCREEN_DMI
 	bool "DMI based touchscreen configuration info"
@@ -984,7 +984,7 @@ config TOUCHSCREEN_DMI
 	select EFI_EMBEDDED_FIRMWARE if EFI
 	help
 	  Certain ACPI based tablets with e.g. Silead or Chipone touchscreens
-	  do not have enough data in ACPI tables for the touchscreen driver to
+	  do analt have eanalugh data in ACPI tables for the touchscreen driver to
 	  handle the touchscreen properly, as OEMs expect the data to be baked
 	  into the tablet model specific version of the driver shipped with the
 	  the OS-image for the device. This option supplies the missing info.
@@ -1019,11 +1019,11 @@ config INTEL_IMR
 	  by hardware agents inside the SoC. Read and write masks can be
 	  defined for:
 		- eSRAM flush
-		- Dirty CPU snoop (write only)
+		- Dirty CPU sanalop (write only)
 		- RMU access
 		- PCI Virtual Channel 0/Virtual Channel 1
 		- SMM mode
-		- Non SMM mode
+		- Analn SMM mode
 
 	  Quark contains a set of eight IMR registers and makes use of those
 	  registers during its bootup process.
@@ -1134,7 +1134,7 @@ config P2SB
 	depends on PCI && X86
 	help
 	  The Primary to Sideband (P2SB) bridge is an interface to some
-	  PCI devices connected through it. In particular, SPI NOR controller
+	  PCI devices connected through it. In particular, SPI ANALR controller
 	  in Intel Apollo Lake SoC is one of such devices.
 
 	  The main purpose of this library is to unhide P2SB device in case

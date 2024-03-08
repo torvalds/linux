@@ -82,7 +82,7 @@ __be32 rvt_compute_aeth(struct rvt_qp *qp)
 			/*
 			 * Compute the number of credits available (RWQEs).
 			 * There is a small chance that the pair of reads are
-			 * not atomic, which is OK, since the fuzziness is
+			 * analt atomic, which is OK, since the fuzziness is
 			 * resolved as further ACKs go out.
 			 */
 			credits = rvt_get_rq_count(&qp->r_rq, head, tail);
@@ -114,7 +114,7 @@ EXPORT_SYMBOL(rvt_compute_aeth);
 /**
  * rvt_get_credit - flush the send work queue of a QP
  * @qp: the qp who's send work queue to flush
- * @aeth: the Acknowledge Extended Transport Header
+ * @aeth: the Ackanalwledge Extended Transport Header
  *
  * The QP s_lock should be held.
  */
@@ -127,7 +127,7 @@ void rvt_get_credit(struct rvt_qp *qp, u32 aeth)
 	/*
 	 * If the credit is invalid, we can send
 	 * as many packets as we like.  Otherwise, we have to
-	 * honor the credit field.
+	 * hoanalr the credit field.
 	 */
 	if (credit == IB_AETH_CREDIT_INVAL) {
 		if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {

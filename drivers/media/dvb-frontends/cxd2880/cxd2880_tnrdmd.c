@@ -252,7 +252,7 @@ static int p_init1(struct cxd2880_tnrdmd *tnr_dmd)
 		data = 0x16;
 		break;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	ret = tnr_dmd->io->write_reg(tnr_dmd->io,
@@ -302,7 +302,7 @@ static int p_init1(struct cxd2880_tnrdmd *tnr_dmd)
 		data = 0x00;
 		break;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return tnr_dmd->io->write_reg(tnr_dmd->io,
@@ -326,7 +326,7 @@ static int p_init2(struct cxd2880_tnrdmd *tnr_dmd)
 	data[0] = tnr_dmd->create_param.xosc_cap;
 	data[1] = tnr_dmd->create_param.xosc_i;
 	switch (tnr_dmd->create_param.xtal_share_type) {
-	case CXD2880_TNRDMD_XTAL_SHARE_NONE:
+	case CXD2880_TNRDMD_XTAL_SHARE_ANALNE:
 		data[2] = 0x01;
 		data[3] = 0x00;
 		break;
@@ -1907,7 +1907,7 @@ static int set_cfg_mem(struct cxd2880_tnrdmd *tnr_dmd,
 		tnr_dmd->cfg_mem[tnr_dmd->cfg_mem_last_entry].bit_mask = bit_mask;
 		tnr_dmd->cfg_mem_last_entry++;
 	} else {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -2010,22 +2010,22 @@ int cxd2880_tnrdmd_init1(struct cxd2880_tnrdmd *tnr_dmd)
 	if (!tnr_dmd || tnr_dmd->diver_mode == CXD2880_TNRDMD_DIVERMODE_SUB)
 		return -EINVAL;
 
-	tnr_dmd->chip_id = CXD2880_TNRDMD_CHIP_ID_UNKNOWN;
-	tnr_dmd->state = CXD2880_TNRDMD_STATE_UNKNOWN;
-	tnr_dmd->clk_mode = CXD2880_TNRDMD_CLOCKMODE_UNKNOWN;
+	tnr_dmd->chip_id = CXD2880_TNRDMD_CHIP_ID_UNKANALWN;
+	tnr_dmd->state = CXD2880_TNRDMD_STATE_UNKANALWN;
+	tnr_dmd->clk_mode = CXD2880_TNRDMD_CLOCKMODE_UNKANALWN;
 	tnr_dmd->frequency_khz = 0;
-	tnr_dmd->sys = CXD2880_DTV_SYS_UNKNOWN;
-	tnr_dmd->bandwidth = CXD2880_DTV_BW_UNKNOWN;
+	tnr_dmd->sys = CXD2880_DTV_SYS_UNKANALWN;
+	tnr_dmd->bandwidth = CXD2880_DTV_BW_UNKANALWN;
 	tnr_dmd->scan_mode = 0;
 	atomic_set(&tnr_dmd->cancel, 0);
 
 	if (tnr_dmd->diver_mode == CXD2880_TNRDMD_DIVERMODE_MAIN) {
-		tnr_dmd->diver_sub->chip_id = CXD2880_TNRDMD_CHIP_ID_UNKNOWN;
-		tnr_dmd->diver_sub->state = CXD2880_TNRDMD_STATE_UNKNOWN;
-		tnr_dmd->diver_sub->clk_mode = CXD2880_TNRDMD_CLOCKMODE_UNKNOWN;
+		tnr_dmd->diver_sub->chip_id = CXD2880_TNRDMD_CHIP_ID_UNKANALWN;
+		tnr_dmd->diver_sub->state = CXD2880_TNRDMD_STATE_UNKANALWN;
+		tnr_dmd->diver_sub->clk_mode = CXD2880_TNRDMD_CLOCKMODE_UNKANALWN;
 		tnr_dmd->diver_sub->frequency_khz = 0;
-		tnr_dmd->diver_sub->sys = CXD2880_DTV_SYS_UNKNOWN;
-		tnr_dmd->diver_sub->bandwidth = CXD2880_DTV_BW_UNKNOWN;
+		tnr_dmd->diver_sub->sys = CXD2880_DTV_SYS_UNKANALWN;
+		tnr_dmd->diver_sub->bandwidth = CXD2880_DTV_BW_UNKANALWN;
 		tnr_dmd->diver_sub->scan_mode = 0;
 		atomic_set(&tnr_dmd->diver_sub->cancel, 0);
 	}
@@ -2035,7 +2035,7 @@ int cxd2880_tnrdmd_init1(struct cxd2880_tnrdmd *tnr_dmd)
 		return ret;
 
 	if (!CXD2880_TNRDMD_CHIP_ID_VALID(tnr_dmd->chip_id))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (tnr_dmd->diver_mode == CXD2880_TNRDMD_DIVERMODE_MAIN) {
 		ret =
@@ -2045,7 +2045,7 @@ int cxd2880_tnrdmd_init1(struct cxd2880_tnrdmd *tnr_dmd)
 			return ret;
 
 		if (!CXD2880_TNRDMD_CHIP_ID_VALID(tnr_dmd->diver_sub->chip_id))
-			return -ENOTTY;
+			return -EANALTTY;
 	}
 
 	ret = p_init1(tnr_dmd);
@@ -2306,7 +2306,7 @@ int cxd2880_tnrdmd_common_tune_setting1(struct cxd2880_tnrdmd *tnr_dmd,
 			shift_frequency_khz = 150;
 		} else {
 			switch (tnr_dmd->create_param.xtal_share_type) {
-			case CXD2880_TNRDMD_XTAL_SHARE_NONE:
+			case CXD2880_TNRDMD_XTAL_SHARE_ANALNE:
 			case CXD2880_TNRDMD_XTAL_SHARE_EXTREF:
 			default:
 				shift_frequency_khz = 0;
@@ -2486,14 +2486,14 @@ int cxd2880_tnrdmd_sleep(struct cxd2880_tnrdmd *tnr_dmd)
 
 	tnr_dmd->state = CXD2880_TNRDMD_STATE_SLEEP;
 	tnr_dmd->frequency_khz = 0;
-	tnr_dmd->sys = CXD2880_DTV_SYS_UNKNOWN;
-	tnr_dmd->bandwidth = CXD2880_DTV_BW_UNKNOWN;
+	tnr_dmd->sys = CXD2880_DTV_SYS_UNKANALWN;
+	tnr_dmd->bandwidth = CXD2880_DTV_BW_UNKANALWN;
 
 	if (tnr_dmd->diver_mode == CXD2880_TNRDMD_DIVERMODE_MAIN) {
 		tnr_dmd->diver_sub->state = CXD2880_TNRDMD_STATE_SLEEP;
 		tnr_dmd->diver_sub->frequency_khz = 0;
-		tnr_dmd->diver_sub->sys = CXD2880_DTV_SYS_UNKNOWN;
-		tnr_dmd->diver_sub->bandwidth = CXD2880_DTV_BW_UNKNOWN;
+		tnr_dmd->diver_sub->sys = CXD2880_DTV_SYS_UNKANALWN;
+		tnr_dmd->diver_sub->bandwidth = CXD2880_DTV_BW_UNKANALWN;
 	}
 
 	return 0;
@@ -2817,7 +2817,7 @@ int cxd2880_tnrdmd_set_cfg(struct cxd2880_tnrdmd *tnr_dmd,
 		break;
 
 	case CXD2880_TNRDMD_CFG_FIXED_CLOCKMODE:
-		if (value < CXD2880_TNRDMD_CLOCKMODE_UNKNOWN ||
+		if (value < CXD2880_TNRDMD_CLOCKMODE_UNKANALWN ||
 		    value > CXD2880_TNRDMD_CLOCKMODE_C)
 			return -EINVAL;
 		tnr_dmd->fixed_clk_mode = (enum cxd2880_tnrdmd_clockmode)value;
@@ -3304,7 +3304,7 @@ int cxd2880_tnrdmd_set_pid_ftr(struct cxd2880_tnrdmd *tnr_dmd,
 		return -EINVAL;
 
 	if (tnr_dmd->create_param.ts_output_if == CXD2880_TNRDMD_TSOUT_IF_TS)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (pid_ftr_cfg) {
 		tnr_dmd->pid_ftr_cfg = *pid_ftr_cfg;
@@ -3396,7 +3396,7 @@ int cxd2880_tnrdmd_set_ts_pin_high_low(struct cxd2880_tnrdmd
 		return -EINVAL;
 
 	if (tnr_dmd->create_param.ts_output_if != CXD2880_TNRDMD_TSOUT_IF_TS)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = tnr_dmd->io->write_reg(tnr_dmd->io,
 				     CXD2880_IO_TGT_SYS,

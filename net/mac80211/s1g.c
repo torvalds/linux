@@ -103,7 +103,7 @@ ieee80211_s1g_rx_twt_setup(struct ieee80211_sub_if_data *sdata,
 
 	twt_agrt->req_type &= cpu_to_le16(~IEEE80211_TWT_REQTYPE_REQUEST);
 
-	/* broadcast TWT not supported yet */
+	/* broadcast TWT analt supported yet */
 	if (twt->control & IEEE80211_TWT_CONTROL_NEG_TYPE_BROADCAST) {
 		twt_agrt->req_type &=
 			~cpu_to_le16(IEEE80211_TWT_REQTYPE_SETUP_CMD);
@@ -113,7 +113,7 @@ ieee80211_s1g_rx_twt_setup(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	/* TWT Information not supported yet */
+	/* TWT Information analt supported yet */
 	twt->control |= IEEE80211_TWT_CONTROL_RX_DISABLED;
 
 	drv_add_twt_setup(sdata->local, sdata, &sta->sta, twt);

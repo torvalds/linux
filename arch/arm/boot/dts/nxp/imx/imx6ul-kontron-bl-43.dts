@@ -37,7 +37,7 @@
 &lcdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif_dat &pinctrl_lcdif_ctrl>;
-	/* Leave status disabled because of missing display panel node */
+	/* Leave status disabled because of missing display panel analde */
 };
 
 &pwm7 {

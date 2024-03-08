@@ -6,16 +6,16 @@
 
 #define X86_TRAP_DE		 0	/* Divide-by-zero */
 #define X86_TRAP_DB		 1	/* Debug */
-#define X86_TRAP_NMI		 2	/* Non-maskable Interrupt */
+#define X86_TRAP_NMI		 2	/* Analn-maskable Interrupt */
 #define X86_TRAP_BP		 3	/* Breakpoint */
 #define X86_TRAP_OF		 4	/* Overflow */
 #define X86_TRAP_BR		 5	/* Bound Range Exceeded */
 #define X86_TRAP_UD		 6	/* Invalid Opcode */
-#define X86_TRAP_NM		 7	/* Device Not Available */
+#define X86_TRAP_NM		 7	/* Device Analt Available */
 #define X86_TRAP_DF		 8	/* Double Fault */
 #define X86_TRAP_OLD_MF		 9	/* Coprocessor Segment Overrun */
 #define X86_TRAP_TS		10	/* Invalid TSS */
-#define X86_TRAP_NP		11	/* Segment Not Present */
+#define X86_TRAP_NP		11	/* Segment Analt Present */
 #define X86_TRAP_SS		12	/* Stack Segment Fault */
 #define X86_TRAP_GP		13	/* General Protection Fault */
 #define X86_TRAP_PF		14	/* Page Fault */

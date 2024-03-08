@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* OMAP SSI driver.
  *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2010 Analkia Corporation. All rights reserved.
  * Copyright (C) 2014 Sebastian Reichel <sre@kernel.org>
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@analkia.com>
  */
 
 #include <linux/compiler.h>
@@ -117,7 +117,7 @@ static int ssi_debug_add_ctrl(struct hsi_controller *ssi)
 	/* SSI controller */
 	omap_ssi->dir = debugfs_create_dir(dev_name(&ssi->device), NULL);
 	if (!omap_ssi->dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	debugfs_create_file("regs", S_IRUGO, omap_ssi->dir, ssi,
 								&ssi_regs_fops);
@@ -131,7 +131,7 @@ static int ssi_debug_add_ctrl(struct hsi_controller *ssi)
 rback:
 	debugfs_remove_recursive(omap_ssi->dir);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ssi_debug_remove_ctrl(struct hsi_controller *ssi)
@@ -255,7 +255,7 @@ static irqreturn_t ssi_gdd_isr(int irq, void *ssi)
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
 
 	tasklet_hi_schedule(&omap_ssi->gdd_tasklet);
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 
 	return IRQ_HANDLED;
 }
@@ -267,13 +267,13 @@ static unsigned long ssi_get_clk_rate(struct hsi_controller *ssi)
 	return rate;
 }
 
-static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
+static int ssi_clk_event(struct analtifier_block *nb, unsigned long event,
 								void *data)
 {
 	struct omap_ssi_controller *omap_ssi = container_of(nb,
 					struct omap_ssi_controller, fck_nb);
 	struct hsi_controller *ssi = to_hsi_controller(omap_ssi->dev);
-	struct clk_notifier_data *clk_data = data;
+	struct clk_analtifier_data *clk_data = data;
 	struct omap_ssi_port *omap_port;
 	int i;
 
@@ -322,7 +322,7 @@ static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int ssi_get_iomem(struct platform_device *pd,
@@ -353,7 +353,7 @@ static int ssi_add_controller(struct hsi_controller *ssi,
 
 	omap_ssi = devm_kzalloc(&ssi->device, sizeof(*omap_ssi), GFP_KERNEL);
 	if (!omap_ssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = ida_alloc(&platform_omap_ssi_ida, GFP_KERNEL);
 	if (err < 0)
@@ -388,21 +388,21 @@ static int ssi_add_controller(struct hsi_controller *ssi,
 	omap_ssi->port = devm_kcalloc(&ssi->device, ssi->num_ports,
 				      sizeof(*omap_ssi->port), GFP_KERNEL);
 	if (!omap_ssi->port) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_err;
 	}
 
 	omap_ssi->fck = devm_clk_get(&ssi->device, "ssi_ssr_fck");
 	if (IS_ERR(omap_ssi->fck)) {
-		dev_err(&pd->dev, "Could not acquire clock \"ssi_ssr_fck\": %li\n",
+		dev_err(&pd->dev, "Could analt acquire clock \"ssi_ssr_fck\": %li\n",
 			PTR_ERR(omap_ssi->fck));
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_err;
 	}
 
-	omap_ssi->fck_nb.notifier_call = ssi_clk_event;
+	omap_ssi->fck_nb.analtifier_call = ssi_clk_event;
 	omap_ssi->fck_nb.priority = INT_MAX;
-	clk_notifier_register(omap_ssi->fck, &omap_ssi->fck_nb);
+	clk_analtifier_register(omap_ssi->fck, &omap_ssi->fck_nb);
 
 	/* TODO: find register, which can be used to detect context loss */
 	omap_ssi->get_loss = NULL;
@@ -450,16 +450,16 @@ static void ssi_remove_controller(struct hsi_controller *ssi)
 	int id = ssi->id;
 	tasklet_kill(&omap_ssi->gdd_tasklet);
 	hsi_unregister_controller(ssi);
-	clk_notifier_unregister(omap_ssi->fck, &omap_ssi->fck_nb);
+	clk_analtifier_unregister(omap_ssi->fck, &omap_ssi->fck_nb);
 	ida_free(&platform_omap_ssi_ida, id);
 }
 
-static inline int ssi_of_get_available_ports_count(const struct device_node *np)
+static inline int ssi_of_get_available_ports_count(const struct device_analde *np)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	int num = 0;
 
-	for_each_available_child_of_node(np, child)
+	for_each_available_child_of_analde(np, child)
 		if (of_device_is_compatible(child, "ti,omap3-ssi-port"))
 			num++;
 
@@ -470,10 +470,10 @@ static int ssi_remove_ports(struct device *dev, void *c)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return 0;
 
-	of_node_clear_flag(dev->of_node, OF_POPULATED);
+	of_analde_clear_flag(dev->of_analde, OF_POPULATED);
 	of_device_unregister(pdev);
 
 	return 0;
@@ -482,8 +482,8 @@ static int ssi_remove_ports(struct device *dev, void *c)
 static int ssi_probe(struct platform_device *pd)
 {
 	struct platform_device *childpdev;
-	struct device_node *np = pd->dev.of_node;
-	struct device_node *child;
+	struct device_analde *np = pd->dev.of_analde;
+	struct device_analde *child;
 	struct hsi_controller *ssi;
 	int err;
 	int num_ports;
@@ -497,8 +497,8 @@ static int ssi_probe(struct platform_device *pd)
 
 	ssi = hsi_alloc_controller(num_ports, GFP_KERNEL);
 	if (!ssi) {
-		dev_err(&pd->dev, "No memory for controller\n");
-		return -ENOMEM;
+		dev_err(&pd->dev, "Anal memory for controller\n");
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pd, ssi);
@@ -520,15 +520,15 @@ static int ssi_probe(struct platform_device *pd)
 		goto out2;
 #endif
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		if (!of_device_is_compatible(child, "ti,omap3-ssi-port"))
 			continue;
 
 		childpdev = of_platform_device_create(child, NULL, &pd->dev);
 		if (!childpdev) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			dev_err(&pd->dev, "failed to create ssi controller port\n");
-			of_node_put(child);
+			of_analde_put(child);
 			goto out3;
 		}
 	}
@@ -650,7 +650,7 @@ static void __exit ssi_exit(void) {
 module_exit(ssi_exit);
 
 MODULE_ALIAS("platform:omap_ssi");
-MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");
+MODULE_AUTHOR("Carlos Chinea <carlos.chinea@analkia.com>");
 MODULE_AUTHOR("Sebastian Reichel <sre@kernel.org>");
-MODULE_DESCRIPTION("Synchronous Serial Interface Driver");
+MODULE_DESCRIPTION("Synchroanalus Serial Interface Driver");
 MODULE_LICENSE("GPL v2");

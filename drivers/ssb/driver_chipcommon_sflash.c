@@ -110,7 +110,7 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 			}
 			break;
 		case 0x13:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		default:
 			for (e = ssb_sflash_st_tbl; e->name; e++) {
 				if (e->id == id)
@@ -121,7 +121,7 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 		if (!e->name) {
 			pr_err("Unsupported ST serial flash (id: 0x%X, id2: 0x%X)\n",
 			       id, id2);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		break;
@@ -136,13 +136,13 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 		if (!e->name) {
 			pr_err("Unsupported Atmel serial flash (id: 0x%X)\n",
 			       id);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		break;
 	default:
 		pr_err("Unsupported flash type\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	sflash->window = SSB_FLASH2;
@@ -155,7 +155,7 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 		e->name, sflash->size / 1024, e->blocksize, e->numblocks);
 
 	/* Prepare platform device, but don't register it yet. It's too early,
-	 * malloc (required by device_private_init) is not available yet. */
+	 * malloc (required by device_private_init) is analt available yet. */
 	ssb_sflash_dev.resource[0].end = ssb_sflash_dev.resource[0].start +
 					 sflash->size;
 	ssb_sflash_dev.dev.platform_data = sflash;

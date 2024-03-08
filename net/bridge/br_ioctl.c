@@ -41,8 +41,8 @@ static void get_port_ifindices(struct net_bridge *br, int *ifindices, int num)
 	struct net_bridge_port *p;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (p->port_no < num)
-			ifindices[p->port_no] = p->dev->ifindex;
+		if (p->port_anal < num)
+			ifindices[p->port_anal] = p->dev->ifindex;
 	}
 }
 
@@ -68,7 +68,7 @@ static int get_fdb_entries(struct net_bridge *br, void __user *userbuf,
 
 	buf = kmalloc(size, GFP_USER);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num = br_fdb_fillbuf(br, buf, maxnum, offset);
 	if (num > 0) {
@@ -178,7 +178,7 @@ int br_dev_siocdevprivate(struct net_device *dev, struct ifreq *rq,
 		b.topology_change_detected = br->topology_change_detected;
 		b.root_port = br->root_port;
 
-		b.stp_enabled = (br->stp_enabled != BR_NO_STP);
+		b.stp_enabled = (br->stp_enabled != BR_ANAL_STP);
 		b.ageing_time = jiffies_to_clock_t(br->ageing_time);
 		b.hello_timer_value = br_timer_value(&br->hello_timer);
 		b.tcn_timer_value = br_timer_value(&br->tcn_timer);
@@ -206,7 +206,7 @@ int br_dev_siocdevprivate(struct net_device *dev, struct ifreq *rq,
 
 		indices = kcalloc(num, sizeof(int), GFP_KERNEL);
 		if (indices == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		get_port_ifindices(br, indices, num);
 		if (copy_to_user(argp, indices, array_size(num, sizeof(int))))
@@ -323,12 +323,12 @@ int br_dev_siocdevprivate(struct net_device *dev, struct ifreq *rq,
 		return get_fdb_entries(br, argp, args[2], args[3]);
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	if (!ret) {
 		if (p)
-			br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+			br_ifinfo_analtify(RTM_NEWLINK, NULL, p);
 		else
 			netdev_state_change(br->dev);
 	}
@@ -356,10 +356,10 @@ static int old_deviceless(struct net *net, void __user *data)
 		int ret = 0;
 
 		if (args[2] >= 2048)
-			return -ENOMEM;
+			return -EANALMEM;
 		indices = kcalloc(args[2], sizeof(int), GFP_KERNEL);
 		if (indices == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		args[2] = get_bridge_ifindices(net, indices, args[2]);
 
@@ -391,13 +391,13 @@ static int old_deviceless(struct net *net, void __user *data)
 	}
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int br_ioctl_stub(struct net *net, struct net_bridge *br, unsigned int cmd,
 		  struct ifreq *ifr, void __user *uarg)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	rtnl_lock();
 

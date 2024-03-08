@@ -77,11 +77,11 @@ static int hci_devcd_mkheader(struct hci_dev *hdev, struct sk_buff *skb)
 	return skb->len;
 }
 
-/* Do not call with hci_dev_lock since this calls driver code. */
-static void hci_devcd_notify(struct hci_dev *hdev, int state)
+/* Do analt call with hci_dev_lock since this calls driver code. */
+static void hci_devcd_analtify(struct hci_dev *hdev, int state)
 {
-	if (hdev->dump.notify_change)
-		hdev->dump.notify_change(hdev, state);
+	if (hdev->dump.analtify_change)
+		hdev->dump.analtify_change(hdev, state);
 }
 
 /* Call with hci_dev_lock only. */
@@ -110,7 +110,7 @@ static int hci_devcd_alloc(struct hci_dev *hdev, u32 size)
 {
 	hdev->dump.head = vmalloc(size);
 	if (!hdev->dump.head)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdev->dump.alloc_size = size;
 	hdev->dump.tail = hdev->dump.head;
@@ -154,12 +154,12 @@ static int hci_devcd_prepare(struct hci_dev *hdev, u32 dump_size)
 
 	skb = alloc_skb(MAX_DEVCOREDUMP_HDR_SIZE, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dump_hdr_size = hci_devcd_mkheader(hdev, skb);
 
 	if (hci_devcd_alloc(hdev, dump_hdr_size + dump_size)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto hdr_free;
 	}
 
@@ -168,7 +168,7 @@ static int hci_devcd_prepare(struct hci_dev *hdev, u32 dump_size)
 		bt_dev_err(hdev, "Failed to insert header");
 		hci_devcd_free(hdev);
 
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto hdr_free;
 	}
 
@@ -302,7 +302,7 @@ static void hci_devcd_handle_pkt_abort(struct hci_dev *hdev,
  *
  *      HCI_DEVCOREDUMP_TIMEOUT: A timeout timer for HCI_DEVCOREDUMP_TIMEOUT sec
  *              is started during devcoredump initialization. Once the timeout
- *              occurs, the driver is notified, a devcoredump is generated with
+ *              occurs, the driver is analtified, a devcoredump is generated with
  *              the available data indicating the timeout event and then the
  *              state machine is reset to the default state.
  *
@@ -349,7 +349,7 @@ void hci_devcd_rx(struct work_struct *work)
 			break;
 
 		default:
-			bt_dev_dbg(hdev, "Unknown packet (%d) for state (%d). ",
+			bt_dev_dbg(hdev, "Unkanalwn packet (%d) for state (%d). ",
 				   hci_dmp_cb(skb)->pkt_type, hdev->dump.state);
 			break;
 		}
@@ -357,11 +357,11 @@ void hci_devcd_rx(struct work_struct *work)
 		hci_dev_unlock(hdev);
 		kfree_skb(skb);
 
-		/* Notify the driver about any state changes before resetting
+		/* Analtify the driver about any state changes before resetting
 		 * the state machine
 		 */
 		if (start_state != hdev->dump.state)
-			hci_devcd_notify(hdev, hdev->dump.state);
+			hci_devcd_analtify(hdev, hdev->dump.state);
 
 		/* Reset the state machine if the devcoredump is complete */
 		hci_dev_lock(hdev);
@@ -379,7 +379,7 @@ void hci_devcd_timeout(struct work_struct *work)
 					    dump.dump_timeout.work);
 	u32 dump_size;
 
-	hci_devcd_notify(hdev, HCI_DEVCOREDUMP_TIMEOUT);
+	hci_devcd_analtify(hdev, HCI_DEVCOREDUMP_TIMEOUT);
 
 	hci_dev_lock(hdev);
 
@@ -401,7 +401,7 @@ void hci_devcd_timeout(struct work_struct *work)
 EXPORT_SYMBOL(hci_devcd_timeout);
 
 int hci_devcd_register(struct hci_dev *hdev, coredump_t coredump,
-		       dmp_hdr_t dmp_hdr, notify_change_t notify_change)
+		       dmp_hdr_t dmp_hdr, analtify_change_t analtify_change)
 {
 	/* Driver must implement coredump() and dmp_hdr() functions for
 	 * bluetooth devcoredump. The coredump() should trigger a coredump
@@ -415,7 +415,7 @@ int hci_devcd_register(struct hci_dev *hdev, coredump_t coredump,
 	hci_dev_lock(hdev);
 	hdev->dump.coredump = coredump;
 	hdev->dump.dmp_hdr = dmp_hdr;
-	hdev->dump.notify_change = notify_change;
+	hdev->dump.analtify_change = analtify_change;
 	hdev->dump.supported = true;
 	hdev->dump.timeout = DEVCOREDUMP_TIMEOUT;
 	hci_dev_unlock(hdev);
@@ -434,11 +434,11 @@ int hci_devcd_init(struct hci_dev *hdev, u32 dump_size)
 	struct sk_buff *skb;
 
 	if (!hci_devcd_enabled(hdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb = alloc_skb(sizeof(dump_size), GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hci_dmp_cb(skb)->pkt_type = HCI_DEVCOREDUMP_PKT_INIT;
 	put_unaligned_le32(dump_size, skb_put(skb, 4));
@@ -453,11 +453,11 @@ EXPORT_SYMBOL(hci_devcd_init);
 int hci_devcd_append(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!hci_devcd_enabled(hdev)) {
 		kfree_skb(skb);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	hci_dmp_cb(skb)->pkt_type = HCI_DEVCOREDUMP_PKT_SKB;
@@ -475,11 +475,11 @@ int hci_devcd_append_pattern(struct hci_dev *hdev, u8 pattern, u32 len)
 	struct sk_buff *skb;
 
 	if (!hci_devcd_enabled(hdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb = alloc_skb(sizeof(p), GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p.pattern = pattern;
 	p.len = len;
@@ -499,11 +499,11 @@ int hci_devcd_complete(struct hci_dev *hdev)
 	struct sk_buff *skb;
 
 	if (!hci_devcd_enabled(hdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb = alloc_skb(0, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hci_dmp_cb(skb)->pkt_type = HCI_DEVCOREDUMP_PKT_COMPLETE;
 
@@ -519,11 +519,11 @@ int hci_devcd_abort(struct hci_dev *hdev)
 	struct sk_buff *skb;
 
 	if (!hci_devcd_enabled(hdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb = alloc_skb(0, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hci_dmp_cb(skb)->pkt_type = HCI_DEVCOREDUMP_PKT_ABORT;
 

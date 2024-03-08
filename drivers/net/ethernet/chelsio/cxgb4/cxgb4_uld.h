@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -80,7 +80,7 @@ enum {
 	(w)->wr.wr_lo = cpu_to_be64(0); \
 } while (0)
 
-/* Special asynchronous notification message */
+/* Special asynchroanalus analtification message */
 #define CXGB4_MSG_AN ((void *)1)
 #define TX_ULD(uld)(((uld) != CXGB4_ULD_CRYPTO) ? CXGB4_TX_OFLD :\
 		      CXGB4_TX_CRYPTO)
@@ -266,7 +266,7 @@ int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned int queue, bool ipv6);
 
 /* Filter operation context to allow callers of cxgb4_set_filter() and
- * cxgb4_del_filter() to wait for an asynchronous completion.
+ * cxgb4_del_filter() to wait for an asynchroanalus completion.
  */
 struct filter_ctx {
 	struct completion completion;	/* completion rendezvous */
@@ -377,8 +377,8 @@ struct ch_ktls_port_stats_debug {
 	atomic64_t ktls_tx_encrypted_bytes;
 	atomic64_t ktls_tx_ctx;
 	atomic64_t ktls_tx_ooo;
-	atomic64_t ktls_tx_skip_no_sync_data;
-	atomic64_t ktls_tx_drop_no_sync_data;
+	atomic64_t ktls_tx_skip_anal_sync_data;
+	atomic64_t ktls_tx_drop_anal_sync_data;
 	atomic64_t ktls_tx_drop_bypass_req;
 };
 
@@ -464,7 +464,7 @@ struct cxgb4_lld_info {
 	unsigned int iscsi_llimit;	     /* chip's iscsi region llimit */
 	unsigned int ulp_crypto;             /* crypto lookaside support */
 	void **iscsi_ppm;		     /* iscsi page pod manager */
-	int nodeid;			     /* device numa node id */
+	int analdeid;			     /* device numa analde id */
 	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */
 	bool write_w_imm_support;         /* FW supports WRITE_WITH_IMMEDIATE */
 	bool write_cmpl_support;             /* FW supports WRITE_CMPL WR */

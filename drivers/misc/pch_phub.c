@@ -39,7 +39,7 @@
 /* MAX number of INT_REDUCE_CONTROL registers */
 #define MAX_NUM_INT_REDUCE_CONTROL_REG 128
 #define PCI_DEVICE_ID_PCH1_PHUB 0x8801
-#define PCH_MINOR_NOS 1
+#define PCH_MIANALR_ANALS 1
 #define CLKCFG_CAN_50MHZ 0x12000000
 #define CLKCFG_CANCLK_MASK 0xFF000000
 #define CLKCFG_UART_MASK			0xFFFFFF
@@ -500,13 +500,13 @@ static ssize_t pch_phub_bin_read(struct file *filp, struct kobject *kobj,
 	ret = mutex_lock_interruptible(&pch_phub_mutex);
 	if (ret) {
 		err = -ERESTARTSYS;
-		goto return_err_nomutex;
+		goto return_err_analmutex;
 	}
 
 	/* Get Rom signature */
 	chip->pch_phub_extrom_base_address = pci_map_rom(chip->pdev, &rom_size);
 	if (!chip->pch_phub_extrom_base_address) {
-		err = -ENODATA;
+		err = -EANALDATA;
 		goto exrom_map_err;
 	}
 
@@ -536,7 +536,7 @@ static ssize_t pch_phub_bin_read(struct file *filp, struct kobject *kobj,
 			    &buf[addr_offset]);
 		}
 	} else {
-		err = -ENODATA;
+		err = -EANALDATA;
 		goto return_err;
 	}
 return_ok:
@@ -548,7 +548,7 @@ return_err:
 	pci_unmap_rom(chip->pdev, chip->pch_phub_extrom_base_address);
 exrom_map_err:
 	mutex_unlock(&pch_phub_mutex);
-return_err_nomutex:
+return_err_analmutex:
 	return err;
 }
 
@@ -577,7 +577,7 @@ static ssize_t pch_phub_bin_write(struct file *filp, struct kobject *kobj,
 
 	chip->pch_phub_extrom_base_address = pci_map_rom(chip->pdev, &rom_size);
 	if (!chip->pch_phub_extrom_base_address) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exrom_map_err;
 	}
 
@@ -616,7 +616,7 @@ static ssize_t show_pch_mac(struct device *dev, struct device_attribute *attr,
 
 	chip->pch_phub_extrom_base_address = pci_map_rom(chip->pdev, &rom_size);
 	if (!chip->pch_phub_extrom_base_address)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pch_phub_read_gbe_mac_addr(chip, mac);
 	pci_unmap_rom(chip->pdev, chip->pch_phub_extrom_base_address);
@@ -637,7 +637,7 @@ static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 
 	chip->pch_phub_extrom_base_address = pci_map_rom(chip->pdev, &rom_size);
 	if (!chip->pch_phub_extrom_base_address)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pch_phub_write_gbe_mac_addr(chip, mac);
 	pci_unmap_rom(chip->pdev, chip->pch_phub_extrom_base_address);
@@ -667,7 +667,7 @@ static int pch_phub_probe(struct pci_dev *pdev,
 
 	chip = kzalloc(sizeof(struct pch_phub_reg), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
@@ -692,7 +692,7 @@ static int pch_phub_probe(struct pci_dev *pdev,
 
 	if (chip->pch_phub_base_address == NULL) {
 		dev_err(&pdev->dev, "%s : pci_iomap FAILED", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pci_iomap;
 	}
 	dev_dbg(&pdev->dev, "%s : pci_iomap SUCCESS and value "
@@ -705,8 +705,8 @@ static int pch_phub_probe(struct pci_dev *pdev,
 		const char *board_name;
 		unsigned int prefetch = 0x000affaa;
 
-		if (pdev->dev.of_node)
-			of_property_read_u32(pdev->dev.of_node,
+		if (pdev->dev.of_analde)
+			of_property_read_u32(pdev->dev.of_analde,
 						  "intel,eg20t-prefetch",
 						  &prefetch);
 
@@ -741,7 +741,7 @@ static int pch_phub_probe(struct pci_dev *pdev,
 		chip->pch_mac_start_address = PCH_PHUB_MAC_START_ADDR_EG20T;
 
 		/* quirk for MIPS Boston platform */
-		if (pdev->dev.of_node) {
+		if (pdev->dev.of_analde) {
 			if (of_machine_is_compatible("img,boston")) {
 				pch_phub_read_modify_write_reg(chip,
 					(unsigned int)CLKCFG_REG_OFFSET,

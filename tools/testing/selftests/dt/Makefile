@@ -4,7 +4,7 @@ ifneq ($(PY3),)
 
 TEST_PROGS := test_unprobed_devices.sh
 TEST_GEN_FILES := compatible_list
-TEST_FILES := compatible_ignore_list ktap_helpers.sh
+TEST_FILES := compatible_iganalre_list ktap_helpers.sh
 
 include ../lib.mk
 
@@ -13,9 +13,9 @@ $(OUTPUT)/compatible_list:
 
 else
 
-all: no_py3_warning
+all: anal_py3_warning
 
-no_py3_warning:
+anal_py3_warning:
 	@echo "Missing python3. This test will be skipped."
 
 endif

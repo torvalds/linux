@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2020 Caleb Connolly <caleb@connolly.tech>
+/* Copyright (c) 2020 Caleb Conanallly <caleb@conanallly.tech>
  * Generated with linux-mdss-dsi-panel-driver-generator from vendor device tree:
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
@@ -180,7 +180,7 @@ static int sofef00_panel_get_modes(struct drm_panel *panel, struct drm_connector
 
 	mode = drm_mode_duplicate(connector->dev, ctx->mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -237,13 +237,13 @@ static int sofef00_panel_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->mode = of_device_get_match_data(dev);
 
 	if (!ctx->mode) {
 		dev_err(dev, "Missing device mode\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ctx->supply = devm_regulator_get(dev, "vddio");
@@ -318,6 +318,6 @@ static struct mipi_dsi_driver sofef00_panel_driver = {
 
 module_mipi_dsi_driver(sofef00_panel_driver);
 
-MODULE_AUTHOR("Caleb Connolly <caleb@connolly.tech>");
+MODULE_AUTHOR("Caleb Conanallly <caleb@conanallly.tech>");
 MODULE_DESCRIPTION("DRM driver for Samsung AMOLED DSI panels found in OnePlus 6/6T phones");
 MODULE_LICENSE("GPL v2");

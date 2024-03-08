@@ -15,8 +15,8 @@ static int do_sleep(void *skel)
 	struct timespec ts2 = { .tv_sec = 10 };
 
 	fexit_skel->bss->pid = getpid();
-	(void)syscall(__NR_nanosleep, &ts1, NULL);
-	(void)syscall(__NR_nanosleep, &ts2, NULL);
+	(void)syscall(__NR_naanalsleep, &ts1, NULL);
+	(void)syscall(__NR_naanalsleep, &ts2, NULL);
 	return 0;
 }
 
@@ -39,39 +39,39 @@ void test_fexit_sleep(void)
 		goto cleanup;
 
 	cpid = clone(do_sleep, child_stack + STACK_SIZE, CLONE_FILES | SIGCHLD, fexit_skel);
-	if (CHECK(cpid == -1, "clone", "%s\n", strerror(errno)))
+	if (CHECK(cpid == -1, "clone", "%s\n", strerror(erranal)))
 		goto cleanup;
 
-	/* wait until first sys_nanosleep ends and second sys_nanosleep starts */
+	/* wait until first sys_naanalsleep ends and second sys_naanalsleep starts */
 	while (READ_ONCE(fexit_skel->bss->fentry_cnt) != 2);
 	fexit_cnt = READ_ONCE(fexit_skel->bss->fexit_cnt);
 	if (CHECK(fexit_cnt != 1, "fexit_cnt", "%d", fexit_cnt))
 		goto cleanup;
 
-	/* close progs and detach them. That will trigger two nop5->jmp5 rewrites
-	 * in the trampolines to skip nanosleep_fexit prog.
-	 * The nanosleep_fentry prog will get detached first.
-	 * The nanosleep_fexit prog will get detached second.
+	/* close progs and detach them. That will trigger two analp5->jmp5 rewrites
+	 * in the trampolines to skip naanalsleep_fexit prog.
+	 * The naanalsleep_fentry prog will get detached first.
+	 * The naanalsleep_fexit prog will get detached second.
 	 * Detaching will trigger freeing of both progs JITed images.
 	 * There will be two dying bpf_tramp_image-s, but only the initial
 	 * bpf_tramp_image (with both _fentry and _fexit progs will be stuck
 	 * waiting for percpu_ref_kill to confirm). The other one
 	 * will be freed quickly.
 	 */
-	close(fexit_skel->progs.nanosleep_fentry.prog_fd);
-	close(fexit_skel->progs.nanosleep_fexit.prog_fd);
+	close(fexit_skel->progs.naanalsleep_fentry.prog_fd);
+	close(fexit_skel->progs.naanalsleep_fexit.prog_fd);
 	fexit_sleep_lskel__detach(fexit_skel);
 
-	/* kill the thread to unwind sys_nanosleep stack through the trampoline */
+	/* kill the thread to unwind sys_naanalsleep stack through the trampoline */
 	kill(cpid, 9);
 
-	if (CHECK(waitpid(cpid, &wstatus, 0) == -1, "waitpid", "%s\n", strerror(errno)))
+	if (CHECK(waitpid(cpid, &wstatus, 0) == -1, "waitpid", "%s\n", strerror(erranal)))
 		goto cleanup;
 	if (CHECK(WEXITSTATUS(wstatus) != 0, "exitstatus", "failed"))
 		goto cleanup;
 
-	/* The bypassed nanosleep_fexit prog shouldn't have executed.
-	 * Unlike progs the maps were not freed and directly accessible.
+	/* The bypassed naanalsleep_fexit prog shouldn't have executed.
+	 * Unlike progs the maps were analt freed and directly accessible.
 	 */
 	fexit_cnt = READ_ONCE(fexit_skel->bss->fexit_cnt);
 	if (CHECK(fexit_cnt != 1, "fexit_cnt", "%d", fexit_cnt))

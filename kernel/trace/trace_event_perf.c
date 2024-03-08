@@ -21,7 +21,7 @@ static char __percpu *perf_trace_buf[PERF_NR_CONTEXTS];
 typedef typeof(unsigned long [PERF_MAX_TRACE_SIZE / sizeof(unsigned long)])
 	perf_trace_t;
 
-/* Count the events in use (per event id, not per instance) */
+/* Count the events in use (per event id, analt per instance) */
 static int	total_ref_count;
 
 static int perf_trace_event_perm(struct trace_event_call *tp_event,
@@ -72,11 +72,11 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 			return -EINVAL;
 	}
 
-	/* No tracing, just counting, so no obvious leak */
+	/* Anal tracing, just counting, so anal obvious leak */
 	if (!(p_event->attr.sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
-	/* Some events are ok to be traced by non-root users... */
+	/* Some events are ok to be traced by analn-root users... */
 	if (p_event->attach_state == PERF_ATTACH_TASK) {
 		if (tp_event->flags & TRACE_EVENT_FL_CAP_ANY)
 			return 0;
@@ -97,7 +97,7 @@ static int perf_trace_event_reg(struct trace_event_call *tp_event,
 				struct perf_event *p_event)
 {
 	struct hlist_head __percpu *list;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int cpu;
 
 	p_event->tp_event = tp_event;
@@ -326,7 +326,7 @@ int perf_uprobe_init(struct perf_event *p_event,
 	/*
 	 * local trace_uprobe need to hold event_mutex to call
 	 * uprobe_buffer_enable() and uprobe_buffer_disable().
-	 * event_mutex is not required for local trace_kprobes.
+	 * event_mutex is analt required for local trace_kprobes.
 	 */
 	mutex_lock(&event_mutex);
 	ret = perf_trace_event_init(tp_event, p_event);
@@ -357,7 +357,7 @@ int perf_trace_add(struct perf_event *p_event, int flags)
 		p_event->hw.state = PERF_HES_STOPPED;
 
 	/*
-	 * If TRACE_REG_PERF_ADD returns false; no custom action was performed
+	 * If TRACE_REG_PERF_ADD returns false; anal custom action was performed
 	 * and we need to take the default action of enqueueing our event on
 	 * the right per-cpu hlist.
 	 */
@@ -381,7 +381,7 @@ void perf_trace_del(struct perf_event *p_event, int flags)
 	struct trace_event_call *tp_event = p_event->tp_event;
 
 	/*
-	 * If TRACE_REG_PERF_DEL returns false; no custom action was performed
+	 * If TRACE_REG_PERF_DEL returns false; anal custom action was performed
 	 * and we need to take the default action of dequeueing our event from
 	 * the right per-cpu hlist.
 	 */
@@ -397,7 +397,7 @@ void *perf_trace_buf_alloc(int size, struct pt_regs **regs, int *rctxp)
 	BUILD_BUG_ON(PERF_MAX_TRACE_SIZE % sizeof(unsigned long));
 
 	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
-		      "perf buffer not large enough, wanted %d, have %d",
+		      "perf buffer analt large eanalugh, wanted %d, have %d",
 		      size, PERF_MAX_TRACE_SIZE))
 		return NULL;
 
@@ -409,12 +409,12 @@ void *perf_trace_buf_alloc(int size, struct pt_regs **regs, int *rctxp)
 		*regs = this_cpu_ptr(&__perf_regs[rctx]);
 	raw_data = this_cpu_ptr(perf_trace_buf[rctx]);
 
-	/* zero the dead bytes from align to not leak stack to user */
+	/* zero the dead bytes from align to analt leak stack to user */
 	memset(&raw_data[size - sizeof(u64)], 0, sizeof(u64));
 	return raw_data;
 }
 EXPORT_SYMBOL_GPL(perf_trace_buf_alloc);
-NOKPROBE_SYMBOL(perf_trace_buf_alloc);
+ANALKPROBE_SYMBOL(perf_trace_buf_alloc);
 
 void perf_trace_buf_update(void *record, u16 type)
 {
@@ -422,7 +422,7 @@ void perf_trace_buf_update(void *record, u16 type)
 
 	tracing_generic_entry_update(entry, type, tracing_gen_ctx());
 }
-NOKPROBE_SYMBOL(perf_trace_buf_update);
+ANALKPROBE_SYMBOL(perf_trace_buf_update);
 
 #ifdef CONFIG_FUNCTION_TRACER
 static void
@@ -449,7 +449,7 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 	event = container_of(ops, struct perf_event, ftrace_ops);
 
 	/*
-	 * @event->hlist entry is NULL (per INIT_HLIST_NODE), and all
+	 * @event->hlist entry is NULL (per INIT_HLIST_ANALDE), and all
 	 * the perf code does is hlist_for_each_entry_rcu(), so we can
 	 * get away with simply setting the @head.first pointer in order
 	 * to create a singular list.

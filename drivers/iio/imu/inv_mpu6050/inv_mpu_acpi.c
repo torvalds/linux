@@ -13,7 +13,7 @@
 #include "inv_mpu_iio.h"
 
 enum inv_mpu_product_name {
-	INV_MPU_NOT_MATCHED,
+	INV_MPU_ANALT_MATCHED,
 	INV_MPU_ASUS_T100TA,
 };
 
@@ -52,7 +52,7 @@ static int asus_acpi_get_sensor_info(struct acpi_device *adev,
 
 	status = acpi_evaluate_object(adev->handle, "CNF0", NULL, &buffer);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpm = buffer.pointer;
 	for (i = 0; i < cpm->package.count; ++i) {
@@ -70,7 +70,7 @@ static int asus_acpi_get_sensor_info(struct acpi_device *adev,
 			else if (sub_elem->type == ACPI_TYPE_INTEGER) {
 				if (sub_elem->integer.value != client->addr) {
 					info->addr = sub_elem->integer.value;
-					break; /* Not a MPU6500 primary */
+					break; /* Analt a MPU6500 primary */
 				}
 			}
 		}
@@ -110,7 +110,7 @@ static int inv_mpu_process_acpi_config(struct i2c_client *client,
 	id = acpi_match_device(client->dev.driver->acpi_match_table,
 			       &client->dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = acpi_dev_get_resources(adev, &resources,
 				     acpi_i2c_check_resource, &i2c_addr);
@@ -149,7 +149,7 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 		}
 
 		if (ret < 0) {
-			/* No matching DMI, so create device on INV6XX type */
+			/* Anal matching DMI, so create device on INV6XX type */
 			unsigned short primary, secondary;
 
 			ret = inv_mpu_process_acpi_config(client, &primary,
@@ -166,7 +166,7 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 				strlcat(info.type, "-client",
 					sizeof(info.type));
 			} else
-				return 0; /* no secondary addr, which is OK */
+				return 0; /* anal secondary addr, which is OK */
 		}
 		mux_client = i2c_new_client_device(st->muxc->adapter[0], &info);
 		if (IS_ERR(mux_client))

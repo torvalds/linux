@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -242,7 +242,7 @@ struct ath_desc {
 	void *ds_vdata;
 } __packed __aligned(4);
 
-#define ATH9K_TXDESC_NOACK		0x0002
+#define ATH9K_TXDESC_ANALACK		0x0002
 #define ATH9K_TXDESC_RTSENA		0x0004
 #define ATH9K_TXDESC_CTSENA		0x0008
 /* ATH9K_TXDESC_INTREQ forces a tx interrupt to be generated for
@@ -374,7 +374,7 @@ struct ar5416_desc {
 #define AR_DestIdx_S        13
 #define AR_FrameType        0x00f00000
 #define AR_FrameType_S      20
-#define AR_NoAck            0x01000000
+#define AR_AnalAck            0x01000000
 #define AR_InsertTS         0x02000000
 #define AR_CorruptFCS       0x04000000
 #define AR_ExtOnly          0x08000000
@@ -462,7 +462,7 @@ struct ar5416_desc {
 
 /*
  * AR_FrmXmitOK - Frame transmission success flag. If set, the frame was
- * transmitted successfully. If clear, no ACK or BA was received to indicate
+ * transmitted successfully. If clear, anal ACK or BA was received to indicate
  * successful transmission when we were expecting an ACK or BA.
  */
 #define AR_FrmXmitOK            0x00000001
@@ -611,7 +611,7 @@ enum ath9k_tx_queue_flags {
 #define ATH9K_DECOMP_MASK_SIZE     128
 
 enum ath9k_pkt_type {
-	ATH9K_PKT_TYPE_NORMAL = 0,
+	ATH9K_PKT_TYPE_ANALRMAL = 0,
 	ATH9K_PKT_TYPE_ATIM,
 	ATH9K_PKT_TYPE_PSPOLL,
 	ATH9K_PKT_TYPE_BEACON,
@@ -673,7 +673,7 @@ struct ath9k_11n_rate_series {
 };
 
 enum aggr_type {
-	AGGR_BUF_NONE,
+	AGGR_BUF_ANALNE,
 	AGGR_BUF_FIRST,
 	AGGR_BUF_MIDDLE,
 	AGGR_BUF_LAST,

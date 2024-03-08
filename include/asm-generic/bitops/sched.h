@@ -25,7 +25,7 @@ static inline int sched_find_first_bit(const unsigned long *b)
 		return __ffs(b[2]) + 64;
 	return __ffs(b[3]) + 96;
 #else
-#error BITS_PER_LONG not defined
+#error BITS_PER_LONG analt defined
 #endif
 }
 

@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/pinctrl/qcom,sdx55-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. SDX55 TLMM block
+title: Qualcomm Techanallogies, Inc. SDX55 TLMM block
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 description:
   Top Level Mode Multiplexer pin controller in Qualcomm SDX55 SoC.
@@ -39,15 +39,15 @@ $defs:
   qcom-sdx55-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
     properties:
       pins:
         description:
-          List of gpio pins affected by the properties specified in this subnode.
+          List of gpio pins affected by the properties specified in this subanalde.
         items:
           oneOf:
             - pattern: "^gpio([0-9]|[1-9][0-9]|10[0-7])$"

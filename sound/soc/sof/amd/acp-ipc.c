@@ -103,8 +103,8 @@ static void acp_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 
        /*
 	* Sometimes, there is unexpected reply ipc arriving. The reply
-	* ipc belongs to none of the ipcs sent from driver.
-	* In this case, the driver must ignore the ipc.
+	* ipc belongs to analne of the ipcs sent from driver.
+	* In this case, the driver must iganalre the ipc.
 	*/
 	if (!msg) {
 		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
@@ -231,7 +231,7 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 	}
 
 	if (!ipc_irq)
-		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
+		dev_dbg_ratelimited(sdev->dev, "analthing to do in IPC IRQ thread\n");
 
 	return IRQ_HANDLED;
 }

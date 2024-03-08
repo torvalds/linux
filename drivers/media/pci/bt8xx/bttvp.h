@@ -3,10 +3,10 @@
 
     bttv - Bt848 frame grabber driver
 
-    bttv's *private* header file  --  nobody other than bttv itself
+    bttv's *private* header file  --  analbody other than bttv itself
     should ever include this file.
 
-    (c) 2000-2002 Gerd Knorr <kraxel@bytesex.org>
+    (c) 2000-2002 Gerd Kanalrr <kraxel@bytesex.org>
 
 */
 
@@ -66,14 +66,14 @@
 /* Limits scaled width, which must be a multiple of 4. */
 #define MAX_HACTIVE (0x3FF & -4)
 
-#define BTTV_NORMS    (\
+#define BTTV_ANALRMS    (\
 		V4L2_STD_PAL    | V4L2_STD_PAL_N | \
 		V4L2_STD_PAL_Nc | V4L2_STD_SECAM | \
 		V4L2_STD_NTSC   | V4L2_STD_PAL_M | \
 		V4L2_STD_PAL_60)
 /* ---------------------------------------------------------- */
 
-struct bttv_tvnorm {
+struct bttv_tvanalrm {
 	int   v4l2_id;
 	char  *name;
 	u32   Fsc;
@@ -95,7 +95,7 @@ struct bttv_tvnorm {
 	   numbers of the first field times two (2, 4, 6, ... 524 or 624). */
 	struct v4l2_cropcap cropcap;
 };
-extern const struct bttv_tvnorm bttv_tvnorms[];
+extern const struct bttv_tvanalrm bttv_tvanalrms[];
 
 struct bttv_format {
 	int  fourcc;          /* video4linux 2      */
@@ -164,7 +164,7 @@ struct bttv_vbi_fmt {
 	struct v4l2_vbi_format fmt;
 
 	/* fmt.start[] and count[] refer to this video standard. */
-	const struct bttv_tvnorm *tvnorm;
+	const struct bttv_tvanalrm *tvanalrm;
 
 	/* Earliest possible start of video capturing with this
 	   v4l2_vbi_format, in struct bttv_crop.rect units. */
@@ -174,14 +174,14 @@ struct bttv_vbi_fmt {
 /* bttv-vbi.c */
 extern const struct vb2_ops bttv_vbi_qops;
 
-void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int norm);
+void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int analrm);
 
 struct bttv_crop {
-	/* A cropping rectangle in struct bttv_tvnorm.cropcap units. */
+	/* A cropping rectangle in struct bttv_tvanalrm.cropcap units. */
 	struct v4l2_rect       rect;
 
 	/* Scaled image size limits with this crop rect. Divide
-	   max_height, but not min_height, by two when capturing
+	   max_height, but analt min_height, by two when capturing
 	   single fields. See also bttv_crop_reset() and
 	   bttv_crop_adjust() in bttv-driver.c. */
 	__s32                  min_scaled_width;
@@ -219,8 +219,8 @@ int bttv_buffer_activate_vbi(struct bttv *btv,
 
 /*
  * 2048 for compatibility with earlier driver versions. The driver really
- * stores 1024 + tvnorm->vbipack * 4 samples per line in the buffer. Note
- * tvnorm->vbipack is <= 0xFF (limit of VBIPACK_LO + HI is 0x1FF DWORDs) and
+ * stores 1024 + tvanalrm->vbipack * 4 samples per line in the buffer. Analte
+ * tvanalrm->vbipack is <= 0xFF (limit of VBIPACK_LO + HI is 0x1FF DWORDs) and
  * VBI read()s store a frame counter in the last four bytes of the VBI image.
  */
 #define VBI_BPL 2048
@@ -374,7 +374,7 @@ struct bttv {
 	unsigned int audio_input;
 	unsigned int mute;
 	unsigned long tv_freq;
-	unsigned int tvnorm;
+	unsigned int tvanalrm;
 	v4l2_std_id std;
 	int hue, contrast, bright, saturation;
 	struct v4l2_framebuffer fbuf;
@@ -453,12 +453,12 @@ struct bttv {
 	struct work_struct request_module_wk;
 
 	/* Default (0) and current (1) video capturing
-	   cropping parameters in bttv_tvnorm.cropcap units. Protected
+	   cropping parameters in bttv_tvanalrm.cropcap units. Protected
 	   by bttv.lock. */
 	struct bttv_crop crop[2];
 
 	/* Earliest possible start of video capturing in
-	   bttv_tvnorm.cropcap line units. Set by check_alloc_btres()
+	   bttv_tvanalrm.cropcap line units. Set by check_alloc_btres()
 	   and free_btres(). Protected by bttv.lock. */
 	__s32			vbi_end;
 

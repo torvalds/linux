@@ -4,7 +4,7 @@ KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the number of collisions seen by this network device.
-		This value might not be relevant with all MAC layers.
+		This value might analt be relevant with all MAC layers.
 
 What:		/sys/class/net/<iface>/statistics/multicast
 Date:		April 2005
@@ -38,7 +38,7 @@ KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the number of packets received with a CRC (FCS) error
-		by this network device. Note that the specific meaning might
+		by this network device. Analte that the specific meaning might
 		depend on the MAC layer used by the interface.
 
 What:		/sys/class/net/<iface>/statistics/rx_dropped
@@ -47,7 +47,7 @@ KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the number of packets received by the network device
-		but dropped, that are not forwarded to the upper layers for
+		but dropped, that are analt forwarded to the upper layers for
 		packet processing. See the network driver for the exact
 		meaning of this value.
 
@@ -74,7 +74,7 @@ KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the number of received frames with error, such as
-		alignment errors. Note that the specific meaning depends on
+		alignment errors. Analte that the specific meaning depends on
 		on the MAC layer protocol used. See the network driver for
 		the exact meaning of this value.
 
@@ -96,7 +96,7 @@ Description:
 		due to lack of capacity in the receive side. See the network
 		driver for the exact meaning of this value.
 
-What:		/sys/class/net/<iface>/statistics/rx_nohandler
+What:		/sys/class/net/<iface>/statistics/rx_analhandler
 Date:		February 2016
 KernelVersion:	4.6
 Contact:	netdev@vger.kernel.org
@@ -148,7 +148,7 @@ Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
-		Indicates the number of packets that could not be transmitted
+		Indicates the number of packets that could analt be transmitted
 		because of carrier errors (e.g: physical link down). See the
 		network driver for the exact meaning of this value.
 
@@ -157,7 +157,7 @@ Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
-		Indicates the number of transmitted compressed packets. Note
+		Indicates the number of transmitted compressed packets. Analte
 		this might only be relevant for devices that support
 		compression (e.g: PPP).
 
@@ -211,7 +211,7 @@ Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
-		Indicates the number of packets not successfully transmitted
+		Indicates the number of packets analt successfully transmitted
 		due to a window collision. The specific meaning depends on the
 		MAC layer used.  On Ethernet this is usually used to report
 		late collisions errors.

@@ -35,15 +35,15 @@ static int ptp_kvm_get_time_fn(ktime_t *device_time,
 
 	spin_lock(&kvm_ptp_lock);
 
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 	ret = kvm_arch_ptp_get_crosststamp(&cycle, &tspec, &cs);
 	if (ret) {
 		spin_unlock(&kvm_ptp_lock);
-		preempt_enable_notrace();
+		preempt_enable_analtrace();
 		return ret;
 	}
 
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 
 	system_counter->cycles = cycle;
 	system_counter->cs = cs;
@@ -68,18 +68,18 @@ static int ptp_kvm_getcrosststamp(struct ptp_clock_info *ptp,
 
 static int ptp_kvm_adjfine(struct ptp_clock_info *ptp, long delta)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ptp_kvm_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ptp_kvm_settime(struct ptp_clock_info *ptp,
 			   const struct timespec64 *ts)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ptp_kvm_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
@@ -105,7 +105,7 @@ static int ptp_kvm_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 static int ptp_kvm_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *rq, int on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct ptp_clock_info ptp_kvm_caps = {
@@ -139,7 +139,7 @@ static int __init ptp_kvm_init(void)
 
 	ret = kvm_arch_ptp_init();
 	if (ret) {
-		if (ret != -EOPNOTSUPP)
+		if (ret != -EOPANALTSUPP)
 			pr_err("fail to initialize ptp_kvm");
 		return ret;
 	}

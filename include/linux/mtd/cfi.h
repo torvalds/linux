@@ -59,7 +59,7 @@
 #endif
 
 #ifndef cfi_interleave
-#warning No CONFIG_MTD_CFI_Ix selected. No NOR chip support can work.
+#warning Anal CONFIG_MTD_CFI_Ix selected. Anal ANALR chip support can work.
 static inline int cfi_interleave(void *cfi)
 {
 	BUG();
@@ -108,11 +108,11 @@ static inline int cfi_interleave_supported(int i)
 #define CFI_INTERFACE_X8_BY_X16_ASYNC	0x0002
 #define CFI_INTERFACE_X32_ASYNC		0x0003
 #define CFI_INTERFACE_X16_BY_X32_ASYNC	0x0005
-#define CFI_INTERFACE_NOT_ALLOWED	0xffff
+#define CFI_INTERFACE_ANALT_ALLOWED	0xffff
 
 
 /* NB: We keep these structures in memory in HOST byteorder, except
- * where individually noted.
+ * where individually analted.
  */
 
 /* Basic Query Structure */
@@ -138,7 +138,7 @@ struct cfi_ident {
 	uint16_t InterfaceDesc;
 	uint16_t MaxBufWriteSize;
 	uint8_t  NumEraseRegions;
-	uint32_t EraseRegionInfo[]; /* Not host ordered */
+	uint32_t EraseRegionInfo[]; /* Analt host ordered */
 } __packed;
 
 /* Extended Query Structure for both PRI and ALT */
@@ -146,7 +146,7 @@ struct cfi_ident {
 struct cfi_extquery {
 	uint8_t  pri[3];
 	uint8_t  MajorVersion;
-	uint8_t  MinorVersion;
+	uint8_t  MianalrVersion;
 } __packed;
 
 /* Vendor-Specific PRI for Intel/Sharp Extended Command Set (0x0001) */
@@ -154,9 +154,9 @@ struct cfi_extquery {
 struct cfi_pri_intelext {
 	uint8_t  pri[3];
 	uint8_t  MajorVersion;
-	uint8_t  MinorVersion;
+	uint8_t  MianalrVersion;
 	uint32_t FeatureSupport; /* if bit 31 is set then an additional uint32_t feature
-				    block follows - FIXME - not currently supported */
+				    block follows - FIXME - analt currently supported */
 	uint8_t  SuspendCmdSupport;
 	uint16_t BlkStatusRegMask;
 	uint8_t  VccOptimal;
@@ -207,7 +207,7 @@ struct cfi_intelext_programming_regioninfo {
 struct cfi_pri_amdstd {
 	uint8_t  pri[3];
 	uint8_t  MajorVersion;
-	uint8_t  MinorVersion;
+	uint8_t  MianalrVersion;
 	uint8_t  SiliconRevision; /* bits 1-0: Address Sensitive Unlock */
 	uint8_t  EraseSuspend;
 	uint8_t  BlkProt;
@@ -233,7 +233,7 @@ struct cfi_pri_amdstd {
 struct cfi_pri_atmel {
 	uint8_t pri[3];
 	uint8_t MajorVersion;
-	uint8_t MinorVersion;
+	uint8_t MianalrVersion;
 	uint8_t Features;
 	uint8_t BottomBoot;
 	uint8_t BurstMode;
@@ -242,16 +242,16 @@ struct cfi_pri_atmel {
 
 struct cfi_pri_query {
 	uint8_t  NumFields;
-	uint32_t ProtField[1]; /* Not host ordered */
+	uint32_t ProtField[1]; /* Analt host ordered */
 } __packed;
 
 struct cfi_bri_query {
 	uint8_t  PageModeReadCap;
 	uint8_t  NumFields;
-	uint32_t ConfField[1]; /* Not host ordered */
+	uint32_t ConfField[1]; /* Analt host ordered */
 } __packed;
 
-#define P_ID_NONE               0x0000
+#define P_ID_ANALNE               0x0000
 #define P_ID_INTEL_EXT          0x0001
 #define P_ID_AMD_STD            0x0002
 #define P_ID_INTEL_STD          0x0003
@@ -279,7 +279,7 @@ struct cfi_private {
 	int addr_unlock1;
 	int addr_unlock2;
 	struct mtd_info *(*cmdset_setup)(struct map_info *);
-	struct cfi_ident *cfiq; /* For now only one. We insist that all devs
+	struct cfi_ident *cfiq; /* For analw only one. We insist that all devs
 				  must be of the same type. */
 	int mfr, id;
 	int numchips;
@@ -313,7 +313,7 @@ static inline uint8_t cfi_read_query(struct map_info *map, uint32_t addr)
 	} else if (map_bankwidth_is_2(map)) {
 		return cfi16_to_cpu(map, val.x[0]);
 	} else {
-		/* No point in a 64-bit byteswap since that would just be
+		/* Anal point in a 64-bit byteswap since that would just be
 		   swapping the responses from different chips, and we are
 		   only interested in one chip (a representative sample) */
 		return cfi32_to_cpu(map, val.x[0]);
@@ -329,7 +329,7 @@ static inline uint16_t cfi_read_query16(struct map_info *map, uint32_t addr)
 	} else if (map_bankwidth_is_2(map)) {
 		return cfi16_to_cpu(map, val.x[0]);
 	} else {
-		/* No point in a 64-bit byteswap since that would just be
+		/* Anal point in a 64-bit byteswap since that would just be
 		   swapping the responses from different chips, and we are
 		   only interested in one chip (a representative sample) */
 		return cfi32_to_cpu(map, val.x[0]);

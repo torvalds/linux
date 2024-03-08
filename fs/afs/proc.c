@@ -29,7 +29,7 @@ static inline struct afs_net *afs_seq2net_single(struct seq_file *m)
 }
 
 /*
- * Display the list of cells known to the namespace.
+ * Display the list of cells kanalwn to the namespace.
  */
 static int afs_proc_cells_show(struct seq_file *m, void *v)
 {
@@ -128,8 +128,8 @@ static int afs_proc_cells_write(struct file *file, char *buf, size_t size)
 			goto done;
 		}
 
-		if (test_and_set_bit(AFS_CELL_FL_NO_GC, &cell->flags))
-			afs_unuse_cell(net, cell, afs_cell_trace_unuse_no_pin);
+		if (test_and_set_bit(AFS_CELL_FL_ANAL_GC, &cell->flags))
+			afs_unuse_cell(net, cell, afs_cell_trace_unuse_anal_pin);
 	} else {
 		goto inval;
 	}
@@ -147,7 +147,7 @@ inval:
 }
 
 /*
- * Display the list of addr_prefs known to the namespace.
+ * Display the list of addr_prefs kanalwn to the namespace.
  */
 static int afs_proc_addr_prefs_show(struct seq_file *m, void *v)
 {
@@ -165,7 +165,7 @@ static int afs_proc_addr_prefs_show(struct seq_file *m, void *v)
 	preflist = rcu_dereference(net->address_prefs);
 
 	if (!preflist) {
-		seq_puts(m, "NO PREFS\n");
+		seq_puts(m, "ANAL PREFS\n");
 		goto out;
 	}
 
@@ -254,7 +254,7 @@ static const char afs_vol_types[3][3] = {
 };
 
 /*
- * Display the list of volumes known to a cell.
+ * Display the list of volumes kanalwn to a cell.
  */
 static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
 {
@@ -277,7 +277,7 @@ static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
 static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
 	__acquires(cell->proc_lock)
 {
-	struct afs_cell *cell = pde_data(file_inode(m->file));
+	struct afs_cell *cell = pde_data(file_ianalde(m->file));
 
 	rcu_read_lock();
 	return seq_hlist_start_head_rcu(&cell->proc_volumes, *_pos);
@@ -286,7 +286,7 @@ static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
 static void *afs_proc_cell_volumes_next(struct seq_file *m, void *v,
 					loff_t *_pos)
 {
-	struct afs_cell *cell = pde_data(file_inode(m->file));
+	struct afs_cell *cell = pde_data(file_ianalde(m->file));
 
 	return seq_hlist_next_rcu(v, &cell->proc_volumes, _pos);
 }
@@ -315,11 +315,11 @@ static const char *const dns_record_sources[NR__dns_record_source + 1] = {
 };
 
 static const char *const dns_lookup_statuses[NR__dns_lookup_status + 1] = {
-	[DNS_LOOKUP_NOT_DONE]		= "no-lookup",
+	[DNS_LOOKUP_ANALT_DONE]		= "anal-lookup",
 	[DNS_LOOKUP_GOOD]		= "good",
 	[DNS_LOOKUP_GOOD_WITH_BAD]	= "good/bad",
 	[DNS_LOOKUP_BAD]		= "bad",
-	[DNS_LOOKUP_GOT_NOT_FOUND]	= "not-found",
+	[DNS_LOOKUP_GOT_ANALT_FOUND]	= "analt-found",
 	[DNS_LOOKUP_GOT_LOCAL_FAILURE]	= "local-failure",
 	[DNS_LOOKUP_GOT_TEMP_FAILURE]	= "temp-failure",
 	[DNS_LOOKUP_GOT_NS_FAILURE]	= "ns-failure",
@@ -372,7 +372,7 @@ static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 {
 	struct afs_vl_seq_net_private *priv = m->private;
 	struct afs_vlserver_list *vllist;
-	struct afs_cell *cell = pde_data(file_inode(m->file));
+	struct afs_cell *cell = pde_data(file_ianalde(m->file));
 	loff_t pos = *_pos;
 
 	rcu_read_lock();
@@ -560,7 +560,7 @@ static int afs_proc_sysname_write(struct file *file, char *buf, size_t size)
 
 	sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
 	if (!sysnames)
-		return -ENOMEM;
+		return -EANALMEM;
 	refcount_set(&sysnames->usage, 1);
 	kill = sysnames;
 
@@ -595,7 +595,7 @@ static int afs_proc_sysname_write(struct file *file, char *buf, size_t size)
 		if (strcmp(s, afs_init_sysname) == 0) {
 			sub = (char *)afs_init_sysname;
 		} else {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			sub = kmemdup(s, len + 1, GFP_KERNEL);
 			if (!sub)
 				goto out;
@@ -699,8 +699,8 @@ int afs_proc_cell_setup(struct afs_cell *cell)
 error_tree:
 	remove_proc_subtree(cell->name, net->proc_afs);
 error_dir:
-	_leave(" = -ENOMEM");
-	return -ENOMEM;
+	_leave(" = -EANALMEM");
+	return -EANALMEM;
 }
 
 /*
@@ -758,8 +758,8 @@ int afs_proc_init(struct afs_net *net)
 error_tree:
 	proc_remove(p);
 error_dir:
-	_leave(" = -ENOMEM");
-	return -ENOMEM;
+	_leave(" = -EANALMEM");
+	return -EANALMEM;
 }
 
 /*

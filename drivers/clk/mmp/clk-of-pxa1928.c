@@ -180,7 +180,7 @@ static void pxa1928_axi_periph_clk_init(struct pxa1928_clk_unit *pxa_unit)
 				ARRAY_SIZE(apmu_gate_clks));
 }
 
-static void pxa1928_clk_reset_init(struct device_node *np,
+static void pxa1928_clk_reset_init(struct device_analde *np,
 				struct pxa1928_clk_unit *pxa_unit)
 {
 	struct mmp_clk_reset_cell *cells;
@@ -204,7 +204,7 @@ static void pxa1928_clk_reset_init(struct device_node *np,
 	mmp_clk_reset_register(np, cells, nr_resets);
 }
 
-static void __init pxa1928_mpmu_clk_init(struct device_node *np)
+static void __init pxa1928_mpmu_clk_init(struct device_analde *np)
 {
 	struct pxa1928_clk_unit *pxa_unit;
 
@@ -223,7 +223,7 @@ static void __init pxa1928_mpmu_clk_init(struct device_node *np)
 }
 CLK_OF_DECLARE(pxa1928_mpmu_clk, "marvell,pxa1928-mpmu", pxa1928_mpmu_clk_init);
 
-static void __init pxa1928_apmu_clk_init(struct device_node *np)
+static void __init pxa1928_apmu_clk_init(struct device_analde *np)
 {
 	struct pxa1928_clk_unit *pxa_unit;
 
@@ -244,7 +244,7 @@ static void __init pxa1928_apmu_clk_init(struct device_node *np)
 }
 CLK_OF_DECLARE(pxa1928_apmu_clk, "marvell,pxa1928-apmu", pxa1928_apmu_clk_init);
 
-static void __init pxa1928_apbc_clk_init(struct device_node *np)
+static void __init pxa1928_apbc_clk_init(struct device_analde *np)
 {
 	struct pxa1928_clk_unit *pxa_unit;
 

@@ -9,9 +9,9 @@
  * Strbufs has some invariants that are very important to keep in mind:
  *
  * 1. the ->buf member is always malloc-ed, hence strbuf's can be used to
- *    build complex strings/buffers whose final size isn't easily known.
+ *    build complex strings/buffers whose final size isn't easily kanalwn.
  *
- *    It is NOT legal to copy the ->buf pointer away.
+ *    It is ANALT legal to copy the ->buf pointer away.
  *    `strbuf_detach' is the operation that detaches a buffer from its shell
  *    while keeping the shell valid wrt its invariants.
  *
@@ -20,7 +20,7 @@
  *    member to be a valid C-string. Every strbuf function ensure this
  *    invariant is preserved.
  *
- *    Note that it is OK to "play" with the buffer directly if you work it
+ *    Analte that it is OK to "play" with the buffer directly if you work it
  *    that way:
  *
  *    strbuf_grow(sb, SOME_SIZE);
@@ -34,9 +34,9 @@
  *    Doing so is safe, though if it has to be done in many places, adding the
  *    missing API to the strbuf module is the way to go.
  *
- *    XXX: do _not_ assume that the area that is yours is of size ->alloc - 1
+ *    XXX: do _analt_ assume that the area that is yours is of size ->alloc - 1
  *         even if it's true in the current implementation. Alloc is somehow a
- *         "private" member that should not be messed with.
+ *         "private" member that should analt be messed with.
  */
 
 #include <assert.h>

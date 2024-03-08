@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
- * Driver for watchdog aspect of for Zodiac Inflight Innovations RAVE
+ * Driver for watchdog aspect of for Zodiac Inflight Inanalvations RAVE
  * Supervisory Processor(SP) MCU
  *
- * Copyright (C) 2017 Zodiac Inflight Innovation
+ * Copyright (C) 2017 Zodiac Inflight Inanalvation
  *
  */
 
@@ -21,7 +21,7 @@
 
 enum {
 	RAVE_SP_RESET_BYTE = 1,
-	RAVE_SP_RESET_REASON_NORMAL = 0,
+	RAVE_SP_RESET_REASON_ANALRMAL = 0,
 	RAVE_SP_RESET_DELAY_MS = 500,
 };
 
@@ -48,13 +48,13 @@ struct rave_sp_wdt_variant {
  * @wdd:		Underlying watchdog device
  * @sp:			Pointer to parent RAVE SP device
  * @variant:		Device specific variant information
- * @reboot_notifier:	Reboot notifier implementing machine reset
+ * @reboot_analtifier:	Reboot analtifier implementing machine reset
  */
 struct rave_sp_wdt {
 	struct watchdog_device wdd;
 	struct rave_sp *sp;
 	const struct rave_sp_wdt_variant *variant;
-	struct notifier_block reboot_notifier;
+	struct analtifier_block reboot_analtifier;
 };
 
 static struct rave_sp_wdt *to_rave_sp_wdt(struct watchdog_device *wdd)
@@ -131,13 +131,13 @@ static int rave_sp_wdt_rdu_restart(struct watchdog_device *wdd)
 		[0] = RAVE_SP_CMD_RESET,
 		[1] = 0,
 		[2] = RAVE_SP_RESET_BYTE,
-		[3] = RAVE_SP_RESET_REASON_NORMAL
+		[3] = RAVE_SP_RESET_REASON_ANALRMAL
 	};
 
 	return rave_sp_wdt_exec(wdd, cmd, sizeof(cmd));
 }
 
-static int rave_sp_wdt_reboot_notifier(struct notifier_block *nb,
+static int rave_sp_wdt_reboot_analtifier(struct analtifier_block *nb,
 				       unsigned long action, void *data)
 {
 	/*
@@ -149,24 +149,24 @@ static int rave_sp_wdt_reboot_notifier(struct notifier_block *nb,
 	 */
 	if (action == SYS_DOWN || action == SYS_HALT) {
 		struct rave_sp_wdt *sp_wd =
-			container_of(nb, struct rave_sp_wdt, reboot_notifier);
+			container_of(nb, struct rave_sp_wdt, reboot_analtifier);
 
 		const int ret = sp_wd->variant->restart(&sp_wd->wdd);
 
 		if (ret < 0)
 			dev_err(sp_wd->wdd.parent,
 				"Failed to issue restart command (%d)", ret);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int rave_sp_wdt_restart(struct watchdog_device *wdd,
 			       unsigned long action, void *data)
 {
 	/*
-	 * The actual work was done by reboot notifier above. SP
+	 * The actual work was done by reboot analtifier above. SP
 	 * firmware waits 500 ms before issuing reset, so let's hang
 	 * here for twice that delay and hopefuly we'd never reach
 	 * the return statement.
@@ -261,7 +261,7 @@ static int rave_sp_wdt_probe(struct platform_device *pdev)
 
 	sp_wd = devm_kzalloc(dev, sizeof(*sp_wd), GFP_KERNEL);
 	if (!sp_wd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sp_wd->variant = of_device_get_match_data(dev);
 	sp_wd->sp      = dev_get_drvdata(dev->parent);
@@ -272,7 +272,7 @@ static int rave_sp_wdt_probe(struct platform_device *pdev)
 	wdd->ops         = &rave_sp_wdt_ops;
 	wdd->min_timeout = sp_wd->variant->min_timeout;
 	wdd->max_timeout = sp_wd->variant->max_timeout;
-	wdd->status      = WATCHDOG_NOWAYOUT_INIT_STATUS;
+	wdd->status      = WATCHDOG_ANALWAYOUT_INIT_STATUS;
 	wdd->timeout     = 60;
 
 	cell = nvmem_cell_get(dev, "wdt-timeout");
@@ -290,15 +290,15 @@ static int rave_sp_wdt_probe(struct platform_device *pdev)
 	watchdog_set_restart_priority(wdd, 255);
 	watchdog_stop_on_unregister(wdd);
 
-	sp_wd->reboot_notifier.notifier_call = rave_sp_wdt_reboot_notifier;
-	ret = devm_register_reboot_notifier(dev, &sp_wd->reboot_notifier);
+	sp_wd->reboot_analtifier.analtifier_call = rave_sp_wdt_reboot_analtifier;
+	ret = devm_register_reboot_analtifier(dev, &sp_wd->reboot_analtifier);
 	if (ret) {
-		dev_err(dev, "Failed to register reboot notifier\n");
+		dev_err(dev, "Failed to register reboot analtifier\n");
 		return ret;
 	}
 
 	/*
-	 * We don't know if watchdog is running now. To be sure, let's
+	 * We don't kanalw if watchdog is running analw. To be sure, let's
 	 * start it and depend on watchdog core to ping it
 	 */
 	wdd->max_hw_heartbeat_ms = wdd->max_timeout * 1000;
@@ -331,6 +331,6 @@ MODULE_DEVICE_TABLE(of, rave_sp_wdt_of_match);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrey Vostrikov <andrey.vostrikov@cogentembedded.com>");
 MODULE_AUTHOR("Nikita Yushchenko <nikita.yoush@cogentembedded.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiranalv <andrew.smiranalv@gmail.com>");
 MODULE_DESCRIPTION("RAVE SP Watchdog driver");
 MODULE_ALIAS("platform:rave-sp-watchdog");

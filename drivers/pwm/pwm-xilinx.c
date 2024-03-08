@@ -10,10 +10,10 @@
  *   happens after we set TLR0 but before we set TLR1 then we will have a
  *   bad cycle. This could probably be fixed by reading TCR0 just before
  *   reprogramming, but I think it would add complexity for little gain.
- * - Cannot produce 100% duty cycle by configuring the TLRs. This might be
+ * - Cananalt produce 100% duty cycle by configuring the TLRs. This might be
  *   possible by stopping the counters at an appropriate point in the cycle,
- *   but this is not (yet) implemented.
- * - Only produces "normal" output.
+ *   but this is analt (yet) implemented.
+ * - Only produces "analrmal" output.
  * - Always produces low output if disabled.
  */
 
@@ -70,11 +70,11 @@ unsigned int xilinx_timer_get_period(struct xilinx_timer_priv *priv,
  *
  * - The timer must be running (ENT=1)
  * - The timer must auto-reload TLR into TCR (ARHT=1)
- * - We must not be in the process of loading TLR into TCR (LOAD=0)
+ * - We must analt be in the process of loading TLR into TCR (LOAD=0)
  * - Cascade mode must be disabled (CASC=0)
  *
  * If any of these differ from usual, then the PWM is either disabled, or is
- * running in a mode that this driver does not support.
+ * running in a mode that this driver does analt support.
  */
 #define TCSR_PWM_SET (TCSR_GENT | TCSR_ARHT | TCSR_ENT | TCSR_PWMA)
 #define TCSR_PWM_CLEAR (TCSR_MDT | TCSR_LOAD)
@@ -105,13 +105,13 @@ static int xilinx_pwm_apply(struct pwm_chip *chip, struct pwm_device *unused,
 	u64 period_cycles, duty_cycles;
 	unsigned long rate;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	/*
 	 * To be representable by TLR, cycles must be between 2 and
 	 * priv->max + 2. To enforce this we can reduce the cycles, but we may
-	 * not increase them. Caveat emptor: while this does result in more
+	 * analt increase them. Caveat emptor: while this does result in more
 	 * predictable rounding, it may also result in a completely different
 	 * duty cycle (% high time) than what was requested.
 	 */
@@ -183,7 +183,7 @@ static int xilinx_pwm_get_state(struct pwm_chip *chip,
 	state->period = xilinx_timer_get_period(priv, tlr0, tcsr0);
 	state->duty_cycle = xilinx_timer_get_period(priv, tlr1, tcsr1);
 	state->enabled = xilinx_timer_pwm_enabled(tcsr0, tcsr1);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	/*
 	 * 100% duty cycle results in constant low output. This may be (very)
@@ -212,22 +212,22 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct xilinx_timer_priv *priv;
 	struct xilinx_pwm_device *xilinx_pwm;
 	u32 pwm_cells, one_timer, width;
 	void __iomem *regs;
 
-	/* If there are no PWM cells, this binding is for a timer */
+	/* If there are anal PWM cells, this binding is for a timer */
 	ret = of_property_read_u32(np, "#pwm-cells", &pwm_cells);
 	if (ret == -EINVAL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (ret)
-		return dev_err_probe(dev, ret, "could not read #pwm-cells\n");
+		return dev_err_probe(dev, ret, "could analt read #pwm-cells\n");
 
 	xilinx_pwm = devm_kzalloc(dev, sizeof(*xilinx_pwm), GFP_KERNEL);
 	if (!xilinx_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, xilinx_pwm);
 	priv = &xilinx_pwm->priv;
 
@@ -239,12 +239,12 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 					  &xilinx_pwm_regmap_config);
 	if (IS_ERR(priv->map))
 		return dev_err_probe(dev, PTR_ERR(priv->map),
-				     "Could not create regmap\n");
+				     "Could analt create regmap\n");
 
 	ret = of_property_read_u32(np, "xlnx,one-timer-only", &one_timer);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "Could not read xlnx,one-timer-only\n");
+				     "Could analt read xlnx,one-timer-only\n");
 
 	if (one_timer)
 		return dev_err_probe(dev, -EINVAL,
@@ -255,7 +255,7 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 		width = 32;
 	else if (ret)
 		return dev_err_probe(dev, ret,
-				     "Could not read xlnx,count-width\n");
+				     "Could analt read xlnx,count-width\n");
 
 	if (width != 8 && width != 16 && width != 32)
 		return dev_err_probe(dev, -EINVAL,
@@ -265,13 +265,13 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 	/*
 	 * The polarity of the Generate Out signals must be active high for PWM
 	 * mode to work. We could determine this from the device tree, but
-	 * alas, such properties are not allowed to be used.
+	 * alas, such properties are analt allowed to be used.
 	 */
 
 	priv->clk = devm_clk_get(dev, "s_axi_aclk");
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
-				     "Could not get clock\n");
+				     "Could analt get clock\n");
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret)
@@ -285,7 +285,7 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 	if (ret) {
 		clk_rate_exclusive_put(priv->clk);
 		clk_disable_unprepare(priv->clk);
-		return dev_err_probe(dev, ret, "Could not register PWM chip\n");
+		return dev_err_probe(dev, ret, "Could analt register PWM chip\n");
 	}
 
 	return 0;

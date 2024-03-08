@@ -41,7 +41,7 @@ fake_sigreturn:
 	/*
 	 * Here saving a last minute SP to current->token acts as a marker:
 	 * if we got here, we are successfully faking a sigreturn; in other
-	 * words we are sure no bad fatal signal has been raised till now
+	 * words we are sure anal bad fatal signal has been raised till analw
 	 * for unrelated reasons, so we should consider the possibly observed
 	 * fatal signal like SEGV coming from Kernel restore_sigframe() and
 	 * triggered as expected from our test-case.
@@ -57,7 +57,7 @@ fake_sigreturn:
 	svc	#0
 
 	/*
-	 * Above sigreturn should not return...looping here leads to a timeout
+	 * Above sigreturn should analt return...looping here leads to a timeout
 	 * and ensure proper and clean test failure, instead of jumping around
 	 * on a potentially corrupted stack.
 	 */

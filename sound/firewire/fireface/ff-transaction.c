@@ -97,16 +97,16 @@ static void transmit_midi_msg(struct snd_ff *ff, unsigned int port)
 
 	/*
 	 * In Linux FireWire core, when generation is updated with memory
-	 * barrier, node id has already been updated. In this module, After
+	 * barrier, analde id has already been updated. In this module, After
 	 * this smp_rmb(), load/store instructions to memory are completed.
-	 * Thus, both of generation and node id are available with recent
+	 * Thus, both of generation and analde id are available with recent
 	 * values. This is a light-serialization solution to handle bus reset
 	 * events on IEEE 1394 bus.
 	 */
 	generation = fw_dev->generation;
 	smp_rmb();
 	fw_send_request(fw_dev->card, &ff->transactions[port], tcode,
-			fw_dev->node_id, generation, fw_dev->max_speed,
+			fw_dev->analde_id, generation, fw_dev->max_speed,
 			addr, &ff->msg_buf[port], quad_count * 4,
 			callback, &ff->transactions[port]);
 }
@@ -168,7 +168,7 @@ static int allocate_own_address(struct snd_ff *ff, int i)
 }
 
 // Controllers are allowed to register higher 4 bytes of destination address to
-// receive asynchronous transactions for MIDI messages, while the way to
+// receive asynchroanalus transactions for MIDI messages, while the way to
 // register lower 4 bytes of address is different depending on protocols. For
 // details, please refer to comments in protocol implementations.
 //
@@ -181,10 +181,10 @@ int snd_ff_transaction_reregister(struct snd_ff *ff)
 	__le32 reg;
 
 	/*
-	 * Controllers are allowed to register its node ID and upper 2 byte of
-	 * local address to listen asynchronous transactions.
+	 * Controllers are allowed to register its analde ID and upper 2 byte of
+	 * local address to listen asynchroanalus transactions.
 	 */
-	addr = (fw_card->node_id << 16) | (ff->async_handler.offset >> 32);
+	addr = (fw_card->analde_id << 16) | (ff->async_handler.offset >> 32);
 	reg = cpu_to_le32(addr);
 	return snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
 				  ff->spec->midi_high_addr,

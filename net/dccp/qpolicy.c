@@ -63,7 +63,7 @@ static bool qpolicy_prio_full(struct sock *sk)
 /**
  * struct dccp_qpolicy_operations  -  TX Packet Dequeueing Interface
  * @push: add a new @skb to the write queue
- * @full: indicates that no more packets will be admitted
+ * @full: indicates that anal more packets will be admitted
  * @top:  peeks at whatever the queueing policy defines as its `top'
  * @params: parameter passed to policy operation
  */

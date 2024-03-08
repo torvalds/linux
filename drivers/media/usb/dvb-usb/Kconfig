@@ -198,7 +198,7 @@ config DVB_USB_DTT200U
 	help
 	  Say Y here to support the WideView/Yakumo/Hama/Typhoon/Yuan DVB-T USB2.0 receiver.
 
-	  The receivers are also known as DTT200U (Yakumo) and UB300 (Yuan).
+	  The receivers are also kanalwn as DTT200U (Yakumo) and UB300 (Yuan).
 
 	  The WT-220U and its clones are pen-sized.
 
@@ -230,7 +230,7 @@ config DVB_USB_DW2102
 	select DVB_M88RS2000 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_M88DS3103 if MEDIA_SUBDRV_AUTOSELECT
 	help
-	  Say Y here to support the DvbWorld, TeVii, Prof, TechnoTrend
+	  Say Y here to support the DvbWorld, TeVii, Prof, TechanalTrend
 	  DVB-S/S2 USB2.0 receivers.
 
 config DVB_USB_GP8PSK
@@ -256,14 +256,14 @@ config DVB_USB_M920X
 	  "DTV USB MINI" (in cold state) are supported.
 	  Firmware required.
 
-config DVB_USB_NOVA_T_USB2
-	tristate "Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 support"
+config DVB_USB_ANALVA_T_USB2
+	tristate "Hauppauge WinTV-ANALVA-T usb2 DVB-T USB2.0 support"
 	depends on DVB_USB
 	select DVB_USB_DIB3000MC
 	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MT2060 if MEDIA_SUBDRV_AUTOSELECT
 	help
-	  Say Y here to support the Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 receiver.
+	  Say Y here to support the Hauppauge WinTV-ANALVA-T usb2 DVB-T USB2.0 receiver.
 
 config DVB_USB_OPERA1
 	tristate "Opera1 DVB-S USB2.0 receiver"
@@ -306,7 +306,7 @@ config DVB_USB_TTUSB2
 	select MEDIA_TUNER_TDA827X if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Pinnacle 400e DVB-S USB2.0 receiver and
-	  the TechnoTrend CT-3650 CI DVB-C/T USB2.0 receiver. The
+	  the TechanalTrend CT-3650 CI DVB-C/T USB2.0 receiver. The
 	  firmware protocol used by this module is similar to the one used by the
 	  old ttusb-driver - that's why the module is called dvb-usb-ttusb2.
 
@@ -340,7 +340,7 @@ config DVB_USB_VP7045
 
 	    TwinhanDTV Alpha (stick) (VP-7045),
 		TwinhanDTV MagicBox II (VP-7046),
-		DigitalNow TinyUSB 2 DVB-t,
+		DigitalAnalw TinyUSB 2 DVB-t,
 		DigitalRise USB 2.0 Ter (Beetle) and
 		TYPHOON DVB-T USB DRIVE
 

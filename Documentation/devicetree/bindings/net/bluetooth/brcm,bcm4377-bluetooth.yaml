@@ -41,7 +41,7 @@ properties:
     description: A per-device calibration blob for the Bluetooth radio. This
       should be filled in by the bootloader from platform configuration
       data, if necessary, and will be uploaded to the device.
-      This blob is used if the chip stepping of the Bluetooth module does not
+      This blob is used if the chip stepping of the Bluetooth module does analt
       support beamforming.
 
   brcm,taurus-bf-cal-blob:

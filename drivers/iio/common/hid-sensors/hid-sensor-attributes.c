@@ -15,7 +15,7 @@ static struct {
 	u32 usage_id;
 	int unit; /* 0 for default others from HID sensor spec */
 	int scale_val0; /* scale, whole number */
-	int scale_val1; /* scale, fraction in nanos */
+	int scale_val1; /* scale, fraction in naanals */
 } unit_conversion[] = {
 	{HID_USAGE_SENSOR_ACCEL_3D, 0, 9, 806650000},
 	{HID_USAGE_SENSOR_ACCEL_3D,
@@ -38,10 +38,10 @@ static struct {
 	{HID_USAGE_SENSOR_COMPASS_3D, 0, 0, 1000000},
 	{HID_USAGE_SENSOR_COMPASS_3D, HID_USAGE_SENSOR_UNITS_GAUSS, 1, 0},
 
-	{HID_USAGE_SENSOR_INCLINOMETER_3D, 0, 0, 17453293},
-	{HID_USAGE_SENSOR_INCLINOMETER_3D,
+	{HID_USAGE_SENSOR_INCLIANALMETER_3D, 0, 0, 17453293},
+	{HID_USAGE_SENSOR_INCLIANALMETER_3D,
 		HID_USAGE_SENSOR_UNITS_DEGREES, 0, 17453293},
-	{HID_USAGE_SENSOR_INCLINOMETER_3D,
+	{HID_USAGE_SENSOR_INCLIANALMETER_3D,
 		HID_USAGE_SENSOR_UNITS_RADIANS, 1, 0},
 
 	{HID_USAGE_SENSOR_ALS, 0, 1, 0},
@@ -90,12 +90,12 @@ static void simple_div(int dividend, int divisor, int *whole,
 	}
 }
 
-static void split_micro_fraction(unsigned int no, int exp, int *val1, int *val2)
+static void split_micro_fraction(unsigned int anal, int exp, int *val1, int *val2)
 {
 	int divisor = int_pow(10, exp);
 
-	*val1 = no / divisor;
-	*val2 = no % divisor * int_pow(10, 6 - exp);
+	*val1 = anal / divisor;
+	*val2 = anal % divisor * int_pow(10, 6 - exp);
 }
 
 /*
@@ -352,7 +352,7 @@ EXPORT_SYMBOL_NS(hid_sensor_write_raw_hyst_rel_value, IIO_HID);
  * 1.001745329 ->exp:4-> val0[10017]val1[453290000]
  * 9.806650000 ->exp:-2-> val0[0]val1[98066500]
  */
-static void adjust_exponent_nano(int *val0, int *val1, int scale0,
+static void adjust_exponent_naanal(int *val0, int *val1, int scale0,
 				  int scale1, int exp)
 {
 	int divisor;
@@ -414,14 +414,14 @@ int hid_sensor_format_scale(u32 usage_id,
 			unit_conversion[i].unit == attr_info->units) {
 			exp  = hid_sensor_convert_exponent(
 						attr_info->unit_expo);
-			adjust_exponent_nano(val0, val1,
+			adjust_exponent_naanal(val0, val1,
 					unit_conversion[i].scale_val0,
 					unit_conversion[i].scale_val1, exp);
 			break;
 		}
 	}
 
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 EXPORT_SYMBOL_NS(hid_sensor_format_scale, IIO_HID);
 
@@ -530,7 +530,7 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 			HID_USAGE_SENSOR_PROP_SENSITIVITY_REL_PCT,
 			&st->sensitivity_rel);
 	/*
-	 * Set Sensitivity field ids, when there is no individual modifier, will
+	 * Set Sensitivity field ids, when there is anal individual modifier, will
 	 * check absolute sensitivity and relative sensitivity of data field
 	 */
 	for (i = 0; i < sensitivity_addresses_len; i++) {

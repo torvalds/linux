@@ -23,14 +23,14 @@
 #include <input_system_global.h>
 #include <ia_css_stream_public.h>	/* IA_CSS_STREAM_MAX_ISYS_STREAM_PER_CH */
 
-#define SH_CSS_NODES_PER_THREAD		2
-#define SH_CSS_MAX_ISYS_CHANNEL_NODES	(SH_CSS_MAX_SP_THREADS * SH_CSS_NODES_PER_THREAD)
+#define SH_CSS_ANALDES_PER_THREAD		2
+#define SH_CSS_MAX_ISYS_CHANNEL_ANALDES	(SH_CSS_MAX_SP_THREADS * SH_CSS_ANALDES_PER_THREAD)
 
 /*
  * a) ia_css_isys_stream_h & ia_css_isys_stream_cfg_t come from host.
  *
  * b) Here it is better  to use actual structures for stream handle
- * instead of opaque handles. Otherwise, we need to have another
+ * instead of opaque handles. Otherwise, we need to have aanalther
  * communication channel to interpret that opaque handle(this handle is
  * maintained by host and needs to be populated to sp for every stream open)
  * */

@@ -62,7 +62,7 @@ static u32 ticks_per_jiffy;
  * at least 7.5ns (133MHz TCLK).
  */
 
-static u64 notrace orion_read_sched_clock(void)
+static u64 analtrace orion_read_sched_clock(void)
 {
 	return ~readl(timer_base + TIMER0_VAL_OFF);
 }

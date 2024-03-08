@@ -123,7 +123,7 @@ static struct clk_hw *q6dsp_of_clk_hw_get(struct of_phandle_args *clkspec,
 		return &cc->clks[idx]->hw;
 	}
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 int q6dsp_clock_dev_probe(struct platform_device *pdev)
@@ -136,7 +136,7 @@ int q6dsp_clock_dev_probe(struct platform_device *pdev)
 
 	cc = devm_kzalloc(dev, sizeof(*cc), GFP_KERNEL);
 	if (!cc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = of_device_get_match_data(&pdev->dev);
 	if (!desc)
@@ -155,7 +155,7 @@ int q6dsp_clock_dev_probe(struct platform_device *pdev)
 
 		clk = devm_kzalloc(dev, sizeof(*clk), GFP_KERNEL);
 		if (!clk)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		clk->dev = dev;
 		clk->q6dsp_clk_id = q6dsp_clks[i].q6dsp_clk_id;

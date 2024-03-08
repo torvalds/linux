@@ -456,7 +456,7 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 
 	/* patch for the cxo <-> pxo difference */
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,lcc-mdm9615")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,lcc-mdm9615")) {
 		pxo_parent_data.fw_name = "cxo";
 		pxo_parent_data.name = "cxo_board";
 		lcc_pxo_pll4[0].fw_name = "cxo";

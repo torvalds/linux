@@ -7,7 +7,7 @@
  * Andrew Lunn <andrew@lunn.ch>
  *
  * Based on netxbig_v2-setup.c,
- * Copyright (C) 2010 Simon Guinot <sguinot@lacie.com>
+ * Copyright (C) 2010 Simon Guianalt <sguianalt@lacie.com>
  *
 */
 
@@ -32,7 +32,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mxicy,mx25l4005a", "jedec,spi-nor";
+				compatible = "mxicy,mx25l4005a", "jedec,spi-analr";
 				reg = <0>;
 				spi-max-frequency = <20000000>;
 				mode = <0>;
@@ -58,7 +58,7 @@
 
 		/*
 		 * esc and power represent a three position rocker
-		 * switch. Thus the conventional KEY_POWER does not fit
+		 * switch. Thus the conventional KEY_POWER does analt fit
 		 */
 		exc {
 			label = "Back power switch (on|auto)";

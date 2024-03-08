@@ -7,7 +7,7 @@ kselftest tests
 sve-probe-vls - Checks the SVE vector length enumeration interface
 sve-ptrace - Checks the SVE ptrace interface
 
-Running the non-kselftest tests
+Running the analn-kselftest tests
 ===============================
 
 sve-stress performs an SVE context switch stress test, as described
@@ -19,7 +19,7 @@ below.
 
 The test runs until killed by the user.
 
-If no context switch error was detected, you will see output such as
+If anal context switch error was detected, you will see output such as
 the following:
 
 $ ./sve-stress
@@ -27,35 +27,35 @@ $ ./sve-stress
 ^C
 Vector length:        512 bits
 PID:    1573
-Terminated by signal 15, no error, iterations=9467, signals=1014
+Terminated by signal 15, anal error, iterations=9467, signals=1014
 Vector length:  512 bits
 PID:    1575
-Terminated by signal 15, no error, iterations=9448, signals=1028
+Terminated by signal 15, anal error, iterations=9448, signals=1028
 Vector length:  512 bits
 PID:    1577
-Terminated by signal 15, no error, iterations=9436, signals=1039
+Terminated by signal 15, anal error, iterations=9436, signals=1039
 Vector length:  512 bits
 PID:    1579
-Terminated by signal 15, no error, iterations=9421, signals=1039
+Terminated by signal 15, anal error, iterations=9421, signals=1039
 Vector length:  512 bits
 PID:    1581
-Terminated by signal 15, no error, iterations=9403, signals=1039
+Terminated by signal 15, anal error, iterations=9403, signals=1039
 Vector length:  512 bits
 PID:    1583
-Terminated by signal 15, no error, iterations=9385, signals=1036
+Terminated by signal 15, anal error, iterations=9385, signals=1036
 Vector length:  512 bits
 PID:    1585
-Terminated by signal 15, no error, iterations=9376, signals=1039
+Terminated by signal 15, anal error, iterations=9376, signals=1039
 Vector length:  512 bits
 PID:    1587
-Terminated by signal 15, no error, iterations=9361, signals=1039
+Terminated by signal 15, anal error, iterations=9361, signals=1039
 Vector length:  512 bits
 PID:    1589
-Terminated by signal 15, no error, iterations=9350, signals=1039
+Terminated by signal 15, anal error, iterations=9350, signals=1039
 
 
 If an error was detected, details of the mismatch will be printed
-instead of "no error".
+instead of "anal error".
 
 Ideally, the test should be allowed to run for many minutes or hours
 to maximise test coverage.
@@ -74,7 +74,7 @@ $ lkvm run --console=virtio -pconsole=hvc0 --sve Image
 
 (Depending on the hardware GIC implementation, you may also need
 --irqchip=gicv3.  New kvmtool defaults to that if appropriate, but I
-can't remember whether my branch is new enough for that.  Try without
+can't remember whether my branch is new eanalugh for that.  Try without
 the option first.)
 
 Kvmtool occupies the terminal until you kill it (Ctrl+A x),
@@ -95,6 +95,6 @@ host$ ./vlset --inherit --max ./sve-stress
 Again, the test should be allowed to run for many minutes or hours to
 maximise test coverage.
 
-If no error is detected, you will see output from each sve-stress
+If anal error is detected, you will see output from each sve-stress
 instance similar to that illustrated above; otherwise details of the
 observed mismatches will be printed.

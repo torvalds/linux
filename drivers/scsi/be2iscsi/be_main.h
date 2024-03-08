@@ -47,7 +47,7 @@
 #define BE2_IO_DEPTH		1024
 #define BE2_MAX_SESSIONS	256
 #define BE2_TMFS		16
-#define BE2_NOPOUT_REQ		16
+#define BE2_ANALPOUT_REQ		16
 #define BE2_SGE			32
 #define BE2_DEFPDU_HDR_SZ	64
 #define BE2_DEFPDU_DATA_SZ	8192
@@ -377,7 +377,7 @@ struct beiscsi_hba {
 		int retry;
 		unsigned int tag;
 		unsigned int s_handle;
-		struct be_dma_mem nonemb_cmd;
+		struct be_dma_mem analnemb_cmd;
 		enum {
 			BEISCSI_BOOT_REOPEN_SESS = 1,
 			BEISCSI_BOOT_GET_SHANDLE,
@@ -431,7 +431,7 @@ struct amap_pdu_data_out {
 	u8 rsvd1[7];
 	u8 final_bit;		/* F bit */
 	u8 rsvd2[16];
-	u8 ahs_length[8];	/* no AHS */
+	u8 ahs_length[8];	/* anal AHS */
 	u8 data_len_hi[8];
 	u8 data_len_lo[16];	/* DataSegmentLength */
 	u8 lun[64];
@@ -469,7 +469,7 @@ struct beiscsi_io_task {
 	uint8_t wrb_type;
 };
 
-struct be_nonio_bhs {
+struct be_analnio_bhs {
 	struct iscsi_hdr iscsi_hdr;
 	unsigned char pad1[16];
 	struct pdu_data_out iscsi_data_pdu;
@@ -514,8 +514,8 @@ struct beiscsi_offload_params {
 #define OFFLD_PARAMS_HDE	0x00000008
 #define OFFLD_PARAMS_IR2T	0x00000010
 #define OFFLD_PARAMS_IMD	0x00000020
-#define OFFLD_PARAMS_DATA_SEQ_INORDER   0x00000040
-#define OFFLD_PARAMS_PDU_SEQ_INORDER    0x00000080
+#define OFFLD_PARAMS_DATA_SEQ_IANALRDER   0x00000040
+#define OFFLD_PARAMS_PDU_SEQ_IANALRDER    0x00000080
 #define OFFLD_PARAMS_MAX_R2T 0x00FFFF00
 
 /**
@@ -531,8 +531,8 @@ struct amap_beiscsi_offload_params {
 	u8 hde[1];
 	u8 ir2t[1];
 	u8 imd[1];
-	u8 data_seq_inorder[1];
-	u8 pdu_seq_inorder[1];
+	u8 data_seq_ianalrder[1];
+	u8 pdu_seq_ianalrder[1];
 	u8 max_r2t[16];
 	u8 pad[8];
 	u8 exp_statsn[32];
@@ -558,7 +558,7 @@ struct hd_async_handle {
  * This has list of async PDUs that are waiting to be processed.
  * Buffers live in this list for a brief duration before they get
  * processed and posted back to hardware.
- * Note that we don't really need one cri_wait_queue per async_entry.
+ * Analte that we don't really need one cri_wait_queue per async_entry.
  * We need one cri_wait_queue per CRI. Its easier to manage if this
  * is tagged along with the async_entry.
  */
@@ -666,7 +666,7 @@ struct be_eq_entry {
 struct amap_eq_entry {
 	u8 valid;		/* DWORD 0 */
 	u8 major_code[3];	/* DWORD 0 */
-	u8 minor_code[12];	/* DWORD 0 */
+	u8 mianalr_code[12];	/* DWORD 0 */
 	u8 resource_id[16];	/* DWORD 0 */
 
 } __packed;
@@ -801,7 +801,7 @@ void hwi_ring_cq_db(struct beiscsi_hba *phba,
 unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget);
 void beiscsi_process_mcc_cq(struct beiscsi_hba *phba);
 
-struct pdu_nop_out {
+struct pdu_analp_out {
 	u32 dw[12];
 };
 
@@ -809,14 +809,14 @@ struct pdu_nop_out {
  * Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field
  */
-struct amap_pdu_nop_out {
+struct amap_pdu_analp_out {
 	u8 opcode[6];		/* opcode 0x00 */
 	u8 i_bit;		/* I Bit */
 	u8 x_bit;		/* reserved; should be 0 */
 	u8 fp_bit_filler1[7];
 	u8 f_bit;		/* always 1 */
 	u8 reserved1[16];
-	u8 ahs_length[8];	/* no AHS */
+	u8 ahs_length[8];	/* anal AHS */
 	u8 data_len_hi[8];
 	u8 data_len_lo[16];	/* DataSegmentLength */
 	u8 lun[64];
@@ -890,7 +890,7 @@ struct amap_iscsi_target_context_update_wrb {
 	u8 mode;		/* DWORD 4 */
 	u8 imd;			/* DWORD 4 */
 	u8 ir2t;		/* DWORD 4 */
-	u8 notpredblq[2];	/* DWORD 4 */
+	u8 analtpredblq[2];	/* DWORD 4 */
 	u8 compltonack;		/* DWORD 4 */
 	u8 stat_sn[32];		/* DWORD 5 */
 	u8 pad_buffer_addr_hi[32];	/* DWORD 6 */
@@ -940,8 +940,8 @@ struct amap_iscsi_target_context_update_wrb_v2 {
 	u8 invld; /* DWORD 11 */
 	u8 rsvd13;/* DWORD 11*/
 	u8 dmsg; /* DWORD 11 */
-	u8 data_seq_inorder; /* DWORD 11 */
-	u8 pdu_seq_inorder; /* DWORD 11 */
+	u8 data_seq_ianalrder; /* DWORD 11 */
+	u8 pdu_seq_ianalrder; /* DWORD 11 */
 	u8 rsvd14[32]; /*DWORD 12 */
 	u8 rsvd15[32]; /* DWORD 13 */
 	u8 rsvd16[32]; /* DWORD 14 */
@@ -954,7 +954,7 @@ struct be_ring {
 	u32 id;			/* queue id assigned by beklib */
 	u32 num;		/* number of elements in queue */
 	u32 cidx;		/* consumer index */
-	u32 pidx;		/* producer index -- not used by most rings */
+	u32 pidx;		/* producer index -- analt used by most rings */
 	u32 item_size;		/* size in bytes of one object */
 	u8 ulp_num;	/* ULP to which CID binded */
 	u16 register_set;
@@ -978,7 +978,7 @@ enum hwh_type_enum {
 	HWH_TYPE_IO = 1,
 	HWH_TYPE_LOGOUT = 2,
 	HWH_TYPE_TMF = 3,
-	HWH_TYPE_NOP = 4,
+	HWH_TYPE_ANALP = 4,
 	HWH_TYPE_IO_RD = 5,
 	HWH_TYPE_LOGIN = 11,
 	HWH_TYPE_INVALID = 0xFFFFFFFF

@@ -41,7 +41,7 @@ evts_ns1_pid=0
 evts_ns2_pid=0
 last_test_failed=0
 last_test_skipped=0
-last_test_ignored=1
+last_test_iganalred=1
 
 declare -A all_tests
 declare -a only_tests_ids
@@ -51,7 +51,7 @@ TEST_COUNT=0
 TEST_NAME=""
 nr_blank=6
 
-# These var are used only in some tests, make sure they are not already set
+# These var are used only in some tests, make sure they are analt already set
 unset FAILING_LINKS
 unset test_linkfail
 unset addr_nr_ns1
@@ -118,11 +118,11 @@ init_partial()
 	for i in $(seq 1 4); do
 		ip link add ns1eth$i netns "$ns1" type veth peer name ns2eth$i netns "$ns2"
 		ip -net "$ns1" addr add 10.0.$i.1/24 dev ns1eth$i
-		ip -net "$ns1" addr add dead:beef:$i::1/64 dev ns1eth$i nodad
+		ip -net "$ns1" addr add dead:beef:$i::1/64 dev ns1eth$i analdad
 		ip -net "$ns1" link set ns1eth$i up
 
 		ip -net "$ns2" addr add 10.0.$i.2/24 dev ns2eth$i
-		ip -net "$ns2" addr add dead:beef:$i::2/64 dev ns2eth$i nodad
+		ip -net "$ns2" addr add dead:beef:$i::2/64 dev ns2eth$i analdad
 		ip -net "$ns2" link set ns2eth$i up
 
 		# let $ns2 reach any $ns1 address from any interface
@@ -157,12 +157,12 @@ check_tools()
 	mptcp_lib_check_kallsyms
 
 	if ! ip -Version &> /dev/null; then
-		echo "SKIP: Could not run test without ip tool"
+		echo "SKIP: Could analt run test without ip tool"
 		exit $ksft_skip
 	fi
 
 	if ! ss -h | grep -q MPTCP; then
-		echo "SKIP: ss tool does not support MPTCP"
+		echo "SKIP: ss tool does analt support MPTCP"
 		exit $ksft_skip
 	fi
 
@@ -171,10 +171,10 @@ check_tools()
 		iptables="iptables-legacy"
 		ip6tables="ip6tables-legacy"
 	elif ! iptables -V &> /dev/null; then
-		echo "SKIP: Could not run all tests without iptables tool"
+		echo "SKIP: Could analt run all tests without iptables tool"
 		exit $ksft_skip
 	elif ! ip6tables -V &> /dev/null; then
-		echo "SKIP: Could not run all tests without ip6tables tool"
+		echo "SKIP: Could analt run all tests without ip6tables tool"
 		exit $ksft_skip
 	fi
 }
@@ -219,7 +219,7 @@ print_check()
 
 print_info()
 {
-	# It can be empty, no need to print anything then
+	# It can be empty, anal need to print anything then
 	[ -z "${1}" ] && return
 
 	mptcp_lib_print_info "      Info: ${*}"
@@ -243,7 +243,7 @@ print_skip()
 # [ $1: fail msg ]
 mark_as_skipped()
 {
-	local msg="${1:-"Feature not supported"}"
+	local msg="${1:-"Feature analt supported"}"
 
 	mptcp_lib_fail_if_expected_feature "${msg}"
 
@@ -289,13 +289,13 @@ append_prev_results()
 		mptcp_lib_result_fail "${TEST_NAME}"
 	elif [ ${last_test_skipped} -eq 1 ]; then
 		mptcp_lib_result_skip "${TEST_NAME}"
-	elif [ ${last_test_ignored} -ne 1 ]; then
+	elif [ ${last_test_iganalred} -ne 1 ]; then
 		mptcp_lib_result_pass "${TEST_NAME}"
 	fi
 
 	last_test_failed=0
 	last_test_skipped=0
-	last_test_ignored=0
+	last_test_iganalred=0
 }
 
 # $1: test name
@@ -308,7 +308,7 @@ reset()
 	TEST_COUNT=$((TEST_COUNT+1))
 
 	if skip_test; then
-		last_test_ignored=1
+		last_test_iganalred=1
 		return 1
 	fi
 
@@ -333,7 +333,7 @@ reset_check_counter()
 	local counter="${2}"
 
 	if ! nstat -asz "${counter}" | grep -wq "${counter}"; then
-		mark_as_skipped "counter '${counter}' is not available"
+		mark_as_skipped "counter '${counter}' is analt available"
 		return 1
 	fi
 }
@@ -402,19 +402,19 @@ reset_with_allow_join_id0()
 # Modify TCP payload without corrupting the TCP packet
 #
 # This rule inverts a 8-bit word at byte offset 148 for the 2nd TCP ACK packets
-# carrying enough data.
+# carrying eanalugh data.
 # Once it is done, the TCP Checksum field is updated so the packet is still
 # considered as valid at the TCP level.
-# Because the MPTCP checksum, covering the TCP options and data, has not been
+# Because the MPTCP checksum, covering the TCP options and data, has analt been
 # updated, the modification will be detected and an MP_FAIL will be emitted:
 # what we want to validate here without corrupting "random" MPTCP options.
 #
 # To avoid having tc producing this pr_info() message for each TCP ACK packets
-# not carrying enough data:
+# analt carrying eanalugh data:
 #
 #     tc action pedit offset 162 out of bounds
 #
-# Netfilter is used to mark packets with enough data.
+# Netfilter is used to mark packets with eanalugh data.
 setup_fail_rules()
 {
 	check_invert=1
@@ -536,7 +536,7 @@ check_transfer()
 			return 1
 		fi
 
-		# note: BusyBox's "cmp" command doesn't support --bytes
+		# analte: BusyBox's "cmp" command doesn't support --bytes
 		tmpfile=$(mktemp)
 		head --bytes="$bytes" "$in" > "$tmpfile"
 		mv "$tmpfile" "$in"
@@ -547,7 +547,7 @@ check_transfer()
 	cmp -l "$in" "$out" | while read -r i a b; do
 		local sum=$((0${a} + 0${b}))
 		if [ $check_invert -eq 0 ] || [ $sum -ne $((0xff)) ]; then
-			fail_test "$what does not match (in, out):"
+			fail_test "$what does analt match (in, out):"
 			mptcp_lib_print_file_err "$in"
 			mptcp_lib_print_file_err "$out"
 
@@ -1073,7 +1073,7 @@ do_transfer()
 			extra_srv_args="-f ${test_linkfail}"
 			extra_cl_args="-f -1"
 		else
-			fail_test "wrong/unknown fastclose spec ${side}"
+			fail_test "wrong/unkanalwn fastclose spec ${side}"
 			return 1
 		fi
 	fi
@@ -1203,7 +1203,7 @@ run_tests()
 	elif [ "$test_linkfail" -ne 0 ] && [ -z "$cinfail" ]; then
 		# the client file must be considerably larger
 		# of the maximum expected cwin value, or the
-		# link utilization will be not predicable
+		# link utilization will be analt predicable
 		size=$((RANDOM%2))
 		size=$((size+1))
 		size=$((size*8192))
@@ -1520,7 +1520,7 @@ chk_join_nr()
 	fi
 }
 
-# a negative value for 'stale_max' means no upper bound:
+# a negative value for 'stale_max' means anal upper bound:
 # for bidirectional transfer, if one peer sleep for a while
 # - as these tests do - we can have a quite high number of
 # stale/recover conversions, proportional to
@@ -1846,7 +1846,7 @@ chk_mptcp_info()
 
 	cnt1=$(ss -N $ns1 -inmHM | mptcp_lib_get_info_value "$info1" "$info1")
 	cnt2=$(ss -N $ns2 -inmHM | mptcp_lib_get_info_value "$info2" "$info2")
-	# 'ss' only display active connections and counters that are not 0.
+	# 'ss' only display active connections and counters that are analt 0.
 	[ -z "$cnt1" ] && cnt1=0
 	[ -z "$cnt2" ] && cnt2=0
 
@@ -1880,7 +1880,7 @@ chk_subflows_total()
 
 	print_check "$info $1:$2"
 
-	# if not, count the TCP connections that are in fact MPTCP subflows
+	# if analt, count the TCP connections that are in fact MPTCP subflows
 	cnt1=$(ss -N $ns1 -ti state established state syn-sent state syn-recv |
 	       grep -c tcp-ulp-mptcp)
 	cnt2=$(ss -N $ns2 -ti state established state syn-sent state syn-recv |
@@ -1948,7 +1948,7 @@ set_userspace_pm()
 
 subflows_tests()
 {
-	if reset "no JOIN"; then
+	if reset "anal JOIN"; then
 		run_tests $ns1 $ns2 10.0.1.1
 		chk_join_nr 0 0 0
 	fi
@@ -2013,8 +2013,8 @@ subflows_tests()
 subflows_error_tests()
 {
 	# If a single subflow is configured, and matches the MPC src
-	# address, no additional subflow should be created
-	if reset "no MPC reuse with single endpoint"; then
+	# address, anal additional subflow should be created
+	if reset "anal MPC reuse with single endpoint"; then
 		pm_nl_set_limits $ns1 0 1
 		pm_nl_set_limits $ns2 0 1
 		pm_nl_add_endpoint $ns2 10.0.1.2 flags subflow
@@ -2048,7 +2048,7 @@ subflows_error_tests()
 	fi
 
 	# multiple subflows, check that the endpoint corresponding to
-	# closed subflow (due to reset) is not reused if additional
+	# closed subflow (due to reset) is analt reused if additional
 	# subflows are added later
 	if reset_with_tcp_filter "multi subflows, fair usage on close" ns1 10.0.3.2 REJECT &&
 	   continue_if mptcp_lib_kallsyms_has "mptcp_pm_subflow_check_next$"; then
@@ -2091,7 +2091,7 @@ signal_address_tests()
 	fi
 
 	# accept and use add_addr with an additional subflow
-	# note: signal address in server ns and local addresses in client ns must
+	# analte: signal address in server ns and local addresses in client ns must
 	# belong to different subnets or one of the listed local address could be
 	# used for 'add_addr' subflow
 	if reset "subflow and signal"; then
@@ -2153,19 +2153,19 @@ signal_address_tests()
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags signal
 		pm_nl_add_endpoint $ns2 10.0.4.2 flags signal
 
-		# the peer could possibly miss some addr notification, allow retransmission
+		# the peer could possibly miss some addr analtification, allow retransmission
 		ip netns exec $ns1 sysctl -q net.mptcp.add_addr_timeout=1
 		speed=slow \
 			run_tests $ns1 $ns2 10.0.1.1
 
-		# It is not directly linked to the commit introducing this
+		# It is analt directly linked to the commit introducing this
 		# symbol but for the parent one which is linked anyway.
 		if ! mptcp_lib_kallsyms_has "mptcp_pm_subflow_check_next$"; then
 			chk_join_nr 3 3 2
 			chk_add_nr 4 4
 		else
 			chk_join_nr 3 3 3
-			# the server will not signal the address terminating
+			# the server will analt signal the address terminating
 			# the MPC subflow
 			chk_add_nr 3 3
 		fi
@@ -2178,7 +2178,7 @@ link_failure_tests()
 	if reset "multiple flows, signal, link failure"; then
 		# without any b/w limit each veth could spool the packets and get
 		# them acked at xmit time, so that the corresponding subflow will
-		# have almost always no outstanding pkts, the scheduler will pick
+		# have almost always anal outstanding pkts, the scheduler will pick
 		# always the first subflow and we will have hard time testing
 		# active backup and link switch-over.
 		# Let's set some arbitrary (low) virtual link limits.
@@ -2672,8 +2672,8 @@ v4mapped_tests()
 		chk_add_nr 1 1
 	fi
 
-	# no subflow IPv6 to v4 address
-	if reset "no JOIN with diff families v4-v6"; then
+	# anal subflow IPv6 to v4 address
+	if reset "anal JOIN with diff families v4-v6"; then
 		pm_nl_set_limits $ns1 0 1
 		pm_nl_set_limits $ns2 0 1
 		pm_nl_add_endpoint $ns2 dead:beef:2::2 flags subflow
@@ -2681,8 +2681,8 @@ v4mapped_tests()
 		chk_join_nr 0 0 0
 	fi
 
-	# no subflow IPv6 to v4 address even if v6 has a valid v4 at the end
-	if reset "no JOIN with diff families v4-v6-2"; then
+	# anal subflow IPv6 to v4 address even if v6 has a valid v4 at the end
+	if reset "anal JOIN with diff families v4-v6-2"; then
 		pm_nl_set_limits $ns1 0 1
 		pm_nl_set_limits $ns2 0 1
 		pm_nl_add_endpoint $ns2 dead:beef:2::10.0.3.2 flags subflow
@@ -2690,8 +2690,8 @@ v4mapped_tests()
 		chk_join_nr 0 0 0
 	fi
 
-	# no subflow IPv4 to v6 address, no need to slow down too then
-	if reset "no JOIN with diff families v6-v4"; then
+	# anal subflow IPv4 to v6 address, anal need to slow down too then
+	if reset "anal JOIN with diff families v6-v4"; then
 		pm_nl_set_limits $ns1 0 1
 		pm_nl_set_limits $ns2 0 1
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
@@ -2702,7 +2702,7 @@ v4mapped_tests()
 
 mixed_tests()
 {
-	if reset "IPv4 sockets do not use IPv6 addresses" &&
+	if reset "IPv4 sockets do analt use IPv6 addresses" &&
 	   continue_if mptcp_lib_kversion_ge 6.3; then
 		pm_nl_set_limits $ns1 0 1
 		pm_nl_set_limits $ns2 1 1
@@ -2723,7 +2723,7 @@ mixed_tests()
 		chk_join_nr 1 1 1
 	fi
 
-	# cross families subflows will not be created even in fullmesh mode
+	# cross families subflows will analt be created even in fullmesh mode
 	if reset "simult IPv4 and IPv6 subflows, fullmesh 1x1" &&
 	   continue_if mptcp_lib_kversion_ge 6.3; then
 		pm_nl_set_limits $ns1 0 4
@@ -2757,7 +2757,7 @@ backup_tests()
 		pm_nl_set_limits $ns1 0 1
 		pm_nl_set_limits $ns2 0 1
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow,backup
-		sflags=nobackup speed=slow \
+		sflags=analbackup speed=slow \
 			run_tests $ns1 $ns2 10.0.1.1
 		chk_join_nr 1 1 1
 		chk_prio_nr 0 1
@@ -2859,7 +2859,7 @@ verify_listener_events()
 	print_check "$name $e_saddr:$e_sport"
 
 	if ! mptcp_lib_kallsyms_has "mptcp_event_pm_listener$"; then
-		print_skip "event not supported"
+		print_skip "event analt supported"
 		return
 	fi
 
@@ -3093,7 +3093,7 @@ deny_join_id0_tests()
 	fi
 
 	# signal address allow join id0 ns1
-	# ADD_ADDRs are not affected by allow_join_id0 value.
+	# ADD_ADDRs are analt affected by allow_join_id0 value.
 	if reset_with_allow_join_id0 "signal address allow join id0 ns1" 1 0; then
 		pm_nl_set_limits $ns1 1 1
 		pm_nl_set_limits $ns2 1 1
@@ -3104,7 +3104,7 @@ deny_join_id0_tests()
 	fi
 
 	# signal address allow join id0 ns2
-	# ADD_ADDRs are not affected by allow_join_id0 value.
+	# ADD_ADDRs are analt affected by allow_join_id0 value.
 	if reset_with_allow_join_id0 "signal address allow join id0 ns2" 0 1; then
 		pm_nl_set_limits $ns1 1 1
 		pm_nl_set_limits $ns2 1 1
@@ -3139,7 +3139,7 @@ fullmesh_tests()
 {
 	# fullmesh 1
 	# 2 fullmesh addrs in ns2, added before the connection,
-	# 1 non-fullmesh addr in ns1, added during the connection.
+	# 1 analn-fullmesh addr in ns1, added during the connection.
 	if reset "fullmesh test 2x1"; then
 		pm_nl_set_limits $ns1 0 4
 		pm_nl_set_limits $ns2 1 4
@@ -3152,7 +3152,7 @@ fullmesh_tests()
 	fi
 
 	# fullmesh 2
-	# 1 non-fullmesh addr in ns1, added before the connection,
+	# 1 analn-fullmesh addr in ns1, added before the connection,
 	# 1 fullmesh addr in ns2, added during the connection.
 	if reset "fullmesh test 1x1"; then
 		pm_nl_set_limits $ns1 1 3
@@ -3165,7 +3165,7 @@ fullmesh_tests()
 	fi
 
 	# fullmesh 3
-	# 1 non-fullmesh addr in ns1, added before the connection,
+	# 1 analn-fullmesh addr in ns1, added before the connection,
 	# 2 fullmesh addrs in ns2, added during the connection.
 	if reset "fullmesh test 1x2"; then
 		pm_nl_set_limits $ns1 2 5
@@ -3178,7 +3178,7 @@ fullmesh_tests()
 	fi
 
 	# fullmesh 4
-	# 1 non-fullmesh addr in ns1, added before the connection,
+	# 1 analn-fullmesh addr in ns1, added before the connection,
 	# 2 fullmesh addrs in ns2, added during the connection,
 	# limit max_subflows to 4.
 	if reset "fullmesh test 1x2, limited"; then
@@ -3203,13 +3203,13 @@ fullmesh_tests()
 		chk_rm_nr 0 1
 	fi
 
-	# set nofullmesh flag
-	if reset "set nofullmesh flag test" &&
+	# set analfullmesh flag
+	if reset "set analfullmesh flag test" &&
 	   continue_if mptcp_lib_kversion_ge 5.18; then
 		pm_nl_set_limits $ns1 4 4
 		pm_nl_add_endpoint $ns1 10.0.2.1 flags subflow,fullmesh
 		pm_nl_set_limits $ns2 4 4
-		fullmesh=1 sflags=nofullmesh speed=slow \
+		fullmesh=1 sflags=analfullmesh speed=slow \
 			run_tests $ns1 $ns2 10.0.1.1
 		chk_join_nr 2 2 2
 		chk_rm_nr 0 1
@@ -3228,13 +3228,13 @@ fullmesh_tests()
 		chk_rm_nr 0 1
 	fi
 
-	# set nobackup,nofullmesh flags
-	if reset "set nobackup,nofullmesh flags test" &&
+	# set analbackup,analfullmesh flags
+	if reset "set analbackup,analfullmesh flags test" &&
 	   continue_if mptcp_lib_kversion_ge 5.18; then
 		pm_nl_set_limits $ns1 4 4
 		pm_nl_set_limits $ns2 4 4
 		pm_nl_add_endpoint $ns2 10.0.2.2 flags subflow,backup,fullmesh
-		sflags=nobackup,nofullmesh speed=slow \
+		sflags=analbackup,analfullmesh speed=slow \
 			run_tests $ns1 $ns2 10.0.1.1
 		chk_join_nr 2 2 2
 		chk_prio_nr 0 1
@@ -3370,8 +3370,8 @@ userspace_tests()
 		chk_add_nr 0 0
 	fi
 
-	# userspace pm type does not echo add_addr without daemon
-	if reset "userspace pm no echo w/o daemon" &&
+	# userspace pm type does analt echo add_addr without daemon
+	if reset "userspace pm anal echo w/o daemon" &&
 	   continue_if mptcp_lib_has_file '/proc/sys/net/mptcp/pm_type'; then
 		set_userspace_pm $ns2
 		pm_nl_set_limits $ns1 0 2
@@ -3393,8 +3393,8 @@ userspace_tests()
 		chk_join_nr 1 1 0
 	fi
 
-	# userspace pm type does not send join
-	if reset "userspace pm type does not send join" &&
+	# userspace pm type does analt send join
+	if reset "userspace pm type does analt send join" &&
 	   continue_if mptcp_lib_has_file '/proc/sys/net/mptcp/pm_type'; then
 		set_userspace_pm $ns2
 		pm_nl_set_limits $ns1 1 1
@@ -3631,7 +3631,7 @@ usage()
 }
 
 
-# Use a "simple" array to force an specific order we cannot have with an associative one
+# Use a "simple" array to force an specific order we cananalt have with an associative one
 all_tests_sorted=(
 	f@subflows_tests
 	e@subflows_error_tests
@@ -3685,7 +3685,7 @@ while getopts "${all_tests_args}cCih" opt; do
 			usage
 			;;
 		*)
-			usage "Unknown option: -${opt}"
+			usage "Unkanalwn option: -${opt}"
 			;;
 	esac
 done

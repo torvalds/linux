@@ -241,13 +241,13 @@ static void mctp_test_rx_input(struct kunit *test)
 	params = test->param_value;
 
 	dev = mctp_test_create_dev();
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	rt = mctp_test_create_route(&init_net, dev->mdev, 8, 68);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, rt);
 
 	skb = mctp_test_create_skb(&params->hdr, 1);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, skb);
 
 	__mctp_cb(skb);
 
@@ -265,7 +265,7 @@ static void mctp_test_rx_input(struct kunit *test)
 /* we have a route for EID 8 only */
 static const struct mctp_rx_input_test mctp_rx_input_tests[] = {
 	{ .hdr = RX_HDR(1, 10, 8, 0), .input = true },
-	{ .hdr = RX_HDR(1, 10, 9, 0), .input = false }, /* no input route */
+	{ .hdr = RX_HDR(1, 10, 9, 0), .input = false }, /* anal input route */
 	{ .hdr = RX_HDR(2, 10, 8, 0), .input = false }, /* invalid version */
 };
 
@@ -292,10 +292,10 @@ static void __mctp_route_test_init(struct kunit *test,
 	int rc;
 
 	dev = mctp_test_create_dev();
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	rt = mctp_test_create_route(&init_net, dev->mdev, 8, 68);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, rt);
 
 	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
 	KUNIT_ASSERT_EQ(test, rc, 0);
@@ -342,7 +342,7 @@ static void mctp_test_route_input_sk(struct kunit *test)
 	__mctp_route_test_init(test, &dev, &rt, &sock);
 
 	skb = mctp_test_create_skb_data(&params->hdr, &params->type);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, skb);
 
 	skb->dev = dev->ndev;
 	__mctp_cb(skb);
@@ -353,7 +353,7 @@ static void mctp_test_route_input_sk(struct kunit *test)
 		KUNIT_EXPECT_EQ(test, rc, 0);
 
 		skb2 = skb_recv_datagram(sock->sk, MSG_DONTWAIT, &rc);
-		KUNIT_EXPECT_NOT_ERR_OR_NULL(test, skb2);
+		KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, skb2);
 		KUNIT_EXPECT_EQ(test, skb->len, 1);
 
 		skb_free_datagram(sock->sk, skb2);
@@ -415,7 +415,7 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 	for (i = 0; i < params->n_hdrs; i++) {
 		c = i;
 		skb = mctp_test_create_skb_data(&params->hdrs[i], &c);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, skb);
 
 		skb->dev = dev->ndev;
 		__mctp_cb(skb);
@@ -426,7 +426,7 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 	skb2 = skb_recv_datagram(sock->sk, MSG_DONTWAIT, &rc);
 
 	if (params->rx_len) {
-		KUNIT_EXPECT_NOT_ERR_OR_NULL(test, skb2);
+		KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, skb2);
 		KUNIT_EXPECT_EQ(test, skb2->len, params->rx_len);
 		skb_free_datagram(sock->sk, skb2);
 
@@ -550,10 +550,10 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	params = test->param_value;
 
 	dev = mctp_test_create_dev();
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	rt = mctp_test_create_route(&init_net, dev->mdev, 8, 68);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, rt);
 
 	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
 	KUNIT_ASSERT_EQ(test, rc, 0);
@@ -565,7 +565,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	key = mctp_key_alloc(msk, params->key_local_addr, params->key_peer_addr,
 			     params->key_tag, GFP_KERNEL);
 
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, key);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, key);
 
 	spin_lock_irqsave(&mns->keys_lock, flags);
 	mctp_reserve_tag(&init_net, key, msk);
@@ -574,7 +574,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	/* create packet and route */
 	c = 0;
 	skb = mctp_test_create_skb_data(&params->hdr, &c);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, skb);
 
 	skb->dev = dev->ndev;
 	__mctp_cb(skb);
@@ -585,7 +585,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	skb2 = skb_recv_datagram(sock->sk, MSG_DONTWAIT, &rc);
 
 	if (params->deliver)
-		KUNIT_EXPECT_NOT_ERR_OR_NULL(test, skb2);
+		KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, skb2);
 	else
 		KUNIT_EXPECT_PTR_EQ(test, skb2, NULL);
 

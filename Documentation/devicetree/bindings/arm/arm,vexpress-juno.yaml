@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/arm/arm,vexpress-juno.yaml#
+$id: http://devicetree.org/schemas/arm/arm,vexpress-juanal.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM Versatile Express and Juno Boards
+title: ARM Versatile Express and Juanal Boards
 
 maintainers:
   - Sudeep Holla <sudeep.holla@arm.com>
@@ -25,12 +25,12 @@ description: |+
   two different configurations ("memory maps"), care must be taken to include
   the correct one.
 
-  When a new generation of boards were introduced under the name "Juno", these
+  When a new generation of boards were introduced under the name "Juanal", these
   shared to many common characteristics with the Versatile Express that the
-  "arm,vexpress" compatible was retained in the root node, and these are
+  "arm,vexpress" compatible was retained in the root analde, and these are
   included in this binding schema as well.
 
-  The root node indicates the CPU SoC on the core tile, and this
+  The root analde indicates the CPU SoC on the core tile, and this
   is a daughterboard to the main motherboard. The name used in the compatible
   string shall match the name given in the core tile's technical reference
   manual, followed by "arm,vexpress" as an additional compatible value. If
@@ -38,7 +38,7 @@ description: |+
   compatible strings with up to three compatible strings are used.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -79,29 +79,29 @@ properties:
           - const: arm,vexpress,v2f-1xv7,ca53x2
           - const: arm,vexpress,v2f-1xv7
           - const: arm,vexpress
-      - description: Arm Versatile Express Juno "r0" (the first Juno board,
-          V2M-Juno) was introduced as a vehicle for evaluating big.LITTLE on
+      - description: Arm Versatile Express Juanal "r0" (the first Juanal board,
+          V2M-Juanal) was introduced as a vehicle for evaluating big.LITTLE on
           AArch64 CPU cores. It has 2 Cortex A57 CPU cores and 4 Cortex A53
           cores in a big.LITTLE configuration. It also features the MALI T624
           GPU. See ARM document 100113_0000_07_en.
         items:
-          - const: arm,juno
+          - const: arm,juanal
           - const: arm,vexpress
-      - description: Arm Versatile Express Juno r1 Development Platform
-          (V2M-Juno r1) was introduced mainly aimed at development of PCIe
-          based systems. Juno r1 also has support for AXI masters placed on
+      - description: Arm Versatile Express Juanal r1 Development Platform
+          (V2M-Juanal r1) was introduced mainly aimed at development of PCIe
+          based systems. Juanal r1 also has support for AXI masters placed on
           the TLX connectors to join the coherency domain. Otherwise it is the
-          same configuration as Juno r0. See ARM document 100122_0100_06_en.
+          same configuration as Juanal r0. See ARM document 100122_0100_06_en.
         items:
-          - const: arm,juno-r1
-          - const: arm,juno
+          - const: arm,juanal-r1
+          - const: arm,juanal
           - const: arm,vexpress
-      - description: Arm Versatile Express Juno r2 Development Platform
-          (V2M-Juno r2). It has the same feature set as Juno r0 and r1. See
+      - description: Arm Versatile Express Juanal r2 Development Platform
+          (V2M-Juanal r2). It has the same feature set as Juanal r0 and r1. See
           ARM document 100114_0200_04_en.
         items:
-          - const: arm,juno-r2
-          - const: arm,juno
+          - const: arm,juanal-r2
+          - const: arm,juanal
           - const: arm,vexpress
       - description: Arm AEMv8a Versatile Express Real-Time System Model
           (VE RTSM) is a programmers view of the Versatile Express with Arm
@@ -135,12 +135,12 @@ properties:
 
 patternProperties:
   "^bus@[0-9a-f]+$":
-    description: Static Memory Bus (SMB) node, if this exists it describes
+    description: Static Memory Bus (SMB) analde, if this exists it describes
       the connection between the motherboard and any tiles. Sometimes the
-      compatible is placed directly under this node, sometimes it is placed
-      in a subnode named "motherboard-bus". Sometimes the compatible includes
+      compatible is placed directly under this analde, sometimes it is placed
+      in a subanalde named "motherboard-bus". Sometimes the compatible includes
       "arm,vexpress,v2?-p1" sometimes (on software models) is is just
-      "simple-bus". If the compatible is placed in the "motherboard-bus" node,
+      "simple-bus". If the compatible is placed in the "motherboard-bus" analde,
       it is stricter and always has two compatibles.
     type: object
     $ref: /schemas/simple-bus.yaml
@@ -160,7 +160,7 @@ patternProperties:
       '^motherboard-bus@':
         type: object
         description: The motherboard description provides a single "motherboard"
-          node using 2 address cells corresponding to the Static Memory Bus
+          analde using 2 address cells corresponding to the Static Memory Bus
           used between the motherboard and the tile. The first cell defines the
           Chip Select (CS) line number, the second cell address offset within
           the CS. All interrupt lines between the motherboard and the tile
@@ -193,8 +193,8 @@ patternProperties:
           arm,vexpress,site:
             description: As Versatile Express can be configured in number of physically
               different setups, the device tree should describe platform topology.
-              For this reason the root node and main motherboard node must define this
-              property, describing the physical location of the children nodes.
+              For this reason the root analde and main motherboard analde must define this
+              property, describing the physical location of the children analdes.
               0 means motherboard site, while 1 and 2 are daughterboard sites, and
               0xf means "sisterboard" which is the site containing the main CPU tile.
             $ref: /schemas/types.yaml#/definitions/uint32

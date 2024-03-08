@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * FS_IOC_FIEMAP ioctl infrastructure.
  *
@@ -46,22 +46,22 @@ struct fiemap {
 #define FIEMAP_FLAGS_COMPAT	(FIEMAP_FLAG_SYNC | FIEMAP_FLAG_XATTR)
 
 #define FIEMAP_EXTENT_LAST		0x00000001 /* Last extent in file. */
-#define FIEMAP_EXTENT_UNKNOWN		0x00000002 /* Data location unknown. */
+#define FIEMAP_EXTENT_UNKANALWN		0x00000002 /* Data location unkanalwn. */
 #define FIEMAP_EXTENT_DELALLOC		0x00000004 /* Location still pending.
-						    * Sets EXTENT_UNKNOWN. */
-#define FIEMAP_EXTENT_ENCODED		0x00000008 /* Data can not be read
+						    * Sets EXTENT_UNKANALWN. */
+#define FIEMAP_EXTENT_ENCODED		0x00000008 /* Data can analt be read
 						    * while fs is unmounted */
 #define FIEMAP_EXTENT_DATA_ENCRYPTED	0x00000080 /* Data is encrypted by fs.
-						    * Sets EXTENT_NO_BYPASS. */
-#define FIEMAP_EXTENT_NOT_ALIGNED	0x00000100 /* Extent offsets may not be
+						    * Sets EXTENT_ANAL_BYPASS. */
+#define FIEMAP_EXTENT_ANALT_ALIGNED	0x00000100 /* Extent offsets may analt be
 						    * block aligned. */
 #define FIEMAP_EXTENT_DATA_INLINE	0x00000200 /* Data mixed with metadata.
-						    * Sets EXTENT_NOT_ALIGNED.*/
+						    * Sets EXTENT_ANALT_ALIGNED.*/
 #define FIEMAP_EXTENT_DATA_TAIL		0x00000400 /* Multiple files in block.
-						    * Sets EXTENT_NOT_ALIGNED.*/
+						    * Sets EXTENT_ANALT_ALIGNED.*/
 #define FIEMAP_EXTENT_UNWRITTEN		0x00000800 /* Space allocated, but
-						    * no data (i.e. zero). */
-#define FIEMAP_EXTENT_MERGED		0x00001000 /* File does not natively
+						    * anal data (i.e. zero). */
+#define FIEMAP_EXTENT_MERGED		0x00001000 /* File does analt natively
 						    * support extents. Result
 						    * merged for efficiency. */
 #define FIEMAP_EXTENT_SHARED		0x00002000 /* Space shared with other

@@ -54,11 +54,11 @@ static int get_state(u32 *out, u8 instance)
 		return -EINVAL;
 
 	if (instance > 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = wmi_query_block(GUID, instance, &result);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	obj = (union acpi_object *) result.pointer;
 	if (obj && obj->type == ACPI_TYPE_INTEGER) {
@@ -78,7 +78,7 @@ static int get_state(u32 *out, u8 instance)
 		*out = (tmp == 1) ? 0 : 1;
 		return 0;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -92,7 +92,7 @@ static int set_state(u32 *in, u8 instance)
 		return -EINVAL;
 
 	if (instance > 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (instance) {
 	case TC1100_INSTANCE_WIRELESS:
@@ -102,7 +102,7 @@ static int set_state(u32 *in, u8 instance)
 		value = (*in) ? 0 : 1;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	input.length = sizeof(u32);
@@ -110,7 +110,7 @@ static int set_state(u32 *in, u8 instance)
 
 	status = wmi_set_block(GUID, instance, &input);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -229,11 +229,11 @@ static int __init tc1100_init(void)
 	int error;
 
 	if (!wmi_has_guid(GUID))
-		return -ENODEV;
+		return -EANALDEV;
 
-	tc1100_device = platform_device_alloc("tc1100-wmi", PLATFORM_DEVID_NONE);
+	tc1100_device = platform_device_alloc("tc1100-wmi", PLATFORM_DEVID_ANALNE);
 	if (!tc1100_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = platform_device_add(tc1100_device);
 	if (error)

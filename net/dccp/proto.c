@@ -48,7 +48,7 @@ EXPORT_PER_CPU_SYMBOL_GPL(dccp_orphan_count);
 struct inet_hashinfo dccp_hashinfo;
 EXPORT_SYMBOL_GPL(dccp_hashinfo);
 
-/* the maximum queue length for tx in packets. 0 is no limit */
+/* the maximum queue length for tx in packets. 0 is anal limit */
 int sysctl_dccp_tx_qlen __read_mostly = 5;
 
 #ifdef CONFIG_IP_DCCP_DEBUG
@@ -119,7 +119,7 @@ static void dccp_finish_passive_close(struct sock *sk)
 {
 	switch (sk->sk_state) {
 	case DCCP_PASSIVE_CLOSE:
-		/* Node (client or server) has received Close packet. */
+		/* Analde (client or server) has received Close packet. */
 		dccp_send_reset(sk, DCCP_RESET_CODE_CLOSED);
 		dccp_set_state(sk, DCCP_CLOSED);
 		break;
@@ -308,8 +308,8 @@ EXPORT_SYMBOL_GPL(dccp_disconnect);
 /*
  *	Wait for a DCCP event.
  *
- *	Note that we don't need to lock the socket, as the upper poll layers
- *	take care of normal races (between the test and the event) and we don't
+ *	Analte that we don't need to lock the socket, as the upper poll layers
+ *	take care of analrmal races (between the test and the event) and we don't
  *	go look at any of the socket buffers directly.
  */
 __poll_t dccp_poll(struct file *file, struct socket *sock,
@@ -326,9 +326,9 @@ __poll_t dccp_poll(struct file *file, struct socket *sock,
 	if (state == DCCP_LISTEN)
 		return inet_csk_listen_poll(sk);
 
-	/* Socket is not locked. We are protected from async events
+	/* Socket is analt locked. We are protected from async events
 	   by poll logic and correct handling of state changes
-	   made by another threads is impossible in any case.
+	   made by aanalther threads is impossible in any case.
 	 */
 
 	mask = 0;
@@ -339,26 +339,26 @@ __poll_t dccp_poll(struct file *file, struct socket *sock,
 	if (shutdown == SHUTDOWN_MASK || state == DCCP_CLOSED)
 		mask |= EPOLLHUP;
 	if (shutdown & RCV_SHUTDOWN)
-		mask |= EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
+		mask |= EPOLLIN | EPOLLRDANALRM | EPOLLRDHUP;
 
 	/* Connected? */
 	if ((1 << state) & ~(DCCPF_REQUESTING | DCCPF_RESPOND)) {
 		if (atomic_read(&sk->sk_rmem_alloc) > 0)
-			mask |= EPOLLIN | EPOLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDANALRM;
 
 		if (!(shutdown & SEND_SHUTDOWN)) {
 			if (sk_stream_is_writeable(sk)) {
-				mask |= EPOLLOUT | EPOLLWRNORM;
+				mask |= EPOLLOUT | EPOLLWRANALRM;
 			} else {  /* send SIGIO later */
-				sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
-				set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+				sk_set_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
+				set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 
 				/* Race breaker. If space is freed after
 				 * wspace test but before the flags are set,
 				 * IO signal will be lost.
 				 */
 				if (sk_stream_is_writeable(sk))
-					mask |= EPOLLOUT | EPOLLWRNORM;
+					mask |= EPOLLOUT | EPOLLWRANALRM;
 			}
 		}
 	}
@@ -368,7 +368,7 @@ EXPORT_SYMBOL_GPL(dccp_poll);
 
 int dccp_ioctl(struct sock *sk, int cmd, int *karg)
 {
-	int rc = -ENOTCONN;
+	int rc = -EANALTCONN;
 
 	lock_sock(sk);
 
@@ -378,7 +378,7 @@ int dccp_ioctl(struct sock *sk, int cmd, int *karg)
 	switch (cmd) {
 	case SIOCOUTQ: {
 		*karg = sk_wmem_alloc_get(sk);
-		/* Using sk_wmem_alloc here because sk_wmem_queued is not used by DCCP and
+		/* Using sk_wmem_alloc here because sk_wmem_queued is analt used by DCCP and
 		 * always 0, comparably to UDP.
 		 */
 
@@ -401,7 +401,7 @@ int dccp_ioctl(struct sock *sk, int cmd, int *karg)
 	}
 		break;
 	default:
-		rc = -ENOIOCTLCMD;
+		rc = -EANALIOCTLCMD;
 		break;
 	}
 out:
@@ -424,7 +424,7 @@ static int dccp_setsockopt_service(struct sock *sk, const __be32 service,
 	if (optlen > sizeof(service)) {
 		sl = kmalloc(optlen, GFP_KERNEL);
 		if (sl == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sl->dccpsl_nr = optlen / sizeof(u32) - 1;
 		if (copy_from_sockptr_offset(sl->dccpsl_list, optval,
@@ -464,7 +464,7 @@ static int dccp_setsockopt_cscov(struct sock *sk, int cscov, bool rx)
 
 	list = kmalloc(len, GFP_KERNEL);
 	if (list == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	for (i = 0; i < len; i++)
 		list[i] = cscov++;
@@ -539,7 +539,7 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case DCCP_SOCKOPT_SERVER_TIMEWAIT:
 		if (dp->dccps_role != DCCP_ROLE_SERVER)
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 		else
 			dp->dccps_server_timewait = (val != 0);
 		break;
@@ -564,7 +564,7 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 			dp->dccps_tx_qlen = val;
 		break;
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 	release_sock(sk);
@@ -590,7 +590,7 @@ static int dccp_getsockopt_service(struct sock *sk, int len,
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
 	const struct dccp_service_list *sl;
-	int err = -ENOENT, slen = 0, total_len = sizeof(u32);
+	int err = -EANALENT, slen = 0, total_len = sizeof(u32);
 
 	lock_sock(sk);
 	if ((sl = dp->dccps_service_list) != NULL) {
@@ -641,12 +641,12 @@ static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_TX_CCID:
 		val = ccid_get_current_tx_ccid(dp);
 		if (val < 0)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		break;
 	case DCCP_SOCKOPT_RX_CCID:
 		val = ccid_get_current_rx_ccid(dp);
 		if (val < 0)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		break;
 	case DCCP_SOCKOPT_SERVER_TIMEWAIT:
 		val = dp->dccps_server_timewait;
@@ -670,7 +670,7 @@ static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 		return ccid_hc_tx_getsockopt(dp->dccps_hc_tx_ccid, sk, optname,
 					     len, (u32 __user *)optval, optlen);
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	len = sizeof(val);
@@ -700,11 +700,11 @@ static int dccp_msghdr_parse(struct msghdr *msg, struct sk_buff *skb)
 	 * Assign an (opaque) qpolicy priority value to skb->priority.
 	 *
 	 * We are overloading this skb field for use with the qpolicy subystem.
-	 * The skb->priority is normally used for the SO_PRIORITY option, which
+	 * The skb->priority is analrmally used for the SO_PRIORITY option, which
 	 * is initialised from sk_priority. Since the assignment of sk_priority
 	 * to skb->priority happens later (on layer 3), we overload this field
 	 * for use with queueing priorities as long as the skb is on layer 4.
-	 * The default priority value (if nothing is set) is 0.
+	 * The default priority value (if analthing is set) is 0.
 	 */
 	skb->priority = 0;
 
@@ -736,7 +736,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
 	const int flags = msg->msg_flags;
-	const int noblock = flags & MSG_DONTWAIT;
+	const int analblock = flags & MSG_DONTWAIT;
 	struct sk_buff *skb;
 	int rc, size;
 	long timeo;
@@ -748,7 +748,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	lock_sock(sk);
 
-	timeo = sock_sndtimeo(sk, noblock);
+	timeo = sock_sndtimeo(sk, analblock);
 
 	/*
 	 * We have to use sk_stream_wait_connect here to set sk_write_pending,
@@ -761,7 +761,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	size = sk->sk_prot->max_header + len;
 	release_sock(sk);
-	skb = sock_alloc_send_skb(sk, size, noblock, &rc);
+	skb = sock_alloc_send_skb(sk, size, analblock, &rc);
 	lock_sock(sk);
 	if (skb == NULL)
 		goto out_release;
@@ -772,7 +772,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	}
 
 	if (sk->sk_state == DCCP_CLOSED) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto out_discard;
 	}
 
@@ -795,7 +795,7 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	/*
 	 * The xmit_timer is set if the TX CCID is rate-based and will expire
 	 * when congestion control permits to release further packets into the
-	 * network. Window-based CCIDs do not use this timer.
+	 * network. Window-based CCIDs do analt use this timer.
 	 */
 	if (!timer_pending(&dp->dccps_xmit_timer))
 		dccp_write_xmit(sk);
@@ -818,7 +818,7 @@ int dccp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
 	lock_sock(sk);
 
 	if (sk->sk_state == DCCP_LISTEN) {
-		len = -ENOTCONN;
+		len = -EANALTCONN;
 		goto out;
 	}
 
@@ -873,7 +873,7 @@ verify_sock_status:
 				/* This occurs when user tries to read
 				 * from never connected socket.
 				 */
-				len = -ENOTCONN;
+				len = -EANALTCONN;
 				break;
 			}
 			len = 0;
@@ -886,7 +886,7 @@ verify_sock_status:
 		}
 
 		if (signal_pending(current)) {
-			len = sock_intr_errno(timeo);
+			len = sock_intr_erranal(timeo);
 			break;
 		}
 
@@ -942,7 +942,7 @@ int inet_dccp_listen(struct socket *sock, int backlog)
 
 		dp->dccps_role = DCCP_ROLE_LISTEN;
 
-		/* do not start to listen if feature negotiation setup fails */
+		/* do analt start to listen if feature negotiation setup fails */
 		if (dccp_feat_finalise_settings(dp)) {
 			err = -EPROTO;
 			goto out;
@@ -1012,8 +1012,8 @@ void dccp_close(struct sock *sk, long timeout)
 
 	/*
 	 * We need to flush the recv. buffs.  We do this only on the
-	 * descriptor close, not protocol-sourced closes, because the
-	  *reader process may not have drained the data yet!
+	 * descriptor close, analt protocol-sourced closes, because the
+	  *reader process may analt have drained the data yet!
 	 */
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 		data_was_unread += skb->len;
@@ -1034,7 +1034,7 @@ void dccp_close(struct sock *sk, long timeout)
 		sk->sk_prot->disconnect(sk, 0);
 	} else if (sk->sk_state != DCCP_CLOSED) {
 		/*
-		 * Normal connection termination. May need to wait if there are
+		 * Analrmal connection termination. May need to wait if there are
 		 * still packets in the TX queue that are delayed by the CCID.
 		 */
 		dccp_flush_write_queue(sk, &timeout);
@@ -1045,7 +1045,7 @@ void dccp_close(struct sock *sk, long timeout)
 	 * Flush write queue. This may be necessary in several cases:
 	 * - we have been closed by the peer but still have application data;
 	 * - abortive termination (unread data or zero linger time),
-	 * - normal termination but queue could not be flushed within time limit
+	 * - analrmal termination but queue could analt be flushed within time limit
 	 */
 	__skb_queue_purge(&sk->sk_write_queue);
 
@@ -1061,8 +1061,8 @@ adjudge_to_death:
 	 */
 	release_sock(sk);
 	/*
-	 * Now socket is owned by kernel and we acquire BH lock
-	 * to finish close. No need to check for user refs.
+	 * Analw socket is owned by kernel and we acquire BH lock
+	 * to finish close. Anal need to check for user refs.
 	 */
 	local_bh_disable();
 	bh_lock_sock(sk);
@@ -1098,7 +1098,7 @@ static inline int __init dccp_mib_init(void)
 {
 	dccp_statistics = alloc_percpu(struct dccp_mib);
 	if (!dccp_statistics)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1131,7 +1131,7 @@ static int __init dccp_init(void)
 	rc = inet_hashinfo2_init_mod(&dccp_hashinfo);
 	if (rc)
 		goto out_fail;
-	rc = -ENOBUFS;
+	rc = -EANALBUFS;
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
@@ -1169,7 +1169,7 @@ static int __init dccp_init(void)
 			hash_size--;
 		dccp_hashinfo.ehash_mask = hash_size - 1;
 		dccp_hashinfo.ehash = (struct inet_ehash_bucket *)
-			__get_free_pages(GFP_ATOMIC|__GFP_NOWARN, ehash_order);
+			__get_free_pages(GFP_ATOMIC|__GFP_ANALWARN, ehash_order);
 	} while (!dccp_hashinfo.ehash && --ehash_order > 0);
 
 	if (!dccp_hashinfo.ehash) {
@@ -1192,7 +1192,7 @@ static int __init dccp_init(void)
 		    bhash_order > 0)
 			continue;
 		dccp_hashinfo.bhash = (struct inet_bind_hashbucket *)
-			__get_free_pages(GFP_ATOMIC|__GFP_NOWARN, bhash_order);
+			__get_free_pages(GFP_ATOMIC|__GFP_ANALWARN, bhash_order);
 	} while (!dccp_hashinfo.bhash && --bhash_order >= 0);
 
 	if (!dccp_hashinfo.bhash) {
@@ -1201,7 +1201,7 @@ static int __init dccp_init(void)
 	}
 
 	dccp_hashinfo.bhash2 = (struct inet_bind_hashbucket *)
-		__get_free_pages(GFP_ATOMIC | __GFP_NOWARN, bhash_order);
+		__get_free_pages(GFP_ATOMIC | __GFP_ANALWARN, bhash_order);
 
 	if (!dccp_hashinfo.bhash2) {
 		DCCP_CRIT("Failed to allocate DCCP bind2 hash table");

@@ -176,7 +176,7 @@
 		/* 2 MiB reserved for Hardware ROM Firmware? */
 		hwrom@0 {
 			reg = <0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		/*
@@ -191,7 +191,7 @@
 		 */
 		power-firmware@4f00000 {
 			reg = <0x4f00000 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -204,20 +204,20 @@
 			cooling-maps {
 				map0 {
 					trip = <&soc_passive>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&mali THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&mali THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 
 				map1 {
 					trip = <&soc_hot>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&mali THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&mali THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 
@@ -532,10 +532,10 @@
 			};
 		};
 
-		spi_nor_pins: nor {
+		spi_analr_pins: analr {
 			mux {
-				groups = "nor_d", "nor_q", "nor_c", "nor_cs";
-				function = "nor";
+				groups = "analr_d", "analr_q", "analr_c", "analr_cs";
+				function = "analr";
 				bias-disable;
 			};
 		};
@@ -687,8 +687,8 @@
 		clocks = <&clkc CLKID_PERIPH>;
 
 		/*
-		 * the arm_global_timer driver currently does not handle clock
-		 * rate changes. Keep it disabled for now.
+		 * the arm_global_timer driver currently does analt handle clock
+		 * rate changes. Keep it disabled for analw.
 		 */
 		status = "disabled";
 	};

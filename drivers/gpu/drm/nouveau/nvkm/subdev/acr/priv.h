@@ -10,7 +10,7 @@ struct nvkm_acr_fwif {
 	const struct nvkm_acr_func *func;
 };
 
-int gm200_acr_nofw(struct nvkm_acr *, int, const struct nvkm_acr_fwif *);
+int gm200_acr_analfw(struct nvkm_acr *, int, const struct nvkm_acr_fwif *);
 int gm20b_acr_load(struct nvkm_acr *, int, const struct nvkm_acr_fwif *);
 int gp102_acr_load(struct nvkm_acr *, int, const struct nvkm_acr_fwif *);
 

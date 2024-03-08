@@ -2,10 +2,10 @@
 /*
  * max77693-private.h - Voltage regulator driver for the Maxim 77693
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electranalics
  *  SangYoung Son <hello.son@samsung.com>
  *
- * This program is not provided / owned by Maxim Integrated Products.
+ * This program is analt provided / owned by Maxim Integrated Products.
  */
 
 #ifndef __LINUX_MFD_MAX77693_PRIV_H
@@ -86,7 +86,7 @@ enum max77693_pmic_reg {
 #define FLASH_IOUT_STEP		15625
 
 /* MAX77693 TORCH_TIMER register */
-#define TORCH_TMR_NO_TIMER	0x40
+#define TORCH_TMR_ANAL_TIMER	0x40
 #define TORCH_TIMEOUT_MIN	262000
 #define TORCH_TIMEOUT_MAX	15728000
 
@@ -190,7 +190,7 @@ enum max77693_charger_charging_state {
 
 /* MAX77693_CHG_REG_CHG_DETAILS_01/BAT field */
 enum max77693_charger_battery_state {
-	MAX77693_BATTERY_NOBAT			= 0x0,
+	MAX77693_BATTERY_ANALBAT			= 0x0,
 	/* Dead-battery or low-battery prequalification */
 	MAX77693_BATTERY_PREQUALIFICATION,
 	MAX77693_BATTERY_TIMER_EXPIRED,

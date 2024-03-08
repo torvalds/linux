@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Audio Graph Card2
 
 maintainers:
-  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+  - Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 properties:
   compatible:
@@ -22,16 +22,16 @@ properties:
       A list of the connections between audio components.
       Each entry is a pair of strings, the first being the
       connection's sink, the second being the connection's source.
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
   multi:
     type: object
-    description: Multi-CPU/Codec node
+    description: Multi-CPU/Codec analde
   dpcm:
     type: object
-    description: DPCM node
+    description: DPCM analde
   codec2codec:
     type: object
-    description: Codec to Codec node
+    description: Codec to Codec analde
 
 required:
   - compatible

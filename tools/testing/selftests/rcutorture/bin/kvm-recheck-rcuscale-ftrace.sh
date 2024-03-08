@@ -57,7 +57,7 @@ $8 == "done" && seqtask[$7] != $1 {
 END {
 	newNR = asort(gptimes);
 	if (newNR <= 0) {
-		print "No ftrace records found???"
+		print "Anal ftrace records found???"
 		exit 10;
 	}
 	pct50 = int(newNR * 50 / 100);

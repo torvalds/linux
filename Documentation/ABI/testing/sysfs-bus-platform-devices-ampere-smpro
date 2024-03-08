@@ -34,7 +34,7 @@ Description:
 		+-----------------+------------+----------+----------------+----------------------------------------+
 		|   Error Group   | Error Type | Sub type | Sub component  |               Instance                 |
 		+-----------------+------------+----------+----------------+----------------------------------------+
-		| CPM (core)      | 0          | 0        | Snoop-Logic    | CPM #                                  |
+		| CPM (core)      | 0          | 0        | Sanalop-Logic    | CPM #                                  |
 		+-----------------+------------+----------+----------------+----------------------------------------+
 		| CPM (core)      | 0          | 2        | Armv8 Core 1   | CPM #                                  |
 		+-----------------+------------+----------+----------------+----------------------------------------+
@@ -54,11 +54,11 @@ Description:
 		+-----------------+------------+----------+----------------+----------------------------------------+
 		| Mesh (other)    | 2          | 0        | Cross Point    | X \| (Y << 5) \| NS <<11               |
 		+-----------------+------------+----------+----------------+----------------------------------------+
-		| Mesh (other)    | 2          | 1        | Home Node(IO)  | X \| (Y << 5) \| NS <<11               |
+		| Mesh (other)    | 2          | 1        | Home Analde(IO)  | X \| (Y << 5) \| NS <<11               |
 		+-----------------+------------+----------+----------------+----------------------------------------+
-		| Mesh (other)    | 2          | 2        | Home Node(Mem) | X \| (Y << 5) \| NS <<11 \| device<<12 |
+		| Mesh (other)    | 2          | 2        | Home Analde(Mem) | X \| (Y << 5) \| NS <<11 \| device<<12 |
 		+-----------------+------------+----------+----------------+----------------------------------------+
-		| Mesh (other)    | 2          | 4        | CCIX Node      | X \| (Y << 5) \| NS <<11               |
+		| Mesh (other)    | 2          | 4        | CCIX Analde      | X \| (Y << 5) \| NS <<11               |
 		+-----------------+------------+----------+----------------+----------------------------------------+
 		| 2P Link (other) | 3          | 0        | N/A            | Altra 2P Link #                        |
 		+-----------------+------------+----------+----------------+----------------------------------------+
@@ -181,7 +181,7 @@ Contact:	Quan Nguyen <quan@os.amperecomputing.com>
 Description:
 		(RO) Return the overflow status of each type HW error reported:
 
-		  - 0      : No overflow
+		  - 0      : Anal overflow
 		  - 1      : There is an overflow and the oldest HW errors are dropped
 
 		The detail of each sysfs entries is as below:
@@ -300,7 +300,7 @@ Description:
 
 		  - ``BB``      : Boot status
 
-		    - 00: Not started
+		    - 00: Analt started
 		    - 01: Started
 		    - 02: Completed without error
 		    - 03: Failed.

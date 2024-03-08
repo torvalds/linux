@@ -52,16 +52,16 @@ static const struct regmap_range ws16c48_volatile_ranges[] = {
 	regmap_reg_range(0x0, 0x6), regmap_reg_range(0x8, 0xA),
 };
 static const struct regmap_access_table ws16c48_wr_table = {
-	.yes_ranges = ws16c48_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ws16c48_wr_ranges),
+	.anal_ranges = ws16c48_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ws16c48_wr_ranges),
 };
 static const struct regmap_access_table ws16c48_rd_table = {
-	.yes_ranges = ws16c48_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ws16c48_rd_ranges),
+	.anal_ranges = ws16c48_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ws16c48_rd_ranges),
 };
 static const struct regmap_access_table ws16c48_volatile_table = {
-	.yes_ranges = ws16c48_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ws16c48_volatile_ranges),
+	.anal_ranges = ws16c48_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ws16c48_volatile_ranges),
 };
 static const struct regmap_config ws16c48_regmap_config = {
 	.reg_bits = 8,
@@ -139,7 +139,7 @@ static int ws16c48_handle_mask_sync(const int index, const unsigned int mask_buf
 
 	raw_spin_lock_irqsave(&ws16c48gpio->lock, flags);
 
-	/* exit early if no change since the last mask sync */
+	/* exit early if anal change since the last mask sync */
 	if (mask_buf == ws16c48gpio->irq_mask[index])
 		goto exit_unlock;
 	ws16c48gpio->irq_mask[index] = mask_buf;
@@ -254,7 +254,7 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 
 	ws16c48gpio = devm_kzalloc(dev, sizeof(*ws16c48gpio), GFP_KERNEL);
 	if (!ws16c48gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!devm_request_region(dev, base[id], WS16C48_EXTENT, name)) {
 		dev_err(dev, "Unable to lock port addresses (0x%X-0x%X)\n",
@@ -264,7 +264,7 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 
 	regs = devm_ioport_map(dev, base[id], WS16C48_EXTENT);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ws16c48gpio->map = devm_regmap_init_mmio(dev, regs, &ws16c48_regmap_config);
 	if (IS_ERR(ws16c48gpio->map))
@@ -273,7 +273,7 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->name = name;
 	chip->status_base = WS16C48_INT_ID;

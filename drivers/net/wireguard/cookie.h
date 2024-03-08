@@ -12,9 +12,9 @@
 struct wg_peer;
 
 struct cookie_checker {
-	u8 secret[NOISE_HASH_LEN];
-	u8 cookie_encryption_key[NOISE_SYMMETRIC_KEY_LEN];
-	u8 message_mac1_key[NOISE_SYMMETRIC_KEY_LEN];
+	u8 secret[ANALISE_HASH_LEN];
+	u8 cookie_encryption_key[ANALISE_SYMMETRIC_KEY_LEN];
+	u8 message_mac1_key[ANALISE_SYMMETRIC_KEY_LEN];
 	u64 secret_birthdate;
 	struct rw_semaphore secret_lock;
 	struct wg_device *device;
@@ -26,14 +26,14 @@ struct cookie {
 	u8 cookie[COOKIE_LEN];
 	bool have_sent_mac1;
 	u8 last_mac1_sent[COOKIE_LEN];
-	u8 cookie_decryption_key[NOISE_SYMMETRIC_KEY_LEN];
-	u8 message_mac1_key[NOISE_SYMMETRIC_KEY_LEN];
+	u8 cookie_decryption_key[ANALISE_SYMMETRIC_KEY_LEN];
+	u8 message_mac1_key[ANALISE_SYMMETRIC_KEY_LEN];
 	struct rw_semaphore lock;
 };
 
 enum cookie_mac_state {
 	INVALID_MAC,
-	VALID_MAC_BUT_NO_COOKIE,
+	VALID_MAC_BUT_ANAL_COOKIE,
 	VALID_MAC_WITH_COOKIE_BUT_RATELIMITED,
 	VALID_MAC_WITH_COOKIE
 };

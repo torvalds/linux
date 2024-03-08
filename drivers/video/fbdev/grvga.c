@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -48,19 +48,19 @@ static const struct fb_videomode grvga_modedb[] = {
     {
 	/* 640x480 @ 60 Hz */
 	NULL, 60, 640, 480, 40000, 48, 16, 39, 11, 96, 2,
-	0, FB_VMODE_NONINTERLACED
+	0, FB_VMODE_ANALNINTERLACED
     }, {
 	/* 800x600 @ 60 Hz */
 	NULL, 60, 800, 600, 25000, 88, 40, 23, 1, 128, 4,
-	0, FB_VMODE_NONINTERLACED
+	0, FB_VMODE_ANALNINTERLACED
     }, {
 	/* 800x600 @ 72 Hz */
 	NULL, 72, 800, 600, 20000, 64, 56, 23, 37, 120, 6,
-	0, FB_VMODE_NONINTERLACED
+	0, FB_VMODE_ANALNINTERLACED
     }, {
 	/* 1024x768 @ 60 Hz */
 	NULL, 60, 1024, 768, 15385, 160, 24, 29, 3, 136, 6,
-	0, FB_VMODE_NONINTERLACED
+	0, FB_VMODE_ANALNINTERLACED
     }
  };
 
@@ -71,7 +71,7 @@ static const struct fb_fix_screeninfo grvga_fix = {
 	.xpanstep =	0,
 	.ypanstep =	1,
 	.ywrapstep =	0,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 };
 
 static int grvga_check_var(struct fb_var_screeninfo *var,
@@ -100,7 +100,7 @@ static int grvga_check_var(struct fb_var_screeninfo *var,
 
 	if (info->fix.smem_len) {
 		if ((var->yres_virtual*var->xres_virtual*var->bits_per_pixel/8) > info->fix.smem_len)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Which clocks that are available can be read out in these registers */
@@ -184,12 +184,12 @@ static int grvga_set_par(struct fb_info *info)
 	return 0;
 }
 
-static int grvga_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *info)
+static int grvga_setcolreg(unsigned reganal, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *info)
 {
 	struct grvga_par *par;
 	par = info->par;
 
-	if (regno >= 256)	/* Size of CLUT */
+	if (reganal >= 256)	/* Size of CLUT */
 		return -EINVAL;
 
 	if (info->var.grayscale) {
@@ -210,13 +210,13 @@ static int grvga_setcolreg(unsigned regno, unsigned red, unsigned green, unsigne
 
 	/* In PSEUDOCOLOR we use the hardware CLUT */
 	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR)
-		__raw_writel((regno << 24) | (red << 16) | (green << 8) | blue,
+		__raw_writel((reganal << 24) | (red << 16) | (green << 8) | blue,
 			     &par->regs->clut);
 
 	/* Truecolor uses the pseudo palette */
 	else if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 v;
-		if (regno >= 16)
+		if (reganal >= 16)
 			return -EINVAL;
 
 
@@ -225,7 +225,7 @@ static int grvga_setcolreg(unsigned regno, unsigned red, unsigned green, unsigne
 			(blue   << info->var.blue.offset)  |
 			(transp << info->var.transp.offset);
 
-		((u32 *) (info->pseudo_palette))[regno] = v;
+		((u32 *) (info->pseudo_palette))[reganal] = v;
 	}
 	return 0;
 }
@@ -316,15 +316,15 @@ static int grvga_parse_custom(char *options,
 			return -1;
 		}
 	}
-	screendata->activate  = FB_ACTIVATE_NOW;
-	screendata->vmode     = FB_VMODE_NONINTERLACED;
+	screendata->activate  = FB_ACTIVATE_ANALW;
+	screendata->vmode     = FB_VMODE_ANALNINTERLACED;
 	return 0;
 }
 
 static int grvga_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	unsigned long virtual_start;
 	unsigned long grvga_fix_addr = 0;
 	unsigned long physical_start = 0;
@@ -334,16 +334,16 @@ static int grvga_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(sizeof(struct grvga_par), &dev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Expecting: "grvga: modestring, [addr:<framebuffer physical address>], [size:<framebuffer size>]
 	 *
 	 * If modestring is custom:<custom mode string> we parse the string which then contains all videoparameters
 	 * If address is left out, we allocate memory,
-	 * if size is left out we only allocate enough to support the given mode.
+	 * if size is left out we only allocate eanalugh to support the given mode.
 	 */
 	if (fb_get_options("grvga", &options)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto free_fb;
 	}
 
@@ -390,14 +390,14 @@ static int grvga_probe(struct platform_device *dev)
 
 	if (!par->regs) {
 		dev_err(&dev->dev, "failed to map registers\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto free_fb;
 	}
 
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (retval < 0) {
 		dev_err(&dev->dev, "failed to allocate mem with fb_alloc_cmap\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto unmap_regs;
 	}
 
@@ -421,7 +421,7 @@ static int grvga_probe(struct platform_device *dev)
 		if (!devm_request_mem_region(&dev->dev, physical_start,
 					     grvga_mem_size, dev->name)) {
 			dev_err(&dev->dev, "failed to request memory region\n");
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto dealloc_cmap;
 		}
 
@@ -429,7 +429,7 @@ static int grvga_probe(struct platform_device *dev)
 
 		if (!virtual_start) {
 			dev_err(&dev->dev, "error mapping framebuffer memory\n");
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto dealloc_cmap;
 		}
 	} else {	/* Allocate frambuffer memory */
@@ -442,14 +442,14 @@ static int grvga_probe(struct platform_device *dev)
 			dev_err(&dev->dev,
 				"unable to allocate framebuffer memory (%lu bytes)\n",
 				grvga_mem_size);
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto dealloc_cmap;
 		}
 
 		physical_start = dma_map_single(&dev->dev, (void *)virtual_start, grvga_mem_size, DMA_TO_DEVICE);
 
 		/* Set page reserved so that mmap will work. This is necessary
-		 * since we'll be remapping normal memory.
+		 * since we'll be remapping analrmal memory.
 		 */
 		for (page = virtual_start;
 		     page < PAGE_ALIGN(virtual_start + grvga_mem_size);
@@ -470,7 +470,7 @@ static int grvga_probe(struct platform_device *dev)
 
 	dev_info(&dev->dev,
 		 "Aeroflex Gaisler framebuffer device (fb%d), %dx%d-%d, using %luK of video memory @ %p\n",
-		 info->node, info->var.xres, info->var.yres, info->var.bits_per_pixel,
+		 info->analde, info->var.xres, info->var.yres, info->var.bits_per_pixel,
 		 grvga_mem_size >> 10, info->screen_base);
 
 	retval = register_framebuffer(info);

@@ -11,7 +11,7 @@ enum ice_ptp_tmr_cmd {
 	ICE_PTP_ADJ_TIME,
 	ICE_PTP_ADJ_TIME_AT_TIME,
 	ICE_PTP_READ_TIME,
-	ICE_PTP_NOP,
+	ICE_PTP_ANALP,
 };
 
 enum ice_ptp_serdes {
@@ -36,7 +36,7 @@ enum ice_ptp_link_spd {
 };
 
 enum ice_ptp_fec_mode {
-	ICE_PTP_FEC_MODE_NONE,
+	ICE_PTP_FEC_MODE_ANALNE,
 	ICE_PTP_FEC_MODE_CLAUSE74,
 	ICE_PTP_FEC_MODE_RS_FEC
 };
@@ -44,7 +44,7 @@ enum ice_ptp_fec_mode {
 /**
  * struct ice_time_ref_info_e82x
  * @pll_freq: Frequency of PLL that drives timer ticks in Hz
- * @nominal_incval: increment to generate nanoseconds in GLTSYN_TIME_L
+ * @analminal_incval: increment to generate naanalseconds in GLTSYN_TIME_L
  * @pps_delay: propagation delay of the PPS output signal
  *
  * Characteristic information for the various TIME_REF sources possible in the
@@ -52,7 +52,7 @@ enum ice_ptp_fec_mode {
  */
 struct ice_time_ref_info_e82x {
 	u64 pll_freq;
-	u64 nominal_incval;
+	u64 analminal_incval;
 	u8 pps_delay;
 };
 
@@ -66,16 +66,16 @@ struct ice_time_ref_info_e82x {
  * @rx_desk_rsgb_par: Frequency used to calculate P_REG_DESK_PAR_RX_TUS
  * @tx_desk_rsgb_pcs: Frequency used to calculate P_REG_DESK_PCS_TX_TUS
  * @rx_desk_rsgb_pcs: Frequency used to calculate P_REG_DESK_PCS_RX_TUS
- * @tx_fixed_delay: Fixed Tx latency measured in 1/100th nanoseconds
+ * @tx_fixed_delay: Fixed Tx latency measured in 1/100th naanalseconds
  * @pmd_adj_divisor: Divisor used to calculate PDM alignment adjustment
- * @rx_fixed_delay: Fixed Rx latency measured in 1/100th nanoseconds
+ * @rx_fixed_delay: Fixed Rx latency measured in 1/100th naanalseconds
  *
  * Table of constants used during as part of the Vernier calibration of the Tx
  * and Rx timestamps. This includes frequency values used to compute TUs per
  * PAR/PCS clock cycle, and static delay values measured during hardware
  * design.
  *
- * Note that some values are not used for all link speeds, and the
+ * Analte that some values are analt used for all link speeds, and the
  * P_REG_DESK_PAR* registers may represent different clock markers at
  * different link speeds, either the deskew marker for multi-lane link speeds
  * or the Reed Solomon gearbox marker for RS-FEC.
@@ -194,12 +194,12 @@ extern const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ];
 /* Table of constants for Vernier calibration on E822 */
 extern const struct ice_vernier_info_e82x e822_vernier[NUM_ICE_PTP_LNK_SPD];
 
-/* Increment value to generate nanoseconds in the GLTSYN_TIME_L register for
+/* Increment value to generate naanalseconds in the GLTSYN_TIME_L register for
  * the E810 devices. Based off of a PLL with an 812.5 MHz frequency.
  */
-#define ICE_PTP_NOMINAL_INCVAL_E810 0x13b13b13bULL
+#define ICE_PTP_ANALMINAL_INCVAL_E810 0x13b13b13bULL
 
-/* Device agnostic functions */
+/* Device aganalstic functions */
 u8 ice_get_ptp_src_clock_index(struct ice_hw *hw);
 bool ice_ptp_lock(struct ice_hw *hw);
 void ice_ptp_unlock(struct ice_hw *hw);
@@ -249,9 +249,9 @@ static inline u64 ice_e82x_pll_freq(enum ice_time_ref_freq time_ref)
 	return e822_time_ref[time_ref].pll_freq;
 }
 
-static inline u64 ice_e82x_nominal_incval(enum ice_time_ref_freq time_ref)
+static inline u64 ice_e82x_analminal_incval(enum ice_time_ref_freq time_ref)
 {
-	return e822_time_ref[time_ref].nominal_incval;
+	return e822_time_ref[time_ref].analminal_incval;
 }
 
 static inline u64 ice_e82x_pps_delay(enum ice_time_ref_freq time_ref)

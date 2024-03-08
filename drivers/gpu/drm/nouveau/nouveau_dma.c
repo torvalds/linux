@@ -10,23 +10,23 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_vmm.h"
+#include "analuveau_drv.h"
+#include "analuveau_dma.h"
+#include "analuveau_vmm.h"
 
 #include <nvif/user.h>
 
@@ -38,7 +38,7 @@
  *  -EBUSY if timeout exceeded
  */
 static inline int
-READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
+READ_GET(struct analuveau_channel *chan, uint64_t *prev_get, int *timeout)
 {
 	uint64_t val;
 
@@ -69,25 +69,25 @@ READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
 }
 
 void
-nv50_dma_push(struct nouveau_channel *chan, u64 offset, u32 length,
-	      bool no_prefetch)
+nv50_dma_push(struct analuveau_channel *chan, u64 offset, u32 length,
+	      bool anal_prefetch)
 {
 	struct nvif_user *user = &chan->drm->client.device.user;
-	struct nouveau_bo *pb = chan->push.buffer;
+	struct analuveau_bo *pb = chan->push.buffer;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 
 	BUG_ON(chan->dma.ib_free < 1);
 	WARN_ON(length > NV50_DMA_PUSH_MAX_LENGTH);
 
-	nouveau_bo_wr32(pb, ip++, lower_32_bits(offset));
-	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8 |
-			(no_prefetch ? (1 << 31) : 0));
+	analuveau_bo_wr32(pb, ip++, lower_32_bits(offset));
+	analuveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8 |
+			(anal_prefetch ? (1 << 31) : 0));
 
 	chan->dma.ib_put = (chan->dma.ib_put + 1) & chan->dma.ib_max;
 
 	mb();
 	/* Flush writes. */
-	nouveau_bo_rd32(pb, 0);
+	analuveau_bo_rd32(pb, 0);
 
 	nvif_wr32(chan->userd, 0x8c, chan->dma.ib_put);
 	if (user->func && user->func->doorbell)
@@ -96,7 +96,7 @@ nv50_dma_push(struct nouveau_channel *chan, u64 offset, u32 length,
 }
 
 static int
-nv50_dma_push_wait(struct nouveau_channel *chan, int count)
+nv50_dma_push_wait(struct analuveau_channel *chan, int count)
 {
 	uint32_t cnt = 0, prev_get = 0;
 
@@ -122,7 +122,7 @@ nv50_dma_push_wait(struct nouveau_channel *chan, int count)
 }
 
 static int
-nv50_dma_wait(struct nouveau_channel *chan, int slots, int count)
+nv50_dma_wait(struct analuveau_channel *chan, int slots, int count)
 {
 	uint64_t prev_get = 0;
 	int ret, cnt = 0;
@@ -165,7 +165,7 @@ nv50_dma_wait(struct nouveau_channel *chan, int slots, int count)
 }
 
 int
-nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
+analuveau_dma_wait(struct analuveau_channel *chan, int slots, int size)
 {
 	uint64_t prev_get = 0;
 	int cnt = 0, get;
@@ -187,7 +187,7 @@ nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 		 * from the SKIPS area, so the code below doesn't have to deal
 		 * with some fun corner cases.
 		 */
-		if (unlikely(get == -EINVAL) || get < NOUVEAU_DMA_SKIPS)
+		if (unlikely(get == -EINVAL) || get < ANALUVEAU_DMA_SKIPS)
 			continue;
 
 		if (get <= chan->dma.cur) {
@@ -208,7 +208,7 @@ nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 			if (chan->dma.free >= size)
 				break;
 
-			/* not enough space left at the end of the push buffer,
+			/* analt eanalugh space left at the end of the push buffer,
 			 * instruct the GPU to jump back to the start right
 			 * after processing the currently pending commands.
 			 */
@@ -217,7 +217,7 @@ nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 			/* wait for GET to depart from the skips area.
 			 * prevents writing GET==PUT and causing a race
 			 * condition that causes us to think the GPU is
-			 * idle when it's not.
+			 * idle when it's analt.
 			 */
 			do {
 				get = READ_GET(chan, &prev_get, &cnt);
@@ -225,14 +225,14 @@ nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 					return -EBUSY;
 				if (unlikely(get == -EINVAL))
 					continue;
-			} while (get <= NOUVEAU_DMA_SKIPS);
-			WRITE_PUT(NOUVEAU_DMA_SKIPS);
+			} while (get <= ANALUVEAU_DMA_SKIPS);
+			WRITE_PUT(ANALUVEAU_DMA_SKIPS);
 
-			/* we're now submitting commands at the start of
+			/* we're analw submitting commands at the start of
 			 * the push buffer.
 			 */
 			chan->dma.cur  =
-			chan->dma.put  = NOUVEAU_DMA_SKIPS;
+			chan->dma.put  = ANALUVEAU_DMA_SKIPS;
 		}
 
 		/* engine fetching ahead of us, we have space up until the

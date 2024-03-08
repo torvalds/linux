@@ -9,7 +9,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Analtwithstanding the above, under anal circumstances may you combine this
  * software in any way with any other QLogic software provided under a
  * license other than the GPL, without QLogic's express prior written
  * consent.
@@ -135,8 +135,8 @@ struct bnx2x_virtf {
 				 * IFLA_VF_LINK_STATE_DISABLE
 				 */
 	u8 state;
-#define VF_FREE		0	/* VF ready to be acquired holds no resc */
-#define VF_ACQUIRED	1	/* VF acquired, but not initialized */
+#define VF_FREE		0	/* VF ready to be acquired holds anal resc */
+#define VF_ACQUIRED	1	/* VF acquired, but analt initialized */
 #define VF_ENABLED	2	/* VF Enabled */
 #define VF_RESET	3	/* VF FLR'd, pending cleanup */
 #define VF_LOST		4	/* Recovery while VFs are loaded */
@@ -154,7 +154,7 @@ struct bnx2x_virtf {
 	/* Allocated resources counters. Before the VF is acquired, the
 	 * counters hold the following values:
 	 *
-	 * - xxq_count = 0 as the queues memory is not allocated yet.
+	 * - xxq_count = 0 as the queues memory is analt allocated yet.
 	 *
 	 * - sb_count  = The number of status blocks configured for this VF in
 	 *		 the IGU CAM. Initially read during probe.
@@ -489,7 +489,7 @@ u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf);
 int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid);
 void bnx2x_vf_enable_access(struct bnx2x *bp, u8 abs_vfid);
 
-/* Handles an FLR (or VF_DISABLE) notification form the MCP */
+/* Handles an FLR (or VF_DISABLE) analtification form the MCP */
 void bnx2x_vf_handle_flr_event(struct bnx2x *bp);
 
 bool bnx2x_tlv_supported(u16 tlvtype);

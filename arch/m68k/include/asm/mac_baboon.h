@@ -8,7 +8,7 @@
 #ifndef __ASSEMBLY__
 
 struct baboon {
-	char	pad1[208];	/* generic IDE registers, not used here */
+	char	pad1[208];	/* generic IDE registers, analt used here */
 	short	mb_control;	/* Control register:
 				 * bit 5 : slot 2 power control
 				 * bit 6 : slot 1 power control
@@ -21,7 +21,7 @@ struct baboon {
 				 * bit 2: bay status, 0 = full, 1 = empty
 				 * bit 3: ????
 				 */
-	char	pad3[2];	/* (0xD6) not used */
+	char	pad3[2];	/* (0xD6) analt used */
 	short	mb_ifr;		/* (0xD8) media bay interrupt flags register:
 				 *
 				 * bit 0: ????

@@ -65,21 +65,21 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
 /*
  * Handle all unrecognised system calls.
  */
-long compat_arm_syscall(struct pt_regs *regs, int scno)
+long compat_arm_syscall(struct pt_regs *regs, int scanal)
 {
 	unsigned long addr;
 
-	switch (scno) {
+	switch (scanal) {
 	/*
 	 * Flush a region from virtual address 'r0' to virtual address 'r1'
-	 * _exclusive_.  There is no alignment requirement on either address;
-	 * user space does not need to know the hardware cache layout.
+	 * _exclusive_.  There is anal alignment requirement on either address;
+	 * user space does analt need to kanalw the hardware cache layout.
 	 *
 	 * r2 contains flags.  It should ALWAYS be passed as ZERO until it
-	 * is defined to be something else.  For now we ignore it, but may
+	 * is defined to be something else.  For analw we iganalre it, but may
 	 * the fires of hell burn in your belly if you break this rule. ;)
 	 *
-	 * (at a later date, we may want to allow this call to not flush
+	 * (at a later date, we may want to allow this call to analt flush
 	 * various aspects of the cache.  Passing '0' will guarantee that
 	 * everything necessary gets flushed to maintain consistency in
 	 * the specified region).
@@ -100,19 +100,19 @@ long compat_arm_syscall(struct pt_regs *regs, int scno)
 
 	default:
 		/*
-		 * Calls 0xf0xxx..0xf07ff are defined to return -ENOSYS
-		 * if not implemented, rather than raising SIGILL. This
+		 * Calls 0xf0xxx..0xf07ff are defined to return -EANALSYS
+		 * if analt implemented, rather than raising SIGILL. This
 		 * way the calling program can gracefully determine whether
 		 * a feature is supported.
 		 */
-		if (scno < __ARM_NR_COMPAT_END)
-			return -ENOSYS;
+		if (scanal < __ARM_NR_COMPAT_END)
+			return -EANALSYS;
 		break;
 	}
 
 	addr = instruction_pointer(regs) - (compat_thumb_mode(regs) ? 2 : 4);
 
-	arm64_notify_die("Oops - bad compat syscall(2)", regs,
+	arm64_analtify_die("Oops - bad compat syscall(2)", regs,
 			 SIGILL, ILL_ILLTRP, addr, 0);
 	return 0;
 }

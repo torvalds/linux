@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
-// Copyright (c) 2017 Synopsys, Inc. and/or its affiliates.
+// Copyright (c) 2017 Syanalpsys, Inc. and/or its affiliates.
 // stmmac Support for 5.xx Ethernet QoS cores
 
 #include <linux/bitops.h>
@@ -60,18 +60,18 @@ static const struct dwmac5_error_desc dwmac5_mac_errors[32]= {
 	{ true, "SLVTES", "Slave Read/Write Timeout Error" },
 	{ true, "ATITES", "Application Timeout on ATI Interface Error" },
 	{ true, "ARITES", "Application Timeout on ARI Interface Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 21 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 22 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 23 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 20 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 21 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 22 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 23 */
 	{ true, "FSMPES", "FSM State Parity Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 25 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 31 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 25 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 26 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 27 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 28 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 29 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 30 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 31 */
 };
 
 static void dwmac5_handle_mac_err(struct net_device *ndev,
@@ -91,35 +91,35 @@ static const struct dwmac5_error_desc dwmac5_mtl_errors[32]= {
 	{ true, "TXCES", "MTL TX Memory Error" },
 	{ true, "TXAMS", "MTL TX Memory Address Mismatch Error" },
 	{ true, "TXUES", "MTL TX Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 3 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 3 */
 	{ true, "RXCES", "MTL RX Memory Error" },
 	{ true, "RXAMS", "MTL RX Memory Address Mismatch Error" },
 	{ true, "RXUES", "MTL RX Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 7 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 7 */
 	{ true, "ECES", "MTL EST Memory Error" },
 	{ true, "EAMS", "MTL EST Memory Address Mismatch Error" },
 	{ true, "EUES", "MTL EST Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 11 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 11 */
 	{ true, "RPCES", "MTL RX Parser Memory Error" },
 	{ true, "RPAMS", "MTL RX Parser Memory Address Mismatch Error" },
 	{ true, "RPUES", "MTL RX Parser Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 15 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 16 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 17 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 18 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 19 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 21 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 22 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 23 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 24 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 25 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 31 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 15 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 16 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 17 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 18 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 19 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 20 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 21 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 22 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 23 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 24 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 25 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 26 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 27 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 28 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 29 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 30 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 31 */
 };
 
 static void dwmac5_handle_mtl_err(struct net_device *ndev,
@@ -139,35 +139,35 @@ static const struct dwmac5_error_desc dwmac5_dma_errors[32]= {
 	{ true, "TCES", "DMA TSO Memory Error" },
 	{ true, "TAMS", "DMA TSO Memory Address Mismatch Error" },
 	{ true, "TUES", "DMA TSO Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 3 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 4 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 5 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 6 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 7 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 8 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 9 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 10 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 11 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 12 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 13 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 14 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 15 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 16 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 17 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 18 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 19 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 21 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 22 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 23 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 24 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 25 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 31 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 3 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 4 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 5 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 6 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 7 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 8 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 9 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 10 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 11 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 12 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 13 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 14 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 15 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 16 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 17 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 18 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 19 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 20 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 21 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 22 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 23 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 24 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 25 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 26 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 27 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 28 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 29 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 30 */
+	{ false, "UNKANALWN", "Unkanalwn Error" }, /* 31 */
 };
 
 static void dwmac5_handle_dma_err(struct net_device *ndev,
@@ -402,16 +402,16 @@ dwmac5_rxp_get_next_entry(struct stmmac_tc_entry *entries, unsigned int count,
 	for (i = count - 1; i >= 0; i--) {
 		entry = &entries[i];
 
-		/* Do not update unused entries */
+		/* Do analt update unused entries */
 		if (!entry->in_use)
 			continue;
-		/* Do not update already updated entries (i.e. fragments) */
+		/* Do analt update already updated entries (i.e. fragments) */
 		if (entry->in_hw)
 			continue;
 		/* Let last entry be updated last */
 		if (entry->is_last)
 			continue;
-		/* Do not return fragments */
+		/* Do analt return fragments */
 		if (entry->is_frag)
 			continue;
 		/* Check if we already checked this prio */
@@ -448,7 +448,7 @@ int dwmac5_rxp_config(void __iomem *ioaddr, struct stmmac_tc_entry *entries,
 	if (ret)
 		goto re_enable;
 
-	/* Set all entries as NOT in HW */
+	/* Set all entries as ANALT in HW */
 	for (i = 0; i < count; i++) {
 		entry = &entries[i];
 		entry->in_hw = false;
@@ -596,7 +596,7 @@ int dwmac5_fpe_irq_status(void __iomem *ioaddr, struct net_device *dev)
 	u32 value;
 	int status;
 
-	status = FPE_EVENT_UNKNOWN;
+	status = FPE_EVENT_UNKANALWN;
 
 	/* Reads from the MAC_FPE_CTRL_STS register should only be performed
 	 * here, since the status flags of MAC_FPE_CTRL_STS are "clear on read"

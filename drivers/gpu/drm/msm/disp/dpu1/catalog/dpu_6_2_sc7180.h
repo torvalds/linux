@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
@@ -197,7 +197,7 @@ static const struct dpu_perf_cfg sc7180_perf_data = {
 
 static const struct dpu_mdss_version sc7180_mdss_ver = {
 	.core_major_ver = 6,
-	.core_minor_ver = 2,
+	.core_mianalr_ver = 2,
 };
 
 const struct dpu_mdss_cfg dpu_sc7180_cfg = {

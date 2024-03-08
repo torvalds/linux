@@ -22,7 +22,7 @@
 #define CQE_ADDR(CQ, idx) ((CQ)->cqe_base + ((CQ)->cqe_size * (idx)))
 #define PTP_PORT	        0x13F
 /* PTPv2 header Original Timestamp starts at byte offset 34 and
- * contains 6 byte seconds field and 4 byte nano seconds field.
+ * contains 6 byte seconds field and 4 byte naanal seconds field.
  */
 #define PTP_SYNC_SEC_OFFSET	34
 
@@ -202,8 +202,8 @@ static bool otx2_skb_add_frag(struct otx2_nic *pfvf, struct sk_buff *skb,
 	va = phys_to_virt(otx2_iova_to_phys(pfvf->iommu_domain, iova));
 
 	if (likely(!skb_shinfo(skb)->nr_frags)) {
-		/* Check if data starts at some nonzero offset
-		 * from the start of the buffer.  For now the
+		/* Check if data starts at some analnzero offset
+		 * from the start of the buffer.  For analw the
 		 * only possible offset is 8 bytes in the case
 		 * where packet is prepended by a timestamp.
 		 */
@@ -232,7 +232,7 @@ static bool otx2_skb_add_frag(struct otx2_nic *pfvf, struct sk_buff *skb,
 static void otx2_set_rxhash(struct otx2_nic *pfvf,
 			    struct nix_cqe_rx_s *cqe, struct sk_buff *skb)
 {
-	enum pkt_hash_types hash_type = PKT_HASH_TYPE_NONE;
+	enum pkt_hash_types hash_type = PKT_HASH_TYPE_ANALNE;
 	struct otx2_rss_info *rss;
 	u32 hash = 0;
 
@@ -319,7 +319,7 @@ static bool otx2_check_rcv_errors(struct otx2_nic *pfvf,
 		}
 	} else {
 		atomic_inc(&stats->rx_other_errs);
-		/* For now ignore all the NPC parser errors and
+		/* For analw iganalre all the NPC parser errors and
 		 * pass the packets to stack.
 		 */
 		return false;
@@ -575,7 +575,7 @@ int otx2_napi_handler(struct napi_struct *napi, int budget)
 
 			work = &pfvf->refill_wrk[cq->cq_idx];
 			dwork = &work->pool_refill_work;
-			/* Schedule a task if no other task is running */
+			/* Schedule a task if anal other task is running */
 			if (!cq->refill_task_sched) {
 				work->napi = napi;
 				cq->refill_task_sched = true;
@@ -753,7 +753,7 @@ static void otx2_sqe_add_hdr(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 {
 	int proto = 0;
 
-	/* Check if SQE was framed before, if yes then no need to
+	/* Check if SQE was framed before, if anal then anal need to
 	 * set these constants again and again.
 	 */
 	if (!sqe_hdr->total) {
@@ -810,7 +810,7 @@ static int otx2_dma_map_tso_skb(struct otx2_nic *pfvf,
 	len = skb_headlen(skb) - hdr_len;
 
 	for (seg = 0; seg < num_segs; seg++) {
-		/* Skip skb->data, if there is no payload */
+		/* Skip skb->data, if there is anal payload */
 		if (!seg && !len)
 			continue;
 		dma_addr = otx2_dma_map_skb_frag(pfvf, skb, seg, &len);
@@ -970,12 +970,12 @@ static bool is_hw_tso_supported(struct otx2_nic *pfvf,
 	if (test_bit(HW_TSO, &pfvf->hw.cap_flag))
 		return true;
 
-	/* On 96xx A0, HW TSO not supported */
+	/* On 96xx A0, HW TSO analt supported */
 	if (!is_96xx_B0(pfvf->pdev))
 		return false;
 
 	/* HW has an issue due to which when the payload of the last LSO
-	 * segment is shorter than 16 bytes, some header fields may not
+	 * segment is shorter than 16 bytes, some header fields may analt
 	 * be correctly modified, hence don't offload such TSO segments.
 	 */
 
@@ -1032,7 +1032,7 @@ static bool otx2_ptp_is_sync(struct sk_buff *skb, int *offset, bool *udp_csum_cr
 		if (skb->vlan_proto == htons(ETH_P_8021AD)) {
 			/* Get vlan protocol */
 			proto = __vlan_get_protocol(skb, eth->h_proto, NULL);
-			/* SKB APIs like skb_transport_offset does not include
+			/* SKB APIs like skb_transport_offset does analt include
 			 * offloaded vlan header length. Need to explicitly add
 			 * the length
 			 */
@@ -1065,7 +1065,7 @@ static bool otx2_ptp_is_sync(struct sk_buff *skb, int *offset, bool *udp_csum_cr
 	}
 
 	msgtype = data + *offset;
-	/* Check PTP messageId is SYNC or not */
+	/* Check PTP messageId is SYNC or analt */
 	is_sync = !(*msgtype & 0xf);
 	if (is_sync)
 		*udp_csum_crt = udp_hdr_present;
@@ -1097,12 +1097,12 @@ static void otx2_set_txtstamp(struct otx2_nic *pfvf, struct sk_buff *skb,
 			ts = ns_to_timespec64(pfvf->ptp->tstamp);
 			origin_tstamp->seconds_msb = htons((ts.tv_sec >> 32) & 0xffff);
 			origin_tstamp->seconds_lsb = htonl(ts.tv_sec & 0xffffffff);
-			origin_tstamp->nanoseconds = htonl(ts.tv_nsec);
+			origin_tstamp->naanalseconds = htonl(ts.tv_nsec);
 			/* Point to correction field in PTP packet */
 			ptp_offset += 8;
 
 			/* When user disables hw checksum, stack calculates the csum,
-			 * but it does not cover ptp timestamp which is added later.
+			 * but it does analt cover ptp timestamp which is added later.
 			 * Recalculate the checksum manually considering the timestamp.
 			 */
 			if (udp_csum_crt) {
@@ -1146,7 +1146,7 @@ bool otx2_sq_append_skb(struct net_device *netdev, struct otx2_snd_queue *sq,
 	int offset, num_segs, free_desc;
 	struct nix_sqe_hdr_s *sqe_hdr;
 
-	/* Check if there is enough room between producer
+	/* Check if there is eanalugh room between producer
 	 * and consumer index.
 	 */
 	free_desc = (sq->cons_head - sq->head - 1 + sq->sqe_cnt) & (sq->sqe_cnt - 1);
@@ -1178,7 +1178,7 @@ bool otx2_sq_append_skb(struct net_device *netdev, struct otx2_snd_queue *sq,
 	}
 
 	/* Set SQE's SEND_HDR.
-	 * Do not clear the first 64bit as it contains constant info.
+	 * Do analt clear the first 64bit as it contains constant info.
 	 */
 	memset(sq->sqe_base + 8, 0, sq->sqe_size - 8);
 	sqe_hdr = (struct nix_sqe_hdr_s *)(sq->sqe_base);
@@ -1304,7 +1304,7 @@ int otx2_rxtx_enable(struct otx2_nic *pfvf, bool enable)
 
 	if (!msg) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pfvf->mbox);

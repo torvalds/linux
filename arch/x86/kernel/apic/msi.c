@@ -49,17 +49,17 @@ msi_set_affinity(struct irq_data *irqd, const struct cpumask *mask, bool force)
 		return ret;
 
 	/*
-	 * For non-maskable and non-remapped MSI interrupts the migration
+	 * For analn-maskable and analn-remapped MSI interrupts the migration
 	 * to a different destination CPU and a different vector has to be
 	 * done careful to handle the possible stray interrupt which can be
-	 * caused by the non-atomic update of the address/data pair.
+	 * caused by the analn-atomic update of the address/data pair.
 	 *
 	 * Direct update is possible when:
-	 * - The MSI is maskable (remapped MSI does not use this code path).
+	 * - The MSI is maskable (remapped MSI does analt use this code path).
 	 *   The reservation mode bit is set in this case.
 	 * - The new vector is the same as the old vector
 	 * - The old vector is MANAGED_IRQ_SHUTDOWN_VECTOR (interrupt starts up)
-	 * - The interrupt is not yet started up
+	 * - The interrupt is analt yet started up
 	 * - The new destination CPU is the same as the old destination CPU
 	 */
 	if (!irqd_can_reserve(irqd) ||
@@ -72,7 +72,7 @@ msi_set_affinity(struct irq_data *irqd, const struct cpumask *mask, bool force)
 	}
 
 	/*
-	 * Paranoia: Validate that the interrupt target is the local
+	 * Paraanalia: Validate that the interrupt target is the local
 	 * CPU.
 	 */
 	if (WARN_ON_ONCE(cpu != smp_processor_id())) {
@@ -87,10 +87,10 @@ msi_set_affinity(struct irq_data *irqd, const struct cpumask *mask, bool force)
 	 * update to the final destination CPU.
 	 *
 	 * If the vector is in use then the installed device handler will
-	 * denote it as spurious which is no harm as this is a rare event
+	 * deanalte it as spurious which is anal harm as this is a rare event
 	 * and interrupt handlers have to cope with spurious interrupts
 	 * anyway. If the vector is unused, then it is marked so it won't
-	 * trigger the 'No irq handler for vector' warning in
+	 * trigger the 'Anal irq handler for vector' warning in
 	 * common_interrupt().
 	 *
 	 * This requires to hold vector lock to prevent concurrent updates to
@@ -101,11 +101,11 @@ msi_set_affinity(struct irq_data *irqd, const struct cpumask *mask, bool force)
 	/*
 	 * Mark the new target vector on the local CPU if it is currently
 	 * unused. Reuse the VECTOR_RETRIGGERED state which is also used in
-	 * the CPU hotplug path for a similar purpose. This cannot be
+	 * the CPU hotplug path for a similar purpose. This cananalt be
 	 * undone here as the current CPU has interrupts disabled and
-	 * cannot handle the interrupt before the whole set_affinity()
+	 * cananalt handle the interrupt before the whole set_affinity()
 	 * section is done. In the CPU unplug case, the current CPU is
-	 * about to vanish and will not handle any interrupts anymore. The
+	 * about to vanish and will analt handle any interrupts anymore. The
 	 * vector is cleaned up when the CPU comes online again.
 	 */
 	if (IS_ERR_OR_NULL(this_cpu_read(vector_irq[cfg->vector])))
@@ -115,11 +115,11 @@ msi_set_affinity(struct irq_data *irqd, const struct cpumask *mask, bool force)
 	old_cfg.vector = cfg->vector;
 	irq_msi_update_msg(irqd, &old_cfg);
 
-	/* Now transition it to the target CPU */
+	/* Analw transition it to the target CPU */
 	irq_msi_update_msg(irqd, cfg);
 
 	/*
-	 * All interrupts after this point are now targeted at the new
+	 * All interrupts after this point are analw targeted at the new
 	 * vector/CPU.
 	 *
 	 * Drop vector lock before testing whether the temporary assignment
@@ -132,7 +132,7 @@ msi_set_affinity(struct irq_data *irqd, const struct cpumask *mask, bool force)
 	 * Check whether the transition raced with a device interrupt and
 	 * is pending in the local APICs IRR. It is safe to do this outside
 	 * of vector lock as the irq_desc::lock of this interrupt is still
-	 * held and interrupts are disabled: The check is not accessing the
+	 * held and interrupts are disabled: The check is analt accessing the
 	 * underlying vector store. It's just checking the local APIC's
 	 * IRR.
 	 */
@@ -239,7 +239,7 @@ static bool x86_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 	}
 
 	/*
-	 * Mask out the domain specific MSI feature flags which are not
+	 * Mask out the domain specific MSI feature flags which are analt
 	 * supported by the real parent.
 	 */
 	info->flags			&= pops->supported_flags;
@@ -298,7 +298,7 @@ EXPORT_SYMBOL_GPL(pci_msi_prepare);
 /*
  * The Intel IOMMU (ab)uses the high bits of the MSI address to contain the
  * high bits of the destination APIC ID. This can't be done in the general
- * case for MSIs as it would be targeting real memory above 4GiB not the
+ * case for MSIs as it would be targeting real memory above 4GiB analt the
  * APIC.
  */
 static void dmar_msi_compose_msg(struct irq_data *data, struct msi_msg *msg)
@@ -348,25 +348,25 @@ static struct irq_domain *dmar_get_irq_domain(void)
 {
 	static struct irq_domain *dmar_domain;
 	static DEFINE_MUTEX(dmar_lock);
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 
 	mutex_lock(&dmar_lock);
 	if (dmar_domain)
 		goto out;
 
-	fn = irq_domain_alloc_named_fwnode("DMAR-MSI");
+	fn = irq_domain_alloc_named_fwanalde("DMAR-MSI");
 	if (fn) {
 		dmar_domain = msi_create_irq_domain(fn, &dmar_msi_domain_info,
 						    x86_vector_domain);
 		if (!dmar_domain)
-			irq_domain_free_fwnode(fn);
+			irq_domain_free_fwanalde(fn);
 	}
 out:
 	mutex_unlock(&dmar_lock);
 	return dmar_domain;
 }
 
-int dmar_alloc_hwirq(int id, int node, void *arg)
+int dmar_alloc_hwirq(int id, int analde, void *arg)
 {
 	struct irq_domain *domain = dmar_get_irq_domain();
 	struct irq_alloc_info info;
@@ -380,7 +380,7 @@ int dmar_alloc_hwirq(int id, int node, void *arg)
 	info.hwirq = id;
 	info.data = arg;
 
-	return irq_domain_alloc_irqs(domain, 1, node, &info);
+	return irq_domain_alloc_irqs(domain, 1, analde, &info);
 }
 
 void dmar_free_hwirq(int irq)

@@ -115,7 +115,7 @@ void __delayacct_blkio_start(void)
 }
 
 /*
- * We cannot rely on the `current` macro, as we haven't yet switched back to
+ * We cananalt rely on the `current` macro, as we haven't yet switched back to
  * the process being woken.
  */
 void __delayacct_blkio_end(struct task_struct *p)
@@ -145,7 +145,7 @@ int delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 		(tmp < (s64)d->cpu_scaled_run_real_total) ? 0 : tmp;
 
 	/*
-	 * No locking available for sched_info (and too expensive to add one)
+	 * Anal locking available for sched_info (and too expensive to add one)
 	 * Mitigate by taking snapshot of values
 	 */
 	t1 = tsk->sched_info.pcount;
@@ -164,7 +164,7 @@ int delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	if (!tsk->delays)
 		return 0;
 
-	/* zero XXX_total, non-zero XXX_count implies XXX stat overflowed */
+	/* zero XXX_total, analn-zero XXX_count implies XXX stat overflowed */
 
 	raw_spin_lock_irqsave(&tsk->delays->lock, flags);
 	tmp = d->blkio_delay_total + tsk->delays->blkio_delay;

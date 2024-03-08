@@ -33,11 +33,11 @@ static inline void wmb(void)
 #define __fast_iob()				\
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
-		".set	noreorder\n\t"		\
+		".set	analreorder\n\t"		\
 		"lw	$0,%0\n\t"		\
-		"nop\n\t"			\
+		"analp\n\t"			\
 		".set	pop"			\
-		: /* no output */		\
+		: /* anal output */		\
 		: "m" (*(int *)CKSEG1)		\
 		: "memory")
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
@@ -47,12 +47,12 @@ static inline void wmb(void)
 #  define fast_iob()				\
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
-		".set	noreorder\n\t"		\
+		".set	analreorder\n\t"		\
 		"lw	$0,%0\n\t"		\
 		"sync\n\t"			\
 		"lw	$0,%0\n\t"		\
 		".set	pop"			\
-		: /* no output */		\
+		: /* anal output */		\
 		: "m" (*(int *)CKSEG1ADDR(0x1fa00004)) \
 		: "memory")
 # else
@@ -90,7 +90,7 @@ static inline void wmb(void)
 
 /*
  * When LL/SC does imply order, it must also be a compiler barrier to avoid the
- * compiler from reordering where the CPU will not. When it does not imply
+ * compiler from reordering where the CPU will analt. When it does analt imply
  * order, the compiler is also free to reorder across the LL/SC loop and
  * ordering will be done by smp_llsc_mb() and friends.
  */

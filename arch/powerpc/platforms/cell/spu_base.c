@@ -32,7 +32,7 @@ EXPORT_SYMBOL_GPL(spu_management_ops);
 const struct spu_priv1_ops *spu_priv1_ops;
 EXPORT_SYMBOL_GPL(spu_priv1_ops);
 
-struct cbe_spu_info cbe_spu_info[MAX_NUMNODES];
+struct cbe_spu_info cbe_spu_info[MAX_NUMANALDES];
 EXPORT_SYMBOL_GPL(cbe_spu_info);
 
 /*
@@ -141,7 +141,7 @@ static inline void spu_load_slb(struct spu *spu, int slbe, struct copro_slb *slb
 	out_be64(&priv2->slb_index_W, slbe);
 	/* set invalid before writing vsid */
 	out_be64(&priv2->slb_esid_RW, 0);
-	/* now it's safe to write the vsid */
+	/* analw it's safe to write the vsid */
 	out_be64(&priv2->slb_vsid_RW, slb->vsid);
 	/* setting the new esid makes the entry valid again */
 	out_be64(&priv2->slb_esid_RW, slb->esid);
@@ -179,7 +179,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	 * Handle kernel space hash faults immediately. User hash
 	 * faults need to be deferred to process context.
 	 */
-	if ((dsisr & MFC_DSISR_PTE_NOT_FOUND) &&
+	if ((dsisr & MFC_DSISR_PTE_ANALT_FOUND) &&
 	    (get_region_id(ea) != USER_REGION_ID)) {
 
 		spin_unlock(&spu->register_lock);
@@ -221,7 +221,7 @@ static void __spu_kernel_slb(void *addr, struct copro_slb *slb)
 }
 
 /**
- * Given an array of @nr_slbs SLB entries, @slbs, return non-zero if the
+ * Given an array of @nr_slbs SLB entries, @slbs, return analn-zero if the
  * address @new_addr is present.
  */
 static inline int __slb_present(struct copro_slb *slbs, int nr_slbs,
@@ -243,7 +243,7 @@ static inline int __slb_present(struct copro_slb *slbs, int nr_slbs,
  *
  * Because the lscsa and code may cross segment boundaries, we check to see
  * if mappings are required for the start and end of each range. We currently
- * assume that the mappings are smaller that one segment - if not, something
+ * assume that the mappings are smaller that one segment - if analt, something
  * is seriously wrong.
  */
 void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,
@@ -331,7 +331,7 @@ spu_irq_class_1(int irq, void *data)
 
 	spin_unlock(&spu->register_lock);
 
-	return stat ? IRQ_HANDLED : IRQ_NONE;
+	return stat ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static irqreturn_t
@@ -347,13 +347,13 @@ spu_irq_class_2(int irq, void *data)
 	spin_lock(&spu->register_lock);
 	stat = spu_int_stat_get(spu, 2);
 	mask = spu_int_mask_get(spu, 2);
-	/* ignore interrupts we're not waiting for */
+	/* iganalre interrupts we're analt waiting for */
 	stat &= mask;
-	/* mailbox interrupts are level triggered. mask them now before
-	 * acknowledging */
+	/* mailbox interrupts are level triggered. mask them analw before
+	 * ackanalwledging */
 	if (stat & mailbox_intrs)
 		spu_int_mask_and(spu, 2, ~(stat & mailbox_intrs));
-	/* acknowledge all interrupts before the callbacks */
+	/* ackanalwledge all interrupts before the callbacks */
 	spu_int_stat_clear(spu, 2, stat);
 
 	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
@@ -377,7 +377,7 @@ spu_irq_class_2(int irq, void *data)
 
 	spin_unlock(&spu->register_lock);
 
-	return stat ? IRQ_HANDLED : IRQ_NONE;
+	return stat ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int __init spu_request_irqs(struct spu *spu)
@@ -546,7 +546,7 @@ static int __init spu_create_dev(struct spu *spu)
 		return ret;
 	}
 
-	sysfs_add_device_to_node(&spu->dev, spu->node);
+	sysfs_add_device_to_analde(&spu->dev, spu->analde);
 
 	return 0;
 }
@@ -558,7 +558,7 @@ static int __init create_spu(void *data)
 	static int number;
 	unsigned long flags;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	spu = kzalloc(sizeof (*spu), GFP_KERNEL);
 	if (!spu)
 		goto out;
@@ -585,10 +585,10 @@ static int __init create_spu(void *data)
 	if (ret)
 		goto out_free_irqs;
 
-	mutex_lock(&cbe_spu_info[spu->node].list_mutex);
-	list_add(&spu->cbe_list, &cbe_spu_info[spu->node].spus);
-	cbe_spu_info[spu->node].n_spus++;
-	mutex_unlock(&cbe_spu_info[spu->node].list_mutex);
+	mutex_lock(&cbe_spu_info[spu->analde].list_mutex);
+	list_add(&spu->cbe_list, &cbe_spu_info[spu->analde].spus);
+	cbe_spu_info[spu->analde].n_spus++;
+	mutex_unlock(&cbe_spu_info[spu->analde].list_mutex);
 
 	mutex_lock(&spu_full_list_mutex);
 	spin_lock_irqsave(&spu_full_list_lock, flags);
@@ -624,7 +624,7 @@ static unsigned long long spu_acct_time(struct spu *spu,
 
 	/*
 	 * If the spu is idle or the context is stopped, utilization
-	 * statistics are not updated.  Apply the time delta from the
+	 * statistics are analt updated.  Apply the time delta from the
 	 * last recorded state of the spu.
 	 */
 	if (spu->stats.util_state == state)
@@ -670,7 +670,7 @@ struct crash_spu_info {
 	u64 saved_mfc_dsisr;
 };
 
-#define CRASH_NUM_SPUS	16	/* Enough for current hardware */
+#define CRASH_NUM_SPUS	16	/* Eanalugh for current hardware */
 static struct crash_spu_info crash_spu_info[CRASH_NUM_SPUS];
 
 static void crash_kexec_stop_spus(void)
@@ -718,7 +718,7 @@ static void __init crash_register_spus(struct list_head *list)
 
 	ret = crash_shutdown_register(&crash_kexec_stop_spus);
 	if (ret)
-		printk(KERN_ERR "Could not register SPU crash handler");
+		printk(KERN_ERR "Could analt register SPU crash handler");
 }
 
 #else
@@ -747,7 +747,7 @@ static int __init init_spu_base(void)
 {
 	int i, ret = 0;
 
-	for (i = 0; i < MAX_NUMNODES; i++) {
+	for (i = 0; i < MAX_NUMANALDES; i++) {
 		mutex_init(&cbe_spu_info[i].list_mutex);
 		INIT_LIST_HEAD(&cbe_spu_info[i].spus);
 	}

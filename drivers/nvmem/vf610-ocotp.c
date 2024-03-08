@@ -179,7 +179,7 @@ static int vf610_ocotp_read(void *context, unsigned int offset,
 			}
 
 			/*
-			 * In case of error, we do not abort and expect to read
+			 * In case of error, we do analt abort and expect to read
 			 * 0xBADABADA as mentioned by the TRM. We just read this
 			 * value and return.
 			 */
@@ -217,7 +217,7 @@ static int vf610_ocotp_probe(struct platform_device *pdev)
 
 	ocotp_dev = devm_kzalloc(dev, sizeof(struct vf610_ocotp), GFP_KERNEL);
 	if (!ocotp_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ocotp_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ocotp_dev->base))

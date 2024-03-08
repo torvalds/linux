@@ -3,7 +3,7 @@
  * OMAP2/3 System Control Module register access
  *
  * Copyright (C) 2007, 2012 Texas Instruments, Inc.
- * Copyright (C) 2007 Nokia Corporation
+ * Copyright (C) 2007 Analkia Corporation
  *
  * Written by Paul Walmsley
  */
@@ -202,9 +202,9 @@ void omap_ctrl_writel(u32 val, u16 offset)
  * @bootmode: 8-bit value to pass to some boot code
  *
  * Set the bootmode in the scratchpad RAM.  This is used after the
- * system restarts.  Not sure what actually uses this - it may be the
+ * system restarts.  Analt sure what actually uses this - it may be the
  * bootloader, rather than the boot ROM - contrary to the preserved
- * comment below.  No return value.
+ * comment below.  Anal return value.
  */
 void omap3_ctrl_write_boot_mode(u8 bootmode)
 {
@@ -478,7 +478,7 @@ void omap3630_ctrl_disable_rta(void)
  * Tell the SCM to start saving the padconf registers, then wait for
  * the process to complete.  Returns 0 unconditionally, although it
  * should also eventually be able to return -ETIMEDOUT, if the save
- * does not complete.
+ * does analt complete.
  *
  * XXX This function is missing a timeout.  What should it be?
  */
@@ -503,7 +503,7 @@ int omap3_ctrl_save_padconf(void)
  * omap3_ctrl_set_iva_bootmode_idle - sets the IVA2 bootmode to idle
  *
  * Sets the bootmode for IVA2 to idle. This is needed by the PM code to
- * force disable IVA2 so that it does not prevent any low-power states.
+ * force disable IVA2 so that it does analt prevent any low-power states.
  */
 static void __init omap3_ctrl_set_iva_bootmode_idle(void)
 {
@@ -522,7 +522,7 @@ static void __init omap3_ctrl_setup_d2d_padconf(void)
 	u16 mask, padconf;
 
 	/*
-	 * In a stand alone OMAP3430 where there is not a stacked
+	 * In a stand alone OMAP3430 where there is analt a stacked
 	 * modem for the D2D Idle Ack and D2D MStandby must be pulled
 	 * high. S CONTROL_PADCONF_SAD2D_IDLEACK and
 	 * CONTROL_PADCONF_SAD2D_MSTDBY to have a pull up.
@@ -641,7 +641,7 @@ static void am43xx_control_restore_context(void)
 				 am43xx_control_reg_offsets[i]);
 }
 
-static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+static int cpu_analtifier(struct analtifier_block *nb, unsigned long cmd, void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
@@ -654,7 +654,7 @@ static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 struct control_init_data {
@@ -699,18 +699,18 @@ static const struct of_device_id omap_scrm_dt_match_table[] = {
  */
 int __init omap2_control_base_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 	struct control_init_data *data;
 	void __iomem *mem;
 
-	for_each_matching_node_and_match(np, omap_scrm_dt_match_table, &match) {
+	for_each_matching_analde_and_match(np, omap_scrm_dt_match_table, &match) {
 		data = (struct control_init_data *)match->data;
 
 		mem = of_iomap(np, 0);
 		if (!mem) {
-			of_node_put(np);
-			return -ENOMEM;
+			of_analde_put(np);
+			return -EANALMEM;
 		}
 
 		if (data->index == TI_CLKM_CTRL) {
@@ -732,28 +732,28 @@ int __init omap2_control_base_init(void)
  */
 int __init omap_control_init(void)
 {
-	struct device_node *np, *scm_conf;
+	struct device_analde *np, *scm_conf;
 	const struct of_device_id *match;
 	const struct omap_prcm_init_data *data;
 	int ret;
 	struct regmap *syscon;
-	static struct notifier_block nb;
+	static struct analtifier_block nb;
 
-	for_each_matching_node_and_match(np, omap_scrm_dt_match_table, &match) {
+	for_each_matching_analde_and_match(np, omap_scrm_dt_match_table, &match) {
 		data = match->data;
 
 		/*
-		 * Check if we have scm_conf node, if yes, use this to
+		 * Check if we have scm_conf analde, if anal, use this to
 		 * access clock registers.
 		 */
 		scm_conf = of_get_child_by_name(np, "scm_conf");
 
 		if (scm_conf) {
-			syscon = syscon_node_to_regmap(scm_conf);
+			syscon = syscon_analde_to_regmap(scm_conf);
 
 			if (IS_ERR(syscon)) {
 				ret = PTR_ERR(syscon);
-				goto of_node_put;
+				goto of_analde_put;
 			}
 
 			if (of_get_child_by_name(scm_conf, "clocks")) {
@@ -761,27 +761,27 @@ int __init omap_control_init(void)
 							      data->index,
 							      syscon, NULL);
 				if (ret)
-					goto of_node_put;
+					goto of_analde_put;
 			}
 		} else {
-			/* No scm_conf found, direct access */
+			/* Anal scm_conf found, direct access */
 			ret = omap2_clk_provider_init(np, data->index, NULL,
 						      data->mem);
 			if (ret)
-				goto of_node_put;
+				goto of_analde_put;
 		}
 	}
 
 	/* Only AM43XX can lose ctrl registers context during rtc-ddr suspend */
 	if (soc_is_am43xx()) {
-		nb.notifier_call = cpu_notifier;
-		cpu_pm_register_notifier(&nb);
+		nb.analtifier_call = cpu_analtifier;
+		cpu_pm_register_analtifier(&nb);
 	}
 
 	return 0;
 
-of_node_put:
-	of_node_put(np);
+of_analde_put:
+	of_analde_put(np);
 	return ret;
 
 }

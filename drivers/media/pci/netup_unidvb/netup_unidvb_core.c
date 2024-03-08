@@ -80,11 +80,11 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
  *			For example, value of 375000000 equals to 3 sec
  * @curr_addr_lo:	Current ring buffer head address, lower part
  * @curr_addr_hi:	Current ring buffer head address, higher part
- * @stat_pkt_received:	Statistic register, not tested
- * @stat_pkt_accepted:	Statistic register, not tested
- * @stat_pkt_overruns:	Statistic register, not tested
- * @stat_pkt_underruns:	Statistic register, not tested
- * @stat_fifo_overruns:	Statistic register, not tested
+ * @stat_pkt_received:	Statistic register, analt tested
+ * @stat_pkt_accepted:	Statistic register, analt tested
+ * @stat_pkt_overruns:	Statistic register, analt tested
+ * @stat_pkt_underruns:	Statistic register, analt tested
+ * @stat_fifo_overruns:	Statistic register, analt tested
  */
 struct netup_dma_regs {
 	__le32	ctrlstat_set;
@@ -219,7 +219,7 @@ static irqreturn_t netup_dma_interrupt(struct netup_dma *dma)
 			addr_curr > dma->addr_phys +  dma->ring_buffer_size) {
 		if (addr_curr != 0) {
 			dev_err(dev,
-				"%s(): addr 0x%llx not from 0x%llx:0x%llx\n",
+				"%s(): addr 0x%llx analt from 0x%llx:0x%llx\n",
 				__func__, addr_curr, (u64)dma->addr_phys,
 				(u64)(dma->addr_phys + dma->ring_buffer_size));
 		}
@@ -249,7 +249,7 @@ static irqreturn_t netup_unidvb_isr(int irq, void *dev_id)
 	struct pci_dev *pci_dev = (struct pci_dev *)dev_id;
 	struct netup_unidvb_dev *ndev = pci_get_drvdata(pci_dev);
 	u32 reg40, reg_isr;
-	irqreturn_t iret = IRQ_NONE;
+	irqreturn_t iret = IRQ_ANALNE;
 
 	/* disable interrupts */
 	writel(0, ndev->bmmio0 + AVL_PCIE_IENR);
@@ -277,7 +277,7 @@ static irqreturn_t netup_unidvb_isr(int irq, void *dev_id)
 		} else {
 err:
 			dev_err(&pci_dev->dev,
-				"%s(): unknown interrupt 0x%x\n",
+				"%s(): unkanalwn interrupt 0x%x\n",
 				__func__, reg_isr);
 		}
 	}
@@ -371,7 +371,7 @@ static int netup_unidvb_queue_init(struct netup_dma *dma,
 	vb_queue->buf_struct_size = sizeof(struct netup_unidvb_buffer);
 	vb_queue->ops = &dvb_qops;
 	vb_queue->mem_ops = &vb2_vmalloc_memops;
-	vb_queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vb_queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	res = vb2_queue_init(vb_queue);
 	if (res != 0) {
 		dev_err(&dma->ndev->pci_dev->dev,
@@ -396,7 +396,7 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 	if (num < 0 || num > 1) {
 		dev_dbg(&ndev->pci_dev->dev,
 			"%s(): unable to init DVB bus %d\n", __func__, num);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	mutex_init(&ndev->frontends[num].lock);
 	INIT_LIST_HEAD(&ndev->frontends[num].felist);
@@ -407,7 +407,7 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 			dev_err(&ndev->pci_dev->dev,
 					"%s(): unable to allocate vb2_dvb_frontend\n",
 					__func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -415,7 +415,7 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 		fes[i] = vb2_dvb_get_frontend(&ndev->frontends[num], i+1);
 		if (fes[i] == NULL) {
 			dev_err(&ndev->pci_dev->dev,
-				"%s(): frontends has not been allocated\n",
+				"%s(): frontends has analt been allocated\n",
 				__func__);
 			return -EINVAL;
 		}
@@ -592,7 +592,7 @@ static void netup_unidvb_dma_worker(struct work_struct *work)
 	while (dma->data_size > 0) {
 		if (list_empty(&dma->free_buffers)) {
 			dev_dbg(&ndev->pci_dev->dev,
-				"%s(): no free buffers\n", __func__);
+				"%s(): anal free buffers\n", __func__);
 			goto work_done;
 		}
 		buf = list_first_entry(&dma->free_buffers,
@@ -652,7 +652,7 @@ static int netup_unidvb_dma_init(struct netup_unidvb_dev *ndev, int num)
 	if (num < 0 || num > 1) {
 		dev_err(dev, "%s(): unable to register DMA%d\n",
 			__func__, num);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dma = &ndev->dma[num];
 	dev_info(dev, "%s(): starting DMA%d\n", __func__, num);
@@ -839,7 +839,7 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &board_revision);
 	pci_read_config_word(pci_dev, PCI_VENDOR_ID, &board_vendor);
 	if (board_vendor != NETUP_VENDOR_ID) {
-		dev_err(&pci_dev->dev, "%s(): unknown board vendor 0x%x",
+		dev_err(&pci_dev->dev, "%s(): unkanalwn board vendor 0x%x",
 			__func__, board_vendor);
 		goto pci_detect_err;
 	}
@@ -849,14 +849,14 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	if (dma_set_mask(&pci_dev->dev, 0xffffffff) < 0) {
 		dev_err(&pci_dev->dev,
-			"%s(): 32bit PCI DMA is not supported\n", __func__);
+			"%s(): 32bit PCI DMA is analt supported\n", __func__);
 		goto pci_detect_err;
 	}
 	dev_info(&pci_dev->dev, "%s(): using 32bit PCI DMA\n", __func__);
-	/* Clear "no snoop" and "relaxed ordering" bits, use default MRRS. */
+	/* Clear "anal sanalop" and "relaxed ordering" bits, use default MRRS. */
 	pcie_capability_clear_and_set_word(pci_dev, PCI_EXP_DEVCTL,
 		PCI_EXP_DEVCTL_READRQ | PCI_EXP_DEVCTL_RELAX_EN |
-		PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
+		PCI_EXP_DEVCTL_ANALSANALOP_EN, 0);
 	/* Adjust PCIe completion timeout. */
 	pcie_capability_clear_and_set_word(pci_dev,
 		PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_COMP_TIMEOUT, 0x2);

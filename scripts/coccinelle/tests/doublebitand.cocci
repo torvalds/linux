@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// Find bit operations that include the same argument more than once
 //# One source of false positives is when the argument performs a side
-//# effect.  Another source of false positives is when a neutral value
-//# such as 0 for | is used to indicate no information, to maintain the
+//# effect.  Aanalther source of false positives is when a neutral value
+//# such as 0 for | is used to indicate anal information, to maintain the
 //# same structure as other similar expressions
 ///
 // Confidence: Moderate
@@ -11,7 +11,7 @@
 // Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual context
 virtual org

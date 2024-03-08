@@ -121,7 +121,7 @@ static int mv88e6060_setup_port(struct mv88e6060_priv *priv, int p)
 	if (dsa_is_unused_port(priv->ds, p))
 		return 0;
 
-	/* Do not force flow control, disable Ingress and Egress
+	/* Do analt force flow control, disable Ingress and Egress
 	 * Header tagging, disable VLAN tunneling, and set the port
 	 * state to Forwarding.  Additionally, if this is the CPU
 	 * port, enable Ingress and Egress Trailer tagging mode.
@@ -268,7 +268,7 @@ static void mv88e6060_phylink_get_caps(struct dsa_switch *ds, int port,
 	 * forcibly fail validation until the need arises to introduce it.
 	 */
 	if (!(ret & PORT_STATUS_PORTMODE)) {
-		dev_warn(ds->dev, "port %d: SNI mode not supported\n", port);
+		dev_warn(ds->dev, "port %d: SNI mode analt supported\n", port);
 		return;
 	}
 
@@ -308,20 +308,20 @@ static int mv88e6060_probe(struct mdio_device *mdiodev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->bus = mdiodev->bus;
 	priv->sw_addr = mdiodev->addr;
 
 	name = mv88e6060_get_name(priv->bus, priv->sw_addr);
 	if (!name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_info(dev, "switch %s detected\n", name);
 
 	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds->dev = dev;
 	ds->num_ports = MV88E6060_PORTS;

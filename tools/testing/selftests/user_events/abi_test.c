@@ -8,7 +8,7 @@
 #define _GNU_SOURCE
 #include <sched.h>
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/user_events.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -173,11 +173,11 @@ TEST_F(user, flags) {
 	/* Ensure we can delete it */
 	ASSERT_EQ(0, event_delete());
 
-	/* USER_EVENT_REG_MAX or above is not allowed */
+	/* USER_EVENT_REG_MAX or above is analt allowed */
 	ASSERT_EQ(-1, reg_enable_flags(&self->check, sizeof(int), 0,
 				       USER_EVENT_REG_MAX));
 
-	/* Ensure it does not exist after invalid flags */
+	/* Ensure it does analt exist after invalid flags */
 	ASSERT_FALSE(event_exists());
 }
 
@@ -265,7 +265,7 @@ static int clone_check(void *check)
 TEST_F(user, clones) {
 	int i, stack_size = 4096;
 	void *stack = mmap(NULL, stack_size, PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK,
+			   MAP_PRIVATE | MAP_AANALNYMOUS | MAP_STACK,
 			   -1, 0);
 
 	ASSERT_NE(MAP_FAILED, stack);

@@ -9,8 +9,8 @@
 struct symbol;
 
 /*
- * struct block_range - non-overlapping parts of basic blocks
- * @node:	treenode
+ * struct block_range - analn-overlapping parts of basic blocks
+ * @analde:	treeanalde
  * @start:	inclusive start of range
  * @end:	inclusive end of range
  * @is_target:	@start is a jump target
@@ -20,7 +20,7 @@ struct symbol;
  * @pred:	number of times the taken branch was predicted
  */
 struct block_range {
-	struct rb_node node;
+	struct rb_analde analde;
 
 	struct symbol *sym;
 
@@ -37,10 +37,10 @@ struct block_range {
 
 static inline struct block_range *block_range__next(struct block_range *br)
 {
-	struct rb_node *n = rb_next(&br->node);
+	struct rb_analde *n = rb_next(&br->analde);
 	if (!n)
 		return NULL;
-	return rb_entry(n, struct block_range, node);
+	return rb_entry(n, struct block_range, analde);
 }
 
 struct block_range_iter {

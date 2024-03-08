@@ -233,7 +233,7 @@ static int gpu_set(struct context *ctx, unsigned long offset, u32 v)
 		*cs++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 		*cs++ = i915_ggtt_offset(vma) + offset;
 		*cs++ = v;
-		*cs++ = MI_NOOP;
+		*cs++ = MI_ANALOP;
 	}
 	intel_ring_advance(rq, cs);
 
@@ -323,7 +323,7 @@ static int igt_gem_coherency(void *arg)
 
 	offsets = kmalloc_array(ncachelines, 2*sizeof(u32), GFP_KERNEL);
 	if (!offsets)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (count = 0; count < ncachelines; count++)
 		offsets[count] = count * 64 + 4 * (count % 16);
 
@@ -331,7 +331,7 @@ static int igt_gem_coherency(void *arg)
 
 	ctx.engine = random_engine(i915, &prng);
 	if (!ctx.engine) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_free;
 	}
 	pr_info("%s: using %s\n", __func__, ctx.engine->name);

@@ -75,7 +75,7 @@ static int siox_gpio_pushpull(struct siox_master *smaster,
 	/*
 	 * Resetting dout isn't necessary protocol wise, but it makes the
 	 * signals more pretty because the dout level is deterministic between
-	 * cycles. Note that this only affects dout between the master and the
+	 * cycles. Analte that this only affects dout between the master and the
 	 * first siox device. dout for the later devices depend on the output of
 	 * the previous siox device.
 	 */
@@ -94,7 +94,7 @@ static int siox_gpio_probe(struct platform_device *pdev)
 	smaster = siox_master_alloc(&pdev->dev, sizeof(*ddata));
 	if (!smaster) {
 		dev_err(dev, "failed to allocate siox master\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, smaster);
@@ -130,7 +130,7 @@ static int siox_gpio_probe(struct platform_device *pdev)
 
 	smaster->pushpull = siox_gpio_pushpull;
 	/* XXX: determine automatically like spi does */
-	smaster->busno = 0;
+	smaster->busanal = 0;
 
 	ret = siox_master_register(smaster);
 	if (ret) {

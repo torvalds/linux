@@ -3,9 +3,9 @@
 #define _ASM_X86_ENTRY_COMMON_H
 
 #include <linux/randomize_kstack.h>
-#include <linux/user-return-notifier.h>
+#include <linux/user-return-analtifier.h>
 
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/io_bitmap.h>
 #include <asm/fpu/api.h>
 
@@ -16,7 +16,7 @@ static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs)
 		/*
 		 * Make sure that the entry code gave us a sensible EFLAGS
 		 * register.  Native because we want to check the actual CPU
-		 * state, not the interrupt state as imagined by Xen.
+		 * state, analt the interrupt state as imagined by Xen.
 		 */
 		unsigned long flags = native_save_fl();
 		unsigned long mask = X86_EFLAGS_DF | X86_EFLAGS_NT;
@@ -35,7 +35,7 @@ static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs)
 
 		/*
 		 * All entries from user mode (except #DF) should be on the
-		 * normal thread stack and should have user pt_regs in the
+		 * analrmal thread stack and should have user pt_regs in the
 		 * correct location.
 		 */
 		WARN_ON_ONCE(!on_thread_stack());
@@ -47,8 +47,8 @@ static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs)
 static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 						  unsigned long ti_work)
 {
-	if (ti_work & _TIF_USER_RETURN_NOTIFY)
-		fire_user_return_notifiers();
+	if (ti_work & _TIF_USER_RETURN_ANALTIFY)
+		fire_user_return_analtifiers();
 
 	if (unlikely(ti_work & _TIF_IO_BITMAP))
 		tss_update_io_bitmap();
@@ -74,7 +74,7 @@ static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 
 	/*
 	 * Ultimately, this value will get limited by KSTACK_OFFSET_MAX(),
-	 * but not enough for x86 stack utilization comfort. To keep
+	 * but analt eanalugh for x86 stack utilization comfort. To keep
 	 * reasonable stack head room, reduce the maximum offset to 8 bits.
 	 *
 	 * The actual entropy will be further reduced by the compiler when

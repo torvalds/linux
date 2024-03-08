@@ -30,7 +30,7 @@ TRACE_EVENT(spufs_context,
 
 #define spu_context_trace(name, ctx, spu) \
 	trace_spufs_context(ctx, spu, __stringify(name))
-#define spu_context_nospu_trace(name, ctx) \
+#define spu_context_analspu_trace(name, ctx) \
 	trace_spufs_context(ctx, NULL, __stringify(name))
 
 #endif /* _TRACE_SPUFS_H */

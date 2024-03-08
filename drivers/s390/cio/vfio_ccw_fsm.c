@@ -54,7 +54,7 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 	case 2:		/* Busy */
 		ret = -EBUSY;
 		break;
-	case 3:		/* Device/path not operational */
+	case 3:		/* Device/path analt operational */
 	{
 		lpm = orb->cmd.lpm;
 		if (lpm != 0)
@@ -63,9 +63,9 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 			sch->lpm = 0;
 
 		if (cio_update_schib(sch))
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		else
-			ret = sch->lpm ? -EACCES : -ENODEV;
+			ret = sch->lpm ? -EACCES : -EANALDEV;
 		break;
 	}
 	default:
@@ -105,8 +105,8 @@ static int fsm_do_halt(struct vfio_ccw_private *private)
 	case 2:		/* Busy */
 		ret = -EBUSY;
 		break;
-	case 3:		/* Device not operational */
-		ret = -ENODEV;
+	case 3:		/* Device analt operational */
+		ret = -EANALDEV;
 		break;
 	default:
 		ret = ccode;
@@ -141,8 +141,8 @@ static int fsm_do_clear(struct vfio_ccw_private *private)
 		/* TODO: check what else we might need to clear */
 		ret = 0;
 		break;
-	case 3:		/* Device not operational */
-		ret = -ENODEV;
+	case 3:		/* Device analt operational */
+		ret = -EANALDEV;
 		break;
 	default:
 		ret = ccode;
@@ -151,15 +151,15 @@ static int fsm_do_clear(struct vfio_ccw_private *private)
 	return ret;
 }
 
-static void fsm_notoper(struct vfio_ccw_private *private,
+static void fsm_analtoper(struct vfio_ccw_private *private,
 			enum vfio_ccw_event event)
 {
 	struct subchannel *sch = to_subchannel(private->vdev.dev->parent);
 
-	VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: notoper event %x state %x\n",
+	VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: analtoper event %x state %x\n",
 			   sch->schid.cssid,
 			   sch->schid.ssid,
-			   sch->schid.sch_no,
+			   sch->schid.sch_anal,
 			   event,
 			   private->state);
 
@@ -168,16 +168,16 @@ static void fsm_notoper(struct vfio_ccw_private *private,
 	 * Probably we should send the machine check to the guest.
 	 */
 	css_sched_sch_todo(sch, SCH_TODO_UNREG);
-	private->state = VFIO_CCW_STATE_NOT_OPER;
+	private->state = VFIO_CCW_STATE_ANALT_OPER;
 
 	/* This is usually handled during CLOSE event */
 	cp_free(&private->cp);
 }
 
 /*
- * No operation action.
+ * Anal operation action.
  */
-static void fsm_nop(struct vfio_ccw_private *private,
+static void fsm_analp(struct vfio_ccw_private *private,
 		    enum vfio_ccw_event event)
 {
 }
@@ -209,7 +209,7 @@ static void fsm_async_error(struct vfio_ccw_private *private,
 	pr_err("vfio-ccw: FSM: %s request from state:%d\n",
 	       cmd_region->command == VFIO_CCW_ASYNC_CMD_HSCH ? "halt" :
 	       cmd_region->command == VFIO_CCW_ASYNC_CMD_CSCH ? "clear" :
-	       "<unknown>", private->state);
+	       "<unkanalwn>", private->state);
 	cmd_region->ret_code = -EIO;
 }
 
@@ -225,8 +225,8 @@ static void fsm_disabled_irq(struct vfio_ccw_private *private,
 	struct subchannel *sch = to_subchannel(private->vdev.dev->parent);
 
 	/*
-	 * An interrupt in a disabled state means a previous disable was not
-	 * successful - should not happen, but we try to disable again.
+	 * An interrupt in a disabled state means a previous disable was analt
+	 * successful - should analt happen, but we try to disable again.
 	 */
 	cio_disable_subchannel(sch);
 }
@@ -257,11 +257,11 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 
 		/* Don't try to build a cp if transport mode is specified. */
 		if (orb->tm.b) {
-			io_region->ret_code = -EOPNOTSUPP;
+			io_region->ret_code = -EOPANALTSUPP;
 			VFIO_CCW_MSG_EVENT(2,
 					   "sch %x.%x.%04x: transport mode\n",
 					   schid.cssid,
-					   schid.ssid, schid.sch_no);
+					   schid.ssid, schid.sch_anal);
 			errstr = "transport mode";
 			goto err_out;
 		}
@@ -270,7 +270,7 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 			VFIO_CCW_MSG_EVENT(2,
 					   "sch %x.%x.%04x: cp_init=%d\n",
 					   schid.cssid,
-					   schid.ssid, schid.sch_no,
+					   schid.ssid, schid.sch_anal,
 					   io_region->ret_code);
 			errstr = "cp init";
 			goto err_out;
@@ -281,7 +281,7 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 			VFIO_CCW_MSG_EVENT(2,
 					   "sch %x.%x.%04x: cp_prefetch=%d\n",
 					   schid.cssid,
-					   schid.ssid, schid.sch_no,
+					   schid.ssid, schid.sch_anal,
 					   io_region->ret_code);
 			errstr = "cp prefetch";
 			cp_free(&private->cp);
@@ -294,7 +294,7 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 			VFIO_CCW_MSG_EVENT(2,
 					   "sch %x.%x.%04x: fsm_io_helper=%d\n",
 					   schid.cssid,
-					   schid.ssid, schid.sch_no,
+					   schid.ssid, schid.sch_anal,
 					   io_region->ret_code);
 			errstr = "cp fsm_io_helper";
 			cp_free(&private->cp);
@@ -305,17 +305,17 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 		VFIO_CCW_MSG_EVENT(2,
 				   "sch %x.%x.%04x: halt on io_region\n",
 				   schid.cssid,
-				   schid.ssid, schid.sch_no);
+				   schid.ssid, schid.sch_anal);
 		/* halt is handled via the async cmd region */
-		io_region->ret_code = -EOPNOTSUPP;
+		io_region->ret_code = -EOPANALTSUPP;
 		goto err_out;
 	} else if (scsw->cmd.fctl & SCSW_FCTL_CLEAR_FUNC) {
 		VFIO_CCW_MSG_EVENT(2,
 				   "sch %x.%x.%04x: clear on io_region\n",
 				   schid.cssid,
-				   schid.ssid, schid.sch_no);
+				   schid.ssid, schid.sch_anal);
 		/* clear is handled via the async cmd region */
-		io_region->ret_code = -EOPNOTSUPP;
+		io_region->ret_code = -EOPANALTSUPP;
 		goto err_out;
 	}
 
@@ -341,7 +341,7 @@ static void fsm_async_request(struct vfio_ccw_private *private,
 		cmd_region->ret_code = fsm_do_clear(private);
 		break;
 	default:
-		/* should not happen? */
+		/* should analt happen? */
 		cmd_region->ret_code = -EINVAL;
 	}
 
@@ -351,7 +351,7 @@ static void fsm_async_request(struct vfio_ccw_private *private,
 }
 
 /*
- * Got an interrupt for a normal io (state busy).
+ * Got an interrupt for a analrmal io (state busy).
  */
 static void fsm_irq(struct vfio_ccw_private *private,
 		    enum vfio_ccw_event event)
@@ -388,7 +388,7 @@ static void fsm_open(struct vfio_ccw_private *private,
 
 err_unlock:
 	spin_unlock_irq(&sch->lock);
-	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
+	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_ANALT_OPER);
 }
 
 static void fsm_close(struct vfio_ccw_private *private,
@@ -415,51 +415,51 @@ static void fsm_close(struct vfio_ccw_private *private,
 
 err_unlock:
 	spin_unlock_irq(&sch->lock);
-	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
+	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_ANALT_OPER);
 }
 
 /*
  * Device statemachine
  */
 fsm_func_t *vfio_ccw_jumptable[NR_VFIO_CCW_STATES][NR_VFIO_CCW_EVENTS] = {
-	[VFIO_CCW_STATE_NOT_OPER] = {
-		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_nop,
+	[VFIO_CCW_STATE_ANALT_OPER] = {
+		[VFIO_CCW_EVENT_ANALT_OPER]	= fsm_analp,
 		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_error,
 		[VFIO_CCW_EVENT_ASYNC_REQ]	= fsm_async_error,
 		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_disabled_irq,
-		[VFIO_CCW_EVENT_OPEN]		= fsm_nop,
-		[VFIO_CCW_EVENT_CLOSE]		= fsm_nop,
+		[VFIO_CCW_EVENT_OPEN]		= fsm_analp,
+		[VFIO_CCW_EVENT_CLOSE]		= fsm_analp,
 	},
 	[VFIO_CCW_STATE_STANDBY] = {
-		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_notoper,
+		[VFIO_CCW_EVENT_ANALT_OPER]	= fsm_analtoper,
 		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_error,
 		[VFIO_CCW_EVENT_ASYNC_REQ]	= fsm_async_error,
 		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_disabled_irq,
 		[VFIO_CCW_EVENT_OPEN]		= fsm_open,
-		[VFIO_CCW_EVENT_CLOSE]		= fsm_notoper,
+		[VFIO_CCW_EVENT_CLOSE]		= fsm_analtoper,
 	},
 	[VFIO_CCW_STATE_IDLE] = {
-		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_notoper,
+		[VFIO_CCW_EVENT_ANALT_OPER]	= fsm_analtoper,
 		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_request,
 		[VFIO_CCW_EVENT_ASYNC_REQ]	= fsm_async_request,
 		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_irq,
-		[VFIO_CCW_EVENT_OPEN]		= fsm_notoper,
+		[VFIO_CCW_EVENT_OPEN]		= fsm_analtoper,
 		[VFIO_CCW_EVENT_CLOSE]		= fsm_close,
 	},
 	[VFIO_CCW_STATE_CP_PROCESSING] = {
-		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_notoper,
+		[VFIO_CCW_EVENT_ANALT_OPER]	= fsm_analtoper,
 		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_retry,
 		[VFIO_CCW_EVENT_ASYNC_REQ]	= fsm_async_retry,
 		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_irq,
-		[VFIO_CCW_EVENT_OPEN]		= fsm_notoper,
+		[VFIO_CCW_EVENT_OPEN]		= fsm_analtoper,
 		[VFIO_CCW_EVENT_CLOSE]		= fsm_close,
 	},
 	[VFIO_CCW_STATE_CP_PENDING] = {
-		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_notoper,
+		[VFIO_CCW_EVENT_ANALT_OPER]	= fsm_analtoper,
 		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_busy,
 		[VFIO_CCW_EVENT_ASYNC_REQ]	= fsm_async_request,
 		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_irq,
-		[VFIO_CCW_EVENT_OPEN]		= fsm_notoper,
+		[VFIO_CCW_EVENT_OPEN]		= fsm_analtoper,
 		[VFIO_CCW_EVENT_CLOSE]		= fsm_close,
 	},
 };

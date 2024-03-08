@@ -98,13 +98,13 @@ Required properties:
 		"hclk" for the host clock
 
 Deprecated property:
- - ep childnode: To specify the number of endpoints and their properties.
+ - ep childanalde: To specify the number of endpoints and their properties.
 
 Optional properties:
  - atmel,vbus-gpio: If present, specifies a gpio that allows to detect whether
    vbus is present (USB is connected).
 
-Deprecated child node properties:
+Deprecated child analde properties:
  - name: Name of the endpoint.
  - reg: Num of the endpoint.
  - atmel,fifo-size: Size of the fifo.

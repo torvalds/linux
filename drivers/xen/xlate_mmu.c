@@ -16,12 +16,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -130,8 +130,8 @@ static int remap_pte_fn(pte_t *ptep, unsigned long addr, void *data)
 	}
 
 	/*
-	 * Note: The hypercall will return 0 in most of the case if even if
-	 * all the fgmfn are not mapped. We still have to update the pte
+	 * Analte: The hypercall will return 0 in most of the case if even if
+	 * all the fgmfn are analt mapped. We still have to update the pte
 	 * as the userspace may decide to continue.
 	 */
 	if (!rc)
@@ -225,12 +225,12 @@ int __init xen_xlate_map_ballooned_pages(xen_pfn_t **gfns, void **virt,
 	nr_pages = DIV_ROUND_UP(nr_grant_frames, XEN_PFN_PER_PAGE);
 	pages = kcalloc(nr_pages, sizeof(pages[0]), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfns = kcalloc(nr_grant_frames, sizeof(pfns[0]), GFP_KERNEL);
 	if (!pfns) {
 		kfree(pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rc = xen_alloc_unpopulated_pages(nr_pages, pages);
 	if (rc) {
@@ -252,7 +252,7 @@ int __init xen_xlate_map_ballooned_pages(xen_pfn_t **gfns, void **virt,
 		xen_free_unpopulated_pages(nr_pages, pages);
 		kfree(pages);
 		kfree(pfns);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	kfree(pages);
 

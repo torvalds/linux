@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Microchip LAN937X switch driver main logic
- * Copyright (C) 2019-2022 Microchip Technology Inc.
+ * Copyright (C) 2019-2022 Microchip Techanallogy Inc.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -69,7 +69,7 @@ static int lan937x_internal_phy_write(struct ksz_device *dev, int addr, int reg,
 
 	/* Check for internal phy port */
 	if (!dev->info->internal_phy[addr])
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = lan937x_vphy_ind_addr_wr(dev, addr, reg);
 	if (ret < 0)
@@ -103,7 +103,7 @@ static int lan937x_internal_phy_read(struct ksz_device *dev, int addr, int reg,
 	unsigned int value;
 	int ret;
 
-	/* Check for internal phy port, return 0xffff for non-existent phy */
+	/* Check for internal phy port, return 0xffff for analn-existent phy */
 	if (!dev->info->internal_phy[addr])
 		return 0xffff;
 
@@ -365,7 +365,7 @@ int lan937x_setup(struct dsa_switch *ds)
 	}
 
 	/* The VLAN aware is a global setting. Mixed vlan
-	 * filterings are not supported.
+	 * filterings are analt supported.
 	 */
 	ds->vlan_filtering_is_global = true;
 
@@ -374,10 +374,10 @@ int lan937x_setup(struct dsa_switch *ds)
 		    (SW_PAUSE_UNH_MODE | SW_NEW_BACKOFF | SW_AGGR_BACKOFF),
 		    true);
 
-	/* If NO_EXC_COLLISION_DROP bit is set, the switch will not drop
+	/* If ANAL_EXC_COLLISION_DROP bit is set, the switch will analt drop
 	 * packets when 16 or more collisions occur
 	 */
-	lan937x_cfg(dev, REG_SW_MAC_CTRL_1, NO_EXC_COLLISION_DROP, true);
+	lan937x_cfg(dev, REG_SW_MAC_CTRL_1, ANAL_EXC_COLLISION_DROP, true);
 
 	/* enable global MIB counter freeze function */
 	lan937x_cfg(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FREEZE, true);

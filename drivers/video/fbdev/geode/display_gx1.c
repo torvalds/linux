@@ -55,14 +55,14 @@ int gx1_frame_buffer_size(void)
 
 	mc_regs = ioremap(gx1_gx_base() + 0x8400, 0x100);
 	if (!mc_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	/* Calculate the total size of both DIMM0 and DIMM1. */
 	bank_cfg = readl(mc_regs + MC_BANK_CFG);
 
 	for (d = 0; d < 2; d++) {
-		if ((bank_cfg & MC_BCFG_DIMM0_PG_SZ_MASK) != MC_BCFG_DIMM0_PG_SZ_NO_DIMM)
+		if ((bank_cfg & MC_BCFG_DIMM0_PG_SZ_MASK) != MC_BCFG_DIMM0_PG_SZ_ANAL_DIMM)
 			dram_size += 0x400000 << ((bank_cfg & MC_BCFG_DIMM0_SZ_MASK) >> 8);
 		bank_cfg >>= 16; /* look at DIMM1 next */
 	}
@@ -189,7 +189,7 @@ static void gx1_set_mode(struct fb_info *info)
 	 * register. */
 }
 
-static void gx1_set_hw_palette_reg(struct fb_info *info, unsigned regno,
+static void gx1_set_hw_palette_reg(struct fb_info *info, unsigned reganal,
 				   unsigned red, unsigned green, unsigned blue)
 {
 	struct geodefb_par *par = info->par;
@@ -200,7 +200,7 @@ static void gx1_set_hw_palette_reg(struct fb_info *info, unsigned regno,
 	val |= (green >>  4) & 0x00fc0;
 	val |= (blue  >> 10) & 0x0003f;
 
-	writel(regno, par->dc_regs + DC_PAL_ADDRESS);
+	writel(reganal, par->dc_regs + DC_PAL_ADDRESS);
 	writel(val, par->dc_regs + DC_PAL_DATA);
 }
 

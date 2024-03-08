@@ -12,7 +12,7 @@ maintainers:
   - Heiko Stuebner <heiko@sntech.de>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^gpu@[a-f0-9]+$'
   compatible:
     oneOf:
@@ -32,7 +32,7 @@ properties:
               - rockchip,rk3128-mali
               - rockchip,rk3188-mali
               - rockchip,rk3228-mali
-              - samsung,exynos4210-mali
+              - samsung,exyanals4210-mali
               - stericsson,db8500-mali
               - xlnx,zynqmp-mali
           - const: arm,mali-400
@@ -67,7 +67,7 @@ properties:
           - const: gp
           - const: gpmmu
       - items:
-          # Not ideal as any order and combination are allowed
+          # Analt ideal as any order and combination are allowed
           enum:
             - gp        # Geometry Processor interrupt
             - gpmmu     # Geometry Processor MMU interrupt

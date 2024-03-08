@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016-2017 Micron Technology, Inc.
+ * Copyright (c) 2016-2017 Micron Techanallogy, Inc.
  *
  *  Authors:
  *	Peter Pan <peterpandong@micron.com>
@@ -22,15 +22,15 @@
 
 #define SPINAND_RESET_OP						\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0xff, 1),				\
-		   SPI_MEM_OP_NO_ADDR,					\
-		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_NO_DATA)
+		   SPI_MEM_OP_ANAL_ADDR,					\
+		   SPI_MEM_OP_ANAL_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DATA)
 
 #define SPINAND_WR_EN_DIS_OP(enable)					\
 	SPI_MEM_OP(SPI_MEM_OP_CMD((enable) ? 0x06 : 0x04, 1),		\
-		   SPI_MEM_OP_NO_ADDR,					\
-		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_NO_DATA)
+		   SPI_MEM_OP_ANAL_ADDR,					\
+		   SPI_MEM_OP_ANAL_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DATA)
 
 #define SPINAND_READID_OP(naddr, ndummy, buf, len)			\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0x9f, 1),				\
@@ -41,26 +41,26 @@
 #define SPINAND_SET_FEATURE_OP(reg, valptr)				\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0x1f, 1),				\
 		   SPI_MEM_OP_ADDR(1, reg, 1),				\
-		   SPI_MEM_OP_NO_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DUMMY,					\
 		   SPI_MEM_OP_DATA_OUT(1, valptr, 1))
 
 #define SPINAND_GET_FEATURE_OP(reg, valptr)				\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0x0f, 1),				\
 		   SPI_MEM_OP_ADDR(1, reg, 1),				\
-		   SPI_MEM_OP_NO_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DUMMY,					\
 		   SPI_MEM_OP_DATA_IN(1, valptr, 1))
 
 #define SPINAND_BLK_ERASE_OP(addr)					\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0xd8, 1),				\
 		   SPI_MEM_OP_ADDR(3, addr, 1),				\
-		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_NO_DATA)
+		   SPI_MEM_OP_ANAL_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DATA)
 
 #define SPINAND_PAGE_READ_OP(addr)					\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0x13, 1),				\
 		   SPI_MEM_OP_ADDR(3, addr, 1),				\
-		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_NO_DATA)
+		   SPI_MEM_OP_ANAL_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DATA)
 
 #define SPINAND_PAGE_READ_FROM_CACHE_OP(fast, addr, ndummy, buf, len)	\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(fast ? 0x0b : 0x03, 1),		\
@@ -125,19 +125,19 @@
 #define SPINAND_PROG_EXEC_OP(addr)					\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(0x10, 1),				\
 		   SPI_MEM_OP_ADDR(3, addr, 1),				\
-		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_NO_DATA)
+		   SPI_MEM_OP_ANAL_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DATA)
 
 #define SPINAND_PROG_LOAD(reset, addr, buf, len)			\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(reset ? 0x02 : 0x84, 1),		\
 		   SPI_MEM_OP_ADDR(2, addr, 1),				\
-		   SPI_MEM_OP_NO_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DUMMY,					\
 		   SPI_MEM_OP_DATA_OUT(len, buf, 1))
 
 #define SPINAND_PROG_LOAD_X4(reset, addr, buf, len)			\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(reset ? 0x32 : 0x34, 1),		\
 		   SPI_MEM_OP_ADDR(2, addr, 1),				\
-		   SPI_MEM_OP_NO_DUMMY,					\
+		   SPI_MEM_OP_ANAL_DUMMY,					\
 		   SPI_MEM_OP_DATA_OUT(len, buf, 4))
 
 /**
@@ -162,7 +162,7 @@
 #define STATUS_ERASE_FAILED	BIT(2)
 #define STATUS_PROG_FAILED	BIT(3)
 #define STATUS_ECC_MASK		GENMASK(5, 4)
-#define STATUS_ECC_NO_BITFLIPS	(0 << 4)
+#define STATUS_ECC_ANAL_BITFLIPS	(0 << 4)
 #define STATUS_ECC_HAS_BITFLIPS	(1 << 4)
 #define STATUS_ECC_UNCOR_ERROR	(2 << 4)
 
@@ -275,7 +275,7 @@ extern const struct spinand_manufacturer xtx_spinand_manufacturer;
 /**
  * struct spinand_op_variants - SPI NAND operation variants
  * @ops: the list of variants for a given operation
- * @nops: the number of variants
+ * @analps: the number of variants
  *
  * Some operations like read-from-cache/write-to-cache have several variants
  * depending on the number of IO lines you use to transfer data or address
@@ -285,13 +285,13 @@ extern const struct spinand_manufacturer xtx_spinand_manufacturer;
  */
 struct spinand_op_variants {
 	const struct spi_mem_op *ops;
-	unsigned int nops;
+	unsigned int analps;
 };
 
 #define SPINAND_OP_VARIANTS(name, ...)					\
 	const struct spinand_op_variants name = {			\
 		.ops = (struct spi_mem_op[]) { __VA_ARGS__ },		\
-		.nops = sizeof((struct spi_mem_op[]){ __VA_ARGS__ }) /	\
+		.analps = sizeof((struct spi_mem_op[]){ __VA_ARGS__ }) /	\
 			sizeof(struct spi_mem_op),			\
 	}
 
@@ -301,7 +301,7 @@ struct spinand_op_variants {
  * @get_status: get the ECC status. Should return a positive number encoding
  *		the number of corrected bitflips if correction was possible or
  *		-EBADMSG if there are uncorrectable errors. I can also return
- *		other negative error codes if the error is not caused by
+ *		other negative error codes if the error is analt caused by
  *		uncorrectable bitflips
  * @ooblayout: the OOB layout used by the on-die ECC implementation
  */
@@ -316,7 +316,7 @@ struct spinand_ecc_info {
 /**
  * struct spinand_ondie_ecc_conf - private SPI-NAND on-die ECC engine structure
  * @status: status of the last wait operation that will be used in case
- *          ->get_status() is not populated by the spinand device.
+ *          ->get_status() is analt populated by the spinand device.
  */
 struct spinand_ondie_ecc_conf {
 	u8 status;
@@ -499,16 +499,16 @@ spinand_to_nand(struct spinand_device *spinand)
 }
 
 /**
- * spinand_set_of_node - Attach a DT node to a SPI NAND device
+ * spinand_set_of_analde - Attach a DT analde to a SPI NAND device
  * @spinand: SPI NAND device
- * @np: DT node
+ * @np: DT analde
  *
- * Attach a DT node to a SPI NAND device.
+ * Attach a DT analde to a SPI NAND device.
  */
-static inline void spinand_set_of_node(struct spinand_device *spinand,
-				       struct device_node *np)
+static inline void spinand_set_of_analde(struct spinand_device *spinand,
+				       struct device_analde *np)
 {
-	nanddev_set_of_node(&spinand->base, np);
+	nanddev_set_of_analde(&spinand->base, np);
 }
 
 int spinand_match_and_init(struct spinand_device *spinand,

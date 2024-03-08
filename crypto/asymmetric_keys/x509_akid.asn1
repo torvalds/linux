@@ -12,9 +12,9 @@ AuthorityKeyIdentifier ::= SEQUENCE {
 	authorityCertSerialNumber	[2] IMPLICIT CertificateSerialNumber	OPTIONAL
 	}
 
-KeyIdentifier ::= OCTET STRING ({ x509_akid_note_kid })
+KeyIdentifier ::= OCTET STRING ({ x509_akid_analte_kid })
 
-CertificateSerialNumber ::= INTEGER ({ x509_akid_note_serial })
+CertificateSerialNumber ::= INTEGER ({ x509_akid_analte_serial })
 
 GeneralNames ::= SEQUENCE OF GeneralName
 
@@ -23,7 +23,7 @@ GeneralName ::= CHOICE {
 	rfc822Name			[1] IMPLICIT IA5String,
 	dNSName				[2] IMPLICIT IA5String,
 	x400Address			[3] ANY,
-	directoryName			[4] Name ({ x509_akid_note_name }),
+	directoryName			[4] Name ({ x509_akid_analte_name }),
 	ediPartyName			[5] IMPLICIT EDIPartyName,
 	uniformResourceIdentifier	[6] IMPLICIT IA5String,
 	iPAddress			[7] IMPLICIT OCTET STRING,
@@ -35,7 +35,7 @@ Name ::= SEQUENCE OF RelativeDistinguishedName
 RelativeDistinguishedName ::= SET OF AttributeValueAssertion
 
 AttributeValueAssertion ::= SEQUENCE {
-	attributeType		OBJECT IDENTIFIER ({ x509_note_OID }),
+	attributeType		OBJECT IDENTIFIER ({ x509_analte_OID }),
 	attributeValue		ANY ({ x509_extract_name_segment })
 	}
 

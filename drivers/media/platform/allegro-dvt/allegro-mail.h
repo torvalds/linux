@@ -79,8 +79,8 @@ struct create_channel_param {
 	s8 beta_offset;
 	s8 tc_offset;
 	u16 reserved10;
-	u32 unknown11;
-	u32 unknown12;
+	u32 unkanalwn11;
+	u32 unkanalwn12;
 	u16 num_slices;
 	u32 encoder_buffer_offset;
 	u32 encoder_buffer_enabled;
@@ -132,7 +132,7 @@ struct create_channel_param {
 
 	u32 subframe_latency;
 	u32 lda_control_mode;
-	u32 unknown41;
+	u32 unkanalwn41;
 
 	u32 lda_factors[6];
 

@@ -146,10 +146,10 @@
 #define FD_CORE_CLK					137
 #define FD_CORE_UAR_CLK					138
 #define FD_AHB_CLK					139
-#define MNOC_AHB_CLK					140
+#define MANALC_AHB_CLK					140
 #define BIMC_SMMU_AHB_CLK				141
 #define BIMC_SMMU_AXI_CLK				142
-#define MNOC_MAXI_CLK					143
+#define MANALC_MAXI_CLK					143
 #define VMEM_MAXI_CLK					144
 #define VMEM_AHB_CLK					145
 
@@ -190,10 +190,10 @@
 #define CAMSS_CSI_VFE1_BCR				34
 #define CAMSS_FD_BCR					35
 #define THROTTLE_CAMSS_BCR				36
-#define MNOCAHB_BCR					37
-#define MNOCAXI_BCR					38
+#define MANALCAHB_BCR					37
+#define MANALCAXI_BCR					38
 #define BMIC_SMMU_BCR					39
-#define MNOC_MAXI_BCR					40
+#define MANALC_MAXI_BCR					40
 #define VMEM_BCR					41
 #define BTO_BCR						42
 

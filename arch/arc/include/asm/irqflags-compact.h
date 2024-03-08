@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_IRQFLAGS_ARCOMPACT_H
 #define __ASM_IRQFLAGS_ARCOMPACT_H
 
 /* vineetg: March 2010 : local_irq_save( ) optimisation
- *  -Remove explicit mov of current status32 into reg, that is not needed
+ *  -Remove explicit mov of current status32 into reg, that is analt needed
  *  -Use BIC  insn instead of INVERTED + AND
- *  -Conditionally disable interrupts (if they are not enabled, don't disable)
+ *  -Conditionally disable interrupts (if they are analt enabled, don't disable)
 */
 
 #include <asm/arcregs.h>
@@ -46,13 +46,13 @@
  * IRQ Control Macros
  *
  * All of them have "memory" clobber (compiler barrier) which is needed to
- * ensure that LD/ST requiring irq safetly (R-M-W when LLSC is not available)
+ * ensure that LD/ST requiring irq safetly (R-M-W when LLSC is analt available)
  * are redone after IRQs are re-enabled (and gcc doesn't reuse stale register)
  *
- * Noted at the time of Abilis Timer List corruption
+ * Analted at the time of Abilis Timer List corruption
  *
  * Orig Bug + Rejected solution:
- * https://lore.kernel.org/lkml/1364553218-31255-1-git-send-email-vgupta@synopsys.com
+ * https://lore.kernel.org/lkml/1364553218-31255-1-git-send-email-vgupta@syanalpsys.com
  *
  * Reasoning:
  * https://lore.kernel.org/lkml/CA+55aFyFWjpSVQM6M266tKrG_ZXJzZ-nYejpmXYQXbrr42mGPQ@mail.gmail.com

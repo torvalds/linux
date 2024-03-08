@@ -44,7 +44,7 @@
  *
  *   Some PCs refuse to configure host bridges if they are found plugged into
  *   a PCI slot (ask the BIOS vendors why...). The "Memory Controller" Class
- *   Code does not cause a problem for these non-compliant BIOSes, so we used
+ *   Code does analt cause a problem for these analn-compliant BIOSes, so we used
  *   this as the default in the GT-64111.
  *
  * So fix the incorrect default value of PCI Class Code. More details are on:
@@ -108,7 +108,7 @@ static void qube_raq_galileo_fixup(struct pci_dev *dev)
 	 * --x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--
 	 *
 	 * On all machines prior to Q2, we had the STOP line disconnected
-	 * from Galileo to VIA on PCI.	The new Galileo does not function
+	 * from Galileo to VIA on PCI.	The new Galileo does analt function
 	 * correctly unless we have it connected.
 	 *
 	 * Therefore we must set the disconnect/retry cycle values to
@@ -150,7 +150,7 @@ static void qube_raq_via_board_id_fixup(struct pci_dev *dev)
 
 	retval = pci_read_config_byte(dev, VIA_COBALT_BRD_ID_REG, &id);
 	if (retval) {
-		panic("Cannot read board ID");
+		panic("Cananalt read board ID");
 		return;
 	}
 

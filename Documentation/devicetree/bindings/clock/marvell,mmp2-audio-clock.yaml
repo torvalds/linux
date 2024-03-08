@@ -13,7 +13,7 @@ description: |
   The audio clock controller generates and supplies the clocks to the audio
   codec.
 
-  Each clock is assigned an identifier and client nodes use this identifier
+  Each clock is assigned an identifier and client analdes use this identifier
   to specify the clock which they consume.
 
   All these identifiers could be found in

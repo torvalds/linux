@@ -319,10 +319,10 @@
 		spi-cpol;
 	};
 
-	spi_nor: flash@0 {
+	spi_analr: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "winbond,w25q64", "jedec,spi-nor";
+		compatible = "winbond,w25q64", "jedec,spi-analr";
 		spi-max-frequency = <80000000>;
 		m25p,fast-read;
 		reg = <0>;
@@ -446,9 +446,9 @@
 };
 
 &gpio0_target {
-	/* Do not idle the GPIO used for holding the VTT regulator */
-	ti,no-reset-on-init;
-	ti,no-idle-on-init;
+	/* Do analt idle the GPIO used for holding the VTT regulator */
+	ti,anal-reset-on-init;
+	ti,anal-idle-on-init;
 };
 
 &uart3 {

@@ -23,4 +23,4 @@ config VIDEO_STI_HVA_DEBUGFS
 	  operation of STMicroelectronics HVA multi-format video encoder in
 	  debugfs.
 
-	  Choose N unless you know you need this.
+	  Choose N unless you kanalw you need this.

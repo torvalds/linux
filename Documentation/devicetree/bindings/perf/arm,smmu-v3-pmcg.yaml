@@ -16,7 +16,7 @@ description: |
   architected and IMPLEMENTATION DEFINED event counters.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^pmu@[0-9a-f]*"
   compatible:
     oneOf:

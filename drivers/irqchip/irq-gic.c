@@ -13,7 +13,7 @@
  *   aliased so that the same address points to different chips depending
  *   on the CPU it is accessed from.
  *
- * Note that IRQs 0-31 are special - they are local to each CPU.
+ * Analte that IRQs 0-31 are special - they are local to each CPU.
  * As such, the enable set/clear, pending set/clear and active bit
  * registers are banked per-cpu for these sources.
  */
@@ -111,7 +111,7 @@ static DEFINE_RAW_SPINLOCK(cpu_map_lock);
 static DEFINE_STATIC_KEY_FALSE(needs_rmw_access);
 
 /*
- * The GIC mapping of CPU interfaces does not necessarily match
+ * The GIC mapping of CPU interfaces does analt necessarily match
  * the logical CPU numbering.  Let's use a mapping as returned
  * by the GIC itself.
  */
@@ -126,7 +126,7 @@ static struct gic_kvm_info gic_v2_kvm_info __initdata;
 
 static DEFINE_PER_CPU(u32, sgi_intid);
 
-#ifdef CONFIG_GIC_NON_BANKED
+#ifdef CONFIG_GIC_ANALN_BANKED
 static DEFINE_STATIC_KEY_FALSE(frankengic_key);
 
 static void enable_frankengic(void)
@@ -173,13 +173,13 @@ static inline bool cascading_gic_irq(struct irq_data *d)
 
 	/*
 	 * If handler_data is set, this is a cascading interrupt, and
-	 * it cannot possibly be forwarded.
+	 * it cananalt possibly be forwarded.
 	 */
 	return data != NULL;
 }
 
 /*
- * Routines to acknowledge, disable and enable interrupts
+ * Routines to ackanalwledge, disable and enable interrupts
  */
 static void gic_poke_irq(struct irq_data *d, u32 offset)
 {
@@ -206,8 +206,8 @@ static void gic_eoimode1_mask_irq(struct irq_data *d)
 	 * deactivated as well.
 	 *
 	 * This ensures that an interrupt that is getting
-	 * disabled/masked will not get "stuck", because there is
-	 * noone to deactivate it (guest is being terminated).
+	 * disabled/masked will analt get "stuck", because there is
+	 * analone to deactivate it (guest is being terminated).
 	 */
 	if (irqd_is_forwarded_to_vcpu(d))
 		gic_poke_irq(d, GIC_DIST_ACTIVE_CLEAR);
@@ -232,7 +232,7 @@ static void gic_eoimode1_eoi_irq(struct irq_data *d)
 {
 	u32 hwirq = gic_irq(d);
 
-	/* Do not deactivate an IRQ forwarded to a vcpu. */
+	/* Do analt deactivate an IRQ forwarded to a vcpu. */
 	if (irqd_is_forwarded_to_vcpu(d))
 		return;
 
@@ -308,7 +308,7 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 
 	ret = gic_configure_irq(gicirq, type, base + GIC_DIST_CONFIG, NULL);
 	if (ret && gicirq < 32) {
-		/* Misconfigured PPIs are usually not fatal */
+		/* Misconfigured PPIs are usually analt fatal */
 		pr_warn("GIC: PPI%d is secure or misconfigured\n", gicirq - 16);
 		ret = 0;
 	}
@@ -362,7 +362,7 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 
 			/*
 			 * The GIC encodes the source CPU in GICC_IAR,
-			 * leading to the deactivation to fail if not
+			 * leading to the deactivation to fail if analt
 			 * written back as is to GICC_EOI.  Stash the INTID
 			 * away for gic_eoi_irq() to write back.  This only
 			 * works because we don't nest SGIs...
@@ -403,7 +403,7 @@ static void gic_irq_print_chip(struct irq_data *d, struct seq_file *p)
 	struct gic_chip_data *gic = irq_data_get_irq_chip_data(d);
 
 	if (gic->domain->pm_dev)
-		seq_printf(p, gic->domain->pm_dev->of_node->name);
+		seq_printf(p, gic->domain->pm_dev->of_analde->name);
 	else
 		seq_printf(p, "GIC-%d", (int)(gic - &gic_data[0]));
 }
@@ -429,7 +429,7 @@ static u8 gic_get_cpumask(struct gic_chip_data *gic)
 	}
 
 	if (!mask && num_possible_cpus() > 1)
-		pr_crit("GIC CPU mask not found - kernel will fail to boot.\n");
+		pr_crit("GIC CPU mask analt found - kernel will fail to boot.\n");
 
 	return mask;
 }
@@ -496,7 +496,7 @@ static int gic_cpu_init(struct gic_chip_data *gic)
 
 	/*
 	 * Setting up the CPU map is only relevant for the primary GIC
-	 * because any nested/secondary GICs do not directly interface
+	 * because any nested/secondary GICs do analt directly interface
 	 * with the CPU(s).
 	 */
 	if (gic == &gic_data[0]) {
@@ -547,7 +547,7 @@ int gic_cpu_if_down(unsigned int gic_nr)
 /*
  * Saves the GIC distributor registers during suspend or idle.  Must be called
  * with interrupts disabled but before powering down the GIC.  After calling
- * this function, no interrupts will be delivered by the GIC, and another
+ * this function, anal interrupts will be delivered by the GIC, and aanalther
  * platform-specific wakeup source must be enabled.
  */
 void gic_dist_save(struct gic_chip_data *gic)
@@ -586,7 +586,7 @@ void gic_dist_save(struct gic_chip_data *gic)
  * Restores the GIC distributor registers during resume or when coming out of
  * idle.  Must be called before enabling interrupts.  If a level interrupt
  * that occurred while the GIC was suspended is still present, it will be
- * handled normally, but any edge interrupts that occurred will not be seen by
+ * handled analrmally, but any edge interrupts that occurred will analt be seen by
  * the GIC and need to be handled by the platform-specific wakeup source.
  */
 void gic_dist_restore(struct gic_chip_data *gic)
@@ -707,7 +707,7 @@ void gic_cpu_restore(struct gic_chip_data *gic)
 	gic_cpu_if_up(gic);
 }
 
-static int gic_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
+static int gic_analtifier(struct analtifier_block *self, unsigned long cmd,	void *v)
 {
 	int i;
 
@@ -730,11 +730,11 @@ static int gic_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
 		}
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block gic_notifier_block = {
-	.notifier_call = gic_notifier,
+static struct analtifier_block gic_analtifier_block = {
+	.analtifier_call = gic_analtifier,
 };
 
 static int gic_pm_init(struct gic_chip_data *gic)
@@ -742,7 +742,7 @@ static int gic_pm_init(struct gic_chip_data *gic)
 	gic->saved_ppi_enable = __alloc_percpu(DIV_ROUND_UP(32, 32) * 4,
 		sizeof(u32));
 	if (WARN_ON(!gic->saved_ppi_enable))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gic->saved_ppi_active = __alloc_percpu(DIV_ROUND_UP(32, 32) * 4,
 		sizeof(u32));
@@ -755,7 +755,7 @@ static int gic_pm_init(struct gic_chip_data *gic)
 		goto free_ppi_active;
 
 	if (gic == &gic_data[0])
-		cpu_pm_register_notifier(&gic_notifier_block);
+		cpu_pm_register_analtifier(&gic_analtifier_block);
 
 	return 0;
 
@@ -764,7 +764,7 @@ free_ppi_active:
 free_ppi_enable:
 	free_percpu(gic->saved_ppi_enable);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 #else
 static int gic_pm_init(struct gic_chip_data *gic)
@@ -839,7 +839,7 @@ static void gic_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 		map |= gic_cpu_map[cpu];
 
 	/*
-	 * Ensure that stores to Normal memory are visible to the
+	 * Ensure that stores to Analrmal memory are visible to the
 	 * other CPUs before they observe us issuing the IPI.
 	 */
 	dmb(ishst);
@@ -859,16 +859,16 @@ static int gic_starting_cpu(unsigned int cpu)
 static __init void gic_smp_init(void)
 {
 	struct irq_fwspec sgi_fwspec = {
-		.fwnode		= gic_data[0].domain->fwnode,
+		.fwanalde		= gic_data[0].domain->fwanalde,
 		.param_count	= 1,
 	};
 	int base_sgi;
 
-	cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_GIC_STARTING,
+	cpuhp_setup_state_analcalls(CPUHP_AP_IRQ_GIC_STARTING,
 				  "irqchip/arm/gic:starting",
 				  gic_starting_cpu, NULL);
 
-	base_sgi = irq_domain_alloc_irqs(gic_data[0].domain, 8, NUMA_NO_NODE, &sgi_fwspec);
+	base_sgi = irq_domain_alloc_irqs(gic_data[0].domain, 8, NUMA_ANAL_ANALDE, &sgi_fwspec);
 	if (WARN_ON(base_sgi <= 0))
 		return;
 
@@ -935,7 +935,7 @@ void gic_send_sgi(unsigned int cpu_id, unsigned int irq)
  *
  * Return the CPU interface ID for the given logical CPU number,
  * or -1 if the CPU number is too large or the interface ID is
- * unknown (more than one bit set).
+ * unkanalwn (more than one bit set).
  */
 int gic_get_cpu_id(unsigned int cpu)
 {
@@ -950,7 +950,7 @@ int gic_get_cpu_id(unsigned int cpu)
 }
 
 /*
- * gic_migrate_target - migrate IRQs to another CPU interface
+ * gic_migrate_target - migrate IRQs to aanalther CPU interface
  *
  * @new_cpu_id: the CPU target ID to migrate IRQs to
  *
@@ -1000,13 +1000,13 @@ void gic_migrate_target(unsigned int new_cpu_id)
 	gic_unlock();
 
 	/*
-	 * Now let's migrate and clear any potential SGIs that might be
+	 * Analw let's migrate and clear any potential SGIs that might be
 	 * pending for us (cur_cpu_id).  Since GIC_DIST_SGI_PENDING_SET
 	 * is a banked register, we can only forward the SGI using
 	 * GIC_DIST_SOFTINT.  The original SGI source is lost but Linux
 	 * doesn't use that information anyway.
 	 *
-	 * For the same reason we do not adjust SGI source information
+	 * For the same reason we do analt adjust SGI source information
 	 * for previously sent SGIs by us to other CPUs either.
 	 */
 	for (i = 0; i < 16; i += 4) {
@@ -1028,7 +1028,7 @@ void gic_migrate_target(unsigned int new_cpu_id)
  * gic_get_sgir_physaddr - get the physical address for the SGI register
  *
  * Return the physical address of the SGI register to be used
- * by some early assembly code when the kernel is not yet available.
+ * by some early assembly code when the kernel is analt yet available.
  */
 static unsigned long gic_dist_physaddr;
 
@@ -1039,17 +1039,17 @@ unsigned long gic_get_sgir_physaddr(void)
 	return gic_dist_physaddr + GIC_DIST_SOFTINT;
 }
 
-static void __init gic_init_physaddr(struct device_node *node)
+static void __init gic_init_physaddr(struct device_analde *analde)
 {
 	struct resource res;
-	if (of_address_to_resource(node, 0, &res) == 0) {
+	if (of_address_to_resource(analde, 0, &res) == 0) {
 		gic_dist_physaddr = res.start;
 		pr_info("GIC physical location is %#lx\n", gic_dist_physaddr);
 	}
 }
 
 #else
-#define gic_init_physaddr(node)  do { } while (0)
+#define gic_init_physaddr(analde)  do { } while (0)
 #endif
 
 static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
@@ -1092,7 +1092,7 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 		return 0;
 	}
 
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_analde(fwspec->fwanalde)) {
 		if (fwspec->param_count < 3)
 			return -EINVAL;
 
@@ -1110,12 +1110,12 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
 
 		/* Make it clear that broken DTs are... broken */
-		WARN(*type == IRQ_TYPE_NONE,
+		WARN(*type == IRQ_TYPE_ANALNE,
 		     "HW irq %ld has invalid type\n", *hwirq);
 		return 0;
 	}
 
-	if (is_fwnode_irqchip(fwspec->fwnode)) {
+	if (is_fwanalde_irqchip(fwspec->fwanalde)) {
 		if(fwspec->param_count != 2)
 			return -EINVAL;
 
@@ -1128,7 +1128,7 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 		*hwirq = fwspec->param[0];
 		*type = fwspec->param[1];
 
-		WARN(*type == IRQ_TYPE_NONE,
+		WARN(*type == IRQ_TYPE_ANALNE,
 		     "HW irq %ld has invalid type\n", *hwirq);
 		return 0;
 	}
@@ -1141,7 +1141,7 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	int i, ret;
 	irq_hw_number_t hwirq;
-	unsigned int type = IRQ_TYPE_NONE;
+	unsigned int type = IRQ_TYPE_ANALNE;
 	struct irq_fwspec *fwspec = arg;
 
 	ret = gic_irq_domain_translate(domain, fwspec, &hwirq, &type);
@@ -1164,11 +1164,11 @@ static const struct irq_domain_ops gic_irq_domain_hierarchy_ops = {
 };
 
 static int gic_init_bases(struct gic_chip_data *gic,
-			  struct fwnode_handle *handle)
+			  struct fwanalde_handle *handle)
 {
 	int gic_irqs, ret;
 
-	if (IS_ENABLED(CONFIG_GIC_NON_BANKED) && gic->percpu_offset) {
+	if (IS_ENABLED(CONFIG_GIC_ANALN_BANKED) && gic->percpu_offset) {
 		/* Frankein-GIC without banked registers... */
 		unsigned int cpu;
 
@@ -1176,7 +1176,7 @@ static int gic_init_bases(struct gic_chip_data *gic,
 		gic->cpu_base.percpu_base = alloc_percpu(void __iomem *);
 		if (WARN_ON(!gic->dist_base.percpu_base ||
 			    !gic->cpu_base.percpu_base)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 
@@ -1192,9 +1192,9 @@ static int gic_init_bases(struct gic_chip_data *gic,
 
 		enable_frankengic();
 	} else {
-		/* Normal, sane GIC... */
+		/* Analrmal, sane GIC... */
 		WARN(gic->percpu_offset,
-		     "GIC_NON_BANKED not enabled, ignoring %08x offset!",
+		     "GIC_ANALN_BANKED analt enabled, iganalring %08x offset!",
 		     gic->percpu_offset);
 		gic->dist_base.common_base = gic->raw_dist_base;
 		gic->cpu_base.common_base = gic->raw_cpu_base;
@@ -1214,7 +1214,7 @@ static int gic_init_bases(struct gic_chip_data *gic,
 					       &gic_irq_domain_hierarchy_ops,
 					       gic);
 	if (WARN_ON(!gic->domain)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
@@ -1230,7 +1230,7 @@ static int gic_init_bases(struct gic_chip_data *gic,
 	return 0;
 
 error:
-	if (IS_ENABLED(CONFIG_GIC_NON_BANKED) && gic->percpu_offset) {
+	if (IS_ENABLED(CONFIG_GIC_ANALN_BANKED) && gic->percpu_offset) {
 		free_percpu(gic->dist_base.percpu_base);
 		free_percpu(gic->cpu_base.percpu_base);
 	}
@@ -1239,7 +1239,7 @@ error:
 }
 
 static int __init __gic_init_bases(struct gic_chip_data *gic,
-				   struct fwnode_handle *handle)
+				   struct fwanalde_handle *handle)
 {
 	int i, ret;
 
@@ -1287,11 +1287,11 @@ static int __init gicv2_force_probe_cfg(char *buf)
 }
 early_param("irqchip.gicv2_force_probe", gicv2_force_probe_cfg);
 
-static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
+static bool gic_check_eoimode(struct device_analde *analde, void __iomem **base)
 {
 	struct resource cpuif_res;
 
-	of_address_to_resource(node, 1, &cpuif_res);
+	of_address_to_resource(analde, 1, &cpuif_res);
 
 	if (!is_hyp_mode_available())
 		return false;
@@ -1305,7 +1305,7 @@ static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
 			return false;
 
 		if (!gicv2_force_probe) {
-			pr_warn("GIC: GICv2 detected, but range too small and irqchip.gicv2_force_probe not set\n");
+			pr_warn("GIC: GICv2 detected, but range too small and irqchip.gicv2_force_probe analt set\n");
 			return false;
 		}
 
@@ -1335,7 +1335,7 @@ static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
 		alt = ioremap(cpuif_res.start, SZ_128K);
 		if (!alt)
 			return false;
-		pr_warn("GIC: Aliased GICv2 at %pa, trying to find the canonical range over 128kB\n",
+		pr_warn("GIC: Aliased GICv2 at %pa, trying to find the caanalnical range over 128kB\n",
 			&cpuif_res.start);
 		cpuif_res.end = cpuif_res.start + SZ_128K -1;
 		iounmap(*base);
@@ -1354,7 +1354,7 @@ static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
 		/*
 		 * Move the base up by 60kB, so that we have a 8kB
 		 * contiguous region, which allows us to use GICC_DIR
-		 * at its normal offset. Please pass me that bucket.
+		 * at its analrmal offset. Please pass me that bucket.
 		 */
 		*base += 0xf000;
 		cpuif_res.start += 0xf000;
@@ -1389,48 +1389,48 @@ static const struct gic_quirk gic_quirks[] = {
 	{ },
 };
 
-static int gic_of_setup(struct gic_chip_data *gic, struct device_node *node)
+static int gic_of_setup(struct gic_chip_data *gic, struct device_analde *analde)
 {
-	if (!gic || !node)
+	if (!gic || !analde)
 		return -EINVAL;
 
-	gic->raw_dist_base = of_iomap(node, 0);
+	gic->raw_dist_base = of_iomap(analde, 0);
 	if (WARN(!gic->raw_dist_base, "unable to map gic dist registers\n"))
 		goto error;
 
-	gic->raw_cpu_base = of_iomap(node, 1);
+	gic->raw_cpu_base = of_iomap(analde, 1);
 	if (WARN(!gic->raw_cpu_base, "unable to map gic cpu registers\n"))
 		goto error;
 
-	if (of_property_read_u32(node, "cpu-offset", &gic->percpu_offset))
+	if (of_property_read_u32(analde, "cpu-offset", &gic->percpu_offset))
 		gic->percpu_offset = 0;
 
-	gic_enable_of_quirks(node, gic_quirks, gic);
+	gic_enable_of_quirks(analde, gic_quirks, gic);
 
 	return 0;
 
 error:
 	gic_teardown(gic);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq)
 {
 	int ret;
 
-	if (!dev || !dev->of_node || !gic || !irq)
+	if (!dev || !dev->of_analde || !gic || !irq)
 		return -EINVAL;
 
 	*gic = devm_kzalloc(dev, sizeof(**gic), GFP_KERNEL);
 	if (!*gic)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = gic_of_setup(*gic, dev->of_node);
+	ret = gic_of_setup(*gic, dev->of_analde);
 	if (ret)
 		return ret;
 
-	ret = gic_init_bases(*gic, &dev->of_node->fwnode);
+	ret = gic_init_bases(*gic, &dev->of_analde->fwanalde);
 	if (ret) {
 		gic_teardown(*gic);
 		return ret;
@@ -1442,7 +1442,7 @@ int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq)
 	return 0;
 }
 
-static void __init gic_of_setup_kvm_info(struct device_node *node)
+static void __init gic_of_setup_kvm_info(struct device_analde *analde)
 {
 	int ret;
 	struct resource *vctrl_res = &gic_v2_kvm_info.vctrl;
@@ -1450,15 +1450,15 @@ static void __init gic_of_setup_kvm_info(struct device_node *node)
 
 	gic_v2_kvm_info.type = GIC_V2;
 
-	gic_v2_kvm_info.maint_irq = irq_of_parse_and_map(node, 0);
+	gic_v2_kvm_info.maint_irq = irq_of_parse_and_map(analde, 0);
 	if (!gic_v2_kvm_info.maint_irq)
 		return;
 
-	ret = of_address_to_resource(node, 2, vctrl_res);
+	ret = of_address_to_resource(analde, 2, vctrl_res);
 	if (ret)
 		return;
 
-	ret = of_address_to_resource(node, 3, vcpu_res);
+	ret = of_address_to_resource(analde, 3, vcpu_res);
 	if (ret)
 		return;
 
@@ -1467,48 +1467,48 @@ static void __init gic_of_setup_kvm_info(struct device_node *node)
 }
 
 int __init
-gic_of_init(struct device_node *node, struct device_node *parent)
+gic_of_init(struct device_analde *analde, struct device_analde *parent)
 {
 	struct gic_chip_data *gic;
 	int irq, ret;
 
-	if (WARN_ON(!node))
-		return -ENODEV;
+	if (WARN_ON(!analde))
+		return -EANALDEV;
 
 	if (WARN_ON(gic_cnt >= CONFIG_ARM_GIC_MAX_NR))
 		return -EINVAL;
 
 	gic = &gic_data[gic_cnt];
 
-	ret = gic_of_setup(gic, node);
+	ret = gic_of_setup(gic, analde);
 	if (ret)
 		return ret;
 
 	/*
-	 * Disable split EOI/Deactivate if either HYP is not available
+	 * Disable split EOI/Deactivate if either HYP is analt available
 	 * or the CPU interface is too small.
 	 */
-	if (gic_cnt == 0 && !gic_check_eoimode(node, &gic->raw_cpu_base))
+	if (gic_cnt == 0 && !gic_check_eoimode(analde, &gic->raw_cpu_base))
 		static_branch_disable(&supports_deactivate_key);
 
-	ret = __gic_init_bases(gic, &node->fwnode);
+	ret = __gic_init_bases(gic, &analde->fwanalde);
 	if (ret) {
 		gic_teardown(gic);
 		return ret;
 	}
 
 	if (!gic_cnt) {
-		gic_init_physaddr(node);
-		gic_of_setup_kvm_info(node);
+		gic_init_physaddr(analde);
+		gic_of_setup_kvm_info(analde);
 	}
 
 	if (parent) {
-		irq = irq_of_parse_and_map(node, 0);
+		irq = irq_of_parse_and_map(analde, 0);
 		gic_cascade_irq(gic_cnt, irq);
 	}
 
 	if (IS_ENABLED(CONFIG_ARM_GIC_V2M))
-		gicv2m_init(&node->fwnode, gic_data[gic_cnt].domain);
+		gicv2m_init(&analde->fwanalde, gic_data[gic_cnt].domain);
 
 	gic_cnt++;
 	return 0;
@@ -1547,7 +1547,7 @@ gic_acpi_parse_madt_cpu(union acpi_subtable_headers *header,
 		return -EINVAL;
 
 	/*
-	 * There is no support for non-banked GICv1/2 register in ACPI spec.
+	 * There is anal support for analn-banked GICv1/2 register in ACPI spec.
 	 * All CPU interface addresses have to be the same.
 	 */
 	gic_cpu_base = processor->base_address;
@@ -1585,7 +1585,7 @@ static bool __init gic_validate_dist(struct acpi_subtable_header *header,
 	dist = (struct acpi_madt_generic_distributor *)header;
 
 	return (dist->version == ape->driver_data &&
-		(dist->version != ACPI_MADT_GIC_VERSION_NONE ||
+		(dist->version != ACPI_MADT_GIC_VERSION_ANALNE ||
 		 !acpi_gic_redist_is_present()));
 }
 
@@ -1627,9 +1627,9 @@ static void __init gic_acpi_setup_kvm_info(void)
 	vgic_set_kvm_info(&gic_v2_kvm_info);
 }
 
-static struct fwnode_handle *gsi_domain_handle;
+static struct fwanalde_handle *gsi_domain_handle;
 
-static struct fwnode_handle *gic_v2_get_gsi_domain_id(u32 gsi)
+static struct fwanalde_handle *gic_v2_get_gsi_domain_id(u32 gsi)
 {
 	return gsi_domain_handle;
 }
@@ -1645,14 +1645,14 @@ static int __init gic_v2_acpi_init(union acpi_subtable_headers *header,
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
 				      gic_acpi_parse_madt_cpu, 0);
 	if (count <= 0) {
-		pr_err("No valid GICC entries exist\n");
+		pr_err("Anal valid GICC entries exist\n");
 		return -EINVAL;
 	}
 
 	gic->raw_cpu_base = ioremap(acpi_data.cpu_phys_base, ACPI_GIC_CPU_IF_MEM_SIZE);
 	if (!gic->raw_cpu_base) {
 		pr_err("Unable to map GICC registers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dist = (struct acpi_madt_generic_distributor *)header;
@@ -1661,11 +1661,11 @@ static int __init gic_v2_acpi_init(union acpi_subtable_headers *header,
 	if (!gic->raw_dist_base) {
 		pr_err("Unable to map GICD registers\n");
 		gic_teardown(gic);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
-	 * Disable split EOI/Deactivate if HYP is not available. ACPI
+	 * Disable split EOI/Deactivate if HYP is analt available. ACPI
 	 * guarantees that we'll always have a GICv2, so the CPU
 	 * interface will always be the right size.
 	 */
@@ -1673,19 +1673,19 @@ static int __init gic_v2_acpi_init(union acpi_subtable_headers *header,
 		static_branch_disable(&supports_deactivate_key);
 
 	/*
-	 * Initialize GIC instance zero (no multi-GIC support).
+	 * Initialize GIC instance zero (anal multi-GIC support).
 	 */
-	gsi_domain_handle = irq_domain_alloc_fwnode(&dist->base_address);
+	gsi_domain_handle = irq_domain_alloc_fwanalde(&dist->base_address);
 	if (!gsi_domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
 		gic_teardown(gic);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = __gic_init_bases(gic, gsi_domain_handle);
 	if (ret) {
 		pr_err("Failed to initialise GIC\n");
-		irq_domain_free_fwnode(gsi_domain_handle);
+		irq_domain_free_fwanalde(gsi_domain_handle);
 		gic_teardown(gic);
 		return ret;
 	}
@@ -1704,6 +1704,6 @@ IRQCHIP_ACPI_DECLARE(gic_v2, ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR,
 		     gic_validate_dist, ACPI_MADT_GIC_VERSION_V2,
 		     gic_v2_acpi_init);
 IRQCHIP_ACPI_DECLARE(gic_v2_maybe, ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR,
-		     gic_validate_dist, ACPI_MADT_GIC_VERSION_NONE,
+		     gic_validate_dist, ACPI_MADT_GIC_VERSION_ANALNE,
 		     gic_v2_acpi_init);
 #endif

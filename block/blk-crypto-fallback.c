@@ -164,7 +164,7 @@ static struct bio *blk_crypto_fallback_clone_bio(struct bio *bio_src)
 	struct bio_vec bv;
 	struct bio *bio;
 
-	bio = bio_kmalloc(nr_segs, GFP_NOIO);
+	bio = bio_kmalloc(nr_segs, GFP_ANALIO);
 	if (!bio)
 		return NULL;
 	bio_init(bio, bio_src->bi_bdev, bio->bi_inline_vecs, nr_segs,
@@ -194,7 +194,7 @@ blk_crypto_fallback_alloc_cipher_req(struct blk_crypto_keyslot *slot,
 
 	slotp = &blk_crypto_keyslots[keyslot_idx];
 	ciph_req = skcipher_request_alloc(slotp->tfms[slotp->crypto_mode],
-					  GFP_NOIO);
+					  GFP_ANALIO);
 	if (!ciph_req)
 		return false;
 
@@ -223,14 +223,14 @@ static bool blk_crypto_fallback_split_bio_if_needed(struct bio **bio_ptr)
 	if (num_sectors < bio_sectors(bio)) {
 		struct bio *split_bio;
 
-		split_bio = bio_split(bio, num_sectors, GFP_NOIO,
+		split_bio = bio_split(bio, num_sectors, GFP_ANALIO,
 				      &crypto_bio_split);
 		if (!split_bio) {
 			bio->bi_status = BLK_STS_RESOURCE;
 			return false;
 		}
 		bio_chain(split_bio, bio);
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 		*bio_ptr = split_bio;
 	}
 
@@ -317,7 +317,7 @@ static bool blk_crypto_fallback_encrypt_bio(struct bio **bio_ptr)
 		struct bio_vec *enc_bvec = &enc_bio->bi_io_vec[i];
 		struct page *plaintext_page = enc_bvec->bv_page;
 		struct page *ciphertext_page =
-			mempool_alloc(blk_crypto_bounce_page_pool, GFP_NOIO);
+			mempool_alloc(blk_crypto_bounce_page_pool, GFP_ANALIO);
 
 		enc_bvec->bv_page = ciphertext_page;
 
@@ -399,7 +399,7 @@ static void blk_crypto_fallback_decrypt_bio(struct work_struct *work)
 					bc->bc_key, &slot);
 	if (blk_st != BLK_STS_OK) {
 		bio->bi_status = blk_st;
-		goto out_no_keyslot;
+		goto out_anal_keyslot;
 	}
 
 	/* and then allocate an skcipher_request for it */
@@ -435,7 +435,7 @@ static void blk_crypto_fallback_decrypt_bio(struct work_struct *work)
 out:
 	skcipher_request_free(ciph_req);
 	blk_crypto_put_keyslot(slot);
-out_no_keyslot:
+out_anal_keyslot:
 	mempool_free(f_ctx, bio_fallback_crypt_ctx_pool);
 	bio_endio(bio);
 }
@@ -481,8 +481,8 @@ static void blk_crypto_fallback_decrypt_endio(struct bio *bio)
  * bi_end_io.
  *
  * In either case, this function will make the bio look like a regular bio (i.e.
- * as if no encryption context was ever specified) for the purposes of the rest
- * of the stack except for blk-integrity (blk-integrity and blk-crypto are not
+ * as if anal encryption context was ever specified) for the purposes of the rest
+ * of the stack except for blk-integrity (blk-integrity and blk-crypto are analt
  * currently supported together).
  *
  * Return: true on success. Sets bio->bi_status and returns false on error.
@@ -501,7 +501,7 @@ bool blk_crypto_fallback_bio_prep(struct bio **bio_ptr)
 
 	if (!__blk_crypto_cfg_supported(blk_crypto_fallback_profile,
 					&bc->bc_key->crypto_cfg)) {
-		bio->bi_status = BLK_STS_NOTSUPP;
+		bio->bi_status = BLK_STS_ANALTSUPP;
 		return false;
 	}
 
@@ -512,7 +512,7 @@ bool blk_crypto_fallback_bio_prep(struct bio **bio_ptr)
 	 * bio READ case: Set up a f_ctx in the bio's bi_private and set the
 	 * bi_end_io appropriately to trigger decryption when the bio is ended.
 	 */
-	f_ctx = mempool_alloc(bio_fallback_crypt_ctx_pool, GFP_NOIO);
+	f_ctx = mempool_alloc(bio_fallback_crypt_ctx_pool, GFP_ANALIO);
 	f_ctx->crypt_ctx = *bc;
 	f_ctx->crypt_iter = bio->bi_iter;
 	f_ctx->bi_private_orig = bio->bi_private;
@@ -548,7 +548,7 @@ static int blk_crypto_fallback_init(void)
 	blk_crypto_fallback_profile =
 		kzalloc(sizeof(*blk_crypto_fallback_profile), GFP_KERNEL);
 	if (!blk_crypto_fallback_profile) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_free_bioset;
 	}
 
@@ -556,7 +556,7 @@ static int blk_crypto_fallback_init(void)
 				      blk_crypto_num_keyslots);
 	if (err)
 		goto fail_free_profile;
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	blk_crypto_fallback_profile->ll_ops = blk_crypto_fallback_ll_ops;
 	blk_crypto_fallback_profile->max_dun_bytes_supported = BLK_CRYPTO_MAX_IV_SIZE;
@@ -616,7 +616,7 @@ out:
 
 /*
  * Prepare blk-crypto-fallback for the specified crypto mode.
- * Returns -ENOPKG if the needed crypto API support is missing.
+ * Returns -EANALPKG if the needed crypto API support is missing.
  */
 int blk_crypto_fallback_start_using_mode(enum blk_crypto_mode_num mode_num)
 {
@@ -646,10 +646,10 @@ int blk_crypto_fallback_start_using_mode(enum blk_crypto_mode_num mode_num)
 		slotp->tfms[mode_num] = crypto_alloc_skcipher(cipher_str, 0, 0);
 		if (IS_ERR(slotp->tfms[mode_num])) {
 			err = PTR_ERR(slotp->tfms[mode_num]);
-			if (err == -ENOENT) {
+			if (err == -EANALENT) {
 				pr_warn_once("Missing crypto API support for \"%s\"\n",
 					     cipher_str);
-				err = -ENOPKG;
+				err = -EANALPKG;
 			}
 			slotp->tfms[mode_num] = NULL;
 			goto out_free_tfms;

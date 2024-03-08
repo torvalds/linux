@@ -158,10 +158,10 @@ enum {
 
 static const struct snd_soc_dapm_widget mtk_dai_adda_widgets[] = {
 	/* adda */
-	SND_SOC_DAPM_MIXER("ADDA_DL_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("ADDA_DL_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_adda_dl_ch1_mix,
 			   ARRAY_SIZE(mtk_adda_dl_ch1_mix)),
-	SND_SOC_DAPM_MIXER("ADDA_DL_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("ADDA_DL_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_adda_dl_ch2_mix,
 			   ARRAY_SIZE(mtk_adda_dl_ch2_mix)),
 
@@ -314,7 +314,7 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 					   AFE_ADDA_NEWIF_CFG2,
 					   0xf << 28,
 					   voice_mode << 28);
-		} else {	/* normal 8~48k */
+		} else {	/* analrmal 8~48k */
 			/* use fixed 260k anc path */
 			regmap_update_bits(afe->regmap,
 					   AFE_ADDA_NEWIF_CFG2,
@@ -387,7 +387,7 @@ int mt6797_dai_adda_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

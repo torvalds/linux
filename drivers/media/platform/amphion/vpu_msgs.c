@@ -71,12 +71,12 @@ static void vpu_session_handle_seq_hdr(struct vpu_inst *inst, struct vpu_rpc_eve
 	res = vpu_get_resource(inst);
 	info.stride = res ? res->stride : 1;
 	vpu_iface_unpack_msg_data(inst->core, pkt, (void *)&info);
-	call_void_vop(inst, event_notify, VPU_MSG_ID_SEQ_HDR_FOUND, &info);
+	call_void_vop(inst, event_analtify, VPU_MSG_ID_SEQ_HDR_FOUND, &info);
 }
 
 static void vpu_session_handle_resolution_change(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
 {
-	call_void_vop(inst, event_notify, VPU_MSG_ID_RES_CHANGE, NULL);
+	call_void_vop(inst, event_analtify, VPU_MSG_ID_RES_CHANGE, NULL);
 }
 
 static void vpu_session_handle_enc_frame_done(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
@@ -94,7 +94,7 @@ static void vpu_session_handle_frame_request(struct vpu_inst *inst, struct vpu_r
 	struct vpu_fs_info fs = { 0 };
 
 	vpu_iface_unpack_msg_data(inst->core, pkt, &fs);
-	call_void_vop(inst, event_notify, VPU_MSG_ID_FRAME_REQ, &fs);
+	call_void_vop(inst, event_analtify, VPU_MSG_ID_FRAME_REQ, &fs);
 }
 
 static void vpu_session_handle_frame_release(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
@@ -111,7 +111,7 @@ static void vpu_session_handle_frame_release(struct vpu_inst *inst, struct vpu_r
 		struct vpu_fs_info fs = { 0 };
 
 		vpu_iface_unpack_msg_data(inst->core, pkt, &fs);
-		call_void_vop(inst, event_notify, VPU_MSG_ID_FRAME_RELEASE, &fs);
+		call_void_vop(inst, event_analtify, VPU_MSG_ID_FRAME_RELEASE, &fs);
 	}
 }
 
@@ -148,7 +148,7 @@ static void vpu_session_handle_pic_done(struct vpu_inst *inst, struct vpu_rpc_ev
 
 static void vpu_session_handle_eos(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
 {
-	call_void_vop(inst, event_notify, VPU_MSG_ID_PIC_EOS, NULL);
+	call_void_vop(inst, event_analtify, VPU_MSG_ID_PIC_EOS, NULL);
 }
 
 static void vpu_session_handle_error(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
@@ -159,7 +159,7 @@ static void vpu_session_handle_error(struct vpu_inst *inst, struct vpu_rpc_event
 		dev_err(inst->dev, "instance %d firmware error : %s\n", inst->id, str);
 	else
 		dev_err(inst->dev, "instance %d is unsupported stream\n", inst->id);
-	call_void_vop(inst, event_notify, VPU_MSG_ID_UNSUPPORTED, NULL);
+	call_void_vop(inst, event_analtify, VPU_MSG_ID_UNSUPPORTED, NULL);
 	vpu_v4l2_set_error(inst);
 }
 
@@ -169,7 +169,7 @@ static void vpu_session_handle_firmware_xcpt(struct vpu_inst *inst, struct vpu_r
 
 	dev_err(inst->dev, "%s firmware xcpt: %s\n",
 		vpu_core_type_desc(inst->core->type), str);
-	call_void_vop(inst, event_notify, VPU_MSG_ID_FIRMWARE_XCPT, NULL);
+	call_void_vop(inst, event_analtify, VPU_MSG_ID_FIRMWARE_XCPT, NULL);
 	set_bit(inst->id, &inst->core->hang_mask);
 	vpu_v4l2_set_error(inst);
 }

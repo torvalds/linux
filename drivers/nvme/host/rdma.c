@@ -185,13 +185,13 @@ static int nvme_rdma_alloc_qe(struct ib_device *ibdev, struct nvme_rdma_qe *qe,
 {
 	qe->data = kzalloc(capsule_size, GFP_KERNEL);
 	if (!qe->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qe->dma = ib_dma_map_single(ibdev, qe->data, capsule_size, dir);
 	if (ib_dma_mapping_error(ibdev, qe->dma)) {
 		kfree(qe->data);
 		qe->data = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -292,7 +292,7 @@ static void nvme_rdma_exit_request(struct blk_mq_tag_set *set,
 
 static int nvme_rdma_init_request(struct blk_mq_tag_set *set,
 		struct request *rq, unsigned int hctx_idx,
-		unsigned int numa_node)
+		unsigned int numa_analde)
 {
 	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(set->driver_data);
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
@@ -302,7 +302,7 @@ static int nvme_rdma_init_request(struct blk_mq_tag_set *set,
 	nvme_req(rq)->ctrl = &ctrl->ctrl;
 	req->sqe.data = kzalloc(sizeof(struct nvme_command), GFP_KERNEL);
 	if (!req->sqe.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* metadata nvme_rdma_sgl struct is located after command's data SGL */
 	if (queue->pi_support)
@@ -370,7 +370,7 @@ nvme_rdma_find_get_device(struct rdma_cm_id *cm_id)
 
 	mutex_lock(&device_list_mutex);
 	list_for_each_entry(ndev, &device_list, entry) {
-		if (ndev->dev->node_guid == cm_id->device->node_guid &&
+		if (ndev->dev->analde_guid == cm_id->device->analde_guid &&
 		    nvme_rdma_dev_get(ndev))
 			goto out_unlock;
 	}
@@ -390,7 +390,7 @@ nvme_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	if (!(ndev->dev->attrs.device_cap_flags &
 	      IB_DEVICE_MEM_MGT_EXTENSIONS)) {
 		dev_err(&ndev->dev->dev,
-			"Memory registrations not supported.\n");
+			"Memory registrations analt supported.\n");
 		goto out_free_pd;
 	}
 
@@ -496,7 +496,7 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue)
 	queue->device = nvme_rdma_find_get_device(queue->cm_id);
 	if (!queue->device) {
 		dev_err(queue->cm_id->device->dev.parent,
-			"no client data found!\n");
+			"anal client data found!\n");
 		return -ECONNREFUSED;
 	}
 	ibdev = queue->device->dev;
@@ -515,7 +515,7 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue)
 	queue->rsp_ring = nvme_rdma_alloc_ring(ibdev, queue->queue_size,
 			sizeof(struct nvme_completion), DMA_FROM_DEVICE);
 	if (!queue->rsp_ring) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_destroy_qp;
 	}
 
@@ -727,7 +727,7 @@ static int nvme_rdma_alloc_io_queues(struct nvme_rdma_ctrl *ctrl)
 	if (nr_io_queues == 0) {
 		dev_err(ctrl->ctrl.device,
 			"unable to set any I/O queues\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctrl->ctrl.queue_count = nr_io_queues + 1;
@@ -788,7 +788,7 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl,
 		return error;
 
 	ctrl->device = ctrl->queues[0].device;
-	ctrl->ctrl.numa_node = ibdev_to_node(ctrl->device->dev);
+	ctrl->ctrl.numa_analde = ibdev_to_analde(ctrl->device->dev);
 
 	/* T10-PI support */
 	if (ctrl->device->dev->attrs.kernel_cap_flags &
@@ -894,7 +894,7 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 			 * be stuck.  Fail the controller initialization just
 			 * to be safe.
 			 */
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			nvme_unfreeze(&ctrl->ctrl);
 			goto out_wait_freeze_timed_out;
 		}
@@ -905,7 +905,7 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 
 	/*
 	 * If the number of queues has increased (reconnect case)
-	 * start all new queues now.
+	 * start all new queues analw.
 	 */
 	ret = nvme_rdma_start_io_queues(ctrl, nr_queues,
 					ctrl->tag_set.nr_hw_queues + 1);
@@ -986,7 +986,7 @@ static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 {
 	enum nvme_ctrl_state state = nvme_ctrl_state(&ctrl->ctrl);
 
-	/* If we are resetting/deleting then do nothing */
+	/* If we are resetting/deleting then do analthing */
 	if (state != NVME_CTRL_CONNECTING) {
 		WARN_ON_ONCE(state == NVME_CTRL_NEW || state == NVME_CTRL_LIVE);
 		return;
@@ -1012,15 +1012,15 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 		return ret;
 
 	if (ctrl->ctrl.icdoff) {
-		ret = -EOPNOTSUPP;
-		dev_err(ctrl->ctrl.device, "icdoff is not supported!\n");
+		ret = -EOPANALTSUPP;
+		dev_err(ctrl->ctrl.device, "icdoff is analt supported!\n");
 		goto destroy_admin;
 	}
 
 	if (!(ctrl->ctrl.sgls & (1 << 2))) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		dev_err(ctrl->ctrl.device,
-			"Mandatory keyed sgls are not supported!\n");
+			"Mandatory keyed sgls are analt supported!\n");
 		goto destroy_admin;
 	}
 
@@ -1063,7 +1063,7 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 		enum nvme_ctrl_state state = nvme_ctrl_state(&ctrl->ctrl);
 
 		WARN_ON_ONCE(state != NVME_CTRL_DELETING &&
-			     state != NVME_CTRL_DELETING_NOIO);
+			     state != NVME_CTRL_DELETING_ANALIO);
 		WARN_ON_ONCE(new);
 		ret = -EINVAL;
 		goto destroy_io;
@@ -1135,7 +1135,7 @@ static void nvme_rdma_error_recovery_work(struct work_struct *work)
 		enum nvme_ctrl_state state = nvme_ctrl_state(&ctrl->ctrl);
 
 		WARN_ON_ONCE(state != NVME_CTRL_DELETING &&
-			     state != NVME_CTRL_DELETING_NOIO);
+			     state != NVME_CTRL_DELETING_ANALIO);
 		return;
 	}
 
@@ -1369,8 +1369,8 @@ static void nvme_rdma_set_sig_attrs(struct blk_integrity *bi,
 
 	memset(sig_attrs, 0, sizeof(*sig_attrs));
 	if (control & NVME_RW_PRINFO_PRACT) {
-		/* for WRITE_INSERT/READ_STRIP no memory domain */
-		sig_attrs->mem.sig_type = IB_SIG_TYPE_NONE;
+		/* for WRITE_INSERT/READ_STRIP anal memory domain */
+		sig_attrs->mem.sig_type = IB_SIG_TYPE_ANALNE;
 		nvme_rdma_set_sig_domain(bi, cmd, &sig_attrs->wire, control,
 					 pi_type);
 		/* Clear the PRACT bit since HCA will generate/verify the PI */
@@ -1471,7 +1471,7 @@ static int nvme_rdma_dma_map_req(struct ib_device *ibdev, struct request *rq,
 			blk_rq_nr_phys_segments(rq), req->data_sgl.sg_table.sgl,
 			NVME_INLINE_SG_CNT);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->data_sgl.nents = blk_rq_map_sg(rq->q, rq,
 					    req->data_sgl.sg_table.sgl);
@@ -1491,7 +1491,7 @@ static int nvme_rdma_dma_map_req(struct ib_device *ibdev, struct request *rq,
 				req->metadata_sgl->sg_table.sgl,
 				NVME_INLINE_METADATA_SG_CNT);
 		if (unlikely(ret)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_unmap_sg;
 		}
 
@@ -1978,7 +1978,7 @@ static enum blk_eh_timer_return nvme_rdma_timeout(struct request *rq)
 	}
 
 	/*
-	 * LIVE state should trigger the normal error recovery which will
+	 * LIVE state should trigger the analrmal error recovery which will
 	 * handle completing this request.
 	 */
 	nvme_rdma_error_recovery(ctrl);
@@ -2002,7 +2002,7 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	WARN_ON_ONCE(rq->tag < 0);
 
 	if (!nvme_check_ready(&queue->ctrl->ctrl, rq, queue_ready))
-		return nvme_fail_nonready_command(&queue->ctrl->ctrl, rq);
+		return nvme_fail_analnready_command(&queue->ctrl->ctrl, rq);
 
 	dev = queue->device->dev;
 
@@ -2055,7 +2055,7 @@ err_unmap:
 err:
 	if (err == -EIO)
 		ret = nvme_host_path_error(rq);
-	else if (err == -ENOMEM || err == -EAGAIN)
+	else if (err == -EANALMEM || err == -EAGAIN)
 		ret = BLK_STS_RESOURCE;
 	else
 		ret = BLK_STS_IOERR;
@@ -2202,8 +2202,8 @@ static const struct nvme_ctrl_ops nvme_rdma_ctrl_ops = {
  * (association) with the same tuple:
  * <Host NQN, Host ID, local address, remote address, remote port, SUBSYS NQN>
  *
- * if local address is not specified in the request, it will match an
- * existing controller with all the other parameters the same and no
+ * if local address is analt specified in the request, it will match an
+ * existing controller with all the other parameters the same and anal
  * local port address specified as well.
  *
  * The ports don't need to be compared as they are intrinsically
@@ -2235,7 +2235,7 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ctrl->ctrl.opts = opts;
 	INIT_LIST_HEAD(&ctrl->list);
 
@@ -2243,7 +2243,7 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 		opts->trsvcid =
 			kstrdup(__stringify(NVME_RDMA_IP_PORT), GFP_KERNEL);
 		if (!opts->trsvcid) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free_ctrl;
 		}
 		opts->mask |= NVMF_OPT_TRSVCID;
@@ -2282,14 +2282,14 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	ctrl->ctrl.sqsize = opts->queue_size - 1;
 	ctrl->ctrl.kato = opts->kato;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ctrl->queues = kcalloc(ctrl->ctrl.queue_count, sizeof(*ctrl->queues),
 				GFP_KERNEL);
 	if (!ctrl->queues)
 		goto out_free_ctrl;
 
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_rdma_ctrl_ops,
-				0 /* no quirks, we're perfect! */);
+				0 /* anal quirks, we're perfect! */);
 	if (ret)
 		goto out_kfree_queues;
 

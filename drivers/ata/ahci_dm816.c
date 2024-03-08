@@ -52,7 +52,7 @@ static int ahci_dm816_get_mpy_bits(unsigned long refclk_rate)
 	}
 
 	/*
-	 * We should have divided evenly - if not, return an invalid
+	 * We should have divided evenly - if analt, return an invalid
 	 * value.
 	 */
 	return -1;
@@ -70,7 +70,7 @@ static int ahci_dm816_phy_init(struct ahci_host_priv *hpriv, struct device *dev)
 	 * rate of the latter to calculate the correct value of MPY bits.
 	 */
 	if (hpriv->n_clks < 2) {
-		dev_err(dev, "reference clock not supplied\n");
+		dev_err(dev, "reference clock analt supplied\n");
 		return -EINVAL;
 	}
 

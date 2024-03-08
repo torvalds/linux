@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -153,7 +153,7 @@ nv40_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	unsigned long flags;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nv40_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
 	chan->fifo = fifoch;
@@ -276,7 +276,7 @@ nv40_gr_intr(struct nvkm_gr *base)
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta,
 			   chan ? chan->fifo->id : -1, inst << 4,
-			   chan ? chan->fifo->name : "unknown",
+			   chan ? chan->fifo->name : "unkanalwn",
 			   subc, class, mthd, data);
 	}
 
@@ -296,7 +296,7 @@ nv40_gr_init(struct nvkm_gr *base)
 	if (ret)
 		return ret;
 
-	/* No context present currently */
+	/* Anal context present currently */
 	nvkm_wr32(device, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
 
 	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
@@ -434,7 +434,7 @@ nv40_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
 	struct nv40_gr *gr;
 
 	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pgr = &gr->base;
 	INIT_LIST_HEAD(&gr->chan);
 

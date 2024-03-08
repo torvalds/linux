@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_X86_STAT_H
 #define _ASM_X86_STAT_H
 
@@ -9,7 +9,7 @@
 #ifdef __i386__
 struct stat {
 	unsigned long  st_dev;
-	unsigned long  st_ino;
+	unsigned long  st_ianal;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -34,7 +34,7 @@ struct stat {
 	st.__unused5 = 0;			\
 } while (0)
 
-#define STAT64_HAS_BROKEN_ST_INO	1
+#define STAT64_HAS_BROKEN_ST_IANAL	1
 
 /* This matches struct stat64 in glibc2.1, hence the absolutely
  * insane amounts of padding around dev_t's.
@@ -43,7 +43,7 @@ struct stat64 {
 	unsigned long long	st_dev;
 	unsigned char	__pad0[4];
 
-	unsigned long	__st_ino;
+	unsigned long	__st_ianal;
 
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
@@ -69,7 +69,7 @@ struct stat64 {
 	unsigned long	st_ctime;
 	unsigned long	st_ctime_nsec;
 
-	unsigned long long	st_ino;
+	unsigned long long	st_ianal;
 };
 
 /* We don't need to memset the whole thing just to initialize the padding */
@@ -82,7 +82,7 @@ struct stat64 {
 
 struct stat {
 	__kernel_ulong_t	st_dev;
-	__kernel_ulong_t	st_ino;
+	__kernel_ulong_t	st_ianal;
 	__kernel_ulong_t	st_nlink;
 
 	unsigned int		st_mode;
@@ -116,7 +116,7 @@ struct stat {
 /* for 32bit emulation and 32 bit kernels */
 struct __old_kernel_stat {
 	unsigned short st_dev;
-	unsigned short st_ino;
+	unsigned short st_ianal;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;

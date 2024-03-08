@@ -46,7 +46,7 @@
 #define WM8961_ALC1                             0x11
 #define WM8961_ALC2                             0x12
 #define WM8961_ALC3                             0x13
-#define WM8961_NOISE_GATE                       0x14
+#define WM8961_ANALISE_GATE                       0x14
 #define WM8961_LEFT_ADC_VOLUME                  0x15
 #define WM8961_RIGHT_ADC_VOLUME                 0x16
 #define WM8961_ADDITIONAL_CONTROL_1             0x17
@@ -362,7 +362,7 @@
 #define WM8961_ATK_WIDTH                             4  /* ATK - [3:0] */
 
 /*
- * R20 (0x14) - Noise Gate
+ * R20 (0x14) - Analise Gate
  */
 #define WM8961_NGTH_MASK                        0x00F8  /* NGTH - [7:3] */
 #define WM8961_NGTH_SHIFT                            3  /* NGTH - [7:3] */
@@ -405,10 +405,10 @@
 #define WM8961_TSDEN_MASK                       0x0100  /* TSDEN */
 #define WM8961_TSDEN_SHIFT                           8  /* TSDEN */
 #define WM8961_TSDEN_WIDTH                           1  /* TSDEN */
-#define WM8961_DMONOMIX                         0x0010  /* DMONOMIX */
-#define WM8961_DMONOMIX_MASK                    0x0010  /* DMONOMIX */
-#define WM8961_DMONOMIX_SHIFT                        4  /* DMONOMIX */
-#define WM8961_DMONOMIX_WIDTH                        1  /* DMONOMIX */
+#define WM8961_DMOANALMIX                         0x0010  /* DMOANALMIX */
+#define WM8961_DMOANALMIX_MASK                    0x0010  /* DMOANALMIX */
+#define WM8961_DMOANALMIX_SHIFT                        4  /* DMOANALMIX */
+#define WM8961_DMOANALMIX_WIDTH                        1  /* DMOANALMIX */
 #define WM8961_TOEN                             0x0001  /* TOEN */
 #define WM8961_TOEN_MASK                        0x0001  /* TOEN */
 #define WM8961_TOEN_SHIFT                            0  /* TOEN */
@@ -701,9 +701,9 @@
 /*
  * R65 (0x41) - DC Servo 5
  */
-#define WM8961_DCS_SERIES_NO_HP_MASK            0x007F  /* DCS_SERIES_NO_HP - [6:0] */
-#define WM8961_DCS_SERIES_NO_HP_SHIFT                0  /* DCS_SERIES_NO_HP - [6:0] */
-#define WM8961_DCS_SERIES_NO_HP_WIDTH                7  /* DCS_SERIES_NO_HP - [6:0] */
+#define WM8961_DCS_SERIES_ANAL_HP_MASK            0x007F  /* DCS_SERIES_ANAL_HP - [6:0] */
+#define WM8961_DCS_SERIES_ANAL_HP_SHIFT                0  /* DCS_SERIES_ANAL_HP - [6:0] */
+#define WM8961_DCS_SERIES_ANAL_HP_WIDTH                7  /* DCS_SERIES_ANAL_HP - [6:0] */
 
 /*
  * R68 (0x44) - Analogue PGA Bias

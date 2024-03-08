@@ -35,7 +35,7 @@ void mxs_ssp_set_clk_rate(struct mxs_ssp *ssp, unsigned int rate)
 
 	if (clock_divide > 254) {
 		dev_err(ssp->dev,
-			"%s: cannot set clock to %d\n", __func__, rate);
+			"%s: cananalt set clock to %d\n", __func__, rate);
 		return;
 	}
 

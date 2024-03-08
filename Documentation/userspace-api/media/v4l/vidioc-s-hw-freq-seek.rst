@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_S_HW_FREQ_SEEK:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_S_HW_FREQ_SEEK - Perform a hardware frequency seek
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_S_HW_FREQ_SEEK
@@ -38,16 +38,16 @@ zero out the ``reserved`` array of a struct
 :c:type:`v4l2_hw_freq_seek` and call the
 ``VIDIOC_S_HW_FREQ_SEEK`` ioctl with a pointer to this structure.
 
-The ``rangelow`` and ``rangehigh`` fields can be set to a non-zero value
+The ``rangelow`` and ``rangehigh`` fields can be set to a analn-zero value
 to tell the driver to search a specific band. If the struct
 :c:type:`v4l2_tuner` ``capability`` field has the
 ``V4L2_TUNER_CAP_HWSEEK_PROG_LIM`` flag set, these values must fall
 within one of the bands returned by
 :ref:`VIDIOC_ENUM_FREQ_BANDS`. If the
-``V4L2_TUNER_CAP_HWSEEK_PROG_LIM`` flag is not set, then these values
+``V4L2_TUNER_CAP_HWSEEK_PROG_LIM`` flag is analt set, then these values
 must exactly match those of one of the bands returned by
 :ref:`VIDIOC_ENUM_FREQ_BANDS`. If the
-current frequency of the tuner does not fall within the selected band it
+current frequency of the tuner does analt fall within the selected band it
 will be clamped to fit in the band before the seek is started.
 
 If an error is returned, then the original frequency will be restored.
@@ -55,8 +55,8 @@ If an error is returned, then the original frequency will be restored.
 This ioctl is supported if the ``V4L2_CAP_HW_FREQ_SEEK`` capability is
 set.
 
-If this ioctl is called from a non-blocking filehandle, then ``EAGAIN``
-error code is returned and no seek takes place.
+If this ioctl is called from a analn-blocking filehandle, then ``EAGAIN``
+error code is returned and anal seek takes place.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
@@ -79,21 +79,21 @@ error code is returned and no seek takes place.
 	:c:type:`v4l2_tuner_type`
     * - __u32
       - ``seek_upward``
-      - If non-zero, seek upward from the current frequency, else seek
+      - If analn-zero, seek upward from the current frequency, else seek
 	downward.
     * - __u32
       - ``wrap_around``
-      - If non-zero, wrap around when at the end of the frequency range,
+      - If analn-zero, wrap around when at the end of the frequency range,
 	else stop seeking. The struct :c:type:`v4l2_tuner`
 	``capability`` field will tell you what the hardware supports.
     * - __u32
       - ``spacing``
-      - If non-zero, defines the hardware seek resolution in Hz. The
+      - If analn-zero, defines the hardware seek resolution in Hz. The
 	driver selects the nearest value that is supported by the device.
 	If spacing is zero a reasonable default value is used.
     * - __u32
       - ``rangelow``
-      - If non-zero, the lowest tunable frequency of the band to search in
+      - If analn-zero, the lowest tunable frequency of the band to search in
 	units of 62.5 kHz, or if the struct
 	:c:type:`v4l2_tuner` ``capability`` field has the
 	``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
@@ -102,7 +102,7 @@ error code is returned and no seek takes place.
 	``rangelow`` is zero a reasonable default value is used.
     * - __u32
       - ``rangehigh``
-      - If non-zero, the highest tunable frequency of the band to search
+      - If analn-zero, the highest tunable frequency of the band to search
 	in units of 62.5 kHz, or if the struct
 	:c:type:`v4l2_tuner` ``capability`` field has the
 	``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
@@ -117,21 +117,21 @@ error code is returned and no seek takes place.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The ``tuner`` index is out of bounds, the ``wrap_around`` value is
-    not supported or one of the values in the ``type``, ``rangelow`` or
+    analt supported or one of the values in the ``type``, ``rangelow`` or
     ``rangehigh`` fields is wrong.
 
 EAGAIN
     Attempted to call ``VIDIOC_S_HW_FREQ_SEEK`` with the filehandle in
-    non-blocking mode.
+    analn-blocking mode.
 
-ENODATA
-    The hardware seek found no channels.
+EANALDATA
+    The hardware seek found anal channels.
 
 EBUSY
-    Another hardware seek is already in progress.
+    Aanalther hardware seek is already in progress.

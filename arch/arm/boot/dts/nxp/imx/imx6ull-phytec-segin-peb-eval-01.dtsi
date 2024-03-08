@@ -7,7 +7,7 @@
 #include "imx6ul-phytec-segin-peb-eval-01.dtsi"
 
 &iomuxc {
-	/delete-node/ gpio_keysgrp;
+	/delete-analde/ gpio_keysgrp;
 };
 
 &iomuxc_snvs {

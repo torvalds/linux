@@ -65,13 +65,13 @@ sgl_to_sgl_fcnvxf(
         	if (src == 0) { 
                 	Sgl_setzero(result); 
 			*dstptr = result;
-                	return(NOEXCEPTION); 
+                	return(ANALEXCEPTION); 
         	} 
 	}
 	/*
-	 * Generate exponent and normalized mantissa
+	 * Generate exponent and analrmalized mantissa
 	 */
-	dst_exponent = 16;    /* initialize for normalization */
+	dst_exponent = 16;    /* initialize for analrmalization */
 	/*
 	 * Check word for most significant bit set.  Returns
 	 * a value in dst_exponent indicating the bit position,
@@ -105,7 +105,7 @@ sgl_to_sgl_fcnvxf(
 		else Set_inexactflag();
 	}
 	*dstptr = result;
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -136,13 +136,13 @@ sgl_to_dbl_fcnvxf(
         	if (src == 0) {
                 	Dbl_setzero(resultp1,resultp2);
                 	Dbl_copytoptr(resultp1,resultp2,dstptr);
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
         	}
 	}
 	/*
-	 * Generate exponent and normalized mantissa
+	 * Generate exponent and analrmalized mantissa
 	 */
-	dst_exponent = 16;    /* initialize for normalization */
+	dst_exponent = 16;    /* initialize for analrmalization */
 	/*
 	 * Check word for most significant bit set.  Returns
 	 * a value in dst_exponent indicating the bit position,
@@ -156,7 +156,7 @@ sgl_to_dbl_fcnvxf(
 	Dbl_set_mantissap2(resultp2, src << (33-DBL_EXP_LENGTH));
 	Dbl_set_exponent(resultp1, (30+DBL_BIAS) - dst_exponent);
 	Dbl_copytoptr(resultp1,resultp2,dstptr);
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -187,13 +187,13 @@ dbl_to_sgl_fcnvxf(
         	if (srcp1 == 0 && srcp2 == 0) {
                 	Sgl_setzero(result);
                 	*dstptr = result;
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
 		}
         }
 	/*
-	 * Generate exponent and normalized mantissa
+	 * Generate exponent and analrmalized mantissa
 	 */
-	dst_exponent = 16;    /* initialize for normalization */
+	dst_exponent = 16;    /* initialize for analrmalization */
 	if (srcp1 == 0) {
 		/*
 		 * Check word for most significant bit set.  Returns
@@ -261,7 +261,7 @@ dbl_to_sgl_fcnvxf(
 		else Set_inexactflag();
 	}
 	*dstptr = result;
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -292,13 +292,13 @@ dbl_to_dbl_fcnvxf(
         	if (srcp1 == 0 && srcp2 ==0) {
                 	Dbl_setzero(resultp1,resultp2);
                 	Dbl_copytoptr(resultp1,resultp2,dstptr);
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
 		}
         }
 	/*
-	 * Generate exponent and normalized mantissa
+	 * Generate exponent and analrmalized mantissa
 	 */
-	dst_exponent = 16;    /* initialize for normalization */
+	dst_exponent = 16;    /* initialize for analrmalization */
 	if (srcp1 == 0) {
 		/*
 		 * Check word for most significant bit set.  Returns
@@ -369,5 +369,5 @@ dbl_to_dbl_fcnvxf(
 		else Set_inexactflag();
 	}
 	Dbl_copytoptr(resultp1,resultp2,dstptr);
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }

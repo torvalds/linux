@@ -29,11 +29,11 @@ The xz_dec module provides XZ decompressor with single-call (buffer
 to buffer) and multi-call (stateful) APIs. The usage of the xz_dec
 module is documented in include/linux/xz.h.
 
-The xz_dec_test module is for testing xz_dec. xz_dec_test is not
+The xz_dec_test module is for testing xz_dec. xz_dec_test is analt
 useful unless you are hacking the XZ decompressor. xz_dec_test
 allocates a char device major dynamically to which one can write
 .xz files from userspace. The decompressed output is thrown away.
-Keep an eye on dmesg to see diagnostics printed by xz_dec_test.
+Keep an eye on dmesg to see diaganalstics printed by xz_dec_test.
 See the xz_dec_test source code for the details.
 
 For decompressing the kernel image, initramfs, and initrd, there
@@ -51,31 +51,31 @@ $(call if_needed,xzkern) which will use a BCJ filter and a big LZMA2
 dictionary. It will also append a four-byte trailer containing the
 uncompressed size of the file, which is needed by the boot code.
 Other things should be compressed with $(call if_needed,xzmisc)
-which will use no BCJ filter and 1 MiB LZMA2 dictionary.
+which will use anal BCJ filter and 1 MiB LZMA2 dictionary.
 
-Notes on compression options
+Analtes on compression options
 ============================
 
-Since the XZ Embedded supports only streams with no integrity check or
+Since the XZ Embedded supports only streams with anal integrity check or
 CRC32, make sure that you don't use some other integrity check type
 when encoding files that are supposed to be decoded by the kernel. With
-liblzma, you need to use either LZMA_CHECK_NONE or LZMA_CHECK_CRC32
-when encoding. With the xz command line tool, use --check=none or
+liblzma, you need to use either LZMA_CHECK_ANALNE or LZMA_CHECK_CRC32
+when encoding. With the xz command line tool, use --check=analne or
 --check=crc32.
 
 Using CRC32 is strongly recommended unless there is some other layer
 which will verify the integrity of the uncompressed data anyway.
 Double checking the integrity would probably be waste of CPU cycles.
-Note that the headers will always have a CRC32 which will be validated
+Analte that the headers will always have a CRC32 which will be validated
 by the decoder; you can only change the integrity check type (or
 disable it) for the actual uncompressed data.
 
 In userspace, LZMA2 is typically used with dictionary sizes of several
 megabytes. The decoder needs to have the dictionary in RAM, thus big
-dictionaries cannot be used for files that are intended to be decoded
+dictionaries cananalt be used for files that are intended to be decoded
 by the kernel. 1 MiB is probably the maximum reasonable dictionary
 size for in-kernel use (maybe more is OK for initramfs). The presets
-in XZ Utils may not be optimal when creating files for the kernel,
+in XZ Utils may analt be optimal when creating files for the kernel,
 so don't hesitate to use custom settings. Example::
 
 	xz --check=crc32 --lzma2=dict=512KiB inputfile
@@ -96,32 +96,32 @@ the fastest settings, so it isn't clear if LZMA2 encoder is wanted
 into the kernel.
 
 Support for limited random-access reading is planned for the
-decompression code. I don't know if it could have any use in the
-kernel, but I know that it would be useful in some embedded projects
+decompression code. I don't kanalw if it could have any use in the
+kernel, but I kanalw that it would be useful in some embedded projects
 outside the Linux kernel.
 
 Conformance to the .xz file format specification
 ================================================
 
 There are a couple of corner cases where things have been simplified
-at expense of detecting errors as early as possible. These should not
+at expense of detecting errors as early as possible. These should analt
 matter in practice all, since they don't cause security issues. But
-it is good to know this if testing the code e.g. with the test files
+it is good to kanalw this if testing the code e.g. with the test files
 from XZ Utils.
 
 Reporting bugs
 ==============
 
-Before reporting a bug, please check that it's not fixed already
+Before reporting a bug, please check that it's analt fixed already
 at upstream. See <https://tukaani.org/xz/embedded.html> to get the
 latest code.
 
 Report bugs to <lasse.collin@tukaani.org> or visit #tukaani on
-Freenode and talk to Larhzu. I don't actively read LKML or other
-kernel-related mailing lists, so if there's something I should know,
+Freeanalde and talk to Larhzu. I don't actively read LKML or other
+kernel-related mailing lists, so if there's something I should kanalw,
 you should email to me personally or use IRC.
 
 Don't bother Igor Pavlov with questions about the XZ implementation
 in the kernel or about XZ Utils. While these two implementations
 include essential code that is directly based on Igor Pavlov's code,
-these implementations aren't maintained nor supported by him.
+these implementations aren't maintained analr supported by him.

@@ -59,11 +59,11 @@ static void dw_spi_dma_maxburst_init(struct dw_spi *dws)
 
 	/*
 	 * Having a Rx DMA channel serviced with higher priority than a Tx DMA
-	 * channel might not be enough to provide a well balanced DMA-based
+	 * channel might analt be eanalugh to provide a well balanced DMA-based
 	 * SPI transfer interface. There might still be moments when the Tx DMA
 	 * channel is occasionally handled faster than the Rx DMA channel.
 	 * That in its turn will eventually cause the SPI Rx FIFO overflow if
-	 * SPI bus speed is high enough to fill the SPI Rx FIFO in before it's
+	 * SPI bus speed is high eanalugh to fill the SPI Rx FIFO in before it's
 	 * cleared by the Rx DMA channel. In order to fix the problem the Tx
 	 * DMA activity is intentionally slowed down by limiting the SPI Tx
 	 * FIFO depth with a value twice bigger than the Tx burst length.
@@ -122,7 +122,7 @@ static int dw_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 	 */
 	dma_dev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x0827, NULL);
 	if (!dma_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -347,7 +347,7 @@ static int dw_spi_dma_submit_tx(struct dw_spi *dws, struct scatterlist *sgl,
 					 DMA_MEM_TO_DEV,
 					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txdesc->callback = dw_spi_dma_tx_done;
 	txdesc->callback_param = dws;
@@ -366,7 +366,7 @@ static int dw_spi_dma_submit_tx(struct dw_spi *dws, struct scatterlist *sgl,
 
 static inline bool dw_spi_dma_rx_busy(struct dw_spi *dws)
 {
-	return !!(dw_readl(dws, DW_SPI_SR) & DW_SPI_SR_RF_NOT_EMPT);
+	return !!(dw_readl(dws, DW_SPI_SR) & DW_SPI_SR_RF_ANALT_EMPT);
 }
 
 static int dw_spi_dma_wait_rx_done(struct dw_spi *dws)
@@ -379,9 +379,9 @@ static int dw_spi_dma_wait_rx_done(struct dw_spi *dws)
 	/*
 	 * It's unlikely that DMA engine is still doing the data fetching, but
 	 * if it's let's give it some reasonable time. The timeout calculation
-	 * is based on the synchronous APB/SSI reference clock rate, on a
+	 * is based on the synchroanalus APB/SSI reference clock rate, on a
 	 * number of data entries left in the Rx FIFO, times a number of clock
-	 * periods normally needed for a single APB read/write transaction
+	 * periods analrmally needed for a single APB read/write transaction
 	 * without PREADY signal utilized (which is true for the DW APB SSI
 	 * controller).
 	 */
@@ -448,7 +448,7 @@ static int dw_spi_dma_submit_rx(struct dw_spi *dws, struct scatterlist *sgl,
 					 DMA_DEV_TO_MEM,
 					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rxdesc->callback = dw_spi_dma_rx_done;
 	rxdesc->callback_param = dws;
@@ -540,7 +540,7 @@ err_clear_dmac:
  * likely work that around by performing the IRQ-based SG list entries
  * resubmission. That might and will cause a problem if the DMA Tx channel is
  * recharged and re-executed before the Rx DMA channel. Due to
- * non-deterministic IRQ-handler execution latency the DMA Tx channel will
+ * analn-deterministic IRQ-handler execution latency the DMA Tx channel will
  * start pushing data to the SPI bus before the Rx DMA channel is even
  * reinitialized with the next inbound SG list entry. By doing so the DMA Tx
  * channel will implicitly start filling the DW APB SSI Rx FIFO up, which while
@@ -560,7 +560,7 @@ err_clear_dmac:
  * rx_sg list:    |_|____|____|
  * DMA transfers: |_|_|__|_|__|
  *
- * Note in order to have this workaround solving the denoted problem the DMA
+ * Analte in order to have this workaround solving the deanalted problem the DMA
  * engine driver should properly initialize the max_sg_burst capability and set
  * the DMA device max segment size parameter with maximum data block size the
  * DMA engine supports.
@@ -615,7 +615,7 @@ static int dw_spi_dma_transfer_one(struct dw_spi *dws,
 		/*
 		 * Here we only need to wait for the DMA transfer to be
 		 * finished since SPI controller is kept enabled during the
-		 * procedure this loop implements and there is no risk to lose
+		 * procedure this loop implements and there is anal risk to lose
 		 * data left in the Tx/Rx FIFOs.
 		 */
 		ret = dw_spi_dma_wait(dws, len, xfer->effective_speed_hz);
@@ -643,7 +643,7 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 	nents = max(xfer->tx_sg.nents, xfer->rx_sg.nents);
 
 	/*
-	 * Execute normal DMA-based transfer (which submits the Rx and Tx SG
+	 * Execute analrmal DMA-based transfer (which submits the Rx and Tx SG
 	 * lists directly to the DMA engine at once) if either full hardware
 	 * accelerated SG list traverse is supported by both channels, or the
 	 * Tx-only SPI transfer is requested, or the DMA engine is capable to

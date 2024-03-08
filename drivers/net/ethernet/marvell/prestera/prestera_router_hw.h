@@ -5,7 +5,7 @@
 #define _PRESTERA_ROUTER_HW_H_
 
 struct prestera_vr {
-	struct list_head router_node;
+	struct list_head router_analde;
 	refcount_t refcount;
 	u32 tb_id;			/* key (kernel fib table id) */
 	u16 hw_vr_id;			/* virtual router ID */
@@ -19,7 +19,7 @@ struct prestera_rif_entry {
 	struct prestera_vr *vr;
 	unsigned char addr[ETH_ALEN];
 	u16 hw_id; /* rif_id */
-	struct list_head router_node; /* ht */
+	struct list_head router_analde; /* ht */
 };
 
 struct prestera_ip_addr {
@@ -42,7 +42,7 @@ struct prestera_nh_neigh_key {
 	 * filter duplicate objects on logical level (before you pass it to
 	 * HW)... also key can be used to cover hardware restrictions.
 	 * In our case rif - is logical interface (even can be VLAN), which
-	 * is used in combination with IP address (which is also not related to
+	 * is used in combination with IP address (which is also analt related to
 	 * hardware nexthop) to provide logical compression of created nexthops.
 	 * You even can imagine, that rif+IPaddr is just cookie.
 	 */
@@ -59,11 +59,11 @@ struct prestera_neigh_info {
 	u8 __pad[1];
 };
 
-/* Used to notify nh about neigh change */
+/* Used to analtify nh about neigh change */
 struct prestera_nh_neigh {
 	struct prestera_nh_neigh_key key;
 	struct prestera_neigh_info info;
-	struct rhash_head ht_node; /* node of prestera_vr */
+	struct rhash_head ht_analde; /* analde of prestera_vr */
 	struct list_head nexthop_group_list;
 };
 
@@ -76,16 +76,16 @@ struct prestera_nexthop_group {
 	/* Store intermediate object here.
 	 * This prevent overhead kzalloc call.
 	 */
-	/* nh_neigh is used only to notify nexthop_group */
+	/* nh_neigh is used only to analtify nexthop_group */
 	struct prestera_nh_neigh_head {
 		struct prestera_nexthop_group *this;
 		struct list_head head;
-		/* ptr to neigh is not necessary.
+		/* ptr to neigh is analt necessary.
 		 * It used to prevent lookup of nh_neigh by key (n) on destroy
 		 */
 		struct prestera_nh_neigh *neigh;
 	} nh_neigh_head[PRESTERA_NHGR_SIZE_MAX];
-	struct rhash_head ht_node; /* node of prestera_vr */
+	struct rhash_head ht_analde; /* analde of prestera_vr */
 	refcount_t refcount;
 	u32 grp_id; /* hw */
 };
@@ -98,7 +98,7 @@ struct prestera_fib_key {
 
 struct prestera_fib_info {
 	struct prestera_vr *vr;
-	struct list_head vr_node;
+	struct list_head vr_analde;
 	enum prestera_fib_type {
 		PRESTERA_FIB_TYPE_INVALID = 0,
 		/* must be pointer to nh_grp id */
@@ -113,8 +113,8 @@ struct prestera_fib_info {
 	struct prestera_nexthop_group *nh_grp;
 };
 
-struct prestera_fib_node {
-	struct rhash_head ht_node; /* node of prestera_vr */
+struct prestera_fib_analde {
+	struct rhash_head ht_analde; /* analde of prestera_vr */
 	struct prestera_fib_key key;
 	struct prestera_fib_info info; /* action related info */
 };
@@ -140,12 +140,12 @@ int prestera_nh_neigh_set(struct prestera_switch *sw,
 			  struct prestera_nh_neigh *neigh);
 bool prestera_nh_neigh_util_hw_state(struct prestera_switch *sw,
 				     struct prestera_nh_neigh *nh_neigh);
-struct prestera_fib_node *prestera_fib_node_find(struct prestera_switch *sw,
+struct prestera_fib_analde *prestera_fib_analde_find(struct prestera_switch *sw,
 						 struct prestera_fib_key *key);
-void prestera_fib_node_destroy(struct prestera_switch *sw,
-			       struct prestera_fib_node *fib_node);
-struct prestera_fib_node *
-prestera_fib_node_create(struct prestera_switch *sw,
+void prestera_fib_analde_destroy(struct prestera_switch *sw,
+			       struct prestera_fib_analde *fib_analde);
+struct prestera_fib_analde *
+prestera_fib_analde_create(struct prestera_switch *sw,
 			 struct prestera_fib_key *key,
 			 enum prestera_fib_type fib_type,
 			 struct prestera_nexthop_group_key *nh_grp_key);

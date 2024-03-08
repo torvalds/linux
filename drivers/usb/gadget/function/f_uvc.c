@@ -7,7 +7,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -537,7 +537,7 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	}
 
 	if (!uvc_control_desc || !uvc_streaming_cls)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	/*
 	 * Descriptors layout
@@ -662,7 +662,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	opts->streaming_maxpacket = clamp(opts->streaming_maxpacket, 1U, 3072U);
 	opts->streaming_maxburst = min(opts->streaming_maxburst, 15U);
 
-	/* For SS, wMaxPacketSize has to be 1024 if bMaxBurst is not 0 */
+	/* For SS, wMaxPacketSize has to be 1024 if bMaxBurst is analt 0 */
 	if (opts->streaming_maxburst &&
 	    (opts->streaming_maxpacket % 1024) != 0) {
 		opts->streaming_maxpacket = roundup(opts->streaming_maxpacket, 1024);
@@ -674,7 +674,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	 * Fill in the FS/HS/SS Video Streaming specific descriptors from the
 	 * module parameters.
 	 *
-	 * NOTE: We assume that the user knows what they are doing and won't
+	 * ANALTE: We assume that the user kanalws what they are doing and won't
 	 * give parameters that their UDC doesn't support.
 	 */
 	if (opts->streaming_maxpacket <= 1024) {
@@ -724,8 +724,8 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	/*
 	 * gadget_is_{super|dual}speed() API check UDC controller capitblity. It should pass down
 	 * highest speed endpoint descriptor to UDC controller. So UDC controller driver can reserve
-	 * enough resource at check_config(), especially mult and maxburst. So UDC driver (such as
-	 * cdns3) can know need at least (mult + 1) * (maxburst + 1) * wMaxPacketSize internal
+	 * eanalugh resource at check_config(), especially mult and maxburst. So UDC driver (such as
+	 * cdns3) can kanalw need at least (mult + 1) * (maxburst + 1) * wMaxPacketSize internal
 	 * memory for this uvc functions. This is the only straightforward method to resolve the UDC
 	 * resource allocation issue in the current gadget framework.
 	 */
@@ -756,7 +756,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 			xu->desc.iExtension = cdev->usb_strings[xu->string_descriptor_index].id;
 
 	/*
-	 * We attach the hard-coded defaults incase the user does not provide
+	 * We attach the hard-coded defaults incase the user does analt provide
 	 * any more appropriate strings through configfs.
 	 */
 	uvc_en_us_strings[UVC_STRING_CONTROL_IDX].s = opts->function_name;
@@ -824,7 +824,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc->control_req = usb_ep_alloc_request(cdev->gadget->ep0, GFP_KERNEL);
 	uvc->control_buf = kmalloc(UVC_MAX_REQUEST_SIZE, GFP_KERNEL);
 	if (uvc->control_req == NULL || uvc->control_buf == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -885,7 +885,7 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	opts->func_inst.free_func_inst = uvc_free_inst;
 	mutex_init(&opts->lock);
 
@@ -995,7 +995,7 @@ static void uvc_function_unbind(struct usb_configuration *c,
 		destroy_workqueue(video->async_wq);
 
 	/*
-	 * If we know we're connected via v4l2, then there should be a cleanup
+	 * If we kanalw we're connected via v4l2, then there should be a cleanup
 	 * of the device from userspace either via UVC_EVENT_DISCONNECT or
 	 * though the video device removal uevent. Allow some time for the
 	 * application to close out before things get deleted.
@@ -1013,11 +1013,11 @@ static void uvc_function_unbind(struct usb_configuration *c,
 
 	if (uvc->func_connected) {
 		/*
-		 * Wait for the release to occur to ensure there are no longer any
+		 * Wait for the release to occur to ensure there are anal longer any
 		 * pending operations that may cause panics when resources are cleaned
 		 * up.
 		 */
-		uvcg_warn(f, "%s no clean disconnect, wait for release\n", __func__);
+		uvcg_warn(f, "%s anal clean disconnect, wait for release\n", __func__);
 		wait_ret = wait_event_interruptible_timeout(uvc->func_connected_queue,
 				uvc->func_connected == false, msecs_to_jiffies(1000));
 		uvcg_dbg(f, "done waiting for release with ret: %ld\n", wait_ret);
@@ -1038,7 +1038,7 @@ static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 
 	uvc = kzalloc(sizeof(*uvc), GFP_KERNEL);
 	if (uvc == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&uvc->video.mutex);
 	uvc->state = UVC_STATE_DISCONNECTED;
@@ -1114,7 +1114,7 @@ static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 err_config:
 	mutex_unlock(&opts->lock);
 	kfree(uvc);
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 DECLARE_USB_FUNCTION_INIT(uvc, uvc_alloc_inst, uvc_alloc);

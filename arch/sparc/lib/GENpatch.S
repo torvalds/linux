@@ -5,7 +5,7 @@
  */
 
 #define BRANCH_ALWAYS	0x10680000
-#define NOP		0x01000000
+#define ANALP		0x01000000
 #define GEN_DO_PATCH(OLD, NEW)	\
 	sethi	%hi(NEW), %g1; \
 	or	%g1, %lo(NEW), %g1; \
@@ -18,8 +18,8 @@
 	or	%g3, %lo(BRANCH_ALWAYS), %g3; \
 	or	%g3, %g1, %g3; \
 	stw	%g3, [%g2]; \
-	sethi	%hi(NOP), %g3; \
-	or	%g3, %lo(NOP), %g3; \
+	sethi	%hi(ANALP), %g3; \
+	or	%g3, %lo(ANALP), %g3; \
 	stw	%g3, [%g2 + 0x4]; \
 	flush	%g2;
 
@@ -30,5 +30,5 @@ generic_patch_copyops:
 	GEN_DO_PATCH(raw_copy_from_user, GENcopy_from_user)
 	GEN_DO_PATCH(raw_copy_to_user, GENcopy_to_user)
 	retl
-	 nop
+	 analp
 	.size	generic_patch_copyops,.-generic_patch_copyops

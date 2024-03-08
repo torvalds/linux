@@ -187,7 +187,7 @@ static struct rockchip_pmu *dmc_pmu;
 
 /*
  * Block PMU transitions and make sure they don't interfere with ARM Trusted
- * Firmware operations. There are two conflicts, noted in the comments below.
+ * Firmware operations. There are two conflicts, analted in the comments below.
  *
  * Caller must unblock PMU transitions via rockchip_pmu_unblock().
  */
@@ -200,7 +200,7 @@ int rockchip_pmu_block(void)
 
 	mutex_lock(&dmc_pmu_mutex);
 
-	/* No PMU (yet)? Then we just block rockchip_pmu_probe(). */
+	/* Anal PMU (yet)? Then we just block rockchip_pmu_probe(). */
 	if (!dmc_pmu)
 		return 0;
 	pmu = dmc_pmu;
@@ -592,7 +592,7 @@ static int rockchip_pd_attach_dev(struct generic_pm_domain *genpd,
 	}
 
 	i = 0;
-	while ((clk = of_clk_get(dev->of_node, i++)) && !IS_ERR(clk)) {
+	while ((clk = of_clk_get(dev->of_analde, i++)) && !IS_ERR(clk)) {
 		dev_dbg(dev, "adding clock '%pC' to list of PM clocks\n", clk);
 		error = pm_clk_add_clk(dev, clk);
 		if (error) {
@@ -615,26 +615,26 @@ static void rockchip_pd_detach_dev(struct generic_pm_domain *genpd,
 }
 
 static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
-				      struct device_node *node)
+				      struct device_analde *analde)
 {
 	const struct rockchip_domain_info *pd_info;
 	struct rockchip_pm_domain *pd;
-	struct device_node *qos_node;
+	struct device_analde *qos_analde;
 	int i, j;
 	u32 id;
 	int error;
 
-	error = of_property_read_u32(node, "reg", &id);
+	error = of_property_read_u32(analde, "reg", &id);
 	if (error) {
 		dev_err(pmu->dev,
 			"%pOFn: failed to retrieve domain id (reg): %d\n",
-			node, error);
+			analde, error);
 		return -EINVAL;
 	}
 
 	if (id >= pmu->info->num_domains) {
 		dev_err(pmu->dev, "%pOFn: invalid domain id %d\n",
-			node, id);
+			analde, id);
 		return -EINVAL;
 	}
 	/* RK3588 has domains with two parents (RKVDEC0/RKVDEC1) */
@@ -644,36 +644,36 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pd_info = &pmu->info->domain_info[id];
 	if (!pd_info) {
 		dev_err(pmu->dev, "%pOFn: undefined domain id %d\n",
-			node, id);
+			analde, id);
 		return -EINVAL;
 	}
 
 	pd = devm_kzalloc(pmu->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd->info = pd_info;
 	pd->pmu = pmu;
 
-	pd->num_clks = of_clk_get_parent_count(node);
+	pd->num_clks = of_clk_get_parent_count(analde);
 	if (pd->num_clks > 0) {
 		pd->clks = devm_kcalloc(pmu->dev, pd->num_clks,
 					sizeof(*pd->clks), GFP_KERNEL);
 		if (!pd->clks)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		dev_dbg(pmu->dev, "%pOFn: doesn't have clocks: %d\n",
-			node, pd->num_clks);
+			analde, pd->num_clks);
 		pd->num_clks = 0;
 	}
 
 	for (i = 0; i < pd->num_clks; i++) {
-		pd->clks[i].clk = of_clk_get(node, i);
+		pd->clks[i].clk = of_clk_get(analde, i);
 		if (IS_ERR(pd->clks[i].clk)) {
 			error = PTR_ERR(pd->clks[i].clk);
 			dev_err(pmu->dev,
 				"%pOFn: failed to get clk at index %d: %d\n",
-				node, i, error);
+				analde, i, error);
 			return error;
 		}
 	}
@@ -682,7 +682,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (error)
 		goto err_put_clocks;
 
-	pd->num_qos = of_count_phandle_with_args(node, "pm_qos",
+	pd->num_qos = of_count_phandle_with_args(analde, "pm_qos",
 						 NULL);
 
 	if (pd->num_qos > 0) {
@@ -690,7 +690,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 					      sizeof(*pd->qos_regmap),
 					      GFP_KERNEL);
 		if (!pd->qos_regmap) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto err_unprepare_clocks;
 		}
 
@@ -700,31 +700,31 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 							    sizeof(u32),
 							    GFP_KERNEL);
 			if (!pd->qos_save_regs[j]) {
-				error = -ENOMEM;
+				error = -EANALMEM;
 				goto err_unprepare_clocks;
 			}
 		}
 
 		for (j = 0; j < pd->num_qos; j++) {
-			qos_node = of_parse_phandle(node, "pm_qos", j);
-			if (!qos_node) {
-				error = -ENODEV;
+			qos_analde = of_parse_phandle(analde, "pm_qos", j);
+			if (!qos_analde) {
+				error = -EANALDEV;
 				goto err_unprepare_clocks;
 			}
-			pd->qos_regmap[j] = syscon_node_to_regmap(qos_node);
+			pd->qos_regmap[j] = syscon_analde_to_regmap(qos_analde);
 			if (IS_ERR(pd->qos_regmap[j])) {
-				error = -ENODEV;
-				of_node_put(qos_node);
+				error = -EANALDEV;
+				of_analde_put(qos_analde);
 				goto err_unprepare_clocks;
 			}
-			of_node_put(qos_node);
+			of_analde_put(qos_analde);
 		}
 	}
 
 	if (pd->info->name)
 		pd->genpd.name = pd->info->name;
 	else
-		pd->genpd.name = kbasename(node->full_name);
+		pd->genpd.name = kbasename(analde->full_name);
 	pd->genpd.power_off = rockchip_pd_power_off;
 	pd->genpd.power_on = rockchip_pd_power_on;
 	pd->genpd.attach_dev = rockchip_pd_attach_dev;
@@ -752,7 +752,7 @@ static void rockchip_pm_remove_one_domain(struct rockchip_pm_domain *pd)
 
 	/*
 	 * We're in the error cleanup already, so we only complain,
-	 * but won't emit another error on top of the original one.
+	 * but won't emit aanalther error on top of the original one.
 	 */
 	ret = pm_genpd_remove(&pd->genpd);
 	if (ret < 0)
@@ -798,13 +798,13 @@ static void rockchip_configure_pd_cnt(struct rockchip_pmu *pmu,
 }
 
 static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
-				     struct device_node *parent)
+				     struct device_analde *parent)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct generic_pm_domain *child_domain, *parent_domain;
 	int error;
 
-	for_each_child_of_node(parent, np) {
+	for_each_child_of_analde(parent, np) {
 		u32 idx;
 
 		error = of_property_read_u32(parent, "reg", &idx);
@@ -818,7 +818,7 @@ static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
 
 		error = rockchip_pm_add_one_domain(pmu, np);
 		if (error) {
-			dev_err(pmu->dev, "failed to handle node %pOFn: %d\n",
+			dev_err(pmu->dev, "failed to handle analde %pOFn: %d\n",
 				np, error);
 			goto err_out;
 		}
@@ -848,23 +848,23 @@ static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
 	return 0;
 
 err_out:
-	of_node_put(np);
+	of_analde_put(np);
 	return error;
 }
 
 static int rockchip_pm_domain_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *node;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *analde;
 	struct device *parent;
 	struct rockchip_pmu *pmu;
 	const struct rockchip_pmu_info *pmu_info;
 	int error;
 
 	if (!np) {
-		dev_err(dev, "device tree node not found\n");
-		return -ENODEV;
+		dev_err(dev, "device tree analde analt found\n");
+		return -EANALDEV;
 	}
 
 	pmu_info = device_get_match_data(dev);
@@ -873,7 +873,7 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 			   struct_size(pmu, domains, pmu_info->num_domains),
 			   GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmu->dev = &pdev->dev;
 	mutex_init(&pmu->mutex);
@@ -885,13 +885,13 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent for syscon devices\n");
-		return -ENODEV;
+		dev_err(dev, "anal parent for syscon devices\n");
+		return -EANALDEV;
 	}
 
-	pmu->regmap = syscon_node_to_regmap(parent->of_node);
+	pmu->regmap = syscon_analde_to_regmap(parent->of_analde);
 	if (IS_ERR(pmu->regmap)) {
-		dev_err(dev, "no regmap available\n");
+		dev_err(dev, "anal regmap available\n");
 		return PTR_ERR(pmu->regmap);
 	}
 
@@ -906,7 +906,7 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 		rockchip_configure_pd_cnt(pmu, pmu_info->gpu_pwrcnt_offset,
 					pmu_info->gpu_power_transition_time);
 
-	error = -ENODEV;
+	error = -EANALDEV;
 
 	/*
 	 * Prevent any rockchip_pmu_block() from racing with the remainder of
@@ -914,26 +914,26 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	 */
 	mutex_lock(&dmc_pmu_mutex);
 
-	for_each_available_child_of_node(np, node) {
-		error = rockchip_pm_add_one_domain(pmu, node);
+	for_each_available_child_of_analde(np, analde) {
+		error = rockchip_pm_add_one_domain(pmu, analde);
 		if (error) {
-			dev_err(dev, "failed to handle node %pOFn: %d\n",
-				node, error);
-			of_node_put(node);
+			dev_err(dev, "failed to handle analde %pOFn: %d\n",
+				analde, error);
+			of_analde_put(analde);
 			goto err_out;
 		}
 
-		error = rockchip_pm_add_subdomain(pmu, node);
+		error = rockchip_pm_add_subdomain(pmu, analde);
 		if (error < 0) {
-			dev_err(dev, "failed to handle subdomain node %pOFn: %d\n",
-				node, error);
-			of_node_put(node);
+			dev_err(dev, "failed to handle subdomain analde %pOFn: %d\n",
+				analde, error);
+			of_analde_put(analde);
 			goto err_out;
 		}
 	}
 
 	if (error) {
-		dev_dbg(dev, "no power domains defined\n");
+		dev_dbg(dev, "anal power domains defined\n");
 		goto err_out;
 	}
 

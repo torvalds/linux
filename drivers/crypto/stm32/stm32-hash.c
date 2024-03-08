@@ -376,7 +376,7 @@ static int stm32_hash_xmit_cpu(struct stm32_hash_dev *hdev,
 	if (final) {
 		hdev->flags |= HASH_FLAGS_FINAL;
 
-		/* Do not process empty messages if hw is buggy. */
+		/* Do analt process empty messages if hw is buggy. */
 		if (!(hdev->flags & HASH_FLAGS_INIT) && !length &&
 		    hdev->pdata->broken_emptymsg) {
 			state->flags |= HASH_FLAGS_EMPTY;
@@ -528,7 +528,7 @@ static int stm32_hash_xmit_dma(struct stm32_hash_dev *hdev,
 					  DMA_CTRL_ACK);
 	if (!in_desc) {
 		dev_err(hdev->dev, "dmaengine_prep_slave error\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	reinit_completion(&hdev->dma_completion);
@@ -555,7 +555,7 @@ static int stm32_hash_xmit_dma(struct stm32_hash_dev *hdev,
 	cookie = dmaengine_submit(in_desc);
 	err = dma_submit_error(cookie);
 	if (err)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_async_issue_pending(hdev->dma_lch);
 
@@ -603,7 +603,7 @@ static int stm32_hash_hmac_dma_send(struct stm32_hash_dev *hdev)
 					  DMA_TO_DEVICE);
 		if (rctx->dma_ct == 0) {
 			dev_err(hdev->dev, "dma_map_sg error\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = stm32_hash_xmit_dma(hdev, &rctx->sg_key, ctx->keylen, 0);
@@ -701,7 +701,7 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 					  DMA_TO_DEVICE);
 		if (rctx->dma_ct == 0) {
 			dev_err(hdev->dev, "dma_map_sg error\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = stm32_hash_xmit_dma(hdev, sg, len, !is_last);
@@ -709,7 +709,7 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 		bufcnt += sg[0].length;
 		dma_unmap_sg(hdev->dev, sg, 1, DMA_TO_DEVICE);
 
-		if (err == -ENOMEM)
+		if (err == -EANALMEM)
 			return err;
 		if (is_last)
 			break;
@@ -907,7 +907,7 @@ static void stm32_hash_emptymsg_fallback(struct ahash_request *req)
 		ctx->keylen);
 
 	if (!ctx->xtfm) {
-		dev_err(hdev->dev, "no fallback engine\n");
+		dev_err(hdev->dev, "anal fallback engine\n");
 		return;
 	}
 
@@ -999,7 +999,7 @@ static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 	int err = 0;
 
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(hdev->dev, "processing new req, op: %lu, nbytes %d\n",
 		rctx->op, req->nbytes);
@@ -1048,7 +1048,7 @@ static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 	}
 
 	if (err != -EINPROGRESS)
-	/* done task will not finish it, so do it here */
+	/* done task will analt finish it, so do it here */
 		stm32_hash_finish_req(req, err);
 
 	return 0;
@@ -1150,7 +1150,7 @@ static int stm32_hash_setkey(struct crypto_ahash *tfm,
 		memcpy(ctx->key, key, keylen);
 		ctx->keylen = keylen;
 	} else {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1260,7 +1260,7 @@ static irqreturn_t stm32_hash_irq_handler(int irq, void *dev_id)
 		return IRQ_WAKE_THREAD;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static struct ahash_engine_alg algs_md5[] = {
@@ -2001,7 +2001,7 @@ static int stm32_hash_get_of_match(struct stm32_hash_dev *hdev,
 {
 	hdev->pdata = of_device_get_match_data(dev);
 	if (!hdev->pdata) {
-		dev_err(dev, "no compatible OF match\n");
+		dev_err(dev, "anal compatible OF match\n");
 		return -EINVAL;
 	}
 
@@ -2017,7 +2017,7 @@ static int stm32_hash_probe(struct platform_device *pdev)
 
 	hdev = devm_kzalloc(dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdev->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hdev->io_base))
@@ -2040,11 +2040,11 @@ static int stm32_hash_probe(struct platform_device *pdev)
 						IRQF_ONESHOT,
 						dev_name(dev), hdev);
 		if (ret) {
-			dev_err(dev, "Cannot grab IRQ\n");
+			dev_err(dev, "Cananalt grab IRQ\n");
 			return ret;
 		}
 	} else {
-		dev_info(dev, "No IRQ, use polling mode\n");
+		dev_info(dev, "Anal IRQ, use polling mode\n");
 		hdev->polled = true;
 	}
 
@@ -2062,7 +2062,7 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(dev, HASH_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -2086,9 +2086,9 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	switch (ret) {
 	case 0:
 		break;
-	case -ENOENT:
-	case -ENODEV:
-		dev_info(dev, "DMA mode not available\n");
+	case -EANALENT:
+	case -EANALDEV:
+		dev_info(dev, "DMA mode analt available\n");
 		break;
 	default:
 		dev_err(dev, "DMA init error %d\n", ret);
@@ -2102,7 +2102,7 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	/* Initialize crypto engine */
 	hdev->engine = crypto_engine_alloc_init(dev, 1);
 	if (!hdev->engine) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_engine;
 	}
 
@@ -2140,7 +2140,7 @@ err_dma:
 		dma_release_channel(hdev->dma_lch);
 err_reset:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	clk_disable_unprepare(hdev->clk);
 
@@ -2166,7 +2166,7 @@ static void stm32_hash_remove(struct platform_device *pdev)
 		dma_release_channel(hdev->dma_lch);
 
 	pm_runtime_disable(hdev->dev);
-	pm_runtime_put_noidle(hdev->dev);
+	pm_runtime_put_analidle(hdev->dev);
 
 	if (ret >= 0)
 		clk_disable_unprepare(hdev->clk);

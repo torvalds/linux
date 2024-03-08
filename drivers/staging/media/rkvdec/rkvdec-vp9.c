@@ -783,13 +783,13 @@ static int rkvdec_vp9_run_preamble(struct rkvdec_ctx *ctx,
 	 * The userspace has also performed 6.3 compressed_header(), but handling the
 	 * probs in a special way. All probs which need updating, except MV-related,
 	 * have been read from the bitstream and translated through inv_map_table[],
-	 * but no 6.3.6 inv_recenter_nonneg(v, m) has been performed. The values passed
-	 * by userspace are either translated values (there are no 0 values in
-	 * inv_map_table[]), or zero to indicate no update. All MV-related probs which need
+	 * but anal 6.3.6 inv_recenter_analnneg(v, m) has been performed. The values passed
+	 * by userspace are either translated values (there are anal 0 values in
+	 * inv_map_table[]), or zero to indicate anal update. All MV-related probs which need
 	 * updating have been read from the bitstream and (mv_prob << 1) | 1 has been
 	 * performed. The values passed by userspace are either new values
 	 * to replace old ones (the above mentioned shift and bitwise or never result in
-	 * a zero) or zero to indicate no update.
+	 * a zero) or zero to indicate anal update.
 	 * fw_update_probs() performs actual probs updates or leaves probs as-is
 	 * for values for which a zero was passed from userspace.
 	 */
@@ -858,8 +858,8 @@ static void rkvdec_vp9_done(struct rkvdec_ctx *ctx,
 	 * 6.1.2 refresh_probs()
 	 *
 	 * In the spec a complementary condition goes last in 6.1.2 refresh_probs(),
-	 * but it makes no sense to perform all the activities from the first "if"
-	 * there if we actually are not refreshing the frame context. On top of that,
+	 * but it makes anal sense to perform all the activities from the first "if"
+	 * there if we actually are analt refreshing the frame context. On top of that,
 	 * because of 6.2 uncompressed_header() whenever error_resilient_mode == 1,
 	 * refresh_frame_context == 0. Consequently, if we don't jump to out_update_last
 	 * it means error_resilient_mode must be 0.
@@ -909,7 +909,7 @@ static void rkvdec_vp9_done(struct rkvdec_ctx *ctx,
 			counts->classes = &classes;
 
 			/* load_probs2() already done */
-			v4l2_vp9_adapt_noncoef_probs(&vp9_ctx->probability_tables, counts,
+			v4l2_vp9_adapt_analncoef_probs(&vp9_ctx->probability_tables, counts,
 						     vp9_ctx->cur.reference_mode,
 						     vp9_ctx->cur.interpolation_filter,
 						     vp9_ctx->cur.tx_mode, vp9_ctx->cur.flags);
@@ -1003,7 +1003,7 @@ static int rkvdec_vp9_start(struct rkvdec_ctx *ctx)
 
 	vp9_ctx = kzalloc(sizeof(*vp9_ctx), GFP_KERNEL);
 	if (!vp9_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->priv = vp9_ctx;
 
@@ -1011,7 +1011,7 @@ static int rkvdec_vp9_start(struct rkvdec_ctx *ctx)
 	priv_tbl = dma_alloc_coherent(rkvdec->dev, sizeof(*priv_tbl),
 				      &vp9_ctx->priv_tbl.dma, GFP_KERNEL);
 	if (!priv_tbl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ctx;
 	}
 
@@ -1021,7 +1021,7 @@ static int rkvdec_vp9_start(struct rkvdec_ctx *ctx)
 	count_tbl = dma_alloc_coherent(rkvdec->dev, RKVDEC_VP9_COUNT_SIZE,
 				       &vp9_ctx->count_tbl.dma, GFP_KERNEL);
 	if (!count_tbl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_priv_tbl;
 	}
 

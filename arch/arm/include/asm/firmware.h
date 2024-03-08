@@ -59,10 +59,10 @@ extern const struct firmware_ops *firmware_ops;
  * call_firmware_op(op, ...)
  *
  * Checks if firmware operation is present and calls it,
- * otherwise returns -ENOSYS
+ * otherwise returns -EANALSYS
  */
 #define call_firmware_op(op, ...)					\
-	((firmware_ops->op) ? firmware_ops->op(__VA_ARGS__) : (-ENOSYS))
+	((firmware_ops->op) ? firmware_ops->op(__VA_ARGS__) : (-EANALSYS))
 
 /*
  * register_firmware_ops(ops)

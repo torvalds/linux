@@ -168,8 +168,8 @@ extern char spider_net_driver_name[];
 #endif
 #define SPIDER_NET_IPSECINIT_VALUE	0x6f716f71
 
-/* pause frames: automatic, no upper retransmission count */
-/* outside loopback mode: ETOMOD signal dont matter, not connected */
+/* pause frames: automatic, anal upper retransmission count */
+/* outside loopback mode: ETOMOD signal dont matter, analt connected */
 /* ETOMOD signal is brought to PHY reset. bit 2 must be 1 in Celleb */
 #define SPIDER_NET_OPMODE_VALUE		0x00000067
 /*#define SPIDER_NET_OPMODE_VALUE		0x001b0062*/
@@ -215,7 +215,7 @@ extern char spider_net_driver_name[];
 /* SPIDER_NET_UA_DESCR_VALUE is OR'ed with the unicast address */
 #define SPIDER_NET_UA_DESCR_VALUE	0x00080000
 #define SPIDER_NET_PROMISC_VALUE	0x00080000
-#define SPIDER_NET_NONPROMISC_VALUE	0x00000000
+#define SPIDER_NET_ANALNPROMISC_VALUE	0x00000000
 
 #define SPIDER_NET_DMASEL_VALUE		0x00000001
 
@@ -333,7 +333,7 @@ enum spider_net_int2_status {
 #define SPIDER_NET_GPREXEC			0x80000000
 #define SPIDER_NET_GPRDAT_MASK			0x0000ffff
 
-#define SPIDER_NET_DMAC_NOINTR_COMPLETE		0x00800000
+#define SPIDER_NET_DMAC_ANALINTR_COMPLETE		0x00800000
 #define SPIDER_NET_DMAC_TXFRMTL		0x00040000
 #define SPIDER_NET_DMAC_TCP			0x00020000
 #define SPIDER_NET_DMAC_UDP			0x00030000
@@ -358,7 +358,7 @@ enum spider_net_int2_status {
 #define SPIDER_NET_DESCR_FRAME_END		0x40000000 /* used in rx */
 #define SPIDER_NET_DESCR_FORCE_END		0x50000000 /* used in rx and tx */
 #define SPIDER_NET_DESCR_CARDOWNED		0xA0000000 /* used in rx and tx */
-#define SPIDER_NET_DESCR_NOT_IN_USE		0xF0000000
+#define SPIDER_NET_DESCR_ANALT_IN_USE		0xF0000000
 #define SPIDER_NET_DESCR_TXDESFLG		0x00800000
 
 #define SPIDER_NET_DESCR_BAD_STATUS   (SPIDER_NET_DESCR_RXDEN0IS | \
@@ -462,7 +462,7 @@ struct spider_net_card {
 	atomic_t tx_timeout_task_counter;
 	wait_queue_head_t waitq;
 	int num_rx_ints;
-	int ignore_rx_ramfull;
+	int iganalre_rx_ramfull;
 
 	/* for ethtool */
 	int msg_enable;

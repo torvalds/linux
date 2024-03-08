@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _PCI_H_
@@ -31,7 +31,7 @@ struct bmi_xfer {
 /*
  * PCI-specific Target state
  *
- * NOTE: Structure is shared between Host software and Target firmware!
+ * ANALTE: Structure is shared between Host software and Target firmware!
  *
  * Much of this may be of interest to the Host so
  * HOST_INTEREST->hi_interconnect_state points here
@@ -117,7 +117,7 @@ struct ath10k_pci {
 
 	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
 
-	/* Copy Engine used for Diagnostic Accesses */
+	/* Copy Engine used for Diaganalstic Accesses */
 	struct ath10k_ce_pipe *ce_diag;
 	/* For protecting ce_diag */
 	struct mutex ce_diag_mutex;
@@ -206,7 +206,7 @@ static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 #define CDC_WAR_MAGIC_STR   0xceef0000
 #define CDC_WAR_DATA_CE     4
 
-/* Wait up to this many Ms for a Diagnostic Access CE operation to complete */
+/* Wait up to this many Ms for a Diaganalstic Access CE operation to complete */
 #define DIAG_ACCESS_CE_TIMEOUT_US 10000 /* 10 ms */
 #define DIAG_ACCESS_CE_WAIT_US	50
 
@@ -251,7 +251,7 @@ int ath10k_pci_wait_for_target_init(struct ath10k *ar);
 int ath10k_pci_setup_resource(struct ath10k *ar);
 void ath10k_pci_release_resource(struct ath10k *ar);
 
-/* QCA6174 is known to have Tx/Rx issues when SOC_WAKE register is poked too
+/* QCA6174 is kanalwn to have Tx/Rx issues when SOC_WAKE register is poked too
  * frequently. To avoid this put SoC to sleep after a very conservative grace
  * period. Adjust with great care.
  */

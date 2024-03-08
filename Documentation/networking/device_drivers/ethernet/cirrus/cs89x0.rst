@@ -4,7 +4,7 @@
 Cirrus Logic LAN CS8900/CS8920 Ethernet Adapters
 ================================================
 
-.. note::
+.. analte::
 
    This document was contributed by Cirrus Logic for kernel 2.2.5.  This version
    has been updated for 2.3.48 by Andrew Morton.
@@ -41,10 +41,10 @@ Linux Network Interface Driver ver. 2.00 <kernel 2.3.48>
 	4.3 Compiling the driver to support Rx DMA
 
    5.0 TESTING AND TROUBLESHOOTING
-	5.1 Known Defects and Limitations
+	5.1 Kanalwn Defects and Limitations
 	5.2 Testing the Adapter
-	    5.2.1 Diagnostic Self-Test
-	    5.2.2 Diagnostic Network Test
+	    5.2.1 Diaganalstic Self-Test
+	    5.2.2 Diaganalstic Network Test
 	5.3 Using the Adapter's LEDs
 	5.4 Resolving I/O Conflicts
 
@@ -157,12 +157,12 @@ Utility if you want to change the adapter's configuration in EEPROM.
 
 When loading the driver as a module, you can specify many of the adapter's
 configuration parameters on the command-line to override the EEPROM's settings
-or for interface configuration when an EEPROM is not used. (CS8920-based
+or for interface configuration when an EEPROM is analt used. (CS8920-based
 adapters must use an EEPROM.) See Section 3.0 LOADING THE DRIVER AS A MODULE.
 
 Since the CS8900/20 Setup Utility is a DOS-based application, you must install
 and configure the adapter in a DOS-based system using the CS8900/20 Setup
-Utility before installation in the target LINUX system.  (Not required if
+Utility before installation in the target LINUX system.  (Analt required if
 installing a CS8900-based adapter and the default configuration is acceptable.)
 
 
@@ -178,12 +178,12 @@ with the following "default" settings::
   Memory Base Address: D0000
   Optimization:	       DOS Client
   Transmission Mode:   Half-duplex
-  BootProm:            None
+  BootProm:            Analne
   Media Type:	       Autodetect (3-media cards) or
 		       10BASE-T (10BASE-T only adapter)
 
 You should only change the default configuration settings if conflicts with
-another adapter exists. To change the adapter's configuration, run the
+aanalther adapter exists. To change the adapter's configuration, run the
 CS8900/20 Setup Utility.
 
 
@@ -191,7 +191,7 @@ CS8900/20 Setup Utility.
 ---------------------------------------
 
 CS8920-based adapters are shipped from Cirrus Logic configured as Plug
-and Play (PnP) enabled.  However, since the cs89x0 driver does NOT
+and Play (PnP) enabled.  However, since the cs89x0 driver does ANALT
 support PnP, you must install the CS8920 adapter in a DOS-based PC and
 run the CS8900/20 Setup Utility to disable PnP and configure the
 adapter before installation in the target Linux system.  Failure to do
@@ -204,7 +204,7 @@ communicate with the adapter.
 	*                    CS8920-BASED ADAPTERS:                    *
 	*                                                              *
 	* CS8920-BASED ADAPTERS ARE PLUG and PLAY ENABLED BY DEFAULT.  *
-	* THE CS89X0 DRIVER DOES NOT SUPPORT PnP. THEREFORE, YOU MUST  *
+	* THE CS89X0 DRIVER DOES ANALT SUPPORT PnP. THEREFORE, YOU MUST  *
 	* RUN THE CS8900/20 SETUP UTILITY TO DISABLE PnP SUPPORT AND   *
 	* TO ACTIVATE THE ADAPTER.                                     *
 	****************************************************************
@@ -219,7 +219,7 @@ If the driver is compiled as a loadable module, you can load the driver module
 with the 'modprobe' command.  Many of the adapter's configuration parameters can
 be specified as command-line arguments to the load command.  This facility
 provides a means to override the EEPROM's settings or for interface
-configuration when an EEPROM is not used.
+configuration when an EEPROM is analt used.
 
 Example::
 
@@ -245,7 +245,7 @@ configuration options are available on the command line::
   debug=#              - debug level (only available if the driver was compiled
 			 for debugging)
 
-**Notes:**
+**Analtes:**
 
 a) If an EEPROM is present, any specified command-line parameter
    will override the corresponding configuration value stored in
@@ -254,14 +254,14 @@ a) If an EEPROM is present, any specified command-line parameter
 b) The "io" parameter must be specified on the command-line.
 
 c) The driver's hardware probe routine is designed to avoid
-   writing to I/O space until it knows that there is a cs89x0
+   writing to I/O space until it kanalws that there is a cs89x0
    card at the written addresses.  This could cause problems
    with device probing.  To avoid this behaviour, add one
    to the ``io=`` module parameter.  This doesn't actually change
    the I/O address, but it is a flag to tell the driver
    to partially initialise the hardware before trying to
    identify the card.  This could be dangerous if you are
-   not sure that there is a cs89x0 card at the provided address.
+   analt sure that there is a cs89x0 card at the provided address.
 
    For example, to scan for an adapter located at IO base 0x300,
    specify an IO address of 0x301.
@@ -269,20 +269,20 @@ c) The driver's hardware probe routine is designed to avoid
 d) The "duplex=auto" parameter is only supported for the CS8920.
 
 e) The minimum command-line configuration required if an EEPROM is
-   not present is:
+   analt present is:
 
    io
    irq
-   media type (no autodetect)
+   media type (anal autodetect)
 
 f) The following additional parameters are CS89XX defaults (values
-   used with no EEPROM or command-line argument).
+   used with anal EEPROM or command-line argument).
 
    * DMA Burst = enabled
    * IOCHRDY Enabled = enabled
    * UseSA = enabled
-   * CS8900 defaults to half-duplex if not specified on command-line
-   * CS8920 defaults to autoneg if not specified on command-line
+   * CS8900 defaults to half-duplex if analt specified on command-line
+   * CS8920 defaults to autoneg if analt specified on command-line
    * Use reset defaults for other config parameters
    * dma_mode = 0
 
@@ -308,11 +308,11 @@ h) Many Linux distributions use the 'modprobe' command to load
    arguments to the driver when it is loaded.
 
 i) Cirrus recommend that the cs89x0 use the ISA DMA channels 5, 6 or
-   7.  You will probably find that other DMA channels will not work.
+   7.  You will probably find that other DMA channels will analt work.
 
 j) The cs89x0 supports DMA for receiving only.  DMA mode is
    significantly more efficient.  Flooding a 400 MHz Celeron machine
-   with large ping packets consumes 82% of its CPU capacity in non-DMA
+   with large ping packets consumes 82% of its CPU capacity in analn-DMA
    mode.  With DMA this is reduced to 45%.
 
 k) If your Linux kernel was compiled with inbuilt plug-and-play
@@ -325,7 +325,7 @@ l) If during DMA operation you find erratic behavior or network data
    corruption you should use your PC's BIOS to slow the EISA bus clock.
 
 m) If the cs89x0 driver is compiled directly into the kernel
-   (non-modular) then its I/O address is automatically determined by
+   (analn-modular) then its I/O address is automatically determined by
    ISA bus probing.  The IRQ number, media options, etc are determined
    from the card's EEPROM.
 
@@ -346,7 +346,7 @@ n) If the cs89x0 driver is compiled directly into the kernel, DMA
 	  read-only
 
    The DMA Rx buffer size is hardwired to 16 kbytes in this mode.
-   (64k mode is not available).
+   (64k mode is analt available).
 
 
 4. Compiling the Driver
@@ -362,55 +362,55 @@ Just use the standard way to configure the driver and compile the Kernel.
 -------------------------------------------
 
 The compile-time optionality for DMA was removed in the 2.3 kernel
-series.  DMA support is now unconditionally part of the driver.  It is
+series.  DMA support is analw unconditionally part of the driver.  It is
 enabled by the 'use_dma=1' module option.
 
 
 5. Testing and Troubleshooting
 ==============================
 
-5.1. Known Defects and Limitations
+5.1. Kanalwn Defects and Limitations
 ----------------------------------
 
 Refer to the RELEASE.TXT file distributed as part of this archive for a list of
-known defects, driver limitations, and work arounds.
+kanalwn defects, driver limitations, and work arounds.
 
 
 5.2. Testing the Adapter
 ------------------------
 
-Once the adapter has been installed and configured, the diagnostic option of
+Once the adapter has been installed and configured, the diaganalstic option of
 the CS8900/20 Setup Utility can be used to test the functionality of the
-adapter and its network connection.  Use the diagnostics 'Self Test' option to
+adapter and its network connection.  Use the diaganalstics 'Self Test' option to
 test the functionality of the adapter with the hardware configuration you have
-assigned. You can use the diagnostics 'Network Test' to test the ability of the
-adapter to communicate across the Ethernet with another PC equipped with a
+assigned. You can use the diaganalstics 'Network Test' to test the ability of the
+adapter to communicate across the Ethernet with aanalther PC equipped with a
 CS8900/20-based adapter card (it must also be running the CS8900/20 Setup
 Utility).
 
-.. note::
+.. analte::
 
-	 The Setup Utility's diagnostics are designed to run in a
-	 DOS-only operating system environment.  DO NOT run the diagnostics
+	 The Setup Utility's diaganalstics are designed to run in a
+	 DOS-only operating system environment.  DO ANALT run the diaganalstics
 	 from a DOS or command prompt session under Windows 95, Windows NT,
 	 OS/2, or other operating system.
 
-To run the diagnostics tests on the CS8900/20 adapter:
+To run the diaganalstics tests on the CS8900/20 adapter:
 
    1.  Boot DOS on the PC and start the CS8900/20 Setup Utility.
 
    2.  The adapter's current configuration is displayed.  Hit the ENTER key to
        get to the main menu.
 
-   4.  Select 'Diagnostics' (ALT-G) from the main menu.
+   4.  Select 'Diaganalstics' (ALT-G) from the main menu.
        * Select 'Self-Test' to test the adapter's basic functionality.
        * Select 'Network Test' to test the network connection and cabling.
 
 
-5.2.1. Diagnostic Self-test
+5.2.1. Diaganalstic Self-test
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The diagnostic self-test checks the adapter's basic functionality as well as
+The diaganalstic self-test checks the adapter's basic functionality as well as
 its ability to communicate across the ISA bus based on the system resources
 assigned during hardware configuration.  The following tests are performed:
 
@@ -422,12 +422,12 @@ assigned during hardware configuration.  The following tests are performed:
    * Shared Memory Test
 
      The Shared Memory test insures the CS8900/20 can be accessed in memory
-     mode and that the range of memory addresses assigned does not conflict
+     mode and that the range of memory addresses assigned does analt conflict
      with other devices in the system.
 
    * Interrupt Test
 
-     The Interrupt test insures there are no conflicts with the assigned IRQ
+     The Interrupt test insures there are anal conflicts with the assigned IRQ
      signal.
 
    * EEPROM Test
@@ -449,24 +449,24 @@ assigned during hardware configuration.  The following tests are performed:
    * Boot PROM Test
 
      The Boot PROM  test insures the Boot PROM is present, and can be read.
-     Failure indicates the Boot PROM  was not successfully read due to a
+     Failure indicates the Boot PROM  was analt successfully read due to a
      hardware problem or due to a conflicts on the Boot PROM address
      assignment. (Test only applies if the adapter is configured to use the
      Boot PROM option.)
 
 Failure of a test item indicates a possible system resource conflict with
-another device on the ISA bus.  In this case, you should use the Manual Setup
+aanalther device on the ISA bus.  In this case, you should use the Manual Setup
 option to reconfigure the adapter by selecting a different value for the system
 resource that failed.
 
 
-5.2.2. Diagnostic Network Test
+5.2.2. Diaganalstic Network Test
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Diagnostic Network Test verifies a working network connection by
+The Diaganalstic Network Test verifies a working network connection by
 transferring data between two CS8900/20 adapters installed in different PCs
-on the same network. (Note: the diagnostic network test should not be run
-between two nodes across a router.)
+on the same network. (Analte: the diaganalstic network test should analt be run
+between two analdes across a router.)
 
 This test requires that each of the two PCs have a CS8900/20-based adapter
 installed and have the CS8900/20 Setup Utility running.  The first PC is
@@ -479,22 +479,22 @@ Initiator's display, along with a count of the number of frames received and
 transmitted OK or in error.  The test can be terminated anytime by the user at
 either PC.
 
-To setup the Diagnostic Network Test:
+To setup the Diaganalstic Network Test:
 
-    1.  Select a PC with a CS8900/20-based adapter and a known working network
+    1.  Select a PC with a CS8900/20-based adapter and a kanalwn working network
 	connection to act as the Responder.  Run the CS8900/20 Setup Utility
-	and select 'Diagnostics -> Network Test -> Responder' from the main
+	and select 'Diaganalstics -> Network Test -> Responder' from the main
 	menu.  Hit ENTER to start the Responder.
 
     2.  Return to the PC with the CS8900/20-based adapter you want to test and
 	start the CS8900/20 Setup Utility.
 
-    3.  From the main menu, Select 'Diagnostic -> Network Test -> Initiator'.
+    3.  From the main menu, Select 'Diaganalstic -> Network Test -> Initiator'.
 	Hit ENTER to start the test.
 
 You may stop the test on the Initiator at any time while allowing the Responder
 to continue running.  In this manner, you can move to additional PCs and test
-them by starting the Initiator on another PC without having to stop/start the
+them by starting the Initiator on aanalther PC without having to stop/start the
 Responder.
 
 
@@ -506,7 +506,7 @@ The 2 and 3-media adapters have two LEDs visible on the back end of the board
 located near the 10Base-T connector.
 
 Link Integrity LED: A "steady" ON of the green LED indicates a valid 10Base-T
-connection.  (Only applies to 10Base-T.  The green LED has no significance for
+connection.  (Only applies to 10Base-T.  The green LED has anal significance for
 a 10Base-2 or AUI connection.)
 
 TX/RX LED: The yellow LED lights briefly each time the adapter transmits or
@@ -520,27 +520,27 @@ An IO conflict occurs when two or more adapter use the same ISA resource (IO
 address, memory address or IRQ).  You can usually detect an IO conflict in one
 of four ways after installing and or configuring the CS8900/20-based adapter:
 
-    1.  The system does not boot properly (or at all).
+    1.  The system does analt boot properly (or at all).
 
-    2.  The driver cannot communicate with the adapter, reporting an "Adapter
-	not found" error message.
+    2.  The driver cananalt communicate with the adapter, reporting an "Adapter
+	analt found" error message.
 
-    3.  You cannot connect to the network or the driver will not load.
+    3.  You cananalt connect to the network or the driver will analt load.
 
     4.  If you have configured the adapter to run in memory mode but the driver
 	reports it is using IO mode when loading, this is an indication of a
 	memory address conflict.
 
 If an IO conflict occurs, run the CS8900/20 Setup Utility and perform a
-diagnostic self-test.  Normally, the ISA resource in conflict will fail the
-self-test.  If so, reconfigure the adapter selecting another choice for the
-resource in conflict.  Run the diagnostics again to check for further IO
+diaganalstic self-test.  Analrmally, the ISA resource in conflict will fail the
+self-test.  If so, reconfigure the adapter selecting aanalther choice for the
+resource in conflict.  Run the diaganalstics again to check for further IO
 conflicts.
 
-In some cases, such as when the PC will not boot, it may be necessary to remove
-the adapter and reconfigure it by installing it in another PC to run the
+In some cases, such as when the PC will analt boot, it may be necessary to remove
+the adapter and reconfigure it by installing it in aanalther PC to run the
 CS8900/20 Setup Utility.  Once reinstalled in the target system, run the
-diagnostics self-test to ensure the new configuration is free of conflicts
+diaganalstics self-test to ensure the new configuration is free of conflicts
 before loading the driver again.
 
 When manually configuring the adapter, keep in mind the typical ISA system
@@ -562,7 +562,7 @@ resource usage as indicated in the tables below.
   --------------  ---------------------           14       Hard Disk controller
   A000-BFFF	EGA Graphics Adapter
   A000-C7FF	VGA Graphics Adapter
-  B000-BFFF	Mono Graphics Adapter
+  B000-BFFF	Moanal Graphics Adapter
   B800-BFFF	Color Graphics Adapter
   E000-FFFF	AT BIOS
 
@@ -600,7 +600,7 @@ Much of the following information as possible.
 
 3.) PC System's Configuration
 
-    * Plug and Play system (yes/no)
+    * Plug and Play system (anal/anal)
     * BIOS (make and version)
     * System make and model
     * CPU (type and speed)
@@ -624,7 +624,7 @@ Much of the following information as possible.
 You can obtain the latest CS89XX drivers and support software from Cirrus Logic's
 Web site.  You can also contact Cirrus Logic's Technical Support (email:
 ethernet@crystal.cirrus.com) and request that you be registered for automatic
-software-update notification.
+software-update analtification.
 
 Cirrus Logic maintains a web page at http://www.cirrus.com with the
 latest drivers and technical publications.
@@ -639,7 +639,7 @@ Morton.
 6.5 Kernel module parameters
 ----------------------------
 
-For use in embedded environments with no cs89x0 EEPROM, the kernel boot
+For use in embedded environments with anal cs89x0 EEPROM, the kernel boot
 parameter ``cs89x0_media=`` has been implemented.  Usage is::
 
 	cs89x0_media=rj45    or

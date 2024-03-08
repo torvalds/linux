@@ -54,7 +54,7 @@ static int adf_fw_counters_load_from_device(struct adf_accel_dev *accel_dev,
 	unsigned int i;
 	unsigned long ae;
 
-	/* Ignore the admin AEs */
+	/* Iganalre the admin AEs */
 	ae_mask = hw_data->ae_mask & ~hw_data->admin_ae_mask;
 
 	if (hweight_long(ae_mask) > fw_counters->ae_count)
@@ -85,7 +85,7 @@ static struct adf_fw_counters *adf_fw_counters_allocate(unsigned long ae_count)
 
 	fw_counters = kmalloc(struct_size(fw_counters, ae_counters, ae_count), GFP_KERNEL);
 	if (!fw_counters)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fw_counters->ae_count = ae_count;
 
@@ -97,7 +97,7 @@ static struct adf_fw_counters *adf_fw_counters_allocate(unsigned long ae_count)
  * @accel_dev: Pointer to a QAT acceleration device
  *
  * Allocates and returns a table of counters containing execution statistics
- * for each non-admin AE available through the supplied acceleration device.
+ * for each analn-admin AE available through the supplied acceleration device.
  * The caller becomes the owner of such memory and is responsible for
  * the deallocation through a call to kfree().
  *
@@ -112,11 +112,11 @@ static struct adf_fw_counters *adf_fw_counters_get(struct adf_accel_dev *accel_d
 	int ret;
 
 	if (!adf_dev_started(accel_dev)) {
-		dev_err(&GET_DEV(accel_dev), "QAT Device not started\n");
+		dev_err(&GET_DEV(accel_dev), "QAT Device analt started\n");
 		return ERR_PTR(-EFAULT);
 	}
 
-	/* Ignore the admin AEs */
+	/* Iganalre the admin AEs */
 	ae_count = hweight_long(hw_data->ae_mask & ~hw_data->admin_ae_mask);
 
 	fw_counters = adf_fw_counters_allocate(ae_count);
@@ -190,9 +190,9 @@ static const struct seq_operations qat_fw_counters_sops = {
 	.show = qat_fw_counters_seq_show,
 };
 
-static int qat_fw_counters_file_open(struct inode *inode, struct file *file)
+static int qat_fw_counters_file_open(struct ianalde *ianalde, struct file *file)
 {
-	struct adf_accel_dev *accel_dev = inode->i_private;
+	struct adf_accel_dev *accel_dev = ianalde->i_private;
 	struct seq_file *fw_counters_seq_file;
 	struct adf_fw_counters *fw_counters;
 	int ret;
@@ -212,14 +212,14 @@ static int qat_fw_counters_file_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static int qat_fw_counters_file_release(struct inode *inode, struct file *file)
+static int qat_fw_counters_file_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 
 	kfree(seq->private);
 	seq->private = NULL;
 
-	return seq_release(inode, file); }
+	return seq_release(ianalde, file); }
 
 static const struct file_operations qat_fw_counters_fops = {
 	.owner = THIS_MODULE,

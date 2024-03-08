@@ -28,7 +28,7 @@ struct mt7915_mcu_thermal_ctrl {
 	};
 } __packed;
 
-struct mt7915_mcu_thermal_notify {
+struct mt7915_mcu_thermal_analtify {
 	struct mt76_connac2_mcu_rxd rxd;
 
 	struct mt7915_mcu_thermal_ctrl ctrl;
@@ -36,7 +36,7 @@ struct mt7915_mcu_thermal_notify {
 	u8 rsv[8];
 } __packed;
 
-struct mt7915_mcu_csa_notify {
+struct mt7915_mcu_csa_analtify {
 	struct mt76_connac2_mcu_rxd rxd;
 
 	u8 omac_idx;
@@ -45,7 +45,7 @@ struct mt7915_mcu_csa_notify {
 	u8 rsv;
 } __packed;
 
-struct mt7915_mcu_bcc_notify {
+struct mt7915_mcu_bcc_analtify {
 	struct mt76_connac2_mcu_rxd rxd;
 
 	u8 band_idx;
@@ -174,14 +174,14 @@ enum mt7915_chan_mib_offs {
 	MIB_TX_TIME = 81,
 	MIB_RX_TIME,
 	MIB_OBSS_AIRTIME = 86,
-	MIB_NON_WIFI_TIME,
+	MIB_ANALN_WIFI_TIME,
 	MIB_TXOP_INIT_COUNT,
 
 	/* mt7916 */
 	MIB_TX_TIME_V2 = 6,
 	MIB_RX_TIME_V2 = 8,
 	MIB_OBSS_AIRTIME_V2 = 490,
-	MIB_NON_WIFI_TIME_V2
+	MIB_ANALN_WIFI_TIME_V2
 };
 
 struct mt7915_mcu_txpower_sku {
@@ -312,8 +312,8 @@ struct bss_info_ra {
 	u8 has_20_sta;		/* Check if any sta support GF. */
 	u8 bss_width_trigger_events;
 	u8 vht_nss_cap;
-	u8 vht_bw_signal;	/* not use */
-	u8 vht_force_sgi;	/* not use */
+	u8 vht_bw_signal;	/* analt use */
+	u8 vht_force_sgi;	/* analt use */
 	u8 se_off;
 	u8 antenna_idx;
 	u8 train_up_rule;

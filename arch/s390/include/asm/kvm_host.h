@@ -20,7 +20,7 @@
 #include <linux/seqlock.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
 #include <asm/fpu/api.h>
@@ -48,7 +48,7 @@
 #define KVM_REQ_STOP_MIGRATION  KVM_ARCH_REQ(4)
 #define KVM_REQ_VSIE_RESTART	KVM_ARCH_REQ(5)
 #define KVM_REQ_REFRESH_GUEST_PREFIX	\
-	KVM_ARCH_REQ_FLAGS(6, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+	KVM_ARCH_REQ_FLAGS(6, KVM_REQUEST_WAIT | KVM_REQUEST_ANAL_WAKEUP)
 
 #define SIGP_CTRL_C		0x80
 #define SIGP_CTRL_SCN_MASK	0x3f
@@ -237,13 +237,13 @@ struct kvm_s390_sie_block {
 #define ICPT_MCHKREQ	0x60
 #define ICPT_INT_ENABLE	0x64
 #define ICPT_PV_INSTR	0x68
-#define ICPT_PV_NOTIFY	0x6c
+#define ICPT_PV_ANALTIFY	0x6c
 #define ICPT_PV_PREF	0x70
 	__u8	icptcode;		/* 0x0050 */
 	__u8	icptstatus;		/* 0x0051 */
 	__u16	ihcpu;			/* 0x0052 */
 	__u8	reserved54;		/* 0x0054 */
-#define IICTL_CODE_NONE		 0x00
+#define IICTL_CODE_ANALNE		 0x00
 #define IICTL_CODE_MCHK		 0x01
 #define IICTL_CODE_EXT		 0x02
 #define IICTL_CODE_IO		 0x03
@@ -391,7 +391,7 @@ struct kvm_vcpu_stat {
 	u64 exit_validity;
 	u64 exit_instruction;
 	u64 exit_pei;
-	u64 halt_no_poll_steal;
+	u64 halt_anal_poll_steal;
 	u64 instruction_lctl;
 	u64 instruction_lctlg;
 	u64 instruction_stctl;
@@ -464,16 +464,16 @@ struct kvm_vcpu_stat {
 	u64 instruction_sigp_restart;
 	u64 instruction_sigp_init_cpu_reset;
 	u64 instruction_sigp_cpu_reset;
-	u64 instruction_sigp_unknown;
-	u64 instruction_diagnose_10;
-	u64 instruction_diagnose_44;
-	u64 instruction_diagnose_9c;
-	u64 diag_9c_ignored;
+	u64 instruction_sigp_unkanalwn;
+	u64 instruction_diaganalse_10;
+	u64 instruction_diaganalse_44;
+	u64 instruction_diaganalse_9c;
+	u64 diag_9c_iganalred;
 	u64 diag_9c_forward;
-	u64 instruction_diagnose_258;
-	u64 instruction_diagnose_308;
-	u64 instruction_diagnose_500;
-	u64 instruction_diagnose_other;
+	u64 instruction_diaganalse_258;
+	u64 instruction_diaganalse_308;
+	u64 instruction_diaganalse_500;
+	u64 instruction_diaganalse_other;
 	u64 pfault_sync;
 };
 
@@ -570,7 +570,7 @@ enum irq_types {
 #define KVM_S390_MAX_VIRTIO_IRQS 87381
 
 /*
- * Repressible (non-floating) machine check interrupts
+ * Repressible (analn-floating) machine check interrupts
  * subclass bits in MCIC
  */
 #define MCHK_EXTD_BIT 58
@@ -757,7 +757,7 @@ struct kvm_vcpu_arch {
 	bool cputm_enabled;
 	/*
 	 * The seqcount protects updates to cputm_start and sie_block.cputm,
-	 * this way we can have non-blocking reads with consistent values.
+	 * this way we can have analn-blocking reads with consistent values.
 	 * Only the owning VCPU thread (vcpu->cpu) is allowed to change these
 	 * values and to start/stop/enable/disable cpu timer accounting.
 	 */
@@ -953,7 +953,7 @@ struct kvm_s390_pv {
 	bool dumping;
 	void *set_aside;
 	struct list_head need_cleanup;
-	struct mmu_notifier mmu_notifier;
+	struct mmu_analtifier mmu_analtifier;
 };
 
 struct kvm_arch{
@@ -1016,7 +1016,7 @@ bool kvm_arch_can_dequeue_async_page_present(struct kvm_vcpu *vcpu);
 void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
 			       struct kvm_async_pf *work);
 
-bool kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+bool kvm_arch_async_page_analt_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work);
 
 void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,

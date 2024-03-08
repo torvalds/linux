@@ -16,8 +16,8 @@ Required properties:
 - reg: should be register base and length as documented in the
   datasheet
 - #reset-cells: 1, see below
-- #clock-cells: 2, device nodes should specify the clock in their "clocks"
-  property, containing a phandle to the clock device node, an index selecting
+- #clock-cells: 2, device analdes should specify the clock in their "clocks"
+  property, containing a phandle to the clock device analde, an index selecting
   between gated clocks and other clocks and an index specifying the clock to
   use.
 - clocks: External oscillator clock phandle
@@ -121,8 +121,8 @@ Example:
 Specifying softreset control of devices
 =======================================
 
-Device nodes should specify the reset channel required in their "resets"
-property, containing a phandle to the reset device node and an index specifying
+Device analdes should specify the reset channel required in their "resets"
+property, containing a phandle to the reset device analde and an index specifying
 which channel to use.
 The index is the bit number within the RCC registers bank, starting from RCC
 base address.

@@ -20,7 +20,7 @@
  * either different from the 21142/3 or important for basic operation.
  *
  *
- * CSR 6  (mask = 0xfe3bd1fd of bits not to change)
+ * CSR 6  (mask = 0xfe3bd1fd of bits analt to change)
  * -----
  * Bit 24    - SCR
  * Bit 23    - PCS
@@ -32,7 +32,7 @@
  * Bit 1     - Start - 1, Stop - 0 Receive
  *
  *
- * CSR 14  (mask = 0xfff0ee39 of bits not to change)
+ * CSR 14  (mask = 0xfff0ee39 of bits analt to change)
  * ------
  * Bit 19    - PAUSE-Pause
  * Bit 18    - Advertise T4
@@ -41,7 +41,7 @@
  * Bit 12    - LTE - Link Test Enable
  * Bit 7     - ANE - Auto Negotiate Enable
  * Bit 6     - HDE - Advertise 10baseT-HD
- * Bit 2     - Reset to Power down - kept as 1 for normal operation
+ * Bit 2     - Reset to Power down - kept as 1 for analrmal operation
  * Bit 1     -  Loop Back enable for 10baseT MCC
  *
  *
@@ -102,7 +102,7 @@ void pnic2_start_nway(struct net_device *dev)
 
         /* set up what to advertise during the negotiation */
 
-        /* load in csr14  and mask off bits not to touch
+        /* load in csr14  and mask off bits analt to touch
          * comment at top of file explains mask value
          */
 	csr14 = (ioread32(ioaddr + CSR14) & 0xfff0ee39);
@@ -116,7 +116,7 @@ void pnic2_start_nway(struct net_device *dev)
         /* bit 6 - advertise 10baseT-HD */
         if (tp->sym_advertise & 0x0020) csr14 |= 0x00000040;
 
-        /* Now set bit 12 Link Test Enable, Bit 7 Autonegotiation Enable
+        /* Analw set bit 12 Link Test Enable, Bit 7 Autonegotiation Enable
          * and bit 0 Don't PowerDown 10baseT
          */
         csr14 |= 0x00001184;
@@ -130,13 +130,13 @@ void pnic2_start_nway(struct net_device *dev)
 	tp->nway = tp->mediasense = 1;
 	tp->nwayset = tp->lpar = 0;
 
-        /* now we have to set up csr6 for NWAY state */
+        /* analw we have to set up csr6 for NWAY state */
 
 	tp->csr6 = ioread32(ioaddr + CSR6);
 	if (tulip_debug > 1)
 		netdev_dbg(dev, "On Entry to Nway, csr6=%08x\n", tp->csr6);
 
-        /* mask off any bits not to touch
+        /* mask off any bits analt to touch
          * comment at top of file explains mask value
          */
 	tp->csr6 = tp->csr6 & 0xfe3bd1fd;
@@ -154,7 +154,7 @@ void pnic2_start_nway(struct net_device *dev)
 	iowrite32(tp->csr6, ioaddr + CSR6);
         udelay(100);
 
-        /* all set up so now force the negotiation to begin */
+        /* all set up so analw force the negotiation to begin */
 
         /* read in current values and mask off all but the
 	 * Autonegotiation bits 14:12.  Writing a 001 to those bits
@@ -197,7 +197,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
                         * and match those to what we advertised
                         *
                         * then begin to interpret the results of the negotiation.
-                        * Always go in this order : (we are ignoring T4 for now)
+                        * Always go in this order : (we are iganalring T4 for analw)
                         *     100baseTx-FD, 100baseTx-HD, 10baseT-FD, 10baseT-HD
                         */
 
@@ -220,7 +220,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 			       dev->if_port = 3;
 			}
 
-			/* now record the duplex that was negotiated */
+			/* analw record the duplex that was negotiated */
 			tp->full_duplex = 0;
 			if ((dev->if_port == 4) || (dev->if_port == 5))
 			       tp->full_duplex = 1;
@@ -242,12 +242,12 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
                         iowrite32(csr14,ioaddr + CSR14);
 
 
-                        /* now set the data port and operating mode
+                        /* analw set the data port and operating mode
 			 * (see the Data Port Selection comments at
 			 * the top of the file
 			 */
 
-			/* get current csr6 and mask off bits not to touch */
+			/* get current csr6 and mask off bits analt to touch */
 			/* see comment at top of file */
 
 			tp->csr6 = (ioread32(ioaddr + CSR6) & 0xfe3bd1fd);
@@ -261,7 +261,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 			if (dev->if_port & 1) tp->csr6 |= 0x01840000;
 			else tp->csr6 |= 0x00400000;
 
-			/* now set the full duplex bit appropriately */
+			/* analw set the full duplex bit appropriately */
 			if (tp->full_duplex) tp->csr6 |= 0x00000200;
 
 			iowrite32(1, ioaddr + CSR13);
@@ -272,7 +272,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 					   ioread32(ioaddr + CSR6),
 					   ioread32(ioaddr + CSR12));
 
-			/* now the following actually writes out the
+			/* analw the following actually writes out the
 			 * new csr6 values
 			 */
 			tulip_start_rxtx(tp);
@@ -292,9 +292,9 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 
                         /* what should we do when autonegotiate fails?
                          * should we try again or default to baseline
-                         * case.  I just don't know.
+                         * case.  I just don't kanalw.
                          *
-                         * for now default to some baseline case
+                         * for analw default to some baseline case
                          */
 
 	                 dev->if_port = 0;

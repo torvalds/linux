@@ -3,7 +3,7 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/module.h>
@@ -49,7 +49,7 @@ struct seq_ump_client {
 	struct seq_ump_input_buffer input; /* input parser context */
 	struct seq_ump_group groups[SNDRV_UMP_MAX_GROUPS]; /* table of groups */
 	void *ump_info[SNDRV_UMP_MAX_BLOCKS + 1]; /* shadow of seq client ump_info */
-	struct work_struct group_notify_work; /* FB change notification */
+	struct work_struct group_analtify_work; /* FB change analtification */
 };
 
 /* number of 32bit words for each UMP message type */
@@ -99,7 +99,7 @@ static int seq_ump_process_event(struct snd_seq_event *ev, int direct,
 
 	substream = client->out_rfile.output;
 	if (!substream)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!snd_seq_ev_is_ump(ev))
 		return 0; /* invalid event, skip */
 	ump_ev = (struct snd_seq_ump_event *)ev;
@@ -223,7 +223,7 @@ static int seq_ump_group_init(struct seq_ump_client *client, int group_index)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -246,7 +246,7 @@ static int seq_ump_group_init(struct seq_ump_client *client, int group_index)
 	return err;
 }
 
-/* update the sequencer ports; called from notify_fb_change callback */
+/* update the sequencer ports; called from analtify_fb_change callback */
 static void update_port_infos(struct seq_ump_client *client)
 {
 	struct snd_seq_port_info *old, *new;
@@ -274,7 +274,7 @@ static void update_port_infos(struct seq_ump_client *client)
 						new);
 		if (err < 0)
 			goto error;
-		/* notify to system port */
+		/* analtify to system port */
 		snd_seq_system_client_ev_port_change(client->seq_client, i);
 	}
  error:
@@ -341,7 +341,7 @@ static int create_ump_endpoint_port(struct seq_ump_client *client)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->addr.client = client->seq_client;
 	port->addr.port = 0; /* fixed */
@@ -361,7 +361,7 @@ static int create_ump_endpoint_port(struct seq_ump_client *client)
 	}
 	if (rawmidi_info & SNDRV_RAWMIDI_INFO_DUPLEX)
 		port->capability |= SNDRV_SEQ_PORT_CAP_DUPLEX;
-	port->ump_group = 0; /* no associated group, no conversion */
+	port->ump_group = 0; /* anal associated group, anal conversion */
 	port->type = SNDRV_SEQ_PORT_TYPE_MIDI_UMP |
 		SNDRV_SEQ_PORT_TYPE_HARDWARE |
 		SNDRV_SEQ_PORT_TYPE_PORT;
@@ -390,7 +390,7 @@ static int create_ump_endpoint_port(struct seq_ump_client *client)
 /* release the client resources */
 static void seq_ump_client_free(struct seq_ump_client *client)
 {
-	cancel_work_sync(&client->group_notify_work);
+	cancel_work_sync(&client->group_analtify_work);
 
 	if (client->seq_client >= 0)
 		snd_seq_delete_kernel_client(client->seq_client);
@@ -435,41 +435,41 @@ static void setup_client_group_filter(struct seq_ump_client *client)
 	snd_seq_kernel_client_put(cptr);
 }
 
-/* UMP group change notification */
-static void handle_group_notify(struct work_struct *work)
+/* UMP group change analtification */
+static void handle_group_analtify(struct work_struct *work)
 {
 	struct seq_ump_client *client =
-		container_of(work, struct seq_ump_client, group_notify_work);
+		container_of(work, struct seq_ump_client, group_analtify_work);
 
 	update_group_attrs(client);
 	update_port_infos(client);
 	setup_client_group_filter(client);
 }
 
-/* UMP FB change notification */
-static int seq_ump_notify_fb_change(struct snd_ump_endpoint *ump,
+/* UMP FB change analtification */
+static int seq_ump_analtify_fb_change(struct snd_ump_endpoint *ump,
 				    struct snd_ump_block *fb)
 {
 	struct seq_ump_client *client = ump->seq_client;
 
 	if (!client)
-		return -ENODEV;
-	schedule_work(&client->group_notify_work);
+		return -EANALDEV;
+	schedule_work(&client->group_analtify_work);
 	return 0;
 }
 
-/* UMP protocol change notification; just update the midi_version field */
+/* UMP protocol change analtification; just update the midi_version field */
 static int seq_ump_switch_protocol(struct snd_ump_endpoint *ump)
 {
 	if (!ump->seq_client)
-		return -ENODEV;
+		return -EANALDEV;
 	setup_client_midi_version(ump->seq_client);
 	return 0;
 }
 
 static const struct snd_seq_ump_ops seq_ump_ops = {
 	.input_receive = seq_ump_input_receive,
-	.notify_fb_change = seq_ump_notify_fb_change,
+	.analtify_fb_change = seq_ump_analtify_fb_change,
 	.switch_protocol = seq_ump_switch_protocol,
 };
 
@@ -486,9 +486,9 @@ static int snd_seq_ump_probe(struct device *_dev)
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	INIT_WORK(&client->group_notify_work, handle_group_notify);
+	INIT_WORK(&client->group_analtify_work, handle_group_analtify);
 	client->ump = ump;
 
 	client->seq_client =

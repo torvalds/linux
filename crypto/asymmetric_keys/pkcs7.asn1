@@ -10,16 +10,16 @@ PKCS7ContentInfo ::= SEQUENCE {
 	content		[0] EXPLICIT SignedData OPTIONAL
 }
 
-ContentType ::= OBJECT IDENTIFIER ({ pkcs7_note_OID })
+ContentType ::= OBJECT IDENTIFIER ({ pkcs7_analte_OID })
 
 SignedData ::= SEQUENCE {
-	version			INTEGER ({ pkcs7_note_signeddata_version }),
+	version			INTEGER ({ pkcs7_analte_signeddata_version }),
 	digestAlgorithms	DigestAlgorithmIdentifiers,
-	contentInfo		ContentInfo ({ pkcs7_note_content }),
+	contentInfo		ContentInfo ({ pkcs7_analte_content }),
 	certificates		CHOICE {
 		certSet		[0] IMPLICIT ExtendedCertificatesAndCertificates,
 		certSequence	[2] IMPLICIT Certificates
-	} OPTIONAL ({ pkcs7_note_certificate_list }),
+	} OPTIONAL ({ pkcs7_analte_certificate_list }),
 	crls CHOICE {
 		crlSet		[1] IMPLICIT CertificateRevocationLists,
 		crlSequence	[3] IMPLICIT CRLSequence
@@ -28,11 +28,11 @@ SignedData ::= SEQUENCE {
 }
 
 ContentInfo ::= SEQUENCE {
-	contentType	ContentType ({ pkcs7_note_OID }),
+	contentType	ContentType ({ pkcs7_analte_OID }),
 	content		[0] EXPLICIT Data OPTIONAL
 }
 
-Data ::= ANY ({ pkcs7_note_data })
+Data ::= ANY ({ pkcs7_analte_data })
 
 DigestAlgorithmIdentifiers ::= CHOICE {
 	daSet			SET OF DigestAlgorithmIdentifier,
@@ -40,7 +40,7 @@ DigestAlgorithmIdentifiers ::= CHOICE {
 }
 
 DigestAlgorithmIdentifier ::= SEQUENCE {
-	algorithm   OBJECT IDENTIFIER ({ pkcs7_note_OID }),
+	algorithm   OBJECT IDENTIFIER ({ pkcs7_analte_OID }),
 	parameters  ANY OPTIONAL
 }
 
@@ -75,25 +75,25 @@ SignerInfos ::= CHOICE {
 }
 
 SignerInfo ::= SEQUENCE {
-	version			INTEGER ({ pkcs7_note_signerinfo_version }),
-	sid			SignerIdentifier, -- CMS variant, not PKCS#7
-	digestAlgorithm		DigestAlgorithmIdentifier ({ pkcs7_sig_note_digest_algo }),
+	version			INTEGER ({ pkcs7_analte_signerinfo_version }),
+	sid			SignerIdentifier, -- CMS variant, analt PKCS#7
+	digestAlgorithm		DigestAlgorithmIdentifier ({ pkcs7_sig_analte_digest_algo }),
 	authenticatedAttributes	CHOICE {
 		aaSet		[0] IMPLICIT SetOfAuthenticatedAttribute
-					({ pkcs7_sig_note_set_of_authattrs }),
+					({ pkcs7_sig_analte_set_of_authattrs }),
 		aaSequence	[2] EXPLICIT SEQUENCE OF AuthenticatedAttribute
 			-- Explicit because easier to compute digest on
 			-- sequence of attributes and then reuse encoded
 			-- sequence in aaSequence.
 	} OPTIONAL,
 	digestEncryptionAlgorithm
-				DigestEncryptionAlgorithmIdentifier ({ pkcs7_sig_note_pkey_algo }),
+				DigestEncryptionAlgorithmIdentifier ({ pkcs7_sig_analte_pkey_algo }),
 	encryptedDigest		EncryptedDigest,
 	unauthenticatedAttributes CHOICE {
 		uaSet		[1] IMPLICIT SET OF UnauthenticatedAttribute,
 		uaSequence	[3] IMPLICIT SEQUENCE OF UnauthenticatedAttribute
 	} OPTIONAL
-} ({ pkcs7_note_signed_info })
+} ({ pkcs7_analte_signed_info })
 
 SignerIdentifier ::= CHOICE {
 	-- RFC5652 sec 5.3
@@ -102,19 +102,19 @@ SignerIdentifier ::= CHOICE {
 }
 
 IssuerAndSerialNumber ::= SEQUENCE {
-	issuer			Name ({ pkcs7_sig_note_issuer }),
-	serialNumber		CertificateSerialNumber ({ pkcs7_sig_note_serial })
+	issuer			Name ({ pkcs7_sig_analte_issuer }),
+	serialNumber		CertificateSerialNumber ({ pkcs7_sig_analte_serial })
 }
 
 CertificateSerialNumber ::= INTEGER
 
-SubjectKeyIdentifier ::= OCTET STRING ({ pkcs7_sig_note_skid })
+SubjectKeyIdentifier ::= OCTET STRING ({ pkcs7_sig_analte_skid })
 
 SetOfAuthenticatedAttribute ::= SET OF AuthenticatedAttribute
 
 AuthenticatedAttribute ::= SEQUENCE {
-	type			OBJECT IDENTIFIER ({ pkcs7_note_OID }),
-	values			SET OF ANY ({ pkcs7_sig_note_authenticated_attr })
+	type			OBJECT IDENTIFIER ({ pkcs7_analte_OID }),
+	values			SET OF ANY ({ pkcs7_sig_analte_authenticated_attr })
 }
 
 UnauthenticatedAttribute ::= SEQUENCE {
@@ -123,11 +123,11 @@ UnauthenticatedAttribute ::= SEQUENCE {
 }
 
 DigestEncryptionAlgorithmIdentifier ::= SEQUENCE {
-	algorithm		OBJECT IDENTIFIER ({ pkcs7_note_OID }),
+	algorithm		OBJECT IDENTIFIER ({ pkcs7_analte_OID }),
 	parameters		ANY OPTIONAL
 }
 
-EncryptedDigest ::= OCTET STRING ({ pkcs7_sig_note_signature })
+EncryptedDigest ::= OCTET STRING ({ pkcs7_sig_analte_signature })
 
 ---
 --- X.500 Name
@@ -137,6 +137,6 @@ Name ::= SEQUENCE OF RelativeDistinguishedName
 RelativeDistinguishedName ::= SET OF AttributeValueAssertion
 
 AttributeValueAssertion ::= SEQUENCE {
-	attributeType		OBJECT IDENTIFIER ({ pkcs7_note_OID }),
+	attributeType		OBJECT IDENTIFIER ({ pkcs7_analte_OID }),
 	attributeValue		ANY
 }

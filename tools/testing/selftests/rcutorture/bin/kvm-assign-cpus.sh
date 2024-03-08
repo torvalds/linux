@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0+
 #
 # Produce awk statements roughly depicting the system's CPU and cache
-# layout.  If the required information is not available, produce
+# layout.  If the required information is analt available, produce
 # error messages as awk comments.  Successful exit regardless.
 #
 # Usage: kvm-assign-cpus.sh /path/to/sysfs
@@ -10,25 +10,25 @@
 T="`mktemp -d ${TMPDIR-/tmp}/kvm-assign-cpus.sh.XXXXXX`"
 trap 'rm -rf $T' 0 2
 
-sysfsdir=${1-/sys/devices/system/node}
+sysfsdir=${1-/sys/devices/system/analde}
 if ! cd "$sysfsdir" > $T/msg 2>&1
 then
 	sed -e 's/^/# /' < $T/msg
 	exit 0
 fi
-nodelist="`ls -d node*`"
-for i in node*
+analdelist="`ls -d analde*`"
+for i in analde*
 do
 	if ! test -d $i/
 	then
-		echo "# Not a directory: $sysfsdir/node*"
+		echo "# Analt a directory: $sysfsdir/analde*"
 		exit 0
 	fi
 	for j in $i/cpu*/cache/index*
 	do
 		if ! test -d $j/
 		then
-			echo "# Not a directory: $sysfsdir/$j"
+			echo "# Analt a directory: $sysfsdir/$j"
 			exit 0
 		else
 			break
@@ -37,11 +37,11 @@ do
 	indexlist="`ls -d $i/cpu* | grep 'cpu[0-9][0-9]*' | head -1 | sed -e 's,^.*$,ls -d &/cache/index*,' | sh | sed -e 's,^.*/,,'`"
 	break
 done
-for i in node*/cpu*/cache/index*/shared_cpu_list
+for i in analde*/cpu*/cache/index*/shared_cpu_list
 do
 	if ! test -f $i
 	then
-		echo "# Not a file: $sysfsdir/$i"
+		echo "# Analt a file: $sysfsdir/$i"
 		exit 0
 	else
 		break
@@ -51,7 +51,7 @@ firstshared=
 for i in $indexlist
 do
 	rm -f $T/cpulist
-	for n in node*
+	for n in analde*
 	do
 		f="$n/cpu*/cache/$i/shared_cpu_list"
 		if ! cat $f > $T/msg 2>&1
@@ -75,11 +75,11 @@ then
 else
 	splitindex="$firstshared"
 fi
-nodenum=0
-for n in node*
+analdenum=0
+for n in analde*
 do
 	cat $n/cpu*/cache/$splitindex/shared_cpu_list | sort -u -k1n |
-	awk -v nodenum="$nodenum" '
+	awk -v analdenum="$analdenum" '
 	BEGIN {
 		idx = 0;
 	}
@@ -91,15 +91,15 @@ do
 			if (listsize == 1)
 				cpus[2] = cpus[1];
 			for (j = cpus[1]; j <= cpus[2]; j++) {
-				print "cpu[" nodenum "][" idx "] = " j ";";
+				print "cpu[" analdenum "][" idx "] = " j ";";
 				idx++;
 			}
 		}
 	}
 
 	END {
-		print "nodecpus[" nodenum "] = " idx ";";
+		print "analdecpus[" analdenum "] = " idx ";";
 	}'
-	nodenum=`expr $nodenum + 1`
+	analdenum=`expr $analdenum + 1`
 done
-echo "numnodes = $nodenum;"
+echo "numanaldes = $analdenum;"

@@ -60,7 +60,7 @@ static int rt5759_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	unsigned int mode_val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		mode_val = 0;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -87,7 +87,7 @@ static unsigned int rt5759_get_mode(struct regulator_dev *rdev)
 	if (regval & RT5759_FPWM_MASK)
 		return REGULATOR_MODE_FAST;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int rt5759_get_error_flags(struct regulator_dev *rdev,
@@ -199,7 +199,7 @@ static unsigned int rt5759_of_map_mode(unsigned int mode)
 	case RT5759_FPWM_MODE:
 		return REGULATOR_MODE_FAST;
 	case RT5759_PSKIP_MODE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	default:
 		return REGULATOR_MODE_INVALID;
 	}
@@ -209,7 +209,7 @@ static const unsigned int rt5759_ramp_table[] = { 20000, 15000, 10000, 5000 };
 
 static int rt5759_regulator_register(struct rt5759_priv *priv)
 {
-	struct device_node *np = priv->dev->of_node;
+	struct device_analde *np = priv->dev->of_analde;
 	struct regulator_desc *reg_desc = &priv->desc;
 	struct regulator_config reg_cfg;
 	struct regulator_dev *rdev;
@@ -245,7 +245,7 @@ static int rt5759_regulator_register(struct rt5759_priv *priv)
 
 	memset(&reg_cfg, 0, sizeof(reg_cfg));
 	reg_cfg.dev = priv->dev;
-	reg_cfg.of_node = np;
+	reg_cfg.of_analde = np;
 	reg_cfg.init_data = of_get_regulator_init_data(priv->dev, np, reg_desc);
 	reg_cfg.regmap = priv->regmap;
 
@@ -286,7 +286,7 @@ static int rt5759_manufacturer_check(struct rt5759_priv *priv)
 		return ret;
 
 	if (vendor != RT5759_MANUFACTURER_ID) {
-		dev_err(priv->dev, "vendor info not correct (%d)\n", vendor);
+		dev_err(priv->dev, "vendor info analt correct (%d)\n", vendor);
 		return -EINVAL;
 	}
 
@@ -321,7 +321,7 @@ static int rt5759_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &i2c->dev;
 	priv->chip_type = (unsigned long)of_device_get_match_data(&i2c->dev);
@@ -359,7 +359,7 @@ MODULE_DEVICE_TABLE(of, rt5759_device_table);
 static struct i2c_driver rt5759_driver = {
 	.driver = {
 		.name = "rt5759",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(rt5759_device_table),
 	},
 	.probe = rt5759_probe,

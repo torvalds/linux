@@ -52,8 +52,8 @@ static_assert(sizeof(struct ionic_lif_stats) == 1024);
 
 static_assert(sizeof(struct ionic_admin_cmd) == 64);
 static_assert(sizeof(struct ionic_admin_comp) == 16);
-static_assert(sizeof(struct ionic_nop_cmd) == 64);
-static_assert(sizeof(struct ionic_nop_comp) == 16);
+static_assert(sizeof(struct ionic_analp_cmd) == 64);
+static_assert(sizeof(struct ionic_analp_comp) == 16);
 
 /* Device commands */
 static_assert(sizeof(struct ionic_dev_identify_cmd) == 64);
@@ -109,9 +109,9 @@ static_assert(sizeof(struct ionic_rdma_reset_cmd) == 64);
 static_assert(sizeof(struct ionic_rdma_queue_cmd) == 64);
 
 /* Events */
-static_assert(sizeof(struct ionic_notifyq_cmd) == 4);
-static_assert(sizeof(union ionic_notifyq_comp) == 64);
-static_assert(sizeof(struct ionic_notifyq_event) == 64);
+static_assert(sizeof(struct ionic_analtifyq_cmd) == 4);
+static_assert(sizeof(union ionic_analtifyq_comp) == 64);
+static_assert(sizeof(struct ionic_analtifyq_event) == 64);
 static_assert(sizeof(struct ionic_link_change_event) == 64);
 static_assert(sizeof(struct ionic_reset_event) == 64);
 static_assert(sizeof(struct ionic_heartbeat_event) == 64);
@@ -177,7 +177,7 @@ struct ionic_cq_info {
 	union {
 		void *cq_desc;
 		struct ionic_admin_comp *admincq;
-		struct ionic_notifyq_event *notifyq;
+		struct ionic_analtifyq_event *analtifyq;
 	};
 };
 
@@ -192,7 +192,7 @@ typedef void (*ionic_desc_cb)(struct ionic_queue *q,
 #define IONIC_MAX_BUF_LEN			((u16)-1)
 #define IONIC_PAGE_SIZE				PAGE_SIZE
 #define IONIC_PAGE_SPLIT_SZ			(PAGE_SIZE / 2)
-#define IONIC_PAGE_GFP_MASK			(GFP_ATOMIC | __GFP_NOWARN |\
+#define IONIC_PAGE_GFP_MASK			(GFP_ATOMIC | __GFP_ANALWARN |\
 						 __GFP_COMP | __GFP_MEMALLOC)
 
 struct ionic_buf_info {
@@ -265,7 +265,7 @@ struct ionic_queue {
 	char name[IONIC_QUEUE_NAME_MAX_SZ];
 } ____cacheline_aligned_in_smp;
 
-#define IONIC_INTR_INDEX_NOT_ASSIGNED	-1
+#define IONIC_INTR_INDEX_ANALT_ASSIGNED	-1
 #define IONIC_INTR_NAME_MAX_SZ		32
 
 struct ionic_intr_info {

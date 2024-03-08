@@ -21,7 +21,7 @@ struct core_reloc_bitfields {
 	/* signed bitfields */
 	int8_t		sb4: 4;
 	int32_t		sb20: 20;
-	/* non-bitfields */
+	/* analn-bitfields */
 	uint32_t	u32;
 	int32_t		s32;
 };

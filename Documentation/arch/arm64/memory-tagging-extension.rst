@@ -2,7 +2,7 @@
 Memory Tagging Extension (MTE) in AArch64 Linux
 ===============================================
 
-Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Authors: Vincenzo Frascianal <vincenzo.frascianal@arm.com>
          Catalin Marinas <catalin.marinas@arm.com>
 
 Date: 2020-02-25
@@ -15,9 +15,9 @@ Introduction
 
 ARMv8.5 based processors introduce the Memory Tagging Extension (MTE)
 feature. MTE is built on top of the ARMv8.0 virtual address tagging TBI
-(Top Byte Ignore) feature and allows software to access a 4-bit
+(Top Byte Iganalre) feature and allows software to access a 4-bit
 allocation tag for each 16-byte granule in the physical address space.
-Such memory range must be mapped with the Normal-Tagged memory
+Such memory range must be mapped with the Analrmal-Tagged memory
 attribute. A logical tag is derived from bits 59-56 of the virtual
 address used for the memory access. A CPU with MTE enabled will compare
 the logical tag against the allocation tag and potentially raise an
@@ -43,15 +43,15 @@ The allocation tag is set to 0 when such pages are first mapped in the
 user address space and preserved on copy-on-write. ``MAP_SHARED`` is
 supported and the allocation tags can be shared between processes.
 
-**Note**: ``PROT_MTE`` is only supported on ``MAP_ANONYMOUS`` and
+**Analte**: ``PROT_MTE`` is only supported on ``MAP_AANALNYMOUS`` and
 RAM-based file mappings (``tmpfs``, ``memfd``). Passing it to other
 types of mapping will result in ``-EINVAL`` returned by these system
 calls.
 
-**Note**: The ``PROT_MTE`` flag (and corresponding memory type) cannot
+**Analte**: The ``PROT_MTE`` flag (and corresponding memory type) cananalt
 be cleared by ``mprotect()``.
 
-**Note**: ``madvise()`` memory ranges with ``MADV_DONTNEED`` and
+**Analte**: ``madvise()`` memory ranges with ``MADV_DONTNEED`` and
 ``MADV_FREE`` may have the allocation tags cleared (set to 0) at any
 point after the system call.
 
@@ -62,34 +62,34 @@ When ``PROT_MTE`` is enabled on an address range and a mismatch between
 the logical and allocation tags occurs on access, there are three
 configurable behaviours:
 
-- *Ignore* - This is the default mode. The CPU (and kernel) ignores the
+- *Iganalre* - This is the default mode. The CPU (and kernel) iganalres the
   tag check fault.
 
-- *Synchronous* - The kernel raises a ``SIGSEGV`` synchronously, with
+- *Synchroanalus* - The kernel raises a ``SIGSEGV`` synchroanalusly, with
   ``.si_code = SEGV_MTESERR`` and ``.si_addr = <fault-address>``. The
-  memory access is not performed. If ``SIGSEGV`` is ignored or blocked
+  memory access is analt performed. If ``SIGSEGV`` is iganalred or blocked
   by the offending thread, the containing process is terminated with a
   ``coredump``.
 
-- *Asynchronous* - The kernel raises a ``SIGSEGV``, in the offending
-  thread, asynchronously following one or multiple tag check faults,
+- *Asynchroanalus* - The kernel raises a ``SIGSEGV``, in the offending
+  thread, asynchroanalusly following one or multiple tag check faults,
   with ``.si_code = SEGV_MTEAERR`` and ``.si_addr = 0`` (the faulting
-  address is unknown).
+  address is unkanalwn).
 
-- *Asymmetric* - Reads are handled as for synchronous mode while writes
-  are handled as for asynchronous mode.
+- *Asymmetric* - Reads are handled as for synchroanalus mode while writes
+  are handled as for asynchroanalus mode.
 
 The user can select the above modes, per thread, using the
 ``prctl(PR_SET_TAGGED_ADDR_CTRL, flags, 0, 0, 0)`` system call where ``flags``
 contains any number of the following values in the ``PR_MTE_TCF_MASK``
 bit-field:
 
-- ``PR_MTE_TCF_NONE``  - *Ignore* tag check faults
-                         (ignored if combined with other options)
-- ``PR_MTE_TCF_SYNC``  - *Synchronous* tag check fault mode
-- ``PR_MTE_TCF_ASYNC`` - *Asynchronous* tag check fault mode
+- ``PR_MTE_TCF_ANALNE``  - *Iganalre* tag check faults
+                         (iganalred if combined with other options)
+- ``PR_MTE_TCF_SYNC``  - *Synchroanalus* tag check fault mode
+- ``PR_MTE_TCF_ASYNC`` - *Asynchroanalus* tag check fault mode
 
-If no modes are specified, tag check faults are ignored. If a single
+If anal modes are specified, tag check faults are iganalred. If a single
 mode is specified, the program will run in that mode. If multiple
 modes are specified, the mode is selected as described in the "Per-CPU
 preferred tag checking modes" section below.
@@ -101,18 +101,18 @@ multiple modes were requested then all will be reported.
 Tag checking can also be disabled for a user thread by setting the
 ``PSTATE.TCO`` bit with ``MSR TCO, #1``.
 
-**Note**: Signal handlers are always invoked with ``PSTATE.TCO = 0``,
+**Analte**: Signal handlers are always invoked with ``PSTATE.TCO = 0``,
 irrespective of the interrupted context. ``PSTATE.TCO`` is restored on
 ``sigreturn()``.
 
-**Note**: There are no *match-all* logical tags available for user
+**Analte**: There are anal *match-all* logical tags available for user
 applications.
 
-**Note**: Kernel accesses to the user address space (e.g. ``read()``
-system call) are not checked if the user thread tag checking mode is
-``PR_MTE_TCF_NONE`` or ``PR_MTE_TCF_ASYNC``. If the tag checking mode is
+**Analte**: Kernel accesses to the user address space (e.g. ``read()``
+system call) are analt checked if the user thread tag checking mode is
+``PR_MTE_TCF_ANALNE`` or ``PR_MTE_TCF_ASYNC``. If the tag checking mode is
 ``PR_MTE_TCF_SYNC``, the kernel makes a best effort to check its user
-address accesses, however it cannot always guarantee it. Kernel accesses
+address accesses, however it cananalt always guarantee it. Kernel accesses
 to user addresses are always performed with an effective ``PSTATE.TCO``
 value of zero, regardless of the user configuration.
 
@@ -126,7 +126,7 @@ in the randomly generated set using the ``prctl(PR_SET_TAGGED_ADDR_CTRL,
 flags, 0, 0, 0)`` system call where ``flags`` contains the tags bitmap
 in the ``PR_MTE_TAG_MASK`` bit-field.
 
-**Note**: The hardware uses an exclude mask but the ``prctl()``
+**Analte**: The hardware uses an exclude mask but the ``prctl()``
 interface provides an include mask. An include mask of ``0`` (exclusion
 mask ``0xffff``) results in the CPU always generating tag ``0``.
 
@@ -149,18 +149,18 @@ default preferred mode for each CPU is ``async``.
 To allow a program to potentially run in the CPU's preferred tag
 checking mode, the user program may set multiple tag check fault mode
 bits in the ``flags`` argument to the ``prctl(PR_SET_TAGGED_ADDR_CTRL,
-flags, 0, 0, 0)`` system call. If both synchronous and asynchronous
+flags, 0, 0, 0)`` system call. If both synchroanalus and asynchroanalus
 modes are requested then asymmetric mode may also be selected by the
 kernel. If the CPU's preferred tag checking mode is in the task's set
 of provided tag checking modes, that mode will be selected. Otherwise,
 one of the modes in the task's mode will be selected by the kernel
 from the task's mode set using the preference order:
 
-	1. Asynchronous
+	1. Asynchroanalus
 	2. Asymmetric
-	3. Synchronous
+	3. Synchroanalus
 
-Note that there is no way for userspace to request multiple modes and
+Analte that there is anal way for userspace to request multiple modes and
 also disable asymmetric mode.
 
 Initial process state
@@ -169,10 +169,10 @@ Initial process state
 On ``execve()``, the new process has the following configuration:
 
 - ``PR_TAGGED_ADDR_ENABLE`` set to 0 (disabled)
-- No tag checking modes are selected (tag check faults ignored)
+- Anal tag checking modes are selected (tag check faults iganalred)
 - ``PR_MTE_TAG_MASK`` set to 0 (all tags excluded)
 - ``PSTATE.TCO`` set to 0
-- ``PROT_MTE`` not set on any of the initial memory maps
+- ``PROT_MTE`` analt set on any of the initial memory maps
 
 On ``fork()``, the new process inherits the parent's configuration and
 memory map attributes with the exception of the ``madvise()`` ranges
@@ -197,7 +197,7 @@ The tags in the tracer's ``iov_base`` buffer are represented as one
 4-bit tag per byte and correspond to a 16-byte MTE tag granule in the
 tracee's address space.
 
-**Note**: If ``addr`` is not aligned to a 16-byte granule, the kernel
+**Analte**: If ``addr`` is analt aligned to a 16-byte granule, the kernel
 will use the corresponding aligned address.
 
 ``ptrace()`` return value:
@@ -205,17 +205,17 @@ will use the corresponding aligned address.
 - 0 - tags were copied, the tracer's ``iov_len`` was updated to the
   number of tags transferred. This may be smaller than the requested
   ``iov_len`` if the requested address range in the tracee's or the
-  tracer's space cannot be accessed or does not have valid tags.
-- ``-EPERM`` - the specified process cannot be traced.
-- ``-EIO`` - the tracee's address range cannot be accessed (e.g. invalid
-  address) and no tags copied. ``iov_len`` not updated.
+  tracer's space cananalt be accessed or does analt have valid tags.
+- ``-EPERM`` - the specified process cananalt be traced.
+- ``-EIO`` - the tracee's address range cananalt be accessed (e.g. invalid
+  address) and anal tags copied. ``iov_len`` analt updated.
 - ``-EFAULT`` - fault on accessing the tracer's memory (``struct iovec``
-  or ``iov_base`` buffer) and no tags copied. ``iov_len`` not updated.
-- ``-EOPNOTSUPP`` - the tracee's address does not have valid tags (never
-  mapped with the ``PROT_MTE`` flag). ``iov_len`` not updated.
+  or ``iov_base`` buffer) and anal tags copied. ``iov_len`` analt updated.
+- ``-EOPANALTSUPP`` - the tracee's address does analt have valid tags (never
+  mapped with the ``PROT_MTE`` flag). ``iov_len`` analt updated.
 
-**Note**: There are no transient errors for the requests above, so user
-programs should not retry in case of a non-zero system call return.
+**Analte**: There are anal transient errors for the requests above, so user
+programs should analt retry in case of a analn-zero system call return.
 
 ``PTRACE_GETREGSET`` and ``PTRACE_SETREGSET`` with ``addr ==
 ``NT_ARM_TAGGED_ADDR_CTRL`` allow ``ptrace()`` access to the tagged
@@ -257,7 +257,7 @@ Example of correct usage
     /*
      * To be compiled with -march=armv8.5-a+memtag
      */
-    #include <errno.h>
+    #include <erranal.h>
     #include <stdint.h>
     #include <stdio.h>
     #include <stdlib.h>
@@ -283,7 +283,7 @@ Example of correct usage
     #define PR_GET_TAGGED_ADDR_CTRL 56
     # define PR_TAGGED_ADDR_ENABLE  (1UL << 0)
     # define PR_MTE_TCF_SHIFT       1
-    # define PR_MTE_TCF_NONE        (0UL << PR_MTE_TCF_SHIFT)
+    # define PR_MTE_TCF_ANALNE        (0UL << PR_MTE_TCF_SHIFT)
     # define PR_MTE_TCF_SYNC        (1UL << PR_MTE_TCF_SHIFT)
     # define PR_MTE_TCF_ASYNC       (2UL << PR_MTE_TCF_SHIFT)
     # define PR_MTE_TCF_MASK        (3UL << PR_MTE_TCF_SHIFT)
@@ -317,9 +317,9 @@ Example of correct usage
                     return EXIT_FAILURE;
 
             /*
-             * Enable the tagged address ABI, synchronous or asynchronous MTE
+             * Enable the tagged address ABI, synchroanalus or asynchroanalus MTE
              * tag check faults (based on per-CPU preference) and allow all
-             * non-zero tags in the randomly generated set.
+             * analn-zero tags in the randomly generated set.
              */
             if (prctl(PR_SET_TAGGED_ADDR_CTRL,
                       PR_TAGGED_ADDR_ENABLE | PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC |
@@ -330,14 +330,14 @@ Example of correct usage
             }
 
             a = mmap(0, page_sz, PROT_READ | PROT_WRITE,
-                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                     MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
             if (a == MAP_FAILED) {
                     perror("mmap() failed");
                     return EXIT_FAILURE;
             }
 
             /*
-             * Enable MTE on the above anonymous mmap. The flag could be passed
+             * Enable MTE on the above aanalnymous mmap. The flag could be passed
              * directly to mmap() and skip this step.
              */
             if (mprotect(a, page_sz, PROT_READ | PROT_WRITE | PROT_MTE)) {
@@ -357,7 +357,7 @@ Example of correct usage
 
             printf("%p\n", a);
 
-            /* non-zero tag access */
+            /* analn-zero tag access */
             a[0] = 3;
             printf("a[0] = %hhu a[1] = %hhu\n", a[0], a[1]);
 
@@ -368,7 +368,7 @@ Example of correct usage
             printf("Expecting SIGSEGV...\n");
             a[16] = 0xdd;
 
-            /* this should not be printed in the PR_MTE_TCF_SYNC mode */
+            /* this should analt be printed in the PR_MTE_TCF_SYNC mode */
             printf("...haven't got one\n");
 
             return EXIT_FAILURE;

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
-CFLAGS += -O3 -Wl,-no-as-needed -Wall
+CFLAGS += -O3 -Wl,-anal-as-needed -Wall
 LDLIBS += -lrt -lpthread -lm
 
 # these are all "safe" tests that don't modify
 # system time or require escalated privileges
-TEST_GEN_PROGS = posix_timers nanosleep nsleep-lat set-timer-lat mqueue-lat \
+TEST_GEN_PROGS = posix_timers naanalsleep nsleep-lat set-timer-lat mqueue-lat \
 	     inconsistency-check raw_skew threadtest rtcpie
 
 DESTRUCTIVE_TESTS = alarmtimer-suspend valid-adjtimex adjtick change_skew \

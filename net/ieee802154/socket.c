@@ -104,7 +104,7 @@ static int ieee802154_sock_bind(struct socket *sock, struct sockaddr *uaddr,
 	if (sk->sk_prot->bind)
 		return sk->sk_prot->bind(sk, uaddr, addr_len);
 
-	return sock_no_bind(sock, uaddr, addr_len);
+	return sock_anal_bind(sock, uaddr, addr_len);
 }
 
 static int ieee802154_sock_connect(struct socket *sock, struct sockaddr *uaddr,
@@ -125,7 +125,7 @@ static int ieee802154_dev_ioctl(struct sock *sk, struct ifreq __user *arg,
 				unsigned int cmd)
 {
 	struct ifreq ifr;
-	int ret = -ENOIOCTLCMD;
+	int ret = -EANALIOCTLCMD;
 	struct net_device *dev;
 
 	if (get_user_ifreq(&ifr, NULL, arg))
@@ -137,7 +137,7 @@ static int ieee802154_dev_ioctl(struct sock *sk, struct ifreq __user *arg,
 	dev = dev_get_by_name(sock_net(sk), ifr.ifr_name);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->type == ARPHRD_IEEE802154 && dev->netdev_ops->ndo_do_ioctl)
 		ret = dev->netdev_ops->ndo_do_ioctl(dev, &ifr, cmd);
@@ -161,7 +161,7 @@ static int ieee802154_sock_ioctl(struct socket *sock, unsigned int cmd,
 				cmd);
 	default:
 		if (!sk->sk_prot->ioctl)
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 		return sk_ioctl(sk, cmd, (void __user *)arg);
 	}
 }
@@ -173,7 +173,7 @@ static DEFINE_RWLOCK(raw_lock);
 static int raw_hash(struct sock *sk)
 {
 	write_lock_bh(&raw_lock);
-	sk_add_node(sk, &raw_head);
+	sk_add_analde(sk, &raw_head);
 	write_unlock_bh(&raw_lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
@@ -183,7 +183,7 @@ static int raw_hash(struct sock *sk)
 static void raw_unhash(struct sock *sk)
 {
 	write_lock_bh(&raw_lock);
-	if (sk_del_node_init(sk))
+	if (sk_del_analde_init(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	write_unlock_bh(&raw_lock);
 }
@@ -213,7 +213,7 @@ static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
 	ieee802154_addr_from_sa(&addr, &uaddr->addr);
 	dev = ieee802154_get_dev(sock_net(sk), &addr);
 	if (!dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -230,7 +230,7 @@ out:
 static int raw_connect(struct sock *sk, struct sockaddr *uaddr,
 		       int addr_len)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int raw_disconnect(struct sock *sk, int flags)
@@ -248,7 +248,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	if (msg->msg_flags & MSG_OOB) {
 		pr_debug("msg->msg_flags = 0x%x\n", msg->msg_flags);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	lock_sock(sk);
@@ -259,7 +259,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	release_sock(sk);
 
 	if (!dev) {
-		pr_debug("no dev\n");
+		pr_debug("anal dev\n");
 		err = -ENXIO;
 		goto out;
 	}
@@ -298,7 +298,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	err = dev_queue_xmit(skb);
 	if (err > 0)
-		err = net_xmit_errno(err);
+		err = net_xmit_erranal(err);
 
 	dev_put(dev);
 
@@ -316,7 +316,7 @@ static int raw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		       int flags, int *addr_len)
 {
 	size_t copied = 0;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	struct sk_buff *skb;
 
 	skb = skb_recv_datagram(sk, flags, &err);
@@ -382,13 +382,13 @@ static void ieee802154_raw_deliver(struct net_device *dev, struct sk_buff *skb)
 static int raw_getsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int __user *optlen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int raw_setsockopt(struct sock *sk, int level, int optname,
 			  sockptr_t optval, unsigned int optlen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static struct proto ieee802154_raw_prot = {
@@ -413,19 +413,19 @@ static const struct proto_ops ieee802154_raw_ops = {
 	.release	   = ieee802154_sock_release,
 	.bind		   = ieee802154_sock_bind,
 	.connect	   = ieee802154_sock_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
-	.getname	   = sock_no_getname,
+	.socketpair	   = sock_anal_socketpair,
+	.accept		   = sock_anal_accept,
+	.getname	   = sock_anal_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = ieee802154_sock_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
-	.shutdown	   = sock_no_shutdown,
+	.listen		   = sock_anal_listen,
+	.shutdown	   = sock_anal_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = ieee802154_sock_sendmsg,
 	.recvmsg	   = sock_common_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 };
 
 /* DGRAM Sockets (802.15.4 dataframes) */
@@ -456,7 +456,7 @@ static inline struct dgram_sock *dgram_sk(const struct sock *sk)
 static int dgram_hash(struct sock *sk)
 {
 	write_lock_bh(&dgram_lock);
-	sk_add_node(sk, &dgram_head);
+	sk_add_analde(sk, &dgram_head);
 	write_unlock_bh(&dgram_lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
@@ -466,7 +466,7 @@ static int dgram_hash(struct sock *sk)
 static void dgram_unhash(struct sock *sk)
 {
 	write_lock_bh(&dgram_lock);
-	if (sk_del_node_init(sk))
+	if (sk_del_analde_init(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	write_unlock_bh(&dgram_lock);
 }
@@ -509,12 +509,12 @@ static int dgram_bind(struct sock *sk, struct sockaddr *uaddr, int len)
 	ieee802154_addr_from_sa(&haddr, &addr->addr);
 	dev = ieee802154_get_dev(sock_net(sk), &haddr);
 	if (!dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	if (dev->type != ARPHRD_IEEE802154) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_put;
 	}
 
@@ -559,7 +559,7 @@ static int dgram_ioctl(struct sock *sk, int cmd, int *karg)
 	}
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 /* FIXME: autobind */
@@ -617,7 +617,7 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	if (msg->msg_flags & MSG_OOB) {
 		pr_debug("msg->msg_flags = 0x%x\n", msg->msg_flags);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (msg->msg_name) {
@@ -641,7 +641,7 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		dev = ieee802154_get_dev(sock_net(sk), &ro->src_addr);
 
 	if (!dev) {
-		pr_debug("no dev\n");
+		pr_debug("anal dev\n");
 		err = -ENXIO;
 		goto out;
 	}
@@ -688,7 +688,7 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	err = dev_queue_xmit(skb);
 	if (err > 0)
-		err = net_xmit_errno(err);
+		err = net_xmit_erranal(err);
 
 	dev_put(dev);
 
@@ -706,7 +706,7 @@ static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			 int flags, int *addr_len)
 {
 	size_t copied = 0;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	struct sk_buff *skb;
 	struct dgram_sock *ro = dgram_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_ieee802154 *, saddr, msg->msg_name);
@@ -839,7 +839,7 @@ static int dgram_getsockopt(struct sock *sk, int level, int optname,
 	int val, len;
 
 	if (level != SOL_IEEE802154)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (get_user(len, optlen))
 		return -EFAULT;
@@ -868,7 +868,7 @@ static int dgram_getsockopt(struct sock *sk, int level, int optname,
 			val = ro->seclevel;
 		break;
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	if (put_user(len, optlen))
@@ -943,7 +943,7 @@ static int dgram_setsockopt(struct sock *sk, int level, int optname,
 		}
 		break;
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -975,19 +975,19 @@ static const struct proto_ops ieee802154_dgram_ops = {
 	.release	   = ieee802154_sock_release,
 	.bind		   = ieee802154_sock_bind,
 	.connect	   = ieee802154_sock_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
-	.getname	   = sock_no_getname,
+	.socketpair	   = sock_anal_socketpair,
+	.accept		   = sock_anal_accept,
+	.getname	   = sock_anal_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = ieee802154_sock_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
-	.shutdown	   = sock_no_shutdown,
+	.listen		   = sock_anal_listen,
+	.shutdown	   = sock_anal_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = ieee802154_sock_sendmsg,
 	.recvmsg	   = sock_common_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 };
 
 static void ieee802154_sock_destruct(struct sock *sk)
@@ -1007,7 +1007,7 @@ static int ieee802154_create(struct net *net, struct socket *sock,
 	const struct proto_ops *ops;
 
 	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	switch (sock->type) {
 	case SOCK_RAW:
@@ -1022,11 +1022,11 @@ static int ieee802154_create(struct net *net, struct socket *sock,
 		ops = &ieee802154_dgram_ops;
 		break;
 	default:
-		rc = -ESOCKTNOSUPPORT;
+		rc = -ESOCKTANALSUPPORT;
 		goto out;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	sk = sk_alloc(net, PF_IEEE802154, GFP_KERNEL, proto, kern);
 	if (!sk)
 		goto out;
@@ -1072,7 +1072,7 @@ static int ieee802154_rcv(struct sk_buff *skb, struct net_device *dev,
 	pr_debug("got frame, type %d, dev %p\n", dev->type, dev);
 #ifdef DEBUG
 	print_hex_dump_bytes("ieee802154_rcv ",
-			     DUMP_PREFIX_NONE, skb->data, skb->len);
+			     DUMP_PREFIX_ANALNE, skb->data, skb->len);
 #endif
 
 	if (!net_eq(dev_net(dev), &init_net))

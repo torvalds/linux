@@ -139,10 +139,10 @@ static u32 at91_dt_suspend_smc(struct device *dev)
 {
 	u32 suspend_smc_id;
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return 0;
 
-	if (of_property_read_u32(dev->of_node, "microchip,suspend-smc-id", &suspend_smc_id))
+	if (of_property_read_u32(dev->of_analde, "microchip,suspend-smc-id", &suspend_smc_id))
 		return 0;
 
 	return suspend_smc_id;
@@ -195,7 +195,7 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 
 	hcd = usb_create_hcd(driver, dev, "at91");
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 	ohci_at91 = hcd_to_ohci_at91_priv(hcd);
 
 	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
@@ -230,7 +230,7 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		dev_dbg(dev, "failed to find sfr suspend smc id, using regmap\n");
 		ohci_at91->sfr_regmap = at91_dt_syscon_sfr();
 		if (!ohci_at91->sfr_regmap)
-			dev_dbg(dev, "failed to find sfr node\n");
+			dev_dbg(dev, "failed to find sfr analde\n");
 	}
 
 	board = hcd->self.controller->platform_data;
@@ -490,7 +490,7 @@ static irqreturn_t ohci_hcd_at91_overcurrent_irq(int irq, void *data)
 	struct at91_usbh_data *pdata = dev_get_platdata(&pdev->dev);
 	int val, port;
 
-	/* From the GPIO notifying the over-current situation, find
+	/* From the GPIO analtifying the over-current situation, find
 	 * out the corresponding port */
 	at91_for_each_port(port) {
 		if (gpiod_to_irq(pdata->overcurrent_pin[port]) == irq)
@@ -498,13 +498,13 @@ static irqreturn_t ohci_hcd_at91_overcurrent_irq(int irq, void *data)
 	}
 
 	if (port == AT91_MAX_USBH_PORTS) {
-		dev_err(& pdev->dev, "overcurrent interrupt from unknown GPIO\n");
+		dev_err(& pdev->dev, "overcurrent interrupt from unkanalwn GPIO\n");
 		return IRQ_HANDLED;
 	}
 
 	val = gpiod_get_value(pdata->overcurrent_pin[port]);
 
-	/* When notified of an over-current situation, disable power
+	/* When analtified of an over-current situation, disable power
 	   on the corresponding port, and mark this port in
 	   over-current. */
 	if (!val) {
@@ -514,7 +514,7 @@ static irqreturn_t ohci_hcd_at91_overcurrent_irq(int irq, void *data)
 	}
 
 	dev_dbg(& pdev->dev, "overcurrent situation %s\n",
-		val ? "exited" : "notified");
+		val ? "exited" : "analtified");
 
 	return IRQ_HANDLED;
 }
@@ -530,15 +530,15 @@ MODULE_DEVICE_TABLE(of, at91_ohci_dt_ids);
 
 static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct at91_usbh_data	*pdata;
 	int			i;
 	int			ret;
 	int			err;
 	u32			ports;
 
-	/* Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	/* Right analw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for analw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -547,7 +547,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev->dev.platform_data = pdata;
 
@@ -635,7 +635,7 @@ ohci_hcd_at91_drv_suspend(struct device *dev)
 		return ret;
 	}
 	/*
-	 * The integrated transceivers seem unable to notice disconnect,
+	 * The integrated transceivers seem unable to analtice disconnect,
 	 * reconnect, or wakeup without the 48 MHz clock active.  so for
 	 * correctness, always discard connection state (using reset).
 	 *
@@ -697,14 +697,14 @@ static struct platform_driver ohci_hcd_at91_driver = {
 static int __init ohci_at91_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ohci_init_driver(&ohci_at91_hc_driver, &ohci_at91_drv_overrides);
 
 	/*
 	 * The Atmel HW has some unusual quirks, which require Atmel-specific
 	 * workarounds. We override certain hc_driver functions here to
-	 * achieve that. We explicitly do not enhance ohci_driver_overrides to
+	 * achieve that. We explicitly do analt enhance ohci_driver_overrides to
 	 * allow this more easily, since this is an unusual case, and we don't
 	 * want to encourage others to override these functions by making it
 	 * too easy.

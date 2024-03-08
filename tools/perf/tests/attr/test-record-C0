@@ -1,12 +1,12 @@
 [config]
 command = record
-args    = --no-bpf-event -C 0 kill >/dev/null 2>&1
+args    = --anal-bpf-event -C 0 kill >/dev/null 2>&1
 ret     = 1
 
 [event:base-record]
 cpu=0
 
-# no enable on exec for CPU attached
+# anal enable on exec for CPU attached
 enable_on_exec=0
 
 # PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME |

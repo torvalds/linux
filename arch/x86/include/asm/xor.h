@@ -22,7 +22,7 @@
  * Copyright 2002 Andi Kleen, SuSE Labs.
  *
  * This hasn't been optimized for the hammer yet, but there are likely
- * no advantages to be gotten from x86-64 here anyways.
+ * anal advantages to be gotten from x86-64 here anyways.
  */
 
 #include <asm/fpu/api.h>
@@ -47,7 +47,7 @@
 #define XO2(x, y)	"	xorps "OFFS(x)"(%[p3]), %%xmm"#y"	;\n"
 #define XO3(x, y)	"	xorps "OFFS(x)"(%[p4]), %%xmm"#y"	;\n"
 #define XO4(x, y)	"	xorps "OFFS(x)"(%[p5]), %%xmm"#y"	;\n"
-#define NOP(x)
+#define ANALP(x)
 
 #define BLK64(pf, op, i)				\
 		pf(i)					\
@@ -121,7 +121,7 @@ xor_sse_2_pf64(unsigned long bytes, unsigned long * __restrict p1,
 #define BLOCK(i)			\
 		BLK64(PF0, LD, i)	\
 		BLK64(PF1, XO1, i)	\
-		BLK64(NOP, ST, i)	\
+		BLK64(ANALP, ST, i)	\
 
 	" .align 32			;\n"
 	" 1:                            ;\n"
@@ -218,7 +218,7 @@ xor_sse_3_pf64(unsigned long bytes, unsigned long * __restrict p1,
 		BLK64(PF0, LD, i)	\
 		BLK64(PF1, XO1, i)	\
 		BLK64(PF2, XO2, i)	\
-		BLK64(NOP, ST, i)	\
+		BLK64(ANALP, ST, i)	\
 
 	" .align 32			;\n"
 	" 1:                            ;\n"
@@ -326,7 +326,7 @@ xor_sse_4_pf64(unsigned long bytes, unsigned long * __restrict p1,
 		BLK64(PF1, XO1, i)	\
 		BLK64(PF2, XO2, i)	\
 		BLK64(PF3, XO3, i)	\
-		BLK64(NOP, ST, i)	\
+		BLK64(ANALP, ST, i)	\
 
 	" .align 32			;\n"
 	" 1:                            ;\n"
@@ -445,7 +445,7 @@ xor_sse_5_pf64(unsigned long bytes, unsigned long * __restrict p1,
 		BLK64(PF2, XO2, i)	\
 		BLK64(PF3, XO3, i)	\
 		BLK64(PF4, XO4, i)	\
-		BLK64(NOP, ST, i)	\
+		BLK64(ANALP, ST, i)	\
 
 	" .align 32			;\n"
 	" 1:                            ;\n"
@@ -484,7 +484,7 @@ static struct xor_block_template xor_block_sse_pf64 = {
 #undef XO3
 #undef XO4
 #undef ST
-#undef NOP
+#undef ANALP
 #undef BLK64
 #undef BLOCK
 

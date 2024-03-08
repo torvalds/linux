@@ -6,7 +6,7 @@
  *
  * Based on the TPS65086 driver
  *
- * NOTE: Interrupts are not supported yet.
+ * ANALTE: Interrupts are analt supported yet.
  */
 
 #include <linux/gpio/driver.h>
@@ -100,7 +100,7 @@ static int bd9571mwv_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	gpio->chip = template_chip;

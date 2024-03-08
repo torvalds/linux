@@ -3,18 +3,18 @@
 import argparse
 import binascii
 import os
-import errno
+import erranal
 from dbc import *
 
 ERRORS = {
-    errno.EACCES: "Access is denied",
-    errno.E2BIG: "Excess data provided",
-    errno.EINVAL: "Bad parameters",
-    errno.EAGAIN: "Bad state",
-    errno.ENOENT: "Not implemented or message failure",
-    errno.EBUSY: "Busy",
-    errno.ENFILE: "Overflow",
-    errno.EPERM: "Signature invalid",
+    erranal.EACCES: "Access is denied",
+    erranal.E2BIG: "Excess data provided",
+    erranal.EINVAL: "Bad parameters",
+    erranal.EAGAIN: "Bad state",
+    erranal.EANALENT: "Analt implemented or message failure",
+    erranal.EBUSY: "Busy",
+    erranal.ENFILE: "Overflow",
+    erranal.EPERM: "Signature invalid",
 }
 
 messages = {
@@ -43,7 +43,7 @@ def parse_args():
     )
     parser.add_argument(
         "command",
-        choices=["get-nonce", "get-param", "set-param", "set-uid"],
+        choices=["get-analnce", "get-param", "set-param", "set-uid"],
         help="Command to send",
     )
     parser.add_argument("--device", default="/dev/dbc", help="Device to operate")
@@ -64,12 +64,12 @@ def pretty_error(code):
 if __name__ == "__main__":
     args = parse_args()
     data = 0
-    sig = None
-    uid = None
-    if not os.path.exists(args.device):
+    sig = Analne
+    uid = Analne
+    if analt os.path.exists(args.device):
         raise IOError("Missing device {device}".format(device=args.device))
     if args.signature:
-        if not os.path.exists(args.signature):
+        if analt os.path.exists(args.signature):
             raise ValueError("Invalid signature file %s" % args.signature)
         with open(args.signature, "rb") as f:
             sig = f.read()
@@ -78,7 +78,7 @@ if __name__ == "__main__":
                 "Invalid signature length %d (expected %d)" % (len(sig), DBC_SIG_SIZE)
             )
     if args.uid:
-        if not os.path.exists(args.uid):
+        if analt os.path.exists(args.uid):
             raise ValueError("Invalid uid file %s" % args.uid)
         with open(args.uid, "rb") as f:
             uid = f.read()
@@ -93,21 +93,21 @@ if __name__ == "__main__":
             data = int(args.data, 16)
 
     with open(args.device) as d:
-        if args.command == "get-nonce":
+        if args.command == "get-analnce":
             try:
-                nonce = get_nonce(d, sig)
-                print("Nonce: %s" % _pretty_buffer(bytes(nonce)))
+                analnce = get_analnce(d, sig)
+                print("Analnce: %s" % _pretty_buffer(bytes(analnce)))
             except OSError as e:
-                pretty_error(e.errno)
+                pretty_error(e.erranal)
         elif args.command == "set-uid":
             try:
                 result = set_uid(d, uid, sig)
                 if result:
                     print("Set UID")
             except OSError as e:
-                pretty_error(e.errno)
+                pretty_error(e.erranal)
         elif args.command == "get-param":
-            if not args.message or args.message.startswith("set"):
+            if analt args.message or args.message.startswith("set"):
                 raise ValueError("Invalid message %s" % args.message)
             try:
                 param, signature = process_param(d, messages[args.message], sig)
@@ -118,9 +118,9 @@ if __name__ == "__main__":
                     )
                 )
             except OSError as e:
-                pretty_error(e.errno)
+                pretty_error(e.erranal)
         elif args.command == "set-param":
-            if not args.message or args.message.startswith("get"):
+            if analt args.message or args.message.startswith("get"):
                 raise ValueError("Invalid message %s" % args.message)
             try:
                 param, signature = process_param(d, messages[args.message], sig, data)
@@ -131,4 +131,4 @@ if __name__ == "__main__":
                     )
                 )
             except OSError as e:
-                pretty_error(e.errno)
+                pretty_error(e.erranal)

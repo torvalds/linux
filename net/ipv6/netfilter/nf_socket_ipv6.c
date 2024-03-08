@@ -52,7 +52,7 @@ extract_icmp6_fields(const struct sk_buff *skb,
 					      sizeof(*ipv6_var),
 					 &inside_nexthdr, &inside_fragoff);
 	if (inside_hdrlen < 0)
-		return 1; /* hjm: Packet has no/incomplete transport layer headers. */
+		return 1; /* hjm: Packet has anal/incomplete transport layer headers. */
 
 	if (inside_nexthdr != IPPROTO_TCP &&
 	    inside_nexthdr != IPPROTO_UDP)

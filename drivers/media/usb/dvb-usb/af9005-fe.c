@@ -139,7 +139,7 @@ static int af9005_get_post_vit_err_cw_count(struct dvb_frontend *fe,
 	if (ret)
 		return ret;
 	if (!temp) {
-		deb_info("rsd counter not ready\n");
+		deb_info("rsd counter analt ready\n");
 		return 100;
 	}
 	/* get abort count */
@@ -236,8 +236,8 @@ static int af9005_get_pre_vit_err_bit_count(struct dvb_frontend *fe,
 	if (ret)
 		return ret;
 	if (!temp) {
-		deb_info("viterbi counter not ready\n");
-		return 101;	/* ERR_APO_VTB_COUNTER_NOT_READY; */
+		deb_info("viterbi counter analt ready\n");
+		return 101;	/* ERR_APO_VTB_COUNTER_ANALT_READY; */
 	}
 	ret =
 	    af9005_read_ofdm_register(state->d, xd_r_fec_vtb_err_bit_cnt_7_0,
@@ -370,14 +370,14 @@ static int af9005_get_statistic(struct dvb_frontend *fe)
 {
 	struct af9005_fe_state *state = fe->demodulator_priv;
 	int ret, fecavailable;
-	u64 numerator, denominator;
+	u64 numerator, deanalminator;
 
 	deb_info("GET STATISTIC\n");
 	ret = af9005_is_fecmon_available(fe, &fecavailable);
 	if (ret)
 		return ret;
 	if (!fecavailable) {
-		deb_info("fecmon not available\n");
+		deb_info("fecmon analt available\n");
 		return 0;
 	}
 
@@ -391,8 +391,8 @@ static int af9005_get_statistic(struct dvb_frontend *fe)
 			   10E9=1000000000 */
 			numerator =
 			    (u64) state->pre_vit_error_count * (u64) 1000000000;
-			denominator = (u64) state->pre_vit_bit_count;
-			state->ber = do_div(numerator, denominator);
+			deanalminator = (u64) state->pre_vit_bit_count;
+			state->ber = do_div(numerator, deanalminator);
 		} else {
 			state->ber = 0xffffffff;
 		}
@@ -432,7 +432,7 @@ static int af9005_fe_read_status(struct dvb_frontend *fe,
 	int ret;
 
 	if (fe->ops.tuner_ops.release == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*stat = 0;
 	ret = af9005_read_register_bits(state->d, xd_p_agc_lock,
@@ -478,7 +478,7 @@ static int af9005_fe_read_ber(struct dvb_frontend *fe, u32 * ber)
 {
 	struct af9005_fe_state *state = fe->demodulator_priv;
 	if (fe->ops.tuner_ops.release  == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	af9005_fe_refresh_state(fe);
 	*ber = state->ber;
 	return 0;
@@ -488,7 +488,7 @@ static int af9005_fe_read_unc_blocks(struct dvb_frontend *fe, u32 * unc)
 {
 	struct af9005_fe_state *state = fe->demodulator_priv;
 	if (fe->ops.tuner_ops.release == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	af9005_fe_refresh_state(fe);
 	*unc = state->unc;
 	return 0;
@@ -502,7 +502,7 @@ static int af9005_fe_read_signal_strength(struct dvb_frontend *fe,
 	u8 if_gain, rf_gain;
 
 	if (fe->ops.tuner_ops.release == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	ret =
 	    af9005_read_ofdm_register(state->d, xd_r_reg_aagc_rf_gain,
 				      &rf_gain);
@@ -513,7 +513,7 @@ static int af9005_fe_read_signal_strength(struct dvb_frontend *fe,
 				      &if_gain);
 	if (ret)
 		return ret;
-	/* this value has no real meaning, but i don't have the tables that relate
+	/* this value has anal real meaning, but i don't have the tables that relate
 	   the rf and if gain with the dbm, so I just scale the value */
 	*strength = (512 - rf_gain - if_gain) << 7;
 	return 0;
@@ -524,7 +524,7 @@ static int af9005_fe_read_snr(struct dvb_frontend *fe, u16 * snr)
 	/* the snr can be derived from the ber and the modulation
 	   but I don't think this kind of complex calculations belong
 	   in the driver. I may be wrong.... */
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int af9005_fe_program_cfoe(struct dvb_usb_device *d, u32 bw)
@@ -870,7 +870,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 
 	if (ret)
 		return ret;
-	/* don't know what register aefc is, but this is what the windows driver does */
+	/* don't kanalw what register aefc is, but this is what the windows driver does */
 	ret = af9005_write_ofdm_register(state->d, 0xaefc, 0);
 	if (ret)
 		return ret;
@@ -908,7 +908,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 	     af9005_write_register_bits(state->d, xd_p_reg_dca_en,
 					reg_dca_en_pos, reg_dca_en_len, 0)))
 		return ret;
-	/* FIXME these are register bits, but I don't know which ones */
+	/* FIXME these are register bits, but I don't kanalw which ones */
 	ret = af9005_write_ofdm_register(state->d, 0xa16c, 1);
 	if (ret)
 		return ret;
@@ -948,7 +948,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 					fec_vtb_rsd_mon_en_len, 1)))
 		return ret;
 
-	/* FIXME should be register bits, I don't know which ones */
+	/* FIXME should be register bits, I don't kanalw which ones */
 	ret = af9005_write_ofdm_register(state->d, 0xa601, 0);
 
 	/* set api_retrain_never_freeze */
@@ -1044,7 +1044,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 			if (dvb_attach(mt2060_attach, fe, &adap->dev->i2c_adap,
 					 &af9005_mt2060_config, if1) == NULL) {
 				deb_info("MT2060 attach failed\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			break;
 		case 3:	/* QT1010 */
@@ -1052,12 +1052,12 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 			if (dvb_attach(qt1010_attach, fe, &adap->dev->i2c_adap,
 					&af9005_qt1010_config) ==NULL) {
 				deb_info("QT1010 attach failed\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			break;
 		default:
 			err("Unsupported tuner type %d", buf[0]);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		ret = fe->ops.tuner_ops.init(fe);
 		if (ret)
@@ -1098,16 +1098,16 @@ static int af9005_fe_set_frontend(struct dvb_frontend *fe)
 	deb_info("af9005_fe_set_frontend freq %d bw %d\n", fep->frequency,
 		 fep->bandwidth_hz);
 	if (fe->ops.tuner_ops.release == NULL) {
-		err("Tuner not attached");
-		return -ENODEV;
+		err("Tuner analt attached");
+		return -EANALDEV;
 	}
 
 	deb_info("turn off led\n");
-	/* not in the log */
+	/* analt in the log */
 	ret = af9005_led_control(state->d, 0);
 	if (ret)
 		return ret;
-	/* not sure about the bits */
+	/* analt sure about the bits */
 	ret = af9005_write_register_bits(state->d, XD_MP2IF_MISC, 2, 1, 0);
 	if (ret)
 		return ret;
@@ -1255,8 +1255,8 @@ static int af9005_fe_get_frontend(struct dvb_frontend *fe,
 	deb_info("HIERARCHY ");
 	switch (temp) {
 	case 0:
-		fep->hierarchy = HIERARCHY_NONE;
-		deb_info("NONE\n");
+		fep->hierarchy = HIERARCHY_ANALNE;
+		deb_info("ANALNE\n");
 		break;
 	case 1:
 		fep->hierarchy = HIERARCHY_1;

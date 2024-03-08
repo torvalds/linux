@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -886,7 +886,7 @@ static void get_pixel_clock_parameters(
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 
 	/*TODO: is this halved for YCbCr 420? in that case we might want to move
-	 * the pixel clock normalization for hdmi up to here instead of doing it
+	 * the pixel clock analrmalization for hdmi up to here instead of doing it
 	 * in pll_adjust_pix_clk
 	 */
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
@@ -1153,7 +1153,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 				dcb, PIPE_GATING_CONTROL_DISABLE);
 
 		/*
-		 * This is for powering on underlay, so crtc does not
+		 * This is for powering on underlay, so crtc does analt
 		 * need to be enabled
 		 */
 

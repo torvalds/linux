@@ -17,7 +17,7 @@ enum {
 	/*
 	 * All /proc entries using this ->proc_ops instance are never removed.
 	 *
-	 * If in doubt, ignore this flag.
+	 * If in doubt, iganalre this flag.
 	 */
 #ifdef MODULE
 	PROC_ENTRY_PERMANENT = 0U,
@@ -28,13 +28,13 @@ enum {
 
 struct proc_ops {
 	unsigned int proc_flags;
-	int	(*proc_open)(struct inode *, struct file *);
+	int	(*proc_open)(struct ianalde *, struct file *);
 	ssize_t	(*proc_read)(struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*proc_read_iter)(struct kiocb *, struct iov_iter *);
 	ssize_t	(*proc_write)(struct file *, const char __user *, size_t, loff_t *);
-	/* mandatory unless nonseekable_open() or equivalent is used */
+	/* mandatory unless analnseekable_open() or equivalent is used */
 	loff_t	(*proc_lseek)(struct file *, loff_t, int);
-	int	(*proc_release)(struct inode *, struct file *);
+	int	(*proc_release)(struct ianalde *, struct file *);
 	__poll_t (*proc_poll)(struct file *, struct poll_table_struct *);
 	long	(*proc_ioctl)(struct file *, unsigned int, unsigned long);
 #ifdef CONFIG_COMPAT
@@ -47,9 +47,9 @@ struct proc_ops {
 /* definitions for hide_pid field */
 enum proc_hidepid {
 	HIDEPID_OFF	  = 0,
-	HIDEPID_NO_ACCESS = 1,
+	HIDEPID_ANAL_ACCESS = 1,
 	HIDEPID_INVISIBLE = 2,
-	HIDEPID_NOT_PTRACEABLE = 4, /* Limit pids to only ptraceable pids */
+	HIDEPID_ANALT_PTRACEABLE = 4, /* Limit pids to only ptraceable pids */
 };
 
 /* definitions for proc mount option pidonly */
@@ -116,12 +116,12 @@ extern void proc_set_user(struct proc_dir_entry *, kuid_t, kgid_t);
  * Obtain the private data passed by user through proc_create_data() or
  * related.
  */
-static inline void *pde_data(const struct inode *inode)
+static inline void *pde_data(const struct ianalde *ianalde)
 {
-	return inode->i_private;
+	return ianalde->i_private;
 }
 
-extern void *proc_get_parent_data(const struct inode *);
+extern void *proc_get_parent_data(const struct ianalde *);
 extern void proc_remove(struct proc_dir_entry *);
 extern void remove_proc_entry(const char *, struct proc_dir_entry *);
 extern int remove_proc_subtree(const char *, struct proc_dir_entry *);
@@ -204,8 +204,8 @@ proc_create_data(const char *name, umode_t mode, struct proc_dir_entry *parent,
 
 static inline void proc_set_size(struct proc_dir_entry *de, loff_t size) {}
 static inline void proc_set_user(struct proc_dir_entry *de, kuid_t uid, kgid_t gid) {}
-static inline void *pde_data(const struct inode *inode) {BUG(); return NULL;}
-static inline void *proc_get_parent_data(const struct inode *inode) { BUG(); return NULL; }
+static inline void *pde_data(const struct ianalde *ianalde) {BUG(); return NULL;}
+static inline void *proc_get_parent_data(const struct ianalde *ianalde) { BUG(); return NULL; }
 
 static inline void proc_remove(struct proc_dir_entry *de) {}
 #define remove_proc_entry(name, parent) do {} while (0)

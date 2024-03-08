@@ -40,7 +40,7 @@ static int patch_cmi9880(struct hda_codec *codec)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->spec = spec;
 	codec->patch_ops = cmi_auto_patch_ops;
@@ -69,7 +69,7 @@ static int patch_cmi8888(struct hda_codec *codec)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->spec = spec;
 	codec->patch_ops = cmi_auto_patch_ops;
@@ -94,7 +94,7 @@ static int patch_cmi8888(struct hda_codec *codec)
 			HDA_CODEC_VOLUME("Headphone Amp Playback Volume",
 					 0x10, 0, HDA_OUTPUT);
 		if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &amp_kctl)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 	}

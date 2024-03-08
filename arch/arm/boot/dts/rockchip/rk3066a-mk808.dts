@@ -153,7 +153,7 @@
 
 &mmc1 {
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vcc_wifi>;
@@ -206,7 +206,7 @@
 
 	sdio {
 		wifi_pwr: wifi-pwr {
-			rockchip,pins = <3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

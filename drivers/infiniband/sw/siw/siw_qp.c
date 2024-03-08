@@ -3,7 +3,7 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/net.h>
 #include <linux/scatterlist.h>
@@ -112,8 +112,8 @@ void siw_qp_llp_data_ready(struct sock *sk)
 			/*
 			 * Implements data receive operation during
 			 * socket callback. TCP gracefully catches
-			 * the case where there is nothing to receive
-			 * (not calling siw_tcp_rx_data() then).
+			 * the case where there is analthing to receive
+			 * (analt calling siw_tcp_rx_data() then).
 			 */
 			tcp_read_sock(sk, &rd_desc, siw_tcp_rx_data);
 
@@ -158,7 +158,7 @@ void siw_qp_llp_close(struct siw_qp *qp)
 		break;
 
 	default:
-		siw_dbg_qp(qp, "llp close: no state transition needed: %s\n",
+		siw_dbg_qp(qp, "llp close: anal state transition needed: %s\n",
 			   siw_qp_state_to_string[qp->attrs.state]);
 		break;
 	}
@@ -193,7 +193,7 @@ void siw_qp_llp_write_space(struct sock *sk)
 	if (cep) {
 		cep->sk_write_space(sk);
 
-		if (!test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
+		if (!test_bit(SOCK_ANALSPACE, &sk->sk_socket->flags))
 			(void)siw_sq_start(cep->qp);
 	}
 
@@ -207,7 +207,7 @@ static int siw_qp_readq_init(struct siw_qp *qp, int irq_size, int orq_size)
 		qp->irq = vcalloc(irq_size, sizeof(struct siw_sqe));
 		if (!qp->irq) {
 			qp->attrs.irq_size = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	if (orq_size) {
@@ -217,7 +217,7 @@ static int siw_qp_readq_init(struct siw_qp *qp, int irq_size, int orq_size)
 			qp->attrs.orq_size = 0;
 			qp->attrs.irq_size = 0;
 			vfree(qp->irq);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	qp->attrs.irq_size = irq_size;
@@ -233,7 +233,7 @@ static int siw_qp_enable_crc(struct siw_qp *qp)
 	int size;
 
 	if (siw_crypto_shash == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	size = crypto_shash_descsize(siw_crypto_shash) +
 		sizeof(struct shash_desc);
@@ -245,7 +245,7 @@ static int siw_qp_enable_crc(struct siw_qp *qp)
 		kfree(c_rx->mpa_crc_hd);
 		c_tx->mpa_crc_hd = NULL;
 		c_rx->mpa_crc_hd = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	c_tx->mpa_crc_hd->tfm = siw_crypto_shash;
 	c_rx->mpa_crc_hd->tfm = siw_crypto_shash;
@@ -254,9 +254,9 @@ static int siw_qp_enable_crc(struct siw_qp *qp)
 }
 
 /*
- * Send a non signalled READ or WRITE to peer side as negotiated
+ * Send a analn signalled READ or WRITE to peer side as negotiated
  * with MPAv2 P2P setup protocol. The work request is only created
- * as a current active WR and does not consume Send Queue space.
+ * as a current active WR and does analt consume Send Queue space.
  *
  * Caller must hold QP state lock.
  */
@@ -281,7 +281,7 @@ int siw_qp_mpa_rts(struct siw_qp *qp, enum mpa_v2_ctrl ctrl)
 	wqe->sqe.sge[0].laddr = 0;
 	wqe->sqe.sge[0].lkey = 0;
 	/*
-	 * While it must not be checked for inbound zero length
+	 * While it must analt be checked for inbound zero length
 	 * READ/WRITE, some HW may treat STag 0 special.
 	 */
 	wqe->sqe.rkey = 1;
@@ -331,7 +331,7 @@ enum ddp_ecode siw_tagged_error(enum siw_access_state state)
 	case E_BASE_BOUNDS:
 		return DDP_ECODE_T_BASE_BOUNDS;
 	case E_PD_MISMATCH:
-		return DDP_ECODE_T_STAG_NOT_ASSOC;
+		return DDP_ECODE_T_STAG_ANALT_ASSOC;
 	case E_ACCESS_PERM:
 		/*
 		 * RFC 5041 (DDP) lacks an ecode for insufficient access
@@ -356,7 +356,7 @@ enum rdmap_ecode siw_rdmap_error(enum siw_access_state state)
 	case E_BASE_BOUNDS:
 		return RDMAP_ECODE_BASE_BOUNDS;
 	case E_PD_MISMATCH:
-		return RDMAP_ECODE_STAG_NOT_ASSOC;
+		return RDMAP_ECODE_STAG_ANALT_ASSOC;
 	case E_ACCESS_PERM:
 		return RDMAP_ECODE_ACCESS_RIGHTS;
 	default:
@@ -376,15 +376,15 @@ void siw_init_terminate(struct siw_qp *qp, enum term_elayer layer, u8 etype,
 		qp->term_info.valid = 1;
 	}
 	siw_dbg_qp(qp, "init TERM: layer %d, type %d, code %d, in tx %s\n",
-		   layer, etype, ecode, in_tx ? "yes" : "no");
+		   layer, etype, ecode, in_tx ? "anal" : "anal");
 }
 
 /*
  * Send a TERMINATE message, as defined in RFC's 5040/5041/5044/6581.
  * Sending TERMINATE messages is best effort - such messages
  * can only be send if the QP is still connected and it does
- * not have another outbound message in-progress, i.e. the
- * TERMINATE message must not interfer with an incomplete current
+ * analt have aanalther outbound message in-progress, i.e. the
+ * TERMINATE message must analt interfer with an incomplete current
  * transmit operation.
  */
 void siw_send_terminate(struct siw_qp *qp)
@@ -405,16 +405,16 @@ void siw_send_terminate(struct siw_qp *qp)
 	qp->term_info.valid = 0;
 
 	if (tx_wqe(qp)->wr_status == SIW_WR_INPROGRESS) {
-		siw_dbg_qp(qp, "cannot send TERMINATE: op %d in progress\n",
+		siw_dbg_qp(qp, "cananalt send TERMINATE: op %d in progress\n",
 			   tx_type(tx_wqe(qp)));
 		return;
 	}
 	if (!s && qp->cep)
-		/* QP not yet in RTS. Take socket from connection end point */
+		/* QP analt yet in RTS. Take socket from connection end point */
 		s = qp->cep->sock;
 
 	if (!s) {
-		siw_dbg_qp(qp, "cannot send TERMINATE: not connected\n");
+		siw_dbg_qp(qp, "cananalt send TERMINATE: analt connected\n");
 		return;
 	}
 
@@ -448,7 +448,7 @@ void siw_send_terminate(struct siw_qp *qp)
 	switch (qp->term_info.layer) {
 	case TERM_ERROR_LAYER_RDMAP:
 		if (qp->term_info.etype == RDMAP_ETYPE_CATASTROPHIC)
-			/* No additional DDP/RDMAP header to be included */
+			/* Anal additional DDP/RDMAP header to be included */
 			break;
 
 		if (qp->term_info.etype == RDMAP_ETYPE_REMOTE_PROTECTION) {
@@ -509,8 +509,8 @@ void siw_send_terminate(struct siw_qp *qp)
 						sizeof(struct iwarp_send);
 			}
 		} else {
-			/* Do not report DDP hdr information if packet
-			 * layout is unknown
+			/* Do analt report DDP hdr information if packet
+			 * layout is unkanalwn
 			 */
 			if ((qp->term_info.ecode == RDMAP_ECODE_VERSION) ||
 			    (qp->term_info.ecode == RDMAP_ECODE_OPCODE))
@@ -537,8 +537,8 @@ void siw_send_terminate(struct siw_qp *qp)
 		 * DDP processing
 		 */
 
-		/* Do not report DDP hdr information if packet
-		 * layout is unknown
+		/* Do analt report DDP hdr information if packet
+		 * layout is unkanalwn
 		 */
 		if (((qp->term_info.etype == DDP_ETYPE_TAGGED_BUF) &&
 		     (qp->term_info.ecode == DDP_ECODE_T_VERSION)) ||
@@ -612,7 +612,7 @@ out:
 /*
  * Handle all attrs other than state
  */
-static void siw_qp_modify_nonstate(struct siw_qp *qp,
+static void siw_qp_modify_analnstate(struct siw_qp *qp,
 				   struct siw_qp_attrs *attrs,
 				   enum siw_qp_attr_mask mask)
 {
@@ -648,12 +648,12 @@ static int siw_qp_nextstate_from_idle(struct siw_qp *qp,
 				break;
 		}
 		if (!(mask & SIW_QP_ATTR_LLP_HANDLE)) {
-			siw_dbg_qp(qp, "no socket\n");
+			siw_dbg_qp(qp, "anal socket\n");
 			rv = -EINVAL;
 			break;
 		}
 		if (!(mask & SIW_QP_ATTR_MPA)) {
-			siw_dbg_qp(qp, "no MPA\n");
+			siw_dbg_qp(qp, "anal MPA\n");
 			rv = -EINVAL;
 			break;
 		}
@@ -748,7 +748,7 @@ static int siw_qp_nextstate_from_rts(struct siw_qp *qp,
 		 * if a TX operation is in transit. The caller
 		 * could unconditional wait to give the current
 		 * operation a chance to complete.
-		 * Esp., how to handle the non-empty IRQ case?
+		 * Esp., how to handle the analn-empty IRQ case?
 		 * The peer was asking for data transfer at a valid
 		 * point in time.
 		 */
@@ -802,7 +802,7 @@ static int siw_qp_nextstate_from_close(struct siw_qp *qp,
 	case SIW_QP_STATE_ERROR:
 		/*
 		 * QP was moved to CLOSING by LLP event
-		 * not yet seen by user.
+		 * analt yet seen by user.
 		 */
 		qp->attrs.state = SIW_QP_STATE_ERROR;
 
@@ -838,7 +838,7 @@ int siw_qp_modify(struct siw_qp *qp, struct siw_qp_attrs *attrs,
 		   siw_qp_state_to_string[attrs->state]);
 
 	if (mask != SIW_QP_ATTR_STATE)
-		siw_qp_modify_nonstate(qp, attrs, mask);
+		siw_qp_modify_analnstate(qp, attrs, mask);
 
 	if (!(mask & SIW_QP_ATTR_STATE))
 		return 0;
@@ -916,11 +916,11 @@ static int siw_activate_tx_from_sq(struct siw_qp *qp)
 		wqe->sqe.num_sge = 1;
 	}
 	if (wqe->sqe.flags & SIW_WQE_READ_FENCE) {
-		/* A READ cannot be fenced */
+		/* A READ cananalt be fenced */
 		if (unlikely(wqe->sqe.opcode == SIW_OP_READ ||
 			     wqe->sqe.opcode ==
 				     SIW_OP_READ_LOCAL_INV)) {
-			siw_dbg_qp(qp, "cannot fence read\n");
+			siw_dbg_qp(qp, "cananalt fence read\n");
 			rv = -EINVAL;
 			goto out;
 		}
@@ -937,7 +937,7 @@ static int siw_activate_tx_from_sq(struct siw_qp *qp)
 		struct siw_sqe *rreq;
 
 		if (unlikely(!qp->attrs.orq_size)) {
-			/* We negotiated not to send READ req's */
+			/* We negotiated analt to send READ req's */
 			rv = -EINVAL;
 			goto out;
 		}
@@ -974,7 +974,7 @@ out:
 /*
  * Must be called with SQ locked.
  * To avoid complete SQ starvation by constant inbound READ requests,
- * the active IRQ will not be served after qp->irq_burst, if the
+ * the active IRQ will analt be served after qp->irq_burst, if the
  * SQ has pending work.
  */
 int siw_activate_tx(struct siw_qp *qp)
@@ -1034,26 +1034,26 @@ int siw_activate_tx(struct siw_qp *qp)
  * Check if current CQ state qualifies for calling CQ completion
  * handler. Must be called with CQ lock held.
  */
-static bool siw_cq_notify_now(struct siw_cq *cq, u32 flags)
+static bool siw_cq_analtify_analw(struct siw_cq *cq, u32 flags)
 {
-	u32 cq_notify;
+	u32 cq_analtify;
 
 	if (!cq->base_cq.comp_handler)
 		return false;
 
-	/* Read application shared notification state */
-	cq_notify = READ_ONCE(cq->notify->flags);
+	/* Read application shared analtification state */
+	cq_analtify = READ_ONCE(cq->analtify->flags);
 
-	if ((cq_notify & SIW_NOTIFY_NEXT_COMPLETION) ||
-	    ((cq_notify & SIW_NOTIFY_SOLICITED) &&
+	if ((cq_analtify & SIW_ANALTIFY_NEXT_COMPLETION) ||
+	    ((cq_analtify & SIW_ANALTIFY_SOLICITED) &&
 	     (flags & SIW_WQE_SOLICITED))) {
 		/*
-		 * CQ notification is one-shot: Since the
-		 * current CQE causes user notification,
+		 * CQ analtification is one-shot: Since the
+		 * current CQE causes user analtification,
 		 * the CQ gets dis-aremd and must be re-aremd
-		 * by the user for a new notification.
+		 * by the user for a new analtification.
 		 */
-		WRITE_ONCE(cq->notify->flags, SIW_NOTIFY_NOT);
+		WRITE_ONCE(cq->analtify->flags, SIW_ANALTIFY_ANALT);
 
 		return true;
 	}
@@ -1078,7 +1078,7 @@ int siw_sqe_complete(struct siw_qp *qp, struct siw_sqe *sqe, u32 bytes,
 		cqe = &cq->queue[idx];
 
 		if (!READ_ONCE(cqe->flags)) {
-			bool notify;
+			bool analtify;
 
 			cqe->id = sqe->id;
 			cqe->opcode = sqe->opcode;
@@ -1097,18 +1097,18 @@ int siw_sqe_complete(struct siw_qp *qp, struct siw_sqe *sqe, u32 bytes,
 			smp_store_mb(sqe->flags, 0);
 
 			cq->cq_put++;
-			notify = siw_cq_notify_now(cq, sqe_flags);
+			analtify = siw_cq_analtify_analw(cq, sqe_flags);
 
 			spin_unlock_irqrestore(&cq->lock, flags);
 
-			if (notify) {
+			if (analtify) {
 				siw_dbg_cq(cq, "Call completion handler\n");
 				cq->base_cq.comp_handler(&cq->base_cq,
 						cq->base_cq.cq_context);
 			}
 		} else {
 			spin_unlock_irqrestore(&cq->lock, flags);
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			siw_cq_event(cq, IB_EVENT_CQ_ERR);
 		}
 	} else {
@@ -1135,7 +1135,7 @@ int siw_rqe_complete(struct siw_qp *qp, struct siw_rqe *rqe, u32 bytes,
 		cqe = &cq->queue[idx];
 
 		if (!READ_ONCE(cqe->flags)) {
-			bool notify;
+			bool analtify;
 			u8 cqe_flags = SIW_WQE_VALID;
 
 			cqe->id = rqe->id;
@@ -1159,18 +1159,18 @@ int siw_rqe_complete(struct siw_qp *qp, struct siw_rqe *rqe, u32 bytes,
 			smp_store_mb(rqe->flags, 0);
 
 			cq->cq_put++;
-			notify = siw_cq_notify_now(cq, SIW_WQE_SIGNALLED);
+			analtify = siw_cq_analtify_analw(cq, SIW_WQE_SIGNALLED);
 
 			spin_unlock_irqrestore(&cq->lock, flags);
 
-			if (notify) {
+			if (analtify) {
 				siw_dbg_cq(cq, "Call completion handler\n");
 				cq->base_cq.comp_handler(&cq->base_cq,
 						cq->base_cq.cq_context);
 			}
 		} else {
 			spin_unlock_irqrestore(&cq->lock, flags);
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			siw_cq_event(cq, IB_EVENT_CQ_ERR);
 		}
 	} else {
@@ -1186,7 +1186,7 @@ int siw_rqe_complete(struct siw_qp *qp, struct siw_rqe *rqe, u32 bytes,
  * Flush SQ and ORQ entries to CQ.
  *
  * Must be called with QP state write lock held.
- * Therefore, SQ and ORQ lock must not be taken.
+ * Therefore, SQ and ORQ lock must analt be taken.
  */
 void siw_sq_flush(struct siw_qp *qp)
 {
@@ -1262,7 +1262,7 @@ void siw_sq_flush(struct siw_qp *qp)
  * referenced.
  *
  * Must be called with QP state write lock held.
- * Therefore, RQ lock must not be taken.
+ * Therefore, RQ lock must analt be taken.
  */
 void siw_rq_flush(struct siw_qp *qp)
 {

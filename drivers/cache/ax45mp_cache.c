@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * non-coherent cache functions for Andes AX45MP
+ * analn-coherent cache functions for Andes AX45MP
  *
  * Copyright (C) 2023 Renesas Electronics Corp.
  */
@@ -11,7 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
-#include <asm/dma-noncoherent.h>
+#include <asm/dma-analncoherent.h>
 
 /* L2 cache registers */
 #define AX45MP_L2C_REG_CTL_OFFSET		0x8
@@ -146,7 +146,7 @@ static void ax45mp_dma_cache_wback_inv(phys_addr_t paddr, size_t size)
 	ax45mp_dma_cache_inv(paddr, size);
 }
 
-static int ax45mp_get_l2_line_size(struct device_node *np)
+static int ax45mp_get_l2_line_size(struct device_analde *np)
 {
 	int ret;
 
@@ -165,7 +165,7 @@ static int ax45mp_get_l2_line_size(struct device_node *np)
 	return 0;
 }
 
-static const struct riscv_nonstd_cache_ops ax45mp_cmo_ops __initdata = {
+static const struct riscv_analnstd_cache_ops ax45mp_cmo_ops __initdata = {
 	.wback = &ax45mp_dma_cache_wback,
 	.inv = &ax45mp_dma_cache_inv,
 	.wback_inv = &ax45mp_dma_cache_wback_inv,
@@ -178,13 +178,13 @@ static const struct of_device_id ax45mp_cache_ids[] = {
 
 static int __init ax45mp_cache_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 	int ret;
 
-	np = of_find_matching_node(NULL, ax45mp_cache_ids);
+	np = of_find_matching_analde(NULL, ax45mp_cache_ids);
 	if (!of_device_is_available(np))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
@@ -202,7 +202,7 @@ static int __init ax45mp_cache_init(void)
 
 	ax45mp_priv.l2c_base = ioremap(res.start, resource_size(&res));
 	if (!ax45mp_priv.l2c_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ax45mp_get_l2_line_size(np);
 	if (ret) {
@@ -210,7 +210,7 @@ static int __init ax45mp_cache_init(void)
 		return ret;
 	}
 
-	riscv_noncoherent_register_cache_ops(&ax45mp_cmo_ops);
+	riscv_analncoherent_register_cache_ops(&ax45mp_cmo_ops);
 
 	return 0;
 }

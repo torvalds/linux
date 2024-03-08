@@ -290,7 +290,7 @@ static int vimc_register_devices(struct vimc_device *vimc)
 	vimc->ent_devs = kcalloc(vimc->pipe_cfg->num_ents,
 				 sizeof(*vimc->ent_devs), GFP_KERNEL);
 	if (!vimc->ent_devs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_v4l2_unregister;
 	}
 
@@ -312,11 +312,11 @@ static int vimc_register_devices(struct vimc_device *vimc)
 		goto err_rm_subdevs;
 	}
 
-	/* Expose all subdev's nodes*/
-	ret = v4l2_device_register_subdev_nodes(&vimc->v4l2_dev);
+	/* Expose all subdev's analdes*/
+	ret = v4l2_device_register_subdev_analdes(&vimc->v4l2_dev);
 	if (ret) {
 		dev_err(vimc->mdev.dev,
-			"vimc subdev nodes registration failed (err=%d)\n",
+			"vimc subdev analdes registration failed (err=%d)\n",
 			ret);
 		goto err_mdev_unregister;
 	}
@@ -345,8 +345,8 @@ static int vimc_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "probe");
 
 	if (!font) {
-		dev_err(&pdev->dev, "could not find font\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "could analt find font\n");
+		return -EANALDEV;
 	}
 
 	tpg_set_font(font->data);
@@ -356,7 +356,7 @@ static int vimc_probe(struct platform_device *pdev)
 
 	vimc = kzalloc(sizeof(*vimc), GFP_KERNEL);
 	if (!vimc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vimc->pipe_cfg = &pipe_cfg;
 

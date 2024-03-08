@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include "internal.h"
 
 static void afs_silly_rename_success(struct afs_operation *op)
@@ -17,34 +17,34 @@ static void afs_silly_rename_success(struct afs_operation *op)
 	_enter("op=%08x", op->debug_id);
 
 	afs_check_dir_conflict(op, &op->file[0]);
-	afs_vnode_commit_status(op, &op->file[0]);
+	afs_vanalde_commit_status(op, &op->file[0]);
 }
 
 static void afs_silly_rename_edit_dir(struct afs_operation *op)
 {
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode *dvnode = dvp->vnode;
-	struct afs_vnode *vnode = AFS_FS_I(d_inode(op->dentry));
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde *dvanalde = dvp->vanalde;
+	struct afs_vanalde *vanalde = AFS_FS_I(d_ianalde(op->dentry));
 	struct dentry *old = op->dentry;
 	struct dentry *new = op->dentry_2;
 
 	spin_lock(&old->d_lock);
 	old->d_flags |= DCACHE_NFSFS_RENAMED;
 	spin_unlock(&old->d_lock);
-	if (dvnode->silly_key != op->key) {
-		key_put(dvnode->silly_key);
-		dvnode->silly_key = key_get(op->key);
+	if (dvanalde->silly_key != op->key) {
+		key_put(dvanalde->silly_key);
+		dvanalde->silly_key = key_get(op->key);
 	}
 
-	down_write(&dvnode->validate_lock);
-	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
-	    dvnode->status.data_version == dvp->dv_before + dvp->dv_delta) {
-		afs_edit_dir_remove(dvnode, &old->d_name,
+	down_write(&dvanalde->validate_lock);
+	if (test_bit(AFS_VANALDE_DIR_VALID, &dvanalde->flags) &&
+	    dvanalde->status.data_version == dvp->dv_before + dvp->dv_delta) {
+		afs_edit_dir_remove(dvanalde, &old->d_name,
 				    afs_edit_dir_for_silly_0);
-		afs_edit_dir_add(dvnode, &new->d_name,
-				 &vnode->fid, afs_edit_dir_for_silly_1);
+		afs_edit_dir_add(dvanalde, &new->d_name,
+				 &vanalde->fid, afs_edit_dir_for_silly_1);
 	}
-	up_write(&dvnode->validate_lock);
+	up_write(&dvanalde->validate_lock);
 }
 
 static const struct afs_operation_ops afs_silly_rename_operation = {
@@ -57,7 +57,7 @@ static const struct afs_operation_ops afs_silly_rename_operation = {
 /*
  * Actually perform the silly rename step.
  */
-static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode,
+static int afs_do_silly_rename(struct afs_vanalde *dvanalde, struct afs_vanalde *vanalde,
 			       struct dentry *old, struct dentry *new,
 			       struct key *key)
 {
@@ -65,12 +65,12 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 
 	_enter("%pd,%pd", old, new);
 
-	op = afs_alloc_operation(key, dvnode->volume);
+	op = afs_alloc_operation(key, dvanalde->volume);
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 
-	afs_op_set_vnode(op, 0, dvnode);
-	afs_op_set_vnode(op, 1, dvnode);
+	afs_op_set_vanalde(op, 0, dvanalde);
+	afs_op_set_vanalde(op, 1, dvanalde);
 	op->file[0].dv_delta = 1;
 	op->file[1].dv_delta = 1;
 	op->file[0].modification = true;
@@ -82,14 +82,14 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 	op->dentry_2		= new;
 	op->ops			= &afs_silly_rename_operation;
 
-	trace_afs_silly_rename(vnode, false);
+	trace_afs_silly_rename(vanalde, false);
 	return afs_do_sync_operation(op);
 }
 
 /*
  * Perform silly-rename of a dentry.
  *
- * AFS is stateless and the server doesn't know when the client is holding a
+ * AFS is stateless and the server doesn't kanalw when the client is holding a
  * file open.  To prevent application problems when a file is unlinked while
  * it's still open, the client performs a "silly-rename".  That is, it renames
  * the file to a hidden file in the same directory, and only performs the
@@ -97,7 +97,7 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
  *
  * The final cleanup is done during dentry_iput.
  */
-int afs_sillyrename(struct afs_vnode *dvnode, struct afs_vnode *vnode,
+int afs_sillyrename(struct afs_vanalde *dvanalde, struct afs_vanalde *vanalde,
 		    struct dentry *dentry, struct key *key)
 {
 	static unsigned int sillycounter;
@@ -118,8 +118,8 @@ int afs_sillyrename(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 		dput(sdentry);
 		sillycounter++;
 
-		/* Create a silly name.  Note that the ".__afs" prefix is
-		 * understood by the salvager and must not be changed.
+		/* Create a silly name.  Analte that the ".__afs" prefix is
+		 * understood by the salvager and must analt be changed.
 		 */
 		slen = scnprintf(silly, sizeof(silly), ".__afs%04X", sillycounter);
 		sdentry = lookup_one_len(silly, dentry->d_parent, slen);
@@ -131,24 +131,24 @@ int afs_sillyrename(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 			goto out;
 	} while (!d_is_negative(sdentry));
 
-	ihold(&vnode->netfs.inode);
+	ihold(&vanalde->netfs.ianalde);
 
-	ret = afs_do_silly_rename(dvnode, vnode, dentry, sdentry, key);
+	ret = afs_do_silly_rename(dvanalde, vanalde, dentry, sdentry, key);
 	switch (ret) {
 	case 0:
 		/* The rename succeeded. */
-		set_bit(AFS_VNODE_SILLY_DELETED, &vnode->flags);
+		set_bit(AFS_VANALDE_SILLY_DELETED, &vanalde->flags);
 		d_move(dentry, sdentry);
 		break;
 	case -ERESTARTSYS:
-		/* The result of the rename is unknown. Play it safe by forcing
+		/* The result of the rename is unkanalwn. Play it safe by forcing
 		 * a new lookup.
 		 */
 		d_drop(dentry);
 		d_drop(sdentry);
 	}
 
-	iput(&vnode->netfs.inode);
+	iput(&vanalde->netfs.ianalde);
 	dput(sdentry);
 out:
 	_leave(" = %d", ret);
@@ -159,23 +159,23 @@ static void afs_silly_unlink_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
 	afs_check_dir_conflict(op, &op->file[0]);
-	afs_vnode_commit_status(op, &op->file[0]);
-	afs_vnode_commit_status(op, &op->file[1]);
+	afs_vanalde_commit_status(op, &op->file[0]);
+	afs_vanalde_commit_status(op, &op->file[1]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
 }
 
 static void afs_silly_unlink_edit_dir(struct afs_operation *op)
 {
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode *dvnode = dvp->vnode;
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde *dvanalde = dvp->vanalde;
 
 	_enter("op=%08x", op->debug_id);
-	down_write(&dvnode->validate_lock);
-	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) &&
-	    dvnode->status.data_version == dvp->dv_before + dvp->dv_delta)
-		afs_edit_dir_remove(dvnode, &op->dentry->d_name,
+	down_write(&dvanalde->validate_lock);
+	if (test_bit(AFS_VANALDE_DIR_VALID, &dvanalde->flags) &&
+	    dvanalde->status.data_version == dvp->dv_before + dvp->dv_delta)
+		afs_edit_dir_remove(dvanalde, &op->dentry->d_name,
 				    afs_edit_dir_for_unlink);
-	up_write(&dvnode->validate_lock);
+	up_write(&dvanalde->validate_lock);
 }
 
 static const struct afs_operation_ops afs_silly_unlink_operation = {
@@ -189,19 +189,19 @@ static const struct afs_operation_ops afs_silly_unlink_operation = {
 /*
  * Tell the server to remove a sillyrename file.
  */
-static int afs_do_silly_unlink(struct afs_vnode *dvnode, struct afs_vnode *vnode,
+static int afs_do_silly_unlink(struct afs_vanalde *dvanalde, struct afs_vanalde *vanalde,
 			       struct dentry *dentry, struct key *key)
 {
 	struct afs_operation *op;
 
 	_enter("");
 
-	op = afs_alloc_operation(NULL, dvnode->volume);
+	op = afs_alloc_operation(NULL, dvanalde->volume);
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 
-	afs_op_set_vnode(op, 0, dvnode);
-	afs_op_set_vnode(op, 1, vnode);
+	afs_op_set_vanalde(op, 0, dvanalde);
+	afs_op_set_vanalde(op, 1, vanalde);
 	op->file[0].dv_delta = 1;
 	op->file[0].modification = true;
 	op->file[0].update_ctime = true;
@@ -211,18 +211,18 @@ static int afs_do_silly_unlink(struct afs_vnode *dvnode, struct afs_vnode *vnode
 	op->dentry	= dentry;
 	op->ops		= &afs_silly_unlink_operation;
 
-	trace_afs_silly_rename(vnode, true);
-	afs_begin_vnode_operation(op);
+	trace_afs_silly_rename(vanalde, true);
+	afs_begin_vanalde_operation(op);
 	afs_wait_for_operation(op);
 
 	/* If there was a conflict with a third party, check the status of the
-	 * unlinked vnode.
+	 * unlinked vanalde.
 	 */
 	if (op->cumul_error.error == 0 && (op->flags & AFS_OPERATION_DIR_CONFLICT)) {
 		op->file[1].update_ctime = false;
 		op->fetch_status.which = 1;
 		op->ops = &afs_fetch_status_operation;
-		afs_begin_vnode_operation(op);
+		afs_begin_vanalde_operation(op);
 		afs_wait_for_operation(op);
 	}
 
@@ -232,22 +232,22 @@ static int afs_do_silly_unlink(struct afs_vnode *dvnode, struct afs_vnode *vnode
 /*
  * Remove sillyrename file on iput.
  */
-int afs_silly_iput(struct dentry *dentry, struct inode *inode)
+int afs_silly_iput(struct dentry *dentry, struct ianalde *ianalde)
 {
-	struct afs_vnode *dvnode = AFS_FS_I(d_inode(dentry->d_parent));
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *dvanalde = AFS_FS_I(d_ianalde(dentry->d_parent));
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct dentry *alias;
 	int ret;
 
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 
-	_enter("%p{%pd},%llx", dentry, dentry, vnode->fid.vnode);
+	_enter("%p{%pd},%llx", dentry, dentry, vanalde->fid.vanalde);
 
-	down_read(&dvnode->rmdir_lock);
+	down_read(&dvanalde->rmdir_lock);
 
 	alias = d_alloc_parallel(dentry->d_parent, &dentry->d_name, &wq);
 	if (IS_ERR(alias)) {
-		up_read(&dvnode->rmdir_lock);
+		up_read(&dvanalde->rmdir_lock);
 		return 0;
 	}
 
@@ -263,19 +263,19 @@ int afs_silly_iput(struct dentry *dentry, struct inode *inode)
 			ret = 1;
 		}
 		spin_unlock(&alias->d_lock);
-		up_read(&dvnode->rmdir_lock);
+		up_read(&dvanalde->rmdir_lock);
 		dput(alias);
 		return ret;
 	}
 
 	/* Stop lock-release from complaining. */
-	spin_lock(&vnode->lock);
-	vnode->lock_state = AFS_VNODE_LOCK_DELETED;
-	trace_afs_flock_ev(vnode, NULL, afs_flock_silly_delete, 0);
-	spin_unlock(&vnode->lock);
+	spin_lock(&vanalde->lock);
+	vanalde->lock_state = AFS_VANALDE_LOCK_DELETED;
+	trace_afs_flock_ev(vanalde, NULL, afs_flock_silly_delete, 0);
+	spin_unlock(&vanalde->lock);
 
-	afs_do_silly_unlink(dvnode, vnode, dentry, dvnode->silly_key);
-	up_read(&dvnode->rmdir_lock);
+	afs_do_silly_unlink(dvanalde, vanalde, dentry, dvanalde->silly_key);
+	up_read(&dvanalde->rmdir_lock);
 	d_lookup_done(alias);
 	dput(alias);
 	return 1;

@@ -70,7 +70,7 @@ examples:
 
     /*
      * Example 2: New-gen multi cluster SoC using SAW only for L2;
-     * This does not require any cpuidle driver, nor any cpu phandle.
+     * This does analt require any cpuidle driver, analr any cpu phandle.
      */
     power-manager@17812000 {
         compatible = "qcom,msm8998-gold-saw2-v4.1-l2", "qcom,saw2";

@@ -626,19 +626,19 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->provided_clocks = devm_kzalloc(dev,
 			struct_size(phy->provided_clocks, hws, NUM_PROVIDED_CLKS),
 			GFP_KERNEL);
 	if (!phy->provided_clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->provided_clocks->num = NUM_PROVIDED_CLKS;
 
 	phy->cfg = of_device_get_match_data(&pdev->dev);
 	if (!phy->cfg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->pdev = pdev;
 
@@ -647,9 +647,9 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, phy->id,
 				     "Couldn't identify PHY index\n");
 
-	phy->regulator_ldo_mode = of_property_read_bool(dev->of_node,
+	phy->regulator_ldo_mode = of_property_read_bool(dev->of_analde,
 				"qcom,dsi-phy-regulator-ldo-mode");
-	if (!of_property_read_u32(dev->of_node, "phy-type", &phy_type))
+	if (!of_property_read_u32(dev->of_analde, "phy-type", &phy_type))
 		phy->cphy_mode = (phy_type == PHY_TYPE_CPHY);
 
 	phy->base = msm_ioremap_size(pdev, "dsi_phy", &phy->base_size);
@@ -861,7 +861,7 @@ void msm_dsi_phy_snapshot(struct msm_disp_state *disp_state, struct msm_dsi_phy 
 			phy->base_size, phy->base,
 			"dsi%d_phy", phy->id);
 
-	/* Do not try accessing PLL registers if it is switched off */
+	/* Do analt try accessing PLL registers if it is switched off */
 	if (phy->pll_on)
 		msm_disp_snapshot_add_block(disp_state,
 			phy->pll_size, phy->pll_base,

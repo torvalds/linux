@@ -4,7 +4,7 @@
  *
  * Even though clk-bcm2835 provides an interface to the hardware registers for
  * the system clocks we've had to factor out 'pllb' as the firmware 'owns' it.
- * We're not allowed to change it directly as we might race with the
+ * We're analt allowed to change it directly as we might race with the
  * over-temperature and under-voltage protections provided by the firmware.
  *
  * Copyright (C) 2019 Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
@@ -235,7 +235,7 @@ static int raspberrypi_fw_dumb_determine_rate(struct clk_hw *hw,
 
 	/*
 	 * We want to aggressively reduce the clock rate here, so let's
-	 * just ignore the requested rate and return the bare minimum
+	 * just iganalre the requested rate and return the bare minimum
 	 * rate we can get away with.
 	 */
 	if (variant->minimize && req->min_rate > 0)
@@ -263,7 +263,7 @@ static struct clk_hw *raspberrypi_clk_register(struct raspberrypi_clk *rpi,
 
 	data = devm_kzalloc(rpi->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	data->rpi = rpi;
 	data->id = id;
 	data->variant = variant;
@@ -272,7 +272,7 @@ static struct clk_hw *raspberrypi_clk_register(struct raspberrypi_clk *rpi,
 				   "fw-clk-%s",
 				   rpi_firmware_clk_names[id]);
 	init.ops = &raspberrypi_firmware_clk_ops;
-	init.flags = CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_GET_RATE_ANALCACHE;
 
 	data->hw.init = &init;
 
@@ -345,7 +345,7 @@ static int raspberrypi_discover_clocks(struct raspberrypi_clk *rpi,
 			    RPI_FIRMWARE_NUM_CLK_ID + 1, sizeof(*clks),
 			    GFP_KERNEL);
 	if (!clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rpi_firmware_property(rpi->firmware, RPI_FIRMWARE_GET_CLOCKS,
 				    clks,
@@ -357,7 +357,7 @@ static int raspberrypi_discover_clocks(struct raspberrypi_clk *rpi,
 		struct raspberrypi_clk_variant *variant;
 
 		if (clks->id >= RPI_FIRMWARE_NUM_CLK_ID) {
-			dev_err(rpi->dev, "Unknown clock id: %u (max: %u)\n",
+			dev_err(rpi->dev, "Unkanalwn clock id: %u (max: %u)\n",
 					   clks->id, RPI_FIRMWARE_NUM_CLK_ID - 1);
 			return -EINVAL;
 		}
@@ -384,7 +384,7 @@ static int raspberrypi_discover_clocks(struct raspberrypi_clk *rpi,
 static int raspberrypi_clk_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *firmware_node;
+	struct device_analde *firmware_analde;
 	struct device *dev = &pdev->dev;
 	struct rpi_firmware *firmware;
 	struct raspberrypi_clk *rpi;
@@ -392,27 +392,27 @@ static int raspberrypi_clk_probe(struct platform_device *pdev)
 
 	/*
 	 * We can be probed either through the an old-fashioned
-	 * platform device registration or through a DT node that is a
-	 * child of the firmware node. Handle both cases.
+	 * platform device registration or through a DT analde that is a
+	 * child of the firmware analde. Handle both cases.
 	 */
-	if (dev->of_node)
-		firmware_node = of_get_parent(dev->of_node);
+	if (dev->of_analde)
+		firmware_analde = of_get_parent(dev->of_analde);
 	else
-		firmware_node = of_find_compatible_node(NULL, NULL,
+		firmware_analde = of_find_compatible_analde(NULL, NULL,
 							"raspberrypi,bcm2835-firmware");
-	if (!firmware_node) {
-		dev_err(dev, "Missing firmware node\n");
-		return -ENOENT;
+	if (!firmware_analde) {
+		dev_err(dev, "Missing firmware analde\n");
+		return -EANALENT;
 	}
 
-	firmware = devm_rpi_firmware_get(&pdev->dev, firmware_node);
-	of_node_put(firmware_node);
+	firmware = devm_rpi_firmware_get(&pdev->dev, firmware_analde);
+	of_analde_put(firmware_analde);
 	if (!firmware)
 		return -EPROBE_DEFER;
 
 	rpi = devm_kzalloc(dev, sizeof(*rpi), GFP_KERNEL);
 	if (!rpi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpi->dev = dev;
 	rpi->firmware = firmware;
@@ -422,7 +422,7 @@ static int raspberrypi_clk_probe(struct platform_device *pdev)
 						 RPI_FIRMWARE_NUM_CLK_ID),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = raspberrypi_discover_clocks(rpi, clk_data);
 	if (ret)

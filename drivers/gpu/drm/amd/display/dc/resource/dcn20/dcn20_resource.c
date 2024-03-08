@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -1320,7 +1320,7 @@ void dcn20_acquire_dsc(const struct dc *dc,
 	const struct resource_pool *pool = dc->res_pool;
 	struct display_stream_compressor *dsc_old = dc->current_state->res_ctx.pipe_ctx[pipe_idx].stream_res.dsc;
 
-	ASSERT(*dsc == NULL); /* If this ASSERT fails, dsc was not released properly */
+	ASSERT(*dsc == NULL); /* If this ASSERT fails, dsc was analt released properly */
 	*dsc = NULL;
 
 	/* Always do 1-to-1 mapping when number of DSCs is same as number of pipes */
@@ -1386,7 +1386,7 @@ enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc,
 
 		/* The number of DSCs can be less than the number of pipes */
 		if (!pipe_ctx->stream_res.dsc) {
-			result = DC_NO_DSC_RESOURCE;
+			result = DC_ANAL_DSC_RESOURCE;
 		}
 
 		break;
@@ -1729,10 +1729,10 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		}
 
 		/*
-		 * if this primary pipe does not have a bottom pipe in prev. state
-		 * start backward and find a pipe that did not used to be a bottom pipe in
+		 * if this primary pipe does analt have a bottom pipe in prev. state
+		 * start backward and find a pipe that did analt used to be a bottom pipe in
 		 * prev. dc state. This way we make sure we keep the same assignment as
-		 * last state and will not have to reprogram every pipe
+		 * last state and will analt have to reprogram every pipe
 		 */
 		if (secondary_pipe == NULL) {
 			for (j = dc->res_pool->pipe_count - 1; j >= 0; j--) {
@@ -1875,7 +1875,7 @@ int dcn20_validate_apply_pipe_split_flags(
 	if (plane_count > dc->res_pool->pipe_count / 2)
 		avoid_split = true;
 
-	/* W/A: Mode timing with borders may not work well with pipe split, avoid for this corner case */
+	/* W/A: Mode timing with borders may analt work well with pipe split, avoid for this corner case */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct dc_crtc_timing timing;
@@ -1899,10 +1899,10 @@ int dcn20_validate_apply_pipe_split_flags(
 				continue;
 
 			for (vlevel_split = vlevel; vlevel <= context->bw_ctx.dml.soc.num_states; vlevel++)
-				if (v->NoOfDPP[vlevel][0][pipe_idx] == 1 &&
+				if (v->AnalOfDPP[vlevel][0][pipe_idx] == 1 &&
 						v->ModeSupport[vlevel][0])
 					break;
-			/* Impossible to not split this pipe */
+			/* Impossible to analt split this pipe */
 			if (vlevel > context->bw_ctx.dml.soc.num_states)
 				vlevel = vlevel_split;
 			else
@@ -1922,9 +1922,9 @@ int dcn20_validate_apply_pipe_split_flags(
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
 
-		if (split4mpc || v->NoOfDPP[vlevel][max_mpc_comb][pipe_plane] == 4)
+		if (split4mpc || v->AnalOfDPP[vlevel][max_mpc_comb][pipe_plane] == 4)
 			split[i] = 4;
-		else if (force_split || v->NoOfDPP[vlevel][max_mpc_comb][pipe_plane] == 2)
+		else if (force_split || v->AnalOfDPP[vlevel][max_mpc_comb][pipe_plane] == 2)
 				split[i] = 2;
 
 		if ((pipe->stream->view_format ==
@@ -1985,7 +1985,7 @@ int dcn20_validate_apply_pipe_split_flags(
 				else if (split[i] == 2)
 					split[i] = 0; /* 2 -> 2 ODM */
 				else if (pipe->prev_odm_pipe) {
-					ASSERT(0); /* NOT expected yet */
+					ASSERT(0); /* ANALT expected yet */
 					merge[i] = true; /* exit ODM */
 				}
 			} else if (resource_get_odm_slice_count(pipe) == 4) {
@@ -1994,13 +1994,13 @@ int dcn20_validate_apply_pipe_split_flags(
 						|| !pipe->next_odm_pipe)) {
 					merge[i] = true; /* 4 -> 2 ODM */
 				} else if (split[i] == 0 && pipe->prev_odm_pipe) {
-					ASSERT(0); /* NOT expected yet */
+					ASSERT(0); /* ANALT expected yet */
 					merge[i] = true; /* exit ODM */
 				}
 				split[i] = 0;
 			} else if (resource_get_mpc_slice_count(pipe) > 1) {
 				/* MPC -> ODM transition */
-				ASSERT(0); /* NOT expected yet */
+				ASSERT(0); /* ANALT expected yet */
 				if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state) {
 					split[i] = 0;
 					merge[i] = true;
@@ -2008,8 +2008,8 @@ int dcn20_validate_apply_pipe_split_flags(
 			}
 		}
 
-		/* Adjust dppclk when split is forced, do not bother with dispclk */
-		if (split[i] != 0 && v->NoOfDPP[vlevel][max_mpc_comb][pipe_idx] == 1) {
+		/* Adjust dppclk when split is forced, do analt bother with dispclk */
+		if (split[i] != 0 && v->AnalOfDPP[vlevel][max_mpc_comb][pipe_idx] == 1) {
 			DC_FP_START();
 			dcn20_fpu_adjust_dppclk(v, vlevel, max_mpc_comb, pipe_idx, false);
 			DC_FP_END();
@@ -2087,14 +2087,14 @@ bool dcn20_fast_validate_bw(
 		if (pipe->top_pipe && pipe->plane_state == pipe->top_pipe->plane_state)
 			continue;
 
-		/* We do not support mpo + odm at the moment */
+		/* We do analt support mpo + odm at the moment */
 		if (hsplit_pipe && hsplit_pipe->plane_state != pipe->plane_state
 				&& context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx])
 			goto validate_fail;
 
 		if (split[i] == 2) {
 			if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state) {
-				/* pipe not split previously needs split */
+				/* pipe analt split previously needs split */
 				hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
 				ASSERT(hsplit_pipe);
 				if (!hsplit_pipe) {
@@ -2212,7 +2212,7 @@ static struct dc_cap_funcs cap_funcs = {
 };
 
 
-enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_state)
+enum dc_status dcn20_patch_unkanalwn_plane_state(struct dc_plane_state *plane_state)
 {
 	enum surface_pixel_format surf_pix_format = plane_state->format;
 	unsigned int bpp = resource_pixel_format_to_bpp(surf_pix_format);
@@ -2244,7 +2244,7 @@ static const struct resource_funcs dcn20_res_pool_funcs = {
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn20_patch_unkanalwn_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.populate_dml_pipes = dcn20_populate_dml_pipes_from_context,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
@@ -2379,7 +2379,7 @@ static bool init_soc_bounding_box(struct dc *dc,
 		if (pool->base.pp_smu->nv_funcs.get_maximum_sustainable_clocks) {
 			status = (*pool->base.pp_smu->nv_funcs.get_maximum_sustainable_clocks)
 					(&pool->base.pp_smu->nv_funcs.pp_smu, &max_clocks);
-			/* SMU cannot set DCF clock to anything equal to or higher than SOC clock
+			/* SMU cananalt set DCF clock to anything equal to or higher than SOC clock
 			 */
 			if (max_clocks.dcfClockInKhz >= max_clocks.socClockInKhz)
 				max_clocks.dcfClockInKhz = max_clocks.socClockInKhz - 1000;
@@ -2436,11 +2436,11 @@ static bool dcn20_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
-	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a analt applied by default*/
 	dc->caps.max_cursor_size = 256;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
@@ -2468,7 +2468,7 @@ static bool dcn20_resource_construct(
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
-	// no OGAM ROM on DCN2, only MPC ROM
+	// anal OGAM ROM on DCN2, only MPC ROM
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -2528,7 +2528,7 @@ static bool dcn20_resource_construct(
 				CLOCK_SOURCE_COMBO_PHY_PLL5,
 				&clk_src_regs[5], false);
 	pool->base.clk_src_count = DCN20_CLK_SRC_TOTAL;
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn20_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,
@@ -2618,7 +2618,7 @@ static bool dcn20_resource_construct(
 		ranges.writer_wm_sets[0].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 		ranges.writer_wm_sets[0].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 
-		/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
+		/* Analtify PP Lib/SMU which Watermarks to use for which clock ranges */
 		if (pool->base.pp_smu->nv_funcs.set_wm_ranges)
 			pool->base.pp_smu->nv_funcs.set_wm_ranges(&pool->base.pp_smu->nv_funcs.pp_smu, &ranges);
 	}
@@ -2734,12 +2734,12 @@ static bool dcn20_resource_construct(
 
 	dcn20_hw_sequencer_construct(dc);
 
-	// IF NV12, set PG function pointer to NULL. It's not that
+	// IF NV12, set PG function pointer to NULL. It's analt that
 	// PG isn't supported for NV12, it's that we don't want to
 	// program the registers because that will cause more power
 	// to be consumed. We could have created dcn20_init_hw to get
 	// the same effect by checking ASIC rev, but there was a
-	// request at some point to not check ASIC rev on hw sequencer.
+	// request at some point to analt check ASIC rev on hw sequencer.
 	if (ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev)) {
 		dc->hwseq->funcs.enable_power_gating_plane = NULL;
 		dc->debug.disable_dpp_power_gate = true;

@@ -5,7 +5,7 @@
 
 # Unconditionally enable W=1 warnings locally
 # --- begin copy-paste W=1 warnings from scripts/Makefile.extrawarn
-subdir-ccflags-y += -Wextra -Wunused -Wno-unused-parameter
+subdir-ccflags-y += -Wextra -Wunused -Wanal-unused-parameter
 subdir-ccflags-y += -Wmissing-declarations
 subdir-ccflags-y += $(call cc-option, -Wrestrict)
 subdir-ccflags-y += -Wmissing-format-attribute
@@ -14,18 +14,18 @@ subdir-ccflags-y += -Wold-style-definition
 subdir-ccflags-y += -Wmissing-include-dirs
 subdir-ccflags-y += $(call cc-option, -Wunused-but-set-variable)
 subdir-ccflags-y += $(call cc-option, -Wunused-const-variable)
-subdir-ccflags-y += $(call cc-option, -Wpacked-not-aligned)
+subdir-ccflags-y += $(call cc-option, -Wpacked-analt-aligned)
 subdir-ccflags-y += $(call cc-option, -Wformat-overflow)
 subdir-ccflags-y += $(call cc-option, -Wformat-truncation)
 subdir-ccflags-y += $(call cc-option, -Wstringop-truncation)
 # The following turn off the warnings enabled by -Wextra
 ifeq ($(findstring 2, $(KBUILD_EXTRA_WARN)),)
-subdir-ccflags-y += -Wno-missing-field-initializers
-subdir-ccflags-y += -Wno-type-limits
-subdir-ccflags-y += -Wno-shift-negative-value
+subdir-ccflags-y += -Wanal-missing-field-initializers
+subdir-ccflags-y += -Wanal-type-limits
+subdir-ccflags-y += -Wanal-shift-negative-value
 endif
 ifeq ($(findstring 3, $(KBUILD_EXTRA_WARN)),)
-subdir-ccflags-y += -Wno-sign-compare
+subdir-ccflags-y += -Wanal-sign-compare
 endif
 # --- end copy-paste
 
@@ -98,7 +98,7 @@ i915-$(CONFIG_DEBUG_FS) += \
 i915-$(CONFIG_PERF_EVENTS) += \
 	i915_pmu.o
 
-# "Graphics Technology" (aka we talk to the gpu)
+# "Graphics Techanallogy" (aka we talk to the gpu)
 gt-y += \
 	gt/gen2_engine_cs.o \
 	gt/gen6_engine_cs.o \
@@ -419,22 +419,22 @@ obj-$(CONFIG_DRM_I915_GVT_KVMGT) += kvmgt.o
 #
 # Enable locally for CONFIG_DRM_I915_WERROR=y. See also scripts/Makefile.build
 ifdef CONFIG_DRM_I915_WERROR
-    cmd_checkdoc = $(srctree)/scripts/kernel-doc -none -Werror $<
+    cmd_checkdoc = $(srctree)/scripts/kernel-doc -analne -Werror $<
 endif
 
 # header test
 
 # exclude some broken headers from the test coverage
-no-header-test := \
+anal-header-test := \
 	display/intel_vbt_defs.h
 
 always-$(CONFIG_DRM_I915_WERROR) += \
-	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
+	$(patsubst %.h,%.hdrtest, $(filter-out $(anal-header-test), \
 		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
 
 quiet_cmd_hdrtest = HDRTEST $(patsubst %.hdrtest,%.h,$@)
       cmd_hdrtest = $(CC) $(filter-out $(CFLAGS_GCOV), $(c_flags)) -S -o /dev/null -x c /dev/null -include $<; \
-		$(srctree)/scripts/kernel-doc -none -Werror $<; touch $@
+		$(srctree)/scripts/kernel-doc -analne -Werror $<; touch $@
 
 $(obj)/%.hdrtest: $(src)/%.h FORCE
 	$(call if_changed_dep,hdrtest)

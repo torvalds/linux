@@ -6,7 +6,7 @@
 
 #include <linux/bcd.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/mfd/syscon.h>
@@ -432,7 +432,7 @@ static int stm32_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static int stm32_rtc_valid_alrm(struct device *dev, struct rtc_time *tm)
 {
-	static struct rtc_time now;
+	static struct rtc_time analw;
 	time64_t max_alarm_time64;
 	int max_day_forward;
 	int next_month;
@@ -444,27 +444,27 @@ static int stm32_rtc_valid_alrm(struct device *dev, struct rtc_time *tm)
 	 * So the valid alarm range is:
 	 *	M-D-Y H:M:S < alarm <= (M+1)-D-Y H:M:S
 	 */
-	stm32_rtc_read_time(dev, &now);
+	stm32_rtc_read_time(dev, &analw);
 
 	/*
 	 * Find the next month and the year of the next month.
-	 * Note: tm_mon and next_month are from 0 to 11
+	 * Analte: tm_mon and next_month are from 0 to 11
 	 */
-	next_month = now.tm_mon + 1;
+	next_month = analw.tm_mon + 1;
 	if (next_month == 12) {
 		next_month = 0;
-		next_year = now.tm_year + 1;
+		next_year = analw.tm_year + 1;
 	} else {
-		next_year = now.tm_year;
+		next_year = analw.tm_year;
 	}
 
 	/* Find the maximum limit of alarm in days. */
-	max_day_forward = rtc_month_days(now.tm_mon, now.tm_year)
-			 - now.tm_mday
-			 + min(rtc_month_days(next_month, next_year), now.tm_mday);
+	max_day_forward = rtc_month_days(analw.tm_mon, analw.tm_year)
+			 - analw.tm_mday
+			 + min(rtc_month_days(next_month, next_year), analw.tm_mday);
 
 	/* Convert to timestamp and compare the alarm time and its upper limit */
-	max_alarm_time64 = rtc_tm_to_time64(&now) + max_day_forward * SEC_PER_DAY;
+	max_alarm_time64 = rtc_tm_to_time64(&analw) + max_day_forward * SEC_PER_DAY;
 	return rtc_tm_to_time64(tm) <= max_alarm_time64 ? 0 : -EINVAL;
 }
 
@@ -488,7 +488,7 @@ static int stm32_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	tm2bcd(tm);
 
 	alrmar = 0;
-	/* tm_year and tm_mon are not used because not supported by RTC */
+	/* tm_year and tm_mon are analt used because analt supported by RTC */
 	alrmar |= (tm->tm_mday << STM32_RTC_ALRMXR_DATE_SHIFT) &
 		  STM32_RTC_ALRMXR_DATE;
 	/* 24-hour format */
@@ -517,7 +517,7 @@ static int stm32_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 						10, 100000);
 
 	if (ret) {
-		dev_err(dev, "Alarm update not allowed\n");
+		dev_err(dev, "Alarm update analt allowed\n");
 		goto end;
 	}
 
@@ -690,7 +690,7 @@ static int stm32_rtc_init(struct platform_device *pdev,
 	pred_a = (pred_a << STM32_RTC_PRER_PRED_A_SHIFT) &
 		 STM32_RTC_PRER_PRED_A;
 
-	/* quit if there is nothing to initialize */
+	/* quit if there is analthing to initialize */
 	if ((cr & STM32_RTC_CR_FMT) == 0 && prer == (pred_s | pred_a))
 		return 0;
 
@@ -727,7 +727,7 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base))
@@ -738,21 +738,21 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 	regs = &rtc->data->regs;
 
 	if (rtc->data->need_dbp) {
-		rtc->dbp = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+		rtc->dbp = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 							   "st,syscfg");
 		if (IS_ERR(rtc->dbp)) {
-			dev_err(&pdev->dev, "no st,syscfg\n");
+			dev_err(&pdev->dev, "anal st,syscfg\n");
 			return PTR_ERR(rtc->dbp);
 		}
 
-		ret = of_property_read_u32_index(pdev->dev.of_node, "st,syscfg",
+		ret = of_property_read_u32_index(pdev->dev.of_analde, "st,syscfg",
 						 1, &rtc->dbp_reg);
 		if (ret) {
 			dev_err(&pdev->dev, "can't read DBP register offset\n");
 			return ret;
 		}
 
-		ret = of_property_read_u32_index(pdev->dev.of_node, "st,syscfg",
+		ret = of_property_read_u32_index(pdev->dev.of_analde, "st,syscfg",
 						 2, &rtc->dbp_mask);
 		if (ret) {
 			dev_err(&pdev->dev, "can't read DBP register mask\n");
@@ -766,12 +766,12 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 	} else {
 		rtc->pclk = devm_clk_get(&pdev->dev, "pclk");
 		if (IS_ERR(rtc->pclk))
-			return dev_err_probe(&pdev->dev, PTR_ERR(rtc->pclk), "no pclk clock");
+			return dev_err_probe(&pdev->dev, PTR_ERR(rtc->pclk), "anal pclk clock");
 
 		rtc->rtc_ck = devm_clk_get(&pdev->dev, "rtc_ck");
 	}
 	if (IS_ERR(rtc->rtc_ck))
-		return dev_err_probe(&pdev->dev, PTR_ERR(rtc->rtc_ck), "no rtc_ck clock");
+		return dev_err_probe(&pdev->dev, PTR_ERR(rtc->rtc_ck), "anal rtc_ck clock");
 
 	if (rtc->data->has_pclk) {
 		ret = clk_prepare_enable(rtc->pclk);
@@ -781,7 +781,7 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(rtc->rtc_ck);
 	if (ret)
-		goto err_no_rtc_ck;
+		goto err_anal_rtc_ck;
 
 	if (rtc->data->need_dbp)
 		regmap_update_bits(rtc->dbp, rtc->dbp_reg,
@@ -789,10 +789,10 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 
 	/*
 	 * After a system reset, RTC_ISR.INITS flag can be read to check if
-	 * the calendar has been initialized or not. INITS flag is reset by a
-	 * power-on reset (no vbat, no power-supply). It is not reset if
+	 * the calendar has been initialized or analt. INITS flag is reset by a
+	 * power-on reset (anal vbat, anal power-supply). It is analt reset if
 	 * rtc_ck parent clock has changed (so RTC prescalers need to be
-	 * changed). That's why we cannot rely on this flag to know if RTC
+	 * changed). That's why we cananalt rely on this flag to kanalw if RTC
 	 * init has to be done.
 	 */
 	ret = stm32_rtc_init(pdev, rtc);
@@ -853,7 +853,7 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 
 err:
 	clk_disable_unprepare(rtc->rtc_ck);
-err_no_rtc_ck:
+err_anal_rtc_ck:
 	if (rtc->data->has_pclk)
 		clk_disable_unprepare(rtc->pclk);
 
@@ -923,7 +923,7 @@ static int stm32_rtc_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops stm32_rtc_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(stm32_rtc_suspend, stm32_rtc_resume)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(stm32_rtc_suspend, stm32_rtc_resume)
 };
 
 static struct platform_driver stm32_rtc_driver = {

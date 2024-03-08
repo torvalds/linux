@@ -6,10 +6,10 @@ Required properties
 - #size-cells: must be 0
 - reg: typically 0x68
 
-Each led is represented as a sub-node of the ti,tlc59116.
+Each led is represented as a sub-analde of the ti,tlc59116.
 See Documentation/devicetree/bindings/leds/common.txt
 
-LED sub-node properties:
+LED sub-analde properties:
 - reg: number of LED line, 0 to 15 or 0 to 7
 - label: (optional) name of LED
 - linux,default-trigger : (optional)

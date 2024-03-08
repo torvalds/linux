@@ -2,7 +2,7 @@
 
 #include <arpa/inet.h>
 #include <error.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 
 int main(void)
@@ -20,50 +20,50 @@ int main(void)
 
 	fd1 = socket(AF_INET6, SOCK_STREAM, IPPROTO_IP);
 	if (fd1 < 0) {
-		error(1, errno, "socket fd1");
+		error(1, erranal, "socket fd1");
 		return -1;
 	}
 
 	if (setsockopt(fd1, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one))) {
-		error(1, errno, "setsockopt(SO_REUSEADDR) fd1");
+		error(1, erranal, "setsockopt(SO_REUSEADDR) fd1");
 		goto out_err1;
 	}
 
 	if (bind(fd1, (struct sockaddr *)&bind_addr, sizeof(bind_addr))) {
-		error(1, errno, "bind fd1");
+		error(1, erranal, "bind fd1");
 		goto out_err1;
 	}
 
 	if (sendto(fd1, NULL, 0, MSG_FASTOPEN, (struct sockaddr *)&bind_addr,
 		   sizeof(bind_addr))) {
-		error(1, errno, "sendto fd1");
+		error(1, erranal, "sendto fd1");
 		goto out_err1;
 	}
 
 	fd2 = socket(AF_INET6, SOCK_STREAM, IPPROTO_IP);
 	if (fd2 < 0) {
-		error(1, errno, "socket fd2");
+		error(1, erranal, "socket fd2");
 		goto out_err1;
 	}
 
 	if (setsockopt(fd2, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one))) {
-		error(1, errno, "setsockopt(SO_REUSEADDR) fd2");
+		error(1, erranal, "setsockopt(SO_REUSEADDR) fd2");
 		goto out_err2;
 	}
 
 	if (bind(fd2, (struct sockaddr *)&bind_addr, sizeof(bind_addr))) {
-		error(1, errno, "bind fd2");
+		error(1, erranal, "bind fd2");
 		goto out_err2;
 	}
 
 	if (sendto(fd2, NULL, 0, MSG_FASTOPEN, (struct sockaddr *)&bind_addr,
 		   sizeof(bind_addr)) != -1) {
-		error(1, errno, "sendto fd2");
+		error(1, erranal, "sendto fd2");
 		goto out_err2;
 	}
 
 	if (listen(fd2, 0)) {
-		error(1, errno, "listen");
+		error(1, erranal, "listen");
 		goto out_err2;
 	}
 

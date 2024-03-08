@@ -2,7 +2,7 @@
 /*
  * linux/arch/sh/boards/se/7780/setup.c
  *
- * Copyright (C) 2006,2007  Nobuhiro Iwamatsu
+ * Copyright (C) 2006,2007  Analbuhiro Iwamatsu
  *
  * Hitachi UL SolutionEngine 7780 Support.
  */

@@ -35,7 +35,7 @@ int __init fscache_proc_init(void)
 error:
 	remove_proc_entry("fs/fscache", NULL);
 error_sym:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*

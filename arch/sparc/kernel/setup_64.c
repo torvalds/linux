@@ -6,7 +6,7 @@
  *  Copyright (C) 1997       Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -103,16 +103,16 @@ static void __init process_switch(char c)
 	case 'P':
 		/* Force UltraSPARC-III P-Cache on. */
 		if (tlb_type != cheetah) {
-			printk("BOOT: Ignoring P-Cache force option.\n");
+			printk("BOOT: Iganalring P-Cache force option.\n");
 			break;
 		}
 		cheetah_pcache_forced_on = 1;
-		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_ANALW_UNRELIABLE);
 		cheetah_enable_pcache();
 		break;
 
 	default:
-		printk("Unknown boot switch (-%c)\n", c);
+		printk("Unkanalwn boot switch (-%c)\n", c);
 		break;
 	}
 }
@@ -164,8 +164,8 @@ static void __init per_cpu_patch(void)
 	is_jbus = 0;
 	if (tlb_type != hypervisor) {
 		__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-		is_jbus = ((ver >> 32UL) == __JALAPENO_ID ||
-			   (ver >> 32UL) == __SERRANO_ID);
+		is_jbus = ((ver >> 32UL) == __JALAPEANAL_ID ||
+			   (ver >> 32UL) == __SERRAANAL_ID);
 	}
 
 	p = &__cpuid_patch;
@@ -188,7 +188,7 @@ static void __init per_cpu_patch(void)
 			insns = &p->sun4v[0];
 			break;
 		default:
-			prom_printf("Unknown cpu type, halting.\n");
+			prom_printf("Unkanalwn cpu type, halting.\n");
 			prom_halt();
 		}
 
@@ -382,7 +382,7 @@ static const char *hwcaps[] = {
 	"ultra3", "blkinit", "n2",
 
 	/* These strings are as they appear in the machine description
-	 * 'hwcap-list' property for cpu nodes.
+	 * 'hwcap-list' property for cpu analdes.
 	 */
 	"mul32", "div32", "fsmuld", "v8plus", "popc", "vis", "vis2",
 	"ASIBlkInit", "fmaf", "vis3", "hpc", "random", "trans", "fjfmau",
@@ -478,8 +478,8 @@ static unsigned long __init mdesc_cpu_hwcap_list(void)
 	if (!hp)
 		return 0;
 
-	pn = mdesc_node_by_name(hp, MDESC_NODE_NULL, "cpu");
-	if (pn == MDESC_NODE_NULL)
+	pn = mdesc_analde_by_name(hp, MDESC_ANALDE_NULL, "cpu");
+	if (pn == MDESC_ANALDE_NULL)
 		goto out;
 
 	prop = mdesc_get_property(hp, pn, "hwcap-list", &len);
@@ -601,21 +601,21 @@ static void __init init_sparc64_elf_hwcap(void)
 
 void __init alloc_irqstack_bootmem(void)
 {
-	unsigned int i, node;
+	unsigned int i, analde;
 
 	for_each_possible_cpu(i) {
-		node = cpu_to_node(i);
+		analde = cpu_to_analde(i);
 
-		softirq_stack[i] = memblock_alloc_node(THREAD_SIZE,
-						       THREAD_SIZE, node);
+		softirq_stack[i] = memblock_alloc_analde(THREAD_SIZE,
+						       THREAD_SIZE, analde);
 		if (!softirq_stack[i])
 			panic("%s: Failed to allocate %lu bytes align=%lx nid=%d\n",
-			      __func__, THREAD_SIZE, THREAD_SIZE, node);
-		hardirq_stack[i] = memblock_alloc_node(THREAD_SIZE,
-						       THREAD_SIZE, node);
+			      __func__, THREAD_SIZE, THREAD_SIZE, analde);
+		hardirq_stack[i] = memblock_alloc_analde(THREAD_SIZE,
+						       THREAD_SIZE, analde);
 		if (!hardirq_stack[i])
 			panic("%s: Failed to allocate %lu bytes align=%lx nid=%d\n",
-			      __func__, THREAD_SIZE, THREAD_SIZE, node);
+			      __func__, THREAD_SIZE, THREAD_SIZE, analde);
 	}
 }
 
@@ -674,7 +674,7 @@ void __init setup_arch(char **cmdline_p)
 	smp_fill_in_cpu_possible_map();
 	/*
 	 * Once the OF device tree and MDESC have been setup and nr_cpus has
-	 * been parsed, we know the list of possible cpus.  Therefore we can
+	 * been parsed, we kanalw the list of possible cpus.  Therefore we can
 	 * allocate the IRQ stacks.
 	 */
 	alloc_irqstack_bootmem();

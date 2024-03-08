@@ -26,7 +26,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/iqs62x.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -66,7 +66,7 @@
 #define IQS62X_PWR_SETTINGS_DIS_AUTO		BIT(5)
 #define IQS62X_PWR_SETTINGS_PWR_MODE_MASK	(BIT(4) | BIT(3))
 #define IQS62X_PWR_SETTINGS_PWR_MODE_HALT	(BIT(4) | BIT(3))
-#define IQS62X_PWR_SETTINGS_PWR_MODE_NORM	0
+#define IQS62X_PWR_SETTINGS_PWR_MODE_ANALRM	0
 
 #define IQS62X_OTP_CMD				0xF0
 #define IQS62X_OTP_CMD_FG3			0x13
@@ -188,13 +188,13 @@ static int iqs62x_dev_init(struct iqs62x_core *iqs62x)
 	}
 
 	/*
-	 * Place the device in streaming mode at first so as not to miss the
+	 * Place the device in streaming mode at first so as analt to miss the
 	 * limited number of interrupts that would otherwise occur after ATI
 	 * completes. The device is subsequently placed in event mode by the
 	 * interrupt handler.
 	 *
 	 * In the meantime, mask interrupts during ATI to prevent the device
-	 * from soliciting I2C traffic until the noise-sensitive ATI process
+	 * from soliciting I2C traffic until the analise-sensitive ATI process
 	 * is complete.
 	 */
 	ret = regmap_update_bits(iqs62x->regmap, IQS62X_SYS_SETTINGS,
@@ -274,7 +274,7 @@ static int iqs62x_firmware_parse(struct iqs62x_core *iqs62x,
 				if (!hall_cal_index) {
 					dev_err(&client->dev,
 						"Uncalibrated device\n");
-					ret = -ENODATA;
+					ret = -EANALDATA;
 					break;
 				}
 			}
@@ -320,7 +320,7 @@ static int iqs62x_firmware_parse(struct iqs62x_core *iqs62x,
 				      struct_size(fw_blk, data, len),
 				      GFP_KERNEL);
 		if (!fw_blk) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -473,7 +473,7 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 	if (ret) {
 		dev_err(&client->dev, "Failed to read device status: %d\n",
 			ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	for (i = 0; i < sizeof(event_map); i++) {
@@ -485,7 +485,7 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 			fallthrough;
 
 		case IQS62X_EVENT_UI_HI:
-		case IQS62X_EVENT_NONE:
+		case IQS62X_EVENT_ANALNE:
 			continue;
 
 		case IQS62X_EVENT_ALS:
@@ -525,7 +525,7 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 	/*
 	 * The device resets itself in response to the I2C master stalling
 	 * communication past a fixed timeout. In this case, all registers
-	 * are restored and any interested sub-device drivers are notified.
+	 * are restored and any interested sub-device drivers are analtified.
 	 */
 	if (event_flags & BIT(IQS62X_EVENT_SYS_RESET)) {
 		dev_err(&client->dev, "Unexpected device reset\n");
@@ -534,7 +534,7 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 		if (ret) {
 			dev_err(&client->dev,
 				"Failed to re-initialize device: %d\n", ret);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		iqs62x->event_cache |= BIT(IQS62X_EVENT_SYS_RESET);
@@ -548,7 +548,7 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 		if (ret) {
 			dev_err(&client->dev,
 				"Failed to enable event mode: %d\n", ret);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		msleep(IQS62X_FILT_SETTLE_MS);
@@ -556,16 +556,16 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 	}
 
 	/*
-	 * Reset and ATI events are not broadcast to the sub-device drivers
+	 * Reset and ATI events are analt broadcast to the sub-device drivers
 	 * until ATI has completed. Any other events that may have occurred
-	 * during ATI are ignored.
+	 * during ATI are iganalred.
 	 */
 	if (completion_done(&iqs62x->ati_done)) {
 		event_flags |= iqs62x->event_cache;
-		ret = blocking_notifier_call_chain(&iqs62x->nh, event_flags,
+		ret = blocking_analtifier_call_chain(&iqs62x->nh, event_flags,
 						   &event_data);
-		if (ret & NOTIFY_STOP_MASK)
-			return IRQ_NONE;
+		if (ret & ANALTIFY_STOP_MASK)
+			return IRQ_ANALNE;
 
 		iqs62x->event_cache = 0;
 	}
@@ -615,7 +615,7 @@ static void iqs62x_firmware_load(const struct firmware *fw, void *context)
 		goto err_out;
 	}
 
-	ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_ANALNE,
 				   iqs62x->dev_desc->sub_devs,
 				   iqs62x->dev_desc->num_sub_devs,
 				   NULL, 0, NULL);
@@ -695,38 +695,38 @@ static const u8 iqs621_cal_regs[] = {
 static const enum iqs62x_event_reg iqs620a_event_regs[][IQS62X_EVENT_SIZE] = {
 	[IQS62X_UI_PROX] = {
 		IQS62X_EVENT_SYS,	/* 0x10 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_PROX,	/* 0x12 */
 		IQS62X_EVENT_HYST,	/* 0x13 */
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_HALL,	/* 0x16 */
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
 	},
 	[IQS62X_UI_SAR1] = {
 		IQS62X_EVENT_SYS,	/* 0x10 */
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_HYST,	/* 0x13 */
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_HALL,	/* 0x16 */
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
 	},
 };
 
 static const enum iqs62x_event_reg iqs621_event_regs[][IQS62X_EVENT_SIZE] = {
 	[IQS62X_UI_PROX] = {
 		IQS62X_EVENT_SYS,	/* 0x10 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_PROX,	/* 0x12 */
 		IQS62X_EVENT_HYST,	/* 0x13 */
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_ALS,	/* 0x16 */
 		IQS62X_EVENT_UI_LO,	/* 0x17 */
 		IQS62X_EVENT_UI_HI,	/* 0x18 */
@@ -737,11 +737,11 @@ static const enum iqs62x_event_reg iqs621_event_regs[][IQS62X_EVENT_SIZE] = {
 static const enum iqs62x_event_reg iqs622_event_regs[][IQS62X_EVENT_SIZE] = {
 	[IQS62X_UI_PROX] = {
 		IQS62X_EVENT_SYS,	/* 0x10 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_PROX,	/* 0x12 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_ALS,	/* 0x14 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_IR,	/* 0x16 */
 		IQS62X_EVENT_UI_LO,	/* 0x17 */
 		IQS62X_EVENT_UI_HI,	/* 0x18 */
@@ -749,11 +749,11 @@ static const enum iqs62x_event_reg iqs622_event_regs[][IQS62X_EVENT_SIZE] = {
 	},
 	[IQS62X_UI_SAR1] = {
 		IQS62X_EVENT_SYS,	/* 0x10 */
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_HYST,	/* 0x13 */
 		IQS62X_EVENT_ALS,	/* 0x14 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_IR,	/* 0x16 */
 		IQS62X_EVENT_UI_LO,	/* 0x17 */
 		IQS62X_EVENT_UI_HI,	/* 0x18 */
@@ -764,15 +764,15 @@ static const enum iqs62x_event_reg iqs622_event_regs[][IQS62X_EVENT_SIZE] = {
 static const enum iqs62x_event_reg iqs624_event_regs[][IQS62X_EVENT_SIZE] = {
 	[IQS62X_UI_PROX] = {
 		IQS62X_EVENT_SYS,	/* 0x10 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_PROX,	/* 0x12 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_WHEEL,	/* 0x14 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 		IQS62X_EVENT_UI_LO,	/* 0x16 */
 		IQS62X_EVENT_UI_HI,	/* 0x17 */
 		IQS62X_EVENT_INTER,	/* 0x18 */
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
 	},
 };
 
@@ -781,13 +781,13 @@ static const enum iqs62x_event_reg iqs625_event_regs[][IQS62X_EVENT_SIZE] = {
 		IQS62X_EVENT_SYS,	/* 0x10 */
 		IQS62X_EVENT_PROX,	/* 0x11 */
 		IQS62X_EVENT_INTER,	/* 0x12 */
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
-		IQS62X_EVENT_NONE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
+		IQS62X_EVENT_ANALNE,
 	},
 };
 
@@ -902,12 +902,12 @@ static int iqs62x_probe(struct i2c_client *client)
 
 	iqs62x = devm_kzalloc(&client->dev, sizeof(*iqs62x), GFP_KERNEL);
 	if (!iqs62x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, iqs62x);
 	iqs62x->client = client;
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&iqs62x->nh);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&iqs62x->nh);
 	INIT_LIST_HEAD(&iqs62x->fw_blk_head);
 
 	init_completion(&iqs62x->ati_done);
@@ -929,14 +929,14 @@ static int iqs62x_probe(struct i2c_client *client)
 	/*
 	 * The following sequence validates the device's product and software
 	 * numbers. It then determines if the device is factory-calibrated by
-	 * checking for nonzero values in the device's designated calibration
+	 * checking for analnzero values in the device's designated calibration
 	 * registers (if applicable). Depending on the device, the absence of
 	 * calibration data indicates a reduced feature set or invalid device.
 	 *
 	 * For devices given in both calibrated and uncalibrated versions, the
 	 * calibrated version (e.g. IQS620AT) appears first in the iqs62x_devs
 	 * array. The uncalibrated version (e.g. IQS620A) appears next and has
-	 * the same product and software numbers, but no calibration registers
+	 * the same product and software numbers, but anal calibration registers
 	 * are specified.
 	 */
 	for (i = 0; i < ARRAY_SIZE(iqs62x_devs); i++) {
@@ -969,10 +969,10 @@ static int iqs62x_probe(struct i2c_client *client)
 		}
 
 		/*
-		 * If the number of nonzero values read from the device equals
+		 * If the number of analnzero values read from the device equals
 		 * the number of designated calibration registers (which could
 		 * be zero), exit from the outer loop early to signal that the
-		 * device's product and software numbers match a known device,
+		 * device's product and software numbers match a kanalwn device,
 		 * and the device is calibrated (if applicable).
 		 */
 		if (j == iqs62x->dev_desc->num_cal_regs)
@@ -993,12 +993,12 @@ static int iqs62x_probe(struct i2c_client *client)
 
 	if (i == ARRAY_SIZE(iqs62x_devs)) {
 		dev_err(&client->dev, "Uncalibrated device\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	device_property_read_string(&client->dev, "firmware-name", &fw_name);
 
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+	ret = request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT,
 				      fw_name ? : iqs62x->dev_desc->fw_name,
 				      &client->dev, GFP_KERNEL, iqs62x,
 				      iqs62x_firmware_load);
@@ -1043,7 +1043,7 @@ static int __maybe_unused iqs62x_resume(struct device *dev)
 
 	ret = regmap_update_bits(iqs62x->regmap, IQS62X_PWR_SETTINGS,
 				 IQS62X_PWR_SETTINGS_PWR_MODE_MASK,
-				 IQS62X_PWR_SETTINGS_PWR_MODE_NORM);
+				 IQS62X_PWR_SETTINGS_PWR_MODE_ANALRM);
 	if (ret)
 		return ret;
 

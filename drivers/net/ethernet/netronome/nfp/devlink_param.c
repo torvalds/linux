@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #include <net/devlink.h>
 
@@ -11,8 +11,8 @@
  * struct nfp_devlink_param_u8_arg - Devlink u8 parameter get/set arguments
  * @hwinfo_name:	HWinfo key name
  * @default_hi_val:	Default HWinfo value if HWinfo doesn't exist
- * @invalid_dl_val:	Devlink value to use if HWinfo is unknown/invalid.
- *			-errno if there is no unknown/invalid value available
+ * @invalid_dl_val:	Devlink value to use if HWinfo is unkanalwn/invalid.
+ *			-erranal if there is anal unkanalwn/invalid value available
  * @hi_to_dl:	HWinfo to devlink value mapping
  * @dl_to_hi:	Devlink to hwinfo value mapping
  * @max_dl_val:	Maximum devlink value supported, for validation only
@@ -33,7 +33,7 @@ static const struct nfp_devlink_param_u8_arg nfp_devlink_u8_args[] = {
 		.hwinfo_name = "app_fw_from_flash",
 		.default_hi_val = NFP_NSP_APP_FW_LOAD_DEFAULT,
 		.invalid_dl_val =
-			DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_UNKNOWN,
+			DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_UNKANALWN,
 		.hi_to_dl = {
 			[NFP_NSP_APP_FW_LOAD_DISK] =
 				DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DISK,
@@ -57,7 +57,7 @@ static const struct nfp_devlink_param_u8_arg nfp_devlink_u8_args[] = {
 		.hwinfo_name = "abi_drv_reset",
 		.default_hi_val = NFP_NSP_DRV_RESET_DEFAULT,
 		.invalid_dl_val =
-			DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_UNKNOWN,
+			DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_UNKANALWN,
 		.hi_to_dl = {
 			[NFP_NSP_DRV_RESET_ALWAYS] =
 				DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_ALWAYS,
@@ -91,7 +91,7 @@ nfp_devlink_param_u8_get(struct devlink *devlink, u32 id,
 	int err;
 
 	if (id >= ARRAY_SIZE(nfp_devlink_u8_args))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	arg = &nfp_devlink_u8_args[id];
 
@@ -141,7 +141,7 @@ nfp_devlink_param_u8_set(struct devlink *devlink, u32 id,
 	int err;
 
 	if (id >= ARRAY_SIZE(nfp_devlink_u8_args))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	arg = &nfp_devlink_u8_args[id];
 
@@ -152,7 +152,7 @@ nfp_devlink_param_u8_set(struct devlink *devlink, u32 id,
 		return err;
 	}
 
-	/* Note the value has already been validated. */
+	/* Analte the value has already been validated. */
 	snprintf(hwinfo, sizeof(hwinfo), "%s=%u",
 		 arg->hwinfo_name, arg->dl_to_hi[ctx->val.vu8]);
 	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
@@ -174,7 +174,7 @@ nfp_devlink_param_u8_validate(struct devlink *devlink, u32 id,
 	const struct nfp_devlink_param_u8_arg *arg;
 
 	if (id >= ARRAY_SIZE(nfp_devlink_u8_args))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	arg = &nfp_devlink_u8_args[id];
 
@@ -184,7 +184,7 @@ nfp_devlink_param_u8_validate(struct devlink *devlink, u32 id,
 	}
 
 	if (val.vu8 == arg->invalid_dl_val) {
-		NL_SET_ERR_MSG_MOD(extack, "unknown/invalid value specified");
+		NL_SET_ERR_MSG_MOD(extack, "unkanalwn/invalid value specified");
 		return -EINVAL;
 	}
 

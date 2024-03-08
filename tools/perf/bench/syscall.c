@@ -155,7 +155,7 @@ static int bench_syscall_common(int argc, const char **argv, int syscall)
 
 	default:
 		/* reaching here is something disaster */
-		fprintf(stderr, "Unknown format:%d\n", bench_format);
+		fprintf(stderr, "Unkanalwn format:%d\n", bench_format);
 		exit(1);
 		break;
 	}

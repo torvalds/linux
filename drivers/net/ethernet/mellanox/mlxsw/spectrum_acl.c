@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/rhashtable.h>
@@ -52,7 +52,7 @@ struct mlxsw_sp_acl_ruleset_ht_key {
 };
 
 struct mlxsw_sp_acl_ruleset {
-	struct rhash_head ht_node; /* Member of acl HT */
+	struct rhash_head ht_analde; /* Member of acl HT */
 	struct mlxsw_sp_acl_ruleset_ht_key ht_key;
 	struct rhashtable rule_ht;
 	unsigned int ref_count;
@@ -63,7 +63,7 @@ struct mlxsw_sp_acl_ruleset {
 };
 
 struct mlxsw_sp_acl_rule {
-	struct rhash_head ht_node; /* Member of rule HT */
+	struct rhash_head ht_analde; /* Member of rule HT */
 	struct list_head list;
 	unsigned long cookie; /* HT key */
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -79,14 +79,14 @@ struct mlxsw_sp_acl_rule {
 static const struct rhashtable_params mlxsw_sp_acl_ruleset_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_acl_ruleset_ht_key),
 	.key_offset = offsetof(struct mlxsw_sp_acl_ruleset, ht_key),
-	.head_offset = offsetof(struct mlxsw_sp_acl_ruleset, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_acl_ruleset, ht_analde),
 	.automatic_shrinking = true,
 };
 
 static const struct rhashtable_params mlxsw_sp_acl_rule_ht_params = {
 	.key_len = sizeof(unsigned long),
 	.key_offset = offsetof(struct mlxsw_sp_acl_rule, cookie),
-	.head_offset = offsetof(struct mlxsw_sp_acl_rule, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_acl_rule, ht_analde),
 	.automatic_shrinking = true,
 };
 
@@ -175,7 +175,7 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	alloc_size = sizeof(*ruleset) + ops->ruleset_priv_size;
 	ruleset = kzalloc(alloc_size, GFP_KERNEL);
 	if (!ruleset)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ruleset->ref_count = 1;
 	ruleset->ht_key.block = block;
 	ruleset->ht_key.chain_index = chain_index;
@@ -191,7 +191,7 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_ops_ruleset_add;
 
-	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_node,
+	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_analde,
 				     mlxsw_sp_acl_ruleset_ht_params);
 	if (err)
 		goto err_ht_insert;
@@ -213,7 +213,7 @@ static void mlxsw_sp_acl_ruleset_destroy(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 
-	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
+	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_analde,
 			       mlxsw_sp_acl_ruleset_ht_params);
 	ops->ruleset_del(mlxsw_sp, ruleset->priv);
 	rhashtable_destroy(&ruleset->rule_ht);
@@ -262,7 +262,7 @@ mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 		return ERR_PTR(-EINVAL);
 	ruleset = __mlxsw_sp_acl_ruleset_lookup(acl, block, chain_index, ops);
 	if (!ruleset)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	return ruleset;
 }
 
@@ -319,7 +319,7 @@ mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl,
 
 	rulei = kzalloc(sizeof(*rulei), GFP_KERNEL);
 	if (!rulei)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (afa_block) {
 		rulei->act_block = afa_block;
@@ -455,7 +455,7 @@ int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 
 	if (!list_is_singular(&block->binding_list)) {
 		NL_SET_ERR_MSG_MOD(extack, "Only a single mirror source is allowed");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	binding = list_first_entry(&block->binding_list,
 				   struct mlxsw_sp_flow_block_binding, list);
@@ -596,7 +596,7 @@ mlxsw_sp_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_afa_block_append_qos_ecn(rulei->act_block,
 						      val, extack);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -608,7 +608,7 @@ static int mlxsw_sp1_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	err = mlxsw_sp_acl_rulei_act_mangle_field(mlxsw_sp, rulei, mact, val, extack);
-	if (err != -EOPNOTSUPP)
+	if (err != -EOPANALTSUPP)
 		return err;
 
 	NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
@@ -628,7 +628,7 @@ mlxsw_sp2_acl_rulei_act_mangle_field_ip_odd(struct mlxsw_sp_acl_rule_info *rulei
 	}
 
 	NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field order");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mlxsw_sp2_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
@@ -639,7 +639,7 @@ static int mlxsw_sp2_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	err = mlxsw_sp_acl_rulei_act_mangle_field(mlxsw_sp, rulei, mact, val, extack);
-	if (err != -EOPNOTSUPP)
+	if (err != -EOPANALTSUPP)
 		return err;
 
 	switch (mact->field) {
@@ -732,7 +732,7 @@ int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
 		}
 	}
 
-	NL_SET_ERR_MSG_MOD(extack, "Unknown mangle field");
+	NL_SET_ERR_MSG_MOD(extack, "Unkanalwn mangle field");
 	return -EINVAL;
 }
 
@@ -775,11 +775,11 @@ int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_afa_block_append_fid_set(rulei->act_block, fid, extack);
 }
 
-int mlxsw_sp_acl_rulei_act_ignore(struct mlxsw_sp *mlxsw_sp,
+int mlxsw_sp_acl_rulei_act_iganalre(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
 				  bool disable_learning, bool disable_security)
 {
-	return mlxsw_afa_block_append_ignore(rulei->act_block,
+	return mlxsw_afa_block_append_iganalre(rulei->act_block,
 					     disable_learning,
 					     disable_security);
 }
@@ -796,7 +796,7 @@ int mlxsw_sp_acl_rulei_act_sample(struct mlxsw_sp *mlxsw_sp,
 
 	if (!list_is_singular(&block->binding_list)) {
 		NL_SET_ERR_MSG_MOD(extack, "Only a single sampling source is allowed");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	binding = list_first_entry(&block->binding_list,
 				   struct mlxsw_sp_flow_block_binding, list);
@@ -824,7 +824,7 @@ mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 	rule = kzalloc(sizeof(*rule) + ops->rule_priv_size,
 		       GFP_KERNEL);
 	if (!rule) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 	rule->cookie = cookie;
@@ -867,7 +867,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	err = rhashtable_insert_fast(&ruleset->rule_ht, &rule->ht_node,
+	err = rhashtable_insert_fast(&ruleset->rule_ht, &rule->ht_analde,
 				     mlxsw_sp_acl_rule_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -892,7 +892,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_ruleset_block_bind:
-	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
+	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_analde,
 			       mlxsw_sp_acl_rule_ht_params);
 err_rhashtable_insert:
 	ops->rule_del(mlxsw_sp, rule->priv);
@@ -915,7 +915,7 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 	if (!ruleset->ht_key.chain_index &&
 	    mlxsw_sp_acl_ruleset_is_singular(ruleset))
 		mlxsw_sp_acl_ruleset_block_unbind(mlxsw_sp, ruleset, block);
-	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
+	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_analde,
 			       mlxsw_sp_acl_rule_ht_params);
 	ops->rule_del(mlxsw_sp, rule->priv);
 }
@@ -1001,7 +1001,7 @@ static void mlxsw_sp_acl_rule_activity_update_work(struct work_struct *work)
 
 	err = mlxsw_sp_acl_rules_activity_update(acl);
 	if (err)
-		dev_err(acl->mlxsw_sp->bus_info->dev, "Could not update acl activity");
+		dev_err(acl->mlxsw_sp->bus_info->dev, "Could analt update acl activity");
 
 	mlxsw_sp_acl_rule_activity_work_schedule(acl);
 }
@@ -1058,14 +1058,14 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	alloc_size = sizeof(*acl) + mlxsw_sp_acl_tcam_priv_size(mlxsw_sp);
 	acl = kzalloc(alloc_size, GFP_KERNEL);
 	if (!acl)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_sp->acl = acl;
 	acl->mlxsw_sp = mlxsw_sp;
 	acl->afk = mlxsw_afk_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						       ACL_FLEX_KEYS),
 				    mlxsw_sp->afk_ops);
 	if (!acl->afk) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_afk_create;
 	}
 

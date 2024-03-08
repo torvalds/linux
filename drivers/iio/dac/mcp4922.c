@@ -128,14 +128,14 @@ static int mcp4922_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*state));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = iio_priv(indio_dev);
 	state->spi = spi;
 	state->vref_reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(state->vref_reg))
 		return dev_err_probe(&spi->dev, PTR_ERR(state->vref_reg),
-				     "Vref regulator not specified\n");
+				     "Vref regulator analt specified\n");
 
 	ret = regulator_enable(state->vref_reg);
 	if (ret) {

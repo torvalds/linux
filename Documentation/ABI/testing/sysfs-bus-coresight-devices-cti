@@ -54,7 +54,7 @@ Contact:	Mike Leach or Mathieu Poirier
 Description:	(Read) Functional types for the output trigger signals
 		to connected device <N>
 
-What:		/sys/bus/coresight/devices/<cti-name>/regs/inout_sel
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ianalut_sel
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
@@ -64,13 +64,13 @@ What:		/sys/bus/coresight/devices/<cti-name>/regs/inen
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(RW) Read or write the CTIINEN register selected by inout_sel.
+Description:	(RW) Read or write the CTIINEN register selected by ianalut_sel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/outen
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(RW) Read or write the CTIOUTEN register selected by inout_sel.
+Description:	(RW) Read or write the CTIOUTEN register selected by ianalut_sel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/gate
 Date:		March 2020
@@ -211,7 +211,7 @@ What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_free
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(Read) show channels with no attached trigger signals.
+Description:	(Read) show channels with anal attached trigger signals.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_xtrigs_sel
 Date:		March 2020

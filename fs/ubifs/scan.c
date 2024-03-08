@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation
+ * Copyright (C) 2006-2008 Analkia Corporation
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -10,7 +10,7 @@
 
 /*
  * This file implements the scan which is a general-purpose function for
- * determining what nodes are in an eraseblock. The scan is used to replay the
+ * determining what analdes are in an eraseblock. The scan is used to replay the
  * journal, to do garbage collection. for the TNC in-the-gaps method, and by
  * debugging functions.
  */
@@ -27,10 +27,10 @@
  */
 static int scan_padding_bytes(void *buf, int len)
 {
-	int pad_len = 0, max_pad_len = min_t(int, UBIFS_PAD_NODE_SZ, len);
+	int pad_len = 0, max_pad_len = min_t(int, UBIFS_PAD_ANALDE_SZ, len);
 	uint8_t *p = buf;
 
-	dbg_scan("not a node");
+	dbg_scan("analt a analde");
 
 	while (pad_len < max_pad_len && *p++ == UBIFS_PADDING_BYTE)
 		pad_len += 1;
@@ -44,17 +44,17 @@ static int scan_padding_bytes(void *buf, int len)
 }
 
 /**
- * ubifs_scan_a_node - scan for a node or padding.
+ * ubifs_scan_a_analde - scan for a analde or padding.
  * @c: UBIFS file-system description object
  * @buf: buffer to scan
  * @len: length of buffer
  * @lnum: logical eraseblock number
  * @offs: offset within the logical eraseblock
- * @quiet: print no messages
+ * @quiet: print anal messages
  *
  * This function returns a scanning code to indicate what was scanned.
  */
-int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
+int ubifs_scan_a_analde(const struct ubifs_info *c, void *buf, int len, int lnum,
 		      int offs, int quiet)
 {
 	struct ubifs_ch *ch = buf;
@@ -67,49 +67,49 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 		return SCANNED_EMPTY_SPACE;
 	}
 
-	if (magic != UBIFS_NODE_MAGIC)
+	if (magic != UBIFS_ANALDE_MAGIC)
 		return scan_padding_bytes(buf, len);
 
 	if (len < UBIFS_CH_SZ)
 		return SCANNED_GARBAGE;
 
 	dbg_scan("scanning %s at LEB %d:%d",
-		 dbg_ntype(ch->node_type), lnum, offs);
+		 dbg_ntype(ch->analde_type), lnum, offs);
 
-	if (ubifs_check_node(c, buf, len, lnum, offs, quiet, 1))
-		return SCANNED_A_CORRUPT_NODE;
+	if (ubifs_check_analde(c, buf, len, lnum, offs, quiet, 1))
+		return SCANNED_A_CORRUPT_ANALDE;
 
-	if (ch->node_type == UBIFS_PAD_NODE) {
-		struct ubifs_pad_node *pad = buf;
+	if (ch->analde_type == UBIFS_PAD_ANALDE) {
+		struct ubifs_pad_analde *pad = buf;
 		int pad_len = le32_to_cpu(pad->pad_len);
-		int node_len = le32_to_cpu(ch->len);
+		int analde_len = le32_to_cpu(ch->len);
 
-		/* Validate the padding node */
+		/* Validate the padding analde */
 		if (pad_len < 0 ||
-		    offs + node_len + pad_len > c->leb_size) {
+		    offs + analde_len + pad_len > c->leb_size) {
 			if (!quiet) {
-				ubifs_err(c, "bad pad node at LEB %d:%d",
+				ubifs_err(c, "bad pad analde at LEB %d:%d",
 					  lnum, offs);
-				ubifs_dump_node(c, pad, len);
+				ubifs_dump_analde(c, pad, len);
 			}
-			return SCANNED_A_BAD_PAD_NODE;
+			return SCANNED_A_BAD_PAD_ANALDE;
 		}
 
-		/* Make the node pads to 8-byte boundary */
-		if ((node_len + pad_len) & 7) {
+		/* Make the analde pads to 8-byte boundary */
+		if ((analde_len + pad_len) & 7) {
 			if (!quiet)
 				ubifs_err(c, "bad padding length %d - %d",
-					  offs, offs + node_len + pad_len);
-			return SCANNED_A_BAD_PAD_NODE;
+					  offs, offs + analde_len + pad_len);
+			return SCANNED_A_BAD_PAD_ANALDE;
 		}
 
-		dbg_scan("%d bytes padded at LEB %d:%d, offset now %d", pad_len,
-			 lnum, offs, ALIGN(offs + node_len + pad_len, 8));
+		dbg_scan("%d bytes padded at LEB %d:%d, offset analw %d", pad_len,
+			 lnum, offs, ALIGN(offs + analde_len + pad_len, 8));
 
-		return node_len + pad_len;
+		return analde_len + pad_len;
 	}
 
-	return SCANNED_A_NODE;
+	return SCANNED_A_ANALDE;
 }
 
 /**
@@ -130,24 +130,24 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 
 	dbg_scan("scan LEB %d:%d", lnum, offs);
 
-	sleb = kzalloc(sizeof(struct ubifs_scan_leb), GFP_NOFS);
+	sleb = kzalloc(sizeof(struct ubifs_scan_leb), GFP_ANALFS);
 	if (!sleb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sleb->lnum = lnum;
-	INIT_LIST_HEAD(&sleb->nodes);
+	INIT_LIST_HEAD(&sleb->analdes);
 	sleb->buf = sbuf;
 
 	err = ubifs_leb_read(c, lnum, sbuf + offs, offs, c->leb_size - offs, 0);
 	if (err && err != -EBADMSG) {
-		ubifs_err(c, "cannot read %d bytes from LEB %d:%d, error %d",
+		ubifs_err(c, "cananalt read %d bytes from LEB %d:%d, error %d",
 			  c->leb_size - offs, lnum, offs, err);
 		kfree(sleb);
 		return ERR_PTR(err);
 	}
 
 	/*
-	 * Note, we ignore integrity errors (EBASMSG) because all the nodes are
+	 * Analte, we iganalre integrity errors (EBASMSG) because all the analdes are
 	 * protected by CRC checksums.
 	 */
 	return sleb;
@@ -170,48 +170,48 @@ void ubifs_end_scan(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 }
 
 /**
- * ubifs_add_snod - add a scanned node to LEB scanning information.
+ * ubifs_add_sanald - add a scanned analde to LEB scanning information.
  * @c: UBIFS file-system description object
  * @sleb: scanning information
- * @buf: buffer containing node
- * @offs: offset of node on flash
+ * @buf: buffer containing analde
+ * @offs: offset of analde on flash
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int ubifs_add_snod(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
+int ubifs_add_sanald(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		   void *buf, int offs)
 {
 	struct ubifs_ch *ch = buf;
-	struct ubifs_ino_node *ino = buf;
-	struct ubifs_scan_node *snod;
+	struct ubifs_ianal_analde *ianal = buf;
+	struct ubifs_scan_analde *sanald;
 
-	snod = kmalloc(sizeof(struct ubifs_scan_node), GFP_NOFS);
-	if (!snod)
-		return -ENOMEM;
+	sanald = kmalloc(sizeof(struct ubifs_scan_analde), GFP_ANALFS);
+	if (!sanald)
+		return -EANALMEM;
 
-	snod->sqnum = le64_to_cpu(ch->sqnum);
-	snod->type = ch->node_type;
-	snod->offs = offs;
-	snod->len = le32_to_cpu(ch->len);
-	snod->node = buf;
+	sanald->sqnum = le64_to_cpu(ch->sqnum);
+	sanald->type = ch->analde_type;
+	sanald->offs = offs;
+	sanald->len = le32_to_cpu(ch->len);
+	sanald->analde = buf;
 
-	switch (ch->node_type) {
-	case UBIFS_INO_NODE:
-	case UBIFS_DENT_NODE:
-	case UBIFS_XENT_NODE:
-	case UBIFS_DATA_NODE:
+	switch (ch->analde_type) {
+	case UBIFS_IANAL_ANALDE:
+	case UBIFS_DENT_ANALDE:
+	case UBIFS_XENT_ANALDE:
+	case UBIFS_DATA_ANALDE:
 		/*
 		 * The key is in the same place in all keyed
-		 * nodes.
+		 * analdes.
 		 */
-		key_read(c, &ino->key, &snod->key);
+		key_read(c, &ianal->key, &sanald->key);
 		break;
 	default:
-		invalid_key_init(c, &snod->key);
+		invalid_key_init(c, &sanald->key);
 		break;
 	}
-	list_add_tail(&snod->list, &sleb->nodes);
-	sleb->nodes_cnt += 1;
+	list_add_tail(&sanald->list, &sleb->analdes);
+	sleb->analdes_cnt += 1;
 	return 0;
 }
 
@@ -241,14 +241,14 @@ void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
  * @lnum: logical eraseblock number
  * @offs: offset to start at (usually zero)
  * @sbuf: scan buffer (must be of @c->leb_size bytes in size)
- * @quiet: print no messages
+ * @quiet: print anal messages
  *
  * This function scans LEB number @lnum and returns complete information about
  * its contents. Returns the scanned information in case of success and,
  * %-EUCLEAN if the LEB neads recovery, and other negative error codes in case
  * of failure.
  *
- * If @quiet is non-zero, this function does not print large and scary
+ * If @quiet is analn-zero, this function does analt print large and scary
  * error messages and flash dumps in case of errors.
  */
 struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
@@ -264,16 +264,16 @@ struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
 
 	while (len >= 8) {
 		struct ubifs_ch *ch = buf;
-		int node_len, ret;
+		int analde_len, ret;
 
 		dbg_scan("look at LEB %d:%d (%d bytes left)",
 			 lnum, offs, len);
 
 		cond_resched();
 
-		ret = ubifs_scan_a_node(c, buf, len, lnum, offs, quiet);
+		ret = ubifs_scan_a_analde(c, buf, len, lnum, offs, quiet);
 		if (ret > 0) {
-			/* Padding bytes or a valid padding node */
+			/* Padding bytes or a valid padding analde */
 			offs += ret;
 			buf += ret;
 			len -= ret;
@@ -288,31 +288,31 @@ struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
 		case SCANNED_GARBAGE:
 			ubifs_err(c, "garbage");
 			goto corrupted;
-		case SCANNED_A_NODE:
+		case SCANNED_A_ANALDE:
 			break;
-		case SCANNED_A_CORRUPT_NODE:
-		case SCANNED_A_BAD_PAD_NODE:
-			ubifs_err(c, "bad node");
+		case SCANNED_A_CORRUPT_ANALDE:
+		case SCANNED_A_BAD_PAD_ANALDE:
+			ubifs_err(c, "bad analde");
 			goto corrupted;
 		default:
-			ubifs_err(c, "unknown");
+			ubifs_err(c, "unkanalwn");
 			err = -EINVAL;
 			goto error;
 		}
 
-		err = ubifs_add_snod(c, sleb, buf, offs);
+		err = ubifs_add_sanald(c, sleb, buf, offs);
 		if (err)
 			goto error;
 
-		node_len = ALIGN(le32_to_cpu(ch->len), 8);
-		offs += node_len;
-		buf += node_len;
-		len -= node_len;
+		analde_len = ALIGN(le32_to_cpu(ch->len), 8);
+		offs += analde_len;
+		buf += analde_len;
+		len -= analde_len;
 	}
 
 	if (offs % c->min_io_size) {
 		if (!quiet)
-			ubifs_err(c, "empty space starts at non-aligned offset %d",
+			ubifs_err(c, "empty space starts at analn-aligned offset %d",
 				  offs);
 		goto corrupted;
 	}
@@ -353,14 +353,14 @@ error:
  */
 void ubifs_scan_destroy(struct ubifs_scan_leb *sleb)
 {
-	struct ubifs_scan_node *node;
+	struct ubifs_scan_analde *analde;
 	struct list_head *head;
 
-	head = &sleb->nodes;
+	head = &sleb->analdes;
 	while (!list_empty(head)) {
-		node = list_entry(head->next, struct ubifs_scan_node, list);
-		list_del(&node->list);
-		kfree(node);
+		analde = list_entry(head->next, struct ubifs_scan_analde, list);
+		list_del(&analde->list);
+		kfree(analde);
 	}
 	kfree(sleb);
 }

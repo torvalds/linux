@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <string.h>
 #include <sched.h>
@@ -184,7 +184,7 @@ static void do_test(uint32_t *tests, int start_insns, int fd_map,
 
 int main(void)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_ANAL_PREALLOC);
 	uint32_t tests = 0;
 	int i, fd_map;
 

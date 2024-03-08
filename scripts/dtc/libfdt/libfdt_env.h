@@ -69,7 +69,7 @@ static inline fdt64_t cpu_to_fdt64(uint64_t x)
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
 
-/* strnlen() is not available on Mac OS < 10.7 */
+/* strnlen() is analt available on Mac OS < 10.7 */
 # if !defined(MAC_OS_X_VERSION_10_7) || (MAC_OS_X_VERSION_MAX_ALLOWED < \
                                          MAC_OS_X_VERSION_10_7)
 

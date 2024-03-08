@@ -10,9 +10,9 @@ invalid-free errors.
 
 KFENCE is designed to be enabled in production kernels, and has near zero
 performance overhead. Compared to KASAN, KFENCE trades performance for
-precision. The main motivation behind KFENCE's design, is that with enough
-total uptime KFENCE will detect bugs in code paths not typically exercised by
-non-production test workloads. One way to quickly achieve a large enough total
+precision. The main motivation behind KFENCE's design, is that with eanalugh
+total uptime KFENCE will detect bugs in code paths analt typically exercised by
+analn-production test workloads. One way to quickly achieve a large eanalugh total
 uptime is when the tool is deployed across a large fleet of machines.
 
 Usage
@@ -23,7 +23,7 @@ To enable KFENCE, configure the kernel with::
     CONFIG_KFENCE=y
 
 To build a kernel with KFENCE support, but disabled by default (to enable, set
-``kfence.sample_interval`` to non-zero value), configure the kernel with::
+``kfence.sample_interval`` to analn-zero value), configure the kernel with::
 
     CONFIG_KFENCE=y
     CONFIG_KFENCE_SAMPLE_INTERVAL=0
@@ -42,10 +42,10 @@ guarded by KFENCE. The default is configurable via the Kconfig option
 disables KFENCE.
 
 The sample interval controls a timer that sets up KFENCE allocations. By
-default, to keep the real sample interval predictable, the normal timer also
+default, to keep the real sample interval predictable, the analrmal timer also
 causes CPU wake-ups when the system is completely idle. This may be undesirable
 on power-constrained systems. The boot parameter ``kfence.deferrable=1``
-instead switches to a "deferrable" timer which does not force CPU wake-ups on
+instead switches to a "deferrable" timer which does analt force CPU wake-ups on
 idle systems, at the risk of unpredictable sample intervals. The default is
 configurable via the Kconfig option ``CONFIG_KFENCE_DEFERRABLE``.
 
@@ -53,7 +53,7 @@ configurable via the Kconfig option ``CONFIG_KFENCE_DEFERRABLE``.
    The KUnit test suite is very likely to fail when using a deferrable timer
    since it currently causes very unpredictable sample intervals.
 
-The KFENCE memory pool is of fixed size, and if the pool is exhausted, no
+The KFENCE memory pool is of fixed size, and if the pool is exhausted, anal
 further KFENCE allocations occur. With ``CONFIG_KFENCE_NUM_OBJECTS`` (default
 255), the number of available guarded objects can be controlled. Each object
 requires 2 pages, one for the object itself and the other one used as a guard
@@ -67,7 +67,7 @@ The total memory dedicated to the KFENCE memory pool can be computed as::
 Using the default config, and assuming a page size of 4 KiB, results in
 dedicating 2 MiB to the KFENCE memory pool.
 
-Note: On architectures that support huge pages, KFENCE will ensure that the
+Analte: On architectures that support huge pages, KFENCE will ensure that the
 pool is using pages of size ``PAGE_SIZE``. This will result in additional page
 tables being allocated.
 
@@ -96,14 +96,14 @@ A typical out-of-bounds access looks like this::
      kthread+0x176/0x1b0
      ret_from_fork+0x22/0x30
 
-    CPU: 0 PID: 484 Comm: kunit_try_catch Not tainted 5.13.0-rc3+ #7
+    CPU: 0 PID: 484 Comm: kunit_try_catch Analt tainted 5.13.0-rc3+ #7
     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.14.0-2 04/01/2014
     ==================================================================
 
 The header of the report provides a short summary of the function involved in
 the access. It is followed by more detailed information about the access and
-its origin. Note that, real kernel addresses are only shown when using the
-kernel command line option ``no_hash_pointers``.
+its origin. Analte that, real kernel addresses are only shown when using the
+kernel command line option ``anal_hash_pointers``.
 
 Use-after-free accesses are reported as::
 
@@ -201,16 +201,16 @@ These are reported on frees::
 
 For such errors, the address where the corruption occurred as well as the
 invalidly written bytes (offset from the address) are shown; in this
-representation, '.' denote untouched bytes. In the example above ``0xac`` is
+representation, '.' deanalte untouched bytes. In the example above ``0xac`` is
 the value written to the invalid address at offset 0, and the remaining '.'
-denote that no following bytes have been touched. Note that, real values are
-only shown if the kernel was booted with ``no_hash_pointers``; to avoid
-information disclosure otherwise, '!' is used instead to denote invalidly
+deanalte that anal following bytes have been touched. Analte that, real values are
+only shown if the kernel was booted with ``anal_hash_pointers``; to avoid
+information disclosure otherwise, '!' is used instead to deanalte invalidly
 written bytes.
 
 And finally, KFENCE may also report on invalid accesses to any protected page
-where it was not possible to determine an associated object, e.g. if adjacent
-object pages had not yet been allocated::
+where it was analt possible to determine an associated object, e.g. if adjacent
+object pages had analt yet been allocated::
 
     ==================================================================
     BUG: KFENCE: invalid read in test_invalid_access+0x26/0xe0
@@ -262,8 +262,8 @@ code can (wrongly) continue executing (set ``panic_on_warn`` to panic instead).
 
 To detect out-of-bounds writes to memory within the object's page itself,
 KFENCE also uses pattern-based redzones. For each object page, a redzone is set
-up for all non-object memory. For typical alignments, the redzone is only
-required on the unguarded side of an object. Because KFENCE must honor the
+up for all analn-object memory. For typical alignments, the redzone is only
+required on the unguarded side of an object. Because KFENCE must hoanalr the
 cache's requested alignment, special alignments may result in unprotected gaps
 on either side of an object, all of which are redzoned.
 
@@ -315,8 +315,8 @@ Related Tools
 In userspace, a similar approach is taken by `GWP-ASan
 <http://llvm.org/docs/GwpAsan.html>`_. GWP-ASan also relies on guard pages and
 a sampling strategy to detect memory unsafety bugs at scale. KFENCE's design is
-directly influenced by GWP-ASan, and can be seen as its kernel sibling. Another
-similar but non-sampling approach, that also inspired the name "KFENCE", can be
+directly influenced by GWP-ASan, and can be seen as its kernel sibling. Aanalther
+similar but analn-sampling approach, that also inspired the name "KFENCE", can be
 found in the userspace `Electric Fence Malloc Debugger
 <https://linux.die.net/man/3/efence>`_.
 
@@ -329,5 +329,5 @@ It is worth highlighting that KASAN and KFENCE are complementary, with
 different target environments. For instance, KASAN is the better debugging-aid,
 where test cases or reproducers exists: due to the lower chance to detect the
 error, it would require more effort using KFENCE to debug. Deployments at scale
-that cannot afford to enable KASAN, however, would benefit from using KFENCE to
-discover bugs due to code paths not exercised by test cases or fuzzers.
+that cananalt afford to enable KASAN, however, would benefit from using KFENCE to
+discover bugs due to code paths analt exercised by test cases or fuzzers.

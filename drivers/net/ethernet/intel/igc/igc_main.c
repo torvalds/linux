@@ -35,7 +35,7 @@ MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL v2");
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=analne,...,16=all)");
 
 char igc_driver_name[] = "igc";
 static const char igc_driver_string[] = DRV_SUMMARY;
@@ -87,8 +87,8 @@ void igc_reset(struct igc_adapter *adapter)
 	pba = IGC_PBA_34K;
 
 	/* flow control settings
-	 * The high water mark must be low enough to fit one full frame
-	 * after transmitting the pause frame.  As such we must have enough
+	 * The high water mark must be low eanalugh to fit one full frame
+	 * after transmitting the pause frame.  As such we must have eanalugh
 	 * space to allow for us to complete our current transmit and then
 	 * receive the frame that is in progress from the link partner.
 	 * Set it to:
@@ -144,7 +144,7 @@ static void igc_power_up_link(struct igc_adapter *adapter)
  *
  * igc_release_hw_control resets CTRL_EXT:DRV_LOAD bit.
  * For ASF and Pass Through versions of f/w this means that the
- * driver is no longer loaded.
+ * driver is anal longer loaded.
  */
 static void igc_release_hw_control(struct igc_adapter *adapter)
 {
@@ -173,7 +173,7 @@ static void igc_get_hw_control(struct igc_adapter *adapter)
 	struct igc_hw *hw = &adapter->hw;
 	u32 ctrl_ext;
 
-	/* Let firmware know the driver has taken over */
+	/* Let firmware kanalw the driver has taken over */
 	ctrl_ext = rd32(IGC_CTRL_EXT);
 	wr32(IGC_CTRL_EXT,
 	     ctrl_ext | IGC_CTRL_EXT_DRV_LOAD);
@@ -213,7 +213,7 @@ static void igc_clean_tx_ring(struct igc_ring *tx_ring)
 			igc_unmap_tx_buffer(tx_ring->dev, tx_buffer);
 			break;
 		default:
-			netdev_warn_once(tx_ring->netdev, "Unknown Tx buffer type\n");
+			netdev_warn_once(tx_ring->netdev, "Unkanalwn Tx buffer type\n");
 			break;
 		}
 
@@ -279,7 +279,7 @@ void igc_free_tx_resources(struct igc_ring *tx_ring)
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 
-	/* if not set, then don't free */
+	/* if analt set, then don't free */
 	if (!tx_ring->desc)
 		return;
 
@@ -378,7 +378,7 @@ int igc_setup_tx_resources(struct igc_ring *tx_ring)
 err:
 	vfree(tx_ring->tx_buffer_info);
 	netdev_err(ndev, "Unable to allocate memory for Tx descriptor ring\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -501,7 +501,7 @@ void igc_free_rx_resources(struct igc_ring *rx_ring)
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 
-	/* if not set, then don't free */
+	/* if analt set, then don't free */
 	if (!rx_ring->desc)
 		return;
 
@@ -577,7 +577,7 @@ err:
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 	netdev_err(ndev, "Unable to allocate memory for Rx descriptor ring\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -797,7 +797,7 @@ static void igc_setup_mrqc(struct igc_adapter *adapter)
 	igc_write_rss_indir_tbl(adapter);
 
 	/* Disable raw packet checksumming so that RSS hash is placed in
-	 * descriptor on writeback.  No need to enable TCP/UDP/IP checksum
+	 * descriptor on writeback.  Anal need to enable TCP/UDP/IP checksum
 	 * offloads as they are enabled by default
 	 */
 	rxcsum = rd32(IGC_RXCSUM);
@@ -861,7 +861,7 @@ static void igc_setup_rctl(struct igc_adapter *adapter)
 
 	/* This is useful for sniffing bad packets. */
 	if (adapter->netdev->features & NETIF_F_RXALL) {
-		/* UPE and MPE will be handled by normal PROMISC logic
+		/* UPE and MPE will be handled by analrmal PROMISC logic
 		 * in set_rx_mode
 		 */
 		rctl |= (IGC_RCTL_SBP | /* Receive bad packets */
@@ -905,7 +905,7 @@ static void igc_setup_tctl(struct igc_adapter *adapter)
  * @index: Filter index
  * @type: MAC address filter type (source or destination)
  * @addr: MAC address
- * @queue: If non-negative, queue assignment feature is enabled and frames
+ * @queue: If analn-negative, queue assignment feature is enabled and frames
  *         matching the filter are enqueued onto 'queue'. Otherwise, queue
  *         assignment is disabled.
  */
@@ -986,7 +986,7 @@ static int igc_set_mac(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
@@ -1002,8 +1002,8 @@ static int igc_set_mac(struct net_device *netdev, void *p)
  *  @netdev: network interface device structure
  *
  *  Writes multicast address list to the MTA hash table.
- *  Returns: -ENOMEM on failure
- *           0 on no addresses written
+ *  Returns: -EANALMEM on failure
+ *           0 on anal addresses written
  *           X on writing X addresses to MTA
  **/
 static int igc_write_mc_addr_list(struct net_device *netdev)
@@ -1015,14 +1015,14 @@ static int igc_write_mc_addr_list(struct net_device *netdev)
 	int i;
 
 	if (netdev_mc_empty(netdev)) {
-		/* nothing to program, so clear mc list */
+		/* analthing to program, so clear mc list */
 		igc_update_mc_addr_list(hw, NULL, 0);
 		return 0;
 	}
 
 	mta_list = kcalloc(netdev_mc_count(netdev), 6, GFP_ATOMIC);
 	if (!mta_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The shared function expects a packed array of only addresses. */
 	i = 0;
@@ -1041,12 +1041,12 @@ static __le32 igc_tx_launchtime(struct igc_ring *ring, ktime_t txtime,
 	struct igc_adapter *adapter = netdev_priv(ring->netdev);
 	ktime_t cycle_time = adapter->cycle_time;
 	ktime_t base_time = adapter->base_time;
-	ktime_t now = ktime_get_clocktai();
+	ktime_t analw = ktime_get_clocktai();
 	ktime_t baset_est, end_of_cycle;
 	s32 launchtime;
 	s64 n;
 
-	n = div64_s64(ktime_sub_ns(now, base_time), cycle_time);
+	n = div64_s64(ktime_sub_ns(analw, base_time), cycle_time);
 
 	baset_est = ktime_add_ns(base_time, cycle_time * (n));
 	end_of_cycle = ktime_add_ns(baset_est, cycle_time);
@@ -1062,12 +1062,12 @@ static __le32 igc_tx_launchtime(struct igc_ring *ring, ktime_t txtime,
 	}
 
 	/* Introducing a window at end of cycle on which packets
-	 * potentially not honor launchtime. Window of 5us chosen
+	 * potentially analt hoanalr launchtime. Window of 5us chosen
 	 * considering software update the tail pointer and packets
 	 * are dma'ed to packet buffer.
 	 */
-	if ((ktime_sub_ns(end_of_cycle, now) < 5 * NSEC_PER_USEC))
-		netdev_warn(ring->netdev, "Packet with txtime=%llu may not be honoured\n",
+	if ((ktime_sub_ns(end_of_cycle, analw) < 5 * NSEC_PER_USEC))
+		netdev_warn(ring->netdev, "Packet with txtime=%llu may analt be hoanalured\n",
 			    txtime);
 
 	ring->last_tx_cycle = end_of_cycle;
@@ -1093,7 +1093,7 @@ static int igc_init_empty_frame(struct igc_ring *ring,
 	dma = dma_map_single(ring->dev, skb->data, size, DMA_TO_DEVICE);
 	if (dma_mapping_error(ring->dev, dma)) {
 		netdev_err_once(ring->netdev, "Failed to map DMA for TX\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buffer->skb = skb;
@@ -1186,7 +1186,7 @@ csum_failed:
 		if (!(first->tx_flags & IGC_TX_FLAGS_VLAN) &&
 		    !tx_ring->launchtime_enable)
 			return;
-		goto no_csum;
+		goto anal_csum;
 	}
 
 	switch (skb->csum_offset) {
@@ -1211,7 +1211,7 @@ csum_failed:
 	first->tx_flags |= IGC_TX_FLAGS_CSUM;
 	vlan_macip_lens = skb_checksum_start_offset(skb) -
 			  skb_network_offset(skb);
-no_csum:
+anal_csum:
 	vlan_macip_lens |= skb_network_offset(skb) << IGC_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= first->tx_flags & IGC_TX_FLAGS_VLAN_MASK;
 
@@ -1228,7 +1228,7 @@ static int __igc_maybe_stop_tx(struct igc_ring *tx_ring, const u16 size)
 	/* memory barriier comment */
 	smp_mb();
 
-	/* We need to check again in a case another CPU has just
+	/* We need to check again in a case aanalther CPU has just
 	 * made room available.
 	 */
 	if (igc_desc_unused(tx_ring) < size)
@@ -1287,7 +1287,7 @@ static u32 igc_tx_cmd_type(struct sk_buff *skb, u32 tx_flags)
 				 (IGC_ADVTXD_TSTAMP_REG_3));
 
 	/* insert frame checksum */
-	cmd_type ^= IGC_SET_FLAG(skb->no_fcs, 1, IGC_ADVTXD_DCMD_IFCS);
+	cmd_type ^= IGC_SET_FLAG(skb->anal_fcs, 1, IGC_ADVTXD_DCMD_IFCS);
 
 	return cmd_type;
 }
@@ -1400,7 +1400,7 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 
 	skb_tx_timestamp(skb);
 
-	/* Force memory writes to complete before letting h/w know there
+	/* Force memory writes to complete before letting h/w kanalw there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
 	 *
@@ -1493,7 +1493,7 @@ static int igc_tso(struct igc_ring *tx_ring,
 		unsigned char *trans_start = ip.hdr + (ip.v4->ihl * 4);
 
 		/* IP header will have to cancel out any data that
-		 * is not a part of the outer IP header
+		 * is analt a part of the outer IP header
 		 */
 		ip.v4->check = csum_fold(csum_partial(trans_start,
 						      csum_start - trans_start,
@@ -1720,9 +1720,9 @@ static void igc_rx_checksum(struct igc_ring *ring,
 			    union igc_adv_rx_desc *rx_desc,
 			    struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
-	/* Ignore Checksum bit is set */
+	/* Iganalre Checksum bit is set */
 	if (igc_test_staterr(rx_desc, IGC_RXD_STAT_IXSM))
 		return;
 
@@ -1758,7 +1758,7 @@ static void igc_rx_checksum(struct igc_ring *ring,
 
 /* Mapping HW RSS Type to enum pkt_hash_types */
 static const enum pkt_hash_types igc_rss_type_table[IGC_RSS_TYPE_MAX_TABLE] = {
-	[IGC_RSS_TYPE_NO_HASH]		= PKT_HASH_TYPE_L2,
+	[IGC_RSS_TYPE_ANAL_HASH]		= PKT_HASH_TYPE_L2,
 	[IGC_RSS_TYPE_HASH_TCP_IPV4]	= PKT_HASH_TYPE_L4,
 	[IGC_RSS_TYPE_HASH_IPV4]	= PKT_HASH_TYPE_L3,
 	[IGC_RSS_TYPE_HASH_TCP_IPV6]	= PKT_HASH_TYPE_L4,
@@ -1768,12 +1768,12 @@ static const enum pkt_hash_types igc_rss_type_table[IGC_RSS_TYPE_MAX_TABLE] = {
 	[IGC_RSS_TYPE_HASH_UDP_IPV4]	= PKT_HASH_TYPE_L4,
 	[IGC_RSS_TYPE_HASH_UDP_IPV6]	= PKT_HASH_TYPE_L4,
 	[IGC_RSS_TYPE_HASH_UDP_IPV6_EX] = PKT_HASH_TYPE_L4,
-	[10] = PKT_HASH_TYPE_NONE, /* RSS Type above 9 "Reserved" by HW  */
-	[11] = PKT_HASH_TYPE_NONE, /* keep array sized for SW bit-mask   */
-	[12] = PKT_HASH_TYPE_NONE, /* to handle future HW revisons       */
-	[13] = PKT_HASH_TYPE_NONE,
-	[14] = PKT_HASH_TYPE_NONE,
-	[15] = PKT_HASH_TYPE_NONE,
+	[10] = PKT_HASH_TYPE_ANALNE, /* RSS Type above 9 "Reserved" by HW  */
+	[11] = PKT_HASH_TYPE_ANALNE, /* keep array sized for SW bit-mask   */
+	[12] = PKT_HASH_TYPE_ANALNE, /* to handle future HW revisons       */
+	[13] = PKT_HASH_TYPE_ANALNE,
+	[14] = PKT_HASH_TYPE_ANALNE,
+	[15] = PKT_HASH_TYPE_ANALNE,
 };
 
 static inline void igc_rx_hash(struct igc_ring *ring,
@@ -2022,7 +2022,7 @@ static struct sk_buff *igc_construct_skb(struct igc_ring *rx_ring,
 /**
  * igc_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: rx descriptor ring to store buffers on
- * @old_buff: donor buffer to have page reused
+ * @old_buff: doanalr buffer to have page reused
  *
  * Synchronizes page for reuse by the adapter
  */
@@ -2083,16 +2083,16 @@ static bool igc_can_reuse_rx_page(struct igc_rx_buffer *rx_buffer,
 }
 
 /**
- * igc_is_non_eop - process handling of non-EOP buffers
+ * igc_is_analn_eop - process handling of analn-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  *
  * This function updates next to clean.  If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
  * sk_buff in the next buffer to be chained and return true indicating
- * that this is in fact a non-EOP buffer.
+ * that this is in fact a analn-EOP buffer.
  */
-static bool igc_is_non_eop(struct igc_ring *rx_ring,
+static bool igc_is_analn_eop(struct igc_ring *rx_ring,
 			   union igc_adv_rx_desc *rx_desc)
 {
 	u32 ntc = rx_ring->next_to_clean + 1;
@@ -2116,10 +2116,10 @@ static bool igc_is_non_eop(struct igc_ring *rx_ring,
  * @skb: pointer to current skb being fixed
  *
  * Address the case where we are pulling data in on pages only
- * and as such no data is present in the skb header.
+ * and as such anal data is present in the skb header.
  *
- * In addition if skb is not at least 60 bytes we need to pad it so that
- * it is large enough to qualify as a valid Ethernet frame.
+ * In addition if skb is analt at least 60 bytes we need to pad it so that
+ * it is large eanalugh to qualify as a valid Ethernet frame.
  *
  * Returns true if an error was encountered and skb was freed.
  */
@@ -2155,7 +2155,7 @@ static void igc_put_rx_buffer(struct igc_ring *rx_ring,
 		/* hand second half of page back to the ring */
 		igc_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
-		/* We are not reusing the buffer so unmap it and free
+		/* We are analt reusing the buffer so unmap it and free
 		 * any references we are holding to it
 		 */
 		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
@@ -2235,7 +2235,7 @@ static void igc_alloc_rx_buffers(struct igc_ring *rx_ring, u16 cleaned_count)
 	struct igc_rx_buffer *bi;
 	u16 bufsz;
 
-	/* nothing to do */
+	/* analthing to do */
 	if (!cleaned_count)
 		return;
 
@@ -2284,7 +2284,7 @@ static void igc_alloc_rx_buffers(struct igc_ring *rx_ring, u16 cleaned_count)
 		rx_ring->next_to_alloc = i;
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kanalw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -2341,7 +2341,7 @@ static bool igc_alloc_rx_buffers_zc(struct igc_ring *ring, u16 count)
 		ring->next_to_use = i;
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kanalw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -2447,7 +2447,7 @@ unmap:
 		index--;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct igc_ring *igc_xdp_get_tx_ring(struct igc_adapter *adapter,
@@ -2608,7 +2608,7 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kanalw the
 		 * descriptor has been written back
 		 */
 		dma_rmb();
@@ -2668,8 +2668,8 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 		igc_put_rx_buffer(rx_ring, rx_buffer, rx_buffer_pgcnt);
 		cleaned_count++;
 
-		/* fetch next buffer in frame if non-eop */
-		if (igc_is_non_eop(rx_ring, rx_desc))
+		/* fetch next buffer in frame if analn-eop */
+		if (igc_is_analn_eop(rx_ring, rx_desc))
 			continue;
 
 		/* verify the packet layout is correct */
@@ -2717,7 +2717,7 @@ static struct sk_buff *igc_construct_skb_zc(struct igc_ring *ring,
 	net_prefetch(xdp->data_meta);
 
 	skb = __napi_alloc_skb(&ring->q_vector->napi, totalsize,
-			       GFP_ATOMIC | __GFP_NOWARN);
+			       GFP_ATOMIC | __GFP_ANALWARN);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -2794,7 +2794,7 @@ static int igc_clean_rx_irq_zc(struct igc_q_vector *q_vector, const int budget)
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kanalw the
 		 * descriptor has been written back
 		 */
 		dma_rmb();
@@ -2968,14 +2968,14 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 	do {
 		union igc_adv_tx_desc *eop_desc = tx_buffer->next_to_watch;
 
-		/* if next_to_watch is not set then there is no work pending */
+		/* if next_to_watch is analt set then there is anal work pending */
 		if (!eop_desc)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if DD is not set pending work has not been completed */
+		/* if DD is analt set pending work has analt been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(IGC_TXD_STAT_DD)))
 			break;
 
@@ -2999,7 +2999,7 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 			igc_unmap_tx_buffer(tx_ring->dev, tx_buffer);
 			break;
 		default:
-			netdev_warn_once(tx_ring->netdev, "Unknown Tx buffer type\n");
+			netdev_warn_once(tx_ring->netdev, "Unkanalwn Tx buffer type\n");
 			break;
 		}
 
@@ -3090,7 +3090,7 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 			netif_stop_subqueue(tx_ring->netdev,
 					    tx_ring->queue_index);
 
-			/* we are about to reset, no point in enabling stuff */
+			/* we are about to reset, anal point in enabling stuff */
 			return true;
 		}
 	}
@@ -3168,11 +3168,11 @@ static int igc_get_avail_mac_filter_slot(struct igc_adapter *adapter)
  * @adapter: Pointer to adapter where the filter should be added
  * @type: MAC address filter type (source or destination)
  * @addr: MAC address
- * @queue: If non-negative, queue assignment feature is enabled and frames
+ * @queue: If analn-negative, queue assignment feature is enabled and frames
  *         matching the filter are enqueued onto 'queue'. Otherwise, queue
  *         assignment is disabled.
  *
- * Return: 0 in case of success, negative errno code otherwise.
+ * Return: 0 in case of success, negative erranal code otherwise.
  */
 static int igc_add_mac_filter(struct igc_adapter *adapter,
 			      enum igc_mac_filter_type type, const u8 *addr,
@@ -3187,7 +3187,7 @@ static int igc_add_mac_filter(struct igc_adapter *adapter,
 
 	index = igc_get_avail_mac_filter_slot(adapter);
 	if (index < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	netdev_dbg(dev, "Add MAC address filter: index %d type %s address %pM queue %d\n",
 		   index, type == IGC_MAC_FILTER_TYPE_DST ? "dst" : "src",
@@ -3238,7 +3238,7 @@ static void igc_del_mac_filter(struct igc_adapter *adapter,
  * @prio: VLAN priority value
  * @queue: Queue number which matching frames are assigned to
  *
- * Return: 0 in case of success, negative errno code otherwise.
+ * Return: 0 in case of success, negative erranal code otherwise.
  */
 static int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio,
 				    int queue)
@@ -3304,11 +3304,11 @@ static int igc_get_avail_etype_filter_slot(struct igc_adapter *adapter)
  * igc_add_etype_filter() - Add ethertype filter
  * @adapter: Pointer to adapter where the filter should be added
  * @etype: Ethertype value
- * @queue: If non-negative, queue assignment feature is enabled and frames
+ * @queue: If analn-negative, queue assignment feature is enabled and frames
  *         matching the filter are enqueued onto 'queue'. Otherwise, queue
  *         assignment is disabled.
  *
- * Return: 0 in case of success, negative errno code otherwise.
+ * Return: 0 in case of success, negative erranal code otherwise.
  */
 static int igc_add_etype_filter(struct igc_adapter *adapter, u16 etype,
 				int queue)
@@ -3319,7 +3319,7 @@ static int igc_add_etype_filter(struct igc_adapter *adapter, u16 etype,
 
 	index = igc_get_avail_etype_filter_slot(adapter);
 	if (index < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	etqf = rd32(IGC_ETQF(index));
 
@@ -3408,7 +3408,7 @@ static int igc_flex_filter_select(struct igc_adapter *adapter,
 	}
 	wr32(IGC_FHFTSL, fhftsl);
 
-	/* Normalize index down to host table register */
+	/* Analrmalize index down to host table register */
 	fhft_index = input->index % 8;
 
 	*fhft = (fhft_index < 4) ? IGC_FHFT(fhft_index) :
@@ -3493,7 +3493,7 @@ static int igc_write_flex_filter_ll(struct igc_adapter *adapter,
 	/* Enable filter. */
 	wufc |= IGC_WUFC_FLEX_HQ;
 	if (input->index > 8) {
-		/* Filter 0-7 are enabled via WUFC. The other 24 filters are not. */
+		/* Filter 0-7 are enabled via WUFC. The other 24 filters are analt. */
 		u32 wufc_ext = rd32(IGC_WUFC_EXT);
 
 		wufc_ext |= (IGC_WUFC_EXT_FLX8 << (input->index - 8));
@@ -3554,7 +3554,7 @@ static int igc_find_avail_flex_filter_slot(struct igc_adapter *adapter)
 		}
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static bool igc_flex_filter_in_use(struct igc_adapter *adapter)
@@ -3585,7 +3585,7 @@ static int igc_add_flex_filter(struct igc_adapter *adapter,
 
 	index = igc_find_avail_flex_filter_slot(adapter);
 	if (index < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Construct the flex filter:
 	 *  -> dest_mac [6]
@@ -3657,7 +3657,7 @@ static void igc_del_flex_filter(struct igc_adapter *adapter,
 	u32 wufc;
 
 	/* Just disable the filter. The filter table itself is kept
-	 * intact. Another flex_filter_add() should override the "old" data
+	 * intact. Aanalther flex_filter_add() should override the "old" data
 	 * then.
 	 */
 	if (reg_index > 8) {
@@ -3675,7 +3675,7 @@ static void igc_del_flex_filter(struct igc_adapter *adapter,
 	if (igc_flex_filter_in_use(adapter))
 		return;
 
-	/* No filters are in use, we may disable flex filters */
+	/* Anal filters are in use, we may disable flex filters */
 	wufc = rd32(IGC_WUFC);
 	wufc &= ~IGC_WUFC_FLEX_HQ;
 	wr32(IGC_WUFC, wufc);
@@ -3755,7 +3755,7 @@ static void igc_disable_nfc_rule(struct igc_adapter *adapter,
  *
  * Context: Expects adapter->nfc_rule_lock to be held by caller.
  *
- * Return: Pointer to NFC rule at @location. If not found, NULL.
+ * Return: Pointer to NFC rule at @location. If analt found, NULL.
  */
 struct igc_nfc_rule *igc_get_nfc_rule(struct igc_adapter *adapter,
 				      u32 location)
@@ -3812,7 +3812,7 @@ static void igc_flush_nfc_rules(struct igc_adapter *adapter)
  *
  * Context: Expects adapter->nfc_rule_lock to be held by caller.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int igc_add_nfc_rule(struct igc_adapter *adapter, struct igc_nfc_rule *rule)
 {
@@ -3895,7 +3895,7 @@ static void igc_set_rx_mode(struct net_device *netdev)
 		}
 	}
 
-	/* Write addresses to available RAR registers, if there is not
+	/* Write addresses to available RAR registers, if there is analt
 	 * sufficient space to store all the addresses then enable
 	 * unicast promiscuous mode
 	 */
@@ -4046,7 +4046,7 @@ static void igc_configure_msix(struct igc_adapter *adapter)
 		wr32(IGC_IVAR_MISC, tmp);
 		break;
 	default:
-		/* do nothing, since nothing else supports MSI-X */
+		/* do analthing, since analthing else supports MSI-X */
 		break;
 	} /* switch (hw->mac.type) */
 
@@ -4155,7 +4155,7 @@ static void igc_reset_q_vector(struct igc_adapter *adapter, int v_idx)
 	struct igc_q_vector *q_vector = adapter->q_vector[v_idx];
 
 	/* if we're coming from igc_set_interrupt_capability, the vectors are
-	 * not yet allocated
+	 * analt yet allocated
 	 */
 	if (!q_vector)
 		return;
@@ -4223,7 +4223,7 @@ static void igc_free_q_vectors(struct igc_adapter *adapter)
  * based on theoretical maximum wire speed and thresholds were set based
  * on testing data as well as attempting to minimize response time
  * while increasing bulk throughput.
- * NOTE: These calculations are only valid when operating in a single-
+ * ANALTE: These calculations are only valid when operating in a single-
  * queue environment.
  */
 static void igc_update_itr(struct igc_q_vector *q_vector,
@@ -4233,7 +4233,7 @@ static void igc_update_itr(struct igc_q_vector *q_vector,
 	unsigned int bytes = ring_container->total_bytes;
 	u8 itrval = ring_container->itr;
 
-	/* no packets, exit with status unchanged */
+	/* anal packets, exit with status unchanged */
 	if (packets == 0)
 		return;
 
@@ -4284,13 +4284,13 @@ static void igc_set_itr(struct igc_q_vector *q_vector)
 	u32 new_itr = q_vector->itr_val;
 	u8 current_itr = 0;
 
-	/* for non-gigabit speeds, just fix the interrupt rate at 4000 */
+	/* for analn-gigabit speeds, just fix the interrupt rate at 4000 */
 	switch (adapter->link_speed) {
 	case SPEED_10:
 	case SPEED_100:
 		current_itr = 0;
 		new_itr = IGC_4K_ITR;
-		goto set_itr_now;
+		goto set_itr_analw;
 	default:
 		break;
 	}
@@ -4321,7 +4321,7 @@ static void igc_set_itr(struct igc_q_vector *q_vector)
 		break;
 	}
 
-set_itr_now:
+set_itr_analw:
 	if (new_itr != q_vector->itr_val) {
 		/* this attempts to bias the interrupt rate towards Bulk
 		 * by adding intermediate steps when interrupt rate is
@@ -4439,7 +4439,7 @@ msi_only:
  * were determined based on theoretical maximum wire speed and testing
  * data, in order to minimize response time while increasing bulk
  * throughput.
- * NOTE: This function is called only when operating in a multiqueue
+ * ANALTE: This function is called only when operating in a multiqueue
  * receive environment.
  */
 static void igc_update_ring_itr(struct igc_q_vector *q_vector)
@@ -4449,7 +4449,7 @@ static void igc_update_ring_itr(struct igc_q_vector *q_vector)
 	int avg_wire_size = 0;
 	unsigned int packets;
 
-	/* For non-gigabit speeds, just fix the interrupt rate at 4000
+	/* For analn-gigabit speeds, just fix the interrupt rate at 4000
 	 * ints/sec - ITR timer value of 120 ticks.
 	 */
 	switch (adapter->link_speed) {
@@ -4470,7 +4470,7 @@ static void igc_update_ring_itr(struct igc_q_vector *q_vector)
 		avg_wire_size = max_t(u32, avg_wire_size,
 				      q_vector->tx.total_bytes / packets);
 
-	/* if avg_wire_size isn't set no work was done */
+	/* if avg_wire_size isn't set anal work was done */
 	if (!avg_wire_size)
 		goto clear_counts;
 
@@ -4536,7 +4536,7 @@ static void igc_add_ring(struct igc_ring *ring,
  * igc_cache_ring_register - Descriptor ring to register mapping
  * @adapter: board private structure to initialize
  *
- * Once we know the feature-set enabled for the device, we'll cache
+ * Once we kanalw the feature-set enabled for the device, we'll cache
  * the register offset the descriptor ring is assigned to.
  */
 static void igc_cache_ring_register(struct igc_adapter *adapter)
@@ -4581,7 +4581,7 @@ static int igc_poll(struct napi_struct *napi, int budget)
 			clean_complete = false;
 	}
 
-	/* If all work not completed, return budget and keep polling */
+	/* If all work analt completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
 
@@ -4604,7 +4604,7 @@ static int igc_poll(struct napi_struct *napi, int budget)
  * @rxr_count: total number of Rx rings to allocate
  * @rxr_idx: index of first Rx ring to allocate
  *
- * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ * We allocate one q_vector.  If allocation fails we return -EANALMEM.
  */
 static int igc_alloc_q_vector(struct igc_adapter *adapter,
 			      unsigned int v_count, unsigned int v_idx,
@@ -4617,7 +4617,7 @@ static int igc_alloc_q_vector(struct igc_adapter *adapter,
 
 	/* igc only supports 1 Tx and/or 1 Rx queue per vector */
 	if (txr_count > 1 || rxr_count > 1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring_count = txr_count + rxr_count;
 
@@ -4629,7 +4629,7 @@ static int igc_alloc_q_vector(struct igc_adapter *adapter,
 	else
 		memset(q_vector, 0, struct_size(q_vector, ring, ring_count));
 	if (!q_vector)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize NAPI */
 	netif_napi_add(adapter->netdev, &q_vector->napi, igc_poll);
@@ -4708,7 +4708,7 @@ static int igc_alloc_q_vector(struct igc_adapter *adapter,
  * @adapter: board private structure to initialize
  *
  * We allocate one q_vector per queue interrupt.  If allocation fails we
- * return -ENOMEM.
+ * return -EANALMEM.
  */
 static int igc_alloc_q_vectors(struct igc_adapter *adapter)
 {
@@ -4759,7 +4759,7 @@ err_out:
 	while (v_idx--)
 		igc_free_q_vector(adapter, v_idx);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -4837,7 +4837,7 @@ static int igc_sw_init(struct igc_adapter *adapter)
 	/* This call may decrease the number of queues */
 	if (igc_init_interrupt_scheme(adapter, true)) {
 		netdev_err(netdev, "Unable to allocate memory for queues\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Explicitly disable IRQ since the NIC can be in any state. */
@@ -5161,7 +5161,7 @@ static int igc_change_mtu(struct net_device *netdev, int new_mtu)
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
 	if (igc_xdp_is_enabled(adapter) && new_mtu > ETH_DATA_LEN) {
-		netdev_dbg(netdev, "Jumbo frames not supported with XDP");
+		netdev_dbg(netdev, "Jumbo frames analt supported with XDP");
 		return -EINVAL;
 	}
 
@@ -5232,7 +5232,7 @@ static void igc_get_stats64(struct net_device *netdev,
 static netdev_features_t igc_fix_features(struct net_device *netdev,
 					  netdev_features_t features)
 {
-	/* Since there is no support for separate Rx/Tx vlan accel
+	/* Since there is anal support for separate Rx/Tx vlan accel
 	 * enable/disable make sure Tx flag is always in same state as Rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -5292,7 +5292,7 @@ igc_features_check(struct sk_buff *skb, struct net_device *dev,
 				    NETIF_F_TSO6);
 
 	/* We can only support IPv4 TSO in tunnels if we can mangle the
-	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 * inner IP ID field, so strip TSO if MANGLEID is analt supported.
 	 */
 	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
 		features &= ~NETIF_F_TSO;
@@ -5371,7 +5371,7 @@ static void igc_tsync_interrupt(struct igc_adapter *adapter)
 		ack |= IGC_TSICR_AUTT1;
 	}
 
-	/* acknowledge the interrupts */
+	/* ackanalwledge the interrupts */
 	wr32(IGC_TSICR, ack);
 }
 
@@ -5505,7 +5505,7 @@ err_out:
 }
 
 /**
- * igc_clear_interrupt_scheme - reset the device to a state of no interrupts
+ * igc_clear_interrupt_scheme - reset the device to a state of anal interrupts
  * @adapter: Pointer to adapter structure
  *
  * This function resets the device so that it has 0 rx queues, tx queues, and
@@ -5517,7 +5517,7 @@ static void igc_clear_interrupt_scheme(struct igc_adapter *adapter)
 	igc_reset_interrupt_capability(adapter);
 }
 
-/* Need to wait a few seconds after link up to get diagnostic information from
+/* Need to wait a few seconds after link up to get diaganalstic information from
  * the phy
  */
 static void igc_update_phy_info(struct timer_list *t)
@@ -5611,7 +5611,7 @@ static void igc_watchdog_task(struct work_struct *work)
 				    (ctrl & IGC_CTRL_TFCE) &&
 				    (ctrl & IGC_CTRL_RFCE) ? "RX/TX" :
 				    (ctrl & IGC_CTRL_RFCE) ?  "RX" :
-				    (ctrl & IGC_CTRL_TFCE) ?  "TX" : "None");
+				    (ctrl & IGC_CTRL_TFCE) ?  "TX" : "Analne");
 
 			/* disable EEE if enabled */
 			if ((adapter->flags & IGC_FLAG_EEE) &&
@@ -5643,12 +5643,12 @@ static void igc_watchdog_task(struct work_struct *work)
 			/* Once the launch time has been set on the wire, there
 			 * is a delay before the link speed can be determined
 			 * based on link-up activity. Write into the register
-			 * as soon as we know the correct link speed.
+			 * as soon as we kanalw the correct link speed.
 			 */
 			igc_tsn_adjust_txtime_offset(adapter);
 
 			if (adapter->link_speed != SPEED_1000)
-				goto no_wait;
+				goto anal_wait;
 
 			/* wait for Remote receiver status OK */
 retry_read_status:
@@ -5665,7 +5665,7 @@ retry_read_status:
 			} else {
 				netdev_err(netdev, "read 1000Base-T Status Reg\n");
 			}
-no_wait:
+anal_wait:
 			netif_carrier_on(netdev);
 
 			/* link state has changed, schedule phy info update */
@@ -5788,16 +5788,16 @@ static irqreturn_t igc_intr(int irq, void *data)
 	struct igc_adapter *adapter = data;
 	struct igc_q_vector *q_vector = adapter->q_vector[0];
 	struct igc_hw *hw = &adapter->hw;
-	/* Interrupt Auto-Mask...upon reading ICR, interrupts are masked.  No
+	/* Interrupt Auto-Mask...upon reading ICR, interrupts are masked.  Anal
 	 * need for the IMC write
 	 */
 	u32 icr = rd32(IGC_ICR);
 
-	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
-	 * not set, then the adapter didn't send an interrupt
+	/* IMS will analt auto-mask if INT_ASSERTED is analt set, and if it is
+	 * analt set, then the adapter didn't send an interrupt
 	 */
 	if (!(icr & IGC_ICR_INT_ASSERTED))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	igc_write_itr(q_vector);
 
@@ -5903,7 +5903,7 @@ request_done:
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is analtified that the interface is ready.
  */
 static int __igc_open(struct net_device *netdev, bool resuming)
 {
@@ -5943,7 +5943,7 @@ static int __igc_open(struct net_device *netdev, bool resuming)
 	if (err)
 		goto err_req_irq;
 
-	/* Notify the stack of the actual queue counts. */
+	/* Analtify the stack of the actual queue counts. */
 	err = netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
 	if (err)
 		goto err_set_queues;
@@ -5998,7 +5998,7 @@ int igc_open(struct net_device *netdev)
  * @netdev: network interface device structure
  * @suspending: boolean indicating the device is suspending
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is analt allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the driver's control, but
@@ -6051,7 +6051,7 @@ static int igc_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCSHWTSTAMP:
 		return igc_ptp_set_ts_config(netdev, ifr);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -6069,13 +6069,13 @@ static int igc_save_launchtime_params(struct igc_adapter *adapter, int queue,
 	return 0;
 }
 
-static bool is_base_time_past(ktime_t base_time, const struct timespec64 *now)
+static bool is_base_time_past(ktime_t base_time, const struct timespec64 *analw)
 {
 	struct timespec64 b;
 
 	b = ktime_to_timespec64(base_time);
 
-	return timespec64_compare(now, &b) > 0;
+	return timespec64_compare(analw, &b) > 0;
 }
 
 static bool validate_schedule(struct igc_adapter *adapter,
@@ -6083,21 +6083,21 @@ static bool validate_schedule(struct igc_adapter *adapter,
 {
 	int queue_uses[IGC_MAX_TX_QUEUES] = { };
 	struct igc_hw *hw = &adapter->hw;
-	struct timespec64 now;
+	struct timespec64 analw;
 	size_t n;
 
 	if (qopt->cycle_time_extension)
 		return false;
 
-	igc_ptp_read(adapter, &now);
+	igc_ptp_read(adapter, &analw);
 
 	/* If we program the controller's BASET registers with a time
 	 * in the future, it will hold all the packets until that
 	 * time, causing a lot of TX Hangs, so to avoid that, we
 	 * reject schedules that would start in the future.
-	 * Note: Limitation above is no longer in i226.
+	 * Analte: Limitation above is anal longer in i226.
 	 */
-	if (!is_base_time_past(qopt->base_time, &now) &&
+	if (!is_base_time_past(qopt->base_time, &analw) &&
 	    igc_is_device_id_i225(hw))
 		return false;
 
@@ -6118,7 +6118,7 @@ static bool validate_schedule(struct igc_adapter *adapter,
 			if (e->gate_mask & BIT(i)) {
 				queue_uses[i]++;
 
-				/* There are limitations: A single queue cannot
+				/* There are limitations: A single queue cananalt
 				 * be opened and closed multiple times per cycle
 				 * unless the gate stays open. Check for it.
 				 */
@@ -6138,7 +6138,7 @@ static int igc_tsn_enable_launchtime(struct igc_adapter *adapter,
 	int err;
 
 	if (hw->mac.type != igc_i225)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = igc_save_launchtime_params(adapter, qopt->queue, qopt->enable);
 	if (err)
@@ -6215,7 +6215,7 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 	bool queue_configured[IGC_MAX_TX_QUEUES] = { };
 	struct igc_hw *hw = &adapter->hw;
 	u32 start_time = 0, end_time = 0;
-	struct timespec64 now;
+	struct timespec64 analw;
 	unsigned long flags;
 	size_t n;
 	int i;
@@ -6232,7 +6232,7 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 		igc_taprio_queue_stats(adapter->netdev, &qopt->queue_stats);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (qopt->base_time < 0)
@@ -6248,7 +6248,7 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 	adapter->base_time = qopt->base_time;
 	adapter->taprio_offload_enable = true;
 
-	igc_ptp_read(adapter, &now);
+	igc_ptp_read(adapter, &analw);
 
 	for (n = 0; n < qopt->num_entries; n++) {
 		struct tc_taprio_sched_entry *e = &qopt->entries[n];
@@ -6257,7 +6257,7 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 
 		/* If any of the conditions below are true, we need to manually
 		 * control the end time of the cycle.
-		 * 1. Qbv users can specify a cycle time that is not equal
+		 * 1. Qbv users can specify a cycle time that is analt equal
 		 * to the total GCL intervals. Hence, recalculation is
 		 * necessary here to exclude the time interval that
 		 * exceeds the cycle time.
@@ -6296,12 +6296,12 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 	spin_lock_irqsave(&adapter->qbv_tx_lock, flags);
 
 	/* Check whether a queue gets configured.
-	 * If not, set the start and end time to be end time.
+	 * If analt, set the start and end time to be end time.
 	 */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igc_ring *ring = adapter->tx_ring[i];
 
-		if (!is_base_time_past(qopt->base_time, &now)) {
+		if (!is_base_time_past(qopt->base_time, &analw)) {
 			ring->admin_gate_closed = false;
 		} else {
 			ring->oper_gate_closed = false;
@@ -6309,7 +6309,7 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 		}
 
 		if (!queue_configured[i]) {
-			if (!is_base_time_past(qopt->base_time, &now))
+			if (!is_base_time_past(qopt->base_time, &analw))
 				ring->admin_gate_closed = true;
 			else
 				ring->oper_gate_closed = true;
@@ -6341,7 +6341,7 @@ static int igc_tsn_enable_qbv_scheduling(struct igc_adapter *adapter,
 	int err;
 
 	if (hw->mac.type != igc_i225)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = igc_save_qbv_schedule(adapter, qopt);
 	if (err)
@@ -6404,7 +6404,7 @@ static int igc_tsn_enable_cbs(struct igc_adapter *adapter,
 	int err;
 
 	if (hw->mac.type != igc_i225)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qopt->queue < 0 || qopt->queue > 1)
 		return -EINVAL;
@@ -6437,7 +6437,7 @@ static int igc_tc_query_caps(struct igc_adapter *adapter,
 		return 0;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -6461,7 +6461,7 @@ static int igc_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		return igc_tsn_enable_cbs(adapter, type_data);
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -6476,7 +6476,7 @@ static int igc_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		return igc_xdp_setup_pool(adapter, bpf->xsk.pool,
 					  bpf->xsk.queue_id);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -6647,13 +6647,13 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 
 	value = readl(&hw_addr[reg]);
 
-	/* reads should not return all F's */
+	/* reads should analt return all F's */
 	if (!(~value) && (!reg || !(~readl(hw_addr)))) {
 		struct net_device *netdev = igc->netdev;
 
 		hw->hw_addr = NULL;
 		netif_device_detach(netdev);
-		netdev_err(netdev, "PCIe link lost, device now detached\n");
+		netdev_err(netdev, "PCIe link lost, device analw detached\n");
 		WARN(pci_device_is_present(igc->pdev),
 		     "igc: Failed to read reg 0x%x!\n", reg);
 	}
@@ -6663,7 +6663,7 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 
 /* Mapping HW RSS Type to enum xdp_rss_hash_type */
 static enum xdp_rss_hash_type igc_xdp_rss_type[IGC_RSS_TYPE_MAX_TABLE] = {
-	[IGC_RSS_TYPE_NO_HASH]		= XDP_RSS_TYPE_L2,
+	[IGC_RSS_TYPE_ANAL_HASH]		= XDP_RSS_TYPE_L2,
 	[IGC_RSS_TYPE_HASH_TCP_IPV4]	= XDP_RSS_TYPE_L4_IPV4_TCP,
 	[IGC_RSS_TYPE_HASH_IPV4]	= XDP_RSS_TYPE_L3_IPV4,
 	[IGC_RSS_TYPE_HASH_TCP_IPV6]	= XDP_RSS_TYPE_L4_IPV6_TCP,
@@ -6673,12 +6673,12 @@ static enum xdp_rss_hash_type igc_xdp_rss_type[IGC_RSS_TYPE_MAX_TABLE] = {
 	[IGC_RSS_TYPE_HASH_UDP_IPV4]	= XDP_RSS_TYPE_L4_IPV4_UDP,
 	[IGC_RSS_TYPE_HASH_UDP_IPV6]	= XDP_RSS_TYPE_L4_IPV6_UDP,
 	[IGC_RSS_TYPE_HASH_UDP_IPV6_EX] = XDP_RSS_TYPE_L4_IPV6_UDP_EX,
-	[10] = XDP_RSS_TYPE_NONE, /* RSS Type above 9 "Reserved" by HW  */
-	[11] = XDP_RSS_TYPE_NONE, /* keep array sized for SW bit-mask   */
-	[12] = XDP_RSS_TYPE_NONE, /* to handle future HW revisons       */
-	[13] = XDP_RSS_TYPE_NONE,
-	[14] = XDP_RSS_TYPE_NONE,
-	[15] = XDP_RSS_TYPE_NONE,
+	[10] = XDP_RSS_TYPE_ANALNE, /* RSS Type above 9 "Reserved" by HW  */
+	[11] = XDP_RSS_TYPE_ANALNE, /* keep array sized for SW bit-mask   */
+	[12] = XDP_RSS_TYPE_ANALNE, /* to handle future HW revisons       */
+	[13] = XDP_RSS_TYPE_ANALNE,
+	[14] = XDP_RSS_TYPE_ANALNE,
+	[15] = XDP_RSS_TYPE_ANALNE,
 };
 
 static int igc_xdp_rx_hash(const struct xdp_md *_ctx, u32 *hash,
@@ -6687,7 +6687,7 @@ static int igc_xdp_rx_hash(const struct xdp_md *_ctx, u32 *hash,
 	const struct igc_xdp_buff *ctx = (void *)_ctx;
 
 	if (!(ctx->xdp.rxq->dev->features & NETIF_F_RXHASH))
-		return -ENODATA;
+		return -EANALDATA;
 
 	*hash = le32_to_cpu(ctx->rx_desc->wb.lower.hi_dword.rss);
 	*rss_type = igc_xdp_rss_type[igc_rss_type(ctx->rx_desc)];
@@ -6707,7 +6707,7 @@ static int igc_xdp_rx_timestamp(const struct xdp_md *_ctx, u64 *timestamp)
 		return 0;
 	}
 
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static const struct xdp_metadata_ops igc_xdp_metadata_ops = {
@@ -6739,7 +6739,7 @@ static enum hrtimer_restart igc_qbv_scheduling_timer(struct hrtimer *timer)
 
 	spin_unlock_irqrestore(&adapter->qbv_tx_lock, flags);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /**
@@ -6769,7 +6769,7 @@ static int igc_probe(struct pci_dev *pdev,
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_err(&pdev->dev,
-			"No usable DMA configuration, aborting\n");
+			"Anal usable DMA configuration, aborting\n");
 		goto err_dma;
 	}
 
@@ -6779,11 +6779,11 @@ static int igc_probe(struct pci_dev *pdev,
 
 	err = pci_enable_ptm(pdev, NULL);
 	if (err < 0)
-		dev_info(&pdev->dev, "PCIe PTM not supported by PCIe bus/controller\n");
+		dev_info(&pdev->dev, "PCIe PTM analt supported by PCIe bus/controller\n");
 
 	pci_set_master(pdev);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	netdev = alloc_etherdev_mq(sizeof(struct igc_adapter),
 				   IGC_MAX_TX_QUEUES);
 
@@ -6884,13 +6884,13 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev->max_mtu = MAX_STD_JUMBO_FRAME_SIZE;
 
 	/* before reading the NVM, reset the controller to put the device in a
-	 * known good starting state
+	 * kanalwn good starting state
 	 */
 	hw->mac.ops.reset_hw(hw);
 
 	if (igc_get_flash_presence_i225(hw)) {
 		if (hw->nvm.ops.validate(hw) < 0) {
-			dev_err(&pdev->dev, "The NVM Checksum Is Not Valid\n");
+			dev_err(&pdev->dev, "The NVM Checksum Is Analt Valid\n");
 			err = -EIO;
 			goto err_eeprom;
 		}
@@ -6920,7 +6920,7 @@ static int igc_probe(struct pci_dev *pdev,
 	INIT_WORK(&adapter->reset_task, igc_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igc_watchdog_task);
 
-	hrtimer_init(&adapter->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&adapter->hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	adapter->hrtimer.function = &igc_qbv_scheduling_timer;
 
 	/* Initialize link properties that are user-changeable */
@@ -6948,7 +6948,7 @@ static int igc_probe(struct pci_dev *pdev,
 	/* reset the hardware with the new settings */
 	igc_reset(adapter);
 
-	/* let the f/w know that the h/w is now under the control of the
+	/* let the f/w kanalw that the h/w is analw under the control of the
 	 * driver.
 	 */
 	igc_get_hw_control(adapter);
@@ -6968,13 +6968,13 @@ static int igc_probe(struct pci_dev *pdev,
 	pcie_print_link_status(pdev);
 	netdev_info(netdev, "MAC: %pM\n", netdev->dev_addr);
 
-	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_ANAL_DIRECT_COMPLETE);
 	/* Disable EEE for internal PHY devices */
 	hw->dev_spec._base.eee_enable = false;
 	adapter->flags &= ~IGC_FLAG_EEE;
 	igc_set_eee_i225(hw, false, false, false);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	return 0;
 
@@ -7010,7 +7010,7 @@ static void igc_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	igc_flush_nfc_rules(adapter);
 
@@ -7161,10 +7161,10 @@ static int __maybe_unused igc_resume(struct device *dev)
 	pci_save_state(pdev);
 
 	if (!pci_device_is_present(pdev))
-		return -ENODEV;
+		return -EANALDEV;
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		netdev_err(netdev, "Cannot enable PCI device from suspend\n");
+		netdev_err(netdev, "Cananalt enable PCI device from suspend\n");
 		return err;
 	}
 	pci_set_master(pdev);
@@ -7174,12 +7174,12 @@ static int __maybe_unused igc_resume(struct device *dev)
 
 	if (igc_init_interrupt_scheme(adapter, true)) {
 		netdev_err(netdev, "Unable to allocate memory for queues\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	igc_reset(adapter);
 
-	/* let the f/w know that the h/w is now under the control of the
+	/* let the f/w kanalw that the h/w is analw under the control of the
 	 * driver.
 	 */
 	igc_get_hw_control(adapter);
@@ -7277,7 +7277,7 @@ static pci_ers_result_t igc_io_slot_reset(struct pci_dev *pdev)
 	pci_ers_result_t result;
 
 	if (pci_enable_device_mem(pdev)) {
-		netdev_err(netdev, "Could not re-enable PCI device after reset\n");
+		netdev_err(netdev, "Could analt re-enable PCI device after reset\n");
 		result = PCI_ERS_RESULT_DISCONNECT;
 	} else {
 		pci_set_master(pdev);
@@ -7305,7 +7305,7 @@ static pci_ers_result_t igc_io_slot_reset(struct pci_dev *pdev)
  *  @pdev: Pointer to PCI device
  *
  *  This callback is called when the error recovery driver tells us that
- *  its OK to resume normal operation. Implementation resembles the
+ *  its OK to resume analrmal operation. Implementation resembles the
  *  second-half of the igc_resume routine.
  */
 static void igc_io_resume(struct pci_dev *pdev)
@@ -7323,7 +7323,7 @@ static void igc_io_resume(struct pci_dev *pdev)
 
 	netif_device_attach(netdev);
 
-	/* let the f/w know that the h/w is now under the control of the
+	/* let the f/w kanalw that the h/w is analw under the control of the
 	 * driver.
 	 */
 	igc_get_hw_control(adapter);
@@ -7372,7 +7372,7 @@ int igc_reinit_queues(struct igc_adapter *adapter)
 
 	if (igc_init_interrupt_scheme(adapter, true)) {
 		netdev_err(netdev, "Unable to allocate memory for queues\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (netif_running(netdev))

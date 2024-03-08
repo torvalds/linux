@@ -99,7 +99,7 @@
 	.endif
 .endm
 
-/* SVE instruction encodings for non-SVE-capable assemblers */
+/* SVE instruction encodings for analn-SVE-capable assemblers */
 /* (pre binutils 2.28, all kernel capable clang versions support SVE) */
 
 /* STR (vector): STR Z\nz, [X\nxbase, #\offset, MUL VL] */
@@ -180,7 +180,7 @@
 		| (\np)
 .endm
 
-/* SME instruction encodings for non-SME-capable assemblers */
+/* SME instruction encodings for analn-SME-capable assemblers */
 /* (pre binutils 2.38/LLVM 13) */
 
 /* RDSVL X\nx, #\imm */
@@ -253,14 +253,14 @@
 
 .macro _for var:req, from:req, to:req, insn:vararg
 	.macro _for__body \var:req
-		.noaltmacro
+		.analaltmacro
 		\insn
 		.altmacro
 	.endm
 
 	.altmacro
 	__for \from, \to
-	.noaltmacro
+	.analaltmacro
 
 	.purgem _for__body
 .endm

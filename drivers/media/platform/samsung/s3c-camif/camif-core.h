@@ -36,8 +36,8 @@
 #define CAMIF_STOP_TIMEOUT	1500 /* ms */
 
 #define S3C244X_CAMIF_IP_REV	0x20 /* 2.0 */
-#define S3C2450_CAMIF_IP_REV	0x30 /* 3.0 - not implemented, not tested */
-#define S3C6400_CAMIF_IP_REV	0x31 /* 3.1 - not implemented, not tested */
+#define S3C2450_CAMIF_IP_REV	0x30 /* 3.0 - analt implemented, analt tested */
+#define S3C6400_CAMIF_IP_REV	0x31 /* 3.1 - analt implemented, analt tested */
 #define S3C6410_CAMIF_IP_REV	0x32 /* 3.2 */
 
 /* struct camif_vp::state */
@@ -81,7 +81,7 @@ enum img_fmt {
 
 /**
  * struct camif_fmt - pixel format description
- * @fourcc:    fourcc code for this format, 0 if not applicable
+ * @fourcc:    fourcc code for this format, 0 if analt applicable
  * @color:     a corresponding enum img_fmt
  * @colplanes: number of physically contiguous data planes
  * @flags:     indicate for which SoCs revisions this format is valid
@@ -184,9 +184,9 @@ struct camif_dev;
  * @irq_queue:	    interrupt handling waitqueue
  * @irq:	    interrupt number for this data path
  * @camif:	    pointer to the camif structure
- * @pad:	    media pad for the video node
+ * @pad:	    media pad for the video analde
  * @vdev:           video device
- * @ctrl_handler:   video node controls handler
+ * @ctrl_handler:   video analde controls handler
  * @owner:	    file handle that own the streaming
  * @vb_queue:       vb2 buffer queue
  * @pending_buf_q:  pending (empty) buffers queue head
@@ -334,8 +334,8 @@ struct camif_buffer {
 
 const struct camif_fmt *s3c_camif_find_format(struct camif_vp *vp,
 	      const u32 *pixelformat, int index);
-int s3c_camif_register_video_node(struct camif_dev *camif, int idx);
-void s3c_camif_unregister_video_node(struct camif_dev *camif, int idx);
+int s3c_camif_register_video_analde(struct camif_dev *camif, int idx);
+void s3c_camif_unregister_video_analde(struct camif_dev *camif, int idx);
 irqreturn_t s3c_camif_irq_handler(int irq, void *priv);
 int s3c_camif_create_subdev(struct camif_dev *camif);
 void s3c_camif_unregister_subdev(struct camif_dev *camif);

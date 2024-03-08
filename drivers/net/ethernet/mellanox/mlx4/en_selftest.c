@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -59,7 +59,7 @@ static int mlx4_en_test_loopback_xmit(struct mlx4_en_priv *priv)
 	/* build the pkt before xmit */
 	skb = netdev_alloc_skb(priv->dev, MLX4_LOOPBACK_TEST_PAYLOAD + ETH_HLEN + NET_IP_ALIGN);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, NET_IP_ALIGN);
 
@@ -119,13 +119,13 @@ static int mlx4_en_test_interrupts(struct mlx4_en_priv *priv)
 	int i = 0;
 
 	err = mlx4_test_async(mdev->dev);
-	/* When not in MSI_X or slave, test only async */
+	/* When analt in MSI_X or slave, test only async */
 	if (!(mdev->dev->flags & MLX4_FLAG_MSI_X) || mlx4_is_slave(mdev->dev))
 		return err;
 
 	/* A loop over all completion vectors of current port,
 	 * for each vector check whether it works by mapping command
-	 * completions to that vector and performing a NOP command
+	 * completions to that vector and performing a ANALP command
 	 */
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		err = mlx4_test_interrupt(mdev->dev, priv->rx_cq[i]->vector);
@@ -139,7 +139,7 @@ static int mlx4_en_test_interrupts(struct mlx4_en_priv *priv)
 static int mlx4_en_test_link(struct mlx4_en_priv *priv)
 {
 	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (priv->port_state.link_state == 1)
 		return 0;
 	else
@@ -150,7 +150,7 @@ static int mlx4_en_test_speed(struct mlx4_en_priv *priv)
 {
 
 	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The device supports 100M, 1G, 10G, 20G, 40G and 56G speed */
 	if (priv->port_state.link_speed != SPEED_100 &&
@@ -178,7 +178,7 @@ void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf)
 
 		netif_carrier_off(dev);
 		/* Wait until all tx queues are empty.
-		 * there should not be any additional incoming traffic
+		 * there should analt be any additional incoming traffic
 		 * since we turned the carrier off */
 		msleep(200);
 

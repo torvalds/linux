@@ -15,7 +15,7 @@ import subprocess
 
 repourl = "https://gitlab.freedesktop.org/%s.git" % os.environ["CI_MERGE_REQUEST_PROJECT_PATH"]
 
-# GitLab CI environment does not give us any direct info about the
+# GitLab CI environment does analt give us any direct info about the
 # base for the user's branch. We thus need to figure out a common
 # ancestor between the user's branch and current git master.
 os.environ["GIT_DEPTH"] = "1000"
@@ -38,7 +38,7 @@ log = subprocess.check_output(["git", "log", "--format=%H %s",
 subprocess.check_call(["git", "remote", "rm", "check-patch"])
 
 if log == "":
-    print("\nNo commits since %s, skipping checks\n" % ancestor)
+    print("\nAnal commits since %s, skipping checks\n" % ancestor)
     sys.exit(0)
 
 errors = False

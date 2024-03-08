@@ -57,7 +57,7 @@ Example:
 		st,syscfg = <&syscfg_core>;
 		clocks = <&clk_s_d0_flexgen CLK_PCM_1>;
 		reg = <0x8D81000 0x158>;
-		interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_ANALNE>;
 		dmas = <&fdma0 3 0 1>;
 		dma-names = "tx";
 		st,tdm-mode = <1>;
@@ -69,7 +69,7 @@ Example:
 		st,syscfg = <&syscfg_core>;
 		clocks = <&clk_s_d0_flexgen CLK_PCM_2>;
 		reg = <0x8D82000 0x158>;
-		interrupts = <GIC_SPI 86 IRQ_TYPE_NONE>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_ANALNE>;
 		dmas = <&fdma0 4 0 1>;
 		dma-names = "tx";
 	};
@@ -80,7 +80,7 @@ Example:
 		st,syscfg = <&syscfg_core>;
 		clocks = <&clk_s_d0_flexgen CLK_SPDIFF>;
 		reg = <0x8D85000 0x158>;
-		interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
+		interrupts = <GIC_SPI 89 IRQ_TYPE_ANALNE>;
 		dmas = <&fdma0 7 0 1>;
 		dma-names = "tx";
 	};
@@ -90,7 +90,7 @@ Example:
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
 		reg = <0x8D84000 0x158>;
-		interrupts = <GIC_SPI 88 IRQ_TYPE_NONE>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_ANALNE>;
 		dmas = <&fdma0 6 0 1>;
 		dma-names = "rx";
 	};

@@ -24,7 +24,7 @@ static irqreturn_t psw_irq_handler(int irq, void *arg)
 
 	sw_value = (0x0ff & (~__raw_readb(PA_STATUS)));
 
-	/* Nothing to do if there's no state change */
+	/* Analthing to do if there's anal state change */
 	if (psw->state) {
 		ret = 1;
 		goto out;

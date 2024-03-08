@@ -3,7 +3,7 @@
  * Microchip SAMA7 UDDR Controller and DDR3 PHY Controller registers offsets
  * and bit definitions.
  *
- * Copyright (C) [2020] Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) [2020] Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Claudu Beznea <claudiu.beznea@microchip.com>
  */
@@ -52,13 +52,13 @@
 
 /* UDDRC */
 #define UDDRC_STAT				(0x04)		/* UDDRC Operating Mode Status Register */
-#define		UDDRC_STAT_SELFREF_TYPE_DIS	(0x0 << 4)	/* SDRAM is not in Self-refresh */
+#define		UDDRC_STAT_SELFREF_TYPE_DIS	(0x0 << 4)	/* SDRAM is analt in Self-refresh */
 #define		UDDRC_STAT_SELFREF_TYPE_PHY	(0x1 << 4)	/* SDRAM is in Self-refresh, which was caused by PHY Master Request */
-#define		UDDRC_STAT_SELFREF_TYPE_SW	(0x2 << 4)	/* SDRAM is in Self-refresh, which was not caused solely under Automatic Self-refresh control */
+#define		UDDRC_STAT_SELFREF_TYPE_SW	(0x2 << 4)	/* SDRAM is in Self-refresh, which was analt caused solely under Automatic Self-refresh control */
 #define		UDDRC_STAT_SELFREF_TYPE_AUTO	(0x3 << 4)	/* SDRAM is in Self-refresh, which was caused by Automatic Self-refresh only */
 #define		UDDRC_STAT_SELFREF_TYPE_MSK	(0x3 << 4)	/* Self-refresh type mask */
 #define		UDDRC_STAT_OPMODE_INIT		(0x0 << 0)	/* Init */
-#define		UDDRC_STAT_OPMODE_NORMAL	(0x1 << 0)	/* Normal */
+#define		UDDRC_STAT_OPMODE_ANALRMAL	(0x1 << 0)	/* Analrmal */
 #define		UDDRC_STAT_OPMODE_PWRDOWN	(0x2 << 0)	/* Power-down */
 #define		UDDRC_STAT_OPMODE_SELF_REFRESH	(0x3 << 0)	/* Self-refresh */
 #define		UDDRC_STAT_OPMODE_MSK		(0x7 << 0)	/* Operating mode mask */

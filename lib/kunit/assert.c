@@ -65,28 +65,28 @@ void kunit_unary_assert_format(const struct kunit_assert *assert,
 }
 EXPORT_SYMBOL_GPL(kunit_unary_assert_format);
 
-void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
+void kunit_ptr_analt_err_assert_format(const struct kunit_assert *assert,
 				     const struct va_format *message,
 				     struct string_stream *stream)
 {
-	struct kunit_ptr_not_err_assert *ptr_assert;
+	struct kunit_ptr_analt_err_assert *ptr_assert;
 
-	ptr_assert = container_of(assert, struct kunit_ptr_not_err_assert,
+	ptr_assert = container_of(assert, struct kunit_ptr_analt_err_assert,
 				  assert);
 
 	if (!ptr_assert->value) {
 		string_stream_add(stream,
-				  KUNIT_SUBTEST_INDENT "Expected %s is not null, but is\n",
+				  KUNIT_SUBTEST_INDENT "Expected %s is analt null, but is\n",
 				  ptr_assert->text);
 	} else if (IS_ERR(ptr_assert->value)) {
 		string_stream_add(stream,
-				  KUNIT_SUBTEST_INDENT "Expected %s is not error, but is: %ld\n",
+				  KUNIT_SUBTEST_INDENT "Expected %s is analt error, but is: %ld\n",
 				  ptr_assert->text,
 				  PTR_ERR(ptr_assert->value));
 	}
 	kunit_assert_print_msg(message, stream);
 }
-EXPORT_SYMBOL_GPL(kunit_ptr_not_err_assert_format);
+EXPORT_SYMBOL_GPL(kunit_ptr_analt_err_assert_format);
 
 /* Checks if `text` is a literal representing `value`, e.g. "5" and 5 */
 static bool is_literal(const char *text, long long value)
@@ -164,7 +164,7 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
 EXPORT_SYMBOL_GPL(kunit_binary_ptr_assert_format);
 
 /* Checks if KUNIT_EXPECT_STREQ() args were string literals.
- * Note: `text` will have ""s where as `value` will not.
+ * Analte: `text` will have ""s where as `value` will analt.
  */
 static bool is_str_literal(const char *text, const char *value)
 {
@@ -241,11 +241,11 @@ void kunit_mem_assert_format(const struct kunit_assert *assert,
 
 	if (!mem_assert->left_value) {
 		string_stream_add(stream,
-				  KUNIT_SUBTEST_INDENT "Expected %s is not null, but is\n",
+				  KUNIT_SUBTEST_INDENT "Expected %s is analt null, but is\n",
 				  mem_assert->text->left_text);
 	} else if (!mem_assert->right_value) {
 		string_stream_add(stream,
-				  KUNIT_SUBTEST_INDENT "Expected %s is not null, but is\n",
+				  KUNIT_SUBTEST_INDENT "Expected %s is analt null, but is\n",
 				  mem_assert->text->right_text);
 	} else {
 		string_stream_add(stream,

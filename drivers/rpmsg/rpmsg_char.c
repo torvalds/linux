@@ -29,12 +29,12 @@
 #include "rpmsg_char.h"
 #include "rpmsg_internal.h"
 
-#define RPMSG_DEV_MAX	(MINORMASK + 1)
+#define RPMSG_DEV_MAX	(MIANALRMASK + 1)
 
 static dev_t rpmsg_major;
 
 static DEFINE_IDA(rpmsg_ept_ida);
-static DEFINE_IDA(rpmsg_minor_ida);
+static DEFINE_IDA(rpmsg_mianalr_ida);
 
 #define dev_to_eptdev(dev) container_of(dev, struct rpmsg_eptdev, dev)
 #define cdev_to_eptdev(i_cdev) container_of(i_cdev, struct rpmsg_eptdev, cdev)
@@ -106,7 +106,7 @@ static int rpmsg_ept_cb(struct rpmsg_device *rpdev, void *buf, int len,
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, buf, len);
 
@@ -132,9 +132,9 @@ static int rpmsg_ept_flow_cb(struct rpmsg_device *rpdev, void *priv, bool enable
 	return 0;
 }
 
-static int rpmsg_eptdev_open(struct inode *inode, struct file *filp)
+static int rpmsg_eptdev_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct rpmsg_eptdev *eptdev = cdev_to_eptdev(inode->i_cdev);
+	struct rpmsg_eptdev *eptdev = cdev_to_eptdev(ianalde->i_cdev);
 	struct rpmsg_endpoint *ept;
 	struct rpmsg_device *rpdev = eptdev->rpdev;
 	struct device *dev = &eptdev->dev;
@@ -176,12 +176,12 @@ static int rpmsg_eptdev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int rpmsg_eptdev_release(struct inode *inode, struct file *filp)
+static int rpmsg_eptdev_release(struct ianalde *ianalde, struct file *filp)
 {
-	struct rpmsg_eptdev *eptdev = cdev_to_eptdev(inode->i_cdev);
+	struct rpmsg_eptdev *eptdev = cdev_to_eptdev(ianalde->i_cdev);
 	struct device *dev = &eptdev->dev;
 
-	/* Close the endpoint, if it's not already destroyed by the parent */
+	/* Close the endpoint, if it's analt already destroyed by the parent */
 	mutex_lock(&eptdev->ept_lock);
 	if (eptdev->ept) {
 		if (!eptdev->default_ept)
@@ -216,7 +216,7 @@ static ssize_t rpmsg_eptdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (skb_queue_empty(&eptdev->queue)) {
 		spin_unlock_irqrestore(&eptdev->queue_lock, flags);
 
-		if (filp->f_flags & O_NONBLOCK)
+		if (filp->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		/* Wait until we get data or the endpoint goes away */
@@ -257,7 +257,7 @@ static ssize_t rpmsg_eptdev_write_iter(struct kiocb *iocb,
 
 	kbuf = kzalloc(len, GFP_KERNEL);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!copy_from_iter_full(kbuf, len, from)) {
 		ret = -EFAULT;
@@ -274,9 +274,9 @@ static ssize_t rpmsg_eptdev_write_iter(struct kiocb *iocb,
 		goto unlock_eptdev;
 	}
 
-	if (filp->f_flags & O_NONBLOCK) {
+	if (filp->f_flags & O_ANALNBLOCK) {
 		ret = rpmsg_trysendto(eptdev->ept, kbuf, len, eptdev->chinfo.dst);
-		if (ret == -ENOMEM)
+		if (ret == -EANALMEM)
 			ret = -EAGAIN;
 	} else {
 		ret = rpmsg_sendto(eptdev->ept, kbuf, len, eptdev->chinfo.dst);
@@ -301,7 +301,7 @@ static __poll_t rpmsg_eptdev_poll(struct file *filp, poll_table *wait)
 	poll_wait(filp, &eptdev->readq, wait);
 
 	if (!skb_queue_empty(&eptdev->queue))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	if (eptdev->remote_flow_updated)
 		mask |= EPOLLPRI;
@@ -400,7 +400,7 @@ static void rpmsg_eptdev_release_device(struct device *dev)
 	struct rpmsg_eptdev *eptdev = dev_to_eptdev(dev);
 
 	ida_simple_remove(&rpmsg_ept_ida, dev->id);
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(eptdev->dev.devt));
+	ida_simple_remove(&rpmsg_mianalr_ida, MIANALR(eptdev->dev.devt));
 	kfree(eptdev);
 }
 
@@ -412,7 +412,7 @@ static struct rpmsg_eptdev *rpmsg_chrdev_eptdev_alloc(struct rpmsg_device *rpdev
 
 	eptdev = kzalloc(sizeof(*eptdev), GFP_KERNEL);
 	if (!eptdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev = &eptdev->dev;
 	eptdev->rpdev = rpdev;
@@ -441,14 +441,14 @@ static int rpmsg_chrdev_eptdev_add(struct rpmsg_eptdev *eptdev, struct rpmsg_cha
 
 	eptdev->chinfo = chinfo;
 
-	ret = ida_simple_get(&rpmsg_minor_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
+	ret = ida_simple_get(&rpmsg_mianalr_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
 	if (ret < 0)
 		goto free_eptdev;
 	dev->devt = MKDEV(MAJOR(rpmsg_major), ret);
 
 	ret = ida_simple_get(&rpmsg_ept_ida, 0, 0, GFP_KERNEL);
 	if (ret < 0)
-		goto free_minor_ida;
+		goto free_mianalr_ida;
 	dev->id = ret;
 	dev_set_name(dev, "rpmsg%d", ret);
 
@@ -456,15 +456,15 @@ static int rpmsg_chrdev_eptdev_add(struct rpmsg_eptdev *eptdev, struct rpmsg_cha
 	if (ret)
 		goto free_ept_ida;
 
-	/* We can now rely on the release function for cleanup */
+	/* We can analw rely on the release function for cleanup */
 	dev->release = rpmsg_eptdev_release_device;
 
 	return ret;
 
 free_ept_ida:
 	ida_simple_remove(&rpmsg_ept_ida, dev->id);
-free_minor_ida:
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(dev->devt));
+free_mianalr_ida:
+	ida_simple_remove(&rpmsg_mianalr_ida, MIANALR(dev->devt));
 free_eptdev:
 	put_device(dev);
 	kfree(eptdev);

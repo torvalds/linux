@@ -86,22 +86,22 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	}
 }
 
-static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
+static void iwl_mvm_adjust_quota_for_anala(struct iwl_mvm *mvm,
 					 struct iwl_time_quota_cmd *cmd)
 {
 #ifdef CONFIG_NL80211_TESTMODE
 	struct iwl_mvm_vif *mvmvif;
 	int i, phy_id = -1, beacon_int = 0;
 
-	if (!mvm->noa_duration || !mvm->noa_vif)
+	if (!mvm->anala_duration || !mvm->anala_vif)
 		return;
 
-	mvmvif = iwl_mvm_vif_from_mac80211(mvm->noa_vif);
+	mvmvif = iwl_mvm_vif_from_mac80211(mvm->anala_vif);
 	if (!mvmvif->ap_ibss_active)
 		return;
 
 	phy_id = mvmvif->deflink.phy_ctxt->id;
-	beacon_int = mvm->noa_vif->bss_conf.beacon_int;
+	beacon_int = mvm->anala_vif->bss_conf.beacon_int;
 
 	for (i = 0; i < MAX_BINDINGS; i++) {
 		struct iwl_time_quota_data *data =
@@ -114,10 +114,10 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 		if (id != phy_id)
 			continue;
 
-		quota *= (beacon_int - mvm->noa_duration);
+		quota *= (beacon_int - mvm->anala_duration);
 		quota /= beacon_int;
 
-		IWL_DEBUG_QUOTA(mvm, "quota: adjust for NoA from %d to %d\n",
+		IWL_DEBUG_QUOTA(mvm, "quota: adjust for AnalA from %d to %d\n",
 				le32_to_cpu(data->quota), quota);
 
 		data->quota = cpu_to_le32(quota);
@@ -130,7 +130,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *disabled_vif)
 {
 	struct iwl_time_quota_cmd cmd = {};
-	int i, idx, err, num_active_macs, quota, quota_rem, n_non_lowlat;
+	int i, idx, err, num_active_macs, quota, quota_rem, n_analn_lowlat;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
@@ -154,7 +154,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 	BUILD_BUG_ON(MAX_BINDINGS != 4);
 
 	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 		iwl_mvm_quota_iterator, &data);
 
 	/*
@@ -169,26 +169,26 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		num_active_macs += data.n_interfaces[i];
 	}
 
-	n_non_lowlat = num_active_macs;
+	n_analn_lowlat = num_active_macs;
 
 	if (data.n_low_latency_bindings == 1) {
 		for (i = 0; i < MAX_BINDINGS; i++) {
 			if (data.low_latency[i]) {
-				n_non_lowlat -= data.n_interfaces[i];
+				n_analn_lowlat -= data.n_interfaces[i];
 				break;
 			}
 		}
 	}
 
-	if (data.n_low_latency_bindings == 1 && n_non_lowlat) {
+	if (data.n_low_latency_bindings == 1 && n_analn_lowlat) {
 		/*
 		 * Reserve quota for the low latency binding in case that
 		 * there are several data bindings but only a single
 		 * low latency one. Split the rest of the quota equally
 		 * between the other data interfaces.
 		 */
-		quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_non_lowlat;
-		quota_rem = QUOTA_100 - n_non_lowlat * quota -
+		quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_analn_lowlat;
+		quota_rem = QUOTA_100 - n_analn_lowlat * quota -
 			    QUOTA_LOWLAT_MIN;
 		IWL_DEBUG_QUOTA(mvm,
 				"quota: low-latency binding active, remaining quota per other binding: %d\n",
@@ -226,7 +226,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			qdata->quota =
 				cpu_to_le32(data.dbgfs_min[i] * QUOTA_100 / 100);
 #endif
-		else if (data.n_low_latency_bindings == 1 && n_non_lowlat &&
+		else if (data.n_low_latency_bindings == 1 && n_analn_lowlat &&
 			 data.low_latency[i])
 			/*
 			 * There is more than one binding, but only one of the
@@ -260,9 +260,9 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		}
 	}
 
-	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
+	iwl_mvm_adjust_quota_for_anala(mvm, &cmd);
 
-	/* check that we have non-zero quota for all valid bindings */
+	/* check that we have analn-zero quota for all valid bindings */
 	for (i = 0; i < MAX_BINDINGS; i++) {
 		qdata = iwl_mvm_quota_cmd_get_quota(mvm, &cmd, i);
 		last_data = iwl_mvm_quota_cmd_get_quota(mvm, last, i);

@@ -32,11 +32,11 @@ struct vmem_altmap {
  * usage.
  *
  * MEMORY_DEVICE_PRIVATE:
- * Device memory that is not directly addressable by the CPU: CPU can neither
- * read nor write private memory. In this case, we do still have struct pages
+ * Device memory that is analt directly addressable by the CPU: CPU can neither
+ * read analr write private memory. In this case, we do still have struct pages
  * backing the device memory. Doing so simplifies the implementation, but it is
  * important to remember that there are certain points at which the struct page
- * must be treated as an opaque object, rather than a "normal" struct page.
+ * must be treated as an opaque object, rather than a "analrmal" struct page.
  *
  * A more complete discussion of unaddressable memory may be found in
  * include/linux/hmm.h and Documentation/mm/hmm.rst.
@@ -45,7 +45,7 @@ struct vmem_altmap {
  * Device memory that is cache coherent from device and CPU point of view. This
  * is used on platforms that have an advanced system bus (like CAPI or CXL). A
  * driver can hotplug the device memory using ZONE_DEVICE and with that memory
- * type. Any page of a process can be migrated to such memory. However no one
+ * type. Any page of a process can be migrated to such memory. However anal one
  * should be allowed to pin such memory so that it can always be evicted.
  *
  * MEMORY_DEVICE_FS_DAX:
@@ -89,12 +89,12 @@ struct dev_pagemap_ops {
 	vm_fault_t (*migrate_to_ram)(struct vm_fault *vmf);
 
 	/*
-	 * Handle the memory failure happens on a range of pfns.  Notify the
+	 * Handle the memory failure happens on a range of pfns.  Analtify the
 	 * processes who are using these pfns, and try to recover the data on
 	 * them if necessary.  The mf_flags is finally passed to the recover
-	 * function through the whole notify routine.
+	 * function through the whole analtify routine.
 	 *
-	 * When this is not implemented, or it returns -EOPNOTSUPP, the caller
+	 * When this is analt implemented, or it returns -EOPANALTSUPP, the caller
 	 * will fall back to a common handler called mf_generic_kill_procs().
 	 */
 	int (*memory_failure)(struct dev_pagemap *pgmap, unsigned long pfn,
@@ -117,7 +117,7 @@ struct dev_pagemap_ops {
  *	of the requested order value.
  * @ops: method table
  * @owner: an opaque pointer identifying the entity that manages this
- *	instance.  Used by various helpers to make sure that no
+ *	instance.  Used by various helpers to make sure that anal
  *	foreign ZONE_DEVICE memory is accessed.
  * @nr_range: number of ranges to be mapped
  * @range: range to be mapped when nr_range == 1

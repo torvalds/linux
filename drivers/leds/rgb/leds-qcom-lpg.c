@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2017-2022 Linaro Ltd
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #include <linux/bits.h>
 #include <linux/bitfield.h>
@@ -107,7 +107,7 @@ struct lpg {
  * @dtest_value: DTEST line configuration
  * @pwm_value:	duty (in microseconds) of the generated pulses, overridden by LUT
  * @enabled:	output enabled?
- * @period:	period (in nanoseconds) of the generated pulses
+ * @period:	period (in naanalseconds) of the generated pulses
  * @clk_sel:	reference clock frequency selector
  * @pre_div_sel: divider selector of the reference clock
  * @pre_div_exp: exponential divider of the reference clock
@@ -226,7 +226,7 @@ static int lpg_lut_store(struct lpg *lpg, struct led_pattern *pattern,
 	idx = bitmap_find_next_zero_area(lpg->lut_bitmap, lpg->lut_size,
 					 0, len, 0);
 	if (idx >= lpg->lut_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < len; i++) {
 		val = pattern[i].brightness;
@@ -337,20 +337,20 @@ static int lpg_calc_freq(struct lpg_channel *chan, uint64_t period)
 			u64 numerator = period * clk_rate_arr[clk_sel];
 
 			for (div = 0; div < ARRAY_SIZE(lpg_pre_divs); div++) {
-				u64 denominator = (u64)NSEC_PER_SEC * lpg_pre_divs[div] *
+				u64 deanalminator = (u64)NSEC_PER_SEC * lpg_pre_divs[div] *
 						  resolution;
 				u64 actual;
 				u64 ratio;
 
-				if (numerator < denominator)
+				if (numerator < deanalminator)
 					continue;
 
-				ratio = div64_u64(numerator, denominator);
+				ratio = div64_u64(numerator, deanalminator);
 				m = ilog2(ratio);
 				if (m > LPG_MAX_M)
 					m = LPG_MAX_M;
 
-				actual = DIV_ROUND_UP_ULL(denominator * (1 << m),
+				actual = DIV_ROUND_UP_ULL(deanalminator * (1 << m),
 							  clk_rate_arr[clk_sel]);
 				error = period - actual;
 				if (error < best_err) {
@@ -540,7 +540,7 @@ static void lpg_apply_sync(struct lpg_channel *chan)
 static int lpg_parse_dtest(struct lpg *lpg)
 {
 	struct lpg_channel *chan;
-	struct device_node *np = lpg->dev->of_node;
+	struct device_analde *np = lpg->dev->of_analde;
 	int count;
 	int ret;
 	int i;
@@ -787,7 +787,7 @@ static int lpg_pattern_set(struct lpg_led *led, struct led_pattern *led_pattern,
 	 * describes that the way to perform instant transitions a zero-length
 	 * entry should be added following a pattern entry.
 	 *
-	 * The LPG hardware is only able to perform the latter (no linear
+	 * The LPG hardware is only able to perform the latter (anal linear
 	 * transitions), so require each entry in the pattern to be followed by
 	 * a zero-length transition.
 	 */
@@ -796,7 +796,7 @@ static int lpg_pattern_set(struct lpg_led *led, struct led_pattern *led_pattern,
 
 	pattern = kcalloc(len / 2, sizeof(*pattern), GFP_KERNEL);
 	if (!pattern)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < len; i += 2) {
 		if (led_pattern[i].brightness != led_pattern[i + 1].brightness)
@@ -991,7 +991,7 @@ static int lpg_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 /*
  * Limitations:
- * - Updating both duty and period is not done atomically, so the output signal
+ * - Updating both duty and period is analt done atomically, so the output signal
  *   will momentarily be a mix of the settings.
  * - Changed parameters takes effect immediately.
  * - A disabled channel outputs a logical 0.
@@ -1003,7 +1003,7 @@ static int lpg_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct lpg_channel *chan = &lpg->channels[pwm->hwpwm];
 	int ret = 0;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	mutex_lock(&lpg->lock);
@@ -1077,7 +1077,7 @@ static int lpg_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		return ret;
 
 	state->enabled = FIELD_GET(LPG_ENABLE_CONTROL_OUTPUT, val);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	if (state->duty_cycle > state->period)
 		state->duty_cycle = state->period;
@@ -1106,7 +1106,7 @@ static int lpg_add_pwm(struct lpg *lpg)
 	return ret;
 }
 
-static int lpg_parse_channel(struct lpg *lpg, struct device_node *np,
+static int lpg_parse_channel(struct lpg *lpg, struct device_analde *np,
 			     struct lpg_channel **channel)
 {
 	struct lpg_channel *chan;
@@ -1133,11 +1133,11 @@ static int lpg_parse_channel(struct lpg *lpg, struct device_node *np,
 	return 0;
 }
 
-static int lpg_add_led(struct lpg *lpg, struct device_node *np)
+static int lpg_add_led(struct lpg *lpg, struct device_analde *np)
 {
 	struct led_init_data init_data = {};
 	struct led_classdev *cdev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct mc_subled *info;
 	struct lpg_led *led;
 	const char *state;
@@ -1158,7 +1158,7 @@ static int lpg_add_led(struct lpg *lpg, struct device_node *np)
 
 	led = devm_kzalloc(lpg->dev, struct_size(led, channels, num_channels), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->lpg = lpg;
 	led->num_channels = num_channels;
@@ -1166,12 +1166,12 @@ static int lpg_add_led(struct lpg *lpg, struct device_node *np)
 	if (color == LED_COLOR_ID_RGB) {
 		info = devm_kcalloc(lpg->dev, num_channels, sizeof(*info), GFP_KERNEL);
 		if (!info)
-			return -ENOMEM;
+			return -EANALMEM;
 		i = 0;
-		for_each_available_child_of_node(np, child) {
+		for_each_available_child_of_analde(np, child) {
 			ret = lpg_parse_channel(lpg, child, &led->channels[i]);
 			if (ret < 0) {
-				of_node_put(child);
+				of_analde_put(child);
 				return ret;
 			}
 
@@ -1219,7 +1219,7 @@ static int lpg_add_led(struct lpg *lpg, struct device_node *np)
 
 	cdev->brightness_set_blocking(cdev, cdev->brightness);
 
-	init_data.fwnode = of_fwnode_handle(np);
+	init_data.fwanalde = of_fwanalde_handle(np);
 
 	if (color == LED_COLOR_ID_RGB)
 		ret = devm_led_classdev_multicolor_register_ext(lpg->dev, &led->mcdev, &init_data);
@@ -1241,7 +1241,7 @@ static int lpg_init_channels(struct lpg *lpg)
 	lpg->channels = devm_kcalloc(lpg->dev, data->num_channels,
 				     sizeof(struct lpg_channel), GFP_KERNEL);
 	if (!lpg->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < data->num_channels; i++) {
 		chan = &lpg->channels[i];
@@ -1259,7 +1259,7 @@ static int lpg_init_channels(struct lpg *lpg)
 
 static int lpg_init_triled(struct lpg *lpg)
 {
-	struct device_node *np = lpg->dev->of_node;
+	struct device_analde *np = lpg->dev->of_analde;
 	int ret;
 
 	/* Skip initialization if we don't have a triled block */
@@ -1303,21 +1303,21 @@ static int lpg_init_lut(struct lpg *lpg)
 
 	lpg->lut_bitmap = devm_bitmap_zalloc(lpg->dev, lpg->lut_size, GFP_KERNEL);
 	if (!lpg->lut_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
 
 static int lpg_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct lpg *lpg;
 	int ret;
 	int i;
 
 	lpg = devm_kzalloc(&pdev->dev, sizeof(*lpg), GFP_KERNEL);
 	if (!lpg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lpg->data = of_device_get_match_data(&pdev->dev);
 	if (!lpg->data)
@@ -1346,10 +1346,10 @@ static int lpg_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	for_each_available_child_of_node(pdev->dev.of_node, np) {
+	for_each_available_child_of_analde(pdev->dev.of_analde, np) {
 		ret = lpg_add_led(lpg, np);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}

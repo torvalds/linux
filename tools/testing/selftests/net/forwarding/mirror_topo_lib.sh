@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # This is the standard topology for testing mirroring. The tests that use it
-# tweak it in one way or another--typically add more devices to the topology.
+# tweak it in one way or aanalther--typically add more devices to the topology.
 #
 #   +---------------------+                             +---------------------+
 #   | H1                  |                             |                  H2 |
@@ -60,7 +60,7 @@ mirror_topo_switch_create()
 	ip link set dev $swp3 up
 
 	ip link add name br1 type bridge vlan_filtering 1
-	ip link set dev br1 addrgenmode none
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 
 	ip link set dev $swp1 master br1

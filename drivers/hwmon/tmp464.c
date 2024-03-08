@@ -3,9 +3,9 @@
 /* Driver for the Texas Instruments TMP464 SMBus temperature sensor IC.
  * Supported models: TMP464, TMP468
 
- * Copyright (C) 2022 Agathe Porte <agathe.porte@nokia.com>
+ * Copyright (C) 2022 Agathe Porte <agathe.porte@analkia.com>
  * Preliminary support by:
- * Lionel Pouliquen <lionel.lp.pouliquen@nokia.com>
+ * Lionel Pouliquen <lionel.lp.pouliquen@analkia.com>
  */
 
 #include <linux/err.h>
@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, I2C_CLIENT_END };
 
 #define TMP464_NUM_CHANNELS		5	/* chan 0 is internal, 1-4 are remote */
 #define TMP468_NUM_CHANNELS		9	/* chan 0 is internal, 1-8 are remote */
@@ -139,7 +139,7 @@ static int tmp464_chip_read(struct device *dev, u32 attr, int channel, long *val
 		*val = data->update_interval;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -223,7 +223,7 @@ static int tmp464_temp_read(struct device *dev, u32 attr, int channel, long *val
 		break;
 	case hwmon_temp_input:
 		if (!data->channel[channel].enabled) {
-			err = -ENODATA;
+			err = -EANALDATA;
 			break;
 		}
 		err = regmap_read(regmap, TMP464_TEMP_REG(channel), &regval);
@@ -235,7 +235,7 @@ static int tmp464_temp_read(struct device *dev, u32 attr, int channel, long *val
 		*val = data->channel[channel].enabled;
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -253,7 +253,7 @@ static int tmp464_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return tmp464_temp_read(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -298,7 +298,7 @@ static int tmp464_chip_write(struct tmp464_data *data, u32 attr, int channel, lo
 	case hwmon_chip_update_interval:
 		return tmp464_set_convrate(data, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -335,7 +335,7 @@ static int tmp464_temp_write(struct tmp464_data *data, u32 attr, int channel, lo
 		err = tmp464_enable_channels(data);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -358,7 +358,7 @@ static int tmp464_write(struct device *dev, enum hwmon_sensor_types type,
 		err = tmp464_temp_write(data, attr, channel, val);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -473,25 +473,25 @@ static int tmp464_detect(struct i2c_client *client,
 	int reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_word_swapped(client, TMP464_MANUFACTURER_ID_REG);
 	if (reg < 0)
 		return reg;
 	if (reg != TMP464_MANUFACTURER_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check for "always return zero" bits */
 	reg = i2c_smbus_read_word_swapped(client, TMP464_THERM_STATUS_REG);
 	if (reg < 0)
 		return reg;
 	if (reg & 0x1f)
-		return -ENODEV;
+		return -EANALDEV;
 	reg = i2c_smbus_read_word_swapped(client, TMP464_THERM2_STATUS_REG);
 	if (reg < 0)
 		return reg;
 	if (reg & 0x1f)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_word_swapped(client, TMP464_DEVICE_ID_REG);
 	if (reg < 0)
@@ -506,7 +506,7 @@ static int tmp464_detect(struct i2c_client *client,
 		chip = "TMP468";
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
@@ -516,7 +516,7 @@ static int tmp464_detect(struct i2c_client *client,
 }
 
 static int tmp464_probe_child_from_dt(struct device *dev,
-				      struct device_node *child,
+				      struct device_analde *child,
 				      struct tmp464_data *data)
 
 {
@@ -564,17 +564,17 @@ static int tmp464_probe_child_from_dt(struct device *dev,
 
 static int tmp464_probe_from_dt(struct device *dev, struct tmp464_data *data)
 {
-	const struct device_node *np = dev->of_node;
-	struct device_node *child;
+	const struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	int err;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (strcmp(child->name, "channel"))
 			continue;
 
 		err = tmp464_probe_child_from_dt(dev, child, data);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 	}
@@ -658,15 +658,15 @@ static int tmp464_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA)) {
 		dev_err(&client->dev, "i2c functionality check failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	data = devm_kzalloc(dev, sizeof(struct tmp464_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->update_lock);
 
-	if (dev->of_node)
+	if (dev->of_analde)
 		data->channels = (int)(unsigned long)of_device_get_match_data(&client->dev);
 	else
 		data->channels = i2c_match_id(tmp464_id, client)->driver_data;
@@ -682,7 +682,7 @@ static int tmp464_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		err = tmp464_probe_from_dt(dev, data);
 		if (err)
 			return err;
@@ -702,11 +702,11 @@ static struct i2c_driver tmp464_driver = {
 	.probe = tmp464_probe,
 	.id_table = tmp464_id,
 	.detect = tmp464_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 };
 
 module_i2c_driver(tmp464_driver);
 
-MODULE_AUTHOR("Agathe Porte <agathe.porte@nokia.com>");
+MODULE_AUTHOR("Agathe Porte <agathe.porte@analkia.com>");
 MODULE_DESCRIPTION("Texas Instruments TMP464 temperature sensor driver");
 MODULE_LICENSE("GPL");

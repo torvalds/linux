@@ -8,26 +8,26 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *
  * References:
- * HP-HIL Technical Reference Manual.  Hewlett Packard Product No. 45918A
+ * HP-HIL Technical Reference Manual.  Hewlett Packard Product Anal. 45918A
  *
  */
 
@@ -41,10 +41,10 @@
 typedef struct hil_mlc hil_mlc;
 
 /* The HIL has a complicated state engine.
- * We define the structure of nodes in the state engine here.
+ * We define the structure of analdes in the state engine here.
  */
 enum hilse_act {
-  	/* HILSE_OUT prepares to receive input if the next node
+  	/* HILSE_OUT prepares to receive input if the next analde
 	 * is an IN or EXPECT, and then sends the given packet.
 	 */
 	HILSE_OUT = 0,
@@ -67,7 +67,7 @@ enum hilse_act {
 	 */
 	HILSE_FUNC,
 
-  	/* HILSE_IN simply expects any non-errored packet to arrive 
+  	/* HILSE_IN simply expects any analn-errored packet to arrive 
 	 * within arg usecs.
 	 */
 	HILSE_IN		= 0x100,
@@ -83,22 +83,22 @@ enum hilse_act {
 	HILSE_EXPECT_LAST,
 
   	/* HILSE_EXPECT_LAST as above but dev field should be first 
-	 * undiscovered/inoperational device.
+	 * undiscovered/ianalperational device.
 	 */
 	HILSE_EXPECT_DISC
 };
 
 typedef int	(hilse_func) (hil_mlc *mlc, int arg);
-struct hilse_node {
-	enum hilse_act		act;	/* How to process this node         */
+struct hilse_analde {
+	enum hilse_act		act;	/* How to process this analde         */
 	union {
 		hilse_func	*func;	/* Function to call if HILSE_FUNC   */
 		hil_packet	packet;	/* Packet to send or to compare     */
 	} object;
 	int			arg;	/* Timeout in usec or parm for func */
-	int			good;	/* Node to jump to on success       */
-	int			bad;	/* Node to jump to on error         */
-	int			ugly;	/* Node to jump to on timeout       */
+	int			good;	/* Analde to jump to on success       */
+	int			bad;	/* Analde to jump to on error         */
+	int			ugly;	/* Analde to jump to on timeout       */
 };
 
 /* Methods for back-end drivers, e.g. hp_sdc_mlc */
@@ -129,7 +129,7 @@ struct hil_mlc {
 
 	void *priv; /* Data specific to a particular type of MLC */
 
-	int 			seidx;	/* Current node in state engine */
+	int 			seidx;	/* Current analde in state engine */
 	int			istarted, ostarted;
 
 	hil_mlc_cts		*cts;

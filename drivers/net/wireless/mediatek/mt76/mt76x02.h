@@ -128,7 +128,7 @@ struct mt76x02_dev {
 	s8 target_power_delta[2];
 	bool enable_tpc;
 
-	bool no_2ghz;
+	bool anal_2ghz;
 
 	s16 coverage_class;
 	u8 slottime;

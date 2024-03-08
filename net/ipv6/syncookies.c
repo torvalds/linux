@@ -134,7 +134,7 @@ static struct request_sock *cookie_tcp_check(struct net *net, struct sock *sk,
 	u32 tsoff = 0;
 	int mss;
 
-	if (tcp_synq_no_recent_overflow(sk))
+	if (tcp_synq_anal_recent_overflow(sk))
 		goto out;
 
 	mss = __cookie_v6_check(ipv6_hdr(skb), tcp_hdr(skb));

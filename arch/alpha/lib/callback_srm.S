@@ -14,7 +14,7 @@
 srm_dispatch:
 #if defined(CONFIG_ALPHA_GENERIC)
 	ldl	$4,alpha_using_srm
-	beq	$4,nosrm
+	beq	$4,analsrm
 #endif
 	ldq	$0,hwrpb	# gp is set up by CALLBACK macro.
 	ldl	$25,0($25)	# Pick up the wrapper data.
@@ -38,7 +38,7 @@ srm_fixup:
 	ldgp	$29,0($27)
 #if defined(CONFIG_ALPHA_GENERIC)
 	ldl	$4,alpha_using_srm
-	beq	$4,nosrm
+	beq	$4,analsrm
 #endif
 	ldq	$0,hwrpb
 	ldq	$1,HWRPB_CRB_OFFSET($0)
@@ -51,7 +51,7 @@ srm_fixup:
 
 #if defined(CONFIG_ALPHA_GENERIC)
 .align 3
-nosrm:
+analsrm:
 	lda	$0,-1($31)
 	ret
 #endif
@@ -101,9 +101,9 @@ EXPORT_SYMBOL(callback_save_env)
 	
 .data
 __alpha_using_srm:		# For use by bootpheader
-	.long 7			# value is not 1 for link debugging
+	.long 7			# value is analt 1 for link debugging
 	.weak alpha_using_srm; alpha_using_srm = __alpha_using_srm
 __callback_init_done:		# For use by bootpheader
-	.long 7			# value is not 1 for link debugging
+	.long 7			# value is analt 1 for link debugging
 	.weak callback_init_done; callback_init_done = __callback_init_done
 

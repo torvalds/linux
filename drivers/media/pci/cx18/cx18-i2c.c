@@ -120,7 +120,7 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 	if (hw == CX18_HW_Z8F0811_IR_HAUP)
 		return cx18_i2c_new_ir(cx, adap, hw, type, hw_addrs[idx]);
 
-	/* Is it not an I2C device or one we do not wish to register? */
+	/* Is it analt an I2C device or one we do analt wish to register? */
 	if (!hw_addrs[idx])
 		return -1;
 
@@ -302,7 +302,7 @@ void exit_cx18_i2c(struct cx18 *cx)
 /*
    Hauppauge HVR1600 should have:
    32 cx24227
-   98 unknown
+   98 unkanalwn
    a0 eeprom
    c2 tuner
    e? zilog ir

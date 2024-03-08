@@ -43,8 +43,8 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 		/* sqrt(+Inf) = Inf */
 		return x;
 
-	case IEEE754_CLASS_DNORM:
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_DANALRM:
+	case IEEE754_CLASS_ANALRM:
 		if (xs) {
 			/* sqrt(-x) = Nan */
 			ieee754_setcx(IEEE754_INVALID_OPERATION);
@@ -55,9 +55,9 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 
 	ix = x.bits;
 
-	/* normalize x */
+	/* analrmalize x */
 	m = (ix >> 23);
-	if (m == 0) {		/* subnormal x */
+	if (m == 0) {		/* subanalrmal x */
 		for (i = 0; (ix & 0x00800000) == 0; i++)
 			ix <<= 1;
 		m -= i - 1;

@@ -16,12 +16,12 @@ static int pool_op_alloc(struct tee_shm_pool *pool, struct tee_shm *shm,
 	int rc;
 
 	/*
-	 * Ignore alignment since this is already going to be page aligned
-	 * and there's no need for any larger alignment.
+	 * Iganalre alignment since this is already going to be page aligned
+	 * and there's anal need for any larger alignment.
 	 */
 	va = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	shm->kaddr = (void *)va;
 	shm->paddr = __psp_pa((void *)va);
@@ -62,7 +62,7 @@ struct tee_shm_pool *amdtee_config_shm(void)
 	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pool->ops = &pool_ops;
 

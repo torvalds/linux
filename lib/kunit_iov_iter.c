@@ -53,7 +53,7 @@ static void *__init iov_kunit_create_buffer(struct kunit *test,
 	void *buffer;
 
 	pages = kunit_kcalloc(test, npages, sizeof(struct page *), GFP_KERNEL);
-        KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pages);
+        KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, pages);
 	*ppages = pages;
 
 	got = alloc_pages_bulk_array(GFP_KERNEL, npages, pages);
@@ -63,7 +63,7 @@ static void *__init iov_kunit_create_buffer(struct kunit *test,
 	}
 
 	buffer = vmap(pages, npages, VM_MAP | VM_MAP_PUT_PAGES, PAGE_KERNEL);
-        KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buffer);
+        KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buffer);
 
 	kunit_add_action_or_reset(test, iov_kunit_unmap, buffer);
 	return buffer;
@@ -393,7 +393,7 @@ static struct xarray *iov_kunit_create_xarray(struct kunit *test)
 
 	xarray = kzalloc(sizeof(struct xarray), GFP_KERNEL);
 	xa_init(xarray);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xarray);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xarray);
 	kunit_add_action_or_reset(test, iov_kunit_destroy_xarray, xarray);
 	return xarray;
 }

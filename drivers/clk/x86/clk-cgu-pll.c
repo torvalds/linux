@@ -108,7 +108,7 @@ lgm_clk_register_pll(struct lgm_clk_provider *ctx,
 
 	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->membase = ctx->membase;
 	pll->reg = list->reg;

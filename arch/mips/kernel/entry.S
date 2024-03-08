@@ -5,7 +5,7 @@
  *
  * Copyright (C) 1994 - 2000, 2001, 2003 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 
 #include <asm/asm.h>
@@ -48,7 +48,7 @@ resume_userspace:
 					# interrupt setting need_resched
 					# between sampling and return
 	LONG_L	a2, TI_FLAGS($28)	# current->work
-	andi	t0, a2, _TIF_WORK_MASK	# (ignoring syscall_trace)
+	andi	t0, a2, _TIF_WORK_MASK	# (iganalring syscall_trace)
 	bnez	t0, work_pending
 	j	restore_all
 
@@ -90,7 +90,7 @@ FEXPORT(syscall_exit)
 	bnez	t0, syscall_exit_work
 
 restore_all:				# restore full frame
-	.set	noat
+	.set	analat
 	RESTORE_TEMP
 	RESTORE_AT
 	RESTORE_STATIC
@@ -120,7 +120,7 @@ restore_partial:		# restore partial frame
 
 work_pending:
 	andi	t0, a2, _TIF_NEED_RESCHED # a2 is preloaded with TI_FLAGS
-	beqz	t0, work_notifysig
+	beqz	t0, work_analtifysig
 work_resched:
 	TRACE_IRQS_OFF
 	jal	schedule
@@ -135,11 +135,11 @@ work_resched:
 	andi	t0, a2, _TIF_NEED_RESCHED
 	bnez	t0, work_resched
 
-work_notifysig:				# deal with pending signals and
-					# notify-resume requests
+work_analtifysig:				# deal with pending signals and
+					# analtify-resume requests
 	move	a0, sp
 	li	a1, 0
-	jal	do_notify_resume	# a2 already loaded
+	jal	do_analtify_resume	# a2 already loaded
 	j	resume_userspace_check
 
 FEXPORT(syscall_exit_partial)
@@ -179,7 +179,7 @@ syscall_exit_work:
 LEAF(mips_ihb)
 	.set	MIPS_ISA_LEVEL_RAW
 	jr.hb	ra
-	nop
+	analp
 	END(mips_ihb)
 
 #endif /* CONFIG_CPU_MIPSR2 - CONFIG_CPU_MIPSR6 or CONFIG_MIPS_MT */

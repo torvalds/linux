@@ -49,7 +49,7 @@ properties:
 
   row-hold:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: time in nanoseconds to pause between scans of each row in the
+    description: time in naanalseconds to pause between scans of each row in the
       matrix array.
 
 required:

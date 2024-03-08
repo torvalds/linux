@@ -27,7 +27,7 @@ static int px_raw_event(struct hid_device *hid, struct hid_report *report,
 		 * Thus a report data set which looked like:
 		 *
 		 * [00][00][E0][30][00][00][00][00]
-		 * (no modifier bits + "Left Shift" key + "1" key)
+		 * (anal modifier bits + "Left Shift" key + "1" key)
 		 *
 		 * Would be converted to:
 		 *
@@ -47,9 +47,9 @@ static int px_raw_event(struct hid_device *hid, struct hid_report *report,
 		hid_report_raw_event(hid, HID_INPUT_REPORT, data, size, 0);
 		return 1;
 
-	default:	/* unknown report */
-		/* Unknown report type; pass upstream */
-		hid_info(hid, "unknown report type %d\n", report->id);
+	default:	/* unkanalwn report */
+		/* Unkanalwn report type; pass upstream */
+		hid_info(hid, "unkanalwn report type %d\n", report->id);
 		break;
 	}
 

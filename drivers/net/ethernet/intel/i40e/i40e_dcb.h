@@ -6,7 +6,7 @@
 
 #include "i40e_type.h"
 
-#define I40E_DCBX_STATUS_NOT_STARTED	0
+#define I40E_DCBX_STATUS_ANALT_STARTED	0
 #define I40E_DCBX_STATUS_IN_PROGRESS	1
 #define I40E_DCBX_STATUS_DONE		2
 #define I40E_DCBX_STATUS_MULTIPLE_PEERS	3
@@ -121,8 +121,8 @@ struct i40e_cee_tlv_hdr {
 
 struct i40e_cee_ctrl_tlv {
 	struct i40e_cee_tlv_hdr hdr;
-	__be32 seqno;
-	__be32 ackno;
+	__be32 seqanal;
+	__be32 ackanal;
 };
 
 struct i40e_cee_feat_tlv {
@@ -246,7 +246,7 @@ static inline u32 I40E_STD_DV_TC(u32 mfs_max, u32 mfs_tc)
 /* APIs for SW DCBX */
 void i40e_dcb_hw_rx_fifo_config(struct i40e_hw *hw,
 				enum i40e_dcb_arbiter_mode ets_mode,
-				enum i40e_dcb_arbiter_mode non_ets_mode,
+				enum i40e_dcb_arbiter_mode analn_ets_mode,
 				u32 max_exponent, u8 lltc_map);
 void i40e_dcb_hw_rx_cmd_monitor_config(struct i40e_hw *hw,
 				       u8 num_tc, u8 num_ports);

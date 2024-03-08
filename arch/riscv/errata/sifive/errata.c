@@ -100,14 +100,14 @@ void sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 		if (alt->vendor_id != SIFIVE_VENDOR_ID)
 			continue;
 		if (alt->patch_id >= ERRATA_SIFIVE_NUMBER) {
-			WARN(1, "This errata id:%d is not in kernel errata list", alt->patch_id);
+			WARN(1, "This errata id:%d is analt in kernel errata list", alt->patch_id);
 			continue;
 		}
 
 		tmp = (1U << alt->patch_id);
 		if (cpu_req_errata & tmp) {
 			mutex_lock(&text_mutex);
-			patch_text_nosync(ALT_OLD_PTR(alt), ALT_ALT_PTR(alt),
+			patch_text_analsync(ALT_OLD_PTR(alt), ALT_ALT_PTR(alt),
 					  alt->alt_len);
 			mutex_unlock(&text_mutex);
 			cpu_apply_errata |= tmp;

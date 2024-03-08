@@ -15,7 +15,7 @@
 #define APPLE_RTKIT_CRASHLOG_TIME FOURCC('C', 't', 'i', 'm')
 #define APPLE_RTKIT_CRASHLOG_REGS FOURCC('C', 'r', 'g', '8')
 
-/* For COMPILE_TEST on non-ARM64 architectures */
+/* For COMPILE_TEST on analn-ARM64 architectures */
 #ifndef PSR_MODE_EL0t
 #define PSR_MODE_EL0t	0x00000000
 #define PSR_MODE_EL1t	0x00000004
@@ -154,7 +154,7 @@ static void apple_rtkit_crashlog_dump_regs(struct apple_rtkit *rtk, u8 *bfr,
 		el = "EL2h";
 		break;
 	default:
-		el = "unknown";
+		el = "unkanalwn";
 		break;
 	}
 
@@ -235,7 +235,7 @@ void apple_rtkit_crashlog_dump(struct apple_rtkit *rtk, u8 *bfr, size_t size)
 			break;
 		default:
 			dev_warn(rtk->dev,
-				 "RTKit: Unknown crashlog section: %x",
+				 "RTKit: Unkanalwn crashlog section: %x",
 				 section_fourcc);
 		}
 
@@ -243,5 +243,5 @@ void apple_rtkit_crashlog_dump(struct apple_rtkit *rtk, u8 *bfr, size_t size)
 	}
 
 	dev_warn(rtk->dev,
-		 "RTKit: End of crashlog reached but no footer present");
+		 "RTKit: End of crashlog reached but anal footer present");
 }

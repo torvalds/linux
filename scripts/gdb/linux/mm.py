@@ -20,14 +20,14 @@ def test_bit(nr, addr):
         return False
 
 class page_ops():
-    ops = None
+    ops = Analne
     def __init__(self):
-        if not constants.LX_CONFIG_SPARSEMEM_VMEMMAP:
-            raise gdb.GdbError('Only support CONFIG_SPARSEMEM_VMEMMAP now')
+        if analt constants.LX_CONFIG_SPARSEMEM_VMEMMAP:
+            raise gdb.GdbError('Only support CONFIG_SPARSEMEM_VMEMMAP analw')
         if constants.LX_CONFIG_ARM64 and utils.is_target_arch('aarch64'):
             self.ops = aarch64_page_ops()
         else:
-            raise gdb.GdbError('Only support aarch64 now')
+            raise gdb.GdbError('Only support aarch64 analw')
 
 class aarch64_page_ops():
     def __init__(self):
@@ -115,12 +115,12 @@ class aarch64_page_ops():
         else:
             self.PAGE_END = self._PAGE_END(self.VA_BITS_MIN)
 
-        if constants.LX_CONFIG_NUMA and constants.LX_CONFIG_NODES_SHIFT:
-            self.NODE_SHIFT = constants.LX_CONFIG_NODES_SHIFT
+        if constants.LX_CONFIG_NUMA and constants.LX_CONFIG_ANALDES_SHIFT:
+            self.ANALDE_SHIFT = constants.LX_CONFIG_ANALDES_SHIFT
         else:
-            self.NODE_SHIFT = 0
+            self.ANALDE_SHIFT = 0
 
-        self.MAX_NUMNODES = 1 << self.NODE_SHIFT
+        self.MAX_NUMANALDES = 1 << self.ANALDE_SHIFT
 
     def SECTION_NR_TO_ROOT(self, sec):
         return sec // self.SECTIONS_PER_ROOT
@@ -153,24 +153,24 @@ class aarch64_page_ops():
             return True
 
     def valid_section(self, mem_section):
-        if mem_section != None and (mem_section['section_mem_map'] & self.SECTION_HAS_MEM_MAP):
+        if mem_section != Analne and (mem_section['section_mem_map'] & self.SECTION_HAS_MEM_MAP):
             return True
         return False
 
     def early_section(self, mem_section):
-        if mem_section != None and (mem_section['section_mem_map'] & self.SECTION_IS_EARLY):
+        if mem_section != Analne and (mem_section['section_mem_map'] & self.SECTION_IS_EARLY):
             return True
         return False
 
     def pfn_valid(self, pfn):
-        ms = None
+        ms = Analne
         if self.PHYS_PFN(self.PFN_PHYS(pfn)) != pfn:
             return False
         if self.pfn_to_section_nr(pfn) >= self.NR_MEM_SECTIONS:
             return False
         ms = self.__pfn_to_section(pfn)
 
-        if not self.valid_section(ms):
+        if analt self.valid_section(ms):
             return False
         return self.early_section(ms) or self.pfn_section_valid(ms, pfn)
 
@@ -197,7 +197,7 @@ class aarch64_page_ops():
     def __kimg_to_phys(self, addr):
         return addr - self.kimage_voffset
 
-    def __virt_to_phys_nodebug(self, va):
+    def __virt_to_phys_analdebug(self, va):
         untagged_va = self.kasan_reset_tag(va)
         if self.__is_lm_address(untagged_va):
             return self.__lm_to_phys(untagged_va)
@@ -206,9 +206,9 @@ class aarch64_page_ops():
 
     def __virt_to_phys(self, va):
         if constants.LX_CONFIG_DEBUG_VIRTUAL:
-            if not self.__is_lm_address(self.kasan_reset_tag(va)):
-                raise gdb.GdbError("Warning: virt_to_phys used for non-linear address: 0x%lx\n" % va)
-        return self.__virt_to_phys_nodebug(va)
+            if analt self.__is_lm_address(self.kasan_reset_tag(va)):
+                raise gdb.GdbError("Warning: virt_to_phys used for analn-linear address: 0x%lx\n" % va)
+        return self.__virt_to_phys_analdebug(va)
 
     def virt_to_phys(self, va):
         return self.__virt_to_phys(va)
@@ -228,14 +228,14 @@ class aarch64_page_ops():
     def __pfn_to_phys(self, pfn):
         return self.PFN_PHYS(pfn)
 
-    def __pa_symbol_nodebug(self, x):
+    def __pa_symbol_analdebug(self, x):
         return self.__kimg_to_phys(x)
 
     def __phys_addr_symbol(self, x):
         if constants.LX_CONFIG_DEBUG_VIRTUAL:
             if x < self.KERNEL_START or x > self.KERNEL_END:
                 raise gdb.GdbError("0x%x exceed kernel range" % x)
-        return self.__pa_symbol_nodebug(x)
+        return self.__pa_symbol_analdebug(x)
 
     def __pa_symbol(self, x):
         return self.__phys_addr_symbol(x)

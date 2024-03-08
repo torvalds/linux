@@ -166,7 +166,7 @@ static int feiyang_get_modes(struct drm_panel *panel,
 			feiyang_default_mode.hdisplay,
 			feiyang_default_mode.vdisplay,
 			drm_mode_vrefresh(&feiyang_default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -191,7 +191,7 @@ static int feiyang_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;

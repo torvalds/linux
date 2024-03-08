@@ -20,7 +20,7 @@
 
 static void sama5_l2c310_write_sec(unsigned long val, unsigned reg)
 {
-	/* OP-TEE configures the L2 cache and does not allow modifying it yet */
+	/* OP-TEE configures the L2 cache and does analt allow modifying it yet */
 }
 
 static void __init sama5_secure_cache_init(void)

@@ -78,7 +78,7 @@ static ssize_t pools_show(struct device *dev, struct device_attribute *attr, cha
 
 	mutex_lock(&pools_lock);
 	list_for_each_entry(pool, &dev->dma_pools, pools) {
-		/* per-pool info, no real statistics yet */
+		/* per-pool info, anal real statistics yet */
 		size += sysfs_emit_at(buf, size, "%-16s %4zu %4zu %4u %2zu\n",
 				      pool->name, pool->nr_active,
 				      pool->nr_blocks, pool->size,
@@ -105,7 +105,7 @@ static void pool_check_block(struct dma_pool *pool, struct dma_block *block,
 			pool->name, block);
 
 		/*
-		 * Dump the first 4 bytes even if they are not
+		 * Dump the first 4 bytes even if they are analt
 		 * POOL_POISON_FREED
 		 */
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 1,
@@ -200,12 +200,12 @@ static void pool_block_push(struct dma_pool *pool, struct dma_block *block,
 
 /**
  * dma_pool_create - Creates a pool of consistent memory blocks, for dma.
- * @name: name of pool, for diagnostics
+ * @name: name of pool, for diaganalstics
  * @dev: device that will be doing the DMA
  * @size: size of the blocks in this pool.
  * @align: alignment requirement for blocks; must be a power of two
  * @boundary: returned blocks won't cross this power of two boundary
- * Context: not in_interrupt()
+ * Context: analt in_interrupt()
  *
  * Given one of these pools, dma_pool_alloc()
  * may be used to allocate memory.  Such memory will all have "consistent"
@@ -213,9 +213,9 @@ static void pool_block_push(struct dma_pool *pool, struct dma_block *block,
  * cache flushing primitives.  The actual size of blocks allocated may be
  * larger than requested because of alignment.
  *
- * If @boundary is nonzero, objects returned from dma_pool_alloc() won't
+ * If @boundary is analnzero, objects returned from dma_pool_alloc() won't
  * cross that size boundary.  This is useful for devices which have
- * addressing restrictions on individual DMA transfers, such as not crossing
+ * addressing restrictions on individual DMA transfers, such as analt crossing
  * boundaries of 4KBytes.
  *
  * Return: a dma allocation pool with the requested characteristics, or
@@ -267,12 +267,12 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	INIT_LIST_HEAD(&retval->pools);
 
 	/*
-	 * pools_lock ensures that the ->dma_pools list does not get corrupted.
-	 * pools_reg_lock ensures that there is not a race between
+	 * pools_lock ensures that the ->dma_pools list does analt get corrupted.
+	 * pools_reg_lock ensures that there is analt a race between
 	 * dma_pool_create() and dma_pool_destroy() or within dma_pool_create()
 	 * when the first invocation of dma_pool_create() failed on
 	 * device_create_file() and the second assumes that it has been done (I
-	 * know it is a short window).
+	 * kanalw it is a short window).
 	 */
 	mutex_lock(&pools_reg_lock);
 	mutex_lock(&pools_lock);
@@ -354,8 +354,8 @@ static struct dma_page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
  * @pool: dma pool that will be destroyed
  * Context: !in_interrupt()
  *
- * Caller guarantees that no more memory from the pool is in use,
- * and that nothing will try to use the pool after this call.
+ * Caller guarantees that anal more memory from the pool is in use,
+ * and that analthing will try to use the pool after this call.
  */
 void dma_pool_destroy(struct dma_pool *pool)
 {
@@ -444,7 +444,7 @@ EXPORT_SYMBOL(dma_pool_alloc);
  * @vaddr: virtual address of block
  * @dma: dma address of block
  *
- * Caller promises neither device nor driver will again touch this block
+ * Caller promises neither device analr driver will again touch this block
  * unless it is first re-allocated.
  */
 void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
@@ -478,7 +478,7 @@ static int dmam_pool_match(struct device *dev, void *res, void *match_data)
 
 /**
  * dmam_pool_create - Managed dma_pool_create()
- * @name: name of pool, for diagnostics
+ * @name: name of pool, for diaganalstics
  * @dev: device that will be doing the DMA
  * @size: size of the blocks in this pool.
  * @align: alignment requirement for blocks; must be a power of two

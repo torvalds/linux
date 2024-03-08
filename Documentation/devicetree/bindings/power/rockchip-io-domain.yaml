@@ -19,14 +19,14 @@ description: |
     bit 7 of GRF_IO_VSEL needs to be 0. If the regulator hooked up to
     that same pin is 1.8V then bit 7 of GRF_IO_VSEL needs to be 1.
 
-  Said another way, this driver simply handles keeping bits in the SoCs
+  Said aanalther way, this driver simply handles keeping bits in the SoCs
   General Register File (GRF) in sync with the actual value of a voltage
   hooked up to the pins.
 
-  Note that this driver specifically does not include
+  Analte that this driver specifically does analt include
     any logic for deciding what voltage we should set regulators to
     any logic for deciding whether regulators (or internal SoC blocks)
-    should have power or not have power
+    should have power or analt have power
 
   If there were some other software that had the smarts of making
   decisions about regulators, it would work in conjunction with this
@@ -34,13 +34,13 @@ description: |
   this driver would handle telling the SoC about it. A good example is
   vqmmc for SD. In that case the dw_mmc driver simply is told about a
   regulator. It changes the regulator between 3.3V and 1.8V at the
-  right time. This driver notices the change and makes sure that the
+  right time. This driver analtices the change and makes sure that the
   SoC is on the same page.
 
   You specify supplies using the standard regulator bindings by including
   a phandle the relevant regulator. All specified supplies must be able
-  to report their voltage. The IO Voltage Domain for any non-specified
-  supplies will be not be touched.
+  to report their voltage. The IO Voltage Domain for any analn-specified
+  supplies will be analt be touched.
 
 properties:
   compatible:
@@ -182,7 +182,7 @@ $defs:
         flash0-supply:
           description: The supply connected to FLASH0_VDD. Typically for eMMC.
         flash1-supply:
-          description: The supply connected to FLASH1_VDD. Also known as SDIO1.
+          description: The supply connected to FLASH1_VDD. Also kanalwn as SDIO1.
         gpio30-supply:
           description: The supply connected to APIO1_VDD.
         gpio1830-supply:
@@ -192,7 +192,7 @@ $defs:
         sdcard-supply:
           description: The supply connected to SDMMC0_VDD.
         wifi-supply:
-          description: The supply connected to APIO3_VDD. Also known as SDIO0.
+          description: The supply connected to APIO3_VDD. Also kanalwn as SDIO0.
 
   rk3328:
     if:
@@ -240,7 +240,7 @@ $defs:
         sdcard-supply:
           description: The supply connected to SDMMC0_VDD.
         wifi-supply:
-          description: The supply connected to APIO2_VDD. Also known as SDIO0.
+          description: The supply connected to APIO2_VDD. Also kanalwn as SDIO0.
 
   rk3368-pmu:
     if:

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_ENUM_FRAMEINTERVALS:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_ENUM_FRAMEINTERVALS - Enumerate frame intervals
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_ENUM_FRAMEINTERVALS
@@ -69,18 +69,18 @@ the device supports. Only for the ``V4L2_FRMIVAL_TYPE_DISCRETE`` type
 does it make sense to increase the index value to receive more frame
 intervals.
 
-.. note::
+.. analte::
 
-   The order in which the frame intervals are returned has no
-   special meaning. In particular does it not say anything about potential
+   The order in which the frame intervals are returned has anal
+   special meaning. In particular does it analt say anything about potential
    default frame intervals.
 
-Applications can assume that the enumeration data does not change
+Applications can assume that the enumeration data does analt change
 without any interaction from the application itself. This means that the
-enumeration data is consistent if the application does not perform any
+enumeration data is consistent if the application does analt perform any
 other ioctl calls while it runs the frame interval enumeration.
 
-.. note::
+.. analte::
 
    **Frame intervals and frame rates:** The V4L2 API uses frame
    intervals instead of frame rates. Given the frame interval the frame
@@ -93,8 +93,8 @@ other ioctl calls while it runs the frame interval enumeration.
 Structs
 =======
 
-In the structs below, *IN* denotes a value that has to be filled in by
-the application, *OUT* denotes values that the driver fills in. The
+In the structs below, *IN* deanaltes a value that has to be filled in by
+the application, *OUT* deanaltes values that the driver fills in. The
 application should zero out all members except for the *IN* fields.
 
 .. c:type:: v4l2_frmival_stepwise
@@ -139,7 +139,7 @@ application should zero out all members except for the *IN* fields.
       - ``type``
       - OUT: Frame interval type the device supports.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
       - OUT: Frame interval with the given index.
     * - struct :c:type:`v4l2_fract`
       - ``discrete``
@@ -181,6 +181,6 @@ Enums
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

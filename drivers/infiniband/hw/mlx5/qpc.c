@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2013-2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2013-2020, Mellaanalx Techanallogies inc. All rights reserved.
  */
 
 #include <linux/gfp.h>
@@ -83,12 +83,12 @@ static bool is_event_type_allowed(int rsc_type, int event_type)
 	case MLX5_EVENT_QUEUE_TYPE_DCT:
 		return BIT(event_type) & dct_allowed_event_types();
 	default:
-		WARN(1, "Event arrived for unknown resource type");
+		WARN(1, "Event arrived for unkanalwn resource type");
 		return false;
 	}
 }
 
-static int dct_event_notifier(struct mlx5_ib_dev *dev, struct mlx5_eqe *eqe)
+static int dct_event_analtifier(struct mlx5_ib_dev *dev, struct mlx5_eqe *eqe)
 {
 	struct mlx5_core_dct *dct;
 	unsigned long flags;
@@ -100,10 +100,10 @@ static int dct_event_notifier(struct mlx5_ib_dev *dev, struct mlx5_eqe *eqe)
 	if (dct)
 		complete(&dct->drained);
 	xa_unlock_irqrestore(&dev->qp_table.dct_xa, flags);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int rsc_event_notifier(struct notifier_block *nb,
+static int rsc_event_analtifier(struct analtifier_block *nb,
 			      unsigned long type, void *data)
 {
 	struct mlx5_ib_dev *dev =
@@ -116,7 +116,7 @@ static int rsc_event_notifier(struct notifier_block *nb,
 
 	switch (event_type) {
 	case MLX5_EVENT_TYPE_DCT_DRAINED:
-		return dct_event_notifier(dev, eqe);
+		return dct_event_analtifier(dev, eqe);
 	case MLX5_EVENT_TYPE_PATH_MIG:
 	case MLX5_EVENT_TYPE_COMM_EST:
 	case MLX5_EVENT_TYPE_SQ_DRAINED:
@@ -129,12 +129,12 @@ static int rsc_event_notifier(struct notifier_block *nb,
 		rsn |= (eqe->data.qp_srq.type << MLX5_USER_INDEX_LEN);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	common = mlx5_get_rsc(&dev->qp_table, rsn);
 	if (!common)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	if (!is_event_type_allowed((rsn >> MLX5_USER_INDEX_LEN), event_type))
 		goto out;
@@ -146,14 +146,14 @@ static int rsc_event_notifier(struct notifier_block *nb,
 		qp = (struct mlx5_core_qp *)common;
 		qp->event(qp, event_type);
 		/* Need to put resource in event handler */
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	default:
 		break;
 	}
 out:
 	mlx5_core_put_rsc(common);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int create_resource_common(struct mlx5_ib_dev *dev,
@@ -345,7 +345,7 @@ static int mbox_alloc(struct mbox_info *mbox, int inlen, int outlen)
 	if (!mbox->in || !mbox->out) {
 		kfree(mbox->in);
 		kfree(mbox->out);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -413,59 +413,59 @@ static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 	/* 2RST & 2ERR */
 	case MLX5_CMD_OP_2RST_QP:
 		if (MBOX_ALLOC(mbox, qp_2rst))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET(qp_2rst, mbox->in, opcode, qpn, uid);
 		break;
 	case MLX5_CMD_OP_2ERR_QP:
 		if (MBOX_ALLOC(mbox, qp_2err))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET(qp_2err, mbox->in, opcode, qpn, uid);
 		break;
 
 	/* MODIFY with QPC */
 	case MLX5_CMD_OP_RST2INIT_QP:
 		if (MBOX_ALLOC(mbox, rst2init_qp))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET_QPC(rst2init_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
 		MLX5_SET(rst2init_qp_in, mbox->in, ece, ece);
 		break;
 	case MLX5_CMD_OP_INIT2RTR_QP:
 		if (MBOX_ALLOC(mbox, init2rtr_qp))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET_QPC(init2rtr_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
 		MLX5_SET(init2rtr_qp_in, mbox->in, ece, ece);
 		break;
 	case MLX5_CMD_OP_RTR2RTS_QP:
 		if (MBOX_ALLOC(mbox, rtr2rts_qp))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET_QPC(rtr2rts_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
 		MLX5_SET(rtr2rts_qp_in, mbox->in, ece, ece);
 		break;
 	case MLX5_CMD_OP_RTS2RTS_QP:
 		if (MBOX_ALLOC(mbox, rts2rts_qp))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET_QPC(rts2rts_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
 		MLX5_SET(rts2rts_qp_in, mbox->in, ece, ece);
 		break;
 	case MLX5_CMD_OP_SQERR2RTS_QP:
 		if (MBOX_ALLOC(mbox, sqerr2rts_qp))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET_QPC(sqerr2rts_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
 		break;
 	case MLX5_CMD_OP_SQD_RTS_QP:
 		if (MBOX_ALLOC(mbox, sqd2rts_qp))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET_QPC(sqd2rts_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
 		break;
 	case MLX5_CMD_OP_INIT2INIT_QP:
 		if (MBOX_ALLOC(mbox, init2init_qp))
-			return -ENOMEM;
+			return -EANALMEM;
 		MOD_QP_IN_SET_QPC(init2init_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
 		MLX5_SET(init2init_qp_in, mbox->in, ece, ece);
@@ -506,8 +506,8 @@ int mlx5_init_qp_table(struct mlx5_ib_dev *dev)
 	xa_init(&table->dct_xa);
 	mlx5_qp_debugfs_init(dev->mdev);
 
-	table->nb.notifier_call = rsc_event_notifier;
-	mlx5_notifier_register(dev->mdev, &table->nb);
+	table->nb.analtifier_call = rsc_event_analtifier;
+	mlx5_analtifier_register(dev->mdev, &table->nb);
 
 	return 0;
 }
@@ -516,7 +516,7 @@ void mlx5_cleanup_qp_table(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_qp_table *table = &dev->qp_table;
 
-	mlx5_notifier_unregister(dev->mdev, &table->nb);
+	mlx5_analtifier_unregister(dev->mdev, &table->nb);
 	mlx5_qp_debugfs_cleanup(dev->mdev);
 }
 
@@ -552,7 +552,7 @@ int mlx5_core_xrcd_alloc(struct mlx5_ib_dev *dev, u32 *xrcdn)
 	int err;
 
 	MLX5_SET(alloc_xrcd_in, in, opcode, MLX5_CMD_OP_ALLOC_XRCD);
-	err = mlx5_cmd_exec_inout(dev->mdev, alloc_xrcd, in, out);
+	err = mlx5_cmd_exec_ianalut(dev->mdev, alloc_xrcd, in, out);
 	if (!err)
 		*xrcdn = MLX5_GET(alloc_xrcd_out, out, xrcd);
 	return err;

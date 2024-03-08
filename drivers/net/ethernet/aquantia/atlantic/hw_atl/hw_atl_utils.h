@@ -337,7 +337,7 @@ struct __packed macsec_cfg_request {
 };
 
 struct __packed macsec_msg_fw_request {
-	u32 msg_id; /* not used */
+	u32 msg_id; /* analt used */
 	u32 msg_type;
 	struct macsec_cfg_request cfg;
 };

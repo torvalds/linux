@@ -8,14 +8,14 @@
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, int);
 } sockops_netns_cookies SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, int);
 } sk_msg_netns_cookies SEC(".maps");
@@ -50,7 +50,7 @@ int get_netns_cookie_sockops(struct bpf_sock_ops *ctx)
 		*cookie = bpf_get_netns_cookie(ctx);
 		break;
 	case BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB:
-		bpf_sock_map_update(ctx, &sock_map, &key, BPF_NOEXIST);
+		bpf_sock_map_update(ctx, &sock_map, &key, BPF_ANALEXIST);
 		break;
 	default:
 		break;

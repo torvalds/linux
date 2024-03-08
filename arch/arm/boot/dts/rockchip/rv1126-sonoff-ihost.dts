@@ -5,11 +5,11 @@
 
 /dts-v1/;
 #include "rv1126.dtsi"
-#include "rv1126-sonoff-ihost.dtsi"
+#include "rv1126-soanalff-ihost.dtsi"
 
 / {
-	model = "Sonoff iHost 4G";
-	compatible = "itead,sonoff-ihost", "rockchip,rv1126";
+	model = "Soanalff iHost 4G";
+	compatible = "itead,soanalff-ihost", "rockchip,rv1126";
 };
 
 &cpu0 {

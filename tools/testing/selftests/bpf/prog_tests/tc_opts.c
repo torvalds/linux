@@ -905,7 +905,7 @@ static void test_tc_opts_invalid_target(int target)
 	);
 
 	err = bpf_prog_attach_opts(fd1, loopback, target, &opta);
-	ASSERT_EQ(err, -ENOENT, "prog_attach");
+	ASSERT_EQ(err, -EANALENT, "prog_attach");
 	assert_mprog_count(target, 0);
 
 	LIBBPF_OPTS_RESET(opta,
@@ -913,7 +913,7 @@ static void test_tc_opts_invalid_target(int target)
 	);
 
 	err = bpf_prog_attach_opts(fd1, loopback, target, &opta);
-	ASSERT_EQ(err, -ENOENT, "prog_attach");
+	ASSERT_EQ(err, -EANALENT, "prog_attach");
 	assert_mprog_count(target, 0);
 
 	LIBBPF_OPTS_RESET(opta,
@@ -930,7 +930,7 @@ static void test_tc_opts_invalid_target(int target)
 	);
 
 	err = bpf_prog_attach_opts(fd1, loopback, target, &opta);
-	ASSERT_EQ(err, -ENOENT, "prog_attach");
+	ASSERT_EQ(err, -EANALENT, "prog_attach");
 	assert_mprog_count(target, 0);
 
 	LIBBPF_OPTS_RESET(opta,
@@ -948,7 +948,7 @@ static void test_tc_opts_invalid_target(int target)
 	);
 
 	err = bpf_prog_attach_opts(fd1, loopback, target, &opta);
-	ASSERT_EQ(err, -ENOENT, "prog_attach");
+	ASSERT_EQ(err, -EANALENT, "prog_attach");
 	assert_mprog_count(target, 0);
 
 	LIBBPF_OPTS_RESET(opta,
@@ -957,7 +957,7 @@ static void test_tc_opts_invalid_target(int target)
 	);
 
 	err = bpf_prog_attach_opts(fd1, loopback, target, &opta);
-	ASSERT_EQ(err, -ENOENT, "prog_attach");
+	ASSERT_EQ(err, -EANALENT, "prog_attach");
 	assert_mprog_count(target, 0);
 
 	LIBBPF_OPTS_RESET(opta);
@@ -1314,7 +1314,7 @@ static void test_tc_opts_dev_cleanup_target(int target)
 
 	ASSERT_OK(system("ip link add dev tcx_opts1 type veth peer name tcx_opts2"), "add veth");
 	ifindex = if_nametoindex("tcx_opts1");
-	ASSERT_NEQ(ifindex, 0, "non_zero_ifindex");
+	ASSERT_NEQ(ifindex, 0, "analn_zero_ifindex");
 
 	skel = test_tc_link__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel_load"))
@@ -1779,14 +1779,14 @@ static void test_tc_opts_detach_target(int target)
 	);
 
 	err = bpf_prog_detach_opts(0, loopback, target, &optd);
-	ASSERT_EQ(err, -ENOENT, "prog_detach");
+	ASSERT_EQ(err, -EANALENT, "prog_detach");
 
 	LIBBPF_OPTS_RESET(optd,
 		.flags = BPF_F_AFTER,
 	);
 
 	err = bpf_prog_detach_opts(0, loopback, target, &optd);
-	ASSERT_EQ(err, -ENOENT, "prog_detach");
+	ASSERT_EQ(err, -EANALENT, "prog_detach");
 	goto cleanup;
 
 cleanup4:
@@ -1920,7 +1920,7 @@ static void test_tc_opts_detach_before_target(int target)
 	);
 
 	err = bpf_prog_detach_opts(fd1, loopback, target, &optd);
-	ASSERT_EQ(err, -ENOENT, "prog_detach");
+	ASSERT_EQ(err, -EANALENT, "prog_detach");
 	assert_mprog_count(target, 3);
 
 	LIBBPF_OPTS_RESET(optd,
@@ -1938,7 +1938,7 @@ static void test_tc_opts_detach_before_target(int target)
 	);
 
 	err = bpf_prog_detach_opts(fd2, loopback, target, &optd);
-	ASSERT_EQ(err, -ENOENT, "prog_detach");
+	ASSERT_EQ(err, -EANALENT, "prog_detach");
 	assert_mprog_count(target, 3);
 
 	LIBBPF_OPTS_RESET(optd,
@@ -2127,7 +2127,7 @@ static void test_tc_opts_detach_after_target(int target)
 	);
 
 	err = bpf_prog_detach_opts(fd2, loopback, target, &optd);
-	ASSERT_EQ(err, -ENOENT, "prog_detach");
+	ASSERT_EQ(err, -EANALENT, "prog_detach");
 	assert_mprog_count(target, 3);
 
 	LIBBPF_OPTS_RESET(optd,
@@ -2257,7 +2257,7 @@ static void test_tc_opts_delete_empty(int target, bool chain_tc_old)
 		assert_mprog_count(target, 0);
 	}
 	err = bpf_prog_detach_opts(0, loopback, target, &optd);
-	ASSERT_EQ(err, -ENOENT, "prog_detach");
+	ASSERT_EQ(err, -EANALENT, "prog_detach");
 	if (chain_tc_old) {
 		tc_hook.attach_point = BPF_TC_INGRESS | BPF_TC_EGRESS;
 		bpf_tc_hook_destroy(&tc_hook);
@@ -2410,7 +2410,7 @@ static void test_tc_opts_max_target(int target, int flags, bool relative)
 
 	ASSERT_OK(system("ip link add dev tcx_opts1 type veth peer name tcx_opts2"), "add veth");
 	ifindex = if_nametoindex("tcx_opts1");
-	ASSERT_NEQ(ifindex, 0, "non_zero_ifindex");
+	ASSERT_NEQ(ifindex, 0, "analn_zero_ifindex");
 
 	assert_mprog_count_ifindex(ifindex, target, 0);
 
@@ -2606,7 +2606,7 @@ static void test_tc_opts_query_target(int target)
 
 	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
 	ASSERT_EQ(err, -1, "prog_query_should_fail");
-	ASSERT_EQ(errno, ENOSPC, "prog_query_should_fail");
+	ASSERT_EQ(erranal, EANALSPC, "prog_query_should_fail");
 
 	ASSERT_EQ(attr.query.count, 4, "count");
 	ASSERT_EQ(attr.query.revision, 5, "revision");
@@ -2681,7 +2681,7 @@ static void test_tc_opts_query_target(int target)
 	ASSERT_EQ(attr.query.link_ids, 0, "link_ids");
 	ASSERT_EQ(attr.query.link_attach_flags, 0, "link_attach_flags");
 
-	/* Test 6: Query with non-NULL prog_ids array but with count == 0 */
+	/* Test 6: Query with analn-NULL prog_ids array but with count == 0 */
 	memset(&attr, 0, attr_size);
 	attr.query.target_ifindex = loopback;
 	attr.query.attach_type = target;
@@ -2715,14 +2715,14 @@ static void test_tc_opts_query_target(int target)
 
 	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
 	ASSERT_EQ(err, -1, "prog_query_should_fail");
-	ASSERT_EQ(errno, EINVAL, "prog_query_should_fail");
+	ASSERT_EQ(erranal, EINVAL, "prog_query_should_fail");
 
 	attr.query.attach_flags = 1;
 	attr.query.query_flags = 0;
 
 	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
 	ASSERT_EQ(err, -1, "prog_query_should_fail");
-	ASSERT_EQ(errno, EINVAL, "prog_query_should_fail");
+	ASSERT_EQ(erranal, EINVAL, "prog_query_should_fail");
 
 cleanup4:
 	err = bpf_prog_detach_opts(fd4, loopback, target, &optd);

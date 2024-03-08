@@ -23,13 +23,13 @@ static int tegra_aconnect_probe(struct platform_device *pdev)
 {
 	struct tegra_aconnect *aconnect;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_analde)
 		return -EINVAL;
 
 	aconnect = devm_kzalloc(&pdev->dev, sizeof(struct tegra_aconnect),
 				GFP_KERNEL);
 	if (!aconnect)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aconnect->ape_clk = devm_clk_get(&pdev->dev, "ape");
 	if (IS_ERR(aconnect->ape_clk)) {
@@ -46,7 +46,7 @@ static int tegra_aconnect_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, aconnect);
 	pm_runtime_enable(&pdev->dev);
 
-	of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	of_platform_populate(pdev->dev.of_analde, NULL, NULL, &pdev->dev);
 
 	dev_info(&pdev->dev, "Tegra ACONNECT bus registered\n");
 
@@ -92,7 +92,7 @@ static int tegra_aconnect_runtime_suspend(struct device *dev)
 static const struct dev_pm_ops tegra_aconnect_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra_aconnect_runtime_suspend,
 			   tegra_aconnect_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				      pm_runtime_force_resume)
 };
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial busions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -23,7 +23,7 @@
  */
 #include "bus.h"
 
-#ifdef CONFIG_NOUVEAU_I2C_INTERNAL
+#ifdef CONFIG_ANALUVEAU_I2C_INTERNAL
 #define T_TIMEOUT  2200000
 #define T_RISEFALL 1000
 #define T_HOLD     5000
@@ -211,6 +211,6 @@ nvkm_i2c_bit_xfer(struct nvkm_i2c_bus *bus, struct i2c_msg *msgs, int num)
 int
 nvkm_i2c_bit_xfer(struct nvkm_i2c_bus *bus, struct i2c_msg *msgs, int num)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif

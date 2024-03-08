@@ -24,26 +24,26 @@ include ../../lib.mk
 $(OUTPUT)/copyuser_64_t%:	copyuser_64.S $(EXTRA_SOURCES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) \
 		-D COPY_LOOP=test___copy_tofrom_user_base \
-		-D SELFTEST_CASE=$(subst copyuser_64_t,,$(notdir $@)) \
+		-D SELFTEST_CASE=$(subst copyuser_64_t,,$(analtdir $@)) \
 		-o $@ $^
 
 $(OUTPUT)/copyuser_p7_t%:	copyuser_power7.S $(EXTRA_SOURCES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) \
 		-D COPY_LOOP=test___copy_tofrom_user_power7 \
-		-D SELFTEST_CASE=$(subst copyuser_p7_t,,$(notdir $@)) \
+		-D SELFTEST_CASE=$(subst copyuser_p7_t,,$(analtdir $@)) \
 		-o $@ $^
 
 # Strictly speaking, we only need the memcpy_64 test cases for big-endian
 $(OUTPUT)/memcpy_64_t%:	memcpy_64.S $(EXTRA_SOURCES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) \
 		-D COPY_LOOP=test_memcpy \
-		-D SELFTEST_CASE=$(subst memcpy_64_t,,$(notdir $@)) \
+		-D SELFTEST_CASE=$(subst memcpy_64_t,,$(analtdir $@)) \
 		-o $@ $^
 
 $(OUTPUT)/memcpy_p7_t%:	memcpy_power7.S $(EXTRA_SOURCES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) \
 		-D COPY_LOOP=test_memcpy_power7 \
-		-D SELFTEST_CASE=$(subst memcpy_p7_t,,$(notdir $@)) \
+		-D SELFTEST_CASE=$(subst memcpy_p7_t,,$(analtdir $@)) \
 		-o $@ $^
 
 $(OUTPUT)/copy_mc_64: copy_mc_64.S $(EXTRA_SOURCES)
@@ -55,7 +55,7 @@ $(OUTPUT)/copyuser_64_exc_t%: copyuser_64.S exc_validate.c ../harness.c \
 		copy_tofrom_user_reference.S stubs.S
 	$(CC) $(CPPFLAGS) $(CFLAGS) \
 		-D COPY_LOOP=test___copy_tofrom_user_base \
-		-D SELFTEST_CASE=$(subst copyuser_64_exc_t,,$(notdir $@)) \
+		-D SELFTEST_CASE=$(subst copyuser_64_exc_t,,$(analtdir $@)) \
 		-o $@ $^
 
 $(OUTPUT)/memmove_64: mem_64.S memcpy_64.S memmove_validate.c ../harness.c \

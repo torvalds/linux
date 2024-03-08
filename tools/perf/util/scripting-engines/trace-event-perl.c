@@ -14,7 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/bitmap.h>
 #include <linux/time64.h>
 #include <traceevent/event-parse.h>
@@ -282,42 +282,42 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 
 	while (1) {
 		HV *elem;
-		struct callchain_cursor_node *node;
-		node = callchain_cursor_current(cursor);
-		if (!node)
+		struct callchain_cursor_analde *analde;
+		analde = callchain_cursor_current(cursor);
+		if (!analde)
 			break;
 
 		elem = newHV();
 		if (!elem)
 			goto exit;
 
-		if (!hv_stores(elem, "ip", newSVuv(node->ip))) {
+		if (!hv_stores(elem, "ip", newSVuv(analde->ip))) {
 			hv_undef(elem);
 			goto exit;
 		}
 
-		if (node->ms.sym) {
+		if (analde->ms.sym) {
 			HV *sym = newHV();
 			if (!sym) {
 				hv_undef(elem);
 				goto exit;
 			}
-			if (!hv_stores(sym, "start",   newSVuv(node->ms.sym->start)) ||
-			    !hv_stores(sym, "end",     newSVuv(node->ms.sym->end)) ||
-			    !hv_stores(sym, "binding", newSVuv(node->ms.sym->binding)) ||
-			    !hv_stores(sym, "name",    newSVpvn(node->ms.sym->name,
-								node->ms.sym->namelen)) ||
-			    !hv_stores(elem, "sym",    newRV_noinc((SV*)sym))) {
+			if (!hv_stores(sym, "start",   newSVuv(analde->ms.sym->start)) ||
+			    !hv_stores(sym, "end",     newSVuv(analde->ms.sym->end)) ||
+			    !hv_stores(sym, "binding", newSVuv(analde->ms.sym->binding)) ||
+			    !hv_stores(sym, "name",    newSVpvn(analde->ms.sym->name,
+								analde->ms.sym->namelen)) ||
+			    !hv_stores(elem, "sym",    newRV_analinc((SV*)sym))) {
 				hv_undef(sym);
 				hv_undef(elem);
 				goto exit;
 			}
 		}
 
-		if (node->ms.map) {
-			struct map *map = node->ms.map;
+		if (analde->ms.map) {
+			struct map *map = analde->ms.map;
 			struct dso *dso = map ? map__dso(map) : NULL;
-			const char *dsoname = "[unknown]";
+			const char *dsoname = "[unkanalwn]";
 
 			if (dso) {
 				if (symbol_conf.show_kernel_path && dso->long_name)
@@ -332,11 +332,11 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 		}
 
 		callchain_cursor_advance(cursor);
-		av_push(list, newRV_noinc((SV*)elem));
+		av_push(list, newRV_analinc((SV*)elem));
 	}
 
 exit:
-	return newRV_noinc((SV*)list);
+	return newRV_analinc((SV*)list);
 }
 
 static void perl_process_tracepoint(struct perf_sample *sample,
@@ -363,7 +363,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 		return;
 
 	if (!event) {
-		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);
+		pr_debug("ug! anal event found for type %" PRIu64, (u64)evsel->core.attr.config);
 		return;
 	}
 
@@ -475,7 +475,7 @@ static void run_start_sub(void)
 	PUSHMARK(SP);
 
 	if (get_cv("main::trace_begin", 0))
-		call_pv("main::trace_begin", G_DISCARD | G_NOARGS);
+		call_pv("main::trace_begin", G_DISCARD | G_ANALARGS);
 }
 
 /*
@@ -491,7 +491,7 @@ static int perl_start_script(const char *script, int argc, const char **argv,
 
 	command_line = malloc((argc + 2) * sizeof(const char *));
 	if (!command_line)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	command_line[0] = "";
 	command_line[1] = script;
@@ -542,7 +542,7 @@ static int perl_stop_script(void)
 	PUSHMARK(SP);
 
 	if (get_cv("main::trace_end", 0))
-		call_pv("main::trace_end", G_DISCARD | G_NOARGS);
+		call_pv("main::trace_end", G_DISCARD | G_ANALARGS);
 
 	perl_destruct(my_perl);
 	perl_free(my_perl);
@@ -552,7 +552,7 @@ static int perl_stop_script(void)
 
 static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 {
-	int i, not_first, count, nr_events;
+	int i, analt_first, count, nr_events;
 	struct tep_event **all_events;
 	struct tep_event *event = NULL;
 	struct tep_format_field *f;
@@ -578,7 +578,7 @@ static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 	fprintf(ofp, "# all events.  They don't necessarily correspond to "
 		"the 'common_*' fields\n");
 
-	fprintf(ofp, "# in the format files.  Those fields not available as "
+	fprintf(ofp, "# in the format files.  Those fields analt available as "
 		"handler params can\n");
 
 	fprintf(ofp, "# be retrieved using Perl functions of the form "
@@ -603,15 +603,15 @@ static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 sub print_backtrace\n\
 {\n\
 	my $callchain = shift;\n\
-	for my $node (@$callchain)\n\
+	for my $analde (@$callchain)\n\
 	{\n\
-		if(exists $node->{sym})\n\
+		if(exists $analde->{sym})\n\
 		{\n\
-			printf( \"\\t[\\%%x] \\%%s\\n\", $node->{ip}, $node->{sym}{name});\n\
+			printf( \"\\t[\\%%x] \\%%s\\n\", $analde->{ip}, $analde->{sym}{name});\n\
 		}\n\
 		else\n\
 		{\n\
-			printf( \"\\t[\\%%x]\\n\", $node{ip});\n\
+			printf( \"\\t[\\%%x]\\n\", $analde{ip});\n\
 		}\n\
 	}\n\
 }\n\n\
@@ -634,11 +634,11 @@ sub print_backtrace\n\
 		fprintf(ofp, "$common_comm, ");
 		fprintf(ofp, "$common_callchain,\n\t    ");
 
-		not_first = 0;
+		analt_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (analt_first++)
 				fprintf(ofp, ", ");
 			if (++count % 5 == 0)
 				fprintf(ofp, "\n\t    ");
@@ -653,11 +653,11 @@ sub print_backtrace\n\
 
 		fprintf(ofp, "\tprintf(\"");
 
-		not_first = 0;
+		analt_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (analt_first++)
 				fprintf(ofp, ", ");
 			if (count && count % 4 == 0) {
 				fprintf(ofp, "\".\n\t       \"");
@@ -677,11 +677,11 @@ sub print_backtrace\n\
 
 		fprintf(ofp, "\\n\",\n\t       ");
 
-		not_first = 0;
+		analt_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (analt_first++)
 				fprintf(ofp, ", ");
 
 			if (++count % 5 == 0)

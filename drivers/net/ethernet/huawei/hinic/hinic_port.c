@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/types.h>
@@ -10,7 +10,7 @@
 #include <linux/if_vlan.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_dev.h"
@@ -64,14 +64,14 @@ static int change_mac(struct hinic_dev *nic_dev, const u8 *addr,
 	}
 
 	if (port_mac_cmd.status == HINIC_PF_SET_VF_ALREADY) {
-		dev_warn(&pdev->dev, "PF has already set VF mac, ignore %s operation\n",
+		dev_warn(&pdev->dev, "PF has already set VF mac, iganalre %s operation\n",
 			 (op == MAC_SET) ? "set" : "del");
 		return HINIC_PF_SET_VF_ALREADY;
 	}
 
 	if (cmd == HINIC_PORT_CMD_SET_MAC && port_mac_cmd.status ==
 	    HINIC_MGMT_STATUS_EXIST)
-		dev_warn(&pdev->dev, "MAC is repeated, ignore set operation\n");
+		dev_warn(&pdev->dev, "MAC is repeated, iganalre set operation\n");
 
 	return 0;
 }
@@ -552,7 +552,7 @@ static int hinic_set_rx_lro_timer(struct hinic_dev *nic_dev, u32 timer_value)
 		/* For this case, we think status (0xFF) is OK */
 		lro_timer.status = 0;
 		dev_dbg(&pdev->dev,
-			"Set lro timer not supported by the current FW version, it will be 1ms default\n");
+			"Set lro timer analt supported by the current FW version, it will be 1ms default\n");
 	}
 
 	if (err || !out_size || lro_timer.status) {
@@ -716,7 +716,7 @@ int hinic_set_rss_type(struct hinic_dev *nic_dev, u32 tmpl_idx,
 	err = hinic_alloc_cmdq_buf(&func_to_io->cmdqs, &cmd_buf);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to allocate cmd buf\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctx |=  HINIC_RSS_TYPE_SET(1, VALID) |
@@ -1034,7 +1034,7 @@ int hinic_get_phy_port_stats(struct hinic_dev *nic_dev,
 
 	port_stats = kzalloc(sizeof(*port_stats), GFP_KERNEL);
 	if (!port_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stats_info.stats_version = HINIC_PORT_STATS_VERSION;
 	stats_info.stats_size = sizeof(*port_stats);

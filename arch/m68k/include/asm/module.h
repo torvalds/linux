@@ -6,7 +6,7 @@
 
 enum m68k_fixup_type {
 	m68k_fixup_memoffset,
-	m68k_fixup_vnode_shift,
+	m68k_fixup_vanalde_shift,
 };
 
 struct m68k_fixup_info {

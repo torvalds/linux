@@ -15,7 +15,7 @@
 #define MMA9551_APPID_SLEEP_WAKE	0x12
 #define MMA9551_APPID_PEDOMETER	        0x15
 #define MMA9551_APPID_RSC		0x17
-#define MMA9551_APPID_NONE		0xff
+#define MMA9551_APPID_ANALNE		0xff
 
 /* Reset/Suspend/Clear application app masks */
 #define MMA9551_RSC_PED			BIT(21)

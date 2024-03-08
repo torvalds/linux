@@ -65,7 +65,7 @@ h2_destroy()
 switch_create()
 {
 	ip link add name br1 type bridge vlan_filtering 1
-	ip link set dev br1 addrgenmode none
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 	ip link set dev $swp1 master br1
 	ip link set dev $swp1 up
@@ -82,9 +82,9 @@ switch_destroy()
 	dcb app del dev $swp1 dscp-prio 10:0 11:1 12:2 13:3 14:4 15:5 16:6 17:7
 
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	ip link del dev br1
 }
 

@@ -14,19 +14,19 @@ quiet_cmd_syshdr = SYSHDR  $@
 quiet_cmd_systbl = SYSTBL  $@
       cmd_systbl = $(CONFIG_SHELL) $(systbl) --abis $(abis) $< $@
 
-$(uapi)/unistd_32.h: abis := common,nospu,32
+$(uapi)/unistd_32.h: abis := common,analspu,32
 $(uapi)/unistd_32.h: $(syscall) $(syshdr) FORCE
 	$(call if_changed,syshdr)
 
-$(uapi)/unistd_64.h: abis := common,nospu,64
+$(uapi)/unistd_64.h: abis := common,analspu,64
 $(uapi)/unistd_64.h: $(syscall) $(syshdr) FORCE
 	$(call if_changed,syshdr)
 
-$(kapi)/syscall_table_32.h: abis := common,nospu,32
+$(kapi)/syscall_table_32.h: abis := common,analspu,32
 $(kapi)/syscall_table_32.h: $(syscall) $(systbl) FORCE
 	$(call if_changed,systbl)
 
-$(kapi)/syscall_table_64.h: abis := common,nospu,64
+$(kapi)/syscall_table_64.h: abis := common,analspu,64
 $(kapi)/syscall_table_64.h: $(syscall) $(systbl) FORCE
 	$(call if_changed,systbl)
 

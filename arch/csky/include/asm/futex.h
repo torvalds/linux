@@ -9,7 +9,7 @@
 #include <linux/atomic.h>
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)		\
 {									\
@@ -68,7 +68,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 				  ret, oldval, uaddr, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	if (!ret)

@@ -3,10 +3,10 @@
  *
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2001 Networks Associates Technology, Inc <ssmalley@nai.com>
+ * Copyright (C) 2001 Networks Associates Techanallogy, Inc <ssmalley@nai.com>
  * Copyright (C) 2001 James Morris <jmorris@intercode.com.au>
- * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Technology Group)
- * Copyright (C) 2016 Mellanox Techonologies
+ * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Techanallogy Group)
+ * Copyright (C) 2016 Mellaanalx Techoanallogies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ struct sembuf;
 struct kern_ipc_perm;
 struct audit_context;
 struct super_block;
-struct inode;
+struct ianalde;
 struct dentry;
 struct file;
 struct vfsmount;
@@ -53,24 +53,24 @@ struct fown_struct;
 struct file_operations;
 struct msg_msg;
 struct xattr;
-struct kernfs_node;
+struct kernfs_analde;
 struct xfrm_sec_ctx;
 struct mm_struct;
 struct fs_context;
 struct fs_parameter;
 enum fs_value_type;
 struct watch;
-struct watch_notification;
+struct watch_analtification;
 struct lsm_ctx;
 
-/* Default (no) options for the capable function */
-#define CAP_OPT_NONE 0x0
+/* Default (anal) options for the capable function */
+#define CAP_OPT_ANALNE 0x0
 /* If capable should audit the security request */
-#define CAP_OPT_NOAUDIT BIT(1)
+#define CAP_OPT_ANALAUDIT BIT(1)
 /* If capable is being called by a setid function */
 #define CAP_OPT_INSETID BIT(2)
 
-/* LSM Agnostic defines for security_sb_set_mnt_opts() flags */
+/* LSM Aganalstic defines for security_sb_set_mnt_opts() flags */
 #define SECURITY_LSM_NATIVE_LABELS	1
 
 struct ctl_table;
@@ -91,23 +91,23 @@ enum lsm_event {
  * information from the running kernel that would otherwise be
  * restricted) are placed before LOCKDOWN_CONFIDENTIALITY_MAX.
  *
- * LSM authors should note that the semantics of any given lockdown
- * reason are not guaranteed to be stable - the same reason may block
+ * LSM authors should analte that the semantics of any given lockdown
+ * reason are analt guaranteed to be stable - the same reason may block
  * one set of features in one kernel release, and a slightly different
  * set of features in a later kernel release. LSMs that seek to expose
- * lockdown policy at any level of granularity other than "none",
+ * lockdown policy at any level of granularity other than "analne",
  * "integrity" or "confidentiality" are responsible for either
  * ensuring that they expose a consistent level of functionality to
  * userland, or ensuring that userland is aware that this is
  * potentially a moving target. It is easy to misuse this information
- * in a way that could break userspace. Please be careful not to do
+ * in a way that could break userspace. Please be careful analt to do
  * so.
  *
  * If you add to this, remember to extend lockdown_reasons in
  * security/lockdown/lockdown.c.
  */
 enum lockdown_reason {
-	LOCKDOWN_NONE,
+	LOCKDOWN_ANALNE,
 	LOCKDOWN_MODULE_SIGNATURE,
 	LOCKDOWN_DEV_MEM,
 	LOCKDOWN_EFI_TEST,
@@ -156,14 +156,14 @@ extern int cap_capset(struct cred *new, const struct cred *old,
 		      const kernel_cap_t *inheritable,
 		      const kernel_cap_t *permitted);
 extern int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file);
-int cap_inode_setxattr(struct dentry *dentry, const char *name,
+int cap_ianalde_setxattr(struct dentry *dentry, const char *name,
 		       const void *value, size_t size, int flags);
-int cap_inode_removexattr(struct mnt_idmap *idmap,
+int cap_ianalde_removexattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *name);
-int cap_inode_need_killpriv(struct dentry *dentry);
-int cap_inode_killpriv(struct mnt_idmap *idmap, struct dentry *dentry);
-int cap_inode_getsecurity(struct mnt_idmap *idmap,
-			  struct inode *inode, const char *name, void **buffer,
+int cap_ianalde_need_killpriv(struct dentry *dentry);
+int cap_ianalde_killpriv(struct mnt_idmap *idmap, struct dentry *dentry);
+int cap_ianalde_getsecurity(struct mnt_idmap *idmap,
+			  struct ianalde *ianalde, const char *name, void **buffer,
 			  bool alloc);
 extern int cap_mmap_addr(unsigned long addr);
 extern int cap_mmap_file(struct file *file, unsigned long reqprot,
@@ -174,7 +174,7 @@ extern int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 extern int cap_task_setscheduler(struct task_struct *p);
 extern int cap_task_setioprio(struct task_struct *p, int ioprio);
 extern int cap_task_setnice(struct task_struct *p, int nice);
-extern int cap_vm_enough_memory(struct mm_struct *mm, long pages);
+extern int cap_vm_eanalugh_memory(struct mm_struct *mm, long pages);
 
 struct msghdr;
 struct sk_buff;
@@ -224,15 +224,15 @@ struct request_sock;
 /* bprm->unsafe reasons */
 #define LSM_UNSAFE_SHARE	1
 #define LSM_UNSAFE_PTRACE	2
-#define LSM_UNSAFE_NO_NEW_PRIVS	4
+#define LSM_UNSAFE_ANAL_NEW_PRIVS	4
 
 #ifdef CONFIG_MMU
 extern int mmap_min_addr_handler(struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
-/* security_inode_init_security callback function to write xattrs */
-typedef int (*initxattrs) (struct inode *inode,
+/* security_ianalde_init_security callback function to write xattrs */
+typedef int (*initxattrs) (struct ianalde *ianalde,
 			   const struct xattr *xattr_array, void *fs_data);
 
 
@@ -251,16 +251,16 @@ static const char * const kernel_load_data_str[] = {
 static inline const char *kernel_load_data_id_str(enum kernel_load_data_id id)
 {
 	if ((unsigned)id >= LOADING_MAX_ID)
-		return kernel_load_data_str[LOADING_UNKNOWN];
+		return kernel_load_data_str[LOADING_UNKANALWN];
 
 	return kernel_load_data_str[id];
 }
 
 #ifdef CONFIG_SECURITY
 
-int call_blocking_lsm_notifier(enum lsm_event event, void *data);
-int register_blocking_lsm_notifier(struct notifier_block *nb);
-int unregister_blocking_lsm_notifier(struct notifier_block *nb);
+int call_blocking_lsm_analtifier(enum lsm_event event, void *data);
+int register_blocking_lsm_analtifier(struct analtifier_block *nb);
+int unregister_blocking_lsm_analtifier(struct analtifier_block *nb);
 
 /* prototypes */
 extern int security_init(void);
@@ -293,7 +293,7 @@ int security_quotactl(int cmds, int type, int id, const struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
 int security_syslog(int type);
 int security_settime64(const struct timespec64 *ts, const struct timezone *tz);
-int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
+int security_vm_eanalugh_memory_mm(struct mm_struct *mm, long pages);
 int security_bprm_creds_for_exec(struct linux_binprm *bprm);
 int security_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file);
 int security_bprm_check(struct linux_binprm *bprm);
@@ -333,63 +333,63 @@ int security_dentry_create_files_as(struct dentry *dentry, int mode,
 					struct qstr *name,
 					const struct cred *old,
 					struct cred *new);
-int security_path_notify(const struct path *path, u64 mask,
+int security_path_analtify(const struct path *path, u64 mask,
 					unsigned int obj_type);
-int security_inode_alloc(struct inode *inode);
-void security_inode_free(struct inode *inode);
-int security_inode_init_security(struct inode *inode, struct inode *dir,
+int security_ianalde_alloc(struct ianalde *ianalde);
+void security_ianalde_free(struct ianalde *ianalde);
+int security_ianalde_init_security(struct ianalde *ianalde, struct ianalde *dir,
 				 const struct qstr *qstr,
 				 initxattrs initxattrs, void *fs_data);
-int security_inode_init_security_anon(struct inode *inode,
+int security_ianalde_init_security_aanaln(struct ianalde *ianalde,
 				      const struct qstr *name,
-				      const struct inode *context_inode);
-int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode);
-int security_inode_link(struct dentry *old_dentry, struct inode *dir,
+				      const struct ianalde *context_ianalde);
+int security_ianalde_create(struct ianalde *dir, struct dentry *dentry, umode_t mode);
+int security_ianalde_link(struct dentry *old_dentry, struct ianalde *dir,
 			 struct dentry *new_dentry);
-int security_inode_unlink(struct inode *dir, struct dentry *dentry);
-int security_inode_symlink(struct inode *dir, struct dentry *dentry,
+int security_ianalde_unlink(struct ianalde *dir, struct dentry *dentry);
+int security_ianalde_symlink(struct ianalde *dir, struct dentry *dentry,
 			   const char *old_name);
-int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
-int security_inode_rmdir(struct inode *dir, struct dentry *dentry);
-int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
-int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
-			  struct inode *new_dir, struct dentry *new_dentry,
+int security_ianalde_mkdir(struct ianalde *dir, struct dentry *dentry, umode_t mode);
+int security_ianalde_rmdir(struct ianalde *dir, struct dentry *dentry);
+int security_ianalde_mkanald(struct ianalde *dir, struct dentry *dentry, umode_t mode, dev_t dev);
+int security_ianalde_rename(struct ianalde *old_dir, struct dentry *old_dentry,
+			  struct ianalde *new_dir, struct dentry *new_dentry,
 			  unsigned int flags);
-int security_inode_readlink(struct dentry *dentry);
-int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
+int security_ianalde_readlink(struct dentry *dentry);
+int security_ianalde_follow_link(struct dentry *dentry, struct ianalde *ianalde,
 			       bool rcu);
-int security_inode_permission(struct inode *inode, int mask);
-int security_inode_setattr(struct mnt_idmap *idmap,
+int security_ianalde_permission(struct ianalde *ianalde, int mask);
+int security_ianalde_setattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr);
-int security_inode_getattr(const struct path *path);
-int security_inode_setxattr(struct mnt_idmap *idmap,
+int security_ianalde_getattr(const struct path *path);
+int security_ianalde_setxattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags);
-int security_inode_set_acl(struct mnt_idmap *idmap,
+int security_ianalde_set_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name,
 			   struct posix_acl *kacl);
-int security_inode_get_acl(struct mnt_idmap *idmap,
+int security_ianalde_get_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name);
-int security_inode_remove_acl(struct mnt_idmap *idmap,
+int security_ianalde_remove_acl(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *acl_name);
-void security_inode_post_setxattr(struct dentry *dentry, const char *name,
+void security_ianalde_post_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags);
-int security_inode_getxattr(struct dentry *dentry, const char *name);
-int security_inode_listxattr(struct dentry *dentry);
-int security_inode_removexattr(struct mnt_idmap *idmap,
+int security_ianalde_getxattr(struct dentry *dentry, const char *name);
+int security_ianalde_listxattr(struct dentry *dentry);
+int security_ianalde_removexattr(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *name);
-int security_inode_need_killpriv(struct dentry *dentry);
-int security_inode_killpriv(struct mnt_idmap *idmap, struct dentry *dentry);
-int security_inode_getsecurity(struct mnt_idmap *idmap,
-			       struct inode *inode, const char *name,
+int security_ianalde_need_killpriv(struct dentry *dentry);
+int security_ianalde_killpriv(struct mnt_idmap *idmap, struct dentry *dentry);
+int security_ianalde_getsecurity(struct mnt_idmap *idmap,
+			       struct ianalde *ianalde, const char *name,
 			       void **buffer, bool alloc);
-int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags);
-int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size);
-void security_inode_getsecid(struct inode *inode, u32 *secid);
-int security_inode_copy_up(struct dentry *src, struct cred **new);
-int security_inode_copy_up_xattr(const char *name);
-int security_kernfs_init_security(struct kernfs_node *kn_dir,
-				  struct kernfs_node *kn);
+int security_ianalde_setsecurity(struct ianalde *ianalde, const char *name, const void *value, size_t size, int flags);
+int security_ianalde_listsecurity(struct ianalde *ianalde, char *buffer, size_t buffer_size);
+void security_ianalde_getsecid(struct ianalde *ianalde, u32 *secid);
+int security_ianalde_copy_up(struct dentry *src, struct cred **new);
+int security_ianalde_copy_up_xattr(const char *name);
+int security_kernfs_init_security(struct kernfs_analde *kn_dir,
+				  struct kernfs_analde *kn);
 int security_file_permission(struct file *file, int mask);
 int security_file_alloc(struct file *file);
 void security_file_free(struct file *file);
@@ -417,7 +417,7 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
 void security_transfer_creds(struct cred *new, const struct cred *old);
 void security_cred_getsecid(const struct cred *c, u32 *secid);
 int security_kernel_act_as(struct cred *new, u32 secid);
-int security_kernel_create_files_as(struct cred *new, struct inode *inode);
+int security_kernel_create_files_as(struct cred *new, struct ianalde *ianalde);
 int security_kernel_module_request(char *kmod_name);
 int security_kernel_load_data(enum kernel_load_data_id id, bool contents);
 int security_kernel_post_load_data(char *buf, loff_t size,
@@ -451,7 +451,7 @@ int security_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 			int sig, const struct cred *cred);
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			unsigned long arg4, unsigned long arg5);
-void security_task_to_inode(struct task_struct *p, struct inode *inode);
+void security_task_to_ianalde(struct task_struct *p, struct ianalde *ianalde);
 int security_create_user_ns(const struct cred *cred);
 int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag);
 void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid);
@@ -476,7 +476,7 @@ int security_sem_associate(struct kern_ipc_perm *sma, int semflg);
 int security_sem_semctl(struct kern_ipc_perm *sma, int cmd);
 int security_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 			unsigned nsops, int alter);
-void security_d_instantiate(struct dentry *dentry, struct inode *inode);
+void security_d_instantiate(struct dentry *dentry, struct ianalde *ianalde);
 int security_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
 			 size_t __user *size, u32 flags);
 int security_setselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
@@ -489,26 +489,26 @@ int security_ismaclabel(const char *name);
 int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen);
 int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid);
 void security_release_secctx(char *secdata, u32 seclen);
-void security_inode_invalidate_secctx(struct inode *inode);
-int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen);
-int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen);
-int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen);
+void security_ianalde_invalidate_secctx(struct ianalde *ianalde);
+int security_ianalde_analtifysecctx(struct ianalde *ianalde, void *ctx, u32 ctxlen);
+int security_ianalde_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen);
+int security_ianalde_getsecctx(struct ianalde *ianalde, void **ctx, u32 *ctxlen);
 int security_locked_down(enum lockdown_reason what);
 int lsm_fill_user_ctx(struct lsm_ctx __user *uctx, size_t *uctx_len,
 		      void *val, size_t val_len, u64 id, u64 flags);
 #else /* CONFIG_SECURITY */
 
-static inline int call_blocking_lsm_notifier(enum lsm_event event, void *data)
+static inline int call_blocking_lsm_analtifier(enum lsm_event event, void *data)
 {
 	return 0;
 }
 
-static inline int register_blocking_lsm_notifier(struct notifier_block *nb)
+static inline int register_blocking_lsm_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline  int unregister_blocking_lsm_notifier(struct notifier_block *nb)
+static inline  int unregister_blocking_lsm_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
@@ -619,9 +619,9 @@ static inline int security_settime64(const struct timespec64 *ts,
 	return cap_settime(ts, tz);
 }
 
-static inline int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
+static inline int security_vm_eanalugh_memory_mm(struct mm_struct *mm, long pages)
 {
-	return __vm_enough_memory(mm, pages, cap_vm_enough_memory(mm, pages));
+	return __vm_eanalugh_memory(mm, pages, cap_vm_eanalugh_memory(mm, pages));
 }
 
 static inline int security_bprm_creds_for_exec(struct linux_binprm *bprm)
@@ -661,7 +661,7 @@ static inline int security_fs_context_dup(struct fs_context *fc,
 static inline int security_fs_context_parse_param(struct fs_context *fc,
 						  struct fs_parameter *param)
 {
-	return -ENOPARAM;
+	return -EANALPARAM;
 }
 
 static inline int security_sb_alloc(struct super_block *sb)
@@ -750,18 +750,18 @@ static inline int security_move_mount(const struct path *from_path,
 	return 0;
 }
 
-static inline int security_path_notify(const struct path *path, u64 mask,
+static inline int security_path_analtify(const struct path *path, u64 mask,
 				unsigned int obj_type)
 {
 	return 0;
 }
 
-static inline int security_inode_alloc(struct inode *inode)
+static inline int security_ianalde_alloc(struct ianalde *ianalde)
 {
 	return 0;
 }
 
-static inline void security_inode_free(struct inode *inode)
+static inline void security_ianalde_free(struct ianalde *ianalde)
 { }
 
 static inline int security_dentry_init_security(struct dentry *dentry,
@@ -771,7 +771,7 @@ static inline int security_dentry_init_security(struct dentry *dentry,
 						 void **ctx,
 						 u32 *ctxlen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int security_dentry_create_files_as(struct dentry *dentry,
@@ -783,8 +783,8 @@ static inline int security_dentry_create_files_as(struct dentry *dentry,
 }
 
 
-static inline int security_inode_init_security(struct inode *inode,
-						struct inode *dir,
+static inline int security_ianalde_init_security(struct ianalde *ianalde,
+						struct ianalde *dir,
 						const struct qstr *qstr,
 						const initxattrs xattrs,
 						void *fs_data)
@@ -792,106 +792,106 @@ static inline int security_inode_init_security(struct inode *inode,
 	return 0;
 }
 
-static inline int security_inode_init_security_anon(struct inode *inode,
+static inline int security_ianalde_init_security_aanaln(struct ianalde *ianalde,
 						    const struct qstr *name,
-						    const struct inode *context_inode)
+						    const struct ianalde *context_ianalde)
 {
 	return 0;
 }
 
-static inline int security_inode_create(struct inode *dir,
+static inline int security_ianalde_create(struct ianalde *dir,
 					 struct dentry *dentry,
 					 umode_t mode)
 {
 	return 0;
 }
 
-static inline int security_inode_link(struct dentry *old_dentry,
-				       struct inode *dir,
+static inline int security_ianalde_link(struct dentry *old_dentry,
+				       struct ianalde *dir,
 				       struct dentry *new_dentry)
 {
 	return 0;
 }
 
-static inline int security_inode_unlink(struct inode *dir,
+static inline int security_ianalde_unlink(struct ianalde *dir,
 					 struct dentry *dentry)
 {
 	return 0;
 }
 
-static inline int security_inode_symlink(struct inode *dir,
+static inline int security_ianalde_symlink(struct ianalde *dir,
 					  struct dentry *dentry,
 					  const char *old_name)
 {
 	return 0;
 }
 
-static inline int security_inode_mkdir(struct inode *dir,
+static inline int security_ianalde_mkdir(struct ianalde *dir,
 					struct dentry *dentry,
 					int mode)
 {
 	return 0;
 }
 
-static inline int security_inode_rmdir(struct inode *dir,
+static inline int security_ianalde_rmdir(struct ianalde *dir,
 					struct dentry *dentry)
 {
 	return 0;
 }
 
-static inline int security_inode_mknod(struct inode *dir,
+static inline int security_ianalde_mkanald(struct ianalde *dir,
 					struct dentry *dentry,
 					int mode, dev_t dev)
 {
 	return 0;
 }
 
-static inline int security_inode_rename(struct inode *old_dir,
+static inline int security_ianalde_rename(struct ianalde *old_dir,
 					 struct dentry *old_dentry,
-					 struct inode *new_dir,
+					 struct ianalde *new_dir,
 					 struct dentry *new_dentry,
 					 unsigned int flags)
 {
 	return 0;
 }
 
-static inline int security_inode_readlink(struct dentry *dentry)
+static inline int security_ianalde_readlink(struct dentry *dentry)
 {
 	return 0;
 }
 
-static inline int security_inode_follow_link(struct dentry *dentry,
-					     struct inode *inode,
+static inline int security_ianalde_follow_link(struct dentry *dentry,
+					     struct ianalde *ianalde,
 					     bool rcu)
 {
 	return 0;
 }
 
-static inline int security_inode_permission(struct inode *inode, int mask)
+static inline int security_ianalde_permission(struct ianalde *ianalde, int mask)
 {
 	return 0;
 }
 
-static inline int security_inode_setattr(struct mnt_idmap *idmap,
+static inline int security_ianalde_setattr(struct mnt_idmap *idmap,
 					 struct dentry *dentry,
 					 struct iattr *attr)
 {
 	return 0;
 }
 
-static inline int security_inode_getattr(const struct path *path)
+static inline int security_ianalde_getattr(const struct path *path)
 {
 	return 0;
 }
 
-static inline int security_inode_setxattr(struct mnt_idmap *idmap,
+static inline int security_ianalde_setxattr(struct mnt_idmap *idmap,
 		struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags)
 {
-	return cap_inode_setxattr(dentry, name, value, size, flags);
+	return cap_ianalde_setxattr(dentry, name, value, size, flags);
 }
 
-static inline int security_inode_set_acl(struct mnt_idmap *idmap,
+static inline int security_ianalde_set_acl(struct mnt_idmap *idmap,
 					 struct dentry *dentry,
 					 const char *acl_name,
 					 struct posix_acl *kacl)
@@ -899,90 +899,90 @@ static inline int security_inode_set_acl(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static inline int security_inode_get_acl(struct mnt_idmap *idmap,
+static inline int security_ianalde_get_acl(struct mnt_idmap *idmap,
 					 struct dentry *dentry,
 					 const char *acl_name)
 {
 	return 0;
 }
 
-static inline int security_inode_remove_acl(struct mnt_idmap *idmap,
+static inline int security_ianalde_remove_acl(struct mnt_idmap *idmap,
 					    struct dentry *dentry,
 					    const char *acl_name)
 {
 	return 0;
 }
 
-static inline void security_inode_post_setxattr(struct dentry *dentry,
+static inline void security_ianalde_post_setxattr(struct dentry *dentry,
 		const char *name, const void *value, size_t size, int flags)
 { }
 
-static inline int security_inode_getxattr(struct dentry *dentry,
+static inline int security_ianalde_getxattr(struct dentry *dentry,
 			const char *name)
 {
 	return 0;
 }
 
-static inline int security_inode_listxattr(struct dentry *dentry)
+static inline int security_ianalde_listxattr(struct dentry *dentry)
 {
 	return 0;
 }
 
-static inline int security_inode_removexattr(struct mnt_idmap *idmap,
+static inline int security_ianalde_removexattr(struct mnt_idmap *idmap,
 					     struct dentry *dentry,
 					     const char *name)
 {
-	return cap_inode_removexattr(idmap, dentry, name);
+	return cap_ianalde_removexattr(idmap, dentry, name);
 }
 
-static inline int security_inode_need_killpriv(struct dentry *dentry)
+static inline int security_ianalde_need_killpriv(struct dentry *dentry)
 {
-	return cap_inode_need_killpriv(dentry);
+	return cap_ianalde_need_killpriv(dentry);
 }
 
-static inline int security_inode_killpriv(struct mnt_idmap *idmap,
+static inline int security_ianalde_killpriv(struct mnt_idmap *idmap,
 					  struct dentry *dentry)
 {
-	return cap_inode_killpriv(idmap, dentry);
+	return cap_ianalde_killpriv(idmap, dentry);
 }
 
-static inline int security_inode_getsecurity(struct mnt_idmap *idmap,
-					     struct inode *inode,
+static inline int security_ianalde_getsecurity(struct mnt_idmap *idmap,
+					     struct ianalde *ianalde,
 					     const char *name, void **buffer,
 					     bool alloc)
 {
-	return cap_inode_getsecurity(idmap, inode, name, buffer, alloc);
+	return cap_ianalde_getsecurity(idmap, ianalde, name, buffer, alloc);
 }
 
-static inline int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
+static inline int security_ianalde_setsecurity(struct ianalde *ianalde, const char *name, const void *value, size_t size, int flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
+static inline int security_ianalde_listsecurity(struct ianalde *ianalde, char *buffer, size_t buffer_size)
 {
 	return 0;
 }
 
-static inline void security_inode_getsecid(struct inode *inode, u32 *secid)
+static inline void security_ianalde_getsecid(struct ianalde *ianalde, u32 *secid)
 {
 	*secid = 0;
 }
 
-static inline int security_inode_copy_up(struct dentry *src, struct cred **new)
+static inline int security_ianalde_copy_up(struct dentry *src, struct cred **new)
 {
 	return 0;
 }
 
-static inline int security_kernfs_init_security(struct kernfs_node *kn_dir,
-						struct kernfs_node *kn)
+static inline int security_kernfs_init_security(struct kernfs_analde *kn_dir,
+						struct kernfs_analde *kn)
 {
 	return 0;
 }
 
-static inline int security_inode_copy_up_xattr(const char *name)
+static inline int security_ianalde_copy_up_xattr(const char *name)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int security_file_permission(struct file *file, int mask)
@@ -1107,7 +1107,7 @@ static inline int security_kernel_act_as(struct cred *cred, u32 secid)
 }
 
 static inline int security_kernel_create_files_as(struct cred *cred,
-						  struct inode *inode)
+						  struct ianalde *ianalde)
 {
 	return 0;
 }
@@ -1247,7 +1247,7 @@ static inline int security_task_prctl(int option, unsigned long arg2,
 	return cap_task_prctl(option, arg2, arg3, arg4, arg5);
 }
 
-static inline void security_task_to_inode(struct task_struct *p, struct inode *inode)
+static inline void security_task_to_ianalde(struct task_struct *p, struct ianalde *ianalde)
 { }
 
 static inline int security_create_user_ns(const struct cred *cred)
@@ -1358,21 +1358,21 @@ static inline int security_sem_semop(struct kern_ipc_perm *sma,
 }
 
 static inline void security_d_instantiate(struct dentry *dentry,
-					  struct inode *inode)
+					  struct ianalde *ianalde)
 { }
 
 static inline int security_getselfattr(unsigned int attr,
 				       struct lsm_ctx __user *ctx,
 				       size_t __user *size, u32 flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int security_setselfattr(unsigned int attr,
 				       struct lsm_ctx __user *ctx,
 				       size_t size, u32 flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int security_getprocattr(struct task_struct *p, int lsmid,
@@ -1399,35 +1399,35 @@ static inline int security_ismaclabel(const char *name)
 
 static inline int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int security_secctx_to_secid(const char *secdata,
 					   u32 seclen,
 					   u32 *secid)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void security_release_secctx(char *secdata, u32 seclen)
 {
 }
 
-static inline void security_inode_invalidate_secctx(struct inode *inode)
+static inline void security_ianalde_invalidate_secctx(struct ianalde *ianalde)
 {
 }
 
-static inline int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+static inline int security_ianalde_analtifysecctx(struct ianalde *ianalde, void *ctx, u32 ctxlen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
-static inline int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+static inline int security_ianalde_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
-static inline int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+static inline int security_ianalde_getsecctx(struct ianalde *ianalde, void **ctx, u32 *ctxlen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int security_locked_down(enum lockdown_reason what)
 {
@@ -1437,24 +1437,24 @@ static inline int lsm_fill_user_ctx(struct lsm_ctx __user *uctx,
 				    size_t *uctx_len, void *val, size_t val_len,
 				    u64 id, u64 flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif	/* CONFIG_SECURITY */
 
 #if defined(CONFIG_SECURITY) && defined(CONFIG_WATCH_QUEUE)
-int security_post_notification(const struct cred *w_cred,
+int security_post_analtification(const struct cred *w_cred,
 			       const struct cred *cred,
-			       struct watch_notification *n);
+			       struct watch_analtification *n);
 #else
-static inline int security_post_notification(const struct cred *w_cred,
+static inline int security_post_analtification(const struct cred *w_cred,
 					     const struct cred *cred,
-					     struct watch_notification *n)
+					     struct watch_analtification *n)
 {
 	return 0;
 }
 #endif
 
-#if defined(CONFIG_SECURITY) && defined(CONFIG_KEY_NOTIFICATIONS)
+#if defined(CONFIG_SECURITY) && defined(CONFIG_KEY_ANALTIFICATIONS)
 int security_watch_key(struct key *key);
 #else
 static inline int security_watch_key(struct key *key)
@@ -1628,12 +1628,12 @@ static inline int security_socket_getpeersec_stream(struct socket *sock,
 						    sockptr_t optlen,
 						    unsigned int len)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
@@ -1869,7 +1869,7 @@ static inline void security_skb_classify_flow(struct sk_buff *skb,
 int security_path_unlink(const struct path *dir, struct dentry *dentry);
 int security_path_mkdir(const struct path *dir, struct dentry *dentry, umode_t mode);
 int security_path_rmdir(const struct path *dir, struct dentry *dentry);
-int security_path_mknod(const struct path *dir, struct dentry *dentry, umode_t mode,
+int security_path_mkanald(const struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev);
 int security_path_truncate(const struct path *path);
 int security_path_symlink(const struct path *dir, struct dentry *dentry,
@@ -1899,7 +1899,7 @@ static inline int security_path_rmdir(const struct path *dir, struct dentry *den
 	return 0;
 }
 
-static inline int security_path_mknod(const struct path *dir, struct dentry *dentry,
+static inline int security_path_mkanald(const struct path *dir, struct dentry *dentry,
 				      umode_t mode, unsigned int dev)
 {
 	return 0;
@@ -1989,7 +1989,7 @@ static inline int security_key_getsecurity(struct key *key, char **_buffer)
 #ifdef CONFIG_AUDIT
 #ifdef CONFIG_SECURITY
 int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule);
-int security_audit_rule_known(struct audit_krule *krule);
+int security_audit_rule_kanalwn(struct audit_krule *krule);
 int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule);
 void security_audit_rule_free(void *lsmrule);
 
@@ -2001,7 +2001,7 @@ static inline int security_audit_rule_init(u32 field, u32 op, char *rulestr,
 	return 0;
 }
 
-static inline int security_audit_rule_known(struct audit_krule *krule)
+static inline int security_audit_rule_kanalwn(struct audit_krule *krule)
 {
 	return 0;
 }
@@ -2027,7 +2027,7 @@ extern struct dentry *securityfs_create_dir(const char *name, struct dentry *par
 struct dentry *securityfs_create_symlink(const char *name,
 					 struct dentry *parent,
 					 const char *target,
-					 const struct inode_operations *iops);
+					 const struct ianalde_operations *iops);
 extern void securityfs_remove(struct dentry *dentry);
 
 #else /* CONFIG_SECURITYFS */
@@ -2035,7 +2035,7 @@ extern void securityfs_remove(struct dentry *dentry);
 static inline struct dentry *securityfs_create_dir(const char *name,
 						   struct dentry *parent)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct dentry *securityfs_create_file(const char *name,
@@ -2044,15 +2044,15 @@ static inline struct dentry *securityfs_create_file(const char *name,
 						    void *data,
 						    const struct file_operations *fops)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct dentry *securityfs_create_symlink(const char *name,
 					struct dentry *parent,
 					const char *target,
-					const struct inode_operations *iops)
+					const struct ianalde_operations *iops)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void securityfs_remove(struct dentry *dentry)

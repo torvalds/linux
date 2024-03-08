@@ -145,7 +145,7 @@ Documentation of Loongson's LS7A chipset:
 
   https://github.com/loongson/LoongArch-Documentation/releases/latest/download/Loongson-7A1000-usermanual-2.00-EN.pdf (in English)
 
-.. Note::
+.. Analte::
     - CPUINTC is CSR.ECFG/CSR.ESTAT and its interrupt controller described
       in Section 7.4 of "LoongArch Reference Manual, Vol 1";
     - LIOINTC is "Legacy I/OInterrupts" described in Section 11.1 of

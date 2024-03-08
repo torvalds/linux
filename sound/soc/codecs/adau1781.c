@@ -26,7 +26,7 @@
 #define ADAU1781_RIGHT_PGA		0x400f
 #define ADAU1781_LEFT_PLAYBACK_MIXER	0x401c
 #define ADAU1781_RIGHT_PLAYBACK_MIXER	0x401e
-#define ADAU1781_MONO_PLAYBACK_MIXER	0x401f
+#define ADAU1781_MOANAL_PLAYBACK_MIXER	0x401f
 #define ADAU1781_LEFT_LINEOUT		0x4025
 #define ADAU1781_RIGHT_LINEOUT		0x4026
 #define ADAU1781_SPEAKER		0x4027
@@ -46,7 +46,7 @@ static const struct reg_default adau1781_reg_defaults[] = {
 	{ ADAU1781_RIGHT_PGA,			0xc7 },
 	{ ADAU1781_LEFT_PLAYBACK_MIXER,		0x00 },
 	{ ADAU1781_RIGHT_PLAYBACK_MIXER,	0x00 },
-	{ ADAU1781_MONO_PLAYBACK_MIXER,		0x00 },
+	{ ADAU1781_MOANAL_PLAYBACK_MIXER,		0x00 },
 	{ ADAU1781_LEFT_LINEOUT,		0x00 },
 	{ ADAU1781_RIGHT_LINEOUT,		0x00 },
 	{ ADAU1781_SPEAKER,			0x00 },
@@ -99,11 +99,11 @@ static const DECLARE_TLV_DB_RANGE(adau1781_beep_tlv,
 static const DECLARE_TLV_DB_SCALE(adau1781_sidetone_tlv, -1800, 300, 1);
 
 static const char * const adau1781_speaker_bias_select_text[] = {
-	"Normal operation", "Power saving", "Enhanced performance",
+	"Analrmal operation", "Power saving", "Enhanced performance",
 };
 
 static const char * const adau1781_bias_select_text[] = {
-	"Normal operation", "Extreme power saving", "Power saving",
+	"Analrmal operation", "Extreme power saving", "Power saving",
 	"Enhanced performance",
 };
 
@@ -130,9 +130,9 @@ static const struct snd_kcontrol_new adau1781_controls[] = {
 		ADAU1781_RIGHT_LINEOUT, 1, 1, 0),
 	SOC_SINGLE("Beep ZC Switch", ADAU1781_BEEP_ZC, 0, 1, 0),
 
-	SOC_SINGLE("Mono Playback Switch", ADAU1781_MONO_PLAYBACK_MIXER,
+	SOC_SINGLE("Moanal Playback Switch", ADAU1781_MOANAL_PLAYBACK_MIXER,
 		0, 1, 0),
-	SOC_SINGLE_TLV("Mono Playback Volume", ADAU1781_SPEAKER, 6, 3, 0,
+	SOC_SINGLE_TLV("Moanal Playback Volume", ADAU1781_SPEAKER, 6, 3, 0,
 		adau1781_speaker_tlv),
 
 	SOC_ENUM("ADC Bias", adau1781_adc_bias_enum),
@@ -161,13 +161,13 @@ static const struct snd_kcontrol_new adau1781_right_mixer_controls[] = {
 		ADAU1781_LEFT_PLAYBACK_MIXER, 1, 8, 0, adau1781_sidetone_tlv),
 };
 
-static const struct snd_kcontrol_new adau1781_mono_mixer_controls[] = {
+static const struct snd_kcontrol_new adau1781_moanal_mixer_controls[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("Left Switch",
-		ADAU1781_MONO_PLAYBACK_MIXER, 7, 1, 0),
+		ADAU1781_MOANAL_PLAYBACK_MIXER, 7, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("Right Switch",
-		 ADAU1781_MONO_PLAYBACK_MIXER, 6, 1, 0),
+		 ADAU1781_MOANAL_PLAYBACK_MIXER, 6, 1, 0),
 	SOC_DAPM_SINGLE_TLV("Beep Playback Volume",
-		ADAU1781_MONO_PLAYBACK_MIXER, 2, 8, 0, adau1781_sidetone_tlv),
+		ADAU1781_MOANAL_PLAYBACK_MIXER, 2, 8, 0, adau1781_sidetone_tlv),
 };
 
 static int adau1781_dejitter_fixup(struct snd_soc_dapm_widget *w,
@@ -194,12 +194,12 @@ static const struct snd_soc_dapm_widget adau1781_dapm_widgets[] = {
 	SOC_MIXER_NAMED_CTL_ARRAY("Beep Mixer", ADAU17X1_MICBIAS, 4, 0,
 		adau1781_beep_mixer_controls),
 
-	SOC_MIXER_ARRAY("Left Lineout Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("Left Lineout Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1781_left_mixer_controls),
-	SOC_MIXER_ARRAY("Right Lineout Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("Right Lineout Mixer", SND_SOC_ANALPM, 0, 0,
 		adau1781_right_mixer_controls),
-	SOC_MIXER_ARRAY("Mono Mixer", SND_SOC_NOPM, 0, 0,
-		adau1781_mono_mixer_controls),
+	SOC_MIXER_ARRAY("Moanal Mixer", SND_SOC_ANALPM, 0, 0,
+		adau1781_moanal_mixer_controls),
 
 	SND_SOC_DAPM_SUPPLY("Serial Input Routing", ADAU1781_DIG_PWDN0,
 		2, 0, NULL, 0),
@@ -239,12 +239,12 @@ static const struct snd_soc_dapm_route adau1781_dapm_routes[] = {
 	{ "Right Lineout Mixer", "Beep Playback Volume", "Beep Mixer" },
 	{ "Right Lineout Mixer", "Switch", "Right DAC" },
 
-	{ "Mono Mixer", "Beep Playback Volume", "Beep Mixer" },
-	{ "Mono Mixer", "Right Switch", "Right DAC" },
-	{ "Mono Mixer", "Left Switch", "Left DAC" },
-	{ "Speaker", NULL, "Mono Mixer" },
+	{ "Moanal Mixer", "Beep Playback Volume", "Beep Mixer" },
+	{ "Moanal Mixer", "Right Switch", "Right DAC" },
+	{ "Moanal Mixer", "Left Switch", "Left DAC" },
+	{ "Speaker", NULL, "Moanal Mixer" },
 
-	{ "Mono Mixer", NULL, "SYSCLK" },
+	{ "Moanal Mixer", NULL, "SYSCLK" },
 	{ "Left Lineout Mixer", NULL, "SYSCLK" },
 	{ "Left Lineout Mixer", NULL, "SYSCLK" },
 
@@ -293,7 +293,7 @@ static const struct snd_kcontrol_new adau1781_dmic_mux =
 	SOC_DAPM_ENUM("DMIC Select", adau1781_dmic_select_enum);
 
 static const struct snd_soc_dapm_widget adau1781_dmic_dapm_widgets[] = {
-	SND_SOC_DAPM_MUX("DMIC Select", SND_SOC_NOPM, 0, 0, &adau1781_dmic_mux),
+	SND_SOC_DAPM_MUX("DMIC Select", SND_SOC_ANALPM, 0, 0, &adau1781_dmic_mux),
 
 	SND_SOC_DAPM_ADC("DMIC1", NULL, ADAU1781_DMIC_BEEP_CTRL, 4, 0),
 	SND_SOC_DAPM_ADC("DMIC2", NULL, ADAU1781_DMIC_BEEP_CTRL, 5, 0),
@@ -349,7 +349,7 @@ static bool adau1781_readable_register(struct device *dev, unsigned int reg)
 	case ADAU1781_RIGHT_PGA:
 	case ADAU1781_LEFT_PLAYBACK_MIXER:
 	case ADAU1781_RIGHT_PLAYBACK_MIXER:
-	case ADAU1781_MONO_PLAYBACK_MIXER:
+	case ADAU1781_MOANAL_PLAYBACK_MIXER:
 	case ADAU1781_LEFT_LINEOUT:
 	case ADAU1781_RIGHT_LINEOUT:
 	case ADAU1781_SPEAKER:

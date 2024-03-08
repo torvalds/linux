@@ -5,18 +5,18 @@
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	Release 0.10.
  *
  *	Fixes
- *		Dave Gregorich	:	Modularisation and minor bugs
+ *		Dave Gregorich	:	Modularisation and mianalr bugs
  *		Alan Cox	:	Added the watchdog ioctl() stuff
- *		Alan Cox	:	Fixed the reboot problem (as noted by
+ *		Alan Cox	:	Fixed the reboot problem (as analted by
  *					Matt Crocker).
  *		Alan Cox	:	Added wdt= boot option
  *		Alan Cox	:	Cleaned up copy/user stuff
@@ -25,7 +25,7 @@
  *		Tigran Aivazian	:	Restructured wdt_init() to handle
  *					failures
  *		Joel Becker	:	Added WDIOC_GET/SETTIMEOUT
- *		Matt Domsch	:	Added nowayout module option
+ *		Matt Domsch	:	Added analwayout module option
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -38,7 +38,7 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -62,13 +62,13 @@ MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeat in seconds. (0 < heartbeat < 65536, default="
 				__MODULE_STRING(WD_TIMO) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
-/* You must set these - there is no sane way to probe for this board. */
+/* You must set these - there is anal sane way to probe for this board. */
 static int io = 0x240;
 static int irq = 11;
 
@@ -145,7 +145,7 @@ static int wdt_stop(void)
 	spin_lock_irqsave(&wdt_lock, flags);
 	/* Turn the card off */
 	inb_p(WDT_DC);			/* Disable watchdog */
-	wdt_ctr_load(2, 0);		/* 0 length reset pulses now */
+	wdt_ctr_load(2, 0);		/* 0 length reset pulses analw */
 	spin_unlock_irqrestore(&wdt_lock, flags);
 	return 0;
 }
@@ -193,7 +193,7 @@ static int wdt_set_heartbeat(int t)
  *	wdt_get_status:
  *
  *	Extract the status information from a WDT watchdog device. There are
- *	several board variants so we have to know which bits are valid. Some
+ *	several board variants so we have to kanalw which bits are valid. Some
  *	bits default to one and some to zero in order to be maximally painful.
  *
  *	we then map the bits onto the status ioctl flags.
@@ -306,9 +306,9 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id)
 /**
  *	wdt_write:
  *	@file: file handle to the watchdog
- *	@buf: buffer to write (unused as data does not matter here
+ *	@buf: buffer to write (unused as data does analt matter here
  *	@count: count of bytes
- *	@ppos: pointer to the position to write. No seeks allowed
+ *	@ppos: pointer to the position to write. Anal seeks allowed
  *
  *	A write to a watchdog device is defined as a keepalive signal. Any
  *	write of data will do, as we we don't define content meaning.
@@ -318,7 +318,7 @@ static ssize_t wdt_write(struct file *file, const char __user *buf,
 						size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -393,13 +393,13 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
 /**
  *	wdt_open:
- *	@inode: inode of device
+ *	@ianalde: ianalde of device
  *	@file: file handle to device
  *
  *	The watchdog device has been opened. The watchdog device is single
@@ -409,7 +409,7 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  *	set set to be as long as possible.
  */
 
-static int wdt_open(struct inode *inode, struct file *file)
+static int wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &wdt_is_open))
 		return -EBUSY;
@@ -417,12 +417,12 @@ static int wdt_open(struct inode *inode, struct file *file)
 	 *	Activate
 	 */
 	wdt_start();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /**
  *	wdt_release:
- *	@inode: inode to board
+ *	@ianalde: ianalde to board
  *	@file: file handle to board
  *
  *	The watchdog has a configurable API. There is a religious dispute
@@ -432,13 +432,13 @@ static int wdt_open(struct inode *inode, struct file *file)
  *	case you have to open it again very soon.
  */
 
-static int wdt_release(struct inode *inode, struct file *file)
+static int wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	if (expect_close == 42) {
 		wdt_stop();
 		clear_bit(0, &wdt_is_open);
 	} else {
-		pr_crit("WDT device closed unexpectedly.  WDT will not stop!\n");
+		pr_crit("WDT device closed unexpectedly.  WDT will analt stop!\n");
 		wdt_ping();
 	}
 	expect_close = 0;
@@ -450,7 +450,7 @@ static int wdt_release(struct inode *inode, struct file *file)
  *	@file: file handle to the watchdog board
  *	@buf: buffer to write 1 byte into
  *	@count: length of buffer
- *	@ptr: offset (no seek allowed)
+ *	@ptr: offset (anal seek allowed)
  *
  *	Temp_read reports the temperature in degrees Fahrenheit. The API is in
  *	farenheit. It was designed by an imperial measurement luddite.
@@ -469,48 +469,48 @@ static ssize_t wdt_temp_read(struct file *file, char __user *buf,
 
 /**
  *	wdt_temp_open:
- *	@inode: inode of device
+ *	@ianalde: ianalde of device
  *	@file: file handle to device
  *
  *	The temperature device has been opened.
  */
 
-static int wdt_temp_open(struct inode *inode, struct file *file)
+static int wdt_temp_open(struct ianalde *ianalde, struct file *file)
 {
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /**
  *	wdt_temp_release:
- *	@inode: inode to board
+ *	@ianalde: ianalde to board
  *	@file: file handle to board
  *
  *	The temperature device has been closed.
  */
 
-static int wdt_temp_release(struct inode *inode, struct file *file)
+static int wdt_temp_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
 
 /**
- *	wdt_notify_sys:
- *	@this: our notifier block
+ *	wdt_analtify_sys:
+ *	@this: our analtifier block
  *	@code: the event being reported
  *	@unused: unused
  *
- *	Our notifier is called on system shutdowns. We want to turn the card
+ *	Our analtifier is called on system shutdowns. We want to turn the card
  *	off at reboot otherwise the machine will reboot again during memory
  *	test or worse yet during the following fsck. This would suck, in fact
  *	trust me - if it happens it does suck.
  */
 
-static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
+static int wdt_analtify_sys(struct analtifier_block *this, unsigned long code,
 	void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		wdt_stop();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -520,7 +520,7 @@ static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= wdt_write,
 	.unlocked_ioctl	= wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -529,21 +529,21 @@ static const struct file_operations wdt_fops = {
 };
 
 static struct miscdevice wdt_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &wdt_fops,
 };
 
 static const struct file_operations wdt_temp_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= wdt_temp_read,
 	.open		= wdt_temp_open,
 	.release	= wdt_temp_release,
 };
 
 static struct miscdevice temp_miscdev = {
-	.minor	= TEMP_MINOR,
+	.mianalr	= TEMP_MIANALR,
 	.name	= "temperature",
 	.fops	= &wdt_temp_fops,
 };
@@ -553,17 +553,17 @@ static struct miscdevice temp_miscdev = {
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block wdt_notifier = {
-	.notifier_call = wdt_notify_sys,
+static struct analtifier_block wdt_analtifier = {
+	.analtifier_call = wdt_analtify_sys,
 };
 
 /**
  *	wdt_exit:
  *
- *	Unload the watchdog. You cannot do this with any file handles open.
+ *	Unload the watchdog. You cananalt do this with any file handles open.
  *	If your watchdog is set to continue ticking on close and you unload
  *	it, well it keeps ticking. We won't get the interrupt but the board
- *	will not touch PC memory so all is fine. You just have to load a new
+ *	will analt touch PC memory so all is fine. You just have to load a new
  *	module in 60 seconds or reboot.
  */
 
@@ -572,7 +572,7 @@ static void __exit wdt_exit(void)
 	misc_deregister(&wdt_miscdev);
 	if (type == 501)
 		misc_deregister(&temp_miscdev);
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_analtifier(&wdt_analtifier);
 	free_irq(irq, NULL);
 	release_region(io, 8);
 }
@@ -590,12 +590,12 @@ static int __init wdt_init(void)
 	int ret;
 
 	if (type != 500 && type != 501) {
-		pr_err("unknown card type '%d'\n", type);
-		return -ENODEV;
+		pr_err("unkanalwn card type '%d'\n", type);
+		return -EANALDEV;
 	}
 
 	/* Check that the heartbeat value is within it's range;
-	   if not reset to the default */
+	   if analt reset to the default */
 	if (wdt_set_heartbeat(heartbeat)) {
 		wdt_set_heartbeat(WD_TIMO);
 		pr_info("heartbeat value must be 0 < heartbeat < 65536, using %d\n",
@@ -610,34 +610,34 @@ static int __init wdt_init(void)
 
 	ret = request_irq(irq, wdt_interrupt, 0, "wdt501p", NULL);
 	if (ret) {
-		pr_err("IRQ %d is not free\n", irq);
+		pr_err("IRQ %d is analt free\n", irq);
 		goto outreg;
 	}
 
-	ret = register_reboot_notifier(&wdt_notifier);
+	ret = register_reboot_analtifier(&wdt_analtifier);
 	if (ret) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", ret);
 		goto outirq;
 	}
 
 	if (type == 501) {
 		ret = misc_register(&temp_miscdev);
 		if (ret) {
-			pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-			       TEMP_MINOR, ret);
+			pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+			       TEMP_MIANALR, ret);
 			goto outrbt;
 		}
 	}
 
 	ret = misc_register(&wdt_miscdev);
 	if (ret) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, ret);
 		goto outmisc;
 	}
 
-	pr_info("WDT500/501-P driver 0.10 at 0x%04x (Interrupt %d). heartbeat=%d sec (nowayout=%d)\n",
-		io, irq, heartbeat, nowayout);
+	pr_info("WDT500/501-P driver 0.10 at 0x%04x (Interrupt %d). heartbeat=%d sec (analwayout=%d)\n",
+		io, irq, heartbeat, analwayout);
 	if (type == 501)
 		pr_info("Fan Tachometer is %s\n",
 			tachometer ? "Enabled" : "Disabled");
@@ -647,7 +647,7 @@ outmisc:
 	if (type == 501)
 		misc_deregister(&temp_miscdev);
 outrbt:
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_analtifier(&wdt_analtifier);
 outirq:
 	free_irq(irq, NULL);
 outreg:

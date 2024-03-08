@@ -2,7 +2,7 @@ ISL12026 I2C RTC/EEPROM
 
 ISL12026 is an I2C RTC/EEPROM combination device.  The RTC and control
 registers respond at bus address 0x6f, and the EEPROM array responds
-at bus address 0x57.  The canonical "reg" value will be for the RTC portion.
+at bus address 0x57.  The caanalnical "reg" value will be for the RTC portion.
 
 Required properties supported by the device:
 

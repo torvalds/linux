@@ -2,7 +2,7 @@
 #ifndef _BCACHEFS_QUOTA_H
 #define _BCACHEFS_QUOTA_H
 
-#include "inode.h"
+#include "ianalde.h"
 #include "quota_types.h"
 
 enum bkey_invalid_flags;
@@ -18,7 +18,7 @@ void bch2_quota_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.min_val_size	= 32,				\
 })
 
-static inline struct bch_qid bch_qid(struct bch_inode_unpacked *u)
+static inline struct bch_qid bch_qid(struct bch_ianalde_unpacked *u)
 {
 	return (struct bch_qid) {
 		.q[QTYP_USR] = u->bi_uid,

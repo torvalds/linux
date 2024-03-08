@@ -12,7 +12,7 @@
 
 #include <linux/bitops.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -54,7 +54,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 	windows = devm_kcalloc(pfc->dev, num_windows, sizeof(*windows),
 			       GFP_KERNEL);
 	if (windows == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfc->num_windows = num_windows;
 	pfc->windows = windows;
@@ -63,7 +63,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 		irqs = devm_kcalloc(pfc->dev, num_irqs, sizeof(*irqs),
 				    GFP_KERNEL);
 		if (irqs == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pfc->num_irqs = num_irqs;
 		pfc->irqs = irqs;
@@ -73,7 +73,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 	for (i = 0; i < num_windows; i++) {
 		windows->virt = devm_platform_get_and_ioremap_resource(pdev, i, &res);
 		if (IS_ERR(windows->virt))
-			return -ENOMEM;
+			return -EANALMEM;
 		windows->phys = res->start;
 		windows->size = resource_size(res);
 		windows++;
@@ -308,7 +308,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
 		}
 	}
 
-	dev_err(pfc->dev, "cannot locate data/mark enum_id for mark %d\n",
+	dev_err(pfc->dev, "cananalt locate data/mark enum_id for mark %d\n",
 		mark);
 	return -EINVAL;
 }
@@ -355,7 +355,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 			break;
 
 		/* Check if the configuration field selects a function. If it
-		 * doesn't, skip the field if it's not applicable to the
+		 * doesn't, skip the field if it's analt applicable to the
 		 * requested pinmux type.
 		 */
 		in_range = sh_pfc_enum_in_range(enum_id, &pfc->info->function);
@@ -402,7 +402,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 	unsigned int i;
 
 	if (pfc->info->pins[0].pin == (u16)-1) {
-		/* Pin number -1 denotes that the SoC doesn't report pin numbers
+		/* Pin number -1 deanaltes that the SoC doesn't report pin numbers
 		 * in its pin arrays yet. Consider the pin numbers range as
 		 * continuous and allocate a single range.
 		 */
@@ -410,7 +410,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 		pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges),
 					   GFP_KERNEL);
 		if (pfc->ranges == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pfc->ranges->start = 0;
 		pfc->ranges->end = pfc->info->nr_pins - 1;
@@ -432,7 +432,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 	pfc->ranges = devm_kcalloc(pfc->dev, nr_ranges, sizeof(*pfc->ranges),
 				   GFP_KERNEL);
 	if (pfc->ranges == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	range = pfc->ranges;
 	range->start = pfc->info->pins[0].pin;
@@ -442,7 +442,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 			continue;
 
 		range->end = pfc->info->pins[i-1].pin;
-		if (!(pfc->info->pins[i-1].configs & SH_PFC_PIN_CFG_NO_GPIO))
+		if (!(pfc->info->pins[i-1].configs & SH_PFC_PIN_CFG_ANAL_GPIO))
 			pfc->nr_gpio_pins = range->end + 1;
 
 		range++;
@@ -450,7 +450,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 	}
 
 	range->end = pfc->info->pins[i-1].pin;
-	if (!(pfc->info->pins[i-1].configs & SH_PFC_PIN_CFG_NO_GPIO))
+	if (!(pfc->info->pins[i-1].configs & SH_PFC_PIN_CFG_ANAL_GPIO))
 		pfc->nr_gpio_pins = range->end + 1;
 
 	return 0;
@@ -649,7 +649,7 @@ static const struct of_device_id sh_pfc_of_table[] = {
 #endif
 
 #if defined(CONFIG_ARM_PSCI_FW)
-static void sh_pfc_nop_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
+static void sh_pfc_analp_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
 {
 }
 
@@ -700,7 +700,7 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc)
 	if (!psci_ops.cpu_suspend)
 		return 0;
 
-	n = sh_pfc_walk_regs(pfc, sh_pfc_nop_reg);
+	n = sh_pfc_walk_regs(pfc, sh_pfc_analp_reg);
 	if (!n)
 		return 0;
 
@@ -708,13 +708,13 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc)
 					     sizeof(*pfc->saved_regs),
 					     GFP_KERNEL);
 	if (!pfc->saved_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(pfc->dev, "Allocated space to save %u regs\n", n);
 	return 0;
 }
 
-static int sh_pfc_suspend_noirq(struct device *dev)
+static int sh_pfc_suspend_analirq(struct device *dev)
 {
 	struct sh_pfc *pfc = dev_get_drvdata(dev);
 
@@ -723,7 +723,7 @@ static int sh_pfc_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int sh_pfc_resume_noirq(struct device *dev)
+static int sh_pfc_resume_analirq(struct device *dev)
 {
 	struct sh_pfc *pfc = dev_get_drvdata(dev);
 
@@ -733,11 +733,11 @@ static int sh_pfc_resume_noirq(struct device *dev)
 }
 #else
 static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
-static int sh_pfc_suspend_noirq(struct device *dev) { return 0; }
-static int sh_pfc_resume_noirq(struct device *dev) { return 0; }
+static int sh_pfc_suspend_analirq(struct device *dev) { return 0; }
+static int sh_pfc_resume_analirq(struct device *dev) { return 0; }
 #endif	/* CONFIG_ARM_PSCI_FW */
 
-static DEFINE_NOIRQ_DEV_PM_OPS(sh_pfc_pm, sh_pfc_suspend_noirq, sh_pfc_resume_noirq);
+static DEFINE_ANALIRQ_DEV_PM_OPS(sh_pfc_pm, sh_pfc_suspend_analirq, sh_pfc_resume_analirq);
 
 #ifdef DEBUG
 #define SH_PFC_MAX_REGS		300
@@ -854,7 +854,7 @@ static const struct sh_pfc_pin __init *sh_pfc_find_pin(
 	const char *drvname = info->name;
 	unsigned int i;
 
-	if (pin == SH_PFC_PIN_NONE)
+	if (pin == SH_PFC_PIN_ANALNE)
 		return NULL;
 
 	for (i = 0; i < info->nr_pins; i++) {
@@ -862,7 +862,7 @@ static const struct sh_pfc_pin __init *sh_pfc_find_pin(
 			return &info->pins[i];
 	}
 
-	sh_pfc_err("reg 0x%x: pin %u not found\n", reg, pin);
+	sh_pfc_err("reg 0x%x: pin %u analt found\n", reg, pin);
 	return NULL;
 }
 
@@ -948,7 +948,7 @@ static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
 	u32 bits;
 
 	for (i = 0, bits = 0; i < ARRAY_SIZE(bias->pins); i++)
-		if (bias->pins[i] != SH_PFC_PIN_NONE)
+		if (bias->pins[i] != SH_PFC_PIN_ANALNE)
 			bits |= BIT(i);
 
 	if (bias->puen)
@@ -1067,11 +1067,11 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		if (pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN) {
 			if (!info->ops || !info->ops->get_bias ||
 			    !info->ops->set_bias)
-				sh_pfc_err_once(bias, "SH_PFC_PIN_CFG_PULL_* flag set but .[gs]et_bias() not implemented\n");
+				sh_pfc_err_once(bias, "SH_PFC_PIN_CFG_PULL_* flag set but .[gs]et_bias() analt implemented\n");
 
 			if (!bias_regs &&
 			     (!info->ops || !info->ops->pin_to_portcr))
-				sh_pfc_err_once(bias, "SH_PFC_PIN_CFG_PULL_UP flag set but no bias_regs defined and .pin_to_portcr() not implemented\n");
+				sh_pfc_err_once(bias, "SH_PFC_PIN_CFG_PULL_UP flag set but anal bias_regs defined and .pin_to_portcr() analt implemented\n");
 		}
 
 		if ((pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN) && bias_regs) {
@@ -1081,13 +1081,13 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			if (!bias_reg ||
 			    ((pin->configs & SH_PFC_PIN_CFG_PULL_UP) &&
 			     !bias_reg->puen))
-				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_UP flag set but pin not in bias_regs\n",
+				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_UP flag set but pin analt in bias_regs\n",
 					   pin->name);
 
 			if (!bias_reg ||
 			    ((pin->configs & SH_PFC_PIN_CFG_PULL_DOWN) &&
 			     !bias_reg->pud))
-				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_DOWN flag set but pin not in bias_regs\n",
+				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_DOWN flag set but pin analt in bias_regs\n",
 					   pin->name);
 		}
 
@@ -1106,20 +1106,20 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 				}
 
 				if (!drive_reg(j))
-					sh_pfc_err("pin %s: SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but not in drive_regs\n",
+					sh_pfc_err("pin %s: SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but analt in drive_regs\n",
 						   pin->name);
 			}
 		}
 
 		if (pin->configs & SH_PFC_PIN_CFG_IO_VOLTAGE_MASK) {
 			if (!info->ops || !info->ops->pin_to_pocctrl)
-				sh_pfc_err_once(power, "SH_PFC_PIN_CFG_IO_VOLTAGE set but .pin_to_pocctrl() not implemented\n");
+				sh_pfc_err_once(power, "SH_PFC_PIN_CFG_IO_VOLTAGE set but .pin_to_pocctrl() analt implemented\n");
 			else if (info->ops->pin_to_pocctrl(pin->pin, &x) < 0)
 				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE set but invalid pin_to_pocctrl()\n",
 					   pin->name);
 		} else if (info->ops && info->ops->pin_to_pocctrl &&
 			   info->ops->pin_to_pocctrl(pin->pin, &x) >= 0) {
-			sh_pfc_warn("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE not set but valid pin_to_pocctrl()\n",
+			sh_pfc_warn("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE analt set but valid pin_to_pocctrl()\n",
 				    pin->name);
 		}
 	}
@@ -1151,7 +1151,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			}
 
 			if (k == info->nr_groups)
-				sh_pfc_err("function %s: group %s not found\n",
+				sh_pfc_err("function %s: group %s analt found\n",
 					   func->name, func->groups[j]);
 		}
 	}
@@ -1203,7 +1203,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		sh_pfc_check_bias_reg(info, &bias_regs[i]);
 
 	for (i = 0; bias_regs && (bias_puen(i) || bias_pud(i)); i++) {
-		if (bias_pin(i) == SH_PFC_PIN_NONE)
+		if (bias_pin(i) == SH_PFC_PIN_ANALNE)
 			continue;
 
 		for (j = 0; j < i; j++) {
@@ -1260,7 +1260,7 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 	unsigned int i;
 
 	if (!IS_ENABLED(CONFIG_SUPERH) &&
-	    !of_find_matching_node(NULL, pdrv->driver.of_match_table))
+	    !of_find_matching_analde(NULL, pdrv->driver.of_match_table))
 		return;
 
 	sh_pfc_regs = kcalloc(SH_PFC_MAX_REGS, sizeof(*sh_pfc_regs),
@@ -1301,14 +1301,14 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	struct sh_pfc *pfc;
 	int ret;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		info = of_device_get_match_data(&pdev->dev);
 	else
 		info = (const void *)platform_get_device_id(pdev)->driver_data;
 
 	pfc = devm_kzalloc(&pdev->dev, sizeof(*pfc), GFP_KERNEL);
 	if (pfc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfc->info = info;
 	pfc->dev = &pdev->dev;
@@ -1358,7 +1358,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		 * PFC state as it is, given that there are already
 		 * extant users of it that have succeeded by this point.
 		 */
-		dev_notice(pfc->dev, "failed to init GPIO chip, ignoring...\n");
+		dev_analtice(pfc->dev, "failed to init GPIO chip, iganalring...\n");
 	}
 #endif
 

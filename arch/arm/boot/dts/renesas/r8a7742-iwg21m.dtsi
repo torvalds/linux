@@ -66,7 +66,7 @@
 
 	vmmc-supply = <&reg_3p3v>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -94,7 +94,7 @@
 	status = "okay";
 
 	flash: flash@0 {
-		compatible = "sst,sst25vf016b", "jedec,spi-nor";
+		compatible = "sst,sst25vf016b", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		m25p,fast-read;

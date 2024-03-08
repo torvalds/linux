@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -41,7 +41,7 @@
 #include "net.h"
 #include "socket.h"
 #include "bcast.h"
-#include "node.h"
+#include "analde.h"
 #include "crypto.h"
 
 #include <linux/module.h>
@@ -56,17 +56,17 @@ static int __net_init tipc_init_net(struct net *net)
 	int err;
 
 	tn->net_id = 4711;
-	tn->node_addr = 0;
+	tn->analde_addr = 0;
 	tn->trial_addr = 0;
 	tn->addr_trial_end = 0;
-	tn->capabilities = TIPC_NODE_CAPABILITIES;
+	tn->capabilities = TIPC_ANALDE_CAPABILITIES;
 	INIT_WORK(&tn->work, tipc_net_finalize_work);
-	memset(tn->node_id, 0, sizeof(tn->node_id));
-	memset(tn->node_id_string, 0, sizeof(tn->node_id_string));
+	memset(tn->analde_id, 0, sizeof(tn->analde_id));
+	memset(tn->analde_id_string, 0, sizeof(tn->analde_id_string));
 	tn->mon_threshold = TIPC_DEF_MON_THRESHOLD;
 	get_random_bytes(&tn->random, sizeof(int));
-	INIT_LIST_HEAD(&tn->node_list);
-	spin_lock_init(&tn->node_list_lock);
+	INIT_LIST_HEAD(&tn->analde_list);
+	spin_lock_init(&tn->analde_list_lock);
 
 #ifdef CONFIG_TIPC_CRYPTO
 	err = tipc_crypto_start(&tn->crypto_tx, net, NULL);
@@ -124,7 +124,7 @@ static void __net_exit tipc_exit_net(struct net *net)
 
 static void __net_exit tipc_pernet_pre_exit(struct net *net)
 {
-	tipc_node_pre_cleanup_net(net);
+	tipc_analde_pre_cleanup_net(net);
 }
 
 static struct pernet_operations tipc_pernet_pre_exit_ops = {
@@ -185,7 +185,7 @@ static int __init tipc_init(void)
 	if (err)
 		goto out_netlink_compat;
 
-	pr_info("Started in single node mode\n");
+	pr_info("Started in single analde mode\n");
 	return 0;
 
 out_netlink_compat:
@@ -203,7 +203,7 @@ out_socket:
 out_pernet:
 	tipc_unregister_sysctl();
 out_sysctl:
-	pr_err("Unable to start in single node mode\n");
+	pr_err("Unable to start in single analde mode\n");
 	return err;
 }
 

@@ -14,7 +14,7 @@
     communicate with the chip until it was reset) and also with the i2c
     bus being completely unreachable when multiple PVR cards were present.
 
-    The implementation is very similar to i2c-algo-bit, but there are enough
+    The implementation is very similar to i2c-algo-bit, but there are eanalugh
     subtle differences that the two are hard to merge.  The general strategy
     employed by i2c-algo-bit is to use udelay() to implement the timing
     when putting out bits on the scl/sda lines.  The general strategy taken
@@ -23,12 +23,12 @@
     which poll the SCL line 5 times (ivtv_scldelay).  I would guess that
     since this is memory mapped I/O that the length of those delays is tied
     to the PCI bus clock.  There is some extra code to do with recovery
-    and retries.  Since it is not known what causes the actual i2c problems
+    and retries.  Since it is analt kanalwn what causes the actual i2c problems
     in the first place, the only goal if one was to attempt to use
     i2c-algo-bit would be to try to make it follow the same code path.
-    This would be a lot of work, and I'm also not convinced that it would
+    This would be a lot of work, and I'm also analt convinced that it would
     provide a generic benefit to i2c-algo-bit.  Therefore consider this
-    an engineering solution -- not pretty, but it works.
+    an engineering solution -- analt pretty, but it works.
 
     Some more general comments about what we are doing:
 
@@ -43,7 +43,7 @@
     to other masters.
 
     There is an additional form of transaction where a write may be
-    immediately followed by a read.  In this case, there is no intervening
+    immediately followed by a read.  In this case, there is anal intervening
     stop condition.  (Only the msp3400 chip uses this method of data transfer).
  */
 
@@ -154,7 +154,7 @@ static int get_key_adaptec(struct IR_i2c *ir, enum rc_proto *protocol,
 	keybuf[2] &= 0x7f;
 	keybuf[3] |= 0x80;
 
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = keybuf[3] | keybuf[2] << 8 | keybuf[1] << 16 |keybuf[0] << 24;
 	*toggle = 0;
 	return 1;
@@ -200,7 +200,7 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 		init_data->name = itv->card_name;
 		/* FIXME: The protocol and RC_MAP needs to be corrected */
 		init_data->ir_codes = RC_MAP_EMPTY;
-		init_data->type = RC_PROTO_BIT_UNKNOWN;
+		init_data->type = RC_PROTO_BIT_UNKANALWN;
 		break;
 	}
 
@@ -246,7 +246,7 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	u32 hw;
 
 	if (idx >= IVTV_HW_MAX_BITS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	type = hw_devicenames[idx];
 	hw = 1 << idx;
@@ -271,7 +271,7 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	if (hw & IVTV_HW_IR_ANY)
 		return ivtv_i2c_new_ir(itv, hw, type, hw_addrs[idx]);
 
-	/* Is it not an I2C device or one we do not wish to register? */
+	/* Is it analt an I2C device or one we do analt wish to register? */
 	if (!hw_addrs[idx])
 		return -1;
 
@@ -388,7 +388,7 @@ static int ivtv_ack(struct ivtv *itv)
 		IVTV_DEBUG_HI_I2C("SCL was high starting an ack\n");
 		ivtv_setscl(itv, 0);
 		if (!ivtv_waitscl(itv, 0)) {
-			IVTV_DEBUG_I2C("Could not set SCL low starting an ack\n");
+			IVTV_DEBUG_I2C("Could analt set SCL low starting an ack\n");
 			return -EREMOTEIO;
 		}
 	}
@@ -396,7 +396,7 @@ static int ivtv_ack(struct ivtv *itv)
 	ivtv_scldelay(itv);
 	ivtv_setscl(itv, 1);
 	if (!ivtv_waitsda(itv, 0)) {
-		IVTV_DEBUG_I2C("Slave did not ack\n");
+		IVTV_DEBUG_I2C("Slave did analt ack\n");
 		ret = -EREMOTEIO;
 	}
 	ivtv_setscl(itv, 0);
@@ -427,7 +427,7 @@ static int ivtv_sendbyte(struct ivtv *itv, unsigned char byte)
 		}
 		ivtv_setscl(itv, 1);
 		if (!ivtv_waitscl(itv, 1)) {
-			IVTV_DEBUG_I2C("Slave not ready for bit\n");
+			IVTV_DEBUG_I2C("Slave analt ready for bit\n");
 			return -EREMOTEIO;
 		}
 	}
@@ -504,17 +504,17 @@ static int ivtv_stop(struct ivtv *itv)
 	int i;
 
 	if (ivtv_getscl(itv) != 0) {
-		IVTV_DEBUG_HI_I2C("SCL not low when stopping\n");
+		IVTV_DEBUG_HI_I2C("SCL analt low when stopping\n");
 		ivtv_setscl(itv, 0);
 		if (!ivtv_waitscl(itv, 0)) {
-			IVTV_DEBUG_I2C("SCL could not be set low\n");
+			IVTV_DEBUG_I2C("SCL could analt be set low\n");
 		}
 	}
 	ivtv_setsda(itv, 0);
 	ivtv_scldelay(itv);
 	ivtv_setscl(itv, 1);
 	if (!ivtv_waitscl(itv, 1)) {
-		IVTV_DEBUG_I2C("SCL could not be set high\n");
+		IVTV_DEBUG_I2C("SCL could analt be set high\n");
 		return -EREMOTEIO;
 	}
 	ivtv_scldelay(itv);
@@ -699,7 +699,7 @@ int init_ivtv_i2c(struct ivtv *itv)
 	 */
 	if (ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs)) {
 		IVTV_ERR("Mismatched I2C hardware arrays\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (itv->options.newi2c > 0) {
 		itv->i2c_adap = ivtv_i2c_adap_hw_template;

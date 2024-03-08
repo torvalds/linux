@@ -278,7 +278,7 @@ static int rmd160_update(struct shash_desc *desc, const u8 *data,
 
 	rctx->byte_count += len;
 
-	/* Enough space in buffer? If so copy and we're done */
+	/* Eanalugh space in buffer? If so copy and we're done */
 	if (avail > len) {
 		memcpy((char *)rctx->buffer + (sizeof(rctx->buffer) - avail),
 		       data, len);
